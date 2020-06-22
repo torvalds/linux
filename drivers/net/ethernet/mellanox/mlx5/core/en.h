@@ -36,7 +36,6 @@
 #include <linux/etherdevice.h>
 #include <linux/timecounter.h>
 #include <linux/net_tstamp.h>
-#include <linux/ptp_clock_kernel.h>
 #include <linux/crash_dump.h>
 #include <linux/mlx5/driver.h>
 #include <linux/mlx5/qp.h>
@@ -53,6 +52,7 @@
 #include "wq.h"
 #include "mlx5_core.h"
 #include "en_stats.h"
+#include "en/dcbnl.h"
 #include "en/fs.h"
 #include "lib/hv_vhca.h"
 
@@ -69,8 +69,6 @@ struct page_pool;
 #define MLX5E_HW2SW_MTU(params, hwmtu) ((hwmtu) - ((params)->hard_mtu))
 #define MLX5E_SW2HW_MTU(params, swmtu) ((swmtu) + ((params)->hard_mtu))
 
-#define MLX5E_MAX_PRIORITY      8
-#define MLX5E_MAX_DSCP          64
 #define MLX5E_MAX_NUM_TC	8
 
 #define MLX5_RX_HEADROOM NET_SKB_PAD
@@ -243,10 +241,6 @@ enum mlx5e_priv_flag {
 
 #define MLX5E_GET_PFLAG(params, pflag) (!!((params)->pflags & (BIT(pflag))))
 
-#ifdef CONFIG_MLX5_CORE_EN_DCB
-#define MLX5E_MAX_BW_ALLOC 100 /* Max percentage of BW allocation */
-#endif
-
 struct mlx5e_params {
 	u8  log_sq_size;
 	u8  rq_wq_type;
@@ -270,42 +264,6 @@ struct mlx5e_params {
 	unsigned int sw_mtu;
 	int hard_mtu;
 };
-
-#ifdef CONFIG_MLX5_CORE_EN_DCB
-struct mlx5e_cee_config {
-	/* bw pct for priority group */
-	u8                         pg_bw_pct[CEE_DCBX_MAX_PGS];
-	u8                         prio_to_pg_map[CEE_DCBX_MAX_PRIO];
-	bool                       pfc_setting[CEE_DCBX_MAX_PRIO];
-	bool                       pfc_enable;
-};
-
-enum {
-	MLX5_DCB_CHG_RESET,
-	MLX5_DCB_NO_CHG,
-	MLX5_DCB_CHG_NO_RESET,
-};
-
-struct mlx5e_dcbx {
-	enum mlx5_dcbx_oper_mode   mode;
-	struct mlx5e_cee_config    cee_cfg; /* pending configuration */
-	u8                         dscp_app_cnt;
-
-	/* The only setting that cannot be read from FW */
-	u8                         tc_tsa[IEEE_8021QAZ_MAX_TCS];
-	u8                         cap;
-
-	/* Buffer configuration */
-	bool                       manual_buffer;
-	u32                        cable_len;
-	u32                        xoff;
-};
-
-struct mlx5e_dcbx_dp {
-	u8                         dscp2prio[MLX5E_MAX_DSCP];
-	u8                         trust_state;
-};
-#endif
 
 enum {
 	MLX5E_RQ_STATE_ENABLED,
@@ -339,16 +297,6 @@ struct mlx5e_cq_decomp {
 	u16                        wqe_counter;
 } ____cacheline_aligned_in_smp;
 
-struct mlx5e_tx_wqe_info {
-	struct sk_buff *skb;
-	u32 num_bytes;
-	u8  num_wqebbs;
-	u8  num_dma;
-#ifdef CONFIG_MLX5_EN_TLS
-	struct page *resync_dump_frag_page;
-#endif
-};
-
 enum mlx5e_dma_map_type {
 	MLX5E_DMA_MAP_SINGLE,
 	MLX5E_DMA_MAP_PAGE
@@ -368,18 +316,6 @@ enum {
 	MLX5E_SQ_STATE_TLS,
 	MLX5E_SQ_STATE_VLAN_NEED_L2_INLINE,
 	MLX5E_SQ_STATE_PENDING_XSK_TX,
-};
-
-struct mlx5e_sq_wqe_info {
-	u8  opcode;
-	u8 num_wqebbs;
-
-	/* Auxiliary data for different opcodes. */
-	union {
-		struct {
-			struct mlx5e_rq *rq;
-		} umr;
-	};
 };
 
 struct mlx5e_txqsq {
@@ -429,10 +365,7 @@ struct mlx5e_dma_info {
 	dma_addr_t addr;
 	union {
 		struct page *page;
-		struct {
-			u64 handle;
-			void *data;
-		} xsk;
+		struct xdp_buff *xsk;
 	};
 };
 
@@ -482,11 +415,6 @@ struct mlx5e_xdp_info_fifo {
 	u32 *cc;
 	u32 *pc;
 	u32 mask;
-};
-
-struct mlx5e_xdp_wqe_info {
-	u8 num_wqebbs;
-	u8 num_pkts;
 };
 
 struct mlx5e_xdp_mpwqe {
@@ -552,7 +480,7 @@ struct mlx5e_icosq {
 
 	/* write@xmit, read@completion */
 	struct {
-		struct mlx5e_sq_wqe_info *ico_wqe;
+		struct mlx5e_icosq_wqe_info *wqe_info;
 	} db;
 
 	/* read only */
@@ -650,8 +578,8 @@ struct mlx5e_rq {
 		} mpwqe;
 	};
 	struct {
-		u16            umem_headroom;
 		u16            headroom;
+		u32            frame0_sz;
 		u8             map_dir;   /* dma map direction */
 	} buff;
 
@@ -682,7 +610,6 @@ struct mlx5e_rq {
 	struct page_pool      *page_pool;
 
 	/* AF_XDP zero-copy */
-	struct zero_copy_allocator zca;
 	struct xdp_umem       *umem;
 
 	struct work_struct     recover_work;
@@ -919,8 +846,8 @@ void mlx5e_build_ptys2ethtool_map(void);
 u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
 		       struct net_device *sb_dev);
 netdev_tx_t mlx5e_xmit(struct sk_buff *skb, struct net_device *dev);
-netdev_tx_t mlx5e_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
-			  struct mlx5e_tx_wqe *wqe, u16 pi, bool xmit_more);
+void mlx5e_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
+		   struct mlx5e_tx_wqe *wqe, u16 pi, bool xmit_more);
 
 void mlx5e_trigger_irq(struct mlx5e_icosq *sq);
 void mlx5e_completion_event(struct mlx5_core_cq *mcq, struct mlx5_eqe *eqe);
@@ -1013,7 +940,7 @@ int mlx5e_redirect_rqt(struct mlx5e_priv *priv, u32 rqtn, int sz,
 void mlx5e_build_indir_tir_ctx_hash(struct mlx5e_rss_params *rss_params,
 				    const struct mlx5e_tirc_config *ttconfig,
 				    void *tirc, bool inner);
-void mlx5e_modify_tirs_hash(struct mlx5e_priv *priv, void *in, int inlen);
+void mlx5e_modify_tirs_hash(struct mlx5e_priv *priv, void *in);
 struct mlx5e_tirc_config mlx5e_tirc_get_default_config(enum mlx5e_traffic_types tt);
 
 struct mlx5e_xsk_param;
@@ -1097,21 +1024,15 @@ static inline bool mlx5_tx_swp_supported(struct mlx5_core_dev *mdev)
 }
 
 extern const struct ethtool_ops mlx5e_ethtool_ops;
-#ifdef CONFIG_MLX5_CORE_EN_DCB
-extern const struct dcbnl_rtnl_ops mlx5e_dcbnl_ops;
-int mlx5e_dcbnl_ieee_setets_core(struct mlx5e_priv *priv, struct ieee_ets *ets);
-void mlx5e_dcbnl_initialize(struct mlx5e_priv *priv);
-void mlx5e_dcbnl_init_app(struct mlx5e_priv *priv);
-void mlx5e_dcbnl_delete_app(struct mlx5e_priv *priv);
-#endif
 
-int mlx5e_create_tir(struct mlx5_core_dev *mdev,
-		     struct mlx5e_tir *tir, u32 *in, int inlen);
+int mlx5e_create_tir(struct mlx5_core_dev *mdev, struct mlx5e_tir *tir,
+		     u32 *in);
 void mlx5e_destroy_tir(struct mlx5_core_dev *mdev,
 		       struct mlx5e_tir *tir);
 int mlx5e_create_mdev_resources(struct mlx5_core_dev *mdev);
 void mlx5e_destroy_mdev_resources(struct mlx5_core_dev *mdev);
-int mlx5e_refresh_tirs(struct mlx5e_priv *priv, bool enable_uc_lb);
+int mlx5e_refresh_tirs(struct mlx5e_priv *priv, bool enable_uc_lb,
+		       bool enable_mc_lb);
 
 /* common netdev helpers */
 void mlx5e_create_q_counters(struct mlx5e_priv *priv);

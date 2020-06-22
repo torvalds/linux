@@ -240,6 +240,7 @@ enum iwl_nvm_channel_flags {
  * @REG_CAPA_40MHZ_FORBIDDEN: 11n channel with a width of 40Mhz is forbidden
  *	for this regulatory domain (valid only in 5Ghz).
  * @REG_CAPA_DC_HIGH_ENABLED: DC HIGH allowed.
+ * @REG_CAPA_11AX_DISABLED: 11ax is forbidden for this regulatory domain.
  */
 enum iwl_reg_capa_flags {
 	REG_CAPA_BF_CCD_LOW_BAND	= BIT(0),
@@ -250,6 +251,7 @@ enum iwl_reg_capa_flags {
 	REG_CAPA_MCS_9_ALLOWED		= BIT(5),
 	REG_CAPA_40MHZ_FORBIDDEN	= BIT(7),
 	REG_CAPA_DC_HIGH_ENABLED	= BIT(9),
+	REG_CAPA_11AX_DISABLED		= BIT(10),
 };
 
 static inline void iwl_nvm_print_channel_flags(struct device *dev, u32 level,
@@ -1115,6 +1117,9 @@ static u32 iwl_nvm_get_regdom_bw_flags(const u16 *nvm_chan,
 			flags |= NL80211_RRF_NO_160MHZ;
 	}
 
+	if (cap_flags & REG_CAPA_11AX_DISABLED)
+		flags |= NL80211_RRF_NO_HE;
+
 	return flags;
 }
 
@@ -1166,8 +1171,7 @@ iwl_parse_nvm_mcc_info(struct device *dev, const struct iwl_cfg *cfg,
 
 	for (ch_idx = 0; ch_idx < num_of_ch; ch_idx++) {
 		ch_flags = (u16)__le32_to_cpup(channels + ch_idx);
-		band = (ch_idx < NUM_2GHZ_CHANNELS) ?
-		       NL80211_BAND_2GHZ : NL80211_BAND_5GHZ;
+		band = iwl_nl80211_band_from_channel_idx(ch_idx);
 		center_freq = ieee80211_channel_to_frequency(nvm_chan[ch_idx],
 							     band);
 		new_rule = false;

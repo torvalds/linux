@@ -190,12 +190,14 @@ static const struct {
 enum {
 	QEDE_PRI_FLAG_CMT,
 	QEDE_PRI_FLAG_SMART_AN_SUPPORT, /* MFW supports SmartAN */
+	QEDE_PRI_FLAG_RECOVER_ON_ERROR,
 	QEDE_PRI_FLAG_LEN,
 };
 
 static const char qede_private_arr[QEDE_PRI_FLAG_LEN][ETH_GSTRING_LEN] = {
 	"Coupled-Function",
 	"SmartAN capable",
+	"Recover on error",
 };
 
 enum qede_ethtool_tests {
@@ -417,7 +419,28 @@ static u32 qede_get_priv_flags(struct net_device *dev)
 	if (edev->dev_info.common.smart_an)
 		flags |= BIT(QEDE_PRI_FLAG_SMART_AN_SUPPORT);
 
+	if (edev->err_flags & BIT(QEDE_ERR_IS_RECOVERABLE))
+		flags |= BIT(QEDE_PRI_FLAG_RECOVER_ON_ERROR);
+
 	return flags;
+}
+
+static int qede_set_priv_flags(struct net_device *dev, u32 flags)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+	u32 cflags = qede_get_priv_flags(dev);
+	u32 dflags = flags ^ cflags;
+
+	/* can only change RECOVER_ON_ERROR flag */
+	if (dflags & ~BIT(QEDE_PRI_FLAG_RECOVER_ON_ERROR))
+		return -EINVAL;
+
+	if (flags & BIT(QEDE_PRI_FLAG_RECOVER_ON_ERROR))
+		set_bit(QEDE_ERR_IS_RECOVERABLE, &edev->err_flags);
+	else
+		clear_bit(QEDE_ERR_IS_RECOVERABLE, &edev->err_flags);
+
+	return 0;
 }
 
 struct qede_link_mode_mapping {
@@ -2098,6 +2121,7 @@ static const struct ethtool_ops qede_ethtool_ops = {
 	.set_phys_id = qede_set_phys_id,
 	.get_ethtool_stats = qede_get_ethtool_stats,
 	.get_priv_flags = qede_get_priv_flags,
+	.set_priv_flags = qede_set_priv_flags,
 	.get_sset_count = qede_get_sset_count,
 	.get_rxnfc = qede_get_rxnfc,
 	.set_rxnfc = qede_set_rxnfc,

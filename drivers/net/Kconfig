@@ -50,7 +50,7 @@ config BONDING
 	  The driver supports multiple bonding modes to allow for both high
 	  performance and high availability operation.
 
-	  Refer to <file:Documentation/networking/bonding.txt> for more
+	  Refer to <file:Documentation/networking/bonding.rst> for more
 	  information.
 
 	  To compile this driver as a module, choose M here: the module
@@ -126,7 +126,7 @@ config EQUALIZER
 	  Linux driver or with a Livingston Portmaster 2e.
 
 	  Say Y if you want this and read
-	  <file:Documentation/networking/eql.txt>.  You may also want to read
+	  <file:Documentation/networking/eql.rst>.  You may also want to read
 	  section 6.2 of the NET-3-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>.
 
@@ -302,7 +302,7 @@ config NETCONSOLE
 	tristate "Network console logging support"
 	---help---
 	  If you want to log kernel messages over the network, enable this.
-	  See <file:Documentation/networking/netconsole.txt> for details.
+	  See <file:Documentation/networking/netconsole.rst> for details.
 
 config NETCONSOLE_DYNAMIC
 	bool "Dynamic reconfiguration of logging targets"
@@ -312,7 +312,7 @@ config NETCONSOLE_DYNAMIC
 	  This option enables the ability to dynamically reconfigure target
 	  parameters (interface, IP addresses, port numbers, MAC addresses)
 	  at runtime through a userspace interface exported using configfs.
-	  See <file:Documentation/networking/netconsole.txt> for details.
+	  See <file:Documentation/networking/netconsole.rst> for details.
 
 config NETPOLL
 	def_bool NETCONSOLE
@@ -355,7 +355,7 @@ config TUN
 	  devices, driver will automatically delete tunXX or tapXX device and
 	  all routes corresponding to it.
 
-	  Please read <file:Documentation/networking/tuntap.txt> for more
+	  Please read <file:Documentation/networking/tuntap.rst> for more
 	  information.
 
 	  To compile this driver as a module, choose M here: the module
@@ -460,7 +460,7 @@ config NET_SB1000
 
 	  At present this driver only compiles as a module, so say M here if
 	  you have this card. The module will be called sb1000. Then read
-	  <file:Documentation/networking/device_drivers/sb1000.txt> for
+	  <file:Documentation/networking/device_drivers/sb1000.rst> for
 	  information on how to use this module, as it needs special ppp
 	  scripts for establishing a connection. Further documentation
 	  and the necessary scripts can be found at:

@@ -16,14 +16,210 @@
 
 #include "igc_hw.h"
 
-/* forward declaration */
-void igc_set_ethtool_ops(struct net_device *);
+void igc_ethtool_set_ops(struct net_device *);
 
-struct igc_adapter;
-struct igc_ring;
+/* Transmit and receive queues */
+#define IGC_MAX_RX_QUEUES		4
+#define IGC_MAX_TX_QUEUES		4
+
+#define MAX_Q_VECTORS			8
+#define MAX_STD_JUMBO_FRAME_SIZE	9216
+
+#define MAX_ETYPE_FILTER		8
+#define IGC_RETA_SIZE			128
+
+enum igc_mac_filter_type {
+	IGC_MAC_FILTER_TYPE_DST = 0,
+	IGC_MAC_FILTER_TYPE_SRC
+};
+
+struct igc_tx_queue_stats {
+	u64 packets;
+	u64 bytes;
+	u64 restart_queue;
+	u64 restart_queue2;
+};
+
+struct igc_rx_queue_stats {
+	u64 packets;
+	u64 bytes;
+	u64 drops;
+	u64 csum_err;
+	u64 alloc_failed;
+};
+
+struct igc_rx_packet_stats {
+	u64 ipv4_packets;      /* IPv4 headers processed */
+	u64 ipv4e_packets;     /* IPv4E headers with extensions processed */
+	u64 ipv6_packets;      /* IPv6 headers processed */
+	u64 ipv6e_packets;     /* IPv6E headers with extensions processed */
+	u64 tcp_packets;       /* TCP headers processed */
+	u64 udp_packets;       /* UDP headers processed */
+	u64 sctp_packets;      /* SCTP headers processed */
+	u64 nfs_packets;       /* NFS headers processe */
+	u64 other_packets;
+};
+
+struct igc_ring_container {
+	struct igc_ring *ring;          /* pointer to linked list of rings */
+	unsigned int total_bytes;       /* total bytes processed this int */
+	unsigned int total_packets;     /* total packets processed this int */
+	u16 work_limit;                 /* total work allowed per interrupt */
+	u8 count;                       /* total number of rings in vector */
+	u8 itr;                         /* current ITR setting for ring */
+};
+
+struct igc_ring {
+	struct igc_q_vector *q_vector;  /* backlink to q_vector */
+	struct net_device *netdev;      /* back pointer to net_device */
+	struct device *dev;             /* device for dma mapping */
+	union {                         /* array of buffer info structs */
+		struct igc_tx_buffer *tx_buffer_info;
+		struct igc_rx_buffer *rx_buffer_info;
+	};
+	void *desc;                     /* descriptor ring memory */
+	unsigned long flags;            /* ring specific flags */
+	void __iomem *tail;             /* pointer to ring tail register */
+	dma_addr_t dma;                 /* phys address of the ring */
+	unsigned int size;              /* length of desc. ring in bytes */
+
+	u16 count;                      /* number of desc. in the ring */
+	u8 queue_index;                 /* logical index of the ring*/
+	u8 reg_idx;                     /* physical index of the ring */
+	bool launchtime_enable;         /* true if LaunchTime is enabled */
+
+	u32 start_time;
+	u32 end_time;
+
+	/* everything past this point are written often */
+	u16 next_to_clean;
+	u16 next_to_use;
+	u16 next_to_alloc;
+
+	union {
+		/* TX */
+		struct {
+			struct igc_tx_queue_stats tx_stats;
+			struct u64_stats_sync tx_syncp;
+			struct u64_stats_sync tx_syncp2;
+		};
+		/* RX */
+		struct {
+			struct igc_rx_queue_stats rx_stats;
+			struct igc_rx_packet_stats pkt_stats;
+			struct u64_stats_sync rx_syncp;
+			struct sk_buff *skb;
+		};
+	};
+} ____cacheline_internodealigned_in_smp;
+
+/* Board specific private data structure */
+struct igc_adapter {
+	struct net_device *netdev;
+
+	unsigned long state;
+	unsigned int flags;
+	unsigned int num_q_vectors;
+
+	struct msix_entry *msix_entries;
+
+	/* TX */
+	u16 tx_work_limit;
+	u32 tx_timeout_count;
+	int num_tx_queues;
+	struct igc_ring *tx_ring[IGC_MAX_TX_QUEUES];
+
+	/* RX */
+	int num_rx_queues;
+	struct igc_ring *rx_ring[IGC_MAX_RX_QUEUES];
+
+	struct timer_list watchdog_timer;
+	struct timer_list dma_err_timer;
+	struct timer_list phy_info_timer;
+
+	u32 wol;
+	u32 en_mng_pt;
+	u16 link_speed;
+	u16 link_duplex;
+
+	u8 port_num;
+
+	u8 __iomem *io_addr;
+	/* Interrupt Throttle Rate */
+	u32 rx_itr_setting;
+	u32 tx_itr_setting;
+
+	struct work_struct reset_task;
+	struct work_struct watchdog_task;
+	struct work_struct dma_err_task;
+	bool fc_autoneg;
+
+	u8 tx_timeout_factor;
+
+	int msg_enable;
+	u32 max_frame_size;
+	u32 min_frame_size;
+
+	ktime_t base_time;
+	ktime_t cycle_time;
+
+	/* OS defined structs */
+	struct pci_dev *pdev;
+	/* lock for statistics */
+	spinlock_t stats64_lock;
+	struct rtnl_link_stats64 stats64;
+
+	/* structs defined in igc_hw.h */
+	struct igc_hw hw;
+	struct igc_hw_stats stats;
+
+	struct igc_q_vector *q_vector[MAX_Q_VECTORS];
+	u32 eims_enable_mask;
+	u32 eims_other;
+
+	u16 tx_ring_count;
+	u16 rx_ring_count;
+
+	u32 tx_hwtstamp_timeouts;
+	u32 tx_hwtstamp_skipped;
+	u32 rx_hwtstamp_cleared;
+
+	u32 rss_queues;
+	u32 rss_indir_tbl_init;
+
+	/* Any access to elements in nfc_rule_list is protected by the
+	 * nfc_rule_lock.
+	 */
+	struct mutex nfc_rule_lock;
+	struct list_head nfc_rule_list;
+	unsigned int nfc_rule_count;
+
+	u8 rss_indir_tbl[IGC_RETA_SIZE];
+
+	unsigned long link_check_timeout;
+	struct igc_info ei;
+
+	u32 test_icr;
+
+	struct ptp_clock *ptp_clock;
+	struct ptp_clock_info ptp_caps;
+	struct work_struct ptp_tx_work;
+	struct sk_buff *ptp_tx_skb;
+	struct hwtstamp_config tstamp_config;
+	unsigned long ptp_tx_start;
+	unsigned long last_rx_ptp_check;
+	unsigned long last_rx_timestamp;
+	unsigned int ptp_flags;
+	/* System time value lock */
+	spinlock_t tmreg_lock;
+	struct cyclecounter cc;
+	struct timecounter tc;
+};
 
 void igc_up(struct igc_adapter *adapter);
 void igc_down(struct igc_adapter *adapter);
+int igc_open(struct net_device *netdev);
+int igc_close(struct net_device *netdev);
 int igc_setup_tx_resources(struct igc_ring *ring);
 int igc_setup_rx_resources(struct igc_ring *ring);
 void igc_free_tx_resources(struct igc_ring *ring);
@@ -36,10 +232,6 @@ void igc_write_rss_indir_tbl(struct igc_adapter *adapter);
 bool igc_has_link(struct igc_adapter *adapter);
 void igc_reset(struct igc_adapter *adapter);
 int igc_set_spd_dplx(struct igc_adapter *adapter, u32 spd, u8 dplx);
-int igc_add_mac_steering_filter(struct igc_adapter *adapter,
-				const u8 *addr, u8 queue, u8 flags);
-int igc_del_mac_steering_filter(struct igc_adapter *adapter,
-				const u8 *addr, u8 queue, u8 flags);
 void igc_update_stats(struct igc_adapter *adapter);
 
 /* igc_dump declarations */
@@ -50,13 +242,9 @@ extern char igc_driver_name[];
 extern char igc_driver_version[];
 
 #define IGC_REGS_LEN			740
-#define IGC_RETA_SIZE			128
 
 /* flags controlling PTP/1588 function */
 #define IGC_PTP_ENABLED		BIT(0)
-
-/* Interrupt defines */
-#define IGC_START_ITR			648 /* ~6000 ints/sec */
 
 /* Flags definitions */
 #define IGC_FLAG_HAS_MSI		BIT(0)
@@ -70,6 +258,7 @@ extern char igc_driver_version[];
 #define IGC_FLAG_HAS_MSIX		BIT(13)
 #define IGC_FLAG_VLAN_PROMISC		BIT(15)
 #define IGC_FLAG_RX_LEGACY		BIT(16)
+#define IGC_FLAG_TSN_QBV_ENABLED	BIT(17)
 
 #define IGC_FLAG_RSS_FIELD_IPV4_UDP	BIT(6)
 #define IGC_FLAG_RSS_FIELD_IPV6_UDP	BIT(7)
@@ -78,6 +267,7 @@ extern char igc_driver_version[];
 #define IGC_MRQC_RSS_FIELD_IPV4_UDP	0x00400000
 #define IGC_MRQC_RSS_FIELD_IPV6_UDP	0x00800000
 
+/* Interrupt defines */
 #define IGC_START_ITR			648 /* ~6000 ints/sec */
 #define IGC_4K_ITR			980
 #define IGC_20K_ITR			196
@@ -98,13 +288,6 @@ extern char igc_driver_version[];
 #define IGC_DEFAULT_RXD		256
 #define IGC_MIN_RXD		80
 #define IGC_MAX_RXD		4096
-
-/* Transmit and receive queues */
-#define IGC_MAX_RX_QUEUES		4
-#define IGC_MAX_TX_QUEUES		4
-
-#define MAX_Q_VECTORS			8
-#define MAX_STD_JUMBO_FRAME_SIZE	9216
 
 /* Supported Rx Buffer Sizes */
 #define IGC_RXBUFFER_256		256
@@ -232,83 +415,6 @@ struct igc_rx_buffer {
 	__u16 pagecnt_bias;
 };
 
-struct igc_tx_queue_stats {
-	u64 packets;
-	u64 bytes;
-	u64 restart_queue;
-	u64 restart_queue2;
-};
-
-struct igc_rx_queue_stats {
-	u64 packets;
-	u64 bytes;
-	u64 drops;
-	u64 csum_err;
-	u64 alloc_failed;
-};
-
-struct igc_rx_packet_stats {
-	u64 ipv4_packets;      /* IPv4 headers processed */
-	u64 ipv4e_packets;     /* IPv4E headers with extensions processed */
-	u64 ipv6_packets;      /* IPv6 headers processed */
-	u64 ipv6e_packets;     /* IPv6E headers with extensions processed */
-	u64 tcp_packets;       /* TCP headers processed */
-	u64 udp_packets;       /* UDP headers processed */
-	u64 sctp_packets;      /* SCTP headers processed */
-	u64 nfs_packets;       /* NFS headers processe */
-	u64 other_packets;
-};
-
-struct igc_ring_container {
-	struct igc_ring *ring;          /* pointer to linked list of rings */
-	unsigned int total_bytes;       /* total bytes processed this int */
-	unsigned int total_packets;     /* total packets processed this int */
-	u16 work_limit;                 /* total work allowed per interrupt */
-	u8 count;                       /* total number of rings in vector */
-	u8 itr;                         /* current ITR setting for ring */
-};
-
-struct igc_ring {
-	struct igc_q_vector *q_vector;  /* backlink to q_vector */
-	struct net_device *netdev;      /* back pointer to net_device */
-	struct device *dev;             /* device for dma mapping */
-	union {                         /* array of buffer info structs */
-		struct igc_tx_buffer *tx_buffer_info;
-		struct igc_rx_buffer *rx_buffer_info;
-	};
-	void *desc;                     /* descriptor ring memory */
-	unsigned long flags;            /* ring specific flags */
-	void __iomem *tail;             /* pointer to ring tail register */
-	dma_addr_t dma;                 /* phys address of the ring */
-	unsigned int size;              /* length of desc. ring in bytes */
-
-	u16 count;                      /* number of desc. in the ring */
-	u8 queue_index;                 /* logical index of the ring*/
-	u8 reg_idx;                     /* physical index of the ring */
-	bool launchtime_enable;		/* true if LaunchTime is enabled */
-
-	/* everything past this point are written often */
-	u16 next_to_clean;
-	u16 next_to_use;
-	u16 next_to_alloc;
-
-	union {
-		/* TX */
-		struct {
-			struct igc_tx_queue_stats tx_stats;
-			struct u64_stats_sync tx_syncp;
-			struct u64_stats_sync tx_syncp2;
-		};
-		/* RX */
-		struct {
-			struct igc_rx_queue_stats rx_stats;
-			struct igc_rx_packet_stats pkt_stats;
-			struct u64_stats_sync rx_syncp;
-			struct sk_buff *skb;
-		};
-	};
-} ____cacheline_internodealigned_in_smp;
-
 struct igc_q_vector {
 	struct igc_adapter *adapter;    /* backlink */
 	void __iomem *itr_register;
@@ -329,8 +435,6 @@ struct igc_q_vector {
 	struct igc_ring ring[] ____cacheline_internodealigned_in_smp;
 };
 
-#define MAX_ETYPE_FILTER		(4 - 1)
-
 enum igc_filter_match_flags {
 	IGC_FILTER_FLAG_ETHER_TYPE =	0x1,
 	IGC_FILTER_FLAG_VLAN_TCI   =	0x2,
@@ -338,143 +442,25 @@ enum igc_filter_match_flags {
 	IGC_FILTER_FLAG_DST_MAC_ADDR =	0x8,
 };
 
-/* RX network flow classification data structure */
-struct igc_nfc_input {
-	/* Byte layout in order, all values with MSB first:
-	 * match_flags - 1 byte
-	 * etype - 2 bytes
-	 * vlan_tci - 2 bytes
-	 */
+struct igc_nfc_filter {
 	u8 match_flags;
-	__be16 etype;
-	__be16 vlan_tci;
+	u16 etype;
+	u16 vlan_tci;
 	u8 src_addr[ETH_ALEN];
 	u8 dst_addr[ETH_ALEN];
 };
 
-struct igc_nfc_filter {
-	struct hlist_node nfc_node;
-	struct igc_nfc_input filter;
-	unsigned long cookie;
-	u16 etype_reg_index;
-	u16 sw_idx;
+struct igc_nfc_rule {
+	struct list_head list;
+	struct igc_nfc_filter filter;
+	u32 location;
 	u16 action;
 };
 
-struct igc_mac_addr {
-	u8 addr[ETH_ALEN];
-	u8 queue;
-	u8 state; /* bitmask */
-};
-
-#define IGC_MAC_STATE_DEFAULT		0x1
-#define IGC_MAC_STATE_IN_USE		0x2
-#define IGC_MAC_STATE_SRC_ADDR		0x4
-#define IGC_MAC_STATE_QUEUE_STEERING	0x8
-
-#define IGC_MAX_RXNFC_FILTERS		16
-
-/* Board specific private data structure */
-struct igc_adapter {
-	struct net_device *netdev;
-
-	unsigned long state;
-	unsigned int flags;
-	unsigned int num_q_vectors;
-
-	struct msix_entry *msix_entries;
-
-	/* TX */
-	u16 tx_work_limit;
-	u32 tx_timeout_count;
-	int num_tx_queues;
-	struct igc_ring *tx_ring[IGC_MAX_TX_QUEUES];
-
-	/* RX */
-	int num_rx_queues;
-	struct igc_ring *rx_ring[IGC_MAX_RX_QUEUES];
-
-	struct timer_list watchdog_timer;
-	struct timer_list dma_err_timer;
-	struct timer_list phy_info_timer;
-
-	u32 wol;
-	u32 en_mng_pt;
-	u16 link_speed;
-	u16 link_duplex;
-
-	u8 port_num;
-
-	u8 __iomem *io_addr;
-	/* Interrupt Throttle Rate */
-	u32 rx_itr_setting;
-	u32 tx_itr_setting;
-
-	struct work_struct reset_task;
-	struct work_struct watchdog_task;
-	struct work_struct dma_err_task;
-	bool fc_autoneg;
-
-	u8 tx_timeout_factor;
-
-	int msg_enable;
-	u32 max_frame_size;
-	u32 min_frame_size;
-
-	/* OS defined structs */
-	struct pci_dev *pdev;
-	/* lock for statistics */
-	spinlock_t stats64_lock;
-	struct rtnl_link_stats64 stats64;
-
-	/* structs defined in igc_hw.h */
-	struct igc_hw hw;
-	struct igc_hw_stats stats;
-
-	struct igc_q_vector *q_vector[MAX_Q_VECTORS];
-	u32 eims_enable_mask;
-	u32 eims_other;
-
-	u16 tx_ring_count;
-	u16 rx_ring_count;
-
-	u32 tx_hwtstamp_timeouts;
-	u32 tx_hwtstamp_skipped;
-	u32 rx_hwtstamp_cleared;
-
-	u32 rss_queues;
-	u32 rss_indir_tbl_init;
-
-	/* RX network flow classification support */
-	struct hlist_head nfc_filter_list;
-	struct hlist_head cls_flower_list;
-	unsigned int nfc_filter_count;
-
-	/* lock for RX network flow classification filter */
-	spinlock_t nfc_lock;
-	bool etype_bitmap[MAX_ETYPE_FILTER];
-
-	struct igc_mac_addr *mac_table;
-
-	u8 rss_indir_tbl[IGC_RETA_SIZE];
-
-	unsigned long link_check_timeout;
-	struct igc_info ei;
-
-	struct ptp_clock *ptp_clock;
-	struct ptp_clock_info ptp_caps;
-	struct work_struct ptp_tx_work;
-	struct sk_buff *ptp_tx_skb;
-	struct hwtstamp_config tstamp_config;
-	unsigned long ptp_tx_start;
-	unsigned long last_rx_ptp_check;
-	unsigned long last_rx_timestamp;
-	unsigned int ptp_flags;
-	/* System time value lock */
-	spinlock_t tmreg_lock;
-	struct cyclecounter cc;
-	struct timecounter tc;
-};
+/* IGC supports a total of 32 NFC rules: 16 MAC address based,, 8 VLAN priority
+ * based, and 8 ethertype based.
+ */
+#define IGC_MAX_RXNFC_RULES		32
 
 /* igc_desc_unused - calculate if we have unused descriptors */
 static inline u16 igc_desc_unused(const struct igc_ring *ring)
@@ -550,12 +536,11 @@ static inline s32 igc_read_phy_reg(struct igc_hw *hw, u32 offset, u16 *data)
 	return 0;
 }
 
-/* forward declaration */
 void igc_reinit_locked(struct igc_adapter *);
-int igc_add_filter(struct igc_adapter *adapter,
-		   struct igc_nfc_filter *input);
-int igc_erase_filter(struct igc_adapter *adapter,
-		     struct igc_nfc_filter *input);
+struct igc_nfc_rule *igc_get_nfc_rule(struct igc_adapter *adapter,
+				      u32 location);
+int igc_add_nfc_rule(struct igc_adapter *adapter, struct igc_nfc_rule *rule);
+void igc_del_nfc_rule(struct igc_adapter *adapter, struct igc_nfc_rule *rule);
 
 void igc_ptp_init(struct igc_adapter *adapter);
 void igc_ptp_reset(struct igc_adapter *adapter);

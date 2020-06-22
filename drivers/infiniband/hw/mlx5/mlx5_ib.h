@@ -780,7 +780,6 @@ struct mlx5_ib_counters {
 	u32 num_cong_counters;
 	u32 num_ext_ppcnt_counters;
 	u16 set_id;
-	bool set_id_valid;
 };
 
 struct mlx5_ib_multiport_info;
@@ -870,6 +869,7 @@ enum mlx5_ib_stages {
 	MLX5_IB_STAGE_CAPS,
 	MLX5_IB_STAGE_NON_DEFAULT_CB,
 	MLX5_IB_STAGE_ROCE,
+	MLX5_IB_STAGE_QP,
 	MLX5_IB_STAGE_SRQ,
 	MLX5_IB_STAGE_DEVICE_RESOURCES,
 	MLX5_IB_STAGE_DEVICE_NOTIFIER,
@@ -1065,6 +1065,7 @@ struct mlx5_ib_dev {
 	struct mlx5_dm		dm;
 	u16			devx_whitelist_uid;
 	struct mlx5_srq_table   srq_table;
+	struct mlx5_qp_table    qp_table;
 	struct mlx5_async_ctx   async_ctx;
 	struct mlx5_devx_event_table devx_event_table;
 	struct mlx5_var_table var_table;

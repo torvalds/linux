@@ -17,7 +17,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
-#include <unistd.h>
 #include <bpf/btf.h>
 
 #include "bpf/libbpf_internal.h"
@@ -587,12 +586,12 @@ static int do_help(int argc, char **argv)
 	}
 
 	fprintf(stderr,
-		"Usage: %1$s gen skeleton FILE\n"
-		"       %1$s gen help\n"
+		"Usage: %1$s %2$s skeleton FILE\n"
+		"       %1$s %2$s help\n"
 		"\n"
 		"       " HELP_SPEC_OPTIONS "\n"
 		"",
-		bin_name);
+		bin_name, "gen");
 
 	return 0;
 }

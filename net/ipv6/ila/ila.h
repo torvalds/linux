@@ -68,11 +68,6 @@ static inline struct ila_addr *ila_a2i(struct in6_addr *addr)
 	return (struct ila_addr *)addr;
 }
 
-static inline bool ila_addr_is_ila(struct ila_addr *iaddr)
-{
-	return (iaddr->ident.type != ILA_ATYPE_IID);
-}
-
 struct ila_params {
 	struct ila_locator locator;
 	struct ila_locator locator_match;

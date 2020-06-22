@@ -99,4 +99,7 @@ config NET_KEY_MIGRATE
 
 	  If unsure, say N.
 
+config XFRM_ESPINTCP
+	bool
+
 endif # INET

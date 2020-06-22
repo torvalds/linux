@@ -2,7 +2,7 @@
 /*
  * Broadcom GENET (Gigabit Ethernet) controller driver
  *
- * Copyright (c) 2014-2019 Broadcom
+ * Copyright (c) 2014-2020 Broadcom
  */
 
 #define pr_fmt(fmt)				"bcmgenet: " fmt
@@ -23,11 +23,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/pm.h>
 #include <linux/clk.h>
-#include <linux/of.h>
-#include <linux/of_address.h>
-#include <linux/of_irq.h>
-#include <linux/of_net.h>
-#include <linux/of_platform.h>
 #include <net/arp.h>
 
 #include <linux/mii.h>
@@ -69,6 +64,9 @@
 
 #define GENET_RDMA_REG_OFF	(priv->hw_params->rdma_offset + \
 				TOTAL_DESC * DMA_DESC_SIZE)
+
+/* Forward declarations */
+static void bcmgenet_set_rx_mode(struct net_device *dev);
 
 static inline void bcmgenet_writel(u32 value, void __iomem *offset)
 {
@@ -459,6 +457,384 @@ static inline void bcmgenet_rdma_ring_writel(struct bcmgenet_priv *priv,
 	bcmgenet_writel(val, priv->base + GENET_RDMA_REG_OFF +
 			(DMA_RING_SIZE * ring) +
 			genet_dma_ring_regs[r]);
+}
+
+static bool bcmgenet_hfb_is_filter_enabled(struct bcmgenet_priv *priv,
+					   u32 f_index)
+{
+	u32 offset;
+	u32 reg;
+
+	offset = HFB_FLT_ENABLE_V3PLUS + (f_index < 32) * sizeof(u32);
+	reg = bcmgenet_hfb_reg_readl(priv, offset);
+	return !!(reg & (1 << (f_index % 32)));
+}
+
+static void bcmgenet_hfb_enable_filter(struct bcmgenet_priv *priv, u32 f_index)
+{
+	u32 offset;
+	u32 reg;
+
+	offset = HFB_FLT_ENABLE_V3PLUS + (f_index < 32) * sizeof(u32);
+	reg = bcmgenet_hfb_reg_readl(priv, offset);
+	reg |= (1 << (f_index % 32));
+	bcmgenet_hfb_reg_writel(priv, reg, offset);
+	reg = bcmgenet_hfb_reg_readl(priv, HFB_CTRL);
+	reg |= RBUF_HFB_EN;
+	bcmgenet_hfb_reg_writel(priv, reg, HFB_CTRL);
+}
+
+static void bcmgenet_hfb_disable_filter(struct bcmgenet_priv *priv, u32 f_index)
+{
+	u32 offset, reg, reg1;
+
+	offset = HFB_FLT_ENABLE_V3PLUS;
+	reg = bcmgenet_hfb_reg_readl(priv, offset);
+	reg1 = bcmgenet_hfb_reg_readl(priv, offset + sizeof(u32));
+	if  (f_index < 32) {
+		reg1 &= ~(1 << (f_index % 32));
+		bcmgenet_hfb_reg_writel(priv, reg1, offset + sizeof(u32));
+	} else {
+		reg &= ~(1 << (f_index % 32));
+		bcmgenet_hfb_reg_writel(priv, reg, offset);
+	}
+	if (!reg && !reg1) {
+		reg = bcmgenet_hfb_reg_readl(priv, HFB_CTRL);
+		reg &= ~RBUF_HFB_EN;
+		bcmgenet_hfb_reg_writel(priv, reg, HFB_CTRL);
+	}
+}
+
+static void bcmgenet_hfb_set_filter_rx_queue_mapping(struct bcmgenet_priv *priv,
+						     u32 f_index, u32 rx_queue)
+{
+	u32 offset;
+	u32 reg;
+
+	offset = f_index / 8;
+	reg = bcmgenet_rdma_readl(priv, DMA_INDEX2RING_0 + offset);
+	reg &= ~(0xF << (4 * (f_index % 8)));
+	reg |= ((rx_queue & 0xF) << (4 * (f_index % 8)));
+	bcmgenet_rdma_writel(priv, reg, DMA_INDEX2RING_0 + offset);
+}
+
+static void bcmgenet_hfb_set_filter_length(struct bcmgenet_priv *priv,
+					   u32 f_index, u32 f_length)
+{
+	u32 offset;
+	u32 reg;
+
+	offset = HFB_FLT_LEN_V3PLUS +
+		 ((priv->hw_params->hfb_filter_cnt - 1 - f_index) / 4) *
+		 sizeof(u32);
+	reg = bcmgenet_hfb_reg_readl(priv, offset);
+	reg &= ~(0xFF << (8 * (f_index % 4)));
+	reg |= ((f_length & 0xFF) << (8 * (f_index % 4)));
+	bcmgenet_hfb_reg_writel(priv, reg, offset);
+}
+
+static int bcmgenet_hfb_find_unused_filter(struct bcmgenet_priv *priv)
+{
+	u32 f_index;
+
+	/* First MAX_NUM_OF_FS_RULES are reserved for Rx NFC filters */
+	for (f_index = MAX_NUM_OF_FS_RULES;
+	     f_index < priv->hw_params->hfb_filter_cnt; f_index++)
+		if (!bcmgenet_hfb_is_filter_enabled(priv, f_index))
+			return f_index;
+
+	return -ENOMEM;
+}
+
+static int bcmgenet_hfb_validate_mask(void *mask, size_t size)
+{
+	while (size) {
+		switch (*(unsigned char *)mask++) {
+		case 0x00:
+		case 0x0f:
+		case 0xf0:
+		case 0xff:
+			size--;
+			continue;
+		default:
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
+#define VALIDATE_MASK(x) \
+	bcmgenet_hfb_validate_mask(&(x), sizeof(x))
+
+static int bcmgenet_hfb_insert_data(u32 *f, int offset,
+				    void *val, void *mask, size_t size)
+{
+	int index;
+	u32 tmp;
+
+	index = offset / 2;
+	tmp = f[index];
+
+	while (size--) {
+		if (offset++ & 1) {
+			tmp &= ~0x300FF;
+			tmp |= (*(unsigned char *)val++);
+			switch ((*(unsigned char *)mask++)) {
+			case 0xFF:
+				tmp |= 0x30000;
+				break;
+			case 0xF0:
+				tmp |= 0x20000;
+				break;
+			case 0x0F:
+				tmp |= 0x10000;
+				break;
+			}
+			f[index++] = tmp;
+			if (size)
+				tmp = f[index];
+		} else {
+			tmp &= ~0xCFF00;
+			tmp |= (*(unsigned char *)val++) << 8;
+			switch ((*(unsigned char *)mask++)) {
+			case 0xFF:
+				tmp |= 0xC0000;
+				break;
+			case 0xF0:
+				tmp |= 0x80000;
+				break;
+			case 0x0F:
+				tmp |= 0x40000;
+				break;
+			}
+			if (!size)
+				f[index] = tmp;
+		}
+	}
+
+	return 0;
+}
+
+static void bcmgenet_hfb_set_filter(struct bcmgenet_priv *priv, u32 *f_data,
+				    u32 f_length, u32 rx_queue, int f_index)
+{
+	u32 base = f_index * priv->hw_params->hfb_filter_size;
+	int i;
+
+	for (i = 0; i < f_length; i++)
+		bcmgenet_hfb_writel(priv, f_data[i], (base + i) * sizeof(u32));
+
+	bcmgenet_hfb_set_filter_length(priv, f_index, 2 * f_length);
+	bcmgenet_hfb_set_filter_rx_queue_mapping(priv, f_index, rx_queue);
+}
+
+static int bcmgenet_hfb_create_rxnfc_filter(struct bcmgenet_priv *priv,
+					    struct bcmgenet_rxnfc_rule *rule)
+{
+	struct ethtool_rx_flow_spec *fs = &rule->fs;
+	int err = 0, offset = 0, f_length = 0;
+	u16 val_16, mask_16;
+	u8 val_8, mask_8;
+	size_t size;
+	u32 *f_data;
+
+	f_data = kcalloc(priv->hw_params->hfb_filter_size, sizeof(u32),
+			 GFP_KERNEL);
+	if (!f_data)
+		return -ENOMEM;
+
+	if (fs->flow_type & FLOW_MAC_EXT) {
+		bcmgenet_hfb_insert_data(f_data, 0,
+					 &fs->h_ext.h_dest, &fs->m_ext.h_dest,
+					 sizeof(fs->h_ext.h_dest));
+	}
+
+	if (fs->flow_type & FLOW_EXT) {
+		if (fs->m_ext.vlan_etype ||
+		    fs->m_ext.vlan_tci) {
+			bcmgenet_hfb_insert_data(f_data, 12,
+						 &fs->h_ext.vlan_etype,
+						 &fs->m_ext.vlan_etype,
+						 sizeof(fs->h_ext.vlan_etype));
+			bcmgenet_hfb_insert_data(f_data, 14,
+						 &fs->h_ext.vlan_tci,
+						 &fs->m_ext.vlan_tci,
+						 sizeof(fs->h_ext.vlan_tci));
+			offset += VLAN_HLEN;
+			f_length += DIV_ROUND_UP(VLAN_HLEN, 2);
+		}
+	}
+
+	switch (fs->flow_type & ~(FLOW_EXT | FLOW_MAC_EXT)) {
+	case ETHER_FLOW:
+		f_length += DIV_ROUND_UP(ETH_HLEN, 2);
+		bcmgenet_hfb_insert_data(f_data, 0,
+					 &fs->h_u.ether_spec.h_dest,
+					 &fs->m_u.ether_spec.h_dest,
+					 sizeof(fs->h_u.ether_spec.h_dest));
+		bcmgenet_hfb_insert_data(f_data, ETH_ALEN,
+					 &fs->h_u.ether_spec.h_source,
+					 &fs->m_u.ether_spec.h_source,
+					 sizeof(fs->h_u.ether_spec.h_source));
+		bcmgenet_hfb_insert_data(f_data, (2 * ETH_ALEN) + offset,
+					 &fs->h_u.ether_spec.h_proto,
+					 &fs->m_u.ether_spec.h_proto,
+					 sizeof(fs->h_u.ether_spec.h_proto));
+		break;
+	case IP_USER_FLOW:
+		f_length += DIV_ROUND_UP(ETH_HLEN + 20, 2);
+		/* Specify IP Ether Type */
+		val_16 = htons(ETH_P_IP);
+		mask_16 = 0xFFFF;
+		bcmgenet_hfb_insert_data(f_data, (2 * ETH_ALEN) + offset,
+					 &val_16, &mask_16, sizeof(val_16));
+		bcmgenet_hfb_insert_data(f_data, 15 + offset,
+					 &fs->h_u.usr_ip4_spec.tos,
+					 &fs->m_u.usr_ip4_spec.tos,
+					 sizeof(fs->h_u.usr_ip4_spec.tos));
+		bcmgenet_hfb_insert_data(f_data, 23 + offset,
+					 &fs->h_u.usr_ip4_spec.proto,
+					 &fs->m_u.usr_ip4_spec.proto,
+					 sizeof(fs->h_u.usr_ip4_spec.proto));
+		bcmgenet_hfb_insert_data(f_data, 26 + offset,
+					 &fs->h_u.usr_ip4_spec.ip4src,
+					 &fs->m_u.usr_ip4_spec.ip4src,
+					 sizeof(fs->h_u.usr_ip4_spec.ip4src));
+		bcmgenet_hfb_insert_data(f_data, 30 + offset,
+					 &fs->h_u.usr_ip4_spec.ip4dst,
+					 &fs->m_u.usr_ip4_spec.ip4dst,
+					 sizeof(fs->h_u.usr_ip4_spec.ip4dst));
+		if (!fs->m_u.usr_ip4_spec.l4_4_bytes)
+			break;
+
+		/* Only supports 20 byte IPv4 header */
+		val_8 = 0x45;
+		mask_8 = 0xFF;
+		bcmgenet_hfb_insert_data(f_data, ETH_HLEN + offset,
+					 &val_8, &mask_8,
+					 sizeof(val_8));
+		size = sizeof(fs->h_u.usr_ip4_spec.l4_4_bytes);
+		bcmgenet_hfb_insert_data(f_data,
+					 ETH_HLEN + 20 + offset,
+					 &fs->h_u.usr_ip4_spec.l4_4_bytes,
+					 &fs->m_u.usr_ip4_spec.l4_4_bytes,
+					 size);
+		f_length += DIV_ROUND_UP(size, 2);
+		break;
+	}
+
+	if (!fs->ring_cookie || fs->ring_cookie == RX_CLS_FLOW_WAKE) {
+		/* Ring 0 flows can be handled by the default Descriptor Ring
+		 * We'll map them to ring 0, but don't enable the filter
+		 */
+		bcmgenet_hfb_set_filter(priv, f_data, f_length,	0,
+					fs->location);
+		rule->state = BCMGENET_RXNFC_STATE_DISABLED;
+	} else {
+		/* Other Rx rings are direct mapped here */
+		bcmgenet_hfb_set_filter(priv, f_data, f_length,
+					fs->ring_cookie, fs->location);
+		bcmgenet_hfb_enable_filter(priv, fs->location);
+		rule->state = BCMGENET_RXNFC_STATE_ENABLED;
+	}
+
+	kfree(f_data);
+
+	return err;
+}
+
+/* bcmgenet_hfb_add_filter
+ *
+ * Add new filter to Hardware Filter Block to match and direct Rx traffic to
+ * desired Rx queue.
+ *
+ * f_data is an array of unsigned 32-bit integers where each 32-bit integer
+ * provides filter data for 2 bytes (4 nibbles) of Rx frame:
+ *
+ * bits 31:20 - unused
+ * bit  19    - nibble 0 match enable
+ * bit  18    - nibble 1 match enable
+ * bit  17    - nibble 2 match enable
+ * bit  16    - nibble 3 match enable
+ * bits 15:12 - nibble 0 data
+ * bits 11:8  - nibble 1 data
+ * bits 7:4   - nibble 2 data
+ * bits 3:0   - nibble 3 data
+ *
+ * Example:
+ * In order to match:
+ * - Ethernet frame type = 0x0800 (IP)
+ * - IP version field = 4
+ * - IP protocol field = 0x11 (UDP)
+ *
+ * The following filter is needed:
+ * u32 hfb_filter_ipv4_udp[] = {
+ *   Rx frame offset 0x00: 0x00000000, 0x00000000, 0x00000000, 0x00000000,
+ *   Rx frame offset 0x08: 0x00000000, 0x00000000, 0x000F0800, 0x00084000,
+ *   Rx frame offset 0x10: 0x00000000, 0x00000000, 0x00000000, 0x00030011,
+ * };
+ *
+ * To add the filter to HFB and direct the traffic to Rx queue 0, call:
+ * bcmgenet_hfb_add_filter(priv, hfb_filter_ipv4_udp,
+ *                         ARRAY_SIZE(hfb_filter_ipv4_udp), 0);
+ */
+int bcmgenet_hfb_add_filter(struct bcmgenet_priv *priv, u32 *f_data,
+			    u32 f_length, u32 rx_queue)
+{
+	int f_index;
+
+	f_index = bcmgenet_hfb_find_unused_filter(priv);
+	if (f_index < 0)
+		return -ENOMEM;
+
+	if (f_length > priv->hw_params->hfb_filter_size)
+		return -EINVAL;
+
+	bcmgenet_hfb_set_filter(priv, f_data, f_length, rx_queue, f_index);
+	bcmgenet_hfb_enable_filter(priv, f_index);
+
+	return 0;
+}
+
+/* bcmgenet_hfb_clear
+ *
+ * Clear Hardware Filter Block and disable all filtering.
+ */
+static void bcmgenet_hfb_clear(struct bcmgenet_priv *priv)
+{
+	u32 i;
+
+	bcmgenet_hfb_reg_writel(priv, 0x0, HFB_CTRL);
+	bcmgenet_hfb_reg_writel(priv, 0x0, HFB_FLT_ENABLE_V3PLUS);
+	bcmgenet_hfb_reg_writel(priv, 0x0, HFB_FLT_ENABLE_V3PLUS + 4);
+
+	for (i = DMA_INDEX2RING_0; i <= DMA_INDEX2RING_7; i++)
+		bcmgenet_rdma_writel(priv, 0x0, i);
+
+	for (i = 0; i < (priv->hw_params->hfb_filter_cnt / 4); i++)
+		bcmgenet_hfb_reg_writel(priv, 0x0,
+					HFB_FLT_LEN_V3PLUS + i * sizeof(u32));
+
+	for (i = 0; i < priv->hw_params->hfb_filter_cnt *
+			priv->hw_params->hfb_filter_size; i++)
+		bcmgenet_hfb_writel(priv, 0x0, i * sizeof(u32));
+}
+
+static void bcmgenet_hfb_init(struct bcmgenet_priv *priv)
+{
+	int i;
+
+	if (GENET_IS_V1(priv) || GENET_IS_V2(priv))
+		return;
+
+	INIT_LIST_HEAD(&priv->rxnfc_list);
+	for (i = 0; i < MAX_NUM_OF_FS_RULES; i++) {
+		INIT_LIST_HEAD(&priv->rxnfc_rules[i].list);
+		priv->rxnfc_rules[i].state = BCMGENET_RXNFC_STATE_UNUSED;
+	}
+
+	bcmgenet_hfb_clear(priv);
 }
 
 static int bcmgenet_begin(struct net_device *dev)
@@ -1045,6 +1421,229 @@ static int bcmgenet_set_eee(struct net_device *dev, struct ethtool_eee *e)
 	return phy_ethtool_set_eee(dev->phydev, e);
 }
 
+static int bcmgenet_validate_flow(struct net_device *dev,
+				  struct ethtool_rxnfc *cmd)
+{
+	struct ethtool_usrip4_spec *l4_mask;
+	struct ethhdr *eth_mask;
+
+	if (cmd->fs.location >= MAX_NUM_OF_FS_RULES) {
+		netdev_err(dev, "rxnfc: Invalid location (%d)\n",
+			   cmd->fs.location);
+		return -EINVAL;
+	}
+
+	switch (cmd->fs.flow_type & ~(FLOW_EXT | FLOW_MAC_EXT)) {
+	case IP_USER_FLOW:
+		l4_mask = &cmd->fs.m_u.usr_ip4_spec;
+		/* don't allow mask which isn't valid */
+		if (VALIDATE_MASK(l4_mask->ip4src) ||
+		    VALIDATE_MASK(l4_mask->ip4dst) ||
+		    VALIDATE_MASK(l4_mask->l4_4_bytes) ||
+		    VALIDATE_MASK(l4_mask->proto) ||
+		    VALIDATE_MASK(l4_mask->ip_ver) ||
+		    VALIDATE_MASK(l4_mask->tos)) {
+			netdev_err(dev, "rxnfc: Unsupported mask\n");
+			return -EINVAL;
+		}
+		break;
+	case ETHER_FLOW:
+		eth_mask = &cmd->fs.m_u.ether_spec;
+		/* don't allow mask which isn't valid */
+		if (VALIDATE_MASK(eth_mask->h_source) ||
+		    VALIDATE_MASK(eth_mask->h_source) ||
+		    VALIDATE_MASK(eth_mask->h_proto)) {
+			netdev_err(dev, "rxnfc: Unsupported mask\n");
+			return -EINVAL;
+		}
+		break;
+	default:
+		netdev_err(dev, "rxnfc: Unsupported flow type (0x%x)\n",
+			   cmd->fs.flow_type);
+		return -EINVAL;
+	}
+
+	if ((cmd->fs.flow_type & FLOW_EXT)) {
+		/* don't allow mask which isn't valid */
+		if (VALIDATE_MASK(cmd->fs.m_ext.vlan_etype) ||
+		    VALIDATE_MASK(cmd->fs.m_ext.vlan_tci)) {
+			netdev_err(dev, "rxnfc: Unsupported mask\n");
+			return -EINVAL;
+		}
+		if (cmd->fs.m_ext.data[0] || cmd->fs.m_ext.data[1]) {
+			netdev_err(dev, "rxnfc: user-def not supported\n");
+			return -EINVAL;
+		}
+	}
+
+	if ((cmd->fs.flow_type & FLOW_MAC_EXT)) {
+		/* don't allow mask which isn't valid */
+		if (VALIDATE_MASK(cmd->fs.m_ext.h_dest)) {
+			netdev_err(dev, "rxnfc: Unsupported mask\n");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
+static int bcmgenet_insert_flow(struct net_device *dev,
+				struct ethtool_rxnfc *cmd)
+{
+	struct bcmgenet_priv *priv = netdev_priv(dev);
+	struct bcmgenet_rxnfc_rule *loc_rule;
+	int err;
+
+	if (priv->hw_params->hfb_filter_size < 128) {
+		netdev_err(dev, "rxnfc: Not supported by this device\n");
+		return -EINVAL;
+	}
+
+	if (cmd->fs.ring_cookie > priv->hw_params->rx_queues &&
+	    cmd->fs.ring_cookie != RX_CLS_FLOW_WAKE) {
+		netdev_err(dev, "rxnfc: Unsupported action (%llu)\n",
+			   cmd->fs.ring_cookie);
+		return -EINVAL;
+	}
+
+	err = bcmgenet_validate_flow(dev, cmd);
+	if (err)
+		return err;
+
+	loc_rule = &priv->rxnfc_rules[cmd->fs.location];
+	if (loc_rule->state == BCMGENET_RXNFC_STATE_ENABLED)
+		bcmgenet_hfb_disable_filter(priv, cmd->fs.location);
+	if (loc_rule->state != BCMGENET_RXNFC_STATE_UNUSED)
+		list_del(&loc_rule->list);
+	loc_rule->state = BCMGENET_RXNFC_STATE_UNUSED;
+	memcpy(&loc_rule->fs, &cmd->fs,
+	       sizeof(struct ethtool_rx_flow_spec));
+
+	err = bcmgenet_hfb_create_rxnfc_filter(priv, loc_rule);
+	if (err) {
+		netdev_err(dev, "rxnfc: Could not install rule (%d)\n",
+			   err);
+		return err;
+	}
+
+	list_add_tail(&loc_rule->list, &priv->rxnfc_list);
+
+	return 0;
+}
+
+static int bcmgenet_delete_flow(struct net_device *dev,
+				struct ethtool_rxnfc *cmd)
+{
+	struct bcmgenet_priv *priv = netdev_priv(dev);
+	struct bcmgenet_rxnfc_rule *rule;
+	int err = 0;
+
+	if (cmd->fs.location >= MAX_NUM_OF_FS_RULES)
+		return -EINVAL;
+
+	rule = &priv->rxnfc_rules[cmd->fs.location];
+	if (rule->state == BCMGENET_RXNFC_STATE_UNUSED) {
+		err =  -ENOENT;
+		goto out;
+	}
+
+	if (rule->state == BCMGENET_RXNFC_STATE_ENABLED)
+		bcmgenet_hfb_disable_filter(priv, cmd->fs.location);
+	if (rule->state != BCMGENET_RXNFC_STATE_UNUSED)
+		list_del(&rule->list);
+	rule->state = BCMGENET_RXNFC_STATE_UNUSED;
+	memset(&rule->fs, 0, sizeof(struct ethtool_rx_flow_spec));
+
+out:
+	return err;
+}
+
+static int bcmgenet_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
+{
+	struct bcmgenet_priv *priv = netdev_priv(dev);
+	int err = 0;
+
+	switch (cmd->cmd) {
+	case ETHTOOL_SRXCLSRLINS:
+		err = bcmgenet_insert_flow(dev, cmd);
+		break;
+	case ETHTOOL_SRXCLSRLDEL:
+		err = bcmgenet_delete_flow(dev, cmd);
+		break;
+	default:
+		netdev_warn(priv->dev, "Unsupported ethtool command. (%d)\n",
+			    cmd->cmd);
+		return -EINVAL;
+	}
+
+	return err;
+}
+
+static int bcmgenet_get_flow(struct net_device *dev, struct ethtool_rxnfc *cmd,
+			     int loc)
+{
+	struct bcmgenet_priv *priv = netdev_priv(dev);
+	struct bcmgenet_rxnfc_rule *rule;
+	int err = 0;
+
+	if (loc < 0 || loc >= MAX_NUM_OF_FS_RULES)
+		return -EINVAL;
+
+	rule = &priv->rxnfc_rules[loc];
+	if (rule->state == BCMGENET_RXNFC_STATE_UNUSED)
+		err = -ENOENT;
+	else
+		memcpy(&cmd->fs, &rule->fs,
+		       sizeof(struct ethtool_rx_flow_spec));
+
+	return err;
+}
+
+static int bcmgenet_get_num_flows(struct bcmgenet_priv *priv)
+{
+	struct list_head *pos;
+	int res = 0;
+
+	list_for_each(pos, &priv->rxnfc_list)
+		res++;
+
+	return res;
+}
+
+static int bcmgenet_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
+			      u32 *rule_locs)
+{
+	struct bcmgenet_priv *priv = netdev_priv(dev);
+	struct bcmgenet_rxnfc_rule *rule;
+	int err = 0;
+	int i = 0;
+
+	switch (cmd->cmd) {
+	case ETHTOOL_GRXRINGS:
+		cmd->data = priv->hw_params->rx_queues ?: 1;
+		break;
+	case ETHTOOL_GRXCLSRLCNT:
+		cmd->rule_cnt = bcmgenet_get_num_flows(priv);
+		cmd->data = MAX_NUM_OF_FS_RULES;
+		break;
+	case ETHTOOL_GRXCLSRULE:
+		err = bcmgenet_get_flow(dev, cmd, cmd->fs.location);
+		break;
+	case ETHTOOL_GRXCLSRLALL:
+		list_for_each_entry(rule, &priv->rxnfc_list, list)
+			if (i < cmd->rule_cnt)
+				rule_locs[i++] = rule->fs.location;
+		cmd->rule_cnt = i;
+		cmd->data = MAX_NUM_OF_FS_RULES;
+		break;
+	default:
+		err = -EOPNOTSUPP;
+		break;
+	}
+
+	return err;
+}
+
 /* standard ethtool support functions. */
 static const struct ethtool_ops bcmgenet_ethtool_ops = {
 	.supported_coalesce_params = ETHTOOL_COALESCE_RX_USECS |
@@ -1069,6 +1668,8 @@ static const struct ethtool_ops bcmgenet_ethtool_ops = {
 	.get_link_ksettings	= bcmgenet_get_link_ksettings,
 	.set_link_ksettings	= bcmgenet_set_link_ksettings,
 	.get_ts_info		= ethtool_op_get_ts_info,
+	.get_rxnfc		= bcmgenet_get_rxnfc,
+	.set_rxnfc		= bcmgenet_set_rxnfc,
 };
 
 /* Power down the unimac, based on mode. */
@@ -2669,10 +3270,7 @@ static irqreturn_t bcmgenet_isr0(int irq, void *dev_id)
 
 static irqreturn_t bcmgenet_wol_isr(int irq, void *dev_id)
 {
-	struct bcmgenet_priv *priv = dev_id;
-
-	pm_wakeup_event(&priv->pdev->dev, 0);
-
+	/* Acknowledge the interrupt */
 	return IRQ_HANDLED;
 }
 
@@ -2710,9 +3308,8 @@ static void bcmgenet_umac_reset(struct bcmgenet_priv *priv)
 static void bcmgenet_set_hw_addr(struct bcmgenet_priv *priv,
 				 unsigned char *addr)
 {
-	bcmgenet_umac_writel(priv, (addr[0] << 24) | (addr[1] << 16) |
-			(addr[2] << 8) | addr[3], UMAC_MAC0);
-	bcmgenet_umac_writel(priv, (addr[4] << 8) | addr[5], UMAC_MAC1);
+	bcmgenet_umac_writel(priv, get_unaligned_be32(&addr[0]), UMAC_MAC0);
+	bcmgenet_umac_writel(priv, get_unaligned_be16(&addr[4]), UMAC_MAC1);
 }
 
 static void bcmgenet_get_hw_addr(struct bcmgenet_priv *priv,
@@ -2721,13 +3318,9 @@ static void bcmgenet_get_hw_addr(struct bcmgenet_priv *priv,
 	u32 addr_tmp;
 
 	addr_tmp = bcmgenet_umac_readl(priv, UMAC_MAC0);
-	addr[0] = addr_tmp >> 24;
-	addr[1] = (addr_tmp >> 16) & 0xff;
-	addr[2] = (addr_tmp >>	8) & 0xff;
-	addr[3] = addr_tmp & 0xff;
+	put_unaligned_be32(addr_tmp, &addr[0]);
 	addr_tmp = bcmgenet_umac_readl(priv, UMAC_MAC1);
-	addr[4] = (addr_tmp >> 8) & 0xff;
-	addr[5] = addr_tmp & 0xff;
+	put_unaligned_be16(addr_tmp, &addr[4]);
 }
 
 /* Returns a reusable dma control register value */
@@ -2766,43 +3359,12 @@ static void bcmgenet_enable_dma(struct bcmgenet_priv *priv, u32 dma_ctrl)
 	bcmgenet_tdma_writel(priv, reg, DMA_CTRL);
 }
 
-/* bcmgenet_hfb_clear
- *
- * Clear Hardware Filter Block and disable all filtering.
- */
-static void bcmgenet_hfb_clear(struct bcmgenet_priv *priv)
-{
-	u32 i;
-
-	bcmgenet_hfb_reg_writel(priv, 0x0, HFB_CTRL);
-	bcmgenet_hfb_reg_writel(priv, 0x0, HFB_FLT_ENABLE_V3PLUS);
-	bcmgenet_hfb_reg_writel(priv, 0x0, HFB_FLT_ENABLE_V3PLUS + 4);
-
-	for (i = DMA_INDEX2RING_0; i <= DMA_INDEX2RING_7; i++)
-		bcmgenet_rdma_writel(priv, 0x0, i);
-
-	for (i = 0; i < (priv->hw_params->hfb_filter_cnt / 4); i++)
-		bcmgenet_hfb_reg_writel(priv, 0x0,
-					HFB_FLT_LEN_V3PLUS + i * sizeof(u32));
-
-	for (i = 0; i < priv->hw_params->hfb_filter_cnt *
-			priv->hw_params->hfb_filter_size; i++)
-		bcmgenet_hfb_writel(priv, 0x0, i * sizeof(u32));
-}
-
-static void bcmgenet_hfb_init(struct bcmgenet_priv *priv)
-{
-	if (GENET_IS_V1(priv) || GENET_IS_V2(priv))
-		return;
-
-	bcmgenet_hfb_clear(priv);
-}
-
 static void bcmgenet_netif_start(struct net_device *dev)
 {
 	struct bcmgenet_priv *priv = netdev_priv(dev);
 
 	/* Start the network engine */
+	bcmgenet_set_rx_mode(dev);
 	bcmgenet_enable_rx_napi(priv);
 
 	umac_enable_set(priv, CMD_TX_EN | CMD_RX_EN, true);
@@ -3421,8 +3983,6 @@ MODULE_DEVICE_TABLE(of, bcmgenet_match);
 static int bcmgenet_probe(struct platform_device *pdev)
 {
 	struct bcmgenet_platform_data *pd = pdev->dev.platform_data;
-	struct device_node *dn = pdev->dev.of_node;
-	const struct of_device_id *of_id = NULL;
 	const struct bcmgenet_plat_data *pdata;
 	struct bcmgenet_priv *priv;
 	struct net_device *dev;
@@ -3435,12 +3995,6 @@ static int bcmgenet_probe(struct platform_device *pdev)
 	if (!dev) {
 		dev_err(&pdev->dev, "can't allocate net device\n");
 		return -ENOMEM;
-	}
-
-	if (dn) {
-		of_id = of_match_node(bcmgenet_match, dn);
-		if (!of_id)
-			return -EINVAL;
 	}
 
 	priv = netdev_priv(dev);
@@ -3504,13 +4058,16 @@ static int bcmgenet_probe(struct platform_device *pdev)
 		priv->dma_max_burst_length = DMA_MAX_BURST_LENGTH;
 	}
 
-	priv->clk = devm_clk_get(&priv->pdev->dev, "enet");
+	priv->clk = devm_clk_get_optional(&priv->pdev->dev, "enet");
 	if (IS_ERR(priv->clk)) {
 		dev_dbg(&priv->pdev->dev, "failed to get enet clock\n");
-		priv->clk = NULL;
+		err = PTR_ERR(priv->clk);
+		goto err;
 	}
 
-	clk_prepare_enable(priv->clk);
+	err = clk_prepare_enable(priv->clk);
+	if (err)
+		goto err;
 
 	bcmgenet_set_hw_params(priv);
 
@@ -3528,16 +4085,18 @@ static int bcmgenet_probe(struct platform_device *pdev)
 	priv->rx_buf_len = RX_BUF_LENGTH;
 	INIT_WORK(&priv->bcmgenet_irq_work, bcmgenet_irq_task);
 
-	priv->clk_wol = devm_clk_get(&priv->pdev->dev, "enet-wol");
+	priv->clk_wol = devm_clk_get_optional(&priv->pdev->dev, "enet-wol");
 	if (IS_ERR(priv->clk_wol)) {
 		dev_dbg(&priv->pdev->dev, "failed to get enet-wol clock\n");
-		priv->clk_wol = NULL;
+		err = PTR_ERR(priv->clk_wol);
+		goto err;
 	}
 
-	priv->clk_eee = devm_clk_get(&priv->pdev->dev, "enet-eee");
+	priv->clk_eee = devm_clk_get_optional(&priv->pdev->dev, "enet-eee");
 	if (IS_ERR(priv->clk_eee)) {
 		dev_dbg(&priv->pdev->dev, "failed to get enet-eee clock\n");
-		priv->clk_eee = NULL;
+		err = PTR_ERR(priv->clk_eee);
+		goto err;
 	}
 
 	/* If this is an internal GPHY, power it on now, before UniMAC is
@@ -3546,7 +4105,7 @@ static int bcmgenet_probe(struct platform_device *pdev)
 	if (device_get_phy_mode(&pdev->dev) == PHY_INTERFACE_MODE_INTERNAL)
 		bcmgenet_power_up(priv, GENET_POWER_PASSIVE);
 
-	if ((pd) && (!IS_ERR_OR_NULL(pd->mac_address)))
+	if (pd && !IS_ERR_OR_NULL(pd->mac_address))
 		ether_addr_copy(dev->dev_addr, pd->mac_address);
 	else
 		if (!device_get_mac_address(&pdev->dev, dev->dev_addr, ETH_ALEN))
@@ -3612,11 +4171,10 @@ static void bcmgenet_shutdown(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM_SLEEP
-static int bcmgenet_resume(struct device *d)
+static int bcmgenet_resume_noirq(struct device *d)
 {
 	struct net_device *dev = dev_get_drvdata(d);
 	struct bcmgenet_priv *priv = netdev_priv(dev);
-	unsigned long dma_ctrl;
 	int ret;
 	u32 reg;
 
@@ -3628,6 +4186,38 @@ static int bcmgenet_resume(struct device *d)
 	if (ret)
 		return ret;
 
+	if (device_may_wakeup(d) && priv->wolopts) {
+		/* Account for Wake-on-LAN events and clear those events
+		 * (Some devices need more time between enabling the clocks
+		 *  and the interrupt register reflecting the wake event so
+		 *  read the register twice)
+		 */
+		reg = bcmgenet_intrl2_0_readl(priv, INTRL2_CPU_STAT);
+		reg = bcmgenet_intrl2_0_readl(priv, INTRL2_CPU_STAT);
+		if (reg & UMAC_IRQ_WAKE_EVENT)
+			pm_wakeup_event(&priv->pdev->dev, 0);
+	}
+
+	bcmgenet_intrl2_0_writel(priv, UMAC_IRQ_WAKE_EVENT, INTRL2_CPU_CLEAR);
+
+	return 0;
+}
+
+static int bcmgenet_resume(struct device *d)
+{
+	struct net_device *dev = dev_get_drvdata(d);
+	struct bcmgenet_priv *priv = netdev_priv(dev);
+	unsigned long dma_ctrl;
+	u32 offset, reg;
+	int ret;
+
+	if (!netif_running(dev))
+		return 0;
+
+	/* From WOL-enabled suspend, switch to regular clock */
+	if (device_may_wakeup(d) && priv->wolopts)
+		bcmgenet_power_up(priv, GENET_POWER_WOL_MAGIC);
+
 	/* If this is an internal GPHY, power it back on now, before UniMAC is
 	 * brought out of reset as absolutely no UniMAC activity is allowed
 	 */
@@ -3637,10 +4227,6 @@ static int bcmgenet_resume(struct device *d)
 	bcmgenet_umac_reset(priv);
 
 	init_umac(priv);
-
-	/* From WOL-enabled suspend, switch to regular clock */
-	if (priv->wolopts)
-		clk_disable_unprepare(priv->clk_wol);
 
 	phy_init_hw(dev->phydev);
 
@@ -3653,14 +4239,16 @@ static int bcmgenet_resume(struct device *d)
 
 	bcmgenet_set_hw_addr(priv, dev->dev_addr);
 
+	offset = HFB_FLT_ENABLE_V3PLUS;
+	bcmgenet_hfb_reg_writel(priv, priv->hfb_en[1], offset);
+	bcmgenet_hfb_reg_writel(priv, priv->hfb_en[2], offset + sizeof(u32));
+	bcmgenet_hfb_reg_writel(priv, priv->hfb_en[0], HFB_CTRL);
+
 	if (priv->internal_phy) {
 		reg = bcmgenet_ext_readl(priv, EXT_EXT_PWR_MGMT);
 		reg |= EXT_ENERGY_DET_MASK;
 		bcmgenet_ext_writel(priv, reg, EXT_EXT_PWR_MGMT);
 	}
-
-	if (priv->wolopts)
-		bcmgenet_power_up(priv, GENET_POWER_WOL_MAGIC);
 
 	/* Disable RX/TX DMA and flush TX queues */
 	dma_ctrl = bcmgenet_dma_disable(priv);
@@ -3698,7 +4286,7 @@ static int bcmgenet_suspend(struct device *d)
 {
 	struct net_device *dev = dev_get_drvdata(d);
 	struct bcmgenet_priv *priv = netdev_priv(dev);
-	int ret = 0;
+	u32 offset;
 
 	if (!netif_running(dev))
 		return 0;
@@ -3710,25 +4298,53 @@ static int bcmgenet_suspend(struct device *d)
 	if (!device_may_wakeup(d))
 		phy_suspend(dev->phydev);
 
+	/* Preserve filter state and disable filtering */
+	priv->hfb_en[0] = bcmgenet_hfb_reg_readl(priv, HFB_CTRL);
+	offset = HFB_FLT_ENABLE_V3PLUS;
+	priv->hfb_en[1] = bcmgenet_hfb_reg_readl(priv, offset);
+	priv->hfb_en[2] = bcmgenet_hfb_reg_readl(priv, offset + sizeof(u32));
+	bcmgenet_hfb_reg_writel(priv, 0, HFB_CTRL);
+
+	return 0;
+}
+
+static int bcmgenet_suspend_noirq(struct device *d)
+{
+	struct net_device *dev = dev_get_drvdata(d);
+	struct bcmgenet_priv *priv = netdev_priv(dev);
+	int ret = 0;
+
+	if (!netif_running(dev))
+		return 0;
+
 	/* Prepare the device for Wake-on-LAN and switch to the slow clock */
-	if (device_may_wakeup(d) && priv->wolopts) {
+	if (device_may_wakeup(d) && priv->wolopts)
 		ret = bcmgenet_power_down(priv, GENET_POWER_WOL_MAGIC);
-		clk_prepare_enable(priv->clk_wol);
-	} else if (priv->internal_phy) {
+	else if (priv->internal_phy)
 		ret = bcmgenet_power_down(priv, GENET_POWER_PASSIVE);
-	}
+
+	/* Let the framework handle resumption and leave the clocks on */
+	if (ret)
+		return ret;
 
 	/* Turn off the clocks */
 	clk_disable_unprepare(priv->clk);
 
-	if (ret)
-		bcmgenet_resume(d);
-
-	return ret;
+	return 0;
 }
+#else
+#define bcmgenet_suspend	NULL
+#define bcmgenet_suspend_noirq	NULL
+#define bcmgenet_resume		NULL
+#define bcmgenet_resume_noirq	NULL
 #endif /* CONFIG_PM_SLEEP */
 
-static SIMPLE_DEV_PM_OPS(bcmgenet_pm_ops, bcmgenet_suspend, bcmgenet_resume);
+static const struct dev_pm_ops bcmgenet_pm_ops = {
+	.suspend	= bcmgenet_suspend,
+	.suspend_noirq	= bcmgenet_suspend_noirq,
+	.resume		= bcmgenet_resume,
+	.resume_noirq	= bcmgenet_resume_noirq,
+};
 
 static const struct acpi_device_id genet_acpi_match[] = {
 	{ "BCM6E4E", (kernel_ulong_t)&bcm2711_plat_data },
@@ -3744,7 +4360,7 @@ static struct platform_driver bcmgenet_driver = {
 		.name	= "bcmgenet",
 		.of_match_table = bcmgenet_match,
 		.pm	= &bcmgenet_pm_ops,
-		.acpi_match_table = ACPI_PTR(genet_acpi_match),
+		.acpi_match_table = genet_acpi_match,
 	},
 };
 module_platform_driver(bcmgenet_driver);

@@ -714,11 +714,11 @@ static int et131x_init_eeprom(struct et131x_adapter *adapter)
 			 * gather additional information that normally would
 			 * come from the eeprom, like MAC Address
 			 */
-			adapter->has_eeprom = 0;
+			adapter->has_eeprom = false;
 			return -EIO;
 		}
 	}
-	adapter->has_eeprom = 1;
+	adapter->has_eeprom = true;
 
 	/* Read the EEPROM for information regarding LED behavior. Refer to
 	 * et131x_xcvr_init() for its use.

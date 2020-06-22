@@ -1043,7 +1043,7 @@ config NETFILTER_XT_TARGET_TPROXY
 	  on Netfilter connection tracking and NAT, unlike REDIRECT.
 	  For it to work you will have to configure certain iptables rules
 	  and use policy routing. For more information on how to set it up
-	  see Documentation/networking/tproxy.txt.
+	  see Documentation/networking/tproxy.rst.
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 

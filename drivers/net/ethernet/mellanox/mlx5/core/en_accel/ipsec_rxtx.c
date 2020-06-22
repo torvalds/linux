@@ -233,11 +233,10 @@ static void mlx5e_ipsec_set_metadata(struct sk_buff *skb,
 		   ntohs(mdata->content.tx.seq));
 }
 
-struct sk_buff *mlx5e_ipsec_handle_tx_skb(struct net_device *netdev,
-					  struct mlx5e_tx_wqe *wqe,
-					  struct sk_buff *skb)
+bool mlx5e_ipsec_handle_tx_skb(struct mlx5e_priv *priv,
+			       struct mlx5_wqe_eth_seg *eseg,
+			       struct sk_buff *skb)
 {
-	struct mlx5e_priv *priv = netdev_priv(netdev);
 	struct xfrm_offload *xo = xfrm_offload(skb);
 	struct mlx5e_ipsec_metadata *mdata;
 	struct mlx5e_ipsec_sa_entry *sa_entry;
@@ -245,7 +244,7 @@ struct sk_buff *mlx5e_ipsec_handle_tx_skb(struct net_device *netdev,
 	struct sec_path *sp;
 
 	if (!xo)
-		return skb;
+		return true;
 
 	sp = skb_sec_path(skb);
 	if (unlikely(sp->len != 1)) {
@@ -276,16 +275,16 @@ struct sk_buff *mlx5e_ipsec_handle_tx_skb(struct net_device *netdev,
 		atomic64_inc(&priv->ipsec->sw_stats.ipsec_tx_drop_metadata);
 		goto drop;
 	}
-	mlx5e_ipsec_set_swp(skb, &wqe->eth, x->props.mode, xo);
+	mlx5e_ipsec_set_swp(skb, eseg, x->props.mode, xo);
 	sa_entry = (struct mlx5e_ipsec_sa_entry *)x->xso.offload_handle;
 	sa_entry->set_iv_op(skb, x, xo);
 	mlx5e_ipsec_set_metadata(skb, mdata, xo);
 
-	return skb;
+	return true;
 
 drop:
 	kfree_skb(skb);
-	return NULL;
+	return false;
 }
 
 static inline struct xfrm_state *

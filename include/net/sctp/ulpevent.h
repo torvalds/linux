@@ -80,7 +80,7 @@ struct sctp_ulpevent *sctp_ulpevent_make_assoc_change(
 	struct sctp_chunk *chunk,
 	gfp_t gfp);
 
-void sctp_ulpevent_nofity_peer_addr_change(struct sctp_transport *transport,
+void sctp_ulpevent_notify_peer_addr_change(struct sctp_transport *transport,
 					   int state, int error);
 
 struct sctp_ulpevent *sctp_ulpevent_make_remote_error(

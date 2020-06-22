@@ -33,7 +33,7 @@ The following features are now available in supported kernels:
  - SNMP
 
 Channel Bonding documentation can be found in the Linux kernel source:
-/Documentation/networking/bonding.txt
+/Documentation/networking/bonding.rst
 
 
 Identifying Your Adapter

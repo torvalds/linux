@@ -536,7 +536,7 @@ void lance_tx_timeout(struct net_device *dev, unsigned int txqueue)
 }
 EXPORT_SYMBOL_GPL(lance_tx_timeout);
 
-int lance_start_xmit(struct sk_buff *skb, struct net_device *dev)
+netdev_tx_t lance_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct lance_private *lp = netdev_priv(dev);
 	volatile struct lance_init_block *ib = lp->init_block;

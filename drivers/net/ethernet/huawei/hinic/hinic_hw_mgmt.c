@@ -361,7 +361,11 @@ int hinic_msg_to_mgmt(struct hinic_pf_to_mgmt *pf_to_mgmt,
 	if (cmd == HINIC_PORT_CMD_SET_FUNC_STATE)
 		timeout = SET_FUNC_PORT_MGMT_TIMEOUT;
 
-	return msg_to_mgmt_sync(pf_to_mgmt, mod, cmd, buf_in, in_size,
+	if (HINIC_IS_VF(hwif))
+		return hinic_mbox_to_pf(pf_to_mgmt->hwdev, mod, cmd, buf_in,
+					in_size, buf_out, out_size, 0);
+	else
+		return msg_to_mgmt_sync(pf_to_mgmt, mod, cmd, buf_in, in_size,
 				buf_out, out_size, MGMT_DIRECT_SEND,
 				MSG_NOT_RESP, timeout);
 }
@@ -398,8 +402,8 @@ static void mgmt_recv_msg_handler(struct hinic_pf_to_mgmt *pf_to_mgmt,
 			    recv_msg->msg, recv_msg->msg_len,
 			    buf_out, &out_size);
 	else
-		dev_err(&pdev->dev, "No MGMT msg handler, mod = %d\n",
-			recv_msg->mod);
+		dev_err(&pdev->dev, "No MGMT msg handler, mod: %d, cmd: %d\n",
+			recv_msg->mod, recv_msg->cmd);
 
 	mgmt_cb->state &= ~HINIC_MGMT_CB_RUNNING;
 
@@ -561,6 +565,10 @@ int hinic_pf_to_mgmt_init(struct hinic_pf_to_mgmt *pf_to_mgmt,
 	int err;
 
 	pf_to_mgmt->hwif = hwif;
+	pf_to_mgmt->hwdev = hwdev;
+
+	if (HINIC_IS_VF(hwif))
+		return 0;
 
 	sema_init(&pf_to_mgmt->sync_msg_lock, 1);
 	pf_to_mgmt->sync_msg_id = 0;
@@ -591,6 +599,9 @@ void hinic_pf_to_mgmt_free(struct hinic_pf_to_mgmt *pf_to_mgmt)
 {
 	struct hinic_pfhwdev *pfhwdev = mgmt_to_pfhwdev(pf_to_mgmt);
 	struct hinic_hwdev *hwdev = &pfhwdev->hwdev;
+
+	if (HINIC_IS_VF(hwdev->hwif))
+		return;
 
 	hinic_aeq_unregister_hw_cb(&hwdev->aeqs, HINIC_MSG_FROM_MGMT_CPU);
 	hinic_api_cmd_free(pf_to_mgmt->cmd_chain);

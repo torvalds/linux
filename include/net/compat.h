@@ -30,6 +30,24 @@ struct compat_cmsghdr {
 	compat_int_t	cmsg_type;
 };
 
+struct compat_rtentry {
+	u32		rt_pad1;
+	struct sockaddr rt_dst;         /* target address               */
+	struct sockaddr rt_gateway;     /* gateway addr (RTF_GATEWAY)   */
+	struct sockaddr rt_genmask;     /* target network mask (IP)     */
+	unsigned short	rt_flags;
+	short		rt_pad2;
+	u32		rt_pad3;
+	unsigned char	rt_tos;
+	unsigned char	rt_class;
+	short		rt_pad4;
+	short		rt_metric;      /* +1 for binary compatibility! */
+	compat_uptr_t	rt_dev;         /* forcing the device at add    */
+	u32		rt_mtu;         /* per route MTU/Window         */
+	u32		rt_window;      /* Window clamping              */
+	unsigned short  rt_irtt;        /* Initial RTT                  */
+};
+
 #else /* defined(CONFIG_COMPAT) */
 /*
  * To avoid compiler warnings:
@@ -49,11 +67,28 @@ int put_cmsg_compat(struct msghdr*, int, int, int, void *);
 int cmsghdr_from_user_compat_to_kern(struct msghdr *, struct sock *,
 				     unsigned char *, int);
 
-int compat_mc_setsockopt(struct sock *, int, int, char __user *, unsigned int,
-			 int (*)(struct sock *, int, int, char __user *,
-				 unsigned int));
-int compat_mc_getsockopt(struct sock *, int, int, char __user *, int __user *,
-			 int (*)(struct sock *, int, int, char __user *,
-				 int __user *));
+struct compat_group_req {
+	__u32				 gr_interface;
+	struct __kernel_sockaddr_storage gr_group
+		__aligned(4);
+} __packed;
+
+struct compat_group_source_req {
+	__u32				 gsr_interface;
+	struct __kernel_sockaddr_storage gsr_group
+		__aligned(4);
+	struct __kernel_sockaddr_storage gsr_source
+		__aligned(4);
+} __packed;
+
+struct compat_group_filter {
+	__u32				 gf_interface;
+	struct __kernel_sockaddr_storage gf_group
+		__aligned(4);
+	__u32				 gf_fmode;
+	__u32				 gf_numsrc;
+	struct __kernel_sockaddr_storage gf_slist[1]
+		__aligned(4);
+} __packed;
 
 #endif /* NET_COMPAT_H */

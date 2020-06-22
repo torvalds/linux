@@ -6508,33 +6508,6 @@ int cgroup_bpf_attach(struct cgroup *cgrp,
 	return ret;
 }
 
-int cgroup_bpf_replace(struct bpf_link *link, struct bpf_prog *old_prog,
-		       struct bpf_prog *new_prog)
-{
-	struct bpf_cgroup_link *cg_link;
-	int ret;
-
-	if (link->ops != &bpf_cgroup_link_lops)
-		return -EINVAL;
-
-	cg_link = container_of(link, struct bpf_cgroup_link, link);
-
-	mutex_lock(&cgroup_mutex);
-	/* link might have been auto-released by dying cgroup, so fail */
-	if (!cg_link->cgroup) {
-		ret = -EINVAL;
-		goto out_unlock;
-	}
-	if (old_prog && link->prog != old_prog) {
-		ret = -EPERM;
-		goto out_unlock;
-	}
-	ret = __cgroup_bpf_replace(cg_link->cgroup, cg_link, new_prog);
-out_unlock:
-	mutex_unlock(&cgroup_mutex);
-	return ret;
-}
-
 int cgroup_bpf_detach(struct cgroup *cgrp, struct bpf_prog *prog,
 		      enum bpf_attach_type type)
 {

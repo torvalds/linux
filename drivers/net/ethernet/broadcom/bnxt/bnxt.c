@@ -1766,7 +1766,7 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 
 		rc = -EIO;
 		if (rx_err & RX_CMPL_ERRORS_BUFFER_ERROR_MASK) {
-			bnapi->cp_ring.rx_buf_errors++;
+			bnapi->cp_ring.sw_stats.rx.rx_buf_errors++;
 			if (!(bp->flags & BNXT_FLAG_CHIP_P5)) {
 				netdev_warn(bp->dev, "RX buffer error %x\n",
 					    rx_err);
@@ -1849,7 +1849,7 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 	} else {
 		if (rxcmp1->rx_cmp_cfa_code_errors_v2 & RX_CMP_L4_CS_ERR_BITS) {
 			if (dev->features & NETIF_F_RXCSUM)
-				bnapi->cp_ring.rx_l4_csum_errors++;
+				bnapi->cp_ring.sw_stats.rx.rx_l4_csum_errors++;
 		}
 	}
 
@@ -5039,8 +5039,7 @@ int bnxt_hwrm_vnic_cfg(struct bnxt *bp, u16 vnic_id)
 	req.dflt_ring_grp = cpu_to_le16(bp->grp_info[grp_idx].fw_grp_id);
 	req.lb_rule = cpu_to_le16(0xffff);
 vnic_mru:
-	req.mru = cpu_to_le16(bp->dev->mtu + ETH_HLEN + ETH_FCS_LEN +
-			      VLAN_HLEN);
+	req.mru = cpu_to_le16(bp->dev->mtu + ETH_HLEN + VLAN_HLEN);
 
 	req.vnic_id = cpu_to_le16(vnic->fw_vnic_id);
 #ifdef CONFIG_BNXT_SRIOV
@@ -5350,9 +5349,9 @@ static void bnxt_set_db(struct bnxt *bp, struct bnxt_db_info *db, u32 ring_type,
 {
 	if (bp->flags & BNXT_FLAG_CHIP_P5) {
 		if (BNXT_PF(bp))
-			db->doorbell = bp->bar1 + 0x10000;
+			db->doorbell = bp->bar1 + DB_PF_OFFSET_P5;
 		else
-			db->doorbell = bp->bar1 + 0x4000;
+			db->doorbell = bp->bar1 + DB_VF_OFFSET_P5;
 		switch (ring_type) {
 		case HWRM_RING_ALLOC_TX:
 			db->db_key64 = DBR_PATH_L2 | DBR_TYPE_SQ;
@@ -6359,6 +6358,7 @@ static int bnxt_hwrm_func_qcfg(struct bnxt *bp)
 {
 	struct hwrm_func_qcfg_input req = {0};
 	struct hwrm_func_qcfg_output *resp = bp->hwrm_cmd_resp_addr;
+	u32 min_db_offset = 0;
 	u16 flags;
 	int rc;
 
@@ -6407,6 +6407,21 @@ static int bnxt_hwrm_func_qcfg(struct bnxt *bp)
 	if (!bp->max_mtu)
 		bp->max_mtu = BNXT_MAX_MTU;
 
+	if (bp->db_size)
+		goto func_qcfg_exit;
+
+	if (bp->flags & BNXT_FLAG_CHIP_P5) {
+		if (BNXT_PF(bp))
+			min_db_offset = DB_PF_OFFSET_P5;
+		else
+			min_db_offset = DB_VF_OFFSET_P5;
+	}
+	bp->db_size = PAGE_ALIGN(le16_to_cpu(resp->l2_doorbell_bar_size_kb) *
+				 1024);
+	if (!bp->db_size || bp->db_size > pci_resource_len(bp->pdev, 2) ||
+	    bp->db_size <= min_db_offset)
+		bp->db_size = pci_resource_len(bp->pdev, 2);
+
 func_qcfg_exit:
 	mutex_unlock(&bp->hwrm_cmd_lock);
 	return rc;
@@ -6428,23 +6443,13 @@ static int bnxt_hwrm_func_backing_store_qcaps(struct bnxt *bp)
 	if (!rc) {
 		struct bnxt_ctx_pg_info *ctx_pg;
 		struct bnxt_ctx_mem_info *ctx;
-		int i;
+		int i, tqm_rings;
 
 		ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 		if (!ctx) {
 			rc = -ENOMEM;
 			goto ctx_err;
 		}
-		ctx_pg = kzalloc(sizeof(*ctx_pg) * (bp->max_q + 1), GFP_KERNEL);
-		if (!ctx_pg) {
-			kfree(ctx);
-			rc = -ENOMEM;
-			goto ctx_err;
-		}
-		for (i = 0; i < bp->max_q + 1; i++, ctx_pg++)
-			ctx->tqm_mem[i] = ctx_pg;
-
-		bp->ctx = ctx;
 		ctx->qp_max_entries = le32_to_cpu(resp->qp_max_entries);
 		ctx->qp_min_qp1_entries = le16_to_cpu(resp->qp_min_qp1_entries);
 		ctx->qp_max_l2_entries = le16_to_cpu(resp->qp_max_l2_entries);
@@ -6477,6 +6482,20 @@ static int bnxt_hwrm_func_backing_store_qcaps(struct bnxt *bp)
 		ctx->tim_entry_size = le16_to_cpu(resp->tim_entry_size);
 		ctx->tim_max_entries = le32_to_cpu(resp->tim_max_entries);
 		ctx->ctx_kind_initializer = resp->ctx_kind_initializer;
+		ctx->tqm_fp_rings_count = resp->tqm_fp_rings_count;
+		if (!ctx->tqm_fp_rings_count)
+			ctx->tqm_fp_rings_count = bp->max_q;
+
+		tqm_rings = ctx->tqm_fp_rings_count + 1;
+		ctx_pg = kcalloc(tqm_rings, sizeof(*ctx_pg), GFP_KERNEL);
+		if (!ctx_pg) {
+			kfree(ctx);
+			rc = -ENOMEM;
+			goto ctx_err;
+		}
+		for (i = 0; i < tqm_rings; i++, ctx_pg++)
+			ctx->tqm_mem[i] = ctx_pg;
+		bp->ctx = ctx;
 	} else {
 		rc = 0;
 	}
@@ -6729,7 +6748,7 @@ static void bnxt_free_ctx_mem(struct bnxt *bp)
 		return;
 
 	if (ctx->tqm_mem[0]) {
-		for (i = 0; i < bp->max_q + 1; i++)
+		for (i = 0; i < ctx->tqm_fp_rings_count + 1; i++)
 			bnxt_free_ctx_pg_tbls(bp, ctx->tqm_mem[i]);
 		kfree(ctx->tqm_mem[0]);
 		ctx->tqm_mem[0] = NULL;
@@ -6750,6 +6769,7 @@ static int bnxt_alloc_ctx_mem(struct bnxt *bp)
 	struct bnxt_ctx_pg_info *ctx_pg;
 	struct bnxt_ctx_mem_info *ctx;
 	u32 mem_size, ena, entries;
+	u32 entries_sp, min;
 	u32 num_mr, num_ah;
 	u32 extra_srqs = 0;
 	u32 extra_qps = 0;
@@ -6839,14 +6859,17 @@ static int bnxt_alloc_ctx_mem(struct bnxt *bp)
 	ena |= FUNC_BACKING_STORE_CFG_REQ_ENABLES_TIM;
 
 skip_rdma:
-	entries = ctx->qp_max_l2_entries + extra_qps;
+	min = ctx->tqm_min_entries_per_ring;
+	entries_sp = ctx->vnic_max_vnic_entries + ctx->qp_max_l2_entries +
+		     2 * (extra_qps + ctx->qp_min_qp1_entries) + min;
+	entries_sp = roundup(entries_sp, ctx->tqm_entries_multiple);
+	entries = ctx->qp_max_l2_entries + extra_qps + ctx->qp_min_qp1_entries;
 	entries = roundup(entries, ctx->tqm_entries_multiple);
-	entries = clamp_t(u32, entries, ctx->tqm_min_entries_per_ring,
-			  ctx->tqm_max_entries_per_ring);
-	for (i = 0; i < bp->max_q + 1; i++) {
+	entries = clamp_t(u32, entries, min, ctx->tqm_max_entries_per_ring);
+	for (i = 0; i < ctx->tqm_fp_rings_count + 1; i++) {
 		ctx_pg = ctx->tqm_mem[i];
-		ctx_pg->entries = entries;
-		mem_size = ctx->tqm_entry_size * entries;
+		ctx_pg->entries = i ? entries : entries_sp;
+		mem_size = ctx->tqm_entry_size * ctx_pg->entries;
 		rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, 1, false);
 		if (rc)
 			return rc;
@@ -10259,7 +10282,7 @@ static void bnxt_chk_missed_irq(struct bnxt *bp)
 			bnxt_dbg_hwrm_ring_info_get(bp,
 				DBG_RING_INFO_GET_REQ_RING_TYPE_L2_CMPL,
 				fw_ring_id, &val[0], &val[1]);
-			cpr->missed_irqs++;
+			cpr->sw_stats.cmn.missed_irqs++;
 		}
 	}
 }
@@ -10888,16 +10911,12 @@ static int bnxt_init_board(struct pci_dev *pdev, struct net_device *dev)
 	bp->dev = dev;
 	bp->pdev = pdev;
 
+	/* Doorbell BAR bp->bar1 is mapped after bnxt_fw_init_one_p2()
+	 * determines the BAR size.
+	 */
 	bp->bar0 = pci_ioremap_bar(pdev, 0);
 	if (!bp->bar0) {
 		dev_err(&pdev->dev, "Cannot map device registers, aborting\n");
-		rc = -ENOMEM;
-		goto init_err_release;
-	}
-
-	bp->bar1 = pci_ioremap_bar(pdev, 2);
-	if (!bp->bar1) {
-		dev_err(&pdev->dev, "Cannot map doorbell registers, aborting\n");
 		rc = -ENOMEM;
 		goto init_err_release;
 	}
@@ -11823,6 +11842,16 @@ static int bnxt_pcie_dsn_get(struct bnxt *bp, u8 dsn[])
 	return 0;
 }
 
+static int bnxt_map_db_bar(struct bnxt *bp)
+{
+	if (!bp->db_size)
+		return -ENODEV;
+	bp->bar1 = pci_iomap(bp->pdev, 2, bp->db_size);
+	if (!bp->bar1)
+		return -ENOMEM;
+	return 0;
+}
+
 static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct net_device *dev;
@@ -11882,6 +11911,13 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	rc = bnxt_fw_init_one_p2(bp);
 	if (rc)
 		goto init_err_pci_clean;
+
+	rc = bnxt_map_db_bar(bp);
+	if (rc) {
+		dev_err(&pdev->dev, "Cannot map doorbell BAR rc = %d, aborting\n",
+			rc);
+		goto init_err_pci_clean;
+	}
 
 	dev->hw_features = NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM | NETIF_F_SG |
 			   NETIF_F_TSO | NETIF_F_TSO6 |

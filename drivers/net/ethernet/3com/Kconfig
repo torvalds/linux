@@ -76,7 +76,7 @@ config VORTEX
 	  "Hurricane" (3c555/3cSOHO)                           PCI
 
 	  If you have such a card, say Y here.  More specific information is in
-	  <file:Documentation/networking/device_drivers/3com/vortex.txt> and
+	  <file:Documentation/networking/device_drivers/3com/vortex.rst> and
 	  in the comments at the beginning of
 	  <file:drivers/net/ethernet/3com/3c59x.c>.
 

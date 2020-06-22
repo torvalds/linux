@@ -28,7 +28,7 @@ config CAIF_SPI_SLAVE
 	  The CAIF Link layer SPI Protocol driver for Slave SPI interface.
 	  This driver implements a platform driver to accommodate for a
 	  platform specific SPI device. A sample CAIF SPI Platform device is
-	  provided in <file:Documentation/networking/caif/spi_porting.txt>.
+	  provided in <file:Documentation/networking/caif/spi_porting.rst>.
 
 config CAIF_SPI_SYNC
 	bool "Next command and length in start of frame"

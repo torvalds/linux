@@ -570,6 +570,28 @@
 						<0x5>; /* RX_CHAN */
 			ti,sci-rm-range-rflow = <0x6>; /* GP RFLOW */
 		};
+
+		cpts@310d0000 {
+			compatible = "ti,am65-cpts";
+			reg = <0x0 0x310d0000 0x0 0x400>;
+			reg-names = "cpts";
+			clocks = <&main_cpts_mux>;
+			clock-names = "cpts";
+			interrupts-extended = <&intr_main_navss 163 0>;
+			interrupt-names = "cpts";
+			ti,cpts-periodic-outputs = <6>;
+			ti,cpts-ext-ts-inputs = <8>;
+
+			main_cpts_mux: refclk-mux {
+				#clock-cells = <0>;
+				clocks = <&k3_clks 118 5>, <&k3_clks 118 11>,
+					<&k3_clks 118 6>, <&k3_clks 118 3>,
+					<&k3_clks 118 8>, <&k3_clks 118 14>,
+					<&k3_clks 120 3>, <&k3_clks 121 3>;
+				assigned-clocks = <&main_cpts_mux>;
+				assigned-clock-parents = <&k3_clks 118 5>;
+			};
+		};
 	};
 
 	main_gpio0:  main_gpio0@600000 {

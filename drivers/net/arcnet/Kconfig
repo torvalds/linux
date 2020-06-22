@@ -9,7 +9,7 @@ menuconfig ARCNET
 	---help---
 	  If you have a network card of this type, say Y and check out the
 	  (arguably) beautiful poetry in
-	  <file:Documentation/networking/arcnet.txt>.
+	  <file:Documentation/networking/arcnet.rst>.
 
 	  You need both this driver, and the driver for the particular ARCnet
 	  chipset of your card. If you don't know, then it's probably a
@@ -28,7 +28,7 @@ config ARCNET_1201
 	  arc0 device.  You need to say Y here to communicate with
 	  industry-standard RFC1201 implementations, like the arcether.com
 	  packet driver or most DOS/Windows ODI drivers.  Please read the
-	  ARCnet documentation in <file:Documentation/networking/arcnet.txt>
+	  ARCnet documentation in <file:Documentation/networking/arcnet.rst>
 	  for more information about using arc0.
 
 config ARCNET_1051
@@ -42,7 +42,7 @@ config ARCNET_1051
 	  industry-standard RFC1201 implementations, like the arcether.com
 	  packet driver or most DOS/Windows ODI drivers. RFC1201 is included
 	  automatically as the arc0 device. Please read the ARCnet
-	  documentation in <file:Documentation/networking/arcnet.txt> for more
+	  documentation in <file:Documentation/networking/arcnet.rst> for more
 	  information about using arc0e and arc0s.
 
 config ARCNET_RAW

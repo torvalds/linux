@@ -564,6 +564,5 @@ struct phy_driver genphy_c45_driver = {
 	.phy_id         = 0xffffffff,
 	.phy_id_mask    = 0xffffffff,
 	.name           = "Generic Clause 45 PHY",
-	.soft_reset	= genphy_no_soft_reset,
 	.read_status    = genphy_c45_read_status,
 };

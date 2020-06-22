@@ -32,10 +32,10 @@ enum smc_lgr_role {		/* possible roles of a link group */
 };
 
 enum smc_link_state {			/* possible states of a link */
+	SMC_LNK_UNUSED,		/* link is unused */
 	SMC_LNK_INACTIVE,	/* link is inactive */
 	SMC_LNK_ACTIVATING,	/* link is being activated */
 	SMC_LNK_ACTIVE,		/* link is active */
-	SMC_LNK_DELETING,	/* link is being deleted */
 };
 
 #define SMC_WR_BUF_SIZE		48	/* size of work request buffer */
@@ -70,6 +70,8 @@ struct smc_rdma_wr {				/* work requests per message
 	struct ib_rdma_wr	wr_tx_rdma[SMC_MAX_RDMA_WRITES];
 };
 
+#define SMC_LGR_ID_SIZE		4
+
 struct smc_link {
 	struct smc_ib_device	*smcibdev;	/* ib-device */
 	u8			ibport;		/* port - values 1 | 2 */
@@ -85,6 +87,7 @@ struct smc_link {
 	struct smc_rdma_sges	*wr_tx_rdma_sges;/*RDMA WRITE gather meta data*/
 	struct smc_rdma_wr	*wr_tx_rdmas;	/* WR RDMA WRITE */
 	struct smc_wr_tx_pend	*wr_tx_pends;	/* WR send waiting for CQE */
+	struct completion	*wr_tx_compl;	/* WR send CQE completion */
 	/* above four vectors have wr_tx_cnt elements and use the same index */
 	dma_addr_t		wr_tx_dma_addr;	/* DMA address of wr_tx_bufs */
 	atomic_long_t		wr_tx_id;	/* seq # of last sent WR */
@@ -115,29 +118,23 @@ struct smc_link {
 	u8			peer_mac[ETH_ALEN];	/* = gid[8:10||13:15] */
 	u8			peer_gid[SMC_GID_SIZE];	/* gid of peer*/
 	u8			link_id;	/* unique # within link group */
+	u8			link_uid[SMC_LGR_ID_SIZE]; /* unique lnk id */
+	u8			peer_link_uid[SMC_LGR_ID_SIZE]; /* peer uid */
+	u8			link_idx;	/* index in lgr link array */
+	u8			link_is_asym;	/* is link asymmetric? */
+	struct smc_link_group	*lgr;		/* parent link group */
+	struct work_struct	link_down_wrk;	/* wrk to bring link down */
 
 	enum smc_link_state	state;		/* state of link */
-	struct workqueue_struct *llc_wq;	/* single thread work queue */
-	struct completion	llc_confirm;	/* wait for rx of conf link */
-	struct completion	llc_confirm_resp; /* wait 4 rx of cnf lnk rsp */
-	int			llc_confirm_rc; /* rc from confirm link msg */
-	int			llc_confirm_resp_rc; /* rc from conf_resp msg */
-	struct completion	llc_add;	/* wait for rx of add link */
-	struct completion	llc_add_resp;	/* wait for rx of add link rsp*/
 	struct delayed_work	llc_testlink_wrk; /* testlink worker */
 	struct completion	llc_testlink_resp; /* wait for rx of testlink */
 	int			llc_testlink_time; /* testlink interval */
-	struct completion	llc_confirm_rkey; /* wait 4 rx of cnf rkey */
-	int			llc_confirm_rkey_rc; /* rc from cnf rkey msg */
-	struct completion	llc_delete_rkey; /* wait 4 rx of del rkey */
-	int			llc_delete_rkey_rc; /* rc from del rkey msg */
-	struct mutex		llc_delete_rkey_mutex; /* serialize usage */
 };
 
 /* For now we just allow one parallel link per link group. The SMC protocol
  * allows more (up to 8).
  */
-#define SMC_LINKS_PER_LGR_MAX	1
+#define SMC_LINKS_PER_LGR_MAX	3
 #define SMC_SINGLE_LINK		0
 
 #define SMC_FIRST_CONTACT	1		/* first contact to a peer */
@@ -150,25 +147,32 @@ struct smc_buf_desc {
 	struct page		*pages;
 	int			len;		/* length of buffer */
 	u32			used;		/* currently used / unused */
-	u8			wr_reg	: 1;	/* mem region registered */
-	u8			regerr	: 1;	/* err during registration */
 	union {
 		struct { /* SMC-R */
-			struct sg_table		sgt[SMC_LINKS_PER_LGR_MAX];
-						/* virtual buffer */
-			struct ib_mr		*mr_rx[SMC_LINKS_PER_LGR_MAX];
-						/* for rmb only: memory region
-						 * incl. rkey provided to peer
-						 */
-			u32			order;	/* allocation order */
+			struct sg_table	sgt[SMC_LINKS_PER_LGR_MAX];
+					/* virtual buffer */
+			struct ib_mr	*mr_rx[SMC_LINKS_PER_LGR_MAX];
+					/* for rmb only: memory region
+					 * incl. rkey provided to peer
+					 */
+			u32		order;	/* allocation order */
+
+			u8		is_conf_rkey;
+					/* confirm_rkey done */
+			u8		is_reg_mr[SMC_LINKS_PER_LGR_MAX];
+					/* mem region registered */
+			u8		is_map_ib[SMC_LINKS_PER_LGR_MAX];
+					/* mem region mapped to lnk */
+			u8		is_reg_err;
+					/* buffer registration err */
 		};
 		struct { /* SMC-D */
-			unsigned short		sba_idx;
-						/* SBA index number */
-			u64			token;
-						/* DMB token number */
-			dma_addr_t		dma_addr;
-						/* DMA address */
+			unsigned short	sba_idx;
+					/* SBA index number */
+			u64		token;
+					/* DMB token number */
+			dma_addr_t	dma_addr;
+					/* DMA address */
 		};
 	};
 };
@@ -178,7 +182,6 @@ struct smc_rtoken {				/* address/key of remote RMB */
 	u32			rkey;
 };
 
-#define SMC_LGR_ID_SIZE		4
 #define SMC_BUF_MIN_SIZE	16384	/* minimum size of an RMB */
 #define SMC_RMBE_SIZES		16	/* number of distinct RMBE sizes */
 /* theoretically, the RFC states that largest size would be 512K,
@@ -188,6 +191,28 @@ struct smc_rtoken {				/* address/key of remote RMB */
 
 struct smcd_dev;
 
+enum smc_lgr_type {				/* redundancy state of lgr */
+	SMC_LGR_NONE,			/* no active links, lgr to be deleted */
+	SMC_LGR_SINGLE,			/* 1 active RNIC on each peer */
+	SMC_LGR_SYMMETRIC,		/* 2 active RNICs on each peer */
+	SMC_LGR_ASYMMETRIC_PEER,	/* local has 2, peer 1 active RNICs */
+	SMC_LGR_ASYMMETRIC_LOCAL,	/* local has 1, peer 2 active RNICs */
+};
+
+enum smc_llc_flowtype {
+	SMC_LLC_FLOW_NONE	= 0,
+	SMC_LLC_FLOW_ADD_LINK	= 2,
+	SMC_LLC_FLOW_DEL_LINK	= 4,
+	SMC_LLC_FLOW_RKEY	= 6,
+};
+
+struct smc_llc_qentry;
+
+struct smc_llc_flow {
+	enum smc_llc_flowtype type;
+	struct smc_llc_qentry *qentry;
+};
+
 struct smc_link_group {
 	struct list_head	list;
 	struct rb_root		conns_all;	/* connection tree */
@@ -196,9 +221,9 @@ struct smc_link_group {
 	unsigned short		vlan_id;	/* vlan id of link group */
 
 	struct list_head	sndbufs[SMC_RMBE_SIZES];/* tx buffers */
-	rwlock_t		sndbufs_lock;	/* protects tx buffers */
+	struct mutex		sndbufs_lock;	/* protects tx buffers */
 	struct list_head	rmbs[SMC_RMBE_SIZES];	/* rx buffers */
-	rwlock_t		rmbs_lock;	/* protects rx buffers */
+	struct mutex		rmbs_lock;	/* protects rx buffers */
 
 	u8			id[SMC_LGR_ID_SIZE];	/* unique lgr id */
 	struct delayed_work	free_work;	/* delayed freeing of an lgr */
@@ -222,6 +247,35 @@ struct smc_link_group {
 						/* remote addr/key pairs */
 			DECLARE_BITMAP(rtokens_used_mask, SMC_RMBS_PER_LGR_MAX);
 						/* used rtoken elements */
+			u8			next_link_id;
+			enum smc_lgr_type	type;
+						/* redundancy state */
+			u8			pnet_id[SMC_MAX_PNETID_LEN + 1];
+						/* pnet id of this lgr */
+			struct list_head	llc_event_q;
+						/* queue for llc events */
+			spinlock_t		llc_event_q_lock;
+						/* protects llc_event_q */
+			struct mutex		llc_conf_mutex;
+						/* protects lgr reconfig. */
+			struct work_struct	llc_add_link_work;
+			struct work_struct	llc_del_link_work;
+			struct work_struct	llc_event_work;
+						/* llc event worker */
+			wait_queue_head_t	llc_waiter;
+						/* w4 next llc event */
+			struct smc_llc_flow	llc_flow_lcl;
+						/* llc local control field */
+			struct smc_llc_flow	llc_flow_rmt;
+						/* llc remote control field */
+			struct smc_llc_qentry	*delayed_event;
+						/* arrived when flow active */
+			spinlock_t		llc_flow_lock;
+						/* protects llc flow */
+			int			llc_testlink_time;
+						/* link keep alive time */
+			u32			llc_termination_rsn;
+						/* rsn code for termination */
 		};
 		struct { /* SMC-D */
 			u64			peer_gid;
@@ -285,24 +339,36 @@ static inline struct smc_connection *smc_lgr_find_conn(
 	return res;
 }
 
+/* returns true if the specified link is usable */
+static inline bool smc_link_usable(struct smc_link *lnk)
+{
+	if (lnk->state == SMC_LNK_UNUSED || lnk->state == SMC_LNK_INACTIVE)
+		return false;
+	return true;
+}
+
 struct smc_sock;
 struct smc_clc_msg_accept_confirm;
 struct smc_clc_msg_local;
 
-void smc_lgr_forget(struct smc_link_group *lgr);
 void smc_lgr_cleanup_early(struct smc_connection *conn);
 void smc_lgr_terminate_sched(struct smc_link_group *lgr);
-void smc_port_terminate(struct smc_ib_device *smcibdev, u8 ibport);
+void smcr_port_add(struct smc_ib_device *smcibdev, u8 ibport);
+void smcr_port_err(struct smc_ib_device *smcibdev, u8 ibport);
 void smc_smcd_terminate(struct smcd_dev *dev, u64 peer_gid,
 			unsigned short vlan);
 void smc_smcd_terminate_all(struct smcd_dev *dev);
 void smc_smcr_terminate_all(struct smc_ib_device *smcibdev);
 int smc_buf_create(struct smc_sock *smc, bool is_smcd);
 int smc_uncompress_bufsize(u8 compressed);
-int smc_rmb_rtoken_handling(struct smc_connection *conn,
+int smc_rmb_rtoken_handling(struct smc_connection *conn, struct smc_link *link,
 			    struct smc_clc_msg_accept_confirm *clc);
-int smc_rtoken_add(struct smc_link_group *lgr, __be64 nw_vaddr, __be32 nw_rkey);
-int smc_rtoken_delete(struct smc_link_group *lgr, __be32 nw_rkey);
+int smc_rtoken_add(struct smc_link *lnk, __be64 nw_vaddr, __be32 nw_rkey);
+int smc_rtoken_delete(struct smc_link *lnk, __be32 nw_rkey);
+void smc_rtoken_set(struct smc_link_group *lgr, int link_idx, int link_idx_new,
+		    __be32 nw_rkey_known, __be64 nw_vaddr, __be32 nw_rkey);
+void smc_rtoken_set2(struct smc_link_group *lgr, int rtok_idx, int link_id,
+		     __be64 nw_vaddr, __be32 nw_rkey);
 void smc_sndbuf_sync_sg_for_cpu(struct smc_connection *conn);
 void smc_sndbuf_sync_sg_for_device(struct smc_connection *conn);
 void smc_rmb_sync_sg_for_cpu(struct smc_connection *conn);
@@ -315,8 +381,22 @@ void smc_lgr_schedule_free_work_fast(struct smc_link_group *lgr);
 int smc_core_init(void);
 void smc_core_exit(void);
 
+int smcr_link_init(struct smc_link_group *lgr, struct smc_link *lnk,
+		   u8 link_idx, struct smc_init_info *ini);
+void smcr_link_clear(struct smc_link *lnk, bool log);
+int smcr_buf_map_lgr(struct smc_link *lnk);
+int smcr_buf_reg_lgr(struct smc_link *lnk);
+void smcr_lgr_set_type(struct smc_link_group *lgr, enum smc_lgr_type new_type);
+void smcr_lgr_set_type_asym(struct smc_link_group *lgr,
+			    enum smc_lgr_type new_type, int asym_lnk_idx);
+int smcr_link_reg_rmb(struct smc_link *link, struct smc_buf_desc *rmb_desc);
+struct smc_link *smc_switch_conns(struct smc_link_group *lgr,
+				  struct smc_link *from_lnk, bool is_dev_err);
+void smcr_link_down_cond(struct smc_link *lnk);
+void smcr_link_down_cond_sched(struct smc_link *lnk);
+
 static inline struct smc_link_group *smc_get_lgr(struct smc_link *link)
 {
-	return container_of(link, struct smc_link_group, lnk[SMC_SINGLE_LINK]);
+	return link->lgr;
 }
 #endif

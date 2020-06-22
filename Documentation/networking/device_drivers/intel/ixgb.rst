@@ -37,7 +37,7 @@ The following features are available in this kernel:
  - SNMP
 
 Channel Bonding documentation can be found in the Linux kernel source:
-/Documentation/networking/bonding.txt
+/Documentation/networking/bonding.rst
 
 The driver information previously displayed in the /proc filesystem is not
 supported in this release.  Alternatively, you can use ethtool (version 1.6
