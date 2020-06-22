@@ -31,6 +31,8 @@
 #include "nouveau_drv.h"
 #include "nouveau_mem.h"
 
+#include <nvif/push206e.h>
+
 int
 nv50_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 		  struct ttm_mem_reg *old_reg, struct ttm_mem_reg *new_reg)
@@ -107,15 +109,16 @@ nv50_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 int
 nv50_bo_move_init(struct nouveau_channel *chan, u32 handle)
 {
-	int ret = RING_SPACE(chan, 6);
-	if (ret == 0) {
-		BEGIN_NV04(chan, NvSubCopy, 0x0000, 1);
-		OUT_RING  (chan, handle);
-		BEGIN_NV04(chan, NvSubCopy, 0x0180, 3);
-		OUT_RING  (chan, chan->drm->ntfy.handle);
-		OUT_RING  (chan, chan->vram.handle);
-		OUT_RING  (chan, chan->vram.handle);
-	}
+	struct nvif_push *push = chan->chan.push;
+	int ret;
 
-	return ret;
+	ret = PUSH_WAIT(push, 6);
+	if (ret)
+		return ret;
+
+	PUSH_NVSQ(push, NV5039, 0x0000, handle);
+	PUSH_NVSQ(push, NV5039, 0x0180, chan->drm->ntfy.handle,
+				0x0184, chan->vram.handle,
+				0x0188, chan->vram.handle);
+	return 0;
 }

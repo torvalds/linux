@@ -30,6 +30,8 @@
 #include "nouveau_dma.h"
 #include "nouveau_drv.h"
 
+#include <nvif/push006c.h>
+
 static inline uint32_t
 nouveau_bo_mem_ctxdma(struct ttm_buffer_object *bo,
 		      struct nouveau_channel *chan, struct ttm_mem_reg *reg)
@@ -88,13 +90,14 @@ nv04_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 int
 nv04_bo_move_init(struct nouveau_channel *chan, u32 handle)
 {
-	int ret = RING_SPACE(chan, 4);
-	if (ret == 0) {
-		BEGIN_NV04(chan, NvSubCopy, 0x0000, 1);
-		OUT_RING  (chan, handle);
-		BEGIN_NV04(chan, NvSubCopy, 0x0180, 1);
-		OUT_RING  (chan, chan->drm->ntfy.handle);
-	}
+	struct nvif_push *push = chan->chan.push;
+	int ret;
 
-	return ret;
+	ret = PUSH_WAIT(push, 4);
+	if (ret)
+		return ret;
+
+	PUSH_NVSQ(push, NV039, 0x0000, handle);
+	PUSH_NVSQ(push, NV039, 0x0180, chan->drm->ntfy.handle);
+	return 0;
 }
