@@ -44,6 +44,7 @@
 #include "dce_virtual.h"
 #include "gca/gfx_6_0_d.h"
 #include "oss/oss_1_0_d.h"
+#include "oss/oss_1_0_sh_mask.h"
 #include "gmc/gmc_6_0_d.h"
 #include "dce/dce_6_0_d.h"
 #include "uvd/uvd_4_0_d.h"
