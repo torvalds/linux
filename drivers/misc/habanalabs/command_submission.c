@@ -373,9 +373,9 @@ static void cs_timedout(struct work_struct *work)
 	hdev = cs->ctx->hdev;
 	ctx_asid = cs->ctx->asid;
 
-	/* TODO: add information about last signaled seq and last emitted seq */
-	dev_err(hdev->dev, "User %d command submission %llu got stuck!\n",
-		ctx_asid, cs->sequence);
+	dev_err(hdev->dev,
+		"Command submission %llu has not finished in time!\n",
+		cs->sequence);
 
 	cs_put(cs);
 
@@ -1130,7 +1130,7 @@ static long _hl_cs_wait_ioctl(struct hl_device *hdev,
 		rc = PTR_ERR(fence);
 		if (rc == -EINVAL)
 			dev_notice_ratelimited(hdev->dev,
-				"Can't wait on seq %llu because current CS is at seq %llu\n",
+				"Can't wait on CS %llu because current CS is at seq %llu\n",
 				seq, ctx->cs_sequence);
 	} else if (fence) {
 		rc = dma_fence_wait_timeout(fence, true, timeout);
@@ -1163,15 +1163,21 @@ int hl_cs_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 	memset(args, 0, sizeof(*args));
 
 	if (rc < 0) {
-		dev_err_ratelimited(hdev->dev,
-				"Error %ld on waiting for CS handle %llu\n",
-				rc, seq);
 		if (rc == -ERESTARTSYS) {
+			dev_err_ratelimited(hdev->dev,
+				"user process got signal while waiting for CS handle %llu\n",
+				seq);
 			args->out.status = HL_WAIT_CS_STATUS_INTERRUPTED;
 			rc = -EINTR;
 		} else if (rc == -ETIMEDOUT) {
+			dev_err_ratelimited(hdev->dev,
+				"CS %llu has timed-out while user process is waiting for it\n",
+				seq);
 			args->out.status = HL_WAIT_CS_STATUS_TIMEDOUT;
 		} else if (rc == -EIO) {
+			dev_err_ratelimited(hdev->dev,
+				"CS %llu has been aborted while user process is waiting for it\n",
+				seq);
 			args->out.status = HL_WAIT_CS_STATUS_ABORTED;
 		}
 		return rc;

@@ -112,8 +112,7 @@ void hl_ctx_free(struct hl_device *hdev, struct hl_ctx *ctx)
 		return;
 
 	dev_warn(hdev->dev,
-		"Context %d closed or terminated but its CS are executing\n",
-		ctx->asid);
+		"user process released device but its command submissions are still executing\n");
 }
 
 int hl_ctx_init(struct hl_device *hdev, struct hl_ctx *ctx, bool is_kernel_ctx)

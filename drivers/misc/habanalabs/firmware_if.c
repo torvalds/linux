@@ -289,7 +289,7 @@ int hl_fw_armcp_info_get(struct hl_device *hdev)
 					HL_ARMCP_INFO_TIMEOUT_USEC, &result);
 	if (rc) {
 		dev_err(hdev->dev,
-			"Failed to send ArmCP info pkt, error %d\n", rc);
+			"Failed to handle ArmCP info pkt, error %d\n", rc);
 		goto out;
 	}
 
@@ -340,7 +340,7 @@ int hl_fw_get_eeprom_data(struct hl_device *hdev, void *data, size_t max_size)
 
 	if (rc) {
 		dev_err(hdev->dev,
-			"Failed to send ArmCP EEPROM packet, error %d\n", rc);
+			"Failed to handle ArmCP EEPROM packet, error %d\n", rc);
 		goto out;
 	}
 
