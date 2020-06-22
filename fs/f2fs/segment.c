@@ -2733,28 +2733,35 @@ unlock:
 	up_read(&SM_I(sbi)->curseg_lock);
 }
 
-void f2fs_allocate_new_segments(struct f2fs_sb_info *sbi, int type)
+static void __allocate_new_segment(struct f2fs_sb_info *sbi, int type)
 {
-	struct curseg_info *curseg;
+	struct curseg_info *curseg = CURSEG_I(sbi, type);
 	unsigned int old_segno;
+
+	if (!curseg->next_blkoff &&
+		!get_valid_blocks(sbi, curseg->segno, false) &&
+		!get_ckpt_valid_blocks(sbi, curseg->segno))
+		return;
+
+	old_segno = curseg->segno;
+	SIT_I(sbi)->s_ops->allocate_segment(sbi, type, true);
+	locate_dirty_segment(sbi, old_segno);
+}
+
+void f2fs_allocate_new_segment(struct f2fs_sb_info *sbi, int type)
+{
+	down_write(&SIT_I(sbi)->sentry_lock);
+	__allocate_new_segment(sbi, type);
+	up_write(&SIT_I(sbi)->sentry_lock);
+}
+
+void f2fs_allocate_new_segments(struct f2fs_sb_info *sbi)
+{
 	int i;
 
 	down_write(&SIT_I(sbi)->sentry_lock);
-
-	for (i = CURSEG_HOT_DATA; i <= CURSEG_COLD_DATA; i++) {
-		if (type != NO_CHECK_TYPE && i != type)
-			continue;
-
-		curseg = CURSEG_I(sbi, i);
-		if (type == NO_CHECK_TYPE || curseg->next_blkoff ||
-				get_valid_blocks(sbi, curseg->segno, false) ||
-				get_ckpt_valid_blocks(sbi, curseg->segno)) {
-			old_segno = curseg->segno;
-			SIT_I(sbi)->s_ops->allocate_segment(sbi, i, true);
-			locate_dirty_segment(sbi, old_segno);
-		}
-	}
-
+	for (i = CURSEG_HOT_DATA; i <= CURSEG_COLD_DATA; i++)
+		__allocate_new_segment(sbi, i);
 	up_write(&SIT_I(sbi)->sentry_lock);
 }
 
