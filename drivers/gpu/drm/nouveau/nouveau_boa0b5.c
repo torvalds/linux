@@ -32,6 +32,8 @@
 
 #include <nvif/push906f.h>
 
+#include <nvhw/class/cla0b5.h>
+
 int
 nve0_bo_move_copy(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 		  struct ttm_mem_reg *old_reg, struct ttm_mem_reg *new_reg)
@@ -44,15 +46,32 @@ nve0_bo_move_copy(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 	if (ret)
 		return ret;
 
-	PUSH_NVSQ(push, NVA0B5, 0x0400, upper_32_bits(mem->vma[0].addr),
-				0x0404, lower_32_bits(mem->vma[0].addr),
-				0x0408, upper_32_bits(mem->vma[1].addr),
-				0x040c, lower_32_bits(mem->vma[1].addr),
-				0x0410, PAGE_SIZE,
-				0x0414, PAGE_SIZE,
-				0x0418, PAGE_SIZE,
-				0x041c, new_reg->num_pages);
-	PUSH_NVIM(push, NVA0B5, 0x0300, 0x0386);
+	PUSH_MTHD(push, NVA0B5, OFFSET_IN_UPPER,
+		  NVVAL(NVA0B5, OFFSET_IN_UPPER, UPPER, upper_32_bits(mem->vma[0].addr)),
+
+				OFFSET_IN_LOWER, lower_32_bits(mem->vma[0].addr),
+
+				OFFSET_OUT_UPPER,
+		  NVVAL(NVA0B5, OFFSET_OUT_UPPER, UPPER, upper_32_bits(mem->vma[1].addr)),
+
+				OFFSET_OUT_LOWER, lower_32_bits(mem->vma[1].addr),
+				PITCH_IN, PAGE_SIZE,
+				PITCH_OUT, PAGE_SIZE,
+				LINE_LENGTH_IN, PAGE_SIZE,
+				LINE_COUNT, new_reg->num_pages);
+
+	PUSH_IMMD(push, NVA0B5, LAUNCH_DMA,
+		  NVDEF(NVA0B5, LAUNCH_DMA, DATA_TRANSFER_TYPE, NON_PIPELINED) |
+		  NVDEF(NVA0B5, LAUNCH_DMA, FLUSH_ENABLE, TRUE) |
+		  NVDEF(NVA0B5, LAUNCH_DMA, SEMAPHORE_TYPE, NONE) |
+		  NVDEF(NVA0B5, LAUNCH_DMA, INTERRUPT_TYPE, NONE) |
+		  NVDEF(NVA0B5, LAUNCH_DMA, SRC_MEMORY_LAYOUT, PITCH) |
+		  NVDEF(NVA0B5, LAUNCH_DMA, DST_MEMORY_LAYOUT, PITCH) |
+		  NVDEF(NVA0B5, LAUNCH_DMA, MULTI_LINE_ENABLE, TRUE) |
+		  NVDEF(NVA0B5, LAUNCH_DMA, REMAP_ENABLE, FALSE) |
+		  NVDEF(NVA0B5, LAUNCH_DMA, BYPASS_L2, USE_PTE_SETTING) |
+		  NVDEF(NVA0B5, LAUNCH_DMA, SRC_TYPE, VIRTUAL) |
+		  NVDEF(NVA0B5, LAUNCH_DMA, DST_TYPE, VIRTUAL));
 	return 0;
 }
 

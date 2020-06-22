@@ -60,40 +60,70 @@ nv50_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 		height  = amount / stride;
 
 		if (src_tiled) {
-			PUSH_NVSQ(push, NV5039, 0x0200, 0,
-						0x0204, 0,
-						0x0208, stride,
-						0x020c, height,
-						0x0210, 1,
-						0x0214, 0,
-						0x0218, 0);
+			PUSH_MTHD(push, NV5039, SET_SRC_MEMORY_LAYOUT,
+				  NVDEF(NV5039, SET_SRC_MEMORY_LAYOUT, V, BLOCKLINEAR),
+
+						SET_SRC_BLOCK_SIZE,
+				  NVDEF(NV5039, SET_SRC_BLOCK_SIZE, WIDTH, ONE_GOB) |
+				  NVDEF(NV5039, SET_SRC_BLOCK_SIZE, HEIGHT, ONE_GOB) |
+				  NVDEF(NV5039, SET_SRC_BLOCK_SIZE, DEPTH, ONE_GOB),
+
+						SET_SRC_WIDTH, stride,
+						SET_SRC_HEIGHT, height,
+						SET_SRC_DEPTH, 1,
+						SET_SRC_LAYER, 0,
+
+						SET_SRC_ORIGIN,
+				  NVVAL(NV5039, SET_SRC_ORIGIN, X, 0) |
+				  NVVAL(NV5039, SET_SRC_ORIGIN, Y, 0));
 		} else {
-			PUSH_NVSQ(push, NV5039, 0x0200, 1);
+			PUSH_MTHD(push, NV5039, SET_SRC_MEMORY_LAYOUT,
+				  NVDEF(NV5039, SET_SRC_MEMORY_LAYOUT, V, PITCH));
 		}
 
 		if (dst_tiled) {
-			PUSH_NVSQ(push, NV5039, 0x021c, 0,
-						0x0220, 0,
-						0x0224, stride,
-						0x0228, height,
-						0x022c, 1,
-						0x0230, 0,
-						0x0234, 0);
+			PUSH_MTHD(push, NV5039, SET_DST_MEMORY_LAYOUT,
+				  NVDEF(NV5039, SET_DST_MEMORY_LAYOUT, V, BLOCKLINEAR),
+
+						SET_DST_BLOCK_SIZE,
+				  NVDEF(NV5039, SET_DST_BLOCK_SIZE, WIDTH, ONE_GOB) |
+				  NVDEF(NV5039, SET_DST_BLOCK_SIZE, HEIGHT, ONE_GOB) |
+				  NVDEF(NV5039, SET_DST_BLOCK_SIZE, DEPTH, ONE_GOB),
+
+						SET_DST_WIDTH, stride,
+						SET_DST_HEIGHT, height,
+						SET_DST_DEPTH, 1,
+						SET_DST_LAYER, 0,
+
+						SET_DST_ORIGIN,
+				  NVVAL(NV5039, SET_DST_ORIGIN, X, 0) |
+				  NVVAL(NV5039, SET_DST_ORIGIN, Y, 0));
 		} else {
-			PUSH_NVSQ(push, NV5039, 0x021c, 1);
+			PUSH_MTHD(push, NV5039, SET_DST_MEMORY_LAYOUT,
+				  NVDEF(NV5039, SET_DST_MEMORY_LAYOUT, V, PITCH));
 		}
 
-		PUSH_NVSQ(push, NV5039, 0x0238, upper_32_bits(src_offset),
-					0x023c, upper_32_bits(dst_offset));
-		PUSH_NVSQ(push, NV5039, 0x030c, lower_32_bits(src_offset),
-					0x0310, lower_32_bits(dst_offset),
-					0x0314, stride,
-					0x0318, stride,
-					0x031c, stride,
-					0x0320, height,
-					0x0324, 0x00000101,
-					0x0328, 0x00000000);
-		PUSH_NVSQ(push, NV5039, 0x0100, 0x00000000);
+		PUSH_MTHD(push, NV5039, OFFSET_IN_UPPER,
+			  NVVAL(NV5039, OFFSET_IN_UPPER, VALUE, upper_32_bits(src_offset)),
+
+					OFFSET_OUT_UPPER,
+			  NVVAL(NV5039, OFFSET_OUT_UPPER, VALUE, upper_32_bits(dst_offset)));
+
+		PUSH_MTHD(push, NV5039, OFFSET_IN, lower_32_bits(src_offset),
+					OFFSET_OUT, lower_32_bits(dst_offset),
+					PITCH_IN, stride,
+					PITCH_OUT, stride,
+					LINE_LENGTH_IN, stride,
+					LINE_COUNT, height,
+
+					FORMAT,
+			  NVDEF(NV5039, FORMAT, IN, ONE) |
+			  NVDEF(NV5039, FORMAT, OUT, ONE),
+
+					BUFFER_NOTIFY,
+			  NVDEF(NV5039, BUFFER_NOTIFY, TYPE, WRITE_ONLY));
+
+		PUSH_MTHD(push, NV5039, NO_OPERATION, 0x00000000);
 
 		length -= amount;
 		src_offset += amount;

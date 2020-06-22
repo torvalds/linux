@@ -53,15 +53,27 @@ nvc0_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 		if (ret)
 			return ret;
 
-		PUSH_NVSQ(push, NV9039, 0x0238, upper_32_bits(dst_offset),
-					0x023c, lower_32_bits(dst_offset));
-		PUSH_NVSQ(push, NV9039, 0x030c, upper_32_bits(src_offset),
-					0x0310, lower_32_bits(src_offset),
-					0x0314, PAGE_SIZE, /* src_pitch */
-					0x0318, PAGE_SIZE, /* dst_pitch */
-					0x031c, PAGE_SIZE, /* line_length */
-					0x0320, line_count);
-		PUSH_NVSQ(push, NV9039, 0x0300, 0x00100110);
+		PUSH_MTHD(push, NV9039, OFFSET_OUT_UPPER,
+			  NVVAL(NV9039, OFFSET_OUT_UPPER, VALUE, upper_32_bits(dst_offset)),
+
+					OFFSET_OUT, lower_32_bits(dst_offset));
+
+		PUSH_MTHD(push, NV9039, OFFSET_IN_UPPER,
+			  NVVAL(NV9039, OFFSET_IN_UPPER, VALUE, upper_32_bits(src_offset)),
+
+					OFFSET_IN, lower_32_bits(src_offset),
+					PITCH_IN, PAGE_SIZE,
+					PITCH_OUT, PAGE_SIZE,
+					LINE_LENGTH_IN, PAGE_SIZE,
+					LINE_COUNT, line_count);
+
+		PUSH_MTHD(push, NV9039, LAUNCH_DMA,
+			  NVDEF(NV9039, LAUNCH_DMA, SRC_INLINE, FALSE) |
+			  NVDEF(NV9039, LAUNCH_DMA, SRC_MEMORY_LAYOUT, PITCH) |
+			  NVDEF(NV9039, LAUNCH_DMA, DST_MEMORY_LAYOUT, PITCH) |
+			  NVDEF(NV9039, LAUNCH_DMA, COMPLETION_TYPE, FLUSH_DISABLE) |
+			  NVDEF(NV9039, LAUNCH_DMA, INTERRUPT_TYPE, NONE) |
+			  NVDEF(NV9039, LAUNCH_DMA, SEMAPHORE_STRUCT_SIZE, ONE_WORD));
 
 		page_count -= line_count;
 		src_offset += (PAGE_SIZE * line_count);
