@@ -2359,7 +2359,7 @@ static int svm_get_msr_feature(struct kvm_msr_entry *msr)
 			msr->data |= MSR_F10H_DECFG_LFENCE_SERIALIZE;
 		break;
 	default:
-		return 1;
+		return KVM_MSR_RET_INVALID;
 	}
 
 	return 0;
