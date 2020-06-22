@@ -44,6 +44,7 @@ struct test_case {
 	struct options sockopt;
 	struct tstamps expected;
 	bool enabled;
+	bool warn_on_fail;
 };
 
 struct sof_flag {
@@ -89,7 +90,7 @@ static struct test_case test_cases[] = {
 	},
 	{
 		{ so_timestamping: SOF_TIMESTAMPING_SOFTWARE },
-		{}
+		warn_on_fail : true
 	},
 	{
 		{ so_timestamping: SOF_TIMESTAMPING_RX_SOFTWARE
@@ -115,6 +116,7 @@ static struct option long_options[] = {
 	{ "tcp", no_argument, 0, 't' },
 	{ "udp", no_argument, 0, 'u' },
 	{ "ip", no_argument, 0, 'i' },
+	{ "strict", no_argument, 0, 'S' },
 	{ NULL, 0, NULL, 0 },
 };
 
@@ -327,6 +329,7 @@ int main(int argc, char **argv)
 {
 	bool all_protocols = true;
 	bool all_tests = true;
+	bool strict = false;
 	int arg_index = 0;
 	int failures = 0;
 	int s, t;
@@ -363,6 +366,9 @@ int main(int argc, char **argv)
 			all_protocols = false;
 			socket_types[0].enabled = true;
 			break;
+		case 'S':
+			strict = true;
+			break;
 		default:
 			error(1, 0, "Failed to parse parameters.");
 		}
@@ -379,7 +385,8 @@ int main(int argc, char **argv)
 
 			printf("Starting testcase %d...\n", t);
 			if (run_test_case(socket_types[s], test_cases[t])) {
-				failures++;
+				if (strict || !test_cases[t].warn_on_fail)
+					failures++;
 				printf("FAILURE in test case ");
 				print_test_case(&test_cases[t]);
 			}
