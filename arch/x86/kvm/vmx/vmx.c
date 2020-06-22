@@ -7485,32 +7485,33 @@ static int vmx_write_pml_buffer(struct kvm_vcpu *vcpu, gpa_t gpa)
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	gpa_t dst;
 
-	if (is_guest_mode(vcpu)) {
-		WARN_ON_ONCE(vmx->nested.pml_full);
+	if (WARN_ON_ONCE(!is_guest_mode(vcpu)))
+		return 0;
 
-		/*
-		 * Check if PML is enabled for the nested guest.
-		 * Whether eptp bit 6 is set is already checked
-		 * as part of A/D emulation.
-		 */
-		vmcs12 = get_vmcs12(vcpu);
-		if (!nested_cpu_has_pml(vmcs12))
-			return 0;
+	if (WARN_ON_ONCE(vmx->nested.pml_full))
+		return 1;
 
-		if (vmcs12->guest_pml_index >= PML_ENTITY_NUM) {
-			vmx->nested.pml_full = true;
-			return 1;
-		}
+	/*
+	 * Check if PML is enabled for the nested guest. Whether eptp bit 6 is
+	 * set is already checked as part of A/D emulation.
+	 */
+	vmcs12 = get_vmcs12(vcpu);
+	if (!nested_cpu_has_pml(vmcs12))
+		return 0;
 
-		gpa &= ~0xFFFull;
-		dst = vmcs12->pml_address + sizeof(u64) * vmcs12->guest_pml_index;
-
-		if (kvm_write_guest_page(vcpu->kvm, gpa_to_gfn(dst), &gpa,
-					 offset_in_page(dst), sizeof(gpa)))
-			return 0;
-
-		vmcs12->guest_pml_index--;
+	if (vmcs12->guest_pml_index >= PML_ENTITY_NUM) {
+		vmx->nested.pml_full = true;
+		return 1;
 	}
+
+	gpa &= ~0xFFFull;
+	dst = vmcs12->pml_address + sizeof(u64) * vmcs12->guest_pml_index;
+
+	if (kvm_write_guest_page(vcpu->kvm, gpa_to_gfn(dst), &gpa,
+				 offset_in_page(dst), sizeof(gpa)))
+		return 0;
+
+	vmcs12->guest_pml_index--;
 
 	return 0;
 }
