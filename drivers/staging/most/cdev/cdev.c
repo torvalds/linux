@@ -324,9 +324,6 @@ static int comp_disconnect_channel(struct most_interface *iface, int channel_id)
 {
 	struct comp_channel *c;
 
-	if (!iface)
-		return -EINVAL;
-
 	c = get_channel(iface, channel_id);
 	if (!c)
 		return -ENXIO;
@@ -391,9 +388,6 @@ static int comp_tx_completion(struct most_interface *iface, int channel_id)
 {
 	struct comp_channel *c;
 
-	if (!iface)
-		return -EINVAL;
-
 	c = get_channel(iface, channel_id);
 	if (!c)
 		return -ENXIO;
@@ -426,7 +420,7 @@ static int comp_probe(struct most_interface *iface, int channel_id,
 	int retval;
 	int current_minor;
 
-	if ((!iface) || (!cfg) || (!name))
+	if ((!cfg) || (!name))
 		return -EINVAL;
 
 	c = get_channel(iface, channel_id);
