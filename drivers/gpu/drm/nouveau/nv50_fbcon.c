@@ -82,15 +82,17 @@ nv50_fbcon_copyarea(struct fb_info *info, const struct fb_copyarea *region)
 	if (ret)
 		return ret;
 
-	PUSH_NVSQ(push, NV502D, 0x0110, 0);
-	PUSH_NVSQ(push, NV502D, 0x08b0, region->dx,
-				0x08b4, region->dy,
-				0x08b8, region->width,
-				0x08bc, region->height);
-	PUSH_NVSQ(push, NV502D, 0x08d0, 0,
-				0x08d4, region->sx,
-				0x08d8, 0,
-				0x08dc, region->sy);
+	PUSH_MTHD(push, NV502D, WAIT_FOR_IDLE, 0);
+
+	PUSH_MTHD(push, NV502D, SET_PIXELS_FROM_MEMORY_DST_X0, region->dx,
+				SET_PIXELS_FROM_MEMORY_DST_Y0, region->dy,
+				SET_PIXELS_FROM_MEMORY_DST_WIDTH, region->width,
+				SET_PIXELS_FROM_MEMORY_DST_HEIGHT, region->height);
+
+	PUSH_MTHD(push, NV502D, SET_PIXELS_FROM_MEMORY_SRC_X0_FRAC, 0,
+				SET_PIXELS_FROM_MEMORY_SRC_X0_INT, region->sx,
+				SET_PIXELS_FROM_MEMORY_SRC_Y0_FRAC, 0,
+				PIXELS_FROM_MEMORY_SRC_Y0_INT, region->sy);
 	PUSH_KICK(push);
 	return 0;
 }
