@@ -1335,6 +1335,10 @@ static int __init tbnet_init(void)
 	tb_property_add_immediate(tbnet_dir, "prtcid", 1);
 	tb_property_add_immediate(tbnet_dir, "prtcvers", 1);
 	tb_property_add_immediate(tbnet_dir, "prtcrevs", 1);
+	/* Currently only announce support for match frags ID (bit 1). Bit 0
+	 * is reserved for full E2E flow control which we do not support at
+	 * the moment.
+	 */
 	tb_property_add_immediate(tbnet_dir, "prtcstns",
 				  TBNET_MATCH_FRAGS_ID);
 
