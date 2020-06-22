@@ -18,6 +18,7 @@
 #include <linux/thermal.h>
 #include <linux/mfd/syscon.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/nvmem-consumer.h>
 
 /*
  * If the temperature over a period of time High,
@@ -71,12 +72,17 @@ enum adc_sort_mode {
  * @id: conversion table
  * @length: size of conversion table
  * @data_mask: mask to apply on data inputs
+ * @kNum: linear parameter k
+ * @bNum: linear parameter b
  * @mode: sort mode of this adc variant (incrementing or decrementing)
  */
 struct chip_tsadc_table {
 	const struct tsadc_table *id;
 	unsigned int length;
 	u32 data_mask;
+	/* Tsadc is linear, using linear parameters */
+	int kNum;
+	int bNum;
 	enum adc_sort_mode mode;
 };
 
@@ -94,6 +100,8 @@ struct chip_tsadc_table {
  * @set_alarm_temp: set the high temperature interrupt
  * @set_tshut_temp: set the hardware-controlled shutdown temperature
  * @set_tshut_mode: set the hardware-controlled shutdown mode
+ * @get_trim_code: get the trim code by otp value
+ * @trim_temp: get trim temp by trim code
  * @table: the chip-specific conversion table
  */
 struct rockchip_tsadc_chip {
@@ -121,6 +129,9 @@ struct rockchip_tsadc_chip {
 			      int chn, void __iomem *reg, int temp);
 	void (*set_tshut_mode)(struct regmap *grf, int chn,
 			       void __iomem *reg, enum tshut_mode m);
+	int (*get_trim_code)(struct platform_device *pdev,
+			     int code, int trim_base);
+	int (*trim_temp)(struct platform_device *pdev);
 
 	/* Per-table methods */
 	struct chip_tsadc_table table;
@@ -149,6 +160,7 @@ struct rockchip_thermal_sensor {
  * @grf: the general register file will be used to do static set by software
  * @regs: the base address of tsadc controller
  * @tshut_temp: the hardware-controlled shutdown temperature value
+ * @trim: trimmed value
  * @tshut_mode: the hardware-controlled shutdown mode (0:CRU 1:GPIO)
  * @tshut_polarity: the hardware-controlled active polarity (0:LOW 1:HIGH)
  * @pinctrl: the pinctrl of tsadc
@@ -170,6 +182,7 @@ struct rockchip_thermal_data {
 	void __iomem *regs;
 
 	int tshut_temp;
+	int trim;
 	enum tshut_mode tshut_mode;
 	enum tshut_polarity tshut_polarity;
 	struct pinctrl *pinctrl;
@@ -236,7 +249,7 @@ struct rockchip_thermal_data {
 
 #define RV1126_GRF0_TSADC_CON			0x0100
 
-#define RV1126_GRF0_TSADC_TRM			(0xff00ff << 0)
+#define RV1126_GRF0_TSADC_TRM			(0xff0077 << 0)
 #define RV1126_GRF0_TSADC_SHUT_2CRU		(0x30003 << 10)
 #define RV1126_GRF0_TSADC_SHUT_2GPIO		(0x70007 << 12)
 
@@ -247,6 +260,11 @@ struct rockchip_thermal_data {
 #define GRF_TSADC_VCM_EN_H			(0x10001 << 7)
 
 #define GRF_CON_TSADC_CH_INV			(0x10001 << 1)
+
+#define MIN_TEMP				(-40000)
+#define LOWEST_TEMP				(-273000)
+#define MAX_TEMP				(125000)
+#define MAX_ENV_TEMP				(85000)
 
 /**
  * struct tsadc_table - code to temperature conversion table
@@ -300,45 +318,6 @@ static const struct tsadc_table rv1108_table[] = {
 	{618, 115000},
 	{626, 120000},
 	{634, 125000},
-	{TSADCV2_DATA_MASK, 125000},
-};
-
-static const struct tsadc_table rv1126_code_table[] = {
-	{0, -40000},
-	{2623,	-40000},
-	{2635,	-35000},
-	{2646,	-30000},
-	{2657,	-25000},
-	{2669,	-20000},
-	{2680,	-15000},
-	{2691,	-10000},
-	{2703,	-5000},
-	{2714,	0},
-	{2725,	5000},
-	{2737,	10000},
-	{2748,	15000},
-	{2759,	20000},
-	{2770,	25000},
-	{2782,	30000},
-	{2793,	35000},
-	{2804,	40000},
-	{2816,	45000},
-	{2827,	50000},
-	{2838,	55000},
-	{2850,	60000},
-	{2861,	65000},
-	{2872,	70000},
-	{2884,	75000},
-	{2895,	80000},
-	{2906,	85000},
-	{2918,	90000},
-	{2929,	95000},
-	{2940,	100000},
-	{2952,	105000},
-	{2963,	110000},
-	{2974,	115000},
-	{2985,	120000},
-	{2997,	125000},
 	{TSADCV2_DATA_MASK, 125000},
 };
 
@@ -583,6 +562,9 @@ static u32 rk_tsadcv2_temp_to_code(const struct chip_tsadc_table *table,
 	unsigned int denom;
 	u32 error = table->data_mask;
 
+	if (table->kNum)
+		return (((temp / 1000) * table->kNum) / 1000 + table->bNum);
+
 	low = 0;
 	high = (table->length - 1) - 1; /* ignore the last check for table */
 	mid = (high + low) / 2;
@@ -635,6 +617,13 @@ static int rk_tsadcv2_code_to_temp(const struct chip_tsadc_table *table,
 	unsigned int mid = (low + high) / 2;
 	unsigned int num;
 	unsigned long denom;
+
+	if (table->kNum) {
+		*temp = (((int)code - table->bNum) * 10000 / table->kNum) * 100;
+		if (*temp < MIN_TEMP || *temp > MAX_TEMP)
+			return -EAGAIN;
+		return 0;
+	}
 
 	WARN_ON(table->length < 2);
 
@@ -993,6 +982,27 @@ static void rk_tsadcv3_tshut_mode(struct regmap *grf, int chn,
 	writel_relaxed(val, regs + TSADCV2_INT_EN);
 }
 
+static int rk_tsadcv1_get_trim_code(struct platform_device *pdev,
+				    int code, int trim_base)
+{
+	struct rockchip_thermal_data *thermal = platform_get_drvdata(pdev);
+	const struct chip_tsadc_table *table = &thermal->chip->table;
+	u32 base_code;
+	int trim_code;
+
+	base_code = trim_base * table->kNum / 1000 + table->bNum;
+	trim_code = code - base_code - 10;
+
+	return trim_code;
+}
+
+static int rk_tsadcv1_trim_temp(struct platform_device *pdev)
+{
+	struct rockchip_thermal_data *thermal = platform_get_drvdata(pdev);
+
+	return thermal->trim * 500;
+}
+
 static const struct rockchip_tsadc_chip px30_tsadc_data = {
 	.chn_id[SENSOR_CPU] = 0, /* cpu sensor is channel 0 */
 	.chn_id[SENSOR_GPU] = 1, /* gpu sensor is channel 1 */
@@ -1056,10 +1066,12 @@ static const struct rockchip_tsadc_chip rv1126_tsadc_data = {
 	.set_alarm_temp = rk_tsadcv2_alarm_temp,
 	.set_tshut_temp = rk_tsadcv2_tshut_temp,
 	.set_tshut_mode = rk_tsadcv3_tshut_mode,
+	.get_trim_code = rk_tsadcv1_get_trim_code,
+	.trim_temp = rk_tsadcv1_trim_temp,
 
 	.table = {
-		.id = rv1126_code_table,
-		.length = ARRAY_SIZE(rv1126_code_table),
+		.kNum = 2263,
+		.bNum = 2704,
 		.data_mask = TSADCV2_DATA_MASK,
 		.mode = ADC_INCREMENT,
 	},
@@ -1316,6 +1328,9 @@ static int rockchip_thermal_set_trips(void *_sensor, int low, int high)
 	dev_dbg(&thermal->pdev->dev, "%s: sensor %d: low: %d, high %d\n",
 		__func__, sensor->id, low, high);
 
+	if (tsadc->trim_temp)
+		high += tsadc->trim_temp(thermal->pdev);
+
 	return tsadc->set_alarm_temp(&tsadc->table,
 				     sensor->id, thermal->regs, high);
 }
@@ -1329,6 +1344,8 @@ static int rockchip_thermal_get_temp(void *_sensor, int *out_temp)
 
 	retval = tsadc->get_temp(&tsadc->table,
 				 sensor->id, thermal->regs, out_temp);
+	if (tsadc->trim_temp)
+		*out_temp -= tsadc->trim_temp(thermal->pdev);
 	dev_dbg(&thermal->pdev->dev, "sensor %d - temp: %d, retval: %d\n",
 		sensor->id, *out_temp, retval);
 
@@ -1354,11 +1371,38 @@ static void thermal_pinctrl_select_gpio(struct rockchip_thermal_data *thermal)
 				     thermal->gpio_state);
 }
 
+static int rockchip_get_efuse_value(struct device_node *np, char *porp_name,
+				    int *value)
+{
+	struct nvmem_cell *cell;
+	unsigned char *buf;
+	size_t len;
+
+	cell = of_nvmem_cell_get(np, porp_name);
+	if (IS_ERR(cell))
+		return PTR_ERR(cell);
+
+	buf = (unsigned char *)nvmem_cell_read(cell, &len);
+
+	nvmem_cell_put(cell);
+
+	if (IS_ERR(buf))
+		return PTR_ERR(buf);
+
+	*value = buf[0];
+
+	kfree(buf);
+
+	return 0;
+}
+
 static int rockchip_configure_from_dt(struct device *dev,
 				      struct device_node *np,
 				      struct rockchip_thermal_data *thermal)
 {
+	const struct rockchip_tsadc_chip *tsadc = thermal->chip;
 	u32 shut_temp, tshut_mode, tshut_polarity;
+	int trim_l = 0, trim_h = 0, trim_bsae = 0;
 
 	if (of_property_read_u32(np, "rockchip,hw-tshut-temp", &shut_temp)) {
 		dev_warn(dev,
@@ -1413,6 +1457,29 @@ static int rockchip_configure_from_dt(struct device *dev,
 	thermal->grf = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
 	if (IS_ERR(thermal->grf))
 		dev_warn(dev, "Missing rockchip,grf property\n");
+
+	if (tsadc->trim_temp && tsadc->get_trim_code) {
+		/* The tsadc won't to handle the error in here
+		 * since some SoCs didn't need this property.
+		 * rv1126 need trim tsadc.
+		 */
+		if (rockchip_get_efuse_value(np, "trim_l", &trim_l))
+			dev_warn(dev, "Missing trim_l property\n");
+		if (rockchip_get_efuse_value(np, "trim_h", &trim_h))
+			dev_warn(dev, "Missing trim_h property\n");
+		if (rockchip_get_efuse_value(np, "trim_base", &trim_bsae))
+			dev_warn(dev, "Missing trim_base property\n");
+
+		if (trim_l && trim_h && trim_bsae) {
+			thermal->trim = tsadc->get_trim_code(thermal->pdev,
+							     (trim_h << 8) |
+							     trim_l,
+							     trim_bsae);
+			dev_info(dev, "tsadc trimmed value = %d\n",
+				 thermal->trim);
+			thermal->tshut_temp += tsadc->trim_temp(thermal->pdev);
+		}
+	}
 
 	return 0;
 }
@@ -1548,6 +1615,7 @@ static int rockchip_thermal_probe(struct platform_device *pdev)
 			error);
 		return error;
 	}
+	platform_set_drvdata(pdev, thermal);
 
 	thermal->chip->control(thermal->regs, false);
 
@@ -1614,8 +1682,6 @@ static int rockchip_thermal_probe(struct platform_device *pdev)
 				 "failed to register sensor %d with hwmon: %d\n",
 				 i, error);
 	}
-
-	platform_set_drvdata(pdev, thermal);
 
 	thermal->panic_nb.notifier_call = rockchip_thermal_panic;
 	atomic_notifier_chain_register(&panic_notifier_list,
