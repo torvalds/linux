@@ -181,6 +181,8 @@ static int hw_atl2_hw_qos_set(struct aq_hw_s *self)
 
 		threshold = (rx_buff_size * (1024U / 32U) * 50U) / 100U;
 		hw_atl_rpb_rx_buff_lo_threshold_per_tc_set(self, threshold, tc);
+
+		hw_atl_b0_set_fc(self, self->aq_nic_cfg->fc.req, tc);
 	}
 
 	/* QoS 802.1p priority -> TC mapping */
@@ -841,4 +843,5 @@ const struct aq_hw_ops hw_atl2_ops = {
 	.hw_get_hw_stats             = hw_atl2_utils_get_hw_stats,
 	.hw_get_fw_version           = hw_atl2_utils_get_fw_version,
 	.hw_set_offload              = hw_atl_b0_hw_offload_set,
+	.hw_set_fc                   = hw_atl_b0_set_fc,
 };

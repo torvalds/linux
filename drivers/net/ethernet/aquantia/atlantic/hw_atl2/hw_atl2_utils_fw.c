@@ -190,6 +190,15 @@ static int aq_a2_fw_set_link_speed(struct aq_hw_s *self, u32 speed)
 	return hw_atl2_shared_buffer_finish_ack(self);
 }
 
+static void aq_a2_fw_set_mpi_flow_control(struct aq_hw_s *self,
+					  struct link_options_s *link_options)
+{
+	u32 flow_control = self->aq_nic_cfg->fc.req;
+
+	link_options->pause_rx = !!(flow_control & AQ_NIC_FC_RX);
+	link_options->pause_tx = !!(flow_control & AQ_NIC_FC_TX);
+}
+
 static void aq_a2_fw_upd_eee_rate_bits(struct aq_hw_s *self,
 				       struct link_options_s *link_options,
 				       u32 eee_speeds)
@@ -213,6 +222,7 @@ static int aq_a2_fw_set_state(struct aq_hw_s *self,
 		link_options.link_up = 1U;
 		aq_a2_fw_upd_eee_rate_bits(self, &link_options,
 					   self->aq_nic_cfg->eee_speeds);
+		aq_a2_fw_set_mpi_flow_control(self, &link_options);
 		break;
 	case MPI_DEINIT:
 		link_options.link_up = 0U;
@@ -363,6 +373,30 @@ static int aq_a2_fw_renegotiate(struct aq_hw_s *self)
 	return err;
 }
 
+static int aq_a2_fw_set_flow_control(struct aq_hw_s *self)
+{
+	struct link_options_s link_options;
+
+	hw_atl2_shared_buffer_get(self, link_options, link_options);
+
+	aq_a2_fw_set_mpi_flow_control(self, &link_options);
+
+	hw_atl2_shared_buffer_write(self, link_options, link_options);
+
+	return hw_atl2_shared_buffer_finish_ack(self);
+}
+
+static u32 aq_a2_fw_get_flow_control(struct aq_hw_s *self, u32 *fcmode)
+{
+	struct link_status_s link_status;
+
+	hw_atl2_shared_buffer_read(self, link_status, link_status);
+
+	*fcmode = ((link_status.pause_rx) ? AQ_NIC_FC_RX : 0) |
+		  ((link_status.pause_tx) ? AQ_NIC_FC_TX : 0);
+	return 0;
+}
+
 u32 hw_atl2_utils_get_fw_version(struct aq_hw_s *self)
 {
 	struct version_s version;
@@ -402,4 +436,6 @@ const struct aq_fw_ops aq_a2_fw_ops = {
 	.update_stats       = aq_a2_fw_update_stats,
 	.set_eee_rate       = aq_a2_fw_set_eee_rate,
 	.get_eee_rate       = aq_a2_fw_get_eee_rate,
+	.set_flow_control   = aq_a2_fw_set_flow_control,
+	.get_flow_control   = aq_a2_fw_get_flow_control,
 };
