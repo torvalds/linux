@@ -205,12 +205,12 @@ static int da7213_get_alc_data(struct snd_soc_component *component, u8 reg_val)
 		/* Select middle 8 bits for read back from data register */
 		snd_soc_component_write(component, DA7213_ALC_CIC_OP_LVL_CTRL,
 			      reg_val | DA7213_ALC_DATA_MIDDLE);
-		mid_data = snd_soc_component_read32(component, DA7213_ALC_CIC_OP_LVL_DATA);
+		mid_data = snd_soc_component_read(component, DA7213_ALC_CIC_OP_LVL_DATA);
 
 		/* Select top 8 bits for read back from data register */
 		snd_soc_component_write(component, DA7213_ALC_CIC_OP_LVL_CTRL,
 			      reg_val | DA7213_ALC_DATA_TOP);
-		top_data = snd_soc_component_read32(component, DA7213_ALC_CIC_OP_LVL_DATA);
+		top_data = snd_soc_component_read(component, DA7213_ALC_CIC_OP_LVL_DATA);
 
 		sum += ((mid_data << 8) | (top_data << 16));
 	}
@@ -259,7 +259,7 @@ static void da7213_alc_calib_auto(struct snd_soc_component *component)
 	snd_soc_component_update_bits(component, DA7213_ALC_CTRL1, DA7213_ALC_AUTO_CALIB_EN,
 			    DA7213_ALC_AUTO_CALIB_EN);
 	do {
-		alc_ctrl1 = snd_soc_component_read32(component, DA7213_ALC_CTRL1);
+		alc_ctrl1 = snd_soc_component_read(component, DA7213_ALC_CTRL1);
 	} while (alc_ctrl1 & DA7213_ALC_AUTO_CALIB_EN);
 
 	/* If auto calibration fails, fall back to digital gain only mode */
@@ -286,16 +286,16 @@ static void da7213_alc_calib(struct snd_soc_component *component)
 	u8 mic_1_ctrl, mic_2_ctrl;
 
 	/* Save current values from ADC control registers */
-	adc_l_ctrl = snd_soc_component_read32(component, DA7213_ADC_L_CTRL);
-	adc_r_ctrl = snd_soc_component_read32(component, DA7213_ADC_R_CTRL);
+	adc_l_ctrl = snd_soc_component_read(component, DA7213_ADC_L_CTRL);
+	adc_r_ctrl = snd_soc_component_read(component, DA7213_ADC_R_CTRL);
 
 	/* Save current values from MIXIN_L/R_SELECT registers */
-	mixin_l_sel = snd_soc_component_read32(component, DA7213_MIXIN_L_SELECT);
-	mixin_r_sel = snd_soc_component_read32(component, DA7213_MIXIN_R_SELECT);
+	mixin_l_sel = snd_soc_component_read(component, DA7213_MIXIN_L_SELECT);
+	mixin_r_sel = snd_soc_component_read(component, DA7213_MIXIN_R_SELECT);
 
 	/* Save current values from MIC control registers */
-	mic_1_ctrl = snd_soc_component_read32(component, DA7213_MIC_1_CTRL);
-	mic_2_ctrl = snd_soc_component_read32(component, DA7213_MIC_2_CTRL);
+	mic_1_ctrl = snd_soc_component_read(component, DA7213_MIC_1_CTRL);
+	mic_2_ctrl = snd_soc_component_read(component, DA7213_MIC_2_CTRL);
 
 	/* Enable ADC Left and Right */
 	snd_soc_component_update_bits(component, DA7213_ADC_L_CTRL, DA7213_ADC_EN,
@@ -751,7 +751,7 @@ static int da7213_dai_event(struct snd_soc_dapm_widget *w,
 				    DA7213_PC_FREERUN_MASK, 0);
 
 		/* If SRM not enabled then nothing more to do */
-		pll_ctrl = snd_soc_component_read32(component, DA7213_PLL_CTRL);
+		pll_ctrl = snd_soc_component_read(component, DA7213_PLL_CTRL);
 		if (!(pll_ctrl & DA7213_PLL_SRM_EN))
 			return 0;
 
@@ -764,7 +764,7 @@ static int da7213_dai_event(struct snd_soc_dapm_widget *w,
 
 		/* Check SRM has locked */
 		do {
-			pll_status = snd_soc_component_read32(component, DA7213_PLL_STATUS);
+			pll_status = snd_soc_component_read(component, DA7213_PLL_STATUS);
 			if (pll_status & DA7219_PLL_SRM_LOCK) {
 				srm_lock = true;
 			} else {
@@ -779,7 +779,7 @@ static int da7213_dai_event(struct snd_soc_dapm_widget *w,
 		return 0;
 	case SND_SOC_DAPM_POST_PMD:
 		/* Revert 32KHz PLL lock udpates if applied previously */
-		pll_ctrl = snd_soc_component_read32(component, DA7213_PLL_CTRL);
+		pll_ctrl = snd_soc_component_read(component, DA7213_PLL_CTRL);
 		if (pll_ctrl & DA7213_PLL_32K_MODE) {
 			snd_soc_component_write(component, 0xF0, 0x8B);
 			snd_soc_component_write(component, 0xF2, 0x01);

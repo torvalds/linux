@@ -489,7 +489,7 @@ static void wm8995_update_class_w(struct snd_soc_component *component)
 	int reg, reg_r;
 
 	/* We also need the same setting for L/R and only one path */
-	reg = snd_soc_component_read32(component, WM8995_DAC1_LEFT_MIXER_ROUTING);
+	reg = snd_soc_component_read(component, WM8995_DAC1_LEFT_MIXER_ROUTING);
 	switch (reg) {
 	case WM8995_AIF2DACL_TO_DAC1L:
 		dev_dbg(component->dev, "Class W source AIF2DAC\n");
@@ -509,7 +509,7 @@ static void wm8995_update_class_w(struct snd_soc_component *component)
 		break;
 	}
 
-	reg_r = snd_soc_component_read32(component, WM8995_DAC1_RIGHT_MIXER_ROUTING);
+	reg_r = snd_soc_component_read(component, WM8995_DAC1_RIGHT_MIXER_ROUTING);
 	if (reg_r != reg) {
 		dev_dbg(component->dev, "Left and right DAC mixers different\n");
 		enable = 0;
@@ -535,7 +535,7 @@ static int check_clk_sys(struct snd_soc_dapm_widget *source,
 	unsigned int reg;
 	const char *clk;
 
-	reg = snd_soc_component_read32(component, WM8995_CLOCKING_1);
+	reg = snd_soc_component_read(component, WM8995_CLOCKING_1);
 	/* Check what we're currently using for CLK_SYS */
 	if (reg & WM8995_SYSCLK_SRC)
 		clk = "AIF2CLK";
@@ -596,7 +596,7 @@ static void dc_servo_cmd(struct snd_soc_component *component,
 	snd_soc_component_write(component, reg, val);
 	while (timeout--) {
 		msleep(10);
-		val = snd_soc_component_read32(component, WM8995_DC_SERVO_READBACK_0);
+		val = snd_soc_component_read(component, WM8995_DC_SERVO_READBACK_0);
 		if ((val & mask) == mask)
 			return;
 	}
@@ -610,7 +610,7 @@ static int hp_event(struct snd_soc_dapm_widget *w,
 	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 	unsigned int reg;
 
-	reg = snd_soc_component_read32(component, WM8995_ANALOGUE_HP_1);
+	reg = snd_soc_component_read(component, WM8995_ANALOGUE_HP_1);
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
@@ -1804,10 +1804,10 @@ static int wm8995_set_fll(struct snd_soc_dai *dai, int id,
 	component = dai->component;
 	wm8995 = snd_soc_component_get_drvdata(component);
 
-	aif1 = snd_soc_component_read32(component, WM8995_AIF1_CLOCKING_1)
+	aif1 = snd_soc_component_read(component, WM8995_AIF1_CLOCKING_1)
 	       & WM8995_AIF1CLK_ENA;
 
-	aif2 = snd_soc_component_read32(component, WM8995_AIF2_CLOCKING_1)
+	aif2 = snd_soc_component_read(component, WM8995_AIF2_CLOCKING_1)
 	       & WM8995_AIF2CLK_ENA;
 
 	switch (id) {
@@ -2040,7 +2040,7 @@ static int wm8995_probe(struct snd_soc_component *component)
 		return ret;
 	}
 
-	ret = snd_soc_component_read32(component, WM8995_SOFTWARE_RESET);
+	ret = snd_soc_component_read(component, WM8995_SOFTWARE_RESET);
 	if (ret < 0) {
 		dev_err(component->dev, "Failed to read device ID: %d\n", ret);
 		goto err_reg_enable;

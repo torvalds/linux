@@ -616,12 +616,11 @@ static const char *soc_dapm_prefix(struct snd_soc_dapm_context *dapm)
 	return dapm->component->name_prefix;
 }
 
-static int soc_dapm_read(struct snd_soc_dapm_context *dapm, int reg,
-	unsigned int *value)
+static unsigned int soc_dapm_read(struct snd_soc_dapm_context *dapm, int reg)
 {
 	if (!dapm->component)
 		return -EIO;
-	return snd_soc_component_read(dapm->component, reg, value);
+	return  snd_soc_component_read(dapm->component, reg);
 }
 
 static int soc_dapm_update_bits(struct snd_soc_dapm_context *dapm,
@@ -753,7 +752,7 @@ static int dapm_connect_mux(struct snd_soc_dapm_context *dapm,
 	int i;
 
 	if (e->reg != SND_SOC_NOPM) {
-		soc_dapm_read(dapm, e->reg, &val);
+		val = soc_dapm_read(dapm, e->reg);
 		val = (val >> e->shift_l) & e->mask;
 		item = snd_soc_enum_val_to_item(e, val);
 	} else {
@@ -790,7 +789,7 @@ static void dapm_set_mixer_path_status(struct snd_soc_dapm_path *p, int i,
 	unsigned int val;
 
 	if (reg != SND_SOC_NOPM) {
-		soc_dapm_read(p->sink->dapm, reg, &val);
+		val = soc_dapm_read(p->sink->dapm, reg);
 		/*
 		 * The nth_path argument allows this function to know
 		 * which path of a kcontrol it is setting the initial
@@ -805,7 +804,7 @@ static void dapm_set_mixer_path_status(struct snd_soc_dapm_path *p, int i,
 		 */
 		if (snd_soc_volsw_is_stereo(mc) && nth_path > 0) {
 			if (reg != mc->rreg)
-				soc_dapm_read(p->sink->dapm, mc->rreg, &val);
+				val = soc_dapm_read(p->sink->dapm, mc->rreg);
 			val = (val >> mc->rshift) & mask;
 		} else {
 			val = (val >> shift) & mask;
@@ -3246,7 +3245,7 @@ int snd_soc_dapm_new_widgets(struct snd_soc_card *card)
 
 		/* Read the initial power state from the device */
 		if (w->reg >= 0) {
-			soc_dapm_read(w->dapm, w->reg, &val);
+			val = soc_dapm_read(w->dapm, w->reg);
 			val = val >> w->shift;
 			val &= w->mask;
 			if (val == w->on_val)
@@ -3288,15 +3287,14 @@ int snd_soc_dapm_get_volsw(struct snd_kcontrol *kcontrol,
 	unsigned int mask = (1 << fls(max)) - 1;
 	unsigned int invert = mc->invert;
 	unsigned int reg_val, val, rval = 0;
-	int ret = 0;
 
 	mutex_lock_nested(&card->dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
 	if (dapm_kcontrol_is_powered(kcontrol) && reg != SND_SOC_NOPM) {
-		ret = soc_dapm_read(dapm, reg, &reg_val);
+		reg_val = soc_dapm_read(dapm, reg);
 		val = (reg_val >> shift) & mask;
 
-		if (ret == 0 && reg != mc->rreg)
-			ret = soc_dapm_read(dapm, mc->rreg, &reg_val);
+		if (reg != mc->rreg)
+			reg_val = soc_dapm_read(dapm, mc->rreg);
 
 		if (snd_soc_volsw_is_stereo(mc))
 			rval = (reg_val >> mc->rshift) & mask;
@@ -3308,9 +3306,6 @@ int snd_soc_dapm_get_volsw(struct snd_kcontrol *kcontrol,
 			rval = (reg_val >> width) & mask;
 	}
 	mutex_unlock(&card->dapm_mutex);
-
-	if (ret)
-		return ret;
 
 	if (invert)
 		ucontrol->value.integer.value[0] = max - val;
@@ -3324,7 +3319,7 @@ int snd_soc_dapm_get_volsw(struct snd_kcontrol *kcontrol,
 			ucontrol->value.integer.value[1] = rval;
 	}
 
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_get_volsw);
 
@@ -3439,11 +3434,7 @@ int snd_soc_dapm_get_enum_double(struct snd_kcontrol *kcontrol,
 
 	mutex_lock_nested(&card->dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
 	if (e->reg != SND_SOC_NOPM && dapm_kcontrol_is_powered(kcontrol)) {
-		int ret = soc_dapm_read(dapm, e->reg, &reg_val);
-		if (ret) {
-			mutex_unlock(&card->dapm_mutex);
-			return ret;
-		}
+		reg_val = soc_dapm_read(dapm, e->reg);
 	} else {
 		reg_val = dapm_kcontrol_get_value(kcontrol);
 	}

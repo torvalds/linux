@@ -534,7 +534,7 @@ static int alc5623_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
 				0);
 
 	/* pll is not used in slave mode */
-	reg = snd_soc_component_read32(component, ALC5623_DAI_CONTROL);
+	reg = snd_soc_component_read(component, ALC5623_DAI_CONTROL);
 	if (reg & ALC5623_DAI_SDP_SLAVE_MODE)
 		return 0;
 
@@ -701,7 +701,7 @@ static int alc5623_pcm_hw_params(struct snd_pcm_substream *substream,
 	int coeff, rate;
 	u16 iface;
 
-	iface = snd_soc_component_read32(component, ALC5623_DAI_CONTROL);
+	iface = snd_soc_component_read(component, ALC5623_DAI_CONTROL);
 	iface &= ~ALC5623_DAI_I2S_DL_MASK;
 
 	/* bit size */
@@ -741,7 +741,7 @@ static int alc5623_mute(struct snd_soc_dai *dai, int mute)
 {
 	struct snd_soc_component *component = dai->component;
 	u16 hp_mute = ALC5623_MISC_M_DAC_L_INPUT | ALC5623_MISC_M_DAC_R_INPUT;
-	u16 mute_reg = snd_soc_component_read32(component, ALC5623_MISC_CTRL) & ~hp_mute;
+	u16 mute_reg = snd_soc_component_read(component, ALC5623_MISC_CTRL) & ~hp_mute;
 
 	if (mute)
 		mute_reg |= hp_mute;

@@ -156,14 +156,14 @@ struct sgtl5000_priv {
 
 static inline int hp_sel_input(struct snd_soc_component *component)
 {
-	return (snd_soc_component_read32(component, SGTL5000_CHIP_ANA_CTRL) &
+	return (snd_soc_component_read(component, SGTL5000_CHIP_ANA_CTRL) &
 		SGTL5000_HP_SEL_MASK) >> SGTL5000_HP_SEL_SHIFT;
 }
 
 static inline u16 mute_output(struct snd_soc_component *component,
 			      u16 mute_mask)
 {
-	u16 mute_reg = snd_soc_component_read32(component,
+	u16 mute_reg = snd_soc_component_read(component,
 					      SGTL5000_CHIP_ANA_CTRL);
 
 	snd_soc_component_update_bits(component, SGTL5000_CHIP_ANA_CTRL,
@@ -180,7 +180,7 @@ static inline void restore_output(struct snd_soc_component *component,
 
 static void vag_power_on(struct snd_soc_component *component, u32 source)
 {
-	if (snd_soc_component_read32(component, SGTL5000_CHIP_ANA_POWER) &
+	if (snd_soc_component_read(component, SGTL5000_CHIP_ANA_POWER) &
 	    SGTL5000_VAG_POWERUP)
 		return;
 
@@ -225,7 +225,7 @@ static int vag_power_consumers(struct snd_soc_component *component,
 
 static void vag_power_off(struct snd_soc_component *component, u32 source)
 {
-	u16 ana_pwr = snd_soc_component_read32(component,
+	u16 ana_pwr = snd_soc_component_read(component,
 					     SGTL5000_CHIP_ANA_POWER);
 
 	if (!(ana_pwr & SGTL5000_VAG_POWERUP))
@@ -545,7 +545,7 @@ static int dac_get_volsw(struct snd_kcontrol *kcontrol,
 	int l;
 	int r;
 
-	reg = snd_soc_component_read32(component, SGTL5000_CHIP_DAC_VOL);
+	reg = snd_soc_component_read(component, SGTL5000_CHIP_DAC_VOL);
 
 	/* get left channel volume */
 	l = (reg & SGTL5000_DAC_VOL_LEFT_MASK) >> SGTL5000_DAC_VOL_LEFT_SHIFT;
@@ -633,7 +633,7 @@ static int avc_get_threshold(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
 	int db, i;
-	u16 reg = snd_soc_component_read32(component, SGTL5000_DAP_AVC_THRESHOLD);
+	u16 reg = snd_soc_component_read(component, SGTL5000_DAP_AVC_THRESHOLD);
 
 	/* register value 0 => -96dB */
 	if (!reg) {
@@ -1325,11 +1325,11 @@ static int sgtl5000_set_power_regs(struct snd_soc_component *component)
 	}
 
 	/* reset value */
-	ana_pwr = snd_soc_component_read32(component, SGTL5000_CHIP_ANA_POWER);
+	ana_pwr = snd_soc_component_read(component, SGTL5000_CHIP_ANA_POWER);
 	ana_pwr |= SGTL5000_DAC_STEREO |
 			SGTL5000_ADC_STEREO |
 			SGTL5000_REFTOP_POWERUP;
-	lreg_ctrl = snd_soc_component_read32(component, SGTL5000_CHIP_LINREG_CTRL);
+	lreg_ctrl = snd_soc_component_read(component, SGTL5000_CHIP_LINREG_CTRL);
 
 	if (vddio < 3100 && vdda < 3100) {
 		/* enable internal oscillator used for charge pump */

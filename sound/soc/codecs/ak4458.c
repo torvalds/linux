@@ -410,7 +410,7 @@ static int ak4458_set_dai_mute(struct snd_soc_dai *dai, int mute)
 
 	nfs = ak4458->fs;
 
-	reg = snd_soc_component_read32(component, AK4458_0B_CONTROL7);
+	reg = snd_soc_component_read(component, AK4458_0B_CONTROL7);
 	ats = (reg & AK4458_ATS_MASK) >> AK4458_ATS_SHIFT;
 
 	ndt = att_speed[ats] / (nfs / 1000);

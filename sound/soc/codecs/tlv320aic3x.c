@@ -1056,7 +1056,7 @@ static int aic3x_hw_params(struct snd_pcm_substream *substream,
 		width = params_width(params);
 
 	/* select data word length */
-	data = snd_soc_component_read32(component, AIC3X_ASD_INTF_CTRLB) & (~(0x3 << 4));
+	data = snd_soc_component_read(component, AIC3X_ASD_INTF_CTRLB) & (~(0x3 << 4));
 	switch (width) {
 	case 16:
 		break;
@@ -1219,8 +1219,8 @@ static int aic3x_prepare(struct snd_pcm_substream *substream,
 static int aic3x_mute(struct snd_soc_dai *dai, int mute)
 {
 	struct snd_soc_component *component = dai->component;
-	u8 ldac_reg = snd_soc_component_read32(component, LDAC_VOL) & ~MUTE_ON;
-	u8 rdac_reg = snd_soc_component_read32(component, RDAC_VOL) & ~MUTE_ON;
+	u8 ldac_reg = snd_soc_component_read(component, LDAC_VOL) & ~MUTE_ON;
+	u8 rdac_reg = snd_soc_component_read(component, RDAC_VOL) & ~MUTE_ON;
 
 	if (mute) {
 		snd_soc_component_write(component, LDAC_VOL, ldac_reg | MUTE_ON);
@@ -1256,8 +1256,8 @@ static int aic3x_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	struct aic3x_priv *aic3x = snd_soc_component_get_drvdata(component);
 	u8 iface_areg, iface_breg;
 
-	iface_areg = snd_soc_component_read32(component, AIC3X_ASD_INTF_CTRLA) & 0x3f;
-	iface_breg = snd_soc_component_read32(component, AIC3X_ASD_INTF_CTRLB) & 0x3f;
+	iface_areg = snd_soc_component_read(component, AIC3X_ASD_INTF_CTRLA) & 0x3f;
+	iface_breg = snd_soc_component_read(component, AIC3X_ASD_INTF_CTRLB) & 0x3f;
 
 	/* set master/slave audio interface */
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
@@ -1407,8 +1407,8 @@ static int aic3x_set_power(struct snd_soc_component *component, int power)
 		 * writing one of them and thus caused other one also not
 		 * being written
 		 */
-		pll_c = snd_soc_component_read32(component, AIC3X_PLL_PROGC_REG);
-		pll_d = snd_soc_component_read32(component, AIC3X_PLL_PROGD_REG);
+		pll_c = snd_soc_component_read(component, AIC3X_PLL_PROGC_REG);
+		pll_d = snd_soc_component_read(component, AIC3X_PLL_PROGD_REG);
 		if (pll_c == aic3x_reg[AIC3X_PLL_PROGC_REG].def ||
 			pll_d == aic3x_reg[AIC3X_PLL_PROGD_REG].def) {
 			snd_soc_component_write(component, AIC3X_PLL_PROGC_REG, pll_c);

@@ -373,7 +373,7 @@ static int rt5660_is_sys_clk_from_pll(struct snd_soc_dapm_widget *source,
 	struct snd_soc_component *component = snd_soc_dapm_to_component(source->dapm);
 	unsigned int val;
 
-	val = snd_soc_component_read32(component, RT5660_GLB_CLK);
+	val = snd_soc_component_read(component, RT5660_GLB_CLK);
 	val &= RT5660_SCLK_SRC_MASK;
 	if (val == RT5660_SCLK_SRC_PLL1)
 		return 1;

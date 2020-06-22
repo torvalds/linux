@@ -169,7 +169,7 @@ static int tas2552_setup_pll(struct snd_soc_component *component,
 		pll_clkin += tas2552->tdm_delay;
 	}
 
-	pll_enable = snd_soc_component_read32(component, TAS2552_CFG_2) & TAS2552_PLL_ENABLE;
+	pll_enable = snd_soc_component_read(component, TAS2552_CFG_2) & TAS2552_PLL_ENABLE;
 	snd_soc_component_update_bits(component, TAS2552_CFG_2, TAS2552_PLL_ENABLE, 0);
 
 	if (pll_clkin == pll_clk)
@@ -187,7 +187,7 @@ static int tas2552_setup_pll(struct snd_soc_component *component,
 		unsigned int d, q, t;
 		u8 j;
 		u8 pll_sel = (tas2552->pll_clk_id << 3) & TAS2552_PLL_SRC_MASK;
-		u8 p = snd_soc_component_read32(component, TAS2552_PLL_CTRL_1);
+		u8 p = snd_soc_component_read(component, TAS2552_PLL_CTRL_1);
 
 		p = (p >> 7);
 

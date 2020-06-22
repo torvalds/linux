@@ -59,7 +59,7 @@ static void rt5682_jd_check_handler(struct work_struct *work)
 	struct rt5682_priv *rt5682 = container_of(work, struct rt5682_priv,
 		jd_check_work.work);
 
-	if (snd_soc_component_read32(rt5682->component, RT5682_AJD1_CTRL)
+	if (snd_soc_component_read(rt5682->component, RT5682_AJD1_CTRL)
 		& RT5682_JDH_RS_MASK) {
 		/* jack out */
 		rt5682->jack_type = rt5682_headset_detect(rt5682->component, 0);

@@ -266,7 +266,7 @@ static ssize_t aic26_keyclick_show(struct device *dev,
 	struct aic26 *aic26 = dev_get_drvdata(dev);
 	int val, amp, freq, len;
 
-	val = snd_soc_component_read32(aic26->component, AIC26_REG_AUDIO_CTRL2);
+	val = snd_soc_component_read(aic26->component, AIC26_REG_AUDIO_CTRL2);
 	amp = (val >> 12) & 0x7;
 	freq = (125 << ((val >> 8) & 0x7)) >> 1;
 	len = 2 * (1 + ((val >> 4) & 0xf));
@@ -306,7 +306,7 @@ static int aic26_probe(struct snd_soc_component *component)
 	snd_soc_component_write(component, AIC26_REG_POWER_CTRL, 0);
 
 	/* Audio Control 3 (master mode, fsref rate) */
-	reg = snd_soc_component_read32(component, AIC26_REG_AUDIO_CTRL3);
+	reg = snd_soc_component_read(component, AIC26_REG_AUDIO_CTRL3);
 	reg &= ~0xf800;
 	reg |= 0x0800; /* set master mode */
 	snd_soc_component_write(component, AIC26_REG_AUDIO_CTRL3, reg);

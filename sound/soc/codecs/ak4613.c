@@ -490,8 +490,8 @@ static void ak4613_dummy_write(struct work_struct *work)
 	 */
 	udelay(5000000 / priv->rate);
 
-	snd_soc_component_read(component, PW_MGMT1, &mgmt1);
-	snd_soc_component_read(component, PW_MGMT3, &mgmt3);
+	mgmt1 = snd_soc_component_read(component, PW_MGMT1);
+	mgmt3 = snd_soc_component_read(component, PW_MGMT3);
 
 	snd_soc_component_write(component, PW_MGMT1, mgmt1);
 	snd_soc_component_write(component, PW_MGMT3, mgmt3);

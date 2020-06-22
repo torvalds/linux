@@ -333,9 +333,7 @@ void snd_soc_component_set_aux(struct snd_soc_component *component,
 int snd_soc_component_init(struct snd_soc_component *component);
 
 /* component IO */
-int snd_soc_component_read(struct snd_soc_component *component,
-			   unsigned int reg, unsigned int *val);
-unsigned int snd_soc_component_read32(struct snd_soc_component *component,
+unsigned int snd_soc_component_read(struct snd_soc_component *component,
 				      unsigned int reg);
 int snd_soc_component_write(struct snd_soc_component *component,
 			    unsigned int reg, unsigned int val);

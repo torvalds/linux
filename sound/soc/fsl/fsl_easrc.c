@@ -79,11 +79,8 @@ static int fsl_easrc_get_reg(struct snd_kcontrol *kcontrol,
 	struct soc_mreg_control *mc =
 		(struct soc_mreg_control *)kcontrol->private_value;
 	unsigned int regval;
-	int ret;
 
-	ret = snd_soc_component_read(component, mc->regbase, &regval);
-	if (ret < 0)
-		return ret;
+	regval = snd_soc_component_read(component, mc->regbase);
 
 	ucontrol->value.integer.value[0] = regval;
 

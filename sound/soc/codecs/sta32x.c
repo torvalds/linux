@@ -397,9 +397,9 @@ static void sta32x_watchdog(struct work_struct *work)
 	unsigned int confa, confa_cached;
 
 	/* check if sta32x has reset itself */
-	confa_cached = snd_soc_component_read32(component, STA32X_CONFA);
+	confa_cached = snd_soc_component_read(component, STA32X_CONFA);
 	regcache_cache_bypass(sta32x->regmap, true);
-	confa = snd_soc_component_read32(component, STA32X_CONFA);
+	confa = snd_soc_component_read(component, STA32X_CONFA);
 	regcache_cache_bypass(sta32x->regmap, false);
 	if (confa != confa_cached) {
 		regcache_mark_dirty(sta32x->regmap);
