@@ -112,22 +112,22 @@
 			__FILE__, __LINE__, _metadata->name, ##__VA_ARGS__)
 
 /**
- * XFAIL(statement, fmt, ...)
+ * SKIP(statement, fmt, ...)
  *
- * @statement: statement to run after reporting XFAIL
+ * @statement: statement to run after reporting SKIP
  * @fmt: format string
  * @...: optional arguments
  *
- * This forces a "pass" after reporting a failure with an XFAIL prefix,
+ * This forces a "pass" after reporting why something is being skipped
  * and runs "statement", which is usually "return" or "goto skip".
  */
-#define XFAIL(statement, fmt, ...) do { \
+#define SKIP(statement, fmt, ...) do { \
 	if (TH_LOG_ENABLED) { \
-		fprintf(TH_LOG_STREAM, "#      XFAIL     " fmt "\n", \
+		fprintf(TH_LOG_STREAM, "#      SKIP     " fmt "\n", \
 			##__VA_ARGS__); \
 	} \
-	/* TODO: find a way to pass xfail to test runner process. */ \
 	_metadata->passed = 1; \
+	_metadata->skip = 1; \
 	_metadata->trigger = 0; \
 	statement; \
 } while (0)
@@ -777,6 +777,7 @@ struct __test_metadata {
 	struct __fixture_metadata *fixture;
 	int termsig;
 	int passed;
+	int skip;	/* did SKIP get used? */
 	int trigger; /* extra handler after the evaluation */
 	int timeout;	/* seconds to wait for test timeout */
 	bool timed_out;	/* did this test timeout instead of exiting? */
@@ -866,17 +867,31 @@ void __wait_for_test(struct __test_metadata *t)
 		fprintf(TH_LOG_STREAM,
 			"# %s: Test terminated by timeout\n", t->name);
 	} else if (WIFEXITED(status)) {
-		t->passed = t->termsig == -1 ? !WEXITSTATUS(status) : 0;
 		if (t->termsig != -1) {
+			t->passed = 0;
 			fprintf(TH_LOG_STREAM,
 				"# %s: Test exited normally instead of by signal (code: %d)\n",
 				t->name,
 				WEXITSTATUS(status));
-		} else if (!t->passed) {
-			fprintf(TH_LOG_STREAM,
-				"# %s: Test failed at step #%d\n",
-				t->name,
-				WEXITSTATUS(status));
+		} else {
+			switch (WEXITSTATUS(status)) {
+			/* Success */
+			case 0:
+				t->passed = 1;
+				break;
+			/* SKIP */
+			case 255:
+				t->passed = 1;
+				t->skip = 1;
+				break;
+			/* Other failure, assume step report. */
+			default:
+				t->passed = 0;
+				fprintf(TH_LOG_STREAM,
+					"# %s: Test failed at step #%d\n",
+					t->name,
+					WEXITSTATUS(status));
+			}
 		}
 	} else if (WIFSIGNALED(status)) {
 		t->passed = 0;
@@ -906,6 +921,7 @@ void __run_test(struct __fixture_metadata *f,
 {
 	/* reset test struct */
 	t->passed = 1;
+	t->skip = 0;
 	t->trigger = 0;
 	t->step = 0;
 	t->no_print = 0;
@@ -918,15 +934,31 @@ void __run_test(struct __fixture_metadata *f,
 		t->passed = 0;
 	} else if (t->pid == 0) {
 		t->fn(t, variant);
-		/* return the step that failed or 0 */
-		_exit(t->passed ? 0 : t->step);
+		/* Make sure step doesn't get lost in reporting */
+		if (t->step >= 255) {
+			ksft_print_msg("Too many test steps (%u)!?\n", t->step);
+			t->step = 254;
+		}
+		/* Use 255 for SKIP */
+		if (t->skip)
+			_exit(255);
+		/* Pass is exit 0 */
+		if (t->passed)
+			_exit(0);
+		/* Something else happened, report the step. */
+		_exit(t->step);
 	} else {
 		__wait_for_test(t);
 	}
 	ksft_print_msg("         %4s  %s%s%s.%s\n", t->passed ? "OK" : "FAIL",
 	       f->name, variant->name[0] ? "." : "", variant->name, t->name);
-	ksft_test_result(t->passed, "%s%s%s.%s\n",
-	       f->name, variant->name[0] ? "." : "", variant->name, t->name);
+
+	if (t->skip)
+		ksft_test_result_skip("%s%s%s.%s\n",
+			f->name, variant->name[0] ? "." : "", variant->name, t->name);
+	else
+		ksft_test_result(t->passed, "%s%s%s.%s\n",
+			f->name, variant->name[0] ? "." : "", variant->name, t->name);
 }
 
 static int test_harness_run(int __attribute__((unused)) argc,
