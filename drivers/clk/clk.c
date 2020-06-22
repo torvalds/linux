@@ -4135,6 +4135,7 @@ static int devm_clk_hw_match(struct device *dev, void *res, void *data)
 
 /**
  * devm_clk_unregister - resource managed clk_unregister()
+ * @dev: device that is unregistering the clock data
  * @clk: clock to unregister
  *
  * Deallocate a clock allocated with devm_clk_register(). Normally
@@ -4324,6 +4325,8 @@ static void clk_core_reparent_orphans(void)
  * @node: Pointer to device tree node of clock provider
  * @get: Get clock callback.  Returns NULL or a struct clk for the
  *       given clock specifier
+ * @get_hw: Get clk_hw callback.  Returns NULL, ERR_PTR or a
+ *       struct clk_hw for the given clock specifier
  * @data: context pointer to be passed into @get callback
  */
 struct of_clk_provider {
