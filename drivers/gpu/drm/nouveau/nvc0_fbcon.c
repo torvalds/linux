@@ -52,17 +52,20 @@ nvc0_fbcon_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 		return ret;
 
 	if (rect->rop != ROP_COPY) {
-		PUSH_NVIM(push, NV902D, 0x02ac, 1);
+		PUSH_IMMD(push, NV902D, SET_OPERATION,
+			  NVDEF(NV902D, SET_OPERATION, V, ROP_AND));
 	}
 
-	PUSH_NVSQ(push, NV902D, 0x0588, colour);
-	PUSH_NVSQ(push, NV902D, 0x0600, rect->dx,
-				0x0604, rect->dy,
-				0x0608, rect->dx + rect->width,
-				0x060c, rect->dy + rect->height);
+	PUSH_MTHD(push, NV902D, SET_RENDER_SOLID_PRIM_COLOR, colour);
+
+	PUSH_MTHD(push, NV902D, RENDER_SOLID_PRIM_POINT_SET_X(0), rect->dx,
+				RENDER_SOLID_PRIM_POINT_Y(0), rect->dy,
+				RENDER_SOLID_PRIM_POINT_SET_X(1), rect->dx + rect->width,
+				RENDER_SOLID_PRIM_POINT_Y(1), rect->dy + rect->height);
 
 	if (rect->rop != ROP_COPY) {
-		PUSH_NVIM(push, NV902D, 0x02ac, 3);
+		PUSH_IMMD(push, NV902D, SET_OPERATION,
+			  NVDEF(NV902D, SET_OPERATION, V, SRCCOPY));
 	}
 
 	PUSH_KICK(push);
