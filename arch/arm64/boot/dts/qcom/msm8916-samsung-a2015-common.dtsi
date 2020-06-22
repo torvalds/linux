@@ -167,6 +167,25 @@
 	};
 };
 
+&blsp_i2c2 {
+	status = "okay";
+
+	accelerometer: accelerometer@10 {
+		compatible = "bosch,bmc150_accel";
+		reg = <0x10>;
+		interrupt-parent = <&msmgpio>;
+		interrupts = <115 IRQ_TYPE_EDGE_RISING>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&accel_int_default>;
+	};
+
+	magnetometer@12 {
+		compatible = "bosch,bmc150_magn";
+		reg = <0x12>;
+	};
+};
+
 &spmi_bus {
 	pm8916@0 {
 		pon@800 {
@@ -294,6 +313,14 @@
 };
 
 &msmgpio {
+	accel_int_default: accel-int-default {
+		pins = "gpio115";
+		function = "gpio";
+
+		drive-strength = <2>;
+		bias-disable;
+	};
+
 	gpio_keys_default: gpio-keys-default {
 		pins = "gpio107", "gpio109";
 		function = "gpio";
