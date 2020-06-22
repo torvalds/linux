@@ -5,7 +5,6 @@
  * Copyright (C) 2013-2015 Microchip Technology Germany II GmbH & Co. KG
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/fs.h>
@@ -375,7 +374,7 @@ static int comp_rx_completion(struct mbo *mbo)
 	spin_unlock(&c->unlink);
 #ifdef DEBUG_MESG
 	if (kfifo_is_full(&c->fifo))
-		pr_info("WARN: Fifo is full\n");
+		dev_warn(c->dev, "Fifo is full\n");
 #endif
 	wake_up_interruptible(&c->wq);
 	return 0;
@@ -395,14 +394,15 @@ static int comp_tx_completion(struct most_interface *iface, int channel_id)
 	if (!iface)
 		return -EINVAL;
 
-	if ((channel_id < 0) || (channel_id >= iface->num_channels)) {
-		pr_info("Channel ID out of range\n");
-		return -EINVAL;
-	}
-
 	c = get_channel(iface, channel_id);
 	if (!c)
 		return -ENXIO;
+
+	if ((channel_id < 0) || (channel_id >= iface->num_channels)) {
+		dev_warn(c->dev, "Channel ID out of range\n");
+		return -EINVAL;
+	}
+
 	wake_up_interruptible(&c->wq);
 	return 0;
 }
