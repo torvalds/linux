@@ -172,6 +172,15 @@ config ARM_QCOM_CPUFREQ_HW
 	  The driver implements the cpufreq interface for this HW engine.
 	  Say Y if you want to support CPUFreq HW.
 
+config ARM_QCOM_CPUFREQ_HW_DEBUG
+	tristate "QCOM CPUFreq HW debug"
+	depends on ARM_QCOM_CPUFREQ_HW && DEBUG_FS
+	help
+	  Support for the CPUFreq HW debug.
+	  CPUFreq HW debug provide the support to print the CPUFreq HW debug
+	  registers.
+	  Say Y if you want to support CPUFreq HW Debug.
+
 config ARM_RASPBERRYPI_CPUFREQ
 	tristate "Raspberry Pi cpufreq support"
 	depends on CLK_RASPBERRYPI || COMPILE_TEST
