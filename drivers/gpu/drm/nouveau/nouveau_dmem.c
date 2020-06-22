@@ -442,7 +442,7 @@ static int
 nvc0b5_migrate_clear(struct nouveau_drm *drm, u32 length,
 		     enum nouveau_aper dst_aper, u64 dst_addr)
 {
-	struct nouveau_channel *chan = drm->dmem->migrate.chan;
+	struct nvif_push *push = drm->dmem->migrate.chan->chan.push;
 	u32 launch_dma = (1 << 10) /* REMAP_ENABLE_TRUE */ |
 			 (1 << 8) /* DST_MEMORY_LAYOUT_PITCH. */ |
 			 (1 << 7) /* SRC_MEMORY_LAYOUT_PITCH. */ |
@@ -454,33 +454,29 @@ nvc0b5_migrate_clear(struct nouveau_drm *drm, u32 length,
 		    (1 << 24) /* NUM_DST_COMPONENTS_TWO */;
 	int ret;
 
-	ret = RING_SPACE(chan, 12);
+	ret = PUSH_WAIT(push, 12);
 	if (ret)
 		return ret;
 
 	switch (dst_aper) {
 	case NOUVEAU_APER_VRAM:
-		BEGIN_IMC0(chan, NvSubCopy, 0x0264, 0);
-			break;
+		PUSH_NVIM(push, NVA0B5, 0x0264, 0);
+		break;
 	case NOUVEAU_APER_HOST:
-		BEGIN_IMC0(chan, NvSubCopy, 0x0264, 1);
+		PUSH_NVIM(push, NVA0B5, 0x0264, 1);
 		break;
 	default:
 		return -EINVAL;
 	}
 	launch_dma |= 0x00002000; /* DST_TYPE_PHYSICAL. */
 
-	BEGIN_NVC0(chan, NvSubCopy, 0x0700, 3);
-	OUT_RING(chan, 0);
-	OUT_RING(chan, 0);
-	OUT_RING(chan, remap);
-	BEGIN_NVC0(chan, NvSubCopy, 0x0408, 2);
-	OUT_RING(chan, upper_32_bits(dst_addr));
-	OUT_RING(chan, lower_32_bits(dst_addr));
-	BEGIN_NVC0(chan, NvSubCopy, 0x0418, 1);
-	OUT_RING(chan, length >> 3);
-	BEGIN_NVC0(chan, NvSubCopy, 0x0300, 1);
-	OUT_RING(chan, launch_dma);
+	PUSH_NVSQ(push, NVA0B5, 0x0700, 0,
+				0x0704, 0,
+				0x0708, remap);
+	PUSH_NVSQ(push, NVA0B5, 0x0408, upper_32_bits(dst_addr),
+				0x040c, lower_32_bits(dst_addr));
+	PUSH_NVSQ(push, NVA0B5, 0x0418, length >> 3);
+	PUSH_NVSQ(push, NVA0B5, 0x0300, launch_dma);
 	return 0;
 }
 

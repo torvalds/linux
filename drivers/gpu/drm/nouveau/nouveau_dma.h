@@ -49,8 +49,6 @@ void nv50_dma_push(struct nouveau_channel *, u64 addr, int length);
 enum {
 	NvSubSw		= 1,
 	NvSubImageBlit  = 2,
-
-	NvSubCopy	= 4, /* DO NOT CHANGE - hardcoded for kepler gr fifo */
 };
 
 /* Object handles - for stuff that's doesn't use handle == oclass. */
@@ -92,12 +90,6 @@ static inline void
 BEGIN_NVC0(struct nouveau_channel *chan, int subc, int mthd, int size)
 {
 	OUT_RING(chan, 0x20000000 | (size << 16) | (subc << 13) | (mthd >> 2));
-}
-
-static inline void
-BEGIN_IMC0(struct nouveau_channel *chan, int subc, int mthd, u16 data)
-{
-	OUT_RING(chan, 0x80000000 | (data << 16) | (subc << 13) | (mthd >> 2));
 }
 
 #define WRITE_PUT(val) do {                                                    \
