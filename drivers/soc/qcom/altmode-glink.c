@@ -19,6 +19,7 @@
 #define MSG_OWNER_USBC_PAN	32780
 #define MSG_TYPE_REQ_RESP	1
 
+#define MIN_PAYLOAD_SIZE	9
 #define NOTIFY_PAYLOAD_SIZE	16
 #define USBC_WRITE_BUFFER_SIZE	8
 
@@ -83,12 +84,20 @@ struct altmode_dev {
  * @data:		Supplied by client driver during registration
  * @c_node:		Linked list node for parent altmode device's client list
  * @port_index:		Type-C port index assigned by remote subystem
+ *
+ * Note: The following members are for internal use only, clients should not
+ *	 use them.
+ *
+ * @client_cb_work:	Work to run client callback
+ * @msg:		Latest notify msg stashed to be retrieved in cb_work
  */
 struct altmode_client {
 	struct altmode_dev		*amdev;
 	struct altmode_client_data	data;
 	struct list_head		c_node;
 	u8				port_index;
+	struct work_struct		client_cb_work;
+	u8				msg[NOTIFY_PAYLOAD_SIZE];
 };
 
 /**
@@ -296,6 +305,15 @@ int altmode_send_data(struct altmode_client *client, void *data,
 }
 EXPORT_SYMBOL(altmode_send_data);
 
+static void client_cb_work(struct work_struct *work)
+{
+	struct altmode_client *amclient = container_of(work,
+			struct altmode_client, client_cb_work);
+
+	amclient->data.callback(amclient->data.priv, amclient->msg,
+			sizeof(amclient->msg));
+}
+
 /**
  * altmode_register_client()
  *	Register with altmode to receive PMIC GLINK messages from remote
@@ -360,6 +378,7 @@ struct altmode_client *altmode_register_client(struct device *client_dev,
 	amclient->data.svid = client_data->svid;
 	amclient->data.priv = client_data->priv;
 	amclient->data.callback = client_data->callback;
+	INIT_WORK(&amclient->client_cb_work, client_cb_work);
 	amclient->data.name = kstrdup(client_data->name, GFP_KERNEL);
 	if (!amclient->data.name) {
 		kfree(amclient);
@@ -411,6 +430,8 @@ int altmode_deregister_client(struct altmode_client *client)
 		return -ENODEV;
 
 	amdev = client->amdev;
+
+	cancel_work_sync(&client->client_cb_work);
 
 	mutex_lock(&amdev->client_lock);
 	idr_remove(&amdev->client_idr, IDR_KEY(client));
@@ -501,10 +522,11 @@ static void altmode_send_pan_ack(struct work_struct *work)
 static int altmode_callback(void *priv, void *data, size_t len)
 {
 	u16 svid, op;
-	struct usbc_notify_ind_msg *notify_msg = data;
-	struct pmic_glink_hdr *hdr = &notify_msg->hdr;
+	struct usbc_notify_ind_msg *notify_msg;
+	struct pmic_glink_hdr *hdr = data;
 	struct altmode_dev *amdev = priv;
 	struct altmode_client *amclient;
+	u8 payload_len;
 	u8 port_index;
 
 	pr_debug("len: %zu owner: %u type: %u opcode %04x\n", len, hdr->owner,
@@ -517,17 +539,28 @@ static int altmode_callback(void *priv, void *data, size_t len)
 	 */
 	op = GET_OP(hdr->opcode);
 	svid = GET_SVID(hdr->opcode);
-	port_index = notify_msg->payload[0];
-
-	mutex_lock(&amdev->client_lock);
-	amclient = idr_find(&amdev->client_idr, IDR_KEY_GEN(svid, port_index));
-	mutex_unlock(&amdev->client_lock);
 
 	switch (op) {
 	case USBC_CMD_WRITE_REQ:
 		complete(&amdev->response_received);
 		break;
 	case USBC_NOTIFY_IND:
+		payload_len = NOTIFY_PAYLOAD_SIZE;
+		if (len < sizeof(*notify_msg))
+			payload_len = len - sizeof(*hdr);
+
+		/* payload should at least contain 9 bytes */
+		if (payload_len < MIN_PAYLOAD_SIZE)
+			return -EINVAL;
+
+		notify_msg = data;
+		port_index = notify_msg->payload[0];
+
+		mutex_lock(&amdev->client_lock);
+		amclient = idr_find(&amdev->client_idr, IDR_KEY_GEN(svid,
+					port_index));
+		mutex_unlock(&amdev->client_lock);
+
 		if (!amclient) {
 			pr_debug("No client associated with SVID %#x port %u\n",
 					svid, port_index);
@@ -537,10 +570,10 @@ static int altmode_callback(void *priv, void *data, size_t len)
 			return 0;
 		}
 
-		pr_debug("Payload: %*ph\n", NOTIFY_PAYLOAD_SIZE,
-				notify_msg->payload);
-		amclient->data.callback(amclient->data.priv,
-					notify_msg->payload, len);
+		pr_debug("Payload: %*ph\n", payload_len, notify_msg->payload);
+		cancel_work_sync(&amclient->client_cb_work);
+		memcpy(&amclient->msg, notify_msg->payload, payload_len);
+		schedule_work(&amclient->client_cb_work);
 		break;
 	default:
 		break;
