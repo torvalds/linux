@@ -326,7 +326,7 @@ static int comp_disconnect_channel(struct most_interface *iface, int channel_id)
 
 	c = get_channel(iface, channel_id);
 	if (!c)
-		return -ENXIO;
+		return -EINVAL;
 
 	mutex_lock(&c->io_mutex);
 	spin_lock(&c->unlink);
@@ -360,7 +360,7 @@ static int comp_rx_completion(struct mbo *mbo)
 
 	c = get_channel(mbo->ifp, mbo->hdm_channel_id);
 	if (!c)
-		return -ENXIO;
+		return -EINVAL;
 
 	spin_lock(&c->unlink);
 	if (!c->access_ref || !c->dev) {
@@ -390,7 +390,7 @@ static int comp_tx_completion(struct most_interface *iface, int channel_id)
 
 	c = get_channel(iface, channel_id);
 	if (!c)
-		return -ENXIO;
+		return -EINVAL;
 
 	if ((channel_id < 0) || (channel_id >= iface->num_channels)) {
 		dev_warn(c->dev, "Channel ID out of range\n");
