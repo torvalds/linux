@@ -35,6 +35,7 @@
 #include "nouveau_vmm.h"
 
 #include <nvif/class.h>
+#include <nvif/push206e.h>
 
 void
 nouveau_gem_object_del(struct drm_gem_object *gem)
@@ -799,7 +800,7 @@ revalidate:
 		}
 	} else
 	if (drm->client.device.info.chipset >= 0x25) {
-		ret = RING_SPACE(chan, req->nr_push * 2);
+		ret = PUSH_WAIT(chan->chan.push, req->nr_push * 2);
 		if (ret) {
 			NV_PRINTK(err, cli, "cal_space: %d\n", ret);
 			goto out;
@@ -809,11 +810,11 @@ revalidate:
 			struct nouveau_bo *nvbo = (void *)(unsigned long)
 				bo[push[i].bo_index].user_priv;
 
-			OUT_RING(chan, (nvbo->offset + push[i].offset) | 2);
-			OUT_RING(chan, 0);
+			PUSH_CALL(chan->chan.push, nvbo->offset + push[i].offset);
+			PUSH_DATA(chan->chan.push, 0);
 		}
 	} else {
-		ret = RING_SPACE(chan, req->nr_push * (2 + NOUVEAU_DMA_SKIPS));
+		ret = PUSH_WAIT(chan->chan.push, req->nr_push * (2 + NOUVEAU_DMA_SKIPS));
 		if (ret) {
 			NV_PRINTK(err, cli, "jmp_space: %d\n", ret);
 			goto out;
@@ -843,11 +844,10 @@ revalidate:
 						push[i].length - 8) / 4, cmd);
 			}
 
-			OUT_RING(chan, 0x20000000 |
-				      (nvbo->offset + push[i].offset));
-			OUT_RING(chan, 0);
+			PUSH_JUMP(chan->chan.push, nvbo->offset + push[i].offset);
+			PUSH_DATA(chan->chan.push, 0);
 			for (j = 0; j < NOUVEAU_DMA_SKIPS; j++)
-				OUT_RING(chan, 0);
+				PUSH_DATA(chan->chan.push, 0);
 		}
 	}
 
