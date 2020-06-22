@@ -172,6 +172,11 @@ struct cec_adap_ops {
  * @is_configured:	the CEC adapter is configured (i.e. has claimed LAs)
  * @cec_pin_is_high:	if true then the CEC pin is high. Only used with the
  *	CEC pin framework.
+ * @adap_controls_phys_addr: if true, then the CEC adapter controls the
+ *	physical address, i.e. the CEC hardware can detect HPD changes and
+ *	read the EDID and is not dependent on an external HDMI driver.
+ *	Drivers that need this can set this field to true after the
+ *	cec_allocate_adapter() call.
  * @last_initiator:	the initiator of the last transmitted message.
  * @monitor_all_cnt:	number of filehandles monitoring all msgs
  * @monitor_pin_cnt:	number of filehandles monitoring pin changes
@@ -222,6 +227,7 @@ struct cec_adapter {
 	bool is_configuring;
 	bool is_configured;
 	bool cec_pin_is_high;
+	bool adap_controls_phys_addr;
 	u8 last_initiator;
 	u32 monitor_all_cnt;
 	u32 monitor_pin_cnt;
