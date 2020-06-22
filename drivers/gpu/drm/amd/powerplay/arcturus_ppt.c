@@ -2371,7 +2371,7 @@ static void arcturus_i2c_eeprom_control_fini(struct smu_context *smu, struct i2c
 static void arcturus_get_unique_id(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
-	uint32_t top32, bottom32, smu_version;
+	uint32_t top32 = 0, bottom32 = 0, smu_version;
 	uint64_t id;
 
 	if (smu_get_smc_version(smu, NULL, &smu_version)) {
