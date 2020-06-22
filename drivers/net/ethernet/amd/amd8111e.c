@@ -1580,9 +1580,10 @@ static void amd8111e_tx_timeout(struct net_device *dev, unsigned int txqueue)
 	if(!err)
 		netif_wake_queue(dev);
 }
-static int amd8111e_suspend(struct pci_dev *pci_dev, pm_message_t state)
+
+static int amd8111e_suspend(struct device *dev_d)
 {
-	struct net_device *dev = pci_get_drvdata(pci_dev);
+	struct net_device *dev = dev_get_drvdata(dev_d);
 	struct amd8111e_priv *lp = netdev_priv(dev);
 
 	if (!netif_running(dev))
@@ -1609,33 +1610,23 @@ static int amd8111e_suspend(struct pci_dev *pci_dev, pm_message_t state)
 		if(lp->options & OPTION_WAKE_PHY_ENABLE)
 			amd8111e_enable_link_change(lp);
 
-		pci_enable_wake(pci_dev, PCI_D3hot, 1);
-		pci_enable_wake(pci_dev, PCI_D3cold, 1);
+		device_set_wakeup_enable(dev_d, 1);
 
 	}
 	else{
-		pci_enable_wake(pci_dev, PCI_D3hot, 0);
-		pci_enable_wake(pci_dev, PCI_D3cold, 0);
+		device_set_wakeup_enable(dev_d, 0);
 	}
-
-	pci_save_state(pci_dev);
-	pci_set_power_state(pci_dev, PCI_D3hot);
 
 	return 0;
 }
-static int amd8111e_resume(struct pci_dev *pci_dev)
+
+static int amd8111e_resume(struct device *dev_d)
 {
-	struct net_device *dev = pci_get_drvdata(pci_dev);
+	struct net_device *dev = dev_get_drvdata(dev_d);
 	struct amd8111e_priv *lp = netdev_priv(dev);
 
 	if (!netif_running(dev))
 		return 0;
-
-	pci_set_power_state(pci_dev, PCI_D0);
-	pci_restore_state(pci_dev);
-
-	pci_enable_wake(pci_dev, PCI_D3hot, 0);
-	pci_enable_wake(pci_dev, PCI_D3cold, 0); /* D3 cold */
 
 	netif_device_attach(dev);
 
@@ -1918,13 +1909,14 @@ static const struct pci_device_id amd8111e_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, amd8111e_pci_tbl);
 
+static SIMPLE_DEV_PM_OPS(amd8111e_pm_ops, amd8111e_suspend, amd8111e_resume);
+
 static struct pci_driver amd8111e_driver = {
 	.name   	= MODULE_NAME,
 	.id_table	= amd8111e_pci_tbl,
 	.probe		= amd8111e_probe_one,
 	.remove		= amd8111e_remove_one,
-	.suspend	= amd8111e_suspend,
-	.resume		= amd8111e_resume
+	.driver.pm	= &amd8111e_pm_ops
 };
 
 module_pci_driver(amd8111e_driver);
