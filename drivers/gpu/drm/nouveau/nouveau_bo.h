@@ -1,12 +1,13 @@
 /* SPDX-License-Identifier: MIT */
 #ifndef __NOUVEAU_BO_H__
 #define __NOUVEAU_BO_H__
-
+#include <drm/ttm/ttm_bo_driver.h>
 #include <drm/drm_gem.h>
 
 struct nouveau_channel;
+struct nouveau_cli;
+struct nouveau_drm;
 struct nouveau_fence;
-struct nvkm_vma;
 
 struct nouveau_bo {
 	struct ttm_buffer_object bo;
@@ -135,4 +136,30 @@ nouveau_bo_new_pin_map(struct nouveau_cli *cli, u64 size, int align, u32 flags,
 	}
 	return ret;
 }
+
+int nv04_bo_move_init(struct nouveau_channel *, u32);
+int nv04_bo_move_m2mf(struct nouveau_channel *, struct ttm_buffer_object *,
+		      struct ttm_mem_reg *, struct ttm_mem_reg *);
+
+int nv50_bo_move_init(struct nouveau_channel *, u32);
+int nv50_bo_move_m2mf(struct nouveau_channel *, struct ttm_buffer_object *,
+		      struct ttm_mem_reg *, struct ttm_mem_reg *);
+
+int nv84_bo_move_exec(struct nouveau_channel *, struct ttm_buffer_object *,
+		      struct ttm_mem_reg *, struct ttm_mem_reg *);
+
+int nva3_bo_move_copy(struct nouveau_channel *, struct ttm_buffer_object *,
+		      struct ttm_mem_reg *, struct ttm_mem_reg *);
+
+int nvc0_bo_move_init(struct nouveau_channel *, u32);
+int nvc0_bo_move_m2mf(struct nouveau_channel *, struct ttm_buffer_object *,
+		      struct ttm_mem_reg *, struct ttm_mem_reg *);
+
+int nvc0_bo_move_copy(struct nouveau_channel *, struct ttm_buffer_object *,
+		      struct ttm_mem_reg *, struct ttm_mem_reg *);
+
+int nve0_bo_move_init(struct nouveau_channel *, u32);
+int nve0_bo_move_copy(struct nouveau_channel *, struct ttm_buffer_object *,
+		      struct ttm_mem_reg *, struct ttm_mem_reg *);
+
 #endif

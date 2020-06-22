@@ -1,0 +1,121 @@
+/*
+ * Copyright 2007 Dave Airlied
+ * All Rights Reserved.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice (including the next
+ * paragraph) shall be included in all copies or substantial portions of the
+ * Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * VA LINUX SYSTEMS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+ * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ */
+/*
+ * Authors: Dave Airlied <airlied@linux.ie>
+ *	    Ben Skeggs   <darktama@iinet.net.au>
+ *	    Jeremy Kolb  <jkolb@brandeis.edu>
+ */
+#include "nouveau_bo.h"
+#include "nouveau_dma.h"
+#include "nouveau_drv.h"
+#include "nouveau_mem.h"
+
+int
+nv50_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
+		  struct ttm_mem_reg *old_reg, struct ttm_mem_reg *new_reg)
+{
+	struct nouveau_mem *mem = nouveau_mem(old_reg);
+	u64 length = (new_reg->num_pages << PAGE_SHIFT);
+	u64 src_offset = mem->vma[0].addr;
+	u64 dst_offset = mem->vma[1].addr;
+	int src_tiled = !!mem->kind;
+	int dst_tiled = !!nouveau_mem(new_reg)->kind;
+	int ret;
+
+	while (length) {
+		u32 amount, stride, height;
+
+		ret = RING_SPACE(chan, 18 + 6 * (src_tiled + dst_tiled));
+		if (ret)
+			return ret;
+
+		amount  = min(length, (u64)(4 * 1024 * 1024));
+		stride  = 16 * 4;
+		height  = amount / stride;
+
+		if (src_tiled) {
+			BEGIN_NV04(chan, NvSubCopy, 0x0200, 7);
+			OUT_RING  (chan, 0);
+			OUT_RING  (chan, 0);
+			OUT_RING  (chan, stride);
+			OUT_RING  (chan, height);
+			OUT_RING  (chan, 1);
+			OUT_RING  (chan, 0);
+			OUT_RING  (chan, 0);
+		} else {
+			BEGIN_NV04(chan, NvSubCopy, 0x0200, 1);
+			OUT_RING  (chan, 1);
+		}
+		if (dst_tiled) {
+			BEGIN_NV04(chan, NvSubCopy, 0x021c, 7);
+			OUT_RING  (chan, 0);
+			OUT_RING  (chan, 0);
+			OUT_RING  (chan, stride);
+			OUT_RING  (chan, height);
+			OUT_RING  (chan, 1);
+			OUT_RING  (chan, 0);
+			OUT_RING  (chan, 0);
+		} else {
+			BEGIN_NV04(chan, NvSubCopy, 0x021c, 1);
+			OUT_RING  (chan, 1);
+		}
+
+		BEGIN_NV04(chan, NvSubCopy, 0x0238, 2);
+		OUT_RING  (chan, upper_32_bits(src_offset));
+		OUT_RING  (chan, upper_32_bits(dst_offset));
+		BEGIN_NV04(chan, NvSubCopy, 0x030c, 8);
+		OUT_RING  (chan, lower_32_bits(src_offset));
+		OUT_RING  (chan, lower_32_bits(dst_offset));
+		OUT_RING  (chan, stride);
+		OUT_RING  (chan, stride);
+		OUT_RING  (chan, stride);
+		OUT_RING  (chan, height);
+		OUT_RING  (chan, 0x00000101);
+		OUT_RING  (chan, 0x00000000);
+		BEGIN_NV04(chan, NvSubCopy, NV_MEMORY_TO_MEMORY_FORMAT_NOP, 1);
+		OUT_RING  (chan, 0);
+
+		length -= amount;
+		src_offset += amount;
+		dst_offset += amount;
+	}
+
+	return 0;
+}
+
+int
+nv50_bo_move_init(struct nouveau_channel *chan, u32 handle)
+{
+	int ret = RING_SPACE(chan, 6);
+	if (ret == 0) {
+		BEGIN_NV04(chan, NvSubCopy, 0x0000, 1);
+		OUT_RING  (chan, handle);
+		BEGIN_NV04(chan, NvSubCopy, 0x0180, 3);
+		OUT_RING  (chan, chan->drm->ntfy.handle);
+		OUT_RING  (chan, chan->vram.handle);
+		OUT_RING  (chan, chan->vram.handle);
+	}
+
+	return ret;
+}
