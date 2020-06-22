@@ -2109,17 +2109,10 @@ static int check_sysreg_table(const struct sys_reg_desc *table, unsigned int n,
 	return 0;
 }
 
-/* Target specific emulation tables */
-static struct kvm_sys_reg_target_table *target_tables[KVM_ARM_NUM_TARGETS];
-
-void kvm_register_target_sys_reg_table(unsigned int target,
-				       struct kvm_sys_reg_target_table *table)
+void kvm_check_target_sys_reg_table(struct kvm_sys_reg_target_table *table)
 {
-	if (check_sysreg_table(table->table64.table, table->table64.num, false) ||
-	    check_sysreg_table(table->table32.table, table->table32.num, true))
-		return;
-
-	target_tables[target] = table;
+	BUG_ON(check_sysreg_table(table->table64.table, table->table64.num, false));
+	BUG_ON(check_sysreg_table(table->table32.table, table->table32.num, true));
 }
 
 /* Get specific register table for this target. */
@@ -2127,9 +2120,8 @@ static const struct sys_reg_desc *get_target_table(unsigned target,
 						   bool mode_is_64,
 						   size_t *num)
 {
-	struct kvm_sys_reg_target_table *table;
+	struct kvm_sys_reg_target_table *table = &genericv8_target_table;
 
-	table = target_tables[target];
 	if (mode_is_64) {
 		*num = table->table64.num;
 		return table->table64.table;

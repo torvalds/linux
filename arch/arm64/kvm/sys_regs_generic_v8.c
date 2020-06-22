@@ -59,7 +59,7 @@ static const struct sys_reg_desc genericv8_cp15_regs[] = {
 	  access_actlr },
 };
 
-static struct kvm_sys_reg_target_table genericv8_target_table = {
+struct kvm_sys_reg_target_table genericv8_target_table = {
 	.table64 = {
 		.table = genericv8_sys_regs,
 		.num = ARRAY_SIZE(genericv8_sys_regs),
@@ -78,18 +78,7 @@ static int __init sys_reg_genericv8_init(void)
 		BUG_ON(cmp_sys_reg(&genericv8_sys_regs[i-1],
 			       &genericv8_sys_regs[i]) >= 0);
 
-	kvm_register_target_sys_reg_table(KVM_ARM_TARGET_AEM_V8,
-					  &genericv8_target_table);
-	kvm_register_target_sys_reg_table(KVM_ARM_TARGET_FOUNDATION_V8,
-					  &genericv8_target_table);
-	kvm_register_target_sys_reg_table(KVM_ARM_TARGET_CORTEX_A53,
-					  &genericv8_target_table);
-	kvm_register_target_sys_reg_table(KVM_ARM_TARGET_CORTEX_A57,
-					  &genericv8_target_table);
-	kvm_register_target_sys_reg_table(KVM_ARM_TARGET_XGENE_POTENZA,
-					  &genericv8_target_table);
-	kvm_register_target_sys_reg_table(KVM_ARM_TARGET_GENERIC_V8,
-					  &genericv8_target_table);
+	kvm_check_target_sys_reg_table(&genericv8_target_table);
 
 	return 0;
 }
