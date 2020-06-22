@@ -29,6 +29,7 @@
 
 #include "remoteproc_internal.h"
 #include "qcom_common.h"
+#include "qcom_pil_info.h"
 #include "qcom_q6v5.h"
 
 #include <linux/qcom_scm.h>
@@ -1188,6 +1189,8 @@ static int q6v5_mpss_load(struct q6v5 *qproc)
 		dev_err(qproc->dev, "MPSS authentication timed out\n");
 	else if (ret < 0)
 		dev_err(qproc->dev, "MPSS authentication failed: %d\n", ret);
+
+	qcom_pil_info_store("modem", qproc->mpss_phys, qproc->mpss_size);
 
 release_firmware:
 	release_firmware(fw);
