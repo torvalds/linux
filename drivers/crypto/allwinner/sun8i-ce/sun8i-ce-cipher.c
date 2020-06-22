@@ -358,6 +358,7 @@ int sun8i_ce_cipher_init(struct crypto_tfm *tfm)
 
 	return 0;
 error_pm:
+	pm_runtime_put_noidle(op->ce->dev);
 	crypto_free_sync_skcipher(op->fallback_tfm);
 	return err;
 }
