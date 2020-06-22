@@ -909,7 +909,8 @@ static void io_cleanup_req(struct io_kiocb *req);
 static int io_file_get(struct io_submit_state *state, struct io_kiocb *req,
 		       int fd, struct file **out_file, bool fixed);
 static void __io_queue_sqe(struct io_kiocb *req,
-			   const struct io_uring_sqe *sqe);
+			   const struct io_uring_sqe *sqe,
+			   struct io_comp_state *cs);
 
 static ssize_t io_import_iovec(int rw, struct io_kiocb *req,
 			       struct iovec **iovec, struct iov_iter *iter,
@@ -2806,7 +2807,7 @@ static void io_async_buf_retry(struct callback_head *cb)
 	__set_current_state(TASK_RUNNING);
 	if (!__io_sq_thread_acquire_mm(ctx)) {
 		mutex_lock(&ctx->uring_lock);
-		__io_queue_sqe(req, NULL);
+		__io_queue_sqe(req, NULL, NULL);
 		mutex_unlock(&ctx->uring_lock);
 	} else {
 		__io_async_buf_error(req, -EFAULT);
@@ -4430,7 +4431,7 @@ static void io_poll_task_func(struct callback_head *cb)
 		struct io_ring_ctx *ctx = nxt->ctx;
 
 		mutex_lock(&ctx->uring_lock);
-		__io_queue_sqe(nxt, NULL);
+		__io_queue_sqe(nxt, NULL, NULL);
 		mutex_unlock(&ctx->uring_lock);
 	}
 }
@@ -4555,7 +4556,7 @@ static void io_async_task_func(struct callback_head *cb)
 			goto end_req;
 		}
 		mutex_lock(&ctx->uring_lock);
-		__io_queue_sqe(req, NULL);
+		__io_queue_sqe(req, NULL, NULL);
 		mutex_unlock(&ctx->uring_lock);
 	} else {
 		io_cqring_ev_posted(ctx);
@@ -5352,7 +5353,7 @@ static void io_cleanup_req(struct io_kiocb *req)
 }
 
 static int io_issue_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
-			bool force_nonblock)
+			bool force_nonblock, struct io_comp_state *cs)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 	int ret;
@@ -5637,7 +5638,7 @@ static void io_wq_submit_work(struct io_wq_work **workptr)
 
 	if (!ret) {
 		do {
-			ret = io_issue_sqe(req, NULL, false);
+			ret = io_issue_sqe(req, NULL, false, NULL);
 			/*
 			 * We can get EAGAIN for polled IO even though we're
 			 * forcing a sync submission from here, since we can't
@@ -5814,7 +5815,8 @@ static struct io_kiocb *io_prep_linked_timeout(struct io_kiocb *req)
 	return nxt;
 }
 
-static void __io_queue_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe)
+static void __io_queue_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
+			   struct io_comp_state *cs)
 {
 	struct io_kiocb *linked_timeout;
 	struct io_kiocb *nxt;
@@ -5834,7 +5836,7 @@ again:
 			old_creds = override_creds(req->work.creds);
 	}
 
-	ret = io_issue_sqe(req, sqe, true);
+	ret = io_issue_sqe(req, sqe, true, cs);
 
 	/*
 	 * We async punt it if the file wasn't marked NOWAIT, or if the file
@@ -5892,7 +5894,8 @@ exit:
 		revert_creds(old_creds);
 }
 
-static void io_queue_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe)
+static void io_queue_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
+			 struct io_comp_state *cs)
 {
 	int ret;
 
@@ -5921,21 +5924,22 @@ fail_req:
 		req->work.flags |= IO_WQ_WORK_CONCURRENT;
 		io_queue_async_work(req);
 	} else {
-		__io_queue_sqe(req, sqe);
+		__io_queue_sqe(req, sqe, cs);
 	}
 }
 
-static inline void io_queue_link_head(struct io_kiocb *req)
+static inline void io_queue_link_head(struct io_kiocb *req,
+				      struct io_comp_state *cs)
 {
 	if (unlikely(req->flags & REQ_F_FAIL_LINK)) {
 		io_put_req(req);
 		io_req_complete(req, -ECANCELED);
 	} else
-		io_queue_sqe(req, NULL);
+		io_queue_sqe(req, NULL, cs);
 }
 
 static int io_submit_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
-			 struct io_kiocb **link)
+			 struct io_kiocb **link, struct io_comp_state *cs)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 	int ret;
@@ -5975,7 +5979,7 @@ static int io_submit_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 
 		/* last request of a link, enqueue the link */
 		if (!(req->flags & (REQ_F_LINK | REQ_F_HARDLINK))) {
-			io_queue_link_head(head);
+			io_queue_link_head(head, cs);
 			*link = NULL;
 		}
 	} else {
@@ -5995,11 +5999,38 @@ static int io_submit_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 				req->flags |= REQ_F_FAIL_LINK;
 			*link = req;
 		} else {
-			io_queue_sqe(req, sqe);
+			io_queue_sqe(req, sqe, cs);
 		}
 	}
 
 	return 0;
+}
+
+static void io_submit_flush_completions(struct io_comp_state *cs)
+{
+	struct io_ring_ctx *ctx = cs->ctx;
+
+	spin_lock_irq(&ctx->completion_lock);
+	while (!list_empty(&cs->list)) {
+		struct io_kiocb *req;
+
+		req = list_first_entry(&cs->list, struct io_kiocb, list);
+		list_del(&req->list);
+		io_cqring_fill_event(req, req->result);
+		if (!(req->flags & REQ_F_LINK_HEAD)) {
+			req->flags |= REQ_F_COMP_LOCKED;
+			io_put_req(req);
+		} else {
+			spin_unlock_irq(&ctx->completion_lock);
+			io_put_req(req);
+			spin_lock_irq(&ctx->completion_lock);
+		}
+	}
+	io_commit_cqring(ctx);
+	spin_unlock_irq(&ctx->completion_lock);
+
+	io_cqring_ev_posted(ctx);
+	cs->nr = 0;
 }
 
 /*
@@ -6007,6 +6038,8 @@ static int io_submit_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
  */
 static void io_submit_state_end(struct io_submit_state *state)
 {
+	if (!list_empty(&state->comp.list))
+		io_submit_flush_completions(&state->comp);
 	blk_finish_plug(&state->plug);
 	io_state_file_put(state);
 	if (state->free_reqs)
@@ -6196,7 +6229,7 @@ fail_req:
 
 		trace_io_uring_submit_sqe(ctx, req->opcode, req->user_data,
 						true, io_async_submit(ctx));
-		err = io_submit_sqe(req, sqe, &link);
+		err = io_submit_sqe(req, sqe, &link, &state.comp);
 		if (err)
 			goto fail_req;
 	}
@@ -6207,7 +6240,7 @@ fail_req:
 		percpu_ref_put_many(&ctx->refs, nr - ref_used);
 	}
 	if (link)
-		io_queue_link_head(link);
+		io_queue_link_head(link, &state.comp);
 	io_submit_state_end(&state);
 
 	 /* Commit SQ ring head once we've consumed and submitted all SQEs */
