@@ -37,20 +37,23 @@ nve0_bo_move_copy(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 		  struct ttm_mem_reg *old_reg, struct ttm_mem_reg *new_reg)
 {
 	struct nouveau_mem *mem = nouveau_mem(old_reg);
-	int ret = RING_SPACE(chan, 10);
-	if (ret == 0) {
-		BEGIN_NVC0(chan, NvSubCopy, 0x0400, 8);
-		OUT_RING  (chan, upper_32_bits(mem->vma[0].addr));
-		OUT_RING  (chan, lower_32_bits(mem->vma[0].addr));
-		OUT_RING  (chan, upper_32_bits(mem->vma[1].addr));
-		OUT_RING  (chan, lower_32_bits(mem->vma[1].addr));
-		OUT_RING  (chan, PAGE_SIZE);
-		OUT_RING  (chan, PAGE_SIZE);
-		OUT_RING  (chan, PAGE_SIZE);
-		OUT_RING  (chan, new_reg->num_pages);
-		BEGIN_IMC0(chan, NvSubCopy, 0x0300, 0x0386);
-	}
-	return ret;
+	struct nvif_push *push = chan->chan.push;
+	int ret;
+
+	ret = PUSH_WAIT(push, 10);
+	if (ret)
+		return ret;
+
+	PUSH_NVSQ(push, NVA0B5, 0x0400, upper_32_bits(mem->vma[0].addr),
+				0x0404, lower_32_bits(mem->vma[0].addr),
+				0x0408, upper_32_bits(mem->vma[1].addr),
+				0x040c, lower_32_bits(mem->vma[1].addr),
+				0x0410, PAGE_SIZE,
+				0x0414, PAGE_SIZE,
+				0x0418, PAGE_SIZE,
+				0x041c, new_reg->num_pages);
+	PUSH_NVIM(push, NVA0B5, 0x0300, 0x0386);
+	return 0;
 }
 
 int

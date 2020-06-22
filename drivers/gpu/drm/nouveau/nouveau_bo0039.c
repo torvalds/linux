@@ -45,39 +45,36 @@ int
 nv04_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 		  struct ttm_mem_reg *old_reg, struct ttm_mem_reg *new_reg)
 {
+	struct nvif_push *push = chan->chan.push;
 	u32 src_offset = old_reg->start << PAGE_SHIFT;
 	u32 dst_offset = new_reg->start << PAGE_SHIFT;
 	u32 page_count = new_reg->num_pages;
 	int ret;
 
-	ret = RING_SPACE(chan, 3);
+	ret = PUSH_WAIT(push, 3);
 	if (ret)
 		return ret;
 
-	BEGIN_NV04(chan, NvSubCopy, NV_MEMORY_TO_MEMORY_FORMAT_DMA_SOURCE, 2);
-	OUT_RING  (chan, nouveau_bo_mem_ctxdma(bo, chan, old_reg));
-	OUT_RING  (chan, nouveau_bo_mem_ctxdma(bo, chan, new_reg));
+	PUSH_NVSQ(push, NV039, 0x0184, nouveau_bo_mem_ctxdma(bo, chan, old_reg),
+			       0x0188, nouveau_bo_mem_ctxdma(bo, chan, new_reg));
 
 	page_count = new_reg->num_pages;
 	while (page_count) {
 		int line_count = (page_count > 2047) ? 2047 : page_count;
 
-		ret = RING_SPACE(chan, 11);
+		ret = PUSH_WAIT(push, 11);
 		if (ret)
 			return ret;
 
-		BEGIN_NV04(chan, NvSubCopy,
-				 NV_MEMORY_TO_MEMORY_FORMAT_OFFSET_IN, 8);
-		OUT_RING  (chan, src_offset);
-		OUT_RING  (chan, dst_offset);
-		OUT_RING  (chan, PAGE_SIZE); /* src_pitch */
-		OUT_RING  (chan, PAGE_SIZE); /* dst_pitch */
-		OUT_RING  (chan, PAGE_SIZE); /* line_length */
-		OUT_RING  (chan, line_count);
-		OUT_RING  (chan, 0x00000101);
-		OUT_RING  (chan, 0x00000000);
-		BEGIN_NV04(chan, NvSubCopy, NV_MEMORY_TO_MEMORY_FORMAT_NOP, 1);
-		OUT_RING  (chan, 0);
+		PUSH_NVSQ(push, NV039, 0x030c, src_offset,
+				       0x0310, dst_offset,
+				       0x0314, PAGE_SIZE, /* src_pitch */
+				       0x0318, PAGE_SIZE, /* dst_pitch */
+				       0x031c, PAGE_SIZE, /* line_length */
+				       0x0320, line_count,
+				       0x0324, 0x00000101,
+				       0x0328, 0x00000000);
+		PUSH_NVSQ(push, NV039, 0x0100, 0x00000000);
 
 		page_count -= line_count;
 		src_offset += (PAGE_SIZE * line_count);

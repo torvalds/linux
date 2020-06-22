@@ -38,6 +38,7 @@ nv50_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 		  struct ttm_mem_reg *old_reg, struct ttm_mem_reg *new_reg)
 {
 	struct nouveau_mem *mem = nouveau_mem(old_reg);
+	struct nvif_push *push = chan->chan.push;
 	u64 length = (new_reg->num_pages << PAGE_SHIFT);
 	u64 src_offset = mem->vma[0].addr;
 	u64 dst_offset = mem->vma[1].addr;
@@ -48,7 +49,7 @@ nv50_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 	while (length) {
 		u32 amount, stride, height;
 
-		ret = RING_SPACE(chan, 18 + 6 * (src_tiled + dst_tiled));
+		ret = PUSH_WAIT(push, 18 + 6 * (src_tiled + dst_tiled));
 		if (ret)
 			return ret;
 
@@ -57,46 +58,40 @@ nv50_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 		height  = amount / stride;
 
 		if (src_tiled) {
-			BEGIN_NV04(chan, NvSubCopy, 0x0200, 7);
-			OUT_RING  (chan, 0);
-			OUT_RING  (chan, 0);
-			OUT_RING  (chan, stride);
-			OUT_RING  (chan, height);
-			OUT_RING  (chan, 1);
-			OUT_RING  (chan, 0);
-			OUT_RING  (chan, 0);
+			PUSH_NVSQ(push, NV5039, 0x0200, 0,
+						0x0204, 0,
+						0x0208, stride,
+						0x020c, height,
+						0x0210, 1,
+						0x0214, 0,
+						0x0218, 0);
 		} else {
-			BEGIN_NV04(chan, NvSubCopy, 0x0200, 1);
-			OUT_RING  (chan, 1);
-		}
-		if (dst_tiled) {
-			BEGIN_NV04(chan, NvSubCopy, 0x021c, 7);
-			OUT_RING  (chan, 0);
-			OUT_RING  (chan, 0);
-			OUT_RING  (chan, stride);
-			OUT_RING  (chan, height);
-			OUT_RING  (chan, 1);
-			OUT_RING  (chan, 0);
-			OUT_RING  (chan, 0);
-		} else {
-			BEGIN_NV04(chan, NvSubCopy, 0x021c, 1);
-			OUT_RING  (chan, 1);
+			PUSH_NVSQ(push, NV5039, 0x0200, 1);
 		}
 
-		BEGIN_NV04(chan, NvSubCopy, 0x0238, 2);
-		OUT_RING  (chan, upper_32_bits(src_offset));
-		OUT_RING  (chan, upper_32_bits(dst_offset));
-		BEGIN_NV04(chan, NvSubCopy, 0x030c, 8);
-		OUT_RING  (chan, lower_32_bits(src_offset));
-		OUT_RING  (chan, lower_32_bits(dst_offset));
-		OUT_RING  (chan, stride);
-		OUT_RING  (chan, stride);
-		OUT_RING  (chan, stride);
-		OUT_RING  (chan, height);
-		OUT_RING  (chan, 0x00000101);
-		OUT_RING  (chan, 0x00000000);
-		BEGIN_NV04(chan, NvSubCopy, NV_MEMORY_TO_MEMORY_FORMAT_NOP, 1);
-		OUT_RING  (chan, 0);
+		if (dst_tiled) {
+			PUSH_NVSQ(push, NV5039, 0x021c, 0,
+						0x0220, 0,
+						0x0224, stride,
+						0x0228, height,
+						0x022c, 1,
+						0x0230, 0,
+						0x0234, 0);
+		} else {
+			PUSH_NVSQ(push, NV5039, 0x021c, 1);
+		}
+
+		PUSH_NVSQ(push, NV5039, 0x0238, upper_32_bits(src_offset),
+					0x023c, upper_32_bits(dst_offset));
+		PUSH_NVSQ(push, NV5039, 0x030c, lower_32_bits(src_offset),
+					0x0310, lower_32_bits(dst_offset),
+					0x0314, stride,
+					0x0318, stride,
+					0x031c, stride,
+					0x0320, height,
+					0x0324, 0x00000101,
+					0x0328, 0x00000000);
+		PUSH_NVSQ(push, NV5039, 0x0100, 0x00000000);
 
 		length -= amount;
 		src_offset += amount;

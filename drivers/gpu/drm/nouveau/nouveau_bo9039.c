@@ -36,6 +36,7 @@ int
 nvc0_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 		  struct ttm_mem_reg *old_reg, struct ttm_mem_reg *new_reg)
 {
+	struct nvif_push *push = chan->chan.push;
 	struct nouveau_mem *mem = nouveau_mem(old_reg);
 	u64 src_offset = mem->vma[0].addr;
 	u64 dst_offset = mem->vma[1].addr;
@@ -46,22 +47,19 @@ nvc0_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 	while (page_count) {
 		int line_count = (page_count > 2047) ? 2047 : page_count;
 
-		ret = RING_SPACE(chan, 12);
+		ret = PUSH_WAIT(push, 12);
 		if (ret)
 			return ret;
 
-		BEGIN_NVC0(chan, NvSubCopy, 0x0238, 2);
-		OUT_RING  (chan, upper_32_bits(dst_offset));
-		OUT_RING  (chan, lower_32_bits(dst_offset));
-		BEGIN_NVC0(chan, NvSubCopy, 0x030c, 6);
-		OUT_RING  (chan, upper_32_bits(src_offset));
-		OUT_RING  (chan, lower_32_bits(src_offset));
-		OUT_RING  (chan, PAGE_SIZE); /* src_pitch */
-		OUT_RING  (chan, PAGE_SIZE); /* dst_pitch */
-		OUT_RING  (chan, PAGE_SIZE); /* line_length */
-		OUT_RING  (chan, line_count);
-		BEGIN_NVC0(chan, NvSubCopy, 0x0300, 1);
-		OUT_RING  (chan, 0x00100110);
+		PUSH_NVSQ(push, NV9039, 0x0238, upper_32_bits(dst_offset),
+					0x023c, lower_32_bits(dst_offset));
+		PUSH_NVSQ(push, NV9039, 0x030c, upper_32_bits(src_offset),
+					0x0310, lower_32_bits(src_offset),
+					0x0314, PAGE_SIZE, /* src_pitch */
+					0x0318, PAGE_SIZE, /* dst_pitch */
+					0x031c, PAGE_SIZE, /* line_length */
+					0x0320, line_count);
+		PUSH_NVSQ(push, NV9039, 0x0300, 0x00100110);
 
 		page_count -= line_count;
 		src_offset += (PAGE_SIZE * line_count);
