@@ -586,60 +586,53 @@ static bool xdr_check_reply_chunk(struct svc_rdma_recv_ctxt *rctxt)
  *
  * If there is exactly one distinct R_key in the received transport
  * header, set rc_inv_rkey to that R_key. Otherwise, set it to zero.
- *
- * Perform this operation while the received transport header is
- * still in the CPU cache.
  */
 static void svc_rdma_get_inv_rkey(struct svcxprt_rdma *rdma,
 				  struct svc_rdma_recv_ctxt *ctxt)
 {
-	__be32 inv_rkey, *p;
-	u32 i, segcount;
+	struct svc_rdma_segment *segment;
+	struct svc_rdma_chunk *chunk;
+	u32 inv_rkey;
 
 	ctxt->rc_inv_rkey = 0;
 
 	if (!rdma->sc_snd_w_inv)
 		return;
 
-	inv_rkey = xdr_zero;
-	p = ctxt->rc_recv_buf;
-	p += rpcrdma_fixed_maxsz;
-
-	/* Read list */
-	while (xdr_item_is_present(p++)) {
-		p++;	/* position */
-		if (inv_rkey == xdr_zero)
-			inv_rkey = *p;
-		else if (inv_rkey != *p)
-			return;
-		p += 4;
-	}
-
-	/* Write list */
-	while (xdr_item_is_present(p++)) {
-		segcount = be32_to_cpup(p++);
-		for (i = 0; i < segcount; i++) {
-			if (inv_rkey == xdr_zero)
-				inv_rkey = *p;
-			else if (inv_rkey != *p)
+	inv_rkey = 0;
+	pcl_for_each_chunk(chunk, &ctxt->rc_call_pcl) {
+		pcl_for_each_segment(segment, chunk) {
+			if (inv_rkey == 0)
+				inv_rkey = segment->rs_handle;
+			else if (inv_rkey != segment->rs_handle)
 				return;
-			p += 4;
 		}
 	}
-
-	/* Reply chunk */
-	if (xdr_item_is_present(p++)) {
-		segcount = be32_to_cpup(p++);
-		for (i = 0; i < segcount; i++) {
-			if (inv_rkey == xdr_zero)
-				inv_rkey = *p;
-			else if (inv_rkey != *p)
+	pcl_for_each_chunk(chunk, &ctxt->rc_read_pcl) {
+		pcl_for_each_segment(segment, chunk) {
+			if (inv_rkey == 0)
+				inv_rkey = segment->rs_handle;
+			else if (inv_rkey != segment->rs_handle)
 				return;
-			p += 4;
 		}
 	}
-
-	ctxt->rc_inv_rkey = be32_to_cpu(inv_rkey);
+	pcl_for_each_chunk(chunk, &ctxt->rc_write_pcl) {
+		pcl_for_each_segment(segment, chunk) {
+			if (inv_rkey == 0)
+				inv_rkey = segment->rs_handle;
+			else if (inv_rkey != segment->rs_handle)
+				return;
+		}
+	}
+	pcl_for_each_chunk(chunk, &ctxt->rc_reply_pcl) {
+		pcl_for_each_segment(segment, chunk) {
+			if (inv_rkey == 0)
+				inv_rkey = segment->rs_handle;
+			else if (inv_rkey != segment->rs_handle)
+				return;
+		}
+	}
+	ctxt->rc_inv_rkey = inv_rkey;
 }
 
 /**
