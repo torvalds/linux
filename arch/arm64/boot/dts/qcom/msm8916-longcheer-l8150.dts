@@ -236,25 +236,17 @@
 
 &msmgpio {
 	gpio_keys_default: gpio-keys-default {
-		pinmux {
-			function = "gpio";
-			pins = "gpio107";
-		};
-		pinconf {
-			pins = "gpio107";
-			drive-strength = <2>;
-			bias-pull-up;
-		};
+		pins = "gpio107";
+		function = "gpio";
+
+		drive-strength = <2>;
+		bias-pull-up;
 	};
 
 	usb_vbus_default: usb-vbus-default {
-		pinmux {
-			function = "gpio";
-			pins = "gpio62";
-		};
-		pinconf {
-			pins = "gpio62";
-			bias-pull-up;
-		};
+		pins = "gpio62";
+		function = "gpio";
+
+		bias-pull-up;
 	};
 };

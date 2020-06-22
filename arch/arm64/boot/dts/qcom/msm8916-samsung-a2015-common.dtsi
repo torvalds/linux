@@ -295,76 +295,51 @@
 
 &msmgpio {
 	gpio_keys_default: gpio-keys-default {
-		pinmux {
-			function = "gpio";
-			pins = "gpio107", "gpio109";
-		};
-		pinconf {
-			pins = "gpio107", "gpio109";
-			drive-strength = <2>;
-			bias-pull-up;
-		};
+		pins = "gpio107", "gpio109";
+		function = "gpio";
+
+		drive-strength = <2>;
+		bias-pull-up;
 	};
 
 	gpio_hall_sensor_default: gpio-hall-sensor-default {
-		pinmux {
-			function = "gpio";
-			pins = "gpio52";
-		};
-		pinconf {
-			pins = "gpio52";
-			drive-strength = <2>;
-			bias-disable;
-		};
+		pins = "gpio52";
+		function = "gpio";
+
+		drive-strength = <2>;
+		bias-disable;
 	};
 
 	mdss {
 		mdss_default: mdss-default {
-			pinmux {
-				function = "gpio";
-				pins = "gpio25";
-			};
-			pinconf {
-				pins = "gpio25";
-				drive-strength = <8>;
-				bias-disable;
-			};
-		};
+			pins = "gpio25";
+			function = "gpio";
 
+			drive-strength = <8>;
+			bias-disable;
+		};
 		mdss_sleep: mdss-sleep {
-			pinmux {
-				function = "gpio";
-				pins = "gpio25";
-			};
-			pinconf {
-				pins = "gpio25";
-				drive-strength = <2>;
-				bias-pull-down;
-			};
+			pins = "gpio25";
+			function = "gpio";
+
+			drive-strength = <2>;
+			bias-pull-down;
 		};
 	};
 
 	muic_int_default: muic-int-default {
-		pinmux {
-			function = "gpio";
-			pins = "gpio12";
-		};
-		pinconf {
-			pins = "gpio12";
-			drive-strength = <2>;
-			bias-disable;
-		};
+		pins = "gpio12";
+		function = "gpio";
+
+		drive-strength = <2>;
+		bias-disable;
 	};
 
 	tsp_en_default: tsp-en-default {
-		pinmux {
-			function = "gpio";
-			pins = "gpio73";
-		};
-		pinconf {
-			pins = "gpio73";
-			drive-strength = <2>;
-			bias-disable;
-		};
+		pins = "gpio73";
+		function = "gpio";
+
+		drive-strength = <2>;
+		bias-disable;
 	};
 };

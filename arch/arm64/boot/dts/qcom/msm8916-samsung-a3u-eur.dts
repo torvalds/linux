@@ -51,14 +51,10 @@
 
 &msmgpio {
 	panel_vdd3_default: panel-vdd3-default {
-		pinmux {
-			function = "gpio";
-			pins = "gpio9";
-		};
-		pinconf {
-			pins = "gpio9";
-			drive-strength = <2>;
-			bias-disable;
-		};
+		pins = "gpio9";
+		function = "gpio";
+
+		drive-strength = <2>;
+		bias-disable;
 	};
 };
