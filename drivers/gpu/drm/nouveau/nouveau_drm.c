@@ -331,7 +331,6 @@ nouveau_accel_gr_fini(struct nouveau_drm *drm)
 	nouveau_channel_idle(drm->channel);
 	nvif_object_dtor(&drm->ntfy);
 	nvkm_gpuobj_del(&drm->notify);
-	nvif_object_dtor(&drm->nvsw);
 	nouveau_channel_del(&drm->channel);
 }
 
@@ -363,15 +362,15 @@ nouveau_accel_gr_init(struct nouveau_drm *drm)
 	 * synchronisation of page flips, as well as to implement fences
 	 * on TNT/TNT2 HW that lacks any kind of support in host.
 	 */
-	if (device->info.family < NV_DEVICE_INFO_V0_TESLA) {
+	if (!drm->channel->nvsw.client && device->info.family < NV_DEVICE_INFO_V0_TESLA) {
 		ret = nvif_object_ctor(&drm->channel->user, "drmNvsw",
 				       NVDRM_NVSW, nouveau_abi16_swclass(drm),
-				       NULL, 0, &drm->nvsw);
+				       NULL, 0, &drm->channel->nvsw);
 		if (ret == 0) {
 			ret = RING_SPACE(drm->channel, 2);
 			if (ret == 0) {
 				BEGIN_NV04(drm->channel, NvSubSw, 0, 1);
-				OUT_RING  (drm->channel, drm->nvsw.handle);
+				OUT_RING  (drm->channel, drm->channel->nvsw.handle);
 			}
 		}
 

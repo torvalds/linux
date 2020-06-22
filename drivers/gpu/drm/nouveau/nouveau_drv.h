@@ -186,7 +186,6 @@ struct nouveau_drm {
 	struct nouveau_channel *channel;
 	struct nvkm_gpuobj *notify;
 	struct nouveau_fbdev *fbcon;
-	struct nvif_object nvsw;
 	struct nvif_object ntfy;
 
 	/* nv10-nv40 tiling regions */
