@@ -1087,6 +1087,7 @@ error_out2:
 	usb_put_dev(udev);
 	complete(&rtlpriv->firmware_loading_complete);
 	kfree(rtlpriv->usb_data);
+	ieee80211_free_hw(hw);
 	return -ENODEV;
 }
 EXPORT_SYMBOL(rtl_usb_probe);
