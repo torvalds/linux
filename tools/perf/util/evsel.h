@@ -76,6 +76,7 @@ struct evsel {
 	bool			ignore_missing_thread;
 	bool			forced_leader;
 	bool			use_uncore_alias;
+	bool			is_libpfm_event;
 	/* parse modifier helper */
 	int			exclude_GH;
 	int			sample_read;
@@ -154,31 +155,31 @@ void perf_counts_values__scale(struct perf_counts_values *count,
 void evsel__compute_deltas(struct evsel *evsel, int cpu, int thread,
 			   struct perf_counts_values *count);
 
-int perf_evsel__object_config(size_t object_size,
-			      int (*init)(struct evsel *evsel),
-			      void (*fini)(struct evsel *evsel));
+int evsel__object_config(size_t object_size,
+			 int (*init)(struct evsel *evsel),
+			 void (*fini)(struct evsel *evsel));
 
 struct perf_pmu *evsel__find_pmu(struct evsel *evsel);
 bool evsel__is_aux_event(struct evsel *evsel);
 
-struct evsel *perf_evsel__new_idx(struct perf_event_attr *attr, int idx);
+struct evsel *evsel__new_idx(struct perf_event_attr *attr, int idx);
 
 static inline struct evsel *evsel__new(struct perf_event_attr *attr)
 {
-	return perf_evsel__new_idx(attr, 0);
+	return evsel__new_idx(attr, 0);
 }
 
-struct evsel *perf_evsel__newtp_idx(const char *sys, const char *name, int idx);
+struct evsel *evsel__newtp_idx(const char *sys, const char *name, int idx);
 
 /*
  * Returns pointer with encoded error via <linux/err.h> interface.
  */
-static inline struct evsel *perf_evsel__newtp(const char *sys, const char *name)
+static inline struct evsel *evsel__newtp(const char *sys, const char *name)
 {
-	return perf_evsel__newtp_idx(sys, name, 0);
+	return evsel__newtp_idx(sys, name, 0);
 }
 
-struct evsel *perf_evsel__new_cycles(bool precise);
+struct evsel *evsel__new_cycles(bool precise);
 
 struct tep_event *event_format__new(const char *sys, const char *name);
 
@@ -198,16 +199,13 @@ void evsel__calc_id_pos(struct evsel *evsel);
 
 bool evsel__is_cache_op_valid(u8 type, u8 op);
 
-#define PERF_EVSEL__MAX_ALIASES 8
+#define EVSEL__MAX_ALIASES 8
 
-extern const char *perf_evsel__hw_cache[PERF_COUNT_HW_CACHE_MAX]
-				       [PERF_EVSEL__MAX_ALIASES];
-extern const char *perf_evsel__hw_cache_op[PERF_COUNT_HW_CACHE_OP_MAX]
-					  [PERF_EVSEL__MAX_ALIASES];
-extern const char *perf_evsel__hw_cache_result[PERF_COUNT_HW_CACHE_RESULT_MAX]
-					      [PERF_EVSEL__MAX_ALIASES];
-extern const char *perf_evsel__hw_names[PERF_COUNT_HW_MAX];
-extern const char *perf_evsel__sw_names[PERF_COUNT_SW_MAX];
+extern const char *evsel__hw_cache[PERF_COUNT_HW_CACHE_MAX][EVSEL__MAX_ALIASES];
+extern const char *evsel__hw_cache_op[PERF_COUNT_HW_CACHE_OP_MAX][EVSEL__MAX_ALIASES];
+extern const char *evsel__hw_cache_result[PERF_COUNT_HW_CACHE_RESULT_MAX][EVSEL__MAX_ALIASES];
+extern const char *evsel__hw_names[PERF_COUNT_HW_MAX];
+extern const char *evsel__sw_names[PERF_COUNT_SW_MAX];
 int __evsel__hw_cache_type_op_res_name(u8 type, u8 op, u8 result, char *bf, size_t size);
 const char *evsel__name(struct evsel *evsel);
 

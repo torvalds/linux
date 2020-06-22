@@ -297,4 +297,5 @@ int callchain_branch_counts(struct callchain_root *root,
 			    u64 *branch_count, u64 *predicted_count,
 			    u64 *abort_count, u64 *cycles_count);
 
+void callchain_param_setup(u64 sample_type);
 #endif	/* __PERF_CALLCHAIN_H */

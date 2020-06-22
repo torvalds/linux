@@ -738,8 +738,8 @@ int machine__process_switch_event(struct machine *machine __maybe_unused,
 
 static int is_bpf_image(const char *name)
 {
-	return strncmp(name, "bpf_trampoline_", sizeof("bpf_trampoline_") - 1) ||
-	       strncmp(name, "bpf_dispatcher_", sizeof("bpf_dispatcher_") - 1);
+	return strncmp(name, "bpf_trampoline_", sizeof("bpf_trampoline_") - 1) == 0 ||
+	       strncmp(name, "bpf_dispatcher_", sizeof("bpf_dispatcher_") - 1) == 0;
 }
 
 static int machine__process_ksymbol_register(struct machine *machine,

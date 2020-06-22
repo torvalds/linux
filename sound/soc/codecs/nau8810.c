@@ -355,6 +355,8 @@ static const struct snd_kcontrol_new nau8810_snd_controls[] = {
 
 /* Speaker Output Mixer */
 static const struct snd_kcontrol_new nau8810_speaker_mixer_controls[] = {
+	SOC_DAPM_SINGLE("AUX Bypass Switch", NAU8810_REG_SPKMIX,
+		NAU8810_AUXSPK_SFT, 1, 0),
 	SOC_DAPM_SINGLE("Line Bypass Switch", NAU8810_REG_SPKMIX,
 		NAU8810_BYPSPK_SFT, 1, 0),
 	SOC_DAPM_SINGLE("PCM Playback Switch", NAU8810_REG_SPKMIX,
@@ -363,6 +365,8 @@ static const struct snd_kcontrol_new nau8810_speaker_mixer_controls[] = {
 
 /* Mono Output Mixer */
 static const struct snd_kcontrol_new nau8810_mono_mixer_controls[] = {
+	SOC_DAPM_SINGLE("AUX Bypass Switch", NAU8810_REG_MONOMIX,
+		NAU8810_AUXMOUT_SFT, 1, 0),
 	SOC_DAPM_SINGLE("Line Bypass Switch", NAU8810_REG_MONOMIX,
 		NAU8810_BYPMOUT_SFT, 1, 0),
 	SOC_DAPM_SINGLE("PCM Playback Switch", NAU8810_REG_MONOMIX,
@@ -371,6 +375,8 @@ static const struct snd_kcontrol_new nau8810_mono_mixer_controls[] = {
 
 /* PGA Mute */
 static const struct snd_kcontrol_new nau8810_pgaboost_mixer_controls[] = {
+	SOC_DAPM_SINGLE("AUX PGA Switch", NAU8810_REG_ADCBOOST,
+		NAU8810_AUXBSTGAIN_SFT, 0x7, 0),
 	SOC_DAPM_SINGLE("PGA Mute Switch", NAU8810_REG_PGAGAIN,
 		NAU8810_PGAMT_SFT, 1, 1),
 	SOC_DAPM_SINGLE("PMIC PGA Switch", NAU8810_REG_ADCBOOST,
@@ -379,6 +385,8 @@ static const struct snd_kcontrol_new nau8810_pgaboost_mixer_controls[] = {
 
 /* Input PGA */
 static const struct snd_kcontrol_new nau8810_inpga[] = {
+	SOC_DAPM_SINGLE("AUX Switch", NAU8810_REG_INPUT_SIGNAL,
+		NAU8810_AUXPGA_SFT, 1, 0),
 	SOC_DAPM_SINGLE("MicN Switch", NAU8810_REG_INPUT_SIGNAL,
 		NAU8810_NMICPGA_SFT, 1, 0),
 	SOC_DAPM_SINGLE("MicP Switch", NAU8810_REG_INPUT_SIGNAL,
@@ -399,6 +407,23 @@ static int check_mclk_select_pll(struct snd_soc_dapm_widget *source,
 
 	regmap_read(nau8810->regmap, NAU8810_REG_CLOCK, &value);
 	return (value & NAU8810_CLKM_MASK);
+}
+
+static int check_mic_enabled(struct snd_soc_dapm_widget *source,
+	struct snd_soc_dapm_widget *sink)
+{
+	struct snd_soc_component *component =
+		snd_soc_dapm_to_component(source->dapm);
+	struct nau8810 *nau8810 = snd_soc_component_get_drvdata(component);
+	unsigned int value;
+
+	regmap_read(nau8810->regmap, NAU8810_REG_INPUT_SIGNAL, &value);
+	if (value & NAU8810_PMICPGA_EN || value & NAU8810_NMICPGA_EN)
+		return 1;
+	regmap_read(nau8810->regmap, NAU8810_REG_ADCBOOST, &value);
+	if (value & NAU8810_PMICBSTGAIN_MASK)
+		return 1;
+	return 0;
 }
 
 static const struct snd_soc_dapm_widget nau8810_dapm_widgets[] = {
@@ -425,6 +450,8 @@ static const struct snd_soc_dapm_widget nau8810_dapm_widgets[] = {
 	SND_SOC_DAPM_MIXER("Input Boost Stage", NAU8810_REG_POWER2,
 		NAU8810_BST_EN_SFT, 0, nau8810_pgaboost_mixer_controls,
 		ARRAY_SIZE(nau8810_pgaboost_mixer_controls)),
+	SND_SOC_DAPM_PGA("AUX Input", NAU8810_REG_POWER1,
+		NAU8810_AUX_EN_SFT, 0, NULL, 0),
 
 	SND_SOC_DAPM_SUPPLY("Mic Bias", NAU8810_REG_POWER1,
 		NAU8810_MICBIAS_EN_SFT, 0, NULL, 0),
@@ -434,6 +461,7 @@ static const struct snd_soc_dapm_widget nau8810_dapm_widgets[] = {
 	SND_SOC_DAPM_SWITCH("Digital Loopback", SND_SOC_NOPM, 0, 0,
 		&nau8810_loopback),
 
+	SND_SOC_DAPM_INPUT("AUX"),
 	SND_SOC_DAPM_INPUT("MICN"),
 	SND_SOC_DAPM_INPUT("MICP"),
 	SND_SOC_DAPM_OUTPUT("MONOOUT"),
@@ -445,10 +473,12 @@ static const struct snd_soc_dapm_route nau8810_dapm_routes[] = {
 	{"DAC", NULL, "PLL", check_mclk_select_pll},
 
 	/* Mono output mixer */
+	{"Mono Mixer", "AUX Bypass Switch", "AUX Input"},
 	{"Mono Mixer", "PCM Playback Switch", "DAC"},
 	{"Mono Mixer", "Line Bypass Switch", "Input Boost Stage"},
 
 	/* Speaker output mixer */
+	{"Speaker Mixer", "AUX Bypass Switch", "AUX Input"},
 	{"Speaker Mixer", "PCM Playback Switch", "DAC"},
 	{"Speaker Mixer", "Line Bypass Switch", "Input Boost Stage"},
 
@@ -463,13 +493,16 @@ static const struct snd_soc_dapm_route nau8810_dapm_routes[] = {
 	/* Input Boost Stage */
 	{"ADC", NULL, "Input Boost Stage"},
 	{"ADC", NULL, "PLL", check_mclk_select_pll},
+	{"Input Boost Stage", "AUX PGA Switch", "AUX Input"},
 	{"Input Boost Stage", "PGA Mute Switch", "Input PGA"},
 	{"Input Boost Stage", "PMIC PGA Switch", "MICP"},
 
 	/* Input PGA */
-	{"Input PGA", NULL, "Mic Bias"},
+	{"Input PGA", NULL, "Mic Bias", check_mic_enabled},
+	{"Input PGA", "AUX Switch", "AUX Input"},
 	{"Input PGA", "MicN Switch", "MICN"},
 	{"Input PGA", "MicP Switch", "MICP"},
+	{"AUX Input", NULL, "AUX"},
 
 	/* Digital Looptack */
 	{"Digital Loopback", "Switch", "ADC"},
@@ -862,6 +895,8 @@ static int nau8810_i2c_probe(struct i2c_client *i2c,
 
 static const struct i2c_device_id nau8810_i2c_id[] = {
 	{ "nau8810", 0 },
+	{ "nau8812", 0 },
+	{ "nau8814", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, nau8810_i2c_id);
@@ -869,6 +904,8 @@ MODULE_DEVICE_TABLE(i2c, nau8810_i2c_id);
 #ifdef CONFIG_OF
 static const struct of_device_id nau8810_of_match[] = {
 	{ .compatible = "nuvoton,nau8810", },
+	{ .compatible = "nuvoton,nau8812", },
+	{ .compatible = "nuvoton,nau8814", },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, nau8810_of_match);

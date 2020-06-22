@@ -432,7 +432,7 @@ static int __cmd_annotate(struct perf_annotate *ann)
 			hists__collapse_resort(hists, NULL);
 			/* Don't sort callchain */
 			evsel__reset_sample_bit(pos, CALLCHAIN);
-			perf_evsel__output_resort(pos, NULL);
+			evsel__output_resort(pos, NULL);
 
 			if (symbol_conf.event_group && !evsel__is_group_leader(pos))
 				continue;

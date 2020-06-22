@@ -47,6 +47,9 @@
 #ifndef noinline
 #define noinline
 #endif
+#ifndef __no_tail_call
+#define __no_tail_call
+#endif
 
 /* Are two types/vars the same type (ignoring qualifiers)? */
 #ifndef __same_type

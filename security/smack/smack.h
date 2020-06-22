@@ -109,9 +109,7 @@ struct inode_smack {
 	struct smack_known	*smk_inode;	/* label of the fso */
 	struct smack_known	*smk_task;	/* label of the task */
 	struct smack_known	*smk_mmap;	/* label of the mmap domain */
-	struct mutex		smk_lock;	/* initialization lock */
 	int			smk_flags;	/* smack inode flags */
-	struct rcu_head         smk_rcu;	/* for freeing inode_smack */
 };
 
 struct task_smack {
@@ -148,7 +146,6 @@ struct smk_net4addr {
 	struct smack_known	*smk_label;	/* label */
 };
 
-#if IS_ENABLED(CONFIG_IPV6)
 /*
  * An entry in the table identifying IPv6 hosts.
  */
@@ -159,9 +156,7 @@ struct smk_net6addr {
 	int			smk_masks;	/* mask size */
 	struct smack_known	*smk_label;	/* label */
 };
-#endif /* CONFIG_IPV6 */
 
-#ifdef SMACK_IPV6_PORT_LABELING
 /*
  * An entry in the table identifying ports.
  */
@@ -174,7 +169,6 @@ struct smk_port_label {
 	short			smk_sock_type;	/* Socket type */
 	short			smk_can_reuse;
 };
-#endif /* SMACK_IPV6_PORT_LABELING */
 
 struct smack_known_list_elem {
 	struct list_head	list;
@@ -335,9 +329,7 @@ extern struct smack_known smack_known_web;
 extern struct mutex	smack_known_lock;
 extern struct list_head smack_known_list;
 extern struct list_head smk_net4addr_list;
-#if IS_ENABLED(CONFIG_IPV6)
 extern struct list_head smk_net6addr_list;
-#endif /* CONFIG_IPV6 */
 
 extern struct mutex     smack_onlycap_lock;
 extern struct list_head smack_onlycap_list;
@@ -503,10 +495,6 @@ static inline void smk_ad_setfield_u_tsk(struct smk_audit_info *a,
 }
 static inline void smk_ad_setfield_u_fs_path_dentry(struct smk_audit_info *a,
 						    struct dentry *d)
-{
-}
-static inline void smk_ad_setfield_u_fs_path_mnt(struct smk_audit_info *a,
-						 struct vfsmount *m)
 {
 }
 static inline void smk_ad_setfield_u_fs_inode(struct smk_audit_info *a,

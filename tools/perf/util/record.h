@@ -36,6 +36,7 @@ struct record_opts {
 	bool	      record_namespaces;
 	bool	      record_cgroup;
 	bool	      record_switch_events;
+	bool	      record_switch_events_set;
 	bool	      all_kernel;
 	bool	      all_user;
 	bool	      kernel_callchains;
@@ -75,5 +76,10 @@ extern const char * const *record_usage;
 extern struct option *record_options;
 
 int record__parse_freq(const struct option *opt, const char *str, int unset);
+
+static inline bool record_opts__no_switch_events(const struct record_opts *opts)
+{
+	return opts->record_switch_events_set && !opts->record_switch_events;
+}
 
 #endif // _PERF_RECORD_H

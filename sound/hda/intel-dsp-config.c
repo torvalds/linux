@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (c) 2019 Jaroslav Kysela <perex@perex.cz>
 
+#include <linux/acpi.h>
 #include <linux/bits.h>
 #include <linux/dmi.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/soundwire/sdw.h>
+#include <linux/soundwire/sdw_intel.h>
 #include <sound/core.h>
 #include <sound/intel-dsp-config.h>
 #include <sound/intel-nhlt.h>
@@ -14,9 +17,14 @@ static int dsp_driver;
 module_param(dsp_driver, int, 0444);
 MODULE_PARM_DESC(dsp_driver, "Force the DSP driver for Intel DSP (0=auto, 1=legacy, 2=SST, 3=SOF)");
 
-#define FLAG_SST		BIT(0)
-#define FLAG_SOF		BIT(1)
-#define FLAG_SOF_ONLY_IF_DMIC	BIT(16)
+#define FLAG_SST			BIT(0)
+#define FLAG_SOF			BIT(1)
+#define FLAG_SST_ONLY_IF_DMIC		BIT(15)
+#define FLAG_SOF_ONLY_IF_DMIC		BIT(16)
+#define FLAG_SOF_ONLY_IF_SOUNDWIRE	BIT(17)
+
+#define FLAG_SOF_ONLY_IF_DMIC_OR_SOUNDWIRE (FLAG_SOF_ONLY_IF_DMIC | \
+					    FLAG_SOF_ONLY_IF_SOUNDWIRE)
 
 struct config_entry {
 	u32 flags;
@@ -100,6 +108,10 @@ static const struct config_entry config_table[] = {
 			{}
 		}
 	},
+	{
+		.flags = FLAG_SST | FLAG_SST_ONLY_IF_DMIC,
+		.device = 0x9d70,
+	},
 #endif
 /* Kabylake-LP */
 #if IS_ENABLED(CONFIG_SND_SOC_INTEL_KBL)
@@ -115,6 +127,10 @@ static const struct config_entry config_table[] = {
 			},
 			{}
 		}
+	},
+	{
+		.flags = FLAG_SST | FLAG_SST_ONLY_IF_DMIC,
+		.device = 0x9d71,
 	},
 #endif
 
@@ -166,7 +182,7 @@ static const struct config_entry config_table[] = {
 		}
 	},
 	{
-		.flags = FLAG_SOF | FLAG_SOF_ONLY_IF_DMIC,
+		.flags = FLAG_SOF | FLAG_SOF_ONLY_IF_DMIC_OR_SOUNDWIRE,
 		.device = 0x9dc8,
 	},
 #endif
@@ -187,7 +203,7 @@ static const struct config_entry config_table[] = {
 		}
 	},
 	{
-		.flags = FLAG_SOF | FLAG_SOF_ONLY_IF_DMIC,
+		.flags = FLAG_SOF | FLAG_SOF_ONLY_IF_DMIC_OR_SOUNDWIRE,
 		.device = 0xa348,
 	},
 #endif
@@ -204,18 +220,50 @@ static const struct config_entry config_table[] = {
 					DMI_MATCH(DMI_SYS_VENDOR, "Google"),
 				}
 			},
+			{
+				.matches = {
+					DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc"),
+					DMI_EXACT_MATCH(DMI_PRODUCT_SKU, "09C6")
+				},
+			},
+			{
+				/* early version of SKU 09C6 */
+				.matches = {
+					DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc"),
+					DMI_EXACT_MATCH(DMI_PRODUCT_SKU, "0983")
+				},
+			},
 			{}
 		}
 	},
 	{
-		.flags = FLAG_SOF | FLAG_SOF_ONLY_IF_DMIC,
+		.flags = FLAG_SOF | FLAG_SOF_ONLY_IF_DMIC_OR_SOUNDWIRE,
 		.device = 0x02c8,
 	},
 #endif
 /* Cometlake-H */
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_COMETLAKE_H)
 	{
-		.flags = FLAG_SOF | FLAG_SOF_ONLY_IF_DMIC,
+		.flags = FLAG_SOF,
+		.device = 0x06c8,
+		.dmi_table = (const struct dmi_system_id []) {
+			{
+				.matches = {
+					DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc"),
+					DMI_EXACT_MATCH(DMI_PRODUCT_SKU, "098F"),
+				},
+			},
+			{
+				.matches = {
+					DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc"),
+					DMI_EXACT_MATCH(DMI_PRODUCT_SKU, "0990"),
+				},
+			},
+			{}
+		}
+	},
+	{
+		.flags = FLAG_SOF | FLAG_SOF_ONLY_IF_DMIC_OR_SOUNDWIRE,
 		.device = 0x06c8,
 	},
 #endif
@@ -236,7 +284,7 @@ static const struct config_entry config_table[] = {
 		}
 	},
 	{
-		.flags = FLAG_SOF | FLAG_SOF_ONLY_IF_DMIC,
+		.flags = FLAG_SOF | FLAG_SOF_ONLY_IF_DMIC_OR_SOUNDWIRE,
 		.device = 0x34c8,
 	},
 #endif
@@ -256,9 +304,8 @@ static const struct config_entry config_table[] = {
 			{}
 		}
 	},
-
 	{
-		.flags = FLAG_SOF | FLAG_SOF_ONLY_IF_DMIC,
+		.flags = FLAG_SOF | FLAG_SOF_ONLY_IF_DMIC_OR_SOUNDWIRE,
 		.device = 0xa0c8,
 	},
 #endif
@@ -303,6 +350,28 @@ static int snd_intel_dsp_check_dmic(struct pci_dev *pci)
 	return ret;
 }
 
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_INTEL_SOUNDWIRE)
+static int snd_intel_dsp_check_soundwire(struct pci_dev *pci)
+{
+	struct sdw_intel_acpi_info info;
+	acpi_handle handle;
+	int ret;
+
+	handle = ACPI_HANDLE(&pci->dev);
+
+	ret = sdw_intel_acpi_scan(handle, &info);
+	if (ret < 0)
+		return ret;
+
+	return info.link_mask;
+}
+#else
+static int snd_intel_dsp_check_soundwire(struct pci_dev *pci)
+{
+	return 0;
+}
+#endif
+
 int snd_intel_dsp_driver_probe(struct pci_dev *pci)
 {
 	const struct config_entry *cfg;
@@ -336,18 +405,31 @@ int snd_intel_dsp_driver_probe(struct pci_dev *pci)
 		return SND_INTEL_DSP_DRIVER_ANY;
 
 	if (cfg->flags & FLAG_SOF) {
-		if (cfg->flags & FLAG_SOF_ONLY_IF_DMIC) {
-			if (snd_intel_dsp_check_dmic(pci)) {
-				dev_info(&pci->dev, "Digital mics found on Skylake+ platform, using SOF driver\n");
-				return SND_INTEL_DSP_DRIVER_SOF;
-			}
-		} else {
+		if (cfg->flags & FLAG_SOF_ONLY_IF_SOUNDWIRE &&
+		    snd_intel_dsp_check_soundwire(pci) > 0) {
+			dev_info(&pci->dev, "SoundWire enabled on CannonLake+ platform, using SOF driver\n");
 			return SND_INTEL_DSP_DRIVER_SOF;
 		}
+		if (cfg->flags & FLAG_SOF_ONLY_IF_DMIC &&
+		    snd_intel_dsp_check_dmic(pci)) {
+			dev_info(&pci->dev, "Digital mics found on Skylake+ platform, using SOF driver\n");
+			return SND_INTEL_DSP_DRIVER_SOF;
+		}
+		if (!(cfg->flags & FLAG_SOF_ONLY_IF_DMIC_OR_SOUNDWIRE))
+			return SND_INTEL_DSP_DRIVER_SOF;
 	}
 
-	if (cfg->flags & FLAG_SST)
-		return SND_INTEL_DSP_DRIVER_SST;
+
+	if (cfg->flags & FLAG_SST) {
+		if (cfg->flags & FLAG_SST_ONLY_IF_DMIC) {
+			if (snd_intel_dsp_check_dmic(pci)) {
+				dev_info(&pci->dev, "Digital mics found on Skylake+ platform, using SST driver\n");
+				return SND_INTEL_DSP_DRIVER_SST;
+			}
+		} else {
+			return SND_INTEL_DSP_DRIVER_SST;
+		}
+	}
 
 	return SND_INTEL_DSP_DRIVER_LEGACY;
 }
@@ -355,3 +437,4 @@ EXPORT_SYMBOL_GPL(snd_intel_dsp_driver_probe);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Intel DSP config driver");
+MODULE_IMPORT_NS(SOUNDWIRE_INTEL_INIT);

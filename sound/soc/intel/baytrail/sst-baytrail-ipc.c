@@ -666,8 +666,8 @@ static bool byt_is_dsp_busy(struct sst_dsp *dsp)
 {
 	u64 ipcx;
 
-	ipcx = sst_dsp_shim_read_unlocked(dsp, SST_IPCX);
-	return (ipcx & (SST_IPCX_BUSY | SST_IPCX_DONE));
+	ipcx = sst_dsp_shim_read64_unlocked(dsp, SST_IPCX);
+	return (ipcx & (SST_BYT_IPCX_BUSY | SST_BYT_IPCX_DONE));
 }
 
 int sst_byt_dsp_init(struct device *dev, struct sst_pdata *pdata)

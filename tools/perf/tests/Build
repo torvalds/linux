@@ -57,6 +57,8 @@ perf-y += maps.o
 perf-y += time-utils-test.o
 perf-y += genelf.o
 perf-y += api-io.o
+perf-y += demangle-java-test.o
+perf-y += pfm.o
 
 $(OUTPUT)tests/llvm-src-base.c: tests/bpf-script-example.c tests/Build
 	$(call rule_mkdir)

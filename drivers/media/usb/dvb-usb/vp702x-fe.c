@@ -12,7 +12,7 @@
  * This file can be removed soon, after the DST-driver is rewritten to provice
  * the frontend-controlling separately.
  *
- * see Documentation/media/dvb-drivers/dvb-usb.rst for more information
+ * see Documentation/driver-api/media/drivers/dvb-usb.rst for more information
  */
 #include "vp702x.h"
 

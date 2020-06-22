@@ -64,6 +64,7 @@ available subsections can be seen below.
    pinctl
    gpio/index
    md/index
+   media/index
    misc_devices
    nfc/index
    dmaengine/index

@@ -45,6 +45,7 @@
 #include "util/units.h"
 #include "util/bpf-event.h"
 #include "util/util.h"
+#include "util/pfm.h"
 #include "asm/bug.h"
 #include "perf.h"
 
@@ -56,6 +57,9 @@
 #include <unistd.h>
 #include <sched.h>
 #include <signal.h>
+#ifdef HAVE_EVENTFD_SUPPORT
+#include <sys/eventfd.h>
+#endif
 #include <sys/mman.h>
 #include <sys/wait.h>
 #include <sys/types.h>
@@ -538,6 +542,9 @@ static int record__pushfn(struct mmap *map, void *to, void *bf, size_t size)
 
 static volatile int signr = -1;
 static volatile int child_finished;
+#ifdef HAVE_EVENTFD_SUPPORT
+static int done_fd = -1;
+#endif
 
 static void sig_handler(int sig)
 {
@@ -547,6 +554,21 @@ static void sig_handler(int sig)
 		signr = sig;
 
 	done = 1;
+#ifdef HAVE_EVENTFD_SUPPORT
+{
+	u64 tmp = 1;
+	/*
+	 * It is possible for this signal handler to run after done is checked
+	 * in the main loop, but before the perf counter fds are polled. If this
+	 * happens, the poll() will continue to wait even though done is set,
+	 * and will only break out if either another signal is received, or the
+	 * counters are ready for read. To ensure the poll() doesn't sleep when
+	 * done is set, use an eventfd (done_fd) to wake up the poll().
+	 */
+	if (write(done_fd, &tmp, sizeof(tmp)) < 0)
+		pr_err("failed to signal wakeup fd, error: %m\n");
+}
+#endif // HAVE_EVENTFD_SUPPORT
 }
 
 static void sigsegv_handler(int sig)
@@ -825,19 +847,28 @@ static int record__open(struct record *rec)
 	int rc = 0;
 
 	/*
-	 * For initial_delay we need to add a dummy event so that we can track
-	 * PERF_RECORD_MMAP while we wait for the initial delay to enable the
-	 * real events, the ones asked by the user.
+	 * For initial_delay or system wide, we need to add a dummy event so
+	 * that we can track PERF_RECORD_MMAP to cover the delay of waiting or
+	 * event synthesis.
 	 */
-	if (opts->initial_delay) {
+	if (opts->initial_delay || target__has_cpu(&opts->target)) {
 		if (perf_evlist__add_dummy(evlist))
 			return -ENOMEM;
 
+		/* Disable tracking of mmaps on lead event. */
 		pos = evlist__first(evlist);
 		pos->tracking = 0;
+		/* Set up dummy event. */
 		pos = evlist__last(evlist);
 		pos->tracking = 1;
-		pos->core.attr.enable_on_exec = 1;
+		/*
+		 * Enable the dummy event when the process is forked for
+		 * initial_delay, immediately for system wide.
+		 */
+		if (opts->initial_delay)
+			pos->core.attr.enable_on_exec = 1;
+		else
+			pos->immediate = 1;
 	}
 
 	perf_evlist__config(evlist, opts, &callchain_param);
@@ -1538,6 +1569,20 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 		pr_err("Compression initialization failed.\n");
 		return -1;
 	}
+#ifdef HAVE_EVENTFD_SUPPORT
+	done_fd = eventfd(0, EFD_NONBLOCK);
+	if (done_fd < 0) {
+		pr_err("Failed to create wakeup eventfd, error: %m\n");
+		status = -1;
+		goto out_delete_session;
+	}
+	err = evlist__add_pollfd(rec->evlist, done_fd);
+	if (err < 0) {
+		pr_err("Failed to add wakeup eventfd to poll list\n");
+		status = err;
+		goto out_delete_session;
+	}
+#endif // HAVE_EVENTFD_SUPPORT
 
 	session->header.env.comp_type  = PERF_COMP_ZSTD;
 	session->header.env.comp_level = rec->opts.comp_level;
@@ -1896,6 +1941,10 @@ out_child:
 	}
 
 out_delete_session:
+#ifdef HAVE_EVENTFD_SUPPORT
+	if (done_fd >= 0)
+		close(done_fd);
+#endif
 	zstd_fini(&session->zstd_data);
 	perf_session__delete(session);
 
@@ -2453,8 +2502,9 @@ static struct option __record_options[] = {
 		    "Record namespaces events"),
 	OPT_BOOLEAN(0, "all-cgroups", &record.opts.record_cgroup,
 		    "Record cgroup events"),
-	OPT_BOOLEAN(0, "switch-events", &record.opts.record_switch_events,
-		    "Record context switch events"),
+	OPT_BOOLEAN_SET(0, "switch-events", &record.opts.record_switch_events,
+			&record.opts.record_switch_events_set,
+			"Record context switch events"),
 	OPT_BOOLEAN_FLAG(0, "all-kernel", &record.opts.all_kernel,
 			 "Configure all used events to run in kernel space.",
 			 PARSE_OPT_EXCLUSIVE),
@@ -2506,6 +2556,11 @@ static struct option __record_options[] = {
 	OPT_UINTEGER(0, "num-thread-synthesize",
 		     &record.opts.nr_threads_synthesize,
 		     "number of threads to run for event synthesis"),
+#ifdef HAVE_LIBPFM
+	OPT_CALLBACK(0, "pfm-events", &record.evlist, "event",
+		"libpfm4 event selector. use 'perf list' to list available events",
+		parse_libpfm_events_option),
+#endif
 	OPT_END()
 };
 

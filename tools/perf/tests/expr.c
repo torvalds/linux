@@ -19,15 +19,13 @@ static int test(struct expr_parse_ctx *ctx, const char *e, double val2)
 int test__expr(struct test *t __maybe_unused, int subtest __maybe_unused)
 {
 	const char *p;
-	const char **other;
-	double val;
-	int i, ret;
+	double val, *val_ptr;
+	int ret;
 	struct expr_parse_ctx ctx;
-	int num_other;
 
 	expr__ctx_init(&ctx);
-	expr__add_id(&ctx, "FOO", 1);
-	expr__add_id(&ctx, "BAR", 2);
+	expr__add_id(&ctx, strdup("FOO"), 1);
+	expr__add_id(&ctx, strdup("BAR"), 2);
 
 	ret = test(&ctx, "1+1", 2);
 	ret |= test(&ctx, "FOO+BAR", 3);
@@ -39,6 +37,8 @@ int test__expr(struct test *t __maybe_unused, int subtest __maybe_unused)
 	ret |= test(&ctx, "min(1,2) + 1", 2);
 	ret |= test(&ctx, "max(1,2) + 1", 3);
 	ret |= test(&ctx, "1+1 if 3*4 else 0", 2);
+	ret |= test(&ctx, "1.1 + 2.1", 3.2);
+	ret |= test(&ctx, ".1 + 2.", 2.1);
 
 	if (ret)
 		return ret;
@@ -51,25 +51,29 @@ int test__expr(struct test *t __maybe_unused, int subtest __maybe_unused)
 	ret = expr__parse(&val, &ctx, p, 1);
 	TEST_ASSERT_VAL("missing operand", ret == -1);
 
+	expr__ctx_clear(&ctx);
 	TEST_ASSERT_VAL("find other",
-			expr__find_other("FOO + BAR + BAZ + BOZO", "FOO", &other, &num_other, 1) == 0);
-	TEST_ASSERT_VAL("find other", num_other == 3);
-	TEST_ASSERT_VAL("find other", !strcmp(other[0], "BAR"));
-	TEST_ASSERT_VAL("find other", !strcmp(other[1], "BAZ"));
-	TEST_ASSERT_VAL("find other", !strcmp(other[2], "BOZO"));
-	TEST_ASSERT_VAL("find other", other[3] == NULL);
+			expr__find_other("FOO + BAR + BAZ + BOZO", "FOO",
+					 &ctx, 1) == 0);
+	TEST_ASSERT_VAL("find other", hashmap__size(&ctx.ids) == 3);
+	TEST_ASSERT_VAL("find other", hashmap__find(&ctx.ids, "BAR",
+						    (void **)&val_ptr));
+	TEST_ASSERT_VAL("find other", hashmap__find(&ctx.ids, "BAZ",
+						    (void **)&val_ptr));
+	TEST_ASSERT_VAL("find other", hashmap__find(&ctx.ids, "BOZO",
+						    (void **)&val_ptr));
 
+	expr__ctx_clear(&ctx);
 	TEST_ASSERT_VAL("find other",
-			expr__find_other("EVENT1\\,param\\=?@ + EVENT2\\,param\\=?@", NULL,
-				   &other, &num_other, 3) == 0);
-	TEST_ASSERT_VAL("find other", num_other == 2);
-	TEST_ASSERT_VAL("find other", !strcmp(other[0], "EVENT1,param=3/"));
-	TEST_ASSERT_VAL("find other", !strcmp(other[1], "EVENT2,param=3/"));
-	TEST_ASSERT_VAL("find other", other[2] == NULL);
+			expr__find_other("EVENT1\\,param\\=?@ + EVENT2\\,param\\=?@",
+					 NULL, &ctx, 3) == 0);
+	TEST_ASSERT_VAL("find other", hashmap__size(&ctx.ids) == 2);
+	TEST_ASSERT_VAL("find other", hashmap__find(&ctx.ids, "EVENT1,param=3/",
+						    (void **)&val_ptr));
+	TEST_ASSERT_VAL("find other", hashmap__find(&ctx.ids, "EVENT2,param=3/",
+						    (void **)&val_ptr));
 
-	for (i = 0; i < num_other; i++)
-		zfree(&other[i]);
-	free((void *)other);
+	expr__ctx_clear(&ctx);
 
 	return 0;
 }

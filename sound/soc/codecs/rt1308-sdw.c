@@ -178,10 +178,6 @@ static int rt1308_io_init(struct device *dev, struct sdw_slave *slave)
 	if (rt1308->hw_init)
 		return 0;
 
-	ret = rt1308_read_prop(slave);
-	if (ret < 0)
-		goto _io_init_err_;
-
 	if (rt1308->first_hw_init) {
 		regcache_cache_only(rt1308->regmap, false);
 		regcache_cache_bypass(rt1308->regmap, true);
@@ -235,9 +231,9 @@ static int rt1308_io_init(struct device *dev, struct sdw_slave *slave)
 	efuse_c_btl_r = tmp;
 	regmap_read(rt1308->regmap, 0xc872, &tmp);
 	efuse_c_btl_r = efuse_c_btl_r | (tmp << 8);
-	dev_info(&slave->dev, "%s m_btl_l=0x%x, m_btl_r=0x%x\n", __func__,
+	dev_dbg(&slave->dev, "%s m_btl_l=0x%x, m_btl_r=0x%x\n", __func__,
 		efuse_m_btl_l, efuse_m_btl_r);
-	dev_info(&slave->dev, "%s c_btl_l=0x%x, c_btl_r=0x%x\n", __func__,
+	dev_dbg(&slave->dev, "%s c_btl_l=0x%x, c_btl_r=0x%x\n", __func__,
 		efuse_c_btl_l, efuse_c_btl_r);
 
 	/* initial settings */
@@ -282,7 +278,6 @@ static int rt1308_io_init(struct device *dev, struct sdw_slave *slave)
 
 	dev_dbg(&slave->dev, "%s hw_init complete\n", __func__);
 
-_io_init_err_:
 	return ret;
 }
 
@@ -481,6 +476,9 @@ static int rt1308_set_sdw_stream(struct snd_soc_dai *dai, void *sdw_stream,
 				int direction)
 {
 	struct sdw_stream_data *stream;
+
+	if (!sdw_stream)
+		return 0;
 
 	stream = kzalloc(sizeof(*stream), GFP_KERNEL);
 	if (!stream)
@@ -683,9 +681,6 @@ static int rt1308_sdw_probe(struct sdw_slave *slave,
 				const struct sdw_device_id *id)
 {
 	struct regmap *regmap;
-
-	/* Assign ops */
-	slave->ops = &rt1308_slave_ops;
 
 	/* Regmap Initialization */
 	regmap = devm_regmap_init_sdw(slave, &rt1308_sdw_regmap);

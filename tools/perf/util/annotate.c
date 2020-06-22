@@ -41,7 +41,6 @@
 #include <linux/bitops.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <bpf/libbpf.h>
 #include <subcmd/parse-options.h>
 #include <subcmd/run-command.h>
 

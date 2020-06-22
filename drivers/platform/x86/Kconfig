@@ -751,6 +751,7 @@ config THINKPAD_ACPI_HOTKEY_POLL
 config INTEL_ATOMISP2_PM
 	tristate "Intel AtomISP2 dummy / power-management driver"
 	depends on PCI && IOSF_MBI && PM
+	depends on !INTEL_ATOMISP
 	help
 	  Power-management driver for Intel's Image Signal Processor found on
 	  Bay Trail and Cherry Trail devices. This dummy driver's sole purpose

@@ -687,7 +687,7 @@ The v4.2 kernel introduced support for a context switch metadata event,
 PERF_RECORD_SWITCH, which allows unprivileged users to see when their processes
 are scheduled out and in, just not by whom, which is left for the
 PERF_RECORD_SWITCH_CPU_WIDE, that is only accessible in system wide context,
-which in turn requires CAP_SYS_ADMIN.
+which in turn requires CAP_PERFMON or CAP_SYS_ADMIN.
 
 Please see the 45ac1403f564 ("perf: Add PERF_RECORD_SWITCH to indicate context
 switches") commit, that introduces these metadata events for further info.

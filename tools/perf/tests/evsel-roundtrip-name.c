@@ -100,12 +100,11 @@ int test__perf_evsel__roundtrip_name_test(struct test *test __maybe_unused, int 
 {
 	int err = 0, ret = 0;
 
-	err = perf_evsel__name_array_test(perf_evsel__hw_names);
+	err = perf_evsel__name_array_test(evsel__hw_names);
 	if (err)
 		ret = err;
 
-	err = __perf_evsel__name_array_test(perf_evsel__sw_names,
-					    PERF_COUNT_SW_DUMMY + 1);
+	err = __perf_evsel__name_array_test(evsel__sw_names, PERF_COUNT_SW_DUMMY + 1);
 	if (err)
 		ret = err;
 
