@@ -305,8 +305,12 @@ static int qce_ahash_final(struct ahash_request *req)
 	struct qce_alg_template *tmpl = to_ahash_tmpl(req->base.tfm);
 	struct qce_device *qce = tmpl->qce;
 
-	if (!rctx->buflen)
+	if (!rctx->buflen) {
+		if (tmpl->hash_zero)
+			memcpy(req->result, tmpl->hash_zero,
+					tmpl->alg.ahash.halg.digestsize);
 		return 0;
+	}
 
 	rctx->last_blk = true;
 
@@ -337,6 +341,13 @@ static int qce_ahash_digest(struct ahash_request *req)
 	rctx->nbytes_orig = req->nbytes;
 	rctx->first_blk = true;
 	rctx->last_blk = true;
+
+	if (!rctx->nbytes_orig) {
+		if (tmpl->hash_zero)
+			memcpy(req->result, tmpl->hash_zero,
+					tmpl->alg.ahash.halg.digestsize);
+		return 0;
+	}
 
 	return qce->async_req_enqueue(tmpl->qce, &req->base);
 }
@@ -489,6 +500,11 @@ static int qce_ahash_register_one(const struct qce_ahash_def *def,
 		alg->setkey = qce_ahash_hmac_setkey;
 	alg->halg.digestsize = def->digestsize;
 	alg->halg.statesize = def->statesize;
+
+	if (IS_SHA1(def->flags))
+		tmpl->hash_zero = sha1_zero_message_hash;
+	else if (IS_SHA256(def->flags))
+		tmpl->hash_zero = sha256_zero_message_hash;
 
 	base = &alg->halg.base;
 	base->cra_blocksize = def->blocksize;
