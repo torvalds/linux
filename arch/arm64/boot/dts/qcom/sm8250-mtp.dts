@@ -55,6 +55,11 @@
 	};
 };
 
+&adsp {
+	status = "okay";
+	firmware-name = "qcom/sm8250/adsp.mbn";
+};
+
 &apps_rsc {
 	pm8150-rpmh-regulators {
 		compatible = "qcom,pm8150-rpmh-regulators";
@@ -348,8 +353,18 @@
 	};
 };
 
+&cdsp {
+	status = "okay";
+	firmware-name = "qcom/sm8250/cdsp.mbn";
+};
+
 &qupv3_id_1 {
 	status = "okay";
+};
+
+&slpi {
+	status = "okay";
+	firmware-name = "qcom/sm8250/slpi.mbn";
 };
 
 &tlmm {
