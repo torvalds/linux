@@ -1107,6 +1107,28 @@ struct devlink_ops {
 	int (*trap_policer_counter_get)(struct devlink *devlink,
 					const struct devlink_trap_policer *policer,
 					u64 *p_drops);
+	/**
+	 * @port_function_hw_addr_get: Port function's hardware address get function.
+	 *
+	 * Should be used by device drivers to report the hardware address of a function managed
+	 * by the devlink port. Driver should return -EOPNOTSUPP if it doesn't support port
+	 * function handling for a particular port.
+	 *
+	 * Note: @extack can be NULL when port notifier queries the port function.
+	 */
+	int (*port_function_hw_addr_get)(struct devlink *devlink, struct devlink_port *port,
+					 u8 *hw_addr, int *hw_addr_len,
+					 struct netlink_ext_ack *extack);
+	/**
+	 * @port_function_hw_addr_set: Port function's hardware address set function.
+	 *
+	 * Should be used by device drivers to set the hardware address of a function managed
+	 * by the devlink port. Driver should return -EOPNOTSUPP if it doesn't support port
+	 * function handling for a particular port.
+	 */
+	int (*port_function_hw_addr_set)(struct devlink *devlink, struct devlink_port *port,
+					 const u8 *hw_addr, int hw_addr_len,
+					 struct netlink_ext_ack *extack);
 };
 
 static inline void *devlink_priv(struct devlink *devlink)

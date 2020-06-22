@@ -173,7 +173,7 @@ int mlx5_query_mac_address(struct mlx5_core_dev *mdev, u8 *addr)
 EXPORT_SYMBOL_GPL(mlx5_query_mac_address);
 
 int mlx5_modify_nic_vport_mac_address(struct mlx5_core_dev *mdev,
-				      u16 vport, u8 *addr)
+				      u16 vport, const u8 *addr)
 {
 	void *in;
 	int inlen = MLX5_ST_SZ_BYTES(modify_nic_vport_context_in);

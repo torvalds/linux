@@ -85,6 +85,10 @@ EXPORT_SYMBOL(devlink_dpipe_header_ipv6);
 EXPORT_TRACEPOINT_SYMBOL_GPL(devlink_hwmsg);
 EXPORT_TRACEPOINT_SYMBOL_GPL(devlink_hwerr);
 
+static const struct nla_policy devlink_function_nl_policy[DEVLINK_PORT_FUNCTION_ATTR_MAX + 1] = {
+	[DEVLINK_PORT_FUNCTION_ATTR_HW_ADDR] = { .type = NLA_BINARY },
+};
+
 static LIST_HEAD(devlink_list);
 
 /* devlink_mutex
@@ -563,10 +567,54 @@ static int devlink_nl_port_attrs_put(struct sk_buff *msg,
 	return 0;
 }
 
+static int
+devlink_nl_port_function_attrs_put(struct sk_buff *msg, struct devlink_port *port,
+				   struct netlink_ext_ack *extack)
+{
+	struct devlink *devlink = port->devlink;
+	const struct devlink_ops *ops;
+	struct nlattr *function_attr;
+	bool empty_nest = true;
+	int err = 0;
+
+	function_attr = nla_nest_start_noflag(msg, DEVLINK_ATTR_PORT_FUNCTION);
+	if (!function_attr)
+		return -EMSGSIZE;
+
+	ops = devlink->ops;
+	if (ops->port_function_hw_addr_get) {
+		int uninitialized_var(hw_addr_len);
+		u8 hw_addr[MAX_ADDR_LEN];
+
+		err = ops->port_function_hw_addr_get(devlink, port, hw_addr, &hw_addr_len, extack);
+		if (err == -EOPNOTSUPP) {
+			/* Port function attributes are optional for a port. If port doesn't
+			 * support function attribute, returning -EOPNOTSUPP is not an error.
+			 */
+			err = 0;
+			goto out;
+		} else if (err) {
+			goto out;
+		}
+		err = nla_put(msg, DEVLINK_PORT_FUNCTION_ATTR_HW_ADDR, hw_addr_len, hw_addr);
+		if (err)
+			goto out;
+		empty_nest = false;
+	}
+
+out:
+	if (err || empty_nest)
+		nla_nest_cancel(msg, function_attr);
+	else
+		nla_nest_end(msg, function_attr);
+	return err;
+}
+
 static int devlink_nl_port_fill(struct sk_buff *msg, struct devlink *devlink,
 				struct devlink_port *devlink_port,
 				enum devlink_command cmd, u32 portid,
-				u32 seq, int flags)
+				u32 seq, int flags,
+				struct netlink_ext_ack *extack)
 {
 	void *hdr;
 
@@ -607,6 +655,8 @@ static int devlink_nl_port_fill(struct sk_buff *msg, struct devlink *devlink,
 	spin_unlock_bh(&devlink_port->type_lock);
 	if (devlink_nl_port_attrs_put(msg, devlink_port))
 		goto nla_put_failure;
+	if (devlink_nl_port_function_attrs_put(msg, devlink_port, extack))
+		goto nla_put_failure;
 
 	genlmsg_end(msg, hdr);
 	return 0;
@@ -634,7 +684,8 @@ static void devlink_port_notify(struct devlink_port *devlink_port,
 	if (!msg)
 		return;
 
-	err = devlink_nl_port_fill(msg, devlink, devlink_port, cmd, 0, 0, 0);
+	err = devlink_nl_port_fill(msg, devlink, devlink_port, cmd, 0, 0, 0,
+				   NULL);
 	if (err) {
 		nlmsg_free(msg);
 		return;
@@ -708,7 +759,8 @@ static int devlink_nl_cmd_port_get_doit(struct sk_buff *skb,
 
 	err = devlink_nl_port_fill(msg, devlink, devlink_port,
 				   DEVLINK_CMD_PORT_NEW,
-				   info->snd_portid, info->snd_seq, 0);
+				   info->snd_portid, info->snd_seq, 0,
+				   info->extack);
 	if (err) {
 		nlmsg_free(msg);
 		return err;
@@ -740,7 +792,8 @@ static int devlink_nl_cmd_port_get_dumpit(struct sk_buff *msg,
 						   DEVLINK_CMD_NEW,
 						   NETLINK_CB(cb->skb).portid,
 						   cb->nlh->nlmsg_seq,
-						   NLM_F_MULTI);
+						   NLM_F_MULTI,
+						   cb->extack);
 			if (err) {
 				mutex_unlock(&devlink->lock);
 				goto out;
@@ -778,6 +831,67 @@ static int devlink_port_type_set(struct devlink *devlink,
 	return -EOPNOTSUPP;
 }
 
+static int
+devlink_port_function_hw_addr_set(struct devlink *devlink, struct devlink_port *port,
+				  const struct nlattr *attr, struct netlink_ext_ack *extack)
+{
+	const struct devlink_ops *ops;
+	const u8 *hw_addr;
+	int hw_addr_len;
+	int err;
+
+	hw_addr = nla_data(attr);
+	hw_addr_len = nla_len(attr);
+	if (hw_addr_len > MAX_ADDR_LEN) {
+		NL_SET_ERR_MSG_MOD(extack, "Port function hardware address too long");
+		return -EINVAL;
+	}
+	if (port->type == DEVLINK_PORT_TYPE_ETH) {
+		if (hw_addr_len != ETH_ALEN) {
+			NL_SET_ERR_MSG_MOD(extack, "Address must be 6 bytes for Ethernet device");
+			return -EINVAL;
+		}
+		if (!is_unicast_ether_addr(hw_addr)) {
+			NL_SET_ERR_MSG_MOD(extack, "Non-unicast hardware address unsupported");
+			return -EINVAL;
+		}
+	}
+
+	ops = devlink->ops;
+	if (!ops->port_function_hw_addr_set) {
+		NL_SET_ERR_MSG_MOD(extack, "Port doesn't support function attributes");
+		return -EOPNOTSUPP;
+	}
+
+	err = ops->port_function_hw_addr_set(devlink, port, hw_addr, hw_addr_len, extack);
+	if (err)
+		return err;
+
+	devlink_port_notify(port, DEVLINK_CMD_PORT_NEW);
+	return 0;
+}
+
+static int
+devlink_port_function_set(struct devlink *devlink, struct devlink_port *port,
+			  const struct nlattr *attr, struct netlink_ext_ack *extack)
+{
+	struct nlattr *tb[DEVLINK_PORT_FUNCTION_ATTR_MAX + 1];
+	int err;
+
+	err = nla_parse_nested(tb, DEVLINK_PORT_FUNCTION_ATTR_MAX, attr,
+			       devlink_function_nl_policy, extack);
+	if (err < 0) {
+		NL_SET_ERR_MSG_MOD(extack, "Fail to parse port function attributes");
+		return err;
+	}
+
+	attr = tb[DEVLINK_PORT_FUNCTION_ATTR_HW_ADDR];
+	if (attr)
+		err = devlink_port_function_hw_addr_set(devlink, port, attr, extack);
+
+	return err;
+}
+
 static int devlink_nl_cmd_port_set_doit(struct sk_buff *skb,
 					struct genl_info *info)
 {
@@ -793,6 +907,16 @@ static int devlink_nl_cmd_port_set_doit(struct sk_buff *skb,
 		if (err)
 			return err;
 	}
+
+	if (info->attrs[DEVLINK_ATTR_PORT_FUNCTION]) {
+		struct nlattr *attr = info->attrs[DEVLINK_ATTR_PORT_FUNCTION];
+		struct netlink_ext_ack *extack = info->extack;
+
+		err = devlink_port_function_set(devlink, devlink_port, attr, extack);
+		if (err)
+			return err;
+	}
+
 	return 0;
 }
 
@@ -6709,6 +6833,7 @@ static const struct nla_policy devlink_nl_policy[DEVLINK_ATTR_MAX + 1] = {
 	[DEVLINK_ATTR_TRAP_POLICER_ID] = { .type = NLA_U32 },
 	[DEVLINK_ATTR_TRAP_POLICER_RATE] = { .type = NLA_U64 },
 	[DEVLINK_ATTR_TRAP_POLICER_BURST] = { .type = NLA_U64 },
+	[DEVLINK_ATTR_PORT_FUNCTION] = { .type = NLA_NESTED },
 };
 
 static const struct genl_ops devlink_nl_ops[] = {

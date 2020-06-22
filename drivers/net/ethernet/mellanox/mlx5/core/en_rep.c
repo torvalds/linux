@@ -1181,12 +1181,6 @@ is_devlink_port_supported(const struct mlx5_core_dev *dev,
 	       mlx5_eswitch_is_vf_vport(dev->priv.eswitch, rpriv->rep->vport);
 }
 
-static unsigned int
-vport_to_devlink_port_index(const struct mlx5_core_dev *dev, u16 vport_num)
-{
-	return (MLX5_CAP_GEN(dev, vhca_id) << 16) | vport_num;
-}
-
 static int register_devlink_port(struct mlx5_core_dev *dev,
 				 struct mlx5e_rep_priv *rpriv)
 {
@@ -1200,7 +1194,7 @@ static int register_devlink_port(struct mlx5_core_dev *dev,
 		return 0;
 
 	mlx5e_rep_get_port_parent_id(rpriv->netdev, &ppid);
-	dl_port_index = vport_to_devlink_port_index(dev, rep->vport);
+	dl_port_index = mlx5_esw_vport_to_devlink_port_index(dev, rep->vport);
 	pfnum = PCI_FUNC(dev->pdev->devfn);
 
 	if (rep->vport == MLX5_VPORT_UPLINK)
