@@ -121,6 +121,7 @@ struct inv_icm42600_suspended {
  *  @conf:		chip sensors configurations.
  *  @suspended:		suspended sensors configuration.
  *  @indio_gyro:	gyroscope IIO device.
+ *  @indio_accel:	accelerometer IIO device.
  *  @buffer:		data transfer buffer aligned for DMA.
  */
 struct inv_icm42600_state {
@@ -134,6 +135,7 @@ struct inv_icm42600_state {
 	struct inv_icm42600_conf conf;
 	struct inv_icm42600_suspended suspended;
 	struct iio_dev *indio_gyro;
+	struct iio_dev *indio_accel;
 	uint8_t buffer[2] ____cacheline_aligned;
 };
 
@@ -374,5 +376,7 @@ int inv_icm42600_core_probe(struct regmap *regmap, int chip,
 			    inv_icm42600_bus_setup bus_setup);
 
 struct iio_dev *inv_icm42600_gyro_init(struct inv_icm42600_state *st);
+
+struct iio_dev *inv_icm42600_accel_init(struct inv_icm42600_state *st);
 
 #endif

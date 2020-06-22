@@ -513,6 +513,10 @@ int inv_icm42600_core_probe(struct regmap *regmap, int chip,
 	if (IS_ERR(st->indio_gyro))
 		return PTR_ERR(st->indio_gyro);
 
+	st->indio_accel = inv_icm42600_accel_init(st);
+	if (IS_ERR(st->indio_accel))
+		return PTR_ERR(st->indio_accel);
+
 	/* setup runtime power management */
 	ret = pm_runtime_set_active(dev);
 	if (ret)
