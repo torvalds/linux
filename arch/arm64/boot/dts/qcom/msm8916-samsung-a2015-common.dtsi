@@ -167,77 +167,14 @@
 	};
 };
 
-&msmgpio {
-	gpio_keys_default: gpio-keys-default {
-		pinmux {
-			function = "gpio";
-			pins = "gpio107", "gpio109";
-		};
-		pinconf {
-			pins = "gpio107", "gpio109";
-			drive-strength = <2>;
-			bias-pull-up;
-		};
-	};
-
-	gpio_hall_sensor_default: gpio-hall-sensor-default {
-		pinmux {
-			function = "gpio";
-			pins = "gpio52";
-		};
-		pinconf {
-			pins = "gpio52";
-			drive-strength = <2>;
-			bias-disable;
-		};
-	};
-
-	muic_int_default: muic-int-default {
-		pinmux {
-			function = "gpio";
-			pins = "gpio12";
-		};
-		pinconf {
-			pins = "gpio12";
-			drive-strength = <2>;
-			bias-disable;
-		};
-	};
-
-	tsp_en_default: tsp-en-default {
-		pinmux {
-			function = "gpio";
-			pins = "gpio73";
-		};
-		pinconf {
-			pins = "gpio73";
-			drive-strength = <2>;
-			bias-disable;
-		};
-	};
-
-	pmx-mdss {
-		mdss_default: mdss-default {
-			pinmux {
-				function = "gpio";
-				pins = "gpio25";
-			};
-			pinconf {
-				pins = "gpio25";
-				drive-strength = <8>;
-				bias-disable;
-			};
-		};
-
-		mdss_sleep: mdss-sleep {
-			pinmux {
-				function = "gpio";
-				pins = "gpio25";
-			};
-			pinconf {
-				pins = "gpio25";
-				drive-strength = <2>;
-				bias-pull-down;
+&spmi_bus {
+	pm8916@0 {
+		pon@800 {
+			volume-down {
+				compatible = "qcom,pm8941-resin";
+				interrupts = <0x0 0x8 1 IRQ_TYPE_EDGE_BOTH>;
+				bias-pull-up;
+				linux,code = <KEY_VOLUMEDOWN>;
 			};
 		};
 	};
@@ -356,15 +293,78 @@
 	};
 };
 
-&spmi_bus {
-	pm8916@0 {
-		pon@800 {
-			volume-down {
-				compatible = "qcom,pm8941-resin";
-				interrupts = <0x0 0x8 1 IRQ_TYPE_EDGE_BOTH>;
-				bias-pull-up;
-				linux,code = <KEY_VOLUMEDOWN>;
+&msmgpio {
+	gpio_keys_default: gpio-keys-default {
+		pinmux {
+			function = "gpio";
+			pins = "gpio107", "gpio109";
+		};
+		pinconf {
+			pins = "gpio107", "gpio109";
+			drive-strength = <2>;
+			bias-pull-up;
+		};
+	};
+
+	gpio_hall_sensor_default: gpio-hall-sensor-default {
+		pinmux {
+			function = "gpio";
+			pins = "gpio52";
+		};
+		pinconf {
+			pins = "gpio52";
+			drive-strength = <2>;
+			bias-disable;
+		};
+	};
+
+	mdss {
+		mdss_default: mdss-default {
+			pinmux {
+				function = "gpio";
+				pins = "gpio25";
 			};
+			pinconf {
+				pins = "gpio25";
+				drive-strength = <8>;
+				bias-disable;
+			};
+		};
+
+		mdss_sleep: mdss-sleep {
+			pinmux {
+				function = "gpio";
+				pins = "gpio25";
+			};
+			pinconf {
+				pins = "gpio25";
+				drive-strength = <2>;
+				bias-pull-down;
+			};
+		};
+	};
+
+	muic_int_default: muic-int-default {
+		pinmux {
+			function = "gpio";
+			pins = "gpio12";
+		};
+		pinconf {
+			pins = "gpio12";
+			drive-strength = <2>;
+			bias-disable;
+		};
+	};
+
+	tsp_en_default: tsp-en-default {
+		pinmux {
+			function = "gpio";
+			pins = "gpio73";
+		};
+		pinconf {
+			pins = "gpio73";
+			drive-strength = <2>;
+			bias-disable;
 		};
 	};
 };
