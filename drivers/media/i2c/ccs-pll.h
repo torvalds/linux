@@ -13,7 +13,8 @@
 #define CCS_PLL_H
 
 /* CSI-2 or CCP-2 */
-#define CCS_PLL_BUS_TYPE_CSI2					0x00
+#define CCS_PLL_BUS_TYPE_CSI2_DPHY				0x00
+#define CCS_PLL_BUS_TYPE_CSI2_CPHY				0x01
 
 /* op pix clock is for all lanes in total normally */
 #define CCS_PLL_FLAG_OP_PIX_CLOCK_PER_LANE			(1 << 0)
