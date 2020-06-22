@@ -1041,13 +1041,12 @@ static int prepare_igt_frag(struct drm_mm *mm,
 {
 	unsigned int size = 4096;
 	unsigned int i;
-	u64 ret = -EINVAL;
 
 	for (i = 0; i < num_insert; i++) {
 		if (!expect_insert(mm, &nodes[i], size, 0, i,
 				   mode) != 0) {
 			pr_err("%s insert failed\n", mode->name);
-			goto out;
+			return -EINVAL;
 		}
 	}
 
@@ -1057,8 +1056,7 @@ static int prepare_igt_frag(struct drm_mm *mm,
 			drm_mm_remove_node(&nodes[i]);
 	}
 
-out:
-	return ret;
+	return 0;
 
 }
 
@@ -1070,21 +1068,16 @@ static u64 get_insert_time(struct drm_mm *mm,
 	unsigned int size = 8192;
 	ktime_t start;
 	unsigned int i;
-	u64 ret = -EINVAL;
 
 	start = ktime_get();
 	for (i = 0; i < num_insert; i++) {
 		if (!expect_insert(mm, &nodes[i], size, 0, i, mode) != 0) {
 			pr_err("%s insert failed\n", mode->name);
-			goto out;
+			return 0;
 		}
 	}
 
-	ret = ktime_to_ns(ktime_sub(ktime_get(), start));
-
-out:
-	return ret;
-
+	return ktime_to_ns(ktime_sub(ktime_get(), start));
 }
 
 static int igt_frag(void *ignored)
@@ -1119,17 +1112,17 @@ static int igt_frag(void *ignored)
 			continue;
 
 		ret = prepare_igt_frag(&mm, nodes, insert_size, mode);
-		if (!ret)
+		if (ret)
 			goto err;
 
 		insert_time1 = get_insert_time(&mm, insert_size,
 					       nodes + insert_size, mode);
-		if (insert_time1 < 0)
+		if (insert_time1 == 0)
 			goto err;
 
 		insert_time2 = get_insert_time(&mm, (insert_size * 2),
 					       nodes + insert_size * 2, mode);
-		if (insert_time2 < 0)
+		if (insert_time2 == 0)
 			goto err;
 
 		pr_info("%s fragmented insert of %u and %u insertions took %llu and %llu nsecs\n",
