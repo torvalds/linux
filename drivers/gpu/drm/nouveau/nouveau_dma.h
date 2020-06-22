@@ -101,9 +101,6 @@ OUT_RING(struct nouveau_channel *chan, int data)
 	nouveau_bo_wr32(chan->push.buffer, chan->dma.cur++, data);
 }
 
-extern void
-OUT_RINGp(struct nouveau_channel *chan, const void *data, unsigned nr_dwords);
-
 static inline void
 BEGIN_NV04(struct nouveau_channel *chan, int subc, int mthd, int size)
 {
@@ -111,21 +108,9 @@ BEGIN_NV04(struct nouveau_channel *chan, int subc, int mthd, int size)
 }
 
 static inline void
-BEGIN_NI04(struct nouveau_channel *chan, int subc, int mthd, int size)
-{
-	OUT_RING(chan, 0x40000000 | (subc << 13) | (size << 18) | mthd);
-}
-
-static inline void
 BEGIN_NVC0(struct nouveau_channel *chan, int subc, int mthd, int size)
 {
 	OUT_RING(chan, 0x20000000 | (size << 16) | (subc << 13) | (mthd >> 2));
-}
-
-static inline void
-BEGIN_NIC0(struct nouveau_channel *chan, int subc, int mthd, int size)
-{
-	OUT_RING(chan, 0x60000000 | (size << 16) | (subc << 13) | (mthd >> 2));
 }
 
 static inline void

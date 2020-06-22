@@ -98,52 +98,52 @@ nv50_fbcon_imageblit(struct fb_info *info, const struct fb_image *image)
 	struct nouveau_fbdev *nfbdev = info->par;
 	struct nouveau_drm *drm = nouveau_drm(nfbdev->helper.dev);
 	struct nouveau_channel *chan = drm->channel;
+	struct nvif_push *push = chan->chan.push;
 	uint32_t dwords, *data = (uint32_t *)image->data;
 	uint32_t mask = ~(~0 >> (32 - info->var.bits_per_pixel));
-	uint32_t *palette = info->pseudo_palette;
+	uint32_t *palette = info->pseudo_palette, bg, fg;
 	int ret;
 
 	if (image->depth != 1)
 		return -ENODEV;
 
-	ret = RING_SPACE(chan, 11);
+	if (info->fix.visual == FB_VISUAL_TRUECOLOR ||
+	    info->fix.visual == FB_VISUAL_DIRECTCOLOR) {
+		bg = palette[image->bg_color] | mask;
+		fg = palette[image->fg_color] | mask;
+	} else {
+		bg = image->bg_color;
+		fg = image->fg_color;
+	}
+
+	ret = PUSH_WAIT(push, 11);
 	if (ret)
 		return ret;
 
-	BEGIN_NV04(chan, NvSub2D, 0x0814, 2);
-	if (info->fix.visual == FB_VISUAL_TRUECOLOR ||
-	    info->fix.visual == FB_VISUAL_DIRECTCOLOR) {
-		OUT_RING(chan, palette[image->bg_color] | mask);
-		OUT_RING(chan, palette[image->fg_color] | mask);
-	} else {
-		OUT_RING(chan, image->bg_color);
-		OUT_RING(chan, image->fg_color);
-	}
-	BEGIN_NV04(chan, NvSub2D, 0x0838, 2);
-	OUT_RING(chan, image->width);
-	OUT_RING(chan, image->height);
-	BEGIN_NV04(chan, NvSub2D, 0x0850, 4);
-	OUT_RING(chan, 0);
-	OUT_RING(chan, image->dx);
-	OUT_RING(chan, 0);
-	OUT_RING(chan, image->dy);
+	PUSH_NVSQ(push, NV502D, 0x0814, bg,
+				0x0818, fg);
+	PUSH_NVSQ(push, NV502D, 0x0838, image->width,
+				0x083c, image->height);
+	PUSH_NVSQ(push, NV502D, 0x0850, 0,
+				0x0854, image->dx,
+				0x0858, 0,
+				0x085c, image->dy);
 
 	dwords = ALIGN(ALIGN(image->width, 8) * image->height, 32) >> 5;
 	while (dwords) {
-		int push = dwords > 2047 ? 2047 : dwords;
+		int count = dwords > 2047 ? 2047 : dwords;
 
-		ret = RING_SPACE(chan, push + 1);
+		ret = PUSH_WAIT(push, count + 1);
 		if (ret)
 			return ret;
 
-		dwords -= push;
+		dwords -= count;
 
-		BEGIN_NI04(chan, NvSub2D, 0x0860, push);
-		OUT_RINGp(chan, data, push);
-		data += push;
+		PUSH_NVNI(push, NV502D, 0x0860, data, count);
+		data += count;
 	}
 
-	FIRE_RING(chan);
+	PUSH_KICK(push);
 	return 0;
 }
 

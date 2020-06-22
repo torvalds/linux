@@ -81,6 +81,7 @@ nv04_fbcon_imageblit(struct fb_info *info, const struct fb_image *image)
 	struct nouveau_fbdev *nfbdev = info->par;
 	struct nouveau_drm *drm = nouveau_drm(nfbdev->helper.dev);
 	struct nouveau_channel *chan = drm->channel;
+	struct nvif_push *push = chan->chan.push;
 	uint32_t fg;
 	uint32_t bg;
 	uint32_t dsize;
@@ -90,7 +91,7 @@ nv04_fbcon_imageblit(struct fb_info *info, const struct fb_image *image)
 	if (image->depth != 1)
 		return -ENODEV;
 
-	ret = RING_SPACE(chan, 8);
+	ret = PUSH_WAIT(push, 8);
 	if (ret)
 		return ret;
 
@@ -103,31 +104,29 @@ nv04_fbcon_imageblit(struct fb_info *info, const struct fb_image *image)
 		bg = image->bg_color;
 	}
 
-	BEGIN_NV04(chan, NvSubGdiRect, 0x0be4, 7);
-	OUT_RING(chan, (image->dy << 16) | (image->dx & 0xffff));
-	OUT_RING(chan, ((image->dy + image->height) << 16) |
-			 ((image->dx + image->width) & 0xffff));
-	OUT_RING(chan, bg);
-	OUT_RING(chan, fg);
-	OUT_RING(chan, (image->height << 16) | ALIGN(image->width, 8));
-	OUT_RING(chan, (image->height << 16) | image->width);
-	OUT_RING(chan, (image->dy << 16) | (image->dx & 0xffff));
+	PUSH_NVSQ(push, NV04A, 0x0be4, (image->dy << 16) | (image->dx & 0xffff),
+			       0x0be8, ((image->dy + image->height) << 16) |
+				       ((image->dx + image->width) & 0xffff),
+			       0x0bec, bg,
+			       0x0bf0, fg,
+			       0x0bf4, (image->height << 16) | ALIGN(image->width, 8),
+			       0x0bf8, (image->height << 16) | image->width,
+			       0x0bfc, (image->dy << 16) | (image->dx & 0xffff));
 
 	dsize = ALIGN(ALIGN(image->width, 8) * image->height, 32) >> 5;
 	while (dsize) {
 		int iter_len = dsize > 128 ? 128 : dsize;
 
-		ret = RING_SPACE(chan, iter_len + 1);
+		ret = PUSH_WAIT(push, iter_len + 1);
 		if (ret)
 			return ret;
 
-		BEGIN_NV04(chan, NvSubGdiRect, 0x0c00, iter_len);
-		OUT_RINGp(chan, data, iter_len);
+		PUSH_NVSQ(push, NV04A, 0x0c00, data, iter_len);
 		data += iter_len;
 		dsize -= iter_len;
 	}
 
-	FIRE_RING(chan);
+	PUSH_KICK(push);
 	return 0;
 }
 
