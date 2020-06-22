@@ -44,8 +44,8 @@
  * addition of remove_mapping(). If success is returned, the caller may
  * attempt to reuse this page for another destination.
  */
-static int page_cache_pipe_buf_steal(struct pipe_inode_info *pipe,
-				     struct pipe_buffer *buf)
+static bool page_cache_pipe_buf_try_steal(struct pipe_inode_info *pipe,
+		struct pipe_buffer *buf)
 {
 	struct page *page = buf->page;
 	struct address_space *mapping;
@@ -76,7 +76,7 @@ static int page_cache_pipe_buf_steal(struct pipe_inode_info *pipe,
 		 */
 		if (remove_mapping(mapping, page)) {
 			buf->flags |= PIPE_BUF_FLAG_LRU;
-			return 0;
+			return true;
 		}
 	}
 
@@ -86,7 +86,7 @@ static int page_cache_pipe_buf_steal(struct pipe_inode_info *pipe,
 	 */
 out_unlock:
 	unlock_page(page);
-	return 1;
+	return false;
 }
 
 static void page_cache_pipe_buf_release(struct pipe_inode_info *pipe,
@@ -139,27 +139,26 @@ error:
 }
 
 const struct pipe_buf_operations page_cache_pipe_buf_ops = {
-	.confirm = page_cache_pipe_buf_confirm,
-	.release = page_cache_pipe_buf_release,
-	.steal = page_cache_pipe_buf_steal,
-	.get = generic_pipe_buf_get,
+	.confirm	= page_cache_pipe_buf_confirm,
+	.release	= page_cache_pipe_buf_release,
+	.try_steal	= page_cache_pipe_buf_try_steal,
+	.get		= generic_pipe_buf_get,
 };
 
-static int user_page_pipe_buf_steal(struct pipe_inode_info *pipe,
-				    struct pipe_buffer *buf)
+static bool user_page_pipe_buf_try_steal(struct pipe_inode_info *pipe,
+		struct pipe_buffer *buf)
 {
 	if (!(buf->flags & PIPE_BUF_FLAG_GIFT))
-		return 1;
+		return false;
 
 	buf->flags |= PIPE_BUF_FLAG_LRU;
-	return generic_pipe_buf_steal(pipe, buf);
+	return generic_pipe_buf_try_steal(pipe, buf);
 }
 
 static const struct pipe_buf_operations user_page_pipe_buf_ops = {
-	.confirm = generic_pipe_buf_confirm,
-	.release = page_cache_pipe_buf_release,
-	.steal = user_page_pipe_buf_steal,
-	.get = generic_pipe_buf_get,
+	.release	= page_cache_pipe_buf_release,
+	.try_steal	= user_page_pipe_buf_try_steal,
+	.get		= generic_pipe_buf_get,
 };
 
 static void wakeup_pipe_readers(struct pipe_inode_info *pipe)
@@ -331,24 +330,15 @@ ssize_t generic_file_splice_read(struct file *in, loff_t *ppos,
 EXPORT_SYMBOL(generic_file_splice_read);
 
 const struct pipe_buf_operations default_pipe_buf_ops = {
-	.confirm = generic_pipe_buf_confirm,
-	.release = generic_pipe_buf_release,
-	.steal = generic_pipe_buf_steal,
-	.get = generic_pipe_buf_get,
+	.release	= generic_pipe_buf_release,
+	.try_steal	= generic_pipe_buf_try_steal,
+	.get		= generic_pipe_buf_get,
 };
-
-int generic_pipe_buf_nosteal(struct pipe_inode_info *pipe,
-			     struct pipe_buffer *buf)
-{
-	return 1;
-}
 
 /* Pipe buffer operations for a socket and similar. */
 const struct pipe_buf_operations nosteal_pipe_buf_ops = {
-	.confirm = generic_pipe_buf_confirm,
-	.release = generic_pipe_buf_release,
-	.steal = generic_pipe_buf_nosteal,
-	.get = generic_pipe_buf_get,
+	.release	= generic_pipe_buf_release,
+	.get		= generic_pipe_buf_get,
 };
 EXPORT_SYMBOL(nosteal_pipe_buf_ops);
 
@@ -852,15 +842,9 @@ EXPORT_SYMBOL(generic_splice_sendpage);
 static long do_splice_from(struct pipe_inode_info *pipe, struct file *out,
 			   loff_t *ppos, size_t len, unsigned int flags)
 {
-	ssize_t (*splice_write)(struct pipe_inode_info *, struct file *,
-				loff_t *, size_t, unsigned int);
-
 	if (out->f_op->splice_write)
-		splice_write = out->f_op->splice_write;
-	else
-		splice_write = default_file_splice_write;
-
-	return splice_write(pipe, out, ppos, len, flags);
+		return out->f_op->splice_write(pipe, out, ppos, len, flags);
+	return default_file_splice_write(pipe, out, ppos, len, flags);
 }
 
 /*
@@ -870,8 +854,6 @@ static long do_splice_to(struct file *in, loff_t *ppos,
 			 struct pipe_inode_info *pipe, size_t len,
 			 unsigned int flags)
 {
-	ssize_t (*splice_read)(struct file *, loff_t *,
-			       struct pipe_inode_info *, size_t, unsigned int);
 	int ret;
 
 	if (unlikely(!(in->f_mode & FMODE_READ)))
@@ -885,11 +867,8 @@ static long do_splice_to(struct file *in, loff_t *ppos,
 		len = MAX_RW_COUNT;
 
 	if (in->f_op->splice_read)
-		splice_read = in->f_op->splice_read;
-	else
-		splice_read = default_file_splice_read;
-
-	return splice_read(in, ppos, pipe, len, flags);
+		return in->f_op->splice_read(in, ppos, pipe, len, flags);
+	return default_file_splice_read(in, ppos, pipe, len, flags);
 }
 
 /**
@@ -1626,12 +1605,11 @@ retry:
 			*obuf = *ibuf;
 
 			/*
-			 * Don't inherit the gift flag, we need to
+			 * Don't inherit the gift and merge flags, we need to
 			 * prevent multiple steals of this page.
 			 */
 			obuf->flags &= ~PIPE_BUF_FLAG_GIFT;
-
-			pipe_buf_mark_unmergeable(obuf);
+			obuf->flags &= ~PIPE_BUF_FLAG_CAN_MERGE;
 
 			obuf->len = len;
 			ibuf->offset += len;
@@ -1719,12 +1697,11 @@ static int link_pipe(struct pipe_inode_info *ipipe,
 		*obuf = *ibuf;
 
 		/*
-		 * Don't inherit the gift flag, we need to
-		 * prevent multiple steals of this page.
+		 * Don't inherit the gift and merge flag, we need to prevent
+		 * multiple steals of this page.
 		 */
 		obuf->flags &= ~PIPE_BUF_FLAG_GIFT;
-
-		pipe_buf_mark_unmergeable(obuf);
+		obuf->flags &= ~PIPE_BUF_FLAG_CAN_MERGE;
 
 		if (obuf->len > len)
 			obuf->len = len;

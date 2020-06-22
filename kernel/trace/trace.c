@@ -6305,13 +6305,6 @@ static void tracing_spd_release_pipe(struct splice_pipe_desc *spd,
 	__free_page(spd->pages[idx]);
 }
 
-static const struct pipe_buf_operations tracing_pipe_buf_ops = {
-	.confirm		= generic_pipe_buf_confirm,
-	.release		= generic_pipe_buf_release,
-	.steal			= generic_pipe_buf_steal,
-	.get			= generic_pipe_buf_get,
-};
-
 static size_t
 tracing_fill_pipe_page(size_t rem, struct trace_iterator *iter)
 {
@@ -6373,7 +6366,7 @@ static ssize_t tracing_splice_read_pipe(struct file *filp,
 		.partial	= partial_def,
 		.nr_pages	= 0, /* This gets updated below. */
 		.nr_pages_max	= PIPE_DEF_BUFFERS,
-		.ops		= &tracing_pipe_buf_ops,
+		.ops		= &default_pipe_buf_ops,
 		.spd_release	= tracing_spd_release_pipe,
 	};
 	ssize_t ret;
@@ -7582,9 +7575,7 @@ static bool buffer_pipe_buf_get(struct pipe_inode_info *pipe,
 
 /* Pipe buffer operations for a buffer. */
 static const struct pipe_buf_operations buffer_pipe_buf_ops = {
-	.confirm		= generic_pipe_buf_confirm,
 	.release		= buffer_pipe_buf_release,
-	.steal			= generic_pipe_buf_nosteal,
 	.get			= buffer_pipe_buf_get,
 };
 
