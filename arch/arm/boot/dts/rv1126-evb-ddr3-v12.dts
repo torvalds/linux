@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2020 Rockchip Electronics Co., Ltd.
+ */
+/dts-v1/;
+#include "rv1126.dtsi"
+#include "rv11xx-evb-v12.dtsi"
+/ {
+	model = "Rockchip RV1126 EVB DDR3 Board";
+	compatible = "rockchip,rv1126-evb-ddr3-v12", "rockchip,rv1126";
+
+	chosen {
+		bootargs = "earlycon=uart8250,mmio32,0xff570000 console=ttyFIQ0 root=PARTUUID=614e0000-0000 rootfstype=ext4 rootwait snd_aloop.index=7";
+	};
+};
