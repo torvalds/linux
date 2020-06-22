@@ -126,6 +126,7 @@ struct inv_icm42600_suspended {
  *  @indio_accel:	accelerometer IIO device.
  *  @buffer:		data transfer buffer aligned for DMA.
  *  @fifo:		FIFO management structure.
+ *  @timestamp:		interrupt timestamps.
  */
 struct inv_icm42600_state {
 	struct mutex lock;
@@ -141,6 +142,10 @@ struct inv_icm42600_state {
 	struct iio_dev *indio_accel;
 	uint8_t buffer[2] ____cacheline_aligned;
 	struct inv_icm42600_fifo fifo;
+	struct {
+		int64_t gyro;
+		int64_t accel;
+	} timestamp;
 };
 
 /* Virtual register addresses: @bank on MSB (4 upper bits), @address on LSB */

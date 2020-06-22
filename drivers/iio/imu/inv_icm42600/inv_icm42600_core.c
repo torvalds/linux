@@ -19,6 +19,7 @@
 
 #include "inv_icm42600.h"
 #include "inv_icm42600_buffer.h"
+#include "inv_icm42600_timestamp.h"
 
 static const struct regmap_range_cfg inv_icm42600_regmap_ranges[] = {
 	{
@@ -412,6 +413,16 @@ static int inv_icm42600_setup(struct inv_icm42600_state *st,
 	return inv_icm42600_set_conf(st, hw->conf);
 }
 
+static irqreturn_t inv_icm42600_irq_timestamp(int irq, void *_data)
+{
+	struct inv_icm42600_state *st = _data;
+
+	st->timestamp.gyro = iio_get_time_ns(st->indio_gyro);
+	st->timestamp.accel = iio_get_time_ns(st->indio_accel);
+
+	return IRQ_WAKE_THREAD;
+}
+
 static irqreturn_t inv_icm42600_irq_handler(int irq, void *_data)
 {
 	struct inv_icm42600_state *st = _data;
@@ -495,7 +506,7 @@ static int inv_icm42600_irq_init(struct inv_icm42600_state *st, int irq,
 	if (ret)
 		return ret;
 
-	return devm_request_threaded_irq(dev, irq, NULL,
+	return devm_request_threaded_irq(dev, irq, inv_icm42600_irq_timestamp,
 					 inv_icm42600_irq_handler, irq_type,
 					 "inv_icm42600", st);
 }
@@ -614,6 +625,10 @@ int inv_icm42600_core_probe(struct regmap *regmap, int chip, int irq,
 
 	/* setup chip registers */
 	ret = inv_icm42600_setup(st, bus_setup);
+	if (ret)
+		return ret;
+
+	ret = inv_icm42600_timestamp_setup(st);
 	if (ret)
 		return ret;
 
