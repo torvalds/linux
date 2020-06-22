@@ -274,6 +274,7 @@ static int aq_fw2x_update_link_status(struct aq_hw_s *self)
 	} else {
 		link_status->mbps = 0;
 	}
+	link_status->full_duplex = true;
 
 	return 0;
 }

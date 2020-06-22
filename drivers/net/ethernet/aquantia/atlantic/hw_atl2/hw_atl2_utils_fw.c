@@ -135,6 +135,10 @@ static void a2_link_speed_mask2fw(u32 speed,
 	link_options->rate_1G = !!(speed & AQ_NIC_RATE_1G);
 	link_options->rate_100M = !!(speed & AQ_NIC_RATE_100M);
 	link_options->rate_10M = !!(speed & AQ_NIC_RATE_10M);
+
+	link_options->rate_1G_hd = !!(speed & AQ_NIC_RATE_1G_HALF);
+	link_options->rate_100M_hd = !!(speed & AQ_NIC_RATE_100M_HALF);
+	link_options->rate_10M_hd = !!(speed & AQ_NIC_RATE_10M_HALF);
 }
 
 static int aq_a2_fw_set_link_speed(struct aq_hw_s *self, u32 speed)
@@ -202,6 +206,7 @@ static int aq_a2_fw_update_link_status(struct aq_hw_s *self)
 	default:
 		self->aq_link_status.mbps = 0;
 	}
+	self->aq_link_status.full_duplex = link_status.duplex;
 
 	return 0;
 }
