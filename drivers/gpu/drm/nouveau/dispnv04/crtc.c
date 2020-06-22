@@ -1157,6 +1157,7 @@ nv04_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	struct nouveau_cli *cli;
 	struct nouveau_fence *fence;
 	struct nv04_display *dispnv04 = nv04_display(dev);
+	struct nvif_push *push;
 	int head = nouveau_crtc(crtc)->index;
 	int ret;
 
@@ -1164,6 +1165,7 @@ nv04_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	if (!chan)
 		return -ENODEV;
 	cli = (void *)chan->user.client;
+	push = chan->chan.push;
 
 	s = kzalloc(sizeof(*s), GFP_KERNEL);
 	if (!s)
@@ -1205,18 +1207,14 @@ nv04_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 
 	/* Emit a page flip */
 	if (swap_interval) {
-		ret = RING_SPACE(chan, 8);
+		ret = PUSH_WAIT(push, 8);
 		if (ret)
 			goto fail_unreserve;
 
-		BEGIN_NV04(chan, NvSubImageBlit, 0x012c, 1);
-		OUT_RING  (chan, 0);
-		BEGIN_NV04(chan, NvSubImageBlit, 0x0134, 1);
-		OUT_RING  (chan, head);
-		BEGIN_NV04(chan, NvSubImageBlit, 0x0100, 1);
-		OUT_RING  (chan, 0);
-		BEGIN_NV04(chan, NvSubImageBlit, 0x0130, 1);
-		OUT_RING  (chan, 0);
+		PUSH_NVSQ(push, NV05F, 0x012c, 0);
+		PUSH_NVSQ(push, NV05F, 0x0134, head);
+		PUSH_NVSQ(push, NV05F, 0x0100, 0);
+		PUSH_NVSQ(push, NV05F, 0x0130, 0);
 	}
 
 	nouveau_bo_ref(new_bo, &dispnv04->image[head]);
