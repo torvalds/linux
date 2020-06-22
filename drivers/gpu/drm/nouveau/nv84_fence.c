@@ -52,16 +52,17 @@ nv84_fence_emit32(struct nouveau_channel *chan, u64 virtual, u32 sequence)
 static int
 nv84_fence_sync32(struct nouveau_channel *chan, u64 virtual, u32 sequence)
 {
-	int ret = RING_SPACE(chan, 7);
+	struct nvif_push *push = chan->chan.push;
+	int ret = PUSH_WAIT(push, 7);
 	if (ret == 0) {
-		BEGIN_NV04(chan, 0, NV11_SUBCHAN_DMA_SEMAPHORE, 1);
-		OUT_RING  (chan, chan->vram.handle);
-		BEGIN_NV04(chan, 0, NV84_SUBCHAN_SEMAPHORE_ADDRESS_HIGH, 4);
-		OUT_RING  (chan, upper_32_bits(virtual));
-		OUT_RING  (chan, lower_32_bits(virtual));
-		OUT_RING  (chan, sequence);
-		OUT_RING  (chan, NV84_SUBCHAN_SEMAPHORE_TRIGGER_ACQUIRE_GEQUAL);
-		FIRE_RING (chan);
+		PUSH_NVSQ(push, NV826F, NV11_SUBCHAN_DMA_SEMAPHORE, chan->vram.handle);
+		PUSH_NVSQ(push, NV826F,
+				NV84_SUBCHAN_SEMAPHORE_ADDRESS_HIGH, upper_32_bits(virtual),
+				NV84_SUBCHAN_SEMAPHORE_ADDRESS_LOW, lower_32_bits(virtual),
+				NV84_SUBCHAN_SEMAPHORE_SEQUENCE, sequence,
+				NV84_SUBCHAN_SEMAPHORE_TRIGGER,
+				NV84_SUBCHAN_SEMAPHORE_TRIGGER_ACQUIRE_GEQUAL);
+		PUSH_KICK(push);
 	}
 	return ret;
 }
