@@ -759,13 +759,13 @@ static int iep2_free_task(struct mpp_session *session,
 	return 0;
 }
 
+#ifdef CONFIG_DEBUG_FS
 static int iep2_debugfs_remove(struct mpp_dev *mpp)
 {
-#ifdef CONFIG_DEBUG_FS
 	struct iep2_dev *iep = to_iep2_dev(mpp);
 
 	debugfs_remove_recursive(iep->debugfs);
-#endif
+
 	return 0;
 }
 
@@ -775,7 +775,6 @@ static int iep2_debugfs_init(struct mpp_dev *mpp)
 
 	iep->aclk_debug = 0;
 	iep->session_max_buffers_debug = 0;
-#ifdef CONFIG_DEBUG_FS
 	iep->debugfs = debugfs_create_dir(mpp->dev->of_node->name,
 					  mpp->srv->debugfs);
 	if (IS_ERR_OR_NULL(iep->debugfs)) {
@@ -787,11 +786,21 @@ static int iep2_debugfs_init(struct mpp_dev *mpp)
 			   iep->debugfs, &iep->aclk_debug);
 	debugfs_create_u32("session_buffers", 0644,
 			   iep->debugfs, &iep->session_max_buffers_debug);
-#endif
 	if (iep->session_max_buffers_debug)
 		mpp->session_max_buffers = iep->session_max_buffers_debug;
 	return 0;
 }
+#else
+static inline int iep2_debugfs_remove(struct mpp_dev *mpp)
+{
+	return 0;
+}
+
+static inline int iep2_debugfs_init(struct mpp_dev *mpp)
+{
+	return 0;
+}
+#endif
 
 #define IEP2_TILE_W_MAX		120
 #define IEP2_TILE_H_MAX		272

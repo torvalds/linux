@@ -115,26 +115,35 @@ static int mpp_remove_service(struct mpp_service *srv)
 	return 0;
 }
 
+#ifdef CONFIG_DEBUG_FS
 static int mpp_debugfs_remove(struct mpp_service *srv)
 {
-#ifdef CONFIG_DEBUG_FS
 	debugfs_remove_recursive(srv->debugfs);
-#endif
+
 	return 0;
 }
 
 static int mpp_debugfs_init(struct mpp_service *srv)
 {
-#ifdef CONFIG_DEBUG_FS
 	srv->debugfs = debugfs_create_dir(MPP_SERVICE_NAME, NULL);
 	if (IS_ERR_OR_NULL(srv->debugfs)) {
 		mpp_err("failed on open debugfs\n");
 		srv->debugfs = NULL;
 	}
-#endif
 
 	return 0;
 }
+#else
+static inline int mpp_debugfs_remove(struct mpp_service *srv)
+{
+	return 0;
+}
+
+static inline int mpp_debugfs_init(struct mpp_service *srv)
+{
+	return 0;
+}
+#endif
 
 static int mpp_service_probe(struct platform_device *pdev)
 {
@@ -215,9 +224,7 @@ static int mpp_service_probe(struct platform_device *pdev)
 		goto fail_register;
 	}
 	mpp_sub_drivers = srv->sub_drivers;
-
 	mpp_debugfs_init(srv);
-
 	dev_info(dev, "probe success\n");
 
 	return 0;

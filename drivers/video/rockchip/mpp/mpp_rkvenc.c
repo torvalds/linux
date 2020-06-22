@@ -589,13 +589,13 @@ static int rkvenc_free_task(struct mpp_session *session,
 	return 0;
 }
 
+#ifdef CONFIG_DEBUG_FS
 static int rkvenc_debugfs_remove(struct mpp_dev *mpp)
 {
-#ifdef CONFIG_DEBUG_FS
 	struct rkvenc_dev *enc = to_rkvenc_dev(mpp);
 
 	debugfs_remove_recursive(enc->debugfs);
-#endif
+
 	return 0;
 }
 
@@ -606,7 +606,6 @@ static int rkvenc_debugfs_init(struct mpp_dev *mpp)
 	enc->aclk_debug_mhz = 0;
 	enc->clk_core_debug_mhz = 0;
 	enc->session_max_buffers_debug = 0;
-#ifdef CONFIG_DEBUG_FS
 	enc->debugfs = debugfs_create_dir(mpp->dev->of_node->name,
 					  mpp->srv->debugfs);
 	if (IS_ERR_OR_NULL(enc->debugfs)) {
@@ -620,12 +619,22 @@ static int rkvenc_debugfs_init(struct mpp_dev *mpp)
 			   enc->debugfs, &enc->clk_core_debug_mhz);
 	debugfs_create_u32("session_buffers", 0644,
 			   enc->debugfs, &enc->session_max_buffers_debug);
-#endif
 	if (enc->session_max_buffers_debug)
 		mpp->session_max_buffers = enc->session_max_buffers_debug;
 
 	return 0;
 }
+#else
+static inline int rkvenc_debugfs_remove(struct mpp_dev *mpp)
+{
+	return 0;
+}
+
+static inline int rkvenc_debugfs_init(struct mpp_dev *mpp)
+{
+	return 0;
+}
+#endif
 
 #ifdef CONFIG_PM_DEVFREQ
 static int rkvenc_devfreq_target(struct device *dev,
@@ -1093,7 +1102,6 @@ static int rkvenc_probe(struct platform_device *pdev)
 
 	mpp->session_max_buffers = RKVENC_SESSION_MAX_BUFFERS;
 	rkvenc_debugfs_init(mpp);
-
 	dev_info(dev, "probing finish\n");
 
 	return 0;

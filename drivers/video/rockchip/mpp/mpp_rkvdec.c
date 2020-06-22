@@ -1106,13 +1106,13 @@ static int rkvdec_free_task(struct mpp_session *session,
 	return 0;
 }
 
+#ifdef CONFIG_DEBUG_FS
 static int rkvdec_debugfs_remove(struct mpp_dev *mpp)
 {
-#ifdef CONFIG_DEBUG_FS
 	struct rkvdec_dev *dec = to_rkvdec_dev(mpp);
 
 	debugfs_remove_recursive(dec->debugfs);
-#endif
+
 	return 0;
 }
 
@@ -1125,7 +1125,6 @@ static int rkvdec_debugfs_init(struct mpp_dev *mpp)
 	dec->clk_cabac_debug = 0;
 	dec->clk_hevc_cabac_debug = 0;
 	dec->session_max_buffers_debug = 0;
-#ifdef CONFIG_DEBUG_FS
 	dec->debugfs = debugfs_create_dir(mpp->dev->of_node->name,
 					  mpp->srv->debugfs);
 	if (IS_ERR_OR_NULL(dec->debugfs)) {
@@ -1143,12 +1142,22 @@ static int rkvdec_debugfs_init(struct mpp_dev *mpp)
 			   dec->debugfs, &dec->clk_hevc_cabac_debug);
 	debugfs_create_u32("session_buffers", 0644,
 			   dec->debugfs, &dec->session_max_buffers_debug);
-#endif
 	if (dec->session_max_buffers_debug)
 		mpp->session_max_buffers = dec->session_max_buffers_debug;
 
 	return 0;
 }
+#else
+static inline int rkvdec_debugfs_remove(struct mpp_dev *mpp)
+{
+	return 0;
+}
+
+static inline int rkvdec_debugfs_init(struct mpp_dev *mpp)
+{
+	return 0;
+}
+#endif
 
 static int rkvdec_init(struct mpp_dev *mpp)
 {
