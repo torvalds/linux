@@ -45,7 +45,7 @@ static void __mmu_spte_walk(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 		      !is_last_spte(ent[i], level)) {
 			struct kvm_mmu_page *child;
 
-			child = page_header(ent[i] & PT64_BASE_ADDR_MASK);
+			child = to_shadow_page(ent[i] & PT64_BASE_ADDR_MASK);
 			__mmu_spte_walk(vcpu, child, fn, level - 1);
 		}
 	}
@@ -62,7 +62,7 @@ static void mmu_spte_walk(struct kvm_vcpu *vcpu, inspect_spte_fn fn)
 	if (vcpu->arch.mmu->root_level >= PT64_ROOT_4LEVEL) {
 		hpa_t root = vcpu->arch.mmu->root_hpa;
 
-		sp = page_header(root);
+		sp = to_shadow_page(root);
 		__mmu_spte_walk(vcpu, sp, fn, vcpu->arch.mmu->root_level);
 		return;
 	}
@@ -72,7 +72,7 @@ static void mmu_spte_walk(struct kvm_vcpu *vcpu, inspect_spte_fn fn)
 
 		if (root && VALID_PAGE(root)) {
 			root &= PT64_BASE_ADDR_MASK;
-			sp = page_header(root);
+			sp = to_shadow_page(root);
 			__mmu_spte_walk(vcpu, sp, fn, 2);
 		}
 	}

@@ -43,7 +43,7 @@ struct kvm_mmu_page {
 	atomic_t write_flooding_count;
 };
 
-static inline struct kvm_mmu_page *page_header(hpa_t shadow_page)
+static inline struct kvm_mmu_page *to_shadow_page(hpa_t shadow_page)
 {
 	struct page *page = pfn_to_page(shadow_page >> PAGE_SHIFT);
 
@@ -52,7 +52,7 @@ static inline struct kvm_mmu_page *page_header(hpa_t shadow_page)
 
 static inline struct kvm_mmu_page *sptep_to_sp(u64 *sptep)
 {
-	return page_header(__pa(sptep));
+	return to_shadow_page(__pa(sptep));
 }
 
 void kvm_mmu_gfn_disallow_lpage(struct kvm_memory_slot *slot, gfn_t gfn);

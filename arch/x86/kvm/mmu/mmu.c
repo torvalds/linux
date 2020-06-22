@@ -2193,7 +2193,7 @@ static int __mmu_unsync_walk(struct kvm_mmu_page *sp,
 			continue;
 		}
 
-		child = page_header(ent & PT64_BASE_ADDR_MASK);
+		child = to_shadow_page(ent & PT64_BASE_ADDR_MASK);
 
 		if (child->unsync_children) {
 			if (mmu_pages_add(pvec, child, i))
@@ -2647,7 +2647,7 @@ static void validate_direct_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 		 * so we should update the spte at this point to get
 		 * a new sp with the correct access.
 		 */
-		child = page_header(*sptep & PT64_BASE_ADDR_MASK);
+		child = to_shadow_page(*sptep & PT64_BASE_ADDR_MASK);
 		if (child->role.access == direct_access)
 			return;
 
@@ -2669,7 +2669,7 @@ static bool mmu_page_zap_pte(struct kvm *kvm, struct kvm_mmu_page *sp,
 			if (is_large_pte(pte))
 				--kvm->stat.lpages;
 		} else {
-			child = page_header(pte & PT64_BASE_ADDR_MASK);
+			child = to_shadow_page(pte & PT64_BASE_ADDR_MASK);
 			drop_parent_pte(child, spte);
 		}
 		return true;
@@ -3127,7 +3127,7 @@ static int mmu_set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 			struct kvm_mmu_page *child;
 			u64 pte = *sptep;
 
-			child = page_header(pte & PT64_BASE_ADDR_MASK);
+			child = to_shadow_page(pte & PT64_BASE_ADDR_MASK);
 			drop_parent_pte(child, sptep);
 			flush = true;
 		} else if (pfn != spte_to_pfn(*sptep)) {
@@ -3632,7 +3632,7 @@ static void mmu_free_root_page(struct kvm *kvm, hpa_t *root_hpa,
 	if (!VALID_PAGE(*root_hpa))
 		return;
 
-	sp = page_header(*root_hpa & PT64_BASE_ADDR_MASK);
+	sp = to_shadow_page(*root_hpa & PT64_BASE_ADDR_MASK);
 	--sp->root_count;
 	if (!sp->root_count && sp->role.invalid)
 		kvm_mmu_prepare_zap_page(kvm, sp, invalid_list);
@@ -3862,7 +3862,7 @@ void kvm_mmu_sync_roots(struct kvm_vcpu *vcpu)
 
 	if (vcpu->arch.mmu->root_level >= PT64_ROOT_4LEVEL) {
 		hpa_t root = vcpu->arch.mmu->root_hpa;
-		sp = page_header(root);
+		sp = to_shadow_page(root);
 
 		/*
 		 * Even if another CPU was marking the SP as unsync-ed
@@ -3896,7 +3896,7 @@ void kvm_mmu_sync_roots(struct kvm_vcpu *vcpu)
 
 		if (root && VALID_PAGE(root)) {
 			root &= PT64_BASE_ADDR_MASK;
-			sp = page_header(root);
+			sp = to_shadow_page(root);
 			mmu_sync_children(vcpu, sp);
 		}
 	}
@@ -4248,8 +4248,8 @@ static inline bool is_root_usable(struct kvm_mmu_root_info *root, gpa_t pgd,
 				  union kvm_mmu_page_role role)
 {
 	return (role.direct || pgd == root->pgd) &&
-	       VALID_PAGE(root->hpa) && page_header(root->hpa) &&
-	       role.word == page_header(root->hpa)->role.word;
+	       VALID_PAGE(root->hpa) && to_shadow_page(root->hpa) &&
+	       role.word == to_shadow_page(root->hpa)->role.word;
 }
 
 /*
@@ -4334,7 +4334,7 @@ static void __kvm_mmu_new_pgd(struct kvm_vcpu *vcpu, gpa_t new_pgd,
 	 */
 	vcpu_clear_mmio_info(vcpu, MMIO_GVA_ANY);
 
-	__clear_sp_write_flooding_count(page_header(vcpu->arch.mmu->root_hpa));
+	__clear_sp_write_flooding_count(to_shadow_page(vcpu->arch.mmu->root_hpa));
 }
 
 void kvm_mmu_new_pgd(struct kvm_vcpu *vcpu, gpa_t new_pgd, bool skip_tlb_flush,
