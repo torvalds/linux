@@ -596,7 +596,7 @@ static void FNAME(pte_prefetch)(struct kvm_vcpu *vcpu, struct guest_walker *gw,
 	u64 *spte;
 	int i;
 
-	sp = page_header(__pa(sptep));
+	sp = sptep_to_sp(sptep);
 
 	if (sp->role.level > PG_LEVEL_4K)
 		return;
@@ -916,7 +916,7 @@ static void FNAME(invlpg)(struct kvm_vcpu *vcpu, gva_t gva, hpa_t root_hpa)
 		level = iterator.level;
 		sptep = iterator.sptep;
 
-		sp = page_header(__pa(sptep));
+		sp = sptep_to_sp(sptep);
 		if (is_last_spte(*sptep, level)) {
 			pt_element_t gpte;
 			gpa_t pte_gpa;

@@ -97,7 +97,7 @@ static void audit_mappings(struct kvm_vcpu *vcpu, u64 *sptep, int level)
 	kvm_pfn_t pfn;
 	hpa_t hpa;
 
-	sp = page_header(__pa(sptep));
+	sp = sptep_to_sp(sptep);
 
 	if (sp->unsync) {
 		if (level != PG_LEVEL_4K) {
@@ -132,7 +132,7 @@ static void inspect_spte_has_rmap(struct kvm *kvm, u64 *sptep)
 	struct kvm_memory_slot *slot;
 	gfn_t gfn;
 
-	rev_sp = page_header(__pa(sptep));
+	rev_sp = sptep_to_sp(sptep);
 	gfn = kvm_mmu_page_get_gfn(rev_sp, sptep - rev_sp->spt);
 
 	slots = kvm_memslots_for_spte_role(kvm, rev_sp->role);
@@ -165,7 +165,7 @@ static void audit_sptes_have_rmaps(struct kvm_vcpu *vcpu, u64 *sptep, int level)
 
 static void audit_spte_after_sync(struct kvm_vcpu *vcpu, u64 *sptep, int level)
 {
-	struct kvm_mmu_page *sp = page_header(__pa(sptep));
+	struct kvm_mmu_page *sp = sptep_to_sp(sptep);
 
 	if (vcpu->kvm->arch.audit_point == AUDIT_POST_SYNC && sp->unsync)
 		audit_printk(vcpu->kvm, "meet unsync sp(%p) after sync "
