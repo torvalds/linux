@@ -203,10 +203,18 @@ static int qce_import_common(struct ahash_request *req, u64 in_count,
 
 static int qce_ahash_import(struct ahash_request *req, const void *in)
 {
-	struct qce_sha_reqctx *rctx = ahash_request_ctx(req);
-	unsigned long flags = rctx->flags;
-	bool hmac = IS_SHA_HMAC(flags);
-	int ret = -EINVAL;
+	struct qce_sha_reqctx *rctx;
+	unsigned long flags;
+	bool hmac;
+	int ret;
+
+	ret = qce_ahash_init(req);
+	if (ret)
+		return ret;
+
+	rctx = ahash_request_ctx(req);
+	flags = rctx->flags;
+	hmac = IS_SHA_HMAC(flags);
 
 	if (IS_SHA1(flags) || IS_SHA1_HMAC(flags)) {
 		const struct sha1_state *state = in;
