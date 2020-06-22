@@ -1738,21 +1738,6 @@ void kvm_arch_mmu_enable_log_dirty_pt_masked(struct kvm *kvm,
 		kvm_mmu_write_protect_pt_masked(kvm, slot, gfn_offset, mask);
 }
 
-/**
- * kvm_arch_write_log_dirty - emulate dirty page logging
- * @vcpu: Guest mode vcpu
- *
- * Emulate arch specific page modification logging for the
- * nested hypervisor
- */
-int kvm_arch_write_log_dirty(struct kvm_vcpu *vcpu, gpa_t l2_gpa)
-{
-	if (kvm_x86_ops.write_log_dirty)
-		return kvm_x86_ops.write_log_dirty(vcpu, l2_gpa);
-
-	return 0;
-}
-
 bool kvm_mmu_slot_gfn_write_protect(struct kvm *kvm,
 				    struct kvm_memory_slot *slot, u64 gfn)
 {
