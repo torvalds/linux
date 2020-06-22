@@ -134,6 +134,14 @@ config DRM_RK630_TVE
 	help
 	  ROCKCHIP TVE bridge chip RK630 driver.
 
+config DRM_RK1000_TVE
+	tristate "Rockchip RK1000 TVE bridge"
+	depends on OF
+	select DRM_KMS_HELPER
+	select MFD_RK1000
+	help
+	  Rockchip TVE bridge chip driver.
+
 config DRM_SIL_SII8620
 	tristate "Silicon Image SII8620 HDMI/MHL bridge"
 	depends on OF

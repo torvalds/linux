@@ -18,7 +18,7 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_of.h>
-#include <drm/drmP.h>
+#include <drm/drm_probe_helper.h>
 
 #include "../rockchip/rockchip_drm_drv.h"
 
@@ -30,11 +30,11 @@ static const struct drm_display_mode rk1000_cvbs_mode[2] = {
 	{ DRM_MODE("720x576", DRM_MODE_TYPE_DRIVER, 27000, 720, 732,
 		   738, 864, 0, 576, 582, 588, 625, 0,
 		   DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC),
-		   .vrefresh = 50, 0, },
+		   0, },
 	{ DRM_MODE("720x480", DRM_MODE_TYPE_DRIVER, 27000, 720, 736,
 		   742, 858, 0, 480, 486, 492, 529, 0,
 		   DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC),
-		   .vrefresh = 60, 0, },
+		   0, },
 };
 
 struct rk1000_tve {
@@ -258,8 +258,8 @@ static const struct drm_connector_funcs rk1000_connector_funcs = {
 
 static void
 rk1000_bridge_mode_set(struct drm_bridge *bridge,
-		       struct drm_display_mode *mode,
-		       struct drm_display_mode *adjusted_mode)
+		       const struct drm_display_mode *mode,
+		       const struct drm_display_mode *adjusted_mode)
 {
 	struct rk1000_tve *rk1000;
 
@@ -291,7 +291,8 @@ static void rk1000_bridge_disable(struct drm_bridge *bridge)
 	rk1000_tve_disable(rk1000);
 }
 
-static int rk1000_bridge_attach(struct drm_bridge *bridge)
+static int rk1000_bridge_attach(struct drm_bridge *bridge,
+				enum drm_bridge_attach_flags flags)
 {
 	struct rk1000_tve *rk1000 = bridge_to_rk1000(bridge);
 	int ret;
