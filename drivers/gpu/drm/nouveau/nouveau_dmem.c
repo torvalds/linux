@@ -29,6 +29,7 @@
 
 #include <nvif/class.h>
 #include <nvif/object.h>
+#include <nvif/push906f.h>
 #include <nvif/if000c.h>
 #include <nvif/if500b.h>
 #include <nvif/if900b.h>
@@ -385,7 +386,7 @@ nvc0b5_migrate_copy(struct nouveau_drm *drm, u64 npages,
 		    enum nouveau_aper dst_aper, u64 dst_addr,
 		    enum nouveau_aper src_aper, u64 src_addr)
 {
-	struct nouveau_channel *chan = drm->dmem->migrate.chan;
+	struct nvif_push *push = drm->dmem->migrate.chan->chan.push;
 	u32 launch_dma = (1 << 9) /* MULTI_LINE_ENABLE. */ |
 			 (1 << 8) /* DST_MEMORY_LAYOUT_PITCH. */ |
 			 (1 << 7) /* SRC_MEMORY_LAYOUT_PITCH. */ |
@@ -393,17 +394,17 @@ nvc0b5_migrate_copy(struct nouveau_drm *drm, u64 npages,
 			 (2 << 0) /* DATA_TRANSFER_TYPE_NON_PIPELINED. */;
 	int ret;
 
-	ret = RING_SPACE(chan, 13);
+	ret = PUSH_WAIT(push, 13);
 	if (ret)
 		return ret;
 
 	if (src_aper != NOUVEAU_APER_VIRT) {
 		switch (src_aper) {
 		case NOUVEAU_APER_VRAM:
-			BEGIN_IMC0(chan, NvSubCopy, 0x0260, 0);
+			PUSH_NVIM(push, NVA0B5, 0x0260, 0);
 			break;
 		case NOUVEAU_APER_HOST:
-			BEGIN_IMC0(chan, NvSubCopy, 0x0260, 1);
+			PUSH_NVIM(push, NVA0B5, 0x0260, 1);
 			break;
 		default:
 			return -EINVAL;
@@ -414,10 +415,10 @@ nvc0b5_migrate_copy(struct nouveau_drm *drm, u64 npages,
 	if (dst_aper != NOUVEAU_APER_VIRT) {
 		switch (dst_aper) {
 		case NOUVEAU_APER_VRAM:
-			BEGIN_IMC0(chan, NvSubCopy, 0x0264, 0);
+			PUSH_NVIM(push, NVA0B5, 0x0264, 0);
 			break;
 		case NOUVEAU_APER_HOST:
-			BEGIN_IMC0(chan, NvSubCopy, 0x0264, 1);
+			PUSH_NVIM(push, NVA0B5, 0x0264, 1);
 			break;
 		default:
 			return -EINVAL;
@@ -425,17 +426,15 @@ nvc0b5_migrate_copy(struct nouveau_drm *drm, u64 npages,
 		launch_dma |= 0x00002000; /* DST_TYPE_PHYSICAL. */
 	}
 
-	BEGIN_NVC0(chan, NvSubCopy, 0x0400, 8);
-	OUT_RING  (chan, upper_32_bits(src_addr));
-	OUT_RING  (chan, lower_32_bits(src_addr));
-	OUT_RING  (chan, upper_32_bits(dst_addr));
-	OUT_RING  (chan, lower_32_bits(dst_addr));
-	OUT_RING  (chan, PAGE_SIZE);
-	OUT_RING  (chan, PAGE_SIZE);
-	OUT_RING  (chan, PAGE_SIZE);
-	OUT_RING  (chan, npages);
-	BEGIN_NVC0(chan, NvSubCopy, 0x0300, 1);
-	OUT_RING  (chan, launch_dma);
+	PUSH_NVSQ(push, NVA0B5, 0x0400, upper_32_bits(src_addr),
+				0x0404, lower_32_bits(src_addr),
+				0x0408, upper_32_bits(dst_addr),
+				0x040c, lower_32_bits(dst_addr),
+				0x0410, PAGE_SIZE,
+				0x0414, PAGE_SIZE,
+				0x0418, PAGE_SIZE,
+				0x041c, npages);
+	PUSH_NVSQ(push, NVA0B5, 0x0300, launch_dma);
 	return 0;
 }
 
