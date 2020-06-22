@@ -60,6 +60,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -122,9 +123,11 @@
  * and runs "statement", which is usually "return" or "goto skip".
  */
 #define SKIP(statement, fmt, ...) do { \
+	snprintf(_metadata->results->reason, \
+		 sizeof(_metadata->results->reason), fmt, ##__VA_ARGS__); \
 	if (TH_LOG_ENABLED) { \
-		fprintf(TH_LOG_STREAM, "#      SKIP     " fmt "\n", \
-			##__VA_ARGS__); \
+		fprintf(TH_LOG_STREAM, "#      SKIP     %s\n", \
+			_metadata->results->reason); \
 	} \
 	_metadata->passed = 1; \
 	_metadata->skip = 1; \
@@ -762,6 +765,10 @@
 	} \
 }
 
+struct __test_results {
+	char reason[1024];	/* Reason for test result */
+};
+
 struct __test_metadata;
 struct __fixture_variant_metadata;
 
@@ -815,6 +822,7 @@ struct __test_metadata {
 	bool timed_out;	/* did this test timeout instead of exiting? */
 	__u8 step;
 	bool no_print; /* manual trigger when TH_LOG_STREAM is not available */
+	struct __test_results *results;
 	struct __test_metadata *prev, *next;
 };
 
@@ -957,6 +965,7 @@ void __run_test(struct __fixture_metadata *f,
 	t->trigger = 0;
 	t->step = 0;
 	t->no_print = 0;
+	memset(t->results->reason, 0, sizeof(t->results->reason));
 
 	ksft_print_msg(" RUN           %s%s%s.%s ...\n",
 	       f->name, variant->name[0] ? "." : "", variant->name, t->name);
@@ -986,8 +995,8 @@ void __run_test(struct __fixture_metadata *f,
 	       f->name, variant->name[0] ? "." : "", variant->name, t->name);
 
 	if (t->skip)
-		ksft_test_result_skip("%s%s%s.%s\n",
-			f->name, variant->name[0] ? "." : "", variant->name, t->name);
+		ksft_test_result_skip("%s\n", t->results->reason[0] ?
+					t->results->reason : "unknown");
 	else
 		ksft_test_result(t->passed, "%s%s%s.%s\n",
 			f->name, variant->name[0] ? "." : "", variant->name, t->name);
@@ -999,6 +1008,7 @@ static int test_harness_run(int __attribute__((unused)) argc,
 	struct __fixture_variant_metadata no_variant = { .name = "", };
 	struct __fixture_variant_metadata *v;
 	struct __fixture_metadata *f;
+	struct __test_results *results;
 	struct __test_metadata *t;
 	int ret = 0;
 	unsigned int case_count = 0, test_count = 0;
@@ -1013,6 +1023,9 @@ static int test_harness_run(int __attribute__((unused)) argc,
 		}
 	}
 
+	results = mmap(NULL, sizeof(*results), PROT_READ | PROT_WRITE,
+		       MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+
 	ksft_print_header();
 	ksft_set_plan(test_count);
 	ksft_print_msg("Starting %u tests from %u test cases.\n",
@@ -1021,7 +1034,9 @@ static int test_harness_run(int __attribute__((unused)) argc,
 		for (v = f->variant ?: &no_variant; v; v = v->next) {
 			for (t = f->tests; t; t = t->next) {
 				count++;
+				t->results = results;
 				__run_test(f, v, t);
+				t->results = NULL;
 				if (t->passed)
 					pass_count++;
 				else
@@ -1029,6 +1044,8 @@ static int test_harness_run(int __attribute__((unused)) argc,
 			}
 		}
 	}
+	munmap(results, sizeof(*results));
+
 	ksft_print_msg("%s: %u / %u tests passed.\n", ret ? "FAILED" : "PASSED",
 			pass_count, count);
 	ksft_exit(ret == 0);
