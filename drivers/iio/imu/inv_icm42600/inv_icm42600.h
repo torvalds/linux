@@ -14,6 +14,8 @@
 #include <linux/pm.h>
 #include <linux/iio/iio.h>
 
+#include "inv_icm42600_buffer.h"
+
 enum inv_icm42600_chip {
 	INV_CHIP_ICM42600,
 	INV_CHIP_ICM42602,
@@ -123,6 +125,7 @@ struct inv_icm42600_suspended {
  *  @indio_gyro:	gyroscope IIO device.
  *  @indio_accel:	accelerometer IIO device.
  *  @buffer:		data transfer buffer aligned for DMA.
+ *  @fifo:		FIFO management structure.
  */
 struct inv_icm42600_state {
 	struct mutex lock;
@@ -137,6 +140,7 @@ struct inv_icm42600_state {
 	struct iio_dev *indio_gyro;
 	struct iio_dev *indio_accel;
 	uint8_t buffer[2] ____cacheline_aligned;
+	struct inv_icm42600_fifo fifo;
 };
 
 /* Virtual register addresses: @bank on MSB (4 upper bits), @address on LSB */
@@ -377,6 +381,10 @@ int inv_icm42600_core_probe(struct regmap *regmap, int chip, int irq,
 
 struct iio_dev *inv_icm42600_gyro_init(struct inv_icm42600_state *st);
 
+int inv_icm42600_gyro_parse_fifo(struct iio_dev *indio_dev);
+
 struct iio_dev *inv_icm42600_accel_init(struct inv_icm42600_state *st);
+
+int inv_icm42600_accel_parse_fifo(struct iio_dev *indio_dev);
 
 #endif

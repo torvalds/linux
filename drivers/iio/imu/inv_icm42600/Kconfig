@@ -2,6 +2,7 @@
 
 config INV_ICM42600
 	tristate
+	select IIO_BUFFER
 
 config INV_ICM42600_I2C
 	tristate "InvenSense ICM-426xx I2C driver"

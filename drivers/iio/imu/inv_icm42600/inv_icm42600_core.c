@@ -18,6 +18,7 @@
 #include <linux/iio/iio.h>
 
 #include "inv_icm42600.h"
+#include "inv_icm42600_buffer.h"
 
 static const struct regmap_range_cfg inv_icm42600_regmap_ranges[] = {
 	{
@@ -428,6 +429,18 @@ static irqreturn_t inv_icm42600_irq_handler(int irq, void *_data)
 	if (status & INV_ICM42600_INT_STATUS_FIFO_FULL)
 		dev_warn(dev, "FIFO full data lost!\n");
 
+	/* FIFO threshold reached */
+	if (status & INV_ICM42600_INT_STATUS_FIFO_THS) {
+		ret = inv_icm42600_buffer_fifo_read(st, 0);
+		if (ret) {
+			dev_err(dev, "FIFO read error %d\n", ret);
+			goto out_unlock;
+		}
+		ret = inv_icm42600_buffer_fifo_parse(st);
+		if (ret)
+			dev_err(dev, "FIFO parsing error %d\n", ret);
+	}
+
 out_unlock:
 	mutex_unlock(&st->lock);
 	return IRQ_HANDLED;
@@ -604,6 +617,10 @@ int inv_icm42600_core_probe(struct regmap *regmap, int chip, int irq,
 	if (ret)
 		return ret;
 
+	ret = inv_icm42600_buffer_init(st);
+	if (ret)
+		return ret;
+
 	st->indio_gyro = inv_icm42600_gyro_init(st);
 	if (IS_ERR(st->indio_gyro))
 		return PTR_ERR(st->indio_gyro);
@@ -649,6 +666,14 @@ static int __maybe_unused inv_icm42600_suspend(struct device *dev)
 		goto out_unlock;
 	}
 
+	/* disable FIFO data streaming */
+	if (st->fifo.on) {
+		ret = regmap_write(st->map, INV_ICM42600_REG_FIFO_CONFIG,
+				   INV_ICM42600_FIFO_CONFIG_BYPASS);
+		if (ret)
+			goto out_unlock;
+	}
+
 	ret = inv_icm42600_set_pwr_mgmt0(st, INV_ICM42600_SENSOR_MODE_OFF,
 					 INV_ICM42600_SENSOR_MODE_OFF, false,
 					 NULL);
@@ -687,6 +712,11 @@ static int __maybe_unused inv_icm42600_resume(struct device *dev)
 					 st->suspended.temp, NULL);
 	if (ret)
 		goto out_unlock;
+
+	/* restore FIFO data streaming */
+	if (st->fifo.on)
+		ret = regmap_write(st->map, INV_ICM42600_REG_FIFO_CONFIG,
+				   INV_ICM42600_FIFO_CONFIG_STREAM);
 
 out_unlock:
 	mutex_unlock(&st->lock);

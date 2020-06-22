@@ -11,9 +11,12 @@
 #include <linux/delay.h>
 #include <linux/math64.h>
 #include <linux/iio/iio.h>
+#include <linux/iio/buffer.h>
+#include <linux/iio/kfifo_buf.h>
 
 #include "inv_icm42600.h"
 #include "inv_icm42600_temp.h"
+#include "inv_icm42600_buffer.h"
 
 #define INV_ICM42600_ACCEL_CHAN(_modifier, _index, _ext_info)		\
 	{								\
@@ -63,6 +66,78 @@ static const struct iio_chan_spec inv_icm42600_accel_channels[] = {
 				inv_icm42600_accel_ext_infos),
 	INV_ICM42600_TEMP_CHAN(INV_ICM42600_ACCEL_SCAN_TEMP),
 };
+
+/*
+ * IIO buffer data: size must be a power of 2
+ * 8 bytes: 6 bytes acceleration and 2 bytes temperature
+ */
+struct inv_icm42600_accel_buffer {
+	struct inv_icm42600_fifo_sensor_data accel;
+	int16_t temp;
+};
+
+#define INV_ICM42600_SCAN_MASK_ACCEL_3AXIS				\
+	(BIT(INV_ICM42600_ACCEL_SCAN_X) |				\
+	BIT(INV_ICM42600_ACCEL_SCAN_Y) |				\
+	BIT(INV_ICM42600_ACCEL_SCAN_Z))
+
+#define INV_ICM42600_SCAN_MASK_TEMP	BIT(INV_ICM42600_ACCEL_SCAN_TEMP)
+
+static const unsigned long inv_icm42600_accel_scan_masks[] = {
+	/* 3-axis accel + temperature */
+	INV_ICM42600_SCAN_MASK_ACCEL_3AXIS | INV_ICM42600_SCAN_MASK_TEMP,
+	0,
+};
+
+/* enable accelerometer sensor and FIFO write */
+static int inv_icm42600_accel_update_scan_mode(struct iio_dev *indio_dev,
+					       const unsigned long *scan_mask)
+{
+	struct inv_icm42600_state *st = iio_device_get_drvdata(indio_dev);
+	struct inv_icm42600_sensor_conf conf = INV_ICM42600_SENSOR_CONF_INIT;
+	unsigned int fifo_en = 0;
+	unsigned int sleep_temp = 0;
+	unsigned int sleep_accel = 0;
+	unsigned int sleep;
+	int ret;
+
+	mutex_lock(&st->lock);
+
+	if (*scan_mask & INV_ICM42600_SCAN_MASK_TEMP) {
+		/* enable temp sensor */
+		ret = inv_icm42600_set_temp_conf(st, true, &sleep_temp);
+		if (ret)
+			goto out_unlock;
+		fifo_en |= INV_ICM42600_SENSOR_TEMP;
+	}
+
+	if (*scan_mask & INV_ICM42600_SCAN_MASK_ACCEL_3AXIS) {
+		/* enable accel sensor */
+		conf.mode = INV_ICM42600_SENSOR_MODE_LOW_NOISE;
+		ret = inv_icm42600_set_accel_conf(st, &conf, &sleep_accel);
+		if (ret)
+			goto out_unlock;
+		fifo_en |= INV_ICM42600_SENSOR_ACCEL;
+	}
+
+	/* update data FIFO write */
+	ret = inv_icm42600_buffer_set_fifo_en(st, fifo_en | st->fifo.en);
+	if (ret)
+		goto out_unlock;
+
+	ret = inv_icm42600_buffer_update_watermark(st);
+
+out_unlock:
+	mutex_unlock(&st->lock);
+	/* sleep maximum required time */
+	if (sleep_accel > sleep_temp)
+		sleep = sleep_accel;
+	else
+		sleep = sleep_temp;
+	if (sleep)
+		msleep(sleep);
+	return ret;
+}
 
 static int inv_icm42600_accel_read_sensor(struct inv_icm42600_state *st,
 					  struct iio_chan_spec const *chan,
@@ -248,7 +323,12 @@ static int inv_icm42600_accel_write_odr(struct inv_icm42600_state *st,
 	mutex_lock(&st->lock);
 
 	ret = inv_icm42600_set_accel_conf(st, &conf, NULL);
+	if (ret)
+		goto out_unlock;
+	inv_icm42600_buffer_update_fifo_period(st);
+	inv_icm42600_buffer_update_watermark(st);
 
+out_unlock:
 	mutex_unlock(&st->lock);
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
@@ -563,12 +643,51 @@ static int inv_icm42600_accel_write_raw_get_fmt(struct iio_dev *indio_dev,
 	}
 }
 
+static int inv_icm42600_accel_hwfifo_set_watermark(struct iio_dev *indio_dev,
+						   unsigned int val)
+{
+	struct inv_icm42600_state *st = iio_device_get_drvdata(indio_dev);
+	int ret;
+
+	mutex_lock(&st->lock);
+
+	st->fifo.watermark.accel = val;
+	ret = inv_icm42600_buffer_update_watermark(st);
+
+	mutex_unlock(&st->lock);
+
+	return ret;
+}
+
+static int inv_icm42600_accel_hwfifo_flush(struct iio_dev *indio_dev,
+					   unsigned int count)
+{
+	struct inv_icm42600_state *st = iio_device_get_drvdata(indio_dev);
+	int ret;
+
+	if (count == 0)
+		return 0;
+
+	mutex_lock(&st->lock);
+
+	ret = inv_icm42600_buffer_hwfifo_flush(st, count);
+	if (!ret)
+		ret = st->fifo.nb.accel;
+
+	mutex_unlock(&st->lock);
+
+	return ret;
+}
+
 static const struct iio_info inv_icm42600_accel_info = {
 	.read_raw = inv_icm42600_accel_read_raw,
 	.read_avail = inv_icm42600_accel_read_avail,
 	.write_raw = inv_icm42600_accel_write_raw,
 	.write_raw_get_fmt = inv_icm42600_accel_write_raw_get_fmt,
 	.debugfs_reg_access = inv_icm42600_debugfs_reg,
+	.update_scan_mode = inv_icm42600_accel_update_scan_mode,
+	.hwfifo_set_watermark = inv_icm42600_accel_hwfifo_set_watermark,
+	.hwfifo_flush_to_buffer = inv_icm42600_accel_hwfifo_flush,
 };
 
 struct iio_dev *inv_icm42600_accel_init(struct inv_icm42600_state *st)
@@ -576,6 +695,7 @@ struct iio_dev *inv_icm42600_accel_init(struct inv_icm42600_state *st)
 	struct device *dev = regmap_get_device(st->map);
 	const char *name;
 	struct iio_dev *indio_dev;
+	struct iio_buffer *buffer;
 	int ret;
 
 	name = devm_kasprintf(dev, GFP_KERNEL, "%s-accel", st->name);
@@ -586,16 +706,56 @@ struct iio_dev *inv_icm42600_accel_init(struct inv_icm42600_state *st)
 	if (!indio_dev)
 		return ERR_PTR(-ENOMEM);
 
+	buffer = devm_iio_kfifo_allocate(dev);
+	if (!buffer)
+		return ERR_PTR(-ENOMEM);
+
 	iio_device_set_drvdata(indio_dev, st);
 	indio_dev->name = name;
 	indio_dev->info = &inv_icm42600_accel_info;
-	indio_dev->modes = INDIO_DIRECT_MODE;
+	indio_dev->modes = INDIO_DIRECT_MODE | INDIO_BUFFER_SOFTWARE;
 	indio_dev->channels = inv_icm42600_accel_channels;
 	indio_dev->num_channels = ARRAY_SIZE(inv_icm42600_accel_channels);
+	indio_dev->available_scan_masks = inv_icm42600_accel_scan_masks;
+	indio_dev->setup_ops = &inv_icm42600_buffer_ops;
+
+	iio_device_attach_buffer(indio_dev, buffer);
 
 	ret = devm_iio_device_register(dev, indio_dev);
 	if (ret)
 		return ERR_PTR(ret);
 
 	return indio_dev;
+}
+
+int inv_icm42600_accel_parse_fifo(struct iio_dev *indio_dev)
+{
+	struct inv_icm42600_state *st = iio_device_get_drvdata(indio_dev);
+	ssize_t i, size;
+	const void *accel, *gyro, *timestamp;
+	const int8_t *temp;
+	unsigned int odr;
+	struct inv_icm42600_accel_buffer buffer;
+
+	/* parse all fifo packets */
+	for (i = 0; i < st->fifo.count; i += size) {
+		size = inv_icm42600_fifo_decode_packet(&st->fifo.data[i],
+				&accel, &gyro, &temp, &timestamp, &odr);
+		/* quit if error or FIFO is empty */
+		if (size <= 0)
+			return size;
+
+		/* skip packet if no accel data or data is invalid */
+		if (accel == NULL || !inv_icm42600_fifo_is_data_valid(accel))
+			continue;
+
+		/* buffer is copied to userspace, zeroing it to avoid any data leak */
+		memset(&buffer, 0, sizeof(buffer));
+		memcpy(&buffer.accel, accel, sizeof(buffer.accel));
+		/* convert 8 bits FIFO temperature in high resolution format */
+		buffer.temp = temp ? (*temp * 64) : 0;
+		iio_push_to_buffers(indio_dev, &buffer);
+	}
+
+	return 0;
 }
