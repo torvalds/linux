@@ -2411,10 +2411,9 @@ static void show_rcu_nocb_state(struct rcu_data *rdp)
 		return;
 
 	waslocked = raw_spin_is_locked(&rdp->nocb_gp_lock);
-	wastimer = timer_pending(&rdp->nocb_timer);
+	wastimer = timer_pending(&rdp->nocb_bypass_timer);
 	wassleep = swait_active(&rdp->nocb_gp_wq);
-	if (!rdp->nocb_defer_wakeup && !rdp->nocb_gp_sleep &&
-	    !waslocked && !wastimer && !wassleep)
+	if (!rdp->nocb_gp_sleep && !waslocked && !wastimer && !wassleep)
 		return;  /* Nothing untowards. */
 
 	pr_info("   nocb GP activity on CB-only CPU!!! %c%c%c%c %c\n",
