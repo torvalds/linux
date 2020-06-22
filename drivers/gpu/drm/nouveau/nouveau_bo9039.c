@@ -32,6 +32,8 @@
 
 #include <nvif/push906f.h>
 
+#include <nvhw/class/cl9039.h>
+
 int
 nvc0_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 		  struct ttm_mem_reg *old_reg, struct ttm_mem_reg *new_reg)
@@ -79,6 +81,6 @@ nvc0_bo_move_init(struct nouveau_channel *chan, u32 handle)
 	if (ret)
 		return ret;
 
-	PUSH_NVSQ(push, NV9039, 0x0000, handle);
+	PUSH_MTHD(push, NV9039, SET_OBJECT, handle);
 	return 0;
 }

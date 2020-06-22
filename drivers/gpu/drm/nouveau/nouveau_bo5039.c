@@ -33,6 +33,8 @@
 
 #include <nvif/push206e.h>
 
+#include <nvhw/class/cl5039.h>
+
 int
 nv50_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 		  struct ttm_mem_reg *old_reg, struct ttm_mem_reg *new_reg)
@@ -111,9 +113,9 @@ nv50_bo_move_init(struct nouveau_channel *chan, u32 handle)
 	if (ret)
 		return ret;
 
-	PUSH_NVSQ(push, NV5039, 0x0000, handle);
-	PUSH_NVSQ(push, NV5039, 0x0180, chan->drm->ntfy.handle,
-				0x0184, chan->vram.handle,
-				0x0188, chan->vram.handle);
+	PUSH_MTHD(push, NV5039, SET_OBJECT, handle);
+	PUSH_MTHD(push, NV5039, SET_CONTEXT_DMA_NOTIFY, chan->drm->ntfy.handle,
+				SET_CONTEXT_DMA_BUFFER_IN, chan->vram.handle,
+				SET_CONTEXT_DMA_BUFFER_OUT, chan->vram.handle);
 	return 0;
 }

@@ -32,6 +32,8 @@
 
 #include <nvif/push006c.h>
 
+#include <nvhw/class/cl0039.h>
+
 static inline uint32_t
 nouveau_bo_mem_ctxdma(struct ttm_buffer_object *bo,
 		      struct nouveau_channel *chan, struct ttm_mem_reg *reg)
@@ -94,7 +96,7 @@ nv04_bo_move_init(struct nouveau_channel *chan, u32 handle)
 	if (ret)
 		return ret;
 
-	PUSH_NVSQ(push, NV039, 0x0000, handle);
-	PUSH_NVSQ(push, NV039, 0x0180, chan->drm->ntfy.handle);
+	PUSH_MTHD(push, NV039, SET_OBJECT, handle);
+	PUSH_MTHD(push, NV039, SET_CONTEXT_DMA_NOTIFIES, chan->drm->ntfy.handle);
 	return 0;
 }
