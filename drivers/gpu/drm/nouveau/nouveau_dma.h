@@ -49,7 +49,6 @@ void nv50_dma_push(struct nouveau_channel *, u64 addr, int length);
 enum {
 	NvSubSw		= 1,
 	NvSubImageBlit  = 2,
-	NvSubGdiRect    = 3,
 
 	NvSub2D		= 3, /* DO NOT CHANGE - hardcoded for kepler gr fifo */
 	NvSubCopy	= 4, /* DO NOT CHANGE - hardcoded for kepler gr fifo */

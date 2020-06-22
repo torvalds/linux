@@ -54,24 +54,22 @@ nv04_fbcon_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 	struct nouveau_fbdev *nfbdev = info->par;
 	struct nouveau_drm *drm = nouveau_drm(nfbdev->helper.dev);
 	struct nouveau_channel *chan = drm->channel;
+	struct nvif_push *push = chan->chan.push;
 	int ret;
 
-	ret = RING_SPACE(chan, 7);
+	ret = PUSH_WAIT(push, 7);
 	if (ret)
 		return ret;
 
-	BEGIN_NV04(chan, NvSubGdiRect, 0x02fc, 1);
-	OUT_RING(chan, (rect->rop != ROP_COPY) ? 1 : 3);
-	BEGIN_NV04(chan, NvSubGdiRect, 0x03fc, 1);
+	PUSH_NVSQ(push, NV04A, 0x02fc, (rect->rop != ROP_COPY) ? 1 : 3);
 	if (info->fix.visual == FB_VISUAL_TRUECOLOR ||
 	    info->fix.visual == FB_VISUAL_DIRECTCOLOR)
-		OUT_RING(chan, ((uint32_t *)info->pseudo_palette)[rect->color]);
+		PUSH_NVSQ(push, NV04A, 0x03fc, ((uint32_t *)info->pseudo_palette)[rect->color]);
 	else
-		OUT_RING(chan, rect->color);
-	BEGIN_NV04(chan, NvSubGdiRect, 0x0400, 2);
-	OUT_RING(chan, (rect->dx << 16) | rect->dy);
-	OUT_RING(chan, (rect->width << 16) | rect->height);
-	FIRE_RING(chan);
+		PUSH_NVSQ(push, NV04A, 0x03fc, rect->color);
+	PUSH_NVSQ(push, NV04A, 0x0400, (rect->dx << 16) | rect->dy,
+			       0x0404, (rect->width << 16) | rect->height);
+	PUSH_KICK(push);
 	return 0;
 }
 
