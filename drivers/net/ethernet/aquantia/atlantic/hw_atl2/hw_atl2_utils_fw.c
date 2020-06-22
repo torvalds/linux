@@ -7,6 +7,7 @@
 
 #include "aq_hw.h"
 #include "aq_hw_utils.h"
+#include "aq_nic.h"
 #include "hw_atl/hw_atl_llh.h"
 #include "hw_atl2_utils.h"
 #include "hw_atl2_llh.h"
@@ -141,6 +142,42 @@ static void a2_link_speed_mask2fw(u32 speed,
 	link_options->rate_10M_hd = !!(speed & AQ_NIC_RATE_10M_HALF);
 }
 
+static u32 a2_fw_dev_to_eee_mask(struct device_link_caps_s *device_link_caps)
+{
+	u32 rate = 0;
+
+	if (device_link_caps->eee_10G)
+		rate |= AQ_NIC_RATE_EEE_10G;
+	if (device_link_caps->eee_5G)
+		rate |= AQ_NIC_RATE_EEE_5G;
+	if (device_link_caps->eee_2P5G)
+		rate |= AQ_NIC_RATE_EEE_2G5;
+	if (device_link_caps->eee_1G)
+		rate |= AQ_NIC_RATE_EEE_1G;
+	if (device_link_caps->eee_100M)
+		rate |= AQ_NIC_RATE_EEE_100M;
+
+	return rate;
+}
+
+static u32 a2_fw_lkp_to_mask(struct lkp_link_caps_s *lkp_link_caps)
+{
+	u32 rate = 0;
+
+	if (lkp_link_caps->eee_10G)
+		rate |= AQ_NIC_RATE_EEE_10G;
+	if (lkp_link_caps->eee_5G)
+		rate |= AQ_NIC_RATE_EEE_5G;
+	if (lkp_link_caps->eee_2P5G)
+		rate |= AQ_NIC_RATE_EEE_2G5;
+	if (lkp_link_caps->eee_1G)
+		rate |= AQ_NIC_RATE_EEE_1G;
+	if (lkp_link_caps->eee_100M)
+		rate |= AQ_NIC_RATE_EEE_100M;
+
+	return rate;
+}
+
 static int aq_a2_fw_set_link_speed(struct aq_hw_s *self, u32 speed)
 {
 	struct link_options_s link_options;
@@ -153,6 +190,17 @@ static int aq_a2_fw_set_link_speed(struct aq_hw_s *self, u32 speed)
 	return hw_atl2_shared_buffer_finish_ack(self);
 }
 
+static void aq_a2_fw_upd_eee_rate_bits(struct aq_hw_s *self,
+				       struct link_options_s *link_options,
+				       u32 eee_speeds)
+{
+	link_options->eee_10G =  !!(eee_speeds & AQ_NIC_RATE_EEE_10G);
+	link_options->eee_5G = !!(eee_speeds & AQ_NIC_RATE_EEE_5G);
+	link_options->eee_2P5G = !!(eee_speeds & AQ_NIC_RATE_EEE_2G5);
+	link_options->eee_1G = !!(eee_speeds & AQ_NIC_RATE_EEE_1G);
+	link_options->eee_100M = !!(eee_speeds & AQ_NIC_RATE_EEE_100M);
+}
+
 static int aq_a2_fw_set_state(struct aq_hw_s *self,
 			      enum hal_atl_utils_fw_state_e state)
 {
@@ -163,6 +211,8 @@ static int aq_a2_fw_set_state(struct aq_hw_s *self,
 	switch (state) {
 	case MPI_INIT:
 		link_options.link_up = 1U;
+		aq_a2_fw_upd_eee_rate_bits(self, &link_options,
+					   self->aq_nic_cfg->eee_speeds);
 		break;
 	case MPI_DEINIT:
 		link_options.link_up = 0U;
@@ -265,6 +315,34 @@ static int aq_a2_fw_update_stats(struct aq_hw_s *self)
 	return 0;
 }
 
+static int aq_a2_fw_set_eee_rate(struct aq_hw_s *self, u32 speed)
+{
+	struct link_options_s link_options;
+
+	hw_atl2_shared_buffer_get(self, link_options, link_options);
+
+	aq_a2_fw_upd_eee_rate_bits(self, &link_options, speed);
+
+	hw_atl2_shared_buffer_write(self, link_options, link_options);
+
+	return hw_atl2_shared_buffer_finish_ack(self);
+}
+
+static int aq_a2_fw_get_eee_rate(struct aq_hw_s *self, u32 *rate,
+				 u32 *supported_rates)
+{
+	struct device_link_caps_s device_link_caps;
+	struct lkp_link_caps_s lkp_link_caps;
+
+	hw_atl2_shared_buffer_read(self, device_link_caps, device_link_caps);
+	hw_atl2_shared_buffer_read(self, lkp_link_caps, lkp_link_caps);
+
+	*supported_rates = a2_fw_dev_to_eee_mask(&device_link_caps);
+	*rate = a2_fw_lkp_to_mask(&lkp_link_caps);
+
+	return 0;
+}
+
 static int aq_a2_fw_renegotiate(struct aq_hw_s *self)
 {
 	struct link_options_s link_options;
@@ -322,4 +400,6 @@ const struct aq_fw_ops aq_a2_fw_ops = {
 	.set_state          = aq_a2_fw_set_state,
 	.update_link_status = aq_a2_fw_update_link_status,
 	.update_stats       = aq_a2_fw_update_stats,
+	.set_eee_rate       = aq_a2_fw_set_eee_rate,
+	.get_eee_rate       = aq_a2_fw_get_eee_rate,
 };
