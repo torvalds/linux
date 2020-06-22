@@ -217,7 +217,7 @@ static irqreturn_t rk_decom_irq_thread(int irq, void *priv)
 	return IRQ_HANDLED;
 }
 
-static int rockchip_decom_probe(struct platform_device *pdev)
+static int __init rockchip_decom_probe(struct platform_device *pdev)
 {
 	struct rk_decom *rk_dec;
 	struct resource *res = NULL;
@@ -314,12 +314,20 @@ static struct platform_driver rk_decom_driver = {
 		.name	= "rockchip_hw_decompress",
 		.of_match_table = rockchip_decom_dt_match,
 	},
-	.probe = rockchip_decom_probe,
 };
 
 static int __init rockchip_hw_decompress_init(void)
 {
-	return platform_driver_register(&rk_decom_driver);
+	struct device_node *node;
+
+	node = of_find_matching_node(NULL, rockchip_decom_dt_match);
+	if (node) {
+		of_platform_device_create(node, NULL, NULL);
+		of_node_put(node);
+		return platform_driver_probe(&rk_decom_driver, rockchip_decom_probe);
+	}
+
+	return 0;
 }
 
 pure_initcall(rockchip_hw_decompress_init);
