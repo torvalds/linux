@@ -1661,7 +1661,11 @@ static void __exit nvmem_exit(void)
 	bus_unregister(&nvmem_bus_type);
 }
 
+#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
+arch_initcall_sync(nvmem_init);
+#else
 subsys_initcall(nvmem_init);
+#endif
 module_exit(nvmem_exit);
 
 MODULE_AUTHOR("Srinivas Kandagatla <srinivas.kandagatla@linaro.org");
