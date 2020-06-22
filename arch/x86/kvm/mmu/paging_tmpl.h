@@ -360,7 +360,6 @@ retry_walk:
 	++walker->level;
 
 	do {
-		gfn_t real_gfn;
 		unsigned long host_addr;
 
 		pt_access = pte_access;
@@ -375,7 +374,7 @@ retry_walk:
 		walker->table_gfn[walker->level - 1] = table_gfn;
 		walker->pte_gpa[walker->level - 1] = pte_gpa;
 
-		real_gfn = mmu->translate_gpa(vcpu, gfn_to_gpa(table_gfn),
+		real_gpa = mmu->translate_gpa(vcpu, gfn_to_gpa(table_gfn),
 					      nested_access,
 					      &walker->fault);
 
@@ -389,12 +388,10 @@ retry_walk:
 		 * information to fix the exit_qualification or exit_info_1
 		 * fields.
 		 */
-		if (unlikely(real_gfn == UNMAPPED_GVA))
+		if (unlikely(real_gpa == UNMAPPED_GVA))
 			return 0;
 
-		real_gfn = gpa_to_gfn(real_gfn);
-
-		host_addr = kvm_vcpu_gfn_to_hva_prot(vcpu, real_gfn,
+		host_addr = kvm_vcpu_gfn_to_hva_prot(vcpu, gpa_to_gfn(real_gpa),
 					    &walker->pte_writable[walker->level - 1]);
 		if (unlikely(kvm_is_error_hva(host_addr)))
 			goto error;
