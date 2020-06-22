@@ -129,19 +129,16 @@ static int comp_open(struct inode *inode, struct file *filp)
 	     ((filp->f_flags & O_ACCMODE) != O_RDONLY)) ||
 	     ((c->cfg->direction == MOST_CH_TX) &&
 		((filp->f_flags & O_ACCMODE) != O_WRONLY))) {
-		pr_info("WARN: Access flags mismatch\n");
 		return -EACCES;
 	}
 
 	mutex_lock(&c->io_mutex);
 	if (!c->dev) {
-		pr_info("WARN: Device is destroyed\n");
 		mutex_unlock(&c->io_mutex);
 		return -ENODEV;
 	}
 
 	if (c->access_ref) {
-		pr_info("WARN: Device is busy\n");
 		mutex_unlock(&c->io_mutex);
 		return -EBUSY;
 	}
@@ -328,10 +325,8 @@ static int comp_disconnect_channel(struct most_interface *iface, int channel_id)
 {
 	struct comp_channel *c;
 
-	if (!iface) {
-		pr_info("Bad interface pointer\n");
+	if (!iface)
 		return -EINVAL;
-	}
 
 	c = get_channel(iface, channel_id);
 	if (!c)
@@ -397,10 +392,9 @@ static int comp_tx_completion(struct most_interface *iface, int channel_id)
 {
 	struct comp_channel *c;
 
-	if (!iface) {
-		pr_info("Bad interface pointer\n");
+	if (!iface)
 		return -EINVAL;
-	}
+
 	if ((channel_id < 0) || (channel_id >= iface->num_channels)) {
 		pr_info("Channel ID out of range\n");
 		return -EINVAL;
@@ -432,10 +426,9 @@ static int comp_probe(struct most_interface *iface, int channel_id,
 	int retval;
 	int current_minor;
 
-	if ((!iface) || (!cfg) || (!name)) {
-		pr_info("Probing component with bad arguments");
+	if ((!iface) || (!cfg) || (!name))
 		return -EINVAL;
-	}
+
 	c = get_channel(iface, channel_id);
 	if (c)
 		return -EEXIST;
@@ -474,7 +467,6 @@ static int comp_probe(struct most_interface *iface, int channel_id,
 
 	if (IS_ERR(c->dev)) {
 		retval = PTR_ERR(c->dev);
-		pr_info("failed to create new device node %s\n", name);
 		goto err_free_kfifo_and_del_list;
 	}
 	kobject_uevent(&c->dev->kobj, KOBJ_ADD);
@@ -507,13 +499,9 @@ static int __init mod_init(void)
 {
 	int err;
 
-	pr_info("init()\n");
-
 	comp.class = class_create(THIS_MODULE, "most_cdev");
-	if (IS_ERR(comp.class)) {
-		pr_info("No udev support.\n");
+	if (IS_ERR(comp.class))
 		return PTR_ERR(comp.class);
-	}
 
 	INIT_LIST_HEAD(&channel_list);
 	spin_lock_init(&ch_list_lock);
@@ -544,8 +532,6 @@ dest_ida:
 static void __exit mod_exit(void)
 {
 	struct comp_channel *c, *tmp;
-
-	pr_info("exit module\n");
 
 	most_deregister_configfs_subsys(&comp.cc);
 	most_deregister_component(&comp.cc);
