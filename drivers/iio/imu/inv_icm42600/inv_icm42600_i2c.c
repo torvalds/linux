@@ -64,7 +64,8 @@ static int inv_icm42600_probe(struct i2c_client *client)
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
-	return inv_icm42600_core_probe(regmap, chip, inv_icm42600_i2c_bus_setup);
+	return inv_icm42600_core_probe(regmap, chip, client->irq,
+				       inv_icm42600_i2c_bus_setup);
 }
 
 static const struct of_device_id inv_icm42600_of_matches[] = {
