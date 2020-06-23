@@ -851,7 +851,7 @@ static int iep2_init(struct mpp_dev *mpp)
 	return 0;
 }
 
-static int iep2_power_on(struct mpp_dev *mpp)
+static int iep2_clk_on(struct mpp_dev *mpp)
 {
 	struct iep2_dev *iep = to_iep2_dev(mpp);
 
@@ -865,7 +865,7 @@ static int iep2_power_on(struct mpp_dev *mpp)
 	return 0;
 }
 
-static int iep2_power_off(struct mpp_dev *mpp)
+static int iep2_clk_off(struct mpp_dev *mpp)
 {
 	struct iep2_dev *iep = to_iep2_dev(mpp);
 
@@ -936,8 +936,8 @@ static int iep2_reset(struct mpp_dev *mpp)
 
 static struct mpp_hw_ops iep_v2_hw_ops = {
 	.init = iep2_init,
-	.power_on = iep2_power_on,
-	.power_off = iep2_power_off,
+	.clk_on = iep2_clk_on,
+	.clk_off = iep2_clk_off,
 	.get_freq = iep2_get_freq,
 	.set_freq = iep2_set_freq,
 	.reduce_freq = iep2_reduce_freq,

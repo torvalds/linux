@@ -333,8 +333,8 @@ struct mpp_service {
  * struct mpp_hw_ops - context specific operations for device
  * @init	Do something when hardware probe.
  * @exit	Do something when hardware remove.
- * @power_on	Get pm and enable clks.
- * @power_off	Put pm and disable clks.
+ * @clk_on	Enable clocks.
+ * @clk_off	Disable clocks.
  * @get_freq	Get special freq for setting.
  * @set_freq	Set freq to hardware.
  * @reduce_freq	Reduce freq when hardware is not running.
@@ -343,8 +343,8 @@ struct mpp_service {
 struct mpp_hw_ops {
 	int (*init)(struct mpp_dev *mpp);
 	int (*exit)(struct mpp_dev *mpp);
-	int (*power_on)(struct mpp_dev *mpp);
-	int (*power_off)(struct mpp_dev *mpp);
+	int (*clk_on)(struct mpp_dev *mpp);
+	int (*clk_off)(struct mpp_dev *mpp);
 	int (*get_freq)(struct mpp_dev *mpp,
 			struct mpp_task *mpp_task);
 	int (*set_freq)(struct mpp_dev *mpp,

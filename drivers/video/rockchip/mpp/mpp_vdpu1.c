@@ -561,7 +561,7 @@ static int vdpu_init(struct mpp_dev *mpp)
 	return 0;
 }
 
-static int vdpu_power_on(struct mpp_dev *mpp)
+static int vdpu_clk_on(struct mpp_dev *mpp)
 {
 	struct vdpu_dev *dec = to_vdpu_dev(mpp);
 
@@ -573,7 +573,7 @@ static int vdpu_power_on(struct mpp_dev *mpp)
 	return 0;
 }
 
-static int vdpu_power_off(struct mpp_dev *mpp)
+static int vdpu_clk_off(struct mpp_dev *mpp)
 {
 	struct vdpu_dev *dec = to_vdpu_dev(mpp);
 
@@ -737,8 +737,8 @@ static int vdpu_reset(struct mpp_dev *mpp)
 
 static struct mpp_hw_ops vdpu_v1_hw_ops = {
 	.init = vdpu_init,
-	.power_on = vdpu_power_on,
-	.power_off = vdpu_power_off,
+	.clk_on = vdpu_clk_on,
+	.clk_off = vdpu_clk_off,
 	.get_freq = vdpu_get_freq,
 	.set_freq = vdpu_set_freq,
 	.reduce_freq = vdpu_reduce_freq,
@@ -747,8 +747,8 @@ static struct mpp_hw_ops vdpu_v1_hw_ops = {
 
 static struct mpp_hw_ops vdpu_3288_hw_ops = {
 	.init = vdpu_init,
-	.power_on = vdpu_power_on,
-	.power_off = vdpu_power_off,
+	.clk_on = vdpu_clk_on,
+	.clk_off = vdpu_clk_off,
 	.get_freq = vdpu_3288_get_freq,
 	.set_freq = vdpu_set_freq,
 	.reduce_freq = vdpu_reduce_freq,
@@ -757,8 +757,8 @@ static struct mpp_hw_ops vdpu_3288_hw_ops = {
 
 static struct mpp_hw_ops vdpu_3368_hw_ops = {
 	.init = vdpu_init,
-	.power_on = vdpu_power_on,
-	.power_off = vdpu_power_off,
+	.clk_on = vdpu_clk_on,
+	.clk_off = vdpu_clk_off,
 	.get_freq = vdpu_3368_get_freq,
 	.set_freq = vdpu_set_freq,
 	.reduce_freq = vdpu_reduce_freq,

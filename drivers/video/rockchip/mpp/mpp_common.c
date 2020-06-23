@@ -185,16 +185,16 @@ int mpp_power_on(struct mpp_dev *mpp)
 	pm_runtime_get_sync(mpp->dev);
 	pm_stay_awake(mpp->dev);
 
-	if (mpp->hw_ops->power_on)
-		mpp->hw_ops->power_on(mpp);
+	if (mpp->hw_ops->clk_on)
+		mpp->hw_ops->clk_on(mpp);
 
 	return 0;
 }
 
 int mpp_power_off(struct mpp_dev *mpp)
 {
-	if (mpp->hw_ops->power_off)
-		mpp->hw_ops->power_off(mpp);
+	if (mpp->hw_ops->clk_off)
+		mpp->hw_ops->clk_off(mpp);
 
 	pm_runtime_mark_last_busy(mpp->dev);
 	pm_runtime_put_autosuspend(mpp->dev);
@@ -1626,12 +1626,12 @@ int mpp_dev_probe(struct mpp_dev *mpp,
 
 	/* read hardware id */
 	if (hw_info->reg_id >= 0) {
-		if (mpp->hw_ops->power_on)
-			mpp->hw_ops->power_on(mpp);
+		if (mpp->hw_ops->clk_on)
+			mpp->hw_ops->clk_on(mpp);
 
 		hw_info->hw_id = mpp_read(mpp, hw_info->reg_id);
-		if (mpp->hw_ops->power_off)
-			mpp->hw_ops->power_off(mpp);
+		if (mpp->hw_ops->clk_off)
+			mpp->hw_ops->clk_off(mpp);
 	}
 
 	pm_runtime_put_sync(dev);
@@ -1850,7 +1850,7 @@ int px30_workaround_combo_switch_grf(struct mpp_dev *mpp)
 	pd_is_on = rockchip_pmu_pd_is_on(mpp->dev);
 	if (!pd_is_on)
 		rockchip_pmu_pd_on(mpp->dev);
-	mpp->hw_ops->power_on(mpp);
+	mpp->hw_ops->clk_on(mpp);
 
 	list_for_each_entry_safe(loop, n, &mpp->queue->mmu_list, link) {
 		/* update iommu parameters */
@@ -1863,7 +1863,7 @@ int px30_workaround_combo_switch_grf(struct mpp_dev *mpp)
 	/* enable current iommu */
 	ret = mpp_iommu_enable(mpp->iommu_info->iommu);
 
-	mpp->hw_ops->power_off(mpp);
+	mpp->hw_ops->clk_off(mpp);
 	if (!pd_is_on)
 		rockchip_pmu_pd_off(mpp->dev);
 

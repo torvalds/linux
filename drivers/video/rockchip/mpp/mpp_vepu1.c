@@ -467,7 +467,7 @@ static int vepu_init(struct mpp_dev *mpp)
 	return 0;
 }
 
-static int vepu_power_on(struct mpp_dev *mpp)
+static int vepu_clk_on(struct mpp_dev *mpp)
 {
 	struct vepu_dev *enc = to_vepu_dev(mpp);
 
@@ -479,7 +479,7 @@ static int vepu_power_on(struct mpp_dev *mpp)
 	return 0;
 }
 
-static int vepu_power_off(struct mpp_dev *mpp)
+static int vepu_clk_off(struct mpp_dev *mpp)
 {
 	struct vepu_dev *enc = to_vepu_dev(mpp);
 
@@ -547,8 +547,8 @@ static int vepu_reset(struct mpp_dev *mpp)
 
 static struct mpp_hw_ops vepu_v1_hw_ops = {
 	.init = vepu_init,
-	.power_on = vepu_power_on,
-	.power_off = vepu_power_off,
+	.clk_on = vepu_clk_on,
+	.clk_off = vepu_clk_off,
 	.get_freq = vepu_get_freq,
 	.set_freq = vepu_set_freq,
 	.reduce_freq = vepu_reduce_freq,

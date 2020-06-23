@@ -1389,7 +1389,7 @@ static int rkvdec_3328_exit(struct mpp_dev *mpp)
 	return 0;
 }
 
-static int rkvdec_power_on(struct mpp_dev *mpp)
+static int rkvdec_clk_on(struct mpp_dev *mpp)
 {
 	struct rkvdec_dev *dec = to_rkvdec_dev(mpp);
 
@@ -1405,7 +1405,7 @@ static int rkvdec_power_on(struct mpp_dev *mpp)
 	return 0;
 }
 
-static int rkvdec_power_off(struct mpp_dev *mpp)
+static int rkvdec_clk_off(struct mpp_dev *mpp)
 {
 	struct rkvdec_dev *dec = to_rkvdec_dev(mpp);
 
@@ -1612,8 +1612,8 @@ static int rkvdec_sip_reset(struct mpp_dev *mpp)
 
 static struct mpp_hw_ops rkvdec_v1_hw_ops = {
 	.init = rkvdec_init,
-	.power_on = rkvdec_power_on,
-	.power_off = rkvdec_power_off,
+	.clk_on = rkvdec_clk_on,
+	.clk_off = rkvdec_clk_off,
 	.get_freq = rkvdec_get_freq,
 	.set_freq = rkvdec_set_freq,
 	.reduce_freq = rkvdec_reduce_freq,
@@ -1622,8 +1622,8 @@ static struct mpp_hw_ops rkvdec_v1_hw_ops = {
 
 static struct mpp_hw_ops rkvdec_px30_hw_ops = {
 	.init = rkvdec_px30_init,
-	.power_on = rkvdec_power_on,
-	.power_off = rkvdec_power_off,
+	.clk_on = rkvdec_clk_on,
+	.clk_off = rkvdec_clk_off,
 	.get_freq = rkvdec_get_freq,
 	.set_freq = rkvdec_set_freq,
 	.reduce_freq = rkvdec_reduce_freq,
@@ -1633,8 +1633,8 @@ static struct mpp_hw_ops rkvdec_px30_hw_ops = {
 
 static struct mpp_hw_ops rkvdec_3399_hw_ops = {
 	.init = rkvdec_init,
-	.power_on = rkvdec_power_on,
-	.power_off = rkvdec_power_off,
+	.clk_on = rkvdec_clk_on,
+	.clk_off = rkvdec_clk_off,
 	.get_freq = rkvdec_get_freq,
 	.set_freq = rkvdec_set_freq,
 	.reduce_freq = rkvdec_reduce_freq,
@@ -1643,8 +1643,8 @@ static struct mpp_hw_ops rkvdec_3399_hw_ops = {
 
 static struct mpp_hw_ops rkvdec_3368_hw_ops = {
 	.init = rkvdec_init,
-	.power_on = rkvdec_power_on,
-	.power_off = rkvdec_power_off,
+	.clk_on = rkvdec_clk_on,
+	.clk_off = rkvdec_clk_off,
 	.get_freq = rkvdec_3368_get_freq,
 	.set_freq = rkvdec_set_freq,
 	.reduce_freq = rkvdec_reduce_freq,
@@ -1664,8 +1664,8 @@ static struct mpp_dev_ops rkvdec_v1_dev_ops = {
 static struct mpp_hw_ops rkvdec_3328_hw_ops = {
 	.init = rkvdec_3328_init,
 	.exit = rkvdec_3328_exit,
-	.power_on = rkvdec_power_on,
-	.power_off = rkvdec_power_off,
+	.clk_on = rkvdec_clk_on,
+	.clk_off = rkvdec_clk_off,
 	.get_freq = rkvdec_3328_get_freq,
 	.set_freq = rkvdec_set_freq,
 	.reduce_freq = rkvdec_reduce_freq,

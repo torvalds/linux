@@ -947,7 +947,7 @@ static int rkvenc_reset(struct mpp_dev *mpp)
 	return 0;
 }
 
-static int rkvenc_power_on(struct mpp_dev *mpp)
+static int rkvenc_clk_on(struct mpp_dev *mpp)
 {
 	struct rkvenc_dev *enc = to_rkvenc_dev(mpp);
 
@@ -961,7 +961,7 @@ static int rkvenc_power_on(struct mpp_dev *mpp)
 	return 0;
 }
 
-static int rkvenc_power_off(struct mpp_dev *mpp)
+static int rkvenc_clk_off(struct mpp_dev *mpp)
 {
 	struct rkvenc_dev *enc = to_rkvenc_dev(mpp);
 
@@ -1027,8 +1027,8 @@ static int rkvenc_set_freq(struct mpp_dev *mpp,
 static struct mpp_hw_ops rkvenc_hw_ops = {
 	.init = rkvenc_init,
 	.exit = rkvenc_exit,
-	.power_on = rkvenc_power_on,
-	.power_off = rkvenc_power_off,
+	.clk_on = rkvenc_clk_on,
+	.clk_off = rkvenc_clk_off,
 	.get_freq = rkvenc_get_freq,
 	.set_freq = rkvenc_set_freq,
 	.reset = rkvenc_reset,
