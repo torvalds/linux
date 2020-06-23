@@ -136,6 +136,9 @@ static inline __u8 bitswap_1(unsigned char val)
 	       ((val & 0x02) << 5) |
 	       ((val & 0x01) << 7);
 }
+
+extern const char * const dcb_ver_array[];
+
 #define CXGB4_DCB_ENABLED true
 
 #else /* !CONFIG_CHELSIO_T4_DCB */
