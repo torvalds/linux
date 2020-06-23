@@ -2015,7 +2015,6 @@ out:
 /**
  * kvm_handle_guest_abort - handles all 2nd stage aborts
  * @vcpu:	the VCPU pointer
- * @run:	the kvm_run structure
  *
  * Any abort that gets to the host is almost guaranteed to be caused by a
  * missing second stage translation table entry, which can mean that either the
@@ -2024,7 +2023,7 @@ out:
  * space. The distinction is based on the IPA causing the fault and whether this
  * memory region has been registered as standard RAM by user space.
  */
-int kvm_handle_guest_abort(struct kvm_vcpu *vcpu, struct kvm_run *run)
+int kvm_handle_guest_abort(struct kvm_vcpu *vcpu)
 {
 	unsigned long fault_status;
 	phys_addr_t fault_ipa;
@@ -2103,7 +2102,7 @@ int kvm_handle_guest_abort(struct kvm_vcpu *vcpu, struct kvm_run *run)
 		 * of the page size.
 		 */
 		fault_ipa |= kvm_vcpu_get_hfar(vcpu) & ((1 << 12) - 1);
-		ret = io_mem_abort(vcpu, run, fault_ipa);
+		ret = io_mem_abort(vcpu, fault_ipa);
 		goto out_unlock;
 	}
 
