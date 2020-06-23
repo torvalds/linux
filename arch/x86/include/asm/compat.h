@@ -165,10 +165,13 @@ struct compat_shmid64_ds {
 typedef struct user_regs_struct compat_elf_gregset_t;
 
 /* Full regset -- prstatus on x32, otherwise on ia32 */
-#define PRSTATUS_SIZE(S, R) (R != sizeof(S.pr_reg) ? 144 : 296)
-#define SET_PR_FPVALID(S, V, R) \
-  do { *(int *) (((void *) &((S)->pr_reg)) + R) = (V); } \
-  while (0)
+#define COMPAT_PRSTATUS_SIZE (user_64bit_mode(task_pt_regs(current)) \
+	? sizeof(struct compat_elf_prstatus) \
+	: 144)
+#define COMPAT_SET_PR_FPVALID(S) \
+	(*(user_64bit_mode(task_pt_regs(current)) \
+	       ? &(S)->pr_fpvalid	\
+               : (int *)((void *)(S) + 140)) = 1)
 
 #ifdef CONFIG_X86_X32_ABI
 #define COMPAT_USE_64BIT_TIME \
