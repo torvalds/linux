@@ -393,6 +393,53 @@ static void fw_read_errors(struct hl_device *hdev, u32 boot_err0_reg)
 			"Device boot error - NIC F/W initialization failed\n");
 }
 
+static void hl_detect_cpu_boot_status(struct hl_device *hdev, u32 status)
+{
+	switch (status) {
+	case CPU_BOOT_STATUS_NA:
+		dev_err(hdev->dev,
+			"Device boot error - BTL did NOT run\n");
+		break;
+	case CPU_BOOT_STATUS_IN_WFE:
+		dev_err(hdev->dev,
+			"Device boot error - Stuck inside WFE loop\n");
+		break;
+	case CPU_BOOT_STATUS_IN_BTL:
+		dev_err(hdev->dev,
+			"Device boot error - Stuck in BTL\n");
+		break;
+	case CPU_BOOT_STATUS_IN_PREBOOT:
+		dev_err(hdev->dev,
+			"Device boot error - Stuck in Preboot\n");
+		break;
+	case CPU_BOOT_STATUS_IN_SPL:
+		dev_err(hdev->dev,
+			"Device boot error - Stuck in SPL\n");
+		break;
+	case CPU_BOOT_STATUS_IN_UBOOT:
+		dev_err(hdev->dev,
+			"Device boot error - Stuck in u-boot\n");
+		break;
+	case CPU_BOOT_STATUS_DRAM_INIT_FAIL:
+		dev_err(hdev->dev,
+			"Device boot error - DRAM initialization failed\n");
+		break;
+	case CPU_BOOT_STATUS_UBOOT_NOT_READY:
+		dev_err(hdev->dev,
+			"Device boot error - u-boot stopped by user\n");
+		break;
+	case CPU_BOOT_STATUS_TS_INIT_FAIL:
+		dev_err(hdev->dev,
+			"Device boot error - Thermal Sensor initialization failed\n");
+		break;
+	default:
+		dev_err(hdev->dev,
+			"Device boot error - Invalid status code %d\n",
+			status);
+		break;
+	}
+}
+
 int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
 			u32 msg_to_cpu_reg, u32 cpu_msg_status_reg,
 			u32 boot_err0_reg, bool skip_bmc,
@@ -466,50 +513,7 @@ int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
 	 * versions but we keep them here for backward compatibility
 	 */
 	if (rc) {
-		switch (status) {
-		case CPU_BOOT_STATUS_NA:
-			dev_err(hdev->dev,
-				"Device boot error - BTL did NOT run\n");
-			break;
-		case CPU_BOOT_STATUS_IN_WFE:
-			dev_err(hdev->dev,
-				"Device boot error - Stuck inside WFE loop\n");
-			break;
-		case CPU_BOOT_STATUS_IN_BTL:
-			dev_err(hdev->dev,
-				"Device boot error - Stuck in BTL\n");
-			break;
-		case CPU_BOOT_STATUS_IN_PREBOOT:
-			dev_err(hdev->dev,
-				"Device boot error - Stuck in Preboot\n");
-			break;
-		case CPU_BOOT_STATUS_IN_SPL:
-			dev_err(hdev->dev,
-				"Device boot error - Stuck in SPL\n");
-			break;
-		case CPU_BOOT_STATUS_IN_UBOOT:
-			dev_err(hdev->dev,
-				"Device boot error - Stuck in u-boot\n");
-			break;
-		case CPU_BOOT_STATUS_DRAM_INIT_FAIL:
-			dev_err(hdev->dev,
-				"Device boot error - DRAM initialization failed\n");
-			break;
-		case CPU_BOOT_STATUS_UBOOT_NOT_READY:
-			dev_err(hdev->dev,
-				"Device boot error - u-boot stopped by user\n");
-			break;
-		case CPU_BOOT_STATUS_TS_INIT_FAIL:
-			dev_err(hdev->dev,
-				"Device boot error - Thermal Sensor initialization failed\n");
-			break;
-		default:
-			dev_err(hdev->dev,
-				"Device boot error - Invalid status code %d\n",
-				status);
-			break;
-		}
-
+		hl_detect_cpu_boot_status(hdev, status);
 		rc = -EIO;
 		goto out;
 	}
