@@ -3219,6 +3219,9 @@ static int ccs_probe(struct i2c_client *client)
 			sensor->pll.op_lanes = sensor->pll.csi2.lanes;
 		}
 	}
+	if (CCS_LIM(sensor, CLOCK_TREE_PLL_CAPABILITY) &
+	    CCS_CLOCK_TREE_PLL_CAPABILITY_EXT_DIVIDER)
+		sensor->pll.flags |= CCS_PLL_FLAG_EXT_IP_PLL_DIVIDER;
 	sensor->pll.ext_clk_freq_hz = sensor->hwcfg.ext_clk;
 	sensor->pll.scale_n = CCS_LIM(sensor, SCALER_N_MIN);
 

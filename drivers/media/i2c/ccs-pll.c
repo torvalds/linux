@@ -478,7 +478,9 @@ int ccs_pll_calculate(struct device *dev, const struct ccs_pll_limits *lim,
 
 	for (op_pll_fr->pre_pll_clk_div = min_op_pre_pll_clk_div;
 	     op_pll_fr->pre_pll_clk_div <= max_op_pre_pll_clk_div;
-	     op_pll_fr->pre_pll_clk_div += 2 - (op_pll_fr->pre_pll_clk_div & 1)) {
+	     op_pll_fr->pre_pll_clk_div +=
+		     (pll->flags & CCS_PLL_FLAG_EXT_IP_PLL_DIVIDER) ? 1 :
+		     2 - (op_pll_fr->pre_pll_clk_div & 1)) {
 		rval = __ccs_pll_calculate(dev, lim, op_lim_fr, op_lim_bk, pll,
 					   op_pll_fr, op_pll_bk, mul, div);
 		if (rval)
