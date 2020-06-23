@@ -11913,7 +11913,8 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->ethtool_ops = &bnxt_ethtool_ops;
 	pci_set_drvdata(pdev, dev);
 
-	bnxt_vpd_read_info(bp);
+	if (BNXT_PF(bp))
+		bnxt_vpd_read_info(bp);
 
 	rc = bnxt_alloc_hwrm_resources(bp);
 	if (rc)
