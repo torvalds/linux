@@ -4148,7 +4148,8 @@ static int direct_page_fault(struct kvm_vcpu *vcpu, gpa_t gpa, u32 error_code,
 	spin_lock(&vcpu->kvm->mmu_lock);
 	if (mmu_notifier_retry(vcpu->kvm, mmu_seq))
 		goto out_unlock;
-	if (make_mmu_pages_available(vcpu) < 0)
+	r = make_mmu_pages_available(vcpu);
+	if (r)
 		goto out_unlock;
 	r = __direct_map(vcpu, gpa, write, map_writable, max_level, pfn,
 			 prefault, is_tdp && lpage_disallowed);
