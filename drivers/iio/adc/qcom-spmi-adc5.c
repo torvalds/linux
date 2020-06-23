@@ -449,6 +449,11 @@ unlock:
 	return ret;
 }
 
+typedef int (*adc_do_conversion)(struct adc5_chip *adc,
+			struct adc5_channel_prop *prop,
+			struct iio_chan_spec const *chan,
+			u16 *data_volt, u16 *data_cur);
+
 static irqreturn_t adc5_isr(int irq, void *dev_id)
 {
 	struct adc5_chip *adc = dev_id;
@@ -487,9 +492,9 @@ static int adc7_of_xlate(struct iio_dev *indio_dev,
 	return -EINVAL;
 }
 
-static int adc5_read_raw(struct iio_dev *indio_dev,
+static int adc_read_raw_common(struct iio_dev *indio_dev,
 			 struct iio_chan_spec const *chan, int *val, int *val2,
-			 long mask)
+			 long mask, adc_do_conversion do_conv)
 {
 	struct adc5_chip *adc = iio_priv(indio_dev);
 	struct adc5_channel_prop *prop;
@@ -500,8 +505,8 @@ static int adc5_read_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_PROCESSED:
-		ret = adc5_do_conversion(adc, prop, chan,
-				&adc_code_volt, &adc_code_cur);
+		ret = do_conv(adc, prop, chan,
+					&adc_code_volt, &adc_code_cur);
 		if (ret)
 			return ret;
 
@@ -518,36 +523,20 @@ static int adc5_read_raw(struct iio_dev *indio_dev,
 	}
 }
 
+static int adc5_read_raw(struct iio_dev *indio_dev,
+			 struct iio_chan_spec const *chan, int *val, int *val2,
+			 long mask)
+{
+	return adc_read_raw_common(indio_dev, chan, val, val2,
+				mask, adc5_do_conversion);
+}
+
 static int adc7_read_raw(struct iio_dev *indio_dev,
 			 struct iio_chan_spec const *chan, int *val, int *val2,
 			 long mask)
 {
-	struct adc5_chip *adc = iio_priv(indio_dev);
-	struct adc5_channel_prop *prop;
-	u16 adc_code_volt, adc_code_cur;
-	int ret;
-
-	prop = &adc->chan_props[chan->address];
-
-	switch (mask) {
-	case IIO_CHAN_INFO_PROCESSED:
-		ret = adc7_do_conversion(adc, prop, chan,
-					&adc_code_volt, &adc_code_cur);
-		if (ret)
-			return ret;
-
-		ret = qcom_adc5_hw_scale(prop->scale_fn_type,
-			&adc5_prescale_ratios[prop->prescale],
-			adc->data,
-			adc_code_volt, val);
-
-		if (ret)
-			return ret;
-
-		return IIO_VAL_INT;
-	default:
-		return -EINVAL;
-	}
+	return adc_read_raw_common(indio_dev, chan, val, val2,
+				mask, adc7_do_conversion);
 }
 
 static const struct iio_info adc5_info = {
