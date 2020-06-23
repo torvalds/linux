@@ -2001,8 +2001,7 @@ void btrfs_put_root(struct btrfs_root *root)
 		if (root->anon_dev)
 			free_anon_bdev(root->anon_dev);
 		btrfs_drew_lock_destroy(&root->snapshot_lock);
-		free_extent_buffer(root->node);
-		free_extent_buffer(root->commit_root);
+		free_root_extent_buffers(root);
 		kfree(root->free_ino_ctl);
 		kfree(root->free_ino_pinned);
 #ifdef CONFIG_BTRFS_DEBUG
