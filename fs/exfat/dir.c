@@ -606,13 +606,16 @@ void exfat_update_dir_chksum_with_entry_set(struct exfat_entry_set_cache *es)
 
 void exfat_free_dentry_set(struct exfat_entry_set_cache *es, int sync)
 {
-	int i;
+	int i, err = 0;
 
-	for (i = 0; i < es->num_bh; i++) {
-		if (es->modified)
-			exfat_update_bh(es->bh[i], sync);
-		brelse(es->bh[i]);
-	}
+	if (es->modified)
+		err = exfat_update_bhs(es->bh, es->num_bh, sync);
+
+	for (i = 0; i < es->num_bh; i++)
+		if (err)
+			bforget(es->bh[i]);
+		else
+			brelse(es->bh[i]);
 	kfree(es);
 }
 
