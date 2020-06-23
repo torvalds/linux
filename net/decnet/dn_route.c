@@ -670,7 +670,7 @@ int dn_route_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type
 	if (decnet_debug_level & 1)
 		printk(KERN_DEBUG
 			"dn_route_rcv: got 0x%02x from %s [%d %d %d]\n",
-			(int)flags, (dev) ? dev->name : "???", len, skb->len,
+			(int)flags, dev->name, len, skb->len,
 			padlen);
 
 	if (flags & DN_RT_PKT_CNTL) {
