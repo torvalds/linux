@@ -252,6 +252,7 @@ enum rgmii_clock_delay {
 /* Test page Registers */
 #define MSCC_PHY_TEST_PAGE_5		  5
 #define MSCC_PHY_TEST_PAGE_8		  8
+#define TR_CLK_DISABLE			  0x8000
 #define MSCC_PHY_TEST_PAGE_9		  9
 #define MSCC_PHY_TEST_PAGE_20		  20
 #define MSCC_PHY_TEST_PAGE_24		  24

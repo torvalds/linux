@@ -629,7 +629,7 @@ static int vsc8531_pre_init_seq_set(struct phy_device *phydev)
 	if (rc < 0)
 		return rc;
 	rc = phy_modify_paged(phydev, MSCC_PHY_PAGE_TEST,
-			      MSCC_PHY_TEST_PAGE_8, 0x8000, 0x8000);
+			      MSCC_PHY_TEST_PAGE_8, TR_CLK_DISABLE, TR_CLK_DISABLE);
 	if (rc < 0)
 		return rc;
 
@@ -1026,7 +1026,7 @@ static int vsc8574_config_pre_init(struct phy_device *phydev)
 	phy_base_write(phydev, MSCC_PHY_TEST_PAGE_5, 0x1b20);
 
 	reg = phy_base_read(phydev, MSCC_PHY_TEST_PAGE_8);
-	reg |= 0x8000;
+	reg |= TR_CLK_DISABLE;
 	phy_base_write(phydev, MSCC_PHY_TEST_PAGE_8, reg);
 
 	phy_base_write(phydev, MSCC_EXT_PAGE_ACCESS, MSCC_PHY_PAGE_TR);
@@ -1046,7 +1046,7 @@ static int vsc8574_config_pre_init(struct phy_device *phydev)
 	phy_base_write(phydev, MSCC_EXT_PAGE_ACCESS, MSCC_PHY_PAGE_TEST);
 
 	reg = phy_base_read(phydev, MSCC_PHY_TEST_PAGE_8);
-	reg &= ~0x8000;
+	reg &= ~TR_CLK_DISABLE;
 	phy_base_write(phydev, MSCC_PHY_TEST_PAGE_8, reg);
 
 	phy_base_write(phydev, MSCC_EXT_PAGE_ACCESS, MSCC_PHY_PAGE_STANDARD);
@@ -1196,7 +1196,7 @@ static int vsc8584_config_pre_init(struct phy_device *phydev)
 	phy_base_write(phydev, MSCC_PHY_TEST_PAGE_5, 0x1f20);
 
 	reg = phy_base_read(phydev, MSCC_PHY_TEST_PAGE_8);
-	reg |= 0x8000;
+	reg |= TR_CLK_DISABLE;
 	phy_base_write(phydev, MSCC_PHY_TEST_PAGE_8, reg);
 
 	phy_base_write(phydev, MSCC_EXT_PAGE_ACCESS, MSCC_PHY_PAGE_TR);
@@ -1225,7 +1225,7 @@ static int vsc8584_config_pre_init(struct phy_device *phydev)
 	phy_base_write(phydev, MSCC_EXT_PAGE_ACCESS, MSCC_PHY_PAGE_TEST);
 
 	reg = phy_base_read(phydev, MSCC_PHY_TEST_PAGE_8);
-	reg &= ~0x8000;
+	reg &= ~TR_CLK_DISABLE;
 	phy_base_write(phydev, MSCC_PHY_TEST_PAGE_8, reg);
 
 	phy_base_write(phydev, MSCC_EXT_PAGE_ACCESS, MSCC_PHY_PAGE_STANDARD);
