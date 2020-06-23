@@ -583,7 +583,7 @@ devlink_nl_port_function_attrs_put(struct sk_buff *msg, struct devlink_port *por
 
 	ops = devlink->ops;
 	if (ops->port_function_hw_addr_get) {
-		int uninitialized_var(hw_addr_len);
+		int hw_addr_len;
 		u8 hw_addr[MAX_ADDR_LEN];
 
 		err = ops->port_function_hw_addr_get(devlink, port, hw_addr, &hw_addr_len, extack);
