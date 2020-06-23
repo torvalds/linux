@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: (GPL-2.0 OR MIT)
 /*
- * Driver for Microsemi VSC85xx PHYs
+ * Driver for Microsemi VSC85xx PHYs - MACsec support
  *
- * Author: Nagaraju Lakkaraju
+ * Author: Antoine Tenart
  * License: Dual MIT/GPL
- * Copyright (c) 2016 Microsemi Corporation
+ * Copyright (c) 2020 Microsemi Corporation
  */
 
 #include <linux/phy.h>
