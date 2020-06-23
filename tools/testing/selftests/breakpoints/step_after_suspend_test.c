@@ -183,6 +183,10 @@ int main(int argc, char **argv)
 		}
 	}
 
+	err = sched_getaffinity(0, sizeof(available_cpus), &available_cpus);
+	if (err < 0)
+		ksft_exit_fail_msg("sched_getaffinity() failed\n");
+
 	for (cpu = 0; cpu < CPU_SETSIZE; cpu++) {
 		if (!CPU_ISSET(cpu, &available_cpus))
 			continue;
@@ -192,10 +196,6 @@ int main(int argc, char **argv)
 
 	if (do_suspend)
 		suspend();
-
-	err = sched_getaffinity(0, sizeof(available_cpus), &available_cpus);
-	if (err < 0)
-		ksft_exit_fail_msg("sched_getaffinity() failed\n");
 
 	for (cpu = 0; cpu < CPU_SETSIZE; cpu++) {
 		bool test_success;
