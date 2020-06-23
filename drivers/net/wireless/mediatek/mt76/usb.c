@@ -1010,17 +1010,18 @@ static void mt76u_tx_kick(struct mt76_dev *dev, struct mt76_queue *q)
 static u8 mt76u_ac_to_hwq(struct mt76_dev *dev, u8 ac)
 {
 	if (mt76_chip(dev) == 0x7663) {
-		static const u8 wmm_queue_map[] = {
-			[IEEE80211_AC_VO] = 0,
-			[IEEE80211_AC_VI] = 1,
-			[IEEE80211_AC_BE] = 2,
-			[IEEE80211_AC_BK] = 4,
+		static const u8 lmac_queue_map[] = {
+			/* ac to lmac mapping */
+			[IEEE80211_AC_BK] = 0,
+			[IEEE80211_AC_BE] = 1,
+			[IEEE80211_AC_VI] = 2,
+			[IEEE80211_AC_VO] = 4,
 		};
 
-		if (WARN_ON(ac >= ARRAY_SIZE(wmm_queue_map)))
-			return 2; /* BE */
+		if (WARN_ON(ac >= ARRAY_SIZE(lmac_queue_map)))
+			return 1; /* BE */
 
-		return wmm_queue_map[ac];
+		return lmac_queue_map[ac];
 	}
 
 	return mt76_ac_to_hwq(ac);

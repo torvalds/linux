@@ -282,6 +282,21 @@ struct mt7615_dev {
 	struct list_head wd_head;
 };
 
+enum tx_pkt_queue_idx {
+	MT_LMAC_AC00,
+	MT_LMAC_AC01,
+	MT_LMAC_AC02,
+	MT_LMAC_AC03,
+	MT_LMAC_ALTX0 = 0x10,
+	MT_LMAC_BMC0,
+	MT_LMAC_BCN0,
+	MT_LMAC_PSMP0,
+	MT_LMAC_ALTX1,
+	MT_LMAC_BMC1,
+	MT_LMAC_BCN1,
+	MT_LMAC_PSMP1,
+};
+
 enum {
 	HW_BSSID_0 = 0x0,
 	HW_BSSID_1,
@@ -445,6 +460,21 @@ static inline u16 mt7615_wtbl_size(struct mt7615_dev *dev)
 		return MT7663_WTBL_SIZE;
 	else
 		return MT7615_WTBL_SIZE;
+}
+
+static inline u8 mt7615_lmac_mapping(struct mt7615_dev *dev, u8 ac)
+{
+	static const u8 lmac_queue_map[] = {
+		[IEEE80211_AC_BK] = MT_LMAC_AC00,
+		[IEEE80211_AC_BE] = MT_LMAC_AC01,
+		[IEEE80211_AC_VI] = MT_LMAC_AC02,
+		[IEEE80211_AC_VO] = MT_LMAC_AC03,
+	};
+
+	if (WARN_ON_ONCE(ac >= ARRAY_SIZE(lmac_queue_map)))
+		return MT_LMAC_AC01; /* BE */
+
+	return lmac_queue_map[ac];
 }
 
 void mt7615_dma_reset(struct mt7615_dev *dev);

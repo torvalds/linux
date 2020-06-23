@@ -301,6 +301,7 @@ struct mt76_hw_cap {
 #define MT_DRV_TX_ALIGNED4_SKBS		BIT(1)
 #define MT_DRV_SW_RX_AIRTIME		BIT(2)
 #define MT_DRV_RX_DMA_HDR		BIT(3)
+#define MT_DRV_HW_MGMT_TXQ		BIT(4)
 
 struct mt76_driver_ops {
 	u32 drv_flags;

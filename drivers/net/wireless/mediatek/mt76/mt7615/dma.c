@@ -36,10 +36,10 @@ static int
 mt7622_init_tx_queues_multi(struct mt7615_dev *dev)
 {
 	static const u8 wmm_queue_map[] = {
-		MT7622_TXQ_AC0,
-		MT7622_TXQ_AC1,
-		MT7622_TXQ_AC2,
-		MT7622_TXQ_AC3,
+		[IEEE80211_AC_BK] = MT7622_TXQ_AC0,
+		[IEEE80211_AC_BE] = MT7622_TXQ_AC1,
+		[IEEE80211_AC_VI] = MT7622_TXQ_AC2,
+		[IEEE80211_AC_VO] = MT7622_TXQ_AC3,
 	};
 	int ret;
 	int i;
@@ -100,6 +100,7 @@ mt7615_tx_cleanup(struct mt7615_dev *dev)
 	int i;
 
 	mt76_queue_tx_cleanup(dev, MT_TXQ_MCU, false);
+	mt76_queue_tx_cleanup(dev, MT_TXQ_PSD, false);
 	if (is_mt7615(&dev->mt76)) {
 		mt76_queue_tx_cleanup(dev, MT_TXQ_BE, false);
 	} else {

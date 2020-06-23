@@ -716,9 +716,12 @@ static void
 mt7915_set_coverage_class(struct ieee80211_hw *hw, s16 coverage_class)
 {
 	struct mt7915_phy *phy = mt7915_hw_phy(hw);
+	struct mt7915_dev *dev = phy->dev;
 
+	mutex_lock(&dev->mt76.mutex);
 	phy->coverage_class = max_t(s16, coverage_class, 0);
 	mt7915_mac_set_timing(phy);
+	mutex_unlock(&dev->mt76.mutex);
 }
 
 static int
