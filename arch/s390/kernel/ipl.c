@@ -156,6 +156,7 @@ static struct ipl_parameter_block *dump_block_ccw;
 
 static struct sclp_ipl_info sclp_ipl_info;
 
+static bool reipl_nvme_clear;
 static bool reipl_fcp_clear;
 static bool reipl_ccw_clear;
 
@@ -886,6 +887,24 @@ static struct attribute_group reipl_nvme_attr_group = {
 	.bin_attrs = reipl_nvme_bin_attrs
 };
 
+static ssize_t reipl_nvme_clear_show(struct kobject *kobj,
+				     struct kobj_attribute *attr, char *page)
+{
+	return sprintf(page, "%u\n", reipl_nvme_clear);
+}
+
+static ssize_t reipl_nvme_clear_store(struct kobject *kobj,
+				      struct kobj_attribute *attr,
+				      const char *buf, size_t len)
+{
+	if (strtobool(buf, &reipl_nvme_clear) < 0)
+		return -EINVAL;
+	return len;
+}
+
+static struct kobj_attribute sys_reipl_nvme_clear_attr =
+	__ATTR(clear, 0644, reipl_nvme_clear_show, reipl_nvme_clear_store);
+
 /* CCW reipl device attributes */
 DEFINE_IPL_CCW_ATTR_RW(reipl_ccw, device, reipl_block_ccw->ccw);
 
@@ -1112,7 +1131,10 @@ static void __reipl_run(void *unused)
 		break;
 	case IPL_TYPE_NVME:
 		diag308(DIAG308_SET, reipl_block_nvme);
-		diag308(DIAG308_LOAD_CLEAR, NULL);
+		if (reipl_nvme_clear)
+			diag308(DIAG308_LOAD_CLEAR, NULL);
+		else
+			diag308(DIAG308_LOAD_NORMAL, NULL);
 		break;
 	case IPL_TYPE_NSS:
 		diag308(DIAG308_SET, reipl_block_nss);
@@ -1233,8 +1255,9 @@ static int __init reipl_fcp_init(void)
 				       &sys_reipl_fcp_clear_attr.attr);
 		if (rc)
 			goto out2;
-	} else
+	} else {
 		reipl_fcp_clear = true;
+	}
 
 	if (ipl_info.type == IPL_TYPE_FCP) {
 		memcpy(reipl_block_fcp, &ipl_block, sizeof(ipl_block));
@@ -1280,10 +1303,16 @@ static int __init reipl_nvme_init(void)
 	}
 
 	rc = sysfs_create_group(&reipl_nvme_kset->kobj, &reipl_nvme_attr_group);
-	if (rc) {
-		kset_unregister(reipl_nvme_kset);
-		free_page((unsigned long) reipl_block_nvme);
-		return rc;
+	if (rc)
+		goto out1;
+
+	if (test_facility(141)) {
+		rc = sysfs_create_file(&reipl_nvme_kset->kobj,
+				       &sys_reipl_nvme_clear_attr.attr);
+		if (rc)
+			goto out2;
+	} else {
+		reipl_nvme_clear = true;
 	}
 
 	if (ipl_info.type == IPL_TYPE_NVME) {
@@ -1304,6 +1333,13 @@ static int __init reipl_nvme_init(void)
 	}
 	reipl_capabilities |= IPL_TYPE_NVME;
 	return 0;
+
+out2:
+	sysfs_remove_group(&reipl_nvme_kset->kobj, &reipl_nvme_attr_group);
+out1:
+	kset_unregister(reipl_nvme_kset);
+	free_page((unsigned long) reipl_block_nvme);
+	return rc;
 }
 
 static int __init reipl_type_init(void)
