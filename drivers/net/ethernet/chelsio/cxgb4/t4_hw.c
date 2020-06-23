@@ -3752,7 +3752,6 @@ int t4_phy_fw_ver(struct adapter *adap, int *phy_fw_ver)
  *	t4_load_phy_fw - download port PHY firmware
  *	@adap: the adapter
  *	@win: the PCI-E Memory Window index to use for t4_memory_rw()
- *	@win_lock: the lock to use to guard the memory copy
  *	@phy_fw_version: function to check PHY firmware versions
  *	@phy_fw_data: the PHY firmware image to write
  *	@phy_fw_size: image size
@@ -3761,9 +3760,7 @@ int t4_phy_fw_ver(struct adapter *adap, int *phy_fw_ver)
  *	@phy_fw_version is supplied, then it will be used to determine if
  *	it's necessary to perform the transfer by comparing the version
  *	of any existing adapter PHY firmware with that of the passed in
- *	PHY firmware image.  If @win_lock is non-NULL then it will be used
- *	around the call to t4_memory_rw() which transfers the PHY firmware
- *	to the adapter.
+ *	PHY firmware image.
  *
  *	A negative error number will be returned if an error occurs.  If
  *	version number support is available and there's no need to upgrade
@@ -3775,14 +3772,13 @@ int t4_phy_fw_ver(struct adapter *adap, int *phy_fw_ver)
  *	contents.  Thus, loading PHY firmware on such adapters must happen
  *	after any FW_RESET_CMDs ...
  */
-int t4_load_phy_fw(struct adapter *adap,
-		   int win, spinlock_t *win_lock,
+int t4_load_phy_fw(struct adapter *adap, int win,
 		   int (*phy_fw_version)(const u8 *, size_t),
 		   const u8 *phy_fw_data, size_t phy_fw_size)
 {
+	int cur_phy_fw_ver = 0, new_phy_fw_vers = 0;
 	unsigned long mtype = 0, maddr = 0;
 	u32 param, val;
-	int cur_phy_fw_ver = 0, new_phy_fw_vers = 0;
 	int ret;
 
 	/* If we have version number support, then check to see if the adapter
@@ -3822,13 +3818,9 @@ int t4_load_phy_fw(struct adapter *adap,
 	/* Copy the supplied PHY Firmware image to the adapter memory location
 	 * allocated by the adapter firmware.
 	 */
-	if (win_lock)
-		spin_lock_bh(win_lock);
 	ret = t4_memory_rw(adap, win, mtype, maddr,
 			   phy_fw_size, (__be32 *)phy_fw_data,
 			   T4_MEMORY_WRITE);
-	if (win_lock)
-		spin_unlock_bh(win_lock);
 	if (ret)
 		return ret;
 

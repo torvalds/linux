@@ -1305,8 +1305,9 @@ static int cxgb4_ethtool_flash_phy(struct net_device *netdev,
 		return ret;
 	}
 
-	ret = t4_load_phy_fw(adap, MEMWIN_NIC, &adap->win0_lock,
-			     NULL, data, size);
+	spin_lock_bh(&adap->win0_lock);
+	ret = t4_load_phy_fw(adap, MEMWIN_NIC, NULL, data, size);
+	spin_unlock_bh(&adap->win0_lock);
 	if (ret)
 		dev_err(adap->pdev_dev, "Failed to load PHY FW\n");
 
