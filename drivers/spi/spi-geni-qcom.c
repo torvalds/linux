@@ -194,14 +194,42 @@ static void spi_setup_word_len(struct spi_geni_master *mas, u16 mode,
 	writel(word_len, se->base + SE_SPI_WORD_LEN);
 }
 
+static int geni_spi_set_clock(struct spi_geni_master *mas, unsigned long clk_hz)
+{
+	u32 clk_sel, m_clk_cfg, idx, div;
+	struct geni_se *se = &mas->se;
+	int ret;
+
+	ret = get_spi_clk_cfg(clk_hz, mas, &idx, &div);
+	if (ret) {
+		dev_err(mas->dev, "Err setting clk to %lu: %d\n", clk_hz, ret);
+		return ret;
+	}
+
+	/*
+	 * SPI core clock gets configured with the requested frequency
+	 * or the frequency closer to the requested frequency.
+	 * For that reason requested frequency is stored in the
+	 * cur_speed_hz and referred in the consecutive transfer instead
+	 * of calling clk_get_rate() API.
+	 */
+	mas->cur_speed_hz = clk_hz;
+
+	clk_sel = idx & CLK_SEL_MSK;
+	m_clk_cfg = (div << CLK_DIV_SHFT) | SER_CLK_EN;
+	writel(clk_sel, se->base + SE_GENI_CLK_SEL);
+	writel(m_clk_cfg, se->base + GENI_SER_M_CLK_CFG);
+
+	return 0;
+}
+
 static int setup_fifo_params(struct spi_device *spi_slv,
 					struct spi_master *spi)
 {
 	struct spi_geni_master *mas = spi_master_get_devdata(spi);
 	struct geni_se *se = &mas->se;
 	u32 loopback_cfg, cpol, cpha, demux_output_inv;
-	u32 demux_sel, clk_sel, m_clk_cfg, idx, div;
-	int ret;
+	u32 demux_sel;
 
 	loopback_cfg = readl(se->base + SE_SPI_LOOPBACK);
 	cpol = readl(se->base + SE_SPI_CPOL);
@@ -224,27 +252,16 @@ static int setup_fifo_params(struct spi_device *spi_slv,
 		demux_output_inv = BIT(spi_slv->chip_select);
 
 	demux_sel = spi_slv->chip_select;
-	mas->cur_speed_hz = spi_slv->max_speed_hz;
 	mas->cur_bits_per_word = spi_slv->bits_per_word;
 
-	ret = get_spi_clk_cfg(mas->cur_speed_hz, mas, &idx, &div);
-	if (ret) {
-		dev_err(mas->dev, "Err setting clks ret(%d) for %ld\n",
-							ret, mas->cur_speed_hz);
-		return ret;
-	}
-
-	clk_sel = idx & CLK_SEL_MSK;
-	m_clk_cfg = (div << CLK_DIV_SHFT) | SER_CLK_EN;
 	spi_setup_word_len(mas, spi_slv->mode, spi_slv->bits_per_word);
 	writel(loopback_cfg, se->base + SE_SPI_LOOPBACK);
 	writel(demux_sel, se->base + SE_SPI_DEMUX_SEL);
 	writel(cpha, se->base + SE_SPI_CPHA);
 	writel(cpol, se->base + SE_SPI_CPOL);
 	writel(demux_output_inv, se->base + SE_SPI_DEMUX_OUTPUT_INV);
-	writel(clk_sel, se->base + SE_GENI_CLK_SEL);
-	writel(m_clk_cfg, se->base + GENI_SER_M_CLK_CFG);
-	return 0;
+
+	return geni_spi_set_clock(mas, spi_slv->max_speed_hz);
 }
 
 static int spi_geni_prepare_message(struct spi_master *spi,
@@ -306,6 +323,7 @@ static void setup_fifo_xfer(struct spi_transfer *xfer,
 	u32 m_cmd = 0;
 	u32 spi_tx_cfg, len;
 	struct geni_se *se = &mas->se;
+	int ret;
 
 	spi_tx_cfg = readl(se->base + SE_SPI_TRANS_CFG);
 	if (xfer->bits_per_word != mas->cur_bits_per_word) {
@@ -315,27 +333,9 @@ static void setup_fifo_xfer(struct spi_transfer *xfer,
 
 	/* Speed and bits per word can be overridden per transfer */
 	if (xfer->speed_hz != mas->cur_speed_hz) {
-		int ret;
-		u32 clk_sel, m_clk_cfg;
-		unsigned int idx, div;
-
-		ret = get_spi_clk_cfg(xfer->speed_hz, mas, &idx, &div);
-		if (ret) {
-			dev_err(mas->dev, "Err setting clks:%d\n", ret);
+		ret = geni_spi_set_clock(mas, xfer->speed_hz);
+		if (ret)
 			return;
-		}
-		/*
-		 * SPI core clock gets configured with the requested frequency
-		 * or the frequency closer to the requested frequency.
-		 * For that reason requested frequency is stored in the
-		 * cur_speed_hz and referred in the consecutive transfer instead
-		 * of calling clk_get_rate() API.
-		 */
-		mas->cur_speed_hz = xfer->speed_hz;
-		clk_sel = idx & CLK_SEL_MSK;
-		m_clk_cfg = (div << CLK_DIV_SHFT) | SER_CLK_EN;
-		writel(clk_sel, se->base + SE_GENI_CLK_SEL);
-		writel(m_clk_cfg, se->base + GENI_SER_M_CLK_CFG);
 	}
 
 	mas->tx_rem_bytes = 0;
