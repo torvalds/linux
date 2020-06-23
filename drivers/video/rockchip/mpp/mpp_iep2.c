@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2020 Fuzhou Rockchip Electronics Co., Ltd
+ * Copyright (c) 2020 Rockchip Electronics Co., Ltd.
  *
  * author:
  *	Ding Wei, leo.ding@rock-chips.com
@@ -196,7 +196,8 @@ struct iep2_output {
 struct iep_task {
 	struct mpp_task mpp_task;
 	struct mpp_hw_info *hw_info;
-	unsigned long aclk_freq;
+
+	enum MPP_CLOCK_MODE clk_mode;
 	struct iep2_params params;
 	struct iep2_output output;
 
@@ -212,13 +213,12 @@ struct iep_task {
 struct iep2_dev {
 	struct mpp_dev mpp;
 
-	struct clk *aclk;
-	struct clk *hclk;
-	struct clk *sclk;
+	struct mpp_clk_info aclk_info;
+	struct mpp_clk_info hclk_info;
+	struct mpp_clk_info sclk_info;
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs;
 #endif
-	u32 aclk_debug;
 
 	struct reset_control *rst_a;
 	struct reset_control *rst_h;
@@ -347,6 +347,7 @@ static void *iep2_alloc_task(struct mpp_session *session,
 		if (ret)
 			goto fail;
 	}
+	task->clk_mode = CLK_MODE_NORMAL;
 
 	mpp_debug_leave();
 
@@ -772,7 +773,6 @@ static int iep2_debugfs_init(struct mpp_dev *mpp)
 {
 	struct iep2_dev *iep = to_iep2_dev(mpp);
 
-	iep->aclk_debug = 0;
 	iep->debugfs = debugfs_create_dir(mpp->dev->of_node->name,
 					  mpp->srv->debugfs);
 	if (IS_ERR_OR_NULL(iep->debugfs)) {
@@ -781,7 +781,7 @@ static int iep2_debugfs_init(struct mpp_dev *mpp)
 		return -EIO;
 	}
 	debugfs_create_u32("aclk", 0644,
-			   iep->debugfs, &iep->aclk_debug);
+			   iep->debugfs, &iep->aclk_info.debug_rate_hz);
 	debugfs_create_u32("session_buffers", 0644,
 			   iep->debugfs, &mpp->session_max_buffers);
 
@@ -804,25 +804,24 @@ static inline int iep2_debugfs_init(struct mpp_dev *mpp)
 
 static int iep2_init(struct mpp_dev *mpp)
 {
+	int ret;
 	struct iep2_dev *iep = to_iep2_dev(mpp);
 
 	mpp->grf_info = &mpp->srv->grf_infos[MPP_DRIVER_IEP2];
 
-	iep->aclk = devm_clk_get(mpp->dev, "aclk");
-	if (IS_ERR(iep->aclk)) {
+	/* Get clock info from dtsi */
+	ret = mpp_get_clk_info(mpp, &iep->aclk_info, "aclk");
+	if (ret)
 		mpp_err("failed on clk_get aclk\n");
-		iep->aclk = NULL;
-	}
-	iep->hclk = devm_clk_get(mpp->dev, "hclk");
-	if (IS_ERR(iep->hclk)) {
+	ret = mpp_get_clk_info(mpp, &iep->hclk_info, "hclk");
+	if (ret)
 		mpp_err("failed on clk_get hclk\n");
-		iep->hclk = NULL;
-	}
-	iep->sclk = devm_clk_get(mpp->dev, "sclk");
-	if (IS_ERR(iep->sclk)) {
+	ret = mpp_get_clk_info(mpp, &iep->sclk_info, "sclk");
+	if (ret)
 		mpp_err("failed on clk_get sclk\n");
-		iep->sclk = NULL;
-	}
+	/* Set default rates */
+	mpp_set_clk_info_rate_hz(&iep->aclk_info, CLK_MODE_DEFAULT, 300 * MHZ);
+
 	iep->rst_a = devm_reset_control_get(mpp->dev, "rst_a");
 	if (IS_ERR_OR_NULL(iep->rst_a)) {
 		mpp_err("No aclk reset resource define\n");
@@ -855,12 +854,9 @@ static int iep2_clk_on(struct mpp_dev *mpp)
 {
 	struct iep2_dev *iep = to_iep2_dev(mpp);
 
-	if (iep->aclk)
-		clk_prepare_enable(iep->aclk);
-	if (iep->hclk)
-		clk_prepare_enable(iep->hclk);
-	if (iep->sclk)
-		clk_prepare_enable(iep->sclk);
+	mpp_clk_safe_enable(iep->aclk_info.clk);
+	mpp_clk_safe_enable(iep->hclk_info.clk);
+	mpp_clk_safe_enable(iep->sclk_info.clk);
 
 	return 0;
 }
@@ -869,22 +865,9 @@ static int iep2_clk_off(struct mpp_dev *mpp)
 {
 	struct iep2_dev *iep = to_iep2_dev(mpp);
 
-	if (iep->aclk)
-		clk_disable_unprepare(iep->aclk);
-	if (iep->hclk)
-		clk_disable_unprepare(iep->hclk);
-	if (iep->sclk)
-		clk_disable_unprepare(iep->sclk);
-
-	return 0;
-}
-
-static int iep2_get_freq(struct mpp_dev *mpp,
-			 struct mpp_task *mpp_task)
-{
-	struct iep_task *task = to_iep_task(mpp_task);
-
-	task->aclk_freq = 300;
+	mpp_clk_safe_disable(iep->aclk_info.clk);
+	mpp_clk_safe_disable(iep->hclk_info.clk);
+	mpp_clk_safe_disable(iep->sclk_info.clk);
 
 	return 0;
 }
@@ -895,11 +878,7 @@ static int iep2_set_freq(struct mpp_dev *mpp,
 	struct iep2_dev *iep = to_iep2_dev(mpp);
 	struct iep_task *task = to_iep_task(mpp_task);
 
-	/* check whether use debug freq */
-	task->aclk_freq = iep->aclk_debug ?
-			iep->aclk_debug : task->aclk_freq;
-
-	clk_set_rate(iep->aclk, task->aclk_freq * MHZ);
+	mpp_clk_set_rate(&iep->aclk_info, task->clk_mode);
 
 	return 0;
 }
@@ -908,8 +887,7 @@ static int iep2_reduce_freq(struct mpp_dev *mpp)
 {
 	struct iep2_dev *iep = to_iep2_dev(mpp);
 
-	if (iep->aclk)
-		clk_set_rate(iep->aclk, 50 * MHZ);
+	mpp_clk_set_rate(&iep->aclk_info, CLK_MODE_REDUCE);
 
 	return 0;
 }
@@ -938,7 +916,6 @@ static struct mpp_hw_ops iep_v2_hw_ops = {
 	.init = iep2_init,
 	.clk_on = iep2_clk_on,
 	.clk_off = iep2_clk_off,
-	.get_freq = iep2_get_freq,
 	.set_freq = iep2_set_freq,
 	.reduce_freq = iep2_reduce_freq,
 	.reset = iep2_reset,

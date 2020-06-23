@@ -101,6 +101,16 @@ enum MPP_DEV_COMMAND_TYPE {
 	MPP_CMD_BUTT,
 };
 
+enum MPP_CLOCK_MODE {
+	CLK_MODE_BASE		= 0,
+	CLK_MODE_DEFAULT	= CLK_MODE_BASE,
+	CLK_MODE_DEBUG,
+	CLK_MODE_REDUCE,
+	CLK_MODE_NORMAL,
+	CLK_MODE_ADVANCED,
+	CLK_MODE_BUTT,
+};
+
 /* data common struct for parse out */
 struct mpp_request {
 	__u32 cmd;
@@ -155,6 +165,22 @@ struct reg_offset_elem {
 struct reg_offset_info {
 	u32 cnt;
 	struct reg_offset_elem elem[MPP_MAX_REG_TRANS_NUM];
+};
+
+struct mpp_clk_info {
+	struct clk *clk;
+
+	/* debug rate, from debugfs */
+	u32 debug_rate_hz;
+	/* normal rate, from dtsi */
+	u32 normal_rate_hz;
+	/* high performance rate, from dtsi */
+	u32 advanced_rate_hz;
+
+	u32 default_rate_hz;
+	u32 reduce_rate_hz;
+	/* record last used rate */
+	u32 used_rate_hz;
 };
 
 struct mpp_dev_var {
@@ -429,9 +455,6 @@ irqreturn_t mpp_dev_isr_sched(int irq, void *param);
 struct reset_control *
 mpp_reset_control_get(struct mpp_dev *mpp, const char *name);
 
-int mpp_safe_reset(struct reset_control *rst);
-int mpp_safe_unreset(struct reset_control *rst);
-
 u32 mpp_get_grf(struct mpp_grf_info *grf_info);
 int mpp_set_grf(struct mpp_grf_info *grf_info);
 
@@ -442,6 +465,17 @@ int mpp_write_req(struct mpp_dev *mpp, u32 *regs,
 		  u32 start_idx, u32 end_idx, u32 en_idx);
 int mpp_read_req(struct mpp_dev *mpp, u32 *regs,
 		 u32 start_idx, u32 end_idx);
+
+int mpp_get_clk_info(struct mpp_dev *mpp,
+		     struct mpp_clk_info *clk_info,
+		     const char *name);
+int mpp_set_clk_info_rate_hz(struct mpp_clk_info *clk_info,
+			     enum MPP_CLOCK_MODE mode,
+			     unsigned long val);
+unsigned long mpp_get_clk_info_rate_hz(struct mpp_clk_info *clk_info,
+				       enum MPP_CLOCK_MODE mode);
+int mpp_clk_set_rate(struct mpp_clk_info *clk_info,
+		     enum MPP_CLOCK_MODE mode);
 
 static inline int mpp_write(struct mpp_dev *mpp, u32 reg, u32 val)
 {
@@ -487,6 +521,38 @@ static inline u32 mpp_read_relaxed(struct mpp_dev *mpp, u32 reg)
 		  "read reg[%03d] %04x: 0x%08x\n", idx, reg, val);
 
 	return val;
+}
+
+static inline int mpp_safe_reset(struct reset_control *rst)
+{
+	if (rst)
+		reset_control_assert(rst);
+
+	return 0;
+}
+
+static inline int mpp_safe_unreset(struct reset_control *rst)
+{
+	if (rst)
+		reset_control_deassert(rst);
+
+	return 0;
+}
+
+static inline int mpp_clk_safe_enable(struct clk *clk)
+{
+	if (clk)
+		clk_prepare_enable(clk);
+
+	return 0;
+}
+
+static inline int mpp_clk_safe_disable(struct clk *clk)
+{
+	if (clk)
+		clk_disable_unprepare(clk);
+
+	return 0;
 }
 
 /* workaround according hardware */

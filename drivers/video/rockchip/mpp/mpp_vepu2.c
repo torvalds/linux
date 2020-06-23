@@ -77,7 +77,8 @@
 
 struct vepu_task {
 	struct mpp_task mpp_task;
-	unsigned long aclk_freq;
+
+	enum MPP_CLOCK_MODE clk_mode;
 	u32 reg[VEPU2_REG_NUM];
 
 	struct reg_offset_info off_inf;
@@ -92,12 +93,11 @@ struct vepu_task {
 struct vepu_dev {
 	struct mpp_dev mpp;
 
-	struct clk *aclk;
-	struct clk *hclk;
+	struct mpp_clk_info aclk_info;
+	struct mpp_clk_info hclk_info;
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs;
 #endif
-	u32 aclk_debug;
 
 	struct reset_control *rst_a;
 	struct reset_control *rst_h;
@@ -255,6 +255,7 @@ static void *vepu_alloc_task(struct mpp_session *session,
 		if (ret)
 			goto fail;
 	}
+	task->clk_mode = CLK_MODE_NORMAL;
 
 	mpp_debug_leave();
 
@@ -420,7 +421,6 @@ static int vepu_debugfs_init(struct mpp_dev *mpp)
 {
 	struct vepu_dev *enc = to_vepu_dev(mpp);
 
-	enc->aclk_debug = 0;
 	enc->debugfs = debugfs_create_dir(mpp->dev->of_node->name,
 					  mpp->srv->debugfs);
 	if (IS_ERR_OR_NULL(enc->debugfs)) {
@@ -429,7 +429,7 @@ static int vepu_debugfs_init(struct mpp_dev *mpp)
 		return -EIO;
 	}
 	debugfs_create_u32("aclk", 0644,
-			   enc->debugfs, &enc->aclk_debug);
+			   enc->debugfs, &enc->aclk_info.debug_rate_hz);
 	debugfs_create_u32("session_buffers", 0644,
 			   enc->debugfs, &mpp->session_max_buffers);
 
@@ -449,20 +449,20 @@ static inline int vepu_debugfs_init(struct mpp_dev *mpp)
 
 static int vepu_init(struct mpp_dev *mpp)
 {
+	int ret;
 	struct vepu_dev *enc = to_vepu_dev(mpp);
 
 	mpp->grf_info = &mpp->srv->grf_infos[MPP_DRIVER_VEPU2];
 
-	enc->aclk = devm_clk_get(mpp->dev, "aclk_vcodec");
-	if (IS_ERR(enc->aclk)) {
+	/* Get clock info from dtsi */
+	ret = mpp_get_clk_info(mpp, &enc->aclk_info, "aclk_vcodec");
+	if (ret)
 		mpp_err("failed on clk_get aclk_vcodec\n");
-		enc->aclk = NULL;
-	}
-	enc->hclk = devm_clk_get(mpp->dev, "hclk_vcodec");
-	if (IS_ERR(enc->hclk)) {
+	ret = mpp_get_clk_info(mpp, &enc->hclk_info, "hclk_vcodec");
+	if (ret)
 		mpp_err("failed on clk_get hclk_vcodec\n");
-		enc->hclk = NULL;
-	}
+	/* Set default rates */
+	mpp_set_clk_info_rate_hz(&enc->aclk_info, CLK_MODE_DEFAULT, 300 * MHZ);
 
 	enc->rst_a = mpp_reset_control_get(mpp, "video_a");
 	if (IS_ERR_OR_NULL(enc->rst_a)) {
@@ -488,10 +488,8 @@ static int vepu_clk_on(struct mpp_dev *mpp)
 {
 	struct vepu_dev *enc = to_vepu_dev(mpp);
 
-	if (enc->aclk)
-		clk_prepare_enable(enc->aclk);
-	if (enc->hclk)
-		clk_prepare_enable(enc->hclk);
+	mpp_clk_safe_enable(enc->aclk_info.clk);
+	mpp_clk_safe_enable(enc->hclk_info.clk);
 
 	return 0;
 }
@@ -500,20 +498,8 @@ static int vepu_clk_off(struct mpp_dev *mpp)
 {
 	struct vepu_dev *enc = to_vepu_dev(mpp);
 
-	if (enc->aclk)
-		clk_disable_unprepare(enc->aclk);
-	if (enc->hclk)
-		clk_disable_unprepare(enc->hclk);
-
-	return 0;
-}
-
-static int vepu_get_freq(struct mpp_dev *mpp,
-			 struct mpp_task *mpp_task)
-{
-	struct vepu_task *task = to_vepu_task(mpp_task);
-
-	task->aclk_freq = 300;
+	mpp_clk_safe_disable(enc->aclk_info.clk);
+	mpp_clk_safe_disable(enc->hclk_info.clk);
 
 	return 0;
 }
@@ -524,11 +510,7 @@ static int vepu_set_freq(struct mpp_dev *mpp,
 	struct vepu_dev *enc = to_vepu_dev(mpp);
 	struct vepu_task *task = to_vepu_task(mpp_task);
 
-	/* check whether use debug freq */
-	task->aclk_freq = enc->aclk_debug ?
-			enc->aclk_debug : task->aclk_freq;
-
-	clk_set_rate(enc->aclk, task->aclk_freq * MHZ);
+	mpp_clk_set_rate(&enc->aclk_info, task->clk_mode);
 
 	return 0;
 }
@@ -537,8 +519,7 @@ static int vepu_reduce_freq(struct mpp_dev *mpp)
 {
 	struct vepu_dev *enc = to_vepu_dev(mpp);
 
-	if (enc->aclk)
-		clk_set_rate(enc->aclk, 50 * MHZ);
+	mpp_clk_set_rate(&enc->aclk_info, CLK_MODE_REDUCE);
 
 	return 0;
 }
@@ -566,7 +547,6 @@ static struct mpp_hw_ops vepu_v2_hw_ops = {
 	.init = vepu_init,
 	.clk_on = vepu_clk_on,
 	.clk_off = vepu_clk_off,
-	.get_freq = vepu_get_freq,
 	.set_freq = vepu_set_freq,
 	.reduce_freq = vepu_reduce_freq,
 	.reset = vepu_reset,
@@ -576,7 +556,6 @@ static struct mpp_hw_ops vepu_px30_hw_ops = {
 	.init = vepu_px30_init,
 	.clk_on = vepu_clk_on,
 	.clk_off = vepu_clk_off,
-	.get_freq = vepu_get_freq,
 	.set_freq = vepu_set_freq,
 	.reduce_freq = vepu_reduce_freq,
 	.reset = vepu_reset,

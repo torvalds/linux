@@ -1707,20 +1707,6 @@ irqreturn_t mpp_dev_isr_sched(int irq, void *param)
 	return ret;
 }
 
-int mpp_safe_reset(struct reset_control *rst)
-{
-	if (rst)
-		reset_control_assert(rst);
-	return 0;
-}
-
-int mpp_safe_unreset(struct reset_control *rst)
-{
-	if (rst)
-		reset_control_deassert(rst);
-	return 0;
-}
-
 #define MPP_GRF_VAL_MASK	0xFFFF
 
 u32 mpp_get_grf(struct mpp_grf_info *grf_info)
@@ -1784,6 +1770,118 @@ int mpp_read_req(struct mpp_dev *mpp, u32 *regs,
 
 	for (i = start_idx; i < end_idx; i++)
 		regs[i] = mpp_read_relaxed(mpp, i * sizeof(u32));
+
+	return 0;
+}
+
+int mpp_get_clk_info(struct mpp_dev *mpp,
+		     struct mpp_clk_info *clk_info,
+		     const char *name)
+{
+	int index = of_property_match_string(mpp->dev->of_node,
+					     "clock-names", name);
+
+	if (index < 0)
+		return -EINVAL;
+
+	clk_info->clk = devm_clk_get(mpp->dev, name);
+	of_property_read_u32_index(mpp->dev->of_node,
+				   "rockchip,normal-rates",
+				   index,
+				   &clk_info->normal_rate_hz);
+	of_property_read_u32_index(mpp->dev->of_node,
+				   "rockchip,advanced-rates",
+				   index,
+				   &clk_info->advanced_rate_hz);
+
+	return 0;
+}
+
+int mpp_set_clk_info_rate_hz(struct mpp_clk_info *clk_info,
+			     enum MPP_CLOCK_MODE mode,
+			     unsigned long val)
+{
+	if (!clk_info->clk || !val)
+		return 0;
+
+	switch (mode) {
+	case CLK_MODE_DEBUG:
+		clk_info->debug_rate_hz = val;
+	break;
+	case CLK_MODE_REDUCE:
+		clk_info->reduce_rate_hz = val;
+	break;
+	case CLK_MODE_NORMAL:
+		clk_info->normal_rate_hz = val;
+	break;
+	case CLK_MODE_ADVANCED:
+		clk_info->advanced_rate_hz = val;
+	break;
+	case CLK_MODE_DEFAULT:
+		clk_info->default_rate_hz = val;
+	break;
+	default:
+		mpp_err("error mode %d\n", mode);
+	break;
+	}
+
+	return 0;
+}
+
+#define MPP_REDUCE_RATE_HZ (50 * MHZ)
+
+unsigned long mpp_get_clk_info_rate_hz(struct mpp_clk_info *clk_info,
+				       enum MPP_CLOCK_MODE mode)
+{
+	unsigned long clk_rate_hz = 0;
+
+	if (!clk_info->clk)
+		return 0;
+
+	if (clk_info->debug_rate_hz)
+		return clk_info->debug_rate_hz;
+
+	switch (mode) {
+	case CLK_MODE_REDUCE: {
+		if (clk_info->reduce_rate_hz)
+			clk_rate_hz = clk_info->reduce_rate_hz;
+		else
+			clk_rate_hz = MPP_REDUCE_RATE_HZ;
+	} break;
+	case CLK_MODE_NORMAL: {
+		if (clk_info->normal_rate_hz)
+			clk_rate_hz = clk_info->normal_rate_hz;
+		else
+			clk_rate_hz = clk_info->default_rate_hz;
+	} break;
+	case CLK_MODE_ADVANCED: {
+		if (clk_info->advanced_rate_hz)
+			clk_rate_hz = clk_info->advanced_rate_hz;
+		else
+			clk_rate_hz = clk_info->default_rate_hz;
+	} break;
+	case CLK_MODE_DEFAULT:
+	default: {
+		clk_rate_hz = clk_info->default_rate_hz;
+	} break;
+	}
+
+	return clk_rate_hz;
+}
+
+int mpp_clk_set_rate(struct mpp_clk_info *clk_info,
+		     enum MPP_CLOCK_MODE mode)
+{
+	unsigned long clk_rate_hz;
+
+	if (!clk_info->clk)
+		return -EINVAL;
+
+	clk_rate_hz = mpp_get_clk_info_rate_hz(clk_info, mode);
+	if (clk_rate_hz) {
+		clk_info->used_rate_hz = clk_rate_hz;
+		clk_set_rate(clk_info->clk, clk_rate_hz);
+	}
 
 	return 0;
 }
