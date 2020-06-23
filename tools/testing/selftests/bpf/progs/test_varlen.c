@@ -26,8 +26,18 @@ int payload2_len2 = -1;
 int total2 = -1;
 char payload2[MAX_LEN + MAX_LEN] = { 1 };
 
+int payload3_len1 = -1;
+int payload3_len2 = -1;
+int total3= -1;
+char payload3[MAX_LEN + MAX_LEN] = { 1 };
+
+int payload4_len1 = -1;
+int payload4_len2 = -1;
+int total4= -1;
+char payload4[MAX_LEN + MAX_LEN] = { 1 };
+
 SEC("raw_tp/sys_enter")
-int handler64(void *regs)
+int handler64_unsigned(void *regs)
 {
 	int pid = bpf_get_current_pid_tgid() >> 32;
 	void *payload = payload1;
@@ -54,8 +64,34 @@ int handler64(void *regs)
 	return 0;
 }
 
-SEC("tp_btf/sys_enter")
-int handler32(void *regs)
+SEC("raw_tp/sys_exit")
+int handler64_signed(void *regs)
+{
+	int pid = bpf_get_current_pid_tgid() >> 32;
+	void *payload = payload3;
+	long len;
+
+	/* ignore irrelevant invocations */
+	if (test_pid != pid || !capture)
+		return 0;
+
+	len = bpf_probe_read_kernel_str(payload, MAX_LEN, &buf_in1[0]);
+	if (len >= 0) {
+		payload += len;
+		payload3_len1 = len;
+	}
+	len = bpf_probe_read_kernel_str(payload, MAX_LEN, &buf_in2[0]);
+	if (len >= 0) {
+		payload += len;
+		payload3_len2 = len;
+	}
+	total3 = payload - (void *)payload3;
+
+	return 0;
+}
+
+SEC("tp/raw_syscalls/sys_enter")
+int handler32_unsigned(void *regs)
 {
 	int pid = bpf_get_current_pid_tgid() >> 32;
 	void *payload = payload2;
@@ -82,7 +118,33 @@ int handler32(void *regs)
 	return 0;
 }
 
-SEC("tp_btf/sys_exit")
+SEC("tp/raw_syscalls/sys_exit")
+int handler32_signed(void *regs)
+{
+	int pid = bpf_get_current_pid_tgid() >> 32;
+	void *payload = payload4;
+	int len;
+
+	/* ignore irrelevant invocations */
+	if (test_pid != pid || !capture)
+		return 0;
+
+	len = bpf_probe_read_kernel_str(payload, MAX_LEN, &buf_in1[0]);
+	if (len >= 0) {
+		payload += len;
+		payload4_len1 = len;
+	}
+	len = bpf_probe_read_kernel_str(payload, MAX_LEN, &buf_in2[0]);
+	if (len >= 0) {
+		payload += len;
+		payload4_len2 = len;
+	}
+	total4 = payload - (void *)payload4;
+
+	return 0;
+}
+
+SEC("tp/syscalls/sys_exit_getpid")
 int handler_exit(void *regs)
 {
 	long bla;
