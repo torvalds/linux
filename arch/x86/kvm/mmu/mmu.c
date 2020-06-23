@@ -2829,20 +2829,51 @@ static bool prepare_zap_oldest_mmu_page(struct kvm *kvm,
 	return kvm_mmu_prepare_zap_page(kvm, sp, invalid_list);
 }
 
-static int make_mmu_pages_available(struct kvm_vcpu *vcpu)
+static unsigned long kvm_mmu_zap_oldest_mmu_pages(struct kvm *kvm,
+						  unsigned long nr_to_zap)
 {
+	unsigned long total_zapped = 0;
+	struct kvm_mmu_page *sp, *tmp;
 	LIST_HEAD(invalid_list);
+	bool unstable;
+	int nr_zapped;
 
-	if (likely(kvm_mmu_available_pages(vcpu->kvm) >= KVM_MIN_FREE_MMU_PAGES))
+	if (list_empty(&kvm->arch.active_mmu_pages))
 		return 0;
 
-	while (kvm_mmu_available_pages(vcpu->kvm) < KVM_REFILL_PAGES) {
-		if (!prepare_zap_oldest_mmu_page(vcpu->kvm, &invalid_list))
+restart:
+	list_for_each_entry_safe(sp, tmp, &kvm->arch.active_mmu_pages, link) {
+		/*
+		 * Don't zap active root pages, the page itself can't be freed
+		 * and zapping it will just force vCPUs to realloc and reload.
+		 */
+		if (sp->root_count)
+			continue;
+
+		unstable = __kvm_mmu_prepare_zap_page(kvm, sp, &invalid_list,
+						      &nr_zapped);
+		total_zapped += nr_zapped;
+		if (total_zapped >= nr_to_zap)
 			break;
 
-		++vcpu->kvm->stat.mmu_recycled;
+		if (unstable)
+			goto restart;
 	}
-	kvm_mmu_commit_zap_page(vcpu->kvm, &invalid_list);
+
+	kvm_mmu_commit_zap_page(kvm, &invalid_list);
+
+	kvm->stat.mmu_recycled += total_zapped;
+	return total_zapped;
+}
+
+static int make_mmu_pages_available(struct kvm_vcpu *vcpu)
+{
+	unsigned long avail = kvm_mmu_available_pages(vcpu->kvm);
+
+	if (likely(avail >= KVM_MIN_FREE_MMU_PAGES))
+		return 0;
+
+	kvm_mmu_zap_oldest_mmu_pages(vcpu->kvm, KVM_REFILL_PAGES - avail);
 
 	if (!kvm_mmu_available_pages(vcpu->kvm))
 		return -ENOSPC;
@@ -2855,17 +2886,12 @@ static int make_mmu_pages_available(struct kvm_vcpu *vcpu)
  */
 void kvm_mmu_change_mmu_pages(struct kvm *kvm, unsigned long goal_nr_mmu_pages)
 {
-	LIST_HEAD(invalid_list);
-
 	spin_lock(&kvm->mmu_lock);
 
 	if (kvm->arch.n_used_mmu_pages > goal_nr_mmu_pages) {
-		/* Need to free some mmu pages to achieve the goal. */
-		while (kvm->arch.n_used_mmu_pages > goal_nr_mmu_pages)
-			if (!prepare_zap_oldest_mmu_page(kvm, &invalid_list))
-				break;
+		kvm_mmu_zap_oldest_mmu_pages(kvm, kvm->arch.n_used_mmu_pages -
+						  goal_nr_mmu_pages);
 
-		kvm_mmu_commit_zap_page(kvm, &invalid_list);
 		goal_nr_mmu_pages = kvm->arch.n_used_mmu_pages;
 	}
 
