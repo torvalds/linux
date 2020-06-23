@@ -598,7 +598,8 @@ static int spi_nor_parse_bfpt(struct spi_nor *nor,
 		break;
 
 	default:
-		return -EINVAL;
+		dev_dbg(nor->dev, "BFPT QER reserved value used\n");
+		break;
 	}
 
 	/* Stop here if not JESD216 rev C or later. */
