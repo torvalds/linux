@@ -47,6 +47,7 @@
 #include <linux/seccomp.h>
 #include <linux/if_vlan.h>
 #include <linux/bpf.h>
+#include <linux/btf.h>
 #include <net/sch_generic.h>
 #include <net/cls_cgroup.h>
 #include <net/dst_metadata.h>
@@ -9225,3 +9226,84 @@ void bpf_prog_change_xdp(struct bpf_prog *prev_prog, struct bpf_prog *prog)
 {
 	bpf_dispatcher_change_prog(BPF_DISPATCHER_PTR(xdp), prev_prog, prog);
 }
+
+/* Define a list of socket types which can be the argument for
+ * skc_to_*_sock() helpers. All these sockets should have
+ * sock_common as the first argument in its memory layout.
+ */
+#define BTF_SOCK_TYPE_xxx \
+	BTF_SOCK_TYPE(BTF_SOCK_TYPE_INET, "inet_sock")			\
+	BTF_SOCK_TYPE(BTF_SOCK_TYPE_INET_CONN, "inet_connection_sock")	\
+	BTF_SOCK_TYPE(BTF_SOCK_TYPE_INET_REQ, "inet_request_sock")	\
+	BTF_SOCK_TYPE(BTF_SOCK_TYPE_INET_TW, "inet_timewait_sock")	\
+	BTF_SOCK_TYPE(BTF_SOCK_TYPE_REQ, "request_sock")		\
+	BTF_SOCK_TYPE(BTF_SOCK_TYPE_SOCK, "sock")			\
+	BTF_SOCK_TYPE(BTF_SOCK_TYPE_SOCK_COMMON, "sock_common")		\
+	BTF_SOCK_TYPE(BTF_SOCK_TYPE_TCP, "tcp_sock")			\
+	BTF_SOCK_TYPE(BTF_SOCK_TYPE_TCP_REQ, "tcp_request_sock")	\
+	BTF_SOCK_TYPE(BTF_SOCK_TYPE_TCP_TW, "tcp_timewait_sock")	\
+	BTF_SOCK_TYPE(BTF_SOCK_TYPE_TCP6, "tcp6_sock")			\
+	BTF_SOCK_TYPE(BTF_SOCK_TYPE_UDP, "udp_sock")			\
+	BTF_SOCK_TYPE(BTF_SOCK_TYPE_UDP6, "udp6_sock")
+
+enum {
+#define BTF_SOCK_TYPE(name, str) name,
+BTF_SOCK_TYPE_xxx
+#undef BTF_SOCK_TYPE
+MAX_BTF_SOCK_TYPE,
+};
+
+static int btf_sock_ids[MAX_BTF_SOCK_TYPE];
+
+#ifdef CONFIG_BPF_SYSCALL
+static const char *bpf_sock_types[] = {
+#define BTF_SOCK_TYPE(name, str) str,
+BTF_SOCK_TYPE_xxx
+#undef BTF_SOCK_TYPE
+};
+
+void init_btf_sock_ids(struct btf *btf)
+{
+	int i, btf_id;
+
+	for (i = 0; i < MAX_BTF_SOCK_TYPE; i++) {
+		btf_id = btf_find_by_name_kind(btf, bpf_sock_types[i],
+					       BTF_KIND_STRUCT);
+		if (btf_id > 0)
+			btf_sock_ids[i] = btf_id;
+	}
+}
+#endif
+
+static bool check_arg_btf_id(u32 btf_id, u32 arg)
+{
+	int i;
+
+	/* only one argument, no need to check arg */
+	for (i = 0; i < MAX_BTF_SOCK_TYPE; i++)
+		if (btf_sock_ids[i] == btf_id)
+			return true;
+	return false;
+}
+
+BPF_CALL_1(bpf_skc_to_tcp6_sock, struct sock *, sk)
+{
+	/* tcp6_sock type is not generated in dwarf and hence btf,
+	 * trigger an explicit type generation here.
+	 */
+	BTF_TYPE_EMIT(struct tcp6_sock);
+	if (sk_fullsock(sk) && sk->sk_protocol == IPPROTO_TCP &&
+	    sk->sk_family == AF_INET6)
+		return (unsigned long)sk;
+
+	return (unsigned long)NULL;
+}
+
+const struct bpf_func_proto bpf_skc_to_tcp6_sock_proto = {
+	.func			= bpf_skc_to_tcp6_sock,
+	.gpl_only		= false,
+	.ret_type		= RET_PTR_TO_BTF_ID_OR_NULL,
+	.arg1_type		= ARG_PTR_TO_BTF_ID,
+	.check_btf_id		= check_arg_btf_id,
+	.ret_btf_id		= &btf_sock_ids[BTF_SOCK_TYPE_TCP6],
+};
