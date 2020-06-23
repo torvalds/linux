@@ -1809,7 +1809,7 @@ static irqreturn_t cdns3_device_thread_irq_handler(int irq, void *data)
 	struct cdns3_device *priv_dev = data;
 	irqreturn_t ret = IRQ_NONE;
 	unsigned long flags;
-	int bit;
+	unsigned int bit;
 	unsigned long reg;
 
 	spin_lock_irqsave(&priv_dev->lock, flags);
