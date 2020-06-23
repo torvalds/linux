@@ -1533,6 +1533,27 @@ lock_and_cleanup_extent_if_need(struct btrfs_inode *inode, struct page **pages,
 	return ret;
 }
 
+/*
+ * Check if we can do nocow write into the range [@pos, @pos + @write_bytes)
+ *
+ * @pos:	 File offset
+ * @write_bytes: The length to write, will be updated to the nocow writeable
+ *		 range
+ * @nowait:	 Whether this function could sleep
+ *
+ * This function will flush ordered extents in the range to ensure proper
+ * nocow checks for (nowait == false) case.
+ *
+ * Return:
+ * >0		and update @write_bytes if we can do nocow write
+ *  0		if we can't do nocow write
+ * -EAGAIN	if we can't get the needed lock or there are ordered extents
+ * 		for * (nowait == true) case
+ * <0		if other error happened
+ *
+ * NOTE: For wait (nowait == false) calls, callers need to release the drew
+ * write lock of inode->root->snapshot_lock when return value > 0.
+ */
 int btrfs_check_can_nocow(struct btrfs_inode *inode, loff_t pos,
 			  size_t *write_bytes, bool nowait)
 {

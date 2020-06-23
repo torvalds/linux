@@ -6945,8 +6945,25 @@ static struct extent_map *btrfs_new_extent_direct(struct inode *inode,
 }
 
 /*
- * returns 1 when the nocow is safe, < 1 on error, 0 if the
- * block must be cow'd
+ * Check if we can do nocow write into the range [@offset, @offset + @len)
+ *
+ * @offset:	File offset
+ * @len:	The length to write, will be updated to the nocow writeable
+ *		range
+ * @orig_start:	(optional) Return the original file offset of the file extent
+ * @orig_len:	(optional) Return the original on-disk length of the file extent
+ * @ram_bytes:	(optional) Return the ram_bytes of the file extent
+ *
+ * This function will flush ordered extents in the range to ensure proper
+ * nocow checks for (nowait == false) case.
+ *
+ * Return:
+ * >0	and update @len if we can do nocow write
+ *  0	if we can't do nocow write
+ * <0	if error happened
+ *
+ * NOTE: This only checks the file extents, caller is responsible to wait for
+ *	 any ordered extents.
  */
 noinline int can_nocow_extent(struct inode *inode, u64 offset, u64 *len,
 			      u64 *orig_start, u64 *orig_block_len,
