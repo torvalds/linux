@@ -1722,6 +1722,29 @@ static int amdgpu_device_ip_early_init(struct amdgpu_device *adev)
 
 	amdgpu_device_enable_virtual_display(adev);
 
+	if (amdgpu_sriov_vf(adev)) {
+		/* handle vbios stuff prior full access mode for new handshake */
+		if (adev->virt.req_init_data_ver == 1) {
+			if (!amdgpu_get_bios(adev)) {
+				DRM_ERROR("failed to get vbios\n");
+				return -EINVAL;
+			}
+
+			r = amdgpu_atombios_init(adev);
+			if (r) {
+				dev_err(adev->dev, "amdgpu_atombios_init failed\n");
+				amdgpu_vf_error_put(adev, AMDGIM_ERROR_VF_ATOMBIOS_INIT_FAIL, 0, 0);
+				return r;
+			}
+		}
+
+		r = amdgpu_virt_request_full_gpu(adev, true);
+		if (r) {
+			amdgpu_atombios_fini(adev);
+			return r;
+		}
+	}
+
 	switch (adev->asic_type) {
 #ifdef CONFIG_DRM_AMDGPU_SI
 	case CHIP_VERDE:
@@ -1800,31 +1823,6 @@ static int amdgpu_device_ip_early_init(struct amdgpu_device *adev)
 	}
 
 	amdgpu_amdkfd_device_probe(adev);
-
-	if (amdgpu_sriov_vf(adev)) {
-		/* handle vbios stuff prior full access mode for new handshake */
-		if (adev->virt.req_init_data_ver == 1) {
-			if (!amdgpu_get_bios(adev)) {
-				DRM_ERROR("failed to get vbios\n");
-				return -EINVAL;
-			}
-
-			r = amdgpu_atombios_init(adev);
-			if (r) {
-				dev_err(adev->dev, "amdgpu_atombios_init failed\n");
-				amdgpu_vf_error_put(adev, AMDGIM_ERROR_VF_ATOMBIOS_INIT_FAIL, 0, 0);
-				return r;
-			}
-		}
-	}
-
-	/* we need to send REQ_GPU here for legacy handshaker otherwise the vbios
-	 * will not be prepared by host for this VF */
-	if (amdgpu_sriov_vf(adev) && adev->virt.req_init_data_ver < 1) {
-		r = amdgpu_virt_request_full_gpu(adev, true);
-		if (r)
-			return r;
-	}
 
 	adev->pm.pp_feature = amdgpu_pp_feature_mask;
 	if (amdgpu_sriov_vf(adev) || sched_policy == KFD_SCHED_POLICY_NO_HWS)
@@ -1986,12 +1984,6 @@ static int amdgpu_device_ip_init(struct amdgpu_device *adev)
 	r = amdgpu_ras_init(adev);
 	if (r)
 		return r;
-
-	if (amdgpu_sriov_vf(adev) && adev->virt.req_init_data_ver > 0) {
-		r = amdgpu_virt_request_full_gpu(adev, true);
-		if (r)
-			return -EAGAIN;
-	}
 
 	for (i = 0; i < adev->num_ip_blocks; i++) {
 		if (!adev->ip_blocks[i].status.valid)
