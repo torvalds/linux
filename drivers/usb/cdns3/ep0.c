@@ -610,7 +610,7 @@ static bool cdns3_check_new_setup(struct cdns3_device *priv_dev)
 {
 	u32 ep_sts_reg;
 
-	cdns3_select_ep(priv_dev, 0 | USB_DIR_OUT);
+	cdns3_select_ep(priv_dev, USB_DIR_OUT);
 	ep_sts_reg = readl(&priv_dev->regs->ep_sts);
 
 	return !!(ep_sts_reg & (EP_STS_SETUP | EP_STS_STPWAIT));
