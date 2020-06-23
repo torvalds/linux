@@ -172,7 +172,8 @@ void delete_obj_refs_table(struct obj_refs_table *table)
 	}
 }
 
-void emit_obj_refs_json(struct obj_refs_table *table, __u32 id, json_writer_t *json_wtr)
+void emit_obj_refs_json(struct obj_refs_table *table, __u32 id,
+			json_writer_t *json_writer)
 {
 	struct obj_refs *refs;
 	struct obj_ref *ref;
@@ -187,16 +188,16 @@ void emit_obj_refs_json(struct obj_refs_table *table, __u32 id, json_writer_t *j
 		if (refs->ref_cnt == 0)
 			break;
 
-		jsonw_name(json_wtr, "pids");
-		jsonw_start_array(json_wtr);
+		jsonw_name(json_writer, "pids");
+		jsonw_start_array(json_writer);
 		for (i = 0; i < refs->ref_cnt; i++) {
 			ref = &refs->refs[i];
-			jsonw_start_object(json_wtr);
-			jsonw_int_field(json_wtr, "pid", ref->pid);
-			jsonw_string_field(json_wtr, "comm", ref->comm);
-			jsonw_end_object(json_wtr);
+			jsonw_start_object(json_writer);
+			jsonw_int_field(json_writer, "pid", ref->pid);
+			jsonw_string_field(json_writer, "comm", ref->comm);
+			jsonw_end_object(json_writer);
 		}
-		jsonw_end_array(json_wtr);
+		jsonw_end_array(json_writer);
 		break;
 	}
 }
