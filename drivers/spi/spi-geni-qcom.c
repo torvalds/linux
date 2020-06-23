@@ -194,7 +194,8 @@ static void spi_setup_word_len(struct spi_geni_master *mas, u16 mode,
 	writel(word_len, se->base + SE_SPI_WORD_LEN);
 }
 
-static int geni_spi_set_clock(struct spi_geni_master *mas, unsigned long clk_hz)
+static int geni_spi_set_clock_and_bw(struct spi_geni_master *mas,
+					unsigned long clk_hz)
 {
 	u32 clk_sel, m_clk_cfg, idx, div;
 	struct geni_se *se = &mas->se;
@@ -219,6 +220,12 @@ static int geni_spi_set_clock(struct spi_geni_master *mas, unsigned long clk_hz)
 	m_clk_cfg = (div << CLK_DIV_SHFT) | SER_CLK_EN;
 	writel(clk_sel, se->base + SE_GENI_CLK_SEL);
 	writel(m_clk_cfg, se->base + GENI_SER_M_CLK_CFG);
+
+	/* Set BW quota for CPU as driver supports FIFO mode only. */
+	se->icc_paths[CPU_TO_GENI].avg_bw = Bps_to_icc(mas->cur_speed_hz);
+	ret = geni_icc_set_bw(se);
+	if (ret)
+		return ret;
 
 	return 0;
 }
@@ -261,7 +268,7 @@ static int setup_fifo_params(struct spi_device *spi_slv,
 	writel(cpol, se->base + SE_SPI_CPOL);
 	writel(demux_output_inv, se->base + SE_SPI_DEMUX_OUTPUT_INV);
 
-	return geni_spi_set_clock(mas, spi_slv->max_speed_hz);
+	return geni_spi_set_clock_and_bw(mas, spi_slv->max_speed_hz);
 }
 
 static int spi_geni_prepare_message(struct spi_master *spi,
@@ -333,7 +340,7 @@ static void setup_fifo_xfer(struct spi_transfer *xfer,
 
 	/* Speed and bits per word can be overridden per transfer */
 	if (xfer->speed_hz != mas->cur_speed_hz) {
-		ret = geni_spi_set_clock(mas, xfer->speed_hz);
+		ret = geni_spi_set_clock_and_bw(mas, xfer->speed_hz);
 		if (ret)
 			return;
 	}
@@ -578,6 +585,17 @@ static int spi_geni_probe(struct platform_device *pdev)
 	spin_lock_init(&mas->lock);
 	pm_runtime_enable(dev);
 
+	ret = geni_icc_get(&mas->se, NULL);
+	if (ret)
+		goto spi_geni_probe_runtime_disable;
+	/* Set the bus quota to a reasonable value for register access */
+	mas->se.icc_paths[GENI_TO_CORE].avg_bw = Bps_to_icc(CORE_2X_50_MHZ);
+	mas->se.icc_paths[CPU_TO_GENI].avg_bw = GENI_DEFAULT_BW;
+
+	ret = geni_icc_set_bw(&mas->se);
+	if (ret)
+		goto spi_geni_probe_runtime_disable;
+
 	ret = spi_geni_init(mas);
 	if (ret)
 		goto spi_geni_probe_runtime_disable;
@@ -616,14 +634,24 @@ static int __maybe_unused spi_geni_runtime_suspend(struct device *dev)
 {
 	struct spi_master *spi = dev_get_drvdata(dev);
 	struct spi_geni_master *mas = spi_master_get_devdata(spi);
+	int ret;
 
-	return geni_se_resources_off(&mas->se);
+	ret = geni_se_resources_off(&mas->se);
+	if (ret)
+		return ret;
+
+	return geni_icc_disable(&mas->se);
 }
 
 static int __maybe_unused spi_geni_runtime_resume(struct device *dev)
 {
 	struct spi_master *spi = dev_get_drvdata(dev);
 	struct spi_geni_master *mas = spi_master_get_devdata(spi);
+	int ret;
+
+	ret = geni_icc_enable(&mas->se);
+	if (ret)
+		return ret;
 
 	return geni_se_resources_on(&mas->se);
 }
