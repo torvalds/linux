@@ -145,8 +145,8 @@ static const struct {
 	[RTL_GIGA_MAC_VER_50] = {"RTL8168ep/8111ep"			},
 	[RTL_GIGA_MAC_VER_51] = {"RTL8168ep/8111ep"			},
 	[RTL_GIGA_MAC_VER_52] = {"RTL8168fp/RTL8117",  FIRMWARE_8168FP_3},
-	[RTL_GIGA_MAC_VER_60] = {"RTL8125"				},
-	[RTL_GIGA_MAC_VER_61] = {"RTL8125",		FIRMWARE_8125A_3},
+	[RTL_GIGA_MAC_VER_60] = {"RTL8125A"				},
+	[RTL_GIGA_MAC_VER_61] = {"RTL8125A",		FIRMWARE_8125A_3},
 };
 
 static const struct pci_device_id rtl8169_pci_tbl[] = {
@@ -2066,7 +2066,7 @@ static void rtl8168_config_eee_mac(struct rtl8169_private *tp)
 	rtl_eri_set_bits(tp, 0x1b0, 0x0003);
 }
 
-static void rtl8125_config_eee_mac(struct rtl8169_private *tp)
+static void rtl8125a_config_eee_mac(struct rtl8169_private *tp)
 {
 	r8168_mac_ocp_modify(tp, 0xe040, 0, BIT(1) | BIT(0));
 	r8168_mac_ocp_modify(tp, 0xeb62, 0, BIT(2) | BIT(1));
@@ -3531,15 +3531,15 @@ static void rtl_hw_start_8125_common(struct rtl8169_private *tp)
 
 	rtl_loop_wait_low(tp, &rtl_mac_ocp_e00e_cond, 1000, 10);
 
-	rtl8125_config_eee_mac(tp);
+	rtl8125a_config_eee_mac(tp);
 
 	RTL_W32(tp, MISC, RTL_R32(tp, MISC) & ~RXDV_GATED_EN);
 	udelay(10);
 }
 
-static void rtl_hw_start_8125_1(struct rtl8169_private *tp)
+static void rtl_hw_start_8125a_1(struct rtl8169_private *tp)
 {
-	static const struct ephy_info e_info_8125_1[] = {
+	static const struct ephy_info e_info_8125a_1[] = {
 		{ 0x01, 0xffff, 0xa812 },
 		{ 0x09, 0xffff, 0x520c },
 		{ 0x04, 0xffff, 0xd000 },
@@ -3571,14 +3571,14 @@ static void rtl_hw_start_8125_1(struct rtl8169_private *tp)
 
 	/* disable aspm and clock request before access ephy */
 	rtl_hw_aspm_clkreq_enable(tp, false);
-	rtl_ephy_init(tp, e_info_8125_1);
+	rtl_ephy_init(tp, e_info_8125a_1);
 
 	rtl_hw_start_8125_common(tp);
 }
 
-static void rtl_hw_start_8125_2(struct rtl8169_private *tp)
+static void rtl_hw_start_8125a_2(struct rtl8169_private *tp)
 {
-	static const struct ephy_info e_info_8125_2[] = {
+	static const struct ephy_info e_info_8125a_2[] = {
 		{ 0x04, 0xffff, 0xd000 },
 		{ 0x0a, 0xffff, 0x8653 },
 		{ 0x23, 0xffff, 0xab66 },
@@ -3598,7 +3598,7 @@ static void rtl_hw_start_8125_2(struct rtl8169_private *tp)
 
 	/* disable aspm and clock request before access ephy */
 	rtl_hw_aspm_clkreq_enable(tp, false);
-	rtl_ephy_init(tp, e_info_8125_2);
+	rtl_ephy_init(tp, e_info_8125a_2);
 
 	rtl_hw_start_8125_common(tp);
 }
@@ -3652,8 +3652,8 @@ static void rtl_hw_config(struct rtl8169_private *tp)
 		[RTL_GIGA_MAC_VER_50] = rtl_hw_start_8168ep_2,
 		[RTL_GIGA_MAC_VER_51] = rtl_hw_start_8168ep_3,
 		[RTL_GIGA_MAC_VER_52] = rtl_hw_start_8117,
-		[RTL_GIGA_MAC_VER_60] = rtl_hw_start_8125_1,
-		[RTL_GIGA_MAC_VER_61] = rtl_hw_start_8125_2,
+		[RTL_GIGA_MAC_VER_60] = rtl_hw_start_8125a_1,
+		[RTL_GIGA_MAC_VER_61] = rtl_hw_start_8125a_2,
 	};
 
 	if (hw_configs[tp->mac_version])
