@@ -1908,9 +1908,6 @@ void mlx5_esw_match_metadata_free(struct mlx5_eswitch *esw, u32 metadata)
 static int esw_offloads_vport_metadata_setup(struct mlx5_eswitch *esw,
 					     struct mlx5_vport *vport)
 {
-	if (vport->vport == MLX5_VPORT_UPLINK)
-		return 0;
-
 	vport->default_metadata = mlx5_esw_match_metadata_alloc(esw);
 	vport->metadata = vport->default_metadata;
 	return vport->metadata ? 0 : -ENOSPC;
@@ -1919,7 +1916,7 @@ static int esw_offloads_vport_metadata_setup(struct mlx5_eswitch *esw,
 static void esw_offloads_vport_metadata_cleanup(struct mlx5_eswitch *esw,
 						struct mlx5_vport *vport)
 {
-	if (vport->vport == MLX5_VPORT_UPLINK || !vport->default_metadata)
+	if (!vport->default_metadata)
 		return;
 
 	WARN_ON(vport->metadata != vport->default_metadata);
