@@ -609,6 +609,7 @@ struct l2t_entry *t4_l2t_alloc_switching(struct adapter *adap, u16 vlan,
 }
 
 /**
+ * cxgb4_l2t_alloc_switching - Allocates an L2T entry for switch filters
  * @dev: net_device pointer
  * @vlan: VLAN Id
  * @port: Associated port
