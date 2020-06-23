@@ -386,7 +386,7 @@ static int bond_ipsec_add_sa(struct xfrm_state *xs)
 	struct bonding *bond = netdev_priv(bond_dev);
 	struct slave *slave = rtnl_dereference(bond->curr_active_slave);
 
-	xs->xso.slave_dev = slave->dev;
+	xs->xso.real_dev = slave->dev;
 	bond->xs = xs;
 
 	if (!(slave->dev->xfrmdev_ops
@@ -411,7 +411,7 @@ static void bond_ipsec_del_sa(struct xfrm_state *xs)
 	if (!slave)
 		return;
 
-	xs->xso.slave_dev = slave->dev;
+	xs->xso.real_dev = slave->dev;
 
 	if (!(slave->dev->xfrmdev_ops
 	      && slave->dev->xfrmdev_ops->xdo_dev_state_delete)) {
@@ -440,7 +440,7 @@ static bool bond_ipsec_offload_ok(struct sk_buff *skb, struct xfrm_state *xs)
 		return false;
 	}
 
-	xs->xso.slave_dev = slave_dev;
+	xs->xso.real_dev = slave_dev;
 	return slave_dev->xfrmdev_ops->xdo_dev_offload_ok(skb, xs);
 }
 
