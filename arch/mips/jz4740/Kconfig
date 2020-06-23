@@ -29,6 +29,10 @@ config X1000_CU1000_NEO
 
 endchoice
 
+config MACH_JZ4725B
+	bool
+	select SYS_HAS_CPU_MIPS32_R1
+
 config MACH_JZ4740
 	bool
 	select SYS_HAS_CPU_MIPS32_R1
