@@ -133,6 +133,7 @@ enum rgmii_clock_delay {
  * in the same package.
  */
 #define MSCC_PHY_PAGE_EXTENDED_GPIO	  0x0010 /* Extended reg - GPIO */
+#define MSCC_PHY_PAGE_1588		  0x1588 /* PTP (1588) */
 #define MSCC_PHY_PAGE_TEST		  0x2a30 /* Test reg */
 #define MSCC_PHY_PAGE_TR		  0x52b5 /* Token ring registers */
 
@@ -373,6 +374,20 @@ struct vsc8531_private {
 	unsigned long ingr_flows;
 	unsigned long egr_flows;
 #endif
+
+	bool input_clk_init;
+	struct vsc85xx_ptp *ptp;
+
+	/* For multiple port PHYs; the MDIO address of the base PHY in the
+	 * pair of two PHYs that share a 1588 engine. PHY0 and PHY2 are coupled.
+	 * PHY1 and PHY3 as well. PHY0 and PHY1 are base PHYs for their
+	 * respective pair.
+	 */
+	unsigned int ts_base_addr;
+	u8 ts_base_phy;
+
+	/* ts_lock: used for per-PHY timestamping operations. */
+	struct mutex ts_lock;
 };
 
 #if IS_ENABLED(CONFIG_OF_MDIO)
@@ -396,6 +411,24 @@ static inline void vsc8584_handle_macsec_interrupt(struct phy_device *phydev)
 }
 static inline void vsc8584_config_macsec_intr(struct phy_device *phydev)
 {
+}
+#endif
+
+#if IS_ENABLED(CONFIG_NETWORK_PHY_TIMESTAMPING)
+void vsc85xx_link_change_notify(struct phy_device *phydev);
+int vsc8584_ptp_init(struct phy_device *phydev);
+int vsc8584_ptp_probe(struct phy_device *phydev);
+#else
+static inline void vsc85xx_link_change_notify(struct phy_device *phydev)
+{
+}
+static inline int vsc8584_ptp_init(struct phy_device *phydev)
+{
+	return 0;
+}
+static inline int vsc8584_ptp_probe(struct phy_device *phydev)
+{
+	return 0;
 }
 #endif
 

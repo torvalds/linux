@@ -1299,10 +1299,26 @@ static void vsc8584_get_base_addr(struct phy_device *phydev)
 	__phy_write(phydev, MSCC_EXT_PAGE_ACCESS, MSCC_PHY_PAGE_STANDARD);
 	mutex_unlock(&phydev->mdio.bus->mdio_lock);
 
-	if (val & PHY_ADDR_REVERSED)
+	/* In the package, there are two pairs of PHYs (PHY0 + PHY2 and
+	 * PHY1 + PHY3). The first PHY of each pair (PHY0 and PHY1) is
+	 * the base PHY for timestamping operations.
+	 */
+	vsc8531->ts_base_addr = phydev->mdio.addr;
+	vsc8531->ts_base_phy = addr;
+
+	if (val & PHY_ADDR_REVERSED) {
 		vsc8531->base_addr = phydev->mdio.addr + addr;
-	else
+		if (addr > 1) {
+			vsc8531->ts_base_addr += 2;
+			vsc8531->ts_base_phy += 2;
+		}
+	} else {
 		vsc8531->base_addr = phydev->mdio.addr - addr;
+		if (addr > 1) {
+			vsc8531->ts_base_addr -= 2;
+			vsc8531->ts_base_phy -= 2;
+		}
+	}
 
 	vsc8531->addr = addr;
 }
@@ -1417,6 +1433,10 @@ static int vsc8584_config_init(struct phy_device *phydev)
 	ret = vsc8584_macsec_init(phydev);
 	if (ret)
 		return ret;
+
+	ret = vsc8584_ptp_init(phydev);
+	if (ret)
+		goto err;
 
 	phy_write(phydev, MSCC_EXT_PAGE_ACCESS, MSCC_PHY_PAGE_STANDARD);
 
@@ -1999,6 +2019,7 @@ static int vsc8584_probe(struct phy_device *phydev)
 	u32 default_mode[4] = {VSC8531_LINK_1000_ACTIVITY,
 	   VSC8531_LINK_100_ACTIVITY, VSC8531_LINK_ACTIVITY,
 	   VSC8531_DUPLEX_COLLISION};
+	int ret;
 
 	if ((phydev->phy_id & MSCC_DEV_REV_MASK) != VSC8584_REVB) {
 		dev_err(&phydev->mdio.dev, "Only VSC8584 revB is supported.\n");
@@ -2023,6 +2044,10 @@ static int vsc8584_probe(struct phy_device *phydev)
 				      sizeof(u64), GFP_KERNEL);
 	if (!vsc8531->stats)
 		return -ENOMEM;
+
+	ret = vsc8584_ptp_probe(phydev);
+	if (ret)
+		return ret;
 
 	return vsc85xx_dt_led_modes_get(phydev, default_mode);
 }
@@ -2403,6 +2428,7 @@ static struct phy_driver vsc85xx_driver[] = {
 	.get_sset_count = &vsc85xx_get_sset_count,
 	.get_strings    = &vsc85xx_get_strings,
 	.get_stats      = &vsc85xx_get_stats,
+	.link_change_notify = &vsc85xx_link_change_notify,
 }
 
 };
