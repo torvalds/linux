@@ -1244,6 +1244,7 @@
 
 &rockchip_suspend {
 	status = "okay";
+	Rockchip,sleep-debug-en = <1>;
 	rockchip,sleep-mode-config = <
 		(0
 		| RKPM_SLP_ARMOFF
@@ -1276,6 +1277,7 @@
 	card-detect-delay = <200>;
 	disable-wp;
 	num-slots = <1>;
+	vmmc-supply = <&vcc_sd>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdmmc_clk &sdmmc_cmd &sdmmc_cd &sdmmc_bus4>;
 	status = "disabled";
