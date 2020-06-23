@@ -1475,11 +1475,19 @@ err:
 
 static irqreturn_t vsc8584_handle_interrupt(struct phy_device *phydev)
 {
+	irqreturn_t ret;
 	int irq_status;
 
 	irq_status = phy_read(phydev, MII_VSC85XX_INT_STATUS);
-	if (irq_status < 0 || !(irq_status & MII_VSC85XX_INT_MASK_MASK))
+	if (irq_status < 0)
 		return IRQ_NONE;
+
+	/* Timestamping IRQ does not set a bit in the global INT_STATUS, so
+	 * irq_status would be 0.
+	 */
+	ret = vsc8584_handle_ts_interrupt(phydev);
+	if (!(irq_status & MII_VSC85XX_INT_MASK_MASK))
+		return ret;
 
 	if (irq_status & MII_VSC85XX_INT_MASK_EXT)
 		vsc8584_handle_macsec_interrupt(phydev);
@@ -1920,6 +1928,7 @@ static int vsc85xx_config_intr(struct phy_device *phydev)
 
 	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
 		vsc8584_config_macsec_intr(phydev);
+		vsc8584_config_ts_intr(phydev);
 
 		rc = phy_write(phydev, MII_VSC85XX_INT_MASK,
 			       MII_VSC85XX_INT_MASK_MASK);
@@ -2033,8 +2042,8 @@ static int vsc8584_probe(struct phy_device *phydev)
 	phydev->priv = vsc8531;
 
 	vsc8584_get_base_addr(phydev);
-	devm_phy_package_join(&phydev->mdio.dev, phydev,
-			      vsc8531->base_addr, 0);
+	devm_phy_package_join(&phydev->mdio.dev, phydev, vsc8531->base_addr,
+			      sizeof(struct vsc85xx_shared_private));
 
 	vsc8531->nleds = 4;
 	vsc8531->supp_led_modes = VSC8584_SUPP_LED_MODES;
@@ -2044,6 +2053,12 @@ static int vsc8584_probe(struct phy_device *phydev)
 				      sizeof(u64), GFP_KERNEL);
 	if (!vsc8531->stats)
 		return -ENOMEM;
+
+	if (phy_package_probe_once(phydev)) {
+		ret = vsc8584_ptp_probe_once(phydev);
+		if (ret)
+			return ret;
+	}
 
 	ret = vsc8584_ptp_probe(phydev);
 	if (ret)

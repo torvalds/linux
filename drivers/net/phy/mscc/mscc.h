@@ -375,8 +375,12 @@ struct vsc8531_private {
 	unsigned long egr_flows;
 #endif
 
+	struct mii_timestamper mii_ts;
+
 	bool input_clk_init;
 	struct vsc85xx_ptp *ptp;
+	/* LOAD/SAVE GPIO pin, used for retrieving or setting time to the PHC. */
+	struct gpio_desc *load_save;
 
 	/* For multiple port PHYs; the MDIO address of the base PHY in the
 	 * pair of two PHYs that share a 1588 engine. PHY0 and PHY2 are coupled.
@@ -386,8 +390,19 @@ struct vsc8531_private {
 	unsigned int ts_base_addr;
 	u8 ts_base_phy;
 
-	/* ts_lock: used for per-PHY timestamping operations. */
+	/* ts_lock: used for per-PHY timestamping operations.
+	 * phc_lock: used for per-PHY PHC opertations.
+	 */
 	struct mutex ts_lock;
+	struct mutex phc_lock;
+};
+
+/* Shared structure between the PHYs of the same package.
+ * gpio_lock: used for PHC operations. Common for all PHYs as the load/save GPIO
+ * is shared.
+ */
+struct vsc85xx_shared_private {
+	struct mutex gpio_lock;
 };
 
 #if IS_ENABLED(CONFIG_OF_MDIO)
@@ -416,19 +431,33 @@ static inline void vsc8584_config_macsec_intr(struct phy_device *phydev)
 
 #if IS_ENABLED(CONFIG_NETWORK_PHY_TIMESTAMPING)
 void vsc85xx_link_change_notify(struct phy_device *phydev);
+void vsc8584_config_ts_intr(struct phy_device *phydev);
 int vsc8584_ptp_init(struct phy_device *phydev);
+int vsc8584_ptp_probe_once(struct phy_device *phydev);
 int vsc8584_ptp_probe(struct phy_device *phydev);
+irqreturn_t vsc8584_handle_ts_interrupt(struct phy_device *phydev);
 #else
 static inline void vsc85xx_link_change_notify(struct phy_device *phydev)
+{
+}
+static inline void vsc8584_config_ts_intr(struct phy_device *phydev)
 {
 }
 static inline int vsc8584_ptp_init(struct phy_device *phydev)
 {
 	return 0;
 }
+static inline int vsc8584_ptp_probe_once(struct phy_device *phydev)
+{
+	return 0;
+}
 static inline int vsc8584_ptp_probe(struct phy_device *phydev)
 {
 	return 0;
+}
+static inline irqreturn_t vsc8584_handle_ts_interrupt(struct phy_device *phydev)
+{
+	return IRQ_NONE;
 }
 #endif
 
