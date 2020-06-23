@@ -320,7 +320,7 @@ static struct page **sev_pin_memory(struct kvm *kvm, unsigned long uaddr,
 	unsigned long first, last;
 
 	if (ulen == 0 || uaddr + ulen < uaddr)
-		return NULL;
+		return ERR_PTR(-EINVAL);
 
 	/* Calculate number of pages. */
 	first = (uaddr & PAGE_MASK) >> PAGE_SHIFT;
@@ -331,11 +331,11 @@ static struct page **sev_pin_memory(struct kvm *kvm, unsigned long uaddr,
 	lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
 	if (locked > lock_limit && !capable(CAP_IPC_LOCK)) {
 		pr_err("SEV: %lu locked pages exceed the lock limit of %lu.\n", locked, lock_limit);
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 	}
 
 	if (WARN_ON_ONCE(npages > INT_MAX))
-		return NULL;
+		return ERR_PTR(-EINVAL);
 
 	/* Avoid using vmalloc for smaller buffers. */
 	size = npages * sizeof(struct page *);
@@ -345,7 +345,7 @@ static struct page **sev_pin_memory(struct kvm *kvm, unsigned long uaddr,
 		pages = kmalloc(size, GFP_KERNEL_ACCOUNT);
 
 	if (!pages)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	/* Pin the user virtual address. */
 	npinned = pin_user_pages_fast(uaddr, npages, write ? FOLL_WRITE : 0, pages);
@@ -360,11 +360,13 @@ static struct page **sev_pin_memory(struct kvm *kvm, unsigned long uaddr,
 	return pages;
 
 err:
-	if (npinned > 0)
+	if (npinned > 0) {
 		unpin_user_pages(pages, npinned);
+		npinned = -ENOMEM;
+	}
 
 	kvfree(pages);
-	return NULL;
+	return ERR_PTR(npinned);
 }
 
 static void sev_unpin_memory(struct kvm *kvm, struct page **pages,
@@ -864,8 +866,8 @@ static int sev_launch_secret(struct kvm *kvm, struct kvm_sev_cmd *argp)
 		return -EFAULT;
 
 	pages = sev_pin_memory(kvm, params.guest_uaddr, params.guest_len, &n, 1);
-	if (!pages)
-		return -ENOMEM;
+	if (IS_ERR(pages))
+		return PTR_ERR(pages);
 
 	/*
 	 * The secret must be copied into contiguous memory region, lets verify
@@ -991,8 +993,8 @@ int svm_register_enc_region(struct kvm *kvm,
 		return -ENOMEM;
 
 	region->pages = sev_pin_memory(kvm, range->addr, range->size, &region->npages, 1);
-	if (!region->pages) {
-		ret = -ENOMEM;
+	if (IS_ERR(region->pages)) {
+		ret = PTR_ERR(region->pages);
 		goto e_free;
 	}
 
