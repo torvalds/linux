@@ -39,6 +39,14 @@ static inline bool nfs42_files_from_same_server(struct file *in,
 					       c_out->cl_serverowner);
 }
 
+ssize_t nfs42_proc_getxattr(struct inode *inode, const char *name,
+			    void *buf, size_t buflen);
+int nfs42_proc_setxattr(struct inode *inode, const char *name,
+			const void *buf, size_t buflen, int flags);
+ssize_t nfs42_proc_listxattrs(struct inode *inode, void *buf,
+			       size_t buflen, u64 *cookiep, bool *eofp);
+int nfs42_proc_removexattr(struct inode *inode, const char *name);
+
 /*
  * Maximum XDR buffer size needed for a listxattr buffer of buflen size.
  *
