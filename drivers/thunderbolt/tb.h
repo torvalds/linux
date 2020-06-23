@@ -39,6 +39,7 @@
  * @buf_data_size: Number of bytes actually consumed by the new NVM
  *		   image
  * @authenticating: The device is authenticating the new NVM
+ * @flushed: The image has been flushed to the storage area
  *
  * The user of this structure needs to handle serialization of possible
  * concurrent access.
@@ -53,6 +54,7 @@ struct tb_nvm {
 	void *buf;
 	size_t buf_data_size;
 	bool authenticating;
+	bool flushed;
 };
 
 #define TB_SWITCH_KEY_SIZE		32

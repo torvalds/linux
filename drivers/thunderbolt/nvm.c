@@ -100,6 +100,7 @@ int tb_nvm_write_buf(struct tb_nvm *nvm, unsigned int offset, void *val,
 			return -ENOMEM;
 	}
 
+	nvm->flushed = false;
 	nvm->buf_data_size = offset + bytes;
 	memcpy(nvm->buf + offset, val, bytes);
 	return 0;

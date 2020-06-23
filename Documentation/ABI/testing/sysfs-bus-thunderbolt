@@ -178,10 +178,17 @@ KernelVersion:	4.13
 Contact:	thunderbolt-software@lists.01.org
 Description:	When new NVM image is written to the non-active NVM
 		area (through non_activeX NVMem device), the
-		authentication procedure is started by writing 1 to
-		this file. If everything goes well, the device is
+		authentication procedure is started by writing to
+		this file.
+		If everything goes well, the device is
 		restarted with the new NVM firmware. If the image
 		verification fails an error code is returned instead.
+
+		This file will accept writing values "1" or "2"
+		- Writing "1" will flush the image to the storage
+		area and authenticate the image in one action.
+		- Writing "2" will run some basic validation on the image
+		and flush it to the storage area.
 
 		When read holds status of the last authentication
 		operation if an error occurred during the process. This
