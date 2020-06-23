@@ -50,10 +50,8 @@ struct channel {
 	unsigned int period_pos;
 	unsigned int buffer_pos;
 	bool is_stream_running;
-
 	struct task_struct *playback_task;
 	wait_queue_head_t playback_waitq;
-
 	void (*copy_fn)(void *alsa, void *most, unsigned int bytes);
 };
 
@@ -176,7 +174,6 @@ static struct channel *get_channel(struct most_interface *iface,
 		if ((channel->iface == iface) && (channel->id == channel_id))
 			return channel;
 	}
-
 	return NULL;
 }
 
@@ -220,7 +217,6 @@ static bool copy_data(struct channel *channel, struct mbo *mbo)
 		channel->period_pos -= runtime->period_size;
 		return true;
 	}
-
 	return false;
 }
 
@@ -260,7 +256,6 @@ static int playback_thread(void *data)
 		if (period_elapsed)
 			snd_pcm_period_elapsed(channel->substream);
 	}
-
 	return 0;
 }
 
@@ -320,7 +315,6 @@ static int pcm_close(struct snd_pcm_substream *substream)
 	if (channel->cfg->direction == MOST_CH_TX)
 		kthread_stop(channel->playback_task);
 	most_stop_channel(channel->iface, channel->id, &comp);
-
 	return 0;
 }
 
@@ -364,10 +358,8 @@ static int pcm_prepare(struct snd_pcm_substream *substream)
 
 	if (!channel->copy_fn)
 		return -EINVAL;
-
 	channel->period_pos = 0;
 	channel->buffer_pos = 0;
-
 	return 0;
 }
 
@@ -441,7 +433,6 @@ static int split_arg_list(char *buf, u16 *ch_num, char **sample_res)
 	*sample_res = strsep(&buf, ".\n");
 	if (!*sample_res)
 		goto err;
-
 	return 0;
 
 err:
@@ -619,7 +610,6 @@ skip_adpt_alloc:
 	strscpy(pcm->name, device_name, sizeof(pcm->name));
 	snd_pcm_set_ops(pcm, direction, &pcm_ops);
 	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_VMALLOC, NULL, 0, 0);
-
 	return 0;
 
 err_free_adpt:
@@ -690,15 +680,11 @@ static int audio_rx_completion(struct mbo *mbo)
 
 	if (!channel)
 		return -EINVAL;
-
 	if (channel->is_stream_running)
 		period_elapsed = copy_data(channel, mbo);
-
 	most_put_mbo(mbo);
-
 	if (period_elapsed)
 		snd_pcm_period_elapsed(channel->substream);
-
 	return 0;
 }
 
@@ -753,7 +739,6 @@ static int __init audio_init(void)
 		pr_err("Failed to register %s configfs subsys\n", comp.name);
 		most_deregister_component(&comp);
 	}
-
 	return ret;
 }
 
