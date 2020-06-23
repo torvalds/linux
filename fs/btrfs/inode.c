@@ -7946,7 +7946,7 @@ out:
 }
 
 static int btrfs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
-		__u64 start, __u64 len)
+			u64 start, u64 len)
 {
 	int	ret;
 

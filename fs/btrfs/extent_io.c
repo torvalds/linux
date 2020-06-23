@@ -4669,7 +4669,7 @@ static int emit_last_fiemap_cache(struct fiemap_extent_info *fieinfo,
 }
 
 int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
-		__u64 start, __u64 len)
+		  u64 start, u64 len)
 {
 	int ret = 0;
 	u64 off = start;
