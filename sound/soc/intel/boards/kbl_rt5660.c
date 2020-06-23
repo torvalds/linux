@@ -165,8 +165,8 @@ static int kabylake_rt5660_codec_init(struct snd_soc_pcm_runtime *rtd)
 		dev_warn(component->dev, "Failed to add driver gpios\n");
 
 	/* Request rt5660 GPIO for lineout mute control, return if fails */
-	ctx->gpio_lo_mute = devm_gpiod_get(component->dev, "lineout-mute",
-					   GPIOD_OUT_HIGH);
+	ctx->gpio_lo_mute = gpiod_get(component->dev, "lineout-mute",
+				      GPIOD_OUT_HIGH);
 	if (IS_ERR(ctx->gpio_lo_mute)) {
 		dev_err(component->dev, "Can't find GPIO_MUTE# gpio\n");
 		return PTR_ERR(ctx->gpio_lo_mute);
@@ -205,6 +205,18 @@ static int kabylake_rt5660_codec_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_force_enable_pin(dapm, "BST2");
 
 	return 0;
+}
+
+static void kabylake_rt5660_codec_exit(struct snd_soc_pcm_runtime *rtd)
+{
+	struct kbl_codec_private *ctx = snd_soc_card_get_drvdata(rtd->card);
+
+	/*
+	 * The .exit() can be reached without going through the .init()
+	 * so explicitly test if the gpiod is valid
+	 */
+	if (!IS_ERR_OR_NULL(ctx->gpio_lo_mute))
+		gpiod_put(ctx->gpio_lo_mute);
 }
 
 static int kabylake_hdmi_init(struct snd_soc_pcm_runtime *rtd, int device)
@@ -421,6 +433,7 @@ static struct snd_soc_dai_link kabylake_rt5660_dais[] = {
 		.id = 0,
 		.no_pcm = 1,
 		.init = kabylake_rt5660_codec_init,
+		.exit = kabylake_rt5660_codec_exit,
 		.dai_fmt = SND_SOC_DAIFMT_I2S |
 		SND_SOC_DAIFMT_NB_NF |
 		SND_SOC_DAIFMT_CBS_CFS,

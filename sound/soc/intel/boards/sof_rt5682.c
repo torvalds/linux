@@ -206,6 +206,13 @@ static int sof_rt5682_codec_init(struct snd_soc_pcm_runtime *rtd)
 	return ret;
 };
 
+static void sof_rt5682_codec_exit(struct snd_soc_pcm_runtime *rtd)
+{
+	struct snd_soc_component *component = asoc_rtd_to_codec(rtd, 0)->component;
+
+	snd_soc_component_set_jack(component, NULL, NULL);
+}
+
 static int sof_rt5682_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params)
 {
@@ -525,6 +532,7 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 	links[id].platforms = platform_component;
 	links[id].num_platforms = ARRAY_SIZE(platform_component);
 	links[id].init = sof_rt5682_codec_init;
+	links[id].exit = sof_rt5682_codec_exit;
 	links[id].ops = &sof_rt5682_ops;
 	links[id].nonatomic = true;
 	links[id].dpcm_playback = 1;
@@ -786,21 +794,6 @@ static int sof_audio_probe(struct platform_device *pdev)
 					  &sof_audio_card_rt5682);
 }
 
-static int sof_rt5682_remove(struct platform_device *pdev)
-{
-	struct snd_soc_card *card = platform_get_drvdata(pdev);
-	struct snd_soc_component *component = NULL;
-
-	for_each_card_components(card, component) {
-		if (!strcmp(component->name, rt5682_component[0].name)) {
-			snd_soc_component_set_jack(component, NULL, NULL);
-			break;
-		}
-	}
-
-	return 0;
-}
-
 static const struct platform_device_id board_ids[] = {
 	{
 		.name = "sof_rt5682",
@@ -836,7 +829,6 @@ static const struct platform_device_id board_ids[] = {
 
 static struct platform_driver sof_audio = {
 	.probe = sof_audio_probe,
-	.remove = sof_rt5682_remove,
 	.driver = {
 		.name = "sof_rt5682",
 		.pm = &snd_soc_pm_ops,

@@ -945,6 +945,9 @@ void snd_soc_remove_pcm_runtime(struct snd_soc_card *card,
 {
 	lockdep_assert_held(&client_mutex);
 
+	/* release machine specific resources */
+	snd_soc_link_exit(rtd);
+
 	/*
 	 * Notify the machine driver for extra destruction
 	 */
