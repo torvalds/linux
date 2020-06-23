@@ -12220,7 +12220,7 @@ static void perf_event_exit_task_context(struct task_struct *child, int ctxn)
  * When a child task exits, feed back event values to parent events.
  *
  * Can be called with exec_update_mutex held when called from
- * install_exec_creds().
+ * setup_new_exec().
  */
 void perf_event_exit_task(struct task_struct *child)
 {

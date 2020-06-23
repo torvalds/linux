@@ -291,7 +291,7 @@ static struct amba_device *of_amba_device_create(struct device_node *node,
 #endif /* CONFIG_ARM_AMBA */
 
 /**
- * of_devname_lookup() - Given a device node, lookup the preferred Linux name
+ * of_dev_lookup() - Given a device node, lookup the preferred Linux name
  */
 static const struct of_dev_auxdata *of_dev_lookup(const struct of_dev_auxdata *lookup,
 				 struct device_node *np)

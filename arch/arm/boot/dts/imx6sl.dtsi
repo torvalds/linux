@@ -98,7 +98,8 @@
 		interrupts = <0 49 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-parent = <&gpc>;
 		fsl,tempmon = <&anatop>;
-		fsl,tempmon-data = <&ocotp>;
+		nvmem-cells = <&tempmon_calib>, <&tempmon_temp_grade>;
+		nvmem-cell-names = "calib", "temp_grade";
 		clocks = <&clks IMX6SL_CLK_PLL3_USB_OTG>;
 	};
 
@@ -677,7 +678,7 @@
 				interrupts = <0 57 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
-			src: src@20d8000 {
+			src: reset-controller@20d8000 {
 				compatible = "fsl,imx6sl-src", "fsl,imx51-src";
 				reg = <0x020d8000 0x4000>;
 				interrupts = <0 91 IRQ_TYPE_LEVEL_HIGH>,
@@ -960,6 +961,14 @@
 
 				cpu_speed_grade: speed-grade@10 {
 					reg = <0x10 4>;
+				};
+
+				tempmon_calib: calib@38 {
+					reg = <0x38 4>;
+				};
+
+				tempmon_temp_grade: temp-grade@20 {
+					reg = <0x20 4>;
 				};
 			};
 

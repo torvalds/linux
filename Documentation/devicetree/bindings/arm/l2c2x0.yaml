@@ -70,43 +70,39 @@ properties:
     description: Cycles of latency for Data RAM accesses. Specifies 3 cells of
       read, write and setup latencies. Minimum valid values are 1. Controllers
       without setup latency control should use a value of 0.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32-array
-      - minItems: 2
-        maxItems: 3
-        items:
-          minimum: 0
-          maximum: 8
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 2
+    maxItems: 3
+    items:
+      minimum: 0
+      maximum: 8
 
   arm,tag-latency:
     description: Cycles of latency for Tag RAM accesses. Specifies 3 cells of
       read, write and setup latencies. Controllers without setup latency control
       should use 0. Controllers without separate read and write Tag RAM latency
       values should only use the first cell.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32-array
-      - minItems: 1
-        maxItems: 3
-        items:
-          minimum: 0
-          maximum: 8
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 1
+    maxItems: 3
+    items:
+      minimum: 0
+      maximum: 8
 
   arm,dirty-latency:
     description: Cycles of latency for Dirty RAMs. This is a single cell.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - minimum: 1
-        maximum: 8
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 1
+    maximum: 8
 
   arm,filter-ranges:
     description: <start length> Starting address and length of window to
       filter. Addresses in the filter window are directed to the M1 port. Other
       addresses will go to the M0 port.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32-array
-      - items:
-          minItems: 2
-          maxItems: 2
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    items:
+      minItems: 2
+      maxItems: 2
 
   arm,io-coherent:
     description: indicates that the system is operating in an hardware
@@ -131,36 +127,31 @@ properties:
   arm,double-linefill:
     description: Override double linefill enable setting. Enable if
       non-zero, disable if zero.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - enum: [ 0, 1 ]
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1]
 
   arm,double-linefill-incr:
     description: Override double linefill on INCR read. Enable
       if non-zero, disable if zero.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - enum: [ 0, 1 ]
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1]
 
   arm,double-linefill-wrap:
     description: Override double linefill on WRAP read. Enable
       if non-zero, disable if zero.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - enum: [ 0, 1 ]
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1]
 
   arm,prefetch-drop:
     description: Override prefetch drop enable setting. Enable if non-zero,
       disable if zero.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - enum: [ 0, 1 ]
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1]
 
   arm,prefetch-offset:
     description: Override prefetch offset value.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - enum: [ 0, 1, 2, 3, 4, 5, 6, 7, 15, 23, 31 ]
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1, 2, 3, 4, 5, 6, 7, 15, 23, 31]
 
   arm,shared-override:
     description: The default behavior of the L220 or PL310 cache
@@ -193,35 +184,31 @@ properties:
     description: |
       Data prefetch. Value: <0> (forcibly disable), <1>
       (forcibly enable), property absent (retain settings set by firmware)
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - enum: [ 0, 1 ]
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1]
 
   prefetch-instr:
     description: |
       Instruction prefetch. Value: <0> (forcibly disable),
       <1> (forcibly enable), property absent (retain settings set by
       firmware)
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - enum: [ 0, 1 ]
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1]
 
   arm,dynamic-clock-gating:
     description: |
       L2 dynamic clock gating. Value: <0> (forcibly
       disable), <1> (forcibly enable), property absent (OS specific behavior,
       preferably retain firmware settings)
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - enum: [ 0, 1 ]
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1]
 
   arm,standby-mode:
     description: L2 standby mode enable. Value <0> (forcibly disable),
       <1> (forcibly enable), property absent (OS specific behavior,
       preferably retain firmware settings)
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - enum: [ 0, 1 ]
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1]
 
   arm,early-bresp-disable:
     description: Disable the CA9 optimization Early BRESP (PL310)

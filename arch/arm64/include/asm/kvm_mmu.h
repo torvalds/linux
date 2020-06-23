@@ -172,8 +172,8 @@ void kvm_clear_hyp_idmap(void);
 	__pmd(__phys_to_pmd_val(__pa(ptep)) | PMD_TYPE_TABLE)
 #define kvm_mk_pud(pmdp)					\
 	__pud(__phys_to_pud_val(__pa(pmdp)) | PMD_TYPE_TABLE)
-#define kvm_mk_pgd(pudp)					\
-	__pgd(__phys_to_pgd_val(__pa(pudp)) | PUD_TYPE_TABLE)
+#define kvm_mk_p4d(pmdp)					\
+	__p4d(__phys_to_p4d_val(__pa(pmdp)) | PUD_TYPE_TABLE)
 
 #define kvm_set_pud(pudp, pud)		set_pud(pudp, pud)
 
@@ -297,6 +297,12 @@ static inline bool kvm_s2pud_young(pud_t pud)
 #define hyp_pud_table_empty(pudp) (0)
 #else
 #define hyp_pud_table_empty(pudp) kvm_page_empty(pudp)
+#endif
+
+#ifdef __PAGETABLE_P4D_FOLDED
+#define hyp_p4d_table_empty(p4dp) (0)
+#else
+#define hyp_p4d_table_empty(p4dp) kvm_page_empty(p4dp)
 #endif
 
 struct kvm;

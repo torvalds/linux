@@ -76,8 +76,7 @@ properties:
     description:
       Phandle to system configuration controller. It can be used to control the
       analog circuitry on stm32mp1.
-    allOf:
-      - $ref: "/schemas/types.yaml#/definitions/phandle-array"
+    $ref: "/schemas/types.yaml#/definitions/phandle-array"
 
   interrupt-controller: true
 
@@ -247,8 +246,7 @@ patternProperties:
           Resolution (bits) to use for conversions:
             - can be 6, 8, 10 or 12 on stm32f4
             - can be 8, 10, 12, 14 or 16 on stm32h7 and stm32mp1
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint32
+        $ref: /schemas/types.yaml#/definitions/uint32
 
       st,adc-channels:
         description: |
@@ -256,8 +254,7 @@ patternProperties:
             - 16 channels, numbered from 0 to 15 (for in0..in15) on stm32f4
             - 20 channels, numbered from 0 to 19 (for in0..in19) on stm32h7 and
               stm32mp1.
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint32-array
+        $ref: /schemas/types.yaml#/definitions/uint32-array
 
       st,adc-diff-channels:
         description: |
@@ -270,18 +267,17 @@ patternProperties:
           required. Both properties can be used together. Some channels can be
           used as single-ended and some other ones as differential (mixed). But
           channels can't be configured both as single-ended and differential.
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint32-matrix
-          - items:
-              items:
-                - description: |
-                    "vinp" indicates positive input number
-                  minimum: 0
-                  maximum: 19
-                - description: |
-                    "vinn" indicates negative input number
-                  minimum: 0
-                  maximum: 19
+        $ref: /schemas/types.yaml#/definitions/uint32-matrix
+        items:
+          items:
+            - description: |
+                "vinp" indicates positive input number
+              minimum: 0
+              maximum: 19
+            - description: |
+                "vinn" indicates negative input number
+              minimum: 0
+              maximum: 19
 
       st,min-sample-time-nsecs:
         description:
@@ -291,8 +287,7 @@ patternProperties:
           array that matches "st,adc-channels" and/or "st,adc-diff-channels"
           list, to set sample time resp. for all channels, or independently for
           each channel.
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint32-array
+        $ref: /schemas/types.yaml#/definitions/uint32-array
 
     allOf:
       - if:

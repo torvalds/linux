@@ -20,15 +20,13 @@ allOf:
 properties:
   qca,clk-out-frequency:
     description: Clock output frequency in Hertz.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - enum: [ 25000000, 50000000, 62500000, 125000000 ]
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [25000000, 50000000, 62500000, 125000000]
 
   qca,clk-out-strength:
     description: Clock output driver strength.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - enum: [ 0, 1, 2 ]
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1, 2]
 
   qca,keep-pll-enabled:
     description: |
@@ -52,17 +50,14 @@ properties:
     type: object
     description:
       Initial data for the VDDIO regulator. Set this to 1.5V or 1.8V.
-    allOf:
-      - $ref: /schemas/regulator/regulator.yaml
+    $ref: /schemas/regulator/regulator.yaml
 
   vddh-regulator:
     type: object
     description:
       Dummy subnode to model the external connection of the PHY VDDH
       regulator to VDDIO.
-    allOf:
-      - $ref: /schemas/regulator/regulator.yaml
-
+    $ref: /schemas/regulator/regulator.yaml
 
 examples:
   - |

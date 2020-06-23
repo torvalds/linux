@@ -68,6 +68,8 @@ config RISCV
 	select ARCH_HAS_GCOV_PROFILE_ALL
 	select HAVE_COPY_THREAD_TLS
 	select HAVE_ARCH_KASAN if MMU && 64BIT
+	select HAVE_ARCH_KGDB
+	select HAVE_ARCH_KGDB_QXFER_PKT
 
 config ARCH_MMAP_RND_BITS_MIN
 	default 18 if 64BIT
@@ -380,6 +382,11 @@ config CMDLINE_FORCE
 endchoice
 
 endmenu
+
+config BUILTIN_DTB
+	def_bool n
+	depends on RISCV_M_MODE
+	depends on OF
 
 menu "Power management options"
 

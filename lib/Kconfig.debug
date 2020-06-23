@@ -658,6 +658,12 @@ config SCHED_STACK_END_CHECK
 	  data corruption or a sporadic crash at a later stage once the region
 	  is examined. The runtime overhead introduced is minimal.
 
+config ARCH_HAS_DEBUG_VM_PGTABLE
+	bool
+	help
+	  An architecture should select this when it can successfully
+	  build and run DEBUG_VM_PGTABLE.
+
 config DEBUG_VM
 	bool "Debug VM"
 	depends on DEBUG_KERNEL
@@ -690,6 +696,22 @@ config DEBUG_VM_PGFLAGS
 	depends on DEBUG_VM
 	help
 	  Enables extra validation on page flags operations.
+
+	  If unsure, say N.
+
+config DEBUG_VM_PGTABLE
+	bool "Debug arch page table for semantics compliance"
+	depends on MMU
+	depends on ARCH_HAS_DEBUG_VM_PGTABLE
+	default y if DEBUG_VM
+	help
+	  This option provides a debug method which can be used to test
+	  architecture page table helper functions on various platforms in
+	  verifying if they comply with expected generic MM semantics. This
+	  will help architecture code in making sure that any changes or
+	  new additions of these helpers still conform to expected
+	  semantics of the generic MM. Platforms will have to opt in for
+	  this through ARCH_HAS_DEBUG_VM_PGTABLE.
 
 	  If unsure, say N.
 
@@ -1774,6 +1796,15 @@ config KCOV_INSTRUMENT_ALL
 	  filesystem fuzzing with AFL) then you will want to enable coverage
 	  for more specific subsets of files, and should say n here.
 
+config KCOV_IRQ_AREA_SIZE
+	hex "Size of interrupt coverage collection area in words"
+	depends on KCOV
+	default 0x40000
+	help
+	  KCOV uses preallocated per-cpu areas to collect coverage from
+	  soft interrupts. This specifies the size of those areas in the
+	  number of unsigned long words.
+
 menuconfig RUNTIME_TESTING_MENU
 	bool "Runtime Testing"
 	def_bool y
@@ -1988,6 +2019,19 @@ config TEST_LKM
 	  validating module verification). It lacks any extra dependencies,
 	  and will not normally be loaded by the system unless explicitly
 	  requested by name.
+
+	  If unsure, say N.
+
+config TEST_BITOPS
+	tristate "Test module for compilation of clear_bit/set_bit operations"
+	depends on m
+	help
+	  This builds the "test_bitops" module that is much like the
+	  TEST_LKM module except that it does a basic exercise of the
+	  clear_bit and set_bit macros to make sure there are no compiler
+	  warnings from C=1 sparse checker or -Wextra compilations. It has
+	  no dependencies and doesn't run or load unless explicitly requested
+	  by name.  for example: modprobe test_bitops.
 
 	  If unsure, say N.
 

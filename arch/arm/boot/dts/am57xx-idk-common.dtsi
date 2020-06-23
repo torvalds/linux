@@ -35,6 +35,16 @@
 		regulator-boot-on;
 	};
 
+	v1_2d: fixedregulator-v1_2d {
+		compatible = "regulator-fixed";
+		regulator-name = "V1_2D";
+		vin-supply = <&vmain>;
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <1200000>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
 	vtt_fixed: fixedregulator-vtt {
 		/* TPS51200 */
 		compatible = "regulator-fixed";
@@ -138,6 +148,12 @@
 				};
 			};
 		};
+	};
+
+	src_clk_x1: src_clk_x1 {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <20000000>;
 	};
 };
 
@@ -378,6 +394,32 @@
 		gpio-controller;
 		#gpio-cells = <2>;
 	};
+
+	dsi_bridge: tc358778@e {
+		compatible = "toshiba,tc358778", "toshiba,tc358768";
+		reg = <0xe>;
+		status = "disabled";
+
+		clocks = <&src_clk_x1>;
+		clock-names = "refclk";
+
+		vddc-supply = <&v1_2d>;
+		vddmipi-supply = <&v1_2d>;
+		vddio-supply = <&v3_3d>;
+
+		dsi_bridge_ports: ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				rgb_in: endpoint {
+					remote-endpoint = <&dpi_out>;
+					data-lines = <24>;
+				};
+			};
+		};
+	};
 };
 
 &mcspi3 {
@@ -543,4 +585,20 @@
 
 &dss {
 	status = "okay";
+
+	vdda_video-supply = <&ldoln_reg>;
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+
+			dpi_out: endpoint {
+				remote-endpoint = <&rgb_in>;
+				data-lines = <24>;
+			};
+		};
+	};
 };

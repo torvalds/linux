@@ -73,12 +73,11 @@ properties:
       - const: calib_sel
 
   "#qcom,sensors":
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - minimum: 1
-      - maximum: 16
     description:
       Number of sensors enabled on this platform
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 1
+    maximum: 16
 
   "#thermal-sensor-cells":
     const: 1

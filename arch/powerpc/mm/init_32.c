@@ -96,11 +96,13 @@ static void __init MMU_setup(void)
 	if (strstr(boot_command_line, "noltlbs")) {
 		__map_without_ltlbs = 1;
 	}
-	if (debug_pagealloc_enabled()) {
-		__map_without_bats = 1;
+	if (IS_ENABLED(CONFIG_PPC_8xx))
+		return;
+
+	if (debug_pagealloc_enabled())
 		__map_without_ltlbs = 1;
-	}
-	if (strict_kernel_rwx_enabled() && !IS_ENABLED(CONFIG_PPC_8xx))
+
+	if (strict_kernel_rwx_enabled())
 		__map_without_ltlbs = 1;
 }
 
@@ -169,8 +171,6 @@ void __init MMU_init(void)
 #ifdef CONFIG_BOOTX_TEXT
 	btext_unmap();
 #endif
-
-	kasan_mmu_init();
 
 	setup_kup();
 

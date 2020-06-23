@@ -16,8 +16,8 @@ properties:
   compatible:
     items:
       - enum:
-        - renesas,hspi-r8a7778 # R-Car M1A
-        - renesas,hspi-r8a7779 # R-Car H1
+          - renesas,hspi-r8a7778 # R-Car M1A
+          - renesas,hspi-r8a7779 # R-Car H1
       - const: renesas,hspi
 
   reg:

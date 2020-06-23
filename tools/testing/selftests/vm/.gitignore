@@ -10,6 +10,7 @@ mlock2-tests
 mremap_dontunmap
 on-fault-limit
 transhuge-stress
+protection_keys
 userfaultfd
 mlock-intersect-test
 mlock-random-test

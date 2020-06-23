@@ -30,21 +30,21 @@ properties:
       - items:
           - enum:
             # for Rockchip PX30
-            - rockchip,px30-dw-mshc
+              - rockchip,px30-dw-mshc
             # for Rockchip RK3036
-            - rockchip,rk3036-dw-mshc
+              - rockchip,rk3036-dw-mshc
             # for Rockchip RK322x
-            - rockchip,rk3228-dw-mshc
+              - rockchip,rk3228-dw-mshc
             # for Rockchip RK3308
-            - rockchip,rk3308-dw-mshc
+              - rockchip,rk3308-dw-mshc
             # for Rockchip RK3328
-            - rockchip,rk3328-dw-mshc
+              - rockchip,rk3328-dw-mshc
             # for Rockchip RK3368
-            - rockchip,rk3368-dw-mshc
+              - rockchip,rk3368-dw-mshc
             # for Rockchip RK3399
-            - rockchip,rk3399-dw-mshc
+              - rockchip,rk3399-dw-mshc
             # for Rockchip RV1108
-            - rockchip,rv1108-dw-mshc
+              - rockchip,rv1108-dw-mshc
           - const: rockchip,rk3288-dw-mshc
 
   reg:
@@ -76,8 +76,7 @@ properties:
       high speed modes.
 
   rockchip,default-sample-phase:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 360
     default: 0
@@ -87,8 +86,7 @@ properties:
       If not specified 0 deg will be used.
 
   rockchip,desired-num-phases:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 360
     default: 360
@@ -111,7 +109,7 @@ examples:
     #include <dt-bindings/interrupt-controller/irq.h>
     sdmmc: mmc@ff0c0000 {
       compatible = "rockchip,rk3288-dw-mshc";
-      reg = <0x0 0xff0c0000 0x0 0x4000>;
+      reg = <0xff0c0000 0x4000>;
       interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
       clocks = <&cru HCLK_SDMMC>, <&cru SCLK_SDMMC>,
                <&cru SCLK_SDMMC_DRV>, <&cru SCLK_SDMMC_SAMPLE>;

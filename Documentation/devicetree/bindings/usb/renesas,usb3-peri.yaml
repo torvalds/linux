@@ -73,7 +73,7 @@ examples:
 
     usb3_peri0: usb@ee020000 {
         compatible = "renesas,r8a774c0-usb3-peri", "renesas,rcar-gen3-usb3-peri";
-        reg = <0 0xee020000 0 0x400>;
+        reg = <0xee020000 0x400>;
         interrupts = <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>;
         clocks = <&cpg CPG_MOD 328>;
         companion = <&xhci0>;

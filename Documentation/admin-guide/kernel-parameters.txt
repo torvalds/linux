@@ -874,6 +874,11 @@
 			can be useful when debugging issues that require an SLB
 			miss to occur.
 
+	stress_slb	[PPC]
+			Limits the number of kernel SLB entries, and flushes
+			them frequently to increase the rate of SLB faults
+			on kernel addresses.
+
 	disable=	[IPV6]
 			See Documentation/networking/ipv6.rst.
 

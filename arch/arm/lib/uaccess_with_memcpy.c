@@ -24,6 +24,7 @@ pin_page_for_write(const void __user *_addr, pte_t **ptep, spinlock_t **ptlp)
 {
 	unsigned long addr = (unsigned long)_addr;
 	pgd_t *pgd;
+	p4d_t *p4d;
 	pmd_t *pmd;
 	pte_t *pte;
 	pud_t *pud;
@@ -33,7 +34,11 @@ pin_page_for_write(const void __user *_addr, pte_t **ptep, spinlock_t **ptlp)
 	if (unlikely(pgd_none(*pgd) || pgd_bad(*pgd)))
 		return 0;
 
-	pud = pud_offset(pgd, addr);
+	p4d = p4d_offset(pgd, addr);
+	if (unlikely(p4d_none(*p4d) || p4d_bad(*p4d)))
+		return 0;
+
+	pud = pud_offset(p4d, addr);
 	if (unlikely(pud_none(*pud) || pud_bad(*pud)))
 		return 0;
 

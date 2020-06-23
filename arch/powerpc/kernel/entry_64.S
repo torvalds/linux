@@ -479,11 +479,11 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_207S)
 fast_interrupt_return:
 _ASM_NOKPROBE_SYMBOL(fast_interrupt_return)
 	kuap_check_amr r3, r4
-	ld	r4,_MSR(r1)
-	andi.	r0,r4,MSR_PR
+	ld	r5,_MSR(r1)
+	andi.	r0,r5,MSR_PR
 	bne	.Lfast_user_interrupt_return
-	kuap_restore_amr r3
-	andi.	r0,r4,MSR_RI
+	kuap_restore_amr r3, r4
+	andi.	r0,r5,MSR_RI
 	li	r3,0 /* 0 return value, no EMULATE_STACK_STORE */
 	bne+	.Lfast_kernel_interrupt_return
 	addi	r3,r1,STACK_FRAME_OVERHEAD

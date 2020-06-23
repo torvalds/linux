@@ -7,6 +7,8 @@
 #include <linux/cpu.h>
 #include <linux/kernel.h>
 #include <linux/device.h>
+#include <linux/nospec.h>
+#include <linux/prctl.h>
 #include <linux/seq_buf.h>
 
 #include <asm/asm-prototypes.h>
@@ -14,6 +16,7 @@
 #include <asm/debugfs.h>
 #include <asm/security_features.h>
 #include <asm/setup.h>
+#include <asm/inst.h>
 
 
 u64 powerpc_security_features __read_mostly = SEC_FTR_DEFAULT;
@@ -353,6 +356,40 @@ ssize_t cpu_show_spec_store_bypass(struct device *dev, struct device_attribute *
 	return sprintf(buf, "Vulnerable\n");
 }
 
+static int ssb_prctl_get(struct task_struct *task)
+{
+	if (stf_enabled_flush_types == STF_BARRIER_NONE)
+		/*
+		 * We don't have an explicit signal from firmware that we're
+		 * vulnerable or not, we only have certain CPU revisions that
+		 * are known to be vulnerable.
+		 *
+		 * We assume that if we're on another CPU, where the barrier is
+		 * NONE, then we are not vulnerable.
+		 */
+		return PR_SPEC_NOT_AFFECTED;
+	else
+		/*
+		 * If we do have a barrier type then we are vulnerable. The
+		 * barrier is not a global or per-process mitigation, so the
+		 * only value we can report here is PR_SPEC_ENABLE, which
+		 * appears as "vulnerable" in /proc.
+		 */
+		return PR_SPEC_ENABLE;
+
+	return -EINVAL;
+}
+
+int arch_prctl_spec_ctrl_get(struct task_struct *task, unsigned long which)
+{
+	switch (which) {
+	case PR_SPEC_STORE_BYPASS:
+		return ssb_prctl_get(task);
+	default:
+		return -ENODEV;
+	}
+}
+
 #ifdef CONFIG_DEBUG_FS
 static int stf_barrier_set(void *data, u64 val)
 {
@@ -403,9 +440,11 @@ static void toggle_count_cache_flush(bool enable)
 		enable = false;
 
 	if (!enable) {
-		patch_instruction_site(&patch__call_flush_count_cache, PPC_INST_NOP);
+		patch_instruction_site(&patch__call_flush_count_cache,
+				       ppc_inst(PPC_INST_NOP));
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
-		patch_instruction_site(&patch__call_kvm_flush_link_stack, PPC_INST_NOP);
+		patch_instruction_site(&patch__call_kvm_flush_link_stack,
+				       ppc_inst(PPC_INST_NOP));
 #endif
 		pr_info("link-stack-flush: software flush disabled.\n");
 		link_stack_flush_enabled = false;
@@ -428,7 +467,8 @@ static void toggle_count_cache_flush(bool enable)
 
 	// If we just need to flush the link stack, patch an early return
 	if (!security_ftr_enabled(SEC_FTR_FLUSH_COUNT_CACHE)) {
-		patch_instruction_site(&patch__flush_link_stack_return, PPC_INST_BLR);
+		patch_instruction_site(&patch__flush_link_stack_return,
+				       ppc_inst(PPC_INST_BLR));
 		no_count_cache_flush();
 		return;
 	}
@@ -439,7 +479,7 @@ static void toggle_count_cache_flush(bool enable)
 		return;
 	}
 
-	patch_instruction_site(&patch__flush_count_cache_return, PPC_INST_BLR);
+	patch_instruction_site(&patch__flush_count_cache_return, ppc_inst(PPC_INST_BLR));
 	count_cache_flush_type = COUNT_CACHE_FLUSH_HW;
 	pr_info("count-cache-flush: hardware assisted flush sequence enabled\n");
 }

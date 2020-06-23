@@ -854,14 +854,14 @@ static struct aa_label *handle_onexec(struct aa_label *label,
 }
 
 /**
- * apparmor_bprm_set_creds - set the new creds on the bprm struct
+ * apparmor_bprm_creds_for_exec - Update the new creds on the bprm struct
  * @bprm: binprm for the exec  (NOT NULL)
  *
  * Returns: %0 or error on failure
  *
  * TODO: once the other paths are done see if we can't refactor into a fn
  */
-int apparmor_bprm_set_creds(struct linux_binprm *bprm)
+int apparmor_bprm_creds_for_exec(struct linux_binprm *bprm)
 {
 	struct aa_task_ctx *ctx;
 	struct aa_label *label, *new = NULL;
@@ -874,9 +874,6 @@ int apparmor_bprm_set_creds(struct linux_binprm *bprm)
 		file_inode(bprm->file)->i_uid,
 		file_inode(bprm->file)->i_mode
 	};
-
-	if (bprm->called_set_creds)
-		return 0;
 
 	ctx = task_ctx(current);
 	AA_BUG(!cred_label(bprm->cred));

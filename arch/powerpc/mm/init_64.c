@@ -203,7 +203,7 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
 	unsigned long page_size = 1 << mmu_psize_defs[mmu_vmemmap_psize].shift;
 
 	/* Align to the page size of the linear mapping. */
-	start = _ALIGN_DOWN(start, page_size);
+	start = ALIGN_DOWN(start, page_size);
 
 	pr_debug("vmemmap_populate %lx..%lx, node %d\n", start, end, node);
 
@@ -292,7 +292,7 @@ void __ref vmemmap_free(unsigned long start, unsigned long end,
 	unsigned long alt_start = ~0, alt_end = ~0;
 	unsigned long base_pfn;
 
-	start = _ALIGN_DOWN(start, page_size);
+	start = ALIGN_DOWN(start, page_size);
 	if (altmap) {
 		alt_start = altmap->base_pfn;
 		alt_end = altmap->base_pfn + altmap->reserve +

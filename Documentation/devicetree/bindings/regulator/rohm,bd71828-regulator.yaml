@@ -24,10 +24,9 @@ description: |
 patternProperties:
   "^LDO[1-7]$":
     type: object
-    allOf:
-      - $ref: regulator.yaml#
     description:
       Properties for single LDO regulator.
+    $ref: regulator.yaml#
 
     properties:
       regulator-name:
@@ -39,10 +38,9 @@ patternProperties:
 
   "^BUCK[1-7]$":
     type: object
-    allOf:
-      - $ref: regulator.yaml#
     description:
       Properties for single BUCK regulator.
+    $ref: regulator.yaml#
 
     properties:
       regulator-name:
@@ -51,40 +49,36 @@ patternProperties:
           should be "buck1", ..., "buck7"
 
       rohm,dvs-run-voltage:
-        allOf:
-          - $ref: "/schemas/types.yaml#/definitions/uint32"
-          - minimum: 0
-            maximum: 3300000
         description:
           PMIC default "RUN" state voltage in uV. See below table for
           bucks which support this. 0 means disabled.
+        $ref: "/schemas/types.yaml#/definitions/uint32"
+        minimum: 0
+        maximum: 3300000
 
       rohm,dvs-idle-voltage:
-        allOf:
-          - $ref: "/schemas/types.yaml#/definitions/uint32"
-          - minimum: 0
-            maximum: 3300000
         description:
           PMIC default "IDLE" state voltage in uV. See below table for
           bucks which support this. 0 means disabled.
+        $ref: "/schemas/types.yaml#/definitions/uint32"
+        minimum: 0
+        maximum: 3300000
 
       rohm,dvs-suspend-voltage:
-        allOf:
-          - $ref: "/schemas/types.yaml#/definitions/uint32"
-          - minimum: 0
-            maximum: 3300000
         description:
           PMIC default "SUSPEND" state voltage in uV. See below table for
           bucks which support this. 0 means disabled.
+        $ref: "/schemas/types.yaml#/definitions/uint32"
+        minimum: 0
+        maximum: 3300000
 
       rohm,dvs-lpsr-voltage:
-        allOf:
-          - $ref: "/schemas/types.yaml#/definitions/uint32"
-          - minimum: 0
-            maximum: 3300000
         description:
           PMIC default "LPSR" state voltage in uV. See below table for
           bucks which support this. 0 means disabled.
+        $ref: "/schemas/types.yaml#/definitions/uint32"
+        minimum: 0
+        maximum: 3300000
 
         # Supported default DVS states:
         #     buck       |    run     |   idle    | suspend  | lpsr

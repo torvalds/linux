@@ -96,43 +96,39 @@ properties:
 
   renesas,dtdl:
     description: delay sync signal (setup) in transmit mode.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - enum:
-          - 0    # no bit delay
-          - 50   # 0.5-clock-cycle delay
-          - 100  # 1-clock-cycle delay
-          - 150  # 1.5-clock-cycle delay
-          - 200  # 2-clock-cycle delay
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum:
+      - 0        # no bit delay
+      - 50       # 0.5-clock-cycle delay
+      - 100      # 1-clock-cycle delay
+      - 150      # 1.5-clock-cycle delay
+      - 200      # 2-clock-cycle delay
 
   renesas,syncdl:
     description: delay sync signal (hold) in transmit mode
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - enum:
-          - 0    # no bit delay
-          - 50   # 0.5-clock-cycle delay
-          - 100  # 1-clock-cycle delay
-          - 150  # 1.5-clock-cycle delay
-          - 200  # 2-clock-cycle delay
-          - 300  # 3-clock-cycle delay
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum:
+      - 0        # no bit delay
+      - 50       # 0.5-clock-cycle delay
+      - 100      # 1-clock-cycle delay
+      - 150      # 1.5-clock-cycle delay
+      - 200      # 2-clock-cycle delay
+      - 300      # 3-clock-cycle delay
 
   renesas,tx-fifo-size:
     # deprecated for soctype-specific bindings
     description: |
       Override the default TX fifo size.  Unit is words.  Ignored if 0.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - maxItems: 1
+    $ref: /schemas/types.yaml#/definitions/uint32
+    maxItems: 1
     default: 64
 
   renesas,rx-fifo-size:
     # deprecated for soctype-specific bindings
     description: |
       Override the default RX fifo size.  Unit is words.  Ignored if 0.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - maxItems: 1
+    $ref: /schemas/types.yaml#/definitions/uint32
+    maxItems: 1
     default: 64
 
 required:
@@ -149,7 +145,7 @@ examples:
 
     msiof0: spi@e6e20000 {
         compatible = "renesas,msiof-r8a7791", "renesas,rcar-gen2-msiof";
-        reg = <0 0xe6e20000 0 0x0064>;
+        reg = <0xe6e20000 0x0064>;
         interrupts = <0 156 IRQ_TYPE_LEVEL_HIGH>;
         clocks = <&mstp0_clks R8A7791_CLK_MSIOF0>;
         dmas = <&dmac0 0x51>, <&dmac0 0x52>;
