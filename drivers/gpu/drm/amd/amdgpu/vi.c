@@ -1705,11 +1705,13 @@ static const struct amdgpu_ip_block_version vi_common_ip_block =
 	.funcs = &vi_common_ip_funcs,
 };
 
+void vi_set_virt_ops(struct amdgpu_device *adev)
+{
+	adev->virt.ops = &xgpu_vi_virt_ops;
+}
+
 int vi_set_ip_blocks(struct amdgpu_device *adev)
 {
-	if (amdgpu_sriov_vf(adev))
-		adev->virt.ops = &xgpu_vi_virt_ops;
-
 	switch (adev->asic_type) {
 	case CHIP_TOPAZ:
 		/* topaz has no DCE, UVD, VCE */

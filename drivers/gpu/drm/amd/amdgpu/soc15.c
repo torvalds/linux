@@ -669,6 +669,11 @@ static uint32_t soc15_get_rev_id(struct amdgpu_device *adev)
 	return adev->nbio.funcs->get_rev_id(adev);
 }
 
+void soc15_set_virt_ops(struct amdgpu_device *adev)
+{
+	adev->virt.ops = &xgpu_ai_virt_ops;
+}
+
 int soc15_set_ip_blocks(struct amdgpu_device *adev)
 {
 	int r;
@@ -721,9 +726,6 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 		adev->df.funcs = &df_v1_7_funcs;
 
 	adev->rev_id = soc15_get_rev_id(adev);
-
-	if (amdgpu_sriov_vf(adev))
-		adev->virt.ops = &xgpu_ai_virt_ops;
 
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
