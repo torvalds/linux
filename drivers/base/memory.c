@@ -50,14 +50,14 @@ int memhp_online_type_from_str(const char *str)
 
 static int sections_per_block;
 
-static inline unsigned long base_memory_block_id(unsigned long section_nr)
+static inline unsigned long memory_block_id(unsigned long section_nr)
 {
 	return section_nr / sections_per_block;
 }
 
 static inline unsigned long pfn_to_block_id(unsigned long pfn)
 {
-	return base_memory_block_id(pfn_to_section_nr(pfn));
+	return memory_block_id(pfn_to_section_nr(pfn));
 }
 
 static inline unsigned long phys_to_block_id(unsigned long phys)
@@ -517,7 +517,7 @@ static struct memory_block *find_memory_block_by_id(unsigned long block_id)
  */
 struct memory_block *find_memory_block(struct mem_section *section)
 {
-	unsigned long block_id = base_memory_block_id(__section_nr(section));
+	unsigned long block_id = memory_block_id(__section_nr(section));
 
 	return find_memory_block_by_id(block_id);
 }
@@ -608,7 +608,7 @@ static int add_memory_block(unsigned long base_section_nr)
 
 	if (section_count == 0)
 		return 0;
-	return init_memory_block(base_memory_block_id(base_section_nr),
+	return init_memory_block(memory_block_id(base_section_nr),
 				 MEM_ONLINE);
 }
 
