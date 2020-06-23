@@ -531,9 +531,6 @@ static int audio_probe_channel(struct most_interface *iface, int channel_id,
 	char *sample_res;
 	char arg_list_cpy[STRING_SIZE];
 
-	if (!iface)
-		return -EINVAL;
-
 	if (cfg->data_type != MOST_CH_SYNC) {
 		pr_err("Incompatible channel type\n");
 		return -EINVAL;
