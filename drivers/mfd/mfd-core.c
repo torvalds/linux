@@ -318,6 +318,16 @@ static void devm_mfd_dev_release(struct device *dev, void *res)
  * Returns 0 on success or an appropriate negative error number on failure.
  * All child-devices of the MFD will automatically be removed when it gets
  * unbinded.
+ *
+ * @dev:	Pointer to parent device.
+ * @id:		Can be PLATFORM_DEVID_AUTO to let the Platform API take care
+ *		of device numbering, or will be added to a device's cell_id.
+ * @cells:	Array of (struct mfd_cell)s describing child devices.
+ * @n_devs:	Number of child devices to register.
+ * @mem_base:	Parent register range resource for child devices.
+ * @irq_base:	Base of the range of virtual interrupt numbers allocated for
+ *		this MFD device. Unused if @domain is specified.
+ * @domain:	Interrupt domain to create mappings for hardware interrupts.
  */
 int devm_mfd_add_devices(struct device *dev, int id,
 			 const struct mfd_cell *cells, int n_devs,
