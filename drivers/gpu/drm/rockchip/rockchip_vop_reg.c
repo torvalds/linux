@@ -506,7 +506,7 @@ static const struct vop_data rk3366_vop = {
 
 static const uint32_t vop_csc_y2r_bt601[] = {
 	0x00000400, 0x0400059c, 0xfd25fea0, 0x07170400,
-	0x00000000, 0xfffecab4, 0x00087932, 0xfff1d4f2,
+	0x00000000, 0xfff4cab4, 0x00087932, 0xfff1d4f2,
 };
 
 static const uint32_t vop_csc_y2r_bt601_12_235[] = {
