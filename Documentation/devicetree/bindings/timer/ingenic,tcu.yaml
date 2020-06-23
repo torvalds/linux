@@ -116,7 +116,9 @@ patternProperties:
             - ingenic,jz4740-watchdog
             - ingenic,jz4780-watchdog
           - items:
-            - const: ingenic,jz4770-watchdog
+            - enum:
+              - ingenic,jz4770-watchdog
+              - ingenic,jz4725b-watchdog
             - const: ingenic,jz4740-watchdog
 
       reg:
@@ -142,6 +144,7 @@ patternProperties:
         oneOf:
           - enum:
             - ingenic,jz4740-pwm
+            - ingenic,jz4725b-pwm
           - items:
             - enum:
               - ingenic,jz4770-pwm
