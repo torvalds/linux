@@ -2609,7 +2609,7 @@ int cxgb4_create_server_filter(const struct net_device *dev, unsigned int stid,
 
 	/* Clear out filter specifications */
 	memset(&f->fs, 0, sizeof(struct ch_filter_specification));
-	f->fs.val.lport = cpu_to_be16(sport);
+	f->fs.val.lport = be16_to_cpu(sport);
 	f->fs.mask.lport  = ~0;
 	val = (u8 *)&sip;
 	if ((val[0] | val[1] | val[2] | val[3]) != 0) {
