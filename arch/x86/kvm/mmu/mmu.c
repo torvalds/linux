@@ -2748,10 +2748,23 @@ static bool __kvm_mmu_prepare_zap_page(struct kvm *kvm,
 	if (!sp->root_count) {
 		/* Count self */
 		(*nr_zapped)++;
-		list_move(&sp->link, invalid_list);
+
+		/*
+		 * Already invalid pages (previously active roots) are not on
+		 * the active page list.  See list_del() in the "else" case of
+		 * !sp->root_count.
+		 */
+		if (sp->role.invalid)
+			list_add(&sp->link, invalid_list);
+		else
+			list_move(&sp->link, invalid_list);
 		kvm_mod_used_mmu_pages(kvm, -1);
 	} else {
-		list_move(&sp->link, &kvm->arch.active_mmu_pages);
+		/*
+		 * Remove the active root from the active page list, the root
+		 * will be explicitly freed when the root_count hits zero.
+		 */
+		list_del(&sp->link);
 
 		/*
 		 * Obsolete pages cannot be used on any vCPUs, see the comment
@@ -5718,12 +5731,11 @@ restart:
 			break;
 
 		/*
-		 * Skip invalid pages with a non-zero root count, zapping pages
-		 * with a non-zero root count will never succeed, i.e. the page
-		 * will get thrown back on active_mmu_pages and we'll get stuck
-		 * in an infinite loop.
+		 * Invalid pages should never land back on the list of active
+		 * pages.  Skip the bogus page, otherwise we'll get stuck in an
+		 * infinite loop if the page gets put back on the list (again).
 		 */
-		if (sp->role.invalid && sp->root_count)
+		if (WARN_ON(sp->role.invalid))
 			continue;
 
 		/*
@@ -6001,7 +6013,7 @@ void kvm_mmu_zap_all(struct kvm *kvm)
 	spin_lock(&kvm->mmu_lock);
 restart:
 	list_for_each_entry_safe(sp, node, &kvm->arch.active_mmu_pages, link) {
-		if (sp->role.invalid && sp->root_count)
+		if (WARN_ON(sp->role.invalid))
 			continue;
 		if (__kvm_mmu_prepare_zap_page(kvm, sp, &invalid_list, &ign))
 			goto restart;
