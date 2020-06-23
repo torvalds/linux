@@ -727,7 +727,7 @@ long hmi_exception_realmode(struct pt_regs *regs)
 {	
 	int ret;
 
-	__this_cpu_inc(irq_stat.hmi_exceptions);
+	local_paca->hmi_irqs++;
 
 	ret = hmi_handle_debugtrig(regs);
 	if (ret >= 0)
