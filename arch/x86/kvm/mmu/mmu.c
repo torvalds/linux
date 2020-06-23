@@ -2460,6 +2460,7 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 					     int direct,
 					     unsigned int access)
 {
+	bool direct_mmu = vcpu->arch.mmu->direct_map;
 	union kvm_mmu_page_role role;
 	struct hlist_head *sp_list;
 	unsigned quadrant;
@@ -2475,8 +2476,7 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 	if (role.direct)
 		role.gpte_is_8_bytes = true;
 	role.access = access;
-	if (!vcpu->arch.mmu->direct_map
-	    && vcpu->arch.mmu->root_level <= PT32_ROOT_LEVEL) {
+	if (!direct_mmu && vcpu->arch.mmu->root_level <= PT32_ROOT_LEVEL) {
 		quadrant = gaddr >> (PAGE_SHIFT + (PT64_PT_BITS * level));
 		quadrant &= (1 << ((PT32_PT_BITS - PT64_PT_BITS) * level)) - 1;
 		role.quadrant = quadrant;
@@ -2495,6 +2495,9 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 		if (sp->role.word != role.word)
 			continue;
 
+		if (direct_mmu)
+			goto trace_get_page;
+
 		if (sp->unsync) {
 			/* The page is good, but __kvm_sync_page might still end
 			 * up zapping it.  If so, break in order to rebuild it.
@@ -2510,6 +2513,8 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 			kvm_make_request(KVM_REQ_TLB_FLUSH_CURRENT, vcpu);
 
 		__clear_sp_write_flooding_count(sp);
+
+trace_get_page:
 		trace_kvm_mmu_get_page(sp, false);
 		goto out;
 	}
