@@ -5,6 +5,7 @@
  * Copyright (c) 2015 ROCKCHIP, Co. Ltd.
  */
 
+#include <linux/module.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
 #include <linux/err.h>
@@ -1546,6 +1547,7 @@ static const struct of_device_id rockchip_pm_domain_dt_match[] = {
 	},
 	{ /* sentinel */ },
 };
+MODULE_DEVICE_TABLE(of, rockchip_pm_domain_dt_match);
 
 static struct platform_driver rockchip_pm_domain_driver = {
 	.probe = rockchip_pm_domain_probe,
@@ -1566,3 +1568,12 @@ static int __init rockchip_pm_domain_drv_register(void)
 	return platform_driver_register(&rockchip_pm_domain_driver);
 }
 postcore_initcall(rockchip_pm_domain_drv_register);
+
+static void __exit rockchip_pm_domain_drv_unregister(void)
+{
+	platform_driver_unregister(&rockchip_pm_domain_driver);
+}
+module_exit(rockchip_pm_domain_drv_unregister);
+
+MODULE_DESCRIPTION("ROCKCHIP PM Domain Driver");
+MODULE_LICENSE("GPL");
