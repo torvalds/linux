@@ -1533,35 +1533,17 @@ lock_and_cleanup_extent_if_need(struct btrfs_inode *inode, struct page **pages,
 	return ret;
 }
 
-/*
- * Check if we can do nocow write into the range [@pos, @pos + @write_bytes)
- *
- * @pos:	 File offset
- * @write_bytes: The length to write, will be updated to the nocow writeable
- *		 range
- * @nowait:	 Whether this function could sleep
- *
- * This function will flush ordered extents in the range to ensure proper
- * nocow checks for (nowait == false) case.
- *
- * Return:
- * >0		and update @write_bytes if we can do nocow write
- *  0		if we can't do nocow write
- * -EAGAIN	if we can't get the needed lock or there are ordered extents
- * 		for * (nowait == true) case
- * <0		if other error happened
- *
- * NOTE: For wait (nowait == false) calls, callers need to release the drew
- * write lock of inode->root->snapshot_lock when return value > 0.
- */
-int btrfs_check_can_nocow(struct btrfs_inode *inode, loff_t pos,
-			  size_t *write_bytes, bool nowait)
+static int check_can_nocow(struct btrfs_inode *inode, loff_t pos,
+			   size_t *write_bytes, bool nowait)
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct btrfs_root *root = inode->root;
 	u64 lockstart, lockend;
 	u64 num_bytes;
 	int ret;
+
+	if (!(inode->flags & (BTRFS_INODE_NODATACOW | BTRFS_INODE_PREALLOC)))
+		return 0;
 
 	if (!nowait && !btrfs_drew_try_write_lock(&root->snapshot_lock))
 		return -EAGAIN;
@@ -1605,6 +1587,42 @@ out_unlock:
 	return ret;
 }
 
+static int check_nocow_nolock(struct btrfs_inode *inode, loff_t pos,
+			      size_t *write_bytes)
+{
+	return check_can_nocow(inode, pos, write_bytes, true);
+}
+
+/*
+ * Check if we can do nocow write into the range [@pos, @pos + @write_bytes)
+ *
+ * @pos:	 File offset
+ * @write_bytes: The length to write, will be updated to the nocow writeable
+ *		 range
+ *
+ * This function will flush ordered extents in the range to ensure proper
+ * nocow checks.
+ *
+ * Return:
+ * >0		and update @write_bytes if we can do nocow write
+ *  0		if we can't do nocow write
+ * -EAGAIN	if we can't get the needed lock or there are ordered extents
+ * 		for * (nowait == true) case
+ * <0		if other error happened
+ *
+ * NOTE: Callers need to release the lock by btrfs_check_nocow_unlock().
+ */
+int btrfs_check_nocow_lock(struct btrfs_inode *inode, loff_t pos,
+			   size_t *write_bytes)
+{
+	return check_can_nocow(inode, pos, write_bytes, false);
+}
+
+void btrfs_check_nocow_unlock(struct btrfs_inode *inode)
+{
+	btrfs_drew_write_unlock(&inode->root->snapshot_lock);
+}
+
 static noinline ssize_t btrfs_buffered_write(struct kiocb *iocb,
 					       struct iov_iter *i)
 {
@@ -1612,7 +1630,6 @@ static noinline ssize_t btrfs_buffered_write(struct kiocb *iocb,
 	loff_t pos = iocb->ki_pos;
 	struct inode *inode = file_inode(file);
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
-	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct page **pages = NULL;
 	struct extent_changeset *data_reserved = NULL;
 	u64 release_bytes = 0;
@@ -1668,10 +1685,8 @@ static noinline ssize_t btrfs_buffered_write(struct kiocb *iocb,
 		ret = btrfs_check_data_free_space(inode, &data_reserved, pos,
 						  write_bytes);
 		if (ret < 0) {
-			if ((BTRFS_I(inode)->flags & (BTRFS_INODE_NODATACOW |
-						      BTRFS_INODE_PREALLOC)) &&
-			    btrfs_check_can_nocow(BTRFS_I(inode), pos,
-						  &write_bytes, false) > 0) {
+			if (btrfs_check_nocow_lock(BTRFS_I(inode), pos,
+						   &write_bytes) > 0) {
 				/*
 				 * For nodata cow case, no need to reserve
 				 * data space.
@@ -1700,7 +1715,7 @@ static noinline ssize_t btrfs_buffered_write(struct kiocb *iocb,
 						data_reserved, pos,
 						write_bytes);
 			else
-				btrfs_drew_write_unlock(&root->snapshot_lock);
+				btrfs_check_nocow_unlock(BTRFS_I(inode));
 			break;
 		}
 
@@ -1804,7 +1819,7 @@ again:
 
 		release_bytes = 0;
 		if (only_release_metadata)
-			btrfs_drew_write_unlock(&root->snapshot_lock);
+			btrfs_check_nocow_unlock(BTRFS_I(inode));
 
 		if (only_release_metadata && copied > 0) {
 			lockstart = round_down(pos,
@@ -1831,7 +1846,7 @@ again:
 
 	if (release_bytes) {
 		if (only_release_metadata) {
-			btrfs_drew_write_unlock(&root->snapshot_lock);
+			btrfs_check_nocow_unlock(BTRFS_I(inode));
 			btrfs_delalloc_release_metadata(BTRFS_I(inode),
 					release_bytes, true);
 		} else {
@@ -1946,10 +1961,8 @@ static ssize_t btrfs_file_write_iter(struct kiocb *iocb,
 		 * We will allocate space in case nodatacow is not set,
 		 * so bail
 		 */
-		if (!(BTRFS_I(inode)->flags & (BTRFS_INODE_NODATACOW |
-					      BTRFS_INODE_PREALLOC)) ||
-		    btrfs_check_can_nocow(BTRFS_I(inode), pos, &nocow_bytes,
-					  true) <= 0) {
+		if (check_nocow_nolock(BTRFS_I(inode), pos, &nocow_bytes)
+		    <= 0) {
 			inode_unlock(inode);
 			return -EAGAIN;
 		}

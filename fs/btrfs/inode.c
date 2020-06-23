@@ -4534,10 +4534,8 @@ int btrfs_truncate_block(struct inode *inode, loff_t from, loff_t len,
 	ret = btrfs_check_data_free_space(inode, &data_reserved, block_start,
 					  blocksize);
 	if (ret < 0) {
-		if ((BTRFS_I(inode)->flags & (BTRFS_INODE_NODATACOW |
-					      BTRFS_INODE_PREALLOC)) &&
-		    btrfs_check_can_nocow(BTRFS_I(inode), block_start,
-					  &write_bytes, false) > 0) {
+		if (btrfs_check_nocow_lock(BTRFS_I(inode), block_start,
+					   &write_bytes) > 0) {
 			/* For nocow case, no need to reserve data space */
 			only_release_metadata = true;
 		} else {
@@ -4638,7 +4636,7 @@ out_unlock:
 	put_page(page);
 out:
 	if (only_release_metadata)
-		btrfs_drew_write_unlock(&BTRFS_I(inode)->root->snapshot_lock);
+		btrfs_check_nocow_unlock(BTRFS_I(inode));
 	extent_changeset_free(data_reserved);
 	return ret;
 }
