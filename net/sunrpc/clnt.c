@@ -2405,7 +2405,8 @@ call_status(struct rpc_task *task)
 		goto out_exit;
 	}
 	task->tk_action = call_encode;
-	rpc_check_timeout(task);
+	if (status != -ECONNRESET && status != -ECONNABORTED)
+		rpc_check_timeout(task);
 	return;
 out_exit:
 	rpc_call_rpcerror(task, status);
