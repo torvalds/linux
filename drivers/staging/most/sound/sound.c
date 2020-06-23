@@ -278,6 +278,7 @@ static int pcm_open(struct snd_pcm_substream *substream)
 	struct channel *channel = substream->private_data;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct most_channel_config *cfg = channel->cfg;
+	int ret;
 
 	channel->substream = substream;
 
@@ -290,11 +291,12 @@ static int pcm_open(struct snd_pcm_substream *substream)
 		}
 	}
 
-	if (most_start_channel(channel->iface, channel->id, &comp)) {
+	ret = most_start_channel(channel->iface, channel->id, &comp);
+	if (ret) {
 		pr_err("most_start_channel() failed!\n");
 		if (cfg->direction == MOST_CH_TX)
 			kthread_stop(channel->playback_task);
-		return -EBUSY;
+		return ret;
 	}
 
 	runtime->hw = channel->pcm_hardware;
@@ -444,7 +446,7 @@ static int split_arg_list(char *buf, u16 *ch_num, char **sample_res)
 
 err:
 	pr_err("Bad PCM format\n");
-	return -EIO;
+	return -EINVAL;
 }
 
 static const struct sample_resolution_info {
@@ -469,7 +471,7 @@ static int audio_set_hw_params(struct snd_pcm_hardware *pcm_hw,
 			goto found;
 	}
 	pr_err("Unsupported PCM format\n");
-	return -EIO;
+	return -EINVAL;
 
 found:
 	if (!ch_num) {
@@ -580,7 +582,7 @@ skip_adpt_alloc:
 	if (get_channel(iface, channel_id)) {
 		pr_err("channel (%s:%d) is already linked\n",
 		       iface->description, channel_id);
-		return -EINVAL;
+		return -EEXIST;
 	}
 
 	if (cfg->direction == MOST_CH_TX) {
