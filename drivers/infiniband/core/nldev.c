@@ -454,14 +454,6 @@ static bool fill_res_entry(struct ib_device *dev, struct sk_buff *msg,
 	return dev->ops.fill_res_entry(msg, res);
 }
 
-static bool fill_stat_entry(struct ib_device *dev, struct sk_buff *msg,
-			    struct rdma_restrack_entry *res)
-{
-	if (!dev->ops.fill_stat_entry)
-		return false;
-	return dev->ops.fill_stat_entry(msg, res);
-}
-
 static int fill_res_qp_entry(struct sk_buff *msg, bool has_cap_net_admin,
 			     struct rdma_restrack_entry *res, uint32_t port)
 {
@@ -641,9 +633,8 @@ static int fill_res_mr_entry(struct sk_buff *msg, bool has_cap_net_admin,
 	if (fill_res_name_pid(msg, res))
 		goto err;
 
-	if (fill_res_entry(dev, msg, res))
-		goto err;
-
+	if (dev->ops.fill_res_mr_entry)
+		return dev->ops.fill_res_mr_entry(msg, mr);
 	return 0;
 
 err:	return -EMSGSIZE;
@@ -786,9 +777,8 @@ static int fill_stat_mr_entry(struct sk_buff *msg, bool has_cap_net_admin,
 	if (nla_put_u32(msg, RDMA_NLDEV_ATTR_RES_MRN, res->id))
 		goto err;
 
-	if (fill_stat_entry(dev, msg, res))
-		goto err;
-
+	if (dev->ops.fill_stat_mr_entry)
+		return dev->ops.fill_stat_mr_entry(msg, mr);
 	return 0;
 
 err:

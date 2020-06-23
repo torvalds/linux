@@ -433,10 +433,8 @@ err:
 	return -EMSGSIZE;
 }
 
-static int fill_res_mr_entry(struct sk_buff *msg,
-			     struct rdma_restrack_entry *res)
+int c4iw_fill_res_mr_entry(struct sk_buff *msg, struct ib_mr *ibmr)
 {
-	struct ib_mr *ibmr = container_of(res, struct ib_mr, res);
 	struct c4iw_mr *mhp = to_c4iw_mr(ibmr);
 	struct c4iw_dev *dev = mhp->rhp;
 	u32 stag = mhp->attr.stag;
@@ -497,5 +495,4 @@ c4iw_restrack_func *c4iw_restrack_funcs[RDMA_RESTRACK_MAX] = {
 	[RDMA_RESTRACK_QP]	= fill_res_qp_entry,
 	[RDMA_RESTRACK_CM_ID]	= fill_res_ep_entry,
 	[RDMA_RESTRACK_CQ]	= fill_res_cq_entry,
-	[RDMA_RESTRACK_MR]	= fill_res_mr_entry,
 };

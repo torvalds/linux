@@ -8,10 +8,9 @@
 #include <rdma/restrack.h>
 #include "mlx5_ib.h"
 
-static int fill_stat_mr_entry(struct sk_buff *msg,
-			      struct rdma_restrack_entry *res)
+int mlx5_ib_fill_stat_mr_entry(struct sk_buff *msg,
+			       struct ib_mr *ibmr)
 {
-	struct ib_mr *ibmr = container_of(res, struct ib_mr, res);
 	struct mlx5_ib_mr *mr = to_mmr(ibmr);
 	struct nlattr *table_attr;
 
@@ -41,10 +40,9 @@ err:
 	return -EMSGSIZE;
 }
 
-static int fill_res_mr_entry(struct sk_buff *msg,
-			     struct rdma_restrack_entry *res)
+int mlx5_ib_fill_res_mr_entry(struct sk_buff *msg,
+			      struct ib_mr *ibmr)
 {
-	struct ib_mr *ibmr = container_of(res, struct ib_mr, res);
 	struct mlx5_ib_mr *mr = to_mmr(ibmr);
 	struct nlattr *table_attr;
 
@@ -69,22 +67,4 @@ static int fill_res_mr_entry(struct sk_buff *msg,
 err:
 	nla_nest_cancel(msg, table_attr);
 	return -EMSGSIZE;
-}
-
-int mlx5_ib_fill_res_entry(struct sk_buff *msg,
-			   struct rdma_restrack_entry *res)
-{
-	if (res->type == RDMA_RESTRACK_MR)
-		return fill_res_mr_entry(msg, res);
-
-	return 0;
-}
-
-int mlx5_ib_fill_stat_entry(struct sk_buff *msg,
-			    struct rdma_restrack_entry *res)
-{
-	if (res->type == RDMA_RESTRACK_MR)
-		return fill_stat_mr_entry(msg, res);
-
-	return 0;
 }
