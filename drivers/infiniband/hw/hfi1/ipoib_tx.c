@@ -55,22 +55,47 @@ static u64 hfi1_ipoib_txreqs(const u64 sent, const u64 completed)
 	return sent - completed;
 }
 
+static u64 hfi1_ipoib_used(struct hfi1_ipoib_txq *txq)
+{
+	return hfi1_ipoib_txreqs(txq->sent_txreqs,
+				 atomic64_read(&txq->complete_txreqs));
+}
+
+static void hfi1_ipoib_stop_txq(struct hfi1_ipoib_txq *txq)
+{
+	if (atomic_inc_return(&txq->stops) == 1)
+		netif_stop_subqueue(txq->priv->netdev, txq->q_idx);
+}
+
+static void hfi1_ipoib_wake_txq(struct hfi1_ipoib_txq *txq)
+{
+	if (atomic_dec_and_test(&txq->stops))
+		netif_wake_subqueue(txq->priv->netdev, txq->q_idx);
+}
+
+static uint hfi1_ipoib_ring_hwat(struct hfi1_ipoib_txq *txq)
+{
+	return min_t(uint, txq->priv->netdev->tx_queue_len,
+		     txq->tx_ring.max_items - 1);
+}
+
+static uint hfi1_ipoib_ring_lwat(struct hfi1_ipoib_txq *txq)
+{
+	return min_t(uint, txq->priv->netdev->tx_queue_len,
+		     txq->tx_ring.max_items) >> 1;
+}
+
 static void hfi1_ipoib_check_queue_depth(struct hfi1_ipoib_txq *txq)
 {
-	if (unlikely(hfi1_ipoib_txreqs(++txq->sent_txreqs,
-				       atomic64_read(&txq->complete_txreqs)) >=
-	    min_t(unsigned int, txq->priv->netdev->tx_queue_len,
-		  txq->tx_ring.max_items - 1)))
-		netif_stop_subqueue(txq->priv->netdev, txq->q_idx);
+	++txq->sent_txreqs;
+	if (hfi1_ipoib_used(txq) >= hfi1_ipoib_ring_hwat(txq) &&
+	    !atomic_xchg(&txq->ring_full, 1))
+		hfi1_ipoib_stop_txq(txq);
 }
 
 static void hfi1_ipoib_check_queue_stopped(struct hfi1_ipoib_txq *txq)
 {
 	struct net_device *dev = txq->priv->netdev;
-
-	/* If the queue is already running just return */
-	if (likely(!__netif_subqueue_stopped(dev, txq->q_idx)))
-		return;
 
 	/* If shutting down just return as queue state is irrelevant */
 	if (unlikely(dev->reg_state != NETREG_REGISTERED))
@@ -86,11 +111,9 @@ static void hfi1_ipoib_check_queue_stopped(struct hfi1_ipoib_txq *txq)
 	 * Use the minimum of the current tx_queue_len or the rings max txreqs
 	 * to protect against ring overflow.
 	 */
-	if (hfi1_ipoib_txreqs(txq->sent_txreqs,
-			      atomic64_read(&txq->complete_txreqs))
-	    < min_t(unsigned int, dev->tx_queue_len,
-		    txq->tx_ring.max_items) >> 1)
-		netif_wake_subqueue(dev, txq->q_idx);
+	if (hfi1_ipoib_used(txq) < hfi1_ipoib_ring_lwat(txq) &&
+	    atomic_xchg(&txq->ring_full, 0))
+		hfi1_ipoib_wake_txq(txq);
 }
 
 static void hfi1_ipoib_free_tx(struct ipoib_txreq *tx, int budget)
@@ -608,13 +631,14 @@ static int hfi1_ipoib_sdma_sleep(struct sdma_engine *sde,
 			return -EAGAIN;
 		}
 
-		netif_stop_subqueue(txq->priv->netdev, txq->q_idx);
-
 		if (list_empty(&txreq->list))
 			/* came from non-list submit */
 			list_add_tail(&txreq->list, &txq->tx_list);
-		if (list_empty(&txq->wait.list))
+		if (list_empty(&txq->wait.list)) {
+			if (!atomic_xchg(&txq->no_desc, 1))
+				hfi1_ipoib_stop_txq(txq);
 			iowait_queue(pkts_sent, wait->iow, &sde->dmawait);
+		}
 
 		write_sequnlock(&sde->waitlock);
 		return -EBUSY;
@@ -649,9 +673,9 @@ static void hfi1_ipoib_flush_txq(struct work_struct *work)
 	struct net_device *dev = txq->priv->netdev;
 
 	if (likely(dev->reg_state == NETREG_REGISTERED) &&
-	    likely(__netif_subqueue_stopped(dev, txq->q_idx)) &&
 	    likely(!hfi1_ipoib_flush_tx_list(dev, txq)))
-		netif_wake_subqueue(dev, txq->q_idx);
+		if (atomic_xchg(&txq->no_desc, 0))
+			hfi1_ipoib_wake_txq(txq);
 }
 
 int hfi1_ipoib_txreq_init(struct hfi1_ipoib_dev_priv *priv)
@@ -705,6 +729,9 @@ int hfi1_ipoib_txreq_init(struct hfi1_ipoib_dev_priv *priv)
 		txq->sde = NULL;
 		INIT_LIST_HEAD(&txq->tx_list);
 		atomic64_set(&txq->complete_txreqs, 0);
+		atomic_set(&txq->stops, 0);
+		atomic_set(&txq->ring_full, 0);
+		atomic_set(&txq->no_desc, 0);
 		txq->q_idx = i;
 		txq->flow.tx_queue = 0xff;
 		txq->flow.sc5 = 0xff;
@@ -770,7 +797,7 @@ static void hfi1_ipoib_drain_tx_list(struct hfi1_ipoib_txq *txq)
 		atomic64_inc(complete_txreqs);
 	}
 
-	if (hfi1_ipoib_txreqs(txq->sent_txreqs, atomic64_read(complete_txreqs)))
+	if (hfi1_ipoib_used(txq))
 		dd_dev_warn(txq->priv->dd,
 			    "txq %d not empty found %llu requests\n",
 			    txq->q_idx,
