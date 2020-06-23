@@ -150,6 +150,7 @@ struct nfs_fsinfo {
 	__u32			layouttype[NFS_MAX_LAYOUT_TYPES]; /* supported pnfs layout driver */
 	__u32			blksize; /* preferred pnfs io block size */
 	__u32			clone_blksize; /* granularity of a CLONE operation */
+	__u32			xattr_support; /* User xattrs supported */
 };
 
 struct nfs_fsstat {

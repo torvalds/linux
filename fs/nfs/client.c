@@ -809,6 +809,9 @@ static void nfs_server_set_fsinfo(struct nfs_server *server,
 				XATTR_SIZE_MAX);
 	server->lxasize = min_t(unsigned int, raw_max_rpc_payload,
 				nfs42_listxattr_xdrsize(XATTR_LIST_MAX));
+
+	if (fsinfo->xattr_support)
+		server->caps |= NFS_CAP_XATTR;
 #endif
 }
 
