@@ -1696,9 +1696,10 @@ static void nvme_rdma_process_nvme_rsp(struct nvme_rdma_queue *queue,
 			nvme_rdma_error_recovery(queue->ctrl);
 		}
 		/* the local invalidation completion will end the request */
-	} else {
-		nvme_rdma_end_request(req);
+		return;
 	}
+
+	nvme_rdma_end_request(req);
 }
 
 static void nvme_rdma_recv_done(struct ib_cq *cq, struct ib_wc *wc)
