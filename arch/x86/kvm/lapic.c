@@ -169,6 +169,18 @@ static void kvm_apic_map_free(struct rcu_head *rcu)
 	kvfree(map);
 }
 
+/*
+ * CLEAN -> DIRTY and UPDATE_IN_PROGRESS -> DIRTY changes happen without a lock.
+ *
+ * DIRTY -> UPDATE_IN_PROGRESS and UPDATE_IN_PROGRESS -> CLEAN happen with
+ * apic_map_lock_held.
+ */
+enum {
+	CLEAN,
+	UPDATE_IN_PROGRESS,
+	DIRTY
+};
+
 void kvm_recalculate_apic_map(struct kvm *kvm)
 {
 	struct kvm_apic_map *new, *old = NULL;
@@ -176,17 +188,17 @@ void kvm_recalculate_apic_map(struct kvm *kvm)
 	int i;
 	u32 max_id = 255; /* enough space for any xAPIC ID */
 
-	if (!kvm->arch.apic_map_dirty) {
-		/*
-		 * Read kvm->arch.apic_map_dirty before
-		 * kvm->arch.apic_map
-		 */
-		smp_rmb();
+	/* Read kvm->arch.apic_map_dirty before kvm->arch.apic_map.  */
+	if (atomic_read_acquire(&kvm->arch.apic_map_dirty) == CLEAN)
 		return;
-	}
 
 	mutex_lock(&kvm->arch.apic_map_lock);
-	if (!kvm->arch.apic_map_dirty) {
+	/*
+	 * Read kvm->arch.apic_map_dirty before kvm->arch.apic_map
+	 * (if clean) or the APIC registers (if dirty).
+	 */
+	if (atomic_cmpxchg_acquire(&kvm->arch.apic_map_dirty,
+				   DIRTY, UPDATE_IN_PROGRESS) == CLEAN) {
 		/* Someone else has updated the map. */
 		mutex_unlock(&kvm->arch.apic_map_lock);
 		return;
@@ -256,11 +268,11 @@ out:
 			lockdep_is_held(&kvm->arch.apic_map_lock));
 	rcu_assign_pointer(kvm->arch.apic_map, new);
 	/*
-	 * Write kvm->arch.apic_map before
-	 * clearing apic->apic_map_dirty
+	 * Write kvm->arch.apic_map before clearing apic->apic_map_dirty.
+	 * If another update has come in, leave it DIRTY.
 	 */
-	smp_wmb();
-	kvm->arch.apic_map_dirty = false;
+	atomic_cmpxchg_release(&kvm->arch.apic_map_dirty,
+			       UPDATE_IN_PROGRESS, CLEAN);
 	mutex_unlock(&kvm->arch.apic_map_lock);
 
 	if (old)
@@ -282,20 +294,20 @@ static inline void apic_set_spiv(struct kvm_lapic *apic, u32 val)
 		else
 			static_key_slow_inc(&apic_sw_disabled.key);
 
-		apic->vcpu->kvm->arch.apic_map_dirty = true;
+		atomic_set_release(&apic->vcpu->kvm->arch.apic_map_dirty, DIRTY);
 	}
 }
 
 static inline void kvm_apic_set_xapic_id(struct kvm_lapic *apic, u8 id)
 {
 	kvm_lapic_set_reg(apic, APIC_ID, id << 24);
-	apic->vcpu->kvm->arch.apic_map_dirty = true;
+	atomic_set_release(&apic->vcpu->kvm->arch.apic_map_dirty, DIRTY);
 }
 
 static inline void kvm_apic_set_ldr(struct kvm_lapic *apic, u32 id)
 {
 	kvm_lapic_set_reg(apic, APIC_LDR, id);
-	apic->vcpu->kvm->arch.apic_map_dirty = true;
+	atomic_set_release(&apic->vcpu->kvm->arch.apic_map_dirty, DIRTY);
 }
 
 static inline u32 kvm_apic_calc_x2apic_ldr(u32 id)
@@ -311,7 +323,7 @@ static inline void kvm_apic_set_x2apic_id(struct kvm_lapic *apic, u32 id)
 
 	kvm_lapic_set_reg(apic, APIC_ID, id);
 	kvm_lapic_set_reg(apic, APIC_LDR, ldr);
-	apic->vcpu->kvm->arch.apic_map_dirty = true;
+	atomic_set_release(&apic->vcpu->kvm->arch.apic_map_dirty, DIRTY);
 }
 
 static inline int apic_lvt_enabled(struct kvm_lapic *apic, int lvt_type)
@@ -1976,7 +1988,7 @@ int kvm_lapic_reg_write(struct kvm_lapic *apic, u32 reg, u32 val)
 	case APIC_DFR:
 		if (!apic_x2apic_mode(apic)) {
 			kvm_lapic_set_reg(apic, APIC_DFR, val | 0x0FFFFFFF);
-			apic->vcpu->kvm->arch.apic_map_dirty = true;
+			atomic_set_release(&apic->vcpu->kvm->arch.apic_map_dirty, DIRTY);
 		} else
 			ret = 1;
 		break;
@@ -2232,7 +2244,7 @@ void kvm_lapic_set_base(struct kvm_vcpu *vcpu, u64 value)
 			static_key_slow_dec_deferred(&apic_hw_disabled);
 		} else {
 			static_key_slow_inc(&apic_hw_disabled.key);
-			vcpu->kvm->arch.apic_map_dirty = true;
+			atomic_set_release(&apic->vcpu->kvm->arch.apic_map_dirty, DIRTY);
 		}
 	}
 
@@ -2273,7 +2285,6 @@ void kvm_lapic_reset(struct kvm_vcpu *vcpu, bool init_event)
 	if (!apic)
 		return;
 
-	vcpu->kvm->arch.apic_map_dirty = false;
 	/* Stop the timer in case it's a reset to an active apic */
 	hrtimer_cancel(&apic->lapic_timer.timer);
 
@@ -2567,6 +2578,7 @@ int kvm_apic_set_state(struct kvm_vcpu *vcpu, struct kvm_lapic_state *s)
 	}
 	memcpy(vcpu->arch.apic->regs, s->regs, sizeof(*s));
 
+	atomic_set_release(&apic->vcpu->kvm->arch.apic_map_dirty, DIRTY);
 	kvm_recalculate_apic_map(vcpu->kvm);
 	kvm_apic_set_version(vcpu);
 
