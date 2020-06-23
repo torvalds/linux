@@ -7,6 +7,8 @@
 #define bpf_iter__netlink bpf_iter__netlink___not_used
 #define bpf_iter__task bpf_iter__task___not_used
 #define bpf_iter__task_file bpf_iter__task_file___not_used
+#define bpf_iter__tcp bpf_iter__tcp___not_used
+#define tcp6_sock tcp6_sock___not_used
 #include "vmlinux.h"
 #undef bpf_iter_meta
 #undef bpf_iter__bpf_map
@@ -14,6 +16,8 @@
 #undef bpf_iter__netlink
 #undef bpf_iter__task
 #undef bpf_iter__task_file
+#undef bpf_iter__tcp
+#undef tcp6_sock
 
 struct bpf_iter_meta {
 	struct seq_file *seq;
@@ -46,4 +50,15 @@ struct bpf_iter__task_file {
 struct bpf_iter__bpf_map {
 	struct bpf_iter_meta *meta;
 	struct bpf_map *map;
+} __attribute__((preserve_access_index));
+
+struct bpf_iter__tcp {
+	struct bpf_iter_meta *meta;
+	struct sock_common *sk_common;
+	uid_t uid;
+} __attribute__((preserve_access_index));
+
+struct tcp6_sock {
+	struct tcp_sock	tcp;
+	struct ipv6_pinfo inet6;
 } __attribute__((preserve_access_index));
