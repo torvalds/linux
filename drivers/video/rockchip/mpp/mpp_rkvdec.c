@@ -171,7 +171,6 @@ struct rkvdec_dev {
 	u32 clk_core_debug;
 	u32 clk_cabac_debug;
 	u32 clk_hevc_cabac_debug;
-	u32 session_max_buffers_debug;
 
 	struct reset_control *rst_a;
 	struct reset_control *rst_h;
@@ -1124,7 +1123,7 @@ static int rkvdec_debugfs_init(struct mpp_dev *mpp)
 	dec->clk_core_debug = 0;
 	dec->clk_cabac_debug = 0;
 	dec->clk_hevc_cabac_debug = 0;
-	dec->session_max_buffers_debug = 0;
+
 	dec->debugfs = debugfs_create_dir(mpp->dev->of_node->name,
 					  mpp->srv->debugfs);
 	if (IS_ERR_OR_NULL(dec->debugfs)) {
@@ -1141,9 +1140,7 @@ static int rkvdec_debugfs_init(struct mpp_dev *mpp)
 	debugfs_create_u32("clk_hevc_cabac", 0644,
 			   dec->debugfs, &dec->clk_hevc_cabac_debug);
 	debugfs_create_u32("session_buffers", 0644,
-			   dec->debugfs, &dec->session_max_buffers_debug);
-	if (dec->session_max_buffers_debug)
-		mpp->session_max_buffers = dec->session_max_buffers_debug;
+			   dec->debugfs, &mpp->session_max_buffers);
 
 	return 0;
 }

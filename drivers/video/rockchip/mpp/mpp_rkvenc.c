@@ -164,7 +164,6 @@ struct rkvenc_dev {
 #endif
 	u32 aclk_debug_mhz;
 	u32 clk_core_debug_mhz;
-	u32 session_max_buffers_debug;
 
 	struct reset_control *rst_a;
 	struct reset_control *rst_h;
@@ -605,7 +604,6 @@ static int rkvenc_debugfs_init(struct mpp_dev *mpp)
 
 	enc->aclk_debug_mhz = 0;
 	enc->clk_core_debug_mhz = 0;
-	enc->session_max_buffers_debug = 0;
 	enc->debugfs = debugfs_create_dir(mpp->dev->of_node->name,
 					  mpp->srv->debugfs);
 	if (IS_ERR_OR_NULL(enc->debugfs)) {
@@ -618,9 +616,7 @@ static int rkvenc_debugfs_init(struct mpp_dev *mpp)
 	debugfs_create_u32("clk_core", 0644,
 			   enc->debugfs, &enc->clk_core_debug_mhz);
 	debugfs_create_u32("session_buffers", 0644,
-			   enc->debugfs, &enc->session_max_buffers_debug);
-	if (enc->session_max_buffers_debug)
-		mpp->session_max_buffers = enc->session_max_buffers_debug;
+			   enc->debugfs, &mpp->session_max_buffers);
 
 	return 0;
 }

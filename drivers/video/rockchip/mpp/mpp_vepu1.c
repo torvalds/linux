@@ -90,7 +90,6 @@ struct vepu_dev {
 	struct dentry *debugfs;
 #endif
 	u32 aclk_debug;
-	u32 session_max_buffers_debug;
 
 	struct reset_control *rst_a;
 	struct reset_control *rst_h;
@@ -411,7 +410,6 @@ static int vepu_debugfs_init(struct mpp_dev *mpp)
 	struct vepu_dev *enc = to_vepu_dev(mpp);
 
 	enc->aclk_debug = 0;
-	enc->session_max_buffers_debug = 0;
 	enc->debugfs = debugfs_create_dir(mpp->dev->of_node->name,
 					  mpp->srv->debugfs);
 	if (IS_ERR_OR_NULL(enc->debugfs)) {
@@ -422,9 +420,7 @@ static int vepu_debugfs_init(struct mpp_dev *mpp)
 	debugfs_create_u32("aclk", 0644,
 			   enc->debugfs, &enc->aclk_debug);
 	debugfs_create_u32("session_buffers", 0644,
-			   enc->debugfs, &enc->session_max_buffers_debug);
-	if (enc->session_max_buffers_debug)
-		mpp->session_max_buffers = enc->session_max_buffers_debug;
+			   enc->debugfs, &mpp->session_max_buffers);
 
 	return 0;
 }
