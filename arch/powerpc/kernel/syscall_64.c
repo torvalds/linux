@@ -206,6 +206,13 @@ again:
 			else if (cpu_has_feature(CPU_FTR_ALTIVEC))
 				mathflags |= MSR_VEC;
 
+			/*
+			 * If userspace MSR has all available FP bits set,
+			 * then they are live and no need to restore. If not,
+			 * it means the regs were given up and restore_math
+			 * may decide to restore them (to avoid taking an FP
+			 * fault).
+			 */
 			if ((regs->msr & mathflags) != mathflags)
 				restore_math(regs);
 		}
@@ -277,6 +284,7 @@ again:
 			else if (cpu_has_feature(CPU_FTR_ALTIVEC))
 				mathflags |= MSR_VEC;
 
+			/* See above restore_math comment */
 			if ((regs->msr & mathflags) != mathflags)
 				restore_math(regs);
 		}

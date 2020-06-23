@@ -471,49 +471,58 @@ EXPORT_SYMBOL(giveup_all);
 
 #ifdef CONFIG_PPC_BOOK3S_64
 #ifdef CONFIG_PPC_FPU
-static int restore_fp(struct task_struct *tsk)
+static bool should_restore_fp(void)
 {
-	if (tsk->thread.load_fp) {
-		load_fp_state(&current->thread.fp_state);
+	if (current->thread.load_fp) {
 		current->thread.load_fp++;
-		return 1;
+		return true;
 	}
-	return 0;
+	return false;
+}
+
+static void do_restore_fp(void)
+{
+	load_fp_state(&current->thread.fp_state);
 }
 #else
-static int restore_fp(struct task_struct *tsk) { return 0; }
+static bool should_restore_fp(void) { return false; }
+static void do_restore_fp(void) { }
 #endif /* CONFIG_PPC_FPU */
 
 #ifdef CONFIG_ALTIVEC
-#define loadvec(thr) ((thr).load_vec)
-static int restore_altivec(struct task_struct *tsk)
+static bool should_restore_altivec(void)
 {
-	if (cpu_has_feature(CPU_FTR_ALTIVEC) && (tsk->thread.load_vec)) {
-		load_vr_state(&tsk->thread.vr_state);
-		tsk->thread.used_vr = 1;
-		tsk->thread.load_vec++;
-
-		return 1;
+	if (cpu_has_feature(CPU_FTR_ALTIVEC) && (current->thread.load_vec)) {
+		current->thread.load_vec++;
+		return true;
 	}
-	return 0;
+	return false;
+}
+
+static void do_restore_altivec(void)
+{
+	load_vr_state(&current->thread.vr_state);
+	current->thread.used_vr = 1;
 }
 #else
-#define loadvec(thr) 0
-static inline int restore_altivec(struct task_struct *tsk) { return 0; }
+static bool should_restore_altivec(void) { return false; }
+static void do_restore_altivec(void) { }
 #endif /* CONFIG_ALTIVEC */
 
 #ifdef CONFIG_VSX
-static int restore_vsx(struct task_struct *tsk)
+static bool should_restore_vsx(void)
 {
-	if (cpu_has_feature(CPU_FTR_VSX)) {
-		tsk->thread.used_vsr = 1;
-		return 1;
-	}
-
-	return 0;
+	if (cpu_has_feature(CPU_FTR_VSX))
+		return true;
+	return false;
+}
+static void do_restore_vsx(void)
+{
+	current->thread.used_vsr = 1;
 }
 #else
-static inline int restore_vsx(struct task_struct *tsk) { return 0; }
+static bool should_restore_vsx(void) { return false; }
+static void do_restore_vsx(void) { }
 #endif /* CONFIG_VSX */
 
 /*
@@ -529,31 +538,42 @@ static inline int restore_vsx(struct task_struct *tsk) { return 0; }
 void notrace restore_math(struct pt_regs *regs)
 {
 	unsigned long msr;
-
-	if (!current->thread.load_fp && !loadvec(current->thread))
-		return;
+	unsigned long new_msr = 0;
 
 	msr = regs->msr;
-	msr_check_and_set(msr_all_available);
 
 	/*
-	 * Only reload if the bit is not set in the user MSR, the bit BEING set
-	 * indicates that the registers are hot
+	 * new_msr tracks the facilities that are to be restored. Only reload
+	 * if the bit is not set in the user MSR (if it is set, the registers
+	 * are live for the user thread).
 	 */
-	if ((!(msr & MSR_FP)) && restore_fp(current))
-		msr |= MSR_FP | current->thread.fpexc_mode;
+	if ((!(msr & MSR_FP)) && should_restore_fp())
+		new_msr |= MSR_FP | current->thread.fpexc_mode;
 
-	if ((!(msr & MSR_VEC)) && restore_altivec(current))
-		msr |= MSR_VEC;
+	if ((!(msr & MSR_VEC)) && should_restore_altivec())
+		new_msr |= MSR_VEC;
 
-	if ((msr & (MSR_FP | MSR_VEC)) == (MSR_FP | MSR_VEC) &&
-			restore_vsx(current)) {
-		msr |= MSR_VSX;
+	if ((!(msr & MSR_VSX)) && should_restore_vsx()) {
+		if (((msr | new_msr) & (MSR_FP | MSR_VEC)) == (MSR_FP | MSR_VEC))
+			new_msr |= MSR_VSX;
 	}
 
-	msr_check_and_clear(msr_all_available);
+	if (new_msr) {
+		msr_check_and_set(new_msr);
 
-	regs->msr = msr;
+		if (new_msr & MSR_FP)
+			do_restore_fp();
+
+		if (new_msr & MSR_VEC)
+			do_restore_altivec();
+
+		if (new_msr & MSR_VSX)
+			do_restore_vsx();
+
+		msr_check_and_clear(new_msr);
+
+		regs->msr |= new_msr;
+	}
 }
 #endif
 
