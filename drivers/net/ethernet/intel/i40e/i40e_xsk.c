@@ -381,17 +381,10 @@ static bool i40e_xmit_zc(struct i40e_ring *xdp_ring, unsigned int budget)
 	unsigned int sent_frames = 0, total_bytes = 0;
 	struct i40e_tx_desc *tx_desc = NULL;
 	struct i40e_tx_buffer *tx_bi;
-	bool work_done = true;
 	struct xdp_desc desc;
 	dma_addr_t dma;
 
 	while (budget-- > 0) {
-		if (!unlikely(I40E_DESC_UNUSED(xdp_ring))) {
-			xdp_ring->tx_stats.tx_busy++;
-			work_done = false;
-			break;
-		}
-
 		if (!xsk_umem_consume_tx(xdp_ring->xsk_umem, &desc))
 			break;
 
@@ -427,7 +420,7 @@ static bool i40e_xmit_zc(struct i40e_ring *xdp_ring, unsigned int budget)
 		i40e_update_tx_stats(xdp_ring, sent_frames, total_bytes);
 	}
 
-	return !!budget && work_done;
+	return !!budget;
 }
 
 /**
@@ -448,19 +441,18 @@ static void i40e_clean_xdp_tx_buffer(struct i40e_ring *tx_ring,
 
 /**
  * i40e_clean_xdp_tx_irq - Completes AF_XDP entries, and cleans XDP entries
+ * @vsi: Current VSI
  * @tx_ring: XDP Tx ring
- * @tx_bi: Tx buffer info to clean
  *
  * Returns true if cleanup/tranmission is done.
  **/
 bool i40e_clean_xdp_tx_irq(struct i40e_vsi *vsi, struct i40e_ring *tx_ring)
 {
-	unsigned int ntc, budget = vsi->work_limit;
 	struct xdp_umem *umem = tx_ring->xsk_umem;
 	u32 i, completed_frames, xsk_frames = 0;
 	u32 head_idx = i40e_get_head(tx_ring);
 	struct i40e_tx_buffer *tx_bi;
-	bool xmit_done;
+	unsigned int ntc;
 
 	if (head_idx < tx_ring->next_to_clean)
 		head_idx += tx_ring->count;
@@ -504,9 +496,7 @@ out_xmit:
 	if (xsk_umem_uses_need_wakeup(tx_ring->xsk_umem))
 		xsk_set_tx_need_wakeup(tx_ring->xsk_umem);
 
-	xmit_done = i40e_xmit_zc(tx_ring, budget);
-
-	return xmit_done;
+	return i40e_xmit_zc(tx_ring, I40E_DESC_UNUSED(tx_ring));
 }
 
 /**
@@ -570,7 +560,7 @@ void i40e_xsk_clean_rx_ring(struct i40e_ring *rx_ring)
 
 /**
  * i40e_xsk_clean_xdp_ring - Clean the XDP Tx ring on shutdown
- * @xdp_ring: XDP Tx ring
+ * @tx_ring: XDP Tx ring
  **/
 void i40e_xsk_clean_tx_ring(struct i40e_ring *tx_ring)
 {
