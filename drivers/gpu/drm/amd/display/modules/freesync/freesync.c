@@ -790,7 +790,7 @@ void mod_freesync_build_vrr_infopacket(struct mod_freesync *mod_freesync,
 	 * Check if Freesync is supported. Return if false. If true,
 	 * set the corresponding bit in the info packet
 	 */
-	if (!vrr->supported || (!vrr->send_info_frame))
+	if (!vrr->send_info_frame)
 		return;
 
 	switch (packet_type) {
