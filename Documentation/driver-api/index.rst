@@ -48,6 +48,7 @@ available subsections can be seen below.
    scsi
    libata
    target
+   mailbox
    mtdnand
    miscellaneous
    mei/index
