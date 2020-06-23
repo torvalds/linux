@@ -843,8 +843,8 @@ struct kvm_mips_callbacks {
 			   const struct kvm_one_reg *reg, s64 v);
 	int (*vcpu_load)(struct kvm_vcpu *vcpu, int cpu);
 	int (*vcpu_put)(struct kvm_vcpu *vcpu, int cpu);
-	int (*vcpu_run)(struct kvm_run *run, struct kvm_vcpu *vcpu);
-	void (*vcpu_reenter)(struct kvm_run *run, struct kvm_vcpu *vcpu);
+	int (*vcpu_run)(struct kvm_vcpu *vcpu);
+	void (*vcpu_reenter)(struct kvm_vcpu *vcpu);
 };
 extern struct kvm_mips_callbacks *kvm_mips_callbacks;
 int kvm_mips_emulation_init(struct kvm_mips_callbacks **install_callbacks);
@@ -899,7 +899,6 @@ extern int kvm_mips_handle_mapped_seg_tlb_fault(struct kvm_vcpu *vcpu,
 
 extern enum emulation_result kvm_mips_handle_tlbmiss(u32 cause,
 						     u32 *opc,
-						     struct kvm_run *run,
 						     struct kvm_vcpu *vcpu,
 						     bool write_fault);
 
@@ -1010,83 +1009,67 @@ static inline bool kvm_is_ifetch_fault(struct kvm_vcpu_arch *vcpu)
 
 extern enum emulation_result kvm_mips_emulate_inst(u32 cause,
 						   u32 *opc,
-						   struct kvm_run *run,
 						   struct kvm_vcpu *vcpu);
 
 long kvm_mips_guest_exception_base(struct kvm_vcpu *vcpu);
 
 extern enum emulation_result kvm_mips_emulate_syscall(u32 cause,
 						      u32 *opc,
-						      struct kvm_run *run,
 						      struct kvm_vcpu *vcpu);
 
 extern enum emulation_result kvm_mips_emulate_tlbmiss_ld(u32 cause,
 							 u32 *opc,
-							 struct kvm_run *run,
 							 struct kvm_vcpu *vcpu);
 
 extern enum emulation_result kvm_mips_emulate_tlbinv_ld(u32 cause,
 							u32 *opc,
-							struct kvm_run *run,
 							struct kvm_vcpu *vcpu);
 
 extern enum emulation_result kvm_mips_emulate_tlbmiss_st(u32 cause,
 							 u32 *opc,
-							 struct kvm_run *run,
 							 struct kvm_vcpu *vcpu);
 
 extern enum emulation_result kvm_mips_emulate_tlbinv_st(u32 cause,
 							u32 *opc,
-							struct kvm_run *run,
 							struct kvm_vcpu *vcpu);
 
 extern enum emulation_result kvm_mips_emulate_tlbmod(u32 cause,
 						     u32 *opc,
-						     struct kvm_run *run,
 						     struct kvm_vcpu *vcpu);
 
 extern enum emulation_result kvm_mips_emulate_fpu_exc(u32 cause,
 						      u32 *opc,
-						      struct kvm_run *run,
 						      struct kvm_vcpu *vcpu);
 
 extern enum emulation_result kvm_mips_handle_ri(u32 cause,
 						u32 *opc,
-						struct kvm_run *run,
 						struct kvm_vcpu *vcpu);
 
 extern enum emulation_result kvm_mips_emulate_ri_exc(u32 cause,
 						     u32 *opc,
-						     struct kvm_run *run,
 						     struct kvm_vcpu *vcpu);
 
 extern enum emulation_result kvm_mips_emulate_bp_exc(u32 cause,
 						     u32 *opc,
-						     struct kvm_run *run,
 						     struct kvm_vcpu *vcpu);
 
 extern enum emulation_result kvm_mips_emulate_trap_exc(u32 cause,
 						       u32 *opc,
-						       struct kvm_run *run,
 						       struct kvm_vcpu *vcpu);
 
 extern enum emulation_result kvm_mips_emulate_msafpe_exc(u32 cause,
 							 u32 *opc,
-							 struct kvm_run *run,
 							 struct kvm_vcpu *vcpu);
 
 extern enum emulation_result kvm_mips_emulate_fpe_exc(u32 cause,
 						      u32 *opc,
-						      struct kvm_run *run,
 						      struct kvm_vcpu *vcpu);
 
 extern enum emulation_result kvm_mips_emulate_msadis_exc(u32 cause,
 							 u32 *opc,
-							 struct kvm_run *run,
 							 struct kvm_vcpu *vcpu);
 
-extern enum emulation_result kvm_mips_complete_mmio_load(struct kvm_vcpu *vcpu,
-							 struct kvm_run *run);
+extern enum emulation_result kvm_mips_complete_mmio_load(struct kvm_vcpu *vcpu);
 
 u32 kvm_mips_read_count(struct kvm_vcpu *vcpu);
 void kvm_mips_write_count(struct kvm_vcpu *vcpu, u32 count);
@@ -1115,26 +1098,21 @@ static inline void kvm_vz_lose_htimer(struct kvm_vcpu *vcpu) {}
 
 enum emulation_result kvm_mips_check_privilege(u32 cause,
 					       u32 *opc,
-					       struct kvm_run *run,
 					       struct kvm_vcpu *vcpu);
 
 enum emulation_result kvm_mips_emulate_cache(union mips_instruction inst,
 					     u32 *opc,
 					     u32 cause,
-					     struct kvm_run *run,
 					     struct kvm_vcpu *vcpu);
 enum emulation_result kvm_mips_emulate_CP0(union mips_instruction inst,
 					   u32 *opc,
 					   u32 cause,
-					   struct kvm_run *run,
 					   struct kvm_vcpu *vcpu);
 enum emulation_result kvm_mips_emulate_store(union mips_instruction inst,
 					     u32 cause,
-					     struct kvm_run *run,
 					     struct kvm_vcpu *vcpu);
 enum emulation_result kvm_mips_emulate_load(union mips_instruction inst,
 					    u32 cause,
-					    struct kvm_run *run,
 					    struct kvm_vcpu *vcpu);
 
 /* COP0 */
