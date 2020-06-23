@@ -1,6 +1,7 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
 # description: trace_marker trigger - test histogram trigger
+# requires: set_event events/ftrace/print/trigger events/ftrace/print/hist
 # flags: instance
 
 fail() { #msg
@@ -8,27 +9,7 @@ fail() { #msg
     exit_fail
 }
 
-if [ ! -f set_event ]; then
-    echo "event tracing is not supported"
-    exit_unsupported
-fi
-
-if [ ! -d events/ftrace/print ]; then
-    echo "event trace_marker is not supported"
-    exit_unsupported
-fi
-
-if [ ! -f events/ftrace/print/trigger ]; then
-    echo "event trigger is not supported"
-    exit_unsupported
-fi
-
-if [ ! -f events/ftrace/print/hist ]; then
-    echo "hist trigger is not supported"
-    exit_unsupported
-fi
-
-echo "Test histogram trace_marker tigger"
+echo "Test histogram trace_marker trigger"
 
 echo 'hist:keys=common_pid' > events/ftrace/print/trigger
 for i in `seq 1 10` ; do echo "hello" > trace_marker; done

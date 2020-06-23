@@ -89,7 +89,7 @@ struct displayid_detailed_timings_1 {
 
 struct displayid_detailed_timing_block {
 	struct displayid_block base;
-	struct displayid_detailed_timings_1 timings[0];
+	struct displayid_detailed_timings_1 timings[];
 };
 
 #define for_each_displayid_db(displayid, block, idx, length) \

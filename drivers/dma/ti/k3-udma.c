@@ -170,7 +170,7 @@ struct udma_desc {
 	void *metadata; /* pointer to provided metadata buffer (EPIP, PSdata) */
 
 	unsigned int hwdesc_count;
-	struct udma_hwdesc hwdesc[0];
+	struct udma_hwdesc hwdesc[];
 };
 
 enum udma_chan_state {

@@ -1266,6 +1266,6 @@ void hns_roce_handle_device_err(struct hns_roce_dev *hr_dev);
 int hns_roce_init(struct hns_roce_dev *hr_dev);
 void hns_roce_exit(struct hns_roce_dev *hr_dev);
 
-int hns_roce_fill_res_entry(struct sk_buff *msg,
-			    struct rdma_restrack_entry *res);
+int hns_roce_fill_res_cq_entry(struct sk_buff *msg,
+			       struct ib_cq *ib_cq);
 #endif /* _HNS_ROCE_DEVICE_H */

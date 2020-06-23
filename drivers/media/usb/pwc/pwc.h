@@ -193,7 +193,7 @@ struct pwc_raw_frame {
 				   decompressor) */
 	__u8   cmd[4];		/* the four byte of the command (in case of
 				   nala, only the first 3 bytes is filled) */
-	__u8   rawframe[0];	/* frame_size = H / 4 * vbandlength */
+	__u8   rawframe[];	/* frame_size = H / 4 * vbandlength */
 } __packed;
 
 /* intermediate buffers with raw data from the USB cam */

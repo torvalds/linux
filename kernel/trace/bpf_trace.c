@@ -141,7 +141,7 @@ bpf_probe_read_user_common(void *dst, u32 size, const void __user *unsafe_ptr)
 {
 	int ret;
 
-	ret = probe_user_read(dst, unsafe_ptr, size);
+	ret = copy_from_user_nofault(dst, unsafe_ptr, size);
 	if (unlikely(ret < 0))
 		memset(dst, 0, size);
 	return ret;
@@ -196,7 +196,7 @@ bpf_probe_read_kernel_common(void *dst, u32 size, const void *unsafe_ptr)
 
 	if (unlikely(ret < 0))
 		goto fail;
-	ret = probe_kernel_read(dst, unsafe_ptr, size);
+	ret = copy_from_kernel_nofault(dst, unsafe_ptr, size);
 	if (unlikely(ret < 0))
 		goto fail;
 	return ret;
@@ -326,7 +326,7 @@ BPF_CALL_3(bpf_probe_write_user, void __user *, unsafe_ptr, const void *, src,
 	if (unlikely(!nmi_uaccess_okay()))
 		return -EPERM;
 
-	return probe_user_write(unsafe_ptr, src, size);
+	return copy_to_user_nofault(unsafe_ptr, src, size);
 }
 
 static const struct bpf_func_proto bpf_probe_write_user_proto = {
@@ -661,7 +661,7 @@ BPF_CALL_5(bpf_seq_printf, struct seq_file *, m, char *, fmt, u32, fmt_size,
 
 			copy_size = (fmt[i + 2] == '4') ? 4 : 16;
 
-			err = probe_kernel_read(bufs->buf[memcpy_cnt],
+			err = copy_from_kernel_nofault(bufs->buf[memcpy_cnt],
 						(void *) (long) args[fmt_cnt],
 						copy_size);
 			if (err < 0)

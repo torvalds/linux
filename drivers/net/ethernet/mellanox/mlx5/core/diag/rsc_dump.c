@@ -23,6 +23,9 @@ static const char *const mlx5_rsc_sgmt_name[] = {
 	MLX5_SGMT_STR_ASSING(SX_SLICE_ALL),
 	MLX5_SGMT_STR_ASSING(RDB),
 	MLX5_SGMT_STR_ASSING(RX_SLICE_ALL),
+	MLX5_SGMT_STR_ASSING(PRM_QUERY_QP),
+	MLX5_SGMT_STR_ASSING(PRM_QUERY_CQ),
+	MLX5_SGMT_STR_ASSING(PRM_QUERY_MKEY),
 };
 
 struct mlx5_rsc_dump {
@@ -130,11 +133,13 @@ struct mlx5_rsc_dump_cmd *mlx5_rsc_dump_cmd_create(struct mlx5_core_dev *dev,
 	cmd->mem_size = key->size;
 	return cmd;
 }
+EXPORT_SYMBOL(mlx5_rsc_dump_cmd_create);
 
 void mlx5_rsc_dump_cmd_destroy(struct mlx5_rsc_dump_cmd *cmd)
 {
 	kfree(cmd);
 }
+EXPORT_SYMBOL(mlx5_rsc_dump_cmd_destroy);
 
 int mlx5_rsc_dump_next(struct mlx5_core_dev *dev, struct mlx5_rsc_dump_cmd *cmd,
 		       struct page *page, int *size)
@@ -155,6 +160,7 @@ int mlx5_rsc_dump_next(struct mlx5_core_dev *dev, struct mlx5_rsc_dump_cmd *cmd,
 
 	return more_dump;
 }
+EXPORT_SYMBOL(mlx5_rsc_dump_next);
 
 #define MLX5_RSC_DUMP_MENU_SEGMENT 0xffff
 static int mlx5_rsc_dump_menu(struct mlx5_core_dev *dev)

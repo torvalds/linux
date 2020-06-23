@@ -458,13 +458,6 @@ static void get_dev_fw_str(struct ib_device *dev, char *str)
 		 FW_HDR_FW_VER_BUILD_G(c4iw_dev->rdev.lldi.fw_vers));
 }
 
-static int fill_res_entry(struct sk_buff *msg, struct rdma_restrack_entry *res)
-{
-	return (res->type < ARRAY_SIZE(c4iw_restrack_funcs) &&
-		c4iw_restrack_funcs[res->type]) ?
-		c4iw_restrack_funcs[res->type](msg, res) : 0;
-}
-
 static const struct ib_device_ops c4iw_dev_ops = {
 	.owner = THIS_MODULE,
 	.driver_id = RDMA_DRIVER_CXGB4,
@@ -485,7 +478,9 @@ static const struct ib_device_ops c4iw_dev_ops = {
 	.destroy_cq = c4iw_destroy_cq,
 	.destroy_qp = c4iw_destroy_qp,
 	.destroy_srq = c4iw_destroy_srq,
-	.fill_res_entry = fill_res_entry,
+	.fill_res_cq_entry = c4iw_fill_res_cq_entry,
+	.fill_res_cm_id_entry = c4iw_fill_res_cm_id_entry,
+	.fill_res_mr_entry = c4iw_fill_res_mr_entry,
 	.get_dev_fw_str = get_dev_fw_str,
 	.get_dma_mr = c4iw_get_dma_mr,
 	.get_hw_stats = c4iw_get_mib,

@@ -187,9 +187,17 @@ void afs_wait_for_operation(struct afs_operation *op)
 		op->error = afs_wait_for_call_to_complete(op->call, &op->ac);
 	}
 
-	if (op->error == 0) {
+	switch (op->error) {
+	case 0:
 		_debug("success");
 		op->ops->success(op);
+		break;
+	case -ECONNABORTED:
+		if (op->ops->aborted)
+			op->ops->aborted(op);
+		break;
+	default:
+		break;
 	}
 
 	afs_end_vnode_operation(op);
