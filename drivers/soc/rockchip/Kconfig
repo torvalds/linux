@@ -59,7 +59,7 @@ config ROCKCHIP_OPP
 	  Say y here to enable rockchip OPP support.
 
 config ROCKCHIP_PM_DOMAINS
-        bool "Rockchip generic power domain"
+        tristate "Rockchip generic power domain"
         depends on PM
         select PM_GENERIC_DOMAINS
         help
