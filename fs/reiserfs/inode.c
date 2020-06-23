@@ -1066,7 +1066,7 @@ research:
 			} else {
 				/* paste hole to the indirect item */
 				/*
-				 * If kmalloc failed, max_to_insert becomes
+				 * If kcalloc failed, max_to_insert becomes
 				 * zero and it means we only have space for
 				 * one block
 				 */
