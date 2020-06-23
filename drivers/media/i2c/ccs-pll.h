@@ -40,12 +40,12 @@ struct ccs_pll {
 	struct {
 		uint8_t lanes;
 	} csi2;
-	unsigned long flags;
 	uint8_t binning_horizontal;
 	uint8_t binning_vertical;
 	uint8_t scale_m;
 	uint8_t scale_n;
 	uint8_t bits_per_pixel;
+	uint16_t flags;
 	uint32_t link_freq;
 	uint32_t ext_clk_freq_hz;
 
