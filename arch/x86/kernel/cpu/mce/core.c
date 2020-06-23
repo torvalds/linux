@@ -244,6 +244,8 @@ static void __print_mce(struct mce *m)
 		pr_cont("ADDR %llx ", m->addr);
 	if (m->misc)
 		pr_cont("MISC %llx ", m->misc);
+	if (m->ppin)
+		pr_cont("PPIN %llx ", m->ppin);
 
 	if (mce_flags.smca) {
 		if (m->synd)
