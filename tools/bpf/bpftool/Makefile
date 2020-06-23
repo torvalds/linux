@@ -155,7 +155,7 @@ $(OUTPUT)pids.o: $(OUTPUT)pid_iter.skel.h
 endif
 endif
 
-CFLAGS += $(if BUILD_BPF_SKELS,,-DBPFTOOL_WITHOUT_SKELETONS)
+CFLAGS += $(if $(BUILD_BPF_SKELS),,-DBPFTOOL_WITHOUT_SKELETONS)
 
 $(OUTPUT)disasm.o: $(srctree)/kernel/bpf/disasm.c
 	$(QUIET_CC)$(CC) $(CFLAGS) -c -MMD -o $@ $<
