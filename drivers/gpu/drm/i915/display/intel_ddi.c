@@ -1653,7 +1653,6 @@ void intel_ddi_enable_transcoder_func(struct intel_encoder *encoder,
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
-	u32 ctl;
 
 	if (INTEL_GEN(dev_priv) >= 11) {
 		enum transcoder master_transcoder = crtc_state->master_transcoder;
@@ -1671,10 +1670,9 @@ void intel_ddi_enable_transcoder_func(struct intel_encoder *encoder,
 			       TRANS_DDI_FUNC_CTL2(cpu_transcoder), ctl2);
 	}
 
-	ctl = intel_ddi_transcoder_func_reg_val_get(encoder, crtc_state);
-	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST))
-		ctl |= TRANS_DDI_DP_VC_PAYLOAD_ALLOC;
-	intel_de_write(dev_priv, TRANS_DDI_FUNC_CTL(cpu_transcoder), ctl);
+	intel_de_write(dev_priv, TRANS_DDI_FUNC_CTL(cpu_transcoder),
+		       intel_ddi_transcoder_func_reg_val_get(encoder,
+							     crtc_state));
 }
 
 /*

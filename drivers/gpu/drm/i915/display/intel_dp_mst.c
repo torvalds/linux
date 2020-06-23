@@ -529,12 +529,20 @@ static void intel_mst_enable_dp(struct intel_atomic_state *state,
 	struct intel_digital_port *intel_dig_port = intel_mst->primary;
 	struct intel_dp *intel_dp = &intel_dig_port->dp;
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	u32 val;
 
 	drm_WARN_ON(&dev_priv->drm, pipe_config->has_pch_encoder);
 
 	clear_act_sent(intel_dp);
 
 	intel_ddi_enable_transcoder_func(encoder, pipe_config);
+
+	val = intel_de_read(dev_priv,
+			    TRANS_DDI_FUNC_CTL(pipe_config->cpu_transcoder));
+	val |= TRANS_DDI_DP_VC_PAYLOAD_ALLOC;
+	intel_de_write(dev_priv,
+		       TRANS_DDI_FUNC_CTL(pipe_config->cpu_transcoder),
+		       val);
 
 	drm_dbg_kms(&dev_priv->drm, "active links %d\n",
 		    intel_dp->active_mst_links);
