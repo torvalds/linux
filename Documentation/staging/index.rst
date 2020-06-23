@@ -19,17 +19,14 @@ Unsorted Documentation
 Atomic Types
 ============
 
-.. include:: ../atomic_t.txt
-   :literal:
+.. literalinclude:: ../atomic_t.txt
 
 Atomic bitops
 =============
 
-.. include:: ../atomic_bitops.txt
-   :literal:
+.. literalinclude:: ../atomic_bitops.txt
 
 Memory Barriers
 ===============
 
-.. include:: ../memory-barriers.txt
-   :literal:
+.. literalinclude:: ../memory-barriers.txt
