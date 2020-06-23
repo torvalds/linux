@@ -35,7 +35,7 @@ config ROCKCHIP_IODOMAIN
 	  voltage supplied by the regulators.
 
 config ROCKCHIP_PM_DOMAINS
-        bool "Rockchip generic power domain"
+        tristate "Rockchip generic power domain"
         depends on PM
         select PM_GENERIC_DOMAINS
         help
