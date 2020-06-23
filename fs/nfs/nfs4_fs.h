@@ -557,6 +557,12 @@ static inline void nfs4_unregister_sysctl(void)
 /* nfs4xdr.c */
 extern const struct rpc_procinfo nfs4_procedures[];
 
+#ifdef CONFIG_NFS_V4_2
+extern const u32 nfs42_maxsetxattr_overhead;
+extern const u32 nfs42_maxgetxattr_overhead;
+extern const u32 nfs42_maxlistxattrs_overhead;
+#endif
+
 struct nfs4_mount_data;
 
 /* callback_xdr.c */
