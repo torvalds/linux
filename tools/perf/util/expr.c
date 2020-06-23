@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <stdbool.h>
 #include <assert.h>
+#include <errno.h>
+#include <stdlib.h>
+#include <string.h>
 #include "expr.h"
 #include "expr-bison.h"
 #include "expr-flex.h"
