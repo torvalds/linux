@@ -369,6 +369,7 @@ static struct ipoib_txreq *hfi1_ipoib_send_dma_common(struct net_device *dev,
 	tx->priv = priv;
 	tx->txq = txp->txq;
 	tx->skb = skb;
+	INIT_LIST_HEAD(&tx->txreq.list);
 
 	hfi1_ipoib_build_ib_tx_headers(tx, txp);
 
@@ -469,6 +470,7 @@ static int hfi1_ipoib_send_dma_single(struct net_device *dev,
 
 	ret = hfi1_ipoib_submit_tx(txq, tx);
 	if (likely(!ret)) {
+tx_ok:
 		trace_sdma_output_ibhdr(tx->priv->dd,
 					&tx->sdma_hdr.hdr,
 					ib_is_sc5(txp->flow.sc5));
@@ -478,20 +480,8 @@ static int hfi1_ipoib_send_dma_single(struct net_device *dev,
 
 	txq->pkts_sent = false;
 
-	if (ret == -EBUSY) {
-		list_add_tail(&tx->txreq.list, &txq->tx_list);
-
-		trace_sdma_output_ibhdr(tx->priv->dd,
-					&tx->sdma_hdr.hdr,
-					ib_is_sc5(txp->flow.sc5));
-		hfi1_ipoib_check_queue_depth(txq);
-		return NETDEV_TX_OK;
-	}
-
-	if (ret == -ECOMM) {
-		hfi1_ipoib_check_queue_depth(txq);
-		return NETDEV_TX_OK;
-	}
+	if (ret == -EBUSY || ret == -ECOMM)
+		goto tx_ok;
 
 	sdma_txclean(priv->dd, &tx->txreq);
 	dev_kfree_skb_any(skb);
@@ -509,9 +499,17 @@ static int hfi1_ipoib_send_dma_list(struct net_device *dev,
 	struct ipoib_txreq *tx;
 
 	/* Has the flow change ? */
-	if (txq->flow.as_int != txp->flow.as_int)
-		(void)hfi1_ipoib_flush_tx_list(dev, txq);
+	if (txq->flow.as_int != txp->flow.as_int) {
+		int ret;
 
+		ret = hfi1_ipoib_flush_tx_list(dev, txq);
+		if (unlikely(ret)) {
+			if (ret == -EBUSY)
+				++dev->stats.tx_dropped;
+			dev_kfree_skb_any(skb);
+			return NETDEV_TX_OK;
+		}
+	}
 	tx = hfi1_ipoib_send_dma_common(dev, skb, txp);
 	if (IS_ERR(tx)) {
 		int ret = PTR_ERR(tx);
@@ -612,6 +610,9 @@ static int hfi1_ipoib_sdma_sleep(struct sdma_engine *sde,
 
 		netif_stop_subqueue(txq->priv->netdev, txq->q_idx);
 
+		if (list_empty(&txreq->list))
+			/* came from non-list submit */
+			list_add_tail(&txreq->list, &txq->tx_list);
 		if (list_empty(&txq->wait.list))
 			iowait_queue(pkts_sent, wait->iow, &sde->dmawait);
 
