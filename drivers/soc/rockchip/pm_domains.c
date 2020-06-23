@@ -8,6 +8,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/module.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
 #include <linux/err.h>
@@ -856,6 +857,7 @@ static int rockchip_pm_add_one_domain(struct rockchip_pmu *pmu,
 	pd->genpd.flags = GENPD_FLAG_PM_CLK;
 	if (pd_info->active_wakeup)
 		pd->genpd.flags |= GENPD_FLAG_ACTIVE_WAKEUP;
+#ifndef MODULE
 	if (pd_info->keepon_startup) {
 		pd->genpd.flags &= (~GENPD_FLAG_PM_CLK);
 		pd->genpd.flags |= GENPD_FLAG_ALWAYS_ON;
@@ -869,6 +871,7 @@ static int rockchip_pm_add_one_domain(struct rockchip_pmu *pmu,
 			}
 		}
 	}
+#endif
 	if (is_qos_need_init)
 		rockchip_pd_qos_init(pd, &qos_is_need_init[0]);
 
@@ -1005,6 +1008,7 @@ err_out:
 	return error;
 }
 
+#ifndef MODULE
 static void rockchip_pd_keepon_do_release(struct generic_pm_domain *genpd,
 					  struct rockchip_pm_domain *pd)
 {
@@ -1048,6 +1052,7 @@ static int __init rockchip_pd_keepon_release(void)
 	return 0;
 }
 late_initcall_sync(rockchip_pd_keepon_release);
+#endif
 
 static void __iomem *pd_base;
 
@@ -1501,6 +1506,7 @@ static const struct of_device_id rockchip_pm_domain_dt_match[] = {
 	},
 	{ /* sentinel */ },
 };
+MODULE_DEVICE_TABLE(of, rockchip_pm_domain_dt_match);
 
 static struct platform_driver rockchip_pm_domain_driver = {
 	.probe = rockchip_pm_domain_probe,
@@ -1521,3 +1527,13 @@ static int __init rockchip_pm_domain_drv_register(void)
 	return platform_driver_register(&rockchip_pm_domain_driver);
 }
 postcore_initcall(rockchip_pm_domain_drv_register);
+
+static void __exit rockchip_pm_domain_drv_unregister(void)
+{
+	platform_driver_unregister(&rockchip_pm_domain_driver);
+}
+module_exit(rockchip_pm_domain_drv_unregister);
+
+MODULE_DESCRIPTION("ROCKCHIP PM Domain Driver");
+MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:rockchip-pm-domain");
