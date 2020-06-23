@@ -138,7 +138,7 @@ static int mlxsw_sp_port_headroom_set(struct mlxsw_sp_port *mlxsw_sp_port,
 	err = mlxsw_sp_port_pg_destroy(mlxsw_sp_port, my_ets->prio_tc,
 				       ets->prio_tc);
 	if (err)
-		netdev_warn(dev, "Failed to remove ununsed PGs\n");
+		netdev_warn(dev, "Failed to remove unused PGs\n");
 
 	return 0;
 
