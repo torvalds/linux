@@ -980,7 +980,7 @@ int qed_llh_add_mac_filter(struct qed_dev *cdev,
 	struct qed_hwfn *p_hwfn = QED_LEADING_HWFN(cdev);
 	struct qed_ptt *p_ptt = qed_ptt_acquire(p_hwfn);
 	union qed_llh_filter filter = {};
-	u8 filter_idx, abs_ppfid;
+	u8 filter_idx, abs_ppfid = 0;
 	u32 high, low, ref_cnt;
 	int rc = 0;
 
