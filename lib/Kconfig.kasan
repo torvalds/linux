@@ -16,7 +16,7 @@ config CC_HAS_KASAN_SW_TAGS
 	def_bool $(cc-option, -fsanitize=kernel-hwaddress)
 
 config CC_HAS_WORKING_NOSANITIZE_ADDRESS
-	def_bool !CC_IS_GCC || GCC_VERSION >= 80000
+	def_bool !CC_IS_GCC || GCC_VERSION >= 80300
 
 config KASAN
 	bool "KASAN: runtime memory debugger"
