@@ -131,6 +131,8 @@ EXPORT_SYMBOL_GPL(wm8350_block_write);
  * The WM8350 has a hardware lock which can be used to prevent writes to
  * some registers (generally those which can cause particularly serious
  * problems if misused).  This function enables that lock.
+ *
+ * @wm8350: pointer to local driver data structure
  */
 int wm8350_reg_lock(struct wm8350 *wm8350)
 {
@@ -160,6 +162,8 @@ EXPORT_SYMBOL_GPL(wm8350_reg_lock);
  * problems if misused).  This function disables that lock so updates
  * can be performed.  For maximum safety this should be done only when
  * required.
+ *
+ * @wm8350: pointer to local driver data structure
  */
 int wm8350_reg_unlock(struct wm8350 *wm8350)
 {
