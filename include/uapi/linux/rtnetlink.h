@@ -257,12 +257,12 @@ enum {
 
 /* rtm_protocol */
 
-#define RTPROT_UNSPEC	0
-#define RTPROT_REDIRECT	1	/* Route installed by ICMP redirects;
-				   not used by current IPv4 */
-#define RTPROT_KERNEL	2	/* Route installed by kernel		*/
-#define RTPROT_BOOT	3	/* Route installed during boot		*/
-#define RTPROT_STATIC	4	/* Route installed by administrator	*/
+#define RTPROT_UNSPEC		0
+#define RTPROT_REDIRECT		1	/* Route installed by ICMP redirects;
+					   not used by current IPv4 */
+#define RTPROT_KERNEL		2	/* Route installed by kernel		*/
+#define RTPROT_BOOT		3	/* Route installed during boot		*/
+#define RTPROT_STATIC		4	/* Route installed by administrator	*/
 
 /* Values of protocol >= RTPROT_STATIC are not interpreted by kernel;
    they are just passed from user and back as is.
@@ -271,22 +271,23 @@ enum {
    avoid conflicts.
  */
 
-#define RTPROT_GATED	8	/* Apparently, GateD */
-#define RTPROT_RA	9	/* RDISC/ND router advertisements */
-#define RTPROT_MRT	10	/* Merit MRT */
-#define RTPROT_ZEBRA	11	/* Zebra */
-#define RTPROT_BIRD	12	/* BIRD */
-#define RTPROT_DNROUTED	13	/* DECnet routing daemon */
-#define RTPROT_XORP	14	/* XORP */
-#define RTPROT_NTK	15	/* Netsukuku */
-#define RTPROT_DHCP	16      /* DHCP client */
-#define RTPROT_MROUTED	17      /* Multicast daemon */
-#define RTPROT_BABEL	42      /* Babel daemon */
-#define RTPROT_BGP	186     /* BGP Routes */
-#define RTPROT_ISIS	187     /* ISIS Routes */
-#define RTPROT_OSPF	188     /* OSPF Routes */
-#define RTPROT_RIP	189     /* RIP Routes */
-#define RTPROT_EIGRP	192     /* EIGRP Routes */
+#define RTPROT_GATED		8	/* Apparently, GateD */
+#define RTPROT_RA		9	/* RDISC/ND router advertisements */
+#define RTPROT_MRT		10	/* Merit MRT */
+#define RTPROT_ZEBRA		11	/* Zebra */
+#define RTPROT_BIRD		12	/* BIRD */
+#define RTPROT_DNROUTED		13	/* DECnet routing daemon */
+#define RTPROT_XORP		14	/* XORP */
+#define RTPROT_NTK		15	/* Netsukuku */
+#define RTPROT_DHCP		16	/* DHCP client */
+#define RTPROT_MROUTED		17	/* Multicast daemon */
+#define RTPROT_KEEPALIVED	18	/* Keepalived daemon */
+#define RTPROT_BABEL		42	/* Babel daemon */
+#define RTPROT_BGP		186	/* BGP Routes */
+#define RTPROT_ISIS		187	/* ISIS Routes */
+#define RTPROT_OSPF		188	/* OSPF Routes */
+#define RTPROT_RIP		189	/* RIP Routes */
+#define RTPROT_EIGRP		192	/* EIGRP Routes */
 
 /* rtm_scope
 
