@@ -742,8 +742,10 @@ static int __init audio_init(void)
 	INIT_LIST_HEAD(&adpt_list);
 
 	ret = most_register_component(&comp);
-	if (ret)
+	if (ret) {
 		pr_err("Failed to register %s\n", comp.name);
+		return ret;
+	}
 	ret = most_register_configfs_subsys(&comp);
 	if (ret) {
 		pr_err("Failed to register %s configfs subsys\n", comp.name);
