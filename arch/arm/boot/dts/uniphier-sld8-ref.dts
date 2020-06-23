@@ -39,6 +39,10 @@
 	interrupts = <0 8>;
 };
 
+&serialsc {
+	interrupts = <0 8>;
+};
+
 &serial0 {
 	status = "okay";
 };
