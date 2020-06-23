@@ -64,8 +64,11 @@ const struct aq_hw_caps_s hw_atl2_caps_aqc113 = {
 			  AQ_NIC_RATE_5G  |
 			  AQ_NIC_RATE_2G5 |
 			  AQ_NIC_RATE_1G  |
+			  AQ_NIC_RATE_1G_HALF   |
 			  AQ_NIC_RATE_100M      |
-			  AQ_NIC_RATE_10M,
+			  AQ_NIC_RATE_100M_HALF |
+			  AQ_NIC_RATE_10M       |
+			  AQ_NIC_RATE_10M_HALF,
 };
 
 static u32 hw_atl2_sem_act_rslvr_get(struct aq_hw_s *self)
@@ -178,6 +181,8 @@ static int hw_atl2_hw_qos_set(struct aq_hw_s *self)
 
 		threshold = (rx_buff_size * (1024U / 32U) * 50U) / 100U;
 		hw_atl_rpb_rx_buff_lo_threshold_per_tc_set(self, threshold, tc);
+
+		hw_atl_b0_set_fc(self, self->aq_nic_cfg->fc.req, tc);
 	}
 
 	/* QoS 802.1p priority -> TC mapping */
@@ -838,4 +843,6 @@ const struct aq_hw_ops hw_atl2_ops = {
 	.hw_get_hw_stats             = hw_atl2_utils_get_hw_stats,
 	.hw_get_fw_version           = hw_atl2_utils_get_fw_version,
 	.hw_set_offload              = hw_atl_b0_hw_offload_set,
+	.hw_set_loopback             = hw_atl_b0_set_loopback,
+	.hw_set_fc                   = hw_atl_b0_set_fc,
 };

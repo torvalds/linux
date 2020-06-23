@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/*
- * aQuantia Corporation Network Driver
- * Copyright (C) 2014-2019 aQuantia Corporation. All rights reserved
+/* Atlantic Network Driver
+ *
+ * Copyright (C) 2014-2019 aQuantia Corporation
+ * Copyright (C) 2019-2020 Marvell International Ltd.
  */
 
 /* File aq_ethtool.c: Definition of ethertool related functions. */
@@ -611,15 +612,12 @@ static int aq_ethtool_get_ts_info(struct net_device *ndev,
 	return 0;
 }
 
-static enum hw_atl_fw2x_rate eee_mask_to_ethtool_mask(u32 speed)
+static u32 eee_mask_to_ethtool_mask(u32 speed)
 {
 	u32 rate = 0;
 
 	if (speed & AQ_NIC_RATE_EEE_10G)
 		rate |= SUPPORTED_10000baseT_Full;
-
-	if (speed & AQ_NIC_RATE_EEE_2G5)
-		rate |= SUPPORTED_2500baseX_Full;
 
 	if (speed & AQ_NIC_RATE_EEE_1G)
 		rate |= SUPPORTED_1000baseT_Full;
@@ -656,7 +654,7 @@ static int aq_ethtool_get_eee(struct net_device *ndev, struct ethtool_eee *eee)
 	eee->eee_enabled = !!eee->advertised;
 
 	eee->tx_lpi_enabled = eee->eee_enabled;
-	if (eee->advertised & eee->lp_advertised)
+	if ((supported_rates & rate) & AQ_NIC_RATE_EEE_MSK)
 		eee->eee_active = true;
 
 	return 0;
@@ -838,6 +836,7 @@ static int aq_ethtool_set_priv_flags(struct net_device *ndev, u32 flags)
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
 	struct aq_nic_cfg_s *cfg;
 	u32 priv_flags;
+	int ret = 0;
 
 	cfg = aq_nic_get_cfg(aq_nic);
 	priv_flags = cfg->priv_flags;
@@ -859,10 +858,10 @@ static int aq_ethtool_set_priv_flags(struct net_device *ndev, u32 flags)
 			dev_open(ndev, NULL);
 		}
 	} else if ((priv_flags ^ flags) & AQ_HW_LOOPBACK_MASK) {
-		aq_nic_set_loopback(aq_nic);
+		ret = aq_nic_set_loopback(aq_nic);
 	}
 
-	return 0;
+	return ret;
 }
 
 const struct ethtool_ops aq_ethtool_ops = {
