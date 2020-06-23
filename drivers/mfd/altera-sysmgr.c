@@ -22,11 +22,9 @@
 /**
  * struct altr_sysmgr - Altera SOCFPGA System Manager
  * @regmap: the regmap used for System Manager accesses.
- * @base  : the base address for the System Manager
  */
 struct altr_sysmgr {
 	struct regmap   *regmap;
-	resource_size_t *base;
 };
 
 static struct platform_driver altr_sysmgr_driver;
@@ -127,6 +125,7 @@ static int sysmgr_probe(struct platform_device *pdev)
 	struct regmap_config sysmgr_config = altr_sysmgr_regmap_cfg;
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
+	void __iomem *base;
 
 	sysmgr = devm_kzalloc(dev, sizeof(*sysmgr), GFP_KERNEL);
 	if (!sysmgr)
@@ -139,22 +138,19 @@ static int sysmgr_probe(struct platform_device *pdev)
 	sysmgr_config.max_register = resource_size(res) -
 				     sysmgr_config.reg_stride;
 	if (of_device_is_compatible(np, "altr,sys-mgr-s10")) {
-		/* Need physical address for SMCC call */
-		sysmgr->base = (resource_size_t *)res->start;
 		sysmgr_config.reg_read = s10_protected_reg_read;
 		sysmgr_config.reg_write = s10_protected_reg_write;
 
-		regmap = devm_regmap_init(dev, NULL, sysmgr->base,
+		/* Need physical address for SMCC call */
+		regmap = devm_regmap_init(dev, NULL, (void *)res->start,
 					  &sysmgr_config);
 	} else {
-		sysmgr->base = devm_ioremap(dev, res->start,
-					    resource_size(res));
-		if (!sysmgr->base)
+		base = devm_ioremap(dev, res->start, resource_size(res));
+		if (!base)
 			return -ENOMEM;
 
 		sysmgr_config.max_register = res->end - res->start - 3;
-		regmap = devm_regmap_init_mmio(dev, sysmgr->base,
-					       &sysmgr_config);
+		regmap = devm_regmap_init_mmio(dev, base, &sysmgr_config);
 	}
 
 	if (IS_ERR(regmap)) {
