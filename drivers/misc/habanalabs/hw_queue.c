@@ -46,7 +46,7 @@ void hl_int_hw_queue_update_ci(struct hl_cs *cs)
 		goto out;
 
 	q = &hdev->kernel_queues[0];
-	for (i = 0 ; i < HL_MAX_QUEUES ; i++, q++) {
+	for (i = 0 ; i < hdev->asic_prop.max_queues ; i++, q++) {
 		if (q->queue_type == QUEUE_TYPE_INT) {
 			q->ci += cs->jobs_in_queue_cnt[i];
 			q->ci &= ((q->int_queue_len << 1) - 1);
@@ -509,6 +509,7 @@ int hl_hw_queue_schedule_cs(struct hl_cs *cs)
 	struct hl_device *hdev = ctx->hdev;
 	struct hl_cs_job *job, *tmp;
 	struct hl_hw_queue *q;
+	u32 max_queues;
 	int rc = 0, i, cq_cnt;
 
 	hdev->asic_funcs->hw_queues_lock(hdev);
@@ -521,8 +522,10 @@ int hl_hw_queue_schedule_cs(struct hl_cs *cs)
 		goto out;
 	}
 
+	max_queues = hdev->asic_prop.max_queues;
+
 	q = &hdev->kernel_queues[0];
-	for (i = 0, cq_cnt = 0 ; i < HL_MAX_QUEUES ; i++, q++) {
+	for (i = 0, cq_cnt = 0 ; i < max_queues ; i++, q++) {
 		if (cs->jobs_in_queue_cnt[i]) {
 			switch (q->queue_type) {
 			case QUEUE_TYPE_EXT:
@@ -601,7 +604,7 @@ int hl_hw_queue_schedule_cs(struct hl_cs *cs)
 
 unroll_cq_resv:
 	q = &hdev->kernel_queues[0];
-	for (i = 0 ; (i < HL_MAX_QUEUES) && (cq_cnt > 0) ; i++, q++) {
+	for (i = 0 ; (i < max_queues) && (cq_cnt > 0) ; i++, q++) {
 		if ((q->queue_type == QUEUE_TYPE_EXT ||
 				q->queue_type == QUEUE_TYPE_HW) &&
 				cs->jobs_in_queue_cnt[i]) {
@@ -872,7 +875,7 @@ int hl_hw_queues_create(struct hl_device *hdev)
 	struct hl_hw_queue *q;
 	int i, rc, q_ready_cnt;
 
-	hdev->kernel_queues = kcalloc(HL_MAX_QUEUES,
+	hdev->kernel_queues = kcalloc(asic->max_queues,
 				sizeof(*hdev->kernel_queues), GFP_KERNEL);
 
 	if (!hdev->kernel_queues) {
@@ -882,7 +885,7 @@ int hl_hw_queues_create(struct hl_device *hdev)
 
 	/* Initialize the H/W queues */
 	for (i = 0, q_ready_cnt = 0, q = hdev->kernel_queues;
-			i < HL_MAX_QUEUES ; i++, q_ready_cnt++, q++) {
+			i < asic->max_queues ; i++, q_ready_cnt++, q++) {
 
 		q->queue_type = asic->hw_queues_props[i].type;
 		q->supports_sync_stream =
@@ -909,9 +912,10 @@ release_queues:
 void hl_hw_queues_destroy(struct hl_device *hdev)
 {
 	struct hl_hw_queue *q;
+	u32 max_queues = hdev->asic_prop.max_queues;
 	int i;
 
-	for (i = 0, q = hdev->kernel_queues ; i < HL_MAX_QUEUES ; i++, q++)
+	for (i = 0, q = hdev->kernel_queues ; i < max_queues ; i++, q++)
 		queue_fini(hdev, q);
 
 	kfree(hdev->kernel_queues);
@@ -920,9 +924,10 @@ void hl_hw_queues_destroy(struct hl_device *hdev)
 void hl_hw_queue_reset(struct hl_device *hdev, bool hard_reset)
 {
 	struct hl_hw_queue *q;
+	u32 max_queues = hdev->asic_prop.max_queues;
 	int i;
 
-	for (i = 0, q = hdev->kernel_queues ; i < HL_MAX_QUEUES ; i++, q++) {
+	for (i = 0, q = hdev->kernel_queues ; i < max_queues ; i++, q++) {
 		if ((!q->valid) ||
 			((!hard_reset) && (q->queue_type == QUEUE_TYPE_CPU)))
 			continue;

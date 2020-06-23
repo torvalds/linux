@@ -41,8 +41,6 @@
 
 #define HL_SIM_MAX_TIMEOUT_US		10000000 /* 10s */
 
-#define HL_MAX_QUEUES			128
-
 #define HL_IDLE_BUSY_TS_ARR_SIZE	4096
 
 /* Memory */
@@ -290,14 +288,15 @@ struct hl_mmu_properties {
  * @high_pll: high PLL frequency used by the device.
  * @cb_pool_cb_cnt: number of CBs in the CB pool.
  * @cb_pool_cb_size: size of each CB in the CB pool.
- * @tpc_enabled_mask: which TPCs are enabled.
+ * @max_pending_cs: maximum of concurrent pending command submissions
+ * @max_queues: maximum amount of queues in the system
  * @sync_stream_first_sob: first sync object available for sync stream use
  * @sync_stream_first_mon: first monitor available for sync stream use
  * @tpc_enabled_mask: which TPCs are enabled.
  * @completion_queues_count: number of completion queues.
  */
 struct asic_fixed_properties {
-	struct hw_queue_properties	hw_queues_props[HL_MAX_QUEUES];
+	struct hw_queue_properties	*hw_queues_props;
 	struct armcp_info		armcp_info;
 	char				uboot_ver[VERSION_MAX_LEN];
 	char				preboot_ver[VERSION_MAX_LEN];
@@ -336,6 +335,7 @@ struct asic_fixed_properties {
 	u32				cb_pool_cb_cnt;
 	u32				cb_pool_cb_size;
 	u32				max_pending_cs;
+	u32				max_queues;
 	u16				sync_stream_first_sob;
 	u16				sync_stream_first_mon;
 	u8				tpc_enabled_mask;
@@ -901,7 +901,7 @@ struct hl_userptr {
  * @aborted: true if CS was aborted due to some device error.
  */
 struct hl_cs {
-	u16			jobs_in_queue_cnt[HL_MAX_QUEUES];
+	u16			*jobs_in_queue_cnt;
 	struct hl_ctx		*ctx;
 	struct list_head	job_list;
 	spinlock_t		job_lock;

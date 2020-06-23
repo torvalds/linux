@@ -31,10 +31,6 @@
  */
 #define NUMBER_OF_INTERRUPTS		(NUMBER_OF_CMPLT_QUEUES + 1)
 
-#if (NUMBER_OF_HW_QUEUES >= HL_MAX_QUEUES)
-#error "Number of H/W queues must be smaller than HL_MAX_QUEUES"
-#endif
-
 #if (NUMBER_OF_INTERRUPTS > GOYA_MSIX_ENTRIES)
 #error "Number of MSIX interrupts must be smaller or equal to GOYA_MSIX_ENTRIES"
 #endif
@@ -170,7 +166,7 @@ struct goya_device {
 	u8		device_cpu_mmu_mappings_done;
 };
 
-void goya_get_fixed_properties(struct hl_device *hdev);
+int goya_get_fixed_properties(struct hl_device *hdev);
 int goya_mmu_init(struct hl_device *hdev);
 void goya_init_dma_qmans(struct hl_device *hdev);
 void goya_init_mme_qmans(struct hl_device *hdev);

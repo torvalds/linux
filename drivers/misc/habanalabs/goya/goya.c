@@ -337,10 +337,18 @@ static int goya_mmu_set_dram_default_page(struct hl_device *hdev);
 static int goya_mmu_add_mappings_for_device_cpu(struct hl_device *hdev);
 static void goya_mmu_prepare(struct hl_device *hdev, u32 asid);
 
-void goya_get_fixed_properties(struct hl_device *hdev)
+int goya_get_fixed_properties(struct hl_device *hdev)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	int i;
+
+	prop->max_queues = GOYA_QUEUE_ID_SIZE;
+	prop->hw_queues_props = kcalloc(prop->max_queues,
+			sizeof(struct hw_queue_properties),
+			GFP_KERNEL);
+
+	if (!prop->hw_queues_props)
+		return -ENOMEM;
 
 	for (i = 0 ; i < NUMBER_OF_EXT_HW_QUEUES ; i++) {
 		prop->hw_queues_props[i].type = QUEUE_TYPE_EXT;
@@ -360,9 +368,6 @@ void goya_get_fixed_properties(struct hl_device *hdev)
 		prop->hw_queues_props[i].driver_only = 0;
 		prop->hw_queues_props[i].requires_kernel_cb = 0;
 	}
-
-	for (; i < HL_MAX_QUEUES; i++)
-		prop->hw_queues_props[i].type = QUEUE_TYPE_NA;
 
 	prop->completion_queues_count = NUMBER_OF_CMPLT_QUEUES;
 
@@ -428,6 +433,8 @@ void goya_get_fixed_properties(struct hl_device *hdev)
 		CARD_NAME_MAX_LEN);
 
 	prop->max_pending_cs = GOYA_MAX_PENDING_CS;
+
+	return 0;
 }
 
 /*
@@ -540,7 +547,11 @@ static int goya_early_init(struct hl_device *hdev)
 	u32 val;
 	int rc;
 
-	goya_get_fixed_properties(hdev);
+	rc = goya_get_fixed_properties(hdev);
+	if (rc) {
+		dev_err(hdev->dev, "Failed to get fixed properties\n");
+		return rc;
+	}
 
 	/* Check BAR sizes */
 	if (pci_resource_len(pdev, SRAM_CFG_BAR_ID) != CFG_BAR_SIZE) {
@@ -550,7 +561,8 @@ static int goya_early_init(struct hl_device *hdev)
 			(unsigned long long) pci_resource_len(pdev,
 							SRAM_CFG_BAR_ID),
 			CFG_BAR_SIZE);
-		return -ENODEV;
+		rc = -ENODEV;
+		goto free_queue_props;
 	}
 
 	if (pci_resource_len(pdev, MSIX_BAR_ID) != MSIX_BAR_SIZE) {
@@ -560,14 +572,15 @@ static int goya_early_init(struct hl_device *hdev)
 			(unsigned long long) pci_resource_len(pdev,
 								MSIX_BAR_ID),
 			MSIX_BAR_SIZE);
-		return -ENODEV;
+		rc = -ENODEV;
+		goto free_queue_props;
 	}
 
 	prop->dram_pci_bar_size = pci_resource_len(pdev, DDR_BAR_ID);
 
 	rc = hl_pci_init(hdev);
 	if (rc)
-		return rc;
+		goto free_queue_props;
 
 	if (!hdev->pldm) {
 		val = RREG32(mmPSOC_GLOBAL_CONF_BOOT_STRAP_PINS);
@@ -577,6 +590,10 @@ static int goya_early_init(struct hl_device *hdev)
 	}
 
 	return 0;
+
+free_queue_props:
+	kfree(hdev->asic_prop.hw_queues_props);
+	return rc;
 }
 
 /*
@@ -589,6 +606,7 @@ static int goya_early_init(struct hl_device *hdev)
  */
 static int goya_early_fini(struct hl_device *hdev)
 {
+	kfree(hdev->asic_prop.hw_queues_props);
 	hl_pci_fini(hdev);
 
 	return 0;

@@ -363,6 +363,7 @@ static void cs_do_release(struct kref *ref)
 
 	cs_counters_aggregate(hdev, cs->ctx);
 
+	kfree(cs->jobs_in_queue_cnt);
 	kfree(cs);
 }
 
@@ -435,10 +436,16 @@ static int allocate_cs(struct hl_device *hdev, struct hl_ctx *ctx,
 	other = ctx->cs_pending[cs_cmpl->cs_seq &
 				(hdev->asic_prop.max_pending_cs - 1)];
 	if ((other) && (!dma_fence_is_signaled(other))) {
-		spin_unlock(&ctx->cs_lock);
 		dev_dbg(hdev->dev,
 			"Rejecting CS because of too many in-flights CS\n");
 		rc = -EAGAIN;
+		goto free_fence;
+	}
+
+	cs->jobs_in_queue_cnt = kcalloc(hdev->asic_prop.max_queues,
+			sizeof(*cs->jobs_in_queue_cnt), GFP_ATOMIC);
+	if (!cs->jobs_in_queue_cnt) {
+		rc = -ENOMEM;
 		goto free_fence;
 	}
 
@@ -463,6 +470,7 @@ static int allocate_cs(struct hl_device *hdev, struct hl_ctx *ctx,
 	return 0;
 
 free_fence:
+	spin_unlock(&ctx->cs_lock);
 	kfree(cs_cmpl);
 free_cs:
 	kfree(cs);
@@ -515,10 +523,18 @@ static int validate_queue_index(struct hl_device *hdev,
 	struct asic_fixed_properties *asic = &hdev->asic_prop;
 	struct hw_queue_properties *hw_queue_prop;
 
+	/* This must be checked here to prevent out-of-bounds access to
+	 * hw_queues_props array
+	 */
+	if (chunk->queue_index >= asic->max_queues) {
+		dev_err(hdev->dev, "Queue index %d is invalid\n",
+			chunk->queue_index);
+		return -EINVAL;
+	}
+
 	hw_queue_prop = &asic->hw_queues_props[chunk->queue_index];
 
-	if ((chunk->queue_index >= HL_MAX_QUEUES) ||
-			(hw_queue_prop->type == QUEUE_TYPE_NA)) {
+	if (hw_queue_prop->type == QUEUE_TYPE_NA) {
 		dev_err(hdev->dev, "Queue index %d is invalid\n",
 			chunk->queue_index);
 		return -EINVAL;
@@ -795,7 +811,7 @@ static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 	hw_queue_prop = &hdev->asic_prop.hw_queues_props[q_idx];
 	q_type = hw_queue_prop->type;
 
-	if ((q_idx >= HL_MAX_QUEUES) ||
+	if ((q_idx >= hdev->asic_prop.max_queues) ||
 			(!hw_queue_prop->supports_sync_stream)) {
 		dev_err(hdev->dev, "Queue index %d is invalid\n", q_idx);
 		rc = -EINVAL;

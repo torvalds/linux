@@ -340,14 +340,15 @@ static int gaudi_get_fixed_properties(struct hl_device *hdev)
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	int i;
 
-	if (GAUDI_QUEUE_ID_SIZE >= HL_MAX_QUEUES) {
-		dev_err(hdev->dev,
-			"Number of H/W queues must be smaller than %d\n",
-			HL_MAX_QUEUES);
-		return -EFAULT;
-	}
+	prop->max_queues = GAUDI_QUEUE_ID_SIZE;
+	prop->hw_queues_props = kcalloc(prop->max_queues,
+			sizeof(struct hw_queue_properties),
+			GFP_KERNEL);
 
-	for (i = 0 ; i < GAUDI_QUEUE_ID_SIZE ; i++) {
+	if (!prop->hw_queues_props)
+		return -ENOMEM;
+
+	for (i = 0 ; i < prop->max_queues ; i++) {
 		if (gaudi_queue_type[i] == QUEUE_TYPE_EXT) {
 			prop->hw_queues_props[i].type = QUEUE_TYPE_EXT;
 			prop->hw_queues_props[i].driver_only = 0;
@@ -369,9 +370,6 @@ static int gaudi_get_fixed_properties(struct hl_device *hdev)
 			prop->hw_queues_props[i].supports_sync_stream = 0;
 		}
 	}
-
-	for (; i < HL_MAX_QUEUES; i++)
-		prop->hw_queues_props[i].type = QUEUE_TYPE_NA;
 
 	prop->completion_queues_count = NUMBER_OF_CMPLT_QUEUES;
 	prop->sync_stream_first_sob = 0;
@@ -548,7 +546,8 @@ static int gaudi_early_init(struct hl_device *hdev)
 			(unsigned long long) pci_resource_len(pdev,
 							SRAM_BAR_ID),
 			SRAM_BAR_SIZE);
-		return -ENODEV;
+		rc = -ENODEV;
+		goto free_queue_props;
 	}
 
 	if (pci_resource_len(pdev, CFG_BAR_ID) != CFG_BAR_SIZE) {
@@ -558,20 +557,26 @@ static int gaudi_early_init(struct hl_device *hdev)
 			(unsigned long long) pci_resource_len(pdev,
 								CFG_BAR_ID),
 			CFG_BAR_SIZE);
-		return -ENODEV;
+		rc = -ENODEV;
+		goto free_queue_props;
 	}
 
 	prop->dram_pci_bar_size = pci_resource_len(pdev, HBM_BAR_ID);
 
 	rc = hl_pci_init(hdev);
 	if (rc)
-		return rc;
+		goto free_queue_props;
 
 	return 0;
+
+free_queue_props:
+	kfree(hdev->asic_prop.hw_queues_props);
+	return rc;
 }
 
 static int gaudi_early_fini(struct hl_device *hdev)
 {
+	kfree(hdev->asic_prop.hw_queues_props);
 	hl_pci_fini(hdev);
 
 	return 0;
@@ -3461,7 +3466,7 @@ static int gaudi_test_queues(struct hl_device *hdev)
 {
 	int i, rc, ret_val = 0;
 
-	for (i = 0 ; i < HL_MAX_QUEUES ; i++) {
+	for (i = 0 ; i < hdev->asic_prop.max_queues ; i++) {
 		if (hdev->asic_prop.hw_queues_props[i].type == QUEUE_TYPE_EXT) {
 			rc = gaudi_test_queue(hdev, i);
 			if (rc)
