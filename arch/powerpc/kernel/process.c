@@ -530,8 +530,7 @@ void notrace restore_math(struct pt_regs *regs)
 {
 	unsigned long msr;
 
-	if (!MSR_TM_ACTIVE(regs->msr) &&
-		!current->thread.load_fp && !loadvec(current->thread))
+	if (!current->thread.load_fp && !loadvec(current->thread))
 		return;
 
 	msr = regs->msr;
