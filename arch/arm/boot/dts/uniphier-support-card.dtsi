@@ -23,7 +23,7 @@
 			reg-io-width = <4>;
 		};
 
-		serialsc: uart@b0000 {
+		serialsc: serial@b0000 {
 			compatible = "ns16550a";
 			reg = <0x000b0000 0x20>;
 			clock-frequency = <12288000>;
