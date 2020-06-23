@@ -162,12 +162,6 @@ static const struct dwc3_exynos_driverdata exynos5250_drvdata = {
 	.suspend_clk_idx = -1,
 };
 
-static const struct dwc3_exynos_driverdata exynos5420_drvdata = {
-	.clk_names = { "usbdrd30", "usbdrd30_susp_clk"},
-	.num_clks = 2,
-	.suspend_clk_idx = 1,
-};
-
 static const struct dwc3_exynos_driverdata exynos5433_drvdata = {
 	.clk_names = { "aclk", "susp_clk", "pipe_pclk", "phyclk" },
 	.num_clks = 4,
@@ -184,9 +178,6 @@ static const struct of_device_id exynos_dwc3_match[] = {
 	{
 		.compatible = "samsung,exynos5250-dwusb3",
 		.data = &exynos5250_drvdata,
-	}, {
-		.compatible = "samsung,exynos5420-dwusb3",
-		.data = &exynos5420_drvdata,
 	}, {
 		.compatible = "samsung,exynos5433-dwusb3",
 		.data = &exynos5433_drvdata,
