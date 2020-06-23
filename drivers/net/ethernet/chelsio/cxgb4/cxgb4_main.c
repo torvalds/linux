@@ -5377,10 +5377,10 @@ static inline bool is_x_10g_port(const struct link_config *lc)
 static int cfg_queues(struct adapter *adap)
 {
 	u32 avail_qsets, avail_eth_qsets, avail_uld_qsets;
-	u32 i, n10g = 0, qidx = 0, n1g = 0;
 	u32 ncpus = num_online_cpus();
 	u32 niqflint, neq, num_ulds;
 	struct sge *s = &adap->sge;
+	u32 i, n10g = 0, qidx = 0;
 	u32 q10g = 0, q1g;
 
 	/* Reduce memory usage in kdump environment, disable all offload. */
@@ -5426,7 +5426,6 @@ static int cfg_queues(struct adapter *adap)
 	if (n10g)
 		q10g = (avail_eth_qsets - (adap->params.nports - n10g)) / n10g;
 
-	n1g = adap->params.nports - n10g;
 #ifdef CONFIG_CHELSIO_T4_DCB
 	/* For Data Center Bridging support we need to be able to support up
 	 * to 8 Traffic Priorities; each of which will be assigned to its
@@ -5444,7 +5443,8 @@ static int cfg_queues(struct adapter *adap)
 	else
 		q10g = max(8U, q10g);
 
-	while ((q10g * n10g) > (avail_eth_qsets - n1g * q1g))
+	while ((q10g * n10g) >
+	       (avail_eth_qsets - (adap->params.nports - n10g) * q1g))
 		q10g--;
 
 #else /* !CONFIG_CHELSIO_T4_DCB */
