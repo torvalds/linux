@@ -22,6 +22,11 @@ properties:
           - const: qi,lb60
           - const: ingenic,jz4740
 
+      - description: YLM RetroMini RS-90
+        items:
+          - const: ylm,rs90
+          - const: ingenic,jz4725b
+
       - description: Game Consoles Worldwide GCW Zero
         items:
           - const: gcw,zero
