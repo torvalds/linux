@@ -372,10 +372,8 @@ err:
 	return -EMSGSIZE;
 }
 
-static int fill_res_cq_entry(struct sk_buff *msg,
-			     struct rdma_restrack_entry *res)
+int c4iw_fill_res_cq_entry(struct sk_buff *msg, struct ib_cq *ibcq)
 {
-	struct ib_cq *ibcq = container_of(res, struct ib_cq, res);
 	struct c4iw_cq *chp = to_c4iw_cq(ibcq);
 	struct nlattr *table_attr;
 	struct t4_cqe hwcqes[2];
@@ -494,5 +492,4 @@ err:
 c4iw_restrack_func *c4iw_restrack_funcs[RDMA_RESTRACK_MAX] = {
 	[RDMA_RESTRACK_QP]	= fill_res_qp_entry,
 	[RDMA_RESTRACK_CM_ID]	= fill_res_ep_entry,
-	[RDMA_RESTRACK_CQ]	= fill_res_cq_entry,
 };

@@ -2584,6 +2584,7 @@ struct ib_device_ops {
 	int (*fill_res_entry)(struct sk_buff *msg,
 			      struct rdma_restrack_entry *entry);
 	int (*fill_res_mr_entry)(struct sk_buff *msg, struct ib_mr *ibmr);
+	int (*fill_res_cq_entry)(struct sk_buff *msg, struct ib_cq *ibcq);
 
 	/* Device lifecycle callbacks */
 	/*
