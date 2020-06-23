@@ -907,6 +907,8 @@ static inline void tcp_skb_bpf_redirect_clear(struct sk_buff *skb)
 	TCP_SKB_CB(skb)->bpf.sk_redir = NULL;
 }
 
+extern const struct inet_connection_sock_af_ops ipv4_specific;
+
 #if IS_ENABLED(CONFIG_IPV6)
 /* This is the variant of inet6_iif() that must be used by TCP,
  * as TCP moves IP6CB into a different location in skb->cb[]
