@@ -193,6 +193,27 @@ static void rockchip_saradc_reset_controller(struct reset_control *reset)
 	reset_control_deassert(reset);
 }
 
+static void rockchip_saradc_clk_disable(void *data)
+{
+	struct rockchip_saradc *info = data;
+
+	clk_disable_unprepare(info->clk);
+}
+
+static void rockchip_saradc_pclk_disable(void *data)
+{
+	struct rockchip_saradc *info = data;
+
+	clk_disable_unprepare(info->pclk);
+}
+
+static void rockchip_saradc_regulator_disable(void *data)
+{
+	struct rockchip_saradc *info = data;
+
+	regulator_disable(info->vref);
+}
+
 static int rockchip_saradc_probe(struct platform_device *pdev)
 {
 	struct rockchip_saradc *info = NULL;
@@ -291,17 +312,38 @@ static int rockchip_saradc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to enable vref regulator\n");
 		return ret;
 	}
+	ret = devm_add_action_or_reset(&pdev->dev,
+				       rockchip_saradc_regulator_disable, info);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to register devm action, %d\n",
+			ret);
+		return ret;
+	}
 
 	ret = clk_prepare_enable(info->pclk);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to enable pclk\n");
-		goto err_reg_voltage;
+		return ret;
+	}
+	ret = devm_add_action_or_reset(&pdev->dev,
+				       rockchip_saradc_pclk_disable, info);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to register devm action, %d\n",
+			ret);
+		return ret;
 	}
 
 	ret = clk_prepare_enable(info->clk);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to enable converter clock\n");
-		goto err_pclk;
+		return ret;
+	}
+	ret = devm_add_action_or_reset(&pdev->dev,
+				       rockchip_saradc_clk_disable, info);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to register devm action, %d\n",
+			ret);
+		return ret;
 	}
 
 	platform_set_drvdata(pdev, indio_dev);
@@ -313,32 +355,7 @@ static int rockchip_saradc_probe(struct platform_device *pdev)
 	indio_dev->channels = info->data->channels;
 	indio_dev->num_channels = info->data->num_channels;
 
-	ret = iio_device_register(indio_dev);
-	if (ret)
-		goto err_clk;
-
-	return 0;
-
-err_clk:
-	clk_disable_unprepare(info->clk);
-err_pclk:
-	clk_disable_unprepare(info->pclk);
-err_reg_voltage:
-	regulator_disable(info->vref);
-	return ret;
-}
-
-static int rockchip_saradc_remove(struct platform_device *pdev)
-{
-	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
-	struct rockchip_saradc *info = iio_priv(indio_dev);
-
-	iio_device_unregister(indio_dev);
-	clk_disable_unprepare(info->clk);
-	clk_disable_unprepare(info->pclk);
-	regulator_disable(info->vref);
-
-	return 0;
+	return devm_iio_device_register(&pdev->dev, indio_dev);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -381,7 +398,6 @@ static SIMPLE_DEV_PM_OPS(rockchip_saradc_pm_ops,
 
 static struct platform_driver rockchip_saradc_driver = {
 	.probe		= rockchip_saradc_probe,
-	.remove		= rockchip_saradc_remove,
 	.driver		= {
 		.name	= "rockchip-saradc",
 		.of_match_table = rockchip_saradc_match,
