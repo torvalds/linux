@@ -193,10 +193,9 @@ union union_ep {
 	struct c4iw_ep ep;
 };
 
-static int fill_res_ep_entry(struct sk_buff *msg,
-			     struct rdma_restrack_entry *res)
+int c4iw_fill_res_cm_id_entry(struct sk_buff *msg,
+			      struct rdma_cm_id *cm_id)
 {
-	struct rdma_cm_id *cm_id = rdma_res_to_id(res);
 	struct nlattr *table_attr;
 	struct c4iw_ep_common *epcp;
 	struct c4iw_listen_ep *listen_ep = NULL;
@@ -486,7 +485,3 @@ err_cancel_table:
 err:
 	return -EMSGSIZE;
 }
-
-c4iw_restrack_func *c4iw_restrack_funcs[RDMA_RESTRACK_MAX] = {
-	[RDMA_RESTRACK_CM_ID]	= fill_res_ep_entry,
-};
