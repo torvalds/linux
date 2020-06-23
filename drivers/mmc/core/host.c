@@ -434,6 +434,7 @@ struct mmc_host *mmc_alloc_host(int extra, struct device *dev)
 
 	host->fixed_drv_type = -EINVAL;
 	host->ios.power_delay_ms = 10;
+	host->ios.power_mode = MMC_POWER_UNDEFINED;
 
 	return host;
 }
