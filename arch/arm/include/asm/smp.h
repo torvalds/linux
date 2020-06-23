@@ -46,6 +46,11 @@ extern void smp_init_cpus(void);
 extern void set_smp_cross_call(void (*)(const struct cpumask *, unsigned int));
 
 /*
+ * Register IPI interrupts with the arch SMP code
+ */
+extern void set_smp_ipi_range(int ipi_base, int nr_ipi);
+
+/*
  * Called from platform specific assembly code, this is the
  * secondary CPU entry point.
  */
