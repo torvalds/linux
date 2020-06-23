@@ -65,6 +65,21 @@
 #define PGID_MCIPV4			62
 #define PGID_MCIPV6			63
 
+#define for_each_unicast_dest_pgid(ocelot, pgid)		\
+	for ((pgid) = 0;					\
+	     (pgid) < (ocelot)->num_phys_ports;			\
+	     (pgid)++)
+
+#define for_each_nonreserved_multicast_dest_pgid(ocelot, pgid)	\
+	for ((pgid) = (ocelot)->num_phys_ports + 1;		\
+	     (pgid) < PGID_CPU;					\
+	     (pgid)++)
+
+#define for_each_aggr_pgid(ocelot, pgid)			\
+	for ((pgid) = PGID_AGGR;				\
+	     (pgid) < PGID_SRC;					\
+	     (pgid)++)
+
 /* Aggregation PGIDs, one per Link Aggregation Code */
 #define PGID_AGGR			64
 
@@ -641,5 +656,9 @@ int ocelot_cls_flower_destroy(struct ocelot *ocelot, int port,
 			      struct flow_cls_offload *f, bool ingress);
 int ocelot_cls_flower_stats(struct ocelot *ocelot, int port,
 			    struct flow_cls_offload *f, bool ingress);
+int ocelot_port_mdb_add(struct ocelot *ocelot, int port,
+			const struct switchdev_obj_port_mdb *mdb);
+int ocelot_port_mdb_del(struct ocelot *ocelot, int port,
+			const struct switchdev_obj_port_mdb *mdb);
 
 #endif

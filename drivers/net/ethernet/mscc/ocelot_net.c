@@ -422,7 +422,7 @@ static void ocelot_set_rx_mode(struct net_device *dev)
 	 * forwarded to the CPU port.
 	 */
 	val = GENMASK(ocelot->num_phys_ports - 1, 0);
-	for (i = ocelot->num_phys_ports + 1; i < PGID_CPU; i++)
+	for_each_nonreserved_multicast_dest_pgid(ocelot, i)
 		ocelot_write_rix(ocelot, val, ANA_PGID_PGID, i);
 
 	__dev_mc_sync(dev, ocelot_mc_sync, ocelot_mc_unsync);
@@ -793,6 +793,32 @@ static int ocelot_port_vlan_del_vlan(struct net_device *dev,
 	}
 
 	return 0;
+}
+
+static int ocelot_port_obj_add_mdb(struct net_device *dev,
+				   const struct switchdev_obj_port_mdb *mdb,
+				   struct switchdev_trans *trans)
+{
+	struct ocelot_port_private *priv = netdev_priv(dev);
+	struct ocelot_port *ocelot_port = &priv->port;
+	struct ocelot *ocelot = ocelot_port->ocelot;
+	int port = priv->chip_port;
+
+	if (switchdev_trans_ph_prepare(trans))
+		return 0;
+
+	return ocelot_port_mdb_add(ocelot, port, mdb);
+}
+
+static int ocelot_port_obj_del_mdb(struct net_device *dev,
+				   const struct switchdev_obj_port_mdb *mdb)
+{
+	struct ocelot_port_private *priv = netdev_priv(dev);
+	struct ocelot_port *ocelot_port = &priv->port;
+	struct ocelot *ocelot = ocelot_port->ocelot;
+	int port = priv->chip_port;
+
+	return ocelot_port_mdb_del(ocelot, port, mdb);
 }
 
 static int ocelot_port_obj_add(struct net_device *dev,
