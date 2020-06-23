@@ -521,11 +521,15 @@ static int wg_set_device(struct sk_buff *skb, struct genl_info *info)
 	if (flags & ~__WGDEVICE_F_ALL)
 		goto out;
 
-	ret = -EPERM;
-	if ((info->attrs[WGDEVICE_A_LISTEN_PORT] ||
-	     info->attrs[WGDEVICE_A_FWMARK]) &&
-	    !ns_capable(wg->creating_net->user_ns, CAP_NET_ADMIN))
-		goto out;
+	if (info->attrs[WGDEVICE_A_LISTEN_PORT] || info->attrs[WGDEVICE_A_FWMARK]) {
+		struct net *net;
+		rcu_read_lock();
+		net = rcu_dereference(wg->creating_net);
+		ret = !net || !ns_capable(net->user_ns, CAP_NET_ADMIN) ? -EPERM : 0;
+		rcu_read_unlock();
+		if (ret)
+			goto out;
+	}
 
 	++wg->device_update_gen;
 
