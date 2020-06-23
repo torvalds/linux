@@ -4,9 +4,78 @@
  */
 
 #include <uapi/rdma/rdma_netlink.h>
+#include <linux/mlx5/rsc_dump.h>
 #include <rdma/ib_umem_odp.h>
 #include <rdma/restrack.h>
 #include "mlx5_ib.h"
+
+#define MAX_DUMP_SIZE 1024
+
+static int dump_rsc(struct mlx5_core_dev *dev, enum mlx5_sgmt_type type,
+		    int index, void *data, int *data_len)
+{
+	struct mlx5_core_dev *mdev = dev;
+	struct mlx5_rsc_dump_cmd *cmd;
+	struct mlx5_rsc_key key = {};
+	struct page *page;
+	int offset = 0;
+	int err = 0;
+	int cmd_err;
+	int size;
+
+	page = alloc_page(GFP_KERNEL);
+	if (!page)
+		return -ENOMEM;
+
+	key.size = PAGE_SIZE;
+	key.rsc = type;
+	key.index1 = index;
+	key.num_of_obj1 = 1;
+
+	cmd = mlx5_rsc_dump_cmd_create(mdev, &key);
+	if (IS_ERR(cmd)) {
+		err = PTR_ERR(cmd);
+		goto free_page;
+	}
+
+	do {
+		cmd_err = mlx5_rsc_dump_next(mdev, cmd, page, &size);
+		if (cmd_err < 0 || size + offset > MAX_DUMP_SIZE) {
+			err = cmd_err;
+			goto destroy_cmd;
+		}
+		memcpy(data + offset, page_address(page), size);
+		offset += size;
+	} while (cmd_err > 0);
+	*data_len = offset;
+
+destroy_cmd:
+	mlx5_rsc_dump_cmd_destroy(cmd);
+free_page:
+	__free_page(page);
+	return err;
+}
+
+static int fill_res_raw(struct sk_buff *msg, struct mlx5_ib_dev *dev,
+			enum mlx5_sgmt_type type, u32 key)
+{
+	int len = 0;
+	void *data;
+	int err;
+
+	data = kzalloc(MAX_DUMP_SIZE, GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	err = dump_rsc(dev->mdev, type, key, data, &len);
+	if (err)
+		goto out;
+
+	err = nla_put(msg, RDMA_NLDEV_ATTR_RES_RAW, len, data);
+out:
+	kfree(data);
+	return err;
+}
 
 int mlx5_ib_fill_stat_mr_entry(struct sk_buff *msg,
 			       struct ib_mr *ibmr)
@@ -67,4 +136,12 @@ int mlx5_ib_fill_res_mr_entry(struct sk_buff *msg,
 err:
 	nla_nest_cancel(msg, table_attr);
 	return -EMSGSIZE;
+}
+
+int mlx5_ib_fill_res_qp_entry_raw(struct sk_buff *msg, struct ib_qp *ibqp)
+{
+	struct mlx5_ib_dev *dev = to_mdev(ibqp->device);
+
+	return fill_res_raw(msg, dev, MLX5_SGMT_TYPE_PRM_QUERY_QP,
+			    ibqp->qp_num);
 }
