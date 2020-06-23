@@ -287,6 +287,12 @@ enum rdma_nldev_command {
 
 	RDMA_NLDEV_CMD_STAT_DEL,
 
+	RDMA_NLDEV_CMD_RES_QP_GET_RAW,
+
+	RDMA_NLDEV_CMD_RES_CQ_GET_RAW,
+
+	RDMA_NLDEV_CMD_RES_MR_GET_RAW,
+
 	RDMA_NLDEV_NUM_OPS
 };
 
@@ -524,6 +530,8 @@ enum rdma_nldev_attr {
 	 * CQ adaptive moderatio (DIM)
 	 */
 	RDMA_NLDEV_ATTR_DEV_DIM,                /* u8 */
+
+	RDMA_NLDEV_ATTR_RES_RAW,	/* binary */
 
 	/*
 	 * Always the end
