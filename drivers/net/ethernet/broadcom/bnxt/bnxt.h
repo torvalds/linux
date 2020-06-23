@@ -1749,6 +1749,7 @@ struct bnxt {
 	u64			fw_ver_code;
 #define BNXT_FW_VER_CODE(maj, min, bld, rsv)			\
 	((u64)(maj) << 48 | (u64)(min) << 32 | (u64)(bld) << 16 | (rsv))
+#define BNXT_FW_MAJ(bp)		((bp)->fw_ver_code >> 48)
 
 	__be16			vxlan_port;
 	u8			vxlan_port_cnt;
