@@ -133,6 +133,7 @@ struct tb_switch_tmu {
  * @depth: Depth in the chain this switch is connected (ICM only)
  * @rpm_complete: Completion used to wait for runtime resume to
  *		  complete (ICM only)
+ * @quirks: Quirks used for this Thunderbolt switch
  *
  * When the switch is being added or removed to the domain (other
  * switches) you need to have domain lock held.
@@ -171,6 +172,7 @@ struct tb_switch {
 	u8 link;
 	u8 depth;
 	struct completion rpm_complete;
+	unsigned long quirks;
 };
 
 /**
@@ -849,6 +851,7 @@ bool tb_lc_lane_bonding_possible(struct tb_switch *sw);
 bool tb_lc_dp_sink_query(struct tb_switch *sw, struct tb_port *in);
 int tb_lc_dp_sink_alloc(struct tb_switch *sw, struct tb_port *in);
 int tb_lc_dp_sink_dealloc(struct tb_switch *sw, struct tb_port *in);
+int tb_lc_force_power(struct tb_switch *sw);
 
 static inline int tb_route_length(u64 route)
 {
@@ -941,4 +944,10 @@ int usb4_usb3_port_allocate_bandwidth(struct tb_port *port, int *upstream_bw,
 				      int *downstream_bw);
 int usb4_usb3_port_release_bandwidth(struct tb_port *port, int *upstream_bw,
 				     int *downstream_bw);
+
+/* keep link controller awake during update */
+#define QUIRK_FORCE_POWER_LINK_CONTROLLER		BIT(0)
+
+void tb_check_quirks(struct tb_switch *sw);
+
 #endif

@@ -1493,8 +1493,8 @@ static ssize_t nvm_authenticate_show(struct device *dev,
 	return sprintf(buf, "%#x\n", status);
 }
 
-static ssize_t nvm_authenticate_store(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t nvm_authenticate_sysfs(struct device *dev, const char *buf,
+				      bool disconnect)
 {
 	struct tb_switch *sw = tb_to_switch(dev);
 	int val;
@@ -1532,8 +1532,12 @@ static ssize_t nvm_authenticate_store(struct device *dev,
 				goto exit_unlock;
 		}
 		if (val == WRITE_AND_AUTHENTICATE) {
-			sw->nvm->authenticating = true;
-			ret = nvm_authenticate(sw);
+			if (disconnect) {
+				ret = tb_lc_force_power(sw);
+			} else {
+				sw->nvm->authenticating = true;
+				ret = nvm_authenticate(sw);
+			}
 		}
 	}
 
@@ -1543,11 +1547,34 @@ exit_rpm:
 	pm_runtime_mark_last_busy(&sw->dev);
 	pm_runtime_put_autosuspend(&sw->dev);
 
+	return ret;
+}
+
+static ssize_t nvm_authenticate_store(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	int ret = nvm_authenticate_sysfs(dev, buf, false);
 	if (ret)
 		return ret;
 	return count;
 }
 static DEVICE_ATTR_RW(nvm_authenticate);
+
+static ssize_t nvm_authenticate_on_disconnect_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	return nvm_authenticate_show(dev, attr, buf);
+}
+
+static ssize_t nvm_authenticate_on_disconnect_store(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	int ret;
+
+	ret = nvm_authenticate_sysfs(dev, buf, true);
+	return ret ? ret : count;
+}
+static DEVICE_ATTR_RW(nvm_authenticate_on_disconnect);
 
 static ssize_t nvm_version_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
@@ -1606,6 +1633,7 @@ static struct attribute *switch_attrs[] = {
 	&dev_attr_generation.attr,
 	&dev_attr_key.attr,
 	&dev_attr_nvm_authenticate.attr,
+	&dev_attr_nvm_authenticate_on_disconnect.attr,
 	&dev_attr_nvm_version.attr,
 	&dev_attr_rx_speed.attr,
 	&dev_attr_rx_lanes.attr,
@@ -1658,6 +1686,10 @@ static umode_t switch_attr_is_visible(struct kobject *kobj,
 		return 0;
 	} else if (attr == &dev_attr_boot.attr) {
 		if (tb_route(sw))
+			return attr->mode;
+		return 0;
+	} else if (attr == &dev_attr_nvm_authenticate_on_disconnect.attr) {
+		if (sw->quirks & QUIRK_FORCE_POWER_LINK_CONTROLLER)
 			return attr->mode;
 		return 0;
 	}

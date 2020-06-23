@@ -409,6 +409,7 @@ struct tb_regs_hop {
 #define TB_LC_SNK_ALLOCATION_SNK1_SHIFT	4
 #define TB_LC_SNK_ALLOCATION_SNK1_MASK	GENMASK(7, 4)
 #define TB_LC_SNK_ALLOCATION_SNK1_CM	0x1
+#define TB_LC_POWER			0x740
 
 /* Link controller registers */
 #define TB_LC_PORT_ATTR			0x8d
