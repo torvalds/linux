@@ -669,12 +669,7 @@ static uint32_t soc15_get_rev_id(struct amdgpu_device *adev)
 	return adev->nbio.funcs->get_rev_id(adev);
 }
 
-void soc15_set_virt_ops(struct amdgpu_device *adev)
-{
-	adev->virt.ops = &xgpu_ai_virt_ops;
-}
-
-int soc15_set_ip_blocks(struct amdgpu_device *adev)
+static void soc15_reg_base_init(struct amdgpu_device *adev)
 {
 	int r;
 
@@ -686,6 +681,8 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 		vega10_reg_base_init(adev);
 		break;
 	case CHIP_RENOIR:
+		/* It's safe to do ip discovery here for Renior,
+		 * it doesn't support SRIOV. */
 		if (amdgpu_discovery) {
 			r = amdgpu_discovery_reg_base_init(adev);
 			if (r) {
@@ -702,8 +699,26 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 		arct_reg_base_init(adev);
 		break;
 	default:
-		return -EINVAL;
+		DRM_ERROR("Unsupported asic type: %d!\n", adev->asic_type);
+		break;
 	}
+}
+
+void soc15_set_virt_ops(struct amdgpu_device *adev)
+{
+	adev->virt.ops = &xgpu_ai_virt_ops;
+
+	/* init soc15 reg base early enough so we can
+	 * request request full access for sriov before
+	 * set_ip_blocks. */
+	soc15_reg_base_init(adev);
+}
+
+int soc15_set_ip_blocks(struct amdgpu_device *adev)
+{
+	/* for bare metal case */
+	if (!amdgpu_sriov_vf(adev))
+		soc15_reg_base_init(adev);
 
 	if (adev->asic_type == CHIP_VEGA20 || adev->asic_type == CHIP_ARCTURUS)
 		adev->gmc.xgmi.supported = true;
