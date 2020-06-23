@@ -128,7 +128,7 @@ static inline void ksft_test_result_skip(const char *msg, ...)
 	ksft_cnt.ksft_xskip++;
 
 	va_start(args, msg);
-	printf("not ok %d # SKIP ", ksft_test_num());
+	printf("ok %d # SKIP ", ksft_test_num());
 	errno = saved_errno;
 	vprintf(msg, args);
 	va_end(args);
@@ -190,18 +190,30 @@ static inline int ksft_exit_xpass(void)
 
 static inline int ksft_exit_skip(const char *msg, ...)
 {
-	if (msg) {
-		int saved_errno = errno;
-		va_list args;
+	int saved_errno = errno;
+	va_list args;
 
-		va_start(args, msg);
-		printf("not ok %d # SKIP ", 1 + ksft_test_num());
+	va_start(args, msg);
+
+	/*
+	 * FIXME: several tests misuse ksft_exit_skip so produce
+	 * something sensible if some tests have already been run
+	 * or a plan has been printed.  Those tests should use
+	 * ksft_test_result_skip or ksft_exit_fail_msg instead.
+	 */
+	if (ksft_plan || ksft_test_num()) {
+		ksft_cnt.ksft_xskip++;
+		printf("ok %d # SKIP ", 1 + ksft_test_num());
+	} else {
+		printf("1..0 # SKIP ");
+	}
+	if (msg) {
 		errno = saved_errno;
 		vprintf(msg, args);
 		va_end(args);
-	} else {
-		ksft_print_cnts();
 	}
+	if (ksft_test_num())
+		ksft_print_cnts();
 	exit(KSFT_SKIP);
 }
 
