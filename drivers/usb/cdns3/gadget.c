@@ -1810,7 +1810,7 @@ static irqreturn_t cdns3_device_thread_irq_handler(int irq, void *data)
 	irqreturn_t ret = IRQ_NONE;
 	unsigned long flags;
 	int bit;
-	u32 reg;
+	unsigned long reg;
 
 	spin_lock_irqsave(&priv_dev->lock, flags);
 
@@ -1841,7 +1841,7 @@ static irqreturn_t cdns3_device_thread_irq_handler(int irq, void *data)
 	if (!reg)
 		goto irqend;
 
-	for_each_set_bit(bit, (unsigned long *)&reg,
+	for_each_set_bit(bit, &reg,
 			 sizeof(u32) * BITS_PER_BYTE) {
 		cdns3_check_ep_interrupt_proceed(priv_dev->eps[bit]);
 		ret = IRQ_HANDLED;
