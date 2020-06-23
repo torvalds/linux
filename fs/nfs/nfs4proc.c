@@ -7448,6 +7448,7 @@ static int nfs4_xattr_set_nfs4_user(const struct xattr_handler *handler,
 				    size_t buflen, int flags)
 {
 	struct nfs_access_entry cache;
+	int ret;
 
 	if (!nfs_server_capable(inode, NFS_CAP_XATTR))
 		return -EOPNOTSUPP;
@@ -7466,10 +7467,17 @@ static int nfs4_xattr_set_nfs4_user(const struct xattr_handler *handler,
 			return -EACCES;
 	}
 
-	if (buf == NULL)
-		return nfs42_proc_removexattr(inode, key);
-	else
-		return nfs42_proc_setxattr(inode, key, buf, buflen, flags);
+	if (buf == NULL) {
+		ret = nfs42_proc_removexattr(inode, key);
+		if (!ret)
+			nfs4_xattr_cache_remove(inode, key);
+	} else {
+		ret = nfs42_proc_setxattr(inode, key, buf, buflen, flags);
+		if (!ret)
+			nfs4_xattr_cache_add(inode, key, buf, NULL, buflen);
+	}
+
+	return ret;
 }
 
 static int nfs4_xattr_get_nfs4_user(const struct xattr_handler *handler,
@@ -7477,6 +7485,7 @@ static int nfs4_xattr_get_nfs4_user(const struct xattr_handler *handler,
 				    const char *key, void *buf, size_t buflen)
 {
 	struct nfs_access_entry cache;
+	ssize_t ret;
 
 	if (!nfs_server_capable(inode, NFS_CAP_XATTR))
 		return -EOPNOTSUPP;
@@ -7486,7 +7495,17 @@ static int nfs4_xattr_get_nfs4_user(const struct xattr_handler *handler,
 			return -EACCES;
 	}
 
-	return nfs42_proc_getxattr(inode, key, buf, buflen);
+	ret = nfs_revalidate_inode(NFS_SERVER(inode), inode);
+	if (ret)
+		return ret;
+
+	ret = nfs4_xattr_cache_get(inode, key, buf, buflen);
+	if (ret >= 0 || (ret < 0 && ret != -ENOENT))
+		return ret;
+
+	ret = nfs42_proc_getxattr(inode, key, buf, buflen);
+
+	return ret;
 }
 
 static ssize_t
@@ -7494,7 +7513,7 @@ nfs4_listxattr_nfs4_user(struct inode *inode, char *list, size_t list_len)
 {
 	u64 cookie;
 	bool eof;
-	int ret, size;
+	ssize_t ret, size;
 	char *buf;
 	size_t buflen;
 	struct nfs_access_entry cache;
@@ -7506,6 +7525,14 @@ nfs4_listxattr_nfs4_user(struct inode *inode, char *list, size_t list_len)
 		if (!(cache.mask & NFS_ACCESS_XALIST))
 			return 0;
 	}
+
+	ret = nfs_revalidate_inode(NFS_SERVER(inode), inode);
+	if (ret)
+		return ret;
+
+	ret = nfs4_xattr_cache_list(inode, list, list_len);
+	if (ret >= 0 || (ret < 0 && ret != -ENOENT))
+		return ret;
 
 	cookie = 0;
 	eof = false;
@@ -7525,6 +7552,9 @@ nfs4_listxattr_nfs4_user(struct inode *inode, char *list, size_t list_len)
 		}
 		size += ret;
 	}
+
+	if (list_len)
+		nfs4_xattr_cache_set_list(inode, list, size);
 
 	return size;
 }

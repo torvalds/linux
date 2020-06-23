@@ -193,6 +193,7 @@ bool nfs_check_cache_invalid(struct inode *inode, unsigned long flags)
 
 	return nfs_check_cache_invalid_not_delegated(inode, flags);
 }
+EXPORT_SYMBOL_GPL(nfs_check_cache_invalid);
 
 static void nfs_set_cache_invalid(struct inode *inode, unsigned long flags)
 {
@@ -234,11 +235,13 @@ static void nfs_zap_caches_locked(struct inode *inode)
 					| NFS_INO_INVALID_DATA
 					| NFS_INO_INVALID_ACCESS
 					| NFS_INO_INVALID_ACL
+					| NFS_INO_INVALID_XATTR
 					| NFS_INO_REVAL_PAGECACHE);
 	} else
 		nfs_set_cache_invalid(inode, NFS_INO_INVALID_ATTR
 					| NFS_INO_INVALID_ACCESS
 					| NFS_INO_INVALID_ACL
+					| NFS_INO_INVALID_XATTR
 					| NFS_INO_REVAL_PAGECACHE);
 	nfs_zap_label_cache_locked(nfsi);
 }
@@ -1897,7 +1900,8 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 			if (!(have_writers || have_delegation)) {
 				invalid |= NFS_INO_INVALID_DATA
 					| NFS_INO_INVALID_ACCESS
-					| NFS_INO_INVALID_ACL;
+					| NFS_INO_INVALID_ACL
+					| NFS_INO_INVALID_XATTR;
 				/* Force revalidate of all attributes */
 				save_cache_validity |= NFS_INO_INVALID_CTIME
 					| NFS_INO_INVALID_MTIME
@@ -2100,6 +2104,9 @@ struct inode *nfs_alloc_inode(struct super_block *sb)
 #if IS_ENABLED(CONFIG_NFS_V4)
 	nfsi->nfs4_acl = NULL;
 #endif /* CONFIG_NFS_V4 */
+#ifdef CONFIG_NFS_V4_2
+	nfsi->xattr_cache = NULL;
+#endif
 	return &nfsi->vfs_inode;
 }
 EXPORT_SYMBOL_GPL(nfs_alloc_inode);

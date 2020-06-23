@@ -1182,6 +1182,18 @@ static ssize_t _nfs42_proc_getxattr(struct inode *inode, const char *name,
 	if (ret < 0)
 		return ret;
 
+	/*
+	 * Normally, the caching is done one layer up, but for successful
+	 * RPCS, always cache the result here, even if the caller was
+	 * just querying the length, or if the reply was too big for
+	 * the caller. This avoids a second RPC in the case of the
+	 * common query-alloc-retrieve cycle for xattrs.
+	 *
+	 * Note that xattr_len is always capped to XATTR_SIZE_MAX.
+	 */
+
+	nfs4_xattr_cache_add(inode, name, NULL, pages, res.xattr_len);
+
 	if (buflen) {
 		if (res.xattr_len > buflen)
 			return -ERANGE;

@@ -626,12 +626,34 @@ static inline bool nfs4_state_match_open_stateid_other(const struct nfs4_state *
 		nfs4_stateid_match_other(&state->open_stateid, stateid);
 }
 
+/* nfs42xattr.c */
+#ifdef CONFIG_NFS_V4_2
+extern int __init nfs4_xattr_cache_init(void);
+extern void nfs4_xattr_cache_exit(void);
+extern void nfs4_xattr_cache_add(struct inode *inode, const char *name,
+				 const char *buf, struct page **pages,
+				 ssize_t buflen);
+extern void nfs4_xattr_cache_remove(struct inode *inode, const char *name);
+extern ssize_t nfs4_xattr_cache_get(struct inode *inode, const char *name,
+				char *buf, ssize_t buflen);
+extern void nfs4_xattr_cache_set_list(struct inode *inode, const char *buf,
+				      ssize_t buflen);
+extern ssize_t nfs4_xattr_cache_list(struct inode *inode, char *buf,
+				     ssize_t buflen);
+extern void nfs4_xattr_cache_zap(struct inode *inode);
 #else
+static inline void nfs4_xattr_cache_zap(struct inode *inode)
+{
+}
+#endif /* CONFIG_NFS_V4_2 */
+
+#else /* CONFIG_NFS_V4 */
 
 #define nfs4_close_state(a, b) do { } while (0)
 #define nfs4_close_sync(a, b) do { } while (0)
 #define nfs4_state_protect(a, b, c, d) do { } while (0)
 #define nfs4_state_protect_write(a, b, c, d) do { } while (0)
+
 
 #endif /* CONFIG_NFS_V4 */
 #endif /* __LINUX_FS_NFS_NFS4_FS.H */

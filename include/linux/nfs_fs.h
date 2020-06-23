@@ -102,6 +102,8 @@ struct nfs_delegation;
 
 struct posix_acl;
 
+struct nfs4_xattr_cache;
+
 /*
  * nfs fs inode data in memory
  */
@@ -188,6 +190,10 @@ struct nfs_inode {
 	struct fscache_cookie	*fscache;
 #endif
 	struct inode		vfs_inode;
+
+#ifdef CONFIG_NFS_V4_2
+	struct nfs4_xattr_cache *xattr_cache;
+#endif
 };
 
 struct nfs4_copy_state {
