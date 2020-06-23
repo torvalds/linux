@@ -217,7 +217,6 @@ enum {
 	CXT_FIXUP_MUTE_LED_GPIO,
 	CXT_FIXUP_HEADSET_MIC,
 	CXT_FIXUP_HP_MIC_NO_PRESENCE,
-	CXT_FIXUP_THINKPAD_E495,
 };
 
 /* for hda_fixup_thinkpad_acpi() */
@@ -680,22 +679,6 @@ static void cxt_fixup_mute_led_gpio(struct hda_codec *codec,
 				    spec->gpio_led);
 }
 
-static void cxt_fixup_thinkpad_e495(struct hda_codec *codec,
-				    const struct hda_fixup *fix,
-				    int action)
-{
-	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
-		static const hda_nid_t conns[] = { 0x10, 0x11 };
-		/* BIOS invalidates the headphone pin NID 0x16 when rebooted
-		 * after Windows by some reason;
-		 * forcibly restoring the whole setup
-		 */
-		snd_hda_override_wcaps(codec, 0x16, 0x400581);
-		snd_hda_codec_set_pincfg(codec, 0x16, 0x03211040);
-		snd_hda_override_conn_list(codec, 0x16, ARRAY_SIZE(conns),
-					   conns);
-	}
-}
 
 /* ThinkPad X200 & co with cxt5051 */
 static const struct hda_pintbl cxt_pincfg_lenovo_x200[] = {
@@ -869,12 +852,6 @@ static const struct hda_fixup cxt_fixups[] = {
 		.chained = true,
 		.chain_id = CXT_FIXUP_HEADSET_MIC,
 	},
-	[CXT_FIXUP_THINKPAD_E495] = {
-		.type = HDA_FIXUP_FUNC,
-		.v.func = cxt_fixup_thinkpad_e495,
-		.chained = true,
-		.chain_id = CXT_FIXUP_THINKPAD_ACPI,
-	},
 };
 
 static const struct snd_pci_quirk cxt5045_fixups[] = {
@@ -961,7 +938,6 @@ static const struct snd_pci_quirk cxt5066_fixups[] = {
 	SND_PCI_QUIRK(0x17aa, 0x3977, "Lenovo IdeaPad U310", CXT_FIXUP_STEREO_DMIC),
 	SND_PCI_QUIRK(0x17aa, 0x3978, "Lenovo G50-70", CXT_FIXUP_STEREO_DMIC),
 	SND_PCI_QUIRK(0x17aa, 0x397b, "Lenovo S205", CXT_FIXUP_STEREO_DMIC),
-	SND_PCI_QUIRK(0x17aa, 0x5124, "Lenovo Thinkpad E495", CXT_FIXUP_THINKPAD_E495),
 	SND_PCI_QUIRK_VENDOR(0x17aa, "Thinkpad", CXT_FIXUP_THINKPAD_ACPI),
 	SND_PCI_QUIRK(0x1c06, 0x2011, "Lemote A1004", CXT_PINCFG_LEMOTE_A1004),
 	SND_PCI_QUIRK(0x1c06, 0x2012, "Lemote A1205", CXT_PINCFG_LEMOTE_A1205),
