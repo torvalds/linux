@@ -27,6 +27,8 @@
 #include "amdgpu_object.h"
 #include "amdgpu_vm.h"
 #include "amdgpu_mn.h"
+#include "amdgpu.h"
+#include "amdgpu_xgmi.h"
 #include "kfd_priv.h"
 #include "kfd_svm.h"
 
@@ -859,35 +861,70 @@ svm_range_add_child(struct svm_range *prange, struct mm_struct *mm,
 static uint64_t
 svm_range_get_pte_flags(struct amdgpu_device *adev, struct svm_range *prange)
 {
+	struct amdgpu_device *bo_adev;
 	uint32_t flags = prange->flags;
-	uint32_t mapping_flags;
+	uint32_t mapping_flags = 0;
 	uint64_t pte_flags;
+	bool snoop = !prange->ttm_res;
+	bool coherent = flags & KFD_IOCTL_SVM_FLAG_COHERENT;
 
-	pte_flags = AMDGPU_PTE_VALID;
-	if (!prange->ttm_res)
-		pte_flags |= AMDGPU_PTE_SYSTEM | AMDGPU_PTE_SNOOPED;
+	if (prange->svm_bo && prange->ttm_res)
+		bo_adev = amdgpu_ttm_adev(prange->svm_bo->bo->tbo.bdev);
 
-	mapping_flags = AMDGPU_VM_PAGE_READABLE | AMDGPU_VM_PAGE_WRITEABLE;
+	switch (adev->asic_type) {
+	case CHIP_ARCTURUS:
+		if (prange->svm_bo && prange->ttm_res) {
+			if (bo_adev == adev) {
+				mapping_flags |= coherent ?
+					AMDGPU_VM_MTYPE_CC : AMDGPU_VM_MTYPE_RW;
+			} else {
+				mapping_flags |= AMDGPU_VM_MTYPE_UC;
+				if (amdgpu_xgmi_same_hive(adev, bo_adev))
+					snoop = true;
+			}
+		} else {
+			mapping_flags |= coherent ?
+				AMDGPU_VM_MTYPE_UC : AMDGPU_VM_MTYPE_NC;
+		}
+		break;
+	case CHIP_ALDEBARAN:
+		if (prange->svm_bo && prange->ttm_res) {
+			if (bo_adev == adev) {
+				mapping_flags |= coherent ?
+					AMDGPU_VM_MTYPE_CC : AMDGPU_VM_MTYPE_RW;
+				if (adev->gmc.xgmi.connected_to_cpu)
+					snoop = true;
+			} else {
+				mapping_flags |= AMDGPU_VM_MTYPE_UC;
+				if (amdgpu_xgmi_same_hive(adev, bo_adev))
+					snoop = true;
+			}
+		} else {
+			mapping_flags |= coherent ?
+				AMDGPU_VM_MTYPE_UC : AMDGPU_VM_MTYPE_NC;
+		}
+		break;
+	default:
+		mapping_flags |= coherent ?
+			AMDGPU_VM_MTYPE_UC : AMDGPU_VM_MTYPE_NC;
+	}
+
+	mapping_flags |= AMDGPU_VM_PAGE_READABLE | AMDGPU_VM_PAGE_WRITEABLE;
 
 	if (flags & KFD_IOCTL_SVM_FLAG_GPU_RO)
 		mapping_flags &= ~AMDGPU_VM_PAGE_WRITEABLE;
 	if (flags & KFD_IOCTL_SVM_FLAG_GPU_EXEC)
 		mapping_flags |= AMDGPU_VM_PAGE_EXECUTABLE;
-	if (flags & KFD_IOCTL_SVM_FLAG_COHERENT)
-		mapping_flags |= AMDGPU_VM_MTYPE_UC;
-	else
-		mapping_flags |= AMDGPU_VM_MTYPE_NC;
 
-	/* TODO: add CHIP_ARCTURUS new flags for vram mapping */
+	pte_flags = AMDGPU_PTE_VALID;
+	pte_flags |= prange->ttm_res ? 0 : AMDGPU_PTE_SYSTEM;
+	pte_flags |= snoop ? AMDGPU_PTE_SNOOPED : 0;
 
 	pte_flags |= amdgpu_gem_va_map_flags(adev, mapping_flags);
 
-	/* Apply ASIC specific mapping flags */
-	amdgpu_gmc_get_vm_pte(adev, &prange->mapping, &pte_flags);
-
-	pr_debug("svms 0x%p [0x%lx 0x%lx] vram %d PTE flags 0x%llx\n",
+	pr_debug("svms 0x%p [0x%lx 0x%lx] vram %d PTE 0x%llx mapping 0x%x\n",
 		 prange->svms, prange->start, prange->last,
-		 prange->ttm_res ? 1:0, pte_flags);
+		 prange->ttm_res ? 1:0, pte_flags, mapping_flags);
 
 	return pte_flags;
 }
@@ -953,20 +990,26 @@ svm_range_unmap_from_gpus(struct svm_range *prange, unsigned long start,
 static int
 svm_range_map_to_gpu(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		     struct svm_range *prange, dma_addr_t *dma_addr,
-		     struct dma_fence **fence)
+		     struct amdgpu_device *bo_adev, struct dma_fence **fence)
 {
+	struct amdgpu_bo_va bo_va;
 	uint64_t pte_flags;
 	int r = 0;
 
 	pr_debug("svms 0x%p [0x%lx 0x%lx]\n", prange->svms, prange->start,
 		 prange->last);
 
+	if (prange->svm_bo && prange->ttm_res) {
+		bo_va.is_xgmi = amdgpu_xgmi_same_hive(adev, bo_adev);
+		prange->mapping.bo_va = &bo_va;
+	}
+
 	prange->mapping.start = prange->start;
 	prange->mapping.last = prange->last;
 	prange->mapping.offset = prange->offset;
 	pte_flags = svm_range_get_pte_flags(adev, prange);
 
-	r = amdgpu_vm_bo_update_mapping(adev, adev, vm, false, false, NULL,
+	r = amdgpu_vm_bo_update_mapping(adev, bo_adev, vm, false, false, NULL,
 					prange->mapping.start,
 					prange->mapping.last, pte_flags,
 					prange->mapping.offset,
@@ -989,6 +1032,7 @@ svm_range_map_to_gpu(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		*fence = dma_fence_get(vm->last_update);
 
 out:
+	prange->mapping.bo_va = NULL;
 	return r;
 }
 
@@ -996,11 +1040,17 @@ static int svm_range_map_to_gpus(struct svm_range *prange,
 				 unsigned long *bitmap, bool wait)
 {
 	struct kfd_process_device *pdd;
+	struct amdgpu_device *bo_adev;
 	struct amdgpu_device *adev;
 	struct kfd_process *p;
 	struct dma_fence *fence = NULL;
 	uint32_t gpuidx;
 	int r = 0;
+
+	if (prange->svm_bo && prange->ttm_res)
+		bo_adev = amdgpu_ttm_adev(prange->svm_bo->bo->tbo.bdev);
+	else
+		bo_adev = NULL;
 
 	p = container_of(prange->svms, struct kfd_process, svms);
 	for_each_set_bit(gpuidx, bitmap, MAX_GPU_INSTANCE) {
@@ -1015,9 +1065,15 @@ static int svm_range_map_to_gpus(struct svm_range *prange,
 		if (IS_ERR(pdd))
 			return -EINVAL;
 
+		if (bo_adev && adev != bo_adev &&
+		    !amdgpu_xgmi_same_hive(adev, bo_adev)) {
+			pr_debug("cannot map to device idx %d\n", gpuidx);
+			continue;
+		}
+
 		r = svm_range_map_to_gpu(adev, drm_priv_to_vm(pdd->drm_priv),
 					 prange, prange->dma_addr[gpuidx],
-					 wait ? &fence : NULL);
+					 bo_adev, wait ? &fence : NULL);
 		if (r)
 			break;
 
