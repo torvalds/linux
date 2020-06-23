@@ -360,10 +360,8 @@ static int pcm_prepare(struct snd_pcm_substream *substream)
 			channel->copy_fn = most_to_alsa_copy32;
 	}
 
-	if (!channel->copy_fn) {
-		pr_err("unsupported format\n");
+	if (!channel->copy_fn)
 		return -EINVAL;
-	}
 
 	channel->period_pos = 0;
 	channel->buffer_pos = 0;
@@ -396,7 +394,6 @@ static int pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 		return 0;
 
 	default:
-		pr_info("%s(), invalid\n", __func__);
 		return -EINVAL;
 	}
 	return 0;
@@ -664,11 +661,8 @@ static int audio_disconnect_channel(struct most_interface *iface,
 	struct sound_adapter *adpt = iface->priv;
 
 	channel = get_channel(iface, channel_id);
-	if (!channel) {
-		pr_err("sound_disconnect_channel(), invalid channel %d\n",
-		       channel_id);
+	if (!channel)
 		return -EINVAL;
-	}
 
 	list_del(&channel->list);
 
@@ -692,11 +686,8 @@ static int audio_rx_completion(struct mbo *mbo)
 	struct channel *channel = get_channel(mbo->ifp, mbo->hdm_channel_id);
 	bool period_elapsed = false;
 
-	if (!channel) {
-		pr_err("sound_rx_completion(), invalid channel %d\n",
-		       mbo->hdm_channel_id);
+	if (!channel)
 		return -EINVAL;
-	}
 
 	if (channel->is_stream_running)
 		period_elapsed = copy_data(channel, mbo);
@@ -724,14 +715,10 @@ static int audio_tx_completion(struct most_interface *iface, int channel_id)
 {
 	struct channel *channel = get_channel(iface, channel_id);
 
-	if (!channel) {
-		pr_err("sound_tx_completion(), invalid channel %d\n",
-		       channel_id);
+	if (!channel)
 		return -EINVAL;
-	}
 
 	wake_up_interruptible(&channel->playback_waitq);
-
 	return 0;
 }
 
@@ -752,8 +739,6 @@ static int __init audio_init(void)
 {
 	int ret;
 
-	pr_info("init()\n");
-
 	INIT_LIST_HEAD(&adpt_list);
 
 	ret = most_register_component(&comp);
@@ -770,7 +755,6 @@ static int __init audio_init(void)
 
 static void __exit audio_exit(void)
 {
-	pr_info("exit()\n");
 	most_deregister_configfs_subsys(&comp);
 	most_deregister_component(&comp);
 }
