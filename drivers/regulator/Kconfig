@@ -30,6 +30,15 @@ config REGULATOR_DEBUG
 	help
 	  Say yes here to enable debugging support.
 
+config REGULATOR_DEBUG_CONTROL
+	tristate "Regulator debug control support"
+	depends on DEBUG_FS
+	help
+	  This driver supports debugfs based control of regulators for testing
+	  purposes.  It provides a mechanism to vote on the enable state,
+	  voltage, mode, and load current of regulators that make use of its
+	  interface.  It also extends the monitoring interface for regulators.
+
 config REGULATOR_FIXED_VOLTAGE
 	tristate "Fixed voltage regulator support"
 	help
