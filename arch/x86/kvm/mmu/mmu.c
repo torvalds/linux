@@ -2816,19 +2816,6 @@ static void kvm_mmu_commit_zap_page(struct kvm *kvm,
 	}
 }
 
-static bool prepare_zap_oldest_mmu_page(struct kvm *kvm,
-					struct list_head *invalid_list)
-{
-	struct kvm_mmu_page *sp;
-
-	if (list_empty(&kvm->arch.active_mmu_pages))
-		return false;
-
-	sp = list_last_entry(&kvm->arch.active_mmu_pages,
-			     struct kvm_mmu_page, link);
-	return kvm_mmu_prepare_zap_page(kvm, sp, invalid_list);
-}
-
 static unsigned long kvm_mmu_zap_oldest_mmu_pages(struct kvm *kvm,
 						  unsigned long nr_to_zap)
 {
@@ -6116,9 +6103,7 @@ mmu_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
 			goto unlock;
 		}
 
-		if (prepare_zap_oldest_mmu_page(kvm, &invalid_list))
-			freed++;
-		kvm_mmu_commit_zap_page(kvm, &invalid_list);
+		freed = kvm_mmu_zap_oldest_mmu_pages(kvm, sc->nr_to_scan);
 
 unlock:
 		spin_unlock(&kvm->mmu_lock);
