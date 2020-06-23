@@ -6600,6 +6600,7 @@ static const struct ib_device_ops mlx5_ib_dev_ops = {
 	.enable_driver = mlx5_ib_enable_driver,
 	.fill_res_cq_entry_raw = mlx5_ib_fill_res_cq_entry_raw,
 	.fill_res_mr_entry = mlx5_ib_fill_res_mr_entry,
+	.fill_res_mr_entry_raw = mlx5_ib_fill_res_mr_entry_raw,
 	.fill_res_qp_entry_raw = mlx5_ib_fill_res_qp_entry_raw,
 	.fill_stat_mr_entry = mlx5_ib_fill_stat_mr_entry,
 	.get_dev_fw_str = get_dev_fw_str,
