@@ -37,6 +37,11 @@ DESCRIPTION
 		  zero or more named attributes, some of which depend on type
 		  of link.
 
+		  Since Linux 5.8 bpftool is able to discover information about
+		  processes that hold open file descriptors (FDs) against BPF
+		  links. On such kernels bpftool will automatically emit this
+		  information as well.
+
 	**bpftool link pin** *LINK* *FILE*
 		  Pin link *LINK* as *FILE*.
 
@@ -82,6 +87,7 @@ EXAMPLES
 
     10: cgroup  prog 25
             cgroup_id 614  attach_type egress
+            pids test_progs(223)
 
 **# bpftool --json --pretty link show**
 
@@ -91,7 +97,12 @@ EXAMPLES
             "type": "cgroup",
             "prog_id": 25,
             "cgroup_id": 614,
-            "attach_type": "egress"
+            "attach_type": "egress",
+            "pids": [{
+                    "pid": 223,
+                    "comm": "test_progs"
+                }
+            ]
         }
     ]
 

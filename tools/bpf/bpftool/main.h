@@ -127,11 +127,13 @@ static const char * const attach_type_name[__MAX_BPF_ATTACH_TYPE] = {
 extern const char * const map_type_name[];
 extern const size_t map_type_name_size;
 
+/* keep in sync with the definition in skeleton/pid_iter.bpf.c */
 enum bpf_obj_type {
 	BPF_OBJ_UNKNOWN,
 	BPF_OBJ_PROG,
 	BPF_OBJ_MAP,
 	BPF_OBJ_LINK,
+	BPF_OBJ_BTF,
 };
 
 extern const char *bin_name;
@@ -139,12 +141,14 @@ extern const char *bin_name;
 extern json_writer_t *json_wtr;
 extern bool json_output;
 extern bool show_pinned;
+extern bool show_pids;
 extern bool block_mount;
 extern bool verifier_logs;
 extern bool relaxed_maps;
 extern struct pinned_obj_table prog_table;
 extern struct pinned_obj_table map_table;
 extern struct pinned_obj_table link_table;
+extern struct obj_refs_table refs_table;
 
 void __printf(1, 2) p_err(const char *fmt, ...);
 void __printf(1, 2) p_info(const char *fmt, ...);
@@ -168,12 +172,35 @@ struct pinned_obj {
 	struct hlist_node hash;
 };
 
+struct obj_refs_table {
+	DECLARE_HASHTABLE(table, 16);
+};
+
+struct obj_ref {
+	int pid;
+	char comm[16];
+};
+
+struct obj_refs {
+	struct hlist_node node;
+	__u32 id;
+	int ref_cnt;
+	struct obj_ref *refs;
+};
+
 struct btf;
 struct bpf_line_info;
 
 int build_pinned_obj_table(struct pinned_obj_table *table,
 			   enum bpf_obj_type type);
 void delete_pinned_obj_table(struct pinned_obj_table *tab);
+__weak int build_obj_refs_table(struct obj_refs_table *table,
+				enum bpf_obj_type type);
+__weak void delete_obj_refs_table(struct obj_refs_table *table);
+__weak void emit_obj_refs_json(struct obj_refs_table *table, __u32 id,
+			       json_writer_t *json_wtr);
+__weak void emit_obj_refs_plain(struct obj_refs_table *table, __u32 id,
+				const char *prefix);
 void print_dev_plain(__u32 ifindex, __u64 ns_dev, __u64 ns_inode);
 void print_dev_json(__u32 ifindex, __u64 ns_dev, __u64 ns_inode);
 
@@ -194,23 +221,28 @@ int mount_bpffs_for_pin(const char *name);
 int do_pin_any(int argc, char **argv, int (*get_fd_by_id)(int *, char ***));
 int do_pin_fd(int fd, const char *name);
 
-int do_prog(int argc, char **arg);
-int do_map(int argc, char **arg);
-int do_link(int argc, char **arg);
-int do_event_pipe(int argc, char **argv);
-int do_cgroup(int argc, char **arg);
-int do_perf(int argc, char **arg);
-int do_net(int argc, char **arg);
-int do_tracelog(int argc, char **arg);
-int do_feature(int argc, char **argv);
-int do_btf(int argc, char **argv);
+/* commands available in bootstrap mode */
 int do_gen(int argc, char **argv);
-int do_struct_ops(int argc, char **argv);
-int do_iter(int argc, char **argv);
+int do_btf(int argc, char **argv);
+
+/* non-bootstrap only commands */
+int do_prog(int argc, char **arg) __weak;
+int do_map(int argc, char **arg) __weak;
+int do_link(int argc, char **arg) __weak;
+int do_event_pipe(int argc, char **argv) __weak;
+int do_cgroup(int argc, char **arg) __weak;
+int do_perf(int argc, char **arg) __weak;
+int do_net(int argc, char **arg) __weak;
+int do_tracelog(int argc, char **arg) __weak;
+int do_feature(int argc, char **argv) __weak;
+int do_struct_ops(int argc, char **argv) __weak;
+int do_iter(int argc, char **argv) __weak;
 
 int parse_u32_arg(int *argc, char ***argv, __u32 *val, const char *what);
 int prog_parse_fd(int *argc, char ***argv);
+int prog_parse_fds(int *argc, char ***argv, int **fds);
 int map_parse_fd(int *argc, char ***argv);
+int map_parse_fds(int *argc, char ***argv, int **fds);
 int map_parse_fd_and_info(int *argc, char ***argv, void *info, __u32 *info_len);
 
 struct bpf_prog_linfo;
