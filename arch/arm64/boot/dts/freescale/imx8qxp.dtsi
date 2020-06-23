@@ -27,6 +27,10 @@
 		gpio5 = &lsio_gpio5;
 		gpio6 = &lsio_gpio6;
 		gpio7 = &lsio_gpio7;
+		i2c0 = &adma_i2c0;
+		i2c1 = &adma_i2c1;
+		i2c2 = &adma_i2c2;
+		i2c3 = &adma_i2c3;
 		mmc0 = &usdhc1;
 		mmc1 = &usdhc2;
 		mmc2 = &usdhc3;
