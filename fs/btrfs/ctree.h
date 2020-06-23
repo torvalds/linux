@@ -1075,7 +1075,6 @@ struct btrfs_root {
 
 	u64 highest_objectid;
 
-	u64 defrag_trans_start;
 	struct btrfs_key defrag_progress;
 	struct btrfs_key defrag_max;
 
