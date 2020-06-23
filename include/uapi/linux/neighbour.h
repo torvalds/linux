@@ -191,6 +191,7 @@ enum {
 enum {
 	NFEA_UNSPEC,
 	NFEA_ACTIVITY_NOTIFY,
+	NFEA_DONT_REFRESH,
 	__NFEA_MAX
 };
 #define NFEA_MAX (__NFEA_MAX - 1)
