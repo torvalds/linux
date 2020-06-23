@@ -19,6 +19,7 @@ Atomic-RMW+mb__after_atomic-is-stronger-than-acquire.litmus
 
 Atomic-RMW-ops-are-atomic-WRT-atomic_set.litmus
     Test that atomic_set() cannot break the atomicity of atomic RMWs.
+    NOTE: Require herd7 7.56 or later which supports "(void)expr".
 
 
 RCU (/rcu directory)
