@@ -460,6 +460,12 @@ HDMI Specific Connector Properties
 .. kernel-doc:: drivers/gpu/drm/drm_connector.c
    :doc: HDMI connector properties
 
+Standard CRTC Properties
+------------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_crtc.c
+   :doc: standard CRTC properties
+
 Plane Composition Properties
 ----------------------------
 

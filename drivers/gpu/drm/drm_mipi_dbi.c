@@ -217,7 +217,7 @@ int mipi_dbi_buf_copy(void *dst, struct drm_framebuffer *fb,
 	switch (fb->format->format) {
 	case DRM_FORMAT_RGB565:
 		if (swap)
-			drm_fb_swab16(dst, src, fb, clip);
+			drm_fb_swab(dst, src, fb, clip, !import_attach);
 		else
 			drm_fb_memcpy(dst, src, fb, clip);
 		break;

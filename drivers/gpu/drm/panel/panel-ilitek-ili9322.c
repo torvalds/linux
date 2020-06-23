@@ -549,7 +549,6 @@ static const struct drm_display_mode srgb_320x240_mode = {
 	.vsync_start = 240 + 4,
 	.vsync_end = 240 + 4 + 1,
 	.vtotal = 262,
-	.vrefresh = 60,
 	.flags = 0,
 };
 
@@ -563,7 +562,6 @@ static const struct drm_display_mode srgb_360x240_mode = {
 	.vsync_start = 240 + 21,
 	.vsync_end = 240 + 21 + 1,
 	.vtotal = 262,
-	.vrefresh = 60,
 	.flags = 0,
 };
 
@@ -578,7 +576,6 @@ static const struct drm_display_mode prgb_320x240_mode = {
 	.vsync_start = 240 + 4,
 	.vsync_end = 240 + 4 + 1,
 	.vtotal = 262,
-	.vrefresh = 60,
 	.flags = 0,
 };
 
@@ -593,7 +590,6 @@ static const struct drm_display_mode yuv_640x320_mode = {
 	.vsync_start = 320 + 4,
 	.vsync_end = 320 + 4 + 1,
 	.vtotal = 320 + 4 + 1 + 18,
-	.vrefresh = 60,
 	.flags = 0,
 };
 
@@ -607,7 +603,6 @@ static const struct drm_display_mode yuv_720x360_mode = {
 	.vsync_start = 360 + 4,
 	.vsync_end = 360 + 4 + 1,
 	.vtotal = 360 + 4 + 1 + 18,
-	.vrefresh = 60,
 	.flags = 0,
 };
 
@@ -622,7 +617,6 @@ static const struct drm_display_mode itu_r_bt_656_640_mode = {
 	.vsync_start = 480 + 4,
 	.vsync_end = 480 + 4 + 1,
 	.vtotal = 500,
-	.vrefresh = 60,
 	.flags = 0,
 };
 
@@ -637,7 +631,6 @@ static const struct drm_display_mode itu_r_bt_656_720_mode = {
 	.vsync_start = 480 + 4,
 	.vsync_end = 480 + 4 + 1,
 	.vtotal = 500,
-	.vrefresh = 60,
 	.flags = 0,
 };
 

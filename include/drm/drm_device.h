@@ -146,6 +146,9 @@ struct drm_device {
 	 * @struct_mutex:
 	 *
 	 * Lock for others (not &drm_minor.master and &drm_file.is_master)
+	 *
+	 * WARNING:
+	 * Only drivers annotated with DRIVER_LEGACY should be using this.
 	 */
 	struct mutex struct_mutex;
 

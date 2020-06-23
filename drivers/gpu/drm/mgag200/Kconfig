@@ -2,10 +2,8 @@
 config DRM_MGAG200
 	tristate "Kernel modesetting driver for MGA G200 server engines"
 	depends on DRM && PCI && MMU
+	select DRM_GEM_SHMEM_HELPER
 	select DRM_KMS_HELPER
-	select DRM_VRAM_HELPER
-	select DRM_TTM
-	select DRM_TTM_HELPER
 	help
 	 This is a KMS driver for the MGA G200 server chips, it
 	 does not support the original MGA G200 or any of the desktop

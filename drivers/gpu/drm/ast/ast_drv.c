@@ -91,15 +91,13 @@ static int ast_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	ast_kick_out_firmware_fb(pdev);
 
-	ret = pci_enable_device(pdev);
+	ret = pcim_enable_device(pdev);
 	if (ret)
 		return ret;
 
 	dev = drm_dev_alloc(&driver, &pdev->dev);
-	if (IS_ERR(dev)) {
-		ret = PTR_ERR(dev);
-		goto err_pci_disable_device;
-	}
+	if (IS_ERR(dev))
+		return  PTR_ERR(dev);
 
 	dev->pdev = pdev;
 	pci_set_drvdata(pdev, dev);
@@ -120,8 +118,6 @@ err_ast_driver_unload:
 	ast_driver_unload(dev);
 err_drm_dev_put:
 	drm_dev_put(dev);
-err_pci_disable_device:
-	pci_disable_device(pdev);
 	return ret;
 
 }

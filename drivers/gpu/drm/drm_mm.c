@@ -406,8 +406,7 @@ next_hole_high_addr(struct drm_mm_node *entry, u64 size)
 		parent_rb_node = rb_parent(rb_node);
 		left_node = rb_entry(left_rb_node,
 				     struct drm_mm_node, rb_hole_addr);
-		if ((left_node->subtree_max_hole < size ||
-		     entry->size == entry->subtree_max_hole) &&
+		if (left_node->subtree_max_hole < size &&
 		    parent_rb_node && parent_rb_node->rb_left != rb_node)
 			return rb_hole_addr_to_node(parent_rb_node);
 	}
@@ -446,8 +445,7 @@ next_hole_low_addr(struct drm_mm_node *entry, u64 size)
 		parent_rb_node = rb_parent(rb_node);
 		right_node = rb_entry(right_rb_node,
 				      struct drm_mm_node, rb_hole_addr);
-		if ((right_node->subtree_max_hole < size ||
-		     entry->size == entry->subtree_max_hole) &&
+		if (right_node->subtree_max_hole < size &&
 		    parent_rb_node && parent_rb_node->rb_right != rb_node)
 			return rb_hole_addr_to_node(parent_rb_node);
 	}

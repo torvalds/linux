@@ -57,7 +57,6 @@ static const struct drm_display_mode sony_acx424akp_vid_mode = {
 	.vsync_start = 864 + 14,
 	.vsync_end = 864 + 14 + 1,
 	.vtotal = 864 + 14 + 1 + 11,
-	.vrefresh = 60,
 	.width_mm = 48,
 	.height_mm = 84,
 	.flags = DRM_MODE_FLAG_PVSYNC,
@@ -81,7 +80,6 @@ static const struct drm_display_mode sony_acx424akp_cmd_mode = {
 	 * Some desired refresh rate, experiments at the maximum "pixel"
 	 * clock speed (HS clock 420 MHz) yields around 117Hz.
 	 */
-	.vrefresh = 60,
 	.width_mm = 48,
 	.height_mm = 84,
 };

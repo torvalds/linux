@@ -114,7 +114,7 @@ struct drm_gem_cma_object *drm_gem_cma_create(struct drm_device *drm,
 	return cma_obj;
 
 error:
-	drm_gem_object_put_unlocked(&cma_obj->base);
+	drm_gem_object_put(&cma_obj->base);
 	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(drm_gem_cma_create);
@@ -156,7 +156,7 @@ drm_gem_cma_create_with_handle(struct drm_file *file_priv,
 	 */
 	ret = drm_gem_handle_create(file_priv, gem_obj, handle);
 	/* drop reference from allocate - handle holds it now. */
-	drm_gem_object_put_unlocked(gem_obj);
+	drm_gem_object_put(gem_obj);
 	if (ret)
 		return ERR_PTR(ret);
 
@@ -380,13 +380,13 @@ unsigned long drm_gem_cma_get_unmapped_area(struct file *filp,
 		return -EINVAL;
 
 	if (!drm_vma_node_is_allowed(node, priv)) {
-		drm_gem_object_put_unlocked(obj);
+		drm_gem_object_put(obj);
 		return -EACCES;
 	}
 
 	cma_obj = to_drm_gem_cma_obj(obj);
 
-	drm_gem_object_put_unlocked(obj);
+	drm_gem_object_put(obj);
 
 	return cma_obj->vaddr ? (unsigned long)cma_obj->vaddr : -EINVAL;
 }
@@ -572,7 +572,7 @@ void drm_gem_cma_prime_vunmap(struct drm_gem_object *obj, void *vaddr)
 }
 EXPORT_SYMBOL_GPL(drm_gem_cma_prime_vunmap);
 
-static const struct drm_gem_object_funcs drm_cma_gem_default_funcs = {
+static const struct drm_gem_object_funcs drm_gem_cma_default_funcs = {
 	.free = drm_gem_cma_free_object,
 	.print_info = drm_gem_cma_print_info,
 	.get_sg_table = drm_gem_cma_prime_get_sg_table,
@@ -581,7 +581,7 @@ static const struct drm_gem_object_funcs drm_cma_gem_default_funcs = {
 };
 
 /**
- * drm_cma_gem_create_object_default_funcs - Create a CMA GEM object with a
+ * drm_gem_cma_create_object_default_funcs - Create a CMA GEM object with a
  *                                           default function table
  * @dev: DRM device
  * @size: Size of the object to allocate
@@ -593,7 +593,7 @@ static const struct drm_gem_object_funcs drm_cma_gem_default_funcs = {
  * A pointer to a allocated GEM object or an error pointer on failure.
  */
 struct drm_gem_object *
-drm_cma_gem_create_object_default_funcs(struct drm_device *dev, size_t size)
+drm_gem_cma_create_object_default_funcs(struct drm_device *dev, size_t size)
 {
 	struct drm_gem_cma_object *cma_obj;
 
@@ -601,11 +601,11 @@ drm_cma_gem_create_object_default_funcs(struct drm_device *dev, size_t size)
 	if (!cma_obj)
 		return NULL;
 
-	cma_obj->base.funcs = &drm_cma_gem_default_funcs;
+	cma_obj->base.funcs = &drm_gem_cma_default_funcs;
 
 	return &cma_obj->base;
 }
-EXPORT_SYMBOL(drm_cma_gem_create_object_default_funcs);
+EXPORT_SYMBOL(drm_gem_cma_create_object_default_funcs);
 
 /**
  * drm_gem_cma_prime_import_sg_table_vmap - PRIME import another driver's
@@ -620,7 +620,7 @@ EXPORT_SYMBOL(drm_cma_gem_create_object_default_funcs);
  * address set. This address is released when the object is freed.
  *
  * This function can be used as the &drm_driver.gem_prime_import_sg_table
- * callback. The DRM_GEM_CMA_VMAP_DRIVER_OPS() macro provides a shortcut to set
+ * callback. The &DRM_GEM_CMA_DRIVER_OPS_VMAP macro provides a shortcut to set
  * the necessary DRM driver operations.
  *
  * Returns:

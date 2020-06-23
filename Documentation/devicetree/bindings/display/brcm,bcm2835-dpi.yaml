@@ -1,0 +1,72 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/brcm,bcm2835-dpi.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Broadcom VC4 (VideoCore4) DPI Controller
+
+maintainers:
+  - Eric Anholt <eric@anholt.net>
+
+properties:
+  compatible:
+    const: brcm,bcm2835-dpi
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    items:
+      - description: The core clock the unit runs on
+      - description: The pixel clock that feeds the pixelvalve
+
+  clock-names:
+    items:
+      - const: core
+      - const: pixel
+
+  port:
+    type: object
+    description: >
+      Port node with a single endpoint connecting to the panel, as
+      defined in Documentation/devicetree/bindings/media/video-interfaces.txt.
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+  - port
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/bcm2835.h>
+
+    panel: panel {
+        compatible = "ontat,yx700wv03", "simple-panel";
+
+        port {
+            panel_in: endpoint {
+                remote-endpoint = <&dpi_out>;
+            };
+        };
+    };
+
+    dpi: dpi@7e208000 {
+        compatible = "brcm,bcm2835-dpi";
+        reg = <0x7e208000 0x8c>;
+        clocks = <&clocks BCM2835_CLOCK_VPU>,
+                 <&clocks BCM2835_CLOCK_DPI>;
+        clock-names = "core", "pixel";
+
+        port {
+            dpi_out: endpoint {
+                remote-endpoint = <&panel_in>;
+            };
+        };
+    };
+
+...

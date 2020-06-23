@@ -618,9 +618,9 @@ int drm_gem_vram_fill_create_dumb(struct drm_file *file,
 
 	ret = drm_gem_handle_create(file, &gbo->bo.base, &handle);
 	if (ret)
-		goto err_drm_gem_object_put_unlocked;
+		goto err_drm_gem_object_put;
 
-	drm_gem_object_put_unlocked(&gbo->bo.base);
+	drm_gem_object_put(&gbo->bo.base);
 
 	args->pitch = pitch;
 	args->size = size;
@@ -628,8 +628,8 @@ int drm_gem_vram_fill_create_dumb(struct drm_file *file,
 
 	return 0;
 
-err_drm_gem_object_put_unlocked:
-	drm_gem_object_put_unlocked(&gbo->bo.base);
+err_drm_gem_object_put:
+	drm_gem_object_put(&gbo->bo.base);
 	return ret;
 }
 EXPORT_SYMBOL(drm_gem_vram_fill_create_dumb);
@@ -737,7 +737,7 @@ int drm_gem_vram_driver_dumb_mmap_offset(struct drm_file *file,
 	gbo = drm_gem_vram_of_gem(gem);
 	*offset = drm_gem_vram_mmap_offset(gbo);
 
-	drm_gem_object_put_unlocked(gem);
+	drm_gem_object_put(gem);
 
 	return 0;
 }

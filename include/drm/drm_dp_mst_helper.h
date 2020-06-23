@@ -475,6 +475,15 @@ struct drm_dp_mst_topology_mgr;
 struct drm_dp_mst_topology_cbs {
 	/* create a connector for a port */
 	struct drm_connector *(*add_connector)(struct drm_dp_mst_topology_mgr *mgr, struct drm_dp_mst_port *port, const char *path);
+	/*
+	 * Checks for any pending MST interrupts, passing them to MST core for
+	 * processing, the same way an HPD IRQ pulse handler would do this.
+	 * If provided MST core calls this callback from a poll-waiting loop
+	 * when waiting for MST down message replies. The driver is expected
+	 * to guard against a race between this callback and the driver's HPD
+	 * IRQ pulse handler.
+	 */
+	void (*poll_hpd_irq)(struct drm_dp_mst_topology_mgr *mgr);
 };
 
 #define DP_MAX_PAYLOAD (sizeof(unsigned long) * 8)
@@ -672,6 +681,14 @@ struct drm_dp_mst_topology_mgr {
 	 * @destroy_branch_device_list.
 	 */
 	struct mutex delayed_destroy_lock;
+
+	/**
+	 * @delayed_destroy_wq: Workqueue used for delayed_destroy_work items.
+	 * A dedicated WQ makes it possible to drain any requeued work items
+	 * on it.
+	 */
+	struct workqueue_struct *delayed_destroy_wq;
+
 	/**
 	 * @delayed_destroy_work: Work item to destroy MST port and branch
 	 * devices, needed to avoid locking inversion.

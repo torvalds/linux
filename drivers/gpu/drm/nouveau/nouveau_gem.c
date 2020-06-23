@@ -281,7 +281,7 @@ nouveau_gem_ioctl_new(struct drm_device *dev, void *data,
 	}
 
 	/* drop reference from allocate - handle holds it now */
-	drm_gem_object_put_unlocked(&nvbo->bo.base);
+	drm_gem_object_put(&nvbo->bo.base);
 	return ret;
 }
 
@@ -360,7 +360,7 @@ validate_fini_no_ticket(struct validate_op *op, struct nouveau_channel *chan,
 		list_del(&nvbo->entry);
 		nvbo->reserved_by = NULL;
 		ttm_bo_unreserve(&nvbo->bo);
-		drm_gem_object_put_unlocked(&nvbo->bo.base);
+		drm_gem_object_put(&nvbo->bo.base);
 	}
 }
 
@@ -407,14 +407,14 @@ retry:
 		nvbo = nouveau_gem_object(gem);
 		if (nvbo == res_bo) {
 			res_bo = NULL;
-			drm_gem_object_put_unlocked(gem);
+			drm_gem_object_put(gem);
 			continue;
 		}
 
 		if (nvbo->reserved_by && nvbo->reserved_by == file_priv) {
 			NV_PRINTK(err, cli, "multiple instances of buffer %d on "
 				      "validation list\n", b->handle);
-			drm_gem_object_put_unlocked(gem);
+			drm_gem_object_put(gem);
 			ret = -EINVAL;
 			break;
 		}
@@ -931,7 +931,7 @@ nouveau_gem_ioctl_cpu_prep(struct drm_device *dev, void *data,
 		ret = lret;
 
 	nouveau_bo_sync_for_cpu(nvbo);
-	drm_gem_object_put_unlocked(gem);
+	drm_gem_object_put(gem);
 
 	return ret;
 }
@@ -950,7 +950,7 @@ nouveau_gem_ioctl_cpu_fini(struct drm_device *dev, void *data,
 	nvbo = nouveau_gem_object(gem);
 
 	nouveau_bo_sync_for_device(nvbo);
-	drm_gem_object_put_unlocked(gem);
+	drm_gem_object_put(gem);
 	return 0;
 }
 
@@ -967,7 +967,7 @@ nouveau_gem_ioctl_info(struct drm_device *dev, void *data,
 		return -ENOENT;
 
 	ret = nouveau_gem_info(file_priv, gem, req);
-	drm_gem_object_put_unlocked(gem);
+	drm_gem_object_put(gem);
 	return ret;
 }
 

@@ -116,7 +116,6 @@ static const struct drm_display_mode nl8048_mode = {
 	.vsync_start = 480 + 3,
 	.vsync_end = 480 + 3 + 1,
 	.vtotal = 480 + 3 + 1 + 4,
-	.vrefresh = 60,
 	.type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED,
 	.flags = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC,
 	.width_mm = 89,

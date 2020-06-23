@@ -10,6 +10,7 @@
 #include <linux/slab.h>
 #include <linux/random.h>
 #include <linux/vmalloc.h>
+#include <linux/ktime.h>
 
 #include <drm/drm_mm.h>
 
@@ -1031,6 +1032,129 @@ static int igt_insert_range(void *ignored)
 	}
 
 	return 0;
+}
+
+static int prepare_igt_frag(struct drm_mm *mm,
+			    struct drm_mm_node *nodes,
+			    unsigned int num_insert,
+			    const struct insert_mode *mode)
+{
+	unsigned int size = 4096;
+	unsigned int i;
+	u64 ret = -EINVAL;
+
+	for (i = 0; i < num_insert; i++) {
+		if (!expect_insert(mm, &nodes[i], size, 0, i,
+				   mode) != 0) {
+			pr_err("%s insert failed\n", mode->name);
+			goto out;
+		}
+	}
+
+	/* introduce fragmentation by freeing every other node */
+	for (i = 0; i < num_insert; i++) {
+		if (i % 2 == 0)
+			drm_mm_remove_node(&nodes[i]);
+	}
+
+out:
+	return ret;
+
+}
+
+static u64 get_insert_time(struct drm_mm *mm,
+			   unsigned int num_insert,
+			   struct drm_mm_node *nodes,
+			   const struct insert_mode *mode)
+{
+	unsigned int size = 8192;
+	ktime_t start;
+	unsigned int i;
+	u64 ret = -EINVAL;
+
+	start = ktime_get();
+	for (i = 0; i < num_insert; i++) {
+		if (!expect_insert(mm, &nodes[i], size, 0, i, mode) != 0) {
+			pr_err("%s insert failed\n", mode->name);
+			goto out;
+		}
+	}
+
+	ret = ktime_to_ns(ktime_sub(ktime_get(), start));
+
+out:
+	return ret;
+
+}
+
+static int igt_frag(void *ignored)
+{
+	struct drm_mm mm;
+	const struct insert_mode *mode;
+	struct drm_mm_node *nodes, *node, *next;
+	unsigned int insert_size = 10000;
+	unsigned int scale_factor = 4;
+	int ret = -EINVAL;
+
+	/* We need 4 * insert_size nodes to hold intermediate allocated
+	 * drm_mm nodes.
+	 * 1 times for prepare_igt_frag()
+	 * 1 times for get_insert_time()
+	 * 2 times for get_insert_time()
+	 */
+	nodes = vzalloc(array_size(insert_size * 4, sizeof(*nodes)));
+	if (!nodes)
+		return -ENOMEM;
+
+	/* For BOTTOMUP and TOPDOWN, we first fragment the
+	 * address space using prepare_igt_frag() and then try to verify
+	 * that that insertions scale quadratically from 10k to 20k insertions
+	 */
+	drm_mm_init(&mm, 1, U64_MAX - 2);
+	for (mode = insert_modes; mode->name; mode++) {
+		u64 insert_time1, insert_time2;
+
+		if (mode->mode != DRM_MM_INSERT_LOW &&
+		    mode->mode != DRM_MM_INSERT_HIGH)
+			continue;
+
+		ret = prepare_igt_frag(&mm, nodes, insert_size, mode);
+		if (!ret)
+			goto err;
+
+		insert_time1 = get_insert_time(&mm, insert_size,
+					       nodes + insert_size, mode);
+		if (insert_time1 < 0)
+			goto err;
+
+		insert_time2 = get_insert_time(&mm, (insert_size * 2),
+					       nodes + insert_size * 2, mode);
+		if (insert_time2 < 0)
+			goto err;
+
+		pr_info("%s fragmented insert of %u and %u insertions took %llu and %llu nsecs\n",
+			mode->name, insert_size, insert_size * 2,
+			insert_time1, insert_time2);
+
+		if (insert_time2 > (scale_factor * insert_time1)) {
+			pr_err("%s fragmented insert took %llu nsecs more\n",
+			       mode->name,
+			       insert_time2 - (scale_factor * insert_time1));
+			goto err;
+		}
+
+		drm_mm_for_each_node_safe(node, next, &mm)
+			drm_mm_remove_node(node);
+	}
+
+	ret = 0;
+err:
+	drm_mm_for_each_node_safe(node, next, &mm)
+		drm_mm_remove_node(node);
+	drm_mm_takedown(&mm);
+	vfree(nodes);
+
+	return ret;
 }
 
 static int igt_align(void *ignored)
@@ -2359,7 +2483,7 @@ static int __init test_drm_mm_init(void)
 	while (!random_seed)
 		random_seed = get_random_int();
 
-	pr_info("Testing DRM range manger (struct drm_mm), with random_seed=0x%x max_iterations=%u max_prime=%u\n",
+	pr_info("Testing DRM range manager (struct drm_mm), with random_seed=0x%x max_iterations=%u max_prime=%u\n",
 		random_seed, max_iterations, max_prime);
 	err = run_selftests(selftests, ARRAY_SIZE(selftests), NULL);
 

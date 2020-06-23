@@ -95,7 +95,7 @@ void drm_gem_fb_destroy(struct drm_framebuffer *fb)
 	int i;
 
 	for (i = 0; i < 4; i++)
-		drm_gem_object_put_unlocked(fb->obj[i]);
+		drm_gem_object_put(fb->obj[i]);
 
 	drm_framebuffer_cleanup(fb);
 	kfree(fb);
@@ -175,7 +175,7 @@ int drm_gem_fb_init_with_funcs(struct drm_device *dev,
 			 + mode_cmd->offsets[i];
 
 		if (objs[i]->size < min_size) {
-			drm_gem_object_put_unlocked(objs[i]);
+			drm_gem_object_put(objs[i]);
 			ret = -EINVAL;
 			goto err_gem_object_put;
 		}
@@ -189,7 +189,7 @@ int drm_gem_fb_init_with_funcs(struct drm_device *dev,
 
 err_gem_object_put:
 	for (i--; i >= 0; i--)
-		drm_gem_object_put_unlocked(objs[i]);
+		drm_gem_object_put(objs[i]);
 
 	return ret;
 }

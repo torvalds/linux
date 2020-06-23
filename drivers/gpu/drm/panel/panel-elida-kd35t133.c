@@ -197,7 +197,6 @@ static const struct drm_display_mode default_mode = {
 	.vsync_start	= 480 + 2,
 	.vsync_end	= 480 + 2 + 1,
 	.vtotal		= 480 + 2 + 1 + 2,
-	.vrefresh	= 60,
 	.clock		= 17000,
 	.width_mm	= 42,
 	.height_mm	= 82,
@@ -213,7 +212,7 @@ static int kd35t133_get_modes(struct drm_panel *panel,
 	if (!mode) {
 		DRM_DEV_ERROR(ctx->dev, "Failed to add mode %ux%u@%u\n",
 			      default_mode.hdisplay, default_mode.vdisplay,
-			      default_mode.vrefresh);
+			      drm_mode_vrefresh(&default_mode));
 		return -ENOMEM;
 	}
 

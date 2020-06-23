@@ -183,7 +183,6 @@ static const struct drm_display_mode tm5p5_nt35596_mode = {
 	.vsync_start = 1920 + 4,
 	.vsync_end = 1920 + 4 + 2,
 	.vtotal = 1920 + 4 + 2 + 4,
-	.vrefresh = 60,
 	.width_mm = 68,
 	.height_mm = 121,
 };

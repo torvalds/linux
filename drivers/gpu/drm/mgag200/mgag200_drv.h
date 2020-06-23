@@ -18,7 +18,8 @@
 #include <drm/drm_encoder.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_gem.h>
-#include <drm/drm_gem_vram_helper.h>
+#include <drm/drm_gem_shmem_helper.h>
+#include <drm/drm_simple_kms_helper.h>
 
 #include "mgag200_reg.h"
 
@@ -31,8 +32,6 @@
 #define DRIVER_MAJOR		1
 #define DRIVER_MINOR		0
 #define DRIVER_PATCHLEVEL	0
-
-#define MGAG200FB_CONN_LIMIT 1
 
 #define RREG8(reg) ioread8(((void __iomem *)mdev->rmmio) + (reg))
 #define WREG8(reg, v) iowrite8(v, ((void __iomem *)mdev->rmmio) + (reg))
@@ -49,6 +48,12 @@
 		WREG8(ATTR_DATA, v);				\
 	} while (0)						\
 
+#define RREG_SEQ(reg, v)					\
+	do {							\
+		WREG8(MGAREG_SEQ_INDEX, reg);			\
+		v = RREG8(MGAREG_SEQ_DATA);			\
+	} while (0)						\
+
 #define WREG_SEQ(reg, v)					\
 	do {							\
 		WREG8(MGAREG_SEQ_INDEX, reg);			\
@@ -61,6 +66,11 @@
 		WREG8(MGAREG_CRTC_DATA, v);			\
 	} while (0)						\
 
+#define RREG_ECRT(reg, v)					\
+	do {							\
+		WREG8(MGAREG_CRTCEXT_INDEX, reg);		\
+		v = RREG8(MGAREG_CRTCEXT_DATA);			\
+	} while (0)						\
 
 #define WREG_ECRT(reg, v)					\
 	do {							\
@@ -92,17 +102,7 @@
 #define MGAG200_MAX_FB_HEIGHT 4096
 #define MGAG200_MAX_FB_WIDTH 4096
 
-#define MATROX_DPMS_CLEARED (-1)
-
-#define to_mga_crtc(x) container_of(x, struct mga_crtc, base)
 #define to_mga_connector(x) container_of(x, struct mga_connector, base)
-
-struct mga_crtc {
-	struct drm_crtc base;
-	u8 lut_r[256], lut_g[256], lut_b[256];
-	int last_dpms;
-	bool enabled;
-};
 
 struct mga_i2c_chan {
 	struct i2c_adapter adapter;
@@ -114,11 +114,6 @@ struct mga_i2c_chan {
 struct mga_connector {
 	struct drm_connector base;
 	struct mga_i2c_chan *i2c;
-};
-
-struct mga_cursor {
-	struct drm_gem_vram_object *gbo[2];
-	unsigned int next_index;
 };
 
 struct mga_mc {
@@ -147,7 +142,7 @@ enum mga_type {
 #define IS_G200_SE(mdev) (mdev->type == G200_SE_A || mdev->type == G200_SE_B)
 
 struct mga_device {
-	struct drm_device		*dev;
+	struct drm_device		base;
 	unsigned long			flags;
 
 	resource_size_t			rmmio_base;
@@ -156,11 +151,9 @@ struct mga_device {
 
 	struct mga_mc			mc;
 
-	struct mga_cursor cursor;
+	void __iomem			*vram;
+	size_t				vram_fb_available;
 
-	size_t vram_fb_available;
-
-	bool				suspended;
 	enum mga_type			type;
 	int				has_sdram;
 
@@ -172,12 +165,12 @@ struct mga_device {
 	u32 unique_rev_id;
 
 	struct mga_connector connector;
-	struct drm_encoder encoder;
+	struct drm_simple_display_pipe display_pipe;
 };
 
 static inline struct mga_device *to_mga_device(struct drm_device *dev)
 {
-	return dev->dev_private;
+	return container_of(dev, struct mga_device, base);
 }
 
 static inline enum mga_type
@@ -195,22 +188,11 @@ mgag200_flags_from_driver_data(kernel_ulong_t driver_data)
 				/* mgag200_mode.c */
 int mgag200_modeset_init(struct mga_device *mdev);
 
-				/* mgag200_main.c */
-int mgag200_driver_load(struct drm_device *dev, unsigned long flags);
-void mgag200_driver_unload(struct drm_device *dev);
-
 				/* mgag200_i2c.c */
 struct mga_i2c_chan *mgag200_i2c_create(struct drm_device *dev);
 void mgag200_i2c_destroy(struct mga_i2c_chan *i2c);
 
+				/* mgag200_mm.c */
 int mgag200_mm_init(struct mga_device *mdev);
-void mgag200_mm_fini(struct mga_device *mdev);
-int mgag200_mmap(struct file *filp, struct vm_area_struct *vma);
-
-int mgag200_cursor_init(struct mga_device *mdev);
-void mgag200_cursor_fini(struct mga_device *mdev);
-int mgag200_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
-			    uint32_t handle, uint32_t width, uint32_t height);
-int mgag200_crtc_cursor_move(struct drm_crtc *crtc, int x, int y);
 
 #endif				/* __MGAG200_DRV_H__ */

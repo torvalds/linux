@@ -8886,7 +8886,6 @@ void intel_mode_from_pipe_config(struct drm_display_mode *mode,
 
 	mode->clock = pipe_config->hw.adjusted_mode.crtc_clock;
 
-	mode->vrefresh = drm_mode_vrefresh(mode);
 	drm_mode_set_name(mode);
 }
 

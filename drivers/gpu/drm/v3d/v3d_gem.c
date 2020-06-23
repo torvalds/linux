@@ -358,7 +358,7 @@ v3d_job_free(struct kref *ref)
 
 	for (i = 0; i < job->bo_count; i++) {
 		if (job->bo[i])
-			drm_gem_object_put_unlocked(job->bo[i]);
+			drm_gem_object_put(job->bo[i]);
 	}
 	kvfree(job->bo);
 
@@ -384,7 +384,7 @@ v3d_render_job_free(struct kref *ref)
 	struct v3d_bo *bo, *save;
 
 	list_for_each_entry_safe(bo, save, &job->unref_list, unref_head) {
-		drm_gem_object_put_unlocked(&bo->base.base);
+		drm_gem_object_put(&bo->base.base);
 	}
 
 	v3d_job_free(ref);

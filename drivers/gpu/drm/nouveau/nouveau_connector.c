@@ -60,7 +60,6 @@ nouveau_conn_native_mode(struct drm_connector *connector)
 	int high_w = 0, high_h = 0, high_v = 0;
 
 	list_for_each_entry(mode, &connector->probed_modes, head) {
-		mode->vrefresh = drm_mode_vrefresh(mode);
 		if (helper->mode_valid(connector, mode) != MODE_OK ||
 		    (mode->flags & DRM_MODE_FLAG_INTERLACE))
 			continue;
@@ -81,12 +80,12 @@ nouveau_conn_native_mode(struct drm_connector *connector)
 			continue;
 
 		if (mode->hdisplay == high_w && mode->vdisplay == high_h &&
-		    mode->vrefresh < high_v)
+		    drm_mode_vrefresh(mode) < high_v)
 			continue;
 
 		high_w = mode->hdisplay;
 		high_h = mode->vdisplay;
-		high_v = mode->vrefresh;
+		high_v = drm_mode_vrefresh(mode);
 		largest = mode;
 	}
 

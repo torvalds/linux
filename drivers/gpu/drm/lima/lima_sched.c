@@ -151,7 +151,7 @@ void lima_sched_task_fini(struct lima_sched_task *task)
 
 	if (task->bos) {
 		for (i = 0; i < task->num_bos; i++)
-			drm_gem_object_put_unlocked(&task->bos[i]->base.base);
+			drm_gem_object_put(&task->bos[i]->base.base);
 		kfree(task->bos);
 	}
 

@@ -165,7 +165,7 @@ static void mtk_drm_crtc_mode_set_nofb(struct drm_crtc *crtc)
 
 	state->pending_width = crtc->mode.hdisplay;
 	state->pending_height = crtc->mode.vdisplay;
-	state->pending_vrefresh = crtc->mode.vrefresh;
+	state->pending_vrefresh = drm_mode_vrefresh(&crtc->mode);
 	wmb();	/* Make sure the above parameters are set before update */
 	state->pending_config = true;
 }
@@ -264,7 +264,7 @@ static int mtk_crtc_ddp_hw_init(struct mtk_drm_crtc *mtk_crtc)
 
 	width = crtc->state->adjusted_mode.hdisplay;
 	height = crtc->state->adjusted_mode.vdisplay;
-	vrefresh = crtc->state->adjusted_mode.vrefresh;
+	vrefresh = drm_mode_vrefresh(&crtc->state->adjusted_mode);
 
 	drm_for_each_encoder(encoder, crtc->dev) {
 		if (encoder->crtc != crtc)

@@ -1038,9 +1038,6 @@ intel_tv_mode_to_mode(struct drm_display_mode *mode,
 	/* TV has it's own notion of sync and other mode flags, so clear them. */
 	mode->flags = 0;
 
-	mode->vrefresh = 0;
-	mode->vrefresh = drm_mode_vrefresh(mode);
-
 	snprintf(mode->name, sizeof(mode->name),
 		 "%dx%d%c (%s)",
 		 mode->hdisplay, mode->vdisplay,

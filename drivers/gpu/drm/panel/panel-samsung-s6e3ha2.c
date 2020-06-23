@@ -617,7 +617,6 @@ static const struct drm_display_mode s6e3ha2_mode = {
 	.vsync_start = 2560 + 1,
 	.vsync_end = 2560 + 1 + 1,
 	.vtotal = 2560 + 1 + 1 + 15,
-	.vrefresh = 60,
 	.flags = 0,
 };
 
@@ -636,7 +635,6 @@ static const struct drm_display_mode s6e3hf2_mode = {
 	.vsync_start = 2560 + 1,
 	.vsync_end = 2560 + 1 + 1,
 	.vtotal = 2560 + 1 + 1 + 15,
-	.vrefresh = 60,
 	.flags = 0,
 };
 
@@ -655,7 +653,7 @@ static int s6e3ha2_get_modes(struct drm_panel *panel,
 	if (!mode) {
 		DRM_ERROR("failed to add mode %ux%ux@%u\n",
 			ctx->desc->mode->hdisplay, ctx->desc->mode->vdisplay,
-			ctx->desc->mode->vrefresh);
+			drm_mode_vrefresh(ctx->desc->mode));
 		return -ENOMEM;
 	}
 

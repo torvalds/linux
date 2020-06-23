@@ -37,8 +37,8 @@ DEFINE_DRM_GEM_FOPS(udl_driver_fops);
 static struct drm_driver driver = {
 	.driver_features = DRIVER_ATOMIC | DRIVER_GEM | DRIVER_MODESET,
 
-	/* gem hooks */
-	.gem_create_object = udl_driver_gem_create_object,
+	/* GEM hooks */
+	.gem_create_object = drm_gem_shmem_create_object_cached,
 
 	.fops = &udl_driver_fops,
 	DRM_GEM_SHMEM_DRIVER_OPS,

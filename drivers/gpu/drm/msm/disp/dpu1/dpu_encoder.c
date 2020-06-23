@@ -499,23 +499,6 @@ void dpu_encoder_helper_split_config(
 	}
 }
 
-static void _dpu_encoder_adjust_mode(struct drm_connector *connector,
-		struct drm_display_mode *adj_mode)
-{
-	struct drm_display_mode *cur_mode;
-
-	if (!connector || !adj_mode)
-		return;
-
-	list_for_each_entry(cur_mode, &connector->modes, head) {
-		if (cur_mode->vdisplay == adj_mode->vdisplay &&
-		    cur_mode->hdisplay == adj_mode->hdisplay &&
-		    drm_mode_vrefresh(cur_mode) == drm_mode_vrefresh(adj_mode)) {
-			adj_mode->private_flags |= cur_mode->private_flags;
-		}
-	}
-}
-
 static struct msm_display_topology dpu_encoder_get_topology(
 			struct dpu_encoder_virt *dpu_enc,
 			struct dpu_kms *dpu_kms,
@@ -585,15 +568,6 @@ static int dpu_encoder_virt_atomic_check(
 	global_state = dpu_kms_get_existing_global_state(dpu_kms);
 	trace_dpu_enc_atomic_check(DRMID(drm_enc));
 
-	/*
-	 * display drivers may populate private fields of the drm display mode
-	 * structure while registering possible modes of a connector with DRM.
-	 * These private fields are not populated back while DRM invokes
-	 * the mode_set callbacks. This module retrieves and populates the
-	 * private fields of the given mode.
-	 */
-	_dpu_encoder_adjust_mode(conn_state->connector, adj_mode);
-
 	/* perform atomic check on the first physical encoder (master) */
 	for (i = 0; i < dpu_enc->num_phys_encs; i++) {
 		struct dpu_encoder_phys *phys = dpu_enc->phys_encs[i];
@@ -626,8 +600,7 @@ static int dpu_encoder_virt_atomic_check(
 		}
 	}
 
-	trace_dpu_enc_atomic_check_flags(DRMID(drm_enc), adj_mode->flags,
-			adj_mode->private_flags);
+	trace_dpu_enc_atomic_check_flags(DRMID(drm_enc), adj_mode->flags);
 
 	return ret;
 }

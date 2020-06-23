@@ -1099,10 +1099,10 @@ static void drrs_status_per_crtc(struct seq_file *m,
 		seq_puts(m, "\n\t\t");
 		if (drrs->refresh_rate_type == DRRS_HIGH_RR) {
 			seq_puts(m, "DRRS_State: DRRS_HIGH_RR\n");
-			vrefresh = panel->fixed_mode->vrefresh;
+			vrefresh = drm_mode_vrefresh(panel->fixed_mode);
 		} else if (drrs->refresh_rate_type == DRRS_LOW_RR) {
 			seq_puts(m, "DRRS_State: DRRS_LOW_RR\n");
-			vrefresh = panel->downclock_mode->vrefresh;
+			vrefresh = drm_mode_vrefresh(panel->downclock_mode);
 		} else {
 			seq_printf(m, "DRRS_State: Unknown(%d)\n",
 						drrs->refresh_rate_type);

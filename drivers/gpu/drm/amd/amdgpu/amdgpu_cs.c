@@ -57,7 +57,7 @@ static int amdgpu_cs_user_fence_chunk(struct amdgpu_cs_parser *p,
 	/* One for TTM and one for the CS job */
 	p->uf_entry.tv.num_shared = 2;
 
-	drm_gem_object_put_unlocked(gobj);
+	drm_gem_object_put(gobj);
 
 	size = amdgpu_bo_size(bo);
 	if (size != PAGE_SIZE || (data->offset + 8) > size) {
