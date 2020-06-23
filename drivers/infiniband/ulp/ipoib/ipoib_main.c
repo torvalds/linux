@@ -1892,8 +1892,15 @@ static void ipoib_child_init(struct net_device *ndev)
 
 	priv->max_ib_mtu = ppriv->max_ib_mtu;
 	set_bit(IPOIB_FLAG_SUBINTERFACE, &priv->flags);
-	memcpy(priv->dev->dev_addr, ppriv->dev->dev_addr, INFINIBAND_ALEN);
-	memcpy(&priv->local_gid, &ppriv->local_gid, sizeof(priv->local_gid));
+	if (memchr_inv(priv->dev->dev_addr, 0, INFINIBAND_ALEN))
+		memcpy(&priv->local_gid, priv->dev->dev_addr + 4,
+		       sizeof(priv->local_gid));
+	else {
+		memcpy(priv->dev->dev_addr, ppriv->dev->dev_addr,
+		       INFINIBAND_ALEN);
+		memcpy(&priv->local_gid, &ppriv->local_gid,
+		       sizeof(priv->local_gid));
+	}
 }
 
 static int ipoib_ndo_init(struct net_device *ndev)
