@@ -19,7 +19,6 @@
 
 #ifndef	__ASSEMBLY__
 
-extern int kgdb_has_hit_break(unsigned long addr);
 extern unsigned long kgdb_compiled_break;
 
 static inline void arch_kgdb_breakpoint(void)
