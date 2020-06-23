@@ -1,18 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) 2020 Facebook */
 #include "bpf_iter.h"
+#include "bpf_tracing_net.h"
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 
 char _license[] SEC("license") = "GPL";
 
 extern bool CONFIG_IPV6_SUBTREES __kconfig __weak;
-
-#define RTF_GATEWAY		0x0002
-#define IFNAMSIZ		16
-#define fib_nh_gw_family	nh_common.nhc_gw_family
-#define fib_nh_gw6		nh_common.nhc_gw.ipv6
-#define fib_nh_dev		nh_common.nhc_dev
 
 SEC("iter/ipv6_route")
 int dump_ipv6_route(struct bpf_iter__ipv6_route *ctx)
