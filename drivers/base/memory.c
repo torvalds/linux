@@ -570,8 +570,7 @@ int register_memory(struct memory_block *memory)
 	return ret;
 }
 
-static int init_memory_block(struct memory_block **memory,
-			     unsigned long block_id, unsigned long state)
+static int init_memory_block(unsigned long block_id, unsigned long state)
 {
 	struct memory_block *mem;
 	unsigned long start_pfn;
@@ -594,14 +593,12 @@ static int init_memory_block(struct memory_block **memory,
 
 	ret = register_memory(mem);
 
-	*memory = mem;
 	return ret;
 }
 
 static int add_memory_block(unsigned long base_section_nr)
 {
 	int section_count = 0;
-	struct memory_block *mem;
 	unsigned long nr;
 
 	for (nr = base_section_nr; nr < base_section_nr + sections_per_block;
@@ -611,7 +608,7 @@ static int add_memory_block(unsigned long base_section_nr)
 
 	if (section_count == 0)
 		return 0;
-	return init_memory_block(&mem, base_memory_block_id(base_section_nr),
+	return init_memory_block(base_memory_block_id(base_section_nr),
 				 MEM_ONLINE);
 }
 
@@ -647,7 +644,7 @@ int create_memory_block_devices(unsigned long start, unsigned long size)
 		return -EINVAL;
 
 	for (block_id = start_block_id; block_id != end_block_id; block_id++) {
-		ret = init_memory_block(&mem, block_id, MEM_OFFLINE);
+		ret = init_memory_block(block_id, MEM_OFFLINE);
 		if (ret)
 			break;
 	}
