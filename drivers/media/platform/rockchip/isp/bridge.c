@@ -796,3 +796,4 @@ void rkisp_get_bridge_sd(struct platform_device *dev,
 	else
 		*sd = NULL;
 }
+EXPORT_SYMBOL(rkisp_get_bridge_sd);

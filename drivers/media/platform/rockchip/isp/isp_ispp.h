@@ -41,7 +41,7 @@ struct rkisp_ispp_buf {
 int __init rkispp_plat_drv_init(void);
 #endif
 
-#if defined(CONFIG_VIDEO_ROCKCHIP_ISP)
+#if IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_ISP)
 void rkisp_get_bridge_sd(struct platform_device *dev,
 			 struct v4l2_subdev **sd);
 #else

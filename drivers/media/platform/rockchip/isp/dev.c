@@ -81,6 +81,30 @@ MODULE_PARM_DESC(version, "version number");
 static DEFINE_MUTEX(rkisp_dev_mutex);
 static LIST_HEAD(rkisp_device_list);
 
+static int __maybe_unused __rkisp_clr_unready_dev(void)
+{
+	struct rkisp_device *isp_dev;
+
+	mutex_lock(&rkisp_dev_mutex);
+	list_for_each_entry(isp_dev, &rkisp_device_list, list)
+		v4l2_async_notifier_clr_unready_dev(&isp_dev->notifier);
+	mutex_unlock(&rkisp_dev_mutex);
+
+	return 0;
+}
+
+static int rkisp_clr_unready_dev_param_set(const char *val, const struct kernel_param *kp)
+{
+#ifdef MODULE
+	__rkisp_clr_unready_dev();
+#endif
+
+	return 0;
+}
+
+module_param_call(clr_unready_dev, rkisp_clr_unready_dev_param_set, NULL, NULL, 0200);
+MODULE_PARM_DESC(clr_unready_dev, "clear unready devices");
+
 /**************************** pipeline operations *****************************/
 
 static int __isp_pipeline_prepare(struct rkisp_pipeline *p,
@@ -1171,18 +1195,15 @@ static int __maybe_unused rkisp_runtime_resume(struct device *dev)
 	return 0;
 }
 
+#ifndef MODULE
 static int __init rkisp_clr_unready_dev(void)
 {
-	struct rkisp_device *isp_dev;
-
-	mutex_lock(&rkisp_dev_mutex);
-	list_for_each_entry(isp_dev, &rkisp_device_list, list)
-		v4l2_async_notifier_clr_unready_dev(&isp_dev->notifier);
-	mutex_unlock(&rkisp_dev_mutex);
+	__rkisp_clr_unready_dev();
 
 	return 0;
 }
 late_initcall_sync(rkisp_clr_unready_dev);
+#endif
 
 static const struct dev_pm_ops rkisp_plat_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
