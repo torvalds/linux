@@ -361,11 +361,10 @@ static inline int i2c_dw_probe_lock_support(struct dw_i2c_dev *dev) { return 0; 
 #endif
 
 int i2c_dw_validate_speed(struct dw_i2c_dev *dev);
+void i2c_dw_adjust_bus_speed(struct dw_i2c_dev *dev);
 
 #if IS_ENABLED(CONFIG_ACPI)
 int i2c_dw_acpi_configure(struct device *device);
-void i2c_dw_acpi_adjust_bus_speed(struct device *device);
 #else
 static inline int i2c_dw_acpi_configure(struct device *device) { return -ENODEV; }
-static inline void i2c_dw_acpi_adjust_bus_speed(struct device *device) {}
 #endif
