@@ -258,7 +258,7 @@
 			qcom,local-pid = <0>;
 			qcom,remote-pid = <6>;
 
-			rpm-requests {
+			rpm_requests: rpm-requests {
 				compatible = "qcom,rpm-msm8994";
 				qcom,smd-channels = "rpm_requests";
 
