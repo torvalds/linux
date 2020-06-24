@@ -884,8 +884,6 @@ else
 CC_FLAGS_LTO_CLANG := -flto
 endif
 CC_FLAGS_LTO_CLANG += -fvisibility=default
-
-KBUILD_LDS_MODULE += scripts/module-lto.lds
 endif
 
 ifdef CONFIG_LTO
