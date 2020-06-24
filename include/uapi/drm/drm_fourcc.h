@@ -58,6 +58,30 @@ extern "C" {
  * may preserve meaning - such as number of planes - from the fourcc code,
  * whereas others may not.
  *
+ * Modifiers must uniquely encode buffer layout. In other words, a buffer must
+ * match only a single modifier. A modifier must not be a subset of layouts of
+ * another modifier. For instance, it's incorrect to encode pitch alignment in
+ * a modifier: a buffer may match a 64-pixel aligned modifier and a 32-pixel
+ * aligned modifier. That said, modifiers can have implicit minimal
+ * requirements.
+ *
+ * For modifiers where the combination of fourcc code and modifier can alias,
+ * a canonical pair needs to be defined and used by all drivers. Preferred
+ * combinations are also encouraged where all combinations might lead to
+ * confusion and unnecessarily reduced interoperability. An example for the
+ * latter is AFBC, where the ABGR layouts are preferred over ARGB layouts.
+ *
+ * There are two kinds of modifier users:
+ *
+ * - Kernel and user-space drivers: for drivers it's important that modifiers
+ *   don't alias, otherwise two drivers might support the same format but use
+ *   different aliases, preventing them from sharing buffers in an efficient
+ *   format.
+ * - Higher-level programs interfacing with KMS/GBM/EGL/Vulkan/etc: these users
+ *   see modifiers as opaque tokens they can check for equality and intersect.
+ *   These users musn't need to know to reason about the modifier value
+ *   (i.e. they are not expected to extract information out of the modifier).
+ *
  * Vendors should document their modifier usage in as much detail as
  * possible, to ensure maximum compatibility across devices, drivers and
  * applications.
