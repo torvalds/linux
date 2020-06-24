@@ -22,11 +22,6 @@
  * and drives the real SSIF state machine.
  */
 
-/*
- * TODO: Figure out how to use SMB alerts.  This will require a new
- * interface into the I2C driver, I believe.
- */
-
 #define pr_fmt(fmt) "ipmi_ssif: " fmt
 #define dev_fmt(fmt) "ipmi_ssif: " fmt
 
