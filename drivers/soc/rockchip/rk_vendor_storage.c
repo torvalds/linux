@@ -8,6 +8,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/soc/rockchip/rk_vendor_storage.h>
 
 int (*_vendor_read)(u32 id, void *pbuf, u32 size) = NULL;
@@ -47,3 +48,5 @@ bool is_rk_vendor_ready(void)
 	return false;
 }
 EXPORT_SYMBOL(is_rk_vendor_ready);
+
+MODULE_LICENSE("GPL");

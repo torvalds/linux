@@ -360,3 +360,4 @@ static __exit void vendor_storage_deinit(void)
 
 device_initcall_sync(vendor_storage_init);
 module_exit(vendor_storage_deinit);
+MODULE_LICENSE("GPL");

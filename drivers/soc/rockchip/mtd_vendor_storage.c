@@ -75,6 +75,7 @@ static DEFINE_MUTEX(vendor_ops_mutex);
 static struct mtd_info *mtd;
 static const char *vendor_mtd_name = "vnvm";
 static struct mtd_nand_info nand_info;
+static struct platform_device *g_pdev;
 
 static int mtd_vendor_nand_write(void)
 {
@@ -437,6 +438,8 @@ static int __init vendor_storage_init(void)
 
 	g_idb_buffer = NULL;
 	ret = platform_driver_register(&vendor_storage_driver);
+	if (ret)
+		return ret;
 
 	pdev = platform_device_register_simple("mtd_vendor_storage",
 					       -1, NULL, 0);
@@ -444,8 +447,17 @@ static int __init vendor_storage_init(void)
 		platform_driver_unregister(&vendor_storage_driver);
 		return PTR_ERR(pdev);
 	}
+	g_pdev = pdev;
 
 	return ret;
 }
 
+static __exit void vendor_storage_deinit(void)
+{
+	platform_device_unregister(g_pdev);
+	platform_driver_unregister(&vendor_storage_driver);
+}
+
 module_init(vendor_storage_init);
+module_exit(vendor_storage_deinit);
+MODULE_LICENSE("GPL");
