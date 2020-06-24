@@ -7,7 +7,7 @@
 
 /dts-v1/;
 #include "r8a774a1.dtsi"
-#include "hihope-common.dtsi"
+#include "hihope-rev2.dtsi"
 
 / {
 	model = "HopeRun HiHope RZ/G2M main board (Rev.2.0) based on r8a774a1";
