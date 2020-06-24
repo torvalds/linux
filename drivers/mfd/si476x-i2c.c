@@ -588,7 +588,7 @@ static int si476x_core_fwver_to_revision(struct si476x_core *core,
 			goto unknown_revision;
 		}
 	case SI476X_FUNC_BOOTLOADER:
-	default:		/* FALLTHROUG */
+	default:		/* FALLTHROUGH */
 		BUG();
 		return -1;
 	}
