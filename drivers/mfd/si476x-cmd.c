@@ -241,13 +241,13 @@ static int si476x_core_parse_and_nag_about_error(struct si476x_core *core)
 /**
  * si476x_core_send_command() - sends a command to si476x and waits its
  * response
- * @core:    si476x_device structure for the device we are
+ * @core:     si476x_device structure for the device we are
  *            communicating with
  * @command:  command id
  * @args:     command arguments we are sending
  * @argn:     actual size of @args
- * @response: buffer to place the expected response from the device
- * @respn:    actual size of @response
+ * @resp:     buffer to place the expected response from the device
+ * @respn:    actual size of @resp
  * @usecs:    amount of time to wait before reading the response (in
  *            usecs)
  *
