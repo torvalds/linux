@@ -107,11 +107,12 @@ static int psci_cpu_kill(unsigned int cpu)
 
 #endif
 
-bool __init psci_smp_available(void)
+bool psci_smp_available(void)
 {
 	/* is cpu_on available at least? */
 	return (psci_ops.cpu_on != NULL);
 }
+EXPORT_SYMBOL(psci_smp_available);
 
 const struct smp_operations psci_smp_ops __initconst = {
 	.smp_boot_secondary	= psci_boot_secondary,
