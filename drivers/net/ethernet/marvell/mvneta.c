@@ -3571,7 +3571,7 @@ static int mvneta_config_interface(struct mvneta_port *pp,
 				    MVNETA_HSGMII_SERDES_PROTO);
 			break;
 		default:
-			return -EINVAL;
+			break;
 		}
 	}
 
