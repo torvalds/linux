@@ -476,7 +476,7 @@ static int ovl_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		      u64 start, u64 len)
 {
 	int err;
-	struct inode *realinode = ovl_inode_real(inode);
+	struct inode *realinode = ovl_inode_realdata(inode);
 	const struct cred *old_cred;
 
 	if (!realinode->i_op->fiemap)
