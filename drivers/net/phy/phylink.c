@@ -429,7 +429,8 @@ static void phylink_mac_config_up(struct phylink *pl,
 static void phylink_mac_pcs_an_restart(struct phylink *pl)
 {
 	if (pl->link_config.an_enabled &&
-	    phy_interface_mode_is_8023z(pl->link_config.interface)) {
+	    phy_interface_mode_is_8023z(pl->link_config.interface) &&
+	    phylink_autoneg_inband(pl->cur_link_an_mode)) {
 		if (pl->pcs_ops)
 			pl->pcs_ops->pcs_an_restart(pl->config);
 		else
