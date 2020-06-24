@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/* Copyright (c) 2013, 2016, The Linux Foundation. All rights reserved. */
+/* Copyright (c) 2013, 2016, 2020 The Linux Foundation. All rights reserved. */
 
 #ifndef __QCOM_CLK_BRANCH_H__
 #define __QCOM_CLK_BRANCH_H__
@@ -42,6 +42,7 @@ extern const struct clk_ops clk_branch2_ops;
 extern const struct clk_ops clk_branch2_hw_ctl_ops;
 extern const struct clk_ops clk_branch_simple_ops;
 extern const struct clk_ops clk_branch2_aon_ops;
+extern const struct clk_ops clk_branch2_force_off_ops;
 
 #define to_clk_branch(_hw) \
 	container_of(to_clk_regmap(_hw), struct clk_branch, clkr)
