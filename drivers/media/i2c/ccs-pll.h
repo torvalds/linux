@@ -6,7 +6,7 @@
  *
  * Copyright (C) 2020 Intel Corporation
  * Copyright (C) 2012 Nokia Corporation
- * Contact: Sakari Ailus <sakari.ailus@iki.fi>
+ * Contact: Sakari Ailus <sakari.ailus@linux.intel.com>
  */
 
 #ifndef CCS_PLL_H

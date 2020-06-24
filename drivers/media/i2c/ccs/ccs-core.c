@@ -6,7 +6,7 @@
  *
  * Copyright (C) 2020 Intel Corporation
  * Copyright (C) 2010--2012 Nokia Corporation
- * Contact: Sakari Ailus <sakari.ailus@iki.fi>
+ * Contact: Sakari Ailus <sakari.ailus@linux.intel.com>
  *
  * Based on smiapp driver by Vimarsh Zutshi
  * Based on jt8ev1.c by Vimarsh Zutshi
@@ -1168,7 +1168,7 @@ static int ccs_setup_flash_strobe(struct ccs_sensor *sensor)
 	 * do not change, or if you do at least know what you're
 	 * doing. :-)
 	 *
-	 * Sakari Ailus <sakari.ailus@iki.fi> 2010-10-25
+	 * Sakari Ailus <sakari.ailus@linux.intel.com> 2010-10-25
 	 *
 	 * flash_strobe_length [us] / 10^6 = (tFlash_strobe_width_ctrl
 	 *	/ EXTCLK freq [Hz]) * flash_strobe_adjustment
@@ -3357,7 +3357,7 @@ static void ccs_module_cleanup(void)
 module_init(ccs_module_init);
 module_exit(ccs_module_cleanup);
 
-MODULE_AUTHOR("Sakari Ailus <sakari.ailus@iki.fi>");
+MODULE_AUTHOR("Sakari Ailus <sakari.ailus@linux.intel.com>");
 MODULE_DESCRIPTION("Generic MIPI CCS/SMIA/SMIA++ camera sensor driver");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("smiapp");
