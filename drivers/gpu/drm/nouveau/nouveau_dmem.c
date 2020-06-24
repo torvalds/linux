@@ -90,7 +90,7 @@ static unsigned long nouveau_dmem_page_addr(struct page *page)
 	struct nouveau_dmem_chunk *chunk = page->zone_device_data;
 	unsigned long idx = page_to_pfn(page) - chunk->pfn_first;
 
-	return (idx << PAGE_SHIFT) + chunk->bo->bo.offset;
+	return (idx << PAGE_SHIFT) + chunk->bo->offset;
 }
 
 static void nouveau_dmem_page_free(struct page *page)
