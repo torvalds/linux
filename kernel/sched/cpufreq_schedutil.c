@@ -133,8 +133,11 @@ static bool sugov_update_next_freq(struct sugov_policy *sg_policy, u64 time,
 	if (sg_policy->next_freq == next_freq)
 		return false;
 
-	if (sugov_up_down_rate_limit(sg_policy, time, next_freq))
+	if (sugov_up_down_rate_limit(sg_policy, time, next_freq)) {
+		/* Reset cached freq as next_freq is not changed */
+		sg_policy->cached_raw_freq = 0;
 		return false;
+	}
 
 	sg_policy->next_freq = next_freq;
 	sg_policy->last_freq_update_time = time;
