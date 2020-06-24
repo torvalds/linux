@@ -389,6 +389,7 @@ struct enetc_psfp_filter {
 	u32 index;
 	s32 handle;
 	s8 prio;
+	u32 maxsdu;
 	u32 gate_id;
 	s32 meter_id;
 	refcount_t refcount;
@@ -426,6 +427,12 @@ struct enetc_psfp {
 
 static struct actions_fwd enetc_act_fwd[] = {
 	{
+		BIT(FLOW_ACTION_GATE),
+		BIT(FLOW_DISSECTOR_KEY_ETH_ADDRS),
+		FILTER_ACTION_TYPE_PSFP
+	},
+	{
+		BIT(FLOW_ACTION_POLICE) |
 		BIT(FLOW_ACTION_GATE),
 		BIT(FLOW_DISSECTOR_KEY_ETH_ADDRS),
 		FILTER_ACTION_TYPE_PSFP
@@ -594,8 +601,12 @@ static int enetc_streamfilter_hw_set(struct enetc_ndev_priv *priv,
 	/* Filter Type. Identifies the contents of the MSDU/FM_INST_INDEX
 	 * field as being either an MSDU value or an index into the Flow
 	 * Meter Instance table.
-	 * TODO: no limit max sdu
 	 */
+	if (sfi->maxsdu) {
+		sfi_config->msdu =
+		cpu_to_le16(sfi->maxsdu);
+		sfi_config->multi |= 0x40;
+	}
 
 	if (sfi->meter_id >= 0) {
 		sfi_config->fm_inst_table_index = cpu_to_le16(sfi->meter_id);
@@ -872,6 +883,7 @@ static struct enetc_psfp_filter
 	hlist_for_each_entry(s, &epsfp.psfp_filter_list, node)
 		if (s->gate_id == sfi->gate_id &&
 		    s->prio == sfi->prio &&
+		    s->maxsdu == sfi->maxsdu &&
 		    s->meter_id == sfi->meter_id)
 			return s;
 
@@ -979,6 +991,7 @@ static struct actions_fwd *enetc_check_flow_actions(u64 acts,
 static int enetc_psfp_parse_clsflower(struct enetc_ndev_priv *priv,
 				      struct flow_cls_offload *f)
 {
+	struct flow_action_entry *entryg = NULL, *entryp = NULL;
 	struct flow_rule *rule = flow_cls_offload_flow_rule(f);
 	struct netlink_ext_ack *extack = f->common.extack;
 	struct enetc_stream_filter *filter, *old_filter;
@@ -997,9 +1010,12 @@ static int enetc_psfp_parse_clsflower(struct enetc_ndev_priv *priv,
 
 	flow_action_for_each(i, entry, &rule->action)
 		if (entry->id == FLOW_ACTION_GATE)
-			break;
+			entryg = entry;
+		else if (entry->id == FLOW_ACTION_POLICE)
+			entryp = entry;
 
-	if (entry->id != FLOW_ACTION_GATE)
+	/* Not support without gate action */
+	if (!entryg)
 		return -EINVAL;
 
 	filter = kzalloc(sizeof(*filter), GFP_KERNEL);
@@ -1079,19 +1095,19 @@ static int enetc_psfp_parse_clsflower(struct enetc_ndev_priv *priv,
 	}
 
 	/* parsing gate action */
-	if (entry->gate.index >= priv->psfp_cap.max_psfp_gate) {
+	if (entryg->gate.index >= priv->psfp_cap.max_psfp_gate) {
 		NL_SET_ERR_MSG_MOD(extack, "No Stream Gate resource!");
 		err = -ENOSPC;
 		goto free_filter;
 	}
 
-	if (entry->gate.num_entries >= priv->psfp_cap.max_psfp_gatelist) {
+	if (entryg->gate.num_entries >= priv->psfp_cap.max_psfp_gatelist) {
 		NL_SET_ERR_MSG_MOD(extack, "No Stream Gate resource!");
 		err = -ENOSPC;
 		goto free_filter;
 	}
 
-	entries_size = struct_size(sgi, entries, entry->gate.num_entries);
+	entries_size = struct_size(sgi, entries, entryg->gate.num_entries);
 	sgi = kzalloc(entries_size, GFP_KERNEL);
 	if (!sgi) {
 		err = -ENOMEM;
@@ -1099,18 +1115,18 @@ static int enetc_psfp_parse_clsflower(struct enetc_ndev_priv *priv,
 	}
 
 	refcount_set(&sgi->refcount, 1);
-	sgi->index = entry->gate.index;
-	sgi->init_ipv = entry->gate.prio;
-	sgi->basetime = entry->gate.basetime;
-	sgi->cycletime = entry->gate.cycletime;
-	sgi->num_entries = entry->gate.num_entries;
+	sgi->index = entryg->gate.index;
+	sgi->init_ipv = entryg->gate.prio;
+	sgi->basetime = entryg->gate.basetime;
+	sgi->cycletime = entryg->gate.cycletime;
+	sgi->num_entries = entryg->gate.num_entries;
 
 	e = sgi->entries;
-	for (i = 0; i < entry->gate.num_entries; i++) {
-		e[i].gate_state = entry->gate.entries[i].gate_state;
-		e[i].interval = entry->gate.entries[i].interval;
-		e[i].ipv = entry->gate.entries[i].ipv;
-		e[i].maxoctets = entry->gate.entries[i].maxoctets;
+	for (i = 0; i < entryg->gate.num_entries; i++) {
+		e[i].gate_state = entryg->gate.entries[i].gate_state;
+		e[i].interval = entryg->gate.entries[i].interval;
+		e[i].ipv = entryg->gate.entries[i].ipv;
+		e[i].maxoctets = entryg->gate.entries[i].maxoctets;
 	}
 
 	filter->sgi_index = sgi->index;
@@ -1126,6 +1142,10 @@ static int enetc_psfp_parse_clsflower(struct enetc_ndev_priv *priv,
 
 	/* flow meter not support yet */
 	sfi->meter_id = ENETC_PSFP_WILDCARD;
+
+	/* Max frame size */
+	if (entryp)
+		sfi->maxsdu = entryp->police.mtu;
 
 	/* prio ref the filter prio */
 	if (f->common.prio && f->common.prio <= BIT(3))
