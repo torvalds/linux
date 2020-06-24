@@ -63,7 +63,7 @@ static void vdpa_release_dev(struct device *d)
  * @config: the bus operations that is supported by this device
  * @size: size of the parent structure that contains private data
  *
- * Drvier should use vdap_alloc_device() wrapper macro instead of
+ * Driver should use vdpa_alloc_device() wrapper macro instead of
  * using this directly.
  *
  * Returns an error when parent/config/dma_dev is not set or fail to get
