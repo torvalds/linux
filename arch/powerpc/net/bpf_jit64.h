@@ -73,14 +73,14 @@ static const int b2p[] = {
 					PPC_LI(b2p[TMP_REG_2], (i));	      \
 					PPC_LDX(r, base, b2p[TMP_REG_2]);     \
 				} else					      \
-					PPC_LD(r, base, i);		      \
+					EMIT(PPC_RAW_LD(r, base, i));	      \
 				} while(0)
 #define PPC_BPF_STL(r, base, i) do {					      \
 				if ((i) % 4) {				      \
 					PPC_LI(b2p[TMP_REG_2], (i));	      \
 					PPC_STDX(r, base, b2p[TMP_REG_2]);    \
 				} else					      \
-					PPC_STD(r, base, i);		      \
+					EMIT(PPC_RAW_STD(r, base, i));	      \
 				} while(0)
 #define PPC_BPF_STLU(r, base, i) do { PPC_STDU(r, base, i); } while(0)
 
