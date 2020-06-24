@@ -5,17 +5,27 @@ struct notifier_block;
 
 #if IS_ENABLED(CONFIG_QCOM_RPROC_COMMON)
 
-int qcom_register_ssr_notifier(struct notifier_block *nb);
-void qcom_unregister_ssr_notifier(struct notifier_block *nb);
+struct qcom_ssr_notify_data {
+	const char *name;
+	bool crashed;
+};
+
+void *qcom_register_ssr_notifier(const char *name, struct notifier_block *nb);
+int qcom_unregister_ssr_notifier(void *notify, struct notifier_block *nb);
 
 #else
 
-static inline int qcom_register_ssr_notifier(struct notifier_block *nb)
+static inline void *qcom_register_ssr_notifier(const char *name,
+					       struct notifier_block *nb)
+{
+	return NULL;
+}
+
+static inline int qcom_unregister_ssr_notifier(void *notify,
+					       struct notifier_block *nb)
 {
 	return 0;
 }
-
-static inline void qcom_unregister_ssr_notifier(struct notifier_block *nb) {}
 
 #endif
 
