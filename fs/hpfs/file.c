@@ -9,6 +9,7 @@
 
 #include "hpfs_fn.h"
 #include <linux/mpage.h>
+#include <linux/fiemap.h>
 
 #define BLOCKS(size) (((size) + 511) >> 9)
 

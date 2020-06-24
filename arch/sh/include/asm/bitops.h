@@ -26,7 +26,6 @@
 #include <asm-generic/bitops/non-atomic.h>
 #endif
 
-#ifdef CONFIG_SUPERH32
 static inline unsigned long ffz(unsigned long word)
 {
 	unsigned long result;
@@ -60,31 +59,6 @@ static inline unsigned long __ffs(unsigned long word)
 		: "t");
 	return result;
 }
-#else
-static inline unsigned long ffz(unsigned long word)
-{
-	unsigned long result, __d2, __d3;
-
-        __asm__("gettr  tr0, %2\n\t"
-                "pta    $+32, tr0\n\t"
-                "andi   %1, 1, %3\n\t"
-                "beq    %3, r63, tr0\n\t"
-                "pta    $+4, tr0\n"
-                "0:\n\t"
-                "shlri.l        %1, 1, %1\n\t"
-                "addi   %0, 1, %0\n\t"
-                "andi   %1, 1, %3\n\t"
-                "beqi   %3, 1, tr0\n"
-                "1:\n\t"
-                "ptabs  %2, tr0\n\t"
-                : "=r" (result), "=r" (word), "=r" (__d2), "=r" (__d3)
-                : "0" (0L), "1" (word));
-
-	return result;
-}
-
-#include <asm-generic/bitops/__ffs.h>
-#endif
 
 #include <asm-generic/bitops/find.h>
 #include <asm-generic/bitops/ffs.h>

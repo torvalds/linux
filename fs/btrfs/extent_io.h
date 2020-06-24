@@ -5,6 +5,7 @@
 
 #include <linux/rbtree.h>
 #include <linux/refcount.h>
+#include <linux/fiemap.h>
 #include "ulist.h"
 
 /*

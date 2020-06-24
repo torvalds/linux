@@ -209,15 +209,22 @@ Configuring the kernel
                            store the lsmod of that machine into a file
                            and pass it in as a LSMOD parameter.
 
+                           Also, you can preserve modules in certain folders
+                           or kconfig files by specifying their paths in
+                           parameter LMC_KEEP.
+
                    target$ lsmod > /tmp/mylsmod
                    target$ scp /tmp/mylsmod host:/tmp
 
-                   host$ make LSMOD=/tmp/mylsmod localmodconfig
+                   host$ make LSMOD=/tmp/mylsmod \
+                           LMC_KEEP="drivers/usb:drivers/gpu:fs" \
+                           localmodconfig
 
                            The above also works when cross compiling.
 
      "make localyesconfig" Similar to localmodconfig, except it will convert
-                           all module options to built in (=y) options.
+                           all module options to built in (=y) options. You can
+                           also preserve modules by LMC_KEEP.
 
      "make kvmconfig"   Enable additional options for kvm guest kernel support.
 

@@ -32,6 +32,9 @@
 #include "cifs_unicode.h"
 #include "smb2pdu.h"
 #include "cifsfs.h"
+#ifdef CONFIG_CIFS_DFS_UPCALL
+#include "dns_resolve.h"
+#endif
 
 extern mempool_t *cifs_sm_req_poolp;
 extern mempool_t *cifs_req_poolp;
@@ -421,7 +424,7 @@ is_valid_oplock_break(char *buffer, struct TCP_Server_Info *srv)
 
 			if (data_offset >
 			    len - sizeof(struct file_notify_information)) {
-				cifs_dbg(FYI, "invalid data_offset %u\n",
+				cifs_dbg(FYI, "Invalid data_offset %u\n",
 					 data_offset);
 				return true;
 			}
@@ -449,7 +452,7 @@ is_valid_oplock_break(char *buffer, struct TCP_Server_Info *srv)
 		   large dirty files cached on the client */
 		if ((NT_STATUS_INVALID_HANDLE) ==
 		   le32_to_cpu(pSMB->hdr.Status.CifsError)) {
-			cifs_dbg(FYI, "invalid handle on oplock break\n");
+			cifs_dbg(FYI, "Invalid handle on oplock break\n");
 			return true;
 		} else if (ERRbadfid ==
 		   le16_to_cpu(pSMB->hdr.Status.DosError.Error)) {
@@ -530,9 +533,9 @@ cifs_autodisable_serverino(struct cifs_sb_info *cifs_sb)
 
 		cifs_sb->mnt_cifs_flags &= ~CIFS_MOUNT_SERVER_INUM;
 		cifs_sb->mnt_cifs_serverino_autodisabled = true;
-		cifs_dbg(VFS, "Autodisabling the use of server inode numbers on %s.\n",
+		cifs_dbg(VFS, "Autodisabling the use of server inode numbers on %s\n",
 			 tcon ? tcon->treeName : "new server");
-		cifs_dbg(VFS, "The server doesn't seem to support them properly or the files might be on different servers (DFS).\n");
+		cifs_dbg(VFS, "The server doesn't seem to support them properly or the files might be on different servers (DFS)\n");
 		cifs_dbg(VFS, "Hardlinks will not be recognized on this mount. Consider mounting with the \"noserverino\" option to silence this message.\n");
 
 	}
@@ -874,7 +877,7 @@ setup_aio_ctx_iter(struct cifs_aio_ctx *ctx, struct iov_iter *iter, int rw)
 	while (count && npages < max_pages) {
 		rc = iov_iter_get_pages(iter, pages, count, max_pages, &start);
 		if (rc < 0) {
-			cifs_dbg(VFS, "couldn't get user pages (rc=%zd)\n", rc);
+			cifs_dbg(VFS, "Couldn't get user pages (rc=%zd)\n", rc);
 			break;
 		}
 
@@ -933,7 +936,7 @@ cifs_alloc_hash(const char *name,
 
 	*shash = crypto_alloc_shash(name, 0, 0);
 	if (IS_ERR(*shash)) {
-		cifs_dbg(VFS, "could not allocate crypto %s\n", name);
+		cifs_dbg(VFS, "Could not allocate crypto %s\n", name);
 		rc = PTR_ERR(*shash);
 		*shash = NULL;
 		*sdesc = NULL;
@@ -1083,6 +1086,51 @@ void cifs_put_tcp_super(struct super_block *sb)
 }
 
 #ifdef CONFIG_CIFS_DFS_UPCALL
+int match_target_ip(struct TCP_Server_Info *server,
+		    const char *share, size_t share_len,
+		    bool *result)
+{
+	int rc;
+	char *target, *tip = NULL;
+	struct sockaddr tipaddr;
+
+	*result = false;
+
+	target = kzalloc(share_len + 3, GFP_KERNEL);
+	if (!target) {
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	scnprintf(target, share_len + 3, "\\\\%.*s", (int)share_len, share);
+
+	cifs_dbg(FYI, "%s: target name: %s\n", __func__, target + 2);
+
+	rc = dns_resolve_server_name_to_ip(target, &tip);
+	if (rc < 0)
+		goto out;
+
+	cifs_dbg(FYI, "%s: target ip: %s\n", __func__, tip);
+
+	if (!cifs_convert_address(&tipaddr, tip, strlen(tip))) {
+		cifs_dbg(VFS, "%s: failed to convert target ip address\n",
+			 __func__);
+		rc = -EINVAL;
+		goto out;
+	}
+
+	*result = cifs_match_ipaddr((struct sockaddr *)&server->dstaddr,
+				    &tipaddr);
+	cifs_dbg(FYI, "%s: ip addresses match: %u\n", __func__, *result);
+	rc = 0;
+
+out:
+	kfree(target);
+	kfree(tip);
+
+	return rc;
+}
+
 static void tcon_super_cb(struct super_block *sb, void *arg)
 {
 	struct super_cb_data *sd = arg;

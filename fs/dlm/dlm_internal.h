@@ -97,7 +97,6 @@ do { \
                __LINE__, __FILE__, #x, jiffies); \
     {do} \
     printk("\n"); \
-    BUG(); \
     panic("DLM:  Record message above and reboot.\n"); \
   } \
 }
@@ -421,7 +420,7 @@ struct dlm_message {
 	int			m_bastmode;
 	int			m_asts;
 	int			m_result;	/* 0 or -EXXX */
-	char			m_extra[0];	/* name or lvb */
+	char			m_extra[];	/* name or lvb */
 };
 
 
@@ -450,7 +449,7 @@ struct dlm_rcom {
 	uint64_t		rc_id;		/* match reply with request */
 	uint64_t		rc_seq;		/* sender's ls_recover_seq */
 	uint64_t		rc_seq_reply;	/* remote ls_recover_seq */
-	char			rc_buf[0];
+	char			rc_buf[];
 };
 
 union dlm_packet {
@@ -506,7 +505,7 @@ struct rcom_lock {
 	__le16			rl_wait_type;
 	__le16			rl_namelen;
 	char			rl_name[DLM_RESNAME_MAXLEN];
-	char			rl_lvb[0];
+	char			rl_lvb[];
 };
 
 /*

@@ -79,9 +79,13 @@ config DMA_REMAP
 	select DMA_NONCOHERENT_MMAP
 	bool
 
-config DMA_DIRECT_REMAP
+config DMA_COHERENT_POOL
 	bool
 	select DMA_REMAP
+
+config DMA_DIRECT_REMAP
+	bool
+	select DMA_COHERENT_POOL
 
 config DMA_CMA
 	bool "DMA Contiguous Memory Allocator"

@@ -12,6 +12,47 @@
 #include <linux/fsnotify.h>
 #include "internal.h"
 
+static void afs_silly_rename_success(struct afs_operation *op)
+{
+	_enter("op=%08x", op->debug_id);
+
+	afs_vnode_commit_status(op, &op->file[0]);
+}
+
+static void afs_silly_rename_edit_dir(struct afs_operation *op)
+{
+	struct afs_vnode_param *dvp = &op->file[0];
+	struct afs_vnode *dvnode = dvp->vnode;
+	struct afs_vnode *vnode = AFS_FS_I(d_inode(op->dentry));
+	struct dentry *old = op->dentry;
+	struct dentry *new = op->dentry_2;
+
+	spin_lock(&old->d_lock);
+	old->d_flags |= DCACHE_NFSFS_RENAMED;
+	spin_unlock(&old->d_lock);
+	if (dvnode->silly_key != op->key) {
+		key_put(dvnode->silly_key);
+		dvnode->silly_key = key_get(op->key);
+	}
+
+	down_write(&dvnode->validate_lock);
+	if (test_bit(AFS_VNODE_DIR_VALID, &dvnode->flags) &&
+	    dvnode->status.data_version == dvp->dv_before + dvp->dv_delta) {
+		afs_edit_dir_remove(dvnode, &old->d_name,
+				    afs_edit_dir_for_silly_0);
+		afs_edit_dir_add(dvnode, &new->d_name,
+				 &vnode->fid, afs_edit_dir_for_silly_1);
+	}
+	up_write(&dvnode->validate_lock);
+}
+
+static const struct afs_operation_ops afs_silly_rename_operation = {
+	.issue_afs_rpc	= afs_fs_rename,
+	.issue_yfs_rpc	= yfs_fs_rename,
+	.success	= afs_silly_rename_success,
+	.edit_dir	= afs_silly_rename_edit_dir,
+};
+
 /*
  * Actually perform the silly rename step.
  */
@@ -19,56 +60,22 @@ static int afs_do_silly_rename(struct afs_vnode *dvnode, struct afs_vnode *vnode
 			       struct dentry *old, struct dentry *new,
 			       struct key *key)
 {
-	struct afs_fs_cursor fc;
-	struct afs_status_cb *scb;
-	afs_dataversion_t dir_data_version;
-	int ret = -ERESTARTSYS;
+	struct afs_operation *op;
 
 	_enter("%pd,%pd", old, new);
 
-	scb = kzalloc(sizeof(struct afs_status_cb), GFP_KERNEL);
-	if (!scb)
-		return -ENOMEM;
+	op = afs_alloc_operation(key, dvnode->volume);
+	if (IS_ERR(op))
+		return PTR_ERR(op);
+
+	afs_op_set_vnode(op, 0, dvnode);
+
+	op->dentry		= old;
+	op->dentry_2		= new;
+	op->ops			= &afs_silly_rename_operation;
 
 	trace_afs_silly_rename(vnode, false);
-	if (afs_begin_vnode_operation(&fc, dvnode, key, true)) {
-		dir_data_version = dvnode->status.data_version + 1;
-
-		while (afs_select_fileserver(&fc)) {
-			fc.cb_break = afs_calc_vnode_cb_break(dvnode);
-			afs_fs_rename(&fc, old->d_name.name,
-				      dvnode, new->d_name.name,
-				      scb, scb);
-		}
-
-		afs_vnode_commit_status(&fc, dvnode, fc.cb_break,
-					&dir_data_version, scb);
-		ret = afs_end_vnode_operation(&fc);
-	}
-
-	if (ret == 0) {
-		spin_lock(&old->d_lock);
-		old->d_flags |= DCACHE_NFSFS_RENAMED;
-		spin_unlock(&old->d_lock);
-		if (dvnode->silly_key != key) {
-			key_put(dvnode->silly_key);
-			dvnode->silly_key = key_get(key);
-		}
-
-		down_write(&dvnode->validate_lock);
-		if (test_bit(AFS_VNODE_DIR_VALID, &dvnode->flags) &&
-		    dvnode->status.data_version == dir_data_version) {
-			afs_edit_dir_remove(dvnode, &old->d_name,
-					    afs_edit_dir_for_silly_0);
-			afs_edit_dir_add(dvnode, &new->d_name,
-					 &vnode->fid, afs_edit_dir_for_silly_1);
-		}
-		up_write(&dvnode->validate_lock);
-	}
-
-	kfree(scb);
-	_leave(" = %d", ret);
-	return ret;
+	return afs_do_sync_operation(op);
 }
 
 /**
@@ -139,65 +146,66 @@ out:
 	return ret;
 }
 
+static void afs_silly_unlink_success(struct afs_operation *op)
+{
+	struct afs_vnode *vnode = op->file[1].vnode;
+
+	_enter("op=%08x", op->debug_id);
+	afs_check_for_remote_deletion(op, op->file[0].vnode);
+	afs_vnode_commit_status(op, &op->file[0]);
+	afs_vnode_commit_status(op, &op->file[1]);
+	afs_update_dentry_version(op, &op->file[0], op->dentry);
+
+	drop_nlink(&vnode->vfs_inode);
+	if (vnode->vfs_inode.i_nlink == 0) {
+		set_bit(AFS_VNODE_DELETED, &vnode->flags);
+		clear_bit(AFS_VNODE_CB_PROMISED, &vnode->flags);
+	}
+}
+
+static void afs_silly_unlink_edit_dir(struct afs_operation *op)
+{
+	struct afs_vnode_param *dvp = &op->file[0];
+	struct afs_vnode *dvnode = dvp->vnode;
+
+	_enter("op=%08x", op->debug_id);
+	down_write(&dvnode->validate_lock);
+	if (test_bit(AFS_VNODE_DIR_VALID, &dvnode->flags) &&
+	    dvnode->status.data_version == dvp->dv_before + dvp->dv_delta)
+		afs_edit_dir_remove(dvnode, &op->dentry->d_name,
+				    afs_edit_dir_for_unlink);
+	up_write(&dvnode->validate_lock);
+}
+
+static const struct afs_operation_ops afs_silly_unlink_operation = {
+	.issue_afs_rpc	= afs_fs_remove_file,
+	.issue_yfs_rpc	= yfs_fs_remove_file,
+	.success	= afs_silly_unlink_success,
+	.edit_dir	= afs_silly_unlink_edit_dir,
+};
+
 /*
  * Tell the server to remove a sillyrename file.
  */
 static int afs_do_silly_unlink(struct afs_vnode *dvnode, struct afs_vnode *vnode,
 			       struct dentry *dentry, struct key *key)
 {
-	struct afs_fs_cursor fc;
-	struct afs_status_cb *scb;
-	int ret = -ERESTARTSYS;
+	struct afs_operation *op;
 
 	_enter("");
 
-	scb = kcalloc(2, sizeof(struct afs_status_cb), GFP_KERNEL);
-	if (!scb)
-		return -ENOMEM;
+	op = afs_alloc_operation(NULL, dvnode->volume);
+	if (IS_ERR(op))
+		return PTR_ERR(op);
+
+	afs_op_set_vnode(op, 0, dvnode);
+	afs_op_set_vnode(op, 1, vnode);
+
+	op->dentry	= dentry;
+	op->ops		= &afs_silly_unlink_operation;
 
 	trace_afs_silly_rename(vnode, true);
-	if (afs_begin_vnode_operation(&fc, dvnode, key, false)) {
-		afs_dataversion_t dir_data_version = dvnode->status.data_version + 1;
-
-		while (afs_select_fileserver(&fc)) {
-			fc.cb_break = afs_calc_vnode_cb_break(dvnode);
-
-			if (test_bit(AFS_SERVER_FL_IS_YFS, &fc.cbi->server->flags) &&
-			    !test_bit(AFS_SERVER_FL_NO_RM2, &fc.cbi->server->flags)) {
-				yfs_fs_remove_file2(&fc, vnode, dentry->d_name.name,
-						    &scb[0], &scb[1]);
-				if (fc.ac.error != -ECONNABORTED ||
-				    fc.ac.abort_code != RXGEN_OPCODE)
-					continue;
-				set_bit(AFS_SERVER_FL_NO_RM2, &fc.cbi->server->flags);
-			}
-
-			afs_fs_remove(&fc, vnode, dentry->d_name.name, false, &scb[0]);
-		}
-
-		afs_vnode_commit_status(&fc, dvnode, fc.cb_break,
-					&dir_data_version, &scb[0]);
-		ret = afs_end_vnode_operation(&fc);
-		if (ret == 0) {
-			drop_nlink(&vnode->vfs_inode);
-			if (vnode->vfs_inode.i_nlink == 0) {
-				set_bit(AFS_VNODE_DELETED, &vnode->flags);
-				clear_bit(AFS_VNODE_CB_PROMISED, &vnode->flags);
-			}
-		}
-		if (ret == 0) {
-			down_write(&dvnode->validate_lock);
-			if (test_bit(AFS_VNODE_DIR_VALID, &dvnode->flags) &&
-			    dvnode->status.data_version == dir_data_version)
-				afs_edit_dir_remove(dvnode, &dentry->d_name,
-						    afs_edit_dir_for_unlink);
-			up_write(&dvnode->validate_lock);
-		}
-	}
-
-	kfree(scb);
-	_leave(" = %d", ret);
-	return ret;
+	return afs_do_sync_operation(op);
 }
 
 /*

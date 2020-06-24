@@ -206,16 +206,18 @@ EINTR once fatal signal received.
 
 
 Flag checking should be done at the beginning of the ->fiemap callback via the
-fiemap_check_flags() helper::
+fiemap_prep() helper::
 
-  int fiemap_check_flags(struct fiemap_extent_info *fieinfo, u32 fs_flags);
+  int fiemap_prep(struct inode *inode, struct fiemap_extent_info *fieinfo,
+		  u64 start, u64 *len, u32 supported_flags);
 
 The struct fieinfo should be passed in as received from ioctl_fiemap(). The
 set of fiemap flags which the fs understands should be passed via fs_flags. If
-fiemap_check_flags finds invalid user flags, it will place the bad values in
+fiemap_prep finds invalid user flags, it will place the bad values in
 fieinfo->fi_flags and return -EBADR. If the file system gets -EBADR, from
-fiemap_check_flags(), it should immediately exit, returning that error back to
-ioctl_fiemap().
+fiemap_prep(), it should immediately exit, returning that error back to
+ioctl_fiemap().  Additionally the range is validate against the supported
+maximum file size.
 
 
 For each extent in the request range, the file system should call

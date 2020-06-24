@@ -1246,6 +1246,7 @@ struct inode *ext4_orphan_get(struct super_block *sb, unsigned long ino)
 		ext4_error_err(sb, -err,
 			       "couldn't read orphan inode %lu (err %d)",
 			       ino, err);
+		brelse(bitmap_bh);
 		return inode;
 	}
 

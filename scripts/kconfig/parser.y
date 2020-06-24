@@ -119,20 +119,24 @@ mainmenu_stmt: T_MAINMENU T_WORD_QUOTE T_EOL
 
 stmt_list:
 	  /* empty */
-	| stmt_list common_stmt
+	| stmt_list assignment_stmt
 	| stmt_list choice_stmt
+	| stmt_list comment_stmt
+	| stmt_list config_stmt
+	| stmt_list if_stmt
 	| stmt_list menu_stmt
+	| stmt_list menuconfig_stmt
+	| stmt_list source_stmt
 	| stmt_list T_WORD error T_EOL	{ zconf_error("unknown statement \"%s\"", $2); }
 	| stmt_list error T_EOL		{ zconf_error("invalid statement"); }
 ;
 
-common_stmt:
-	  if_stmt
-	| comment_stmt
-	| config_stmt
-	| menuconfig_stmt
-	| source_stmt
-	| assignment_stmt
+stmt_list_in_choice:
+	  /* empty */
+	| stmt_list_in_choice comment_stmt
+	| stmt_list_in_choice config_stmt
+	| stmt_list_in_choice if_stmt_in_choice
+	| stmt_list_in_choice error T_EOL	{ zconf_error("invalid statement"); }
 ;
 
 /* config/menuconfig entry */
@@ -254,7 +258,7 @@ choice_end: end
 	}
 };
 
-choice_stmt: choice_entry choice_block choice_end
+choice_stmt: choice_entry stmt_list_in_choice choice_end
 ;
 
 choice_option_list:
@@ -305,11 +309,6 @@ default:
 	| T_DEF_BOOL		{ $$ = S_BOOLEAN; }
 	| T_DEF_TRISTATE	{ $$ = S_TRISTATE; }
 
-choice_block:
-	  /* empty */
-	| choice_block common_stmt
-;
-
 /* if entry */
 
 if_entry: T_IF expr T_EOL
@@ -329,6 +328,9 @@ if_end: end
 };
 
 if_stmt: if_entry stmt_list if_end
+;
+
+if_stmt_in_choice: if_entry stmt_list_in_choice if_end
 ;
 
 /* menu entry */

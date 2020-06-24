@@ -1994,7 +1994,7 @@ static int add_dirent_to_buf(handle_t *handle, struct ext4_filename *fname,
 {
 	unsigned int	blocksize = dir->i_sb->s_blocksize;
 	int		csum_size = 0;
-	int		err;
+	int		err, err2;
 
 	if (ext4_has_metadata_csum(inode->i_sb))
 		csum_size = sizeof(struct ext4_dir_entry_tail);
@@ -2029,12 +2029,12 @@ static int add_dirent_to_buf(handle_t *handle, struct ext4_filename *fname,
 	dir->i_mtime = dir->i_ctime = current_time(dir);
 	ext4_update_dx_flag(dir);
 	inode_inc_iversion(dir);
-	ext4_mark_inode_dirty(handle, dir);
+	err2 = ext4_mark_inode_dirty(handle, dir);
 	BUFFER_TRACE(bh, "call ext4_handle_dirty_metadata");
 	err = ext4_handle_dirty_dirblock(handle, dir, bh);
 	if (err)
 		ext4_std_error(dir->i_sb, err);
-	return 0;
+	return err ? err : err2;
 }
 
 /*
@@ -2220,7 +2220,9 @@ static int ext4_add_entry(handle_t *handle, struct dentry *dentry,
 		}
 		ext4_clear_inode_flag(dir, EXT4_INODE_INDEX);
 		dx_fallback++;
-		ext4_mark_inode_dirty(handle, dir);
+		retval = ext4_mark_inode_dirty(handle, dir);
+		if (unlikely(retval))
+			goto out;
 	}
 	blocks = dir->i_size >> sb->s_blocksize_bits;
 	for (block = 0; block < blocks; block++) {
@@ -2573,12 +2575,12 @@ static int ext4_add_nondir(handle_t *handle,
 	struct inode *inode = *inodep;
 	int err = ext4_add_entry(handle, dentry, inode);
 	if (!err) {
-		ext4_mark_inode_dirty(handle, inode);
+		err = ext4_mark_inode_dirty(handle, inode);
 		if (IS_DIRSYNC(dir))
 			ext4_handle_sync(handle);
 		d_instantiate_new(dentry, inode);
 		*inodep = NULL;
-		return 0;
+		return err;
 	}
 	drop_nlink(inode);
 	ext4_orphan_add(handle, inode);
@@ -2772,7 +2774,7 @@ static int ext4_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	handle_t *handle;
 	struct inode *inode;
-	int err, credits, retries = 0;
+	int err, err2 = 0, credits, retries = 0;
 
 	if (EXT4_DIR_LINK_MAX(dir))
 		return -EMLINK;
@@ -2805,7 +2807,9 @@ out_clear_inode:
 		clear_nlink(inode);
 		ext4_orphan_add(handle, inode);
 		unlock_new_inode(inode);
-		ext4_mark_inode_dirty(handle, inode);
+		err2 = ext4_mark_inode_dirty(handle, inode);
+		if (unlikely(err2))
+			err = err2;
 		ext4_journal_stop(handle);
 		iput(inode);
 		goto out_retry;
@@ -3145,10 +3149,12 @@ static int ext4_rmdir(struct inode *dir, struct dentry *dentry)
 	inode->i_size = 0;
 	ext4_orphan_add(handle, inode);
 	inode->i_ctime = dir->i_ctime = dir->i_mtime = current_time(inode);
-	ext4_mark_inode_dirty(handle, inode);
+	retval = ext4_mark_inode_dirty(handle, inode);
+	if (retval)
+		goto end_rmdir;
 	ext4_dec_count(handle, dir);
 	ext4_update_dx_flag(dir);
-	ext4_mark_inode_dirty(handle, dir);
+	retval = ext4_mark_inode_dirty(handle, dir);
 
 #ifdef CONFIG_UNICODE
 	/* VFS negative dentries are incompatible with Encoding and
@@ -3218,7 +3224,9 @@ static int ext4_unlink(struct inode *dir, struct dentry *dentry)
 		goto end_unlink;
 	dir->i_ctime = dir->i_mtime = current_time(dir);
 	ext4_update_dx_flag(dir);
-	ext4_mark_inode_dirty(handle, dir);
+	retval = ext4_mark_inode_dirty(handle, dir);
+	if (retval)
+		goto end_unlink;
 	if (inode->i_nlink == 0)
 		ext4_warning_inode(inode, "Deleting file '%.*s' with no links",
 				   dentry->d_name.len, dentry->d_name.name);
@@ -3227,7 +3235,7 @@ static int ext4_unlink(struct inode *dir, struct dentry *dentry)
 	if (!inode->i_nlink)
 		ext4_orphan_add(handle, inode);
 	inode->i_ctime = current_time(inode);
-	ext4_mark_inode_dirty(handle, inode);
+	retval = ext4_mark_inode_dirty(handle, inode);
 
 #ifdef CONFIG_UNICODE
 	/* VFS negative dentries are incompatible with Encoding and
@@ -3416,7 +3424,7 @@ retry:
 
 	err = ext4_add_entry(handle, dentry, inode);
 	if (!err) {
-		ext4_mark_inode_dirty(handle, inode);
+		err = ext4_mark_inode_dirty(handle, inode);
 		/* this can happen only for tmpfile being
 		 * linked the first time
 		 */
@@ -3528,7 +3536,7 @@ static int ext4_rename_dir_finish(handle_t *handle, struct ext4_renament *ent,
 static int ext4_setent(handle_t *handle, struct ext4_renament *ent,
 		       unsigned ino, unsigned file_type)
 {
-	int retval;
+	int retval, retval2;
 
 	BUFFER_TRACE(ent->bh, "get write access");
 	retval = ext4_journal_get_write_access(handle, ent->bh);
@@ -3540,19 +3548,19 @@ static int ext4_setent(handle_t *handle, struct ext4_renament *ent,
 	inode_inc_iversion(ent->dir);
 	ent->dir->i_ctime = ent->dir->i_mtime =
 		current_time(ent->dir);
-	ext4_mark_inode_dirty(handle, ent->dir);
+	retval = ext4_mark_inode_dirty(handle, ent->dir);
 	BUFFER_TRACE(ent->bh, "call ext4_handle_dirty_metadata");
 	if (!ent->inlined) {
-		retval = ext4_handle_dirty_dirblock(handle, ent->dir, ent->bh);
-		if (unlikely(retval)) {
-			ext4_std_error(ent->dir->i_sb, retval);
-			return retval;
+		retval2 = ext4_handle_dirty_dirblock(handle, ent->dir, ent->bh);
+		if (unlikely(retval2)) {
+			ext4_std_error(ent->dir->i_sb, retval2);
+			return retval2;
 		}
 	}
 	brelse(ent->bh);
 	ent->bh = NULL;
 
-	return 0;
+	return retval;
 }
 
 static int ext4_find_delete_entry(handle_t *handle, struct inode *dir,
@@ -3787,7 +3795,9 @@ static int ext4_rename(struct inode *old_dir, struct dentry *old_dentry,
 				     EXT4_FT_CHRDEV);
 		if (retval)
 			goto end_rename;
-		ext4_mark_inode_dirty(handle, whiteout);
+		retval = ext4_mark_inode_dirty(handle, whiteout);
+		if (unlikely(retval))
+			goto end_rename;
 	}
 	if (!new.bh) {
 		retval = ext4_add_entry(handle, new.dentry, old.inode);
@@ -3808,7 +3818,9 @@ static int ext4_rename(struct inode *old_dir, struct dentry *old_dentry,
 	 * rename.
 	 */
 	old.inode->i_ctime = current_time(old.inode);
-	ext4_mark_inode_dirty(handle, old.inode);
+	retval = ext4_mark_inode_dirty(handle, old.inode);
+	if (unlikely(retval))
+		goto end_rename;
 
 	if (!whiteout) {
 		/*
@@ -3837,12 +3849,18 @@ static int ext4_rename(struct inode *old_dir, struct dentry *old_dentry,
 		} else {
 			ext4_inc_count(handle, new.dir);
 			ext4_update_dx_flag(new.dir);
-			ext4_mark_inode_dirty(handle, new.dir);
+			retval = ext4_mark_inode_dirty(handle, new.dir);
+			if (unlikely(retval))
+				goto end_rename;
 		}
 	}
-	ext4_mark_inode_dirty(handle, old.dir);
+	retval = ext4_mark_inode_dirty(handle, old.dir);
+	if (unlikely(retval))
+		goto end_rename;
 	if (new.inode) {
-		ext4_mark_inode_dirty(handle, new.inode);
+		retval = ext4_mark_inode_dirty(handle, new.inode);
+		if (unlikely(retval))
+			goto end_rename;
 		if (!new.inode->i_nlink)
 			ext4_orphan_add(handle, new.inode);
 	}
@@ -3976,8 +3994,12 @@ static int ext4_cross_rename(struct inode *old_dir, struct dentry *old_dentry,
 	ctime = current_time(old.inode);
 	old.inode->i_ctime = ctime;
 	new.inode->i_ctime = ctime;
-	ext4_mark_inode_dirty(handle, old.inode);
-	ext4_mark_inode_dirty(handle, new.inode);
+	retval = ext4_mark_inode_dirty(handle, old.inode);
+	if (unlikely(retval))
+		goto end_rename;
+	retval = ext4_mark_inode_dirty(handle, new.inode);
+	if (unlikely(retval))
+		goto end_rename;
 
 	if (old.dir_bh) {
 		retval = ext4_rename_dir_finish(handle, &old, new.dir->i_ino);

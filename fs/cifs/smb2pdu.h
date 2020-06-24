@@ -143,8 +143,17 @@ struct smb2_transform_hdr {
 	__u64  SessionId;
 } __packed;
 
+/* See MS-SMB2 2.2.42 */
+struct smb2_compression_transform_hdr {
+	__le32 ProtocolId;	/* 0xFC 'S' 'M' 'B' */
+	__le32 OriginalCompressedSegmentSize;
+	__le16 CompressionAlgorithm;
+	__le16 Flags;
+	__le16 Length; /* if chained it is length, else offset */
+} __packed;
+
 /* See MS-SMB2 2.2.42.1 */
-struct compression_playload_header {
+struct compression_payload_header {
 	__le16	AlgorithmId;
 	__le16	Reserved;
 	__le32	Length;
@@ -333,7 +342,7 @@ struct smb2_encryption_neg_context {
 #define SMB3_COMPRESS_LZ77	cpu_to_le16(0x0002)
 #define SMB3_COMPRESS_LZ77_HUFF	cpu_to_le16(0x0003)
 /* Pattern scanning algorithm See MS-SMB2 3.1.4.4.1 */
-#define SMB3_COMPRESS_PATTERN	cpu_to_le16(0x0004)
+#define SMB3_COMPRESS_PATTERN	cpu_to_le16(0x0004) /* Pattern_V1 */
 
 /* Compression Flags */
 #define SMB2_COMPRESSION_CAPABILITIES_FLAG_NONE		cpu_to_le32(0x00000000)

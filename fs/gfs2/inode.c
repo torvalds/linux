@@ -17,6 +17,7 @@
 #include <linux/crc32.h>
 #include <linux/iomap.h>
 #include <linux/security.h>
+#include <linux/fiemap.h>
 #include <linux/uaccess.h>
 
 #include "gfs2.h"

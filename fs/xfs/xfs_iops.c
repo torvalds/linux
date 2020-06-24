@@ -25,6 +25,7 @@
 #include <linux/posix_acl.h>
 #include <linux/security.h>
 #include <linux/iversion.h>
+#include <linux/fiemap.h>
 
 /*
  * Directories have different lock order w.r.t. mmap_sem compared to regular
