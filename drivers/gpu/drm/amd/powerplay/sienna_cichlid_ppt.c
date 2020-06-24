@@ -2404,8 +2404,7 @@ static void sienna_cichlid_dump_pptable(struct smu_context *smu)
 	dev_info(smu->adev->dev, "DfllGfxclkSpreadPercent = 0x%x\n", pptable->DfllGfxclkSpreadPercent);
 	dev_info(smu->adev->dev, "DfllGfxclkSpreadFreq = 0x%x\n",    pptable->DfllGfxclkSpreadFreq);
 
-	dev_info(smu->adev->dev, "UclkSpreadEnabled = 0x%x\n", pptable->UclkSpreadEnabled);
-	dev_info(smu->adev->dev, "UclkSpreadPercent = 0x%x\n", pptable->UclkSpreadPercent);
+	dev_info(smu->adev->dev, "UclkSpreadPadding = 0x%x\n", pptable->UclkSpreadPadding);
 	dev_info(smu->adev->dev, "UclkSpreadFreq = 0x%x\n", pptable->UclkSpreadFreq);
 
 	dev_info(smu->adev->dev, "FclkSpreadEnabled = 0x%x\n", pptable->FclkSpreadEnabled);
@@ -2450,10 +2449,6 @@ static void sienna_cichlid_dump_pptable(struct smu_context *smu)
 	dev_info(smu->adev->dev, "BoardReserved[8] = 0x%x\n", pptable->BoardReserved[8]);
 	dev_info(smu->adev->dev, "BoardReserved[9] = 0x%x\n", pptable->BoardReserved[9]);
 	dev_info(smu->adev->dev, "BoardReserved[10] = 0x%x\n", pptable->BoardReserved[10]);
-	dev_info(smu->adev->dev, "BoardReserved[11] = 0x%x\n", pptable->BoardReserved[11]);
-	dev_info(smu->adev->dev, "BoardReserved[12] = 0x%x\n", pptable->BoardReserved[12]);
-	dev_info(smu->adev->dev, "BoardReserved[13] = 0x%x\n", pptable->BoardReserved[13]);
-	dev_info(smu->adev->dev, "BoardReserved[14] = 0x%x\n", pptable->BoardReserved[14]);
 
 	dev_info(smu->adev->dev, "MmHubPadding[0] = 0x%x\n", pptable->MmHubPadding[0]);
 	dev_info(smu->adev->dev, "MmHubPadding[1] = 0x%x\n", pptable->MmHubPadding[1]);

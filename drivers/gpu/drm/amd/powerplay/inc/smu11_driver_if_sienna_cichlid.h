@@ -27,7 +27,7 @@
 // *** IMPORTANT ***
 // SMU TEAM: Always increment the interface version if 
 // any structure is changed in this file
-#define SMU11_DRIVER_IF_VERSION 0x31
+#define SMU11_DRIVER_IF_VERSION 0x32
 
 #define PPTABLE_Sienna_Cichlid_SMU_VERSION 4
 
@@ -865,8 +865,7 @@ typedef struct {
   uint16_t     DfllGfxclkSpreadFreq;      // kHz
   
   // UCLK Spread Spectrum
-  uint8_t      UclkSpreadEnabled;   // on or off
-  uint8_t      UclkSpreadPercent;   // Q4.4
+  uint16_t     UclkSpreadPadding;
   uint16_t     UclkSpreadFreq;      // kHz
 
   // FCLK Spread Spectrum
@@ -896,8 +895,11 @@ typedef struct {
   uint8_t      VddqOffEnabled;
   uint8_t      PaddingUmcFlags[2];
 
+  // UCLK Spread Spectrum
+  uint8_t      UclkSpreadPercent[16];   
+
   // SECTION: Board Reserved
-  uint32_t     BoardReserved[15];
+  uint32_t     BoardReserved[11];
 
   // SECTION: Structure Padding
 
@@ -936,10 +938,12 @@ typedef struct {
   int16_t                OverDrivePct;         // %
   uint16_t               FanMaximumRpm;
   uint16_t               FanMinimumPwm;
+  uint16_t               FanAcousticLimitRpm;
   uint16_t               FanTargetTemperature; // Degree Celcius 
   uint8_t                FanLinearPwmPoints[NUM_OD_FAN_MAX_POINTS];
   uint8_t                FanLinearTempPoints[NUM_OD_FAN_MAX_POINTS];
   uint16_t               MaxOpTemp;            // Degree Celcius
+  uint16_t               Padding_16[1];
   uint8_t                FanZeroRpmEnable;
   uint8_t                FanZeroRpmStopTemp;
   uint8_t                FanMode;
