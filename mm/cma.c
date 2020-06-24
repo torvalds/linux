@@ -555,6 +555,24 @@ bool cma_release(struct cma *cma, const struct page *pages, unsigned int count)
 }
 EXPORT_SYMBOL_GPL(cma_release);
 
+unsigned long cma_used_pages(void)
+{
+	struct cma *cma;
+	unsigned long used;
+	unsigned long val = 0;
+	int i;
+
+	for (i = 0; i < cma_area_count; i++) {
+		cma = &cma_areas[i];
+		mutex_lock(&cma->lock);
+		used = bitmap_weight(cma->bitmap, (int)cma_bitmap_maxno(cma));
+		mutex_unlock(&cma->lock);
+		val += used << cma->order_per_bit;
+	}
+	return val;
+}
+EXPORT_SYMBOL_GPL(cma_used_pages);
+
 int cma_for_each_area(int (*it)(struct cma *cma, void *data), void *data)
 {
 	int i;
