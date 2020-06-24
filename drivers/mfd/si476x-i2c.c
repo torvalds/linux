@@ -534,6 +534,11 @@ static irqreturn_t si476x_core_interrupt(int irq, void *dev)
 /**
  * si476x_firmware_version_to_revision()
  * @core: Core device structure
+ * @func: Selects the boot function of the device:
+ *         *_BOOTLOADER  - Boot loader
+ *         *_FM_RECEIVER - FM receiver
+ *         *_AM_RECEIVER - AM receiver
+ *         *_WB_RECEIVER - Weatherband receiver
  * @major:  Firmware major number
  * @minor1: Firmware first minor number
  * @minor2: Firmware second minor number
