@@ -51,11 +51,6 @@ static struct qxl_device *qxl_get_qdev(struct ttm_bo_device *bdev)
 static int qxl_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 			     struct ttm_mem_type_manager *man)
 {
-	struct qxl_device *qdev = qxl_get_qdev(bdev);
-	unsigned int gpu_offset_shift =
-		64 - (qdev->rom->slot_gen_bits + qdev->rom->slot_id_bits + 8);
-	struct qxl_memslot *slot;
-
 	switch (type) {
 	case TTM_PL_SYSTEM:
 		/* System memory */
@@ -66,11 +61,7 @@ static int qxl_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 	case TTM_PL_VRAM:
 	case TTM_PL_PRIV:
 		/* "On-card" video ram */
-		slot = (type == TTM_PL_VRAM) ?
-			&qdev->main_slot : &qdev->surfaces_slot;
-		slot->gpu_offset = (uint64_t)type << gpu_offset_shift;
 		man->func = &ttm_bo_manager_func;
-		man->gpu_offset = slot->gpu_offset;
 		man->flags = TTM_MEMTYPE_FLAG_FIXED |
 			     TTM_MEMTYPE_FLAG_MAPPABLE;
 		man->available_caching = TTM_PL_MASK_CACHING;

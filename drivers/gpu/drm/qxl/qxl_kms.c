@@ -87,11 +87,10 @@ static void setup_slot(struct qxl_device *qdev,
 	high_bits <<= (64 - (qdev->rom->slot_gen_bits + qdev->rom->slot_id_bits));
 	slot->high_bits = high_bits;
 
-	DRM_INFO("slot %d (%s): base 0x%08lx, size 0x%08lx, gpu_offset 0x%lx\n",
+	DRM_INFO("slot %d (%s): base 0x%08lx, size 0x%08lx\n",
 		 slot->index, slot->name,
 		 (unsigned long)slot->start_phys_addr,
-		 (unsigned long)slot->size,
-		 (unsigned long)slot->gpu_offset);
+		 (unsigned long)slot->size);
 }
 
 void qxl_reinit_memslots(struct qxl_device *qdev)
