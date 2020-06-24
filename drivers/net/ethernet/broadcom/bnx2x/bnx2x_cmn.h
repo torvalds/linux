@@ -541,9 +541,7 @@ int bnx2x_change_mac_addr(struct net_device *dev, void *p);
 /* NAPI poll Tx part */
 int bnx2x_tx_int(struct bnx2x *bp, struct bnx2x_fp_txdata *txdata);
 
-/* suspend/resume callbacks */
-int bnx2x_suspend(struct pci_dev *pdev, pm_message_t state);
-int bnx2x_resume(struct pci_dev *pdev);
+extern const struct dev_pm_ops bnx2x_pm_ops;
 
 /* Release IRQ vectors */
 void bnx2x_free_irq(struct bnx2x *bp);

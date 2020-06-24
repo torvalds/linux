@@ -14462,8 +14462,7 @@ static struct pci_driver bnx2x_pci_driver = {
 	.id_table    = bnx2x_pci_tbl,
 	.probe       = bnx2x_init_one,
 	.remove      = bnx2x_remove_one,
-	.suspend     = bnx2x_suspend,
-	.resume      = bnx2x_resume,
+	.driver.pm   = &bnx2x_pm_ops,
 	.err_handler = &bnx2x_err_handler,
 #ifdef CONFIG_BNX2X_SRIOV
 	.sriov_configure = bnx2x_sriov_configure,
