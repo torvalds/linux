@@ -17,6 +17,7 @@
 #include <media/v4l2-subdev.h>
 
 #include "ccs-data.h"
+#include "ccs-limits.h"
 #include "ccs-quirk.h"
 #include "ccs-regs.h"
 #include "ccs-reg-access.h"
@@ -49,6 +50,12 @@
 
 #define CCS_DFL_I2C_ADDR	(0x20 >> 1) /* Default I2C Address */
 #define CCS_ALT_I2C_ADDR	(0x6e >> 1) /* Alternate I2C Address */
+
+#define CCS_LIM(sensor, limit) \
+	ccs_get_limit(sensor, CCS_L_##limit, 0)
+
+#define CCS_LIM_AT(sensor, limit, offset)	\
+	ccs_get_limit(sensor, CCS_L_##limit, CCS_L_##limit##_OFFSET(offset))
 
 /*
  * Sometimes due to board layout considerations the camera module can be
@@ -277,5 +284,7 @@ struct ccs_sensor {
 
 void ccs_replace_limit(struct ccs_sensor *sensor,
 		       unsigned int limit, unsigned int offset, u32 val);
+u32 ccs_get_limit(struct ccs_sensor *sensor, unsigned int limit,
+		  unsigned int offset);
 
 #endif /* __CCS_H__ */

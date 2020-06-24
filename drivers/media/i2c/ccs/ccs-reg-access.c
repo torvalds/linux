@@ -15,6 +15,7 @@
 #include <linux/i2c.h>
 
 #include "ccs.h"
+#include "ccs-limits.h"
 
 static uint32_t float_to_u32_mul_1000000(struct i2c_client *client,
 					 uint32_t phloat)
@@ -143,12 +144,30 @@ unsigned int ccs_reg_width(u32 reg)
 	return sizeof(uint8_t);
 }
 
+static u32 ireal32_to_u32_mul_1000000(struct i2c_client *client, u32 val)
+{
+	if (val >> 10 > U32_MAX / 15625) {
+		dev_warn(&client->dev, "value %u overflows!\n", val);
+		return U32_MAX;
+	}
+
+	return ((val >> 10) * 15625) +
+		(val & GENMASK(9, 0)) * 15625 / 1024;
+}
+
 u32 ccs_reg_conv(struct ccs_sensor *sensor, u32 reg, u32 val)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
 
-	if (reg & CCS_FL_FLOAT_IREAL)
-		val = float_to_u32_mul_1000000(client, val);
+	if (reg & CCS_FL_FLOAT_IREAL) {
+		if (CCS_LIM(sensor, CLOCK_CAPA_TYPE_CAPABILITY) &
+		    CCS_CLOCK_CAPA_TYPE_CAPABILITY_IREAL)
+			val = ireal32_to_u32_mul_1000000(client, val);
+		else
+			val = float_to_u32_mul_1000000(client, val);
+	} else if (reg & CCS_FL_IREAL) {
+		val = ireal32_to_u32_mul_1000000(client, val);
+	}
 
 	return val;
 }

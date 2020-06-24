@@ -126,8 +126,8 @@ void ccs_replace_limit(struct ccs_sensor *sensor,
 	ccs_assign_limit(ptr, ccs_reg_width(linfo->reg), val);
 }
 
-static u32 ccs_get_limit(struct ccs_sensor *sensor,
-			 unsigned int limit, unsigned int offset)
+u32 ccs_get_limit(struct ccs_sensor *sensor, unsigned int limit,
+		  unsigned int offset)
 {
 	void *ptr;
 	u32 val;
@@ -154,12 +154,6 @@ static u32 ccs_get_limit(struct ccs_sensor *sensor,
 
 	return ccs_reg_conv(sensor, ccs_limits[limit].reg, val);
 }
-
-#define CCS_LIM(sensor, limit) \
-	ccs_get_limit(sensor, CCS_L_##limit, 0)
-
-#define CCS_LIM_AT(sensor, limit, offset)	\
-	ccs_get_limit(sensor, CCS_L_##limit, CCS_L_##limit##_OFFSET(offset))
 
 static int ccs_read_all_limits(struct ccs_sensor *sensor)
 {
