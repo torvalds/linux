@@ -153,10 +153,9 @@ struct arm_smmu_device *arm_smmu_impl_init(struct arm_smmu_device *smmu)
 	const struct device_node *np = smmu->dev->of_node;
 
 	/*
-	 * We will inevitably have to combine model-specific implementation
-	 * quirks with platform-specific integration quirks, but everything
-	 * we currently support happens to work out as straightforward
-	 * mutually-exclusive assignments.
+	 * Set the impl for model-specific implementation quirks first,
+	 * such that platform integration quirks can pick it up and
+	 * inherit from it if necessary.
 	 */
 	switch (smmu->model) {
 	case ARM_MMU500:
@@ -168,6 +167,7 @@ struct arm_smmu_device *arm_smmu_impl_init(struct arm_smmu_device *smmu)
 		break;
 	}
 
+	/* This is implicitly MMU-400 */
 	if (of_property_read_bool(np, "calxeda,smmu-secure-config-access"))
 		smmu->impl = &calxeda_impl;
 
