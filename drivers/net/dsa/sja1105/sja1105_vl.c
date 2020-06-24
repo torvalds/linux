@@ -550,8 +550,16 @@ int sja1105_vl_delete(struct sja1105_private *priv, int port,
 		kfree(rule);
 	}
 
+	rc = sja1105_compose_gating_subschedule(priv, extack);
+	if (rc)
+		return rc;
+
 	rc = sja1105_init_virtual_links(priv, extack);
 	if (rc)
+		return rc;
+
+	rc = sja1105_init_scheduling(priv);
+	if (rc < 0)
 		return rc;
 
 	return sja1105_static_config_reload(priv, SJA1105_VIRTUAL_LINKS);
