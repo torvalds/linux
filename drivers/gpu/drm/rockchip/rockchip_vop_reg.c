@@ -1754,7 +1754,7 @@ static const struct vop_grf_ctrl rv1126_grf_ctrl = {
 };
 
 static const struct vop_data rv1126_vop = {
-	.version = VOP_VERSION(2, 7),
+	.version = VOP_VERSION(2, 0xb),
 	.max_input = {1920, 1920},
 	.max_output = {1920, 1080},
 	.ctrl = &rv1126_ctrl_data,
