@@ -2461,4 +2461,36 @@
 
 #define	MC_VM_FB_OFFSET					0x81a
 
+/* Discrete VCE clocks */
+#define CG_VCEPLL_FUNC_CNTL                             0xc0030600
+#define    VCEPLL_RESET_MASK                            0x00000001
+#define    VCEPLL_SLEEP_MASK                            0x00000002
+#define    VCEPLL_BYPASS_EN_MASK                        0x00000004
+#define    VCEPLL_CTLREQ_MASK                           0x00000008
+#define    VCEPLL_VCO_MODE_MASK                         0x00000600
+#define    VCEPLL_REF_DIV_MASK                          0x003F0000
+#define    VCEPLL_CTLACK_MASK                           0x40000000
+#define    VCEPLL_CTLACK2_MASK                          0x80000000
+
+#define CG_VCEPLL_FUNC_CNTL_2                           0xc0030601
+#define    VCEPLL_PDIV_A(x)                             ((x) << 0)
+#define    VCEPLL_PDIV_A_MASK                           0x0000007F
+#define    VCEPLL_PDIV_B(x)                             ((x) << 8)
+#define    VCEPLL_PDIV_B_MASK                           0x00007F00
+#define    EVCLK_SRC_SEL(x)                             ((x) << 20)
+#define    EVCLK_SRC_SEL_MASK                           0x01F00000
+#define    ECCLK_SRC_SEL(x)                             ((x) << 25)
+#define    ECCLK_SRC_SEL_MASK                           0x3E000000
+
+#define CG_VCEPLL_FUNC_CNTL_3                           0xc0030602
+#define    VCEPLL_FB_DIV(x)                             ((x) << 0)
+#define    VCEPLL_FB_DIV_MASK                           0x01FFFFFF
+
+#define CG_VCEPLL_FUNC_CNTL_4                           0xc0030603
+
+#define CG_VCEPLL_FUNC_CNTL_5                           0xc0030604
+#define CG_VCEPLL_SPREAD_SPECTRUM                       0xc0030606
+#define    VCEPLL_SSEN_MASK                             0x00000001
+
+
 #endif
