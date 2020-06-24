@@ -205,7 +205,7 @@ EXPORT_SYMBOL_GPL(tps65217_reg_read);
 /**
  * tps65217_reg_write: Write a single tps65217 register.
  *
- * @tps65217: Device to write to.
+ * @tps: Device to write to.
  * @reg: Register to write to.
  * @val: Value to write.
  * @level: Password protected level
@@ -250,7 +250,7 @@ EXPORT_SYMBOL_GPL(tps65217_reg_write);
 /**
  * tps65217_update_bits: Modify bits w.r.t mask, val and level.
  *
- * @tps65217: Device to write to.
+ * @tps: Device to write to.
  * @reg: Register to read-write to.
  * @mask: Mask.
  * @val: Value to write.
