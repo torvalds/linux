@@ -89,6 +89,9 @@ static struct regmap_config altr_sysmgr_regmap_cfg = {
  * altr_sysmgr_regmap_lookup_by_phandle
  * Find the sysmgr previous configured in probe() and return regmap property.
  * Return: regmap if found or error if not found.
+ *
+ * @np: Pointer to device's Device Tree node
+ * @property: Device Tree property name which references the sysmgr
  */
 struct regmap *altr_sysmgr_regmap_lookup_by_phandle(struct device_node *np,
 						    const char *property)
