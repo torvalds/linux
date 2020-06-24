@@ -363,6 +363,37 @@ static bool dwc2_check_core_endianness(struct dwc2_hsotg *hsotg)
 }
 
 /**
+ * Check core version
+ *
+ * @hsotg: Programming view of the DWC_otg controller
+ *
+ */
+int dwc2_check_core_version(struct dwc2_hsotg *hsotg)
+{
+	struct dwc2_hw_params *hw = &hsotg->hw_params;
+
+	/*
+	 * Attempt to ensure this device is really a DWC_otg Controller.
+	 * Read and verify the GSNPSID register contents. The value should be
+	 * 0x45f4xxxx, 0x5531xxxx or 0x5532xxxx
+	 */
+
+	hw->snpsid = dwc2_readl(hsotg, GSNPSID);
+	if ((hw->snpsid & GSNPSID_ID_MASK) != DWC2_OTG_ID &&
+	    (hw->snpsid & GSNPSID_ID_MASK) != DWC2_FS_IOT_ID &&
+	    (hw->snpsid & GSNPSID_ID_MASK) != DWC2_HS_IOT_ID) {
+		dev_err(hsotg->dev, "Bad value for GSNPSID: 0x%08x\n",
+			hw->snpsid);
+		return -ENODEV;
+	}
+
+	dev_dbg(hsotg->dev, "Core Release: %1x.%1x%1x%1x (snpsid=%x)\n",
+		hw->snpsid >> 12 & 0xf, hw->snpsid >> 8 & 0xf,
+		hw->snpsid >> 4 & 0xf, hw->snpsid & 0xf, hw->snpsid);
+	return 0;
+}
+
+/**
  * dwc2_driver_probe() - Called when the DWC_otg core is bound to the DWC_otg
  * driver
  *
@@ -443,6 +474,14 @@ static int dwc2_driver_probe(struct platform_device *dev)
 	hsotg->need_phy_for_wake =
 		of_property_read_bool(dev->dev.of_node,
 				      "snps,need-phy-for-wake");
+
+	/*
+	 * Before performing any core related operations
+	 * check core version.
+	 */
+	retval = dwc2_check_core_version(hsotg);
+	if (retval)
+		goto error;
 
 	/*
 	 * Reset before dwc2_get_hwparams() then it could get power-on real

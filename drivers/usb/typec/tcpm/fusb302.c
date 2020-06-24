@@ -9,14 +9,13 @@
 #include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/extcon.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/of_device.h>
-#include <linux/of_gpio.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/proc_fs.h>
 #include <linux/regulator/consumer.h>
@@ -83,7 +82,7 @@ struct fusb302_chip {
 	struct work_struct irq_work;
 	bool irq_suspended;
 	bool irq_while_suspended;
-	int gpio_int_n;
+	struct gpio_desc *gpio_int_n;
 	int gpio_int_n_irq;
 	struct extcon_dev *extcon;
 
@@ -1618,30 +1617,17 @@ done:
 
 static int init_gpio(struct fusb302_chip *chip)
 {
-	struct device_node *node;
+	struct device *dev = chip->dev;
 	int ret = 0;
 
-	node = chip->dev->of_node;
-	chip->gpio_int_n = of_get_named_gpio(node, "fcs,int_n", 0);
-	if (!gpio_is_valid(chip->gpio_int_n)) {
-		ret = chip->gpio_int_n;
-		dev_err(chip->dev, "cannot get named GPIO Int_N, ret=%d", ret);
-		return ret;
+	chip->gpio_int_n = devm_gpiod_get(dev, "fcs,int_n", GPIOD_IN);
+	if (IS_ERR(chip->gpio_int_n)) {
+		dev_err(dev, "failed to request gpio_int_n\n");
+		return PTR_ERR(chip->gpio_int_n);
 	}
-	ret = devm_gpio_request(chip->dev, chip->gpio_int_n, "fcs,int_n");
+	ret = gpiod_to_irq(chip->gpio_int_n);
 	if (ret < 0) {
-		dev_err(chip->dev, "cannot request GPIO Int_N, ret=%d", ret);
-		return ret;
-	}
-	ret = gpio_direction_input(chip->gpio_int_n);
-	if (ret < 0) {
-		dev_err(chip->dev,
-			"cannot set GPIO Int_N to input, ret=%d", ret);
-		return ret;
-	}
-	ret = gpio_to_irq(chip->gpio_int_n);
-	if (ret < 0) {
-		dev_err(chip->dev,
+		dev_err(dev,
 			"cannot request IRQ for GPIO Int_N, ret=%d", ret);
 		return ret;
 	}

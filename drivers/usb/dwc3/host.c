@@ -104,7 +104,7 @@ int dwc3_host_init(struct dwc3 *dwc)
 	 *
 	 * This following flag tells XHCI to do just that.
 	 */
-	if (dwc->revision <= DWC3_REVISION_300A)
+	if (DWC3_VER_IS_WITHIN(DWC3, ANY, 300A))
 		props[prop_idx++] = PROPERTY_ENTRY_BOOL("quirk-broken-port-ped");
 
 	if (prop_idx) {
