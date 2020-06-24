@@ -75,8 +75,7 @@ sja1105_gating_cfg_time_to_interval(struct sja1105_gating_config *gating_cfg,
 	}
 	last_e = list_last_entry(&gating_cfg->entries,
 				 struct sja1105_gate_entry, list);
-	if (last_e->list.prev != &gating_cfg->entries)
-		last_e->interval = cycle_time - last_e->interval;
+	last_e->interval = cycle_time - last_e->interval;
 }
 
 static void sja1105_free_gating_config(struct sja1105_gating_config *gating_cfg)
