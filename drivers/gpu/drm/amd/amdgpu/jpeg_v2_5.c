@@ -462,7 +462,7 @@ static int jpeg_v2_5_wait_for_idle(void *handle)
 			return ret;
 	}
 
-	return ret;
+	return 0;
 }
 
 static int jpeg_v2_5_set_clockgating_state(void *handle,
