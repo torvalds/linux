@@ -1033,7 +1033,7 @@ static void storvsc_handle_error(struct vmscsi_request *vm_srb,
 			do_work = true;
 			process_err_fn = storvsc_device_scan;
 			/*
-			 * Retry the I/O that trigerred this.
+			 * Retry the I/O that triggered this.
 			 */
 			set_host_byte(scmnd, DID_REQUEUE);
 		}
