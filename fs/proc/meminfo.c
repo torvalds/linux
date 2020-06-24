@@ -142,6 +142,10 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
 
 #ifdef CONFIG_CMA
 	show_val_kb(m, "CmaTotal:       ", totalcma_pages);
+#ifdef CONFIG_NO_GKI
+	show_val_kb(m, "CmaAllocated:   ", cma_used_pages());
+	show_val_kb(m, "CmaReleased:    ", totalcma_pages - cma_used_pages());
+#endif
 	show_val_kb(m, "CmaFree:        ",
 		    global_zone_page_state(NR_FREE_CMA_PAGES));
 #endif

@@ -56,6 +56,8 @@ extern int cma_init_reserved_mem(phys_addr_t base, phys_addr_t size,
 extern struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align,
 			      gfp_t gfp_mask);
 extern bool cma_release(struct cma *cma, const struct page *pages, unsigned int count);
-
+#ifdef CONFIG_NO_GKI
+extern unsigned long cma_used_pages(void);
+#endif
 extern int cma_for_each_area(int (*it)(struct cma *cma, void *data), void *data);
 #endif
