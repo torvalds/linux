@@ -729,12 +729,8 @@ static int si476x_core_cmd_intb_pin_cfg_a20(struct si476x_core *core,
  * si476x_cmd_am_rsq_status - send 'AM_RSQ_STATUS' command to the
  * device
  * @core:  - device to send the command to
- * @rsqack: - if set command clears RSQINT, SNRINT, SNRLINT, RSSIHINT,
- *           RSSSILINT, BLENDINT, MULTHINT and MULTLINT
- * @attune: - when set the values in the status report are the values
- *           that were calculated at tune
- * @cancel: - abort ongoing seek/tune opertation
- * @stcack: - clear the STCINT bin in status register
+ * @rsqargs: - pointer to a structure containing a group of sub-args
+ *             relevant to sending the RSQ status command
  * @report: - all signal quality information retured by the command
  *           (if NULL then the output of the command is ignored)
  *
