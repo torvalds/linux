@@ -264,7 +264,7 @@ static void pwr_state_check_handler(struct timer_list *t)
 {
 	struct adapter *padapter =
 		from_timer(padapter, t,
-				pwrctrlpriv.pwr_state_check_timer);
+			   pwrctrlpriv.pwr_state_check_timer);
 
 	rtw_ps_cmd(padapter);
 }

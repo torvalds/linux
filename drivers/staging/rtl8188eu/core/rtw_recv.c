@@ -59,7 +59,7 @@ int _rtw_init_recv_priv(struct recv_priv *precvpriv, struct adapter *padapter)
 		INIT_LIST_HEAD(&precvframe->list);
 
 		list_add_tail(&precvframe->list,
-				     &precvpriv->free_recv_queue.queue);
+			      &precvpriv->free_recv_queue.queue);
 
 		precvframe->pkt = NULL;
 
@@ -1184,21 +1184,21 @@ static int validate_recv_frame(struct adapter *adapter,
 		if (_drv_err_ <= GlobalDebugLevel) {
 			pr_info(DRIVER_PREFIX "#############################\n");
 			print_hex_dump(KERN_INFO, DRIVER_PREFIX, DUMP_PREFIX_NONE,
-					16, 1, ptr, 64, false);
+				       16, 1, ptr, 64, false);
 			pr_info(DRIVER_PREFIX "#############################\n");
 		}
 	} else if (bDumpRxPkt == 2) {
 		if ((_drv_err_ <= GlobalDebugLevel) && (type == WIFI_MGT_TYPE)) {
 			pr_info(DRIVER_PREFIX "#############################\n");
 			print_hex_dump(KERN_INFO, DRIVER_PREFIX, DUMP_PREFIX_NONE,
-					16, 1, ptr, 64, false);
+				       16, 1, ptr, 64, false);
 			pr_info(DRIVER_PREFIX "#############################\n");
 		}
 	} else if (bDumpRxPkt == 3) {
 		if ((_drv_err_ <= GlobalDebugLevel) && (type == WIFI_DATA_TYPE)) {
 			pr_info(DRIVER_PREFIX "#############################\n");
 			print_hex_dump(KERN_INFO, DRIVER_PREFIX, DUMP_PREFIX_NONE,
-					16, 1, ptr, 64, false);
+				       16, 1, ptr, 64, false);
 			pr_info(DRIVER_PREFIX "#############################\n");
 		}
 	}

@@ -10,8 +10,8 @@
 #include <usb_ops_linux.h>
 
 int proc_get_drv_version(char *page, char **start,
-			  off_t offset, int count,
-			  int *eof, void *data)
+			 off_t offset, int count,
+			 int *eof, void *data)
 {
 	int len = 0;
 
@@ -22,15 +22,15 @@ int proc_get_drv_version(char *page, char **start,
 }
 
 int proc_get_write_reg(char *page, char **start,
-			  off_t offset, int count,
-			  int *eof, void *data)
+		       off_t offset, int count,
+		       int *eof, void *data)
 {
 	*eof = 1;
 	return 0;
 }
 
 int proc_set_write_reg(struct file *file, const char __user *buffer,
-		unsigned long count, void *data)
+		       unsigned long count, void *data)
 {
 	struct net_device *dev = data;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
@@ -71,8 +71,8 @@ static u32 proc_get_read_addr = 0xeeeeeeee;
 static u32 proc_get_read_len = 0x4;
 
 int proc_get_read_reg(char *page, char **start,
-			  off_t offset, int count,
-			  int *eof, void *data)
+		      off_t offset, int count,
+		      int *eof, void *data)
 {
 	struct net_device *dev = data;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
@@ -104,7 +104,7 @@ int proc_get_read_reg(char *page, char **start,
 }
 
 int proc_set_read_reg(struct file *file, const char __user *buffer,
-		unsigned long count, void *data)
+		      unsigned long count, void *data)
 {
 	char tmp[16];
 	u32 addr, len;
@@ -131,8 +131,8 @@ int proc_set_read_reg(struct file *file, const char __user *buffer,
 }
 
 int proc_get_adapter_state(char *page, char **start,
-			  off_t offset, int count,
-			  int *eof, void *data)
+			   off_t offset, int count,
+			   int *eof, void *data)
 {
 	struct net_device *dev = data;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
