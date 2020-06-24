@@ -5009,10 +5009,18 @@ static void mvneta_conf_mbus_windows(struct mvneta_port *pp,
 }
 
 /* Power up the port */
-static void mvneta_port_power_up(struct mvneta_port *pp, int phy_mode)
+static int mvneta_port_power_up(struct mvneta_port *pp, int phy_mode)
 {
 	/* MAC Cause register should be cleared */
 	mvreg_write(pp, MVNETA_UNIT_INTR_CAUSE, 0);
+
+	if (phy_mode != PHY_INTERFACE_MODE_QSGMII &&
+	    phy_mode != PHY_INTERFACE_MODE_SGMII &&
+	    !phy_interface_mode_is_8023z(phy_mode) &&
+	    !phy_interface_mode_is_rgmii(phy_mode))
+		return -EINVAL;
+
+	return 0;
 }
 
 /* Device initialization routine */
@@ -5198,7 +5206,11 @@ static int mvneta_probe(struct platform_device *pdev)
 	if (err < 0)
 		goto err_netdev;
 
-	mvneta_port_power_up(pp, phy_mode);
+	err = mvneta_port_power_up(pp, pp->phy_interface);
+	if (err < 0) {
+		dev_err(&pdev->dev, "can't power up port\n");
+		return err;
+	}
 
 	/* Armada3700 network controller does not support per-cpu
 	 * operation, so only single NAPI should be initialized.
@@ -5352,7 +5364,11 @@ static int mvneta_resume(struct device *device)
 		}
 	}
 	mvneta_defaults_set(pp);
-	mvneta_port_power_up(pp, pp->phy_interface);
+	err = mvneta_port_power_up(pp, pp->phy_interface);
+	if (err < 0) {
+		dev_err(device, "can't power up port\n");
+		return err;
+	}
 
 	netif_device_attach(dev);
 
