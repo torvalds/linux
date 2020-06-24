@@ -352,7 +352,8 @@ MODULE_DEVICE_TABLE(of, altera_spi_match);
 #endif /* CONFIG_OF */
 
 static const struct platform_device_id altera_spi_ids[] = {
-	{ "subdev_spi_altera", ALTERA_SPI_TYPE_SUBDEV },
+	{ DRV_NAME,		ALTERA_SPI_TYPE_UNKNOWN },
+	{ "subdev_spi_altera",	ALTERA_SPI_TYPE_SUBDEV },
 	{ }
 };
 
