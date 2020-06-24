@@ -4253,7 +4253,7 @@ static int gaudi_memset_device_memory(struct hl_device *hdev, u64 addr,
 {
 	struct packet_lin_dma *lin_dma_pkt;
 	struct hl_cs_job *job;
-	u32 cb_size, ctl;
+	u32 cb_size, ctl, err_cause;
 	struct hl_cb *cb;
 	int rc;
 
@@ -4282,6 +4282,15 @@ static int gaudi_memset_device_memory(struct hl_device *hdev, u64 addr,
 		goto release_cb;
 	}
 
+	/* Verify DMA is OK */
+	err_cause = RREG32(mmDMA0_CORE_ERR_CAUSE);
+	if (err_cause && !hdev->init_done) {
+		dev_dbg(hdev->dev,
+			"Clearing DMA0 engine from errors (cause 0x%x)\n",
+			err_cause);
+		WREG32(mmDMA0_CORE_ERR_CAUSE, err_cause);
+	}
+
 	job->id = 0;
 	job->user_cb = cb;
 	job->user_cb->cs_cnt++;
@@ -4293,10 +4302,22 @@ static int gaudi_memset_device_memory(struct hl_device *hdev, u64 addr,
 	hl_debugfs_add_job(hdev, job);
 
 	rc = gaudi_send_job_on_qman0(hdev, job);
-
 	hl_debugfs_remove_job(hdev, job);
 	kfree(job);
 	cb->cs_cnt--;
+
+	/* Verify DMA is OK */
+	err_cause = RREG32(mmDMA0_CORE_ERR_CAUSE);
+	if (err_cause) {
+		dev_err(hdev->dev, "DMA Failed, cause 0x%x\n", err_cause);
+		rc = -EIO;
+		if (!hdev->init_done) {
+			dev_dbg(hdev->dev,
+				"Clearing DMA0 engine from errors (cause 0x%x)\n",
+				err_cause);
+			WREG32(mmDMA0_CORE_ERR_CAUSE, err_cause);
+		}
+	}
 
 release_cb:
 	hl_cb_put(cb);
