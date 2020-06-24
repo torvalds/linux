@@ -108,7 +108,7 @@ static int show_link_close_json(int fd, struct bpf_link_info *info)
 		if (err)
 			return err;
 
-		if (prog_info.type < ARRAY_SIZE(prog_type_name))
+		if (prog_info.type < prog_type_name_size)
 			jsonw_string_field(json_wtr, "prog_type",
 					   prog_type_name[prog_info.type]);
 		else
@@ -187,7 +187,7 @@ static int show_link_close_plain(int fd, struct bpf_link_info *info)
 		if (err)
 			return err;
 
-		if (prog_info.type < ARRAY_SIZE(prog_type_name))
+		if (prog_info.type < prog_type_name_size)
 			printf("\n\tprog_type %s  ",
 			       prog_type_name[prog_info.type]);
 		else
