@@ -120,7 +120,7 @@ static inline u32 usbhs_read(void __iomem *base, u32 reg)
 
 /*-------------------------------------------------------------------------*/
 
-/**
+/*
  * Map 'enum usbhs_omap_port_mode' found in <linux/platform_data/usb-omap.h>
  * to the device tree binding portN-mode found in
  * 'Documentation/devicetree/bindings/mfd/omap-usb-host.txt'
