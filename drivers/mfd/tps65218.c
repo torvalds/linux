@@ -48,7 +48,7 @@ static const struct mfd_cell tps65218_cells[] = {
 /**
  * tps65218_reg_write: Write a single tps65218 register.
  *
- * @tps65218: Device to write to.
+ * @tps: Device to write to.
  * @reg: Register to write to.
  * @val: Value to write.
  * @level: Password protected level
@@ -79,7 +79,7 @@ EXPORT_SYMBOL_GPL(tps65218_reg_write);
 /**
  * tps65218_update_bits: Modify bits w.r.t mask, val and level.
  *
- * @tps65218: Device to write to.
+ * @tps: Device to write to.
  * @reg: Register to read-write to.
  * @mask: Mask.
  * @val: Value to write.
