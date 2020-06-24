@@ -278,6 +278,7 @@ struct mt7615_dev {
 
 	bool fw_debug;
 	bool flash_eeprom;
+	bool dbdc_support;
 
 	spinlock_t token_lock;
 	struct idr token;
