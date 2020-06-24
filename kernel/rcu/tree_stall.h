@@ -158,7 +158,7 @@ static void rcu_stall_kick_kthreads(void)
 {
 	unsigned long j;
 
-	if (!rcu_kick_kthreads)
+	if (!READ_ONCE(rcu_kick_kthreads))
 		return;
 	j = READ_ONCE(rcu_state.jiffies_kick_kthreads);
 	if (time_after(jiffies, j) && rcu_state.gp_kthread &&
@@ -580,7 +580,7 @@ static void check_cpu_stall(struct rcu_data *rdp)
 	unsigned long js;
 	struct rcu_node *rnp;
 
-	if ((rcu_stall_is_suppressed() && !rcu_kick_kthreads) ||
+	if ((rcu_stall_is_suppressed() && !READ_ONCE(rcu_kick_kthreads)) ||
 	    !rcu_gp_in_progress())
 		return;
 	rcu_stall_kick_kthreads();
