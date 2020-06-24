@@ -1113,7 +1113,7 @@ static void drain_bufs(struct dpaa2_eth_priv *priv, int count)
 					       buf_array, count);
 		if (ret < 0) {
 			if (ret == -EBUSY &&
-			    retries++ >= DPAA2_ETH_SWP_BUSY_RETRIES)
+			    retries++ < DPAA2_ETH_SWP_BUSY_RETRIES)
 				continue;
 			netdev_err(priv->net_dev, "dpaa2_io_service_acquire() failed\n");
 			return;
