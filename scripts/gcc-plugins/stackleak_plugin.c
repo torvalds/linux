@@ -34,6 +34,8 @@ __visible int plugin_is_GPL_compatible;
 static int track_frame_size = -1;
 static bool build_for_x86 = false;
 static const char track_function[] = "stackleak_track_stack";
+static bool disable = false;
+static bool verbose = false;
 
 /*
  * Mark these global variables (roots) for gcc garbage collector since
@@ -46,6 +48,7 @@ static struct plugin_info stackleak_plugin_info = {
 	.help = "track-min-size=nn\ttrack stack for functions with a stack frame size >= nn bytes\n"
 		"arch=target_arch\tspecify target build arch\n"
 		"disable\t\tdo not activate the plugin\n"
+		"verbose\t\tprint info about the instrumentation\n"
 };
 
 static void add_stack_tracking_gcall(gimple_stmt_iterator *gsi, bool after)
@@ -102,6 +105,10 @@ static tree get_current_stack_pointer_decl(void)
 		return var;
 	}
 
+	if (verbose) {
+		fprintf(stderr, "stackleak: missing current_stack_pointer in %s()\n",
+			DECL_NAME_POINTER(current_function_decl));
+	}
 	return NULL_TREE;
 }
 
@@ -194,6 +201,11 @@ static unsigned int stackleak_instrument_execute(void)
 
 			if (!is_alloca(stmt))
 				continue;
+
+			if (verbose) {
+				fprintf(stderr, "stackleak: be careful, alloca() in %s()\n",
+					DECL_NAME_POINTER(current_function_decl));
+			}
 
 			/* Insert stackleak_track_stack() call after alloca() */
 			add_stack_tracking(&gsi, true);
@@ -384,13 +396,31 @@ static bool remove_stack_tracking_gasm(void)
  */
 static unsigned int stackleak_cleanup_execute(void)
 {
+	const char *fn = DECL_NAME_POINTER(current_function_decl);
 	bool removed = false;
 
-	if (cfun->calls_alloca)
+	/*
+	 * Leave stack tracking in functions that call alloca().
+	 * Additional case:
+	 *   gcc before version 7 called allocate_dynamic_stack_space() from
+	 *   expand_stack_vars() for runtime alignment of constant-sized stack
+	 *   variables. That caused cfun->calls_alloca to be set for functions
+	 *   that in fact don't use alloca().
+	 *   For more info see gcc commit 7072df0aae0c59ae437e.
+	 *   Let's leave such functions instrumented as well.
+	 */
+	if (cfun->calls_alloca) {
+		if (verbose)
+			fprintf(stderr, "stackleak: instrument %s(): calls_alloca\n", fn);
 		return 0;
+	}
 
-	if (large_stack_frame())
+	/* Leave stack tracking in functions with large stack frame */
+	if (large_stack_frame()) {
+		if (verbose)
+			fprintf(stderr, "stackleak: instrument %s()\n", fn);
 		return 0;
+	}
 
 	if (lookup_attribute_spec(get_identifier("no_caller_saved_registers")))
 		removed = remove_stack_tracking_gasm();
@@ -516,9 +546,6 @@ __visible int plugin_init(struct plugin_name_args *plugin_info,
 
 	/* Parse the plugin arguments */
 	for (i = 0; i < argc; i++) {
-		if (!strcmp(argv[i].key, "disable"))
-			return 0;
-
 		if (!strcmp(argv[i].key, "track-min-size")) {
 			if (!argv[i].value) {
 				error(G_("no value supplied for option '-fplugin-arg-%s-%s'"),
@@ -541,11 +568,21 @@ __visible int plugin_init(struct plugin_name_args *plugin_info,
 
 			if (!strcmp(argv[i].value, "x86"))
 				build_for_x86 = true;
+		} else if (!strcmp(argv[i].key, "disable")) {
+			disable = true;
+		} else if (!strcmp(argv[i].key, "verbose")) {
+			verbose = true;
 		} else {
 			error(G_("unknown option '-fplugin-arg-%s-%s'"),
 					plugin_name, argv[i].key);
 			return 1;
 		}
+	}
+
+	if (disable) {
+		if (verbose)
+			fprintf(stderr, "stackleak: disabled for this translation unit\n");
+		return 0;
 	}
 
 	/* Give the information about the plugin */
