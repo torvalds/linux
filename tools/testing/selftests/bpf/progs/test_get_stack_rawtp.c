@@ -57,8 +57,9 @@ struct {
 SEC("raw_tracepoint/sys_enter")
 int bpf_prog1(void *ctx)
 {
-	int max_len, max_buildid_len, usize, ksize, total_size;
+	int max_len, max_buildid_len, total_size;
 	struct stack_trace_t *data;
+	long usize, ksize;
 	void *raw_data;
 	__u32 key = 0;
 
