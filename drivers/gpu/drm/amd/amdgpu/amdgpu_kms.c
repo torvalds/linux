@@ -176,12 +176,16 @@ int amdgpu_driver_load_kms(struct drm_device *dev, unsigned long flags)
 		case CHIP_BONAIRE:
 		case CHIP_HAWAII:
 #endif
-		case CHIP_VEGA10:
 		case CHIP_VEGA20:
 		case CHIP_ARCTURUS:
 		case CHIP_SIENNA_CICHLID:
 			/* enable runpm if runpm=1 */
 			if (amdgpu_runtime_pm > 0)
+				adev->runpm = true;
+			break;
+		case CHIP_VEGA10:
+			/* turn runpm on if noretry=0 */
+			if (!amdgpu_noretry)
 				adev->runpm = true;
 			break;
 		default:
