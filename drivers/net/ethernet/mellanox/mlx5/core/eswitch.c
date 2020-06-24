@@ -69,7 +69,7 @@ static int mlx5_eswitch_check(const struct mlx5_core_dev *dev)
 		return -EOPNOTSUPP;
 
 	if (!MLX5_ESWITCH_MANAGER(dev))
-		return -EPERM;
+		return -EOPNOTSUPP;
 
 	return 0;
 }
