@@ -122,12 +122,7 @@ irqreturn_t hl_irq_handler_cq(int irq, void *arg)
 			queue_work(hdev->cq_wq, &job->finish_work);
 		}
 
-		/* Update ci of the context's queue. There is no
-		 * need to protect it with spinlock because this update is
-		 * done only inside IRQ and there is a different IRQ per
-		 * queue
-		 */
-		queue->ci = hl_queue_inc_ptr(queue->ci);
+		atomic_inc(&queue->ci);
 
 		/* Clear CQ entry ready bit */
 		cq_entry->data = cpu_to_le32(le32_to_cpu(cq_entry->data) &

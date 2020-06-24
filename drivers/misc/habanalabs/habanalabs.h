@@ -461,7 +461,7 @@ struct hl_hw_queue {
 	u64			kernel_address;
 	dma_addr_t		bus_address;
 	u32			pi;
-	u32			ci;
+	atomic_t		ci;
 	u32			hw_queue_id;
 	u32			cq_id;
 	u32			msi_vec;

@@ -1144,14 +1144,17 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 	 * because there the addresses of the completion queues are being
 	 * passed as arguments to request_irq
 	 */
-	hdev->completion_queue = kcalloc(cq_cnt,
-						sizeof(*hdev->completion_queue),
-						GFP_KERNEL);
+	if (cq_cnt) {
+		hdev->completion_queue = kcalloc(cq_cnt,
+				sizeof(*hdev->completion_queue),
+				GFP_KERNEL);
 
-	if (!hdev->completion_queue) {
-		dev_err(hdev->dev, "failed to allocate completion queues\n");
-		rc = -ENOMEM;
-		goto hw_queues_destroy;
+		if (!hdev->completion_queue) {
+			dev_err(hdev->dev,
+				"failed to allocate completion queues\n");
+			rc = -ENOMEM;
+			goto hw_queues_destroy;
+		}
 	}
 
 	for (i = 0, cq_ready_cnt = 0 ; i < cq_cnt ; i++, cq_ready_cnt++) {
