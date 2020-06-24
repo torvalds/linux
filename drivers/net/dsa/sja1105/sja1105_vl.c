@@ -98,6 +98,8 @@ static int sja1105_compose_gating_subschedule(struct sja1105_private *priv,
 	s64 its_base_time = 0;
 	int i, rc = 0;
 
+	sja1105_free_gating_config(gating_cfg);
+
 	list_for_each_entry(rule, &priv->flow_block.rules, list) {
 		if (rule->type != SJA1105_RULE_VL)
 			continue;
@@ -115,8 +117,6 @@ static int sja1105_compose_gating_subschedule(struct sja1105_private *priv,
 
 	dev_dbg(priv->ds->dev, "max_cycle_time %lld its_base_time %lld\n",
 		max_cycle_time, its_base_time);
-
-	sja1105_free_gating_config(gating_cfg);
 
 	gating_cfg->base_time = its_base_time;
 	gating_cfg->cycle_time = max_cycle_time;
