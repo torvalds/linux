@@ -4422,9 +4422,6 @@ struct ib_wq *ib_create_wq(struct ib_pd *pd,
 int ib_destroy_wq(struct ib_wq *wq, struct ib_udata *udata);
 int ib_modify_wq(struct ib_wq *wq, struct ib_wq_attr *attr,
 		 u32 wq_attr_mask);
-struct ib_rwq_ind_table *ib_create_rwq_ind_table(struct ib_device *device,
-						 struct ib_rwq_ind_table_init_attr*
-						 wq_ind_table_init_attr);
 int ib_destroy_rwq_ind_table(struct ib_rwq_ind_table *wq_ind_table);
 
 int ib_map_mr_sg(struct ib_mr *mr, struct scatterlist *sg, int sg_nents,
