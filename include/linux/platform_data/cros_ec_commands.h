@@ -4917,15 +4917,26 @@ struct ec_response_usb_pd_control_v1 {
 #define USBC_PD_CC_UFP_ATTACHED	4 /* UFP attached to usbc */
 #define USBC_PD_CC_DFP_ATTACHED	5 /* DPF attached to usbc */
 
+/* Active/Passive Cable */
+#define USB_PD_CTRL_ACTIVE_CABLE        BIT(0)
+/* Optical/Non-optical cable */
+#define USB_PD_CTRL_OPTICAL_CABLE       BIT(1)
+/* 3rd Gen TBT device (or AMA)/2nd gen tbt Adapter */
+#define USB_PD_CTRL_TBT_LEGACY_ADAPTER  BIT(2)
+/* Active Link Uni-Direction */
+#define USB_PD_CTRL_ACTIVE_LINK_UNIDIR  BIT(3)
+
 struct ec_response_usb_pd_control_v2 {
 	uint8_t enabled;
 	uint8_t role;
 	uint8_t polarity;
 	char state[32];
-	uint8_t cc_state; /* USBC_PD_CC_*Encoded cc state */
-	uint8_t dp_mode;  /* Current DP pin mode (MODE_DP_PIN_[A-E]) */
-	/* CL:1500994 Current cable type */
-	uint8_t reserved_cable_type;
+	uint8_t cc_state;	/* enum pd_cc_states representing cc state */
+	uint8_t dp_mode;	/* Current DP pin mode (MODE_DP_PIN_[A-E]) */
+	uint8_t reserved;	/* Reserved for future use */
+	uint8_t control_flags;	/* USB_PD_CTRL_*flags */
+	uint8_t cable_speed;	/* TBT_SS_* cable speed */
+	uint8_t cable_gen;	/* TBT_GEN3_* cable rounded support */
 } __ec_align1;
 
 #define EC_CMD_USB_PD_PORTS 0x0102
