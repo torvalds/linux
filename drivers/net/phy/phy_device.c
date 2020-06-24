@@ -1092,6 +1092,10 @@ int phy_init_hw(struct phy_device *phydev)
 	if (ret < 0)
 		return ret;
 
+	ret = phy_disable_interrupts(phydev);
+	if (ret)
+		return ret;
+
 	if (phydev->drv->config_init)
 		ret = phydev->drv->config_init(phydev);
 
