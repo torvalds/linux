@@ -100,6 +100,16 @@ _save_context:
 #ifdef CONFIG_TRACE_IRQFLAGS
 	call trace_hardirqs_off
 #endif
+
+#ifdef CONFIG_CONTEXT_TRACKING
+	/* If previous state is in user mode, call context_tracking_user_exit. */
+	li   a0, SR_PP
+	and a0, s1, a0
+	bnez a0, skip_context_tracking
+	call context_tracking_user_exit
+skip_context_tracking:
+#endif
+
 	/*
 	 * MSB of cause differentiates between
 	 * interrupts and exceptions
@@ -145,7 +155,7 @@ _save_context:
 	tail do_trap_unknown
 
 handle_syscall:
-#ifdef CONFIG_TRACE_IRQFLAGS
+#if defined(CONFIG_TRACE_IRQFLAGS) || defined(CONFIG_CONTEXT_TRACKING)
 	/* Recover a0 - a7 for system calls */
 	REG_L a0, PT_A0(sp)
 	REG_L a1, PT_A1(sp)
@@ -226,6 +236,10 @@ resume_userspace:
 	REG_L s0, TASK_TI_FLAGS(tp) /* current_thread_info->flags */
 	andi s1, s0, _TIF_WORK_MASK
 	bnez s1, work_pending
+
+#ifdef CONFIG_CONTEXT_TRACKING
+	call context_tracking_user_enter
+#endif
 
 	/* Save unwound kernel stack pointer in thread_info */
 	addi s0, sp, PT_SIZE_ON_STACK
