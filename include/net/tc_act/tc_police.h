@@ -69,4 +69,14 @@ static inline s64 tcf_police_tcfp_burst(const struct tc_action *act)
 	return params->tcfp_burst;
 }
 
+static inline u32 tcf_police_tcfp_mtu(const struct tc_action *act)
+{
+	struct tcf_police *police = to_police(act);
+	struct tcf_police_params *params;
+
+	params = rcu_dereference_protected(police->params,
+					   lockdep_is_held(&police->tcf_lock));
+	return params->tcfp_mtu;
+}
+
 #endif /* __NET_TC_POLICE_H */
