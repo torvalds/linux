@@ -77,8 +77,7 @@ static int __exfat_write_inode(struct inode *inode, int sync)
 	ep2->dentry.stream.size = ep2->dentry.stream.valid_size;
 
 	exfat_update_dir_chksum_with_entry_set(es);
-	exfat_free_dentry_set(es, sync);
-	return 0;
+	return exfat_free_dentry_set(es, sync);
 }
 
 int exfat_write_inode(struct inode *inode, struct writeback_control *wbc)
@@ -222,6 +221,7 @@ static int exfat_map_cluster(struct inode *inode, unsigned int clu_offset,
 		if (ei->dir.dir != DIR_DELETED && modified) {
 			struct exfat_dentry *ep;
 			struct exfat_entry_set_cache *es;
+			int err;
 
 			es = exfat_get_dentry_set(sb, &(ei->dir), ei->entry,
 				ES_ALL_ENTRIES);
@@ -240,8 +240,9 @@ static int exfat_map_cluster(struct inode *inode, unsigned int clu_offset,
 				ep->dentry.stream.valid_size;
 
 			exfat_update_dir_chksum_with_entry_set(es);
-			exfat_free_dentry_set(es, inode_needs_sync(inode));
-
+			err = exfat_free_dentry_set(es, inode_needs_sync(inode));
+			if (err)
+				return err;
 		} /* end of if != DIR_DELETED */
 
 		inode->i_blocks +=

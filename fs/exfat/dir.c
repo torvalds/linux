@@ -604,7 +604,7 @@ void exfat_update_dir_chksum_with_entry_set(struct exfat_entry_set_cache *es)
 	es->modified = true;
 }
 
-void exfat_free_dentry_set(struct exfat_entry_set_cache *es, int sync)
+int exfat_free_dentry_set(struct exfat_entry_set_cache *es, int sync)
 {
 	int i, err = 0;
 
@@ -617,6 +617,7 @@ void exfat_free_dentry_set(struct exfat_entry_set_cache *es, int sync)
 		else
 			brelse(es->bh[i]);
 	kfree(es);
+	return err;
 }
 
 static int exfat_walk_fat_chain(struct super_block *sb,
