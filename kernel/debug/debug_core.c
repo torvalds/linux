@@ -935,7 +935,7 @@ static void sysrq_handle_dbg(int key)
 	kgdb_breakpoint();
 }
 
-static struct sysrq_key_op sysrq_dbg_op = {
+static const struct sysrq_key_op sysrq_dbg_op = {
 	.handler	= sysrq_handle_dbg,
 	.help_msg	= "debug(g)",
 	.action_msg	= "DEBUG",

@@ -1010,7 +1010,7 @@ struct kernfs_node *__kernfs_create_file(struct kernfs_node *parent,
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	if (key) {
-		lockdep_init_map(&kn->dep_map, "kn->count", key, 0);
+		lockdep_init_map(&kn->dep_map, "kn->active", key, 0);
 		kn->flags |= KERNFS_LOCKDEP;
 	}
 #endif

@@ -55,16 +55,10 @@ static const struct pci_device_id rtsx_pci_ids[] = {
 
 MODULE_DEVICE_TABLE(pci, rtsx_pci_ids);
 
-static inline void rtsx_pci_enable_aspm(struct rtsx_pcr *pcr)
-{
-	rtsx_pci_update_cfg_byte(pcr, pcr->pcie_cap + PCI_EXP_LNKCTL,
-		0xFC, pcr->aspm_en);
-}
-
 static inline void rtsx_pci_disable_aspm(struct rtsx_pcr *pcr)
 {
-	rtsx_pci_update_cfg_byte(pcr, pcr->pcie_cap + PCI_EXP_LNKCTL,
-		0xFC, 0);
+	pcie_capability_clear_and_set_word(pcr->pci, PCI_EXP_LNKCTL,
+					   PCI_EXP_LNKCTL_ASPMC, 0);
 }
 
 static int rtsx_comm_set_ltr_latency(struct rtsx_pcr *pcr, u32 latency)
@@ -85,32 +79,17 @@ static int rtsx_comm_set_ltr_latency(struct rtsx_pcr *pcr, u32 latency)
 
 int rtsx_set_ltr_latency(struct rtsx_pcr *pcr, u32 latency)
 {
-	if (pcr->ops->set_ltr_latency)
-		return pcr->ops->set_ltr_latency(pcr, latency);
-	else
-		return rtsx_comm_set_ltr_latency(pcr, latency);
+	return rtsx_comm_set_ltr_latency(pcr, latency);
 }
 
 static void rtsx_comm_set_aspm(struct rtsx_pcr *pcr, bool enable)
 {
-	struct rtsx_cr_option *option = &pcr->option;
-
 	if (pcr->aspm_enabled == enable)
 		return;
 
-	if (option->dev_aspm_mode == DEV_ASPM_DYNAMIC) {
-		if (enable)
-			rtsx_pci_enable_aspm(pcr);
-		else
-			rtsx_pci_disable_aspm(pcr);
-	} else if (option->dev_aspm_mode == DEV_ASPM_BACKDOOR) {
-		u8 mask = FORCE_ASPM_VAL_MASK;
-		u8 val = 0;
-
-		if (enable)
-			val = pcr->aspm_en;
-		rtsx_pci_write_register(pcr, ASPM_FORCE_CTL,  mask, val);
-	}
+	pcie_capability_clear_and_set_word(pcr->pci, PCI_EXP_LNKCTL,
+					   PCI_EXP_LNKCTL_ASPMC,
+					   enable ? pcr->aspm_en : 0);
 
 	pcr->aspm_enabled = enable;
 }
@@ -154,10 +133,7 @@ static void rtsx_comm_pm_full_on(struct rtsx_pcr *pcr)
 
 static void rtsx_pm_full_on(struct rtsx_pcr *pcr)
 {
-	if (pcr->ops->full_on)
-		pcr->ops->full_on(pcr);
-	else
-		rtsx_comm_pm_full_on(pcr);
+	rtsx_comm_pm_full_on(pcr);
 }
 
 void rtsx_pci_start_run(struct rtsx_pcr *pcr)
@@ -1111,10 +1087,7 @@ static void rtsx_comm_pm_power_saving(struct rtsx_pcr *pcr)
 
 static void rtsx_pm_power_saving(struct rtsx_pcr *pcr)
 {
-	if (pcr->ops->power_saving)
-		pcr->ops->power_saving(pcr);
-	else
-		rtsx_comm_pm_power_saving(pcr);
+	rtsx_comm_pm_power_saving(pcr);
 }
 
 static void rtsx_pci_idle_work(struct work_struct *work)

@@ -41,4 +41,8 @@ properties:
   rs485-rx-during-tx:
     description: enables the receiving of data even while sending data.
     $ref: /schemas/types.yaml#/definitions/flag
+
+  rs485-term-gpios:
+    description: GPIO pin to enable RS485 bus termination.
+    maxItems: 1
 ...

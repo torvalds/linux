@@ -14,6 +14,7 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/util_macros.h>
+#include <asm/unaligned.h>
 #include <dt-bindings/iio/temperature/thermocouple.h>
 /*
  * The MSB of the register value determines whether the following byte will
@@ -168,7 +169,7 @@ static int max31856_thermocouple_read(struct max31856_data *data,
 		if (ret)
 			return ret;
 		/* Skip last 5 dead bits of LTCBL */
-		*val = (reg_val[0] << 16 | reg_val[1] << 8 | reg_val[2]) >> 5;
+		*val = get_unaligned_be24(&reg_val[0]) >> 5;
 		/* Check 7th bit of LTCBH reg. value for sign*/
 		if (reg_val[0] & 0x80)
 			*val -= 0x80000;
@@ -185,7 +186,7 @@ static int max31856_thermocouple_read(struct max31856_data *data,
 		/* Get Cold Junction Temp. offset register value */
 		offset_cjto = reg_val[0];
 		/* Get CJTH and CJTL value and skip last 2 dead bits of CJTL */
-		*val = (reg_val[1] << 8 | reg_val[2]) >> 2;
+		*val = get_unaligned_be16(&reg_val[1]) >> 2;
 		/* As per datasheet add offset into CJTH and CJTL */
 		*val += offset_cjto;
 		/* Check 7th bit of CJTH reg. value for sign */

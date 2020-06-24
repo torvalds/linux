@@ -1,0 +1,116 @@
+What:		/sys/bus/w1/devices/.../alarms
+Date:		May 2020
+Contact:	Akira Shimahara <akira215corp@gmail.com>
+Description:
+		(RW) read or write TH and TL (Temperature High an Low) alarms.
+		Values shall be space separated and in the device range
+		(typical -55 degC to 125 degC), if not values will be trimmed
+		to device min/max capabilities. Values are integer as they are
+		stored in a 8bit register in the device. Lowest value is
+		automatically put to TL. Once set, alarms could be search at
+		master level, refer to Documentation/w1/w1_generic.rst for
+		detailed information
+Users:		any user space application which wants to communicate with
+		w1_term device
+
+
+What:		/sys/bus/w1/devices/.../eeprom
+Date:		May 2020
+Contact:	Akira Shimahara <akira215corp@gmail.com>
+Description:
+		(WO) writing that file will either trigger a save of the
+		device data to its embedded EEPROM, either restore data
+		embedded in device EEPROM. Be aware that devices support
+		limited EEPROM writing cycles (typical 50k)
+			* 'save': save device RAM to EEPROM
+			* 'restore': restore EEPROM data in device RAM
+Users:		any user space application which wants to communicate with
+		w1_term device
+
+
+What:		/sys/bus/w1/devices/.../ext_power
+Date:		May 2020
+Contact:	Akira Shimahara <akira215corp@gmail.com>
+Description:
+		(RO) return the power status by asking the device
+			* '0': device parasite powered
+			* '1': device externally powered
+			* '-xx': xx is kernel error when reading power status
+Users:		any user space application which wants to communicate with
+		w1_term device
+
+
+What:		/sys/bus/w1/devices/.../resolution
+Date:		May 2020
+Contact:	Akira Shimahara <akira215corp@gmail.com>
+Description:
+		(RW) get or set the device resolution (on supported devices,
+		if not, this entry is not present). Note that the resolution
+		will be changed only in device RAM, so it will be cleared when
+		power is lost. Trigger a 'save' to EEPROM command to keep
+		values after power-on. Read or write are :
+			* '9..12': device resolution in bit
+			or resolution to set in bit
+			* '-xx': xx is kernel error when reading the resolution
+			* Anything else: do nothing
+Users:		any user space application which wants to communicate with
+		w1_term device
+
+
+What:		/sys/bus/w1/devices/.../temperature
+Date:		May 2020
+Contact:	Akira Shimahara <akira215corp@gmail.com>
+Description:
+		(RO) return the temperature in 1/1000 degC.
+			* If a bulk read has been triggered, it will directly
+			return the temperature computed when the bulk read
+			occurred, if available. If not yet available, nothing
+			is returned (a debug kernel message is sent), you
+			should retry later on.
+			* If no bulk read has been triggered, it will trigger
+			a conversion and send the result. Note that the
+			conversion duration depend on the resolution (if
+			device support this feature). It takes 94ms in 9bits
+			resolution, 750ms for 12bits.
+Users:		any user space application which wants to communicate with
+		w1_term device
+
+
+What:		/sys/bus/w1/devices/.../w1_slave
+Date:		May 2020
+Contact:	Akira Shimahara <akira215corp@gmail.com>
+Description:
+		(RW) return the temperature in 1/1000 degC.
+		*read*: return 2 lines with the hexa output data sent on the
+		bus, return the CRC check and temperature in 1/1000 degC
+		*write* :
+			* '0' : save the 2 or 3 bytes to the device EEPROM
+			(i.e. TH, TL and config register)
+			* '9..12' : set the device resolution in RAM
+			(if supported)
+			* Anything else: do nothing
+		refer to Documentation/w1/slaves/w1_therm.rst for detailed
+		information.
+Users:		any user space application which wants to communicate with
+		w1_term device
+
+
+What:		/sys/bus/w1/devices/w1_bus_masterXX/therm_bulk_read
+Date:		May 2020
+Contact:	Akira Shimahara <akira215corp@gmail.com>
+Description:
+		(RW) trigger a bulk read conversion. read the status
+		*read*:
+			* '-1': conversion in progress on at least 1 sensor
+			* '1' :	conversion complete but at least one sensor
+				value has not been read yet
+			* '0' :	no bulk operation. Reading temperature will
+				trigger a conversion on each device
+		*write*: 'trigger': trigger a bulk read on all supporting
+			devices on the bus
+		Note that if a bulk read is sent but one sensor is not read
+		immediately, the next access to temperature on this device
+		will return the temperature measured at the time of issue
+		of the bulk read command (not the current temperature).
+Users:		any user space application which wants to communicate with
+		w1_term device

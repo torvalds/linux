@@ -1099,7 +1099,6 @@ static int intel_probe(struct platform_device *pdev)
 	sdw->cdns.registers = sdw->link_res->registers;
 	sdw->cdns.instance = sdw->instance;
 	sdw->cdns.msg_count = 0;
-	sdw->cdns.bus.dev = &pdev->dev;
 	sdw->cdns.bus.link_id = pdev->id;
 
 	sdw_cdns_probe(&sdw->cdns);
@@ -1110,9 +1109,9 @@ static int intel_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, sdw);
 
-	ret = sdw_add_bus_master(&sdw->cdns.bus);
+	ret = sdw_bus_master_add(&sdw->cdns.bus, &pdev->dev, pdev->dev.fwnode);
 	if (ret) {
-		dev_err(&pdev->dev, "sdw_add_bus_master fail: %d\n", ret);
+		dev_err(&pdev->dev, "sdw_bus_master_add fail: %d\n", ret);
 		return ret;
 	}
 
@@ -1173,7 +1172,7 @@ err_interrupt:
 	sdw_cdns_enable_interrupt(&sdw->cdns, false);
 	free_irq(sdw->link_res->irq, sdw);
 err_init:
-	sdw_delete_bus_master(&sdw->cdns.bus);
+	sdw_bus_master_delete(&sdw->cdns.bus);
 	return ret;
 }
 
@@ -1189,7 +1188,7 @@ static int intel_remove(struct platform_device *pdev)
 		free_irq(sdw->link_res->irq, sdw);
 		snd_soc_unregister_component(sdw->cdns.dev);
 	}
-	sdw_delete_bus_master(&sdw->cdns.bus);
+	sdw_bus_master_delete(&sdw->cdns.bus);
 
 	return 0;
 }

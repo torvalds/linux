@@ -284,21 +284,13 @@ I2C
 
 IIO
   devm_iio_device_alloc()
-  devm_iio_device_free()
   devm_iio_device_register()
-  devm_iio_device_unregister()
   devm_iio_kfifo_allocate()
-  devm_iio_kfifo_free()
   devm_iio_triggered_buffer_setup()
-  devm_iio_triggered_buffer_cleanup()
   devm_iio_trigger_alloc()
-  devm_iio_trigger_free()
   devm_iio_trigger_register()
-  devm_iio_trigger_unregister()
   devm_iio_channel_get()
-  devm_iio_channel_release()
   devm_iio_channel_get_all()
-  devm_iio_channel_release_all()
 
 INPUT
   devm_input_allocate_device()

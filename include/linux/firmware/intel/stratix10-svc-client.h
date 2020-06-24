@@ -18,45 +18,37 @@
 /**
  * Status of the sent command, in bit number
  *
- * SVC_COMMAND_STATUS_RECONFIG_REQUEST_OK:
- * Secure firmware accepts the request of FPGA reconfiguration.
+ * SVC_STATUS_OK:
+ * Secure firmware accepts the request issued by one of service clients.
  *
- * SVC_STATUS_RECONFIG_BUFFER_SUBMITTED:
- * Service client successfully submits FPGA configuration
- * data buffer to secure firmware.
+ * SVC_STATUS_BUFFER_SUBMITTED:
+ * Service client successfully submits data buffer to secure firmware.
  *
- * SVC_COMMAND_STATUS_RECONFIG_BUFFER_DONE:
+ * SVC_STATUS_BUFFER_DONE:
  * Secure firmware completes data process, ready to accept the
  * next WRITE transaction.
  *
- * SVC_COMMAND_STATUS_RECONFIG_COMPLETED:
- * Secure firmware completes FPGA configuration successfully, FPGA should
- * be in user mode.
+ * SVC_STATUS_COMPLETED:
+ * Secure firmware completes service request successfully. In case of
+ * FPGA configuration, FPGA should be in user mode.
  *
- * SVC_COMMAND_STATUS_RECONFIG_BUSY:
- * FPGA configuration is still in process.
+ * SVC_COMMAND_STATUS_BUSY:
+ * Service request is still in process.
  *
- * SVC_COMMAND_STATUS_RECONFIG_ERROR:
- * Error encountered during FPGA configuration.
+ * SVC_COMMAND_STATUS_ERROR:
+ * Error encountered during the process of the service request.
  *
- * SVC_STATUS_RSU_OK:
- * Secure firmware accepts the request of remote status update (RSU).
- *
- * SVC_STATUS_RSU_ERROR:
- * Error encountered during remote system update.
- *
- * SVC_STATUS_RSU_NO_SUPPORT:
- * Secure firmware doesn't support RSU retry or notify feature.
+ * SVC_STATUS_NO_SUPPORT:
+ * Secure firmware doesn't support requested features such as RSU retry
+ * or RSU notify.
  */
-#define SVC_STATUS_RECONFIG_REQUEST_OK		0
-#define SVC_STATUS_RECONFIG_BUFFER_SUBMITTED	1
-#define SVC_STATUS_RECONFIG_BUFFER_DONE		2
-#define SVC_STATUS_RECONFIG_COMPLETED		3
-#define SVC_STATUS_RECONFIG_BUSY		4
-#define SVC_STATUS_RECONFIG_ERROR		5
-#define SVC_STATUS_RSU_OK			6
-#define SVC_STATUS_RSU_ERROR			7
-#define SVC_STATUS_RSU_NO_SUPPORT		8
+#define SVC_STATUS_OK			0
+#define SVC_STATUS_BUFFER_SUBMITTED	1
+#define SVC_STATUS_BUFFER_DONE		2
+#define SVC_STATUS_COMPLETED		3
+#define SVC_STATUS_BUSY			4
+#define SVC_STATUS_ERROR		5
+#define SVC_STATUS_NO_SUPPORT		6
 
 /**
  * Flag bit for COMMAND_RECONFIG
@@ -84,32 +76,29 @@ struct stratix10_svc_chan;
  * @COMMAND_NOOP: do 'dummy' request for integration/debug/trouble-shooting
  *
  * @COMMAND_RECONFIG: ask for FPGA configuration preparation, return status
- * is SVC_STATUS_RECONFIG_REQUEST_OK
+ * is SVC_STATUS_OK
  *
  * @COMMAND_RECONFIG_DATA_SUBMIT: submit buffer(s) of bit-stream data for the
- * FPGA configuration, return status is SVC_STATUS_RECONFIG_BUFFER_SUBMITTED,
- * or SVC_STATUS_RECONFIG_ERROR
+ * FPGA configuration, return status is SVC_STATUS_SUBMITTED or SVC_STATUS_ERROR
  *
  * @COMMAND_RECONFIG_DATA_CLAIM: check the status of the configuration, return
- * status is SVC_STATUS_RECONFIG_COMPLETED, or SVC_STATUS_RECONFIG_BUSY, or
- * SVC_STATUS_RECONFIG_ERROR
+ * status is SVC_STATUS_COMPLETED, or SVC_STATUS_BUSY, or SVC_STATUS_ERROR
  *
  * @COMMAND_RECONFIG_STATUS: check the status of the configuration, return
- * status is SVC_STATUS_RECONFIG_COMPLETED, or  SVC_STATUS_RECONFIG_BUSY, or
- * SVC_STATUS_RECONFIG_ERROR
+ * status is SVC_STATUS_COMPLETED, or SVC_STATUS_BUSY, or SVC_STATUS_ERROR
  *
  * @COMMAND_RSU_STATUS: request remote system update boot log, return status
  * is log data or SVC_STATUS_RSU_ERROR
  *
  * @COMMAND_RSU_UPDATE: set the offset of the bitstream to boot after reboot,
- * return status is SVC_STATUS_RSU_OK or SVC_STATUS_RSU_ERROR
+ * return status is SVC_STATUS_OK or SVC_STATUS_ERROR
  *
  * @COMMAND_RSU_NOTIFY: report the status of hard processor system
- * software to firmware, return status is SVC_STATUS_RSU_OK or
- * SVC_STATUS_RSU_ERROR
+ * software to firmware, return status is SVC_STATUS_OK or
+ * SVC_STATUS_ERROR
  *
  * @COMMAND_RSU_RETRY: query firmware for the current image's retry counter,
- * return status is SVC_STATUS_RSU_OK or SVC_STATUS_RSU_ERROR
+ * return status is SVC_STATUS_OK or SVC_STATUS_ERROR
  */
 enum stratix10_svc_command_code {
 	COMMAND_NOOP = 0,

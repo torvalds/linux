@@ -36,6 +36,9 @@ properties:
   pins-are-numbered: true
   hwlocks: true
 
+  interrupts:
+    maxItems: 1
+
   st,syscfg:
     description: Should be phandle/offset/mask
       - Phandle to the syscon node which includes IRQ mux selection.

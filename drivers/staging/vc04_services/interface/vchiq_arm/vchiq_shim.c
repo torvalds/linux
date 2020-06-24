@@ -9,8 +9,6 @@
 
 #include "vchiq_util.h"
 
-#define vchiq_status_to_vchi(status) ((int32_t)status)
-
 struct shim_service {
 	unsigned int handle;
 
@@ -84,35 +82,15 @@ int32_t vchi_msg_remove(struct vchi_service_handle *handle)
 }
 EXPORT_SYMBOL(vchi_msg_remove);
 
-/***********************************************************
- * Name: vchi_msg_queue
- *
- * Arguments:  struct vchi_service_handle *handle,
- *             ssize_t (*copy_callback)(void *context, void *dest,
- *				        size_t offset, size_t maxsize),
- *	       void *context,
- *             uint32_t data_size
- *
- * Description: Thin wrapper to queue a message onto a connection
- *
- * Returns: int32_t - success == 0
- *
- ***********************************************************/
-static
-int32_t vchi_msg_queue(struct vchi_service_handle *handle,
-	ssize_t (*copy_callback)(void *context, void *dest,
-				 size_t offset, size_t maxsize),
-	void *context,
-	uint32_t data_size)
+int vchi_queue_kernel_message(struct vchi_service_handle *handle, void *data,
+			       unsigned int size)
 {
 	struct shim_service *service = (struct shim_service *)handle;
 	enum vchiq_status status;
 
 	while (1) {
-		status = vchiq_queue_message(service->handle,
-					     copy_callback,
-					     context,
-					     data_size);
+		status = vchiq_queue_kernel_message(service->handle, data,
+						    size);
 
 		/*
 		 * vchiq_queue_message() may return VCHIQ_RETRY, so we need to
@@ -125,64 +103,9 @@ int32_t vchi_msg_queue(struct vchi_service_handle *handle,
 		msleep(1);
 	}
 
-	return vchiq_status_to_vchi(status);
-}
-
-static ssize_t
-vchi_queue_kernel_message_callback(void *context,
-				   void *dest,
-				   size_t offset,
-				   size_t maxsize)
-{
-	memcpy(dest, context + offset, maxsize);
-	return maxsize;
-}
-
-int
-vchi_queue_kernel_message(struct vchi_service_handle *handle,
-			  void *data,
-			  unsigned int size)
-{
-	return vchi_msg_queue(handle,
-			      vchi_queue_kernel_message_callback,
-			      data,
-			      size);
+	return status;
 }
 EXPORT_SYMBOL(vchi_queue_kernel_message);
-
-struct vchi_queue_user_message_context {
-	void __user *data;
-};
-
-static ssize_t
-vchi_queue_user_message_callback(void *context,
-				 void *dest,
-				 size_t offset,
-				 size_t maxsize)
-{
-	struct vchi_queue_user_message_context *copycontext = context;
-
-	if (copy_from_user(dest, copycontext->data + offset, maxsize))
-		return -EFAULT;
-
-	return maxsize;
-}
-
-int
-vchi_queue_user_message(struct vchi_service_handle *handle,
-			void __user *data,
-			unsigned int size)
-{
-	struct vchi_queue_user_message_context copycontext = {
-		.data = data
-	};
-
-	return vchi_msg_queue(handle,
-			      vchi_queue_user_message_callback,
-			      &copycontext,
-			      size);
-}
-EXPORT_SYMBOL(vchi_queue_user_message);
 
 /***********************************************************
  * Name: vchi_bulk_queue_receive
@@ -221,7 +144,7 @@ int32_t vchi_bulk_queue_receive(struct vchi_service_handle *handle, void *data_d
 		break;
 	default:
 		WARN(1, "unsupported message\n");
-		return vchiq_status_to_vchi(VCHIQ_ERROR);
+		return VCHIQ_ERROR;
 	}
 
 	while (1) {
@@ -238,7 +161,7 @@ int32_t vchi_bulk_queue_receive(struct vchi_service_handle *handle, void *data_d
 		msleep(1);
 	}
 
-	return vchiq_status_to_vchi(status);
+	return status;
 }
 EXPORT_SYMBOL(vchi_bulk_queue_receive);
 
@@ -282,7 +205,7 @@ int32_t vchi_bulk_queue_transmit(struct vchi_service_handle *handle,
 		break;
 	default:
 		WARN(1, "unsupported message\n");
-		return vchiq_status_to_vchi(VCHIQ_ERROR);
+		return VCHIQ_ERROR;
 	}
 
 	while (1) {
@@ -300,7 +223,7 @@ int32_t vchi_bulk_queue_transmit(struct vchi_service_handle *handle,
 		msleep(1);
 	}
 
-	return vchiq_status_to_vchi(status);
+	return status;
 }
 EXPORT_SYMBOL(vchi_bulk_queue_transmit);
 
@@ -447,7 +370,7 @@ int32_t vchi_initialise(struct vchi_instance_handle **instance_handle)
 
 	*instance_handle = (struct vchi_instance_handle *)instance;
 
-	return vchiq_status_to_vchi(status);
+	return status;
 }
 EXPORT_SYMBOL(vchi_initialise);
 
@@ -485,7 +408,7 @@ int32_t vchi_disconnect(struct vchi_instance_handle *instance_handle)
 {
 	struct vchiq_instance *instance = (struct vchiq_instance *)instance_handle;
 
-	return vchiq_status_to_vchi(vchiq_shutdown(instance));
+	return vchiq_shutdown(instance);
 }
 EXPORT_SYMBOL(vchi_disconnect);
 
@@ -521,7 +444,7 @@ static enum vchiq_status shim_callback(enum vchiq_reason reason,
 		service->callback(service->callback_param,
 				  VCHI_CALLBACK_MSG_AVAILABLE, NULL);
 
-		goto done;
+		break;
 
 	case VCHIQ_BULK_TRANSMIT_DONE:
 		service->callback(service->callback_param,
@@ -536,10 +459,6 @@ static enum vchiq_status shim_callback(enum vchiq_reason reason,
 	case VCHIQ_SERVICE_CLOSED:
 		service->callback(service->callback_param,
 				  VCHI_CALLBACK_SERVICE_CLOSED, NULL);
-		break;
-
-	case VCHIQ_SERVICE_OPENED:
-		/* No equivalent VCHI reason */
 		break;
 
 	case VCHIQ_BULK_TRANSMIT_ABORTED:
@@ -560,8 +479,6 @@ static enum vchiq_status shim_callback(enum vchiq_reason reason,
 	}
 
 release:
-	vchiq_release_message(service->handle, header);
-done:
 	return VCHIQ_SUCCESS;
 }
 
@@ -636,61 +553,11 @@ int32_t vchi_service_close(const struct vchi_service_handle *handle)
 		if (status == VCHIQ_SUCCESS)
 			service_free(service);
 
-		ret = vchiq_status_to_vchi(status);
+		ret = status;
 	}
 	return ret;
 }
 EXPORT_SYMBOL(vchi_service_close);
-
-int32_t vchi_service_destroy(const struct vchi_service_handle *handle)
-{
-	int32_t ret = -1;
-	struct shim_service *service = (struct shim_service *)handle;
-
-	if (service) {
-		enum vchiq_status status = vchiq_remove_service(service->handle);
-
-		if (status == VCHIQ_SUCCESS) {
-			service_free(service);
-			service = NULL;
-		}
-
-		ret = vchiq_status_to_vchi(status);
-	}
-	return ret;
-}
-EXPORT_SYMBOL(vchi_service_destroy);
-
-int32_t vchi_service_set_option(const struct vchi_service_handle *handle,
-				enum vchi_service_option option,
-				int value)
-{
-	int32_t ret = -1;
-	struct shim_service *service = (struct shim_service *)handle;
-	enum vchiq_service_option vchiq_option;
-
-	switch (option) {
-	case VCHI_SERVICE_OPTION_TRACE:
-		vchiq_option = VCHIQ_SERVICE_OPTION_TRACE;
-		break;
-	case VCHI_SERVICE_OPTION_SYNCHRONOUS:
-		vchiq_option = VCHIQ_SERVICE_OPTION_SYNCHRONOUS;
-		break;
-	default:
-		service = NULL;
-		break;
-	}
-	if (service) {
-		enum vchiq_status status =
-			vchiq_set_service_option(service->handle,
-						vchiq_option,
-						value);
-
-		ret = vchiq_status_to_vchi(status);
-	}
-	return ret;
-}
-EXPORT_SYMBOL(vchi_service_set_option);
 
 int32_t vchi_get_peer_version(const struct vchi_service_handle *handle, short *peer_version)
 {
@@ -701,7 +568,7 @@ int32_t vchi_get_peer_version(const struct vchi_service_handle *handle, short *p
 		enum vchiq_status status;
 
 		status = vchiq_get_peer_version(service->handle, peer_version);
-		ret = vchiq_status_to_vchi(status);
+		ret = status;
 	}
 	return ret;
 }
@@ -723,7 +590,7 @@ int32_t vchi_service_use(const struct vchi_service_handle *handle)
 
 	struct shim_service *service = (struct shim_service *)handle;
 	if (service)
-		ret = vchiq_status_to_vchi(vchiq_use_service(service->handle));
+		ret = vchiq_use_service(service->handle);
 	return ret;
 }
 EXPORT_SYMBOL(vchi_service_use);
@@ -744,8 +611,7 @@ int32_t vchi_service_release(const struct vchi_service_handle *handle)
 
 	struct shim_service *service = (struct shim_service *)handle;
 	if (service)
-		ret = vchiq_status_to_vchi(
-			vchiq_release_service(service->handle));
+		ret = vchiq_release_service(service->handle);
 	return ret;
 }
 EXPORT_SYMBOL(vchi_service_release);

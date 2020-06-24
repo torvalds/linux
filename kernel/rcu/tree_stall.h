@@ -807,7 +807,7 @@ static void sysrq_show_rcu(int key)
 	show_rcu_gp_kthreads();
 }
 
-static struct sysrq_key_op sysrq_rcudump_op = {
+static const struct sysrq_key_op sysrq_rcudump_op = {
 	.handler = sysrq_show_rcu,
 	.help_msg = "show-rcu(y)",
 	.action_msg = "Show RCU tree",

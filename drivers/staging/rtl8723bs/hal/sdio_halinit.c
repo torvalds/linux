@@ -544,12 +544,8 @@ static void _InitRetryFunction(struct adapter *padapter)
 
 static void HalRxAggr8723BSdio(struct adapter *padapter)
 {
-	struct registry_priv *pregistrypriv;
 	u8 valueDMATimeout;
 	u8 valueDMAPageCount;
-
-
-	pregistrypriv = &padapter->registrypriv;
 
 	valueDMATimeout = 0x06;
 	valueDMAPageCount = 0x06;

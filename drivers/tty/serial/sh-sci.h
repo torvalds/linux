@@ -2,7 +2,6 @@
 #include <linux/bitops.h>
 #include <linux/serial_core.h>
 #include <linux/io.h>
-#include <linux/gpio.h>
 
 #define SCI_MAJOR		204
 #define SCI_MINOR_START		8

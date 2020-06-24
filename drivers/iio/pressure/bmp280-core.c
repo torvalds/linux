@@ -271,6 +271,8 @@ static u32 bmp280_compensate_humidity(struct bmp280_data *data,
 		+ (s32)2097152) * calib->H2 + 8192) >> 14);
 	var -= ((((var >> 15) * (var >> 15)) >> 7) * (s32)calib->H1) >> 4;
 
+	var = clamp_val(var, 0, 419430400);
+
 	return var >> 12;
 };
 
@@ -337,8 +339,7 @@ static int bmp280_read_temp(struct bmp280_data *data,
 	__be32 tmp = 0;
 	s32 adc_temp, comp_temp;
 
-	ret = regmap_bulk_read(data->regmap, BMP280_REG_TEMP_MSB,
-			       (u8 *) &tmp, 3);
+	ret = regmap_bulk_read(data->regmap, BMP280_REG_TEMP_MSB, &tmp, 3);
 	if (ret < 0) {
 		dev_err(data->dev, "failed to read temperature\n");
 		return ret;
@@ -377,8 +378,7 @@ static int bmp280_read_press(struct bmp280_data *data,
 	if (ret < 0)
 		return ret;
 
-	ret = regmap_bulk_read(data->regmap, BMP280_REG_PRESS_MSB,
-			       (u8 *) &tmp, 3);
+	ret = regmap_bulk_read(data->regmap, BMP280_REG_PRESS_MSB, &tmp, 3);
 	if (ret < 0) {
 		dev_err(data->dev, "failed to read pressure\n");
 		return ret;
@@ -400,8 +400,8 @@ static int bmp280_read_press(struct bmp280_data *data,
 
 static int bmp280_read_humid(struct bmp280_data *data, int *val, int *val2)
 {
+	__be16 tmp;
 	int ret;
-	__be16 tmp = 0;
 	s32 adc_humidity;
 	u32 comp_humidity;
 
@@ -410,8 +410,7 @@ static int bmp280_read_humid(struct bmp280_data *data, int *val, int *val2)
 	if (ret < 0)
 		return ret;
 
-	ret = regmap_bulk_read(data->regmap, BMP280_REG_HUMIDITY_MSB,
-			       (u8 *) &tmp, 2);
+	ret = regmap_bulk_read(data->regmap, BMP280_REG_HUMIDITY_MSB, &tmp, 2);
 	if (ret < 0) {
 		dev_err(data->dev, "failed to read humidity\n");
 		return ret;
@@ -575,57 +574,38 @@ static int bmp280_write_raw(struct iio_dev *indio_dev,
 	return ret;
 }
 
-static ssize_t bmp280_show_avail(char *buf, const int *vals, const int n)
+static int bmp280_read_avail(struct iio_dev *indio_dev,
+			     struct iio_chan_spec const *chan,
+			     const int **vals, int *type, int *length,
+			     long mask)
 {
-	size_t len = 0;
-	int i;
+	struct bmp280_data *data = iio_priv(indio_dev);
 
-	for (i = 0; i < n; i++)
-		len += scnprintf(buf + len, PAGE_SIZE - len, "%d ", vals[i]);
-
-	buf[len - 1] = '\n';
-
-	return len;
+	switch (mask) {
+	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
+		switch (chan->type) {
+		case IIO_PRESSURE:
+			*vals = data->chip_info->oversampling_press_avail;
+			*length = data->chip_info->num_oversampling_press_avail;
+			break;
+		case IIO_TEMP:
+			*vals = data->chip_info->oversampling_temp_avail;
+			*length = data->chip_info->num_oversampling_temp_avail;
+			break;
+		default:
+			return -EINVAL;
+		}
+		*type = IIO_VAL_INT;
+		return IIO_AVAIL_LIST;
+	default:
+		return -EINVAL;
+	}
 }
-
-static ssize_t bmp280_show_temp_oversampling_avail(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	struct bmp280_data *data = iio_priv(dev_to_iio_dev(dev));
-
-	return bmp280_show_avail(buf, data->chip_info->oversampling_temp_avail,
-				 data->chip_info->num_oversampling_temp_avail);
-}
-
-static ssize_t bmp280_show_press_oversampling_avail(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	struct bmp280_data *data = iio_priv(dev_to_iio_dev(dev));
-
-	return bmp280_show_avail(buf, data->chip_info->oversampling_press_avail,
-				 data->chip_info->num_oversampling_press_avail);
-}
-
-static IIO_DEVICE_ATTR(in_temp_oversampling_ratio_available,
-	S_IRUGO, bmp280_show_temp_oversampling_avail, NULL, 0);
-
-static IIO_DEVICE_ATTR(in_pressure_oversampling_ratio_available,
-	S_IRUGO, bmp280_show_press_oversampling_avail, NULL, 0);
-
-static struct attribute *bmp280_attributes[] = {
-	&iio_dev_attr_in_temp_oversampling_ratio_available.dev_attr.attr,
-	&iio_dev_attr_in_pressure_oversampling_ratio_available.dev_attr.attr,
-	NULL,
-};
-
-static const struct attribute_group bmp280_attrs_group = {
-	.attrs = bmp280_attributes,
-};
 
 static const struct iio_info bmp280_info = {
 	.read_raw = &bmp280_read_raw,
+	.read_avail = &bmp280_read_avail,
 	.write_raw = &bmp280_write_raw,
-	.attrs = &bmp280_attrs_group,
 };
 
 static int bmp280_chip_config(struct bmp280_data *data)
@@ -713,7 +693,7 @@ static int bmp180_measure(struct bmp280_data *data, u8 ctrl_meas)
 	unsigned int ctrl;
 
 	if (data->use_eoc)
-		init_completion(&data->done);
+		reinit_completion(&data->done);
 
 	ret = regmap_write(data->regmap, BMP280_REG_CTRL_MEAS, ctrl_meas);
 	if (ret)
@@ -752,14 +732,14 @@ static int bmp180_measure(struct bmp280_data *data, u8 ctrl_meas)
 
 static int bmp180_read_adc_temp(struct bmp280_data *data, int *val)
 {
+	__be16 tmp;
 	int ret;
-	__be16 tmp = 0;
 
 	ret = bmp180_measure(data, BMP180_MEAS_TEMP);
 	if (ret)
 		return ret;
 
-	ret = regmap_bulk_read(data->regmap, BMP180_REG_OUT_MSB, (u8 *)&tmp, 2);
+	ret = regmap_bulk_read(data->regmap, BMP180_REG_OUT_MSB, &tmp, 2);
 	if (ret)
 		return ret;
 
@@ -856,7 +836,7 @@ static int bmp180_read_adc_press(struct bmp280_data *data, int *val)
 	if (ret)
 		return ret;
 
-	ret = regmap_bulk_read(data->regmap, BMP180_REG_OUT_MSB, (u8 *)&tmp, 3);
+	ret = regmap_bulk_read(data->regmap, BMP180_REG_OUT_MSB, &tmp, 3);
 	if (ret)
 		return ret;
 
@@ -965,10 +945,12 @@ static int bmp085_fetch_eoc_irq(struct device *dev,
 
 	irq_trig = irqd_get_trigger_type(irq_get_irq_data(irq));
 	if (irq_trig != IRQF_TRIGGER_RISING) {
-		dev_err(dev, "non-rising trigger given for EOC interrupt, "
-			"trying to enforce it\n");
+		dev_err(dev, "non-rising trigger given for EOC interrupt, trying to enforce it\n");
 		irq_trig = IRQF_TRIGGER_RISING;
 	}
+
+	init_completion(&data->done);
+
 	ret = devm_request_threaded_irq(dev,
 			irq,
 			bmp085_eoc_irq,
@@ -1082,9 +1064,9 @@ int bmp280_common_probe(struct device *dev,
 	usleep_range(data->start_up_time, data->start_up_time + 100);
 
 	/* Bring chip out of reset if there is an assigned GPIO line */
-	gpiod = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
+	gpiod = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
 	/* Deassert the signal */
-	if (!IS_ERR(gpiod)) {
+	if (gpiod) {
 		dev_info(dev, "release reset\n");
 		gpiod_set_value(gpiod, 0);
 	}

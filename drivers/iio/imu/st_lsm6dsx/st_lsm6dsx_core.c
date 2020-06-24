@@ -27,7 +27,8 @@
  *   - FIFO size: 4KB
  *
  * - LSM6DSO/LSM6DSOX/ASM330LHH/LSM6DSR/ISM330DHCX:
- *   - Accelerometer/Gyroscope supported ODR [Hz]: 13, 26, 52, 104, 208, 416
+ *   - Accelerometer/Gyroscope supported ODR [Hz]: 13, 26, 52, 104, 208, 416,
+ *     833
  *   - Accelerometer supported full-scale [g]: +-2/+-4/+-8/+-16
  *   - Gyroscope supported full-scale [dps]: +-125/+-245/+-500/+-1000/+-2000
  *   - FIFO size: 3KB
@@ -791,7 +792,8 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 				.odr_avl[3] = { 104000, 0x04 },
 				.odr_avl[4] = { 208000, 0x05 },
 				.odr_avl[5] = { 416000, 0x06 },
-				.odr_len = 6,
+				.odr_avl[6] = { 833000, 0x07 },
+				.odr_len = 7,
 			},
 			[ST_LSM6DSX_ID_GYRO] = {
 				.reg = {
@@ -804,7 +806,8 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 				.odr_avl[3] = { 104000, 0x04 },
 				.odr_avl[4] = { 208000, 0x05 },
 				.odr_avl[5] = { 416000, 0x06 },
-				.odr_len = 6,
+				.odr_avl[6] = { 833000, 0x07 },
+				.odr_len = 7,
 			},
 		},
 		.fs_table = {
@@ -994,7 +997,8 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 				.odr_avl[3] = { 104000, 0x04 },
 				.odr_avl[4] = { 208000, 0x05 },
 				.odr_avl[5] = { 416000, 0x06 },
-				.odr_len = 6,
+				.odr_avl[6] = { 833000, 0x07 },
+				.odr_len = 7,
 			},
 			[ST_LSM6DSX_ID_GYRO] = {
 				.reg = {
@@ -1007,7 +1011,8 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 				.odr_avl[3] = { 104000, 0x04 },
 				.odr_avl[4] = { 208000, 0x05 },
 				.odr_avl[5] = { 416000, 0x06 },
-				.odr_len = 6,
+				.odr_avl[6] = { 833000, 0x07 },
+				.odr_len = 7,
 			},
 		},
 		.fs_table = {
@@ -1171,7 +1176,8 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 				.odr_avl[3] = { 104000, 0x04 },
 				.odr_avl[4] = { 208000, 0x05 },
 				.odr_avl[5] = { 416000, 0x06 },
-				.odr_len = 6,
+				.odr_avl[6] = { 833000, 0x07 },
+				.odr_len = 7,
 			},
 			[ST_LSM6DSX_ID_GYRO] = {
 				.reg = {
@@ -1184,7 +1190,8 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 				.odr_avl[3] = { 104000, 0x04 },
 				.odr_avl[4] = { 208000, 0x05 },
 				.odr_avl[5] = { 416000, 0x06 },
-				.odr_len = 6,
+				.odr_avl[6] = { 833000, 0x07 },
+				.odr_len = 7,
 			},
 		},
 		.fs_table = {

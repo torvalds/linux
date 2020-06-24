@@ -141,9 +141,10 @@ static void qcom_geni_serial_stop_rx(struct uart_port *uport);
 static void qcom_geni_serial_handle_rx(struct uart_port *uport, bool drop);
 
 static const unsigned long root_freq[] = {7372800, 14745600, 19200000, 29491200,
-					32000000, 48000000, 64000000, 80000000,
-					96000000, 100000000, 102400000,
-					112000000, 120000000, 128000000};
+					32000000, 48000000, 51200000, 64000000,
+					80000000, 96000000, 100000000,
+					102400000, 112000000, 120000000,
+					128000000};
 
 #define to_dev_port(ptr, member) \
 		container_of(ptr, struct qcom_geni_serial_port, member)

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0
  *
- * Copyright 2016-2019 HabanaLabs, Ltd.
+ * Copyright 2016-2020 HabanaLabs, Ltd.
  * All Rights Reserved.
  *
  */
@@ -35,7 +35,8 @@ struct hl_eq_entry {
 enum pq_init_status {
 	PQ_INIT_STATUS_NA = 0,
 	PQ_INIT_STATUS_READY_FOR_CP,
-	PQ_INIT_STATUS_READY_FOR_HOST
+	PQ_INIT_STATUS_READY_FOR_HOST,
+	PQ_INIT_STATUS_READY_FOR_CP_SINGLE_MSI
 };
 
 /*
@@ -193,6 +194,16 @@ enum pq_init_status {
  *       Set the value of the offset property of a specified thermal sensor.
  *       The packet's arguments specify the desired sensor and the field to
  *       set.
+ *
+ * ARMCP_PACKET_VOLTAGE_SET -
+ *       Trigger the reset_history property of a specified voltage sensor.
+ *       The packet's arguments specify the desired sensor and the field to
+ *       set.
+ *
+ * ARMCP_PACKET_CURRENT_SET -
+ *       Trigger the reset_history property of a specified current sensor.
+ *       The packet's arguments specify the desired sensor and the field to
+ *       set.
  */
 
 enum armcp_packet_id {
@@ -220,6 +231,8 @@ enum armcp_packet_id {
 	ARMCP_PACKET_EEPROM_DATA_GET,		/* sysfs */
 	ARMCP_RESERVED,
 	ARMCP_PACKET_TEMPERATURE_SET,		/* sysfs */
+	ARMCP_PACKET_VOLTAGE_SET,		/* sysfs */
+	ARMCP_PACKET_CURRENT_SET,		/* sysfs */
 };
 
 #define ARMCP_PACKET_FENCE_VAL	0xFE8CE7A5
@@ -288,21 +301,24 @@ enum armcp_temp_type {
 	armcp_temp_crit,
 	armcp_temp_crit_hyst,
 	armcp_temp_offset = 19,
-	armcp_temp_highest = 22
+	armcp_temp_highest = 22,
+	armcp_temp_reset_history = 23
 };
 
 enum armcp_in_attributes {
 	armcp_in_input,
 	armcp_in_min,
 	armcp_in_max,
-	armcp_in_highest = 7
+	armcp_in_highest = 7,
+	armcp_in_reset_history
 };
 
 enum armcp_curr_attributes {
 	armcp_curr_input,
 	armcp_curr_min,
 	armcp_curr_max,
-	armcp_curr_highest = 7
+	armcp_curr_highest = 7,
+	armcp_curr_reset_history
 };
 
 enum armcp_fan_attributes {
@@ -336,10 +352,23 @@ struct armcp_sensor {
 };
 
 /**
+ * struct armcp_card_types - ASIC card type.
+ * @armcp_card_type_pci: PCI card.
+ * @armcp_card_type_pmc: PCI Mezzanine Card.
+ */
+enum armcp_card_types {
+	armcp_card_type_pci,
+	armcp_card_type_pmc
+};
+
+/**
  * struct armcp_info - Info from ArmCP that is necessary to the host's driver
  * @sensors: available sensors description.
  * @kernel_version: ArmCP linux kernel version.
  * @reserved: reserved field.
+ * @card_type: card configuration type.
+ * @card_location: in a server, each card has different connections topology
+ *                 depending on its location (relevant for PMC card type)
  * @cpld_version: CPLD programmed F/W version.
  * @infineon_version: Infineon main DC-DC version.
  * @fuse_version: silicon production FUSE information.
@@ -351,7 +380,9 @@ struct armcp_sensor {
 struct armcp_info {
 	struct armcp_sensor sensors[ARMCP_MAX_SENSORS];
 	__u8 kernel_version[VERSION_MAX_LEN];
-	__le32 reserved[3];
+	__le32 reserved;
+	__le32 card_type;
+	__le32 card_location;
 	__le32 cpld_version;
 	__le32 infineon_version;
 	__u8 fuse_version[VERSION_MAX_LEN];

@@ -88,6 +88,69 @@ static const struct st_lsm6dsx_ext_dev_settings st_lsm6dsx_ext_dev_table[] = {
 			.len = 6,
 		},
 	},
+	/* LIS3MDL */
+	{
+		.i2c_addr = { 0x1e },
+		.wai = {
+			.addr = 0x0f,
+			.val = 0x3d,
+		},
+		.id = ST_LSM6DSX_ID_MAGN,
+		.odr_table = {
+			.reg = {
+				.addr = 0x20,
+				.mask = GENMASK(4, 2),
+			},
+			.odr_avl[0] = {  1000, 0x0 },
+			.odr_avl[1] = {  2000, 0x1 },
+			.odr_avl[2] = {  3000, 0x2 },
+			.odr_avl[3] = {  5000, 0x3 },
+			.odr_avl[4] = { 10000, 0x4 },
+			.odr_avl[5] = { 20000, 0x5 },
+			.odr_avl[6] = { 40000, 0x6 },
+			.odr_avl[7] = { 80000, 0x7 },
+			.odr_len = 8,
+		},
+		.fs_table = {
+			.reg = {
+				.addr = 0x21,
+				.mask = GENMASK(6, 5),
+			},
+			.fs_avl[0] = {
+				.gain = 146,
+				.val = 0x00,
+			}, /* 4000 uG/LSB */
+			.fs_avl[1] = {
+				.gain = 292,
+				.val = 0x01,
+			}, /* 8000 uG/LSB */
+			.fs_avl[2] = {
+				.gain = 438,
+				.val = 0x02,
+			}, /* 12000 uG/LSB */
+			.fs_avl[3] = {
+				.gain = 584,
+				.val = 0x03,
+			}, /* 16000 uG/LSB */
+			.fs_len = 4,
+		},
+		.pwr_table = {
+			.reg = {
+				.addr = 0x22,
+				.mask = GENMASK(1, 0),
+			},
+			.off_val = 0x2,
+			.on_val = 0x0,
+		},
+		.bdu = {
+			.addr = 0x24,
+			.mask = BIT(6),
+		},
+		.out = {
+			.addr = 0x28,
+			.len = 6,
+		},
+	},
 };
 
 static void st_lsm6dsx_shub_wait_complete(struct st_lsm6dsx_hw *hw)
@@ -519,6 +582,36 @@ st_lsm6dsx_shub_read_raw(struct iio_dev *iio_dev,
 }
 
 static int
+st_lsm6dsx_shub_set_full_scale(struct st_lsm6dsx_sensor *sensor,
+			       u32 gain)
+{
+	const struct st_lsm6dsx_fs_table_entry *fs_table;
+	int i, err;
+
+	fs_table = &sensor->ext_info.settings->fs_table;
+	if (!fs_table->reg.addr)
+		return -ENOTSUPP;
+
+	for (i = 0; i < fs_table->fs_len; i++) {
+		if (fs_table->fs_avl[i].gain == gain)
+			break;
+	}
+
+	if (i == fs_table->fs_len)
+		return -EINVAL;
+
+	err = st_lsm6dsx_shub_write_with_mask(sensor, fs_table->reg.addr,
+					      fs_table->reg.mask,
+					      fs_table->fs_avl[i].val);
+	if (err < 0)
+		return err;
+
+	sensor->gain = gain;
+
+	return 0;
+}
+
+static int
 st_lsm6dsx_shub_write_raw(struct iio_dev *iio_dev,
 			  struct iio_chan_spec const *chan,
 			  int val, int val2, long mask)
@@ -554,6 +647,9 @@ st_lsm6dsx_shub_write_raw(struct iio_dev *iio_dev,
 		}
 		break;
 	}
+	case IIO_CHAN_INFO_SCALE:
+		err = st_lsm6dsx_shub_set_full_scale(sensor, val2);
+		break;
 	default:
 		err = -EINVAL;
 		break;

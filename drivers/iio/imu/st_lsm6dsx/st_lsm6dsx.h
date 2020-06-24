@@ -111,7 +111,7 @@ struct st_lsm6dsx_odr {
 	u8 val;
 };
 
-#define ST_LSM6DSX_ODR_LIST_SIZE	6
+#define ST_LSM6DSX_ODR_LIST_SIZE	8
 struct st_lsm6dsx_odr_table_entry {
 	struct st_lsm6dsx_reg reg;
 
