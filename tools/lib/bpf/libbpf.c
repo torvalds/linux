@@ -2504,22 +2504,31 @@ static inline bool libbpf_prog_needs_vmlinux_btf(struct bpf_program *prog)
 
 static int bpf_object__load_vmlinux_btf(struct bpf_object *obj)
 {
+	bool need_vmlinux_btf = false;
 	struct bpf_program *prog;
 	int err;
 
+	/* CO-RE relocations need kernel BTF */
+	if (obj->btf_ext && obj->btf_ext->field_reloc_info.len)
+		need_vmlinux_btf = true;
+
 	bpf_object__for_each_program(prog, obj) {
 		if (libbpf_prog_needs_vmlinux_btf(prog)) {
-			obj->btf_vmlinux = libbpf_find_kernel_btf();
-			if (IS_ERR(obj->btf_vmlinux)) {
-				err = PTR_ERR(obj->btf_vmlinux);
-				pr_warn("Error loading vmlinux BTF: %d\n", err);
-				obj->btf_vmlinux = NULL;
-				return err;
-			}
-			return 0;
+			need_vmlinux_btf = true;
+			break;
 		}
 	}
 
+	if (!need_vmlinux_btf)
+		return 0;
+
+	obj->btf_vmlinux = libbpf_find_kernel_btf();
+	if (IS_ERR(obj->btf_vmlinux)) {
+		err = PTR_ERR(obj->btf_vmlinux);
+		pr_warn("Error loading vmlinux BTF: %d\n", err);
+		obj->btf_vmlinux = NULL;
+		return err;
+	}
 	return 0;
 }
 
@@ -4945,8 +4954,8 @@ bpf_core_reloc_fields(struct bpf_object *obj, const char *targ_btf_path)
 	if (targ_btf_path)
 		targ_btf = btf__parse_elf(targ_btf_path, NULL);
 	else
-		targ_btf = libbpf_find_kernel_btf();
-	if (IS_ERR(targ_btf)) {
+		targ_btf = obj->btf_vmlinux;
+	if (IS_ERR_OR_NULL(targ_btf)) {
 		pr_warn("failed to get target BTF: %ld\n", PTR_ERR(targ_btf));
 		return PTR_ERR(targ_btf);
 	}
@@ -4987,7 +4996,9 @@ bpf_core_reloc_fields(struct bpf_object *obj, const char *targ_btf_path)
 	}
 
 out:
-	btf__free(targ_btf);
+	/* obj->btf_vmlinux is freed at the end of object load phase */
+	if (targ_btf != obj->btf_vmlinux)
+		btf__free(targ_btf);
 	if (!IS_ERR_OR_NULL(cand_cache)) {
 		hashmap__for_each_entry(cand_cache, entry, i) {
 			bpf_core_free_cands(entry->value);
