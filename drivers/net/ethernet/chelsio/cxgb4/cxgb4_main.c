@@ -4146,9 +4146,10 @@ static int adap_init0_phy(struct adapter *adap)
 
 	/* Load PHY Firmware onto adapter.
 	 */
-	ret = t4_load_phy_fw(adap, MEMWIN_NIC, &adap->win0_lock,
-			     phy_info->phy_fw_version,
+	spin_lock_bh(&adap->win0_lock);
+	ret = t4_load_phy_fw(adap, MEMWIN_NIC, phy_info->phy_fw_version,
 			     (u8 *)phyf->data, phyf->size);
+	spin_unlock_bh(&adap->win0_lock);
 	if (ret < 0)
 		dev_err(adap->pdev_dev, "PHY Firmware transfer error %d\n",
 			-ret);

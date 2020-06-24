@@ -1813,8 +1813,7 @@ int t4_get_pfres(struct adapter *adapter);
 int t4_read_flash(struct adapter *adapter, unsigned int addr,
 		  unsigned int nwords, u32 *data, int byte_oriented);
 int t4_load_fw(struct adapter *adapter, const u8 *fw_data, unsigned int size);
-int t4_load_phy_fw(struct adapter *adap,
-		   int win, spinlock_t *lock,
+int t4_load_phy_fw(struct adapter *adap, int win,
 		   int (*phy_fw_version)(const u8 *, size_t),
 		   const u8 *phy_fw_data, size_t phy_fw_size);
 int t4_phy_fw_ver(struct adapter *adap, int *phy_fw_ver);
