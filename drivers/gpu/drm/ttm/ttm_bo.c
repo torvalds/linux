@@ -292,12 +292,11 @@ static int ttm_bo_handle_move_mem(struct ttm_buffer_object *bo,
 	 */
 
 	if (!(new_man->flags & TTM_MEMTYPE_FLAG_FIXED)) {
-		if (bo->ttm == NULL) {
-			bool zero = !(old_man->flags & TTM_MEMTYPE_FLAG_FIXED);
-			ret = ttm_tt_create(bo, zero);
-			if (ret)
-				goto out_err;
-		}
+		bool zero = !(old_man->flags & TTM_MEMTYPE_FLAG_FIXED);
+
+		ret = ttm_tt_create(bo, zero);
+		if (ret)
+			goto out_err;
 
 		ret = ttm_tt_set_placement_caching(bo->ttm, mem->placement);
 		if (ret)
@@ -660,13 +659,8 @@ static int ttm_bo_evict(struct ttm_buffer_object *bo,
 	placement.num_busy_placement = 0;
 	bdev->driver->evict_flags(bo, &placement);
 
-	if (!placement.num_placement && !placement.num_busy_placement) {
-		ret = ttm_bo_pipeline_gutting(bo);
-		if (ret)
-			return ret;
-
-		return ttm_tt_create(bo, false);
-	}
+	if (!placement.num_placement && !placement.num_busy_placement)
+		return ttm_bo_pipeline_gutting(bo);
 
 	evict_mem = bo->mem;
 	evict_mem.mm_node = NULL;
@@ -1195,13 +1189,8 @@ int ttm_bo_validate(struct ttm_buffer_object *bo,
 	/*
 	 * Remove the backing store if no placement is given.
 	 */
-	if (!placement->num_placement && !placement->num_busy_placement) {
-		ret = ttm_bo_pipeline_gutting(bo);
-		if (ret)
-			return ret;
-
-		return ttm_tt_create(bo, false);
-	}
+	if (!placement->num_placement && !placement->num_busy_placement)
+		return ttm_bo_pipeline_gutting(bo);
 
 	/*
 	 * Check whether we need to move buffer.
@@ -1217,14 +1206,6 @@ int ttm_bo_validate(struct ttm_buffer_object *bo,
 		 */
 		ttm_flag_masked(&bo->mem.placement, new_flags,
 				~TTM_PL_MASK_MEMTYPE);
-	}
-	/*
-	 * We might need to add a TTM.
-	 */
-	if (bo->mem.mem_type == TTM_PL_SYSTEM && bo->ttm == NULL) {
-		ret = ttm_tt_create(bo, true);
-		if (ret)
-			return ret;
 	}
 	return 0;
 }

@@ -532,12 +532,15 @@ static int ttm_bo_kmap_ttm(struct ttm_buffer_object *bo,
 		.interruptible = false,
 		.no_wait_gpu = false
 	};
-	struct ttm_tt *ttm = bo->ttm;
+	struct ttm_tt *ttm;
 	pgprot_t prot;
 	int ret;
 
-	BUG_ON(!ttm);
+	ret = ttm_tt_create(bo, true);
+	if (ret)
+		return ret;
 
+	ttm = bo->ttm;
 	ret = ttm_tt_populate(ttm, &ctx);
 	if (ret)
 		return ret;
