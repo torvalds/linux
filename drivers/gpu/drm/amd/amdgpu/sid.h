@@ -47,6 +47,7 @@
 #define SI_MAX_LDS_NUM           	0xFFFF
 #define SI_MAX_TCC               	16
 #define SI_MAX_TCC_MASK          	0xFFFF
+#define SI_MAX_CTLACKS_ASSERTION_WAIT   100
 
 #define AMDGPU_NUM_OF_VMIDS 		8
 
