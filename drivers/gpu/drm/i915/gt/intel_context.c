@@ -97,8 +97,6 @@ int __intel_context_do_pin(struct intel_context *ce)
 {
 	int err;
 
-	GEM_BUG_ON(intel_context_is_closed(ce));
-
 	if (unlikely(!test_bit(CONTEXT_ALLOC_BIT, &ce->flags))) {
 		err = intel_context_alloc_state(ce);
 		if (err)

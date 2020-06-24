@@ -393,7 +393,7 @@ static int zap_threads(struct task_struct *tsk, struct mm_struct *mm,
 	 *	of ->siglock provides a memory barrier.
 	 *
 	 * do_exit:
-	 *	The caller holds mm->mmap_sem. This means that the task which
+	 *	The caller holds mm->mmap_lock. This means that the task which
 	 *	uses this mm can't pass exit_mm(), so it can't exit or clear
 	 *	its ->mm.
 	 *
@@ -401,7 +401,7 @@ static int zap_threads(struct task_struct *tsk, struct mm_struct *mm,
 	 *	It does list_replace_rcu(&leader->tasks, &current->tasks),
 	 *	we must see either old or new leader, this does not matter.
 	 *	However, it can change p->sighand, so lock_task_sighand(p)
-	 *	must be used. Since p->mm != NULL and we hold ->mmap_sem
+	 *	must be used. Since p->mm != NULL and we hold ->mmap_lock
 	 *	it can't fail.
 	 *
 	 *	Note also that "g" can be the old leader with ->mm == NULL
@@ -445,12 +445,12 @@ static int coredump_wait(int exit_code, struct core_state *core_state)
 	core_state->dumper.task = tsk;
 	core_state->dumper.next = NULL;
 
-	if (down_write_killable(&mm->mmap_sem))
+	if (mmap_write_lock_killable(mm))
 		return -EINTR;
 
 	if (!mm->core_state)
 		core_waiters = zap_threads(tsk, mm, core_state, exit_code);
-	up_write(&mm->mmap_sem);
+	mmap_write_unlock(mm);
 
 	if (core_waiters > 0) {
 		struct core_thread *ptr;

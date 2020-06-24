@@ -17,8 +17,8 @@
 #undef DEBUG
 
 #include <linux/string.h>
+#include <linux/pgtable.h>
 #include <asm/pgalloc.h>
-#include <asm/pgtable.h>
 #include <asm/kup.h>
 
 phys_addr_t memstart_addr __ro_after_init = (phys_addr_t)~0ull;

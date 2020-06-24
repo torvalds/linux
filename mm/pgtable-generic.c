@@ -2,15 +2,15 @@
 /*
  *  mm/pgtable-generic.c
  *
- *  Generic pgtable methods declared in asm-generic/pgtable.h
+ *  Generic pgtable methods declared in linux/pgtable.h
  *
  *  Copyright (C) 2010  Linus Torvalds
  */
 
 #include <linux/pagemap.h>
 #include <linux/hugetlb.h>
+#include <linux/pgtable.h>
 #include <asm/tlb.h>
-#include <asm-generic/pgtable.h>
 
 /*
  * If a p?d_bad entry is found while walking page tables, report
@@ -53,7 +53,7 @@ void pmd_clear_bad(pmd_t *pmd)
 
 #ifndef __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS
 /*
- * Only sets the access flags (dirty, accessed), as well as write 
+ * Only sets the access flags (dirty, accessed), as well as write
  * permission. Furthermore, we know it always gets set to a "more
  * permissive" setting, which allows most architectures to optimize
  * this. We return whether the PTE actually changed, which in turn

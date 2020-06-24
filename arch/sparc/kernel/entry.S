@@ -10,6 +10,7 @@
 
 #include <linux/linkage.h>
 #include <linux/errno.h>
+#include <linux/pgtable.h>
 
 #include <asm/head.h>
 #include <asm/asi.h>
@@ -20,7 +21,6 @@
 #include <asm/psr.h>
 #include <asm/vaddrs.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/winmacro.h>
 #include <asm/signal.h>
 #include <asm/obio.h>

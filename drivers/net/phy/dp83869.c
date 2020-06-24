@@ -176,7 +176,7 @@ static int dp83869_set_strapped_mode(struct phy_device *phydev)
 	return 0;
 }
 
-#ifdef CONFIG_OF_MDIO
+#if IS_ENABLED(CONFIG_OF_MDIO)
 static int dp83869_of_init(struct phy_device *phydev)
 {
 	struct dp83869_private *dp83869 = phydev->priv;
@@ -218,10 +218,13 @@ static int dp83869_of_init(struct phy_device *phydev)
 		ret = phy_read_mmd(phydev, DP83869_DEVADDR, DP83869_STRAP_STS1);
 		if (ret < 0)
 			return ret;
+
 		if (ret & DP83869_STRAP_MIRROR_ENABLED)
 			dp83869->port_mirroring = DP83869_PORT_MIRRORING_EN;
 		else
 			dp83869->port_mirroring = DP83869_PORT_MIRRORING_DIS;
+
+		ret = 0;
 	}
 
 	if (of_property_read_u32(of_node, "rx-fifo-depth",

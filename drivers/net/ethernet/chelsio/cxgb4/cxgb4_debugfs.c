@@ -3357,7 +3357,7 @@ static ssize_t blocked_fl_read(struct file *filp, char __user *ubuf,
 		       adap->sge.egr_sz, adap->sge.blocked_fl);
 	len += sprintf(buf + len, "\n");
 	size = simple_read_from_buffer(ubuf, count, ppos, buf, len);
-	kvfree(buf);
+	kfree(buf);
 	return size;
 }
 
@@ -3374,12 +3374,12 @@ static ssize_t blocked_fl_write(struct file *filp, const char __user *ubuf,
 
 	err = bitmap_parse_user(ubuf, count, t, adap->sge.egr_sz);
 	if (err) {
-		kvfree(t);
+		kfree(t);
 		return err;
 	}
 
 	bitmap_copy(adap->sge.blocked_fl, t, adap->sge.egr_sz);
-	kvfree(t);
+	kfree(t);
 	return count;
 }
 

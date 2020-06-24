@@ -3,13 +3,13 @@
 #define _ASM_X86_EFI_H
 
 #include <asm/fpu/api.h>
-#include <asm/pgtable.h>
 #include <asm/processor-flags.h>
 #include <asm/tlb.h>
 #include <asm/nospec-branch.h>
 #include <asm/mmu_context.h>
 #include <linux/build_bug.h>
 #include <linux/kernel.h>
+#include <linux/pgtable.h>
 
 extern unsigned long efi_fw_vendor, efi_config_table;
 

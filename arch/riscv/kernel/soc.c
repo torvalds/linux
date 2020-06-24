@@ -4,7 +4,7 @@
  */
 #include <linux/init.h>
 #include <linux/libfdt.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <asm/soc.h>
 
 /*

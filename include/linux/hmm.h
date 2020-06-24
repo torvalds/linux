@@ -10,7 +10,7 @@
 #define LINUX_HMM_H
 
 #include <linux/kconfig.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 
 #include <linux/device.h>
 #include <linux/migrate.h>

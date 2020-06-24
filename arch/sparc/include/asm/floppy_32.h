@@ -9,8 +9,8 @@
 
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/pgtable.h>
 
-#include <asm/pgtable.h>
 #include <asm/idprom.h>
 #include <asm/oplib.h>
 #include <asm/auxio.h>

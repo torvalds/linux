@@ -26,7 +26,6 @@
 #define PIO_MASK		0
 
 #include <asm-generic/io.h>
-#include <asm/pgtable.h>
 
 void __iomem *ioremap(phys_addr_t offset, unsigned long size);
 extern void iounmap(void *addr);

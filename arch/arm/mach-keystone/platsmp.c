@@ -12,11 +12,11 @@
 #include <linux/init.h>
 #include <linux/smp.h>
 #include <linux/io.h>
+#include <linux/pgtable.h>
 
 #include <asm/smp_plat.h>
 #include <asm/prom.h>
 #include <asm/tlbflush.h>
-#include <asm/pgtable.h>
 
 #include "keystone.h"
 

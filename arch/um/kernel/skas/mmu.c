@@ -9,7 +9,6 @@
 #include <linux/slab.h>
 
 #include <asm/pgalloc.h>
-#include <asm/pgtable.h>
 #include <asm/sections.h>
 #include <as-layout.h>
 #include <os.h>
@@ -115,7 +114,7 @@ void uml_setup_stubs(struct mm_struct *mm)
 	mm->context.stub_pages[0] = virt_to_page(__syscall_stub_start);
 	mm->context.stub_pages[1] = virt_to_page(mm->context.id.stack);
 
-	/* dup_mmap already holds mmap_sem */
+	/* dup_mmap already holds mmap_lock */
 	err = install_special_mapping(mm, STUB_START, STUB_END - STUB_START,
 				      VM_READ | VM_MAYREAD | VM_EXEC |
 				      VM_MAYEXEC | VM_DONTCOPY | VM_PFNMAP,

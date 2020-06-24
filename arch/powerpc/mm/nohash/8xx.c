@@ -74,7 +74,7 @@ static pte_t __init *early_hugepd_alloc_kernel(hugepd_t *pmdp, unsigned long va)
 static int __ref __early_map_kernel_hugepage(unsigned long va, phys_addr_t pa,
 					     pgprot_t prot, int psize, bool new)
 {
-	pmd_t *pmdp = pmd_ptr_k(va);
+	pmd_t *pmdp = pmd_off_k(va);
 	pte_t *ptep;
 
 	if (WARN_ON(psize != MMU_PAGE_512K && psize != MMU_PAGE_8M))

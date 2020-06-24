@@ -10,7 +10,7 @@
 static int __init
 kasan_init_shadow_8M(unsigned long k_start, unsigned long k_end, void *block)
 {
-	pmd_t *pmd = pmd_ptr_k(k_start);
+	pmd_t *pmd = pmd_off_k(k_start);
 	unsigned long k_cur, k_next;
 
 	for (k_cur = k_start; k_cur != k_end; k_cur = k_next, pmd += 2, block += SZ_8M) {
@@ -59,7 +59,7 @@ int __init kasan_init_region(void *start, size_t size)
 		return ret;
 
 	for (; k_cur < k_end; k_cur += PAGE_SIZE) {
-		pmd_t *pmd = pmd_ptr_k(k_cur);
+		pmd_t *pmd = pmd_off_k(k_cur);
 		void *va = block + k_cur - k_start;
 		pte_t pte = pfn_pte(PHYS_PFN(__pa(va)), PAGE_KERNEL);
 

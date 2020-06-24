@@ -19,11 +19,11 @@
 #include <linux/memblock.h>
 #include <linux/export.h>
 #include <linux/nvram.h>
+#include <linux/pgtable.h>
 
 #include <asm/io.h>
 #include <asm/prom.h>
 #include <asm/processor.h>
-#include <asm/pgtable.h>
 #include <asm/setup.h>
 #include <asm/smp.h>
 #include <asm/elf.h>

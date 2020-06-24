@@ -982,9 +982,9 @@ static int alloc_user_pages(struct hmm_buffer_object *bo,
 	}
 
 	mutex_unlock(&bo->mutex);
-	down_read(&current->mm->mmap_sem);
+	mmap_read_lock(current->mm);
 	vma = find_vma(current->mm, (unsigned long)userptr);
-	up_read(&current->mm->mmap_sem);
+	mmap_read_unlock(current->mm);
 	if (!vma) {
 		dev_err(atomisp_dev, "find_vma failed\n");
 		kfree(bo->page_obj);

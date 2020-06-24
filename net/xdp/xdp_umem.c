@@ -254,10 +254,10 @@ static int xdp_umem_pin_pages(struct xdp_umem *umem, unsigned long address)
 	if (!umem->pgs)
 		return -ENOMEM;
 
-	down_read(&current->mm->mmap_sem);
+	mmap_read_lock(current->mm);
 	npgs = pin_user_pages(address, umem->npgs,
 			      gup_flags | FOLL_LONGTERM, &umem->pgs[0], NULL);
-	up_read(&current->mm->mmap_sem);
+	mmap_read_unlock(current->mm);
 
 	if (npgs != umem->npgs) {
 		if (npgs >= 0) {
@@ -336,7 +336,7 @@ static int xdp_umem_reg(struct xdp_umem *umem, struct xdp_umem_reg *mr)
 	if ((addr + size) < addr)
 		return -EINVAL;
 
-	npgs = div_u64(size, PAGE_SIZE);
+	npgs = size >> PAGE_SHIFT;
 	if (npgs > U32_MAX)
 		return -EINVAL;
 

@@ -46,7 +46,8 @@ struct nv50_disp_acquire_v0 {
 	__u8  version;
 	__u8  or;
 	__u8  link;
-	__u8  pad03[5];
+	__u8  hda;
+	__u8  pad04[4];
 };
 
 struct nv50_disp_dac_load_v0 {

@@ -1,5 +1,8 @@
-                   Glock internal locking rules
-                  ------------------------------
+.. SPDX-License-Identifier: GPL-2.0
+
+============================
+Glock internal locking rules
+============================
 
 This documents the basic principles of the glock state machine
 internals. Each glock (struct gfs2_glock in fs/gfs2/incore.h)
@@ -24,24 +27,28 @@ There are three lock states that users of the glock layer can request,
 namely shared (SH), deferred (DF) and exclusive (EX). Those translate
 to the following DLM lock modes:
 
-Glock mode    | DLM lock mode
-------------------------------
-    UN        |    IV/NL  Unlocked (no DLM lock associated with glock) or NL
-    SH        |    PR     (Protected read)
-    DF        |    CW     (Concurrent write)
-    EX        |    EX     (Exclusive)
+==========	====== =====================================================
+Glock mode      DLM    lock mode
+==========	====== =====================================================
+    UN          IV/NL  Unlocked (no DLM lock associated with glock) or NL
+    SH          PR     (Protected read)
+    DF          CW     (Concurrent write)
+    EX          EX     (Exclusive)
+==========	====== =====================================================
 
 Thus DF is basically a shared mode which is incompatible with the "normal"
 shared lock mode, SH. In GFS2 the DF mode is used exclusively for direct I/O
 operations. The glocks are basically a lock plus some routines which deal
 with cache management. The following rules apply for the cache:
 
-Glock mode   |  Cache data | Cache Metadata | Dirty Data | Dirty Metadata
---------------------------------------------------------------------------
-    UN       |     No      |       No       |     No     |      No
-    SH       |     Yes     |       Yes      |     No     |      No
-    DF       |     No      |       Yes      |     No     |      No
-    EX       |     Yes     |       Yes      |     Yes    |      Yes
+==========      ==========   ==============   ==========   ==============
+Glock mode      Cache data   Cache Metadata   Dirty Data   Dirty Metadata
+==========      ==========   ==============   ==========   ==============
+    UN             No              No             No            No
+    SH             Yes             Yes            No            No
+    DF             No              Yes            No            No
+    EX             Yes             Yes            Yes           Yes
+==========      ==========   ==============   ==========   ==============
 
 These rules are implemented using the various glock operations which
 are defined for each type of glock. Not all types of glocks use
@@ -49,21 +56,23 @@ all the modes. Only inode glocks use the DF mode for example.
 
 Table of glock operations and per type constants:
 
-Field            | Purpose
-----------------------------------------------------------------------------
-go_xmote_th      | Called before remote state change (e.g. to sync dirty data)
-go_xmote_bh      | Called after remote state change (e.g. to refill cache)
-go_inval         | Called if remote state change requires invalidating the cache
-go_demote_ok     | Returns boolean value of whether its ok to demote a glock
-                 | (e.g. checks timeout, and that there is no cached data)
-go_lock          | Called for the first local holder of a lock
-go_unlock        | Called on the final local unlock of a lock
-go_dump          | Called to print content of object for debugfs file, or on
-                 | error to dump glock to the log.
-go_type          | The type of the glock, LM_TYPE_.....
-go_callback	 | Called if the DLM sends a callback to drop this lock
-go_flags	 | GLOF_ASPACE is set, if the glock has an address space
-                 | associated with it
+=============      =============================================================
+Field              Purpose
+=============      =============================================================
+go_xmote_th        Called before remote state change (e.g. to sync dirty data)
+go_xmote_bh        Called after remote state change (e.g. to refill cache)
+go_inval           Called if remote state change requires invalidating the cache
+go_demote_ok       Returns boolean value of whether its ok to demote a glock
+                   (e.g. checks timeout, and that there is no cached data)
+go_lock            Called for the first local holder of a lock
+go_unlock          Called on the final local unlock of a lock
+go_dump            Called to print content of object for debugfs file, or on
+                   error to dump glock to the log.
+go_type            The type of the glock, ``LM_TYPE_*``
+go_callback	   Called if the DLM sends a callback to drop this lock
+go_flags	   GLOF_ASPACE is set, if the glock has an address space
+                   associated with it
+=============      =============================================================
 
 The minimum hold time for each lock is the time after a remote lock
 grant for which we ignore remote demote requests. This is in order to
@@ -82,21 +91,25 @@ rather than via the glock.
 
 Locking rules for glock operations:
 
-Operation     |  GLF_LOCK bit lock held |  gl_lockref.lock spinlock held
--------------------------------------------------------------------------
-go_xmote_th   |       Yes               |       No
-go_xmote_bh   |       Yes               |       No
-go_inval      |       Yes               |       No
-go_demote_ok  |       Sometimes         |       Yes
-go_lock       |       Yes               |       No
-go_unlock     |       Yes               |       No
-go_dump       |       Sometimes         |       Yes
-go_callback   |       Sometimes (N/A)   |       Yes
+=============    ======================    =============================
+Operation        GLF_LOCK bit lock held    gl_lockref.lock spinlock held
+=============    ======================    =============================
+go_xmote_th           Yes                       No
+go_xmote_bh           Yes                       No
+go_inval              Yes                       No
+go_demote_ok          Sometimes                 Yes
+go_lock               Yes                       No
+go_unlock             Yes                       No
+go_dump               Sometimes                 Yes
+go_callback           Sometimes (N/A)           Yes
+=============    ======================    =============================
 
-N.B. Operations must not drop either the bit lock or the spinlock
-if its held on entry. go_dump and do_demote_ok must never block.
-Note that go_dump will only be called if the glock's state
-indicates that it is caching uptodate data.
+.. Note::
+
+   Operations must not drop either the bit lock or the spinlock
+   if its held on entry. go_dump and do_demote_ok must never block.
+   Note that go_dump will only be called if the glock's state
+   indicates that it is caching uptodate data.
 
 Glock locking order within GFS2:
 
@@ -104,7 +117,7 @@ Glock locking order within GFS2:
  2. Rename glock (for rename only)
  3. Inode glock(s)
     (Parents before children, inodes at "same level" with same parent in
-     lock number order)
+    lock number order)
  4. Rgrp glock(s) (for (de)allocation operations)
  5. Transaction glock (via gfs2_trans_begin) for non-read operations
  6. i_rw_mutex (if required)
@@ -117,8 +130,8 @@ determine the lifetime of the inode in question. Locking of inodes
 is on a per-inode basis. Locking of rgrps is on a per rgrp basis.
 In general we prefer to lock local locks prior to cluster locks.
 
-                            Glock Statistics
-                           ------------------
+Glock Statistics
+----------------
 
 The stats are divided into two sets: those relating to the
 super block and those relating to an individual glock. The
@@ -173,8 +186,8 @@ we'd like to get a better idea of these timings:
 1. To be able to better set the glock "min hold time"
 2. To spot performance issues more easily
 3. To improve the algorithm for selecting resource groups for
-allocation (to base it on lock wait time, rather than blindly
-using a "try lock")
+   allocation (to base it on lock wait time, rather than blindly
+   using a "try lock")
 
 Due to the smoothing action of the updates, a step change in
 some input quantity being sampled will only fully be taken
@@ -195,10 +208,13 @@ as possible. There are always inaccuracies in any
 measuring system, but I hope this is as accurate as we
 can reasonably make it.
 
-Per sb stats can be found here:
-/sys/kernel/debug/gfs2/<fsname>/sbstats
-Per glock stats can be found here:
-/sys/kernel/debug/gfs2/<fsname>/glstats
+Per sb stats can be found here::
+
+    /sys/kernel/debug/gfs2/<fsname>/sbstats
+
+Per glock stats can be found here::
+
+    /sys/kernel/debug/gfs2/<fsname>/glstats
 
 Assuming that debugfs is mounted on /sys/kernel/debug and also
 that <fsname> is replaced with the name of the gfs2 filesystem
@@ -206,14 +222,16 @@ in question.
 
 The abbreviations used in the output as are follows:
 
-srtt     - Smoothed round trip time for non-blocking dlm requests
-srttvar  - Variance estimate for srtt
-srttb    - Smoothed round trip time for (potentially) blocking dlm requests
-srttvarb - Variance estimate for srttb
-sirt     - Smoothed inter-request time (for dlm requests)
-sirtvar  - Variance estimate for sirt
-dlm      - Number of dlm requests made (dcnt in glstats file)
-queue    - Number of glock requests queued (qcnt in glstats file)
+=========  ================================================================
+srtt       Smoothed round trip time for non blocking dlm requests
+srttvar    Variance estimate for srtt
+srttb      Smoothed round trip time for (potentially) blocking dlm requests
+srttvarb   Variance estimate for srttb
+sirt       Smoothed inter request time (for dlm requests)
+sirtvar    Variance estimate for sirt
+dlm        Number of dlm requests made (dcnt in glstats file)
+queue      Number of glock requests queued (qcnt in glstats file)
+=========  ================================================================
 
 The sbstats file contains a set of these stats for each glock type (so 8 lines
 for each type) and for each cpu (one column per cpu). The glstats file contains
@@ -224,9 +242,12 @@ The gfs2_glock_lock_time tracepoint prints out the current values of the stats
 for the glock in question, along with some addition information on each dlm
 reply that is received:
 
-status - The status of the dlm request
-flags  - The dlm request flags
-tdiff  - The time taken by this specific request
+======   =======================================
+status   The status of the dlm request
+flags    The dlm request flags
+tdiff    The time taken by this specific request
+======   =======================================
+
 (remaining fields as per above list)
 
 

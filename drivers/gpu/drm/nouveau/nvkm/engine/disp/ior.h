@@ -201,6 +201,7 @@ int gf119_sor_new(struct nvkm_disp *, int);
 int gk104_sor_new(struct nvkm_disp *, int);
 int gm107_sor_new(struct nvkm_disp *, int);
 int gm200_sor_new(struct nvkm_disp *, int);
+int gp100_sor_new(struct nvkm_disp *, int);
 
 int gv100_sor_cnt(struct nvkm_disp *, unsigned long *);
 int gv100_sor_new(struct nvkm_disp *, int);

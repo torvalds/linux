@@ -2325,7 +2325,7 @@ static int comedi_mmap(struct file *file, struct vm_area_struct *vma)
 	int retval = 0;
 
 	/*
-	 * 'trylock' avoids circular dependency with current->mm->mmap_sem
+	 * 'trylock' avoids circular dependency with current->mm->mmap_lock
 	 * and down-reading &dev->attach_lock should normally succeed without
 	 * contention unless the device is in the process of being attached
 	 * or detached.

@@ -89,7 +89,7 @@ static void show_faulting_vma(unsigned long address)
 	/* can't use print_vma_addr() yet as it doesn't check for
 	 * non-inclusive vma
 	 */
-	down_read(&active_mm->mmap_sem);
+	mmap_read_lock(active_mm);
 	vma = find_vma(active_mm, address);
 
 	/* check against the find_vma( ) behaviour which returns the next VMA
@@ -111,7 +111,7 @@ static void show_faulting_vma(unsigned long address)
 	} else
 		pr_info("    @No matching VMA found\n");
 
-	up_read(&active_mm->mmap_sem);
+	mmap_read_unlock(active_mm);
 }
 
 static void show_ecr_verbose(struct pt_regs *regs)
@@ -240,5 +240,5 @@ void show_kernel_fault_diag(const char *str, struct pt_regs *regs,
 
 	/* Show stack trace if this Fatality happened in kernel mode */
 	if (!user_mode(regs))
-		show_stacktrace(current, regs);
+		show_stacktrace(current, regs, KERN_DEFAULT);
 }

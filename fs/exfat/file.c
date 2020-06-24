@@ -96,11 +96,9 @@ int __exfat_truncate(struct inode *inode, loff_t new_size)
 	unsigned int num_clusters_new, num_clusters_phys;
 	unsigned int last_clu = EXFAT_FREE_CLUSTER;
 	struct exfat_chain clu;
-	struct exfat_dentry *ep, *ep2;
 	struct super_block *sb = inode->i_sb;
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
 	struct exfat_inode_info *ei = EXFAT_I(inode);
-	struct exfat_entry_set_cache *es = NULL;
 	int evict = (ei->dir.dir == DIR_DELETED) ? 1 : 0;
 
 	/* check if the given file ID is opened */
@@ -153,28 +151,31 @@ int __exfat_truncate(struct inode *inode, loff_t new_size)
 	/* update the directory entry */
 	if (!evict) {
 		struct timespec64 ts;
+		struct exfat_dentry *ep, *ep2;
+		struct exfat_entry_set_cache *es;
 
 		es = exfat_get_dentry_set(sb, &(ei->dir), ei->entry,
-				ES_ALL_ENTRIES, &ep);
+				ES_ALL_ENTRIES);
 		if (!es)
 			return -EIO;
-		ep2 = ep + 1;
+		ep = exfat_get_dentry_cached(es, 0);
+		ep2 = exfat_get_dentry_cached(es, 1);
 
 		ts = current_time(inode);
 		exfat_set_entry_time(sbi, &ts,
 				&ep->dentry.file.modify_tz,
 				&ep->dentry.file.modify_time,
 				&ep->dentry.file.modify_date,
-				&ep->dentry.file.modify_time_ms);
+				&ep->dentry.file.modify_time_cs);
 		ep->dentry.file.attr = cpu_to_le16(ei->attr);
 
 		/* File size should be zero if there is no cluster allocated */
 		if (ei->start_clu == EXFAT_EOF_CLUSTER) {
-			ep->dentry.stream.valid_size = 0;
-			ep->dentry.stream.size = 0;
+			ep2->dentry.stream.valid_size = 0;
+			ep2->dentry.stream.size = 0;
 		} else {
-			ep->dentry.stream.valid_size = cpu_to_le64(new_size);
-			ep->dentry.stream.size = ep->dentry.stream.valid_size;
+			ep2->dentry.stream.valid_size = cpu_to_le64(new_size);
+			ep2->dentry.stream.size = ep->dentry.stream.valid_size;
 		}
 
 		if (new_size == 0) {
@@ -185,10 +186,8 @@ int __exfat_truncate(struct inode *inode, loff_t new_size)
 			ep2->dentry.stream.start_clu = EXFAT_FREE_CLUSTER;
 		}
 
-		if (exfat_update_dir_chksum_with_entry_set(sb, es,
-		    inode_needs_sync(inode)))
-			return -EIO;
-		kfree(es);
+		exfat_update_dir_chksum_with_entry_set(es);
+		exfat_free_dentry_set(es, inode_needs_sync(inode));
 	}
 
 	/* cut off from the FAT chain */

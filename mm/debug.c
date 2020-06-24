@@ -120,9 +120,9 @@ void __dump_page(struct page *page, const char *reason)
 		 * mapping can be invalid pointer and we don't want to crash
 		 * accessing it, so probe everything depending on it carefully
 		 */
-		if (probe_kernel_read_strict(&host, &mapping->host,
-						sizeof(struct inode *)) ||
-		    probe_kernel_read_strict(&a_ops, &mapping->a_ops,
+		if (probe_kernel_read(&host, &mapping->host,
+					sizeof(struct inode *)) ||
+		    probe_kernel_read(&a_ops, &mapping->a_ops,
 				sizeof(struct address_space_operations *))) {
 			pr_warn("failed to read mapping->host or a_ops, mapping not a valid kernel address?\n");
 			goto out_mapping;
@@ -133,7 +133,7 @@ void __dump_page(struct page *page, const char *reason)
 			goto out_mapping;
 		}
 
-		if (probe_kernel_read_strict(&dentry_first,
+		if (probe_kernel_read(&dentry_first,
 			&host->i_dentry.first, sizeof(struct hlist_node *))) {
 			pr_warn("mapping->a_ops:%ps with invalid mapping->host inode address %px\n",
 				a_ops, host);
@@ -146,7 +146,7 @@ void __dump_page(struct page *page, const char *reason)
 		}
 
 		dentry_ptr = container_of(dentry_first, struct dentry, d_u.d_alias);
-		if (probe_kernel_read_strict(&dentry, dentry_ptr,
+		if (probe_kernel_read(&dentry, dentry_ptr,
 							sizeof(struct dentry))) {
 			pr_warn("mapping->aops:%ps with invalid mapping->host->i_dentry.first %px\n",
 				a_ops, dentry_ptr);

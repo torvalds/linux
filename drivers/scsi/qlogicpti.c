@@ -30,6 +30,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/firmware.h>
+#include <linux/pgtable.h>
 
 #include <asm/byteorder.h>
 
@@ -37,7 +38,6 @@
 
 #include <asm/dma.h>
 #include <asm/ptrace.h>
-#include <asm/pgtable.h>
 #include <asm/oplib.h>
 #include <asm/io.h>
 #include <asm/irq.h>

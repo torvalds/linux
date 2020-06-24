@@ -1265,7 +1265,7 @@ static int qede_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	case QEDE_PRIVATE_VF:
 		if (debug & QED_LOG_VERBOSE_MASK)
 			dev_err(&pdev->dev, "Probing a VF\n");
-		is_vf = is_kdump_kernel() ? false : true;
+		is_vf = true;
 		break;
 	default:
 		if (debug & QED_LOG_VERBOSE_MASK)

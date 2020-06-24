@@ -615,7 +615,7 @@ prototypes::
 locking rules:
 
 =============	========	===========================
-ops		mmap_sem	PageLocked(page)
+ops		mmap_lock	PageLocked(page)
 =============	========	===========================
 open:		yes
 close:		yes

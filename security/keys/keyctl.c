@@ -875,7 +875,7 @@ can_read_key:
 	 *
 	 * Allocating a temporary buffer to hold the keys before
 	 * transferring them to user buffer to avoid potential
-	 * deadlock involving page fault and mmap_sem.
+	 * deadlock involving page fault and mmap_lock.
 	 *
 	 * key_data_len = (buflen <= PAGE_SIZE)
 	 *		? buflen : actual length of key data

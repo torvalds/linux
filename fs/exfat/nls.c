@@ -503,20 +503,16 @@ static int exfat_utf8_to_utf16(struct super_block *sb,
 	unilen = utf8s_to_utf16s(p_cstring, len, UTF16_HOST_ENDIAN,
 			(wchar_t *)uniname, MAX_NAME_LENGTH + 2);
 	if (unilen < 0) {
-		exfat_msg(sb, KERN_ERR,
-			"failed to %s (err : %d) nls len : %d",
-			__func__, unilen, len);
+		exfat_err(sb, "failed to %s (err : %d) nls len : %d",
+			  __func__, unilen, len);
 		return unilen;
 	}
 
 	if (unilen > MAX_NAME_LENGTH) {
-		exfat_msg(sb, KERN_ERR,
-			"failed to %s (estr:ENAMETOOLONG) nls len : %d, unilen : %d > %d",
-			__func__, len, unilen, MAX_NAME_LENGTH);
+		exfat_err(sb, "failed to %s (estr:ENAMETOOLONG) nls len : %d, unilen : %d > %d",
+			  __func__, len, unilen, MAX_NAME_LENGTH);
 		return -ENAMETOOLONG;
 	}
-
-	p_uniname->name_len = unilen & 0xFF;
 
 	for (i = 0; i < unilen; i++) {
 		if (*uniname < 0x0020 ||
@@ -529,7 +525,7 @@ static int exfat_utf8_to_utf16(struct super_block *sb,
 
 	*uniname = '\0';
 	p_uniname->name_len = unilen;
-	p_uniname->name_hash = exfat_calc_chksum_2byte(upname, unilen << 1, 0,
+	p_uniname->name_hash = exfat_calc_chksum16(upname, unilen << 1, 0,
 			CS_DEFAULT);
 
 	if (p_lossy)
@@ -537,22 +533,9 @@ static int exfat_utf8_to_utf16(struct super_block *sb,
 	return unilen;
 }
 
-#define PLANE_SIZE	0x00010000
 #define SURROGATE_MASK	0xfffff800
 #define SURROGATE_PAIR	0x0000d800
 #define SURROGATE_LOW	0x00000400
-#define SURROGATE_BITS	0x000003ff
-
-unsigned short exfat_high_surrogate(unicode_t u)
-{
-	return ((u - PLANE_SIZE) >> 10) + SURROGATE_PAIR;
-}
-
-unsigned short exfat_low_surrogate(unicode_t u)
-{
-	return ((u - PLANE_SIZE) & SURROGATE_BITS) | SURROGATE_PAIR |
-		SURROGATE_LOW;
-}
 
 static int __exfat_utf16_to_nls(struct super_block *sb,
 		struct exfat_uni_name *p_uniname, unsigned char *p_cstring,
@@ -638,7 +621,7 @@ static int exfat_nls_to_ucs2(struct super_block *sb,
 
 	*uniname = '\0';
 	p_uniname->name_len = unilen;
-	p_uniname->name_hash = exfat_calc_chksum_2byte(upname, unilen << 1, 0,
+	p_uniname->name_hash = exfat_calc_chksum16(upname, unilen << 1, 0,
 			CS_DEFAULT);
 
 	if (p_lossy)
@@ -670,7 +653,8 @@ static int exfat_load_upcase_table(struct super_block *sb,
 {
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
 	unsigned int sect_size = sb->s_blocksize;
-	unsigned int i, index = 0, checksum = 0;
+	unsigned int i, index = 0;
+	u32 chksum = 0;
 	int ret;
 	unsigned char skip = false;
 	unsigned short *upcase_table;
@@ -687,22 +671,14 @@ static int exfat_load_upcase_table(struct super_block *sb,
 
 		bh = sb_bread(sb, sector);
 		if (!bh) {
-			exfat_msg(sb, KERN_ERR,
-				"failed to read sector(0x%llx)\n",
-				(unsigned long long)sector);
+			exfat_err(sb, "failed to read sector(0x%llx)\n",
+				  (unsigned long long)sector);
 			ret = -EIO;
 			goto free_table;
 		}
 		sector++;
 		for (i = 0; i < sect_size && index <= 0xFFFF; i += 2) {
 			unsigned short uni = get_unaligned_le16(bh->b_data + i);
-
-			checksum = ((checksum & 1) ? 0x80000000 : 0) +
-				(checksum >> 1) +
-				*(((unsigned char *)bh->b_data) + i);
-			checksum = ((checksum & 1) ? 0x80000000 : 0) +
-				(checksum >> 1) +
-				*(((unsigned char *)bh->b_data) + (i + 1));
 
 			if (skip) {
 				index += uni;
@@ -716,15 +692,15 @@ static int exfat_load_upcase_table(struct super_block *sb,
 				index++;
 			}
 		}
+		chksum = exfat_calc_chksum32(bh->b_data, i, chksum, CS_DEFAULT);
 		brelse(bh);
 	}
 
-	if (index >= 0xFFFF && utbl_checksum == checksum)
+	if (index >= 0xFFFF && utbl_checksum == chksum)
 		return 0;
 
-	exfat_msg(sb, KERN_ERR,
-			"failed to load upcase table (idx : 0x%08x, chksum : 0x%08x, utbl_chksum : 0x%08x)\n",
-			index, checksum, utbl_checksum);
+	exfat_err(sb, "failed to load upcase table (idx : 0x%08x, chksum : 0x%08x, utbl_chksum : 0x%08x)",
+		  index, chksum, utbl_checksum);
 	ret = -EINVAL;
 free_table:
 	exfat_free_upcase_table(sbi);

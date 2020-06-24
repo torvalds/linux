@@ -27,7 +27,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 
 #include "genwqe_driver.h"
 #include "card_base.h"

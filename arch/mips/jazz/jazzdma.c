@@ -24,7 +24,6 @@
 #include <linux/uaccess.h>
 #include <asm/dma.h>
 #include <asm/jazzdma.h>
-#include <asm/pgtable.h>
 
 /*
  * Set this to one to enable additional vdma debug code.

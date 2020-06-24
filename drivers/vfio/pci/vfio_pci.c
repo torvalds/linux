@@ -1185,7 +1185,7 @@ reset_info_exit:
 
 		/*
 		 * We need to get memory_lock for each device, but devices
-		 * can share mmap_sem, therefore we need to zap and hold
+		 * can share mmap_lock, therefore we need to zap and hold
 		 * the vma_lock for each device, and only then get each
 		 * memory_lock.
 		 */
@@ -1375,26 +1375,26 @@ static int vfio_pci_zap_and_vma_lock(struct vfio_pci_device *vdev, bool try)
 
 	/*
 	 * Lock ordering:
-	 * vma_lock is nested under mmap_sem for vm_ops callback paths.
+	 * vma_lock is nested under mmap_lock for vm_ops callback paths.
 	 * The memory_lock semaphore is used by both code paths calling
 	 * into this function to zap vmas and the vm_ops.fault callback
 	 * to protect the memory enable state of the device.
 	 *
-	 * When zapping vmas we need to maintain the mmap_sem => vma_lock
+	 * When zapping vmas we need to maintain the mmap_lock => vma_lock
 	 * ordering, which requires using vma_lock to walk vma_list to
-	 * acquire an mm, then dropping vma_lock to get the mmap_sem and
+	 * acquire an mm, then dropping vma_lock to get the mmap_lock and
 	 * reacquiring vma_lock.  This logic is derived from similar
 	 * requirements in uverbs_user_mmap_disassociate().
 	 *
-	 * mmap_sem must always be the top-level lock when it is taken.
+	 * mmap_lock must always be the top-level lock when it is taken.
 	 * Therefore we can only hold the memory_lock write lock when
-	 * vma_list is empty, as we'd need to take mmap_sem to clear
+	 * vma_list is empty, as we'd need to take mmap_lock to clear
 	 * entries.  vma_list can only be guaranteed empty when holding
 	 * vma_lock, thus memory_lock is nested under vma_lock.
 	 *
 	 * This enables the vm_ops.fault callback to acquire vma_lock,
 	 * followed by memory_lock read lock, while already holding
-	 * mmap_sem without risk of deadlock.
+	 * mmap_lock without risk of deadlock.
 	 */
 	while (1) {
 		struct mm_struct *mm = NULL;
@@ -1422,17 +1422,17 @@ static int vfio_pci_zap_and_vma_lock(struct vfio_pci_device *vdev, bool try)
 		mutex_unlock(&vdev->vma_lock);
 
 		if (try) {
-			if (!down_read_trylock(&mm->mmap_sem)) {
+			if (!mmap_read_trylock(mm)) {
 				mmput(mm);
 				return 0;
 			}
 		} else {
-			down_read(&mm->mmap_sem);
+			mmap_read_lock(mm);
 		}
 		if (mmget_still_valid(mm)) {
 			if (try) {
 				if (!mutex_trylock(&vdev->vma_lock)) {
-					up_read(&mm->mmap_sem);
+					mmap_read_unlock(mm);
 					mmput(mm);
 					return 0;
 				}
@@ -1454,7 +1454,7 @@ static int vfio_pci_zap_and_vma_lock(struct vfio_pci_device *vdev, bool try)
 			}
 			mutex_unlock(&vdev->vma_lock);
 		}
-		up_read(&mm->mmap_sem);
+		mmap_read_unlock(mm);
 		mmput(mm);
 	}
 }

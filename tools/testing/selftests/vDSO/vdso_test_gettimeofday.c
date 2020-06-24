@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * vdso_test.c: Sample code to test parse_vdso.c
+ * vdso_test_gettimeofday.c: Sample code to test parse_vdso.c and
+ *                           vDSO gettimeofday()
  * Copyright (c) 2014 Andy Lutomirski
  *
  * Compile with:
- * gcc -std=gnu99 vdso_test.c parse_vdso.c
+ * gcc -std=gnu99 vdso_test_gettimeofday.c parse_vdso_gettimeofday.c
  *
  * Tested on x86, 32-bit and 64-bit.  It may work on other architectures, too.
  */
@@ -16,10 +17,7 @@
 #include <sys/time.h>
 
 #include "../kselftest.h"
-
-extern void *vdso_sym(const char *version, const char *name);
-extern void vdso_init_from_sysinfo_ehdr(uintptr_t base);
-extern void vdso_init_from_auxv(void *auxv);
+#include "parse_vdso.h"
 
 /*
  * ARM64's vDSO exports its gettimeofday() implementation with a different

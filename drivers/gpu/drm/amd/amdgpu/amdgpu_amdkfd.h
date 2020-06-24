@@ -186,7 +186,7 @@ uint8_t amdgpu_amdkfd_get_xgmi_hops_count(struct kgd_dev *dst, struct kgd_dev *s
  * disabled. The memory must be pinned and mapped to the hardware when
  * this is called in hqd_load functions, so it should never fault in
  * the first place. This resolves a circular lock dependency involving
- * four locks, including the DQM lock and mmap_sem.
+ * four locks, including the DQM lock and mmap_lock.
  */
 #define read_user_wptr(mmptr, wptr, dst)				\
 	({								\

@@ -175,10 +175,10 @@ nouveau_svmm_bind(struct drm_device *dev, void *data,
 	 */
 
 	mm = get_task_mm(current);
-	down_read(&mm->mmap_sem);
+	mmap_read_lock(mm);
 
 	if (!cli->svm.svmm) {
-		up_read(&mm->mmap_sem);
+		mmap_read_unlock(mm);
 		return -EINVAL;
 	}
 
@@ -205,7 +205,7 @@ nouveau_svmm_bind(struct drm_device *dev, void *data,
 	 */
 	args->result = 0;
 
-	up_read(&mm->mmap_sem);
+	mmap_read_unlock(mm);
 	mmput(mm);
 
 	return 0;
@@ -355,7 +355,7 @@ nouveau_svmm_init(struct drm_device *dev, void *data,
 	if (ret)
 		goto out_free;
 
-	down_write(&current->mm->mmap_sem);
+	mmap_write_lock(current->mm);
 	svmm->notifier.ops = &nouveau_mn_ops;
 	ret = __mmu_notifier_register(&svmm->notifier, current->mm);
 	if (ret)
@@ -364,12 +364,12 @@ nouveau_svmm_init(struct drm_device *dev, void *data,
 
 	cli->svm.svmm = svmm;
 	cli->svm.cli = cli;
-	up_write(&current->mm->mmap_sem);
+	mmap_write_unlock(current->mm);
 	mutex_unlock(&cli->mutex);
 	return 0;
 
 out_mm_unlock:
-	up_write(&current->mm->mmap_sem);
+	mmap_write_unlock(current->mm);
 out_free:
 	mutex_unlock(&cli->mutex);
 	kfree(svmm);
@@ -571,9 +571,9 @@ static int nouveau_range_fault(struct nouveau_svmm *svmm,
 			return -EBUSY;
 
 		range.notifier_seq = mmu_interval_read_begin(range.notifier);
-		down_read(&mm->mmap_sem);
+		mmap_read_lock(mm);
 		ret = hmm_range_fault(&range);
-		up_read(&mm->mmap_sem);
+		mmap_read_unlock(mm);
 		if (ret) {
 			/*
 			 * FIXME: the input PFN_REQ flags are destroyed on
@@ -705,18 +705,18 @@ nouveau_svm_fault(struct nvif_notify *notify)
 		/* Intersect fault window with the CPU VMA, cancelling
 		 * the fault if the address is invalid.
 		 */
-		down_read(&mm->mmap_sem);
+		mmap_read_lock(mm);
 		vma = find_vma_intersection(mm, start, limit);
 		if (!vma) {
 			SVMM_ERR(svmm, "wndw %016llx-%016llx", start, limit);
-			up_read(&mm->mmap_sem);
+			mmap_read_unlock(mm);
 			mmput(mm);
 			nouveau_svm_fault_cancel_fault(svm, buffer->fault[fi]);
 			continue;
 		}
 		start = max_t(u64, start, vma->vm_start);
 		limit = min_t(u64, limit, vma->vm_end);
-		up_read(&mm->mmap_sem);
+		mmap_read_unlock(mm);
 		SVMM_DBG(svmm, "wndw %016llx-%016llx", start, limit);
 
 		if (buffer->fault[fi]->addr != start) {

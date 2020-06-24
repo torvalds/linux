@@ -39,6 +39,7 @@ nvkm-y += nvkm/engine/disp/sorgf119.o
 nvkm-y += nvkm/engine/disp/sorgk104.o
 nvkm-y += nvkm/engine/disp/sorgm107.o
 nvkm-y += nvkm/engine/disp/sorgm200.o
+nvkm-y += nvkm/engine/disp/sorgp100.o
 nvkm-y += nvkm/engine/disp/sorgv100.o
 nvkm-y += nvkm/engine/disp/sortu102.o
 

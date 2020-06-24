@@ -22,7 +22,6 @@
 #include <linux/clocksource.h>
 #include <linux/rtc.h>
 #include <asm/setup.h>
-#include <asm/pgtable.h>
 #include <asm/machdep.h>
 #include <asm/MC68VZ328.h>
 

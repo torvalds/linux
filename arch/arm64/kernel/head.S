@@ -12,6 +12,7 @@
 #include <linux/linkage.h>
 #include <linux/init.h>
 #include <linux/irqchip/arm-gic-v3.h>
+#include <linux/pgtable.h>
 
 #include <asm/asm_pointer_auth.h>
 #include <asm/assembler.h>
@@ -26,7 +27,6 @@
 #include <asm/kvm_arm.h>
 #include <asm/memory.h>
 #include <asm/pgtable-hwdef.h>
-#include <asm/pgtable.h>
 #include <asm/page.h>
 #include <asm/scs.h>
 #include <asm/smp.h>

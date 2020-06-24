@@ -3,12 +3,12 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/mm_types.h>
+#include <linux/pgtable.h>
 
 #include <asm/cputype.h>
 #include <asm/idmap.h>
 #include <asm/hwcap.h>
 #include <asm/pgalloc.h>
-#include <asm/pgtable.h>
 #include <asm/sections.h>
 #include <asm/system_info.h>
 

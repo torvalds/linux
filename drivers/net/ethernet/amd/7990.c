@@ -28,6 +28,7 @@
 #include <linux/route.h>
 #include <linux/string.h>
 #include <linux/skbuff.h>
+#include <linux/pgtable.h>
 #include <asm/irq.h>
 /* Used for the temporal inet entries and routing */
 #include <linux/socket.h>
@@ -35,7 +36,6 @@
 
 #include <asm/io.h>
 #include <asm/dma.h>
-#include <asm/pgtable.h>
 #ifdef CONFIG_HP300
 #include <asm/blinken.h>
 #endif

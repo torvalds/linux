@@ -985,7 +985,7 @@ static void lan743x_phy_link_status_change(struct net_device *netdev)
 		break;
 		case SPEED_1000:
 			data |= MAC_CR_CFG_H_;
-			data |= MAC_CR_CFG_L_;
+			data &= ~MAC_CR_CFG_L_;
 		break;
 		}
 		lan743x_csr_write(adapter, MAC_CR, data);

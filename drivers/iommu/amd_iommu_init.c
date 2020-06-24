@@ -18,7 +18,6 @@
 #include <linux/msi.h>
 #include <linux/amd-iommu.h>
 #include <linux/export.h>
-#include <linux/iommu.h>
 #include <linux/kmemleak.h>
 #include <linux/mem_encrypt.h>
 #include <asm/pci-direct.h>
@@ -32,9 +31,8 @@
 #include <asm/irq_remapping.h>
 
 #include <linux/crash_dump.h>
+
 #include "amd_iommu.h"
-#include "amd_iommu_proto.h"
-#include "amd_iommu_types.h"
 #include "irq_remapping.h"
 
 /*

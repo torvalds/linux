@@ -15,8 +15,7 @@
 #include <linux/nls.h>
 #include <linux/dma-mapping.h>
 #include <linux/platform_data/x86/apple.h>
-
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 
 #include "internal.h"
 

@@ -14,7 +14,6 @@
 #include <linux/sched/task.h>
 #include <linux/kmsg_dump.h>
 
-#include <asm/pgtable.h>
 #include <asm/processor.h>
 #include <asm/sections.h>
 #include <asm/setup.h>
