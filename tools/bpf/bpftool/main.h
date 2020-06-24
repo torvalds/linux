@@ -59,41 +59,7 @@
 extern const char * const prog_type_name[];
 extern const size_t prog_type_name_size;
 
-static const char * const attach_type_name[__MAX_BPF_ATTACH_TYPE] = {
-	[BPF_CGROUP_INET_INGRESS] = "ingress",
-	[BPF_CGROUP_INET_EGRESS] = "egress",
-	[BPF_CGROUP_INET_SOCK_CREATE] = "sock_create",
-	[BPF_CGROUP_SOCK_OPS] = "sock_ops",
-	[BPF_CGROUP_DEVICE] = "device",
-	[BPF_CGROUP_INET4_BIND] = "bind4",
-	[BPF_CGROUP_INET6_BIND] = "bind6",
-	[BPF_CGROUP_INET4_CONNECT] = "connect4",
-	[BPF_CGROUP_INET6_CONNECT] = "connect6",
-	[BPF_CGROUP_INET4_POST_BIND] = "post_bind4",
-	[BPF_CGROUP_INET6_POST_BIND] = "post_bind6",
-	[BPF_CGROUP_INET4_GETPEERNAME] = "getpeername4",
-	[BPF_CGROUP_INET6_GETPEERNAME] = "getpeername6",
-	[BPF_CGROUP_INET4_GETSOCKNAME] = "getsockname4",
-	[BPF_CGROUP_INET6_GETSOCKNAME] = "getsockname6",
-	[BPF_CGROUP_UDP4_SENDMSG] = "sendmsg4",
-	[BPF_CGROUP_UDP6_SENDMSG] = "sendmsg6",
-	[BPF_CGROUP_SYSCTL] = "sysctl",
-	[BPF_CGROUP_UDP4_RECVMSG] = "recvmsg4",
-	[BPF_CGROUP_UDP6_RECVMSG] = "recvmsg6",
-	[BPF_CGROUP_GETSOCKOPT] = "getsockopt",
-	[BPF_CGROUP_SETSOCKOPT] = "setsockopt",
-
-	[BPF_SK_SKB_STREAM_PARSER] = "sk_skb_stream_parser",
-	[BPF_SK_SKB_STREAM_VERDICT] = "sk_skb_stream_verdict",
-	[BPF_SK_MSG_VERDICT] = "sk_msg_verdict",
-	[BPF_LIRC_MODE2] = "lirc_mode2",
-	[BPF_FLOW_DISSECTOR] = "flow_dissector",
-	[BPF_TRACE_RAW_TP] = "raw_tp",
-	[BPF_TRACE_FENTRY] = "fentry",
-	[BPF_TRACE_FEXIT] = "fexit",
-	[BPF_MODIFY_RETURN] = "mod_ret",
-	[BPF_LSM_MAC] = "lsm_mac",
-};
+extern const char * const attach_type_name[__MAX_BPF_ATTACH_TYPE];
 
 extern const char * const map_type_name[];
 extern const size_t map_type_name_size;
