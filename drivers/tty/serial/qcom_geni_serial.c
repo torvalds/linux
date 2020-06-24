@@ -718,7 +718,7 @@ static void qcom_geni_serial_handle_tx(struct uart_port *uport, bool done,
 		u8 buf[sizeof(u32)];
 		int c;
 
-		memset(buf, 0, ARRAY_SIZE(buf));
+		memset(buf, 0, sizeof(buf));
 		tx_bytes = min_t(size_t, remaining, port->tx_bytes_pw);
 
 		for (c = 0; c < tx_bytes ; c++) {
