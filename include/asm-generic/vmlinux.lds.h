@@ -568,7 +568,6 @@
 		NOINSTR_TEXT						\
 		*(TEXT_CFI_MAIN)					\
 		*(.text..refcount)					\
-		*(.text..ftrace)					\
 		*(.ref.text)						\
 	MEM_KEEP(init.text*)						\
 	MEM_KEEP(exit.text*)						\
