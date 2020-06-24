@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: (GPL-2.0 OR MIT)
 /*
- * Driver for Microsemi VSC85xx PHYs
+ * Driver for Microsemi VSC85xx PHYs - MACsec support
  *
- * Author: Nagaraju Lakkaraju
+ * Author: Antoine Tenart
  * License: Dual MIT/GPL
- * Copyright (c) 2016 Microsemi Corporation
+ * Copyright (c) 2020 Microsemi Corporation
  */
 
 #include <linux/phy.h>
@@ -285,7 +285,9 @@ static void vsc8584_macsec_mac_init(struct phy_device *phydev,
 				 MSCC_MAC_CFG_PKTINF_CFG_STRIP_PREAMBLE_ENA |
 				 MSCC_MAC_CFG_PKTINF_CFG_INSERT_PREAMBLE_ENA |
 				 (bank == HOST_MAC ?
-				  MSCC_MAC_CFG_PKTINF_CFG_ENABLE_TX_PADDING : 0));
+				  MSCC_MAC_CFG_PKTINF_CFG_ENABLE_TX_PADDING : 0) |
+				 (IS_ENABLED(CONFIG_NETWORK_PHY_TIMESTAMPING) ?
+				  MSCC_MAC_CFG_PKTINF_CFG_MACSEC_BYPASS_NUM_PTP_STALL_CLKS(0x8) : 0));
 
 	val = vsc8584_macsec_phy_read(phydev, bank, MSCC_MAC_CFG_MODE_CFG);
 	val &= ~MSCC_MAC_CFG_MODE_CFG_DISABLE_DIC;

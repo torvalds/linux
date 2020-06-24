@@ -244,7 +244,8 @@ struct phy_package_shared {
 };
 
 /* used as bit number in atomic bitops */
-#define PHY_SHARED_F_INIT_DONE 0
+#define PHY_SHARED_F_INIT_DONE  0
+#define PHY_SHARED_F_PROBE_DONE 1
 
 /*
  * The Bus class for PHYs.  Devices which provide access to
@@ -1566,14 +1567,25 @@ static inline int __phy_package_write(struct phy_device *phydev,
 	return __mdiobus_write(phydev->mdio.bus, shared->addr, regnum, val);
 }
 
-static inline bool phy_package_init_once(struct phy_device *phydev)
+static inline bool __phy_package_set_once(struct phy_device *phydev,
+					  unsigned int b)
 {
 	struct phy_package_shared *shared = phydev->shared;
 
 	if (!shared)
 		return false;
 
-	return !test_and_set_bit(PHY_SHARED_F_INIT_DONE, &shared->flags);
+	return !test_and_set_bit(b, &shared->flags);
+}
+
+static inline bool phy_package_init_once(struct phy_device *phydev)
+{
+	return __phy_package_set_once(phydev, PHY_SHARED_F_INIT_DONE);
+}
+
+static inline bool phy_package_probe_once(struct phy_device *phydev)
+{
+	return __phy_package_set_once(phydev, PHY_SHARED_F_PROBE_DONE);
 }
 
 extern struct bus_type mdio_bus_type;
