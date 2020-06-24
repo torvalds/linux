@@ -356,6 +356,7 @@ static const struct platform_device_id altera_spi_ids[] = {
 	{ "subdev_spi_altera",	ALTERA_SPI_TYPE_SUBDEV },
 	{ }
 };
+MODULE_DEVICE_TABLE(platform, altera_spi_ids);
 
 static struct platform_driver altera_spi_driver = {
 	.probe = altera_spi_probe,
