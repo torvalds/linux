@@ -27,6 +27,7 @@
 #include <linux/ipv6.h>
 #include <linux/seq_file.h>
 #include <linux/poll.h>
+#include <linux/indirect_call_wrapper.h>
 
 /**
  *	struct udp_skb_cb  -  UDP(-Lite) private variables
@@ -166,6 +167,12 @@ static inline void udp_csum_pull_header(struct sk_buff *skb)
 typedef struct sock *(*udp_lookup_t)(struct sk_buff *skb, __be16 sport,
 				     __be16 dport);
 
+INDIRECT_CALLABLE_DECLARE(struct sk_buff *udp4_gro_receive(struct list_head *,
+							   struct sk_buff *));
+INDIRECT_CALLABLE_DECLARE(int udp4_gro_complete(struct sk_buff *, int));
+INDIRECT_CALLABLE_DECLARE(struct sk_buff *udp6_gro_receive(struct list_head *,
+							   struct sk_buff *));
+INDIRECT_CALLABLE_DECLARE(int udp6_gro_complete(struct sk_buff *, int));
 struct sk_buff *udp_gro_receive(struct list_head *head, struct sk_buff *skb,
 				struct udphdr *uh, struct sock *sk);
 int udp_gro_complete(struct sk_buff *skb, int nhoff, udp_lookup_t lookup);

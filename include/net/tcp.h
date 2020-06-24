@@ -907,6 +907,8 @@ static inline void tcp_skb_bpf_redirect_clear(struct sk_buff *skb)
 	TCP_SKB_CB(skb)->bpf.sk_redir = NULL;
 }
 
+extern const struct inet_connection_sock_af_ops ipv4_specific;
+
 #if IS_ENABLED(CONFIG_IPV6)
 /* This is the variant of inet6_iif() that must be used by TCP,
  * as TCP moves IP6CB into a different location in skb->cb[]
@@ -933,7 +935,11 @@ static inline int tcp_v6_sdif(const struct sk_buff *skb)
 	return 0;
 }
 
+extern const struct inet_connection_sock_af_ops ipv6_specific;
+
 INDIRECT_CALLABLE_DECLARE(void tcp_v6_send_check(struct sock *sk, struct sk_buff *skb));
+INDIRECT_CALLABLE_DECLARE(int tcp_v6_rcv(struct sk_buff *skb));
+INDIRECT_CALLABLE_DECLARE(void tcp_v6_early_demux(struct sk_buff *skb));
 
 #endif
 
@@ -1951,6 +1957,10 @@ void tcp_v4_destroy_sock(struct sock *sk);
 struct sk_buff *tcp_gso_segment(struct sk_buff *skb,
 				netdev_features_t features);
 struct sk_buff *tcp_gro_receive(struct list_head *head, struct sk_buff *skb);
+INDIRECT_CALLABLE_DECLARE(int tcp4_gro_complete(struct sk_buff *skb, int thoff));
+INDIRECT_CALLABLE_DECLARE(struct sk_buff *tcp4_gro_receive(struct list_head *head, struct sk_buff *skb));
+INDIRECT_CALLABLE_DECLARE(int tcp6_gro_complete(struct sk_buff *skb, int thoff));
+INDIRECT_CALLABLE_DECLARE(struct sk_buff *tcp6_gro_receive(struct list_head *head, struct sk_buff *skb));
 int tcp_gro_complete(struct sk_buff *skb);
 
 void __tcp_v4_send_check(struct sk_buff *skb, __be32 saddr, __be32 daddr);
