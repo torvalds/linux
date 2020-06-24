@@ -840,6 +840,8 @@ static int haptics_set_vmax_mv(struct haptics_chip *chip, u32 vmax_mv)
 			HAP_CFG_VMAX_REG, &val, 1);
 	if (rc < 0)
 		dev_err(chip->dev, "config VMAX failed, rc=%d\n", rc);
+	else
+		dev_dbg(chip->dev, "Set Vmax to %u mV\n", vmax_mv);
 
 	return rc;
 }
@@ -1312,6 +1314,9 @@ static int haptics_load_constant_effect(struct haptics_chip *chip, u8 amplitude)
 		rc = -EBUSY;
 		goto unlock;
 	}
+
+	/* No effect data when playing constant waveform */
+	play->effect = NULL;
 
 	/* configure VMAX in case it was changed in previous effect playing */
 	rc = haptics_set_vmax_mv(chip, chip->config.vmax_mv);
