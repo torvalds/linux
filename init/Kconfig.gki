@@ -8,6 +8,7 @@ config GKI_HIDDEN_DRM_CONFIGS
 	select DRM_TTM if (HAS_IOMEM && DRM)
 	select VIDEOMODE_HELPERS
 	select WANT_DEV_COREDUMP
+	select INTERVAL_TREE
 	help
 	  Dummy config option used to enable hidden DRM configs.
 	  These are normally selected implicitly when including a
