@@ -437,6 +437,92 @@
 #define __PPC_EH(eh)	0
 #endif
 
+/* Base instruction encoding */
+#define PPC_RAW_CP_ABORT		(PPC_INST_CP_ABORT)
+#define PPC_RAW_COPY(a, b)		(PPC_INST_COPY | ___PPC_RA(a) | ___PPC_RB(b))
+#define PPC_RAW_DARN(t, l)		(PPC_INST_DARN | ___PPC_RT(t) | (((l) & 0x3) << 16))
+#define PPC_RAW_DCBAL(a, b)		(PPC_INST_DCBAL | __PPC_RA(a) | __PPC_RB(b))
+#define PPC_RAW_DCBZL(a, b)		(PPC_INST_DCBZL | __PPC_RA(a) | __PPC_RB(b))
+#define PPC_RAW_LQARX(t, a, b, eh)	(PPC_INST_LQARX | ___PPC_RT(t) | ___PPC_RA(a) | ___PPC_RB(b) | __PPC_EH(eh))
+#define PPC_RAW_LDARX(t, a, b, eh)	(PPC_INST_LDARX | ___PPC_RT(t) | ___PPC_RA(a) | ___PPC_RB(b) | __PPC_EH(eh))
+#define PPC_RAW_LWARX(t, a, b, eh)	(PPC_INST_LWARX | ___PPC_RT(t) | ___PPC_RA(a) | ___PPC_RB(b) | __PPC_EH(eh))
+#define PPC_RAW_PHWSYNC			(PPC_INST_PHWSYNC)
+#define PPC_RAW_PLWSYNC			(PPC_INST_PLWSYNC)
+#define PPC_RAW_STQCX(t, a, b)		(PPC_INST_STQCX | ___PPC_RT(t) | ___PPC_RA(a) | ___PPC_RB(b))
+#define PPC_RAW_MADDHD(t, a, b, c)	(PPC_INST_MADDHD | ___PPC_RT(t) | ___PPC_RA(a) | ___PPC_RB(b) | ___PPC_RC(c))
+#define PPC_RAW_MADDHDU(t, a, b, c)	(PPC_INST_MADDHDU | ___PPC_RT(t) | ___PPC_RA(a) | ___PPC_RB(b) | ___PPC_RC(c))
+#define PPC_RAW_MADDLD(t, a, b, c)	(PPC_INST_MADDLD | ___PPC_RT(t) | ___PPC_RA(a) | ___PPC_RB(b) | ___PPC_RC(c))
+#define PPC_RAW_MSGSND(b)		(PPC_INST_MSGSND | ___PPC_RB(b))
+#define PPC_RAW_MSGSYNC			(PPC_INST_MSGSYNC)
+#define PPC_RAW_MSGCLR(b)		(PPC_INST_MSGCLR | ___PPC_RB(b))
+#define PPC_RAW_MSGSNDP(b)		(PPC_INST_MSGSNDP | ___PPC_RB(b))
+#define PPC_RAW_MSGCLRP(b)		(PPC_INST_MSGCLRP | ___PPC_RB(b))
+#define PPC_RAW_PASTE(a, b)		(PPC_INST_PASTE | ___PPC_RA(a) | ___PPC_RB(b))
+#define PPC_RAW_POPCNTB(a, s)		(PPC_INST_POPCNTB | __PPC_RA(a) | __PPC_RS(s))
+#define PPC_RAW_POPCNTD(a, s)		(PPC_INST_POPCNTD | __PPC_RA(a) | __PPC_RS(s))
+#define PPC_RAW_POPCNTW(a, s)		(PPC_INST_POPCNTW | __PPC_RA(a) | __PPC_RS(s))
+#define PPC_RAW_RFCI			(PPC_INST_RFCI)
+#define PPC_RAW_RFDI			(PPC_INST_RFDI)
+#define PPC_RAW_RFMCI			(PPC_INST_RFMCI)
+#define PPC_RAW_TLBILX(t, a, b)		(PPC_INST_TLBILX | __PPC_T_TLB(t) | __PPC_RA0(a) | __PPC_RB(b))
+#define PPC_RAW_WAIT(w)			(PPC_INST_WAIT | __PPC_WC(w))
+#define PPC_RAW_TLBIE(lp, a)		(PPC_INST_TLBIE | ___PPC_RB(a) | ___PPC_RS(lp))
+#define PPC_RAW_TLBIE_5(rb, rs, ric, prs, r) \
+	(PPC_INST_TLBIE | ___PPC_RB(rb) | ___PPC_RS(rs) | ___PPC_RIC(ric) | ___PPC_PRS(prs) | ___PPC_R(r))
+#define PPC_RAW_TLBIEL(rb, rs, ric, prs, r) \
+	(PPC_INST_TLBIEL | ___PPC_RB(rb) | ___PPC_RS(rs) | ___PPC_RIC(ric) | ___PPC_PRS(prs) | ___PPC_R(r))
+#define PPC_RAW_TLBSRX_DOT(a, b)	(PPC_INST_TLBSRX_DOT | __PPC_RA0(a) | __PPC_RB(b))
+#define PPC_RAW_TLBIVAX(a, b)		(PPC_INST_TLBIVAX | __PPC_RA0(a) | __PPC_RB(b))
+#define PPC_RAW_ERATWE(s, a, w)		(PPC_INST_ERATWE | __PPC_RS(s) | __PPC_RA(a) | __PPC_WS(w))
+#define PPC_RAW_ERATRE(s, a, w)		(PPC_INST_ERATRE | __PPC_RS(s) | __PPC_RA(a) | __PPC_WS(w))
+#define PPC_RAW_ERATILX(t, a, b)	(PPC_INST_ERATILX | __PPC_T_TLB(t) | __PPC_RA0(a) | __PPC_RB(b))
+#define PPC_RAW_ERATIVAX(s, a, b)	(PPC_INST_ERATIVAX | __PPC_RS(s) | __PPC_RA0(a) | __PPC_RB(b))
+#define PPC_RAW_ERATSX(t, a, w)		(PPC_INST_ERATSX | __PPC_RS(t) | __PPC_RA0(a) | __PPC_RB(b))
+#define PPC_RAW_ERATSX_DOT(t, a, w)	(PPC_INST_ERATSX_DOT | __PPC_RS(t) | __PPC_RA0(a) | __PPC_RB(b))
+#define PPC_RAW_SLBFEE_DOT(t, b)	(PPC_INST_SLBFEE | __PPC_RT(t) | __PPC_RB(b))
+#define __PPC_RAW_SLBFEE_DOT(t, b)	(PPC_INST_SLBFEE | ___PPC_RT(t) | ___PPC_RB(b))
+#define PPC_RAW_ICBT(c, a, b)		(PPC_INST_ICBT | __PPC_CT(c) | __PPC_RA0(a) | __PPC_RB(b))
+#define PPC_RAW_LBZCIX(t, a, b)		(PPC_INST_LBZCIX | __PPC_RT(t) | __PPC_RA(a) | __PPC_RB(b))
+#define PPC_RAW_STBCIX(s, a, b)		(PPC_INST_STBCIX | __PPC_RS(s) | __PPC_RA(a) | __PPC_RB(b))
+#define PPC_RAW_DCBFPS(a, b)		(PPC_INST_DCBF | ___PPC_RA(a) | ___PPC_RB(b) | (4 << 21))
+#define PPC_RAW_DCBSTPS(a, b)		(PPC_INST_DCBF | ___PPC_RA(a) | ___PPC_RB(b) | (6 << 21))
+/*
+ * Define what the VSX XX1 form instructions will look like, then add
+ * the 128 bit load store instructions based on that.
+ */
+#define VSX_XX1(s, a, b)		(__PPC_XS(s) | __PPC_RA(a) | __PPC_RB(b))
+#define VSX_XX3(t, a, b)		(__PPC_XT(t) | __PPC_XA(a) | __PPC_XB(b))
+#define PPC_RAW_STXVD2X(s, a, b)	(PPC_INST_STXVD2X | VSX_XX1((s), a, b))
+#define PPC_RAW_LXVD2X(s, a, b)		(PPC_INST_LXVD2X | VSX_XX1((s), a, b))
+#define PPC_RAW_MFVRD(a, t)		(PPC_INST_MFVSRD | VSX_XX1((t) + 32, a, R0))
+#define PPC_RAW_MTVRD(t, a)		(PPC_INST_MTVSRD | VSX_XX1((t) + 32, a, R0))
+#define PPC_RAW_VPMSUMW(t, a, b)	(PPC_INST_VPMSUMW | VSX_XX3((t), a, b))
+#define PPC_RAW_VPMSUMD(t, a, b)	(PPC_INST_VPMSUMD | VSX_XX3((t), a, b))
+#define PPC_RAW_XXLOR(t, a, b)		(PPC_INST_XXLOR | VSX_XX3((t), a, b))
+#define PPC_RAW_XXSWAPD(t, a)		(PPC_INST_XXSWAPD | VSX_XX3((t), a, a))
+#define PPC_RAW_XVCPSGNDP(t, a, b)	((PPC_INST_XVCPSGNDP | VSX_XX3((t), (a), (b))))
+#define PPC_RAW_VPERMXOR(vrt, vra, vrb, vrc) \
+	((PPC_INST_VPERMXOR | ___PPC_RT(vrt) | ___PPC_RA(vra) | ___PPC_RB(vrb) | (((vrc) & 0x1f) << 6)))
+#define PPC_RAW_NAP			(PPC_INST_NAP)
+#define PPC_RAW_SLEEP			(PPC_INST_SLEEP)
+#define PPC_RAW_WINKLE			(PPC_INST_WINKLE)
+#define PPC_RAW_STOP			(PPC_INST_STOP)
+#define PPC_RAW_CLRBHRB			(PPC_INST_CLRBHRB)
+#define PPC_RAW_MFBHRBE(r, n)		(PPC_INST_BHRBE | __PPC_RT(r) | (((n) & 0x3ff) << 11))
+#define PPC_RAW_TRECHKPT		(PPC_INST_TRECHKPT)
+#define PPC_RAW_TRECLAIM(r)		(PPC_INST_TRECLAIM | __PPC_RA(r))
+#define PPC_RAW_TABORT(r)		(PPC_INST_TABORT | __PPC_RA(r))
+#define TMRN(x)				((((x) & 0x1f) << 16) | (((x) & 0x3e0) << 6))
+#define PPC_RAW_MTTMR(tmr, r)		(PPC_INST_MTTMR | TMRN(tmr) | ___PPC_RS(r))
+#define PPC_RAW_MFTMR(tmr, r)		(PPC_INST_MFTMR | TMRN(tmr) | ___PPC_RT(r))
+#define PPC_RAW_ICSWX(s, a, b)		(PPC_INST_ICSWX | ___PPC_RS(s) | ___PPC_RA(a) | ___PPC_RB(b))
+#define PPC_RAW_ICSWEPX(s, a, b)	(PPC_INST_ICSWEPX | ___PPC_RS(s) | ___PPC_RA(a) | ___PPC_RB(b))
+#define PPC_RAW_SLBIA(IH)		(PPC_INST_SLBIA | (((IH) & 0x7) << 21))
+#define PPC_RAW_VCMPEQUD_RC(vrt, vra, vrb) \
+	(PPC_INST_VCMPEQUD | ___PPC_RT(vrt) | ___PPC_RA(vra) | ___PPC_RB(vrb) | __PPC_RC21)
+#define PPC_RAW_VCMPEQUB_RC(vrt, vra, vrb) \
+	(PPC_INST_VCMPEQUB | ___PPC_RT(vrt) | ___PPC_RA(vra) | ___PPC_RB(vrb) | __PPC_RC21)
+
 /* Deal with instructions that older assemblers aren't aware of */
 #define	PPC_BCCTR_FLUSH		stringify_in_c(.long PPC_INST_BCCTR_FLUSH)
 #define	PPC_CP_ABORT		stringify_in_c(.long PPC_INST_CP_ABORT)
@@ -547,12 +633,6 @@
 #define	PPC_PHWSYNC		stringify_in_c(.long PPC_INST_PHWSYNC)
 #define	PPC_PLWSYNC		stringify_in_c(.long PPC_INST_PLWSYNC)
 
-/*
- * Define what the VSX XX1 form instructions will look like, then add
- * the 128 bit load store instructions based on that.
- */
-#define VSX_XX1(s, a, b)	(__PPC_XS(s) | __PPC_RA(a) | __PPC_RB(b))
-#define VSX_XX3(t, a, b)	(__PPC_XT(t) | __PPC_XA(a) | __PPC_XB(b))
 #define STXVD2X(s, a, b)	stringify_in_c(.long PPC_INST_STXVD2X | \
 					       VSX_XX1((s), a, b))
 #define LXVD2X(s, a, b)		stringify_in_c(.long PPC_INST_LXVD2X | \
@@ -597,7 +677,6 @@
 					       | __PPC_RA(r))
 
 /* book3e thread control instructions */
-#define TMRN(x)			((((x) & 0x1f) << 16) | (((x) & 0x3e0) << 6))
 #define MTTMR(tmr, r)		stringify_in_c(.long PPC_INST_MTTMR | \
 					       TMRN(tmr) | ___PPC_RS(r))
 #define MFTMR(tmr, r)		stringify_in_c(.long PPC_INST_MFTMR | \
