@@ -96,7 +96,6 @@ static int amdgpu_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 	case TTM_PL_TT:
 		/* GTT memory  */
 		man->func = &amdgpu_gtt_mgr_func;
-		man->gpu_offset = adev->gmc.gart_start;
 		man->available_caching = TTM_PL_MASK_CACHING;
 		man->default_caching = TTM_PL_FLAG_CACHED;
 		man->flags = TTM_MEMTYPE_FLAG_MAPPABLE | TTM_MEMTYPE_FLAG_CMA;
@@ -104,7 +103,6 @@ static int amdgpu_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 	case TTM_PL_VRAM:
 		/* "On-card" video ram */
 		man->func = &amdgpu_vram_mgr_func;
-		man->gpu_offset = adev->gmc.vram_start;
 		man->flags = TTM_MEMTYPE_FLAG_FIXED |
 			     TTM_MEMTYPE_FLAG_MAPPABLE;
 		man->available_caching = TTM_PL_FLAG_UNCACHED | TTM_PL_FLAG_WC;
@@ -115,7 +113,6 @@ static int amdgpu_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 	case AMDGPU_PL_OA:
 		/* On-chip GDS memory*/
 		man->func = &ttm_bo_manager_func;
-		man->gpu_offset = 0;
 		man->flags = TTM_MEMTYPE_FLAG_FIXED | TTM_MEMTYPE_FLAG_CMA;
 		man->available_caching = TTM_PL_FLAG_UNCACHED;
 		man->default_caching = TTM_PL_FLAG_UNCACHED;
@@ -263,7 +260,8 @@ static uint64_t amdgpu_mm_node_addr(struct ttm_buffer_object *bo,
 
 	if (mm_node->start != AMDGPU_BO_INVALID_OFFSET) {
 		addr = mm_node->start << PAGE_SHIFT;
-		addr += bo->bdev->man[mem->mem_type].gpu_offset;
+		addr += amdgpu_ttm_domain_start(amdgpu_ttm_adev(bo->bdev),
+						mem->mem_type);
 	}
 	return addr;
 }
@@ -750,6 +748,27 @@ static unsigned long amdgpu_ttm_io_mem_pfn(struct ttm_buffer_object *bo,
 		(offset >> PAGE_SHIFT);
 }
 
+/**
+ * amdgpu_ttm_domain_start - Returns GPU start address
+ * @adev: amdgpu device object
+ * @type: type of the memory
+ *
+ * Returns:
+ * GPU start address of a memory domain
+ */
+
+uint64_t amdgpu_ttm_domain_start(struct amdgpu_device *adev, uint32_t type)
+{
+	switch (type) {
+	case TTM_PL_TT:
+		return adev->gmc.gart_start;
+	case TTM_PL_VRAM:
+		return adev->gmc.vram_start;
+	}
+
+	return 0;
+}
+
 /*
  * TTM backend functions.
  */
@@ -1162,9 +1181,6 @@ int amdgpu_ttm_alloc_gart(struct ttm_buffer_object *bo)
 		ttm_bo_mem_put(bo, &bo->mem);
 		bo->mem = tmp;
 	}
-
-	bo->offset = (bo->mem.start << PAGE_SHIFT) +
-		bo->bdev->man[bo->mem.mem_type].gpu_offset;
 
 	return 0;
 }
