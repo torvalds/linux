@@ -2361,7 +2361,7 @@ static int prctl_set_vma_anon_name(unsigned long start, unsigned long end,
 			return error;
 		if (prev)
 			vma = prev->vm_next;
-		else	/* madvise_remove dropped mmap_sem */
+		else	/* madvise_remove dropped mmap_lock */
 			vma = find_vma(current->mm, start);
 	}
 }
@@ -2389,7 +2389,7 @@ static int prctl_set_vma(unsigned long opt, unsigned long start,
 	if (end == start)
 		return 0;
 
-	down_write(&mm->mmap_sem);
+	mmap_write_lock(mm);
 
 	switch (opt) {
 	case PR_SET_VMA_ANON_NAME:
@@ -2399,7 +2399,7 @@ static int prctl_set_vma(unsigned long opt, unsigned long start,
 		error = -EINVAL;
 	}
 
-	up_write(&mm->mmap_sem);
+	mmap_write_unlock(mm);
 
 	return error;
 }
