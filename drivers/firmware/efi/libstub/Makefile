@@ -33,8 +33,8 @@ KBUILD_CFLAGS			:= $(cflags-y) -Os -DDISABLE_BRANCH_PROFILING \
 				   $(call cc-option,-fno-addrsig) \
 				   -D__DISABLE_EXPORTS
 
-# remove LTO and SCS flags from all objects in this directory
-KBUILD_CFLAGS := $(filter-out $(CC_FLAGS_SCS) $(CC_FLAGS_LTO), $(KBUILD_CFLAGS))
+# remove SCS flags from all objects in this directory
+KBUILD_CFLAGS := $(filter-out $(CC_FLAGS_SCS), $(KBUILD_CFLAGS))
 
 GCOV_PROFILE			:= n
 KASAN_SANITIZE			:= n
