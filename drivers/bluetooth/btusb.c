@@ -3743,6 +3743,9 @@ static bool btusb_prevent_wake(struct hci_dev *hdev)
 {
 	struct btusb_data *data = hci_get_drvdata(hdev);
 
+	if (test_bit(BTUSB_WAKEUP_DISABLE, &data->flags))
+		return true;
+
 	return !device_may_wakeup(&data->udev->dev);
 }
 
