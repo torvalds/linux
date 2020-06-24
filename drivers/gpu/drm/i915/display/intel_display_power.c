@@ -5298,6 +5298,7 @@ static void icl_display_core_init(struct drm_i915_private *dev_priv,
 {
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
 	struct i915_power_well *well;
+	u32 val;
 
 	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
 
@@ -5331,6 +5332,13 @@ static void icl_display_core_init(struct drm_i915_private *dev_priv,
 
 	if (resume && dev_priv->csr.dmc_payload)
 		intel_csr_load_program(dev_priv);
+
+	/* Wa_14011508470 */
+	if (IS_GEN(dev_priv, 12)) {
+		val = DCPR_CLEAR_MEMSTAT_DIS | DCPR_SEND_RESP_IMM |
+		      DCPR_MASK_LPMODE | DCPR_MASK_MAXLATENCY_MEMUP_CLR;
+		intel_uncore_rmw(&dev_priv->uncore, GEN11_CHICKEN_DCPR_2, 0, val);
+	}
 }
 
 static void icl_display_core_uninit(struct drm_i915_private *dev_priv)
