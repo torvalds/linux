@@ -6020,29 +6020,6 @@ static void lpfc_log_intr_mode(struct lpfc_hba *phba, uint32_t intr_mode)
 }
 
 /**
- * lpfc_cpumask_of_node_init - initalizes cpumask of phba's NUMA node
- * @phba: Pointer to HBA context object.
- *
- **/
-static void
-lpfc_cpumask_of_node_init(struct lpfc_hba *phba)
-{
-	unsigned int cpu, numa_node;
-	struct cpumask *numa_mask = &phba->sli4_hba.numa_mask;
-
-	cpumask_clear(numa_mask);
-
-	/* Check if we're a NUMA architecture */
-	numa_node = dev_to_node(&phba->pcidev->dev);
-	if (numa_node == NUMA_NO_NODE)
-		return;
-
-	for_each_possible_cpu(cpu)
-		if (cpu_to_node(cpu) == numa_node)
-			cpumask_set_cpu(cpu, numa_mask);
-}
-
-/**
  * lpfc_enable_pci_dev - Enable a generic PCI device.
  * @phba: pointer to lpfc hba data structure.
  *
@@ -6480,7 +6457,6 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	phba->sli4_hba.num_present_cpu = lpfc_present_cpu;
 	phba->sli4_hba.num_possible_cpu = cpumask_last(cpu_possible_mask) + 1;
 	phba->sli4_hba.curr_disp_cpu = 0;
-	lpfc_cpumask_of_node_init(phba);
 
 	/* Get all the module params for configuring this host */
 	lpfc_get_cfgparam(phba);
@@ -6688,6 +6664,13 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 #endif
 				/* Not supported for NVMET */
 				phba->cfg_xri_rebalancing = 0;
+				if (phba->irq_chann_mode == NHT_MODE) {
+					phba->cfg_irq_chann =
+						phba->sli4_hba.num_present_cpu;
+					phba->cfg_hdw_queue =
+						phba->sli4_hba.num_present_cpu;
+					phba->irq_chann_mode = NORMAL_MODE;
+				}
 				break;
 			}
 		}
@@ -7029,7 +7012,7 @@ lpfc_sli4_driver_resource_unset(struct lpfc_hba *phba)
 	phba->sli4_hba.num_possible_cpu = 0;
 	phba->sli4_hba.num_present_cpu = 0;
 	phba->sli4_hba.curr_disp_cpu = 0;
-	cpumask_clear(&phba->sli4_hba.numa_mask);
+	cpumask_clear(&phba->sli4_hba.irq_aff_mask);
 
 	/* Free memory allocated for fast-path work queue handles */
 	kfree(phba->sli4_hba.hba_eq_hdl);
@@ -11284,11 +11267,12 @@ lpfc_irq_clear_aff(struct lpfc_hba_eq_hdl *eqhdl)
  * @offline: true, cpu is going offline. false, cpu is coming online.
  *
  * If cpu is going offline, we'll try our best effort to find the next
- * online cpu on the phba's NUMA node and migrate all offlining IRQ affinities.
+ * online cpu on the phba's original_mask and migrate all offlining IRQ
+ * affinities.
  *
- * If cpu is coming online, reaffinitize the IRQ back to the onlineng cpu.
+ * If cpu is coming online, reaffinitize the IRQ back to the onlining cpu.
  *
- * Note: Call only if cfg_irq_numa is enabled, otherwise rely on
+ * Note: Call only if NUMA or NHT mode is enabled, otherwise rely on
  *	 PCI_IRQ_AFFINITY to auto-manage IRQ affinity.
  *
  **/
@@ -11298,14 +11282,14 @@ lpfc_irq_rebalance(struct lpfc_hba *phba, unsigned int cpu, bool offline)
 	struct lpfc_vector_map_info *cpup;
 	struct cpumask *aff_mask;
 	unsigned int cpu_select, cpu_next, idx;
-	const struct cpumask *numa_mask;
+	const struct cpumask *orig_mask;
 
-	if (!phba->cfg_irq_numa)
+	if (phba->irq_chann_mode == NORMAL_MODE)
 		return;
 
-	numa_mask = &phba->sli4_hba.numa_mask;
+	orig_mask = &phba->sli4_hba.irq_aff_mask;
 
-	if (!cpumask_test_cpu(cpu, numa_mask))
+	if (!cpumask_test_cpu(cpu, orig_mask))
 		return;
 
 	cpup = &phba->sli4_hba.cpu_map[cpu];
@@ -11314,9 +11298,9 @@ lpfc_irq_rebalance(struct lpfc_hba *phba, unsigned int cpu, bool offline)
 		return;
 
 	if (offline) {
-		/* Find next online CPU on NUMA node */
-		cpu_next = cpumask_next_wrap(cpu, numa_mask, cpu, true);
-		cpu_select = lpfc_next_online_numa_cpu(numa_mask, cpu_next);
+		/* Find next online CPU on original mask */
+		cpu_next = cpumask_next_wrap(cpu, orig_mask, cpu, true);
+		cpu_select = lpfc_next_online_cpu(orig_mask, cpu_next);
 
 		/* Found a valid CPU */
 		if ((cpu_select < nr_cpu_ids) && (cpu_select != cpu)) {
@@ -11431,7 +11415,7 @@ lpfc_sli4_enable_msix(struct lpfc_hba *phba)
 {
 	int vectors, rc, index;
 	char *name;
-	const struct cpumask *numa_mask = NULL;
+	const struct cpumask *aff_mask = NULL;
 	unsigned int cpu = 0, cpu_cnt = 0, cpu_select = nr_cpu_ids;
 	struct lpfc_hba_eq_hdl *eqhdl;
 	const struct cpumask *maskp;
@@ -11441,16 +11425,18 @@ lpfc_sli4_enable_msix(struct lpfc_hba *phba)
 	/* Set up MSI-X multi-message vectors */
 	vectors = phba->cfg_irq_chann;
 
-	if (phba->cfg_irq_numa) {
-		numa_mask = &phba->sli4_hba.numa_mask;
-		cpu_cnt = cpumask_weight(numa_mask);
+	if (phba->irq_chann_mode != NORMAL_MODE)
+		aff_mask = &phba->sli4_hba.irq_aff_mask;
+
+	if (aff_mask) {
+		cpu_cnt = cpumask_weight(aff_mask);
 		vectors = min(phba->cfg_irq_chann, cpu_cnt);
 
-		/* cpu: iterates over numa_mask including offline or online
-		 * cpu_select: iterates over online numa_mask to set affinity
+		/* cpu: iterates over aff_mask including offline or online
+		 * cpu_select: iterates over online aff_mask to set affinity
 		 */
-		cpu = cpumask_first(numa_mask);
-		cpu_select = lpfc_next_online_numa_cpu(numa_mask, cpu);
+		cpu = cpumask_first(aff_mask);
+		cpu_select = lpfc_next_online_cpu(aff_mask, cpu);
 	} else {
 		flags |= PCI_IRQ_AFFINITY;
 	}
@@ -11484,7 +11470,7 @@ lpfc_sli4_enable_msix(struct lpfc_hba *phba)
 
 		eqhdl->irq = pci_irq_vector(phba->pcidev, index);
 
-		if (phba->cfg_irq_numa) {
+		if (aff_mask) {
 			/* If found a neighboring online cpu, set affinity */
 			if (cpu_select < nr_cpu_ids)
 				lpfc_irq_set_aff(eqhdl, cpu_select);
@@ -11494,11 +11480,11 @@ lpfc_sli4_enable_msix(struct lpfc_hba *phba)
 						LPFC_CPU_FIRST_IRQ,
 						cpu);
 
-			/* Iterate to next offline or online cpu in numa_mask */
-			cpu = cpumask_next(cpu, numa_mask);
+			/* Iterate to next offline or online cpu in aff_mask */
+			cpu = cpumask_next(cpu, aff_mask);
 
-			/* Find next online cpu in numa_mask to set affinity */
-			cpu_select = lpfc_next_online_numa_cpu(numa_mask, cpu);
+			/* Find next online cpu in aff_mask to set affinity */
+			cpu_select = lpfc_next_online_cpu(aff_mask, cpu);
 		} else if (vectors == 1) {
 			cpu = cpumask_first(cpu_present_mask);
 			lpfc_assign_eq_map_info(phba, index, LPFC_CPU_FIRST_IRQ,

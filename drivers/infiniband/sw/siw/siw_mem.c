@@ -349,14 +349,11 @@ dma_addr_t siw_pbl_get_buffer(struct siw_pbl *pbl, u64 off, int *len, int *idx)
 struct siw_pbl *siw_pbl_alloc(u32 num_buf)
 {
 	struct siw_pbl *pbl;
-	int buf_size = sizeof(*pbl);
 
 	if (num_buf == 0)
 		return ERR_PTR(-EINVAL);
 
-	buf_size += ((num_buf - 1) * sizeof(struct siw_pble));
-
-	pbl = kzalloc(buf_size, GFP_KERNEL);
+	pbl = kzalloc(struct_size(pbl, pbe, num_buf), GFP_KERNEL);
 	if (!pbl)
 		return ERR_PTR(-ENOMEM);
 

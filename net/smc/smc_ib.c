@@ -548,18 +548,18 @@ static void smc_ib_cleanup_per_ibdev(struct smc_ib_device *smcibdev)
 static struct ib_client smc_ib_client;
 
 /* callback function for ib_register_client() */
-static void smc_ib_add_dev(struct ib_device *ibdev)
+static int smc_ib_add_dev(struct ib_device *ibdev)
 {
 	struct smc_ib_device *smcibdev;
 	u8 port_cnt;
 	int i;
 
 	if (ibdev->node_type != RDMA_NODE_IB_CA)
-		return;
+		return -EOPNOTSUPP;
 
 	smcibdev = kzalloc(sizeof(*smcibdev), GFP_KERNEL);
 	if (!smcibdev)
-		return;
+		return -ENOMEM;
 
 	smcibdev->ibdev = ibdev;
 	INIT_WORK(&smcibdev->port_event_work, smc_ib_port_event_work);
@@ -594,17 +594,14 @@ static void smc_ib_add_dev(struct ib_device *ibdev)
 				     "");
 	}
 	schedule_work(&smcibdev->port_event_work);
+	return 0;
 }
 
 /* callback function for ib_unregister_client() */
 static void smc_ib_remove_dev(struct ib_device *ibdev, void *client_data)
 {
-	struct smc_ib_device *smcibdev;
+	struct smc_ib_device *smcibdev = client_data;
 
-	smcibdev = ib_get_client_data(ibdev, &smc_ib_client);
-	if (!smcibdev || smcibdev->ibdev != ibdev)
-		return;
-	ib_set_client_data(ibdev, &smc_ib_client, NULL);
 	spin_lock(&smc_ib_devices.lock);
 	list_del_init(&smcibdev->list); /* remove from smc_ib_devices */
 	spin_unlock(&smc_ib_devices.lock);

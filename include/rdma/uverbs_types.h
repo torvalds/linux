@@ -139,7 +139,8 @@ void rdma_lookup_put_uobject(struct ib_uobject *uobj,
 struct ib_uobject *rdma_alloc_begin_uobject(const struct uverbs_api_object *obj,
 					    struct uverbs_attr_bundle *attrs);
 void rdma_alloc_abort_uobject(struct ib_uobject *uobj,
-			      struct uverbs_attr_bundle *attrs);
+			      struct uverbs_attr_bundle *attrs,
+			      bool hw_obj_valid);
 void rdma_alloc_commit_uobject(struct ib_uobject *uobj,
 			       struct uverbs_attr_bundle *attrs);
 

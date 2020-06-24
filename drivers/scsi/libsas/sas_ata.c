@@ -160,6 +160,7 @@ qc_already_gone:
 }
 
 static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
+	__must_hold(ap->lock)
 {
 	struct sas_task *task;
 	struct scatterlist *sg;

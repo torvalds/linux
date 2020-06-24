@@ -1081,6 +1081,7 @@ int bnx2fc_eh_device_reset(struct scsi_cmnd *sc_cmd)
 }
 
 static int bnx2fc_abts_cleanup(struct bnx2fc_cmd *io_req)
+	__must_hold(&tgt->tgt_lock)
 {
 	struct bnx2fc_rport *tgt = io_req->tgt;
 	unsigned int time_left;

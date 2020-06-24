@@ -145,8 +145,6 @@ int qedr_query_device(struct ib_device *ibdev,
 	attr->max_mw = qattr->max_mw;
 	attr->max_pd = qattr->max_pd;
 	attr->atomic_cap = dev->atomic_cap;
-	attr->max_fmr = qattr->max_fmr;
-	attr->max_map_per_fmr = 16;
 	attr->max_qp_init_rd_atom =
 	    1 << (fls(qattr->max_qp_req_rd_atomic_resc) - 1);
 	attr->max_qp_rd_atom =
@@ -2750,12 +2748,12 @@ int qedr_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
 	return 0;
 }
 
-int qedr_create_ah(struct ib_ah *ibah, struct rdma_ah_attr *attr, u32 flags,
+int qedr_create_ah(struct ib_ah *ibah, struct rdma_ah_init_attr *init_attr,
 		   struct ib_udata *udata)
 {
 	struct qedr_ah *ah = get_qedr_ah(ibah);
 
-	rdma_copy_ah_attr(&ah->attr, attr);
+	rdma_copy_ah_attr(&ah->attr, init_attr->ah_attr);
 
 	return 0;
 }

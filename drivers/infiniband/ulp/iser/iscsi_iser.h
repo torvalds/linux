@@ -65,7 +65,6 @@
 #include <linux/in6.h>
 
 #include <rdma/ib_verbs.h>
-#include <rdma/ib_fmr_pool.h>
 #include <rdma/rdma_cm.h>
 
 #define DRV_NAME	"iser"
@@ -313,33 +312,6 @@ struct iser_comp {
 };
 
 /**
- * struct iser_reg_ops - Memory registration operations
- *     per-device registration schemes
- *
- * @alloc_reg_res:     Allocate registration resources
- * @free_reg_res:      Free registration resources
- * @reg_mem:           Register memory buffers
- * @unreg_mem:         Un-register memory buffers
- * @reg_desc_get:      Get a registration descriptor for pool
- * @reg_desc_put:      Get a registration descriptor to pool
- */
-struct iser_reg_ops {
-	int            (*alloc_reg_res)(struct ib_conn *ib_conn,
-					unsigned cmds_max,
-					unsigned int size);
-	void           (*free_reg_res)(struct ib_conn *ib_conn);
-	int            (*reg_mem)(struct iscsi_iser_task *iser_task,
-				  struct iser_data_buf *mem,
-				  struct iser_reg_resources *rsc,
-				  struct iser_mem_reg *reg);
-	void           (*unreg_mem)(struct iscsi_iser_task *iser_task,
-				    enum iser_data_dir cmd_dir);
-	struct iser_fr_desc * (*reg_desc_get)(struct ib_conn *ib_conn);
-	void           (*reg_desc_put)(struct ib_conn *ib_conn,
-				       struct iser_fr_desc *desc);
-};
-
-/**
  * struct iser_device - iSER device handle
  *
  * @ib_device:     RDMA device
@@ -351,8 +323,6 @@ struct iser_reg_ops {
  * @comps_used:    Number of completion contexts used, Min between online
  *                 cpus and device max completion vectors
  * @comps:         Dinamically allocated array of completion handlers
- * @reg_ops:       Registration ops
- * @remote_inv_sup: Remote invalidate is supported on this device
  */
 struct iser_device {
 	struct ib_device             *ib_device;
@@ -362,26 +332,18 @@ struct iser_device {
 	int                          refcount;
 	int			     comps_used;
 	struct iser_comp	     *comps;
-	const struct iser_reg_ops    *reg_ops;
-	bool                         remote_inv_sup;
 };
 
 /**
  * struct iser_reg_resources - Fast registration resources
  *
  * @mr:         memory region
- * @fmr_pool:   pool of fmrs
  * @sig_mr:     signature memory region
- * @page_vec:   fast reg page list used by fmr pool
  * @mr_valid:   is mr valid indicator
  */
 struct iser_reg_resources {
-	union {
-		struct ib_mr             *mr;
-		struct ib_fmr_pool       *fmr_pool;
-	};
+	struct ib_mr                     *mr;
 	struct ib_mr                     *sig_mr;
-	struct iser_page_vec             *page_vec;
 	u8				  mr_valid:1;
 };
 
@@ -403,7 +365,7 @@ struct iser_fr_desc {
  * struct iser_fr_pool - connection fast registration pool
  *
  * @list:                list of fastreg descriptors
- * @lock:                protects fmr/fastreg pool
+ * @lock:                protects fastreg pool
  * @size:                size of the pool
  */
 struct iser_fr_pool {
@@ -518,12 +480,6 @@ struct iscsi_iser_task {
 	struct iser_data_buf         prot[ISER_DIRS_NUM];
 };
 
-struct iser_page_vec {
-	u64 *pages;
-	int npages;
-	struct ib_mr fake_mr;
-};
-
 /**
  * struct iser_global - iSER global context
  *
@@ -547,8 +503,6 @@ extern bool iser_pi_enable;
 extern int iser_pi_guard;
 extern unsigned int iser_max_sectors;
 extern bool iser_always_reg;
-
-int iser_assign_reg_ops(struct iser_device *device);
 
 int iser_send_control(struct iscsi_conn *conn,
 		      struct iscsi_task *task);
@@ -591,21 +545,16 @@ void iser_finalize_rdma_unaligned_sg(struct iscsi_iser_task *iser_task,
 				     struct iser_data_buf *mem,
 				     enum iser_data_dir cmd_dir);
 
-int iser_reg_rdma_mem(struct iscsi_iser_task *task,
-		      enum iser_data_dir dir,
-		      bool all_imm);
-void iser_unreg_rdma_mem(struct iscsi_iser_task *task,
-			 enum iser_data_dir dir);
+int iser_reg_mem_fastreg(struct iscsi_iser_task *task,
+			 enum iser_data_dir dir,
+			 bool all_imm);
+void iser_unreg_mem_fastreg(struct iscsi_iser_task *task,
+			    enum iser_data_dir dir);
 
 int  iser_connect(struct iser_conn *iser_conn,
 		  struct sockaddr *src_addr,
 		  struct sockaddr *dst_addr,
 		  int non_blocking);
-
-void iser_unreg_mem_fmr(struct iscsi_iser_task *iser_task,
-			enum iser_data_dir cmd_dir);
-void iser_unreg_mem_fastreg(struct iscsi_iser_task *iser_task,
-			    enum iser_data_dir cmd_dir);
 
 int  iser_post_recvl(struct iser_conn *iser_conn);
 int  iser_post_recvm(struct iser_conn *iser_conn, int count);
@@ -625,26 +574,12 @@ int  iser_initialize_task_headers(struct iscsi_task *task,
 			struct iser_tx_desc *tx_desc);
 int iser_alloc_rx_descriptors(struct iser_conn *iser_conn,
 			      struct iscsi_session *session);
-int iser_alloc_fmr_pool(struct ib_conn *ib_conn,
-			unsigned cmds_max,
-			unsigned int size);
-void iser_free_fmr_pool(struct ib_conn *ib_conn);
 int iser_alloc_fastreg_pool(struct ib_conn *ib_conn,
 			    unsigned cmds_max,
 			    unsigned int size);
 void iser_free_fastreg_pool(struct ib_conn *ib_conn);
 u8 iser_check_task_pi_status(struct iscsi_iser_task *iser_task,
 			     enum iser_data_dir cmd_dir, sector_t *sector);
-struct iser_fr_desc *
-iser_reg_desc_get_fr(struct ib_conn *ib_conn);
-void
-iser_reg_desc_put_fr(struct ib_conn *ib_conn,
-		     struct iser_fr_desc *desc);
-struct iser_fr_desc *
-iser_reg_desc_get_fmr(struct ib_conn *ib_conn);
-void
-iser_reg_desc_put_fmr(struct ib_conn *ib_conn,
-		      struct iser_fr_desc *desc);
 
 static inline struct iser_conn *
 to_iser_conn(struct ib_conn *ib_conn)

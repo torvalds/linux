@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause) */
 /*
- * Copyright(c) 2018 Intel Corporation.
+ * Copyright(c) 2018 - 2020 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -59,7 +59,8 @@ int msix_request_rcd_irq(struct hfi1_ctxtdata *rcd);
 int msix_request_sdma_irq(struct sdma_engine *sde);
 void msix_free_irq(struct hfi1_devdata *dd, u8 msix_intr);
 
-/* VNIC interface */
-void msix_vnic_synchronize_irq(struct hfi1_devdata *dd);
+/* Netdev interface */
+void msix_netdev_synchronize_irq(struct hfi1_devdata *dd);
+int msix_netdev_request_rcd_irq(struct hfi1_ctxtdata *rcd);
 
 #endif

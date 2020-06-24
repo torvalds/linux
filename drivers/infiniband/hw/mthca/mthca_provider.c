@@ -118,16 +118,6 @@ static int mthca_query_device(struct ib_device *ibdev, struct ib_device_attr *pr
 	props->max_mcast_qp_attach = MTHCA_QP_PER_MGM;
 	props->max_total_mcast_qp_attach = props->max_mcast_qp_attach *
 					   props->max_mcast_grp;
-	/*
-	 * If Sinai memory key optimization is being used, then only
-	 * the 8-bit key portion will change.  For other HCAs, the
-	 * unused index bits will also be used for FMR remapping.
-	 */
-	if (mdev->mthca_flags & MTHCA_FLAG_SINAI_OPT)
-		props->max_map_per_fmr = 255;
-	else
-		props->max_map_per_fmr =
-			(1 << (32 - ilog2(mdev->limits.num_mpts))) - 1;
 
 	err = 0;
  out:
@@ -388,14 +378,15 @@ static void mthca_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata)
 	mthca_pd_free(to_mdev(pd->device), to_mpd(pd));
 }
 
-static int mthca_ah_create(struct ib_ah *ibah, struct rdma_ah_attr *ah_attr,
-			   u32 flags, struct ib_udata *udata)
+static int mthca_ah_create(struct ib_ah *ibah,
+			   struct rdma_ah_init_attr *init_attr,
+			   struct ib_udata *udata)
 
 {
 	struct mthca_ah *ah = to_mah(ibah);
 
-	return mthca_create_ah(to_mdev(ibah->device), to_mpd(ibah->pd), ah_attr,
-			       ah);
+	return mthca_create_ah(to_mdev(ibah->device), to_mpd(ibah->pd),
+			       init_attr->ah_attr, ah);
 }
 
 static void mthca_ah_destroy(struct ib_ah *ah, u32 flags)
@@ -957,69 +948,6 @@ static int mthca_dereg_mr(struct ib_mr *mr, struct ib_udata *udata)
 	return 0;
 }
 
-static struct ib_fmr *mthca_alloc_fmr(struct ib_pd *pd, int mr_access_flags,
-				      struct ib_fmr_attr *fmr_attr)
-{
-	struct mthca_fmr *fmr;
-	int err;
-
-	fmr = kmalloc(sizeof *fmr, GFP_KERNEL);
-	if (!fmr)
-		return ERR_PTR(-ENOMEM);
-
-	memcpy(&fmr->attr, fmr_attr, sizeof *fmr_attr);
-	err = mthca_fmr_alloc(to_mdev(pd->device), to_mpd(pd)->pd_num,
-			     convert_access(mr_access_flags), fmr);
-
-	if (err) {
-		kfree(fmr);
-		return ERR_PTR(err);
-	}
-
-	return &fmr->ibmr;
-}
-
-static int mthca_dealloc_fmr(struct ib_fmr *fmr)
-{
-	struct mthca_fmr *mfmr = to_mfmr(fmr);
-	int err;
-
-	err = mthca_free_fmr(to_mdev(fmr->device), mfmr);
-	if (err)
-		return err;
-
-	kfree(mfmr);
-	return 0;
-}
-
-static int mthca_unmap_fmr(struct list_head *fmr_list)
-{
-	struct ib_fmr *fmr;
-	int err;
-	struct mthca_dev *mdev = NULL;
-
-	list_for_each_entry(fmr, fmr_list, list) {
-		if (mdev && to_mdev(fmr->device) != mdev)
-			return -EINVAL;
-		mdev = to_mdev(fmr->device);
-	}
-
-	if (!mdev)
-		return 0;
-
-	if (mthca_is_memfree(mdev)) {
-		list_for_each_entry(fmr, fmr_list, list)
-			mthca_arbel_fmr_unmap(mdev, to_mfmr(fmr));
-
-		wmb();
-	} else
-		list_for_each_entry(fmr, fmr_list, list)
-			mthca_tavor_fmr_unmap(mdev, to_mfmr(fmr));
-
-	err = mthca_SYNC_TPT(mdev);
-	return err;
-}
-
 static ssize_t hw_rev_show(struct device *device,
 			   struct device_attribute *attr, char *buf)
 {
@@ -1203,20 +1131,6 @@ static const struct ib_device_ops mthca_dev_tavor_srq_ops = {
 	INIT_RDMA_OBJ_SIZE(ib_srq, mthca_srq, ibsrq),
 };
 
-static const struct ib_device_ops mthca_dev_arbel_fmr_ops = {
-	.alloc_fmr = mthca_alloc_fmr,
-	.dealloc_fmr = mthca_dealloc_fmr,
-	.map_phys_fmr = mthca_arbel_map_phys_fmr,
-	.unmap_fmr = mthca_unmap_fmr,
-};
-
-static const struct ib_device_ops mthca_dev_tavor_fmr_ops = {
-	.alloc_fmr = mthca_alloc_fmr,
-	.dealloc_fmr = mthca_dealloc_fmr,
-	.map_phys_fmr = mthca_tavor_map_phys_fmr,
-	.unmap_fmr = mthca_unmap_fmr,
-};
-
 static const struct ib_device_ops mthca_dev_arbel_ops = {
 	.post_recv = mthca_arbel_post_receive,
 	.post_send = mthca_arbel_post_send,
@@ -1273,15 +1187,6 @@ int mthca_register_device(struct mthca_dev *dev)
 		else
 			ib_set_device_ops(&dev->ib_dev,
 					  &mthca_dev_tavor_srq_ops);
-	}
-
-	if (dev->mthca_flags & MTHCA_FLAG_FMR) {
-		if (mthca_is_memfree(dev))
-			ib_set_device_ops(&dev->ib_dev,
-					  &mthca_dev_arbel_fmr_ops);
-		else
-			ib_set_device_ops(&dev->ib_dev,
-					  &mthca_dev_tavor_fmr_ops);
 	}
 
 	ib_set_device_ops(&dev->ib_dev, &mthca_dev_ops);

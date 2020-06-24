@@ -236,16 +236,16 @@ err_cmd:
 	return err;
 }
 
-int mlx5_core_create_qp(struct mlx5_ib_dev *dev, struct mlx5_core_qp *qp,
-			u32 *in, int inlen)
+int mlx5_qpc_create_qp(struct mlx5_ib_dev *dev, struct mlx5_core_qp *qp,
+		       u32 *in, int inlen, u32 *out)
 {
-	u32 out[MLX5_ST_SZ_DW(create_qp_out)] = {};
 	u32 din[MLX5_ST_SZ_DW(destroy_qp_in)] = {};
 	int err;
 
 	MLX5_SET(create_qp_in, in, opcode, MLX5_CMD_OP_CREATE_QP);
 
-	err = mlx5_cmd_exec(dev->mdev, in, inlen, out, sizeof(out));
+	err = mlx5_cmd_exec(dev->mdev, in, inlen, out,
+			    MLX5_ST_SZ_BYTES(create_qp_out));
 	if (err)
 		return err;
 
@@ -341,9 +341,30 @@ static void mbox_free(struct mbox_info *mbox)
 	kfree(mbox->out);
 }
 
+static int get_ece_from_mbox(void *out, u16 opcode)
+{
+	int ece = 0;
+
+	switch (opcode) {
+	case MLX5_CMD_OP_INIT2RTR_QP:
+		ece = MLX5_GET(init2rtr_qp_out, out, ece);
+		break;
+	case MLX5_CMD_OP_RTR2RTS_QP:
+		ece = MLX5_GET(rtr2rts_qp_out, out, ece);
+		break;
+	case MLX5_CMD_OP_RTS2RTS_QP:
+		ece = MLX5_GET(rts2rts_qp_out, out, ece);
+		break;
+	default:
+		break;
+	}
+
+	return ece;
+}
+
 static int modify_qp_mbox_alloc(struct mlx5_core_dev *dev, u16 opcode, int qpn,
 				u32 opt_param_mask, void *qpc,
-				struct mbox_info *mbox, u16 uid)
+				struct mbox_info *mbox, u16 uid, u32 ece)
 {
 	mbox->out = NULL;
 	mbox->in = NULL;
@@ -391,18 +412,21 @@ static int modify_qp_mbox_alloc(struct mlx5_core_dev *dev, u16 opcode, int qpn,
 			return -ENOMEM;
 		MOD_QP_IN_SET_QPC(init2rtr_qp, mbox->in, opcode, qpn,
 				  opt_param_mask, qpc, uid);
+		MLX5_SET(init2rtr_qp_in, mbox->in, ece, ece);
 		break;
 	case MLX5_CMD_OP_RTR2RTS_QP:
 		if (MBOX_ALLOC(mbox, rtr2rts_qp))
 			return -ENOMEM;
 		MOD_QP_IN_SET_QPC(rtr2rts_qp, mbox->in, opcode, qpn,
 				  opt_param_mask, qpc, uid);
+		MLX5_SET(rtr2rts_qp_in, mbox->in, ece, ece);
 		break;
 	case MLX5_CMD_OP_RTS2RTS_QP:
 		if (MBOX_ALLOC(mbox, rts2rts_qp))
 			return -ENOMEM;
 		MOD_QP_IN_SET_QPC(rts2rts_qp, mbox->in, opcode, qpn,
 				  opt_param_mask, qpc, uid);
+		MLX5_SET(rts2rts_qp_in, mbox->in, ece, ece);
 		break;
 	case MLX5_CMD_OP_SQERR2RTS_QP:
 		if (MBOX_ALLOC(mbox, sqerr2rts_qp))
@@ -423,18 +447,22 @@ static int modify_qp_mbox_alloc(struct mlx5_core_dev *dev, u16 opcode, int qpn,
 }
 
 int mlx5_core_qp_modify(struct mlx5_ib_dev *dev, u16 opcode, u32 opt_param_mask,
-			void *qpc, struct mlx5_core_qp *qp)
+			void *qpc, struct mlx5_core_qp *qp, u32 *ece)
 {
 	struct mbox_info mbox;
 	int err;
 
-	err = modify_qp_mbox_alloc(dev->mdev, opcode, qp->qpn,
-				   opt_param_mask, qpc, &mbox, qp->uid);
+	err = modify_qp_mbox_alloc(dev->mdev, opcode, qp->qpn, opt_param_mask,
+				   qpc, &mbox, qp->uid, (ece) ? *ece : 0);
 	if (err)
 		return err;
 
 	err = mlx5_cmd_exec(dev->mdev, mbox.in, mbox.inlen, mbox.out,
 			    mbox.outlen);
+
+	if (ece)
+		*ece = get_ece_from_mbox(mbox.out, opcode);
+
 	mbox_free(&mbox);
 	return err;
 }

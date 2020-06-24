@@ -45,7 +45,6 @@
 #include "qed_iwarp.h"
 #include "qed_roce.h"
 
-#define QED_RDMA_MAX_FMR                    (RDMA_MAX_TIDS)
 #define QED_RDMA_MAX_P_KEY                  (1)
 #define QED_RDMA_MAX_WQE                    (0x7FFF)
 #define QED_RDMA_MAX_SRQ_WQE_ELEM           (0x7FFF)
