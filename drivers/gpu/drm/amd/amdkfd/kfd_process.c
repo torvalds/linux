@@ -86,6 +86,13 @@ struct kfd_sdma_activity_handler_workarea {
 	uint64_t sdma_activity_counter;
 };
 
+struct temp_sdma_queue_list {
+	uint64_t rptr;
+	uint64_t sdma_val;
+	unsigned int queue_id;
+	struct list_head list;
+};
+
 static void kfd_sdma_activity_worker(struct work_struct *work)
 {
 	struct kfd_sdma_activity_handler_workarea *workarea;
@@ -96,6 +103,8 @@ static void kfd_sdma_activity_worker(struct work_struct *work)
 	struct qcm_process_device *qpd;
 	struct device_queue_manager *dqm;
 	int ret = 0;
+	struct temp_sdma_queue_list sdma_q_list;
+	struct temp_sdma_queue_list *sdma_q, *next;
 
 	workarea = container_of(work, struct kfd_sdma_activity_handler_workarea,
 				sdma_activity_work);
@@ -109,41 +118,135 @@ static void kfd_sdma_activity_worker(struct work_struct *work)
 	qpd = &pdd->qpd;
 	if (!dqm || !qpd)
 		return;
+	/*
+	 * Total SDMA activity is current SDMA activity + past SDMA activity
+	 * Past SDMA count is stored in pdd.
+	 * To get the current activity counters for all active SDMA queues,
+	 * we loop over all SDMA queues and get their counts from user-space.
+	 *
+	 * We cannot call get_user() with dqm_lock held as it can cause
+	 * a circular lock dependency situation. To read the SDMA stats,
+	 * we need to do the following:
+	 *
+	 * 1. Create a temporary list of SDMA queue nodes from the qpd->queues_list,
+	 *    with dqm_lock/dqm_unlock().
+	 * 2. Call get_user() for each node in temporary list without dqm_lock.
+	 *    Save the SDMA count for each node and also add the count to the total
+	 *    SDMA count counter.
+	 *    Its possible, during this step, a few SDMA queue nodes got deleted
+	 *    from the qpd->queues_list.
+	 * 3. Do a second pass over qpd->queues_list to check if any nodes got deleted.
+	 *    If any node got deleted, its SDMA count would be captured in the sdma
+	 *    past activity counter. So subtract the SDMA counter stored in step 2
+	 *    for this node from the total SDMA count.
+	 */
+	INIT_LIST_HEAD(&sdma_q_list.list);
 
-	mm = get_task_mm(pdd->process->lead_thread);
-	if (!mm) {
+	/*
+	 * Create the temp list of all SDMA queues
+	 */
+	dqm_lock(dqm);
+
+	list_for_each_entry(q, &qpd->queues_list, list) {
+		if ((q->properties.type != KFD_QUEUE_TYPE_SDMA) &&
+		    (q->properties.type != KFD_QUEUE_TYPE_SDMA_XGMI))
+			continue;
+
+		sdma_q = kzalloc(sizeof(struct temp_sdma_queue_list), GFP_KERNEL);
+		if (!sdma_q) {
+			dqm_unlock(dqm);
+			goto cleanup;
+		}
+
+		INIT_LIST_HEAD(&sdma_q->list);
+		sdma_q->rptr = (uint64_t)q->properties.read_ptr;
+		sdma_q->queue_id = q->properties.queue_id;
+		list_add_tail(&sdma_q->list, &sdma_q_list.list);
+	}
+
+	/*
+	 * If the temp list is empty, then no SDMA queues nodes were found in
+	 * qpd->queues_list. Return the past activity count as the total sdma
+	 * count
+	 */
+	if (list_empty(&sdma_q_list.list)) {
+		workarea->sdma_activity_counter = pdd->sdma_past_activity_counter;
+		dqm_unlock(dqm);
 		return;
 	}
 
+	dqm_unlock(dqm);
+
+	/*
+	 * Get the usage count for each SDMA queue in temp_list.
+	 */
+	mm = get_task_mm(pdd->process->lead_thread);
+	if (!mm)
+		goto cleanup;
+
 	use_mm(mm);
 
+	list_for_each_entry(sdma_q, &sdma_q_list.list, list) {
+		val = 0;
+		ret = read_sdma_queue_counter(sdma_q->rptr, &val);
+		if (ret) {
+			pr_debug("Failed to read SDMA queue active counter for queue id: %d",
+				 sdma_q->queue_id);
+		} else {
+			sdma_q->sdma_val = val;
+			workarea->sdma_activity_counter += val;
+		}
+	}
+
+	unuse_mm(mm);
+	mmput(mm);
+
+	/*
+	 * Do a second iteration over qpd_queues_list to check if any SDMA
+	 * nodes got deleted while fetching SDMA counter.
+	 */
 	dqm_lock(dqm);
 
-	/*
-	 * Total SDMA activity is current SDMA activity + past SDMA activity
-	 */
-	workarea->sdma_activity_counter = pdd->sdma_past_activity_counter;
+	workarea->sdma_activity_counter += pdd->sdma_past_activity_counter;
 
-	/*
-	 * Get the current activity counters for all active SDMA queues
-	 */
 	list_for_each_entry(q, &qpd->queues_list, list) {
-		if ((q->properties.type == KFD_QUEUE_TYPE_SDMA) ||
-		    (q->properties.type == KFD_QUEUE_TYPE_SDMA_XGMI)) {
-			val = 0;
-			ret = read_sdma_queue_counter(q, &val);
-			if (ret)
-				pr_debug("Failed to read SDMA queue active "
-					 "counter for queue id: %d",
-					 q->properties.queue_id);
-			else
-				workarea->sdma_activity_counter += val;
+		if (list_empty(&sdma_q_list.list))
+			break;
+
+		if ((q->properties.type != KFD_QUEUE_TYPE_SDMA) &&
+		    (q->properties.type != KFD_QUEUE_TYPE_SDMA_XGMI))
+			continue;
+
+		list_for_each_entry_safe(sdma_q, next, &sdma_q_list.list, list) {
+			if (((uint64_t)q->properties.read_ptr == sdma_q->rptr) &&
+			     (sdma_q->queue_id == q->properties.queue_id)) {
+				list_del(&sdma_q->list);
+				kfree(sdma_q);
+				break;
+			}
 		}
 	}
 
 	dqm_unlock(dqm);
-	unuse_mm(mm);
-	mmput(mm);
+
+	/*
+	 * If temp list is not empty, it implies some queues got deleted
+	 * from qpd->queues_list during SDMA usage read. Subtract the SDMA
+	 * count for each node from the total SDMA count.
+	 */
+	list_for_each_entry_safe(sdma_q, next, &sdma_q_list.list, list) {
+		workarea->sdma_activity_counter -= sdma_q->sdma_val;
+		list_del(&sdma_q->list);
+		kfree(sdma_q);
+	}
+
+	return;
+
+cleanup:
+	list_for_each_entry_safe(sdma_q, next, &sdma_q_list.list, list) {
+		list_del(&sdma_q->list);
+		kfree(sdma_q);
+	}
 }
 
 static ssize_t kfd_procfs_show(struct kobject *kobj, struct attribute *attr,
