@@ -470,4 +470,16 @@ TEST_F(current_nsset, no_foul_play)
 	}
 }
 
+TEST(setns_einval)
+{
+	int fd;
+
+	fd = sys_memfd_create("rostock", 0);
+	EXPECT_GT(fd, 0);
+
+	ASSERT_NE(setns(fd, 0), 0);
+	EXPECT_EQ(errno, EINVAL);
+	close(fd);
+}
+
 TEST_HARNESS_MAIN
