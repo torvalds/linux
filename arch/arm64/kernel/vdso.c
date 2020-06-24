@@ -107,27 +107,30 @@ static int __vdso_init(enum vdso_abi abi)
 			vdso_info[abi].vdso_code_start) >>
 			PAGE_SHIFT;
 
-	/* Allocate the vDSO pagelist, plus a page for the data. */
-	vdso_pagelist = kcalloc(vdso_info[abi].vdso_pages + 1,
+	vdso_pagelist = kcalloc(vdso_info[abi].vdso_pages,
 				sizeof(struct page *),
 				GFP_KERNEL);
 	if (vdso_pagelist == NULL)
 		return -ENOMEM;
 
-	/* Grab the vDSO data page. */
-	vdso_pagelist[0] = phys_to_page(__pa_symbol(vdso_data));
-
-
 	/* Grab the vDSO code pages. */
 	pfn = sym_to_pfn(vdso_info[abi].vdso_code_start);
 
 	for (i = 0; i < vdso_info[abi].vdso_pages; i++)
-		vdso_pagelist[i + 1] = pfn_to_page(pfn + i);
+		vdso_pagelist[i] = pfn_to_page(pfn + i);
 
-	vdso_info[abi].dm->pages = &vdso_pagelist[0];
-	vdso_info[abi].cm->pages = &vdso_pagelist[1];
+	vdso_info[abi].cm->pages = vdso_pagelist;
 
 	return 0;
+}
+
+static vm_fault_t vvar_fault(const struct vm_special_mapping *sm,
+			     struct vm_area_struct *vma, struct vm_fault *vmf)
+{
+	if (vmf->pgoff == 0)
+		return vmf_insert_pfn(vma, vmf->address,
+				sym_to_pfn(vdso_data));
+	return VM_FAULT_SIGBUS;
 }
 
 static int __setup_additional_pages(enum vdso_abi abi,
@@ -150,7 +153,7 @@ static int __setup_additional_pages(enum vdso_abi abi,
 	}
 
 	ret = _install_special_mapping(mm, vdso_base, PAGE_SIZE,
-				       VM_READ|VM_MAYREAD,
+				       VM_READ|VM_MAYREAD|VM_PFNMAP,
 				       vdso_info[abi].dm);
 	if (IS_ERR(ret))
 		goto up_fail;
@@ -206,6 +209,7 @@ static struct vm_special_mapping aarch32_vdso_maps[] = {
 #ifdef CONFIG_COMPAT_VDSO
 	[AA32_MAP_VVAR] = {
 		.name = "[vvar]",
+		.fault = vvar_fault,
 	},
 	[AA32_MAP_VDSO] = {
 		.name = "[vdso]",
@@ -371,6 +375,7 @@ enum aarch64_map {
 static struct vm_special_mapping aarch64_vdso_maps[] __ro_after_init = {
 	[AA64_MAP_VVAR] = {
 		.name	= "[vvar]",
+		.fault = vvar_fault,
 	},
 	[AA64_MAP_VDSO] = {
 		.name	= "[vdso]",
