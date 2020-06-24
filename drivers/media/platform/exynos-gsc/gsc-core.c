@@ -577,7 +577,7 @@ int gsc_try_selection(struct gsc_ctx *ctx, struct v4l2_selection *s)
 	v4l_bound_align_image(&tmp_w, min_w, max_w, mod_x,
 			      &tmp_h, min_h, max_h, mod_y, 0);
 
-	if (!V4L2_TYPE_IS_OUTPUT(s->type) &&
+	if (V4L2_TYPE_IS_CAPTURE(s->type) &&
 	    (ctx->gsc_ctrls.rotate->val == 90 ||
 	     ctx->gsc_ctrls.rotate->val == 270))
 		gsc_check_crop_change(tmp_h, tmp_w,

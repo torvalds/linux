@@ -237,7 +237,7 @@ static int hantro_try_fmt(const struct hantro_ctx *ctx,
 			  enum v4l2_buf_type type)
 {
 	const struct hantro_fmt *fmt, *vpu_fmt;
-	bool capture = !V4L2_TYPE_IS_OUTPUT(type);
+	bool capture = V4L2_TYPE_IS_CAPTURE(type);
 	bool coded;
 
 	coded = capture == hantro_is_encoder_ctx(ctx);

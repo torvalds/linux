@@ -193,7 +193,7 @@ static const struct mtk_mdp_fmt *mtk_mdp_try_fmt_mplane(struct mtk_mdp_ctx *ctx,
 
 	pix_mp->field = V4L2_FIELD_NONE;
 	pix_mp->pixelformat = fmt->pixelformat;
-	if (!V4L2_TYPE_IS_OUTPUT(f->type)) {
+	if (V4L2_TYPE_IS_CAPTURE(f->type)) {
 		pix_mp->colorspace = ctx->colorspace;
 		pix_mp->xfer_func = ctx->xfer_func;
 		pix_mp->ycbcr_enc = ctx->ycbcr_enc;
@@ -327,9 +327,8 @@ static int mtk_mdp_try_crop(struct mtk_mdp_ctx *ctx, u32 type,
 	mtk_mdp_bound_align_image(&new_w, min_w, max_w, align_w,
 				  &new_h, min_h, max_h, align_h);
 
-	if (!V4L2_TYPE_IS_OUTPUT(type) &&
-		(ctx->ctrls.rotate->val == 90 ||
-		ctx->ctrls.rotate->val == 270))
+	if (V4L2_TYPE_IS_CAPTURE(type) &&
+	    (ctx->ctrls.rotate->val == 90 || ctx->ctrls.rotate->val == 270))
 		mtk_mdp_check_crop_change(new_h, new_w,
 					  &r->width, &r->height);
 	else

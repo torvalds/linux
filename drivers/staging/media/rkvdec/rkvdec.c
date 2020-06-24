@@ -489,7 +489,7 @@ static int rkvdec_start_streaming(struct vb2_queue *q, unsigned int count)
 	const struct rkvdec_coded_fmt_desc *desc;
 	int ret;
 
-	if (!V4L2_TYPE_IS_OUTPUT(q->type))
+	if (V4L2_TYPE_IS_CAPTURE(q->type))
 		return 0;
 
 	desc = ctx->coded_fmt_desc;
