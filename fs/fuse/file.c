@@ -2165,10 +2165,8 @@ static int fuse_writepages(struct address_space *mapping,
 
 	err = write_cache_pages(mapping, wbc, fuse_writepages_fill, &data);
 	if (data.wpa) {
-		/* Ignore errors if we can write at least one page */
 		WARN_ON(!data.wpa->ia.ap.num_pages);
 		fuse_writepages_send(&data);
-		err = 0;
 	}
 	if (data.ff)
 		fuse_file_put(data.ff, false, false);
