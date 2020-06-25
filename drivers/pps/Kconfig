@@ -5,7 +5,7 @@
 
 menuconfig PPS
 	tristate "PPS support"
-	---help---
+	help
 	  PPS (Pulse Per Second) is a special pulse provided by some GPS
 	  antennae. Userland can use it to get a high-precision time
 	  reference.

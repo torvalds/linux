@@ -33,7 +33,7 @@ tap_timeout()
 {
 	# Make sure tests will time out if utility is available.
 	if [ -x /usr/bin/timeout ] ; then
-		/usr/bin/timeout "$kselftest_timeout" "$1"
+		/usr/bin/timeout --foreground "$kselftest_timeout" "$1"
 	else
 		"$1"
 	fi

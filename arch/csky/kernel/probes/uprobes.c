@@ -11,6 +11,11 @@
 
 #define UPROBE_TRAP_NR	UINT_MAX
 
+bool is_swbp_insn(uprobe_opcode_t *insn)
+{
+	return (*insn & 0xffff) == UPROBE_SWBP_INSN;
+}
+
 unsigned long uprobe_get_swbp_addr(struct pt_regs *regs)
 {
 	return instruction_pointer(regs);

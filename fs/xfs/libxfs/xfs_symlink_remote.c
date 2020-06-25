@@ -204,16 +204,12 @@ xfs_failaddr_t
 xfs_symlink_shortform_verify(
 	struct xfs_inode	*ip)
 {
-	char			*sfp;
-	char			*endp;
-	struct xfs_ifork	*ifp;
-	int			size;
+	struct xfs_ifork	*ifp = XFS_IFORK_PTR(ip, XFS_DATA_FORK);
+	char			*sfp = (char *)ifp->if_u1.if_data;
+	int			size = ifp->if_bytes;
+	char			*endp = sfp + size;
 
-	ASSERT(ip->i_d.di_format == XFS_DINODE_FMT_LOCAL);
-	ifp = XFS_IFORK_PTR(ip, XFS_DATA_FORK);
-	sfp = (char *)ifp->if_u1.if_data;
-	size = ifp->if_bytes;
-	endp = sfp + size;
+	ASSERT(ifp->if_format == XFS_DINODE_FMT_LOCAL);
 
 	/*
 	 * Zero length symlinks should never occur in memory as they are

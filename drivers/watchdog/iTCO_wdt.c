@@ -64,6 +64,7 @@
 #include <linux/uaccess.h>		/* For copy_to_user/put_user/... */
 #include <linux/io.h>			/* For inb/outb/... */
 #include <linux/platform_data/itco_wdt.h>
+#include <linux/mfd/intel_pmc_bxt.h>
 
 #include "iTCO_vendor.h"
 
@@ -233,12 +234,24 @@ static int update_no_reboot_bit_cnt(void *priv, bool set)
 	return val != newval ? -EIO : 0;
 }
 
-static void iTCO_wdt_no_reboot_bit_setup(struct iTCO_wdt_private *p,
-		struct itco_wdt_platform_data *pdata)
+static int update_no_reboot_bit_pmc(void *priv, bool set)
 {
-	if (pdata->update_no_reboot_bit) {
-		p->update_no_reboot_bit = pdata->update_no_reboot_bit;
-		p->no_reboot_priv = pdata->no_reboot_priv;
+	struct intel_pmc_dev *pmc = priv;
+	u32 bits = PMC_CFG_NO_REBOOT_EN;
+	u32 value = set ? bits : 0;
+
+	return intel_pmc_gcr_update(pmc, PMC_GCR_PMC_CFG_REG, bits, value);
+}
+
+static void iTCO_wdt_no_reboot_bit_setup(struct iTCO_wdt_private *p,
+					 struct platform_device *pdev,
+					 struct itco_wdt_platform_data *pdata)
+{
+	if (pdata->no_reboot_use_pmc) {
+		struct intel_pmc_dev *pmc = dev_get_drvdata(pdev->dev.parent);
+
+		p->update_no_reboot_bit = update_no_reboot_bit_pmc;
+		p->no_reboot_priv = pmc;
 		return;
 	}
 
@@ -478,14 +491,14 @@ static int iTCO_wdt_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	iTCO_wdt_no_reboot_bit_setup(p, pdata);
+	iTCO_wdt_no_reboot_bit_setup(p, pdev, pdata);
 
 	/*
 	 * Get the Memory-Mapped GCS or PMC register, we need it for the
 	 * NO_REBOOT flag (TCO v2 and v3).
 	 */
 	if (p->iTCO_version >= 2 && p->iTCO_version < 6 &&
-	    !pdata->update_no_reboot_bit) {
+	    !pdata->no_reboot_use_pmc) {
 		p->gcs_pmc_res = platform_get_resource(pdev,
 						       IORESOURCE_MEM,
 						       ICH_RES_MEM_GCS_PMC);

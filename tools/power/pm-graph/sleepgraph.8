@@ -74,8 +74,10 @@ after the test is complete.
 Switch the display to the requested mode for the test using the xset command.
 This helps maintain the consistency of test data for better comparison.
 .TP
-\fB-skiphtml\fR
-Run the test and capture the trace logs, but skip the timeline generation.
+\fB-wifi\fR
+If a wifi connection is available, check that it reconnects after resume. Include
+the reconnect time in the total resume time calculation and treat wifi timeouts
+as resume failures.
 
 .SS "advanced"
 .TP
@@ -117,8 +119,24 @@ Include \fIt\fR ms delay before 1st suspend (default: 0 ms).
 Include \fIt\fR ms delay after last resume (default: 0 ms).
 .TP
 \fB-multi \fIn d\fR
-Execute \fIn\fR consecutive tests at \fId\fR seconds intervals. The outputs will
-be created in a new subdirectory with a summary page: suspend-xN-{date}-{time}.
+Used for endurance testing. If \fIn\fR is entirely numeric, it's treated as a count:
+Execute \fIn\fR consecutive tests at \fId\fR second intervals.
+If \fIn\fR is an integer followed by a "d", "h", or "m", it's treated as a duration:
+Execute tests continuously over \fIn\fR days, hours, or minutes at \fId\fR second intervals.
+The outputs will be created in a new subdirectory, for count: suspend-{date}-{time}-xN,
+for duration: suspend-{date}-{time}-Nm. When the multitest run is done, the \fI-summary\fR
+command is called automatically to create summary html files for all the data (unless you
+use \fI-skiphtml\fR). \fI-skiphtml\fR will speed up the testing by not creating timelines
+or summary html files. You can then run the tool again at a later time with \fI-summary\fR
+and \fI-genhtml\fR to create the timelines.
+.TP
+\fB-maxfail \fIn\fR
+Abort a -multi run after \fIn\fR consecutive fails. 0 means never abort (default = 0).
+.TP
+\fB-skiphtml\fR
+Run the test and capture the trace logs, but skip the timeline generation.
+You can generate the html timelines later with \fI-dmesg\fR & \fI-ftrace\fR, or
+by running \fI-summary\fR and \fI-genhtml\fR.
 
 .SS "ftrace debug"
 .TP
@@ -173,11 +191,20 @@ Set trace buffer size to N kilo-bytes (default: all of free memory up to 3GB)
 .SH COMMANDS
 .TP
 \fB-summary \fIindir\fR
-Create a summary page of all tests in \fIindir\fR. Creates summary.html
-in the current folder. The output page is a table of tests with
-suspend and resume values sorted by suspend mode, host, and kernel.
-Includes test averages by mode and links to the test html files.
-Use -genhtml to include tests with missing html.
+Create a set of summary pages for all tests in \fIindir\fR recursively.
+Creates summary.html, summary-issues.html, and summary-devices.html in the current folder.
+summary.html is a table of tests with relevant info sorted by kernel/host/mode,
+and links to the test html files. It identifies the minimum, maximum, and median
+suspend and resume times for you with highlights and links in the header.
+summary-issues.html is a list of kernel issues found in dmesg from all the tests.
+summary-devices.html is a list of devices and times from all the tests.
+
+Use \fI-genhtml\fR to regenerate any tests with missing html.
+.TP
+\fB-genhtml\fR
+Used with \fI-summary\fR to regenerate any missing html timelines from their
+dmesg and ftrace logs. This will require a significant amount of time if there
+are thousands of tests.
 .TP
 \fB-modes\fR
 List available suspend modes.
@@ -189,10 +216,7 @@ with any options you intend to use to see if they will work.
 \fB-fpdt\fR
 Print out the contents of the ACPI Firmware Performance Data Table.
 .TP
-\fB-battery\fR
-Print out battery status and current charge.
-.TP
-\fB-wifi\fR
+\fB-wificheck\fR
 Print out wifi status and connection details.
 .TP
 \fB-xon/-xoff/-xstandby/-xsuspend\fR
@@ -207,6 +231,9 @@ Print out system info extracted from BIOS. Reads /dev/mem directly instead of go
 .TP
 \fB-devinfo\fR
 Print out the pm settings of all devices which support runtime suspend.
+.TP
+\fB-cmdinfo\fR
+Print out all the platform data collected from the system that makes it into the logs.
 .TP
 \fB-flist\fR
 Print the list of ftrace functions currently being captured. Functions
@@ -272,14 +299,20 @@ Run two suspends back to back, include a 500ms delay before, after, and in betwe
 .IP
 \f(CW$ sudo sleepgraph -m mem -rtcwake 15 -x2 -predelay 500 -x2delay 500 -postdelay 500\fR
 .PP
-Do a batch run of 10 freezes with 30 seconds delay between runs.
-.IP
-\f(CW$ sudo sleepgraph -m freeze -rtcwake 15 -multi 10 30\fR
-.PP
 Execute a suspend using a custom command.
 .IP
 \f(CW$ sudo sleepgraph -cmd "echo mem > /sys/power/state" -rtcwake 15\fR
 .PP
+
+.SS "endurance testing using -multi"
+.PP
+Do a batch run of 10 freezes with 30 seconds delay between runs.
+.IP
+\f(CW$ sudo sleepgraph -m freeze -rtcwake 15 -multi 10 30\fR
+.PP
+Do a batch run of freezes for 24 hours.
+.IP
+\f(CW$ sudo sleepgraph -m freeze -rtcwake 15 -multi 24h 0\fR
 
 .SS "adding callgraph data"
 Add device callgraphs. Limit the trace depth and only show callgraphs 10ms or larger.

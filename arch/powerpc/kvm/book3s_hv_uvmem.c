@@ -47,7 +47,7 @@
  * Locking order
  *
  * 1. kvm->srcu - Protects KVM memslots
- * 2. kvm->mm->mmap_sem - find_vma, migrate_vma_pages and helpers, ksm_madvise
+ * 2. kvm->mm->mmap_lock - find_vma, migrate_vma_pages and helpers, ksm_madvise
  * 3. kvm->arch.uvmem_lock - protects read/writes to uvmem slots thus acting
  *			     as sync-points for page-in/out
  */
@@ -402,13 +402,13 @@ kvmppc_svm_page_in(struct vm_area_struct *vma, unsigned long start,
 	mig.dst = &dst_pfn;
 
 	/*
-	 * We come here with mmap_sem write lock held just for
-	 * ksm_madvise(), otherwise we only need read mmap_sem.
+	 * We come here with mmap_lock write lock held just for
+	 * ksm_madvise(), otherwise we only need read mmap_lock.
 	 * Hence downgrade to read lock once ksm_madvise() is done.
 	 */
 	ret = ksm_madvise(vma, vma->vm_start, vma->vm_end,
 			  MADV_UNMERGEABLE, &vma->vm_flags);
-	downgrade_write(&kvm->mm->mmap_sem);
+	mmap_write_downgrade(kvm->mm);
 	*downgrade = true;
 	if (ret)
 		return ret;
@@ -525,7 +525,7 @@ kvmppc_h_svm_page_in(struct kvm *kvm, unsigned long gpa,
 
 	ret = H_PARAMETER;
 	srcu_idx = srcu_read_lock(&kvm->srcu);
-	down_write(&kvm->mm->mmap_sem);
+	mmap_write_lock(kvm->mm);
 
 	start = gfn_to_hva(kvm, gfn);
 	if (kvm_is_error_hva(start))
@@ -548,9 +548,9 @@ out_unlock:
 	mutex_unlock(&kvm->arch.uvmem_lock);
 out:
 	if (downgrade)
-		up_read(&kvm->mm->mmap_sem);
+		mmap_read_unlock(kvm->mm);
 	else
-		up_write(&kvm->mm->mmap_sem);
+		mmap_write_unlock(kvm->mm);
 	srcu_read_unlock(&kvm->srcu, srcu_idx);
 	return ret;
 }
@@ -703,7 +703,7 @@ kvmppc_h_svm_page_out(struct kvm *kvm, unsigned long gpa,
 
 	ret = H_PARAMETER;
 	srcu_idx = srcu_read_lock(&kvm->srcu);
-	down_read(&kvm->mm->mmap_sem);
+	mmap_read_lock(kvm->mm);
 	start = gfn_to_hva(kvm, gfn);
 	if (kvm_is_error_hva(start))
 		goto out;
@@ -716,7 +716,7 @@ kvmppc_h_svm_page_out(struct kvm *kvm, unsigned long gpa,
 	if (!kvmppc_svm_page_out(vma, start, end, page_shift, kvm, gpa))
 		ret = H_SUCCESS;
 out:
-	up_read(&kvm->mm->mmap_sem);
+	mmap_read_unlock(kvm->mm);
 	srcu_read_unlock(&kvm->srcu, srcu_idx);
 	return ret;
 }
@@ -748,6 +748,20 @@ static u64 kvmppc_get_secmem_size(void)
 	int i, len;
 	const __be32 *prop;
 	u64 size = 0;
+
+	/*
+	 * First try the new ibm,secure-memory nodes which supersede the
+	 * secure-memory-ranges property.
+	 * If we found some, no need to read the deprecated ones.
+	 */
+	for_each_compatible_node(np, NULL, "ibm,secure-memory") {
+		prop = of_get_property(np, "reg", &len);
+		if (!prop)
+			continue;
+		size += of_read_number(prop + 2, 2);
+	}
+	if (size)
+		return size;
 
 	np = of_find_compatible_node(NULL, NULL, "ibm,uv-firmware");
 	if (!np)

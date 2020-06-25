@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Andreas Färber
+ * Copyright (c) 2017-2019 Andreas Färber
  *
  * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
  */
@@ -12,9 +12,9 @@
 	compatible = "probox2,ava", "realtek,rtd1295";
 	model = "PROBOX2 AVA";
 
-	memory@0 {
+	memory@1f000 {
 		device_type = "memory";
-		reg = <0x0 0x80000000>;
+		reg = <0x1f000 0x7ffe1000>; /* boot ROM to 2 GiB */
 	};
 
 	aliases {

@@ -3386,7 +3386,7 @@ struct ipw_fw {
 	__le32 boot_size;
 	__le32 ucode_size;
 	__le32 fw_size;
-	u8 data[0];
+	u8 data[];
 };
 
 static int ipw_get_fw(struct ipw_priv *priv,
@@ -3770,10 +3770,8 @@ static int ipw_queue_tx_init(struct ipw_priv *priv,
 	struct pci_dev *dev = priv->pci_dev;
 
 	q->txb = kmalloc_array(count, sizeof(q->txb[0]), GFP_KERNEL);
-	if (!q->txb) {
-		IPW_ERROR("vmalloc for auxiliary BD structures failed\n");
+	if (!q->txb)
 		return -ENOMEM;
-	}
 
 	q->bd =
 	    pci_alloc_consistent(dev, sizeof(q->bd[0]) * count, &q->q.dma_addr);
@@ -7042,23 +7040,22 @@ static int ipw_qos_association(struct ipw_priv *priv,
 * off the network from the associated setting, adjust the QoS
 * setting
 */
-static int ipw_qos_association_resp(struct ipw_priv *priv,
+static void ipw_qos_association_resp(struct ipw_priv *priv,
 				    struct libipw_network *network)
 {
-	int ret = 0;
 	unsigned long flags;
 	u32 size = sizeof(struct libipw_qos_parameters);
 	int set_qos_param = 0;
 
 	if ((priv == NULL) || (network == NULL) ||
 	    (priv->assoc_network == NULL))
-		return ret;
+		return;
 
 	if (!(priv->status & STATUS_ASSOCIATED))
-		return ret;
+		return;
 
 	if ((priv->ieee->iw_mode != IW_MODE_INFRA))
-		return ret;
+		return;
 
 	spin_lock_irqsave(&priv->ieee->lock, flags);
 	if (network->flags & NETWORK_HAS_QOS_PARAMETERS) {
@@ -7088,8 +7085,6 @@ static int ipw_qos_association_resp(struct ipw_priv *priv,
 
 	if (set_qos_param == 1)
 		schedule_work(&priv->qos_activate);
-
-	return ret;
 }
 
 static u32 ipw_qos_get_burst_duration(struct ipw_priv *priv)
@@ -10643,10 +10638,8 @@ static void ipw_bg_link_down(struct work_struct *work)
 	mutex_unlock(&priv->mutex);
 }
 
-static int ipw_setup_deferred_work(struct ipw_priv *priv)
+static void ipw_setup_deferred_work(struct ipw_priv *priv)
 {
-	int ret = 0;
-
 	init_waitqueue_head(&priv->wait_command_queue);
 	init_waitqueue_head(&priv->wait_state);
 
@@ -10680,8 +10673,6 @@ static int ipw_setup_deferred_work(struct ipw_priv *priv)
 
 	tasklet_init(&priv->irq_tasklet,
 		     ipw_irq_tasklet, (unsigned long)priv);
-
-	return ret;
 }
 
 static void shim__set_security(struct net_device *dev,
@@ -11662,11 +11653,7 @@ static int ipw_pci_probe(struct pci_dev *pdev,
 	IPW_DEBUG_INFO("pci_resource_len = 0x%08x\n", length);
 	IPW_DEBUG_INFO("pci_resource_base = %p\n", base);
 
-	err = ipw_setup_deferred_work(priv);
-	if (err) {
-		IPW_ERROR("Unable to setup deferred work\n");
-		goto out_iounmap;
-	}
+	ipw_setup_deferred_work(priv);
 
 	ipw_sw_reset(priv, 1);
 

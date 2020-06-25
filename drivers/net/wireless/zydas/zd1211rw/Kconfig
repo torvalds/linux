@@ -3,7 +3,7 @@ config ZD1211RW
 	tristate "ZyDAS ZD1211/ZD1211B USB-wireless support"
 	depends on USB && MAC80211
 	select FW_LOADER
-	---help---
+	help
 	  This is a driver for the ZyDAS ZD1211/ZD1211B wireless
 	  chip, present in many USB-wireless adapters.
 
@@ -13,7 +13,7 @@ config ZD1211RW
 config ZD1211RW_DEBUG
 	bool "ZyDAS ZD1211 debugging"
 	depends on ZD1211RW
-	---help---
+	help
 	  ZD1211 debugging messages. Choosing Y will result in additional debug
 	  messages being saved to your kernel logs, which may help debug any
 	  problems.

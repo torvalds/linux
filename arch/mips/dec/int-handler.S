@@ -304,8 +304,8 @@ spurious:
  */
 		FEXPORT(dec_intr_unimplemented)
 		move	a1,t0			# cheats way of printing an arg!
-		PANIC("Unimplemented cpu interrupt! CP0_CAUSE: 0x%08x");
+		ASM_PANIC("Unimplemented cpu interrupt! CP0_CAUSE: 0x%08x");
 
 		FEXPORT(asic_intr_unimplemented)
 		move	a1,t0			# cheats way of printing an arg!
-		PANIC("Unimplemented asic interrupt! ASIC ISR: 0x%08x");
+		ASM_PANIC("Unimplemented asic interrupt! ASIC ISR: 0x%08x");

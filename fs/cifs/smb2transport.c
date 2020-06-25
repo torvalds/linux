@@ -660,8 +660,8 @@ smb2_verify_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 		return rc;
 
 	if (memcmp(server_response_sig, shdr->Signature, SMB2_SIGNATURE_SIZE)) {
-		dump_stack();
-		cifs_dbg(VFS, "sign fail cmd 0x%x message id 0x%llx\n", shdr->Command, shdr->MessageId);
+		cifs_dbg(VFS, "sign fail cmd 0x%x message id 0x%llx\n",
+			shdr->Command, shdr->MessageId);
 		return -EACCES;
 	} else
 		return 0;

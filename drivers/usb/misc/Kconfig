@@ -6,7 +6,7 @@ comment "USB Miscellaneous drivers"
 
 config USB_EMI62
 	tristate "EMI 6|2m USB Audio interface support"
-	---help---
+	help
 	  This driver loads firmware to Emagic EMI 6|2m low latency USB
 	  Audio and Midi interface.
 
@@ -20,7 +20,7 @@ config USB_EMI62
 
 config USB_EMI26
 	tristate "EMI 2|6 USB Audio interface support"
-	---help---
+	help
 	  This driver loads firmware to Emagic EMI 2|6 low latency USB
 	  Audio interface.
 

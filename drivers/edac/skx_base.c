@@ -157,32 +157,34 @@ fail:
 	return -ENODEV;
 }
 
+static struct res_config skx_cfg = {
+	.type			= SKX,
+	.decs_did		= 0x2016,
+	.busno_cfg_offset	= 0xcc,
+};
+
 static const struct x86_cpu_id skx_cpuids[] = {
-	X86_MATCH_INTEL_FAM6_MODEL(SKYLAKE_X,	NULL),
+	X86_MATCH_INTEL_FAM6_MODEL(SKYLAKE_X,	&skx_cfg),
 	{ }
 };
 MODULE_DEVICE_TABLE(x86cpu, skx_cpuids);
 
-#define SKX_GET_MTMTR(dev, reg) \
-	pci_read_config_dword((dev), 0x87c, &(reg))
-
-static bool skx_check_ecc(struct pci_dev *pdev)
+static bool skx_check_ecc(u32 mcmtr)
 {
-	u32 mtmtr;
-
-	SKX_GET_MTMTR(pdev, mtmtr);
-
-	return !!GET_BITFIELD(mtmtr, 2, 2);
+	return !!GET_BITFIELD(mcmtr, 2, 2);
 }
 
 static int skx_get_dimm_config(struct mem_ctl_info *mci)
 {
 	struct skx_pvt *pvt = mci->pvt_info;
+	u32 mtr, mcmtr, amap, mcddrtcfg;
 	struct skx_imc *imc = pvt->imc;
-	u32 mtr, amap, mcddrtcfg;
 	struct dimm_info *dimm;
 	int i, j;
 	int ndimms;
+
+	/* Only the mcmtr on the first channel is effective */
+	pci_read_config_dword(imc->chan[0].cdev, 0x87c, &mcmtr);
 
 	for (i = 0; i < SKX_NUM_CHANNELS; i++) {
 		ndimms = 0;
@@ -193,14 +195,14 @@ static int skx_get_dimm_config(struct mem_ctl_info *mci)
 			pci_read_config_dword(imc->chan[i].cdev,
 					      0x80 + 4 * j, &mtr);
 			if (IS_DIMM_PRESENT(mtr)) {
-				ndimms += skx_get_dimm_info(mtr, amap, dimm, imc, i, j);
+				ndimms += skx_get_dimm_info(mtr, mcmtr, amap, dimm, imc, i, j);
 			} else if (IS_NVDIMM_PRESENT(mcddrtcfg, j)) {
 				ndimms += skx_get_nvdimm_info(dimm, imc, i, j,
 							      EDAC_MOD_STR);
 				nvdimm_count++;
 			}
 		}
-		if (ndimms && !skx_check_ecc(imc->chan[0].cdev)) {
+		if (ndimms && !skx_check_ecc(mcmtr)) {
 			skx_printk(KERN_ERR, "ECC is disabled on imc %d\n", imc->mc);
 			return -ENODEV;
 		}
@@ -641,6 +643,7 @@ static inline void teardown_skx_debug(void) {}
 static int __init skx_init(void)
 {
 	const struct x86_cpu_id *id;
+	struct res_config *cfg;
 	const struct munit *m;
 	const char *owner;
 	int rc = 0, i, off[3] = {0xd0, 0xd4, 0xd8};
@@ -657,11 +660,13 @@ static int __init skx_init(void)
 	if (!id)
 		return -ENODEV;
 
+	cfg = (struct res_config *)id->driver_data;
+
 	rc = skx_get_hi_lo(0x2034, off, &skx_tolm, &skx_tohm);
 	if (rc)
 		return rc;
 
-	rc = skx_get_all_bus_mappings(0x2016, 0xcc, SKX, &skx_edac_list);
+	rc = skx_get_all_bus_mappings(cfg, &skx_edac_list);
 	if (rc < 0)
 		goto fail;
 	if (rc == 0) {

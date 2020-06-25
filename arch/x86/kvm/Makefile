@@ -3,6 +3,10 @@
 ccflags-y += -Iarch/x86/kvm
 ccflags-$(CONFIG_KVM_WERROR) += -Werror
 
+ifeq ($(CONFIG_FRAME_POINTER),y)
+OBJECT_FILES_NON_STANDARD_vmenter.o := y
+endif
+
 KVM := ../../../virt/kvm
 
 kvm-y			+= $(KVM)/kvm_main.o $(KVM)/coalesced_mmio.o \

@@ -908,7 +908,7 @@ static int pvscsi_host_reset(struct scsi_cmnd *cmd)
 	use_msg = adapter->use_msg;
 
 	if (use_msg) {
-		adapter->use_msg = 0;
+		adapter->use_msg = false;
 		spin_unlock_irqrestore(&adapter->hw_lock, flags);
 
 		/*

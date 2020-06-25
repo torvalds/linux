@@ -90,7 +90,8 @@ static const struct link_encoder_funcs dcn10_lnk_enc_funcs = {
 	.is_dig_enabled = dcn10_is_dig_enabled,
 	.get_dig_frontend = dcn10_get_dig_frontend,
 	.get_dig_mode = dcn10_get_dig_mode,
-	.destroy = dcn10_link_encoder_destroy
+	.destroy = dcn10_link_encoder_destroy,
+	.get_max_link_cap = dcn10_link_encoder_get_max_link_cap,
 };
 
 static enum bp_result link_transmitter_control(
@@ -1370,7 +1371,6 @@ void dcn10_link_encoder_disable_hpd(struct link_encoder *enc)
 			DC_HPD_EN, 0);
 }
 
-
 #define AUX_REG(reg)\
 	(enc10->aux_regs->reg)
 
@@ -1425,3 +1425,19 @@ enum signal_type dcn10_get_dig_mode(
 	return SIGNAL_TYPE_NONE;
 }
 
+void dcn10_link_encoder_get_max_link_cap(struct link_encoder *enc,
+	struct dc_link_settings *link_settings)
+{
+	/* Set Default link settings */
+	struct dc_link_settings max_link_cap = {LANE_COUNT_FOUR, LINK_RATE_HIGH,
+			LINK_SPREAD_05_DOWNSPREAD_30KHZ, false, 0};
+
+	/* Higher link settings based on feature supported */
+	if (enc->features.flags.bits.IS_HBR2_CAPABLE)
+		max_link_cap.link_rate = LINK_RATE_HIGH2;
+
+	if (enc->features.flags.bits.IS_HBR3_CAPABLE)
+		max_link_cap.link_rate = LINK_RATE_HIGH3;
+
+	*link_settings = max_link_cap;
+}

@@ -30,7 +30,6 @@
 
 #include <asm/io.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/processor.h>
 #include <asm/cputable.h>
 #include <asm/thread_info.h>
@@ -68,6 +67,10 @@
 
 #ifdef CONFIG_PPC_8xx
 #include <asm/fixmap.h>
+#endif
+
+#ifdef CONFIG_XMON
+#include "../xmon/xmon_bpts.h"
 #endif
 
 #define STACK_PT_REGS_OFFSET(sym, val)	\
@@ -793,6 +796,10 @@ int main(void)
 
 #ifdef CONFIG_PPC_8xx
 	DEFINE(VIRT_IMMR_BASE, (u64)__fix_to_virt(FIX_IMMR_BASE));
+#endif
+
+#ifdef CONFIG_XMON
+	DEFINE(BPT_SIZE, BPT_SIZE);
 #endif
 
 	return 0;

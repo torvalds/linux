@@ -209,7 +209,6 @@ static const struct drm_display_mode rpi_touchscreen_modes[] = {
 		.vsync_start = 480 + 7,
 		.vsync_end = 480 + 7 + 2,
 		.vtotal = 480 + 7 + 2 + 21,
-		.vrefresh = 60,
 	},
 };
 
@@ -322,7 +321,8 @@ static int rpi_touchscreen_get_modes(struct drm_panel *panel,
 		mode = drm_mode_duplicate(connector->dev, m);
 		if (!mode) {
 			dev_err(panel->dev, "failed to add mode %ux%u@%u\n",
-				m->hdisplay, m->vdisplay, m->vrefresh);
+				m->hdisplay, m->vdisplay,
+				drm_mode_vrefresh(m));
 			continue;
 		}
 

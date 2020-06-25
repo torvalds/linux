@@ -9,6 +9,14 @@ cpu=0
 # no enable on exec for CPU attached
 enable_on_exec=0
 
-# PERF_SAMPLE_IP | PERF_SAMPLE_TID PERF_SAMPLE_TIME | # PERF_SAMPLE_PERIOD
+# PERF_SAMPLE_IP | PERF_SAMPLE_TID | PERF_SAMPLE_TIME |
+# PERF_SAMPLE_ID | PERF_SAMPLE_PERIOD
 # + PERF_SAMPLE_CPU added by -C 0
-sample_type=391
+sample_type=455
+
+# Dummy event handles mmaps, comm and task.
+mmap=0
+comm=0
+task=0
+
+[event:system-wide-dummy]

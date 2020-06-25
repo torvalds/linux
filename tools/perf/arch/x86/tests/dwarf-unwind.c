@@ -55,6 +55,14 @@ int test__arch_unwind_sample(struct perf_sample *sample,
 		return -1;
 	}
 
+#ifdef MEMORY_SANITIZER
+	/*
+	 * Assignments to buf in the assembly function perf_regs_load aren't
+	 * seen by memory sanitizer. Zero the memory to convince memory
+	 * sanitizer the memory is initialized.
+	 */
+	memset(buf, 0, sizeof(u64) * PERF_REGS_MAX);
+#endif
 	perf_regs_load(buf);
 	regs->abi  = PERF_SAMPLE_REGS_ABI;
 	regs->regs = buf;

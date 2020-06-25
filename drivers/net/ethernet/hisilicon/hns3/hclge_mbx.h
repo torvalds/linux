@@ -24,7 +24,7 @@ enum HCLGE_MBX_OPCODE {
 	HCLGE_MBX_GET_RETA,		/* (VF -> PF) get RETA */
 	HCLGE_MBX_GET_RSS_KEY,		/* (VF -> PF) get RSS key */
 	HCLGE_MBX_GET_MAC_ADDR,		/* (VF -> PF) get MAC addr */
-	HCLGE_MBX_PF_VF_RESP,		/* (PF -> VF) generate respone to VF */
+	HCLGE_MBX_PF_VF_RESP,		/* (PF -> VF) generate response to VF */
 	HCLGE_MBX_GET_BDNUM,		/* (VF -> PF) get BD num */
 	HCLGE_MBX_GET_BUFSIZE,		/* (VF -> PF) get buffer size */
 	HCLGE_MBX_GET_STREAMID,		/* (VF -> PF) get stream id */
@@ -45,6 +45,7 @@ enum HCLGE_MBX_OPCODE {
 	HCLGE_MBX_GET_MEDIA_TYPE,       /* (VF -> PF) get media type */
 	HCLGE_MBX_PUSH_PROMISC_INFO,	/* (PF -> VF) push vf promisc info */
 	HCLGE_MBX_VF_UNINIT,            /* (VF -> PF) vf is unintializing */
+	HCLGE_MBX_HANDLE_VF_TBL,	/* (VF -> PF) store/clear hw table */
 
 	HCLGE_MBX_GET_VF_FLR_STATUS = 200, /* (M7 -> PF) get vf flr status */
 	HCLGE_MBX_PUSH_LINK_STATUS,	/* (M7 -> PF) get port link status */
@@ -68,6 +69,10 @@ enum hclge_mbx_vlan_cfg_subcode {
 	HCLGE_MBX_VLAN_RX_OFF_CFG,	/* set rx side vlan offload */
 	HCLGE_MBX_PORT_BASE_VLAN_CFG,	/* set port based vlan configuration */
 	HCLGE_MBX_GET_PORT_BASE_VLAN_STATE,	/* get port based vlan state */
+};
+
+enum hclge_mbx_tbl_cfg_subcode {
+	HCLGE_MBX_VPORT_LIST_CLEAR,
 };
 
 #define HCLGE_MBX_MAX_MSG_SIZE	14

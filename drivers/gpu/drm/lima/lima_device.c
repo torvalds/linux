@@ -25,6 +25,8 @@ struct lima_ip_desc {
 
 	int (*init)(struct lima_ip *ip);
 	void (*fini)(struct lima_ip *ip);
+	int (*resume)(struct lima_ip *ip);
+	void (*suspend)(struct lima_ip *ip);
 };
 
 #define LIMA_IP_DESC(ipname, mst0, mst1, off0, off1, func, irq) \
@@ -41,6 +43,8 @@ struct lima_ip_desc {
 		}, \
 		.init = lima_##func##_init, \
 		.fini = lima_##func##_fini, \
+		.resume = lima_##func##_resume, \
+		.suspend = lima_##func##_suspend, \
 	}
 
 static struct lima_ip_desc lima_ip_desc[lima_ip_num] = {
@@ -77,25 +81,9 @@ const char *lima_ip_name(struct lima_ip *ip)
 	return lima_ip_desc[ip->id].name;
 }
 
-static int lima_clk_init(struct lima_device *dev)
+static int lima_clk_enable(struct lima_device *dev)
 {
 	int err;
-
-	dev->clk_bus = devm_clk_get(dev->dev, "bus");
-	if (IS_ERR(dev->clk_bus)) {
-		err = PTR_ERR(dev->clk_bus);
-		if (err != -EPROBE_DEFER)
-			dev_err(dev->dev, "get bus clk failed %d\n", err);
-		return err;
-	}
-
-	dev->clk_gpu = devm_clk_get(dev->dev, "core");
-	if (IS_ERR(dev->clk_gpu)) {
-		err = PTR_ERR(dev->clk_gpu);
-		if (err != -EPROBE_DEFER)
-			dev_err(dev->dev, "get core clk failed %d\n", err);
-		return err;
-	}
 
 	err = clk_prepare_enable(dev->clk_bus);
 	if (err)
@@ -105,15 +93,7 @@ static int lima_clk_init(struct lima_device *dev)
 	if (err)
 		goto error_out0;
 
-	dev->reset = devm_reset_control_array_get_optional_shared(dev->dev);
-
-	if (IS_ERR(dev->reset)) {
-		err = PTR_ERR(dev->reset);
-		if (err != -EPROBE_DEFER)
-			dev_err(dev->dev, "get reset controller failed %d\n",
-				err);
-		goto error_out1;
-	} else if (dev->reset != NULL) {
+	if (dev->reset) {
 		err = reset_control_deassert(dev->reset);
 		if (err) {
 			dev_err(dev->dev,
@@ -131,12 +111,74 @@ error_out0:
 	return err;
 }
 
-static void lima_clk_fini(struct lima_device *dev)
+static void lima_clk_disable(struct lima_device *dev)
 {
-	if (dev->reset != NULL)
+	if (dev->reset)
 		reset_control_assert(dev->reset);
 	clk_disable_unprepare(dev->clk_gpu);
 	clk_disable_unprepare(dev->clk_bus);
+}
+
+static int lima_clk_init(struct lima_device *dev)
+{
+	int err;
+
+	dev->clk_bus = devm_clk_get(dev->dev, "bus");
+	if (IS_ERR(dev->clk_bus)) {
+		err = PTR_ERR(dev->clk_bus);
+		if (err != -EPROBE_DEFER)
+			dev_err(dev->dev, "get bus clk failed %d\n", err);
+		dev->clk_bus = NULL;
+		return err;
+	}
+
+	dev->clk_gpu = devm_clk_get(dev->dev, "core");
+	if (IS_ERR(dev->clk_gpu)) {
+		err = PTR_ERR(dev->clk_gpu);
+		if (err != -EPROBE_DEFER)
+			dev_err(dev->dev, "get core clk failed %d\n", err);
+		dev->clk_gpu = NULL;
+		return err;
+	}
+
+	dev->reset = devm_reset_control_array_get_optional_shared(dev->dev);
+	if (IS_ERR(dev->reset)) {
+		err = PTR_ERR(dev->reset);
+		if (err != -EPROBE_DEFER)
+			dev_err(dev->dev, "get reset controller failed %d\n",
+				err);
+		dev->reset = NULL;
+		return err;
+	}
+
+	return lima_clk_enable(dev);
+}
+
+static void lima_clk_fini(struct lima_device *dev)
+{
+	lima_clk_disable(dev);
+}
+
+static int lima_regulator_enable(struct lima_device *dev)
+{
+	int ret;
+
+	if (!dev->regulator)
+		return 0;
+
+	ret = regulator_enable(dev->regulator);
+	if (ret < 0) {
+		dev_err(dev->dev, "failed to enable regulator: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+static void lima_regulator_disable(struct lima_device *dev)
+{
+	if (dev->regulator)
+		regulator_disable(dev->regulator);
 }
 
 static int lima_regulator_init(struct lima_device *dev)
@@ -154,25 +196,20 @@ static int lima_regulator_init(struct lima_device *dev)
 		return ret;
 	}
 
-	ret = regulator_enable(dev->regulator);
-	if (ret < 0) {
-		dev_err(dev->dev, "failed to enable regulator: %d\n", ret);
-		return ret;
-	}
-
-	return 0;
+	return lima_regulator_enable(dev);
 }
 
 static void lima_regulator_fini(struct lima_device *dev)
 {
-	if (dev->regulator)
-		regulator_disable(dev->regulator);
+	lima_regulator_disable(dev);
 }
 
 static int lima_init_ip(struct lima_device *dev, int index)
 {
+	struct platform_device *pdev = to_platform_device(dev->dev);
 	struct lima_ip_desc *desc = lima_ip_desc + index;
 	struct lima_ip *ip = dev->ip + index;
+	const char *irq_name = desc->irq_name;
 	int offset = desc->offset[dev->id];
 	bool must = desc->must_have[dev->id];
 	int err;
@@ -183,8 +220,9 @@ static int lima_init_ip(struct lima_device *dev, int index)
 	ip->dev = dev;
 	ip->id = index;
 	ip->iomem = dev->iomem + offset;
-	if (desc->irq_name) {
-		err = platform_get_irq_byname(dev->pdev, desc->irq_name);
+	if (irq_name) {
+		err = must ? platform_get_irq_byname(pdev, irq_name) :
+			     platform_get_irq_byname_optional(pdev, irq_name);
 		if (err < 0)
 			goto out;
 		ip->irq = err;
@@ -209,10 +247,33 @@ static void lima_fini_ip(struct lima_device *ldev, int index)
 		desc->fini(ip);
 }
 
+static int lima_resume_ip(struct lima_device *ldev, int index)
+{
+	struct lima_ip_desc *desc = lima_ip_desc + index;
+	struct lima_ip *ip = ldev->ip + index;
+	int ret = 0;
+
+	if (ip->present)
+		ret = desc->resume(ip);
+
+	return ret;
+}
+
+static void lima_suspend_ip(struct lima_device *ldev, int index)
+{
+	struct lima_ip_desc *desc = lima_ip_desc + index;
+	struct lima_ip *ip = ldev->ip + index;
+
+	if (ip->present)
+		desc->suspend(ip);
+}
+
 static int lima_init_gp_pipe(struct lima_device *dev)
 {
 	struct lima_sched_pipe *pipe = dev->pipe + lima_pipe_gp;
 	int err;
+
+	pipe->ldev = dev;
 
 	err = lima_sched_pipe_init(pipe, "gp");
 	if (err)
@@ -243,6 +304,8 @@ static int lima_init_pp_pipe(struct lima_device *dev)
 {
 	struct lima_sched_pipe *pipe = dev->pipe + lima_pipe_pp;
 	int err, i;
+
+	pipe->ldev = dev;
 
 	err = lima_sched_pipe_init(pipe, "pp");
 	if (err)
@@ -290,8 +353,8 @@ static void lima_fini_pp_pipe(struct lima_device *dev)
 
 int lima_device_init(struct lima_device *ldev)
 {
+	struct platform_device *pdev = to_platform_device(ldev->dev);
 	int err, i;
-	struct resource *res;
 
 	dma_set_coherent_mask(ldev->dev, DMA_BIT_MASK(32));
 
@@ -322,8 +385,7 @@ int lima_device_init(struct lima_device *ldev)
 	} else
 		ldev->va_end = LIMA_VA_RESERVE_END;
 
-	res = platform_get_resource(ldev->pdev, IORESOURCE_MEM, 0);
-	ldev->iomem = devm_ioremap_resource(ldev->dev, res);
+	ldev->iomem = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ldev->iomem)) {
 		dev_err(ldev->dev, "fail to ioremap iomem\n");
 		err = PTR_ERR(ldev->iomem);
@@ -343,6 +405,12 @@ int lima_device_init(struct lima_device *ldev)
 	err = lima_init_pp_pipe(ldev);
 	if (err)
 		goto err_out5;
+
+	ldev->dump.magic = LIMA_DUMP_MAGIC;
+	ldev->dump.version_major = LIMA_DUMP_MAJOR;
+	ldev->dump.version_minor = LIMA_DUMP_MINOR;
+	INIT_LIST_HEAD(&ldev->error_task_list);
+	mutex_init(&ldev->error_task_list_lock);
 
 	dev_info(ldev->dev, "bus rate = %lu\n", clk_get_rate(ldev->clk_bus));
 	dev_info(ldev->dev, "mod rate = %lu", clk_get_rate(ldev->clk_gpu));
@@ -370,6 +438,13 @@ err_out0:
 void lima_device_fini(struct lima_device *ldev)
 {
 	int i;
+	struct lima_sched_error_task *et, *tmp;
+
+	list_for_each_entry_safe(et, tmp, &ldev->error_task_list, list) {
+		list_del(&et->list);
+		kvfree(et);
+	}
+	mutex_destroy(&ldev->error_task_list_lock);
 
 	lima_fini_pp_pipe(ldev);
 	lima_fini_gp_pipe(ldev);
@@ -386,4 +461,73 @@ void lima_device_fini(struct lima_device *ldev)
 	lima_regulator_fini(ldev);
 
 	lima_clk_fini(ldev);
+}
+
+int lima_device_resume(struct device *dev)
+{
+	struct lima_device *ldev = dev_get_drvdata(dev);
+	int i, err;
+
+	err = lima_clk_enable(ldev);
+	if (err) {
+		dev_err(dev, "resume clk fail %d\n", err);
+		return err;
+	}
+
+	err = lima_regulator_enable(ldev);
+	if (err) {
+		dev_err(dev, "resume regulator fail %d\n", err);
+		goto err_out0;
+	}
+
+	for (i = 0; i < lima_ip_num; i++) {
+		err = lima_resume_ip(ldev, i);
+		if (err) {
+			dev_err(dev, "resume ip %d fail\n", i);
+			goto err_out1;
+		}
+	}
+
+	err = lima_devfreq_resume(&ldev->devfreq);
+	if (err) {
+		dev_err(dev, "devfreq resume fail\n");
+		goto err_out1;
+	}
+
+	return 0;
+
+err_out1:
+	while (--i >= 0)
+		lima_suspend_ip(ldev, i);
+	lima_regulator_disable(ldev);
+err_out0:
+	lima_clk_disable(ldev);
+	return err;
+}
+
+int lima_device_suspend(struct device *dev)
+{
+	struct lima_device *ldev = dev_get_drvdata(dev);
+	int i, err;
+
+	/* check any task running */
+	for (i = 0; i < lima_pipe_num; i++) {
+		if (atomic_read(&ldev->pipe[i].base.hw_rq_count))
+			return -EBUSY;
+	}
+
+	err = lima_devfreq_suspend(&ldev->devfreq);
+	if (err) {
+		dev_err(dev, "devfreq suspend fail\n");
+		return err;
+	}
+
+	for (i = lima_ip_num - 1; i >= 0; i--)
+		lima_suspend_ip(ldev, i);
+
+	lima_regulator_disable(ldev);
+
+	lima_clk_disable(ldev);
+
+	return 0;
 }

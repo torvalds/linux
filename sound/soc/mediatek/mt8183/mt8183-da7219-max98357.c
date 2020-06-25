@@ -6,11 +6,12 @@
 // Copyright (c) 2018 MediaTek Inc.
 // Author: Shunli Wang <shunli.wang@mediatek.com>
 
+#include <linux/input.h>
 #include <linux/module.h>
+#include <linux/pinctrl/consumer.h>
+#include <sound/jack.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
-#include <sound/jack.h>
-#include <linux/pinctrl/consumer.h>
 
 #include "mt8183-afe-common.h"
 #include "../../codecs/da7219-aad.h"
@@ -471,9 +472,18 @@ mt8183_da7219_max98357_headset_init(struct snd_soc_component *component)
 	if (ret)
 		return ret;
 
+	snd_jack_set_key(
+		priv->headset_jack.jack, SND_JACK_BTN_0, KEY_PLAYPAUSE);
+	snd_jack_set_key(
+		priv->headset_jack.jack, SND_JACK_BTN_1, KEY_VOLUMEUP);
+	snd_jack_set_key(
+		priv->headset_jack.jack, SND_JACK_BTN_2, KEY_VOLUMEDOWN);
+	snd_jack_set_key(
+		priv->headset_jack.jack, SND_JACK_BTN_3, KEY_VOICECOMMAND);
+
 	da7219_aad_jack_det(component, &priv->headset_jack);
 
-	return ret;
+	return 0;
 }
 
 static int mt8183_da7219_max98357_dev_probe(struct platform_device *pdev)

@@ -1,0 +1,49 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+=======================
+sja1105 devlink support
+=======================
+
+This document describes the devlink features implemented
+by the ``sja1105`` device driver.
+
+Parameters
+==========
+
+.. list-table:: Driver-specific parameters implemented
+  :widths: 5 5 5 85
+
+  * - Name
+    - Type
+    - Mode
+    - Description
+  * - ``best_effort_vlan_filtering``
+    - Boolean
+    - runtime
+    - Allow plain ETH_P_8021Q headers to be used as DSA tags.
+
+      Benefits:
+
+      - Can terminate untagged traffic over switch net
+        devices even when enslaved to a bridge with
+        vlan_filtering=1.
+      - Can terminate VLAN-tagged traffic over switch net
+        devices even when enslaved to a bridge with
+        vlan_filtering=1, with some constraints (no more than
+        7 non-pvid VLANs per user port).
+      - Can do QoS based on VLAN PCP and VLAN membership
+        admission control for autonomously forwarded frames
+        (regardless of whether they can be terminated on the
+        CPU or not).
+
+      Drawbacks:
+
+      - User cannot use VLANs in range 1024-3071. If the
+	switch receives frames with such VIDs, it will
+	misinterpret them as DSA tags.
+      - Switch uses Shared VLAN Learning (FDB lookup uses
+	only DMAC as key).
+      - When VLANs span cross-chip topologies, the total
+	number of permitted VLANs may be less than 7 per
+	port, due to a maximum number of 32 VLAN retagging
+	rules per switch.

@@ -25,13 +25,13 @@ config CFG80211
 	# using a different algorithm, though right now they shouldn't
 	# (this is here rather than below to allow it to be a module)
 	select CRYPTO_SHA256 if CFG80211_USE_KERNEL_REGDB_KEYS
-	---help---
+	help
 	  cfg80211 is the Linux wireless LAN (802.11) configuration API.
 	  Enable this if you have a wireless device.
 
 	  For more information refer to documentation on the wireless wiki:
 
-	  http://wireless.kernel.org/en/developers/Documentation/cfg80211
+	  https://wireless.wiki.kernel.org/en/developers/Documentation/cfg80211
 
 	  When built as a module it will be called cfg80211.
 
@@ -71,7 +71,7 @@ config CFG80211_CERTIFICATION_ONUS
 	bool "cfg80211 certification onus"
 	depends on EXPERT
 	default n
-	---help---
+	help
 	  You should disable this option unless you are both capable
 	  and willing to ensure your system will remain regulatory
 	  compliant with the features available under this option.
@@ -124,7 +124,7 @@ config CFG80211_EXTRA_REGDB_KEYDIR
 config CFG80211_REG_CELLULAR_HINTS
 	bool "cfg80211 regulatory support for cellular base station hints"
 	depends on CFG80211_CERTIFICATION_ONUS
-	---help---
+	help
 	  This option enables support for parsing regulatory hints
 	  from cellular base stations. If enabled and at least one driver
 	  claims support for parsing cellular base station hints the
@@ -137,7 +137,7 @@ config CFG80211_REG_CELLULAR_HINTS
 config CFG80211_REG_RELAX_NO_IR
 	bool "cfg80211 support for NO_IR relaxation"
 	depends on CFG80211_CERTIFICATION_ONUS
-	---help---
+	help
 	 This option enables support for relaxation of the NO_IR flag for
 	 situations that certain regulatory bodies have provided clarifications
 	 on how relaxation can occur. This feature has an inherent dependency on
@@ -171,7 +171,7 @@ config CFG80211_DEFAULT_PS
 config CFG80211_DEBUGFS
 	bool "cfg80211 DebugFS entries"
 	depends on DEBUG_FS
-	---help---
+	help
 	  You can enable this if you want debugfs entries for cfg80211.
 
 	  If unsure, say N.
@@ -181,8 +181,8 @@ config CFG80211_CRDA_SUPPORT
 	default y
 	help
 	  You should enable this option unless you know for sure you have no
-	  need for it, for example when using internal regdb (above) or the
-	  database loaded as a firmware file.
+	  need for it, for example when using the regulatory database loaded as
+	  a firmware file.
 
 	  If unsure, say Y.
 
@@ -228,7 +228,7 @@ config LIB80211_DEBUG
 	bool "lib80211 debugging messages"
 	depends on LIB80211
 	default n
-	---help---
+	help
 	  You can enable this if you want verbose debugging messages
 	  from lib80211.
 

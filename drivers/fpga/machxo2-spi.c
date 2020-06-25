@@ -157,7 +157,8 @@ static int machxo2_cleanup(struct fpga_manager *mgr)
 	spi_message_init(&msg);
 	tx[1].tx_buf = &refresh;
 	tx[1].len = sizeof(refresh);
-	tx[1].delay_usecs = MACHXO2_REFRESH_USEC;
+	tx[1].delay.value = MACHXO2_REFRESH_USEC;
+	tx[1].delay.unit = SPI_DELAY_UNIT_USECS;
 	spi_message_add_tail(&tx[1], &msg);
 	ret = spi_sync(spi, &msg);
 	if (ret)
@@ -208,7 +209,8 @@ static int machxo2_write_init(struct fpga_manager *mgr,
 	spi_message_init(&msg);
 	tx[0].tx_buf = &enable;
 	tx[0].len = sizeof(enable);
-	tx[0].delay_usecs = MACHXO2_LOW_DELAY_USEC;
+	tx[0].delay.value = MACHXO2_LOW_DELAY_USEC;
+	tx[0].delay.unit = SPI_DELAY_UNIT_USECS;
 	spi_message_add_tail(&tx[0], &msg);
 
 	tx[1].tx_buf = &erase;
@@ -269,7 +271,8 @@ static int machxo2_write(struct fpga_manager *mgr, const char *buf,
 		spi_message_init(&msg);
 		tx.tx_buf = payload;
 		tx.len = MACHXO2_BUF_SIZE;
-		tx.delay_usecs = MACHXO2_HIGH_DELAY_USEC;
+		tx.delay.value = MACHXO2_HIGH_DELAY_USEC;
+		tx.delay.unit = SPI_DELAY_UNIT_USECS;
 		spi_message_add_tail(&tx, &msg);
 		ret = spi_sync(spi, &msg);
 		if (ret) {
@@ -317,7 +320,8 @@ static int machxo2_write_complete(struct fpga_manager *mgr,
 		spi_message_init(&msg);
 		tx[1].tx_buf = &refresh;
 		tx[1].len = sizeof(refresh);
-		tx[1].delay_usecs = MACHXO2_REFRESH_USEC;
+		tx[1].delay.value = MACHXO2_REFRESH_USEC;
+		tx[1].delay.unit = SPI_DELAY_UNIT_USECS;
 		spi_message_add_tail(&tx[1], &msg);
 		ret = spi_sync(spi, &msg);
 		if (ret)

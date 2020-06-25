@@ -108,7 +108,8 @@ This binding uses the i.MX common pinctrl binding[3].
 Required properties:
 - compatible:		Should be one of:
 			"fsl,imx8qm-iomuxc",
-			"fsl,imx8qxp-iomuxc".
+			"fsl,imx8qxp-iomuxc",
+			"fsl,imx8dxl-iomuxc".
 
 Required properties for Pinctrl sub nodes:
 - fsl,pins:		Each entry consists of 3 integers which represents
@@ -116,7 +117,8 @@ Required properties for Pinctrl sub nodes:
 			integers <pin_id mux_mode> are specified using a
 			PIN_FUNC_ID macro, which can be found in
 			<dt-bindings/pinctrl/pads-imx8qm.h>,
-			<dt-bindings/pinctrl/pads-imx8qxp.h>.
+			<dt-bindings/pinctrl/pads-imx8qxp.h>,
+			<dt-bindings/pinctrl/pads-imx8dxl.h>.
 			The last integer CONFIG is the pad setting value like
 			pull-up on this pin.
 

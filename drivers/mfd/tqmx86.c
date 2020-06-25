@@ -274,7 +274,7 @@ static int __init tqmx86_init(void)
 
 module_init(tqmx86_init);
 
-MODULE_DESCRIPTION("TQx86 PLD Core Driver");
+MODULE_DESCRIPTION("TQMx86 PLD Core Driver");
 MODULE_AUTHOR("Andrew Lunn <andrew@lunn.ch>");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:tqmx86");

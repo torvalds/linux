@@ -524,7 +524,7 @@ static void b53_srab_prepare_irq(struct platform_device *pdev)
 
 		port->num = i;
 		port->dev = dev;
-		port->irq = platform_get_irq_byname(pdev, name);
+		port->irq = platform_get_irq_byname_optional(pdev, name);
 		kfree(name);
 	}
 
@@ -609,7 +609,7 @@ static int b53_srab_probe(struct platform_device *pdev)
 
 	priv->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->regs))
-		return -ENOMEM;
+		return PTR_ERR(priv->regs);
 
 	dev = b53_switch_alloc(&pdev->dev, &b53_srab_ops, priv);
 	if (!dev)

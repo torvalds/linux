@@ -75,9 +75,13 @@ struct hw_sequencer_funcs {
 	void (*wait_for_mpcc_disconnect)(struct dc *dc,
 			struct resource_pool *res_pool,
 			struct pipe_ctx *pipe_ctx);
+	void (*edp_backlight_control)(
+			struct dc_link *link,
+			bool enable);
 	void (*program_triplebuffer)(const struct dc *dc,
 		struct pipe_ctx *pipe_ctx, bool enableTripleBuffer);
 	void (*update_pending_status)(struct pipe_ctx *pipe_ctx);
+	void (*power_down)(struct dc *dc);
 
 	/* Pipe Lock Related */
 	void (*pipe_control_lock)(struct dc *dc,
@@ -86,11 +90,17 @@ struct hw_sequencer_funcs {
 			struct dc_state *context, bool lock);
 	void (*set_flip_control_gsl)(struct pipe_ctx *pipe_ctx,
 			bool flip_immediate);
+	void (*cursor_lock)(struct dc *dc, struct pipe_ctx *pipe, bool lock);
 
 	/* Timing Related */
 	void (*get_position)(struct pipe_ctx **pipe_ctx, int num_pipes,
 			struct crtc_position *position);
 	int (*get_vupdate_offset_from_vsync)(struct pipe_ctx *pipe_ctx);
+	void (*calc_vupdate_position)(
+			struct dc *dc,
+			struct pipe_ctx *pipe_ctx,
+			uint32_t *start_line,
+			uint32_t *end_line);
 	void (*enable_per_frame_crtc_position_reset)(struct dc *dc,
 			int group_size, struct pipe_ctx *grouped_pipes[]);
 	void (*enable_timing_synchronization)(struct dc *dc,
@@ -186,6 +196,12 @@ struct hw_sequencer_funcs {
 	void (*get_hw_state)(struct dc *dc, char *pBuf,
 			unsigned int bufSize, unsigned int mask);
 	void (*clear_status_bits)(struct dc *dc, unsigned int mask);
+
+	bool (*set_backlight_level)(struct pipe_ctx *pipe_ctx,
+			uint32_t backlight_pwm_u16_16,
+			uint32_t frame_ramp);
+
+	void (*set_abm_immediate_disable)(struct pipe_ctx *pipe_ctx);
 
 
 };

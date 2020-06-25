@@ -41,7 +41,6 @@
 #include <linux/compiler.h>
 #include <asm/asm-compat.h>
 #include <asm/synch.h>
-#include <asm/asm-405.h>
 
 /* PPC bit number conversion */
 #define PPC_BITLSHIFT(be)	(BITS_PER_LONG - 1 - (be))
@@ -73,7 +72,6 @@ static inline void fn(unsigned long mask,	\
 	prefix					\
 "1:"	PPC_LLARX(%0,0,%3,0) "\n"		\
 	stringify_in_c(op) "%0,%0,%2\n"		\
-	PPC405_ERR77(0,%3)			\
 	PPC_STLCX "%0,0,%3\n"			\
 	"bne- 1b\n"				\
 	: "=&r" (old), "+m" (*p)		\
@@ -119,7 +117,6 @@ static inline unsigned long fn(			\
 	prefix						\
 "1:"	PPC_LLARX(%0,0,%3,eh) "\n"			\
 	stringify_in_c(op) "%1,%0,%2\n"			\
-	PPC405_ERR77(0,%3)				\
 	PPC_STLCX "%1,0,%3\n"				\
 	"bne- 1b\n"					\
 	postfix						\
@@ -175,7 +172,6 @@ clear_bit_unlock_return_word(int nr, volatile unsigned long *addr)
 	PPC_RELEASE_BARRIER
 "1:"	PPC_LLARX(%0,0,%3,0) "\n"
 	"andc %1,%0,%2\n"
-	PPC405_ERR77(0,%3)
 	PPC_STLCX "%1,0,%3\n"
 	"bne- 1b\n"
 	: "=&r" (old), "=&r" (t)

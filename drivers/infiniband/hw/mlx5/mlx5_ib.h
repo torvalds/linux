@@ -337,24 +337,12 @@ struct mlx5_ib_rwq {
 	struct ib_umem		*umem;
 	size_t			buf_size;
 	unsigned int		page_shift;
-	int			create_type;
 	struct mlx5_db		db;
 	u32			user_index;
 	u32			wqe_count;
 	u32			wqe_shift;
 	int			wq_sig;
 	u32			create_flags; /* Use enum mlx5_ib_wq_flags */
-};
-
-enum {
-	MLX5_QP_USER,
-	MLX5_QP_KERNEL,
-	MLX5_QP_EMPTY
-};
-
-enum {
-	MLX5_WQ_USER,
-	MLX5_WQ_KERNEL
 };
 
 struct mlx5_ib_rwq_ind_table {
@@ -443,21 +431,19 @@ struct mlx5_ib_qp {
 	/* serialize qp state modifications
 	 */
 	struct mutex		mutex;
+	/* cached variant of create_flags from struct ib_qp_init_attr */
 	u32			flags;
 	u8			port;
 	u8			state;
-	int			wq_sig;
-	int			scat_cqe;
 	int			max_inline_data;
 	struct mlx5_bf	        bf;
-	int			has_rq;
+	u8			has_rq:1;
+	u8			is_rss:1;
 
 	/* only for user space QPs. For kernel
 	 * we have it from the bf object
 	 */
 	int			bfregn;
-
-	int			create_type;
 
 	struct list_head	qps_list;
 	struct list_head	cq_recv_list;
@@ -465,12 +451,17 @@ struct mlx5_ib_qp {
 	struct mlx5_rate_limit	rl;
 	u32                     underlay_qpn;
 	u32			flags_en;
-	/* storage for qp sub type when core qp type is IB_QPT_DRIVER */
-	enum ib_qp_type		qp_sub_type;
+	/*
+	 * IB/core doesn't store low-level QP types, so
+	 * store both MLX and IBTA types in the field below.
+	 * IB_QPT_DRIVER will be break to DCI/DCT subtypes.
+	 */
+	enum ib_qp_type		type;
 	/* A flag to indicate if there's a new counter is configured
 	 * but not take effective
 	 */
 	u32                     counter_pending;
+	u16			gsi_lag_port;
 };
 
 struct mlx5_ib_cq_buf {
@@ -479,24 +470,6 @@ struct mlx5_ib_cq_buf {
 	struct ib_umem		*umem;
 	int			cqe_size;
 	int			nent;
-};
-
-enum mlx5_ib_qp_flags {
-	MLX5_IB_QP_LSO                          = IB_QP_CREATE_IPOIB_UD_LSO,
-	MLX5_IB_QP_BLOCK_MULTICAST_LOOPBACK     = IB_QP_CREATE_BLOCK_MULTICAST_LOOPBACK,
-	MLX5_IB_QP_CROSS_CHANNEL            = IB_QP_CREATE_CROSS_CHANNEL,
-	MLX5_IB_QP_MANAGED_SEND             = IB_QP_CREATE_MANAGED_SEND,
-	MLX5_IB_QP_MANAGED_RECV             = IB_QP_CREATE_MANAGED_RECV,
-	MLX5_IB_QP_SIGNATURE_HANDLING           = 1 << 5,
-	/* QP uses 1 as its source QP number */
-	MLX5_IB_QP_SQPN_QP1			= 1 << 6,
-	MLX5_IB_QP_CAP_SCATTER_FCS		= 1 << 7,
-	MLX5_IB_QP_RSS				= 1 << 8,
-	MLX5_IB_QP_CVLAN_STRIPPING		= 1 << 9,
-	MLX5_IB_QP_UNDERLAY			= 1 << 10,
-	MLX5_IB_QP_PCI_WRITE_END_PADDING	= 1 << 11,
-	MLX5_IB_QP_TUNNEL_OFFLOAD		= 1 << 12,
-	MLX5_IB_QP_PACKET_BASED_CREDIT		= 1 << 13,
 };
 
 struct mlx5_umr_wr {
@@ -702,12 +675,6 @@ struct umr_common {
 	struct semaphore	sem;
 };
 
-enum {
-	MLX5_FMR_INVALID,
-	MLX5_FMR_VALID,
-	MLX5_FMR_BUSY,
-};
-
 struct mlx5_cache_ent {
 	struct list_head	head;
 	/* sync access to the cahce entry
@@ -780,7 +747,6 @@ struct mlx5_ib_counters {
 	u32 num_cong_counters;
 	u32 num_ext_ppcnt_counters;
 	u16 set_id;
-	bool set_id_valid;
 };
 
 struct mlx5_ib_multiport_info;
@@ -870,6 +836,7 @@ enum mlx5_ib_stages {
 	MLX5_IB_STAGE_CAPS,
 	MLX5_IB_STAGE_NON_DEFAULT_CB,
 	MLX5_IB_STAGE_ROCE,
+	MLX5_IB_STAGE_QP,
 	MLX5_IB_STAGE_SRQ,
 	MLX5_IB_STAGE_DEVICE_RESOURCES,
 	MLX5_IB_STAGE_DEVICE_NOTIFIER,
@@ -1065,6 +1032,7 @@ struct mlx5_ib_dev {
 	struct mlx5_dm		dm;
 	u16			devx_whitelist_uid;
 	struct mlx5_srq_table   srq_table;
+	struct mlx5_qp_table    qp_table;
 	struct mlx5_async_ctx   async_ctx;
 	struct mlx5_devx_event_table devx_event_table;
 	struct mlx5_var_table var_table;
@@ -1180,7 +1148,7 @@ void mlx5_ib_db_unmap_user(struct mlx5_ib_ucontext *context, struct mlx5_db *db)
 void __mlx5_ib_cq_clean(struct mlx5_ib_cq *cq, u32 qpn, struct mlx5_ib_srq *srq);
 void mlx5_ib_cq_clean(struct mlx5_ib_cq *cq, u32 qpn, struct mlx5_ib_srq *srq);
 void mlx5_ib_free_srq_wqe(struct mlx5_ib_srq *srq, int wqe_index);
-int mlx5_ib_create_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr, u32 flags,
+int mlx5_ib_create_ah(struct ib_ah *ah, struct rdma_ah_init_attr *init_attr,
 		      struct ib_udata *udata);
 int mlx5_ib_query_ah(struct ib_ah *ibah, struct rdma_ah_attr *ah_attr);
 void mlx5_ib_destroy_ah(struct ib_ah *ah, u32 flags);
@@ -1204,10 +1172,6 @@ int mlx5_ib_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr, int qp_attr
 int mlx5_ib_destroy_qp(struct ib_qp *qp, struct ib_udata *udata);
 void mlx5_ib_drain_sq(struct ib_qp *qp);
 void mlx5_ib_drain_rq(struct ib_qp *qp);
-int mlx5_ib_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
-		      const struct ib_send_wr **bad_wr);
-int mlx5_ib_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
-		      const struct ib_recv_wr **bad_wr);
 int mlx5_ib_read_wqe_sq(struct mlx5_ib_qp *qp, int wqe_index, void *buffer,
 			size_t buflen, size_t *bc);
 int mlx5_ib_read_wqe_rq(struct mlx5_ib_qp *qp, int wqe_index, void *buffer,
@@ -1283,8 +1247,6 @@ int mlx5_query_mad_ifc_port(struct ib_device *ibdev, u8 port,
 			    struct ib_port_attr *props);
 int mlx5_ib_query_port(struct ib_device *ibdev, u8 port,
 		       struct ib_port_attr *props);
-int mlx5_ib_init_fmr(struct mlx5_ib_dev *dev);
-void mlx5_ib_cleanup_fmr(struct mlx5_ib_dev *dev);
 void mlx5_ib_cont_pages(struct ib_umem *umem, u64 addr,
 			unsigned long max_page_shift,
 			int *count, int *shift,
@@ -1382,8 +1344,8 @@ int mlx5_ib_get_vf_guid(struct ib_device *device, int vf, u8 port,
 int mlx5_ib_set_vf_guid(struct ib_device *device, int vf, u8 port,
 			u64 guid, int type);
 
-__be16 mlx5_get_roce_udp_sport(struct mlx5_ib_dev *dev,
-			       const struct ib_gid_attr *attr);
+__be16 mlx5_get_roce_udp_sport_min(const struct mlx5_ib_dev *dev,
+				   const struct ib_gid_attr *attr);
 
 void mlx5_ib_cleanup_cong_debugfs(struct mlx5_ib_dev *dev, u8 port_num);
 void mlx5_ib_init_cong_debugfs(struct mlx5_ib_dev *dev, u8 port_num);
@@ -1580,4 +1542,11 @@ static inline bool mlx5_ib_can_use_umr(struct mlx5_ib_dev *dev,
 
 int mlx5_ib_enable_driver(struct ib_device *dev);
 int mlx5_ib_test_wc(struct mlx5_ib_dev *dev);
+
+static inline bool mlx5_ib_lag_should_assign_affinity(struct mlx5_ib_dev *dev)
+{
+	return dev->lag_active ||
+		(MLX5_CAP_GEN(dev->mdev, num_lag_ports) > 1 &&
+		 MLX5_CAP_GEN(dev->mdev, lag_tx_port_affinity));
+}
 #endif /* MLX5_IB_H */

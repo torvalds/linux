@@ -73,17 +73,17 @@ static inline void pud_free(struct mm_struct *mm, pud_t *pudp)
 	free_page((unsigned long)pudp);
 }
 
-static inline void __pgd_populate(pgd_t *pgdp, phys_addr_t pudp, pgdval_t prot)
+static inline void __p4d_populate(p4d_t *p4dp, phys_addr_t pudp, p4dval_t prot)
 {
-	set_pgd(pgdp, __pgd(__phys_to_pgd_val(pudp) | prot));
+	set_p4d(p4dp, __p4d(__phys_to_p4d_val(pudp) | prot));
 }
 
-static inline void pgd_populate(struct mm_struct *mm, pgd_t *pgdp, pud_t *pudp)
+static inline void p4d_populate(struct mm_struct *mm, p4d_t *p4dp, pud_t *pudp)
 {
-	__pgd_populate(pgdp, __pa(pudp), PUD_TYPE_TABLE);
+	__p4d_populate(p4dp, __pa(pudp), PUD_TYPE_TABLE);
 }
 #else
-static inline void __pgd_populate(pgd_t *pgdp, phys_addr_t pudp, pgdval_t prot)
+static inline void __p4d_populate(p4d_t *p4dp, phys_addr_t pudp, p4dval_t prot)
 {
 	BUILD_BUG();
 }

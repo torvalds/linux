@@ -23,6 +23,7 @@
 
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
+#include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
@@ -108,6 +109,7 @@ struct panel_simple {
 	struct i2c_adapter *ddc;
 
 	struct gpio_desc *enable_gpio;
+	struct gpio_desc *hpd_gpio;
 
 	struct drm_display_mode override_mode;
 };
@@ -161,7 +163,8 @@ static unsigned int panel_simple_get_display_modes(struct panel_simple *panel,
 		mode = drm_mode_duplicate(connector->dev, m);
 		if (!mode) {
 			dev_err(panel->base.dev, "failed to add mode %ux%u@%u\n",
-				m->hdisplay, m->vdisplay, m->vrefresh);
+				m->hdisplay, m->vdisplay,
+				drm_mode_vrefresh(m));
 			continue;
 		}
 
@@ -259,11 +262,37 @@ static int panel_simple_unprepare(struct drm_panel *panel)
 	return 0;
 }
 
+static int panel_simple_get_hpd_gpio(struct device *dev,
+				     struct panel_simple *p, bool from_probe)
+{
+	int err;
+
+	p->hpd_gpio = devm_gpiod_get_optional(dev, "hpd", GPIOD_IN);
+	if (IS_ERR(p->hpd_gpio)) {
+		err = PTR_ERR(p->hpd_gpio);
+
+		/*
+		 * If we're called from probe we won't consider '-EPROBE_DEFER'
+		 * to be an error--we'll leave the error code in "hpd_gpio".
+		 * When we try to use it we'll try again.  This allows for
+		 * circular dependencies where the component providing the
+		 * hpd gpio needs the panel to init before probing.
+		 */
+		if (err != -EPROBE_DEFER || !from_probe) {
+			dev_err(dev, "failed to get 'hpd' GPIO: %d\n", err);
+			return err;
+		}
+	}
+
+	return 0;
+}
+
 static int panel_simple_prepare(struct drm_panel *panel)
 {
 	struct panel_simple *p = to_panel_simple(panel);
 	unsigned int delay;
 	int err;
+	int hpd_asserted;
 
 	if (p->prepared)
 		return 0;
@@ -281,6 +310,26 @@ static int panel_simple_prepare(struct drm_panel *panel)
 		delay += p->desc->delay.hpd_absent_delay;
 	if (delay)
 		msleep(delay);
+
+	if (p->hpd_gpio) {
+		if (IS_ERR(p->hpd_gpio)) {
+			err = panel_simple_get_hpd_gpio(panel->dev, p, false);
+			if (err)
+				return err;
+		}
+
+		err = readx_poll_timeout(gpiod_get_value_cansleep, p->hpd_gpio,
+					 hpd_asserted, hpd_asserted,
+					 1000, 2000000);
+		if (hpd_asserted < 0)
+			err = hpd_asserted;
+
+		if (err) {
+			dev_err(panel->dev,
+				"error waiting for hpd GPIO: %d\n", err);
+			return err;
+		}
+	}
 
 	p->prepared = true;
 
@@ -462,6 +511,11 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 	panel->desc = desc;
 
 	panel->no_hpd = of_property_read_bool(dev->of_node, "no-hpd");
+	if (!panel->no_hpd) {
+		err = panel_simple_get_hpd_gpio(dev, panel, true);
+		if (err)
+			return err;
+	}
 
 	panel->supply = devm_regulator_get(dev, "power");
 	if (IS_ERR(panel->supply))
@@ -549,7 +603,6 @@ static const struct drm_display_mode ampire_am_480272h3tmqw_t01h_mode = {
 	.vsync_start = 272 + 2,
 	.vsync_end = 272 + 2 + 10,
 	.vtotal = 272 + 2 + 10 + 2,
-	.vrefresh = 60,
 	.flags = DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC,
 };
 
@@ -574,7 +627,6 @@ static const struct drm_display_mode ampire_am800480r3tmqwa1h_mode = {
 	.vsync_start = 480 + 2,
 	.vsync_end = 480 + 2 + 45,
 	.vtotal = 480 + 2 + 45 + 0,
-	.vrefresh = 60,
 	.flags = DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC,
 };
 
@@ -625,7 +677,6 @@ static const struct drm_display_mode auo_b101aw03_mode = {
 	.vsync_start = 600 + 16,
 	.vsync_end = 600 + 16 + 6,
 	.vtotal = 600 + 16 + 6 + 16,
-	.vrefresh = 60,
 };
 
 static const struct panel_desc auo_b101aw03 = {
@@ -670,7 +721,6 @@ static const struct drm_display_mode auo_b101xtn01_mode = {
 	.vsync_start = 768 + 14,
 	.vsync_end = 768 + 14 + 42,
 	.vtotal = 768 + 14 + 42,
-	.vrefresh = 60,
 	.flags = DRM_MODE_FLAG_NVSYNC | DRM_MODE_FLAG_NHSYNC,
 };
 
@@ -694,7 +744,6 @@ static const struct drm_display_mode auo_b116xak01_mode = {
 	.vsync_start = 768 + 4,
 	.vsync_end = 768 + 4 + 6,
 	.vtotal = 768 + 4 + 6 + 15,
-	.vrefresh = 60,
 	.flags = DRM_MODE_FLAG_NVSYNC | DRM_MODE_FLAG_NHSYNC,
 };
 
@@ -723,7 +772,6 @@ static const struct drm_display_mode auo_b116xw03_mode = {
 	.vsync_start = 768 + 10,
 	.vsync_end = 768 + 10 + 12,
 	.vtotal = 768 + 10 + 12 + 6,
-	.vrefresh = 60,
 };
 
 static const struct panel_desc auo_b116xw03 = {
@@ -746,7 +794,6 @@ static const struct drm_display_mode auo_b133xtn01_mode = {
 	.vsync_start = 768 + 3,
 	.vsync_end = 768 + 3 + 6,
 	.vtotal = 768 + 3 + 6 + 13,
-	.vrefresh = 60,
 };
 
 static const struct panel_desc auo_b133xtn01 = {
@@ -769,7 +816,6 @@ static const struct drm_display_mode auo_b133htn01_mode = {
 	.vsync_start = 1080 + 25,
 	.vsync_end = 1080 + 25 + 10,
 	.vtotal = 1080 + 25 + 10 + 10,
-	.vrefresh = 60,
 };
 
 static const struct panel_desc auo_b133htn01 = {
@@ -825,7 +871,6 @@ static const struct drm_display_mode auo_g101evn010_mode = {
 	.vsync_start = 800 + 8,
 	.vsync_end = 800 + 8 + 2,
 	.vtotal = 800 + 8 + 2 + 6,
-	.vrefresh = 60,
 };
 
 static const struct panel_desc auo_g101evn010 = {
@@ -836,7 +881,8 @@ static const struct panel_desc auo_g101evn010 = {
 		.width = 216,
 		.height = 135,
 	},
-	.bus_format = MEDIA_BUS_FMT_RGB666_1X18,
+	.bus_format = MEDIA_BUS_FMT_RGB666_1X7X3_SPWG,
+	.connector_type = DRM_MODE_CONNECTOR_LVDS,
 };
 
 static const struct drm_display_mode auo_g104sn02_mode = {
@@ -849,7 +895,6 @@ static const struct drm_display_mode auo_g104sn02_mode = {
 	.vsync_start = 600 + 10,
 	.vsync_end = 600 + 10 + 35,
 	.vtotal = 600 + 10 + 35 + 2,
-	.vrefresh = 60,
 };
 
 static const struct panel_desc auo_g104sn02 = {
@@ -860,6 +905,30 @@ static const struct panel_desc auo_g104sn02 = {
 		.width = 211,
 		.height = 158,
 	},
+};
+
+static const struct drm_display_mode auo_g121ean01_mode = {
+	.clock = 66700,
+	.hdisplay = 1280,
+	.hsync_start = 1280 + 58,
+	.hsync_end = 1280 + 58 + 8,
+	.htotal = 1280 + 58 + 8 + 70,
+	.vdisplay = 800,
+	.vsync_start = 800 + 6,
+	.vsync_end = 800 + 6 + 4,
+	.vtotal = 800 + 6 + 4 + 10,
+};
+
+static const struct panel_desc auo_g121ean01 = {
+	.modes = &auo_g121ean01_mode,
+	.num_modes = 1,
+	.bpc = 8,
+	.size = {
+		.width = 261,
+		.height = 163,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_SPWG,
+	.connector_type = DRM_MODE_CONNECTOR_LVDS,
 };
 
 static const struct display_timing auo_g133han01_timings = {
@@ -892,6 +961,30 @@ static const struct panel_desc auo_g133han01 = {
 	.connector_type = DRM_MODE_CONNECTOR_LVDS,
 };
 
+static const struct drm_display_mode auo_g156xtn01_mode = {
+	.clock = 76000,
+	.hdisplay = 1366,
+	.hsync_start = 1366 + 33,
+	.hsync_end = 1366 + 33 + 67,
+	.htotal = 1560,
+	.vdisplay = 768,
+	.vsync_start = 768 + 4,
+	.vsync_end = 768 + 4 + 4,
+	.vtotal = 806,
+};
+
+static const struct panel_desc auo_g156xtn01 = {
+	.modes = &auo_g156xtn01_mode,
+	.num_modes = 1,
+	.bpc = 8,
+	.size = {
+		.width = 344,
+		.height = 194,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_SPWG,
+	.connector_type = DRM_MODE_CONNECTOR_LVDS,
+};
+
 static const struct display_timing auo_g185han01_timings = {
 	.pixelclock = { 120000000, 144000000, 175000000 },
 	.hactive = { 1920, 1920, 1920 },
@@ -911,6 +1004,36 @@ static const struct panel_desc auo_g185han01 = {
 	.size = {
 		.width = 409,
 		.height = 230,
+	},
+	.delay = {
+		.prepare = 50,
+		.enable = 200,
+		.disable = 110,
+		.unprepare = 1000,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_SPWG,
+	.connector_type = DRM_MODE_CONNECTOR_LVDS,
+};
+
+static const struct display_timing auo_g190ean01_timings = {
+	.pixelclock = { 90000000, 108000000, 135000000 },
+	.hactive = { 1280, 1280, 1280 },
+	.hfront_porch = { 126, 184, 1266 },
+	.hback_porch = { 84, 122, 844 },
+	.hsync_len = { 70, 102, 704 },
+	.vactive = { 1024, 1024, 1024 },
+	.vfront_porch = { 4, 26, 76 },
+	.vback_porch = { 2, 8, 25 },
+	.vsync_len = { 2, 8, 25 },
+};
+
+static const struct panel_desc auo_g190ean01 = {
+	.timings = &auo_g190ean01_timings,
+	.num_timings = 1,
+	.bpc = 8,
+	.size = {
+		.width = 376,
+		.height = 301,
 	},
 	.delay = {
 		.prepare = 50,
@@ -961,7 +1084,6 @@ static const struct drm_display_mode auo_t215hvn01_mode = {
 	.vsync_start = 1080 + 4,
 	.vsync_end = 1080 + 4 + 5,
 	.vtotal = 1080 + 4 + 5 + 36,
-	.vrefresh = 60,
 };
 
 static const struct panel_desc auo_t215hvn01 = {
@@ -988,7 +1110,6 @@ static const struct drm_display_mode avic_tm070ddh03_mode = {
 	.vsync_start = 600 + 17,
 	.vsync_end = 600 + 17 + 1,
 	.vtotal = 600 + 17 + 1 + 17,
-	.vrefresh = 60,
 };
 
 static const struct panel_desc avic_tm070ddh03 = {
@@ -1038,7 +1159,6 @@ static const struct drm_display_mode boe_hv070wsa_mode = {
 	.vsync_start = 600 + 10,
 	.vsync_end = 600 + 10 + 10,
 	.vtotal = 600 + 10 + 10 + 10,
-	.vrefresh = 60,
 };
 
 static const struct panel_desc boe_hv070wsa = {
@@ -1061,7 +1181,6 @@ static const struct drm_display_mode boe_nv101wxmn51_modes[] = {
 		.vsync_start = 800 + 3,
 		.vsync_end = 800 + 3 + 5,
 		.vtotal = 800 + 3 + 5 + 24,
-		.vrefresh = 60,
 	},
 	{
 		.clock = 57500,
@@ -1073,7 +1192,6 @@ static const struct drm_display_mode boe_nv101wxmn51_modes[] = {
 		.vsync_start = 800 + 3,
 		.vsync_end = 800 + 3 + 5,
 		.vtotal = 800 + 3 + 5 + 24,
-		.vrefresh = 48,
 	},
 };
 
@@ -1092,6 +1210,37 @@ static const struct panel_desc boe_nv101wxmn51 = {
 	},
 };
 
+/* Also used for boe_nv133fhm_n62 */
+static const struct drm_display_mode boe_nv133fhm_n61_modes = {
+	.clock = 147840,
+	.hdisplay = 1920,
+	.hsync_start = 1920 + 48,
+	.hsync_end = 1920 + 48 + 32,
+	.htotal = 1920 + 48 + 32 + 200,
+	.vdisplay = 1080,
+	.vsync_start = 1080 + 3,
+	.vsync_end = 1080 + 3 + 6,
+	.vtotal = 1080 + 3 + 6 + 31,
+};
+
+/* Also used for boe_nv133fhm_n62 */
+static const struct panel_desc boe_nv133fhm_n61 = {
+	.modes = &boe_nv133fhm_n61_modes,
+	.num_modes = 1,
+	.bpc = 6,
+	.size = {
+		.width = 294,
+		.height = 165,
+	},
+	.delay = {
+		.hpd_absent_delay = 200,
+		.unprepare = 500,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
+	.bus_flags = DRM_BUS_FLAG_DATA_MSB_TO_LSB,
+	.connector_type = DRM_MODE_CONNECTOR_eDP,
+};
+
 static const struct drm_display_mode boe_nv140fhmn49_modes[] = {
 	{
 		.clock = 148500,
@@ -1103,7 +1252,6 @@ static const struct drm_display_mode boe_nv140fhmn49_modes[] = {
 		.vsync_start = 1080 + 3,
 		.vsync_end = 1080 + 3 + 5,
 		.vtotal = 1125,
-		.vrefresh = 60,
 	},
 };
 
@@ -1134,7 +1282,6 @@ static const struct drm_display_mode cdtech_s043wq26h_ct7_mode = {
 	.vsync_start = 272 + 8,
 	.vsync_end = 272 + 8 + 8,
 	.vtotal = 272 + 8 + 8 + 8,
-	.vrefresh = 60,
 	.flags = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC,
 };
 
@@ -1159,7 +1306,6 @@ static const struct drm_display_mode cdtech_s070wv95_ct16_mode = {
 	.vsync_start = 480 + 29,
 	.vsync_end = 480 + 29 + 13,
 	.vtotal = 480 + 29 + 13 + 3,
-	.vrefresh = 60,
 	.flags = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC,
 };
 
@@ -1183,7 +1329,6 @@ static const struct drm_display_mode chunghwa_claa070wp03xg_mode = {
 	.vsync_start = 1280 + 1,
 	.vsync_end = 1280 + 1 + 7,
 	.vtotal = 1280 + 1 + 7 + 15,
-	.vrefresh = 60,
 	.flags = DRM_MODE_FLAG_NVSYNC | DRM_MODE_FLAG_NHSYNC,
 };
 
@@ -1207,7 +1352,6 @@ static const struct drm_display_mode chunghwa_claa101wa01a_mode = {
 	.vsync_start = 768 + 4,
 	.vsync_end = 768 + 4 + 4,
 	.vtotal = 768 + 4 + 4 + 4,
-	.vrefresh = 60,
 };
 
 static const struct panel_desc chunghwa_claa101wa01a = {
@@ -1230,7 +1374,6 @@ static const struct drm_display_mode chunghwa_claa101wb01_mode = {
 	.vsync_start = 768 + 16,
 	.vsync_end = 768 + 16 + 8,
 	.vtotal = 768 + 16 + 8 + 16,
-	.vrefresh = 60,
 };
 
 static const struct panel_desc chunghwa_claa101wb01 = {
@@ -1253,7 +1396,6 @@ static const struct drm_display_mode dataimage_scf0700c48ggu18_mode = {
 	.vsync_start = 480 + 10,
 	.vsync_end = 480 + 10 + 2,
 	.vtotal = 480 + 10 + 2 + 33,
-	.vrefresh = 60,
 	.flags = DRM_MODE_FLAG_NVSYNC | DRM_MODE_FLAG_NHSYNC,
 };
 
@@ -1340,7 +1482,6 @@ static const struct drm_display_mode edt_et035012dm6_mode = {
 	.vsync_start = 240 + 4,
 	.vsync_end = 240 + 4 + 4,
 	.vtotal = 240 + 4 + 4 + 14,
-	.vrefresh = 60,
 	.flags = DRM_MODE_FLAG_NVSYNC | DRM_MODE_FLAG_NHSYNC,
 };
 
@@ -1372,7 +1513,6 @@ static const struct drm_display_mode edt_etm043080dh6gp_mode = {
 	.vsync_start = 288 + 2,
 	.vsync_end = 288 + 2 + 4,
 	.vtotal = 288 + 2 + 4 + 10,
-	.vrefresh = 60,
 };
 
 static const struct panel_desc edt_etm043080dh6gp = {
@@ -1397,7 +1537,6 @@ static const struct drm_display_mode edt_etm0430g0dh6_mode = {
 	.vsync_start = 272 + 2,
 	.vsync_end = 272 + 2 + 10,
 	.vtotal = 272 + 2 + 10 + 2,
-	.vrefresh = 60,
 	.flags = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC,
 };
 
@@ -1421,7 +1560,6 @@ static const struct drm_display_mode edt_et057090dhu_mode = {
 	.vsync_start = 480 + 10,
 	.vsync_end = 480 + 10 + 3,
 	.vtotal = 480 + 10 + 3 + 32,
-	.vrefresh = 60,
 	.flags = DRM_MODE_FLAG_NVSYNC | DRM_MODE_FLAG_NHSYNC,
 };
 
@@ -1447,7 +1585,6 @@ static const struct drm_display_mode edt_etm0700g0dh6_mode = {
 	.vsync_start = 480 + 10,
 	.vsync_end = 480 + 10 + 2,
 	.vtotal = 480 + 10 + 2 + 33,
-	.vrefresh = 60,
 	.flags = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC,
 };
 
@@ -1512,7 +1649,6 @@ static const struct drm_display_mode foxlink_fl500wvr00_a0t_mode = {
 	.vsync_start = 480 + 37,
 	.vsync_end = 480 + 37 + 2,
 	.vtotal = 480 + 37 + 2 + 8,
-	.vrefresh = 60,
 };
 
 static const struct panel_desc foxlink_fl500wvr00_a0t = {
@@ -1536,7 +1672,6 @@ static const struct drm_display_mode frida_frd350h54004_mode = {
 	.vsync_start = 240 + 2,
 	.vsync_end = 240 + 2 + 6,
 	.vtotal = 240 + 2 + 6 + 2,
-	.vrefresh = 60,
 	.flags = DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC,
 };
 
@@ -1563,7 +1698,6 @@ static const struct drm_display_mode friendlyarm_hd702e_mode = {
 	.vsync_start	= 1280 + 4,
 	.vsync_end	= 1280 + 4 + 8,
 	.vtotal		= 1280 + 4 + 8 + 4,
-	.vrefresh	= 60,
 	.flags		= DRM_MODE_FLAG_NVSYNC | DRM_MODE_FLAG_NHSYNC,
 };
 
@@ -1586,7 +1720,6 @@ static const struct drm_display_mode giantplus_gpg482739qs5_mode = {
 	.vsync_start = 272 + 8,
 	.vsync_end = 272 + 8 + 1,
 	.vtotal = 272 + 8 + 1 + 8,
-	.vrefresh = 60,
 };
 
 static const struct panel_desc giantplus_gpg482739qs5 = {
@@ -1690,7 +1823,6 @@ static const struct drm_display_mode hitachi_tx23d38vm0caa_mode = {
 	.vsync_start = 480 + 16,
 	.vsync_end = 480 + 16 + 13,
 	.vtotal = 480 + 16 + 13 + 16,
-	.vrefresh = 60,
 };
 
 static const struct panel_desc hitachi_tx23d38vm0caa = {
@@ -1717,7 +1849,6 @@ static const struct drm_display_mode innolux_at043tn24_mode = {
 	.vsync_start = 272 + 2,
 	.vsync_end = 272 + 2 + 10,
 	.vtotal = 272 + 2 + 10 + 2,
-	.vrefresh = 60,
 	.flags = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC,
 };
 
@@ -1743,7 +1874,6 @@ static const struct drm_display_mode innolux_at070tn92_mode = {
 	.vsync_start = 480 + 22,
 	.vsync_end = 480 + 22 + 10,
 	.vtotal = 480 + 22 + 23 + 10,
-	.vrefresh = 60,
 };
 
 static const struct panel_desc innolux_at070tn92 = {
@@ -1854,7 +1984,6 @@ static const struct drm_display_mode innolux_g121x1_l03_mode = {
 	.vsync_start = 768 + 38,
 	.vsync_end = 768 + 38 + 1,
 	.vtotal = 768 + 38 + 1 + 0,
-	.vrefresh = 60,
 	.flags = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC,
 };
 
@@ -1916,7 +2045,6 @@ static const struct drm_display_mode innolux_n156bge_l21_mode = {
 	.vsync_start = 768 + 2,
 	.vsync_end = 768 + 2 + 6,
 	.vtotal = 768 + 2 + 6 + 12,
-	.vrefresh = 60,
 };
 
 static const struct panel_desc innolux_n156bge_l21 = {
@@ -1939,7 +2067,6 @@ static const struct drm_display_mode innolux_p120zdg_bf1_mode = {
 	.vsync_start = 1440 + 3,
 	.vsync_end = 1440 + 3 + 10,
 	.vtotal = 1440 + 3 + 10 + 27,
-	.vrefresh = 60,
 	.flags = DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC,
 };
 
@@ -1967,7 +2094,6 @@ static const struct drm_display_mode innolux_zj070na_01p_mode = {
 	.vsync_start = 600 + 16,
 	.vsync_end = 600 + 16 + 4,
 	.vtotal = 600 + 16 + 4 + 16,
-	.vrefresh = 60,
 };
 
 static const struct panel_desc innolux_zj070na_01p = {
@@ -1978,6 +2104,36 @@ static const struct panel_desc innolux_zj070na_01p = {
 		.width = 154,
 		.height = 90,
 	},
+};
+
+static const struct drm_display_mode ivo_m133nwf4_r0_mode = {
+	.clock = 138778,
+	.hdisplay = 1920,
+	.hsync_start = 1920 + 24,
+	.hsync_end = 1920 + 24 + 48,
+	.htotal = 1920 + 24 + 48 + 88,
+	.vdisplay = 1080,
+	.vsync_start = 1080 + 3,
+	.vsync_end = 1080 + 3 + 12,
+	.vtotal = 1080 + 3 + 12 + 17,
+	.flags = DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC,
+};
+
+static const struct panel_desc ivo_m133nwf4_r0 = {
+	.modes = &ivo_m133nwf4_r0_mode,
+	.num_modes = 1,
+	.bpc = 8,
+	.size = {
+		.width = 294,
+		.height = 165,
+	},
+	.delay = {
+		.hpd_absent_delay = 200,
+		.unprepare = 500,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
+	.bus_flags = DRM_BUS_FLAG_DATA_MSB_TO_LSB,
+	.connector_type = DRM_MODE_CONNECTOR_eDP,
 };
 
 static const struct display_timing koe_tx14d24vm1bpa_timing = {
@@ -2001,6 +2157,37 @@ static const struct panel_desc koe_tx14d24vm1bpa = {
 		.width = 115,
 		.height = 86,
 	},
+};
+
+static const struct display_timing koe_tx26d202vm0bwa_timing = {
+	.pixelclock = { 151820000, 156720000, 159780000 },
+	.hactive = { 1920, 1920, 1920 },
+	.hfront_porch = { 105, 130, 142 },
+	.hback_porch = { 45, 70, 82 },
+	.hsync_len = { 30, 30, 30 },
+	.vactive = { 1200, 1200, 1200},
+	.vfront_porch = { 3, 5, 10 },
+	.vback_porch = { 2, 5, 10 },
+	.vsync_len = { 5, 5, 5 },
+};
+
+static const struct panel_desc koe_tx26d202vm0bwa = {
+	.timings = &koe_tx26d202vm0bwa_timing,
+	.num_timings = 1,
+	.bpc = 8,
+	.size = {
+		.width = 217,
+		.height = 136,
+	},
+	.delay = {
+		.prepare = 1000,
+		.enable = 1000,
+		.unprepare = 1000,
+		.disable = 1000,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_SPWG,
+	.bus_flags = DRM_BUS_FLAG_DE_HIGH | DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE,
+	.connector_type = DRM_MODE_CONNECTOR_LVDS,
 };
 
 static const struct display_timing koe_tx31d200vm0baa_timing = {
@@ -2063,7 +2250,6 @@ static const struct drm_display_mode lemaker_bl035_rgb_002_mode = {
 	.vsync_start = 240 + 4,
 	.vsync_end = 240 + 4 + 3,
 	.vtotal = 240 + 4 + 3 + 15,
-	.vrefresh = 60,
 };
 
 static const struct panel_desc lemaker_bl035_rgb_002 = {
@@ -2087,7 +2273,6 @@ static const struct drm_display_mode lg_lb070wv8_mode = {
 	.vsync_start = 480 + 10,
 	.vsync_end = 480 + 10 + 25,
 	.vtotal = 480 + 10 + 25 + 10,
-	.vrefresh = 60,
 };
 
 static const struct panel_desc lg_lb070wv8 = {
@@ -2112,7 +2297,6 @@ static const struct drm_display_mode lg_lp079qx1_sp0v_mode = {
 	.vsync_start = 2048 + 8,
 	.vsync_end = 2048 + 8 + 4,
 	.vtotal = 2048 + 8 + 4 + 8,
-	.vrefresh = 60,
 	.flags = DRM_MODE_FLAG_NVSYNC | DRM_MODE_FLAG_NHSYNC,
 };
 
@@ -2135,7 +2319,6 @@ static const struct drm_display_mode lg_lp097qx1_spa1_mode = {
 	.vsync_start = 1536 + 3,
 	.vsync_end = 1536 + 3 + 1,
 	.vtotal = 1536 + 3 + 1 + 9,
-	.vrefresh = 60,
 };
 
 static const struct panel_desc lg_lp097qx1_spa1 = {
@@ -2157,7 +2340,6 @@ static const struct drm_display_mode lg_lp120up1_mode = {
 	.vsync_start = 1280 + 4,
 	.vsync_end = 1280 + 4 + 4,
 	.vtotal = 1280 + 4 + 4 + 12,
-	.vrefresh = 60,
 };
 
 static const struct panel_desc lg_lp120up1 = {
@@ -2168,6 +2350,7 @@ static const struct panel_desc lg_lp120up1 = {
 		.width = 267,
 		.height = 183,
 	},
+	.connector_type = DRM_MODE_CONNECTOR_eDP,
 };
 
 static const struct drm_display_mode lg_lp129qe_mode = {
@@ -2180,7 +2363,6 @@ static const struct drm_display_mode lg_lp129qe_mode = {
 	.vsync_start = 1700 + 3,
 	.vsync_end = 1700 + 3 + 10,
 	.vtotal = 1700 + 3 + 10 + 36,
-	.vrefresh = 60,
 };
 
 static const struct panel_desc lg_lp129qe = {
@@ -2261,7 +2443,6 @@ static const struct drm_display_mode mitsubishi_aa070mc01_mode = {
 	.vsync_start = 480 + 0,
 	.vsync_end = 480 + 48 + 1,
 	.vtotal = 480 + 48 + 1 + 0,
-	.vrefresh = 60,
 	.flags = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC,
 };
 
@@ -2276,7 +2457,6 @@ static const struct drm_display_mode logicpd_type_28_mode = {
 	.vsync_start = 272 + 2,
 	.vsync_end = 272 + 2 + 11,
 	.vtotal = 272 + 2 + 11 + 3,
-	.vrefresh = 60,
 	.flags = DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC,
 };
 
@@ -2356,7 +2536,6 @@ static const struct drm_display_mode nec_nl4827hc19_05b_mode = {
 	.vsync_start = 272 + 2,
 	.vsync_end = 272 + 2 + 4,
 	.vtotal = 272 + 2 + 4 + 2,
-	.vrefresh = 74,
 	.flags = DRM_MODE_FLAG_NVSYNC | DRM_MODE_FLAG_NHSYNC,
 };
 
@@ -2382,7 +2561,6 @@ static const struct drm_display_mode netron_dy_e231732_mode = {
 	.vsync_start = 600 + 127,
 	.vsync_end = 600 + 127 + 20,
 	.vtotal = 600 + 127 + 20 + 3,
-	.vrefresh = 60,
 };
 
 static const struct panel_desc netron_dy_e231732 = {
@@ -2406,7 +2584,6 @@ static const struct drm_display_mode neweast_wjfh116008a_modes[] = {
 		.vsync_start = 1080 + 3,
 		.vsync_end = 1080 + 3 + 5,
 		.vtotal = 1080 + 3 + 5 + 23,
-		.vrefresh = 60,
 		.flags = DRM_MODE_FLAG_NVSYNC | DRM_MODE_FLAG_NHSYNC,
 	}, {
 		.clock = 110920,
@@ -2418,7 +2595,6 @@ static const struct drm_display_mode neweast_wjfh116008a_modes[] = {
 		.vsync_start = 1080 + 3,
 		.vsync_end = 1080 + 3 + 5,
 		.vtotal = 1080 + 3 + 5 + 23,
-		.vrefresh = 48,
 		.flags = DRM_MODE_FLAG_NVSYNC | DRM_MODE_FLAG_NHSYNC,
 	}
 };
@@ -2450,7 +2626,6 @@ static const struct drm_display_mode newhaven_nhd_43_480272ef_atxl_mode = {
 	.vsync_start = 272 + 2,
 	.vsync_end = 272 + 2 + 10,
 	.vtotal = 272 + 2 + 10 + 2,
-	.vrefresh = 60,
 	.flags = DRM_MODE_FLAG_NVSYNC | DRM_MODE_FLAG_NHSYNC,
 };
 
@@ -2558,7 +2733,6 @@ static const struct drm_display_mode olimex_lcd_olinuxino_43ts_mode = {
 	.vsync_start = 272 + 8,
 	.vsync_end = 272 + 8 + 5,
 	.vtotal = 272 + 8 + 5 + 3,
-	.vrefresh = 60,
 };
 
 static const struct panel_desc olimex_lcd_olinuxino_43ts = {
@@ -2586,7 +2760,6 @@ static const struct drm_display_mode ontat_yx700wv03_mode = {
 	.vsync_start = 483,
 	.vsync_end = 493,
 	.vtotal = 500,
-	.vrefresh = 60,
 	.flags = DRM_MODE_FLAG_NVSYNC | DRM_MODE_FLAG_NHSYNC,
 };
 
@@ -2615,7 +2788,6 @@ static const struct drm_display_mode ortustech_com37h3m_mode  = {
 	.vsync_start = 640 + 4,
 	.vsync_end = 640 + 4 + 2,
 	.vtotal = 640 + 4 + 2 + 4,
-	.vrefresh = 60,
 	.flags = DRM_MODE_FLAG_NVSYNC | DRM_MODE_FLAG_NHSYNC,
 };
 
@@ -2642,7 +2814,6 @@ static const struct drm_display_mode ortustech_com43h4m85ulc_mode  = {
 	.vsync_start = 800 + 3,
 	.vsync_end = 800 + 3 + 3,
 	.vtotal = 800 + 3 + 3 + 3,
-	.vrefresh = 60,
 };
 
 static const struct panel_desc ortustech_com43h4m85ulc = {
@@ -2668,7 +2839,6 @@ static const struct drm_display_mode osddisplays_osd070t1718_19ts_mode  = {
 	.vsync_start = 480 + 22,
 	.vsync_end = 480 + 22 + 13,
 	.vtotal = 480 + 22 + 13 + 10,
-	.vrefresh = 60,
 	.flags = DRM_MODE_FLAG_NVSYNC | DRM_MODE_FLAG_NHSYNC,
 };
 
@@ -2696,7 +2866,6 @@ static const struct drm_display_mode pda_91_00156_a0_mode = {
 	.vsync_start = 480 + 1,
 	.vsync_end = 480 + 1 + 23,
 	.vtotal = 480 + 1 + 23 + 22,
-	.vrefresh = 60,
 };
 
 static const struct panel_desc pda_91_00156_a0  = {
@@ -2720,7 +2889,6 @@ static const struct drm_display_mode qd43003c0_40_mode = {
 	.vsync_start = 272 + 4,
 	.vsync_end = 272 + 4 + 10,
 	.vtotal = 272 + 4 + 10 + 2,
-	.vrefresh = 60,
 };
 
 static const struct panel_desc qd43003c0_40 = {
@@ -2774,7 +2942,6 @@ static const struct drm_display_mode rocktech_rk101ii01d_ct_mode = {
 	.vsync_start = 800 + 2,
 	.vsync_end = 800 + 2 + 5,
 	.vtotal = 800 + 2 + 5 + 16,
-	.vrefresh = 60,
 };
 
 static const struct panel_desc rocktech_rk101ii01d_ct = {
@@ -2803,7 +2970,6 @@ static const struct drm_display_mode samsung_lsn122dl01_c01_mode = {
 	.vsync_start = 1600 + 2,
 	.vsync_end = 1600 + 2 + 5,
 	.vtotal = 1600 + 2 + 5 + 57,
-	.vrefresh = 60,
 };
 
 static const struct panel_desc samsung_lsn122dl01_c01 = {
@@ -2825,7 +2991,6 @@ static const struct drm_display_mode samsung_ltn101nt05_mode = {
 	.vsync_start = 600 + 3,
 	.vsync_end = 600 + 3 + 6,
 	.vtotal = 600 + 3 + 6 + 61,
-	.vrefresh = 60,
 };
 
 static const struct panel_desc samsung_ltn101nt05 = {
@@ -2848,7 +3013,6 @@ static const struct drm_display_mode samsung_ltn140at29_301_mode = {
 	.vsync_start = 768 + 2,
 	.vsync_end = 768 + 2 + 5,
 	.vtotal = 768 + 2 + 5 + 17,
-	.vrefresh = 60,
 };
 
 static const struct panel_desc samsung_ltn140at29_301 = {
@@ -2895,7 +3059,6 @@ static const struct drm_display_mode sharp_ld_d5116z01b_mode = {
 	.vsync_start = 1280 + 3,
 	.vsync_end = 1280 + 3 + 10,
 	.vtotal = 1280 + 3 + 10 + 57,
-	.vrefresh = 60,
 	.flags = DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC,
 };
 
@@ -2921,7 +3084,6 @@ static const struct drm_display_mode sharp_lq070y3dg3b_mode = {
 	.vsync_start = 480 + 8,
 	.vsync_end = 480 + 8 + 2,
 	.vtotal = 480 + 8 + 2 + 35,
-	.vrefresh = 60,
 	.flags = DISPLAY_FLAGS_PIXDATA_POSEDGE,
 };
 
@@ -2948,7 +3110,6 @@ static const struct drm_display_mode sharp_lq035q7db03_mode = {
 	.vsync_start = 320 + 9,
 	.vsync_end = 320 + 9 + 1,
 	.vtotal = 320 + 9 + 1 + 7,
-	.vrefresh = 60,
 };
 
 static const struct panel_desc sharp_lq035q7db03 = {
@@ -3052,7 +3213,6 @@ static const struct drm_display_mode shelly_sca07010_bfn_lnn_mode = {
 	.vsync_start = 480 + 1,
 	.vsync_end = 480 + 1 + 23,
 	.vtotal = 480 + 1 + 23 + 22,
-	.vrefresh = 60,
 };
 
 static const struct panel_desc shelly_sca07010_bfn_lnn = {
@@ -3065,6 +3225,31 @@ static const struct panel_desc shelly_sca07010_bfn_lnn = {
 	.bus_format = MEDIA_BUS_FMT_RGB666_1X18,
 };
 
+static const struct drm_display_mode starry_kr070pe2t_mode = {
+	.clock = 33000,
+	.hdisplay = 800,
+	.hsync_start = 800 + 209,
+	.hsync_end = 800 + 209 + 1,
+	.htotal = 800 + 209 + 1 + 45,
+	.vdisplay = 480,
+	.vsync_start = 480 + 22,
+	.vsync_end = 480 + 22 + 1,
+	.vtotal = 480 + 22 + 1 + 22,
+};
+
+static const struct panel_desc starry_kr070pe2t = {
+	.modes = &starry_kr070pe2t_mode,
+	.num_modes = 1,
+	.bpc = 8,
+	.size = {
+		.width = 152,
+		.height = 86,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
+	.bus_flags = DRM_BUS_FLAG_DE_HIGH | DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE,
+	.connector_type = DRM_MODE_CONNECTOR_LVDS,
+};
+
 static const struct drm_display_mode starry_kr122ea0sra_mode = {
 	.clock = 147000,
 	.hdisplay = 1920,
@@ -3075,7 +3260,6 @@ static const struct drm_display_mode starry_kr122ea0sra_mode = {
 	.vsync_start = 1200 + 15,
 	.vsync_end = 1200 + 15 + 2,
 	.vtotal = 1200 + 15 + 2 + 18,
-	.vrefresh = 60,
 	.flags = DRM_MODE_FLAG_NVSYNC | DRM_MODE_FLAG_NHSYNC,
 };
 
@@ -3103,7 +3287,6 @@ static const struct drm_display_mode tfc_s9700rtwv43tr_01b_mode = {
 	.vsync_start = 480 + 13,
 	.vsync_end = 480 + 13 + 2,
 	.vtotal = 480 + 13 + 2 + 29,
-	.vrefresh = 62,
 };
 
 static const struct panel_desc tfc_s9700rtwv43tr_01b = {
@@ -3179,7 +3362,6 @@ static const struct drm_display_mode ti_nspire_cx_lcd_mode[] = {
 		.vsync_start = 240 + 3,
 		.vsync_end = 240 + 3 + 1,
 		.vtotal = 240 + 3 + 1 + 17,
-		.vrefresh = 60,
 		.flags = DRM_MODE_FLAG_NVSYNC | DRM_MODE_FLAG_NHSYNC,
 	},
 };
@@ -3207,7 +3389,6 @@ static const struct drm_display_mode ti_nspire_classic_lcd_mode[] = {
 		.vsync_start = 240 + 0,
 		.vsync_end = 240 + 0 + 1,
 		.vtotal = 240 + 0 + 1 + 0,
-		.vrefresh = 60,
 		.flags = DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC,
 	},
 };
@@ -3236,7 +3417,6 @@ static const struct drm_display_mode toshiba_lt089ac29000_mode = {
 	.vsync_start = 768 + 20,
 	.vsync_end = 768 + 20 + 7,
 	.vtotal = 768 + 20 + 7 + 3,
-	.vrefresh = 60,
 };
 
 static const struct panel_desc toshiba_lt089ac29000 = {
@@ -3261,7 +3441,6 @@ static const struct drm_display_mode tpk_f07a_0102_mode = {
 	.vsync_start = 480 + 10,
 	.vsync_end = 480 + 10 + 2,
 	.vtotal = 480 + 10 + 2 + 33,
-	.vrefresh = 60,
 };
 
 static const struct panel_desc tpk_f07a_0102 = {
@@ -3284,7 +3463,6 @@ static const struct drm_display_mode tpk_f10a_0102_mode = {
 	.vsync_start = 600 + 20,
 	.vsync_end = 600 + 20 + 5,
 	.vtotal = 600 + 20 + 5 + 25,
-	.vrefresh = 60,
 };
 
 static const struct panel_desc tpk_f10a_0102 = {
@@ -3343,7 +3521,6 @@ static const struct drm_display_mode vl050_8048nt_c01_mode = {
 	.vsync_start = 480 + 22,
 	.vsync_end = 480 + 22 + 10,
 	.vtotal = 480 + 22 + 10 + 23,
-	.vrefresh = 60,
 	.flags = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC,
 };
 
@@ -3369,7 +3546,6 @@ static const struct drm_display_mode winstar_wf35ltiacd_mode = {
 	.vsync_start = 240 + 4,
 	.vsync_end = 240 + 4 + 3,
 	.vtotal = 240 + 4 + 3 + 15,
-	.vrefresh = 60,
 	.flags = DRM_MODE_FLAG_NVSYNC | DRM_MODE_FLAG_NHSYNC,
 };
 
@@ -3395,7 +3571,6 @@ static const struct drm_display_mode arm_rtsm_mode[] = {
 		.vsync_start = 768 + 3,
 		.vsync_end = 768 + 3 + 6,
 		.vtotal = 768 + 3 + 6 + 29,
-		.vrefresh = 60,
 		.flags = DRM_MODE_FLAG_NVSYNC | DRM_MODE_FLAG_NHSYNC,
 	},
 };
@@ -3455,11 +3630,20 @@ static const struct of_device_id platform_of_match[] = {
 		.compatible = "auo,g104sn02",
 		.data = &auo_g104sn02,
 	}, {
+		.compatible = "auo,g121ean01",
+		.data = &auo_g121ean01,
+	}, {
 		.compatible = "auo,g133han01",
 		.data = &auo_g133han01,
 	}, {
+		.compatible = "auo,g156xtn01",
+		.data = &auo_g156xtn01,
+	}, {
 		.compatible = "auo,g185han01",
 		.data = &auo_g185han01,
+	}, {
+		.compatible = "auo,g190ean01",
+		.data = &auo_g190ean01,
 	}, {
 		.compatible = "auo,p320hvn03",
 		.data = &auo_p320hvn03,
@@ -3478,6 +3662,12 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "boe,nv101wxmn51",
 		.data = &boe_nv101wxmn51,
+	}, {
+		.compatible = "boe,nv133fhm-n61",
+		.data = &boe_nv133fhm_n61,
+	}, {
+		.compatible = "boe,nv133fhm-n62",
+		.data = &boe_nv133fhm_n61,
 	}, {
 		.compatible = "boe,nv140fhmn49",
 		.data = &boe_nv140fhmn49,
@@ -3587,8 +3777,14 @@ static const struct of_device_id platform_of_match[] = {
 		.compatible = "innolux,zj070na-01p",
 		.data = &innolux_zj070na_01p,
 	}, {
+		.compatible = "ivo,m133nwf4-r0",
+		.data = &ivo_m133nwf4_r0,
+	}, {
 		.compatible = "koe,tx14d24vm1bpa",
 		.data = &koe_tx14d24vm1bpa,
+	}, {
+		.compatible = "koe,tx26d202vm0bwa",
+		.data = &koe_tx26d202vm0bwa,
 	}, {
 		.compatible = "koe,tx31d200vm0baa",
 		.data = &koe_tx31d200vm0baa,
@@ -3716,6 +3912,9 @@ static const struct of_device_id platform_of_match[] = {
 		.compatible = "shelly,sca07010-bfn-lnn",
 		.data = &shelly_sca07010_bfn_lnn,
 	}, {
+		.compatible = "starry,kr070pe2t",
+		.data = &starry_kr070pe2t,
+	}, {
 		.compatible = "starry,kr122ea0sra",
 		.data = &starry_kr122ea0sra,
 	}, {
@@ -3825,7 +4024,6 @@ static const struct drm_display_mode auo_b080uan01_mode = {
 	.vsync_start = 1920 + 9,
 	.vsync_end = 1920 + 9 + 2,
 	.vtotal = 1920 + 9 + 2 + 8,
-	.vrefresh = 60,
 };
 
 static const struct panel_desc_dsi auo_b080uan01 = {
@@ -3837,6 +4035,7 @@ static const struct panel_desc_dsi auo_b080uan01 = {
 			.width = 108,
 			.height = 272,
 		},
+		.connector_type = DRM_MODE_CONNECTOR_DSI,
 	},
 	.flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_CLOCK_NON_CONTINUOUS,
 	.format = MIPI_DSI_FMT_RGB888,
@@ -3853,7 +4052,6 @@ static const struct drm_display_mode boe_tv080wum_nl0_mode = {
 	.vsync_start = 1920 + 21,
 	.vsync_end = 1920 + 21 + 3,
 	.vtotal = 1920 + 21 + 3 + 18,
-	.vrefresh = 60,
 	.flags = DRM_MODE_FLAG_NVSYNC | DRM_MODE_FLAG_NHSYNC,
 };
 
@@ -3865,6 +4063,7 @@ static const struct panel_desc_dsi boe_tv080wum_nl0 = {
 			.width = 107,
 			.height = 172,
 		},
+		.connector_type = DRM_MODE_CONNECTOR_DSI,
 	},
 	.flags = MIPI_DSI_MODE_VIDEO |
 		 MIPI_DSI_MODE_VIDEO_BURST |
@@ -3883,7 +4082,6 @@ static const struct drm_display_mode lg_ld070wx3_sl01_mode = {
 	.vsync_start = 1280 + 28,
 	.vsync_end = 1280 + 28 + 1,
 	.vtotal = 1280 + 28 + 1 + 14,
-	.vrefresh = 60,
 };
 
 static const struct panel_desc_dsi lg_ld070wx3_sl01 = {
@@ -3895,6 +4093,7 @@ static const struct panel_desc_dsi lg_ld070wx3_sl01 = {
 			.width = 94,
 			.height = 151,
 		},
+		.connector_type = DRM_MODE_CONNECTOR_DSI,
 	},
 	.flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_CLOCK_NON_CONTINUOUS,
 	.format = MIPI_DSI_FMT_RGB888,
@@ -3911,7 +4110,6 @@ static const struct drm_display_mode lg_lh500wx1_sd03_mode = {
 	.vsync_start = 1280 + 8,
 	.vsync_end = 1280 + 8 + 4,
 	.vtotal = 1280 + 8 + 4 + 12,
-	.vrefresh = 60,
 };
 
 static const struct panel_desc_dsi lg_lh500wx1_sd03 = {
@@ -3923,6 +4121,7 @@ static const struct panel_desc_dsi lg_lh500wx1_sd03 = {
 			.width = 62,
 			.height = 110,
 		},
+		.connector_type = DRM_MODE_CONNECTOR_DSI,
 	},
 	.flags = MIPI_DSI_MODE_VIDEO,
 	.format = MIPI_DSI_FMT_RGB888,
@@ -3939,7 +4138,6 @@ static const struct drm_display_mode panasonic_vvx10f004b00_mode = {
 	.vsync_start = 1200 + 17,
 	.vsync_end = 1200 + 17 + 2,
 	.vtotal = 1200 + 17 + 2 + 16,
-	.vrefresh = 60,
 };
 
 static const struct panel_desc_dsi panasonic_vvx10f004b00 = {
@@ -3951,6 +4149,7 @@ static const struct panel_desc_dsi panasonic_vvx10f004b00 = {
 			.width = 217,
 			.height = 136,
 		},
+		.connector_type = DRM_MODE_CONNECTOR_DSI,
 	},
 	.flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_SYNC_PULSE |
 		 MIPI_DSI_CLOCK_NON_CONTINUOUS,
@@ -3968,7 +4167,6 @@ static const struct drm_display_mode lg_acx467akm_7_mode = {
 	.vsync_start = 1920 + 2,
 	.vsync_end = 1920 + 2 + 2,
 	.vtotal = 1920 + 2 + 2 + 2,
-	.vrefresh = 60,
 };
 
 static const struct panel_desc_dsi lg_acx467akm_7 = {
@@ -3980,6 +4178,7 @@ static const struct panel_desc_dsi lg_acx467akm_7 = {
 			.width = 62,
 			.height = 110,
 		},
+		.connector_type = DRM_MODE_CONNECTOR_DSI,
 	},
 	.flags = 0,
 	.format = MIPI_DSI_FMT_RGB888,
@@ -3996,7 +4195,6 @@ static const struct drm_display_mode osd101t2045_53ts_mode = {
 	.vsync_start = 1200 + 16,
 	.vsync_end = 1200 + 16 + 2,
 	.vtotal = 1200 + 16 + 2 + 16,
-	.vrefresh = 60,
 	.flags = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC,
 };
 
@@ -4009,6 +4207,7 @@ static const struct panel_desc_dsi osd101t2045_53ts = {
 			.width = 217,
 			.height = 136,
 		},
+		.connector_type = DRM_MODE_CONNECTOR_DSI,
 	},
 	.flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
 		 MIPI_DSI_MODE_VIDEO_SYNC_PULSE |

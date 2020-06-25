@@ -16,7 +16,6 @@
 #include <linux/spinlock.h>
 
 #include <kvm/iodev.h>
-#include "ioapic.h"
 #include "lapic.h"
 
 #define PIC_NUM_PINS 16
@@ -66,15 +65,6 @@ void kvm_pic_destroy(struct kvm *kvm);
 int kvm_pic_read_irq(struct kvm *kvm);
 void kvm_pic_update_irq(struct kvm_pic *s);
 
-static inline int pic_in_kernel(struct kvm *kvm)
-{
-	int mode = kvm->arch.irqchip_mode;
-
-	/* Matches smp_wmb() when setting irqchip_mode */
-	smp_rmb();
-	return mode == KVM_IRQCHIP_KERNEL;
-}
-
 static inline int irqchip_split(struct kvm *kvm)
 {
 	int mode = kvm->arch.irqchip_mode;
@@ -91,6 +81,11 @@ static inline int irqchip_kernel(struct kvm *kvm)
 	/* Matches smp_wmb() when setting irqchip_mode */
 	smp_rmb();
 	return mode == KVM_IRQCHIP_KERNEL;
+}
+
+static inline int pic_in_kernel(struct kvm *kvm)
+{
+	return irqchip_kernel(kvm);
 }
 
 static inline int irqchip_in_kernel(struct kvm *kvm)

@@ -62,6 +62,8 @@ int regulator_get_voltage_rdev(struct regulator_dev *rdev);
 int regulator_set_voltage_rdev(struct regulator_dev *rdev,
 			       int min_uV, int max_uV,
 			       suspend_state_t state);
+int regulator_do_balance_voltage(struct regulator_dev *rdev,
+				 suspend_state_t state, bool skip_coupled);
 #else
 static inline int regulator_coupler_register(struct regulator_coupler *coupler)
 {
@@ -89,6 +91,12 @@ static inline int regulator_get_voltage_rdev(struct regulator_dev *rdev)
 static inline int regulator_set_voltage_rdev(struct regulator_dev *rdev,
 					     int min_uV, int max_uV,
 					     suspend_state_t state)
+{
+	return -EINVAL;
+}
+static inline int regulator_do_balance_voltage(struct regulator_dev *rdev,
+					       suspend_state_t state,
+					       bool skip_coupled)
 {
 	return -EINVAL;
 }

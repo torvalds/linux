@@ -1,4 +1,4 @@
-Chinese translated version of Documentation/filesystems/sysfs.txt
+Chinese translated version of Documentation/filesystems/sysfs.rst
 
 If you have any comment or update to the content, please contact the
 original document maintainer directly.  However, if you have a problem
@@ -10,7 +10,7 @@ Maintainer: Patrick Mochel	<mochel@osdl.org>
 		Mike Murphy <mamurph@cs.clemson.edu>
 Chinese maintainer: Fu Wei <tekkamanninja@gmail.com>
 ---------------------------------------------------------------------
-Documentation/filesystems/sysfs.txt 的中文翻译
+Documentation/filesystems/sysfs.rst 的中文翻译
 
 如果想评论或更新本文的内容，请直接联系原文档的维护者。如果你使用英文
 交流有困难的话，也可以向中文版维护者求助。如果本翻译更新不及时或者翻
@@ -40,7 +40,7 @@ sysfs 是一个最初基于 ramfs 且位于内存的文件系统。它提供导�
 数据结构及其属性，以及它们之间的关联到用户空间的方法。
 
 sysfs 始终与 kobject 的底层结构紧密相关。请阅读
-Documentation/kobject.txt 文档以获得更多关于 kobject 接口的
+Documentation/core-api/kobject.rst 文档以获得更多关于 kobject 接口的
 信息。
 
 
@@ -281,7 +281,7 @@ drivers/ 包含了每个已为特定总线上的设备而挂载的驱动程序�
 假定驱动没有跨越多个总线类型)。
 
 fs/ 包含了一个为文件系统设立的目录。现在每个想要导出属性的文件系统必须
-在 fs/ 下创建自己的层次结构(参见Documentation/filesystems/fuse.txt)。
+在 fs/ 下创建自己的层次结构(参见Documentation/filesystems/fuse.rst)。
 
 dev/ 包含两个子目录： char/ 和 block/。在这两个子目录中，有以
 <major>:<minor> 格式命名的符号链接。这些符号链接指向 sysfs 目录

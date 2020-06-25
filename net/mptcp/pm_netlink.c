@@ -599,12 +599,14 @@ static int mptcp_nl_fill_addr(struct sk_buff *skb,
 	    nla_put_s32(skb, MPTCP_PM_ADDR_ATTR_IF_IDX, entry->ifindex))
 		goto nla_put_failure;
 
-	if (addr->family == AF_INET)
-		nla_put_in_addr(skb, MPTCP_PM_ADDR_ATTR_ADDR4,
-				addr->addr.s_addr);
+	if (addr->family == AF_INET &&
+	    nla_put_in_addr(skb, MPTCP_PM_ADDR_ATTR_ADDR4,
+			    addr->addr.s_addr))
+		goto nla_put_failure;
 #if IS_ENABLED(CONFIG_MPTCP_IPV6)
-	else if (addr->family == AF_INET6)
-		nla_put_in6_addr(skb, MPTCP_PM_ADDR_ATTR_ADDR6, &addr->addr6);
+	else if (addr->family == AF_INET6 &&
+		 nla_put_in6_addr(skb, MPTCP_PM_ADDR_ATTR_ADDR6, &addr->addr6))
+		goto nla_put_failure;
 #endif
 	nla_nest_end(skb, attr);
 	return 0;

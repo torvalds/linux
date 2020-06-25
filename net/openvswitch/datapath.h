@@ -82,7 +82,7 @@ struct datapath {
 	u32 max_headroom;
 
 	/* Switch meters. */
-	struct hlist_head *meters;
+	struct dp_meter_table meter_tbl;
 };
 
 /**

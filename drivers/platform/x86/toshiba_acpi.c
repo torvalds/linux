@@ -205,9 +205,6 @@ struct toshiba_acpi_dev {
 	unsigned int special_functions;
 
 	bool kbd_event_generated;
-	bool kbd_led_registered;
-	bool illumination_led_registered;
-	bool eco_led_registered;
 	bool killswitch;
 };
 
@@ -458,7 +455,6 @@ static void toshiba_illumination_available(struct toshiba_acpi_dev *dev)
 	acpi_status status;
 
 	dev->illumination_supported = 0;
-	dev->illumination_led_registered = false;
 
 	if (!sci_open(dev))
 		return;
@@ -528,7 +524,6 @@ static void toshiba_kbd_illum_available(struct toshiba_acpi_dev *dev)
 	acpi_status status;
 
 	dev->kbd_illum_supported = 0;
-	dev->kbd_led_registered = false;
 	dev->kbd_event_generated = false;
 
 	if (!sci_open(dev))
@@ -673,7 +668,6 @@ static void toshiba_eco_mode_available(struct toshiba_acpi_dev *dev)
 	acpi_status status;
 
 	dev->eco_supported = 0;
-	dev->eco_led_registered = false;
 
 	status = tci_raw(dev, in, out);
 	if (ACPI_FAILURE(status)) {
@@ -2993,14 +2987,9 @@ static int toshiba_acpi_remove(struct acpi_device *acpi_dev)
 
 	backlight_device_unregister(dev->backlight_dev);
 
-	if (dev->illumination_led_registered)
-		led_classdev_unregister(&dev->led_dev);
-
-	if (dev->kbd_led_registered)
-		led_classdev_unregister(&dev->kbd_led);
-
-	if (dev->eco_led_registered)
-		led_classdev_unregister(&dev->eco_led);
+	led_classdev_unregister(&dev->led_dev);
+	led_classdev_unregister(&dev->kbd_led);
+	led_classdev_unregister(&dev->eco_led);
 
 	if (dev->wwan_rfk) {
 		rfkill_unregister(dev->wwan_rfk);
@@ -3092,8 +3081,7 @@ static int toshiba_acpi_add(struct acpi_device *acpi_dev)
 		dev->led_dev.max_brightness = 1;
 		dev->led_dev.brightness_set = toshiba_illumination_set;
 		dev->led_dev.brightness_get = toshiba_illumination_get;
-		if (!led_classdev_register(&acpi_dev->dev, &dev->led_dev))
-			dev->illumination_led_registered = true;
+		led_classdev_register(&acpi_dev->dev, &dev->led_dev);
 	}
 
 	toshiba_eco_mode_available(dev);
@@ -3102,8 +3090,7 @@ static int toshiba_acpi_add(struct acpi_device *acpi_dev)
 		dev->eco_led.max_brightness = 1;
 		dev->eco_led.brightness_set = toshiba_eco_mode_set_status;
 		dev->eco_led.brightness_get = toshiba_eco_mode_get_status;
-		if (!led_classdev_register(&dev->acpi_dev->dev, &dev->eco_led))
-			dev->eco_led_registered = true;
+		led_classdev_register(&dev->acpi_dev->dev, &dev->eco_led);
 	}
 
 	toshiba_kbd_illum_available(dev);
@@ -3119,8 +3106,7 @@ static int toshiba_acpi_add(struct acpi_device *acpi_dev)
 		dev->kbd_led.max_brightness = 1;
 		dev->kbd_led.brightness_set = toshiba_kbd_backlight_set;
 		dev->kbd_led.brightness_get = toshiba_kbd_backlight_get;
-		if (!led_classdev_register(&dev->acpi_dev->dev, &dev->kbd_led))
-			dev->kbd_led_registered = true;
+		led_classdev_register(&dev->acpi_dev->dev, &dev->kbd_led);
 	}
 
 	ret = toshiba_touchpad_get(dev, &dummy);

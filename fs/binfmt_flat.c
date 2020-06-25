@@ -138,35 +138,40 @@ static int create_flat_tables(struct linux_binprm *bprm, unsigned long arg_start
 	current->mm->start_stack = (unsigned long)sp & -FLAT_STACK_ALIGN;
 	sp = (unsigned long __user *)current->mm->start_stack;
 
-	__put_user(bprm->argc, sp++);
+	if (put_user(bprm->argc, sp++))
+		return -EFAULT;
 	if (IS_ENABLED(CONFIG_BINFMT_FLAT_ARGVP_ENVP_ON_STACK)) {
 		unsigned long argv, envp;
 		argv = (unsigned long)(sp + 2);
 		envp = (unsigned long)(sp + 2 + bprm->argc + 1);
-		__put_user(argv, sp++);
-		__put_user(envp, sp++);
+		if (put_user(argv, sp++) || put_user(envp, sp++))
+			return -EFAULT;
 	}
 
 	current->mm->arg_start = (unsigned long)p;
 	for (i = bprm->argc; i > 0; i--) {
-		__put_user((unsigned long)p, sp++);
+		if (put_user((unsigned long)p, sp++))
+			return -EFAULT;
 		len = strnlen_user(p, MAX_ARG_STRLEN);
 		if (!len || len > MAX_ARG_STRLEN)
 			return -EINVAL;
 		p += len;
 	}
-	__put_user(0, sp++);
+	if (put_user(0, sp++))
+		return -EFAULT;
 	current->mm->arg_end = (unsigned long)p;
 
 	current->mm->env_start = (unsigned long) p;
 	for (i = bprm->envc; i > 0; i--) {
-		__put_user((unsigned long)p, sp++);
+		if (put_user((unsigned long)p, sp++))
+			return -EFAULT;
 		len = strnlen_user(p, MAX_ARG_STRLEN);
 		if (!len || len > MAX_ARG_STRLEN)
 			return -EINVAL;
 		p += len;
 	}
-	__put_user(0, sp++);
+	if (put_user(0, sp++))
+		return -EFAULT;
 	current->mm->env_end = (unsigned long)p;
 
 	return 0;
@@ -534,7 +539,7 @@ static int load_flat_file(struct linux_binprm *bprm,
 
 	/* Flush all traces of the currently running executable */
 	if (id == 0) {
-		ret = flush_old_exec(bprm);
+		ret = begin_new_exec(bprm);
 		if (ret)
 			goto err;
 
@@ -854,7 +859,7 @@ static int load_flat_file(struct linux_binprm *bprm,
 #endif /* CONFIG_BINFMT_FLAT_OLD */
 	}
 
-	flush_icache_range(start_code, end_code);
+	flush_icache_user_range(start_code, end_code);
 
 	/* zero the BSS,  BRK and stack areas */
 	if (clear_user((void __user *)(datapos + data_len), bss_len +
@@ -963,8 +968,6 @@ static int load_flat_binary(struct linux_binprm *bprm)
 		}
 	}
 
-	install_exec_creds(bprm);
-
 	set_binfmt(&flat_format);
 
 #ifdef CONFIG_MMU
@@ -998,7 +1001,8 @@ static int load_flat_binary(struct linux_binprm *bprm)
 			unsigned long __user *sp;
 			current->mm->start_stack -= sizeof(unsigned long);
 			sp = (unsigned long __user *)current->mm->start_stack;
-			__put_user(start_addr, sp);
+			if (put_user(start_addr, sp))
+				return -EFAULT;
 			start_addr = libinfo.lib_list[i].entry;
 		}
 	}

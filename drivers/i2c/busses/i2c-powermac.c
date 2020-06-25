@@ -207,18 +207,18 @@ static u32 i2c_powermac_get_addr(struct i2c_adapter *adap,
 					   struct pmac_i2c_bus *bus,
 					   struct device_node *node)
 {
-	const __be32 *prop;
-	int len;
+	u32 prop;
+	int ret;
 
 	/* First check for valid "reg" */
-	prop = of_get_property(node, "reg", &len);
-	if (prop && (len >= sizeof(int)))
-		return (be32_to_cpup(prop) & 0xff) >> 1;
+	ret = of_property_read_u32(node, "reg", &prop);
+	if (ret == 0)
+		return (prop & 0xff) >> 1;
 
 	/* Then check old-style "i2c-address" */
-	prop = of_get_property(node, "i2c-address", &len);
-	if (prop && (len >= sizeof(int)))
-		return (be32_to_cpup(prop) & 0xff) >> 1;
+	ret = of_property_read_u32(node, "i2c-address", &prop);
+	if (ret == 0)
+		return (prop & 0xff) >> 1;
 
 	/* Now handle some devices with missing "reg" properties */
 	if (of_node_name_eq(node, "cereal"))
@@ -315,7 +315,7 @@ static void i2c_powermac_register_devices(struct i2c_adapter *adap,
 {
 	struct i2c_client *newdev;
 	struct device_node *node;
-	bool found_onyx = 0;
+	bool found_onyx = false;
 
 	/*
 	 * In some cases we end up with the via-pmu node itself, in this

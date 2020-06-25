@@ -8,17 +8,19 @@
 #include <net/devlink.h>
 
 struct mlxsw_sp_trap {
-	struct devlink_trap_policer *policers_arr; /* Registered policers */
+	struct mlxsw_sp_trap_policer_item *policer_items_arr;
 	u64 policers_count; /* Number of registered policers */
-	struct list_head policer_item_list;
+
+	struct mlxsw_sp_trap_group_item *group_items_arr;
+	u64 groups_count; /* Number of registered groups */
+
+	struct mlxsw_sp_trap_item *trap_items_arr;
+	u64 traps_count; /* Number of registered traps */
+
+	u16 thin_policer_hw_id;
+
 	u64 max_policers;
 	unsigned long policers_usage[]; /* Usage bitmap */
-};
-
-struct mlxsw_sp_trap_policer_item {
-	u16 hw_id;
-	u32 id;
-	struct list_head list; /* Member of policer_item_list */
 };
 
 #endif

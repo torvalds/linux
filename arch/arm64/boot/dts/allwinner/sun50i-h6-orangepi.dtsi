@@ -106,6 +106,12 @@
 	status = "okay";
 };
 
+&pio {
+	vcc-pc-supply = <&reg_bldo2>;
+	vcc-pd-supply = <&reg_cldo1>;
+	vcc-pg-supply = <&reg_aldo1>;
+};
+
 &r_i2c {
 	status = "okay";
 
@@ -230,6 +236,10 @@
 	status = "okay";
 };
 
+&r_pio {
+	vcc-pm-supply = <&reg_bldo3>;
+};
+
 &rtc {
 	clocks = <&ext_osc32k>;
 };
@@ -241,7 +251,12 @@
 };
 
 &usb2otg {
-	dr_mode = "otg";
+	/*
+	 * OrangePi Lite 2 and One Plus, where this DT is used, don't
+	 * have a controllable VBUS even though they do have an ID pin.
+	 * Using it as anything but a USB host is unsafe.
+	 */
+	dr_mode = "host";
 	status = "okay";
 };
 

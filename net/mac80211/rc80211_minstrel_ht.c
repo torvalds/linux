@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2010-2013 Felix Fietkau <nbd@openwrt.org>
+ * Copyright (C) 2019-2020 Intel Corporation
  */
 #include <linux/netdevice.h>
 #include <linux/types.h>
@@ -490,7 +491,7 @@ minstrel_ht_assign_best_tp_rates(struct minstrel_ht_sta *mi,
 	tmp_prob = mi->groups[tmp_group].rates[tmp_idx].prob_avg;
 	tmp_mcs_tp = minstrel_ht_get_tp_avg(mi, tmp_group, tmp_idx, tmp_prob);
 
-	if (tmp_cck_tp_rate && tmp_cck_tp > tmp_mcs_tp) {
+	if (tmp_cck_tp > tmp_mcs_tp) {
 		for(i = 0; i < MAX_THR_RATES; i++) {
 			minstrel_ht_sort_best_tp_rates(mi, tmp_cck_tp_rate[i],
 						       tmp_mcs_tp_rate);
@@ -1635,7 +1636,7 @@ minstrel_ht_init_cck_rates(struct minstrel_priv *mp)
 }
 
 static void *
-minstrel_ht_alloc(struct ieee80211_hw *hw, struct dentry *debugfsdir)
+minstrel_ht_alloc(struct ieee80211_hw *hw)
 {
 	struct minstrel_priv *mp;
 
@@ -1673,7 +1674,17 @@ minstrel_ht_alloc(struct ieee80211_hw *hw, struct dentry *debugfsdir)
 	mp->update_interval = HZ / 10;
 	mp->new_avg = true;
 
+	minstrel_ht_init_cck_rates(mp);
+
+	return mp;
+}
+
 #ifdef CONFIG_MAC80211_DEBUGFS
+static void minstrel_ht_add_debugfs(struct ieee80211_hw *hw, void *priv,
+				    struct dentry *debugfsdir)
+{
+	struct minstrel_priv *mp = priv;
+
 	mp->fixed_rate_idx = (u32) -1;
 	debugfs_create_u32("fixed_rate_idx", S_IRUGO | S_IWUGO, debugfsdir,
 			   &mp->fixed_rate_idx);
@@ -1681,12 +1692,8 @@ minstrel_ht_alloc(struct ieee80211_hw *hw, struct dentry *debugfsdir)
 			   &mp->sample_switch);
 	debugfs_create_bool("new_avg", S_IRUGO | S_IWUSR, debugfsdir,
 			   &mp->new_avg);
-#endif
-
-	minstrel_ht_init_cck_rates(mp);
-
-	return mp;
 }
+#endif
 
 static void
 minstrel_ht_free(void *priv)
@@ -1725,6 +1732,7 @@ static const struct rate_control_ops mac80211_minstrel_ht = {
 	.alloc = minstrel_ht_alloc,
 	.free = minstrel_ht_free,
 #ifdef CONFIG_MAC80211_DEBUGFS
+	.add_debugfs = minstrel_ht_add_debugfs,
 	.add_sta_debugfs = minstrel_ht_add_sta_debugfs,
 #endif
 	.get_expected_throughput = minstrel_ht_get_expected_throughput,

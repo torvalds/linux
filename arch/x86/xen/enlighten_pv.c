@@ -63,7 +63,6 @@
 #include <asm/setup.h>
 #include <asm/desc.h>
 #include <asm/pgalloc.h>
-#include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 #include <asm/reboot.h>
 #include <asm/stackprotector.h>
@@ -387,7 +386,7 @@ static void set_aliased_prot(void *v, pgprot_t prot)
 
 	preempt_disable();
 
-	probe_kernel_read(&dummy, v, 1);
+	copy_from_kernel_nofault(&dummy, v, 1);
 
 	if (HYPERVISOR_update_va_mapping((unsigned long)v, pte, 0))
 		BUG();
@@ -605,32 +604,42 @@ struct trap_array_entry {
 	bool ist_okay;
 };
 
+#define TRAP_ENTRY(func, ist_ok) {			\
+	.orig		= asm_##func,			\
+	.xen		= xen_asm_##func,		\
+	.ist_okay	= ist_ok }
+
+#define TRAP_ENTRY_REDIR(func, xenfunc, ist_ok) {	\
+	.orig		= asm_##func,			\
+	.xen		= xen_asm_##xenfunc,		\
+	.ist_okay	= ist_ok }
+
 static struct trap_array_entry trap_array[] = {
-	{ debug,                       xen_xendebug,                    true },
-	{ double_fault,                xen_double_fault,                true },
+	TRAP_ENTRY_REDIR(exc_debug, exc_xendebug,	true  ),
+	TRAP_ENTRY(exc_double_fault,			true  ),
 #ifdef CONFIG_X86_MCE
-	{ machine_check,               xen_machine_check,               true },
+	TRAP_ENTRY(exc_machine_check,			true  ),
 #endif
-	{ nmi,                         xen_xennmi,                      true },
-	{ int3,                        xen_int3,                        false },
-	{ overflow,                    xen_overflow,                    false },
+	TRAP_ENTRY_REDIR(exc_nmi, exc_xennmi,		true  ),
+	TRAP_ENTRY(exc_int3,				false ),
+	TRAP_ENTRY(exc_overflow,			false ),
 #ifdef CONFIG_IA32_EMULATION
 	{ entry_INT80_compat,          xen_entry_INT80_compat,          false },
 #endif
-	{ page_fault,                  xen_page_fault,                  false },
-	{ divide_error,                xen_divide_error,                false },
-	{ bounds,                      xen_bounds,                      false },
-	{ invalid_op,                  xen_invalid_op,                  false },
-	{ device_not_available,        xen_device_not_available,        false },
-	{ coprocessor_segment_overrun, xen_coprocessor_segment_overrun, false },
-	{ invalid_TSS,                 xen_invalid_TSS,                 false },
-	{ segment_not_present,         xen_segment_not_present,         false },
-	{ stack_segment,               xen_stack_segment,               false },
-	{ general_protection,          xen_general_protection,          false },
-	{ spurious_interrupt_bug,      xen_spurious_interrupt_bug,      false },
-	{ coprocessor_error,           xen_coprocessor_error,           false },
-	{ alignment_check,             xen_alignment_check,             false },
-	{ simd_coprocessor_error,      xen_simd_coprocessor_error,      false },
+	TRAP_ENTRY(exc_page_fault,			false ),
+	TRAP_ENTRY(exc_divide_error,			false ),
+	TRAP_ENTRY(exc_bounds,				false ),
+	TRAP_ENTRY(exc_invalid_op,			false ),
+	TRAP_ENTRY(exc_device_not_available,		false ),
+	TRAP_ENTRY(exc_coproc_segment_overrun,		false ),
+	TRAP_ENTRY(exc_invalid_tss,			false ),
+	TRAP_ENTRY(exc_segment_not_present,		false ),
+	TRAP_ENTRY(exc_stack_segment,			false ),
+	TRAP_ENTRY(exc_general_protection,		false ),
+	TRAP_ENTRY(exc_spurious_interrupt_bug,		false ),
+	TRAP_ENTRY(exc_coprocessor_error,		false ),
+	TRAP_ENTRY(exc_alignment_check,			false ),
+	TRAP_ENTRY(exc_simd_coprocessor_error,		false ),
 };
 
 static bool __ref get_trap_addr(void **addr, unsigned int ist)
@@ -642,7 +651,7 @@ static bool __ref get_trap_addr(void **addr, unsigned int ist)
 	 * Replace trap handler addresses by Xen specific ones.
 	 * Check for known traps using IST and whitelist them.
 	 * The debugger ones are the only ones we care about.
-	 * Xen will handle faults like double_fault, * so we should never see
+	 * Xen will handle faults like double_fault, so we should never see
 	 * them.  Warn if there's an unexpected IST-using fault handler.
 	 */
 	for (nr = 0; nr < ARRAY_SIZE(trap_array); nr++) {

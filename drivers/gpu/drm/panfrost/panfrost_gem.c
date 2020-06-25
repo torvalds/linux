@@ -46,7 +46,7 @@ static void panfrost_gem_free_object(struct drm_gem_object *obj)
 				sg_free_table(&bo->sgts[i]);
 			}
 		}
-		kfree(bo->sgts);
+		kvfree(bo->sgts);
 	}
 
 	drm_gem_shmem_free_object(obj);
@@ -93,7 +93,7 @@ static void panfrost_gem_mapping_release(struct kref *kref)
 	mapping = container_of(kref, struct panfrost_gem_mapping, refcount);
 
 	panfrost_gem_teardown_mapping(mapping);
-	drm_gem_object_put_unlocked(&mapping->obj->base.base);
+	drm_gem_object_put(&mapping->obj->base.base);
 	kfree(mapping);
 }
 
@@ -261,7 +261,7 @@ panfrost_gem_create_with_handle(struct drm_file *file_priv,
 	 */
 	ret = drm_gem_handle_create(file_priv, &shmem->base, handle);
 	/* drop reference from allocate - handle holds it now. */
-	drm_gem_object_put_unlocked(&shmem->base);
+	drm_gem_object_put(&shmem->base);
 	if (ret)
 		return ERR_PTR(ret);
 

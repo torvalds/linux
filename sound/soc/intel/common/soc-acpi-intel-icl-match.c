@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * soc-acpi-intel-icl-match.c - tables and support for ICL ACPI enumeration.
  *
@@ -82,14 +82,6 @@ static const struct snd_soc_acpi_adr_device rt711_0_adr[] = {
 static const struct snd_soc_acpi_adr_device rt1308_1_adr[] = {
 	{
 		.adr = 0x000110025D130800,
-		.num_endpoints = 1,
-		.endpoints = &single_endpoint,
-	}
-};
-
-static const struct snd_soc_acpi_adr_device rt1308_2_adr[] = {
-	{
-		.adr = 0x000210025D130800,
 		.num_endpoints = 1,
 		.endpoints = &single_endpoint,
 	}

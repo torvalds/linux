@@ -26,10 +26,6 @@
 
 #include "hantro_hw.h"
 
-#define MB_DIM			16
-#define MB_WIDTH(w)		DIV_ROUND_UP(w, MB_DIM)
-#define MB_HEIGHT(h)		DIV_ROUND_UP(h, MB_DIM)
-
 struct hantro_ctx;
 struct hantro_codec_ops;
 
@@ -421,7 +417,8 @@ hantro_get_dst_buf(struct hantro_ctx *ctx)
 }
 
 static inline bool
-hantro_needs_postproc(struct hantro_ctx *ctx, const struct hantro_fmt *fmt)
+hantro_needs_postproc(const struct hantro_ctx *ctx,
+		      const struct hantro_fmt *fmt)
 {
 	return !hantro_is_encoder_ctx(ctx) && fmt->fourcc != V4L2_PIX_FMT_NV12;
 }

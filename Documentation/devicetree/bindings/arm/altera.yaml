@@ -13,8 +13,8 @@ properties:
   compatible:
     items:
       - enum:
-        - altr,socfpga-cyclone5
-        - altr,socfpga-arria5
-        - altr,socfpga-arria10
+          - altr,socfpga-cyclone5
+          - altr,socfpga-arria5
+          - altr,socfpga-arria10
       - const: altr,socfpga
 ...

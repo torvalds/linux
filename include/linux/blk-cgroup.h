@@ -607,12 +607,14 @@ static inline bool blkcg_bio_issue_check(struct request_queue *q,
 		u64_stats_update_begin(&bis->sync);
 
 		/*
-		 * If the bio is flagged with BIO_QUEUE_ENTERED it means this
-		 * is a split bio and we would have already accounted for the
-		 * size of the bio.
+		 * If the bio is flagged with BIO_CGROUP_ACCT it means this is a
+		 * split bio and we would have already accounted for the size of
+		 * the bio.
 		 */
-		if (!bio_flagged(bio, BIO_QUEUE_ENTERED))
+		if (!bio_flagged(bio, BIO_CGROUP_ACCT)) {
+			bio_set_flag(bio, BIO_CGROUP_ACCT);
 			bis->cur.bytes[rwd] += bio->bi_iter.bi_size;
+		}
 		bis->cur.ios[rwd]++;
 
 		u64_stats_update_end(&bis->sync);
@@ -629,6 +631,8 @@ static inline bool blkcg_bio_issue_check(struct request_queue *q,
 
 static inline void blkcg_use_delay(struct blkcg_gq *blkg)
 {
+	if (WARN_ON_ONCE(atomic_read(&blkg->use_delay) < 0))
+		return;
 	if (atomic_add_return(1, &blkg->use_delay) == 1)
 		atomic_inc(&blkg->blkcg->css.cgroup->congestion_count);
 }
@@ -637,6 +641,8 @@ static inline int blkcg_unuse_delay(struct blkcg_gq *blkg)
 {
 	int old = atomic_read(&blkg->use_delay);
 
+	if (WARN_ON_ONCE(old < 0))
+		return 0;
 	if (old == 0)
 		return 0;
 
@@ -661,20 +667,39 @@ static inline int blkcg_unuse_delay(struct blkcg_gq *blkg)
 	return 1;
 }
 
+/**
+ * blkcg_set_delay - Enable allocator delay mechanism with the specified delay amount
+ * @blkg: target blkg
+ * @delay: delay duration in nsecs
+ *
+ * When enabled with this function, the delay is not decayed and must be
+ * explicitly cleared with blkcg_clear_delay(). Must not be mixed with
+ * blkcg_[un]use_delay() and blkcg_add_delay() usages.
+ */
+static inline void blkcg_set_delay(struct blkcg_gq *blkg, u64 delay)
+{
+	int old = atomic_read(&blkg->use_delay);
+
+	/* We only want 1 person setting the congestion count for this blkg. */
+	if (!old && atomic_cmpxchg(&blkg->use_delay, old, -1) == old)
+		atomic_inc(&blkg->blkcg->css.cgroup->congestion_count);
+
+	atomic64_set(&blkg->delay_nsec, delay);
+}
+
+/**
+ * blkcg_clear_delay - Disable allocator delay mechanism
+ * @blkg: target blkg
+ *
+ * Disable use_delay mechanism. See blkcg_set_delay().
+ */
 static inline void blkcg_clear_delay(struct blkcg_gq *blkg)
 {
 	int old = atomic_read(&blkg->use_delay);
-	if (!old)
-		return;
+
 	/* We only want 1 person clearing the congestion count for this blkg. */
-	while (old) {
-		int cur = atomic_cmpxchg(&blkg->use_delay, old, 0);
-		if (cur == old) {
-			atomic_dec(&blkg->blkcg->css.cgroup->congestion_count);
-			break;
-		}
-		old = cur;
-	}
+	if (old && atomic_cmpxchg(&blkg->use_delay, old, 0) == old)
+		atomic_dec(&blkg->blkcg->css.cgroup->congestion_count);
 }
 
 void blkcg_add_delay(struct blkcg_gq *blkg, u64 now, u64 delta);

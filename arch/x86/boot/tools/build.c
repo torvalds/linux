@@ -59,14 +59,14 @@ u8 buf[SETUP_SECT_MAX*512];
 #define PECOFF_COMPAT_RESERVE 0x0
 #endif
 
-unsigned long efi32_stub_entry;
-unsigned long efi64_stub_entry;
-unsigned long efi_pe_entry;
-unsigned long efi32_pe_entry;
-unsigned long kernel_info;
-unsigned long startup_64;
-unsigned long _ehead;
-unsigned long _end;
+static unsigned long efi32_stub_entry;
+static unsigned long efi64_stub_entry;
+static unsigned long efi_pe_entry;
+static unsigned long efi32_pe_entry;
+static unsigned long kernel_info;
+static unsigned long startup_64;
+static unsigned long _ehead;
+static unsigned long _end;
 
 /*----------------------------------------------------------------------*/
 

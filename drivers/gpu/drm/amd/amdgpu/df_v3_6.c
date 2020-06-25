@@ -686,58 +686,6 @@ static void df_v3_6_pmc_get_count(struct amdgpu_device *adev,
 	}
 }
 
-static uint64_t df_v3_6_get_dram_base_addr(struct amdgpu_device *adev,
-					   uint32_t df_inst)
-{
-	uint32_t base_addr_reg_val 	= 0;
-	uint64_t base_addr	 	= 0;
-
-	base_addr_reg_val = RREG32_PCIE(smnDF_CS_UMC_AON0_DramBaseAddress0 +
-					df_inst * DF_3_6_SMN_REG_INST_DIST);
-
-	if (REG_GET_FIELD(base_addr_reg_val,
-			  DF_CS_UMC_AON0_DramBaseAddress0,
-			  AddrRngVal) == 0) {
-		DRM_WARN("address range not valid");
-		return 0;
-	}
-
-	base_addr = REG_GET_FIELD(base_addr_reg_val,
-				  DF_CS_UMC_AON0_DramBaseAddress0,
-				  DramBaseAddr);
-
-	return base_addr << 28;
-}
-
-static uint32_t df_v3_6_get_df_inst_id(struct amdgpu_device *adev)
-{
-	uint32_t xgmi_node_id	= 0;
-	uint32_t df_inst_id 	= 0;
-
-	/* Walk through DF dst nodes to find current XGMI node */
-	for (df_inst_id = 0; df_inst_id < DF_3_6_INST_CNT; df_inst_id++) {
-
-		xgmi_node_id = RREG32_PCIE(smnDF_CS_UMC_AON0_DramLimitAddress0 +
-					   df_inst_id * DF_3_6_SMN_REG_INST_DIST);
-		xgmi_node_id = REG_GET_FIELD(xgmi_node_id,
-					     DF_CS_UMC_AON0_DramLimitAddress0,
-					     DstFabricID);
-
-		/* TODO: establish reason dest fabric id is offset by 7 */
-		xgmi_node_id = xgmi_node_id >> 7;
-
-		if (adev->gmc.xgmi.physical_node_id == xgmi_node_id)
-			break;
-	}
-
-	if (df_inst_id == DF_3_6_INST_CNT) {
-		DRM_WARN("cant match df dst id with gpu node");
-		return 0;
-	}
-
-	return df_inst_id;
-}
-
 const struct amdgpu_df_funcs df_v3_6_funcs = {
 	.sw_init = df_v3_6_sw_init,
 	.sw_fini = df_v3_6_sw_fini,
@@ -752,6 +700,4 @@ const struct amdgpu_df_funcs df_v3_6_funcs = {
 	.pmc_get_count = df_v3_6_pmc_get_count,
 	.get_fica = df_v3_6_get_fica,
 	.set_fica = df_v3_6_set_fica,
-	.get_dram_base_addr = df_v3_6_get_dram_base_addr,
-	.get_df_inst_id = df_v3_6_get_df_inst_id
 };

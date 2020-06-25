@@ -94,7 +94,7 @@ asmlinkage void notrace el1_sync_handler(struct pt_regs *regs)
 		break;
 	default:
 		el1_inv(regs, esr);
-	};
+	}
 }
 NOKPROBE_SYMBOL(el1_sync_handler);
 
@@ -188,6 +188,14 @@ static void notrace el0_undef(struct pt_regs *regs)
 }
 NOKPROBE_SYMBOL(el0_undef);
 
+static void notrace el0_bti(struct pt_regs *regs)
+{
+	user_exit_irqoff();
+	local_daif_restore(DAIF_PROCCTX);
+	do_bti(regs);
+}
+NOKPROBE_SYMBOL(el0_bti);
+
 static void notrace el0_inv(struct pt_regs *regs, unsigned long esr)
 {
 	user_exit_irqoff();
@@ -254,6 +262,9 @@ asmlinkage void notrace el0_sync_handler(struct pt_regs *regs)
 		break;
 	case ESR_ELx_EC_UNKNOWN:
 		el0_undef(regs);
+		break;
+	case ESR_ELx_EC_BTI:
+		el0_bti(regs);
 		break;
 	case ESR_ELx_EC_BREAKPT_LOW:
 	case ESR_ELx_EC_SOFTSTP_LOW:

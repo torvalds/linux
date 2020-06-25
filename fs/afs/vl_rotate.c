@@ -151,6 +151,10 @@ bool afs_select_vlserver(struct afs_vl_cursor *vc)
 		vc->error = error;
 		vc->flags |= AFS_VL_CURSOR_RETRY;
 		goto next_server;
+
+	case -EOPNOTSUPP:
+		_debug("notsupp");
+		goto next_server;
 	}
 
 restart_from_beginning:
@@ -302,8 +306,8 @@ static void afs_vl_dump_edestaddrreq(const struct afs_vl_cursor *vc)
 				pr_notice("VC:  - nr=%u/%u/%u pf=%u\n",
 					  a->nr_ipv4, a->nr_addrs, a->max_addrs,
 					  a->preferred);
-				pr_notice("VC:  - pr=%lx R=%lx F=%lx\n",
-					  a->probed, a->responded, a->failed);
+				pr_notice("VC:  - R=%lx F=%lx\n",
+					  a->responded, a->failed);
 				if (a == vc->ac.alist)
 					pr_notice("VC:  - current\n");
 			}

@@ -252,7 +252,7 @@ int gfs2_meta_read(struct gfs2_glock *gl, u64 blkno, int flags,
 	int num = 0;
 
 	if (unlikely(gfs2_withdrawn(sdp)) &&
-	    (!sdp->sd_jdesc || (blkno != sdp->sd_jdesc->jd_no_addr))) {
+	    (!sdp->sd_jdesc || gl != sdp->sd_jinode_gl)) {
 		*bhp = NULL;
 		return -EIO;
 	}

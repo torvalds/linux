@@ -243,11 +243,11 @@ fail:
 static bool unpack_X(struct aa_ext *e, enum aa_code code)
 {
 	if (!inbounds(e, 1))
-		return 0;
+		return false;
 	if (*(u8 *) e->pos != code)
-		return 0;
+		return false;
 	e->pos++;
-	return 1;
+	return true;
 }
 
 /**
@@ -261,10 +261,10 @@ static bool unpack_X(struct aa_ext *e, enum aa_code code)
  * name element in the stream.  If @name is NULL any name element will be
  * skipped and only the typecode will be tested.
  *
- * Returns 1 on success (both type code and name tests match) and the read
+ * Returns true on success (both type code and name tests match) and the read
  * head is advanced past the headers
  *
- * Returns: 0 if either match fails, the read head does not move
+ * Returns: false if either match fails, the read head does not move
  */
 static bool unpack_nameX(struct aa_ext *e, enum aa_code code, const char *name)
 {
@@ -289,11 +289,11 @@ static bool unpack_nameX(struct aa_ext *e, enum aa_code code, const char *name)
 
 	/* now check if type code matches */
 	if (unpack_X(e, code))
-		return 1;
+		return true;
 
 fail:
 	e->pos = pos;
-	return 0;
+	return false;
 }
 
 static bool unpack_u8(struct aa_ext *e, u8 *data, const char *name)
@@ -306,12 +306,12 @@ static bool unpack_u8(struct aa_ext *e, u8 *data, const char *name)
 		if (data)
 			*data = get_unaligned((u8 *)e->pos);
 		e->pos += sizeof(u8);
-		return 1;
+		return true;
 	}
 
 fail:
 	e->pos = pos;
-	return 0;
+	return false;
 }
 
 static bool unpack_u32(struct aa_ext *e, u32 *data, const char *name)
@@ -324,12 +324,12 @@ static bool unpack_u32(struct aa_ext *e, u32 *data, const char *name)
 		if (data)
 			*data = le32_to_cpu(get_unaligned((__le32 *) e->pos));
 		e->pos += sizeof(u32);
-		return 1;
+		return true;
 	}
 
 fail:
 	e->pos = pos;
-	return 0;
+	return false;
 }
 
 static bool unpack_u64(struct aa_ext *e, u64 *data, const char *name)
@@ -342,12 +342,12 @@ static bool unpack_u64(struct aa_ext *e, u64 *data, const char *name)
 		if (data)
 			*data = le64_to_cpu(get_unaligned((__le64 *) e->pos));
 		e->pos += sizeof(u64);
-		return 1;
+		return true;
 	}
 
 fail:
 	e->pos = pos;
-	return 0;
+	return false;
 }
 
 static size_t unpack_array(struct aa_ext *e, const char *name)
@@ -472,7 +472,7 @@ static struct aa_dfa *unpack_dfa(struct aa_ext *e)
  * @e: serialized data extent information  (NOT NULL)
  * @profile: profile to add the accept table to (NOT NULL)
  *
- * Returns: 1 if table successfully unpacked
+ * Returns: true if table successfully unpacked
  */
 static bool unpack_trans_table(struct aa_ext *e, struct aa_profile *profile)
 {
@@ -535,12 +535,12 @@ static bool unpack_trans_table(struct aa_ext *e, struct aa_profile *profile)
 		if (!unpack_nameX(e, AA_STRUCTEND, NULL))
 			goto fail;
 	}
-	return 1;
+	return true;
 
 fail:
 	aa_free_domain_entries(&profile->file.trans);
 	e->pos = saved_pos;
-	return 0;
+	return false;
 }
 
 static bool unpack_xattrs(struct aa_ext *e, struct aa_profile *profile)
@@ -565,11 +565,11 @@ static bool unpack_xattrs(struct aa_ext *e, struct aa_profile *profile)
 			goto fail;
 	}
 
-	return 1;
+	return true;
 
 fail:
 	e->pos = pos;
-	return 0;
+	return false;
 }
 
 static bool unpack_secmark(struct aa_ext *e, struct aa_profile *profile)
@@ -601,7 +601,7 @@ static bool unpack_secmark(struct aa_ext *e, struct aa_profile *profile)
 			goto fail;
 	}
 
-	return 1;
+	return true;
 
 fail:
 	if (profile->secmark) {
@@ -613,7 +613,7 @@ fail:
 	}
 
 	e->pos = pos;
-	return 0;
+	return false;
 }
 
 static bool unpack_rlimits(struct aa_ext *e, struct aa_profile *profile)
@@ -643,11 +643,11 @@ static bool unpack_rlimits(struct aa_ext *e, struct aa_profile *profile)
 		if (!unpack_nameX(e, AA_STRUCTEND, NULL))
 			goto fail;
 	}
-	return 1;
+	return true;
 
 fail:
 	e->pos = pos;
-	return 0;
+	return false;
 }
 
 static u32 strhash(const void *data, u32 len, u32 seed)
@@ -748,10 +748,14 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 		goto fail;
 	if (tmp == PACKED_MODE_COMPLAIN || (e->version & FORCE_COMPLAIN_FLAG))
 		profile->mode = APPARMOR_COMPLAIN;
+	else if (tmp == PACKED_MODE_ENFORCE)
+		profile->mode = APPARMOR_ENFORCE;
 	else if (tmp == PACKED_MODE_KILL)
 		profile->mode = APPARMOR_KILL;
 	else if (tmp == PACKED_MODE_UNCONFINED)
 		profile->mode = APPARMOR_UNCONFINED;
+	else
+		goto fail;
 	if (!unpack_u32(e, &tmp, NULL))
 		goto fail;
 	if (tmp)
@@ -990,8 +994,8 @@ static bool verify_xindex(int xindex, int table_size)
 	xtype = xindex & AA_X_TYPE_MASK;
 	index = xindex & AA_X_INDEX_MASK;
 	if (xtype == AA_X_TABLE && index >= table_size)
-		return 0;
-	return 1;
+		return false;
+	return true;
 }
 
 /* verify dfa xindexes are in range of transition tables */
@@ -1000,11 +1004,11 @@ static bool verify_dfa_xindex(struct aa_dfa *dfa, int table_size)
 	int i;
 	for (i = 0; i < dfa->tables[YYTD_ID_ACCEPT]->td_lolen; i++) {
 		if (!verify_xindex(dfa_user_xindex(dfa, i), table_size))
-			return 0;
+			return false;
 		if (!verify_xindex(dfa_other_xindex(dfa, i), table_size))
-			return 0;
+			return false;
 	}
-	return 1;
+	return true;
 }
 
 /**

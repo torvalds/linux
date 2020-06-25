@@ -2138,7 +2138,6 @@ void vmw_guess_mode_timing(struct drm_display_mode *mode)
 	mode->vtotal = mode->vsync_end + 50;
 
 	mode->clock = (u32)mode->htotal * (u32)mode->vtotal / 100 * 6;
-	mode->vrefresh = drm_mode_vrefresh(mode);
 }
 
 
@@ -2212,7 +2211,6 @@ int vmw_du_connector_fill_modes(struct drm_connector *connector,
 		mode = drm_mode_duplicate(dev, bmode);
 		if (!mode)
 			return 0;
-		mode->vrefresh = drm_mode_vrefresh(mode);
 
 		drm_mode_probed_add(connector, mode);
 	}

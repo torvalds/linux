@@ -75,18 +75,23 @@ struct xfrm_state *mlx5e_ipsec_sadb_rx_lookup(struct mlx5e_ipsec *ipsec,
 	return ret;
 }
 
-static int mlx5e_ipsec_sadb_rx_add(struct mlx5e_ipsec_sa_entry *sa_entry)
+static int  mlx5e_ipsec_sadb_rx_add(struct mlx5e_ipsec_sa_entry *sa_entry,
+				    unsigned int handle)
 {
 	struct mlx5e_ipsec *ipsec = sa_entry->ipsec;
+	struct mlx5e_ipsec_sa_entry *_sa_entry;
 	unsigned long flags;
-	int ret;
 
-	ret = ida_simple_get(&ipsec->halloc, 1, 0, GFP_KERNEL);
-	if (ret < 0)
-		return ret;
+	rcu_read_lock();
+	hash_for_each_possible_rcu(ipsec->sadb_rx, _sa_entry, hlist, handle)
+		if (_sa_entry->handle == handle) {
+			rcu_read_unlock();
+			return  -EEXIST;
+		}
+	rcu_read_unlock();
 
 	spin_lock_irqsave(&ipsec->sadb_rx_lock, flags);
-	sa_entry->handle = ret;
+	sa_entry->handle = handle;
 	hash_add_rcu(ipsec->sadb_rx, &sa_entry->hlist, sa_entry->handle);
 	spin_unlock_irqrestore(&ipsec->sadb_rx_lock, flags);
 
@@ -101,15 +106,6 @@ static void mlx5e_ipsec_sadb_rx_del(struct mlx5e_ipsec_sa_entry *sa_entry)
 	spin_lock_irqsave(&ipsec->sadb_rx_lock, flags);
 	hash_del_rcu(&sa_entry->hlist);
 	spin_unlock_irqrestore(&ipsec->sadb_rx_lock, flags);
-}
-
-static void mlx5e_ipsec_sadb_rx_free(struct mlx5e_ipsec_sa_entry *sa_entry)
-{
-	struct mlx5e_ipsec *ipsec = sa_entry->ipsec;
-
-	/* xfrm already doing sync rcu between del and free callbacks */
-
-	ida_simple_remove(&ipsec->halloc, sa_entry->handle);
 }
 
 static bool mlx5e_ipsec_update_esn_state(struct mlx5e_ipsec_sa_entry *sa_entry)
@@ -199,6 +195,14 @@ mlx5e_ipsec_build_accel_xfrm_attrs(struct mlx5e_ipsec_sa_entry *sa_entry,
 	attrs->flags |= (x->props.mode == XFRM_MODE_TRANSPORT) ?
 			MLX5_ACCEL_ESP_FLAGS_TRANSPORT :
 			MLX5_ACCEL_ESP_FLAGS_TUNNEL;
+
+	/* spi */
+	attrs->spi = x->id.spi;
+
+	/* source , destination ips */
+	memcpy(&attrs->saddr, x->props.saddr.a6, sizeof(attrs->saddr));
+	memcpy(&attrs->daddr, x->id.daddr.a6, sizeof(attrs->daddr));
+	attrs->is_ipv6 = (x->props.family != AF_INET);
 }
 
 static inline int mlx5e_xfrm_validate_state(struct xfrm_state *x)
@@ -284,8 +288,7 @@ static int mlx5e_xfrm_add_state(struct xfrm_state *x)
 	struct net_device *netdev = x->xso.dev;
 	struct mlx5_accel_esp_xfrm_attrs attrs;
 	struct mlx5e_priv *priv;
-	__be32 saddr[4] = {0}, daddr[4] = {0}, spi;
-	bool is_ipv6 = false;
+	unsigned int sa_handle;
 	int err;
 
 	priv = netdev_priv(netdev);
@@ -303,20 +306,6 @@ static int mlx5e_xfrm_add_state(struct xfrm_state *x)
 	sa_entry->x = x;
 	sa_entry->ipsec = priv->ipsec;
 
-	/* Add the SA to handle processed incoming packets before the add SA
-	 * completion was received
-	 */
-	if (x->xso.flags & XFRM_OFFLOAD_INBOUND) {
-		err = mlx5e_ipsec_sadb_rx_add(sa_entry);
-		if (err) {
-			netdev_info(netdev, "Failed adding to SADB_RX: %d\n", err);
-			goto err_entry;
-		}
-	} else {
-		sa_entry->set_iv_op = (x->props.flags & XFRM_STATE_ESN) ?
-				mlx5e_ipsec_set_iv_esn : mlx5e_ipsec_set_iv;
-	}
-
 	/* check esn */
 	mlx5e_ipsec_update_esn_state(sa_entry);
 
@@ -327,41 +316,38 @@ static int mlx5e_xfrm_add_state(struct xfrm_state *x)
 					   MLX5_ACCEL_XFRM_FLAG_REQUIRE_METADATA);
 	if (IS_ERR(sa_entry->xfrm)) {
 		err = PTR_ERR(sa_entry->xfrm);
-		goto err_sadb_rx;
+		goto err_sa_entry;
 	}
 
 	/* create hw context */
-	if (x->props.family == AF_INET) {
-		saddr[3] = x->props.saddr.a4;
-		daddr[3] = x->id.daddr.a4;
-	} else {
-		memcpy(saddr, x->props.saddr.a6, sizeof(saddr));
-		memcpy(daddr, x->id.daddr.a6, sizeof(daddr));
-		is_ipv6 = true;
-	}
-	spi = x->id.spi;
 	sa_entry->hw_context =
 			mlx5_accel_esp_create_hw_context(priv->mdev,
 							 sa_entry->xfrm,
-							 saddr, daddr, spi,
-							 is_ipv6);
+							 &sa_handle);
 	if (IS_ERR(sa_entry->hw_context)) {
 		err = PTR_ERR(sa_entry->hw_context);
 		goto err_xfrm;
 	}
 
+	if (x->xso.flags & XFRM_OFFLOAD_INBOUND) {
+		err = mlx5e_ipsec_sadb_rx_add(sa_entry, sa_handle);
+		if (err)
+			goto err_hw_ctx;
+	} else {
+		sa_entry->set_iv_op = (x->props.flags & XFRM_STATE_ESN) ?
+				mlx5e_ipsec_set_iv_esn : mlx5e_ipsec_set_iv;
+	}
+
 	x->xso.offload_handle = (unsigned long)sa_entry;
 	goto out;
 
+err_hw_ctx:
+	mlx5_accel_esp_free_hw_context(sa_entry->hw_context);
 err_xfrm:
 	mlx5_accel_esp_destroy_xfrm(sa_entry->xfrm);
-err_sadb_rx:
-	if (x->xso.flags & XFRM_OFFLOAD_INBOUND) {
-		mlx5e_ipsec_sadb_rx_del(sa_entry);
-		mlx5e_ipsec_sadb_rx_free(sa_entry);
-	}
-err_entry:
+err_sa_entry:
 	kfree(sa_entry);
+
 out:
 	return err;
 }
@@ -389,9 +375,6 @@ static void mlx5e_xfrm_free_state(struct xfrm_state *x)
 		mlx5_accel_esp_free_hw_context(sa_entry->hw_context);
 		mlx5_accel_esp_destroy_xfrm(sa_entry->xfrm);
 	}
-
-	if (x->xso.flags & XFRM_OFFLOAD_INBOUND)
-		mlx5e_ipsec_sadb_rx_free(sa_entry);
 
 	kfree(sa_entry);
 }

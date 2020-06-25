@@ -96,12 +96,20 @@ properties:
       If set, reverse the bit order described in the data mappings below on all
       data lanes, transmitting bits for slots 6 to 0 instead of 0 to 6.
 
+  port: true
+  ports: true
+
 required:
   - compatible
   - data-mapping
   - width-mm
   - height-mm
   - panel-timing
-  - port
+
+oneOf:
+  - required:
+      - port
+  - required:
+      - ports
 
 ...

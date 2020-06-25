@@ -123,23 +123,3 @@ __wsum csum_partial_copy_nocheck(const void *src, void *dst,
 	return sum;
 }
 EXPORT_SYMBOL(csum_partial_copy_nocheck);
-
-/*
- * Copy from userspace and compute checksum.  If we catch an exception
- * then zero the rest of the buffer.
- */
-__wsum csum_partial_copy_from_user(const void __user *src,
-					void *dst, int len,
-					__wsum sum, int *err_ptr)
-{
-	int missing;
-
-	missing = copy_from_user(dst, src, len);
-	if (missing) {
-		memset(dst + len - missing, 0, missing);
-		*err_ptr = -EFAULT;
-	}
-		
-	return csum_partial(dst, len, sum);
-}
-EXPORT_SYMBOL(csum_partial_copy_from_user);

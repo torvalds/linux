@@ -69,17 +69,14 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_PP_OBJ_ALLOC)(
 	if (err)
 		goto err;
 
-	err = uverbs_copy_to(attrs, MLX5_IB_ATTR_PP_OBJ_ALLOC_INDEX,
-			     &pp_entry->index, sizeof(pp_entry->index));
-	if (err)
-		goto clean;
-
 	pp_entry->mdev = dev->mdev;
 	uobj->object = pp_entry;
-	return 0;
+	uverbs_finalize_uobj_create(attrs, MLX5_IB_ATTR_PP_OBJ_ALLOC_HANDLE);
 
-clean:
-	mlx5_rl_remove_rate_raw(dev->mdev, pp_entry->index);
+	err = uverbs_copy_to(attrs, MLX5_IB_ATTR_PP_OBJ_ALLOC_INDEX,
+			     &pp_entry->index, sizeof(pp_entry->index));
+	return err;
+
 err:
 	kfree(pp_entry);
 	return err;

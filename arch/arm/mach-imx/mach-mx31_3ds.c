@@ -10,10 +10,10 @@
 #include <linux/clk.h>
 #include <linux/irq.h>
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/platform_device.h>
 #include <linux/mfd/mc13783.h>
 #include <linux/spi/spi.h>
-#include <linux/spi/l4f00242t03.h>
 #include <linux/regulator/machine.h>
 #include <linux/usb/otg.h>
 #include <linux/usb/ulpi.h>
@@ -160,9 +160,23 @@ static struct mx3fb_platform_data mx3fb_pdata __initdata = {
 };
 
 /* LCD */
-static struct l4f00242t03_pdata mx31_3ds_l4f00242t03_pdata = {
-	.reset_gpio		= IOMUX_TO_GPIO(MX31_PIN_LCS1),
-	.data_enable_gpio	= IOMUX_TO_GPIO(MX31_PIN_SER_RS),
+static struct gpiod_lookup_table mx31_3ds_lcd_gpiod_table = {
+	.dev_id = "spi0.2", /* Bus 0 chipselect 2 */
+	.table = {
+		/*
+		 * "reset" has IOMUX_TO_GPIO(IOMUX_PIN(88, 28)).
+		 * The macro only shifts 88 to bits 9..16 and then
+		 * mask it and shift it back. The GPIO number is 88.
+		 * 88 is 2*32+24
+		 */
+		GPIO_LOOKUP("imx31-gpio.2", 24, "reset", GPIO_ACTIVE_HIGH),
+		/*
+		 * Same reasoning as above for
+		 * IOMUX_TO_GPIO(IOMUX_PIN(89, 27), pin 89 is 2*32+25.
+		 */
+		GPIO_LOOKUP("imx31-gpio.2", 25, "enable", GPIO_ACTIVE_HIGH),
+		{ },
+	},
 };
 
 /*
@@ -387,7 +401,6 @@ static struct spi_board_info mx31_3ds_spi_devs[] __initdata = {
 		.max_speed_hz	= 5000000,
 		.bus_num	= 0,
 		.chip_select	= 2, /* SS2 */
-		.platform_data	= &mx31_3ds_l4f00242t03_pdata,
 	},
 };
 
@@ -566,6 +579,7 @@ static void __init mx31_3ds_init(void)
 
 static void __init mx31_3ds_late(void)
 {
+	gpiod_add_lookup_table(&mx31_3ds_lcd_gpiod_table);
 	mx31_3ds_spi_devs[0].irq = gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_GPIO1_3));
 	spi_register_board_info(mx31_3ds_spi_devs,
 				ARRAY_SIZE(mx31_3ds_spi_devs));

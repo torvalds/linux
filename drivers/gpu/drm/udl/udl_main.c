@@ -351,13 +351,3 @@ int udl_drop_usb(struct drm_device *dev)
 	udl_free_urb_list(dev);
 	return 0;
 }
-
-void udl_fini(struct drm_device *dev)
-{
-	struct udl_device *udl = to_udl(dev);
-
-	drm_kms_helper_poll_fini(dev);
-
-	if (udl->urbs.count)
-		udl_free_urb_list(dev);
-}

@@ -54,7 +54,8 @@ static inline struct lima_vm *lima_vm_get(struct lima_vm *vm)
 
 static inline void lima_vm_put(struct lima_vm *vm)
 {
-	kref_put(&vm->refcount, lima_vm_release);
+	if (vm)
+		kref_put(&vm->refcount, lima_vm_release);
 }
 
 void lima_vm_print(struct lima_vm *vm);

@@ -147,7 +147,7 @@ static int riscv_map_hw_event(u64 config)
 	return riscv_pmu->hw_events[config];
 }
 
-int riscv_map_cache_decode(u64 config, unsigned int *type,
+static int riscv_map_cache_decode(u64 config, unsigned int *type,
 			   unsigned int *op, unsigned int *result)
 {
 	return -ENOENT;
@@ -342,7 +342,7 @@ static void riscv_pmu_del(struct perf_event *event, int flags)
 
 static DEFINE_MUTEX(pmc_reserve_mutex);
 
-irqreturn_t riscv_base_pmu_handle_irq(int irq_num, void *dev)
+static irqreturn_t riscv_base_pmu_handle_irq(int irq_num, void *dev)
 {
 	return IRQ_NONE;
 }
@@ -361,7 +361,7 @@ static int reserve_pmc_hardware(void)
 	return err;
 }
 
-void release_pmc_hardware(void)
+static void release_pmc_hardware(void)
 {
 	mutex_lock(&pmc_reserve_mutex);
 	if (riscv_pmu->irq >= 0)
@@ -464,7 +464,7 @@ static const struct of_device_id riscv_pmu_of_ids[] = {
 	{ /* sentinel value */ }
 };
 
-int __init init_hw_perf_events(void)
+static int __init init_hw_perf_events(void)
 {
 	struct device_node *node = of_find_node_by_type(NULL, "pmu");
 	const struct of_device_id *of_id;

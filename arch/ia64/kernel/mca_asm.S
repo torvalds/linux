@@ -25,9 +25,9 @@
  *		Use per cpu MCA/INIT stacks for all data.
  */
 #include <linux/threads.h>
+#include <linux/pgtable.h>
 
 #include <asm/asmmacro.h>
-#include <asm/pgtable.h>
 #include <asm/processor.h>
 #include <asm/mca_asm.h>
 #include <asm/mca.h>

@@ -81,20 +81,6 @@
 		enable-active-high;
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
-		regulator-always-on;
-	};
-
-	reg_bt: regulator-bt {
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_reg_bt>;
-		compatible = "regulator-fixed";
-		regulator-name = "bt";
-		gpio = <&gpio1 2 GPIO_ACTIVE_HIGH>;
-		startup-delay-us = <100>;
-		enable-active-high;
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		regulator-always-on;
 	};
 };
 
@@ -231,9 +217,14 @@
 /* Sterling-LWB Bluetooth */
 &uart4 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_uart4>;
+	pinctrl-0 = <&pinctrl_uart4>,<&pinctrl_bten>;
 	uart-has-rtscts;
 	status = "okay";
+
+	bluetooth {
+		compatible = "brcm,bcm4330-bt";
+		shutdown-gpios = <&gpio1 2 GPIO_ACTIVE_HIGH>;
+	};
 };
 
 /* GPS */
@@ -259,7 +250,7 @@
 &usdhc2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc2>;
-	vmmc-supply = <&reg_3p3v>;
+	vmmc-supply = <&reg_wl>;
 	non-removable;
 	bus-width = <4>;
 	status = "okay";
@@ -285,6 +276,12 @@
 	pinctrl_accel: accelmuxgrp {
 		fsl,pins = <
 			MX6QDL_PAD_GPIO_18__GPIO7_IO13		0x1b0b1
+		>;
+	};
+
+	pinctrl_bten: btengrp {
+		fsl,pins = <
+			MX6QDL_PAD_GPIO_2__GPIO1_IO02		0x1b0b1
 		>;
 	};
 
@@ -390,12 +387,6 @@
 	pinctrl_pwm3: pwm3grp {
 		fsl,pins = <
 			MX6QDL_PAD_SD1_DAT1__PWM3_OUT		0x1b0b1
-		>;
-	};
-
-	pinctrl_reg_bt: regbtgrp {
-		fsl,pins = <
-			MX6QDL_PAD_GPIO_2__GPIO1_IO02		0x1b0b1
 		>;
 	};
 

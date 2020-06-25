@@ -403,7 +403,7 @@ v3d_sched_init(struct v3d_dev *v3d)
 			     msecs_to_jiffies(hang_limit_ms),
 			     "v3d_bin");
 	if (ret) {
-		dev_err(v3d->dev, "Failed to create bin scheduler: %d.", ret);
+		dev_err(v3d->drm.dev, "Failed to create bin scheduler: %d.", ret);
 		return ret;
 	}
 
@@ -413,7 +413,7 @@ v3d_sched_init(struct v3d_dev *v3d)
 			     msecs_to_jiffies(hang_limit_ms),
 			     "v3d_render");
 	if (ret) {
-		dev_err(v3d->dev, "Failed to create render scheduler: %d.",
+		dev_err(v3d->drm.dev, "Failed to create render scheduler: %d.",
 			ret);
 		v3d_sched_fini(v3d);
 		return ret;
@@ -425,7 +425,7 @@ v3d_sched_init(struct v3d_dev *v3d)
 			     msecs_to_jiffies(hang_limit_ms),
 			     "v3d_tfu");
 	if (ret) {
-		dev_err(v3d->dev, "Failed to create TFU scheduler: %d.",
+		dev_err(v3d->drm.dev, "Failed to create TFU scheduler: %d.",
 			ret);
 		v3d_sched_fini(v3d);
 		return ret;
@@ -438,7 +438,7 @@ v3d_sched_init(struct v3d_dev *v3d)
 				     msecs_to_jiffies(hang_limit_ms),
 				     "v3d_csd");
 		if (ret) {
-			dev_err(v3d->dev, "Failed to create CSD scheduler: %d.",
+			dev_err(v3d->drm.dev, "Failed to create CSD scheduler: %d.",
 				ret);
 			v3d_sched_fini(v3d);
 			return ret;
@@ -450,7 +450,7 @@ v3d_sched_init(struct v3d_dev *v3d)
 				     msecs_to_jiffies(hang_limit_ms),
 				     "v3d_cache_clean");
 		if (ret) {
-			dev_err(v3d->dev, "Failed to create CACHE_CLEAN scheduler: %d.",
+			dev_err(v3d->drm.dev, "Failed to create CACHE_CLEAN scheduler: %d.",
 				ret);
 			v3d_sched_fini(v3d);
 			return ret;

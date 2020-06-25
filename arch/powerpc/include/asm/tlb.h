@@ -10,7 +10,7 @@
 #ifdef __KERNEL__
 
 #ifndef __powerpc64__
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #endif
 #include <asm/pgalloc.h>
 #ifndef __powerpc64__

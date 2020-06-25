@@ -25,6 +25,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/delay.h>
 #include <linux/firmware.h>
+#include <linux/pgtable.h>
 #include <asm/io.h>
 #include <asm/string.h>
 #include <asm/page.h>
@@ -40,7 +41,6 @@
 #include <asm/idprom.h>
 #include <asm/openprom.h>
 #include <asm/oplib.h>
-#include <asm/pgtable.h>
 #endif
 
 #if defined(CONFIG_ATM_FORE200E_USE_TASKLET) /* defer interrupt work to a tasklet */

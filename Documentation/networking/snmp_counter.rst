@@ -792,7 +792,7 @@ counters to indicate the ACK is skipped in which scenario. The ACK
 would only be skipped if the received packet is either a SYN packet or
 it has no data.
 
-.. _sysctl document: https://www.kernel.org/doc/Documentation/networking/ip-sysctl.txt
+.. _sysctl document: https://www.kernel.org/doc/Documentation/networking/ip-sysctl.rst
 
 * TcpExtTCPACKSkippedSynRecv
 

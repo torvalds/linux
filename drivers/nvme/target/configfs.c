@@ -20,61 +20,71 @@ static const struct config_item_type nvmet_subsys_type;
 static LIST_HEAD(nvmet_ports_list);
 struct list_head *nvmet_ports = &nvmet_ports_list;
 
-static const struct nvmet_transport_name {
+struct nvmet_type_name_map {
 	u8		type;
 	const char	*name;
-} nvmet_transport_names[] = {
+};
+
+static struct nvmet_type_name_map nvmet_transport[] = {
 	{ NVMF_TRTYPE_RDMA,	"rdma" },
 	{ NVMF_TRTYPE_FC,	"fc" },
 	{ NVMF_TRTYPE_TCP,	"tcp" },
 	{ NVMF_TRTYPE_LOOP,	"loop" },
 };
 
+static const struct nvmet_type_name_map nvmet_addr_family[] = {
+	{ NVMF_ADDR_FAMILY_PCI,		"pcie" },
+	{ NVMF_ADDR_FAMILY_IP4,		"ipv4" },
+	{ NVMF_ADDR_FAMILY_IP6,		"ipv6" },
+	{ NVMF_ADDR_FAMILY_IB,		"ib" },
+	{ NVMF_ADDR_FAMILY_FC,		"fc" },
+	{ NVMF_ADDR_FAMILY_LOOP,	"loop" },
+};
+
+static bool nvmet_is_port_enabled(struct nvmet_port *p, const char *caller)
+{
+	if (p->enabled)
+		pr_err("Disable port '%u' before changing attribute in %s\n",
+				le16_to_cpu(p->disc_addr.portid), caller);
+	return p->enabled;
+}
+
 /*
  * nvmet_port Generic ConfigFS definitions.
  * Used in any place in the ConfigFS tree that refers to an address.
  */
-static ssize_t nvmet_addr_adrfam_show(struct config_item *item,
-		char *page)
+static ssize_t nvmet_addr_adrfam_show(struct config_item *item, char *page)
 {
-	switch (to_nvmet_port(item)->disc_addr.adrfam) {
-	case NVMF_ADDR_FAMILY_IP4:
-		return sprintf(page, "ipv4\n");
-	case NVMF_ADDR_FAMILY_IP6:
-		return sprintf(page, "ipv6\n");
-	case NVMF_ADDR_FAMILY_IB:
-		return sprintf(page, "ib\n");
-	case NVMF_ADDR_FAMILY_FC:
-		return sprintf(page, "fc\n");
-	default:
-		return sprintf(page, "\n");
+	u8 adrfam = to_nvmet_port(item)->disc_addr.adrfam;
+	int i;
+
+	for (i = 1; i < ARRAY_SIZE(nvmet_addr_family); i++) {
+		if (nvmet_addr_family[i].type == adrfam)
+			return sprintf(page, "%s\n", nvmet_addr_family[i].name);
 	}
+
+	return sprintf(page, "\n");
 }
 
 static ssize_t nvmet_addr_adrfam_store(struct config_item *item,
 		const char *page, size_t count)
 {
 	struct nvmet_port *port = to_nvmet_port(item);
+	int i;
 
-	if (port->enabled) {
-		pr_err("Cannot modify address while enabled\n");
-		pr_err("Disable the address before modifying\n");
+	if (nvmet_is_port_enabled(port, __func__))
 		return -EACCES;
+
+	for (i = 1; i < ARRAY_SIZE(nvmet_addr_family); i++) {
+		if (sysfs_streq(page, nvmet_addr_family[i].name))
+			goto found;
 	}
 
-	if (sysfs_streq(page, "ipv4")) {
-		port->disc_addr.adrfam = NVMF_ADDR_FAMILY_IP4;
-	} else if (sysfs_streq(page, "ipv6")) {
-		port->disc_addr.adrfam = NVMF_ADDR_FAMILY_IP6;
-	} else if (sysfs_streq(page, "ib")) {
-		port->disc_addr.adrfam = NVMF_ADDR_FAMILY_IB;
-	} else if (sysfs_streq(page, "fc")) {
-		port->disc_addr.adrfam = NVMF_ADDR_FAMILY_FC;
-	} else {
-		pr_err("Invalid value '%s' for adrfam\n", page);
-		return -EINVAL;
-	}
+	pr_err("Invalid value '%s' for adrfam\n", page);
+	return -EINVAL;
 
+found:
+	port->disc_addr.adrfam = nvmet_addr_family[i].type;
 	return count;
 }
 
@@ -100,11 +110,9 @@ static ssize_t nvmet_addr_portid_store(struct config_item *item,
 		return -EINVAL;
 	}
 
-	if (port->enabled) {
-		pr_err("Cannot modify address while enabled\n");
-		pr_err("Disable the address before modifying\n");
+	if (nvmet_is_port_enabled(port, __func__))
 		return -EACCES;
-	}
+
 	port->disc_addr.portid = cpu_to_le16(portid);
 	return count;
 }
@@ -130,11 +138,8 @@ static ssize_t nvmet_addr_traddr_store(struct config_item *item,
 		return -EINVAL;
 	}
 
-	if (port->enabled) {
-		pr_err("Cannot modify address while enabled\n");
-		pr_err("Disable the address before modifying\n");
+	if (nvmet_is_port_enabled(port, __func__))
 		return -EACCES;
-	}
 
 	if (sscanf(page, "%s\n", port->disc_addr.traddr) != 1)
 		return -EINVAL;
@@ -143,20 +148,24 @@ static ssize_t nvmet_addr_traddr_store(struct config_item *item,
 
 CONFIGFS_ATTR(nvmet_, addr_traddr);
 
-static ssize_t nvmet_addr_treq_show(struct config_item *item,
-		char *page)
+static const struct nvmet_type_name_map nvmet_addr_treq[] = {
+	{ NVMF_TREQ_NOT_SPECIFIED,	"not specified" },
+	{ NVMF_TREQ_REQUIRED,		"required" },
+	{ NVMF_TREQ_NOT_REQUIRED,	"not required" },
+};
+
+static ssize_t nvmet_addr_treq_show(struct config_item *item, char *page)
 {
-	switch (to_nvmet_port(item)->disc_addr.treq &
-		NVME_TREQ_SECURE_CHANNEL_MASK) {
-	case NVMF_TREQ_NOT_SPECIFIED:
-		return sprintf(page, "not specified\n");
-	case NVMF_TREQ_REQUIRED:
-		return sprintf(page, "required\n");
-	case NVMF_TREQ_NOT_REQUIRED:
-		return sprintf(page, "not required\n");
-	default:
-		return sprintf(page, "\n");
+	u8 treq = to_nvmet_port(item)->disc_addr.treq &
+		NVME_TREQ_SECURE_CHANNEL_MASK;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(nvmet_addr_treq); i++) {
+		if (treq == nvmet_addr_treq[i].type)
+			return sprintf(page, "%s\n", nvmet_addr_treq[i].name);
 	}
+
+	return sprintf(page, "\n");
 }
 
 static ssize_t nvmet_addr_treq_store(struct config_item *item,
@@ -164,25 +173,22 @@ static ssize_t nvmet_addr_treq_store(struct config_item *item,
 {
 	struct nvmet_port *port = to_nvmet_port(item);
 	u8 treq = port->disc_addr.treq & ~NVME_TREQ_SECURE_CHANNEL_MASK;
+	int i;
 
-	if (port->enabled) {
-		pr_err("Cannot modify address while enabled\n");
-		pr_err("Disable the address before modifying\n");
+	if (nvmet_is_port_enabled(port, __func__))
 		return -EACCES;
+
+	for (i = 0; i < ARRAY_SIZE(nvmet_addr_treq); i++) {
+		if (sysfs_streq(page, nvmet_addr_treq[i].name))
+			goto found;
 	}
 
-	if (sysfs_streq(page, "not specified")) {
-		treq |= NVMF_TREQ_NOT_SPECIFIED;
-	} else if (sysfs_streq(page, "required")) {
-		treq |= NVMF_TREQ_REQUIRED;
-	} else if (sysfs_streq(page, "not required")) {
-		treq |= NVMF_TREQ_NOT_REQUIRED;
-	} else {
-		pr_err("Invalid value '%s' for treq\n", page);
-		return -EINVAL;
-	}
+	pr_err("Invalid value '%s' for treq\n", page);
+	return -EINVAL;
+
+found:
+	treq |= nvmet_addr_treq[i].type;
 	port->disc_addr.treq = treq;
-
 	return count;
 }
 
@@ -206,11 +212,8 @@ static ssize_t nvmet_addr_trsvcid_store(struct config_item *item,
 		pr_err("Invalid value '%s' for trsvcid\n", page);
 		return -EINVAL;
 	}
-	if (port->enabled) {
-		pr_err("Cannot modify address while enabled\n");
-		pr_err("Disable the address before modifying\n");
+	if (nvmet_is_port_enabled(port, __func__))
 		return -EACCES;
-	}
 
 	if (sscanf(page, "%s\n", port->disc_addr.trsvcid) != 1)
 		return -EINVAL;
@@ -233,11 +236,8 @@ static ssize_t nvmet_param_inline_data_size_store(struct config_item *item,
 	struct nvmet_port *port = to_nvmet_port(item);
 	int ret;
 
-	if (port->enabled) {
-		pr_err("Cannot modify inline_data_size while port enabled\n");
-		pr_err("Disable the port before modifying\n");
+	if (nvmet_is_port_enabled(port, __func__))
 		return -EACCES;
-	}
 	ret = kstrtoint(page, 0, &port->inline_data_size);
 	if (ret) {
 		pr_err("Invalid value '%s' for inline_data_size\n", page);
@@ -248,16 +248,45 @@ static ssize_t nvmet_param_inline_data_size_store(struct config_item *item,
 
 CONFIGFS_ATTR(nvmet_, param_inline_data_size);
 
+#ifdef CONFIG_BLK_DEV_INTEGRITY
+static ssize_t nvmet_param_pi_enable_show(struct config_item *item,
+		char *page)
+{
+	struct nvmet_port *port = to_nvmet_port(item);
+
+	return snprintf(page, PAGE_SIZE, "%d\n", port->pi_enable);
+}
+
+static ssize_t nvmet_param_pi_enable_store(struct config_item *item,
+		const char *page, size_t count)
+{
+	struct nvmet_port *port = to_nvmet_port(item);
+	bool val;
+
+	if (strtobool(page, &val))
+		return -EINVAL;
+
+	if (port->enabled) {
+		pr_err("Disable port before setting pi_enable value.\n");
+		return -EACCES;
+	}
+
+	port->pi_enable = val;
+	return count;
+}
+
+CONFIGFS_ATTR(nvmet_, param_pi_enable);
+#endif
+
 static ssize_t nvmet_addr_trtype_show(struct config_item *item,
 		char *page)
 {
 	struct nvmet_port *port = to_nvmet_port(item);
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(nvmet_transport_names); i++) {
-		if (port->disc_addr.trtype != nvmet_transport_names[i].type)
-			continue;
-		return sprintf(page, "%s\n", nvmet_transport_names[i].name);
+	for (i = 0; i < ARRAY_SIZE(nvmet_transport); i++) {
+		if (port->disc_addr.trtype == nvmet_transport[i].type)
+			return sprintf(page, "%s\n", nvmet_transport[i].name);
 	}
 
 	return sprintf(page, "\n");
@@ -276,22 +305,20 @@ static ssize_t nvmet_addr_trtype_store(struct config_item *item,
 	struct nvmet_port *port = to_nvmet_port(item);
 	int i;
 
-	if (port->enabled) {
-		pr_err("Cannot modify address while enabled\n");
-		pr_err("Disable the address before modifying\n");
+	if (nvmet_is_port_enabled(port, __func__))
 		return -EACCES;
-	}
 
-	for (i = 0; i < ARRAY_SIZE(nvmet_transport_names); i++) {
-		if (sysfs_streq(page, nvmet_transport_names[i].name))
+	for (i = 0; i < ARRAY_SIZE(nvmet_transport); i++) {
+		if (sysfs_streq(page, nvmet_transport[i].name))
 			goto found;
 	}
 
 	pr_err("Invalid value '%s' for trtype\n", page);
 	return -EINVAL;
+
 found:
 	memset(&port->disc_addr.tsas, 0, NVMF_TSAS_SIZE);
-	port->disc_addr.trtype = nvmet_transport_names[i].type;
+	port->disc_addr.trtype = nvmet_transport[i].type;
 	if (port->disc_addr.trtype == NVMF_TRTYPE_RDMA)
 		nvmet_port_init_tsas_rdma(port);
 	return count;
@@ -327,7 +354,7 @@ static ssize_t nvmet_ns_device_path_store(struct config_item *item,
 
 	kfree(ns->device_path);
 	ret = -ENOMEM;
-	ns->device_path = kstrndup(page, len, GFP_KERNEL);
+	ns->device_path = kmemdup_nul(page, len, GFP_KERNEL);
 	if (!ns->device_path)
 		goto out_unlock;
 
@@ -543,6 +570,31 @@ static ssize_t nvmet_ns_buffered_io_store(struct config_item *item,
 
 CONFIGFS_ATTR(nvmet_ns_, buffered_io);
 
+static ssize_t nvmet_ns_revalidate_size_store(struct config_item *item,
+		const char *page, size_t count)
+{
+	struct nvmet_ns *ns = to_nvmet_ns(item);
+	bool val;
+
+	if (strtobool(page, &val))
+		return -EINVAL;
+
+	if (!val)
+		return -EINVAL;
+
+	mutex_lock(&ns->subsys->lock);
+	if (!ns->enabled) {
+		pr_err("enable ns before revalidate.\n");
+		mutex_unlock(&ns->subsys->lock);
+		return -EINVAL;
+	}
+	nvmet_ns_revalidate(ns);
+	mutex_unlock(&ns->subsys->lock);
+	return count;
+}
+
+CONFIGFS_ATTR_WO(nvmet_ns_, revalidate_size);
+
 static struct configfs_attribute *nvmet_ns_attrs[] = {
 	&nvmet_ns_attr_device_path,
 	&nvmet_ns_attr_device_nguid,
@@ -550,6 +602,7 @@ static struct configfs_attribute *nvmet_ns_attrs[] = {
 	&nvmet_ns_attr_ana_grpid,
 	&nvmet_ns_attr_enable,
 	&nvmet_ns_attr_buffered_io,
+	&nvmet_ns_attr_revalidate_size,
 #ifdef CONFIG_PCI_P2PDMA
 	&nvmet_ns_attr_p2pmem,
 #endif
@@ -963,7 +1016,7 @@ static ssize_t nvmet_subsys_attr_model_store(struct config_item *item,
 			return -EINVAL;
 	}
 
-	new_model_number = kstrndup(page, len, GFP_KERNEL);
+	new_model_number = kmemdup_nul(page, len, GFP_KERNEL);
 	if (!new_model_number)
 		return -ENOMEM;
 
@@ -987,6 +1040,28 @@ static ssize_t nvmet_subsys_attr_model_store(struct config_item *item,
 }
 CONFIGFS_ATTR(nvmet_subsys_, attr_model);
 
+#ifdef CONFIG_BLK_DEV_INTEGRITY
+static ssize_t nvmet_subsys_attr_pi_enable_show(struct config_item *item,
+						char *page)
+{
+	return snprintf(page, PAGE_SIZE, "%d\n", to_subsys(item)->pi_support);
+}
+
+static ssize_t nvmet_subsys_attr_pi_enable_store(struct config_item *item,
+						 const char *page, size_t count)
+{
+	struct nvmet_subsys *subsys = to_subsys(item);
+	bool pi_enable;
+
+	if (strtobool(page, &pi_enable))
+		return -EINVAL;
+
+	subsys->pi_support = pi_enable;
+	return count;
+}
+CONFIGFS_ATTR(nvmet_subsys_, attr_pi_enable);
+#endif
+
 static struct configfs_attribute *nvmet_subsys_attrs[] = {
 	&nvmet_subsys_attr_attr_allow_any_host,
 	&nvmet_subsys_attr_attr_version,
@@ -994,6 +1069,9 @@ static struct configfs_attribute *nvmet_subsys_attrs[] = {
 	&nvmet_subsys_attr_attr_cntlid_min,
 	&nvmet_subsys_attr_attr_cntlid_max,
 	&nvmet_subsys_attr_attr_model,
+#ifdef CONFIG_BLK_DEV_INTEGRITY
+	&nvmet_subsys_attr_attr_pi_enable,
+#endif
 	NULL,
 };
 
@@ -1149,10 +1227,7 @@ static const struct config_item_type nvmet_referrals_type = {
 	.ct_group_ops	= &nvmet_referral_group_ops,
 };
 
-static struct {
-	enum nvme_ana_state	state;
-	const char		*name;
-} nvmet_ana_state_names[] = {
+static struct nvmet_type_name_map nvmet_ana_state[] = {
 	{ NVME_ANA_OPTIMIZED,		"optimized" },
 	{ NVME_ANA_NONOPTIMIZED,	"non-optimized" },
 	{ NVME_ANA_INACCESSIBLE,	"inaccessible" },
@@ -1167,10 +1242,9 @@ static ssize_t nvmet_ana_group_ana_state_show(struct config_item *item,
 	enum nvme_ana_state state = grp->port->ana_state[grp->grpid];
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(nvmet_ana_state_names); i++) {
-		if (state != nvmet_ana_state_names[i].state)
-			continue;
-		return sprintf(page, "%s\n", nvmet_ana_state_names[i].name);
+	for (i = 0; i < ARRAY_SIZE(nvmet_ana_state); i++) {
+		if (state == nvmet_ana_state[i].type)
+			return sprintf(page, "%s\n", nvmet_ana_state[i].name);
 	}
 
 	return sprintf(page, "\n");
@@ -1180,10 +1254,11 @@ static ssize_t nvmet_ana_group_ana_state_store(struct config_item *item,
 		const char *page, size_t count)
 {
 	struct nvmet_ana_group *grp = to_ana_group(item);
+	enum nvme_ana_state *ana_state = grp->port->ana_state;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(nvmet_ana_state_names); i++) {
-		if (sysfs_streq(page, nvmet_ana_state_names[i].name))
+	for (i = 0; i < ARRAY_SIZE(nvmet_ana_state); i++) {
+		if (sysfs_streq(page, nvmet_ana_state[i].name))
 			goto found;
 	}
 
@@ -1192,10 +1267,9 @@ static ssize_t nvmet_ana_group_ana_state_store(struct config_item *item,
 
 found:
 	down_write(&nvmet_ana_sem);
-	grp->port->ana_state[grp->grpid] = nvmet_ana_state_names[i].state;
+	ana_state[grp->grpid] = (enum nvme_ana_state) nvmet_ana_state[i].type;
 	nvmet_ana_chgcnt++;
 	up_write(&nvmet_ana_sem);
-
 	nvmet_port_send_ana_event(grp->port);
 	return count;
 }
@@ -1297,6 +1371,9 @@ static struct configfs_attribute *nvmet_port_attrs[] = {
 	&nvmet_attr_addr_trsvcid,
 	&nvmet_attr_addr_trtype,
 	&nvmet_attr_param_inline_data_size,
+#ifdef CONFIG_BLK_DEV_INTEGRITY
+	&nvmet_attr_param_pi_enable,
+#endif
 	NULL,
 };
 
@@ -1346,6 +1423,7 @@ static struct config_group *nvmet_ports_make(struct config_group *group,
 	port->inline_data_size = -1;	/* < 0 == let the transport choose */
 
 	port->disc_addr.portid = cpu_to_le16(portid);
+	port->disc_addr.adrfam = NVMF_ADDR_FAMILY_MAX;
 	port->disc_addr.treq = NVMF_TREQ_DISABLE_SQFLOW;
 	config_group_init_type_name(&port->group, name, &nvmet_port_type);
 

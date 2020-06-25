@@ -117,7 +117,8 @@ struct b53_device {
 	u8 jumbo_pm_reg;
 	u8 jumbo_size_reg;
 	int reset_gpio;
-	u8 num_arl_entries;
+	u8 num_arl_bins;
+	u16 num_arl_buckets;
 	enum dsa_tag_protocol tag_protocol;
 
 	/* used ports mask */
@@ -211,6 +212,11 @@ static inline int is58xx(struct b53_device *dev)
 
 #define B53_CPU_PORT_25	5
 #define B53_CPU_PORT	8
+
+static inline unsigned int b53_max_arl_entries(struct b53_device *dev)
+{
+	return dev->num_arl_buckets * dev->num_arl_bins;
+}
 
 struct b53_device *b53_switch_alloc(struct device *base,
 				    const struct b53_io_ops *ops,

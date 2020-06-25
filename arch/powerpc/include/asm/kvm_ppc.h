@@ -58,28 +58,28 @@ enum xlate_readwrite {
 	XLATE_WRITE		/* check for write permissions */
 };
 
-extern int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu);
-extern int __kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu);
+extern int kvmppc_vcpu_run(struct kvm_vcpu *vcpu);
+extern int __kvmppc_vcpu_run(struct kvm_run *run, struct kvm_vcpu *vcpu);
 extern void kvmppc_handler_highmem(void);
 
 extern void kvmppc_dump_vcpu(struct kvm_vcpu *vcpu);
-extern int kvmppc_handle_load(struct kvm_run *run, struct kvm_vcpu *vcpu,
+extern int kvmppc_handle_load(struct kvm_vcpu *vcpu,
                               unsigned int rt, unsigned int bytes,
 			      int is_default_endian);
-extern int kvmppc_handle_loads(struct kvm_run *run, struct kvm_vcpu *vcpu,
+extern int kvmppc_handle_loads(struct kvm_vcpu *vcpu,
                                unsigned int rt, unsigned int bytes,
 			       int is_default_endian);
-extern int kvmppc_handle_vsx_load(struct kvm_run *run, struct kvm_vcpu *vcpu,
+extern int kvmppc_handle_vsx_load(struct kvm_vcpu *vcpu,
 				unsigned int rt, unsigned int bytes,
 			int is_default_endian, int mmio_sign_extend);
-extern int kvmppc_handle_vmx_load(struct kvm_run *run, struct kvm_vcpu *vcpu,
+extern int kvmppc_handle_vmx_load(struct kvm_vcpu *vcpu,
 		unsigned int rt, unsigned int bytes, int is_default_endian);
-extern int kvmppc_handle_vmx_store(struct kvm_run *run, struct kvm_vcpu *vcpu,
+extern int kvmppc_handle_vmx_store(struct kvm_vcpu *vcpu,
 		unsigned int rs, unsigned int bytes, int is_default_endian);
-extern int kvmppc_handle_store(struct kvm_run *run, struct kvm_vcpu *vcpu,
+extern int kvmppc_handle_store(struct kvm_vcpu *vcpu,
 			       u64 val, unsigned int bytes,
 			       int is_default_endian);
-extern int kvmppc_handle_vsx_store(struct kvm_run *run, struct kvm_vcpu *vcpu,
+extern int kvmppc_handle_vsx_store(struct kvm_vcpu *vcpu,
 				int rs, unsigned int bytes,
 				int is_default_endian);
 
@@ -90,10 +90,9 @@ extern int kvmppc_ld(struct kvm_vcpu *vcpu, ulong *eaddr, int size, void *ptr,
 		     bool data);
 extern int kvmppc_st(struct kvm_vcpu *vcpu, ulong *eaddr, int size, void *ptr,
 		     bool data);
-extern int kvmppc_emulate_instruction(struct kvm_run *run,
-                                      struct kvm_vcpu *vcpu);
+extern int kvmppc_emulate_instruction(struct kvm_vcpu *vcpu);
 extern int kvmppc_emulate_loadstore(struct kvm_vcpu *vcpu);
-extern int kvmppc_emulate_mmio(struct kvm_run *run, struct kvm_vcpu *vcpu);
+extern int kvmppc_emulate_mmio(struct kvm_vcpu *vcpu);
 extern void kvmppc_emulate_dec(struct kvm_vcpu *vcpu);
 extern u32 kvmppc_get_dec(struct kvm_vcpu *vcpu, u64 tb);
 extern void kvmppc_decrementer_func(struct kvm_vcpu *vcpu);
@@ -267,7 +266,7 @@ struct kvmppc_ops {
 	void (*vcpu_put)(struct kvm_vcpu *vcpu);
 	void (*inject_interrupt)(struct kvm_vcpu *vcpu, int vec, u64 srr1_flags);
 	void (*set_msr)(struct kvm_vcpu *vcpu, u64 msr);
-	int (*vcpu_run)(struct kvm_run *run, struct kvm_vcpu *vcpu);
+	int (*vcpu_run)(struct kvm_vcpu *vcpu);
 	int (*vcpu_create)(struct kvm_vcpu *vcpu);
 	void (*vcpu_free)(struct kvm_vcpu *vcpu);
 	int (*check_requests)(struct kvm_vcpu *vcpu);
@@ -291,7 +290,7 @@ struct kvmppc_ops {
 	int (*init_vm)(struct kvm *kvm);
 	void (*destroy_vm)(struct kvm *kvm);
 	int (*get_smmu_info)(struct kvm *kvm, struct kvm_ppc_smmu_info *info);
-	int (*emulate_op)(struct kvm_run *run, struct kvm_vcpu *vcpu,
+	int (*emulate_op)(struct kvm_vcpu *vcpu,
 			  unsigned int inst, int *advance);
 	int (*emulate_mtspr)(struct kvm_vcpu *vcpu, int sprn, ulong spr_val);
 	int (*emulate_mfspr)(struct kvm_vcpu *vcpu, int sprn, ulong *spr_val);

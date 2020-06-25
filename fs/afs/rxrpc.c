@@ -37,7 +37,6 @@ int afs_open_socket(struct afs_net *net)
 {
 	struct sockaddr_rxrpc srx;
 	struct socket *socket;
-	unsigned int min_level;
 	int ret;
 
 	_enter("");
@@ -57,9 +56,8 @@ int afs_open_socket(struct afs_net *net)
 	srx.transport.sin6.sin6_family	= AF_INET6;
 	srx.transport.sin6.sin6_port	= htons(AFS_CM_PORT);
 
-	min_level = RXRPC_SECURITY_ENCRYPT;
-	ret = kernel_setsockopt(socket, SOL_RXRPC, RXRPC_MIN_SECURITY_LEVEL,
-				(void *)&min_level, sizeof(min_level));
+	ret = rxrpc_sock_set_min_security_level(socket->sk,
+						RXRPC_SECURITY_ENCRYPT);
 	if (ret < 0)
 		goto error_2;
 
@@ -183,8 +181,7 @@ void afs_put_call(struct afs_call *call)
 		if (call->type->destructor)
 			call->type->destructor(call);
 
-		afs_put_server(call->net, call->server, afs_server_trace_put_call);
-		afs_put_cb_interest(call->net, call->cbi);
+		afs_unuse_server_notime(call->net, call->server, afs_server_trace_put_call);
 		afs_put_addrlist(call->alist);
 		kfree(call->request);
 
@@ -283,18 +280,19 @@ static void afs_load_bvec(struct afs_call *call, struct msghdr *msg,
 			  struct bio_vec *bv, pgoff_t first, pgoff_t last,
 			  unsigned offset)
 {
+	struct afs_operation *op = call->op;
 	struct page *pages[AFS_BVEC_MAX];
 	unsigned int nr, n, i, to, bytes = 0;
 
 	nr = min_t(pgoff_t, last - first + 1, AFS_BVEC_MAX);
-	n = find_get_pages_contig(call->mapping, first, nr, pages);
+	n = find_get_pages_contig(op->store.mapping, first, nr, pages);
 	ASSERTCMP(n, ==, nr);
 
 	msg->msg_flags |= MSG_MORE;
 	for (i = 0; i < nr; i++) {
 		to = PAGE_SIZE;
 		if (first + i >= last) {
-			to = call->last_to;
+			to = op->store.last_to;
 			msg->msg_flags &= ~MSG_MORE;
 		}
 		bv[i].bv_page = pages[i];
@@ -324,13 +322,14 @@ static void afs_notify_end_request_tx(struct sock *sock,
  */
 static int afs_send_pages(struct afs_call *call, struct msghdr *msg)
 {
+	struct afs_operation *op = call->op;
 	struct bio_vec bv[AFS_BVEC_MAX];
 	unsigned int bytes, nr, loop, offset;
-	pgoff_t first = call->first, last = call->last;
+	pgoff_t first = op->store.first, last = op->store.last;
 	int ret;
 
-	offset = call->first_offset;
-	call->first_offset = 0;
+	offset = op->store.first_offset;
+	op->store.first_offset = 0;
 
 	do {
 		afs_load_bvec(call, msg, bv, first, last, offset);
@@ -340,7 +339,7 @@ static int afs_send_pages(struct afs_call *call, struct msghdr *msg)
 		bytes = msg->msg_iter.count;
 		nr = msg->msg_iter.nr_segs;
 
-		ret = rxrpc_kernel_send_data(call->net->socket, call->rxcall, msg,
+		ret = rxrpc_kernel_send_data(op->net->socket, call->rxcall, msg,
 					     bytes, afs_notify_end_request_tx);
 		for (loop = 0; loop < nr; loop++)
 			put_page(bv[loop].bv_page);
@@ -350,7 +349,7 @@ static int afs_send_pages(struct afs_call *call, struct msghdr *msg)
 		first += nr;
 	} while (first <= last);
 
-	trace_afs_sent_pages(call, call->first, last, first, ret);
+	trace_afs_sent_pages(call, op->store.first, last, first, ret);
 	return ret;
 }
 
@@ -385,16 +384,18 @@ void afs_make_call(struct afs_addr_cursor *ac, struct afs_call *call, gfp_t gfp)
 	 */
 	tx_total_len = call->request_size;
 	if (call->send_pages) {
-		if (call->last == call->first) {
-			tx_total_len += call->last_to - call->first_offset;
+		struct afs_operation *op = call->op;
+
+		if (op->store.last == op->store.first) {
+			tx_total_len += op->store.last_to - op->store.first_offset;
 		} else {
 			/* It looks mathematically like you should be able to
 			 * combine the following lines with the ones above, but
 			 * unsigned arithmetic is fun when it wraps...
 			 */
-			tx_total_len += PAGE_SIZE - call->first_offset;
-			tx_total_len += call->last_to;
-			tx_total_len += (call->last - call->first - 1) * PAGE_SIZE;
+			tx_total_len += PAGE_SIZE - op->store.first_offset;
+			tx_total_len += op->store.last_to;
+			tx_total_len += (op->store.last - op->store.first - 1) * PAGE_SIZE;
 		}
 	}
 
@@ -540,13 +541,15 @@ static void afs_deliver_to_call(struct afs_call *call)
 
 		ret = call->type->deliver(call);
 		state = READ_ONCE(call->state);
+		if (ret == 0 && call->unmarshalling_error)
+			ret = -EBADMSG;
 		switch (ret) {
 		case 0:
 			afs_queue_call_work(call);
 			if (state == AFS_CALL_CL_PROC_REPLY) {
-				if (call->cbi)
+				if (call->op)
 					set_bit(AFS_SERVER_FL_MAY_HAVE_CB,
-						&call->cbi->server->flags);
+						&call->op->server->flags);
 				goto call_complete;
 			}
 			ASSERTCMP(state, >, AFS_CALL_CL_PROC_REPLY);
@@ -959,9 +962,11 @@ int afs_extract_data(struct afs_call *call, bool want_more)
 /*
  * Log protocol error production.
  */
-noinline int afs_protocol_error(struct afs_call *call, int error,
+noinline int afs_protocol_error(struct afs_call *call,
 				enum afs_eproto_cause cause)
 {
-	trace_afs_protocol_error(call, error, cause);
-	return error;
+	trace_afs_protocol_error(call, cause);
+	if (call)
+		call->unmarshalling_error = true;
+	return -EBADMSG;
 }

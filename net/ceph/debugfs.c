@@ -81,11 +81,13 @@ static int osdmap_show(struct seq_file *s, void *p)
 		u32 state = map->osd_state[i];
 		char sb[64];
 
-		seq_printf(s, "osd%d\t%s\t%3d%%\t(%s)\t%3d%%\n",
+		seq_printf(s, "osd%d\t%s\t%3d%%\t(%s)\t%3d%%\t%2d\n",
 			   i, ceph_pr_addr(addr),
 			   ((map->osd_weight[i]*100) >> 16),
 			   ceph_osdmap_state_str(sb, sizeof(sb), state),
-			   ((ceph_get_primary_affinity(map, i)*100) >> 16));
+			   ((ceph_get_primary_affinity(map, i)*100) >> 16),
+			   ceph_get_crush_locality(map, i,
+					   &client->options->crush_locs));
 	}
 	for (n = rb_first(&map->pg_temp); n; n = rb_next(n)) {
 		struct ceph_pg_mapping *pg =

@@ -110,7 +110,7 @@ stutter
 		  same period of time.  Defaults to "stutter=5", so as
 		  to run and pause for (roughly) five-second intervals.
 		  Specifying "stutter=0" causes the test to run continuously
-		  without pausing, which is the old default behavior.
+		  without pausing.
 
 shuffle_interval
 		  The number of seconds to keep the test threads affinitied

@@ -279,12 +279,12 @@ config LTC1660
 	  module will be called ltc1660.
 
 config LTC2632
-	tristate "Linear Technology LTC2632-12/10/8 and LTC2636-12/10/8 DAC spi driver"
+	tristate "Linear Technology LTC2632-12/10/8 and similar DAC spi driver"
 	depends on SPI
 	help
 	  Say yes here to build support for Linear Technology
-	  LTC2632-12, LTC2632-10, LTC2632-8, LTC2636-12, LTC2636-10 and
-	  LTC2636-8 converters (DAC).
+	  LTC2632, LTC2634 and LTC2636 DAC resolution 12/10/8 bit
+	  low 0-2.5V and high 0-4.096V range converters.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ltc2632.
@@ -325,7 +325,7 @@ config MAX5821
 config MCP4725
 	tristate "MCP4725/6 DAC driver"
 	depends on I2C
-	---help---
+	help
 	  Say Y here if you want to build a driver for the Microchip
 	  MCP 4725/6 12-bit digital-to-analog converter (DAC) with I2C
 	  interface.

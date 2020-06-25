@@ -1,0 +1,159 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+Kernel driver max16601
+======================
+
+Supported chips:
+
+  * Maxim MAX16601
+
+    Prefix: 'max16601'
+
+    Addresses scanned: -
+
+    Datasheet: Not published
+
+Author: Guenter Roeck <linux@roeck-us.net>
+
+
+Description
+-----------
+
+This driver supports the MAX16601 VR13.HC Dual-Output Voltage Regulator
+Chipset.
+
+The driver is a client driver to the core PMBus driver.
+Please see Documentation/hwmon/pmbus.rst for details on PMBus client drivers.
+
+
+Usage Notes
+-----------
+
+This driver does not auto-detect devices. You will have to instantiate the
+devices explicitly. Please see Documentation/i2c/instantiating-devices.rst for
+details.
+
+
+Platform data support
+---------------------
+
+The driver supports standard PMBus driver platform data.
+
+
+Sysfs entries
+-------------
+
+The following attributes are supported.
+
+======================= =======================================================
+in1_label		"vin1"
+in1_input		VCORE input voltage.
+in1_alarm		Input voltage alarm.
+
+in2_label		"vout1"
+in2_input		VCORE output voltage.
+in2_alarm		Output voltage alarm.
+
+curr1_label		"iin1"
+curr1_input		VCORE input current, derived from duty cycle and output
+			current.
+curr1_max		Maximum input current.
+curr1_max_alarm		Current high alarm.
+
+curr2_label		"iin1.0"
+curr2_input		VCORE phase 0 input current.
+
+curr3_label		"iin1.1"
+curr3_input		VCORE phase 1 input current.
+
+curr4_label		"iin1.2"
+curr4_input		VCORE phase 2 input current.
+
+curr5_label		"iin1.3"
+curr5_input		VCORE phase 3 input current.
+
+curr6_label		"iin1.4"
+curr6_input		VCORE phase 4 input current.
+
+curr7_label		"iin1.5"
+curr7_input		VCORE phase 5 input current.
+
+curr8_label		"iin1.6"
+curr8_input		VCORE phase 6 input current.
+
+curr9_label		"iin1.7"
+curr9_input		VCORE phase 7 input current.
+
+curr10_label		"iin2"
+curr10_input		VCORE input current, derived from sensor element.
+
+curr11_label		"iin3"
+curr11_input		VSA input current.
+
+curr12_label		"iout1"
+curr12_input		VCORE output current.
+curr12_crit		Critical output current.
+curr12_crit_alarm	Output current critical alarm.
+curr12_max		Maximum output current.
+curr12_max_alarm	Output current high alarm.
+
+curr13_label		"iout1.0"
+curr13_input		VCORE phase 0 output current.
+
+curr14_label		"iout1.1"
+curr14_input		VCORE phase 1 output current.
+
+curr15_label		"iout1.2"
+curr15_input		VCORE phase 2 output current.
+
+curr16_label		"iout1.3"
+curr16_input		VCORE phase 3 output current.
+
+curr17_label		"iout1.4"
+curr17_input		VCORE phase 4 output current.
+
+curr18_label		"iout1.5"
+curr18_input		VCORE phase 5 output current.
+
+curr19_label		"iout1.6"
+curr19_input		VCORE phase 6 output current.
+
+curr20_label		"iout1.7"
+curr20_input		VCORE phase 7 output current.
+
+curr21_label		"iout3"
+curr21_input		VSA output current.
+curr21_highest		Historical maximum VSA output current.
+curr21_reset_history	Write any value to reset curr21_highest.
+curr21_crit		Critical output current.
+curr21_crit_alarm	Output current critical alarm.
+curr21_max		Maximum output current.
+curr21_max_alarm	Output current high alarm.
+
+power1_label		"pin1"
+power1_input		Input power, derived from duty cycle and output current.
+power1_alarm		Input power alarm.
+
+power2_label		"pin2"
+power2_input		Input power, derived from input current sensor.
+
+power3_label		"pout"
+power3_input		Output power.
+
+temp1_input		VCORE temperature.
+temp1_crit		Critical high temperature.
+temp1_crit_alarm	Chip temperature critical high alarm.
+temp1_max		Maximum temperature.
+temp1_max_alarm		Chip temperature high alarm.
+
+temp2_input		TSENSE_0 temperature
+temp3_input		TSENSE_1 temperature
+temp4_input		TSENSE_2 temperature
+temp5_input		TSENSE_3 temperature
+
+temp6_input		VSA temperature.
+temp6_crit		Critical high temperature.
+temp6_crit_alarm	Chip temperature critical high alarm.
+temp6_max		Maximum temperature.
+temp6_max_alarm		Chip temperature high alarm.
+======================= =======================================================

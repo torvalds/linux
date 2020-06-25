@@ -77,8 +77,12 @@ struct hwrm_dbg_cmn_output {
 #define BNXT_LED_DFLT_ENABLES(x)			\
 	cpu_to_le32(BNXT_LED_DFLT_ENA << (BNXT_LED_DFLT_ENA_SHIFT * (x)))
 
-#define BNXT_FW_RESET_AP	0xfffe
-#define BNXT_FW_RESET_CHIP	0xffff
+#define BNXT_FW_RESET_AP	(ETH_RESET_AP << ETH_RESET_SHARED_SHIFT)
+#define BNXT_FW_RESET_CHIP	((ETH_RESET_MGMT | ETH_RESET_IRQ |	\
+				  ETH_RESET_DMA | ETH_RESET_FILTER |	\
+				  ETH_RESET_OFFLOAD | ETH_RESET_MAC |	\
+				  ETH_RESET_PHY | ETH_RESET_RAM)	\
+				 << ETH_RESET_SHARED_SHIFT)
 
 extern const struct ethtool_ops bnxt_ethtool_ops;
 

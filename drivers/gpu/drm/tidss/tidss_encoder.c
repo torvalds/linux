@@ -55,12 +55,18 @@ static int tidss_encoder_atomic_check(struct drm_encoder *encoder,
 	return 0;
 }
 
+static void tidss_encoder_destroy(struct drm_encoder *encoder)
+{
+	drm_encoder_cleanup(encoder);
+	kfree(encoder);
+}
+
 static const struct drm_encoder_helper_funcs encoder_helper_funcs = {
 	.atomic_check = tidss_encoder_atomic_check,
 };
 
 static const struct drm_encoder_funcs encoder_funcs = {
-	.destroy = drm_encoder_cleanup,
+	.destroy = tidss_encoder_destroy,
 };
 
 struct drm_encoder *tidss_encoder_create(struct tidss_device *tidss,
@@ -69,7 +75,7 @@ struct drm_encoder *tidss_encoder_create(struct tidss_device *tidss,
 	struct drm_encoder *enc;
 	int ret;
 
-	enc = devm_kzalloc(tidss->dev, sizeof(*enc), GFP_KERNEL);
+	enc = kzalloc(sizeof(*enc), GFP_KERNEL);
 	if (!enc)
 		return ERR_PTR(-ENOMEM);
 
@@ -77,8 +83,10 @@ struct drm_encoder *tidss_encoder_create(struct tidss_device *tidss,
 
 	ret = drm_encoder_init(&tidss->ddev, enc, &encoder_funcs,
 			       encoder_type, NULL);
-	if (ret < 0)
+	if (ret < 0) {
+		kfree(enc);
 		return ERR_PTR(ret);
+	}
 
 	drm_encoder_helper_add(enc, &encoder_helper_funcs);
 

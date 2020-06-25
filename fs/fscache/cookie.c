@@ -4,7 +4,7 @@
  * Copyright (C) 2004-2007 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
  *
- * See Documentation/filesystems/caching/netfs-api.txt for more information on
+ * See Documentation/filesystems/caching/netfs-api.rst for more information on
  * the netfs API.
  */
 

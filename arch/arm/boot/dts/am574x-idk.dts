@@ -40,3 +40,7 @@
 	status = "okay";
 	dual_emac;
 };
+
+&m_can0 {
+	status = "disabled";
+};

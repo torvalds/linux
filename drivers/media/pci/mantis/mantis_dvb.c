@@ -135,7 +135,7 @@ static int mantis_dvb_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 int mantis_dvb_init(struct mantis_pci *mantis)
 {
 	struct mantis_hwconfig *config = mantis->hwconfig;
-	int result = -1;
+	int result;
 
 	dprintk(MANTIS_DEBUG, 1, "dvb_register_adapter");
 

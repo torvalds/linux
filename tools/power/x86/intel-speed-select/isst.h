@@ -29,6 +29,7 @@
 #include <sys/ioctl.h>
 
 #define BIT(x) (1 << (x))
+#define BIT_ULL(nr) (1ULL << (nr))
 #define GENMASK(h, l) (((~0UL) << (l)) & (~0UL >> (sizeof(long) * 8 - 1 - (h))))
 #define GENMASK_ULL(h, l)                                                      \
 	(((~0ULL) << (l)) & (~0ULL >> (sizeof(long long) * 8 - 1 - (h))))

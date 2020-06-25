@@ -77,7 +77,7 @@ size_t perf_top__header_snprintf(struct perf_top *top, char *bf, size_t size)
 				opts->freq ? "Hz" : "");
 	}
 
-	ret += SNPRINTF(bf + ret, size - ret, "%s", perf_evsel__name(top->sym_evsel));
+	ret += SNPRINTF(bf + ret, size - ret, "%s", evsel__name(top->sym_evsel));
 
 	ret += SNPRINTF(bf + ret, size - ret, "], ");
 

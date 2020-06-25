@@ -44,7 +44,8 @@
 	.endm
 #endif
 
-#if defined(CONFIG_CPU_MIPSR2) || defined(CONFIG_CPU_MIPSR6)
+#if defined(CONFIG_CPU_MIPSR2) || defined(CONFIG_CPU_MIPSR5) || \
+    defined(CONFIG_CPU_MIPSR6)
 	.macro	local_irq_enable reg=t0
 	ei
 	irq_enable_hazard
@@ -54,7 +55,7 @@
 	di
 	irq_disable_hazard
 	.endm
-#else
+#else /* !CONFIG_CPU_MIPSR2 && !CONFIG_CPU_MIPSR5 && !CONFIG_CPU_MIPSR6 */
 	.macro	local_irq_enable reg=t0
 	mfc0	\reg, CP0_STATUS
 	ori	\reg, \reg, 1
@@ -79,7 +80,7 @@
 	sw      \reg, TI_PRE_COUNT($28)
 #endif
 	.endm
-#endif /* CONFIG_CPU_MIPSR2 */
+#endif  /* !CONFIG_CPU_MIPSR2 && !CONFIG_CPU_MIPSR5 && !CONFIG_CPU_MIPSR6 */
 
 	.macro	fpu_save_16even thread tmp=t0
 	.set	push
@@ -131,7 +132,7 @@
 
 	.macro	fpu_save_double thread status tmp
 #if defined(CONFIG_64BIT) || defined(CONFIG_CPU_MIPSR2) || \
-		defined(CONFIG_CPU_MIPSR6)
+    defined(CONFIG_CPU_MIPSR5) || defined(CONFIG_CPU_MIPSR6)
 	sll	\tmp, \status, 5
 	bgez	\tmp, 10f
 	fpu_save_16odd \thread
@@ -190,7 +191,7 @@
 
 	.macro	fpu_restore_double thread status tmp
 #if defined(CONFIG_64BIT) || defined(CONFIG_CPU_MIPSR2) || \
-		defined(CONFIG_CPU_MIPSR6)
+    defined(CONFIG_CPU_MIPSR5) || defined(CONFIG_CPU_MIPSR6)
 	sll	\tmp, \status, 5
 	bgez	\tmp, 10f				# 16 register mode?
 
@@ -200,16 +201,17 @@
 	fpu_restore_16even \thread \tmp
 	.endm
 
-#if defined(CONFIG_CPU_MIPSR2) || defined(CONFIG_CPU_MIPSR6)
+#if defined(CONFIG_CPU_MIPSR2) || defined(CONFIG_CPU_MIPSR5) || \
+    defined(CONFIG_CPU_MIPSR6)
 	.macro	_EXT	rd, rs, p, s
 	ext	\rd, \rs, \p, \s
 	.endm
-#else /* !CONFIG_CPU_MIPSR2 || !CONFIG_CPU_MIPSR6 */
+#else /* !CONFIG_CPU_MIPSR2 && !CONFIG_CPU_MIPSR5 && !CONFIG_CPU_MIPSR6 */
 	.macro	_EXT	rd, rs, p, s
 	srl	\rd, \rs, \p
 	andi	\rd, \rd, (1 << \s) - 1
 	.endm
-#endif /* !CONFIG_CPU_MIPSR2 || !CONFIG_CPU_MIPSR6 */
+#endif /* !CONFIG_CPU_MIPSR2 && !CONFIG_CPU_MIPSR5 && !CONFIG_CPU_MIPSR6 */
 
 /*
  * Temporary until all gas have MT ASE support

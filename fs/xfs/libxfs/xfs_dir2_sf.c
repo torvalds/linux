@@ -343,7 +343,7 @@ xfs_dir2_block_to_sf(
 	 */
 	ASSERT(dp->i_df.if_bytes == 0);
 	xfs_init_local_fork(dp, XFS_DATA_FORK, sfp, size);
-	dp->i_d.di_format = XFS_DINODE_FMT_LOCAL;
+	dp->i_df.if_format = XFS_DINODE_FMT_LOCAL;
 	dp->i_d.di_size = size;
 
 	logflags |= XFS_ILOG_DDATA;
@@ -710,11 +710,11 @@ xfs_dir2_sf_verify(
 	struct xfs_inode		*ip)
 {
 	struct xfs_mount		*mp = ip->i_mount;
+	struct xfs_ifork		*ifp = XFS_IFORK_PTR(ip, XFS_DATA_FORK);
 	struct xfs_dir2_sf_hdr		*sfp;
 	struct xfs_dir2_sf_entry	*sfep;
 	struct xfs_dir2_sf_entry	*next_sfep;
 	char				*endp;
-	struct xfs_ifork		*ifp;
 	xfs_ino_t			ino;
 	int				i;
 	int				i8count;
@@ -723,9 +723,8 @@ xfs_dir2_sf_verify(
 	int				error;
 	uint8_t				filetype;
 
-	ASSERT(ip->i_d.di_format == XFS_DINODE_FMT_LOCAL);
+	ASSERT(ifp->if_format == XFS_DINODE_FMT_LOCAL);
 
-	ifp = XFS_IFORK_PTR(ip, XFS_DATA_FORK);
 	sfp = (struct xfs_dir2_sf_hdr *)ifp->if_u1.if_data;
 	size = ifp->if_bytes;
 
@@ -827,9 +826,9 @@ xfs_dir2_sf_create(
 	 * If it's currently a zero-length extent file,
 	 * convert it to local format.
 	 */
-	if (dp->i_d.di_format == XFS_DINODE_FMT_EXTENTS) {
+	if (dp->i_df.if_format == XFS_DINODE_FMT_EXTENTS) {
 		dp->i_df.if_flags &= ~XFS_IFEXTENTS;	/* just in case */
-		dp->i_d.di_format = XFS_DINODE_FMT_LOCAL;
+		dp->i_df.if_format = XFS_DINODE_FMT_LOCAL;
 		xfs_trans_log_inode(args->trans, dp, XFS_ILOG_CORE);
 		dp->i_df.if_flags |= XFS_IFINLINE;
 	}
@@ -1027,7 +1026,7 @@ xfs_dir2_sf_replace_needblock(
 	int			newsize;
 	struct xfs_dir2_sf_hdr	*sfp;
 
-	if (dp->i_d.di_format != XFS_DINODE_FMT_LOCAL)
+	if (dp->i_df.if_format != XFS_DINODE_FMT_LOCAL)
 		return false;
 
 	sfp = (struct xfs_dir2_sf_hdr *)dp->i_df.if_u1.if_data;

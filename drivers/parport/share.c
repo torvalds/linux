@@ -278,46 +278,32 @@ static int port_detect(struct device *dev, void *dev_drv)
 int __parport_register_driver(struct parport_driver *drv, struct module *owner,
 			      const char *mod_name)
 {
-	if (drv->devmodel) {
-		/* using device model */
-		int ret;
+	/* using device model */
+	int ret;
 
-		/* initialize common driver fields */
-		drv->driver.name = drv->name;
-		drv->driver.bus = &parport_bus_type;
-		drv->driver.owner = owner;
-		drv->driver.mod_name = mod_name;
-		ret = driver_register(&drv->driver);
-		if (ret)
-			return ret;
+	/* initialize common driver fields */
+	drv->driver.name = drv->name;
+	drv->driver.bus = &parport_bus_type;
+	drv->driver.owner = owner;
+	drv->driver.mod_name = mod_name;
+	ret = driver_register(&drv->driver);
+	if (ret)
+		return ret;
 
-		/*
-		 * check if bus has any parallel port registered, if
-		 * none is found then load the lowlevel driver.
-		 */
-		ret = bus_for_each_dev(&parport_bus_type, NULL, NULL,
-				       port_detect);
-		if (!ret)
-			get_lowlevel_driver();
+	/*
+	 * check if bus has any parallel port registered, if
+	 * none is found then load the lowlevel driver.
+	 */
+	ret = bus_for_each_dev(&parport_bus_type, NULL, NULL,
+			       port_detect);
+	if (!ret)
+		get_lowlevel_driver();
 
-		mutex_lock(&registration_lock);
-		if (drv->match_port)
-			bus_for_each_dev(&parport_bus_type, NULL, drv,
-					 port_check);
-		mutex_unlock(&registration_lock);
-	} else {
-		struct parport *port;
-
-		drv->devmodel = false;
-
-		if (list_empty(&portlist))
-			get_lowlevel_driver();
-		mutex_lock(&registration_lock);
-		list_for_each_entry(port, &portlist, list)
-			drv->attach(port);
-		list_add(&drv->list, &drivers);
-		mutex_unlock(&registration_lock);
-	}
+	mutex_lock(&registration_lock);
+	if (drv->match_port)
+		bus_for_each_dev(&parport_bus_type, NULL, drv,
+				 port_check);
+	mutex_unlock(&registration_lock);
 
 	return 0;
 }
@@ -352,17 +338,9 @@ static int port_detach(struct device *dev, void *_drv)
 
 void parport_unregister_driver(struct parport_driver *drv)
 {
-	struct parport *port;
-
 	mutex_lock(&registration_lock);
-	if (drv->devmodel) {
-		bus_for_each_dev(&parport_bus_type, NULL, drv, port_detach);
-		driver_unregister(&drv->driver);
-	} else {
-		list_del_init(&drv->list);
-		list_for_each_entry(port, &portlist, list)
-			drv->detach(port);
-	}
+	bus_for_each_dev(&parport_bus_type, NULL, drv, port_detach);
+	driver_unregister(&drv->driver);
 	mutex_unlock(&registration_lock);
 }
 EXPORT_SYMBOL(parport_unregister_driver);
@@ -554,8 +532,8 @@ void parport_announce_port(struct parport *port)
 #endif
 
 	if (!port->dev)
-		printk(KERN_WARNING "%s: fix this legacy no-device port driver!\n",
-		       port->name);
+		pr_warn("%s: fix this legacy no-device port driver!\n",
+			port->name);
 
 	parport_proc_register(port);
 	mutex_lock(&registration_lock);
@@ -641,47 +619,48 @@ void parport_remove_port(struct parport *port)
 }
 EXPORT_SYMBOL(parport_remove_port);
 
+static void free_pardevice(struct device *dev)
+{
+	struct pardevice *par_dev = to_pardevice(dev);
+
+	kfree(par_dev->name);
+	kfree(par_dev);
+}
+
 /**
- *	parport_register_device - register a device on a parallel port
+ *	parport_register_dev_model - register a device on a parallel port
  *	@port: port to which the device is attached
  *	@name: a name to refer to the device
- *	@pf: preemption callback
- *	@kf: kick callback (wake-up)
- *	@irq_func: interrupt handler
- *	@flags: registration flags
- *	@handle: data for callback functions
+ *	@par_dev_cb: struct containing callbacks
+ *	@id: device number to be given to the device
  *
  *	This function, called by parallel port device drivers,
  *	declares that a device is connected to a port, and tells the
  *	system all it needs to know.
  *
- *	The @name is allocated by the caller and must not be
- *	deallocated until the caller calls @parport_unregister_device
- *	for that device.
+ *	The struct pardev_cb contains pointer to callbacks. preemption
+ *	callback function, @preempt, is called when this device driver
+ *	has claimed access to the port but another device driver wants
+ *	to use it.  It is given, @private, as its parameter, and should
+ *	return zero if it is willing for the system to release the port
+ *	to another driver on its behalf. If it wants to keep control of
+ *	the port it should return non-zero, and no action will be taken.
+ *	It is good manners for the driver to try to release the port at
+ *	the earliest opportunity after its preemption callback rejects a
+ *	preemption attempt. Note that if a preemption callback is happy
+ *	for preemption to go ahead, there is no need to release the
+ *	port; it is done automatically. This function may not block, as
+ *	it may be called from interrupt context. If the device driver
+ *	does not support preemption, @preempt can be %NULL.
  *
- *	The preemption callback function, @pf, is called when this
- *	device driver has claimed access to the port but another
- *	device driver wants to use it.  It is given @handle as its
- *	parameter, and should return zero if it is willing for the
- *	system to release the port to another driver on its behalf.
- *	If it wants to keep control of the port it should return
- *	non-zero, and no action will be taken.  It is good manners for
- *	the driver to try to release the port at the earliest
- *	opportunity after its preemption callback rejects a preemption
- *	attempt.  Note that if a preemption callback is happy for
- *	preemption to go ahead, there is no need to release the port;
- *	it is done automatically.  This function may not block, as it
- *	may be called from interrupt context.  If the device driver
- *	does not support preemption, @pf can be %NULL.
- *
- *	The wake-up ("kick") callback function, @kf, is called when
+ *	The wake-up ("kick") callback function, @wakeup, is called when
  *	the port is available to be claimed for exclusive access; that
  *	is, parport_claim() is guaranteed to succeed when called from
  *	inside the wake-up callback function.  If the driver wants to
  *	claim the port it should do so; otherwise, it need not take
  *	any action.  This function may not block, as it may be called
  *	from interrupt context.  If the device driver does not want to
- *	be explicitly invited to claim the port in this way, @kf can
+ *	be explicitly invited to claim the port in this way, @wakeup can
  *	be %NULL.
  *
  *	The interrupt handler, @irq_func, is called when an interrupt
@@ -709,138 +688,6 @@ EXPORT_SYMBOL(parport_remove_port);
  *	the device on the port, or %NULL if there is not enough memory
  *	to allocate space for that structure.
  **/
-
-struct pardevice *
-parport_register_device(struct parport *port, const char *name,
-			int (*pf)(void *), void (*kf)(void *),
-			void (*irq_func)(void *),
-			int flags, void *handle)
-{
-	struct pardevice *tmp;
-
-	if (port->physport->flags & PARPORT_FLAG_EXCL) {
-		/* An exclusive device is registered. */
-		printk(KERN_DEBUG "%s: no more devices allowed\n",
-			port->name);
-		return NULL;
-	}
-
-	if (flags & PARPORT_DEV_LURK) {
-		if (!pf || !kf) {
-			printk(KERN_INFO "%s: refused to register lurking device (%s) without callbacks\n", port->name, name);
-			return NULL;
-		}
-	}
-
-	if (flags & PARPORT_DEV_EXCL) {
-		if (port->physport->devices) {
-			/*
-			 * If a device is already registered and this new
-			 * device wants exclusive access, then no need to
-			 * continue as we can not grant exclusive access to
-			 * this device.
-			 */
-			pr_err("%s: cannot grant exclusive access for device %s\n",
-			       port->name, name);
-			return NULL;
-		}
-	}
-
-	/*
-	 * We up our own module reference count, and that of the port
-	 * on which a device is to be registered, to ensure that
-	 * neither of us gets unloaded while we sleep in (e.g.)
-	 * kmalloc.
-	 */
-	if (!try_module_get(port->ops->owner))
-		return NULL;
-
-	parport_get_port(port);
-
-	tmp = kmalloc(sizeof(struct pardevice), GFP_KERNEL);
-	if (!tmp)
-		goto out;
-
-	tmp->state = kmalloc(sizeof(struct parport_state), GFP_KERNEL);
-	if (!tmp->state)
-		goto out_free_pardevice;
-
-	tmp->name = name;
-	tmp->port = port;
-	tmp->daisy = -1;
-	tmp->preempt = pf;
-	tmp->wakeup = kf;
-	tmp->private = handle;
-	tmp->flags = flags;
-	tmp->irq_func = irq_func;
-	tmp->waiting = 0;
-	tmp->timeout = 5 * HZ;
-	tmp->devmodel = false;
-
-	/* Chain this onto the list */
-	tmp->prev = NULL;
-	/*
-	 * This function must not run from an irq handler so we don' t need
-	 * to clear irq on the local CPU. -arca
-	 */
-	spin_lock(&port->physport->pardevice_lock);
-
-	if (flags & PARPORT_DEV_EXCL) {
-		if (port->physport->devices) {
-			spin_unlock(&port->physport->pardevice_lock);
-			printk(KERN_DEBUG
-				"%s: cannot grant exclusive access for device %s\n",
-				port->name, name);
-			goto out_free_all;
-		}
-		port->flags |= PARPORT_FLAG_EXCL;
-	}
-
-	tmp->next = port->physport->devices;
-	wmb(); /*
-		* Make sure that tmp->next is written before it's
-		* added to the list; see comments marked 'no locking
-		* required'
-		*/
-	if (port->physport->devices)
-		port->physport->devices->prev = tmp;
-	port->physport->devices = tmp;
-	spin_unlock(&port->physport->pardevice_lock);
-
-	init_waitqueue_head(&tmp->wait_q);
-	tmp->timeslice = parport_default_timeslice;
-	tmp->waitnext = tmp->waitprev = NULL;
-
-	/*
-	 * This has to be run as last thing since init_state may need other
-	 * pardevice fields. -arca
-	 */
-	port->ops->init_state(tmp, tmp->state);
-	if (!test_and_set_bit(PARPORT_DEVPROC_REGISTERED, &port->devflags)) {
-		port->proc_device = tmp;
-		parport_device_proc_register(tmp);
-	}
-	return tmp;
-
- out_free_all:
-	kfree(tmp->state);
- out_free_pardevice:
-	kfree(tmp);
- out:
-	parport_put_port(port);
-	module_put(port->ops->owner);
-
-	return NULL;
-}
-EXPORT_SYMBOL(parport_register_device);
-
-static void free_pardevice(struct device *dev)
-{
-	struct pardevice *par_dev = to_pardevice(dev);
-
-	kfree(par_dev->name);
-	kfree(par_dev);
-}
 
 struct pardevice *
 parport_register_dev_model(struct parport *port, const char *name,
@@ -996,7 +843,7 @@ void parport_unregister_device(struct pardevice *dev)
 
 #ifdef PARPORT_PARANOID
 	if (!dev) {
-		printk(KERN_ERR "parport_unregister_device: passed NULL\n");
+		pr_err("%s: passed NULL\n", __func__);
 		return;
 	}
 #endif
@@ -1046,10 +893,7 @@ void parport_unregister_device(struct pardevice *dev)
 	spin_unlock_irq(&port->waitlist_lock);
 
 	kfree(dev->state);
-	if (dev->devmodel)
-		device_unregister(&dev->dev);
-	else
-		kfree(dev);
+	device_unregister(&dev->dev);
 
 	module_put(port->ops->owner);
 	parport_put_port(port);
@@ -1137,8 +981,7 @@ int parport_claim(struct pardevice *dev)
 	unsigned long flags;
 
 	if (port->cad == dev) {
-		printk(KERN_INFO "%s: %s already owner\n",
-		       dev->port->name,dev->name);
+		pr_info("%s: %s already owner\n", dev->port->name, dev->name);
 		return 0;
 	}
 
@@ -1158,9 +1001,8 @@ int parport_claim(struct pardevice *dev)
 			 * I think we'll actually deadlock rather than
 			 * get here, but just in case..
 			 */
-			printk(KERN_WARNING
-			       "%s: %s released port when preempted!\n",
-			       port->name, oldcad->name);
+			pr_warn("%s: %s released port when preempted!\n",
+				port->name, oldcad->name);
 			if (port->cad)
 				goto blocked;
 		}
@@ -1260,7 +1102,8 @@ int parport_claim_or_block(struct pardevice *dev)
 	r = parport_claim(dev);
 	if (r == -EAGAIN) {
 #ifdef PARPORT_DEBUG_SHARING
-		printk(KERN_DEBUG "%s: parport_claim() returned -EAGAIN\n", dev->name);
+		printk(KERN_DEBUG "%s: parport_claim() returned -EAGAIN\n",
+		       dev->name);
 #endif
 		/*
 		 * FIXME!!! Use the proper locking for dev->waiting,
@@ -1293,7 +1136,7 @@ int parport_claim_or_block(struct pardevice *dev)
 		if (dev->port->physport->cad != dev)
 			printk(KERN_DEBUG "%s: exiting parport_claim_or_block but %s owns port!\n",
 			       dev->name, dev->port->physport->cad ?
-			       dev->port->physport->cad->name:"nobody");
+			       dev->port->physport->cad->name : "nobody");
 #endif
 	}
 	dev->waiting = 0;
@@ -1320,8 +1163,8 @@ void parport_release(struct pardevice *dev)
 	write_lock_irqsave(&port->cad_lock, flags);
 	if (port->cad != dev) {
 		write_unlock_irqrestore(&port->cad_lock, flags);
-		printk(KERN_WARNING "%s: %s tried to release parport when not owner\n",
-		       port->name, dev->name);
+		pr_warn("%s: %s tried to release parport when not owner\n",
+			port->name, dev->name);
 		return;
 	}
 
@@ -1361,7 +1204,8 @@ void parport_release(struct pardevice *dev)
 			if (dev->port->cad) /* racy but no matter */
 				return;
 		} else {
-			printk(KERN_ERR "%s: don't know how to wake %s\n", port->name, pd->name);
+			pr_err("%s: don't know how to wake %s\n",
+			       port->name, pd->name);
 		}
 	}
 

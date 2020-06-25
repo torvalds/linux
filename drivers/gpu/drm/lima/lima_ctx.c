@@ -27,6 +27,9 @@ int lima_ctx_create(struct lima_device *dev, struct lima_ctx_mgr *mgr, u32 *id)
 	if (err < 0)
 		goto err_out0;
 
+	ctx->pid = task_pid_nr(current);
+	get_task_comm(ctx->pname, current);
+
 	return 0;
 
 err_out0:

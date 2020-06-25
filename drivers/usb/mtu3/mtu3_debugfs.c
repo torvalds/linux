@@ -276,7 +276,7 @@ static const struct file_operations mtu3_ep_fops = {
 	.release = single_release,
 };
 
-static struct debugfs_reg32 mtu3_prb_regs[] = {
+static const struct debugfs_reg32 mtu3_prb_regs[] = {
 	dump_prb_reg("enable", U3D_SSUSB_PRB_CTRL0),
 	dump_prb_reg("byte-sell", U3D_SSUSB_PRB_CTRL1),
 	dump_prb_reg("byte-selh", U3D_SSUSB_PRB_CTRL2),
@@ -349,7 +349,7 @@ static const struct file_operations mtu3_probe_fops = {
 static void mtu3_debugfs_create_prb_files(struct mtu3 *mtu)
 {
 	struct ssusb_mtk *ssusb = mtu->ssusb;
-	struct debugfs_reg32 *regs;
+	const struct debugfs_reg32 *regs;
 	struct dentry *dir_prb;
 	int i;
 

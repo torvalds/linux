@@ -6,8 +6,6 @@
 
 #include <asm-generic/module.h>
 
-#define MODULE_ARCH_VERMAGIC    "riscv"
-
 struct module;
 unsigned long module_emit_got_entry(struct module *mod, unsigned long val);
 unsigned long module_emit_plt_entry(struct module *mod, unsigned long val);

@@ -54,7 +54,7 @@ struct imx8mm_tmu {
 	void __iomem *base;
 	struct clk *clk;
 	const struct thermal_soc_data *socdata;
-	struct tmu_sensor sensors[0];
+	struct tmu_sensor sensors[];
 };
 
 static int imx8mm_tmu_get_temp(void *data, int *temp)

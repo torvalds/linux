@@ -288,6 +288,10 @@ struct hda_codec {
 #define dev_to_hda_codec(_dev)	container_of(_dev, struct hda_codec, core.dev)
 #define hda_codec_dev(_dev)	(&(_dev)->core.dev)
 
+#define hdac_to_hda_priv(_hdac) \
+			container_of(_hdac, struct hdac_hda_priv, codec.core)
+#define hdac_to_hda_codec(_hdac) container_of(_hdac, struct hda_codec, core)
+
 #define list_for_each_codec(c, bus) \
 	list_for_each_entry(c, &(bus)->core.codec_list, core.list)
 #define list_for_each_codec_safe(c, n, bus)				\
@@ -361,13 +365,6 @@ struct hda_verb {
 
 void snd_hda_sequence_write(struct hda_codec *codec,
 			    const struct hda_verb *seq);
-
-/* unsolicited event */
-static inline void
-snd_hda_queue_unsol_event(struct hda_bus *bus, u32 res, u32 res_ex)
-{
-	snd_hdac_bus_queue_event(&bus->core, res, res_ex);
-}
 
 /* cached write */
 static inline int
@@ -493,6 +490,11 @@ void snd_hda_update_power_acct(struct hda_codec *codec);
 #else
 static inline void snd_hda_set_power_save(struct hda_bus *bus, int delay) {}
 #endif
+
+static inline bool hda_codec_need_resume(struct hda_codec *codec)
+{
+	return !codec->relaxed_resume && codec->jacktbl.used;
+}
 
 #ifdef CONFIG_SND_HDA_PATCH_LOADER
 /*

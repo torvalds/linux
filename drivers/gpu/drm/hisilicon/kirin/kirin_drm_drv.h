@@ -37,7 +37,6 @@ struct kirin_drm_data {
 	u32 channel_formats_cnt;
 	int config_max_width;
 	int config_max_height;
-	bool register_connects;
 	u32 num_planes;
 	u32 prim_plane;
 

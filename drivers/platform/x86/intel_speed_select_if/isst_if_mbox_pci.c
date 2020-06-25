@@ -21,13 +21,12 @@
 #define PUNIT_MAILBOX_BUSY_BIT		31
 
 /*
- * Commands has variable amount of processing time. Most of the commands will
- * be done in 0-3 tries, but some takes up to 50.
- * The real processing time was observed as 25us for the most of the commands
- * at 2GHz. It is possible to optimize this count taking samples on customer
- * systems.
+ * The average time to complete some commands is about 40us. The current
+ * count is enough to satisfy 40us. But when the firmware is very busy, this
+ * causes timeout occasionally.  So increase to deal with some worst case
+ * scenarios. Most of the command still complete in few us.
  */
-#define OS_MAILBOX_RETRY_COUNT		50
+#define OS_MAILBOX_RETRY_COUNT		100
 
 struct isst_if_device {
 	struct mutex mutex;

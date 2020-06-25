@@ -11,7 +11,7 @@
   I know it's not the cleaner way,  but in C (not in C++) to get
   performances and genericity...
 
-  See Documentation/rbtree.txt for documentation and samples.
+  See Documentation/core-api/rbtree.rst for documentation and samples.
 */
 
 #ifndef __TOOLS_LINUX_PERF_RBTREE_H

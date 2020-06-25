@@ -37,9 +37,6 @@ InfiniBand core interfaces
 .. kernel-doc:: drivers/infiniband/core/ud_header.c
     :export:
 
-.. kernel-doc:: drivers/infiniband/core/fmr_pool.c
-    :export:
-
 .. kernel-doc:: drivers/infiniband/core/umem.c
     :export:
 

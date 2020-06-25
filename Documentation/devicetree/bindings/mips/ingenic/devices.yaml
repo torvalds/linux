@@ -20,16 +20,20 @@ properties:
       - description: Qi Hardware Ben NanoNote
         items:
           - const: qi,lb60
+          - const: ingenic,jz4740
 
       - description: Game Consoles Worldwide GCW Zero
         items:
           - const: gcw,zero
+          - const: ingenic,jz4770
 
       - description: MIPS Creator CI20
         items:
           - const: img,ci20
+          - const: ingenic,jz4780
 
       - description: YSH & ATIL General Board CU Neo
         items:
           - const: yna,cu1000-neo
+          - const: ingenic,x1000
 ...

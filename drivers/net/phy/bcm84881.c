@@ -155,15 +155,15 @@ static int bcm84881_read_status(struct phy_device *phydev)
 	if (phydev->autoneg == AUTONEG_ENABLE && !phydev->autoneg_complete)
 		phydev->link = false;
 
-	if (!phydev->link)
-		return 0;
-
 	linkmode_zero(phydev->lp_advertising);
 	phydev->speed = SPEED_UNKNOWN;
 	phydev->duplex = DUPLEX_UNKNOWN;
 	phydev->pause = 0;
 	phydev->asym_pause = 0;
 	phydev->mdix = 0;
+
+	if (!phydev->link)
+		return 0;
 
 	if (phydev->autoneg_complete) {
 		val = genphy_c45_read_lpa(phydev);

@@ -68,7 +68,7 @@ static inline u32 mlx5_fpga_tls_device_caps(struct mlx5_core_dev *mdev)
 	return mdev->fpga->tls->caps;
 }
 
-int mlx5_fpga_tls_resync_rx(struct mlx5_core_dev *mdev, u32 handle, u32 seq,
-			    u64 rcd_sn);
+int mlx5_fpga_tls_resync_rx(struct mlx5_core_dev *mdev, __be32 handle,
+			    u32 seq, __be64 rcd_sn);
 
 #endif /* __MLX5_FPGA_TLS_H__ */

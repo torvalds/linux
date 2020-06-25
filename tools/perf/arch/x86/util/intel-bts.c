@@ -224,7 +224,7 @@ static int intel_bts_recording_options(struct auxtrace_record *itr,
 		 * AUX event.
 		 */
 		if (!perf_cpu_map__empty(cpus))
-			perf_evsel__set_sample_bit(intel_bts_evsel, CPU);
+			evsel__set_sample_bit(intel_bts_evsel, CPU);
 	}
 
 	/* Add dummy event to keep tracking */

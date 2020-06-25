@@ -170,24 +170,16 @@ int hl_ctx_put(struct hl_ctx *ctx)
 
 struct dma_fence *hl_ctx_get_fence(struct hl_ctx *ctx, u64 seq)
 {
-	struct hl_device *hdev = ctx->hdev;
 	struct dma_fence *fence;
 
 	spin_lock(&ctx->cs_lock);
 
 	if (seq >= ctx->cs_sequence) {
-		dev_notice_ratelimited(hdev->dev,
-			"Can't wait on seq %llu because current CS is at seq %llu\n",
-			seq, ctx->cs_sequence);
 		spin_unlock(&ctx->cs_lock);
 		return ERR_PTR(-EINVAL);
 	}
 
-
 	if (seq + HL_MAX_PENDING_CS < ctx->cs_sequence) {
-		dev_dbg(hdev->dev,
-			"Can't wait on seq %llu because current CS is at seq %llu (Fence is gone)\n",
-			seq, ctx->cs_sequence);
 		spin_unlock(&ctx->cs_lock);
 		return NULL;
 	}

@@ -638,7 +638,7 @@ void cx88_i2c_init_ir(struct cx88_core *core)
 				   I2C_SMBUS_READ, 0,
 				   I2C_SMBUS_QUICK, NULL) >= 0) {
 			info.addr = *addrp;
-			i2c_new_device(&core->i2c_adap, &info);
+			i2c_new_client_device(&core->i2c_adap, &info);
 			break;
 		}
 	}

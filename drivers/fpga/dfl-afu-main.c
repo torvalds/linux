@@ -561,14 +561,16 @@ static int afu_open(struct inode *inode, struct file *filp)
 	if (WARN_ON(!pdata))
 		return -ENODEV;
 
-	ret = dfl_feature_dev_use_begin(pdata);
-	if (ret)
-		return ret;
+	mutex_lock(&pdata->lock);
+	ret = dfl_feature_dev_use_begin(pdata, filp->f_flags & O_EXCL);
+	if (!ret) {
+		dev_dbg(&fdev->dev, "Device File Opened %d Times\n",
+			dfl_feature_dev_use_count(pdata));
+		filp->private_data = fdev;
+	}
+	mutex_unlock(&pdata->lock);
 
-	dev_dbg(&fdev->dev, "Device File Open\n");
-	filp->private_data = fdev;
-
-	return 0;
+	return ret;
 }
 
 static int afu_release(struct inode *inode, struct file *filp)
@@ -581,11 +583,13 @@ static int afu_release(struct inode *inode, struct file *filp)
 	pdata = dev_get_platdata(&pdev->dev);
 
 	mutex_lock(&pdata->lock);
-	__port_reset(pdev);
-	afu_dma_region_destroy(pdata);
-	mutex_unlock(&pdata->lock);
-
 	dfl_feature_dev_use_end(pdata);
+
+	if (!dfl_feature_dev_use_count(pdata)) {
+		__port_reset(pdev);
+		afu_dma_region_destroy(pdata);
+	}
+	mutex_unlock(&pdata->lock);
 
 	return 0;
 }
@@ -746,6 +750,12 @@ static long afu_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	return -EINVAL;
 }
 
+static const struct vm_operations_struct afu_vma_ops = {
+#ifdef CONFIG_HAVE_IOREMAP_PROT
+	.access = generic_access_phys,
+#endif
+};
+
 static int afu_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	struct platform_device *pdev = filp->private_data;
@@ -774,6 +784,9 @@ static int afu_mmap(struct file *filp, struct vm_area_struct *vma)
 	if ((vma->vm_flags & VM_WRITE) &&
 	    !(region.flags & DFL_PORT_REGION_WRITE))
 		return -EPERM;
+
+	/* Support debug access to the mapping */
+	vma->vm_ops = &afu_vma_ops;
 
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 

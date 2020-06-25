@@ -27,6 +27,7 @@
 #include <drm/drm_print.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_file.h>
+#include <drm/drm_sysfs.h>
 
 #include <linux/uaccess.h>
 
@@ -523,6 +524,10 @@ int drm_connector_register(struct drm_connector *connector)
 	drm_mode_object_register(connector->dev, &connector->base);
 
 	connector->registration_state = DRM_CONNECTOR_REGISTERED;
+
+	/* Let userspace know we have a new connector */
+	drm_sysfs_hotplug_event(connector->dev);
+
 	goto unlock;
 
 err_debugfs:
@@ -948,8 +953,7 @@ static const struct drm_prop_enum_list dp_colorspaces[] = {
  * 	connector is linked to. Drivers should never set this property directly,
  * 	it is handled by the DRM core by calling the &drm_connector_funcs.dpms
  * 	callback. For atomic drivers the remapping to the "ACTIVE" property is
- * 	implemented in the DRM core.  This is the only standard connector
- * 	property that userspace can change.
+ * 	implemented in the DRM core.
  *
  * 	Note that this property cannot be set through the MODE_ATOMIC ioctl,
  * 	userspace must use "ACTIVE" on the CRTC instead.
@@ -995,6 +999,32 @@ static const struct drm_prop_enum_list dp_colorspaces[] = {
  *      after modeset, the kernel driver may set this to "BAD" and issue a
  *      hotplug uevent. Drivers should update this value using
  *      drm_connector_set_link_status_property().
+ *
+ *      When user-space receives the hotplug uevent and detects a "BAD"
+ *      link-status, the sink doesn't receive pixels anymore (e.g. the screen
+ *      becomes completely black). The list of available modes may have
+ *      changed. User-space is expected to pick a new mode if the current one
+ *      has disappeared and perform a new modeset with link-status set to
+ *      "GOOD" to re-enable the connector.
+ *
+ *      If multiple connectors share the same CRTC and one of them gets a "BAD"
+ *      link-status, the other are unaffected (ie. the sinks still continue to
+ *      receive pixels).
+ *
+ *      When user-space performs an atomic commit on a connector with a "BAD"
+ *      link-status without resetting the property to "GOOD", the sink may
+ *      still not receive pixels. When user-space performs an atomic commit
+ *      which resets the link-status property to "GOOD" without the
+ *      ALLOW_MODESET flag set, it might fail because a modeset is required.
+ *
+ *      User-space can only change link-status to "GOOD", changing it to "BAD"
+ *      is a no-op.
+ *
+ *      For backwards compatibility with non-atomic userspace the kernel
+ *      tries to automatically set the link-status back to "GOOD" in the
+ *      SETCRTC IOCTL. This might fail if the mode is no longer valid, similar
+ *      to how it might fail if a different screen has been connected in the
+ *      interim.
  * non_desktop:
  * 	Indicates the output should be ignored for purposes of displaying a
  * 	standard desktop environment or console. This is most likely because
@@ -1970,6 +2000,8 @@ int drm_connector_update_edid_property(struct drm_connector *connector,
 	else
 		drm_reset_display_info(connector);
 
+	drm_update_tile_info(connector, edid);
+
 	drm_object_property_set_value(&connector->base,
 				      dev->mode_config.non_desktop_property,
 				      connector->display_info.non_desktop);
@@ -2392,7 +2424,7 @@ EXPORT_SYMBOL(drm_mode_put_tile_group);
  * tile group or NULL if not found.
  */
 struct drm_tile_group *drm_mode_get_tile_group(struct drm_device *dev,
-					       char topology[8])
+					       const char topology[8])
 {
 	struct drm_tile_group *tg;
 	int id;
@@ -2422,7 +2454,7 @@ EXPORT_SYMBOL(drm_mode_get_tile_group);
  * new tile group or NULL.
  */
 struct drm_tile_group *drm_mode_create_tile_group(struct drm_device *dev,
-						  char topology[8])
+						  const char topology[8])
 {
 	struct drm_tile_group *tg;
 	int ret;

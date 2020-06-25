@@ -96,7 +96,6 @@ struct __attribute__ ((__packed__)) vmcb_control_area {
 	u8 reserved_6[8];	/* Offset 0xe8 */
 	u64 avic_logical_id;	/* Offset 0xf0 */
 	u64 avic_physical_id;	/* Offset 0xf8 */
-	u8 reserved_7[768];
 };
 
 
@@ -203,8 +202,16 @@ struct __attribute__ ((__packed__)) vmcb_save_area {
 	u64 last_excp_to;
 };
 
+
+static inline void __unused_size_checks(void)
+{
+	BUILD_BUG_ON(sizeof(struct vmcb_save_area) != 0x298);
+	BUILD_BUG_ON(sizeof(struct vmcb_control_area) != 256);
+}
+
 struct __attribute__ ((__packed__)) vmcb {
 	struct vmcb_control_area control;
+	u8 reserved_control[1024 - sizeof(struct vmcb_control_area)];
 	struct vmcb_save_area save;
 };
 

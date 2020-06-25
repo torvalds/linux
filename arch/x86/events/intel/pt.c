@@ -226,8 +226,6 @@ static int __init pt_pmu_hw_init(void)
 			pt_pmu.vmx = true;
 	}
 
-	attrs = NULL;
-
 	for (i = 0; i < PT_CPUID_LEAVES; i++) {
 		cpuid_count(20, i,
 			    &pt_pmu.caps[CPUID_EAX + i*PT_CPUID_REGS_NUM],

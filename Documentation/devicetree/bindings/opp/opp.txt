@@ -83,9 +83,14 @@ properties.
 
 Required properties:
 - opp-hz: Frequency in Hz, expressed as a 64-bit big-endian integer. This is a
-  required property for all device nodes but devices like power domains. The
-  power domain nodes must have another (implementation dependent) property which
-  uniquely identifies the OPP nodes.
+  required property for all device nodes, unless another "required" property to
+  uniquely identify the OPP nodes exists. Devices like power domains must have
+  another (implementation dependent) property.
+
+- opp-peak-kBps: Peak bandwidth in kilobytes per second, expressed as an array
+  of 32-bit big-endian integers. Each element of the array represents the
+  peak bandwidth value of each interconnect path. The number of elements should
+  match the number of interconnect paths.
 
 Optional properties:
 - opp-microvolt: voltage in micro Volts.
@@ -131,6 +136,12 @@ Optional properties:
 
 - opp-level: A value representing the performance level of the device,
   expressed as a 32-bit integer.
+
+- opp-avg-kBps: Average bandwidth in kilobytes per second, expressed as an array
+  of 32-bit big-endian integers. Each element of the array represents the
+  average bandwidth value of each interconnect path. The number of elements
+  should match the number of interconnect paths. This property is only
+  meaningful in OPP tables where opp-peak-kBps is present.
 
 - clock-latency-ns: Specifies the maximum possible transition latency (in
   nanoseconds) for switching to this OPP from any other OPP.

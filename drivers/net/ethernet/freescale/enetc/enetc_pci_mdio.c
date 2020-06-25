@@ -74,8 +74,8 @@ err_pci_mem_reg:
 	pci_disable_device(pdev);
 err_pci_enable:
 err_mdiobus_alloc:
-	iounmap(port_regs);
 err_hw_alloc:
+	iounmap(port_regs);
 err_ioremap:
 	return err;
 }

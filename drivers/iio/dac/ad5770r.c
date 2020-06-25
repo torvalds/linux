@@ -525,7 +525,7 @@ static int ad5770r_channel_config(struct ad5770r_state *st)
 		ret = fwnode_property_read_u32(child, "num", &num);
 		if (ret)
 			return ret;
-		if (num > AD5770R_MAX_CHANNELS)
+		if (num >= AD5770R_MAX_CHANNELS)
 			return -EINVAL;
 
 		ret = fwnode_property_read_u32_array(child,

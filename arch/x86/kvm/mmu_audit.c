@@ -100,7 +100,7 @@ static void audit_mappings(struct kvm_vcpu *vcpu, u64 *sptep, int level)
 	sp = page_header(__pa(sptep));
 
 	if (sp->unsync) {
-		if (level != PT_PAGE_TABLE_LEVEL) {
+		if (level != PG_LEVEL_4K) {
 			audit_printk(vcpu->kvm, "unsync sp: %p "
 				     "level = %d\n", sp, level);
 			return;
@@ -176,7 +176,7 @@ static void check_mappings_rmap(struct kvm *kvm, struct kvm_mmu_page *sp)
 {
 	int i;
 
-	if (sp->role.level != PT_PAGE_TABLE_LEVEL)
+	if (sp->role.level != PG_LEVEL_4K)
 		return;
 
 	for (i = 0; i < PT64_ENT_PER_PAGE; ++i) {
@@ -200,7 +200,7 @@ static void audit_write_protection(struct kvm *kvm, struct kvm_mmu_page *sp)
 
 	slots = kvm_memslots_for_spte_role(kvm, sp->role);
 	slot = __gfn_to_memslot(slots, sp->gfn);
-	rmap_head = __gfn_to_rmap(sp->gfn, PT_PAGE_TABLE_LEVEL, slot);
+	rmap_head = __gfn_to_rmap(sp->gfn, PG_LEVEL_4K, slot);
 
 	for_each_rmap_spte(rmap_head, &iter, sptep) {
 		if (is_writable_pte(*sptep))

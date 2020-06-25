@@ -3,7 +3,7 @@ config INFINIBAND_ISER
 	tristate "iSCSI Extensions for RDMA (iSER)"
 	depends on SCSI && INET && INFINIBAND_ADDR_TRANS
 	select SCSI_ISCSI_ATTRS
-	---help---
+	help
 	  Support for the iSCSI Extensions for RDMA (iSER) Protocol
 	  over InfiniBand. This allows you to access storage devices
 	  that speak iSCSI over iSER over InfiniBand.

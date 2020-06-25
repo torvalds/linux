@@ -7,7 +7,7 @@ config BLK_DEV_NVME
 	tristate "NVM Express block device"
 	depends on PCI && BLOCK
 	select NVME_CORE
-	---help---
+	help
 	  The NVM Express driver is for solid state drives directly
 	  connected to the PCI or PCI Express bus.  If you know you
 	  don't have one of these, it is safe to answer N.
@@ -18,7 +18,7 @@ config BLK_DEV_NVME
 config NVME_MULTIPATH
 	bool "NVMe multipath support"
 	depends on NVME_CORE
-	---help---
+	help
 	   This option enables support for multipath access to NVMe
 	   subsystems.  If this option is enabled only a single
 	   /dev/nvmeXnY device will show up for each NVMe namespaces,

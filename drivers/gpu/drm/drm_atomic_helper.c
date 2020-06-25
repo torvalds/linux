@@ -1097,7 +1097,7 @@ disable_outputs(struct drm_device *dev, struct drm_atomic_state *old_state)
 		else if (funcs->dpms)
 			funcs->dpms(crtc, DRM_MODE_DPMS_OFF);
 
-		if (!(dev->irq_enabled && dev->num_crtcs))
+		if (!drm_dev_has_vblank(dev))
 			continue;
 
 		ret = drm_crtc_vblank_get(crtc);

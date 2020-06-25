@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
 /*
- * Copyright 2018-2019 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2018-2020 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/utsname.h>
+#include <linux/version.h>
 
 #include <rdma/ib_user_verbs.h>
 
@@ -187,6 +189,52 @@ static void efa_stats_init(struct efa_dev *dev)
 		atomic64_set(s, 0);
 }
 
+static void efa_set_host_info(struct efa_dev *dev)
+{
+	struct efa_admin_set_feature_resp resp = {};
+	struct efa_admin_set_feature_cmd cmd = {};
+	struct efa_admin_host_info *hinf;
+	u32 bufsz = sizeof(*hinf);
+	dma_addr_t hinf_dma;
+
+	if (!efa_com_check_supported_feature_id(&dev->edev,
+						EFA_ADMIN_HOST_INFO))
+		return;
+
+	/* Failures in host info set shall not disturb probe */
+	hinf = dma_alloc_coherent(&dev->pdev->dev, bufsz, &hinf_dma,
+				  GFP_KERNEL);
+	if (!hinf)
+		return;
+
+	strlcpy(hinf->os_dist_str, utsname()->release,
+		min(sizeof(hinf->os_dist_str), sizeof(utsname()->release)));
+	hinf->os_type = EFA_ADMIN_OS_LINUX;
+	strlcpy(hinf->kernel_ver_str, utsname()->version,
+		min(sizeof(hinf->kernel_ver_str), sizeof(utsname()->version)));
+	hinf->kernel_ver = LINUX_VERSION_CODE;
+	EFA_SET(&hinf->driver_ver, EFA_ADMIN_HOST_INFO_DRIVER_MAJOR, 0);
+	EFA_SET(&hinf->driver_ver, EFA_ADMIN_HOST_INFO_DRIVER_MINOR, 0);
+	EFA_SET(&hinf->driver_ver, EFA_ADMIN_HOST_INFO_DRIVER_SUB_MINOR, 0);
+	EFA_SET(&hinf->driver_ver, EFA_ADMIN_HOST_INFO_DRIVER_MODULE_TYPE, 0);
+	EFA_SET(&hinf->bdf, EFA_ADMIN_HOST_INFO_BUS, dev->pdev->bus->number);
+	EFA_SET(&hinf->bdf, EFA_ADMIN_HOST_INFO_DEVICE,
+		PCI_SLOT(dev->pdev->devfn));
+	EFA_SET(&hinf->bdf, EFA_ADMIN_HOST_INFO_FUNCTION,
+		PCI_FUNC(dev->pdev->devfn));
+	EFA_SET(&hinf->spec_ver, EFA_ADMIN_HOST_INFO_SPEC_MAJOR,
+		EFA_COMMON_SPEC_VERSION_MAJOR);
+	EFA_SET(&hinf->spec_ver, EFA_ADMIN_HOST_INFO_SPEC_MINOR,
+		EFA_COMMON_SPEC_VERSION_MINOR);
+	EFA_SET(&hinf->flags, EFA_ADMIN_HOST_INFO_INTREE, 1);
+	EFA_SET(&hinf->flags, EFA_ADMIN_HOST_INFO_GDR, 0);
+
+	efa_com_set_feature_ex(&dev->edev, &resp, &cmd, EFA_ADMIN_HOST_INFO,
+			       hinf_dma, bufsz);
+
+	dma_free_coherent(&dev->pdev->dev, bufsz, hinf, hinf_dma);
+}
+
 static const struct ib_device_ops efa_dev_ops = {
 	.owner = THIS_MODULE,
 	.driver_id = RDMA_DRIVER_EFA,
@@ -250,6 +298,8 @@ static int efa_ib_device_add(struct efa_dev *dev)
 	err = efa_com_set_aenq_config(&dev->edev, EFA_AENQ_ENABLED_GROUPS);
 	if (err)
 		goto err_release_doorbell_bar;
+
+	efa_set_host_info(dev);
 
 	dev->ibdev.node_type = RDMA_NODE_UNSPECIFIED;
 	dev->ibdev.phys_port_cnt = 1;

@@ -64,7 +64,8 @@ enum macsec_bank {
 	FC_BUFFER   = 0x04,
 	HOST_MAC    = 0x05,
 	LINE_MAC    = 0x06,
-	IP_1588     = 0x0e,
+	PROC_0      = 0x0e,
+	PROC_2      = 0x0f,
 	MACSEC_INGR = 0x38,
 	MACSEC_EGR  = 0x3c,
 };

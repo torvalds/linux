@@ -1714,8 +1714,7 @@ ice_sched_cfg_vsi(struct ice_port_info *pi, u16 vsi_handle, u8 tc, u16 maxqs,
  * This function removes single aggregator VSI info entry from
  * aggregator list.
  */
-static void
-ice_sched_rm_agg_vsi_info(struct ice_port_info *pi, u16 vsi_handle)
+static void ice_sched_rm_agg_vsi_info(struct ice_port_info *pi, u16 vsi_handle)
 {
 	struct ice_sched_agg_info *agg_info;
 	struct ice_sched_agg_info *atmp;
@@ -1917,7 +1916,7 @@ ice_sched_update_elem(struct ice_hw *hw, struct ice_sched_node *node,
  */
 static enum ice_status
 ice_sched_cfg_node_bw_alloc(struct ice_hw *hw, struct ice_sched_node *node,
-			    enum ice_rl_type rl_type, u8 bw_alloc)
+			    enum ice_rl_type rl_type, u16 bw_alloc)
 {
 	struct ice_aqc_txsched_elem_data buf;
 	struct ice_aqc_txsched_elem *data;
@@ -1947,8 +1946,7 @@ ice_sched_cfg_node_bw_alloc(struct ice_hw *hw, struct ice_sched_node *node,
  *
  * Save or clear CIR bandwidth (BW) in the passed param bw_t_info.
  */
-static void
-ice_set_clear_cir_bw(struct ice_bw_type_info *bw_t_info, u32 bw)
+static void ice_set_clear_cir_bw(struct ice_bw_type_info *bw_t_info, u32 bw)
 {
 	if (bw == ICE_SCHED_DFLT_BW) {
 		clear_bit(ICE_BW_TYPE_CIR, bw_t_info->bw_t_bitmap);
@@ -1967,8 +1965,7 @@ ice_set_clear_cir_bw(struct ice_bw_type_info *bw_t_info, u32 bw)
  *
  * Save or clear EIR bandwidth (BW) in the passed param bw_t_info.
  */
-static void
-ice_set_clear_eir_bw(struct ice_bw_type_info *bw_t_info, u32 bw)
+static void ice_set_clear_eir_bw(struct ice_bw_type_info *bw_t_info, u32 bw)
 {
 	if (bw == ICE_SCHED_DFLT_BW) {
 		clear_bit(ICE_BW_TYPE_EIR, bw_t_info->bw_t_bitmap);
@@ -1993,8 +1990,7 @@ ice_set_clear_eir_bw(struct ice_bw_type_info *bw_t_info, u32 bw)
  *
  * Save or clear shared bandwidth (BW) in the passed param bw_t_info.
  */
-static void
-ice_set_clear_shared_bw(struct ice_bw_type_info *bw_t_info, u32 bw)
+static void ice_set_clear_shared_bw(struct ice_bw_type_info *bw_t_info, u32 bw)
 {
 	if (bw == ICE_SCHED_DFLT_BW) {
 		clear_bit(ICE_BW_TYPE_SHARED, bw_t_info->bw_t_bitmap);

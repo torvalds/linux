@@ -10,7 +10,7 @@
 . ./common_tests
 
 prlog -n "Checking pstore console is registered ... "
-dmesg | grep -q "console \[pstore"
+dmesg | grep -Eq "console \[(pstore|${backend})"
 show_result $?
 
 prlog -n "Checking /dev/pmsg0 exists ... "

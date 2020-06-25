@@ -557,6 +557,10 @@ static int ieee80211_start_roc_work(struct ieee80211_local *local,
 
 	lockdep_assert_held(&local->mtx);
 
+	if (channel->freq_offset)
+		/* this may work, but is untested */
+		return -EOPNOTSUPP;
+
 	if (local->use_chanctx && !local->ops->remain_on_channel)
 		return -EOPNOTSUPP;
 

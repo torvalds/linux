@@ -369,17 +369,19 @@ enum mlx5e_fec_supported_link_mode {
 			*_policy = MLX5_GET(pplm_reg, _buf, fec_override_admin_##link);	\
 	} while (0)
 
-#define MLX5E_FEC_OVERRIDE_ADMIN_50G_POLICY(buf, policy, write, link)		\
-	do {									\
-		u16 *__policy = &(policy);					\
-		bool _write = (write);						\
-										\
-		if (_write && *__policy)					\
-			*__policy = find_first_bit((u_long *)__policy,		\
-						   sizeof(u16) * BITS_PER_BYTE);\
-		MLX5E_FEC_OVERRIDE_ADMIN_POLICY(buf, *__policy, _write, link);	\
-		if (!_write && *__policy)					\
-			*__policy = 1 << *__policy;				\
+#define MLX5E_FEC_OVERRIDE_ADMIN_50G_POLICY(buf, policy, write, link)			\
+	do {										\
+		unsigned long policy_long;						\
+		u16 *__policy = &(policy);						\
+		bool _write = (write);							\
+											\
+		policy_long = *__policy;						\
+		if (_write && *__policy)						\
+			*__policy = find_first_bit(&policy_long,			\
+						   sizeof(policy_long) * BITS_PER_BYTE);\
+		MLX5E_FEC_OVERRIDE_ADMIN_POLICY(buf, *__policy, _write, link);		\
+		if (!_write && *__policy)						\
+			*__policy = 1 << *__policy;					\
 	} while (0)
 
 /* get/set FEC admin field for a given speed */

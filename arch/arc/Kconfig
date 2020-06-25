@@ -6,6 +6,7 @@
 config ARC
 	def_bool y
 	select ARC_TIMERS
+	select ARCH_HAS_DEBUG_VM_PGTABLE
 	select ARCH_HAS_DMA_PREP_COHERENT
 	select ARCH_HAS_PTE_SPECIAL
 	select ARCH_HAS_SETUP_DMA_OPS
@@ -347,7 +348,7 @@ config NODES_SHIFT
 	default "0" if !DISCONTIGMEM
 	default "1" if DISCONTIGMEM
 	depends on NEED_MULTIPLE_NODES
-	---help---
+	help
 	  Accessing memory beyond 1GB (with or w/o PAE) requires 2 memory
 	  zones.
 

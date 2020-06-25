@@ -4,7 +4,7 @@
  *
  * Setup and helper functions to access QDIO.
  *
- * Copyright IBM Corp. 2002, 2017
+ * Copyright IBM Corp. 2002, 2020
  */
 
 #define KMSG_COMPONENT "zfcp"
@@ -342,6 +342,18 @@ void zfcp_qdio_close(struct zfcp_qdio *qdio)
 	atomic_set(&qdio->req_q_free, 0);
 }
 
+void zfcp_qdio_shost_update(struct zfcp_adapter *const adapter,
+			    const struct zfcp_qdio *const qdio)
+{
+	struct Scsi_Host *const shost = adapter->scsi_host;
+
+	if (shost == NULL)
+		return;
+
+	shost->sg_tablesize = qdio->max_sbale_per_req;
+	shost->max_sectors = qdio->max_sbale_per_req * 8;
+}
+
 /**
  * zfcp_qdio_open - prepare and initialize response queue
  * @qdio: pointer to struct zfcp_qdio
@@ -420,10 +432,7 @@ int zfcp_qdio_open(struct zfcp_qdio *qdio)
 	atomic_set(&qdio->req_q_free, QDIO_MAX_BUFFERS_PER_Q);
 	atomic_or(ZFCP_STATUS_ADAPTER_QDIOUP, &qdio->adapter->status);
 
-	if (adapter->scsi_host) {
-		adapter->scsi_host->sg_tablesize = qdio->max_sbale_per_req;
-		adapter->scsi_host->max_sectors = qdio->max_sbale_per_req * 8;
-	}
+	zfcp_qdio_shost_update(adapter, qdio);
 
 	return 0;
 

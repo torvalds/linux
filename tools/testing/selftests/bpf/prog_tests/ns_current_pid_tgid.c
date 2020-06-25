@@ -80,9 +80,6 @@ void test_ns_current_pid_tgid(void)
 		  "User pid/tgid %llu BPF pid/tgid %llu\n", id, bss.pid_tgid))
 		goto cleanup;
 cleanup:
-	if (!link) {
-		bpf_link__destroy(link);
-		link = NULL;
-	}
+	bpf_link__destroy(link);
 	bpf_object__close(obj);
 }

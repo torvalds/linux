@@ -34,7 +34,9 @@
 #include <crypto/aead.h>
 #include <crypto/authenc.h>
 #include <linux/rtnetlink.h> /* for struct rtattr and RTA macros only */
+#include <linux/key-type.h>
 #include <keys/user-type.h>
+#include <keys/encrypted-type.h>
 
 #include <linux/device-mapper.h>
 
@@ -212,7 +214,7 @@ struct crypt_config {
 	struct mutex bio_alloc_lock;
 
 	u8 *authenc_key; /* space for keys in authenc() format (if used) */
-	u8 key[0];
+	u8 key[];
 };
 
 #define MIN_IOS		64
@@ -2215,12 +2217,47 @@ static bool contains_whitespace(const char *str)
 	return false;
 }
 
+static int set_key_user(struct crypt_config *cc, struct key *key)
+{
+	const struct user_key_payload *ukp;
+
+	ukp = user_key_payload_locked(key);
+	if (!ukp)
+		return -EKEYREVOKED;
+
+	if (cc->key_size != ukp->datalen)
+		return -EINVAL;
+
+	memcpy(cc->key, ukp->data, cc->key_size);
+
+	return 0;
+}
+
+#if defined(CONFIG_ENCRYPTED_KEYS) || defined(CONFIG_ENCRYPTED_KEYS_MODULE)
+static int set_key_encrypted(struct crypt_config *cc, struct key *key)
+{
+	const struct encrypted_key_payload *ekp;
+
+	ekp = key->payload.data[0];
+	if (!ekp)
+		return -EKEYREVOKED;
+
+	if (cc->key_size != ekp->decrypted_datalen)
+		return -EINVAL;
+
+	memcpy(cc->key, ekp->decrypted_data, cc->key_size);
+
+	return 0;
+}
+#endif /* CONFIG_ENCRYPTED_KEYS */
+
 static int crypt_set_keyring_key(struct crypt_config *cc, const char *key_string)
 {
 	char *new_key_string, *key_desc;
 	int ret;
+	struct key_type *type;
 	struct key *key;
-	const struct user_key_payload *ukp;
+	int (*set_key)(struct crypt_config *cc, struct key *key);
 
 	/*
 	 * Reject key_string with whitespace. dm core currently lacks code for
@@ -2236,16 +2273,26 @@ static int crypt_set_keyring_key(struct crypt_config *cc, const char *key_string
 	if (!key_desc || key_desc == key_string || !strlen(key_desc + 1))
 		return -EINVAL;
 
-	if (strncmp(key_string, "logon:", key_desc - key_string + 1) &&
-	    strncmp(key_string, "user:", key_desc - key_string + 1))
+	if (!strncmp(key_string, "logon:", key_desc - key_string + 1)) {
+		type = &key_type_logon;
+		set_key = set_key_user;
+	} else if (!strncmp(key_string, "user:", key_desc - key_string + 1)) {
+		type = &key_type_user;
+		set_key = set_key_user;
+#if defined(CONFIG_ENCRYPTED_KEYS) || defined(CONFIG_ENCRYPTED_KEYS_MODULE)
+	} else if (!strncmp(key_string, "encrypted:", key_desc - key_string + 1)) {
+		type = &key_type_encrypted;
+		set_key = set_key_encrypted;
+#endif
+	} else {
 		return -EINVAL;
+	}
 
 	new_key_string = kstrdup(key_string, GFP_KERNEL);
 	if (!new_key_string)
 		return -ENOMEM;
 
-	key = request_key(key_string[0] == 'l' ? &key_type_logon : &key_type_user,
-			  key_desc + 1, NULL);
+	key = request_key(type, key_desc + 1, NULL);
 	if (IS_ERR(key)) {
 		kzfree(new_key_string);
 		return PTR_ERR(key);
@@ -2253,22 +2300,13 @@ static int crypt_set_keyring_key(struct crypt_config *cc, const char *key_string
 
 	down_read(&key->sem);
 
-	ukp = user_key_payload_locked(key);
-	if (!ukp) {
+	ret = set_key(cc, key);
+	if (ret < 0) {
 		up_read(&key->sem);
 		key_put(key);
 		kzfree(new_key_string);
-		return -EKEYREVOKED;
+		return ret;
 	}
-
-	if (cc->key_size != ukp->datalen) {
-		up_read(&key->sem);
-		key_put(key);
-		kzfree(new_key_string);
-		return -EINVAL;
-	}
-
-	memcpy(cc->key, ukp->data, cc->key_size);
 
 	up_read(&key->sem);
 	key_put(key);
@@ -2323,7 +2361,7 @@ static int get_key_size(char **key_string)
 	return (*key_string[0] == ':') ? -EINVAL : strlen(*key_string) >> 1;
 }
 
-#endif
+#endif /* CONFIG_KEYS */
 
 static int crypt_set_key(struct crypt_config *cc, char *key)
 {
@@ -3274,7 +3312,7 @@ static void crypt_io_hints(struct dm_target *ti, struct queue_limits *limits)
 	limits->max_segment_size = PAGE_SIZE;
 
 	limits->logical_block_size =
-		max_t(unsigned short, limits->logical_block_size, cc->sector_size);
+		max_t(unsigned, limits->logical_block_size, cc->sector_size);
 	limits->physical_block_size =
 		max_t(unsigned, limits->physical_block_size, cc->sector_size);
 	limits->io_min = max_t(unsigned, limits->io_min, cc->sector_size);
@@ -3282,7 +3320,7 @@ static void crypt_io_hints(struct dm_target *ti, struct queue_limits *limits)
 
 static struct target_type crypt_target = {
 	.name   = "crypt",
-	.version = {1, 20, 0},
+	.version = {1, 21, 0},
 	.module = THIS_MODULE,
 	.ctr    = crypt_ctr,
 	.dtr    = crypt_dtr,

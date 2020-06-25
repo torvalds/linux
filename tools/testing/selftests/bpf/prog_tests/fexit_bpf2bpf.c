@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) 2019 Facebook */
 #include <test_progs.h>
+#include <network_helpers.h>
 
 static void test_fexit_bpf2bpf_common(const char *obj_file,
 				      const char *target_obj_file,
 				      int prog_cnt,
-				      const char **prog_name)
+				      const char **prog_name,
+				      bool run_prog)
 {
 	struct bpf_object *obj = NULL, *pkt_obj;
 	int err, pkt_fd, i;
@@ -18,7 +20,8 @@ static void test_fexit_bpf2bpf_common(const char *obj_file,
 
 	err = bpf_prog_load(target_obj_file, BPF_PROG_TYPE_UNSPEC,
 			    &pkt_obj, &pkt_fd);
-	if (CHECK(err, "prog_load sched cls", "err %d errno %d\n", err, errno))
+	if (CHECK(err, "tgt_prog_load", "file %s err %d errno %d\n",
+		  target_obj_file, err, errno))
 		return;
 	DECLARE_LIBBPF_OPTS(bpf_object_open_opts, opts,
 			    .attach_prog_fd = pkt_fd,
@@ -33,7 +36,7 @@ static void test_fexit_bpf2bpf_common(const char *obj_file,
 
 	obj = bpf_object__open_file(obj_file, &opts);
 	if (CHECK(IS_ERR_OR_NULL(obj), "obj_open",
-		  "failed to open fexit_bpf2bpf: %ld\n",
+		  "failed to open %s: %ld\n", obj_file,
 		  PTR_ERR(obj)))
 		goto close_prog;
 
@@ -49,6 +52,10 @@ static void test_fexit_bpf2bpf_common(const char *obj_file,
 		if (CHECK(IS_ERR(link[i]), "attach_trace", "failed to link\n"))
 			goto close_prog;
 	}
+
+	if (!run_prog)
+		goto close_prog;
+
 	data_map = bpf_object__find_map_by_name(obj, "fexit_bp.bss");
 	if (CHECK(!data_map, "find_data_map", "data map not found\n"))
 		goto close_prog;
@@ -89,7 +96,7 @@ static void test_target_no_callees(void)
 	test_fexit_bpf2bpf_common("./fexit_bpf2bpf_simple.o",
 				  "./test_pkt_md_access.o",
 				  ARRAY_SIZE(prog_name),
-				  prog_name);
+				  prog_name, true);
 }
 
 static void test_target_yes_callees(void)
@@ -103,7 +110,7 @@ static void test_target_yes_callees(void)
 	test_fexit_bpf2bpf_common("./fexit_bpf2bpf.o",
 				  "./test_pkt_access.o",
 				  ARRAY_SIZE(prog_name),
-				  prog_name);
+				  prog_name, true);
 }
 
 static void test_func_replace(void)
@@ -120,7 +127,18 @@ static void test_func_replace(void)
 	test_fexit_bpf2bpf_common("./fexit_bpf2bpf.o",
 				  "./test_pkt_access.o",
 				  ARRAY_SIZE(prog_name),
-				  prog_name);
+				  prog_name, true);
+}
+
+static void test_func_replace_verify(void)
+{
+	const char *prog_name[] = {
+		"freplace/do_bind",
+	};
+	test_fexit_bpf2bpf_common("./freplace_connect4.o",
+				  "./connect4_prog.o",
+				  ARRAY_SIZE(prog_name),
+				  prog_name, false);
 }
 
 void test_fexit_bpf2bpf(void)
@@ -128,4 +146,5 @@ void test_fexit_bpf2bpf(void)
 	test_target_no_callees();
 	test_target_yes_callees();
 	test_func_replace();
+	test_func_replace_verify();
 }

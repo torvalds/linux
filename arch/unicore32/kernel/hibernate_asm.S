@@ -11,9 +11,9 @@
 #include <linux/sys.h>
 #include <linux/errno.h>
 #include <linux/linkage.h>
+#include <linux/pgtable.h>
 #include <generated/asm-offsets.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/assembler.h>
 
 @ restore_image(pgd_t *resume_pg_dir, struct pbe *restore_pblist)

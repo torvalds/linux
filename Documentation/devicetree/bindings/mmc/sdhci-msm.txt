@@ -17,6 +17,7 @@ Required properties:
 		"qcom,msm8916-sdhci", "qcom,sdhci-msm-v4"
 		"qcom,msm8992-sdhci", "qcom,sdhci-msm-v4"
 		"qcom,msm8996-sdhci", "qcom,sdhci-msm-v4"
+		"qcom,sm8250-sdhci", "qcom,sdhci-msm-v5"
 		"qcom,sdm845-sdhci", "qcom,sdhci-msm-v5"
 		"qcom,qcs404-sdhci", "qcom,sdhci-msm-v5"
 		"qcom,sc7180-sdhci", "qcom,sdhci-msm-v5";
@@ -46,6 +47,13 @@ Required properties:
 	"cal"	- reference clock for RCLK delay calibration (optional)
 	"sleep"	- sleep clock for RCLK delay calibration (optional)
 
+- qcom,ddr-config: Certain chipsets and platforms require particular settings
+	for the DDR_CONFIG register. Use this field to specify the register
+	value as per the Hardware Programming Guide.
+
+- qcom,dll-config: Chipset and Platform specific value. Use this field to
+	specify the DLL_CONFIG register value as per Hardware Programming Guide.
+
 Example:
 
 	sdhc_1: sdhci@f9824900 {
@@ -63,6 +71,9 @@ Example:
 
 		clocks = <&gcc GCC_SDCC1_APPS_CLK>, <&gcc GCC_SDCC1_AHB_CLK>;
 		clock-names = "core", "iface";
+
+		qcom,dll-config = <0x000f642c>;
+		qcom,ddr-config = <0x80040868>;
 	};
 
 	sdhc_2: sdhci@f98a4900 {
@@ -80,4 +91,7 @@ Example:
 
 		clocks = <&gcc GCC_SDCC2_APPS_CLK>, <&gcc GCC_SDCC2_AHB_CLK>;
 		clock-names = "core", "iface";
+
+		qcom,dll-config = <0x0007642c>;
+		qcom,ddr-config = <0x80040868>;
 	};

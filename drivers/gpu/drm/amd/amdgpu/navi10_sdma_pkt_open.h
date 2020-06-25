@@ -73,6 +73,22 @@
 #define SDMA_OP_AQL_COPY  0
 #define SDMA_OP_AQL_BARRIER_OR  0
 
+#define SDMA_GCR_RANGE_IS_PA		(1 << 18)
+#define SDMA_GCR_SEQ(x)			(((x) & 0x3) << 16)
+#define SDMA_GCR_GL2_WB			(1 << 15)
+#define SDMA_GCR_GL2_INV		(1 << 14)
+#define SDMA_GCR_GL2_DISCARD		(1 << 13)
+#define SDMA_GCR_GL2_RANGE(x)		(((x) & 0x3) << 11)
+#define SDMA_GCR_GL2_US			(1 << 10)
+#define SDMA_GCR_GL1_INV		(1 << 9)
+#define SDMA_GCR_GLV_INV		(1 << 8)
+#define SDMA_GCR_GLK_INV		(1 << 7)
+#define SDMA_GCR_GLK_WB			(1 << 6)
+#define SDMA_GCR_GLM_INV		(1 << 5)
+#define SDMA_GCR_GLM_WB			(1 << 4)
+#define SDMA_GCR_GL1_RANGE(x)		(((x) & 0x3) << 2)
+#define SDMA_GCR_GLI_INV(x)		(((x) & 0x3) << 0)
+
 /*define for op field*/
 #define SDMA_PKT_HEADER_op_offset 0
 #define SDMA_PKT_HEADER_op_mask   0x000000FF

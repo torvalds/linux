@@ -226,7 +226,7 @@ static int optee_rng_probe(struct device *dev)
 		return -ENODEV;
 
 	/* Open session with hwrng Trusted App */
-	memcpy(sess_arg.uuid, rng_device->id.uuid.b, TEE_IOCTL_UUID_LEN);
+	export_uuid(sess_arg.uuid, &rng_device->id.uuid);
 	sess_arg.clnt_login = TEE_IOCTL_LOGIN_PUBLIC;
 	sess_arg.num_params = 0;
 

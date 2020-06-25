@@ -167,53 +167,53 @@ properties:
       - qcom,kryo260
       - qcom,kryo280
       - qcom,kryo385
+      - qcom,kryo468
       - qcom,kryo485
       - qcom,scorpion
 
   enable-method:
-    allOf:
-      - $ref: '/schemas/types.yaml#/definitions/string'
-      - oneOf:
-          # On ARM v8 64-bit this property is required
-          - enum:
-              - psci
-              - spin-table
-          # On ARM 32-bit systems this property is optional
-          - enum:
-              - actions,s500-smp
-              - allwinner,sun6i-a31
-              - allwinner,sun8i-a23
-              - allwinner,sun9i-a80-smp
-              - allwinner,sun8i-a83t-smp
-              - amlogic,meson8-smp
-              - amlogic,meson8b-smp
-              - arm,realview-smp
-              - aspeed,ast2600-smp
-              - brcm,bcm11351-cpu-method
-              - brcm,bcm23550
-              - brcm,bcm2836-smp
-              - brcm,bcm63138
-              - brcm,bcm-nsp-smp
-              - brcm,brahma-b15
-              - marvell,armada-375-smp
-              - marvell,armada-380-smp
-              - marvell,armada-390-smp
-              - marvell,armada-xp-smp
-              - marvell,98dx3236-smp
-              - marvell,mmp3-smp
-              - mediatek,mt6589-smp
-              - mediatek,mt81xx-tz-smp
-              - qcom,gcc-msm8660
-              - qcom,kpss-acc-v1
-              - qcom,kpss-acc-v2
-              - renesas,apmu
-              - renesas,r9a06g032-smp
-              - rockchip,rk3036-smp
-              - rockchip,rk3066-smp
-              - socionext,milbeaut-m10v-smp
-              - ste,dbx500-smp
-              - ti,am3352
-              - ti,am4372
+    $ref: '/schemas/types.yaml#/definitions/string'
+    oneOf:
+      # On ARM v8 64-bit this property is required
+      - enum:
+          - psci
+          - spin-table
+      # On ARM 32-bit systems this property is optional
+      - enum:
+          - actions,s500-smp
+          - allwinner,sun6i-a31
+          - allwinner,sun8i-a23
+          - allwinner,sun9i-a80-smp
+          - allwinner,sun8i-a83t-smp
+          - amlogic,meson8-smp
+          - amlogic,meson8b-smp
+          - arm,realview-smp
+          - aspeed,ast2600-smp
+          - brcm,bcm11351-cpu-method
+          - brcm,bcm23550
+          - brcm,bcm2836-smp
+          - brcm,bcm63138
+          - brcm,bcm-nsp-smp
+          - brcm,brahma-b15
+          - marvell,armada-375-smp
+          - marvell,armada-380-smp
+          - marvell,armada-390-smp
+          - marvell,armada-xp-smp
+          - marvell,98dx3236-smp
+          - marvell,mmp3-smp
+          - mediatek,mt6589-smp
+          - mediatek,mt81xx-tz-smp
+          - qcom,gcc-msm8660
+          - qcom,kpss-acc-v1
+          - qcom,kpss-acc-v2
+          - renesas,apmu
+          - renesas,r9a06g032-smp
+          - rockchip,rk3036-smp
+          - rockchip,rk3066-smp
+          - socionext,milbeaut-m10v-smp
+          - ste,dbx500-smp
+          - ti,am3352
+          - ti,am4372
 
   cpu-release-addr:
     $ref: '/schemas/types.yaml#/definitions/uint64'

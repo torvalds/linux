@@ -57,7 +57,8 @@ static int t4_sched_class_fw_cmd(struct port_info *pi,
 				      p->u.params.ratemode,
 				      p->u.params.channel, e->idx,
 				      p->u.params.minrate, p->u.params.maxrate,
-				      p->u.params.weight, p->u.params.pktsize);
+				      p->u.params.weight, p->u.params.pktsize,
+				      p->u.params.burstsize);
 		break;
 	default:
 		err = -ENOTSUPP;

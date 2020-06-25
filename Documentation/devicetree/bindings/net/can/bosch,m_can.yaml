@@ -9,7 +9,7 @@ title: Bosch MCAN controller Bindings
 description: Bosch MCAN controller for CAN bus
 
 maintainers:
-  -  Sriram Dash <sriram.dash@samsung.com>
+  - Sriram Dash <sriram.dash@samsung.com>
 
 properties:
   compatible:
@@ -51,61 +51,60 @@ properties:
 
   bosch,mram-cfg:
     description: |
-                 Message RAM configuration data.
-                 Multiple M_CAN instances can share the same Message RAM
-                 and each element(e.g Rx FIFO or Tx Buffer and etc) number
-                 in Message RAM is also configurable, so this property is
-                 telling driver how the shared or private Message RAM are
-                 used by this M_CAN controller.
+      Message RAM configuration data.
+      Multiple M_CAN instances can share the same Message RAM
+      and each element(e.g Rx FIFO or Tx Buffer and etc) number
+      in Message RAM is also configurable, so this property is
+      telling driver how the shared or private Message RAM are
+      used by this M_CAN controller.
 
-                 The format should be as follows:
-                 <offset sidf_elems xidf_elems rxf0_elems rxf1_elems rxb_elems txe_elems txb_elems>
-                 The 'offset' is an address offset of the Message RAM where
-                 the following elements start from. This is usually set to
-                 0x0 if you're using a private Message RAM. The remain cells
-                 are used to specify how many elements are used for each FIFO/Buffer.
+      The format should be as follows:
+      <offset sidf_elems xidf_elems rxf0_elems rxf1_elems rxb_elems txe_elems txb_elems>
+      The 'offset' is an address offset of the Message RAM where
+      the following elements start from. This is usually set to
+      0x0 if you're using a private Message RAM. The remain cells
+      are used to specify how many elements are used for each FIFO/Buffer.
 
-                 M_CAN includes the following elements according to user manual:
-                 11-bit Filter	0-128 elements / 0-128 words
-                 29-bit Filter	0-64 elements / 0-128 words
-                 Rx FIFO 0	0-64 elements / 0-1152 words
-                 Rx FIFO 1	0-64 elements / 0-1152 words
-                 Rx Buffers	0-64 elements / 0-1152 words
-                 Tx Event FIFO	0-32 elements / 0-64 words
-                 Tx Buffers	0-32 elements / 0-576 words
+      M_CAN includes the following elements according to user manual:
+      11-bit Filter	0-128 elements / 0-128 words
+      29-bit Filter	0-64 elements / 0-128 words
+      Rx FIFO 0	0-64 elements / 0-1152 words
+      Rx FIFO 1	0-64 elements / 0-1152 words
+      Rx Buffers	0-64 elements / 0-1152 words
+      Tx Event FIFO	0-32 elements / 0-64 words
+      Tx Buffers	0-32 elements / 0-576 words
 
-                 Please refer to 2.4.1 Message RAM Configuration in Bosch
-                 M_CAN user manual for details.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/int32-array
-      - items:
-         items:
-           - description: The 'offset' is an address offset of the Message RAM
-                          where the following elements start from. This is usually
-                          set to 0x0 if you're using a private Message RAM.
-             default: 0
-           - description: 11-bit Filter 0-128 elements / 0-128 words
-             minimum: 0
-             maximum: 128
-           - description: 29-bit Filter 0-64 elements / 0-128 words
-             minimum: 0
-             maximum: 64
-           - description: Rx FIFO 0 0-64 elements / 0-1152 words
-             minimum: 0
-             maximum: 64
-           - description: Rx FIFO 1 0-64 elements / 0-1152 words
-             minimum: 0
-             maximum: 64
-           - description: Rx Buffers 0-64 elements / 0-1152 words
-             minimum: 0
-             maximum: 64
-           - description: Tx Event FIFO 0-32 elements / 0-64 words
-             minimum: 0
-             maximum: 32
-           - description: Tx Buffers 0-32 elements / 0-576 words
-             minimum: 0
-             maximum: 32
-        maxItems: 1
+      Please refer to 2.4.1 Message RAM Configuration in Bosch
+      M_CAN user manual for details.
+    $ref: /schemas/types.yaml#/definitions/int32-array
+    items:
+      items:
+        - description: The 'offset' is an address offset of the Message RAM where
+            the following elements start from. This is usually set to 0x0 if
+            you're using a private Message RAM.
+          default: 0
+        - description: 11-bit Filter 0-128 elements / 0-128 words
+          minimum: 0
+          maximum: 128
+        - description: 29-bit Filter 0-64 elements / 0-128 words
+          minimum: 0
+          maximum: 64
+        - description: Rx FIFO 0 0-64 elements / 0-1152 words
+          minimum: 0
+          maximum: 64
+        - description: Rx FIFO 1 0-64 elements / 0-1152 words
+          minimum: 0
+          maximum: 64
+        - description: Rx Buffers 0-64 elements / 0-1152 words
+          minimum: 0
+          maximum: 64
+        - description: Tx Event FIFO 0-32 elements / 0-64 words
+          minimum: 0
+          maximum: 32
+        - description: Tx Buffers 0-32 elements / 0-576 words
+          minimum: 0
+          maximum: 32
+    maxItems: 1
 
   can-transceiver:
     $ref: can-transceiver.yaml#

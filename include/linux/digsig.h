@@ -29,7 +29,7 @@ struct pubkey_hdr {
 	uint32_t	timestamp;	/* key made, always 0 for now */
 	uint8_t		algo;
 	uint8_t		nmpi;
-	char		mpi[0];
+	char		mpi[];
 } __packed;
 
 struct signature_hdr {
@@ -39,7 +39,7 @@ struct signature_hdr {
 	uint8_t		hash;
 	uint8_t		keyid[8];
 	uint8_t		nmpi;
-	char		mpi[0];
+	char		mpi[];
 } __packed;
 
 #if defined(CONFIG_SIGNATURE) || defined(CONFIG_SIGNATURE_MODULE)

@@ -29,6 +29,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+#include <linux/crash_dump.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/version.h>
@@ -60,6 +61,7 @@
 #include <net/ip6_checksum.h>
 #include <linux/bitops.h>
 #include <linux/vmalloc.h>
+#include <linux/aer.h>
 #include "qede.h"
 #include "qede_ptp.h"
 
@@ -124,6 +126,8 @@ static const struct pci_device_id qede_pci_tbl[] = {
 MODULE_DEVICE_TABLE(pci, qede_pci_tbl);
 
 static int qede_probe(struct pci_dev *pdev, const struct pci_device_id *id);
+static pci_ers_result_t
+qede_io_error_detected(struct pci_dev *pdev, pci_channel_state_t state);
 
 #define TX_TIMEOUT		(5 * HZ)
 
@@ -135,10 +139,12 @@ static void qede_shutdown(struct pci_dev *pdev);
 static void qede_link_update(void *dev, struct qed_link_output *link);
 static void qede_schedule_recovery_handler(void *dev);
 static void qede_recovery_handler(struct qede_dev *edev);
+static void qede_schedule_hw_err_handler(void *dev,
+					 enum qed_hw_err_type err_type);
 static void qede_get_eth_tlv_data(void *edev, void *data);
 static void qede_get_generic_tlv_data(void *edev,
 				      struct qed_generic_tlvs *data);
-
+static void qede_generic_hw_err_handler(struct qede_dev *edev);
 #ifdef CONFIG_QED_SRIOV
 static int qede_set_vf_vlan(struct net_device *ndev, int vf, u16 vlan, u8 qos,
 			    __be16 vlan_proto)
@@ -203,6 +209,10 @@ static int qede_sriov_configure(struct pci_dev *pdev, int num_vfs_param)
 }
 #endif
 
+static const struct pci_error_handlers qede_err_handler = {
+	.error_detected = qede_io_error_detected,
+};
+
 static struct pci_driver qede_pci_driver = {
 	.name = "qede",
 	.id_table = qede_pci_tbl,
@@ -212,6 +222,7 @@ static struct pci_driver qede_pci_driver = {
 #ifdef CONFIG_QED_SRIOV
 	.sriov_configure = qede_sriov_configure,
 #endif
+	.err_handler = &qede_err_handler,
 };
 
 static struct qed_eth_cb_ops qede_ll_ops = {
@@ -221,6 +232,7 @@ static struct qed_eth_cb_ops qede_ll_ops = {
 #endif
 		.link_update = qede_link_update,
 		.schedule_recovery_handler = qede_schedule_recovery_handler,
+		.schedule_hw_err_handler = qede_schedule_hw_err_handler,
 		.get_generic_tlv_data = qede_get_generic_tlv_data,
 		.get_protocol_tlv_data = qede_get_eth_tlv_data,
 	},
@@ -527,6 +539,51 @@ static int qede_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	return 0;
 }
 
+static void qede_tx_log_print(struct qede_dev *edev, struct qede_tx_queue *txq)
+{
+	DP_NOTICE(edev,
+		  "Txq[%d]: FW cons [host] %04x, SW cons %04x, SW prod %04x [Jiffies %lu]\n",
+		  txq->index, le16_to_cpu(*txq->hw_cons_ptr),
+		  qed_chain_get_cons_idx(&txq->tx_pbl),
+		  qed_chain_get_prod_idx(&txq->tx_pbl),
+		  jiffies);
+}
+
+static void qede_tx_timeout(struct net_device *dev, unsigned int txqueue)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+	struct qede_tx_queue *txq;
+	int cos;
+
+	netif_carrier_off(dev);
+	DP_NOTICE(edev, "TX timeout on queue %u!\n", txqueue);
+
+	if (!(edev->fp_array[txqueue].type & QEDE_FASTPATH_TX))
+		return;
+
+	for_each_cos_in_txq(edev, cos) {
+		txq = &edev->fp_array[txqueue].txq[cos];
+
+		if (qed_chain_get_cons_idx(&txq->tx_pbl) !=
+		    qed_chain_get_prod_idx(&txq->tx_pbl))
+			qede_tx_log_print(edev, txq);
+	}
+
+	if (IS_VF(edev))
+		return;
+
+	if (test_and_set_bit(QEDE_ERR_IS_HANDLED, &edev->err_flags) ||
+	    edev->state == QEDE_STATE_RECOVERY) {
+		DP_INFO(edev,
+			"Avoid handling a Tx timeout while another HW error is being handled\n");
+		return;
+	}
+
+	set_bit(QEDE_ERR_GET_DBG_INFO, &edev->err_flags);
+	set_bit(QEDE_SP_HW_ERR, &edev->sp_flags);
+	schedule_delayed_work(&edev->sp_task, 0);
+}
+
 static int qede_setup_tc(struct net_device *ndev, u8 num_tc)
 {
 	struct qede_dev *edev = netdev_priv(ndev);
@@ -614,6 +671,7 @@ static const struct net_device_ops qede_netdev_ops = {
 	.ndo_validate_addr = eth_validate_addr,
 	.ndo_change_mtu = qede_change_mtu,
 	.ndo_do_ioctl = qede_ioctl,
+	.ndo_tx_timeout = qede_tx_timeout,
 #ifdef CONFIG_QED_SRIOV
 	.ndo_set_vf_mac = qede_set_vf_mac,
 	.ndo_set_vf_vlan = qede_set_vf_vlan,
@@ -707,8 +765,14 @@ static struct qede_dev *qede_alloc_etherdev(struct qed_dev *cdev,
 	edev->dp_module = dp_module;
 	edev->dp_level = dp_level;
 	edev->ops = qed_ops;
-	edev->q_num_rx_buffers = NUM_RX_BDS_DEF;
-	edev->q_num_tx_buffers = NUM_TX_BDS_DEF;
+
+	if (is_kdump_kernel()) {
+		edev->q_num_rx_buffers = NUM_RX_BDS_KDUMP_MIN;
+		edev->q_num_tx_buffers = NUM_TX_BDS_KDUMP_MIN;
+	} else {
+		edev->q_num_rx_buffers = NUM_RX_BDS_DEF;
+		edev->q_num_tx_buffers = NUM_TX_BDS_DEF;
+	}
 
 	DP_INFO(edev, "Allocated netdev with %d tx queues and %d rx queues\n",
 		info->num_queues, info->num_queues);
@@ -974,7 +1038,8 @@ static void qede_sp_task(struct work_struct *work)
 		/* SRIOV must be disabled outside the lock to avoid a deadlock.
 		 * The recovery of the active VFs is currently not supported.
 		 */
-		qede_sriov_configure(edev->pdev, 0);
+		if (pci_num_vf(edev->pdev))
+			qede_sriov_configure(edev->pdev, 0);
 #endif
 		qede_lock(edev);
 		qede_recovery_handler(edev);
@@ -993,7 +1058,20 @@ static void qede_sp_task(struct work_struct *work)
 			qede_process_arfs_filters(edev, false);
 	}
 #endif
+	if (test_and_clear_bit(QEDE_SP_HW_ERR, &edev->sp_flags))
+		qede_generic_hw_err_handler(edev);
 	__qede_unlock(edev);
+
+	if (test_and_clear_bit(QEDE_SP_AER, &edev->sp_flags)) {
+#ifdef CONFIG_QED_SRIOV
+		/* SRIOV must be disabled outside the lock to avoid a deadlock.
+		 * The recovery of the active VFs is currently not supported.
+		 */
+		if (pci_num_vf(edev->pdev))
+			qede_sriov_configure(edev->pdev, 0);
+#endif
+		edev->ops->common->recovery_process(edev->cdev);
+	}
 }
 
 static void qede_update_pf_params(struct qed_dev *cdev)
@@ -1398,7 +1476,7 @@ static int qede_alloc_mem_rxq(struct qede_dev *edev, struct qede_rx_queue *rxq)
 	if (rxq->rx_buf_size + size > PAGE_SIZE)
 		rxq->rx_buf_size = PAGE_SIZE - size;
 
-	/* Segment size to spilt a page in multiple equal parts ,
+	/* Segment size to split a page in multiple equal parts,
 	 * unless XDP is used in which case we'd use the entire page.
 	 */
 	if (!edev->xdp_prog) {
@@ -1694,7 +1772,7 @@ static void qede_init_fp(struct qede_dev *edev)
 				txq->ndev_txq_id = ndev_tx_id;
 
 				if (edev->dev_info.is_legacy)
-					txq->is_legacy = 1;
+					txq->is_legacy = true;
 				txq->dev = &edev->pdev->dev;
 			}
 
@@ -2482,6 +2560,100 @@ err:
 	qede_recovery_failed(edev);
 }
 
+static void qede_atomic_hw_err_handler(struct qede_dev *edev)
+{
+	struct qed_dev *cdev = edev->cdev;
+
+	DP_NOTICE(edev,
+		  "Generic non-sleepable HW error handling started - err_flags 0x%lx\n",
+		  edev->err_flags);
+
+	/* Get a call trace of the flow that led to the error */
+	WARN_ON(test_bit(QEDE_ERR_WARN, &edev->err_flags));
+
+	/* Prevent HW attentions from being reasserted */
+	if (test_bit(QEDE_ERR_ATTN_CLR_EN, &edev->err_flags))
+		edev->ops->common->attn_clr_enable(cdev, true);
+
+	DP_NOTICE(edev, "Generic non-sleepable HW error handling is done\n");
+}
+
+static void qede_generic_hw_err_handler(struct qede_dev *edev)
+{
+	struct qed_dev *cdev = edev->cdev;
+
+	DP_NOTICE(edev,
+		  "Generic sleepable HW error handling started - err_flags 0x%lx\n",
+		  edev->err_flags);
+
+	/* Trigger a recovery process.
+	 * This is placed in the sleep requiring section just to make
+	 * sure it is the last one, and that all the other operations
+	 * were completed.
+	 */
+	if (test_bit(QEDE_ERR_IS_RECOVERABLE, &edev->err_flags))
+		edev->ops->common->recovery_process(cdev);
+
+	clear_bit(QEDE_ERR_IS_HANDLED, &edev->err_flags);
+
+	DP_NOTICE(edev, "Generic sleepable HW error handling is done\n");
+}
+
+static void qede_set_hw_err_flags(struct qede_dev *edev,
+				  enum qed_hw_err_type err_type)
+{
+	unsigned long err_flags = 0;
+
+	switch (err_type) {
+	case QED_HW_ERR_DMAE_FAIL:
+		set_bit(QEDE_ERR_WARN, &err_flags);
+		fallthrough;
+	case QED_HW_ERR_MFW_RESP_FAIL:
+	case QED_HW_ERR_HW_ATTN:
+	case QED_HW_ERR_RAMROD_FAIL:
+	case QED_HW_ERR_FW_ASSERT:
+		set_bit(QEDE_ERR_ATTN_CLR_EN, &err_flags);
+		set_bit(QEDE_ERR_GET_DBG_INFO, &err_flags);
+		break;
+
+	default:
+		DP_NOTICE(edev, "Unexpected HW error [%d]\n", err_type);
+		break;
+	}
+
+	edev->err_flags |= err_flags;
+}
+
+static void qede_schedule_hw_err_handler(void *dev,
+					 enum qed_hw_err_type err_type)
+{
+	struct qede_dev *edev = dev;
+
+	/* Fan failure cannot be masked by handling of another HW error or by a
+	 * concurrent recovery process.
+	 */
+	if ((test_and_set_bit(QEDE_ERR_IS_HANDLED, &edev->err_flags) ||
+	     edev->state == QEDE_STATE_RECOVERY) &&
+	     err_type != QED_HW_ERR_FAN_FAIL) {
+		DP_INFO(edev,
+			"Avoid scheduling an error handling while another HW error is being handled\n");
+		return;
+	}
+
+	if (err_type >= QED_HW_ERR_LAST) {
+		DP_NOTICE(edev, "Unknown HW error [%d]\n", err_type);
+		clear_bit(QEDE_ERR_IS_HANDLED, &edev->err_flags);
+		return;
+	}
+
+	qede_set_hw_err_flags(edev, err_type);
+	qede_atomic_hw_err_handler(edev);
+	set_bit(QEDE_SP_HW_ERR, &edev->sp_flags);
+	schedule_delayed_work(&edev->sp_task, 0);
+
+	DP_INFO(edev, "Scheduled a error handler [err_type %d]\n", err_type);
+}
+
 static bool qede_is_txq_full(struct qede_dev *edev, struct qede_tx_queue *txq)
 {
 	struct netdev_queue *netdev_txq;
@@ -2578,4 +2750,50 @@ static void qede_get_eth_tlv_data(void *dev, void *data)
 	etlv->rxqs_empty_set = true;
 	etlv->num_txqs_full_set = true;
 	etlv->num_rxqs_full_set = true;
+}
+
+/**
+ * qede_io_error_detected - called when PCI error is detected
+ * @pdev: Pointer to PCI device
+ * @state: The current pci connection state
+ *
+ * This function is called after a PCI bus error affecting
+ * this device has been detected.
+ */
+static pci_ers_result_t
+qede_io_error_detected(struct pci_dev *pdev, pci_channel_state_t state)
+{
+	struct net_device *dev = pci_get_drvdata(pdev);
+	struct qede_dev *edev = netdev_priv(dev);
+
+	if (!edev)
+		return PCI_ERS_RESULT_NONE;
+
+	DP_NOTICE(edev, "IO error detected [%d]\n", state);
+
+	__qede_lock(edev);
+	if (edev->state == QEDE_STATE_RECOVERY) {
+		DP_NOTICE(edev, "Device already in the recovery state\n");
+		__qede_unlock(edev);
+		return PCI_ERS_RESULT_NONE;
+	}
+
+	/* PF handles the recovery of its VFs */
+	if (IS_VF(edev)) {
+		DP_VERBOSE(edev, QED_MSG_IOV,
+			   "VF recovery is handled by its PF\n");
+		__qede_unlock(edev);
+		return PCI_ERS_RESULT_RECOVERED;
+	}
+
+	/* Close OS Tx */
+	netif_tx_disable(edev->ndev);
+	netif_carrier_off(edev->ndev);
+
+	set_bit(QEDE_SP_AER, &edev->sp_flags);
+	schedule_delayed_work(&edev->sp_task, 0);
+
+	__qede_unlock(edev);
+
+	return PCI_ERS_RESULT_CAN_RECOVER;
 }

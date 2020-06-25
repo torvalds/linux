@@ -5,7 +5,7 @@
 config ATALK
 	tristate "Appletalk protocol support"
 	select LLC
-	---help---
+	help
 	  AppleTalk is the protocol that Apple computers can use to communicate
 	  on a network.  If your Linux box is connected to such a network and you
 	  wish to connect to it, say Y.  You will need to use the netatalk package
@@ -48,7 +48,7 @@ config LTPC
 	  If you are in doubt, this card is the one with the 65C02 chip on it.
 	  You also need version 1.3.3 or later of the netatalk package.
 	  This driver is experimental, which means that it may not work.
-	  See the file <file:Documentation/networking/ltpc.txt>.
+	  See the file <file:Documentation/networking/ltpc.rst>.
 
 config COPS
 	tristate "COPS LocalTalk PC support"
@@ -59,7 +59,7 @@ config COPS
 	  package. This driver is experimental, which means that it may not
 	  work. This driver will only work if you choose "AppleTalk DDP"
 	  networking support, above.
-	  Please read the file <file:Documentation/networking/cops.txt>.
+	  Please read the file <file:Documentation/networking/cops.rst>.
 
 config COPS_DAYNA
 	bool "Dayna firmware support"
@@ -79,14 +79,14 @@ config COPS_TANGENT
 config IPDDP
 	tristate "Appletalk-IP driver support"
 	depends on DEV_APPLETALK && ATALK
-	---help---
+	help
 	  This allows IP networking for users who only have AppleTalk
 	  networking available. This feature is experimental. With this
 	  driver, you can encapsulate IP inside AppleTalk (e.g. if your Linux
 	  box is stuck on an AppleTalk only network) or decapsulate (e.g. if
 	  you want your Linux box to act as an Internet gateway for a zoo of
 	  AppleTalk connected Macs). Please see the file
-	  <file:Documentation/networking/ipddp.txt> for more information.
+	  <file:Documentation/networking/ipddp.rst> for more information.
 
 	  If you say Y here, the AppleTalk-IP support will be compiled into
 	  the kernel. In this case, you can either use encapsulation or
@@ -107,4 +107,4 @@ config IPDDP_ENCAP
 	  IP packets inside AppleTalk frames; this is useful if your Linux box
 	  is stuck on an AppleTalk network (which hopefully contains a
 	  decapsulator somewhere). Please see
-	  <file:Documentation/networking/ipddp.txt> for more information.
+	  <file:Documentation/networking/ipddp.rst> for more information.

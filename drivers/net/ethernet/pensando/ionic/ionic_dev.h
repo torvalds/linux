@@ -12,7 +12,8 @@
 
 #define IONIC_MIN_MTU			ETH_MIN_MTU
 #define IONIC_MAX_MTU			9194
-#define IONIC_MAX_TXRX_DESC		16384
+#define IONIC_MAX_TX_DESC		8192
+#define IONIC_MAX_RX_DESC		16384
 #define IONIC_MIN_TXRX_DESC		16
 #define IONIC_DEF_TXRX_DESC		4096
 #define IONIC_LIFS_MAX			1024
@@ -83,6 +84,8 @@ static_assert(sizeof(struct ionic_q_init_cmd) == 64);
 static_assert(sizeof(struct ionic_q_init_comp) == 16);
 static_assert(sizeof(struct ionic_q_control_cmd) == 64);
 static_assert(sizeof(ionic_q_control_comp) == 16);
+static_assert(sizeof(struct ionic_q_identify_cmd) == 64);
+static_assert(sizeof(struct ionic_q_identify_comp) == 16);
 
 static_assert(sizeof(struct ionic_rx_mode_set_cmd) == 64);
 static_assert(sizeof(ionic_rx_mode_set_comp) == 16);
@@ -179,7 +182,7 @@ struct ionic_desc_info {
 	void *cb_arg;
 };
 
-#define QUEUE_NAME_MAX_SZ		32
+#define IONIC_QUEUE_NAME_MAX_SZ		32
 
 struct ionic_queue {
 	u64 dbell_count;
@@ -204,14 +207,14 @@ struct ionic_queue {
 	unsigned int desc_size;
 	unsigned int sg_desc_size;
 	unsigned int pid;
-	char name[QUEUE_NAME_MAX_SZ];
+	char name[IONIC_QUEUE_NAME_MAX_SZ];
 };
 
-#define INTR_INDEX_NOT_ASSIGNED		-1
-#define INTR_NAME_MAX_SZ		32
+#define IONIC_INTR_INDEX_NOT_ASSIGNED	-1
+#define IONIC_INTR_NAME_MAX_SZ		32
 
 struct ionic_intr_info {
-	char name[INTR_NAME_MAX_SZ];
+	char name[IONIC_INTR_NAME_MAX_SZ];
 	unsigned int index;
 	unsigned int vector;
 	u64 rearm_count;
@@ -283,6 +286,8 @@ void ionic_dev_cmd_port_fec(struct ionic_dev *idev, u8 fec_type);
 void ionic_dev_cmd_port_pause(struct ionic_dev *idev, u8 pause_type);
 
 int ionic_set_vf_config(struct ionic *ionic, int vf, u8 attr, u8 *data);
+void ionic_dev_cmd_queue_identify(struct ionic_dev *idev,
+				  u16 lif_type, u8 qtype, u8 qver);
 void ionic_dev_cmd_lif_identify(struct ionic_dev *idev, u8 type, u8 ver);
 void ionic_dev_cmd_lif_init(struct ionic_dev *idev, u16 lif_index,
 			    dma_addr_t addr);

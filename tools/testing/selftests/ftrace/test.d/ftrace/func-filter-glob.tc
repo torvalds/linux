@@ -1,13 +1,9 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
 # description: ftrace - function glob filters
+# requires: set_ftrace_filter function:tracer
 
 # Make sure that function glob matching filter works.
-
-if ! grep -q function available_tracers; then
-    echo "no function tracer configured"
-    exit_unsupported
-fi
 
 disable_tracing
 clear_trace

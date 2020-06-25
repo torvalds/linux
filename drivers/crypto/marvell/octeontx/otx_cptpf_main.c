@@ -79,13 +79,13 @@ static int otx_cpt_device_init(struct otx_cpt_device *cpt)
 	/* Check BIST status */
 	bist = (u64)otx_cpt_check_bist_status(cpt);
 	if (bist) {
-		dev_err(dev, "RAM BIST failed with code 0x%llx", bist);
+		dev_err(dev, "RAM BIST failed with code 0x%llx\n", bist);
 		return -ENODEV;
 	}
 
 	bist = otx_cpt_check_exe_bist_status(cpt);
 	if (bist) {
-		dev_err(dev, "Engine BIST failed with code 0x%llx", bist);
+		dev_err(dev, "Engine BIST failed with code 0x%llx\n", bist);
 		return -ENODEV;
 	}
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * SPI-NOR driver for NXP SPI Flash Interface (SPIFI)
+ * SPI NOR driver for NXP SPI Flash Interface (SPIFI)
  *
  * Copyright (C) 2015 Joachim Eastwood <manabian@gmail.com>
  *

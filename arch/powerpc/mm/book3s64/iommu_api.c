@@ -96,7 +96,7 @@ static long mm_iommu_do_alloc(struct mm_struct *mm, unsigned long ua,
 		goto unlock_exit;
 	}
 
-	down_read(&mm->mmap_sem);
+	mmap_read_lock(mm);
 	chunk = (1UL << (PAGE_SHIFT + MAX_ORDER - 1)) /
 			sizeof(struct vm_area_struct *);
 	chunk = min(chunk, entries);
@@ -114,7 +114,7 @@ static long mm_iommu_do_alloc(struct mm_struct *mm, unsigned long ua,
 			pinned += ret;
 		break;
 	}
-	up_read(&mm->mmap_sem);
+	mmap_read_unlock(mm);
 	if (pinned != entries) {
 		if (!ret)
 			ret = -EFAULT;

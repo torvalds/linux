@@ -391,11 +391,11 @@ static const struct of_device_id mcp16502_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, mcp16502_ids);
 
-static const struct regulator_linear_range b1l12_ranges[] = {
+static const struct linear_range b1l12_ranges[] = {
 	REGULATOR_LINEAR_RANGE(1200000, VDD_LOW_SEL, VDD_HIGH_SEL, 50000),
 };
 
-static const struct regulator_linear_range b234_ranges[] = {
+static const struct linear_range b234_ranges[] = {
 	REGULATOR_LINEAR_RANGE(600000, VDD_LOW_SEL, VDD_HIGH_SEL, 25000),
 };
 

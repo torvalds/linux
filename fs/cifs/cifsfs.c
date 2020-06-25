@@ -534,6 +534,8 @@ cifs_show_options(struct seq_file *s, struct dentry *root)
 		seq_puts(s, ",signloosely");
 	if (tcon->nocase)
 		seq_puts(s, ",nocase");
+	if (tcon->nodelete)
+		seq_puts(s, ",nodelete");
 	if (tcon->local_lease)
 		seq_puts(s, ",locallease");
 	if (tcon->retry)
@@ -621,7 +623,7 @@ cifs_show_options(struct seq_file *s, struct dentry *root)
 	seq_printf(s, ",actimeo=%lu", cifs_sb->actimeo / HZ);
 
 	if (tcon->ses->chan_max > 1)
-		seq_printf(s, ",multichannel,max_channel=%zu",
+		seq_printf(s, ",multichannel,max_channels=%zu",
 			   tcon->ses->chan_max);
 
 	return 0;

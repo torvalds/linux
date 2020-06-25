@@ -448,7 +448,7 @@ struct tfd_command {
 	u8 index;
 	u8 length;
 	__le16 reserved;
-	u8 payload[0];
+	u8 payload[];
 } __packed;
 
 struct tfd_data {
@@ -675,7 +675,7 @@ struct ipw_rx_frame {
 	// is identical)
 	u8 rtscts_seen;		// 0x1 RTS seen ; 0x2 CTS seen
 	__le16 length;
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 struct ipw_rx_header {
@@ -1002,7 +1002,7 @@ struct ipw_cmd {	 /* XXX */
    * Incoming parameters listed 1-st, followed by outcoming params.
    * nParams=(len+3)/4+status_len
    */
-	u32 param[0];
+	u32 param[];
 } __packed;
 
 #define STATUS_HCMD_ACTIVE      (1<<0)	/**< host command in progress */
@@ -1108,7 +1108,7 @@ struct ipw_fw_error {	 /* XXX */
 	u32 log_len;
 	struct ipw_error_elem *elem;
 	struct ipw_event *log;
-	u8 payload[0];
+	u8 payload[];
 } __packed;
 
 #ifdef CONFIG_IPW2200_PROMISCUOUS
@@ -1153,7 +1153,7 @@ struct ipw_rt_hdr {
 	s8 rt_dbmsignal;	/* signal in dbM, kluged to signed */
 	s8 rt_dbmnoise;
 	u8 rt_antenna;	/* antenna number */
-	u8 payload[0];  /* payload... */
+	u8 payload[];  /* payload... */
 } __packed;
 #endif
 
@@ -1329,7 +1329,7 @@ struct ipw_priv {
 
 	s8 tx_power;
 
-	/* Track time in suspend using CLOCK_BOOTIME */
+	/* Track time in suspend using CLOCK_BOOTTIME */
 	time64_t suspend_at;
 	time64_t suspend_time;
 

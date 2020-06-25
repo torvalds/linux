@@ -223,7 +223,6 @@ static const struct drm_display_mode default_mode = {
 	.vsync_start = 1440 + 20,
 	.vsync_end   = 1440 + 20 + 4,
 	.vtotal	     = 1440 + 20 + 4 + 12,
-	.vrefresh    = 60,
 	.clock	     = 75276,
 	.flags	     = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC,
 	.width_mm    = 65,
@@ -240,7 +239,7 @@ static int jh057n_get_modes(struct drm_panel *panel,
 	if (!mode) {
 		DRM_DEV_ERROR(ctx->dev, "Failed to add mode %ux%u@%u\n",
 			      default_mode.hdisplay, default_mode.vdisplay,
-			      default_mode.vrefresh);
+			      drm_mode_vrefresh(&default_mode));
 		return -ENOMEM;
 	}
 
@@ -360,7 +359,7 @@ static int jh057n_probe(struct mipi_dsi_device *dsi)
 
 	DRM_DEV_INFO(dev, "%ux%u@%u %ubpp dsi %udl - ready\n",
 		     default_mode.hdisplay, default_mode.vdisplay,
-		     default_mode.vrefresh,
+		     drm_mode_vrefresh(&default_mode),
 		     mipi_dsi_pixel_format_to_bpp(dsi->format), dsi->lanes);
 
 	jh057n_debugfs_init(ctx);

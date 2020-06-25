@@ -5,7 +5,7 @@ config MTK_HSDMA
 	depends on ARCH_MEDIATEK || COMPILE_TEST
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
-	---help---
+	help
 	  Enable support for High-Speed DMA controller on MediaTek
 	  SoCs.
 

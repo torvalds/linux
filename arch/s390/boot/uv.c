@@ -7,9 +7,7 @@
 #ifdef CONFIG_PROTECTED_VIRTUALIZATION_GUEST
 int __bootdata_preserved(prot_virt_guest);
 #endif
-#if IS_ENABLED(CONFIG_KVM)
 struct uv_info __bootdata_preserved(uv_info);
-#endif
 
 void uv_query_info(void)
 {

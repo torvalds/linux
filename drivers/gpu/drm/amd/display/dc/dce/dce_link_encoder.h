@@ -271,4 +271,7 @@ void dce110_psr_program_secondary_packet(struct link_encoder *enc,
 
 bool dce110_is_dig_enabled(struct link_encoder *enc);
 
+void dce110_link_encoder_get_max_link_cap(struct link_encoder *enc,
+	struct dc_link_settings *link_settings);
+
 #endif /* __DC_LINK_ENCODER__DCE110_H__ */

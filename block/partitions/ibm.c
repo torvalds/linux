@@ -13,9 +13,10 @@
 #include <asm/ebcdic.h>
 #include <linux/uaccess.h>
 #include <asm/vtoc.h>
+#include <linux/module.h>
+#include <linux/dasd_mod.h>
 
 #include "check.h"
-
 
 union label_t {
 	struct vtoc_volume_label_cdl vol;
@@ -288,7 +289,9 @@ static int find_cms1_partitions(struct parsed_partitions *state,
  */
 int ibm_partition(struct parsed_partitions *state)
 {
+	int (*fn)(struct gendisk *disk, dasd_information2_t *info);
 	struct block_device *bdev = state->bdev;
+	struct gendisk *disk = bdev->bd_disk;
 	int blocksize, res;
 	loff_t i_size, offset, size;
 	dasd_information2_t *info;
@@ -299,24 +302,31 @@ int ibm_partition(struct parsed_partitions *state)
 	union label_t *label;
 
 	res = 0;
+	if (!disk->fops->getgeo)
+		goto out_exit;
+	fn = symbol_get(dasd_biodasdinfo);
+	if (!fn)
+		goto out_exit;
 	blocksize = bdev_logical_block_size(bdev);
 	if (blocksize <= 0)
-		goto out_exit;
+		goto out_symbol;
 	i_size = i_size_read(bdev->bd_inode);
 	if (i_size == 0)
-		goto out_exit;
+		goto out_symbol;
 	info = kmalloc(sizeof(dasd_information2_t), GFP_KERNEL);
 	if (info == NULL)
-		goto out_exit;
+		goto out_symbol;
 	geo = kmalloc(sizeof(struct hd_geometry), GFP_KERNEL);
 	if (geo == NULL)
 		goto out_nogeo;
 	label = kmalloc(sizeof(union label_t), GFP_KERNEL);
 	if (label == NULL)
 		goto out_nolab;
-	if (ioctl_by_bdev(bdev, HDIO_GETGEO, (unsigned long)geo) != 0)
+	/* set start if not filled by getgeo function e.g. virtblk */
+	geo->start = get_start_sect(bdev);
+	if (disk->fops->getgeo(bdev, geo))
 		goto out_freeall;
-	if (ioctl_by_bdev(bdev, BIODASDINFO2, (unsigned long)info) != 0) {
+	if (fn(disk, info)) {
 		kfree(info);
 		info = NULL;
 	}
@@ -359,6 +369,8 @@ out_nolab:
 	kfree(geo);
 out_nogeo:
 	kfree(info);
+out_symbol:
+	symbol_put(dasd_biodasdinfo);
 out_exit:
 	return res;
 }

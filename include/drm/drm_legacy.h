@@ -194,10 +194,25 @@ void drm_legacy_idlelock_release(struct drm_lock_data *lock);
 
 #ifdef CONFIG_PCI
 
+struct drm_dma_handle *drm_pci_alloc(struct drm_device *dev, size_t size,
+				     size_t align);
+void drm_pci_free(struct drm_device *dev, struct drm_dma_handle *dmah);
+
 int drm_legacy_pci_init(struct drm_driver *driver, struct pci_driver *pdriver);
 void drm_legacy_pci_exit(struct drm_driver *driver, struct pci_driver *pdriver);
 
 #else
+
+static inline struct drm_dma_handle *drm_pci_alloc(struct drm_device *dev,
+						   size_t size, size_t align)
+{
+	return NULL;
+}
+
+static inline void drm_pci_free(struct drm_device *dev,
+				struct drm_dma_handle *dmah)
+{
+}
 
 static inline int drm_legacy_pci_init(struct drm_driver *driver,
 				      struct pci_driver *pdriver)

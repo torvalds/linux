@@ -123,7 +123,9 @@ examples:
     #include <dt-bindings/leds/common.h>
 
     i2c {
-      pmic: pmic@4b {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        pmic: pmic@4b {
             compatible = "rohm,bd71837";
             reg = <0x4b>;
             interrupt-parent = <&gpio1>;

@@ -331,7 +331,7 @@ struct at_dma {
 	struct dma_pool		*dma_desc_pool;
 	struct dma_pool		*memset_pool;
 	/* AT THE END channels table */
-	struct at_dma_chan	chan[0];
+	struct at_dma_chan	chan[];
 };
 
 #define	dma_readl(atdma, name) \

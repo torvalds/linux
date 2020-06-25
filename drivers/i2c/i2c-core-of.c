@@ -5,7 +5,7 @@
  * Copyright (C) 2008 Jochen Friedrich <jochen@scram.de>
  * based on a previous patch from Jon Smirl <jonsmirl@gmail.com>
  *
- * Copyright (C) 2013, 2018 Wolfram Sang <wsa@the-dreams.de>
+ * Copyright (C) 2013, 2018 Wolfram Sang <wsa@kernel.org>
  */
 
 #include <dt-bindings/i2c/i2c.h>

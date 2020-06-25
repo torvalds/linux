@@ -7453,7 +7453,7 @@ static enum dbg_status format_feature(struct qed_hwfn *p_hwfn,
 				      enum qed_dbg_features feature_idx)
 {
 	struct qed_dbg_feature *feature =
-	    &p_hwfn->cdev->dbg_params.features[feature_idx];
+	    &p_hwfn->cdev->dbg_features[feature_idx];
 	u32 text_size_bytes, null_char_pos, i;
 	enum dbg_status rc;
 	char *text_buf;
@@ -7502,7 +7502,7 @@ static enum dbg_status format_feature(struct qed_hwfn *p_hwfn,
 		text_buf[i] = '\n';
 
 	/* Dump printable feature to log */
-	if (p_hwfn->cdev->dbg_params.print_data)
+	if (p_hwfn->cdev->print_dbg_data)
 		qed_dbg_print_feature(text_buf, text_size_bytes);
 
 	/* Free the old dump_buf and point the dump_buf to the newly allocagted
@@ -7523,7 +7523,7 @@ static enum dbg_status qed_dbg_dump(struct qed_hwfn *p_hwfn,
 				    enum qed_dbg_features feature_idx)
 {
 	struct qed_dbg_feature *feature =
-	    &p_hwfn->cdev->dbg_params.features[feature_idx];
+	    &p_hwfn->cdev->dbg_features[feature_idx];
 	u32 buf_size_dwords;
 	enum dbg_status rc;
 
@@ -7648,7 +7648,7 @@ static int qed_dbg_nvm_image(struct qed_dev *cdev, void *buffer,
 			     enum qed_nvm_images image_id)
 {
 	struct qed_hwfn *p_hwfn =
-		&cdev->hwfns[cdev->dbg_params.engine_for_debug];
+		&cdev->hwfns[cdev->engine_for_debug];
 	u32 len_rounded, i;
 	__be32 val;
 	int rc;
@@ -7780,7 +7780,7 @@ int qed_dbg_all_data(struct qed_dev *cdev, void *buffer)
 {
 	u8 cur_engine, omit_engine = 0, org_engine;
 	struct qed_hwfn *p_hwfn =
-		&cdev->hwfns[cdev->dbg_params.engine_for_debug];
+		&cdev->hwfns[cdev->engine_for_debug];
 	struct dbg_tools_data *dev_data = &p_hwfn->dbg_info;
 	int grc_params[MAX_DBG_GRC_PARAMS], i;
 	u32 offset = 0, feature_size;
@@ -8000,7 +8000,7 @@ int qed_dbg_all_data(struct qed_dev *cdev, void *buffer)
 int qed_dbg_all_data_size(struct qed_dev *cdev)
 {
 	struct qed_hwfn *p_hwfn =
-		&cdev->hwfns[cdev->dbg_params.engine_for_debug];
+		&cdev->hwfns[cdev->engine_for_debug];
 	u32 regs_len = 0, image_len = 0, ilt_len = 0, total_ilt_len = 0;
 	u8 cur_engine, org_engine;
 
@@ -8059,9 +8059,9 @@ int qed_dbg_feature(struct qed_dev *cdev, void *buffer,
 		    enum qed_dbg_features feature, u32 *num_dumped_bytes)
 {
 	struct qed_hwfn *p_hwfn =
-		&cdev->hwfns[cdev->dbg_params.engine_for_debug];
+		&cdev->hwfns[cdev->engine_for_debug];
 	struct qed_dbg_feature *qed_feature =
-		&cdev->dbg_params.features[feature];
+		&cdev->dbg_features[feature];
 	enum dbg_status dbg_rc;
 	struct qed_ptt *p_ptt;
 	int rc = 0;
@@ -8084,7 +8084,7 @@ int qed_dbg_feature(struct qed_dev *cdev, void *buffer,
 	DP_VERBOSE(cdev, QED_MSG_DEBUG,
 		   "copying debugfs feature to external buffer\n");
 	memcpy(buffer, qed_feature->dump_buf, qed_feature->buf_size);
-	*num_dumped_bytes = cdev->dbg_params.features[feature].dumped_dwords *
+	*num_dumped_bytes = cdev->dbg_features[feature].dumped_dwords *
 			    4;
 
 out:
@@ -8095,7 +8095,7 @@ out:
 int qed_dbg_feature_size(struct qed_dev *cdev, enum qed_dbg_features feature)
 {
 	struct qed_hwfn *p_hwfn =
-		&cdev->hwfns[cdev->dbg_params.engine_for_debug];
+		&cdev->hwfns[cdev->engine_for_debug];
 	struct qed_dbg_feature *qed_feature = &cdev->dbg_features[feature];
 	struct qed_ptt *p_ptt = qed_ptt_acquire(p_hwfn);
 	u32 buf_size_dwords;
@@ -8120,14 +8120,14 @@ int qed_dbg_feature_size(struct qed_dev *cdev, enum qed_dbg_features feature)
 
 u8 qed_get_debug_engine(struct qed_dev *cdev)
 {
-	return cdev->dbg_params.engine_for_debug;
+	return cdev->engine_for_debug;
 }
 
 void qed_set_debug_engine(struct qed_dev *cdev, int engine_number)
 {
 	DP_VERBOSE(cdev, QED_MSG_DEBUG, "set debug engine to %d\n",
 		   engine_number);
-	cdev->dbg_params.engine_for_debug = engine_number;
+	cdev->engine_for_debug = engine_number;
 }
 
 void qed_dbg_pf_init(struct qed_dev *cdev)
@@ -8146,7 +8146,7 @@ void qed_dbg_pf_init(struct qed_dev *cdev)
 	}
 
 	/* Set the hwfn to be 0 as default */
-	cdev->dbg_params.engine_for_debug = 0;
+	cdev->engine_for_debug = 0;
 }
 
 void qed_dbg_pf_exit(struct qed_dev *cdev)

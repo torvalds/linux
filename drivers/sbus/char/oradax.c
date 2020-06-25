@@ -410,9 +410,7 @@ static void dax_unlock_pages(struct dax_ctx *ctx, int ccb_index, int nelem)
 
 			if (p) {
 				dax_dbg("freeing page %p", p);
-				if (j == OUT)
-					set_page_dirty(p);
-				put_page(p);
+				unpin_user_pages_dirty_lock(&p, 1, j == OUT);
 				ctx->pages[i][j] = NULL;
 			}
 		}
@@ -425,13 +423,13 @@ static int dax_lock_page(void *va, struct page **p)
 
 	dax_dbg("uva %p", va);
 
-	ret = get_user_pages_fast((unsigned long)va, 1, FOLL_WRITE, p);
+	ret = pin_user_pages_fast((unsigned long)va, 1, FOLL_WRITE, p);
 	if (ret == 1) {
 		dax_dbg("locked page %p, for VA %p", *p, va);
 		return 0;
 	}
 
-	dax_dbg("get_user_pages failed, va=%p, ret=%d", va, ret);
+	dax_dbg("pin_user_pages failed, va=%p, ret=%d", va, ret);
 	return -1;
 }
 

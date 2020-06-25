@@ -4,7 +4,7 @@
 config NET_VENDOR_CORTINA
 	bool "Cortina Gemini devices"
 	default y
-	---help---
+	help
 	  If you have a network (Ethernet) card belonging to this class, say Y
 	  and read the Ethernet-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>.
@@ -17,7 +17,7 @@ config GEMINI_ETHERNET
 	depends on HAS_IOMEM
 	select PHYLIB
 	select CRC32
-	---help---
+	help
 	  This driver supports StorLink SL351x (Gemini) dual Gigabit Ethernet.
 
 endif # NET_VENDOR_CORTINA

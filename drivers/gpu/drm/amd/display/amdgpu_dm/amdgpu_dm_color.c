@@ -239,7 +239,8 @@ static int __set_output_tf(struct dc_transfer_func *func,
 		 * instead to simulate this.
 		 */
 		gamma->type = GAMMA_CUSTOM;
-		res = mod_color_calculate_degamma_params(func, gamma, true);
+		res = mod_color_calculate_degamma_params(NULL, func,
+							gamma, true);
 	} else {
 		/*
 		 * Assume sRGB. The actual mapping will depend on whether the
@@ -271,7 +272,7 @@ static int __set_input_tf(struct dc_transfer_func *func,
 
 	__drm_lut_to_dc_gamma(lut, gamma, false);
 
-	res = mod_color_calculate_degamma_params(func, gamma, true);
+	res = mod_color_calculate_degamma_params(NULL, func, gamma, true);
 	dc_gamma_release(&gamma);
 
 	return res ? 0 : -ENOMEM;
@@ -419,8 +420,20 @@ int amdgpu_dm_update_plane_color_mgmt(struct dm_crtc_state *crtc,
 				      struct dc_plane_state *dc_plane_state)
 {
 	const struct drm_color_lut *degamma_lut;
+	enum dc_transfer_func_predefined tf = TRANSFER_FUNCTION_SRGB;
 	uint32_t degamma_size;
 	int r;
+
+	/* Get the correct base transfer function for implicit degamma. */
+	switch (dc_plane_state->format) {
+	case SURFACE_PIXEL_FORMAT_VIDEO_420_YCbCr:
+	case SURFACE_PIXEL_FORMAT_VIDEO_420_YCrCb:
+		/* DC doesn't have a transfer function for BT601 specifically. */
+		tf = TRANSFER_FUNCTION_BT709;
+		break;
+	default:
+		break;
+	}
 
 	if (crtc->cm_has_degamma) {
 		degamma_lut = __extract_blob_lut(crtc->base.degamma_lut,
@@ -455,8 +468,7 @@ int amdgpu_dm_update_plane_color_mgmt(struct dm_crtc_state *crtc,
 		 * map these to the atomic one instead.
 		 */
 		if (crtc->cm_is_degamma_srgb)
-			dc_plane_state->in_transfer_func->tf =
-				TRANSFER_FUNCTION_SRGB;
+			dc_plane_state->in_transfer_func->tf = tf;
 		else
 			dc_plane_state->in_transfer_func->tf =
 				TRANSFER_FUNCTION_LINEAR;
@@ -471,7 +483,12 @@ int amdgpu_dm_update_plane_color_mgmt(struct dm_crtc_state *crtc,
 		 * in linear space. Assume that the input is sRGB.
 		 */
 		dc_plane_state->in_transfer_func->type = TF_TYPE_PREDEFINED;
-		dc_plane_state->in_transfer_func->tf = TRANSFER_FUNCTION_SRGB;
+		dc_plane_state->in_transfer_func->tf = tf;
+
+		if (tf != TRANSFER_FUNCTION_SRGB &&
+		    !mod_color_calculate_degamma_params(NULL,
+			    dc_plane_state->in_transfer_func, NULL, false))
+			return -ENOMEM;
 	} else {
 		/* ...Otherwise we can just bypass the DGM block. */
 		dc_plane_state->in_transfer_func->type = TF_TYPE_BYPASS;

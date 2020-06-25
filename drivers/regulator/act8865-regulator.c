@@ -220,13 +220,13 @@ static const struct regmap_config act8865_regmap_config = {
 	.val_bits = 8,
 };
 
-static const struct regulator_linear_range act8865_voltage_ranges[] = {
+static const struct linear_range act8865_voltage_ranges[] = {
 	REGULATOR_LINEAR_RANGE(600000, 0, 23, 25000),
 	REGULATOR_LINEAR_RANGE(1200000, 24, 47, 50000),
 	REGULATOR_LINEAR_RANGE(2400000, 48, 63, 100000),
 };
 
-static const struct regulator_linear_range act8600_sudcdc_voltage_ranges[] = {
+static const struct linear_range act8600_sudcdc_voltage_ranges[] = {
 	REGULATOR_LINEAR_RANGE(3000000, 0, 63, 0),
 	REGULATOR_LINEAR_RANGE(3000000, 64, 159, 100000),
 	REGULATOR_LINEAR_RANGE(12600000, 160, 191, 200000),

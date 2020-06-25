@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * omap-usb2.c - USB PHY, talking to musb controller in OMAP.
+ * omap-usb2.c - USB PHY, talking to USB controller on TI SoCs.
  *
- * Copyright (C) 2012 Texas Instruments Incorporated - http://www.ti.com
+ * Copyright (C) 2012-2020 Texas Instruments Incorporated - http://www.ti.com
  * Author: Kishon Vijay Abraham I <kishon@ti.com>
  */
 
@@ -23,12 +23,64 @@
 #include <linux/regmap.h>
 #include <linux/of_platform.h>
 
-#define USB2PHY_DISCON_BYP_LATCH (1 << 31)
-#define USB2PHY_ANA_CONFIG1 0x4c
+#define USB2PHY_ANA_CONFIG1		0x4c
+#define USB2PHY_DISCON_BYP_LATCH	BIT(31)
 
+/* SoC Specific USB2_OTG register definitions */
 #define AM654_USB2_OTG_PD		BIT(8)
 #define AM654_USB2_VBUS_DET_EN		BIT(5)
 #define AM654_USB2_VBUSVALID_DET_EN	BIT(4)
+
+#define OMAP_DEV_PHY_PD		BIT(0)
+#define OMAP_USB2_PHY_PD	BIT(28)
+
+#define AM437X_USB2_PHY_PD		BIT(0)
+#define AM437X_USB2_OTG_PD		BIT(1)
+#define AM437X_USB2_OTGVDET_EN		BIT(19)
+#define AM437X_USB2_OTGSESSEND_EN	BIT(20)
+
+/* Driver Flags */
+#define OMAP_USB2_HAS_START_SRP			BIT(0)
+#define OMAP_USB2_HAS_SET_VBUS			BIT(1)
+#define OMAP_USB2_CALIBRATE_FALSE_DISCONNECT	BIT(2)
+
+struct omap_usb {
+	struct usb_phy		phy;
+	struct phy_companion	*comparator;
+	void __iomem		*pll_ctrl_base;
+	void __iomem		*phy_base;
+	struct device		*dev;
+	struct device		*control_dev;
+	struct clk		*wkupclk;
+	struct clk		*optclk;
+	u8			flags;
+	struct regmap		*syscon_phy_power; /* ctrl. reg. acces */
+	unsigned int		power_reg; /* power reg. index within syscon */
+	u32			mask;
+	u32			power_on;
+	u32			power_off;
+};
+
+#define	phy_to_omapusb(x)	container_of((x), struct omap_usb, phy)
+
+struct usb_phy_data {
+	const char *label;
+	u8 flags;
+	u32 mask;
+	u32 power_on;
+	u32 power_off;
+};
+
+static inline u32 omap_usb_readl(void __iomem *addr, unsigned int offset)
+{
+	return __raw_readl(addr + offset);
+}
+
+static inline void omap_usb_writel(void __iomem *addr, unsigned int offset,
+				   u32 data)
+{
+	__raw_writel(data, addr + offset);
+}
 
 /**
  * omap_usb2_set_comparator - links the comparator present in the sytem with

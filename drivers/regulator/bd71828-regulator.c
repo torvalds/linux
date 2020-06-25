@@ -65,27 +65,27 @@ static const struct reg_init buck7_inits[] = {
 	},
 };
 
-static const struct regulator_linear_range bd71828_buck1267_volts[] = {
+static const struct linear_range bd71828_buck1267_volts[] = {
 	REGULATOR_LINEAR_RANGE(500000, 0x00, 0xef, 6250),
 	REGULATOR_LINEAR_RANGE(2000000, 0xf0, 0xff, 0),
 };
 
-static const struct regulator_linear_range bd71828_buck3_volts[] = {
+static const struct linear_range bd71828_buck3_volts[] = {
 	REGULATOR_LINEAR_RANGE(1200000, 0x00, 0x0f, 50000),
 	REGULATOR_LINEAR_RANGE(2000000, 0x10, 0x1f, 0),
 };
 
-static const struct regulator_linear_range bd71828_buck4_volts[] = {
+static const struct linear_range bd71828_buck4_volts[] = {
 	REGULATOR_LINEAR_RANGE(1000000, 0x00, 0x1f, 25000),
 	REGULATOR_LINEAR_RANGE(1800000, 0x20, 0x3f, 0),
 };
 
-static const struct regulator_linear_range bd71828_buck5_volts[] = {
+static const struct linear_range bd71828_buck5_volts[] = {
 	REGULATOR_LINEAR_RANGE(2500000, 0x00, 0x0f, 50000),
 	REGULATOR_LINEAR_RANGE(3300000, 0x10, 0x1f, 0),
 };
 
-static const struct regulator_linear_range bd71828_ldo_volts[] = {
+static const struct linear_range bd71828_ldo_volts[] = {
 	REGULATOR_LINEAR_RANGE(800000, 0x00, 0x31, 50000),
 	REGULATOR_LINEAR_RANGE(3300000, 0x32, 0x3f, 0),
 };

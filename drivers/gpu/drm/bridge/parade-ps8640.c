@@ -268,8 +268,6 @@ static int ps8640_probe(struct i2c_client *client)
 	if (!panel)
 		return -ENODEV;
 
-	panel->connector_type = DRM_MODE_CONNECTOR_eDP;
-
 	ps_bridge->panel_bridge = devm_drm_panel_bridge_add(dev, panel);
 	if (IS_ERR(ps_bridge->panel_bridge))
 		return PTR_ERR(ps_bridge->panel_bridge);

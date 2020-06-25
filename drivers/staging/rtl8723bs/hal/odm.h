@@ -541,7 +541,7 @@ typedef enum tag_Operation_Mode_Definition {
 
 /*  ODM_CMNINFO_WM_MODE */
 typedef enum tag_Wireless_Mode_Definition {
-	ODM_WM_UNKNOW     = 0x0,
+	ODM_WM_UNKNOWN    = 0x0,
 	ODM_WM_B          = BIT0,
 	ODM_WM_G          = BIT1,
 	ODM_WM_A          = BIT2,

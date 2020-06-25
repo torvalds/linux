@@ -27,15 +27,15 @@ void mips_install_watch_registers(struct task_struct *t)
 	case 4:
 		write_c0_watchlo3(watches->watchlo[3]);
 		write_c0_watchhi3(watchhi | watches->watchhi[3]);
-		/* fall through */
+		fallthrough;
 	case 3:
 		write_c0_watchlo2(watches->watchlo[2]);
 		write_c0_watchhi2(watchhi | watches->watchhi[2]);
-		/* fall through */
+		fallthrough;
 	case 2:
 		write_c0_watchlo1(watches->watchlo[1]);
 		write_c0_watchhi1(watchhi | watches->watchhi[1]);
-		/* fall through */
+		fallthrough;
 	case 1:
 		write_c0_watchlo0(watches->watchlo[0]);
 		write_c0_watchhi0(watchhi | watches->watchhi[0]);
@@ -58,13 +58,13 @@ void mips_read_watch_registers(void)
 		BUG();
 	case 4:
 		watches->watchhi[3] = (read_c0_watchhi3() & watchhi_mask);
-		/* fall through */
+		fallthrough;
 	case 3:
 		watches->watchhi[2] = (read_c0_watchhi2() & watchhi_mask);
-		/* fall through */
+		fallthrough;
 	case 2:
 		watches->watchhi[1] = (read_c0_watchhi1() & watchhi_mask);
-		/* fall through */
+		fallthrough;
 	case 1:
 		watches->watchhi[0] = (read_c0_watchhi0() & watchhi_mask);
 	}
@@ -91,25 +91,25 @@ void mips_clear_watch_registers(void)
 		BUG();
 	case 8:
 		write_c0_watchlo7(0);
-		/* fall through */
+		fallthrough;
 	case 7:
 		write_c0_watchlo6(0);
-		/* fall through */
+		fallthrough;
 	case 6:
 		write_c0_watchlo5(0);
-		/* fall through */
+		fallthrough;
 	case 5:
 		write_c0_watchlo4(0);
-		/* fall through */
+		fallthrough;
 	case 4:
 		write_c0_watchlo3(0);
-		/* fall through */
+		fallthrough;
 	case 3:
 		write_c0_watchlo2(0);
-		/* fall through */
+		fallthrough;
 	case 2:
 		write_c0_watchlo1(0);
-		/* fall through */
+		fallthrough;
 	case 1:
 		write_c0_watchlo0(0);
 	}

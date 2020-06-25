@@ -29,6 +29,8 @@
 		i2c6 = &i2c6;
 		spi0 = &spi0;
 		spi1 = &spi1;
+		ethernet0 = &eth0;
+		ethernet1 = &eth1;
 	};
 
 	memory@80000000 {
@@ -128,5 +130,21 @@
 
 	nand@0 {
 		reg = <0>;
+	};
+};
+
+&pinctrl_ether_rgmii {
+	tx {
+		pins = "RGMII0_TXCLK", "RGMII0_TXD0", "RGMII0_TXD1",
+		       "RGMII0_TXD2", "RGMII0_TXD3", "RGMII0_TXCTL";
+		drive-strength = <9>;
+	};
+};
+
+&pinctrl_ether1_rgmii {
+	tx {
+		pins = "RGMII1_TXCLK", "RGMII1_TXD0", "RGMII1_TXD1",
+		       "RGMII1_TXD2", "RGMII1_TXD3", "RGMII1_TXCTL";
+		drive-strength = <9>;
 	};
 };

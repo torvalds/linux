@@ -1,4 +1,0 @@
-# CONFIG_A is not set
-CONFIG_B=y
-CONFIG_C=y
-# CONFIG_D is not set

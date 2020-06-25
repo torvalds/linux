@@ -88,13 +88,13 @@ static const char aq_ethtool_stat_names[][ETH_GSTRING_LEN] = {
 	"InDroppedDma",
 };
 
-static const char aq_ethtool_queue_stat_names[][ETH_GSTRING_LEN] = {
-	"Queue[%d] InPackets",
-	"Queue[%d] OutPackets",
-	"Queue[%d] Restarts",
-	"Queue[%d] InJumboPackets",
-	"Queue[%d] InLroPackets",
-	"Queue[%d] InErrors",
+static const char * const aq_ethtool_queue_stat_names[] = {
+	"%sQueue[%d] InPackets",
+	"%sQueue[%d] OutPackets",
+	"%sQueue[%d] Restarts",
+	"%sQueue[%d] InJumboPackets",
+	"%sQueue[%d] InLroPackets",
+	"%sQueue[%d] InErrors",
 };
 
 #if IS_ENABLED(CONFIG_MACSEC)
@@ -166,7 +166,8 @@ static u32 aq_ethtool_n_stats(struct net_device *ndev)
 	struct aq_nic_s *nic = netdev_priv(ndev);
 	struct aq_nic_cfg_s *cfg = aq_nic_get_cfg(nic);
 	u32 n_stats = ARRAY_SIZE(aq_ethtool_stat_names) +
-		      ARRAY_SIZE(aq_ethtool_queue_stat_names) * cfg->vecs;
+		      ARRAY_SIZE(aq_ethtool_queue_stat_names) * cfg->vecs *
+			cfg->tcs;
 
 #if IS_ENABLED(CONFIG_MACSEC)
 	if (nic->macsec_cfg) {
@@ -223,7 +224,7 @@ static void aq_ethtool_get_drvinfo(struct net_device *ndev,
 static void aq_ethtool_get_strings(struct net_device *ndev,
 				   u32 stringset, u8 *data)
 {
-	struct aq_nic_s *aq_nic = netdev_priv(ndev);
+	struct aq_nic_s *nic = netdev_priv(ndev);
 	struct aq_nic_cfg_s *cfg;
 	u8 *p = data;
 	int i, si;
@@ -231,24 +232,35 @@ static void aq_ethtool_get_strings(struct net_device *ndev,
 	int sa;
 #endif
 
-	cfg = aq_nic_get_cfg(aq_nic);
+	cfg = aq_nic_get_cfg(nic);
 
 	switch (stringset) {
-	case ETH_SS_STATS:
+	case ETH_SS_STATS: {
+		const int stat_cnt = ARRAY_SIZE(aq_ethtool_queue_stat_names);
+		char tc_string[8];
+		int tc;
+
+		memset(tc_string, 0, sizeof(tc_string));
 		memcpy(p, aq_ethtool_stat_names,
 		       sizeof(aq_ethtool_stat_names));
 		p = p + sizeof(aq_ethtool_stat_names);
-		for (i = 0; i < cfg->vecs; i++) {
-			for (si = 0;
-				si < ARRAY_SIZE(aq_ethtool_queue_stat_names);
-				si++) {
-				snprintf(p, ETH_GSTRING_LEN,
-					 aq_ethtool_queue_stat_names[si], i);
-				p += ETH_GSTRING_LEN;
+
+		for (tc = 0; tc < cfg->tcs; tc++) {
+			if (cfg->is_qos)
+				snprintf(tc_string, 8, "TC%d ", tc);
+
+			for (i = 0; i < cfg->vecs; i++) {
+				for (si = 0; si < stat_cnt; si++) {
+					snprintf(p, ETH_GSTRING_LEN,
+					     aq_ethtool_queue_stat_names[si],
+					     tc_string,
+					     AQ_NIC_CFG_TCVEC2RING(cfg, tc, i));
+					p += ETH_GSTRING_LEN;
+				}
 			}
 		}
 #if IS_ENABLED(CONFIG_MACSEC)
-		if (!aq_nic->macsec_cfg)
+		if (!nic->macsec_cfg)
 			break;
 
 		memcpy(p, aq_macsec_stat_names, sizeof(aq_macsec_stat_names));
@@ -256,7 +268,7 @@ static void aq_ethtool_get_strings(struct net_device *ndev,
 		for (i = 0; i < AQ_MACSEC_MAX_SC; i++) {
 			struct aq_macsec_txsc *aq_txsc;
 
-			if (!(test_bit(i, &aq_nic->macsec_cfg->txsc_idx_busy)))
+			if (!(test_bit(i, &nic->macsec_cfg->txsc_idx_busy)))
 				continue;
 
 			for (si = 0;
@@ -266,7 +278,7 @@ static void aq_ethtool_get_strings(struct net_device *ndev,
 					 aq_macsec_txsc_stat_names[si], i);
 				p += ETH_GSTRING_LEN;
 			}
-			aq_txsc = &aq_nic->macsec_cfg->aq_txsc[i];
+			aq_txsc = &nic->macsec_cfg->aq_txsc[i];
 			for (sa = 0; sa < MACSEC_NUM_AN; sa++) {
 				if (!(test_bit(sa, &aq_txsc->tx_sa_idx_busy)))
 					continue;
@@ -283,10 +295,10 @@ static void aq_ethtool_get_strings(struct net_device *ndev,
 		for (i = 0; i < AQ_MACSEC_MAX_SC; i++) {
 			struct aq_macsec_rxsc *aq_rxsc;
 
-			if (!(test_bit(i, &aq_nic->macsec_cfg->rxsc_idx_busy)))
+			if (!(test_bit(i, &nic->macsec_cfg->rxsc_idx_busy)))
 				continue;
 
-			aq_rxsc = &aq_nic->macsec_cfg->aq_rxsc[i];
+			aq_rxsc = &nic->macsec_cfg->aq_rxsc[i];
 			for (sa = 0; sa < MACSEC_NUM_AN; sa++) {
 				if (!(test_bit(sa, &aq_rxsc->rx_sa_idx_busy)))
 					continue;
@@ -302,6 +314,7 @@ static void aq_ethtool_get_strings(struct net_device *ndev,
 		}
 #endif
 		break;
+	}
 	case ETH_SS_PRIV_FLAGS:
 		memcpy(p, aq_ethtool_priv_flag_names,
 		       sizeof(aq_ethtool_priv_flag_names));
@@ -605,11 +618,14 @@ static enum hw_atl_fw2x_rate eee_mask_to_ethtool_mask(u32 speed)
 	if (speed & AQ_NIC_RATE_EEE_10G)
 		rate |= SUPPORTED_10000baseT_Full;
 
-	if (speed & AQ_NIC_RATE_EEE_2GS)
+	if (speed & AQ_NIC_RATE_EEE_2G5)
 		rate |= SUPPORTED_2500baseX_Full;
 
 	if (speed & AQ_NIC_RATE_EEE_1G)
 		rate |= SUPPORTED_1000baseT_Full;
+
+	if (speed & AQ_NIC_RATE_EEE_100M)
+		rate |= SUPPORTED_100baseT_Full;
 
 	return rate;
 }
@@ -777,8 +793,6 @@ static int aq_set_ringparam(struct net_device *ndev,
 		dev_close(ndev);
 	}
 
-	aq_nic_free_vectors(aq_nic);
-
 	cfg->rxds = max(ring->rx_pending, hw_caps->rxds_min);
 	cfg->rxds = min(cfg->rxds, hw_caps->rxds_max);
 	cfg->rxds = ALIGN(cfg->rxds, AQ_HW_RXD_MULTIPLE);
@@ -787,15 +801,10 @@ static int aq_set_ringparam(struct net_device *ndev,
 	cfg->txds = min(cfg->txds, hw_caps->txds_max);
 	cfg->txds = ALIGN(cfg->txds, AQ_HW_TXD_MULTIPLE);
 
-	for (aq_nic->aq_vecs = 0; aq_nic->aq_vecs < cfg->vecs;
-	     aq_nic->aq_vecs++) {
-		aq_nic->aq_vec[aq_nic->aq_vecs] =
-		    aq_vec_alloc(aq_nic, aq_nic->aq_vecs, cfg);
-		if (unlikely(!aq_nic->aq_vec[aq_nic->aq_vecs])) {
-			err = -ENOMEM;
-			goto err_exit;
-		}
-	}
+	err = aq_nic_realloc_vectors(aq_nic);
+	if (err)
+		goto err_exit;
+
 	if (ndev_running)
 		err = dev_open(ndev, NULL);
 

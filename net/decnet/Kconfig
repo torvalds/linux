@@ -4,7 +4,7 @@
 #
 config DECNET
 	tristate "DECnet Support"
-	---help---
+	help
 	  The DECnet networking protocol was used in many products made by
 	  Digital (now Compaq).  It provides reliable stream and sequenced
 	  packet communications over which run a variety of services similar
@@ -15,7 +15,7 @@ config DECNET
 	  <http://linux-decnet.sourceforge.net/>.
 
 	  More detailed documentation is available in
-	  <file:Documentation/networking/decnet.txt>.
+	  <file:Documentation/networking/decnet.rst>.
 
 	  Be sure to say Y to "/proc file system support" and "Sysctl support"
 	  below when using DECnet, since you will need sysctl support to aid
@@ -29,7 +29,7 @@ config DECNET_ROUTER
 	bool "DECnet: router support"
 	depends on DECNET
 	select FIB_RULES
-	---help---
+	help
 	  Add support for turning your DECnet Endnode into a level 1 or 2
 	  router.  This is an experimental, but functional option.  If you
 	  do say Y here, then make sure that you also say Y to "Kernel/User
@@ -40,4 +40,4 @@ config DECNET_ROUTER
 	  filtering" option will be required for the forthcoming routing daemon
 	  to work.
 
-	  See <file:Documentation/networking/decnet.txt> for more information.
+	  See <file:Documentation/networking/decnet.rst> for more information.

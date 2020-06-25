@@ -29,7 +29,7 @@ struct i2c_mux_core {
 
 	int num_adapters;
 	int max_adapters;
-	struct i2c_adapter *adapter[0];
+	struct i2c_adapter *adapter[];
 };
 
 struct i2c_mux_core *i2c_mux_alloc(struct i2c_adapter *parent,

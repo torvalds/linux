@@ -201,7 +201,6 @@ static const struct drm_display_mode default_mode = {
 	.vsync_start = 960 + 3,
 	.vsync_end = 960 + 3 + 15,
 	.vtotal = 960 + 3 + 15 + 1,
-	.vrefresh = 60,
 };
 
 static int sharp_nt_panel_get_modes(struct drm_panel *panel,
@@ -213,7 +212,7 @@ static int sharp_nt_panel_get_modes(struct drm_panel *panel,
 	if (!mode) {
 		dev_err(panel->dev, "failed to add mode %ux%u@%u\n",
 			default_mode.hdisplay, default_mode.vdisplay,
-			default_mode.vrefresh);
+			drm_mode_vrefresh(&default_mode));
 		return -ENOMEM;
 	}
 

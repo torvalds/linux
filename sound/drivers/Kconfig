@@ -186,18 +186,6 @@ config SND_PORTMAN2X4
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-portman2x4.
 
-config SND_ML403_AC97CR
-	tristate "Xilinx ML403 AC97 Controller Reference"
-	depends on XILINX_VIRTEX
-	select SND_AC97_CODEC
-	help
-	  Say Y here to include support for the
-	  opb_ac97_controller_ref_v1_00_a ip core found in Xilinx's ML403
-	  reference design.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called snd-ml403_ac97cr.
-
 config SND_AC97_POWER_SAVE
 	bool "AC97 Power-Saving Mode"
 	depends on SND_AC97_CODEC

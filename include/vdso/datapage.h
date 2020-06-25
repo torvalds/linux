@@ -73,8 +73,8 @@ struct vdso_timestamp {
  *
  * @offset is used by the special time namespace VVAR pages which are
  * installed instead of the real VVAR page. These namespace pages must set
- * @seq to 1 and @clock_mode to VLOCK_TIMENS to force the code into the
- * time namespace slow path. The namespace aware functions retrieve the
+ * @seq to 1 and @clock_mode to VDSO_CLOCKMODE_TIMENS to force the code into
+ * the time namespace slow path. The namespace aware functions retrieve the
  * real system wide VVAR page, read host time and add the per clock offset.
  * For clocks which are not affected by time namespace adjustment the
  * offset must be zero.

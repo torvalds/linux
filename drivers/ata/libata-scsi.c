@@ -649,7 +649,7 @@ static void ata_qc_set_pc_nbytes(struct ata_queued_cmd *qc)
 {
 	struct scsi_cmnd *scmd = qc->scsicmd;
 
-	qc->extrabytes = scmd->request->extra_len;
+	qc->extrabytes = scmd->extra_len;
 	qc->nbytes = scsi_bufflen(scmd) + qc->extrabytes;
 }
 
@@ -1017,16 +1017,11 @@ void ata_scsi_sdev_config(struct scsi_device *sdev)
  *	RETURNS:
  *	1 if ; otherwise, 0.
  */
-static int atapi_drain_needed(struct request *rq)
+bool ata_scsi_dma_need_drain(struct request *rq)
 {
-	if (likely(!blk_rq_is_passthrough(rq)))
-		return 0;
-
-	if (!blk_rq_bytes(rq) || op_is_write(req_op(rq)))
-		return 0;
-
 	return atapi_cmd_type(scsi_req(rq)->cmd[0]) == ATAPI_MISC;
 }
+EXPORT_SYMBOL_GPL(ata_scsi_dma_need_drain);
 
 int ata_scsi_dev_config(struct scsi_device *sdev, struct ata_device *dev)
 {
@@ -1039,21 +1034,21 @@ int ata_scsi_dev_config(struct scsi_device *sdev, struct ata_device *dev)
 	blk_queue_max_hw_sectors(q, dev->max_sectors);
 
 	if (dev->class == ATA_DEV_ATAPI) {
-		void *buf;
-
 		sdev->sector_size = ATA_SECT_SIZE;
 
 		/* set DMA padding */
 		blk_queue_update_dma_pad(q, ATA_DMA_PAD_SZ - 1);
 
-		/* configure draining */
-		buf = kmalloc(ATAPI_MAX_DRAIN, q->bounce_gfp | GFP_KERNEL);
-		if (!buf) {
+		/* make room for appending the drain */
+		blk_queue_max_segments(q, queue_max_segments(q) - 1);
+
+		sdev->dma_drain_len = ATAPI_MAX_DRAIN;
+		sdev->dma_drain_buf = kmalloc(sdev->dma_drain_len,
+				q->bounce_gfp | GFP_KERNEL);
+		if (!sdev->dma_drain_buf) {
 			ata_dev_err(dev, "drain buffer allocation failed\n");
 			return -ENOMEM;
 		}
-
-		blk_queue_dma_drain(q, atapi_drain_needed, buf, ATAPI_MAX_DRAIN);
 	} else {
 		sdev->sector_size = ata_id_logical_sector_size(dev->id);
 		sdev->manage_start_stop = 1;
@@ -1135,7 +1130,6 @@ EXPORT_SYMBOL_GPL(ata_scsi_slave_config);
 void ata_scsi_slave_destroy(struct scsi_device *sdev)
 {
 	struct ata_port *ap = ata_shost_to_port(sdev->host);
-	struct request_queue *q = sdev->request_queue;
 	unsigned long flags;
 	struct ata_device *dev;
 
@@ -1152,9 +1146,7 @@ void ata_scsi_slave_destroy(struct scsi_device *sdev)
 	}
 	spin_unlock_irqrestore(ap->lock, flags);
 
-	kfree(q->dma_drain_buffer);
-	q->dma_drain_buffer = NULL;
-	q->dma_drain_size = 0;
+	kfree(sdev->dma_drain_buf);
 }
 EXPORT_SYMBOL_GPL(ata_scsi_slave_destroy);
 
@@ -3692,12 +3684,13 @@ static unsigned int ata_scsi_mode_select_xlat(struct ata_queued_cmd *qc)
 {
 	struct scsi_cmnd *scmd = qc->scsicmd;
 	const u8 *cdb = scmd->cmnd;
-	const u8 *p;
 	u8 pg, spg;
 	unsigned six_byte, pg_len, hdr_len, bd_len;
 	int len;
 	u16 fp = (u16)-1;
 	u8 bp = 0xff;
+	u8 buffer[64];
+	const u8 *p = buffer;
 
 	VPRINTK("ENTER\n");
 
@@ -3731,10 +3724,12 @@ static unsigned int ata_scsi_mode_select_xlat(struct ata_queued_cmd *qc)
 	if (!scsi_sg_count(scmd) || scsi_sglist(scmd)->length < len)
 		goto invalid_param_len;
 
-	p = page_address(sg_page(scsi_sglist(scmd)));
-
 	/* Move past header and block descriptors.  */
 	if (len < hdr_len)
+		goto invalid_param_len;
+
+	if (!sg_copy_to_buffer(scsi_sglist(scmd), scsi_sg_count(scmd),
+			       buffer, sizeof(buffer)))
 		goto invalid_param_len;
 
 	if (six_byte)

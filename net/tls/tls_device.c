@@ -694,10 +694,11 @@ void tls_device_rx_resync_new_rec(struct sock *sk, u32 rcd_len, u32 seq)
 {
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
 	struct tls_offload_context_rx *rx_ctx;
+	bool is_req_pending, is_force_resync;
 	u8 rcd_sn[TLS_MAX_REC_SEQ_SIZE];
-	u32 sock_data, is_req_pending;
 	struct tls_prot_info *prot;
 	s64 resync_req;
+	u32 sock_data;
 	u32 req_seq;
 
 	if (tls_ctx->rx_conf != TLS_HW)
@@ -712,9 +713,11 @@ void tls_device_rx_resync_new_rec(struct sock *sk, u32 rcd_len, u32 seq)
 		resync_req = atomic64_read(&rx_ctx->resync_req);
 		req_seq = resync_req >> 32;
 		seq += TLS_HEADER_SIZE - 1;
-		is_req_pending = resync_req;
+		is_req_pending = resync_req & RESYNC_REQ;
+		is_force_resync = resync_req & RESYNC_REQ_FORCE;
 
-		if (likely(!is_req_pending) || req_seq != seq ||
+		if (likely(!is_req_pending) ||
+		    (!is_force_resync && req_seq != seq) ||
 		    !atomic64_try_cmpxchg(&rx_ctx->resync_req, &resync_req, 0))
 			return;
 		break;

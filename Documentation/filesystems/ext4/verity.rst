@@ -39,3 +39,6 @@ is encrypted as well as the data itself.
 
 Verity files cannot have blocks allocated past the end of the verity
 metadata.
+
+Verity and DAX are not compatible and attempts to set both of these flags
+on a file will fail.

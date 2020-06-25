@@ -24,6 +24,8 @@
 #include <net/netfilter/nf_conntrack_zones.h>
 #include <net/netfilter/nf_log.h>
 
+#include "nf_internals.h"
+
 static const unsigned int nf_ct_icmpv6_timeout = 30*HZ;
 
 bool icmpv6_pkt_to_tuple(const struct sk_buff *skb,
@@ -193,21 +195,33 @@ static const struct nla_policy icmpv6_nla_policy[CTA_PROTO_MAX+1] = {
 };
 
 static int icmpv6_nlattr_to_tuple(struct nlattr *tb[],
-				struct nf_conntrack_tuple *tuple)
+				struct nf_conntrack_tuple *tuple,
+				u_int32_t flags)
 {
-	if (!tb[CTA_PROTO_ICMPV6_TYPE] ||
-	    !tb[CTA_PROTO_ICMPV6_CODE] ||
-	    !tb[CTA_PROTO_ICMPV6_ID])
-		return -EINVAL;
+	if (flags & CTA_FILTER_FLAG(CTA_PROTO_ICMPV6_TYPE)) {
+		if (!tb[CTA_PROTO_ICMPV6_TYPE])
+			return -EINVAL;
 
-	tuple->dst.u.icmp.type = nla_get_u8(tb[CTA_PROTO_ICMPV6_TYPE]);
-	tuple->dst.u.icmp.code = nla_get_u8(tb[CTA_PROTO_ICMPV6_CODE]);
-	tuple->src.u.icmp.id = nla_get_be16(tb[CTA_PROTO_ICMPV6_ID]);
+		tuple->dst.u.icmp.type = nla_get_u8(tb[CTA_PROTO_ICMPV6_TYPE]);
+		if (tuple->dst.u.icmp.type < 128 ||
+		    tuple->dst.u.icmp.type - 128 >= sizeof(invmap) ||
+		    !invmap[tuple->dst.u.icmp.type - 128])
+			return -EINVAL;
+	}
 
-	if (tuple->dst.u.icmp.type < 128 ||
-	    tuple->dst.u.icmp.type - 128 >= sizeof(invmap) ||
-	    !invmap[tuple->dst.u.icmp.type - 128])
-		return -EINVAL;
+	if (flags & CTA_FILTER_FLAG(CTA_PROTO_ICMPV6_CODE)) {
+		if (!tb[CTA_PROTO_ICMPV6_CODE])
+			return -EINVAL;
+
+		tuple->dst.u.icmp.code = nla_get_u8(tb[CTA_PROTO_ICMPV6_CODE]);
+	}
+
+	if (flags & CTA_FILTER_FLAG(CTA_PROTO_ICMPV6_ID)) {
+		if (!tb[CTA_PROTO_ICMPV6_ID])
+			return -EINVAL;
+
+		tuple->src.u.icmp.id = nla_get_be16(tb[CTA_PROTO_ICMPV6_ID]);
+	}
 
 	return 0;
 }

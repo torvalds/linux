@@ -3,7 +3,6 @@
  * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
  *
  * Amit Bhor, Sameer Dhavale: Codito Technologies 2004
-
  */
 
 #ifndef _ASM_ARC_MODULE_H
@@ -18,9 +17,5 @@ struct mod_arch_specific {
 #endif
 	const char *secstr;
 };
-
-#define MODULE_PROC_FAMILY "ARC700"
-
-#define MODULE_ARCH_VERMAGIC MODULE_PROC_FAMILY
 
 #endif /* _ASM_ARC_MODULE_H */

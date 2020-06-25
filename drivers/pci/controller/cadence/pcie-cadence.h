@@ -251,7 +251,6 @@ struct cdns_pcie {
  * @bus_range: first/last buses behind the PCIe host controller
  * @cfg_base: IO mapped window to access the PCI configuration space of a
  *            single function at a time
- * @max_regions: maximum number of regions supported by the hardware
  * @no_bar_nbits: Number of bits to keep for inbound (PCIe -> CPU) address
  *                translation (nbits sets into the "no BAR match" register)
  * @vendor_id: PCI vendor ID
@@ -262,10 +261,9 @@ struct cdns_pcie_rc {
 	struct resource		*cfg_res;
 	struct resource		*bus_range;
 	void __iomem		*cfg_base;
-	u32			max_regions;
 	u32			no_bar_nbits;
-	u16			vendor_id;
-	u16			device_id;
+	u32			vendor_id;
+	u32			device_id;
 };
 
 /**

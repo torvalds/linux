@@ -289,7 +289,8 @@ static void dsa_master_ndo_teardown(struct net_device *dev)
 {
 	struct dsa_port *cpu_dp = dev->dsa_ptr;
 
-	dev->netdev_ops = cpu_dp->orig_ndo_ops;
+	if (cpu_dp->orig_ndo_ops)
+		dev->netdev_ops = cpu_dp->orig_ndo_ops;
 	cpu_dp->orig_ndo_ops = NULL;
 }
 
@@ -326,6 +327,8 @@ static void dsa_master_reset_mtu(struct net_device *dev)
 	rtnl_unlock();
 }
 
+static struct lock_class_key dsa_master_addr_list_lock_key;
+
 int dsa_master_setup(struct net_device *dev, struct dsa_port *cpu_dp)
 {
 	int ret;
@@ -344,6 +347,8 @@ int dsa_master_setup(struct net_device *dev, struct dsa_port *cpu_dp)
 	wmb();
 
 	dev->dsa_ptr = cpu_dp;
+	lockdep_set_class(&dev->addr_list_lock,
+			  &dsa_master_addr_list_lock_key);
 	ret = dsa_master_ethtool_setup(dev);
 	if (ret)
 		return ret;

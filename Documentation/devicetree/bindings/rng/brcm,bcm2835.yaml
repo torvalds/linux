@@ -39,7 +39,7 @@ additionalProperties: false
 
 examples:
   - |
-    rng {
+    rng@7e104000 {
         compatible = "brcm,bcm2835-rng";
         reg = <0x7e104000 0x10>;
         interrupts = <2 29>;

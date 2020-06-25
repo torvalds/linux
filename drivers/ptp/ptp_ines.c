@@ -400,8 +400,8 @@ static int ines_hwtstamp(struct mii_timestamper *mii_ts, struct ifreq *ifr)
 	ines_write32(port, ts_stat_rx, ts_stat_rx);
 	ines_write32(port, ts_stat_tx, ts_stat_tx);
 
-	port->rxts_enabled = ts_stat_rx == TS_ENABLE ? true : false;
-	port->txts_enabled = ts_stat_tx == TS_ENABLE ? true : false;
+	port->rxts_enabled = ts_stat_rx == TS_ENABLE;
+	port->txts_enabled = ts_stat_tx == TS_ENABLE;
 
 	spin_unlock_irqrestore(&port->lock, flags);
 
@@ -783,16 +783,10 @@ static struct mii_timestamping_ctrl ines_ctrl = {
 static int ines_ptp_ctrl_probe(struct platform_device *pld)
 {
 	struct ines_clock *clock;
-	struct resource *res;
 	void __iomem *addr;
 	int err = 0;
 
-	res = platform_get_resource(pld, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pld->dev, "missing memory resource\n");
-		return -EINVAL;
-	}
-	addr = devm_ioremap_resource(&pld->dev, res);
+	addr = devm_platform_ioremap_resource(pld, 0);
 	if (IS_ERR(addr)) {
 		err = PTR_ERR(addr);
 		goto out;

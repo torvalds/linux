@@ -159,6 +159,8 @@ static int drm_helper_probe_add_cmdline_mode(struct drm_connector *connector)
 				continue;
 		}
 
+		/* Mark the matching mode as being preferred by the user */
+		mode->type |= DRM_MODE_TYPE_USERDEF;
 		return 0;
 	}
 
@@ -531,9 +533,6 @@ prune:
 
 	if (list_empty(&connector->modes))
 		return 0;
-
-	list_for_each_entry(mode, &connector->modes, head)
-		mode->vrefresh = drm_mode_vrefresh(mode);
 
 	drm_mode_sort(&connector->modes);
 

@@ -2,7 +2,7 @@
 
 Required properties:
 
-  - compatible : should be "bosch,bmg160" or "bosch,bmi055_gyro"
+  - compatible : should be "bosch,bmg160", "bosch,bmi055_gyro" or "bosch,bmi088_gyro"
   - reg : the I2C address of the sensor (0x69)
 
 Optional properties:

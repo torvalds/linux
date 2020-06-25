@@ -1332,13 +1332,15 @@ _pnfs_return_layout(struct inode *ino)
 			!valid_layout) {
 		spin_unlock(&ino->i_lock);
 		dprintk("NFS: %s no layout segments to return\n", __func__);
-		goto out_put_layout_hdr;
+		goto out_wait_layoutreturn;
 	}
 
 	send = pnfs_prepare_layoutreturn(lo, &stateid, &cred, NULL);
 	spin_unlock(&ino->i_lock);
 	if (send)
 		status = pnfs_send_layoutreturn(lo, &stateid, &cred, IOMODE_ANY, true);
+out_wait_layoutreturn:
+	wait_on_bit(&lo->plh_flags, NFS_LAYOUT_RETURN, TASK_UNINTERRUPTIBLE);
 out_put_layout_hdr:
 	pnfs_free_lseg_list(&tmp_list);
 	pnfs_put_layout_hdr(lo);
@@ -1456,18 +1458,15 @@ retry:
 	/* lo ref dropped in pnfs_roc_release() */
 	layoutreturn = pnfs_prepare_layoutreturn(lo, &stateid, &lc_cred, &iomode);
 	/* If the creds don't match, we can't compound the layoutreturn */
-	if (!layoutreturn)
+	if (!layoutreturn || cred_fscmp(cred, lc_cred) != 0)
 		goto out_noroc;
-	if (cred_fscmp(cred, lc_cred) != 0)
-		goto out_noroc_put_cred;
 
 	roc = layoutreturn;
 	pnfs_init_layoutreturn_args(args, lo, &stateid, iomode);
 	res->lrs_present = 0;
 	layoutreturn = false;
-
-out_noroc_put_cred:
 	put_cred(lc_cred);
+
 out_noroc:
 	spin_unlock(&ino->i_lock);
 	rcu_read_unlock();
@@ -2023,6 +2022,7 @@ lookup_again:
 			goto lookup_again;
 		}
 
+		spin_unlock(&ino->i_lock);
 		first = true;
 		status = nfs4_select_rw_stateid(ctx->state,
 					iomode == IOMODE_RW ? FMODE_WRITE : FMODE_READ,
@@ -2032,12 +2032,12 @@ lookup_again:
 			trace_pnfs_update_layout(ino, pos, count,
 					iomode, lo, lseg,
 					PNFS_UPDATE_LAYOUT_INVALID_OPEN);
-			spin_unlock(&ino->i_lock);
 			nfs4_schedule_stateid_recovery(server, ctx->state);
 			pnfs_clear_first_layoutget(lo);
 			pnfs_put_layout_hdr(lo);
 			goto lookup_again;
 		}
+		spin_lock(&ino->i_lock);
 	} else {
 		nfs4_stateid_copy(&stateid, &lo->plh_stateid);
 	}

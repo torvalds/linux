@@ -288,11 +288,6 @@
 				reg = <0x53fa8000 0x4000>;
 			};
 
-			gpr: iomuxc-gpr@53fa8000 {
-				compatible = "fsl,imx50-iomuxc-gpr", "syscon";
-				reg = <0x53fa8000 0xc>;
-			};
-
 			pwm1: pwm@53fb4000 {
 				#pwm-cells = <2>;
 				compatible = "fsl,imx50-pwm", "fsl,imx27-pwm";
@@ -333,9 +328,10 @@
 				status = "disabled";
 			};
 
-			src: src@53fd0000 {
+			src: reset-controller@53fd0000 {
 				compatible = "fsl,imx50-src", "fsl,imx51-src";
 				reg = <0x53fd0000 0x4000>;
+				interrupts = <75>;
 				#reset-cells = <1>;
 			};
 

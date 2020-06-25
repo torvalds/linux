@@ -1,0 +1,94 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/regulator/anatop-regulator.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Freescale Anatop Voltage Regulators
+
+maintainers:
+  - Ying-Chun Liu (PaulLiu) <paul.liu@linaro.org>
+
+allOf:
+  - $ref: "regulator.yaml#"
+
+properties:
+  compatible:
+    const: fsl,anatop-regulator
+
+  regulator-name: true
+
+  anatop-reg-offset:
+    $ref: '/schemas/types.yaml#/definitions/uint32'
+    description: u32 value representing the anatop MFD register offset.
+
+  anatop-vol-bit-shift:
+    $ref: '/schemas/types.yaml#/definitions/uint32'
+    description: u32 value representing the bit shift for the register.
+
+  anatop-vol-bit-width:
+    $ref: '/schemas/types.yaml#/definitions/uint32'
+    description: u32 value representing the number of bits used in the register.
+
+  anatop-min-bit-val:
+    $ref: '/schemas/types.yaml#/definitions/uint32'
+    description: u32 value representing the minimum value of this register.
+
+  anatop-min-voltage:
+    $ref: '/schemas/types.yaml#/definitions/uint32'
+    description: u32 value representing the minimum voltage of this regulator.
+
+  anatop-max-voltage:
+    $ref: '/schemas/types.yaml#/definitions/uint32'
+    description: u32 value representing the maximum voltage of this regulator.
+
+  anatop-delay-reg-offset:
+    $ref: '/schemas/types.yaml#/definitions/uint32'
+    description: u32 value representing the anatop MFD step time register offset.
+
+  anatop-delay-bit-shift:
+    $ref: '/schemas/types.yaml#/definitions/uint32'
+    description: u32 value representing the bit shift for the step time register.
+
+  anatop-delay-bit-width:
+    $ref: '/schemas/types.yaml#/definitions/uint32'
+    description: u32 value representing the number of bits used in the step time register.
+
+  anatop-enable-bit:
+    $ref: '/schemas/types.yaml#/definitions/uint32'
+    description: u32 value representing regulator enable bit offset.
+
+  vin-supply:
+    $ref: '/schemas/types.yaml#/definitions/phandle'
+    description: input supply phandle.
+
+required:
+  - compatible
+  - regulator-name
+  - anatop-reg-offset
+  - anatop-vol-bit-shift
+  - anatop-vol-bit-width
+  - anatop-min-bit-val
+  - anatop-min-voltage
+  - anatop-max-voltage
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    regulator-vddpu {
+        compatible = "fsl,anatop-regulator";
+        regulator-name = "vddpu";
+        regulator-min-microvolt = <725000>;
+        regulator-max-microvolt = <1300000>;
+        regulator-always-on;
+        anatop-reg-offset = <0x140>;
+        anatop-vol-bit-shift = <9>;
+        anatop-vol-bit-width = <5>;
+        anatop-delay-reg-offset = <0x170>;
+        anatop-delay-bit-shift = <24>;
+        anatop-delay-bit-width = <2>;
+        anatop-min-bit-val = <1>;
+        anatop-min-voltage = <725000>;
+        anatop-max-voltage = <1300000>;
+    };

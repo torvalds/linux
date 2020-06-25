@@ -218,7 +218,6 @@ static const struct drm_display_mode default_mode = {
 	.vsync_start = 1920 + 10,
 	.vsync_end = 1920 + 10 + 2,
 	.vtotal = 1920 + 10 + 2 + 4,
-	.vrefresh = 60,
 	.width_mm = 68,
 	.height_mm = 121,
 	.flags = DRM_MODE_FLAG_NHSYNC |
@@ -445,7 +444,7 @@ static int rad_panel_get_modes(struct drm_panel *panel,
 	if (!mode) {
 		DRM_DEV_ERROR(panel->dev, "failed to add mode %ux%ux@%u\n",
 			      default_mode.hdisplay, default_mode.vdisplay,
-			      default_mode.vrefresh);
+			      drm_mode_vrefresh(&default_mode));
 		return -ENOMEM;
 	}
 

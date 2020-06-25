@@ -11,3 +11,4 @@
  */
 selftest(sanitycheck, __sanitycheck__) /* keep first (igt selfcheck) */
 selftest(dma_fence, dma_fence)
+selftest(dma_fence_chain, dma_fence_chain)

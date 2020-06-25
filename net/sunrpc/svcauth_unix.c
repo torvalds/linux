@@ -332,15 +332,6 @@ static int __ip_map_update(struct cache_detail *cd, struct ip_map *ipm,
 	return 0;
 }
 
-static inline int ip_map_update(struct net *net, struct ip_map *ipm,
-		struct unix_domain *udom, time64_t expiry)
-{
-	struct sunrpc_net *sn;
-
-	sn = net_generic(net, sunrpc_net_id);
-	return __ip_map_update(sn->ip_map_cache, ipm, udom, expiry);
-}
-
 void svcauth_unix_purge(struct net *net)
 {
 	struct sunrpc_net *sn;

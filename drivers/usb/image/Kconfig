@@ -6,7 +6,7 @@ comment "USB Imaging devices"
 
 config USB_MDC800
 	tristate "USB Mustek MDC800 Digital Camera support"
-	---help---
+	help
 	  Say Y here if you want to connect this type of still camera to
 	  your computer's USB port. This driver can be used with gphoto 0.4.3
 	  and higher (look at <http://www.gphoto.org/>).

@@ -103,6 +103,8 @@ ENTRY(_mcount)
 	mov	a0, lr
 	subi	a0, 4
 	ldw	a1, (sp, 24)
+	lrw	a2, function_trace_op
+	ldw	a2, (a2, 0)
 
 	jsr	r26
 

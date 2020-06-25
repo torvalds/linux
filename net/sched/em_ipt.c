@@ -199,7 +199,7 @@ static void em_ipt_destroy(struct tcf_ematch *em)
 		im->match->destroy(&par);
 	}
 	module_put(im->match->me);
-	kfree((void *)im);
+	kfree(im);
 }
 
 static int em_ipt_match(struct sk_buff *skb, struct tcf_ematch *em,

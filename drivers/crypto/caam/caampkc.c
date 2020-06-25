@@ -121,11 +121,13 @@ static void rsa_pub_done(struct device *dev, u32 *desc, u32 err, void *context)
 	struct caam_drv_private_jr *jrp = dev_get_drvdata(dev);
 	struct rsa_edesc *edesc;
 	int ecode = 0;
+	bool has_bklog;
 
 	if (err)
 		ecode = caam_jr_strstatus(dev, err);
 
 	edesc = req_ctx->edesc;
+	has_bklog = edesc->bklog;
 
 	rsa_pub_unmap(dev, edesc, req);
 	rsa_io_unmap(dev, edesc, req);
@@ -135,7 +137,7 @@ static void rsa_pub_done(struct device *dev, u32 *desc, u32 err, void *context)
 	 * If no backlog flag, the completion of the request is done
 	 * by CAAM, not crypto engine.
 	 */
-	if (!edesc->bklog)
+	if (!has_bklog)
 		akcipher_request_complete(req, ecode);
 	else
 		crypto_finalize_akcipher_request(jrp->engine, req, ecode);
@@ -152,11 +154,13 @@ static void rsa_priv_f_done(struct device *dev, u32 *desc, u32 err,
 	struct caam_rsa_req_ctx *req_ctx = akcipher_request_ctx(req);
 	struct rsa_edesc *edesc;
 	int ecode = 0;
+	bool has_bklog;
 
 	if (err)
 		ecode = caam_jr_strstatus(dev, err);
 
 	edesc = req_ctx->edesc;
+	has_bklog = edesc->bklog;
 
 	switch (key->priv_form) {
 	case FORM1:
@@ -176,7 +180,7 @@ static void rsa_priv_f_done(struct device *dev, u32 *desc, u32 err,
 	 * If no backlog flag, the completion of the request is done
 	 * by CAAM, not crypto engine.
 	 */
-	if (!edesc->bklog)
+	if (!has_bklog)
 		akcipher_request_complete(req, ecode);
 	else
 		crypto_finalize_akcipher_request(jrp->engine, req, ecode);

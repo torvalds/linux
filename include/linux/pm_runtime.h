@@ -102,9 +102,9 @@ static inline bool pm_runtime_enabled(struct device *dev)
 	return !dev->power.disable_depth;
 }
 
-static inline bool pm_runtime_callbacks_present(struct device *dev)
+static inline bool pm_runtime_has_no_callbacks(struct device *dev)
 {
-	return !dev->power.no_callbacks;
+	return dev->power.no_callbacks;
 }
 
 static inline void pm_runtime_mark_last_busy(struct device *dev)

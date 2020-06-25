@@ -901,7 +901,7 @@ loop:
 	}
 
 	set_current_state(TASK_RUNNING);
-	dev_info(udc->dev, "SPI thread exiting");
+	dev_info(udc->dev, "SPI thread exiting\n");
 	return 0;
 }
 

@@ -100,7 +100,7 @@ int pcibios_unmap_io_space(struct pci_bus *bus)
 			 pci_name(bus->self));
 
 #ifdef CONFIG_PPC_BOOK3S_64
-		__flush_hash_table_range(&init_mm, res->start + _IO_BASE,
+		__flush_hash_table_range(res->start + _IO_BASE,
 					 res->end + _IO_BASE + 1);
 #endif
 		return 0;
@@ -109,29 +109,53 @@ int pcibios_unmap_io_space(struct pci_bus *bus)
 	/* Get the host bridge */
 	hose = pci_bus_to_host(bus);
 
-	/* Check if we have IOs allocated */
-	if (hose->io_base_alloc == NULL)
-		return 0;
-
 	pr_debug("IO unmapping for PHB %pOF\n", hose->dn);
 	pr_debug("  alloc=0x%p\n", hose->io_base_alloc);
 
-	/* This is a PHB, we fully unmap the IO area */
-	vunmap(hose->io_base_alloc);
-
+	iounmap(hose->io_base_alloc);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(pcibios_unmap_io_space);
 
-static int pcibios_map_phb_io_space(struct pci_controller *hose)
+void __iomem *ioremap_phb(phys_addr_t paddr, unsigned long size)
 {
 	struct vm_struct *area;
+	unsigned long addr;
+
+	WARN_ON_ONCE(paddr & ~PAGE_MASK);
+	WARN_ON_ONCE(size & ~PAGE_MASK);
+
+	/*
+	 * Let's allocate some IO space for that guy. We don't pass VM_IOREMAP
+	 * because we don't care about alignment tricks that the core does in
+	 * that case.  Maybe we should due to stupid card with incomplete
+	 * address decoding but I'd rather not deal with those outside of the
+	 * reserved 64K legacy region.
+	 */
+	area = __get_vm_area_caller(size, 0, PHB_IO_BASE, PHB_IO_END,
+				    __builtin_return_address(0));
+	if (!area)
+		return NULL;
+
+	addr = (unsigned long)area->addr;
+	if (ioremap_page_range(addr, addr + size, paddr,
+			pgprot_noncached(PAGE_KERNEL))) {
+		unmap_kernel_range(addr, size);
+		return NULL;
+	}
+
+	return (void __iomem *)addr;
+}
+EXPORT_SYMBOL_GPL(ioremap_phb);
+
+static int pcibios_map_phb_io_space(struct pci_controller *hose)
+{
 	unsigned long phys_page;
 	unsigned long size_page;
 	unsigned long io_virt_offset;
 
-	phys_page = _ALIGN_DOWN(hose->io_base_phys, PAGE_SIZE);
-	size_page = _ALIGN_UP(hose->pci_io_size, PAGE_SIZE);
+	phys_page = ALIGN_DOWN(hose->io_base_phys, PAGE_SIZE);
+	size_page = ALIGN(hose->pci_io_size, PAGE_SIZE);
 
 	/* Make sure IO area address is clear */
 	hose->io_base_alloc = NULL;
@@ -146,23 +170,17 @@ static int pcibios_map_phb_io_space(struct pci_controller *hose)
 	 * with incomplete address decoding but I'd rather not deal with
 	 * those outside of the reserved 64K legacy region.
 	 */
-	area = __get_vm_area(size_page, 0, PHB_IO_BASE, PHB_IO_END);
-	if (area == NULL)
+	hose->io_base_alloc = ioremap_phb(phys_page, size_page);
+	if (!hose->io_base_alloc)
 		return -ENOMEM;
-	hose->io_base_alloc = area->addr;
-	hose->io_base_virt = (void __iomem *)(area->addr +
-					      hose->io_base_phys - phys_page);
+	hose->io_base_virt = hose->io_base_alloc +
+				hose->io_base_phys - phys_page;
 
 	pr_debug("IO mapping for PHB %pOF\n", hose->dn);
 	pr_debug("  phys=0x%016llx, virt=0x%p (alloc=0x%p)\n",
 		 hose->io_base_phys, hose->io_base_virt, hose->io_base_alloc);
 	pr_debug("  size=0x%016llx (alloc=0x%016lx)\n",
 		 hose->pci_io_size, size_page);
-
-	/* Establish the mapping */
-	if (__ioremap_at(phys_page, area->addr, size_page,
-			 pgprot_noncached(PAGE_KERNEL)) == NULL)
-		return -ENOMEM;
 
 	/* Fixup hose IO resource */
 	io_virt_offset = pcibios_io_space_offset(hose);

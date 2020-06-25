@@ -990,7 +990,7 @@
 	};
 
 	panel: panel {
-		compatible = "innolux,n116bge", "simple-panel";
+		compatible = "innolux,n116bge";
 		backlight = <&backlight>;
 		ddc-i2c-bus = <&dpaux>;
 	};

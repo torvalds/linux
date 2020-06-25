@@ -84,6 +84,17 @@ config SND_SOC_FSL_MICFIL
 	  Say Y if you want to add Pulse Density Modulation microphone
 	  interface (MICFIL) support for NXP.
 
+config SND_SOC_FSL_EASRC
+	tristate "Enhanced Asynchronous Sample Rate Converter (EASRC) module support"
+	depends on SND_SOC_FSL_ASRC
+	select REGMAP_MMIO
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	help
+	  Say Y if you want to add Enhanced ASRC support for NXP. The ASRC is
+	  a digital module that converts audio from a source sample rate to a
+	  destination sample rate. It is a new design module compare with the
+	  old ASRC.
+
 config SND_SOC_FSL_UTILS
 	tristate
 

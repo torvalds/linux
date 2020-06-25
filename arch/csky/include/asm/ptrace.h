@@ -58,6 +58,16 @@ static inline unsigned long kernel_stack_pointer(struct pt_regs *regs)
 	return regs->usp;
 }
 
+static inline unsigned long frame_pointer(struct pt_regs *regs)
+{
+	return regs->regs[4];
+}
+static inline void frame_pointer_set(struct pt_regs *regs,
+				     unsigned long val)
+{
+	regs->regs[4] = val;
+}
+
 extern int regs_query_register_offset(const char *name);
 extern unsigned long regs_get_kernel_stack_nth(struct pt_regs *regs,
 						unsigned int n);

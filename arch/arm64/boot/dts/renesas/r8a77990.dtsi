@@ -817,7 +817,7 @@
 			       <&ipmmu_ds1 30>, <&ipmmu_ds1 31>;
 		};
 
-		ipmmu_ds0: mmu@e6740000 {
+		ipmmu_ds0: iommu@e6740000 {
 			compatible = "renesas,ipmmu-r8a77990";
 			reg = <0 0xe6740000 0 0x1000>;
 			renesas,ipmmu-main = <&ipmmu_mm 0>;
@@ -825,7 +825,7 @@
 			#iommu-cells = <1>;
 		};
 
-		ipmmu_ds1: mmu@e7740000 {
+		ipmmu_ds1: iommu@e7740000 {
 			compatible = "renesas,ipmmu-r8a77990";
 			reg = <0 0xe7740000 0 0x1000>;
 			renesas,ipmmu-main = <&ipmmu_mm 1>;
@@ -833,7 +833,7 @@
 			#iommu-cells = <1>;
 		};
 
-		ipmmu_hc: mmu@e6570000 {
+		ipmmu_hc: iommu@e6570000 {
 			compatible = "renesas,ipmmu-r8a77990";
 			reg = <0 0xe6570000 0 0x1000>;
 			renesas,ipmmu-main = <&ipmmu_mm 2>;
@@ -841,7 +841,7 @@
 			#iommu-cells = <1>;
 		};
 
-		ipmmu_mm: mmu@e67b0000 {
+		ipmmu_mm: iommu@e67b0000 {
 			compatible = "renesas,ipmmu-r8a77990";
 			reg = <0 0xe67b0000 0 0x1000>;
 			interrupts = <GIC_SPI 196 IRQ_TYPE_LEVEL_HIGH>,
@@ -850,7 +850,7 @@
 			#iommu-cells = <1>;
 		};
 
-		ipmmu_mp: mmu@ec670000 {
+		ipmmu_mp: iommu@ec670000 {
 			compatible = "renesas,ipmmu-r8a77990";
 			reg = <0 0xec670000 0 0x1000>;
 			renesas,ipmmu-main = <&ipmmu_mm 4>;
@@ -858,7 +858,7 @@
 			#iommu-cells = <1>;
 		};
 
-		ipmmu_pv0: mmu@fd800000 {
+		ipmmu_pv0: iommu@fd800000 {
 			compatible = "renesas,ipmmu-r8a77990";
 			reg = <0 0xfd800000 0 0x1000>;
 			renesas,ipmmu-main = <&ipmmu_mm 6>;
@@ -866,7 +866,7 @@
 			#iommu-cells = <1>;
 		};
 
-		ipmmu_rt: mmu@ffc80000 {
+		ipmmu_rt: iommu@ffc80000 {
 			compatible = "renesas,ipmmu-r8a77990";
 			reg = <0 0xffc80000 0 0x1000>;
 			renesas,ipmmu-main = <&ipmmu_mm 10>;
@@ -874,7 +874,7 @@
 			#iommu-cells = <1>;
 		};
 
-		ipmmu_vc0: mmu@fe6b0000 {
+		ipmmu_vc0: iommu@fe6b0000 {
 			compatible = "renesas,ipmmu-r8a77990";
 			reg = <0 0xfe6b0000 0 0x1000>;
 			renesas,ipmmu-main = <&ipmmu_mm 12>;
@@ -882,7 +882,7 @@
 			#iommu-cells = <1>;
 		};
 
-		ipmmu_vi0: mmu@febd0000 {
+		ipmmu_vi0: iommu@febd0000 {
 			compatible = "renesas,ipmmu-r8a77990";
 			reg = <0 0xfebd0000 0 0x1000>;
 			renesas,ipmmu-main = <&ipmmu_mm 14>;
@@ -890,7 +890,7 @@
 			#iommu-cells = <1>;
 		};
 
-		ipmmu_vp0: mmu@fe990000 {
+		ipmmu_vp0: iommu@fe990000 {
 			compatible = "renesas,ipmmu-r8a77990";
 			reg = <0 0xfe990000 0 0x1000>;
 			renesas,ipmmu-main = <&ipmmu_mm 16>;

@@ -282,9 +282,7 @@ struct pmc_dev {
 	u32 base_addr;
 	void __iomem *regbase;
 	const struct pmc_reg_map *map;
-#if IS_ENABLED(CONFIG_DEBUG_FS)
 	struct dentry *dbgfs_dir;
-#endif /* CONFIG_DEBUG_FS */
 	int pmc_xram_read_bit;
 	struct mutex lock; /* generic mutex lock for PMC Core */
 

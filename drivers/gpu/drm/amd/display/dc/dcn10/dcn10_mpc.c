@@ -223,6 +223,9 @@ struct mpcc *mpc1_insert_plane(
 	REG_SET(MPCC_TOP_SEL[mpcc_id], 0, MPCC_TOP_SEL, dpp_id);
 	REG_SET(MPCC_OPP_ID[mpcc_id], 0, MPCC_OPP_ID, tree->opp_id);
 
+	/* Configure VUPDATE lock set for this MPCC to map to the OPP */
+	REG_SET(MPCC_UPDATE_LOCK_SEL[mpcc_id], 0, MPCC_UPDATE_LOCK_SEL, tree->opp_id);
+
 	/* update mpc tree mux setting */
 	if (tree->opp_list == insert_above_mpcc) {
 		/* insert the toppest mpcc */
@@ -318,6 +321,7 @@ void mpc1_remove_mpcc(
 		REG_SET(MPCC_TOP_SEL[mpcc_id], 0, MPCC_TOP_SEL, 0xf);
 		REG_SET(MPCC_BOT_SEL[mpcc_id], 0, MPCC_BOT_SEL, 0xf);
 		REG_SET(MPCC_OPP_ID[mpcc_id],  0, MPCC_OPP_ID,  0xf);
+		REG_SET(MPCC_UPDATE_LOCK_SEL[mpcc_id], 0, MPCC_UPDATE_LOCK_SEL, 0xf);
 
 		/* mark this mpcc as not in use */
 		mpc10->mpcc_in_use_mask &= ~(1 << mpcc_id);
@@ -328,6 +332,7 @@ void mpc1_remove_mpcc(
 		REG_SET(MPCC_TOP_SEL[mpcc_id], 0, MPCC_TOP_SEL, 0xf);
 		REG_SET(MPCC_BOT_SEL[mpcc_id], 0, MPCC_BOT_SEL, 0xf);
 		REG_SET(MPCC_OPP_ID[mpcc_id],  0, MPCC_OPP_ID,  0xf);
+		REG_SET(MPCC_UPDATE_LOCK_SEL[mpcc_id], 0, MPCC_UPDATE_LOCK_SEL, 0xf);
 	}
 }
 
@@ -361,6 +366,7 @@ void mpc1_mpc_init(struct mpc *mpc)
 		REG_SET(MPCC_TOP_SEL[mpcc_id], 0, MPCC_TOP_SEL, 0xf);
 		REG_SET(MPCC_BOT_SEL[mpcc_id], 0, MPCC_BOT_SEL, 0xf);
 		REG_SET(MPCC_OPP_ID[mpcc_id],  0, MPCC_OPP_ID,  0xf);
+		REG_SET(MPCC_UPDATE_LOCK_SEL[mpcc_id], 0, MPCC_UPDATE_LOCK_SEL, 0xf);
 
 		mpc1_init_mpcc(&(mpc->mpcc_array[mpcc_id]), mpcc_id);
 	}
@@ -381,6 +387,7 @@ void mpc1_mpc_init_single_inst(struct mpc *mpc, unsigned int mpcc_id)
 	REG_SET(MPCC_TOP_SEL[mpcc_id], 0, MPCC_TOP_SEL, 0xf);
 	REG_SET(MPCC_BOT_SEL[mpcc_id], 0, MPCC_BOT_SEL, 0xf);
 	REG_SET(MPCC_OPP_ID[mpcc_id],  0, MPCC_OPP_ID,  0xf);
+	REG_SET(MPCC_UPDATE_LOCK_SEL[mpcc_id], 0, MPCC_UPDATE_LOCK_SEL, 0xf);
 
 	mpc1_init_mpcc(&(mpc->mpcc_array[mpcc_id]), mpcc_id);
 
@@ -453,6 +460,13 @@ void mpc1_read_mpcc_state(
 			MPCC_BUSY, &s->busy);
 }
 
+void mpc1_cursor_lock(struct mpc *mpc, int opp_id, bool lock)
+{
+	struct dcn10_mpc *mpc10 = TO_DCN10_MPC(mpc);
+
+	REG_SET(CUR[opp_id], 0, CUR_VUPDATE_LOCK_SET, lock ? 1 : 0);
+}
+
 static const struct mpc_funcs dcn10_mpc_funcs = {
 	.read_mpcc_state = mpc1_read_mpcc_state,
 	.insert_plane = mpc1_insert_plane,
@@ -464,6 +478,7 @@ static const struct mpc_funcs dcn10_mpc_funcs = {
 	.assert_mpcc_idle_before_connect = mpc1_assert_mpcc_idle_before_connect,
 	.init_mpcc_list_from_hw = mpc1_init_mpcc_list_from_hw,
 	.update_blending = mpc1_update_blending,
+	.cursor_lock = mpc1_cursor_lock,
 	.set_denorm = NULL,
 	.set_denorm_clamp = NULL,
 	.set_output_csc = NULL,

@@ -427,12 +427,9 @@ static int cc_cipher_setkey(struct crypto_skcipher *sktfm, const u8 *key,
 		int key_len = keylen >> 1;
 		int err;
 
-		SHASH_DESC_ON_STACK(desc, ctx_p->shash_tfm);
-
-		desc->tfm = ctx_p->shash_tfm;
-
-		err = crypto_shash_digest(desc, ctx_p->user.key, key_len,
-					  ctx_p->user.key + key_len);
+		err = crypto_shash_tfm_digest(ctx_p->shash_tfm,
+					      ctx_p->user.key, key_len,
+					      ctx_p->user.key + key_len);
 		if (err) {
 			dev_err(dev, "Failed to hash ESSIV key.\n");
 			return err;

@@ -74,6 +74,21 @@ Description:
 		Access: Read, Write
 		Valid values: 0 - 100 (percent)
 
+What:		/sys/class/power_supply/<supply_name>/capacity_error_margin
+Date:		April 2019
+Contact:	linux-pm@vger.kernel.org
+Description:
+		Battery capacity measurement becomes unreliable without
+		recalibration. This values provides the maximum error
+		margin expected to exist by the fuel gauge in percent.
+		Values close to 0% will be returned after (re-)calibration
+		has happened. Over time the error margin will increase.
+		100% means, that the capacity related values are basically
+		completely useless.
+
+		Access: Read
+		Valid values: 0 - 100 (percent)
+
 What:		/sys/class/power_supply/<supply_name>/capacity_level
 Date:		June 2009
 Contact:	linux-pm@vger.kernel.org
@@ -190,7 +205,7 @@ Description:
 		Valid values: "Unknown", "Good", "Overheat", "Dead",
 			      "Over voltage", "Unspecified failure", "Cold",
 			      "Watchdog timer expire", "Safety timer expire",
-			      "Over current"
+			      "Over current", "Calibration required"
 
 What:		/sys/class/power_supply/<supply_name>/precharge_current
 Date:		June 2017
@@ -665,3 +680,31 @@ Description:
 		Valid values:
 		- 1: enabled
 		- 0: disabled
+
+What:		/sys/class/power_supply/<supply_name>/manufacture_year
+Date:		January 2020
+Contact:	linux-pm@vger.kernel.org
+Description:
+		Reports the year (following Gregorian calendar) when the device has been
+		manufactured.
+
+		Access: Read
+		Valid values: Reported as integer
+
+What:		/sys/class/power_supply/<supply_name>/manufacture_month
+Date:		January 2020
+Contact:	linux-pm@vger.kernel.org
+Description:
+		Reports the month when the device has been manufactured.
+
+		Access: Read
+		Valid values: 1-12
+
+What:		/sys/class/power_supply/<supply_name>/manufacture_day
+Date:		January 2020
+Contact:	linux-pm@vger.kernel.org
+Description:
+		Reports the day of month when the device has been manufactured.
+
+		Access: Read
+		Valid values: 1-31

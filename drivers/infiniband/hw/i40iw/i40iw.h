@@ -382,15 +382,6 @@ static inline struct i40iw_mr *to_iwmr(struct ib_mr *ibmr)
 }
 
 /**
- * to_iwmr_from_ibfmr - get device memory region
- * @ibfmr: ib fmr
- **/
-static inline struct i40iw_mr *to_iwmr_from_ibfmr(struct ib_fmr *ibfmr)
-{
-	return container_of(ibfmr, struct i40iw_mr, ibfmr);
-}
-
-/**
  * to_iwmw - get device memory window
  * @ibmw: ib memory window
  **/

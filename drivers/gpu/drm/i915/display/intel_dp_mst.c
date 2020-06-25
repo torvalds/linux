@@ -33,6 +33,7 @@
 #include "intel_connector.h"
 #include "intel_ddi.h"
 #include "intel_display_types.h"
+#include "intel_hotplug.h"
 #include "intel_dp.h"
 #include "intel_dp_mst.h"
 #include "intel_dpio_phy.h"
@@ -113,9 +114,7 @@ static int intel_dp_mst_compute_config(struct intel_encoder *encoder,
 	pipe_config->has_pch_encoder = false;
 
 	if (intel_conn_state->force_audio == HDMI_AUDIO_AUTO)
-		pipe_config->has_audio =
-			drm_dp_mst_port_has_audio(&intel_dp->mst_mgr,
-						  connector->port);
+		pipe_config->has_audio = connector->port->has_audio;
 	else
 		pipe_config->has_audio =
 			intel_conn_state->force_audio == HDMI_AUDIO_ON;
@@ -795,8 +794,17 @@ err:
 	return NULL;
 }
 
+static void
+intel_dp_mst_poll_hpd_irq(struct drm_dp_mst_topology_mgr *mgr)
+{
+	struct intel_dp *intel_dp = container_of(mgr, struct intel_dp, mst_mgr);
+
+	intel_hpd_trigger_irq(dp_to_dig_port(intel_dp));
+}
+
 static const struct drm_dp_mst_topology_cbs mst_cbs = {
 	.add_connector = intel_dp_add_mst_connector,
+	.poll_hpd_irq = intel_dp_mst_poll_hpd_irq,
 };
 
 static struct intel_dp_mst_encoder *

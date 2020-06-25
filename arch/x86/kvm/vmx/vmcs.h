@@ -19,7 +19,7 @@ struct vmcs_hdr {
 struct vmcs {
 	struct vmcs_hdr hdr;
 	u32 abort;
-	char data[0];
+	char data[];
 };
 
 DECLARE_PER_CPU(struct vmcs *, current_vmcs);
