@@ -56,6 +56,7 @@ struct hw_sequencer_funcs {
 
 	/* Pipe Programming Related */
 	void (*init_hw)(struct dc *dc);
+	void (*power_down_on_boot)(struct dc *dc);
 	void (*enable_accelerated_mode)(struct dc *dc,
 			struct dc_state *context);
 	enum dc_status (*apply_ctx_to_hw)(struct dc *dc,

@@ -1029,6 +1029,7 @@ bool dc_resource_is_dsc_encoding_supported(const struct dc *dc);
  */
 bool dc_commit_state(struct dc *dc, struct dc_state *context);
 
+void dc_power_down_on_boot(struct dc *dc);
 
 struct dc_state *dc_create_state(struct dc *dc);
 struct dc_state *dc_copy_state(struct dc_state *src_ctx);
@@ -1228,6 +1229,8 @@ void dc_set_power_state(
 		struct dc *dc,
 		enum dc_acpi_cm_power_state power_state);
 void dc_resume(struct dc *dc);
+
+void dc_power_down_on_boot(struct dc *dc);
 
 #if defined(CONFIG_DRM_AMD_DC_HDCP)
 /*

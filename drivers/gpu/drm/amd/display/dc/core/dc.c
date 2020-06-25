@@ -2683,6 +2683,13 @@ void dc_interrupt_ack(struct dc *dc, enum dc_irq_source src)
 	dal_irq_service_ack(dc->res_pool->irqs, src);
 }
 
+void dc_power_down_on_boot(struct dc *dc)
+{
+	if (dc->ctx->dce_environment != DCE_ENV_VIRTUAL_HW &&
+			dc->hwss.power_down_on_boot)
+		dc->hwss.power_down_on_boot(dc);
+}
+
 void dc_set_power_state(
 	struct dc *dc,
 	enum dc_acpi_cm_power_state power_state)
