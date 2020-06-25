@@ -368,42 +368,6 @@ void free_extent_state(struct extent_state *state)
 	}
 }
 
-static struct rb_node *tree_insert(struct rb_root *root,
-				   struct rb_node *search_start,
-				   u64 offset,
-				   struct rb_node *node,
-				   struct rb_node ***p_in,
-				   struct rb_node **parent_in)
-{
-	struct rb_node **p;
-	struct rb_node *parent = NULL;
-	struct tree_entry *entry;
-
-	if (p_in && parent_in) {
-		p = *p_in;
-		parent = *parent_in;
-		goto do_insert;
-	}
-
-	p = search_start ? &search_start : &root->rb_node;
-	while (*p) {
-		parent = *p;
-		entry = rb_entry(parent, struct tree_entry, rb_node);
-
-		if (offset < entry->start)
-			p = &(*p)->rb_left;
-		else if (offset > entry->end)
-			p = &(*p)->rb_right;
-		else
-			return parent;
-	}
-
-do_insert:
-	rb_link_node(node, parent, p);
-	rb_insert_color(node, root);
-	return NULL;
-}
-
 /**
  * Search @tree for an entry that contains @offset. Such entry would have
  * entry->start <= offset && entry->end >= offset.
@@ -561,11 +525,12 @@ static void set_state_bits(struct extent_io_tree *tree,
  */
 static int insert_state(struct extent_io_tree *tree,
 			struct extent_state *state, u64 start, u64 end,
-			struct rb_node ***p,
-			struct rb_node **parent,
+			struct rb_node ***node_in,
+			struct rb_node **parent_in,
 			u32 *bits, struct extent_changeset *changeset)
 {
-	struct rb_node *node;
+	struct rb_node **node;
+	struct rb_node *parent;
 
 	if (end < start) {
 		btrfs_err(tree->fs_info,
@@ -577,15 +542,36 @@ static int insert_state(struct extent_io_tree *tree,
 
 	set_state_bits(tree, state, bits, changeset);
 
-	node = tree_insert(&tree->state, NULL, end, &state->rb_node, p, parent);
-	if (node) {
-		struct extent_state *found;
-		found = rb_entry(node, struct extent_state, rb_node);
-		btrfs_err(tree->fs_info,
-		       "found node %llu %llu on insert of %llu %llu",
-		       found->start, found->end, start, end);
-		return -EEXIST;
+	/* Caller provides the exact tree location */
+	if (node_in && parent_in) {
+		node = *node_in;
+		parent = *parent_in;
+		goto insert_new;
 	}
+
+	node = &tree->state.rb_node;
+	while (*node) {
+		struct tree_entry *entry;
+
+		parent = *node;
+		entry = rb_entry(parent, struct tree_entry, rb_node);
+
+		if (end < entry->start) {
+			node = &(*node)->rb_left;
+		} else if (end > entry->end) {
+			node = &(*node)->rb_right;
+		} else {
+			btrfs_err(tree->fs_info,
+			       "found node %llu %llu on insert of %llu %llu",
+			       entry->start, entry->end, start, end);
+			return -EEXIST;
+		}
+	}
+
+insert_new:
+	rb_link_node(&state->rb_node, parent, node);
+	rb_insert_color(&state->rb_node, &tree->state);
+
 	merge_state(tree, state);
 	return 0;
 }
