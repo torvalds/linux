@@ -683,7 +683,7 @@ static struct sk_psock *sk_psock_from_strp(struct strparser *strp)
 	return container_of(parser, struct sk_psock, parser);
 }
 
-static void sk_psock_skb_redirect(struct sk_psock *psock, struct sk_buff *skb)
+static void sk_psock_skb_redirect(struct sk_buff *skb)
 {
 	struct sk_psock *psock_other;
 	struct sock *sk_other;
@@ -715,12 +715,11 @@ static void sk_psock_skb_redirect(struct sk_psock *psock, struct sk_buff *skb)
 	}
 }
 
-static void sk_psock_tls_verdict_apply(struct sk_psock *psock,
-				       struct sk_buff *skb, int verdict)
+static void sk_psock_tls_verdict_apply(struct sk_buff *skb, int verdict)
 {
 	switch (verdict) {
 	case __SK_REDIRECT:
-		sk_psock_skb_redirect(psock, skb);
+		sk_psock_skb_redirect(skb);
 		break;
 	case __SK_PASS:
 	case __SK_DROP:
@@ -741,8 +740,8 @@ int sk_psock_tls_strp_read(struct sk_psock *psock, struct sk_buff *skb)
 		ret = sk_psock_bpf_run(psock, prog, skb);
 		ret = sk_psock_map_verd(ret, tcp_skb_bpf_redirect_fetch(skb));
 	}
+	sk_psock_tls_verdict_apply(skb, ret);
 	rcu_read_unlock();
-	sk_psock_tls_verdict_apply(psock, skb, ret);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(sk_psock_tls_strp_read);
@@ -770,7 +769,7 @@ static void sk_psock_verdict_apply(struct sk_psock *psock,
 		}
 		goto out_free;
 	case __SK_REDIRECT:
-		sk_psock_skb_redirect(psock, skb);
+		sk_psock_skb_redirect(skb);
 		break;
 	case __SK_DROP:
 		/* fall-through */
@@ -794,8 +793,8 @@ static void sk_psock_strp_read(struct strparser *strp, struct sk_buff *skb)
 		ret = sk_psock_bpf_run(psock, prog, skb);
 		ret = sk_psock_map_verd(ret, tcp_skb_bpf_redirect_fetch(skb));
 	}
-	rcu_read_unlock();
 	sk_psock_verdict_apply(psock, skb, ret);
+	rcu_read_unlock();
 }
 
 static int sk_psock_strp_read_done(struct strparser *strp, int err)
