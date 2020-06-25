@@ -71,7 +71,7 @@ config OMAP4_DSS_HDMI_CEC
 	depends on OMAP4_DSS_HDMI
 	select CEC_CORE
 	default y
-	---help---
+	help
 	  When selected the HDMI transmitter will support the CEC feature.
 
 config OMAP5_DSS_HDMI

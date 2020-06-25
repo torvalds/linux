@@ -9,7 +9,7 @@ menuconfig WLAN
 	depends on NET
 	select WIRELESS
 	default y
-	---help---
+	help
 	  This section contains all the pre 802.11 and 802.11 wireless
 	  device drivers. For a complete list of drivers and documentation
 	  on them refer to the wireless wiki:
@@ -54,7 +54,7 @@ config PCMCIA_RAYCS
 	select WIRELESS_EXT
 	select WEXT_SPY
 	select WEXT_PRIV
-	---help---
+	help
 	  Say Y here if you intend to attach an Aviator/Raytheon PCMCIA
 	  (PC-card) wireless Ethernet networking card to your computer.
 	  Please read the file <file:Documentation/networking/ray_cs.rst> for
@@ -76,7 +76,7 @@ config PCMCIA_WL3501
 config MAC80211_HWSIM
 	tristate "Simulated radio testing tool for mac80211"
 	depends on MAC80211
-	---help---
+	help
 	  This driver is a developer testing tool that can be used to test
 	  IEEE 802.11 networking stack (mac80211) functionality. This is not
 	  needed for normal wireless LAN usage and is only for testing. See
@@ -94,7 +94,7 @@ config USB_NET_RNDIS_WLAN
 	select USB_USBNET
 	select USB_NET_CDCETHER
 	select USB_NET_RNDIS_HOST
-	---help---
+	help
 	  This is a driver for wireless RNDIS devices.
 	  These are USB based adapters found in devices such as:
 
@@ -118,7 +118,7 @@ config USB_NET_RNDIS_WLAN
 config VIRT_WIFI
 	tristate "Wifi wrapper for ethernet drivers"
 	depends on CFG80211
-	---help---
+	help
 	  This option adds support for ethernet connections to appear as if they
 	  are wifi connections through a special rtnetlink device.
 

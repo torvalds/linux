@@ -13,7 +13,7 @@ menuconfig NET_DSA
 	select NET_SWITCHDEV
 	select PHYLINK
 	select NET_DEVLINK
-	---help---
+	help
 	  Say Y if you want to enable support for the hardware switches supported
 	  by the Distributed Switch Architecture.
 

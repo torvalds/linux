@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2010-2015, Intel Corporation.
@@ -12,12 +13,12 @@
  * more details.
  */
 
+#include "hmm.h"
 #include "ia_css_rmgr.h"
 
 #include <type_support.h>
 #include <assert_support.h>
 #include <platform_support.h> /* memset */
-#include <memory_access.h>    /* mmmgr_malloc, mhmm_free */
 #include <ia_css_debug.h>
 
 /*
@@ -137,26 +138,26 @@ void ia_css_rmgr_refcount_release_vbuf(struct ia_css_rmgr_vbuf_handle **handle)
  *
  * @param pool	The pointer to the pool
  */
-enum ia_css_err ia_css_rmgr_init_vbuf(struct ia_css_rmgr_vbuf_pool *pool)
+int ia_css_rmgr_init_vbuf(struct ia_css_rmgr_vbuf_pool *pool)
 {
-	enum ia_css_err err = IA_CSS_SUCCESS;
+	int err = 0;
 	size_t bytes_needed;
 
 	rmgr_refcount_init_vbuf();
 	assert(pool);
 	if (!pool)
-		return IA_CSS_ERR_INVALID_ARGUMENTS;
+		return -EINVAL;
 	/* initialize the recycle pool if used */
 	if (pool->recycle && pool->size) {
 		/* allocate memory for storing the handles */
 		bytes_needed =
 		    sizeof(void *) *
 		    pool->size;
-		pool->handles = sh_css_malloc(bytes_needed);
+		pool->handles = kvmalloc(bytes_needed, GFP_KERNEL);
 		if (pool->handles)
 			memset(pool->handles, 0, bytes_needed);
 		else
-			err = IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
+			err = -ENOMEM;
 	} else {
 		/* just in case, set the size to 0 */
 		pool->size = 0;
@@ -196,7 +197,7 @@ void ia_css_rmgr_uninit_vbuf(struct ia_css_rmgr_vbuf_pool *pool)
 			}
 		}
 		/* now free the pool handles list */
-		sh_css_free(pool->handles);
+		kvfree(pool->handles);
 		pool->handles = NULL;
 	}
 }
@@ -297,7 +298,7 @@ void ia_css_rmgr_acq_vbuf(struct ia_css_rmgr_vbuf_pool *pool,
 			}
 			if ((*handle)->vptr == 0x0) {
 				/* we need to allocate */
-				(*handle)->vptr = mmgr_malloc((*handle)->size);
+				(*handle)->vptr = hmm_alloc((*handle)->size, HMM_BO_PRIVATE, 0, NULL, 0);
 			} else {
 				/* we popped a buffer */
 				return;

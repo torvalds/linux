@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2010 - 2015, Intel Corporation.
@@ -56,8 +57,7 @@ struct ia_css_pipeline {
 	u32 pipe_qos_config;
 };
 
-#define DEFAULT_PIPELINE \
-(struct ia_css_pipeline) { \
+#define DEFAULT_PIPELINE { \
 	.pipe_id		= IA_CSS_PIPE_ID_PREVIEW, \
 	.in_frame		= DEFAULT_FRAME, \
 	.out_frame		= {DEFAULT_FRAME}, \
@@ -94,13 +94,13 @@ void ia_css_pipeline_init(void);
  * @param[out] pipeline  structure to be initialized with defaults
  * @param[in] pipe_id
  * @param[in] pipe_num Number that uniquely identifies a pipeline.
- * @return                     IA_CSS_SUCCESS or error code upon error.
+ * @return                     0 or error code upon error.
  *
  * Initializes the pipeline structure with a set of default values.
  * This API is expected to be used when a pipeline structure is allocated
  * externally and needs sane defaults
  */
-enum ia_css_err ia_css_pipeline_create(
+int ia_css_pipeline_create(
     struct ia_css_pipeline *pipeline,
     enum ia_css_pipe_id pipe_id,
     unsigned int pipe_num,
@@ -127,10 +127,10 @@ void ia_css_pipeline_start(enum ia_css_pipe_id pipe_id,
 /* @brief Request to stop a pipeline
  *
  * @param[in] pipeline
- * @return                     IA_CSS_SUCCESS or error code upon error.
+ * @return                     0 or error code upon error.
  *
  */
-enum ia_css_err ia_css_pipeline_request_stop(struct ia_css_pipeline *pipeline);
+int ia_css_pipeline_request_stop(struct ia_css_pipeline *pipeline);
 
 /* @brief Check whether pipeline has stopped
  *
@@ -153,13 +153,13 @@ void ia_css_pipeline_clean(struct ia_css_pipeline *pipeline);
  * @param     pipeline               Pointer to the pipeline to be added to.
  * @param[in] stage_desc       The description of the stage
  * @param[out] stage            The successor of the stage.
- * @return                     IA_CSS_SUCCESS or error code upon error.
+ * @return                     0 or error code upon error.
  *
  * Add a new stage to a non-NULL pipeline.
  * The stage consists of an ISP binary or firmware and input and output
  * arguments.
 */
-enum ia_css_err ia_css_pipeline_create_and_add_stage(
+int ia_css_pipeline_create_and_add_stage(
     struct ia_css_pipeline *pipeline,
     struct ia_css_pipeline_stage_desc *stage_desc,
     struct ia_css_pipeline_stage **stage);
@@ -177,10 +177,10 @@ void ia_css_pipeline_finalize_stages(struct ia_css_pipeline *pipeline,
 /* @brief gets a stage from the pipeline
  *
  * @param[in] pipeline
- * @return                     IA_CSS_SUCCESS or error code upon error.
+ * @return                     0 or error code upon error.
  *
  */
-enum ia_css_err ia_css_pipeline_get_stage(struct ia_css_pipeline *pipeline,
+int ia_css_pipeline_get_stage(struct ia_css_pipeline *pipeline,
 	int mode,
 	struct ia_css_pipeline_stage **stage);
 
@@ -190,10 +190,10 @@ enum ia_css_err ia_css_pipeline_get_stage(struct ia_css_pipeline *pipeline,
  * @param[in] fw_handle
  * @param[out] stage Pointer to Stage
  *
- * @return   IA_CSS_SUCCESS or error code upon error.
+ * @return   0 or error code upon error.
  *
  */
-enum ia_css_err ia_css_pipeline_get_stage_from_fw(struct ia_css_pipeline
+int ia_css_pipeline_get_stage_from_fw(struct ia_css_pipeline
 	*pipeline,
 	u32 fw_handle,
 	struct ia_css_pipeline_stage **stage);
@@ -204,10 +204,10 @@ enum ia_css_err ia_css_pipeline_get_stage_from_fw(struct ia_css_pipeline
  * @param[in] stage_num
  * @param[out] fw_handle
  *
- * @return   IA_CSS_SUCCESS or error code upon error.
+ * @return   0 or error code upon error.
  *
  */
-enum ia_css_err ia_css_pipeline_get_fw_from_stage(struct ia_css_pipeline
+int ia_css_pipeline_get_fw_from_stage(struct ia_css_pipeline
 	*pipeline,
 	u32 stage_num,
 	uint32_t *fw_handle);
@@ -215,10 +215,10 @@ enum ia_css_err ia_css_pipeline_get_fw_from_stage(struct ia_css_pipeline
 /* @brief gets the output stage from the pipeline
  *
  * @param[in] pipeline
- * @return                     IA_CSS_SUCCESS or error code upon error.
+ * @return                     0 or error code upon error.
  *
  */
-enum ia_css_err ia_css_pipeline_get_output_stage(
+int ia_css_pipeline_get_output_stage(
     struct ia_css_pipeline *pipeline,
     int mode,
     struct ia_css_pipeline_stage **stage);

@@ -10,7 +10,6 @@
 #include <asm/desc.h>
 #include <asm/traps.h>
 
-extern void double_fault(void);
 #define ptr_ok(x) ((x) > PAGE_OFFSET && (x) < PAGE_OFFSET + MAXMEM)
 
 #define TSS(x) this_cpu_read(cpu_tss_rw.x86_tss.x)
@@ -21,7 +20,7 @@ static void set_df_gdt_entry(unsigned int cpu);
  * Called by double_fault with CR0.TS and EFLAGS.NT cleared.  The CPU thinks
  * we're running the doublefault task.  Cannot return.
  */
-asmlinkage notrace void __noreturn doublefault_shim(void)
+asmlinkage noinstr void __noreturn doublefault_shim(void)
 {
 	unsigned long cr2;
 	struct pt_regs regs;
@@ -40,7 +39,7 @@ asmlinkage notrace void __noreturn doublefault_shim(void)
 	 * Fill in pt_regs.  A downside of doing this in C is that the unwinder
 	 * won't see it (no ENCODE_FRAME_POINTER), so a nested stack dump
 	 * won't successfully unwind to the source of the double fault.
-	 * The main dump from do_double_fault() is fine, though, since it
+	 * The main dump from exc_double_fault() is fine, though, since it
 	 * uses these regs directly.
 	 *
 	 * If anyone ever cares, this could be moved to asm.
@@ -70,7 +69,7 @@ asmlinkage notrace void __noreturn doublefault_shim(void)
 	regs.cx		= TSS(cx);
 	regs.bx		= TSS(bx);
 
-	do_double_fault(&regs, 0, cr2);
+	exc_double_fault(&regs, 0, cr2);
 
 	/*
 	 * x86_32 does not save the original CR3 anywhere on a task switch.
@@ -84,7 +83,6 @@ asmlinkage notrace void __noreturn doublefault_shim(void)
 	 */
 	panic("cannot return from double fault\n");
 }
-NOKPROBE_SYMBOL(doublefault_shim);
 
 DEFINE_PER_CPU_PAGE_ALIGNED(struct doublefault_stack, doublefault_stack) = {
 	.tss = {
@@ -95,7 +93,7 @@ DEFINE_PER_CPU_PAGE_ALIGNED(struct doublefault_stack, doublefault_stack) = {
 		.ldt		= 0,
 	.io_bitmap_base	= IO_BITMAP_OFFSET_INVALID,
 
-		.ip		= (unsigned long) double_fault,
+		.ip		= (unsigned long) asm_exc_double_fault,
 		.flags		= X86_EFLAGS_FIXED,
 		.es		= __USER_DS,
 		.cs		= __KERNEL_CS,

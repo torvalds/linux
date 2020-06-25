@@ -8,7 +8,7 @@ config MAC802154
 	select CRYPTO_CCM
 	select CRYPTO_CTR
 	select CRYPTO_AES
-	---help---
+	help
 	  This option enables the hardware independent IEEE 802.15.4
 	  networking stack for SoftMAC devices (the ones implementing
 	  only PHY level of IEEE 802.15.4 standard).

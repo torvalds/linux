@@ -536,7 +536,7 @@ static int create_elf_fdpic_tables(struct linux_binprm *bprm,
 		platform_len = strlen(k_platform) + 1;
 		sp -= platform_len;
 		u_platform = (char __user *) sp;
-		if (__copy_to_user(u_platform, k_platform, platform_len) != 0)
+		if (copy_to_user(u_platform, k_platform, platform_len) != 0)
 			return -EFAULT;
 	}
 
@@ -551,7 +551,7 @@ static int create_elf_fdpic_tables(struct linux_binprm *bprm,
 		platform_len = strlen(k_base_platform) + 1;
 		sp -= platform_len;
 		u_base_platform = (char __user *) sp;
-		if (__copy_to_user(u_base_platform, k_base_platform, platform_len) != 0)
+		if (copy_to_user(u_base_platform, k_base_platform, platform_len) != 0)
 			return -EFAULT;
 	}
 
@@ -603,11 +603,13 @@ static int create_elf_fdpic_tables(struct linux_binprm *bprm,
 	/* put the ELF interpreter info on the stack */
 #define NEW_AUX_ENT(id, val)						\
 	do {								\
-		struct { unsigned long _id, _val; } __user *ent;	\
+		struct { unsigned long _id, _val; } __user *ent, v;	\
 									\
 		ent = (void __user *) csp;				\
-		__put_user((id), &ent[nr]._id);				\
-		__put_user((val), &ent[nr]._val);			\
+		v._id = (id);						\
+		v._val = (val);						\
+		if (copy_to_user(ent + nr, &v, sizeof(v)))		\
+			return -EFAULT;					\
 		nr++;							\
 	} while (0)
 
@@ -674,7 +676,8 @@ static int create_elf_fdpic_tables(struct linux_binprm *bprm,
 
 	/* stack argc */
 	csp -= sizeof(unsigned long);
-	__put_user(bprm->argc, (unsigned long __user *) csp);
+	if (put_user(bprm->argc, (unsigned long __user *) csp))
+		return -EFAULT;
 
 	BUG_ON(csp != sp);
 
@@ -688,25 +691,29 @@ static int create_elf_fdpic_tables(struct linux_binprm *bprm,
 
 	p = (char __user *) current->mm->arg_start;
 	for (loop = bprm->argc; loop > 0; loop--) {
-		__put_user((elf_caddr_t) p, argv++);
+		if (put_user((elf_caddr_t) p, argv++))
+			return -EFAULT;
 		len = strnlen_user(p, MAX_ARG_STRLEN);
 		if (!len || len > MAX_ARG_STRLEN)
 			return -EINVAL;
 		p += len;
 	}
-	__put_user(NULL, argv);
+	if (put_user(NULL, argv))
+		return -EFAULT;
 	current->mm->arg_end = (unsigned long) p;
 
 	/* fill in the envv[] array */
 	current->mm->env_start = (unsigned long) p;
 	for (loop = bprm->envc; loop > 0; loop--) {
-		__put_user((elf_caddr_t)(unsigned long) p, envp++);
+		if (put_user((elf_caddr_t)(unsigned long) p, envp++))
+			return -EFAULT;
 		len = strnlen_user(p, MAX_ARG_STRLEN);
 		if (!len || len > MAX_ARG_STRLEN)
 			return -EINVAL;
 		p += len;
 	}
-	__put_user(NULL, envp);
+	if (put_user(NULL, envp))
+		return -EFAULT;
 	current->mm->env_end = (unsigned long) p;
 
 	mm->start_stack = (unsigned long) sp;
@@ -848,8 +855,8 @@ static int elf_fdpic_map_file(struct elf_fdpic_params *params,
 
 				tmp = phdr->p_memsz / sizeof(Elf32_Dyn);
 				dyn = (Elf32_Dyn __user *)params->dynamic_addr;
-				__get_user(d_tag, &dyn[tmp - 1].d_tag);
-				if (d_tag != 0)
+				if (get_user(d_tag, &dyn[tmp - 1].d_tag) ||
+				    d_tag != 0)
 					goto dynamic_error;
 				break;
 			}

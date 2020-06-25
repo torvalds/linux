@@ -7,7 +7,7 @@ menu "Clock driver for ARM Reference designs"
 config ICST
 	bool "Clock driver for ARM Reference designs ICST"
 	select REGMAP_MMIO
-	---help---
+	help
 	  Supports clocking on ARM Reference designs:
 	  - Integrator/AP and Integrator/CP
 	  - RealView PB1176, EB, PB11MP and PBX
@@ -15,7 +15,7 @@ config ICST
 config CLK_SP810
 	bool "Clock driver for ARM SP810 System Controller"
 	default y if (ARCH_VEXPRESS && ARM)
-	---help---
+	help
 	  Supports clock muxing (REFCLK/TIMCLK to TIMERCLKEN0-3) capabilities
 	  of the ARM SP810 System Controller cell.
 
@@ -24,7 +24,7 @@ config CLK_VEXPRESS_OSC
 	depends on VEXPRESS_CONFIG
 	select REGMAP_MMIO
 	default y if ARCH_VEXPRESS
-	---help---
+	help
 	  Simple regmap-based driver driving clock generators on Versatile
 	  Express platforms hidden behind its configuration infrastructure,
 	  commonly known as OSCs.

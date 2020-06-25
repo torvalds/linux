@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2015, Intel Corporation.
@@ -15,19 +16,9 @@
 #ifndef __SP_GLOBAL_H_INCLUDED__
 #define __SP_GLOBAL_H_INCLUDED__
 
-#include <system_types.h>
-
-#if defined(HAS_SP_2401)
-#define IS_SP_2401
-/* 2401 uses 2400 */
-#include <scalar_processor_2400_params.h>
-#elif defined(HAS_SP_2400)
-#define IS_SP_2400
+#include <system_local.h>
 
 #include <scalar_processor_2400_params.h>
-#else
-#error "sp_global.h: SP_2400 must be one of {2400, 2401 }"
-#endif
 
 #define SP_PMEM_WIDTH_LOG2		SP_PMEM_LOG_WIDTH_BITS
 #define SP_PMEM_SIZE			SP_PMEM_DEPTH

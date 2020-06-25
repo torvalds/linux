@@ -70,6 +70,7 @@ static const struct proto_ops nr_proto_ops;
  * separate class since they always nest.
  */
 static struct lock_class_key nr_netdev_xmit_lock_key;
+static struct lock_class_key nr_netdev_addr_lock_key;
 
 static void nr_set_lockdep_one(struct net_device *dev,
 			       struct netdev_queue *txq,
@@ -80,6 +81,7 @@ static void nr_set_lockdep_one(struct net_device *dev,
 
 static void nr_set_lockdep_key(struct net_device *dev)
 {
+	lockdep_set_class(&dev->addr_list_lock, &nr_netdev_addr_lock_key);
 	netdev_for_each_tx_queue(dev, nr_set_lockdep_one, NULL);
 }
 

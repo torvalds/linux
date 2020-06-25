@@ -23,7 +23,6 @@ properties:
     items:
       - description: CCM interrupt request 1
       - description: CCM interrupt request 2
-    maxItems: 2
 
   '#clock-cells':
     const: 1

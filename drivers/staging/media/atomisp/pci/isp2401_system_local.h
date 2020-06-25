@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2015, Intel Corporation.
@@ -19,8 +20,6 @@
 #ifndef HRT_USE_VIR_ADDRS
 #define HRT_USE_VIR_ADDRS
 #endif
-/* This interface is deprecated */
-/*#include "hive_isp_css_custom_host_hrt.h"*/
 #endif
 
 #include "system_global.h"
@@ -75,7 +74,6 @@ static const hrt_address SP_DMEM_BASE[N_SP_ID] = {
 };
 
 /* MMU */
-#if defined(IS_ISP_2400_MAMOIADA_SYSTEM) || defined(IS_ISP_2401_MAMOIADA_SYSTEM)
 /*
  * MMU0_ID: The data MMU
  * MMU1_ID: The icache MMU
@@ -84,9 +82,6 @@ static const hrt_address MMU_BASE[N_MMU_ID] = {
 	0x0000000000070000ULL,
 	0x00000000000A0000ULL
 };
-#else
-#error "system_local.h: SYSTEM must be one of {2400, 2401 }"
-#endif
 
 /* DMA */
 static const hrt_address DMA_BASE[N_DMA_ID] = {
@@ -104,6 +99,7 @@ static const hrt_address IRQ_BASE[N_IRQ_ID] = {
 	0x000000000008C000ULL,
 	0x0000000000090200ULL
 };
+
 /*
 	0x0000000000000500ULL};
  */
@@ -160,6 +156,7 @@ static const hrt_address INPUT_FORMATTER_BASE[N_INPUT_FORMATTER_ID] = {
 static const hrt_address INPUT_SYSTEM_BASE[N_INPUT_SYSTEM_ID] = {
 	0x0000000000080000ULL
 };
+
 /*	0x0000000000081000ULL, */ /* capture A */
 /*	0x0000000000082000ULL, */ /* capture B */
 /*	0x0000000000083000ULL, */ /* capture C */
@@ -258,7 +255,6 @@ static const hrt_address SP_DMEM_BASE[N_SP_ID] = {
 };
 
 /* MMU */
-#if defined(IS_ISP_2400_MAMOIADA_SYSTEM) || defined(IS_ISP_2401_MAMOIADA_SYSTEM)
 /*
  * MMU0_ID: The data MMU
  * MMU1_ID: The icache MMU
@@ -267,9 +263,6 @@ static const hrt_address MMU_BASE[N_MMU_ID] = {
 	0x00070000UL,
 	0x000A0000UL
 };
-#else
-#error "system_local.h: SYSTEM must be one of {2400, 2401 }"
-#endif
 
 /* DMA */
 static const hrt_address DMA_BASE[N_DMA_ID] = {
@@ -287,6 +280,7 @@ static const hrt_address IRQ_BASE[N_IRQ_ID] = {
 	0x0008C000UL,
 	0x00090200UL
 };
+
 /*
 	0x00000500UL};
  */
@@ -336,12 +330,14 @@ static const hrt_address INPUT_FORMATTER_BASE[N_INPUT_FORMATTER_ID] = {
 	0x00030200UL,
 	0x00030400UL
 };
+
 /*	0x00030600UL, */ /* memcpy() */
 
 /* INPUT_SYSTEM */
 static const hrt_address INPUT_SYSTEM_BASE[N_INPUT_SYSTEM_ID] = {
 	0x00080000UL
 };
+
 /*	0x00081000UL, */ /* capture A */
 /*	0x00082000UL, */ /* capture B */
 /*	0x00083000UL, */ /* capture C */

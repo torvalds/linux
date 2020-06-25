@@ -3564,10 +3564,6 @@ bpf_object__populate_internal_map(struct bpf_object *obj, struct bpf_map *map)
 	char *cp, errmsg[STRERR_BUFSIZE];
 	int err, zero = 0;
 
-	/* kernel already zero-initializes .bss map. */
-	if (map_type == LIBBPF_MAP_BSS)
-		return 0;
-
 	err = bpf_map_update_elem(map->fd, &zero, map->mmaped, 0);
 	if (err) {
 		err = -errno;

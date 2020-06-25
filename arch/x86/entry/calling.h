@@ -341,30 +341,13 @@ For 32-bit we have the following conventions - kernel is built with
 #endif
 .endm
 
-#endif /* CONFIG_X86_64 */
+#else /* CONFIG_X86_64 */
+# undef		UNWIND_HINT_IRET_REGS
+# define	UNWIND_HINT_IRET_REGS
+#endif /* !CONFIG_X86_64 */
 
 .macro STACKLEAK_ERASE
 #ifdef CONFIG_GCC_PLUGIN_STACKLEAK
 	call stackleak_erase
 #endif
 .endm
-
-/*
- * This does 'call enter_from_user_mode' unless we can avoid it based on
- * kernel config or using the static jump infrastructure.
- */
-.macro CALL_enter_from_user_mode
-#ifdef CONFIG_CONTEXT_TRACKING
-#ifdef CONFIG_JUMP_LABEL
-	STATIC_JUMP_IF_FALSE .Lafter_call_\@, context_tracking_key, def=0
-#endif
-	call enter_from_user_mode
-.Lafter_call_\@:
-#endif
-.endm
-
-#ifdef CONFIG_PARAVIRT_XXL
-#define GET_CR2_INTO(reg) GET_CR2_INTO_AX ; _ASM_MOV %_ASM_AX, reg
-#else
-#define GET_CR2_INTO(reg) _ASM_MOV %cr2, reg
-#endif

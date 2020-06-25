@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2015, Intel Corporation.
@@ -11,6 +12,8 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  */
+
+#include "hmm.h"
 
 #include "sh_css_sp.h"
 
@@ -43,10 +46,8 @@
 
 /*#include "sp.h"*/	/* host2sp_enqueue_frame_data() */
 
-#include "memory_access.h"
 
 #include "assert_support.h"
-#include "platform_support.h"	/* hrt_sleep() */
 
 #include "sw_event_global.h"			/* Event IDs.*/
 #include "ia_css_event.h"
@@ -75,14 +76,14 @@ static struct sh_css_sp_per_frame_data per_frame_data;
 /* TODO: add code that sets this bool to false */
 static bool sp_running;
 
-static enum ia_css_err
+static int
 set_output_frame_buffer(const struct ia_css_frame *frame,
 			unsigned int idx);
 
 static void
 sh_css_copy_buffer_attr_to_spbuffer(struct ia_css_buffer_sp *dest_buf,
 				    const enum sh_css_queue_id queue_id,
-				    const hrt_vaddress xmem_addr,
+				    const ia_css_ptr xmem_addr,
 				    const enum ia_css_buffer_type buf_type);
 
 static void
@@ -412,7 +413,7 @@ sh_css_sp_get_sw_interrupt_value(unsigned int irq)
 static void
 sh_css_copy_buffer_attr_to_spbuffer(struct ia_css_buffer_sp *dest_buf,
 				    const enum sh_css_queue_id queue_id,
-				    const hrt_vaddress xmem_addr,
+				    const ia_css_ptr xmem_addr,
 				    const enum ia_css_buffer_type buf_type)
 {
 	assert(buf_type < IA_CSS_NUM_BUFFER_TYPE);
@@ -535,10 +536,10 @@ sh_css_copy_frame_to_spframe(struct ia_css_frame_sp *sp_frame_out,
 	}
 }
 
-static enum ia_css_err
+static int
 set_input_frame_buffer(const struct ia_css_frame *frame) {
 	if (!frame)
-		return IA_CSS_ERR_INVALID_ARGUMENTS;
+		return -EINVAL;
 
 	switch (frame->info.format)
 	{
@@ -558,18 +559,18 @@ set_input_frame_buffer(const struct ia_css_frame *frame) {
 	case IA_CSS_FRAME_FORMAT_CSI_MIPI_YUV420_10:
 		break;
 	default:
-		return IA_CSS_ERR_INVALID_ARGUMENTS;
+		return -EINVAL;
 	}
 	sh_css_copy_frame_to_spframe(&sh_css_sp_stage.frames.in, frame);
 
-	return IA_CSS_SUCCESS;
+	return 0;
 }
 
-static enum ia_css_err
+static int
 set_output_frame_buffer(const struct ia_css_frame *frame,
 			unsigned int idx) {
 	if (!frame)
-		return IA_CSS_ERR_INVALID_ARGUMENTS;
+		return -EINVAL;
 
 	switch (frame->info.format)
 	{
@@ -601,16 +602,16 @@ set_output_frame_buffer(const struct ia_css_frame *frame,
 	case IA_CSS_FRAME_FORMAT_BINARY_8:
 		break;
 	default:
-		return IA_CSS_ERR_INVALID_ARGUMENTS;
+		return -EINVAL;
 	}
 	sh_css_copy_frame_to_spframe(&sh_css_sp_stage.frames.out[idx], frame);
-	return IA_CSS_SUCCESS;
+	return 0;
 }
 
-static enum ia_css_err
+static int
 set_view_finder_buffer(const struct ia_css_frame *frame) {
 	if (!frame)
-		return IA_CSS_ERR_INVALID_ARGUMENTS;
+		return -EINVAL;
 
 	switch (frame->info.format)
 	{
@@ -630,11 +631,11 @@ set_view_finder_buffer(const struct ia_css_frame *frame) {
 	case IA_CSS_FRAME_FORMAT_YUV_LINE:
 		break;
 	default:
-		return IA_CSS_ERR_INVALID_ARGUMENTS;
+		return -EINVAL;
 	}
 
 	sh_css_copy_frame_to_spframe(&sh_css_sp_stage.frames.out_vf, frame);
-	return IA_CSS_SUCCESS;
+	return 0;
 }
 
 #if !defined(HAS_NO_INPUT_FORMATTER)
@@ -736,26 +737,26 @@ sh_css_sp_set_disable_continuous_viewfinder(bool flag)
 	sh_css_sp_group.config.disable_cont_vf = flag;
 }
 
-static enum ia_css_err
+static int
 sh_css_sp_write_frame_pointers(const struct sh_css_binary_args *args) {
-	enum ia_css_err err = IA_CSS_SUCCESS;
+	int err = 0;
 	int i;
 
 	assert(args);
 
 	if (args->in_frame)
 		err = set_input_frame_buffer(args->in_frame);
-	if (err == IA_CSS_SUCCESS && args->out_vf_frame)
+	if (!err && args->out_vf_frame)
 		err = set_view_finder_buffer(args->out_vf_frame);
 	for (i = 0; i < IA_CSS_BINARY_MAX_OUTPUT_PORTS; i++)
 	{
-		if (err == IA_CSS_SUCCESS && args->out_frame[i])
+		if (!err && args->out_frame[i])
 			err = set_output_frame_buffer(args->out_frame[i], i);
 	}
 
 	/* we don't pass this error back to the upper layer, so we add a assert here
 	   because we actually hit the error here but it still works by accident... */
-	if (err != IA_CSS_SUCCESS) assert(false);
+	if (err) assert(false);
 	return err;
 }
 
@@ -790,23 +791,23 @@ sh_css_stage_write_binary_info(struct ia_css_binary_info *info)
 	sh_css_isp_stage.binary_info = *info;
 }
 
-static enum ia_css_err
+static int
 copy_isp_mem_if_to_ddr(struct ia_css_binary *binary) {
-	enum ia_css_err err;
+	int err;
 
 	err = ia_css_isp_param_copy_isp_mem_if_to_ddr(
 	    &binary->css_params,
 	    &binary->mem_params,
 	    IA_CSS_PARAM_CLASS_CONFIG);
-	if (err != IA_CSS_SUCCESS)
+	if (err)
 		return err;
 	err = ia_css_isp_param_copy_isp_mem_if_to_ddr(
 	    &binary->css_params,
 	    &binary->mem_params,
 	    IA_CSS_PARAM_CLASS_STATE);
-	if (err != IA_CSS_SUCCESS)
+	if (err)
 		return err;
-	return IA_CSS_SUCCESS;
+	return 0;
 }
 
 static bool
@@ -816,7 +817,7 @@ is_sp_stage(struct ia_css_pipeline_stage *stage)
 	return stage->sp_func != IA_CSS_PIPELINE_NO_FUNC;
 }
 
-static enum ia_css_err
+static int
 configure_isp_from_args(
     const struct sh_css_sp_pipeline *pipeline,
     const struct ia_css_binary      *binary,
@@ -838,10 +839,21 @@ configure_isp_from_args(
 	ia_css_dvs_configure(binary, &args->out_frame[0]->info);
 	ia_css_output_configure(binary, &args->out_frame[0]->info);
 	ia_css_raw_configure(pipeline, binary, &args->in_frame->info, &binary->in_frame_info, two_ppc, deinterleaved);
-	ia_css_ref_configure(binary, (const struct ia_css_frame **)args->delay_frames, pipeline->dvs_frame_delay);
-	ia_css_tnr_configure(binary, (const struct ia_css_frame **)args->tnr_frames);
+
+	/*
+	 * FIXME: args->delay_frames can be NULL here
+	 *
+	 * Somehow, the driver at the Intel Atom Yocto tree doesn't seem to
+	 * suffer from the same issue.
+	 *
+	 * Anyway, the function below should now handle a NULL delay_frames
+	 * without crashing, but the pipeline should likely be built without
+	 * adding it at the first place (or there are a hidden bug somewhere)
+	 */
+	ia_css_ref_configure(binary, args->delay_frames, pipeline->dvs_frame_delay);
+	ia_css_tnr_configure(binary, args->tnr_frames);
 	ia_css_bayer_io_config(binary, args);
-	return IA_CSS_SUCCESS;
+	return 0;
 }
 
 static void
@@ -880,7 +892,7 @@ initialize_stage_frames(struct ia_css_frames_sp *frames)
 #endif
 }
 
-static enum ia_css_err
+static int
 sh_css_sp_init_stage(struct ia_css_binary *binary,
 		     const char *binary_name,
 		     const struct ia_css_blob_info *blob_info,
@@ -893,7 +905,7 @@ sh_css_sp_init_stage(struct ia_css_binary *binary,
 		     bool two_ppc) {
 	const struct ia_css_binary_xinfo *xinfo;
 	const struct ia_css_binary_info  *info;
-	enum ia_css_err err = IA_CSS_SUCCESS;
+	int err = 0;
 	int i;
 	struct ia_css_pipe *pipe = NULL;
 	unsigned int thread_id;
@@ -925,7 +937,7 @@ sh_css_sp_init_stage(struct ia_css_binary *binary,
 	if (!info)
 	{
 		sh_css_sp_group.pipe[thread_id].sp_stage_addr[stage] = mmgr_NULL;
-		return IA_CSS_SUCCESS;
+		return 0;
 	}
 
 #if defined(USE_INPUT_SYSTEM_VERSION_2401)
@@ -978,8 +990,7 @@ sh_css_sp_init_stage(struct ia_css_binary *binary,
 
 	/* Make sure binary name is smaller than allowed string size */
 	assert(strlen(binary_name) < SH_CSS_MAX_BINARY_NAME - 1);
-	strncpy(sh_css_isp_stage.binary_name, binary_name, SH_CSS_MAX_BINARY_NAME - 1);
-	sh_css_isp_stage.binary_name[SH_CSS_MAX_BINARY_NAME - 1] = 0;
+	strscpy(sh_css_isp_stage.binary_name, binary_name, SH_CSS_MAX_BINARY_NAME);
 	sh_css_isp_stage.mem_initializers = *isp_mem_if;
 
 	/*
@@ -1011,38 +1022,19 @@ sh_css_sp_init_stage(struct ia_css_binary *binary,
 	ia_css_query_internal_queue_id(IA_CSS_BUFFER_TYPE_METADATA, thread_id, &queue_id);
 	sh_css_copy_buffer_attr_to_spbuffer(&sh_css_sp_stage.frames.metadata_buf, queue_id, mmgr_EXCEPTION, IA_CSS_BUFFER_TYPE_METADATA);
 #endif
-	if (err != IA_CSS_SUCCESS)
+	if (err)
 		return err;
 
 #ifdef USE_INPUT_SYSTEM_VERSION_2401
-#ifndef ISP2401
-	if (args->in_frame)
-	{
+	if (stage == 0) {
 		pipe = find_pipe_by_num(sh_css_sp_group.pipe[thread_id].pipe_num);
 		if (!pipe)
-			return IA_CSS_ERR_INTERNAL_ERROR;
-		ia_css_get_crop_offsets(pipe, &args->in_frame->info);
-	} else if (&binary->in_frame_info)
-	{
-		pipe = find_pipe_by_num(sh_css_sp_group.pipe[thread_id].pipe_num);
-		if (!pipe)
-			return IA_CSS_ERR_INTERNAL_ERROR;
-		ia_css_get_crop_offsets(pipe, &binary->in_frame_info);
-#else
-	if (stage == 0)
-	{
-		if (args->in_frame) {
-			pipe = find_pipe_by_num(sh_css_sp_group.pipe[thread_id].pipe_num);
-			if (!pipe)
-				return IA_CSS_ERR_INTERNAL_ERROR;
+			return -EINVAL;
+
+		if (args->in_frame)
 			ia_css_get_crop_offsets(pipe, &args->in_frame->info);
-		} else if (&binary->in_frame_info) {
-			pipe = find_pipe_by_num(sh_css_sp_group.pipe[thread_id].pipe_num);
-			if (!pipe)
-				return IA_CSS_ERR_INTERNAL_ERROR;
+		else
 			ia_css_get_crop_offsets(pipe, &binary->in_frame_info);
-		}
-#endif
 	}
 #else
 	(void)pipe; /*avoid build warning*/
@@ -1050,7 +1042,7 @@ sh_css_sp_init_stage(struct ia_css_binary *binary,
 
 	err = configure_isp_from_args(&sh_css_sp_group.pipe[thread_id],
 				      binary, args, two_ppc, sh_css_sp_stage.deinterleaved);
-	if (err != IA_CSS_SUCCESS)
+	if (err)
 		return err;
 
 	initialize_isp_states(binary);
@@ -1072,13 +1064,13 @@ sh_css_sp_init_stage(struct ia_css_binary *binary,
 		<<= binary->vf_downscale_log2;
 	}
 	err = copy_isp_mem_if_to_ddr(binary);
-	if (err != IA_CSS_SUCCESS)
+	if (err)
 		return err;
 
-	return IA_CSS_SUCCESS;
+	return 0;
 }
 
-static enum ia_css_err
+static int
 sp_init_stage(struct ia_css_pipeline_stage *stage,
 	      unsigned int pipe_num,
 	      bool xnr,
@@ -1110,7 +1102,7 @@ sp_init_stage(struct ia_css_pipeline_stage *stage,
 	*/
 	struct ia_css_isp_param_css_segments *mem_if = &isp_mem_if;
 
-	enum ia_css_err err = IA_CSS_SUCCESS;
+	int err = 0;
 
 	assert(stage);
 
@@ -1155,7 +1147,7 @@ sp_init_stage(struct ia_css_pipeline_stage *stage,
 		   These will be passed to sh_css_sp_init_stage
 		   and dereferenced there, so passing a NULL
 		   pointer is no good. return an error */
-		return IA_CSS_ERR_INTERNAL_ERROR;
+		return -EINVAL;
 	}
 
 	err = sh_css_sp_init_stage(binary,
@@ -1190,12 +1182,14 @@ sp_init_sp_stage(struct ia_css_pipeline_stage *stage,
 		break;
 	case IA_CSS_PIPELINE_BIN_COPY:
 		assert(false); /* TBI */
+		break;
 	case IA_CSS_PIPELINE_ISYS_COPY:
 		sh_css_sp_start_isys_copy(args->out_frame[0],
 					  pipe_num, stage->max_input_width, if_config_index);
 		break;
 	case IA_CSS_PIPELINE_NO_FUNC:
 		assert(false);
+		break;
 	}
 }
 
@@ -1347,7 +1341,7 @@ sh_css_sp_init_pipeline(struct ia_css_pipeline *me,
 	}
 #endif
 
-	if (atomisp_hw_is_isp2401) {
+	if (IS_ISP2401) {
 		/* For the shading correction type 1 (the legacy shading table conversion in css is not used),
 		* the parameters are passed to the isp for the shading table centering.
 		*/
@@ -1608,7 +1602,7 @@ sh_css_event_init_irq_mask(void)
 	}
 }
 
-enum ia_css_err
+int
 ia_css_pipe_set_irq_mask(struct ia_css_pipe *pipe,
 			 unsigned int or_mask,
 			 unsigned int and_mask) {
@@ -1636,7 +1630,7 @@ ia_css_pipe_set_irq_mask(struct ia_css_pipe *pipe,
 
 	pipe_num = ia_css_pipe_get_pipe_num(pipe);
 	if (pipe_num >= IA_CSS_PIPE_ID_NUM)
-		return IA_CSS_ERR_INTERNAL_ERROR;
+		return -EINVAL;
 	offset = (unsigned int)offsetof(struct host_sp_communication,
 					host2sp_event_irq_mask[pipe_num]);
 	assert(offset % HRT_BUS_BYTES == 0);
@@ -1644,10 +1638,10 @@ ia_css_pipe_set_irq_mask(struct ia_css_pipe *pipe,
 		      (unsigned int)sp_address_of(host_sp_com) + offset,
 		      &event_irq_mask, sizeof(event_irq_mask));
 
-	return IA_CSS_SUCCESS;
+	return 0;
 }
 
-enum ia_css_err
+int
 ia_css_event_get_irq_mask(const struct ia_css_pipe *pipe,
 			  unsigned int *or_mask,
 			  unsigned int *and_mask) {
@@ -1665,7 +1659,7 @@ ia_css_event_get_irq_mask(const struct ia_css_pipe *pipe,
 
 	pipe_num = ia_css_pipe_get_pipe_num(pipe);
 	if (pipe_num >= IA_CSS_PIPE_ID_NUM)
-		return IA_CSS_ERR_INTERNAL_ERROR;
+		return -EINVAL;
 	offset = (unsigned int)offsetof(struct host_sp_communication,
 					host2sp_event_irq_mask[pipe_num]);
 	assert(offset % HRT_BUS_BYTES == 0);
@@ -1679,7 +1673,7 @@ ia_css_event_get_irq_mask(const struct ia_css_pipe *pipe,
 	if (and_mask)
 		*and_mask = event_irq_mask.and_mask;
 
-	return IA_CSS_SUCCESS;
+	return 0;
 }
 
 void

@@ -32,6 +32,9 @@
 /* The amount of RX buffer space consumed by standard skb overhead */
 #define IPA_RX_BUFFER_OVERHEAD	(PAGE_SIZE - SKB_MAX_ORDER(NET_SKB_PAD, 0))
 
+/* Where to find the QMAP mux_id for a packet within modem-supplied metadata */
+#define IPA_ENDPOINT_QMAP_METADATA_MASK		0x000000ff /* host byte order */
+
 #define IPA_ENDPOINT_RESET_AGGR_RETRY_MAX	3
 #define IPA_AGGR_TIME_LIMIT_DEFAULT		1000	/* microseconds */
 
@@ -433,6 +436,24 @@ static void ipa_endpoint_init_cfg(struct ipa_endpoint *endpoint)
 	iowrite32(val, endpoint->ipa->reg_virt + offset);
 }
 
+/**
+ * We program QMAP endpoints so each packet received is preceded by a QMAP
+ * header structure.  The QMAP header contains a 1-byte mux_id and 2-byte
+ * packet size field, and we have the IPA hardware populate both for each
+ * received packet.  The header is configured (in the HDR_EXT register)
+ * to use big endian format.
+ *
+ * The packet size is written into the QMAP header's pkt_len field.  That
+ * location is defined here using the HDR_OFST_PKT_SIZE field.
+ *
+ * The mux_id comes from a 4-byte metadata value supplied with each packet
+ * by the modem.  It is *not* a QMAP header, but it does contain the mux_id
+ * value that we want, in its low-order byte.  A bitmask defined in the
+ * endpoint's METADATA_MASK register defines which byte within the modem
+ * metadata contains the mux_id.  And the OFST_METADATA field programmed
+ * here indicates where the extracted byte should be placed within the QMAP
+ * header.
+ */
 static void ipa_endpoint_init_hdr(struct ipa_endpoint *endpoint)
 {
 	u32 offset = IPA_REG_ENDP_INIT_HDR_N_OFFSET(endpoint->endpoint_id);
@@ -441,25 +462,31 @@ static void ipa_endpoint_init_hdr(struct ipa_endpoint *endpoint)
 	if (endpoint->data->qmap) {
 		size_t header_size = sizeof(struct rmnet_map_header);
 
+		/* We might supply a checksum header after the QMAP header */
 		if (endpoint->toward_ipa && endpoint->data->checksum)
 			header_size += sizeof(struct rmnet_map_ul_csum_header);
-
 		val |= u32_encode_bits(header_size, HDR_LEN_FMASK);
-		/* metadata is the 4 byte rmnet_map header itself */
-		val |= HDR_OFST_METADATA_VALID_FMASK;
-		val |= u32_encode_bits(0, HDR_OFST_METADATA_FMASK);
-		/* HDR_ADDITIONAL_CONST_LEN is 0; (IPA->AP only) */
-		if (!endpoint->toward_ipa) {
-			u32 size_offset = offsetof(struct rmnet_map_header,
-						   pkt_len);
 
+		/* Define how to fill fields in a received QMAP header */
+		if (!endpoint->toward_ipa) {
+			u32 off;	/* Field offset within header */
+
+			/* Where IPA will write the metadata value */
+			off = offsetof(struct rmnet_map_header, mux_id);
+			val |= u32_encode_bits(off, HDR_OFST_METADATA_FMASK);
+
+			/* Where IPA will write the length */
+			off = offsetof(struct rmnet_map_header, pkt_len);
 			val |= HDR_OFST_PKT_SIZE_VALID_FMASK;
-			val |= u32_encode_bits(size_offset,
-					       HDR_OFST_PKT_SIZE_FMASK);
+			val |= u32_encode_bits(off, HDR_OFST_PKT_SIZE_FMASK);
 		}
+		/* For QMAP TX, metadata offset is 0 (modem assumes this) */
+		val |= HDR_OFST_METADATA_VALID_FMASK;
+
+		/* HDR_ADDITIONAL_CONST_LEN is 0; (RX only) */
 		/* HDR_A5_MUX is 0 */
 		/* HDR_LEN_INC_DEAGG_HDR is 0 */
-		/* HDR_METADATA_REG_VALID is 0; (AP->IPA only) */
+		/* HDR_METADATA_REG_VALID is 0 (TX only) */
 	}
 
 	iowrite32(val, endpoint->ipa->reg_virt + offset);
@@ -472,38 +499,27 @@ static void ipa_endpoint_init_hdr_ext(struct ipa_endpoint *endpoint)
 	u32 val = 0;
 
 	val |= HDR_ENDIANNESS_FMASK;		/* big endian */
-	val |= HDR_TOTAL_LEN_OR_PAD_VALID_FMASK;
-	/* HDR_TOTAL_LEN_OR_PAD is 0 (pad, not total_len) */
+
+	/* A QMAP header contains a 6 bit pad field at offset 0.  The RMNet
+	 * driver assumes this field is meaningful in packets it receives,
+	 * and assumes the header's payload length includes that padding.
+	 * The RMNet driver does *not* pad packets it sends, however, so
+	 * the pad field (although 0) should be ignored.
+	 */
+	if (endpoint->data->qmap && !endpoint->toward_ipa) {
+		val |= HDR_TOTAL_LEN_OR_PAD_VALID_FMASK;
+		/* HDR_TOTAL_LEN_OR_PAD is 0 (pad, not total_len) */
+		val |= HDR_PAYLOAD_LEN_INC_PADDING_FMASK;
+		/* HDR_TOTAL_LEN_OR_PAD_OFFSET is 0 */
+	}
+
 	/* HDR_PAYLOAD_LEN_INC_PADDING is 0 */
-	/* HDR_TOTAL_LEN_OR_PAD_OFFSET is 0 */
 	if (!endpoint->toward_ipa)
 		val |= u32_encode_bits(pad_align, HDR_PAD_TO_ALIGNMENT_FMASK);
 
 	iowrite32(val, endpoint->ipa->reg_virt + offset);
 }
 
-/**
- * Generate a metadata mask value that will select only the mux_id
- * field in an rmnet_map header structure.  The mux_id is at offset
- * 1 byte from the beginning of the structure, but the metadata
- * value is treated as a 4-byte unit.  So this mask must be computed
- * with endianness in mind.  Note that ipa_endpoint_init_hdr_metadata_mask()
- * will convert this value to the proper byte order.
- *
- * Marked __always_inline because this is really computing a
- * constant value.
- */
-static __always_inline __be32 ipa_rmnet_mux_id_metadata_mask(void)
-{
-	size_t mux_id_offset = offsetof(struct rmnet_map_header, mux_id);
-	u32 mux_id_mask = 0;
-	u8 *bytes;
-
-	bytes = (u8 *)&mux_id_mask;
-	bytes[mux_id_offset] = 0xff;	/* mux_id is 1 byte */
-
-	return cpu_to_be32(mux_id_mask);
-}
 
 static void ipa_endpoint_init_hdr_metadata_mask(struct ipa_endpoint *endpoint)
 {
@@ -513,8 +529,9 @@ static void ipa_endpoint_init_hdr_metadata_mask(struct ipa_endpoint *endpoint)
 
 	offset = IPA_REG_ENDP_INIT_HDR_METADATA_MASK_N_OFFSET(endpoint_id);
 
+	/* Note that HDR_ENDIANNESS indicates big endian header fields */
 	if (!endpoint->toward_ipa && endpoint->data->qmap)
-		val = ipa_rmnet_mux_id_metadata_mask();
+		val = cpu_to_be32(IPA_ENDPOINT_QMAP_METADATA_MASK);
 
 	iowrite32(val, endpoint->ipa->reg_virt + offset);
 }
@@ -693,10 +710,12 @@ static void ipa_endpoint_init_seq(struct ipa_endpoint *endpoint)
 	u32 seq_type = endpoint->seq_type;
 	u32 val = 0;
 
+	/* Sequencer type is made up of four nibbles */
 	val |= u32_encode_bits(seq_type & 0xf, HPS_SEQ_TYPE_FMASK);
 	val |= u32_encode_bits((seq_type >> 4) & 0xf, DPS_SEQ_TYPE_FMASK);
-	/* HPS_REP_SEQ_TYPE is 0 */
-	/* DPS_REP_SEQ_TYPE is 0 */
+	/* The second two apply to replicated packets */
+	val |= u32_encode_bits((seq_type >> 8) & 0xf, HPS_REP_SEQ_TYPE_FMASK);
+	val |= u32_encode_bits((seq_type >> 12) & 0xf, DPS_REP_SEQ_TYPE_FMASK);
 
 	iowrite32(val, endpoint->ipa->reg_virt + offset);
 }

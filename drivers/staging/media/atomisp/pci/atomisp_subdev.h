@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Support for Medifield PNW Camera Imaging ISP subsystem.
  *
@@ -59,8 +60,7 @@ struct atomisp_in_fmt_conv {
 	u8 bpp; /* bits per pixel */
 	u8 depth; /* uncompressed */
 	enum atomisp_input_format atomisp_in_fmt;
-	enum atomisp_css_bayer_order bayer_order;
-	enum atomisp_input_format css_stream_fmt;
+	enum ia_css_bayer_order bayer_order;
 };
 
 struct atomisp_sub_device;
@@ -215,8 +215,8 @@ struct atomisp_subdev_params {
 	unsigned int histogram_elenum;
 
 	/* Current grid info */
-	struct atomisp_css_grid_info curr_grid_info;
-	enum atomisp_css_pipe_id s3a_enabled_pipe;
+	struct ia_css_grid_info curr_grid_info;
+	enum ia_css_pipe_id s3a_enabled_pipe;
 
 	int s3a_output_bytes;
 
@@ -225,7 +225,7 @@ struct atomisp_subdev_params {
 	struct ia_css_dz_config   dz_config;  /** Digital Zoom */
 	struct ia_css_capture_config   capture_config;
 
-	struct atomisp_css_isp_config config;
+	struct ia_css_isp_config config;
 
 	/* current configurations */
 	struct atomisp_css_params css_param;
@@ -240,7 +240,7 @@ struct atomisp_subdev_params {
 	u32 metadata_width_size;
 
 	struct ia_css_dvs2_statistics *dvs_stat;
-	struct atomisp_css_dvs_6axis *dvs_6axis;
+	struct ia_css_dvs_6axis_config *dvs_6axis;
 	u32 exp_id;
 	int  dvs_hor_coef_bytes;
 	int  dvs_ver_coef_bytes;
@@ -265,7 +265,7 @@ struct atomisp_css_params_with_list {
 };
 
 struct atomisp_acc_fw {
-	struct atomisp_css_fw_info *fw;
+	struct ia_css_fw_info *fw;
 	unsigned int handle;
 	unsigned int flags;
 	unsigned int type;
@@ -323,7 +323,7 @@ struct atomisp_sub_device {
 	struct {
 		struct list_head fw;
 		struct list_head memory_maps;
-		struct atomisp_css_pipeline *pipeline;
+		struct ia_css_pipe *pipeline;
 		bool extension_mode;
 		struct ida ida;
 		struct completion acc_done;
@@ -335,11 +335,11 @@ struct atomisp_sub_device {
 	struct atomisp_stream_env stream_env[ATOMISP_INPUT_STREAM_NUM];
 
 	struct v4l2_pix_format dvs_envelop;
-	unsigned int s3a_bufs_in_css[CSS_PIPE_ID_NUM];
+	unsigned int s3a_bufs_in_css[IA_CSS_PIPE_ID_NUM];
 	unsigned int dis_bufs_in_css;
 
 	unsigned int metadata_bufs_in_css
-	[ATOMISP_INPUT_STREAM_NUM][CSS_PIPE_ID_NUM];
+	[ATOMISP_INPUT_STREAM_NUM][IA_CSS_PIPE_ID_NUM];
 	/* The list of free and available metadata buffers for CSS */
 	struct list_head metadata[ATOMISP_METADATA_TYPE_NUM];
 	/* The list of metadata buffers which have been en-queued to CSS */
@@ -358,8 +358,8 @@ struct atomisp_sub_device {
 	struct list_head dis_stats_in_css;
 	spinlock_t dis_stats_lock;
 
-	struct atomisp_css_frame *vf_frame; /* TODO: needed? */
-	struct atomisp_css_frame *raw_output_frame;
+	struct ia_css_frame *vf_frame; /* TODO: needed? */
+	struct ia_css_frame *raw_output_frame;
 	enum atomisp_frame_status frame_status[VIDEO_MAX_FRAME];
 
 	/* This field specifies which camera (v4l2 input) is selected. */

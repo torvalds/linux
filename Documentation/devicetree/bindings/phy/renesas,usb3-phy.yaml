@@ -52,9 +52,8 @@ properties:
     description: |
       Enable/disable spread spectrum clock (ssc). 0 or the property doesn't
       exist means disabling the ssc. The actual value will be -<value> ppm.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - enum: [ 0, 4003, 4492, 4980 ]
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [ 0, 4003, 4492, 4980 ]
 
 required:
   - compatible

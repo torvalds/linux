@@ -2,7 +2,7 @@
 config ROMFS_FS
 	tristate "ROM file system support"
 	depends on BLOCK || MTD
-	---help---
+	help
 	  This is a very small read-only file system mainly intended for
 	  initial ram disks of installation disks, but it could be used for
 	  other read-only media as well.  Read

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2010 - 2015, Intel Corporation.
@@ -103,7 +104,7 @@ static inline void
 _sh_css_fifo_snd(unsigned int token)
 {
 	while (!can_event_send_token(STR2MIPI_EVENT_ID))
-		hrt_sleep();
+		udelay(1);
 	event_send_token(STR2MIPI_EVENT_ID, token);
 	return;
 }

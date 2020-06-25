@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2015, Intel Corporation.
@@ -15,19 +16,9 @@
 #ifndef __ISP_GLOBAL_H_INCLUDED__
 #define __ISP_GLOBAL_H_INCLUDED__
 
-#include <system_types.h>
+#include <system_local.h>
 
-#if defined(HAS_ISP_2401_MAMOIADA)
-#define IS_ISP_2401_MAMOIADA
-
-#include "isp2401_mamoiada_params.h"
-#elif defined(HAS_ISP_2400_MAMOIADA)
-#define IS_ISP_2400_MAMOIADA
-
-#include "isp2400_mamoiada_params.h"
-#else
-#error "isp_global_h: ISP_2400_MAMOIDA must be one of {2400, 2401 }"
-#endif
+#include "mamoiada_params.h"
 
 #define ISP_PMEM_WIDTH_LOG2		ISP_LOG2_PMEM_WIDTH
 #define ISP_PMEM_SIZE			ISP_PMEM_DEPTH

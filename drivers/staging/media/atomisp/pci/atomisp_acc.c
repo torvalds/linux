@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Support for Clovertrail PNW Camera Imaging ISP subsystem.
  *
@@ -23,24 +24,24 @@
 #include <linux/init.h>
 #include <media/v4l2-event.h>
 
+#include "hmm.h"
+
 #include "atomisp_acc.h"
 #include "atomisp_internal.h"
 #include "atomisp_compat.h"
 #include "atomisp_cmd.h"
 
-#include "hrt/hive_isp_css_mm_hrt.h"
-#include "memory_access/memory_access.h"
 #include "ia_css.h"
 
 static const struct {
 	unsigned int flag;
-	enum atomisp_css_pipe_id pipe_id;
+	enum ia_css_pipe_id pipe_id;
 } acc_flag_to_pipe[] = {
-	{ ATOMISP_ACC_FW_LOAD_FL_PREVIEW, CSS_PIPE_ID_PREVIEW },
-	{ ATOMISP_ACC_FW_LOAD_FL_COPY, CSS_PIPE_ID_COPY },
-	{ ATOMISP_ACC_FW_LOAD_FL_VIDEO, CSS_PIPE_ID_VIDEO },
-	{ ATOMISP_ACC_FW_LOAD_FL_CAPTURE, CSS_PIPE_ID_CAPTURE },
-	{ ATOMISP_ACC_FW_LOAD_FL_ACC, CSS_PIPE_ID_ACC }
+	{ ATOMISP_ACC_FW_LOAD_FL_PREVIEW, IA_CSS_PIPE_ID_PREVIEW },
+	{ ATOMISP_ACC_FW_LOAD_FL_COPY, IA_CSS_PIPE_ID_COPY },
+	{ ATOMISP_ACC_FW_LOAD_FL_VIDEO, IA_CSS_PIPE_ID_VIDEO },
+	{ ATOMISP_ACC_FW_LOAD_FL_CAPTURE, IA_CSS_PIPE_ID_CAPTURE },
+	{ ATOMISP_ACC_FW_LOAD_FL_ACC, IA_CSS_PIPE_ID_ACC }
 };
 
 /*
@@ -353,16 +354,23 @@ int atomisp_acc_map(struct atomisp_sub_device *asd, struct atomisp_acc_map *map)
 		}
 
 		pgnr = DIV_ROUND_UP(map->length, PAGE_SIZE);
-		cssptr = hrt_isp_css_mm_alloc_user_ptr(map->length,
-						       map->user_ptr,
-						       pgnr, HRT_USR_PTR,
-						       (map->flags & ATOMISP_MAP_FLAG_CACHED));
+		if (pgnr < ((PAGE_ALIGN(map->length)) >> PAGE_SHIFT)) {
+			dev_err(atomisp_dev,
+				"user space memory size is less than the expected size..\n");
+			return -ENOMEM;
+		} else if (pgnr > ((PAGE_ALIGN(map->length)) >> PAGE_SHIFT)) {
+			dev_err(atomisp_dev,
+				"user space memory size is large than the expected size..\n");
+			return -ENOMEM;
+		}
+
+		cssptr = hmm_alloc(map->length, HMM_BO_USER, 0, map->user_ptr,
+				   map->flags & ATOMISP_MAP_FLAG_CACHED);
+
 	} else {
 		/* Allocate private buffer. */
-		if (map->flags & ATOMISP_MAP_FLAG_CACHED)
-			cssptr = hrt_isp_css_mm_calloc_cached(map->length);
-		else
-			cssptr = hrt_isp_css_mm_calloc(map->length);
+		cssptr = hmm_alloc(map->length, HMM_BO_PRIVATE, 0, NULL,
+				   map->flags & ATOMISP_MAP_FLAG_CACHED);
 	}
 
 	if (!cssptr)
@@ -552,7 +560,7 @@ int atomisp_acc_set_state(struct atomisp_sub_device *asd,
 	struct atomisp_acc_fw *acc_fw;
 	bool enable = (arg->flags & ATOMISP_STATE_FLAG_ENABLE) != 0;
 	struct ia_css_pipe *pipe;
-	enum ia_css_err r;
+	int r;
 	int i;
 
 	if (!asd->acc.extension_mode)
@@ -574,7 +582,7 @@ int atomisp_acc_set_state(struct atomisp_sub_device *asd,
 			       pipes[acc_flag_to_pipe[i].pipe_id];
 			r = ia_css_pipe_set_qos_ext_state(pipe, acc_fw->handle,
 							  enable);
-			if (r != IA_CSS_SUCCESS)
+			if (r)
 				return -EBADRQC;
 		}
 	}

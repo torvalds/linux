@@ -15,7 +15,7 @@ menuconfig IOMMU_SUPPORT
 	bool "IOMMU Hardware Support"
 	depends on MMU
 	default y
-	---help---
+	help
 	  Say Y here if you want to compile device drivers for IO Memory
 	  Management Units into the kernel. These devices usually allow to
 	  remap DMA requests and/or remap interrupts from other devices on the
@@ -144,7 +144,7 @@ config AMD_IOMMU
 	select IOMMU_IOVA
 	select IOMMU_DMA
 	depends on X86_64 && PCI && ACPI
-	---help---
+	help
 	  With this option you can enable support for AMD IOMMU hardware in
 	  your system. An IOMMU is a hardware component which provides
 	  remapping of DMA memory accesses from devices. With an AMD IOMMU you
@@ -159,7 +159,7 @@ config AMD_IOMMU_V2
 	tristate "AMD IOMMU Version 2 driver"
 	depends on AMD_IOMMU
 	select MMU_NOTIFIER
-	---help---
+	help
 	  This option enables support for the AMD IOMMUv2 features of the IOMMU
 	  hardware. Select this option if you want to use devices that support
 	  the PCI PRI and PASID interface.
@@ -167,7 +167,7 @@ config AMD_IOMMU_V2
 config AMD_IOMMU_DEBUGFS
 	bool "Enable AMD IOMMU internals in DebugFS"
 	depends on AMD_IOMMU && IOMMU_DEBUGFS
-	---help---
+	help
 	  !!!WARNING!!!  !!!WARNING!!!  !!!WARNING!!!  !!!WARNING!!!
 
 	  DO NOT ENABLE THIS OPTION UNLESS YOU REALLY, -REALLY- KNOW WHAT YOU ARE DOING!!!
@@ -233,7 +233,7 @@ config INTEL_IOMMU_DEFAULT_ON
 config INTEL_IOMMU_BROKEN_GFX_WA
 	bool "Workaround broken graphics drivers (going away soon)"
 	depends on INTEL_IOMMU && BROKEN && X86
-	---help---
+	help
 	  Current Graphics drivers tend to use physical address
 	  for DMA and avoid using DMA APIs. Setting this config
 	  option permits the IOMMU driver to set a unity map for
@@ -244,7 +244,7 @@ config INTEL_IOMMU_BROKEN_GFX_WA
 config INTEL_IOMMU_FLOPPY_WA
 	def_bool y
 	depends on INTEL_IOMMU && X86
-	---help---
+	help
 	  Floppy disk drivers are known to bypass DMA API calls
 	  thereby failing to work when IOMMU is enabled. This
 	  workaround will setup a 1:1 mapping for the first
@@ -266,7 +266,7 @@ config IRQ_REMAP
 	bool "Support for Interrupt Remapping"
 	depends on X86_64 && X86_IO_APIC && PCI_MSI && ACPI
 	select DMAR_TABLE
-	---help---
+	help
 	  Supports Interrupt remapping for IO-APIC and MSI devices.
 	  To use x2apic mode in the CPU's which support x2APIC enhancements or
 	  to support platforms with CPU's having > 8 bit APIC ID, say Y.
@@ -277,14 +277,14 @@ config OMAP_IOMMU
 	depends on ARM && MMU || (COMPILE_TEST && (ARM || ARM64 || IA64 || SPARC))
 	depends on ARCH_OMAP2PLUS || COMPILE_TEST
 	select IOMMU_API
-	---help---
+	help
 	  The OMAP3 media platform drivers depend on iommu support,
 	  if you need them say Y here.
 
 config OMAP_IOMMU_DEBUG
 	bool "Export OMAP IOMMU internals in DebugFS"
 	depends on OMAP_IOMMU && DEBUG_FS
-	---help---
+	help
 	  Select this to see extensive information about
 	  the internal state of OMAP IOMMU in debugfs.
 

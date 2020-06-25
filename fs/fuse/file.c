@@ -357,7 +357,7 @@ u64 fuse_lock_owner_id(struct fuse_conn *fc, fl_owner_t id)
 
 struct fuse_writepage_args {
 	struct fuse_io_args ia;
-	struct list_head writepages_entry;
+	struct rb_node writepages_entry;
 	struct list_head queue_entry;
 	struct fuse_writepage_args *next;
 	struct inode *inode;
@@ -366,17 +366,23 @@ struct fuse_writepage_args {
 static struct fuse_writepage_args *fuse_find_writeback(struct fuse_inode *fi,
 					    pgoff_t idx_from, pgoff_t idx_to)
 {
-	struct fuse_writepage_args *wpa;
+	struct rb_node *n;
 
-	list_for_each_entry(wpa, &fi->writepages, writepages_entry) {
+	n = fi->writepages.rb_node;
+
+	while (n) {
+		struct fuse_writepage_args *wpa;
 		pgoff_t curr_index;
 
+		wpa = rb_entry(n, struct fuse_writepage_args, writepages_entry);
 		WARN_ON(get_fuse_inode(wpa->inode) != fi);
 		curr_index = wpa->ia.write.in.offset >> PAGE_SHIFT;
-		if (idx_from < curr_index + wpa->ia.ap.num_pages &&
-		    curr_index <= idx_to) {
+		if (idx_from >= curr_index + wpa->ia.ap.num_pages)
+			n = n->rb_right;
+		else if (idx_to < curr_index)
+			n = n->rb_left;
+		else
 			return wpa;
-		}
 	}
 	return NULL;
 }
@@ -445,9 +451,6 @@ static int fuse_flush(struct file *file, fl_owner_t id)
 	if (is_bad_inode(inode))
 		return -EIO;
 
-	if (fc->no_flush)
-		return 0;
-
 	err = write_inode_now(inode, 1);
 	if (err)
 		return err;
@@ -459,6 +462,10 @@ static int fuse_flush(struct file *file, fl_owner_t id)
 	err = filemap_check_errors(file->f_mapping);
 	if (err)
 		return err;
+
+	err = 0;
+	if (fc->no_flush)
+		goto inval_attr_out;
 
 	memset(&inarg, 0, sizeof(inarg));
 	inarg.fh = ff->fh;
@@ -475,6 +482,14 @@ static int fuse_flush(struct file *file, fl_owner_t id)
 		fc->no_flush = 1;
 		err = 0;
 	}
+
+inval_attr_out:
+	/*
+	 * In memory i_blocks is not maintained by fuse, if writeback cache is
+	 * enabled, i_blocks from cached attr may not be accurate.
+	 */
+	if (!err && fc->writeback_cache)
+		fuse_invalidate_attr(inode);
 	return err;
 }
 
@@ -712,6 +727,7 @@ static ssize_t fuse_async_req_send(struct fuse_conn *fc,
 	spin_unlock(&io->lock);
 
 	ia->ap.args.end = fuse_aio_complete_req;
+	ia->ap.args.may_block = io->should_dirty;
 	err = fuse_simple_background(fc, &ia->ap.args, GFP_KERNEL);
 	if (err)
 		fuse_aio_complete_req(fc, &ia->ap.args, err);
@@ -1570,7 +1586,7 @@ static void fuse_writepage_finish(struct fuse_conn *fc,
 	struct backing_dev_info *bdi = inode_to_bdi(inode);
 	int i;
 
-	list_del(&wpa->writepages_entry);
+	rb_erase(&wpa->writepages_entry, &fi->writepages);
 	for (i = 0; i < ap->num_pages; i++) {
 		dec_wb_stat(&bdi->wb, WB_WRITEBACK);
 		dec_node_page_state(ap->pages[i], NR_WRITEBACK_TEMP);
@@ -1658,6 +1674,36 @@ __acquires(fi->lock)
 	}
 }
 
+static void tree_insert(struct rb_root *root, struct fuse_writepage_args *wpa)
+{
+	pgoff_t idx_from = wpa->ia.write.in.offset >> PAGE_SHIFT;
+	pgoff_t idx_to = idx_from + wpa->ia.ap.num_pages - 1;
+	struct rb_node **p = &root->rb_node;
+	struct rb_node  *parent = NULL;
+
+	WARN_ON(!wpa->ia.ap.num_pages);
+	while (*p) {
+		struct fuse_writepage_args *curr;
+		pgoff_t curr_index;
+
+		parent = *p;
+		curr = rb_entry(parent, struct fuse_writepage_args,
+				writepages_entry);
+		WARN_ON(curr->inode != wpa->inode);
+		curr_index = curr->ia.write.in.offset >> PAGE_SHIFT;
+
+		if (idx_from >= curr_index + curr->ia.ap.num_pages)
+			p = &(*p)->rb_right;
+		else if (idx_to < curr_index)
+			p = &(*p)->rb_left;
+		else
+			return (void) WARN_ON(true);
+	}
+
+	rb_link_node(&wpa->writepages_entry, parent, p);
+	rb_insert_color(&wpa->writepages_entry, root);
+}
+
 static void fuse_writepage_end(struct fuse_conn *fc, struct fuse_args *args,
 			       int error)
 {
@@ -1676,7 +1722,7 @@ static void fuse_writepage_end(struct fuse_conn *fc, struct fuse_args *args,
 		wpa->next = next->next;
 		next->next = NULL;
 		next->ia.ff = fuse_file_get(wpa->ia.ff);
-		list_add(&next->writepages_entry, &fi->writepages);
+		tree_insert(&fi->writepages, next);
 
 		/*
 		 * Skip fuse_flush_writepages() to make it easy to crop requests
@@ -1811,7 +1857,7 @@ static int fuse_writepage_locked(struct page *page)
 	inc_node_page_state(tmp_page, NR_WRITEBACK_TEMP);
 
 	spin_lock(&fi->lock);
-	list_add(&wpa->writepages_entry, &fi->writepages);
+	tree_insert(&fi->writepages, wpa);
 	list_add_tail(&wpa->queue_entry, &fi->queued_writes);
 	fuse_flush_writepages(inode);
 	spin_unlock(&fi->lock);
@@ -1923,10 +1969,10 @@ static bool fuse_writepage_in_flight(struct fuse_writepage_args *new_wpa,
 	WARN_ON(new_ap->num_pages != 0);
 
 	spin_lock(&fi->lock);
-	list_del(&new_wpa->writepages_entry);
+	rb_erase(&new_wpa->writepages_entry, &fi->writepages);
 	old_wpa = fuse_find_writeback(fi, page->index, page->index);
 	if (!old_wpa) {
-		list_add(&new_wpa->writepages_entry, &fi->writepages);
+		tree_insert(&fi->writepages, new_wpa);
 		spin_unlock(&fi->lock);
 		return false;
 	}
@@ -2041,7 +2087,7 @@ static int fuse_writepages_fill(struct page *page,
 		wpa->inode = inode;
 
 		spin_lock(&fi->lock);
-		list_add(&wpa->writepages_entry, &fi->writepages);
+		tree_insert(&fi->writepages, wpa);
 		spin_unlock(&fi->lock);
 
 		data->wpa = wpa;
@@ -3235,13 +3281,11 @@ static ssize_t __fuse_copy_file_range(struct file *file_in, loff_t pos_in,
 	if (file_inode(file_in)->i_sb != file_inode(file_out)->i_sb)
 		return -EXDEV;
 
-	if (fc->writeback_cache) {
-		inode_lock(inode_in);
-		err = fuse_writeback_range(inode_in, pos_in, pos_in + len);
-		inode_unlock(inode_in);
-		if (err)
-			return err;
-	}
+	inode_lock(inode_in);
+	err = fuse_writeback_range(inode_in, pos_in, pos_in + len - 1);
+	inode_unlock(inode_in);
+	if (err)
+		return err;
 
 	inode_lock(inode_out);
 
@@ -3249,11 +3293,27 @@ static ssize_t __fuse_copy_file_range(struct file *file_in, loff_t pos_in,
 	if (err)
 		goto out;
 
-	if (fc->writeback_cache) {
-		err = fuse_writeback_range(inode_out, pos_out, pos_out + len);
-		if (err)
-			goto out;
-	}
+	/*
+	 * Write out dirty pages in the destination file before sending the COPY
+	 * request to userspace.  After the request is completed, truncate off
+	 * pages (including partial ones) from the cache that have been copied,
+	 * since these contain stale data at that point.
+	 *
+	 * This should be mostly correct, but if the COPY writes to partial
+	 * pages (at the start or end) and the parts not covered by the COPY are
+	 * written through a memory map after calling fuse_writeback_range(),
+	 * then these partial page modifications will be lost on truncation.
+	 *
+	 * It is unlikely that someone would rely on such mixed style
+	 * modifications.  Yet this does give less guarantees than if the
+	 * copying was performed with write(2).
+	 *
+	 * To fix this a i_mmap_sem style lock could be used to prevent new
+	 * faults while the copy is ongoing.
+	 */
+	err = fuse_writeback_range(inode_out, pos_out, pos_out + len - 1);
+	if (err)
+		goto out;
 
 	if (is_unstable)
 		set_bit(FUSE_I_SIZE_UNSTABLE, &fi_out->state);
@@ -3273,6 +3333,10 @@ static ssize_t __fuse_copy_file_range(struct file *file_in, loff_t pos_in,
 	}
 	if (err)
 		goto out;
+
+	truncate_inode_pages_range(inode_out->i_mapping,
+				   ALIGN_DOWN(pos_out, PAGE_SIZE),
+				   ALIGN(pos_out + outarg.size, PAGE_SIZE) - 1);
 
 	if (fc->writeback_cache) {
 		fuse_write_update_size(inode_out, pos_out + outarg.size);
@@ -3351,5 +3415,5 @@ void fuse_init_file_inode(struct inode *inode)
 	INIT_LIST_HEAD(&fi->queued_writes);
 	fi->writectr = 0;
 	init_waitqueue_head(&fi->page_waitq);
-	INIT_LIST_HEAD(&fi->writepages);
+	fi->writepages = RB_ROOT;
 }

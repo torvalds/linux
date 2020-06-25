@@ -286,9 +286,7 @@ static int can_optimize(unsigned long paddr)
 	 * stack handling and registers setup.
 	 */
 	if (((paddr >= (unsigned long)__entry_text_start) &&
-	     (paddr <  (unsigned long)__entry_text_end)) ||
-	    ((paddr >= (unsigned long)__irqentry_text_start) &&
-	     (paddr <  (unsigned long)__irqentry_text_end)))
+	     (paddr <  (unsigned long)__entry_text_end)))
 		return 0;
 
 	/* Check there is enough space for a relative jump. */

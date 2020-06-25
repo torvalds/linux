@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Kconfig for sensor drivers
 #
@@ -8,7 +9,7 @@ config VIDEO_ATOMISP_OV2722
        tristate "OVT ov2722 sensor support"
 	depends on ACPI
        depends on I2C && VIDEO_V4L2
-       ---help---
+	help
 	 This is a Video4Linux2 sensor-level driver for the OVT
 	 OV2722 raw camera.
 
@@ -20,7 +21,7 @@ config VIDEO_ATOMISP_GC2235
        tristate "Galaxy gc2235 sensor support"
 	depends on ACPI
        depends on I2C && VIDEO_V4L2
-       ---help---
+	help
 	 This is a Video4Linux2 sensor-level driver for the OVT
 	 GC2235 raw camera.
 
@@ -31,7 +32,7 @@ config VIDEO_ATOMISP_GC2235
 config VIDEO_ATOMISP_MSRLIST_HELPER
        tristate "Helper library to load, parse and apply large register lists."
        depends on I2C
-       ---help---
+	help
 	 This is a helper library to be used from a sensor driver to load, parse
 	 and apply large register lists.
 
@@ -42,7 +43,7 @@ config VIDEO_ATOMISP_MT9M114
        tristate "Aptina mt9m114 sensor support"
 	depends on ACPI
        depends on I2C && VIDEO_V4L2
-       ---help---
+	help
 	 This is a Video4Linux2 sensor-level driver for the Micron
 	 mt9m114 1.3 Mpixel camera.
 
@@ -54,15 +55,15 @@ config VIDEO_ATOMISP_GC0310
 	tristate "GC0310 sensor support"
 	depends on ACPI
 	depends on I2C && VIDEO_V4L2
-	---help---
+	help
 	  This is a Video4Linux2 sensor-level driver for the Galaxycore
 	  GC0310 0.3MP sensor.
-	 
+
 config VIDEO_ATOMISP_OV2680
        tristate "Omnivision OV2680 sensor support"
 	depends on ACPI
        depends on I2C && VIDEO_V4L2
-       ---help---
+	help
 	 This is a Video4Linux2 sensor-level driver for the Omnivision
 	 OV2680 raw camera.
 
@@ -78,7 +79,7 @@ config VIDEO_ATOMISP_LM3554
        tristate "LM3554 flash light driver"
 	depends on ACPI
        depends on VIDEO_V4L2 && I2C
-       ---help---
+	help
 	 This is a Video4Linux2 sub-dev driver for the LM3554
 	 flash light driver.
 

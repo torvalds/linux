@@ -598,15 +598,12 @@ union vmx_ctrl_msr {
 	};
 };
 
-union vmx_basic basic;
-union vmx_ctrl_msr ctrl_pin_rev;
-union vmx_ctrl_msr ctrl_exit_rev;
-
 struct vmx_pages *vcpu_alloc_vmx(struct kvm_vm *vm, vm_vaddr_t *p_vmx_gva);
 bool prepare_for_vmx_operation(struct vmx_pages *vmx);
 void prepare_vmcs(struct vmx_pages *vmx, void *guest_rip, void *guest_rsp);
 bool load_vmcs(struct vmx_pages *vmx);
 
+bool nested_vmx_supported(void);
 void nested_vmx_check_supported(void);
 
 void nested_pg_map(struct vmx_pages *vmx, struct kvm_vm *vm,

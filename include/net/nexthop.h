@@ -76,6 +76,7 @@ struct nh_group {
 	struct nh_group		*spare; /* spare group for removals */
 	u16			num_nh;
 	bool			mpath;
+	bool			fdb_nh;
 	bool			has_v4;
 	struct nh_grp_entry	nh_entries[];
 };
@@ -93,7 +94,6 @@ struct nexthop {
 	u8			protocol;   /* app managing this nh */
 	u8			nh_flags;
 	bool			is_group;
-	bool			is_fdb_nh;
 
 	refcount_t		refcnt;
 	struct rcu_head		rcu;
@@ -134,6 +134,32 @@ static inline bool nexthop_cmp(const struct nexthop *nh1,
 			       const struct nexthop *nh2)
 {
 	return nh1 == nh2;
+}
+
+static inline bool nexthop_is_fdb(const struct nexthop *nh)
+{
+	if (nh->is_group) {
+		const struct nh_group *nh_grp;
+
+		nh_grp = rcu_dereference_rtnl(nh->nh_grp);
+		return nh_grp->fdb_nh;
+	} else {
+		const struct nh_info *nhi;
+
+		nhi = rcu_dereference_rtnl(nh->nh_info);
+		return nhi->fdb_nh;
+	}
+}
+
+static inline bool nexthop_has_v4(const struct nexthop *nh)
+{
+	if (nh->is_group) {
+		struct nh_group *nh_grp;
+
+		nh_grp = rcu_dereference_rtnl(nh->nh_grp);
+		return nh_grp->has_v4;
+	}
+	return false;
 }
 
 static inline bool nexthop_is_multipath(const struct nexthop *nh)

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2015, Intel Corporation.
@@ -177,7 +178,6 @@ RGB[0,8191],coef[-8192,8191] -> RGB[0,8191]
 #define SH_CSS_MORPH_TABLE_ELEMS_PER_DDR_WORD \
 	(HIVE_ISP_DDR_WORD_BYTES / SH_CSS_MORPH_TABLE_ELEM_BYTES)
 
-
 #define ISP2400_SH_CSS_MAX_SCTBL_WIDTH_PER_COLOR   (SH_CSS_MAX_BQ_GRID_WIDTH + 1)
 #define ISP2400_SH_CSS_MAX_SCTBL_HEIGHT_PER_COLOR   (SH_CSS_MAX_BQ_GRID_HEIGHT + 1)
 
@@ -224,8 +224,6 @@ RGB[0,8191],coef[-8192,8191] -> RGB[0,8191]
 #define NUM_TNR_FRAMES		(NUM_TNR_FRAMES_PER_REF_BUF_SET * NUM_TNR_REF_BUF_SETS)
 
 #define NUM_VIDEO_TNR_FRAMES		2
-
-#define MAX_NUM_DELAY_FRAMES	MAX(MAX_NUM_VIDEO_DELAY_FRAMES, NUM_PREVIEW_DVS_FRAMES)
 
 /* Note that this is the define used to configure all data structures common for all modes */
 /* It should be equal or bigger to the max number of DVS frames for all possible modes */
@@ -277,7 +275,6 @@ RGB[0,8191],coef[-8192,8191] -> RGB[0,8191]
 	(ISP_BQ_GRID_HEIGHT(input_height, deci_factor_log2) + \
 	SH_CSS_SCTBL_CENTERING_MARGIN + SH_CSS_SCTBL_LAST_GRID_COUNT)
 
-
 /* ISP2401: Legacy API: Number of horizontal grids per color in the shading table. */
 #define _ISP_SCTBL_LEGACY_WIDTH_PER_COLOR(input_width, deci_factor_log2) \
 	(ISP_BQ_GRID_WIDTH(input_width, deci_factor_log2) + SH_CSS_SCTBL_LAST_GRID_COUNT)
@@ -285,7 +282,6 @@ RGB[0,8191],coef[-8192,8191] -> RGB[0,8191]
 /* ISP2401: Legacy API: Number of vertical grids per color in the shading table. */
 #define _ISP_SCTBL_LEGACY_HEIGHT(input_height, deci_factor_log2) \
 	(ISP_BQ_GRID_HEIGHT(input_height, deci_factor_log2) + SH_CSS_SCTBL_LAST_GRID_COUNT)
-
 
 /* *****************************************************************
  * Statistics for 3A (Auto Focus, Auto White Balance, Auto Exposure)

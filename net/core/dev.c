@@ -439,6 +439,7 @@ static const char *const netdev_lock_name[] = {
 	"_xmit_IEEE802154", "_xmit_VOID", "_xmit_NONE"};
 
 static struct lock_class_key netdev_xmit_lock_key[ARRAY_SIZE(netdev_lock_type)];
+static struct lock_class_key netdev_addr_lock_key[ARRAY_SIZE(netdev_lock_type)];
 
 static inline unsigned short netdev_lock_pos(unsigned short dev_type)
 {
@@ -460,9 +461,23 @@ static inline void netdev_set_xmit_lockdep_class(spinlock_t *lock,
 	lockdep_set_class_and_name(lock, &netdev_xmit_lock_key[i],
 				   netdev_lock_name[i]);
 }
+
+static inline void netdev_set_addr_lockdep_class(struct net_device *dev)
+{
+	int i;
+
+	i = netdev_lock_pos(dev->type);
+	lockdep_set_class_and_name(&dev->addr_list_lock,
+				   &netdev_addr_lock_key[i],
+				   netdev_lock_name[i]);
+}
 #else
 static inline void netdev_set_xmit_lockdep_class(spinlock_t *lock,
 						 unsigned short dev_type)
+{
+}
+
+static inline void netdev_set_addr_lockdep_class(struct net_device *dev)
 {
 }
 #endif
@@ -9373,15 +9388,6 @@ void netif_tx_stop_all_queues(struct net_device *dev)
 }
 EXPORT_SYMBOL(netif_tx_stop_all_queues);
 
-void netdev_update_lockdep_key(struct net_device *dev)
-{
-	lockdep_unregister_key(&dev->addr_list_lock_key);
-	lockdep_register_key(&dev->addr_list_lock_key);
-
-	lockdep_set_class(&dev->addr_list_lock, &dev->addr_list_lock_key);
-}
-EXPORT_SYMBOL(netdev_update_lockdep_key);
-
 /**
  *	register_netdevice	- register a network device
  *	@dev: device to register
@@ -9420,7 +9426,7 @@ int register_netdevice(struct net_device *dev)
 		return ret;
 
 	spin_lock_init(&dev->addr_list_lock);
-	lockdep_set_class(&dev->addr_list_lock, &dev->addr_list_lock_key);
+	netdev_set_addr_lockdep_class(dev);
 
 	ret = dev_get_valid_name(net, dev, dev->name);
 	if (ret < 0)
@@ -9939,8 +9945,6 @@ struct net_device *alloc_netdev_mqs(int sizeof_priv, const char *name,
 
 	dev_net_set(dev, &init_net);
 
-	lockdep_register_key(&dev->addr_list_lock_key);
-
 	dev->gso_max_size = GSO_MAX_SIZE;
 	dev->gso_max_segs = GSO_MAX_SEGS;
 	dev->upper_level = 1;
@@ -10027,8 +10031,6 @@ void free_netdev(struct net_device *dev)
 	dev->pcpu_refcnt = NULL;
 	free_percpu(dev->xdp_bulkq);
 	dev->xdp_bulkq = NULL;
-
-	lockdep_unregister_key(&dev->addr_list_lock_key);
 
 	/*  Compatibility with error handling in drivers */
 	if (dev->reg_state == NETREG_UNINITIALIZED) {

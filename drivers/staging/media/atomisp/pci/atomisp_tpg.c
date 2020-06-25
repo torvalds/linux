@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Support for Medifield PNW Camera Imaging ISP subsystem.
  *
@@ -147,7 +148,7 @@ int atomisp_tpg_init(struct atomisp_device *isp)
 	tpg->isp = isp;
 	v4l2_subdev_init(sd, &tpg_ops);
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
-	strcpy(sd->name, "tpg_subdev");
+	strscpy(sd->name, "tpg_subdev", sizeof(sd->name));
 	v4l2_set_subdevdata(sd, tpg);
 
 	pads[0].flags = MEDIA_PAD_FL_SINK;

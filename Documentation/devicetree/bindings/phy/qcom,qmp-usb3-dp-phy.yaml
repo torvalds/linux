@@ -34,6 +34,8 @@ properties:
   "#size-cells":
     enum: [ 1, 2 ]
 
+  ranges: true
+
   clocks:
     items:
       - description: Phy aux clock.
@@ -86,6 +88,7 @@ required:
   - "#clock-cells"
   - "#address-cells"
   - "#size-cells"
+  - ranges
   - clocks
   - clock-names
   - resets
@@ -100,12 +103,13 @@ examples:
     #include <dt-bindings/clock/qcom,gcc-sdm845.h>
     usb_1_qmpphy: phy-wrapper@88e9000 {
         compatible = "qcom,sdm845-qmp-usb3-phy";
-        reg = <0 0x088e9000 0 0x18c>,
-              <0 0x088e8000 0 0x10>;
+        reg = <0x088e9000 0x18c>,
+              <0x088e8000 0x10>;
         reg-names = "reg-base", "dp_com";
         #clock-cells = <1>;
-        #address-cells = <2>;
-        #size-cells = <2>;
+        #address-cells = <1>;
+        #size-cells = <1>;
+        ranges = <0x0 0x088e9000 0x1000>;
 
         clocks = <&gcc GCC_USB3_PRIM_PHY_AUX_CLK>,
                  <&gcc GCC_USB_PHY_CFG_AHB2PHY_CLK>,
@@ -120,17 +124,17 @@ examples:
         vdda-phy-supply = <&vdda_usb2_ss_1p2>;
         vdda-pll-supply = <&vdda_usb2_ss_core>;
 
-        usb_1_ssphy: phy@88e9200 {
-                reg = <0 0x088e9200 0 0x128>,
-                      <0 0x088e9400 0 0x200>,
-                      <0 0x088e9c00 0 0x218>,
-                      <0 0x088e9600 0 0x128>,
-                      <0 0x088e9800 0 0x200>,
-                      <0 0x088e9a00 0 0x100>;
-                #clock-cells = <0>;
-                #phy-cells = <0>;
-                clocks = <&gcc GCC_USB3_PRIM_PHY_PIPE_CLK>;
-                clock-names = "pipe0";
-                clock-output-names = "usb3_phy_pipe_clk_src";
-            };
+        phy@200 {
+            reg = <0x200 0x128>,
+                  <0x400 0x200>,
+                  <0xc00 0x218>,
+                  <0x600 0x128>,
+                  <0x800 0x200>,
+                  <0xa00 0x100>;
+            #clock-cells = <0>;
+            #phy-cells = <0>;
+            clocks = <&gcc GCC_USB3_PRIM_PHY_PIPE_CLK>;
+            clock-names = "pipe0";
+            clock-output-names = "usb3_phy_pipe_clk_src";
         };
+    };

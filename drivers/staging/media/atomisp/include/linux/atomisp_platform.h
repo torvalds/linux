@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Support for Medifield PNW Camera Imaging ISP subsystem.
  *
@@ -16,6 +17,9 @@
  */
 #ifndef ATOMISP_PLATFORM_H_
 #define ATOMISP_PLATFORM_H_
+
+#include <asm/intel-family.h>
+#include <asm/processor.h>
 
 #include <linux/i2c.h>
 #include <linux/sfi.h>
@@ -237,11 +241,19 @@ const struct atomisp_camera_caps *atomisp_get_default_camera_caps(void);
 /* API from old platform_camera.h, new CPUID implementation */
 #define __IS_SOC(x) (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL && \
 		     boot_cpu_data.x86 == 6 &&                       \
-		     boot_cpu_data.x86_model == x)
+		     boot_cpu_data.x86_model == (x))
+#define __IS_SOCS(x,y) (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL && \
+		        boot_cpu_data.x86 == 6 &&                       \
+		        (boot_cpu_data.x86_model == (x) || \
+		         boot_cpu_data.x86_model == (y)))
 
-#define IS_MFLD	__IS_SOC(0x27)
-#define IS_BYT	__IS_SOC(0x37)
-#define IS_CHT	__IS_SOC(0x4C)
-#define IS_MOFD	__IS_SOC(0x5A)
+#define IS_MFLD	__IS_SOC(INTEL_FAM6_ATOM_SALTWELL_MID)
+#define IS_BYT	__IS_SOC(INTEL_FAM6_ATOM_SILVERMONT)
+#define IS_CHT	__IS_SOC(INTEL_FAM6_ATOM_AIRMONT)
+#define IS_MOFD	__IS_SOC(INTEL_FAM6_ATOM_AIRMONT_MID)
+
+/* Both CHT and MOFD come with ISP2401 */
+#define IS_ISP2401 __IS_SOCS(INTEL_FAM6_ATOM_AIRMONT, \
+			     INTEL_FAM6_ATOM_AIRMONT_MID)
 
 #endif /* ATOMISP_PLATFORM_H_ */

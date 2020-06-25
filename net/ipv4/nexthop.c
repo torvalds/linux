@@ -247,12 +247,11 @@ static int nh_fill_node(struct sk_buff *skb, struct nexthop *nh,
 	if (nla_put_u32(skb, NHA_ID, nh->id))
 		goto nla_put_failure;
 
-	if (nh->is_fdb_nh && nla_put_flag(skb, NHA_FDB))
-		goto nla_put_failure;
-
 	if (nh->is_group) {
 		struct nh_group *nhg = rtnl_dereference(nh->nh_grp);
 
+		if (nhg->fdb_nh && nla_put_flag(skb, NHA_FDB))
+			goto nla_put_failure;
 		if (nla_put_nh_group(skb, nhg))
 			goto nla_put_failure;
 		goto out;
@@ -264,7 +263,10 @@ static int nh_fill_node(struct sk_buff *skb, struct nexthop *nh,
 		if (nla_put_flag(skb, NHA_BLACKHOLE))
 			goto nla_put_failure;
 		goto out;
-	} else if (!nh->is_fdb_nh) {
+	} else if (nhi->fdb_nh) {
+		if (nla_put_flag(skb, NHA_FDB))
+			goto nla_put_failure;
+	} else {
 		const struct net_device *dev;
 
 		dev = nhi->fib_nhc.nhc_dev;
@@ -385,7 +387,7 @@ errout:
 }
 
 static bool valid_group_nh(struct nexthop *nh, unsigned int npaths,
-			   struct netlink_ext_ack *extack)
+			   bool *is_fdb, struct netlink_ext_ack *extack)
 {
 	if (nh->is_group) {
 		struct nh_group *nhg = rtnl_dereference(nh->nh_grp);
@@ -398,6 +400,7 @@ static bool valid_group_nh(struct nexthop *nh, unsigned int npaths,
 				       "Multipath group can not be a nexthop within a group");
 			return false;
 		}
+		*is_fdb = nhg->fdb_nh;
 	} else {
 		struct nh_info *nhi = rtnl_dereference(nh->nh_info);
 
@@ -406,6 +409,7 @@ static bool valid_group_nh(struct nexthop *nh, unsigned int npaths,
 				       "Blackhole nexthop can not be used in a group with more than 1 path");
 			return false;
 		}
+		*is_fdb = nhi->fdb_nh;
 	}
 
 	return true;
@@ -416,12 +420,13 @@ static int nh_check_attr_fdb_group(struct nexthop *nh, u8 *nh_family,
 {
 	struct nh_info *nhi;
 
-	if (!nh->is_fdb_nh) {
+	nhi = rtnl_dereference(nh->nh_info);
+
+	if (!nhi->fdb_nh) {
 		NL_SET_ERR_MSG(extack, "FDB nexthop group can only have fdb nexthops");
 		return -EINVAL;
 	}
 
-	nhi = rtnl_dereference(nh->nh_info);
 	if (*nh_family == AF_UNSPEC) {
 		*nh_family = nhi->family;
 	} else if (*nh_family != nhi->family) {
@@ -473,19 +478,20 @@ static int nh_check_attr_group(struct net *net, struct nlattr *tb[],
 	nhg = nla_data(tb[NHA_GROUP]);
 	for (i = 0; i < len; ++i) {
 		struct nexthop *nh;
+		bool is_fdb_nh;
 
 		nh = nexthop_find_by_id(net, nhg[i].id);
 		if (!nh) {
 			NL_SET_ERR_MSG(extack, "Invalid nexthop id");
 			return -EINVAL;
 		}
-		if (!valid_group_nh(nh, len, extack))
+		if (!valid_group_nh(nh, len, &is_fdb_nh, extack))
 			return -EINVAL;
 
 		if (nhg_fdb && nh_check_attr_fdb_group(nh, &nh_family, extack))
 			return -EINVAL;
 
-		if (!nhg_fdb && nh->is_fdb_nh) {
+		if (!nhg_fdb && is_fdb_nh) {
 			NL_SET_ERR_MSG(extack, "Non FDB nexthop group cannot have fdb nexthops");
 			return -EINVAL;
 		}
@@ -553,13 +559,13 @@ struct nexthop *nexthop_select_path(struct nexthop *nh, int hash)
 		if (hash > atomic_read(&nhge->upper_bound))
 			continue;
 
-		if (nhge->nh->is_fdb_nh)
+		nhi = rcu_dereference(nhge->nh->nh_info);
+		if (nhi->fdb_nh)
 			return nhge->nh;
 
 		/* nexthops always check if it is good and does
 		 * not rely on a sysctl for this behavior
 		 */
-		nhi = rcu_dereference(nhge->nh->nh_info);
 		switch (nhi->family) {
 		case AF_INET:
 			if (ipv4_good_nh(&nhi->fib_nh))
@@ -624,11 +630,7 @@ int fib6_check_nexthop(struct nexthop *nh, struct fib6_config *cfg,
 		       struct netlink_ext_ack *extack)
 {
 	struct nh_info *nhi;
-
-	if (nh->is_fdb_nh) {
-		NL_SET_ERR_MSG(extack, "Route cannot point to a fdb nexthop");
-		return -EINVAL;
-	}
+	bool is_fdb_nh;
 
 	/* fib6_src is unique to a fib6_info and limits the ability to cache
 	 * routes in fib6_nh within a nexthop that is potentially shared
@@ -645,10 +647,17 @@ int fib6_check_nexthop(struct nexthop *nh, struct fib6_config *cfg,
 		nhg = rtnl_dereference(nh->nh_grp);
 		if (nhg->has_v4)
 			goto no_v4_nh;
+		is_fdb_nh = nhg->fdb_nh;
 	} else {
 		nhi = rtnl_dereference(nh->nh_info);
 		if (nhi->family == AF_INET)
 			goto no_v4_nh;
+		is_fdb_nh = nhi->fdb_nh;
+	}
+
+	if (is_fdb_nh) {
+		NL_SET_ERR_MSG(extack, "Route cannot point to a fdb nexthop");
+		return -EINVAL;
 	}
 
 	return 0;
@@ -677,12 +686,9 @@ static int fib6_check_nh_list(struct nexthop *old, struct nexthop *new,
 	return fib6_check_nexthop(new, NULL, extack);
 }
 
-static int nexthop_check_scope(struct nexthop *nh, u8 scope,
+static int nexthop_check_scope(struct nh_info *nhi, u8 scope,
 			       struct netlink_ext_ack *extack)
 {
-	struct nh_info *nhi;
-
-	nhi = rtnl_dereference(nh->nh_info);
 	if (scope == RT_SCOPE_HOST && nhi->fib_nhc.nhc_gw_family) {
 		NL_SET_ERR_MSG(extack,
 			       "Route with host scope can not have a gateway");
@@ -704,16 +710,18 @@ static int nexthop_check_scope(struct nexthop *nh, u8 scope,
 int fib_check_nexthop(struct nexthop *nh, u8 scope,
 		      struct netlink_ext_ack *extack)
 {
+	struct nh_info *nhi;
 	int err = 0;
-
-	if (nh->is_fdb_nh) {
-		NL_SET_ERR_MSG(extack, "Route cannot point to a fdb nexthop");
-		err = -EINVAL;
-		goto out;
-	}
 
 	if (nh->is_group) {
 		struct nh_group *nhg;
+
+		nhg = rtnl_dereference(nh->nh_grp);
+		if (nhg->fdb_nh) {
+			NL_SET_ERR_MSG(extack, "Route cannot point to a fdb nexthop");
+			err = -EINVAL;
+			goto out;
+		}
 
 		if (scope == RT_SCOPE_HOST) {
 			NL_SET_ERR_MSG(extack, "Route with host scope can not have multiple nexthops");
@@ -721,12 +729,19 @@ int fib_check_nexthop(struct nexthop *nh, u8 scope,
 			goto out;
 		}
 
-		nhg = rtnl_dereference(nh->nh_grp);
 		/* all nexthops in a group have the same scope */
-		err = nexthop_check_scope(nhg->nh_entries[0].nh, scope, extack);
+		nhi = rtnl_dereference(nhg->nh_entries[0].nh->nh_info);
+		err = nexthop_check_scope(nhi, scope, extack);
 	} else {
-		err = nexthop_check_scope(nh, scope, extack);
+		nhi = rtnl_dereference(nh->nh_info);
+		if (nhi->fdb_nh) {
+			NL_SET_ERR_MSG(extack, "Route cannot point to a fdb nexthop");
+			err = -EINVAL;
+			goto out;
+		}
+		err = nexthop_check_scope(nhi, scope, extack);
 	}
+
 out:
 	return err;
 }
@@ -787,6 +802,7 @@ static void remove_nh_grp_entry(struct net *net, struct nh_grp_entry *nhge,
 
 	newg->has_v4 = nhg->has_v4;
 	newg->mpath = nhg->mpath;
+	newg->fdb_nh = nhg->fdb_nh;
 	newg->num_nh = nhg->num_nh;
 
 	/* copy old entries to new except the one getting removed */
@@ -1216,7 +1232,7 @@ static struct nexthop *nexthop_create_group(struct net *net,
 	}
 
 	if (cfg->nh_fdb)
-		nh->is_fdb_nh = 1;
+		nhg->fdb_nh = 1;
 
 	rcu_assign_pointer(nh->nh_grp, nhg);
 
@@ -1255,7 +1271,7 @@ static int nh_create_ipv4(struct net *net, struct nexthop *nh,
 		goto out;
 	}
 
-	if (nh->is_fdb_nh)
+	if (nhi->fdb_nh)
 		goto out;
 
 	/* sets nh_dev if successful */
@@ -1326,7 +1342,7 @@ static struct nexthop *nexthop_create(struct net *net, struct nh_config *cfg,
 	nhi->fib_nhc.nhc_scope = RT_SCOPE_LINK;
 
 	if (cfg->nh_fdb)
-		nh->is_fdb_nh = 1;
+		nhi->fdb_nh = 1;
 
 	if (cfg->nh_blackhole) {
 		nhi->reject_nh = 1;
@@ -1349,7 +1365,7 @@ static struct nexthop *nexthop_create(struct net *net, struct nh_config *cfg,
 	}
 
 	/* add the entry to the device based hash */
-	if (!nh->is_fdb_nh)
+	if (!nhi->fdb_nh)
 		nexthop_devhash_add(net, nhi);
 
 	rcu_assign_pointer(nh->nh_info, nhi);

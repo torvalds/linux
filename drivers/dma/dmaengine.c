@@ -53,6 +53,8 @@
 #include <linux/mempool.h>
 #include <linux/numa.h>
 
+#include "dmaengine.h"
+
 static DEFINE_MUTEX(dma_list_mutex);
 static DEFINE_IDA(dma_ida);
 static LIST_HEAD(dma_device_list);
@@ -145,9 +147,9 @@ static inline void dmaengine_debug_unregister(struct dma_device *dma_dev) { }
 
 /**
  * dev_to_dma_chan - convert a device pointer to its sysfs container object
- * @dev - device node
+ * @dev:	device node
  *
- * Must be called under dma_list_mutex
+ * Must be called under dma_list_mutex.
  */
 static struct dma_chan *dev_to_dma_chan(struct device *dev)
 {
@@ -243,22 +245,18 @@ static struct class dma_devclass = {
 
 /* --- client and device registration --- */
 
-/**
- * dma_cap_mask_all - enable iteration over all operation types
- */
+/* enable iteration over all operation types */
 static dma_cap_mask_t dma_cap_mask_all;
 
 /**
- * dma_chan_tbl_ent - tracks channel allocations per core/operation
- * @chan - associated channel for this entry
+ * struct dma_chan_tbl_ent - tracks channel allocations per core/operation
+ * @chan:	associated channel for this entry
  */
 struct dma_chan_tbl_ent {
 	struct dma_chan *chan;
 };
 
-/**
- * channel_table - percpu lookup table for memory-to-memory offload providers
- */
+/* percpu lookup table for memory-to-memory offload providers */
 static struct dma_chan_tbl_ent __percpu *channel_table[DMA_TX_TYPE_END];
 
 static int __init dma_channel_table_init(void)
@@ -295,8 +293,11 @@ static int __init dma_channel_table_init(void)
 arch_initcall(dma_channel_table_init);
 
 /**
- * dma_chan_is_local - returns true if the channel is in the same numa-node as
- *	the cpu
+ * dma_chan_is_local - checks if the channel is in the same NUMA-node as the CPU
+ * @chan:	DMA channel to test
+ * @cpu:	CPU index which the channel should be close to
+ *
+ * Returns true if the channel is in the same NUMA-node as the CPU.
  */
 static bool dma_chan_is_local(struct dma_chan *chan, int cpu)
 {
@@ -306,14 +307,14 @@ static bool dma_chan_is_local(struct dma_chan *chan, int cpu)
 }
 
 /**
- * min_chan - returns the channel with min count and in the same numa-node as
- *	the cpu
- * @cap: capability to match
- * @cpu: cpu index which the channel should be close to
+ * min_chan - finds the channel with min count and in the same NUMA-node as the CPU
+ * @cap:	capability to match
+ * @cpu:	CPU index which the channel should be close to
  *
- * If some channels are close to the given cpu, the one with the lowest
- * reference count is returned. Otherwise, cpu is ignored and only the
+ * If some channels are close to the given CPU, the one with the lowest
+ * reference count is returned. Otherwise, CPU is ignored and only the
  * reference count is taken into account.
+ *
  * Must be called under dma_list_mutex.
  */
 static struct dma_chan *min_chan(enum dma_transaction_type cap, int cpu)
@@ -351,10 +352,11 @@ static struct dma_chan *min_chan(enum dma_transaction_type cap, int cpu)
 /**
  * dma_channel_rebalance - redistribute the available channels
  *
- * Optimize for cpu isolation (each cpu gets a dedicated channel for an
- * operation type) in the SMP case,  and operation isolation (avoid
- * multi-tasking channels) in the non-SMP case.  Must be called under
- * dma_list_mutex.
+ * Optimize for CPU isolation (each CPU gets a dedicated channel for an
+ * operation type) in the SMP case, and operation isolation (avoid
+ * multi-tasking channels) in the non-SMP case.
+ *
+ * Must be called under dma_list_mutex.
  */
 static void dma_channel_rebalance(void)
 {
@@ -404,9 +406,9 @@ static struct module *dma_chan_to_owner(struct dma_chan *chan)
 
 /**
  * balance_ref_count - catch up the channel reference count
- * @chan - channel to balance ->client_count versus dmaengine_ref_count
+ * @chan:	channel to balance ->client_count versus dmaengine_ref_count
  *
- * balance_ref_count must be called under dma_list_mutex
+ * Must be called under dma_list_mutex.
  */
 static void balance_ref_count(struct dma_chan *chan)
 {
@@ -436,10 +438,10 @@ static void dma_device_put(struct dma_device *device)
 }
 
 /**
- * dma_chan_get - try to grab a dma channel's parent driver module
- * @chan - channel to grab
+ * dma_chan_get - try to grab a DMA channel's parent driver module
+ * @chan:	channel to grab
  *
- * Must be called under dma_list_mutex
+ * Must be called under dma_list_mutex.
  */
 static int dma_chan_get(struct dma_chan *chan)
 {
@@ -483,10 +485,10 @@ module_put_out:
 }
 
 /**
- * dma_chan_put - drop a reference to a dma channel's parent driver module
- * @chan - channel to release
+ * dma_chan_put - drop a reference to a DMA channel's parent driver module
+ * @chan:	channel to release
  *
- * Must be called under dma_list_mutex
+ * Must be called under dma_list_mutex.
  */
 static void dma_chan_put(struct dma_chan *chan)
 {
@@ -537,7 +539,7 @@ EXPORT_SYMBOL(dma_sync_wait);
 
 /**
  * dma_find_channel - find a channel to carry out the operation
- * @tx_type: transaction type
+ * @tx_type:	transaction type
  */
 struct dma_chan *dma_find_channel(enum dma_transaction_type tx_type)
 {
@@ -677,7 +679,7 @@ static struct dma_chan *find_candidate(struct dma_device *device,
 
 /**
  * dma_get_slave_channel - try to get specific channel exclusively
- * @chan: target channel
+ * @chan:	target channel
  */
 struct dma_chan *dma_get_slave_channel(struct dma_chan *chan)
 {
@@ -731,10 +733,10 @@ EXPORT_SYMBOL_GPL(dma_get_any_slave_channel);
 
 /**
  * __dma_request_channel - try to allocate an exclusive channel
- * @mask: capabilities that the channel must satisfy
- * @fn: optional callback to disposition available channels
- * @fn_param: opaque parameter to pass to dma_filter_fn
- * @np: device node to look for DMA channels
+ * @mask:	capabilities that the channel must satisfy
+ * @fn:		optional callback to disposition available channels
+ * @fn_param:	opaque parameter to pass to dma_filter_fn()
+ * @np:		device node to look for DMA channels
  *
  * Returns pointer to appropriate DMA channel on success or NULL.
  */
@@ -877,7 +879,7 @@ EXPORT_SYMBOL_GPL(dma_request_slave_channel);
 
 /**
  * dma_request_chan_by_mask - allocate a channel satisfying certain capabilities
- * @mask: capabilities that the channel must satisfy
+ * @mask:	capabilities that the channel must satisfy
  *
  * Returns pointer to appropriate DMA channel on success or an error pointer.
  */
@@ -968,7 +970,7 @@ void dmaengine_get(void)
 EXPORT_SYMBOL(dmaengine_get);
 
 /**
- * dmaengine_put - let dma drivers be removed when ref_count == 0
+ * dmaengine_put - let DMA drivers be removed when ref_count == 0
  */
 void dmaengine_put(void)
 {
@@ -1132,7 +1134,7 @@ EXPORT_SYMBOL_GPL(dma_async_device_channel_unregister);
 
 /**
  * dma_async_device_register - registers DMA devices found
- * @device: &dma_device
+ * @device:	pointer to &struct dma_device
  *
  * After calling this routine the structure should not be freed except in the
  * device_release() callback which will be called after
@@ -1304,7 +1306,7 @@ EXPORT_SYMBOL(dma_async_device_register);
 
 /**
  * dma_async_device_unregister - unregister a DMA device
- * @device: &dma_device
+ * @device:	pointer to &struct dma_device
  *
  * This routine is called by dma driver exit routines, dmaengine holds module
  * references to prevent it being called while channels are in use.
@@ -1341,7 +1343,7 @@ static void dmam_device_release(struct device *dev, void *res)
 
 /**
  * dmaenginem_async_device_register - registers DMA devices found
- * @device: &dma_device
+ * @device:	pointer to &struct dma_device
  *
  * The operation is managed and will be undone on driver detach.
  */
@@ -1578,8 +1580,9 @@ int dmaengine_desc_set_metadata_len(struct dma_async_tx_descriptor *desc,
 }
 EXPORT_SYMBOL_GPL(dmaengine_desc_set_metadata_len);
 
-/* dma_wait_for_async_tx - spin wait for a transaction to complete
- * @tx: in-flight transaction to wait on
+/**
+ * dma_wait_for_async_tx - spin wait for a transaction to complete
+ * @tx:		in-flight transaction to wait on
  */
 enum dma_status
 dma_wait_for_async_tx(struct dma_async_tx_descriptor *tx)
@@ -1602,9 +1605,12 @@ dma_wait_for_async_tx(struct dma_async_tx_descriptor *tx)
 }
 EXPORT_SYMBOL_GPL(dma_wait_for_async_tx);
 
-/* dma_run_dependencies - helper routine for dma drivers to process
- *	(start) dependent operations on their target channel
- * @tx: transaction with dependencies
+/**
+ * dma_run_dependencies - process dependent operations on the target channel
+ * @tx:		transaction with dependencies
+ *
+ * Helper routine for DMA drivers to process (start) dependent operations
+ * on their target channel.
  */
 void dma_run_dependencies(struct dma_async_tx_descriptor *tx)
 {

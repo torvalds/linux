@@ -103,11 +103,11 @@ the switch net devices:
 +-------------+-----------+--------------+------------+
 |             |   Mode 1  |    Mode 2    |   Mode 3   |
 +=============+===========+==============+============+
-|   Regular   |    Yes    |      No      |     Yes    |
+|   Regular   |    Yes    | No           |     Yes    |
 |   traffic   |           | (use master) |            |
 +-------------+-----------+--------------+------------+
 | Management  |    Yes    |     Yes      |     Yes    |
-|   traffic   |           |              |            |
+| traffic     |           |              |            |
 | (BPDU, PTP) |           |              |            |
 +-------------+-----------+--------------+------------+
 
@@ -241,6 +241,7 @@ switch.
 
 In this case, SJA1105 switch 1 consumes a total of 11 retagging entries, as
 follows:
+
 - 8 retagging entries for VLANs 1 and 100 installed on its user ports
   (``sw1p0`` - ``sw1p3``)
 - 3 retagging entries for VLAN 100 installed on the user ports of SJA1105
@@ -249,6 +250,7 @@ follows:
   reverse retagging.
 
 SJA1105 switch 2 also consumes 11 retagging entries, but organized as follows:
+
 - 7 retagging entries for the bridge VLANs on its user ports (``sw2p0`` -
   ``sw2p3``).
 - 4 retagging entries for VLAN 100 installed on the user ports of SJA1105

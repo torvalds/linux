@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2015, Intel Corporation.
@@ -29,10 +30,15 @@ ia_css_ref_config(
 {
 	unsigned int elems_a = ISP_VEC_NELEMS, i;
 
-	(void)size;
-	ia_css_dma_configure_from_info(&to->port_b, &from->ref_frames[0]->info);
-	to->width_a_over_b = elems_a / to->port_b.elems;
-	to->dvs_frame_delay = from->dvs_frame_delay;
+	if (from->ref_frames[0]) {
+		ia_css_dma_configure_from_info(&to->port_b, &from->ref_frames[0]->info);
+		to->width_a_over_b = elems_a / to->port_b.elems;
+		to->dvs_frame_delay = from->dvs_frame_delay;
+	} else {
+		to->width_a_over_b = 1;
+		to->dvs_frame_delay = 0;
+		to->port_b.elems = elems_a;
+	}
 	for (i = 0; i < MAX_NUM_VIDEO_DELAY_FRAMES; i++) {
 		if (from->ref_frames[i]) {
 			to->ref_frame_addr_y[i] = from->ref_frames[i]->data +
@@ -52,7 +58,7 @@ ia_css_ref_config(
 void
 ia_css_ref_configure(
     const struct ia_css_binary     *binary,
-    const struct ia_css_frame **ref_frames,
+    const struct ia_css_frame * const *ref_frames,
     const uint32_t dvs_frame_delay)
 {
 	struct ia_css_ref_configuration config;

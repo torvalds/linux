@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2015, Intel Corporation.
@@ -12,8 +13,9 @@
  * more details.
  */
 
+#include "hmm.h"
+
 #include <assert_support.h>
-#include "memory_access.h"
 #include "ia_css_debug.h"
 #include "ia_css_sdis2.host.h"
 
@@ -174,12 +176,12 @@ void ia_css_sdis2_clear_coefficients(
 	dvs2_coefs->ver_coefs.even_imag = NULL;
 }
 
-enum ia_css_err
+int
 ia_css_get_dvs2_statistics(
     struct ia_css_dvs2_statistics          *host_stats,
     const struct ia_css_isp_dvs_statistics *isp_stats) {
 	struct ia_css_isp_dvs_statistics_map *map;
-	enum ia_css_err ret = IA_CSS_SUCCESS;
+	int ret = 0;
 
 	IA_CSS_ENTER("host_stats=%p, isp_stats=%p", host_stats, isp_stats);
 
@@ -189,13 +191,13 @@ ia_css_get_dvs2_statistics(
 	map = ia_css_isp_dvs_statistics_map_allocate(isp_stats, NULL);
 	if (map)
 	{
-		mmgr_load(isp_stats->data_ptr, map->data_ptr, isp_stats->size);
+		hmm_load(isp_stats->data_ptr, map->data_ptr, isp_stats->size);
 		ia_css_translate_dvs2_statistics(host_stats, map);
 		ia_css_isp_dvs_statistics_map_free(map);
 	} else
 	{
 		IA_CSS_ERROR("out of memory");
-		ret = IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
+		ret = -ENOMEM;
 	}
 
 	IA_CSS_LEAVE_ERR(ret);
@@ -284,7 +286,7 @@ ia_css_isp_dvs2_statistics_allocate(
 	if (!grid->enable)
 		return NULL;
 
-	me = sh_css_calloc(1, sizeof(*me));
+	me = kvcalloc(1, sizeof(*me), GFP_KERNEL);
 	if (!me)
 		goto err;
 
@@ -295,7 +297,7 @@ ia_css_isp_dvs2_statistics_allocate(
 	       * grid->aligned_height * IA_CSS_DVS2_NUM_COEF_TYPES;
 
 	me->size = 2 * size;
-	me->data_ptr = mmgr_malloc(me->size);
+	me->data_ptr = hmm_alloc(me->size, HMM_BO_PRIVATE, 0, NULL, 0);
 	if (me->data_ptr == mmgr_NULL)
 		goto err;
 	me->hor_proj = me->data_ptr;
@@ -317,7 +319,7 @@ ia_css_isp_dvs2_statistics_free(struct ia_css_isp_dvs_statistics *me)
 {
 	if (me) {
 		hmm_free(me->data_ptr);
-		sh_css_free(me);
+		kvfree(me);
 	}
 }
 

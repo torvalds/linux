@@ -139,7 +139,7 @@ config EFI_BOOTLOADER_CONTROL
 	tristate "EFI Bootloader Control"
 	depends on EFI_VARS
 	default n
-	---help---
+	help
 	  This module installs a reboot hook, such that if reboot() is
 	  invoked with a string argument NNN, "NNN" is copied to the
 	  "LoaderEntryOneShot" EFI variable, to be read by the

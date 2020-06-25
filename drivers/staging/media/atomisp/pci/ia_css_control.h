@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2015, Intel Corporation.
@@ -37,15 +38,15 @@
  *                              of the L1 page table. This is a physical
  *                              address or index.
  * @param[in]	irq_type	The type of interrupt to be used (edge or level)
- * @return				Returns IA_CSS_ERR_INTERNAL_ERROR in case of any
- *				errors and IA_CSS_SUCCESS otherwise.
+ * @return				Returns -EINVAL in case of any
+ *				errors and 0 otherwise.
  *
  * This function initializes the API which includes allocating and initializing
  * internal data structures. This also interprets the firmware package. All
  * contents of this firmware package are copied into local data structures, so
  * the fw pointer could be freed after this function completes.
  */
-enum ia_css_err ia_css_init(struct device           *dev,
+int ia_css_init(struct device           *dev,
 			    const struct ia_css_env *env,
 			    const struct ia_css_fw  *fw,
 			    u32                     l1_base,
@@ -77,7 +78,7 @@ ia_css_uninit(void);
  * This function should only be called when the SP is not running, calling it
  * when the SP is running will result in an error value being returned. }
  */
-enum ia_css_err
+int
 ia_css_enable_isys_event_queue(bool enable);
 
 /* @brief Test whether the ISP has started.
@@ -109,23 +110,23 @@ ia_css_sp_has_terminated(void);
 
 /* @brief start SP hardware
  *
- * @return			IA_CSS_SUCCESS or error code upon error.
+ * @return			0 or error code upon error.
  *
  * It will boot the SP hardware and start multi-threading infrastructure.
  * All threads will be started and blocked by semaphore. This function should
  * be called before any ia_css_stream_start().
  */
-enum ia_css_err
+int
 ia_css_start_sp(void);
 
 /* @brief stop SP hardware
  *
- * @return			IA_CSS_SUCCESS or error code upon error.
+ * @return			0 or error code upon error.
  *
  * This function will terminate all threads and shut down SP. It should be
  * called after all ia_css_stream_stop().
  */
-enum ia_css_err
+int
 ia_css_stop_sp(void);
 
 #endif /* __IA_CSS_CONTROL_H */

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2015, Intel Corporation.
@@ -16,7 +17,7 @@
 #define __IRQ_PUBLIC_H_INCLUDED__
 
 #include <type_support.h>
-#include "system_types.h"
+#include "system_local.h"
 
 /*! Read the control registers of IRQ[ID]
 
@@ -25,9 +26,8 @@
 
  \return none, state = IRQ[ID].state
  */
-void irq_controller_get_state(
-    const irq_ID_t				ID,
-    irq_controller_state_t		*state);
+void irq_controller_get_state(const irq_ID_t ID,
+			      struct irq_controller_state *state);
 
 /*! Write to a control register of IRQ[ID]
 
@@ -136,7 +136,7 @@ bool any_virq_signal(void);
  \return none, VIRQ.channel[irq_ID].enable = en
  */
 void cnd_virq_enable_channel(
-    const virq_id_t				irq_ID,
+    const enum virq_id				irq_ID,
     const bool					en);
 
 /*! Clear the state of all IRQ channels of the virtual super IRQ
@@ -151,8 +151,7 @@ void virq_clear_all(void);
 
  \return none
  */
-void virq_clear_info(
-    virq_info_t					*irq_info);
+void virq_clear_info(struct virq_info *irq_info);
 
 /*! Return the ID of a signalling IRQ channel of the virtual super IRQ
 
@@ -165,7 +164,7 @@ void virq_clear_info(
  \return state(IRQ[...])
  */
 enum hrt_isp_css_irq_status virq_get_channel_id(
-    virq_id_t					*irq_id);
+    enum virq_id					*irq_id);
 
 /*! Return the IDs of all signaling IRQ channels of the virtual super IRQ
 
@@ -178,7 +177,7 @@ enum hrt_isp_css_irq_status virq_get_channel_id(
 
  \return (error(state(IRQ[...]))
  */
-enum hrt_isp_css_irq_status virq_get_channel_signals(
-    virq_info_t					*irq_info);
+enum hrt_isp_css_irq_status
+virq_get_channel_signals(struct virq_info *irq_info);
 
 #endif /* __IRQ_PUBLIC_H_INCLUDED__ */

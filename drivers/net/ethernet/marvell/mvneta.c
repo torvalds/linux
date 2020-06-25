@@ -452,10 +452,16 @@ struct mvneta_pcpu_port {
 	u32			cause_rx_tx;
 };
 
+enum {
+	__MVNETA_DOWN,
+};
+
 struct mvneta_port {
 	u8 id;
 	struct mvneta_pcpu_port __percpu	*ports;
 	struct mvneta_pcpu_stats __percpu	*stats;
+
+	unsigned long state;
 
 	int pkt_size;
 	void __iomem *base;
@@ -2113,6 +2119,9 @@ mvneta_xdp_xmit(struct net_device *dev, int num_frame,
 	struct netdev_queue *nq;
 	u32 ret;
 
+	if (unlikely(test_bit(__MVNETA_DOWN, &pp->state)))
+		return -ENETDOWN;
+
 	if (unlikely(flags & ~XDP_XMIT_FLAGS_MASK))
 		return -EINVAL;
 
@@ -3568,11 +3577,15 @@ static void mvneta_start_dev(struct mvneta_port *pp)
 
 	phylink_start(pp->phylink);
 	netif_tx_start_all_queues(pp->dev);
+
+	clear_bit(__MVNETA_DOWN, &pp->state);
 }
 
 static void mvneta_stop_dev(struct mvneta_port *pp)
 {
 	unsigned int cpu;
+
+	set_bit(__MVNETA_DOWN, &pp->state);
 
 	phylink_stop(pp->phylink);
 

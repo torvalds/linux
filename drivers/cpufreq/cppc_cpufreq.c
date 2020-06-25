@@ -37,6 +37,7 @@
  * requested etc.
  */
 static struct cppc_cpudata **all_cpu_data;
+static bool boost_supported;
 
 struct cppc_workaround_oem_info {
 	char oem_id[ACPI_OEM_ID_SIZE + 1];
@@ -310,7 +311,7 @@ static int cppc_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	 * Section 8.4.7.1.1.5 of ACPI 6.1 spec)
 	 */
 	policy->min = cppc_cpufreq_perf_to_khz(cpu, cpu->perf_caps.lowest_nonlinear_perf);
-	policy->max = cppc_cpufreq_perf_to_khz(cpu, cpu->perf_caps.highest_perf);
+	policy->max = cppc_cpufreq_perf_to_khz(cpu, cpu->perf_caps.nominal_perf);
 
 	/*
 	 * Set cpuinfo.min_freq to Lowest to make the full range of performance
@@ -318,7 +319,7 @@ static int cppc_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	 * nonlinear perf
 	 */
 	policy->cpuinfo.min_freq = cppc_cpufreq_perf_to_khz(cpu, cpu->perf_caps.lowest_perf);
-	policy->cpuinfo.max_freq = cppc_cpufreq_perf_to_khz(cpu, cpu->perf_caps.highest_perf);
+	policy->cpuinfo.max_freq = cppc_cpufreq_perf_to_khz(cpu, cpu->perf_caps.nominal_perf);
 
 	policy->transition_delay_us = cppc_cpufreq_get_transition_delay_us(cpu_num);
 	policy->shared_type = cpu->shared_type;
@@ -342,6 +343,13 @@ static int cppc_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	}
 
 	cpu->cur_policy = policy;
+
+	/*
+	 * If 'highest_perf' is greater than 'nominal_perf', we assume CPU Boost
+	 * is supported.
+	 */
+	if (cpu->perf_caps.highest_perf > cpu->perf_caps.nominal_perf)
+		boost_supported = true;
 
 	/* Set policy->cur to max now. The governors will adjust later. */
 	policy->cur = cppc_cpufreq_perf_to_khz(cpu,
@@ -410,6 +418,32 @@ static unsigned int cppc_cpufreq_get_rate(unsigned int cpunum)
 	return cppc_get_rate_from_fbctrs(cpu, fb_ctrs_t0, fb_ctrs_t1);
 }
 
+static int cppc_cpufreq_set_boost(struct cpufreq_policy *policy, int state)
+{
+	struct cppc_cpudata *cpudata;
+	int ret;
+
+	if (!boost_supported) {
+		pr_err("BOOST not supported by CPU or firmware\n");
+		return -EINVAL;
+	}
+
+	cpudata = all_cpu_data[policy->cpu];
+	if (state)
+		policy->max = cppc_cpufreq_perf_to_khz(cpudata,
+					cpudata->perf_caps.highest_perf);
+	else
+		policy->max = cppc_cpufreq_perf_to_khz(cpudata,
+					cpudata->perf_caps.nominal_perf);
+	policy->cpuinfo.max_freq = policy->max;
+
+	ret = freq_qos_update_request(policy->max_freq_req, policy->max);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
 static struct cpufreq_driver cppc_cpufreq_driver = {
 	.flags = CPUFREQ_CONST_LOOPS,
 	.verify = cppc_verify_policy,
@@ -417,6 +451,7 @@ static struct cpufreq_driver cppc_cpufreq_driver = {
 	.get = cppc_cpufreq_get_rate,
 	.init = cppc_cpufreq_cpu_init,
 	.stop_cpu = cppc_cpufreq_stop_cpu,
+	.set_boost = cppc_cpufreq_set_boost,
 	.name = "cppc_cpufreq",
 };
 

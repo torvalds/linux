@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2015, Intel Corporation.
@@ -12,7 +13,8 @@
  * more details.
  */
 
-#include "memory_access.h"
+#include "hmm.h"
+
 #include "assert_support.h"
 #include "ia_css_debug.h"
 #include "ia_css_sdis_types.h"
@@ -234,12 +236,12 @@ void ia_css_sdis_clear_coefficients(
 	dvs_coefs->ver_coefs = NULL;
 }
 
-enum ia_css_err
+int
 ia_css_get_dvs_statistics(
     struct ia_css_dvs_statistics	       *host_stats,
     const struct ia_css_isp_dvs_statistics *isp_stats) {
 	struct ia_css_isp_dvs_statistics_map *map;
-	enum ia_css_err ret = IA_CSS_SUCCESS;
+	int ret = 0;
 
 	IA_CSS_ENTER("host_stats=%p, isp_stats=%p", host_stats, isp_stats);
 
@@ -249,13 +251,13 @@ ia_css_get_dvs_statistics(
 	map = ia_css_isp_dvs_statistics_map_allocate(isp_stats, NULL);
 	if (map)
 	{
-		mmgr_load(isp_stats->data_ptr, map->data_ptr, isp_stats->size);
+		hmm_load(isp_stats->data_ptr, map->data_ptr, isp_stats->size);
 		ia_css_translate_dvs_statistics(host_stats, map);
 		ia_css_isp_dvs_statistics_map_free(map);
 	} else
 	{
 		IA_CSS_ERROR("out of memory");
-		ret = IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
+		ret = -ENOMEM;
 	}
 
 	IA_CSS_LEAVE_ERR(ret);
@@ -317,7 +319,7 @@ ia_css_isp_dvs_statistics_allocate(
 	if (!grid->enable)
 		return NULL;
 
-	me = sh_css_calloc(1, sizeof(*me));
+	me = kvcalloc(1, sizeof(*me), GFP_KERNEL);
 	if (!me)
 		goto err;
 
@@ -329,7 +331,7 @@ ia_css_isp_dvs_statistics_allocate(
 			    HIVE_ISP_DDR_WORD_BYTES);
 
 	me->size = hor_size + ver_size;
-	me->data_ptr = mmgr_malloc(me->size);
+	me->data_ptr = hmm_alloc(me->size, HMM_BO_PRIVATE, 0, NULL, 0);
 	if (me->data_ptr == mmgr_NULL)
 		goto err;
 	me->hor_size = hor_size;
@@ -358,7 +360,7 @@ ia_css_isp_dvs_statistics_map_allocate(
 	 * so we use a local char * instead. */
 	char *base_ptr;
 
-	me = sh_css_malloc(sizeof(*me));
+	me = kvmalloc(sizeof(*me), GFP_KERNEL);
 	if (!me) {
 		IA_CSS_LOG("cannot allocate memory");
 		goto err;
@@ -368,7 +370,7 @@ ia_css_isp_dvs_statistics_map_allocate(
 	me->data_allocated = !data_ptr;
 
 	if (!me->data_ptr) {
-		me->data_ptr = sh_css_malloc(isp_stats->size);
+		me->data_ptr = kvmalloc(isp_stats->size, GFP_KERNEL);
 		if (!me->data_ptr) {
 			IA_CSS_LOG("cannot allocate memory");
 			goto err;
@@ -385,7 +387,7 @@ ia_css_isp_dvs_statistics_map_allocate(
 	return me;
 err:
 	if (me)
-		sh_css_free(me);
+		kvfree(me);
 	return NULL;
 }
 
@@ -394,8 +396,8 @@ ia_css_isp_dvs_statistics_map_free(struct ia_css_isp_dvs_statistics_map *me)
 {
 	if (me) {
 		if (me->data_allocated)
-			sh_css_free(me->data_ptr);
-		sh_css_free(me);
+			kvfree(me->data_ptr);
+		kvfree(me);
 	}
 }
 
@@ -404,7 +406,7 @@ ia_css_isp_dvs_statistics_free(struct ia_css_isp_dvs_statistics *me)
 {
 	if (me) {
 		hmm_free(me->data_ptr);
-		sh_css_free(me);
+		kvfree(me);
 	}
 }
 

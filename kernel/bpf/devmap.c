@@ -60,15 +60,6 @@ struct xdp_dev_bulk_queue {
 	unsigned int count;
 };
 
-/* DEVMAP values */
-struct bpf_devmap_val {
-	u32 ifindex;   /* device index */
-	union {
-		int fd;  /* prog fd on map write */
-		u32 id;  /* prog id on map read */
-	} bpf_prog;
-};
-
 struct bpf_dtab_netdev {
 	struct net_device *dev; /* must be first member, due to tracepoint */
 	struct hlist_node index_hlist;
@@ -479,6 +470,7 @@ static struct xdp_buff *dev_map_run_prog(struct net_device *dev,
 	struct xdp_txq_info txq = { .dev = dev };
 	u32 act;
 
+	xdp_set_data_meta_invalid(xdp);
 	xdp->txq = &txq;
 
 	act = bpf_prog_run_xdp(xdp_prog, xdp);
@@ -618,7 +610,7 @@ static struct bpf_dtab_netdev *__dev_map_alloc_node(struct net *net,
 	if (!dev->dev)
 		goto err_out;
 
-	if (val->bpf_prog.fd >= 0) {
+	if (val->bpf_prog.fd > 0) {
 		prog = bpf_prog_get_type_dev(val->bpf_prog.fd,
 					     BPF_PROG_TYPE_XDP, false);
 		if (IS_ERR(prog))
@@ -652,8 +644,8 @@ static int __dev_map_update_elem(struct net *net, struct bpf_map *map,
 				 void *key, void *value, u64 map_flags)
 {
 	struct bpf_dtab *dtab = container_of(map, struct bpf_dtab, map);
-	struct bpf_devmap_val val = { .bpf_prog.fd = -1 };
 	struct bpf_dtab_netdev *dev, *old_dev;
+	struct bpf_devmap_val val = {};
 	u32 i = *(u32 *)key;
 
 	if (unlikely(map_flags > BPF_EXIST))
@@ -669,7 +661,7 @@ static int __dev_map_update_elem(struct net *net, struct bpf_map *map,
 	if (!val.ifindex) {
 		dev = NULL;
 		/* can not specify fd if ifindex is 0 */
-		if (val.bpf_prog.fd != -1)
+		if (val.bpf_prog.fd > 0)
 			return -EINVAL;
 	} else {
 		dev = __dev_map_alloc_node(net, dtab, &val, i);
@@ -699,8 +691,8 @@ static int __dev_map_hash_update_elem(struct net *net, struct bpf_map *map,
 				     void *key, void *value, u64 map_flags)
 {
 	struct bpf_dtab *dtab = container_of(map, struct bpf_dtab, map);
-	struct bpf_devmap_val val = { .bpf_prog.fd = -1 };
 	struct bpf_dtab_netdev *dev, *old_dev;
+	struct bpf_devmap_val val = {};
 	u32 idx = *(u32 *)key;
 	unsigned long flags;
 	int err = -EEXIST;

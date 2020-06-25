@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2010 - 2015, Intel Corporation.
@@ -80,7 +81,7 @@ bool ia_css_frame_info_is_same_resolution(
  * @param[in]	info       The frame attributes to be initialized
  * @return	The error code.
  */
-enum ia_css_err ia_css_frame_check_info(const struct ia_css_frame_info *info);
+int ia_css_frame_check_info(const struct ia_css_frame_info *info);
 
 /*********************************************************************
 ****	Frame APIs
@@ -92,7 +93,7 @@ enum ia_css_err ia_css_frame_check_info(const struct ia_css_frame_info *info);
  * @param[in]	frame           The frame attributes to be initialized
  * @return	The error code.
  */
-enum ia_css_err ia_css_frame_init_planes(struct ia_css_frame *frame);
+int ia_css_frame_init_planes(struct ia_css_frame *frame);
 
 /* @brief Free an array of frames
  *
@@ -114,7 +115,7 @@ void ia_css_frame_free_multiple(unsigned int num_frames,
  * Allocate a frame using the given size in bytes.
  * The frame structure is partially null initialized.
  */
-enum ia_css_err ia_css_frame_allocate_with_buffer_size(
+int ia_css_frame_allocate_with_buffer_size(
     struct ia_css_frame **frame,
     const unsigned int size_bytes,
     const bool contiguous);
@@ -153,9 +154,9 @@ void ia_css_dma_configure_from_info(
  * @param[in]	in_res		Resolution of input image
  * @param[in]	out_res		Resolution of output image
  * @param[out]	crop_res	Crop resolution of input image
- * @return	Returns IA_CSS_SUCCESS or IA_CSS_ERR_INVALID_ARGUMENTS on error
+ * @return	Returns 0 or -EINVAL on error
  */
-enum ia_css_err
+int
 ia_css_frame_find_crop_resolution(const struct ia_css_resolution *in_res,
 				  const struct ia_css_resolution *out_res,
 				  struct ia_css_resolution *crop_res);

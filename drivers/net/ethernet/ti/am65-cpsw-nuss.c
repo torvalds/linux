@@ -1981,7 +1981,7 @@ MODULE_DEVICE_TABLE(of, am65_cpsw_nuss_of_mtable);
 
 static int am65_cpsw_nuss_probe(struct platform_device *pdev)
 {
-	struct cpsw_ale_params ale_params;
+	struct cpsw_ale_params ale_params = { 0 };
 	const struct of_device_id *of_id;
 	struct device *dev = &pdev->dev;
 	struct am65_cpsw_common *common;

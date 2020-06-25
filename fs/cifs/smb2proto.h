@@ -182,6 +182,8 @@ extern int SMB2_flush_init(const unsigned int xid, struct smb_rqst *rqst,
 			   struct TCP_Server_Info *server,
 			   u64 persistent_file_id, u64 volatile_file_id);
 extern void SMB2_flush_free(struct smb_rqst *rqst);
+extern int SMB311_posix_query_info(const unsigned int xid, struct cifs_tcon *tcon,
+		u64 persistent_fid, u64 volatile_fid, struct smb311_posix_qinfo *data, u32 *plen);
 extern int SMB2_query_info(const unsigned int xid, struct cifs_tcon *tcon,
 			   u64 persistent_file_id, u64 volatile_file_id,
 			   struct smb2_file_all_info *data);
@@ -289,6 +291,10 @@ extern int smb2_query_info_compound(const unsigned int xid,
 				    u32 class, u32 type, u32 output_len,
 				    struct kvec *rsp, int *buftype,
 				    struct cifs_sb_info *cifs_sb);
+/* query path info from the server using SMB311 POSIX extensions*/
+extern int smb311_posix_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
+			struct cifs_sb_info *sb, const char *path, struct smb311_posix_qinfo *qinf,
+			bool *adjust_tx, bool *symlink);
 int posix_info_parse(const void *beg, const void *end,
 		     struct smb2_posix_info_parsed *out);
 int posix_info_sid_size(const void *beg, const void *end);

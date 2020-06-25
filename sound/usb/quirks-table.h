@@ -40,6 +40,18 @@
 		.ifnum = QUIRK_NO_INTERFACE				\
 	}
 
+/* HP Thunderbolt Dock Audio Headset */
+{
+	USB_DEVICE(0x03f0, 0x0269),
+	QUIRK_DEVICE_PROFILE("HP", "Thunderbolt Dock Audio Headset",
+			     "HP-Thunderbolt-Dock-Audio-Headset"),
+},
+/* HP Thunderbolt Dock Audio Module */
+{
+	USB_DEVICE(0x03f0, 0x0567),
+	QUIRK_DEVICE_PROFILE("HP", "Thunderbolt Dock Audio Module",
+			     "HP-Thunderbolt-Dock-Audio-Module"),
+},
 /* FTDI devices */
 {
 	USB_DEVICE(0x0403, 0xb8d8),

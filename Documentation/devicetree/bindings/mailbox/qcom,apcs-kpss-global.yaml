@@ -1,0 +1,86 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/mailbox/qcom,apcs-kpss-global.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: Qualcomm APCS global block bindings
+
+description:
+  This binding describes the APCS "global" block found in various Qualcomm
+  platforms.
+
+maintainers:
+  - Sivaprakash Murugesan <sivaprak@codeaurora.org>
+
+properties:
+  compatible:
+    enum:
+      - qcom,ipq8074-apcs-apps-global
+      - qcom,msm8916-apcs-kpss-global
+      - qcom,msm8996-apcs-hmss-global
+      - qcom,msm8998-apcs-hmss-global
+      - qcom,qcs404-apcs-apps-global
+      - qcom,sc7180-apss-shared
+      - qcom,sdm845-apss-shared
+      - qcom,sm8150-apss-shared
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    description: phandles to the parent clocks of the clock driver
+    items:
+      - description: primary pll parent of the clock driver
+      - description: auxiliary parent
+
+  '#mbox-cells':
+    const: 1
+
+  '#clock-cells':
+    const: 0
+
+  clock-names:
+    items:
+      - const: pll
+      - const: aux
+
+required:
+  - compatible
+  - reg
+  - '#mbox-cells'
+
+additionalProperties: false
+
+examples:
+
+  # Example apcs with msm8996
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    apcs_glb: mailbox@9820000 {
+        compatible = "qcom,msm8996-apcs-hmss-global";
+        reg = <0x9820000 0x1000>;
+
+        #mbox-cells = <1>;
+    };
+
+    rpm-glink {
+        compatible = "qcom,glink-rpm";
+        interrupts = <GIC_SPI 168 IRQ_TYPE_EDGE_RISING>;
+        qcom,rpm-msg-ram = <&rpm_msg_ram>;
+        mboxes = <&apcs_glb 0>;
+        mbox-names = "rpm_hlos";
+    };
+
+  # Example apcs with qcs404
+  - |
+    #define GCC_APSS_AHB_CLK_SRC  1
+    #define GCC_GPLL0_AO_OUT_MAIN 123
+    apcs: mailbox@b011000 {
+        compatible = "qcom,qcs404-apcs-apps-global";
+        reg = <0x0b011000 0x1000>;
+        #mbox-cells = <1>;
+        clocks = <&apcs_hfpll>, <&gcc GCC_GPLL0_AO_OUT_MAIN>;
+        clock-names = "pll", "aux";
+        #clock-cells = <0>;
+    };

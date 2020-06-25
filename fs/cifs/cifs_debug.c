@@ -221,8 +221,6 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 	struct cifs_ses *ses;
 	struct cifs_tcon *tcon;
 	int i, j;
-	const char *security_types[] = {"Unspecified", "LANMAN", "NTLM",
-                                       "NTLMv2", "RawNTLMSSP", "Kerberos"};
 
 	seq_puts(m,
 		    "Display Internal CIFS Data Structures for Debugging\n"
@@ -379,7 +377,7 @@ skip_rdma:
 			}
 
 			seq_printf(m,"Security type: %s\n",
-                                      security_types[server->ops->select_sectype(server, ses->sectype)]);
+				get_security_type_str(server->ops->select_sectype(server, ses->sectype)));
 
 			if (server->rdma)
 				seq_printf(m, "RDMA\n\t");

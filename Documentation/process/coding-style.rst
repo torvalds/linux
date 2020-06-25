@@ -90,7 +90,7 @@ Statements longer than 80 columns should be broken into sensible chunks,
 unless exceeding 80 columns significantly increases readability and does
 not hide information.
 
-Descendants are always substantially shorter than the parent and are
+Descendants are always substantially shorter than the parent and
 are placed substantially to the right.  A very commonly used style
 is to align descendants to a function open parenthesis.
 

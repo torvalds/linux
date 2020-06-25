@@ -3896,9 +3896,6 @@ static struct i915_oa_reg *alloc_oa_regs(struct i915_perf *perf,
 	if (!n_regs)
 		return NULL;
 
-	if (!access_ok(regs, n_regs * sizeof(u32) * 2))
-		return ERR_PTR(-EFAULT);
-
 	/* No is_valid function means we're not allowing any register to be programmed. */
 	GEM_BUG_ON(!is_valid);
 	if (!is_valid)

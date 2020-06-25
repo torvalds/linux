@@ -85,8 +85,8 @@ examples:
 
     bus@1f05a000 {
       compatible = "baikal,bt1-axi", "simple-bus";
-      reg = <0 0x1f05a000 0 0x1000>,
-            <0 0x1f04d110 0 0x8>;
+      reg = <0x1f05a000 0x1000>,
+            <0x1f04d110 0x8>;
       reg-names = "qos", "ehb";
       #address-cells = <1>;
       #size-cells = <1>;

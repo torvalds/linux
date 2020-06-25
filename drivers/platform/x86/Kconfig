@@ -7,7 +7,7 @@ menuconfig X86_PLATFORM_DEVICES
 	bool "X86 Platform Specific Device Drivers"
 	default y
 	depends on X86
-	---help---
+	help
 	  Say Y here to get to see options for device drivers for various
 	  x86 platforms, including vendor-specific laptop extension drivers.
 	  This option alone does not add any kernel code.
@@ -41,7 +41,7 @@ config WMI_BMOF
 	tristate "WMI embedded Binary MOF driver"
 	depends on ACPI_WMI
 	default ACPI_WMI
-	---help---
+	help
 	  Say Y here if you want to be able to read a firmware-embedded
 	  WMI Binary MOF data. Using this requires userspace tools and may be
 	  rather tedious.
@@ -55,7 +55,7 @@ config ALIENWARE_WMI
 	depends on LEDS_CLASS
 	depends on NEW_LEDS
 	depends on ACPI_WMI
-	---help---
+	help
 	 This is a driver for controlling Alienware BIOS driven
 	 features.  It exposes an interface for controlling the AlienFX
 	 zones on Alienware machines that don't contain a dedicated AlienFX
@@ -91,7 +91,7 @@ config INTEL_WMI_SBL_FW_UPDATE
 config INTEL_WMI_THUNDERBOLT
 	tristate "Intel WMI thunderbolt force power driver"
 	depends on ACPI_WMI
-	---help---
+	help
 	  Say Y here if you want to be able to use the WMI interface on select
 	  systems to force the power control of Intel Thunderbolt controllers.
 	  This is useful for updating the firmware when devices are not plugged
@@ -103,7 +103,7 @@ config INTEL_WMI_THUNDERBOLT
 config MXM_WMI
        tristate "WMI support for MXM Laptop Graphics"
        depends on ACPI_WMI
-       ---help---
+	help
           MXM is a standard for laptop graphics cards, the WMI interface
 	  is required for switchable nvidia graphics machines
 
@@ -128,7 +128,7 @@ config ACERHDF
 	tristate "Acer Aspire One temperature and fan driver"
 	depends on ACPI && THERMAL
 	select THERMAL_GOV_BANG_BANG
-	---help---
+	help
 	  This is a driver for Acer Aspire One netbooks. It allows to access
 	  the temperature sensor and to control the fan.
 
@@ -149,7 +149,7 @@ config ACER_WIRELESS
         tristate "Acer Wireless Radio Control Driver"
         depends on ACPI
         depends on INPUT
-        ---help---
+	help
           The Acer Wireless Radio Control handles the airplane mode hotkey
           present on new Acer laptops.
 
@@ -172,7 +172,7 @@ config ACER_WMI
 	select INPUT_SPARSEKMAP
 	# Acer WMI depends on ACPI_VIDEO when ACPI is enabled
         select ACPI_VIDEO if ACPI
-	---help---
+	help
 	  This is a driver for newer Acer (and Wistron) laptops. It adds
 	  wireless radio and bluetooth control, and on some laptops,
 	  exposes the mail LED and LCD backlight.
@@ -187,7 +187,7 @@ config APPLE_GMUX
 	depends on BACKLIGHT_CLASS_DEVICE
 	depends on BACKLIGHT_APPLE=n || BACKLIGHT_APPLE
 	depends on ACPI_VIDEO=n || ACPI_VIDEO
-	---help---
+	help
 	  This driver provides support for the gmux device found on many
 	  Apple laptops, which controls the display mux for the hybrid
 	  graphics as well as the backlight. Currently only backlight
@@ -203,7 +203,7 @@ config ASUS_LAPTOP
 	depends on RFKILL || RFKILL = n
 	depends on ACPI_VIDEO || ACPI_VIDEO = n
 	select INPUT_SPARSEKMAP
-	---help---
+	help
 	  This is a driver for Asus laptops, Lenovo SL and the Pegatron
 	  Lucid tablet. It may also support some MEDION, JVC or VICTOR
 	  laptops. It makes all the extra buttons generate standard
@@ -223,7 +223,7 @@ config ASUS_WIRELESS
 	depends on INPUT
 	select NEW_LEDS
 	select LEDS_CLASS
-	---help---
+	help
 	  The Asus Wireless Radio Control handles the airplane mode hotkey
 	  present on some Asus laptops.
 
@@ -246,7 +246,7 @@ config ASUS_WMI
 	select INPUT_SPARSEKMAP
 	select LEDS_CLASS
 	select NEW_LEDS
-	---help---
+	help
 	  Say Y here if you have a WMI aware Asus laptop (like Eee PCs or new
 	  Asus Notebooks).
 
@@ -257,7 +257,7 @@ config ASUS_NB_WMI
 	tristate "Asus Notebook WMI Driver"
 	depends on ASUS_WMI
 	depends on SERIO_I8042 || SERIO_I8042 = n
-	---help---
+	help
 	  This is a driver for newer Asus notebooks. It adds extra features
 	  like wireless radio and bluetooth control, leds, hotkeys, backlight...
 
@@ -279,7 +279,7 @@ config EEEPC_LAPTOP
 	select LEDS_CLASS
 	select NEW_LEDS
 	select INPUT_SPARSEKMAP
-	---help---
+	help
 	  This driver supports the Fn-Fx keys on Eee PC laptops.
 
 	  It  also gives access to some extra laptop functionalities like
@@ -292,7 +292,7 @@ config EEEPC_LAPTOP
 config EEEPC_WMI
 	tristate "Eee PC WMI Driver"
 	depends on ASUS_WMI
-	---help---
+	help
 	  This is a driver for newer Eee PC laptops. It adds extra features
 	  like wireless radio and bluetooth control, leds, hotkeys, backlight...
 
@@ -327,7 +327,7 @@ config DELL_SMBIOS
 	tristate "Dell SMBIOS driver"
 	depends on DCDBAS || DCDBAS=n
 	depends on ACPI_WMI || ACPI_WMI=n
-	---help---
+	help
 	This provides support for the Dell SMBIOS calling interface.
 	If you have a Dell computer you should enable this option.
 
@@ -339,7 +339,7 @@ config DELL_SMBIOS_WMI
 	depends on ACPI_WMI
 	select DELL_WMI_DESCRIPTOR
 	depends on DELL_SMBIOS
-	---help---
+	help
 	This provides an implementation for the Dell SMBIOS calling interface
 	communicated over ACPI-WMI.
 
@@ -352,7 +352,7 @@ config DELL_SMBIOS_SMM
 	default y
 	depends on DCDBAS
 	depends on DELL_SMBIOS
-	---help---
+	help
 	This provides an implementation for the Dell SMBIOS calling interface
 	communicated over SMI/SMM.
 
@@ -373,7 +373,7 @@ config DELL_LAPTOP
 	select NEW_LEDS
 	select LEDS_TRIGGERS
 	select LEDS_TRIGGER_AUDIO
-	---help---
+	help
 	This driver adds support for rfkill and backlight control to Dell
 	laptops (except for some models covered by the Compal driver).
 
@@ -382,7 +382,7 @@ config DELL_RBTN
 	depends on ACPI
 	depends on INPUT
 	depends on RFKILL
-	---help---
+	help
 	  Say Y here if you want to support Dell Airplane Mode Switch ACPI
 	  device on Dell laptops. Sometimes it has names: DELLABCE or DELRBTN.
 	  This driver register rfkill device or input hotkey device depending
@@ -408,7 +408,7 @@ config DELL_RBU
 config DELL_SMO8800
 	tristate "Dell Latitude freefall driver (ACPI SMO88XX)"
 	depends on ACPI
-	---help---
+	help
 	  Say Y here if you want to support SMO88XX freefall devices
 	  on Dell Latitude laptops.
 
@@ -424,7 +424,7 @@ config DELL_WMI
 	depends on DELL_SMBIOS
 	select DELL_WMI_DESCRIPTOR
 	select INPUT_SPARSEKMAP
-	---help---
+	help
 	  Say Y here if you want to support WMI-based hotkeys on Dell laptops.
 
 	  To compile this driver as a module, choose M here: the module will
@@ -439,7 +439,7 @@ config DELL_WMI_AIO
 	depends on ACPI_WMI
 	depends on INPUT
 	select INPUT_SPARSEKMAP
-	---help---
+	help
 	  Say Y here if you want to support WMI-based hotkeys on Dell
 	  All-In-One machines.
 
@@ -458,7 +458,7 @@ config AMILO_RFKILL
 	tristate "Fujitsu-Siemens Amilo rfkill support"
 	depends on RFKILL
 	depends on SERIO_I8042
-	---help---
+	help
 	  This is a driver for enabling wifi on some Fujitsu-Siemens Amilo
 	  laptops.
 
@@ -470,7 +470,7 @@ config FUJITSU_LAPTOP
 	depends on ACPI_VIDEO || ACPI_VIDEO = n
 	select INPUT_SPARSEKMAP
 	select LEDS_CLASS
-	---help---
+	help
 	  This is a driver for laptops built by Fujitsu:
 
 	    * P2xxx/P5xxx/S6xxx/S7xxx series Lifebooks
@@ -485,7 +485,7 @@ config FUJITSU_TABLET
        tristate "Fujitsu Tablet Extras"
        depends on ACPI
        depends on INPUT
-       ---help---
+	help
          This is a driver for tablets built by Fujitsu:
 
            * Lifebook P1510/P1610/P1620/Txxxx
@@ -502,7 +502,7 @@ config GPD_POCKET_FAN
 	tristate "GPD Pocket Fan Controller support"
 	depends on ACPI
 	depends on THERMAL
-	---help---
+	help
 	  Driver for the GPD Pocket vendor specific FAN02501 ACPI device
 	  which controls the fan speed on the GPD Pocket.
 
@@ -558,14 +558,14 @@ config TC1100_WMI
 	depends on !X86_64
 	depends on ACPI
 	depends on ACPI_WMI
-	---help---
+	help
 	  This is a driver for the WMI extensions (wireless and bluetooth power
 	  control) of the HP Compaq TC1100 tablet.
 
 config IBM_RTL
 	tristate "Device driver to enable PRTL support"
 	depends on PCI
-	---help---
+	help
 	 Enable support for IBM Premium Real Time Mode (PRTM).
 	 This module will allow you the enter and exit PRTM in the BIOS via
 	 sysfs on platforms that support this feature.  System in PRTM will
@@ -623,7 +623,7 @@ config THINKPAD_ACPI
 	select LEDS_CLASS
 	select LEDS_TRIGGERS
 	select LEDS_TRIGGER_AUDIO
-	---help---
+	help
 	  This is a driver for the IBM and Lenovo ThinkPad laptops. It adds
 	  support for Fn-Fx key combinations, Bluetooth control, video
 	  output switching, ThinkLight control, UltraBay eject and more.
@@ -646,7 +646,7 @@ config THINKPAD_ACPI_ALSA_SUPPORT
 	depends on SND
 	depends on SND = y || THINKPAD_ACPI = SND
 	default y
-	---help---
+	help
 	  Enables monitoring of the built-in console audio output control
 	  (headphone and speakers), which is operated by the mute and (in
 	  some ThinkPad models) volume hotkeys.
@@ -666,7 +666,7 @@ config THINKPAD_ACPI_ALSA_SUPPORT
 config THINKPAD_ACPI_DEBUGFACILITIES
 	bool "Maintainer debug facilities"
 	depends on THINKPAD_ACPI
-	---help---
+	help
 	  Enables extra stuff in the thinkpad-acpi which is completely useless
 	  for normal use.  Read the driver source to find out what it does.
 
@@ -676,7 +676,7 @@ config THINKPAD_ACPI_DEBUGFACILITIES
 config THINKPAD_ACPI_DEBUG
 	bool "Verbose debug mode"
 	depends on THINKPAD_ACPI
-	---help---
+	help
 	  Enables extra debugging information, at the expense of a slightly
 	  increase in driver size.
 
@@ -685,7 +685,7 @@ config THINKPAD_ACPI_DEBUG
 config THINKPAD_ACPI_UNSAFE_LEDS
 	bool "Allow control of important LEDs (unsafe)"
 	depends on THINKPAD_ACPI
-	---help---
+	help
 	  Overriding LED state on ThinkPads can mask important
 	  firmware alerts (like critical battery condition), or misled
 	  the user into damaging the hardware (undocking or ejecting
@@ -709,7 +709,7 @@ config THINKPAD_ACPI_VIDEO
 	bool "Video output control support"
 	depends on THINKPAD_ACPI
 	default y
-	---help---
+	help
 	  Allows the thinkpad_acpi driver to provide an interface to control
 	  the various video output ports.
 
@@ -732,7 +732,7 @@ config THINKPAD_ACPI_HOTKEY_POLL
 	bool "Support NVRAM polling for hot keys"
 	depends on THINKPAD_ACPI
 	default y
-	---help---
+	help
 	  Some thinkpad models benefit from NVRAM polling to detect a few of
 	  the hot key press events.  If you know your ThinkPad model does not
 	  need to do NVRAM polling to support any of the hot keys you use,
@@ -767,7 +767,7 @@ config INTEL_CHT_INT33FE
 	depends on CHARGER_BQ24190=y || (CHARGER_BQ24190=m && m)
 	depends on USB_ROLES_INTEL_XHCI=y || (USB_ROLES_INTEL_XHCI=m && m)
 	depends on TYPEC_MUX_PI3USB30532=y || (TYPEC_MUX_PI3USB30532=m && m)
-	---help---
+	help
 	  This driver add support for the INT33FE ACPI device found on
 	  some Intel Cherry Trail devices.
 
@@ -801,7 +801,7 @@ config INTEL_INT0002_VGPIO
 	tristate "Intel ACPI INT0002 Virtual GPIO driver"
 	depends on GPIOLIB && ACPI
 	select GPIOLIB_IRQCHIP
-	---help---
+	help
 	  Some peripherals on Bay Trail and Cherry Trail platforms signal a
 	  Power Management Event (PME) to the Power Management Controller (PMC)
 	  to wakeup the system. When this happens software needs to explicitly
@@ -820,7 +820,7 @@ config INTEL_MENLOW
 	tristate "Thermal Management driver for Intel menlow platform"
 	depends on ACPI_THERMAL
 	select THERMAL
-	---help---
+	help
 	  ACPI thermal management enhancement driver on
 	  Intel Menlow platform.
 
@@ -831,7 +831,7 @@ config INTEL_OAKTRAIL
 	depends on ACPI
 	depends on ACPI_VIDEO || ACPI_VIDEO = n
 	depends on RFKILL && BACKLIGHT_CLASS_DEVICE && ACPI
-	---help---
+	help
 	  Intel Oaktrail platform need this driver to provide interfaces to
 	  enable/disable the Camera, WiFi, BT etc. devices. If in doubt, say Y
 	  here; it will only load on supported platforms.
@@ -854,7 +854,7 @@ config SURFACE3_WMI
 	depends on DMI
 	depends on INPUT
 	depends on SPI
-	---help---
+	help
 	  Say Y here if you have a Surface 3.
 
 	  To compile this driver as a module, choose M here: the module will
@@ -863,7 +863,7 @@ config SURFACE3_WMI
 config SURFACE_3_BUTTON
 	tristate "Power/home/volume buttons driver for Microsoft Surface 3 tablet"
 	depends on ACPI && KEYBOARD_GPIO && I2C
-	---help---
+	help
 	  This driver handles the power/home/volume buttons on the Microsoft Surface 3 tablet.
 
 config SURFACE_3_POWER_OPREGION
@@ -876,7 +876,7 @@ config SURFACE_3_POWER_OPREGION
 config SURFACE_PRO3_BUTTON
 	tristate "Power/home/volume buttons driver for Microsoft Surface Pro 3/4 tablet"
 	depends on ACPI && INPUT
-	---help---
+	help
 	  This driver handles the power/home/volume buttons on the Microsoft Surface Pro 3/4 tablet.
 
 config MSI_LAPTOP
@@ -887,7 +887,7 @@ config MSI_LAPTOP
 	depends on RFKILL
 	depends on INPUT && SERIO_I8042
 	select INPUT_SPARSEKMAP
-	---help---
+	help
 	  This is a driver for laptops built by MSI (MICRO-STAR
 	  INTERNATIONAL):
 
@@ -918,7 +918,7 @@ config XO15_EBOOK
 	tristate "OLPC XO-1.5 ebook switch"
 	depends on OLPC || COMPILE_TEST
 	depends on ACPI && INPUT
-	---help---
+	help
 	  Support for the ebook switch on the OLPC XO-1.5 laptop.
 
 	  This switch is triggered as the screen is rotated and folded down to
@@ -928,7 +928,7 @@ config XO1_RFKILL
 	tristate "OLPC XO-1 software RF kill switch"
 	depends on OLPC || COMPILE_TEST
 	depends on RFKILL
-	---help---
+	help
 	  Support for enabling/disabling the WLAN interface on the OLPC XO-1
 	  laptop.
 
@@ -953,7 +953,7 @@ config SAMSUNG_LAPTOP
 	depends on BACKLIGHT_CLASS_DEVICE
 	select LEDS_CLASS
 	select NEW_LEDS
-	---help---
+	help
 	  This module implements a driver for a wide range of different
 	  Samsung laptops.  It offers control over the different
 	  function keys, wireless LED, LCD backlight level.
@@ -968,7 +968,7 @@ config SAMSUNG_Q10
 	tristate "Samsung Q10 Extras"
 	depends on ACPI
 	select BACKLIGHT_CLASS_DEVICE
-	---help---
+	help
 	  This driver provides support for backlight control on Samsung Q10
 	  and related laptops, including Dell Latitude X200.
 
@@ -985,7 +985,7 @@ config ACPI_TOSHIBA
 	depends on RFKILL || RFKILL = n
 	depends on IIO
 	select INPUT_SPARSEKMAP
-	---help---
+	help
 	  This driver adds support for access to certain system settings
 	  on "legacy free" Toshiba laptops.  These laptops can be recognized by
 	  their lack of a BIOS setup menu and APM support.
@@ -1012,7 +1012,7 @@ config TOSHIBA_BT_RFKILL
 	tristate "Toshiba Bluetooth RFKill switch support"
 	depends on ACPI
 	depends on RFKILL || RFKILL = n
-	---help---
+	help
 	  This driver adds support for Bluetooth events for the RFKill
 	  switch on modern Toshiba laptops with full ACPI support and
 	  an RFKill switch.
@@ -1027,7 +1027,7 @@ config TOSHIBA_BT_RFKILL
 config TOSHIBA_HAPS
 	tristate "Toshiba HDD Active Protection Sensor"
 	depends on ACPI
-	---help---
+	help
 	  This driver adds support for the built-in accelerometer
 	  found on recent Toshiba laptops equipped with HID TOS620A
 	  device.
@@ -1048,7 +1048,7 @@ config TOSHIBA_WMI
 	depends on ACPI_WMI
 	depends on INPUT
 	select INPUT_SPARSEKMAP
-	---help---
+	help
 	  This driver adds hotkey monitoring support to some Toshiba models
 	  that manage the hotkeys via WMI events.
 
@@ -1078,7 +1078,7 @@ config COMPAL_LAPTOP
 	depends on RFKILL
 	depends on HWMON
 	depends on POWER_SUPPLY
-	---help---
+	help
 	  This is a driver for laptops built by Compal, and some models by
 	  other brands (e.g. Dell, Toshiba).
 
@@ -1104,7 +1104,7 @@ config PANASONIC_LAPTOP
 	depends on INPUT && ACPI
 	depends on BACKLIGHT_CLASS_DEVICE
 	select INPUT_SPARSEKMAP
-	---help---
+	help
 	  This driver adds support for access to backlight control and hotkeys
 	  on Panasonic Let's Note laptops.
 
@@ -1118,7 +1118,7 @@ config SONY_LAPTOP
 	depends on BACKLIGHT_CLASS_DEVICE
 	depends on INPUT
 	depends on RFKILL
-	---help---
+	help
 	  This mini-driver drives the SNC and SPIC devices present in the ACPI
 	  BIOS of the Sony Vaio laptops.
 
@@ -1131,7 +1131,7 @@ config SONY_LAPTOP
 config SONYPI_COMPAT
 	bool "Sonypi compatibility"
 	depends on SONY_LAPTOP
-	---help---
+	help
 	  Build the sonypi driver compatibility code into the sony-laptop driver.
 
 config SYSTEM76_ACPI
@@ -1154,7 +1154,7 @@ config TOPSTAR_LAPTOP
 	select INPUT_SPARSEKMAP
 	select LEDS_CLASS
 	select NEW_LEDS
-	---help---
+	help
 	  This driver adds support for hotkeys found on Topstar laptops.
 
 	  If you have a Topstar laptop, say Y or M here.
@@ -1173,7 +1173,7 @@ config I2C_MULTI_INSTANTIATE
 config MLX_PLATFORM
 	tristate "Mellanox Technologies platform support"
 	depends on I2C && REGMAP
-	---help---
+	help
 	  This option enables system support for the Mellanox Technologies
 	  platform. The Mellanox systems provide data center networking
 	  solutions based on Virtual Protocol Interconnect (VPI) technology
@@ -1186,7 +1186,7 @@ config TOUCHSCREEN_DMI
 	bool "DMI based touchscreen configuration info"
 	depends on ACPI && DMI && I2C=y && TOUCHSCREEN_SILEAD
 	select EFI_EMBEDDED_FIRMWARE if EFI
-	---help---
+	help
 	  Certain ACPI based tablets with e.g. Silead or Chipone touchscreens
 	  do not have enough data in ACPI tables for the touchscreen driver to
 	  handle the touchscreen properly, as OEMs expect the data to be baked
@@ -1197,7 +1197,7 @@ config TOUCHSCREEN_DMI
 config INTEL_IMR
 	bool "Intel Isolated Memory Region support"
 	depends on X86_INTEL_QUARK && IOSF_MBI
-	---help---
+	help
 	  This option provides a means to manipulate Isolated Memory Regions.
 	  IMRs are a set of registers that define read and write access masks
 	  to prohibit certain system agents from accessing memory with 1 KiB
@@ -1221,7 +1221,7 @@ config INTEL_IMR
 config INTEL_IPS
 	tristate "Intel Intelligent Power Sharing"
 	depends on ACPI && PCI
-	---help---
+	help
 	  Intel Calpella platforms support dynamic power sharing between the
 	  CPU and GPU, maximizing performance in a given TDP.  This driver,
 	  along with the CPU frequency and i915 drivers, provides that
@@ -1231,7 +1231,7 @@ config INTEL_IPS
 config INTEL_RST
         tristate "Intel Rapid Start Technology Driver"
 	depends on ACPI
-	---help---
+	help
 	  This driver provides support for modifying parameters on systems
 	  equipped with Intel's Rapid Start Technology. When put in an ACPI
 	  sleep state, these devices will wake after either a configured
@@ -1243,7 +1243,7 @@ config INTEL_RST
 config INTEL_SMARTCONNECT
         tristate "Intel Smart Connect disabling driver"
 	depends on ACPI
-	---help---
+	help
 	  Intel Smart Connect is a technology intended to permit devices to
 	  update state by resuming for a short period of time at regular
 	  intervals. If a user enables this functionality under Windows and
@@ -1259,7 +1259,7 @@ source "drivers/platform/x86/intel_speed_select_if/Kconfig"
 config INTEL_TURBO_MAX_3
 	bool "Intel Turbo Boost Max Technology 3.0 enumeration driver"
 	depends on X86_64 && SCHED_MC_PRIO
-	---help---
+	help
 	  This driver reads maximum performance ratio of each CPU and set up
 	  the scheduler priority metrics. In this way scheduler can prefer
 	  CPU with higher performance to schedule tasks.
@@ -1282,7 +1282,7 @@ config INTEL_BXTWC_PMIC_TMU
 	depends on REGMAP
 	depends on MFD_INTEL_PMC_BXT
 	depends on INTEL_SOC_PMIC_BXTWC
-	---help---
+	help
 	  Select this driver to use Intel BXT Whiskey Cove PMIC TMU feature.
 	  This driver enables the alarm wakeup functionality in the TMU unit
 	  of Whiskey Cove PMIC.
@@ -1291,7 +1291,7 @@ config INTEL_CHTDC_TI_PWRBTN
 	tristate "Intel Cherry Trail Dollar Cove TI power button driver"
 	depends on INTEL_SOC_PMIC_CHTDC_TI
 	depends on INPUT
-	---help---
+	help
 	  This option adds a power button driver driver for Dollar Cove TI
 	  PMIC on Intel Cherry Trail devices.
 
@@ -1317,7 +1317,7 @@ config INTEL_MRFLD_PWRBTN
 	tristate "Intel Merrifield Basin Cove power button driver"
 	depends on INTEL_SOC_PMIC_MRFLD
 	depends on INPUT
-	---help---
+	help
 	  This option adds a power button driver for Basin Cove PMIC
 	  on Intel Merrifield devices.
 
@@ -1327,7 +1327,7 @@ config INTEL_MRFLD_PWRBTN
 config INTEL_PMC_CORE
 	tristate "Intel PMC Core driver"
 	depends on PCI
-	---help---
+	help
 	  The Intel Platform Controller Hub for Intel Core SoCs provides access
 	  to Power Management Controller registers via a PCI interface. This
 	  driver can utilize debugging capabilities and supported features as
@@ -1341,7 +1341,7 @@ config INTEL_PMC_CORE
 
 config INTEL_PUNIT_IPC
 	tristate "Intel P-Unit IPC Driver"
-	---help---
+	help
 	  This driver provides support for Intel P-Unit Mailbox IPC mechanism,
 	  which is used to bridge the communications between kernel and P-Unit.
 
@@ -1379,7 +1379,7 @@ config INTEL_SCU_PLATFORM
 config INTEL_SCU_IPC_UTIL
 	tristate "Intel SCU IPC utility driver"
 	depends on INTEL_SCU
-	---help---
+	help
 	  The IPC Util driver provides an interface with the SCU enabling
 	  low level access for debug work and updating the firmware. Say
 	  N unless you will be doing this on an Intel MID platform.
@@ -1389,7 +1389,7 @@ config INTEL_TELEMETRY
 	depends on X86_64
 	depends on MFD_INTEL_PMC_BXT
 	depends on INTEL_PUNIT_IPC
-	---help---
+	help
 	  This driver provides interfaces to configure and use
 	  telemetry for INTEL SoC from APL onwards. It is also
 	  used to get various SoC events and parameters

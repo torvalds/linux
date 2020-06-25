@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2015, Intel Corporation.
@@ -15,7 +16,7 @@
 #ifndef __GP_DEVICE_PUBLIC_H_INCLUDED__
 #define __GP_DEVICE_PUBLIC_H_INCLUDED__
 
-#include "system_types.h"
+#include "system_local.h"
 
 typedef struct gp_device_state_s		gp_device_state_t;
 

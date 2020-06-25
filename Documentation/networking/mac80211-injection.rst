@@ -101,6 +101,6 @@ interface), along the following lines:::
 
 You can also find a link to a complete inject application here:
 
-http://wireless.kernel.org/en/users/Documentation/packetspammer
+https://wireless.wiki.kernel.org/en/users/Documentation/packetspammer
 
 Andy Green <andy@warmcat.com>

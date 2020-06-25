@@ -181,7 +181,7 @@ static bool intel_is_valid_msr(struct kvm_vcpu *vcpu, u32 msr)
 		ret = pmu->version > 1;
 		break;
 	case MSR_IA32_PERF_CAPABILITIES:
-		ret = guest_cpuid_has(vcpu, X86_FEATURE_PDCM);
+		ret = 1;
 		break;
 	default:
 		ret = get_gp_pmc(pmu, msr, MSR_IA32_PERFCTR0) ||

@@ -980,7 +980,7 @@ static struct dentry *afs_lookup(struct inode *dir, struct dentry *dentry,
 	if (!IS_ERR_OR_NULL(inode))
 		fid = AFS_FS_I(inode)->fid;
 
-	_debug("splice %px", dentry->d_inode);
+	_debug("splice %p", dentry->d_inode);
 	d = d_splice_alias(inode, dentry);
 	if (!IS_ERR_OR_NULL(d)) {
 		d->d_fsdata = dentry->d_fsdata;

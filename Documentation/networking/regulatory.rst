@@ -9,7 +9,7 @@ regulatory infrastructure works.
 
 More up to date information can be obtained at the project's web page:
 
-http://wireless.kernel.org/en/developers/Regulatory
+https://wireless.wiki.kernel.org/en/developers/Regulatory
 
 Keeping regulatory domains in userspace
 ---------------------------------------
@@ -37,7 +37,7 @@ expected regulatory domains will be respected by the kernel.
 A currently available userspace agent which can accomplish this
 is CRDA - central regulatory domain agent. Its documented here:
 
-http://wireless.kernel.org/en/developers/Regulatory/CRDA
+https://wireless.wiki.kernel.org/en/developers/Regulatory/CRDA
 
 Essentially the kernel will send a udev event when it knows
 it needs a new regulatory domain. A udev rule can be put in place
@@ -58,7 +58,7 @@ Who asks for regulatory domains?
 
 Users can use iw:
 
-http://wireless.kernel.org/en/users/Documentation/iw
+https://wireless.wiki.kernel.org/en/users/Documentation/iw
 
 An example::
 

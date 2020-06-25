@@ -258,7 +258,7 @@ void sync_nested_vmcb_control(struct vcpu_svm *svm)
 	/* Only a few fields of int_ctl are written by the processor.  */
 	mask = V_IRQ_MASK | V_TPR_MASK;
 	if (!(svm->nested.ctl.int_ctl & V_INTR_MASKING_MASK) &&
-	    is_intercept(svm, SVM_EXIT_VINTR)) {
+	    is_intercept(svm, INTERCEPT_VINTR)) {
 		/*
 		 * In order to request an interrupt window, L0 is usurping
 		 * svm->vmcb->control.int_ctl and possibly setting V_IRQ

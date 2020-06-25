@@ -25,13 +25,23 @@ struct sample {
 	char comm[16];
 };
 
-static volatile int sample_cnt;
+static int sample_cnt;
+
+static void atomic_inc(int *cnt)
+{
+	__atomic_add_fetch(cnt, 1, __ATOMIC_SEQ_CST);
+}
+
+static int atomic_xchg(int *cnt, int val)
+{
+	return __atomic_exchange_n(cnt, val, __ATOMIC_SEQ_CST);
+}
 
 static int process_sample(void *ctx, void *data, size_t len)
 {
 	struct sample *s = data;
 
-	sample_cnt++;
+	atomic_inc(&sample_cnt);
 
 	switch (s->seq) {
 	case 0:
@@ -76,7 +86,7 @@ void test_ringbuf(void)
 	const size_t rec_sz = BPF_RINGBUF_HDR_SZ + sizeof(struct sample);
 	pthread_t thread;
 	long bg_ret = -1;
-	int err;
+	int err, cnt;
 
 	skel = test_ringbuf__open_and_load();
 	if (CHECK(!skel, "skel_open_load", "skeleton open&load failed\n"))
@@ -116,11 +126,15 @@ void test_ringbuf(void)
 	/* -EDONE is used as an indicator that we are done */
 	if (CHECK(err != -EDONE, "err_done", "done err: %d\n", err))
 		goto cleanup;
+	cnt = atomic_xchg(&sample_cnt, 0);
+	CHECK(cnt != 2, "cnt", "exp %d samples, got %d\n", 2, cnt);
 
 	/* we expect extra polling to return nothing */
 	err = ring_buffer__poll(ringbuf, 0);
 	if (CHECK(err != 0, "extra_samples", "poll result: %d\n", err))
 		goto cleanup;
+	cnt = atomic_xchg(&sample_cnt, 0);
+	CHECK(cnt != 0, "cnt", "exp %d samples, got %d\n", 0, cnt);
 
 	CHECK(skel->bss->dropped != 0, "err_dropped", "exp %ld, got %ld\n",
 	      0L, skel->bss->dropped);
@@ -136,6 +150,8 @@ void test_ringbuf(void)
 	      3L * rec_sz, skel->bss->cons_pos);
 	err = ring_buffer__poll(ringbuf, -1);
 	CHECK(err <= 0, "poll_err", "err %d\n", err);
+	cnt = atomic_xchg(&sample_cnt, 0);
+	CHECK(cnt != 2, "cnt", "exp %d samples, got %d\n", 2, cnt);
 
 	/* start poll in background w/ long timeout */
 	err = pthread_create(&thread, NULL, poll_thread, (void *)(long)10000);
@@ -164,6 +180,8 @@ void test_ringbuf(void)
 	      2L, skel->bss->total);
 	CHECK(skel->bss->discarded != 1, "err_discarded", "exp %ld, got %ld\n",
 	      1L, skel->bss->discarded);
+	cnt = atomic_xchg(&sample_cnt, 0);
+	CHECK(cnt != 0, "cnt", "exp %d samples, got %d\n", 0, cnt);
 
 	/* clear flags to return to "adaptive" notification mode */
 	skel->bss->flags = 0;
@@ -178,10 +196,20 @@ void test_ringbuf(void)
 	if (CHECK(err != EBUSY, "try_join", "err %d\n", err))
 		goto cleanup;
 
+	/* still no samples, because consumer is behind */
+	cnt = atomic_xchg(&sample_cnt, 0);
+	CHECK(cnt != 0, "cnt", "exp %d samples, got %d\n", 0, cnt);
+
+	skel->bss->dropped = 0;
+	skel->bss->total = 0;
+	skel->bss->discarded = 0;
+
+	skel->bss->value = 333;
+	syscall(__NR_getpgid);
 	/* now force notifications */
 	skel->bss->flags = BPF_RB_FORCE_WAKEUP;
-	sample_cnt = 0;
-	trigger_samples();
+	skel->bss->value = 777;
+	syscall(__NR_getpgid);
 
 	/* now we should get a pending notification */
 	usleep(50000);
@@ -193,8 +221,8 @@ void test_ringbuf(void)
 		goto cleanup;
 
 	/* 3 rounds, 2 samples each */
-	CHECK(sample_cnt != 6, "wrong_sample_cnt",
-	      "expected to see %d samples, got %d\n", 6, sample_cnt);
+	cnt = atomic_xchg(&sample_cnt, 0);
+	CHECK(cnt != 6, "cnt", "exp %d samples, got %d\n", 6, cnt);
 
 	/* BPF side did everything right */
 	CHECK(skel->bss->dropped != 0, "err_dropped", "exp %ld, got %ld\n",

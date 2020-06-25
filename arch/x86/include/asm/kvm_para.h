@@ -141,7 +141,7 @@ static inline void kvm_disable_steal_time(void)
 	return;
 }
 
-static inline bool kvm_handle_async_pf(struct pt_regs *regs, u32 token)
+static __always_inline bool kvm_handle_async_pf(struct pt_regs *regs, u32 token)
 {
 	return false;
 }

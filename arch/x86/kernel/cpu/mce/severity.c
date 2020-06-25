@@ -213,8 +213,12 @@ static int error_context(struct mce *m)
 {
 	if ((m->cs & 3) == 3)
 		return IN_USER;
-	if (mc_recoverable(m->mcgstatus) && ex_has_fault_handler(m->ip))
+
+	if (mc_recoverable(m->mcgstatus) && ex_has_fault_handler(m->ip)) {
+		m->kflags |= MCE_IN_KERNEL_RECOV;
 		return IN_KERNEL_RECOV;
+	}
+
 	return IN_KERNEL;
 }
 

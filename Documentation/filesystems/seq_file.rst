@@ -7,7 +7,7 @@ The seq_file Interface
 	Copyright 2003 Jonathan Corbet <corbet@lwn.net>
 
 	This file is originally from the LWN.net Driver Porting series at
-	http://lwn.net/Articles/driver-porting/
+	https://lwn.net/Articles/driver-porting/
 
 
 There are numerous ways for a device driver (or other kernel component) to
@@ -57,7 +57,7 @@ Then concatenate the output files out1 and out2 and get the right
 result. Yes, it is a thoroughly useless module, but the point is to show
 how the mechanism works without getting lost in other details.  (Those
 wanting to see the full source for this module can find it at
-http://lwn.net/Articles/22359/).
+https://lwn.net/Articles/22359/).
 
 Deprecated create_proc_entry
 ============================

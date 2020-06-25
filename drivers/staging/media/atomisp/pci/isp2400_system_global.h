@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2015, Intel Corporation.
@@ -45,27 +46,6 @@
  *
  * N.B. the 3 input formatters are of 2 different classess
  */
-
-/*
- * Since this file is visible everywhere and the system definition
- * macros are not, detect the separate definitions for {host, SP, ISP}
- *
- * The 2401 system has the nice property that it uses a vanilla 2400 SP
- * so the SP will believe it is a 2400 system rather than 2401...
- */
-//#if defined(SYSTEM_hive_isp_css_2401_system) || defined(__isp2401_mamoiada) || defined(__scalar_processor_2401)
-#if defined(SYSTEM_hive_isp_css_2401_system) || defined(__isp2401_mamoiada)
-#define IS_ISP_2401_MAMOIADA_SYSTEM
-#define HAS_ISP_2401_MAMOIADA
-#define HAS_SP_2400
-//#elif defined(SYSTEM_hive_isp_css_2400_system) || defined(__isp2400_mamoiada) || defined(__scalar_processor_2400)
-#elif defined(SYSTEM_hive_isp_css_2400_system) || defined(__isp2400_mamoiada)
-#define IS_ISP_2400_MAMOIADA_SYSTEM
-#define HAS_ISP_2400_MAMOIADA
-#define HAS_SP_2400
-#else
-#error "system_global.h: 2400_SYSTEM must be one of {2400, 2401 }"
-#endif
 
 #define USE_INPUT_SYSTEM_VERSION_2
 
@@ -129,21 +109,11 @@ typedef enum {
 	N_SP_ID
 } sp_ID_t;
 
-#if defined(IS_ISP_2401_MAMOIADA_SYSTEM)
 typedef enum {
 	MMU0_ID = 0,
 	MMU1_ID,
 	N_MMU_ID
 } mmu_ID_t;
-#elif defined(IS_ISP_2400_MAMOIADA_SYSTEM)
-typedef enum {
-	MMU0_ID = 0,
-	MMU1_ID,
-	N_MMU_ID
-} mmu_ID_t;
-#else
-#error "system_global.h: SYSTEM must be one of {2400, 2401}"
-#endif
 
 typedef enum {
 	DMA0_ID = 0,

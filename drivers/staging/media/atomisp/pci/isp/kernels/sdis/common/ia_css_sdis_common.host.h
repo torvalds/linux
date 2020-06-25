@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2015, Intel Corporation.
@@ -76,12 +77,12 @@ struct sh_css_isp_sdis_vert_proj_tbl {
 
 struct sh_css_isp_sdis_hori_coef_tbl {
 	VMEM_ARRAY(tbl[ISP_DVS_NUM_COEF_TYPES],
-		   ISP_MAX_SDIS_HOR_COEF_NUM_VECS *ISP_NWAY);
+		   ISP_MAX_SDIS_HOR_COEF_NUM_VECS * ISP_NWAY);
 };
 
 struct sh_css_isp_sdis_vert_coef_tbl {
 	VMEM_ARRAY(tbl[ISP_DVS_NUM_COEF_TYPES],
-		   ISP_MAX_SDIS_VER_COEF_NUM_VECS *ISP_NWAY);
+		   ISP_MAX_SDIS_VER_COEF_NUM_VECS * ISP_NWAY);
 };
 
 #endif /* defined(__ISP) || defined (MK_FIRMWARE) */

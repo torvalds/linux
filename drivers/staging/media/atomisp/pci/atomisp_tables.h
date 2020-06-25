@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Support for Medifield PNW Camera Imaging ISP subsystem.
  *
@@ -22,25 +23,25 @@
 #include "sh_css_params.h"
 
 /*Sepia image effect table*/
-static struct atomisp_css_cc_config sepia_cc_config = {
+static struct ia_css_cc_config sepia_cc_config = {
 	.fraction_bits  = 8,
 	.matrix	 = {141, 18, 68, -40, -5, -19, 35, 4, 16},
 };
 
 /*Negative image effect table*/
-static struct atomisp_css_cc_config nega_cc_config = {
+static struct ia_css_cc_config nega_cc_config = {
 	.fraction_bits  = 8,
 	.matrix	 = {255, 29, 120, 0, 374, 342, 0, 672, -301},
 };
 
 /*Mono image effect table*/
-static struct atomisp_css_cc_config mono_cc_config = {
+static struct ia_css_cc_config mono_cc_config = {
 	.fraction_bits  = 8,
 	.matrix	 = {255, 29, 120, 0, 0, 0, 0, 0, 0},
 };
 
 /*Skin whiten image effect table*/
-static struct atomisp_css_macc_table skin_low_macc_table = {
+static struct ia_css_macc_table skin_low_macc_table = {
 	.data = {
 		8192, 0, 0, 8192,
 		8192, 0, 0, 8192,
@@ -61,7 +62,7 @@ static struct atomisp_css_macc_table skin_low_macc_table = {
 	}
 };
 
-static struct atomisp_css_macc_table skin_medium_macc_table = {
+static struct ia_css_macc_table skin_medium_macc_table = {
 	.data = {
 		8192, 0, 0, 8192,
 		8192, 0, 0, 8192,
@@ -82,7 +83,7 @@ static struct atomisp_css_macc_table skin_medium_macc_table = {
 	}
 };
 
-static struct atomisp_css_macc_table skin_high_macc_table = {
+static struct ia_css_macc_table skin_high_macc_table = {
 	.data = {
 		8192, 0, 0, 8192,
 		8192, 0, 0, 8192,
@@ -104,7 +105,7 @@ static struct atomisp_css_macc_table skin_high_macc_table = {
 };
 
 /*Blue enhencement image effect table*/
-static struct atomisp_css_macc_table blue_macc_table = {
+static struct ia_css_macc_table blue_macc_table = {
 	.data = {
 		9728, -3072, 0, 8192,
 		8192, 0, 0, 8192,
@@ -126,7 +127,7 @@ static struct atomisp_css_macc_table blue_macc_table = {
 };
 
 /*Green enhencement image effect table*/
-static struct atomisp_css_macc_table green_macc_table = {
+static struct ia_css_macc_table green_macc_table = {
 	.data = {
 		8192, 0, 0, 8192,
 		8192, 0, 0, 8192,
@@ -147,7 +148,7 @@ static struct atomisp_css_macc_table green_macc_table = {
 	}
 };
 
-static struct atomisp_css_ctc_table vivid_ctc_table = {
+static struct ia_css_ctc_table vivid_ctc_table = {
 	.data.vamem_2 = {
 		0,  384,  837,  957, 1011, 1062, 1083, 1080,
 		1078, 1077, 1053, 1039, 1012,  992,  969,  951,

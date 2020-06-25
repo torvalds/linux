@@ -175,7 +175,7 @@ eiger_swizzle(struct pci_dev *dev, u8 *pinp)
 	   case 0x03: bridge_count = 2; break; /* 2 */
 	   case 0x07: bridge_count = 3; break; /* 3 */
 	   case 0x0f: bridge_count = 4; break; /* 4 */
-	};
+	}
 
 	slot = PCI_SLOT(dev->devfn);
 	while (dev->bus->self) {

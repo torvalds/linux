@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2015, Intel Corporation.
@@ -12,6 +13,8 @@
  * more details.
  */
 
+#include <linux/string.h> /* for memcpy() */
+
 #include "system_global.h"
 
 #ifdef USE_INPUT_SYSTEM_VERSION_2401
@@ -19,7 +22,6 @@
 #include "ia_css_isys.h"
 #include "ia_css_debug.h"
 #include "math_support.h"
-#include "string_support.h"
 #include "virtual_isys.h"
 #include "isp.h"
 #include "sh_css_defs.h"
@@ -649,14 +651,8 @@ static bool calculate_tpg_cfg(
     input_system_cfg_t		*isys_cfg,
     pixelgen_tpg_cfg_t		*cfg)
 {
-	(void)channel;
-	(void)input_port;
+	memcpy(cfg, &isys_cfg->tpg_port_attr, sizeof(pixelgen_tpg_cfg_t));
 
-	memcpy_s(
-	    (void *)cfg,
-	    sizeof(pixelgen_tpg_cfg_t),
-	    (void *)(&isys_cfg->tpg_port_attr),
-	    sizeof(pixelgen_tpg_cfg_t));
 	return true;
 }
 
@@ -666,14 +662,8 @@ static bool calculate_prbs_cfg(
     input_system_cfg_t		*isys_cfg,
     pixelgen_prbs_cfg_t		*cfg)
 {
-	(void)channel;
-	(void)input_port;
+	memcpy(cfg, &isys_cfg->prbs_port_attr, sizeof(pixelgen_prbs_cfg_t));
 
-	memcpy_s(
-	    (void *)cfg,
-	    sizeof(pixelgen_prbs_cfg_t),
-	    (void *)(&isys_cfg->prbs_port_attr),
-	    sizeof(pixelgen_prbs_cfg_t));
 	return true;
 }
 
@@ -691,12 +681,10 @@ static bool calculate_be_cfg(
     bool				metadata,
     csi_rx_backend_cfg_t		*cfg)
 {
-	memcpy_s(
-	    (void *)(&cfg->lut_entry),
-	    sizeof(csi_rx_backend_lut_entry_t),
-	    metadata ? (void *)(&input_port->metadata.backend_lut_entry) :
-	    (void *)(&input_port->csi_rx.backend_lut_entry),
-	    sizeof(csi_rx_backend_lut_entry_t));
+	memcpy(&cfg->lut_entry,
+	      metadata ? &input_port->metadata.backend_lut_entry :
+			 &input_port->csi_rx.backend_lut_entry,
+	      sizeof(csi_rx_backend_lut_entry_t));
 
 	cfg->csi_mipi_cfg.virtual_channel = isys_cfg->csi_port_attr.ch_id;
 	if (metadata) {

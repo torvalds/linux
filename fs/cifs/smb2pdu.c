@@ -2317,28 +2317,75 @@ add_twarp_context(struct kvec *iov, unsigned int *num_iovec, __u64 timewarp)
 	return 0;
 }
 
+/* See See http://technet.microsoft.com/en-us/library/hh509017(v=ws.10).aspx */
+static void setup_owner_group_sids(char *buf)
+{
+	struct owner_group_sids *sids = (struct owner_group_sids *)buf;
+
+	/* Populate the user ownership fields S-1-5-88-1 */
+	sids->owner.Revision = 1;
+	sids->owner.NumAuth = 3;
+	sids->owner.Authority[5] = 5;
+	sids->owner.SubAuthorities[0] = cpu_to_le32(88);
+	sids->owner.SubAuthorities[1] = cpu_to_le32(1);
+	sids->owner.SubAuthorities[2] = cpu_to_le32(current_fsuid().val);
+
+	/* Populate the group ownership fields S-1-5-88-2 */
+	sids->group.Revision = 1;
+	sids->group.NumAuth = 3;
+	sids->group.Authority[5] = 5;
+	sids->group.SubAuthorities[0] = cpu_to_le32(88);
+	sids->group.SubAuthorities[1] = cpu_to_le32(2);
+	sids->group.SubAuthorities[2] = cpu_to_le32(current_fsgid().val);
+
+	cifs_dbg(FYI, "owner S-1-5-88-1-%d, group S-1-5-88-2-%d\n", current_fsuid().val, current_fsgid().val);
+}
+
 /* See MS-SMB2 2.2.13.2.2 and MS-DTYP 2.4.6 */
 static struct crt_sd_ctxt *
-create_sd_buf(umode_t mode, unsigned int *len)
+create_sd_buf(umode_t mode, bool set_owner, unsigned int *len)
 {
 	struct crt_sd_ctxt *buf;
 	struct cifs_ace *pace;
 	unsigned int sdlen, acelen;
+	unsigned int owner_offset = 0;
+	unsigned int group_offset = 0;
 
-	*len = roundup(sizeof(struct crt_sd_ctxt) + sizeof(struct cifs_ace) * 2,
-			8);
+	*len = roundup(sizeof(struct crt_sd_ctxt) + (sizeof(struct cifs_ace) * 2), 8);
+
+	if (set_owner) {
+		/* offset fields are from beginning of security descriptor not of create context */
+		owner_offset = sizeof(struct smb3_acl) + (sizeof(struct cifs_ace) * 2);
+
+		/* sizeof(struct owner_group_sids) is already multiple of 8 so no need to round */
+		*len += sizeof(struct owner_group_sids);
+	}
+
 	buf = kzalloc(*len, GFP_KERNEL);
 	if (buf == NULL)
 		return buf;
 
+	if (set_owner) {
+		buf->sd.OffsetOwner = cpu_to_le32(owner_offset);
+		group_offset = owner_offset + sizeof(struct owner_sid);
+		buf->sd.OffsetGroup = cpu_to_le32(group_offset);
+	} else {
+		buf->sd.OffsetOwner = 0;
+		buf->sd.OffsetGroup = 0;
+	}
+
 	sdlen = sizeof(struct smb3_sd) + sizeof(struct smb3_acl) +
 		 2 * sizeof(struct cifs_ace);
+	if (set_owner) {
+		sdlen += sizeof(struct owner_group_sids);
+		setup_owner_group_sids(owner_offset + sizeof(struct create_context) + 8 /* name */
+			+ (char *)buf);
+	}
 
 	buf->ccontext.DataOffset = cpu_to_le16(offsetof
 					(struct crt_sd_ctxt, sd));
 	buf->ccontext.DataLength = cpu_to_le32(sdlen);
-	buf->ccontext.NameOffset = cpu_to_le16(offsetof
-				(struct crt_sd_ctxt, Name));
+	buf->ccontext.NameOffset = cpu_to_le16(offsetof(struct crt_sd_ctxt, Name));
 	buf->ccontext.NameLength = cpu_to_le16(4);
 	/* SMB2_CREATE_SD_BUFFER_TOKEN is "SecD" */
 	buf->Name[0] = 'S';
@@ -2359,23 +2406,34 @@ create_sd_buf(umode_t mode, unsigned int *len)
 	/* create one ACE to hold the mode embedded in reserved special SID */
 	pace = (struct cifs_ace *)(sizeof(struct crt_sd_ctxt) + (char *)buf);
 	acelen = setup_special_mode_ACE(pace, (__u64)mode);
+
+	if (set_owner) {
+		/* we do not need to reallocate buffer to add the two more ACEs. plenty of space */
+		pace = (struct cifs_ace *)(acelen + (sizeof(struct crt_sd_ctxt) + (char *)buf));
+		acelen += setup_special_user_owner_ACE(pace);
+		/* it does not appear necessary to add an ACE for the NFS group SID */
+		buf->acl.AceCount = cpu_to_le16(3);
+	} else
+		buf->acl.AceCount = cpu_to_le16(2);
+
 	/* and one more ACE to allow access for authenticated users */
 	pace = (struct cifs_ace *)(acelen + (sizeof(struct crt_sd_ctxt) +
 		(char *)buf));
 	acelen += setup_authusers_ACE(pace);
+
 	buf->acl.AclSize = cpu_to_le16(sizeof(struct cifs_acl) + acelen);
-	buf->acl.AceCount = cpu_to_le16(2);
+
 	return buf;
 }
 
 static int
-add_sd_context(struct kvec *iov, unsigned int *num_iovec, umode_t mode)
+add_sd_context(struct kvec *iov, unsigned int *num_iovec, umode_t mode, bool set_owner)
 {
 	struct smb2_create_req *req = iov[0].iov_base;
 	unsigned int num = *num_iovec;
 	unsigned int len = 0;
 
-	iov[num].iov_base = create_sd_buf(mode, &len);
+	iov[num].iov_base = create_sd_buf(mode, set_owner, &len);
 	if (iov[num].iov_base == NULL)
 		return -ENOMEM;
 	iov[num].iov_len = len;
@@ -2764,21 +2822,35 @@ SMB2_open_init(struct cifs_tcon *tcon, struct TCP_Server_Info *server,
 			return rc;
 	}
 
-	if ((oparms->disposition != FILE_OPEN) &&
-	    (oparms->cifs_sb) &&
-	    (oparms->cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MODE_FROM_SID) &&
-	    (oparms->mode != ACL_NO_MODE)) {
-		if (n_iov > 2) {
-			struct create_context *ccontext =
-			    (struct create_context *)iov[n_iov-1].iov_base;
-			ccontext->Next =
-				cpu_to_le32(iov[n_iov-1].iov_len);
+	if ((oparms->disposition != FILE_OPEN) && (oparms->cifs_sb)) {
+		bool set_mode;
+		bool set_owner;
+
+		if ((oparms->cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MODE_FROM_SID) &&
+		    (oparms->mode != ACL_NO_MODE))
+			set_mode = true;
+		else {
+			set_mode = false;
+			oparms->mode = ACL_NO_MODE;
 		}
 
-		cifs_dbg(FYI, "add sd with mode 0x%x\n", oparms->mode);
-		rc = add_sd_context(iov, &n_iov, oparms->mode);
-		if (rc)
-			return rc;
+		if (oparms->cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UID_FROM_ACL)
+			set_owner = true;
+		else
+			set_owner = false;
+
+		if (set_owner | set_mode) {
+			if (n_iov > 2) {
+				struct create_context *ccontext =
+				    (struct create_context *)iov[n_iov-1].iov_base;
+				ccontext->Next = cpu_to_le32(iov[n_iov-1].iov_len);
+			}
+
+			cifs_dbg(FYI, "add sd with mode 0x%x\n", oparms->mode);
+			rc = add_sd_context(iov, &n_iov, oparms->mode, set_owner);
+			if (rc)
+				return rc;
+		}
 	}
 
 	if (n_iov > 2) {
@@ -2973,7 +3045,9 @@ SMB2_ioctl_init(struct cifs_tcon *tcon, struct TCP_Server_Info *server,
 	 * response size smaller.
 	 */
 	req->MaxOutputResponse = cpu_to_le32(max_response_size);
-	req->sync_hdr.CreditCharge = cpu_to_le16(DIV_ROUND_UP(max_response_size, SMB2_MAX_BUFFER_SIZE));
+	req->sync_hdr.CreditCharge =
+		cpu_to_le16(DIV_ROUND_UP(max(indatalen, max_response_size),
+					 SMB2_MAX_BUFFER_SIZE));
 	if (is_fsctl)
 		req->Flags = cpu_to_le32(SMB2_0_IOCTL_IS_FSCTL);
 	else
@@ -3454,6 +3528,19 @@ int SMB2_query_info(const unsigned int xid, struct cifs_tcon *tcon,
 			  sizeof(struct smb2_file_all_info) + PATH_MAX * 2,
 			  sizeof(struct smb2_file_all_info), (void **)&data,
 			  NULL);
+}
+
+int
+SMB311_posix_query_info(const unsigned int xid, struct cifs_tcon *tcon,
+		u64 persistent_fid, u64 volatile_fid, struct smb311_posix_qinfo *data, u32 *plen)
+{
+	size_t output_len = sizeof(struct smb311_posix_qinfo *) +
+			(sizeof(struct cifs_sid) * 2) + (PATH_MAX * 2);
+	*plen = 0;
+
+	return query_info(xid, tcon, persistent_fid, volatile_fid,
+			  SMB_FIND_FILE_POSIX_INFO, SMB2_O_INFO_FILE, 0,
+			  output_len, sizeof(struct smb311_posix_qinfo), (void **)&data, plen);
 }
 
 int

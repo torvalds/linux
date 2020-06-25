@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2015, Intel Corporation.
@@ -77,9 +78,6 @@ typedef hive_uint32 hrt_address;
 #else
 #error adddres width not supported
 #endif
-
-/* The SP side representation of an HMM virtual address */
-typedef hive_uint32 hrt_vaddress;
 
 /* use 64 bit addresses in simulation, where possible */
 typedef hive_uint64  hive_sim_address;

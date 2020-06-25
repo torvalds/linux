@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Support for Medifield PNW Camera Imaging ISP subsystem.
  *
@@ -28,8 +29,8 @@
 #include "hmm/hmm_pool.h"
 #include "ia_css_types.h"
 
-#define HMM_CACHED true
-#define HMM_UNCACHED false
+#define mmgr_NULL              ((ia_css_ptr)0)
+#define mmgr_EXCEPTION         ((ia_css_ptr) - 1)
 
 int hmm_pool_register(unsigned int pool_size, enum hmm_pool_type pool_type);
 void hmm_pool_unregister(enum hmm_pool_type pool_type);
@@ -38,7 +39,8 @@ int hmm_init(void);
 void hmm_cleanup(void);
 
 ia_css_ptr hmm_alloc(size_t bytes, enum hmm_bo_type type,
-		     int from_highmem, const void __user *userptr, bool cached);
+		     int from_highmem, const void __user *userptr,
+		     const uint16_t attrs);
 void hmm_free(ia_css_ptr ptr);
 int hmm_load(ia_css_ptr virt, void *data, unsigned int bytes);
 int hmm_store(ia_css_ptr virt, const void *data, unsigned int bytes);

@@ -21,8 +21,7 @@ properties:
 
   regulators:
     type: object
-    allOf:
-      - $ref: regulator.yaml#
+    $ref: regulator.yaml#
     description: |
       list of regulators provided by this controller, must be named
       after their hardware counterparts LDO[1-15], BUCK and BUCKBOOST
@@ -30,13 +29,11 @@ properties:
     patternProperties:
       "^LDO([1-9]|1[0-5])$":
         type: object
-        allOf:
-          - $ref: regulator.yaml#
+        $ref: regulator.yaml#
 
       "^BUCK|BUCKBOOST$":
         type: object
-        allOf:
-          - $ref: regulator.yaml#
+        $ref: regulator.yaml#
 
     additionalProperties: false
 

@@ -166,6 +166,40 @@ smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 		trace_smb3_query_info_compound_enter(xid, ses->Suid, tcon->tid,
 						     full_path);
 		break;
+	case SMB2_OP_POSIX_QUERY_INFO:
+		rqst[num_rqst].rq_iov = &vars->qi_iov[0];
+		rqst[num_rqst].rq_nvec = 1;
+
+		if (cfile)
+			rc = SMB2_query_info_init(tcon, server,
+				&rqst[num_rqst],
+				cfile->fid.persistent_fid,
+				cfile->fid.volatile_fid,
+				SMB_FIND_FILE_POSIX_INFO,
+				SMB2_O_INFO_FILE, 0,
+				/* TBD: fix following to allow for longer SIDs */
+				sizeof(struct smb311_posix_qinfo *) + (PATH_MAX * 2) +
+				(sizeof(struct cifs_sid) * 2), 0, NULL);
+		else {
+			rc = SMB2_query_info_init(tcon, server,
+				&rqst[num_rqst],
+				COMPOUND_FID,
+				COMPOUND_FID,
+				SMB_FIND_FILE_POSIX_INFO,
+				SMB2_O_INFO_FILE, 0,
+				sizeof(struct smb311_posix_qinfo *) + (PATH_MAX * 2) +
+				(sizeof(struct cifs_sid) * 2), 0, NULL);
+			if (!rc) {
+				smb2_set_next_command(tcon, &rqst[num_rqst]);
+				smb2_set_related(&rqst[num_rqst]);
+			}
+		}
+
+		if (rc)
+			goto finished;
+		num_rqst++;
+		trace_smb3_posix_query_info_compound_enter(xid, ses->Suid, tcon->tid, full_path);
+		break;
 	case SMB2_OP_DELETE:
 		trace_smb3_delete_enter(xid, ses->Suid, tcon->tid, full_path);
 		break;
@@ -379,6 +413,24 @@ smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 			trace_smb3_query_info_compound_done(xid, ses->Suid,
 						tcon->tid);
 		break;
+	case SMB2_OP_POSIX_QUERY_INFO:
+		if (rc == 0) {
+			qi_rsp = (struct smb2_query_info_rsp *)
+				rsp_iov[1].iov_base;
+			rc = smb2_validate_and_copy_iov(
+				le16_to_cpu(qi_rsp->OutputBufferOffset),
+				le32_to_cpu(qi_rsp->OutputBufferLength),
+				&rsp_iov[1], sizeof(struct smb311_posix_qinfo) /* add SIDs */, ptr);
+		}
+		if (rqst[1].rq_iov)
+			SMB2_query_info_free(&rqst[1]);
+		if (rqst[2].rq_iov)
+			SMB2_close_free(&rqst[2]);
+		if (rc)
+			trace_smb3_posix_query_info_compound_err(xid,  ses->Suid, tcon->tid, rc);
+		else
+			trace_smb3_posix_query_info_compound_done(xid, ses->Suid, tcon->tid);
+		break;
 	case SMB2_OP_DELETE:
 		if (rc)
 			trace_smb3_delete_err(xid,  ses->Suid, tcon->tid, rc);
@@ -507,6 +559,59 @@ smb2_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 		goto out;
 
 	move_smb2_info_to_cifs(data, smb2_data);
+out:
+	kfree(smb2_data);
+	return rc;
+}
+
+
+int
+smb311_posix_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
+		     struct cifs_sb_info *cifs_sb, const char *full_path,
+		     struct smb311_posix_qinfo *data, bool *adjust_tz, bool *symlink)
+{
+	int rc;
+	__u32 create_options = 0;
+	struct cifsFileInfo *cfile;
+	struct smb311_posix_qinfo *smb2_data;
+
+	*adjust_tz = false;
+	*symlink = false;
+
+	/* BB TODO: Make struct larger when add support for parsing owner SIDs */
+	smb2_data = kzalloc(sizeof(struct smb311_posix_qinfo),
+			    GFP_KERNEL);
+	if (smb2_data == NULL)
+		return -ENOMEM;
+
+	/*
+	 * BB TODO: Add support for using the cached root handle.
+	 * Create SMB2_query_posix_info worker function to do non-compounded query
+	 * when we already have an open file handle for this. For now this is fast enough
+	 * (always using the compounded version).
+	 */
+
+	cifs_get_readable_path(tcon, full_path, &cfile);
+	rc = smb2_compound_op(xid, tcon, cifs_sb, full_path,
+			      FILE_READ_ATTRIBUTES, FILE_OPEN, create_options,
+			      ACL_NO_MODE, smb2_data, SMB2_OP_POSIX_QUERY_INFO, cfile);
+	if (rc == -EOPNOTSUPP) {
+		/* BB TODO: When support for special files added to Samba re-verify this path */
+		*symlink = true;
+		create_options |= OPEN_REPARSE_POINT;
+
+		/* Failed on a symbolic link - query a reparse point info */
+		rc = smb2_compound_op(xid, tcon, cifs_sb, full_path,
+				      FILE_READ_ATTRIBUTES, FILE_OPEN,
+				      create_options, ACL_NO_MODE,
+				      smb2_data, SMB2_OP_POSIX_QUERY_INFO, NULL);
+	}
+	if (rc)
+		goto out;
+
+	 /* TODO: will need to allow for the 2 SIDs when add support for getting owner UID/GID */
+	memcpy(data, smb2_data, sizeof(struct smb311_posix_qinfo));
+
 out:
 	kfree(smb2_data);
 	return rc;

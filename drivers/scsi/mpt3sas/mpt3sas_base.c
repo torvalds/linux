@@ -4984,7 +4984,7 @@ base_alloc_rdpq_dma_pool(struct MPT3SAS_ADAPTER *ioc, int sz)
 	for (i = 0; i < count; i++) {
 		if ((i % RDPQ_MAX_INDEX_IN_ONE_CHUNK == 0) && dma_alloc_count) {
 			ioc->reply_post[i].reply_post_free =
-			    dma_pool_alloc(ioc->reply_post_free_dma_pool,
+			    dma_pool_zalloc(ioc->reply_post_free_dma_pool,
 				GFP_KERNEL,
 				&ioc->reply_post[i].reply_post_free_dma);
 			if (!ioc->reply_post[i].reply_post_free)
@@ -5008,9 +5008,6 @@ base_alloc_rdpq_dma_pool(struct MPT3SAS_ADAPTER *ioc, int sz)
 				    ioc->reply_post[i].reply_post_free_dma));
 				return -EAGAIN;
 			}
-			memset(ioc->reply_post[i].reply_post_free, 0,
-						RDPQ_MAX_INDEX_IN_ONE_CHUNK *
-						reply_post_free_sz);
 			dma_alloc_count--;
 
 		} else {

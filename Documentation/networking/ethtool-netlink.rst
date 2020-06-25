@@ -1028,11 +1028,11 @@ Request contents:
  +--------------------------------------------+--------+-----------------------+
  | ``ETHTOOL_A_CABLE_TEST_TDR_CFG``           | nested | test configuration    |
  +-+------------------------------------------+--------+-----------------------+
- | | ``ETHTOOL_A_CABLE_STEP_FIRST_DISTANCE `` | u32    | first data distance   |
+ | | ``ETHTOOL_A_CABLE_STEP_FIRST_DISTANCE``  | u32    | first data distance   |
  +-+-+----------------------------------------+--------+-----------------------+
- | | ``ETHTOOL_A_CABLE_STEP_LAST_DISTANCE ``  | u32    | last data distance    |
+ | | ``ETHTOOL_A_CABLE_STEP_LAST_DISTANCE``   | u32    | last data distance    |
  +-+-+----------------------------------------+--------+-----------------------+
- | | ``ETHTOOL_A_CABLE_STEP_STEP_DISTANCE ``  | u32    | distance of each step |
+ | | ``ETHTOOL_A_CABLE_STEP_STEP_DISTANCE``   | u32    | distance of each step |
  +-+-+----------------------------------------+--------+-----------------------+
  | | ``ETHTOOL_A_CABLE_TEST_TDR_CFG_PAIR``    | u8     | pair to test          |
  +-+-+----------------------------------------+--------+-----------------------+
@@ -1085,11 +1085,11 @@ used to report the amplitude of the reflection for a given pair.
  +-+-+-----------------------------------------+--------+----------------------+
  | | ``ETHTOOL_A_CABLE_NEST_STEP``             | nested | TDR step info        |
  +-+-+-----------------------------------------+--------+----------------------+
- | | | ``ETHTOOL_A_CABLE_STEP_FIRST_DISTANCE ``| u32    | First data distance  |
+ | | | ``ETHTOOL_A_CABLE_STEP_FIRST_DISTANCE`` | u32    | First data distance  |
  +-+-+-----------------------------------------+--------+----------------------+
- | | | ``ETHTOOL_A_CABLE_STEP_LAST_DISTANCE `` | u32    | Last data distance   |
+ | | | ``ETHTOOL_A_CABLE_STEP_LAST_DISTANCE``  | u32    | Last data distance   |
  +-+-+-----------------------------------------+--------+----------------------+
- | | | ``ETHTOOL_A_CABLE_STEP_STEP_DISTANCE `` | u32    | distance of each step|
+ | | | ``ETHTOOL_A_CABLE_STEP_STEP_DISTANCE``  | u32    | distance of each step|
  +-+-+-----------------------------------------+--------+----------------------+
  | | ``ETHTOOL_A_CABLE_TDR_NEST_AMPLITUDE``    | nested | Reflection amplitude |
  +-+-+-----------------------------------------+--------+----------------------+

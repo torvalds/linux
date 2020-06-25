@@ -318,6 +318,7 @@ DEFINE_EVENT(smb3_inf_compound_enter_class, smb3_##name,    \
 	TP_ARGS(xid, tid, sesid, full_path))
 
 DEFINE_SMB3_INF_COMPOUND_ENTER_EVENT(query_info_compound_enter);
+DEFINE_SMB3_INF_COMPOUND_ENTER_EVENT(posix_query_info_compound_enter);
 DEFINE_SMB3_INF_COMPOUND_ENTER_EVENT(hardlink_enter);
 DEFINE_SMB3_INF_COMPOUND_ENTER_EVENT(rename_enter);
 DEFINE_SMB3_INF_COMPOUND_ENTER_EVENT(rmdir_enter);
@@ -354,6 +355,7 @@ DEFINE_EVENT(smb3_inf_compound_done_class, smb3_##name,    \
 	TP_ARGS(xid, tid, sesid))
 
 DEFINE_SMB3_INF_COMPOUND_DONE_EVENT(query_info_compound_done);
+DEFINE_SMB3_INF_COMPOUND_DONE_EVENT(posix_query_info_compound_done);
 DEFINE_SMB3_INF_COMPOUND_DONE_EVENT(hardlink_done);
 DEFINE_SMB3_INF_COMPOUND_DONE_EVENT(rename_done);
 DEFINE_SMB3_INF_COMPOUND_DONE_EVENT(rmdir_done);
@@ -395,6 +397,7 @@ DEFINE_EVENT(smb3_inf_compound_err_class, smb3_##name,    \
 	TP_ARGS(xid, tid, sesid, rc))
 
 DEFINE_SMB3_INF_COMPOUND_ERR_EVENT(query_info_compound_err);
+DEFINE_SMB3_INF_COMPOUND_ERR_EVENT(posix_query_info_compound_err);
 DEFINE_SMB3_INF_COMPOUND_ERR_EVENT(hardlink_err);
 DEFINE_SMB3_INF_COMPOUND_ERR_EVENT(rename_err);
 DEFINE_SMB3_INF_COMPOUND_ERR_EVENT(rmdir_err);

@@ -36,10 +36,10 @@ This document covers use of the Linux rbtree implementation.  For more
 information on the nature and implementation of Red Black Trees,  see:
 
   Linux Weekly News article on red-black trees
-    http://lwn.net/Articles/184495/
+    https://lwn.net/Articles/184495/
 
   Wikipedia entry on red-black trees
-    http://en.wikipedia.org/wiki/Red-black_tree
+    https://en.wikipedia.org/wiki/Red-black_tree
 
 Linux implementation of red-black trees
 ---------------------------------------

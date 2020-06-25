@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2010-2015, Intel Corporation.
@@ -21,8 +22,6 @@
 
 #define __INLINE_ISP__
 #include "isp.h"
-
-#include "memory_access.h"
 
 #include "assert_support.h"
 
@@ -101,22 +100,22 @@ STORAGE_CLASS_DEBUG_C void debug_synch_queue_ddr(void)
 {
 	u32	remote_tail;
 
-	mmgr_load(debug_buffer_ddr_address + DEBUG_DATA_TAIL_DDR_ADDR, &remote_tail,
+	hmm_load(debug_buffer_ddr_address + DEBUG_DATA_TAIL_DDR_ADDR, &remote_tail,
 		  sizeof(uint32_t));
 	/* We could move the remote head after the upload, but we would have to limit the upload w.r.t. the local head. This is easier */
 	if (remote_tail > debug_data_ptr->tail) {
 		size_t	delta = remote_tail - debug_data_ptr->tail;
 
-		mmgr_load(debug_buffer_ddr_address + DEBUG_DATA_BUF_DDR_ADDR +
+		hmm_load(debug_buffer_ddr_address + DEBUG_DATA_BUF_DDR_ADDR +
 			  debug_data_ptr->tail * sizeof(uint32_t),
 			  (void *)&debug_data_ptr->buf[debug_data_ptr->tail], delta * sizeof(uint32_t));
 	} else if (remote_tail < debug_data_ptr->tail) {
 		size_t	delta = DEBUG_BUF_SIZE - debug_data_ptr->tail;
 
-		mmgr_load(debug_buffer_ddr_address + DEBUG_DATA_BUF_DDR_ADDR +
+		hmm_load(debug_buffer_ddr_address + DEBUG_DATA_BUF_DDR_ADDR +
 			  debug_data_ptr->tail * sizeof(uint32_t),
 			  (void *)&debug_data_ptr->buf[debug_data_ptr->tail], delta * sizeof(uint32_t));
-		mmgr_load(debug_buffer_ddr_address + DEBUG_DATA_BUF_DDR_ADDR,
+		hmm_load(debug_buffer_ddr_address + DEBUG_DATA_BUF_DDR_ADDR,
 			  (void *)&debug_data_ptr->buf[0],
 			  remote_tail * sizeof(uint32_t));
 	} /* else we are up to date */

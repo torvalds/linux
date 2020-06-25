@@ -447,6 +447,7 @@ static int afs_store_data(struct address_space *mapping,
 	op->store.last = last;
 	op->store.first_offset = offset;
 	op->store.last_to = to;
+	op->mtime = vnode->vfs_inode.i_mtime;
 	op->ops = &afs_store_data_operation;
 
 try_next_key:

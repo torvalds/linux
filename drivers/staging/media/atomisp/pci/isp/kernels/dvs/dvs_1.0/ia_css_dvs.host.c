@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2015, Intel Corporation.
@@ -12,6 +13,8 @@
  * more details.
  */
 
+#include "hmm.h"
+
 #include "ia_css_frame_public.h"
 #define IA_CSS_INCLUDE_CONFIGURATIONS
 #include "ia_css_isp_configs.h"
@@ -22,7 +25,6 @@
 #include "sh_css_params.h"
 #include "ia_css_binary.h"
 #include "ia_css_debug.h"
-#include "memory_access.h"
 #include "assert_support.h"
 
 #include "ia_css_dvs.host.h"
@@ -270,12 +272,12 @@ convert_allocate_dvs_6axis_config(
 	return me;
 }
 
-enum ia_css_err
+int
 store_dvs_6axis_config(
     const struct ia_css_dvs_6axis_config *dvs_6axis_config,
     const struct ia_css_binary *binary,
     const struct ia_css_frame_info *dvs_in_frame_info,
-    hrt_vaddress ddr_addr_y) {
+    ia_css_ptr ddr_addr_y) {
 	struct ia_css_host_data *me;
 
 	assert(dvs_6axis_config);
@@ -288,8 +290,8 @@ store_dvs_6axis_config(
 
 	if (!me)
 	{
-		IA_CSS_LEAVE_ERR_PRIVATE(IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY);
-		return IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
+		IA_CSS_LEAVE_ERR_PRIVATE(-ENOMEM);
+		return -ENOMEM;
 	}
 
 	ia_css_params_store_ia_css_host_data(
@@ -297,5 +299,5 @@ store_dvs_6axis_config(
 	    me);
 	ia_css_host_data_free(me);
 
-	return IA_CSS_SUCCESS;
+	return 0;
 }

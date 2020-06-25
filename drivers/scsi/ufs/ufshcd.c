@@ -5116,6 +5116,7 @@ static void ufshcd_force_reset_auto_bkops(struct ufs_hba *hba)
 		hba->ee_ctrl_mask &= ~MASK_EE_URGENT_BKOPS;
 		ufshcd_disable_auto_bkops(hba);
 	}
+	hba->urgent_bkops_lvl = BKOPS_STATUS_PERF_IMPACT;
 	hba->is_urgent_bkops_lvl_checked = false;
 }
 
@@ -5163,7 +5164,6 @@ static int ufshcd_bkops_ctrl(struct ufs_hba *hba,
 		err = ufshcd_enable_auto_bkops(hba);
 	else
 		err = ufshcd_disable_auto_bkops(hba);
-	hba->urgent_bkops_lvl = curr_status;
 out:
 	return err;
 }
@@ -7415,10 +7415,6 @@ static int ufshcd_probe_hba(struct ufs_hba *hba, bool async)
 	ret = ufshcd_link_startup(hba);
 	if (ret)
 		goto out;
-
-	/* set the default level for urgent bkops */
-	hba->urgent_bkops_lvl = BKOPS_STATUS_PERF_IMPACT;
-	hba->is_urgent_bkops_lvl_checked = false;
 
 	/* Debug counters initialization */
 	ufshcd_clear_dbg_ufs_stats(hba);

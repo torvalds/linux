@@ -1653,7 +1653,7 @@ struct create_posix_rsp {
 } __packed;
 
 /*
- * SMB2-only POSIX info level
+ * SMB2-only POSIX info level for query dir
  *
  * See posix_info_sid_size(), posix_info_extra_size() and
  * posix_info_parse() to help with the handling of this struct.
@@ -1675,6 +1675,31 @@ struct smb2_posix_info {
 	__le32 HardLinks;
 	__le32 ReparseTag;
 	__le32 Mode;
+	/*
+	 * var sized owner SID
+	 * var sized group SID
+	 * le32 filenamelength
+	 * u8  filename[]
+	 */
+} __packed;
+
+/* Level 100 query info */
+struct smb311_posix_qinfo {
+	__le64 CreationTime;
+	__le64 LastAccessTime;
+	__le64 LastWriteTime;
+	__le64 ChangeTime;
+	__le64 EndOfFile;
+	__le64 AllocationSize;
+	__le32 DosAttributes;
+	__le64 Inode;
+	__le32 DeviceId;
+	__le32 Zero;
+	/* beginning of POSIX Create Context Response */
+	__le32 HardLinks;
+	__le32 ReparseTag;
+	__le32 Mode;
+	u8     Sids[];
 	/*
 	 * var sized owner SID
 	 * var sized group SID

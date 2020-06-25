@@ -3,7 +3,7 @@ config IWLWIFI
 	tristate "Intel Wireless WiFi Next Gen AGN - Wireless-N/Advanced-N/Ultimate-N (iwlwifi) "
 	depends on PCI && HAS_IOMEM && CFG80211
 	select FW_LOADER
-	---help---
+	help
 	  Select to build the driver supporting the:
 
 	  Intel Wireless WiFi Link Next-Gen AGN
@@ -96,7 +96,7 @@ menu "Debugging Options"
 
 config IWLWIFI_DEBUG
 	bool "Enable full debugging output in the iwlwifi driver"
-	---help---
+	help
 	  This option will enable debug tracing output for the iwlwifi drivers
 
 	  This will result in the kernel module being ~100k larger.  You can
@@ -121,7 +121,7 @@ config IWLWIFI_DEBUG
 config IWLWIFI_DEBUGFS
 	bool "iwlwifi debugfs support"
 	depends on MAC80211_DEBUGFS
-	---help---
+	help
 	  Enable creation of debugfs files for the iwlwifi drivers. This
 	  is a low-impact option that allows getting insight into the
 	  driver's state at runtime.

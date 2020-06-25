@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2010-2015, Intel Corporation.
@@ -20,15 +21,15 @@
 #include "input_system_global.h"
 
 #include "input_system_defs.h"		/* HIVE_ISYS_GPREG_MULTICAST_A_IDX,... */
-#include "css_receiver_2400_defs.h"	/* _HRT_CSS_RECEIVER_2400_TWO_PIXEL_EN_REG_IDX, _HRT_CSS_RECEIVER_2400_CSI2_FUNC_PROG_REG_IDX,... */
-#if defined(IS_ISP_2400_MAMOIADA_SYSTEM)
+
+/*
+ * _HRT_CSS_RECEIVER_2400_TWO_PIXEL_EN_REG_IDX,
+ * _HRT_CSS_RECEIVER_2400_CSI2_FUNC_PROG_REG_IDX,...
+ */
+#include "css_receiver_2400_defs.h"
+
 #include "isp_capture_defs.h"
-#elif defined(IS_ISP_2401_MAMOIADA_SYSTEM)
-/* Same name, but keep the distinction,it is a different device */
-#include "isp_capture_defs.h"
-#else
-#error "input_system_local.h: 2400_SYSTEM must be one of {2400, 2401 }"
-#endif
+
 #include "isp_acquisition_defs.h"
 #include "input_system_ctrl_defs.h"
 

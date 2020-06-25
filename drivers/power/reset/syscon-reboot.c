@@ -51,8 +51,11 @@ static int syscon_reboot_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	ctx->map = syscon_regmap_lookup_by_phandle(dev->of_node, "regmap");
-	if (IS_ERR(ctx->map))
-		return PTR_ERR(ctx->map);
+	if (IS_ERR(ctx->map)) {
+		ctx->map = syscon_node_to_regmap(dev->parent->of_node);
+		if (IS_ERR(ctx->map))
+			return PTR_ERR(ctx->map);
+	}
 
 	if (of_property_read_u32(pdev->dev.of_node, "offset", &ctx->offset))
 		return -EINVAL;

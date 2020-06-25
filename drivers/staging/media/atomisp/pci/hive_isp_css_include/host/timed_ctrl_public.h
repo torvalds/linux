@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2015, Intel Corporation.
@@ -15,7 +16,7 @@
 #ifndef __TIMED_CTRL_PUBLIC_H_INCLUDED__
 #define __TIMED_CTRL_PUBLIC_H_INCLUDED__
 
-#include "system_types.h"
+#include "system_local.h"
 
 /*! Write to a control register of TIMED_CTRL[ID]
 

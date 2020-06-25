@@ -28,7 +28,7 @@ static struct afs_volume *afs_sample_volume(struct afs_cell *cell, struct key *k
 	};
 
 	volume = afs_create_volume(&fc);
-	_leave(" = %px", volume);
+	_leave(" = %p", volume);
 	return volume;
 }
 
@@ -73,7 +73,8 @@ static int afs_compare_addrs(const struct sockaddr_rxrpc *srx_a,
 	}
 
 	default:
-		BUG();
+		WARN_ON(1);
+		diff = 1;
 	}
 
 out:

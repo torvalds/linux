@@ -3,7 +3,7 @@ menuconfig SND_X86
 	bool "X86 sound devices"
 	depends on X86
 	default y
-	---help---
+	help
 	  X86 sound devices that don't fall under SoC or PCI categories
 
 if SND_X86

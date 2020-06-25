@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2015, Intel Corporation.
@@ -97,9 +98,9 @@ STORAGE_CLASS_PIXELGEN_C void pixelgen_ctrl_dump_state(
     pixelgen_ctrl_state_t *state)
 {
 	ia_css_print("Pixel Generator ID %d Enable  0x%x\n", ID, state->com_enable);
-	ia_css_print("Pixel Generator ID %d PRBS reset vlue 0 0x%x\n", ID,
+	ia_css_print("Pixel Generator ID %d PRBS reset value 0 0x%x\n", ID,
 		     state->prbs_rstval0);
-	ia_css_print("Pixel Generator ID %d PRBS reset vlue 1 0x%x\n", ID,
+	ia_css_print("Pixel Generator ID %d PRBS reset value 1 0x%x\n", ID,
 		     state->prbs_rstval1);
 	ia_css_print("Pixel Generator ID %d SYNC SID 0x%x\n", ID, state->syng_sid);
 	ia_css_print("Pixel Generator ID %d syng free run 0x%x\n", ID,

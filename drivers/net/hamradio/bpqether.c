@@ -113,6 +113,7 @@ static LIST_HEAD(bpq_devices);
  * off into a separate class since they always nest.
  */
 static struct lock_class_key bpq_netdev_xmit_lock_key;
+static struct lock_class_key bpq_netdev_addr_lock_key;
 
 static void bpq_set_lockdep_class_one(struct net_device *dev,
 				      struct netdev_queue *txq,
@@ -123,6 +124,7 @@ static void bpq_set_lockdep_class_one(struct net_device *dev,
 
 static void bpq_set_lockdep_class(struct net_device *dev)
 {
+	lockdep_set_class(&dev->addr_list_lock, &bpq_netdev_addr_lock_key);
 	netdev_for_each_tx_queue(dev, bpq_set_lockdep_class_one, NULL);
 }
 

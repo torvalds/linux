@@ -379,11 +379,16 @@ void prepare_vmcs(struct vmx_pages *vmx, void *guest_rip, void *guest_rsp)
 	init_vmcs_guest_state(guest_rip, guest_rsp);
 }
 
-void nested_vmx_check_supported(void)
+bool nested_vmx_supported(void)
 {
 	struct kvm_cpuid_entry2 *entry = kvm_get_supported_cpuid_entry(1);
 
-	if (!(entry->ecx & CPUID_VMX)) {
+	return entry->ecx & CPUID_VMX;
+}
+
+void nested_vmx_check_supported(void)
+{
+	if (!nested_vmx_supported()) {
 		print_skip("nested VMX not enabled");
 		exit(KSFT_SKIP);
 	}

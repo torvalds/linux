@@ -116,7 +116,7 @@ config MIC_COSM
 
 config VOP
 	tristate "VOP Driver"
-	depends on VOP_BUS && VHOST_DPN
+	depends on VOP_BUS
 	select VHOST_RING
 	select VIRTIO
 	help

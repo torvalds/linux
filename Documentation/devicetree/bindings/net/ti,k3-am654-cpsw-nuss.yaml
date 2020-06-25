@@ -145,8 +145,7 @@ patternProperties:
 
   "^cpts@[0-9a-f]+":
     type: object
-    allOf:
-      - $ref: "ti,k3-am654-cpts.yaml#"
+    $ref: "ti,k3-am654-cpts.yaml#"
     description:
       CPSW Common Platform Time Sync (CPTS) module.
 

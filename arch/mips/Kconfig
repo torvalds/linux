@@ -184,7 +184,7 @@ config AR7
 	select SYS_SUPPORTS_ZBOOT_UART16550
 	select GPIOLIB
 	select VLYNQ
-	select HAVE_CLK
+	select HAVE_LEGACY_CLK
 	help
 	  Support for the Texas Instruments AR7 System-on-a-Chip
 	  family: TNETD7100, 7200 and 7300.
@@ -212,9 +212,7 @@ config ATH79
 	select DMA_NONCOHERENT
 	select GPIOLIB
 	select PINCTRL
-	select HAVE_CLK
 	select COMMON_CLK
-	select CLKDEV_LOOKUP
 	select IRQ_MIPS_CPU
 	select SYS_HAS_CPU_MIPS32_R2
 	select SYS_HAS_EARLY_PRINTK
@@ -301,9 +299,9 @@ config BCM63XX
 	select SYS_HAS_EARLY_PRINTK
 	select SWAP_IO_SPACE
 	select GPIOLIB
-	select HAVE_CLK
 	select MIPS_L1_CACHE_SHIFT_4
 	select CLKDEV_LOOKUP
+	select HAVE_LEGACY_CLK
 	help
 	  Support for BCM63XX based boards
 
@@ -424,6 +422,7 @@ config LANTIQ
 	select SWAP_IO_SPACE
 	select BOOT_RAW
 	select CLKDEV_LOOKUP
+	select HAVE_LEGACY_CLK
 	select USE_OF
 	select PINCTRL
 	select PINCTRL_LANTIQ
@@ -1404,6 +1403,7 @@ config CPU_LOONGSON64
 	select MIPS_L1_CACHE_SHIFT_6
 	select GPIOLIB
 	select SWIOTLB
+	select HAVE_KVM
 	help
 		The Loongson GSx64(GS264/GS464/GS464E/GS464V) series of processor
 		cores implements the MIPS64R2 instruction set with many extensions,
@@ -2742,7 +2742,7 @@ config RELOCATION_TABLE_SIZE
 	depends on RELOCATABLE
 	range 0x0 0x01000000
 	default "0x00100000"
-	---help---
+	help
 	  A table of relocation data will be appended to the kernel binary
 	  and parsed at boot to fix up the relocated kernel.
 
@@ -2756,7 +2756,7 @@ config RELOCATION_TABLE_SIZE
 config RANDOMIZE_BASE
 	bool "Randomize the address of the kernel image"
 	depends on RELOCATABLE
-	---help---
+	help
 	  Randomizes the physical and virtual address at which the
 	  kernel image is loaded, as a security feature that
 	  deters exploit attempts relying on knowledge of the location
@@ -2774,7 +2774,7 @@ config RANDOMIZE_BASE_MAX_OFFSET
 	range 0x0 0x40000000 if EVA || 64BIT
 	range 0x0 0x08000000
 	default "0x01000000"
-	---help---
+	help
 	  When kASLR is active, this provides the maximum offset that will
 	  be applied to the kernel image. It should be set according to the
 	  amount of physical RAM available in the target system minus

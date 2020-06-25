@@ -9,7 +9,7 @@ comment "also be needed; see USB_STORAGE Help for more info"
 config USB_STORAGE
 	tristate "USB Mass Storage support"
 	depends on SCSI
-	---help---
+	help
 	  Say Y here if you want to connect USB mass storage devices to your
 	  computer's USB port. This is the driver you need for USB
 	  floppy drives, USB hard disks, USB tape drives, USB CD-ROMs,
@@ -63,7 +63,7 @@ config USB_STORAGE_FREECOM
 
 config USB_STORAGE_ISD200
 	tristate "ISD-200 USB/ATA Bridge support"
-	---help---
+	help
 	  Say Y here if you want to use USB Mass Store devices based
 	  on the In-Systems Design ISD-200 USB/ATA bridge.
 
@@ -165,7 +165,7 @@ config USB_STORAGE_KARMA
 
 config USB_STORAGE_CYPRESS_ATACB
 	tristate "SAT emulation on Cypress USB/ATA Bridge with ATACB"
-	---help---
+	help
 	  Say Y here if you want to use SAT (ata pass through) on devices based
 	  on the Cypress USB/ATA bridge supporting ATACB. This will allow you
 	  to use tools to tune and monitor your drive (like hdparm or smartctl).
@@ -177,7 +177,7 @@ config USB_STORAGE_CYPRESS_ATACB
 
 config USB_STORAGE_ENE_UB6250
 	tristate "USB ENE card reader support"
-	---help---
+	help
 	  Say Y here if you wish to control a ENE SD/MS Card reader.
 	  Note that this driver does not support SM cards.
 

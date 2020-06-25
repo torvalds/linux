@@ -4,7 +4,7 @@ menuconfig SND_SOC_SAMSUNG
 	depends on PLAT_SAMSUNG || ARCH_EXYNOS || COMPILE_TEST
 	depends on COMMON_CLK
 	select SND_SOC_GENERIC_DMAENGINE_PCM
-	---help---
+	help
 	  Say Y or M if you want to add support for codecs attached to
 	  the Samsung SoCs' Audio interfaces. You will also need to
 	  select the audio interfaces to support below.

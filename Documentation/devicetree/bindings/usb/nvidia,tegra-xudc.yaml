@@ -64,13 +64,11 @@ properties:
      - const: hs_src
 
   power-domains:
-    maxItems: 2
     items:
       - description: XUSBB(device) power-domain
       - description: XUSBA(superspeed) power-domain
 
   power-domain-names:
-    maxItems: 2
     items:
       - const: dev
       - const: ss

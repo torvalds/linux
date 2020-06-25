@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Support for Medifield PNW Camera Imaging ISP subsystem.
  *
@@ -193,7 +194,7 @@ int hmm_init(void)
 	 * at the beginning, to avoid hmm_alloc return 0 in the
 	 * further allocation.
 	 */
-	dummy_ptr = hmm_alloc(1, HMM_BO_PRIVATE, 0, NULL, HMM_UNCACHED);
+	dummy_ptr = hmm_alloc(1, HMM_BO_PRIVATE, 0, NULL, 0);
 
 	if (!ret) {
 		ret = sysfs_create_group(&atomisp_dev->kobj,
@@ -208,6 +209,8 @@ int hmm_init(void)
 
 void hmm_cleanup(void)
 {
+	if (!dummy_ptr)
+		return;
 	sysfs_remove_group(&atomisp_dev->kobj, atomisp_attribute_group);
 
 	/* free dummy memory first */
@@ -219,11 +222,15 @@ void hmm_cleanup(void)
 }
 
 ia_css_ptr hmm_alloc(size_t bytes, enum hmm_bo_type type,
-		     int from_highmem, const void __user *userptr, bool cached)
+		     int from_highmem, const void __user *userptr,
+		     const uint16_t attrs)
 {
 	unsigned int pgnr;
 	struct hmm_buffer_object *bo;
+	bool cached = attrs & ATOMISP_MAP_FLAG_CACHED;
 	int ret;
+
+	WARN_ON(attrs & ATOMISP_MAP_FLAG_CONTIGUOUS);
 
 	/*
 	 * Check if we are initialized. In the ideal world we wouldn't need
@@ -249,7 +256,7 @@ ia_css_ptr hmm_alloc(size_t bytes, enum hmm_bo_type type,
 		goto alloc_page_err;
 	}
 
-	/* Combind the virtual address and pages togather */
+	/* Combine the virtual address and pages together */
 	ret = hmm_bo_bind(bo);
 	if (ret) {
 		dev_err(atomisp_dev, "hmm_bo_bind failed.\n");
@@ -257,6 +264,13 @@ ia_css_ptr hmm_alloc(size_t bytes, enum hmm_bo_type type,
 	}
 
 	hmm_mem_stat.tol_cnt += pgnr;
+
+	if (attrs & ATOMISP_MAP_FLAG_CLEARED)
+		hmm_set(bo->start, 0, bytes);
+
+	    dev_dbg(atomisp_dev,
+	    "%s: pages: 0x%08x (%ld bytes), type: %d from highmem %d, user ptr %p, cached %d\n",
+	    __func__, bo->start, bytes, type, from_highmem, userptr, cached);
 
 	return bo->start;
 
@@ -271,6 +285,8 @@ create_bo_err:
 void hmm_free(ia_css_ptr virt)
 {
 	struct hmm_buffer_object *bo;
+
+	dev_dbg(atomisp_dev, "%s: free 0x%08x\n", __func__, virt);
 
 	WARN_ON(!virt);
 
@@ -396,9 +412,14 @@ static int load_and_flush(ia_css_ptr virt, void *data, unsigned int bytes)
 /* Read function in ISP memory management */
 int hmm_load(ia_css_ptr virt, void *data, unsigned int bytes)
 {
+	if (!virt) {
+		dev_warn(atomisp_dev,
+			"hmm_store: address is NULL\n");
+		return -EINVAL;
+	}
 	if (!data) {
 		dev_err(atomisp_dev,
-			"hmm_load NULL argument\n");
+			"hmm_store: data is a NULL argument\n");
 		return -EINVAL;
 	}
 	return load_and_flush(virt, data, bytes);
@@ -417,6 +438,17 @@ int hmm_store(ia_css_ptr virt, const void *data, unsigned int bytes)
 	unsigned int idx, offset, len;
 	char *src, *des;
 	int ret;
+
+	if (!virt) {
+		dev_warn(atomisp_dev,
+			"hmm_store: address is NULL\n");
+		return -EINVAL;
+	}
+	if (!data) {
+		dev_err(atomisp_dev,
+			"hmm_store: data is a NULL argument\n");
+		return -EINVAL;
+	}
 
 	bo = hmm_bo_device_search_in_range(&bo_device, virt);
 	ret = hmm_check_bo(bo, virt);

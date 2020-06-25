@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Support for OmniVision OV5693 1080p HD camera sensor.
  *
@@ -1087,7 +1088,7 @@ static int ov5693_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_VCM_SLEW:
 		ret = ov5693_t_vcm_slew(&dev->sd, ctrl->val);
 		break;
-	case V4L2_CID_VCM_TIMEING:
+	case V4L2_CID_VCM_TIMING:
 		ret = ov5693_t_vcm_timing(&dev->sd, ctrl->val);
 		break;
 	default:
@@ -1230,7 +1231,7 @@ static const struct v4l2_ctrl_config ov5693_controls[] = {
 	},
 	{
 		.ops = &ctrl_ops,
-		.id = V4L2_CID_VCM_TIMEING,
+		.id = V4L2_CID_VCM_TIMING,
 		.type = V4L2_CTRL_TYPE_INTEGER,
 		.name = "vcm step time",
 		.min = 0,
@@ -1901,17 +1902,6 @@ static int ov5693_probe(struct i2c_client *client)
 	int ret = 0;
 	void *pdata;
 	unsigned int i;
-	acpi_handle handle;
-	struct acpi_device *adev;
-
-	handle = ACPI_HANDLE(&client->dev);
-	if (!handle || acpi_bus_get_device(handle, &adev)) {
-		dev_err(&client->dev, "Error could not get ACPI device\n");
-		return -ENODEV;
-	}
-	pr_info("%s: ACPI detected it on bus ID=%s, HID=%s\n",
-		__func__, acpi_device_bid(adev), acpi_device_hid(adev));
-	// FIXME: may need to release resources allocated by acpi_bus_get_device()
 
 	/*
 	 * Firmware workaround: Some modules use a "secondary default"

@@ -28,10 +28,8 @@ properties:
     description:
       Arm TrustZone CryptoCell TRNG engine has 4 ring oscillators.
       Sampling ratio values for these 4 ring oscillators. (from calibration)
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32-array
-      - items:
-          maxItems: 4
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    maxItems: 4
 
   clocks:
     maxItems: 1

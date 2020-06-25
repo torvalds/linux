@@ -117,16 +117,6 @@ config INPUT_E3X0_BUTTON
 	  To compile this driver as a module, choose M here: the
 	  module will be called e3x0_button.
 
-config INPUT_MSM_VIBRATOR
-	tristate "Qualcomm MSM vibrator driver"
-	select INPUT_FF_MEMLESS
-	help
-	  Support for the vibrator that is found on various Qualcomm MSM
-	  SOCs.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called msm_vibrator.
-
 config INPUT_PCSPKR
 	tristate "PC Speaker support"
 	depends on PCSPKR_PLATFORM
@@ -264,17 +254,6 @@ config INPUT_APANEL
 
 	 To compile this driver as a module, choose M here: the module will
 	 be called apanel.
-
-config INPUT_GP2A
-	tristate "Sharp GP2AP002A00F I2C Proximity/Opto sensor driver"
-	depends on I2C
-	depends on GPIOLIB || COMPILE_TEST
-	help
-	  Say Y here if you have a Sharp GP2AP002A00F proximity/als combo-chip
-	  hooked to an I2C bus.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called gp2ap002a00f.
 
 config INPUT_GPIO_BEEPER
 	tristate "Generic GPIO Beeper support"
@@ -738,6 +717,17 @@ config INPUT_IMS_PCU
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called ims_pcu.
+
+config INPUT_IQS269A
+	tristate "Azoteq IQS269A capacitive touch controller"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say Y to enable support for the Azoteq IQS269A capacitive
+	  touch controller.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called iqs269a.
 
 config INPUT_CMA3000
 	tristate "VTI CMA3000 Tri-axis accelerometer"

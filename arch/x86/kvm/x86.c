@@ -239,8 +239,7 @@ u64 __read_mostly host_xcr0;
 u64 __read_mostly supported_xcr0;
 EXPORT_SYMBOL_GPL(supported_xcr0);
 
-struct kmem_cache *x86_fpu_cache;
-EXPORT_SYMBOL_GPL(x86_fpu_cache);
+static struct kmem_cache *x86_fpu_cache;
 
 static struct kmem_cache *x86_emulator_cache;
 
@@ -5647,13 +5646,6 @@ int kvm_write_guest_virt_system(struct kvm_vcpu *vcpu, gva_t addr, void *val,
 	/* kvm_write_guest_virt_system can pull in tons of pages. */
 	vcpu->arch.l1tf_flush_l1d = true;
 
-	/*
-	 * FIXME: this should call handle_emulation_failure if X86EMUL_IO_NEEDED
-	 * is returned, but our callers are not ready for that and they blindly
-	 * call kvm_inject_page_fault.  Ensure that they at least do not leak
-	 * uninitialized kernel stack memory into cr2 and error code.
-	 */
-	memset(exception, 0, sizeof(*exception));
 	return kvm_write_guest_virt_helper(addr, val, bytes, vcpu,
 					   PFERR_WRITE_MASK, exception);
 }
@@ -7018,7 +7010,7 @@ restart:
 		if (!ctxt->have_exception ||
 		    exception_type(ctxt->exception.vector) == EXCPT_TRAP) {
 			kvm_rip_write(vcpu, ctxt->eip);
-			if (r && ctxt->tf)
+			if (r && (ctxt->tf || (vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP)))
 				r = kvm_vcpu_do_singlestep(vcpu);
 			if (kvm_x86_ops.update_emulated_instruction)
 				kvm_x86_ops.update_emulated_instruction(vcpu);
@@ -8277,9 +8269,8 @@ static void vcpu_load_eoi_exitmap(struct kvm_vcpu *vcpu)
 	kvm_x86_ops.load_eoi_exitmap(vcpu, eoi_exit_bitmap);
 }
 
-int kvm_arch_mmu_notifier_invalidate_range(struct kvm *kvm,
-		unsigned long start, unsigned long end,
-		bool blockable)
+void kvm_arch_mmu_notifier_invalidate_range(struct kvm *kvm,
+					    unsigned long start, unsigned long end)
 {
 	unsigned long apic_address;
 
@@ -8290,8 +8281,6 @@ int kvm_arch_mmu_notifier_invalidate_range(struct kvm *kvm,
 	apic_address = gfn_to_hva(kvm, APIC_DEFAULT_PHYS_BASE >> PAGE_SHIFT);
 	if (start <= apic_address && apic_address < end)
 		kvm_make_all_cpus_request(kvm, KVM_REQ_APIC_PAGE_RELOAD);
-
-	return 0;
 }
 
 void kvm_vcpu_reload_apic_access_page(struct kvm_vcpu *vcpu)
@@ -9962,13 +9951,8 @@ int __x86_set_memory_region(struct kvm *kvm, int id, gpa_t gpa, u32 size)
 		if (!slot || !slot->npages)
 			return 0;
 
-		/*
-		 * Stuff a non-canonical value to catch use-after-delete.  This
-		 * ends up being 0 on 32-bit KVM, but there's no better
-		 * alternative.
-		 */
-		hva = (unsigned long)(0xdeadull << 48);
 		old_npages = slot->npages;
+		hva = 0;
 	}
 
 	for (i = 0; i < KVM_ADDRESS_SPACE_NUM; i++) {
@@ -10140,43 +10124,65 @@ int kvm_arch_prepare_memory_region(struct kvm *kvm,
 }
 
 static void kvm_mmu_slot_apply_flags(struct kvm *kvm,
-				     struct kvm_memory_slot *new)
+				     struct kvm_memory_slot *old,
+				     struct kvm_memory_slot *new,
+				     enum kvm_mr_change change)
 {
-	/* Still write protect RO slot */
-	if (new->flags & KVM_MEM_READONLY) {
-		kvm_mmu_slot_remove_write_access(kvm, new, PG_LEVEL_4K);
+	/*
+	 * Nothing to do for RO slots or CREATE/MOVE/DELETE of a slot.
+	 * See comments below.
+	 */
+	if ((change != KVM_MR_FLAGS_ONLY) || (new->flags & KVM_MEM_READONLY))
 		return;
-	}
 
 	/*
-	 * Call kvm_x86_ops dirty logging hooks when they are valid.
+	 * Dirty logging tracks sptes in 4k granularity, meaning that large
+	 * sptes have to be split.  If live migration is successful, the guest
+	 * in the source machine will be destroyed and large sptes will be
+	 * created in the destination. However, if the guest continues to run
+	 * in the source machine (for example if live migration fails), small
+	 * sptes will remain around and cause bad performance.
 	 *
-	 * kvm_x86_ops.slot_disable_log_dirty is called when:
+	 * Scan sptes if dirty logging has been stopped, dropping those
+	 * which can be collapsed into a single large-page spte.  Later
+	 * page faults will create the large-page sptes.
 	 *
-	 *  - KVM_MR_CREATE with dirty logging is disabled
-	 *  - KVM_MR_FLAGS_ONLY with dirty logging is disabled in new flag
+	 * There is no need to do this in any of the following cases:
+	 * CREATE:      No dirty mappings will already exist.
+	 * MOVE/DELETE: The old mappings will already have been cleaned up by
+	 *		kvm_arch_flush_shadow_memslot()
+	 */
+	if ((old->flags & KVM_MEM_LOG_DIRTY_PAGES) &&
+	    !(new->flags & KVM_MEM_LOG_DIRTY_PAGES))
+		kvm_mmu_zap_collapsible_sptes(kvm, new);
+
+	/*
+	 * Enable or disable dirty logging for the slot.
 	 *
-	 * The reason is, in case of PML, we need to set D-bit for any slots
-	 * with dirty logging disabled in order to eliminate unnecessary GPA
-	 * logging in PML buffer (and potential PML buffer full VMEXIT). This
-	 * guarantees leaving PML enabled during guest's lifetime won't have
-	 * any additional overhead from PML when guest is running with dirty
-	 * logging disabled for memory slots.
+	 * For KVM_MR_DELETE and KVM_MR_MOVE, the shadow pages of the old
+	 * slot have been zapped so no dirty logging updates are needed for
+	 * the old slot.
+	 * For KVM_MR_CREATE and KVM_MR_MOVE, once the new slot is visible
+	 * any mappings that might be created in it will consume the
+	 * properties of the new slot and do not need to be updated here.
 	 *
-	 * kvm_x86_ops.slot_enable_log_dirty is called when switching new slot
-	 * to dirty logging mode.
+	 * When PML is enabled, the kvm_x86_ops dirty logging hooks are
+	 * called to enable/disable dirty logging.
 	 *
-	 * If kvm_x86_ops dirty logging hooks are invalid, use write protect.
+	 * When disabling dirty logging with PML enabled, the D-bit is set
+	 * for sptes in the slot in order to prevent unnecessary GPA
+	 * logging in the PML buffer (and potential PML buffer full VMEXIT).
+	 * This guarantees leaving PML enabled for the guest's lifetime
+	 * won't have any additional overhead from PML when the guest is
+	 * running with dirty logging disabled.
 	 *
-	 * In case of write protect:
-	 *
-	 * Write protect all pages for dirty logging.
-	 *
-	 * All the sptes including the large sptes which point to this
-	 * slot are set to readonly. We can not create any new large
-	 * spte on this slot until the end of the logging.
-	 *
+	 * When enabling dirty logging, large sptes are write-protected
+	 * so they can be split on first write.  New large sptes cannot
+	 * be created for this slot until the end of the logging.
 	 * See the comments in fast_page_fault().
+	 * For small sptes, nothing is done if the dirty log is in the
+	 * initial-all-set state.  Otherwise, depending on whether pml
+	 * is enabled the D-bit or the W-bit will be cleared.
 	 */
 	if (new->flags & KVM_MEM_LOG_DIRTY_PAGES) {
 		if (kvm_x86_ops.slot_enable_log_dirty) {
@@ -10213,39 +10219,9 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 				kvm_mmu_calculate_default_mmu_pages(kvm));
 
 	/*
-	 * Dirty logging tracks sptes in 4k granularity, meaning that large
-	 * sptes have to be split.  If live migration is successful, the guest
-	 * in the source machine will be destroyed and large sptes will be
-	 * created in the destination. However, if the guest continues to run
-	 * in the source machine (for example if live migration fails), small
-	 * sptes will remain around and cause bad performance.
-	 *
-	 * Scan sptes if dirty logging has been stopped, dropping those
-	 * which can be collapsed into a single large-page spte.  Later
-	 * page faults will create the large-page sptes.
-	 *
-	 * There is no need to do this in any of the following cases:
-	 * CREATE:	No dirty mappings will already exist.
-	 * MOVE/DELETE:	The old mappings will already have been cleaned up by
-	 *		kvm_arch_flush_shadow_memslot()
-	 */
-	if (change == KVM_MR_FLAGS_ONLY &&
-		(old->flags & KVM_MEM_LOG_DIRTY_PAGES) &&
-		!(new->flags & KVM_MEM_LOG_DIRTY_PAGES))
-		kvm_mmu_zap_collapsible_sptes(kvm, new);
-
-	/*
-	 * Set up write protection and/or dirty logging for the new slot.
-	 *
-	 * For KVM_MR_DELETE and KVM_MR_MOVE, the shadow pages of old slot have
-	 * been zapped so no dirty logging staff is needed for old slot. For
-	 * KVM_MR_FLAGS_ONLY, the old slot is essentially the same one as the
-	 * new and it's also covered when dealing with the new slot.
-	 *
 	 * FIXME: const-ify all uses of struct kvm_memory_slot.
 	 */
-	if (change != KVM_MR_DELETE)
-		kvm_mmu_slot_apply_flags(kvm, (struct kvm_memory_slot *) new);
+	kvm_mmu_slot_apply_flags(kvm, old, (struct kvm_memory_slot *) new, change);
 
 	/* Free the arrays associated with the old memslot. */
 	if (change == KVM_MR_MOVE)
@@ -10530,7 +10506,7 @@ bool kvm_can_do_async_pf(struct kvm_vcpu *vcpu)
 	return kvm_arch_interrupt_allowed(vcpu);
 }
 
-void kvm_arch_async_page_not_present(struct kvm_vcpu *vcpu,
+bool kvm_arch_async_page_not_present(struct kvm_vcpu *vcpu,
 				     struct kvm_async_pf *work)
 {
 	struct x86_exception fault;
@@ -10547,6 +10523,7 @@ void kvm_arch_async_page_not_present(struct kvm_vcpu *vcpu,
 		fault.address = work->arch.token;
 		fault.async_page_fault = true;
 		kvm_inject_page_fault(vcpu, &fault);
+		return true;
 	} else {
 		/*
 		 * It is not possible to deliver a paravirtualized asynchronous
@@ -10557,6 +10534,7 @@ void kvm_arch_async_page_not_present(struct kvm_vcpu *vcpu,
 		 * fault is retried, hopefully the page will be ready in the host.
 		 */
 		kvm_make_request(KVM_REQ_APF_HALT, vcpu);
+		return false;
 	}
 }
 
@@ -10574,7 +10552,8 @@ void kvm_arch_async_page_present(struct kvm_vcpu *vcpu,
 		kvm_del_async_pf_gfn(vcpu, work->arch.gfn);
 	trace_kvm_async_pf_ready(work->arch.token, work->cr2_or_gpa);
 
-	if (kvm_pv_async_pf_enabled(vcpu) &&
+	if ((work->wakeup_all || work->notpresent_injected) &&
+	    kvm_pv_async_pf_enabled(vcpu) &&
 	    !apf_put_user_ready(vcpu, work->arch.token)) {
 		vcpu->arch.apf.pageready_pending = true;
 		kvm_apic_set_irq(vcpu, &irq, NULL);

@@ -3,7 +3,6 @@ include ../scripts/Makefile.include
 
 prefix ?= /usr/local
 
-CC = gcc
 LEX = flex
 YACC = bison
 MAKE = make

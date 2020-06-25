@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Support for atomisp driver sysfs interface
  *
@@ -24,6 +25,7 @@
 #include "atomisp_ioctl.h"
 #include "atomisp_drvfs.h"
 #include "hmm/hmm.h"
+#include "ia_css_debug.h"
 
 /*
  * _iunit_debug:
@@ -94,7 +96,7 @@ opt_err:
 
 static ssize_t iunit_dbglvl_show(struct device_driver *drv, char *buf)
 {
-	iunit_debug.dbglvl = atomisp_css_debug_get_dtrace_level();
+	iunit_debug.dbglvl = dbg_level;
 	return sprintf(buf, "dtrace level:%u\n", iunit_debug.dbglvl);
 }
 
@@ -106,7 +108,7 @@ static ssize_t iunit_dbglvl_store(struct device_driver *drv, const char *buf,
 	    || iunit_debug.dbglvl > 9) {
 		return -ERANGE;
 	}
-	atomisp_css_debug_set_dtrace_level(iunit_debug.dbglvl);
+	ia_css_debug_set_dtrace_level(iunit_debug.dbglvl);
 
 	return size;
 }

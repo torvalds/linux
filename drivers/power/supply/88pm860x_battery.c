@@ -919,16 +919,12 @@ static int pm860x_battery_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	info->irq_cc = platform_get_irq(pdev, 0);
-	if (info->irq_cc <= 0) {
-		dev_err(&pdev->dev, "No IRQ resource!\n");
+	if (info->irq_cc <= 0)
 		return -EINVAL;
-	}
 
 	info->irq_batt = platform_get_irq(pdev, 1);
-	if (info->irq_batt <= 0) {
-		dev_err(&pdev->dev, "No IRQ resource!\n");
+	if (info->irq_batt <= 0)
 		return -EINVAL;
-	}
 
 	info->chip = chip;
 	info->i2c =

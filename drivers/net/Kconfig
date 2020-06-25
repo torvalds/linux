@@ -7,7 +7,7 @@ menuconfig NETDEVICES
 	default y if UML
 	depends on NET
 	bool "Network device support"
-	---help---
+	help
 	  You can say N here if you don't intend to connect your Linux box to
 	  any other computer at all.
 
@@ -32,7 +32,7 @@ config MII
 config NET_CORE
 	default y
 	bool "Network core driver support"
-	---help---
+	help
 	  You can say N here if you do not intend to use any of the
 	  networking core drivers (i.e. VLAN, bridging, bonding, etc.)
 
@@ -42,7 +42,7 @@ config BONDING
 	tristate "Bonding driver support"
 	depends on INET
 	depends on IPV6 || IPV6=n
-	---help---
+	help
 	  Say 'Y' or 'M' if you wish to be able to 'bond' multiple Ethernet
 	  Channels together. This is called 'Etherchannel' by Cisco,
 	  'Trunking' by Sun, 802.3ad by the IEEE, and 'Bonding' in Linux.
@@ -58,7 +58,7 @@ config BONDING
 
 config DUMMY
 	tristate "Dummy net driver support"
-	---help---
+	help
 	  This is essentially a bit-bucket device (i.e. traffic you send to
 	  this device is consigned into oblivion) with a configurable IP
 	  address. It is most commonly used in order to make your currently
@@ -116,7 +116,7 @@ config WIREGUARD_DEBUG
 
 config EQUALIZER
 	tristate "EQL (serial line load balancing) support"
-	---help---
+	help
 	  If you have two serial connections to some other computer (this
 	  usually requires two modems and two telephone lines) and you use
 	  SLIP (the protocol for sending Internet traffic over telephone
@@ -150,7 +150,7 @@ config IFB
 	tristate "Intermediate Functional Block support"
 	depends on NET_CLS_ACT
 	select NET_REDIRECT
-	---help---
+	help
 	  This is an intermediate driver that allows sharing of
 	  resources.
 	  To compile this driver as a module, choose M here: the module
@@ -164,7 +164,7 @@ source "drivers/net/team/Kconfig"
 
 config MACVLAN
 	tristate "MAC-VLAN support"
-	---help---
+	help
 	  This allows one to create virtual interfaces that map packets to
 	  or from specific MAC addresses to a particular interface.
 
@@ -200,7 +200,7 @@ config IPVLAN
 	tristate "IP-VLAN support"
 	depends on INET
 	depends on IPV6 || !IPV6
-	---help---
+	help
 	  This allows one to create virtual devices off of a main interface
 	  and packets will be delivered based on the dest L3 (IPv6/IPv4 addr)
 	  on packets. All interfaces (including the main interface) share L2
@@ -219,7 +219,7 @@ config IPVTAP
 	depends on IPVLAN
 	depends on INET
 	select TAP
-	---help---
+	help
 	  This adds a specialized tap character device driver that is based
 	  on the IP-VLAN network interface, called ipvtap. An ipvtap device
 	  can be added in the same way as a ipvlan device, using 'type
@@ -233,7 +233,7 @@ config VXLAN
 	depends on INET
 	select NET_UDP_TUNNEL
 	select GRO_CELLS
-	---help---
+	help
 	  This allows one to create vxlan virtual interfaces that provide
 	  Layer 2 Networks over Layer 3 Networks. VXLAN is often used
 	  to tunnel virtual network infrastructure in virtualized environments.
@@ -249,7 +249,7 @@ config GENEVE
 	depends on IPV6 || !IPV6
 	select NET_UDP_TUNNEL
 	select GRO_CELLS
-	---help---
+	help
 	  This allows one to create geneve virtual interfaces that provide
 	  Layer 2 Networks over Layer 3 Networks. GENEVE is often used
 	  to tunnel virtual network infrastructure in virtualized environments.
@@ -276,7 +276,7 @@ config GTP
 	tristate "GPRS Tunneling Protocol datapath (GTP-U)"
 	depends on INET
 	select NET_UDP_TUNNEL
-	---help---
+	help
 	  This allows one to create gtp virtual interfaces that provide
 	  the GPRS Tunneling Protocol datapath (GTP-U). This tunneling protocol
 	  is used to prevent subscribers from accessing mobile carrier core
@@ -295,12 +295,12 @@ config MACSEC
 	select CRYPTO_AES
 	select CRYPTO_GCM
 	select GRO_CELLS
-	---help---
+	help
 	   MACsec is an encryption standard for Ethernet.
 
 config NETCONSOLE
 	tristate "Network console logging support"
-	---help---
+	help
 	  If you want to log kernel messages over the network, enable this.
 	  See <file:Documentation/networking/netconsole.rst> for details.
 
@@ -343,7 +343,7 @@ config TUN
 	tristate "Universal TUN/TAP device driver support"
 	depends on INET
 	select CRC32
-	---help---
+	help
 	  TUN/TAP provides packet reception and transmission for user space
 	  programs.  It can be viewed as a simple Point-to-Point or Ethernet
 	  device, which instead of receiving packets from a physical media,
@@ -365,14 +365,14 @@ config TUN
 
 config TAP
 	tristate
-	---help---
+	help
 	  This option is selected by any driver implementing tap user space
 	  interface for a virtual interface to re-use core tap functionality.
 
 config TUN_VNET_CROSS_LE
 	bool "Support for cross-endian vnet headers on little-endian kernels"
 	default n
-	---help---
+	help
 	  This option allows TUN/TAP and MACVTAP device drivers in a
 	  little-endian kernel to parse vnet headers that come from a
 	  big-endian legacy virtio device.
@@ -385,7 +385,7 @@ config TUN_VNET_CROSS_LE
 
 config VETH
 	tristate "Virtual ethernet pair device"
-	---help---
+	help
 	  This device is a local ethernet tunnel. Devices are created in pairs.
 	  When one end receives the packet it appears on its pair and vice
 	  versa.
@@ -394,13 +394,13 @@ config VIRTIO_NET
 	tristate "Virtio network driver"
 	depends on VIRTIO
 	select NET_FAILOVER
-	---help---
+	help
 	  This is the virtual network driver for virtio.  It can be used with
 	  QEMU based VMMs (like KVM or Xen).  Say Y or M.
 
 config NLMON
 	tristate "Virtual netlink monitoring device"
-	---help---
+	help
 	  This option enables a monitoring net device for netlink skbs. The
 	  purpose of this is to analyze netlink messages with packet sockets.
 	  Thus applications like tcpdump will be able to see local netlink
@@ -414,14 +414,14 @@ config NET_VRF
 	depends on NET_L3_MASTER_DEV
 	depends on IPV6 || IPV6=n
 	depends on IPV6_MULTIPLE_TABLES || IPV6=n
-	---help---
+	help
 	  This option enables the support for mapping interfaces into VRF's. The
 	  support enables VRF devices.
 
 config VSOCKMON
 	tristate "Virtual vsock monitoring device"
 	depends on VHOST_VSOCK
-	---help---
+	help
 	  This option enables a monitoring net device for vsock sockets. It is
 	  mostly intended for developers or support to debug vsock issues. If
 	  unsure, say N.
@@ -450,7 +450,7 @@ source "drivers/net/ipa/Kconfig"
 config NET_SB1000
 	tristate "General Instruments Surfboard 1000"
 	depends on PNP
-	---help---
+	help
 	  This is a driver for the General Instrument (also known as
 	  NextLevel) SURFboard 1000 internal
 	  cable modem. This is an ISA card which is used by a number of cable

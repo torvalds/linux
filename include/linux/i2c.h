@@ -351,14 +351,14 @@ static inline struct i2c_client *kobj_to_i2c_client(struct kobject *kobj)
 	return to_i2c_client(dev);
 }
 
-static inline void *i2c_get_clientdata(const struct i2c_client *dev)
+static inline void *i2c_get_clientdata(const struct i2c_client *client)
 {
-	return dev_get_drvdata(&dev->dev);
+	return dev_get_drvdata(&client->dev);
 }
 
-static inline void i2c_set_clientdata(struct i2c_client *dev, void *data)
+static inline void i2c_set_clientdata(struct i2c_client *client, void *data)
 {
-	dev_set_drvdata(&dev->dev, data);
+	dev_set_drvdata(&client->dev, data);
 }
 
 /* I2C slave support */

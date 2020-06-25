@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2015, Intel Corporation.
@@ -62,7 +63,7 @@ void ia_css_get_isp_dvs2_coefficients(
 void ia_css_sdis2_clear_coefficients(
     struct ia_css_dvs2_coefficients *dvs2_coefs);
 
-enum ia_css_err
+int
 ia_css_get_dvs2_statistics(
     struct ia_css_dvs2_statistics	       *host_stats,
     const struct ia_css_isp_dvs_statistics *isp_stats);

@@ -66,7 +66,7 @@ config PROC_SYSCTL
 	depends on PROC_FS
 	select SYSCTL
 	default y
-	---help---
+	help
 	  The sysctl interface provides a means of dynamically changing
 	  certain kernel parameters and variables on the fly without requiring
 	  a recompile of the kernel or reboot of the system.  The primary

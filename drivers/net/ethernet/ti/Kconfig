@@ -7,7 +7,7 @@ config NET_VENDOR_TI
 	bool "Texas Instruments (TI) devices"
 	default y
 	depends on PCI || EISA || AR7 || ARCH_DAVINCI || ARCH_OMAP2PLUS || ARCH_KEYSTONE || ARCH_K3
-	---help---
+	help
 	  If you have a network (Ethernet) card belonging to this class, say Y.
 
 	  Note that the answer to this question doesn't directly affect the
@@ -23,7 +23,7 @@ config TI_DAVINCI_EMAC
 	select TI_DAVINCI_MDIO
 	select PHYLIB
 	select GENERIC_ALLOCATOR
-	---help---
+	help
 	  This driver supports TI's DaVinci Ethernet .
 
 	  To compile this driver as a module, choose M here: the module
@@ -33,7 +33,7 @@ config TI_DAVINCI_MDIO
 	tristate "TI DaVinci MDIO Support"
 	depends on ARCH_DAVINCI || ARCH_OMAP2PLUS || ARCH_KEYSTONE || ARCH_K3 || COMPILE_TEST
 	select PHYLIB
-	---help---
+	help
 	  This driver supports TI's DaVinci MDIO module.
 
 	  To compile this driver as a module, choose M here: the module
@@ -42,7 +42,7 @@ config TI_DAVINCI_MDIO
 config TI_CPSW_PHY_SEL
 	bool "TI CPSW Phy mode Selection (DEPRECATED)"
 	default n
-	---help---
+	help
 	  This driver supports configuring of the phy mode connected to
 	  the CPSW. DEPRECATED: use PHY_TI_GMII_SEL.
 
@@ -55,7 +55,7 @@ config TI_CPSW
 	select PAGE_POOL
 	select REGMAP
 	imply PHY_TI_GMII_SEL
-	---help---
+	help
 	  This driver supports TI's CPSW Ethernet Switch.
 
 	  To compile this driver as a module, choose M here: the module
@@ -83,7 +83,7 @@ config TI_CPTS
 	depends on ARCH_OMAP2PLUS || ARCH_KEYSTONE || COMPILE_TEST
 	depends on COMMON_CLK
 	depends on PTP_1588_CLOCK
-	---help---
+	help
 	  This driver supports the Common Platform Time Sync unit of
 	  the CPSW Ethernet Switch and Keystone 2 1g/10g Switch Subsystem.
 	  The unit can time stamp PTP UDP/IPv4 and Layer 2 packets, and the
@@ -133,7 +133,7 @@ config TI_KEYSTONE_NETCP
 	depends on OF
 	depends on KEYSTONE_NAVIGATOR_DMA && KEYSTONE_NAVIGATOR_QMSS
 	depends on TI_CPTS || !TI_CPTS
-	---help---
+	help
 	  This driver supports TI's Keystone NETCP Core.
 
 	  To compile this driver as a module, choose M here: the module
@@ -142,7 +142,7 @@ config TI_KEYSTONE_NETCP
 config TI_KEYSTONE_NETCP_ETHSS
 	depends on TI_KEYSTONE_NETCP
 	tristate "TI Keystone NETCP Ethernet subsystem Support"
-	---help---
+	help
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called keystone_netcp_ethss.
@@ -150,7 +150,7 @@ config TI_KEYSTONE_NETCP_ETHSS
 config TLAN
 	tristate "TI ThunderLAN support"
 	depends on (PCI || EISA)
-	---help---
+	help
 	  If you have a PCI Ethernet network card based on the ThunderLAN chip
 	  which is supported by this driver, say Y here.
 
@@ -168,7 +168,7 @@ config CPMAC
 	tristate "TI AR7 CPMAC Ethernet support"
 	depends on AR7
 	select PHYLIB
-	---help---
+	help
 	  TI AR7 CPMAC Ethernet support
 
 endif # NET_VENDOR_TI

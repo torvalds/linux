@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2010 - 2015, Intel Corporation.
@@ -12,11 +13,12 @@
  * more details.
  */
 
+#include "hmm.h"
+
 #include "type_support.h"
 #include "queue_access.h"
 #include "ia_css_circbuf.h"
 #include "sp.h"
-#include "memory_access.h"
 #include "assert_support.h"
 
 int ia_css_queue_load(
@@ -25,7 +27,7 @@ int ia_css_queue_load(
     uint32_t ignore_desc_flags)
 {
 	if (!rdesc || !cb_desc)
-		return EINVAL;
+		return -EINVAL;
 
 	if (rdesc->location == IA_CSS_QUEUE_LOC_SP) {
 		assert(ignore_desc_flags <= QUEUE_IGNORE_DESC_FLAGS_MAX);
@@ -63,12 +65,12 @@ int ia_css_queue_load(
 
 	} else if (rdesc->location == IA_CSS_QUEUE_LOC_HOST) {
 		/* doing DMA transfer of entire structure */
-		mmgr_load(rdesc->desc.remote.cb_desc_addr,
+		hmm_load(rdesc->desc.remote.cb_desc_addr,
 			  (void *)cb_desc,
 			  sizeof(ia_css_circbuf_desc_t));
 	} else if (rdesc->location == IA_CSS_QUEUE_LOC_ISP) {
 		/* Not supported yet */
-		return ENOTSUP;
+		return -ENOTSUPP;
 	}
 
 	return 0;
@@ -80,7 +82,7 @@ int ia_css_queue_store(
     uint32_t ignore_desc_flags)
 {
 	if (!rdesc || !cb_desc)
-		return EINVAL;
+		return -EINVAL;
 
 	if (rdesc->location == IA_CSS_QUEUE_LOC_SP) {
 		assert(ignore_desc_flags <= QUEUE_IGNORE_DESC_FLAGS_MAX);
@@ -110,12 +112,12 @@ int ia_css_queue_store(
 					    cb_desc->step);
 	} else if (rdesc->location == IA_CSS_QUEUE_LOC_HOST) {
 		/* doing DMA transfer of entire structure */
-		mmgr_store(rdesc->desc.remote.cb_desc_addr,
+		hmm_store(rdesc->desc.remote.cb_desc_addr,
 			   (void *)cb_desc,
 			   sizeof(ia_css_circbuf_desc_t));
 	} else if (rdesc->location == IA_CSS_QUEUE_LOC_ISP) {
 		/* Not supported yet */
-		return ENOTSUP;
+		return -ENOTSUPP;
 	}
 
 	return 0;
@@ -127,7 +129,7 @@ int ia_css_queue_item_load(
     ia_css_circbuf_elem_t *item)
 {
 	if (!rdesc || !item)
-		return EINVAL;
+		return -EINVAL;
 
 	if (rdesc->location == IA_CSS_QUEUE_LOC_SP) {
 		sp_dmem_load(rdesc->proc_id,
@@ -136,13 +138,13 @@ int ia_css_queue_item_load(
 			     item,
 			     sizeof(ia_css_circbuf_elem_t));
 	} else if (rdesc->location == IA_CSS_QUEUE_LOC_HOST) {
-		mmgr_load(rdesc->desc.remote.cb_elems_addr
+		hmm_load(rdesc->desc.remote.cb_elems_addr
 			  + position * sizeof(ia_css_circbuf_elem_t),
 			  (void *)item,
 			  sizeof(ia_css_circbuf_elem_t));
 	} else if (rdesc->location == IA_CSS_QUEUE_LOC_ISP) {
 		/* Not supported yet */
-		return ENOTSUP;
+		return -ENOTSUPP;
 	}
 
 	return 0;
@@ -154,7 +156,7 @@ int ia_css_queue_item_store(
     ia_css_circbuf_elem_t *item)
 {
 	if (!rdesc || !item)
-		return EINVAL;
+		return -EINVAL;
 
 	if (rdesc->location == IA_CSS_QUEUE_LOC_SP) {
 		sp_dmem_store(rdesc->proc_id,
@@ -163,13 +165,13 @@ int ia_css_queue_item_store(
 			      item,
 			      sizeof(ia_css_circbuf_elem_t));
 	} else if (rdesc->location == IA_CSS_QUEUE_LOC_HOST) {
-		mmgr_store(rdesc->desc.remote.cb_elems_addr
+		hmm_store(rdesc->desc.remote.cb_elems_addr
 			   + position * sizeof(ia_css_circbuf_elem_t),
 			   (void *)item,
 			   sizeof(ia_css_circbuf_elem_t));
 	} else if (rdesc->location == IA_CSS_QUEUE_LOC_ISP) {
 		/* Not supported yet */
-		return ENOTSUP;
+		return -ENOTSUPP;
 	}
 
 	return 0;

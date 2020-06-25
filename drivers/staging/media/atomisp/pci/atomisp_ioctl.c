@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Support for Medifield PNW Camera Imaging ISP subsystem.
  *
@@ -38,8 +39,6 @@
 #include "gp_device.h"
 #include "device_access.h"
 #include "irq.h"
-
-#include "hrt/hive_isp_css_mm_hrt.h"
 
 static const char *DRIVER = "atomisp";	/* max size 15 */
 static const char *CARD = "ATOM ISP";	/* max size 31 */
@@ -341,163 +340,163 @@ const struct atomisp_format_bridge atomisp_output_fmts[] = {
 		.pixelformat = V4L2_PIX_FMT_YUV420,
 		.depth = 12,
 		.mbus_code = V4L2_MBUS_FMT_CUSTOM_YUV420,
-		.sh_fmt = CSS_FRAME_FORMAT_YUV420,
+		.sh_fmt = IA_CSS_FRAME_FORMAT_YUV420,
 		.description = "YUV420, planar",
 		.planar = true
 	}, {
 		.pixelformat = V4L2_PIX_FMT_YVU420,
 		.depth = 12,
 		.mbus_code = V4L2_MBUS_FMT_CUSTOM_YVU420,
-		.sh_fmt = CSS_FRAME_FORMAT_YV12,
+		.sh_fmt = IA_CSS_FRAME_FORMAT_YV12,
 		.description = "YVU420, planar",
 		.planar = true
 	}, {
 		.pixelformat = V4L2_PIX_FMT_YUV422P,
 		.depth = 16,
 		.mbus_code = V4L2_MBUS_FMT_CUSTOM_YUV422P,
-		.sh_fmt = CSS_FRAME_FORMAT_YUV422,
+		.sh_fmt = IA_CSS_FRAME_FORMAT_YUV422,
 		.description = "YUV422, planar",
 		.planar = true
 	}, {
 		.pixelformat = V4L2_PIX_FMT_YUV444,
 		.depth = 24,
 		.mbus_code = V4L2_MBUS_FMT_CUSTOM_YUV444,
-		.sh_fmt = CSS_FRAME_FORMAT_YUV444,
+		.sh_fmt = IA_CSS_FRAME_FORMAT_YUV444,
 		.description = "YUV444"
 	}, {
 		.pixelformat = V4L2_PIX_FMT_NV12,
 		.depth = 12,
 		.mbus_code = V4L2_MBUS_FMT_CUSTOM_NV12,
-		.sh_fmt = CSS_FRAME_FORMAT_NV12,
+		.sh_fmt = IA_CSS_FRAME_FORMAT_NV12,
 		.description = "NV12, Y-plane, CbCr interleaved",
 		.planar = true
 	}, {
 		.pixelformat = V4L2_PIX_FMT_NV21,
 		.depth = 12,
 		.mbus_code = V4L2_MBUS_FMT_CUSTOM_NV21,
-		.sh_fmt = CSS_FRAME_FORMAT_NV21,
+		.sh_fmt = IA_CSS_FRAME_FORMAT_NV21,
 		.description = "NV21, Y-plane, CbCr interleaved",
 		.planar = true
 	}, {
 		.pixelformat = V4L2_PIX_FMT_NV16,
 		.depth = 16,
 		.mbus_code = V4L2_MBUS_FMT_CUSTOM_NV16,
-		.sh_fmt = CSS_FRAME_FORMAT_NV16,
+		.sh_fmt = IA_CSS_FRAME_FORMAT_NV16,
 		.description = "NV16, Y-plane, CbCr interleaved",
 		.planar = true
 	}, {
 		.pixelformat = V4L2_PIX_FMT_YUYV,
 		.depth = 16,
 		.mbus_code = V4L2_MBUS_FMT_CUSTOM_YUYV,
-		.sh_fmt = CSS_FRAME_FORMAT_YUYV,
+		.sh_fmt = IA_CSS_FRAME_FORMAT_YUYV,
 		.description = "YUYV, interleaved"
 	}, {
 		.pixelformat = V4L2_PIX_FMT_UYVY,
 		.depth = 16,
 		.mbus_code = MEDIA_BUS_FMT_UYVY8_1X16,
-		.sh_fmt = CSS_FRAME_FORMAT_UYVY,
+		.sh_fmt = IA_CSS_FRAME_FORMAT_UYVY,
 		.description = "UYVY, interleaved"
 	}, { /* This one is for parallel sensors! DO NOT USE! */
 		.pixelformat = V4L2_PIX_FMT_UYVY,
 		.depth = 16,
 		.mbus_code = MEDIA_BUS_FMT_UYVY8_2X8,
-		.sh_fmt = CSS_FRAME_FORMAT_UYVY,
+		.sh_fmt = IA_CSS_FRAME_FORMAT_UYVY,
 		.description = "UYVY, interleaved"
 	}, {
 		.pixelformat = V4L2_PIX_FMT_SBGGR16,
 		.depth = 16,
 		.mbus_code = V4L2_MBUS_FMT_CUSTOM_SBGGR16,
-		.sh_fmt = CSS_FRAME_FORMAT_RAW,
+		.sh_fmt = IA_CSS_FRAME_FORMAT_RAW,
 		.description = "Bayer 16"
 	}, {
 		.pixelformat = V4L2_PIX_FMT_SBGGR8,
 		.depth = 8,
 		.mbus_code = MEDIA_BUS_FMT_SBGGR8_1X8,
-		.sh_fmt = CSS_FRAME_FORMAT_RAW,
+		.sh_fmt = IA_CSS_FRAME_FORMAT_RAW,
 		.description = "Bayer 8"
 	}, {
 		.pixelformat = V4L2_PIX_FMT_SGBRG8,
 		.depth = 8,
 		.mbus_code = MEDIA_BUS_FMT_SGBRG8_1X8,
-		.sh_fmt = CSS_FRAME_FORMAT_RAW,
+		.sh_fmt = IA_CSS_FRAME_FORMAT_RAW,
 		.description = "Bayer 8"
 	}, {
 		.pixelformat = V4L2_PIX_FMT_SGRBG8,
 		.depth = 8,
 		.mbus_code = MEDIA_BUS_FMT_SGRBG8_1X8,
-		.sh_fmt = CSS_FRAME_FORMAT_RAW,
+		.sh_fmt = IA_CSS_FRAME_FORMAT_RAW,
 		.description = "Bayer 8"
 	}, {
 		.pixelformat = V4L2_PIX_FMT_SRGGB8,
 		.depth = 8,
 		.mbus_code = MEDIA_BUS_FMT_SRGGB8_1X8,
-		.sh_fmt = CSS_FRAME_FORMAT_RAW,
+		.sh_fmt = IA_CSS_FRAME_FORMAT_RAW,
 		.description = "Bayer 8"
 	}, {
 		.pixelformat = V4L2_PIX_FMT_SBGGR10,
 		.depth = 16,
 		.mbus_code = MEDIA_BUS_FMT_SBGGR10_1X10,
-		.sh_fmt = CSS_FRAME_FORMAT_RAW,
+		.sh_fmt = IA_CSS_FRAME_FORMAT_RAW,
 		.description = "Bayer 10"
 	}, {
 		.pixelformat = V4L2_PIX_FMT_SGBRG10,
 		.depth = 16,
 		.mbus_code = MEDIA_BUS_FMT_SGBRG10_1X10,
-		.sh_fmt = CSS_FRAME_FORMAT_RAW,
+		.sh_fmt = IA_CSS_FRAME_FORMAT_RAW,
 		.description = "Bayer 10"
 	}, {
 		.pixelformat = V4L2_PIX_FMT_SGRBG10,
 		.depth = 16,
 		.mbus_code = MEDIA_BUS_FMT_SGRBG10_1X10,
-		.sh_fmt = CSS_FRAME_FORMAT_RAW,
+		.sh_fmt = IA_CSS_FRAME_FORMAT_RAW,
 		.description = "Bayer 10"
 	}, {
 		.pixelformat = V4L2_PIX_FMT_SRGGB10,
 		.depth = 16,
 		.mbus_code = MEDIA_BUS_FMT_SRGGB10_1X10,
-		.sh_fmt = CSS_FRAME_FORMAT_RAW,
+		.sh_fmt = IA_CSS_FRAME_FORMAT_RAW,
 		.description = "Bayer 10"
 	}, {
 		.pixelformat = V4L2_PIX_FMT_SBGGR12,
 		.depth = 16,
 		.mbus_code = MEDIA_BUS_FMT_SBGGR12_1X12,
-		.sh_fmt = CSS_FRAME_FORMAT_RAW,
+		.sh_fmt = IA_CSS_FRAME_FORMAT_RAW,
 		.description = "Bayer 12"
 	}, {
 		.pixelformat = V4L2_PIX_FMT_SGBRG12,
 		.depth = 16,
 		.mbus_code = MEDIA_BUS_FMT_SGBRG12_1X12,
-		.sh_fmt = CSS_FRAME_FORMAT_RAW,
+		.sh_fmt = IA_CSS_FRAME_FORMAT_RAW,
 		.description = "Bayer 12"
 	}, {
 		.pixelformat = V4L2_PIX_FMT_SGRBG12,
 		.depth = 16,
 		.mbus_code = MEDIA_BUS_FMT_SGRBG12_1X12,
-		.sh_fmt = CSS_FRAME_FORMAT_RAW,
+		.sh_fmt = IA_CSS_FRAME_FORMAT_RAW,
 		.description = "Bayer 12"
 	}, {
 		.pixelformat = V4L2_PIX_FMT_SRGGB12,
 		.depth = 16,
 		.mbus_code = MEDIA_BUS_FMT_SRGGB12_1X12,
-		.sh_fmt = CSS_FRAME_FORMAT_RAW,
+		.sh_fmt = IA_CSS_FRAME_FORMAT_RAW,
 		.description = "Bayer 12"
 	}, {
 		.pixelformat = V4L2_PIX_FMT_RGB32,
 		.depth = 32,
 		.mbus_code = V4L2_MBUS_FMT_CUSTOM_RGB32,
-		.sh_fmt = CSS_FRAME_FORMAT_RGBA888,
+		.sh_fmt = IA_CSS_FRAME_FORMAT_RGBA888,
 		.description = "32 RGB 8-8-8-8"
 	}, {
 		.pixelformat = V4L2_PIX_FMT_RGB565,
 		.depth = 16,
 		.mbus_code = MEDIA_BUS_FMT_BGR565_2X8_LE,
-		.sh_fmt = CSS_FRAME_FORMAT_RGB565,
+		.sh_fmt = IA_CSS_FRAME_FORMAT_RGB565,
 		.description = "16 RGB 5-6-5"
 	}, {
 		.pixelformat = V4L2_PIX_FMT_JPEG,
 		.depth = 8,
 		.mbus_code = MEDIA_BUS_FMT_JPEG_1X8,
-		.sh_fmt = CSS_FRAME_FORMAT_BINARY_8,
+		.sh_fmt = IA_CSS_FRAME_FORMAT_BINARY_8,
 		.description = "JPEG"
 	},
 #if 0
@@ -506,7 +505,7 @@ const struct atomisp_format_bridge atomisp_output_fmts[] = {
 		.pixelformat = V4L2_PIX_FMT_CUSTOM_M10MO_RAW,
 		.depth = 8,
 		.mbus_code = V4L2_MBUS_FMT_CUSTOM_M10MO_RAW,
-		.sh_fmt = CSS_FRAME_FORMAT_BINARY_8,
+		.sh_fmt = IA_CSS_FRAME_FORMAT_BINARY_8,
 		.description = "Custom RAW for M10MO"
 	},
 #endif
@@ -548,8 +547,8 @@ static int atomisp_querycap(struct file *file, void *fh,
 	struct video_device *vdev = video_devdata(file);
 	struct atomisp_device *isp = video_get_drvdata(vdev);
 
-	strscpy(cap->driver, DRIVER, sizeof(cap->driver) - 1);
-	strscpy(cap->card, CARD, sizeof(cap->card) - 1);
+	strscpy(cap->driver, DRIVER, sizeof(cap->driver));
+	strscpy(cap->card, CARD, sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info), "PCI:%s",
 		 pci_name(isp->pdev));
 
@@ -574,8 +573,8 @@ static int atomisp_enum_input(struct file *file, void *fh,
 		return -EINVAL;
 
 	memset(input, 0, sizeof(struct v4l2_input));
-	strncpy(input->name, isp->inputs[index].camera->name,
-		sizeof(input->name) - 1);
+	strscpy(input->name, isp->inputs[index].camera->name,
+		sizeof(input->name));
 
 	/*
 	 * HACK: append actuator's name to sensor's
@@ -583,7 +582,7 @@ static int atomisp_enum_input(struct file *file, void *fh,
 	 * ioctl is the only way to enum inputs + possible external actuators
 	 * for 3A tuning purpose.
 	 */
-	if (!atomisp_hw_is_isp2401)
+	if (!IS_ISP2401)
 		motor = isp->inputs[index].motor;
 	else
 		motor = isp->motor;
@@ -594,8 +593,8 @@ static int atomisp_enum_input(struct file *file, void *fh,
 
 		if (max_size > 1) {
 			input->name[cur_len] = '+';
-			strncpy(&input->name[cur_len + 1],
-				motor->name, max_size - 1);
+			strscpy(&input->name[cur_len + 1],
+				motor->name, max_size);
 		}
 	}
 
@@ -733,7 +732,7 @@ static int atomisp_s_input(struct file *file, void *fh, unsigned int input)
 		goto error;
 	}
 
-	if (!atomisp_hw_is_isp2401) {
+	if (!IS_ISP2401) {
 		motor = isp->inputs[input].motor;
 	} else {
 		motor = isp->motor;
@@ -789,7 +788,7 @@ static int atomisp_enum_fmt_cap(struct file *file, void *fh,
 		 * Is the atomisp-supported format is valid for the
 		 * sensor (configuration)? If not, skip it.
 		 */
-		if (format->sh_fmt == CSS_FRAME_FORMAT_RAW
+		if (format->sh_fmt == IA_CSS_FRAME_FORMAT_RAW
 		    && format->mbus_code != code.code)
 			continue;
 
@@ -893,7 +892,7 @@ void atomisp_videobuf_free_buf(struct videobuf_buffer *vb)
 
 	vm_mem = vb->priv;
 	if (vm_mem && vm_mem->vaddr) {
-		atomisp_css_frame_free(vm_mem->vaddr);
+		ia_css_frame_free(vm_mem->vaddr);
 		vm_mem->vaddr = NULL;
 	}
 }
@@ -920,7 +919,7 @@ int atomisp_alloc_css_stat_bufs(struct atomisp_sub_device *asd,
 	struct atomisp_dis_buf *dis_buf = NULL, *_dis_buf;
 	struct atomisp_metadata_buf *md_buf = NULL, *_md_buf;
 	int count;
-	struct atomisp_css_dvs_grid_info *dvs_grid_info =
+	struct ia_css_dvs_grid_info *dvs_grid_info =
 	    atomisp_css_get_dvs_grid_info(&asd->params.curr_grid_info);
 	unsigned int i;
 
@@ -1024,8 +1023,8 @@ int __atomisp_reqbufs(struct file *file, void *fh,
 	struct video_device *vdev = video_devdata(file);
 	struct atomisp_video_pipe *pipe = atomisp_to_video_pipe(vdev);
 	struct atomisp_sub_device *asd = pipe->asd;
-	struct atomisp_css_frame_info frame_info;
-	struct atomisp_css_frame *frame;
+	struct ia_css_frame_info frame_info;
+	struct ia_css_frame *frame;
 	struct videobuf_vmalloc_memory *vm_mem;
 	u16 source_pad = atomisp_subdev_source_pad(vdev);
 	u16 stream_id = atomisp_source_pad_to_stream_id(asd, source_pad);
@@ -1054,7 +1053,7 @@ int __atomisp_reqbufs(struct file *file, void *fh,
 	atomisp_alloc_css_stat_bufs(asd, stream_id);
 
 	/*
-	 * for user pointer type, buffers are not really allcated here,
+	 * for user pointer type, buffers are not really allocated here,
 	 * buffers are setup in QBUF operation through v4l2_buffer structure
 	 */
 	if (req->memory == V4L2_MEMORY_USERPTR)
@@ -1069,7 +1068,7 @@ int __atomisp_reqbufs(struct file *file, void *fh,
 	 * memory management function
 	 */
 	for (i = 0; i < req->count; i++) {
-		if (atomisp_css_frame_allocate_from_info(&frame, &frame_info))
+		if (ia_css_frame_allocate_from_info(&frame, &frame_info))
 			goto error;
 		vm_mem = pipe->capq.bufs[i]->priv;
 		vm_mem->vaddr = frame;
@@ -1080,11 +1079,11 @@ int __atomisp_reqbufs(struct file *file, void *fh,
 error:
 	while (i--) {
 		vm_mem = pipe->capq.bufs[i]->priv;
-		atomisp_css_frame_free(vm_mem->vaddr);
+		ia_css_frame_free(vm_mem->vaddr);
 	}
 
 	if (asd->vf_frame)
-		atomisp_css_frame_free(asd->vf_frame);
+		ia_css_frame_free(asd->vf_frame);
 
 	return -ENOMEM;
 }
@@ -1152,8 +1151,8 @@ static int atomisp_qbuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 	struct atomisp_sub_device *asd = pipe->asd;
 	struct videobuf_buffer *vb;
 	struct videobuf_vmalloc_memory *vm_mem;
-	struct atomisp_css_frame_info frame_info;
-	struct atomisp_css_frame *handle = NULL;
+	struct ia_css_frame_info frame_info;
+	struct ia_css_frame *handle = NULL;
 	u32 length;
 	u32 pgnr;
 	int ret = 0;
@@ -1183,8 +1182,6 @@ static int atomisp_qbuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 	 * address and reprograme out page table properly
 	 */
 	if (buf->memory == V4L2_MEMORY_USERPTR) {
-		struct hrt_userbuffer_attr attributes;
-
 		vb = pipe->capq.bufs[buf->index];
 		vm_mem = vb->priv;
 		if (!vm_mem) {
@@ -1204,45 +1201,9 @@ static int atomisp_qbuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 			goto error;
 		}
 
-		attributes.pgnr = pgnr;
-		attributes.type = HRT_USR_PTR;
-#ifdef CONFIG_ION
-		if (!atomisp_hw_is_isp2401) {
-			if (buf->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_ION)
-					attributes.type = HRT_USR_ION;
-		} else {
-			if (buf->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_ION) {
-				attributes.type = HRT_USR_ION;
-				if (asd->ion_dev_fd->val !=  ION_FD_UNSET) {
-					dev_dbg(isp->dev, "ION buffer queued, share_fd=%lddev_fd=%d.\n",
-						buf->m.userptr, asd->ion_dev_fd->val);
-					/*
-					* Make sure the shared fd we just got
-					* from user space isn't larger than
-					* the space we have for it.
-					*/
-					if ((buf->m.userptr &
-					    (ATOMISP_ION_DEVICE_FD_MASK)) != 0) {
-						dev_err(isp->dev,
-							"Error: v4l2 buffer fd:0X%0lX > 0XFFFF.\n",
-							buf->m.userptr);
-						ret = -EINVAL;
-						goto error;
-					}
-					buf->m.userptr |= asd->ion_dev_fd->val <<
-							ATOMISP_ION_DEVICE_FD_OFFSET;
-				} else {
-					dev_err(isp->dev, "v4l2 buffer type is ION, \
-							but no dev fd set from userspace.\n");
-					ret = -EINVAL;
-					goto error;
-				}
-			}
-		}
-#endif
-		ret = atomisp_css_frame_map(&handle, &frame_info,
+		ret = ia_css_frame_map(&handle, &frame_info,
 					    (void __user *)buf->m.userptr,
-					    0, &attributes);
+					    0, pgnr);
 		if (ret) {
 			dev_err(isp->dev, "Failed to map user buffer\n");
 			goto error;
@@ -1250,7 +1211,7 @@ static int atomisp_qbuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 
 		if (vm_mem->vaddr) {
 			mutex_lock(&pipe->capq.vb_lock);
-			atomisp_css_frame_free(vm_mem->vaddr);
+			ia_css_frame_free(vm_mem->vaddr);
 			vm_mem->vaddr = NULL;
 			vb->state = VIDEOBUF_NEEDS_INIT;
 			mutex_unlock(&pipe->capq.vb_lock);
@@ -1265,6 +1226,10 @@ static int atomisp_qbuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 		buf->flags |= V4L2_BUF_FLAG_MAPPED;
 		buf->flags |= V4L2_BUF_FLAG_QUEUED;
 		buf->flags &= ~V4L2_BUF_FLAG_DONE;
+
+		/*
+		 * For mmap, frames were allocated at request buffers
+		 */
 	}
 
 done:
@@ -1299,7 +1264,7 @@ done:
 		} else {
 			atomisp_qbuffers_to_css(asd);
 
-			if (!atomisp_hw_is_isp2401) {
+			if (!IS_ISP2401) {
 				if (!atomisp_is_wdt_running(asd) && atomisp_buffers_queued(asd))
 					atomisp_wdt_start(asd);
 			} else {
@@ -1323,7 +1288,7 @@ done:
 	    pipe->capq.streaming &&
 	    !asd->enable_raw_buffer_lock->val &&
 	    asd->params.offline_parm.num_captures == 1) {
-		if (!atomisp_hw_is_isp2401) {
+		if (!IS_ISP2401) {
 			asd->pending_capture_request++;
 			dev_dbg(isp->dev, "Add one pending capture request.\n");
 		} else {
@@ -1401,7 +1366,7 @@ static int __get_frame_exp_id(struct atomisp_video_pipe *pipe,
 			      struct v4l2_buffer *buf)
 {
 	struct videobuf_vmalloc_memory *vm_mem;
-	struct atomisp_css_frame *handle;
+	struct ia_css_frame *handle;
 	int i;
 
 	for (i = 0; pipe->capq.bufs[i]; i++) {
@@ -1443,7 +1408,8 @@ static int atomisp_dqbuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 
 	ret = videobuf_dqbuf(&pipe->capq, buf, file->f_flags & O_NONBLOCK);
 	if (ret) {
-		dev_dbg(isp->dev, "<%s: %d\n", __func__, ret);
+		if (ret != -EAGAIN)
+			dev_dbg(isp->dev, "<%s: %d\n", __func__, ret);
 		return ret;
 	}
 	rt_mutex_lock(&isp->mutex);
@@ -1469,16 +1435,16 @@ static int atomisp_dqbuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 	return 0;
 }
 
-enum atomisp_css_pipe_id atomisp_get_css_pipe_id(struct atomisp_sub_device *asd)
+enum ia_css_pipe_id atomisp_get_css_pipe_id(struct atomisp_sub_device *asd)
 {
 	if (ATOMISP_USE_YUVPP(asd))
-		return CSS_PIPE_ID_YUVPP;
+		return IA_CSS_PIPE_ID_YUVPP;
 
 	if (asd->continuous_mode->val) {
 		if (asd->run_mode->val == ATOMISP_RUN_MODE_VIDEO)
-			return CSS_PIPE_ID_VIDEO;
+			return IA_CSS_PIPE_ID_VIDEO;
 		else
-			return CSS_PIPE_ID_PREVIEW;
+			return IA_CSS_PIPE_ID_PREVIEW;
 	}
 
 	/*
@@ -1486,7 +1452,7 @@ enum atomisp_css_pipe_id atomisp_get_css_pipe_id(struct atomisp_sub_device *asd)
 	 * scaling but it has one frame delay due to CSS internal buffering.
 	 */
 	if (asd->vfpp->val == ATOMISP_VFPP_DISABLE_SCALER)
-		return CSS_PIPE_ID_VIDEO;
+		return IA_CSS_PIPE_ID_VIDEO;
 
 	/*
 	 * Disable vf_pp and run CSS in still capture mode. In this mode
@@ -1494,17 +1460,17 @@ enum atomisp_css_pipe_id atomisp_get_css_pipe_id(struct atomisp_sub_device *asd)
 	 * is not available.
 	 */
 	if (asd->vfpp->val == ATOMISP_VFPP_DISABLE_LOWLAT)
-		return CSS_PIPE_ID_CAPTURE;
+		return IA_CSS_PIPE_ID_CAPTURE;
 
 	switch (asd->run_mode->val) {
 	case ATOMISP_RUN_MODE_PREVIEW:
-		return CSS_PIPE_ID_PREVIEW;
+		return IA_CSS_PIPE_ID_PREVIEW;
 	case ATOMISP_RUN_MODE_VIDEO:
-		return CSS_PIPE_ID_VIDEO;
+		return IA_CSS_PIPE_ID_VIDEO;
 	case ATOMISP_RUN_MODE_STILL_CAPTURE:
 	/* fall through */
 	default:
-		return CSS_PIPE_ID_CAPTURE;
+		return IA_CSS_PIPE_ID_CAPTURE;
 	}
 }
 
@@ -1598,7 +1564,7 @@ int atomisp_stream_on_master_slave_sensor(struct atomisp_device *isp,
 
 /* FIXME! ISP2400 */
 static void __wdt_on_master_slave_sensor(struct atomisp_device *isp,
-				         unsigned int wdt_duration)
+					 unsigned int wdt_duration)
 {
 	if (atomisp_buffers_queued(&isp->asd[0]))
 		atomisp_wdt_refresh(&isp->asd[0], wdt_duration);
@@ -1654,9 +1620,9 @@ static void atomisp_dma_burst_len_cfg(struct atomisp_sub_device *asd)
 				       ATOMISP_SUBDEV_PAD_SINK);
 
 	if (sink->width * sink->height >= 4096 * 3072)
-		atomisp_store_uint32(DMA_BURST_SIZE_REG, 0x7F);
+		atomisp_css2_hw_store_32(DMA_BURST_SIZE_REG, 0x7F);
 	else
-		atomisp_store_uint32(DMA_BURST_SIZE_REG, 0x00);
+		atomisp_css2_hw_store_32(DMA_BURST_SIZE_REG, 0x00);
 }
 
 /*
@@ -1669,7 +1635,7 @@ static int atomisp_streamon(struct file *file, void *fh,
 	struct atomisp_video_pipe *pipe = atomisp_to_video_pipe(vdev);
 	struct atomisp_sub_device *asd = pipe->asd;
 	struct atomisp_device *isp = video_get_drvdata(vdev);
-	enum atomisp_css_pipe_id css_pipe_id;
+	enum ia_css_pipe_id css_pipe_id;
 	unsigned int sensor_start_stream;
 	unsigned int wdt_duration = ATOMISP_ISP_TIMEOUT_DURATION;
 	int ret = 0;
@@ -1721,7 +1687,7 @@ static int atomisp_streamon(struct file *file, void *fh,
 
 	/* Reset pending capture request count. */
 	asd->pending_capture_request = 0;
-	if (atomisp_hw_is_isp2401)
+	if (IS_ISP2401)
 		asd->re_trigger_capture = false;
 
 	if ((atomisp_subdev_streaming_count(asd) > sensor_start_stream) &&
@@ -1793,8 +1759,7 @@ static int atomisp_streamon(struct file *file, void *fh,
 	if (asd->params.css_update_params_needed) {
 		atomisp_apply_css_parameters(asd, &asd->params.css_param);
 		if (asd->params.css_param.update_flag.dz_config)
-			atomisp_css_set_dz_config(asd,
-						  &asd->params.css_param.dz_config);
+			asd->params.config.dz_config = &asd->params.css_param.dz_config;
 		atomisp_css_update_isp_params(asd);
 		asd->params.css_update_params_needed = false;
 		memset(&asd->params.css_param.update_flag, 0,
@@ -1835,7 +1800,7 @@ start_sensor:
 	}
 
 	if (!isp->sw_contex.file_input) {
-		atomisp_css_irq_enable(isp, CSS_IRQ_INFO_CSS_RECEIVER_SOF,
+		atomisp_css_irq_enable(isp, IA_CSS_IRQ_INFO_CSS_RECEIVER_SOF,
 				       atomisp_css_valid_sof(isp));
 		atomisp_csi2_configure(asd);
 		/*
@@ -1845,15 +1810,15 @@ start_sensor:
 		if (atomisp_streaming_count(isp) > 1) {
 			if (atomisp_freq_scaling(isp,
 						 ATOMISP_DFS_MODE_MAX, false) < 0)
-				dev_dbg(isp->dev, "dfs failed!\n");
+				dev_dbg(isp->dev, "DFS max mode failed!\n");
 		} else {
 			if (atomisp_freq_scaling(isp,
 						 ATOMISP_DFS_MODE_AUTO, false) < 0)
-				dev_dbg(isp->dev, "dfs failed!\n");
+				dev_dbg(isp->dev, "DFS auto mode failed!\n");
 		}
 	} else {
 		if (atomisp_freq_scaling(isp, ATOMISP_DFS_MODE_MAX, false) < 0)
-			dev_dbg(isp->dev, "dfs failed!\n");
+			dev_dbg(isp->dev, "DFS max mode failed!\n");
 	}
 
 	if (asd->depth_mode->val && atomisp_streaming_count(isp) ==
@@ -1863,7 +1828,7 @@ start_sensor:
 			dev_err(isp->dev, "master slave sensor stream on failed!\n");
 			goto out;
 		}
-		if (!atomisp_hw_is_isp2401) {
+		if (!IS_ISP2401) {
 			__wdt_on_master_slave_sensor(isp, wdt_duration);
 		} else {
 			__wdt_on_master_slave_sensor_pipe(pipe, wdt_duration, true);
@@ -1871,7 +1836,7 @@ start_sensor:
 		goto start_delay_wq;
 	} else if (asd->depth_mode->val && (atomisp_streaming_count(isp) <
 					    ATOMISP_DEPTH_SENSOR_STREAMON_COUNT)) {
-		if (atomisp_hw_is_isp2401)
+		if (IS_ISP2401)
 			__wdt_on_master_slave_sensor_pipe(pipe, wdt_duration, false);
 		goto start_delay_wq;
 	}
@@ -1893,7 +1858,7 @@ start_sensor:
 		goto out;
 	}
 
-	if (!atomisp_hw_is_isp2401) {
+	if (!IS_ISP2401) {
 		if (atomisp_buffers_queued(asd))
 			atomisp_wdt_refresh(asd, wdt_duration);
 	} else {
@@ -1933,7 +1898,7 @@ int __atomisp_streamoff(struct file *file, void *fh, enum v4l2_buf_type type)
 	struct atomisp_video_pipe *preview_pipe = NULL;
 	struct atomisp_video_pipe *video_pipe = NULL;
 	struct videobuf_buffer *vb, *_vb;
-	enum atomisp_css_pipe_id css_pipe_id;
+	enum ia_css_pipe_id css_pipe_id;
 	int ret;
 	unsigned long flags;
 	bool first_streamoff = false;
@@ -2039,7 +2004,7 @@ int __atomisp_streamoff(struct file *file, void *fh, enum v4l2_buf_type type)
 	atomisp_clear_css_buffer_counters(asd);
 
 	if (!isp->sw_contex.file_input)
-		atomisp_css_irq_enable(isp, CSS_IRQ_INFO_CSS_RECEIVER_SOF,
+		atomisp_css_irq_enable(isp, IA_CSS_IRQ_INFO_CSS_RECEIVER_SOF,
 				       false);
 
 	if (asd->delayed_init == ATOMISP_DELAYED_INIT_QUEUED) {
@@ -2352,7 +2317,7 @@ static int atomisp_queryctl(struct file *file, void *fh,
 	case V4L2_CID_FOCUS_ABSOLUTE:
 	case V4L2_CID_FOCUS_RELATIVE:
 	case V4L2_CID_FOCUS_STATUS:
-		if (!atomisp_hw_is_isp2401) {
+		if (!IS_ISP2401) {
 			return v4l2_queryctrl(isp->inputs[asd->input_curr].camera->
 					    ctrl_handler, qc);
 		}
@@ -2393,7 +2358,7 @@ static int atomisp_camera_g_ext_ctrls(struct file *file, void *fh,
 	int i;
 	int ret = 0;
 
-	if (!atomisp_hw_is_isp2401)
+	if (!IS_ISP2401)
 		motor = isp->inputs[asd->input_curr].motor;
 	else
 		motor = isp->motor;
@@ -2502,8 +2467,7 @@ static int atomisp_camera_s_ext_ctrls(struct file *file, void *fh,
 	int i;
 	int ret = 0;
 
-
-	if (!atomisp_hw_is_isp2401)
+	if (!IS_ISP2401)
 		motor = isp->inputs[asd->input_curr].motor;
 	else
 		motor = isp->motor;
@@ -2519,7 +2483,7 @@ static int atomisp_camera_s_ext_ctrls(struct file *file, void *fh,
 		case V4L2_CID_EXPOSURE_METERING:
 		case V4L2_CID_IRIS_ABSOLUTE:
 		case V4L2_CID_FNUMBER_ABSOLUTE:
-		case V4L2_CID_VCM_TIMEING:
+		case V4L2_CID_VCM_TIMING:
 		case V4L2_CID_VCM_SLEW:
 		case V4L2_CID_3A_LOCK:
 		case V4L2_CID_TEST_PATTERN:
@@ -2732,7 +2696,7 @@ static long atomisp_vidioc_default(struct file *file, void *fh,
 	else
 		asd = atomisp_to_video_pipe(vdev)->asd;
 
-	if (!atomisp_hw_is_isp2401)
+	if (!IS_ISP2401)
 		motor = isp->inputs[asd->input_curr].motor;
 	else
 		motor = isp->motor;
@@ -2757,7 +2721,7 @@ static long atomisp_vidioc_default(struct file *file, void *fh,
 	}
 	switch (cmd) {
 	case ATOMISP_IOC_S_SENSOR_RUNMODE:
-		if (atomisp_hw_is_isp2401)
+		if (IS_ISP2401)
 			err = atomisp_set_sensor_runmode(asd, arg);
 		else
 			err = -EINVAL;
@@ -2932,7 +2896,7 @@ static long atomisp_vidioc_default(struct file *file, void *fh,
 				       core, ioctl, cmd, arg);
 		break;
 	case ATOMISP_IOC_G_UPDATE_EXPOSURE:
-		if (atomisp_hw_is_isp2401)
+		if (IS_ISP2401)
 			err = v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
 					       core, ioctl, cmd, arg);
 		else

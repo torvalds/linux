@@ -749,6 +749,20 @@ static u64 kvmppc_get_secmem_size(void)
 	const __be32 *prop;
 	u64 size = 0;
 
+	/*
+	 * First try the new ibm,secure-memory nodes which supersede the
+	 * secure-memory-ranges property.
+	 * If we found some, no need to read the deprecated ones.
+	 */
+	for_each_compatible_node(np, NULL, "ibm,secure-memory") {
+		prop = of_get_property(np, "reg", &len);
+		if (!prop)
+			continue;
+		size += of_read_number(prop + 2, 2);
+	}
+	if (size)
+		return size;
+
 	np = of_find_compatible_node(NULL, NULL, "ibm,uv-firmware");
 	if (!np)
 		goto out;

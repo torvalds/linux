@@ -10,16 +10,26 @@ struct s {
 	long long b;
 } __attribute__((packed));
 
-int in1 = 0;
-long long in2 = 0;
+/* .data section */
+int in1 = -1;
+long long in2 = -1;
+
+/* .bss section */
 char in3 = '\0';
 long long in4 __attribute__((aligned(64))) = 0;
 struct s in5 = {};
 
-long long out2 = 0;
+/* .rodata section */
+const volatile int in6 = 0;
+
+/* .data section */
+int out1 = -1;
+long long out2 = -1;
+
+/* .bss section */
 char out3 = 0;
 long long out4 = 0;
-int out1 = 0;
+int out6 = 0;
 
 extern bool CONFIG_BPF_SYSCALL __kconfig;
 extern int LINUX_KERNEL_VERSION __kconfig;
@@ -36,6 +46,7 @@ int handler(const void *ctx)
 	out3 = in3;
 	out4 = in4;
 	out5 = in5;
+	out6 = in6;
 
 	bpf_syscall = CONFIG_BPF_SYSCALL;
 	kern_ver = LINUX_KERNEL_VERSION;

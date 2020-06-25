@@ -164,7 +164,9 @@ int kvm_setup_async_pf(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
 	if (vcpu->async_pf.queued >= ASYNC_PF_PER_VCPU)
 		return 0;
 
-	/* setup delayed work */
+	/* Arch specific code should not do async PF in this case */
+	if (unlikely(kvm_is_error_hva(hva)))
+		return 0;
 
 	/*
 	 * do alloc nowait since if we are going to sleep anyway we
@@ -183,24 +185,15 @@ int kvm_setup_async_pf(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
 	mmget(work->mm);
 	kvm_get_kvm(work->vcpu->kvm);
 
-	/* this can't really happen otherwise gfn_to_pfn_async
-	   would succeed */
-	if (unlikely(kvm_is_error_hva(work->addr)))
-		goto retry_sync;
-
 	INIT_WORK(&work->work, async_pf_execute);
-	if (!schedule_work(&work->work))
-		goto retry_sync;
 
 	list_add_tail(&work->queue, &vcpu->async_pf.queue);
 	vcpu->async_pf.queued++;
-	kvm_arch_async_page_not_present(vcpu, work);
+	work->notpresent_injected = kvm_arch_async_page_not_present(vcpu, work);
+
+	schedule_work(&work->work);
+
 	return 1;
-retry_sync:
-	kvm_put_kvm(work->vcpu->kvm);
-	mmput(work->mm);
-	kmem_cache_free(async_pf_cache, work);
-	return 0;
 }
 
 int kvm_async_pf_wakeup_all(struct kvm_vcpu *vcpu)

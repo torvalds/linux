@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2015, Intel Corporation.
@@ -37,7 +38,7 @@
  *
  * Specifies a CSS MIPI frame buffer: size in memory words (32B).
  */
-enum ia_css_err
+int
 ia_css_mipi_frame_specify(const unsigned int	size_mem_words,
 			  const bool contiguous);
 
@@ -54,7 +55,7 @@ ia_css_mipi_frame_specify(const unsigned int	size_mem_words,
  *
  *
  */
-enum ia_css_err
+int
 ia_css_mipi_frame_enable_check_on_size(const enum mipi_port_id port,
 				       const unsigned int	size_mem_words);
 #endif
@@ -71,7 +72,7 @@ ia_css_mipi_frame_enable_check_on_size(const enum mipi_port_id port,
  *
  * Calculate the size of a mipi frame, based on the resolution and format.
  */
-enum ia_css_err
+int
 ia_css_mipi_frame_calculate_size(const unsigned int width,
 				 const unsigned int height,
 				 const enum atomisp_input_format format,

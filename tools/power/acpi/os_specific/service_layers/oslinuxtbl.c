@@ -35,7 +35,7 @@ static acpi_status osl_add_table_to_list(char *signature, u32 instance);
 static acpi_status
 osl_read_table_from_file(char *filename,
 			 acpi_size file_offset,
-			 char *signature, struct acpi_table_header **table);
+			 struct acpi_table_header **table);
 
 static acpi_status
 osl_map_table(acpi_size address,
@@ -1184,8 +1184,6 @@ osl_table_name_from_file(char *filename, char *signature, u32 *instance)
  *
  * PARAMETERS:  filename            - File that contains the desired table
  *              file_offset         - Offset of the table in file
- *              signature           - Optional ACPI Signature for desired table.
- *                                    A null terminated 4-character string.
  *              table               - Where a pointer to the table is returned
  *
  * RETURN:      Status; Table buffer is returned if AE_OK.
@@ -1197,7 +1195,7 @@ osl_table_name_from_file(char *filename, char *signature, u32 *instance)
 static acpi_status
 osl_read_table_from_file(char *filename,
 			 acpi_size file_offset,
-			 char *signature, struct acpi_table_header **table)
+			 struct acpi_table_header **table)
 {
 	FILE *table_file;
 	struct acpi_table_header header;
@@ -1225,6 +1223,8 @@ osl_read_table_from_file(char *filename,
 		goto exit;
 	}
 
+#ifdef ACPI_OBSOLETE_FUNCTIONS
+
 	/* If signature is specified, it must match the table */
 
 	if (signature) {
@@ -1244,6 +1244,7 @@ osl_read_table_from_file(char *filename,
 			goto exit;
 		}
 	}
+#endif
 
 	table_length = ap_get_table_length(&header);
 	if (table_length == 0) {
@@ -1366,7 +1367,7 @@ osl_get_customized_table(char *pathname,
 	/* There is no physical address saved for customized tables, use zero */
 
 	*address = 0;
-	status = osl_read_table_from_file(table_filename, 0, NULL, table);
+	status = osl_read_table_from_file(table_filename, 0, table);
 
 	return (status);
 }
