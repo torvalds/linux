@@ -524,21 +524,14 @@ static void set_state_bits(struct extent_io_tree *tree,
  * probably isn't what you want to call (see set/clear_extent_bit).
  */
 static int insert_state(struct extent_io_tree *tree,
-			struct extent_state *state, u64 start, u64 end,
+			struct extent_state *state,
 			struct rb_node ***node_in,
 			struct rb_node **parent_in,
 			u32 *bits, struct extent_changeset *changeset)
 {
 	struct rb_node **node;
 	struct rb_node *parent;
-
-	if (end < start) {
-		btrfs_err(tree->fs_info,
-			"insert state: end < start %llu %llu", end, start);
-		WARN_ON(1);
-	}
-	state->start = start;
-	state->end = end;
+	const u64 end = state->end;
 
 	set_state_bits(tree, state, bits, changeset);
 
@@ -563,7 +556,7 @@ static int insert_state(struct extent_io_tree *tree,
 		} else {
 			btrfs_err(tree->fs_info,
 			       "found node %llu %llu on insert of %llu %llu",
-			       entry->start, entry->end, start, end);
+			       entry->start, entry->end, state->start, end);
 			return -EEXIST;
 		}
 	}
@@ -1027,8 +1020,9 @@ again:
 	if (!node) {
 		prealloc = alloc_extent_state_atomic(prealloc);
 		BUG_ON(!prealloc);
-		err = insert_state(tree, prealloc, start, end,
-				   &p, &parent, &bits, changeset);
+		prealloc->start = start;
+		prealloc->end = end;
+		err = insert_state(tree, prealloc, &p, &parent, &bits, changeset);
 		if (err)
 			extent_io_tree_panic(tree, err);
 
@@ -1144,8 +1138,9 @@ hit_next:
 		 * Avoid to free 'prealloc' if it can be merged with
 		 * the later extent.
 		 */
-		err = insert_state(tree, prealloc, start, this_end,
-				   NULL, NULL, &bits, changeset);
+		prealloc->start = start;
+		prealloc->end = this_end;
+		err = insert_state(tree, prealloc, NULL, NULL, &bits, changeset);
 		if (err)
 			extent_io_tree_panic(tree, err);
 
@@ -1268,8 +1263,9 @@ again:
 			err = -ENOMEM;
 			goto out;
 		}
-		err = insert_state(tree, prealloc, start, end,
-				   &p, &parent, &bits, NULL);
+		prealloc->start = start;
+		prealloc->end = end;
+		err = insert_state(tree, prealloc, &p, &parent, &bits, NULL);
 		if (err)
 			extent_io_tree_panic(tree, err);
 		cache_state(prealloc, cached_state);
@@ -1366,8 +1362,9 @@ hit_next:
 		 * Avoid to free 'prealloc' if it can be merged with
 		 * the later extent.
 		 */
-		err = insert_state(tree, prealloc, start, this_end,
-				   NULL, NULL, &bits, NULL);
+		prealloc->start = start;
+		prealloc->end = this_end;
+		err = insert_state(tree, prealloc, NULL, NULL, &bits, NULL);
 		if (err)
 			extent_io_tree_panic(tree, err);
 		cache_state(prealloc, cached_state);
