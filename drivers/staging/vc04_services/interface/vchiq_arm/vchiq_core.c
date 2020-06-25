@@ -39,9 +39,9 @@ struct vchiq_openack_payload {
 };
 
 enum {
-	QMFLAGS_IS_BLOCKING     = (1 << 0),
-	QMFLAGS_NO_MUTEX_LOCK   = (1 << 1),
-	QMFLAGS_NO_MUTEX_UNLOCK = (1 << 2)
+	QMFLAGS_IS_BLOCKING     = BIT(0),
+	QMFLAGS_NO_MUTEX_LOCK   = BIT(1),
+	QMFLAGS_NO_MUTEX_UNLOCK = BIT(2)
 };
 
 /* we require this for consistency between endpoints */
@@ -526,14 +526,14 @@ request_poll(struct vchiq_state *state, struct vchiq_service *service,
 		do {
 			value = atomic_read(&service->poll_flags);
 		} while (atomic_cmpxchg(&service->poll_flags, value,
-			value | (1 << poll_type)) != value);
+			value | BIT(poll_type)) != value);
 
 		do {
 			value = atomic_read(&state->poll_services[
 				service->localport>>5]);
 		} while (atomic_cmpxchg(
 			&state->poll_services[service->localport>>5],
-			value, value | (1 << (service->localport & 0x1f)))
+			value, value | BIT(service->localport & 0x1f))
 			!= value);
 	}
 
@@ -1287,19 +1287,19 @@ poll_services(struct vchiq_state *state)
 
 		flags = atomic_xchg(&state->poll_services[group], 0);
 		for (i = 0; flags; i++) {
-			if (flags & (1 << i)) {
+			if (flags & BIT(i)) {
 				struct vchiq_service *service =
 					find_service_by_port(state,
 						(group<<5) + i);
 				u32 service_flags;
 
-				flags &= ~(1 << i);
+				flags &= ~BIT(i);
 				if (!service)
 					continue;
 				service_flags =
 					atomic_xchg(&service->poll_flags, 0);
 				if (service_flags &
-					(1 << VCHIQ_POLL_REMOVE)) {
+					BIT(VCHIQ_POLL_REMOVE)) {
 					vchiq_log_info(vchiq_core_log_level,
 						"%d: ps - remove %d<->%d",
 						state->id, service->localport,
@@ -1317,7 +1317,7 @@ poll_services(struct vchiq_state *state)
 						request_poll(state, service,
 							VCHIQ_POLL_REMOVE);
 				} else if (service_flags &
-					(1 << VCHIQ_POLL_TERMINATE)) {
+					BIT(VCHIQ_POLL_TERMINATE)) {
 					vchiq_log_info(vchiq_core_log_level,
 						"%d: ps - terminate %d<->%d",
 						state->id, service->localport,
@@ -1328,11 +1328,11 @@ poll_services(struct vchiq_state *state)
 						request_poll(state, service,
 							VCHIQ_POLL_TERMINATE);
 				}
-				if (service_flags & (1 << VCHIQ_POLL_TXNOTIFY))
+				if (service_flags & BIT(VCHIQ_POLL_TXNOTIFY))
 					notify_bulks(service,
 						&service->bulk_tx,
 						1/*retry_poll*/);
-				if (service_flags & (1 << VCHIQ_POLL_RXNOTIFY))
+				if (service_flags & BIT(VCHIQ_POLL_RXNOTIFY))
 					notify_bulks(service,
 						&service->bulk_rx,
 						1/*retry_poll*/);
