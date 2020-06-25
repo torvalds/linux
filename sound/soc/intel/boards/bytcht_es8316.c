@@ -525,9 +525,8 @@ static int snd_byt_cht_es8316_mc_probe(struct platform_device *pdev)
 			BYT_CHT_ES8316_MONO_SPEAKER;
 	}
 	if (quirk_override != -1) {
-		dev_info(dev, "Overriding quirk 0x%x => 0x%x\n",
-			 (unsigned int)quirk,
-			 quirk_override);
+		dev_info(dev, "Overriding quirk 0x%lx => 0x%x\n",
+			 quirk, quirk_override);
 		quirk = quirk_override;
 	}
 	log_quirks(dev);
