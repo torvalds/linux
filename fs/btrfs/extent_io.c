@@ -453,10 +453,35 @@ tree_search_for_insert(struct extent_io_tree *tree,
 	return ret;
 }
 
-static inline struct rb_node *tree_search(struct extent_io_tree *tree,
-					  u64 offset)
+/*
+ * Inexact rb-tree search, return the next entry if @offset is not found
+ */
+static inline struct rb_node *tree_search(struct extent_io_tree *tree, u64 offset)
 {
-	return tree_search_for_insert(tree, offset, NULL, NULL);
+	struct rb_root *root = &tree->state;
+	struct rb_node **node = &root->rb_node;
+	struct rb_node *prev = NULL;
+	struct tree_entry *entry;
+
+	while (*node) {
+		prev = *node;
+		entry = rb_entry(prev, struct tree_entry, rb_node);
+
+		if (offset < entry->start)
+			node = &(*node)->rb_left;
+		else if (offset > entry->end)
+			node = &(*node)->rb_right;
+		else
+			return *node;
+	}
+
+	/* Search neighbors until we find the first one past the end */
+	while (prev && offset > entry->end) {
+		prev = rb_next(prev);
+		entry = rb_entry(prev, struct tree_entry, rb_node);
+	}
+
+	return prev;
 }
 
 /*
