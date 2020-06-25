@@ -6846,21 +6846,31 @@ out:
 
 static void ufshcd_wb_probe(struct ufs_hba *hba, u8 *desc_buf)
 {
+	struct ufs_dev_info *dev_info = &hba->dev_info;
 	u8 lun;
 	u32 d_lu_wb_buf_alloc;
 
 	if (!ufshcd_is_wb_allowed(hba))
 		return;
+	/*
+	 * Probe WB only for UFS-2.2 and UFS-3.1 (and later) devices or
+	 * UFS devices with quirk UFS_DEVICE_QUIRK_SUPPORT_EXTENDED_FEATURES
+	 * enabled
+	 */
+	if (!(dev_info->wspecversion >= 0x310 ||
+	      dev_info->wspecversion == 0x220 ||
+	     (hba->dev_quirks & UFS_DEVICE_QUIRK_SUPPORT_EXTENDED_FEATURES)))
+		goto wb_disabled;
 
 	if (hba->desc_size[QUERY_DESC_IDN_DEVICE] <
 	    DEVICE_DESC_PARAM_EXT_UFS_FEATURE_SUP + 4)
 		goto wb_disabled;
 
-	hba->dev_info.d_ext_ufs_feature_sup =
+	dev_info->d_ext_ufs_feature_sup =
 		get_unaligned_be32(desc_buf +
 				   DEVICE_DESC_PARAM_EXT_UFS_FEATURE_SUP);
 
-	if (!(hba->dev_info.d_ext_ufs_feature_sup & UFS_DEV_WRITE_BOOSTER_SUP))
+	if (!(dev_info->d_ext_ufs_feature_sup & UFS_DEV_WRITE_BOOSTER_SUP))
 		goto wb_disabled;
 
 	/*
@@ -6869,17 +6879,17 @@ static void ufshcd_wb_probe(struct ufs_hba *hba, u8 *desc_buf)
 	 * a max of 1 lun would have wb buffer configured.
 	 * Now only shared buffer mode is supported.
 	 */
-	hba->dev_info.b_wb_buffer_type =
+	dev_info->b_wb_buffer_type =
 		desc_buf[DEVICE_DESC_PARAM_WB_TYPE];
 
-	hba->dev_info.b_presrv_uspc_en =
+	dev_info->b_presrv_uspc_en =
 		desc_buf[DEVICE_DESC_PARAM_WB_PRESRV_USRSPC_EN];
 
-	if (hba->dev_info.b_wb_buffer_type == WB_BUF_MODE_SHARED) {
-		hba->dev_info.d_wb_alloc_units =
+	if (dev_info->b_wb_buffer_type == WB_BUF_MODE_SHARED) {
+		dev_info->d_wb_alloc_units =
 		get_unaligned_be32(desc_buf +
 				   DEVICE_DESC_PARAM_WB_SHARED_ALLOC_UNITS);
-		if (!hba->dev_info.d_wb_alloc_units)
+		if (!dev_info->d_wb_alloc_units)
 			goto wb_disabled;
 	} else {
 		for (lun = 0; lun < UFS_UPIU_MAX_WB_LUN_ID; lun++) {
@@ -6890,7 +6900,7 @@ static void ufshcd_wb_probe(struct ufs_hba *hba, u8 *desc_buf)
 					(u8 *)&d_lu_wb_buf_alloc,
 					sizeof(d_lu_wb_buf_alloc));
 			if (d_lu_wb_buf_alloc) {
-				hba->dev_info.wb_dedicated_lu = lun;
+				dev_info->wb_dedicated_lu = lun;
 				break;
 			}
 		}
@@ -6976,14 +6986,7 @@ static int ufs_get_device_desc(struct ufs_hba *hba)
 
 	ufs_fixup_device_setup(hba);
 
-	/*
-	 * Probe WB only for UFS-3.1 devices or UFS devices with quirk
-	 * UFS_DEVICE_QUIRK_SUPPORT_EXTENDED_FEATURES enabled
-	 */
-	if (dev_info->wspecversion >= 0x310 ||
-	    dev_info->wspecversion == 0x220 ||
-	    (hba->dev_quirks & UFS_DEVICE_QUIRK_SUPPORT_EXTENDED_FEATURES))
-		ufshcd_wb_probe(hba, desc_buf);
+	ufshcd_wb_probe(hba, desc_buf);
 
 	/*
 	 * ufshcd_read_string_desc returns size of the string
