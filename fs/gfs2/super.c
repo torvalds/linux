@@ -167,7 +167,8 @@ int gfs2_make_fs_rw(struct gfs2_sbd *sdp)
 	if (error)
 		return error;
 
-	error = gfs2_glock_nq_init(sdp->sd_freeze_gl, LM_ST_SHARED, GL_EXACT,
+	error = gfs2_glock_nq_init(sdp->sd_freeze_gl, LM_ST_SHARED,
+				   LM_FLAG_NOEXP | GL_EXACT,
 				   &freeze_gh);
 	if (error)
 		goto fail_threads;
@@ -429,7 +430,7 @@ static int gfs2_lock_fs_check_clean(struct gfs2_sbd *sdp)
 	}
 
 	error = gfs2_glock_nq_init(sdp->sd_freeze_gl, LM_ST_EXCLUSIVE,
-				   0, &sdp->sd_freeze_gh);
+				   LM_FLAG_NOEXP, &sdp->sd_freeze_gh);
 	if (error)
 		goto out;
 
@@ -612,14 +613,15 @@ int gfs2_make_fs_ro(struct gfs2_sbd *sdp)
 	    !gfs2_glock_is_locked_by_me(sdp->sd_freeze_gl)) {
 		if (!log_write_allowed) {
 			error = gfs2_glock_nq_init(sdp->sd_freeze_gl,
-						   LM_ST_SHARED,
-						   LM_FLAG_TRY | GL_EXACT,
+						   LM_ST_SHARED, LM_FLAG_TRY |
+						   LM_FLAG_NOEXP | GL_EXACT,
 						   &freeze_gh);
 			if (error == GLR_TRYFAILED)
 				error = 0;
 		} else {
 			error = gfs2_glock_nq_init(sdp->sd_freeze_gl,
-						   LM_ST_SHARED, GL_EXACT,
+						   LM_ST_SHARED,
+						   LM_FLAG_NOEXP | GL_EXACT,
 						   &freeze_gh);
 			if (error && !gfs2_withdrawn(sdp))
 				return error;
@@ -761,8 +763,8 @@ void gfs2_freeze_func(struct work_struct *work)
 	struct super_block *sb = sdp->sd_vfs;
 
 	atomic_inc(&sb->s_active);
-	error = gfs2_glock_nq_init(sdp->sd_freeze_gl, LM_ST_SHARED, GL_EXACT,
-				   &freeze_gh);
+	error = gfs2_glock_nq_init(sdp->sd_freeze_gl, LM_ST_SHARED,
+				   LM_FLAG_NOEXP | GL_EXACT, &freeze_gh);
 	if (error) {
 		fs_info(sdp, "GFS2: couldn't get freeze lock : %d\n", error);
 		gfs2_assert_withdraw(sdp, 0);
