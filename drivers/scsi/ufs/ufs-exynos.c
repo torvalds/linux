@@ -1290,3 +1290,8 @@ static struct platform_driver exynos_ufs_pltform = {
 	},
 };
 module_platform_driver(exynos_ufs_pltform);
+
+MODULE_AUTHOR("Alim Akhtar <alim.akhtar@samsung.com>");
+MODULE_AUTHOR("Seungwon Jeon  <essuuj@gmail.com>");
+MODULE_DESCRIPTION("Exynos UFS HCI Driver");
+MODULE_LICENSE("GPL v2");
