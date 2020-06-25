@@ -559,8 +559,8 @@ static void sdma_v4_0_destroy_inst_ctx(struct amdgpu_device *adev)
 	int i;
 
 	for (i = 0; i < adev->sdma.num_instances; i++) {
-		if (adev->sdma.instance[i].fw != NULL)
-			release_firmware(adev->sdma.instance[i].fw);
+		release_firmware(adev->sdma.instance[i].fw);
+		adev->sdma.instance[i].fw = NULL;
 
 		/* arcturus shares the same FW memory across
 		   all SDMA isntances */

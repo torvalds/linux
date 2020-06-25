@@ -196,10 +196,8 @@ static int psp_sw_fini(void *handle)
 	adev->psp.sos_fw = NULL;
 	release_firmware(adev->psp.asd_fw);
 	adev->psp.asd_fw = NULL;
-	if (adev->psp.ta_fw) {
-		release_firmware(adev->psp.ta_fw);
-		adev->psp.ta_fw = NULL;
-	}
+	release_firmware(adev->psp.ta_fw);
+	adev->psp.ta_fw = NULL;
 
 	if (adev->asic_type == CHIP_NAVI10)
 		psp_sysfs_fini(adev);

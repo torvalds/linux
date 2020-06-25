@@ -1318,15 +1318,11 @@ static int dm_sw_fini(void *handle)
 		adev->dm.dmub_srv = NULL;
 	}
 
-	if (adev->dm.dmub_fw) {
-		release_firmware(adev->dm.dmub_fw);
-		adev->dm.dmub_fw = NULL;
-	}
+	release_firmware(adev->dm.dmub_fw);
+	adev->dm.dmub_fw = NULL;
 
-	if(adev->dm.fw_dmcu) {
-		release_firmware(adev->dm.fw_dmcu);
-		adev->dm.fw_dmcu = NULL;
-	}
+	release_firmware(adev->dm.fw_dmcu);
+	adev->dm.fw_dmcu = NULL;
 
 	return 0;
 }

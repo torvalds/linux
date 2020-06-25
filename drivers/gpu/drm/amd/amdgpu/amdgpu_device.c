@@ -3380,10 +3380,8 @@ void amdgpu_device_fini(struct amdgpu_device *adev)
 		amdgpu_pm_sysfs_fini(adev);
 	amdgpu_fbdev_fini(adev);
 	r = amdgpu_device_ip_fini(adev);
-	if (adev->firmware.gpu_info_fw) {
-		release_firmware(adev->firmware.gpu_info_fw);
-		adev->firmware.gpu_info_fw = NULL;
-	}
+	release_firmware(adev->firmware.gpu_info_fw);
+	adev->firmware.gpu_info_fw = NULL;
 	adev->accel_working = false;
 	/* free i2c buses */
 	if (!amdgpu_device_has_dc_support(adev))
