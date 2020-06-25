@@ -15,7 +15,6 @@
 #include <linux/completion.h>
 #include <linux/spinlock.h>
 #include <linux/err.h>
-#include <linux/gpio.h>
 #include <linux/pm_runtime.h>
 #include <linux/spi/spi.h>
 
@@ -391,7 +390,7 @@ static int lantiq_ssc_setup(struct spi_device *spidev)
 	u32 gpocon;
 
 	/* GPIOs are used for CS */
-	if (gpio_is_valid(spidev->cs_gpio))
+	if (spidev->cs_gpiod)
 		return 0;
 
 	dev_dbg(spi->dev, "using internal chipselect %u\n", cs);
@@ -888,6 +887,7 @@ static int lantiq_ssc_probe(struct platform_device *pdev)
 
 	master->dev.of_node = pdev->dev.of_node;
 	master->num_chipselect = num_cs;
+	master->use_gpio_descriptors = true;
 	master->setup = lantiq_ssc_setup;
 	master->set_cs = lantiq_ssc_set_cs;
 	master->handle_err = lantiq_ssc_handle_err;
