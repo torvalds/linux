@@ -893,6 +893,7 @@ static const char sdw_card_long_name[] = "Intel Soundwire SOF";
 
 static struct snd_soc_card card_sof_sdw = {
 	.name = "soundwire",
+	.owner = THIS_MODULE,
 	.late_probe = sof_sdw_hdmi_card_late_probe,
 	.codec_conf = codec_conf,
 	.num_configs = ARRAY_SIZE(codec_conf),
