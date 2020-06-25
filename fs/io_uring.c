@@ -890,6 +890,7 @@ static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 				 struct io_uring_files_update *ip,
 				 unsigned nr_args);
 static int io_grab_files(struct io_kiocb *req);
+static void io_complete_rw_common(struct kiocb *kiocb, long res);
 static void io_cleanup_req(struct io_kiocb *req);
 static int io_file_get(struct io_submit_state *state, struct io_kiocb *req,
 		       int fd, struct file **out_file, bool fixed);
@@ -1749,6 +1750,14 @@ static void io_iopoll_queue(struct list_head *again)
 	do {
 		req = list_first_entry(again, struct io_kiocb, list);
 		list_del(&req->list);
+
+		/* shouldn't happen unless io_uring is dying, cancel reqs */
+		if (unlikely(!current->mm)) {
+			io_complete_rw_common(&req->rw.kiocb, -EAGAIN);
+			io_put_req(req);
+			continue;
+		}
+
 		refcount_inc(&req->refs);
 		io_queue_async_work(req);
 	} while (!list_empty(again));
