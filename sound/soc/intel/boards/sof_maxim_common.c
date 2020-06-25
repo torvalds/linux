@@ -29,11 +29,11 @@ static struct snd_soc_codec_conf max_98373_codec_conf[] = {
 };
 
 struct snd_soc_dai_link_component max_98373_components[] = {
-	{  /* For Left */
+	{  /* For Right */
 		.name = MAX_98373_DEV0_NAME,
 		.dai_name = MAX_98373_CODEC_DAI,
 	},
-	{  /* For Right */
+	{  /* For Left */
 		.name = MAX_98373_DEV1_NAME,
 		.dai_name = MAX_98373_CODEC_DAI,
 	},
