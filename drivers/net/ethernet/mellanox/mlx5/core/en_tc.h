@@ -40,6 +40,14 @@
 
 #ifdef CONFIG_MLX5_ESWITCH
 
+int mlx5e_tc_num_filters(struct mlx5e_priv *priv, unsigned long flags);
+
+struct mlx5e_tc_update_priv {
+	struct net_device *tun_dev;
+};
+
+#if IS_ENABLED(CONFIG_MLX5_CLS_ACT)
+
 struct tunnel_match_key {
 	struct flow_dissector_key_control enc_control;
 	struct flow_dissector_key_keyid enc_key_id;
@@ -114,8 +122,6 @@ void mlx5e_put_encap_flow_list(struct mlx5e_priv *priv, struct list_head *flow_l
 struct mlx5e_neigh_hash_entry;
 void mlx5e_tc_update_neigh_used_value(struct mlx5e_neigh_hash_entry *nhe);
 
-int mlx5e_tc_num_filters(struct mlx5e_priv *priv, unsigned long flags);
-
 void mlx5e_tc_reoffload_flows_work(struct work_struct *work);
 
 enum mlx5e_tc_attr_to_reg {
@@ -141,10 +147,6 @@ extern struct mlx5e_tc_attr_to_reg_mapping mlx5e_tc_attr_to_reg_mappings[];
 
 bool mlx5e_is_valid_eswitch_fwd_dev(struct mlx5e_priv *priv,
 				    struct net_device *out_dev);
-
-struct mlx5e_tc_update_priv {
-	struct net_device *tun_dev;
-};
 
 struct mlx5e_tc_mod_hdr_acts {
 	int num_actions;
@@ -173,8 +175,6 @@ u32 mlx5e_tc_get_flow_tun_id(struct mlx5e_tc_flow *flow);
 void mlx5e_tc_set_ethertype(struct mlx5_core_dev *mdev,
 			    struct flow_match_basic *match, bool outer,
 			    void *headers_c, void *headers_v);
-
-#if IS_ENABLED(CONFIG_MLX5_CLS_ACT)
 
 int mlx5e_tc_nic_init(struct mlx5e_priv *priv);
 void mlx5e_tc_nic_cleanup(struct mlx5e_priv *priv);

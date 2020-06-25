@@ -215,16 +215,3 @@ int mlx5e_xsk_setup_umem(struct net_device *dev, struct xdp_umem *umem, u16 qid)
 	return umem ? mlx5e_xsk_enable_umem(priv, umem, ix) :
 		      mlx5e_xsk_disable_umem(priv, ix);
 }
-
-u16 mlx5e_xsk_first_unused_channel(struct mlx5e_params *params, struct mlx5e_xsk *xsk)
-{
-	u16 res = xsk->refcnt ? params->num_channels : 0;
-
-	while (res) {
-		if (mlx5e_xsk_get_umem(params, xsk, res - 1))
-			break;
-		--res;
-	}
-
-	return res;
-}
