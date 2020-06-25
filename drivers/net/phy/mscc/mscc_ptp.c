@@ -80,7 +80,7 @@ static u32 vsc85xx_ts_read_csr(struct phy_device *phydev, enum ts_blk blk,
 		break;
 	}
 
-	mutex_lock(&phydev->mdio.bus->mdio_lock);
+	phy_lock_mdio_bus(phydev);
 
 	phy_ts_base_write(phydev, MSCC_EXT_PAGE_ACCESS, MSCC_PHY_PAGE_1588);
 
@@ -98,7 +98,7 @@ static u32 vsc85xx_ts_read_csr(struct phy_device *phydev, enum ts_blk blk,
 
 	phy_ts_base_write(phydev, MSCC_EXT_PAGE_ACCESS, MSCC_PHY_PAGE_STANDARD);
 
-	mutex_unlock(&phydev->mdio.bus->mdio_lock);
+	phy_unlock_mdio_bus(phydev);
 
 	return val;
 }
@@ -130,7 +130,7 @@ static void vsc85xx_ts_write_csr(struct phy_device *phydev, enum ts_blk blk,
 		break;
 	}
 
-	mutex_lock(&phydev->mdio.bus->mdio_lock);
+	phy_lock_mdio_bus(phydev);
 
 	bypass = phy_ts_base_read(phydev, MSCC_PHY_BYPASS_CONTROL);
 
@@ -154,7 +154,7 @@ static void vsc85xx_ts_write_csr(struct phy_device *phydev, enum ts_blk blk,
 	if (cond && upper)
 		phy_ts_base_write(phydev, MSCC_PHY_BYPASS_CONTROL, bypass);
 
-	mutex_unlock(&phydev->mdio.bus->mdio_lock);
+	phy_unlock_mdio_bus(phydev);
 }
 
 /* Pick bytes from PTP header */
@@ -1273,7 +1273,7 @@ static int __vsc8584_init_ptp(struct phy_device *phydev)
 	u32 val;
 
 	if (!vsc8584_is_1588_input_clk_configured(phydev)) {
-		mutex_lock(&phydev->mdio.bus->mdio_lock);
+		phy_lock_mdio_bus(phydev);
 
 		/* 1588_DIFF_INPUT_CLK configuration: Use an external clock for
 		 * the LTC, as per 3.13.29 in the VSC8584 datasheet.
@@ -1285,7 +1285,7 @@ static int __vsc8584_init_ptp(struct phy_device *phydev)
 		phy_ts_base_write(phydev, MSCC_EXT_PAGE_ACCESS,
 				  MSCC_PHY_PAGE_STANDARD);
 
-		mutex_unlock(&phydev->mdio.bus->mdio_lock);
+		phy_unlock_mdio_bus(phydev);
 
 		vsc8584_set_input_clk_configured(phydev);
 	}
