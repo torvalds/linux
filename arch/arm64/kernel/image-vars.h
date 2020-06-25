@@ -63,35 +63,6 @@ __efistub__ctype		= _ctype;
 
 #define KVM_NVHE_ALIAS(sym) __kvm_nvhe_##sym = sym;
 
-/* Symbols defined in aarch32.c (not yet compiled with nVHE build rules). */
-KVM_NVHE_ALIAS(kvm_skip_instr32);
-
-/* Symbols defined in entry.S (not yet compiled with nVHE build rules). */
-KVM_NVHE_ALIAS(__guest_enter);
-KVM_NVHE_ALIAS(__guest_exit);
-KVM_NVHE_ALIAS(abort_guest_exit_end);
-KVM_NVHE_ALIAS(abort_guest_exit_start);
-
-/* Symbols defined in fpsimd.S (not yet compiled with nVHE build rules). */
-KVM_NVHE_ALIAS(__fpsimd_restore_state);
-KVM_NVHE_ALIAS(__fpsimd_save_state);
-
-/* Symbols defined in vgic-v2-cpuif-proxy.c (not yet compiled with nVHE build rules). */
-KVM_NVHE_ALIAS(__vgic_v2_perform_cpuif_access);
-
-/* Symbols defined in vgic-v3-sr.c (not yet compiled with nVHE build rules). */
-KVM_NVHE_ALIAS(__vgic_v3_activate_traps);
-KVM_NVHE_ALIAS(__vgic_v3_deactivate_traps);
-KVM_NVHE_ALIAS(__vgic_v3_get_ich_vtr_el2);
-KVM_NVHE_ALIAS(__vgic_v3_init_lrs);
-KVM_NVHE_ALIAS(__vgic_v3_perform_cpuif_access);
-KVM_NVHE_ALIAS(__vgic_v3_read_vmcr);
-KVM_NVHE_ALIAS(__vgic_v3_restore_aprs);
-KVM_NVHE_ALIAS(__vgic_v3_restore_state);
-KVM_NVHE_ALIAS(__vgic_v3_save_aprs);
-KVM_NVHE_ALIAS(__vgic_v3_save_state);
-KVM_NVHE_ALIAS(__vgic_v3_write_vmcr);
-
 /* Alternative callbacks for init-time patching of nVHE hyp code. */
 KVM_NVHE_ALIAS(arm64_enable_wa2_handling);
 KVM_NVHE_ALIAS(kvm_patch_vector_branch);
