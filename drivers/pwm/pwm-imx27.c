@@ -202,7 +202,7 @@ static void pwm_imx27_wait_fifo_slot(struct pwm_chip *chip,
 	sr = readl(imx->mmio_base + MX3_PWMSR);
 	fifoav = FIELD_GET(MX3_PWMSR_FIFOAV, sr);
 	if (fifoav == MX3_PWMSR_FIFOAV_4WORDS) {
-		period_ms = DIV_ROUND_UP_ULL(pwm_get_period(pwm),
+		period_ms = DIV_ROUND_UP(pwm_get_period(pwm),
 					 NSEC_PER_MSEC);
 		msleep(period_ms);
 
@@ -235,7 +235,8 @@ static int pwm_imx27_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	period_cycles /= prescale;
 	c = clkrate * state->duty_cycle;
-	duty_cycles = div64_u64(c, NSEC_PER_SEC * prescale);
+	do_div(c, NSEC_PER_SEC * prescale);
+	duty_cycles = c;
 
 	/*
 	 * according to imx pwm RM, the real period value should be PERIOD
