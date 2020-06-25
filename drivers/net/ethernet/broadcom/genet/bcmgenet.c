@@ -610,8 +610,9 @@ static int bcmgenet_hfb_create_rxnfc_filter(struct bcmgenet_priv *priv,
 {
 	struct ethtool_rx_flow_spec *fs = &rule->fs;
 	int err = 0, offset = 0, f_length = 0;
-	u16 val_16, mask_16;
 	u8 val_8, mask_8;
+	__be16 val_16;
+	u16 mask_16;
 	size_t size;
 	u32 *f_data;
 
