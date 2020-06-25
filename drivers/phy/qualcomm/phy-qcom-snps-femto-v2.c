@@ -77,6 +77,7 @@ static const char * const qcom_snps_hsphy_vreg_names[] = {
  * @phy_reset: phy reset control
  * @vregs: regulator supplies bulk data
  * @phy_initialized: if PHY has been initialized correctly
+ * @mode: contains the current mode the PHY is in
  */
 struct qcom_snps_hsphy {
 	struct phy *phy;
@@ -88,6 +89,7 @@ struct qcom_snps_hsphy {
 	struct regulator_bulk_data vregs[SNPS_HS_NUM_VREGS];
 
 	bool phy_initialized;
+	enum phy_mode mode;
 };
 
 static inline void qcom_snps_hsphy_write_mask(void __iomem *base, u32 offset,
@@ -158,6 +160,15 @@ static int __maybe_unused qcom_snps_hsphy_runtime_resume(struct device *dev)
 		return 0;
 
 	qcom_snps_hsphy_resume(hsphy);
+	return 0;
+}
+
+static int qcom_snps_hsphy_set_mode(struct phy *phy, enum phy_mode mode,
+				    int submode)
+{
+	struct qcom_snps_hsphy *hsphy = phy_get_drvdata(phy);
+
+	hsphy->mode = mode;
 	return 0;
 }
 
@@ -258,6 +269,7 @@ static int qcom_snps_hsphy_exit(struct phy *phy)
 static const struct phy_ops qcom_snps_hsphy_gen_ops = {
 	.init		= qcom_snps_hsphy_init,
 	.exit		= qcom_snps_hsphy_exit,
+	.set_mode	= qcom_snps_hsphy_set_mode,
 	.owner		= THIS_MODULE,
 };
 
