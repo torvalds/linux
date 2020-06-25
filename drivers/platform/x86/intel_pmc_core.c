@@ -415,7 +415,7 @@ static const struct pmc_bit_map tgl_lpm0_map[] = {
 	{"PCIe_Gen3PLL_OFF_STS",		BIT(20)},
 	{"OPIOPLL_OFF_STS",			BIT(21)},
 	{"OCPLL_OFF_STS",			BIT(22)},
-	{"AudioPLL_OFF_STS",			BIT(23)},
+	{"MainPLL_OFF_STS",			BIT(23)},
 	{"MIPIPLL_OFF_STS",			BIT(24)},
 	{"Fast_XTAL_Osc_OFF_STS",		BIT(25)},
 	{"AC_Ring_Osc_OFF_STS",			BIT(26)},
