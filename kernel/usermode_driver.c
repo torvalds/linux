@@ -67,9 +67,6 @@ static void umd_cleanup(struct subprocess_info *info)
  * @len: length of the blob
  * @info: information about usermode process (shouldn't be NULL)
  *
- * If info->cmdline is set it will be used as command line for the
- * user process, else "usermodehelper" is used.
- *
  * Returns either negative error or zero which indicates success
  * in executing a blob of bytes as a usermode process. In such
  * case 'struct umd_info *info' is populated with two pipes
@@ -79,7 +76,6 @@ static void umd_cleanup(struct subprocess_info *info)
  */
 int fork_usermode_blob(void *data, size_t len, struct umd_info *info)
 {
-	const char *cmdline = (info->cmdline) ? info->cmdline : "usermodehelper";
 	struct subprocess_info *sub_info;
 	char **argv = NULL;
 	struct file *file;
@@ -87,7 +83,7 @@ int fork_usermode_blob(void *data, size_t len, struct umd_info *info)
 	loff_t pos = 0;
 	int err;
 
-	file = shmem_kernel_file_setup("", len, 0);
+	file = shmem_kernel_file_setup(info->driver_name, len, 0);
 	if (IS_ERR(file))
 		return PTR_ERR(file);
 
@@ -100,11 +96,12 @@ int fork_usermode_blob(void *data, size_t len, struct umd_info *info)
 	}
 
 	err = -ENOMEM;
-	argv = argv_split(GFP_KERNEL, cmdline, NULL);
+	argv = argv_split(GFP_KERNEL, info->driver_name, NULL);
 	if (!argv)
 		goto out;
 
-	sub_info = call_usermodehelper_setup("none", argv, NULL, GFP_KERNEL,
+	sub_info = call_usermodehelper_setup(info->driver_name, argv, NULL,
+					     GFP_KERNEL,
 					     umd_setup, umd_cleanup, info);
 	if (!sub_info)
 		goto out;

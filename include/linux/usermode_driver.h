@@ -18,7 +18,7 @@ static inline void exit_umh(struct task_struct *tsk)
 #endif
 
 struct umd_info {
-	const char *cmdline;
+	const char *driver_name;
 	struct file *pipe_to_umh;
 	struct file *pipe_from_umh;
 	struct list_head list;
