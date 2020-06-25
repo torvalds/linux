@@ -182,6 +182,7 @@ el2_error:
 	eret
 	sb
 
+#ifdef __KVM_NVHE_HYPERVISOR__
 SYM_FUNC_START(__hyp_do_panic)
 	mov	lr, #(PSR_F_BIT | PSR_I_BIT | PSR_A_BIT | PSR_D_BIT |\
 		      PSR_MODE_EL1h)
@@ -191,6 +192,7 @@ SYM_FUNC_START(__hyp_do_panic)
 	eret
 	sb
 SYM_FUNC_END(__hyp_do_panic)
+#endif
 
 SYM_CODE_START(__hyp_panic)
 	get_host_ctxt x0, x1

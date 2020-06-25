@@ -114,7 +114,7 @@ static void __hyp_text __sysreg_restore_el1_state(struct kvm_cpu_context *ctxt)
 		/*
 		 * Must only be done for guest registers, hence the context
 		 * test. We're coming from the host, so SCTLR.M is already
-		 * set. Pairs with __activate_traps_nvhe().
+		 * set. Pairs with nVHE's __activate_traps().
 		 */
 		write_sysreg_el1((ctxt->sys_regs[TCR_EL1] |
 				  TCR_EPD1_MASK | TCR_EPD0_MASK),
@@ -142,7 +142,7 @@ static void __hyp_text __sysreg_restore_el1_state(struct kvm_cpu_context *ctxt)
 	    ctxt->__hyp_running_vcpu) {
 		/*
 		 * Must only be done for host registers, hence the context
-		 * test. Pairs with __deactivate_traps_nvhe().
+		 * test. Pairs with nVHE's __deactivate_traps().
 		 */
 		isb();
 		/*
