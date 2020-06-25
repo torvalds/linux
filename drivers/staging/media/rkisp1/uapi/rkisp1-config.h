@@ -95,8 +95,7 @@
 /*
  * Lens shade correction
  */
-#define RKISP1_CIF_ISP_LSC_GRAD_TBL_SIZE           8
-#define RKISP1_CIF_ISP_LSC_SIZE_TBL_SIZE           8
+#define RKISP1_CIF_ISP_LSC_SECTORS_TBL_SIZE        8
 
 /*
  * The following matches the tuning process,
@@ -334,11 +333,11 @@ struct rkisp1_cif_isp_lsc_config {
 	__u32 gb_data_tbl[RKISP1_CIF_ISP_LSC_SAMPLES_MAX][RKISP1_CIF_ISP_LSC_SAMPLES_MAX];
 	__u32 b_data_tbl[RKISP1_CIF_ISP_LSC_SAMPLES_MAX][RKISP1_CIF_ISP_LSC_SAMPLES_MAX];
 
-	__u32 x_grad_tbl[RKISP1_CIF_ISP_LSC_GRAD_TBL_SIZE];
-	__u32 y_grad_tbl[RKISP1_CIF_ISP_LSC_GRAD_TBL_SIZE];
+	__u32 x_grad_tbl[RKISP1_CIF_ISP_LSC_SECTORS_TBL_SIZE];
+	__u32 y_grad_tbl[RKISP1_CIF_ISP_LSC_SECTORS_TBL_SIZE];
 
-	__u32 x_size_tbl[RKISP1_CIF_ISP_LSC_SIZE_TBL_SIZE];
-	__u32 y_size_tbl[RKISP1_CIF_ISP_LSC_SIZE_TBL_SIZE];
+	__u32 x_size_tbl[RKISP1_CIF_ISP_LSC_SECTORS_TBL_SIZE];
+	__u32 y_size_tbl[RKISP1_CIF_ISP_LSC_SECTORS_TBL_SIZE];
 	__u16 config_width;
 	__u16 config_height;
 } __packed;

@@ -267,7 +267,7 @@ static void rkisp1_lsc_config(struct rkisp1_params *params,
 				RKISP1_CIF_ISP_LSC_CTRL_ENA);
 	rkisp1_lsc_correct_matrix_config(params, arg);
 
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < RKISP1_CIF_ISP_LSC_SECTORS_TBL_SIZE / 2; i++) {
 		/* program x size tables */
 		data = RKISP1_CIF_ISP_LSC_SECT_SIZE(arg->x_size_tbl[i * 2],
 						    arg->x_size_tbl[i * 2 + 1]);
