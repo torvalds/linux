@@ -119,3 +119,4 @@ EXPORT_SYMBOL_GPL(nft_reject_icmpv6_code);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Patrick McHardy <kaber@trash.net>");
+MODULE_DESCRIPTION("Netfilter x_tables over nftables module");
