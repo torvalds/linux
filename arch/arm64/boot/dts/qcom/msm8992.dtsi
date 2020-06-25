@@ -588,6 +588,11 @@
 			rpm_requests: rpm-requests {
 				compatible = "qcom,rpm-msm8994";
 				qcom,smd-channels = "rpm_requests";
+
+				rpmcc: rpmcc {
+					compatible = "qcom,rpmcc-msm8992";
+					#clock-cells = <1>;
+				};
 			};
 		};
 	};
