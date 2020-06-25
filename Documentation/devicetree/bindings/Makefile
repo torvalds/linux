@@ -54,3 +54,8 @@ $(obj)/processed-schema.yaml: $(DT_SCHEMA_FILES) check_dtschema_version FORCE
 	$(call if_changed,mk_schema)
 
 extra-y += processed-schema.yaml
+
+# Hack: avoid 'Argument list too long' error for 'make clean'. Remove most of
+# build artifacts here before they are processed by scripts/Makefile.clean
+clean-files = $(shell find $(obj) \( -name '*.example.dts' -o \
+			-name '*.example.dt.yaml' \) -delete 2>/dev/null)
