@@ -66,8 +66,17 @@ __efistub__ctype		= _ctype;
 /* Symbols defined in debug-sr.c (not yet compiled with nVHE build rules). */
 KVM_NVHE_ALIAS(__kvm_get_mdcr_el2);
 
+/* Symbols defined in entry.S (not yet compiled with nVHE build rules). */
+KVM_NVHE_ALIAS(__guest_exit);
+KVM_NVHE_ALIAS(abort_guest_exit_end);
+KVM_NVHE_ALIAS(abort_guest_exit_start);
+
+/* Symbols defined in hyp-init.S (not yet compiled with nVHE build rules). */
+KVM_NVHE_ALIAS(__kvm_handle_stub_hvc);
+
 /* Symbols defined in switch.c (not yet compiled with nVHE build rules). */
 KVM_NVHE_ALIAS(__kvm_vcpu_run_nvhe);
+KVM_NVHE_ALIAS(hyp_panic);
 
 /* Symbols defined in sysreg-sr.c (not yet compiled with nVHE build rules). */
 KVM_NVHE_ALIAS(__kvm_enable_ssbs);
@@ -88,6 +97,21 @@ KVM_NVHE_ALIAS(__vgic_v3_read_vmcr);
 KVM_NVHE_ALIAS(__vgic_v3_restore_aprs);
 KVM_NVHE_ALIAS(__vgic_v3_save_aprs);
 KVM_NVHE_ALIAS(__vgic_v3_write_vmcr);
+
+/* Alternative callbacks for init-time patching of nVHE hyp code. */
+KVM_NVHE_ALIAS(arm64_enable_wa2_handling);
+KVM_NVHE_ALIAS(kvm_patch_vector_branch);
+KVM_NVHE_ALIAS(kvm_update_va_mask);
+
+/* Global kernel state accessed by nVHE hyp code. */
+KVM_NVHE_ALIAS(arm64_ssbd_callback_required);
+KVM_NVHE_ALIAS(kvm_host_data);
+
+/* Kernel constant needed to compute idmap addresses. */
+KVM_NVHE_ALIAS(kimage_voffset);
+
+/* Kernel symbols used to call panic() from nVHE hyp code (via ERET). */
+KVM_NVHE_ALIAS(panic);
 
 #endif /* CONFIG_KVM */
 
