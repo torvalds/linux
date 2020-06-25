@@ -89,7 +89,7 @@
  */
 #define CPCAP_REG_OFF_MODE_SEC		BIT(15)
 
-/**
+/*
  * SoC specific configuration for CPCAP regulator. There are at least three
  * different SoCs each with their own parameters: omap3, omap4 and tegra2.
  *
@@ -325,7 +325,7 @@ static const unsigned int vvib_val_tbl[] = { 1300000, 1800000, 2000000,
 static const unsigned int vusb_val_tbl[] = { 0, 3300000, };
 static const unsigned int vaudio_val_tbl[] = { 0, 2775000, };
 
-/**
+/*
  * SoC specific configuration for omap4. The data below is comes from Motorola
  * Linux kernel tree. It's basically the values of cpcap_regltr_data,
  * cpcap_regulator_mode_values and cpcap_regulator_off_mode_values, see
