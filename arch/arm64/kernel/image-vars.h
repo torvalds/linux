@@ -63,6 +63,32 @@ __efistub__ctype		= _ctype;
 
 #define KVM_NVHE_ALIAS(sym) __kvm_nvhe_##sym = sym;
 
+/* Symbols defined in debug-sr.c (not yet compiled with nVHE build rules). */
+KVM_NVHE_ALIAS(__kvm_get_mdcr_el2);
+
+/* Symbols defined in switch.c (not yet compiled with nVHE build rules). */
+KVM_NVHE_ALIAS(__kvm_vcpu_run_nvhe);
+
+/* Symbols defined in sysreg-sr.c (not yet compiled with nVHE build rules). */
+KVM_NVHE_ALIAS(__kvm_enable_ssbs);
+
+/* Symbols defined in timer-sr.c (not yet compiled with nVHE build rules). */
+KVM_NVHE_ALIAS(__kvm_timer_set_cntvoff);
+
+/* Symbols defined in tlb.c (not yet compiled with nVHE build rules). */
+KVM_NVHE_ALIAS(__kvm_flush_vm_context);
+KVM_NVHE_ALIAS(__kvm_tlb_flush_local_vmid);
+KVM_NVHE_ALIAS(__kvm_tlb_flush_vmid);
+KVM_NVHE_ALIAS(__kvm_tlb_flush_vmid_ipa);
+
+/* Symbols defined in vgic-v3-sr.c (not yet compiled with nVHE build rules). */
+KVM_NVHE_ALIAS(__vgic_v3_get_ich_vtr_el2);
+KVM_NVHE_ALIAS(__vgic_v3_init_lrs);
+KVM_NVHE_ALIAS(__vgic_v3_read_vmcr);
+KVM_NVHE_ALIAS(__vgic_v3_restore_aprs);
+KVM_NVHE_ALIAS(__vgic_v3_save_aprs);
+KVM_NVHE_ALIAS(__vgic_v3_write_vmcr);
+
 #endif /* CONFIG_KVM */
 
 #endif /* __ARM64_KERNEL_IMAGE_VARS_H */
