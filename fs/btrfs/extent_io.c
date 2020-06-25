@@ -510,7 +510,7 @@ static void merge_state(struct extent_io_tree *tree,
 }
 
 static void set_state_bits(struct extent_io_tree *tree,
-			   struct extent_state *state, u32 *bits,
+			   struct extent_state *state, u32 bits,
 			   struct extent_changeset *changeset);
 
 /*
@@ -527,7 +527,7 @@ static int insert_state(struct extent_io_tree *tree,
 			struct extent_state *state,
 			struct rb_node ***node_in,
 			struct rb_node **parent_in,
-			u32 *bits, struct extent_changeset *changeset)
+			u32 bits, struct extent_changeset *changeset)
 {
 	struct rb_node **node;
 	struct rb_node *parent;
@@ -639,11 +639,11 @@ static struct extent_state *next_state(struct extent_state *state)
  */
 static struct extent_state *clear_state_bit(struct extent_io_tree *tree,
 					    struct extent_state *state,
-					    u32 *bits, int wake,
+					    u32 bits, int wake,
 					    struct extent_changeset *changeset)
 {
 	struct extent_state *next;
-	u32 bits_to_clear = *bits & ~EXTENT_CTLBITS;
+	u32 bits_to_clear = bits & ~EXTENT_CTLBITS;
 	int ret;
 
 	if ((bits_to_clear & EXTENT_DIRTY) && (state->state & EXTENT_DIRTY)) {
@@ -805,8 +805,7 @@ hit_next:
 		if (err)
 			goto out;
 		if (state->end <= end) {
-			state = clear_state_bit(tree, state, &bits, wake,
-						changeset);
+			state = clear_state_bit(tree, state, bits, wake, changeset);
 			goto next;
 		}
 		goto search_again;
@@ -827,13 +826,13 @@ hit_next:
 		if (wake)
 			wake_up(&state->wq);
 
-		clear_state_bit(tree, prealloc, &bits, wake, changeset);
+		clear_state_bit(tree, prealloc, bits, wake, changeset);
 
 		prealloc = NULL;
 		goto out;
 	}
 
-	state = clear_state_bit(tree, state, &bits, wake, changeset);
+	state = clear_state_bit(tree, state, bits, wake, changeset);
 next:
 	if (last_end == (u64)-1)
 		goto out;
@@ -924,9 +923,9 @@ out:
 
 static void set_state_bits(struct extent_io_tree *tree,
 			   struct extent_state *state,
-			   u32 *bits, struct extent_changeset *changeset)
+			   u32 bits, struct extent_changeset *changeset)
 {
-	u32 bits_to_set = *bits & ~EXTENT_CTLBITS;
+	u32 bits_to_set = bits & ~EXTENT_CTLBITS;
 	int ret;
 
 	if (tree->private_data && is_data_inode(tree->private_data))
@@ -1022,7 +1021,7 @@ again:
 		BUG_ON(!prealloc);
 		prealloc->start = start;
 		prealloc->end = end;
-		err = insert_state(tree, prealloc, &p, &parent, &bits, changeset);
+		err = insert_state(tree, prealloc, &p, &parent, bits, changeset);
 		if (err)
 			extent_io_tree_panic(tree, err);
 
@@ -1048,7 +1047,7 @@ hit_next:
 			goto out;
 		}
 
-		set_state_bits(tree, state, &bits, changeset);
+		set_state_bits(tree, state, bits, changeset);
 		cache_state(state, cached_state);
 		merge_state(tree, state);
 		if (last_end == (u64)-1)
@@ -1104,7 +1103,7 @@ hit_next:
 		if (err)
 			goto out;
 		if (state->end <= end) {
-			set_state_bits(tree, state, &bits, changeset);
+			set_state_bits(tree, state, bits, changeset);
 			cache_state(state, cached_state);
 			merge_state(tree, state);
 			if (last_end == (u64)-1)
@@ -1140,7 +1139,7 @@ hit_next:
 		 */
 		prealloc->start = start;
 		prealloc->end = this_end;
-		err = insert_state(tree, prealloc, NULL, NULL, &bits, changeset);
+		err = insert_state(tree, prealloc, NULL, NULL, bits, changeset);
 		if (err)
 			extent_io_tree_panic(tree, err);
 
@@ -1168,7 +1167,7 @@ hit_next:
 		if (err)
 			extent_io_tree_panic(tree, err);
 
-		set_state_bits(tree, prealloc, &bits, changeset);
+		set_state_bits(tree, prealloc, bits, changeset);
 		cache_state(prealloc, cached_state);
 		merge_state(tree, prealloc);
 		prealloc = NULL;
@@ -1265,7 +1264,7 @@ again:
 		}
 		prealloc->start = start;
 		prealloc->end = end;
-		err = insert_state(tree, prealloc, &p, &parent, &bits, NULL);
+		err = insert_state(tree, prealloc, &p, &parent, bits, NULL);
 		if (err)
 			extent_io_tree_panic(tree, err);
 		cache_state(prealloc, cached_state);
@@ -1284,9 +1283,9 @@ hit_next:
 	 * Just lock what we found and keep going
 	 */
 	if (state->start == start && state->end <= end) {
-		set_state_bits(tree, state, &bits, NULL);
+		set_state_bits(tree, state, bits, NULL);
 		cache_state(state, cached_state);
-		state = clear_state_bit(tree, state, &clear_bits, 0, NULL);
+		state = clear_state_bit(tree, state, clear_bits, 0, NULL);
 		if (last_end == (u64)-1)
 			goto out;
 		start = last_end + 1;
@@ -1325,10 +1324,9 @@ hit_next:
 		if (err)
 			goto out;
 		if (state->end <= end) {
-			set_state_bits(tree, state, &bits, NULL);
+			set_state_bits(tree, state, bits, NULL);
 			cache_state(state, cached_state);
-			state = clear_state_bit(tree, state, &clear_bits, 0,
-						NULL);
+			state = clear_state_bit(tree, state, clear_bits, 0, NULL);
 			if (last_end == (u64)-1)
 				goto out;
 			start = last_end + 1;
@@ -1364,7 +1362,7 @@ hit_next:
 		 */
 		prealloc->start = start;
 		prealloc->end = this_end;
-		err = insert_state(tree, prealloc, NULL, NULL, &bits, NULL);
+		err = insert_state(tree, prealloc, NULL, NULL, bits, NULL);
 		if (err)
 			extent_io_tree_panic(tree, err);
 		cache_state(prealloc, cached_state);
@@ -1389,9 +1387,9 @@ hit_next:
 		if (err)
 			extent_io_tree_panic(tree, err);
 
-		set_state_bits(tree, prealloc, &bits, NULL);
+		set_state_bits(tree, prealloc, bits, NULL);
 		cache_state(prealloc, cached_state);
-		clear_state_bit(tree, prealloc, &clear_bits, 0, NULL);
+		clear_state_bit(tree, prealloc, clear_bits, 0, NULL);
 		prealloc = NULL;
 		goto out;
 	}

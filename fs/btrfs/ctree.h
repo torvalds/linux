@@ -3318,9 +3318,9 @@ void btrfs_new_inode_args_destroy(struct btrfs_new_inode_args *args);
 struct inode *btrfs_new_subvol_inode(struct user_namespace *mnt_userns,
 				     struct inode *dir);
  void btrfs_set_delalloc_extent(struct inode *inode, struct extent_state *state,
-			       unsigned *bits);
+			        u32 bits);
 void btrfs_clear_delalloc_extent(struct inode *inode,
-				 struct extent_state *state, unsigned *bits);
+				 struct extent_state *state, u32 bits);
 void btrfs_merge_delalloc_extent(struct inode *inode, struct extent_state *new,
 				 struct extent_state *other);
 void btrfs_split_delalloc_extent(struct inode *inode,

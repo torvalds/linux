@@ -2274,18 +2274,18 @@ static void btrfs_del_delalloc_inode(struct btrfs_root *root,
  * list of inodes that have pending delalloc work to be done.
  */
 void btrfs_set_delalloc_extent(struct inode *inode, struct extent_state *state,
-			       unsigned *bits)
+			       u32 bits)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 
-	if ((*bits & EXTENT_DEFRAG) && !(*bits & EXTENT_DELALLOC))
+	if ((bits & EXTENT_DEFRAG) && !(bits & EXTENT_DELALLOC))
 		WARN_ON(1);
 	/*
 	 * set_bit and clear bit hooks normally require _irqsave/restore
 	 * but in this case, we are only testing for the DELALLOC
 	 * bit, which is only set or cleared with irqs on
 	 */
-	if (!(state->state & EXTENT_DELALLOC) && (*bits & EXTENT_DELALLOC)) {
+	if (!(state->state & EXTENT_DELALLOC) && (bits & EXTENT_DELALLOC)) {
 		struct btrfs_root *root = BTRFS_I(inode)->root;
 		u64 len = state->end + 1 - state->start;
 		u32 num_extents = count_max_extents(len);
@@ -2303,7 +2303,7 @@ void btrfs_set_delalloc_extent(struct inode *inode, struct extent_state *state,
 					 fs_info->delalloc_batch);
 		spin_lock(&BTRFS_I(inode)->lock);
 		BTRFS_I(inode)->delalloc_bytes += len;
-		if (*bits & EXTENT_DEFRAG)
+		if (bits & EXTENT_DEFRAG)
 			BTRFS_I(inode)->defrag_bytes += len;
 		if (do_list && !test_bit(BTRFS_INODE_IN_DELALLOC_LIST,
 					 &BTRFS_I(inode)->runtime_flags))
@@ -2312,7 +2312,7 @@ void btrfs_set_delalloc_extent(struct inode *inode, struct extent_state *state,
 	}
 
 	if (!(state->state & EXTENT_DELALLOC_NEW) &&
-	    (*bits & EXTENT_DELALLOC_NEW)) {
+	    (bits & EXTENT_DELALLOC_NEW)) {
 		spin_lock(&BTRFS_I(inode)->lock);
 		BTRFS_I(inode)->new_delalloc_bytes += state->end + 1 -
 			state->start;
@@ -2325,14 +2325,14 @@ void btrfs_set_delalloc_extent(struct inode *inode, struct extent_state *state,
  * accounting happens.
  */
 void btrfs_clear_delalloc_extent(struct inode *vfs_inode,
-				 struct extent_state *state, unsigned *bits)
+				 struct extent_state *state, u32 bits)
 {
 	struct btrfs_inode *inode = BTRFS_I(vfs_inode);
 	struct btrfs_fs_info *fs_info = btrfs_sb(vfs_inode->i_sb);
 	u64 len = state->end + 1 - state->start;
 	u32 num_extents = count_max_extents(len);
 
-	if ((state->state & EXTENT_DEFRAG) && (*bits & EXTENT_DEFRAG)) {
+	if ((state->state & EXTENT_DEFRAG) && (bits & EXTENT_DEFRAG)) {
 		spin_lock(&inode->lock);
 		inode->defrag_bytes -= len;
 		spin_unlock(&inode->lock);
@@ -2343,7 +2343,7 @@ void btrfs_clear_delalloc_extent(struct inode *vfs_inode,
 	 * but in this case, we are only testing for the DELALLOC
 	 * bit, which is only set or cleared with irqs on
 	 */
-	if ((state->state & EXTENT_DELALLOC) && (*bits & EXTENT_DELALLOC)) {
+	if ((state->state & EXTENT_DELALLOC) && (bits & EXTENT_DELALLOC)) {
 		struct btrfs_root *root = inode->root;
 		bool do_list = !btrfs_is_free_space_inode(inode);
 
@@ -2356,7 +2356,7 @@ void btrfs_clear_delalloc_extent(struct inode *vfs_inode,
 		 * don't need to call delalloc_release_metadata if there is an
 		 * error.
 		 */
-		if (*bits & EXTENT_CLEAR_META_RESV &&
+		if (bits & EXTENT_CLEAR_META_RESV &&
 		    root != fs_info->tree_root)
 			btrfs_delalloc_release_metadata(inode, len, false);
 
@@ -2366,7 +2366,7 @@ void btrfs_clear_delalloc_extent(struct inode *vfs_inode,
 
 		if (!btrfs_is_data_reloc_root(root) &&
 		    do_list && !(state->state & EXTENT_NORESERVE) &&
-		    (*bits & EXTENT_CLEAR_DATA_RESV))
+		    (bits & EXTENT_CLEAR_DATA_RESV))
 			btrfs_free_reserved_data_space_noquota(fs_info, len);
 
 		percpu_counter_add_batch(&fs_info->delalloc_bytes, -len,
@@ -2381,11 +2381,11 @@ void btrfs_clear_delalloc_extent(struct inode *vfs_inode,
 	}
 
 	if ((state->state & EXTENT_DELALLOC_NEW) &&
-	    (*bits & EXTENT_DELALLOC_NEW)) {
+	    (bits & EXTENT_DELALLOC_NEW)) {
 		spin_lock(&inode->lock);
 		ASSERT(inode->new_delalloc_bytes >= len);
 		inode->new_delalloc_bytes -= len;
-		if (*bits & EXTENT_ADD_INODE_BYTES)
+		if (bits & EXTENT_ADD_INODE_BYTES)
 			inode_add_bytes(&inode->vfs_inode, len);
 		spin_unlock(&inode->lock);
 	}
