@@ -1443,8 +1443,6 @@ static int vsc8584_config_init(struct phy_device *phydev)
 	if (ret)
 		return ret;
 
-	phy_write(phydev, MSCC_EXT_PAGE_ACCESS, MSCC_PHY_PAGE_STANDARD);
-
 	val = phy_read(phydev, MSCC_PHY_EXT_PHY_CNTL_1);
 	val &= ~(MEDIA_OP_MODE_MASK | VSC8584_MAC_IF_SELECTION_MASK);
 	val |= (MEDIA_OP_MODE_COPPER << MEDIA_OP_MODE_POS) |
@@ -1891,11 +1889,6 @@ static int vsc8514_config_init(struct phy_device *phydev)
 	}
 
 	phy_unlock_mdio_bus(phydev);
-
-	ret = phy_write(phydev, MSCC_EXT_PAGE_ACCESS, MSCC_PHY_PAGE_STANDARD);
-
-	if (ret)
-		return ret;
 
 	ret = phy_modify(phydev, MSCC_PHY_EXT_PHY_CNTL_1, MEDIA_OP_MODE_MASK,
 			 MEDIA_OP_MODE_COPPER << MEDIA_OP_MODE_POS);
