@@ -185,10 +185,8 @@ static int sprd_pmic_probe(struct spi_device *spi)
 		return -ENOMEM;
 
 	ddata->irq_chip.irqs = ddata->irqs;
-	for (i = 0; i < pdata->num_irqs; i++) {
-		ddata->irqs[i].reg_offset = i / pdata->num_irqs;
-		ddata->irqs[i].mask = BIT(i % pdata->num_irqs);
-	}
+	for (i = 0; i < pdata->num_irqs; i++)
+		ddata->irqs[i].mask = BIT(i);
 
 	ret = devm_regmap_add_irq_chip(&spi->dev, ddata->regmap, ddata->irq,
 				       IRQF_ONESHOT | IRQF_NO_SUSPEND, 0,
