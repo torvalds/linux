@@ -49,8 +49,6 @@
 #include "mmhub_v2_0.h"
 #include "athub_v2_0.h"
 #include "athub_v2_1.h"
-/* XXX Move this macro to navi10 header file, which is like vid.h for VI.*/
-#define AMDGPU_NUM_OF_VMIDS			8
 
 #if 0
 static const struct soc15_reg_golden golden_settings_navi10_hdp[] =
@@ -905,8 +903,7 @@ static int gmc_v10_0_sw_init(void *handle)
 	 * amdgpu graphics/compute will use VMIDs 1-7
 	 * amdkfd will use VMIDs 8-15
 	 */
-	adev->vm_manager.id_mgr[AMDGPU_GFXHUB_0].num_ids = AMDGPU_NUM_OF_VMIDS;
-	adev->vm_manager.id_mgr[AMDGPU_MMHUB_0].num_ids = AMDGPU_NUM_OF_VMIDS;
+	adev->vm_manager.first_kfd_vmid = 8;
 
 	amdgpu_vm_manager_init(adev);
 

@@ -49,8 +49,6 @@
 #define SI_MAX_TCC_MASK          	0xFFFF
 #define SI_MAX_CTLACKS_ASSERTION_WAIT   100
 
-#define AMDGPU_NUM_OF_VMIDS 		8
-
 /* SMC IND accessor regs */
 #define SMC_IND_INDEX_0                              0x80
 #define SMC_IND_DATA_0                               0x81
