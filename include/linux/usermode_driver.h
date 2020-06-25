@@ -4,26 +4,10 @@
 #include <linux/umh.h>
 #include <linux/path.h>
 
-#ifdef CONFIG_BPFILTER
-void __exit_umh(struct task_struct *tsk);
-
-static inline void exit_umh(struct task_struct *tsk)
-{
-	if (unlikely(tsk->flags & PF_UMH))
-		__exit_umh(tsk);
-}
-#else
-static inline void exit_umh(struct task_struct *tsk)
-{
-}
-#endif
-
 struct umd_info {
 	const char *driver_name;
 	struct file *pipe_to_umh;
 	struct file *pipe_from_umh;
-	struct list_head list;
-	void (*cleanup)(struct umd_info *info);
 	struct path wd;
 	struct pid *tgid;
 };
