@@ -1732,7 +1732,7 @@ void hisi_qm_release_qp(struct hisi_qp *qp)
 }
 EXPORT_SYMBOL_GPL(hisi_qm_release_qp);
 
-static int qm_qp_ctx_cfg(struct hisi_qp *qp, int qp_id, int pasid)
+static int qm_qp_ctx_cfg(struct hisi_qp *qp, int qp_id, u32 pasid)
 {
 	struct hisi_qm *qm = qp->qm;
 	struct device *dev = &qm->pdev->dev;
@@ -1804,7 +1804,7 @@ static int qm_start_qp_nolock(struct hisi_qp *qp, unsigned long arg)
 	struct hisi_qm *qm = qp->qm;
 	struct device *dev = &qm->pdev->dev;
 	int qp_id = qp->qp_id;
-	int pasid = arg;
+	u32 pasid = arg;
 	int ret;
 
 	if (!qm_qp_avail_state(qm, qp, QP_START))
