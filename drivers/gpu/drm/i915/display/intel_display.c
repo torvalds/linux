@@ -11943,8 +11943,9 @@ static void intel_setup_outputs(struct drm_i915_private *dev_priv)
 
 		/*
 		 * Haswell uses DDI functions to detect digital outputs.
-		 * On SKL pre-D0 the strap isn't connected, so we assume
-		 * it's there.
+		 * On SKL pre-D0 the strap isn't connected. Later SKUs may or
+		 * may not have it - it was supposed to be fixed by the same
+		 * time we stopped using straps. Assume it's there.
 		 */
 		found = intel_de_read(dev_priv, DDI_BUF_CTL(PORT_A)) & DDI_INIT_DISPLAY_DETECTED;
 		/* WaIgnoreDDIAStrap: skl */
