@@ -26,7 +26,9 @@
 #define MII_DP83822_PHYSCR	0x11
 #define MII_DP83822_MISR1	0x12
 #define MII_DP83822_MISR2	0x13
+#define MII_DP83822_RCSR	0x17
 #define MII_DP83822_RESET_CTRL	0x1f
+#define MII_DP83822_GENCFG	0x465
 
 #define DP83822_HW_RESET	BIT(15)
 #define DP83822_SW_RESET	BIT(14)
@@ -76,6 +78,10 @@
 #define DP83822_WOL_EN		BIT(7)
 #define DP83822_WOL_INDICATION_SEL BIT(8)
 #define DP83822_WOL_CLR_INDICATION BIT(11)
+
+/* RSCR bits */
+#define DP83822_RX_CLK_SHIFT	BIT(12)
+#define DP83822_TX_CLK_SHIFT	BIT(11)
 
 static int dp83822_ack_interrupt(struct phy_device *phydev)
 {
@@ -255,13 +261,53 @@ static int dp83822_config_intr(struct phy_device *phydev)
 	return phy_write(phydev, MII_DP83822_PHYSCR, physcr_status);
 }
 
-static int dp83822_config_init(struct phy_device *phydev)
+static int dp8382x_disable_wol(struct phy_device *phydev)
 {
 	int value = DP83822_WOL_EN | DP83822_WOL_MAGIC_EN |
 		    DP83822_WOL_SECURE_ON;
 
 	return phy_clear_bits_mmd(phydev, DP83822_DEVADDR,
 				  MII_DP83822_WOL_CFG, value);
+}
+
+static int dp83822_config_init(struct phy_device *phydev)
+{
+	struct device *dev = &phydev->mdio.dev;
+	int rgmii_delay;
+	s32 rx_int_delay;
+	s32 tx_int_delay;
+	int err = 0;
+
+	if (phy_interface_is_rgmii(phydev)) {
+		rx_int_delay = phy_get_internal_delay(phydev, dev, NULL, 0,
+						      true);
+
+		if (rx_int_delay <= 0)
+			rgmii_delay = 0;
+		else
+			rgmii_delay = DP83822_RX_CLK_SHIFT;
+
+		tx_int_delay = phy_get_internal_delay(phydev, dev, NULL, 0,
+						      false);
+		if (tx_int_delay <= 0)
+			rgmii_delay &= ~DP83822_TX_CLK_SHIFT;
+		else
+			rgmii_delay |= DP83822_TX_CLK_SHIFT;
+
+		if (rgmii_delay) {
+			err = phy_set_bits_mmd(phydev, DP83822_DEVADDR,
+					       MII_DP83822_RCSR, rgmii_delay);
+			if (err)
+				return err;
+		}
+	}
+
+	return dp8382x_disable_wol(phydev);
+}
+
+static int dp8382x_config_init(struct phy_device *phydev)
+{
+	return dp8382x_disable_wol(phydev);
 }
 
 static int dp83822_phy_reset(struct phy_device *phydev)
@@ -272,9 +318,7 @@ static int dp83822_phy_reset(struct phy_device *phydev)
 	if (err < 0)
 		return err;
 
-	dp83822_config_init(phydev);
-
-	return 0;
+	return phydev->drv->config_init(phydev);
 }
 
 static int dp83822_suspend(struct phy_device *phydev)
@@ -318,14 +362,29 @@ static int dp83822_resume(struct phy_device *phydev)
 		.resume = dp83822_resume,			\
 	}
 
+#define DP8382X_PHY_DRIVER(_id, _name)				\
+	{							\
+		PHY_ID_MATCH_MODEL(_id),			\
+		.name		= (_name),			\
+		/* PHY_BASIC_FEATURES */			\
+		.soft_reset	= dp83822_phy_reset,		\
+		.config_init	= dp8382x_config_init,		\
+		.get_wol = dp83822_get_wol,			\
+		.set_wol = dp83822_set_wol,			\
+		.ack_interrupt = dp83822_ack_interrupt,		\
+		.config_intr = dp83822_config_intr,		\
+		.suspend = dp83822_suspend,			\
+		.resume = dp83822_resume,			\
+	}
+
 static struct phy_driver dp83822_driver[] = {
 	DP83822_PHY_DRIVER(DP83822_PHY_ID, "TI DP83822"),
-	DP83822_PHY_DRIVER(DP83825I_PHY_ID, "TI DP83825I"),
-	DP83822_PHY_DRIVER(DP83826C_PHY_ID, "TI DP83826C"),
-	DP83822_PHY_DRIVER(DP83826NC_PHY_ID, "TI DP83826NC"),
-	DP83822_PHY_DRIVER(DP83825S_PHY_ID, "TI DP83825S"),
-	DP83822_PHY_DRIVER(DP83825CM_PHY_ID, "TI DP83825M"),
-	DP83822_PHY_DRIVER(DP83825CS_PHY_ID, "TI DP83825CS"),
+	DP8382X_PHY_DRIVER(DP83825I_PHY_ID, "TI DP83825I"),
+	DP8382X_PHY_DRIVER(DP83826C_PHY_ID, "TI DP83826C"),
+	DP8382X_PHY_DRIVER(DP83826NC_PHY_ID, "TI DP83826NC"),
+	DP8382X_PHY_DRIVER(DP83825S_PHY_ID, "TI DP83825S"),
+	DP8382X_PHY_DRIVER(DP83825CM_PHY_ID, "TI DP83825M"),
+	DP8382X_PHY_DRIVER(DP83825CS_PHY_ID, "TI DP83825CS"),
 };
 module_phy_driver(dp83822_driver);
 
