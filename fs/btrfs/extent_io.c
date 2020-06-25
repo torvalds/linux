@@ -570,6 +570,20 @@ insert_new:
 }
 
 /*
+ * Insert state to @tree to the location given by @node and @parent.
+ */
+static void insert_state_fast(struct extent_io_tree *tree,
+			      struct extent_state *state, struct rb_node **node,
+			      struct rb_node *parent, unsigned bits,
+			      struct extent_changeset *changeset)
+{
+	set_state_bits(tree, state, bits, changeset);
+	rb_link_node(&state->rb_node, parent, node);
+	rb_insert_color(&state->rb_node, &tree->state);
+	merge_state(tree, state);
+}
+
+/*
  * split a given extent state struct in two, inserting the preallocated
  * struct 'prealloc' as the newly created second half.  'split' indicates an
  * offset inside 'orig' where it should be split.
@@ -1021,10 +1035,7 @@ again:
 		BUG_ON(!prealloc);
 		prealloc->start = start;
 		prealloc->end = end;
-		err = insert_state(tree, prealloc, &p, &parent, bits, changeset);
-		if (err)
-			extent_io_tree_panic(tree, err);
-
+		insert_state_fast(tree, prealloc, p, parent, bits, changeset);
 		cache_state(prealloc, cached_state);
 		prealloc = NULL;
 		goto out;
@@ -1264,9 +1275,7 @@ again:
 		}
 		prealloc->start = start;
 		prealloc->end = end;
-		err = insert_state(tree, prealloc, &p, &parent, bits, NULL);
-		if (err)
-			extent_io_tree_panic(tree, err);
+		insert_state_fast(tree, prealloc, p, parent, bits, NULL);
 		cache_state(prealloc, cached_state);
 		prealloc = NULL;
 		goto out;
