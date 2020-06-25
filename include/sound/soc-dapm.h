@@ -16,6 +16,8 @@
 #include <sound/asoc.h>
 
 struct device;
+struct snd_soc_pcm_runtime;
+struct soc_enum;
 
 /* widget has no PM register bit */
 #define SND_SOC_NOPM	-1
