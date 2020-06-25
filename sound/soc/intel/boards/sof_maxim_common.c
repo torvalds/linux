@@ -9,6 +9,8 @@
 #include <uapi/sound/asound.h>
 #include "sof_maxim_common.h"
 
+#define MAX_98373_PIN_NAME 16
+
 static const struct snd_soc_dapm_route max_98373_dapm_routes[] = {
 	/* speaker */
 	{ "Left Spk", NULL, "Left BE_OUT" },
@@ -57,8 +59,51 @@ static int max98373_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+static int max98373_trigger(struct snd_pcm_substream *substream, int cmd)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_dai *codec_dai;
+	int j;
+	int ret = 0;
+
+	for_each_rtd_codec_dais(rtd, j, codec_dai) {
+		struct snd_soc_component *component = codec_dai->component;
+		struct snd_soc_dapm_context *dapm =
+				snd_soc_component_get_dapm(component);
+		char pin_name[MAX_98373_PIN_NAME];
+
+		snprintf(pin_name, ARRAY_SIZE(pin_name), "%s Spk",
+			 codec_dai->component->name_prefix);
+
+		switch (cmd) {
+		case SNDRV_PCM_TRIGGER_START:
+		case SNDRV_PCM_TRIGGER_RESUME:
+		case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+			ret = snd_soc_dapm_enable_pin(dapm, pin_name);
+			if (!ret)
+				snd_soc_dapm_sync(dapm);
+			break;
+		case SNDRV_PCM_TRIGGER_STOP:
+		case SNDRV_PCM_TRIGGER_SUSPEND:
+		case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+			/* Make sure no streams are active before disable pin */
+			if (snd_soc_dai_active(codec_dai) != 1)
+				break;
+			ret = snd_soc_dapm_disable_pin(dapm, pin_name);
+			if (!ret)
+				snd_soc_dapm_sync(dapm);
+			break;
+		default:
+			break;
+		}
+	}
+
+	return ret;
+}
+
 struct snd_soc_ops max_98373_ops = {
 	.hw_params = max98373_hw_params,
+	.trigger = max98373_trigger,
 };
 
 int max98373_spk_codec_init(struct snd_soc_pcm_runtime *rtd)
