@@ -75,11 +75,12 @@ static u32 vsc85xx_ts_read_csr(struct phy_device *phydev, enum ts_blk blk,
 		blk_hw = base_port ? EGRESS_ENGINE_0 : EGRESS_ENGINE_1;
 		break;
 	case PROCESSOR:
+	default:
 		blk_hw = base_port ? PROCESSOR_0 : PROCESSOR_1;
 		break;
 	}
 
-	mutex_lock(&phydev->mdio.bus->mdio_lock);
+	phy_lock_mdio_bus(phydev);
 
 	phy_ts_base_write(phydev, MSCC_EXT_PAGE_ACCESS, MSCC_PHY_PAGE_1588);
 
@@ -97,7 +98,7 @@ static u32 vsc85xx_ts_read_csr(struct phy_device *phydev, enum ts_blk blk,
 
 	phy_ts_base_write(phydev, MSCC_EXT_PAGE_ACCESS, MSCC_PHY_PAGE_STANDARD);
 
-	mutex_unlock(&phydev->mdio.bus->mdio_lock);
+	phy_unlock_mdio_bus(phydev);
 
 	return val;
 }
@@ -129,7 +130,7 @@ static void vsc85xx_ts_write_csr(struct phy_device *phydev, enum ts_blk blk,
 		break;
 	}
 
-	mutex_lock(&phydev->mdio.bus->mdio_lock);
+	phy_lock_mdio_bus(phydev);
 
 	bypass = phy_ts_base_read(phydev, MSCC_PHY_BYPASS_CONTROL);
 
@@ -153,7 +154,7 @@ static void vsc85xx_ts_write_csr(struct phy_device *phydev, enum ts_blk blk,
 	if (cond && upper)
 		phy_ts_base_write(phydev, MSCC_PHY_BYPASS_CONTROL, bypass);
 
-	mutex_unlock(&phydev->mdio.bus->mdio_lock);
+	phy_unlock_mdio_bus(phydev);
 }
 
 /* Pick bytes from PTP header */
@@ -1272,7 +1273,7 @@ static int __vsc8584_init_ptp(struct phy_device *phydev)
 	u32 val;
 
 	if (!vsc8584_is_1588_input_clk_configured(phydev)) {
-		mutex_lock(&phydev->mdio.bus->mdio_lock);
+		phy_lock_mdio_bus(phydev);
 
 		/* 1588_DIFF_INPUT_CLK configuration: Use an external clock for
 		 * the LTC, as per 3.13.29 in the VSC8584 datasheet.
@@ -1284,7 +1285,7 @@ static int __vsc8584_init_ptp(struct phy_device *phydev)
 		phy_ts_base_write(phydev, MSCC_EXT_PAGE_ACCESS,
 				  MSCC_PHY_PAGE_STANDARD);
 
-		mutex_unlock(&phydev->mdio.bus->mdio_lock);
+		phy_unlock_mdio_bus(phydev);
 
 		vsc8584_set_input_clk_configured(phydev);
 	}
@@ -1563,7 +1564,7 @@ int vsc8584_ptp_probe(struct phy_device *phydev)
 
 	/* Retrieve the shared load/save GPIO. Request it as non exclusive as
 	 * the same GPIO can be requested by all the PHYs of the same package.
-	 * Ths GPIO must be used with the gpio_lock taken (the lock is shared
+	 * This GPIO must be used with the gpio_lock taken (the lock is shared
 	 * between all PHYs).
 	 */
 	vsc8531->load_save = devm_gpiod_get_optional(&phydev->mdio.dev, "load-save",
