@@ -374,75 +374,21 @@ void free_extent_state(struct extent_state *state)
  *
  * @tree:       the tree to search
  * @offset:     offset that should fall within an entry in @tree
- * @next_ret:   pointer to the first entry whose range ends after @offset
- * @prev_ret:   pointer to the first entry whose range begins before @offset
- * @p_ret:      pointer where new node should be anchored (used when inserting an
+ * @node_ret:   pointer where new node should be anchored (used when inserting an
  *	        entry in the tree)
  * @parent_ret: points to entry which would have been the parent of the entry,
  *               containing @offset
  *
- * This function returns a pointer to the entry that contains @offset byte
- * address. If no such entry exists, then NULL is returned and the other
- * pointer arguments to the function are filled, otherwise the found entry is
- * returned and other pointers are left untouched.
+ * Return a pointer to the entry that contains @offset byte address and don't change
+ * @node_ret and @parent_ret.
+ *
+ * If no such entry exists, return pointer to entry that ends before @offset
+ * and fill parameters @node_ret and @parent_ret, ie. does not return NULL.
  */
-static struct rb_node *__etree_search(struct extent_io_tree *tree, u64 offset,
-				      struct rb_node **next_ret,
-				      struct rb_node **prev_ret,
-				      struct rb_node ***p_ret,
-				      struct rb_node **parent_ret)
-{
-	struct rb_root *root = &tree->state;
-	struct rb_node **n = &root->rb_node;
-	struct rb_node *prev = NULL;
-	struct rb_node *orig_prev = NULL;
-	struct tree_entry *entry;
-	struct tree_entry *prev_entry = NULL;
-
-	while (*n) {
-		prev = *n;
-		entry = rb_entry(prev, struct tree_entry, rb_node);
-		prev_entry = entry;
-
-		if (offset < entry->start)
-			n = &(*n)->rb_left;
-		else if (offset > entry->end)
-			n = &(*n)->rb_right;
-		else
-			return *n;
-	}
-
-	if (p_ret)
-		*p_ret = n;
-	if (parent_ret)
-		*parent_ret = prev;
-
-	if (next_ret) {
-		orig_prev = prev;
-		while (prev && offset > prev_entry->end) {
-			prev = rb_next(prev);
-			prev_entry = rb_entry(prev, struct tree_entry, rb_node);
-		}
-		*next_ret = prev;
-		prev = orig_prev;
-	}
-
-	if (prev_ret) {
-		prev_entry = rb_entry(prev, struct tree_entry, rb_node);
-		while (prev && offset < prev_entry->start) {
-			prev = rb_prev(prev);
-			prev_entry = rb_entry(prev, struct tree_entry, rb_node);
-		}
-		*prev_ret = prev;
-	}
-	return NULL;
-}
-
-static inline struct rb_node *
-tree_search_for_insert(struct extent_io_tree *tree,
-		       u64 offset,
-		       struct rb_node ***p_ret,
-		       struct rb_node **parent_ret)
+static inline struct rb_node *tree_search_for_insert(struct extent_io_tree *tree,
+					             u64 offset,
+						     struct rb_node ***node_ret,
+						     struct rb_node **parent_ret)
 {
 	struct rb_root *root = &tree->state;
 	struct rb_node **node = &root->rb_node;
@@ -461,8 +407,8 @@ tree_search_for_insert(struct extent_io_tree *tree,
 			return *node;
 	}
 
-	if (p_ret)
-		*p_ret = node;
+	if (node_ret)
+		*node_ret = node;
 	if (parent_ret)
 		*parent_ret = prev;
 
@@ -481,6 +427,62 @@ tree_search_for_insert(struct extent_io_tree *tree,
 static inline struct rb_node *tree_search(struct extent_io_tree *tree, u64 offset)
 {
 	return tree_search_for_insert(tree, offset, NULL, NULL);
+}
+
+/**
+ * Search offset in the tree or fill neighbor rbtree node pointers.
+ *
+ * @tree:      the tree to search
+ * @offset:    offset that should fall within an entry in @tree
+ * @next_ret:  pointer to the first entry whose range ends after @offset
+ * @prev_ret:  pointer to the first entry whose range begins before @offset
+ *
+ * Return a pointer to the entry that contains @offset byte address. If no
+ * such entry exists, then return NULL and fill @prev_ret and @next_ret.
+ * Otherwise return the found entry and other pointers are left untouched.
+ */
+static struct rb_node *tree_search_prev_next(struct extent_io_tree *tree,
+					     u64 offset,
+					     struct rb_node **prev_ret,
+					     struct rb_node **next_ret)
+{
+	struct rb_root *root = &tree->state;
+	struct rb_node **node = &root->rb_node;
+	struct rb_node *prev = NULL;
+	struct rb_node *orig_prev = NULL;
+	struct tree_entry *entry;
+
+	ASSERT(prev_ret);
+	ASSERT(next_ret);
+
+	while (*node) {
+		prev = *node;
+		entry = rb_entry(prev, struct tree_entry, rb_node);
+
+		if (offset < entry->start)
+			node = &(*node)->rb_left;
+		else if (offset > entry->end)
+			node = &(*node)->rb_right;
+		else
+			return *node;
+	}
+
+	orig_prev = prev;
+	while (prev && offset > entry->end) {
+		prev = rb_next(prev);
+		entry = rb_entry(prev, struct tree_entry, rb_node);
+	}
+	*next_ret = prev;
+	prev = orig_prev;
+
+	entry = rb_entry(prev, struct tree_entry, rb_node);
+	while (prev && offset < entry->start) {
+		prev = rb_prev(prev);
+		entry = rb_entry(prev, struct tree_entry, rb_node);
+	}
+	*prev_ret = prev;
+
+	return NULL;
 }
 
 /*
@@ -1686,7 +1688,7 @@ void find_first_clear_extent_bit(struct extent_io_tree *tree, u64 start,
 
 	/* Find first extent with bits cleared */
 	while (1) {
-		node = __etree_search(tree, start, &next, &prev, NULL, NULL);
+		node = tree_search_prev_next(tree, start, &prev, &next);
 		if (!node && !next && !prev) {
 			/*
 			 * Tree is completely empty, send full range and let
