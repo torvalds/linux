@@ -106,7 +106,7 @@ void recalc_intercepts(struct vcpu_svm *svm)
 {
 	struct vmcb_control_area *c, *h, *g;
 
-	mark_dirty(svm->vmcb, VMCB_INTERCEPTS);
+	vmcb_mark_dirty(svm->vmcb, VMCB_INTERCEPTS);
 
 	if (!is_guest_mode(&svm->vcpu))
 		return;
@@ -378,7 +378,7 @@ static void nested_prepare_vmcb_control(struct vcpu_svm *svm)
 	 */
 	recalc_intercepts(svm);
 
-	mark_all_dirty(svm->vmcb);
+	vmcb_mark_all_dirty(svm->vmcb);
 }
 
 void enter_svm_guest_mode(struct vcpu_svm *svm, u64 vmcb_gpa,
@@ -601,7 +601,7 @@ int nested_svm_vmexit(struct vcpu_svm *svm)
 	svm->vmcb->save.cpl = 0;
 	svm->vmcb->control.exit_int_info = 0;
 
-	mark_all_dirty(svm->vmcb);
+	vmcb_mark_all_dirty(svm->vmcb);
 
 	trace_kvm_nested_vmexit_inject(nested_vmcb->control.exit_code,
 				       nested_vmcb->control.exit_info_1,

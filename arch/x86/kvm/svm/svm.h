@@ -185,18 +185,18 @@ static inline struct kvm_svm *to_kvm_svm(struct kvm *kvm)
 	return container_of(kvm, struct kvm_svm, kvm);
 }
 
-static inline void mark_all_dirty(struct vmcb *vmcb)
+static inline void vmcb_mark_all_dirty(struct vmcb *vmcb)
 {
 	vmcb->control.clean = 0;
 }
 
-static inline void mark_all_clean(struct vmcb *vmcb)
+static inline void vmcb_mark_all_clean(struct vmcb *vmcb)
 {
 	vmcb->control.clean = ((1 << VMCB_DIRTY_MAX) - 1)
 			       & ~VMCB_ALWAYS_DIRTY_MASK;
 }
 
-static inline void mark_dirty(struct vmcb *vmcb, int bit)
+static inline void vmcb_mark_dirty(struct vmcb *vmcb, int bit)
 {
 	vmcb->control.clean &= ~(1 << bit);
 }
@@ -417,7 +417,7 @@ extern int avic;
 static inline void avic_update_vapic_bar(struct vcpu_svm *svm, u64 data)
 {
 	svm->vmcb->control.avic_vapic_bar = data & VMCB_AVIC_APIC_BAR_MASK;
-	mark_dirty(svm->vmcb, VMCB_AVIC);
+	vmcb_mark_dirty(svm->vmcb, VMCB_AVIC);
 }
 
 static inline bool avic_vcpu_is_running(struct kvm_vcpu *vcpu)
