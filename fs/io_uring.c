@@ -895,7 +895,6 @@ enum io_mem_account {
 	ACCT_PINNED,
 };
 
-static void io_wq_submit_work(struct io_wq_work **workptr);
 static void io_cqring_fill_event(struct io_kiocb *req, long res);
 static void io_put_req(struct io_kiocb *req);
 static void io_double_put_req(struct io_kiocb *req);
@@ -1773,20 +1772,6 @@ static void io_free_req(struct io_kiocb *req)
 	}
 }
 
-static void io_wq_assign_next(struct io_wq_work **workptr, struct io_kiocb *nxt)
-{
-	struct io_kiocb *link;
-	const struct io_op_def *def = &io_op_defs[nxt->opcode];
-
-	if ((nxt->flags & REQ_F_ISREG) && def->hash_reg_file)
-		io_wq_hash_work(&nxt->work, file_inode(nxt->file));
-
-	*workptr = &nxt->work;
-	link = io_prep_linked_timeout(nxt);
-	if (link)
-		nxt->flags |= REQ_F_QUEUE_TIMEOUT;
-}
-
 /*
  * Drop reference to request, return next in chain (if there is one) if this
  * was the last reference to this request.
@@ -1806,24 +1791,29 @@ static void io_put_req(struct io_kiocb *req)
 		io_free_req(req);
 }
 
-static void io_steal_work(struct io_kiocb *req,
-			  struct io_wq_work **workptr)
+static struct io_wq_work *io_steal_work(struct io_kiocb *req)
 {
-	/*
-	 * It's in an io-wq worker, so there always should be at least
-	 * one reference, which will be dropped in io_put_work() just
-	 * after the current handler returns.
-	 *
-	 * It also means, that if the counter dropped to 1, then there is
-	 * no asynchronous users left, so it's safe to steal the next work.
-	 */
-	if (refcount_read(&req->refs) == 1) {
-		struct io_kiocb *nxt = NULL;
+	struct io_kiocb *link, *nxt = NULL;
 
-		io_req_find_next(req, &nxt);
-		if (nxt)
-			io_wq_assign_next(workptr, nxt);
-	}
+	/*
+	 * A ref is owned by io-wq in which context we're. So, if that's the
+	 * last one, it's safe to steal next work. False negatives are Ok,
+	 * it just will be re-punted async in io_put_work()
+	 */
+	if (refcount_read(&req->refs) != 1)
+		return NULL;
+
+	io_req_find_next(req, &nxt);
+	if (!nxt)
+		return NULL;
+
+	if ((nxt->flags & REQ_F_ISREG) && io_op_defs[nxt->opcode].hash_reg_file)
+		io_wq_hash_work(&nxt->work, file_inode(nxt->file));
+
+	link = io_prep_linked_timeout(nxt);
+	if (link)
+		nxt->flags |= REQ_F_QUEUE_TIMEOUT;
+	return &nxt->work;
 }
 
 /*
@@ -5718,9 +5708,8 @@ static void io_arm_async_linked_timeout(struct io_kiocb *req)
 	io_queue_linked_timeout(link);
 }
 
-static void io_wq_submit_work(struct io_wq_work **workptr)
+static struct io_wq_work *io_wq_submit_work(struct io_wq_work *work)
 {
-	struct io_wq_work *work = *workptr;
 	struct io_kiocb *req = container_of(work, struct io_kiocb, work);
 	int ret = 0;
 
@@ -5751,7 +5740,7 @@ static void io_wq_submit_work(struct io_wq_work **workptr)
 		io_req_complete(req, ret);
 	}
 
-	io_steal_work(req, workptr);
+	return io_steal_work(req);
 }
 
 static inline struct file *io_file_from_index(struct io_ring_ctx *ctx,

@@ -523,9 +523,8 @@ get_next:
 				work->flags |= IO_WQ_WORK_CANCEL;
 
 			hash = io_get_work_hash(work);
-			linked = old_work = work;
-			wq->do_work(&linked);
-			linked = (old_work == linked) ? NULL : linked;
+			old_work = work;
+			linked = wq->do_work(work);
 
 			work = next_hashed;
 			if (!work && linked && !io_wq_is_hashed(linked)) {
@@ -781,8 +780,7 @@ static void io_run_cancel(struct io_wq_work *work, struct io_wqe *wqe)
 		struct io_wq_work *old_work = work;
 
 		work->flags |= IO_WQ_WORK_CANCEL;
-		wq->do_work(&work);
-		work = (work == old_work) ? NULL : work;
+		work = wq->do_work(work);
 		wq->free_work(old_work);
 	} while (work);
 }
