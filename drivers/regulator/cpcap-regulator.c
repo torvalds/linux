@@ -169,7 +169,7 @@ enum cpcap_regulator_id {
 static int cpcap_regulator_enable(struct regulator_dev *rdev)
 {
 	struct cpcap_regulator *regulator = rdev_get_drvdata(rdev);
-	int error, ignore;
+	int error;
 
 	error = regulator_enable_regmap(rdev);
 	if (error)
@@ -180,7 +180,7 @@ static int cpcap_regulator_enable(struct regulator_dev *rdev)
 					   regulator->assign_mask,
 					   regulator->assign_mask);
 		if (error)
-			ignore = regulator_disable_regmap(rdev);
+			regulator_disable_regmap(rdev);
 	}
 
 	return error;
@@ -193,7 +193,7 @@ static int cpcap_regulator_enable(struct regulator_dev *rdev)
 static int cpcap_regulator_disable(struct regulator_dev *rdev)
 {
 	struct cpcap_regulator *regulator = rdev_get_drvdata(rdev);
-	int error, ignore;
+	int error;
 
 	if (rdev->desc->enable_val & CPCAP_REG_OFF_MODE_SEC) {
 		error = regmap_update_bits(rdev->regmap, regulator->assign_reg,
@@ -204,9 +204,9 @@ static int cpcap_regulator_disable(struct regulator_dev *rdev)
 
 	error = regulator_disable_regmap(rdev);
 	if (error && (rdev->desc->enable_val & CPCAP_REG_OFF_MODE_SEC)) {
-		ignore = regmap_update_bits(rdev->regmap, regulator->assign_reg,
-					    regulator->assign_mask,
-					    regulator->assign_mask);
+		regmap_update_bits(rdev->regmap, regulator->assign_reg,
+				   regulator->assign_mask,
+				   regulator->assign_mask);
 	}
 
 	return error;
