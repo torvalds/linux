@@ -15,16 +15,13 @@ extern char bpfilter_umh_end;
 
 static void shutdown_umh(void)
 {
-	struct task_struct *tsk;
+	struct umd_info *info = &bpfilter_ops.info;
+	struct pid *tgid = info->tgid;
 
 	if (bpfilter_ops.stop)
 		return;
 
-	tsk = get_pid_task(find_vpid(bpfilter_ops.info.pid), PIDTYPE_PID);
-	if (tsk) {
-		send_sig(SIGKILL, tsk, 1);
-		put_task_struct(tsk);
-	}
+	kill_pid(tgid, SIGKILL, 1);
 }
 
 static void __stop_umh(void)
@@ -48,7 +45,7 @@ static int __bpfilter_process_sockopt(struct sock *sk, int optname,
 	req.cmd = optname;
 	req.addr = (long __force __user)optval;
 	req.len = optlen;
-	if (!bpfilter_ops.info.pid)
+	if (!bpfilter_ops.info.tgid)
 		goto out;
 	n = __kernel_write(bpfilter_ops.info.pipe_to_umh, &req, sizeof(req),
 			   &pos);
@@ -81,7 +78,7 @@ static int start_umh(void)
 	if (err)
 		return err;
 	bpfilter_ops.stop = false;
-	pr_info("Loaded bpfilter_umh pid %d\n", bpfilter_ops.info.pid);
+	pr_info("Loaded bpfilter_umh pid %d\n", pid_nr(bpfilter_ops.info.tgid));
 
 	/* health check that usermode process started correctly */
 	if (__bpfilter_process_sockopt(NULL, 0, NULL, 0, 0) != 0) {

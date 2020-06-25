@@ -25,7 +25,7 @@ struct umd_info {
 	struct list_head list;
 	void (*cleanup)(struct umd_info *info);
 	struct path wd;
-	pid_t pid;
+	struct pid *tgid;
 };
 int umd_load_blob(struct umd_info *info, const void *data, size_t len);
 int umd_unload_blob(struct umd_info *info);

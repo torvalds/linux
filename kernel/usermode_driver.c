@@ -133,7 +133,7 @@ static int umd_setup(struct subprocess_info *info, struct cred *new)
 	set_fs_pwd(current->fs, &umd_info->wd);
 	umd_info->pipe_to_umh = to_umh[1];
 	umd_info->pipe_from_umh = from_umh[0];
-	umd_info->pid = task_pid_nr(current);
+	umd_info->tgid = get_pid(task_tgid(current));
 	current->flags |= PF_UMH;
 	return 0;
 }
@@ -146,6 +146,8 @@ static void umd_cleanup(struct subprocess_info *info)
 	if (info->retval) {
 		fput(umd_info->pipe_to_umh);
 		fput(umd_info->pipe_from_umh);
+		put_pid(umd_info->tgid);
+		umd_info->tgid = NULL;
 	}
 }
 
@@ -155,15 +157,18 @@ static void umd_cleanup(struct subprocess_info *info)
  *
  * Returns either negative error or zero which indicates success in
  * executing a usermode driver. In such case 'struct umd_info *info'
- * is populated with two pipes and a pid of the process. The caller is
+ * is populated with two pipes and a tgid of the process. The caller is
  * responsible for health check of the user process, killing it via
- * pid, and closing the pipes when user process is no longer needed.
+ * tgid, and closing the pipes when user process is no longer needed.
  */
 int fork_usermode_driver(struct umd_info *info)
 {
 	struct subprocess_info *sub_info;
 	char **argv = NULL;
 	int err;
+
+	if (WARN_ON_ONCE(info->tgid))
+		return -EBUSY;
 
 	err = -ENOMEM;
 	argv = argv_split(GFP_KERNEL, info->driver_name, NULL);
@@ -192,11 +197,11 @@ EXPORT_SYMBOL_GPL(fork_usermode_driver);
 void __exit_umh(struct task_struct *tsk)
 {
 	struct umd_info *info;
-	pid_t pid = tsk->pid;
+	struct pid *tgid = task_tgid(tsk);
 
 	mutex_lock(&umh_list_lock);
 	list_for_each_entry(info, &umh_list, list) {
-		if (info->pid == pid) {
+		if (info->tgid == tgid) {
 			list_del(&info->list);
 			mutex_unlock(&umh_list_lock);
 			goto out;
