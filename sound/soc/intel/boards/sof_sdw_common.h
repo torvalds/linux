@@ -71,6 +71,9 @@ struct mc_private {
 
 extern unsigned long sof_sdw_quirk;
 
+int sdw_startup(struct snd_pcm_substream *substream);
+void sdw_shutdown(struct snd_pcm_substream *substream);
+
 /* generic HDMI support */
 int sof_sdw_hdmi_init(struct snd_soc_pcm_runtime *rtd);
 
@@ -104,6 +107,12 @@ int sof_sdw_rt715_init(const struct snd_soc_acpi_link_adr *link,
 		       struct snd_soc_dai_link *dai_links,
 		       struct sof_sdw_codec_info *info,
 		       bool playback);
+
+/* MAX98373 support */
+int sof_sdw_mx8373_init(const struct snd_soc_acpi_link_adr *link,
+			struct snd_soc_dai_link *dai_links,
+			struct sof_sdw_codec_info *info,
+			bool playback);
 
 /* RT5682 support */
 int sof_sdw_rt5682_init(const struct snd_soc_acpi_link_adr *link,

@@ -11,7 +11,7 @@
 
 #define MAX_98373_PIN_NAME 16
 
-static const struct snd_soc_dapm_route max_98373_dapm_routes[] = {
+const struct snd_soc_dapm_route max_98373_dapm_routes[] = {
 	/* speaker */
 	{ "Left Spk", NULL, "Left BE_OUT" },
 	{ "Right Spk", NULL, "Right BE_OUT" },
@@ -59,7 +59,7 @@ static int max98373_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int max98373_trigger(struct snd_pcm_substream *substream, int cmd)
+int max98373_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *codec_dai;
