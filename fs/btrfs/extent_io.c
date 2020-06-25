@@ -444,20 +444,6 @@ tree_search_for_insert(struct extent_io_tree *tree,
 		       struct rb_node ***p_ret,
 		       struct rb_node **parent_ret)
 {
-	struct rb_node *next= NULL;
-	struct rb_node *ret;
-
-	ret = __etree_search(tree, offset, &next, NULL, p_ret, parent_ret);
-	if (!ret)
-		return next;
-	return ret;
-}
-
-/*
- * Inexact rb-tree search, return the next entry if @offset is not found
- */
-static inline struct rb_node *tree_search(struct extent_io_tree *tree, u64 offset)
-{
 	struct rb_root *root = &tree->state;
 	struct rb_node **node = &root->rb_node;
 	struct rb_node *prev = NULL;
@@ -475,6 +461,11 @@ static inline struct rb_node *tree_search(struct extent_io_tree *tree, u64 offse
 			return *node;
 	}
 
+	if (p_ret)
+		*p_ret = node;
+	if (parent_ret)
+		*parent_ret = prev;
+
 	/* Search neighbors until we find the first one past the end */
 	while (prev && offset > entry->end) {
 		prev = rb_next(prev);
@@ -482,6 +473,14 @@ static inline struct rb_node *tree_search(struct extent_io_tree *tree, u64 offse
 	}
 
 	return prev;
+}
+
+/*
+ * Inexact rb-tree search, return the next entry if @offset is not found
+ */
+static inline struct rb_node *tree_search(struct extent_io_tree *tree, u64 offset)
+{
+	return tree_search_for_insert(tree, offset, NULL, NULL);
 }
 
 /*
