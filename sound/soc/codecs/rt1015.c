@@ -8,23 +8,24 @@
 //
 //
 
+#include <linux/acpi.h>
+#include <linux/delay.h>
+#include <linux/firmware.h>
 #include <linux/fs.h>
+#include <linux/gpio.h>
+#include <linux/i2c.h>
+#include <linux/init.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-#include <linux/init.h>
-#include <linux/delay.h>
+#include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/regmap.h>
-#include <linux/i2c.h>
-#include <linux/platform_device.h>
-#include <linux/firmware.h>
-#include <linux/gpio.h>
 #include <sound/core.h>
+#include <sound/initval.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
-#include <sound/soc.h>
 #include <sound/soc-dapm.h>
-#include <sound/initval.h>
+#include <sound/soc.h>
 #include <sound/tlv.h>
 
 #include "rl6231.h"
