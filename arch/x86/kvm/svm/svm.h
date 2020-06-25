@@ -81,7 +81,7 @@ struct kvm_svm {
 
 struct kvm_vcpu;
 
-struct nested_state {
+struct svm_nested_state {
 	struct vmcb *hsave;
 	u64 hsave_msr;
 	u64 vm_cr_msr;
@@ -133,7 +133,7 @@ struct vcpu_svm {
 
 	ulong nmi_iret_rip;
 
-	struct nested_state nested;
+	struct svm_nested_state nested;
 
 	bool nmi_singlestep;
 	u64 nmi_singlestep_guest_rflags;
