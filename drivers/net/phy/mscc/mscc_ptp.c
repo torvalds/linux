@@ -75,6 +75,7 @@ static u32 vsc85xx_ts_read_csr(struct phy_device *phydev, enum ts_blk blk,
 		blk_hw = base_port ? EGRESS_ENGINE_0 : EGRESS_ENGINE_1;
 		break;
 	case PROCESSOR:
+	default:
 		blk_hw = base_port ? PROCESSOR_0 : PROCESSOR_1;
 		break;
 	}
