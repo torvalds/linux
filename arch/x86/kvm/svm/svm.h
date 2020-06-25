@@ -362,7 +362,7 @@ void svm_set_gif(struct vcpu_svm *svm, bool value);
 #define NESTED_EXIT_DONE	1	/* Exit caused nested vmexit  */
 #define NESTED_EXIT_CONTINUE	2	/* Further checks needed      */
 
-static inline bool svm_nested_virtualize_tpr(struct kvm_vcpu *vcpu)
+static inline bool nested_svm_virtualize_tpr(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
