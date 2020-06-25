@@ -1436,7 +1436,7 @@ static int vsc8584_config_init(struct phy_device *phydev)
 
 	ret = vsc8584_ptp_init(phydev);
 	if (ret)
-		goto err;
+		return ret;
 
 	phy_write(phydev, MSCC_EXT_PAGE_ACCESS, MSCC_PHY_PAGE_STANDARD);
 
