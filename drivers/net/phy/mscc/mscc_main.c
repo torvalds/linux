@@ -1375,8 +1375,10 @@ static int vsc8584_config_init(struct phy_device *phydev)
 			goto err;
 	}
 
-	phy_base_write(phydev, MSCC_EXT_PAGE_ACCESS,
-		       MSCC_PHY_PAGE_EXTENDED_GPIO);
+	ret = phy_base_write(phydev, MSCC_EXT_PAGE_ACCESS,
+			     MSCC_PHY_PAGE_EXTENDED_GPIO);
+	if (ret)
+		goto err;
 
 	val = phy_base_read(phydev, MSCC_PHY_MAC_CFG_FASTLINK);
 	val &= ~MAC_CFG_MASK;
@@ -1774,8 +1776,10 @@ static int vsc8514_config_init(struct phy_device *phydev)
 	if (phy_package_init_once(phydev))
 		vsc8514_config_pre_init(phydev);
 
-	phy_base_write(phydev, MSCC_EXT_PAGE_ACCESS,
-		       MSCC_PHY_PAGE_EXTENDED_GPIO);
+	ret = phy_base_write(phydev, MSCC_EXT_PAGE_ACCESS,
+			     MSCC_PHY_PAGE_EXTENDED_GPIO);
+	if (ret)
+		goto err;
 
 	val = phy_base_read(phydev, MSCC_PHY_MAC_CFG_FASTLINK);
 
