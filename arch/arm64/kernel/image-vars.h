@@ -66,11 +66,6 @@ __efistub__ctype		= _ctype;
 /* Symbols defined in aarch32.c (not yet compiled with nVHE build rules). */
 KVM_NVHE_ALIAS(kvm_skip_instr32);
 
-/* Symbols defined in debug-sr.c (not yet compiled with nVHE build rules). */
-KVM_NVHE_ALIAS(__debug_switch_to_guest);
-KVM_NVHE_ALIAS(__debug_switch_to_host);
-KVM_NVHE_ALIAS(__kvm_get_mdcr_el2);
-
 /* Symbols defined in entry.S (not yet compiled with nVHE build rules). */
 KVM_NVHE_ALIAS(__guest_enter);
 KVM_NVHE_ALIAS(__guest_exit);
