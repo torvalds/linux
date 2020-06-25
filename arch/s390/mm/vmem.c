@@ -20,14 +20,6 @@
 
 static DEFINE_MUTEX(vmem_mutex);
 
-struct memory_segment {
-	struct list_head list;
-	unsigned long start;
-	unsigned long size;
-};
-
-static LIST_HEAD(mem_segs);
-
 static void __ref *vmem_alloc_pages(unsigned int order)
 {
 	unsigned long size = PAGE_SIZE << order;
@@ -300,94 +292,25 @@ void vmemmap_free(unsigned long start, unsigned long end,
 {
 }
 
-/*
- * Add memory segment to the segment list if it doesn't overlap with
- * an already present segment.
- */
-static int insert_memory_segment(struct memory_segment *seg)
+void vmem_remove_mapping(unsigned long start, unsigned long size)
 {
-	struct memory_segment *tmp;
-
-	if (seg->start + seg->size > VMEM_MAX_PHYS ||
-	    seg->start + seg->size < seg->start)
-		return -ERANGE;
-
-	list_for_each_entry(tmp, &mem_segs, list) {
-		if (seg->start >= tmp->start + tmp->size)
-			continue;
-		if (seg->start + seg->size <= tmp->start)
-			continue;
-		return -ENOSPC;
-	}
-	list_add(&seg->list, &mem_segs);
-	return 0;
-}
-
-/*
- * Remove memory segment from the segment list.
- */
-static void remove_memory_segment(struct memory_segment *seg)
-{
-	list_del(&seg->list);
-}
-
-static void __remove_shared_memory(struct memory_segment *seg)
-{
-	remove_memory_segment(seg);
-	vmem_remove_range(seg->start, seg->size);
-}
-
-int vmem_remove_mapping(unsigned long start, unsigned long size)
-{
-	struct memory_segment *seg;
-	int ret;
-
 	mutex_lock(&vmem_mutex);
-
-	ret = -ENOENT;
-	list_for_each_entry(seg, &mem_segs, list) {
-		if (seg->start == start && seg->size == size)
-			break;
-	}
-
-	if (seg->start != start || seg->size != size)
-		goto out;
-
-	ret = 0;
-	__remove_shared_memory(seg);
-	kfree(seg);
-out:
+	vmem_remove_range(start, size);
 	mutex_unlock(&vmem_mutex);
-	return ret;
 }
 
 int vmem_add_mapping(unsigned long start, unsigned long size)
 {
-	struct memory_segment *seg;
 	int ret;
 
+	if (start + size > VMEM_MAX_PHYS ||
+	    start + size < start)
+		return -ERANGE;
+
 	mutex_lock(&vmem_mutex);
-	ret = -ENOMEM;
-	seg = kzalloc(sizeof(*seg), GFP_KERNEL);
-	if (!seg)
-		goto out;
-	seg->start = start;
-	seg->size = size;
-
-	ret = insert_memory_segment(seg);
-	if (ret)
-		goto out_free;
-
 	ret = vmem_add_mem(start, size);
 	if (ret)
-		goto out_remove;
-	goto out;
-
-out_remove:
-	__remove_shared_memory(seg);
-out_free:
-	kfree(seg);
-out:
+		vmem_remove_range(start, size);
 	mutex_unlock(&vmem_mutex);
 	return ret;
 }
@@ -421,27 +344,3 @@ void __init vmem_map_init(void)
 	pr_info("Write protected kernel read-only data: %luk\n",
 		(unsigned long)(__end_rodata - _stext) >> 10);
 }
-
-/*
- * Convert memblock.memory  to a memory segment list so there is a single
- * list that contains all memory segments.
- */
-static int __init vmem_convert_memory_chunk(void)
-{
-	struct memblock_region *reg;
-	struct memory_segment *seg;
-
-	mutex_lock(&vmem_mutex);
-	for_each_memblock(memory, reg) {
-		seg = kzalloc(sizeof(*seg), GFP_KERNEL);
-		if (!seg)
-			panic("Out of memory...\n");
-		seg->start = reg->base;
-		seg->size = reg->size;
-		insert_memory_segment(seg);
-	}
-	mutex_unlock(&vmem_mutex);
-	return 0;
-}
-
-core_initcall(vmem_convert_memory_chunk);
