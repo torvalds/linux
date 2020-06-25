@@ -338,7 +338,7 @@ struct kvm_vcpu_arch {
 	struct vcpu_reset_state	reset_state;
 
 	/* True when deferrable sysregs are loaded on the physical CPU,
-	 * see kvm_vcpu_load_sysregs and kvm_vcpu_put_sysregs. */
+	 * see kvm_vcpu_load_sysregs_vhe and kvm_vcpu_put_sysregs_vhe. */
 	bool sysregs_loaded_on_cpu;
 
 	/* Guest PV state */
@@ -639,8 +639,8 @@ static inline int kvm_arm_have_ssbd(void)
 	}
 }
 
-void kvm_vcpu_load_sysregs(struct kvm_vcpu *vcpu);
-void kvm_vcpu_put_sysregs(struct kvm_vcpu *vcpu);
+void kvm_vcpu_load_sysregs_vhe(struct kvm_vcpu *vcpu);
+void kvm_vcpu_put_sysregs_vhe(struct kvm_vcpu *vcpu);
 
 int kvm_set_ipa_limit(void);
 

@@ -5,6 +5,7 @@
  */
 
 #include <hyp/switch.h>
+#include <hyp/sysreg-sr.h>
 
 #include <linux/arm-smccc.h>
 #include <linux/kvm_host.h>

@@ -76,13 +76,6 @@ KVM_NVHE_ALIAS(abort_guest_exit_start);
 KVM_NVHE_ALIAS(__fpsimd_restore_state);
 KVM_NVHE_ALIAS(__fpsimd_save_state);
 
-/* Symbols defined in sysreg-sr.c (not yet compiled with nVHE build rules). */
-KVM_NVHE_ALIAS(__kvm_enable_ssbs);
-KVM_NVHE_ALIAS(__sysreg32_restore_state);
-KVM_NVHE_ALIAS(__sysreg32_save_state);
-KVM_NVHE_ALIAS(__sysreg_restore_state_nvhe);
-KVM_NVHE_ALIAS(__sysreg_save_state_nvhe);
-
 /* Symbols defined in timer-sr.c (not yet compiled with nVHE build rules). */
 KVM_NVHE_ALIAS(__kvm_timer_set_cntvoff);
 KVM_NVHE_ALIAS(__timer_disable_traps);
