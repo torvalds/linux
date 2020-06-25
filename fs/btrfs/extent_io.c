@@ -525,8 +525,6 @@ static void set_state_bits(struct extent_io_tree *tree,
  */
 static int insert_state(struct extent_io_tree *tree,
 			struct extent_state *state,
-			struct rb_node ***node_in,
-			struct rb_node **parent_in,
 			u32 bits, struct extent_changeset *changeset)
 {
 	struct rb_node **node;
@@ -534,13 +532,6 @@ static int insert_state(struct extent_io_tree *tree,
 	const u64 end = state->end;
 
 	set_state_bits(tree, state, bits, changeset);
-
-	/* Caller provides the exact tree location */
-	if (node_in && parent_in) {
-		node = *node_in;
-		parent = *parent_in;
-		goto insert_new;
-	}
 
 	node = &tree->state.rb_node;
 	while (*node) {
@@ -561,7 +552,6 @@ static int insert_state(struct extent_io_tree *tree,
 		}
 	}
 
-insert_new:
 	rb_link_node(&state->rb_node, parent, node);
 	rb_insert_color(&state->rb_node, &tree->state);
 
@@ -1150,7 +1140,7 @@ hit_next:
 		 */
 		prealloc->start = start;
 		prealloc->end = this_end;
-		err = insert_state(tree, prealloc, NULL, NULL, bits, changeset);
+		err = insert_state(tree, prealloc, bits, changeset);
 		if (err)
 			extent_io_tree_panic(tree, err);
 
@@ -1371,7 +1361,7 @@ hit_next:
 		 */
 		prealloc->start = start;
 		prealloc->end = this_end;
-		err = insert_state(tree, prealloc, NULL, NULL, bits, NULL);
+		err = insert_state(tree, prealloc, bits, NULL);
 		if (err)
 			extent_io_tree_panic(tree, err);
 		cache_state(prealloc, cached_state);
