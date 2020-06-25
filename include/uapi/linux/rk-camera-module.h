@@ -244,9 +244,18 @@ struct rkmodule_lvds_cfg {
 	struct rkmodule_sync_code blk;
 } __attribute__ ((packed));
 
+/**
+ * struct rkmodule_dpcc_cfg
+ * enable: 0 -> disable dpcc, 1 -> enable multiple,
+ *         2 -> enable single, 3 -> enable all;
+ * cur_single_dpcc: the strength of single dpcc;
+ * cur_multiple_dpcc: the strength of multiple dpcc;
+ * total_dpcc: the max strength;
+ */
 struct rkmodule_dpcc_cfg {
 	__u32 enable;
-	__u32 cur_dpcc;
+	__u32 cur_single_dpcc;
+	__u32 cur_multiple_dpcc;
 	__u32 total_dpcc;
 } __attribute__ ((packed));
 
