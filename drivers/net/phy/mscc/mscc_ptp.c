@@ -1564,7 +1564,7 @@ int vsc8584_ptp_probe(struct phy_device *phydev)
 
 	/* Retrieve the shared load/save GPIO. Request it as non exclusive as
 	 * the same GPIO can be requested by all the PHYs of the same package.
-	 * Ths GPIO must be used with the gpio_lock taken (the lock is shared
+	 * This GPIO must be used with the gpio_lock taken (the lock is shared
 	 * between all PHYs).
 	 */
 	vsc8531->load_save = devm_gpiod_get_optional(&phydev->mdio.dev, "load-save",
