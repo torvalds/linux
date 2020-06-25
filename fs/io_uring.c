@@ -898,6 +898,7 @@ enum io_mem_account {
 static void io_wq_submit_work(struct io_wq_work **workptr);
 static void io_cqring_fill_event(struct io_kiocb *req, long res);
 static void io_put_req(struct io_kiocb *req);
+static void io_double_put_req(struct io_kiocb *req);
 static void __io_double_put_req(struct io_kiocb *req);
 static struct io_kiocb *io_prep_linked_timeout(struct io_kiocb *req);
 static void io_queue_linked_timeout(struct io_kiocb *req);
@@ -949,6 +950,41 @@ static void __io_put_req_task(struct io_kiocb *req)
 {
 	if (req->flags & REQ_F_TASK_PINNED)
 		put_task_struct(req->task);
+}
+
+static void io_sq_thread_drop_mm(struct io_ring_ctx *ctx)
+{
+	struct mm_struct *mm = current->mm;
+
+	if (mm) {
+		kthread_unuse_mm(mm);
+		mmput(mm);
+	}
+}
+
+static int __io_sq_thread_acquire_mm(struct io_ring_ctx *ctx)
+{
+	if (!current->mm) {
+		if (unlikely(!mmget_not_zero(ctx->sqo_mm)))
+			return -EFAULT;
+		kthread_use_mm(ctx->sqo_mm);
+	}
+
+	return 0;
+}
+
+static int io_sq_thread_acquire_mm(struct io_ring_ctx *ctx,
+				   struct io_kiocb *req)
+{
+	if (!io_op_defs[req->opcode].needs_mm)
+		return 0;
+	return __io_sq_thread_acquire_mm(ctx);
+}
+
+static inline void req_set_fail_links(struct io_kiocb *req)
+{
+	if ((req->flags & (REQ_F_LINK | REQ_F_HARDLINK)) == REQ_F_LINK)
+		req->flags |= REQ_F_FAIL_LINK;
 }
 
 static void io_file_put_work(struct work_struct *work);
@@ -1664,6 +1700,64 @@ static void io_req_find_next(struct io_kiocb *req, struct io_kiocb **nxt)
 	}
 }
 
+static void __io_req_task_cancel(struct io_kiocb *req, int error)
+{
+	struct io_ring_ctx *ctx = req->ctx;
+
+	spin_lock_irq(&ctx->completion_lock);
+	io_cqring_fill_event(req, error);
+	io_commit_cqring(ctx);
+	spin_unlock_irq(&ctx->completion_lock);
+
+	io_cqring_ev_posted(ctx);
+	req_set_fail_links(req);
+	io_double_put_req(req);
+}
+
+static void io_req_task_cancel(struct callback_head *cb)
+{
+	struct io_kiocb *req = container_of(cb, struct io_kiocb, task_work);
+
+	__io_req_task_cancel(req, -ECANCELED);
+}
+
+static void __io_req_task_submit(struct io_kiocb *req)
+{
+	struct io_ring_ctx *ctx = req->ctx;
+
+	__set_current_state(TASK_RUNNING);
+	if (!__io_sq_thread_acquire_mm(ctx)) {
+		mutex_lock(&ctx->uring_lock);
+		__io_queue_sqe(req, NULL, NULL);
+		mutex_unlock(&ctx->uring_lock);
+	} else {
+		__io_req_task_cancel(req, -EFAULT);
+	}
+}
+
+static void io_req_task_submit(struct callback_head *cb)
+{
+	struct io_kiocb *req = container_of(cb, struct io_kiocb, task_work);
+
+	__io_req_task_submit(req);
+}
+
+static void io_req_task_queue(struct io_kiocb *req)
+{
+	struct task_struct *tsk = req->task;
+	int ret;
+
+	init_task_work(&req->task_work, io_req_task_submit);
+
+	ret = task_work_add(tsk, &req->task_work, true);
+	if (unlikely(ret)) {
+		init_task_work(&req->task_work, io_req_task_cancel);
+		tsk = io_wq_get_task(req->ctx->io_wq);
+		task_work_add(tsk, &req->task_work, true);
+	}
+	wake_up_process(tsk);
+}
+
 static void io_free_req(struct io_kiocb *req)
 {
 	struct io_kiocb *nxt = NULL;
@@ -1671,8 +1765,12 @@ static void io_free_req(struct io_kiocb *req)
 	io_req_find_next(req, &nxt);
 	__io_free_req(req);
 
-	if (nxt)
-		io_queue_async_work(nxt);
+	if (nxt) {
+		if (nxt->flags & REQ_F_WORK_INITIALIZED)
+			io_queue_async_work(nxt);
+		else
+			io_req_task_queue(nxt);
+	}
 }
 
 static void io_wq_assign_next(struct io_wq_work **workptr, struct io_kiocb *nxt)
@@ -2013,12 +2111,6 @@ static void kiocb_end_write(struct io_kiocb *req)
 	file_end_write(req->file);
 }
 
-static inline void req_set_fail_links(struct io_kiocb *req)
-{
-	if ((req->flags & (REQ_F_LINK | REQ_F_HARDLINK)) == REQ_F_LINK)
-		req->flags |= REQ_F_FAIL_LINK;
-}
-
 static void io_complete_rw_common(struct kiocb *kiocb, long res,
 				  struct io_comp_state *cs)
 {
@@ -2033,35 +2125,6 @@ static void io_complete_rw_common(struct kiocb *kiocb, long res,
 	if (req->flags & REQ_F_BUFFER_SELECTED)
 		cflags = io_put_kbuf(req);
 	__io_req_complete(req, res, cflags, cs);
-}
-
-static void io_sq_thread_drop_mm(struct io_ring_ctx *ctx)
-{
-	struct mm_struct *mm = current->mm;
-
-	if (mm) {
-		kthread_unuse_mm(mm);
-		mmput(mm);
-	}
-}
-
-static int __io_sq_thread_acquire_mm(struct io_ring_ctx *ctx)
-{
-	if (!current->mm) {
-		if (unlikely(!mmget_not_zero(ctx->sqo_mm)))
-			return -EFAULT;
-		kthread_use_mm(ctx->sqo_mm);
-	}
-
-	return 0;
-}
-
-static int io_sq_thread_acquire_mm(struct io_ring_ctx *ctx,
-				   struct io_kiocb *req)
-{
-	if (!io_op_defs[req->opcode].needs_mm)
-		return 0;
-	return __io_sq_thread_acquire_mm(ctx);
 }
 
 #ifdef CONFIG_BLOCK
@@ -2811,20 +2874,6 @@ static int io_read_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 	return 0;
 }
 
-static void __io_async_buf_error(struct io_kiocb *req, int error)
-{
-	struct io_ring_ctx *ctx = req->ctx;
-
-	spin_lock_irq(&ctx->completion_lock);
-	io_cqring_fill_event(req, error);
-	io_commit_cqring(ctx);
-	spin_unlock_irq(&ctx->completion_lock);
-
-	io_cqring_ev_posted(ctx);
-	req_set_fail_links(req);
-	io_double_put_req(req);
-}
-
 static void io_async_buf_cancel(struct callback_head *cb)
 {
 	struct io_async_rw *rw;
@@ -2832,27 +2881,18 @@ static void io_async_buf_cancel(struct callback_head *cb)
 
 	rw = container_of(cb, struct io_async_rw, task_work);
 	req = rw->wpq.wait.private;
-	__io_async_buf_error(req, -ECANCELED);
+	__io_req_task_cancel(req, -ECANCELED);
 }
 
 static void io_async_buf_retry(struct callback_head *cb)
 {
 	struct io_async_rw *rw;
-	struct io_ring_ctx *ctx;
 	struct io_kiocb *req;
 
 	rw = container_of(cb, struct io_async_rw, task_work);
 	req = rw->wpq.wait.private;
-	ctx = req->ctx;
 
-	__set_current_state(TASK_RUNNING);
-	if (!__io_sq_thread_acquire_mm(ctx)) {
-		mutex_lock(&ctx->uring_lock);
-		__io_queue_sqe(req, NULL, NULL);
-		mutex_unlock(&ctx->uring_lock);
-	} else {
-		__io_async_buf_error(req, -EFAULT);
-	}
+	__io_req_task_submit(req);
 }
 
 static int io_async_buf_func(struct wait_queue_entry *wait, unsigned mode,
@@ -5218,22 +5258,24 @@ static int io_files_update(struct io_kiocb *req, bool force_nonblock,
 }
 
 static int io_req_defer_prep(struct io_kiocb *req,
-			     const struct io_uring_sqe *sqe)
+			     const struct io_uring_sqe *sqe, bool for_async)
 {
 	ssize_t ret = 0;
 
 	if (!sqe)
 		return 0;
 
-	io_req_init_async(req);
+	if (for_async || (req->flags & REQ_F_WORK_INITIALIZED)) {
+		io_req_init_async(req);
 
-	if (io_op_defs[req->opcode].file_table) {
-		ret = io_grab_files(req);
-		if (unlikely(ret))
-			return ret;
+		if (io_op_defs[req->opcode].file_table) {
+			ret = io_grab_files(req);
+			if (unlikely(ret))
+				return ret;
+		}
+
+		io_req_work_grab_env(req, &io_op_defs[req->opcode]);
 	}
-
-	io_req_work_grab_env(req, &io_op_defs[req->opcode]);
 
 	switch (req->opcode) {
 	case IORING_OP_NOP:
@@ -5347,7 +5389,7 @@ static int io_req_defer(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	if (!req->io) {
 		if (io_alloc_async_ctx(req))
 			return -EAGAIN;
-		ret = io_req_defer_prep(req, sqe);
+		ret = io_req_defer_prep(req, sqe, true);
 		if (ret < 0)
 			return ret;
 	}
@@ -5966,7 +6008,7 @@ fail_req:
 			ret = -EAGAIN;
 			if (io_alloc_async_ctx(req))
 				goto fail_req;
-			ret = io_req_defer_prep(req, sqe);
+			ret = io_req_defer_prep(req, sqe, true);
 			if (unlikely(ret < 0))
 				goto fail_req;
 		}
@@ -6022,13 +6064,14 @@ static int io_submit_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 		if (io_alloc_async_ctx(req))
 			return -EAGAIN;
 
-		ret = io_req_defer_prep(req, sqe);
+		ret = io_req_defer_prep(req, sqe, false);
 		if (ret) {
 			/* fail even hard links since we don't submit */
 			head->flags |= REQ_F_FAIL_LINK;
 			return ret;
 		}
 		trace_io_uring_link(ctx, req, head);
+		io_get_req_task(req);
 		list_add_tail(&req->link_list, &head->link_list);
 
 		/* last request of a link, enqueue the link */
@@ -6048,7 +6091,7 @@ static int io_submit_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 			if (io_alloc_async_ctx(req))
 				return -EAGAIN;
 
-			ret = io_req_defer_prep(req, sqe);
+			ret = io_req_defer_prep(req, sqe, true);
 			if (ret)
 				req->flags |= REQ_F_FAIL_LINK;
 			*link = req;
