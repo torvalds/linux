@@ -15,8 +15,31 @@
 #include "sof_sdw_common.h"
 
 unsigned long sof_sdw_quirk = SOF_RT711_JD_SRC_JD1;
+static int quirk_override = -1;
+module_param_named(quirk, quirk_override, int, 0444);
+MODULE_PARM_DESC(quirk, "Board-specific quirk override");
 
 #define INC_ID(BE, CPU, LINK)	do { (BE)++; (CPU)++; (LINK)++; } while (0)
+
+static void log_quirks(struct device *dev)
+{
+	if (SOF_RT711_JDSRC(sof_sdw_quirk))
+		dev_dbg(dev, "quirk realtek,jack-detect-source %ld\n",
+			SOF_RT711_JDSRC(sof_sdw_quirk));
+	if (sof_sdw_quirk & SOF_SDW_FOUR_SPK)
+		dev_dbg(dev, "quirk SOF_SDW_FOUR_SPK enabled\n");
+	if (sof_sdw_quirk & SOF_SDW_TGL_HDMI)
+		dev_dbg(dev, "quirk SOF_SDW_TGL_HDMI enabled\n");
+	if (sof_sdw_quirk & SOF_SDW_PCH_DMIC)
+		dev_dbg(dev, "quirk SOF_SDW_PCH_DMIC enabled\n");
+	if (SOF_SSP_GET_PORT(sof_sdw_quirk))
+		dev_dbg(dev, "SSP port %ld\n",
+			SOF_SSP_GET_PORT(sof_sdw_quirk));
+	if (sof_sdw_quirk & SOF_RT715_DAI_ID_FIX)
+		dev_dbg(dev, "quirk SOF_RT715_DAI_ID_FIX enabled\n");
+	if (sof_sdw_quirk & SOF_SDW_NO_AGGREGATION)
+		dev_dbg(dev, "quirk SOF_SDW_NO_AGGREGATION enabled\n");
+}
 
 static int sof_sdw_quirk_cb(const struct dmi_system_id *id)
 {
@@ -914,6 +937,13 @@ static int mc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	dmi_check_system(sof_sdw_quirk_table);
+
+	if (quirk_override != -1) {
+		dev_info(&pdev->dev, "Overriding quirk 0x%lx => 0x%x\n",
+			 sof_sdw_quirk, quirk_override);
+		sof_sdw_quirk = quirk_override;
+	}
+	log_quirks(&pdev->dev);
 
 	INIT_LIST_HEAD(&ctx->hdmi_pcm_list);
 
