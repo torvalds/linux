@@ -2003,7 +2003,6 @@ static void tracing_reset_cpu(struct array_buffer *buf, int cpu)
 void tracing_reset_online_cpus(struct array_buffer *buf)
 {
 	struct trace_buffer *buffer = buf->buffer;
-	int cpu;
 
 	if (!buffer)
 		return;
@@ -2015,8 +2014,7 @@ void tracing_reset_online_cpus(struct array_buffer *buf)
 
 	buf->time_start = buffer_ftrace_now(buf, buf->cpu);
 
-	for_each_online_cpu(cpu)
-		ring_buffer_reset_cpu(buffer, cpu);
+	ring_buffer_reset_online_cpus(buffer);
 
 	ring_buffer_record_enable(buffer);
 }
