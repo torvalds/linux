@@ -212,6 +212,9 @@ $(foreach m, $(notdir $1), \
 	$(addprefix $(obj)/, $(foreach s, $3, $($(m:%$(strip $2)=%$(s)))))))
 endef
 
+quiet_cmd_copy = COPY    $@
+      cmd_copy = cp $< $@
+
 # Shipped files
 # ===========================================================================
 
