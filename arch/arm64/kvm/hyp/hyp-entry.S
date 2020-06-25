@@ -16,7 +16,6 @@
 #include <asm/mmu.h>
 
 	.text
-	.pushsection	.hyp.text, "ax"
 
 .macro do_el2_call
 	/*

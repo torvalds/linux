@@ -88,9 +88,9 @@
 	default:	write_debug(ptr[0], reg, 0);			\
 	}
 
-static inline void __hyp_text __debug_save_state(struct kvm_vcpu *vcpu,
-						 struct kvm_guest_debug_arch *dbg,
-						 struct kvm_cpu_context *ctxt)
+static inline void __debug_save_state(struct kvm_vcpu *vcpu,
+				      struct kvm_guest_debug_arch *dbg,
+				      struct kvm_cpu_context *ctxt)
 {
 	u64 aa64dfr0;
 	int brps, wrps;
@@ -107,9 +107,9 @@ static inline void __hyp_text __debug_save_state(struct kvm_vcpu *vcpu,
 	ctxt->sys_regs[MDCCINT_EL1] = read_sysreg(mdccint_el1);
 }
 
-static inline void __hyp_text __debug_restore_state(struct kvm_vcpu *vcpu,
-						    struct kvm_guest_debug_arch *dbg,
-						    struct kvm_cpu_context *ctxt)
+static inline void __debug_restore_state(struct kvm_vcpu *vcpu,
+					 struct kvm_guest_debug_arch *dbg,
+					 struct kvm_cpu_context *ctxt)
 {
 	u64 aa64dfr0;
 	int brps, wrps;
@@ -127,7 +127,7 @@ static inline void __hyp_text __debug_restore_state(struct kvm_vcpu *vcpu,
 	write_sysreg(ctxt->sys_regs[MDCCINT_EL1], mdccint_el1);
 }
 
-static inline void __hyp_text __debug_switch_to_guest_common(struct kvm_vcpu *vcpu)
+static inline void __debug_switch_to_guest_common(struct kvm_vcpu *vcpu)
 {
 	struct kvm_cpu_context *host_ctxt;
 	struct kvm_cpu_context *guest_ctxt;
@@ -146,7 +146,7 @@ static inline void __hyp_text __debug_switch_to_guest_common(struct kvm_vcpu *vc
 	__debug_restore_state(vcpu, guest_dbg, guest_ctxt);
 }
 
-static inline void __hyp_text __debug_switch_to_host_common(struct kvm_vcpu *vcpu)
+static inline void __debug_switch_to_host_common(struct kvm_vcpu *vcpu)
 {
 	struct kvm_cpu_context *host_ctxt;
 	struct kvm_cpu_context *guest_ctxt;

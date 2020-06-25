@@ -12,8 +12,6 @@
 #include <asm/alternative.h>
 #include <asm/sysreg.h>
 
-#define __hyp_text __section(.hyp.text) notrace __noscs
-
 #define read_sysreg_elx(r,nvh,vh)					\
 	({								\
 		u64 reg;						\
