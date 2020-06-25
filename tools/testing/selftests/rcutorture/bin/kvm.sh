@@ -184,7 +184,7 @@ do
 		shift
 		;;
 	--torture)
-		checkarg --torture "(suite name)" "$#" "$2" '^\(lock\|rcu\|rcuperf\|refscale\)$' '^--'
+		checkarg --torture "(suite name)" "$#" "$2" '^\(lock\|rcu\|rcuperf\|refscale\|scf\)$' '^--'
 		TORTURE_SUITE=$2
 		shift
 		if test "$TORTURE_SUITE" = rcuperf || test "$TORTURE_SUITE" = refscale
