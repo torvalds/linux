@@ -39,6 +39,9 @@
 		sor@54540000 {
 			status = "okay";
 
+			avdd-io-hdmi-dp-supply = <&vdd_3v3_hdmi>;
+			vdd-hdmi-dp-pll-supply = <&vdd_hdmi_pll>;
+
 			nvidia,dpaux = <&dpaux>;
 			nvidia,panel = <&panel>;
 		};
