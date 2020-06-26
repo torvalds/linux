@@ -18,21 +18,6 @@
 #define RKISP1_ISP_STATS_REQ_BUFS_MIN 2
 #define RKISP1_ISP_STATS_REQ_BUFS_MAX 8
 
-enum rkisp1_isp_readout_cmd {
-	RKISP1_ISP_READOUT_MEAS,
-	RKISP1_ISP_READOUT_META,
-};
-
-struct rkisp1_isp_readout_work {
-	struct work_struct work;
-	struct rkisp1_stats *stats;
-
-	unsigned int frame_id;
-	unsigned int isp_ris;
-	enum rkisp1_isp_readout_cmd readout;
-	struct vb2_buffer *vb;
-};
-
 static int rkisp1_stats_enum_fmt_meta_cap(struct file *file, void *priv,
 					  struct v4l2_fmtdesc *f)
 {
@@ -154,14 +139,8 @@ static void rkisp1_stats_vb2_stop_streaming(struct vb2_queue *vq)
 	struct rkisp1_buffer *buf;
 	unsigned int i;
 
-	/* Make sure no new work queued in isr before draining wq */
 	spin_lock_irq(&stats->lock);
 	stats->is_streaming = false;
-	spin_unlock_irq(&stats->lock);
-
-	drain_workqueue(stats->readout_wq);
-
-	spin_lock_irq(&stats->lock);
 	for (i = 0; i < RKISP1_ISP_STATS_REQ_BUFS_MAX; i++) {
 		if (list_empty(&stats->stat))
 			break;
@@ -324,8 +303,7 @@ static void rkisp1_stats_get_bls_meas(struct rkisp1_stats *stats,
 }
 
 static void
-rkisp1_stats_send_measurement(struct rkisp1_stats *stats,
-			      struct rkisp1_isp_readout_work *meas_work)
+rkisp1_stats_send_measurement(struct rkisp1_stats *stats, u32 isp_ris)
 {
 	struct rkisp1_stat_buffer *cur_stat_buf;
 	struct rkisp1_buffer *cur_buf = NULL;
@@ -333,21 +311,12 @@ rkisp1_stats_send_measurement(struct rkisp1_stats *stats,
 		atomic_read(&stats->rkisp1->isp.frame_sequence);
 	u64 timestamp = ktime_get_ns();
 
-	if (frame_sequence != meas_work->frame_id) {
-		dev_warn(stats->rkisp1->dev,
-			 "Measurement late(%d, %d)\n",
-			 frame_sequence, meas_work->frame_id);
-		frame_sequence = meas_work->frame_id;
-	}
-
-	spin_lock_irq(&stats->lock);
 	/* get one empty buffer */
 	if (!list_empty(&stats->stat)) {
 		cur_buf = list_first_entry(&stats->stat,
 					   struct rkisp1_buffer, queue);
 		list_del(&cur_buf->queue);
 	}
-	spin_unlock_irq(&stats->lock);
 
 	if (!cur_buf)
 		return;
@@ -355,18 +324,18 @@ rkisp1_stats_send_measurement(struct rkisp1_stats *stats,
 	cur_stat_buf =
 		(struct rkisp1_stat_buffer *)(cur_buf->vaddr[0]);
 
-	if (meas_work->isp_ris & RKISP1_CIF_ISP_AWB_DONE)
+	if (isp_ris & RKISP1_CIF_ISP_AWB_DONE)
 		rkisp1_stats_get_awb_meas(stats, cur_stat_buf);
 
-	if (meas_work->isp_ris & RKISP1_CIF_ISP_AFM_FIN)
+	if (isp_ris & RKISP1_CIF_ISP_AFM_FIN)
 		rkisp1_stats_get_afc_meas(stats, cur_stat_buf);
 
-	if (meas_work->isp_ris & RKISP1_CIF_ISP_EXP_END) {
+	if (isp_ris & RKISP1_CIF_ISP_EXP_END) {
 		rkisp1_stats_get_aec_meas(stats, cur_stat_buf);
 		rkisp1_stats_get_bls_meas(stats, cur_stat_buf);
 	}
 
-	if (meas_work->isp_ris & RKISP1_CIF_ISP_HIST_MEASURE_RDY)
+	if (isp_ris & RKISP1_CIF_ISP_HIST_MEASURE_RDY)
 		rkisp1_stats_get_hst_meas(stats, cur_stat_buf);
 
 	vb2_set_plane_payload(&cur_buf->vb.vb2_buf, 0,
@@ -376,24 +345,9 @@ rkisp1_stats_send_measurement(struct rkisp1_stats *stats,
 	vb2_buffer_done(&cur_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 }
 
-static void rkisp1_stats_readout_work(struct work_struct *work)
-{
-	struct rkisp1_isp_readout_work *readout_work =
-		container_of(work, struct rkisp1_isp_readout_work, work);
-	struct rkisp1_stats *stats = readout_work->stats;
-
-	if (readout_work->readout == RKISP1_ISP_READOUT_MEAS)
-		rkisp1_stats_send_measurement(stats, readout_work);
-
-	kfree(readout_work);
-}
-
 void rkisp1_stats_isr(struct rkisp1_stats *stats, u32 isp_ris)
 {
-	unsigned int frame_sequence =
-		atomic_read(&stats->rkisp1->isp.frame_sequence);
 	struct rkisp1_device *rkisp1 = stats->rkisp1;
-	struct rkisp1_isp_readout_work *work;
 	unsigned int isp_mis_tmp = 0;
 
 	spin_lock(&stats->lock);
@@ -406,23 +360,8 @@ void rkisp1_stats_isr(struct rkisp1_stats *stats, u32 isp_ris)
 
 	if (!stats->is_streaming)
 		goto unlock;
-	if (isp_ris & RKISP1_STATS_MEAS_MASK) {
-		work = kzalloc(sizeof(*work), GFP_ATOMIC);
-		if (work) {
-			INIT_WORK(&work->work,
-				  rkisp1_stats_readout_work);
-			work->readout = RKISP1_ISP_READOUT_MEAS;
-			work->stats = stats;
-			work->frame_id = frame_sequence;
-			work->isp_ris = isp_ris;
-			if (!queue_work(stats->readout_wq,
-					&work->work))
-				kfree(work);
-		} else {
-			dev_err(stats->rkisp1->dev,
-				"Could not allocate work\n");
-		}
-	}
+	if (isp_ris & RKISP1_STATS_MEAS_MASK)
+		rkisp1_stats_send_measurement(stats, isp_ris);
 
 unlock:
 	spin_unlock(&stats->lock);
@@ -476,19 +415,8 @@ int rkisp1_stats_register(struct rkisp1_stats *stats,
 		goto err_cleanup_media_entity;
 	}
 
-	stats->readout_wq = alloc_workqueue("measurement_queue",
-					    WQ_UNBOUND | WQ_MEM_RECLAIM,
-					    1);
-
-	if (!stats->readout_wq) {
-		ret = -ENOMEM;
-		goto err_unreg_vdev;
-	}
-
 	return 0;
 
-err_unreg_vdev:
-	video_unregister_device(vdev);
 err_cleanup_media_entity:
 	media_entity_cleanup(&vdev->entity);
 err_release_queue:
@@ -502,7 +430,6 @@ void rkisp1_stats_unregister(struct rkisp1_stats *stats)
 	struct rkisp1_vdev_node *node = &stats->vnode;
 	struct video_device *vdev = &node->vdev;
 
-	destroy_workqueue(stats->readout_wq);
 	video_unregister_device(vdev);
 	media_entity_cleanup(&vdev->entity);
 	vb2_queue_release(vdev->queue);
