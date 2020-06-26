@@ -614,7 +614,6 @@ static void _vop_scan_devices(void __iomem *dp, struct vop_device *vpdev,
 	struct mic_device_desc __iomem *d;
 	struct mic_device_ctrl __iomem *dc;
 	struct device *dev;
-	int ret;
 
 	for (i = sizeof(struct mic_bootparam);
 			i < MIC_DP_SIZE; i += _vop_total_desc_size(d)) {
@@ -644,7 +643,7 @@ static void _vop_scan_devices(void __iomem *dp, struct vop_device *vpdev,
 					 &dc->config_change);
 			put_device(dev);
 			_vop_handle_config_change(d, i, vpdev);
-			ret = _vop_remove_device(d, i, vpdev);
+			_vop_remove_device(d, i, vpdev);
 			if (remove) {
 				iowrite8(0, &dc->config_change);
 				iowrite8(0, &dc->guest_ack);
