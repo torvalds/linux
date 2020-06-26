@@ -32,6 +32,7 @@ CFLAGS_REMOVE_vgettimeofday.o = $(CC_FLAGS_FTRACE) -Os
 
 # Disable gcov profiling for VDSO code
 GCOV_PROFILE := n
+KCOV_INSTRUMENT := n
 
 # Force dependency
 $(obj)/vdso.o: $(obj)/vdso.so
