@@ -1768,6 +1768,10 @@ static int am65_cpsw_nuss_init_slave_ports(struct am65_cpsw_common *common)
 				common->cpsw_base + AM65_CPSW_NU_FRAM_BASE +
 				(AM65_CPSW_NU_FRAM_PORT_OFFSET * (port_id - 1));
 
+		port->slave.mac_sl = cpsw_sl_get("am65", dev, port->port_base);
+		if (IS_ERR(port->slave.mac_sl))
+			return PTR_ERR(port->slave.mac_sl);
+
 		port->disabled = !of_device_is_available(port_np);
 		if (port->disabled)
 			continue;
@@ -1810,10 +1814,6 @@ static int am65_cpsw_nuss_init_slave_ports(struct am65_cpsw_common *common)
 				port_np, ret);
 			return ret;
 		}
-
-		port->slave.mac_sl = cpsw_sl_get("am65", dev, port->port_base);
-		if (IS_ERR(port->slave.mac_sl))
-			return PTR_ERR(port->slave.mac_sl);
 
 		mac_addr = of_get_mac_address(port_np);
 		if (!IS_ERR(mac_addr)) {
