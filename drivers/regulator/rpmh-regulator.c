@@ -12,6 +12,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/string.h>
+#include <linux/regulator/debug-regulator.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/of_regulator.h>
@@ -1812,6 +1813,11 @@ static int rpmh_regulator_init_vreg(struct rpmh_vreg *vreg)
 	rc = devm_regulator_proxy_consumer_register(dev, vreg->of_node);
 	if (rc)
 		vreg_err(vreg, "failed to register proxy consumer, rc=%d\n",
+			rc);
+
+	rc = devm_regulator_debug_register(dev, vreg->rdev);
+	if (rc)
+		vreg_err(vreg, "failed to register debug regulator, rc=%d\n",
 			rc);
 
 	vreg_debug(vreg, "successfully registered; set=%s\n",
