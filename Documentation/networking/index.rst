@@ -44,7 +44,6 @@ Contents:
    ax25
    bonding
    cdc_mbim
-   cxacru
    dccp
    dctcp
    decnet
@@ -54,7 +53,6 @@ Contents:
    eql
    fib_trie
    filter
-   fore200e
    framerelay
    generic-hdlc
    generic_netlink
@@ -63,7 +61,6 @@ Contents:
    ila
    ipddp
    ip_dynaddr
-   iphase
    ipsec
    ip-sysctl
    ipv6

@@ -1,21 +1,16 @@
 .. SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 
-Hardware Device Drivers
-=======================
+Asynchronous Transfer Mode (ATM) Device Drivers
+===============================================
 
 Contents:
 
 .. toctree::
    :maxdepth: 2
 
-   appletalk/index
-   atm/index
-   cable/index
-   cellular/index
-   ethernet/index
-   hamradio/index
-   wan/index
-   wifi/index
+   cxacru
+   fore200e
+   iphase
 
 .. only::  subproject and html
 
