@@ -355,11 +355,11 @@ int atomisp_acc_map(struct atomisp_sub_device *asd, struct atomisp_acc_map *map)
 
 		pgnr = DIV_ROUND_UP(map->length, PAGE_SIZE);
 		if (pgnr < ((PAGE_ALIGN(map->length)) >> PAGE_SHIFT)) {
-			dev_err(atomisp_dev,
+			dev_err(asd->isp->dev,
 				"user space memory size is less than the expected size..\n");
 			return -ENOMEM;
 		} else if (pgnr > ((PAGE_ALIGN(map->length)) >> PAGE_SHIFT)) {
-			dev_err(atomisp_dev,
+			dev_err(asd->isp->dev,
 				"user space memory size is large than the expected size..\n");
 			return -ENOMEM;
 		}

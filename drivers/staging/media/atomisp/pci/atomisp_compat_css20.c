@@ -182,10 +182,10 @@ void atomisp_load_uint32(hrt_address addr, uint32_t *data)
 	*data = atomisp_css2_hw_load_32(addr);
 }
 
-static int hmm_get_mmu_base_addr(unsigned int *mmu_base_addr)
+static int hmm_get_mmu_base_addr(struct device *dev, unsigned int *mmu_base_addr)
 {
 	if (!sh_mmu_mrfld.get_pd_base) {
-		dev_err(atomisp_dev, "get mmu base address failed.\n");
+		dev_err(dev, "get mmu base address failed.\n");
 		return -EINVAL;
 	}
 
@@ -840,7 +840,7 @@ int atomisp_css_init(struct atomisp_device *isp)
 	int ret;
 	int err;
 
-	ret = hmm_get_mmu_base_addr(&mmu_base_addr);
+	ret = hmm_get_mmu_base_addr(isp->dev, &mmu_base_addr);
 	if (ret)
 		return ret;
 
@@ -942,7 +942,7 @@ int atomisp_css_resume(struct atomisp_device *isp)
 	unsigned int mmu_base_addr;
 	int ret;
 
-	ret = hmm_get_mmu_base_addr(&mmu_base_addr);
+	ret = hmm_get_mmu_base_addr(isp->dev, &mmu_base_addr);
 	if (ret) {
 		dev_err(isp->dev, "get base address error.\n");
 		return -EINVAL;
@@ -4337,7 +4337,7 @@ static const char * const fw_acc_type_name[] = {
 	[IA_CSS_ACC_STANDALONE] =	"Stand-alone acceleration",
 };
 
-int atomisp_css_dump_blob_infor(void)
+int atomisp_css_dump_blob_infor(struct atomisp_device *isp)
 {
 	struct ia_css_blob_descr *bd = sh_css_blob_info;
 	unsigned int i, nm = sh_css_num_binaries;
@@ -4354,8 +4354,7 @@ int atomisp_css_dump_blob_infor(void)
 	for (i = 0; i < sh_css_num_binaries - NUM_OF_SPS; i++) {
 		switch (bd[i].header.type) {
 		case ia_css_isp_firmware:
-			dev_dbg(atomisp_dev,
-				"Num%2d type %s (%s), binary id is %2d, name is %s\n",
+			dev_dbg(isp->dev, "Num%2d type %s (%s), binary id is %2d, name is %s\n",
 				i + NUM_OF_SPS,
 				fw_type_name[bd[i].header.type],
 				fw_acc_type_name[bd[i].header.info.isp.type],
@@ -4363,8 +4362,7 @@ int atomisp_css_dump_blob_infor(void)
 				bd[i].name);
 			break;
 		default:
-			dev_dbg(atomisp_dev,
-				"Num%2d type %s, name is %s\n",
+			dev_dbg(isp->dev, "Num%2d type %s, name is %s\n",
 				i + NUM_OF_SPS, fw_type_name[bd[i].header.type],
 				bd[i].name);
 		}

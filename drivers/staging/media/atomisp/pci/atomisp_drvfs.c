@@ -62,9 +62,9 @@ static inline int iunit_dump_dbgopt(struct atomisp_device *isp,
 
 	if (opt & OPTION_VALID) {
 		if (opt & OPTION_BIN_LIST) {
-			ret = atomisp_css_dump_blob_infor();
+			ret = atomisp_css_dump_blob_infor(isp);
 			if (ret) {
-				dev_err(atomisp_dev, "%s dump blob infor err[ret:%d]\n",
+				dev_err(isp->dev, "%s dump blob infor err[ret:%d]\n",
 					__func__, ret);
 				goto opt_err;
 			}
@@ -76,7 +76,7 @@ static inline int iunit_dump_dbgopt(struct atomisp_device *isp,
 				atomisp_css_debug_dump_isp_binary();
 			} else {
 				ret = -EPERM;
-				dev_err(atomisp_dev, "%s dump running bin err[ret:%d]\n",
+				dev_err(isp->dev, "%s dump running bin err[ret:%d]\n",
 					__func__, ret);
 				goto opt_err;
 			}
@@ -86,8 +86,7 @@ static inline int iunit_dump_dbgopt(struct atomisp_device *isp,
 			hmm_show_mem_stat(__func__, __LINE__);
 	} else {
 		ret = -EINVAL;
-		dev_err(atomisp_dev, "%s dump nothing[ret=%d]\n", __func__,
-			ret);
+		dev_err(isp->dev, "%s dump nothing[ret=%d]\n", __func__, ret);
 	}
 
 opt_err:
@@ -195,7 +194,7 @@ int atomisp_drvfs_init(struct atomisp_device *isp)
 
 	ret = iunit_drvfs_create_files(iunit_debug.drv);
 	if (ret) {
-		dev_err(atomisp_dev, "drvfs_create_files error: %d\n", ret);
+		dev_err(isp->dev, "drvfs_create_files error: %d\n", ret);
 		iunit_drvfs_remove_files(iunit_debug.drv);
 	}
 
