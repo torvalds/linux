@@ -28,6 +28,7 @@
 #include <linux/bpf_trace.h>
 #include <linux/atomic.h>
 #include <linux/numa.h>
+#include <generated/utsrelease.h>
 #include <scsi/fc/fc_fcoe.h>
 #include <net/udp_tunnel.h>
 #include <net/pkt_cls.h>
@@ -56,8 +57,6 @@ char ixgbe_default_device_descr[] =
 static char ixgbe_default_device_descr[] =
 			      "Intel(R) 10 Gigabit Network Connection";
 #endif
-#define DRV_VERSION "5.1.0-k"
-const char ixgbe_driver_version[] = DRV_VERSION;
 static const char ixgbe_copyright[] =
 				"Copyright (c) 1999-2016 Intel Corporation.";
 
@@ -165,7 +164,6 @@ MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
 MODULE_AUTHOR("Intel Corporation, <linux.nics@intel.com>");
 MODULE_DESCRIPTION("Intel(R) 10 Gigabit PCI Express Network Driver");
 MODULE_LICENSE("GPL v2");
-MODULE_VERSION(DRV_VERSION);
 
 static struct workqueue_struct *ixgbe_wq;
 
@@ -11154,8 +11152,8 @@ skip_sriov:
 	 */
 	if (hw->mac.ops.set_fw_drv_ver)
 		hw->mac.ops.set_fw_drv_ver(hw, 0xFF, 0xFF, 0xFF, 0xFF,
-					   sizeof(ixgbe_driver_version) - 1,
-					   ixgbe_driver_version);
+					   sizeof(UTS_RELEASE) - 1,
+					   UTS_RELEASE);
 
 	/* add san mac addr to netdev */
 	ixgbe_add_sanmac_netdev(netdev);
@@ -11512,7 +11510,7 @@ static struct pci_driver ixgbe_driver = {
 static int __init ixgbe_init_module(void)
 {
 	int ret;
-	pr_info("%s - version %s\n", ixgbe_driver_string, ixgbe_driver_version);
+	pr_info("%s\n", ixgbe_driver_string);
 	pr_info("%s\n", ixgbe_copyright);
 
 	ixgbe_wq = create_singlethread_workqueue(ixgbe_driver_name);

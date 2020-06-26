@@ -476,7 +476,6 @@ struct fm10k_cb {
 
 /* main */
 extern char fm10k_driver_name[];
-extern const char fm10k_driver_version[];
 int fm10k_init_queueing_scheme(struct fm10k_intfc *interface);
 void fm10k_clear_queueing_scheme(struct fm10k_intfc *interface);
 __be16 fm10k_tx_encap_offload(struct sk_buff *skb);

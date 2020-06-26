@@ -846,7 +846,6 @@ extern const struct dcbnl_rtnl_ops ixgbe_dcbnl_ops;
 #endif
 
 extern char ixgbe_driver_name[];
-extern const char ixgbe_driver_version[];
 #ifdef IXGBE_FCOE
 extern char ixgbe_default_device_descr[];
 #endif /* IXGBE_FCOE */

@@ -633,8 +633,6 @@ static void e1000_get_drvinfo(struct net_device *netdev,
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 
 	strlcpy(drvinfo->driver, e1000e_driver_name, sizeof(drvinfo->driver));
-	strlcpy(drvinfo->version, e1000e_driver_version,
-		sizeof(drvinfo->version));
 
 	/* EEPROM image version # is reported as firmware version # for
 	 * PCI-E controllers

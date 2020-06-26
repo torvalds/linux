@@ -38,7 +38,7 @@
 #include <net/xdp_sock.h>
 #include "i40e_type.h"
 #include "i40e_prototype.h"
-#include "i40e_client.h"
+#include <linux/net/intel/i40e_client.h>
 #include <linux/avf/virtchnl.h>
 #include "i40e_virtchnl_pf.h"
 #include "i40e_txrx.h"
@@ -60,17 +60,14 @@
 		(((pf)->hw_features & I40E_HW_RSS_AQ_CAPABLE) ? 4 : 1)
 #define I40E_DEFAULT_QUEUES_PER_VF	4
 #define I40E_MAX_VF_QUEUES		16
-#define I40E_DEFAULT_QUEUES_PER_TC	1 /* should be a power of 2 */
 #define i40e_pf_get_max_q_per_tc(pf) \
 		(((pf)->hw_features & I40E_HW_128_QP_RSS_CAPABLE) ? 128 : 64)
-#define I40E_FDIR_RING			0
 #define I40E_FDIR_RING_COUNT		32
 #define I40E_MAX_AQ_BUF_SIZE		4096
 #define I40E_AQ_LEN			256
 #define I40E_AQ_WORK_LIMIT		66 /* max number of VFs + a little */
 #define I40E_MAX_USER_PRIORITY		8
 #define I40E_DEFAULT_TRAFFIC_CLASS	BIT(0)
-#define I40E_DEFAULT_MSG_ENABLE		4
 #define I40E_QUEUE_WAIT_RETRY_LIMIT	10
 #define I40E_INT_NAME_STR_LEN		(IFNAMSIZ + 16)
 
@@ -92,10 +89,6 @@
 #define I40E_OEM_SNAP_SHIFT		16
 #define I40E_OEM_RELEASE_MASK		0x0000ffff
 
-/* The values in here are decimal coded as hex as is the case in the NVM map*/
-#define I40E_CURRENT_NVM_VERSION_HI	0x2
-#define I40E_CURRENT_NVM_VERSION_LO	0x40
-
 #define I40E_RX_DESC(R, i)	\
 	(&(((union i40e_32byte_rx_desc *)((R)->desc))[i]))
 #define I40E_TX_DESC(R, i)	\
@@ -104,9 +97,6 @@
 	(&(((struct i40e_tx_context_desc *)((R)->desc))[i]))
 #define I40E_TX_FDIRDESC(R, i)	\
 	(&(((struct i40e_filter_program_desc *)((R)->desc))[i]))
-
-/* default to trying for four seconds */
-#define I40E_TRY_LINK_TIMEOUT	(4 * HZ)
 
 /* BW rate limiting */
 #define I40E_BW_CREDIT_DIVISOR		50 /* 50Mbps per BW credit */
@@ -295,9 +285,6 @@ struct i40e_cloud_filter {
 	u8 tunnel_type;
 };
 
-#define I40E_DCB_PRIO_TYPE_STRICT	0
-#define I40E_DCB_PRIO_TYPE_ETS		1
-#define I40E_DCB_STRICT_PRIO_CREDITS	127
 /* DCB per TC information data structure */
 struct i40e_tc_info {
 	u16	qoffset;	/* Queue offset from base queue */
@@ -357,15 +344,6 @@ struct i40e_ddp_old_profile_list {
 					     I40E_FLEX_SET_FSIZE(fsize) | \
 					     I40E_FLEX_SET_SRC_WORD(src))
 
-#define I40E_FLEX_PIT_GET_SRC(flex) (((flex) & \
-				     I40E_PRTQF_FLX_PIT_SOURCE_OFF_MASK) >> \
-				     I40E_PRTQF_FLX_PIT_SOURCE_OFF_SHIFT)
-#define I40E_FLEX_PIT_GET_DST(flex) (((flex) & \
-				     I40E_PRTQF_FLX_PIT_DEST_OFF_MASK) >> \
-				     I40E_PRTQF_FLX_PIT_DEST_OFF_SHIFT)
-#define I40E_FLEX_PIT_GET_FSIZE(flex) (((flex) & \
-				       I40E_PRTQF_FLX_PIT_FSIZE_MASK) >> \
-				       I40E_PRTQF_FLX_PIT_FSIZE_SHIFT)
 
 #define I40E_MAX_FLEX_SRC_OFFSET 0x1F
 
@@ -390,7 +368,6 @@ struct i40e_ddp_old_profile_list {
 #define I40E_L4_GLQF_ORT_IDX		35
 
 /* Flex PIT register index */
-#define I40E_FLEX_PIT_IDX_START_L2	0
 #define I40E_FLEX_PIT_IDX_START_L3	3
 #define I40E_FLEX_PIT_IDX_START_L4	6
 
@@ -531,7 +508,6 @@ struct i40e_pf {
 #define I40E_HW_GENEVE_OFFLOAD_CAPABLE		BIT(9)
 #define I40E_HW_PTP_L4_CAPABLE			BIT(10)
 #define I40E_HW_WOL_MC_MAGIC_PKT_WAKE		BIT(11)
-#define I40E_HW_MPLS_HDR_OFFLOAD_CAPABLE	BIT(12)
 #define I40E_HW_HAVE_CRT_RETIMER		BIT(13)
 #define I40E_HW_OUTER_UDP_CSUM_CAPABLE		BIT(14)
 #define I40E_HW_PHY_CONTROLS_LEDS		BIT(15)
@@ -992,7 +968,6 @@ static inline void i40e_write_fd_input_set(struct i40e_pf *pf,
 int i40e_up(struct i40e_vsi *vsi);
 void i40e_down(struct i40e_vsi *vsi);
 extern const char i40e_driver_name[];
-extern const char i40e_driver_version_str[];
 void i40e_do_reset_safe(struct i40e_pf *pf, u32 reset_flags);
 void i40e_do_reset(struct i40e_pf *pf, u32 reset_flags, bool lock_acquired);
 int i40e_config_rss(struct i40e_vsi *vsi, u8 *seed, u8 *lut, u16 lut_size);

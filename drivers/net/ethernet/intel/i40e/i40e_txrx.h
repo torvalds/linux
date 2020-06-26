@@ -18,10 +18,7 @@
 #define I40E_ITR_DYNAMIC	0x8000	/* use top bit as a flag */
 #define I40E_ITR_MASK		0x1FFE	/* mask for ITR register value */
 #define I40E_MIN_ITR		     2	/* reg uses 2 usec resolution */
-#define I40E_ITR_100K		    10	/* all values below must be even */
-#define I40E_ITR_50K		    20
 #define I40E_ITR_20K		    50
-#define I40E_ITR_18K		    60
 #define I40E_ITR_8K		   122
 #define I40E_MAX_ITR		  8160	/* maximum value as per datasheet */
 #define ITR_TO_REG(setting) ((setting) & ~I40E_ITR_DYNAMIC)
@@ -52,9 +49,6 @@ static inline u16 i40e_intrl_usec_to_reg(int intrl)
 	else
 		return 0;
 }
-#define I40E_INTRL_8K              125     /* 8000 ints/sec */
-#define I40E_INTRL_62K             16      /* 62500 ints/sec */
-#define I40E_INTRL_83K             12      /* 83333 ints/sec */
 
 #define I40E_QUEUE_END_OF_LIST 0x7FF
 
@@ -73,7 +67,6 @@ enum i40e_dyn_idx_t {
 /* these are indexes into ITRN registers */
 #define I40E_RX_ITR    I40E_IDX_ITR0
 #define I40E_TX_ITR    I40E_IDX_ITR1
-#define I40E_PE_ITR    I40E_IDX_ITR2
 
 /* Supported RSS offloads */
 #define I40E_DEFAULT_RSS_HENA ( \
@@ -193,13 +186,6 @@ static inline bool i40e_test_staterr(union i40e_rx_desc *rx_desc,
 
 /* How many Rx Buffers do we bundle into one write to the hardware ? */
 #define I40E_RX_BUFFER_WRITE	32	/* Must be power of 2 */
-#define I40E_RX_INCREMENT(r, i) \
-	do {					\
-		(i)++;				\
-		if ((i) == (r)->count)		\
-			i = 0;			\
-		r->next_to_clean = i;		\
-	} while (0)
 
 #define I40E_RX_NEXT_DESC(r, i, n)		\
 	do {					\
@@ -209,11 +195,6 @@ static inline bool i40e_test_staterr(union i40e_rx_desc *rx_desc,
 		(n) = I40E_RX_DESC((r), (i));	\
 	} while (0)
 
-#define I40E_RX_NEXT_DESC_PREFETCH(r, i, n)		\
-	do {						\
-		I40E_RX_NEXT_DESC((r), (i), (n));	\
-		prefetch((n));				\
-	} while (0)
 
 #define I40E_MAX_BUFFER_TXD	8
 #define I40E_MIN_TX_LEN		17
@@ -262,15 +243,12 @@ static inline unsigned int i40e_txd_use_count(unsigned int size)
 
 /* Tx Descriptors needed, worst case */
 #define DESC_NEEDED (MAX_SKB_FRAGS + 6)
-#define I40E_MIN_DESC_PENDING	4
 
 #define I40E_TX_FLAGS_HW_VLAN		BIT(1)
 #define I40E_TX_FLAGS_SW_VLAN		BIT(2)
 #define I40E_TX_FLAGS_TSO		BIT(3)
 #define I40E_TX_FLAGS_IPV4		BIT(4)
 #define I40E_TX_FLAGS_IPV6		BIT(5)
-#define I40E_TX_FLAGS_FCCRC		BIT(6)
-#define I40E_TX_FLAGS_FSO		BIT(7)
 #define I40E_TX_FLAGS_TSYN		BIT(8)
 #define I40E_TX_FLAGS_FD_SB		BIT(9)
 #define I40E_TX_FLAGS_UDP_TUNNEL	BIT(10)
@@ -332,9 +310,7 @@ enum i40e_ring_state_t {
 /* some useful defines for virtchannel interface, which
  * is the only remaining user of header split
  */
-#define I40E_RX_DTYPE_NO_SPLIT      0
 #define I40E_RX_DTYPE_HEADER_SPLIT  1
-#define I40E_RX_DTYPE_SPLIT_ALWAYS  2
 #define I40E_RX_SPLIT_L2      0x1
 #define I40E_RX_SPLIT_IP      0x2
 #define I40E_RX_SPLIT_TCP_UDP 0x4
@@ -444,7 +420,6 @@ static inline void set_ring_xdp(struct i40e_ring *ring)
 #define I40E_ITR_ADAPTIVE_MAX_USECS	0x007e
 #define I40E_ITR_ADAPTIVE_LATENCY	0x8000
 #define I40E_ITR_ADAPTIVE_BULK		0x0000
-#define ITR_IS_BULK(x) (!((x) & I40E_ITR_ADAPTIVE_LATENCY))
 
 struct i40e_ring_container {
 	struct i40e_ring *ring;		/* pointer to linked list of ring(s) */

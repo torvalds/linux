@@ -9,9 +9,6 @@
 char ixgb_driver_name[] = "ixgb";
 static char ixgb_driver_string[] = "Intel(R) PRO/10GbE Network Driver";
 
-#define DRIVERNAPI "-NAPI"
-#define DRV_VERSION "1.0.135-k2" DRIVERNAPI
-const char ixgb_driver_version[] = DRV_VERSION;
 static const char ixgb_copyright[] = "Copyright (c) 1999-2008 Intel Corporation.";
 
 #define IXGB_CB_LENGTH 256
@@ -103,7 +100,6 @@ static struct pci_driver ixgb_driver = {
 MODULE_AUTHOR("Intel Corporation, <linux.nics@intel.com>");
 MODULE_DESCRIPTION("Intel(R) PRO/10GbE Network Driver");
 MODULE_LICENSE("GPL v2");
-MODULE_VERSION(DRV_VERSION);
 
 #define DEFAULT_MSG_ENABLE (NETIF_MSG_DRV|NETIF_MSG_PROBE|NETIF_MSG_LINK)
 static int debug = -1;
@@ -120,7 +116,7 @@ MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
 static int __init
 ixgb_init_module(void)
 {
-	pr_info("%s - version %s\n", ixgb_driver_string, ixgb_driver_version);
+	pr_info("%s\n", ixgb_driver_string);
 	pr_info("%s\n", ixgb_copyright);
 
 	return pci_register_driver(&ixgb_driver);

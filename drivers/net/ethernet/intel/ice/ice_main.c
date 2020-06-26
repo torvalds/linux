@@ -5,6 +5,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <generated/utsrelease.h>
 #include "ice.h"
 #include "ice_base.h"
 #include "ice_lib.h"
@@ -13,15 +14,7 @@
 #include "ice_dcb_nl.h"
 #include "ice_devlink.h"
 
-#define DRV_VERSION_MAJOR 0
-#define DRV_VERSION_MINOR 8
-#define DRV_VERSION_BUILD 2
-
-#define DRV_VERSION	__stringify(DRV_VERSION_MAJOR) "." \
-			__stringify(DRV_VERSION_MINOR) "." \
-			__stringify(DRV_VERSION_BUILD) "-k"
 #define DRV_SUMMARY	"Intel(R) Ethernet Connection E800 Series Linux Driver"
-const char ice_drv_ver[] = DRV_VERSION;
 static const char ice_driver_string[] = DRV_SUMMARY;
 static const char ice_copyright[] = "Copyright (c) 2018, Intel Corporation.";
 
@@ -32,7 +25,6 @@ static const char ice_copyright[] = "Copyright (c) 2018, Intel Corporation.";
 MODULE_AUTHOR("Intel Corporation, <linux.nics@intel.com>");
 MODULE_DESCRIPTION(DRV_SUMMARY);
 MODULE_LICENSE("GPL v2");
-MODULE_VERSION(DRV_VERSION);
 MODULE_FIRMWARE(ICE_DDP_PKG_FILE);
 
 static int debug = -1;
@@ -3168,11 +3160,11 @@ static enum ice_status ice_send_version(struct ice_pf *pf)
 {
 	struct ice_driver_ver dv;
 
-	dv.major_ver = DRV_VERSION_MAJOR;
-	dv.minor_ver = DRV_VERSION_MINOR;
-	dv.build_ver = DRV_VERSION_BUILD;
+	dv.major_ver = 0xff;
+	dv.minor_ver = 0xff;
+	dv.build_ver = 0xff;
 	dv.subbuild_ver = 0;
-	strscpy((char *)dv.driver_string, DRV_VERSION,
+	strscpy((char *)dv.driver_string, UTS_RELEASE,
 		sizeof(dv.driver_string));
 	return ice_aq_send_driver_ver(&pf->hw, &dv, NULL);
 }
@@ -3463,7 +3455,7 @@ ice_probe(struct pci_dev *pdev, const struct pci_device_id __always_unused *ent)
 	err = ice_send_version(pf);
 	if (err) {
 		dev_err(dev, "probe failed sending driver version %s. error: %d\n",
-			ice_drv_ver, err);
+			UTS_RELEASE, err);
 		goto err_alloc_sw_unroll;
 	}
 
@@ -3769,7 +3761,7 @@ static int __init ice_module_init(void)
 {
 	int status;
 
-	pr_info("%s - version %s\n", ice_driver_string, ice_drv_ver);
+	pr_info("%s\n", ice_driver_string);
 	pr_info("%s\n", ice_copyright);
 
 	ice_wq = alloc_workqueue("%s", WQ_MEM_RECLAIM, 0, KBUILD_MODNAME);

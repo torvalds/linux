@@ -130,7 +130,6 @@ static void igc_ethtool_get_drvinfo(struct net_device *netdev,
 	struct igc_adapter *adapter = netdev_priv(netdev);
 
 	strlcpy(drvinfo->driver,  igc_driver_name, sizeof(drvinfo->driver));
-	strlcpy(drvinfo->version, igc_driver_version, sizeof(drvinfo->version));
 
 	/* add fw_version here */
 	strlcpy(drvinfo->bus_info, pci_name(adapter->pdev),

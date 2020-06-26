@@ -38,12 +38,6 @@
 #include <linux/i2c.h>
 #include "igb.h"
 
-#define MAJ 5
-#define MIN 6
-#define BUILD 0
-#define DRV_VERSION __stringify(MAJ) "." __stringify(MIN) "." \
-__stringify(BUILD) "-k"
-
 enum queue_mode {
 	QUEUE_MODE_STRICT_PRIORITY,
 	QUEUE_MODE_STREAM_RESERVATION,
@@ -55,7 +49,6 @@ enum tx_queue_prio {
 };
 
 char igb_driver_name[] = "igb";
-char igb_driver_version[] = DRV_VERSION;
 static const char igb_driver_string[] =
 				"Intel(R) Gigabit Ethernet Network Driver";
 static const char igb_copyright[] =
@@ -240,7 +233,6 @@ static struct pci_driver igb_driver = {
 MODULE_AUTHOR("Intel Corporation, <e1000-devel@lists.sourceforge.net>");
 MODULE_DESCRIPTION("Intel(R) Gigabit Ethernet Network Driver");
 MODULE_LICENSE("GPL v2");
-MODULE_VERSION(DRV_VERSION);
 
 #define DEFAULT_MSG_ENABLE (NETIF_MSG_DRV|NETIF_MSG_PROBE|NETIF_MSG_LINK)
 static int debug = -1;
@@ -666,8 +658,7 @@ static int __init igb_init_module(void)
 {
 	int ret;
 
-	pr_info("%s - version %s\n",
-	       igb_driver_string, igb_driver_version);
+	pr_info("%s\n", igb_driver_string);
 	pr_info("%s\n", igb_copyright);
 
 #ifdef CONFIG_IGB_DCA

@@ -239,7 +239,6 @@ void igc_rings_dump(struct igc_adapter *adapter);
 void igc_regs_dump(struct igc_adapter *adapter);
 
 extern char igc_driver_name[];
-extern char igc_driver_version[];
 
 #define IGC_REGS_LEN			740
 

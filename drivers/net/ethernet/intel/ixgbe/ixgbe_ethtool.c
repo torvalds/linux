@@ -1004,8 +1004,6 @@ static void ixgbe_get_drvinfo(struct net_device *netdev,
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 
 	strlcpy(drvinfo->driver, ixgbe_driver_name, sizeof(drvinfo->driver));
-	strlcpy(drvinfo->version, ixgbe_driver_version,
-		sizeof(drvinfo->version));
 
 	strlcpy(drvinfo->fw_version, adapter->eeprom_id,
 		sizeof(drvinfo->fw_version));

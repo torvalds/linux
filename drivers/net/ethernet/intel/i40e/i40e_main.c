@@ -5,6 +5,7 @@
 #include <linux/of_net.h>
 #include <linux/pci.h>
 #include <linux/bpf.h>
+#include <generated/utsrelease.h>
 
 /* Local includes */
 #include "i40e.h"
@@ -23,15 +24,6 @@ const char i40e_driver_name[] = "i40e";
 static const char i40e_driver_string[] =
 			"Intel(R) Ethernet Connection XL710 Network Driver";
 
-#define DRV_KERN "-k"
-
-#define DRV_VERSION_MAJOR 2
-#define DRV_VERSION_MINOR 8
-#define DRV_VERSION_BUILD 20
-#define DRV_VERSION __stringify(DRV_VERSION_MAJOR) "." \
-	     __stringify(DRV_VERSION_MINOR) "." \
-	     __stringify(DRV_VERSION_BUILD)    DRV_KERN
-const char i40e_driver_version_str[] = DRV_VERSION;
 static const char i40e_copyright[] = "Copyright (c) 2013 - 2019 Intel Corporation.";
 
 /* a bit of forward declarations */
@@ -101,7 +93,6 @@ MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all), Debug mask (0x8XXXXXXX
 MODULE_AUTHOR("Intel Corporation, <e1000-devel@lists.sourceforge.net>");
 MODULE_DESCRIPTION("Intel(R) Ethernet Connection XL710 Network Driver");
 MODULE_LICENSE("GPL v2");
-MODULE_VERSION(DRV_VERSION);
 
 static struct workqueue_struct *i40e_wq;
 
@@ -6501,8 +6492,7 @@ out:
 	return err;
 }
 #endif /* CONFIG_I40E_DCB */
-#define SPEED_SIZE 14
-#define FC_SIZE 8
+
 /**
  * i40e_print_link_message - print link up or down
  * @vsi: the VSI for which link needs a message
@@ -8959,13 +8949,6 @@ u32 i40e_get_current_atr_cnt(struct i40e_pf *pf)
 	return i40e_get_current_fd_count(pf) - pf->fdir_pf_active_filters;
 }
 
-/* We can see up to 256 filter programming desc in transit if the filters are
- * being applied really fast; before we see the first
- * filter miss error on Rx queue 0. Accumulating enough error messages before
- * reacting will make sure we don't cause flush too often.
- */
-#define I40E_MAX_FD_PROGRAM_ERROR 256
-
 /**
  * i40e_fdir_reinit_subtask - Worker thread to reinit FDIR filter table
  * @pf: board private structure
@@ -9860,11 +9843,11 @@ static void i40e_send_version(struct i40e_pf *pf)
 {
 	struct i40e_driver_version dv;
 
-	dv.major_version = DRV_VERSION_MAJOR;
-	dv.minor_version = DRV_VERSION_MINOR;
-	dv.build_version = DRV_VERSION_BUILD;
+	dv.major_version = 0xff;
+	dv.minor_version = 0xff;
+	dv.build_version = 0xff;
 	dv.subbuild_version = 0;
-	strlcpy(dv.driver_string, DRV_VERSION, sizeof(dv.driver_string));
+	strlcpy(dv.driver_string, UTS_RELEASE, sizeof(dv.driver_string));
 	i40e_aq_send_driver_version(&pf->hw, &dv, NULL);
 }
 
@@ -14574,28 +14557,17 @@ void i40e_set_fec_in_flags(u8 fec_cfg, u32 *flags)
  **/
 static bool i40e_check_recovery_mode(struct i40e_pf *pf)
 {
-	u32 val = rd32(&pf->hw, I40E_GL_FWSTS) & I40E_GL_FWSTS_FWS1B_MASK;
-	bool is_recovery_mode = false;
+	u32 val = rd32(&pf->hw, I40E_GL_FWSTS);
 
-	if (pf->hw.mac.type == I40E_MAC_XL710)
-		is_recovery_mode =
-		val == I40E_XL710_GL_FWSTS_FWS1B_REC_MOD_CORER_MASK ||
-		val == I40E_XL710_GL_FWSTS_FWS1B_REC_MOD_GLOBR_MASK ||
-		val == I40E_XL710_GL_FWSTS_FWS1B_REC_MOD_TRANSITION_MASK ||
-		val == I40E_XL710_GL_FWSTS_FWS1B_REC_MOD_NVM_MASK;
-	if (pf->hw.mac.type == I40E_MAC_X722)
-		is_recovery_mode =
-		val == I40E_X722_GL_FWSTS_FWS1B_REC_MOD_CORER_MASK ||
-		val == I40E_X722_GL_FWSTS_FWS1B_REC_MOD_GLOBR_MASK;
-	if (is_recovery_mode) {
-		dev_notice(&pf->pdev->dev, "Firmware recovery mode detected. Limiting functionality.\n");
-		dev_notice(&pf->pdev->dev, "Refer to the Intel(R) Ethernet Adapters and Devices User Guide for details on firmware recovery mode.\n");
+	if (val & I40E_GL_FWSTS_FWS1B_MASK) {
+		dev_crit(&pf->pdev->dev, "Firmware recovery mode detected. Limiting functionality.\n");
+		dev_crit(&pf->pdev->dev, "Refer to the Intel(R) Ethernet Adapters and Devices User Guide for details on firmware recovery mode.\n");
 		set_bit(__I40E_RECOVERY_MODE, pf->state);
 
 		return true;
 	}
-	if (test_and_clear_bit(__I40E_RECOVERY_MODE, pf->state))
-		dev_info(&pf->pdev->dev, "Reinitializing in normal mode with full functionality.\n");
+	if (test_bit(__I40E_RECOVERY_MODE, pf->state))
+		dev_info(&pf->pdev->dev, "Please do Power-On Reset to initialize adapter in normal mode with full functionality.\n");
 
 	return false;
 }
@@ -14623,26 +14595,65 @@ static bool i40e_check_recovery_mode(struct i40e_pf *pf)
  **/
 static i40e_status i40e_pf_loop_reset(struct i40e_pf *pf)
 {
-	const unsigned short MAX_CNT = 1000;
-	const unsigned short MSECS = 10;
+	/* wait max 10 seconds for PF reset to succeed */
+	const unsigned long time_end = jiffies + 10 * HZ;
+
 	struct i40e_hw *hw = &pf->hw;
 	i40e_status ret;
-	int cnt;
 
-	for (cnt = 0; cnt < MAX_CNT; ++cnt) {
+	ret = i40e_pf_reset(hw);
+	while (ret != I40E_SUCCESS && time_before(jiffies, time_end)) {
+		usleep_range(10000, 20000);
 		ret = i40e_pf_reset(hw);
-		if (!ret)
-			break;
-		msleep(MSECS);
 	}
 
-	if (cnt == MAX_CNT) {
+	if (ret == I40E_SUCCESS)
+		pf->pfr_count++;
+	else
 		dev_info(&pf->pdev->dev, "PF reset failed: %d\n", ret);
-		return ret;
-	}
 
-	pf->pfr_count++;
 	return ret;
+}
+
+/**
+ * i40e_check_fw_empr - check if FW issued unexpected EMP Reset
+ * @pf: board private structure
+ *
+ * Check FW registers to determine if FW issued unexpected EMP Reset.
+ * Every time when unexpected EMP Reset occurs the FW increments
+ * a counter of unexpected EMP Resets. When the counter reaches 10
+ * the FW should enter the Recovery mode
+ *
+ * Returns true if FW issued unexpected EMP Reset
+ **/
+static bool i40e_check_fw_empr(struct i40e_pf *pf)
+{
+	const u32 fw_sts = rd32(&pf->hw, I40E_GL_FWSTS) &
+			   I40E_GL_FWSTS_FWS1B_MASK;
+	return (fw_sts > I40E_GL_FWSTS_FWS1B_EMPR_0) &&
+	       (fw_sts <= I40E_GL_FWSTS_FWS1B_EMPR_10);
+}
+
+/**
+ * i40e_handle_resets - handle EMP resets and PF resets
+ * @pf: board private structure
+ *
+ * Handle both EMP resets and PF resets and conclude whether there are
+ * any issues regarding these resets. If there are any issues then
+ * generate log entry.
+ *
+ * Return 0 if NIC is healthy or negative value when there are issues
+ * with resets
+ **/
+static i40e_status i40e_handle_resets(struct i40e_pf *pf)
+{
+	const i40e_status pfr = i40e_pf_loop_reset(pf);
+	const bool is_empr = i40e_check_fw_empr(pf);
+
+	if (is_empr || pfr != I40E_SUCCESS)
+		dev_crit(&pf->pdev->dev, "Entering recovery mode due to repeated FW resets. This may take several minutes. Refer to the Intel(R) Ethernet Adapters and Devices User Guide.\n");
+
+	return is_empr ? I40E_ERR_RESET_FAILED : pfr;
 }
 
 /**
@@ -14881,11 +14892,9 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_pf_reset;
 	}
 
-	err = i40e_pf_loop_reset(pf);
-	if (err) {
-		dev_info(&pdev->dev, "Initial pf_reset failed: %d\n", err);
+	err = i40e_handle_resets(pf);
+	if (err)
 		goto err_pf_reset;
-	}
 
 	i40e_check_recovery_mode(pf);
 
@@ -15280,6 +15289,14 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dev_dbg(&pf->pdev->dev, "get supported phy types ret =  %s last_status =  %s\n",
 			i40e_stat_str(&pf->hw, err),
 			i40e_aq_str(&pf->hw, pf->hw.aq.asq_last_status));
+
+	/* make sure the MFS hasn't been set lower than the default */
+#define MAX_FRAME_SIZE_DEFAULT 0x2600
+	val = (rd32(&pf->hw, I40E_PRTGL_SAH) &
+	       I40E_PRTGL_SAH_MFS_MASK) >> I40E_PRTGL_SAH_MFS_SHIFT;
+	if (val < MAX_FRAME_SIZE_DEFAULT)
+		dev_warn(&pdev->dev, "MFS for port %x has been set below the default: %x\n",
+			 i, val);
 
 	/* Add a filter to drop all Flow control frames from any VSI from being
 	 * transmitted. By doing so we stop a malicious VF from sending out
@@ -15791,8 +15808,7 @@ static struct pci_driver i40e_driver = {
  **/
 static int __init i40e_init_module(void)
 {
-	pr_info("%s: %s - version %s\n", i40e_driver_name,
-		i40e_driver_string, i40e_driver_version_str);
+	pr_info("%s: %s\n", i40e_driver_name, i40e_driver_string);
 	pr_info("%s: %s\n", i40e_driver_name, i40e_copyright);
 
 	/* There is no need to throttle the number of active tasks because
