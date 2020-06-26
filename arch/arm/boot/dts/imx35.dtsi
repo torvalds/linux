@@ -59,7 +59,7 @@
 		interrupt-parent = <&avic>;
 		ranges;
 
-		L2: l2-cache@30000000 {
+		L2: cache-controller@30000000 {
 			compatible = "arm,l210-cache";
 			reg = <0x30000000 0x1000>;
 			cache-unified;
