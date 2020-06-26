@@ -185,8 +185,9 @@ static void iunit_drvfs_remove_files(struct device_driver *drv)
 		driver_remove_file(drv, &iunit_drvfs_attrs[i]);
 }
 
-int atomisp_drvfs_init(struct device_driver *drv, struct atomisp_device *isp)
+int atomisp_drvfs_init(struct atomisp_device *isp)
 {
+	struct device_driver *drv = isp->dev->driver;
 	int ret;
 
 	iunit_debug.isp = isp;
