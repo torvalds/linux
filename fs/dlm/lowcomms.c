@@ -1111,6 +1111,8 @@ static struct socket *tcp_create_listen_sock(struct connection *con,
 		goto create_out;
 	}
 
+	sock_set_mark(sock->sk, dlm_config.ci_mark);
+
 	/* Turn off Nagle's algorithm */
 	tcp_sock_set_nodelay(sock->sk);
 
@@ -1185,6 +1187,7 @@ static int sctp_listen_for_all(void)
 	}
 
 	sock_set_rcvbuf(sock->sk, NEEDED_RMEM);
+	sock_set_mark(sock->sk, dlm_config.ci_mark);
 	sctp_sock_set_nodelay(sock->sk);
 
 	write_lock_bh(&sock->sk->sk_callback_lock);
