@@ -445,7 +445,7 @@ static int am65_cpsw_set_channels(struct net_device *ndev,
 	/* Check if interface is up. Can change the num queues when
 	 * the interface is down.
 	 */
-	if (netif_running(ndev))
+	if (common->usage_count)
 		return -EBUSY;
 
 	am65_cpsw_nuss_remove_tx_chns(common);
@@ -733,6 +733,9 @@ static int am65_cpsw_set_ethtool_priv_flags(struct net_device *ndev, u32 flags)
 	int rrobin;
 
 	rrobin = !!(flags & AM65_CPSW_PRIV_P0_RX_PTYPE_RROBIN);
+
+	if (common->usage_count)
+		return -EBUSY;
 
 	if (common->est_enabled && rrobin) {
 		netdev_err(ndev,
