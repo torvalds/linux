@@ -1235,7 +1235,7 @@ static int btree_iter_traverse_one(struct btree_iter *iter)
 	 *
 	 * XXX correctly using BTREE_ITER_UPTODATE should make this unnecessary
 	 */
-	if (btree_iter_node(iter, iter->level)) {
+	if (is_btree_node(iter, iter->level)) {
 		BUG_ON(!btree_iter_pos_in_node(iter, iter->l[iter->level].b));
 
 		btree_iter_advance_to_pos(iter, &iter->l[iter->level], -1);
