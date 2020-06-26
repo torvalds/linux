@@ -773,7 +773,6 @@ static void init_once(void *foo)
 
 	memset(bdev, 0, sizeof(*bdev));
 	mutex_init(&bdev->bd_mutex);
-	INIT_LIST_HEAD(&bdev->bd_list);
 #ifdef CONFIG_SYSFS
 	INIT_LIST_HEAD(&bdev->bd_holder_disks);
 #endif
@@ -789,9 +788,6 @@ static void bdev_evict_inode(struct inode *inode)
 	truncate_inode_pages_final(&inode->i_data);
 	invalidate_inode_buffers(inode); /* is it needed here? */
 	clear_inode(inode);
-	spin_lock(&bdev_lock);
-	list_del_init(&bdev->bd_list);
-	spin_unlock(&bdev_lock);
 	/* Detach inode from wb early as bdi_put() may free bdi->wb */
 	inode_detach_wb(inode);
 	if (bdev->bd_bdi != &noop_backing_dev_info) {
@@ -866,8 +862,6 @@ static int bdev_set(struct inode *inode, void *data)
 	return 0;
 }
 
-static LIST_HEAD(all_bdevs);
-
 struct block_device *bdget(dev_t dev)
 {
 	struct block_device *bdev;
@@ -892,9 +886,6 @@ struct block_device *bdget(dev_t dev)
 		inode->i_bdev = bdev;
 		inode->i_data.a_ops = &def_blk_aops;
 		mapping_set_gfp_mask(&inode->i_data, GFP_USER);
-		spin_lock(&bdev_lock);
-		list_add(&bdev->bd_list, &all_bdevs);
-		spin_unlock(&bdev_lock);
 		unlock_new_inode(inode);
 	}
 	return bdev;
@@ -915,13 +906,14 @@ EXPORT_SYMBOL(bdgrab);
 
 long nr_blockdev_pages(void)
 {
-	struct block_device *bdev;
+	struct inode *inode;
 	long ret = 0;
-	spin_lock(&bdev_lock);
-	list_for_each_entry(bdev, &all_bdevs, bd_list) {
-		ret += bdev->bd_inode->i_mapping->nrpages;
-	}
-	spin_unlock(&bdev_lock);
+
+	spin_lock(&blockdev_superblock->s_inode_list_lock);
+	list_for_each_entry(inode, &blockdev_superblock->s_inodes, i_sb_list)
+		ret += inode->i_mapping->nrpages;
+	spin_unlock(&blockdev_superblock->s_inode_list_lock);
+
 	return ret;
 }
 

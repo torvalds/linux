@@ -40,7 +40,6 @@ struct block_device {
 	int			bd_invalidated;
 	struct gendisk *	bd_disk;
 	struct backing_dev_info *bd_bdi;
-	struct list_head	bd_list;
 
 	/* The counter of freeze processes */
 	int			bd_fsfreeze_count;
