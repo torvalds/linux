@@ -19,7 +19,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/leds.h>
 #include <linux/platform_data/asoc-mx27vis.h>
-#include <media/soc_camera.h>
 #include <sound/tlv320aic32x4.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -191,34 +190,6 @@ static const struct gpio visstrim_m10_gpios[] __initconst = {
 };
 
 /* Camera */
-static int visstrim_camera_power(struct device *dev, int on)
-{
-	gpio_set_value(TVP5150_PWDN, on);
-
-	return 0;
-};
-
-static int visstrim_camera_reset(struct device *dev)
-{
-	gpio_set_value(TVP5150_RSTN, 0);
-	ndelay(500);
-	gpio_set_value(TVP5150_RSTN, 1);
-
-	return 0;
-};
-
-static struct i2c_board_info visstrim_i2c_camera =  {
-	I2C_BOARD_INFO("tvp5150", 0x5d),
-};
-
-static struct soc_camera_link iclink_tvp5150 = {
-	.bus_id         = 0,
-	.board_info     = &visstrim_i2c_camera,
-	.i2c_adapter_id = 0,
-	.power = visstrim_camera_power,
-	.reset = visstrim_camera_reset,
-};
-
 static struct mx2_camera_platform_data visstrim_camera = {
 	.flags = MX2_CAMERA_CCIR | MX2_CAMERA_CCIR_INTERLACE |
 		 MX2_CAMERA_PCLK_SAMPLE_RISING,
@@ -549,8 +520,6 @@ static void __init visstrim_m10_late_init(void)
 
 	imx_add_platform_device("mx27vis", 0, NULL, 0, &snd_mx27vis_pdata,
 				sizeof(snd_mx27vis_pdata));
-	platform_device_register_resndata(NULL, "soc-camera-pdrv", 0, NULL, 0,
-				      &iclink_tvp5150, sizeof(iclink_tvp5150));
 
 	gpio_led_register_device(0, &visstrim_m10_led_data);
 
