@@ -43,7 +43,6 @@ Contents:
    arcnet
    atm
    ax25
-   baycom
    bonding
    cdc_mbim
    cops

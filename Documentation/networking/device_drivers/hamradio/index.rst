@@ -8,6 +8,7 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
+   baycom
    z8530drv
 
 .. only::  subproject and html
