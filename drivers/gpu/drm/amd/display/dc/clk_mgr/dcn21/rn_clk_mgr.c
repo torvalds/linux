@@ -136,11 +136,6 @@ void rn_update_clocks(struct clk_mgr *clk_mgr_base,
 		}
 	}
 
-	if (should_set_clock(safe_to_lower, new_clocks->phyclk_khz, clk_mgr_base->clks.phyclk_khz)) {
-		clk_mgr_base->clks.phyclk_khz = new_clocks->phyclk_khz;
-		rn_vbios_smu_set_phyclk(clk_mgr, clk_mgr_base->clks.phyclk_khz);
-	}
-
 	if (should_set_clock(safe_to_lower, new_clocks->dcfclk_khz, clk_mgr_base->clks.dcfclk_khz)) {
 		clk_mgr_base->clks.dcfclk_khz = new_clocks->dcfclk_khz;
 		rn_vbios_smu_set_hard_min_dcfclk(clk_mgr, clk_mgr_base->clks.dcfclk_khz);
@@ -496,13 +491,33 @@ static bool rn_are_clock_states_equal(struct dc_clocks *a,
 }
 
 
+/* Notify clk_mgr of a change in link rate, update phyclk frequency if necessary */
+static void rn_notify_link_rate_change(struct clk_mgr *clk_mgr_base, struct dc_link *link)
+{
+	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
+	unsigned int i, max_phyclk_req = 0;
+
+	clk_mgr->cur_phyclk_req_table[link->link_index] = link->cur_link_settings.link_rate * LINK_RATE_REF_FREQ_IN_KHZ;
+
+	for (i = 0; i < MAX_PIPES * 2; i++) {
+		if (clk_mgr->cur_phyclk_req_table[i] > max_phyclk_req)
+			max_phyclk_req = clk_mgr->cur_phyclk_req_table[i];
+	}
+
+	if (max_phyclk_req != clk_mgr_base->clks.phyclk_khz) {
+		clk_mgr_base->clks.phyclk_khz = max_phyclk_req;
+		rn_vbios_smu_set_phyclk(clk_mgr, clk_mgr_base->clks.phyclk_khz);
+	}
+}
+
 static struct clk_mgr_funcs dcn21_funcs = {
 	.get_dp_ref_clk_frequency = dce12_get_dp_ref_freq_khz,
 	.update_clocks = rn_update_clocks,
 	.init_clocks = rn_init_clocks,
 	.enable_pme_wa = rn_enable_pme_wa,
 	.are_clock_states_equal = rn_are_clock_states_equal,
-	.notify_wm_ranges = rn_notify_wm_ranges
+	.notify_wm_ranges = rn_notify_wm_ranges,
+	.notify_link_rate_change = rn_notify_link_rate_change,
 };
 
 static struct clk_bw_params rn_bw_params = {

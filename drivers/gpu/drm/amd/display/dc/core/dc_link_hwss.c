@@ -14,6 +14,7 @@
 #include "dpcd_defs.h"
 #include "dsc.h"
 #include "resource.h"
+#include "clk_mgr.h"
 
 static uint8_t convert_to_count(uint8_t lttpr_repeater_count)
 {
@@ -123,6 +124,11 @@ void dp_enable_link_phy(
 		}
 	}
 
+	link->cur_link_settings = *link_settings;
+
+	if (dc->clk_mgr->funcs->notify_link_rate_change)
+		dc->clk_mgr->funcs->notify_link_rate_change(dc->clk_mgr, link);
+
 	if (dmcu != NULL && dmcu->funcs->lock_phy)
 		dmcu->funcs->lock_phy(dmcu);
 
@@ -140,8 +146,6 @@ void dp_enable_link_phy(
 
 	if (dmcu != NULL && dmcu->funcs->unlock_phy)
 		dmcu->funcs->unlock_phy(dmcu);
-
-	link->cur_link_settings = *link_settings;
 
 	dp_receiver_power_ctrl(link, true);
 }
@@ -234,6 +238,9 @@ void dp_disable_link_phy(struct dc_link *link, enum signal_type signal)
 	/* Clear current link setting.*/
 	memset(&link->cur_link_settings, 0,
 			sizeof(link->cur_link_settings));
+
+	if (dc->clk_mgr->funcs->notify_link_rate_change)
+		dc->clk_mgr->funcs->notify_link_rate_change(dc->clk_mgr, link);
 }
 
 void dp_disable_link_phy_mst(struct dc_link *link, enum signal_type signal)
