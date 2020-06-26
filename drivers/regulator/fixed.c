@@ -28,6 +28,7 @@
 #include <linux/of_device.h>
 #include <linux/regulator/of_regulator.h>
 #ifdef QTI_FIXED_REGULATOR
+#include <linux/regulator/debug-regulator.h>
 #include <linux/regulator/proxy-consumer.h>
 #endif
 #include <linux/regulator/machine.h>
@@ -184,6 +185,11 @@ static void qti_reg_fixed_voltage_init(struct device *dev,
 	ret = devm_regulator_proxy_consumer_register(dev, dev->of_node);
 	if (ret)
 		dev_err(dev, "failed to register proxy consumer, ret=%d\n",
+			ret);
+
+	ret = devm_regulator_debug_register(dev, rdev);
+	if (ret)
+		dev_err(dev, "failed to register debug regulator, ret=%d\n",
 			ret);
 }
 #endif
