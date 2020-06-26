@@ -215,26 +215,17 @@ static const struct nla_policy red_policy[TCA_RED_MAX + 1] = {
 	[TCA_RED_FLAGS] = NLA_POLICY_BITFIELD32(TC_RED_SUPPORTED_FLAGS),
 };
 
-static int red_change(struct Qdisc *sch, struct nlattr *opt,
-		      struct netlink_ext_ack *extack)
+static int __red_change(struct Qdisc *sch, struct nlattr **tb,
+			struct netlink_ext_ack *extack)
 {
 	struct Qdisc *old_child = NULL, *child = NULL;
 	struct red_sched_data *q = qdisc_priv(sch);
-	struct nlattr *tb[TCA_RED_MAX + 1];
 	struct nla_bitfield32 flags_bf;
 	struct tc_red_qopt *ctl;
 	unsigned char userbits;
 	unsigned char flags;
 	int err;
 	u32 max_P;
-
-	if (opt == NULL)
-		return -EINVAL;
-
-	err = nla_parse_nested_deprecated(tb, TCA_RED_MAX, opt, red_policy,
-					  NULL);
-	if (err < 0)
-		return err;
 
 	if (tb[TCA_RED_PARMS] == NULL ||
 	    tb[TCA_RED_STAB] == NULL)
@@ -323,11 +314,38 @@ static int red_init(struct Qdisc *sch, struct nlattr *opt,
 		    struct netlink_ext_ack *extack)
 {
 	struct red_sched_data *q = qdisc_priv(sch);
+	struct nlattr *tb[TCA_RED_MAX + 1];
+	int err;
+
+	if (!opt)
+		return -EINVAL;
+
+	err = nla_parse_nested_deprecated(tb, TCA_RED_MAX, opt, red_policy,
+					  extack);
+	if (err < 0)
+		return err;
 
 	q->qdisc = &noop_qdisc;
 	q->sch = sch;
 	timer_setup(&q->adapt_timer, red_adaptative_timer, 0);
-	return red_change(sch, opt, extack);
+	return __red_change(sch, tb, extack);
+}
+
+static int red_change(struct Qdisc *sch, struct nlattr *opt,
+		      struct netlink_ext_ack *extack)
+{
+	struct nlattr *tb[TCA_RED_MAX + 1];
+	int err;
+
+	if (!opt)
+		return -EINVAL;
+
+	err = nla_parse_nested_deprecated(tb, TCA_RED_MAX, opt, red_policy,
+					  extack);
+	if (err < 0)
+		return err;
+
+	return __red_change(sch, tb, extack);
 }
 
 static int red_dump_offload_stats(struct Qdisc *sch)
