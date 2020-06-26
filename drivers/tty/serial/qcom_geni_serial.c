@@ -103,12 +103,18 @@
 #define DEFAULT_IO_MACRO_IO2_IO3_MASK		GENMASK(15, 4)
 #define IO_MACRO_IO2_IO3_SWAP		0x4640
 
+/* We always configure 4 bytes per FIFO word */
+#define BYTES_PER_FIFO_WORD		4
+
 struct qcom_geni_private_data {
 	/* NOTE: earlycon port will have NULL here */
 	struct uart_driver *drv;
 
 	u32 poll_cached_bytes;
 	unsigned int poll_cached_bytes_cnt;
+
+	u32 write_cached_bytes;
+	unsigned int write_cached_bytes_cnt;
 };
 
 struct qcom_geni_serial_port {
@@ -121,8 +127,6 @@ struct qcom_geni_serial_port {
 	bool setup;
 	int (*handle_rx)(struct uart_port *uport, u32 bytes, bool drop);
 	unsigned int baud;
-	unsigned int tx_bytes_pw;
-	unsigned int rx_bytes_pw;
 	void *rx_fifo;
 	u32 loopback;
 	bool brk;
@@ -390,13 +394,25 @@ static void qcom_geni_serial_poll_put_char(struct uart_port *uport,
 #ifdef CONFIG_SERIAL_QCOM_GENI_CONSOLE
 static void qcom_geni_serial_wr_char(struct uart_port *uport, int ch)
 {
-	writel(ch, uport->membase + SE_GENI_TX_FIFOn);
+	struct qcom_geni_private_data *private_data = uport->private_data;
+
+	private_data->write_cached_bytes =
+		(private_data->write_cached_bytes >> 8) | (ch << 24);
+	private_data->write_cached_bytes_cnt++;
+
+	if (private_data->write_cached_bytes_cnt == BYTES_PER_FIFO_WORD) {
+		writel(private_data->write_cached_bytes,
+		       uport->membase + SE_GENI_TX_FIFOn);
+		private_data->write_cached_bytes_cnt = 0;
+	}
 }
 
 static void
 __qcom_geni_serial_console_write(struct uart_port *uport, const char *s,
 				 unsigned int count)
 {
+	struct qcom_geni_private_data *private_data = uport->private_data;
+
 	int i;
 	u32 bytes_to_send = count;
 
@@ -431,6 +447,15 @@ __qcom_geni_serial_console_write(struct uart_port *uport, const char *s,
 							SE_GENI_M_IRQ_CLEAR);
 		i += chars_to_write;
 	}
+
+	if (private_data->write_cached_bytes_cnt) {
+		private_data->write_cached_bytes >>= BITS_PER_BYTE *
+			(BYTES_PER_FIFO_WORD - private_data->write_cached_bytes_cnt);
+		writel(private_data->write_cached_bytes,
+		       uport->membase + SE_GENI_TX_FIFOn);
+		private_data->write_cached_bytes_cnt = 0;
+	}
+
 	qcom_geni_serial_poll_tx_done(uport);
 }
 
@@ -503,7 +528,7 @@ static int handle_rx_console(struct uart_port *uport, u32 bytes, bool drop)
 	tport = &uport->state->port;
 	for (i = 0; i < bytes; ) {
 		int c;
-		int chunk = min_t(int, bytes - i, port->rx_bytes_pw);
+		int chunk = min_t(int, bytes - i, BYTES_PER_FIFO_WORD);
 
 		ioread32_rep(uport->membase + SE_GENI_RX_FIFOn, buf, 1);
 		i += chunk;
@@ -683,11 +708,11 @@ static void qcom_geni_serial_handle_rx(struct uart_port *uport, bool drop)
 
 	if (!word_cnt)
 		return;
-	total_bytes = port->rx_bytes_pw * (word_cnt - 1);
+	total_bytes = BYTES_PER_FIFO_WORD * (word_cnt - 1);
 	if (last_word_partial && last_word_byte_cnt)
 		total_bytes += last_word_byte_cnt;
 	else
-		total_bytes += port->rx_bytes_pw;
+		total_bytes += BYTES_PER_FIFO_WORD;
 	port->handle_rx(uport, total_bytes, drop);
 }
 
@@ -720,7 +745,7 @@ static void qcom_geni_serial_handle_tx(struct uart_port *uport, bool done,
 	}
 
 	avail = port->tx_fifo_depth - (status & TX_FIFO_WC);
-	avail *= port->tx_bytes_pw;
+	avail *= BYTES_PER_FIFO_WORD;
 
 	tail = xmit->tail;
 	chunk = min(avail, pending);
@@ -744,7 +769,7 @@ static void qcom_geni_serial_handle_tx(struct uart_port *uport, bool done,
 		int c;
 
 		memset(buf, 0, ARRAY_SIZE(buf));
-		tx_bytes = min_t(size_t, remaining, port->tx_bytes_pw);
+		tx_bytes = min_t(size_t, remaining, BYTES_PER_FIFO_WORD);
 
 		for (c = 0; c < tx_bytes ; c++) {
 			buf[c] = xmit->buf[tail++];
@@ -861,12 +886,6 @@ static int qcom_geni_serial_port_setup(struct uart_port *uport)
 	u32 proto;
 	u32 pin_swap;
 
-	if (uart_console(uport))
-		port->tx_bytes_pw = 1;
-	else
-		port->tx_bytes_pw = 4;
-	port->rx_bytes_pw = 4;
-
 	proto = geni_se_read_proto(&port->se);
 	if (proto != GENI_SE_UART) {
 		dev_err(uport->dev, "Invalid FW loaded, proto: %d\n", proto);
@@ -898,10 +917,8 @@ static int qcom_geni_serial_port_setup(struct uart_port *uport)
 	 */
 	if (uart_console(uport))
 		qcom_geni_serial_poll_tx_done(uport);
-	geni_se_config_packing(&port->se, BITS_PER_BYTE, port->tx_bytes_pw,
-						false, true, false);
-	geni_se_config_packing(&port->se, BITS_PER_BYTE, port->rx_bytes_pw,
-						false, false, true);
+	geni_se_config_packing(&port->se, BITS_PER_BYTE, BYTES_PER_FIFO_WORD,
+			       false, true, true);
 	geni_se_init(&port->se, UART_RX_WM, port->rx_fifo_depth - 2);
 	geni_se_select_mode(&port->se, GENI_SE_FIFO);
 	port->setup = true;
@@ -1197,8 +1214,8 @@ static int __init qcom_geni_serial_earlycon_setup(struct earlycon_device *dev,
 	 */
 	qcom_geni_serial_poll_tx_done(uport);
 	qcom_geni_serial_abort_rx(uport);
-	geni_se_config_packing(&se, BITS_PER_BYTE, 1, false, true, false);
-	geni_se_config_packing(&se, BITS_PER_BYTE, 4, false, false, true);
+	geni_se_config_packing(&se, BITS_PER_BYTE, BYTES_PER_FIFO_WORD,
+			       false, true, true);
 	geni_se_init(&se, DEF_FIFO_DEPTH_WORDS / 2, DEF_FIFO_DEPTH_WORDS - 2);
 	geni_se_select_mode(&se, GENI_SE_FIFO);
 
