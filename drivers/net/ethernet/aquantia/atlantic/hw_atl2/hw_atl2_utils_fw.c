@@ -16,15 +16,29 @@
 #define AQ_A2_FW_READ_TRY_MAX 1000
 
 #define hw_atl2_shared_buffer_write(HW, ITEM, VARIABLE) \
+{\
+	BUILD_BUG_ON_MSG((offsetof(struct fw_interface_in, ITEM) % \
+			 sizeof(u32)) != 0,\
+			 "Unaligned write " # ITEM);\
+	BUILD_BUG_ON_MSG((sizeof(VARIABLE) %  sizeof(u32)) != 0,\
+			 "Unaligned write length " # ITEM);\
 	hw_atl2_mif_shared_buf_write(HW,\
 		(offsetof(struct fw_interface_in, ITEM) / sizeof(u32)),\
-		(u32 *)&(VARIABLE), sizeof(VARIABLE) / sizeof(u32))
+		(u32 *)&(VARIABLE), sizeof(VARIABLE) / sizeof(u32));\
+}
 
 #define hw_atl2_shared_buffer_get(HW, ITEM, VARIABLE) \
+{\
+	BUILD_BUG_ON_MSG((offsetof(struct fw_interface_in, ITEM) % \
+			 sizeof(u32)) != 0,\
+			 "Unaligned get " # ITEM);\
+	BUILD_BUG_ON_MSG((sizeof(VARIABLE) %  sizeof(u32)) != 0,\
+			 "Unaligned get length " # ITEM);\
 	hw_atl2_mif_shared_buf_get(HW, \
 		(offsetof(struct fw_interface_in, ITEM) / sizeof(u32)),\
 		(u32 *)&(VARIABLE), \
-		sizeof(VARIABLE) / sizeof(u32))
+		sizeof(VARIABLE) / sizeof(u32));\
+}
 
 /* This should never be used on non atomic fields,
  * treat any > u32 read as non atomic.
@@ -33,7 +47,9 @@
 {\
 	BUILD_BUG_ON_MSG((offsetof(struct fw_interface_out, ITEM) % \
 			 sizeof(u32)) != 0,\
-			 "Non aligned read " # ITEM);\
+			 "Unaligned read " # ITEM);\
+	BUILD_BUG_ON_MSG((sizeof(VARIABLE) %  sizeof(u32)) != 0,\
+			 "Unaligned read length " # ITEM);\
 	BUILD_BUG_ON_MSG(sizeof(VARIABLE) > sizeof(u32),\
 			 "Non atomic read " # ITEM);\
 	hw_atl2_mif_shared_buf_read(HW, \
@@ -42,10 +58,18 @@
 }
 
 #define hw_atl2_shared_buffer_read_safe(HW, ITEM, DATA) \
+({\
+	BUILD_BUG_ON_MSG((offsetof(struct fw_interface_out, ITEM) % \
+			 sizeof(u32)) != 0,\
+			 "Unaligned read_safe " # ITEM);\
+	BUILD_BUG_ON_MSG((sizeof(((struct fw_interface_out *)0)->ITEM) % \
+			 sizeof(u32)) != 0,\
+			 "Unaligned read_safe length " # ITEM);\
 	hw_atl2_shared_buffer_read_block((HW), \
 		(offsetof(struct fw_interface_out, ITEM) / sizeof(u32)),\
 		sizeof(((struct fw_interface_out *)0)->ITEM) / sizeof(u32),\
-		(DATA))
+		(DATA));\
+})
 
 static int hw_atl2_shared_buffer_read_block(struct aq_hw_s *self,
 					    u32 offset, u32 dwords, void *data)
