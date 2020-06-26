@@ -16058,8 +16058,10 @@ SPARSE CHECKER
 M:	"Luc Van Oostenryck" <luc.vanoostenryck@gmail.com>
 L:	linux-sparse@vger.kernel.org
 S:	Maintained
-W:	https://sparse.wiki.kernel.org/
+W:	https://sparse.docs.kernel.org/
 T:	git git://git.kernel.org/pub/scm/devel/sparse/sparse.git
+Q:	https://patchwork.kernel.org/project/linux-sparse/list/
+B:	https://bugzilla.kernel.org/enter_bug.cgi?component=Sparse&product=Tools
 F:	include/linux/compiler.h
 
 SPEAR CLOCK FRAMEWORK SUPPORT
