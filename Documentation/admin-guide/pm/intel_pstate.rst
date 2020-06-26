@@ -431,6 +431,17 @@ argument is passed to the kernel in the command line.
 	supported in the current configuration, writes to this attribute will
 	fail with an appropriate error.
 
+``energy_efficiency``
+	This attribute is only present on platforms, which have CPUs matching
+	Kaby Lake or Coffee Lake desktop CPU model. By default
+	energy efficiency optimizations are disabled on these CPU models in HWP
+	mode by this driver. Enabling energy efficiency may limit maximum
+	operating frequency in both HWP and non HWP mode. In non HWP mode,
+	optimizations are done only in the turbo frequency range. In HWP mode,
+	optimizations are done in the entire frequency range. Setting this
+	attribute to "1" enables energy efficiency optimizations and setting
+	to "0" disables energy efficiency optimizations.
+
 Interpretation of Policy Attributes
 -----------------------------------
 

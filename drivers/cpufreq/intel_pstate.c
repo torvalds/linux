@@ -866,10 +866,39 @@ static int intel_pstate_hwp_save_state(struct cpufreq_policy *policy)
 	return 0;
 }
 
+#define POWER_CTL_EE_ENABLE	1
+#define POWER_CTL_EE_DISABLE	2
+
+static int power_ctl_ee_state;
+
+static void set_power_ctl_ee_state(bool input)
+{
+	u64 power_ctl;
+
+	mutex_lock(&intel_pstate_driver_lock);
+	rdmsrl(MSR_IA32_POWER_CTL, power_ctl);
+	if (input) {
+		power_ctl &= ~BIT(MSR_IA32_POWER_CTL_BIT_EE);
+		power_ctl_ee_state = POWER_CTL_EE_ENABLE;
+	} else {
+		power_ctl |= BIT(MSR_IA32_POWER_CTL_BIT_EE);
+		power_ctl_ee_state = POWER_CTL_EE_DISABLE;
+	}
+	wrmsrl(MSR_IA32_POWER_CTL, power_ctl);
+	mutex_unlock(&intel_pstate_driver_lock);
+}
+
 static void intel_pstate_hwp_enable(struct cpudata *cpudata);
 
 static int intel_pstate_resume(struct cpufreq_policy *policy)
 {
+
+	/* Only restore if the system default is changed */
+	if (power_ctl_ee_state == POWER_CTL_EE_ENABLE)
+		set_power_ctl_ee_state(true);
+	else if (power_ctl_ee_state == POWER_CTL_EE_DISABLE)
+		set_power_ctl_ee_state(false);
+
 	if (!hwp_active)
 		return 0;
 
@@ -1218,6 +1247,32 @@ static ssize_t store_hwp_dynamic_boost(struct kobject *a,
 	return count;
 }
 
+static ssize_t show_energy_efficiency(struct kobject *kobj, struct kobj_attribute *attr,
+				      char *buf)
+{
+	u64 power_ctl;
+	int enable;
+
+	rdmsrl(MSR_IA32_POWER_CTL, power_ctl);
+	enable = !!(power_ctl & BIT(MSR_IA32_POWER_CTL_BIT_EE));
+	return sprintf(buf, "%d\n", !enable);
+}
+
+static ssize_t store_energy_efficiency(struct kobject *a, struct kobj_attribute *b,
+				       const char *buf, size_t count)
+{
+	bool input;
+	int ret;
+
+	ret = kstrtobool(buf, &input);
+	if (ret)
+		return ret;
+
+	set_power_ctl_ee_state(input);
+
+	return count;
+}
+
 show_one(max_perf_pct, max_perf_pct);
 show_one(min_perf_pct, min_perf_pct);
 
@@ -1228,6 +1283,7 @@ define_one_global_rw(min_perf_pct);
 define_one_global_ro(turbo_pct);
 define_one_global_ro(num_pstates);
 define_one_global_rw(hwp_dynamic_boost);
+define_one_global_rw(energy_efficiency);
 
 static struct attribute *intel_pstate_attributes[] = {
 	&status.attr,
@@ -1240,6 +1296,8 @@ static struct attribute *intel_pstate_attributes[] = {
 static const struct attribute_group intel_pstate_attr_group = {
 	.attrs = intel_pstate_attributes,
 };
+
+static const struct x86_cpu_id intel_pstate_cpu_ee_disable_ids[];
 
 static void __init intel_pstate_sysfs_expose_params(void)
 {
@@ -1273,6 +1331,11 @@ static void __init intel_pstate_sysfs_expose_params(void)
 				       &hwp_dynamic_boost.attr);
 		WARN_ON(rc);
 	}
+
+	if (x86_match_cpu(intel_pstate_cpu_ee_disable_ids)) {
+		rc = sysfs_create_file(intel_pstate_kobject, &energy_efficiency.attr);
+		WARN_ON(rc);
+	}
 }
 /************************** sysfs end ************************/
 
@@ -1286,25 +1349,6 @@ static void intel_pstate_hwp_enable(struct cpudata *cpudata)
 	cpudata->epp_policy = 0;
 	if (cpudata->epp_default == -EINVAL)
 		cpudata->epp_default = intel_pstate_get_epp(cpudata, 0);
-}
-
-#define MSR_IA32_POWER_CTL_BIT_EE	19
-
-/* Disable energy efficiency optimization */
-static void intel_pstate_disable_ee(int cpu)
-{
-	u64 power_ctl;
-	int ret;
-
-	ret = rdmsrl_on_cpu(cpu, MSR_IA32_POWER_CTL, &power_ctl);
-	if (ret)
-		return;
-
-	if (!(power_ctl & BIT(MSR_IA32_POWER_CTL_BIT_EE))) {
-		pr_info("Disabling energy efficiency optimization\n");
-		power_ctl |= BIT(MSR_IA32_POWER_CTL_BIT_EE);
-		wrmsrl_on_cpu(cpu, MSR_IA32_POWER_CTL, power_ctl);
-	}
 }
 
 static int atom_get_min_pstate(void)
@@ -1981,10 +2025,6 @@ static int intel_pstate_init_cpu(unsigned int cpunum)
 
 	if (hwp_active) {
 		const struct x86_cpu_id *id;
-
-		id = x86_match_cpu(intel_pstate_cpu_ee_disable_ids);
-		if (id)
-			intel_pstate_disable_ee(cpunum);
 
 		intel_pstate_hwp_enable(cpu);
 
@@ -2806,8 +2846,17 @@ hwp_cpu_matched:
 	if (rc)
 		return rc;
 
-	if (hwp_active)
+	if (hwp_active) {
+		const struct x86_cpu_id *id;
+
+		id = x86_match_cpu(intel_pstate_cpu_ee_disable_ids);
+		if (id) {
+			set_power_ctl_ee_state(false);
+			pr_info("Disabling energy efficiency optimization\n");
+		}
+
 		pr_info("HWP enabled\n");
+	}
 
 	return 0;
 }
