@@ -565,7 +565,11 @@ somewhere between the two extremes:
 Strings written to the ``energy_performance_preference`` attribute are
 internally translated to integer values written to the processor's
 Energy-Performance Preference (EPP) knob (if supported) or its
-Energy-Performance Bias (EPB) knob.
+Energy-Performance Bias (EPB) knob. It is also possible to write a positive
+integer value between 0 to 255, if the EPP feature is present. If the EPP
+feature is not present, writing integer value to this attribute is not
+supported. In this case, user can use
+ "/sys/devices/system/cpu/cpu*/power/energy_perf_bias" interface.
 
 [Note that tasks may by migrated from one CPU to another by the scheduler's
 load-balancing algorithm and if different energy vs performance hints are
