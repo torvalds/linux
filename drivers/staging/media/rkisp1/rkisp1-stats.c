@@ -396,26 +396,18 @@ void rkisp1_stats_isr(struct rkisp1_stats *stats, u32 isp_ris)
 	struct rkisp1_device *rkisp1 = stats->rkisp1;
 	struct rkisp1_isp_readout_work *work;
 	unsigned int isp_mis_tmp = 0;
-	u32 val;
 
 	spin_lock(&stats->irq_lock);
 
-	val = RKISP1_CIF_ISP_AWB_DONE | RKISP1_CIF_ISP_AFM_FIN |
-	      RKISP1_CIF_ISP_EXP_END | RKISP1_CIF_ISP_HIST_MEASURE_RDY;
-	rkisp1_write(rkisp1, val, RKISP1_CIF_ISP_ICR);
+	rkisp1_write(rkisp1, RKISP1_STATS_MEAS_MASK, RKISP1_CIF_ISP_ICR);
 
 	isp_mis_tmp = rkisp1_read(rkisp1, RKISP1_CIF_ISP_MIS);
-	if (isp_mis_tmp &
-	    (RKISP1_CIF_ISP_AWB_DONE | RKISP1_CIF_ISP_AFM_FIN |
-	     RKISP1_CIF_ISP_EXP_END | RKISP1_CIF_ISP_HIST_MEASURE_RDY))
+	if (isp_mis_tmp & RKISP1_STATS_MEAS_MASK)
 		rkisp1->debug.stats_error++;
 
 	if (!stats->is_streaming)
 		goto unlock;
-	if (isp_ris & (RKISP1_CIF_ISP_AWB_DONE |
-		       RKISP1_CIF_ISP_AFM_FIN |
-		       RKISP1_CIF_ISP_EXP_END |
-		       RKISP1_CIF_ISP_HIST_MEASURE_RDY)) {
+	if (isp_ris & RKISP1_STATS_MEAS_MASK) {
 		work = kzalloc(sizeof(*work), GFP_ATOMIC);
 		if (work) {
 			INIT_WORK(&work->work,

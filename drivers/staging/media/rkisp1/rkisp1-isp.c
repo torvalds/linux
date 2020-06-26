@@ -1139,10 +1139,7 @@ void rkisp1_isp_isr(struct rkisp1_device *rkisp1)
 
 		/* New frame from the sensor received */
 		isp_ris = rkisp1_read(rkisp1, RKISP1_CIF_ISP_RIS);
-		if (isp_ris & (RKISP1_CIF_ISP_AWB_DONE |
-			       RKISP1_CIF_ISP_AFM_FIN |
-			       RKISP1_CIF_ISP_EXP_END |
-			       RKISP1_CIF_ISP_HIST_MEASURE_RDY))
+		if (isp_ris & RKISP1_STATS_MEAS_MASK)
 			rkisp1_stats_isr(&rkisp1->stats, isp_ris);
 	}
 
