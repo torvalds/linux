@@ -181,7 +181,7 @@ struct rkisp1_capture {
 /*
  * struct rkisp1_stats - ISP Statistics device
  *
- * @irq_lock: buffer queue lock
+ * @lock: locks the buffer list 'stat' and 'is_streaming'
  * @stat: stats buffer list
  * @readout_wq: workqueue for statistics information read
  */
@@ -189,13 +189,12 @@ struct rkisp1_stats {
 	struct rkisp1_vdev_node vnode;
 	struct rkisp1_device *rkisp1;
 
-	spinlock_t irq_lock;
+	spinlock_t lock; /* locks 'is_streaming', and 'stats' */
 	struct list_head stat;
 	struct v4l2_format vdev_fmt;
 	bool is_streaming;
 
 	struct workqueue_struct *readout_wq;
-	struct mutex wq_lock;
 };
 
 /*

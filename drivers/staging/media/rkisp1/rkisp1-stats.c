@@ -133,9 +133,9 @@ static void rkisp1_stats_vb2_buf_queue(struct vb2_buffer *vb)
 
 	stats_buf->vaddr[0] = vb2_plane_vaddr(vb, 0);
 
-	mutex_lock(&stats_dev->wq_lock);
+	spin_lock_irq(&stats_dev->lock);
 	list_add_tail(&stats_buf->queue, &stats_dev->stat);
-	mutex_unlock(&stats_dev->wq_lock);
+	spin_unlock_irq(&stats_dev->lock);
 }
 
 static int rkisp1_stats_vb2_buf_prepare(struct vb2_buffer *vb)
@@ -155,13 +155,13 @@ static void rkisp1_stats_vb2_stop_streaming(struct vb2_queue *vq)
 	unsigned int i;
 
 	/* Make sure no new work queued in isr before draining wq */
-	spin_lock_irq(&stats->irq_lock);
+	spin_lock_irq(&stats->lock);
 	stats->is_streaming = false;
-	spin_unlock_irq(&stats->irq_lock);
+	spin_unlock_irq(&stats->lock);
 
 	drain_workqueue(stats->readout_wq);
 
-	mutex_lock(&stats->wq_lock);
+	spin_lock_irq(&stats->lock);
 	for (i = 0; i < RKISP1_ISP_STATS_REQ_BUFS_MAX; i++) {
 		if (list_empty(&stats->stat))
 			break;
@@ -170,7 +170,7 @@ static void rkisp1_stats_vb2_stop_streaming(struct vb2_queue *vq)
 		list_del(&buf->queue);
 		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 	}
-	mutex_unlock(&stats->wq_lock);
+	spin_unlock_irq(&stats->lock);
 }
 
 static int
@@ -340,14 +340,14 @@ rkisp1_stats_send_measurement(struct rkisp1_stats *stats,
 		frame_sequence = meas_work->frame_id;
 	}
 
-	mutex_lock(&stats->wq_lock);
+	spin_lock_irq(&stats->lock);
 	/* get one empty buffer */
 	if (!list_empty(&stats->stat)) {
 		cur_buf = list_first_entry(&stats->stat,
 					   struct rkisp1_buffer, queue);
 		list_del(&cur_buf->queue);
 	}
-	mutex_unlock(&stats->wq_lock);
+	spin_unlock_irq(&stats->lock);
 
 	if (!cur_buf)
 		return;
@@ -396,7 +396,7 @@ void rkisp1_stats_isr(struct rkisp1_stats *stats, u32 isp_ris)
 	struct rkisp1_isp_readout_work *work;
 	unsigned int isp_mis_tmp = 0;
 
-	spin_lock(&stats->irq_lock);
+	spin_lock(&stats->lock);
 
 	rkisp1_write(rkisp1, RKISP1_STATS_MEAS_MASK, RKISP1_CIF_ISP_ICR);
 
@@ -425,7 +425,7 @@ void rkisp1_stats_isr(struct rkisp1_stats *stats, u32 isp_ris)
 	}
 
 unlock:
-	spin_unlock(&stats->irq_lock);
+	spin_unlock(&stats->lock);
 }
 
 static void rkisp1_init_stats(struct rkisp1_stats *stats)
@@ -445,10 +445,9 @@ int rkisp1_stats_register(struct rkisp1_stats *stats,
 	int ret;
 
 	stats->rkisp1 = rkisp1;
-	mutex_init(&stats->wq_lock);
 	mutex_init(&node->vlock);
 	INIT_LIST_HEAD(&stats->stat);
-	spin_lock_init(&stats->irq_lock);
+	spin_lock_init(&stats->lock);
 
 	strscpy(vdev->name, RKISP1_STATS_DEV_NAME, sizeof(vdev->name));
 
@@ -495,7 +494,6 @@ err_cleanup_media_entity:
 err_release_queue:
 	vb2_queue_release(vdev->queue);
 	mutex_destroy(&node->vlock);
-	mutex_destroy(&stats->wq_lock);
 	return ret;
 }
 
@@ -509,5 +507,4 @@ void rkisp1_stats_unregister(struct rkisp1_stats *stats)
 	media_entity_cleanup(&vdev->entity);
 	vb2_queue_release(vdev->queue);
 	mutex_destroy(&node->vlock);
-	mutex_destroy(&stats->wq_lock);
 }
