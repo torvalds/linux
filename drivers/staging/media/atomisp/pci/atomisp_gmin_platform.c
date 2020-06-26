@@ -413,16 +413,12 @@ static int gmin_i2c_write(struct device *dev, u16 i2c_addr, u8 reg,
 		"I2C write, addr: 0x%02x, reg: 0x%02x, value: 0x%02x, mask: 0x%02x\n",
 		i2c_addr, reg, value, mask);
 
-	ret = intel_soc_pmic_exec_mipi_pmic_seq_element(i2c_addr, reg,
-							value, mask);
-
-	if (ret == -EOPNOTSUPP) {
+	ret = intel_soc_pmic_exec_mipi_pmic_seq_element(i2c_addr, reg, value, mask);
+	if (ret == -EOPNOTSUPP)
 		dev_err(dev,
 			"ACPI didn't mapped the OpRegion needed to access I2C address 0x%02x.\n"
-			"Need to compile the Kernel using CONFIG_*_PMIC_OPREGION settings\n",
+			"Need to compile the kernel using CONFIG_*_PMIC_OPREGION settings\n",
 			i2c_addr);
-		return ret;
-	}
 
 	return ret;
 }
