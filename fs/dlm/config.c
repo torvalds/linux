@@ -200,6 +200,7 @@ enum {
 	COMM_ATTR_LOCAL,
 	COMM_ATTR_ADDR,
 	COMM_ATTR_ADDR_LIST,
+	COMM_ATTR_MARK,
 };
 
 enum {
@@ -232,6 +233,7 @@ struct dlm_comm {
 	int nodeid;
 	int local;
 	int addr_count;
+	unsigned int mark;
 	struct sockaddr_storage *addr[DLM_MAX_ADDR_COUNT];
 };
 
@@ -469,6 +471,7 @@ static struct config_item *make_comm(struct config_group *g, const char *name)
 	cm->nodeid = -1;
 	cm->local = 0;
 	cm->addr_count = 0;
+	cm->mark = 0;
 	return &cm->item;
 }
 
@@ -664,8 +667,28 @@ static ssize_t comm_addr_list_show(struct config_item *item, char *buf)
 	return 4096 - allowance;
 }
 
+static ssize_t comm_mark_show(struct config_item *item, char *buf)
+{
+	return sprintf(buf, "%u\n", config_item_to_comm(item)->mark);
+}
+
+static ssize_t comm_mark_store(struct config_item *item, const char *buf,
+			       size_t len)
+{
+	unsigned int mark;
+	int rc;
+
+	rc = kstrtouint(buf, 0, &mark);
+	if (rc)
+		return rc;
+
+	config_item_to_comm(item)->mark = mark;
+	return len;
+}
+
 CONFIGFS_ATTR(comm_, nodeid);
 CONFIGFS_ATTR(comm_, local);
+CONFIGFS_ATTR(comm_, mark);
 CONFIGFS_ATTR_WO(comm_, addr);
 CONFIGFS_ATTR_RO(comm_, addr_list);
 
@@ -674,6 +697,7 @@ static struct configfs_attribute *comm_attrs[] = {
 	[COMM_ATTR_LOCAL] = &comm_attr_local,
 	[COMM_ATTR_ADDR] = &comm_attr_addr,
 	[COMM_ATTR_ADDR_LIST] = &comm_attr_addr_list,
+	[COMM_ATTR_MARK] = &comm_attr_mark,
 	NULL,
 };
 
@@ -830,6 +854,20 @@ int dlm_comm_seq(int nodeid, uint32_t *seq)
 		return -EEXIST;
 	*seq = cm->seq;
 	put_comm(cm);
+	return 0;
+}
+
+int dlm_comm_mark(int nodeid, unsigned int *mark)
+{
+	struct dlm_comm *cm;
+
+	cm = get_comm(nodeid);
+	if (!cm)
+		return -ENOENT;
+
+	*mark = cm->mark;
+	put_comm(cm);
+
 	return 0;
 }
 
