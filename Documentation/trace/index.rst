@@ -22,6 +22,7 @@ Linux Tracing Technologies
    boottime-trace
    hwlat_detector
    intel_th
+   ring-buffer-design
    stm
    sys-t
    coresight/index

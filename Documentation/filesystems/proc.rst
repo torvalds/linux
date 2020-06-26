@@ -2179,46 +2179,44 @@ subset=pid hides all top level files and directories in the procfs that
 are not related to tasks.
 
 5	Filesystem behavior
-----------------------------
+---------------------------
 
 Originally, before the advent of pid namepsace, procfs was a global file
 system. It means that there was only one procfs instance in the system.
 
 When pid namespace was added, a separate procfs instance was mounted in
 each pid namespace. So, procfs mount options are global among all
-mountpoints within the same namespace.
+mountpoints within the same namespace::
 
-::
+	# grep ^proc /proc/mounts
+	proc /proc proc rw,relatime,hidepid=2 0 0
 
-# grep ^proc /proc/mounts
-proc /proc proc rw,relatime,hidepid=2 0 0
+	# strace -e mount mount -o hidepid=1 -t proc proc /tmp/proc
+	mount("proc", "/tmp/proc", "proc", 0, "hidepid=1") = 0
+	+++ exited with 0 +++
 
-# strace -e mount mount -o hidepid=1 -t proc proc /tmp/proc
-mount("proc", "/tmp/proc", "proc", 0, "hidepid=1") = 0
-+++ exited with 0 +++
-
-# grep ^proc /proc/mounts
-proc /proc proc rw,relatime,hidepid=2 0 0
-proc /tmp/proc proc rw,relatime,hidepid=2 0 0
+	# grep ^proc /proc/mounts
+	proc /proc proc rw,relatime,hidepid=2 0 0
+	proc /tmp/proc proc rw,relatime,hidepid=2 0 0
 
 and only after remounting procfs mount options will change at all
-mountpoints.
+mountpoints::
 
-# mount -o remount,hidepid=1 -t proc proc /tmp/proc
+	# mount -o remount,hidepid=1 -t proc proc /tmp/proc
 
-# grep ^proc /proc/mounts
-proc /proc proc rw,relatime,hidepid=1 0 0
-proc /tmp/proc proc rw,relatime,hidepid=1 0 0
+	# grep ^proc /proc/mounts
+	proc /proc proc rw,relatime,hidepid=1 0 0
+	proc /tmp/proc proc rw,relatime,hidepid=1 0 0
 
 This behavior is different from the behavior of other filesystems.
 
 The new procfs behavior is more like other filesystems. Each procfs mount
 creates a new procfs instance. Mount options affect own procfs instance.
 It means that it became possible to have several procfs instances
-displaying tasks with different filtering options in one pid namespace.
+displaying tasks with different filtering options in one pid namespace::
 
-# mount -o hidepid=invisible -t proc proc /proc
-# mount -o hidepid=noaccess -t proc proc /tmp/proc
-# grep ^proc /proc/mounts
-proc /proc proc rw,relatime,hidepid=invisible 0 0
-proc /tmp/proc proc rw,relatime,hidepid=noaccess 0 0
+	# mount -o hidepid=invisible -t proc proc /proc
+	# mount -o hidepid=noaccess -t proc proc /tmp/proc
+	# grep ^proc /proc/mounts
+	proc /proc proc rw,relatime,hidepid=invisible 0 0
+	proc /tmp/proc proc rw,relatime,hidepid=noaccess 0 0

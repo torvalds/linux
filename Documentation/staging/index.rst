@@ -19,17 +19,41 @@ Unsorted Documentation
 Atomic Types
 ============
 
+.. raw:: latex
+
+    \footnotesize
+
 .. include:: ../atomic_t.txt
    :literal:
+
+.. raw:: latex
+
+    \normalsize
 
 Atomic bitops
 =============
 
+.. raw:: latex
+
+    \footnotesize
+
 .. include:: ../atomic_bitops.txt
    :literal:
+
+.. raw:: latex
+
+    \normalsize
 
 Memory Barriers
 ===============
 
+.. raw:: latex
+
+    \footnotesize
+
 .. include:: ../memory-barriers.txt
    :literal:
+
+.. raw:: latex
+
+    \normalsize
