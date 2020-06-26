@@ -27,7 +27,8 @@ module_param(reg_alpha2, charp, 0);
 
 static const struct ieee80211_iface_limit mwifiex_ap_sta_limits[] = {
 	{
-		.max = 3, .types = BIT(NL80211_IFTYPE_STATION) |
+		.max = MWIFIEX_MAX_BSS_NUM,
+		.types = BIT(NL80211_IFTYPE_STATION) |
 				   BIT(NL80211_IFTYPE_P2P_GO) |
 				   BIT(NL80211_IFTYPE_P2P_CLIENT) |
 				   BIT(NL80211_IFTYPE_AP),
