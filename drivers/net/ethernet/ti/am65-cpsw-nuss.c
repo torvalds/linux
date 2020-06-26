@@ -23,6 +23,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/mfd/syscon.h>
+#include <linux/sys_soc.h>
 #include <linux/dma/ti-cppi5.h>
 #include <linux/dma/k3-udma-glue.h>
 
@@ -148,10 +149,11 @@ static void am65_cpsw_nuss_get_ver(struct am65_cpsw_common *common)
 	common->nuss_ver = readl(common->ss_base);
 	common->cpsw_ver = readl(common->cpsw_base);
 	dev_info(common->dev,
-		 "initializing am65 cpsw nuss version 0x%08X, cpsw version 0x%08X Ports: %u\n",
+		 "initializing am65 cpsw nuss version 0x%08X, cpsw version 0x%08X Ports: %u quirks:%08x\n",
 		common->nuss_ver,
 		common->cpsw_ver,
-		common->port_num + 1);
+		common->port_num + 1,
+		common->pdata.quirks);
 }
 
 void am65_cpsw_nuss_adjust_link(struct net_device *ndev)
@@ -1877,7 +1879,7 @@ static int am65_cpsw_nuss_init_ndev_2g(struct am65_cpsw_common *common)
 	port->ndev->ethtool_ops = &am65_cpsw_ethtool_ops_slave;
 
 	/* Disable TX checksum offload by default due to HW bug */
-	if (common->pdata->quirks & AM65_CPSW_QUIRK_I2027_NO_TX_CSUM)
+	if (common->pdata.quirks & AM65_CPSW_QUIRK_I2027_NO_TX_CSUM)
 		port->ndev->features &= ~NETIF_F_HW_CSUM;
 
 	ndev_priv->stats = netdev_alloc_pcpu_stats(struct am65_cpsw_ndev_stats);
@@ -1981,20 +1983,49 @@ static void am65_cpsw_nuss_cleanup_ndev(struct am65_cpsw_common *common)
 	}
 }
 
+struct am65_cpsw_soc_pdata {
+	u32	quirks_dis;
+};
+
+static const struct am65_cpsw_soc_pdata am65x_soc_sr2_0 = {
+	.quirks_dis = AM65_CPSW_QUIRK_I2027_NO_TX_CSUM,
+};
+
+static const struct soc_device_attribute am65_cpsw_socinfo[] = {
+	{ .family = "AM65X",
+	  .revision = "SR2.0",
+	  .data = &am65x_soc_sr2_0
+	},
+	{/* sentinel */}
+};
+
 static const struct am65_cpsw_pdata am65x_sr1_0 = {
 	.quirks = AM65_CPSW_QUIRK_I2027_NO_TX_CSUM,
 };
 
-static const struct am65_cpsw_pdata j721e_sr1_0 = {
+static const struct am65_cpsw_pdata j721e_pdata = {
 	.quirks = 0,
 };
 
 static const struct of_device_id am65_cpsw_nuss_of_mtable[] = {
-	{ .compatible = "ti,am654-cpsw-nuss", .data = &am65x_sr1_0 },
-	{ .compatible = "ti,j721e-cpsw-nuss", .data = &j721e_sr1_0 },
+	{ .compatible = "ti,am654-cpsw-nuss", .data = &am65x_sr1_0},
+	{ .compatible = "ti,j721e-cpsw-nuss", .data = &j721e_pdata},
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, am65_cpsw_nuss_of_mtable);
+
+static void am65_cpsw_nuss_apply_socinfo(struct am65_cpsw_common *common)
+{
+	const struct soc_device_attribute *soc;
+
+	soc = soc_device_match(am65_cpsw_socinfo);
+	if (soc && soc->data) {
+		const struct am65_cpsw_soc_pdata *socdata = soc->data;
+
+		/* disable quirks */
+		common->pdata.quirks &= ~socdata->quirks_dis;
+	}
+}
 
 static int am65_cpsw_nuss_probe(struct platform_device *pdev)
 {
@@ -2014,7 +2045,9 @@ static int am65_cpsw_nuss_probe(struct platform_device *pdev)
 	of_id = of_match_device(am65_cpsw_nuss_of_mtable, dev);
 	if (!of_id)
 		return -EINVAL;
-	common->pdata = of_id->data;
+	common->pdata = *(const struct am65_cpsw_pdata *)of_id->data;
+
+	am65_cpsw_nuss_apply_socinfo(common);
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "cpsw_nuss");
 	common->ss_base = devm_ioremap_resource(&pdev->dev, res);
