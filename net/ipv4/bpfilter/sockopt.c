@@ -12,7 +12,7 @@
 struct bpfilter_umh_ops bpfilter_ops;
 EXPORT_SYMBOL_GPL(bpfilter_ops);
 
-static void bpfilter_umh_cleanup(struct umh_info *info)
+static void bpfilter_umh_cleanup(struct umd_info *info)
 {
 	mutex_lock(&bpfilter_ops.lock);
 	bpfilter_ops.stop = true;

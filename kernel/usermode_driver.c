@@ -11,7 +11,7 @@ static DEFINE_MUTEX(umh_list_lock);
 
 static int umd_setup(struct subprocess_info *info, struct cred *new)
 {
-	struct umh_info *umh_info = info->data;
+	struct umd_info *umd_info = info->data;
 	struct file *from_umh[2];
 	struct file *to_umh[2];
 	int err;
@@ -43,21 +43,21 @@ static int umd_setup(struct subprocess_info *info, struct cred *new)
 		return err;
 	}
 
-	umh_info->pipe_to_umh = to_umh[1];
-	umh_info->pipe_from_umh = from_umh[0];
-	umh_info->pid = task_pid_nr(current);
+	umd_info->pipe_to_umh = to_umh[1];
+	umd_info->pipe_from_umh = from_umh[0];
+	umd_info->pid = task_pid_nr(current);
 	current->flags |= PF_UMH;
 	return 0;
 }
 
 static void umd_cleanup(struct subprocess_info *info)
 {
-	struct umh_info *umh_info = info->data;
+	struct umd_info *umd_info = info->data;
 
 	/* cleanup if umh_setup() was successful but exec failed */
 	if (info->retval) {
-		fput(umh_info->pipe_to_umh);
-		fput(umh_info->pipe_from_umh);
+		fput(umd_info->pipe_to_umh);
+		fput(umd_info->pipe_from_umh);
 	}
 }
 
@@ -72,12 +72,12 @@ static void umd_cleanup(struct subprocess_info *info)
  *
  * Returns either negative error or zero which indicates success
  * in executing a blob of bytes as a usermode process. In such
- * case 'struct umh_info *info' is populated with two pipes
+ * case 'struct umd_info *info' is populated with two pipes
  * and a pid of the process. The caller is responsible for health
  * check of the user process, killing it via pid, and closing the
  * pipes when user process is no longer needed.
  */
-int fork_usermode_blob(void *data, size_t len, struct umh_info *info)
+int fork_usermode_blob(void *data, size_t len, struct umd_info *info)
 {
 	const char *cmdline = (info->cmdline) ? info->cmdline : "usermodehelper";
 	struct subprocess_info *sub_info;
@@ -126,7 +126,7 @@ EXPORT_SYMBOL_GPL(fork_usermode_blob);
 
 void __exit_umh(struct task_struct *tsk)
 {
-	struct umh_info *info;
+	struct umd_info *info;
 	pid_t pid = tsk->pid;
 
 	mutex_lock(&umh_list_lock);

@@ -17,14 +17,14 @@ static inline void exit_umh(struct task_struct *tsk)
 }
 #endif
 
-struct umh_info {
+struct umd_info {
 	const char *cmdline;
 	struct file *pipe_to_umh;
 	struct file *pipe_from_umh;
 	struct list_head list;
-	void (*cleanup)(struct umh_info *info);
+	void (*cleanup)(struct umd_info *info);
 	pid_t pid;
 };
-int fork_usermode_blob(void *data, size_t len, struct umh_info *info);
+int fork_usermode_blob(void *data, size_t len, struct umd_info *info);
 
 #endif /* __LINUX_USERMODE_DRIVER_H__ */
