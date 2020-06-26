@@ -43,6 +43,7 @@
 	((quirk << SOF_RT5682_NUM_HDMIDEV_SHIFT) & SOF_RT5682_NUM_HDMIDEV_MASK)
 #define SOF_RT1015_SPEAKER_AMP_PRESENT		BIT(13)
 #define SOF_MAX98373_SPEAKER_AMP_PRESENT	BIT(14)
+#define SOF_MAX98360A_SPEAKER_AMP_PRESENT	BIT(15)
 
 /* Default: MCLK on, MCLK 19.2M, SSP0  */
 static unsigned long sof_rt5682_quirk = SOF_RT5682_MCLK_EN |
@@ -318,6 +319,7 @@ static int sof_card_late_probe(struct snd_soc_card *card)
 {
 	struct sof_card_private *ctx = snd_soc_card_get_drvdata(card);
 	struct snd_soc_component *component = NULL;
+	struct snd_soc_dapm_context *dapm = &card->dapm;
 	char jack_name[NAME_SIZE];
 	struct sof_hdmi_pcm *pcm;
 	int err;
@@ -356,6 +358,14 @@ static int sof_card_late_probe(struct snd_soc_card *card)
 		i++;
 	}
 
+	if (sof_rt5682_quirk & SOF_MAX98373_SPEAKER_AMP_PRESENT) {
+		/* Disable Left and Right Spk pin after boot */
+		snd_soc_dapm_disable_pin(dapm, "Left Spk");
+		snd_soc_dapm_disable_pin(dapm, "Right Spk");
+		err = snd_soc_dapm_sync(dapm);
+		if (err < 0)
+			return err;
+	}
 	return hdac_hdmi_jack_port_init(component, &card->dapm);
 }
 
@@ -487,6 +497,13 @@ static struct snd_soc_dai_link_component dmic_component[] = {
 static struct snd_soc_dai_link_component max98357a_component[] = {
 	{
 		.name = "MX98357A:00",
+		.dai_name = "HiFi",
+	}
+};
+
+static struct snd_soc_dai_link_component max98360a_component[] = {
+	{
+		.name = "MX98360A:00",
 		.dai_name = "HiFi",
 	}
 };
@@ -653,6 +670,11 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 			links[id].num_codecs = ARRAY_SIZE(max_98373_components);
 			links[id].init = max98373_spk_codec_init;
 			links[id].ops = &max_98373_ops;
+		} else if (sof_rt5682_quirk &
+				SOF_MAX98360A_SPEAKER_AMP_PRESENT) {
+			links[id].codecs = max98360a_component;
+			links[id].num_codecs = ARRAY_SIZE(max98360a_component);
+			links[id].init = speaker_codec_init;
 		} else {
 			links[id].codecs = max98357a_component;
 			links[id].num_codecs = ARRAY_SIZE(max98357a_component);
@@ -824,6 +846,15 @@ static const struct platform_device_id board_ids[] = {
 					SOF_RT5682_SSP_AMP(1) |
 					SOF_RT5682_NUM_HDMIDEV(4)),
 	},
+	{
+		.name = "jsl_rt5682_max98360a",
+		.driver_data = (kernel_ulong_t)(SOF_RT5682_MCLK_EN |
+					SOF_RT5682_MCLK_24MHZ |
+					SOF_RT5682_SSP_CODEC(0) |
+					SOF_SPEAKER_AMP_PRESENT |
+					SOF_MAX98360A_SPEAKER_AMP_PRESENT |
+					SOF_RT5682_SSP_AMP(1)),
+	},
 	{ }
 };
 
@@ -846,3 +877,4 @@ MODULE_ALIAS("platform:sof_rt5682");
 MODULE_ALIAS("platform:tgl_max98357a_rt5682");
 MODULE_ALIAS("platform:jsl_rt5682_rt1015");
 MODULE_ALIAS("platform:tgl_max98373_rt5682");
+MODULE_ALIAS("platform:jsl_rt5682_max98360a");
