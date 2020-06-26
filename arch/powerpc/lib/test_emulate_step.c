@@ -1130,6 +1130,16 @@ static struct compute_test compute_tests[] = {
 				.regs = {
 					.gpr[21] = 0,
 				}
+			},
+			/* Invalid instruction form with R = 1 and RA != 0 */
+			{
+				.descr = "RA = R22(0), SI = 0, R = 1",
+				.instr = TEST_PADDI(21, 22, 0, 1),
+				.flags = NEGATIVE_TEST,
+				.regs = {
+					.gpr[21] = 0,
+					.gpr[22] = 0,
+				}
 			}
 		}
 	}
