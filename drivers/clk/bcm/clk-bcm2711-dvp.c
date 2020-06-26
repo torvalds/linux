@@ -118,3 +118,7 @@ static struct platform_driver clk_dvp_driver = {
 	},
 };
 module_platform_driver(clk_dvp_driver);
+
+MODULE_AUTHOR("Maxime Ripard <maxime@cerno.tech>");
+MODULE_DESCRIPTION("BCM2711 DVP clock driver");
+MODULE_LICENSE("GPL");
