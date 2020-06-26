@@ -44,7 +44,6 @@ Contents:
    ax25
    bonding
    cdc_mbim
-   cops
    cxacru
    dccp
    dctcp
@@ -73,7 +72,6 @@ Contents:
    kcm
    l2tp
    lapb-module
-   ltpc
    mac80211-injection
    mpls-sysctl
    multiqueue
