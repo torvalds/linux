@@ -254,6 +254,9 @@ static int tps65217_regulator_probe(struct platform_device *pdev)
 
 		/* Store default strobe info */
 		ret = tps65217_reg_read(tps, regulators[i].bypass_reg, &val);
+		if (ret)
+			return ret;
+
 		tps->strobes[i] = val & regulators[i].bypass_mask;
 	}
 
