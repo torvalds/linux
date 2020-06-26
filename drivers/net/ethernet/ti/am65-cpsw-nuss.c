@@ -1894,8 +1894,6 @@ static int am65_cpsw_nuss_init_ndev_2g(struct am65_cpsw_common *common)
 	netif_napi_add(port->ndev, &common->napi_rx,
 		       am65_cpsw_nuss_rx_poll, NAPI_POLL_WEIGHT);
 
-	common->pf_p0_rx_ptype_rrobin = false;
-
 	return ret;
 }
 
@@ -2038,6 +2036,7 @@ static int am65_cpsw_nuss_probe(struct platform_device *pdev)
 	common->rx_flow_id_base = -1;
 	init_completion(&common->tdown_complete);
 	common->tx_ch_num = 1;
+	common->pf_p0_rx_ptype_rrobin = false;
 
 	ret = dma_coerce_mask_and_coherent(dev, DMA_BIT_MASK(48));
 	if (ret) {
