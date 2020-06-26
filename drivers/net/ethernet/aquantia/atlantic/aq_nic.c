@@ -1188,7 +1188,7 @@ int aq_nic_set_loopback(struct aq_nic_s *self)
 
 	if (!self->aq_hw_ops->hw_set_loopback ||
 	    !self->aq_fw_ops->set_phyloopback)
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	mutex_lock(&self->fwreq_mutex);
 	self->aq_hw_ops->hw_set_loopback(self->aq_hw,
