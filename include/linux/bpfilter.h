@@ -3,7 +3,7 @@
 #define _LINUX_BPFILTER_H
 
 #include <uapi/linux/bpfilter.h>
-#include <linux/umh.h>
+#include <linux/usermode_driver.h>
 
 struct sock;
 int bpfilter_ip_set_sockopt(struct sock *sk, int optname, char __user *optval,
