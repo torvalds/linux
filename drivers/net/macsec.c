@@ -4052,9 +4052,8 @@ static int macsec_newlink(struct net *net, struct net_device *dev,
 		return err;
 
 	netdev_lockdep_set_classes(dev);
-	lockdep_set_class_and_subclass(&dev->addr_list_lock,
-				       &macsec_netdev_addr_lock_key,
-				       dev->lower_level);
+	lockdep_set_class(&dev->addr_list_lock,
+			  &macsec_netdev_addr_lock_key);
 
 	err = netdev_upper_dev_link(real_dev, dev, extack);
 	if (err < 0)
