@@ -99,10 +99,10 @@ static inline u32 create_ctx_hdr(struct skcipher_request *req, u32 enc,
 	struct cvm_enc_ctx *ctx = crypto_skcipher_ctx(tfm);
 	struct cvm_req_ctx *rctx = skcipher_request_ctx(req);
 	struct fc_context *fctx = &rctx->fctx;
-	u64 *offset_control = &rctx->control_word;
 	u32 enc_iv_len = crypto_skcipher_ivsize(tfm);
 	struct cpt_request_info *req_info = &rctx->cpt_req;
-	u64 *ctrl_flags = NULL;
+	__be64 *ctrl_flags = NULL;
+	__be64 *offset_control;
 
 	req_info->ctrl.s.grp = 0;
 	req_info->ctrl.s.dma_mode = DMA_GATHER_SCATTER;
@@ -126,9 +126,10 @@ static inline u32 create_ctx_hdr(struct skcipher_request *req, u32 enc,
 		memcpy(fctx->enc.encr_key, ctx->enc_key, ctx->key_len * 2);
 	else
 		memcpy(fctx->enc.encr_key, ctx->enc_key, ctx->key_len);
-	ctrl_flags = (u64 *)&fctx->enc.enc_ctrl.flags;
-	*ctrl_flags = cpu_to_be64(*ctrl_flags);
+	ctrl_flags = (__be64 *)&fctx->enc.enc_ctrl.flags;
+	*ctrl_flags = cpu_to_be64(fctx->enc.enc_ctrl.flags);
 
+	offset_control = (__be64 *)&rctx->control_word;
 	*offset_control = cpu_to_be64(((u64)(enc_iv_len) << 16));
 	/* Storing  Packet Data Information in offset
 	 * Control Word First 8 bytes
