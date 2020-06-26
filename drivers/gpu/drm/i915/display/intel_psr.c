@@ -682,21 +682,6 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 	}
 
 	/*
-	 * Some platforms lack PSR2 HW tracking and instead require manual
-	 * tracking by software.  In this case, the driver is required to track
-	 * the areas that need updates and program hardware to send selective
-	 * updates.
-	 *
-	 * So until the software tracking is implemented, PSR2 needs to be
-	 * disabled for platforms without PSR2 HW tracking.
-	 */
-	if (!HAS_PSR_HW_TRACKING(dev_priv)) {
-		drm_dbg_kms(&dev_priv->drm,
-			    "No PSR2 HW tracking in the platform\n");
-		return false;
-	}
-
-	/*
 	 * DSC and PSR2 cannot be enabled simultaneously. If a requested
 	 * resolution requires DSC to be enabled, priority is given to DSC
 	 * over PSR2.
@@ -704,6 +689,12 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 	if (crtc_state->dsc.compression_enable) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "PSR2 cannot be enabled since DSC is enabled\n");
+		return false;
+	}
+
+	if (crtc_state->crc_enabled) {
+		drm_dbg_kms(&dev_priv->drm,
+			    "PSR2 not enabled because it would inhibit pipe CRC calculation\n");
 		return false;
 	}
 
@@ -719,14 +710,6 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 		psr_max_h = 3640;
 		psr_max_v = 2304;
 		max_bpp = 24;
-	}
-
-	if (crtc_hdisplay > psr_max_h || crtc_vdisplay > psr_max_v) {
-		drm_dbg_kms(&dev_priv->drm,
-			    "PSR2 not enabled, resolution %dx%d > max supported %dx%d\n",
-			    crtc_hdisplay, crtc_vdisplay,
-			    psr_max_h, psr_max_v);
-		return false;
 	}
 
 	if (crtc_state->pipe_bpp > max_bpp) {
@@ -749,9 +732,26 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 		return false;
 	}
 
-	if (crtc_state->crc_enabled) {
+	/*
+	 * Some platforms lack PSR2 HW tracking and instead require manual
+	 * tracking by software.  In this case, the driver is required to track
+	 * the areas that need updates and program hardware to send selective
+	 * updates.
+	 *
+	 * So until the software tracking is implemented, PSR2 needs to be
+	 * disabled for platforms without PSR2 HW tracking.
+	 */
+	if (!HAS_PSR_HW_TRACKING(dev_priv)) {
 		drm_dbg_kms(&dev_priv->drm,
-			    "PSR2 not enabled because it would inhibit pipe CRC calculation\n");
+			    "No PSR2 HW tracking in the platform\n");
+		return false;
+	}
+
+	if (crtc_hdisplay > psr_max_h || crtc_vdisplay > psr_max_v) {
+		drm_dbg_kms(&dev_priv->drm,
+			    "PSR2 not enabled, resolution %dx%d > max supported %dx%d\n",
+			    crtc_hdisplay, crtc_vdisplay,
+			    psr_max_h, psr_max_v);
 		return false;
 	}
 
