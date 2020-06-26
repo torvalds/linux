@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2012, 2016, 2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012, 2016, 2018, 2020, The Linux Foundation.
+ * All rights reserved.
  */
 
 #include <linux/device.h>
@@ -12,6 +13,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/types.h>
+#include <linux/regulator/debug-regulator.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/of_regulator.h>
@@ -206,6 +208,10 @@ static int regulator_stub_probe(struct platform_device *pdev)
 				__func__);
 		return rc;
 	}
+
+	rc = devm_regulator_debug_register(dev, rdev);
+	if (rc)
+		dev_err(dev, "failed to register debug regulator, rc=%d\n", rc);
 
 	return 0;
 }
