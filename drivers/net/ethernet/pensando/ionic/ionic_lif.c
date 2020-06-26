@@ -1673,6 +1673,14 @@ int ionic_open(struct net_device *netdev)
 	if (err)
 		goto err_out;
 
+	err = netif_set_real_num_tx_queues(netdev, lif->nxqs);
+	if (err)
+		goto err_txrx_deinit;
+
+	err = netif_set_real_num_rx_queues(netdev, lif->nxqs);
+	if (err)
+		goto err_txrx_deinit;
+
 	/* don't start the queues until we have link */
 	if (netif_carrier_ok(netdev)) {
 		err = ionic_start_queues(lif);
