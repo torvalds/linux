@@ -1578,13 +1578,6 @@ static int esw_offloads_start(struct mlx5_eswitch *esw,
 {
 	int err, err1;
 
-	if (esw->mode != MLX5_ESWITCH_LEGACY &&
-	    !mlx5_core_is_ecpf_esw_manager(esw->dev)) {
-		NL_SET_ERR_MSG_MOD(extack,
-				   "Can't set offloads mode, SRIOV legacy not enabled");
-		return -EINVAL;
-	}
-
 	mlx5_eswitch_disable_locked(esw, false);
 	err = mlx5_eswitch_enable_locked(esw, MLX5_ESWITCH_OFFLOADS,
 					 esw->dev->priv.sriov.num_vfs);
@@ -2293,7 +2286,7 @@ int mlx5_devlink_eswitch_mode_set(struct devlink *devlink, u16 mode,
 {
 	u16 cur_mlx5_mode, mlx5_mode = 0;
 	struct mlx5_eswitch *esw;
-	int err;
+	int err = 0;
 
 	esw = mlx5_devlink_eswitch_get(devlink);
 	if (IS_ERR(esw))
@@ -2303,12 +2296,7 @@ int mlx5_devlink_eswitch_mode_set(struct devlink *devlink, u16 mode,
 		return -EINVAL;
 
 	mutex_lock(&esw->mode_lock);
-	err = eswitch_devlink_esw_mode_check(esw);
-	if (err)
-		goto unlock;
-
 	cur_mlx5_mode = esw->mode;
-
 	if (cur_mlx5_mode == mlx5_mode)
 		goto unlock;
 
