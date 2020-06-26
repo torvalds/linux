@@ -6423,7 +6423,7 @@ enum mem_cgroup_protection mem_cgroup_protected(struct mem_cgroup *root,
 
 	if (parent == root) {
 		memcg->memory.emin = READ_ONCE(memcg->memory.min);
-		memcg->memory.elow = memcg->memory.low;
+		memcg->memory.elow = READ_ONCE(memcg->memory.low);
 		goto out;
 	}
 
@@ -6435,7 +6435,8 @@ enum mem_cgroup_protection mem_cgroup_protected(struct mem_cgroup *root,
 			atomic_long_read(&parent->memory.children_min_usage)));
 
 	WRITE_ONCE(memcg->memory.elow, effective_protection(usage, parent_usage,
-			memcg->memory.low, READ_ONCE(parent->memory.elow),
+			READ_ONCE(memcg->memory.low),
+			READ_ONCE(parent->memory.elow),
 			atomic_long_read(&parent->memory.children_low_usage)));
 
 out:
