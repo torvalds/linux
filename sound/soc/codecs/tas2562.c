@@ -175,7 +175,37 @@ static int tas2562_set_dai_tdm_slot(struct snd_soc_dai *dai,
 {
 	struct snd_soc_component *component = dai->component;
 	struct tas2562_data *tas2562 = snd_soc_component_get_drvdata(component);
-	int ret = 0;
+	int left_slot, right_slot;
+	int slots_cfg;
+	int ret;
+
+	if (!tx_mask) {
+		dev_err(component->dev, "tx masks must not be 0\n");
+		return -EINVAL;
+	}
+
+	if (slots == 1) {
+		if (tx_mask != 1)
+			return -EINVAL;
+
+		left_slot = 0;
+		right_slot = 0;
+	} else {
+		left_slot = __ffs(tx_mask);
+		tx_mask &= ~(1 << left_slot);
+		if (tx_mask == 0) {
+			right_slot = left_slot;
+		} else {
+			right_slot = __ffs(tx_mask);
+			tx_mask &= ~(1 << right_slot);
+		}
+	}
+
+	slots_cfg = (right_slot << TAS2562_RIGHT_SLOT_SHIFT) | left_slot;
+
+	ret = snd_soc_component_write(component, TAS2562_TDM_CFG3, slots_cfg);
+	if (ret < 0)
+		return ret;
 
 	switch (slot_width) {
 	case 16:
@@ -205,6 +235,18 @@ static int tas2562_set_dai_tdm_slot(struct snd_soc_dai *dai,
 		ret = -EINVAL;
 	}
 
+	if (ret < 0)
+		return ret;
+
+	ret = snd_soc_component_update_bits(component, TAS2562_TDM_CFG5,
+					    TAS2562_TDM_CFG5_VSNS_SLOT_MASK,
+					    tas2562->v_sense_slot);
+	if (ret < 0)
+		return ret;
+
+	ret = snd_soc_component_update_bits(component, TAS2562_TDM_CFG6,
+					    TAS2562_TDM_CFG6_ISNS_SLOT_MASK,
+					    tas2562->i_sense_slot);
 	if (ret < 0)
 		return ret;
 
@@ -285,7 +327,8 @@ static int tas2562_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
 	struct snd_soc_component *component = dai->component;
 	struct tas2562_data *tas2562 = snd_soc_component_get_drvdata(component);
-	u8 tdm_rx_start_slot = 0, asi_cfg_1 = 0;
+	u8 asi_cfg_1 = 0;
+	u8 tdm_rx_start_slot = 0;
 	int ret;
 
 	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
@@ -307,27 +350,23 @@ static int tas2562_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		dev_err(tas2562->dev, "Failed to set RX edge\n");
 		return ret;
 	}
-
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
-	case (SND_SOC_DAIFMT_I2S):
-	case (SND_SOC_DAIFMT_DSP_A):
-	case (SND_SOC_DAIFMT_DSP_B):
-		tdm_rx_start_slot = BIT(1);
-		break;
-	case (SND_SOC_DAIFMT_LEFT_J):
+	case SND_SOC_DAIFMT_LEFT_J:
+	case SND_SOC_DAIFMT_DSP_B:
 		tdm_rx_start_slot = 0;
 		break;
-	default:
-		dev_err(tas2562->dev, "DAI Format is not found, fmt=0x%x\n",
-			fmt);
-		ret = -EINVAL;
+	case SND_SOC_DAIFMT_I2S:
+	case SND_SOC_DAIFMT_DSP_A:
+		tdm_rx_start_slot = 1;
 		break;
+	default:
+		dev_err(tas2562->dev,
+			"DAI Format is not found, fmt=0x%x\n", fmt);
+		return -EINVAL;
 	}
 
 	ret = snd_soc_component_update_bits(component, TAS2562_TDM_CFG1,
-					    TAS2562_TDM_CFG1_RX_OFFSET_MASK,
-					    tdm_rx_start_slot);
-
+				TAS2562_RX_OFF_MASK, (tdm_rx_start_slot << 1));
 	if (ret < 0)
 		return ret;
 
