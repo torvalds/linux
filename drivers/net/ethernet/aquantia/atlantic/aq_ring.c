@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/*
- * aQuantia Corporation Network Driver
- * Copyright (C) 2014-2019 aQuantia Corporation. All rights reserved
+/* Atlantic Network Driver
+ *
+ * Copyright (C) 2014-2019 aQuantia Corporation
+ * Copyright (C) 2019-2020 Marvell International Ltd.
  */
 
 /* File aq_ring.c: Definition of functions for Rx/Tx rings. */
@@ -279,7 +280,7 @@ bool aq_ring_tx_clean(struct aq_ring_s *self)
 		}
 
 		if (unlikely(buff->is_eop)) {
-			++self->stats.rx.packets;
+			++self->stats.tx.packets;
 			self->stats.tx.bytes += buff->skb->len;
 
 			dev_kfree_skb_any(buff->skb);
@@ -489,6 +490,7 @@ err_exit:
 
 void aq_ring_hwts_rx_clean(struct aq_ring_s *self, struct aq_nic_s *aq_nic)
 {
+#if IS_REACHABLE(CONFIG_PTP_1588_CLOCK)
 	while (self->sw_head != self->hw_head) {
 		u64 ns;
 
@@ -500,6 +502,7 @@ void aq_ring_hwts_rx_clean(struct aq_ring_s *self, struct aq_nic_s *aq_nic)
 
 		self->sw_head = aq_ring_next_dx(self, self->sw_head);
 	}
+#endif
 }
 
 int aq_ring_rx_fill(struct aq_ring_s *self)

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* Aquantia Corporation Network Driver
- * Copyright (C) 2014-2019 Aquantia Corporation. All rights reserved
+/* Atlantic Network Driver
+ *
+ * Copyright (C) 2014-2019 aQuantia Corporation
+ * Copyright (C) 2019-2020 Marvell International Ltd.
  */
 
 /* File aq_ptp.c:
@@ -17,6 +19,8 @@
 #include "aq_ring.h"
 #include "aq_phy.h"
 #include "aq_filters.h"
+
+#if IS_REACHABLE(CONFIG_PTP_1588_CLOCK)
 
 #define AQ_PTP_TX_TIMEOUT        (HZ *  10)
 
@@ -1389,3 +1393,4 @@ static void aq_ptp_poll_sync_work_cb(struct work_struct *w)
 		schedule_delayed_work(&aq_ptp->poll_sync, timeout);
 	}
 }
+#endif
