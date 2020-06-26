@@ -273,8 +273,8 @@ irqreturn_t idxd_wq_thread(int irq, void *data);
 void idxd_mask_error_interrupts(struct idxd_device *idxd);
 void idxd_unmask_error_interrupts(struct idxd_device *idxd);
 void idxd_mask_msix_vectors(struct idxd_device *idxd);
-int idxd_mask_msix_vector(struct idxd_device *idxd, int vec_id);
-int idxd_unmask_msix_vector(struct idxd_device *idxd, int vec_id);
+void idxd_mask_msix_vector(struct idxd_device *idxd, int vec_id);
+void idxd_unmask_msix_vector(struct idxd_device *idxd, int vec_id);
 
 /* device control */
 void idxd_device_init_reset(struct idxd_device *idxd);

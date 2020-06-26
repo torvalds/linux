@@ -260,8 +260,6 @@ irqreturn_t idxd_wq_thread(int irq, void *data)
 
 	processed = idxd_desc_process(irq_entry);
 	idxd_unmask_msix_vector(irq_entry->idxd, irq_entry->id);
-	/* catch anything unprocessed after unmasking */
-	processed += idxd_desc_process(irq_entry);
 
 	if (processed == 0)
 		return IRQ_NONE;
