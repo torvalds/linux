@@ -206,6 +206,7 @@ int atomisp_freq_scaling(struct atomisp_device *isp,
 			 enum atomisp_dfs_mode mode,
 			 bool force)
 {
+	struct pci_dev *pdev = to_pci_dev(isp->dev);
 	/* FIXME! Only use subdev[0] status yet */
 	struct atomisp_sub_device *asd = &isp->asd[0];
 	const struct atomisp_dfs_config *dfs;
@@ -219,7 +220,7 @@ int atomisp_freq_scaling(struct atomisp_device *isp,
 		return -EINVAL;
 	}
 
-	if ((isp->pdev->device & ATOMISP_PCI_DEVICE_SOC_MASK) ==
+	if ((pdev->device & ATOMISP_PCI_DEVICE_SOC_MASK) ==
 	    ATOMISP_PCI_DEVICE_SOC_CHT && ATOMISP_USE_YUVPP(asd))
 		isp->dfs = &dfs_config_cht_soc;
 
@@ -357,8 +358,9 @@ static void clear_isp_irq(enum hrt_isp_css_irq irq)
 	irq_clear_all(IRQ0_ID);
 }
 
-void atomisp_msi_irq_init(struct atomisp_device *isp, struct pci_dev *dev)
+void atomisp_msi_irq_init(struct atomisp_device *isp)
 {
+	struct pci_dev *dev = to_pci_dev(isp->dev);
 	u32 msg32;
 	u16 msg16;
 
@@ -375,8 +377,9 @@ void atomisp_msi_irq_init(struct atomisp_device *isp, struct pci_dev *dev)
 	pci_write_config_word(dev, PCI_COMMAND, msg16);
 }
 
-void atomisp_msi_irq_uninit(struct atomisp_device *isp, struct pci_dev *dev)
+void atomisp_msi_irq_uninit(struct atomisp_device *isp)
 {
+	struct pci_dev *dev = to_pci_dev(isp->dev);
 	u32 msg32;
 	u16 msg16;
 
@@ -480,11 +483,12 @@ static void print_csi_rx_errors(enum mipi_port_id port,
 /* Clear irq reg */
 static void clear_irq_reg(struct atomisp_device *isp)
 {
+	struct pci_dev *pdev = to_pci_dev(isp->dev);
 	u32 msg_ret;
 
-	pci_read_config_dword(isp->pdev, PCI_INTERRUPT_CTRL, &msg_ret);
+	pci_read_config_dword(pdev, PCI_INTERRUPT_CTRL, &msg_ret);
 	msg_ret |= 1 << INTR_IIR;
-	pci_write_config_dword(isp->pdev, PCI_INTERRUPT_CTRL, msg_ret);
+	pci_write_config_dword(pdev, PCI_INTERRUPT_CTRL, msg_ret);
 }
 
 static struct atomisp_sub_device *
@@ -1289,6 +1293,7 @@ void atomisp_delayed_init_work(struct work_struct *work)
 
 static void __atomisp_css_recover(struct atomisp_device *isp, bool isp_timeout)
 {
+	struct pci_dev *pdev = to_pci_dev(isp->dev);
 	enum ia_css_pipe_id css_pipe_id;
 	bool stream_restart[MAX_STREAM_NUM] = {0};
 	bool depth_mode = false;
@@ -1372,8 +1377,8 @@ static void __atomisp_css_recover(struct atomisp_device *isp, bool isp_timeout)
 	clear_isp_irq(hrt_isp_css_irq_sp);
 
 	/* Set the SRSE to 3 before resetting */
-	pci_write_config_dword(isp->pdev, PCI_I_CONTROL, isp->saved_regs.i_control |
-			       MRFLD_PCI_I_CONTROL_SRSE_RESET_MASK);
+	pci_write_config_dword(pdev, PCI_I_CONTROL,
+			       isp->saved_regs.i_control | MRFLD_PCI_I_CONTROL_SRSE_RESET_MASK);
 
 	/* reset ISP and restore its state */
 	isp->isp_timeout = true;
@@ -6158,6 +6163,7 @@ out:
 /*Turn off ISP dphy */
 int atomisp_ospm_dphy_down(struct atomisp_device *isp)
 {
+	struct pci_dev *pdev = to_pci_dev(isp->dev);
 	unsigned long flags;
 	u32 reg;
 
@@ -6179,9 +6185,9 @@ done:
 	 * MRFLD HW design need all CSI ports are disabled before
 	 * powering down the IUNIT.
 	 */
-	pci_read_config_dword(isp->pdev, MRFLD_PCI_CSI_CONTROL, &reg);
+	pci_read_config_dword(pdev, MRFLD_PCI_CSI_CONTROL, &reg);
 	reg |= MRFLD_ALL_CSI_PORTS_OFF_MASK;
-	pci_write_config_dword(isp->pdev, MRFLD_PCI_CSI_CONTROL, reg);
+	pci_write_config_dword(pdev, MRFLD_PCI_CSI_CONTROL, reg);
 	return 0;
 }
 

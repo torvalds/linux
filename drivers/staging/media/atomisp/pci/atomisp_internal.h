@@ -216,7 +216,6 @@ struct atomisp_sw_contex {
  * ci device struct
  */
 struct atomisp_device {
-	struct pci_dev *pdev;
 	struct device *dev;
 	struct v4l2_device v4l2_dev;
 	struct media_device media_dev;
