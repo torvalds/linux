@@ -284,6 +284,7 @@ static struct gmin_cfg_var mrd7_vars[] = {
 	{"INT33F8:00_CsiFmt", "13"},
 	{"INT33F8:00_CsiBayer", "0"},
 	{"INT33F8:00_CamClk", "0"},
+
 	{"INT33F9:00_CamType", "1"},
 	{"INT33F9:00_CsiPort", "0"},
 	{"INT33F9:00_CsiLanes", "1"},
@@ -299,6 +300,7 @@ static struct gmin_cfg_var ecs7_vars[] = {
 	{"INT33BE:00_CsiFmt", "13"},
 	{"INT33BE:00_CsiBayer", "2"},
 	{"INT33BE:00_CamClk", "0"},
+
 	{"INT33F0:00_CsiPort", "0"},
 	{"INT33F0:00_CsiLanes", "1"},
 	{"INT33F0:00_CsiFmt", "13"},
@@ -312,6 +314,7 @@ static struct gmin_cfg_var i8880_vars[] = {
 	{"XXOV2680:00_CsiPort", "1"},
 	{"XXOV2680:00_CsiLanes", "1"},
 	{"XXOV2680:00_CamClk", "0"},
+
 	{"XXGC0310:00_CsiPort", "0"},
 	{"XXGC0310:00_CsiLanes", "1"},
 	{"XXGC0310:00_CamClk", "1"},
