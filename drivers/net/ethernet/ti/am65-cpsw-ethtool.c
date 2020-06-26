@@ -741,7 +741,6 @@ static int am65_cpsw_set_ethtool_priv_flags(struct net_device *ndev, u32 flags)
 	}
 
 	common->pf_p0_rx_ptype_rrobin = rrobin;
-	am65_cpsw_nuss_set_p0_ptype(common);
 
 	return 0;
 }
