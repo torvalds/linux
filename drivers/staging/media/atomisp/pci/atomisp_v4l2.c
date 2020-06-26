@@ -127,8 +127,6 @@ MODULE_PARM_DESC(pad_h, "extra data for ISP processing");
 
 struct device *atomisp_dev;
 
-void __iomem *atomisp_io_base;
-
 static const struct atomisp_freq_scaling_rule dfs_rules_merr[] = {
 	{
 		.width = ISP_FREQ_RULE_ANY,
@@ -1533,7 +1531,6 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	const struct atomisp_platform_data *pdata;
 	struct atomisp_device *isp;
 	unsigned int start;
-	void __iomem *base;
 	int err, val;
 	u32 irq;
 
@@ -1562,13 +1559,6 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 		goto ioremap_fail;
 	}
 
-	base = pcim_iomap_table(pdev)[ATOM_ISP_PCI_BAR];
-	dev_dbg(&pdev->dev, "base: %p\n", base);
-
-	atomisp_io_base = base;
-
-	dev_dbg(&pdev->dev, "atomisp_io_base: %p\n", atomisp_io_base);
-
 	isp = devm_kzalloc(&pdev->dev, sizeof(*isp), GFP_KERNEL);
 	if (!isp) {
 		err = -ENOMEM;
@@ -1576,8 +1566,11 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	}
 
 	isp->dev = &pdev->dev;
+	isp->base = pcim_iomap_table(pdev)[ATOM_ISP_PCI_BAR];
 	isp->sw_contex.power_state = ATOM_ISP_POWER_UP;
 	isp->saved_regs.ispmmadr = start;
+
+	dev_dbg(&pdev->dev, "atomisp mmio base: %p\n", isp->base);
 
 	rt_mutex_init(&isp->mutex);
 	mutex_init(&isp->streamoff_mutex);
@@ -1585,6 +1578,8 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 
 	/* This is not a true PCI device on SoC, so the delay is not needed. */
 	pdev->d3_delay = 0;
+
+	pci_set_drvdata(pdev, isp);
 
 	switch (id->device & ATOMISP_PCI_DEVICE_SOC_MASK) {
 	case ATOMISP_PCI_DEVICE_SOC_MRFLD:
@@ -1716,7 +1711,6 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	}
 
 	pci_set_master(pdev);
-	pci_set_drvdata(pdev, isp);
 
 	err = pci_enable_msi(pdev);
 	if (err) {

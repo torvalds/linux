@@ -38,6 +38,7 @@
 #include "sh_css_hrt.h"
 #include "ia_css_isys.h"
 
+#include <linux/io.h>
 #include <linux/pm_runtime.h>
 
 /* Assume max number of ACC stages */
@@ -67,92 +68,94 @@ struct bayer_ds_factor {
 
 static void atomisp_css2_hw_store_8(hrt_address addr, uint8_t data)
 {
-	s8 __iomem *io_virt_addr = atomisp_io_base + (addr & 0x003FFFFF);
+	struct atomisp_device *isp = dev_get_drvdata(atomisp_dev);
 	unsigned long flags;
 
 	spin_lock_irqsave(&mmio_lock, flags);
-	*io_virt_addr = data;
+	writeb(data, isp->base + (addr & 0x003FFFFF));
 	spin_unlock_irqrestore(&mmio_lock, flags);
 }
 
 static void atomisp_css2_hw_store_16(hrt_address addr, uint16_t data)
 {
-	s16 __iomem *io_virt_addr = atomisp_io_base + (addr & 0x003FFFFF);
+	struct atomisp_device *isp = dev_get_drvdata(atomisp_dev);
 	unsigned long flags;
 
 	spin_lock_irqsave(&mmio_lock, flags);
-	*io_virt_addr = data;
+	writew(data, isp->base + (addr & 0x003FFFFF));
 	spin_unlock_irqrestore(&mmio_lock, flags);
 }
 
 void atomisp_css2_hw_store_32(hrt_address addr, uint32_t data)
 {
-	s32 __iomem *io_virt_addr = atomisp_io_base + (addr & 0x003FFFFF);
+	struct atomisp_device *isp = dev_get_drvdata(atomisp_dev);
 	unsigned long flags;
 
 	spin_lock_irqsave(&mmio_lock, flags);
-	*io_virt_addr = data;
+	writel(data, isp->base + (addr & 0x003FFFFF));
 	spin_unlock_irqrestore(&mmio_lock, flags);
 }
 
 static uint8_t atomisp_css2_hw_load_8(hrt_address addr)
 {
-	s8 __iomem *io_virt_addr = atomisp_io_base + (addr & 0x003FFFFF);
+	struct atomisp_device *isp = dev_get_drvdata(atomisp_dev);
 	unsigned long flags;
 	u8 ret;
 
 	spin_lock_irqsave(&mmio_lock, flags);
-	ret = *io_virt_addr;
+	ret = readb(isp->base + (addr & 0x003FFFFF));
 	spin_unlock_irqrestore(&mmio_lock, flags);
 	return ret;
 }
 
 static uint16_t atomisp_css2_hw_load_16(hrt_address addr)
 {
-	s16 __iomem *io_virt_addr = atomisp_io_base + (addr & 0x003FFFFF);
+	struct atomisp_device *isp = dev_get_drvdata(atomisp_dev);
 	unsigned long flags;
 	u16 ret;
 
 	spin_lock_irqsave(&mmio_lock, flags);
-	ret = *io_virt_addr;
+	ret = readw(isp->base + (addr & 0x003FFFFF));
 	spin_unlock_irqrestore(&mmio_lock, flags);
 	return ret;
 }
 
 static uint32_t atomisp_css2_hw_load_32(hrt_address addr)
 {
-	s32 __iomem *io_virt_addr = atomisp_io_base + (addr & 0x003FFFFF);
+	struct atomisp_device *isp = dev_get_drvdata(atomisp_dev);
 	unsigned long flags;
 	u32 ret;
 
 	spin_lock_irqsave(&mmio_lock, flags);
-	ret = *io_virt_addr;
+	ret = readl(isp->base + (addr & 0x003FFFFF));
 	spin_unlock_irqrestore(&mmio_lock, flags);
 	return ret;
 }
 
-static void atomisp_css2_hw_store(hrt_address addr,
-				  const void *from, uint32_t n)
+static void atomisp_css2_hw_store(hrt_address addr, const void *from, uint32_t n)
 {
-	s8 __iomem *io_virt_addr = atomisp_io_base + (addr & 0x003FFFFF);
+	struct atomisp_device *isp = dev_get_drvdata(atomisp_dev);
 	unsigned long flags;
 	unsigned int i;
 
+	addr &= 0x003FFFFF;
 	spin_lock_irqsave(&mmio_lock, flags);
-	for (i = 0; i < n; i++, io_virt_addr++, from++)
-		*io_virt_addr = *(s8 *)from;
+	for (i = 0; i < n; i++, from++)
+		writeb(*(s8 *)from, isp->base + addr + i);
+
 	spin_unlock_irqrestore(&mmio_lock, flags);
 }
 
 static void atomisp_css2_hw_load(hrt_address addr, void *to, uint32_t n)
 {
-	s8 __iomem *io_virt_addr = atomisp_io_base + (addr & 0x003FFFFF);
+	struct atomisp_device *isp = dev_get_drvdata(atomisp_dev);
 	unsigned long flags;
 	unsigned int i;
 
+	addr &= 0x003FFFFF;
 	spin_lock_irqsave(&mmio_lock, flags);
-	for (i = 0; i < n; i++, to++, io_virt_addr++)
-		*(s8 *)to = *io_virt_addr;
+	for (i = 0; i < n; i++, to++)
+		*(s8 *)to = readb(isp->base + addr + i);
 	spin_unlock_irqrestore(&mmio_lock, flags);
 }
 

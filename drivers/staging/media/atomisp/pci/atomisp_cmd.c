@@ -21,6 +21,7 @@
 #include <linux/firmware.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
+#include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/kfifo.h>
 #include <linux/pm_runtime.h>
@@ -669,11 +670,10 @@ bool atomisp_buffers_queued_pipe(struct atomisp_video_pipe *pipe)
 void dump_sp_dmem(struct atomisp_device *isp, unsigned int addr,
 		  unsigned int size)
 {
-	u32 __iomem *io_virt_addr;
 	unsigned int data = 0;
 	unsigned int size32 = DIV_ROUND_UP(size, sizeof(u32));
 
-	dev_dbg(isp->dev, "atomisp_io_base:%p\n", atomisp_io_base);
+	dev_dbg(isp->dev, "atomisp mmio base: %p\n", isp->base);
 	dev_dbg(isp->dev, "%s, addr:0x%x, size: %d, size32: %d\n", __func__,
 		addr, size, size32);
 	if (size32 * 4 + addr > 0x4000) {
@@ -682,13 +682,12 @@ void dump_sp_dmem(struct atomisp_device *isp, unsigned int addr,
 		return;
 	}
 	addr += SP_DMEM_BASE;
-	io_virt_addr = atomisp_io_base + (addr & 0x003FFFFF);
+	addr &= 0x003FFFFF;
 	do {
-		data = *io_virt_addr;
+		data = readl(isp->base + addr);
 		dev_dbg(isp->dev, "%s, \t [0x%x]:0x%x\n", __func__, addr, data);
-		io_virt_addr += sizeof(u32);
-		size32 -= 1;
-	} while (size32 > 0);
+		addr += sizeof(u32);
+	} while (--size32);
 }
 
 static struct videobuf_buffer *atomisp_css_frame_to_vbuf(

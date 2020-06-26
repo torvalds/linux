@@ -221,6 +221,7 @@ struct atomisp_device {
 	struct media_device media_dev;
 	struct atomisp_platform_data *pdata;
 	void *mmu_l1_base;
+	void __iomem *base;
 	const struct firmware *firmware;
 
 	struct pm_qos_request pm_qos;
