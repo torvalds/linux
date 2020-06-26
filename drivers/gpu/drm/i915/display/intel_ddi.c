@@ -2579,14 +2579,14 @@ static void icl_ddi_vswing_sequence(struct intel_encoder *encoder,
 
 static void
 tgl_dkl_phy_ddi_vswing_sequence(struct intel_encoder *encoder, int link_clock,
-				u32 level)
+				u32 level, enum intel_output_type type)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	enum tc_port tc_port = intel_port_to_tc(dev_priv, encoder->port);
 	const struct tgl_dkl_phy_ddi_buf_trans *ddi_translations;
 	u32 n_entries, val, ln, dpcnt_mask, dpcnt_val;
 
-	if (encoder->type == INTEL_OUTPUT_HDMI) {
+	if (type == INTEL_OUTPUT_HDMI) {
 		n_entries = ARRAY_SIZE(tgl_dkl_phy_hdmi_ddi_trans);
 		ddi_translations = tgl_dkl_phy_hdmi_ddi_trans;
 	} else {
@@ -2638,7 +2638,7 @@ static void tgl_ddi_vswing_sequence(struct intel_encoder *encoder,
 	if (intel_phy_is_combo(dev_priv, phy))
 		icl_combo_phy_ddi_vswing_sequence(encoder, level, type);
 	else
-		tgl_dkl_phy_ddi_vswing_sequence(encoder, link_clock, level);
+		tgl_dkl_phy_ddi_vswing_sequence(encoder, link_clock, level, type);
 }
 
 static u32 translate_signal_level(struct intel_dp *intel_dp, int signal_levels)
@@ -2987,7 +2987,7 @@ icl_program_mg_dp_mode(struct intel_digital_port *intel_dig_port,
 		ln1 = intel_de_read(dev_priv, MG_DP_MODE(1, tc_port));
 	}
 
-	ln0 &= ~(MG_DP_MODE_CFG_DP_X1_MODE | MG_DP_MODE_CFG_DP_X1_MODE);
+	ln0 &= ~(MG_DP_MODE_CFG_DP_X1_MODE | MG_DP_MODE_CFG_DP_X2_MODE);
 	ln1 &= ~(MG_DP_MODE_CFG_DP_X1_MODE | MG_DP_MODE_CFG_DP_X2_MODE);
 
 	/* DPPATC */
@@ -3472,7 +3472,9 @@ static void intel_ddi_post_disable_dp(struct intel_atomic_state *state,
 					  INTEL_OUTPUT_DP_MST);
 	enum phy phy = intel_port_to_phy(dev_priv, encoder->port);
 
-	intel_dp_set_infoframes(encoder, false, old_crtc_state, old_conn_state);
+	if (!is_mst)
+		intel_dp_set_infoframes(encoder, false,
+					old_crtc_state, old_conn_state);
 
 	/*
 	 * Power down sink before disabling the port, otherwise we end

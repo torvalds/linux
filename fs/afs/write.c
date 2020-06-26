@@ -194,11 +194,11 @@ int afs_write_end(struct file *file, struct address_space *mapping,
 
 	i_size = i_size_read(&vnode->vfs_inode);
 	if (maybe_i_size > i_size) {
-		spin_lock(&vnode->wb_lock);
+		write_seqlock(&vnode->cb_lock);
 		i_size = i_size_read(&vnode->vfs_inode);
 		if (maybe_i_size > i_size)
 			i_size_write(&vnode->vfs_inode, maybe_i_size);
-		spin_unlock(&vnode->wb_lock);
+		write_sequnlock(&vnode->cb_lock);
 	}
 
 	if (!PageUptodate(page)) {
@@ -393,6 +393,7 @@ static void afs_store_data_success(struct afs_operation *op)
 {
 	struct afs_vnode *vnode = op->file[0].vnode;
 
+	op->ctime = op->file[0].scb.status.mtime_client;
 	afs_vnode_commit_status(op, &op->file[0]);
 	if (op->error == 0) {
 		afs_pages_written_back(vnode, op->store.first, op->store.last);
@@ -491,6 +492,7 @@ static int afs_write_back_from_locked_page(struct address_space *mapping,
 	unsigned long count, priv;
 	unsigned n, offset, to, f, t;
 	pgoff_t start, first, last;
+	loff_t i_size, end;
 	int loop, ret;
 
 	_enter(",%lx", primary_page->index);
@@ -591,7 +593,12 @@ no_more:
 	first = primary_page->index;
 	last = first + count - 1;
 
+	end = (loff_t)last * PAGE_SIZE + to;
+	i_size = i_size_read(&vnode->vfs_inode);
+
 	_debug("write back %lx[%u..] to %lx[..%u]", first, offset, last, to);
+	if (end > i_size)
+		to = i_size & ~PAGE_MASK;
 
 	ret = afs_store_data(mapping, first, last, offset, to);
 	switch (ret) {
@@ -844,6 +851,7 @@ vm_fault_t afs_page_mkwrite(struct vm_fault *vmf)
 			     vmf->page->index, priv);
 	SetPagePrivate(vmf->page);
 	set_page_private(vmf->page, priv);
+	file_update_time(file);
 
 	sb_end_pagefault(inode->i_sb);
 	return VM_FAULT_LOCKED;

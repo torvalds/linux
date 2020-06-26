@@ -36,7 +36,7 @@ struct cb710_chip {
 	unsigned		slot_mask;
 	unsigned		slots;
 	spinlock_t		irq_lock;
-	struct cb710_slot	slot[0];
+	struct cb710_slot	slot[];
 };
 
 /* NOTE: cb710_chip.slots is modified only during device init/exit and

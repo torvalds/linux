@@ -3837,6 +3837,9 @@ int cmd_script(int argc, const char **argv)
 	if (err)
 		goto out_delete;
 
+	if (zstd_init(&(session->zstd_data), 0) < 0)
+		pr_warning("Decompression initialization failed. Reported data may be incomplete.\n");
+
 	err = __cmd_script(&script);
 
 	flush_scripting();
