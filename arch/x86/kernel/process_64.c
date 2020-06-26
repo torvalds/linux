@@ -347,8 +347,8 @@ static __always_inline void x86_fsgsbase_load(struct thread_struct *prev,
 	}
 }
 
-static unsigned long x86_fsgsbase_read_task(struct task_struct *task,
-					    unsigned short selector)
+unsigned long x86_fsgsbase_read_task(struct task_struct *task,
+				     unsigned short selector)
 {
 	unsigned short idx = selector >> 3;
 	unsigned long base;

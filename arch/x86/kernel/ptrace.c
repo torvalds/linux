@@ -281,17 +281,9 @@ static int set_segment_reg(struct task_struct *task,
 		return -EIO;
 
 	/*
-	 * This function has some ABI oddities.
-	 *
-	 * A 32-bit ptracer probably expects that writing FS or GS will change
-	 * FSBASE or GSBASE respectively.  In the absence of FSGSBASE support,
-	 * this code indeed has that effect.  When FSGSBASE is added, this
-	 * will require a special case.
-	 *
-	 * For existing 64-bit ptracers, writing FS or GS *also* currently
-	 * changes the base if the selector is nonzero the next time the task
-	 * is run.  This behavior may not be needed, and trying to preserve it
-	 * when FSGSBASE is added would be complicated at best.
+	 * Writes to FS and GS will change the stored selector.  Whether
+	 * this changes the segment base as well depends on whether
+	 * FSGSBASE is enabled.
 	 */
 
 	switch (offset) {
@@ -867,14 +859,39 @@ long arch_ptrace(struct task_struct *child, long request,
 static int putreg32(struct task_struct *child, unsigned regno, u32 value)
 {
 	struct pt_regs *regs = task_pt_regs(child);
+	int ret;
 
 	switch (regno) {
 
 	SEG32(cs);
 	SEG32(ds);
 	SEG32(es);
-	SEG32(fs);
-	SEG32(gs);
+
+	/*
+	 * A 32-bit ptracer on a 64-bit kernel expects that writing
+	 * FS or GS will also update the base.  This is needed for
+	 * operations like PTRACE_SETREGS to fully restore a saved
+	 * CPU state.
+	 */
+
+	case offsetof(struct user32, regs.fs):
+		ret = set_segment_reg(child,
+				      offsetof(struct user_regs_struct, fs),
+				      value);
+		if (ret == 0)
+			child->thread.fsbase =
+				x86_fsgsbase_read_task(child, value);
+		return ret;
+
+	case offsetof(struct user32, regs.gs):
+		ret = set_segment_reg(child,
+				      offsetof(struct user_regs_struct, gs),
+				      value);
+		if (ret == 0)
+			child->thread.gsbase =
+				x86_fsgsbase_read_task(child, value);
+		return ret;
+
 	SEG32(ss);
 
 	R32(ebx, bx);

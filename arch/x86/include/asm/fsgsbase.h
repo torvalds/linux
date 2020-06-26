@@ -75,6 +75,8 @@ static inline void x86_fsbase_write_cpu(unsigned long fsbase)
 
 extern unsigned long x86_gsbase_read_cpu_inactive(void);
 extern void x86_gsbase_write_cpu_inactive(unsigned long gsbase);
+extern unsigned long x86_fsgsbase_read_task(struct task_struct *task,
+					    unsigned short selector);
 
 #endif /* CONFIG_X86_64 */
 
