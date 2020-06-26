@@ -146,6 +146,7 @@ static int idxd_setup_internals(struct idxd_device *idxd)
 	struct device *dev = &idxd->pdev->dev;
 	int i;
 
+	init_waitqueue_head(&idxd->cmd_waitq);
 	idxd->groups = devm_kcalloc(dev, idxd->max_groups,
 				    sizeof(struct idxd_group), GFP_KERNEL);
 	if (!idxd->groups)
@@ -181,6 +182,10 @@ static int idxd_setup_internals(struct idxd_device *idxd)
 		idxd->engines[i].idxd = idxd;
 		idxd->engines[i].id = i;
 	}
+
+	idxd->wq = create_workqueue(dev_name(dev));
+	if (!idxd->wq)
+		return -ENOMEM;
 
 	return 0;
 }
@@ -277,9 +282,7 @@ static int idxd_probe(struct idxd_device *idxd)
 	int rc;
 
 	dev_dbg(dev, "%s entered and resetting device\n", __func__);
-	rc = idxd_device_reset(idxd);
-	if (rc < 0)
-		return rc;
+	idxd_device_init_reset(idxd);
 	dev_dbg(dev, "IDXD reset complete\n");
 
 	idxd_read_caps(idxd);
@@ -414,11 +417,8 @@ static void idxd_shutdown(struct pci_dev *pdev)
 	int rc, i;
 	struct idxd_irq_entry *irq_entry;
 	int msixcnt = pci_msix_vec_count(pdev);
-	unsigned long flags;
 
-	spin_lock_irqsave(&idxd->dev_lock, flags);
 	rc = idxd_device_disable(idxd);
-	spin_unlock_irqrestore(&idxd->dev_lock, flags);
 	if (rc)
 		dev_err(&pdev->dev, "Disabling device failed\n");
 
@@ -434,6 +434,8 @@ static void idxd_shutdown(struct pci_dev *pdev)
 		idxd_flush_pending_llist(irq_entry);
 		idxd_flush_work_list(irq_entry);
 	}
+
+	destroy_workqueue(idxd->wq);
 }
 
 static void idxd_remove(struct pci_dev *pdev)

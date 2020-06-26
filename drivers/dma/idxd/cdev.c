@@ -104,6 +104,9 @@ static int idxd_cdev_release(struct inode *node, struct file *filep)
 	dev_dbg(dev, "%s called\n", __func__);
 	filep->private_data = NULL;
 
+	/* Wait for in-flight operations to complete. */
+	idxd_wq_drain(wq);
+
 	kfree(ctx);
 	idxd_wq_put(wq);
 	return 0;
