@@ -10,7 +10,8 @@
 #include <linux/slab.h>
 
 /**
- * This structure is used to schedule work of EQ entry and armcp_reset event
+ * struct hl_eqe_work - This structure is used to schedule work of EQ
+ *                      entry and armcp_reset event
  *
  * @eq_work          - workqueue object to run when EQ entry is received
  * @hdev             - pointer to device structure
