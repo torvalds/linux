@@ -607,7 +607,9 @@ static int aq_ethtool_get_ts_info(struct net_device *ndev,
 			    BIT(HWTSTAMP_FILTER_PTP_V2_L2_EVENT) |
 			    BIT(HWTSTAMP_FILTER_PTP_V2_EVENT);
 
+#if IS_REACHABLE(CONFIG_PTP_1588_CLOCK)
 	info->phc_index = ptp_clock_index(aq_ptp_get_ptp_clock(aq_nic->aq_ptp));
+#endif
 
 	return 0;
 }

@@ -490,6 +490,7 @@ err_exit:
 
 void aq_ring_hwts_rx_clean(struct aq_ring_s *self, struct aq_nic_s *aq_nic)
 {
+#if IS_REACHABLE(CONFIG_PTP_1588_CLOCK)
 	while (self->sw_head != self->hw_head) {
 		u64 ns;
 
@@ -501,6 +502,7 @@ void aq_ring_hwts_rx_clean(struct aq_ring_s *self, struct aq_nic_s *aq_nic)
 
 		self->sw_head = aq_ring_next_dx(self, self->sw_head);
 	}
+#endif
 }
 
 int aq_ring_rx_fill(struct aq_ring_s *self)
