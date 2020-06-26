@@ -96,9 +96,9 @@ struct gmin_subdev {
 static struct gmin_subdev gmin_subdevs[MAX_SUBDEVS];
 
 /* ACPI HIDs for the PMICs that could be used by this driver */
-#define PMIC_ACPI_AXP		"INT33F4:00"	/* XPower AXP288 PMIC */
-#define PMIC_ACPI_TI		"INT33F5:00"	/* Dollar Cove TI PMIC */
-#define PMIC_ACPI_CRYSTALCOVE	"INT33FD:00"	/* Crystal Cove PMIC */
+#define PMIC_ACPI_AXP		"INT33F4"	/* XPower AXP288 PMIC */
+#define PMIC_ACPI_TI		"INT33F5"	/* Dollar Cove TI PMIC */
+#define PMIC_ACPI_CRYSTALCOVE	"INT33FD"	/* Crystal Cove PMIC */
 
 #define PMIC_PLATFORM_TI	"intel_soc_pmic_chtdc_ti"
 
@@ -371,34 +371,27 @@ static const guid_t atomisp_dsm_guid = GUID_INIT(0xdc2f6c4f, 0x045b, 0x4f1d,
 #define GMIN_PMC_CLK_NAME 14 /* "pmc_plt_clk_[0..5]" */
 static char gmin_pmc_clk_name[GMIN_PMC_CLK_NAME];
 
-static int gmin_i2c_match_one(struct device *dev, const void *data)
-{
-	const char *name = data;
-	struct i2c_client *client;
-
-	if (dev->type != &i2c_client_type)
-		return 0;
-
-	client = to_i2c_client(dev);
-
-	return (!strcmp(name, client->name));
-}
-
 static struct i2c_client *gmin_i2c_dev_exists(struct device *dev, char *name,
 					      struct i2c_client **client)
 {
+	struct acpi_device *adev;
 	struct device *d;
 
-	while ((d = bus_find_device(&i2c_bus_type, NULL, name,
-				    gmin_i2c_match_one))) {
-		*client = to_i2c_client(d);
-		dev_dbg(dev, "found '%s' at address 0x%02x, adapter %d\n",
-			(*client)->name, (*client)->addr,
-			(*client)->adapter->nr);
-		return *client;
-	}
+	adev = acpi_dev_get_first_match_dev(name, NULL, -1);
+	if (!adev)
+		return NULL;
 
-	return NULL;
+	d = bus_find_device_by_acpi_dev(&i2c_bus_type, adev);
+	acpi_dev_put(adev);
+	if (!d)
+		return NULL;
+
+	*client = i2c_verify_client(d);
+	put_device(d);
+
+	dev_dbg(dev, "found '%s' at address 0x%02x, adapter %d\n",
+		(*client)->name, (*client)->addr, (*client)->adapter->nr);
+	return *client;
 }
 
 static int gmin_i2c_write(struct device *dev, u16 i2c_addr, u8 reg,
