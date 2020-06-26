@@ -496,9 +496,8 @@ static void pti_tty_cleanup(struct tty_struct *tty)
  * pti_tty_driver_write()-  Write trace debugging data through the char
  * interface to the PTI HW.  Part of the misc device implementation.
  *
- * @filp: Contains private data which is used to obtain
- *        master, channel write ID.
- * @data: trace data to be written.
+ * @tty: tty struct containing pti information.
+ * @buf: trace data to be written.
  * @len:  # of byte to write.
  *
  * Returns:
