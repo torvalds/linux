@@ -1687,7 +1687,7 @@ static int atomisp_pci_probe(struct pci_dev *dev,
 		isp->dfs = &dfs_config_cht;
 		isp->pdev->d3cold_delay = 0;
 
-		iosf_mbi_read(CCK_PORT, MBI_REG_READ, CCK_FUSE_REG_0, &val);
+		iosf_mbi_read(BT_MBI_UNIT_CCK, MBI_REG_READ, CCK_FUSE_REG_0, &val);
 		switch (val & CCK_FUSE_HPLL_FREQ_MASK) {
 		case 0x00:
 			isp->hpll_freq = HPLL_FREQ_800MHZ;
