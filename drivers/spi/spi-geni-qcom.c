@@ -79,6 +79,7 @@ struct spi_geni_master {
 	unsigned int oversampling;
 	spinlock_t lock;
 	int irq;
+	bool cs_flag;
 };
 
 static int get_spi_clk_cfg(unsigned int speed_hz,
@@ -146,10 +147,15 @@ static void spi_geni_set_cs(struct spi_device *slv, bool set_flag)
 	struct geni_se *se = &mas->se;
 	unsigned long time_left;
 
-	pm_runtime_get_sync(mas->dev);
 	if (!(slv->mode & SPI_CS_HIGH))
 		set_flag = !set_flag;
 
+	if (set_flag == mas->cs_flag)
+		return;
+
+	mas->cs_flag = set_flag;
+
+	pm_runtime_get_sync(mas->dev);
 	spin_lock_irq(&mas->lock);
 	reinit_completion(&mas->cs_done);
 	if (set_flag)
