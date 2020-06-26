@@ -1134,6 +1134,10 @@ static int gmin_get_config_dsm_var(struct device *dev,
 		return -EINVAL;
 	}
 
+	/* Return on unexpected object type */
+	if (obj->type != ACPI_TYPE_PACKAGE)
+		return -EINVAL;
+
 #if 0 /* Just for debugging purposes */
 	for (i = 0; i < obj->package.count; i++) {
 		union acpi_object *cur = &obj->package.elements[i];
