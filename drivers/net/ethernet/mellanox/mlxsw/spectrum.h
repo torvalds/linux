@@ -374,17 +374,15 @@ mlxsw_sp_port_vlan_find_by_vid(const struct mlxsw_sp_port *mlxsw_sp_port,
 	return NULL;
 }
 
-static inline void
+static inline u32
 mlxsw_sp_port_headroom_8x_adjust(const struct mlxsw_sp_port *mlxsw_sp_port,
-				 u16 *p_size)
+				 u32 size_cells)
 {
 	/* Ports with eight lanes use two headroom buffers between which the
 	 * configured headroom size is split. Therefore, multiply the calculated
 	 * headroom size by two.
 	 */
-	if (mlxsw_sp_port->mapping.width != 8)
-		return;
-	*p_size *= 2;
+	return mlxsw_sp_port->mapping.width == 8 ? 2 * size_cells : size_cells;
 }
 
 enum mlxsw_sp_flood_type {

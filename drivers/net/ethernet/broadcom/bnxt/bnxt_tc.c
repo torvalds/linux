@@ -1889,7 +1889,8 @@ static void bnxt_tc_setup_indr_rel(void *cb_priv)
 }
 
 static int bnxt_tc_setup_indr_block(struct net_device *netdev, struct bnxt *bp,
-				    struct flow_block_offload *f)
+				    struct flow_block_offload *f, void *data,
+				    void (*cleanup)(struct flow_block_cb *block_cb))
 {
 	struct bnxt_flower_indr_block_cb_priv *cb_priv;
 	struct flow_block_cb *block_cb;
@@ -1907,9 +1908,10 @@ static int bnxt_tc_setup_indr_block(struct net_device *netdev, struct bnxt *bp,
 		cb_priv->bp = bp;
 		list_add(&cb_priv->list, &bp->tc_indr_block_list);
 
-		block_cb = flow_block_cb_alloc(bnxt_tc_setup_indr_block_cb,
-					       cb_priv, cb_priv,
-					       bnxt_tc_setup_indr_rel);
+		block_cb = flow_indr_block_cb_alloc(bnxt_tc_setup_indr_block_cb,
+						    cb_priv, cb_priv,
+						    bnxt_tc_setup_indr_rel, f,
+						    netdev, data, bp, cleanup);
 		if (IS_ERR(block_cb)) {
 			list_del(&cb_priv->list);
 			kfree(cb_priv);
@@ -1930,7 +1932,7 @@ static int bnxt_tc_setup_indr_block(struct net_device *netdev, struct bnxt *bp,
 		if (!block_cb)
 			return -ENOENT;
 
-		flow_block_cb_remove(block_cb, f);
+		flow_indr_block_cb_remove(block_cb, f);
 		list_del(&block_cb->driver_list);
 		break;
 	default:
@@ -1945,14 +1947,17 @@ static bool bnxt_is_netdev_indr_offload(struct net_device *netdev)
 }
 
 static int bnxt_tc_setup_indr_cb(struct net_device *netdev, void *cb_priv,
-				 enum tc_setup_type type, void *type_data)
+				 enum tc_setup_type type, void *type_data,
+				 void *data,
+				 void (*cleanup)(struct flow_block_cb *block_cb))
 {
 	if (!bnxt_is_netdev_indr_offload(netdev))
 		return -EOPNOTSUPP;
 
 	switch (type) {
 	case TC_SETUP_BLOCK:
-		return bnxt_tc_setup_indr_block(netdev, cb_priv, type_data);
+		return bnxt_tc_setup_indr_block(netdev, cb_priv, type_data, data,
+						cleanup);
 	default:
 		break;
 	}
@@ -2074,7 +2079,7 @@ void bnxt_shutdown_tc(struct bnxt *bp)
 		return;
 
 	flow_indr_dev_unregister(bnxt_tc_setup_indr_cb, bp,
-				 bnxt_tc_setup_indr_block_cb);
+				 bnxt_tc_setup_indr_rel);
 	rhashtable_destroy(&tc_info->flow_table);
 	rhashtable_destroy(&tc_info->l2_table);
 	rhashtable_destroy(&tc_info->decap_l2_table);
