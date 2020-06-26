@@ -716,13 +716,12 @@ static void aq_ethtool_get_pauseparam(struct net_device *ndev,
 				      struct ethtool_pauseparam *pause)
 {
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
-	u32 fc = aq_nic->aq_nic_cfg.fc.req;
+	int fc = aq_nic->aq_nic_cfg.fc.req;
 
 	pause->autoneg = 0;
 
 	pause->rx_pause = !!(fc & AQ_NIC_FC_RX);
 	pause->tx_pause = !!(fc & AQ_NIC_FC_TX);
-
 }
 
 static int aq_ethtool_set_pauseparam(struct net_device *ndev,
