@@ -37,7 +37,7 @@
  * DOC: overview
  *
  * In DRM connectors are the general abstraction for display sinks, and include
- * als fixed panels or anything else that can display pixels in some form. As
+ * also fixed panels or anything else that can display pixels in some form. As
  * opposed to all other KMS objects representing hardware (like CRTC, encoder or
  * plane abstractions) connectors can be hotplugged and unplugged at runtime.
  * Hence they are reference-counted using drm_connector_get() and
@@ -128,7 +128,7 @@ EXPORT_SYMBOL(drm_get_connector_type_name);
 
 /**
  * drm_connector_get_cmdline_mode - reads the user's cmdline mode
- * @connector: connector to quwery
+ * @connector: connector to query
  *
  * The kernel supports per-connector configuration of its consoles through
  * use of the video= parameter. This function parses that option and
@@ -985,7 +985,7 @@ static const struct drm_prop_enum_list dp_colorspaces[] = {
  * 	DP MST sinks), or high-res integrated panels (like dual-link DSI) which
  * 	are not gen-locked. Note that for tiled panels which are genlocked, like
  * 	dual-link LVDS or dual-link DSI, the driver should try to not expose the
- * 	tiling and virtualize both &drm_crtc and &drm_plane if needed. Drivers
+ * 	tiling and virtualise both &drm_crtc and &drm_plane if needed. Drivers
  * 	should update this value using drm_connector_set_tile_property().
  * 	Userspace cannot change this property.
  * link-status:
@@ -1151,7 +1151,7 @@ static const struct drm_prop_enum_list dp_colorspaces[] = {
  *
  *	It will even need to do colorspace conversion and get all layers
  *	to one common colorspace for blending. It can use either GL, Media
- *	or display engine to get this done based on the capabilties of the
+ *	or display engine to get this done based on the capabilities of the
  *	associated hardware.
  *
  *	Driver expects metadata to be put in &struct hdr_output_metadata
@@ -1634,7 +1634,7 @@ EXPORT_SYMBOL(drm_mode_create_scaling_mode_property);
  * variable refresh rate capability for a connector.
  *
  * Returns:
- * Zero on success, negative errono on failure.
+ * Zero on success, negative errno on failure.
  */
 int drm_connector_attach_vrr_capable_property(
 	struct drm_connector *connector)
@@ -1779,7 +1779,7 @@ EXPORT_SYMBOL(drm_mode_create_aspect_ratio_property);
  * HDMI connectors.
  *
  * Returns:
- * Zero on success, negative errono on failure.
+ * Zero on success, negative errno on failure.
  */
 int drm_mode_create_hdmi_colorspace_property(struct drm_connector *connector)
 {
@@ -1808,7 +1808,7 @@ EXPORT_SYMBOL(drm_mode_create_hdmi_colorspace_property);
  * DP connectors.
  *
  * Returns:
- * Zero on success, negative errono on failure.
+ * Zero on success, negative errno on failure.
  */
 int drm_mode_create_dp_colorspace_property(struct drm_connector *connector)
 {
@@ -1860,7 +1860,7 @@ EXPORT_SYMBOL(drm_mode_create_content_type_property);
  * drm_mode_create_suggested_offset_properties - create suggests offset properties
  * @dev: DRM device
  *
- * Create the the suggested x/y offset property for connectors.
+ * Create the suggested x/y offset property for connectors.
  */
 int drm_mode_create_suggested_offset_properties(struct drm_device *dev)
 {
@@ -1983,7 +1983,7 @@ int drm_connector_update_edid_property(struct drm_connector *connector,
 		size = EDID_LENGTH * (1 + edid->extensions);
 
 	/* Set the display info, using edid if available, otherwise
-	 * reseting the values to defaults. This duplicates the work
+	 * resetting the values to defaults. This duplicates the work
 	 * done in drm_add_edid_modes, but that function is not
 	 * consistently called before this one in all drivers and the
 	 * computation is cheap enough that it seems better to
@@ -2096,7 +2096,7 @@ void drm_connector_set_vrr_capable_property(
 EXPORT_SYMBOL(drm_connector_set_vrr_capable_property);
 
 /**
- * drm_connector_set_panel_orientation - sets the connecter's panel_orientation
+ * drm_connector_set_panel_orientation - sets the connector's panel_orientation
  * @connector: connector for which to set the panel-orientation property.
  * @panel_orientation: drm_panel_orientation value to set
  *
@@ -2151,7 +2151,7 @@ EXPORT_SYMBOL(drm_connector_set_panel_orientation);
 
 /**
  * drm_connector_set_panel_orientation_with_quirk -
- *	set the connecter's panel_orientation after checking for quirks
+ *	set the connector's panel_orientation after checking for quirks
  * @connector: connector for which to init the panel-orientation property.
  * @panel_orientation: drm_panel_orientation value to set
  * @width: width in pixels of the panel, used for panel quirk detection
