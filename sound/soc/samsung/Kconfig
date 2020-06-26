@@ -77,7 +77,7 @@ config SND_SOC_SAMSUNG_S3C24XX_UDA134X
 config SND_SOC_SAMSUNG_SIMTEC
 	tristate
 	help
-	  Internal node for common S3C24XX/Simtec suppor
+	  Internal node for common S3C24XX/Simtec support.
 
 config SND_SOC_SAMSUNG_SIMTEC_TLV320AIC23
 	tristate "SoC I2S Audio support for TLV320AIC23 on Simtec boards"
