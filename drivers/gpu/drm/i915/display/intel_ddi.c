@@ -3380,11 +3380,10 @@ static void intel_ddi_pre_enable_hdmi(struct intel_atomic_state *state,
 				      const struct intel_crtc_state *crtc_state,
 				      const struct drm_connector_state *conn_state)
 {
-	struct intel_digital_port *intel_dig_port = enc_to_dig_port(encoder);
-	struct intel_hdmi *intel_hdmi = &intel_dig_port->hdmi;
+	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
+	struct intel_hdmi *intel_hdmi = &dig_port->hdmi;
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	int level = intel_ddi_hdmi_level(encoder);
-	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 
 	intel_dp_dual_mode_set_tmds_output(intel_hdmi, true);
 	intel_ddi_clk_select(encoder, crtc_state);
@@ -3411,9 +3410,9 @@ static void intel_ddi_pre_enable_hdmi(struct intel_atomic_state *state,
 
 	intel_ddi_enable_pipe_clock(encoder, crtc_state);
 
-	intel_dig_port->set_infoframes(encoder,
-				       crtc_state->has_infoframe,
-				       crtc_state, conn_state);
+	dig_port->set_infoframes(encoder,
+				 crtc_state->has_infoframe,
+				 crtc_state, conn_state);
 }
 
 static void intel_ddi_pre_enable(struct intel_atomic_state *state,
