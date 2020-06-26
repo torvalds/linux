@@ -832,7 +832,6 @@ dcssblk_open(struct block_device *bdev, fmode_t mode)
 		goto out;
 	}
 	atomic_inc(&dev_info->use_count);
-	bdev->bd_block_size = 4096;
 	rc = 0;
 out:
 	return rc;
