@@ -439,6 +439,16 @@ config SENSORS_BT1_PVT_ALARMS
 	  the data conversion will be periodically performed and the data will be
 	  saved in the internal driver cache.
 
+config SENSORS_CORSAIR_CPRO
+	tristate "Corsair Commander Pro controller"
+	depends on HID
+	help
+	  If you say yes here you get support for the Corsair Commander Pro
+	  controller.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called corsair-cpro.
+
 config SENSORS_DRIVETEMP
 	tristate "Hard disk drives with temperature sensors"
 	depends on SCSI && ATA

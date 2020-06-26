@@ -47,6 +47,7 @@ Hardware Monitoring Kernel Drivers
    bel-pfe
    bt1-pvt
    coretemp
+   corsair-cpro
    da9052
    da9055
    dell-smm-hwmon
