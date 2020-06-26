@@ -137,7 +137,7 @@ static inline unsigned long get_break_insn_length(unsigned long pc)
 {
 	bug_insn_t insn;
 
-	if (probe_kernel_address((bug_insn_t *)pc, insn))
+	if (get_kernel_nofault(insn, (bug_insn_t *)pc))
 		return 0;
 
 	return GET_INSN_LENGTH(insn);
@@ -165,7 +165,7 @@ int is_valid_bugaddr(unsigned long pc)
 
 	if (pc < VMALLOC_START)
 		return 0;
-	if (probe_kernel_address((bug_insn_t *)pc, insn))
+	if (get_kernel_nofault(insn, (bug_insn_t *)pc))
 		return 0;
 	if ((insn & __INSN_LENGTH_MASK) == __INSN_LENGTH_32)
 		return (insn == __BUG_INSN_32);

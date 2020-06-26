@@ -470,40 +470,46 @@ static struct ib_uobject *
 alloc_begin_fd_uobject(const struct uverbs_api_object *obj,
 		       struct uverbs_attr_bundle *attrs)
 {
-	const struct uverbs_obj_fd_type *fd_type =
-		container_of(obj->type_attrs, struct uverbs_obj_fd_type, type);
+	const struct uverbs_obj_fd_type *fd_type;
 	int new_fd;
-	struct ib_uobject *uobj;
+	struct ib_uobject *uobj, *ret;
 	struct file *filp;
-
-	if (WARN_ON(fd_type->fops->release != &uverbs_uobject_fd_release &&
-		    fd_type->fops->release != &uverbs_async_event_release))
-		return ERR_PTR(-EINVAL);
-
-	new_fd = get_unused_fd_flags(O_CLOEXEC);
-	if (new_fd < 0)
-		return ERR_PTR(new_fd);
 
 	uobj = alloc_uobj(attrs, obj);
 	if (IS_ERR(uobj))
+		return uobj;
+
+	fd_type =
+		container_of(obj->type_attrs, struct uverbs_obj_fd_type, type);
+	if (WARN_ON(fd_type->fops->release != &uverbs_uobject_fd_release &&
+		    fd_type->fops->release != &uverbs_async_event_release)) {
+		ret = ERR_PTR(-EINVAL);
 		goto err_fd;
+	}
+
+	new_fd = get_unused_fd_flags(O_CLOEXEC);
+	if (new_fd < 0) {
+		ret = ERR_PTR(new_fd);
+		goto err_fd;
+	}
 
 	/* Note that uverbs_uobject_fd_release() is called during abort */
 	filp = anon_inode_getfile(fd_type->name, fd_type->fops, NULL,
 				  fd_type->flags);
 	if (IS_ERR(filp)) {
-		uverbs_uobject_put(uobj);
-		uobj = ERR_CAST(filp);
-		goto err_fd;
+		ret = ERR_CAST(filp);
+		goto err_getfile;
 	}
 	uobj->object = filp;
 
 	uobj->id = new_fd;
 	return uobj;
 
-err_fd:
+err_getfile:
 	put_unused_fd(new_fd);
-	return uobj;
+err_fd:
+	uverbs_uobject_put(uobj);
+	return ret;
 }
 
 struct ib_uobject *rdma_alloc_begin_uobject(const struct uverbs_api_object *obj,

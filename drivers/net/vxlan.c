@@ -1380,6 +1380,8 @@ static int vxlan_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb,
 			struct vxlan_rdst *rd;
 
 			if (rcu_access_pointer(f->nh)) {
+				if (*idx < cb->args[2])
+					goto skip_nh;
 				err = vxlan_fdb_info(skb, vxlan, f,
 						     NETLINK_CB(cb->skb).portid,
 						     cb->nlh->nlmsg_seq,
@@ -1387,6 +1389,8 @@ static int vxlan_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb,
 						     NLM_F_MULTI, NULL);
 				if (err < 0)
 					goto out;
+skip_nh:
+				*idx += 1;
 				continue;
 			}
 

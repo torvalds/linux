@@ -402,3 +402,4 @@ module_exit(nft_nat_module_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Tomasz Bursztyka <tomasz.bursztyka@linux.intel.com>");
 MODULE_ALIAS_NFT_EXPR("nat");
+MODULE_DESCRIPTION("Network Address Translation support");

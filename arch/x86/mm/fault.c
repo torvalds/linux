@@ -99,7 +99,7 @@ check_prefetch_opcode(struct pt_regs *regs, unsigned char *instr,
 		return !instr_lo || (instr_lo>>1) == 1;
 	case 0x00:
 		/* Prefetch instruction is 0x0F0D or 0x0F18 */
-		if (probe_kernel_address(instr, opcode))
+		if (get_kernel_nofault(opcode, instr))
 			return 0;
 
 		*prefetch = (instr_lo == 0xF) &&
@@ -133,7 +133,7 @@ is_prefetch(struct pt_regs *regs, unsigned long error_code, unsigned long addr)
 	while (instr < max_instr) {
 		unsigned char opcode;
 
-		if (probe_kernel_address(instr, opcode))
+		if (get_kernel_nofault(opcode, instr))
 			break;
 
 		instr++;
@@ -301,7 +301,7 @@ static int bad_address(void *p)
 {
 	unsigned long dummy;
 
-	return probe_kernel_address((unsigned long *)p, dummy);
+	return get_kernel_nofault(dummy, (unsigned long *)p);
 }
 
 static void dump_pagetable(unsigned long address)
@@ -442,7 +442,7 @@ static void show_ldttss(const struct desc_ptr *gdt, const char *name, u16 index)
 		return;
 	}
 
-	if (probe_kernel_read(&desc, (void *)(gdt->address + offset),
+	if (copy_from_kernel_nofault(&desc, (void *)(gdt->address + offset),
 			      sizeof(struct ldttss_desc))) {
 		pr_alert("%s: 0x%hx -- GDT entry is not readable\n",
 			 name, index);

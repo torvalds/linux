@@ -395,3 +395,4 @@ module_exit(esp6_offload_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Steffen Klassert <steffen.klassert@secunet.com>");
 MODULE_ALIAS_XFRM_OFFLOAD_TYPE(AF_INET6, XFRM_PROTO_ESP);
+MODULE_DESCRIPTION("IPV6 GSO/GRO offload support");

@@ -696,7 +696,7 @@ static ssize_t amdgpu_set_pp_table(struct device *dev,
  * default power levels, write "r" (reset) to the file to reset them.
  *
  *
- * < For Vega20 >
+ * < For Vega20 and newer ASICs >
  *
  * Reading the file will display:
  *
@@ -1668,7 +1668,7 @@ static ssize_t amdgpu_set_pp_power_profile_mode(struct device *dev,
 }
 
 /**
- * DOC: busy_percent
+ * DOC: gpu_busy_percent
  *
  * The amdgpu driver provides a sysfs API for reading how busy the GPU
  * is as a percentage.  The file gpu_busy_percent is used for this.

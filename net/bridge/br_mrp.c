@@ -411,10 +411,16 @@ int br_mrp_set_port_role(struct net_bridge_port *p,
 	if (!mrp)
 		return -EINVAL;
 
-	if (role == BR_MRP_PORT_ROLE_PRIMARY)
+	switch (role) {
+	case BR_MRP_PORT_ROLE_PRIMARY:
 		rcu_assign_pointer(mrp->p_port, p);
-	else
+		break;
+	case BR_MRP_PORT_ROLE_SECONDARY:
 		rcu_assign_pointer(mrp->s_port, p);
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	br_mrp_port_switchdev_set_role(p, role);
 

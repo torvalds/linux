@@ -4638,11 +4638,11 @@ void print_worker_info(const char *log_lvl, struct task_struct *task)
 	 * Carefully copy the associated workqueue's workfn, name and desc.
 	 * Keep the original last '\0' in case the original is garbage.
 	 */
-	probe_kernel_read(&fn, &worker->current_func, sizeof(fn));
-	probe_kernel_read(&pwq, &worker->current_pwq, sizeof(pwq));
-	probe_kernel_read(&wq, &pwq->wq, sizeof(wq));
-	probe_kernel_read(name, wq->name, sizeof(name) - 1);
-	probe_kernel_read(desc, worker->desc, sizeof(desc) - 1);
+	copy_from_kernel_nofault(&fn, &worker->current_func, sizeof(fn));
+	copy_from_kernel_nofault(&pwq, &worker->current_pwq, sizeof(pwq));
+	copy_from_kernel_nofault(&wq, &pwq->wq, sizeof(wq));
+	copy_from_kernel_nofault(name, wq->name, sizeof(name) - 1);
+	copy_from_kernel_nofault(desc, worker->desc, sizeof(desc) - 1);
 
 	if (fn || name[0] || desc[0]) {
 		printk("%sWorkqueue: %s %ps", log_lvl, name, fn);

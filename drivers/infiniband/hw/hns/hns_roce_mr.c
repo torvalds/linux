@@ -180,9 +180,10 @@ static int hns_roce_mr_enable(struct hns_roce_dev *hr_dev,
 	}
 
 	if (mr->type != MR_TYPE_FRMR)
-		ret = hr_dev->hw->write_mtpt(mailbox->buf, mr, mtpt_idx);
+		ret = hr_dev->hw->write_mtpt(hr_dev, mailbox->buf, mr,
+					     mtpt_idx);
 	else
-		ret = hr_dev->hw->frmr_write_mtpt(mailbox->buf, mr);
+		ret = hr_dev->hw->frmr_write_mtpt(hr_dev, mailbox->buf, mr);
 	if (ret) {
 		dev_err(dev, "Write mtpt fail!\n");
 		goto err_page;

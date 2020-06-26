@@ -824,13 +824,12 @@ int imx_pinctrl_probe(struct platform_device *pdev,
 				return -EINVAL;
 			}
 
-			ipctl->input_sel_base = devm_of_iomap(&pdev->dev, np,
-							      0, NULL);
+			ipctl->input_sel_base = of_iomap(np, 0);
 			of_node_put(np);
-			if (IS_ERR(ipctl->input_sel_base)) {
+			if (!ipctl->input_sel_base) {
 				dev_err(&pdev->dev,
 					"iomuxc input select base address not found\n");
-				return PTR_ERR(ipctl->input_sel_base);
+				return -ENOMEM;
 			}
 		}
 	}

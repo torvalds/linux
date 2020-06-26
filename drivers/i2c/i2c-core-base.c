@@ -816,31 +816,6 @@ out_err_silent:
 EXPORT_SYMBOL_GPL(i2c_new_client_device);
 
 /**
- * i2c_new_device - instantiate an i2c device
- * @adap: the adapter managing the device
- * @info: describes one I2C device; bus_num is ignored
- * Context: can sleep
- *
- * This deprecated function has the same functionality as
- * @i2c_new_client_device, it just returns NULL instead of an ERR_PTR in case of
- * an error for compatibility with current I2C API. It will be removed once all
- * users are converted.
- *
- * This returns the new i2c client, which may be saved for later use with
- * i2c_unregister_device(); or NULL to indicate an error.
- */
-struct i2c_client *
-i2c_new_device(struct i2c_adapter *adap, struct i2c_board_info const *info)
-{
-	struct i2c_client *ret;
-
-	ret = i2c_new_client_device(adap, info);
-	return IS_ERR(ret) ? NULL : ret;
-}
-EXPORT_SYMBOL_GPL(i2c_new_device);
-
-
-/**
  * i2c_unregister_device - reverse effect of i2c_new_*_device()
  * @client: value returned from i2c_new_*_device()
  * Context: can sleep

@@ -898,13 +898,14 @@ struct hns_roce_hw {
 	int (*set_mac)(struct hns_roce_dev *hr_dev, u8 phy_port, u8 *addr);
 	void (*set_mtu)(struct hns_roce_dev *hr_dev, u8 phy_port,
 			enum ib_mtu mtu);
-	int (*write_mtpt)(void *mb_buf, struct hns_roce_mr *mr,
-			  unsigned long mtpt_idx);
+	int (*write_mtpt)(struct hns_roce_dev *hr_dev, void *mb_buf,
+			  struct hns_roce_mr *mr, unsigned long mtpt_idx);
 	int (*rereg_write_mtpt)(struct hns_roce_dev *hr_dev,
 				struct hns_roce_mr *mr, int flags, u32 pdn,
 				int mr_access_flags, u64 iova, u64 size,
 				void *mb_buf);
-	int (*frmr_write_mtpt)(void *mb_buf, struct hns_roce_mr *mr);
+	int (*frmr_write_mtpt)(struct hns_roce_dev *hr_dev, void *mb_buf,
+			       struct hns_roce_mr *mr);
 	int (*mw_write_mtpt)(void *mb_buf, struct hns_roce_mw *mw);
 	void (*write_cqc)(struct hns_roce_dev *hr_dev,
 			  struct hns_roce_cq *hr_cq, void *mb_buf, u64 *mtts,

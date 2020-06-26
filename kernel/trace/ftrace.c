@@ -2260,7 +2260,7 @@ ftrace_find_tramp_ops_next(struct dyn_ftrace *rec,
 
 		if (hash_contains_ip(ip, op->func_hash))
 			return op;
-	} 
+	}
 
 	return NULL;
 }
@@ -3599,7 +3599,7 @@ static int t_show(struct seq_file *m, void *v)
 			if (direct)
 				seq_printf(m, "\n\tdirect-->%pS", (void *)direct);
 		}
-	}	
+	}
 
 	seq_putc(m, '\n');
 
@@ -7151,6 +7151,10 @@ static int pid_open(struct inode *inode, struct file *file, int type)
 	case TRACE_NO_PIDS:
 		seq_ops = &ftrace_no_pid_sops;
 		break;
+	default:
+		trace_array_put(tr);
+		WARN_ON_ONCE(1);
+		return -EINVAL;
 	}
 
 	ret = seq_open(file, seq_ops);
@@ -7229,6 +7233,10 @@ pid_write(struct file *filp, const char __user *ubuf,
 		other_pids = rcu_dereference_protected(tr->function_pids,
 					     lockdep_is_held(&ftrace_lock));
 		break;
+	default:
+		ret = -EINVAL;
+		WARN_ON_ONCE(1);
+		goto out;
 	}
 
 	ret = trace_pid_write(filtered_pids, &pid_list, ubuf, cnt);

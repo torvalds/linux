@@ -832,8 +832,10 @@ static int get_phy_c22_id(struct mii_bus *bus, int addr, u32 *phy_id)
 
 	/* Grab the bits from PHYIR2, and put them in the lower half */
 	phy_reg = mdiobus_read(bus, addr, MII_PHYSID2);
-	if (phy_reg < 0)
-		return -EIO;
+	if (phy_reg < 0) {
+		/* returning -ENODEV doesn't stop bus scanning */
+		return (phy_reg == -EIO || phy_reg == -ENODEV) ? -ENODEV : -EIO;
+	}
 
 	*phy_id |= phy_reg;
 
@@ -1140,6 +1142,10 @@ int phy_init_hw(struct phy_device *phydev)
 
 	ret = phy_scan_fixups(phydev);
 	if (ret < 0)
+		return ret;
+
+	ret = phy_disable_interrupts(phydev);
+	if (ret)
 		return ret;
 
 	if (phydev->drv->config_init)
