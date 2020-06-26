@@ -20,7 +20,6 @@ Contents:
    ieee802154
    j1939
    kapi
-   z8530book
    msg_zerocopy
    failover
    net_dim
@@ -122,7 +121,6 @@ Contents:
    xfrm_proc
    xfrm_sync
    xfrm_sysctl
-   z8530drv
 
 .. only::  subproject and html
 

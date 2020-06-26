@@ -1,19 +1,14 @@
 .. SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 
-Hardware Device Drivers
-=======================
+Classic WAN Device Drivers
+==========================
 
 Contents:
 
 .. toctree::
    :maxdepth: 2
 
-   cable/index
-   cellular/index
-   ethernet/index
-   hamradio/index
-   wan/index
-   wifi/index
+   z8530book
 
 .. only::  subproject and html
 
