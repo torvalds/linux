@@ -1925,6 +1925,9 @@ static void __lpuart32_serial_setbrg(struct uart_port *port,
 			tmp_sbr++;
 		}
 
+		if (tmp_sbr > UARTBAUD_SBR_MASK)
+			continue;
+
 		if (tmp_diff <= baud_diff) {
 			baud_diff = tmp_diff;
 			osr = tmp_osr;
