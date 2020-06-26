@@ -367,8 +367,10 @@ EXPORT_SYMBOL_GPL(blk_crypto_init_key);
 bool blk_crypto_config_supported(struct request_queue *q,
 				 const struct blk_crypto_config *cfg)
 {
-	return IS_ENABLED(CONFIG_BLK_INLINE_ENCRYPTION_FALLBACK) ||
-	       blk_ksm_crypto_cfg_supported(q->ksm, cfg);
+	if (IS_ENABLED(CONFIG_BLK_INLINE_ENCRYPTION_FALLBACK) &&
+	    !cfg->is_hw_wrapped)
+		return true;
+	return blk_ksm_crypto_cfg_supported(q->ksm, cfg);
 }
 
 /**

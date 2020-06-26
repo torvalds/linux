@@ -491,12 +491,6 @@ bool blk_crypto_fallback_bio_prep(struct bio **bio_ptr)
 	struct bio_crypt_ctx *bc = bio->bi_crypt_context;
 	struct bio_fallback_crypt_ctx *f_ctx;
 
-	if (bc->bc_key->crypto_cfg.is_hw_wrapped) {
-		pr_warn_once("HW wrapped key cannot be used with fallback.\n");
-		bio->bi_status = BLK_STS_NOTSUPP;
-		return false;
-	}
-
 	if (WARN_ON_ONCE(!tfms_inited[bc->bc_key->crypto_cfg.crypto_mode])) {
 		/* User didn't call blk_crypto_start_using_key() first */
 		bio->bi_status = BLK_STS_IOERR;
