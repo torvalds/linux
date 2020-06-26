@@ -264,7 +264,7 @@ static int exynos_ufs_get_clk_info(struct exynos_ufs *ufs)
 	u8 div = 0;
 	int ret = 0;
 
-	if (!head || list_empty(head))
+	if (list_empty(head))
 		goto out;
 
 	list_for_each_entry(clki, head, list) {
