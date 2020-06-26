@@ -1448,20 +1448,6 @@ struct sock *mptcp_sk_clone(const struct sock *sk,
 	msk->token = subflow_req->token;
 	msk->subflow = NULL;
 
-	if (unlikely(mptcp_token_new_accept(subflow_req->token, nsk))) {
-		nsk->sk_state = TCP_CLOSE;
-		bh_unlock_sock(nsk);
-
-		/* we can't call into mptcp_close() here - possible BH context
-		 * free the sock directly.
-		 * sk_clone_lock() sets nsk refcnt to two, hence call sk_free()
-		 * too.
-		 */
-		sk_common_release(nsk);
-		sk_free(nsk);
-		return NULL;
-	}
-
 	msk->write_seq = subflow_req->idsn + 1;
 	atomic64_set(&msk->snd_una, msk->write_seq);
 	if (mp_opt->mp_capable) {
@@ -1547,7 +1533,7 @@ static void mptcp_destroy(struct sock *sk)
 {
 	struct mptcp_sock *msk = mptcp_sk(sk);
 
-	mptcp_token_destroy(msk->token);
+	mptcp_token_destroy(msk);
 	if (msk->cached_ext)
 		__skb_ext_put(msk->cached_ext);
 
@@ -1636,6 +1622,20 @@ static void mptcp_release_cb(struct sock *sk)
 	}
 }
 
+static int mptcp_hash(struct sock *sk)
+{
+	/* should never be called,
+	 * we hash the TCP subflows not the master socket
+	 */
+	WARN_ON_ONCE(1);
+	return 0;
+}
+
+static void mptcp_unhash(struct sock *sk)
+{
+	/* called from sk_common_release(), but nothing to do here */
+}
+
 static int mptcp_get_port(struct sock *sk, unsigned short snum)
 {
 	struct mptcp_sock *msk = mptcp_sk(sk);
@@ -1679,7 +1679,6 @@ void mptcp_finish_connect(struct sock *ssk)
 	 */
 	WRITE_ONCE(msk->remote_key, subflow->remote_key);
 	WRITE_ONCE(msk->local_key, subflow->local_key);
-	WRITE_ONCE(msk->token, subflow->token);
 	WRITE_ONCE(msk->write_seq, subflow->idsn + 1);
 	WRITE_ONCE(msk->ack_seq, ack_seq);
 	WRITE_ONCE(msk->can_ack, 1);
@@ -1761,8 +1760,8 @@ static struct proto mptcp_prot = {
 	.sendmsg	= mptcp_sendmsg,
 	.recvmsg	= mptcp_recvmsg,
 	.release_cb	= mptcp_release_cb,
-	.hash		= inet_hash,
-	.unhash		= inet_unhash,
+	.hash		= mptcp_hash,
+	.unhash		= mptcp_unhash,
 	.get_port	= mptcp_get_port,
 	.sockets_allocated	= &mptcp_sockets_allocated,
 	.memory_allocated	= &tcp_memory_allocated,
@@ -1771,6 +1770,7 @@ static struct proto mptcp_prot = {
 	.sysctl_wmem_offset	= offsetof(struct net, ipv4.sysctl_tcp_wmem),
 	.sysctl_mem	= sysctl_tcp_mem,
 	.obj_size	= sizeof(struct mptcp_sock),
+	.slab_flags	= SLAB_TYPESAFE_BY_RCU,
 	.no_autobind	= true,
 };
 
@@ -1800,6 +1800,7 @@ static int mptcp_stream_connect(struct socket *sock, struct sockaddr *uaddr,
 				int addr_len, int flags)
 {
 	struct mptcp_sock *msk = mptcp_sk(sock->sk);
+	struct mptcp_subflow_context *subflow;
 	struct socket *ssock;
 	int err;
 
@@ -1812,19 +1813,23 @@ static int mptcp_stream_connect(struct socket *sock, struct sockaddr *uaddr,
 		goto do_connect;
 	}
 
+	mptcp_token_destroy(msk);
 	ssock = __mptcp_socket_create(msk, TCP_SYN_SENT);
 	if (IS_ERR(ssock)) {
 		err = PTR_ERR(ssock);
 		goto unlock;
 	}
 
+	subflow = mptcp_subflow_ctx(ssock->sk);
 #ifdef CONFIG_TCP_MD5SIG
 	/* no MPTCP if MD5SIG is enabled on this socket or we may run out of
 	 * TCP option space.
 	 */
 	if (rcu_access_pointer(tcp_sk(ssock->sk)->md5sig_info))
-		mptcp_subflow_ctx(ssock->sk)->request_mptcp = 0;
+		subflow->request_mptcp = 0;
 #endif
+	if (subflow->request_mptcp && mptcp_token_new_connect(ssock->sk))
+		subflow->request_mptcp = 0;
 
 do_connect:
 	err = ssock->ops->connect(ssock, uaddr, addr_len, flags);
@@ -1888,6 +1893,7 @@ static int mptcp_listen(struct socket *sock, int backlog)
 	pr_debug("msk=%p", msk);
 
 	lock_sock(sock->sk);
+	mptcp_token_destroy(msk);
 	ssock = __mptcp_socket_create(msk, TCP_LISTEN);
 	if (IS_ERR(ssock)) {
 		err = PTR_ERR(ssock);
@@ -2086,6 +2092,7 @@ void __init mptcp_proto_init(void)
 
 	mptcp_subflow_init();
 	mptcp_pm_init();
+	mptcp_token_init();
 
 	if (proto_register(&mptcp_prot, 1) != 0)
 		panic("Failed to register MPTCP proto.\n");
