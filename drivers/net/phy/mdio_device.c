@@ -150,10 +150,10 @@ static int mdio_probe(struct device *dev)
 	struct mdio_driver *mdiodrv = to_mdio_driver(drv);
 	int err = 0;
 
-	if (mdiodrv->probe) {
-		/* Deassert the reset signal */
-		mdio_device_reset(mdiodev, 0);
+	/* Deassert the reset signal */
+	mdio_device_reset(mdiodev, 0);
 
+	if (mdiodrv->probe) {
 		err = mdiodrv->probe(mdiodev);
 		if (err) {
 			/* Assert the reset signal */
@@ -170,12 +170,11 @@ static int mdio_remove(struct device *dev)
 	struct device_driver *drv = mdiodev->dev.driver;
 	struct mdio_driver *mdiodrv = to_mdio_driver(drv);
 
-	if (mdiodrv->remove) {
+	if (mdiodrv->remove)
 		mdiodrv->remove(mdiodev);
 
-		/* Assert the reset signal */
-		mdio_device_reset(mdiodev, 1);
-	}
+	/* Assert the reset signal */
+	mdio_device_reset(mdiodev, 1);
 
 	return 0;
 }
