@@ -47,7 +47,6 @@ Contents:
    dccp
    dctcp
    decnet
-   defza
    dns_resolver
    driver
    eql
@@ -94,7 +93,6 @@ Contents:
    sctp
    secid
    seg6-sysctl
-   skfp
    strparser
    switchdev
    tc-actions-env-rules

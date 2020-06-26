@@ -13,6 +13,7 @@ Contents:
    cable/index
    cellular/index
    ethernet/index
+   fddi/index
    hamradio/index
    wan/index
    wifi/index
