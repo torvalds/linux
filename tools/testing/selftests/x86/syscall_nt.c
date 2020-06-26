@@ -13,28 +13,10 @@
 #include <signal.h>
 #include <err.h>
 #include <sys/syscall.h>
-#include <asm/processor-flags.h>
 
-#ifdef __x86_64__
-# define WIDTH "q"
-#else
-# define WIDTH "l"
-#endif
+#include "helpers.h"
 
 static unsigned int nerrs;
-
-static unsigned long get_eflags(void)
-{
-	unsigned long eflags;
-	asm volatile ("pushf" WIDTH "\n\tpop" WIDTH " %0" : "=rm" (eflags));
-	return eflags;
-}
-
-static void set_eflags(unsigned long eflags)
-{
-	asm volatile ("push" WIDTH " %0\n\tpopf" WIDTH
-		      : : "rm" (eflags) : "flags");
-}
 
 static void sethandler(int sig, void (*handler)(int, siginfo_t *, void *),
 		       int flags)
