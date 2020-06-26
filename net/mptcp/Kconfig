@@ -18,12 +18,20 @@ config MPTCP_IPV6
 	select IPV6
 	default y
 
-config MPTCP_HMAC_TEST
-	bool "Tests for MPTCP HMAC implementation"
-	help
-	  This option enable boot time self-test for the HMAC implementation
-	  used by the MPTCP code
-
-	  Say N if you are unsure.
-
 endif
+
+config MPTCP_KUNIT_TESTS
+	tristate "This builds the MPTCP KUnit tests" if !KUNIT_ALL_TESTS
+	select MPTCP
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  Currently covers the MPTCP crypto helpers.
+	  Only useful for kernel devs running KUnit test harness and are not
+	  for inclusion into a production build.
+
+	  For more information on KUnit and unit tests in general please refer
+	  to the KUnit documentation in Documentation/dev-tools/kunit/.
+
+	  If unsure, say N.
+
