@@ -4654,7 +4654,7 @@ void bond_setup(struct net_device *bond_dev)
 
 #ifdef CONFIG_XFRM_OFFLOAD
 	/* set up xfrm device ops (only supported in active-backup right now) */
-	if ((BOND_MODE(bond) == BOND_MODE_ACTIVEBACKUP))
+	if (BOND_MODE(bond) == BOND_MODE_ACTIVEBACKUP)
 		bond_dev->xfrmdev_ops = &bond_xfrmdev_ops;
 	bond->xs = NULL;
 #endif /* CONFIG_XFRM_OFFLOAD */
@@ -4678,7 +4678,7 @@ void bond_setup(struct net_device *bond_dev)
 
 	bond_dev->hw_features |= NETIF_F_GSO_ENCAP_ALL | NETIF_F_GSO_UDP_L4;
 #ifdef CONFIG_XFRM_OFFLOAD
-	if ((BOND_MODE(bond) == BOND_MODE_ACTIVEBACKUP))
+	if (BOND_MODE(bond) == BOND_MODE_ACTIVEBACKUP)
 		bond_dev->hw_features |= BOND_XFRM_FEATURES;
 #endif /* CONFIG_XFRM_OFFLOAD */
 	bond_dev->features |= bond_dev->hw_features;
