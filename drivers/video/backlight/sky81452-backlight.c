@@ -15,7 +15,6 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
-#include <linux/platform_data/sky81452-backlight.h>
 #include <linux/slab.h>
 
 /* registers */
@@ -40,6 +39,29 @@
 
 #define SKY81452_DEFAULT_NAME "lcd-backlight"
 #define SKY81452_MAX_BRIGHTNESS	(SKY81452_CS + 1)
+
+/**
+ * struct sky81452_platform_data
+ * @name:	backlight driver name.
+		If it is not defined, default name is lcd-backlight.
+ * @gpios_enable:GPIO descriptor which control EN pin
+ * @enable:	Enable mask for current sink channel 1, 2, 3, 4, 5 and 6.
+ * @ignore_pwm:	true if DPWMI should be ignored.
+ * @dpwm_mode:	true is DPWM dimming mode, otherwise Analog dimming mode.
+ * @phase_shift:true is phase shift mode.
+ * @short_detecion_threshold:	It should be one of 4, 5, 6 and 7V.
+ * @boost_current_limit:	It should be one of 2300, 2750mA.
+ */
+struct sky81452_bl_platform_data {
+	const char *name;
+	struct gpio_desc *gpiod_enable;
+	unsigned int enable;
+	bool ignore_pwm;
+	bool dpwm_mode;
+	bool phase_shift;
+	unsigned int short_detection_threshold;
+	unsigned int boost_current_limit;
+};
 
 #define CTZ(b) __builtin_ctz(b)
 
@@ -251,17 +273,15 @@ static int sky81452_bl_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct regmap *regmap = dev_get_drvdata(dev->parent);
-	struct sky81452_bl_platform_data *pdata = dev_get_platdata(dev);
+	struct sky81452_bl_platform_data *pdata;
 	struct backlight_device *bd;
 	struct backlight_properties props;
 	const char *name;
 	int ret;
 
-	if (!pdata) {
-		pdata = sky81452_bl_parse_dt(dev);
-		if (IS_ERR(pdata))
-			return PTR_ERR(pdata);
-	}
+	pdata = sky81452_bl_parse_dt(dev);
+	if (IS_ERR(pdata))
+		return PTR_ERR(pdata);
 
 	ret = sky81452_bl_init_device(regmap, pdata);
 	if (ret < 0) {
