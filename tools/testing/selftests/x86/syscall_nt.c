@@ -73,6 +73,12 @@ int main(void)
 	printf("[RUN]\tSet NT and issue a syscall\n");
 	do_it(X86_EFLAGS_NT);
 
+	printf("[RUN]\tSet AC and issue a syscall\n");
+	do_it(X86_EFLAGS_AC);
+
+	printf("[RUN]\tSet NT|AC and issue a syscall\n");
+	do_it(X86_EFLAGS_NT | X86_EFLAGS_AC);
+
 	/*
 	 * Now try it again with TF set -- TF forces returns via IRET in all
 	 * cases except non-ptregs-using 64-bit full fast path syscalls.
@@ -80,8 +86,17 @@ int main(void)
 
 	sethandler(SIGTRAP, sigtrap, 0);
 
+	printf("[RUN]\tSet TF and issue a syscall\n");
+	do_it(X86_EFLAGS_TF);
+
 	printf("[RUN]\tSet NT|TF and issue a syscall\n");
 	do_it(X86_EFLAGS_NT | X86_EFLAGS_TF);
+
+	printf("[RUN]\tSet AC|TF and issue a syscall\n");
+	do_it(X86_EFLAGS_AC | X86_EFLAGS_TF);
+
+	printf("[RUN]\tSet NT|AC|TF and issue a syscall\n");
+	do_it(X86_EFLAGS_NT | X86_EFLAGS_AC | X86_EFLAGS_TF);
 
 	return nerrs == 0 ? 0 : 1;
 }
