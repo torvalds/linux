@@ -247,10 +247,6 @@ __ccs_pll_calculate(struct device *dev, const struct ccs_pll_limits *lim,
 	op_pll_fr->pll_op_clk_freq_hz = op_pll_fr->pll_ip_clk_freq_hz
 		* op_pll_fr->pll_multiplier;
 
-	/* Derive pll_op_clk_freq_hz. */
-	op_pll_bk->sys_clk_freq_hz =
-		op_pll_fr->pll_op_clk_freq_hz / op_pll_bk->sys_clk_div;
-
 	op_pll_bk->pix_clk_div = pll->bits_per_pixel;
 	dev_dbg(dev, "op_pix_clk_div: %u\n", op_pll_bk->pix_clk_div);
 
@@ -432,7 +428,7 @@ int ccs_pll_calculate(struct device *dev, const struct ccs_pll_limits *lim,
 	switch (pll->bus_type) {
 	case CCS_PLL_BUS_TYPE_CSI2_DPHY:
 		/* CSI transfers 2 bits per clock per lane; thus times 2 */
-		op_pll_fr->pll_op_clk_freq_hz = pll->link_freq * 2
+		op_pll_bk->sys_clk_freq_hz = pll->link_freq * 2
 			* (pll->csi2.lanes / lane_op_clock_ratio);
 		break;
 	default:
@@ -454,8 +450,8 @@ int ccs_pll_calculate(struct device *dev, const struct ccs_pll_limits *lim,
 	dev_dbg(dev, "pre-pll check: min / max op_pre_pll_clk_div: %u / %u\n",
 		min_op_pre_pll_clk_div, max_op_pre_pll_clk_div);
 
-	i = gcd(op_pll_fr->pll_op_clk_freq_hz, pll->ext_clk_freq_hz);
-	mul = op_pll_fr->pll_op_clk_freq_hz / i;
+	i = gcd(op_pll_bk->sys_clk_freq_hz, pll->ext_clk_freq_hz);
+	mul = op_pll_bk->sys_clk_freq_hz / i;
 	div = pll->ext_clk_freq_hz / i;
 	dev_dbg(dev, "mul %u / div %u\n", mul, div);
 
@@ -463,7 +459,7 @@ int ccs_pll_calculate(struct device *dev, const struct ccs_pll_limits *lim,
 		max_t(uint16_t, min_op_pre_pll_clk_div,
 		      clk_div_even_up(
 			      DIV_ROUND_UP(mul * pll->ext_clk_freq_hz,
-					   op_lim_fr->max_pll_op_clk_freq_hz)));
+					   op_lim_bk->max_sys_clk_freq_hz)));
 	dev_dbg(dev, "pll_op check: min / max op_pre_pll_clk_div: %u / %u\n",
 		min_op_pre_pll_clk_div, max_op_pre_pll_clk_div);
 
