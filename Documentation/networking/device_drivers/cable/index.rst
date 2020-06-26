@@ -1,17 +1,14 @@
 .. SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 
-Hardware Device Drivers
-=======================
+Cable Modem Device Drivers
+==========================
 
 Contents:
 
 .. toctree::
    :maxdepth: 2
 
-   cable/index
-   cellular/index
-   ethernet/index
-   wifi/index
+   sb1000
 
 .. only::  subproject and html
 

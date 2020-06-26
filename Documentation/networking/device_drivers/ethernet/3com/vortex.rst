@@ -4,8 +4,6 @@
 3Com Vortex device driver
 =========================
 
-Documentation/networking/device_drivers/3com/vortex.rst
-
 Andrew Morton
 
 30 April 2000

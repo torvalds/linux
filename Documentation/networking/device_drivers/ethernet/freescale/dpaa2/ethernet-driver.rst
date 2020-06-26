@@ -33,7 +33,8 @@ hardware resources, like queues, do not have a corresponding MC object and
 are treated as internal resources of other objects.
 
 For a more detailed description of the DPAA2 architecture and its object
-abstractions see *Documentation/networking/device_drivers/freescale/dpaa2/overview.rst*.
+abstractions see
+*Documentation/networking/device_drivers/ethernet/freescale/dpaa2/overview.rst*.
 
 Each Linux net device is built on top of a Datapath Network Interface (DPNI)
 object and uses Buffer Pools (DPBPs), I/O Portals (DPIOs) and Concentrators
