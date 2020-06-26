@@ -415,7 +415,7 @@ static int max8998_set_current_limit(struct regulator_dev *rdev,
 				  sel, rdev->desc->csel_mask);
 }
 
-int max8998_get_current_limit(struct regulator_dev *rdev)
+static int max8998_get_current_limit(struct regulator_dev *rdev)
 {
 	struct max8998_data *max8998 = rdev_get_drvdata(rdev);
 	struct i2c_client *i2c = max8998->iodev->i2c;
