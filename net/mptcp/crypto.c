@@ -87,65 +87,6 @@ void mptcp_crypto_hmac_sha(u64 key1, u64 key2, u8 *msg, int len, void *hmac)
 	sha256_final(&state, (u8 *)hmac);
 }
 
-#ifdef CONFIG_MPTCP_HMAC_TEST
-struct test_cast {
-	char *key;
-	char *msg;
-	char *result;
-};
-
-/* we can't reuse RFC 4231 test vectors, as we have constraint on the
- * input and key size.
- */
-static struct test_cast tests[] = {
-	{
-		.key = "0b0b0b0b0b0b0b0b",
-		.msg = "48692054",
-		.result = "8385e24fb4235ac37556b6b886db106284a1da671699f46db1f235ec622dcafa",
-	},
-	{
-		.key = "aaaaaaaaaaaaaaaa",
-		.msg = "dddddddd",
-		.result = "2c5e219164ff1dca1c4a92318d847bb6b9d44492984e1eb71aff9022f71046e9",
-	},
-	{
-		.key = "0102030405060708",
-		.msg = "cdcdcdcd",
-		.result = "e73b9ba9969969cefb04aa0d6df18ec2fcc075b6f23b4d8c4da736a5dbbc6e7d",
-	},
-};
-
-static int __init test_mptcp_crypto(void)
-{
-	char hmac[32], hmac_hex[65];
-	u32 nonce1, nonce2;
-	u64 key1, key2;
-	u8 msg[8];
-	int i, j;
-
-	for (i = 0; i < ARRAY_SIZE(tests); ++i) {
-		/* mptcp hmap will convert to be before computing the hmac */
-		key1 = be64_to_cpu(*((__be64 *)&tests[i].key[0]));
-		key2 = be64_to_cpu(*((__be64 *)&tests[i].key[8]));
-		nonce1 = be32_to_cpu(*((__be32 *)&tests[i].msg[0]));
-		nonce2 = be32_to_cpu(*((__be32 *)&tests[i].msg[4]));
-
-		put_unaligned_be32(nonce1, &msg[0]);
-		put_unaligned_be32(nonce2, &msg[4]);
-
-		mptcp_crypto_hmac_sha(key1, key2, msg, 8, hmac);
-		for (j = 0; j < 32; ++j)
-			sprintf(&hmac_hex[j << 1], "%02x", hmac[j] & 0xff);
-		hmac_hex[64] = 0;
-
-		if (memcmp(hmac_hex, tests[i].result, 64))
-			pr_err("test %d failed, got %s expected %s", i,
-			       hmac_hex, tests[i].result);
-		else
-			pr_info("test %d [ ok ]", i);
-	}
-	return 0;
-}
-
-late_initcall(test_mptcp_crypto);
+#if IS_MODULE(CONFIG_MPTCP_KUNIT_TESTS)
+EXPORT_SYMBOL_GPL(mptcp_crypto_hmac_sha);
 #endif
