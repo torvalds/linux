@@ -1543,7 +1543,7 @@ static inline unsigned int blksize_bits(unsigned int size)
 
 static inline unsigned int block_size(struct block_device *bdev)
 {
-	return bdev->bd_block_size;
+	return 1 << bdev->bd_inode->i_blkbits;
 }
 
 int kblockd_schedule_work(struct work_struct *work);
