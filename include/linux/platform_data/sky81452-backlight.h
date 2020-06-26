@@ -9,11 +9,13 @@
 #ifndef _SKY81452_BACKLIGHT_H
 #define _SKY81452_BACKLIGHT_H
 
+#include <linux/gpio/consumer.h>
+
 /**
  * struct sky81452_platform_data
  * @name:	backlight driver name.
 		If it is not defined, default name is lcd-backlight.
- * @gpio_enable:GPIO number which control EN pin
+ * @gpios_enable:GPIO descriptor which control EN pin
  * @enable:	Enable mask for current sink channel 1, 2, 3, 4, 5 and 6.
  * @ignore_pwm:	true if DPWMI should be ignored.
  * @dpwm_mode:	true is DPWM dimming mode, otherwise Analog dimming mode.
@@ -23,7 +25,7 @@
  */
 struct sky81452_bl_platform_data {
 	const char *name;
-	int gpio_enable;
+	struct gpio_desc *gpiod_enable;
 	unsigned int enable;
 	bool ignore_pwm;
 	bool dpwm_mode;

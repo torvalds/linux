@@ -8,12 +8,11 @@
 
 #include <linux/backlight.h>
 #include <linux/err.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/platform_data/sky81452-backlight.h>
@@ -182,7 +181,7 @@ static struct sky81452_bl_platform_data *sky81452_bl_parse_dt(
 	pdata->ignore_pwm = of_property_read_bool(np, "skyworks,ignore-pwm");
 	pdata->dpwm_mode = of_property_read_bool(np, "skyworks,dpwm-mode");
 	pdata->phase_shift = of_property_read_bool(np, "skyworks,phase-shift");
-	pdata->gpio_enable = of_get_gpio(np, 0);
+	pdata->gpiod_enable = devm_gpiod_get_optional(dev, NULL, GPIOD_OUT_HIGH);
 
 	ret = of_property_count_u32_elems(np, "led-sources");
 	if (ret < 0) {
@@ -264,15 +263,6 @@ static int sky81452_bl_probe(struct platform_device *pdev)
 			return PTR_ERR(pdata);
 	}
 
-	if (gpio_is_valid(pdata->gpio_enable)) {
-		ret = devm_gpio_request_one(dev, pdata->gpio_enable,
-					GPIOF_OUT_INIT_HIGH, "sky81452-en");
-		if (ret < 0) {
-			dev_err(dev, "failed to request GPIO. err=%d\n", ret);
-			return ret;
-		}
-	}
-
 	ret = sky81452_bl_init_device(regmap, pdata);
 	if (ret < 0) {
 		dev_err(dev, "failed to initialize. err=%d\n", ret);
@@ -312,8 +302,8 @@ static int sky81452_bl_remove(struct platform_device *pdev)
 	bd->props.brightness = 0;
 	backlight_update_status(bd);
 
-	if (gpio_is_valid(pdata->gpio_enable))
-		gpio_set_value_cansleep(pdata->gpio_enable, 0);
+	if (pdata->gpiod_enable)
+		gpiod_set_value_cansleep(pdata->gpiod_enable, 0);
 
 	return 0;
 }
