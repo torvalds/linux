@@ -1,8 +1,7 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
 # description: Kprobe dynamic event - adding and removing
-
-[ -f kprobe_events ] || exit_unsupported # this is configurable
+# requires: kprobe_events
 
 ! grep -q 'myevent' kprobe_profile
 echo p:myevent _do_fork > kprobe_events

@@ -445,8 +445,10 @@ static void target_copy(struct ceph_osd_request_target *dest,
 	dest->size = src->size;
 	dest->min_size = src->min_size;
 	dest->sort_bitwise = src->sort_bitwise;
+	dest->recovery_deletes = src->recovery_deletes;
 
 	dest->flags = src->flags;
+	dest->used_replica = src->used_replica;
 	dest->paused = src->paused;
 
 	dest->epoch = src->epoch;
@@ -1117,10 +1119,10 @@ struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 				       truncate_size, truncate_seq);
 	}
 
-	req->r_flags = flags;
 	req->r_base_oloc.pool = layout->pool_id;
 	req->r_base_oloc.pool_ns = ceph_try_get_string(layout->pool_ns);
 	ceph_oid_printf(&req->r_base_oid, "%llx.%08llx", vino.ino, objnum);
+	req->r_flags = flags | osdc->client->options->read_from_replica;
 
 	req->r_snapid = vino.snap;
 	if (flags & CEPH_OSD_FLAG_WRITE)
@@ -2431,14 +2433,11 @@ promote:
 
 static void account_request(struct ceph_osd_request *req)
 {
-	struct ceph_osd_client *osdc = req->r_osdc;
-
 	WARN_ON(req->r_flags & (CEPH_OSD_FLAG_ACK | CEPH_OSD_FLAG_ONDISK));
 	WARN_ON(!(req->r_flags & (CEPH_OSD_FLAG_READ | CEPH_OSD_FLAG_WRITE)));
 
 	req->r_flags |= CEPH_OSD_FLAG_ONDISK;
-	req->r_flags |= osdc->client->options->osd_req_flags;
-	atomic_inc(&osdc->num_requests);
+	atomic_inc(&req->r_osdc->num_requests);
 
 	req->r_start_stamp = jiffies;
 	req->r_start_latency = ktime_get();

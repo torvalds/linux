@@ -171,7 +171,7 @@ static ssize_t read_mem(struct file *file, char __user *buf,
 			if (!ptr)
 				goto failed;
 
-			probe = probe_kernel_read(bounce, ptr, sz);
+			probe = copy_from_kernel_nofault(bounce, ptr, sz);
 			unxlate_dev_mem_ptr(p, ptr);
 			if (probe)
 				goto failed;

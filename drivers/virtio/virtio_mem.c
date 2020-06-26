@@ -101,6 +101,11 @@ struct virtio_mem {
 
 	/* The parent resource for all memory added via this device. */
 	struct resource *parent_resource;
+	/*
+	 * Copy of "System RAM (virtio_mem)" to be used for
+	 * add_memory_driver_managed().
+	 */
+	const char *resource_name;
 
 	/* Summary of all memory block states. */
 	unsigned long nb_mb_state[VIRTIO_MEM_MB_STATE_COUNT];
@@ -414,8 +419,20 @@ static int virtio_mem_mb_add(struct virtio_mem *vm, unsigned long mb_id)
 	if (nid == NUMA_NO_NODE)
 		nid = memory_add_physaddr_to_nid(addr);
 
+	/*
+	 * When force-unloading the driver and we still have memory added to
+	 * Linux, the resource name has to stay.
+	 */
+	if (!vm->resource_name) {
+		vm->resource_name = kstrdup_const("System RAM (virtio_mem)",
+						  GFP_KERNEL);
+		if (!vm->resource_name)
+			return -ENOMEM;
+	}
+
 	dev_dbg(&vm->vdev->dev, "adding memory block: %lu\n", mb_id);
-	return add_memory(nid, addr, memory_block_size_bytes());
+	return add_memory_driver_managed(nid, addr, memory_block_size_bytes(),
+					 vm->resource_name);
 }
 
 /*
@@ -1192,7 +1209,7 @@ static int virtio_mem_mb_plug_any_sb(struct virtio_mem *vm, unsigned long mb_id,
 						VIRTIO_MEM_MB_STATE_OFFLINE);
 	}
 
-	return rc;
+	return 0;
 }
 
 /*
@@ -1890,10 +1907,12 @@ static void virtio_mem_remove(struct virtio_device *vdev)
 	    vm->nb_mb_state[VIRTIO_MEM_MB_STATE_OFFLINE_PARTIAL] ||
 	    vm->nb_mb_state[VIRTIO_MEM_MB_STATE_ONLINE] ||
 	    vm->nb_mb_state[VIRTIO_MEM_MB_STATE_ONLINE_PARTIAL] ||
-	    vm->nb_mb_state[VIRTIO_MEM_MB_STATE_ONLINE_MOVABLE])
+	    vm->nb_mb_state[VIRTIO_MEM_MB_STATE_ONLINE_MOVABLE]) {
 		dev_warn(&vdev->dev, "device still has system memory added\n");
-	else
+	} else {
 		virtio_mem_delete_resource(vm);
+		kfree_const(vm->resource_name);
+	}
 
 	/* remove all tracking data - no locking needed */
 	vfree(vm->mb_state);

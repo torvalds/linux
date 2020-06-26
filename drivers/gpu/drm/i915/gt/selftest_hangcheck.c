@@ -310,22 +310,20 @@ static bool wait_until_running(struct hang *h, struct i915_request *rq)
 			  1000));
 }
 
-static void engine_heartbeat_disable(struct intel_engine_cs *engine,
-				     unsigned long *saved)
+static void engine_heartbeat_disable(struct intel_engine_cs *engine)
 {
-	*saved = engine->props.heartbeat_interval_ms;
 	engine->props.heartbeat_interval_ms = 0;
 
 	intel_engine_pm_get(engine);
 	intel_engine_park_heartbeat(engine);
 }
 
-static void engine_heartbeat_enable(struct intel_engine_cs *engine,
-				    unsigned long saved)
+static void engine_heartbeat_enable(struct intel_engine_cs *engine)
 {
 	intel_engine_pm_put(engine);
 
-	engine->props.heartbeat_interval_ms = saved;
+	engine->props.heartbeat_interval_ms =
+		engine->defaults.heartbeat_interval_ms;
 }
 
 static int igt_hang_sanitycheck(void *arg)
@@ -473,7 +471,6 @@ static int igt_reset_nop_engine(void *arg)
 	for_each_engine(engine, gt, id) {
 		unsigned int reset_count, reset_engine_count, count;
 		struct intel_context *ce;
-		unsigned long heartbeat;
 		IGT_TIMEOUT(end_time);
 		int err;
 
@@ -485,7 +482,7 @@ static int igt_reset_nop_engine(void *arg)
 		reset_engine_count = i915_reset_engine_count(global, engine);
 		count = 0;
 
-		engine_heartbeat_disable(engine, &heartbeat);
+		engine_heartbeat_disable(engine);
 		set_bit(I915_RESET_ENGINE + id, &gt->reset.flags);
 		do {
 			int i;
@@ -529,7 +526,7 @@ static int igt_reset_nop_engine(void *arg)
 			}
 		} while (time_before(jiffies, end_time));
 		clear_bit(I915_RESET_ENGINE + id, &gt->reset.flags);
-		engine_heartbeat_enable(engine, heartbeat);
+		engine_heartbeat_enable(engine);
 
 		pr_info("%s(%s): %d resets\n", __func__, engine->name, count);
 
@@ -564,7 +561,6 @@ static int __igt_reset_engine(struct intel_gt *gt, bool active)
 
 	for_each_engine(engine, gt, id) {
 		unsigned int reset_count, reset_engine_count;
-		unsigned long heartbeat;
 		IGT_TIMEOUT(end_time);
 
 		if (active && !intel_engine_can_store_dword(engine))
@@ -580,7 +576,7 @@ static int __igt_reset_engine(struct intel_gt *gt, bool active)
 		reset_count = i915_reset_count(global);
 		reset_engine_count = i915_reset_engine_count(global, engine);
 
-		engine_heartbeat_disable(engine, &heartbeat);
+		engine_heartbeat_disable(engine);
 		set_bit(I915_RESET_ENGINE + id, &gt->reset.flags);
 		do {
 			if (active) {
@@ -632,7 +628,7 @@ static int __igt_reset_engine(struct intel_gt *gt, bool active)
 			}
 		} while (time_before(jiffies, end_time));
 		clear_bit(I915_RESET_ENGINE + id, &gt->reset.flags);
-		engine_heartbeat_enable(engine, heartbeat);
+		engine_heartbeat_enable(engine);
 
 		if (err)
 			break;
@@ -789,7 +785,6 @@ static int __igt_reset_engines(struct intel_gt *gt,
 		struct active_engine threads[I915_NUM_ENGINES] = {};
 		unsigned long device = i915_reset_count(global);
 		unsigned long count = 0, reported;
-		unsigned long heartbeat;
 		IGT_TIMEOUT(end_time);
 
 		if (flags & TEST_ACTIVE &&
@@ -832,7 +827,7 @@ static int __igt_reset_engines(struct intel_gt *gt,
 
 		yield(); /* start all threads before we begin */
 
-		engine_heartbeat_disable(engine, &heartbeat);
+		engine_heartbeat_disable(engine);
 		set_bit(I915_RESET_ENGINE + id, &gt->reset.flags);
 		do {
 			struct i915_request *rq = NULL;
@@ -906,7 +901,7 @@ static int __igt_reset_engines(struct intel_gt *gt,
 			}
 		} while (time_before(jiffies, end_time));
 		clear_bit(I915_RESET_ENGINE + id, &gt->reset.flags);
-		engine_heartbeat_enable(engine, heartbeat);
+		engine_heartbeat_enable(engine);
 
 		pr_info("i915_reset_engine(%s:%s): %lu resets\n",
 			engine->name, test_name, count);

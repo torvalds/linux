@@ -416,7 +416,7 @@ static inline pmd_t pmd_mkdevmap(pmd_t pmd)
 	__pgprot((pgprot_val(prot) & ~(mask)) | (bits))
 
 #define pgprot_nx(prot) \
-	__pgprot_modify(prot, 0, PTE_PXN)
+	__pgprot_modify(prot, PTE_MAYBE_GP, PTE_PXN)
 
 /*
  * Mark the prot value as uncacheable and unbufferable.

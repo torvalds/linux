@@ -161,7 +161,7 @@ struct kretprobe_instance {
 	kprobe_opcode_t *ret_addr;
 	struct task_struct *task;
 	void *fp;
-	char data[0];
+	char data[];
 };
 
 struct kretprobe_blackpoint {
@@ -349,6 +349,10 @@ static inline struct kprobe_ctlblk *get_kprobe_ctlblk(void)
 {
 	return this_cpu_ptr(&kprobe_ctlblk);
 }
+
+extern struct kprobe kprobe_busy;
+void kprobe_busy_begin(void);
+void kprobe_busy_end(void);
 
 kprobe_opcode_t *kprobe_lookup_name(const char *name, unsigned int offset);
 int register_kprobe(struct kprobe *p);
