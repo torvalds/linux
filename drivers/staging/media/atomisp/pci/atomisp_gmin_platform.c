@@ -482,9 +482,11 @@ fail:
 	return clock_num;
 }
 
+static struct i2c_client *power;
+
 static struct gmin_subdev *gmin_subdev_add(struct v4l2_subdev *subdev)
 {
-	struct i2c_client *power = NULL, *client = v4l2_get_subdevdata(subdev);
+	struct i2c_client *client = v4l2_get_subdevdata(subdev);
 	struct acpi_device *adev;
 	struct gmin_subdev *gs;
 	acpi_handle handle;
@@ -696,7 +698,6 @@ static struct gmin_subdev *gmin_subdev_add(struct v4l2_subdev *subdev)
 		gs->eldo2_ctrl_shift = gmin_get_var_int(dev, false,
 							"eldo2_ctrl_shift",
 							ELDO2_CTRL_SHIFT);
-		gs->pwm_i2c_addr = power->addr;
 		break;
 
 	default:
