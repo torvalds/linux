@@ -95,7 +95,7 @@
 			interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
-		smmu0: smmu@36600000 {
+		smmu0: iommu@36600000 {
 			compatible = "arm,smmu-v3";
 			reg = <0x0 0x36600000 0x0 0x100000>;
 			interrupt-parent = <&gic500>;
