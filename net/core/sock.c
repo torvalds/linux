@@ -828,6 +828,14 @@ void sock_set_rcvbuf(struct sock *sk, int val)
 }
 EXPORT_SYMBOL(sock_set_rcvbuf);
 
+void sock_set_mark(struct sock *sk, u32 val)
+{
+	lock_sock(sk);
+	sk->sk_mark = val;
+	release_sock(sk);
+}
+EXPORT_SYMBOL(sock_set_mark);
+
 /*
  *	This is meant for all protocols to use and covers goings on
  *	at the socket level. Everything here is generic.
