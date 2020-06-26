@@ -1323,10 +1323,10 @@ EXPORT_SYMBOL_GPL(camera_sensor_csi);
  * trying.  The driver itself does direct calls to the PUNIT to manage
  * ISP power.
  */
-static void isp_pm_cap_fixup(struct pci_dev *dev)
+static void isp_pm_cap_fixup(struct pci_dev *pdev)
 {
-	dev_info(&dev->dev, "Disabling PCI power management on camera ISP\n");
-	dev->pm_cap = 0;
+	dev_info(&pdev->dev, "Disabling PCI power management on camera ISP\n");
+	pdev->pm_cap = 0;
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x0f38, isp_pm_cap_fixup);
 

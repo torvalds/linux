@@ -360,39 +360,39 @@ static void clear_isp_irq(enum hrt_isp_css_irq irq)
 
 void atomisp_msi_irq_init(struct atomisp_device *isp)
 {
-	struct pci_dev *dev = to_pci_dev(isp->dev);
+	struct pci_dev *pdev = to_pci_dev(isp->dev);
 	u32 msg32;
 	u16 msg16;
 
-	pci_read_config_dword(dev, PCI_MSI_CAPID, &msg32);
+	pci_read_config_dword(pdev, PCI_MSI_CAPID, &msg32);
 	msg32 |= 1 << MSI_ENABLE_BIT;
-	pci_write_config_dword(dev, PCI_MSI_CAPID, msg32);
+	pci_write_config_dword(pdev, PCI_MSI_CAPID, msg32);
 
 	msg32 = (1 << INTR_IER) | (1 << INTR_IIR);
-	pci_write_config_dword(dev, PCI_INTERRUPT_CTRL, msg32);
+	pci_write_config_dword(pdev, PCI_INTERRUPT_CTRL, msg32);
 
-	pci_read_config_word(dev, PCI_COMMAND, &msg16);
+	pci_read_config_word(pdev, PCI_COMMAND, &msg16);
 	msg16 |= (PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER |
 		  PCI_COMMAND_INTX_DISABLE);
-	pci_write_config_word(dev, PCI_COMMAND, msg16);
+	pci_write_config_word(pdev, PCI_COMMAND, msg16);
 }
 
 void atomisp_msi_irq_uninit(struct atomisp_device *isp)
 {
-	struct pci_dev *dev = to_pci_dev(isp->dev);
+	struct pci_dev *pdev = to_pci_dev(isp->dev);
 	u32 msg32;
 	u16 msg16;
 
-	pci_read_config_dword(dev, PCI_MSI_CAPID, &msg32);
+	pci_read_config_dword(pdev, PCI_MSI_CAPID, &msg32);
 	msg32 &=  ~(1 << MSI_ENABLE_BIT);
-	pci_write_config_dword(dev, PCI_MSI_CAPID, msg32);
+	pci_write_config_dword(pdev, PCI_MSI_CAPID, msg32);
 
 	msg32 = 0x0;
-	pci_write_config_dword(dev, PCI_INTERRUPT_CTRL, msg32);
+	pci_write_config_dword(pdev, PCI_INTERRUPT_CTRL, msg32);
 
-	pci_read_config_word(dev, PCI_COMMAND, &msg16);
+	pci_read_config_word(pdev, PCI_COMMAND, &msg16);
 	msg16 &= ~(PCI_COMMAND_MASTER);
-	pci_write_config_word(dev, PCI_COMMAND, msg16);
+	pci_write_config_word(pdev, PCI_COMMAND, msg16);
 }
 
 static void atomisp_sof_event(struct atomisp_sub_device *asd)
