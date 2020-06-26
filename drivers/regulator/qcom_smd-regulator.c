@@ -474,15 +474,6 @@ static const struct regulator_desc pmi8994_bby = {
 	.ops = &rpm_bob_ops,
 };
 
-static const struct regulator_desc pmi8994_boost = {
-	.linear_ranges = (struct linear_range[]) {
-		REGULATOR_LINEAR_RANGE(4000000, 0, 30, 50000),
-	},
-	.n_linear_ranges = 1,
-	.n_voltages = 31,
-	.ops = &rpm_smps_ldo_ops,
-};
-
 static const struct regulator_desc pm8998_ftsmps = {
 	.linear_ranges = (struct linear_range[]) {
 		REGULATOR_LINEAR_RANGE(320000, 0, 258, 4000),
