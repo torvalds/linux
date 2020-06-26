@@ -439,7 +439,7 @@ static bool fq_packet_beyond_horizon(const struct sk_buff *skb,
 	return unlikely((s64)skb->tstamp > (s64)(q->ktime_cache + q->horizon));
 }
 
-static int fq_enqueue(struct sk_buff *skb, struct Qdisc *sch,
+static int fq_enqueue(struct sk_buff *skb, struct Qdisc *sch, spinlock_t *root_lock,
 		      struct sk_buff **to_free)
 {
 	struct fq_sched_data *q = qdisc_priv(sch);

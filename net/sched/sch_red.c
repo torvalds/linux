@@ -65,7 +65,7 @@ static int red_use_nodrop(struct red_sched_data *q)
 	return q->flags & TC_RED_NODROP;
 }
 
-static int red_enqueue(struct sk_buff *skb, struct Qdisc *sch,
+static int red_enqueue(struct sk_buff *skb, struct Qdisc *sch, spinlock_t *root_lock,
 		       struct sk_buff **to_free)
 {
 	struct red_sched_data *q = qdisc_priv(sch);
@@ -118,7 +118,7 @@ static int red_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 		break;
 	}
 
-	ret = qdisc_enqueue(skb, child, to_free);
+	ret = qdisc_enqueue(skb, child, root_lock, to_free);
 	if (likely(ret == NET_XMIT_SUCCESS)) {
 		qdisc_qstats_backlog_inc(sch, skb);
 		sch->q.qlen++;

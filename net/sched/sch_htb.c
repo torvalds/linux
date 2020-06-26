@@ -576,7 +576,7 @@ static inline void htb_deactivate(struct htb_sched *q, struct htb_class *cl)
 	cl->prio_activity = 0;
 }
 
-static int htb_enqueue(struct sk_buff *skb, struct Qdisc *sch,
+static int htb_enqueue(struct sk_buff *skb, struct Qdisc *sch, spinlock_t *root_lock,
 		       struct sk_buff **to_free)
 {
 	int uninitialized_var(ret);
@@ -599,7 +599,7 @@ static int htb_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 		__qdisc_drop(skb, to_free);
 		return ret;
 #endif
-	} else if ((ret = qdisc_enqueue(skb, cl->leaf.q,
+	} else if ((ret = qdisc_enqueue(skb, cl->leaf.q, root_lock,
 					to_free)) != NET_XMIT_SUCCESS) {
 		if (net_xmit_drop_count(ret)) {
 			qdisc_qstats_drop(sch);

@@ -198,7 +198,7 @@ static struct tcf_block *dsmark_tcf_block(struct Qdisc *sch, unsigned long cl,
 
 /* --------------------------- Qdisc operations ---------------------------- */
 
-static int dsmark_enqueue(struct sk_buff *skb, struct Qdisc *sch,
+static int dsmark_enqueue(struct sk_buff *skb, struct Qdisc *sch, spinlock_t *root_lock,
 			  struct sk_buff **to_free)
 {
 	unsigned int len = qdisc_pkt_len(skb);
@@ -267,7 +267,7 @@ static int dsmark_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 		}
 	}
 
-	err = qdisc_enqueue(skb, p->q, to_free);
+	err = qdisc_enqueue(skb, p->q, root_lock, to_free);
 	if (err != NET_XMIT_SUCCESS) {
 		if (net_xmit_drop_count(err))
 			qdisc_qstats_drop(sch);

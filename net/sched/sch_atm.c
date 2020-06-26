@@ -374,7 +374,7 @@ static struct tcf_block *atm_tc_tcf_block(struct Qdisc *sch, unsigned long cl,
 
 /* --------------------------- Qdisc operations ---------------------------- */
 
-static int atm_tc_enqueue(struct sk_buff *skb, struct Qdisc *sch,
+static int atm_tc_enqueue(struct sk_buff *skb, struct Qdisc *sch, spinlock_t *root_lock,
 			  struct sk_buff **to_free)
 {
 	struct atm_qdisc_data *p = qdisc_priv(sch);
@@ -432,7 +432,7 @@ done:
 #endif
 	}
 
-	ret = qdisc_enqueue(skb, flow->q, to_free);
+	ret = qdisc_enqueue(skb, flow->q, root_lock, to_free);
 	if (ret != NET_XMIT_SUCCESS) {
 drop: __maybe_unused
 		if (net_xmit_drop_count(ret)) {

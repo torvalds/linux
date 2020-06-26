@@ -72,8 +72,8 @@ struct teql_sched_data {
 
 /* "teql*" qdisc routines */
 
-static int
-teql_enqueue(struct sk_buff *skb, struct Qdisc *sch, struct sk_buff **to_free)
+static int teql_enqueue(struct sk_buff *skb, struct Qdisc *sch, spinlock_t *root_lock,
+			struct sk_buff **to_free)
 {
 	struct net_device *dev = qdisc_dev(sch);
 	struct teql_sched_data *q = qdisc_priv(sch);
