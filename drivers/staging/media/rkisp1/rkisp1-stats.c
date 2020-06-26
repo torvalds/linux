@@ -152,13 +152,12 @@ static void rkisp1_stats_vb2_stop_streaming(struct vb2_queue *vq)
 {
 	struct rkisp1_stats *stats = vq->drv_priv;
 	struct rkisp1_buffer *buf;
-	unsigned long flags;
 	unsigned int i;
 
 	/* Make sure no new work queued in isr before draining wq */
-	spin_lock_irqsave(&stats->irq_lock, flags);
+	spin_lock_irq(&stats->irq_lock);
 	stats->is_streaming = false;
-	spin_unlock_irqrestore(&stats->irq_lock, flags);
+	spin_unlock_irq(&stats->irq_lock);
 
 	drain_workqueue(stats->readout_wq);
 
