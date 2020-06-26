@@ -74,8 +74,11 @@ void *arch_dma_set_uncached(void *cpu_addr, size_t size)
 	 * We need to iterate through the pages, clearing the dcache for
 	 * them and setting the cache-inhibit bit.
 	 */
+	mmap_read_lock(&init_mm);
 	error = walk_page_range(&init_mm, va, va + size, &set_nocache_walk_ops,
 			NULL);
+	mmap_read_unlock(&init_mm);
+
 	if (error)
 		return ERR_PTR(error);
 	return cpu_addr;
@@ -85,9 +88,11 @@ void arch_dma_clear_uncached(void *cpu_addr, size_t size)
 {
 	unsigned long va = (unsigned long)cpu_addr;
 
+	mmap_read_lock(&init_mm);
 	/* walk_page_range shouldn't be able to fail here */
 	WARN_ON(walk_page_range(&init_mm, va, va + size,
 			&clear_nocache_walk_ops, NULL));
+	mmap_read_unlock(&init_mm);
 }
 
 void arch_sync_dma_for_device(phys_addr_t addr, size_t size,
