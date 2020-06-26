@@ -41,13 +41,6 @@ struct block_device {
 	struct gendisk *	bd_disk;
 	struct backing_dev_info *bd_bdi;
 	struct list_head	bd_list;
-	/*
-	 * Private data.  You must have bd_claim'ed the block_device
-	 * to use this.  NOTE:  bd_claim allows an owner to claim
-	 * the same device multiple times, the owner must take special
-	 * care to not mess up bd_private for that case.
-	 */
-	unsigned long		bd_private;
 
 	/* The counter of freeze processes */
 	int			bd_fsfreeze_count;
