@@ -471,11 +471,20 @@ void __ref remove_pfn_range_from_zone(struct zone *zone,
 				      unsigned long start_pfn,
 				      unsigned long nr_pages)
 {
+	const unsigned long end_pfn = start_pfn + nr_pages;
 	struct pglist_data *pgdat = zone->zone_pgdat;
-	unsigned long flags;
+	unsigned long pfn, cur_nr_pages, flags;
 
 	/* Poison struct pages because they are now uninitialized again. */
-	page_init_poison(pfn_to_page(start_pfn), sizeof(struct page) * nr_pages);
+	for (pfn = start_pfn; pfn < end_pfn; pfn += cur_nr_pages) {
+		cond_resched();
+
+		/* Select all remaining pages up to the next section boundary */
+		cur_nr_pages =
+			min(end_pfn - pfn, SECTION_ALIGN_UP(pfn + 1) - pfn);
+		page_init_poison(pfn_to_page(pfn),
+				 sizeof(struct page) * cur_nr_pages);
+	}
 
 #ifdef CONFIG_ZONE_DEVICE
 	/*
