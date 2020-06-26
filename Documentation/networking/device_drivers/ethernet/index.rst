@@ -13,6 +13,7 @@ Contents:
    3com/3c509
    3com/vortex
    amazon/ena
+   altera/altera_tse
    aquantia/atlantic
    chelsio/cxgb
    cirrus/cs89x0
@@ -24,6 +25,7 @@ Contents:
    freescale/dpaa2/index
    freescale/gianfar
    google/gve
+   huawei/hinic
    intel/e100
    intel/e1000
    intel/e1000e

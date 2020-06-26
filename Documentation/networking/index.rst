@@ -38,7 +38,6 @@ Contents:
    nfc
    6lowpan
    6pack
-   altera_tse
    arcnet-hardware
    arcnet
    atm
@@ -62,7 +61,6 @@ Contents:
    generic_netlink
    gen_stats
    gtp
-   hinic
    ila
    ipddp
    ip_dynaddr
