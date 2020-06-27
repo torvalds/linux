@@ -1035,7 +1035,6 @@
   vb2_buffer_done
   vb2_queue_init
   vfree
-  vfs_read
   video_devdata
   video_device_alloc
   video_device_release
@@ -2690,7 +2689,6 @@
 
 # required by usb_f_mtp.ko
   usb_os_desc_prepare_interf_dir
-  vfs_write
 
 # required by usb_f_qdss.ko
   usb_ep_autoconfig_ss
