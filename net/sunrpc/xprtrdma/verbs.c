@@ -281,17 +281,19 @@ rpcrdma_cm_event_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 		break;
 	case RDMA_CM_EVENT_CONNECT_ERROR:
 		ep->re_connect_status = -ENOTCONN;
-		goto disconnected;
+		goto wake_connect_worker;
 	case RDMA_CM_EVENT_UNREACHABLE:
 		ep->re_connect_status = -ENETUNREACH;
-		goto disconnected;
+		goto wake_connect_worker;
 	case RDMA_CM_EVENT_REJECTED:
 		dprintk("rpcrdma: connection to %pISpc rejected: %s\n",
 			sap, rdma_reject_msg(id, event->status));
 		ep->re_connect_status = -ECONNREFUSED;
 		if (event->status == IB_CM_REJ_STALE_CONN)
 			ep->re_connect_status = -ENOTCONN;
-		goto disconnected;
+wake_connect_worker:
+		wake_up_all(&ep->re_connect_wait);
+		return 0;
 	case RDMA_CM_EVENT_DISCONNECTED:
 		ep->re_connect_status = -ECONNABORTED;
 disconnected:
