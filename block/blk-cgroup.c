@@ -1758,16 +1758,21 @@ void bio_associate_blkg_from_css(struct bio *bio,
 				 struct cgroup_subsys_state *css)
 {
 	struct request_queue *q = bio->bi_disk->queue;
-	struct blkcg_gq *blkg = q->root_blkg;
 
 	if (bio->bi_blkg)
 		blkg_put(bio->bi_blkg);
 
-	rcu_read_lock();
-	if (css && css->parent)
+	if (css && css->parent) {
+		struct blkcg_gq *blkg;
+
+		rcu_read_lock();
 		blkg = blkg_lookup_create(css_to_blkcg(css), q);
-	bio->bi_blkg = blkg_tryget_closest(blkg);
-	rcu_read_unlock();
+		bio->bi_blkg = blkg_tryget_closest(blkg);
+		rcu_read_unlock();
+	} else {
+		blkg_get(q->root_blkg);
+		bio->bi_blkg = q->root_blkg;
+	}
 }
 EXPORT_SYMBOL_GPL(bio_associate_blkg_from_css);
 
