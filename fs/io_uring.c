@@ -1791,7 +1791,7 @@ static void io_put_req(struct io_kiocb *req)
 
 static struct io_wq_work *io_steal_work(struct io_kiocb *req)
 {
-	struct io_kiocb *link, *nxt = NULL;
+	struct io_kiocb *nxt = NULL;
 
 	/*
 	 * A ref is owned by io-wq in which context we're. So, if that's the
@@ -1808,10 +1808,15 @@ static struct io_wq_work *io_steal_work(struct io_kiocb *req)
 	if ((nxt->flags & REQ_F_ISREG) && io_op_defs[nxt->opcode].hash_reg_file)
 		io_wq_hash_work(&nxt->work, file_inode(nxt->file));
 
-	link = io_prep_linked_timeout(nxt);
-	if (link)
-		nxt->flags |= REQ_F_QUEUE_TIMEOUT;
-	return &nxt->work;
+	io_req_task_queue(nxt);
+	/*
+	 * If we're going to return actual work, here should be timeout prep:
+	 *
+	 * link = io_prep_linked_timeout(nxt);
+	 * if (link)
+	 *	nxt->flags |= REQ_F_QUEUE_TIMEOUT;
+	 */
+	return NULL;
 }
 
 /*
