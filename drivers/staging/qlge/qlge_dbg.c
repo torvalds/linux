@@ -1390,7 +1390,7 @@ static void ql_dump_cam_entries(struct ql_adapter *qdev)
 		if (ql_get_mac_addr_reg(qdev, MAC_ADDR_TYPE_CAM_MAC, i, value)) {
 			pr_err("%s: Failed read of mac index register\n",
 			       __func__);
-			return;
+			break;
 		}
 		if (value[0])
 			pr_err("%s: CAM index %d CAM Lookup Lower = 0x%.08x:%.08x, Output = 0x%.08x\n",
@@ -1402,7 +1402,7 @@ static void ql_dump_cam_entries(struct ql_adapter *qdev)
 		    (qdev, MAC_ADDR_TYPE_MULTI_MAC, i, value)) {
 			pr_err("%s: Failed read of mac index register\n",
 			       __func__);
-			return;
+			break;
 		}
 		if (value[0])
 			pr_err("%s: MCAST index %d CAM Lookup Lower = 0x%.08x:%.08x\n",
@@ -1424,7 +1424,7 @@ void ql_dump_routing_entries(struct ql_adapter *qdev)
 		if (ql_get_routing_reg(qdev, i, &value)) {
 			pr_err("%s: Failed read of routing index register\n",
 			       __func__);
-			return;
+			break;
 		}
 		if (value)
 			pr_err("%s: Routing Mask %d = 0x%.08x\n",
