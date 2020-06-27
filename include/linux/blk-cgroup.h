@@ -543,24 +543,11 @@ static inline void blkcg_bio_issue_init(struct bio *bio)
 static inline bool blkcg_bio_issue_check(struct request_queue *q,
 					 struct bio *bio)
 {
-	struct blkcg_gq *blkg;
+	struct blkcg_gq *blkg = bio->bi_blkg;
 	bool throtl = false;
 
 	rcu_read_lock();
-
-	if (!bio->bi_blkg) {
-		char b[BDEVNAME_SIZE];
-
-		WARN_ONCE(1,
-			  "no blkg associated for bio on block-device: %s\n",
-			  bio_devname(bio, b));
-		bio_associate_blkg(bio);
-	}
-
-	blkg = bio->bi_blkg;
-
 	throtl = blk_throtl_bio(q, blkg, bio);
-
 	if (!throtl) {
 		struct blkg_iostat_set *bis;
 		int rwd, cpu;
