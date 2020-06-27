@@ -1138,6 +1138,7 @@ struct tcp_sacktag_state {
 	struct rate_sample *rate;
 	int	flag;
 	unsigned int mss_now;
+	u32	sack_delivered;
 };
 
 /* Check if skb is fully within the SACK block. In presence of GSO skbs,
@@ -1259,6 +1260,7 @@ static u8 tcp_sacktag_one(struct sock *sk,
 		state->flag |= FLAG_DATA_SACKED;
 		tp->sacked_out += pcount;
 		tp->delivered += pcount;  /* Out-of-order packets delivered */
+		state->sack_delivered += pcount;
 
 		/* Lost marker hint past SACKed? Tweak RFC3517 cnt */
 		if (tp->lost_skb_hint &&
@@ -1685,6 +1687,7 @@ tcp_sacktag_write_queue(struct sock *sk, const struct sk_buff *ack_skb,
 	if (found_dup_sack) {
 		state->flag |= FLAG_DSACKING_ACK;
 		tp->delivered++; /* A spurious retransmission is delivered */
+		state->sack_delivered++;
 	}
 
 	/* Eliminate too old ACKs, but take into
@@ -3586,6 +3589,7 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 
 	sack_state.first_sackt = 0;
 	sack_state.rate = &rs;
+	sack_state.sack_delivered = 0;
 
 	/* We very likely will need to access rtx queue. */
 	prefetch(sk->tcp_rtx_queue.rb_node);
