@@ -768,15 +768,13 @@ static int mpp_attach_service(struct mpp_dev *mpp, struct device *dev)
 		goto err_put_pdev;
 	}
 
-	device_lock(&pdev->dev);
 	/* register current device to mpp service */
 	mpp->srv->sub_devices[mpp->var->device_type] = mpp;
 	/* set taskqueue which set in dtsi */
 	mpp->queue = mpp->srv->task_queues[taskqueue_node];
 	/* set resetgroup which set in dtsi */
 	mpp->reset_group = mpp->srv->reset_groups[reset_group_node];
-	mpp->srv->hw_support |= BIT(mpp->var->device_type);
-	device_unlock(&pdev->dev);
+	set_bit(mpp->var->device_type, &mpp->srv->hw_support);
 
 	return 0;
 

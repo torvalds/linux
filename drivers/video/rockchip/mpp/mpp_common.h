@@ -342,7 +342,7 @@ struct mpp_service {
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs;
 #endif
-	u32 hw_support;
+	unsigned long hw_support;
 	atomic_t shutdown_request;
 	/* follows for device probe */
 	struct mpp_grf_info grf_infos[MPP_DRIVER_BUTT];

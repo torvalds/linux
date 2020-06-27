@@ -825,7 +825,7 @@ static int vdpu_probe(struct platform_device *pdev)
 
 	if (mpp->var->device_type == MPP_DEVICE_VDPU1) {
 		mpp->srv->sub_devices[MPP_DEVICE_VDPU1_PP] = mpp;
-		mpp->srv->hw_support |= BIT(MPP_DEVICE_VDPU1_PP);
+		set_bit(MPP_DEVICE_VDPU1_PP, &mpp->srv->hw_support);
 	}
 
 	mpp->session_max_buffers = VDPU1_SESSION_MAX_BUFFERS;

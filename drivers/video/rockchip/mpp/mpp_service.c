@@ -25,26 +25,18 @@
 #define MPP_CLASS_NAME		"mpp_class"
 #define MPP_SERVICE_NAME	"mpp_service"
 
-#define MPP_REGISTER_GRF(np, X, x) {\
+#define MPP_REGISTER_DRIVER(srv, X, x) {\
 	if (IS_ENABLED(CONFIG_ROCKCHIP_MPP_##X))\
-		mpp_init_grf(np, &srv->grf_infos[MPP_DRIVER_##X], x);\
-	}
-
-#define MPP_REGISTER_DRIVER(X, x) {\
-	if (IS_ENABLED(CONFIG_ROCKCHIP_MPP_##X))\
-		mpp_add_driver(MPP_DRIVER_##X, &rockchip_##x##_driver);\
+		mpp_add_driver(srv, MPP_DRIVER_##X, &rockchip_##x##_driver, "grf_"#x);\
 	}
 
 unsigned int mpp_dev_debug;
 module_param(mpp_dev_debug, uint, 0644);
 MODULE_PARM_DESC(mpp_dev_debug, "bit switch for mpp debug information");
 
-static struct mpp_grf_info *mpp_grf_infos;
-static struct platform_driver **mpp_sub_drivers;
-
 static int mpp_init_grf(struct device_node *np,
 			struct mpp_grf_info *grf_info,
-			const char *name)
+			const char *grf_name)
 {
 	int ret;
 	int index;
@@ -60,7 +52,7 @@ static int mpp_init_grf(struct device_node *np,
 	if (ret)
 		return -ENODATA;
 
-	index = of_property_match_string(np, "rockchip,grf-names", name);
+	index = of_property_match_string(np, "rockchip,grf-names", grf_name);
 	if (index < 0)
 		return -ENODATA;
 
@@ -72,6 +64,39 @@ static int mpp_init_grf(struct device_node *np,
 	grf_info->grf = grf;
 	grf_info->offset = grf_offset;
 	grf_info->val = grf_value;
+
+	mpp_set_grf(grf_info);
+
+	return 0;
+}
+
+static int mpp_add_driver(struct mpp_service *srv,
+			  enum MPP_DRIVER_TYPE type,
+			  struct platform_driver *driver,
+			  const char *grf_name)
+{
+	int ret;
+
+	mpp_init_grf(srv->dev->of_node,
+		     &srv->grf_infos[type],
+		     grf_name);
+
+	ret = platform_driver_register(driver);
+	if (ret)
+		return ret;
+
+	srv->sub_drivers[type] = driver;
+
+	return 0;
+}
+
+static int mpp_remove_driver(struct mpp_service *srv, int i)
+{
+	if (srv && srv->sub_drivers[i]) {
+		mpp_set_grf(&srv->grf_infos[i]);
+		platform_driver_unregister(srv->sub_drivers[i]);
+		srv->sub_drivers[i] = NULL;
+	}
 
 	return 0;
 }
@@ -208,23 +233,24 @@ static int mpp_service_probe(struct platform_device *pdev)
 			srv->reset_groups[i] = group;
 		}
 	}
-	MPP_REGISTER_GRF(np, RKVDEC, "grf_rkvdec");
-	MPP_REGISTER_GRF(np, RKVENC, "grf_rkvenc");
-	MPP_REGISTER_GRF(np, VEPU1, "grf_vepu1");
-	MPP_REGISTER_GRF(np, VDPU1, "grf_vdpu1");
-	MPP_REGISTER_GRF(np, VEPU2, "grf_vepu2");
-	MPP_REGISTER_GRF(np, VDPU2, "grf_vdpu2");
-	MPP_REGISTER_GRF(np, VEPU22, "grf_vepu22");
-
-	mpp_grf_infos = srv->grf_infos;
 
 	ret = mpp_register_service(srv, MPP_SERVICE_NAME);
 	if (ret) {
 		dev_err(dev, "register %s device\n", MPP_SERVICE_NAME);
 		goto fail_register;
 	}
-	mpp_sub_drivers = srv->sub_drivers;
 	mpp_debugfs_init(srv);
+
+	/* register sub drivers */
+	MPP_REGISTER_DRIVER(srv, RKVDEC, rkvdec);
+	MPP_REGISTER_DRIVER(srv, RKVENC, rkvenc);
+	MPP_REGISTER_DRIVER(srv, VDPU1, vdpu1);
+	MPP_REGISTER_DRIVER(srv, VEPU1, vepu1);
+	MPP_REGISTER_DRIVER(srv, VDPU2, vdpu2);
+	MPP_REGISTER_DRIVER(srv, VEPU2, vepu2);
+	MPP_REGISTER_DRIVER(srv, VEPU22, vepu22);
+	MPP_REGISTER_DRIVER(srv, IEP2, iep2);
+
 	dev_info(dev, "probe success\n");
 
 	return 0;
@@ -239,8 +265,13 @@ static int mpp_service_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct mpp_service *srv = platform_get_drvdata(pdev);
+	int i;
 
 	dev_info(dev, "remove device\n");
+
+	/* remove sub drivers */
+	for (i = 0; i < MPP_DRIVER_BUTT; i++)
+		mpp_remove_driver(srv, i);
 
 	mpp_remove_service(srv);
 	class_destroy(srv->cls);
@@ -265,65 +296,7 @@ static struct platform_driver mpp_service_driver = {
 	},
 };
 
-static int mpp_add_driver(enum MPP_DRIVER_TYPE type,
-			  struct platform_driver *driver)
-{
-	int ret;
-
-	mpp_set_grf(&mpp_grf_infos[type]);
-
-	ret = platform_driver_register(driver);
-	if (ret)
-		return ret;
-
-	mpp_sub_drivers[type] = driver;
-
-	return 0;
-}
-
-static int mpp_remove_driver(int i, struct platform_driver *driver)
-{
-	if (driver) {
-		mpp_set_grf(&mpp_grf_infos[i]);
-		platform_driver_unregister(driver);
-	}
-
-	return 0;
-}
-
-static int __init mpp_service_init(void)
-{
-	int ret;
-
-	ret = platform_driver_register(&mpp_service_driver);
-	if (ret) {
-		pr_err("Mpp service device register failed (%d).\n", ret);
-		return ret;
-	}
-	MPP_REGISTER_DRIVER(RKVDEC, rkvdec);
-	MPP_REGISTER_DRIVER(RKVENC, rkvenc);
-	MPP_REGISTER_DRIVER(VDPU1, vdpu1);
-	MPP_REGISTER_DRIVER(VEPU1, vepu1);
-	MPP_REGISTER_DRIVER(VDPU2, vdpu2);
-	MPP_REGISTER_DRIVER(VEPU2, vepu2);
-	MPP_REGISTER_DRIVER(VEPU22, vepu22);
-	MPP_REGISTER_DRIVER(IEP2, iep2);
-
-	return 0;
-}
-
-static void __exit mpp_service_exit(void)
-{
-	int i;
-
-	for (i = 0; i < MPP_DRIVER_BUTT; i++)
-		mpp_remove_driver(i, mpp_sub_drivers[i]);
-
-	platform_driver_unregister(&mpp_service_driver);
-}
-
-module_init(mpp_service_init);
-module_exit(mpp_service_exit);
+module_platform_driver(mpp_service_driver);
 
 MODULE_LICENSE("Dual MIT/GPL");
 MODULE_VERSION("1.0.build.201911131848");
