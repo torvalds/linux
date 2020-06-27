@@ -261,6 +261,7 @@
 		0       582      240000
 		583     99999    396000
 	>;
+	vop-dclk-mode = <1>;
 	auto-min-freq = <240000>;
 	auto-freq-en = <1>;
 };
