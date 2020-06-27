@@ -406,8 +406,8 @@ static int rpcrdma_ep_create(struct rpcrdma_xprt *r_xprt)
 
 	id = rpcrdma_create_id(r_xprt, ep);
 	if (IS_ERR(id)) {
-		rc = PTR_ERR(id);
-		goto out_free;
+		kfree(ep);
+		return PTR_ERR(id);
 	}
 	__module_get(THIS_MODULE);
 	device = id->device;
@@ -506,9 +506,6 @@ static int rpcrdma_ep_create(struct rpcrdma_xprt *r_xprt)
 out_destroy:
 	rpcrdma_ep_put(ep);
 	rdma_destroy_id(id);
-out_free:
-	kfree(ep);
-	r_xprt->rx_ep = NULL;
 	return rc;
 }
 
