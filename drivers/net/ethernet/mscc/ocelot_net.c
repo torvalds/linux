@@ -953,7 +953,6 @@ notify:
 struct notifier_block ocelot_netdevice_nb __read_mostly = {
 	.notifier_call = ocelot_netdevice_event,
 };
-EXPORT_SYMBOL(ocelot_netdevice_nb);
 
 static int ocelot_switchdev_event(struct notifier_block *unused,
 				  unsigned long event, void *ptr)
@@ -975,7 +974,6 @@ static int ocelot_switchdev_event(struct notifier_block *unused,
 struct notifier_block ocelot_switchdev_nb __read_mostly = {
 	.notifier_call = ocelot_switchdev_event,
 };
-EXPORT_SYMBOL(ocelot_switchdev_nb);
 
 static int ocelot_switchdev_blocking_event(struct notifier_block *unused,
 					   unsigned long event, void *ptr)
@@ -1008,7 +1006,6 @@ static int ocelot_switchdev_blocking_event(struct notifier_block *unused,
 struct notifier_block ocelot_switchdev_blocking_nb __read_mostly = {
 	.notifier_call = ocelot_switchdev_blocking_event,
 };
-EXPORT_SYMBOL(ocelot_switchdev_blocking_nb);
 
 int ocelot_probe_port(struct ocelot *ocelot, u8 port,
 		      void __iomem *regs,
@@ -1054,4 +1051,3 @@ int ocelot_probe_port(struct ocelot *ocelot, u8 port,
 
 	return err;
 }
-EXPORT_SYMBOL(ocelot_probe_port);
