@@ -950,15 +950,8 @@ start_here_multiplatform:
 	std	r0,0(r4)
 #endif
 
-	/* The following gets the stack set up with the regs */
-	/* pointing to the real addr of the kernel stack.  This is   */
-	/* all done to support the C function call below which sets  */
-	/* up the htab.  This is done because we have relocated the  */
-	/* kernel but are still running in real mode. */
-
-	LOAD_REG_ADDR(r3,init_thread_union)
-
 	/* set up a stack pointer */
+	LOAD_REG_ADDR(r3,init_thread_union)
 	LOAD_REG_IMMEDIATE(r1,THREAD_SIZE)
 	add	r1,r3,r1
 	li	r0,0

@@ -286,13 +286,13 @@ static int jz4780_nand_init_chip(struct platform_device *pdev,
 	nand_set_flash_node(chip, np);
 
 	chip->controller->ops = &jz4780_nand_controller_ops;
-	ret = nand_scan(mtd, 1);
+	ret = nand_scan(chip, 1);
 	if (ret)
 		return ret;
 
 	ret = mtd_device_register(mtd, NULL, 0);
 	if (ret) {
-		nand_release(mtd);
+		nand_release(chip);
 		return ret;
 	}
 
@@ -307,7 +307,7 @@ static void jz4780_nand_cleanup_chips(struct jz4780_nand_controller *nfc)
 
 	while (!list_empty(&nfc->chips)) {
 		chip = list_first_entry(&nfc->chips, struct jz4780_nand_chip, chip_list);
-		nand_release(nand_to_mtd(&chip->chip));
+		nand_release(&chip->chip);
 		list_del(&chip->chip_list);
 	}
 }

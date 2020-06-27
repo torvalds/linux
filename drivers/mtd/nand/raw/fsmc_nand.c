@@ -1125,7 +1125,7 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	 * Scan to find existence of the device
 	 */
 	nand->dummy_controller.ops = &fsmc_nand_controller_ops;
-	ret = nand_scan(mtd, 1);
+	ret = nand_scan(nand, 1);
 	if (ret)
 		goto release_dma_write_chan;
 
@@ -1161,7 +1161,7 @@ static int fsmc_nand_remove(struct platform_device *pdev)
 	struct fsmc_nand_data *host = platform_get_drvdata(pdev);
 
 	if (host) {
-		nand_release(nand_to_mtd(&host->nand));
+		nand_release(&host->nand);
 
 		if (host->mode == USE_DMA_ACCESS) {
 			dma_release_channel(host->write_dma_chan);

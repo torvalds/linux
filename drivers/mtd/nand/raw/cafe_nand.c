@@ -783,7 +783,7 @@ static int cafe_nand_probe(struct pci_dev *pdev,
 
 	/* Scan to find existence of the device */
 	cafe->nand.dummy_controller.ops = &cafe_nand_controller_ops;
-	err = nand_scan(mtd, 2);
+	err = nand_scan(&cafe->nand, 2);
 	if (err)
 		goto out_irq;
 
@@ -819,7 +819,7 @@ static void cafe_nand_remove(struct pci_dev *pdev)
 	/* Disable NAND IRQ in global IRQ mask register */
 	cafe_writel(cafe, ~1 & cafe_readl(cafe, GLOBAL_IRQ_MASK), GLOBAL_IRQ_MASK);
 	free_irq(pdev->irq, mtd);
-	nand_release(mtd);
+	nand_release(chip);
 	free_rs(cafe->rs);
 	pci_iounmap(pdev, cafe->mmio);
 	dma_free_coherent(&cafe->pdev->dev, 2112, cafe->dmabuf, cafe->dmaaddr);

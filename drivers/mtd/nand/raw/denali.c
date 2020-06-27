@@ -1384,7 +1384,7 @@ int denali_init(struct denali_nand_info *denali)
 		chip->setup_data_interface = denali_setup_data_interface;
 
 	chip->dummy_controller.ops = &denali_controller_ops;
-	ret = nand_scan(mtd, denali->max_banks);
+	ret = nand_scan(chip, denali->max_banks);
 	if (ret)
 		goto disable_irq;
 
@@ -1407,9 +1407,7 @@ EXPORT_SYMBOL(denali_init);
 
 void denali_remove(struct denali_nand_info *denali)
 {
-	struct mtd_info *mtd = nand_to_mtd(&denali->nand);
-
-	nand_release(mtd);
+	nand_release(&denali->nand);
 	denali_disable_irq(denali);
 }
 EXPORT_SYMBOL(denali_remove);

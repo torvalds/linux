@@ -193,7 +193,7 @@ static int __init cmx270_init(void)
 	this->write_buf = cmx270_write_buf;
 
 	/* Scan to find existence of the device */
-	ret = nand_scan(cmx270_nand_mtd, 1);
+	ret = nand_scan(this, 1);
 	if (ret) {
 		pr_notice("No NAND device\n");
 		goto err_scan;
@@ -228,7 +228,7 @@ module_init(cmx270_init);
 static void __exit cmx270_cleanup(void)
 {
 	/* Release resources, unregister device */
-	nand_release(cmx270_nand_mtd);
+	nand_release(mtd_to_nand(cmx270_nand_mtd));
 
 	gpio_free(GPIO_NAND_RB);
 	gpio_free(GPIO_NAND_CS);

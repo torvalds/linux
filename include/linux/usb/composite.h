@@ -264,6 +264,9 @@ int usb_func_wakeup(struct usb_function *func);
 
 int usb_get_func_interface_id(struct usb_function *func);
 
+int config_ep_by_speed_and_alt(struct usb_gadget *g, struct usb_function *f,
+				struct usb_ep *_ep, u8 alt);
+
 int config_ep_by_speed(struct usb_gadget *g, struct usb_function *f,
 			struct usb_ep *_ep);
 

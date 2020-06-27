@@ -181,7 +181,7 @@ static int ndfc_chip_init(struct ndfc_controller *ndfc,
 		goto err;
 	}
 
-	ret = nand_scan(mtd, 1);
+	ret = nand_scan(chip, 1);
 	if (ret)
 		goto err;
 
@@ -258,7 +258,7 @@ static int ndfc_remove(struct platform_device *ofdev)
 	struct ndfc_controller *ndfc = dev_get_drvdata(&ofdev->dev);
 	struct mtd_info *mtd = nand_to_mtd(&ndfc->chip);
 
-	nand_release(mtd);
+	nand_release(&ndfc->chip);
 	kfree(mtd->name);
 
 	return 0;

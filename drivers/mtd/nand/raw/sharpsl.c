@@ -171,7 +171,7 @@ static int sharpsl_nand_probe(struct platform_device *pdev)
 	this->ecc.correct = nand_correct_data;
 
 	/* Scan to find existence of the device */
-	err = nand_scan(mtd, 1);
+	err = nand_scan(this, 1);
 	if (err)
 		goto err_scan;
 
@@ -187,7 +187,7 @@ static int sharpsl_nand_probe(struct platform_device *pdev)
 	return 0;
 
 err_add:
-	nand_release(mtd);
+	nand_cleanup(this);
 
 err_scan:
 	iounmap(sharpsl->io);
@@ -205,7 +205,7 @@ static int sharpsl_nand_remove(struct platform_device *pdev)
 	struct sharpsl_nand *sharpsl = platform_get_drvdata(pdev);
 
 	/* Release resources, unregister device */
-	nand_release(nand_to_mtd(&sharpsl->chip));
+	nand_release(&sharpsl->chip);
 
 	iounmap(sharpsl->io);
 

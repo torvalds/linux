@@ -235,7 +235,7 @@ static int ams_delta_init(struct platform_device *pdev)
 		goto out_gpio;
 
 	/* Scan to find existence of the device */
-	err = nand_scan(ams_delta_mtd, 1);
+	err = nand_scan(this, 1);
 	if (err)
 		goto out_mtd;
 
@@ -264,7 +264,7 @@ static int ams_delta_cleanup(struct platform_device *pdev)
 	void __iomem *io_base = platform_get_drvdata(pdev);
 
 	/* Release resources, unregister device */
-	nand_release(ams_delta_mtd);
+	nand_release(mtd_to_nand(ams_delta_mtd));
 
 	gpio_free_array(_mandatory_gpio, ARRAY_SIZE(_mandatory_gpio));
 	gpio_free(AMS_DELTA_GPIO_PIN_NAND_RB);

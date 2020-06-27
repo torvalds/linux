@@ -6085,6 +6085,7 @@ qla2x00_do_dpc(void *data)
 
 			if (do_reset && !(test_and_set_bit(ABORT_ISP_ACTIVE,
 			    &base_vha->dpc_flags))) {
+				base_vha->flags.online = 1;
 				ql_dbg(ql_dbg_dpc, base_vha, 0x4007,
 				    "ISP abort scheduled.\n");
 				if (ha->isp_ops->abort_isp(base_vha)) {
