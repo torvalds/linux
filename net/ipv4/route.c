@@ -2027,7 +2027,7 @@ int ip_route_use_hint(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 		      const struct sk_buff *hint)
 {
 	struct in_device *in_dev = __in_dev_get_rcu(dev);
-	struct rtable *rt = (struct rtable *)hint;
+	struct rtable *rt = skb_rtable(hint);
 	struct net *net = dev_net(dev);
 	int err = -EINVAL;
 	u32 tag = 0;
