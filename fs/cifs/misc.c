@@ -844,28 +844,26 @@ setup_aio_ctx_iter(struct cifs_aio_ctx *ctx, struct iov_iter *iter, int rw)
 	struct bio_vec *bv = NULL;
 
 	if (iov_iter_is_kvec(iter)) {
-		memcpy(&ctx->iter, iter, sizeof(struct iov_iter));
+		memcpy(&ctx->iter, iter, sizeof(*iter));
 		ctx->len = count;
 		iov_iter_advance(iter, count);
 		return 0;
 	}
 
-	if (max_pages * sizeof(struct bio_vec) <= CIFS_AIO_KMALLOC_LIMIT)
-		bv = kmalloc_array(max_pages, sizeof(struct bio_vec),
-				   GFP_KERNEL);
+	if (array_size(max_pages, sizeof(*bv)) <= CIFS_AIO_KMALLOC_LIMIT)
+		bv = kmalloc_array(max_pages, sizeof(*bv), GFP_KERNEL);
 
 	if (!bv) {
-		bv = vmalloc(array_size(max_pages, sizeof(struct bio_vec)));
+		bv = vmalloc(array_size(max_pages, sizeof(*bv)));
 		if (!bv)
 			return -ENOMEM;
 	}
 
-	if (max_pages * sizeof(struct page *) <= CIFS_AIO_KMALLOC_LIMIT)
-		pages = kmalloc_array(max_pages, sizeof(struct page *),
-				      GFP_KERNEL);
+	if (array_size(max_pages, sizeof(*pages)) <= CIFS_AIO_KMALLOC_LIMIT)
+		pages = kmalloc_array(max_pages, sizeof(*pages), GFP_KERNEL);
 
 	if (!pages) {
-		pages = vmalloc(array_size(max_pages, sizeof(struct page *)));
+		pages = vmalloc(array_size(max_pages, sizeof(*pages)));
 		if (!pages) {
 			kvfree(bv);
 			return -ENOMEM;
