@@ -3078,8 +3078,6 @@ static int tcp_clean_rtx_queue(struct sock *sk, u32 prior_fack,
 		u8 sacked = scb->sacked;
 		u32 acked_pcount;
 
-		tcp_ack_tstamp(sk, skb, prior_snd_una);
-
 		/* Determine how many packets and what bytes were acked, tso and else */
 		if (after(scb->end_seq, tp->snd_una)) {
 			if (tcp_skb_pcount(skb) == 1 ||
@@ -3142,6 +3140,8 @@ static int tcp_clean_rtx_queue(struct sock *sk, u32 prior_fack,
 
 		if (!fully_acked)
 			break;
+
+		tcp_ack_tstamp(sk, skb, prior_snd_una);
 
 		next = skb_rb_next(skb);
 		if (unlikely(skb == tp->retransmit_skb_hint))
