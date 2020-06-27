@@ -400,7 +400,7 @@ static int rpcrdma_ep_create(struct rpcrdma_xprt *r_xprt)
 
 	ep = kzalloc(sizeof(*ep), GFP_NOFS);
 	if (!ep)
-		return -EAGAIN;
+		return -ENOTCONN;
 	ep->re_xprt = &r_xprt->rx_xprt;
 	kref_init(&ep->re_kref);
 
@@ -535,10 +535,6 @@ int rpcrdma_xprt_connect(struct rpcrdma_xprt *r_xprt)
 	rpcrdma_ep_get(ep);
 	rpcrdma_post_recvs(r_xprt, true);
 
-	rc = rpcrdma_sendctxs_create(r_xprt);
-	if (rc)
-		goto out;
-
 	rc = rdma_connect(ep->re_id, &ep->re_remote_cma);
 	if (rc)
 		goto out;
@@ -552,9 +548,17 @@ int rpcrdma_xprt_connect(struct rpcrdma_xprt *r_xprt)
 		goto out;
 	}
 
-	rc = rpcrdma_reqs_setup(r_xprt);
-	if (rc)
+	rc = rpcrdma_sendctxs_create(r_xprt);
+	if (rc) {
+		rc = -ENOTCONN;
 		goto out;
+	}
+
+	rc = rpcrdma_reqs_setup(r_xprt);
+	if (rc) {
+		rc = -ENOTCONN;
+		goto out;
+	}
 	rpcrdma_mrs_create(r_xprt);
 
 out:
