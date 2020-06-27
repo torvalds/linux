@@ -5270,15 +5270,15 @@ static int io_req_defer_prep(struct io_kiocb *req,
 	if (!sqe)
 		return 0;
 
+	if (io_op_defs[req->opcode].file_table) {
+		io_req_init_async(req);
+		ret = io_grab_files(req);
+		if (unlikely(ret))
+			return ret;
+	}
+
 	if (for_async || (req->flags & REQ_F_WORK_INITIALIZED)) {
 		io_req_init_async(req);
-
-		if (io_op_defs[req->opcode].file_table) {
-			ret = io_grab_files(req);
-			if (unlikely(ret))
-				return ret;
-		}
-
 		io_req_work_grab_env(req, &io_op_defs[req->opcode]);
 	}
 
