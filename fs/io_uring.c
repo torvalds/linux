@@ -6092,7 +6092,7 @@ static int io_submit_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 			if (io_alloc_async_ctx(req))
 				return -EAGAIN;
 
-			ret = io_req_defer_prep(req, sqe, true);
+			ret = io_req_defer_prep(req, sqe, false);
 			if (ret)
 				req->flags |= REQ_F_FAIL_LINK;
 			*link = req;
