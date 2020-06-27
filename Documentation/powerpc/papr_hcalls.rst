@@ -220,13 +220,51 @@ from the LPAR memory.
 **H_SCM_HEALTH**
 
 | Input: drcIndex
-| Out: *health-bitmap, health-bit-valid-bitmap*
+| Out: *health-bitmap (r4), health-bit-valid-bitmap (r5)*
 | Return Value: *H_Success, H_Parameter, H_Hardware*
 
 Given a DRC Index return the info on predictive failure and overall health of
-the NVDIMM. The asserted bits in the health-bitmap indicate a single predictive
-failure and health-bit-valid-bitmap indicate which bits in health-bitmap are
-valid.
+the PMEM device. The asserted bits in the health-bitmap indicate one or more states
+(described in table below) of the PMEM device and health-bit-valid-bitmap indicate
+which bits in health-bitmap are valid. The bits are reported in
+reverse bit ordering for example a value of 0xC400000000000000
+indicates bits 0, 1, and 5 are valid.
+
+Health Bitmap Flags:
+
++------+-----------------------------------------------------------------------+
+|  Bit |               Definition                                              |
++======+=======================================================================+
+|  00  | PMEM device is unable to persist memory contents.                     |
+|      | If the system is powered down, nothing will be saved.                 |
++------+-----------------------------------------------------------------------+
+|  01  | PMEM device failed to persist memory contents. Either contents were   |
+|      | not saved successfully on power down or were not restored properly on |
+|      | power up.                                                             |
++------+-----------------------------------------------------------------------+
+|  02  | PMEM device contents are persisted from previous IPL. The data from   |
+|      | the last boot were successfully restored.                             |
++------+-----------------------------------------------------------------------+
+|  03  | PMEM device contents are not persisted from previous IPL. There was no|
+|      | data to restore from the last boot.                                   |
++------+-----------------------------------------------------------------------+
+|  04  | PMEM device memory life remaining is critically low                   |
++------+-----------------------------------------------------------------------+
+|  05  | PMEM device will be garded off next IPL due to failure                |
++------+-----------------------------------------------------------------------+
+|  06  | PMEM device contents cannot persist due to current platform health    |
+|      | status. A hardware failure may prevent data from being saved or       |
+|      | restored.                                                             |
++------+-----------------------------------------------------------------------+
+|  07  | PMEM device is unable to persist memory contents in certain conditions|
++------+-----------------------------------------------------------------------+
+|  08  | PMEM device is encrypted                                              |
++------+-----------------------------------------------------------------------+
+|  09  | PMEM device has successfully completed a requested erase or secure    |
+|      | erase procedure.                                                      |
++------+-----------------------------------------------------------------------+
+|10:63 | Reserved / Unused                                                     |
++------+-----------------------------------------------------------------------+
 
 **H_SCM_PERFORMANCE_STATS**
 

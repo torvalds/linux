@@ -1053,8 +1053,10 @@ int mptcp_subflow_create_socket(struct sock *sk, struct socket **new_sock)
 	err = tcp_set_ulp(sf->sk, "mptcp");
 	release_sock(sf->sk);
 
-	if (err)
+	if (err) {
+		sock_release(sf);
 		return err;
+	}
 
 	/* the newly created socket really belongs to the owning MPTCP master
 	 * socket, even if for additional subflows the allocation is performed

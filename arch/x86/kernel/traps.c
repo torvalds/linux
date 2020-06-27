@@ -91,7 +91,7 @@ int is_valid_bugaddr(unsigned long addr)
 	if (addr < TASK_SIZE_MAX)
 		return 0;
 
-	if (probe_kernel_address((unsigned short *)addr, ud))
+	if (get_kernel_nofault(ud, (unsigned short *)addr))
 		return 0;
 
 	return ud == INSN_UD0 || ud == INSN_UD2;
@@ -488,7 +488,8 @@ static enum kernel_gp_hint get_kernel_gp_address(struct pt_regs *regs,
 	u8 insn_buf[MAX_INSN_SIZE];
 	struct insn insn;
 
-	if (probe_kernel_read(insn_buf, (void *)regs->ip, MAX_INSN_SIZE))
+	if (copy_from_kernel_nofault(insn_buf, (void *)regs->ip,
+			MAX_INSN_SIZE))
 		return GP_NO_HINT;
 
 	kernel_insn_init(&insn, insn_buf, MAX_INSN_SIZE);
