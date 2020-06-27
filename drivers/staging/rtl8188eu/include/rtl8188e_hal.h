@@ -7,7 +7,6 @@
 #ifndef __RTL8188E_HAL_H__
 #define __RTL8188E_HAL_H__
 
-
 /* include HAL Related header after HAL Related compiling flags */
 #include "rtl8188e_spec.h"
 #include "hal8188e_phy_reg.h"
@@ -77,7 +76,6 @@ enum usb_rx_agg_mode {
 	      */
 
 #define MAX_TX_REPORT_BUFFER_SIZE		0x0400 /*  1k */
-
 
 /*  BK, BE, VI, VO, HCCA, MANAGEMENT, COMMAND, HIGH, BEACON. */
 #define MAX_TX_QUEUE			9
@@ -246,7 +244,6 @@ struct hal_data_8188e {
 	u8	CurrentBW2024GTxPwrIdx;
 	u8	CurrentBW4024GTxPwrIdx;
 
-
 	/*  Read/write are allow for following hardware information variables */
 	u8	framesync;
 	u32	framesyncC34;
@@ -284,7 +281,6 @@ struct hal_data_8188e {
 	u8	CurAntenna;
 	u8	AntDivCfg;
 	u8	TRxAntDivType;
-
 
 	u8	bDumpRxPkt;/* for debug */
 	u8	bDumpTxPkt;/* for debug */
@@ -334,7 +330,6 @@ void Hal_GetChnlGroup88E(u8 chnl, u8 *group);
 /*  rtl8188e_hal_init.c */
 void _8051Reset88E(struct adapter *padapter);
 void rtl8188e_InitializeFirmwareVars(struct adapter *padapter);
-
 
 s32 InitLLTTable(struct adapter *padapter, u8 txpktbuf_bndy);
 

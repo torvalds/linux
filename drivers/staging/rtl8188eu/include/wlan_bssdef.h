@@ -7,7 +7,6 @@
 #ifndef __WLAN_BSSDEF_H__
 #define __WLAN_BSSDEF_H__
 
-
 #define MAX_IE_SZ			768
 
 #define NDIS_802_11_LENGTH_SSID         32
@@ -61,8 +60,6 @@ struct ndis_802_11_fixed_ie {
 	u16  BeaconInterval;
 	u16  Capabilities;
 };
-
-
 
 struct ndis_802_11_var_ie {
 	u8  ElementID;

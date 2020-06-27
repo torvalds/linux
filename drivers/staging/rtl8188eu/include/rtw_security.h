@@ -37,7 +37,6 @@ enum {
 	ENCRYP_PROTOCOL_MAX
 };
 
-
 #ifndef Ndis802_11AuthModeWPA2
 #define Ndis802_11AuthModeWPA2 (Ndis802_11AuthModeWPANone + 1)
 #endif
@@ -209,7 +208,6 @@ do {									\
 	}								\
 } while (0)
 
-
 #define GET_TKIP_PN(iv, dot11txpn)					\
 do {									\
 	dot11txpn._byte_.TSC0 = iv[2];					\
@@ -219,7 +217,6 @@ do {									\
 	dot11txpn._byte_.TSC4 = iv[6];					\
 	dot11txpn._byte_.TSC5 = iv[7];					\
 } while (0)
-
 
 #define ROL32(A, n)	(((A) << (n)) | (((A)>>(32-(n)))  & ((1UL << (n)) - 1)))
 #define ROR32(A, n)	ROL32((A), 32-(n))

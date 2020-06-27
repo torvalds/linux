@@ -46,7 +46,6 @@ do {\
 	dot11txpn.val = (dot11txpn.val == 0xffffff) ? 0 : (dot11txpn.val+1);\
 } while (0)
 
-
 #define TKIP_IV(pattrib_iv, dot11txpn, keyidx)\
 do {\
 	pattrib_iv[0] = dot11txpn._byte_.TSC1;\

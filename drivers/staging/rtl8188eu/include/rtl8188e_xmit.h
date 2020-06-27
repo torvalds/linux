@@ -50,7 +50,6 @@
 #define FSG		BIT(27)
 #define OWN		BIT(31)
 
-
 /* OFFSET 4 */
 #define PKT_OFFSET_SZ		0
 #define QSEL_SHT		8
