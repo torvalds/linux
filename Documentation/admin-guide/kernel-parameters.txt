@@ -2788,7 +2788,7 @@
 			touchscreen support is not enabled in the mainstream
 			kernel as of 2.6.30, a preliminary port can be found
 			in the "bleeding edge" mini2440 support kernel at
-			http://repo.or.cz/w/linux-2.6/mini2440.git
+			https://repo.or.cz/w/linux-2.6/mini2440.git
 
 	mitigations=
 			[X86,PPC,S390,ARM64] Control optional mitigations for

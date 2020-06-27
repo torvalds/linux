@@ -904,7 +904,7 @@ temperatures:
 The mapping of thermal sensors to physical locations varies depending on
 system-board model (and thus, on ThinkPad model).
 
-http://thinkwiki.org/wiki/Thermal_Sensors is a public wiki page that
+https://thinkwiki.org/wiki/Thermal_Sensors is a public wiki page that
 tries to track down these locations for various models.
 
 Most (newer?) models seem to follow this pattern:
@@ -925,7 +925,7 @@ For the R51 (source: Thomas Gruber):
 - 3:  Internal HDD
 
 For the T43, T43/p (source: Shmidoax/Thinkwiki.org)
-http://thinkwiki.org/wiki/Thermal_Sensors#ThinkPad_T43.2C_T43p
+https://thinkwiki.org/wiki/Thermal_Sensors#ThinkPad_T43.2C_T43p
 
 - 2:  System board, left side (near PCMCIA slot), reported as HDAPS temp
 - 3:  PCMCIA slot
@@ -935,7 +935,7 @@ http://thinkwiki.org/wiki/Thermal_Sensors#ThinkPad_T43.2C_T43p
 - 11: Power regulator, underside of system board, below F2 key
 
 The A31 has a very atypical layout for the thermal sensors
-(source: Milos Popovic, http://thinkwiki.org/wiki/Thermal_Sensors#ThinkPad_A31)
+(source: Milos Popovic, https://thinkwiki.org/wiki/Thermal_Sensors#ThinkPad_A31)
 
 - 1:  CPU
 - 2:  Main Battery: main sensor
