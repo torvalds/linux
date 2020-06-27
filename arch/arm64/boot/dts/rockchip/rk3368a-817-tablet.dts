@@ -548,8 +548,7 @@
 		regulator-boot-on;
 		regulator-initial-state = <3>;
 		regulator-state-mem {
-			regulator-on-in-suspend;
-			regulator-suspend-microvolt = <900000>;
+			regulator-off-in-suspend;
 		};
 	};
 
@@ -563,7 +562,7 @@
 		pinctrl-0 = <&pmic_int>;
 		pinctrl-1 = <&soc_slppin_slp>, <&rk817_slppin_slp>;
 		pinctrl-2 = <&soc_slppin_gpio>, <&rk817_slppin_pwrdn>;
-		pinctrl-3 = <&soc_slppin_rst>, <&rk817_slppin_rst>;
+		pinctrl-3 = <&soc_slppin_slp>, <&rk817_slppin_slp>;
 		rockchip,system-power-controller;
 		wakeup-source;
 		#clock-cells = <1>;
@@ -652,12 +651,8 @@
 				regulator-name = "vcc_3v3";
 				regulator-always-on;
 				regulator-boot-on;
-				regulator-min-microvolt = <1100000>;
-				regulator-max-microvolt = <1100000>;
-				regulator-ramp-delay = <6001>;
 				regulator-state-mem {
 					regulator-on-in-suspend;
-					regulator-suspend-microvolt = <1100000>;
 				};
 			};
 
