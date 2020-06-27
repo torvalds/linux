@@ -377,6 +377,7 @@ static int dmz_do_reclaim(struct dmz_reclaim *zrc)
 			dmz_metadata_label(zmd), zrc->dev_idx);
 		return -EBUSY;
 	}
+	rzone = dzone;
 
 	start = jiffies;
 	if (dmz_is_cache(dzone) || dmz_is_rnd(dzone)) {
@@ -391,8 +392,6 @@ static int dmz_do_reclaim(struct dmz_reclaim *zrc)
 			 */
 			ret = dmz_reclaim_rnd_data(zrc, dzone);
 		}
-		rzone = dzone;
-
 	} else {
 		struct dm_zone *bzone = dzone->bzone;
 		sector_t chunk_block = 0;
@@ -415,7 +414,6 @@ static int dmz_do_reclaim(struct dmz_reclaim *zrc)
 			 * be later reclaimed.
 			 */
 			ret = dmz_reclaim_seq_data(zrc, dzone);
-			rzone = dzone;
 		}
 	}
 out:
