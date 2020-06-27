@@ -1716,19 +1716,20 @@ void blkcg_add_delay(struct blkcg_gq *blkg, u64 now, u64 delta)
 
 /**
  * blkg_tryget_closest - try and get a blkg ref on the closet blkg
- * @blkg: blkg to get
+ * @bio: target bio
+ * @css: target css
  *
- * This needs to be called rcu protected.  As the failure mode here is to walk
- * up the blkg tree, this ensure that the blkg->parent pointers are always
- * valid.  This returns the blkg that it ended up taking a reference on or %NULL
- * if no reference was taken.
+ * As the failure mode here is to walk up the blkg tree, this ensure that the
+ * blkg->parent pointers are always valid.  This returns the blkg that it ended
+ * up taking a reference on or %NULL if no reference was taken.
  */
-static inline struct blkcg_gq *blkg_tryget_closest(struct blkcg_gq *blkg)
+static inline struct blkcg_gq *blkg_tryget_closest(struct bio *bio,
+		struct cgroup_subsys_state *css)
 {
-	struct blkcg_gq *ret_blkg = NULL;
+	struct blkcg_gq *blkg, *ret_blkg = NULL;
 
-	WARN_ON_ONCE(!rcu_read_lock_held());
-
+	rcu_read_lock();
+	blkg = blkg_lookup_create(css_to_blkcg(css), bio->bi_disk->queue);
 	while (blkg) {
 		if (blkg_tryget(blkg)) {
 			ret_blkg = blkg;
@@ -1736,6 +1737,7 @@ static inline struct blkcg_gq *blkg_tryget_closest(struct blkcg_gq *blkg)
 		}
 		blkg = blkg->parent;
 	}
+	rcu_read_unlock();
 
 	return ret_blkg;
 }
@@ -1757,21 +1759,14 @@ static inline struct blkcg_gq *blkg_tryget_closest(struct blkcg_gq *blkg)
 void bio_associate_blkg_from_css(struct bio *bio,
 				 struct cgroup_subsys_state *css)
 {
-	struct request_queue *q = bio->bi_disk->queue;
-
 	if (bio->bi_blkg)
 		blkg_put(bio->bi_blkg);
 
 	if (css && css->parent) {
-		struct blkcg_gq *blkg;
-
-		rcu_read_lock();
-		blkg = blkg_lookup_create(css_to_blkcg(css), q);
-		bio->bi_blkg = blkg_tryget_closest(blkg);
-		rcu_read_unlock();
+		bio->bi_blkg = blkg_tryget_closest(bio, css);
 	} else {
-		blkg_get(q->root_blkg);
-		bio->bi_blkg = q->root_blkg;
+		blkg_get(bio->bi_disk->queue->root_blkg);
+		bio->bi_blkg = bio->bi_disk->queue->root_blkg;
 	}
 }
 EXPORT_SYMBOL_GPL(bio_associate_blkg_from_css);
