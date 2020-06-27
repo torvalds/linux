@@ -41,7 +41,6 @@ struct genl_info;
  *	Note that unbind() will not be called symmetrically if the
  *	generic netlink family is removed while there are still open
  *	sockets.
- * @attrbuf: buffer to store parsed attributes (private)
  * @mcgrps: multicast groups used by this family
  * @n_mcgrps: number of multicast groups
  * @mcgrp_offset: starting number of multicast group IDs in this family
@@ -66,7 +65,6 @@ struct genl_family {
 					     struct genl_info *info);
 	int			(*mcast_bind)(struct net *net, int group);
 	void			(*mcast_unbind)(struct net *net, int group);
-	struct nlattr **	attrbuf;	/* private */
 	const struct genl_ops *	ops;
 	const struct genl_multicast_group *mcgrps;
 	unsigned int		n_ops;
