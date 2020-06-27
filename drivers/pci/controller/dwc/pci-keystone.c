@@ -3,7 +3,7 @@
  * PCIe host controller driver for Texas Instruments Keystone SoCs
  *
  * Copyright (C) 2013-2014 Texas Instruments., Ltd.
- *		http://www.ti.com
+ *		https://www.ti.com
  *
  * Author: Murali Karicheri <m-karicheri2@ti.com>
  * Implementation based on pci-exynos.c and pcie-designware.c

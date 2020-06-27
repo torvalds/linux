@@ -557,12 +557,12 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x27B9, twinhead_reserve_killing_z
  * Device [8086:2fc0]
  * Erratum HSE43
  * CONFIG_TDP_NOMINAL CSR Implemented at Incorrect Offset
- * http://www.intel.com/content/www/us/en/processors/xeon/xeon-e5-v3-spec-update.html
+ * https://www.intel.com/content/www/us/en/processors/xeon/xeon-e5-v3-spec-update.html
  *
  * Devices [8086:6f60,6fa0,6fc0]
  * Erratum BDF2
  * PCI BARs in the Home Agent Will Return Non-Zero Values During Enumeration
- * http://www.intel.com/content/www/us/en/processors/xeon/xeon-e5-v4-spec-update.html
+ * https://www.intel.com/content/www/us/en/processors/xeon/xeon-e5-v4-spec-update.html
  */
 static void pci_invalid_bar(struct pci_dev *dev)
 {

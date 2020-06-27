@@ -17,7 +17,7 @@ PCI device drivers.
 A more complete resource is the third edition of "Linux Device Drivers"
 by Jonathan Corbet, Alessandro Rubini, and Greg Kroah-Hartman.
 LDD3 is available for free (under Creative Commons License) from:
-http://lwn.net/Kernel/LDD3/.
+https://lwn.net/Kernel/LDD3/.
 
 However, keep in mind that all documents are subject to "bit rot".
 Refer to the source code if things are not working as described here.
@@ -514,9 +514,8 @@ your driver if they're helpful, or just use plain hex constants.
 The device IDs are arbitrary hex numbers (vendor controlled) and normally used
 only in a single location, the pci_device_id table.
 
-Please DO submit new vendor/device IDs to http://pci-ids.ucw.cz/.
-There are mirrors of the pci.ids file at http://pciids.sourceforge.net/
-and https://github.com/pciutils/pciids.
+Please DO submit new vendor/device IDs to https://pci-ids.ucw.cz/.
+There's a mirror of the pci.ids file at https://github.com/pciutils/pciids.
 
 
 Obsolete functions
