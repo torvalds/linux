@@ -234,8 +234,12 @@ fallback:
 
 void bio_uninit(struct bio *bio)
 {
-	bio_disassociate_blkg(bio);
-
+#ifdef CONFIG_BLK_CGROUP
+	if (bio->bi_blkg) {
+		blkg_put(bio->bi_blkg);
+		bio->bi_blkg = NULL;
+	}
+#endif
 	if (bio_integrity(bio))
 		bio_integrity_free(bio);
 
@@ -1626,21 +1630,6 @@ EXPORT_SYMBOL(bioset_init_from_src);
 #ifdef CONFIG_BLK_CGROUP
 
 /**
- * bio_disassociate_blkg - puts back the blkg reference if associated
- * @bio: target bio
- *
- * Helper to disassociate the blkg from @bio if a blkg is associated.
- */
-void bio_disassociate_blkg(struct bio *bio)
-{
-	if (bio->bi_blkg) {
-		blkg_put(bio->bi_blkg);
-		bio->bi_blkg = NULL;
-	}
-}
-EXPORT_SYMBOL_GPL(bio_disassociate_blkg);
-
-/**
  * __bio_associate_blkg - associate a bio with the a blkg
  * @bio: target bio
  * @blkg: the blkg to associate
@@ -1656,8 +1645,8 @@ EXPORT_SYMBOL_GPL(bio_disassociate_blkg);
  */
 static void __bio_associate_blkg(struct bio *bio, struct blkcg_gq *blkg)
 {
-	bio_disassociate_blkg(bio);
-
+	if (bio->bi_blkg)
+		blkg_put(bio->bi_blkg);
 	bio->bi_blkg = blkg_tryget_closest(blkg);
 }
 
