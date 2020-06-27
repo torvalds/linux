@@ -1766,12 +1766,8 @@ static void io_free_req(struct io_kiocb *req)
 	io_req_find_next(req, &nxt);
 	__io_free_req(req);
 
-	if (nxt) {
-		if (nxt->flags & REQ_F_WORK_INITIALIZED)
-			io_queue_async_work(nxt);
-		else
-			io_req_task_queue(nxt);
-	}
+	if (nxt)
+		io_req_task_queue(nxt);
 }
 
 /*
