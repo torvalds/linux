@@ -19,7 +19,7 @@
 
 #define MLX5E_KTLS_PROGRESS_WQE_SZ \
 	(offsetof(struct mlx5e_tx_wqe, tls_progress_params_ctx) + \
-	 MLX5_ST_SZ_BYTES(tls_progress_params))
+	 sizeof(struct mlx5_wqe_tls_progress_params_seg))
 #define MLX5E_KTLS_PROGRESS_WQEBBS \
 	(DIV_ROUND_UP(MLX5E_KTLS_PROGRESS_WQE_SZ, MLX5_SEND_WQE_BB))
 

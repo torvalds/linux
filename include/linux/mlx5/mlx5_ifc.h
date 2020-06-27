@@ -10640,16 +10640,13 @@ struct mlx5_ifc_tls_static_params_bits {
 };
 
 struct mlx5_ifc_tls_progress_params_bits {
-	u8         reserved_at_0[0x8];
-	u8         tisn[0x18];
-
 	u8         next_record_tcp_sn[0x20];
 
 	u8         hw_resync_tcp_sn[0x20];
 
 	u8         record_tracker_state[0x2];
 	u8         auth_state[0x2];
-	u8         reserved_at_64[0x4];
+	u8         reserved_at_44[0x4];
 	u8         hw_offset_record_number[0x18];
 };
 

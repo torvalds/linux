@@ -182,7 +182,7 @@ mlx5e_notify_hw(struct mlx5_wq_cyc *wq, u16 pc, void __iomem *uar_map,
 
 static inline bool mlx5e_transport_inline_tx_wqe(struct mlx5_wqe_ctrl_seg *cseg)
 {
-	return cseg && !!cseg->tisn;
+	return cseg && !!cseg->tis_tir_num;
 }
 
 static inline u8
