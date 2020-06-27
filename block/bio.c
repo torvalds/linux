@@ -1628,52 +1628,33 @@ int bioset_init_from_src(struct bio_set *bs, struct bio_set *src)
 EXPORT_SYMBOL(bioset_init_from_src);
 
 #ifdef CONFIG_BLK_CGROUP
-
-/**
- * __bio_associate_blkg - associate a bio with the a blkg
- * @bio: target bio
- * @blkg: the blkg to associate
- *
- * This tries to associate @bio with the specified @blkg.  Association failure
- * is handled by walking up the blkg tree.  Therefore, the blkg associated can
- * be anything between @blkg and the root_blkg.  This situation only happens
- * when a cgroup is dying and then the remaining bios will spill to the closest
- * alive blkg.
- *
- * A reference will be taken on the @blkg and will be released when @bio is
- * freed.
- */
-static void __bio_associate_blkg(struct bio *bio, struct blkcg_gq *blkg)
-{
-	if (bio->bi_blkg)
-		blkg_put(bio->bi_blkg);
-	bio->bi_blkg = blkg_tryget_closest(blkg);
-}
-
 /**
  * bio_associate_blkg_from_css - associate a bio with a specified css
  * @bio: target bio
  * @css: target css
  *
  * Associate @bio with the blkg found by combining the css's blkg and the
- * request_queue of the @bio.  This falls back to the queue's root_blkg if
- * the association fails with the css.
+ * request_queue of the @bio.  An association failure is handled by walking up
+ * the blkg tree.  Therefore, the blkg associated can be anything between @blkg
+ * and q->root_blkg.  This situation only happens when a cgroup is dying and
+ * then the remaining bios will spill to the closest alive blkg.
+ *
+ * A reference will be taken on the blkg and will be released when @bio is
+ * freed.
  */
 void bio_associate_blkg_from_css(struct bio *bio,
 				 struct cgroup_subsys_state *css)
 {
 	struct request_queue *q = bio->bi_disk->queue;
-	struct blkcg_gq *blkg;
+	struct blkcg_gq *blkg = q->root_blkg;
+
+	if (bio->bi_blkg)
+		blkg_put(bio->bi_blkg);
 
 	rcu_read_lock();
-
-	if (!css || !css->parent)
-		blkg = q->root_blkg;
-	else
+	if (css && css->parent)
 		blkg = blkg_lookup_create(css_to_blkcg(css), q);
-
-	__bio_associate_blkg(bio, blkg);
-
+	bio->bi_blkg = blkg_tryget_closest(blkg);
 	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(bio_associate_blkg_from_css);
