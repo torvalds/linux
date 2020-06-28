@@ -892,6 +892,7 @@ enum io_mem_account {
 	ACCT_PINNED,
 };
 
+static bool io_rw_reissue(struct io_kiocb *req, long res);
 static void io_cqring_fill_event(struct io_kiocb *req, long res);
 static void io_put_req(struct io_kiocb *req);
 static void io_double_put_req(struct io_kiocb *req);
@@ -1873,14 +1874,9 @@ static void io_iopoll_queue(struct list_head *again)
 		req = list_first_entry(again, struct io_kiocb, list);
 		list_del(&req->list);
 
-		/* shouldn't happen unless io_uring is dying, cancel reqs */
-		if (unlikely(!current->mm)) {
+		/* should have ->mm unless io_uring is dying, kill reqs then */
+		if (unlikely(!current->mm) || !io_rw_reissue(req, -EAGAIN))
 			io_complete_rw_common(&req->rw.kiocb, -EAGAIN, NULL);
-			continue;
-		}
-
-		refcount_inc(&req->refs);
-		io_queue_async_work(req);
 	} while (!list_empty(again));
 }
 
@@ -2387,6 +2383,7 @@ static int io_prep_rw(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 		kiocb->ki_flags |= IOCB_HIPRI;
 		kiocb->ki_complete = io_complete_rw_iopoll;
 		req->iopoll_completed = 0;
+		io_get_req_task(req);
 	} else {
 		if (kiocb->ki_flags & IOCB_HIPRI)
 			return -EINVAL;
