@@ -46,7 +46,7 @@ struct wep_key {
  */
 static int ks_wlan_open(struct net_device *dev);
 static void ks_wlan_tx_timeout(struct net_device *dev, unsigned int txqueue);
-static int ks_wlan_start_xmit(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t ks_wlan_start_xmit(struct sk_buff *skb, struct net_device *dev);
 static int ks_wlan_close(struct net_device *dev);
 static void ks_wlan_set_rx_mode(struct net_device *dev);
 static struct net_device_stats *ks_wlan_get_stats(struct net_device *dev);
@@ -2511,7 +2511,7 @@ void ks_wlan_tx_timeout(struct net_device *dev, unsigned int txqueue)
 }
 
 static
-int ks_wlan_start_xmit(struct sk_buff *skb, struct net_device *dev)
+netdev_tx_t ks_wlan_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ks_wlan_private *priv = netdev_priv(dev);
 	int ret;
