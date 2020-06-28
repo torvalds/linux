@@ -641,6 +641,17 @@ struct hinic_pause_config {
 	u32	tx_pause;
 };
 
+struct hinic_set_pfc {
+	u8	status;
+	u8	version;
+	u8	rsvd0[6];
+
+	u16	func_id;
+	u8	pfc_en;
+	u8	pfc_bitmap;
+	u8	rsvd1[4];
+};
+
 int hinic_port_add_mac(struct hinic_dev *nic_dev, const u8 *addr,
 		       u16 vlan_id);
 
@@ -735,6 +746,8 @@ int hinic_get_hw_pause_info(struct hinic_hwdev *hwdev,
 
 int hinic_set_hw_pause_info(struct hinic_hwdev *hwdev,
 			    struct hinic_pause_config *pause_info);
+
+int hinic_dcb_set_pfc(struct hinic_hwdev *hwdev, u8 pfc_en, u8 pfc_bitmap);
 
 int hinic_open(struct net_device *netdev);
 

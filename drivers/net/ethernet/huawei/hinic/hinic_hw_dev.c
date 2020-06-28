@@ -777,6 +777,8 @@ struct hinic_hwdev *hinic_init_hwdev(struct pci_dev *pdev)
 		goto err_dev_cap;
 	}
 
+	mutex_init(&hwdev->func_to_io.nic_cfg.cfg_mutex);
+
 	err = hinic_vf_func_init(hwdev);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to init nic mbox\n");

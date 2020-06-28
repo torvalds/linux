@@ -1082,6 +1082,7 @@ int hinic_get_link_mode(struct hinic_hwdev *hwdev,
 	if (!hwdev || !link_mode)
 		return -EINVAL;
 
+	link_mode->func_id = HINIC_HWIF_FUNC_IDX(hwdev->hwif);
 	out_size = sizeof(*link_mode);
 
 	err = hinic_port_msg_cmd(hwdev, HINIC_PORT_CMD_GET_LINK_MODE,
@@ -1172,6 +1173,8 @@ int hinic_get_hw_pause_info(struct hinic_hwdev *hwdev,
 	u16 out_size = sizeof(*pause_info);
 	int err;
 
+	pause_info->func_id = HINIC_HWIF_FUNC_IDX(hwdev->hwif);
+
 	err = hinic_port_msg_cmd(hwdev, HINIC_PORT_CMD_GET_PAUSE_INFO,
 				 pause_info, sizeof(*pause_info),
 				 pause_info, &out_size);
@@ -1190,6 +1193,8 @@ int hinic_set_hw_pause_info(struct hinic_hwdev *hwdev,
 	u16 out_size = sizeof(*pause_info);
 	int err;
 
+	pause_info->func_id = HINIC_HWIF_FUNC_IDX(hwdev->hwif);
+
 	err = hinic_port_msg_cmd(hwdev, HINIC_PORT_CMD_SET_PAUSE_INFO,
 				 pause_info, sizeof(*pause_info),
 				 pause_info, &out_size);
@@ -1198,6 +1203,41 @@ int hinic_set_hw_pause_info(struct hinic_hwdev *hwdev,
 			err, pause_info->status, out_size);
 		return -EIO;
 	}
+
+	return 0;
+}
+
+int hinic_dcb_set_pfc(struct hinic_hwdev *hwdev, u8 pfc_en, u8 pfc_bitmap)
+{
+	struct hinic_nic_cfg *nic_cfg = &hwdev->func_to_io.nic_cfg;
+	struct hinic_set_pfc pfc = {0};
+	u16 out_size = sizeof(pfc);
+	int err;
+
+	if (HINIC_IS_VF(hwdev->hwif))
+		return 0;
+
+	mutex_lock(&nic_cfg->cfg_mutex);
+
+	pfc.func_id = HINIC_HWIF_FUNC_IDX(hwdev->hwif);
+	pfc.pfc_bitmap = pfc_bitmap;
+	pfc.pfc_en = pfc_en;
+
+	err = hinic_port_msg_cmd(hwdev, HINIC_PORT_CMD_SET_PFC,
+				 &pfc, sizeof(pfc), &pfc, &out_size);
+	if (err || pfc.status || !out_size) {
+		dev_err(&hwdev->hwif->pdev->dev, "Failed to %s pfc, err: %d, status: 0x%x, out size: 0x%x\n",
+			pfc_en ? "enable" : "disable", err, pfc.status,
+			out_size);
+		mutex_unlock(&nic_cfg->cfg_mutex);
+		return -EIO;
+	}
+
+	/* pause settings is opposite from pfc */
+	nic_cfg->rx_pause = pfc_en ? 0 : 1;
+	nic_cfg->tx_pause = pfc_en ? 0 : 1;
+
+	mutex_unlock(&nic_cfg->cfg_mutex);
 
 	return 0;
 }

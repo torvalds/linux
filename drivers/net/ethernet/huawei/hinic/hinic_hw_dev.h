@@ -48,6 +48,8 @@ enum hinic_port_cmd {
 	HINIC_PORT_CMD_ADD_VLAN         = 3,
 	HINIC_PORT_CMD_DEL_VLAN         = 4,
 
+	HINIC_PORT_CMD_SET_PFC		= 5,
+
 	HINIC_PORT_CMD_SET_MAC          = 9,
 	HINIC_PORT_CMD_GET_MAC          = 10,
 	HINIC_PORT_CMD_DEL_MAC          = 11,

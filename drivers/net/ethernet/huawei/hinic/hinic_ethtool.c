@@ -613,6 +613,64 @@ static int hinic_set_ringparam(struct net_device *netdev,
 
 	return 0;
 }
+
+static void hinic_get_pauseparam(struct net_device *netdev,
+				 struct ethtool_pauseparam *pause)
+{
+	struct hinic_dev *nic_dev = netdev_priv(netdev);
+	struct hinic_pause_config pause_info = {0};
+	struct hinic_nic_cfg *nic_cfg;
+	int err;
+
+	nic_cfg = &nic_dev->hwdev->func_to_io.nic_cfg;
+
+	err = hinic_get_hw_pause_info(nic_dev->hwdev, &pause_info);
+	if (!err) {
+		pause->autoneg = pause_info.auto_neg;
+		if (nic_cfg->pause_set || !pause_info.auto_neg) {
+			pause->rx_pause = nic_cfg->rx_pause;
+			pause->tx_pause = nic_cfg->tx_pause;
+		} else {
+			pause->rx_pause = pause_info.rx_pause;
+			pause->tx_pause = pause_info.tx_pause;
+		}
+	}
+}
+
+static int hinic_set_pauseparam(struct net_device *netdev,
+				struct ethtool_pauseparam *pause)
+{
+	struct hinic_dev *nic_dev = netdev_priv(netdev);
+	struct hinic_pause_config pause_info = {0};
+	struct hinic_port_cap port_cap = {0};
+	int err;
+
+	err = hinic_port_get_cap(nic_dev, &port_cap);
+	if (err)
+		return -EIO;
+
+	if (pause->autoneg != port_cap.autoneg_state)
+		return -EOPNOTSUPP;
+
+	pause_info.auto_neg = pause->autoneg;
+	pause_info.rx_pause = pause->rx_pause;
+	pause_info.tx_pause = pause->tx_pause;
+
+	mutex_lock(&nic_dev->hwdev->func_to_io.nic_cfg.cfg_mutex);
+	err = hinic_set_hw_pause_info(nic_dev->hwdev, &pause_info);
+	if (err) {
+		mutex_unlock(&nic_dev->hwdev->func_to_io.nic_cfg.cfg_mutex);
+		return err;
+	}
+	nic_dev->hwdev->func_to_io.nic_cfg.pause_set = true;
+	nic_dev->hwdev->func_to_io.nic_cfg.auto_neg = pause->autoneg;
+	nic_dev->hwdev->func_to_io.nic_cfg.rx_pause = pause->rx_pause;
+	nic_dev->hwdev->func_to_io.nic_cfg.tx_pause = pause->tx_pause;
+	mutex_unlock(&nic_dev->hwdev->func_to_io.nic_cfg.cfg_mutex);
+
+	return 0;
+}
+
 static void hinic_get_channels(struct net_device *netdev,
 			       struct ethtool_channels *channels)
 {
@@ -1241,6 +1299,27 @@ static const struct ethtool_ops hinic_ethtool_ops = {
 	.get_link = ethtool_op_get_link,
 	.get_ringparam = hinic_get_ringparam,
 	.set_ringparam = hinic_set_ringparam,
+	.get_pauseparam = hinic_get_pauseparam,
+	.set_pauseparam = hinic_set_pauseparam,
+	.get_channels = hinic_get_channels,
+	.set_channels = hinic_set_channels,
+	.get_rxnfc = hinic_get_rxnfc,
+	.set_rxnfc = hinic_set_rxnfc,
+	.get_rxfh_key_size = hinic_get_rxfh_key_size,
+	.get_rxfh_indir_size = hinic_get_rxfh_indir_size,
+	.get_rxfh = hinic_get_rxfh,
+	.set_rxfh = hinic_set_rxfh,
+	.get_sset_count = hinic_get_sset_count,
+	.get_ethtool_stats = hinic_get_ethtool_stats,
+	.get_strings = hinic_get_strings,
+};
+
+static const struct ethtool_ops hinicvf_ethtool_ops = {
+	.get_link_ksettings = hinic_get_link_ksettings,
+	.get_drvinfo = hinic_get_drvinfo,
+	.get_link = ethtool_op_get_link,
+	.get_ringparam = hinic_get_ringparam,
+	.set_ringparam = hinic_set_ringparam,
 	.get_channels = hinic_get_channels,
 	.set_channels = hinic_set_channels,
 	.get_rxnfc = hinic_get_rxnfc,
@@ -1256,5 +1335,10 @@ static const struct ethtool_ops hinic_ethtool_ops = {
 
 void hinic_set_ethtool_ops(struct net_device *netdev)
 {
-	netdev->ethtool_ops = &hinic_ethtool_ops;
+	struct hinic_dev *nic_dev = netdev_priv(netdev);
+
+	if (!HINIC_IS_VF(nic_dev->hwdev->hwif))
+		netdev->ethtool_ops = &hinic_ethtool_ops;
+	else
+		netdev->ethtool_ops = &hinicvf_ethtool_ops;
 }
