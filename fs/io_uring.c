@@ -526,7 +526,6 @@ enum {
 	REQ_F_BUFFER_SELECT_BIT	= IOSQE_BUFFER_SELECT_BIT,
 
 	REQ_F_LINK_HEAD_BIT,
-	REQ_F_LINK_NEXT_BIT,
 	REQ_F_FAIL_LINK_BIT,
 	REQ_F_INFLIGHT_BIT,
 	REQ_F_CUR_POS_BIT,
@@ -565,8 +564,6 @@ enum {
 
 	/* head of a link */
 	REQ_F_LINK_HEAD		= BIT(REQ_F_LINK_HEAD_BIT),
-	/* already grabbed next link */
-	REQ_F_LINK_NEXT		= BIT(REQ_F_LINK_NEXT_BIT),
 	/* fail rest of links */
 	REQ_F_FAIL_LINK		= BIT(REQ_F_FAIL_LINK_BIT),
 	/* on inflight list */
@@ -1559,10 +1556,6 @@ static void io_req_link_next(struct io_kiocb *req, struct io_kiocb **nxtptr)
 	struct io_ring_ctx *ctx = req->ctx;
 	bool wake_ev = false;
 
-	/* Already got next link */
-	if (req->flags & REQ_F_LINK_NEXT)
-		return;
-
 	/*
 	 * The list should never be empty when we are called here. But could
 	 * potentially happen if the chain is messed up, check to be on the
@@ -1587,7 +1580,6 @@ static void io_req_link_next(struct io_kiocb *req, struct io_kiocb **nxtptr)
 		break;
 	}
 
-	req->flags |= REQ_F_LINK_NEXT;
 	if (wake_ev)
 		io_cqring_ev_posted(ctx);
 }
@@ -1628,6 +1620,7 @@ static void io_req_find_next(struct io_kiocb *req, struct io_kiocb **nxt)
 {
 	if (likely(!(req->flags & REQ_F_LINK_HEAD)))
 		return;
+	req->flags &= ~REQ_F_LINK_HEAD;
 
 	/*
 	 * If LINK is set, we have dependent requests in this chain. If we
