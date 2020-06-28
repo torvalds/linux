@@ -80,6 +80,8 @@ static volatile unsigned char *via;
 /* ADB command byte structure */
 #define ADDR_MASK	0xF0
 #define CMD_MASK	0x0F
+#define OP_MASK		0x0C
+#define TALK		0x0C
 
 static int macii_init_via(void);
 static void macii_start(void);
@@ -119,9 +121,10 @@ static int reading_reply;        /* store reply in reply_buf else req->reply */
 static int data_index;      /* index of the next byte to send from req->data */
 static int reply_len; /* number of bytes received in reply_buf or req->reply */
 static int status;          /* VIA's ADB status bits captured upon interrupt */
-static int last_status;              /* status bits as at previous interrupt */
-static int srq_asserted;     /* have to poll for the device that asserted it */
+static bool bus_timeout;                   /* no data was sent by the device */
+static bool srq_asserted;    /* have to poll for the device that asserted it */
 static u8 last_cmd;              /* the most recent command byte transmitted */
+static u8 last_talk_cmd;    /* the most recent Talk command byte transmitted */
 static u8 last_poll_cmd; /* the most recent Talk R0 command byte transmitted */
 static int autopoll_devs;      /* bits set are device addresses to be polled */
 
@@ -170,7 +173,6 @@ static int macii_init_via(void)
 
 	/* Set up state: idle */
 	via[B] |= ST_IDLE;
-	last_status = via[B] & (ST_MASK | CTLR_IRQ);
 
 	/* Shift register on input */
 	via[ACR] = (via[ACR] & ~SR_CTRL) | SR_EXT;
@@ -336,13 +338,6 @@ static void macii_start(void)
 	 * And req->nbytes is the number of bytes of real data plus one.
 	 */
 
-	/* store command byte */
-	last_cmd = req->data[1];
-
-	/* If this is a Talk Register 0 command, store the command byte */
-	if ((last_cmd & CMD_MASK) == ADB_READREG(0, 0))
-		last_poll_cmd = last_cmd;
-
 	/* Output mode */
 	via[ACR] |= SR_OUT;
 	/* Load data */
@@ -352,6 +347,9 @@ static void macii_start(void)
 
 	macii_state = sending;
 	data_index = 2;
+
+	bus_timeout = false;
+	srq_asserted = false;
 }
 
 /*
@@ -360,15 +358,17 @@ static void macii_start(void)
  * generating shift register interrupts (SR_INT) for us. This means there has
  * to be activity on the ADB bus. The chip will poll to achieve this.
  *
- * The basic ADB state machine was left unchanged from the original MacII code
- * by Alan Cox, which was based on the CUDA driver for PowerMac.
- * The syntax of the ADB status lines is totally different on MacII,
- * though. MacII uses the states Command -> Even -> Odd -> Even ->...-> Idle
- * for sending and Idle -> Even -> Odd -> Even ->...-> Idle for receiving.
- * Start and end of a receive packet are signalled by asserting /IRQ on the
- * interrupt line (/IRQ means the CTLR_IRQ bit in port B; not to be confused
- * with the VIA shift register interrupt. /IRQ never actually interrupts the
- * processor, it's just an ordinary input.)
+ * The VIA Port B output signalling works as follows. After the ADB transceiver
+ * sees a transition on the PB4 and PB5 lines it will crank over the VIA shift
+ * register which eventually raises the SR_INT interrupt. The PB4/PB5 outputs
+ * are toggled with each byte as the ADB transaction progresses.
+ *
+ * Request with no reply expected (and empty transceiver buffer):
+ *     CMD -> IDLE
+ * Request with expected reply packet (or with buffered autopoll packet):
+ *     CMD -> EVEN -> ODD -> EVEN -> ... -> IDLE
+ * Unsolicited packet:
+ *     IDLE -> EVEN -> ODD -> EVEN -> ... -> IDLE
  */
 static irqreturn_t macii_interrupt(int irq, void *arg)
 {
@@ -388,31 +388,31 @@ static irqreturn_t macii_interrupt(int irq, void *arg)
 		}
 	}
 
-	last_status = status;
 	status = via[B] & (ST_MASK | CTLR_IRQ);
 
 	switch (macii_state) {
 	case idle:
-		if (reading_reply) {
-			reply_ptr = current_req->reply;
-		} else {
-			WARN_ON(current_req);
-			reply_ptr = reply_buf;
-		}
+		WARN_ON((status & ST_MASK) != ST_IDLE);
+
+		reply_ptr = reply_buf;
+		reading_reply = 0;
+
+		bus_timeout = false;
+		srq_asserted = false;
 
 		x = via[SR];
 
-		if ((status & CTLR_IRQ) && (x == 0xFF)) {
-			/* Bus timeout without SRQ sequence:
-			 *     data is "FF" while CTLR_IRQ is "H"
+		if (!(status & CTLR_IRQ)) {
+			/* /CTLR_IRQ asserted in idle state means we must
+			 * read an autopoll reply from the transceiver buffer.
 			 */
-			reply_len = 0;
-			srq_asserted = 0;
-			macii_state = read_done;
-		} else {
 			macii_state = reading;
 			*reply_ptr = x;
 			reply_len = 1;
+		} else {
+			/* bus timeout */
+			macii_state = read_done;
+			reply_len = 0;
 		}
 
 		/* set ADB state = even for first data byte */
@@ -421,13 +421,52 @@ static irqreturn_t macii_interrupt(int irq, void *arg)
 
 	case sending:
 		req = current_req;
-		if (data_index >= req->nbytes) {
+
+		if (status == (ST_CMD | CTLR_IRQ)) {
+			/* /CTLR_IRQ de-asserted after the command byte means
+			 * the host can continue with the transaction.
+			 */
+
+			/* Store command byte */
+			last_cmd = req->data[1];
+			if ((last_cmd & OP_MASK) == TALK) {
+				last_talk_cmd = last_cmd;
+				if ((last_cmd & CMD_MASK) == ADB_READREG(0, 0))
+					last_poll_cmd = last_cmd;
+			}
+		}
+
+		if (status == ST_CMD) {
+			/* /CTLR_IRQ asserted after the command byte means we
+			 * must read an autopoll reply. The first byte was
+			 * lost because the shift register was an output.
+			 */
+			macii_state = reading;
+
+			reading_reply = 0;
+			reply_ptr = reply_buf;
+			*reply_ptr = last_talk_cmd;
+			reply_len = 1;
+
+			/* reset to shift in */
+			via[ACR] &= ~SR_OUT;
+			x = via[SR];
+		} else if (data_index >= req->nbytes) {
 			req->sent = 1;
-			macii_state = idle;
 
 			if (req->reply_expected) {
+				macii_state = reading;
+
 				reading_reply = 1;
+				reply_ptr = req->reply;
+				*reply_ptr = req->data[1];
+				reply_len = 1;
+
+				via[ACR] &= ~SR_OUT;
+				x = via[SR];
 			} else {
+				macii_state = idle;
+
 				req->complete = 1;
 				current_req = req->next;
 				if (req->done)
@@ -438,25 +477,26 @@ static irqreturn_t macii_interrupt(int irq, void *arg)
 
 				if (current_req && macii_state == idle)
 					macii_start();
-			}
 
-			if (macii_state == idle) {
-				/* reset to shift in */
-				via[ACR] &= ~SR_OUT;
-				x = via[SR];
-				/* set ADB state idle - might get SRQ */
-				via[B] = (via[B] & ~ST_MASK) | ST_IDLE;
+				if (macii_state == idle) {
+					/* reset to shift in */
+					via[ACR] &= ~SR_OUT;
+					x = via[SR];
+					/* set ADB state idle - might get SRQ */
+					via[B] = (via[B] & ~ST_MASK) | ST_IDLE;
+				}
+				break;
 			}
 		} else {
 			via[SR] = req->data[data_index++];
+		}
 
-			if ((via[B] & ST_MASK) == ST_CMD) {
-				/* just sent the command byte, set to EVEN */
-				via[B] = (via[B] & ~ST_MASK) | ST_EVEN;
-			} else {
-				/* invert state bits, toggle ODD/EVEN */
-				via[B] ^= ST_MASK;
-			}
+		if ((via[B] & ST_MASK) == ST_CMD) {
+			/* just sent the command byte, set to EVEN */
+			via[B] = (via[B] & ~ST_MASK) | ST_EVEN;
+		} else {
+			/* invert state bits, toggle ODD/EVEN */
+			via[B] ^= ST_MASK;
 		}
 		break;
 
@@ -465,28 +505,13 @@ static irqreturn_t macii_interrupt(int irq, void *arg)
 		WARN_ON((status & ST_MASK) == ST_CMD ||
 			(status & ST_MASK) == ST_IDLE);
 
-		/* Bus timeout with SRQ sequence:
-		 *     data is "XX FF"      while CTLR_IRQ is "L L"
-		 * End of packet without SRQ sequence:
-		 *     data is "XX...YY 00" while CTLR_IRQ is "L...H L"
-		 * End of packet SRQ sequence:
-		 *     data is "XX...YY 00" while CTLR_IRQ is "L...L L"
-		 * (where XX is the first response byte and
-		 * YY is the last byte of valid response data.)
-		 */
-
-		srq_asserted = 0;
 		if (!(status & CTLR_IRQ)) {
-			if (x == 0xFF) {
-				if (!(last_status & CTLR_IRQ)) {
-					macii_state = read_done;
-					reply_len = 0;
-					srq_asserted = 1;
-				}
-			} else if (x == 0x00) {
+			if (status == ST_EVEN && reply_len == 1) {
+				bus_timeout = true;
+			} else if (status == ST_ODD && reply_len == 2) {
+				srq_asserted = true;
+			} else {
 				macii_state = read_done;
-				if (!(last_status & CTLR_IRQ))
-					srq_asserted = 1;
 			}
 		}
 
@@ -503,6 +528,9 @@ static irqreturn_t macii_interrupt(int irq, void *arg)
 
 	case read_done:
 		x = via[SR];
+
+		if (bus_timeout)
+			reply_len = 0;
 
 		if (reading_reply) {
 			reading_reply = 0;
