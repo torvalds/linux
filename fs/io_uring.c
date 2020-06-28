@@ -1540,22 +1540,16 @@ static void __io_free_req(struct io_kiocb *req)
 struct req_batch {
 	void *reqs[IO_IOPOLL_BATCH];
 	int to_free;
-	int need_iter;
 };
 
 static void io_free_req_many(struct io_ring_ctx *ctx, struct req_batch *rb)
 {
 	if (!rb->to_free)
 		return;
-	if (rb->need_iter) {
-		int i;
 
-		for (i = 0; i < rb->to_free; i++)
-			io_dismantle_req(rb->reqs[i]);
-	}
 	kmem_cache_free_bulk(req_cachep, rb->to_free, rb->reqs);
 	percpu_ref_put_many(&ctx->refs, rb->to_free);
-	rb->to_free = rb->need_iter = 0;
+	rb->to_free = 0;
 }
 
 static bool io_link_cancel_timeout(struct io_kiocb *req)
@@ -1846,9 +1840,7 @@ static inline bool io_req_multi_free(struct req_batch *rb, struct io_kiocb *req)
 	if ((req->flags & REQ_F_LINK_HEAD) || io_is_fallback_req(req))
 		return false;
 
-	if (req->file || req->io)
-		rb->need_iter++;
-
+	io_dismantle_req(req);
 	rb->reqs[rb->to_free++] = req;
 	if (unlikely(rb->to_free == ARRAY_SIZE(rb->reqs)))
 		io_free_req_many(req->ctx, rb);
@@ -1900,7 +1892,7 @@ static void io_iopoll_complete(struct io_ring_ctx *ctx, unsigned int *nr_events,
 	/* order with ->result store in io_complete_rw_iopoll() */
 	smp_rmb();
 
-	rb.to_free = rb.need_iter = 0;
+	rb.to_free = 0;
 	while (!list_empty(done)) {
 		int cflags = 0;
 
