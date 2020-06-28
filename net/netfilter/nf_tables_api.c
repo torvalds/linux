@@ -702,7 +702,8 @@ static void nf_tables_table_notify(const struct nft_ctx *ctx, int event)
 			ctx->table->use,
 			event == NFT_MSG_NEWTABLE ?
 				AUDIT_NFT_OP_TABLE_REGISTER :
-				AUDIT_NFT_OP_TABLE_UNREGISTER);
+				AUDIT_NFT_OP_TABLE_UNREGISTER,
+			GFP_KERNEL);
 	kfree(buf);
 
 	if (!ctx->report &&
@@ -1448,7 +1449,8 @@ static void nf_tables_chain_notify(const struct nft_ctx *ctx, int event)
 			ctx->chain->use,
 			event == NFT_MSG_NEWCHAIN ?
 				AUDIT_NFT_OP_CHAIN_REGISTER :
-				AUDIT_NFT_OP_CHAIN_UNREGISTER);
+				AUDIT_NFT_OP_CHAIN_UNREGISTER,
+			GFP_KERNEL);
 	kfree(buf);
 
 	if (!ctx->report &&
@@ -2724,7 +2726,8 @@ static void nf_tables_rule_notify(const struct nft_ctx *ctx,
 			rule->handle,
 			event == NFT_MSG_NEWRULE ?
 				AUDIT_NFT_OP_RULE_REGISTER :
-				AUDIT_NFT_OP_RULE_UNREGISTER);
+				AUDIT_NFT_OP_RULE_UNREGISTER,
+			GFP_KERNEL);
 	kfree(buf);
 
 	if (!ctx->report &&
@@ -3737,7 +3740,8 @@ static void nf_tables_set_notify(const struct nft_ctx *ctx,
 			set->field_count,
 			event == NFT_MSG_NEWSET ?
 				AUDIT_NFT_OP_SET_REGISTER :
-				AUDIT_NFT_OP_SET_UNREGISTER);
+				AUDIT_NFT_OP_SET_UNREGISTER,
+			gfp_flags);
 	kfree(buf);
 
 	if (!ctx->report &&
@@ -4864,7 +4868,8 @@ static void nf_tables_setelem_notify(const struct nft_ctx *ctx,
 			set->handle,
 			event == NFT_MSG_NEWSETELEM ?
 				AUDIT_NFT_OP_SETELEM_REGISTER :
-				AUDIT_NFT_OP_SETELEM_UNREGISTER);
+				AUDIT_NFT_OP_SETELEM_UNREGISTER,
+			GFP_KERNEL);
 	kfree(buf);
 
 	if (!ctx->report && !nfnetlink_has_listeners(net, NFNLGRP_NFTABLES))
@@ -5956,7 +5961,8 @@ static int nf_tables_dump_obj(struct sk_buff *skb, struct netlink_callback *cb)
 				audit_log_nfcfg(buf,
 						family,
 						obj->handle,
-						AUDIT_NFT_OP_OBJ_RESET);
+						AUDIT_NFT_OP_OBJ_RESET,
+						GFP_KERNEL);
 				kfree(buf);
 			}
 
@@ -6071,13 +6077,14 @@ static int nf_tables_getobj(struct net *net, struct sock *nlsk,
 		reset = true;
 
 	if (reset) {
-		char *buf = kasprintf(GFP_KERNEL, "%s:%llu;?:0",
+		char *buf = kasprintf(GFP_ATOMIC, "%s:%llu;?:0",
 				      table->name, table->handle);
 
 		audit_log_nfcfg(buf,
 				family,
 				obj->handle,
-				AUDIT_NFT_OP_OBJ_RESET);
+				AUDIT_NFT_OP_OBJ_RESET,
+				GFP_KERNEL);
 		kfree(buf);
 	}
 
@@ -6156,7 +6163,7 @@ void nft_obj_notify(struct net *net, const struct nft_table *table,
 {
 	struct sk_buff *skb;
 	int err;
-	char *buf = kasprintf(GFP_KERNEL, "%s:%llu;?:0",
+	char *buf = kasprintf(gfp, "%s:%llu;?:0",
 			      table->name, table->handle);
 
 	audit_log_nfcfg(buf,
@@ -6164,7 +6171,8 @@ void nft_obj_notify(struct net *net, const struct nft_table *table,
 			obj->handle,
 			event == NFT_MSG_NEWOBJ ?
 				AUDIT_NFT_OP_OBJ_REGISTER :
-				AUDIT_NFT_OP_OBJ_UNREGISTER);
+				AUDIT_NFT_OP_OBJ_UNREGISTER,
+			GFP_KERNEL);
 	kfree(buf);
 
 	if (!report &&
@@ -6954,7 +6962,8 @@ static void nf_tables_flowtable_notify(struct nft_ctx *ctx,
 			flowtable->hooknum,
 			event == NFT_MSG_NEWFLOWTABLE ?
 				AUDIT_NFT_OP_FLOWTABLE_REGISTER :
-				AUDIT_NFT_OP_FLOWTABLE_UNREGISTER);
+				AUDIT_NFT_OP_FLOWTABLE_UNREGISTER,
+			GFP_KERNEL);
 	kfree(buf);
 
 	if (ctx->report &&
@@ -7078,7 +7087,7 @@ static void nf_tables_gen_notify(struct net *net, struct sk_buff *skb,
 	int err;
 
 	audit_log_nfcfg("?:0;?:0", 0, net->nft.base_seq,
-			AUDIT_NFT_OP_GEN_REGISTER);
+			AUDIT_NFT_OP_GEN_REGISTER, GFP_KERNEL);
 
 	if (nlmsg_report(nlh) &&
 	    !nfnetlink_has_listeners(net, NFNLGRP_NFTABLES))

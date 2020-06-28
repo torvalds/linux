@@ -404,7 +404,7 @@ extern void __audit_fanotify(unsigned int response);
 extern void __audit_tk_injoffset(struct timespec64 offset);
 extern void __audit_ntp_log(const struct audit_ntp_data *ad);
 extern void __audit_log_nfcfg(const char *name, u8 af, unsigned int nentries,
-			      enum audit_nfcfgop op);
+			      enum audit_nfcfgop op, gfp_t gfp);
 
 static inline void audit_ipc_obj(struct kern_ipc_perm *ipcp)
 {
@@ -542,10 +542,10 @@ static inline void audit_ntp_log(const struct audit_ntp_data *ad)
 
 static inline void audit_log_nfcfg(const char *name, u8 af,
 				   unsigned int nentries,
-				   enum audit_nfcfgop op)
+				   enum audit_nfcfgop op, gfp_t gfp)
 {
 	if (audit_enabled)
-		__audit_log_nfcfg(name, af, nentries, op);
+		__audit_log_nfcfg(name, af, nentries, op, gfp);
 }
 
 extern int audit_n_rules;
@@ -683,7 +683,7 @@ static inline void audit_ptrace(struct task_struct *t)
 
 static inline void audit_log_nfcfg(const char *name, u8 af,
 				   unsigned int nentries,
-				   enum audit_nfcfgop op)
+				   enum audit_nfcfgop op, gfp_t gfp)
 { }
 
 #define audit_n_rules 0

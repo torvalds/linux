@@ -2572,12 +2572,12 @@ void __audit_ntp_log(const struct audit_ntp_data *ad)
 }
 
 void __audit_log_nfcfg(const char *name, u8 af, unsigned int nentries,
-		       enum audit_nfcfgop op)
+		       enum audit_nfcfgop op, gfp_t gfp)
 {
 	struct audit_buffer *ab;
 	char comm[sizeof(current->comm)];
 
-	ab = audit_log_start(audit_context(), GFP_KERNEL, AUDIT_NETFILTER_CFG);
+	ab = audit_log_start(audit_context(), gfp, AUDIT_NETFILTER_CFG);
 	if (!ab)
 		return;
 	audit_log_format(ab, "table=%s family=%u entries=%u op=%s",
