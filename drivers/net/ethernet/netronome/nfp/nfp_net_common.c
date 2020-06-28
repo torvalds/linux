@@ -974,7 +974,7 @@ static int nfp_net_prep_tx_meta(struct sk_buff *skb, u64 tls_handle)
  *
  * Return: NETDEV_TX_OK on success.
  */
-static int nfp_net_tx(struct sk_buff *skb, struct net_device *netdev)
+static netdev_tx_t nfp_net_tx(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct nfp_net *nn = netdev_priv(netdev);
 	const skb_frag_t *frag;
