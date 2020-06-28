@@ -313,7 +313,7 @@ static void macii_poll(void)
 /* Reset the bus */
 static int macii_reset_bus(void)
 {
-	static struct adb_request req;
+	struct adb_request req;
 
 	/* Command = 0, Address = ignored */
 	adb_request(&req, NULL, ADBREQ_NOSEND, 1, ADB_BUSRESET);
