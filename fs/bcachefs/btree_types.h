@@ -568,6 +568,16 @@ static inline bool btree_node_is_extents(struct btree *b)
 	return btree_node_type_is_extents(btree_node_type(b));
 }
 
+static inline enum btree_node_type btree_iter_key_type(struct btree_iter *iter)
+{
+	return __btree_node_type(iter->level, iter->btree_id);
+}
+
+static inline bool btree_iter_is_extents(struct btree_iter *iter)
+{
+	return btree_node_type_is_extents(btree_iter_key_type(iter));
+}
+
 #define BTREE_NODE_TYPE_HAS_TRIGGERS			\
 	((1U << BKEY_TYPE_EXTENTS)|			\
 	 (1U << BKEY_TYPE_ALLOC)|			\

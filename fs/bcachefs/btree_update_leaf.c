@@ -265,11 +265,10 @@ static enum btree_insert_ret
 btree_key_can_insert(struct btree_trans *trans,
 		     struct btree_iter *iter,
 		     struct bkey_i *insert,
-		     unsigned *u64s)
+		     unsigned u64s)
 {
 	struct bch_fs *c = trans->c;
 	struct btree *b = iter_l(iter)->b;
-	static enum btree_insert_ret ret;
 
 	if (unlikely(btree_node_fake(b)))
 		return BTREE_INSERT_BTREE_NODE_FULL;
@@ -281,13 +280,7 @@ btree_key_can_insert(struct btree_trans *trans,
 	if (unlikely(btree_node_old_extent_overwrite(b)))
 		return BTREE_INSERT_BTREE_NODE_FULL;
 
-	ret = !(iter->flags & BTREE_ITER_IS_EXTENTS)
-		? BTREE_INSERT_OK
-		: bch2_extent_can_insert(trans, iter, insert);
-	if (ret)
-		return ret;
-
-	if (*u64s > bch_btree_keys_u64s_remaining(c, b))
+	if (unlikely(u64s > bch_btree_keys_u64s_remaining(c, b)))
 		return BTREE_INSERT_BTREE_NODE_FULL;
 
 	return BTREE_INSERT_OK;
@@ -297,7 +290,7 @@ static enum btree_insert_ret
 btree_key_can_insert_cached(struct btree_trans *trans,
 			    struct btree_iter *iter,
 			    struct bkey_i *insert,
-			    unsigned *u64s)
+			    unsigned u64s)
 {
 	struct bkey_cached *ck = (void *) iter->l[0].b;
 	unsigned new_u64s;
@@ -305,10 +298,10 @@ btree_key_can_insert_cached(struct btree_trans *trans,
 
 	BUG_ON(iter->level);
 
-	if (*u64s <= ck->u64s)
+	if (u64s <= ck->u64s)
 		return BTREE_INSERT_OK;
 
-	new_u64s	= roundup_pow_of_two(*u64s);
+	new_u64s	= roundup_pow_of_two(u64s);
 	new_k		= krealloc(ck->k, new_u64s * sizeof(u64), GFP_NOFS);
 	if (!new_k)
 		return -ENOMEM;
@@ -414,8 +407,8 @@ bch2_trans_commit_write_locked(struct btree_trans *trans,
 
 		u64s += i->k->k.u64s;
 		ret = btree_iter_type(i->iter) != BTREE_ITER_CACHED
-			? btree_key_can_insert(trans, i->iter, i->k, &u64s)
-			: btree_key_can_insert_cached(trans, i->iter, i->k, &u64s);
+			? btree_key_can_insert(trans, i->iter, i->k, u64s)
+			: btree_key_can_insert_cached(trans, i->iter, i->k, u64s);
 		if (ret) {
 			*stopped_at = i;
 			return ret;
@@ -733,6 +726,11 @@ static int extent_update_to_keys(struct btree_trans *trans,
 				 struct bkey_i *insert)
 {
 	struct btree_iter *iter;
+	int ret;
+
+	ret = bch2_extent_can_insert(trans, orig_iter, insert);
+	if (ret)
+		return ret;
 
 	if (bkey_deleted(&insert->k))
 		return 0;

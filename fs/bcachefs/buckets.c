@@ -1368,8 +1368,8 @@ int bch2_mark_update(struct btree_trans *trans,
 		     unsigned flags)
 {
 	struct bch_fs		*c = trans->c;
-	struct btree		*b = iter->l[0].b;
-	struct btree_node_iter	node_iter = iter->l[0].iter;
+	struct btree		*b = iter_l(iter)->b;
+	struct btree_node_iter	node_iter = iter_l(iter)->iter;
 	struct bkey_packed	*_k;
 	int ret = 0;
 
@@ -1431,32 +1431,38 @@ void bch2_trans_fs_usage_apply(struct btree_trans *trans,
 		disk_res_sectors);
 
 	trans_for_each_update(trans, i) {
-		struct btree_iter	*iter = i->iter;
-		struct btree		*b = iter->l[0].b;
-		struct btree_node_iter	node_iter = iter->l[0].iter;
-		struct bkey_packed	*_k;
-
 		pr_err("while inserting");
 		bch2_bkey_val_to_text(&PBUF(buf), c, bkey_i_to_s_c(i->k));
 		pr_err("%s", buf);
 		pr_err("overlapping with");
 
-		node_iter = iter->l[0].iter;
-		while ((_k = bch2_btree_node_iter_peek(&node_iter, b))) {
-			struct bkey		unpacked;
-			struct bkey_s_c		k;
+		if (btree_iter_type(i->iter) != BTREE_ITER_CACHED) {
+			struct btree		*b = iter_l(i->iter)->b;
+			struct btree_node_iter	node_iter = iter_l(i->iter)->iter;
+			struct bkey_packed	*_k;
 
-			k = bkey_disassemble(b, _k, &unpacked);
+			while ((_k = bch2_btree_node_iter_peek(&node_iter, b))) {
+				struct bkey		unpacked;
+				struct bkey_s_c		k;
 
-			if (btree_node_is_extents(b)
-			    ? bkey_cmp(i->k->k.p, bkey_start_pos(k.k)) <= 0
-			    : bkey_cmp(i->k->k.p, k.k->p))
-				break;
+				pr_info("_k %px format %u", _k, _k->format);
+				k = bkey_disassemble(b, _k, &unpacked);
 
-			bch2_bkey_val_to_text(&PBUF(buf), c, k);
+				if (btree_node_is_extents(b)
+				    ? bkey_cmp(i->k->k.p, bkey_start_pos(k.k)) <= 0
+				    : bkey_cmp(i->k->k.p, k.k->p))
+					break;
+
+				bch2_bkey_val_to_text(&PBUF(buf), c, k);
+				pr_err("%s", buf);
+
+				bch2_btree_node_iter_advance(&node_iter, b);
+			}
+		} else {
+			struct bkey_cached *ck = (void *) i->iter->l[0].b;
+
+			bch2_bkey_val_to_text(&PBUF(buf), c, bkey_i_to_s_c(ck->k));
 			pr_err("%s", buf);
-
-			bch2_btree_node_iter_advance(&node_iter, b);
 		}
 	}
 }
@@ -1808,8 +1814,8 @@ int bch2_trans_mark_update(struct btree_trans *trans,
 			   struct bkey_i *insert,
 			   unsigned flags)
 {
-	struct btree		*b = iter->l[0].b;
-	struct btree_node_iter	node_iter = iter->l[0].iter;
+	struct btree		*b = iter_l(iter)->b;
+	struct btree_node_iter	node_iter = iter_l(iter)->iter;
 	struct bkey_packed	*_k;
 	int ret;
 
