@@ -10,6 +10,7 @@
 #include <linux/err.h>
 #include <linux/spi/spi.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/interrupt.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/buffer.h>
@@ -254,7 +255,7 @@ MODULE_DEVICE_TABLE(spi, adc084s021_id);
 static struct spi_driver adc084s021_driver = {
 	.driver = {
 		.name = ADC084S021_DRIVER_NAME,
-		.of_match_table = of_match_ptr(adc084s021_of_match),
+		.of_match_table = adc084s021_of_match,
 	},
 	.probe = adc084s021_probe,
 	.id_table = adc084s021_id,
