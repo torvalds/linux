@@ -2052,6 +2052,8 @@ static int io_iopoll_check(struct io_ring_ctx *ctx, unsigned *nr_events,
 		 */
 		if (!(++iters & 7)) {
 			mutex_unlock(&ctx->uring_lock);
+			if (current->task_works)
+				task_work_run();
 			mutex_lock(&ctx->uring_lock);
 		}
 
