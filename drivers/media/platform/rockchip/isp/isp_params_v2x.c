@@ -1702,8 +1702,9 @@ static void
 isp_rawaelite_config(struct rkisp_isp_params_vdev *params_vdev,
 		     const struct isp2x_rawaelite_meas_cfg *arg)
 {
-	u32 value;
-	u32 block_hsize, block_vsize;
+	struct rkisp_device *ispdev = params_vdev->dev;
+	struct v4l2_rect *out_crop = &ispdev->isp_sdev.out_crop;
+	u32 block_hsize, block_vsize, value;
 	u32 wnd_num_idx = 0;
 	const u32 ae_wnd_num[] = {
 		1, 5
@@ -1723,8 +1724,16 @@ isp_rawaelite_config(struct rkisp_isp_params_vdev *params_vdev,
 			ISP2X_RAWAE_LITE_H_OFFSET_SET(arg->win.h_offs),
 			ISP_RAWAE_LITE_OFFSET);
 
-	block_hsize = arg->win.h_size / ae_wnd_num[wnd_num_idx] - 1;
-	block_vsize = arg->win.v_size / ae_wnd_num[wnd_num_idx] - 1;
+	block_hsize = arg->win.h_size / ae_wnd_num[wnd_num_idx];
+	value = block_hsize * ae_wnd_num[wnd_num_idx] + arg->win.h_offs;
+	if (value + 1 > out_crop->width)
+		block_hsize -= 1;
+	block_vsize = arg->win.v_size / ae_wnd_num[wnd_num_idx];
+	value = block_vsize * ae_wnd_num[wnd_num_idx] + arg->win.v_offs;
+	if (value + 2 > out_crop->height)
+		block_vsize -= 1;
+	if (block_vsize % 2)
+		block_vsize -= 1;
 	rkisp_iowrite32(params_vdev,
 			ISP2X_RAWAE_LITE_V_SIZE_SET(block_vsize) |
 			ISP2X_RAWAE_LITE_H_SIZE_SET(block_hsize),
@@ -1756,14 +1765,14 @@ static void
 isp_rawaebig_config(struct rkisp_isp_params_vdev *params_vdev,
 		    const struct isp2x_rawaebig_meas_cfg *arg, u32 blk_no)
 {
-	u32 i;
-	u32 value;
+	struct rkisp_device *ispdev = params_vdev->dev;
+	struct v4l2_rect *out_crop = &ispdev->isp_sdev.out_crop;
 	u32 block_hsize, block_vsize;
+	u32 addr, i, value;
 	u32 wnd_num_idx = 0;
 	const u32 ae_wnd_num[] = {
 		1, 5, 15, 15
 	};
-	u32 addr;
 
 	switch (blk_no) {
 	case 0:
@@ -1808,8 +1817,16 @@ isp_rawaebig_config(struct rkisp_isp_params_vdev *params_vdev,
 			ISP2X_RAWAEBIG_H_OFFSET_SET(arg->win.h_offs),
 			addr + RAWAE_BIG_OFFSET);
 
-	block_hsize = arg->win.h_size / ae_wnd_num[wnd_num_idx] - 1;
-	block_vsize = arg->win.v_size / ae_wnd_num[wnd_num_idx] - 1;
+	block_hsize = arg->win.h_size / ae_wnd_num[wnd_num_idx];
+	value = block_hsize * ae_wnd_num[wnd_num_idx] + arg->win.h_offs;
+	if (value + 1 > out_crop->width)
+		block_hsize -= 1;
+	block_vsize = arg->win.v_size / ae_wnd_num[wnd_num_idx];
+	value = block_vsize * ae_wnd_num[wnd_num_idx] + arg->win.v_offs;
+	if (value + 2 > out_crop->height)
+		block_vsize -= 1;
+	if (block_vsize % 2)
+		block_vsize -= 1;
 	rkisp_iowrite32(params_vdev,
 			ISP2X_RAWAEBIG_V_SIZE_SET(block_vsize) |
 			ISP2X_RAWAEBIG_H_SIZE_SET(block_hsize),
