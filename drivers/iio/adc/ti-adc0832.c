@@ -8,6 +8,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/spi/spi.h>
 #include <linux/iio/iio.h>
 #include <linux/regulator/consumer.h>
@@ -313,8 +314,6 @@ static int adc0832_remove(struct spi_device *spi)
 	return 0;
 }
 
-#ifdef CONFIG_OF
-
 static const struct of_device_id adc0832_dt_ids[] = {
 	{ .compatible = "ti,adc0831", },
 	{ .compatible = "ti,adc0832", },
@@ -323,8 +322,6 @@ static const struct of_device_id adc0832_dt_ids[] = {
 	{}
 };
 MODULE_DEVICE_TABLE(of, adc0832_dt_ids);
-
-#endif
 
 static const struct spi_device_id adc0832_id[] = {
 	{ "adc0831", adc0831 },
@@ -338,7 +335,7 @@ MODULE_DEVICE_TABLE(spi, adc0832_id);
 static struct spi_driver adc0832_driver = {
 	.driver = {
 		.name = "adc0832",
-		.of_match_table = of_match_ptr(adc0832_dt_ids),
+		.of_match_table = adc0832_dt_ids,
 	},
 	.probe = adc0832_probe,
 	.remove = adc0832_remove,
