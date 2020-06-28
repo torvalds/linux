@@ -412,7 +412,7 @@ static inline void sctp_skb_set_owner_r(struct sk_buff *skb, struct sock *sk)
 /* Tests if the list has one and only one entry. */
 static inline int sctp_list_single_entry(struct list_head *head)
 {
-	return (head->next != head) && (head->next == head->prev);
+	return list_is_singular(head);
 }
 
 static inline bool sctp_chunk_pending(const struct sctp_chunk *chunk)
