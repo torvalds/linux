@@ -31,18 +31,19 @@
 #include "rt5670.h"
 #include "rt5670-dsp.h"
 
-#define RT5670_DEV_GPIO     BIT(0)
-#define RT5670_IN2_DIFF     BIT(1)
-#define RT5670_DMIC_EN      BIT(2)
-#define RT5670_DMIC1_IN2P   BIT(3)
-#define RT5670_DMIC1_GPIO6  BIT(4)
-#define RT5670_DMIC1_GPIO7  BIT(5)
-#define RT5670_DMIC2_INR    BIT(6)
-#define RT5670_DMIC2_GPIO8  BIT(7)
-#define RT5670_DMIC3_GPIO5  BIT(8)
-#define RT5670_JD_MODE1     BIT(9)
-#define RT5670_JD_MODE2     BIT(10)
-#define RT5670_JD_MODE3     BIT(11)
+#define RT5670_DEV_GPIO			BIT(0)
+#define RT5670_IN2_DIFF			BIT(1)
+#define RT5670_DMIC_EN			BIT(2)
+#define RT5670_DMIC1_IN2P		BIT(3)
+#define RT5670_DMIC1_GPIO6		BIT(4)
+#define RT5670_DMIC1_GPIO7		BIT(5)
+#define RT5670_DMIC2_INR		BIT(6)
+#define RT5670_DMIC2_GPIO8		BIT(7)
+#define RT5670_DMIC3_GPIO5		BIT(8)
+#define RT5670_JD_MODE1			BIT(9)
+#define RT5670_JD_MODE2			BIT(10)
+#define RT5670_JD_MODE3			BIT(11)
+#define RT5670_GPIO1_IS_EXT_SPK_EN	BIT(12)
 
 static unsigned long rt5670_quirk;
 static unsigned int quirk_override;
@@ -1447,6 +1448,33 @@ static int rt5670_hp_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
+static int rt5670_spk_event(struct snd_soc_dapm_widget *w,
+	struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct rt5670_priv *rt5670 = snd_soc_component_get_drvdata(component);
+
+	if (!rt5670->pdata.gpio1_is_ext_spk_en)
+		return 0;
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		regmap_update_bits(rt5670->regmap, RT5670_GPIO_CTRL2,
+				   RT5670_GP1_OUT_MASK, RT5670_GP1_OUT_HI);
+		break;
+
+	case SND_SOC_DAPM_PRE_PMD:
+		regmap_update_bits(rt5670->regmap, RT5670_GPIO_CTRL2,
+				   RT5670_GP1_OUT_MASK, RT5670_GP1_OUT_LO);
+		break;
+
+	default:
+		return 0;
+	}
+
+	return 0;
+}
+
 static int rt5670_bst1_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
@@ -1860,7 +1888,9 @@ static const struct snd_soc_dapm_widget rt5670_specific_dapm_widgets[] = {
 };
 
 static const struct snd_soc_dapm_widget rt5672_specific_dapm_widgets[] = {
-	SND_SOC_DAPM_PGA("SPO Amp", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA_E("SPO Amp", SND_SOC_NOPM, 0, 0, NULL, 0,
+			   rt5670_spk_event, SND_SOC_DAPM_PRE_PMD |
+			   SND_SOC_DAPM_POST_PMU),
 	SND_SOC_DAPM_OUTPUT("SPOLP"),
 	SND_SOC_DAPM_OUTPUT("SPOLN"),
 	SND_SOC_DAPM_OUTPUT("SPORP"),
@@ -2857,14 +2887,14 @@ static const struct dmi_system_id dmi_platform_intel_quirks[] = {
 	},
 	{
 		.callback = rt5670_quirk_cb,
-		.ident = "Lenovo Thinkpad Tablet 10",
+		.ident = "Lenovo Miix 2 10",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo Miix 2 10"),
 		},
 		.driver_data = (unsigned long *)(RT5670_DMIC_EN |
 						 RT5670_DMIC1_IN2P |
-						 RT5670_DEV_GPIO |
+						 RT5670_GPIO1_IS_EXT_SPK_EN |
 						 RT5670_JD_MODE2),
 	},
 	{
@@ -2923,6 +2953,10 @@ static int rt5670_i2c_probe(struct i2c_client *i2c,
 	if (rt5670_quirk & RT5670_DEV_GPIO) {
 		rt5670->pdata.dev_gpio = true;
 		dev_info(&i2c->dev, "quirk dev_gpio\n");
+	}
+	if (rt5670_quirk & RT5670_GPIO1_IS_EXT_SPK_EN) {
+		rt5670->pdata.gpio1_is_ext_spk_en = true;
+		dev_info(&i2c->dev, "quirk GPIO1 is external speaker enable\n");
 	}
 	if (rt5670_quirk & RT5670_IN2_DIFF) {
 		rt5670->pdata.in2_diff = true;
@@ -3019,6 +3053,13 @@ static int rt5670_i2c_probe(struct i2c_client *i2c,
 		/* for irq */
 		regmap_update_bits(rt5670->regmap, RT5670_GPIO_CTRL1,
 				   RT5670_GP1_PIN_MASK, RT5670_GP1_PIN_IRQ);
+		regmap_update_bits(rt5670->regmap, RT5670_GPIO_CTRL2,
+				   RT5670_GP1_PF_MASK, RT5670_GP1_PF_OUT);
+	}
+
+	if (rt5670->pdata.gpio1_is_ext_spk_en) {
+		regmap_update_bits(rt5670->regmap, RT5670_GPIO_CTRL1,
+				   RT5670_GP1_PIN_MASK, RT5670_GP1_PIN_GPIO1);
 		regmap_update_bits(rt5670->regmap, RT5670_GPIO_CTRL2,
 				   RT5670_GP1_PF_MASK, RT5670_GP1_PF_OUT);
 	}
