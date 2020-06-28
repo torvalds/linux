@@ -1504,7 +1504,7 @@ static inline void io_put_file(struct io_kiocb *req, struct file *file,
 		fput(file);
 }
 
-static void __io_req_aux_free(struct io_kiocb *req)
+static void io_dismantle_req(struct io_kiocb *req)
 {
 	if (req->flags & REQ_F_NEED_CLEANUP)
 		io_cleanup_req(req);
@@ -1514,11 +1514,6 @@ static void __io_req_aux_free(struct io_kiocb *req)
 		io_put_file(req, req->file, (req->flags & REQ_F_FIXED_FILE));
 	__io_put_req_task(req);
 	io_req_work_drop_env(req);
-}
-
-static void __io_free_req(struct io_kiocb *req)
-{
-	__io_req_aux_free(req);
 
 	if (req->flags & REQ_F_INFLIGHT) {
 		struct io_ring_ctx *ctx = req->ctx;
@@ -1530,7 +1525,11 @@ static void __io_free_req(struct io_kiocb *req)
 			wake_up(&ctx->inflight_wait);
 		spin_unlock_irqrestore(&ctx->inflight_lock, flags);
 	}
+}
 
+static void __io_free_req(struct io_kiocb *req)
+{
+	io_dismantle_req(req);
 	percpu_ref_put(&req->ctx->refs);
 	if (likely(!io_is_fallback_req(req)))
 		kmem_cache_free(req_cachep, req);
@@ -1549,35 +1548,11 @@ static void io_free_req_many(struct io_ring_ctx *ctx, struct req_batch *rb)
 	if (!rb->to_free)
 		return;
 	if (rb->need_iter) {
-		int i, inflight = 0;
-		unsigned long flags;
+		int i;
 
-		for (i = 0; i < rb->to_free; i++) {
-			struct io_kiocb *req = rb->reqs[i];
-
-			if (req->flags & REQ_F_INFLIGHT)
-				inflight++;
-			__io_req_aux_free(req);
-		}
-		if (!inflight)
-			goto do_free;
-
-		spin_lock_irqsave(&ctx->inflight_lock, flags);
-		for (i = 0; i < rb->to_free; i++) {
-			struct io_kiocb *req = rb->reqs[i];
-
-			if (req->flags & REQ_F_INFLIGHT) {
-				list_del(&req->inflight_entry);
-				if (!--inflight)
-					break;
-			}
-		}
-		spin_unlock_irqrestore(&ctx->inflight_lock, flags);
-
-		if (waitqueue_active(&ctx->inflight_wait))
-			wake_up(&ctx->inflight_wait);
+		for (i = 0; i < rb->to_free; i++)
+			io_dismantle_req(rb->reqs[i]);
 	}
-do_free:
 	kmem_cache_free_bulk(req_cachep, rb->to_free, rb->reqs);
 	percpu_ref_put_many(&ctx->refs, rb->to_free);
 	rb->to_free = rb->need_iter = 0;
