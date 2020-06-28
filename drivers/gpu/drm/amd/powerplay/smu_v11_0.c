@@ -173,7 +173,8 @@ int smu_v11_0_init_microcode(struct smu_context *smu)
 		chip_name = "sienna_cichlid";
 		break;
 	default:
-		BUG();
+		dev_err(adev->dev, "Unsupported ASIC type %d\n", adev->asic_type);
+		return -EINVAL;
 	}
 
 	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_smc.bin", chip_name);
