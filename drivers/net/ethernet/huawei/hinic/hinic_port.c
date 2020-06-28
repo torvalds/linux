@@ -1323,3 +1323,75 @@ int hinic_reset_led_status(struct hinic_hwdev *hwdev, u8 port)
 
 	return err;
 }
+
+static bool hinic_if_sfp_absent(struct hinic_hwdev *hwdev)
+{
+	struct hinic_cmd_get_light_module_abs sfp_abs = {0};
+	u16 out_size = sizeof(sfp_abs);
+	u8 port_id = hwdev->port_id;
+	int err;
+
+	sfp_abs.port_id = port_id;
+	err = hinic_port_msg_cmd(hwdev, HINIC_PORT_CMD_GET_SFP_ABS,
+				 &sfp_abs, sizeof(sfp_abs), &sfp_abs,
+				 &out_size);
+	if (sfp_abs.status || err || !out_size) {
+		dev_err(&hwdev->hwif->pdev->dev,
+			"Failed to get port%d sfp absent status, err: %d, status: 0x%x, out size: 0x%x\n",
+			port_id, err, sfp_abs.status, out_size);
+		return true;
+	}
+
+	return ((sfp_abs.abs_status == 0) ? false : true);
+}
+
+int hinic_get_sfp_eeprom(struct hinic_hwdev *hwdev, u8 *data, u16 *len)
+{
+	struct hinic_cmd_get_std_sfp_info sfp_info = {0};
+	u16 out_size = sizeof(sfp_info);
+	u8 port_id;
+	int err;
+
+	if (!hwdev || !data || !len)
+		return -EINVAL;
+
+	port_id = hwdev->port_id;
+
+	if (hinic_if_sfp_absent(hwdev))
+		return -ENXIO;
+
+	sfp_info.port_id = port_id;
+	err = hinic_port_msg_cmd(hwdev, HINIC_PORT_CMD_GET_STD_SFP_INFO,
+				 &sfp_info, sizeof(sfp_info), &sfp_info,
+				 &out_size);
+	if (sfp_info.status || err || !out_size) {
+		dev_err(&hwdev->hwif->pdev->dev,
+			"Failed to get port%d sfp eeprom information, err: %d, status: 0x%x, out size: 0x%x\n",
+			port_id, err, sfp_info.status, out_size);
+		return -EIO;
+	}
+
+	*len = min_t(u16, sfp_info.eeprom_len, STD_SFP_INFO_MAX_SIZE);
+	memcpy(data, sfp_info.sfp_info, STD_SFP_INFO_MAX_SIZE);
+
+	return 0;
+}
+
+int hinic_get_sfp_type(struct hinic_hwdev *hwdev, u8 *data0, u8 *data1)
+{
+	u8 sfp_data[STD_SFP_INFO_MAX_SIZE];
+	u16 len;
+	int err;
+
+	if (hinic_if_sfp_absent(hwdev))
+		return -ENXIO;
+
+	err = hinic_get_sfp_eeprom(hwdev, sfp_data, &len);
+	if (err)
+		return err;
+
+	*data0 = sfp_data[0];
+	*data1 = sfp_data[1];
+
+	return 0;
+}

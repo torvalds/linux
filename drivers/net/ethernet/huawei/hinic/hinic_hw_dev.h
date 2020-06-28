@@ -130,9 +130,13 @@ enum hinic_port_cmd {
 
 	HINIC_PORT_CMD_SET_AUTONEG	= 219,
 
+	HINIC_PORT_CMD_GET_STD_SFP_INFO = 240,
+
 	HINIC_PORT_CMD_SET_LRO_TIMER	= 244,
 
 	HINIC_PORT_CMD_SET_VF_MAX_MIN_RATE = 249,
+
+	HINIC_PORT_CMD_GET_SFP_ABS	= 251,
 };
 
 /* cmd of mgmt CPU message for HILINK module */

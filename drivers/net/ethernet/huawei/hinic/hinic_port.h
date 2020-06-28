@@ -677,6 +677,32 @@ struct hinic_led_info {
 	u8	reset;
 };
 
+#define STD_SFP_INFO_MAX_SIZE	640
+
+struct hinic_cmd_get_light_module_abs {
+	u8 status;
+	u8 version;
+	u8 rsvd0[6];
+
+	u8 port_id;
+	u8 abs_status; /* 0:present, 1:absent */
+	u8 rsv[2];
+};
+
+#define STD_SFP_INFO_MAX_SIZE	640
+
+struct hinic_cmd_get_std_sfp_info {
+	u8 status;
+	u8 version;
+	u8 rsvd0[6];
+
+	u8 port_id;
+	u8 wire_type;
+	u16 eeprom_len;
+	u32 rsvd;
+	u8 sfp_info[STD_SFP_INFO_MAX_SIZE];
+};
+
 int hinic_port_add_mac(struct hinic_dev *nic_dev, const u8 *addr,
 		       u16 vlan_id);
 
@@ -799,6 +825,10 @@ int hinic_reset_led_status(struct hinic_hwdev *hwdev, u8 port);
 
 int hinic_set_led_status(struct hinic_hwdev *hwdev, u8 port,
 			 enum hinic_led_type type, enum hinic_led_mode mode);
+
+int hinic_get_sfp_type(struct hinic_hwdev *hwdev, u8 *data0, u8 *data1);
+
+int hinic_get_sfp_eeprom(struct hinic_hwdev *hwdev, u8 *data, u16 *len);
 
 int hinic_open(struct net_device *netdev);
 

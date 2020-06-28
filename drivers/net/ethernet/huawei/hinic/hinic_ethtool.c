@@ -25,6 +25,7 @@
 #include <linux/if_vlan.h>
 #include <linux/ethtool.h>
 #include <linux/vmalloc.h>
+#include <linux/sfp.h>
 
 #include "hinic_hw_qp.h"
 #include "hinic_hw_dev.h"
@@ -1717,6 +1718,72 @@ static int hinic_set_phys_id(struct net_device *netdev,
 	return err;
 }
 
+static int hinic_get_module_info(struct net_device *netdev,
+				 struct ethtool_modinfo *modinfo)
+{
+	struct hinic_dev *nic_dev = netdev_priv(netdev);
+	u8 sfp_type_ext;
+	u8 sfp_type;
+	int err;
+
+	err = hinic_get_sfp_type(nic_dev->hwdev, &sfp_type, &sfp_type_ext);
+	if (err)
+		return err;
+
+	switch (sfp_type) {
+	case SFF8024_ID_SFP:
+		modinfo->type = ETH_MODULE_SFF_8472;
+		modinfo->eeprom_len = ETH_MODULE_SFF_8472_LEN;
+		break;
+	case SFF8024_ID_QSFP_8438:
+		modinfo->type = ETH_MODULE_SFF_8436;
+		modinfo->eeprom_len = ETH_MODULE_SFF_8436_MAX_LEN;
+		break;
+	case SFF8024_ID_QSFP_8436_8636:
+		if (sfp_type_ext >= 0x3) {
+			modinfo->type = ETH_MODULE_SFF_8636;
+			modinfo->eeprom_len = ETH_MODULE_SFF_8636_MAX_LEN;
+
+		} else {
+			modinfo->type = ETH_MODULE_SFF_8436;
+			modinfo->eeprom_len = ETH_MODULE_SFF_8436_MAX_LEN;
+		}
+		break;
+	case SFF8024_ID_QSFP28_8636:
+		modinfo->type = ETH_MODULE_SFF_8636;
+		modinfo->eeprom_len = ETH_MODULE_SFF_8636_MAX_LEN;
+		break;
+	default:
+		netif_warn(nic_dev, drv, netdev,
+			   "Optical module unknown: 0x%x\n", sfp_type);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int hinic_get_module_eeprom(struct net_device *netdev,
+				   struct ethtool_eeprom *ee, u8 *data)
+{
+	struct hinic_dev *nic_dev = netdev_priv(netdev);
+	u8 sfp_data[STD_SFP_INFO_MAX_SIZE];
+	u16 len;
+	int err;
+
+	if (!ee->len || ((ee->len + ee->offset) > STD_SFP_INFO_MAX_SIZE))
+		return -EINVAL;
+
+	memset(data, 0, ee->len);
+
+	err = hinic_get_sfp_eeprom(nic_dev->hwdev, sfp_data, &len);
+	if (err)
+		return err;
+
+	memcpy(data, sfp_data + ee->offset, ee->len);
+
+	return 0;
+}
+
 static const struct ethtool_ops hinic_ethtool_ops = {
 	.supported_coalesce_params = ETHTOOL_COALESCE_RX_USECS |
 				     ETHTOOL_COALESCE_RX_MAX_FRAMES |
@@ -1748,6 +1815,8 @@ static const struct ethtool_ops hinic_ethtool_ops = {
 	.get_strings = hinic_get_strings,
 	.self_test = hinic_diag_test,
 	.set_phys_id = hinic_set_phys_id,
+	.get_module_info = hinic_get_module_info,
+	.get_module_eeprom = hinic_get_module_eeprom,
 };
 
 static const struct ethtool_ops hinicvf_ethtool_ops = {
