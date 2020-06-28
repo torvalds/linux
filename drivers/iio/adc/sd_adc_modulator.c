@@ -9,7 +9,8 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/triggered_buffer.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/mod_devicetable.h>
+#include <linux/platform_device.h>
 
 static const struct iio_info iio_sd_mod_iio_info;
 
@@ -54,7 +55,7 @@ MODULE_DEVICE_TABLE(of, sd_adc_of_match);
 static struct platform_driver iio_sd_mod_adc = {
 	.driver = {
 		.name = "iio_sd_adc_mod",
-		.of_match_table = of_match_ptr(sd_adc_of_match),
+		.of_match_table = sd_adc_of_match,
 	},
 	.probe = iio_sd_mod_probe,
 };
