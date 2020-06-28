@@ -1241,3 +1241,30 @@ int hinic_dcb_set_pfc(struct hinic_hwdev *hwdev, u8 pfc_en, u8 pfc_bitmap)
 
 	return 0;
 }
+
+int hinic_set_loopback_mode(struct hinic_hwdev *hwdev, u32 mode, u32 enable)
+{
+	struct hinic_port_loopback lb = {0};
+	u16 out_size = sizeof(lb);
+	int err;
+
+	lb.mode = mode;
+	lb.en = enable;
+
+	if (mode < LOOP_MODE_MIN || mode > LOOP_MODE_MAX) {
+		dev_err(&hwdev->hwif->pdev->dev,
+			"Invalid loopback mode %d to set\n", mode);
+		return -EINVAL;
+	}
+
+	err = hinic_port_msg_cmd(hwdev, HINIC_PORT_CMD_SET_LOOPBACK_MODE,
+				 &lb, sizeof(lb), &lb, &out_size);
+	if (err || !out_size || lb.status) {
+		dev_err(&hwdev->hwif->pdev->dev,
+			"Failed to set loopback mode %d en %d, err: %d, status: 0x%x, out size: 0x%x\n",
+			mode, enable, err, lb.status, out_size);
+		return -EIO;
+	}
+
+	return 0;
+}

@@ -652,6 +652,20 @@ struct hinic_set_pfc {
 	u8	rsvd1[4];
 };
 
+/* get or set loopback mode, need to modify by base API */
+#define HINIC_INTERNAL_LP_MODE			5
+#define LOOP_MODE_MIN				1
+#define LOOP_MODE_MAX				6
+
+struct hinic_port_loopback {
+	u8	status;
+	u8	version;
+	u8	rsvd[6];
+
+	u32	mode;
+	u32	en;
+};
+
 int hinic_port_add_mac(struct hinic_dev *nic_dev, const u8 *addr,
 		       u16 vlan_id);
 
@@ -748,6 +762,8 @@ int hinic_set_hw_pause_info(struct hinic_hwdev *hwdev,
 			    struct hinic_pause_config *pause_info);
 
 int hinic_dcb_set_pfc(struct hinic_hwdev *hwdev, u8 pfc_en, u8 pfc_bitmap);
+
+int hinic_set_loopback_mode(struct hinic_hwdev *hwdev, u32 mode, u32 enable);
 
 int hinic_open(struct net_device *netdev);
 

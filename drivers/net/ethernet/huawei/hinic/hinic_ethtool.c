@@ -133,6 +133,16 @@ static struct hw2ethtool_link_mode
 	},
 };
 
+#define LP_DEFAULT_TIME                 5 /* seconds */
+#define LP_PKT_LEN                      1514
+
+#define PORT_DOWN_ERR_IDX		0
+enum diag_test_index {
+	INTERNAL_LP_TEST = 0,
+	EXTERNAL_LP_TEST = 1,
+	DIAG_TEST_MAX = 2,
+};
+
 static void set_link_speed(struct ethtool_link_ksettings *link_ksettings,
 			   enum hinic_speed speed)
 {
@@ -1244,6 +1254,11 @@ static struct hinic_stats hinic_function_stats[] = {
 	HINIC_FUNC_STAT(rx_err_vport),
 };
 
+static char hinic_test_strings[][ETH_GSTRING_LEN] = {
+	"Internal lb test  (on/offline)",
+	"External lb test (external_lb)",
+};
+
 #define HINIC_PORT_STAT(_stat_item) { \
 	.name = #_stat_item, \
 	.size = sizeof_field(struct hinic_phy_port_stats, _stat_item), \
@@ -1453,6 +1468,8 @@ static int hinic_get_sset_count(struct net_device *netdev, int sset)
 	int count, q_num;
 
 	switch (sset) {
+	case ETH_SS_TEST:
+		return ARRAY_LEN(hinic_test_strings);
 	case ETH_SS_STATS:
 		q_num = nic_dev->num_qps;
 		count = ARRAY_LEN(hinic_function_stats) +
@@ -1475,6 +1492,9 @@ static void hinic_get_strings(struct net_device *netdev,
 	u16 i, j;
 
 	switch (stringset) {
+	case ETH_SS_TEST:
+		memcpy(data, *hinic_test_strings, sizeof(hinic_test_strings));
+		return;
 	case ETH_SS_STATS:
 		for (i = 0; i < ARRAY_LEN(hinic_function_stats); i++) {
 			memcpy(p, hinic_function_stats[i].name,
@@ -1508,6 +1528,162 @@ static void hinic_get_strings(struct net_device *netdev,
 	}
 }
 
+static int hinic_run_lp_test(struct hinic_dev *nic_dev, u32 test_time)
+{
+	u8 *lb_test_rx_buf = nic_dev->lb_test_rx_buf;
+	struct net_device *netdev = nic_dev->netdev;
+	struct sk_buff *skb_tmp = NULL;
+	struct sk_buff *skb = NULL;
+	u32 cnt = test_time * 5;
+	u8 *test_data = NULL;
+	u32 i;
+	u8 j;
+
+	skb_tmp = alloc_skb(LP_PKT_LEN, GFP_ATOMIC);
+	if (!skb_tmp)
+		return -ENOMEM;
+
+	test_data = __skb_put(skb_tmp, LP_PKT_LEN);
+
+	memset(test_data, 0xFF, 2 * ETH_ALEN);
+	test_data[ETH_ALEN] = 0xFE;
+	test_data[2 * ETH_ALEN] = 0x08;
+	test_data[2 * ETH_ALEN + 1] = 0x0;
+
+	for (i = ETH_HLEN; i < LP_PKT_LEN; i++)
+		test_data[i] = i & 0xFF;
+
+	skb_tmp->queue_mapping = 0;
+	skb_tmp->ip_summed = CHECKSUM_COMPLETE;
+	skb_tmp->dev = netdev;
+
+	for (i = 0; i < cnt; i++) {
+		nic_dev->lb_test_rx_idx = 0;
+		memset(lb_test_rx_buf, 0, LP_PKT_CNT * LP_PKT_LEN);
+
+		for (j = 0; j < LP_PKT_CNT; j++) {
+			skb = pskb_copy(skb_tmp, GFP_ATOMIC);
+			if (!skb) {
+				dev_kfree_skb_any(skb_tmp);
+				netif_err(nic_dev, drv, netdev,
+					  "Copy skb failed for loopback test\n");
+				return -ENOMEM;
+			}
+
+			/* mark index for every pkt */
+			skb->data[LP_PKT_LEN - 1] = j;
+
+			if (hinic_lb_xmit_frame(skb, netdev)) {
+				dev_kfree_skb_any(skb);
+				dev_kfree_skb_any(skb_tmp);
+				netif_err(nic_dev, drv, netdev,
+					  "Xmit pkt failed for loopback test\n");
+				return -EBUSY;
+			}
+		}
+
+		/* wait till all pkts received to RX buffer */
+		msleep(200);
+
+		for (j = 0; j < LP_PKT_CNT; j++) {
+			if (memcmp(lb_test_rx_buf + j * LP_PKT_LEN,
+				   skb_tmp->data, LP_PKT_LEN - 1) ||
+			    (*(lb_test_rx_buf + j * LP_PKT_LEN +
+			     LP_PKT_LEN - 1) != j)) {
+				dev_kfree_skb_any(skb_tmp);
+				netif_err(nic_dev, drv, netdev,
+					  "Compare pkt failed in loopback test(index=0x%02x, data[%d]=0x%02x)\n",
+					  j + i * LP_PKT_CNT,
+					  LP_PKT_LEN - 1,
+					  *(lb_test_rx_buf + j * LP_PKT_LEN +
+					    LP_PKT_LEN - 1));
+				return -EIO;
+			}
+		}
+	}
+
+	dev_kfree_skb_any(skb_tmp);
+	return 0;
+}
+
+static int do_lp_test(struct hinic_dev *nic_dev, u32 flags, u32 test_time,
+		      enum diag_test_index *test_index)
+{
+	struct net_device *netdev = nic_dev->netdev;
+	u8 *lb_test_rx_buf = NULL;
+	int err = 0;
+
+	if (!(flags & ETH_TEST_FL_EXTERNAL_LB)) {
+		*test_index = INTERNAL_LP_TEST;
+		if (hinic_set_loopback_mode(nic_dev->hwdev,
+					    HINIC_INTERNAL_LP_MODE, true)) {
+			netif_err(nic_dev, drv, netdev,
+				  "Failed to set port loopback mode before loopback test\n");
+			return -EIO;
+		}
+	} else {
+		*test_index = EXTERNAL_LP_TEST;
+	}
+
+	lb_test_rx_buf = vmalloc(LP_PKT_CNT * LP_PKT_LEN);
+	if (!lb_test_rx_buf) {
+		err = -ENOMEM;
+	} else {
+		nic_dev->lb_test_rx_buf = lb_test_rx_buf;
+		nic_dev->lb_pkt_len = LP_PKT_LEN;
+		nic_dev->flags |= HINIC_LP_TEST;
+		err = hinic_run_lp_test(nic_dev, test_time);
+		nic_dev->flags &= ~HINIC_LP_TEST;
+		msleep(100);
+		vfree(lb_test_rx_buf);
+		nic_dev->lb_test_rx_buf = NULL;
+	}
+
+	if (!(flags & ETH_TEST_FL_EXTERNAL_LB)) {
+		if (hinic_set_loopback_mode(nic_dev->hwdev,
+					    HINIC_INTERNAL_LP_MODE, false)) {
+			netif_err(nic_dev, drv, netdev,
+				  "Failed to cancel port loopback mode after loopback test\n");
+			err = -EIO;
+		}
+	}
+
+	return err;
+}
+
+static void hinic_diag_test(struct net_device *netdev,
+			    struct ethtool_test *eth_test, u64 *data)
+{
+	struct hinic_dev *nic_dev = netdev_priv(netdev);
+	enum hinic_port_link_state link_state;
+	enum diag_test_index test_index = 0;
+	int err = 0;
+
+	memset(data, 0, DIAG_TEST_MAX * sizeof(u64));
+
+	/* don't support loopback test when netdev is closed. */
+	if (!(nic_dev->flags & HINIC_INTF_UP)) {
+		netif_err(nic_dev, drv, netdev,
+			  "Do not support loopback test when netdev is closed\n");
+		eth_test->flags |= ETH_TEST_FL_FAILED;
+		data[PORT_DOWN_ERR_IDX] = 1;
+		return;
+	}
+
+	netif_carrier_off(netdev);
+
+	err = do_lp_test(nic_dev, eth_test->flags, LP_DEFAULT_TIME,
+			 &test_index);
+	if (err) {
+		eth_test->flags |= ETH_TEST_FL_FAILED;
+		data[test_index] = 1;
+	}
+
+	err = hinic_port_link_state(nic_dev, &link_state);
+	if (!err && link_state == HINIC_LINK_STATE_UP)
+		netif_carrier_on(netdev);
+}
+
 static const struct ethtool_ops hinic_ethtool_ops = {
 	.supported_coalesce_params = ETHTOOL_COALESCE_RX_USECS |
 				     ETHTOOL_COALESCE_RX_MAX_FRAMES |
@@ -1537,6 +1713,7 @@ static const struct ethtool_ops hinic_ethtool_ops = {
 	.get_sset_count = hinic_get_sset_count,
 	.get_ethtool_stats = hinic_get_ethtool_stats,
 	.get_strings = hinic_get_strings,
+	.self_test = hinic_diag_test,
 };
 
 static const struct ethtool_ops hinicvf_ethtool_ops = {

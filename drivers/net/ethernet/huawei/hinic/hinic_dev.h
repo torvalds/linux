@@ -20,11 +20,14 @@
 
 #define HINIC_DRV_NAME          "hinic"
 
+#define LP_PKT_CNT		64
+
 enum hinic_flags {
 	HINIC_LINK_UP = BIT(0),
 	HINIC_INTF_UP = BIT(1),
 	HINIC_RSS_ENABLE = BIT(2),
 	HINIC_LINK_DOWN = BIT(3),
+	HINIC_LP_TEST = BIT(4),
 };
 
 struct hinic_rx_mode_work {
@@ -91,6 +94,9 @@ struct hinic_dev {
 	struct hinic_intr_coal_info	*rx_intr_coalesce;
 	struct hinic_intr_coal_info	*tx_intr_coalesce;
 	struct hinic_sriov_info sriov_info;
+	int				lb_test_rx_idx;
+	int				lb_pkt_len;
+	u8				*lb_test_rx_buf;
 };
 
 #endif

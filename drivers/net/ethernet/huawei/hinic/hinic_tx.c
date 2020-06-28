@@ -459,6 +459,67 @@ static int hinic_tx_offload(struct sk_buff *skb, struct hinic_sq_task *task,
 	return 0;
 }
 
+netdev_tx_t hinic_lb_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
+{
+	struct hinic_dev *nic_dev = netdev_priv(netdev);
+	u16 prod_idx, q_id = skb->queue_mapping;
+	struct netdev_queue *netdev_txq;
+	int nr_sges, err = NETDEV_TX_OK;
+	struct hinic_sq_wqe *sq_wqe;
+	unsigned int wqe_size;
+	struct hinic_txq *txq;
+	struct hinic_qp *qp;
+
+	txq = &nic_dev->txqs[q_id];
+	qp = container_of(txq->sq, struct hinic_qp, sq);
+	nr_sges = skb_shinfo(skb)->nr_frags + 1;
+
+	err = tx_map_skb(nic_dev, skb, txq->sges);
+	if (err)
+		goto skb_error;
+
+	wqe_size = HINIC_SQ_WQE_SIZE(nr_sges);
+
+	sq_wqe = hinic_sq_get_wqe(txq->sq, wqe_size, &prod_idx);
+	if (!sq_wqe) {
+		netif_stop_subqueue(netdev, qp->q_id);
+
+		sq_wqe = hinic_sq_get_wqe(txq->sq, wqe_size, &prod_idx);
+		if (sq_wqe) {
+			netif_wake_subqueue(nic_dev->netdev, qp->q_id);
+			goto process_sq_wqe;
+		}
+
+		tx_unmap_skb(nic_dev, skb, txq->sges);
+
+		u64_stats_update_begin(&txq->txq_stats.syncp);
+		txq->txq_stats.tx_busy++;
+		u64_stats_update_end(&txq->txq_stats.syncp);
+		err = NETDEV_TX_BUSY;
+		wqe_size = 0;
+		goto flush_skbs;
+	}
+
+process_sq_wqe:
+	hinic_sq_prepare_wqe(txq->sq, prod_idx, sq_wqe, txq->sges, nr_sges);
+	hinic_sq_write_wqe(txq->sq, prod_idx, sq_wqe, skb, wqe_size);
+
+flush_skbs:
+	netdev_txq = netdev_get_tx_queue(netdev, q_id);
+	if ((!netdev_xmit_more()) || (netif_xmit_stopped(netdev_txq)))
+		hinic_sq_write_db(txq->sq, prod_idx, wqe_size, 0);
+
+	return err;
+
+skb_error:
+	dev_kfree_skb_any(skb);
+	u64_stats_update_begin(&txq->txq_stats.syncp);
+	txq->txq_stats.tx_dropped++;
+	u64_stats_update_end(&txq->txq_stats.syncp);
+
+	return NETDEV_TX_OK;
+}
+
 netdev_tx_t hinic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct hinic_dev *nic_dev = netdev_priv(netdev);
