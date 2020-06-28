@@ -48,5 +48,7 @@ enabled.
 The bareudp device could be used along with OVS or flower filter in TC.
 The OVS or TC flower layer must set the tunnel information in SKB dst field before
 sending packet buffer to the bareudp device for transmission. On reception the
-bareudp device extracts and stores the tunnel information in SKB dst field before
-passing the packet buffer to the network stack.
+bareudp device decapsulates the udp header and passes the inner packet to the
+network stack. If RX_COLLECT_METADATA flag is enabled in the device the tunnel
+information will be stored in the SKB dst field before the packet buffer is
+passed to the network stack.

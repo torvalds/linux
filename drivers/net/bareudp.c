@@ -46,6 +46,7 @@ struct bareudp_dev {
 	__be16             port;
 	u16	           sport_min;
 	bool               multi_proto_mode;
+	bool               rx_collect_metadata;
 	struct socket      __rcu *sock;
 	struct list_head   next;        /* bareudp node  on namespace list */
 	struct gro_cells   gro_cells;
@@ -125,13 +126,14 @@ static int bareudp_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 		bareudp->dev->stats.rx_dropped++;
 		goto drop;
 	}
-
-	tun_dst = udp_tun_rx_dst(skb, family, TUNNEL_KEY, 0, 0);
-	if (!tun_dst) {
-		bareudp->dev->stats.rx_dropped++;
-		goto drop;
+	if (bareudp->rx_collect_metadata) {
+		tun_dst = udp_tun_rx_dst(skb, family, TUNNEL_KEY, 0, 0);
+		if (!tun_dst) {
+			bareudp->dev->stats.rx_dropped++;
+			goto drop;
+		}
+		skb_dst_set(skb, &tun_dst->dst);
 	}
-	skb_dst_set(skb, &tun_dst->dst);
 	skb->dev = bareudp->dev;
 	oiph = skb_network_header(skb);
 	skb_reset_network_header(skb);
@@ -575,6 +577,9 @@ static int bareudp2info(struct nlattr *data[], struct bareudp_conf *conf,
 	if (data[IFLA_BAREUDP_MULTIPROTO_MODE])
 		conf->multi_proto_mode = true;
 
+	if (data[IFLA_BAREUDP_RX_COLLECT_METADATA])
+		conf->rx_collect_metadata = true;
+
 	return 0;
 }
 
@@ -612,6 +617,8 @@ static int bareudp_configure(struct net *net, struct net_device *dev,
 	bareudp->ethertype = conf->ethertype;
 	bareudp->sport_min = conf->sport_min;
 	bareudp->multi_proto_mode = conf->multi_proto_mode;
+	bareudp->rx_collect_metadata = conf->rx_collect_metadata;
+
 	err = register_netdevice(dev);
 	if (err)
 		return err;
@@ -669,6 +676,7 @@ static size_t bareudp_get_size(const struct net_device *dev)
 		nla_total_size(sizeof(__be16)) +  /* IFLA_BAREUDP_ETHERTYPE */
 		nla_total_size(sizeof(__u16))  +  /* IFLA_BAREUDP_SRCPORT_MIN */
 		nla_total_size(0)              +  /* IFLA_BAREUDP_MULTIPROTO_MODE */
+		nla_total_size(0)              +  /* IFLA_BAREUDP_RX_COLLECT_METADATA */
 		0;
 }
 
@@ -684,6 +692,9 @@ static int bareudp_fill_info(struct sk_buff *skb, const struct net_device *dev)
 		goto nla_put_failure;
 	if (bareudp->multi_proto_mode &&
 	    nla_put_flag(skb, IFLA_BAREUDP_MULTIPROTO_MODE))
+		goto nla_put_failure;
+	if (bareudp->rx_collect_metadata &&
+	    nla_put_flag(skb, IFLA_BAREUDP_RX_COLLECT_METADATA))
 		goto nla_put_failure;
 
 	return 0;

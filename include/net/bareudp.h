@@ -12,6 +12,7 @@ struct bareudp_conf {
 	__be16 port;
 	u16 sport_min;
 	bool multi_proto_mode;
+	bool rx_collect_metadata;
 };
 
 struct net_device *bareudp_dev_create(struct net *net, const char *name,
