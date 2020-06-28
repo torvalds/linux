@@ -330,6 +330,7 @@ static int get_victim_by_default(struct f2fs_sb_info *sbi,
 	unsigned int secno, last_victim;
 	unsigned int last_segment;
 	unsigned int nsearched = 0;
+	int ret = 0;
 
 	mutex_lock(&dirty_i->seglist_lock);
 	last_segment = MAIN_SECS(sbi) * sbi->segs_per_sec;
@@ -341,12 +342,19 @@ static int get_victim_by_default(struct f2fs_sb_info *sbi,
 	p.min_cost = get_max_cost(sbi, &p);
 
 	if (*result != NULL_SEGNO) {
-		if (get_valid_blocks(sbi, *result, false) &&
-			!sec_usage_check(sbi, GET_SEC_FROM_SEG(sbi, *result)))
+		if (!get_valid_blocks(sbi, *result, false)) {
+			ret = -ENODATA;
+			goto out;
+		}
+
+		if (sec_usage_check(sbi, GET_SEC_FROM_SEG(sbi, *result)))
+			ret = -EBUSY;
+		else
 			p.min_segno = *result;
 		goto out;
 	}
 
+	ret = -ENODATA;
 	if (p.max_search == 0)
 		goto out;
 
@@ -447,6 +455,7 @@ got_result:
 			else
 				set_bit(secno, dirty_i->victim_secmap);
 		}
+		ret = 0;
 
 	}
 out:
@@ -456,7 +465,7 @@ out:
 				prefree_segments(sbi), free_segments(sbi));
 	mutex_unlock(&dirty_i->seglist_lock);
 
-	return (p.min_segno == NULL_SEGNO) ? 0 : 1;
+	return ret;
 }
 
 static const struct victim_selection default_v_ops = {
@@ -1340,10 +1349,9 @@ gc_more:
 		ret = -EINVAL;
 		goto stop;
 	}
-	if (!__get_victim(sbi, &segno, gc_type)) {
-		ret = -ENODATA;
+	ret = __get_victim(sbi, &segno, gc_type);
+	if (ret)
 		goto stop;
-	}
 
 	seg_freed = do_garbage_collect(sbi, segno, &gc_list, gc_type);
 	if (gc_type == FG_GC && seg_freed == sbi->segs_per_sec)
