@@ -207,8 +207,10 @@ static int nanddev_scan_bbt(struct snand_mtd_dev *nand)
 	if (nand->bbt.version == 0) {
 		nanddev_bbt_format(nand);
 		ret = snanddev_bbt_update(nand);
-		if (ret)
+		if (ret) {
+			nand->bbt.option = 0;
 			pr_err("%s fail\n", __func__);
+		}
 	}
 
 	return 0;
