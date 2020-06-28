@@ -11,7 +11,7 @@
 #include "rk3368-android.dtsi"
 / {
 	model = "Rockchip rk3368a tablet rk817 board";
-	compatible = "rockchip,tablet", "rockchip,rk3368";
+	compatible = "rockchip,tablet", "rockchip,rk3368a", "rockchip,rk3368";
 
 	adc_keys: adc-keys {
 		compatible = "adc-keys";
