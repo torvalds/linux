@@ -705,6 +705,68 @@ static int hinic_l2nic_reset(struct hinic_hwdev *hwdev)
 	return 0;
 }
 
+int hinic_get_interrupt_cfg(struct hinic_hwdev *hwdev,
+			    struct hinic_msix_config *interrupt_info)
+{
+	u16 out_size = sizeof(*interrupt_info);
+	struct hinic_pfhwdev *pfhwdev;
+	int err;
+
+	if (!hwdev || !interrupt_info)
+		return -EINVAL;
+
+	pfhwdev = container_of(hwdev, struct hinic_pfhwdev, hwdev);
+
+	interrupt_info->func_id = HINIC_HWIF_FUNC_IDX(hwdev->hwif);
+
+	err = hinic_msg_to_mgmt(&pfhwdev->pf_to_mgmt, HINIC_MOD_COMM,
+				HINIC_COMM_CMD_MSI_CTRL_REG_RD_BY_UP,
+				interrupt_info, sizeof(*interrupt_info),
+				interrupt_info, &out_size, HINIC_MGMT_MSG_SYNC);
+	if (err || !out_size || interrupt_info->status) {
+		dev_err(&hwdev->hwif->pdev->dev, "Failed to get interrupt config, err: %d, status: 0x%x, out size: 0x%x\n",
+			err, interrupt_info->status, out_size);
+		return -EIO;
+	}
+
+	return 0;
+}
+
+int hinic_set_interrupt_cfg(struct hinic_hwdev *hwdev,
+			    struct hinic_msix_config *interrupt_info)
+{
+	u16 out_size = sizeof(*interrupt_info);
+	struct hinic_msix_config temp_info;
+	struct hinic_pfhwdev *pfhwdev;
+	int err;
+
+	if (!hwdev)
+		return -EINVAL;
+
+	pfhwdev = container_of(hwdev, struct hinic_pfhwdev, hwdev);
+
+	interrupt_info->func_id = HINIC_HWIF_FUNC_IDX(hwdev->hwif);
+
+	err = hinic_get_interrupt_cfg(hwdev, &temp_info);
+	if (err)
+		return -EINVAL;
+
+	interrupt_info->lli_credit_cnt = temp_info.lli_timer_cnt;
+	interrupt_info->lli_timer_cnt = temp_info.lli_timer_cnt;
+
+	err = hinic_msg_to_mgmt(&pfhwdev->pf_to_mgmt, HINIC_MOD_COMM,
+				HINIC_COMM_CMD_MSI_CTRL_REG_WR_BY_UP,
+				interrupt_info, sizeof(*interrupt_info),
+				interrupt_info, &out_size, HINIC_MGMT_MSG_SYNC);
+	if (err || !out_size || interrupt_info->status) {
+		dev_err(&hwdev->hwif->pdev->dev, "Failed to get interrupt config, err: %d, status: 0x%x, out size: 0x%x\n",
+			err, interrupt_info->status, out_size);
+		return -EIO;
+	}
+
+	return 0;
+}
+
 /**
  * hinic_init_hwdev - Initialize the NIC HW
  * @pdev: the NIC pci device

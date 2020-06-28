@@ -69,6 +69,10 @@ MODULE_PARM_DESC(rx_weight, "Number Rx packets for NAPI budget (default=64)");
 
 #define HINIC_WAIT_SRIOV_CFG_TIMEOUT	15000
 
+#define HINIC_DEAULT_TXRX_MSIX_PENDING_LIMIT		2
+#define HINIC_DEAULT_TXRX_MSIX_COALESC_TIMER_CFG	32
+#define HINIC_DEAULT_TXRX_MSIX_RESEND_TIMER_CFG		7
+
 static int change_mac_addr(struct net_device *netdev, const u8 *addr);
 
 static int set_features(struct hinic_dev *nic_dev,
@@ -1021,6 +1025,45 @@ static int set_features(struct hinic_dev *nic_dev,
 	return 0;
 }
 
+static int hinic_init_intr_coalesce(struct hinic_dev *nic_dev)
+{
+	u64 size;
+	u16 i;
+
+	size = sizeof(struct hinic_intr_coal_info) * nic_dev->max_qps;
+	nic_dev->rx_intr_coalesce = kzalloc(size, GFP_KERNEL);
+	if (!nic_dev->rx_intr_coalesce)
+		return -ENOMEM;
+	nic_dev->tx_intr_coalesce = kzalloc(size, GFP_KERNEL);
+	if (!nic_dev->tx_intr_coalesce) {
+		kfree(nic_dev->rx_intr_coalesce);
+		return -ENOMEM;
+	}
+
+	for (i = 0; i < nic_dev->max_qps; i++) {
+		nic_dev->rx_intr_coalesce[i].pending_limt =
+			HINIC_DEAULT_TXRX_MSIX_PENDING_LIMIT;
+		nic_dev->rx_intr_coalesce[i].coalesce_timer_cfg =
+			HINIC_DEAULT_TXRX_MSIX_COALESC_TIMER_CFG;
+		nic_dev->rx_intr_coalesce[i].resend_timer_cfg =
+			HINIC_DEAULT_TXRX_MSIX_RESEND_TIMER_CFG;
+		nic_dev->tx_intr_coalesce[i].pending_limt =
+			HINIC_DEAULT_TXRX_MSIX_PENDING_LIMIT;
+		nic_dev->tx_intr_coalesce[i].coalesce_timer_cfg =
+			HINIC_DEAULT_TXRX_MSIX_COALESC_TIMER_CFG;
+		nic_dev->tx_intr_coalesce[i].resend_timer_cfg =
+			HINIC_DEAULT_TXRX_MSIX_RESEND_TIMER_CFG;
+	}
+
+	return 0;
+}
+
+static void hinic_free_intr_coalesce(struct hinic_dev *nic_dev)
+{
+	kfree(nic_dev->tx_intr_coalesce);
+	kfree(nic_dev->rx_intr_coalesce);
+}
+
 /**
  * nic_dev_init - Initialize the NIC device
  * @pdev: the NIC pci device
@@ -1156,6 +1199,12 @@ static int nic_dev_init(struct pci_dev *pdev)
 
 	SET_NETDEV_DEV(netdev, &pdev->dev);
 
+	err = hinic_init_intr_coalesce(nic_dev);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to init_intr_coalesce\n");
+		goto err_init_intr;
+	}
+
 	err = register_netdev(netdev);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to register netdev\n");
@@ -1165,6 +1214,8 @@ static int nic_dev_init(struct pci_dev *pdev)
 	return 0;
 
 err_reg_netdev:
+	hinic_free_intr_coalesce(nic_dev);
+err_init_intr:
 err_set_pfc:
 err_set_features:
 	hinic_hwdev_cb_unregister(nic_dev->hwdev,
@@ -1278,6 +1329,8 @@ static void hinic_remove(struct pci_dev *pdev)
 	}
 
 	unregister_netdev(netdev);
+
+	hinic_free_intr_coalesce(nic_dev);
 
 	hinic_port_del_mac(nic_dev, netdev->dev_addr, 0);
 

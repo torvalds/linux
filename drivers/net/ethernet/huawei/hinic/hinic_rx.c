@@ -478,10 +478,14 @@ static irqreturn_t rx_irq(int irq, void *data)
 static int rx_request_irq(struct hinic_rxq *rxq)
 {
 	struct hinic_dev *nic_dev = netdev_priv(rxq->netdev);
+	struct hinic_msix_config interrupt_info = {0};
+	struct hinic_intr_coal_info *intr_coal = NULL;
 	struct hinic_hwdev *hwdev = nic_dev->hwdev;
 	struct hinic_rq *rq = rxq->rq;
 	struct hinic_qp *qp;
 	int err;
+
+	qp = container_of(rq, struct hinic_qp, rq);
 
 	rx_add_napi(rxq);
 
@@ -490,13 +494,26 @@ static int rx_request_irq(struct hinic_rxq *rxq)
 			     RX_IRQ_NO_LLI_TIMER, RX_IRQ_NO_CREDIT,
 			     RX_IRQ_NO_RESEND_TIMER);
 
+	intr_coal = &nic_dev->rx_intr_coalesce[qp->q_id];
+	interrupt_info.msix_index = rq->msix_entry;
+	interrupt_info.coalesce_timer_cnt = intr_coal->coalesce_timer_cfg;
+	interrupt_info.pending_cnt = intr_coal->pending_limt;
+	interrupt_info.resend_timer_cnt = intr_coal->resend_timer_cfg;
+
+	err = hinic_set_interrupt_cfg(hwdev, &interrupt_info);
+	if (err) {
+		netif_err(nic_dev, drv, rxq->netdev,
+			  "Failed to set RX interrupt coalescing attribute\n");
+		rx_del_napi(rxq);
+		return err;
+	}
+
 	err = request_irq(rq->irq, rx_irq, 0, rxq->irq_name, rxq);
 	if (err) {
 		rx_del_napi(rxq);
 		return err;
 	}
 
-	qp = container_of(rq, struct hinic_qp, rq);
 	cpumask_set_cpu(qp->q_id % num_online_cpus(), &rq->affinity_mask);
 	return irq_set_affinity_hint(rq->irq, &rq->affinity_mask);
 }

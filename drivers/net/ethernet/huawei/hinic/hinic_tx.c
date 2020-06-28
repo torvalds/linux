@@ -718,11 +718,16 @@ static irqreturn_t tx_irq(int irq, void *data)
 static int tx_request_irq(struct hinic_txq *txq)
 {
 	struct hinic_dev *nic_dev = netdev_priv(txq->netdev);
+	struct hinic_msix_config interrupt_info = {0};
+	struct hinic_intr_coal_info *intr_coal = NULL;
 	struct hinic_hwdev *hwdev = nic_dev->hwdev;
 	struct hinic_hwif *hwif = hwdev->hwif;
 	struct pci_dev *pdev = hwif->pdev;
 	struct hinic_sq *sq = txq->sq;
+	struct hinic_qp *qp;
 	int err;
+
+	qp = container_of(sq, struct hinic_qp, sq);
 
 	tx_napi_add(txq, nic_dev->tx_weight);
 
@@ -730,6 +735,20 @@ static int tx_request_irq(struct hinic_txq *txq)
 			     TX_IRQ_NO_PENDING, TX_IRQ_NO_COALESC,
 			     TX_IRQ_NO_LLI_TIMER, TX_IRQ_NO_CREDIT,
 			     TX_IRQ_NO_RESEND_TIMER);
+
+	intr_coal = &nic_dev->tx_intr_coalesce[qp->q_id];
+	interrupt_info.msix_index = sq->msix_entry;
+	interrupt_info.coalesce_timer_cnt = intr_coal->coalesce_timer_cfg;
+	interrupt_info.pending_cnt = intr_coal->pending_limt;
+	interrupt_info.resend_timer_cnt = intr_coal->resend_timer_cfg;
+
+	err = hinic_set_interrupt_cfg(hwdev, &interrupt_info);
+	if (err) {
+		netif_err(nic_dev, drv, txq->netdev,
+			  "Failed to set TX interrupt coalescing attribute\n");
+		tx_napi_del(txq);
+		return err;
+	}
 
 	err = request_irq(sq->irq, tx_irq, 0, txq->irq_name, txq);
 	if (err) {

@@ -49,6 +49,12 @@ enum hinic_rss_hash_type {
 	HINIC_RSS_HASH_ENGINE_TYPE_MAX,
 };
 
+struct hinic_intr_coal_info {
+	u8	pending_limt;
+	u8	coalesce_timer_cfg;
+	u8	resend_timer_cfg;
+};
+
 struct hinic_dev {
 	struct net_device               *netdev;
 	struct hinic_hwdev              *hwdev;
@@ -82,6 +88,8 @@ struct hinic_dev {
 	struct hinic_rss_type		rss_type;
 	u8				*rss_hkey_user;
 	s32				*rss_indir_user;
+	struct hinic_intr_coal_info	*rx_intr_coalesce;
+	struct hinic_intr_coal_info	*tx_intr_coalesce;
 	struct hinic_sriov_info sriov_info;
 };
 
