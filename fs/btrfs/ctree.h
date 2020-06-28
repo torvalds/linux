@@ -779,6 +779,7 @@ struct btrfs_fs_info {
 	u32 thread_pool_size;
 
 	struct kobject *space_info_kobj;
+	struct kobject *qgroups_kobj;
 
 	u64 total_pinned;
 

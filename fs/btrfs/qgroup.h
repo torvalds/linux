@@ -8,6 +8,7 @@
 
 #include <linux/spinlock.h>
 #include <linux/rbtree.h>
+#include <linux/kobject.h>
 #include "ulist.h"
 #include "delayed-ref.h"
 
@@ -223,7 +224,17 @@ struct btrfs_qgroup {
 	 */
 	u64 old_refcnt;
 	u64 new_refcnt;
+
+	/*
+	 * Sysfs kobjectid
+	 */
+	struct kobject kobj;
 };
+
+static inline u64 btrfs_qgroup_subvolid(u64 qgroupid)
+{
+	return (qgroupid & ((1ULL << BTRFS_QGROUP_LEVEL_SHIFT) - 1));
+}
 
 /*
  * For qgroup event trace points only
