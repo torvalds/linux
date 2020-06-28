@@ -666,6 +666,17 @@ struct hinic_port_loopback {
 	u32	en;
 };
 
+struct hinic_led_info {
+	u8	status;
+	u8	version;
+	u8	rsvd0[6];
+
+	u8	port;
+	u8	type;
+	u8	mode;
+	u8	reset;
+};
+
 int hinic_port_add_mac(struct hinic_dev *nic_dev, const u8 *addr,
 		       u16 vlan_id);
 
@@ -764,6 +775,30 @@ int hinic_set_hw_pause_info(struct hinic_hwdev *hwdev,
 int hinic_dcb_set_pfc(struct hinic_hwdev *hwdev, u8 pfc_en, u8 pfc_bitmap);
 
 int hinic_set_loopback_mode(struct hinic_hwdev *hwdev, u32 mode, u32 enable);
+
+enum hinic_led_mode {
+	HINIC_LED_MODE_ON,
+	HINIC_LED_MODE_OFF,
+	HINIC_LED_MODE_FORCE_1HZ,
+	HINIC_LED_MODE_FORCE_2HZ,
+	HINIC_LED_MODE_FORCE_4HZ,
+	HINIC_LED_MODE_1HZ,
+	HINIC_LED_MODE_2HZ,
+	HINIC_LED_MODE_4HZ,
+	HINIC_LED_MODE_INVALID,
+};
+
+enum hinic_led_type {
+	HINIC_LED_TYPE_LINK,
+	HINIC_LED_TYPE_LOW_SPEED,
+	HINIC_LED_TYPE_HIGH_SPEED,
+	HINIC_LED_TYPE_INVALID,
+};
+
+int hinic_reset_led_status(struct hinic_hwdev *hwdev, u8 port);
+
+int hinic_set_led_status(struct hinic_hwdev *hwdev, u8 port,
+			 enum hinic_led_type type, enum hinic_led_mode mode);
 
 int hinic_open(struct net_device *netdev);
 

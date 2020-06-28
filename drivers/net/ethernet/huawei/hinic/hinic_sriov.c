@@ -383,7 +383,7 @@ static int hinic_del_vf_mac_msg_handler(void *hwdev, u16 vf_id,
 
 	nic_io = &hw_dev->func_to_io;
 	vf_info = nic_io->vf_infos + HW_VF_ID_TO_OS(vf_id);
-	if (vf_info->pf_set_mac  && is_valid_ether_addr(mac_in->mac) &&
+	if (vf_info->pf_set_mac && is_valid_ether_addr(mac_in->mac) &&
 	    !memcmp(vf_info->vf_mac_addr, mac_in->mac, ETH_ALEN)) {
 		dev_warn(&hw_dev->hwif->pdev->dev, "PF has already set VF mac.\n");
 		mac_out->status = HINIC_PF_SET_VF_ALREADY;
@@ -905,7 +905,6 @@ int hinic_ndo_set_vf_spoofchk(struct net_device *netdev, int vf, bool setting)
 
 	err = hinic_set_vf_spoofchk(sriov_info->hwdev,
 				    OS_VF_ID_TO_HW(vf), setting);
-
 	if (!err) {
 		netif_info(nic_dev, drv, netdev, "Set VF %d spoofchk %s successfully\n",
 			   vf, setting ? "on" : "off");
@@ -1020,6 +1019,7 @@ static int cfg_mbx_pf_proc_vf_msg(void *hwdev, u16 vf_id, u8 cmd, void *buf_in,
 	dev_cap->max_vf = cap->max_vf;
 	dev_cap->max_sqs = cap->max_vf_qps;
 	dev_cap->max_rqs = cap->max_vf_qps;
+	dev_cap->port_id = dev->port_id;
 
 	*out_size = sizeof(*dev_cap);
 

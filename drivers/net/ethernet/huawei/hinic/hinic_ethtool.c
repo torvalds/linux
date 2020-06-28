@@ -1684,6 +1684,39 @@ static void hinic_diag_test(struct net_device *netdev,
 		netif_carrier_on(netdev);
 }
 
+static int hinic_set_phys_id(struct net_device *netdev,
+			     enum ethtool_phys_id_state state)
+{
+	struct hinic_dev *nic_dev = netdev_priv(netdev);
+	int err = 0;
+	u8 port;
+
+	port = nic_dev->hwdev->port_id;
+
+	switch (state) {
+	case ETHTOOL_ID_ACTIVE:
+		err = hinic_set_led_status(nic_dev->hwdev, port,
+					   HINIC_LED_TYPE_LINK,
+					   HINIC_LED_MODE_FORCE_2HZ);
+		if (err)
+			netif_err(nic_dev, drv, netdev,
+				  "Set LED blinking in 2HZ failed\n");
+		break;
+
+	case ETHTOOL_ID_INACTIVE:
+		err = hinic_reset_led_status(nic_dev->hwdev, port);
+		if (err)
+			netif_err(nic_dev, drv, netdev,
+				  "Reset LED to original status failed\n");
+		break;
+
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return err;
+}
+
 static const struct ethtool_ops hinic_ethtool_ops = {
 	.supported_coalesce_params = ETHTOOL_COALESCE_RX_USECS |
 				     ETHTOOL_COALESCE_RX_MAX_FRAMES |
@@ -1714,6 +1747,7 @@ static const struct ethtool_ops hinic_ethtool_ops = {
 	.get_ethtool_stats = hinic_get_ethtool_stats,
 	.get_strings = hinic_get_strings,
 	.self_test = hinic_diag_test,
+	.set_phys_id = hinic_set_phys_id,
 };
 
 static const struct ethtool_ops hinicvf_ethtool_ops = {

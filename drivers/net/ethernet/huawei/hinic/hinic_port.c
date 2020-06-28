@@ -1268,3 +1268,58 @@ int hinic_set_loopback_mode(struct hinic_hwdev *hwdev, u32 mode, u32 enable)
 
 	return 0;
 }
+
+static int _set_led_status(struct hinic_hwdev *hwdev, u8 port,
+			   enum hinic_led_type type,
+			   enum hinic_led_mode mode, u8 reset)
+{
+	struct hinic_led_info led_info = {0};
+	u16 out_size = sizeof(led_info);
+	struct hinic_pfhwdev *pfhwdev;
+	int err;
+
+	pfhwdev = container_of(hwdev, struct hinic_pfhwdev, hwdev);
+
+	led_info.port = port;
+	led_info.reset = reset;
+
+	led_info.type = type;
+	led_info.mode = mode;
+
+	err = hinic_msg_to_mgmt(&pfhwdev->pf_to_mgmt, HINIC_MOD_COMM,
+				HINIC_COMM_CMD_SET_LED_STATUS,
+				&led_info, sizeof(led_info),
+				&led_info, &out_size, HINIC_MGMT_MSG_SYNC);
+	if (err || led_info.status || !out_size) {
+		dev_err(&hwdev->hwif->pdev->dev, "Failed to set led status, err: %d, status: 0x%x, out size: 0x%x\n",
+			err, led_info.status, out_size);
+		return -EIO;
+	}
+
+	return 0;
+}
+
+int hinic_set_led_status(struct hinic_hwdev *hwdev, u8 port,
+			 enum hinic_led_type type, enum hinic_led_mode mode)
+{
+	if (!hwdev)
+		return -EINVAL;
+
+	return _set_led_status(hwdev, port, type, mode, 0);
+}
+
+int hinic_reset_led_status(struct hinic_hwdev *hwdev, u8 port)
+{
+	int err;
+
+	if (!hwdev)
+		return -EINVAL;
+
+	err = _set_led_status(hwdev, port, HINIC_LED_TYPE_INVALID,
+			      HINIC_LED_MODE_INVALID, 1);
+	if (err)
+		dev_err(&hwdev->hwif->pdev->dev,
+			"Failed to reset led status\n");
+
+	return err;
+}

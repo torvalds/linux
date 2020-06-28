@@ -83,6 +83,8 @@ static int parse_capability(struct hinic_hwdev *hwdev,
 		nic_cap->max_vf_qps = dev_cap->max_vf_sqs + 1;
 	}
 
+	hwdev->port_id = dev_cap->port_id;
+
 	return 0;
 }
 

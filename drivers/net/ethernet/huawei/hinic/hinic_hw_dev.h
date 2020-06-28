@@ -312,6 +312,7 @@ struct hinic_hwdev {
 	struct hinic_mbox_func_to_func  *func_to_func;
 
 	struct hinic_cap                nic_cap;
+	u8				port_id;
 };
 
 struct hinic_nic_cb {
