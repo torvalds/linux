@@ -18,7 +18,7 @@
 #include <linux/err.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
-#include <linux/of.h>
+#include <linux/mod_devicetable.h>
 #include <linux/acpi.h>
 
 #include <linux/iio/iio.h>
@@ -230,7 +230,6 @@ static const struct i2c_device_id adc081c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, adc081c_id);
 
-#ifdef CONFIG_OF
 static const struct of_device_id adc081c_of_match[] = {
 	{ .compatible = "ti,adc081c" },
 	{ .compatible = "ti,adc101c" },
@@ -238,7 +237,6 @@ static const struct of_device_id adc081c_of_match[] = {
 	{ }
 };
 MODULE_DEVICE_TABLE(of, adc081c_of_match);
-#endif
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id adc081c_acpi_match[] = {
@@ -253,7 +251,7 @@ MODULE_DEVICE_TABLE(acpi, adc081c_acpi_match);
 static struct i2c_driver adc081c_driver = {
 	.driver = {
 		.name = "adc081c",
-		.of_match_table = of_match_ptr(adc081c_of_match),
+		.of_match_table = adc081c_of_match,
 		.acpi_match_table = ACPI_PTR(adc081c_acpi_match),
 	},
 	.probe = adc081c_probe,
