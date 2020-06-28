@@ -116,7 +116,7 @@ static struct adb_request *current_req; /* first request struct in the queue */
 static struct adb_request *last_req;     /* last request struct in the queue */
 static unsigned char reply_buf[16];        /* storage for autopolled replies */
 static unsigned char *reply_ptr;     /* next byte in reply_buf or req->reply */
-static int reading_reply;        /* store reply in reply_buf else req->reply */
+static bool reading_reply;       /* store reply in reply_buf else req->reply */
 static int data_index;      /* index of the next byte to send from req->data */
 static int reply_len; /* number of bytes received in reply_buf or req->reply */
 static int status;          /* VIA's ADB status bits captured upon interrupt */
@@ -394,7 +394,7 @@ static irqreturn_t macii_interrupt(int irq, void *arg)
 		WARN_ON((status & ST_MASK) != ST_IDLE);
 
 		reply_ptr = reply_buf;
-		reading_reply = 0;
+		reading_reply = false;
 
 		bus_timeout = false;
 		srq_asserted = false;
@@ -442,7 +442,7 @@ static irqreturn_t macii_interrupt(int irq, void *arg)
 			 */
 			macii_state = reading;
 
-			reading_reply = 0;
+			reading_reply = false;
 			reply_ptr = reply_buf;
 			*reply_ptr = last_talk_cmd;
 			reply_len = 1;
@@ -456,7 +456,7 @@ static irqreturn_t macii_interrupt(int irq, void *arg)
 			if (req->reply_expected) {
 				macii_state = reading;
 
-				reading_reply = 1;
+				reading_reply = true;
 				reply_ptr = req->reply;
 				*reply_ptr = req->data[1];
 				reply_len = 1;
@@ -466,7 +466,7 @@ static irqreturn_t macii_interrupt(int irq, void *arg)
 			} else if ((req->data[1] & OP_MASK) == TALK) {
 				macii_state = reading;
 
-				reading_reply = 0;
+				reading_reply = false;
 				reply_ptr = reply_buf;
 				*reply_ptr = req->data[1];
 				reply_len = 1;
