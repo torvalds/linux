@@ -3703,10 +3703,9 @@ static sector_t f2fs_bmap_compress(struct inode *inode, sector_t block)
 	}
 
 	f2fs_put_dnode(&dn);
-
 	return blknr;
 #else
-	return -EOPNOTSUPP;
+	return 0;
 #endif
 }
 
