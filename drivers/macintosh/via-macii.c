@@ -125,7 +125,7 @@ static bool srq_asserted;    /* have to poll for the device that asserted it */
 static u8 last_cmd;              /* the most recent command byte transmitted */
 static u8 last_talk_cmd;    /* the most recent Talk command byte transmitted */
 static u8 last_poll_cmd; /* the most recent Talk R0 command byte transmitted */
-static int autopoll_devs;      /* bits set are device addresses to be polled */
+static unsigned int autopoll_devs;  /* bits set are device addresses to poll */
 
 /* Check for MacII style ADB */
 static int macii_probe(void)
@@ -291,7 +291,7 @@ static int macii_autopoll(int devs)
 	local_irq_save(flags);
 
 	/* bit 1 == device 1, and so on. */
-	autopoll_devs = devs & 0xFFFE;
+	autopoll_devs = (unsigned int)devs & 0xFFFE;
 
 	if (!current_req) {
 		macii_queue_poll();
