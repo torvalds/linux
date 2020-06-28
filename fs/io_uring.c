@@ -1537,21 +1537,6 @@ static void __io_free_req(struct io_kiocb *req)
 		clear_bit_unlock(0, (unsigned long *) &req->ctx->fallback_req);
 }
 
-struct req_batch {
-	void *reqs[IO_IOPOLL_BATCH];
-	int to_free;
-};
-
-static void io_free_req_many(struct io_ring_ctx *ctx, struct req_batch *rb)
-{
-	if (!rb->to_free)
-		return;
-
-	kmem_cache_free_bulk(req_cachep, rb->to_free, rb->reqs);
-	percpu_ref_put_many(&ctx->refs, rb->to_free);
-	rb->to_free = 0;
-}
-
 static bool io_link_cancel_timeout(struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
@@ -1743,6 +1728,41 @@ static void io_free_req(struct io_kiocb *req)
 	__io_free_req(req);
 }
 
+struct req_batch {
+	void *reqs[IO_IOPOLL_BATCH];
+	int to_free;
+};
+
+static void __io_req_free_batch_flush(struct io_ring_ctx *ctx,
+				      struct req_batch *rb)
+{
+	kmem_cache_free_bulk(req_cachep, rb->to_free, rb->reqs);
+	percpu_ref_put_many(&ctx->refs, rb->to_free);
+	rb->to_free = 0;
+}
+
+static void io_req_free_batch_finish(struct io_ring_ctx *ctx,
+				     struct req_batch *rb)
+{
+	if (rb->to_free)
+		__io_req_free_batch_flush(ctx, rb);
+}
+
+static void io_req_free_batch(struct req_batch *rb, struct io_kiocb *req)
+{
+	if (unlikely(io_is_fallback_req(req))) {
+		io_free_req(req);
+		return;
+	}
+	if (req->flags & REQ_F_LINK_HEAD)
+		io_queue_next(req);
+
+	io_dismantle_req(req);
+	rb->reqs[rb->to_free++] = req;
+	if (unlikely(rb->to_free == ARRAY_SIZE(rb->reqs)))
+		__io_req_free_batch_flush(req->ctx, rb);
+}
+
 /*
  * Drop reference to request, return next in chain (if there is one) if this
  * was the last reference to this request.
@@ -1839,21 +1859,6 @@ static inline unsigned int io_sqring_entries(struct io_ring_ctx *ctx)
 	return smp_load_acquire(&rings->sq.tail) - ctx->cached_sq_head;
 }
 
-static inline void io_req_multi_free(struct req_batch *rb, struct io_kiocb *req)
-{
-	if (unlikely(io_is_fallback_req(req))) {
-		io_free_req(req);
-		return;
-	}
-	if (req->flags & REQ_F_LINK_HEAD)
-		io_queue_next(req);
-
-	io_dismantle_req(req);
-	rb->reqs[rb->to_free++] = req;
-	if (unlikely(rb->to_free == ARRAY_SIZE(rb->reqs)))
-		io_free_req_many(req->ctx, rb);
-}
-
 static int io_put_kbuf(struct io_kiocb *req)
 {
 	struct io_buffer *kbuf;
@@ -1918,13 +1923,13 @@ static void io_iopoll_complete(struct io_ring_ctx *ctx, unsigned int *nr_events,
 		(*nr_events)++;
 
 		if (refcount_dec_and_test(&req->refs))
-			io_req_multi_free(&rb, req);
+			io_req_free_batch(&rb, req);
 	}
 
 	io_commit_cqring(ctx);
 	if (ctx->flags & IORING_SETUP_SQPOLL)
 		io_cqring_ev_posted(ctx);
-	io_free_req_many(ctx, &rb);
+	io_req_free_batch_finish(ctx, &rb);
 
 	if (!list_empty(&again))
 		io_iopoll_queue(&again);
