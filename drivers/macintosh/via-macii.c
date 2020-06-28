@@ -140,7 +140,7 @@ static int macii_probe(void)
 }
 
 /* Initialize the driver */
-int macii_init(void)
+static int macii_init(void)
 {
 	unsigned long flags;
 	int err;
