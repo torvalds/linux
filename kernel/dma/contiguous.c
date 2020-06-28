@@ -270,6 +270,9 @@ static int __init rmem_cma_setup(struct reserved_mem *rmem)
 	if (of_get_flat_dt_prop(node, "linux,cma-default", NULL))
 		dma_contiguous_set_default(cma);
 
+	if (of_get_flat_dt_prop(node, "inactive", NULL))
+		set_cma_area_inactive(cma);
+
 	rmem->ops = &rmem_cma_ops;
 	rmem->priv = cma;
 
