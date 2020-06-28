@@ -110,7 +110,6 @@ static enum macii_state {
 	idle,
 	sending,
 	reading,
-	read_done,
 } macii_state;
 
 static struct adb_request *current_req; /* first request struct in the queue */
@@ -411,8 +410,8 @@ static irqreturn_t macii_interrupt(int irq, void *arg)
 			reply_len = 1;
 		} else {
 			/* bus timeout */
-			macii_state = read_done;
 			reply_len = 0;
+			break;
 		}
 
 		/* set ADB state = even for first data byte */
@@ -471,20 +470,6 @@ static irqreturn_t macii_interrupt(int irq, void *arg)
 				current_req = req->next;
 				if (req->done)
 					(*req->done)(req);
-
-				if (!current_req)
-					macii_queue_poll();
-
-				if (current_req && macii_state == idle)
-					macii_start();
-
-				if (macii_state == idle) {
-					/* reset to shift in */
-					via[ACR] &= ~SR_OUT;
-					x = via[SR];
-					/* set ADB state idle - might get SRQ */
-					via[B] = (via[B] & ~ST_MASK) | ST_IDLE;
-				}
 				break;
 			}
 		} else {
@@ -511,12 +496,28 @@ static irqreturn_t macii_interrupt(int irq, void *arg)
 			} else if (status == ST_ODD && reply_len == 2) {
 				srq_asserted = true;
 			} else {
-				macii_state = read_done;
+				macii_state = idle;
+
+				if (bus_timeout)
+					reply_len = 0;
+
+				if (reading_reply) {
+					struct adb_request *req = current_req;
+
+					req->reply_len = reply_len;
+
+					req->complete = 1;
+					current_req = req->next;
+					if (req->done)
+						(*req->done)(req);
+				} else if (reply_len && autopoll_devs) {
+					adb_input(reply_buf, reply_len, 0);
+				}
+				break;
 			}
 		}
 
-		if (macii_state == reading &&
-		    reply_len < ARRAY_SIZE(reply_buf)) {
+		if (reply_len < ARRAY_SIZE(reply_buf)) {
 			reply_ptr++;
 			*reply_ptr = x;
 			reply_len++;
@@ -526,37 +527,22 @@ static irqreturn_t macii_interrupt(int irq, void *arg)
 		via[B] ^= ST_MASK;
 		break;
 
-	case read_done:
-		x = via[SR];
+	default:
+		break;
+	}
 
-		if (bus_timeout)
-			reply_len = 0;
-
-		if (reading_reply) {
-			reading_reply = 0;
-			req = current_req;
-			req->reply_len = reply_len;
-			req->complete = 1;
-			current_req = req->next;
-			if (req->done)
-				(*req->done)(req);
-		} else if (reply_len && autopoll_devs)
-			adb_input(reply_buf, reply_len, 0);
-
-		macii_state = idle;
-
+	if (macii_state == idle) {
 		if (!current_req)
 			macii_queue_poll();
 
 		if (current_req)
 			macii_start();
 
-		if (macii_state == idle)
+		if (macii_state == idle) {
+			via[ACR] &= ~SR_OUT;
+			x = via[SR];
 			via[B] = (via[B] & ~ST_MASK) | ST_IDLE;
-		break;
-
-	default:
-		break;
+		}
 	}
 
 	local_irq_restore(flags);
