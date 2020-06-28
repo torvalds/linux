@@ -13,6 +13,7 @@
 #include <linux/iopoll.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
 
@@ -497,7 +498,6 @@ static int ingenic_adc_probe(struct platform_device *pdev)
 	return ret;
 }
 
-#ifdef CONFIG_OF
 static const struct of_device_id ingenic_adc_of_match[] = {
 	{ .compatible = "ingenic,jz4725b-adc", .data = &jz4725b_adc_soc_data, },
 	{ .compatible = "ingenic,jz4740-adc", .data = &jz4740_adc_soc_data, },
@@ -505,12 +505,11 @@ static const struct of_device_id ingenic_adc_of_match[] = {
 	{ },
 };
 MODULE_DEVICE_TABLE(of, ingenic_adc_of_match);
-#endif
 
 static struct platform_driver ingenic_adc_driver = {
 	.driver = {
 		.name = "ingenic-adc",
-		.of_match_table = of_match_ptr(ingenic_adc_of_match),
+		.of_match_table = ingenic_adc_of_match,
 	},
 	.probe = ingenic_adc_probe,
 };
