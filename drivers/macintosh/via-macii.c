@@ -463,6 +463,21 @@ static irqreturn_t macii_interrupt(int irq, void *arg)
 
 				via[ACR] &= ~SR_OUT;
 				x = via[SR];
+			} else if ((req->data[1] & OP_MASK) == TALK) {
+				macii_state = reading;
+
+				reading_reply = 0;
+				reply_ptr = reply_buf;
+				*reply_ptr = req->data[1];
+				reply_len = 1;
+
+				via[ACR] &= ~SR_OUT;
+				x = via[SR];
+
+				req->complete = 1;
+				current_req = req->next;
+				if (req->done)
+					(*req->done)(req);
 			} else {
 				macii_state = idle;
 
@@ -510,8 +525,9 @@ static irqreturn_t macii_interrupt(int irq, void *arg)
 					current_req = req->next;
 					if (req->done)
 						(*req->done)(req);
-				} else if (reply_len && autopoll_devs) {
-					adb_input(reply_buf, reply_len, 0);
+				} else if (reply_len && autopoll_devs &&
+					   reply_buf[0] == last_poll_cmd) {
+					adb_input(reply_buf, reply_len, 1);
 				}
 				break;
 			}
