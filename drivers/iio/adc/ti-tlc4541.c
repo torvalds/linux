@@ -24,6 +24,7 @@
 #include <linux/iio/triggered_buffer.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <linux/spi/spi.h>
@@ -235,14 +236,12 @@ static int tlc4541_remove(struct spi_device *spi)
 	return 0;
 }
 
-#ifdef CONFIG_OF
 static const struct of_device_id tlc4541_dt_ids[] = {
 	{ .compatible = "ti,tlc3541", },
 	{ .compatible = "ti,tlc4541", },
 	{}
 };
 MODULE_DEVICE_TABLE(of, tlc4541_dt_ids);
-#endif
 
 static const struct spi_device_id tlc4541_id[] = {
 	{"tlc3541", TLC3541},
@@ -254,7 +253,7 @@ MODULE_DEVICE_TABLE(spi, tlc4541_id);
 static struct spi_driver tlc4541_driver = {
 	.driver = {
 		.name   = "tlc4541",
-		.of_match_table = of_match_ptr(tlc4541_dt_ids),
+		.of_match_table = tlc4541_dt_ids,
 	},
 	.probe          = tlc4541_probe,
 	.remove         = tlc4541_remove,
