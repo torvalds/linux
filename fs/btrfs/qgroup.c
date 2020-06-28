@@ -538,7 +538,7 @@ bool btrfs_check_quota_leak(struct btrfs_fs_info *fs_info)
 			if (qgroup->rsv.values[i]) {
 				ret = true;
 				btrfs_warn(fs_info,
-		"qgroup %llu/%llu has unreleased space, type %d rsv %llu",
+		"qgroup %hu/%llu has unreleased space, type %d rsv %llu",
 				   btrfs_qgroup_level(qgroup->qgroupid),
 				   btrfs_qgroup_subvolid(qgroup->qgroupid),
 				   i, qgroup->rsv.values[i]);
