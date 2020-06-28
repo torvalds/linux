@@ -53,6 +53,7 @@ config ARCH_BCM_NSP
 	select ARM_ERRATA_754322
 	select ARM_ERRATA_775420
 	select ARM_ERRATA_764369 if SMP
+	select ARM_TIMER_SP804
 	select THERMAL
 	select THERMAL_OF
 	help
