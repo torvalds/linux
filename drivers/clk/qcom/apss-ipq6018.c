@@ -87,8 +87,8 @@ static int apss_ipq6018_probe(struct platform_device *pdev)
 	struct regmap *regmap;
 
 	regmap = dev_get_regmap(pdev->dev.parent, NULL);
-	if (IS_ERR(regmap))
-		return PTR_ERR(regmap);
+	if (!regmap)
+		return -ENODEV;
 
 	return qcom_cc_really_probe(pdev, &apss_ipq6018_desc, regmap);
 }
