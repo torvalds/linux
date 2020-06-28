@@ -41,6 +41,7 @@
 #include <linux/delay.h>
 #include <linux/spi/spi.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/iio/iio.h>
 #include <linux/regulator/consumer.h>
 
@@ -469,7 +470,6 @@ static int mcp320x_remove(struct spi_device *spi)
 	return 0;
 }
 
-#if defined(CONFIG_OF)
 static const struct of_device_id mcp320x_dt_ids[] = {
 	/* NOTE: The use of compatibles with no vendor prefix is deprecated. */
 	{ .compatible = "mcp3001" },
@@ -497,7 +497,6 @@ static const struct of_device_id mcp320x_dt_ids[] = {
 	{ }
 };
 MODULE_DEVICE_TABLE(of, mcp320x_dt_ids);
-#endif
 
 static const struct spi_device_id mcp320x_id[] = {
 	{ "mcp3001", mcp3001 },
@@ -520,7 +519,7 @@ MODULE_DEVICE_TABLE(spi, mcp320x_id);
 static struct spi_driver mcp320x_driver = {
 	.driver = {
 		.name = "mcp320x",
-		.of_match_table = of_match_ptr(mcp320x_dt_ids),
+		.of_match_table = mcp320x_dt_ids,
 	},
 	.probe = mcp320x_probe,
 	.remove = mcp320x_remove,
