@@ -230,6 +230,7 @@ struct bpf_program {
 	struct bpf_insn *insns;
 	size_t insns_cnt, main_prog_cnt;
 	enum bpf_prog_type type;
+	bool load;
 
 	struct reloc_desc *reloc_desc;
 	int nr_reloc;
@@ -541,6 +542,7 @@ bpf_program__init(void *data, size_t size, char *section_name, int idx,
 	prog->instances.fds = NULL;
 	prog->instances.nr = -1;
 	prog->type = BPF_PROG_TYPE_UNSPEC;
+	prog->load = true;
 
 	return 0;
 errout:
@@ -2513,6 +2515,8 @@ static int bpf_object__load_vmlinux_btf(struct bpf_object *obj)
 		need_vmlinux_btf = true;
 
 	bpf_object__for_each_program(prog, obj) {
+		if (!prog->load)
+			continue;
 		if (libbpf_prog_needs_vmlinux_btf(prog)) {
 			need_vmlinux_btf = true;
 			break;
@@ -5445,6 +5449,12 @@ int bpf_program__load(struct bpf_program *prog, char *license, __u32 kern_ver)
 {
 	int err = 0, fd, i, btf_id;
 
+	if (prog->obj->loaded) {
+		pr_warn("prog '%s'('%s'): can't load after object was loaded\n",
+			prog->name, prog->section_name);
+		return -EINVAL;
+	}
+
 	if ((prog->type == BPF_PROG_TYPE_TRACING ||
 	     prog->type == BPF_PROG_TYPE_LSM ||
 	     prog->type == BPF_PROG_TYPE_EXT) && !prog->attach_btf_id) {
@@ -5533,16 +5543,21 @@ static bool bpf_program__is_function_storage(const struct bpf_program *prog,
 static int
 bpf_object__load_progs(struct bpf_object *obj, int log_level)
 {
+	struct bpf_program *prog;
 	size_t i;
 	int err;
 
 	for (i = 0; i < obj->nr_programs; i++) {
-		if (bpf_program__is_function_storage(&obj->programs[i], obj))
+		prog = &obj->programs[i];
+		if (bpf_program__is_function_storage(prog, obj))
 			continue;
-		obj->programs[i].log_level |= log_level;
-		err = bpf_program__load(&obj->programs[i],
-					obj->license,
-					obj->kern_version);
+		if (!prog->load) {
+			pr_debug("prog '%s'('%s'): skipped loading\n",
+				 prog->name, prog->section_name);
+			continue;
+		}
+		prog->log_level |= log_level;
+		err = bpf_program__load(prog, obj->license, obj->kern_version);
 		if (err)
 			return err;
 	}
@@ -5869,11 +5884,9 @@ int bpf_object__load_xattr(struct bpf_object_load_attr *attr)
 		return -EINVAL;
 
 	if (obj->loaded) {
-		pr_warn("object should not be loaded twice\n");
+		pr_warn("object '%s': load can't be attempted twice\n", obj->name);
 		return -EINVAL;
 	}
-
-	obj->loaded = true;
 
 	err = bpf_object__probe_loading(obj);
 	err = err ? : bpf_object__probe_caps(obj);
@@ -5888,6 +5901,8 @@ int bpf_object__load_xattr(struct bpf_object_load_attr *attr)
 
 	btf__free(obj->btf_vmlinux);
 	obj->btf_vmlinux = NULL;
+
+	obj->loaded = true; /* doesn't matter if successfully or not */
 
 	if (err)
 		goto out;
@@ -6659,6 +6674,20 @@ const char *bpf_program__title(const struct bpf_program *prog, bool needs_copy)
 	}
 
 	return title;
+}
+
+bool bpf_program__autoload(const struct bpf_program *prog)
+{
+	return prog->load;
+}
+
+int bpf_program__set_autoload(struct bpf_program *prog, bool autoload)
+{
+	if (prog->obj->loaded)
+		return -EINVAL;
+
+	prog->load = autoload;
+	return 0;
 }
 
 int bpf_program__fd(const struct bpf_program *prog)
@@ -9282,6 +9311,9 @@ int bpf_object__attach_skeleton(struct bpf_object_skeleton *s)
 		struct bpf_link **link = s->progs[i].link;
 		const struct bpf_sec_def *sec_def;
 		const char *sec_name = bpf_program__title(prog, false);
+
+		if (!prog->load)
+			continue;
 
 		sec_def = find_sec_def(sec_name);
 		if (!sec_def || !sec_def->attach_fn)
