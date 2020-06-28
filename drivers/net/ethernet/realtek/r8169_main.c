@@ -106,6 +106,7 @@ static const struct {
 	[RTL_GIGA_MAC_VER_11] = {"RTL8168b/8111b"			},
 	[RTL_GIGA_MAC_VER_12] = {"RTL8168b/8111b"			},
 	[RTL_GIGA_MAC_VER_13] = {"RTL8101e/RTL8100e"			},
+	[RTL_GIGA_MAC_VER_14] = {"RTL8401"				},
 	[RTL_GIGA_MAC_VER_16] = {"RTL8101e"				},
 	[RTL_GIGA_MAC_VER_17] = {"RTL8168b/8111b"			},
 	[RTL_GIGA_MAC_VER_18] = {"RTL8168cp/8111cp"			},
@@ -1999,8 +2000,7 @@ static enum mac_version rtl8169_get_mac_version(u16 xid, bool gmii)
 		{ 0x7cf, 0x348,	RTL_GIGA_MAC_VER_07 },
 		{ 0x7cf, 0x248,	RTL_GIGA_MAC_VER_07 },
 		{ 0x7cf, 0x340,	RTL_GIGA_MAC_VER_13 },
-		/* RTL8401, reportedly works if treated as RTL8101e */
-		{ 0x7cf, 0x240,	RTL_GIGA_MAC_VER_13 },
+		{ 0x7cf, 0x240,	RTL_GIGA_MAC_VER_14 },
 		{ 0x7cf, 0x343,	RTL_GIGA_MAC_VER_10 },
 		{ 0x7cf, 0x342,	RTL_GIGA_MAC_VER_16 },
 		{ 0x7c8, 0x348,	RTL_GIGA_MAC_VER_09 },
@@ -3401,6 +3401,19 @@ static void rtl_hw_start_8102e_3(struct rtl8169_private *tp)
 	rtl_ephy_write(tp, 0x03, 0xc2f9);
 }
 
+static void rtl_hw_start_8401(struct rtl8169_private *tp)
+{
+	static const struct ephy_info e_info_8401[] = {
+		{ 0x01,	0xffff, 0x6fe5 },
+		{ 0x03,	0xffff, 0x0599 },
+		{ 0x06,	0xffff, 0xaf25 },
+		{ 0x07,	0xffff, 0x8e68 },
+	};
+
+	rtl_ephy_init(tp, e_info_8401);
+	RTL_W8(tp, Config3, RTL_R8(tp, Config3) & ~Beacon_en);
+}
+
 static void rtl_hw_start_8105e_1(struct rtl8169_private *tp)
 {
 	static const struct ephy_info e_info_8105e_1[] = {
@@ -3614,6 +3627,7 @@ static void rtl_hw_config(struct rtl8169_private *tp)
 		[RTL_GIGA_MAC_VER_11] = rtl_hw_start_8168b,
 		[RTL_GIGA_MAC_VER_12] = rtl_hw_start_8168b,
 		[RTL_GIGA_MAC_VER_13] = NULL,
+		[RTL_GIGA_MAC_VER_14] = rtl_hw_start_8401,
 		[RTL_GIGA_MAC_VER_16] = NULL,
 		[RTL_GIGA_MAC_VER_17] = rtl_hw_start_8168b,
 		[RTL_GIGA_MAC_VER_18] = rtl_hw_start_8168cp_1,
