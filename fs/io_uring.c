@@ -1904,7 +1904,6 @@ static void io_iopoll_queue(struct list_head *again)
 		/* shouldn't happen unless io_uring is dying, cancel reqs */
 		if (unlikely(!current->mm)) {
 			io_complete_rw_common(&req->rw.kiocb, -EAGAIN, NULL);
-			io_put_req(req);
 			continue;
 		}
 
