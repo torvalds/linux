@@ -16,9 +16,9 @@
 #include <linux/err.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/delay.h>
 #include <linux/sysfs.h>
-#include <linux/of.h>
 #include <asm/unaligned.h>
 
 #include <linux/iio/iio.h>
@@ -402,18 +402,16 @@ static const struct i2c_device_id mcp3422_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, mcp3422_id);
 
-#ifdef CONFIG_OF
 static const struct of_device_id mcp3422_of_match[] = {
 	{ .compatible = "mcp3422" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, mcp3422_of_match);
-#endif
 
 static struct i2c_driver mcp3422_driver = {
 	.driver = {
 		.name = "mcp3422",
-		.of_match_table = of_match_ptr(mcp3422_of_match),
+		.of_match_table = mcp3422_of_match,
 	},
 	.probe = mcp3422_probe,
 	.id_table = mcp3422_id,
