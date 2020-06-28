@@ -313,9 +313,9 @@ static int sun50i_iommu_flush_all_tlb(struct sun50i_iommu *iommu)
 		    IOMMU_TLB_FLUSH_MICRO_TLB(1) |
 		    IOMMU_TLB_FLUSH_MICRO_TLB(0));
 
-	ret = readl_poll_timeout(iommu->base + IOMMU_TLB_FLUSH_REG,
-				 reg, !reg,
-				 1, 2000);
+	ret = readl_poll_timeout_atomic(iommu->base + IOMMU_TLB_FLUSH_REG,
+					reg, !reg,
+					1, 2000);
 	if (ret)
 		dev_warn(iommu->dev, "TLB Flush timed out!\n");
 
