@@ -1728,15 +1728,19 @@ static void io_req_task_queue(struct io_kiocb *req)
 	wake_up_process(tsk);
 }
 
-static void io_free_req(struct io_kiocb *req)
+static void io_queue_next(struct io_kiocb *req)
 {
 	struct io_kiocb *nxt = NULL;
 
 	io_req_find_next(req, &nxt);
-	__io_free_req(req);
-
 	if (nxt)
 		io_req_task_queue(nxt);
+}
+
+static void io_free_req(struct io_kiocb *req)
+{
+	io_queue_next(req);
+	__io_free_req(req);
 }
 
 /*
@@ -1835,16 +1839,19 @@ static inline unsigned int io_sqring_entries(struct io_ring_ctx *ctx)
 	return smp_load_acquire(&rings->sq.tail) - ctx->cached_sq_head;
 }
 
-static inline bool io_req_multi_free(struct req_batch *rb, struct io_kiocb *req)
+static inline void io_req_multi_free(struct req_batch *rb, struct io_kiocb *req)
 {
-	if ((req->flags & REQ_F_LINK_HEAD) || io_is_fallback_req(req))
-		return false;
+	if (unlikely(io_is_fallback_req(req))) {
+		io_free_req(req);
+		return;
+	}
+	if (req->flags & REQ_F_LINK_HEAD)
+		io_queue_next(req);
 
 	io_dismantle_req(req);
 	rb->reqs[rb->to_free++] = req;
 	if (unlikely(rb->to_free == ARRAY_SIZE(rb->reqs)))
 		io_free_req_many(req->ctx, rb);
-	return true;
 }
 
 static int io_put_kbuf(struct io_kiocb *req)
@@ -1910,9 +1917,8 @@ static void io_iopoll_complete(struct io_ring_ctx *ctx, unsigned int *nr_events,
 		__io_cqring_fill_event(req, req->result, cflags);
 		(*nr_events)++;
 
-		if (refcount_dec_and_test(&req->refs) &&
-		    !io_req_multi_free(&rb, req))
-			io_free_req(req);
+		if (refcount_dec_and_test(&req->refs))
+			io_req_multi_free(&rb, req);
 	}
 
 	io_commit_cqring(ctx);
