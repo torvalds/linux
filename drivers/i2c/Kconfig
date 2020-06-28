@@ -113,6 +113,10 @@ config I2C_STUB
 
 config I2C_SLAVE
 	bool "I2C slave support"
+	help
+	  This enables Linux to act as an I2C slave device. Note that your I2C
+	  bus master driver also needs to support this functionality. Please
+	  read Documentation/i2c/slave-interface.rst for further details.
 
 if I2C_SLAVE
 
