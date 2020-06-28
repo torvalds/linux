@@ -1125,16 +1125,6 @@ static inline unsigned int __readahead_batch(struct readahead_control *rac,
 		VM_BUG_ON_PAGE(PageTail(page), page);
 		array[i++] = page;
 		rac->_batch_count += thp_nr_pages(page);
-
-		/*
-		 * The page cache isn't using multi-index entries yet,
-		 * so the xas cursor needs to be manually moved to the
-		 * next index.  This can be removed once the page cache
-		 * is converted.
-		 */
-		if (PageHead(page))
-			xas_set(&xas, rac->_index + rac->_batch_count);
-
 		if (i == array_sz)
 			break;
 	}

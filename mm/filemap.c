@@ -135,7 +135,6 @@ static void page_cache_delete(struct address_space *mapping,
 	}
 
 	VM_BUG_ON_FOLIO(!folio_test_locked(folio), folio);
-	VM_BUG_ON_FOLIO(nr != 1 && shadow, folio);
 
 	xas_store(&xas, shadow);
 	xas_init_marks(&xas);
@@ -286,7 +285,7 @@ static void page_cache_delete_batch(struct address_space *mapping,
 			     struct folio_batch *fbatch)
 {
 	XA_STATE(xas, &mapping->i_pages, fbatch->folios[0]->index);
-	int total_pages = 0;
+	long total_pages = 0;
 	int i = 0;
 	struct folio *folio;
 
@@ -313,18 +312,12 @@ static void page_cache_delete_batch(struct address_space *mapping,
 
 		WARN_ON_ONCE(!folio_test_locked(folio));
 
-		if (folio->index == xas.xa_index)
-			folio->mapping = NULL;
+		folio->mapping = NULL;
 		/* Leave folio->index set: truncation lookup relies on it */
 
-		/*
-		 * Move to the next folio in the batch if this is a regular
-		 * folio or the index is of the last sub-page of this folio.
-		 */
-		if (folio->index + folio_nr_pages(folio) - 1 == xas.xa_index)
-			i++;
+		i++;
 		xas_store(&xas, NULL);
-		total_pages++;
+		total_pages += folio_nr_pages(folio);
 	}
 	mapping->nrpages -= total_pages;
 }
@@ -2089,22 +2082,25 @@ unsigned find_lock_entries(struct address_space *mapping, pgoff_t start,
 		indices[fbatch->nr] = xas.xa_index;
 		if (!folio_batch_add(fbatch, folio))
 			break;
-		goto next;
+		continue;
 unlock:
 		folio_unlock(folio);
 put:
 		folio_put(folio);
-next:
-		if (!xa_is_value(folio) && folio_test_large(folio)) {
-			xas_set(&xas, folio->index + folio_nr_pages(folio));
-			/* Did we wrap on 32-bit? */
-			if (!xas.xa_index)
-				break;
-		}
 	}
 	rcu_read_unlock();
 
 	return folio_batch_count(fbatch);
+}
+
+static inline
+bool folio_more_pages(struct folio *folio, pgoff_t index, pgoff_t max)
+{
+	if (!folio_test_large(folio) || folio_test_hugetlb(folio))
+		return false;
+	if (index >= max)
+		return false;
+	return index < folio->index + folio_nr_pages(folio) - 1;
 }
 
 /**
@@ -2145,10 +2141,16 @@ unsigned find_get_pages_range(struct address_space *mapping, pgoff_t *start,
 		if (xa_is_value(folio))
 			continue;
 
+again:
 		pages[ret] = folio_file_page(folio, xas.xa_index);
 		if (++ret == nr_pages) {
 			*start = xas.xa_index + 1;
 			goto out;
+		}
+		if (folio_more_pages(folio, xas.xa_index, end)) {
+			xas.xa_index++;
+			folio_ref_inc(folio);
+			goto again;
 		}
 	}
 
@@ -2207,9 +2209,15 @@ unsigned find_get_pages_contig(struct address_space *mapping, pgoff_t index,
 		if (unlikely(folio != xas_reload(&xas)))
 			goto put_page;
 
-		pages[ret] = &folio->page;
+again:
+		pages[ret] = folio_file_page(folio, xas.xa_index);
 		if (++ret == nr_pages)
 			break;
+		if (folio_more_pages(folio, xas.xa_index, ULONG_MAX)) {
+			xas.xa_index++;
+			folio_ref_inc(folio);
+			goto again;
+		}
 		continue;
 put_page:
 		folio_put(folio);
@@ -2334,8 +2342,7 @@ static void filemap_get_read_batch(struct address_space *mapping,
 			break;
 		if (folio_test_readahead(folio))
 			break;
-		xas.xa_index = folio->index + folio_nr_pages(folio) - 1;
-		xas.xa_offset = (xas.xa_index >> xas.xa_shift) & XA_CHUNK_MASK;
+		xas_advance(&xas, folio->index + folio_nr_pages(folio) - 1);
 		continue;
 put_folio:
 		folio_put(folio);
@@ -3284,6 +3291,7 @@ vm_fault_t filemap_map_pages(struct vm_fault *vmf,
 	addr = vma->vm_start + ((start_pgoff - vma->vm_pgoff) << PAGE_SHIFT);
 	vmf->pte = pte_offset_map_lock(vma->vm_mm, vmf->pmd, addr, &vmf->ptl);
 	do {
+again:
 		page = folio_file_page(folio, xas.xa_index);
 		if (PageHWPoison(page))
 			goto unlock;
@@ -3305,9 +3313,18 @@ vm_fault_t filemap_map_pages(struct vm_fault *vmf,
 		do_set_pte(vmf, page, addr);
 		/* no need to invalidate: a not-present page won't be cached */
 		update_mmu_cache(vma, addr, vmf->pte);
+		if (folio_more_pages(folio, xas.xa_index, end_pgoff)) {
+			xas.xa_index++;
+			folio_ref_inc(folio);
+			goto again;
+		}
 		folio_unlock(folio);
 		continue;
 unlock:
+		if (folio_more_pages(folio, xas.xa_index, end_pgoff)) {
+			xas.xa_index++;
+			goto again;
+		}
 		folio_unlock(folio);
 		folio_put(folio);
 	} while ((folio = next_map_page(mapping, &xas, end_pgoff)) != NULL);

@@ -433,14 +433,6 @@ int folio_migrate_mapping(struct address_space *mapping,
 	}
 
 	xas_store(&xas, newfolio);
-	if (nr > 1) {
-		int i;
-
-		for (i = 1; i < nr; i++) {
-			xas_next(&xas);
-			xas_store(&xas, newfolio);
-		}
-	}
 
 	/*
 	 * Drop cache reference from old page by unfreezing
