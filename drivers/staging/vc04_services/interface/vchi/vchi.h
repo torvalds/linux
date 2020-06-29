@@ -53,7 +53,7 @@ struct service_creation {
 struct vchiq_instance;
 
 // Opaque handle for a server or client
-struct vchi_service_handle;
+struct vchi_service;
 
 /******************************************************************************
  * Global funcs - implementation is specific to which side you are on
@@ -75,30 +75,27 @@ extern int32_t vchi_disconnect(struct vchiq_instance *instance);
 // Routine to open a named service
 extern int32_t vchi_service_open(struct vchiq_instance *instance,
 				 struct service_creation *setup,
-				 struct vchi_service_handle **handle);
+				 struct vchi_service **service);
 
-extern int32_t vchi_get_peer_version(const struct vchi_service_handle *handle,
+extern int32_t vchi_get_peer_version(struct vchi_service *service,
 				     short *peer_version);
 
 // Routine to close a named service
-extern int32_t vchi_service_close(const struct vchi_service_handle *handle);
+extern int32_t vchi_service_close(struct vchi_service *service);
 
 // Routine to increment ref count on a named service
-extern int32_t vchi_service_use(const struct vchi_service_handle *handle);
+extern int32_t vchi_service_use(struct vchi_service *service);
 
 // Routine to decrement ref count on a named service
-extern int32_t vchi_service_release(const struct vchi_service_handle *handle);
+extern int32_t vchi_service_release(struct vchi_service *service);
 
 /* Routine to send a message from kernel memory across a service */
-extern int
-vchi_queue_kernel_message(struct vchi_service_handle *handle,
-			  void *data,
-			  unsigned int size);
+extern int vchi_queue_kernel_message(struct vchi_service *service, void *data,
+				     unsigned int size);
 
 // Routine to receive a msg from a service
 // Dequeue is equivalent to hold, copy into client buffer, release
-extern int32_t vchi_msg_dequeue(struct vchi_service_handle *handle,
-				void *data,
+extern int32_t vchi_msg_dequeue(struct vchi_service *service, void *data,
 				uint32_t max_data_size_to_read,
 				uint32_t *actual_msg_size,
 				enum vchi_flags flags);
@@ -106,7 +103,7 @@ extern int32_t vchi_msg_dequeue(struct vchi_service_handle *handle,
 // Routine to look at a message in place.
 // The message is dequeued, so the caller is left holding it; the descriptor is
 // filled in and must be released when the user has finished with the message.
-extern int32_t vchi_msg_hold(struct vchi_service_handle *handle,
+extern int32_t vchi_msg_hold(struct vchi_service *service,
 			     void **data,        // } may be NULL, as info can be
 			     uint32_t *msg_size, // } obtained from HELD_MSG_T
 			     enum vchi_flags flags,
@@ -125,14 +122,14 @@ extern int32_t vchi_held_msg_release(struct vchi_held_msg *message);
  *****************************************************************************/
 
 // Routine to prepare interface for a transfer from the other side
-extern int32_t vchi_bulk_queue_receive(struct vchi_service_handle *handle,
+extern int32_t vchi_bulk_queue_receive(struct vchi_service *service,
 				       void *data_dst,
 				       uint32_t data_size,
 				       enum vchi_flags flags,
 				       void *transfer_handle);
 
 // Routine to queue up data ready for transfer to the other (once they have signalled they are ready)
-extern int32_t vchi_bulk_queue_transmit(struct vchi_service_handle *handle,
+extern int32_t vchi_bulk_queue_transmit(struct vchi_service *service,
 					const void *data_src,
 					uint32_t data_size,
 					enum vchi_flags flags,
