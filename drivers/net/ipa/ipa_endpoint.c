@@ -576,19 +576,20 @@ static void ipa_endpoint_init_aggr(struct ipa_endpoint *endpoint)
 
 	if (endpoint->data->aggregation) {
 		if (!endpoint->toward_ipa) {
-			u32 aggr_size = ipa_aggr_size_kb(IPA_RX_BUFFER_SIZE);
 			u32 limit;
 
 			val |= u32_encode_bits(IPA_ENABLE_AGGR, AGGR_EN_FMASK);
 			val |= u32_encode_bits(IPA_GENERIC, AGGR_TYPE_FMASK);
-			val |= u32_encode_bits(aggr_size,
-					       AGGR_BYTE_LIMIT_FMASK);
+
+			limit = ipa_aggr_size_kb(IPA_RX_BUFFER_SIZE);
+			val |= u32_encode_bits(limit, AGGR_BYTE_LIMIT_FMASK);
 
 			limit = IPA_AGGR_TIME_LIMIT_DEFAULT;
 			limit = DIV_ROUND_CLOSEST(limit, IPA_AGGR_GRANULARITY);
 			val |= u32_encode_bits(limit, AGGR_TIME_LIMIT_FMASK);
 
-			val |= u32_encode_bits(0, AGGR_PKT_LIMIT_FMASK);
+			/* AGGR_PKT_LIMIT is 0 (unlimited) */
+
 			if (endpoint->data->rx.aggr_close_eof)
 				val |= AGGR_SW_EOF_ACTIVE_FMASK;
 			/* AGGR_HARD_BYTE_LIMIT_ENABLE is 0 */
