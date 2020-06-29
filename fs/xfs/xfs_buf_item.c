@@ -1210,6 +1210,16 @@ xfs_buf_inode_iodone(
 	xfs_buf_ioend_finish(bp);
 }
 
+/*
+ * Dquot buffer iodone callback function.
+ */
+void
+xfs_buf_dquot_iodone(
+	struct xfs_buf		*bp)
+{
+	xfs_buf_run_callbacks(bp);
+	xfs_buf_ioend_finish(bp);
+}
 
 /*
  * This is the iodone() function for buffers which have been

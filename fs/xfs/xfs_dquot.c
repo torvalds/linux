@@ -1179,6 +1179,7 @@ xfs_qm_dqflush(
 	 * Attach an iodone routine so that we can remove this dquot from the
 	 * AIL and release the flush lock once the dquot is synced to disk.
 	 */
+	bp->b_flags |= _XBF_DQUOTS;
 	xfs_buf_attach_iodone(bp, xfs_qm_dqflush_done,
 				  &dqp->q_logitem.qli_item);
 

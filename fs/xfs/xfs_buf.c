@@ -1212,6 +1212,11 @@ xfs_buf_ioend(
 		return;
 	}
 
+	if (bp->b_flags & _XBF_DQUOTS) {
+		xfs_buf_dquot_iodone(bp);
+		return;
+	}
+
 	if (bp->b_iodone) {
 		(*(bp->b_iodone))(bp);
 		return;
