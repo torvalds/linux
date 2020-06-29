@@ -1105,6 +1105,8 @@ static inline void io_req_work_grab_env(struct io_kiocb *req)
 {
 	const struct io_op_def *def = &io_op_defs[req->opcode];
 
+	io_req_init_async(req);
+
 	if (!req->work.mm && def->needs_mm) {
 		mmgrab(current->mm);
 		req->work.mm = current->mm;
@@ -1161,9 +1163,7 @@ static inline void io_prep_async_work(struct io_kiocb *req,
 			req->work.flags |= IO_WQ_WORK_UNBOUND;
 	}
 
-	io_req_init_async(req);
 	io_req_work_grab_env(req);
-
 	*link = io_prep_linked_timeout(req);
 }
 
@@ -5254,10 +5254,8 @@ static int io_req_defer_prep(struct io_kiocb *req,
 			return ret;
 	}
 
-	if (for_async || (req->flags & REQ_F_WORK_INITIALIZED)) {
-		io_req_init_async(req);
+	if (for_async || (req->flags & REQ_F_WORK_INITIALIZED))
 		io_req_work_grab_env(req);
-	}
 
 	switch (req->opcode) {
 	case IORING_OP_NOP:
