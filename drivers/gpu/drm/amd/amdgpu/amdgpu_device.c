@@ -3295,6 +3295,9 @@ fence_driver_init:
 	queue_delayed_work(system_wq, &adev->delayed_init_work,
 			   msecs_to_jiffies(AMDGPU_RESUME_MS));
 
+	if (amdgpu_sriov_vf(adev))
+		flush_delayed_work(&adev->delayed_init_work);
+
 	r = sysfs_create_files(&adev->dev->kobj, amdgpu_dev_attributes);
 	if (r) {
 		dev_err(adev->dev, "Could not create amdgpu device attr\n");
