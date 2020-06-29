@@ -1552,48 +1552,57 @@ static bool io_link_cancel_timeout(struct io_kiocb *req)
 	return false;
 }
 
-static void io_req_link_next(struct io_kiocb *req, struct io_kiocb **nxtptr)
+static void io_kill_linked_timeout(struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
+	struct io_kiocb *link;
 	bool wake_ev = false;
+	unsigned long flags = 0; /* false positive warning */
+
+	if (!(req->flags & REQ_F_COMP_LOCKED))
+		spin_lock_irqsave(&ctx->completion_lock, flags);
+
+	if (list_empty(&req->link_list))
+		goto out;
+	link = list_first_entry(&req->link_list, struct io_kiocb, link_list);
+	if (link->opcode != IORING_OP_LINK_TIMEOUT)
+		goto out;
+
+	list_del_init(&link->link_list);
+	wake_ev = io_link_cancel_timeout(link);
+	req->flags &= ~REQ_F_LINK_TIMEOUT;
+out:
+	if (!(req->flags & REQ_F_COMP_LOCKED))
+		spin_unlock_irqrestore(&ctx->completion_lock, flags);
+	if (wake_ev)
+		io_cqring_ev_posted(ctx);
+}
+
+static void io_req_link_next(struct io_kiocb *req, struct io_kiocb **nxtptr)
+{
+	struct io_kiocb *nxt;
 
 	/*
 	 * The list should never be empty when we are called here. But could
 	 * potentially happen if the chain is messed up, check to be on the
 	 * safe side.
 	 */
-	while (!list_empty(&req->link_list)) {
-		struct io_kiocb *nxt = list_first_entry(&req->link_list,
-						struct io_kiocb, link_list);
+	if (unlikely(list_empty(&req->link_list)))
+		return;
 
-		if (unlikely((req->flags & REQ_F_LINK_TIMEOUT) &&
-			     (nxt->flags & REQ_F_TIMEOUT))) {
-			list_del_init(&nxt->link_list);
-			wake_ev |= io_link_cancel_timeout(nxt);
-			req->flags &= ~REQ_F_LINK_TIMEOUT;
-			continue;
-		}
-
-		list_del_init(&req->link_list);
-		if (!list_empty(&nxt->link_list))
-			nxt->flags |= REQ_F_LINK_HEAD;
-		*nxtptr = nxt;
-		break;
-	}
-
-	if (wake_ev)
-		io_cqring_ev_posted(ctx);
+	nxt = list_first_entry(&req->link_list, struct io_kiocb, link_list);
+	list_del_init(&req->link_list);
+	if (!list_empty(&nxt->link_list))
+		nxt->flags |= REQ_F_LINK_HEAD;
+	*nxtptr = nxt;
 }
 
 /*
  * Called if REQ_F_LINK_HEAD is set, and we fail the head request
  */
-static void io_fail_links(struct io_kiocb *req)
+static void __io_fail_links(struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
-	unsigned long flags;
-
-	spin_lock_irqsave(&ctx->completion_lock, flags);
 
 	while (!list_empty(&req->link_list)) {
 		struct io_kiocb *link = list_first_entry(&req->link_list,
@@ -1602,18 +1611,29 @@ static void io_fail_links(struct io_kiocb *req)
 		list_del_init(&link->link_list);
 		trace_io_uring_fail_link(req, link);
 
-		if ((req->flags & REQ_F_LINK_TIMEOUT) &&
-		    link->opcode == IORING_OP_LINK_TIMEOUT) {
-			io_link_cancel_timeout(link);
-		} else {
-			io_cqring_fill_event(link, -ECANCELED);
-			__io_double_put_req(link);
-		}
+		io_cqring_fill_event(link, -ECANCELED);
+		__io_double_put_req(link);
 		req->flags &= ~REQ_F_LINK_TIMEOUT;
 	}
 
 	io_commit_cqring(ctx);
-	spin_unlock_irqrestore(&ctx->completion_lock, flags);
+	io_cqring_ev_posted(ctx);
+}
+
+static void io_fail_links(struct io_kiocb *req)
+{
+	struct io_ring_ctx *ctx = req->ctx;
+
+	if (!(req->flags & REQ_F_COMP_LOCKED)) {
+		unsigned long flags;
+
+		spin_lock_irqsave(&ctx->completion_lock, flags);
+		__io_fail_links(req);
+		spin_unlock_irqrestore(&ctx->completion_lock, flags);
+	} else {
+		__io_fail_links(req);
+	}
+
 	io_cqring_ev_posted(ctx);
 }
 
@@ -1623,30 +1643,19 @@ static void io_req_find_next(struct io_kiocb *req, struct io_kiocb **nxt)
 		return;
 	req->flags &= ~REQ_F_LINK_HEAD;
 
+	if (req->flags & REQ_F_LINK_TIMEOUT)
+		io_kill_linked_timeout(req);
+
 	/*
 	 * If LINK is set, we have dependent requests in this chain. If we
 	 * didn't fail this request, queue the first one up, moving any other
 	 * dependencies to the next request. In case of failure, fail the rest
 	 * of the chain.
 	 */
-	if (req->flags & REQ_F_FAIL_LINK) {
+	if (req->flags & REQ_F_FAIL_LINK)
 		io_fail_links(req);
-	} else if ((req->flags & (REQ_F_LINK_TIMEOUT | REQ_F_COMP_LOCKED)) ==
-			REQ_F_LINK_TIMEOUT) {
-		struct io_ring_ctx *ctx = req->ctx;
-		unsigned long flags;
-
-		/*
-		 * If this is a timeout link, we could be racing with the
-		 * timeout timer. Grab the completion lock for this case to
-		 * protect against that.
-		 */
-		spin_lock_irqsave(&ctx->completion_lock, flags);
+	else
 		io_req_link_next(req, nxt);
-		spin_unlock_irqrestore(&ctx->completion_lock, flags);
-	} else {
-		io_req_link_next(req, nxt);
-	}
 }
 
 static void __io_req_task_cancel(struct io_kiocb *req, int error)
