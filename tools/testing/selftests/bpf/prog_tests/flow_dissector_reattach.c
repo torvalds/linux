@@ -113,7 +113,7 @@ static void test_prog_attach_prog_attach(int netns, int prog1, int prog2)
 	CHECK_FAIL(query_attached_prog_id(netns) != query_prog_id(prog2));
 
 out_detach:
-	err = bpf_prog_detach(0, BPF_FLOW_DISSECTOR);
+	err = bpf_prog_detach2(prog2, 0, BPF_FLOW_DISSECTOR);
 	if (CHECK_FAIL(err))
 		perror("bpf_prog_detach");
 	CHECK_FAIL(prog_is_attached(netns));
@@ -149,7 +149,7 @@ static void test_prog_attach_link_create(int netns, int prog1, int prog2)
 	DECLARE_LIBBPF_OPTS(bpf_link_create_opts, opts);
 	int err, link;
 
-	err = bpf_prog_attach(prog1, -1, BPF_FLOW_DISSECTOR, 0);
+	err = bpf_prog_attach(prog1, 0, BPF_FLOW_DISSECTOR, 0);
 	if (CHECK_FAIL(err)) {
 		perror("bpf_prog_attach(prog1)");
 		return;
@@ -165,7 +165,7 @@ static void test_prog_attach_link_create(int netns, int prog1, int prog2)
 		close(link);
 	CHECK_FAIL(query_attached_prog_id(netns) != query_prog_id(prog1));
 
-	err = bpf_prog_detach(-1, BPF_FLOW_DISSECTOR);
+	err = bpf_prog_detach2(prog1, 0, BPF_FLOW_DISSECTOR);
 	if (CHECK_FAIL(err))
 		perror("bpf_prog_detach");
 	CHECK_FAIL(prog_is_attached(netns));
@@ -185,7 +185,7 @@ static void test_link_create_prog_attach(int netns, int prog1, int prog2)
 
 	/* Expect failure attaching prog when link exists */
 	errno = 0;
-	err = bpf_prog_attach(prog2, -1, BPF_FLOW_DISSECTOR, 0);
+	err = bpf_prog_attach(prog2, 0, BPF_FLOW_DISSECTOR, 0);
 	if (CHECK_FAIL(!err || errno != EEXIST))
 		perror("bpf_prog_attach(prog2) expected EEXIST");
 	CHECK_FAIL(query_attached_prog_id(netns) != query_prog_id(prog1));
@@ -208,7 +208,7 @@ static void test_link_create_prog_detach(int netns, int prog1, int prog2)
 
 	/* Expect failure detaching prog when link exists */
 	errno = 0;
-	err = bpf_prog_detach(-1, BPF_FLOW_DISSECTOR);
+	err = bpf_prog_detach2(prog1, 0, BPF_FLOW_DISSECTOR);
 	if (CHECK_FAIL(!err || errno != EINVAL))
 		perror("bpf_prog_detach expected EINVAL");
 	CHECK_FAIL(query_attached_prog_id(netns) != query_prog_id(prog1));
@@ -228,7 +228,7 @@ static void test_prog_attach_detach_query(int netns, int prog1, int prog2)
 	}
 	CHECK_FAIL(query_attached_prog_id(netns) != query_prog_id(prog1));
 
-	err = bpf_prog_detach(0, BPF_FLOW_DISSECTOR);
+	err = bpf_prog_detach2(prog1, 0, BPF_FLOW_DISSECTOR);
 	if (CHECK_FAIL(err)) {
 		perror("bpf_prog_detach");
 		return;
