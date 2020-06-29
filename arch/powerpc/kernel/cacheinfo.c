@@ -647,7 +647,8 @@ static const struct cpumask *get_big_core_shared_cpu_map(int cpu, struct cache *
 	return &cache->shared_cpu_map;
 }
 
-static ssize_t shared_cpu_map_show(struct kobject *k, struct kobj_attribute *attr, char *buf)
+static ssize_t
+show_shared_cpumap(struct kobject *k, struct kobj_attribute *attr, char *buf, bool list)
 {
 	struct cache_index_dir *index;
 	struct cache *cache;
@@ -664,7 +665,12 @@ static ssize_t shared_cpu_map_show(struct kobject *k, struct kobj_attribute *att
 		mask  = &cache->shared_cpu_map;
 	}
 
-	return cpumap_print_to_pagebuf(false, buf, mask);
+	return cpumap_print_to_pagebuf(list, buf, mask);
+}
+
+static ssize_t shared_cpu_map_show(struct kobject *k, struct kobj_attribute *attr, char *buf)
+{
+	return show_shared_cpumap(k, attr, buf, false)
 }
 
 static struct kobj_attribute cache_shared_cpu_map_attr =
