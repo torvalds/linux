@@ -2572,6 +2572,7 @@ vchiq_use_service(unsigned int handle)
 	}
 	return ret;
 }
+EXPORT_SYMBOL(vchiq_use_service);
 
 enum vchiq_status
 vchiq_release_service(unsigned int handle)
@@ -2585,6 +2586,7 @@ vchiq_release_service(unsigned int handle)
 	}
 	return ret;
 }
+EXPORT_SYMBOL(vchiq_release_service);
 
 struct service_data_struct {
 	int fourcc;

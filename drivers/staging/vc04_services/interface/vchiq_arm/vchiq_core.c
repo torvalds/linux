@@ -2946,6 +2946,7 @@ vchiq_close_service(unsigned int handle)
 
 	return status;
 }
+EXPORT_SYMBOL(vchiq_close_service);
 
 enum vchiq_status
 vchiq_remove_service(unsigned int handle)
@@ -3268,6 +3269,7 @@ vchiq_release_message(unsigned int handle,
 
 	unlock_service(service);
 }
+EXPORT_SYMBOL(vchiq_release_message);
 
 static void
 release_message_sync(struct vchiq_state *state, struct vchiq_header *header)
@@ -3294,6 +3296,7 @@ exit:
 		unlock_service(service);
 	return status;
 }
+EXPORT_SYMBOL(vchiq_get_peer_version);
 
 void vchiq_get_config(struct vchiq_config *config)
 {
