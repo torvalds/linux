@@ -21,30 +21,6 @@
 #include <linux/iversion.h>
 
 /*
- * Check that none of the inode's in the buffer have a next
- * unlinked field of 0.
- */
-#if defined(DEBUG)
-void
-xfs_inobp_check(
-	xfs_mount_t	*mp,
-	xfs_buf_t	*bp)
-{
-	int		i;
-	xfs_dinode_t	*dip;
-
-	for (i = 0; i < M_IGEO(mp)->inodes_per_cluster; i++) {
-		dip = xfs_buf_offset(bp, i * mp->m_sb.sb_inodesize);
-		if (!dip->di_next_unlinked)  {
-			xfs_alert(mp,
-	"Detected bogus zero next_unlinked field in inode %d buffer 0x%llx.",
-				i, (long long)bp->b_bn);
-		}
-	}
-}
-#endif
-
-/*
  * If we are doing readahead on an inode buffer, we might be in log recovery
  * reading an inode allocation buffer that hasn't yet been replayed, and hence
  * has not had the inode cores stamped into it. Hence for readahead, the buffer
