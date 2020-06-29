@@ -9,6 +9,8 @@ Sparse is a semantic checker for C programs; it can be used to find a
 number of potential problems with kernel code.  See
 https://lwn.net/Articles/689907/ for an overview of sparse; this document
 contains some kernel-specific sparse information.
+More information on sparse, mainly about its internals, can be found in
+its official pages at https://sparse.docs.kernel.org.
 
 
 Using sparse for typechecking
