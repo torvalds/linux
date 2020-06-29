@@ -104,6 +104,10 @@
 	clock-frequency = <1000000>;
 };
 
+&isp_reserved {
+	inactive;
+};
+
 &ramoops {
 	status = "disabled";
 };
