@@ -674,6 +674,11 @@ static void ipa_validate_build(void)
 
 	/* This is used as a divisor */
 	BUILD_BUG_ON(!IPA_AGGR_GRANULARITY);
+
+	/* Aggregation granularity value can't be 0, and must fit */
+	BUILD_BUG_ON(!ipa_aggr_granularity_val(IPA_AGGR_GRANULARITY));
+	BUILD_BUG_ON(ipa_aggr_granularity_val(IPA_AGGR_GRANULARITY) >
+			field_max(AGGR_GRANULARITY));
 #endif /* IPA_VALIDATE */
 }
 
