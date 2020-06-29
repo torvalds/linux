@@ -36,7 +36,7 @@
 #define IPA_ENDPOINT_QMAP_METADATA_MASK		0x000000ff /* host byte order */
 
 #define IPA_ENDPOINT_RESET_AGGR_RETRY_MAX	3
-#define IPA_AGGR_TIME_LIMIT_DEFAULT		1000	/* microseconds */
+#define IPA_AGGR_TIME_LIMIT_DEFAULT		500	/* microseconds */
 
 /** enum ipa_status_opcode - status element opcode hardware values */
 enum ipa_status_opcode {
@@ -583,9 +583,11 @@ static void ipa_endpoint_init_aggr(struct ipa_endpoint *endpoint)
 			val |= u32_encode_bits(IPA_GENERIC, AGGR_TYPE_FMASK);
 			val |= u32_encode_bits(aggr_size,
 					       AGGR_BYTE_LIMIT_FMASK);
+
 			limit = IPA_AGGR_TIME_LIMIT_DEFAULT;
-			val |= u32_encode_bits(limit / IPA_AGGR_GRANULARITY,
-					       AGGR_TIME_LIMIT_FMASK);
+			limit = DIV_ROUND_CLOSEST(limit, IPA_AGGR_GRANULARITY);
+			val |= u32_encode_bits(limit, AGGR_TIME_LIMIT_FMASK);
+
 			val |= u32_encode_bits(0, AGGR_PKT_LIMIT_FMASK);
 			if (endpoint->data->rx.aggr_close_eof)
 				val |= AGGR_SW_EOF_ACTIVE_FMASK;
