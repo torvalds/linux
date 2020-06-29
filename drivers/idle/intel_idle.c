@@ -66,8 +66,6 @@ static struct cpuidle_device __percpu *intel_idle_cpuidle_devices;
 static unsigned long auto_demotion_disable_flags;
 static bool disable_promotion_to_c1e;
 
-static bool lapic_timer_always_reliable;
-
 struct idle_cpu {
 	struct cpuidle_state *state_table;
 
@@ -142,7 +140,7 @@ static __cpuidle int intel_idle(struct cpuidle_device *dev,
 	if (state->flags & CPUIDLE_FLAG_TLB_FLUSHED)
 		leave_mm(cpu);
 
-	if (!static_cpu_has(X86_FEATURE_ARAT) && !lapic_timer_always_reliable) {
+	if (!static_cpu_has(X86_FEATURE_ARAT)) {
 		/*
 		 * Switch over to one-shot tick broadcast if the target C-state
 		 * is deeper than C1.
@@ -1562,7 +1560,7 @@ static int intel_idle_cpu_online(unsigned int cpu)
 {
 	struct cpuidle_device *dev;
 
-	if (!lapic_timer_always_reliable)
+	if (!boot_cpu_has(X86_FEATURE_ARAT))
 		tick_broadcast_enable();
 
 	/*
@@ -1655,16 +1653,13 @@ static int __init intel_idle_init(void)
 		goto init_driver_fail;
 	}
 
-	if (boot_cpu_has(X86_FEATURE_ARAT))	/* Always Reliable APIC Timer */
-		lapic_timer_always_reliable = true;
-
 	retval = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "idle/intel:online",
 				   intel_idle_cpu_online, NULL);
 	if (retval < 0)
 		goto hp_setup_fail;
 
 	pr_debug("Local APIC timer is reliable in %s\n",
-		 lapic_timer_always_reliable ? "all C-states" : "C1");
+		 boot_cpu_has(X86_FEATURE_ARAT) ? "all C-states" : "C1");
 
 	return 0;
 
