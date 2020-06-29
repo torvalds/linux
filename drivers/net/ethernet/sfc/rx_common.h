@@ -67,7 +67,7 @@ void efx_fast_push_rx_descriptors(struct efx_rx_queue *rx_queue, bool atomic);
 
 void
 efx_rx_packet_gro(struct efx_channel *channel, struct efx_rx_buffer *rx_buf,
-		  unsigned int n_frags, u8 *eh);
+		  unsigned int n_frags, u8 *eh, __wsum csum);
 
 struct efx_rss_context *efx_alloc_rss_context_entry(struct efx_nic *efx);
 struct efx_rss_context *efx_find_rss_context_entry(struct efx_nic *efx, u32 id);

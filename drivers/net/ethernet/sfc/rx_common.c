@@ -510,7 +510,7 @@ void efx_fast_push_rx_descriptors(struct efx_rx_queue *rx_queue, bool atomic)
  */
 void
 efx_rx_packet_gro(struct efx_channel *channel, struct efx_rx_buffer *rx_buf,
-		  unsigned int n_frags, u8 *eh)
+		  unsigned int n_frags, u8 *eh, __wsum csum)
 {
 	struct napi_struct *napi = &channel->napi_str;
 	struct efx_nic *efx = channel->efx;
@@ -528,8 +528,13 @@ efx_rx_packet_gro(struct efx_channel *channel, struct efx_rx_buffer *rx_buf,
 	if (efx->net_dev->features & NETIF_F_RXHASH)
 		skb_set_hash(skb, efx_rx_buf_hash(efx, eh),
 			     PKT_HASH_TYPE_L3);
-	skb->ip_summed = ((rx_buf->flags & EFX_RX_PKT_CSUMMED) ?
-			  CHECKSUM_UNNECESSARY : CHECKSUM_NONE);
+	if (csum) {
+		skb->csum = csum;
+		skb->ip_summed = CHECKSUM_COMPLETE;
+	} else {
+		skb->ip_summed = ((rx_buf->flags & EFX_RX_PKT_CSUMMED) ?
+				  CHECKSUM_UNNECESSARY : CHECKSUM_NONE);
+	}
 	skb->csum_level = !!(rx_buf->flags & EFX_RX_PKT_CSUM_LEVEL);
 
 	for (;;) {
