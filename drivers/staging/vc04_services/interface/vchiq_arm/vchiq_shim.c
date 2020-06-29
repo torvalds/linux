@@ -8,7 +8,6 @@
 #include "vchiq_if.h"
 #include "../vchi/vchi.h"
 #include "vchiq.h"
-#include "vchiq_core.h"
 
 int vchi_queue_kernel_message(unsigned handle, void *data, unsigned int size)
 {
