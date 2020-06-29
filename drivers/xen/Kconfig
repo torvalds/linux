@@ -52,9 +52,7 @@ config XEN_BALLOON_MEMORY_HOTPLUG
 
 config XEN_BALLOON_MEMORY_HOTPLUG_LIMIT
 	int "Hotplugged memory limit (in GiB) for a PV guest"
-	default 512 if X86_64
-	default 4 if X86_32
-	range 0 64 if X86_32
+	default 512
 	depends on XEN_HAVE_PVMMU
 	depends on XEN_BALLOON_MEMORY_HOTPLUG
 	help

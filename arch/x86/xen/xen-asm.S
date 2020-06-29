@@ -76,11 +76,7 @@ SYM_FUNC_END(xen_save_fl_direct)
  */
 SYM_FUNC_START(xen_restore_fl_direct)
 	FRAME_BEGIN
-#ifdef CONFIG_X86_64
 	testw $X86_EFLAGS_IF, %di
-#else
-	testb $X86_EFLAGS_IF>>8, %ah
-#endif
 	setz PER_CPU_VAR(xen_vcpu_info) + XEN_vcpu_info_mask
 	/*
 	 * Preempt here doesn't matter because that will deal with any
@@ -104,15 +100,6 @@ SYM_FUNC_END(xen_restore_fl_direct)
  */
 SYM_FUNC_START(check_events)
 	FRAME_BEGIN
-#ifdef CONFIG_X86_32
-	push %eax
-	push %ecx
-	push %edx
-	call xen_force_evtchn_callback
-	pop %edx
-	pop %ecx
-	pop %eax
-#else
 	push %rax
 	push %rcx
 	push %rdx
@@ -132,7 +119,6 @@ SYM_FUNC_START(check_events)
 	pop %rdx
 	pop %rcx
 	pop %rax
-#endif
 	FRAME_END
 	ret
 SYM_FUNC_END(check_events)
