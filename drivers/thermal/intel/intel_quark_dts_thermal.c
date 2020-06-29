@@ -308,13 +308,6 @@ static int sys_get_curr_temp(struct thermal_zone_device *tzd,
 	return 0;
 }
 
-static int sys_get_mode(struct thermal_zone_device *tzd,
-				enum thermal_device_mode *mode)
-{
-	*mode = tzd->mode;
-	return 0;
-}
-
 static int sys_set_mode(struct thermal_zone_device *tzd,
 				enum thermal_device_mode mode)
 {
@@ -336,7 +329,6 @@ static struct thermal_zone_device_ops tzone_ops = {
 	.get_trip_type = sys_get_trip_type,
 	.set_trip_temp = sys_set_trip_temp,
 	.get_crit_temp = sys_get_crit_temp,
-	.get_mode = sys_get_mode,
 	.set_mode = sys_set_mode,
 };
 
