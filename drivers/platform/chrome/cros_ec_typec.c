@@ -58,6 +58,7 @@ struct cros_typec_data {
 	/* Array of ports, indexed by port number. */
 	struct cros_typec_port *ports[EC_USB_PD_MAX_PORTS];
 	struct notifier_block nb;
+	struct work_struct port_work;
 };
 
 static int cros_typec_parse_port_props(struct typec_capability *cap,
@@ -619,11 +620,9 @@ static int cros_typec_get_cmd_version(struct cros_typec_data *typec)
 	return 0;
 }
 
-static int cros_ec_typec_event(struct notifier_block *nb,
-			       unsigned long host_event, void *_notify)
+static void cros_typec_port_work(struct work_struct *work)
 {
-	struct cros_typec_data *typec = container_of(nb, struct cros_typec_data,
-						     nb);
+	struct cros_typec_data *typec = container_of(work, struct cros_typec_data, port_work);
 	int ret, i;
 
 	for (i = 0; i < typec->num_ports; i++) {
@@ -631,6 +630,14 @@ static int cros_ec_typec_event(struct notifier_block *nb,
 		if (ret < 0)
 			dev_warn(typec->dev, "Update failed for port: %d\n", i);
 	}
+}
+
+static int cros_ec_typec_event(struct notifier_block *nb,
+			       unsigned long host_event, void *_notify)
+{
+	struct cros_typec_data *typec = container_of(nb, struct cros_typec_data, nb);
+
+	schedule_work(&typec->port_work);
 
 	return NOTIFY_OK;
 }
@@ -689,6 +696,12 @@ static int cros_typec_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
+	INIT_WORK(&typec->port_work, cros_typec_port_work);
+
+	/*
+	 * Safe to call port update here, since we haven't registered the
+	 * PD notifier yet.
+	 */
 	for (i = 0; i < typec->num_ports; i++) {
 		ret = cros_typec_port_update(typec, i);
 		if (ret < 0)
