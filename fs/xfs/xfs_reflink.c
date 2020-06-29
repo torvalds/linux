@@ -1367,7 +1367,7 @@ xfs_reflink_remap_prep(
 	struct inode		*inode_out = file_inode(file_out);
 	struct xfs_inode	*dest = XFS_I(inode_out);
 	bool			same_inode = (inode_in == inode_out);
-	ssize_t			ret;
+	int			ret;
 
 	/* Lock both files against IO */
 	ret = xfs_iolock_two_inodes_and_break_layout(inode_in, inode_out);
@@ -1391,7 +1391,7 @@ xfs_reflink_remap_prep(
 
 	ret = generic_remap_file_range_prep(file_in, pos_in, file_out, pos_out,
 			len, remap_flags);
-	if (ret < 0 || *len == 0)
+	if (ret || *len == 0)
 		goto out_unlock;
 
 	/* Attach dquots to dest inode before changing block map */
@@ -1426,7 +1426,7 @@ xfs_reflink_remap_prep(
 	if (ret)
 		goto out_unlock;
 
-	return 1;
+	return 0;
 out_unlock:
 	xfs_reflink_remap_unlock(file_in, file_out);
 	return ret;
