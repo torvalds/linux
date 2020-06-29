@@ -2704,9 +2704,11 @@ xfs_ifree_cluster(
 				continue;
 
 			iip = ip->i_itemp;
+			spin_lock(&iip->ili_lock);
 			iip->ili_last_fields = iip->ili_fields;
 			iip->ili_fields = 0;
 			iip->ili_fsync_fields = 0;
+			spin_unlock(&iip->ili_lock);
 			xfs_trans_ail_copy_lsn(mp->m_ail, &iip->ili_flush_lsn,
 						&iip->ili_item.li_lsn);
 
@@ -2742,6 +2744,7 @@ xfs_ifree(
 {
 	int			error;
 	struct xfs_icluster	xic = { 0 };
+	struct xfs_inode_log_item *iip = ip->i_itemp;
 
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
 	ASSERT(VFS_I(ip)->i_nlink == 0);
@@ -2779,7 +2782,9 @@ xfs_ifree(
 	ip->i_df.if_format = XFS_DINODE_FMT_EXTENTS;
 
 	/* Don't attempt to replay owner changes for a deleted inode */
-	ip->i_itemp->ili_fields &= ~(XFS_ILOG_AOWNER|XFS_ILOG_DOWNER);
+	spin_lock(&iip->ili_lock);
+	iip->ili_fields &= ~(XFS_ILOG_AOWNER | XFS_ILOG_DOWNER);
+	spin_unlock(&iip->ili_lock);
 
 	/*
 	 * Bump the generation count so no one will be confused
@@ -3835,20 +3840,19 @@ xfs_iflush_int(
 	 * know that the information those bits represent is permanently on
 	 * disk.  As long as the flush completes before the inode is logged
 	 * again, then both ili_fields and ili_last_fields will be cleared.
-	 *
-	 * We can play with the ili_fields bits here, because the inode lock
-	 * must be held exclusively in order to set bits there and the flush
-	 * lock protects the ili_last_fields bits.  Store the current LSN of the
-	 * inode so that we can tell whether the item has moved in the AIL from
-	 * xfs_iflush_done().  In order to read the lsn we need the AIL lock,
-	 * because it is a 64 bit value that cannot be read atomically.
 	 */
 	error = 0;
 flush_out:
+	spin_lock(&iip->ili_lock);
 	iip->ili_last_fields = iip->ili_fields;
 	iip->ili_fields = 0;
 	iip->ili_fsync_fields = 0;
+	spin_unlock(&iip->ili_lock);
 
+	/*
+	 * Store the current LSN of the inode so that we can tell whether the
+	 * item has moved in the AIL from xfs_iflush_done().
+	 */
 	xfs_trans_ail_copy_lsn(mp->m_ail, &iip->ili_flush_lsn,
 				&iip->ili_item.li_lsn);
 

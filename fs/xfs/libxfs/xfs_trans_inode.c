@@ -82,15 +82,19 @@ xfs_trans_ichgtime(
  */
 void
 xfs_trans_log_inode(
-	xfs_trans_t	*tp,
-	xfs_inode_t	*ip,
-	uint		flags)
+	struct xfs_trans	*tp,
+	struct xfs_inode	*ip,
+	uint			flags)
 {
-	struct inode	*inode = VFS_I(ip);
+	struct xfs_inode_log_item *iip = ip->i_itemp;
+	struct inode		*inode = VFS_I(ip);
+	uint			iversion_flags = 0;
 
-	ASSERT(ip->i_itemp != NULL);
+	ASSERT(iip);
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
 	ASSERT(!xfs_iflags_test(ip, XFS_ISTALE));
+
+	tp->t_flags |= XFS_TRANS_DIRTY;
 
 	/*
 	 * Don't bother with i_lock for the I_DIRTY_TIME check here, as races
@@ -105,15 +109,6 @@ xfs_trans_log_inode(
 	}
 
 	/*
-	 * Record the specific change for fdatasync optimisation. This
-	 * allows fdatasync to skip log forces for inodes that are only
-	 * timestamp dirty. We do this before the change count so that
-	 * the core being logged in this case does not impact on fdatasync
-	 * behaviour.
-	 */
-	ip->i_itemp->ili_fsync_fields |= flags;
-
-	/*
 	 * First time we log the inode in a transaction, bump the inode change
 	 * counter if it is configured for this to occur. While we have the
 	 * inode locked exclusively for metadata modification, we can usually
@@ -122,23 +117,28 @@ xfs_trans_log_inode(
 	 * set however, then go ahead and bump the i_version counter
 	 * unconditionally.
 	 */
-	if (!test_and_set_bit(XFS_LI_DIRTY, &ip->i_itemp->ili_item.li_flags) &&
-	    IS_I_VERSION(VFS_I(ip))) {
-		if (inode_maybe_inc_iversion(VFS_I(ip), flags & XFS_ILOG_CORE))
-			flags |= XFS_ILOG_CORE;
+	if (!test_and_set_bit(XFS_LI_DIRTY, &iip->ili_item.li_flags)) {
+		if (IS_I_VERSION(inode) &&
+		    inode_maybe_inc_iversion(inode, flags & XFS_ILOG_CORE))
+			iversion_flags = XFS_ILOG_CORE;
 	}
 
-	tp->t_flags |= XFS_TRANS_DIRTY;
+	/*
+	 * Record the specific change for fdatasync optimisation. This allows
+	 * fdatasync to skip log forces for inodes that are only timestamp
+	 * dirty.
+	 */
+	spin_lock(&iip->ili_lock);
+	iip->ili_fsync_fields |= flags;
 
 	/*
-	 * Always OR in the bits from the ili_last_fields field.
-	 * This is to coordinate with the xfs_iflush() and xfs_iflush_done()
-	 * routines in the eventual clearing of the ili_fields bits.
-	 * See the big comment in xfs_iflush() for an explanation of
-	 * this coordination mechanism.
+	 * Always OR in the bits from the ili_last_fields field.  This is to
+	 * coordinate with the xfs_iflush() and xfs_iflush_done() routines in
+	 * the eventual clearing of the ili_fields bits.  See the big comment in
+	 * xfs_iflush() for an explanation of this coordination mechanism.
 	 */
-	flags |= ip->i_itemp->ili_last_fields;
-	ip->i_itemp->ili_fields |= flags;
+	iip->ili_fields |= (flags | iip->ili_last_fields | iversion_flags);
+	spin_unlock(&iip->ili_lock);
 }
 
 int

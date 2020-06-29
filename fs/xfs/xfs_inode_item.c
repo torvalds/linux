@@ -637,6 +637,7 @@ xfs_inode_item_init(
 	iip = ip->i_itemp = kmem_zone_zalloc(xfs_ili_zone, 0);
 
 	iip->ili_inode = ip;
+	spin_lock_init(&iip->ili_lock);
 	xfs_log_item_init(mp, &iip->ili_item, XFS_LI_INODE,
 						&xfs_inode_item_ops);
 }
@@ -738,7 +739,11 @@ xfs_iflush_done(
 	list_for_each_entry_safe(blip, n, &tmp, li_bio_list) {
 		list_del_init(&blip->li_bio_list);
 		iip = INODE_ITEM(blip);
+
+		spin_lock(&iip->ili_lock);
 		iip->ili_last_fields = 0;
+		spin_unlock(&iip->ili_lock);
+
 		xfs_ifunlock(iip->ili_inode);
 	}
 	list_del(&tmp);
@@ -762,9 +767,11 @@ xfs_iflush_abort(
 		 * Clear the inode logging fields so no more flushes are
 		 * attempted.
 		 */
+		spin_lock(&iip->ili_lock);
 		iip->ili_last_fields = 0;
 		iip->ili_fields = 0;
 		iip->ili_fsync_fields = 0;
+		spin_unlock(&iip->ili_lock);
 	}
 	/*
 	 * Release the inode's flush lock since we're done with it.
