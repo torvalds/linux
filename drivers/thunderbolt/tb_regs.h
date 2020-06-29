@@ -93,6 +93,20 @@ struct tb_cap_extended_long {
 	u16 length;
 } __packed;
 
+/**
+ * struct tb_cap_any - Structure capable of hold every capability
+ * @basic: Basic capability
+ * @extended_short: Vendor specific capability
+ * @extended_long: Vendor specific extended capability
+ */
+struct tb_cap_any {
+	union {
+		struct tb_cap_basic basic;
+		struct tb_cap_extended_short extended_short;
+		struct tb_cap_extended_long extended_long;
+	};
+} __packed;
+
 /* capabilities */
 
 struct tb_cap_link_controller {

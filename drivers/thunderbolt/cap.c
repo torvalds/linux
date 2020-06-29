@@ -15,14 +15,6 @@
 #define VSE_CAP_OFFSET_MAX	0xffff
 #define TMU_ACCESS_EN		BIT(20)
 
-struct tb_cap_any {
-	union {
-		struct tb_cap_basic basic;
-		struct tb_cap_extended_short extended_short;
-		struct tb_cap_extended_long extended_long;
-	};
-} __packed;
-
 static int tb_port_enable_tmu(struct tb_port *port, bool enable)
 {
 	struct tb_switch *sw = port->sw;
