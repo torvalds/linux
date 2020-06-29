@@ -48,6 +48,8 @@ enum hinic_port_cmd {
 	HINIC_PORT_CMD_ADD_VLAN         = 3,
 	HINIC_PORT_CMD_DEL_VLAN         = 4,
 
+	HINIC_PORT_CMD_SET_PFC		= 5,
+
 	HINIC_PORT_CMD_SET_MAC          = 9,
 	HINIC_PORT_CMD_GET_MAC          = 10,
 	HINIC_PORT_CMD_DEL_MAC          = 11,
@@ -95,6 +97,9 @@ enum hinic_port_cmd {
 
 	HINIC_PORT_CMD_FWCTXT_INIT      = 69,
 
+	HINIC_PORT_CMD_GET_LOOPBACK_MODE = 72,
+	HINIC_PORT_CMD_SET_LOOPBACK_MODE,
+
 	HINIC_PORT_CMD_ENABLE_SPOOFCHK = 78,
 
 	HINIC_PORT_CMD_GET_MGMT_VERSION = 88,
@@ -125,9 +130,13 @@ enum hinic_port_cmd {
 
 	HINIC_PORT_CMD_SET_AUTONEG	= 219,
 
+	HINIC_PORT_CMD_GET_STD_SFP_INFO = 240,
+
 	HINIC_PORT_CMD_SET_LRO_TIMER	= 244,
 
 	HINIC_PORT_CMD_SET_VF_MAX_MIN_RATE = 249,
+
+	HINIC_PORT_CMD_GET_SFP_ABS	= 251,
 };
 
 /* cmd of mgmt CPU message for HILINK module */
@@ -283,6 +292,21 @@ struct hinic_cmd_l2nic_reset {
 	u16	reset_flag;
 };
 
+struct hinic_msix_config {
+	u8	status;
+	u8	version;
+	u8	rsvd0[6];
+
+	u16	func_id;
+	u16	msix_index;
+	u8	pending_cnt;
+	u8	coalesce_timer_cnt;
+	u8	lli_timer_cnt;
+	u8	lli_credit_cnt;
+	u8	resend_timer_cnt;
+	u8	rsvd1[3];
+};
+
 struct hinic_hwdev {
 	struct hinic_hwif               *hwif;
 	struct msix_entry               *msix_entries;
@@ -292,6 +316,7 @@ struct hinic_hwdev {
 	struct hinic_mbox_func_to_func  *func_to_func;
 
 	struct hinic_cap                nic_cap;
+	u8				port_id;
 };
 
 struct hinic_nic_cb {
@@ -375,5 +400,11 @@ int hinic_hwdev_hw_ci_addr_set(struct hinic_hwdev *hwdev, struct hinic_sq *sq,
 
 void hinic_hwdev_set_msix_state(struct hinic_hwdev *hwdev, u16 msix_index,
 				enum hinic_msix_state flag);
+
+int hinic_get_interrupt_cfg(struct hinic_hwdev *hwdev,
+			    struct hinic_msix_config *interrupt_info);
+
+int hinic_set_interrupt_cfg(struct hinic_hwdev *hwdev,
+			    struct hinic_msix_config *interrupt_info);
 
 #endif

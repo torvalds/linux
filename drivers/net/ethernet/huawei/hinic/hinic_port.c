@@ -1082,6 +1082,7 @@ int hinic_get_link_mode(struct hinic_hwdev *hwdev,
 	if (!hwdev || !link_mode)
 		return -EINVAL;
 
+	link_mode->func_id = HINIC_HWIF_FUNC_IDX(hwdev->hwif);
 	out_size = sizeof(*link_mode);
 
 	err = hinic_port_msg_cmd(hwdev, HINIC_PORT_CMD_GET_LINK_MODE,
@@ -1172,6 +1173,8 @@ int hinic_get_hw_pause_info(struct hinic_hwdev *hwdev,
 	u16 out_size = sizeof(*pause_info);
 	int err;
 
+	pause_info->func_id = HINIC_HWIF_FUNC_IDX(hwdev->hwif);
+
 	err = hinic_port_msg_cmd(hwdev, HINIC_PORT_CMD_GET_PAUSE_INFO,
 				 pause_info, sizeof(*pause_info),
 				 pause_info, &out_size);
@@ -1190,6 +1193,8 @@ int hinic_set_hw_pause_info(struct hinic_hwdev *hwdev,
 	u16 out_size = sizeof(*pause_info);
 	int err;
 
+	pause_info->func_id = HINIC_HWIF_FUNC_IDX(hwdev->hwif);
+
 	err = hinic_port_msg_cmd(hwdev, HINIC_PORT_CMD_SET_PAUSE_INFO,
 				 pause_info, sizeof(*pause_info),
 				 pause_info, &out_size);
@@ -1198,6 +1203,195 @@ int hinic_set_hw_pause_info(struct hinic_hwdev *hwdev,
 			err, pause_info->status, out_size);
 		return -EIO;
 	}
+
+	return 0;
+}
+
+int hinic_dcb_set_pfc(struct hinic_hwdev *hwdev, u8 pfc_en, u8 pfc_bitmap)
+{
+	struct hinic_nic_cfg *nic_cfg = &hwdev->func_to_io.nic_cfg;
+	struct hinic_set_pfc pfc = {0};
+	u16 out_size = sizeof(pfc);
+	int err;
+
+	if (HINIC_IS_VF(hwdev->hwif))
+		return 0;
+
+	mutex_lock(&nic_cfg->cfg_mutex);
+
+	pfc.func_id = HINIC_HWIF_FUNC_IDX(hwdev->hwif);
+	pfc.pfc_bitmap = pfc_bitmap;
+	pfc.pfc_en = pfc_en;
+
+	err = hinic_port_msg_cmd(hwdev, HINIC_PORT_CMD_SET_PFC,
+				 &pfc, sizeof(pfc), &pfc, &out_size);
+	if (err || pfc.status || !out_size) {
+		dev_err(&hwdev->hwif->pdev->dev, "Failed to %s pfc, err: %d, status: 0x%x, out size: 0x%x\n",
+			pfc_en ? "enable" : "disable", err, pfc.status,
+			out_size);
+		mutex_unlock(&nic_cfg->cfg_mutex);
+		return -EIO;
+	}
+
+	/* pause settings is opposite from pfc */
+	nic_cfg->rx_pause = pfc_en ? 0 : 1;
+	nic_cfg->tx_pause = pfc_en ? 0 : 1;
+
+	mutex_unlock(&nic_cfg->cfg_mutex);
+
+	return 0;
+}
+
+int hinic_set_loopback_mode(struct hinic_hwdev *hwdev, u32 mode, u32 enable)
+{
+	struct hinic_port_loopback lb = {0};
+	u16 out_size = sizeof(lb);
+	int err;
+
+	lb.mode = mode;
+	lb.en = enable;
+
+	if (mode < LOOP_MODE_MIN || mode > LOOP_MODE_MAX) {
+		dev_err(&hwdev->hwif->pdev->dev,
+			"Invalid loopback mode %d to set\n", mode);
+		return -EINVAL;
+	}
+
+	err = hinic_port_msg_cmd(hwdev, HINIC_PORT_CMD_SET_LOOPBACK_MODE,
+				 &lb, sizeof(lb), &lb, &out_size);
+	if (err || !out_size || lb.status) {
+		dev_err(&hwdev->hwif->pdev->dev,
+			"Failed to set loopback mode %d en %d, err: %d, status: 0x%x, out size: 0x%x\n",
+			mode, enable, err, lb.status, out_size);
+		return -EIO;
+	}
+
+	return 0;
+}
+
+static int _set_led_status(struct hinic_hwdev *hwdev, u8 port,
+			   enum hinic_led_type type,
+			   enum hinic_led_mode mode, u8 reset)
+{
+	struct hinic_led_info led_info = {0};
+	u16 out_size = sizeof(led_info);
+	struct hinic_pfhwdev *pfhwdev;
+	int err;
+
+	pfhwdev = container_of(hwdev, struct hinic_pfhwdev, hwdev);
+
+	led_info.port = port;
+	led_info.reset = reset;
+
+	led_info.type = type;
+	led_info.mode = mode;
+
+	err = hinic_msg_to_mgmt(&pfhwdev->pf_to_mgmt, HINIC_MOD_COMM,
+				HINIC_COMM_CMD_SET_LED_STATUS,
+				&led_info, sizeof(led_info),
+				&led_info, &out_size, HINIC_MGMT_MSG_SYNC);
+	if (err || led_info.status || !out_size) {
+		dev_err(&hwdev->hwif->pdev->dev, "Failed to set led status, err: %d, status: 0x%x, out size: 0x%x\n",
+			err, led_info.status, out_size);
+		return -EIO;
+	}
+
+	return 0;
+}
+
+int hinic_set_led_status(struct hinic_hwdev *hwdev, u8 port,
+			 enum hinic_led_type type, enum hinic_led_mode mode)
+{
+	if (!hwdev)
+		return -EINVAL;
+
+	return _set_led_status(hwdev, port, type, mode, 0);
+}
+
+int hinic_reset_led_status(struct hinic_hwdev *hwdev, u8 port)
+{
+	int err;
+
+	if (!hwdev)
+		return -EINVAL;
+
+	err = _set_led_status(hwdev, port, HINIC_LED_TYPE_INVALID,
+			      HINIC_LED_MODE_INVALID, 1);
+	if (err)
+		dev_err(&hwdev->hwif->pdev->dev,
+			"Failed to reset led status\n");
+
+	return err;
+}
+
+static bool hinic_if_sfp_absent(struct hinic_hwdev *hwdev)
+{
+	struct hinic_cmd_get_light_module_abs sfp_abs = {0};
+	u16 out_size = sizeof(sfp_abs);
+	u8 port_id = hwdev->port_id;
+	int err;
+
+	sfp_abs.port_id = port_id;
+	err = hinic_port_msg_cmd(hwdev, HINIC_PORT_CMD_GET_SFP_ABS,
+				 &sfp_abs, sizeof(sfp_abs), &sfp_abs,
+				 &out_size);
+	if (sfp_abs.status || err || !out_size) {
+		dev_err(&hwdev->hwif->pdev->dev,
+			"Failed to get port%d sfp absent status, err: %d, status: 0x%x, out size: 0x%x\n",
+			port_id, err, sfp_abs.status, out_size);
+		return true;
+	}
+
+	return ((sfp_abs.abs_status == 0) ? false : true);
+}
+
+int hinic_get_sfp_eeprom(struct hinic_hwdev *hwdev, u8 *data, u16 *len)
+{
+	struct hinic_cmd_get_std_sfp_info sfp_info = {0};
+	u16 out_size = sizeof(sfp_info);
+	u8 port_id;
+	int err;
+
+	if (!hwdev || !data || !len)
+		return -EINVAL;
+
+	port_id = hwdev->port_id;
+
+	if (hinic_if_sfp_absent(hwdev))
+		return -ENXIO;
+
+	sfp_info.port_id = port_id;
+	err = hinic_port_msg_cmd(hwdev, HINIC_PORT_CMD_GET_STD_SFP_INFO,
+				 &sfp_info, sizeof(sfp_info), &sfp_info,
+				 &out_size);
+	if (sfp_info.status || err || !out_size) {
+		dev_err(&hwdev->hwif->pdev->dev,
+			"Failed to get port%d sfp eeprom information, err: %d, status: 0x%x, out size: 0x%x\n",
+			port_id, err, sfp_info.status, out_size);
+		return -EIO;
+	}
+
+	*len = min_t(u16, sfp_info.eeprom_len, STD_SFP_INFO_MAX_SIZE);
+	memcpy(data, sfp_info.sfp_info, STD_SFP_INFO_MAX_SIZE);
+
+	return 0;
+}
+
+int hinic_get_sfp_type(struct hinic_hwdev *hwdev, u8 *data0, u8 *data1)
+{
+	u8 sfp_data[STD_SFP_INFO_MAX_SIZE];
+	u16 len;
+	int err;
+
+	if (hinic_if_sfp_absent(hwdev))
+		return -ENXIO;
+
+	err = hinic_get_sfp_eeprom(hwdev, sfp_data, &len);
+	if (err)
+		return err;
+
+	*data0 = sfp_data[0];
+	*data1 = sfp_data[1];
 
 	return 0;
 }
