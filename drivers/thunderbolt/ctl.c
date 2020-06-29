@@ -266,9 +266,8 @@ static void tb_cfg_print_error(struct tb_ctl *ctl,
 		 * Invalid cfg_space/offset/length combination in
 		 * cfg_read/cfg_write.
 		 */
-		tb_ctl_WARN(ctl,
-			"CFG_ERROR(%llx:%x): Invalid config space or offset\n",
-			res->response_route, res->response_port);
+		tb_ctl_dbg(ctl, "%llx:%x: invalid config space or offset\n",
+			   res->response_route, res->response_port);
 		return;
 	case TB_CFG_ERROR_NO_SUCH_PORT:
 		/*
