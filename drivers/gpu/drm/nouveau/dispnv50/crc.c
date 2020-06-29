@@ -261,7 +261,29 @@ void nv50_crc_atomic_stop_reporting(struct drm_atomic_state *state)
 	}
 }
 
-void nv50_crc_atomic_prepare_notifier_contexts(struct drm_atomic_state *state)
+void nv50_crc_atomic_init_notifier_contexts(struct drm_atomic_state *state)
+{
+	struct drm_crtc_state *new_crtc_state;
+	struct drm_crtc *crtc;
+	int i;
+
+	for_each_new_crtc_in_state(state, crtc, new_crtc_state, i) {
+		struct nv50_head *head = nv50_head(crtc);
+		struct nv50_head_atom *asyh = nv50_head_atom(new_crtc_state);
+		struct nv50_crc *crc = &head->crc;
+		int i;
+
+		if (!asyh->set.crc)
+			continue;
+
+		crc->entry_idx = 0;
+		crc->ctx_changed = false;
+		for (i = 0; i < ARRAY_SIZE(crc->ctx); i++)
+			nv50_crc_reset_ctx(&crc->ctx[i]);
+	}
+}
+
+void nv50_crc_atomic_release_notifier_contexts(struct drm_atomic_state *state)
 {
 	const struct nv50_crc_func *func =
 		nv50_disp(state->dev)->core->func->crc;
@@ -274,22 +296,15 @@ void nv50_crc_atomic_prepare_notifier_contexts(struct drm_atomic_state *state)
 		struct nv50_head_atom *asyh = nv50_head_atom(new_crtc_state);
 		struct nv50_crc *crc = &head->crc;
 		struct nv50_crc_notifier_ctx *ctx = &crc->ctx[crc->ctx_idx];
-		int i;
 
-		if (asyh->clr.crc && asyh->crc.src) {
-			if (crc->ctx_changed) {
-				nv50_crc_wait_ctx_finished(head, func, ctx);
-				ctx = &crc->ctx[crc->ctx_idx ^ 1];
-			}
+		if (!asyh->clr.crc)
+			continue;
+
+		if (crc->ctx_changed) {
 			nv50_crc_wait_ctx_finished(head, func, ctx);
+			ctx = &crc->ctx[crc->ctx_idx ^ 1];
 		}
-
-		if (asyh->set.crc) {
-			crc->entry_idx = 0;
-			crc->ctx_changed = false;
-			for (i = 0; i < ARRAY_SIZE(crc->ctx); i++)
-				nv50_crc_reset_ctx(&crc->ctx[i]);
-		}
+		nv50_crc_wait_ctx_finished(head, func, ctx);
 	}
 }
 
@@ -325,16 +340,13 @@ void nv50_crc_atomic_start_reporting(struct drm_atomic_state *state)
 	}
 }
 
-int nv50_crc_atomic_check(struct nv50_head *head,
-			  struct nv50_head_atom *asyh,
-			  struct nv50_head_atom *armh)
+int nv50_crc_atomic_check_head(struct nv50_head *head,
+			       struct nv50_head_atom *asyh,
+			       struct nv50_head_atom *armh)
 {
-	struct drm_atomic_state *state = asyh->state.state;
+	struct nv50_atom *atom = nv50_atom(asyh->state.state);
 	struct drm_device *dev = head->base.base.dev;
-	struct nv50_atom *atom = nv50_atom(state);
 	struct nv50_disp *disp = nv50_disp(dev);
-	struct drm_encoder *encoder;
-	struct nv50_outp_atom *outp_atom;
 	bool changed = armh->crc.src != asyh->crc.src;
 
 	if (!armh->crc.src && !asyh->crc.src) {
@@ -373,27 +385,52 @@ int nv50_crc_atomic_check(struct nv50_head *head,
 			asyh->set.or |= armh->or.crc_raster !=
 					asyh->or.crc_raster;
 
-		/*
-		 * If we're reprogramming our OR, we need to flush the CRC
-		 * disable first
-		 */
-		if (asyh->clr.crc) {
-			encoder = nv50_head_atom_get_encoder(armh);
-
-			list_for_each_entry(outp_atom, &atom->outp, head) {
-				if (outp_atom->encoder == encoder) {
-					if (outp_atom->set.mask)
-						atom->flush_disable = true;
-					break;
-				}
-			}
-		}
+		if (asyh->clr.crc && asyh->set.crc)
+			atom->flush_disable = true;
 	} else {
 		asyh->set.crc = false;
 		asyh->clr.crc = false;
 	}
 
 	return 0;
+}
+
+void nv50_crc_atomic_check_outp(struct nv50_atom *atom)
+{
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
+	int i;
+
+	if (atom->flush_disable)
+		return;
+
+	for_each_oldnew_crtc_in_state(&atom->state, crtc, old_crtc_state,
+				      new_crtc_state, i) {
+		struct nv50_head_atom *armh = nv50_head_atom(old_crtc_state);
+		struct nv50_head_atom *asyh = nv50_head_atom(new_crtc_state);
+		struct nv50_outp_atom *outp_atom;
+		struct nouveau_encoder *outp =
+			nv50_real_outp(nv50_head_atom_get_encoder(armh));
+		struct drm_encoder *encoder = &outp->base.base;
+
+		if (!asyh->clr.crc)
+			continue;
+
+		/*
+		 * Re-programming ORs can't be done in the same flush as
+		 * disabling CRCs
+		 */
+		list_for_each_entry(outp_atom, &atom->outp, head) {
+			if (outp_atom->encoder == encoder) {
+				if (outp_atom->set.mask) {
+					atom->flush_disable = true;
+					return;
+				} else {
+					break;
+				}
+			}
+		}
+	}
 }
 
 static enum nv50_crc_source_type

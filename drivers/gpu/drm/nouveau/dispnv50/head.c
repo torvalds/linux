@@ -414,7 +414,7 @@ nv50_head_atomic_check(struct drm_crtc *crtc, struct drm_crtc_state *state)
 		asyh->set.curs = asyh->curs.visible;
 	}
 
-	ret = nv50_crc_atomic_check(head, asyh, armh);
+	ret = nv50_crc_atomic_check_head(head, asyh, armh);
 	if (ret)
 		return ret;
 
