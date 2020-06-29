@@ -238,6 +238,9 @@ struct nvme_ctrl {
 	u32 max_hw_sectors;
 	u32 max_segments;
 	u32 max_integrity_segments;
+#ifdef CONFIG_BLK_DEV_ZONED
+	u32 max_zone_append;
+#endif
 	u16 crdt[3];
 	u16 oncs;
 	u16 oacs;
@@ -404,6 +407,9 @@ struct nvme_ns {
 	u16 sgs;
 	u32 sws;
 	u8 pi_type;
+#ifdef CONFIG_BLK_DEV_ZONED
+	u64 zsze;
+#endif
 	unsigned long features;
 	unsigned long flags;
 #define NVME_NS_REMOVING	0
@@ -571,6 +577,9 @@ int nvme_delete_ctrl(struct nvme_ctrl *ctrl);
 
 int nvme_get_log(struct nvme_ctrl *ctrl, u32 nsid, u8 log_page, u8 lsp, u8 csi,
 		void *log, size_t size, u64 offset);
+struct nvme_ns *nvme_get_ns_from_disk(struct gendisk *disk,
+		struct nvme_ns_head **head, int *srcu_idx);
+void nvme_put_ns_from_disk(struct nvme_ns_head *head, int idx);
 
 extern const struct attribute_group *nvme_ns_id_attr_groups[];
 extern const struct block_device_operations nvme_ns_head_ops;
@@ -692,6 +701,36 @@ static inline void nvme_mpath_start_freeze(struct nvme_subsystem *subsys)
 {
 }
 #endif /* CONFIG_NVME_MULTIPATH */
+
+#ifdef CONFIG_BLK_DEV_ZONED
+int nvme_update_zone_info(struct gendisk *disk, struct nvme_ns *ns,
+			  unsigned lbaf);
+
+int nvme_report_zones(struct gendisk *disk, sector_t sector,
+		      unsigned int nr_zones, report_zones_cb cb, void *data);
+
+blk_status_t nvme_setup_zone_mgmt_send(struct nvme_ns *ns, struct request *req,
+				       struct nvme_command *cmnd,
+				       enum nvme_zone_mgmt_action action);
+#else
+#define nvme_report_zones NULL
+
+static inline blk_status_t nvme_setup_zone_mgmt_send(struct nvme_ns *ns,
+		struct request *req, struct nvme_command *cmnd,
+		enum nvme_zone_mgmt_action action)
+{
+	return BLK_STS_NOTSUPP;
+}
+
+static inline int nvme_update_zone_info(struct gendisk *disk,
+					struct nvme_ns *ns,
+					unsigned lbaf)
+{
+	dev_warn(ns->ctrl->device,
+		 "Please enable CONFIG_BLK_DEV_ZONED to support ZNS devices\n");
+	return -EPROTONOSUPPORT;
+}
+#endif
 
 #ifdef CONFIG_NVM
 int nvme_nvm_register(struct nvme_ns *ns, char *disk_name, int node);
