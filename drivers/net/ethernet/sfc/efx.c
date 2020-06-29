@@ -1074,7 +1074,7 @@ static void efx_pci_remove(struct pci_dev *pci_dev)
 
 	efx_pci_remove_main(efx);
 
-	efx_fini_io(efx, efx->type->mem_bar(efx));
+	efx_fini_io(efx);
 	netif_dbg(efx, drv, efx->net_dev, "shutdown successful\n");
 
 	efx_fini_struct(efx);
@@ -1342,7 +1342,7 @@ static int efx_pci_probe(struct pci_dev *pci_dev,
 	return 0;
 
  fail3:
-	efx_fini_io(efx, efx->type->mem_bar(efx));
+	efx_fini_io(efx);
  fail2:
 	efx_fini_struct(efx);
  fail1:

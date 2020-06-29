@@ -953,6 +953,8 @@ int efx_init_struct(struct efx_nic *efx,
 	INIT_WORK(&efx->mac_work, efx_mac_work);
 	init_waitqueue_head(&efx->flush_wq);
 
+	efx->mem_bar = UINT_MAX;
+
 	rc = efx_init_channels(efx);
 	if (rc)
 		goto fail;
@@ -996,7 +998,9 @@ int efx_init_io(struct efx_nic *efx, int bar, dma_addr_t dma_mask,
 	struct pci_dev *pci_dev = efx->pci_dev;
 	int rc;
 
-	netif_dbg(efx, probe, efx->net_dev, "initialising I/O\n");
+	efx->mem_bar = UINT_MAX;
+
+	netif_dbg(efx, probe, efx->net_dev, "initialising I/O bar=%d\n", bar);
 
 	rc = pci_enable_device(pci_dev);
 	if (rc) {
@@ -1038,21 +1042,21 @@ int efx_init_io(struct efx_nic *efx, int bar, dma_addr_t dma_mask,
 	rc = pci_request_region(pci_dev, bar, "sfc");
 	if (rc) {
 		netif_err(efx, probe, efx->net_dev,
-			  "request for memory BAR failed\n");
+			  "request for memory BAR[%d] failed\n", bar);
 		rc = -EIO;
 		goto fail3;
 	}
-
+	efx->mem_bar = bar;
 	efx->membase = ioremap(efx->membase_phys, mem_map_size);
 	if (!efx->membase) {
 		netif_err(efx, probe, efx->net_dev,
-			  "could not map memory BAR at %llx+%x\n",
+			  "could not map memory BAR[%d] at %llx+%x\n", bar,
 			  (unsigned long long)efx->membase_phys, mem_map_size);
 		rc = -ENOMEM;
 		goto fail4;
 	}
 	netif_dbg(efx, probe, efx->net_dev,
-		  "memory BAR at %llx+%x (virtual %p)\n",
+		  "memory BAR[%d] at %llx+%x (virtual %p)\n", bar,
 		  (unsigned long long)efx->membase_phys, mem_map_size,
 		  efx->membase);
 
@@ -1068,7 +1072,7 @@ fail1:
 	return rc;
 }
 
-void efx_fini_io(struct efx_nic *efx, int bar)
+void efx_fini_io(struct efx_nic *efx)
 {
 	netif_dbg(efx, drv, efx->net_dev, "shutting down I/O\n");
 
@@ -1078,8 +1082,9 @@ void efx_fini_io(struct efx_nic *efx, int bar)
 	}
 
 	if (efx->membase_phys) {
-		pci_release_region(efx->pci_dev, bar);
+		pci_release_region(efx->pci_dev, efx->mem_bar);
 		efx->membase_phys = 0;
+		efx->mem_bar = UINT_MAX;
 	}
 
 	/* Don't disable bus-mastering if VFs are assigned */
