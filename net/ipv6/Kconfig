@@ -70,7 +70,6 @@ config INET6_ESP
 	select CRYPTO_SHA1
 	select CRYPTO_DES
 	select CRYPTO_ECHAINIV
-	select CRYPTO_SEQIV
 	help
 	  Support for IPsec ESP.
 
