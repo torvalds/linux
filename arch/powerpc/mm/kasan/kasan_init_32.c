@@ -115,6 +115,12 @@ static void __init kasan_unmap_early_shadow_vmalloc(void)
 	unsigned long k_end = (unsigned long)kasan_mem_to_shadow((void *)VMALLOC_END);
 
 	kasan_update_early_region(k_start, k_end, __pte(0));
+
+#ifdef MODULES_VADDR
+	k_start = (unsigned long)kasan_mem_to_shadow((void *)MODULES_VADDR);
+	k_end = (unsigned long)kasan_mem_to_shadow((void *)MODULES_END);
+	kasan_update_early_region(k_start, k_end, __pte(0));
+#endif
 }
 
 void __init kasan_mmu_init(void)
