@@ -69,36 +69,43 @@ static int ghash_init(struct shash_desc *desc)
 }
 
 static void ghash_do_update(int blocks, u64 dg[], const char *src,
-			    struct ghash_key *key, const char *head,
-			    void (*simd_update)(int blocks, u64 dg[],
-						const char *src,
-						u64 const h[][2],
-						const char *head))
+			    struct ghash_key *key, const char *head)
 {
-	if (likely(crypto_simd_usable() && simd_update)) {
+	be128 dst = { cpu_to_be64(dg[1]), cpu_to_be64(dg[0]) };
+
+	do {
+		const u8 *in = src;
+
+		if (head) {
+			in = head;
+			blocks++;
+			head = NULL;
+		} else {
+			src += GHASH_BLOCK_SIZE;
+		}
+
+		crypto_xor((u8 *)&dst, in, GHASH_BLOCK_SIZE);
+		gf128mul_lle(&dst, &key->k);
+	} while (--blocks);
+
+	dg[0] = be64_to_cpu(dst.b);
+	dg[1] = be64_to_cpu(dst.a);
+}
+
+static __always_inline
+void ghash_do_simd_update(int blocks, u64 dg[], const char *src,
+			  struct ghash_key *key, const char *head,
+			  void (*simd_update)(int blocks, u64 dg[],
+					      const char *src,
+					      u64 const h[][2],
+					      const char *head))
+{
+	if (likely(crypto_simd_usable())) {
 		kernel_neon_begin();
 		simd_update(blocks, dg, src, key->h, head);
 		kernel_neon_end();
 	} else {
-		be128 dst = { cpu_to_be64(dg[1]), cpu_to_be64(dg[0]) };
-
-		do {
-			const u8 *in = src;
-
-			if (head) {
-				in = head;
-				blocks++;
-				head = NULL;
-			} else {
-				src += GHASH_BLOCK_SIZE;
-			}
-
-			crypto_xor((u8 *)&dst, in, GHASH_BLOCK_SIZE);
-			gf128mul_lle(&dst, &key->k);
-		} while (--blocks);
-
-		dg[0] = be64_to_cpu(dst.b);
-		dg[1] = be64_to_cpu(dst.a);
+		ghash_do_update(blocks, dg, src, key, head);
 	}
 }
 
@@ -131,9 +138,9 @@ static int ghash_update(struct shash_desc *desc, const u8 *src,
 		do {
 			int chunk = min(blocks, MAX_BLOCKS);
 
-			ghash_do_update(chunk, ctx->digest, src, key,
-					partial ? ctx->buf : NULL,
-					pmull_ghash_update_p8);
+			ghash_do_simd_update(chunk, ctx->digest, src, key,
+					     partial ? ctx->buf : NULL,
+					     pmull_ghash_update_p8);
 
 			blocks -= chunk;
 			src += chunk * GHASH_BLOCK_SIZE;
@@ -155,8 +162,8 @@ static int ghash_final(struct shash_desc *desc, u8 *dst)
 
 		memset(ctx->buf + partial, 0, GHASH_BLOCK_SIZE - partial);
 
-		ghash_do_update(1, ctx->digest, ctx->buf, key, NULL,
-				pmull_ghash_update_p8);
+		ghash_do_simd_update(1, ctx->digest, ctx->buf, key, NULL,
+				     pmull_ghash_update_p8);
 	}
 	put_unaligned_be64(ctx->digest[1], dst);
 	put_unaligned_be64(ctx->digest[0], dst + 8);
@@ -280,9 +287,9 @@ static void gcm_update_mac(u64 dg[], const u8 *src, int count, u8 buf[],
 	if (count >= GHASH_BLOCK_SIZE || *buf_count == GHASH_BLOCK_SIZE) {
 		int blocks = count / GHASH_BLOCK_SIZE;
 
-		ghash_do_update(blocks, dg, src, &ctx->ghash_key,
-				*buf_count ? buf : NULL,
-				pmull_ghash_update_p64);
+		ghash_do_simd_update(blocks, dg, src, &ctx->ghash_key,
+				     *buf_count ? buf : NULL,
+				     pmull_ghash_update_p64);
 
 		src += blocks * GHASH_BLOCK_SIZE;
 		count %= GHASH_BLOCK_SIZE;
@@ -326,8 +333,8 @@ static void gcm_calculate_auth_mac(struct aead_request *req, u64 dg[])
 
 	if (buf_count) {
 		memset(&buf[buf_count], 0, GHASH_BLOCK_SIZE - buf_count);
-		ghash_do_update(1, dg, buf, &ctx->ghash_key, NULL,
-				pmull_ghash_update_p64);
+		ghash_do_simd_update(1, dg, buf, &ctx->ghash_key, NULL,
+				     pmull_ghash_update_p64);
 	}
 }
 
@@ -403,7 +410,7 @@ static int gcm_encrypt(struct aead_request *req)
 			} while (--remaining > 0);
 
 			ghash_do_update(blocks, dg, walk.dst.virt.addr,
-					&ctx->ghash_key, NULL, NULL);
+					&ctx->ghash_key, NULL);
 
 			err = skcipher_walk_done(&walk,
 						 walk.nbytes % AES_BLOCK_SIZE);
@@ -422,7 +429,7 @@ static int gcm_encrypt(struct aead_request *req)
 
 		tag = (u8 *)&lengths;
 		ghash_do_update(1, dg, tag, &ctx->ghash_key,
-				walk.nbytes ? buf : NULL, NULL);
+				walk.nbytes ? buf : NULL);
 
 		if (walk.nbytes)
 			err = skcipher_walk_done(&walk, 0);
@@ -507,7 +514,7 @@ static int gcm_decrypt(struct aead_request *req)
 			u8 *dst = walk.dst.virt.addr;
 
 			ghash_do_update(blocks, dg, walk.src.virt.addr,
-					&ctx->ghash_key, NULL, NULL);
+					&ctx->ghash_key, NULL);
 
 			do {
 				aes_encrypt(&ctx->aes_key, buf, iv);
@@ -530,7 +537,7 @@ static int gcm_decrypt(struct aead_request *req)
 
 		tag = (u8 *)&lengths;
 		ghash_do_update(1, dg, tag, &ctx->ghash_key,
-				walk.nbytes ? buf : NULL, NULL);
+				walk.nbytes ? buf : NULL);
 
 		if (walk.nbytes) {
 			aes_encrypt(&ctx->aes_key, buf, iv);
