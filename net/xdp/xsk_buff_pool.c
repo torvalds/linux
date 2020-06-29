@@ -193,7 +193,6 @@ int xp_dma_map(struct xsk_buff_pool *pool, struct device *dev,
 	if (pool->unaligned)
 		xp_check_dma_contiguity(pool);
 
-	pool->dev = dev;
 	pool->dma_need_sync = !xp_check_cheap_dma(pool);
 	return 0;
 }
