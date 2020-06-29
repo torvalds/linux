@@ -332,6 +332,7 @@ vchiq_get_service_userdata(unsigned int handle)
 	rcu_read_unlock();
 	return userdata;
 }
+EXPORT_SYMBOL(vchiq_get_service_userdata);
 
 static void
 mark_service_closing_internal(struct vchiq_service *service, int sh_thread)
