@@ -1,4 +1,5 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause)
+
 #include <linux/types.h>
 #include <asm/byteorder.h>
 #include <linux/bug.h>

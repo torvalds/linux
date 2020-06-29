@@ -1,4 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause) */
+
 #ifndef _QED_SELFTEST_API_H
 #define _QED_SELFTEST_API_H
 #include <linux/types.h>

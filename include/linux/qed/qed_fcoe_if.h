@@ -1,4 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause) */
+
 #ifndef _QED_FCOE_IF_H
 #define _QED_FCOE_IF_H
 #include <linux/types.h>
