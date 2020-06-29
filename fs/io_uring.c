@@ -531,7 +531,6 @@ enum {
 	REQ_F_CUR_POS_BIT,
 	REQ_F_NOWAIT_BIT,
 	REQ_F_LINK_TIMEOUT_BIT,
-	REQ_F_TIMEOUT_BIT,
 	REQ_F_ISREG_BIT,
 	REQ_F_TIMEOUT_NOSEQ_BIT,
 	REQ_F_COMP_LOCKED_BIT,
@@ -574,8 +573,6 @@ enum {
 	REQ_F_NOWAIT		= BIT(REQ_F_NOWAIT_BIT),
 	/* has linked timeout */
 	REQ_F_LINK_TIMEOUT	= BIT(REQ_F_LINK_TIMEOUT_BIT),
-	/* timeout request */
-	REQ_F_TIMEOUT		= BIT(REQ_F_TIMEOUT_BIT),
 	/* regular file */
 	REQ_F_ISREG		= BIT(REQ_F_ISREG_BIT),
 	/* no timeout sequence */
@@ -5063,7 +5060,6 @@ static int io_timeout_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 
 	data = &req->io->timeout;
 	data->req = req;
-	req->flags |= REQ_F_TIMEOUT;
 
 	if (get_timespec64(&data->ts, u64_to_user_ptr(sqe->addr)))
 		return -EFAULT;
