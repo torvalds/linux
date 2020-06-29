@@ -288,8 +288,6 @@ static struct vchi_service *service_alloc(struct vchiq_instance *instance,
 {
 	struct vchi_service *service = kzalloc(sizeof(struct vchi_service), GFP_KERNEL);
 
-	(void)instance;
-
 	if (service) {
 		if (!vchiu_queue_init(&service->queue, 64)) {
 			service->callback = setup->callback;
