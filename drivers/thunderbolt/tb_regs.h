@@ -39,6 +39,7 @@ enum tb_switch_vse_cap {
 
 enum tb_port_cap {
 	TB_PORT_CAP_PHY			= 0x01,
+	TB_PORT_CAP_POWER		= 0x02,
 	TB_PORT_CAP_TIME1		= 0x03,
 	TB_PORT_CAP_ADAP		= 0x04,
 	TB_PORT_CAP_VSE			= 0x05,
@@ -252,7 +253,8 @@ struct tb_regs_port_header {
 	/* DWORD 1 */
 	u32 first_cap_offset:8;
 	u32 max_counters:11;
-	u32 __unknown1:5;
+	u32 counters_support:1;
+	u32 __unknown1:4;
 	u32 revision:8;
 	/* DWORD 2 */
 	enum tb_port_type type:24;

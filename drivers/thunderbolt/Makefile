@@ -5,5 +5,6 @@ thunderbolt-objs += domain.o dma_port.o icm.o property.o xdomain.o lc.o tmu.o us
 thunderbolt-objs += nvm.o retimer.o quirks.o
 
 thunderbolt-${CONFIG_ACPI} += acpi.o
+thunderbolt-$(CONFIG_DEBUG_FS) += debugfs.o
 
 obj-${CONFIG_USB4_KUNIT_TEST} += test.o

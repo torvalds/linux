@@ -2517,6 +2517,7 @@ int tb_switch_add(struct tb_switch *sw)
 		pm_request_autosuspend(&sw->dev);
 	}
 
+	tb_switch_debugfs_init(sw);
 	return 0;
 }
 
@@ -2531,6 +2532,8 @@ int tb_switch_add(struct tb_switch *sw)
 void tb_switch_remove(struct tb_switch *sw)
 {
 	struct tb_port *port;
+
+	tb_switch_debugfs_remove(sw);
 
 	if (sw->rpm) {
 		pm_runtime_get_sync(&sw->dev);
