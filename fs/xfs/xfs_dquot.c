@@ -1048,9 +1048,8 @@ xfs_qm_dqrele(
  * from the AIL if it has not been re-logged, and unlocking the dquot's
  * flush lock. This behavior is very similar to that of inodes..
  */
-STATIC void
+static void
 xfs_qm_dqflush_done(
-	struct xfs_buf		*bp,
 	struct xfs_log_item	*lip)
 {
 	struct xfs_dq_logitem	*qip = (struct xfs_dq_logitem *)lip;
@@ -1089,6 +1088,18 @@ xfs_qm_dqflush_done(
 	 * Release the dq's flush lock since we're done with it.
 	 */
 	xfs_dqfunlock(dqp);
+}
+
+void
+xfs_dquot_done(
+	struct xfs_buf		*bp)
+{
+	struct xfs_log_item	*lip, *n;
+
+	list_for_each_entry_safe(lip, n, &bp->b_li_list, li_bio_list) {
+		list_del_init(&lip->li_bio_list);
+		xfs_qm_dqflush_done(lip);
+	}
 }
 
 /*
@@ -1180,8 +1191,7 @@ xfs_qm_dqflush(
 	 * AIL and release the flush lock once the dquot is synced to disk.
 	 */
 	bp->b_flags |= _XBF_DQUOTS;
-	xfs_buf_attach_iodone(bp, xfs_qm_dqflush_done,
-				  &dqp->q_logitem.qli_item);
+	xfs_buf_attach_iodone(bp, NULL, &dqp->q_logitem.qli_item);
 
 	/*
 	 * If the buffer is pinned then push on the log so we won't
