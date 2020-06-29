@@ -23,21 +23,21 @@
 #define MMAL_PARAMETERS_H
 
 /** Common parameter ID group, used with many types of component. */
-#define MMAL_PARAMETER_GROUP_COMMON            (0 << 16)
+#define MMAL_PARAMETER_GROUP_COMMON		(0 << 16)
 /** Camera-specific parameter ID group. */
-#define MMAL_PARAMETER_GROUP_CAMERA            (1 << 16)
+#define MMAL_PARAMETER_GROUP_CAMERA		(1 << 16)
 /** Video-specific parameter ID group. */
-#define MMAL_PARAMETER_GROUP_VIDEO             (2 << 16)
+#define MMAL_PARAMETER_GROUP_VIDEO		(2 << 16)
 /** Audio-specific parameter ID group. */
-#define MMAL_PARAMETER_GROUP_AUDIO             (3 << 16)
+#define MMAL_PARAMETER_GROUP_AUDIO		(3 << 16)
 /** Clock-specific parameter ID group. */
-#define MMAL_PARAMETER_GROUP_CLOCK             (4 << 16)
+#define MMAL_PARAMETER_GROUP_CLOCK		(4 << 16)
 /** Miracast-specific parameter ID group. */
-#define MMAL_PARAMETER_GROUP_MIRACAST       (5 << 16)
+#define MMAL_PARAMETER_GROUP_MIRACAST		(5 << 16)
 
 /* Common parameters */
 enum mmal_parameter_common_type {
-		/**< Never a valid parameter ID */
+	/**< Never a valid parameter ID */
 	MMAL_PARAMETER_UNUSED = MMAL_PARAMETER_GROUP_COMMON,
 
 		/**< MMAL_PARAMETER_ENCODING_T */
@@ -341,7 +341,7 @@ enum mmal_parameter_imagefx {
 	MMAL_PARAM_IMAGEFX_CARTOON,
 };
 
-enum MMAL_PARAM_FLICKERAVOID_T {
+enum MMAL_PARAM_FLICKERAVOID {
 	MMAL_PARAM_FLICKERAVOID_OFF,
 	MMAL_PARAM_FLICKERAVOID_AUTO,
 	MMAL_PARAM_FLICKERAVOID_50HZ,
@@ -723,7 +723,7 @@ struct mmal_parameter_imagefx_parameters {
 #define MMAL_PARAMETER_CAMERA_INFO_MAX_FLASHES 2
 #define MMAL_PARAMETER_CAMERA_INFO_MAX_STR_LEN 16
 
-struct mmal_parameter_camera_info_camera_t {
+struct mmal_parameter_camera_info_camera {
 	u32 port_id;
 	u32 max_width;
 	u32 max_height;
@@ -731,7 +731,7 @@ struct mmal_parameter_camera_info_camera_t {
 	u8 camera_name[MMAL_PARAMETER_CAMERA_INFO_MAX_STR_LEN];
 };
 
-enum mmal_parameter_camera_info_flash_type_t {
+enum mmal_parameter_camera_info_flash_type {
 	/* Make values explicit to ensure they match values in config ini */
 	MMAL_PARAMETER_CAMERA_INFO_FLASH_TYPE_XENON = 0,
 	MMAL_PARAMETER_CAMERA_INFO_FLASH_TYPE_LED   = 1,
@@ -739,16 +739,16 @@ enum mmal_parameter_camera_info_flash_type_t {
 	MMAL_PARAMETER_CAMERA_INFO_FLASH_TYPE_MAX = 0x7FFFFFFF
 };
 
-struct mmal_parameter_camera_info_flash_t {
-	enum mmal_parameter_camera_info_flash_type_t flash_type;
+struct mmal_parameter_camera_info_flash {
+	enum mmal_parameter_camera_info_flash_type flash_type;
 };
 
-struct mmal_parameter_camera_info_t {
+struct mmal_parameter_camera_info {
 	u32 num_cameras;
 	u32 num_flashes;
-	struct mmal_parameter_camera_info_camera_t
-				cameras[MMAL_PARAMETER_CAMERA_INFO_MAX_CAMERAS];
-	struct mmal_parameter_camera_info_flash_t
+	struct mmal_parameter_camera_info_camera
+		cameras[MMAL_PARAMETER_CAMERA_INFO_MAX_CAMERAS];
+	struct mmal_parameter_camera_info_flash
 				flashes[MMAL_PARAMETER_CAMERA_INFO_MAX_FLASHES];
 };
 

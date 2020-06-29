@@ -1497,7 +1497,7 @@ static int get_num_cameras(struct vchiq_mmal_instance *instance,
 {
 	int ret;
 	struct vchiq_mmal_component  *cam_info_component;
-	struct mmal_parameter_camera_info_t cam_info = {0};
+	struct mmal_parameter_camera_info cam_info = {0};
 	u32 param_size = sizeof(cam_info);
 	int i;
 
