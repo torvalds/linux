@@ -93,7 +93,7 @@ static int map_patch_area(void *addr, unsigned long text_poke_addr)
 	unsigned long pfn;
 	int err;
 
-	if (is_vmalloc_addr(addr))
+	if (is_vmalloc_or_module_addr(addr))
 		pfn = vmalloc_to_pfn(addr);
 	else
 		pfn = __pa_symbol(addr) >> PAGE_SHIFT;
