@@ -377,8 +377,12 @@ xfsaild_resubmit_item(
 	}
 
 	/* protected by ail_lock */
-	list_for_each_entry(lip, &bp->b_li_list, li_bio_list)
-		xfs_clear_li_failed(lip);
+	list_for_each_entry(lip, &bp->b_li_list, li_bio_list) {
+		if (bp->b_flags & _XBF_INODES)
+			clear_bit(XFS_LI_FAILED, &lip->li_flags);
+		else
+			xfs_clear_li_failed(lip);
+	}
 
 	xfs_buf_unlock(bp);
 	return XFS_ITEM_SUCCESS;

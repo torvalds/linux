@@ -176,7 +176,8 @@ xfs_imap_to_bp(
 	}
 
 	*bpp = bp;
-	*dipp = xfs_buf_offset(bp, imap->im_boffset);
+	if (dipp)
+		*dipp = xfs_buf_offset(bp, imap->im_boffset);
 	return 0;
 }
 

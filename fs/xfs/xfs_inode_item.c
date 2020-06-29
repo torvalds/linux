@@ -439,6 +439,7 @@ xfs_inode_item_pin(
 	struct xfs_inode	*ip = INODE_ITEM(lip)->ili_inode;
 
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
+	ASSERT(lip->li_buf);
 
 	trace_xfs_inode_pin(ip, _RET_IP_);
 	atomic_inc(&ip->i_pincount);
@@ -450,6 +451,12 @@ xfs_inode_item_pin(
  * item which was previously pinned with a call to xfs_inode_item_pin().
  *
  * Also wake up anyone in xfs_iunpin_wait() if the count goes to 0.
+ *
+ * Note that unpin can race with inode cluster buffer freeing marking the buffer
+ * stale. In that case, flush completions are run from the buffer unpin call,
+ * which may happen before the inode is unpinned. If we lose the race, there
+ * will be no buffer attached to the log item, but the inode will be marked
+ * XFS_ISTALE.
  */
 STATIC void
 xfs_inode_item_unpin(
@@ -459,6 +466,7 @@ xfs_inode_item_unpin(
 	struct xfs_inode	*ip = INODE_ITEM(lip)->ili_inode;
 
 	trace_xfs_inode_unpin(ip, _RET_IP_);
+	ASSERT(lip->li_buf || xfs_iflags_test(ip, XFS_ISTALE));
 	ASSERT(atomic_read(&ip->i_pincount) > 0);
 	if (atomic_dec_and_test(&ip->i_pincount))
 		wake_up_bit(&ip->i_flags, __XFS_IPINNED_BIT);
@@ -629,10 +637,15 @@ xfs_inode_item_init(
  */
 void
 xfs_inode_item_destroy(
-	xfs_inode_t	*ip)
+	struct xfs_inode	*ip)
 {
-	kmem_free(ip->i_itemp->ili_item.li_lv_shadow);
-	kmem_cache_free(xfs_ili_zone, ip->i_itemp);
+	struct xfs_inode_log_item *iip = ip->i_itemp;
+
+	ASSERT(iip->ili_item.li_buf == NULL);
+
+	ip->i_itemp = NULL;
+	kmem_free(iip->ili_item.li_lv_shadow);
+	kmem_cache_free(xfs_ili_zone, iip);
 }
 
 
@@ -673,11 +686,10 @@ xfs_iflush_done(
 		list_move_tail(&lip->li_bio_list, &tmp);
 
 		/* Do an unlocked check for needing the AIL lock. */
-		if (lip->li_lsn == iip->ili_flush_lsn ||
+		if (iip->ili_flush_lsn == lip->li_lsn ||
 		    test_bit(XFS_LI_FAILED, &lip->li_flags))
 			need_ail++;
 	}
-	ASSERT(list_empty(&bp->b_li_list));
 
 	/*
 	 * We only want to pull the item from the AIL if it is actually there
@@ -690,7 +702,7 @@ xfs_iflush_done(
 		/* this is an opencoded batch version of xfs_trans_ail_delete */
 		spin_lock(&ailp->ail_lock);
 		list_for_each_entry(lip, &tmp, li_bio_list) {
-			xfs_clear_li_failed(lip);
+			clear_bit(XFS_LI_FAILED, &lip->li_flags);
 			if (lip->li_lsn == INODE_ITEM(lip)->ili_flush_lsn) {
 				xfs_lsn_t lsn = xfs_ail_delete_one(ailp, lip);
 				if (!tail_lsn && lsn)
@@ -706,14 +718,29 @@ xfs_iflush_done(
 	 * them is safely on disk.
 	 */
 	list_for_each_entry_safe(lip, n, &tmp, li_bio_list) {
+		bool	drop_buffer = false;
+
 		list_del_init(&lip->li_bio_list);
 		iip = INODE_ITEM(lip);
 
 		spin_lock(&iip->ili_lock);
-		iip->ili_last_fields = 0;
-		spin_unlock(&iip->ili_lock);
 
+		/*
+		 * Remove the reference to the cluster buffer if the inode is
+		 * clean in memory. Drop the buffer reference once we've dropped
+		 * the locks we hold.
+		 */
+		ASSERT(iip->ili_item.li_buf == bp);
+		if (!iip->ili_fields) {
+			iip->ili_item.li_buf = NULL;
+			drop_buffer = true;
+		}
+		iip->ili_last_fields = 0;
+		iip->ili_flush_lsn = 0;
+		spin_unlock(&iip->ili_lock);
 		xfs_ifunlock(iip->ili_inode);
+		if (drop_buffer)
+			xfs_buf_rele(bp);
 	}
 }
 
@@ -725,12 +752,20 @@ xfs_iflush_done(
  */
 void
 xfs_iflush_abort(
-	struct xfs_inode		*ip)
+	struct xfs_inode	*ip)
 {
-	struct xfs_inode_log_item	*iip = ip->i_itemp;
+	struct xfs_inode_log_item *iip = ip->i_itemp;
+	struct xfs_buf		*bp = NULL;
 
 	if (iip) {
+		/*
+		 * Clear the failed bit before removing the item from the AIL so
+		 * xfs_trans_ail_delete() doesn't try to clear and release the
+		 * buffer attached to the log item before we are done with it.
+		 */
+		clear_bit(XFS_LI_FAILED, &iip->ili_item.li_flags);
 		xfs_trans_ail_delete(&iip->ili_item, 0);
+
 		/*
 		 * Clear the inode logging fields so no more flushes are
 		 * attempted.
@@ -739,12 +774,14 @@ xfs_iflush_abort(
 		iip->ili_last_fields = 0;
 		iip->ili_fields = 0;
 		iip->ili_fsync_fields = 0;
+		iip->ili_flush_lsn = 0;
+		bp = iip->ili_item.li_buf;
+		iip->ili_item.li_buf = NULL;
 		spin_unlock(&iip->ili_lock);
 	}
-	/*
-	 * Release the inode's flush lock since we're done with it.
-	 */
 	xfs_ifunlock(ip);
+	if (bp)
+		xfs_buf_rele(bp);
 }
 
 /*

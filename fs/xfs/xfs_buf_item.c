@@ -1143,11 +1143,9 @@ xfs_buf_inode_iodone(
 		if (ret == XBF_IOERROR_DONE)
 			return;
 		ASSERT(ret == XBF_IOERROR_FAIL);
-		spin_lock(&bp->b_mount->m_ail->ail_lock);
 		list_for_each_entry(lip, &bp->b_li_list, li_bio_list) {
-			xfs_set_li_failed(lip, bp);
+			set_bit(XFS_LI_FAILED, &lip->li_flags);
 		}
-		spin_unlock(&bp->b_mount->m_ail->ail_lock);
 		xfs_buf_ioerror(bp, 0);
 		xfs_buf_relse(bp);
 		return;
