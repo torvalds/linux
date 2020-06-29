@@ -310,6 +310,25 @@ static const struct rk_crypto_soc_data px30_soc_data = {
 	.hw_info_size = sizeof(struct rk_hw_crypto_v2_info),
 };
 
+static struct rk_crypto_tmp *rv1126_cipher_algs[] = {
+	&rk_v2_ecb_des_alg,
+	&rk_v2_cbc_des_alg,
+	&rk_v2_ecb_des3_ede_alg,
+	&rk_v2_cbc_des3_ede_alg,
+};
+
+static const struct rk_crypto_soc_data rv1126_soc_data = {
+	.cipher_algs = &rv1126_cipher_algs[0],
+	.cipher_num = ARRAY_SIZE(rv1126_cipher_algs),
+	.clks = crypto_v2_clks,
+	.clks_num = ARRAY_SIZE(crypto_v2_clks),
+	.rsts = crypto_v2_rsts,
+	.rsts_num = ARRAY_SIZE(crypto_v2_rsts),
+	.hw_init = rk_hw_crypto_v2_init,
+	.hw_deinit = rk_hw_crypto_v2_deinit,
+	.hw_info_size = sizeof(struct rk_hw_crypto_v2_info),
+};
+
 static const char * const crypto_v1_clks[] = {
 	"hclk",
 	"aclk",
@@ -350,6 +369,10 @@ static const struct of_device_id crypto_of_id_table[] = {
 	{
 		.compatible = "rockchip,px30-crypto",
 		.data = (void *)&px30_soc_data,
+	},
+	{
+		.compatible = "rockchip,rv1126-crypto",
+		.data = (void *)&rv1126_soc_data,
 	},
 	/* crypto v1 in belows */
 	{
