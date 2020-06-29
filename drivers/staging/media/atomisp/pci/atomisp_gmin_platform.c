@@ -478,7 +478,38 @@ fail:
 	return clock_num;
 }
 
-static struct i2c_client *power;
+static u8 gmin_get_pmic_id_and_addr(struct device *dev)
+{
+	struct i2c_client *power;
+	static u8 pmic_i2c_addr;
+
+	if (pmic_id)
+		return pmic_i2c_addr;
+
+	if (gmin_i2c_dev_exists(dev, PMIC_ACPI_TI, &power))
+		pmic_id = PMIC_TI;
+	else if (gmin_i2c_dev_exists(dev, PMIC_ACPI_AXP, &power))
+		pmic_id = PMIC_AXP;
+	else if (gmin_i2c_dev_exists(dev, PMIC_ACPI_CRYSTALCOVE, &power))
+		pmic_id = PMIC_CRYSTALCOVE;
+	else
+		pmic_id = PMIC_REGULATOR;
+
+	pmic_i2c_addr = power ? power->addr : 0;
+	return pmic_i2c_addr;
+}
+
+static int gmin_detect_pmic(struct v4l2_subdev *subdev)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(subdev);
+	struct device *dev = &client->dev;
+	u8 pmic_i2c_addr;
+
+	pmic_i2c_addr = gmin_get_pmic_id_and_addr(dev);
+	dev_info(dev, "gmin: power management provided via %s (i2c addr 0x%02x)\n",
+		 pmic_name[pmic_id], pmic_i2c_addr);
+	return pmic_i2c_addr;
+}
 
 static struct gmin_subdev *gmin_subdev_add(struct v4l2_subdev *subdev)
 {
@@ -579,27 +610,6 @@ static struct gmin_subdev *gmin_subdev_add(struct v4l2_subdev *subdev)
 	 * whose ACPI BIOS may not contain everything that would be needed
 	 * in order to set clocks and do power management.
 	 */
-
-	if (!pmic_id) {
-		if (gmin_i2c_dev_exists(dev, PMIC_ACPI_TI, &power))
-			pmic_id = PMIC_TI;
-		else if (gmin_i2c_dev_exists(dev, PMIC_ACPI_AXP, &power))
-			pmic_id = PMIC_AXP;
-		else if (gmin_i2c_dev_exists(dev, PMIC_ACPI_CRYSTALCOVE, &power))
-			pmic_id = PMIC_CRYSTALCOVE;
-		else
-			pmic_id = PMIC_REGULATOR;
-	}
-
-	if (power) {
-		gs->pwm_i2c_addr = power->addr;
-		dev_info(dev,
-			 "gmin: power management provided via %s (i2c addr 0x%02x)\n",
-			 pmic_name[pmic_id], power->addr);
-	} else {
-		dev_info(dev, "gmin: power management provided via %s\n",
-			 pmic_name[pmic_id]);
-	}
 
 	/*
 	 * According with :
@@ -1053,10 +1063,13 @@ struct camera_sensor_platform_data *gmin_camera_platform_data(
     enum atomisp_input_format csi_format,
     enum atomisp_bayer_order csi_bayer)
 {
-	struct gmin_subdev *gs = gmin_subdev_add(subdev);
+	struct gmin_subdev *gs;
+	u8 pmic_i2c_addr = gmin_detect_pmic(subdev);
 
+	gs = gmin_subdev_add(subdev);
 	gs->csi_fmt = csi_format;
 	gs->csi_bayer = csi_bayer;
+	gs->pwm_i2c_addr = pmic_i2c_addr;
 
 	if (gs->pmc_clk)
 		return &pmic_gmin_plat;
