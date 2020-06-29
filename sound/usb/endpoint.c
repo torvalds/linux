@@ -1093,6 +1093,7 @@ int snd_usb_endpoint_set_params(struct snd_usb_endpoint *ep,
 		ep->freqn = get_usb_high_speed_rate(rate);
 		ep->fps = 8000;
 	}
+	ep->fps >>= ep->datainterval;
 
 	ep->sample_rem = rate % ep->fps;
 	ep->framesize[0] = rate / ep->fps;
