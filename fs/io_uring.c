@@ -1101,7 +1101,7 @@ static void __io_commit_cqring(struct io_ring_ctx *ctx)
 	}
 }
 
-static inline void io_req_work_grab_env(struct io_kiocb *req)
+static void io_req_work_grab_env(struct io_kiocb *req)
 {
 	const struct io_op_def *def = &io_op_defs[req->opcode];
 
@@ -1150,8 +1150,7 @@ static inline void io_req_work_drop_env(struct io_kiocb *req)
 	}
 }
 
-static inline void io_prep_async_work(struct io_kiocb *req,
-				      struct io_kiocb **link)
+static void io_prep_async_work(struct io_kiocb *req)
 {
 	const struct io_op_def *def = &io_op_defs[req->opcode];
 
@@ -1164,15 +1163,22 @@ static inline void io_prep_async_work(struct io_kiocb *req,
 	}
 
 	io_req_work_grab_env(req);
-	*link = io_prep_linked_timeout(req);
 }
 
-static inline void io_queue_async_work(struct io_kiocb *req)
+static void io_prep_async_link(struct io_kiocb *req)
+{
+	struct io_kiocb *cur;
+
+	io_prep_async_work(req);
+	if (req->flags & REQ_F_LINK_HEAD)
+		list_for_each_entry(cur, &req->link_list, link_list)
+			io_prep_async_work(cur);
+}
+
+static void __io_queue_async_work(struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
-	struct io_kiocb *link;
-
-	io_prep_async_work(req, &link);
+	struct io_kiocb *link = io_prep_linked_timeout(req);
 
 	trace_io_uring_queue_async_work(ctx, io_wq_is_hashed(&req->work), req,
 					&req->work, req->flags);
@@ -1180,6 +1186,13 @@ static inline void io_queue_async_work(struct io_kiocb *req)
 
 	if (link)
 		io_queue_linked_timeout(link);
+}
+
+static void io_queue_async_work(struct io_kiocb *req)
+{
+	/* init ->work of the whole link before punting */
+	io_prep_async_link(req);
+	__io_queue_async_work(req);
 }
 
 static void io_kill_timeout(struct io_kiocb *req)
@@ -1215,7 +1228,8 @@ static void __io_queue_deferred(struct io_ring_ctx *ctx)
 		if (req_need_defer(req))
 			break;
 		list_del_init(&req->list);
-		io_queue_async_work(req);
+		/* punt-init is done before queueing for defer */
+		__io_queue_async_work(req);
 	} while (!list_empty(&ctx->defer_list));
 }
 
@@ -1791,7 +1805,7 @@ static void io_put_req(struct io_kiocb *req)
 
 static struct io_wq_work *io_steal_work(struct io_kiocb *req)
 {
-	struct io_kiocb *nxt = NULL;
+	struct io_kiocb *timeout, *nxt = NULL;
 
 	/*
 	 * A ref is owned by io-wq in which context we're. So, if that's the
@@ -1805,18 +1819,10 @@ static struct io_wq_work *io_steal_work(struct io_kiocb *req)
 	if (!nxt)
 		return NULL;
 
-	if ((nxt->flags & REQ_F_ISREG) && io_op_defs[nxt->opcode].hash_reg_file)
-		io_wq_hash_work(&nxt->work, file_inode(nxt->file));
-
-	io_req_task_queue(nxt);
-	/*
-	 * If we're going to return actual work, here should be timeout prep:
-	 *
-	 * link = io_prep_linked_timeout(nxt);
-	 * if (link)
-	 *	nxt->flags |= REQ_F_QUEUE_TIMEOUT;
-	 */
-	return NULL;
+	timeout = io_prep_linked_timeout(nxt);
+	if (timeout)
+		nxt->flags |= REQ_F_QUEUE_TIMEOUT;
+	return &nxt->work;
 }
 
 /*
@@ -5369,8 +5375,8 @@ static int io_req_defer(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		ret = io_req_defer_prep(req, sqe);
 		if (ret < 0)
 			return ret;
-		io_req_work_grab_env(req);
 	}
+	io_prep_async_link(req);
 
 	spin_lock_irq(&ctx->completion_lock);
 	if (!req_need_defer(req) && list_empty(&ctx->defer_list)) {
@@ -5984,7 +5990,6 @@ fail_req:
 			ret = io_req_defer_prep(req, sqe);
 			if (unlikely(ret < 0))
 				goto fail_req;
-			io_req_work_grab_env(req);
 		}
 
 		/*
