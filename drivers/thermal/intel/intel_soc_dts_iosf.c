@@ -329,6 +329,9 @@ static int add_dts_thermal_zone(int id, struct intel_soc_dts_sensor_entry *dts,
 		ret = PTR_ERR(dts->tzone);
 		goto err_ret;
 	}
+	ret = thermal_zone_device_enable(dts->tzone);
+	if (ret)
+		goto err_enable;
 
 	ret = soc_dts_enable(id);
 	if (ret)
