@@ -3049,48 +3049,25 @@ static int icl_ddi_combo_pll_get_freq(struct drm_i915_private *i915,
 					icl_wrpll_ref_clock(i915));
 }
 
-static bool icl_calc_dpll_state(struct intel_crtc_state *crtc_state,
-				struct intel_encoder *encoder,
+static void icl_calc_dpll_state(struct drm_i915_private *i915,
+				const struct skl_wrpll_params *pll_params,
 				struct intel_dpll_hw_state *pll_state)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
-	u32 cfgcr0, cfgcr1;
-	struct skl_wrpll_params pll_params = { 0 };
-	bool ret;
-
-	if (intel_phy_is_tc(dev_priv, intel_port_to_phy(dev_priv,
-							encoder->port)))
-		ret = icl_calc_tbt_pll(crtc_state, &pll_params);
-	else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI) ||
-		 intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DSI))
-		ret = icl_calc_wrpll(crtc_state, &pll_params);
-	else
-		ret = icl_calc_dp_combo_pll(crtc_state, &pll_params);
-
-	if (!ret)
-		return false;
-
-	cfgcr0 = DPLL_CFGCR0_DCO_FRACTION(pll_params.dco_fraction) |
-		 pll_params.dco_integer;
-
-	cfgcr1 = DPLL_CFGCR1_QDIV_RATIO(pll_params.qdiv_ratio) |
-		 DPLL_CFGCR1_QDIV_MODE(pll_params.qdiv_mode) |
-		 DPLL_CFGCR1_KDIV(pll_params.kdiv) |
-		 DPLL_CFGCR1_PDIV(pll_params.pdiv);
-
-	if (INTEL_GEN(dev_priv) >= 12)
-		cfgcr1 |= TGL_DPLL_CFGCR1_CFSELOVRD_NORMAL_XTAL;
-	else
-		cfgcr1 |= DPLL_CFGCR1_CENTRAL_FREQ_8400;
-
 	memset(pll_state, 0, sizeof(*pll_state));
 
-	pll_state->cfgcr0 = cfgcr0;
-	pll_state->cfgcr1 = cfgcr1;
+	pll_state->cfgcr0 = DPLL_CFGCR0_DCO_FRACTION(pll_params->dco_fraction) |
+			    pll_params->dco_integer;
 
-	return true;
+	pll_state->cfgcr1 = DPLL_CFGCR1_QDIV_RATIO(pll_params->qdiv_ratio) |
+			    DPLL_CFGCR1_QDIV_MODE(pll_params->qdiv_mode) |
+			    DPLL_CFGCR1_KDIV(pll_params->kdiv) |
+			    DPLL_CFGCR1_PDIV(pll_params->pdiv);
+
+	if (INTEL_GEN(i915) >= 12)
+		pll_state->cfgcr1 |= TGL_DPLL_CFGCR1_CFSELOVRD_NORMAL_XTAL;
+	else
+		pll_state->cfgcr1 |= DPLL_CFGCR1_CENTRAL_FREQ_8400;
 }
-
 
 static enum tc_port icl_pll_id_to_tc_port(enum intel_dpll_id id)
 {
@@ -3504,18 +3481,28 @@ static bool icl_get_combo_phy_dpll(struct intel_atomic_state *state,
 {
 	struct intel_crtc_state *crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
+	struct skl_wrpll_params pll_params = { };
 	struct icl_port_dpll *port_dpll =
 		&crtc_state->icl_port_dplls[ICL_PORT_DPLL_DEFAULT];
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum port port = encoder->port;
 	unsigned long dpll_mask;
+	int ret;
 
-	if (!icl_calc_dpll_state(crtc_state, encoder, &port_dpll->hw_state)) {
+	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI) ||
+	    intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DSI))
+		ret = icl_calc_wrpll(crtc_state, &pll_params);
+	else
+		ret = icl_calc_dp_combo_pll(crtc_state, &pll_params);
+
+	if (!ret) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "Could not calculate combo PHY PLL state.\n");
 
 		return false;
 	}
+
+	icl_calc_dpll_state(dev_priv, &pll_params, &port_dpll->hw_state);
 
 	if (IS_ELKHARTLAKE(dev_priv) && port != PORT_A)
 		dpll_mask =
@@ -3550,15 +3537,18 @@ static bool icl_get_tc_phy_dplls(struct intel_atomic_state *state,
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	struct intel_crtc_state *crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
+	struct skl_wrpll_params pll_params = { };
 	struct icl_port_dpll *port_dpll;
 	enum intel_dpll_id dpll_id;
 
 	port_dpll = &crtc_state->icl_port_dplls[ICL_PORT_DPLL_DEFAULT];
-	if (!icl_calc_dpll_state(crtc_state, encoder, &port_dpll->hw_state)) {
+	if (!icl_calc_tbt_pll(crtc_state, &pll_params)) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "Could not calculate TBT PLL state.\n");
 		return false;
 	}
+
+	icl_calc_dpll_state(dev_priv, &pll_params, &port_dpll->hw_state);
 
 	port_dpll->pll = intel_find_shared_dpll(state, crtc,
 						&port_dpll->hw_state,
