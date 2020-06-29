@@ -29,6 +29,13 @@ struct vchi_held_msg {
 	void *message;
 };
 
+struct vchi_service {
+	unsigned int handle;
+
+	vchi_callback callback;
+	void *callback_param;
+};
+
 // structure used to provide the information needed to open a server or a client
 struct service_creation {
 	struct vchi_version version;
@@ -39,9 +46,6 @@ struct service_creation {
 
 // Opaque handle for a VCHIQ instance
 struct vchiq_instance;
-
-// Opaque handle for a server or client
-struct vchi_service;
 
 /******************************************************************************
  * Global funcs - implementation is specific to which side you are on
