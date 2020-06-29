@@ -178,6 +178,39 @@ struct mlxsw_sp {
 	u32 lowest_shaper_bs;
 };
 
+struct mlxsw_sp_ptp_ops {
+	struct mlxsw_sp_ptp_clock *
+		(*clock_init)(struct mlxsw_sp *mlxsw_sp, struct device *dev);
+	void (*clock_fini)(struct mlxsw_sp_ptp_clock *clock);
+
+	struct mlxsw_sp_ptp_state *(*init)(struct mlxsw_sp *mlxsw_sp);
+	void (*fini)(struct mlxsw_sp_ptp_state *ptp_state);
+
+	/* Notify a driver that a packet that might be PTP was received. Driver
+	 * is responsible for freeing the passed-in SKB.
+	 */
+	void (*receive)(struct mlxsw_sp *mlxsw_sp, struct sk_buff *skb,
+			u8 local_port);
+
+	/* Notify a driver that a timestamped packet was transmitted. Driver
+	 * is responsible for freeing the passed-in SKB.
+	 */
+	void (*transmitted)(struct mlxsw_sp *mlxsw_sp, struct sk_buff *skb,
+			    u8 local_port);
+
+	int (*hwtstamp_get)(struct mlxsw_sp_port *mlxsw_sp_port,
+			    struct hwtstamp_config *config);
+	int (*hwtstamp_set)(struct mlxsw_sp_port *mlxsw_sp_port,
+			    struct hwtstamp_config *config);
+	void (*shaper_work)(struct work_struct *work);
+	int (*get_ts_info)(struct mlxsw_sp *mlxsw_sp,
+			   struct ethtool_ts_info *info);
+	int (*get_stats_count)(void);
+	void (*get_stats_strings)(u8 **p);
+	void (*get_stats)(struct mlxsw_sp_port *mlxsw_sp_port,
+			  u64 *data, int data_index);
+};
+
 static inline struct mlxsw_sp_upper *
 mlxsw_sp_lag_get(struct mlxsw_sp *mlxsw_sp, u16 lag_id)
 {
@@ -392,6 +425,13 @@ enum mlxsw_sp_flood_type {
 	MLXSW_SP_FLOOD_TYPE_BC,
 	MLXSW_SP_FLOOD_TYPE_MC,
 };
+
+int mlxsw_sp_port_headroom_set(struct mlxsw_sp_port *mlxsw_sp_port,
+			       int mtu, bool pause_en);
+int mlxsw_sp_port_get_stats_raw(struct net_device *dev, int grp,
+				int prio, char *ppcnt_pl);
+int mlxsw_sp_port_admin_status_set(struct mlxsw_sp_port *mlxsw_sp_port,
+				   bool is_up);
 
 /* spectrum_buffers.c */
 int mlxsw_sp_buffers_init(struct mlxsw_sp *mlxsw_sp);
@@ -1125,5 +1165,8 @@ static inline struct net *mlxsw_sp_net(struct mlxsw_sp *mlxsw_sp)
 {
 	return mlxsw_core_net(mlxsw_sp->core);
 }
+
+/* spectrum_ethtool.c */
+extern const struct ethtool_ops mlxsw_sp_port_ethtool_ops;
 
 #endif
