@@ -191,27 +191,11 @@ static const u8 rtl8812ae_delta_swing_table_idx_5ga_p[][DEL_SW_IDX_SZ] = {
 	10, 10, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11},
 };
 
-static const u8 rtl8821ae_delta_swing_table_idx_24gb_n[] = {
-	0, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6,
-	6, 7, 7, 7, 8, 8, 8, 9, 9, 9, 10, 10, 10};
-
-static const u8 rtl8821ae_delta_swing_table_idx_24gb_p[]  = {
-	0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8,
-	8, 9, 9, 10, 10, 11, 11, 12, 12, 12, 12, 12, 12};
-
 static const u8 rtl8821ae_delta_swing_table_idx_24ga_n[]  = {
 	0, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6,
 	6, 7, 7, 7, 8, 8, 8, 9, 9, 9, 10, 10, 10};
 
 static const u8 rtl8821ae_delta_swing_table_idx_24ga_p[] = {
-	0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8,
-	8, 9, 9, 10, 10, 11, 11, 12, 12, 12, 12, 12, 12};
-
-static const u8 rtl8821ae_delta_swing_table_idx_24gcckb_n[] = {
-	0, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6,
-	6, 7, 7, 7, 8, 8, 8, 9, 9, 9, 10, 10, 10};
-
-static const u8 rtl8821ae_delta_swing_table_idx_24gcckb_p[] = {
 	0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8,
 	8, 9, 9, 10, 10, 11, 11, 12, 12, 12, 12, 12, 12};
 
@@ -222,24 +206,6 @@ static const u8 rtl8821ae_delta_swing_table_idx_24gccka_n[] = {
 static const u8 rtl8821ae_delta_swing_table_idx_24gccka_p[] = {
 	0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8,
 	8, 9, 9, 10, 10, 11, 11, 12, 12, 12, 12, 12, 12};
-
-static const u8 rtl8821ae_delta_swing_table_idx_5gb_n[][DEL_SW_IDX_SZ] = {
-	{0, 0, 1, 2, 3, 3, 4, 5, 6, 6, 7, 8, 9, 9, 10, 11,
-	12, 12, 13, 14, 15, 15, 16, 16, 16, 16, 16, 16, 16, 16},
-	{0, 0, 1, 2, 3, 3, 4, 5, 6, 6, 7, 8, 9, 9, 10, 11,
-	12, 12, 13, 14, 15, 15, 16, 16, 16, 16, 16, 16, 16, 16},
-	{0, 0, 1, 2, 3, 3, 4, 5, 6, 6, 7, 8, 9, 9, 10, 11,
-	12, 12, 13, 14, 15, 15, 16, 16, 16, 16, 16, 16, 16, 16},
-};
-
-static const u8 rtl8821ae_delta_swing_table_idx_5gb_p[][DEL_SW_IDX_SZ] = {
-	{0, 0, 1, 2, 3, 3, 4, 5, 6, 6, 7, 8, 9, 9, 10, 11,
-	12, 12, 13, 14, 15, 15, 16, 16, 16, 16, 16, 16, 16, 16},
-	{0, 0, 1, 2, 3, 3, 4, 5, 6, 6, 7, 8, 9, 9, 10, 11,
-	12, 12, 13, 14, 15, 15, 16, 16, 16, 16, 16, 16, 16, 16},
-	{0, 0, 1, 2, 3, 3, 4, 5, 6, 6, 7, 8, 9, 9, 10, 11,
-	12, 12, 13, 14, 15, 15, 16, 16, 16, 16, 16, 16, 16, 16},
-};
 
 static const u8 rtl8821ae_delta_swing_table_idx_5ga_n[][DEL_SW_IDX_SZ] = {
 	{0, 0, 1, 2, 3, 3, 4, 5, 6, 6, 7, 8, 9, 9, 10, 11,
@@ -1834,9 +1800,7 @@ void rtl8812ae_dm_txpower_tracking_callback_thermalmeter(
 
 static void rtl8821ae_get_delta_swing_table(struct ieee80211_hw *hw,
 					    const u8 **up_a,
-					    const u8 **down_a,
-					    const u8 **up_b,
-					    const u8 **down_b)
+					    const u8 **down_a)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_phy *rtlphy = &rtlpriv->phy;
@@ -1848,34 +1812,22 @@ static void rtl8821ae_get_delta_swing_table(struct ieee80211_hw *hw,
 		if (RTL8821AE_RX_HAL_IS_CCK_RATE(rate)) {
 			*up_a = rtl8821ae_delta_swing_table_idx_24gccka_p;
 			*down_a = rtl8821ae_delta_swing_table_idx_24gccka_n;
-			*up_b = rtl8821ae_delta_swing_table_idx_24gcckb_p;
-			*down_b = rtl8821ae_delta_swing_table_idx_24gcckb_n;
 		} else {
 			*up_a = rtl8821ae_delta_swing_table_idx_24ga_p;
 			*down_a = rtl8821ae_delta_swing_table_idx_24ga_n;
-			*up_b = rtl8821ae_delta_swing_table_idx_24gb_p;
-			*down_b = rtl8821ae_delta_swing_table_idx_24gb_n;
 		}
 	} else if (36 <= channel && channel <= 64) {
 		*up_a = rtl8821ae_delta_swing_table_idx_5ga_p[0];
 		*down_a = rtl8821ae_delta_swing_table_idx_5ga_n[0];
-		*up_b = rtl8821ae_delta_swing_table_idx_5gb_p[0];
-		*down_b = rtl8821ae_delta_swing_table_idx_5gb_n[0];
 	} else if (100 <= channel && channel <= 140) {
 		*up_a = rtl8821ae_delta_swing_table_idx_5ga_p[1];
 		*down_a = rtl8821ae_delta_swing_table_idx_5ga_n[1];
-		*up_b = rtl8821ae_delta_swing_table_idx_5gb_p[1];
-		*down_b = rtl8821ae_delta_swing_table_idx_5gb_n[1];
 	} else if (149 <= channel && channel <= 173) {
 		*up_a = rtl8821ae_delta_swing_table_idx_5ga_p[2];
 		*down_a = rtl8821ae_delta_swing_table_idx_5ga_n[2];
-		*up_b = rtl8821ae_delta_swing_table_idx_5gb_p[2];
-		*down_b = rtl8821ae_delta_swing_table_idx_5gb_n[2];
 	} else {
 		*up_a = rtl8818e_delta_swing_table_idx_24gb_p;
 		*down_a = rtl8818e_delta_swing_table_idx_24gb_n;
-		*up_b = rtl8818e_delta_swing_table_idx_24gb_p;
-		*down_b = rtl8818e_delta_swing_table_idx_24gb_n;
 	}
 	return;
 }
@@ -2082,15 +2034,11 @@ void rtl8821ae_dm_txpower_tracking_callback_thermalmeter(
 	 */
 	const u8 *delta_swing_table_idx_tup_a;
 	const u8 *delta_swing_table_idx_tdown_a;
-	const u8 *delta_swing_table_idx_tup_b;
-	const u8 *delta_swing_table_idx_tdown_b;
 
 	/*2. Initilization ( 7 steps in total )*/
 	rtl8821ae_get_delta_swing_table(hw,
 					&delta_swing_table_idx_tup_a,
-					&delta_swing_table_idx_tdown_a,
-					&delta_swing_table_idx_tup_b,
-					&delta_swing_table_idx_tdown_b);
+					&delta_swing_table_idx_tdown_a);
 
 	rtldm->txpower_trackinginit = true;
 
