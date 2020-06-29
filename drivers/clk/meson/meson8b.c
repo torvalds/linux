@@ -1387,6 +1387,22 @@ static struct clk_regmap meson8b_vclk2_clk_in_en = {
 	},
 };
 
+static struct clk_regmap meson8b_vclk2_clk_en = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_VIID_CLK_DIV,
+		.bit_idx = 19,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "vclk2_en",
+		.ops = &clk_regmap_gate_ro_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&meson8b_vclk2_clk_in_en.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
 static struct clk_regmap meson8b_vclk2_div1_gate = {
 	.data = &(struct clk_regmap_gate_data){
 		.offset = HHI_VIID_CLK_DIV,
@@ -1396,7 +1412,7 @@ static struct clk_regmap meson8b_vclk2_div1_gate = {
 		.name = "vclk2_div1_en",
 		.ops = &clk_regmap_gate_ro_ops,
 		.parent_hws = (const struct clk_hw *[]) {
-			&meson8b_vclk2_clk_in_en.hw
+			&meson8b_vclk2_clk_en.hw
 		},
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT,
@@ -1410,7 +1426,7 @@ static struct clk_fixed_factor meson8b_vclk2_div2_div = {
 		.name = "vclk2_div2",
 		.ops = &clk_fixed_factor_ops,
 		.parent_hws = (const struct clk_hw *[]) {
-			&meson8b_vclk2_clk_in_en.hw
+			&meson8b_vclk2_clk_en.hw
 		},
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT,
@@ -1440,7 +1456,7 @@ static struct clk_fixed_factor meson8b_vclk2_div4_div = {
 		.name = "vclk2_div4",
 		.ops = &clk_fixed_factor_ops,
 		.parent_hws = (const struct clk_hw *[]) {
-			&meson8b_vclk2_clk_in_en.hw
+			&meson8b_vclk2_clk_en.hw
 		},
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT,
@@ -1470,7 +1486,7 @@ static struct clk_fixed_factor meson8b_vclk2_div6_div = {
 		.name = "vclk2_div6",
 		.ops = &clk_fixed_factor_ops,
 		.parent_hws = (const struct clk_hw *[]) {
-			&meson8b_vclk2_clk_in_en.hw
+			&meson8b_vclk2_clk_en.hw
 		},
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT,
@@ -1500,7 +1516,7 @@ static struct clk_fixed_factor meson8b_vclk2_div12_div = {
 		.name = "vclk2_div12",
 		.ops = &clk_fixed_factor_ops,
 		.parent_hws = (const struct clk_hw *[]) {
-			&meson8b_vclk2_clk_in_en.hw
+			&meson8b_vclk2_clk_en.hw
 		},
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT,
@@ -2848,6 +2864,7 @@ static struct clk_hw_onecell_data meson8_hw_onecell_data = {
 		[CLKID_VCLK_DIV12]	    = &meson8b_vclk_div12_div_gate.hw,
 		[CLKID_VCLK2_IN_SEL]	    = &meson8b_vclk2_in_sel.hw,
 		[CLKID_VCLK2_IN_EN]	    = &meson8b_vclk2_clk_in_en.hw,
+		[CLKID_VCLK2_EN]	    = &meson8b_vclk2_clk_en.hw,
 		[CLKID_VCLK2_DIV1]	    = &meson8b_vclk2_div1_gate.hw,
 		[CLKID_VCLK2_DIV2_DIV]	    = &meson8b_vclk2_div2_div.hw,
 		[CLKID_VCLK2_DIV2]	    = &meson8b_vclk2_div2_div_gate.hw,
@@ -3054,6 +3071,7 @@ static struct clk_hw_onecell_data meson8b_hw_onecell_data = {
 		[CLKID_VCLK_DIV12]	    = &meson8b_vclk_div12_div_gate.hw,
 		[CLKID_VCLK2_IN_SEL]	    = &meson8b_vclk2_in_sel.hw,
 		[CLKID_VCLK2_IN_EN]	    = &meson8b_vclk2_clk_in_en.hw,
+		[CLKID_VCLK2_EN]	    = &meson8b_vclk2_clk_en.hw,
 		[CLKID_VCLK2_DIV1]	    = &meson8b_vclk2_div1_gate.hw,
 		[CLKID_VCLK2_DIV2_DIV]	    = &meson8b_vclk2_div2_div.hw,
 		[CLKID_VCLK2_DIV2]	    = &meson8b_vclk2_div2_div_gate.hw,
@@ -3271,6 +3289,7 @@ static struct clk_hw_onecell_data meson8m2_hw_onecell_data = {
 		[CLKID_VCLK_DIV12]	    = &meson8b_vclk_div12_div_gate.hw,
 		[CLKID_VCLK2_IN_SEL]	    = &meson8b_vclk2_in_sel.hw,
 		[CLKID_VCLK2_IN_EN]	    = &meson8b_vclk2_clk_in_en.hw,
+		[CLKID_VCLK2_EN]	    = &meson8b_vclk2_clk_en.hw,
 		[CLKID_VCLK2_DIV1]	    = &meson8b_vclk2_div1_gate.hw,
 		[CLKID_VCLK2_DIV2_DIV]	    = &meson8b_vclk2_div2_div.hw,
 		[CLKID_VCLK2_DIV2]	    = &meson8b_vclk2_div2_div_gate.hw,
@@ -3470,6 +3489,7 @@ static struct clk_regmap *const meson8b_clk_regmaps[] = {
 	&meson8b_vclk_div12_div_gate,
 	&meson8b_vclk2_in_sel,
 	&meson8b_vclk2_clk_in_en,
+	&meson8b_vclk2_clk_en,
 	&meson8b_vclk2_div1_gate,
 	&meson8b_vclk2_div2_div_gate,
 	&meson8b_vclk2_div4_div_gate,
