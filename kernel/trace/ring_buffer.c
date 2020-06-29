@@ -422,13 +422,15 @@ struct rb_event_info {
 /*
  * Used for the add_timestamp
  *  NONE
- *  NORMAL - may be for either time extend or absolute
+ *  EXTEND - wants a time extend
+ *  ABSOLUTE - the buffer requests all events to have absolute time stamps
  *  FORCE - force a full time stamp.
  */
 enum {
-	RB_ADD_STAMP_NONE,
-	RB_ADD_STAMP_NORMAL,
-	RB_ADD_STAMP_FORCE
+	RB_ADD_STAMP_NONE		= 0,
+	RB_ADD_STAMP_EXTEND		= BIT(1),
+	RB_ADD_STAMP_ABSOLUTE		= BIT(2),
+	RB_ADD_STAMP_FORCE		= BIT(3)
 };
 /*
  * Used for which event context the event is in.
@@ -2434,8 +2436,8 @@ rb_update_event(struct ring_buffer_per_cpu *cpu_buffer,
 	 * add it to the start of the reserved space.
 	 */
 	if (unlikely(info->add_timestamp)) {
-		bool abs = info->add_timestamp == RB_ADD_STAMP_FORCE ||
-			ring_buffer_time_stamp_abs(cpu_buffer->buffer);
+		bool abs = info->add_timestamp &
+			(RB_ADD_STAMP_FORCE | RB_ADD_STAMP_ABSOLUTE);
 
 		event = rb_add_time_stamp(event, abs ? info->delta : delta, abs);
 		length -= RB_LEN_TIME_EXTEND;
@@ -2884,8 +2886,8 @@ int ring_buffer_unlock_commit(struct trace_buffer *buffer,
 EXPORT_SYMBOL_GPL(ring_buffer_unlock_commit);
 
 static noinline void
-rb_handle_timestamp(struct ring_buffer_per_cpu *cpu_buffer,
-		    struct rb_event_info *info)
+rb_check_timestamp(struct ring_buffer_per_cpu *cpu_buffer,
+		   struct rb_event_info *info)
 {
 	WARN_ONCE(info->delta > (1ULL << 59),
 		  KERN_WARNING "Delta way too big! %llu ts=%llu write stamp = %llu\n%s",
@@ -2897,7 +2899,6 @@ rb_handle_timestamp(struct ring_buffer_per_cpu *cpu_buffer,
 		  "please switch to the trace global clock:\n"
 		  "  echo global > /sys/kernel/debug/tracing/trace_clock\n"
 		  "or add trace_clock=global to the kernel command line\n");
-	info->add_timestamp = RB_ADD_STAMP_NORMAL;
 }
 
 static struct ring_buffer_event *
@@ -2908,7 +2909,6 @@ __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
 	struct buffer_page *tail_page;
 	unsigned long tail, write, w;
 	u64 before, after;
-	bool abs = false;
 
 	/* Don't let the compiler play games with cpu_buffer->tail_page */
 	tail_page = info->tail_page = READ_ONCE(cpu_buffer->tail_page);
@@ -2922,20 +2922,23 @@ __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
 
 	if (ring_buffer_time_stamp_abs(cpu_buffer->buffer)) {
 		info->delta = info->ts;
-		abs = true;
+		info->add_timestamp = RB_ADD_STAMP_ABSOLUTE;
 	} else {
 		info->delta = info->ts - after;
 	}
 
-	if (unlikely(test_time_stamp(info->delta)))
-		rb_handle_timestamp(cpu_buffer, info);
+	if (unlikely(test_time_stamp(info->delta))) {
+		rb_check_timestamp(cpu_buffer, info);
+		info->add_timestamp |= RB_ADD_STAMP_EXTEND;
+	}
 
 	/*
 	 * If interrupting an event time update, we may need an absolute timestamp.
 	 * Don't bother if this is the start of a new page (w == 0).
 	 */
 	if (unlikely(before != after && w))
-		info->add_timestamp = RB_ADD_STAMP_FORCE;
+		info->add_timestamp |= RB_ADD_STAMP_FORCE | RB_ADD_STAMP_EXTEND;
+
 	/*
 	 * If the time delta since the last event is too big to
 	 * hold in the time field of the event, then we append a
@@ -2972,7 +2975,8 @@ __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
  /*D*/		local64_set(&cpu_buffer->write_stamp, info->ts);
 		barrier();
  /*E*/		save_before = local64_read(&cpu_buffer->before_stamp);
-		if (likely(info->add_timestamp != RB_ADD_STAMP_FORCE))
+		if (likely(!(info->add_timestamp &
+			     (RB_ADD_STAMP_FORCE | RB_ADD_STAMP_ABSOLUTE))))
 			/* This did not interrupt any time update */
 			info->delta = info->ts - after;
 		else
@@ -3015,15 +3019,15 @@ __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
 			 */
 			info->delta = 0;
 		}
-		if (info->add_timestamp == RB_ADD_STAMP_FORCE)
-			info->add_timestamp = RB_ADD_STAMP_NORMAL;
+		info->add_timestamp &= ~RB_ADD_STAMP_FORCE;
 	}
 
 	/*
 	 * If this is the first commit on the page, then it has the same
 	 * timestamp as the page itself.
 	 */
-	if (unlikely(!tail && info->add_timestamp != RB_ADD_STAMP_FORCE && !abs))
+	if (unlikely(!tail && !(info->add_timestamp &
+				(RB_ADD_STAMP_FORCE | RB_ADD_STAMP_ABSOLUTE))))
 		info->delta = 0;
 
 	/* We reserved something on the buffer */
