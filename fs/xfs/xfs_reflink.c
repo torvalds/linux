@@ -1035,6 +1035,22 @@ xfs_reflink_remap_extent(
 
 	trace_xfs_reflink_remap_extent_dest(ip, &smap);
 
+	/*
+	 * Two extents mapped to the same physical block must not have
+	 * different states; that's filesystem corruption.  Move on to the next
+	 * extent if they're both holes or both the same physical extent.
+	 */
+	if (dmap->br_startblock == smap.br_startblock) {
+		if (dmap->br_state != smap.br_state)
+			error = -EFSCORRUPTED;
+		goto out_cancel;
+	}
+
+	/* If both extents are unwritten, leave them alone. */
+	if (dmap->br_state == XFS_EXT_UNWRITTEN &&
+	    smap.br_state == XFS_EXT_UNWRITTEN)
+		goto out_cancel;
+
 	/* No reflinking if the AG of the dest mapping is low on space. */
 	if (dmap_written) {
 		error = xfs_reflink_ag_has_free_space(mp,
