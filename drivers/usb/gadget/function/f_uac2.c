@@ -5,6 +5,7 @@
  * Copyright (C) 2011
  *    Yadwinder Singh (yadi.brar01@gmail.com)
  *    Jaswinder Singh (jaswinder.singh@linaro.org)
+ * Copyright (C) 2017 Julian Scheel <julian@jusst.de>
  */
 
 #include <linux/usb/audio.h>
@@ -59,14 +60,11 @@ enum {
 	STR_AS_IN_ALT1,
 };
 
-static char clksrc_in[8];
-static char clksrc_out[8];
-
 static struct usb_string strings_fn[] = {
 	[STR_ASSOC].s = "Source/Sink",
 	[STR_IF_CTRL].s = "Topology Control",
-	[STR_CLKSRC_IN].s = clksrc_in,
-	[STR_CLKSRC_OUT].s = clksrc_out,
+	[STR_CLKSRC_IN].s = "Input clock",
+	[STR_CLKSRC_OUT].s = "Output clock",
 	[STR_USB_IT].s = "USBH Out",
 	[STR_IO_IT].s = "USBD Out",
 	[STR_USB_OT].s = "USBH In",
@@ -119,7 +117,7 @@ static struct uac_clock_source_descriptor in_clk_src_desc = {
 	.bDescriptorSubtype = UAC2_CLOCK_SOURCE,
 	/* .bClockID = DYNAMIC */
 	.bmAttributes = UAC_CLOCK_SOURCE_TYPE_INT_FIXED,
-	.bmControls = (CONTROL_RDONLY << CLK_FREQ_CTRL),
+	.bmControls = (CONTROL_RDWR << CLK_FREQ_CTRL),
 	.bAssocTerminal = 0,
 };
 
@@ -131,7 +129,7 @@ static struct uac_clock_source_descriptor out_clk_src_desc = {
 	.bDescriptorSubtype = UAC2_CLOCK_SOURCE,
 	/* .bClockID = DYNAMIC */
 	.bmAttributes = UAC_CLOCK_SOURCE_TYPE_INT_FIXED,
-	.bmControls = (CONTROL_RDONLY << CLK_FREQ_CTRL),
+	.bmControls = (CONTROL_RDWR << CLK_FREQ_CTRL),
 	.bAssocTerminal = 0,
 };
 
@@ -424,26 +422,43 @@ struct cntrl_cur_lay3 {
 };
 
 struct cntrl_range_lay3 {
-	__le16	wNumSubRanges;
 	__le32	dMIN;
 	__le32	dMAX;
 	__le32	dRES;
+} __packed;
+
+#define ranges_size(c) (sizeof(c.wNumSubRanges) + c.wNumSubRanges \
+		* sizeof(struct cntrl_ranges_lay3))
+struct cntrl_ranges_lay3 {
+	__u16	wNumSubRanges;
+	struct cntrl_range_lay3 r[UAC_MAX_RATES];
 } __packed;
 
 static void set_ep_max_packet_size(const struct f_uac_opts *uac2_opts,
 	struct usb_endpoint_descriptor *ep_desc,
 	unsigned int factor, bool is_playback)
 {
-	int chmask, srate, ssize;
+	int chmask, srate = 0, ssize;
 	u16 max_packet_size;
+	int i;
 
 	if (is_playback) {
 		chmask = uac2_opts->p_chmask;
-		srate = uac2_opts->p_srate;
+		for (i = 0; i < UAC_MAX_RATES; i++) {
+			if (uac2_opts->p_srate[i] == 0)
+				break;
+			if (uac2_opts->p_srate[i] > srate)
+				srate = uac2_opts->p_srate[i];
+		}
 		ssize = uac2_opts->p_ssize;
 	} else {
 		chmask = uac2_opts->c_chmask;
-		srate = uac2_opts->c_srate;
+		for (i = 0; i < UAC_MAX_RATES; i++) {
+			if (uac2_opts->c_srate[i] == 0)
+				break;
+			if (uac2_opts->c_srate[i] > srate)
+				srate = uac2_opts->c_srate[i];
+		}
 		ssize = uac2_opts->c_ssize;
 	}
 
@@ -617,9 +632,6 @@ afunc_bind(struct usb_configuration *cfg, struct usb_function *fn)
 	as_in_fmt1_desc.bSubslotSize = uac2_opts->p_ssize;
 	as_in_fmt1_desc.bBitResolution = uac2_opts->p_ssize * 8;
 
-	snprintf(clksrc_in, sizeof(clksrc_in), "%uHz", uac2_opts->p_srate);
-	snprintf(clksrc_out, sizeof(clksrc_out), "%uHz", uac2_opts->c_srate);
-
 	ret = usb_interface_id(cfg, fn);
 	if (ret < 0) {
 		dev_err(dev, "%s:%d Error!\n", __func__, __LINE__);
@@ -697,10 +709,14 @@ afunc_bind(struct usb_configuration *cfg, struct usb_function *fn)
 	agdev->gadget = gadget;
 
 	agdev->params.p_chmask = uac2_opts->p_chmask;
-	agdev->params.p_srate = uac2_opts->p_srate;
+	memcpy(agdev->params.p_srate, uac2_opts->p_srate,
+			sizeof(agdev->params.p_srate));
+	agdev->params.p_srate_active = uac2_opts->p_srate_active;
 	agdev->params.p_ssize = uac2_opts->p_ssize;
 	agdev->params.c_chmask = uac2_opts->c_chmask;
-	agdev->params.c_srate = uac2_opts->c_srate;
+	memcpy(agdev->params.c_srate, uac2_opts->c_srate,
+			sizeof(agdev->params.c_srate));
+	agdev->params.c_srate_active = uac2_opts->c_srate_active;
 	agdev->params.c_ssize = uac2_opts->c_ssize;
 	agdev->params.req_number = uac2_opts->req_number;
 	ret = g_audio_setup(agdev, "UAC2 PCM", "UAC2_Gadget");
@@ -806,8 +822,8 @@ in_rq_cur(struct usb_function *fn, const struct usb_ctrlrequest *cr)
 	int p_srate, c_srate;
 
 	opts = g_audio_to_uac_opts(agdev);
-	p_srate = opts->p_srate;
-	c_srate = opts->c_srate;
+	p_srate = opts->p_srate_active;
+	c_srate = opts->c_srate_active;
 
 	if (control_selector == UAC2_CS_CONTROL_SAM_FREQ) {
 		struct cntrl_cur_lay3 c;
@@ -818,6 +834,7 @@ in_rq_cur(struct usb_function *fn, const struct usb_ctrlrequest *cr)
 		else if (entity_id == USB_OUT_CLK_ID)
 			c.dCUR = cpu_to_le32(c_srate);
 
+		DBG(fn->config->cdev, "%s(): %d\n", __func__, c.dCUR);
 		value = min_t(unsigned, w_length, sizeof c);
 		memcpy(req->buf, &c, value);
 	} else if (control_selector == UAC2_CS_CONTROL_CLOCK_VALID) {
@@ -843,28 +860,40 @@ in_rq_range(struct usb_function *fn, const struct usb_ctrlrequest *cr)
 	u16 w_value = le16_to_cpu(cr->wValue);
 	u8 entity_id = (w_index >> 8) & 0xff;
 	u8 control_selector = w_value >> 8;
-	struct cntrl_range_lay3 r;
+	struct cntrl_ranges_lay3 rs;
 	int value = -EOPNOTSUPP;
-	int p_srate, c_srate;
+	int srate = 0;
+	int i;
 
 	opts = g_audio_to_uac_opts(agdev);
-	p_srate = opts->p_srate;
-	c_srate = opts->c_srate;
 
 	if (control_selector == UAC2_CS_CONTROL_SAM_FREQ) {
-		if (entity_id == USB_IN_CLK_ID)
-			r.dMIN = cpu_to_le32(p_srate);
-		else if (entity_id == USB_OUT_CLK_ID)
-			r.dMIN = cpu_to_le32(c_srate);
-		else
-			return -EOPNOTSUPP;
+		rs.wNumSubRanges = 0;
+		for (i = 0; i < UAC_MAX_RATES; i++) {
+			if (entity_id == USB_IN_CLK_ID)
+				srate = opts->p_srate[i];
+			else if (entity_id == USB_OUT_CLK_ID)
+				srate = opts->c_srate[i];
+			else
+				return -EOPNOTSUPP;
 
-		r.dMAX = r.dMIN;
-		r.dRES = 0;
-		r.wNumSubRanges = cpu_to_le16(1);
+			if (srate == 0)
+				break;
 
-		value = min_t(unsigned, w_length, sizeof r);
-		memcpy(req->buf, &r, value);
+			rs.r[rs.wNumSubRanges].dMIN = srate;
+			rs.r[rs.wNumSubRanges].dMAX = srate;
+			rs.r[rs.wNumSubRanges].dRES = 0;
+			rs.wNumSubRanges++;
+			DBG(fn->config->cdev,
+					"%s(): clk %d: report rate %d. %d\n",
+					__func__, entity_id, rs.wNumSubRanges,
+					srate);
+		}
+
+		value = min_t(unsigned int, w_length, ranges_size(rs));
+		DBG(fn->config->cdev, "%s(): send %d rates, size %d\n",
+				__func__, rs.wNumSubRanges, value);
+		memcpy(req->buf, &rs, value);
 	} else {
 		dev_err(&agdev->gadget->dev,
 			"%s:%d control_selector=%d TODO!\n",
@@ -877,6 +906,7 @@ in_rq_range(struct usb_function *fn, const struct usb_ctrlrequest *cr)
 static int
 ac_rq_in(struct usb_function *fn, const struct usb_ctrlrequest *cr)
 {
+	DBG(fn->config->cdev, "%s(): %d\n", __func__, cr->bRequest);
 	if (cr->bRequest == UAC2_CS_CUR)
 		return in_rq_cur(fn, cr);
 	else if (cr->bRequest == UAC2_CS_RANGE)
@@ -885,15 +915,50 @@ ac_rq_in(struct usb_function *fn, const struct usb_ctrlrequest *cr)
 		return -EOPNOTSUPP;
 }
 
+static void uac2_cs_control_sam_freq(struct usb_ep *ep, struct usb_request *req)
+{
+	struct usb_function *fn = ep->driver_data;
+	struct usb_composite_dev *cdev = fn->config->cdev;
+	struct g_audio *agdev = func_to_g_audio(fn);
+	struct f_uac *uac2 = func_to_uac(fn);
+	struct f_uac_opts *opts = g_audio_to_uac_opts(agdev);
+	u32 val;
+
+	if (req->actual != 4) {
+		WARN(cdev, "Invalid data size for UAC2_CS_CONTROL_SAM_FREQ.\n");
+		return;
+	}
+
+	val = le32_to_cpu(*((u32 *)req->buf));
+	if (uac2->ctl_id == USB_IN_CLK_ID) {
+		opts->p_srate_active = val;
+		u_audio_set_playback_srate(agdev, opts->p_srate_active);
+	} else if (uac2->ctl_id == USB_OUT_CLK_ID) {
+		opts->c_srate_active = val;
+		u_audio_set_capture_srate(agdev, opts->c_srate_active);
+	}
+}
+
 static int
 out_rq_cur(struct usb_function *fn, const struct usb_ctrlrequest *cr)
 {
+	struct usb_composite_dev *cdev = fn->config->cdev;
+	struct usb_request *req = cdev->req;
 	u16 w_length = le16_to_cpu(cr->wLength);
+	struct f_uac *uac2 = func_to_uac(fn);
 	u16 w_value = le16_to_cpu(cr->wValue);
+	u16 w_index = le16_to_cpu(cr->wIndex);
 	u8 control_selector = w_value >> 8;
+	u8 clock_id = w_index >> 8;
 
-	if (control_selector == UAC2_CS_CONTROL_SAM_FREQ)
+	if (control_selector == UAC2_CS_CONTROL_SAM_FREQ) {
+		DBG(cdev, "control_selector UAC2_CS_CONTROL_SAM_FREQ, clock: %d\n",
+				clock_id);
+		cdev->gadget->ep0->driver_data = fn;
+		uac2->ctl_id = clock_id;
+		req->complete = uac2_cs_control_sam_freq;
 		return w_length;
+	}
 
 	return -EOPNOTSUPP;
 }
@@ -958,12 +1023,13 @@ static struct configfs_item_operations f_uac2_item_ops = {
 };
 
 UAC_ATTRIBUTE(p_chmask);
-UAC_ATTRIBUTE(p_srate);
 UAC_ATTRIBUTE(p_ssize);
 UAC_ATTRIBUTE(c_chmask);
-UAC_ATTRIBUTE(c_srate);
 UAC_ATTRIBUTE(c_ssize);
 UAC_ATTRIBUTE(req_number);
+
+UAC_RATE_ATTRIBUTE(p_srate);
+UAC_RATE_ATTRIBUTE(c_srate);
 
 static struct configfs_attribute *f_uac2_attrs[] = {
 	&f_uac_opts_attr_p_chmask,
@@ -1005,10 +1071,12 @@ static struct usb_function_instance *afunc_alloc_inst(void)
 				    &f_uac2_func_type);
 
 	opts->p_chmask = UAC_DEF_PCHMASK;
-	opts->p_srate = UAC_DEF_PSRATE;
+	opts->p_srate[0] = UAC_DEF_PSRATE;
+	opts->p_srate_active = UAC_DEF_PSRATE;
 	opts->p_ssize = UAC_DEF_PSSIZE;
 	opts->c_chmask = UAC_DEF_CCHMASK;
-	opts->c_srate = UAC_DEF_CSRATE;
+	opts->c_srate[0] = UAC_DEF_CSRATE;
+	opts->c_srate_active = UAC_DEF_CSRATE;
 	opts->c_ssize = UAC_DEF_CSSIZE;
 	opts->req_number = UAC_DEF_REQ_NUM;
 	return &opts->func_inst;
