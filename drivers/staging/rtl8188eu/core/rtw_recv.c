@@ -244,10 +244,10 @@ static int recvframe_chkmic(struct adapter *adapter,
 			}
 
 			/* icv_len included the mic code */
-			datalen = precvframe->pkt->len-prxattrib->hdrlen -
-				  prxattrib->iv_len-prxattrib->icv_len-8;
+			datalen = precvframe->pkt->len - prxattrib->hdrlen -
+				  prxattrib->iv_len - prxattrib->icv_len - 8;
 			pframe = precvframe->pkt->data;
-			payload = pframe+prxattrib->hdrlen+prxattrib->iv_len;
+			payload = pframe + prxattrib->hdrlen + prxattrib->iv_len;
 
 			RT_TRACE(_module_rtl871x_recv_c_, _drv_info_, ("\n prxattrib->iv_len=%d prxattrib->icv_len=%d\n", prxattrib->iv_len, prxattrib->icv_len));
 			rtw_seccalctkipmic(mickey, pframe, payload, datalen, &miccode[0],
@@ -258,7 +258,7 @@ static int recvframe_chkmic(struct adapter *adapter,
 			bmic_err = false;
 
 			for (i = 0; i < 8; i++) {
-				if (miccode[i] != *(pframemic+i)) {
+				if (miccode[i] != *(pframemic + i)) {
 					RT_TRACE(_module_rtl871x_recv_c_, _drv_err_,
 						 ("%s: miccode[%d](%02x)!=*(pframemic+%d)(%02x) ",
 						  __func__, i, miccode[i], i, *(pframemic + i)));
@@ -269,14 +269,14 @@ static int recvframe_chkmic(struct adapter *adapter,
 			if (bmic_err) {
 				RT_TRACE(_module_rtl871x_recv_c_, _drv_err_,
 					 ("\n *(pframemic-8)-*(pframemic-1)=0x%02x:0x%02x:0x%02x:0x%02x:0x%02x:0x%02x:0x%02x:0x%02x\n",
-					 *(pframemic-8), *(pframemic-7), *(pframemic-6),
-					 *(pframemic-5), *(pframemic-4), *(pframemic-3),
-					 *(pframemic-2), *(pframemic-1)));
+					 *(pframemic - 8), *(pframemic - 7), *(pframemic - 6),
+					 *(pframemic - 5), *(pframemic - 4), *(pframemic - 3),
+					 *(pframemic - 2), *(pframemic - 1)));
 				RT_TRACE(_module_rtl871x_recv_c_, _drv_err_,
 					 ("\n *(pframemic-16)-*(pframemic-9)=0x%02x:0x%02x:0x%02x:0x%02x:0x%02x:0x%02x:0x%02x:0x%02x\n",
-					 *(pframemic-16), *(pframemic-15), *(pframemic-14),
-					 *(pframemic-13), *(pframemic-12), *(pframemic-11),
-					 *(pframemic-10), *(pframemic-9)));
+					 *(pframemic - 16), *(pframemic - 15), *(pframemic - 14),
+					 *(pframemic - 13), *(pframemic - 12), *(pframemic - 11),
+					 *(pframemic - 10), *(pframemic - 9)));
 				{
 					uint i;
 
@@ -287,14 +287,14 @@ static int recvframe_chkmic(struct adapter *adapter,
 						RT_TRACE(_module_rtl871x_recv_c_,
 							 _drv_err_,
 							 ("0x%02x:0x%02x:0x%02x:0x%02x:0x%02x:0x%02x:0x%02x:0x%02x",
-							 *(precvframe->pkt->data+i),
-							 *(precvframe->pkt->data+i+1),
-							 *(precvframe->pkt->data+i+2),
-							 *(precvframe->pkt->data+i+3),
-							 *(precvframe->pkt->data+i+4),
-							 *(precvframe->pkt->data+i+5),
-							 *(precvframe->pkt->data+i+6),
-							 *(precvframe->pkt->data+i+7)));
+							 *(precvframe->pkt->data + i),
+							 *(precvframe->pkt->data + i + 1),
+							 *(precvframe->pkt->data + i + 2),
+							 *(precvframe->pkt->data + i + 3),
+							 *(precvframe->pkt->data + i + 4),
+							 *(precvframe->pkt->data + i + 5),
+							 *(precvframe->pkt->data + i + 6),
+							 *(precvframe->pkt->data + i + 7)));
 					}
 					RT_TRACE(_module_rtl871x_recv_c_,
 						 _drv_err_,
@@ -488,7 +488,7 @@ static int recv_decache(struct recv_frame *precv_frame, u8 bretry,
 {
 	int tid = precv_frame->attrib.priority;
 
-	u16 seq_ctrl = ((precv_frame->attrib.seq_num&0xffff) << 4) |
+	u16 seq_ctrl = ((precv_frame->attrib.seq_num & 0xffff) << 4) |
 		(precv_frame->attrib.frag_num & 0xf);
 
 	if (tid > 15) {
@@ -553,29 +553,29 @@ static void process_wmmps_data(struct adapter *padapter,
 	if (!psta->qos_option)
 		return;
 
-	if (!(psta->qos_info&0xf))
+	if (!(psta->qos_info & 0xf))
 		return;
 
-	if (psta->state&WIFI_SLEEP_STATE) {
+	if (psta->state & WIFI_SLEEP_STATE) {
 		u8 wmmps_ac = 0;
 
 		switch (pattrib->priority) {
 		case 1:
 		case 2:
-			wmmps_ac = psta->uapsd_bk&BIT(1);
+			wmmps_ac = psta->uapsd_bk & BIT(1);
 			break;
 		case 4:
 		case 5:
-			wmmps_ac = psta->uapsd_vi&BIT(1);
+			wmmps_ac = psta->uapsd_vi & BIT(1);
 			break;
 		case 6:
 		case 7:
-			wmmps_ac = psta->uapsd_vo&BIT(1);
+			wmmps_ac = psta->uapsd_vo & BIT(1);
 			break;
 		case 0:
 		case 3:
 		default:
-			wmmps_ac = psta->uapsd_be&BIT(1);
+			wmmps_ac = psta->uapsd_be & BIT(1);
 			break;
 		}
 
@@ -884,20 +884,20 @@ static int validate_recv_ctrl_frame(struct adapter *padapter,
 		switch (pattrib->priority) {
 		case 1:
 		case 2:
-			wmmps_ac = psta->uapsd_bk&BIT(0);
+			wmmps_ac = psta->uapsd_bk & BIT(0);
 			break;
 		case 4:
 		case 5:
-			wmmps_ac = psta->uapsd_vi&BIT(0);
+			wmmps_ac = psta->uapsd_vi & BIT(0);
 			break;
 		case 6:
 		case 7:
-			wmmps_ac = psta->uapsd_vo&BIT(0);
+			wmmps_ac = psta->uapsd_vo & BIT(0);
 			break;
 		case 0:
 		case 3:
 		default:
-			wmmps_ac = psta->uapsd_be&BIT(0);
+			wmmps_ac = psta->uapsd_be & BIT(0);
 			break;
 		}
 
@@ -910,7 +910,7 @@ static int validate_recv_ctrl_frame(struct adapter *padapter,
 			psta->state ^= WIFI_STA_ALIVE_CHK_STATE;
 		}
 
-		if ((psta->state&WIFI_SLEEP_STATE) && (pstapriv->sta_dz_bitmap&BIT(psta->aid))) {
+		if ((psta->state & WIFI_SLEEP_STATE) && (pstapriv->sta_dz_bitmap & BIT(psta->aid))) {
 			struct list_head *xmitframe_plist, *xmitframe_phead;
 			struct xmit_frame *pxmitframe = NULL;
 
@@ -948,7 +948,7 @@ static int validate_recv_ctrl_frame(struct adapter *padapter,
 					update_beacon(padapter, _TIM_IE_, NULL, false);
 				}
 			} else {
-				if (pstapriv->tim_bitmap&BIT(psta->aid)) {
+				if (pstapriv->tim_bitmap & BIT(psta->aid)) {
 					if (psta->sleepq_len == 0) {
 						DBG_88E("no buffered packets to xmit\n");
 
@@ -1266,8 +1266,8 @@ static int wlanhdr_to_ethhdr(struct recv_frame *precvframe)
 	if (pattrib->encrypt)
 		skb_trim(precvframe->pkt, precvframe->pkt->len - pattrib->icv_len);
 
-	psnap = (struct ieee80211_snap_hdr *)(ptr+pattrib->hdrlen + pattrib->iv_len);
-	psnap_type = ptr+pattrib->hdrlen + pattrib->iv_len+SNAP_SIZE;
+	psnap = (struct ieee80211_snap_hdr *)(ptr + pattrib->hdrlen + pattrib->iv_len);
+	psnap_type = ptr + pattrib->hdrlen + pattrib->iv_len + SNAP_SIZE;
 	/* convert hdr + possible LLC headers into Ethernet header */
 	if ((!memcmp(psnap, rfc1042_header, SNAP_SIZE) &&
 	     memcmp(psnap_type, SNAP_ETH_TYPE_IPX, 2) &&
@@ -1286,7 +1286,7 @@ static int wlanhdr_to_ethhdr(struct recv_frame *precvframe)
 	RT_TRACE(_module_rtl871x_recv_c_, _drv_info_,
 		 ("\n===pattrib->hdrlen: %x,  pattrib->iv_len:%x===\n\n", pattrib->hdrlen,  pattrib->iv_len));
 
-	memcpy(&be_tmp, ptr+rmv_len, 2);
+	memcpy(&be_tmp, ptr + rmv_len, 2);
 	eth_type = ntohs(be_tmp); /* pattrib->ether_type */
 	pattrib->eth_type = eth_type;
 
@@ -1535,7 +1535,7 @@ static int amsdu_to_msdu(struct adapter *padapter, struct recv_frame *prframe)
 		pdata += nSubframe_Length;
 		a_len -= nSubframe_Length;
 		if (a_len != 0) {
-			padding_len = 4 - ((nSubframe_Length + ETH_HLEN) & (4-1));
+			padding_len = 4 - ((nSubframe_Length + ETH_HLEN) & (4 - 1));
 			if (padding_len == 4)
 				padding_len = 0;
 
