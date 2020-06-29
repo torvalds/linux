@@ -89,6 +89,10 @@ struct efx_arfs_rule *efx_rps_hash_add(struct efx_nic *efx,
 				       const struct efx_filter_spec *spec,
 				       bool *new);
 void efx_rps_hash_del(struct efx_nic *efx, const struct efx_filter_spec *spec);
+
+int efx_filter_rfs(struct net_device *net_dev, const struct sk_buff *skb,
+		   u16 rxq_index, u32 flow_id);
+bool __efx_filter_rfs_expire(struct efx_channel *channel, unsigned int quota);
 #endif
 
 int efx_probe_filters(struct efx_nic *efx);

@@ -147,11 +147,6 @@ static inline s32 efx_filter_get_rx_ids(struct efx_nic *efx,
 {
 	return efx->type->filter_get_rx_ids(efx, priority, buf, size);
 }
-#ifdef CONFIG_RFS_ACCEL
-int efx_filter_rfs(struct net_device *net_dev, const struct sk_buff *skb,
-		   u16 rxq_index, u32 flow_id);
-bool __efx_filter_rfs_expire(struct efx_channel *channel, unsigned int quota);
-#endif
 
 /* RSS contexts */
 static inline bool efx_rss_active(struct efx_rss_context *ctx)
