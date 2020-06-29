@@ -4,7 +4,6 @@
 #ifndef VCHI_H_
 #define VCHI_H_
 
-#include "vchi_cfg.h"
 #include "vchi_common.h"
 
 /******************************************************************************
