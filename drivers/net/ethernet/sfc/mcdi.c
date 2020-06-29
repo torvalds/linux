@@ -1299,6 +1299,14 @@ static void efx_mcdi_abandon(struct efx_nic *efx)
 	efx_schedule_reset(efx, RESET_TYPE_MCDI_TIMEOUT);
 }
 
+static void efx_handle_drain_event(struct efx_nic *efx)
+{
+	if (atomic_dec_and_test(&efx->active_queues))
+		wake_up(&efx->flush_wq);
+
+	WARN_ON(atomic_read(&efx->active_queues) < 0);
+}
+
 /* Called from efx_farch_ev_process and efx_ef10_ev_process for MCDI events */
 void efx_mcdi_process_event(struct efx_channel *channel,
 			    efx_qword_t *event)
@@ -1371,7 +1379,7 @@ void efx_mcdi_process_event(struct efx_channel *channel,
 		BUILD_BUG_ON(MCDI_EVENT_TX_FLUSH_TO_DRIVER_LBN !=
 			     MCDI_EVENT_RX_FLUSH_TO_DRIVER_LBN);
 		if (!MCDI_EVENT_FIELD(*event, TX_FLUSH_TO_DRIVER))
-			efx_ef10_handle_drain_event(efx);
+			efx_handle_drain_event(efx);
 		break;
 	case MCDI_EVENT_CODE_TX_ERR:
 	case MCDI_EVENT_CODE_RX_ERR:
