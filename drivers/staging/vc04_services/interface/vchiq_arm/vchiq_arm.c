@@ -271,7 +271,7 @@ failed:
 }
 EXPORT_SYMBOL(vchiq_connect);
 
-enum vchiq_status vchiq_add_service(
+static enum vchiq_status vchiq_add_service(
 	struct vchiq_instance             *instance,
 	const struct vchiq_service_params *params,
 	unsigned int       *phandle)
@@ -308,7 +308,6 @@ enum vchiq_status vchiq_add_service(
 
 	return status;
 }
-EXPORT_SYMBOL(vchiq_add_service);
 
 enum vchiq_status vchiq_open_service(
 	struct vchiq_instance             *instance,
