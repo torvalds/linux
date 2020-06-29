@@ -113,12 +113,8 @@ static void ghash_do_update(int blocks, u64 dg[], const char *src,
 /* avoid hogging the CPU for too long */
 #define MAX_BLOCKS	(SZ_64K / GHASH_BLOCK_SIZE)
 
-static int __ghash_update(struct shash_desc *desc, const u8 *src,
-			  unsigned int len,
-			  void (*simd_update)(int blocks, u64 dg[],
-					      const char *src,
-					      struct ghash_key const *k,
-					      const char *head))
+static int ghash_update(struct shash_desc *desc, const u8 *src,
+			unsigned int len)
 {
 	struct ghash_desc_ctx *ctx = shash_desc_ctx(desc);
 	unsigned int partial = ctx->count % GHASH_BLOCK_SIZE;
@@ -145,7 +141,7 @@ static int __ghash_update(struct shash_desc *desc, const u8 *src,
 
 			ghash_do_update(chunk, ctx->digest, src, key,
 					partial ? ctx->buf : NULL,
-					simd_update);
+					pmull_ghash_update_p8);
 
 			blocks -= chunk;
 			src += chunk * GHASH_BLOCK_SIZE;
@@ -157,19 +153,7 @@ static int __ghash_update(struct shash_desc *desc, const u8 *src,
 	return 0;
 }
 
-static int ghash_update_p8(struct shash_desc *desc, const u8 *src,
-			   unsigned int len)
-{
-	return __ghash_update(desc, src, len, pmull_ghash_update_p8);
-}
-
-static int ghash_update_p64(struct shash_desc *desc, const u8 *src,
-			    unsigned int len)
-{
-	return __ghash_update(desc, src, len, pmull_ghash_update_p64);
-}
-
-static int ghash_final_p8(struct shash_desc *desc, u8 *dst)
+static int ghash_final(struct shash_desc *desc, u8 *dst)
 {
 	struct ghash_desc_ctx *ctx = shash_desc_ctx(desc);
 	unsigned int partial = ctx->count % GHASH_BLOCK_SIZE;
@@ -181,26 +165,6 @@ static int ghash_final_p8(struct shash_desc *desc, u8 *dst)
 
 		ghash_do_update(1, ctx->digest, ctx->buf, key, NULL,
 				pmull_ghash_update_p8);
-	}
-	put_unaligned_be64(ctx->digest[1], dst);
-	put_unaligned_be64(ctx->digest[0], dst + 8);
-
-	*ctx = (struct ghash_desc_ctx){};
-	return 0;
-}
-
-static int ghash_final_p64(struct shash_desc *desc, u8 *dst)
-{
-	struct ghash_desc_ctx *ctx = shash_desc_ctx(desc);
-	unsigned int partial = ctx->count % GHASH_BLOCK_SIZE;
-
-	if (partial) {
-		struct ghash_key *key = crypto_shash_ctx(desc->tfm);
-
-		memset(ctx->buf + partial, 0, GHASH_BLOCK_SIZE - partial);
-
-		ghash_do_update(1, ctx->digest, ctx->buf, key, NULL,
-				pmull_ghash_update_p64);
 	}
 	put_unaligned_be64(ctx->digest[1], dst);
 	put_unaligned_be64(ctx->digest[0], dst + 8);
@@ -254,7 +218,7 @@ static int ghash_setkey(struct crypto_shash *tfm,
 	return __ghash_setkey(key, inkey, keylen);
 }
 
-static struct shash_alg ghash_alg[] = {{
+static struct shash_alg ghash_alg = {
 	.base.cra_name		= "ghash",
 	.base.cra_driver_name	= "ghash-neon",
 	.base.cra_priority	= 150,
@@ -264,25 +228,11 @@ static struct shash_alg ghash_alg[] = {{
 
 	.digestsize		= GHASH_DIGEST_SIZE,
 	.init			= ghash_init,
-	.update			= ghash_update_p8,
-	.final			= ghash_final_p8,
+	.update			= ghash_update,
+	.final			= ghash_final,
 	.setkey			= ghash_setkey,
 	.descsize		= sizeof(struct ghash_desc_ctx),
-}, {
-	.base.cra_name		= "ghash",
-	.base.cra_driver_name	= "ghash-ce",
-	.base.cra_priority	= 200,
-	.base.cra_blocksize	= GHASH_BLOCK_SIZE,
-	.base.cra_ctxsize	= sizeof(struct ghash_key),
-	.base.cra_module	= THIS_MODULE,
-
-	.digestsize		= GHASH_DIGEST_SIZE,
-	.init			= ghash_init,
-	.update			= ghash_update_p64,
-	.final			= ghash_final_p64,
-	.setkey			= ghash_setkey,
-	.descsize		= sizeof(struct ghash_desc_ctx),
-}};
+};
 
 static int num_rounds(struct crypto_aes_ctx *ctx)
 {
@@ -641,37 +591,21 @@ static struct aead_alg gcm_aes_alg = {
 
 static int __init ghash_ce_mod_init(void)
 {
-	int ret;
-
 	if (!cpu_have_named_feature(ASIMD))
 		return -ENODEV;
 
 	if (cpu_have_named_feature(PMULL))
-		ret = crypto_register_shashes(ghash_alg,
-					      ARRAY_SIZE(ghash_alg));
-	else
-		/* only register the first array element */
-		ret = crypto_register_shash(ghash_alg);
+		return crypto_register_aead(&gcm_aes_alg);
 
-	if (ret)
-		return ret;
-
-	if (cpu_have_named_feature(PMULL)) {
-		ret = crypto_register_aead(&gcm_aes_alg);
-		if (ret)
-			crypto_unregister_shashes(ghash_alg,
-						  ARRAY_SIZE(ghash_alg));
-	}
-	return ret;
+	return crypto_register_shash(&ghash_alg);
 }
 
 static void __exit ghash_ce_mod_exit(void)
 {
 	if (cpu_have_named_feature(PMULL))
-		crypto_unregister_shashes(ghash_alg, ARRAY_SIZE(ghash_alg));
+		crypto_unregister_aead(&gcm_aes_alg);
 	else
-		crypto_unregister_shash(ghash_alg);
-	crypto_unregister_aead(&gcm_aes_alg);
+		crypto_unregister_shash(&ghash_alg);
 }
 
 static const struct cpu_feature ghash_cpu_feature[] = {
