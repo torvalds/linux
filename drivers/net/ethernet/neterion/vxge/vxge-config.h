@@ -297,7 +297,7 @@ struct vxge_hw_fifo_config {
  * @greedy_return: If Set it forces the device to return absolutely all RxD
  *             that are consumed and still on board when a timer interrupt
  *             triggers. If Clear, then if the device has already returned
- *             RxD before current timer interrupt trigerred and after the
+ *             RxD before current timer interrupt triggered and after the
  *             previous timer interrupt triggered, then the device is not
  *             forced to returned the rest of the consumed RxD that it has
  *             on board which account for a byte count less than the one

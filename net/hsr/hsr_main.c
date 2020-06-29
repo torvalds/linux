@@ -6,6 +6,7 @@
  */
 
 #include <linux/netdevice.h>
+#include <net/rtnetlink.h>
 #include <linux/rculist.h>
 #include <linux/timer.h>
 #include <linux/etherdevice.h>
@@ -100,8 +101,10 @@ static int hsr_netdev_notify(struct notifier_block *nb, unsigned long event,
 			master = hsr_port_get_hsr(port->hsr, HSR_PT_MASTER);
 			hsr_del_port(port);
 			if (hsr_slave_empty(master->hsr)) {
-				unregister_netdevice_queue(master->dev,
-							   &list_kill);
+				const struct rtnl_link_ops *ops;
+
+				ops = master->dev->rtnl_link_ops;
+				ops->dellink(master->dev, &list_kill);
 				unregister_netdevice_many(&list_kill);
 			}
 		}
@@ -144,9 +147,9 @@ static int __init hsr_init(void)
 
 static void __exit hsr_exit(void)
 {
-	unregister_netdevice_notifier(&hsr_nb);
 	hsr_netlink_exit();
 	hsr_debugfs_remove_root();
+	unregister_netdevice_notifier(&hsr_nb);
 }
 
 module_init(hsr_init);

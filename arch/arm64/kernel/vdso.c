@@ -191,15 +191,12 @@ enum aarch32_map {
 #ifdef CONFIG_COMPAT_VDSO
 	AA32_MAP_VVAR,
 	AA32_MAP_VDSO,
-#else
-	AA32_MAP_SIGPAGE
 #endif
+	AA32_MAP_SIGPAGE
 };
 
 static struct page *aarch32_vectors_page __ro_after_init;
-#ifndef CONFIG_COMPAT_VDSO
 static struct page *aarch32_sig_page __ro_after_init;
-#endif
 
 static struct vm_special_mapping aarch32_vdso_maps[] = {
 	[AA32_MAP_VECTORS] = {
@@ -214,12 +211,11 @@ static struct vm_special_mapping aarch32_vdso_maps[] = {
 		.name = "[vdso]",
 		.mremap = aarch32_vdso_mremap,
 	},
-#else
+#endif /* CONFIG_COMPAT_VDSO */
 	[AA32_MAP_SIGPAGE] = {
 		.name	= "[sigpage]", /* ABI */
 		.pages	= &aarch32_sig_page,
 	},
-#endif /* CONFIG_COMPAT_VDSO */
 };
 
 static int aarch32_alloc_kuser_vdso_page(void)
@@ -242,27 +238,11 @@ static int aarch32_alloc_kuser_vdso_page(void)
 	return 0;
 }
 
-#ifdef CONFIG_COMPAT_VDSO
-static int __aarch32_alloc_vdso_pages(void)
-{
-	int ret;
-
-	vdso_info[VDSO_ABI_AA32].dm = &aarch32_vdso_maps[AA32_MAP_VVAR];
-	vdso_info[VDSO_ABI_AA32].cm = &aarch32_vdso_maps[AA32_MAP_VDSO];
-
-	ret = __vdso_init(VDSO_ABI_AA32);
-	if (ret)
-		return ret;
-
-	return aarch32_alloc_kuser_vdso_page();
-}
-#else
-static int __aarch32_alloc_vdso_pages(void)
+static int aarch32_alloc_sigpage(void)
 {
 	extern char __aarch32_sigret_code_start[], __aarch32_sigret_code_end[];
 	int sigret_sz = __aarch32_sigret_code_end - __aarch32_sigret_code_start;
 	unsigned long sigpage;
-	int ret;
 
 	sigpage = get_zeroed_page(GFP_ATOMIC);
 	if (!sigpage)
@@ -271,18 +251,34 @@ static int __aarch32_alloc_vdso_pages(void)
 	memcpy((void *)sigpage, __aarch32_sigret_code_start, sigret_sz);
 	aarch32_sig_page = virt_to_page(sigpage);
 	flush_dcache_page(aarch32_sig_page);
+	return 0;
+}
 
-	ret = aarch32_alloc_kuser_vdso_page();
-	if (ret)
-		free_page(sigpage);
+#ifdef CONFIG_COMPAT_VDSO
+static int __aarch32_alloc_vdso_pages(void)
+{
+	vdso_info[VDSO_ABI_AA32].dm = &aarch32_vdso_maps[AA32_MAP_VVAR];
+	vdso_info[VDSO_ABI_AA32].cm = &aarch32_vdso_maps[AA32_MAP_VDSO];
 
-	return ret;
+	return __vdso_init(VDSO_ABI_AA32);
 }
 #endif /* CONFIG_COMPAT_VDSO */
 
 static int __init aarch32_alloc_vdso_pages(void)
 {
-	return __aarch32_alloc_vdso_pages();
+	int ret;
+
+#ifdef CONFIG_COMPAT_VDSO
+	ret = __aarch32_alloc_vdso_pages();
+	if (ret)
+		return ret;
+#endif
+
+	ret = aarch32_alloc_sigpage();
+	if (ret)
+		return ret;
+
+	return aarch32_alloc_kuser_vdso_page();
 }
 arch_initcall(aarch32_alloc_vdso_pages);
 
@@ -305,7 +301,6 @@ static int aarch32_kuser_helpers_setup(struct mm_struct *mm)
 	return PTR_ERR_OR_ZERO(ret);
 }
 
-#ifndef CONFIG_COMPAT_VDSO
 static int aarch32_sigreturn_setup(struct mm_struct *mm)
 {
 	unsigned long addr;
@@ -328,12 +323,11 @@ static int aarch32_sigreturn_setup(struct mm_struct *mm)
 	if (IS_ERR(ret))
 		goto out;
 
-	mm->context.vdso = (void *)addr;
+	mm->context.sigpage = (void *)addr;
 
 out:
 	return PTR_ERR_OR_ZERO(ret);
 }
-#endif /* !CONFIG_COMPAT_VDSO */
 
 int aarch32_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 {
@@ -352,10 +346,11 @@ int aarch32_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 				       mm,
 				       bprm,
 				       uses_interp);
-#else
-	ret = aarch32_sigreturn_setup(mm);
+	if (ret)
+		goto out;
 #endif /* CONFIG_COMPAT_VDSO */
 
+	ret = aarch32_sigreturn_setup(mm);
 out:
 	mmap_write_unlock(mm);
 	return ret;

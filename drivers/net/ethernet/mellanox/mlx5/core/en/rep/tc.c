@@ -407,7 +407,9 @@ static int
 mlx5e_rep_indr_setup_block(struct net_device *netdev,
 			   struct mlx5e_rep_priv *rpriv,
 			   struct flow_block_offload *f,
-			   flow_setup_cb_t *setup_cb)
+			   flow_setup_cb_t *setup_cb,
+			   void *data,
+			   void (*cleanup)(struct flow_block_cb *block_cb))
 {
 	struct mlx5e_priv *priv = netdev_priv(rpriv->netdev);
 	struct mlx5e_rep_indr_block_priv *indr_priv;
@@ -438,8 +440,10 @@ mlx5e_rep_indr_setup_block(struct net_device *netdev,
 		list_add(&indr_priv->list,
 			 &rpriv->uplink_priv.tc_indr_block_priv_list);
 
-		block_cb = flow_block_cb_alloc(setup_cb, indr_priv, indr_priv,
-					       mlx5e_rep_indr_block_unbind);
+		block_cb = flow_indr_block_cb_alloc(setup_cb, indr_priv, indr_priv,
+						    mlx5e_rep_indr_block_unbind,
+						    f, netdev, data, rpriv,
+						    cleanup);
 		if (IS_ERR(block_cb)) {
 			list_del(&indr_priv->list);
 			kfree(indr_priv);
@@ -458,7 +462,7 @@ mlx5e_rep_indr_setup_block(struct net_device *netdev,
 		if (!block_cb)
 			return -ENOENT;
 
-		flow_block_cb_remove(block_cb, f);
+		flow_indr_block_cb_remove(block_cb, f);
 		list_del(&block_cb->driver_list);
 		return 0;
 	default:
@@ -469,15 +473,19 @@ mlx5e_rep_indr_setup_block(struct net_device *netdev,
 
 static
 int mlx5e_rep_indr_setup_cb(struct net_device *netdev, void *cb_priv,
-			    enum tc_setup_type type, void *type_data)
+			    enum tc_setup_type type, void *type_data,
+			    void *data,
+			    void (*cleanup)(struct flow_block_cb *block_cb))
 {
 	switch (type) {
 	case TC_SETUP_BLOCK:
 		return mlx5e_rep_indr_setup_block(netdev, cb_priv, type_data,
-						  mlx5e_rep_indr_setup_tc_cb);
+						  mlx5e_rep_indr_setup_tc_cb,
+						  data, cleanup);
 	case TC_SETUP_FT:
 		return mlx5e_rep_indr_setup_block(netdev, cb_priv, type_data,
-						  mlx5e_rep_indr_setup_ft_cb);
+						  mlx5e_rep_indr_setup_ft_cb,
+						  data, cleanup);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -496,7 +504,7 @@ int mlx5e_rep_tc_netdevice_event_register(struct mlx5e_rep_priv *rpriv)
 void mlx5e_rep_tc_netdevice_event_unregister(struct mlx5e_rep_priv *rpriv)
 {
 	flow_indr_dev_unregister(mlx5e_rep_indr_setup_cb, rpriv,
-				 mlx5e_rep_indr_setup_tc_cb);
+				 mlx5e_rep_indr_block_unbind);
 }
 
 #if IS_ENABLED(CONFIG_NET_TC_SKB_EXT)

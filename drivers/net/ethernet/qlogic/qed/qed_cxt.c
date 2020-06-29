@@ -271,7 +271,7 @@ static void qed_cxt_qm_iids(struct qed_hwfn *p_hwfn,
 		vf_tids += segs[NUM_TASK_PF_SEGMENTS].count;
 	}
 
-	iids->vf_cids += vf_cids * p_mngr->vf_count;
+	iids->vf_cids = vf_cids;
 	iids->tids += vf_tids * p_mngr->vf_count;
 
 	DP_VERBOSE(p_hwfn, QED_MSG_ILT,
@@ -465,6 +465,20 @@ static struct qed_ilt_cli_blk *qed_cxt_set_blk(struct qed_ilt_cli_blk *p_blk)
 	return p_blk;
 }
 
+static void qed_cxt_ilt_blk_reset(struct qed_hwfn *p_hwfn)
+{
+	struct qed_ilt_client_cfg *clients = p_hwfn->p_cxt_mngr->clients;
+	u32 cli_idx, blk_idx;
+
+	for (cli_idx = 0; cli_idx < MAX_ILT_CLIENTS; cli_idx++) {
+		for (blk_idx = 0; blk_idx < ILT_CLI_PF_BLOCKS; blk_idx++)
+			clients[cli_idx].pf_blks[blk_idx].total_size = 0;
+
+		for (blk_idx = 0; blk_idx < ILT_CLI_VF_BLOCKS; blk_idx++)
+			clients[cli_idx].vf_blks[blk_idx].total_size = 0;
+	}
+}
+
 int qed_cxt_cfg_ilt_compute(struct qed_hwfn *p_hwfn, u32 *line_count)
 {
 	struct qed_cxt_mngr *p_mngr = p_hwfn->p_cxt_mngr;
@@ -483,6 +497,11 @@ int qed_cxt_cfg_ilt_compute(struct qed_hwfn *p_hwfn, u32 *line_count)
 	memset(&tm_iids, 0, sizeof(tm_iids));
 
 	p_mngr->pf_start_line = RESC_START(p_hwfn, QED_ILT);
+
+	/* Reset all ILT blocks at the beginning of ILT computing in order
+	 * to prevent memory allocation for irrelevant blocks afterwards.
+	 */
+	qed_cxt_ilt_blk_reset(p_hwfn);
 
 	DP_VERBOSE(p_hwfn, QED_MSG_ILT,
 		   "hwfn [%d] - Set context manager starting line to be 0x%08x\n",

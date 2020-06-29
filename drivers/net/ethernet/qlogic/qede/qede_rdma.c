@@ -105,6 +105,7 @@ static void qede_rdma_destroy_wq(struct qede_dev *edev)
 
 	qede_rdma_cleanup_event(edev);
 	destroy_workqueue(edev->rdma_info.rdma_wq);
+	edev->rdma_info.rdma_wq = NULL;
 }
 
 int qede_rdma_dev_add(struct qede_dev *edev, bool recovery)
@@ -325,7 +326,7 @@ static void qede_rdma_add_event(struct qede_dev *edev,
 	if (edev->rdma_info.exp_recovery)
 		return;
 
-	if (!edev->rdma_info.qedr_dev)
+	if (!edev->rdma_info.qedr_dev || !edev->rdma_info.rdma_wq)
 		return;
 
 	/* We don't want the cleanup flow to start while we're allocating and

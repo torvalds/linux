@@ -322,10 +322,11 @@
 			ranges = <0x0 0x47810000 0x1000>;
 
 			mmc3: mmc@0 {
-				compatible = "ti,omap4-hsmmc";
+				compatible = "ti,am335-sdhci";
 				ti,needs-special-reset;
 				interrupts = <29>;
 				reg = <0x0 0x1000>;
+				status = "disabled";
 			};
 		};
 
@@ -335,7 +336,7 @@
 			      <0x47400010 0x4>;
 			reg-names = "rev", "sysc";
 			ti,sysc-mask = <(SYSC_OMAP4_FREEEMU |
-					 SYSC_OMAP2_SOFTRESET)>;
+					 SYSC_OMAP4_SOFTRESET)>;
 			ti,sysc-midle = <SYSC_IDLE_FORCE>,
 					<SYSC_IDLE_NO>,
 					<SYSC_IDLE_SMART>;
@@ -347,7 +348,7 @@
 			clock-names = "fck";
 			#address-cells = <1>;
 			#size-cells = <1>;
-			ranges = <0x0 0x47400000 0x5000>;
+			ranges = <0x0 0x47400000 0x8000>;
 
 			usb0_phy: usb-phy@1300 {
 				compatible = "ti,am335x-usb-phy";

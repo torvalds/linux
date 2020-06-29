@@ -302,7 +302,7 @@ static void deferred_unmap_destructor(struct sk_buff *skb)
 
 /**
  *	free_tx_desc - reclaims Tx descriptors and their buffers
- *	@adapter: the adapter
+ *	@adap: the adapter
  *	@q: the Tx queue to reclaim descriptors from
  *	@n: the number of descriptors to reclaim
  *	@unmap: whether the buffers should be unmapped for DMA
@@ -722,6 +722,7 @@ static inline unsigned int flits_to_desc(unsigned int n)
 /**
  *	is_eth_imm - can an Ethernet packet be sent as immediate data?
  *	@skb: the packet
+ *	@chip_ver: chip version
  *
  *	Returns whether an Ethernet packet is small enough to fit as
  *	immediate data. Return value corresponds to headroom required.
@@ -749,6 +750,7 @@ static inline int is_eth_imm(const struct sk_buff *skb, unsigned int chip_ver)
 /**
  *	calc_tx_flits - calculate the number of flits for a packet Tx WR
  *	@skb: the packet
+ *	@chip_ver: chip version
  *
  *	Returns the number of flits needed for a Tx WR for the given Ethernet
  *	packet, including the needed WR and CPL headers.
@@ -804,6 +806,7 @@ static inline unsigned int calc_tx_flits(const struct sk_buff *skb,
 /**
  *	calc_tx_descs - calculate the number of Tx descriptors for a packet
  *	@skb: the packet
+ *	@chip_ver: chip version
  *
  *	Returns the number of Tx descriptors needed for the given Ethernet
  *	packet, including the needed WR and CPL headers.
@@ -1425,12 +1428,10 @@ static netdev_tx_t cxgb4_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	qidx = skb_get_queue_mapping(skb);
 	if (ptp_enabled) {
-		spin_lock(&adap->ptp_lock);
 		if (!(adap->ptp_tx_skb)) {
 			skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
 			adap->ptp_tx_skb = skb_get(skb);
 		} else {
-			spin_unlock(&adap->ptp_lock);
 			goto out_free;
 		}
 		q = &adap->sge.ptptxq;
@@ -1444,11 +1445,8 @@ static netdev_tx_t cxgb4_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 
 #ifdef CONFIG_CHELSIO_T4_FCOE
 	ret = cxgb_fcoe_offload(skb, adap, pi, &cntrl);
-	if (unlikely(ret == -ENOTSUPP)) {
-		if (ptp_enabled)
-			spin_unlock(&adap->ptp_lock);
+	if (unlikely(ret == -EOPNOTSUPP))
 		goto out_free;
-	}
 #endif /* CONFIG_CHELSIO_T4_FCOE */
 
 	chip_ver = CHELSIO_CHIP_VERSION(adap->params.chip);
@@ -1461,8 +1459,6 @@ static netdev_tx_t cxgb4_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 		dev_err(adap->pdev_dev,
 			"%s: Tx ring %u full while queue awake!\n",
 			dev->name, qidx);
-		if (ptp_enabled)
-			spin_unlock(&adap->ptp_lock);
 		return NETDEV_TX_BUSY;
 	}
 
@@ -1481,8 +1477,6 @@ static netdev_tx_t cxgb4_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 	    unlikely(cxgb4_map_skb(adap->pdev_dev, skb, sgl_sdesc->addr) < 0)) {
 		memset(sgl_sdesc->addr, 0, sizeof(sgl_sdesc->addr));
 		q->mapping_err++;
-		if (ptp_enabled)
-			spin_unlock(&adap->ptp_lock);
 		goto out_free;
 	}
 
@@ -1533,8 +1527,7 @@ static netdev_tx_t cxgb4_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 			if (iph->version == 4) {
 				iph->check = 0;
 				iph->tot_len = 0;
-				iph->check = (u16)(~ip_fast_csum((u8 *)iph,
-								 iph->ihl));
+				iph->check = ~ip_fast_csum((u8 *)iph, iph->ihl);
 			}
 			if (skb->ip_summed == CHECKSUM_PARTIAL)
 				cntrl = hwcsum(adap->params.chip, skb);
@@ -1630,8 +1623,6 @@ static netdev_tx_t cxgb4_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 	txq_advance(&q->q, ndesc);
 
 	cxgb4_ring_tx_db(adap, &q->q, ndesc);
-	if (ptp_enabled)
-		spin_unlock(&adap->ptp_lock);
 	return NETDEV_TX_OK;
 
 out_free:
@@ -2377,6 +2368,16 @@ netdev_tx_t t4_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (unlikely(qid >= pi->nqsets))
 		return cxgb4_ethofld_xmit(skb, dev);
 
+	if (is_ptp_enabled(skb, dev)) {
+		struct adapter *adap = netdev2adap(dev);
+		netdev_tx_t ret;
+
+		spin_lock(&adap->ptp_lock);
+		ret = cxgb4_eth_xmit(skb, dev);
+		spin_unlock(&adap->ptp_lock);
+		return ret;
+	}
+
 	return cxgb4_eth_xmit(skb, dev);
 }
 
@@ -2410,9 +2411,9 @@ static void eosw_txq_flush_pending_skbs(struct sge_eosw_txq *eosw_txq)
 
 /**
  * cxgb4_ethofld_send_flowc - Send ETHOFLD flowc request to bind eotid to tc.
- * @dev - netdevice
- * @eotid - ETHOFLD tid to bind/unbind
- * @tc - traffic class. If set to FW_SCHED_CLS_NONE, then unbinds the @eotid
+ * @dev: netdevice
+ * @eotid: ETHOFLD tid to bind/unbind
+ * @tc: traffic class. If set to FW_SCHED_CLS_NONE, then unbinds the @eotid
  *
  * Send a FLOWC work request to bind an ETHOFLD TID to a traffic class.
  * If @tc is set to FW_SCHED_CLS_NONE, then the @eotid is unbound from
@@ -2691,7 +2692,6 @@ static inline unsigned int calc_tx_flits_ofld(const struct sk_buff *skb)
 
 /**
  *	txq_stop_maperr - stop a Tx queue due to I/O MMU exhaustion
- *	@adap: the adapter
  *	@q: the queue to stop
  *
  *	Mark a Tx queue stopped due to I/O MMU exhaustion and resulting
@@ -3286,7 +3286,7 @@ enum {
 
 /**
  *     t4_systim_to_hwstamp - read hardware time stamp
- *     @adap: the adapter
+ *     @adapter: the adapter
  *     @skb: the packet
  *
  *     Read Time Stamp from MPS packet and insert in skb which
@@ -3313,15 +3313,16 @@ static noinline int t4_systim_to_hwstamp(struct adapter *adapter,
 
 	hwtstamps = skb_hwtstamps(skb);
 	memset(hwtstamps, 0, sizeof(*hwtstamps));
-	hwtstamps->hwtstamp = ns_to_ktime(be64_to_cpu(*((u64 *)data)));
+	hwtstamps->hwtstamp = ns_to_ktime(get_unaligned_be64(data));
 
 	return RX_PTP_PKT_SUC;
 }
 
 /**
  *     t4_rx_hststamp - Recv PTP Event Message
- *     @adap: the adapter
+ *     @adapter: the adapter
  *     @rsp: the response queue descriptor holding the RX_PKT message
+ *     @rxq: the response queue holding the RX_PKT message
  *     @skb: the packet
  *
  *     PTP enabled and MPS packet, read HW timestamp
@@ -3345,7 +3346,7 @@ static int t4_rx_hststamp(struct adapter *adapter, const __be64 *rsp,
 
 /**
  *      t4_tx_hststamp - Loopback PTP Transmit Event Message
- *      @adap: the adapter
+ *      @adapter: the adapter
  *      @skb: the packet
  *      @dev: the ingress net device
  *

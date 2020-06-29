@@ -67,6 +67,9 @@ struct hfi1_ipoib_circ_buf {
  * @sde: sdma engine
  * @tx_list: tx request list
  * @sent_txreqs: count of txreqs posted to sdma
+ * @stops: count of stops of queue
+ * @ring_full: ring has been filled
+ * @no_desc: descriptor shortage seen
  * @flow: tracks when list needs to be flushed for a flow change
  * @q_idx: ipoib Tx queue index
  * @pkts_sent: indicator packets have been sent from this queue
@@ -80,6 +83,9 @@ struct hfi1_ipoib_txq {
 	struct sdma_engine *sde;
 	struct list_head tx_list;
 	u64 sent_txreqs;
+	atomic_t stops;
+	atomic_t ring_full;
+	atomic_t no_desc;
 	union hfi1_ipoib_flow flow;
 	u8 q_idx;
 	bool pkts_sent;

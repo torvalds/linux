@@ -219,8 +219,7 @@ static int prepare_elf_headers(void **addr, unsigned long *sz)
 					MEMBLOCK_NONE, &start, &end, NULL)
 		nr_ranges++;
 
-	cmem = kmalloc(sizeof(struct crash_mem) +
-			sizeof(struct crash_mem_range) * nr_ranges, GFP_KERNEL);
+	cmem = kmalloc(struct_size(cmem, ranges, nr_ranges), GFP_KERNEL);
 	if (!cmem)
 		return -ENOMEM;
 
