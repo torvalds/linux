@@ -602,9 +602,13 @@ static int kfd_gws_init(struct kfd_dev *kfd)
 		return 0;
 
 	if (hws_gws_support
-		|| (kfd->device_info->asic_family >= CHIP_VEGA10
+		|| (kfd->device_info->asic_family == CHIP_VEGA10
+			&& kfd->mec2_fw_version >= 0x81b3)
+		|| (kfd->device_info->asic_family >= CHIP_VEGA12
 			&& kfd->device_info->asic_family <= CHIP_RAVEN
-			&& kfd->mec2_fw_version >= 0x1b3))
+			&& kfd->mec2_fw_version >= 0x1b3)
+		|| (kfd->device_info->asic_family == CHIP_ARCTURUS
+			&& kfd->mec2_fw_version >= 0x30))
 		ret = amdgpu_amdkfd_alloc_gws(kfd->kgd,
 				amdgpu_amdkfd_get_num_gws(kfd->kgd), &kfd->gws);
 
