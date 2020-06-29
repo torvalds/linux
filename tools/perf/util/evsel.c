@@ -898,12 +898,6 @@ static void evsel__apply_config_terms(struct evsel *evsel,
 	}
 }
 
-static bool is_dummy_event(struct evsel *evsel)
-{
-	return (evsel->core.attr.type == PERF_TYPE_SOFTWARE) &&
-	       (evsel->core.attr.config == PERF_COUNT_SW_DUMMY);
-}
-
 struct evsel_config_term *__evsel__get_config_term(struct evsel *evsel, enum evsel_term_type type)
 {
 	struct evsel_config_term *term, *found_term = NULL;
@@ -1161,7 +1155,7 @@ void evsel__config(struct evsel *evsel, struct record_opts *opts,
 	 * The software event will trigger -EOPNOTSUPP error out,
 	 * if BRANCH_STACK bit is set.
 	 */
-	if (is_dummy_event(evsel))
+	if (evsel__is_dummy_event(evsel))
 		evsel__reset_sample_bit(evsel, BRANCH_STACK);
 }
 
