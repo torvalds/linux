@@ -43,7 +43,8 @@ extra-$(CHECK_DT_BINDING) += processed-schema-examples.yaml
 
 override DTC_FLAGS := \
 	-Wno-avoid_unnecessary_addr_size \
-	-Wno-graph_child_address
+	-Wno-graph_child_address \
+	-Wno-interrupt_provider
 
 $(obj)/processed-schema-examples.yaml: $(DT_DOCS) check_dtschema_version FORCE
 	$(call if_changed,mk_schema)
