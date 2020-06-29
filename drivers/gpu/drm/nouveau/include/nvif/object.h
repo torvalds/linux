@@ -10,6 +10,7 @@ struct nvif_sclass {
 };
 
 struct nvif_object {
+	struct nvif_parent *parent;
 	struct nvif_client *client;
 	const char *name;
 	u32 handle;

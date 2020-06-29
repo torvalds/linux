@@ -132,8 +132,10 @@ nouveau_cli(struct drm_file *fpriv)
 }
 
 #include <nvif/object.h>
+#include <nvif/parent.h>
 
 struct nouveau_drm {
+	struct nvif_parent parent;
 	struct nouveau_cli master;
 	struct nouveau_cli client;
 	struct drm_device *dev;

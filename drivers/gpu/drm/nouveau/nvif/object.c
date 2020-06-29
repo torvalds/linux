@@ -282,6 +282,8 @@ nvif_object_ctor(struct nvif_object *parent, const char *name, u32 handle,
 			return -ENOMEM;
 		}
 
+		object->parent = parent->parent;
+
 		args->ioctl.version = 0;
 		args->ioctl.type = NVIF_IOCTL_V0_NEW;
 		args->new.version = 0;
