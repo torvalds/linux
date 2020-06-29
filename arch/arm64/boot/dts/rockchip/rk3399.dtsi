@@ -209,6 +209,7 @@
 			interrupts = <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH 0>,
 				     <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH 0>;
 			#dma-cells = <1>;
+			arm,pl330-periph-burst;
 			clocks = <&cru ACLK_DMAC0_PERILP>;
 			clock-names = "apb_pclk";
 		};
@@ -219,6 +220,7 @@
 			interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH 0>,
 				     <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH 0>;
 			#dma-cells = <1>;
+			arm,pl330-periph-burst;
 			clocks = <&cru ACLK_DMAC1_PERILP>;
 			clock-names = "apb_pclk";
 		};
