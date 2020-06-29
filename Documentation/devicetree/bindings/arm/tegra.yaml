@@ -35,6 +35,9 @@ properties:
           - const: toradex,colibri_t20
           - const: nvidia,tegra20
       - items:
+          - const: acer,picasso
+          - const: nvidia,tegra20
+      - items:
           - enum:
               - nvidia,beaver
           - const: nvidia,tegra30
