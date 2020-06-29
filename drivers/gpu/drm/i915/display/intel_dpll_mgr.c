@@ -2934,6 +2934,15 @@ static const struct skl_wrpll_params tgl_tbt_pll_19_2MHz_values = {
 static const struct skl_wrpll_params tgl_tbt_pll_24MHz_values = {
 	.dco_integer = 0x43, .dco_fraction = 0x4000,
 	/* the following params are unused */
+};
+
+/*
+ * Display WA #22010492432: tgl
+ * Divide the nominal .dco_fraction value by 2.
+ */
+static const struct skl_wrpll_params tgl_tbt_pll_38_4MHz_values = {
+	.dco_integer = 0x54, .dco_fraction = 0x1800,
+	/* the following params are unused */
 	.pdiv = 0, .kdiv = 0, .qdiv_mode = 0, .qdiv_ratio = 0,
 };
 
@@ -2970,11 +2979,13 @@ static bool icl_calc_tbt_pll(struct intel_crtc_state *crtc_state,
 			MISSING_CASE(dev_priv->dpll.ref_clks.nssc);
 			/* fall-through */
 		case 19200:
-		case 38400:
 			*pll_params = tgl_tbt_pll_19_2MHz_values;
 			break;
 		case 24000:
 			*pll_params = tgl_tbt_pll_24MHz_values;
+			break;
+		case 38400:
+			*pll_params = tgl_tbt_pll_38_4MHz_values;
 			break;
 		}
 	} else {
