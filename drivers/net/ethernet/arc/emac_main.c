@@ -673,7 +673,7 @@ static struct net_device_stats *arc_emac_stats(struct net_device *ndev)
  *
  * This function is invoked from upper layers to initiate transmission.
  */
-static int arc_emac_tx(struct sk_buff *skb, struct net_device *ndev)
+static netdev_tx_t arc_emac_tx(struct sk_buff *skb, struct net_device *ndev)
 {
 	struct arc_emac_priv *priv = netdev_priv(ndev);
 	unsigned int len, *txbd_curr = &priv->txbd_curr;

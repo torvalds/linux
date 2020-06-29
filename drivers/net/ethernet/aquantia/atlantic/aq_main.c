@@ -95,7 +95,7 @@ err_exit:
 	return err;
 }
 
-static int aq_ndev_start_xmit(struct sk_buff *skb, struct net_device *ndev)
+static netdev_tx_t aq_ndev_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 {
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
 
