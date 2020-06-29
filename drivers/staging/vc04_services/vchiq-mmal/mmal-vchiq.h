@@ -16,6 +16,7 @@
 #ifndef MMAL_VCHIQ_H
 #define MMAL_VCHIQ_H
 
+#include "mmal-common.h"
 #include "mmal-msg-format.h"
 
 #define MAX_PORT_COUNT 4

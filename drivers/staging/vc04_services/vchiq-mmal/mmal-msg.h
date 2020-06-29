@@ -38,6 +38,7 @@
 #include "mmal-msg-common.h"
 #include "mmal-msg-format.h"
 #include "mmal-msg-port.h"
+#include "mmal-vchiq.h"
 
 enum mmal_msg_type {
 	MMAL_MSG_TYPE_QUIT = 1,
