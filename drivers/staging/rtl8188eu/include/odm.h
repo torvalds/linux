@@ -242,7 +242,7 @@ struct odm_rate_adapt {
 
 #define AVG_THERMAL_NUM		8
 #define IQK_Matrix_REG_NUM	8
-#define IQK_Matrix_Settings_NUM	1+24+21
+#define IQK_Matrix_Settings_NUM	(1 + 24 + 21)
 
 #define	DM_Type_ByFWi		0
 #define	DM_Type_ByDriver	1
