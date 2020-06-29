@@ -668,40 +668,34 @@ xfs_inode_item_destroy(
  */
 void
 xfs_iflush_done(
-	struct xfs_buf		*bp,
-	struct xfs_log_item	*lip)
+	struct xfs_buf		*bp)
 {
 	struct xfs_inode_log_item *iip;
-	struct xfs_log_item	*blip, *n;
-	struct xfs_ail		*ailp = lip->li_ailp;
+	struct xfs_log_item	*lip, *n;
+	struct xfs_ail		*ailp = bp->b_mount->m_ail;
 	int			need_ail = 0;
 	LIST_HEAD(tmp);
 
 	/*
-	 * Scan the buffer IO completions for other inodes being completed and
-	 * attach them to the current inode log item.
+	 * Pull the attached inodes from the buffer one at a time and take the
+	 * appropriate action on them.
 	 */
-
-	list_add_tail(&lip->li_bio_list, &tmp);
-
-	list_for_each_entry_safe(blip, n, &bp->b_li_list, li_bio_list) {
-		if (lip->li_cb != xfs_iflush_done)
+	list_for_each_entry_safe(lip, n, &bp->b_li_list, li_bio_list) {
+		iip = INODE_ITEM(lip);
+		if (xfs_iflags_test(iip->ili_inode, XFS_ISTALE)) {
+			list_del_init(&lip->li_bio_list);
+			xfs_iflush_abort(iip->ili_inode);
 			continue;
+		}
 
-		list_move_tail(&blip->li_bio_list, &tmp);
+		list_move_tail(&lip->li_bio_list, &tmp);
 
 		/* Do an unlocked check for needing the AIL lock. */
-		iip = INODE_ITEM(blip);
-		if (blip->li_lsn == iip->ili_flush_lsn ||
-		    test_bit(XFS_LI_FAILED, &blip->li_flags))
+		if (lip->li_lsn == iip->ili_flush_lsn ||
+		    test_bit(XFS_LI_FAILED, &lip->li_flags))
 			need_ail++;
 	}
-
-	/* make sure we capture the state of the initial inode. */
-	iip = INODE_ITEM(lip);
-	if (lip->li_lsn == iip->ili_flush_lsn ||
-	    test_bit(XFS_LI_FAILED, &lip->li_flags))
-		need_ail++;
+	ASSERT(list_empty(&bp->b_li_list));
 
 	/*
 	 * We only want to pull the item from the AIL if it is actually there
@@ -713,19 +707,13 @@ xfs_iflush_done(
 
 		/* this is an opencoded batch version of xfs_trans_ail_delete */
 		spin_lock(&ailp->ail_lock);
-		list_for_each_entry(blip, &tmp, li_bio_list) {
-			if (blip->li_lsn == INODE_ITEM(blip)->ili_flush_lsn) {
-				/*
-				 * xfs_ail_update_finish() only cares about the
-				 * lsn of the first tail item removed, any
-				 * others will be at the same or higher lsn so
-				 * we just ignore them.
-				 */
-				xfs_lsn_t lsn = xfs_ail_delete_one(ailp, blip);
+		list_for_each_entry(lip, &tmp, li_bio_list) {
+			if (lip->li_lsn == INODE_ITEM(lip)->ili_flush_lsn) {
+				xfs_lsn_t lsn = xfs_ail_delete_one(ailp, lip);
 				if (!tail_lsn && lsn)
 					tail_lsn = lsn;
 			} else {
-				xfs_clear_li_failed(blip);
+				xfs_clear_li_failed(lip);
 			}
 		}
 		xfs_ail_update_finish(ailp, tail_lsn);
@@ -736,9 +724,9 @@ xfs_iflush_done(
 	 * ili_last_fields bits now that we know that the data corresponding to
 	 * them is safely on disk.
 	 */
-	list_for_each_entry_safe(blip, n, &tmp, li_bio_list) {
-		list_del_init(&blip->li_bio_list);
-		iip = INODE_ITEM(blip);
+	list_for_each_entry_safe(lip, n, &tmp, li_bio_list) {
+		list_del_init(&lip->li_bio_list);
+		iip = INODE_ITEM(lip);
 
 		spin_lock(&iip->ili_lock);
 		iip->ili_last_fields = 0;
@@ -746,7 +734,6 @@ xfs_iflush_done(
 
 		xfs_ifunlock(iip->ili_inode);
 	}
-	list_del(&tmp);
 }
 
 /*
@@ -777,14 +764,6 @@ xfs_iflush_abort(
 	 * Release the inode's flush lock since we're done with it.
 	 */
 	xfs_ifunlock(ip);
-}
-
-void
-xfs_istale_done(
-	struct xfs_buf		*bp,
-	struct xfs_log_item	*lip)
-{
-	xfs_iflush_abort(INODE_ITEM(lip)->ili_inode);
 }
 
 /*

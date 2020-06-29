@@ -13,6 +13,8 @@
 #include "xfs_mount.h"
 #include "xfs_trans.h"
 #include "xfs_buf_item.h"
+#include "xfs_inode.h"
+#include "xfs_inode_item.h"
 #include "xfs_trans_priv.h"
 #include "xfs_trace.h"
 #include "xfs_log.h"
@@ -457,7 +459,8 @@ xfs_buf_item_unpin(
 		 * the AIL lock.
 		 */
 		if (bip->bli_flags & XFS_BLI_STALE_INODE) {
-			xfs_buf_do_callbacks(bp);
+			lip->li_cb(bp, lip);
+			xfs_iflush_done(bp);
 			bp->b_log_item = NULL;
 		} else {
 			xfs_trans_ail_delete(lip, SHUTDOWN_LOG_IO_ERROR);
@@ -1141,8 +1144,8 @@ out_stale:
 	return false;
 }
 
-static void
-xfs_buf_run_callbacks(
+static inline bool
+xfs_buf_had_callback_errors(
 	struct xfs_buf		*bp)
 {
 
@@ -1152,7 +1155,7 @@ xfs_buf_run_callbacks(
 	 * appropriate action.
 	 */
 	if (bp->b_error && xfs_buf_iodone_callback_error(bp))
-		return;
+		return true;
 
 	/*
 	 * Successful IO or permanent error. Either way, we can clear the
@@ -1161,7 +1164,16 @@ xfs_buf_run_callbacks(
 	bp->b_last_error = 0;
 	bp->b_retries = 0;
 	bp->b_first_retry_time = 0;
+	return false;
+}
 
+static void
+xfs_buf_run_callbacks(
+	struct xfs_buf		*bp)
+{
+
+	if (xfs_buf_had_callback_errors(bp))
+		return;
 	xfs_buf_do_callbacks(bp);
 	bp->b_log_item = NULL;
 }
@@ -1173,7 +1185,20 @@ void
 xfs_buf_inode_iodone(
 	struct xfs_buf		*bp)
 {
-	xfs_buf_run_callbacks(bp);
+	struct xfs_buf_log_item *blip = bp->b_log_item;
+	struct xfs_log_item	*lip;
+
+	if (xfs_buf_had_callback_errors(bp))
+		return;
+
+	/* If there is a buf_log_item attached, run its callback */
+	if (blip) {
+		lip = &blip->bli_item;
+		lip->li_cb(bp, lip);
+		bp->b_log_item = NULL;
+	}
+
+	xfs_iflush_done(bp);
 	xfs_buf_ioend_finish(bp);
 }
 
