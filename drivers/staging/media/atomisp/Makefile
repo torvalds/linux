@@ -182,7 +182,6 @@ INCLUDES += \
 	-I$(atomisp)/include/hmm/ \
 	-I$(atomisp)/include/mmu/ \
 	-I$(atomisp)/pci/ \
-	-I$(atomisp)/pci/hrt/ \
 	-I$(atomisp)/pci/base/circbuf/interface/ \
 	-I$(atomisp)/pci/base/refcount/interface/ \
 	-I$(atomisp)/pci/camera/pipe/interface/ \
@@ -192,7 +191,6 @@ INCLUDES += \
 	-I$(atomisp)/pci/hive_isp_css_include/ \
 	-I$(atomisp)/pci/hive_isp_css_include/device_access/ \
 	-I$(atomisp)/pci/hive_isp_css_include/host/ \
-	-I$(atomisp)/pci/hive_isp_css_include/memory_access/ \
 	-I$(atomisp)/pci/hive_isp_css_shared/ \
 	-I$(atomisp)/pci/hive_isp_css_shared/host/ \
 	-I$(atomisp)/pci/isp/kernels/ \
@@ -311,9 +309,7 @@ INCLUDES += \
 	-I$(atomisp)/pci/runtime/tagger/interface/
 
 INCLUDES_byt += \
-	-I$(atomisp)/pci/css_2400_system/ \
 	-I$(atomisp)/pci/css_2400_system/hive/ \
-	-I$(atomisp)/pci/css_2400_system/hrt/ \
 
 INCLUDES_cht += \
 	-I$(atomisp)/pci/css_2401_system/ \
@@ -321,7 +317,6 @@ INCLUDES_cht += \
 	-I$(atomisp)/pci/css_2401_system/hive/ \
 	-I$(atomisp)/pci/css_2401_system/hrt/ \
 
-#	-I$(atomisp)/pci/css_2401_system/hrt/ \
 #	-I$(atomisp)/pci/css_2401_system/hive_isp_css_2401_system_generated/ \
 
 DEFINES := -DHRT_HW -DHRT_ISP_CSS_CUSTOM_HOST -DHRT_USE_VIR_ADDRS -D__HOST__
