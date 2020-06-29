@@ -124,6 +124,14 @@ void efx_ethtool_set_msglevel(struct net_device *net_dev, u32 msg_enable)
 	efx->msg_enable = msg_enable;
 }
 
+/* Restart autonegotiation */
+int efx_ethtool_nway_reset(struct net_device *net_dev)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+
+	return mdio45_nway_restart(&efx->mdio);
+}
+
 void efx_ethtool_get_pauseparam(struct net_device *net_dev,
 				struct ethtool_pauseparam *pause)
 {
@@ -132,6 +140,64 @@ void efx_ethtool_get_pauseparam(struct net_device *net_dev,
 	pause->rx_pause = !!(efx->wanted_fc & EFX_FC_RX);
 	pause->tx_pause = !!(efx->wanted_fc & EFX_FC_TX);
 	pause->autoneg = !!(efx->wanted_fc & EFX_FC_AUTO);
+}
+
+int efx_ethtool_set_pauseparam(struct net_device *net_dev,
+			       struct ethtool_pauseparam *pause)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+	u8 wanted_fc, old_fc;
+	u32 old_adv;
+	int rc = 0;
+
+	mutex_lock(&efx->mac_lock);
+
+	wanted_fc = ((pause->rx_pause ? EFX_FC_RX : 0) |
+		     (pause->tx_pause ? EFX_FC_TX : 0) |
+		     (pause->autoneg ? EFX_FC_AUTO : 0));
+
+	if ((wanted_fc & EFX_FC_TX) && !(wanted_fc & EFX_FC_RX)) {
+		netif_dbg(efx, drv, efx->net_dev,
+			  "Flow control unsupported: tx ON rx OFF\n");
+		rc = -EINVAL;
+		goto out;
+	}
+
+	if ((wanted_fc & EFX_FC_AUTO) && !efx->link_advertising[0]) {
+		netif_dbg(efx, drv, efx->net_dev,
+			  "Autonegotiation is disabled\n");
+		rc = -EINVAL;
+		goto out;
+	}
+
+	/* Hook for Falcon bug 11482 workaround */
+	if (efx->type->prepare_enable_fc_tx &&
+	    (wanted_fc & EFX_FC_TX) && !(efx->wanted_fc & EFX_FC_TX))
+		efx->type->prepare_enable_fc_tx(efx);
+
+	old_adv = efx->link_advertising[0];
+	old_fc = efx->wanted_fc;
+	efx_link_set_wanted_fc(efx, wanted_fc);
+	if (efx->link_advertising[0] != old_adv ||
+	    (efx->wanted_fc ^ old_fc) & EFX_FC_AUTO) {
+		rc = efx->phy_op->reconfigure(efx);
+		if (rc) {
+			netif_err(efx, drv, efx->net_dev,
+				  "Unable to advertise requested flow "
+				  "control setting\n");
+			goto out;
+		}
+	}
+
+	/* Reconfigure the MAC. The PHY *may* generate a link state change event
+	 * if the user just changed the advertised capabilities, but there's no
+	 * harm doing this twice */
+	efx_mac_reconfigure(efx);
+
+out:
+	mutex_unlock(&efx->mac_lock);
+
+	return rc;
 }
 
 /**
@@ -454,4 +520,84 @@ void efx_ethtool_get_stats(struct net_device *net_dev,
 	}
 
 	efx_ptp_update_stats(efx, data);
+}
+
+/* This must be called with rtnl_lock held. */
+int efx_ethtool_get_link_ksettings(struct net_device *net_dev,
+				   struct ethtool_link_ksettings *cmd)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+	struct efx_link_state *link_state = &efx->link_state;
+	u32 supported;
+
+	mutex_lock(&efx->mac_lock);
+	efx->phy_op->get_link_ksettings(efx, cmd);
+	mutex_unlock(&efx->mac_lock);
+
+	/* Both MACs support pause frames (bidirectional and respond-only) */
+	ethtool_convert_link_mode_to_legacy_u32(&supported,
+						cmd->link_modes.supported);
+
+	supported |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
+
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.supported,
+						supported);
+
+	if (LOOPBACK_INTERNAL(efx)) {
+		cmd->base.speed = link_state->speed;
+		cmd->base.duplex = link_state->fd ? DUPLEX_FULL : DUPLEX_HALF;
+	}
+
+	return 0;
+}
+
+/* This must be called with rtnl_lock held. */
+int efx_ethtool_set_link_ksettings(struct net_device *net_dev,
+				   const struct ethtool_link_ksettings *cmd)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+	int rc;
+
+	/* GMAC does not support 1000Mbps HD */
+	if ((cmd->base.speed == SPEED_1000) &&
+	    (cmd->base.duplex != DUPLEX_FULL)) {
+		netif_dbg(efx, drv, efx->net_dev,
+			  "rejecting unsupported 1000Mbps HD setting\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(&efx->mac_lock);
+	rc = efx->phy_op->set_link_ksettings(efx, cmd);
+	mutex_unlock(&efx->mac_lock);
+	return rc;
+}
+
+int efx_ethtool_get_fecparam(struct net_device *net_dev,
+			     struct ethtool_fecparam *fecparam)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+	int rc;
+
+	if (!efx->phy_op || !efx->phy_op->get_fecparam)
+		return -EOPNOTSUPP;
+	mutex_lock(&efx->mac_lock);
+	rc = efx->phy_op->get_fecparam(efx, fecparam);
+	mutex_unlock(&efx->mac_lock);
+
+	return rc;
+}
+
+int efx_ethtool_set_fecparam(struct net_device *net_dev,
+			     struct ethtool_fecparam *fecparam)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+	int rc;
+
+	if (!efx->phy_op || !efx->phy_op->get_fecparam)
+		return -EOPNOTSUPP;
+	mutex_lock(&efx->mac_lock);
+	rc = efx->phy_op->set_fecparam(efx, fecparam);
+	mutex_unlock(&efx->mac_lock);
+
+	return rc;
 }

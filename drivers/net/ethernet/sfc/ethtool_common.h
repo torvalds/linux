@@ -15,8 +15,11 @@ void efx_ethtool_get_drvinfo(struct net_device *net_dev,
 			     struct ethtool_drvinfo *info);
 u32 efx_ethtool_get_msglevel(struct net_device *net_dev);
 void efx_ethtool_set_msglevel(struct net_device *net_dev, u32 msg_enable);
+int efx_ethtool_nway_reset(struct net_device *net_dev);
 void efx_ethtool_get_pauseparam(struct net_device *net_dev,
 				struct ethtool_pauseparam *pause);
+int efx_ethtool_set_pauseparam(struct net_device *net_dev,
+			       struct ethtool_pauseparam *pause);
 int efx_ethtool_fill_self_tests(struct efx_nic *efx,
 				struct efx_self_tests *tests,
 				u8 *strings, u64 *data);
@@ -26,5 +29,12 @@ void efx_ethtool_get_strings(struct net_device *net_dev, u32 string_set,
 void efx_ethtool_get_stats(struct net_device *net_dev,
 			   struct ethtool_stats *stats __attribute__ ((unused)),
 			   u64 *data);
-
+int efx_ethtool_get_link_ksettings(struct net_device *net_dev,
+				   struct ethtool_link_ksettings *out);
+int efx_ethtool_set_link_ksettings(struct net_device *net_dev,
+				   const struct ethtool_link_ksettings *settings);
+int efx_ethtool_get_fecparam(struct net_device *net_dev,
+			     struct ethtool_fecparam *fecparam);
+int efx_ethtool_set_fecparam(struct net_device *net_dev,
+			     struct ethtool_fecparam *fecparam);
 #endif
