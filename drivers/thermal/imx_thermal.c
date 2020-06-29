@@ -330,8 +330,8 @@ static int imx_get_temp(struct thermal_zone_device *tz, int *temp)
 	return 0;
 }
 
-static int imx_set_mode(struct thermal_zone_device *tz,
-			enum thermal_device_mode mode)
+static int imx_change_mode(struct thermal_zone_device *tz,
+			   enum thermal_device_mode mode)
 {
 	struct imx_thermal_data *data = tz->devdata;
 	struct regmap *map = data->tempmon;
@@ -447,7 +447,7 @@ static struct thermal_zone_device_ops imx_tz_ops = {
 	.bind = imx_bind,
 	.unbind = imx_unbind,
 	.get_temp = imx_get_temp,
-	.set_mode = imx_set_mode,
+	.change_mode = imx_change_mode,
 	.get_trip_type = imx_get_trip_type,
 	.get_trip_temp = imx_get_trip_temp,
 	.get_crit_temp = imx_get_crit_temp,
@@ -860,7 +860,7 @@ static int __maybe_unused imx_thermal_suspend(struct device *dev)
 	 * Need to disable thermal sensor, otherwise, when thermal core
 	 * try to get temperature before thermal sensor resume, a wrong
 	 * temperature will be read as the thermal sensor is powered
-	 * down. This is done in set_mode() operation called from
+	 * down. This is done in change_mode() operation called from
 	 * thermal_zone_device_disable()
 	 */
 	ret = thermal_zone_device_disable(data->tz);
