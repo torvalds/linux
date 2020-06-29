@@ -1167,6 +1167,7 @@ qla82xx_pinit_from_rom(scsi_qla_host_t *vha)
 	 * Offset 4: Offset and number of addr/value pairs
 	 * that present in CRB initialize sequence
 	 */
+	n = 0;
 	if (qla82xx_rom_fast_read(ha, 0, &n) != 0 || n != 0xcafecafeUL ||
 	    qla82xx_rom_fast_read(ha, 4, &n) != 0) {
 		ql_log(ql_log_fatal, vha, 0x006e,
