@@ -136,5 +136,7 @@ extern enum vchiq_status vchiq_dump_phys_mem(unsigned int service,
 
 extern enum vchiq_status vchiq_get_peer_version(unsigned int handle,
       short *peer_version);
+extern void vchiq_msg_queue_push(unsigned handle, struct vchiq_header *header);
+extern struct vchiq_header *vchiq_msg_hold(unsigned handle);
 
 #endif /* VCHIQ_IF_H */

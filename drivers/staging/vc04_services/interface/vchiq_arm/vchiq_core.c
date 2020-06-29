@@ -2265,6 +2265,47 @@ fail_free_handler_thread:
 	return VCHIQ_ERROR;
 }
 
+void vchiq_msg_queue_push(unsigned handle, struct vchiq_header *header)
+{
+	struct vchiq_service *service = find_service_by_handle(handle);
+	int pos;
+
+	while (service->msg_queue_write == service->msg_queue_read +
+		VCHIQ_MAX_SLOTS) {
+		if (wait_for_completion_interruptible(&service->msg_queue_pop))
+			flush_signals(current);
+	}
+
+	pos = service->msg_queue_write++ & (VCHIQ_MAX_SLOTS - 1);
+	service->msg_queue[pos] = header;
+
+	complete(&service->msg_queue_push);
+}
+EXPORT_SYMBOL(vchiq_msg_queue_push);
+
+struct vchiq_header *vchiq_msg_hold(unsigned handle)
+{
+	struct vchiq_service *service = find_service_by_handle(handle);
+	struct vchiq_header *header;
+	int pos;
+
+	if (service->msg_queue_write == service->msg_queue_read)
+		return NULL;
+
+	while (service->msg_queue_write == service->msg_queue_read) {
+		if (wait_for_completion_interruptible(&service->msg_queue_push))
+			flush_signals(current);
+	}
+
+	pos = service->msg_queue_read++ & (VCHIQ_MAX_SLOTS - 1);
+	header = service->msg_queue[pos];
+
+	complete(&service->msg_queue_pop);
+
+	return header;
+}
+EXPORT_SYMBOL(vchiq_msg_hold);
+
 static int vchiq_validate_params(const struct vchiq_service_params *params)
 {
 	if (!params->callback || !params->fourcc) {
@@ -2319,12 +2360,17 @@ vchiq_add_service_internal(struct vchiq_state *state,
 	service->state         = state;
 	service->instance      = instance;
 	service->service_use_count = 0;
+	service->msg_queue_read = 0;
+	service->msg_queue_write = 0;
 	init_bulk_queue(&service->bulk_tx);
 	init_bulk_queue(&service->bulk_rx);
 	init_completion(&service->remove_event);
 	init_completion(&service->bulk_remove_event);
+	init_completion(&service->msg_queue_pop);
+	init_completion(&service->msg_queue_push);
 	mutex_init(&service->bulk_mutex);
 	memset(&service->stats, 0, sizeof(service->stats));
+	memset(&service->msg_queue, 0, sizeof(service->msg_queue));
 
 	/* Although it is perfectly possible to use a spinlock
 	** to protect the creation of services, it is overkill as it
