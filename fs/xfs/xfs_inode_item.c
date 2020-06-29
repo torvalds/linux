@@ -528,8 +528,6 @@ xfs_inode_item_push(
 	}
 
 	ASSERT(iip->ili_fields != 0 || XFS_FORCED_SHUTDOWN(ip->i_mount));
-	ASSERT(iip->ili_logged == 0 || XFS_FORCED_SHUTDOWN(ip->i_mount));
-
 	spin_unlock(&lip->li_ailp->ail_lock);
 
 	error = xfs_iflush(ip, &bp);
@@ -690,30 +688,24 @@ xfs_iflush_done(
 			continue;
 
 		list_move_tail(&blip->li_bio_list, &tmp);
-		/*
-		 * while we have the item, do the unlocked check for needing
-		 * the AIL lock.
-		 */
+
+		/* Do an unlocked check for needing the AIL lock. */
 		iip = INODE_ITEM(blip);
-		if ((iip->ili_logged && blip->li_lsn == iip->ili_flush_lsn) ||
+		if (blip->li_lsn == iip->ili_flush_lsn ||
 		    test_bit(XFS_LI_FAILED, &blip->li_flags))
 			need_ail++;
 	}
 
 	/* make sure we capture the state of the initial inode. */
 	iip = INODE_ITEM(lip);
-	if ((iip->ili_logged && lip->li_lsn == iip->ili_flush_lsn) ||
+	if (lip->li_lsn == iip->ili_flush_lsn ||
 	    test_bit(XFS_LI_FAILED, &lip->li_flags))
 		need_ail++;
 
 	/*
-	 * We only want to pull the item from the AIL if it is
-	 * actually there and its location in the log has not
-	 * changed since we started the flush.  Thus, we only bother
-	 * if the ili_logged flag is set and the inode's lsn has not
-	 * changed.  First we check the lsn outside
-	 * the lock since it's cheaper, and then we recheck while
-	 * holding the lock before removing the inode from the AIL.
+	 * We only want to pull the item from the AIL if it is actually there
+	 * and its location in the log has not changed since we started the
+	 * flush.  Thus, we only bother if the inode's lsn has not changed.
 	 */
 	if (need_ail) {
 		xfs_lsn_t	tail_lsn = 0;
@@ -721,8 +713,7 @@ xfs_iflush_done(
 		/* this is an opencoded batch version of xfs_trans_ail_delete */
 		spin_lock(&ailp->ail_lock);
 		list_for_each_entry(blip, &tmp, li_bio_list) {
-			if (INODE_ITEM(blip)->ili_logged &&
-			    blip->li_lsn == INODE_ITEM(blip)->ili_flush_lsn) {
+			if (blip->li_lsn == INODE_ITEM(blip)->ili_flush_lsn) {
 				/*
 				 * xfs_ail_update_finish() only cares about the
 				 * lsn of the first tail item removed, any
@@ -740,14 +731,13 @@ xfs_iflush_done(
 	}
 
 	/*
-	 * clean up and unlock the flush lock now we are done. We can clear the
+	 * Clean up and unlock the flush lock now we are done. We can clear the
 	 * ili_last_fields bits now that we know that the data corresponding to
 	 * them is safely on disk.
 	 */
 	list_for_each_entry_safe(blip, n, &tmp, li_bio_list) {
 		list_del_init(&blip->li_bio_list);
 		iip = INODE_ITEM(blip);
-		iip->ili_logged = 0;
 		iip->ili_last_fields = 0;
 		xfs_ifunlock(iip->ili_inode);
 	}
@@ -768,16 +758,11 @@ xfs_iflush_abort(
 
 	if (iip) {
 		xfs_trans_ail_delete(&iip->ili_item, 0);
-		iip->ili_logged = 0;
-		/*
-		 * Clear the ili_last_fields bits now that we know that the
-		 * data corresponding to them is safely on disk.
-		 */
-		iip->ili_last_fields = 0;
 		/*
 		 * Clear the inode logging fields so no more flushes are
 		 * attempted.
 		 */
+		iip->ili_last_fields = 0;
 		iip->ili_fields = 0;
 		iip->ili_fsync_fields = 0;
 	}

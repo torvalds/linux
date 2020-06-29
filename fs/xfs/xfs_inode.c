@@ -2679,7 +2679,6 @@ xfs_ifree_cluster(
 		list_for_each_entry(lip, &bp->b_li_list, li_bio_list) {
 			if (lip->li_type == XFS_LI_INODE) {
 				iip = (struct xfs_inode_log_item *)lip;
-				ASSERT(iip->ili_logged == 1);
 				lip->li_cb = xfs_istale_done;
 				xfs_trans_ail_copy_lsn(mp->m_ail,
 							&iip->ili_flush_lsn,
@@ -2708,7 +2707,6 @@ xfs_ifree_cluster(
 			iip->ili_last_fields = iip->ili_fields;
 			iip->ili_fields = 0;
 			iip->ili_fsync_fields = 0;
-			iip->ili_logged = 1;
 			xfs_trans_ail_copy_lsn(mp->m_ail, &iip->ili_flush_lsn,
 						&iip->ili_item.li_lsn);
 
@@ -3840,19 +3838,16 @@ xfs_iflush_int(
 	 *
 	 * We can play with the ili_fields bits here, because the inode lock
 	 * must be held exclusively in order to set bits there and the flush
-	 * lock protects the ili_last_fields bits.  Set ili_logged so the flush
-	 * done routine can tell whether or not to look in the AIL.  Also, store
-	 * the current LSN of the inode so that we can tell whether the item has
-	 * moved in the AIL from xfs_iflush_done().  In order to read the lsn we
-	 * need the AIL lock, because it is a 64 bit value that cannot be read
-	 * atomically.
+	 * lock protects the ili_last_fields bits.  Store the current LSN of the
+	 * inode so that we can tell whether the item has moved in the AIL from
+	 * xfs_iflush_done().  In order to read the lsn we need the AIL lock,
+	 * because it is a 64 bit value that cannot be read atomically.
 	 */
 	error = 0;
 flush_out:
 	iip->ili_last_fields = iip->ili_fields;
 	iip->ili_fields = 0;
 	iip->ili_fsync_fields = 0;
-	iip->ili_logged = 1;
 
 	xfs_trans_ail_copy_lsn(mp->m_ail, &iip->ili_flush_lsn,
 				&iip->ili_item.li_lsn);
