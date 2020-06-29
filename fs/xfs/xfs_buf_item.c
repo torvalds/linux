@@ -1158,20 +1158,15 @@ out_stale:
 	return false;
 }
 
-/*
- * This is the iodone() function for buffers which have had callbacks attached
- * to them by xfs_buf_attach_iodone(). We need to iterate the items on the
- * callback list, mark the buffer as having no more callbacks and then push the
- * buffer through IO completion processing.
- */
-void
-xfs_buf_iodone_callbacks(
+static void
+xfs_buf_run_callbacks(
 	struct xfs_buf		*bp)
 {
+
 	/*
-	 * If there is an error, process it. Some errors require us
-	 * to run callbacks after failure processing is done so we
-	 * detect that and take appropriate action.
+	 * If there is an error, process it. Some errors require us to run
+	 * callbacks after failure processing is done so we detect that and take
+	 * appropriate action.
 	 */
 	if (bp->b_error && xfs_buf_iodone_callback_error(bp))
 		return;
@@ -1188,8 +1183,33 @@ xfs_buf_iodone_callbacks(
 	bp->b_log_item = NULL;
 	list_del_init(&bp->b_li_list);
 	bp->b_iodone = NULL;
+}
+
+/*
+ * This is the iodone() function for buffers which have had callbacks attached
+ * to them by xfs_buf_attach_iodone(). We need to iterate the items on the
+ * callback list, mark the buffer as having no more callbacks and then push the
+ * buffer through IO completion processing.
+ */
+void
+xfs_buf_iodone_callbacks(
+	struct xfs_buf		*bp)
+{
+	xfs_buf_run_callbacks(bp);
 	xfs_buf_ioend(bp);
 }
+
+/*
+ * Inode buffer iodone callback function.
+ */
+void
+xfs_buf_inode_iodone(
+	struct xfs_buf		*bp)
+{
+	xfs_buf_run_callbacks(bp);
+	xfs_buf_ioend_finish(bp);
+}
+
 
 /*
  * This is the iodone() function for buffers which have been

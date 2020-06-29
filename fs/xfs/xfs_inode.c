@@ -3862,13 +3862,13 @@ flush_out:
 	 * completion on the buffer to remove the inode from the AIL and release
 	 * the flush lock.
 	 */
+	bp->b_flags |= _XBF_INODES;
 	xfs_buf_attach_iodone(bp, xfs_iflush_done, &iip->ili_item);
 
 	/* generate the checksum. */
 	xfs_dinode_calc_crc(mp, dip);
 
 	ASSERT(!list_empty(&bp->b_li_list));
-	ASSERT(bp->b_iodone != NULL);
 	return error;
 }
 

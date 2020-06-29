@@ -30,14 +30,17 @@
 #define XBF_STALE	 (1 << 6) /* buffer has been staled, do not find it */
 #define XBF_WRITE_FAIL	 (1 << 7) /* async writes have failed on this buffer */
 
-/* flags used only as arguments to access routines */
-#define XBF_TRYLOCK	 (1 << 16)/* lock requested, but do not wait */
-#define XBF_UNMAPPED	 (1 << 17)/* do not map the buffer */
+/* buffer type flags for write callbacks */
+#define _XBF_INODES	 (1 << 16)/* inode buffer */
 
 /* flags used only internally */
 #define _XBF_PAGES	 (1 << 20)/* backed by refcounted pages */
 #define _XBF_KMEM	 (1 << 21)/* backed by heap memory */
 #define _XBF_DELWRI_Q	 (1 << 22)/* buffer on a delwri queue */
+
+/* flags used only as arguments to access routines */
+#define XBF_TRYLOCK	 (1 << 30)/* lock requested, but do not wait */
+#define XBF_UNMAPPED	 (1 << 31)/* do not map the buffer */
 
 typedef unsigned int xfs_buf_flags_t;
 
@@ -50,12 +53,13 @@ typedef unsigned int xfs_buf_flags_t;
 	{ XBF_DONE,		"DONE" }, \
 	{ XBF_STALE,		"STALE" }, \
 	{ XBF_WRITE_FAIL,	"WRITE_FAIL" }, \
-	{ XBF_TRYLOCK,		"TRYLOCK" },	/* should never be set */\
-	{ XBF_UNMAPPED,		"UNMAPPED" },	/* ditto */\
+	{ _XBF_INODES,		"INODES" }, \
 	{ _XBF_PAGES,		"PAGES" }, \
 	{ _XBF_KMEM,		"KMEM" }, \
-	{ _XBF_DELWRI_Q,	"DELWRI_Q" }
-
+	{ _XBF_DELWRI_Q,	"DELWRI_Q" }, \
+	/* The following interface flags should never be set */ \
+	{ XBF_TRYLOCK,		"TRYLOCK" }, \
+	{ XBF_UNMAPPED,		"UNMAPPED" }
 
 /*
  * Internal state flags.
@@ -257,9 +261,23 @@ extern void xfs_buf_unlock(xfs_buf_t *);
 #define xfs_buf_islocked(bp) \
 	((bp)->b_sema.count <= 0)
 
+static inline void xfs_buf_relse(xfs_buf_t *bp)
+{
+	xfs_buf_unlock(bp);
+	xfs_buf_rele(bp);
+}
+
 /* Buffer Read and Write Routines */
 extern int xfs_bwrite(struct xfs_buf *bp);
 extern void xfs_buf_ioend(struct xfs_buf *bp);
+static inline void xfs_buf_ioend_finish(struct xfs_buf *bp)
+{
+	if (bp->b_flags & XBF_ASYNC)
+		xfs_buf_relse(bp);
+	else
+		complete(&bp->b_iowait);
+}
+
 extern void __xfs_buf_ioerror(struct xfs_buf *bp, int error,
 		xfs_failaddr_t failaddr);
 #define xfs_buf_ioerror(bp, err) __xfs_buf_ioerror((bp), (err), __this_address)
@@ -322,12 +340,6 @@ static inline void xfs_buf_oneshot(struct xfs_buf *bp)
 static inline int xfs_buf_ispinned(struct xfs_buf *bp)
 {
 	return atomic_read(&bp->b_pin_count);
-}
-
-static inline void xfs_buf_relse(xfs_buf_t *bp)
-{
-	xfs_buf_unlock(bp);
-	xfs_buf_rele(bp);
 }
 
 static inline int
