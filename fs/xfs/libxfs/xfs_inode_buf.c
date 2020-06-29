@@ -53,10 +53,10 @@ xfs_inobp_check(
  * If the readahead buffer is invalid, we need to mark it with an error and
  * clear the DONE status of the buffer so that a followup read will re-read it
  * from disk. We don't report the error otherwise to avoid warnings during log
- * recovery and we don't get unnecssary panics on debug kernels. We use EIO here
+ * recovery and we don't get unnecessary panics on debug kernels. We use EIO here
  * because all we want to do is say readahead failed; there is no-one to report
  * the error to, so this will distinguish it from a non-ra verifier failure.
- * Changes to this readahead error behavour also need to be reflected in
+ * Changes to this readahead error behaviour also need to be reflected in
  * xfs_dquot_buf_readahead_verify().
  */
 static void
@@ -203,7 +203,7 @@ xfs_inode_from_disk(
 	/*
 	 * First get the permanent information that is needed to allocate an
 	 * inode. If the inode is unused, mode is zero and we shouldn't mess
-	 * with the unitialized part of it.
+	 * with the uninitialized part of it.
 	 */
 	to->di_flushiter = be16_to_cpu(from->di_flushiter);
 	inode->i_generation = be32_to_cpu(from->di_gen);
