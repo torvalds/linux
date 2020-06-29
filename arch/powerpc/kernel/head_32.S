@@ -474,7 +474,7 @@ InstructionTLBMiss:
 	/* Get PTE (linux-style) and check access */
 	mfspr	r3,SPRN_IMISS
 #if defined(CONFIG_MODULES) || defined(CONFIG_DEBUG_PAGEALLOC)
-	lis	r1,PAGE_OFFSET@h		/* check if kernel address */
+	lis	r1, TASK_SIZE@h		/* check if kernel address */
 	cmplw	0,r1,r3
 #endif
 	mfspr	r2, SPRN_SPRG_PGDIR
@@ -484,7 +484,7 @@ InstructionTLBMiss:
 	li	r1,_PAGE_PRESENT | _PAGE_EXEC
 #endif
 #if defined(CONFIG_MODULES) || defined(CONFIG_DEBUG_PAGEALLOC)
-	bge-	112f
+	bgt-	112f
 	lis	r2, (swapper_pg_dir - PAGE_OFFSET)@ha	/* if kernel address, use */
 	addi	r2, r2, (swapper_pg_dir - PAGE_OFFSET)@l	/* kernel page table */
 #endif
@@ -541,7 +541,7 @@ DataLoadTLBMiss:
  */
 	/* Get PTE (linux-style) and check access */
 	mfspr	r3,SPRN_DMISS
-	lis	r1,PAGE_OFFSET@h		/* check if kernel address */
+	lis	r1, TASK_SIZE@h		/* check if kernel address */
 	cmplw	0,r1,r3
 	mfspr	r2, SPRN_SPRG_PGDIR
 #ifdef CONFIG_SWAP
@@ -549,7 +549,7 @@ DataLoadTLBMiss:
 #else
 	li	r1, _PAGE_PRESENT
 #endif
-	bge-	112f
+	bgt-	112f
 	lis	r2, (swapper_pg_dir - PAGE_OFFSET)@ha	/* if kernel address, use */
 	addi	r2, r2, (swapper_pg_dir - PAGE_OFFSET)@l	/* kernel page table */
 112:	rlwimi	r2,r3,12,20,29		/* insert top 10 bits of address */
@@ -621,7 +621,7 @@ DataStoreTLBMiss:
  */
 	/* Get PTE (linux-style) and check access */
 	mfspr	r3,SPRN_DMISS
-	lis	r1,PAGE_OFFSET@h		/* check if kernel address */
+	lis	r1, TASK_SIZE@h		/* check if kernel address */
 	cmplw	0,r1,r3
 	mfspr	r2, SPRN_SPRG_PGDIR
 #ifdef CONFIG_SWAP
@@ -629,7 +629,7 @@ DataStoreTLBMiss:
 #else
 	li	r1, _PAGE_RW | _PAGE_DIRTY | _PAGE_PRESENT
 #endif
-	bge-	112f
+	bgt-	112f
 	lis	r2, (swapper_pg_dir - PAGE_OFFSET)@ha	/* if kernel address, use */
 	addi	r2, r2, (swapper_pg_dir - PAGE_OFFSET)@l	/* kernel page table */
 112:	rlwimi	r2,r3,12,20,29		/* insert top 10 bits of address */
