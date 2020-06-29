@@ -376,6 +376,7 @@ struct hci_dev {
 	__u16		def_br_lsto;
 	__u16		def_page_timeout;
 	__u16		def_multi_adv_rotation_duration;
+	__u16		def_le_autoconnect_timeout;
 
 	__u16		pkt_type;
 	__u16		esco_type;

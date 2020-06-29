@@ -17,6 +17,12 @@
 	{ cpu_to_le16(hdev->_param_name_) } \
 }
 
+#define HDEV_PARAM_U16_JIFFIES_TO_MSECS(_param_code_, _param_name_) \
+{ \
+	{ cpu_to_le16(_param_code_), sizeof(__u16) }, \
+	{ cpu_to_le16(jiffies_to_msecs(hdev->_param_name_)) } \
+}
+
 int read_def_system_config(struct sock *sk, struct hci_dev *hdev, void *data,
 			   u16 data_len)
 {
@@ -59,6 +65,8 @@ int read_def_system_config(struct sock *sk, struct hci_dev *hdev, void *data,
 		HDEV_PARAM_U16(0x0018, le_conn_max_interval),
 		HDEV_PARAM_U16(0x0019, le_conn_latency),
 		HDEV_PARAM_U16(0x001a, le_supv_timeout),
+		HDEV_PARAM_U16_JIFFIES_TO_MSECS(0x001b,
+						def_le_autoconnect_timeout),
 	};
 	struct mgmt_rp_read_def_system_config *rp = (void *)params;
 
@@ -129,6 +137,7 @@ int set_def_system_config(struct sock *sk, struct hci_dev *hdev, void *data,
 		case 0x0018:
 		case 0x0019:
 		case 0x001a:
+		case 0x001b:
 			if (len != sizeof(u16)) {
 				bt_dev_warn(hdev, "invalid length %d, exp %zu for type %d",
 					    len, sizeof(u16), type);
@@ -237,6 +246,10 @@ int set_def_system_config(struct sock *sk, struct hci_dev *hdev, void *data,
 			break;
 		case 0x0001a:
 			hdev->le_supv_timeout = TLV_GET_LE16(buffer);
+			break;
+		case 0x0001b:
+			hdev->def_le_autoconnect_timeout =
+					msecs_to_jiffies(TLV_GET_LE16(buffer));
 			break;
 		default:
 			bt_dev_warn(hdev, "unsupported parameter %u", type);
