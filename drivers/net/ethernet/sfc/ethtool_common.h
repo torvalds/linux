@@ -15,6 +15,8 @@ void efx_ethtool_get_drvinfo(struct net_device *net_dev,
 			     struct ethtool_drvinfo *info);
 u32 efx_ethtool_get_msglevel(struct net_device *net_dev);
 void efx_ethtool_set_msglevel(struct net_device *net_dev, u32 msg_enable);
+void efx_ethtool_self_test(struct net_device *net_dev,
+			   struct ethtool_test *test, u64 *data);
 int efx_ethtool_nway_reset(struct net_device *net_dev);
 void efx_ethtool_get_pauseparam(struct net_device *net_dev,
 				struct ethtool_pauseparam *pause);
@@ -53,4 +55,10 @@ int efx_ethtool_set_rxfh_context(struct net_device *net_dev,
 				 const u32 *indir, const u8 *key,
 				 const u8 hfunc, u32 *rss_context,
 				 bool delete);
+int efx_ethtool_reset(struct net_device *net_dev, u32 *flags);
+int efx_ethtool_get_module_eeprom(struct net_device *net_dev,
+				  struct ethtool_eeprom *ee,
+				  u8 *data);
+int efx_ethtool_get_module_info(struct net_device *net_dev,
+				struct ethtool_modinfo *modinfo);
 #endif

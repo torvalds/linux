@@ -125,6 +125,54 @@ void efx_ethtool_set_msglevel(struct net_device *net_dev, u32 msg_enable)
 	efx->msg_enable = msg_enable;
 }
 
+void efx_ethtool_self_test(struct net_device *net_dev,
+			   struct ethtool_test *test, u64 *data)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+	struct efx_self_tests *efx_tests;
+	bool already_up;
+	int rc = -ENOMEM;
+
+	efx_tests = kzalloc(sizeof(*efx_tests), GFP_KERNEL);
+	if (!efx_tests)
+		goto fail;
+
+	if (efx->state != STATE_READY) {
+		rc = -EBUSY;
+		goto out;
+	}
+
+	netif_info(efx, drv, efx->net_dev, "starting %sline testing\n",
+		   (test->flags & ETH_TEST_FL_OFFLINE) ? "off" : "on");
+
+	/* We need rx buffers and interrupts. */
+	already_up = (efx->net_dev->flags & IFF_UP);
+	if (!already_up) {
+		rc = dev_open(efx->net_dev, NULL);
+		if (rc) {
+			netif_err(efx, drv, efx->net_dev,
+				  "failed opening device.\n");
+			goto out;
+		}
+	}
+
+	rc = efx_selftest(efx, efx_tests, test->flags);
+
+	if (!already_up)
+		dev_close(efx->net_dev);
+
+	netif_info(efx, drv, efx->net_dev, "%s %sline self-tests\n",
+		   rc == 0 ? "passed" : "failed",
+		   (test->flags & ETH_TEST_FL_OFFLINE) ? "off" : "on");
+
+out:
+	efx_ethtool_fill_self_tests(efx, efx_tests, NULL, data);
+	kfree(efx_tests);
+fail:
+	if (rc)
+		test->flags |= ETH_TEST_FL_FAILED;
+}
+
 /* Restart autonegotiation */
 int efx_ethtool_nway_reset(struct net_device *net_dev)
 {
@@ -1272,4 +1320,49 @@ int efx_ethtool_set_rxfh_context(struct net_device *net_dev,
 out_unlock:
 	mutex_unlock(&efx->rss_lock);
 	return rc;
+}
+
+int efx_ethtool_reset(struct net_device *net_dev, u32 *flags)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+	int rc;
+
+	rc = efx->type->map_reset_flags(flags);
+	if (rc < 0)
+		return rc;
+
+	return efx_reset(efx, rc);
+}
+
+int efx_ethtool_get_module_eeprom(struct net_device *net_dev,
+				  struct ethtool_eeprom *ee,
+				  u8 *data)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+	int ret;
+
+	if (!efx->phy_op || !efx->phy_op->get_module_eeprom)
+		return -EOPNOTSUPP;
+
+	mutex_lock(&efx->mac_lock);
+	ret = efx->phy_op->get_module_eeprom(efx, ee, data);
+	mutex_unlock(&efx->mac_lock);
+
+	return ret;
+}
+
+int efx_ethtool_get_module_info(struct net_device *net_dev,
+				struct ethtool_modinfo *modinfo)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+	int ret;
+
+	if (!efx->phy_op || !efx->phy_op->get_module_info)
+		return -EOPNOTSUPP;
+
+	mutex_lock(&efx->mac_lock);
+	ret = efx->phy_op->get_module_info(efx, modinfo);
+	mutex_unlock(&efx->mac_lock);
+
+	return ret;
 }
