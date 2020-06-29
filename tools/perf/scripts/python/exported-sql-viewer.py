@@ -964,7 +964,8 @@ class CallTreeModel(CallGraphModelBase):
 						" FROM calls"
 						" INNER JOIN call_paths ON calls.call_path_id = call_paths.id"
 						" INNER JOIN symbols ON call_paths.symbol_id = symbols.id"
-						" WHERE symbols.name" + match +
+						" WHERE calls.id <> 0"
+						" AND symbols.name" + match +
 						" ORDER BY comm_id, thread_id, call_time, calls.id")
 
 	def FindPath(self, query):
