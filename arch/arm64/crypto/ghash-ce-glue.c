@@ -184,29 +184,6 @@ static void ghash_reflect(u64 h[], const be128 *k)
 		h[1] ^= 0xc200000000000000UL;
 }
 
-static int __ghash_setkey(struct ghash_key *key,
-			  const u8 *inkey, unsigned int keylen)
-{
-	be128 h;
-
-	/* needed for the fallback */
-	memcpy(&key->k, inkey, GHASH_BLOCK_SIZE);
-
-	ghash_reflect(key->h, &key->k);
-
-	h = key->k;
-	gf128mul_lle(&h, &key->k);
-	ghash_reflect(key->h2, &h);
-
-	gf128mul_lle(&h, &key->k);
-	ghash_reflect(key->h3, &h);
-
-	gf128mul_lle(&h, &key->k);
-	ghash_reflect(key->h4, &h);
-
-	return 0;
-}
-
 static int ghash_setkey(struct crypto_shash *tfm,
 			const u8 *inkey, unsigned int keylen)
 {
@@ -215,7 +192,11 @@ static int ghash_setkey(struct crypto_shash *tfm,
 	if (keylen != GHASH_BLOCK_SIZE)
 		return -EINVAL;
 
-	return __ghash_setkey(key, inkey, keylen);
+	/* needed for the fallback */
+	memcpy(&key->k, inkey, GHASH_BLOCK_SIZE);
+
+	ghash_reflect(key->h, &key->k);
+	return 0;
 }
 
 static struct shash_alg ghash_alg = {
@@ -251,6 +232,7 @@ static int gcm_setkey(struct crypto_aead *tfm, const u8 *inkey,
 {
 	struct gcm_aes_ctx *ctx = crypto_aead_ctx(tfm);
 	u8 key[GHASH_BLOCK_SIZE];
+	be128 h;
 	int ret;
 
 	ret = aes_expandkey(&ctx->aes_key, inkey, keylen);
@@ -259,7 +241,22 @@ static int gcm_setkey(struct crypto_aead *tfm, const u8 *inkey,
 
 	aes_encrypt(&ctx->aes_key, key, (u8[AES_BLOCK_SIZE]){});
 
-	return __ghash_setkey(&ctx->ghash_key, key, sizeof(be128));
+	/* needed for the fallback */
+	memcpy(&ctx->ghash_key.k, key, GHASH_BLOCK_SIZE);
+
+	ghash_reflect(ctx->ghash_key.h, &ctx->ghash_key.k);
+
+	h = ctx->ghash_key.k;
+	gf128mul_lle(&h, &ctx->ghash_key.k);
+	ghash_reflect(ctx->ghash_key.h2, &h);
+
+	gf128mul_lle(&h, &ctx->ghash_key.k);
+	ghash_reflect(ctx->ghash_key.h3, &h);
+
+	gf128mul_lle(&h, &ctx->ghash_key.k);
+	ghash_reflect(ctx->ghash_key.h4, &h);
+
+	return 0;
 }
 
 static int gcm_setauthsize(struct crypto_aead *tfm, unsigned int authsize)
