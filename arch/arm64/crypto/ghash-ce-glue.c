@@ -31,12 +31,8 @@ MODULE_ALIAS_CRYPTO("ghash");
 #define GCM_IV_SIZE		12
 
 struct ghash_key {
-	u64			h[2];
-	u64			h2[2];
-	u64			h3[2];
-	u64			h4[2];
-
 	be128			k;
+	u64			h[][2];
 };
 
 struct ghash_desc_ctx {
@@ -51,22 +47,18 @@ struct gcm_aes_ctx {
 };
 
 asmlinkage void pmull_ghash_update_p64(int blocks, u64 dg[], const char *src,
-				       struct ghash_key const *k,
-				       const char *head);
+				       u64 const h[][2], const char *head);
 
 asmlinkage void pmull_ghash_update_p8(int blocks, u64 dg[], const char *src,
-				      struct ghash_key const *k,
-				      const char *head);
+				      u64 const h[][2], const char *head);
 
 asmlinkage void pmull_gcm_encrypt(int bytes, u8 dst[], const u8 src[],
-				  struct ghash_key const *k, u64 dg[],
-				  u8 ctr[], u32 const rk[], int rounds,
-				  u8 tag[]);
+				  u64 const h[][2], u64 dg[], u8 ctr[],
+				  u32 const rk[], int rounds, u8 tag[]);
 
 asmlinkage void pmull_gcm_decrypt(int bytes, u8 dst[], const u8 src[],
-				  struct ghash_key const *k, u64 dg[],
-				  u8 ctr[], u32 const rk[], int rounds,
-				  u8 tag[]);
+				  u64 const h[][2], u64 dg[], u8 ctr[],
+				  u32 const rk[], int rounds, u8 tag[]);
 
 static int ghash_init(struct shash_desc *desc)
 {
@@ -80,12 +72,12 @@ static void ghash_do_update(int blocks, u64 dg[], const char *src,
 			    struct ghash_key *key, const char *head,
 			    void (*simd_update)(int blocks, u64 dg[],
 						const char *src,
-						struct ghash_key const *k,
+						u64 const h[][2],
 						const char *head))
 {
 	if (likely(crypto_simd_usable() && simd_update)) {
 		kernel_neon_begin();
-		simd_update(blocks, dg, src, key, head);
+		simd_update(blocks, dg, src, key->h, head);
 		kernel_neon_end();
 	} else {
 		be128 dst = { cpu_to_be64(dg[1]), cpu_to_be64(dg[0]) };
@@ -195,7 +187,7 @@ static int ghash_setkey(struct crypto_shash *tfm,
 	/* needed for the fallback */
 	memcpy(&key->k, inkey, GHASH_BLOCK_SIZE);
 
-	ghash_reflect(key->h, &key->k);
+	ghash_reflect(key->h[0], &key->k);
 	return 0;
 }
 
@@ -204,7 +196,7 @@ static struct shash_alg ghash_alg = {
 	.base.cra_driver_name	= "ghash-neon",
 	.base.cra_priority	= 150,
 	.base.cra_blocksize	= GHASH_BLOCK_SIZE,
-	.base.cra_ctxsize	= sizeof(struct ghash_key),
+	.base.cra_ctxsize	= sizeof(struct ghash_key) + sizeof(u64[2]),
 	.base.cra_module	= THIS_MODULE,
 
 	.digestsize		= GHASH_DIGEST_SIZE,
@@ -244,17 +236,17 @@ static int gcm_setkey(struct crypto_aead *tfm, const u8 *inkey,
 	/* needed for the fallback */
 	memcpy(&ctx->ghash_key.k, key, GHASH_BLOCK_SIZE);
 
-	ghash_reflect(ctx->ghash_key.h, &ctx->ghash_key.k);
+	ghash_reflect(ctx->ghash_key.h[0], &ctx->ghash_key.k);
 
 	h = ctx->ghash_key.k;
 	gf128mul_lle(&h, &ctx->ghash_key.k);
-	ghash_reflect(ctx->ghash_key.h2, &h);
+	ghash_reflect(ctx->ghash_key.h[1], &h);
 
 	gf128mul_lle(&h, &ctx->ghash_key.k);
-	ghash_reflect(ctx->ghash_key.h3, &h);
+	ghash_reflect(ctx->ghash_key.h[2], &h);
 
 	gf128mul_lle(&h, &ctx->ghash_key.k);
-	ghash_reflect(ctx->ghash_key.h4, &h);
+	ghash_reflect(ctx->ghash_key.h[3], &h);
 
 	return 0;
 }
@@ -380,8 +372,8 @@ static int gcm_encrypt(struct aead_request *req)
 			}
 
 			kernel_neon_begin();
-			pmull_gcm_encrypt(nbytes, dst, src, &ctx->ghash_key, dg,
-					  iv, ctx->aes_key.key_enc, nrounds,
+			pmull_gcm_encrypt(nbytes, dst, src, ctx->ghash_key.h,
+					  dg, iv, ctx->aes_key.key_enc, nrounds,
 					  tag);
 			kernel_neon_end();
 
@@ -494,8 +486,8 @@ static int gcm_decrypt(struct aead_request *req)
 			}
 
 			kernel_neon_begin();
-			pmull_gcm_decrypt(nbytes, dst, src, &ctx->ghash_key, dg,
-					  iv, ctx->aes_key.key_enc, nrounds,
+			pmull_gcm_decrypt(nbytes, dst, src, ctx->ghash_key.h,
+					  dg, iv, ctx->aes_key.key_enc, nrounds,
 					  tag);
 			kernel_neon_end();
 
@@ -582,7 +574,8 @@ static struct aead_alg gcm_aes_alg = {
 	.base.cra_driver_name	= "gcm-aes-ce",
 	.base.cra_priority	= 300,
 	.base.cra_blocksize	= 1,
-	.base.cra_ctxsize	= sizeof(struct gcm_aes_ctx),
+	.base.cra_ctxsize	= sizeof(struct gcm_aes_ctx) +
+				  4 * sizeof(u64[2]),
 	.base.cra_module	= THIS_MODULE,
 };
 
