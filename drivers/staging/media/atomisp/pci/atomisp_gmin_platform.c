@@ -423,12 +423,13 @@ static int gmin_i2c_write(struct device *dev, u16 i2c_addr, u8 reg,
 	return ret;
 }
 
-static int atomisp_get_acpi_power(struct device *dev, acpi_handle handle)
+static int atomisp_get_acpi_power(struct device *dev)
 {
 	char name[5];
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	struct acpi_buffer b_name = { sizeof(name), name };
 	union acpi_object *package, *element;
+	acpi_handle handle = ACPI_HANDLE(dev);
 	acpi_handle rhandle;
 	acpi_status status;
 	int clock_num = -1;
@@ -515,15 +516,10 @@ static int gmin_subdev_add(struct gmin_subdev *gs)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(gs->subdev);
 	struct device *dev = &client->dev;
-	struct acpi_device *adev;
-	acpi_handle handle;
+	struct acpi_device *adev = ACPI_COMPANION(dev);
 	int ret, clock_num = -1;
 
-	handle = ACPI_HANDLE(dev);
-	adev = ACPI_COMPANION(dev);
-
-	dev_info(&client->dev, "%s: ACPI detected it on bus ID=%s, HID=%s\n",
-		__func__, acpi_device_bid(adev), acpi_device_hid(adev));
+	dev_info(dev, "%s: ACPI path is %pfw\n", __func__, dev_fwnode(dev));
 
 	/*WA:CHT requires XTAL clock as PLL is not stable.*/
 	gs->clock_src = gmin_get_var_int(dev, false, "ClkSrc",
@@ -612,7 +608,7 @@ static int gmin_subdev_add(struct gmin_subdev *gs)
 
 	/* Try first to use ACPI to get the clock resource */
 	if (acpi_device_power_manageable(adev))
-		clock_num = atomisp_get_acpi_power(dev, handle);
+		clock_num = atomisp_get_acpi_power(dev);
 
 	/* Fall-back use EFI and/or DMI match */
 	if (clock_num < 0)
