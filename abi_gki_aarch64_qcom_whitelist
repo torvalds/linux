@@ -2,14 +2,12 @@
 # commonly used symbols
   add_timer
   add_uevent_var
-  add_wait_queue
   alarm_cancel
   alarm_init
   alarm_start_relative
   alarmtimer_get_rtcdev
   alarm_try_to_cancel
   alloc_chrdev_region
-  alloc_etherdev_mqs
   alloc_netdev_mqs
   __alloc_pages_nodemask
   __alloc_percpu
@@ -47,7 +45,6 @@
   cancel_delayed_work_sync
   cancel_work_sync
   capable
-  cdc_parse_cdc_header
   cdev_add
   cdev_del
   cdev_init
@@ -108,7 +105,6 @@
   cpus_read_lock
   cpus_read_unlock
   cpu_subsys
-  crc32_le
   crypto_alloc_shash
   crypto_destroy_tfm
   crypto_shash_digest
@@ -250,11 +246,7 @@
   dummy_dma_ops
   enable_irq
   ether_setup
-  eth_mac_addr
-  ethtool_op_get_link
-  ethtool_op_get_ts_info
   eth_type_trans
-  eth_validate_addr
   event_triggers_call
   extcon_get_edev_by_phandle
   extcon_get_state
@@ -284,7 +276,6 @@
   fwnode_property_read_u32_array
   gcd
   generic_handle_irq
-  generic_mii_ioctl
   genlmsg_put
   genl_register_family
   genl_unregister_family
@@ -323,7 +314,6 @@
   handle_edge_irq
   handle_level_irq
   handle_nested_irq
-  hex2bin
   hex_dump_to_buffer
   hrtimer_active
   hrtimer_cancel
@@ -505,11 +495,6 @@
   __memset_io
   memstart_addr
   memzero_explicit
-  mii_ethtool_get_link_ksettings
-  mii_ethtool_gset
-  mii_ethtool_set_link_ksettings
-  mii_link_ok
-  mii_nway_restart
   misc_deregister
   misc_register
   mod_delayed_work_on
@@ -532,9 +517,6 @@
   __napi_schedule
   napi_schedule_prep
   __netdev_alloc_skb
-  netdev_err
-  netdev_info
-  netdev_warn
   netif_carrier_off
   netif_carrier_on
   netif_napi_add
@@ -542,7 +524,6 @@
   netif_receive_skb
   netif_rx
   netif_rx_ni
-  netif_schedule_queue
   netif_tx_wake_queue
   netlink_unicast
   net_ratelimit
@@ -790,7 +771,6 @@
   release_sock
   remap_pfn_range
   remove_proc_entry
-  remove_wait_queue
   request_firmware
   request_firmware_into_buf
   request_firmware_nowait
@@ -998,10 +978,6 @@
   up_write
   usb_add_phy_dev
   usb_assign_descriptors
-  usb_control_msg
-  usb_deregister
-  usb_driver_claim_interface
-  usb_driver_release_interface
   usb_ep_alloc_request
   usb_ep_autoconfig
   usb_ep_dequeue
@@ -1015,12 +991,9 @@
   usb_function_unregister
   usb_gadget_wakeup
   usb_get_dr_mode
-  usb_ifnum_to_if
   usb_interface_id
   usb_put_function_instance
-  usb_register_driver
   usb_remove_phy
-  usb_set_interface
   usb_string_id
   __usecs_to_jiffies
   usleep_range
@@ -1035,6 +1008,7 @@
   vb2_buffer_done
   vb2_queue_init
   vfree
+  vfs_read
   video_devdata
   video_device_alloc
   video_device_release
@@ -1121,24 +1095,6 @@
   __tracepoint_tlbi_start
   __tracepoint_tlbsync_timeout
 
-# required by asix.ko
-  eth_platform_get_mac_address
-  genphy_resume
-  mdiobus_alloc_size
-  mdiobus_free
-  __mdiobus_register
-  mdiobus_unregister
-  mii_check_media
-  phy_connect
-  phy_disconnect
-  phy_ethtool_get_link_ksettings
-  phy_ethtool_nway_reset
-  phy_ethtool_set_link_ksettings
-  phy_mii_ioctl
-  phy_print_status
-  phy_start
-  phy_stop
-
 # required by at24.ko
   i2c_match_id
   i2c_new_dummy
@@ -1188,9 +1144,6 @@
   of_clk_get_from_provider
   __release_region
   __request_region
-
-# required by cdc_ncm.ko
-  usb_altnum_to_altsetting
 
 # required by citadel-spi.ko
   nonseekable_open
@@ -1406,6 +1359,7 @@
   __break_lease
   clear_inode
   __close_fd
+  crc32_le
   d_add
   d_drop
   deactivate_locked_super
@@ -1487,12 +1441,16 @@
   zone_watermark_ok_safe
 
 # required by ipa3.ko
+  add_wait_queue
+  alloc_etherdev_mqs
+  eth_mac_addr
   kstrtos8_from_user
   pci_clear_master
   pci_disable_device
   pci_enable_device
   pci_release_region
   pci_request_region
+  remove_wait_queue
   vm_iomap_memory
   wait_woken
   woken_wake_function
@@ -2222,6 +2180,7 @@
   ipv6_skip_exthdr
   netdev_rx_handler_register
   netdev_rx_handler_unregister
+  netif_schedule_queue
   ___pskb_trim
   qdisc_reset
   rtnl_link_register
@@ -2599,6 +2558,7 @@
   crypto_shash_update
   dev_alloc_name
   dump_stack
+  hex2bin
   hex_to_bin
   ieee80211_channel_to_frequency
   ieee80211_frequency_to_channel
@@ -2656,6 +2616,7 @@
   usb_get_controller_id
   usb_get_sec_event_ring_phys_addr
   usb_get_xfer_ring_phys_addr
+  usb_ifnum_to_if
   usb_sec_event_ring_cleanup
   usb_sec_event_ring_setup
   usb_stop_endpoint
@@ -2689,33 +2650,10 @@
 
 # required by usb_f_mtp.ko
   usb_os_desc_prepare_interf_dir
+  vfs_write
 
 # required by usb_f_qdss.ko
   usb_ep_autoconfig_ss
-
-# required by usbnet.ko
-  __alloc_percpu_gfp
-  default_wake_function
-  netdev_stats_to_stats64
-  netif_device_attach
-  netif_device_detach
-  skb_tstamp_tx
-  usb_alloc_urb
-  usb_anchor_urb
-  usb_autopm_get_interface
-  usb_autopm_get_interface_async
-  usb_autopm_get_interface_no_resume
-  usb_autopm_put_interface
-  usb_autopm_put_interface_async
-  usb_clear_halt
-  usb_free_urb
-  usb_get_from_anchor
-  usb_get_urb
-  usb_kill_urb
-  usb_scuttle_anchored_urbs
-  usb_string
-  usb_submit_urb
-  usb_unlink_urb
 
 # required by usf_dlkm.ko
   strncpy_from_user
