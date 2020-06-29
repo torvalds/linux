@@ -1130,3 +1130,94 @@ void efx_fini_mcdi_logging(struct efx_nic *efx)
 	device_remove_file(&efx->pci_dev->dev, &dev_attr_mcdi_logging);
 }
 #endif
+
+/* A PCI error affecting this device was detected.
+ * At this point MMIO and DMA may be disabled.
+ * Stop the software path and request a slot reset.
+ */
+static pci_ers_result_t efx_io_error_detected(struct pci_dev *pdev,
+					      enum pci_channel_state state)
+{
+	pci_ers_result_t status = PCI_ERS_RESULT_RECOVERED;
+	struct efx_nic *efx = pci_get_drvdata(pdev);
+
+	if (state == pci_channel_io_perm_failure)
+		return PCI_ERS_RESULT_DISCONNECT;
+
+	rtnl_lock();
+
+	if (efx->state != STATE_DISABLED) {
+		efx->state = STATE_RECOVERY;
+		efx->reset_pending = 0;
+
+		efx_device_detach_sync(efx);
+
+		efx_stop_all(efx);
+		efx_disable_interrupts(efx);
+
+		status = PCI_ERS_RESULT_NEED_RESET;
+	} else {
+		/* If the interface is disabled we don't want to do anything
+		 * with it.
+		 */
+		status = PCI_ERS_RESULT_RECOVERED;
+	}
+
+	rtnl_unlock();
+
+	pci_disable_device(pdev);
+
+	return status;
+}
+
+/* Fake a successful reset, which will be performed later in efx_io_resume. */
+static pci_ers_result_t efx_io_slot_reset(struct pci_dev *pdev)
+{
+	struct efx_nic *efx = pci_get_drvdata(pdev);
+	pci_ers_result_t status = PCI_ERS_RESULT_RECOVERED;
+
+	if (pci_enable_device(pdev)) {
+		netif_err(efx, hw, efx->net_dev,
+			  "Cannot re-enable PCI device after reset.\n");
+		status =  PCI_ERS_RESULT_DISCONNECT;
+	}
+
+	return status;
+}
+
+/* Perform the actual reset and resume I/O operations. */
+static void efx_io_resume(struct pci_dev *pdev)
+{
+	struct efx_nic *efx = pci_get_drvdata(pdev);
+	int rc;
+
+	rtnl_lock();
+
+	if (efx->state == STATE_DISABLED)
+		goto out;
+
+	rc = efx_reset(efx, RESET_TYPE_ALL);
+	if (rc) {
+		netif_err(efx, hw, efx->net_dev,
+			  "efx_reset failed after PCI error (%d)\n", rc);
+	} else {
+		efx->state = STATE_READY;
+		netif_dbg(efx, hw, efx->net_dev,
+			  "Done resetting and resuming IO after PCI error.\n");
+	}
+
+out:
+	rtnl_unlock();
+}
+
+/* For simplicity and reliability, we always require a slot reset and try to
+ * reset the hardware when a pci error affecting the device is detected.
+ * We leave both the link_reset and mmio_enabled callback unimplemented:
+ * with our request for slot reset the mmio_enabled callback will never be
+ * called, and the link_reset callback is not used by AER or EEH mechanisms.
+ */
+const struct pci_error_handlers efx_err_handlers = {
+	.error_detected = efx_io_error_detected,
+	.slot_reset	= efx_io_slot_reset,
+	.resume		= efx_io_resume,
+};

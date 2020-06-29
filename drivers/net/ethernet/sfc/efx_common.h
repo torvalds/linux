@@ -73,4 +73,5 @@ void efx_link_status_changed(struct efx_nic *efx);
 unsigned int efx_xdp_max_mtu(struct efx_nic *efx);
 int efx_change_mtu(struct net_device *net_dev, int new_mtu);
 
+extern const struct pci_error_handlers efx_err_handlers;
 #endif
