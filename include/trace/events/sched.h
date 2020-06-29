@@ -642,6 +642,10 @@ DECLARE_TRACE(sched_util_est_se_tp,
 	TP_PROTO(struct sched_entity *se),
 	TP_ARGS(se));
 
+DECLARE_TRACE(sched_update_nr_running_tp,
+	TP_PROTO(struct rq *rq, int change),
+	TP_ARGS(rq, change));
+
 #endif /* _TRACE_SCHED_H */
 
 /* This part must be outside protection */
