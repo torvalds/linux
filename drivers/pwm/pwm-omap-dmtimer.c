@@ -58,7 +58,7 @@
  * @mutex:		Mutex to protect pwm apply state
  * @dm_timer:		Pointer to omap dm timer.
  * @pdata:		Pointer to omap dm timer ops.
- * dm_timer_pdev:	Pointer to omap dm timer platform device
+ * @dm_timer_pdev:	Pointer to omap dm timer platform device
  */
 struct pwm_omap_dmtimer_chip {
 	struct pwm_chip chip;
