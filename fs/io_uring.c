@@ -1578,7 +1578,7 @@ out:
 		io_cqring_ev_posted(ctx);
 }
 
-static void io_req_link_next(struct io_kiocb *req, struct io_kiocb **nxtptr)
+static struct io_kiocb *io_req_link_next(struct io_kiocb *req)
 {
 	struct io_kiocb *nxt;
 
@@ -1588,13 +1588,13 @@ static void io_req_link_next(struct io_kiocb *req, struct io_kiocb **nxtptr)
 	 * safe side.
 	 */
 	if (unlikely(list_empty(&req->link_list)))
-		return;
+		return NULL;
 
 	nxt = list_first_entry(&req->link_list, struct io_kiocb, link_list);
 	list_del_init(&req->link_list);
 	if (!list_empty(&nxt->link_list))
 		nxt->flags |= REQ_F_LINK_HEAD;
-	*nxtptr = nxt;
+	return nxt;
 }
 
 /*
@@ -1637,10 +1637,10 @@ static void io_fail_links(struct io_kiocb *req)
 	io_cqring_ev_posted(ctx);
 }
 
-static void io_req_find_next(struct io_kiocb *req, struct io_kiocb **nxt)
+static struct io_kiocb *io_req_find_next(struct io_kiocb *req)
 {
 	if (likely(!(req->flags & REQ_F_LINK_HEAD)))
-		return;
+		return NULL;
 	req->flags &= ~REQ_F_LINK_HEAD;
 
 	if (req->flags & REQ_F_LINK_TIMEOUT)
@@ -1652,10 +1652,10 @@ static void io_req_find_next(struct io_kiocb *req, struct io_kiocb **nxt)
 	 * dependencies to the next request. In case of failure, fail the rest
 	 * of the chain.
 	 */
-	if (req->flags & REQ_F_FAIL_LINK)
-		io_fail_links(req);
-	else
-		io_req_link_next(req, nxt);
+	if (likely(!(req->flags & REQ_F_FAIL_LINK)))
+		return io_req_link_next(req);
+	io_fail_links(req);
+	return NULL;
 }
 
 static void __io_req_task_cancel(struct io_kiocb *req, int error)
@@ -1718,9 +1718,8 @@ static void io_req_task_queue(struct io_kiocb *req)
 
 static void io_queue_next(struct io_kiocb *req)
 {
-	struct io_kiocb *nxt = NULL;
+	struct io_kiocb *nxt = io_req_find_next(req);
 
-	io_req_find_next(req, &nxt);
 	if (nxt)
 		io_req_task_queue(nxt);
 }
@@ -1770,13 +1769,15 @@ static void io_req_free_batch(struct req_batch *rb, struct io_kiocb *req)
  * Drop reference to request, return next in chain (if there is one) if this
  * was the last reference to this request.
  */
-__attribute__((nonnull))
-static void io_put_req_find_next(struct io_kiocb *req, struct io_kiocb **nxtptr)
+static struct io_kiocb *io_put_req_find_next(struct io_kiocb *req)
 {
+	struct io_kiocb *nxt = NULL;
+
 	if (refcount_dec_and_test(&req->refs)) {
-		io_req_find_next(req, nxtptr);
+		nxt = io_req_find_next(req);
 		__io_free_req(req);
 	}
+	return nxt;
 }
 
 static void io_put_req(struct io_kiocb *req)
@@ -1797,7 +1798,7 @@ static struct io_wq_work *io_steal_work(struct io_kiocb *req)
 	if (refcount_read(&req->refs) != 1)
 		return NULL;
 
-	io_req_find_next(req, &nxt);
+	nxt = io_req_find_next(req);
 	if (!nxt)
 		return NULL;
 
@@ -4488,7 +4489,7 @@ static void io_poll_task_handler(struct io_kiocb *req, struct io_kiocb **nxt)
 	hash_del(&req->hash_node);
 	io_poll_complete(req, req->result, 0);
 	req->flags |= REQ_F_COMP_LOCKED;
-	io_put_req_find_next(req, nxt);
+	*nxt = io_put_req_find_next(req);
 	spin_unlock_irq(&ctx->completion_lock);
 
 	io_cqring_ev_posted(ctx);
@@ -5938,9 +5939,8 @@ punt:
 	}
 
 err:
-	nxt = NULL;
 	/* drop submission reference */
-	io_put_req_find_next(req, &nxt);
+	nxt = io_put_req_find_next(req);
 
 	if (linked_timeout) {
 		if (!ret)
