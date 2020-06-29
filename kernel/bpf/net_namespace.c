@@ -209,6 +209,9 @@ int netns_bpf_prog_attach(const union bpf_attr *attr, struct bpf_prog *prog)
 	struct net *net;
 	int ret;
 
+	if (attr->target_fd || attr->attach_flags || attr->replace_bpf_fd)
+		return -EINVAL;
+
 	type = to_netns_bpf_attach_type(attr->attach_type);
 	if (type < 0)
 		return -EINVAL;
