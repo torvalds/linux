@@ -774,6 +774,7 @@ static inline unsigned int get_vmid_bits(u64 mmfr1)
 }
 
 u32 get_kvm_ipa_limit(void);
+void dump_cpu_features(void);
 
 #endif /* __ASSEMBLY__ */
 

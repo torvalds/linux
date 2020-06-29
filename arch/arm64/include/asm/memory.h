@@ -322,6 +322,7 @@ static inline void *phys_to_virt(phys_addr_t x)
 	__is_lm_address(__addr) && pfn_valid(virt_to_pfn(__addr));	\
 })
 
+void dump_mem_limit(void);
 #endif /* !ASSEMBLY */
 
 /*
