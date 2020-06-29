@@ -1130,6 +1130,7 @@ class CallTreeWindow(TreeWindowBase):
 				child = self.model.index(row, 0, parent)
 				if child.internalPointer().dbid == dbid:
 					found = True
+					self.view.setExpanded(parent, True)
 					self.view.setCurrentIndex(child)
 					parent = child
 					break
@@ -1142,6 +1143,7 @@ class CallTreeWindow(TreeWindowBase):
 				return
 			last_child = None
 			for row in xrange(n):
+				self.view.setExpanded(parent, True)
 				child = self.model.index(row, 0, parent)
 				child_call_time = child.internalPointer().call_time
 				if child_call_time < time:
@@ -1154,9 +1156,11 @@ class CallTreeWindow(TreeWindowBase):
 			if not last_child:
 				if not found:
 					child = self.model.index(0, 0, parent)
+					self.view.setExpanded(parent, True)
 					self.view.setCurrentIndex(child)
 				return
 			found = True
+			self.view.setExpanded(parent, True)
 			self.view.setCurrentIndex(last_child)
 			parent = last_child
 
