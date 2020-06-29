@@ -52,11 +52,6 @@ static struct socket *__mptcp_nmpc_socket(const struct mptcp_sock *msk)
 	return msk->subflow;
 }
 
-static bool __mptcp_needs_tcp_fallback(const struct mptcp_sock *msk)
-{
-	return msk->first && !sk_is_mptcp(msk->first);
-}
-
 static struct socket *mptcp_is_tcpsk(struct sock *sk)
 {
 	struct socket *sock = sk->sk_socket;
@@ -94,7 +89,7 @@ static struct socket *__mptcp_tcp_fallback(struct mptcp_sock *msk)
 	if (unlikely(sock))
 		return sock;
 
-	if (likely(!__mptcp_needs_tcp_fallback(msk)))
+	if (likely(!__mptcp_check_fallback(msk)))
 		return NULL;
 
 	return msk->subflow;
@@ -132,6 +127,11 @@ static struct socket *__mptcp_socket_create(struct mptcp_sock *msk, int state)
 	subflow = mptcp_subflow_ctx(ssock->sk);
 	list_add(&subflow->node, &msk->conn_list);
 	subflow->request_mptcp = 1;
+
+	/* accept() will wait on first subflow sk_wq, and we always wakes up
+	 * via msk->sk_socket
+	 */
+	RCU_INIT_POINTER(msk->first->sk_wq, &sk->sk_socket->wq);
 
 set_state:
 	if (state != MPTCP_SAME_STATE)
@@ -228,6 +228,15 @@ static bool __mptcp_move_skbs_from_subflow(struct mptcp_sock *msk,
 		skb = skb_peek(&ssk->sk_receive_queue);
 		if (!skb)
 			break;
+
+		if (__mptcp_check_fallback(msk)) {
+			/* if we are running under the workqueue, TCP could have
+			 * collapsed skbs between dummy map creation and now
+			 * be sure to adjust the size
+			 */
+			map_remaining = skb->len;
+			subflow->map_data_len = skb->len;
+		}
 
 		offset = seq - TCP_SKB_CB(skb)->seq;
 		fin = TCP_SKB_CB(skb)->tcp_flags & TCPHDR_FIN;
@@ -466,8 +475,15 @@ static void mptcp_clean_una(struct sock *sk)
 {
 	struct mptcp_sock *msk = mptcp_sk(sk);
 	struct mptcp_data_frag *dtmp, *dfrag;
-	u64 snd_una = atomic64_read(&msk->snd_una);
 	bool cleaned = false;
+	u64 snd_una;
+
+	/* on fallback we just need to ignore snd_una, as this is really
+	 * plain TCP
+	 */
+	if (__mptcp_check_fallback(msk))
+		atomic64_set(&msk->snd_una, msk->write_seq);
+	snd_una = atomic64_read(&msk->snd_una);
 
 	list_for_each_entry_safe(dfrag, dtmp, &msk->rtx_queue, list) {
 		if (after64(dfrag->data_seq + dfrag->data_len, snd_una))
@@ -740,7 +756,6 @@ static int mptcp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	int mss_now = 0, size_goal = 0, ret = 0;
 	struct mptcp_sock *msk = mptcp_sk(sk);
 	struct page_frag *pfrag;
-	struct socket *ssock;
 	size_t copied = 0;
 	struct sock *ssk;
 	bool tx_ok;
@@ -757,15 +772,6 @@ static int mptcp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		ret = sk_stream_wait_connect(sk, &timeo);
 		if (ret)
 			goto out;
-	}
-
-fallback:
-	ssock = __mptcp_tcp_fallback(msk);
-	if (unlikely(ssock)) {
-		release_sock(sk);
-		pr_debug("fallback passthrough");
-		ret = sock_sendmsg(ssock, msg);
-		return ret >= 0 ? ret + copied : (copied ? copied : ret);
 	}
 
 	pfrag = sk_page_frag(sk);
@@ -818,17 +824,6 @@ wait_for_sndbuf:
 				goto restart;
 			}
 			break;
-		}
-		if (ret == 0 && unlikely(__mptcp_needs_tcp_fallback(msk))) {
-			/* Can happen for passive sockets:
-			 * 3WHS negotiated MPTCP, but first packet after is
-			 * plain TCP (e.g. due to middlebox filtering unknown
-			 * options).
-			 *
-			 * Fall back to TCP.
-			 */
-			release_sock(ssk);
-			goto fallback;
 		}
 
 		copied += ret;
@@ -972,7 +967,6 @@ static int mptcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 			 int nonblock, int flags, int *addr_len)
 {
 	struct mptcp_sock *msk = mptcp_sk(sk);
-	struct socket *ssock;
 	int copied = 0;
 	int target;
 	long timeo;
@@ -981,16 +975,6 @@ static int mptcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 		return -EOPNOTSUPP;
 
 	lock_sock(sk);
-	ssock = __mptcp_tcp_fallback(msk);
-	if (unlikely(ssock)) {
-fallback:
-		release_sock(sk);
-		pr_debug("fallback-read subflow=%p",
-			 mptcp_subflow_ctx(ssock->sk));
-		copied = sock_recvmsg(ssock, msg, flags);
-		return copied;
-	}
-
 	timeo = sock_rcvtimeo(sk, nonblock);
 
 	len = min_t(size_t, len, INT_MAX);
@@ -1056,9 +1040,6 @@ fallback:
 
 		pr_debug("block timeout %ld", timeo);
 		mptcp_wait_data(sk, &timeo);
-		ssock = __mptcp_tcp_fallback(msk);
-		if (unlikely(ssock))
-			goto fallback;
 	}
 
 	if (skb_queue_empty(&sk->sk_receive_queue)) {
@@ -1335,8 +1316,6 @@ static void mptcp_subflow_shutdown(struct sock *ssk, int how,
 		break;
 	}
 
-	/* Wake up anyone sleeping in poll. */
-	ssk->sk_state_change(ssk);
 	release_sock(ssk);
 }
 
@@ -1660,12 +1639,6 @@ void mptcp_finish_connect(struct sock *ssk)
 	sk = subflow->conn;
 	msk = mptcp_sk(sk);
 
-	if (!subflow->mp_capable) {
-		MPTCP_INC_STATS(sock_net(sk),
-				MPTCP_MIB_MPCAPABLEACTIVEFALLBACK);
-		return;
-	}
-
 	pr_debug("msk=%p, token=%u", sk, subflow->token);
 
 	mptcp_crypto_key_sha(subflow->remote_key, NULL, &ack_seq);
@@ -1971,23 +1944,10 @@ static __poll_t mptcp_poll(struct file *file, struct socket *sock,
 {
 	struct sock *sk = sock->sk;
 	struct mptcp_sock *msk;
-	struct socket *ssock;
 	__poll_t mask = 0;
 
 	msk = mptcp_sk(sk);
-	lock_sock(sk);
-	ssock = __mptcp_tcp_fallback(msk);
-	if (!ssock)
-		ssock = __mptcp_nmpc_socket(msk);
-	if (ssock) {
-		mask = ssock->ops->poll(file, ssock, wait);
-		release_sock(sk);
-		return mask;
-	}
-
-	release_sock(sk);
 	sock_poll_wait(file, sock, wait);
-	lock_sock(sk);
 
 	if (test_bit(MPTCP_DATA_READY, &msk->flags))
 		mask = EPOLLIN | EPOLLRDNORM;
@@ -1997,8 +1957,6 @@ static __poll_t mptcp_poll(struct file *file, struct socket *sock,
 	if (sk->sk_shutdown & RCV_SHUTDOWN)
 		mask |= EPOLLIN | EPOLLRDNORM | EPOLLRDHUP;
 
-	release_sock(sk);
-
 	return mask;
 }
 
@@ -2006,18 +1964,11 @@ static int mptcp_shutdown(struct socket *sock, int how)
 {
 	struct mptcp_sock *msk = mptcp_sk(sock->sk);
 	struct mptcp_subflow_context *subflow;
-	struct socket *ssock;
 	int ret = 0;
 
 	pr_debug("sk=%p, how=%d", msk, how);
 
 	lock_sock(sock->sk);
-	ssock = __mptcp_tcp_fallback(msk);
-	if (ssock) {
-		release_sock(sock->sk);
-		return inet_shutdown(ssock, how);
-	}
-
 	if (how == SHUT_WR || how == SHUT_RDWR)
 		inet_sk_state_store(sock->sk, TCP_FIN_WAIT1);
 
@@ -2042,6 +1993,9 @@ static int mptcp_shutdown(struct socket *sock, int how)
 
 		mptcp_subflow_shutdown(tcp_sk, how, 1, msk->write_seq);
 	}
+
+	/* Wake up anyone sleeping in poll. */
+	sock->sk->sk_state_change(sock->sk);
 
 out_unlock:
 	release_sock(sock->sk);
