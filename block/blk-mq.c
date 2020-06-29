@@ -674,6 +674,8 @@ bool blk_mq_complete_request_remote(struct request *rq)
 {
 	WRITE_ONCE(rq->state, MQ_RQ_COMPLETE);
 
+	blk_mq_put_driver_tag(rq);
+
 	/*
 	 * For a polled request, always complete locallly, it's pointless
 	 * to redirect the completion.
