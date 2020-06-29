@@ -163,13 +163,16 @@ xfs_trans_log_inode(
 		/*
 		 * We need an explicit buffer reference for the log item but
 		 * don't want the buffer to remain attached to the transaction.
-		 * Hold the buffer but release the transaction reference.
+		 * Hold the buffer but release the transaction reference once
+		 * we've attached the inode log item to the buffer log item
+		 * list.
 		 */
 		xfs_buf_hold(bp);
-		xfs_trans_brelse(tp, bp);
-
 		spin_lock(&iip->ili_lock);
 		iip->ili_item.li_buf = bp;
+		bp->b_flags |= _XBF_INODES;
+		list_add_tail(&iip->ili_item.li_bio_list, &bp->b_li_list);
+		xfs_trans_brelse(tp, bp);
 	}
 
 	/*

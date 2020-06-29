@@ -2584,27 +2584,24 @@ retry:
 		ASSERT(iip->ili_last_fields);
 		goto out_iunlock;
 	}
-	ASSERT(!iip || list_empty(&iip->ili_item.li_bio_list));
 
 	/*
-	 * Clean inodes can be released immediately.  Everything else has to go
-	 * through xfs_iflush_abort() on journal commit as the flock
-	 * synchronises removal of the inode from the cluster buffer against
-	 * inode reclaim.
+	 * Inodes not attached to the buffer can be released immediately.
+	 * Everything else has to go through xfs_iflush_abort() on journal
+	 * commit as the flock synchronises removal of the inode from the
+	 * cluster buffer against inode reclaim.
 	 */
-	if (xfs_inode_clean(ip)) {
+	if (!iip || list_empty(&iip->ili_item.li_bio_list)) {
 		xfs_ifunlock(ip);
 		goto out_iunlock;
 	}
 
 	/* we have a dirty inode in memory that has not yet been flushed. */
-	ASSERT(iip->ili_fields);
 	spin_lock(&iip->ili_lock);
 	iip->ili_last_fields = iip->ili_fields;
 	iip->ili_fields = 0;
 	iip->ili_fsync_fields = 0;
 	spin_unlock(&iip->ili_lock);
-	list_add_tail(&iip->ili_item.li_bio_list, &bp->b_li_list);
 	ASSERT(iip->ili_last_fields);
 
 out_iunlock:
@@ -3818,19 +3815,8 @@ flush_out:
 	xfs_trans_ail_copy_lsn(mp->m_ail, &iip->ili_flush_lsn,
 				&iip->ili_item.li_lsn);
 
-	/*
-	 * Attach the inode item callback to the buffer whether the flush
-	 * succeeded or not. If not, the caller will shut down and fail I/O
-	 * completion on the buffer to remove the inode from the AIL and release
-	 * the flush lock.
-	 */
-	bp->b_flags |= _XBF_INODES;
-	list_add_tail(&iip->ili_item.li_bio_list, &bp->b_li_list);
-
 	/* generate the checksum. */
 	xfs_dinode_calc_crc(mp, dip);
-
-	ASSERT(!list_empty(&bp->b_li_list));
 	return error;
 }
 
