@@ -29,7 +29,6 @@
 #include "mmal-vchiq.h"
 #include "mmal-msg.h"
 
-#define USE_VCHIQ_ARM
 #include "interface/vchi/vchi.h"
 
 /*
