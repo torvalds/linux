@@ -88,6 +88,11 @@
 				  "";
 		status = "okay";
 	};
+
+	reset: reset {
+		compatible = "raspberrypi,firmware-reset";
+		#reset-cells = <1>;
+	};
 };
 
 &gpio {
