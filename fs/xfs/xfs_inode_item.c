@@ -464,23 +464,6 @@ xfs_inode_item_unpin(
 		wake_up_bit(&ip->i_flags, __XFS_IPINNED_BIT);
 }
 
-/*
- * Callback used to mark a buffer with XFS_LI_FAILED when items in the buffer
- * have been failed during writeback
- *
- * This informs the AIL that the inode is already flush locked on the next push,
- * and acquires a hold on the buffer to ensure that it isn't reclaimed before
- * dirty data makes it to disk.
- */
-STATIC void
-xfs_inode_item_error(
-	struct xfs_log_item	*lip,
-	struct xfs_buf		*bp)
-{
-	ASSERT(xfs_isiflocked(INODE_ITEM(lip)->ili_inode));
-	xfs_set_li_failed(lip, bp);
-}
-
 STATIC uint
 xfs_inode_item_push(
 	struct xfs_log_item	*lip,
@@ -619,7 +602,6 @@ static const struct xfs_item_ops xfs_inode_item_ops = {
 	.iop_committed	= xfs_inode_item_committed,
 	.iop_push	= xfs_inode_item_push,
 	.iop_committing	= xfs_inode_item_committing,
-	.iop_error	= xfs_inode_item_error
 };
 
 
