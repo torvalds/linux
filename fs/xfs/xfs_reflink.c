@@ -1284,24 +1284,42 @@ retry:
 	return 0;
 }
 
-/* Unlock both inodes after they've been prepped for a range clone. */
+/*
+ * Lock two files so that userspace cannot initiate I/O via file syscalls or
+ * mmap activity.
+ */
+static int
+xfs_reflink_remap_lock(
+	struct xfs_inode	*ip1,
+	struct xfs_inode	*ip2)
+{
+	int			ret;
+
+	ret = xfs_iolock_two_inodes_and_break_layout(VFS_I(ip1), VFS_I(ip2));
+	if (ret)
+		return ret;
+	if (ip1 == ip2)
+		xfs_ilock(ip1, XFS_MMAPLOCK_EXCL);
+	else
+		xfs_lock_two_inodes(ip1, XFS_MMAPLOCK_EXCL,
+				    ip2, XFS_MMAPLOCK_EXCL);
+	return 0;
+}
+
+/* Unlock both files to allow IO and mmap activity. */
 void
 xfs_reflink_remap_unlock(
-	struct file		*file_in,
-	struct file		*file_out)
+	struct xfs_inode	*ip1,
+	struct xfs_inode	*ip2)
 {
-	struct inode		*inode_in = file_inode(file_in);
-	struct xfs_inode	*src = XFS_I(inode_in);
-	struct inode		*inode_out = file_inode(file_out);
-	struct xfs_inode	*dest = XFS_I(inode_out);
-	bool			same_inode = (inode_in == inode_out);
+	bool			same_inode = (ip1 == ip2);
 
-	xfs_iunlock(dest, XFS_MMAPLOCK_EXCL);
+	xfs_iunlock(ip2, XFS_MMAPLOCK_EXCL);
 	if (!same_inode)
-		xfs_iunlock(src, XFS_MMAPLOCK_EXCL);
-	inode_unlock(inode_out);
+		xfs_iunlock(ip1, XFS_MMAPLOCK_EXCL);
+	inode_unlock(VFS_I(ip2));
 	if (!same_inode)
-		inode_unlock(inode_in);
+		inode_unlock(VFS_I(ip1));
 }
 
 /*
@@ -1366,18 +1384,12 @@ xfs_reflink_remap_prep(
 	struct xfs_inode	*src = XFS_I(inode_in);
 	struct inode		*inode_out = file_inode(file_out);
 	struct xfs_inode	*dest = XFS_I(inode_out);
-	bool			same_inode = (inode_in == inode_out);
 	int			ret;
 
 	/* Lock both files against IO */
-	ret = xfs_iolock_two_inodes_and_break_layout(inode_in, inode_out);
+	ret = xfs_reflink_remap_lock(src, dest);
 	if (ret)
 		return ret;
-	if (same_inode)
-		xfs_ilock(src, XFS_MMAPLOCK_EXCL);
-	else
-		xfs_lock_two_inodes(src, XFS_MMAPLOCK_EXCL, dest,
-				XFS_MMAPLOCK_EXCL);
 
 	/* Check file eligibility and prepare for block sharing. */
 	ret = -EINVAL;
@@ -1428,7 +1440,7 @@ xfs_reflink_remap_prep(
 
 	return 0;
 out_unlock:
-	xfs_reflink_remap_unlock(file_in, file_out);
+	xfs_reflink_remap_unlock(src, dest);
 	return ret;
 }
 
