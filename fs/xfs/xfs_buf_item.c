@@ -460,7 +460,6 @@ xfs_buf_item_unpin(
 			xfs_buf_do_callbacks(bp);
 			bp->b_log_item = NULL;
 			list_del_init(&bp->b_li_list);
-			bp->b_iodone = NULL;
 		} else {
 			xfs_trans_ail_delete(lip, SHUTDOWN_LOG_IO_ERROR);
 			xfs_buf_item_relse(bp);
@@ -936,11 +935,7 @@ xfs_buf_item_free(
 }
 
 /*
- * This is called when the buf log item is no longer needed.  It should
- * free the buf log item associated with the given buffer and clear
- * the buffer's pointer to the buf log item.  If there are no more
- * items in the list, clear the b_iodone field of the buffer (see
- * xfs_buf_attach_iodone() below).
+ * xfs_buf_item_relse() is called when the buf log item is no longer needed.
  */
 void
 xfs_buf_item_relse(
@@ -952,9 +947,6 @@ xfs_buf_item_relse(
 	ASSERT(!test_bit(XFS_LI_IN_AIL, &bip->bli_item.li_flags));
 
 	bp->b_log_item = NULL;
-	if (list_empty(&bp->b_li_list))
-		bp->b_iodone = NULL;
-
 	xfs_buf_rele(bp);
 	xfs_buf_item_free(bip);
 }
@@ -962,10 +954,7 @@ xfs_buf_item_relse(
 
 /*
  * Add the given log item with its callback to the list of callbacks
- * to be called when the buffer's I/O completes.  If it is not set
- * already, set the buffer's b_iodone() routine to be
- * xfs_buf_iodone_callbacks() and link the log item into the list of
- * items rooted at b_li_list.
+ * to be called when the buffer's I/O completes.
  */
 void
 xfs_buf_attach_iodone(
@@ -977,10 +966,6 @@ xfs_buf_attach_iodone(
 
 	lip->li_cb = cb;
 	list_add_tail(&lip->li_bio_list, &bp->b_li_list);
-
-	ASSERT(bp->b_iodone == NULL ||
-	       bp->b_iodone == xfs_buf_iodone_callbacks);
-	bp->b_iodone = xfs_buf_iodone_callbacks;
 }
 
 /*
@@ -1096,7 +1081,6 @@ xfs_buf_iodone_callback_error(
 		goto out_stale;
 
 	trace_xfs_buf_item_iodone_async(bp, _RET_IP_);
-	ASSERT(bp->b_iodone != NULL);
 
 	cfg = xfs_error_get_cfg(mp, XFS_ERR_METADATA, bp->b_error);
 
@@ -1182,21 +1166,6 @@ xfs_buf_run_callbacks(
 	xfs_buf_do_callbacks(bp);
 	bp->b_log_item = NULL;
 	list_del_init(&bp->b_li_list);
-	bp->b_iodone = NULL;
-}
-
-/*
- * This is the iodone() function for buffers which have had callbacks attached
- * to them by xfs_buf_attach_iodone(). We need to iterate the items on the
- * callback list, mark the buffer as having no more callbacks and then push the
- * buffer through IO completion processing.
- */
-void
-xfs_buf_iodone_callbacks(
-	struct xfs_buf		*bp)
-{
-	xfs_buf_run_callbacks(bp);
-	xfs_buf_ioend(bp);
 }
 
 /*
@@ -1222,6 +1191,17 @@ xfs_buf_dquot_iodone(
 }
 
 /*
+ * Dirty buffer iodone callback function.
+ */
+void
+xfs_buf_iodone(
+	struct xfs_buf		*bp)
+{
+	xfs_buf_run_callbacks(bp);
+	xfs_buf_ioend_finish(bp);
+}
+
+/*
  * This is the iodone() function for buffers which have been
  * logged.  It is called when they are eventually flushed out.
  * It should remove the buf item from the AIL, and free the buf item.
@@ -1229,7 +1209,7 @@ xfs_buf_dquot_iodone(
  * care of cleaning up the buffer itself.
  */
 void
-xfs_buf_iodone(
+xfs_buf_item_iodone(
 	struct xfs_buf		*bp,
 	struct xfs_log_item	*lip)
 {
