@@ -267,22 +267,6 @@ static int of_thermal_unbind(struct thermal_zone_device *thermal,
 	return 0;
 }
 
-static int of_thermal_set_mode(struct thermal_zone_device *tz,
-			       enum thermal_device_mode mode)
-{
-	struct __thermal_zone *data = tz->devdata;
-
-	if (mode == THERMAL_DEVICE_ENABLED) {
-		tz->polling_delay = data->polling_delay;
-		tz->passive_delay = data->passive_delay;
-	} else {
-		tz->polling_delay = 0;
-		tz->passive_delay = 0;
-	}
-
-	return 0;
-}
-
 static int of_thermal_get_trip_type(struct thermal_zone_device *tz, int trip,
 				    enum thermal_trip_type *type)
 {
@@ -374,8 +358,6 @@ static int of_thermal_get_crit_temp(struct thermal_zone_device *tz,
 }
 
 static struct thermal_zone_device_ops of_thermal_ops = {
-	.set_mode = of_thermal_set_mode,
-
 	.get_trip_type = of_thermal_get_trip_type,
 	.get_trip_temp = of_thermal_get_trip_temp,
 	.set_trip_temp = of_thermal_set_trip_temp,

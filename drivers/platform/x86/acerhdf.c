@@ -397,8 +397,6 @@ static inline void acerhdf_revert_to_bios_mode(void)
 {
 	acerhdf_change_fanstate(ACERHDF_FAN_AUTO);
 	kernelmode = 0;
-	if (thz_dev)
-		thz_dev->polling_delay = 0;
 
 	pr_notice("kernel mode fan control OFF\n");
 }
@@ -406,7 +404,6 @@ static inline void acerhdf_enable_kernelmode(void)
 {
 	kernelmode = 1;
 
-	thz_dev->polling_delay = interval*1000;
 	pr_notice("kernel mode fan control ON\n");
 }
 

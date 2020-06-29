@@ -338,9 +338,6 @@ static int imx_set_mode(struct thermal_zone_device *tz,
 	const struct thermal_soc_data *soc_data = data->socdata;
 
 	if (mode == THERMAL_DEVICE_ENABLED) {
-		tz->polling_delay = IMX_POLLING_DELAY;
-		tz->passive_delay = IMX_PASSIVE_DELAY;
-
 		regmap_write(map, soc_data->sensor_ctrl + REG_CLR,
 			     soc_data->power_down_mask);
 		regmap_write(map, soc_data->sensor_ctrl + REG_SET,
@@ -355,9 +352,6 @@ static int imx_set_mode(struct thermal_zone_device *tz,
 			     soc_data->measure_temp_mask);
 		regmap_write(map, soc_data->sensor_ctrl + REG_SET,
 			     soc_data->power_down_mask);
-
-		tz->polling_delay = 0;
-		tz->passive_delay = 0;
 
 		if (data->irq_enabled) {
 			disable_irq(data->irq);

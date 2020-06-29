@@ -386,10 +386,6 @@ static int int3400_thermal_set_mode(struct thermal_zone_device *thermal,
 	if (!priv)
 		return -EINVAL;
 
-	if (mode != THERMAL_DEVICE_ENABLED &&
-	    mode != THERMAL_DEVICE_DISABLED)
-		return -EINVAL;
-
 	if (mode != thermal->mode)
 		result = int3400_thermal_run_osc(priv->adev->handle,
 						priv->current_uuid_index,
