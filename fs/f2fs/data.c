@@ -3713,18 +3713,26 @@ static sector_t f2fs_bmap_compress(struct inode *inode, sector_t block)
 static sector_t f2fs_bmap(struct address_space *mapping, sector_t block)
 {
 	struct inode *inode = mapping->host;
+	struct buffer_head tmp = {
+		.b_size = i_blocksize(inode),
+	};
+	sector_t blknr = 0;
 
 	if (f2fs_has_inline_data(inode))
-		return 0;
+		goto out;
 
 	/* make sure allocating whole blocks */
 	if (mapping_tagged(mapping, PAGECACHE_TAG_DIRTY))
 		filemap_write_and_wait(mapping);
 
 	if (f2fs_compressed_file(inode))
-		return f2fs_bmap_compress(inode, block);
+		blknr = f2fs_bmap_compress(inode, block);
 
-	return generic_block_bmap(mapping, block, get_data_block_bmap);
+	if (!get_data_block_bmap(inode, block, &tmp, 0))
+		blknr = tmp.b_blocknr;
+out:
+	trace_f2fs_bmap(inode, block, blknr);
+	return blknr;
 }
 
 #ifdef CONFIG_MIGRATION
