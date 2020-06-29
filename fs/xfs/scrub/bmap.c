@@ -53,9 +53,27 @@ xchk_setup_inode_bmap(
 	 */
 	if (S_ISREG(VFS_I(sc->ip)->i_mode) &&
 	    sc->sm->sm_type == XFS_SCRUB_TYPE_BMBTD) {
+		struct address_space	*mapping = VFS_I(sc->ip)->i_mapping;
+
 		inode_dio_wait(VFS_I(sc->ip));
-		error = filemap_write_and_wait(VFS_I(sc->ip)->i_mapping);
-		if (error)
+
+		/*
+		 * Try to flush all incore state to disk before we examine the
+		 * space mappings for the data fork.  Leave accumulated errors
+		 * in the mapping for the writer threads to consume.
+		 *
+		 * On ENOSPC or EIO writeback errors, we continue into the
+		 * extent mapping checks because write failures do not
+		 * necessarily imply anything about the correctness of the file
+		 * metadata.  The metadata and the file data could be on
+		 * completely separate devices; a media failure might only
+		 * affect a subset of the disk, etc.  We can handle delalloc
+		 * extents in the scrubber, so leaving them in memory is fine.
+		 */
+		error = filemap_fdatawrite(mapping);
+		if (!error)
+			error = filemap_fdatawait_keep_errors(mapping);
+		if (error && (error != -ENOSPC && error != -EIO))
 			goto out;
 	}
 
