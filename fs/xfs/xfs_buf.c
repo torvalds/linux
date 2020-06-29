@@ -14,6 +14,7 @@
 #include "xfs_mount.h"
 #include "xfs_trace.h"
 #include "xfs_log.h"
+#include "xfs_log_recover.h"
 #include "xfs_trans.h"
 #include "xfs_buf_item.h"
 #include "xfs_errortag.h"
@@ -1206,6 +1207,15 @@ xfs_buf_ioend(
 
 	if (read)
 		goto out_finish;
+
+	/*
+	 * If this is a log recovery buffer, we aren't doing transactional IO
+	 * yet so we need to let it handle IO completions.
+	 */
+	if (bp->b_flags & _XBF_LOGRECOVERY) {
+		xlog_recover_iodone(bp);
+		return;
+	}
 
 	if (bp->b_flags & _XBF_INODES) {
 		xfs_buf_inode_iodone(bp);
