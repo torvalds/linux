@@ -3118,7 +3118,7 @@ static const struct panel_desc satoz_sat050at40h12r2 = {
 		.width = 108,
 		.height = 65,
 	},
-	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_SPWG,
 	.connector_type = DRM_MODE_CONNECTOR_LVDS,
 };
 
