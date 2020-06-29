@@ -332,10 +332,9 @@ void efx_mcdi_sensor_event(struct efx_nic *efx, efx_qword_t *ev);
 #define MCDI_CAPABILITY_OFST(field) \
 	MC_CMD_GET_CAPABILITIES_V4_OUT_ ## field ## _OFST
 
-/* field is FLAGS1 or FLAGS2 */
-#define efx_has_cap(efx, flag, field) \
+#define efx_has_cap(efx, field) \
 	efx->type->check_caps(efx, \
-			      MCDI_CAPABILITY(flag), \
+			      MCDI_CAPABILITY(field), \
 			      MCDI_CAPABILITY_OFST(field))
 
 void efx_mcdi_print_fwver(struct efx_nic *efx, char *buf, size_t len);
