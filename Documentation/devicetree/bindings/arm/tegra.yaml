@@ -63,6 +63,13 @@ properties:
           - const: toradex,colibri_t30
           - const: nvidia,tegra30
       - items:
+          - const: asus,grouper
+          - const: nvidia,tegra30
+      - items:
+          - const: asus,tilapia
+          - const: asus,grouper
+          - const: nvidia,tegra30
+      - items:
           - enum:
               - nvidia,dalmore
               - nvidia,roth
