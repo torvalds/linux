@@ -1056,11 +1056,6 @@ static int cpufreq_add_dev_interface(struct cpufreq_policy *policy)
 	return 0;
 }
 
-__weak struct cpufreq_governor *cpufreq_default_governor(void)
-{
-	return NULL;
-}
-
 static int cpufreq_init_policy(struct cpufreq_policy *policy)
 {
 	struct cpufreq_governor *gov = NULL;
@@ -1079,8 +1074,6 @@ static int cpufreq_init_policy(struct cpufreq_policy *policy)
 
 		if (!gov) {
 			gov = cpufreq_default_governor();
-			if (!gov)
-				return -ENODATA;
 			__module_get(gov->owner);
 		}
 
