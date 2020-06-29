@@ -4,8 +4,6 @@
 #ifndef VCHI_H_
 #define VCHI_H_
 
-#include "vchi_common.h"
-
 /******************************************************************************
  * Global defs
  *****************************************************************************/
@@ -31,16 +29,13 @@ struct vchi_held_msg {
 
 struct vchi_service {
 	unsigned int handle;
-
-	vchi_callback callback;
-	void *callback_param;
 };
 
 // structure used to provide the information needed to open a server or a client
 struct service_creation {
 	struct vchi_version version;
 	int32_t service_id;
-	vchi_callback callback;
+	vchiq_callback callback;
 	void *callback_param;
 };
 
@@ -88,7 +83,7 @@ extern int vchi_queue_kernel_message(struct vchi_service *service, void *data,
 // Routine to look at a message in place.
 // The message is dequeued, so the caller is left holding it; the descriptor is
 // filled in and must be released when the user has finished with the message.
-extern int32_t vchi_msg_hold(struct vchi_service *service,
+extern int32_t vchi_msg_hold(unsigned handle,
 			     void **data,        // } may be NULL, as info can be
 			     uint32_t *msg_size, // } obtained from HELD_MSG_T
 			     struct vchi_held_msg *message_descriptor);

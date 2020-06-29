@@ -158,12 +158,12 @@ EXPORT_SYMBOL(vchi_held_msg_release);
  * Returns: int32_t - success == 0
  *
  ***********************************************************/
-int32_t vchi_msg_hold(struct vchi_service *service, void **data,
-		      uint32_t *msg_size, struct vchi_held_msg *message_handle)
+int32_t vchi_msg_hold(unsigned handle, void **data, uint32_t *msg_size,
+		      struct vchi_held_msg *message_handle)
 {
 	struct vchiq_header *header;
 
-	header = vchiq_msg_hold(service->handle);
+	header = vchiq_msg_hold(handle);
 	if (!header)
 		return -ENOENT;
 
@@ -179,7 +179,7 @@ int32_t vchi_msg_hold(struct vchi_service *service, void **data,
 	 */
 
 	message_handle->service =
-		(struct opaque_vchi_service_t *)(long)service->handle;
+		(struct opaque_vchi_service_t *)(long)handle;
 	message_handle->message = header;
 
 	return 0;
@@ -253,33 +253,9 @@ EXPORT_SYMBOL(vchi_disconnect);
  *
  ***********************************************************/
 
-static enum vchiq_status shim_callback(enum vchiq_reason reason,
-				    struct vchiq_header *header,
-				    unsigned int handle,
-				    void *bulk_user)
+static struct vchi_service *service_alloc(void)
 {
-	struct vchi_service *service =
-		(struct vchi_service *)VCHIQ_GET_SERVICE_USERDATA(handle);
-
-	if (reason == VCHIQ_MESSAGE_AVAILABLE)
-		vchiq_msg_queue_push(service->handle, header);
-
-	service->callback(service->callback_param, reason, bulk_user);
-
-	return VCHIQ_SUCCESS;
-}
-
-static struct vchi_service *service_alloc(struct vchiq_instance *instance,
-	struct service_creation *setup)
-{
-	struct vchi_service *service = kzalloc(sizeof(struct vchi_service), GFP_KERNEL);
-
-	if (service) {
-		service->callback = setup->callback;
-		service->callback_param = setup->callback_param;
-	}
-
-	return service;
+	return kzalloc(sizeof(struct vchi_service), GFP_KERNEL);
 }
 
 static void service_free(struct vchi_service *service)
@@ -293,15 +269,15 @@ int32_t vchi_service_open(struct vchiq_instance *instance,
 	struct vchi_service **service)
 {
 
-	*service = service_alloc(instance, setup);
+	*service = service_alloc();
 	if (*service) {
 		struct vchiq_service_params params;
 		enum vchiq_status status;
 
 		memset(&params, 0, sizeof(params));
 		params.fourcc = setup->service_id;
-		params.callback = shim_callback;
-		params.userdata = *service;
+		params.callback = setup->callback;
+		params.userdata = setup->callback_param;
 		params.version = setup->version.version;
 		params.version_min = setup->version.version_min;
 
