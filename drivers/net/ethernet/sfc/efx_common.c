@@ -383,6 +383,30 @@ static void efx_stop_datapath(struct efx_nic *efx)
  *
  **************************************************************************/
 
+/* Equivalent to efx_link_set_advertising with all-zeroes, except does not
+ * force the Autoneg bit on.
+ */
+void efx_link_clear_advertising(struct efx_nic *efx)
+{
+	bitmap_zero(efx->link_advertising, __ETHTOOL_LINK_MODE_MASK_NBITS);
+	efx->wanted_fc &= ~(EFX_FC_TX | EFX_FC_RX);
+}
+
+void efx_link_set_wanted_fc(struct efx_nic *efx, u8 wanted_fc)
+{
+	efx->wanted_fc = wanted_fc;
+	if (efx->link_advertising[0]) {
+		if (wanted_fc & EFX_FC_RX)
+			efx->link_advertising[0] |= (ADVERTISED_Pause |
+						     ADVERTISED_Asym_Pause);
+		else
+			efx->link_advertising[0] &= ~(ADVERTISED_Pause |
+						      ADVERTISED_Asym_Pause);
+		if (wanted_fc & EFX_FC_TX)
+			efx->link_advertising[0] ^= ADVERTISED_Asym_Pause;
+	}
+}
+
 static void efx_start_port(struct efx_nic *efx)
 {
 	netif_dbg(efx, ifup, efx->net_dev, "start port\n");

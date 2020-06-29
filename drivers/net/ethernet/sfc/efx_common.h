@@ -18,6 +18,9 @@ int efx_init_struct(struct efx_nic *efx, struct pci_dev *pci_dev,
 		    struct net_device *net_dev);
 void efx_fini_struct(struct efx_nic *efx);
 
+void efx_link_clear_advertising(struct efx_nic *efx);
+void efx_link_set_wanted_fc(struct efx_nic *efx, u8);
+
 void efx_start_all(struct efx_nic *efx);
 void efx_stop_all(struct efx_nic *efx);
 
