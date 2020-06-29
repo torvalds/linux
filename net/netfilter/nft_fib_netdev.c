@@ -85,3 +85,4 @@ module_exit(nft_fib_netdev_module_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Pablo M. Bermudo Garay <pablombg@gmail.com>");
 MODULE_ALIAS_NFT_AF_EXPR(5, "fib");
+MODULE_DESCRIPTION("nftables netdev fib lookups support");

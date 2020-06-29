@@ -1615,6 +1615,7 @@ TEST_F(TRACE_poke, getpid_runs_normally)
 # define ARCH_REGS     s390_regs
 # define SYSCALL_NUM   gprs[2]
 # define SYSCALL_RET   gprs[2]
+# define SYSCALL_NUM_RET_SHARE_REG
 #elif defined(__mips__)
 # define ARCH_REGS	struct pt_regs
 # define SYSCALL_NUM	regs[2]
