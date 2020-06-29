@@ -104,18 +104,6 @@ extern int32_t vchi_msg_dequeue(struct vchi_service_handle *handle,
 				enum vchi_flags flags);
 
 // Routine to look at a message in place.
-// The message is not dequeued, so a subsequent call to peek or dequeue
-// will return the same message.
-extern int32_t vchi_msg_peek(struct vchi_service_handle *handle,
-			     void **data,
-			     uint32_t *msg_size,
-			     enum vchi_flags flags);
-
-// Routine to remove a message after it has been read in place with peek
-// The first message on the queue is dequeued.
-extern int32_t vchi_msg_remove(struct vchi_service_handle *handle);
-
-// Routine to look at a message in place.
 // The message is dequeued, so the caller is left holding it; the descriptor is
 // filled in and must be released when the user has finished with the message.
 extern int32_t vchi_msg_hold(struct vchi_service_handle *handle,

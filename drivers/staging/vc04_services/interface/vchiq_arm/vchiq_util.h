@@ -44,7 +44,6 @@ extern int vchiu_queue_is_empty(struct vchiu_queue *queue);
 extern void vchiu_queue_push(struct vchiu_queue *queue,
 			     struct vchiq_header *header);
 
-extern struct vchiq_header *vchiu_queue_peek(struct vchiu_queue *queue);
 extern struct vchiq_header *vchiu_queue_pop(struct vchiu_queue *queue);
 
 #endif
