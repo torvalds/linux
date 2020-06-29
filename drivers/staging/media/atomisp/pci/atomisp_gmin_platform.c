@@ -511,14 +511,13 @@ static int gmin_detect_pmic(struct v4l2_subdev *subdev)
 	return pmic_i2c_addr;
 }
 
-static struct gmin_subdev *gmin_subdev_add(struct v4l2_subdev *subdev)
+static int gmin_subdev_add(struct gmin_subdev *gs)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(subdev);
+	struct i2c_client *client = v4l2_get_subdevdata(gs->subdev);
 	struct device *dev = &client->dev;
 	struct acpi_device *adev;
-	struct gmin_subdev *gs;
 	acpi_handle handle;
-	int i, ret, clock_num = -1;
+	int ret, clock_num = -1;
 
 	handle = ACPI_HANDLE(dev);
 	adev = ACPI_COMPANION(dev);
@@ -526,17 +525,9 @@ static struct gmin_subdev *gmin_subdev_add(struct v4l2_subdev *subdev)
 	dev_info(&client->dev, "%s: ACPI detected it on bus ID=%s, HID=%s\n",
 		__func__, acpi_device_bid(adev), acpi_device_hid(adev));
 
-	for (i = 0; i < MAX_SUBDEVS && gmin_subdevs[i].subdev; i++)
-		;
-	if (i >= MAX_SUBDEVS)
-		return NULL;
-
-	gs = &gmin_subdevs[i];
-	gs->subdev = subdev;
-
 	/*WA:CHT requires XTAL clock as PLL is not stable.*/
-	gmin_subdevs[i].clock_src = gmin_get_var_int(dev, false, "ClkSrc",
-				    VLV2_CLK_PLL_19P2MHZ);
+	gs->clock_src = gmin_get_var_int(dev, false, "ClkSrc",
+				         VLV2_CLK_PLL_19P2MHZ);
 
 	gs->csi_port = gmin_get_var_int(dev, false, "CsiPort", 0);
 	gs->csi_lanes = gmin_get_var_int(dev, false, "CsiLanes", 1);
@@ -596,8 +587,7 @@ static struct gmin_subdev *gmin_subdev_add(struct v4l2_subdev *subdev)
 	    acpi_device_can_poweroff(adev)) {
 		dev_info(dev,
 			 "gmin: power management provided via device PM\n");
-
-		return gs;
+		return 0;
 	}
 
 	/*
@@ -630,7 +620,7 @@ static struct gmin_subdev *gmin_subdev_add(struct v4l2_subdev *subdev)
 
 	if (clock_num < 0 || clock_num > MAX_CLK_COUNT) {
 		dev_err(dev, "Invalid clock number\n");
-		return NULL;
+		return -EINVAL;
 	}
 
 	snprintf(gmin_pmc_clk_name, sizeof(gmin_pmc_clk_name),
@@ -639,13 +629,8 @@ static struct gmin_subdev *gmin_subdev_add(struct v4l2_subdev *subdev)
 	gs->pmc_clk = devm_clk_get(dev, gmin_pmc_clk_name);
 	if (IS_ERR(gs->pmc_clk)) {
 		ret = PTR_ERR(gs->pmc_clk);
-
-		dev_err(dev,
-			"Failed to get clk from %s : %d\n",
-			gmin_pmc_clk_name,
-			ret);
-
-		return NULL;
+		dev_err(dev, "Failed to get clk from %s: %d\n", gmin_pmc_clk_name, ret);
+		return ret;
 	}
 	dev_info(dev, "Will use CLK%d (%s)\n", clock_num, gmin_pmc_clk_name);
 
@@ -705,7 +690,7 @@ static struct gmin_subdev *gmin_subdev_add(struct v4l2_subdev *subdev)
 		break;
 	}
 
-	return gs;
+	return 0;
 }
 
 static struct gmin_subdev *find_gmin_subdev(struct v4l2_subdev *subdev)
@@ -714,6 +699,16 @@ static struct gmin_subdev *find_gmin_subdev(struct v4l2_subdev *subdev)
 
 	for (i = 0; i < MAX_SUBDEVS; i++)
 		if (gmin_subdevs[i].subdev == subdev)
+			return &gmin_subdevs[i];
+	return NULL;
+}
+
+static struct gmin_subdev *find_free_gmin_subdev_slot(void)
+{
+	unsigned int i;
+
+	for (i = 0; i < MAX_SUBDEVS; i++)
+		if (gmin_subdevs[i].subdev == NULL)
 			return &gmin_subdevs[i];
 	return NULL;
 }
@@ -1050,14 +1045,16 @@ struct camera_sensor_platform_data *gmin_camera_platform_data(
     enum atomisp_input_format csi_format,
     enum atomisp_bayer_order csi_bayer)
 {
-	struct gmin_subdev *gs;
 	u8 pmic_i2c_addr = gmin_detect_pmic(subdev);
+	struct gmin_subdev *gs;
 
-	gs = gmin_subdev_add(subdev);
+	gs = find_free_gmin_subdev_slot();
+	gs->subdev = subdev;
 	gs->csi_fmt = csi_format;
 	gs->csi_bayer = csi_bayer;
 	gs->pwm_i2c_addr = pmic_i2c_addr;
 
+	gmin_subdev_add(gs);
 	if (gs->pmc_clk)
 		return &pmic_gmin_plat;
 	else
