@@ -2865,12 +2865,19 @@ void re_initialize(void)
 void set_max_cpu_num(void)
 {
 	FILE *filep;
+	int base_cpu;
 	unsigned long dummy;
+	char pathname[64];
 
+	base_cpu = sched_getcpu();
+	if (base_cpu < 0)
+		err(1, "cannot find calling cpu ID");
+	sprintf(pathname,
+		"/sys/devices/system/cpu/cpu%d/topology/thread_siblings",
+		base_cpu);
+
+	filep = fopen_or_die(pathname, "r");
 	topo.max_cpu_num = 0;
-	filep = fopen_or_die(
-			"/sys/devices/system/cpu/cpu0/topology/thread_siblings",
-			"r");
 	while (fscanf(filep, "%lx,", &dummy) == 1)
 		topo.max_cpu_num += BITMASK_SIZE;
 	fclose(filep);
