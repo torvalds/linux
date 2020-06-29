@@ -88,6 +88,8 @@ struct qat_alg_skcipher_ctx {
 	struct icp_qat_fw_la_bulk_req enc_fw_req;
 	struct icp_qat_fw_la_bulk_req dec_fw_req;
 	struct qat_crypto_instance *inst;
+	struct crypto_skcipher *ftfm;
+	bool fallback;
 };
 
 static int qat_get_inter_state_size(enum icp_qat_hw_auth_algo qat_hash_alg)
@@ -994,11 +996,24 @@ static int qat_alg_skcipher_ctr_setkey(struct crypto_skcipher *tfm,
 static int qat_alg_skcipher_xts_setkey(struct crypto_skcipher *tfm,
 				       const u8 *key, unsigned int keylen)
 {
+	struct qat_alg_skcipher_ctx *ctx = crypto_skcipher_ctx(tfm);
 	int ret;
 
 	ret = xts_verify_key(tfm, key, keylen);
 	if (ret)
 		return ret;
+
+	if (keylen >> 1 == AES_KEYSIZE_192) {
+		ret = crypto_skcipher_setkey(ctx->ftfm, key, keylen);
+		if (ret)
+			return ret;
+
+		ctx->fallback = true;
+
+		return 0;
+	}
+
+	ctx->fallback = false;
 
 	return qat_alg_skcipher_setkey(tfm, key, keylen,
 				       ICP_QAT_HW_CIPHER_XTS_MODE);
@@ -1066,8 +1081,18 @@ static int qat_alg_skcipher_blk_encrypt(struct skcipher_request *req)
 
 static int qat_alg_skcipher_xts_encrypt(struct skcipher_request *req)
 {
+	struct crypto_skcipher *stfm = crypto_skcipher_reqtfm(req);
+	struct qat_alg_skcipher_ctx *ctx = crypto_skcipher_ctx(stfm);
+	struct skcipher_request *nreq = skcipher_request_ctx(req);
+
 	if (req->cryptlen < XTS_BLOCK_SIZE)
 		return -EINVAL;
+
+	if (ctx->fallback) {
+		memcpy(nreq, req, sizeof(*req));
+		skcipher_request_set_tfm(nreq, ctx->ftfm);
+		return crypto_skcipher_encrypt(nreq);
+	}
 
 	return qat_alg_skcipher_encrypt(req);
 }
@@ -1134,8 +1159,18 @@ static int qat_alg_skcipher_blk_decrypt(struct skcipher_request *req)
 
 static int qat_alg_skcipher_xts_decrypt(struct skcipher_request *req)
 {
+	struct crypto_skcipher *stfm = crypto_skcipher_reqtfm(req);
+	struct qat_alg_skcipher_ctx *ctx = crypto_skcipher_ctx(stfm);
+	struct skcipher_request *nreq = skcipher_request_ctx(req);
+
 	if (req->cryptlen < XTS_BLOCK_SIZE)
 		return -EINVAL;
+
+	if (ctx->fallback) {
+		memcpy(nreq, req, sizeof(*req));
+		skcipher_request_set_tfm(nreq, ctx->ftfm);
+		return crypto_skcipher_decrypt(nreq);
+	}
 
 	return qat_alg_skcipher_decrypt(req);
 }
@@ -1200,6 +1235,24 @@ static int qat_alg_skcipher_init_tfm(struct crypto_skcipher *tfm)
 	return 0;
 }
 
+static int qat_alg_skcipher_init_xts_tfm(struct crypto_skcipher *tfm)
+{
+	struct qat_alg_skcipher_ctx *ctx = crypto_skcipher_ctx(tfm);
+	int reqsize;
+
+	ctx->ftfm = crypto_alloc_skcipher("xts(aes)", 0,
+					  CRYPTO_ALG_NEED_FALLBACK);
+	if (IS_ERR(ctx->ftfm))
+		return PTR_ERR(ctx->ftfm);
+
+	reqsize = max(sizeof(struct qat_crypto_request),
+		      sizeof(struct skcipher_request) +
+		      crypto_skcipher_reqsize(ctx->ftfm));
+	crypto_skcipher_set_reqsize(tfm, reqsize);
+
+	return 0;
+}
+
 static void qat_alg_skcipher_exit_tfm(struct crypto_skcipher *tfm)
 {
 	struct qat_alg_skcipher_ctx *ctx = crypto_skcipher_ctx(tfm);
@@ -1227,6 +1280,15 @@ static void qat_alg_skcipher_exit_tfm(struct crypto_skcipher *tfm)
 	qat_crypto_put_instance(inst);
 }
 
+static void qat_alg_skcipher_exit_xts_tfm(struct crypto_skcipher *tfm)
+{
+	struct qat_alg_skcipher_ctx *ctx = crypto_skcipher_ctx(tfm);
+
+	if (ctx->ftfm)
+		crypto_free_skcipher(ctx->ftfm);
+
+	qat_alg_skcipher_exit_tfm(tfm);
+}
 
 static struct aead_alg qat_aeads[] = { {
 	.base = {
@@ -1321,14 +1383,14 @@ static struct skcipher_alg qat_skciphers[] = { {
 	.base.cra_name = "xts(aes)",
 	.base.cra_driver_name = "qat_aes_xts",
 	.base.cra_priority = 4001,
-	.base.cra_flags = CRYPTO_ALG_ASYNC,
+	.base.cra_flags = CRYPTO_ALG_ASYNC | CRYPTO_ALG_NEED_FALLBACK,
 	.base.cra_blocksize = AES_BLOCK_SIZE,
 	.base.cra_ctxsize = sizeof(struct qat_alg_skcipher_ctx),
 	.base.cra_alignmask = 0,
 	.base.cra_module = THIS_MODULE,
 
-	.init = qat_alg_skcipher_init_tfm,
-	.exit = qat_alg_skcipher_exit_tfm,
+	.init = qat_alg_skcipher_init_xts_tfm,
+	.exit = qat_alg_skcipher_exit_xts_tfm,
 	.setkey = qat_alg_skcipher_xts_setkey,
 	.decrypt = qat_alg_skcipher_xts_decrypt,
 	.encrypt = qat_alg_skcipher_xts_encrypt,
