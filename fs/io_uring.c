@@ -1526,12 +1526,15 @@ static void io_dismantle_req(struct io_kiocb *req)
 
 static void __io_free_req(struct io_kiocb *req)
 {
+	struct io_ring_ctx *ctx;
+
 	io_dismantle_req(req);
-	percpu_ref_put(&req->ctx->refs);
+	ctx = req->ctx;
 	if (likely(!io_is_fallback_req(req)))
 		kmem_cache_free(req_cachep, req);
 	else
-		clear_bit_unlock(0, (unsigned long *) &req->ctx->fallback_req);
+		clear_bit_unlock(0, (unsigned long *) &ctx->fallback_req);
+	percpu_ref_put(&ctx->refs);
 }
 
 static bool io_link_cancel_timeout(struct io_kiocb *req)
