@@ -721,30 +721,47 @@ static int mpp_attach_service(struct mpp_dev *mpp, struct device *dev)
 		goto err_put_pdev;
 	}
 
-	of_property_read_u32(dev->of_node,
-			     "rockchip,taskqueue-node", &taskqueue_node);
-	if (taskqueue_node >= mpp->srv->taskqueue_cnt) {
-		dev_err(dev, "rockchip,taskqueue-node %d must less than %d\n",
-			taskqueue_node, mpp->srv->taskqueue_cnt);
-		ret = -ENODEV;
-		goto err_put_pdev;
+	ret = of_property_read_u32(dev->of_node,
+				   "rockchip,taskqueue-node", &taskqueue_node);
+	if (ret) {
+		/* if device not set, then alloc one */
+		struct mpp_taskqueue *queue;
+
+		queue = devm_kzalloc(dev, sizeof(*queue), GFP_KERNEL);
+		if (!queue) {
+			ret = -ENOMEM;
+			goto err_put_pdev;
+		}
+		mpp_taskqueue_init(queue, mpp->srv);
+		mpp->queue = queue;
+	} else {
+		/* set taskqueue according dtsi */
+		if (taskqueue_node >= mpp->srv->taskqueue_cnt) {
+			dev_err(dev, "taskqueue-node %d must less than %d\n",
+				taskqueue_node, mpp->srv->taskqueue_cnt);
+			ret = -ENODEV;
+			goto err_put_pdev;
+		} else {
+			mpp->queue = mpp->srv->task_queues[taskqueue_node];
+		}
 	}
 
-	of_property_read_u32(dev->of_node,
-			     "rockchip,resetgroup-node", &reset_group_node);
-	if (reset_group_node >= mpp->srv->reset_group_cnt) {
-		dev_err(dev, "rockchip,resetgroup-node %d must less than %d\n",
-			reset_group_node, mpp->srv->reset_group_cnt);
-		ret = -ENODEV;
-		goto err_put_pdev;
+	ret = of_property_read_u32(dev->of_node,
+				   "rockchip,resetgroup-node", &reset_group_node);
+	if (!ret) {
+		/* set resetgroup according dtsi */
+		if (reset_group_node >= mpp->srv->reset_group_cnt) {
+			dev_err(dev, "resetgroup-node %d must less than %d\n",
+				reset_group_node, mpp->srv->reset_group_cnt);
+			ret = -ENODEV;
+			goto err_put_pdev;
+		} else {
+			mpp->reset_group = mpp->srv->reset_groups[reset_group_node];
+		}
 	}
 
 	/* register current device to mpp service */
 	mpp->srv->sub_devices[mpp->var->device_type] = mpp;
-	/* set taskqueue which set in dtsi */
-	mpp->queue = mpp->srv->task_queues[taskqueue_node];
-	/* set resetgroup which set in dtsi */
-	mpp->reset_group = mpp->srv->reset_groups[reset_group_node];
 	set_bit(mpp->var->device_type, &mpp->srv->hw_support);
 
 	return 0;
