@@ -819,6 +819,9 @@ void *devm_kmalloc(struct device *dev, size_t size, gfp_t gfp)
 {
 	struct devres *dr;
 
+	if (unlikely(!size))
+		return ZERO_SIZE_PTR;
+
 	/* use raw alloc_dr for kmalloc caller tracing */
 	dr = alloc_dr(devm_kmalloc_release, size, gfp, dev_to_node(dev));
 	if (unlikely(!dr))
@@ -950,10 +953,10 @@ void devm_kfree(struct device *dev, const void *p)
 	int rc;
 
 	/*
-	 * Special case: pointer to a string in .rodata returned by
-	 * devm_kstrdup_const().
+	 * Special cases: pointer to a string in .rodata returned by
+	 * devm_kstrdup_const() or NULL/ZERO ptr.
 	 */
-	if (unlikely(is_kernel_rodata((unsigned long)p)))
+	if (unlikely(is_kernel_rodata((unsigned long)p) || ZERO_OR_NULL_PTR(p)))
 		return;
 
 	rc = devres_destroy(dev, devm_kmalloc_release,
