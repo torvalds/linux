@@ -53,6 +53,7 @@ struct qla2100_fw_dump {
 	__be16 fpm_b0_reg[64];
 	__be16 fpm_b1_reg[64];
 	__be16 risc_ram[0xf000];
+	u8	queue_dump[];
 };
 
 struct qla24xx_fw_dump {

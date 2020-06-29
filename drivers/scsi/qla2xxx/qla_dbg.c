@@ -1063,7 +1063,7 @@ qla2100_fw_dump(scsi_qla_host_t *vha)
 	}
 
 	if (rval == QLA_SUCCESS)
-		qla2xxx_copy_queues(ha, &fw->risc_ram[cnt]);
+		qla2xxx_copy_queues(ha, &fw->queue_dump[0]);
 
 	qla2xxx_dump_post_process(base_vha, rval);
 }
