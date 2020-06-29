@@ -236,7 +236,7 @@
 		power-supply = <&vcc18_lcd_n>;
 		prepare-delay-ms = <5>;
 		reset-delay-ms = <1>;
-		init-delay-ms = <10>;
+		init-delay-ms = <80>;
 		disable-delay-ms = <10>;
 		unprepare-delay-ms = <5>;
 
@@ -929,6 +929,21 @@
 	};
 };
 
+&i2c5 {
+	status = "okay";
+	clock-frequency = <400000>;
+
+	gt1x: gt1x@5d {
+		compatible = "goodix,gt1x";
+		reg = <0x5d>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&tp_int_pin>;
+		power-supply = <&vcc18_lcd_n>;
+		goodix,rst-gpio = <&gpio2 RK_PB0 GPIO_ACTIVE_HIGH>;
+		goodix,irq-gpio = <&gpio2 RK_PB2 GPIO_ACTIVE_LOW>;
+	};
+};
+
 &i2s0_8ch {
 	status = "okay";
 	#sound-dai-cells = <0>;
@@ -1074,6 +1089,13 @@
 		/omit-if-no-ref/
 		wifi_wake_host: wifi-wake-host {
 			rockchip,pins = <0 RK_PB0 0 &pcfg_pull_up>;
+		};
+	};
+
+	gt1x {
+		/omit-if-no-ref/
+		tp_int_pin: tp-int-pin {
+			rockchip,pins = <2 RK_PB2 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 };
