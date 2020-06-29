@@ -55,17 +55,6 @@ struct vchiq_header *vchi_msg_hold(unsigned handle);
 extern int32_t vchi_held_msg_release(unsigned handle, struct vchiq_header *message);
 
 /******************************************************************************
- * Global bulk API
- *****************************************************************************/
-
-// Routine to queue up data ready for transfer to the other (once they have signalled they are ready)
-extern int32_t vchi_bulk_queue_transmit(unsigned handle,
-					const void *data_src,
-					uint32_t data_size,
-				        enum vchiq_bulk_mode mode,
-					void *transfer_handle);
-
-/******************************************************************************
  * Configuration plumbing
  *****************************************************************************/
 
