@@ -1122,7 +1122,8 @@ EXPORT_SYMBOL_GPL(of_phy_provider_unregister);
  * of_phy_provider_unregister to unregister the phy provider.
  */
 void devm_of_phy_provider_unregister(struct device *dev,
-	struct phy_provider *phy_provider) {
+	struct phy_provider *phy_provider)
+{
 	int r;
 
 	r = devres_destroy(dev, devm_phy_provider_release, devm_phy_match,
