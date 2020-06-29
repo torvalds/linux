@@ -509,8 +509,7 @@ static void bch2_write_done(struct closure *cl)
 	if (!op->error && (op->flags & BCH_WRITE_FLUSH))
 		op->error = bch2_journal_error(&c->journal);
 
-	if (!(op->flags & BCH_WRITE_NOPUT_RESERVATION))
-		bch2_disk_reservation_put(c, &op->res);
+	bch2_disk_reservation_put(c, &op->res);
 	percpu_ref_put(&c->writes);
 	bch2_keylist_free(&op->insert_keys, op->inline_keys);
 
@@ -1273,8 +1272,7 @@ void bch2_write(struct closure *cl)
 	continue_at_nobarrier(cl, __bch2_write, NULL);
 	return;
 err:
-	if (!(op->flags & BCH_WRITE_NOPUT_RESERVATION))
-		bch2_disk_reservation_put(c, &op->res);
+	bch2_disk_reservation_put(c, &op->res);
 
 	if (op->end_io) {
 		EBUG_ON(cl->parent);

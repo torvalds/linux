@@ -63,6 +63,7 @@ struct dio_write {
 					sync:1,
 					free_iov:1;
 	struct quota_res		quota_res;
+	u64				written;
 
 	struct iov_iter			iter;
 	struct iovec			inline_vecs[2];
@@ -1776,18 +1777,19 @@ static noinline int bch2_dio_write_copy_iov(struct dio_write *dio)
 	return 0;
 }
 
+static void bch2_dio_write_loop_async(struct bch_write_op *);
+
 static long bch2_dio_write_loop(struct dio_write *dio)
 {
 	bool kthread = (current->flags & PF_KTHREAD) != 0;
-	struct bch_fs *c = dio->op.c;
 	struct kiocb *req = dio->req;
 	struct address_space *mapping = req->ki_filp->f_mapping;
 	struct bch_inode_info *inode = file_bch_inode(req->ki_filp);
+	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	struct bio *bio = &dio->op.wbio.bio;
 	struct bvec_iter_all iter;
 	struct bio_vec *bv;
 	unsigned unaligned;
-	u64 new_i_size;
 	bool sync = dio->sync;
 	long ret;
 
@@ -1834,8 +1836,24 @@ static long bch2_dio_write_loop(struct dio_write *dio)
 			goto err;
 		}
 
-		dio->op.pos = POS(inode->v.i_ino,
-				  (req->ki_pos >> 9) + dio->op.written);
+		bch2_write_op_init(&dio->op, c, io_opts(c, &inode->ei_inode));
+		dio->op.end_io		= bch2_dio_write_loop_async;
+		dio->op.target		= dio->op.opts.foreground_target;
+		op_journal_seq_set(&dio->op, &inode->ei_journal_seq);
+		dio->op.write_point	= writepoint_hashed((unsigned long) current);
+		dio->op.nr_replicas	= dio->op.opts.data_replicas;
+		dio->op.pos		= POS(inode->v.i_ino, (u64) req->ki_pos >> 9);
+
+		if ((req->ki_flags & IOCB_DSYNC) &&
+		    !c->opts.journal_flush_disabled)
+			dio->op.flags |= BCH_WRITE_FLUSH;
+
+		ret = bch2_disk_reservation_get(c, &dio->op.res, bio_sectors(bio),
+						dio->op.opts.data_replicas, 0);
+		if (unlikely(ret) &&
+		    !bch2_check_range_allocated(c, dio->op.pos,
+				bio_sectors(bio), dio->op.opts.data_replicas))
+			goto err;
 
 		task_io_account_write(bio->bi_iter.bi_size);
 
@@ -1856,13 +1874,12 @@ do_io:
 loop:
 		i_sectors_acct(c, inode, &dio->quota_res,
 			       dio->op.i_sectors_delta);
-		dio->op.i_sectors_delta = 0;
-
-		new_i_size = req->ki_pos + ((u64) dio->op.written << 9);
+		req->ki_pos += (u64) dio->op.written << 9;
+		dio->written += dio->op.written;
 
 		spin_lock(&inode->v.i_lock);
-		if (new_i_size > inode->v.i_size)
-			i_size_write(&inode->v, new_i_size);
+		if (req->ki_pos > inode->v.i_size)
+			i_size_write(&inode->v, req->ki_pos);
 		spin_unlock(&inode->v.i_lock);
 
 		bio_for_each_segment_all(bv, bio, iter)
@@ -1874,10 +1891,9 @@ loop:
 		reinit_completion(&dio->done);
 	}
 
-	ret = dio->op.error ?: ((long) dio->op.written << 9);
+	ret = dio->op.error ?: ((long) dio->written << 9);
 err:
 	bch2_pagecache_block_put(&inode->ei_pagecache_lock);
-	bch2_disk_reservation_put(c, &dio->op.res);
 	bch2_quota_reservation_put(c, inode, &dio->quota_res);
 
 	if (dio->free_iov)
@@ -1912,7 +1928,6 @@ ssize_t bch2_direct_write(struct kiocb *req, struct iov_iter *iter)
 	struct address_space *mapping = file->f_mapping;
 	struct bch_inode_info *inode = file_bch_inode(file);
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
-	struct bch_io_opts opts = io_opts(c, &inode->ei_inode);
 	struct dio_write *dio;
 	struct bio *bio;
 	bool locked = true, extending;
@@ -1962,33 +1977,12 @@ ssize_t bch2_direct_write(struct kiocb *req, struct iov_iter *iter)
 	dio->sync		= is_sync_kiocb(req) || extending;
 	dio->free_iov		= false;
 	dio->quota_res.sectors	= 0;
+	dio->written		= 0;
 	dio->iter		= *iter;
-
-	bch2_write_op_init(&dio->op, c, opts);
-	dio->op.end_io		= bch2_dio_write_loop_async;
-	dio->op.target		= opts.foreground_target;
-	op_journal_seq_set(&dio->op, &inode->ei_journal_seq);
-	dio->op.write_point	= writepoint_hashed((unsigned long) current);
-	dio->op.flags |= BCH_WRITE_NOPUT_RESERVATION;
-
-	if ((req->ki_flags & IOCB_DSYNC) &&
-	    !c->opts.journal_flush_disabled)
-		dio->op.flags |= BCH_WRITE_FLUSH;
 
 	ret = bch2_quota_reservation_add(c, inode, &dio->quota_res,
 					 iter->count >> 9, true);
 	if (unlikely(ret))
-		goto err_put_bio;
-
-	dio->op.nr_replicas	= dio->op.opts.data_replicas;
-
-	ret = bch2_disk_reservation_get(c, &dio->op.res, iter->count >> 9,
-					dio->op.opts.data_replicas, 0);
-	if (unlikely(ret) &&
-	    !bch2_check_range_allocated(c, POS(inode->v.i_ino,
-					       req->ki_pos >> 9),
-					iter->count >> 9,
-					dio->op.opts.data_replicas))
 		goto err_put_bio;
 
 	if (unlikely(mapping->nrpages)) {
@@ -2003,12 +1997,9 @@ ssize_t bch2_direct_write(struct kiocb *req, struct iov_iter *iter)
 err:
 	if (locked)
 		inode_unlock(&inode->v);
-	if (ret > 0)
-		req->ki_pos += ret;
 	return ret;
 err_put_bio:
 	bch2_pagecache_block_put(&inode->ei_pagecache_lock);
-	bch2_disk_reservation_put(c, &dio->op.res);
 	bch2_quota_reservation_put(c, inode, &dio->quota_res);
 	bio_put(bio);
 	inode_dio_end(&inode->v);
