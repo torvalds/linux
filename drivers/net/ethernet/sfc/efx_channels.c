@@ -175,6 +175,13 @@ static int efx_allocate_msix_channels(struct efx_nic *efx,
 		efx->n_xdp_channels = 0;
 		efx->xdp_tx_per_channel = 0;
 		efx->xdp_tx_queue_count = 0;
+	} else if (n_channels + n_xdp_tx > efx->max_vis) {
+		netif_err(efx, drv, efx->net_dev,
+			  "Insufficient resources for %d XDP TX queues (%d other channels, max VIs %d)\n",
+			  n_xdp_tx, n_channels, efx->max_vis);
+		efx->n_xdp_channels = 0;
+		efx->xdp_tx_per_channel = 0;
+		efx->xdp_tx_queue_count = 0;
 	} else {
 		efx->n_xdp_channels = n_xdp_ev;
 		efx->xdp_tx_per_channel = EFX_TXQ_TYPES;
