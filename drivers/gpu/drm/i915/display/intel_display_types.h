@@ -261,7 +261,14 @@ struct intel_panel {
 		struct pwm_state pwm_state;
 
 		/* DPCD backlight */
-		u8 pwmgen_bit_count;
+		union {
+			struct {
+				u8 pwmgen_bit_count;
+			} vesa;
+			struct {
+				bool sdr_uses_aux;
+			} intel;
+		} edp;
 
 		struct backlight_device *device;
 

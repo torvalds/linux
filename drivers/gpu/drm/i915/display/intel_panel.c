@@ -511,7 +511,7 @@ static u32 scale_hw_to_user(struct intel_connector *connector,
 		     0, user_max);
 }
 
-static u32 intel_panel_invert_pwm_level(struct intel_connector *connector, u32 val)
+u32 intel_panel_invert_pwm_level(struct intel_connector *connector, u32 val)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	struct intel_panel *panel = &connector->panel;
@@ -537,6 +537,36 @@ void intel_panel_set_pwm_level(const struct drm_connector_state *conn_state, u32
 
 	drm_dbg_kms(&i915->drm, "set backlight PWM = %d\n", val);
 	panel->backlight.pwm_funcs->set(conn_state, val);
+}
+
+u32 intel_panel_backlight_level_to_pwm(struct intel_connector *connector, u32 val)
+{
+	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
+	struct intel_panel *panel = &connector->panel;
+
+	drm_WARN_ON_ONCE(&dev_priv->drm,
+			 panel->backlight.max == 0 || panel->backlight.pwm_level_max == 0);
+
+	val = scale(val, panel->backlight.min, panel->backlight.max,
+		    panel->backlight.pwm_level_min, panel->backlight.pwm_level_max);
+
+	return intel_panel_invert_pwm_level(connector, val);
+}
+
+u32 intel_panel_backlight_level_from_pwm(struct intel_connector *connector, u32 val)
+{
+	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
+	struct intel_panel *panel = &connector->panel;
+
+	drm_WARN_ON_ONCE(&dev_priv->drm,
+			 panel->backlight.max == 0 || panel->backlight.pwm_level_max == 0);
+
+	if (dev_priv->params.invert_brightness > 0 ||
+	    (dev_priv->params.invert_brightness == 0 && dev_priv->quirks & QUIRK_INVERT_BRIGHTNESS))
+		val = panel->backlight.pwm_level_max - (val - panel->backlight.pwm_level_min);
+
+	return scale(val, panel->backlight.pwm_level_min, panel->backlight.pwm_level_max,
+		     panel->backlight.min, panel->backlight.max);
 }
 
 static u32 lpt_get_backlight(struct intel_connector *connector, enum pipe unused)
@@ -2127,10 +2157,6 @@ intel_panel_init_backlight_funcs(struct intel_panel *panel)
 		container_of(panel, struct intel_connector, panel);
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 
-	if (connector->base.connector_type == DRM_MODE_CONNECTOR_eDP &&
-	    intel_dp_aux_init_backlight_funcs(connector) == 0)
-		return;
-
 	if (connector->base.connector_type == DRM_MODE_CONNECTOR_DSI &&
 	    intel_dsi_dcs_init_backlight_funcs(connector) == 0)
 		return;
@@ -2157,6 +2183,10 @@ intel_panel_init_backlight_funcs(struct intel_panel *panel)
 	} else {
 		panel->backlight.pwm_funcs = &i9xx_pwm_funcs;
 	}
+
+	if (connector->base.connector_type == DRM_MODE_CONNECTOR_eDP &&
+	    intel_dp_aux_init_backlight_funcs(connector) == 0)
+		return;
 
 	/* We're using a standard PWM backlight interface */
 	panel->backlight.funcs = &pwm_bl_funcs;
