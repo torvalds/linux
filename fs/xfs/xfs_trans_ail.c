@@ -843,7 +843,6 @@ xfs_ail_delete_one(
 
 	trace_xfs_ail_delete(lip, mlip->li_lsn, lip->li_lsn);
 	xfs_ail_delete(ailp, lip);
-	xfs_clear_li_failed(lip);
 	clear_bit(XFS_LI_IN_AIL, &lip->li_flags);
 	lip->li_lsn = 0;
 
@@ -874,6 +873,7 @@ xfs_trans_ail_delete(
 	}
 
 	/* xfs_ail_update_finish() drops the AIL lock */
+	xfs_clear_li_failed(lip);
 	tail_lsn = xfs_ail_delete_one(ailp, lip);
 	xfs_ail_update_finish(ailp, tail_lsn);
 }
