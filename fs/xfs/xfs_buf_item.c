@@ -955,23 +955,6 @@ xfs_buf_item_relse(
 	xfs_buf_item_free(bip);
 }
 
-
-/*
- * Add the given log item with its callback to the list of callbacks
- * to be called when the buffer's I/O completes.
- */
-void
-xfs_buf_attach_iodone(
-	struct xfs_buf		*bp,
-	void			(*cb)(struct xfs_buf *, struct xfs_log_item *),
-	struct xfs_log_item	*lip)
-{
-	ASSERT(xfs_buf_islocked(bp));
-
-	lip->li_cb = cb;
-	list_add_tail(&lip->li_bio_list, &bp->b_li_list);
-}
-
 /*
  * Invoke the error state callback for each log item affected by the failed I/O.
  *

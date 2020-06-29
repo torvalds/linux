@@ -1187,11 +1187,11 @@ xfs_qm_dqflush(
 	}
 
 	/*
-	 * Attach an iodone routine so that we can remove this dquot from the
-	 * AIL and release the flush lock once the dquot is synced to disk.
+	 * Attach the dquot to the buffer so that we can remove this dquot from
+	 * the AIL and release the flush lock once the dquot is synced to disk.
 	 */
 	bp->b_flags |= _XBF_DQUOTS;
-	xfs_buf_attach_iodone(bp, NULL, &dqp->q_logitem.qli_item);
+	list_add_tail(&dqp->q_logitem.qli_item.li_bio_list, &bp->b_li_list);
 
 	/*
 	 * If the buffer is pinned then push on the log so we won't

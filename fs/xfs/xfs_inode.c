@@ -2711,7 +2711,8 @@ xfs_ifree_cluster(
 			xfs_trans_ail_copy_lsn(mp->m_ail, &iip->ili_flush_lsn,
 						&iip->ili_item.li_lsn);
 
-			xfs_buf_attach_iodone(bp, NULL, &iip->ili_item);
+			list_add_tail(&iip->ili_item.li_bio_list,
+						&bp->b_li_list);
 
 			if (ip != free_ip)
 				xfs_iunlock(ip, XFS_ILOCK_EXCL);
@@ -3861,7 +3862,7 @@ flush_out:
 	 * the flush lock.
 	 */
 	bp->b_flags |= _XBF_INODES;
-	xfs_buf_attach_iodone(bp, NULL, &iip->ili_item);
+	list_add_tail(&iip->ili_item.li_bio_list, &bp->b_li_list);
 
 	/* generate the checksum. */
 	xfs_dinode_calc_crc(mp, dip);
