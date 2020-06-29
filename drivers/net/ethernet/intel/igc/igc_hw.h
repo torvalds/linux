@@ -276,12 +276,8 @@ struct igc_hw_stats {
 	u64 tsctc;
 	u64 tsctfc;
 	u64 iac;
-	u64 icrxptc;
-	u64 icrxatc;
 	u64 ictxptc;
 	u64 ictxatc;
-	u64 icrxdmtc;
-	u64 icrxoc;
 	u64 cbtmpc;
 	u64 htdpmc;
 	u64 cbrdpc;
