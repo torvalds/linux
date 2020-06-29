@@ -59,30 +59,6 @@ config PHY_QCOM_QUSB2
 	  PHY which is usually paired with either the ChipIdea or Synopsys DWC3
 	  USB IPs on MSM SOCs.
 
-config PHY_QCOM_UFS
-	tristate "Qualcomm UFS PHY driver"
-	depends on OF && ARCH_QCOM
-	select GENERIC_PHY
-	help
-	  Support for UFS PHY on QCOM chipsets.
-
-if PHY_QCOM_UFS
-
-config PHY_QCOM_UFS_14NM
-	tristate
-	default PHY_QCOM_UFS
-	help
-	  Support for 14nm UFS QMP phy present on QCOM chipsets.
-
-config PHY_QCOM_UFS_20NM
-	tristate
-	default PHY_QCOM_UFS
-	depends on BROKEN
-	help
-	  Support for 20nm UFS QMP phy present on QCOM chipsets.
-
-endif
-
 config PHY_QCOM_USB_HS
 	tristate "Qualcomm USB HS PHY module"
 	depends on USB_ULPI_BUS
