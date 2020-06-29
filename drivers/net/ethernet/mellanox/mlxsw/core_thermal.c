@@ -98,7 +98,6 @@ struct mlxsw_thermal_module {
 	struct mlxsw_thermal *parent;
 	struct thermal_zone_device *tzdev;
 	struct mlxsw_thermal_trip trips[MLXSW_THERMAL_NUM_TRIPS];
-	enum thermal_device_mode mode;
 	int module; /* Module or gearbox number */
 };
 
@@ -110,7 +109,6 @@ struct mlxsw_thermal {
 	struct thermal_cooling_device *cdevs[MLXSW_MFCR_PWMS_MAX];
 	u8 cooling_levels[MLXSW_THERMAL_MAX_STATE + 1];
 	struct mlxsw_thermal_trip trips[MLXSW_THERMAL_NUM_TRIPS];
-	enum thermal_device_mode mode;
 	struct mlxsw_thermal_module *tz_module_arr;
 	u8 tz_module_num;
 	struct mlxsw_thermal_module *tz_gearbox_arr;
@@ -280,9 +278,7 @@ static int mlxsw_thermal_unbind(struct thermal_zone_device *tzdev,
 static int mlxsw_thermal_get_mode(struct thermal_zone_device *tzdev,
 				  enum thermal_device_mode *mode)
 {
-	struct mlxsw_thermal *thermal = tzdev->devdata;
-
-	*mode = thermal->mode;
+	*mode = tzdev->mode;
 
 	return 0;
 }
@@ -299,9 +295,9 @@ static int mlxsw_thermal_set_mode(struct thermal_zone_device *tzdev,
 	else
 		tzdev->polling_delay = 0;
 
+	tzdev->mode = mode;
 	mutex_unlock(&tzdev->lock);
 
-	thermal->mode = mode;
 	thermal_zone_device_update(tzdev, THERMAL_EVENT_UNSPECIFIED);
 
 	return 0;
@@ -468,9 +464,7 @@ static int mlxsw_thermal_module_unbind(struct thermal_zone_device *tzdev,
 static int mlxsw_thermal_module_mode_get(struct thermal_zone_device *tzdev,
 					 enum thermal_device_mode *mode)
 {
-	struct mlxsw_thermal_module *tz = tzdev->devdata;
-
-	*mode = tz->mode;
+	*mode = tzdev->mode;
 
 	return 0;
 }
@@ -488,9 +482,10 @@ static int mlxsw_thermal_module_mode_set(struct thermal_zone_device *tzdev,
 	else
 		tzdev->polling_delay = 0;
 
+	tzdev->mode = mode;
+
 	mutex_unlock(&tzdev->lock);
 
-	tz->mode = mode;
 	thermal_zone_device_update(tzdev, THERMAL_EVENT_UNSPECIFIED);
 
 	return 0;
@@ -780,7 +775,7 @@ mlxsw_thermal_module_tz_init(struct mlxsw_thermal_module *module_tz)
 		return err;
 	}
 
-	module_tz->mode = THERMAL_DEVICE_ENABLED;
+	module_tz->tzdev->mode = THERMAL_DEVICE_ENABLED;
 	return 0;
 }
 
@@ -896,7 +891,7 @@ mlxsw_thermal_gearbox_tz_init(struct mlxsw_thermal_module *gearbox_tz)
 	if (IS_ERR(gearbox_tz->tzdev))
 		return PTR_ERR(gearbox_tz->tzdev);
 
-	gearbox_tz->mode = THERMAL_DEVICE_ENABLED;
+	gearbox_tz->tzdev->mode = THERMAL_DEVICE_ENABLED;
 	return 0;
 }
 
@@ -1065,7 +1060,7 @@ int mlxsw_thermal_init(struct mlxsw_core *core,
 	if (err)
 		goto err_unreg_modules_tzdev;
 
-	thermal->mode = THERMAL_DEVICE_ENABLED;
+	thermal->tzdev->mode = THERMAL_DEVICE_ENABLED;
 	*p_thermal = thermal;
 	return 0;
 

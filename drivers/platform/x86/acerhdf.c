@@ -68,7 +68,6 @@ static int kernelmode = 1;
 #else
 static int kernelmode;
 #endif
-static enum thermal_device_mode thermal_mode;
 
 static unsigned int interval = 10;
 static unsigned int fanon = 60000;
@@ -398,15 +397,16 @@ static inline void acerhdf_revert_to_bios_mode(void)
 {
 	acerhdf_change_fanstate(ACERHDF_FAN_AUTO);
 	kernelmode = 0;
-	thermal_mode = THERMAL_DEVICE_DISABLED;
-	if (thz_dev)
+	if (thz_dev) {
+		thz_dev->mode = THERMAL_DEVICE_DISABLED;
 		thz_dev->polling_delay = 0;
+	}
 	pr_notice("kernel mode fan control OFF\n");
 }
 static inline void acerhdf_enable_kernelmode(void)
 {
 	kernelmode = 1;
-	thermal_mode = THERMAL_DEVICE_ENABLED;
+	thz_dev->mode = THERMAL_DEVICE_ENABLED;
 
 	thz_dev->polling_delay = interval*1000;
 	thermal_zone_device_update(thz_dev, THERMAL_EVENT_UNSPECIFIED);
@@ -419,7 +419,7 @@ static int acerhdf_get_mode(struct thermal_zone_device *thermal,
 	if (verbose)
 		pr_notice("kernel mode fan control %d\n", kernelmode);
 
-	*mode = thermal_mode;
+	*mode = thermal->mode;
 
 	return 0;
 }
@@ -741,14 +741,15 @@ static int __init acerhdf_register_thermal(void)
 	if (IS_ERR(cl_dev))
 		return -EINVAL;
 
-	thermal_mode = kernelmode ?
-		THERMAL_DEVICE_ENABLED : THERMAL_DEVICE_DISABLED;
 	thz_dev = thermal_zone_device_register("acerhdf", 2, 0, NULL,
 					      &acerhdf_dev_ops,
 					      &acerhdf_zone_params, 0,
 					      (kernelmode) ? interval*1000 : 0);
 	if (IS_ERR(thz_dev))
 		return -EINVAL;
+
+	thz_dev->mode = kernelmode ?
+		THERMAL_DEVICE_ENABLED : THERMAL_DEVICE_DISABLED;
 
 	if (strcmp(thz_dev->governor->name,
 				acerhdf_zone_params.governor_name)) {
