@@ -507,12 +507,18 @@ xfs_inode_item_push(
 	 * reference for IO until we queue the buffer for delwri submission.
 	 */
 	xfs_buf_hold(bp);
-	error = xfs_iflush_cluster(ip, bp);
+	error = xfs_iflush_cluster(bp);
 	if (!error) {
 		if (!xfs_buf_delwri_queue(bp, buffer_list))
 			rval = XFS_ITEM_FLUSHING;
 		xfs_buf_relse(bp);
 	} else {
+		/*
+		 * Release the buffer if we were unable to flush anything. On
+		 * any other error, the buffer has already been released.
+		 */
+		if (error == -EAGAIN)
+			xfs_buf_relse(bp);
 		rval = XFS_ITEM_LOCKED;
 	}
 
