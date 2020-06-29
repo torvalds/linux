@@ -30,7 +30,7 @@ static inline struct xfs_buf_log_item *BUF_ITEM(struct xfs_log_item *lip)
 	return container_of(lip, struct xfs_buf_log_item, bli_item);
 }
 
-STATIC void	xfs_buf_do_callbacks(struct xfs_buf *bp);
+static void xfs_buf_item_done(struct xfs_buf *bp);
 
 /* Is this log iovec plausibly large enough to contain the buffer log format? */
 bool
@@ -462,9 +462,8 @@ xfs_buf_item_unpin(
 		 * the AIL lock.
 		 */
 		if (bip->bli_flags & XFS_BLI_STALE_INODE) {
-			lip->li_cb(bp, lip);
+			xfs_buf_item_done(bp);
 			xfs_iflush_done(bp);
-			bp->b_log_item = NULL;
 		} else {
 			xfs_trans_ail_delete(lip, SHUTDOWN_LOG_IO_ERROR);
 			xfs_buf_item_relse(bp);
@@ -974,46 +973,6 @@ xfs_buf_attach_iodone(
 }
 
 /*
- * We can have many callbacks on a buffer. Running the callbacks individually
- * can cause a lot of contention on the AIL lock, so we allow for a single
- * callback to be able to scan the remaining items in bp->b_li_list for other
- * items of the same type and callback to be processed in the first call.
- *
- * As a result, the loop walking the callback list below will also modify the
- * list. it removes the first item from the list and then runs the callback.
- * The loop then restarts from the new first item int the list. This allows the
- * callback to scan and modify the list attached to the buffer and we don't
- * have to care about maintaining a next item pointer.
- */
-STATIC void
-xfs_buf_do_callbacks(
-	struct xfs_buf		*bp)
-{
-	struct xfs_buf_log_item *blip = bp->b_log_item;
-	struct xfs_log_item	*lip;
-
-	/* If there is a buf_log_item attached, run its callback */
-	if (blip) {
-		lip = &blip->bli_item;
-		lip->li_cb(bp, lip);
-	}
-
-	while (!list_empty(&bp->b_li_list)) {
-		lip = list_first_entry(&bp->b_li_list, struct xfs_log_item,
-				       li_bio_list);
-
-		/*
-		 * Remove the item from the list, so we don't have any
-		 * confusion if the item is added to another buf.
-		 * Don't touch the log item after calling its
-		 * callback, because it could have freed itself.
-		 */
-		list_del_init(&lip->li_bio_list);
-		lip->li_cb(bp, lip);
-	}
-}
-
-/*
  * Invoke the error state callback for each log item affected by the failed I/O.
  *
  * If a metadata buffer write fails with a non-permanent error, the buffer is
@@ -1025,8 +984,8 @@ STATIC void
 xfs_buf_do_callbacks_fail(
 	struct xfs_buf		*bp)
 {
+	struct xfs_ail		*ailp = bp->b_mount->m_ail;
 	struct xfs_log_item	*lip;
-	struct xfs_ail		*ailp;
 
 	/*
 	 * Buffer log item errors are handled directly by xfs_buf_item_push()
@@ -1036,9 +995,6 @@ xfs_buf_do_callbacks_fail(
 	if (list_empty(&bp->b_li_list))
 		return;
 
-	lip = list_first_entry(&bp->b_li_list, struct xfs_log_item,
-			li_bio_list);
-	ailp = lip->li_ailp;
 	spin_lock(&ailp->ail_lock);
 	list_for_each_entry(lip, &bp->b_li_list, li_bio_list) {
 		if (lip->li_ops->iop_error)
@@ -1051,21 +1007,10 @@ static bool
 xfs_buf_iodone_callback_error(
 	struct xfs_buf		*bp)
 {
-	struct xfs_buf_log_item	*bip = bp->b_log_item;
-	struct xfs_log_item	*lip;
-	struct xfs_mount	*mp;
+	struct xfs_mount	*mp = bp->b_mount;
 	static ulong		lasttime;
 	static xfs_buftarg_t	*lasttarg;
 	struct xfs_error_cfg	*cfg;
-
-	/*
-	 * The failed buffer might not have a buf_log_item attached or the
-	 * log_item list might be empty. Get the mp from the available
-	 * xfs_log_item
-	 */
-	lip = list_first_entry_or_null(&bp->b_li_list, struct xfs_log_item,
-				       li_bio_list);
-	mp = lip ? lip->li_mountp : bip->bli_item.li_mountp;
 
 	/*
 	 * If we've already decided to shutdown the filesystem because of
@@ -1171,14 +1116,27 @@ xfs_buf_had_callback_errors(
 }
 
 static void
-xfs_buf_run_callbacks(
+xfs_buf_item_done(
 	struct xfs_buf		*bp)
 {
+	struct xfs_buf_log_item	*bip = bp->b_log_item;
 
-	if (xfs_buf_had_callback_errors(bp))
+	if (!bip)
 		return;
-	xfs_buf_do_callbacks(bp);
+
+	/*
+	 * If we are forcibly shutting down, this may well be off the AIL
+	 * already. That's because we simulate the log-committed callbacks to
+	 * unpin these buffers. Or we may never have put this item on AIL
+	 * because of the transaction was aborted forcibly.
+	 * xfs_trans_ail_delete() takes care of these.
+	 *
+	 * Either way, AIL is useless if we're forcing a shutdown.
+	 */
+	xfs_trans_ail_delete(&bip->bli_item, SHUTDOWN_CORRUPT_INCORE);
 	bp->b_log_item = NULL;
+	xfs_buf_item_free(bip);
+	xfs_buf_rele(bp);
 }
 
 /*
@@ -1188,19 +1146,10 @@ void
 xfs_buf_inode_iodone(
 	struct xfs_buf		*bp)
 {
-	struct xfs_buf_log_item *blip = bp->b_log_item;
-	struct xfs_log_item	*lip;
-
 	if (xfs_buf_had_callback_errors(bp))
 		return;
 
-	/* If there is a buf_log_item attached, run its callback */
-	if (blip) {
-		lip = &blip->bli_item;
-		lip->li_cb(bp, lip);
-		bp->b_log_item = NULL;
-	}
-
+	xfs_buf_item_done(bp);
 	xfs_iflush_done(bp);
 	xfs_buf_ioend_finish(bp);
 }
@@ -1212,59 +1161,28 @@ void
 xfs_buf_dquot_iodone(
 	struct xfs_buf		*bp)
 {
-	struct xfs_buf_log_item *blip = bp->b_log_item;
-	struct xfs_log_item	*lip;
-
 	if (xfs_buf_had_callback_errors(bp))
 		return;
 
 	/* a newly allocated dquot buffer might have a log item attached */
-	if (blip) {
-		lip = &blip->bli_item;
-		lip->li_cb(bp, lip);
-		bp->b_log_item = NULL;
-	}
-
+	xfs_buf_item_done(bp);
 	xfs_dquot_done(bp);
 	xfs_buf_ioend_finish(bp);
 }
 
 /*
  * Dirty buffer iodone callback function.
+ *
+ * Note that for things like remote attribute buffers, there may not be a buffer
+ * log item here, so processing the buffer log item must remain be optional.
  */
 void
 xfs_buf_iodone(
 	struct xfs_buf		*bp)
 {
-	xfs_buf_run_callbacks(bp);
+	if (xfs_buf_had_callback_errors(bp))
+		return;
+
+	xfs_buf_item_done(bp);
 	xfs_buf_ioend_finish(bp);
-}
-
-/*
- * This is the iodone() function for buffers which have been
- * logged.  It is called when they are eventually flushed out.
- * It should remove the buf item from the AIL, and free the buf item.
- * It is called by xfs_buf_iodone_callbacks() above which will take
- * care of cleaning up the buffer itself.
- */
-void
-xfs_buf_item_iodone(
-	struct xfs_buf		*bp,
-	struct xfs_log_item	*lip)
-{
-	ASSERT(BUF_ITEM(lip)->bli_buf == bp);
-
-	xfs_buf_rele(bp);
-
-	/*
-	 * If we are forcibly shutting down, this may well be off the AIL
-	 * already. That's because we simulate the log-committed callbacks to
-	 * unpin these buffers. Or we may never have put this item on AIL
-	 * because of the transaction was aborted forcibly.
-	 * xfs_trans_ail_delete() takes care of these.
-	 *
-	 * Either way, AIL is useless if we're forcing a shutdown.
-	 */
-	xfs_trans_ail_delete(lip, SHUTDOWN_CORRUPT_INCORE);
-	xfs_buf_item_free(BUF_ITEM(lip));
 }
