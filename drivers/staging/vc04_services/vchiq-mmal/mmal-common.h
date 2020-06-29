@@ -49,6 +49,11 @@ struct mmal_buffer {
 	unsigned long buffer_size; /* size of allocated buffer */
 
 	struct mmal_msg_context *msg_context;
+
+	unsigned long length;
+	u32 mmal_flags;
+	s64 dts;
+	s64 pts;
 };
 
 /* */

@@ -253,17 +253,25 @@ static void buffer_work_cb(struct work_struct *work)
 {
 	struct mmal_msg_context *msg_context =
 		container_of(work, struct mmal_msg_context, u.bulk.work);
+	struct mmal_buffer *buffer = msg_context->u.bulk.buffer;
+
+	if (!buffer) {
+		pr_err("%s: ctx: %p, No mmal buffer to pass details\n",
+		       __func__, msg_context);
+		return;
+	}
+
+	buffer->length = msg_context->u.bulk.buffer_used;
+	buffer->mmal_flags = msg_context->u.bulk.mmal_flags;
+	buffer->dts = msg_context->u.bulk.dts;
+	buffer->pts = msg_context->u.bulk.pts;
 
 	atomic_dec(&msg_context->u.bulk.port->buffers_with_vpu);
 
 	msg_context->u.bulk.port->buffer_cb(msg_context->u.bulk.instance,
 					    msg_context->u.bulk.port,
 					    msg_context->u.bulk.status,
-					    msg_context->u.bulk.buffer,
-					    msg_context->u.bulk.buffer_used,
-					    msg_context->u.bulk.mmal_flags,
-					    msg_context->u.bulk.dts,
-					    msg_context->u.bulk.pts);
+					    msg_context->u.bulk.buffer);
 }
 
 /* workqueue scheduled callback to handle receiving buffers
@@ -1321,11 +1329,14 @@ static int port_disable(struct vchiq_mmal_instance *instance,
 			mmalbuf = list_entry(buf_head, struct mmal_buffer,
 					     list);
 			list_del(buf_head);
-			if (port->buffer_cb)
+			if (port->buffer_cb) {
+				mmalbuf->length = 0;
+				mmalbuf->mmal_flags = 0;
+				mmalbuf->dts = MMAL_TIME_UNKNOWN;
+				mmalbuf->pts = MMAL_TIME_UNKNOWN;
 				port->buffer_cb(instance,
-						port, 0, mmalbuf, 0, 0,
-						MMAL_TIME_UNKNOWN,
-						MMAL_TIME_UNKNOWN);
+						port, 0, mmalbuf);
+			}
 		}
 
 		spin_unlock_irqrestore(&port->slock, flags);

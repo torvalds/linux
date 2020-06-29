@@ -44,8 +44,7 @@ struct vchiq_mmal_port;
 typedef void (*vchiq_mmal_buffer_cb)(
 		struct vchiq_mmal_instance  *instance,
 		struct vchiq_mmal_port *port,
-		int status, struct mmal_buffer *buffer,
-		unsigned long length, u32 mmal_flags, s64 dts, s64 pts);
+		int status, struct mmal_buffer *buffer);
 
 struct vchiq_mmal_port {
 	u32 enabled:1;
