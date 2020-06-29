@@ -1966,6 +1966,7 @@ int kfd_process_vm_fault(struct device_queue_manager *dqm,
 
 	if (!p)
 		return -EINVAL;
+	WARN(debug_evictions, "Evicting pid %d", p->lead_thread->pid);
 	pdd = kfd_get_process_device_data(dqm->dev, p);
 	if (pdd)
 		ret = dqm->ops.evict_process_queues(dqm, &pdd->qpd);
