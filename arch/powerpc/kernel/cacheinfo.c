@@ -652,7 +652,7 @@ static ssize_t shared_cpu_map_show(struct kobject *k, struct kobj_attribute *att
 	struct cache_index_dir *index;
 	struct cache *cache;
 	const struct cpumask *mask;
-	int ret, cpu;
+	int cpu;
 
 	index = kobj_to_cache_index_dir(k);
 	cache = index->cache;
@@ -664,11 +664,7 @@ static ssize_t shared_cpu_map_show(struct kobject *k, struct kobj_attribute *att
 		mask  = &cache->shared_cpu_map;
 	}
 
-	ret = scnprintf(buf, PAGE_SIZE - 1, "%*pb\n",
-			cpumask_pr_args(mask));
-	buf[ret++] = '\n';
-	buf[ret] = '\0';
-	return ret;
+	return cpumap_print_to_pagebuf(false, buf, mask);
 }
 
 static struct kobj_attribute cache_shared_cpu_map_attr =
