@@ -256,7 +256,7 @@
 		cpu_on = <0xC4000003>;
 	};
 
-	soc: soc {
+	soc: soc@0 {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
