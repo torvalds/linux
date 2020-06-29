@@ -514,19 +514,14 @@ static int gmin_detect_pmic(struct v4l2_subdev *subdev)
 static struct gmin_subdev *gmin_subdev_add(struct v4l2_subdev *subdev)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(subdev);
+	struct device *dev = &client->dev;
 	struct acpi_device *adev;
 	struct gmin_subdev *gs;
 	acpi_handle handle;
-	struct device *dev;
 	int i, ret, clock_num = -1;
 
-	if (!client)
-		return NULL;
-
-	dev = &client->dev;
-
 	handle = ACPI_HANDLE(dev);
-	adev = ACPI_COMPANION(&client->dev);
+	adev = ACPI_COMPANION(dev);
 
 	dev_info(&client->dev, "%s: ACPI detected it on bus ID=%s, HID=%s\n",
 		__func__, acpi_device_bid(adev), acpi_device_hid(adev));
@@ -829,11 +824,7 @@ static int gmin_v1p8_ctrl(struct v4l2_subdev *subdev, int on)
 {
 	struct gmin_subdev *gs = find_gmin_subdev(subdev);
 	int ret;
-	struct device *dev;
-	struct i2c_client *client = v4l2_get_subdevdata(subdev);
 	int value;
-
-	dev = &client->dev;
 
 	if (gs->v1p8_gpio >= 0) {
 		pr_info("atomisp_gmin_platform: 1.8v power on GPIO %d\n",
@@ -887,11 +878,7 @@ static int gmin_v2p8_ctrl(struct v4l2_subdev *subdev, int on)
 {
 	struct gmin_subdev *gs = find_gmin_subdev(subdev);
 	int ret;
-	struct device *dev;
-	struct i2c_client *client = v4l2_get_subdevdata(subdev);
 	int value;
-
-	dev = &client->dev;
 
 	if (gs->v2p8_gpio >= 0) {
 		pr_info("atomisp_gmin_platform: 2.8v power on GPIO %d\n",
