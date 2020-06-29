@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include <linux/device.h>
+#include <linux/of_mdio.h>
 #include <linux/phy.h>
 #include <linux/stddef.h>
 
@@ -94,3 +95,39 @@ int __devm_mdiobus_register(struct device *dev, struct mii_bus *bus,
 	return 0;
 }
 EXPORT_SYMBOL(__devm_mdiobus_register);
+
+#if IS_ENABLED(CONFIG_OF_MDIO)
+/**
+ * devm_of_mdiobus_register - Resource managed variant of of_mdiobus_register()
+ * @dev:	Device to register mii_bus for
+ * @mdio:	MII bus structure to register
+ * @np:		Device node to parse
+ */
+int devm_of_mdiobus_register(struct device *dev, struct mii_bus *mdio,
+			     struct device_node *np)
+{
+	struct mdiobus_devres *dr;
+	int ret;
+
+	if (WARN_ON(!devres_find(dev, devm_mdiobus_free,
+				 mdiobus_devres_match, mdio)))
+		return -EINVAL;
+
+	dr = devres_alloc(devm_mdiobus_unregister, sizeof(*dr), GFP_KERNEL);
+	if (!dr)
+		return -ENOMEM;
+
+	ret = of_mdiobus_register(mdio, np);
+	if (ret) {
+		devres_free(dr);
+		return ret;
+	}
+
+	dr->mii = mdio;
+	devres_add(dev, dr);
+	return 0;
+}
+EXPORT_SYMBOL(devm_of_mdiobus_register);
+#endif /* CONFIG_OF_MDIO */
+
+MODULE_LICENSE("GPL");
