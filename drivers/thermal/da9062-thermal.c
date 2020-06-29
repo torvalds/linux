@@ -237,7 +237,11 @@ static int da9062_thermal_probe(struct platform_device *pdev)
 		ret = PTR_ERR(thermal->zone);
 		goto err;
 	}
-	thermal->zone->mode = THERMAL_DEVICE_ENABLED;
+	ret = thermal_zone_device_enable(thermal->zone);
+	if (ret) {
+		dev_err(&pdev->dev, "Cannot enable thermal zone device\n");
+		goto err_zone;
+	}
 
 	dev_dbg(&pdev->dev,
 		"TJUNC temperature polling period set at %d ms\n",

@@ -280,17 +280,10 @@ static int mlxsw_thermal_set_mode(struct thermal_zone_device *tzdev,
 {
 	struct mlxsw_thermal *thermal = tzdev->devdata;
 
-	mutex_lock(&tzdev->lock);
-
 	if (mode == THERMAL_DEVICE_ENABLED)
 		tzdev->polling_delay = thermal->polling_delay;
 	else
 		tzdev->polling_delay = 0;
-
-	tzdev->mode = mode;
-	mutex_unlock(&tzdev->lock);
-
-	thermal_zone_device_update(tzdev, THERMAL_EVENT_UNSPECIFIED);
 
 	return 0;
 }
@@ -458,18 +451,10 @@ static int mlxsw_thermal_module_mode_set(struct thermal_zone_device *tzdev,
 	struct mlxsw_thermal_module *tz = tzdev->devdata;
 	struct mlxsw_thermal *thermal = tz->parent;
 
-	mutex_lock(&tzdev->lock);
-
 	if (mode == THERMAL_DEVICE_ENABLED)
 		tzdev->polling_delay = thermal->polling_delay;
 	else
 		tzdev->polling_delay = 0;
-
-	tzdev->mode = mode;
-
-	mutex_unlock(&tzdev->lock);
-
-	thermal_zone_device_update(tzdev, THERMAL_EVENT_UNSPECIFIED);
 
 	return 0;
 }
@@ -756,8 +741,11 @@ mlxsw_thermal_module_tz_init(struct mlxsw_thermal_module *module_tz)
 		return err;
 	}
 
-	module_tz->tzdev->mode = THERMAL_DEVICE_ENABLED;
-	return 0;
+	err = thermal_zone_device_enable(module_tz->tzdev);
+	if (err)
+		thermal_zone_device_unregister(module_tz->tzdev);
+
+	return err;
 }
 
 static void mlxsw_thermal_module_tz_fini(struct thermal_zone_device *tzdev)
@@ -860,6 +848,7 @@ static int
 mlxsw_thermal_gearbox_tz_init(struct mlxsw_thermal_module *gearbox_tz)
 {
 	char tz_name[MLXSW_THERMAL_ZONE_MAX_NAME];
+	int ret;
 
 	snprintf(tz_name, sizeof(tz_name), "mlxsw-gearbox%d",
 		 gearbox_tz->module + 1);
@@ -872,8 +861,11 @@ mlxsw_thermal_gearbox_tz_init(struct mlxsw_thermal_module *gearbox_tz)
 	if (IS_ERR(gearbox_tz->tzdev))
 		return PTR_ERR(gearbox_tz->tzdev);
 
-	gearbox_tz->tzdev->mode = THERMAL_DEVICE_ENABLED;
-	return 0;
+	ret = thermal_zone_device_enable(gearbox_tz->tzdev);
+	if (ret)
+		thermal_zone_device_unregister(gearbox_tz->tzdev);
+
+	return ret;
 }
 
 static void
@@ -1041,10 +1033,15 @@ int mlxsw_thermal_init(struct mlxsw_core *core,
 	if (err)
 		goto err_unreg_modules_tzdev;
 
-	thermal->tzdev->mode = THERMAL_DEVICE_ENABLED;
+	err = thermal_zone_device_enable(thermal->tzdev);
+	if (err)
+		goto err_unreg_gearboxes;
+
 	*p_thermal = thermal;
 	return 0;
 
+err_unreg_gearboxes:
+	mlxsw_thermal_gearboxes_fini(thermal);
 err_unreg_modules_tzdev:
 	mlxsw_thermal_modules_fini(thermal);
 err_unreg_tzdev:

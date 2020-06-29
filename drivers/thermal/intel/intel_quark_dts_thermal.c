@@ -126,10 +126,8 @@ static int soc_dts_enable(struct thermal_zone_device *tzd)
 	if (ret)
 		return ret;
 
-	if (out & QRK_DTS_ENABLE_BIT) {
-		tzd->mode = THERMAL_DEVICE_ENABLED;
+	if (out & QRK_DTS_ENABLE_BIT)
 		return 0;
-	}
 
 	if (!aux_entry->locked) {
 		out |= QRK_DTS_ENABLE_BIT;
@@ -137,10 +135,7 @@ static int soc_dts_enable(struct thermal_zone_device *tzd)
 				     QRK_DTS_REG_OFFSET_ENABLE, out);
 		if (ret)
 			return ret;
-
-		tzd->mode = THERMAL_DEVICE_ENABLED;
 	} else {
-		tzd->mode = THERMAL_DEVICE_DISABLED;
 		pr_info("DTS is locked. Cannot enable DTS\n");
 		ret = -EPERM;
 	}
@@ -159,10 +154,8 @@ static int soc_dts_disable(struct thermal_zone_device *tzd)
 	if (ret)
 		return ret;
 
-	if (!(out & QRK_DTS_ENABLE_BIT)) {
-		tzd->mode = THERMAL_DEVICE_DISABLED;
+	if (!(out & QRK_DTS_ENABLE_BIT))
 		return 0;
-	}
 
 	if (!aux_entry->locked) {
 		out &= ~QRK_DTS_ENABLE_BIT;
@@ -171,10 +164,7 @@ static int soc_dts_disable(struct thermal_zone_device *tzd)
 
 		if (ret)
 			return ret;
-
-		tzd->mode = THERMAL_DEVICE_DISABLED;
 	} else {
-		tzd->mode = THERMAL_DEVICE_ENABLED;
 		pr_info("DTS is locked. Cannot disable DTS\n");
 		ret = -EPERM;
 	}
@@ -404,9 +394,7 @@ static struct soc_sensor_entry *alloc_soc_dts(void)
 		goto err_ret;
 	}
 
-	mutex_lock(&dts_update_mutex);
-	err = soc_dts_enable(aux_entry->tzone);
-	mutex_unlock(&dts_update_mutex);
+	err = thermal_zone_device_enable(aux_entry->tzone);
 	if (err)
 		goto err_aux_status;
 

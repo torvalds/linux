@@ -272,8 +272,6 @@ static int of_thermal_set_mode(struct thermal_zone_device *tz,
 {
 	struct __thermal_zone *data = tz->devdata;
 
-	mutex_lock(&tz->lock);
-
 	if (mode == THERMAL_DEVICE_ENABLED) {
 		tz->polling_delay = data->polling_delay;
 		tz->passive_delay = data->passive_delay;
@@ -281,11 +279,6 @@ static int of_thermal_set_mode(struct thermal_zone_device *tz,
 		tz->polling_delay = 0;
 		tz->passive_delay = 0;
 	}
-
-	mutex_unlock(&tz->lock);
-
-	tz->mode = mode;
-	thermal_zone_device_update(tz, THERMAL_EVENT_UNSPECIFIED);
 
 	return 0;
 }
@@ -541,7 +534,7 @@ thermal_zone_of_sensor_register(struct device *dev, int sensor_id, void *data,
 			tzd = thermal_zone_of_add_sensor(child, sensor_np,
 							 data, ops);
 			if (!IS_ERR(tzd))
-				tzd->ops->set_mode(tzd, THERMAL_DEVICE_ENABLED);
+				thermal_zone_device_enable(tzd);
 
 			of_node_put(child);
 			goto exit;
@@ -1120,7 +1113,6 @@ int __init of_parse_thermal_zones(void)
 			of_thermal_free_zone(tz);
 			/* attempting to build remaining zones still */
 		}
-		zone->mode = THERMAL_DEVICE_DISABLED;
 	}
 	of_node_put(np);
 

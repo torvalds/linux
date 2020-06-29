@@ -255,7 +255,7 @@ static int imx_get_temp(struct thermal_zone_device *tz, int *temp)
 	bool wait;
 	u32 val;
 
-	if (tz->mode == THERMAL_DEVICE_ENABLED) {
+	if (thermal_zone_device_is_enabled(tz)) {
 		/* Check if a measurement is currently in progress */
 		regmap_read(map, soc_data->temp_data, &val);
 		wait = !(val & soc_data->temp_valid_mask);
@@ -282,7 +282,7 @@ static int imx_get_temp(struct thermal_zone_device *tz, int *temp)
 
 	regmap_read(map, soc_data->temp_data, &val);
 
-	if (tz->mode != THERMAL_DEVICE_ENABLED) {
+	if (!thermal_zone_device_is_enabled(tz)) {
 		regmap_write(map, soc_data->sensor_ctrl + REG_CLR,
 			     soc_data->measure_temp_mask);
 		regmap_write(map, soc_data->sensor_ctrl + REG_SET,
@@ -364,9 +364,6 @@ static int imx_set_mode(struct thermal_zone_device *tz,
 			data->irq_enabled = false;
 		}
 	}
-
-	tz->mode = mode;
-	thermal_zone_device_update(tz, THERMAL_EVENT_UNSPECIFIED);
 
 	return 0;
 }
@@ -819,7 +816,9 @@ static int imx_thermal_probe(struct platform_device *pdev)
 		     data->socdata->measure_temp_mask);
 
 	data->irq_enabled = true;
-	data->tz->mode = THERMAL_DEVICE_ENABLED;
+	ret = thermal_zone_device_enable(data->tz);
+	if (ret)
+		goto thermal_zone_unregister;
 
 	ret = devm_request_threaded_irq(&pdev->dev, data->irq,
 			imx_thermal_alarm_irq, imx_thermal_alarm_irq_thread,
@@ -861,19 +860,18 @@ static int imx_thermal_remove(struct platform_device *pdev)
 static int __maybe_unused imx_thermal_suspend(struct device *dev)
 {
 	struct imx_thermal_data *data = dev_get_drvdata(dev);
-	struct regmap *map = data->tempmon;
+	int ret;
 
 	/*
 	 * Need to disable thermal sensor, otherwise, when thermal core
 	 * try to get temperature before thermal sensor resume, a wrong
 	 * temperature will be read as the thermal sensor is powered
-	 * down.
+	 * down. This is done in set_mode() operation called from
+	 * thermal_zone_device_disable()
 	 */
-	regmap_write(map, data->socdata->sensor_ctrl + REG_CLR,
-		     data->socdata->measure_temp_mask);
-	regmap_write(map, data->socdata->sensor_ctrl + REG_SET,
-		     data->socdata->power_down_mask);
-	data->tz->mode = THERMAL_DEVICE_DISABLED;
+	ret = thermal_zone_device_disable(data->tz);
+	if (ret)
+		return ret;
 	clk_disable_unprepare(data->thermal_clk);
 
 	return 0;
@@ -882,18 +880,15 @@ static int __maybe_unused imx_thermal_suspend(struct device *dev)
 static int __maybe_unused imx_thermal_resume(struct device *dev)
 {
 	struct imx_thermal_data *data = dev_get_drvdata(dev);
-	struct regmap *map = data->tempmon;
 	int ret;
 
 	ret = clk_prepare_enable(data->thermal_clk);
 	if (ret)
 		return ret;
 	/* Enabled thermal sensor after resume */
-	regmap_write(map, data->socdata->sensor_ctrl + REG_CLR,
-		     data->socdata->power_down_mask);
-	regmap_write(map, data->socdata->sensor_ctrl + REG_SET,
-		     data->socdata->measure_temp_mask);
-	data->tz->mode = THERMAL_DEVICE_ENABLED;
+	ret = thermal_zone_device_enable(data->tz);
+	if (ret)
+		return ret;
 
 	return 0;
 }
