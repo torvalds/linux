@@ -83,7 +83,7 @@
 		method = "smc";
 	};
 
-	soc: soc {
+	soc: soc@0 {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -595,15 +595,6 @@
 			#thermal-sensor-cells = <0>;
 		};
 
-		thermal-zones {
-			atlas_thermal: cluster0-thermal {
-				polling-delay-passive = <0>; /* milliseconds */
-				polling-delay = <0>; /* milliseconds */
-				thermal-sensors = <&tmuctrl_0>;
-				#include "exynos7-trip-points.dtsi"
-			};
-		};
-
 		ufs: ufs@15570000 {
 			compatible = "samsung,exynos7-ufs";
 			reg = <0x15570000 0x100>,  /* 0: HCI standard */
@@ -670,6 +661,15 @@
 				phys = <&usbdrd_phy 0>, <&usbdrd_phy 1>;
 				phy-names = "usb2-phy", "usb3-phy";
 			};
+		};
+	};
+
+	thermal-zones {
+		atlas_thermal: cluster0-thermal {
+			polling-delay-passive = <0>; /* milliseconds */
+			polling-delay = <0>; /* milliseconds */
+			thermal-sensors = <&tmuctrl_0>;
+			#include "exynos7-trip-points.dtsi"
 		};
 	};
 
