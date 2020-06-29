@@ -2168,8 +2168,10 @@ static bool io_rw_reissue(struct io_kiocb *req, long res)
 	tsk = req->task;
 	init_task_work(&req->task_work, io_rw_resubmit);
 	ret = task_work_add(tsk, &req->task_work, true);
-	if (!ret)
+	if (!ret) {
+		wake_up_process(tsk);
 		return true;
+	}
 #endif
 	return false;
 }
