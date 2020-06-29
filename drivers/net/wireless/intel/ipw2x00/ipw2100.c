@@ -6397,10 +6397,9 @@ static void ipw2100_pci_remove_one(struct pci_dev *pci_dev)
 	IPW_DEBUG_INFO("exit\n");
 }
 
-#ifdef CONFIG_PM
-static int ipw2100_suspend(struct pci_dev *pci_dev, pm_message_t state)
+static int __maybe_unused ipw2100_suspend(struct device *dev_d)
 {
-	struct ipw2100_priv *priv = pci_get_drvdata(pci_dev);
+	struct ipw2100_priv *priv = dev_get_drvdata(dev_d);
 	struct net_device *dev = priv->net_dev;
 
 	IPW_DEBUG_INFO("%s: Going into suspend...\n", dev->name);
@@ -6414,10 +6413,6 @@ static int ipw2100_suspend(struct pci_dev *pci_dev, pm_message_t state)
 	/* Remove the PRESENT state of the device */
 	netif_device_detach(dev);
 
-	pci_save_state(pci_dev);
-	pci_disable_device(pci_dev);
-	pci_set_power_state(pci_dev, PCI_D3hot);
-
 	priv->suspend_at = ktime_get_boottime_seconds();
 
 	mutex_unlock(&priv->action_mutex);
@@ -6425,11 +6420,11 @@ static int ipw2100_suspend(struct pci_dev *pci_dev, pm_message_t state)
 	return 0;
 }
 
-static int ipw2100_resume(struct pci_dev *pci_dev)
+static int __maybe_unused ipw2100_resume(struct device *dev_d)
 {
+	struct pci_dev *pci_dev = to_pci_dev(dev_d);
 	struct ipw2100_priv *priv = pci_get_drvdata(pci_dev);
 	struct net_device *dev = priv->net_dev;
-	int err;
 	u32 val;
 
 	if (IPW2100_PM_DISABLED)
@@ -6438,16 +6433,6 @@ static int ipw2100_resume(struct pci_dev *pci_dev)
 	mutex_lock(&priv->action_mutex);
 
 	IPW_DEBUG_INFO("%s: Coming out of suspend...\n", dev->name);
-
-	pci_set_power_state(pci_dev, PCI_D0);
-	err = pci_enable_device(pci_dev);
-	if (err) {
-		printk(KERN_ERR "%s: pci_enable_device failed on resume\n",
-		       dev->name);
-		mutex_unlock(&priv->action_mutex);
-		return err;
-	}
-	pci_restore_state(pci_dev);
 
 	/*
 	 * Suspend/Resume resets the PCI configuration space, so we have to
@@ -6473,7 +6458,6 @@ static int ipw2100_resume(struct pci_dev *pci_dev)
 
 	return 0;
 }
-#endif
 
 static void ipw2100_shutdown(struct pci_dev *pci_dev)
 {
@@ -6539,15 +6523,14 @@ static const struct pci_device_id ipw2100_pci_id_table[] = {
 
 MODULE_DEVICE_TABLE(pci, ipw2100_pci_id_table);
 
+static SIMPLE_DEV_PM_OPS(ipw2100_pm_ops, ipw2100_suspend, ipw2100_resume);
+
 static struct pci_driver ipw2100_pci_driver = {
 	.name = DRV_NAME,
 	.id_table = ipw2100_pci_id_table,
 	.probe = ipw2100_pci_init_one,
 	.remove = ipw2100_pci_remove_one,
-#ifdef CONFIG_PM
-	.suspend = ipw2100_suspend,
-	.resume = ipw2100_resume,
-#endif
+	.driver.pm = &ipw2100_pm_ops,
 	.shutdown = ipw2100_shutdown,
 };
 
