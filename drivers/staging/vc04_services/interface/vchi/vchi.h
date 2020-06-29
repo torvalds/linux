@@ -21,10 +21,6 @@ struct vchi_held_msg {
 	void *message;
 };
 
-struct vchi_service {
-	unsigned int handle;
-};
-
 // Opaque handle for a VCHIQ instance
 struct vchiq_instance;
 
@@ -46,24 +42,23 @@ extern int32_t vchi_disconnect(struct vchiq_instance *instance);
  * Global service API
  *****************************************************************************/
 // Routine to open a named service
-extern int32_t vchi_service_open(struct vchiq_instance *instance,
-				 struct vchiq_service_params *setup,
-				 struct vchi_service **service);
+extern int vchi_service_open(struct vchiq_instance *instance,
+			    struct vchiq_service_params *params,
+			    unsigned *handle);
 
-extern int32_t vchi_get_peer_version(struct vchi_service *service,
-				     short *peer_version);
+extern int32_t vchi_get_peer_version(unsigned handle, short *peer_version);
 
 // Routine to close a named service
-extern int32_t vchi_service_close(struct vchi_service *service);
+extern int32_t vchi_service_close(unsigned handle);
 
 // Routine to increment ref count on a named service
-extern int32_t vchi_service_use(struct vchi_service *service);
+extern int32_t vchi_service_use(unsigned handle);
 
 // Routine to decrement ref count on a named service
-extern int32_t vchi_service_release(struct vchi_service *service);
+extern int32_t vchi_service_release(unsigned handle);
 
 /* Routine to send a message from kernel memory across a service */
-extern int vchi_queue_kernel_message(struct vchi_service *service, void *data,
+extern int vchi_queue_kernel_message(unsigned handle, void *data,
 				     unsigned int size);
 
 // Routine to look at a message in place.
@@ -87,14 +82,14 @@ extern int32_t vchi_held_msg_release(struct vchi_held_msg *message);
  *****************************************************************************/
 
 // Routine to prepare interface for a transfer from the other side
-extern int32_t vchi_bulk_queue_receive(struct vchi_service *service,
+extern int32_t vchi_bulk_queue_receive(unsigned handle,
 				       void *data_dst,
 				       uint32_t data_size,
 				       enum vchiq_bulk_mode mode,
 				       void *transfer_handle);
 
 // Routine to queue up data ready for transfer to the other (once they have signalled they are ready)
-extern int32_t vchi_bulk_queue_transmit(struct vchi_service *service,
+extern int32_t vchi_bulk_queue_transmit(unsigned handle,
 					const void *data_src,
 					uint32_t data_size,
 				        enum vchiq_bulk_mode mode,

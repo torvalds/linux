@@ -10,14 +10,12 @@
 #include "vchiq.h"
 #include "vchiq_core.h"
 
-int vchi_queue_kernel_message(struct vchi_service *service, void *data,
-			      unsigned int size)
+int vchi_queue_kernel_message(unsigned handle, void *data, unsigned int size)
 {
 	enum vchiq_status status;
 
 	while (1) {
-		status = vchiq_queue_kernel_message(service->handle, data,
-						    size);
+		status = vchiq_queue_kernel_message(handle, data, size);
 
 		/*
 		 * vchiq_queue_message() may return VCHIQ_RETRY, so we need to
@@ -48,15 +46,15 @@ EXPORT_SYMBOL(vchi_queue_kernel_message);
  * Returns: int32_t - success == 0
  *
  ***********************************************************/
-int32_t vchi_bulk_queue_receive(struct vchi_service *service, void *data_dst,
+int32_t vchi_bulk_queue_receive(unsigned handle, void *data_dst,
 				uint32_t data_size, enum vchiq_bulk_mode mode,
 				void *bulk_handle)
 {
 	enum vchiq_status status;
 
 	while (1) {
-		status = vchiq_bulk_receive(service->handle, data_dst,
-			data_size, bulk_handle, mode);
+		status = vchiq_bulk_receive(handle, data_dst, data_size,
+					    bulk_handle, mode);
 		/*
 		 * vchiq_bulk_receive() may return VCHIQ_RETRY, so we need to
 		 * implement a retry mechanism since this function is supposed
@@ -86,17 +84,15 @@ EXPORT_SYMBOL(vchi_bulk_queue_receive);
  * Returns: int32_t - success == 0
  *
  ***********************************************************/
-int32_t vchi_bulk_queue_transmit(struct vchi_service *service,
-				 const void *data_src,
-				 uint32_t data_size,
-				 enum vchiq_bulk_mode mode,
+int32_t vchi_bulk_queue_transmit(unsigned handle, const void *data_src,
+				 uint32_t data_size, enum vchiq_bulk_mode mode,
 				 void *bulk_handle)
 {
 	enum vchiq_status status;
 
 	while (1) {
-		status = vchiq_bulk_transmit(service->handle, data_src,
-			data_size, bulk_handle, mode);
+		status = vchiq_bulk_transmit(handle, data_src, data_size,
+					     bulk_handle, mode);
 
 		/*
 		 * vchiq_bulk_transmit() may return VCHIQ_RETRY, so we need to
@@ -245,7 +241,7 @@ EXPORT_SYMBOL(vchi_disconnect);
  *
  * Arguments: struct vchiq_instance *instance
  *            struct service_creation *setup,
- *            struct vchi_service **service
+ *            unsigned *handle
  *
  * Description: Routine to open a service
  *
@@ -253,103 +249,54 @@ EXPORT_SYMBOL(vchi_disconnect);
  *
  ***********************************************************/
 
-static struct vchi_service *service_alloc(void)
-{
-	return kzalloc(sizeof(struct vchi_service), GFP_KERNEL);
-}
-
-static void service_free(struct vchi_service *service)
-{
-	if (service)
-		kfree(service);
-}
-
 int32_t vchi_service_open(struct vchiq_instance *instance,
-	struct vchiq_service_params *params,
-	struct vchi_service **service)
+		      struct vchiq_service_params *params,
+		      unsigned *handle)
 {
-
-	*service = service_alloc();
-	if (*service) {
-		enum vchiq_status status;
-
-		status = vchiq_open_service(instance, params,
-			&((*service)->handle));
-		if (status != VCHIQ_SUCCESS) {
-			service_free(*service);
-			*service = NULL;
-		}
-	}
-
-	return *service ? 0 : -1;
+	return vchiq_open_service(instance, params, handle);
 }
 EXPORT_SYMBOL(vchi_service_open);
 
-int32_t vchi_service_close(struct vchi_service *service)
+int32_t vchi_service_close(unsigned handle)
 {
-	int32_t ret = -1;
-
-	if (service) {
-		enum vchiq_status status = vchiq_close_service(service->handle);
-		if (status == VCHIQ_SUCCESS)
-			service_free(service);
-
-		ret = status;
-	}
-	return ret;
+	return vchiq_close_service(handle);
 }
 EXPORT_SYMBOL(vchi_service_close);
 
-int32_t vchi_get_peer_version(struct vchi_service *service, short *peer_version)
+int32_t vchi_get_peer_version(unsigned handle, short *peer_version)
 {
-	int32_t ret = -1;
-
-	if (service) {
-		enum vchiq_status status;
-
-		status = vchiq_get_peer_version(service->handle, peer_version);
-		ret = status;
-	}
-	return ret;
+	return vchiq_get_peer_version(handle, peer_version);
 }
 EXPORT_SYMBOL(vchi_get_peer_version);
 
 /***********************************************************
  * Name: vchi_service_use
  *
- * Arguments: struct vchi_service *service
+ * Arguments: unsigned handle
  *
  * Description: Routine to increment refcount on a service
  *
  * Returns: void
  *
  ***********************************************************/
-int32_t vchi_service_use(struct vchi_service *service)
+int32_t vchi_service_use(unsigned handle)
 {
-	int32_t ret = -1;
-
-	if (service)
-		ret = vchiq_use_service(service->handle);
-	return ret;
+	return vchiq_use_service(handle);
 }
 EXPORT_SYMBOL(vchi_service_use);
 
 /***********************************************************
  * Name: vchi_service_release
  *
- * Arguments: struct vchi_service *service
+ * Arguments: unsigned handle
  *
  * Description: Routine to decrement refcount on a service
  *
  * Returns: void
  *
  ***********************************************************/
-int32_t vchi_service_release(struct vchi_service *service)
+int32_t vchi_service_release(unsigned handle)
 {
-	int32_t ret = -1;
-
-	if (service)
-		ret = vchiq_release_service(service->handle);
-	return ret;
+	return vchiq_release_service(handle);
 }
 EXPORT_SYMBOL(vchi_service_release);

@@ -9,7 +9,7 @@
 
 struct bcm2835_audio_instance {
 	struct device *dev;
-	struct vchi_service *service;
+	unsigned service_handle;
 	struct completion msg_avail_comp;
 	struct mutex vchi_mutex;
 	struct bcm2835_alsa_stream *alsa_stream;
@@ -25,12 +25,12 @@ MODULE_PARM_DESC(force_bulk, "Force use of vchiq bulk for audio");
 static void bcm2835_audio_lock(struct bcm2835_audio_instance *instance)
 {
 	mutex_lock(&instance->vchi_mutex);
-	vchi_service_use(instance->service);
+	vchi_service_use(instance->service_handle);
 }
 
 static void bcm2835_audio_unlock(struct bcm2835_audio_instance *instance)
 {
-	vchi_service_release(instance->service);
+	vchi_service_release(instance->service_handle);
 	mutex_unlock(&instance->vchi_mutex);
 }
 
@@ -44,7 +44,7 @@ static int bcm2835_audio_send_msg_locked(struct bcm2835_audio_instance *instance
 		init_completion(&instance->msg_avail_comp);
 	}
 
-	status = vchi_queue_kernel_message(instance->service,
+	status = vchi_queue_kernel_message(instance->service_handle,
 					   m, sizeof(*m));
 	if (status) {
 		dev_err(instance->dev,
@@ -133,7 +133,7 @@ vc_vchi_audio_init(struct vchiq_instance *vchiq_instance,
 
 	/* Open the VCHI service connections */
 	status = vchi_service_open(vchiq_instance, &params,
-				   &instance->service);
+				   &instance->service_handle);
 
 	if (status) {
 		dev_err(instance->dev,
@@ -143,7 +143,7 @@ vc_vchi_audio_init(struct vchiq_instance *vchiq_instance,
 	}
 
 	/* Finished with the service for now */
-	vchi_service_release(instance->service);
+	vchi_service_release(instance->service_handle);
 
 	return 0;
 }
@@ -153,10 +153,10 @@ static void vc_vchi_audio_deinit(struct bcm2835_audio_instance *instance)
 	int status;
 
 	mutex_lock(&instance->vchi_mutex);
-	vchi_service_use(instance->service);
+	vchi_service_use(instance->service_handle);
 
 	/* Close all VCHI service connections */
-	status = vchi_service_close(instance->service);
+	status = vchi_service_close(instance->service_handle);
 	if (status) {
 		dev_err(instance->dev,
 			"failed to close VCHI service connection (status=%d)\n",
@@ -226,7 +226,8 @@ int bcm2835_audio_open(struct bcm2835_alsa_stream *alsa_stream)
 		goto deinit;
 
 	bcm2835_audio_lock(instance);
-	vchi_get_peer_version(instance->service, &instance->peer_version);
+	vchi_get_peer_version(instance->service_handle,
+			      &instance->peer_version);
 	bcm2835_audio_unlock(instance);
 	if (instance->peer_version < 2 || force_bulk)
 		instance->max_packet = 0; /* bulk transfer */
@@ -342,7 +343,7 @@ int bcm2835_audio_write(struct bcm2835_alsa_stream *alsa_stream,
 	count = size;
 	if (!instance->max_packet) {
 		/* Send the message to the videocore */
-		status = vchi_bulk_queue_transmit(instance->service,
+		status = vchi_bulk_queue_transmit(instance->service_handle,
 						  src, count,
 						  VCHIQ_BULK_MODE_BLOCKING,
 						  NULL);
@@ -350,7 +351,7 @@ int bcm2835_audio_write(struct bcm2835_alsa_stream *alsa_stream,
 		while (count > 0) {
 			int bytes = min(instance->max_packet, count);
 
-			status = vchi_queue_kernel_message(instance->service,
+			status = vchi_queue_kernel_message(instance->service_handle,
 							   src, bytes);
 			src += bytes;
 			count -= bytes;
