@@ -59,14 +59,42 @@ static inline u64 tcf_police_rate_bytes_ps(const struct tc_action *act)
 	return params->rate.rate_bytes_ps;
 }
 
-static inline s64 tcf_police_tcfp_burst(const struct tc_action *act)
+static inline u32 tcf_police_burst(const struct tc_action *act)
 {
 	struct tcf_police *police = to_police(act);
 	struct tcf_police_params *params;
+	u32 burst;
 
 	params = rcu_dereference_protected(police->params,
 					   lockdep_is_held(&police->tcf_lock));
-	return params->tcfp_burst;
+
+	/*
+	 *  "rate" bytes   "burst" nanoseconds
+	 *  ------------ * -------------------
+	 *    1 second          2^6 ticks
+	 *
+	 * ------------------------------------
+	 *        NSEC_PER_SEC nanoseconds
+	 *        ------------------------
+	 *              2^6 ticks
+	 *
+	 *    "rate" bytes   "burst" nanoseconds            2^6 ticks
+	 *  = ------------ * ------------------- * ------------------------
+	 *      1 second          2^6 ticks        NSEC_PER_SEC nanoseconds
+	 *
+	 *   "rate" * "burst"
+	 * = ---------------- bytes/nanosecond
+	 *    NSEC_PER_SEC^2
+	 *
+	 *
+	 *   "rate" * "burst"
+	 * = ---------------- bytes/second
+	 *     NSEC_PER_SEC
+	 */
+	burst = div_u64(params->tcfp_burst * params->rate.rate_bytes_ps,
+			NSEC_PER_SEC);
+
+	return burst;
 }
 
 static inline u32 tcf_police_tcfp_mtu(const struct tc_action *act)

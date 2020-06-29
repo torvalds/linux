@@ -12,7 +12,6 @@ static int ocelot_flower_parse_action(struct flow_cls_offload *f,
 				      struct ocelot_vcap_filter *filter)
 {
 	const struct flow_action_entry *a;
-	s64 burst;
 	u64 rate;
 	int i;
 
@@ -35,8 +34,7 @@ static int ocelot_flower_parse_action(struct flow_cls_offload *f,
 			filter->action = OCELOT_VCAP_ACTION_POLICE;
 			rate = a->police.rate_bytes_ps;
 			filter->pol.rate = div_u64(rate, 1000) * 8;
-			burst = rate * PSCHED_NS2TICKS(a->police.burst);
-			filter->pol.burst = div_u64(burst, PSCHED_TICKS_PER_SEC);
+			filter->pol.burst = a->police.burst;
 			break;
 		default:
 			return -EOPNOTSUPP;

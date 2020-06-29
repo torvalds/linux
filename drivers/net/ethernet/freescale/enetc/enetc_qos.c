@@ -1241,8 +1241,6 @@ static int enetc_psfp_parse_clsflower(struct enetc_ndev_priv *priv,
 	/* Flow meter and max frame size */
 	if (entryp) {
 		if (entryp->police.burst) {
-			u64 temp;
-
 			fmi = kzalloc(sizeof(*fmi), GFP_KERNEL);
 			if (!fmi) {
 				err = -ENOMEM;
@@ -1250,11 +1248,7 @@ static int enetc_psfp_parse_clsflower(struct enetc_ndev_priv *priv,
 			}
 			refcount_set(&fmi->refcount, 1);
 			fmi->cir = entryp->police.rate_bytes_ps;
-			/* Convert to original burst value */
-			temp = entryp->police.burst * fmi->cir;
-			temp = div_u64(temp, 1000000000ULL);
-
-			fmi->cbs = temp;
+			fmi->cbs = entryp->police.burst;
 			fmi->index = entryp->police.index;
 			filter->flags |= ENETC_PSFP_FLAGS_FMI;
 			filter->fmi_index = fmi->index;

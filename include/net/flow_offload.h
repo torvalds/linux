@@ -233,7 +233,7 @@ struct flow_action_entry {
 		} sample;
 		struct {				/* FLOW_ACTION_POLICE */
 			u32			index;
-			s64			burst;
+			u32			burst;
 			u64			rate_bytes_ps;
 			u32			mtu;
 		} police;

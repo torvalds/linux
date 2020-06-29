@@ -3324,9 +3324,7 @@ static int sja1105_port_policer_add(struct dsa_switch *ds, int port,
 	 */
 	policing[port].rate = div_u64(512 * policer->rate_bytes_per_sec,
 				      1000000);
-	policing[port].smax = div_u64(policer->rate_bytes_per_sec *
-				      PSCHED_NS2TICKS(policer->burst),
-				      PSCHED_TICKS_PER_SEC);
+	policing[port].smax = policer->burst;
 
 	return sja1105_static_config_reload(priv, SJA1105_BEST_EFFORT_POLICING);
 }

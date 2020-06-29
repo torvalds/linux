@@ -746,9 +746,7 @@ static int felix_port_policer_add(struct dsa_switch *ds, int port,
 	struct ocelot *ocelot = ds->priv;
 	struct ocelot_policer pol = {
 		.rate = div_u64(policer->rate_bytes_per_sec, 1000) * 8,
-		.burst = div_u64(policer->rate_bytes_per_sec *
-				 PSCHED_NS2TICKS(policer->burst),
-				 PSCHED_TICKS_PER_SEC),
+		.burst = policer->burst,
 	};
 
 	return ocelot_port_policer_add(ocelot, port, &pol);

@@ -144,7 +144,7 @@ struct dsa_mall_mirror_tc_entry {
 
 /* TC port policer entry */
 struct dsa_mall_policer_tc_entry {
-	s64 burst;
+	u32 burst;
 	u64 rate_bytes_per_sec;
 };
 
