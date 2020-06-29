@@ -103,6 +103,58 @@ mt76x2e_remove(struct pci_dev *pdev)
 	mt76_free_device(mdev);
 }
 
+static int __maybe_unused
+mt76x2e_suspend(struct pci_dev *pdev, pm_message_t state)
+{
+	struct mt76_dev *mdev = pci_get_drvdata(pdev);
+	int i, err;
+
+	napi_disable(&mdev->tx_napi);
+	tasklet_kill(&mdev->pre_tbtt_tasklet);
+	tasklet_kill(&mdev->tx_tasklet);
+
+	mt76_for_each_q_rx(mdev, i)
+		napi_disable(&mdev->napi[i]);
+
+	pci_enable_wake(pdev, pci_choose_state(pdev, state), true);
+	pci_save_state(pdev);
+	err = pci_set_power_state(pdev, pci_choose_state(pdev, state));
+	if (err)
+		goto restore;
+
+	return 0;
+
+restore:
+	mt76_for_each_q_rx(mdev, i)
+		napi_enable(&mdev->napi[i]);
+	napi_enable(&mdev->tx_napi);
+
+	return err;
+}
+
+static int __maybe_unused
+mt76x2e_resume(struct pci_dev *pdev)
+{
+	struct mt76_dev *mdev = pci_get_drvdata(pdev);
+	struct mt76x02_dev *dev = container_of(mdev, struct mt76x02_dev, mt76);
+	int i, err;
+
+	err = pci_set_power_state(pdev, PCI_D0);
+	if (err)
+		return err;
+
+	pci_restore_state(pdev);
+
+	mt76_for_each_q_rx(mdev, i) {
+		napi_enable(&mdev->napi[i]);
+		napi_schedule(&mdev->napi[i]);
+	}
+	napi_enable(&mdev->tx_napi);
+	napi_schedule(&mdev->tx_napi);
+
+	return mt76x2_resume_device(dev);
+}
+
 MODULE_DEVICE_TABLE(pci, mt76x2e_device_table);
 MODULE_FIRMWARE(MT7662_FIRMWARE);
 MODULE_FIRMWARE(MT7662_ROM_PATCH);
@@ -113,6 +165,10 @@ static struct pci_driver mt76pci_driver = {
 	.id_table	= mt76x2e_device_table,
 	.probe		= mt76x2e_probe,
 	.remove		= mt76x2e_remove,
+#ifdef CONFIG_PM
+	.suspend	= mt76x2e_suspend,
+	.resume		= mt76x2e_resume,
+#endif /* CONFIG_PM */
 };
 
 module_pci_driver(mt76pci_driver);
