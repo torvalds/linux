@@ -354,11 +354,13 @@ static int vcn_v3_0_hw_fini(void *handle)
 
 		ring = &adev->vcn.inst[i].ring_dec;
 
-		if ((adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG) ||
-			(adev->vcn.cur_state != AMD_PG_STATE_GATE &&
-			RREG32_SOC15(VCN, i, mmUVD_STATUS)))
-			vcn_v3_0_set_powergating_state(adev, AMD_PG_STATE_GATE);
-
+		if (!amdgpu_sriov_vf(adev)) {
+			if ((adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG) ||
+					(adev->vcn.cur_state != AMD_PG_STATE_GATE &&
+					 RREG32_SOC15(VCN, i, mmUVD_STATUS))) {
+				vcn_v3_0_set_powergating_state(adev, AMD_PG_STATE_GATE);
+			}
+		}
 		ring->sched.ready = false;
 
 		for (j = 0; j < adev->vcn.num_enc_rings; ++j) {
@@ -1860,6 +1862,15 @@ static int vcn_v3_0_set_powergating_state(void *handle,
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int ret;
+
+	/* for SRIOV, guest should not control VCN Power-gating
+	 * MMSCH FW should control Power-gating and clock-gating
+	 * guest should avoid touching CGC and PG
+	 */
+	if (amdgpu_sriov_vf(adev)) {
+		adev->vcn.cur_state = AMD_PG_STATE_UNGATE;
+		return 0;
+	}
 
 	if(state == adev->vcn.cur_state)
 		return 0;
