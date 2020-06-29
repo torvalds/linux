@@ -1056,8 +1056,13 @@ static int nvme_identify_ctrl(struct nvme_ctrl *dev, struct nvme_id_ctrl **id)
 	return error;
 }
 
+static bool nvme_multi_css(struct nvme_ctrl *ctrl)
+{
+	return (ctrl->ctrl_config & NVME_CC_CSS_MASK) == NVME_CC_CSS_CSI;
+}
+
 static int nvme_process_ns_desc(struct nvme_ctrl *ctrl, struct nvme_ns_ids *ids,
-		struct nvme_ns_id_desc *cur)
+		struct nvme_ns_id_desc *cur, bool *csi_seen)
 {
 	const char *warn_str = "ctrl returned bogus length:";
 	void *data = cur;
@@ -1087,6 +1092,15 @@ static int nvme_process_ns_desc(struct nvme_ctrl *ctrl, struct nvme_ns_ids *ids,
 		}
 		uuid_copy(&ids->uuid, data + sizeof(*cur));
 		return NVME_NIDT_UUID_LEN;
+	case NVME_NIDT_CSI:
+		if (cur->nidl != NVME_NIDT_CSI_LEN) {
+			dev_warn(ctrl->device, "%s %d for NVME_NIDT_CSI\n",
+				 warn_str, cur->nidl);
+			return -1;
+		}
+		memcpy(&ids->csi, data + sizeof(*cur), NVME_NIDT_CSI_LEN);
+		*csi_seen = true;
+		return NVME_NIDT_CSI_LEN;
 	default:
 		/* Skip unknown types */
 		return cur->nidl;
@@ -1097,10 +1111,9 @@ static int nvme_identify_ns_descs(struct nvme_ctrl *ctrl, unsigned nsid,
 		struct nvme_ns_ids *ids)
 {
 	struct nvme_command c = { };
-	int status;
+	bool csi_seen = false;
+	int status, pos, len;
 	void *data;
-	int pos;
-	int len;
 
 	c.identify.opcode = nvme_admin_identify;
 	c.identify.nsid = cpu_to_le32(nsid);
@@ -1125,7 +1138,7 @@ static int nvme_identify_ns_descs(struct nvme_ctrl *ctrl, unsigned nsid,
 		  * device just because of a temporal retry-able error (such
 		  * as path of transport errors).
 		  */
-		if (status > 0 && (status & NVME_SC_DNR))
+		if (status > 0 && (status & NVME_SC_DNR) && !nvme_multi_css(ctrl))
 			status = 0;
 		goto free_data;
 	}
@@ -1136,12 +1149,19 @@ static int nvme_identify_ns_descs(struct nvme_ctrl *ctrl, unsigned nsid,
 		if (cur->nidl == 0)
 			break;
 
-		len = nvme_process_ns_desc(ctrl, ids, cur);
+		len = nvme_process_ns_desc(ctrl, ids, cur, &csi_seen);
 		if (len < 0)
-			goto free_data;
+			break;
 
 		len += sizeof(*cur);
 	}
+
+	if (nvme_multi_css(ctrl) && !csi_seen) {
+		dev_warn(ctrl->device, "Command set not reported for nsid:%d\n",
+			 nsid);
+		status = -EINVAL;
+	}
+
 free_data:
 	kfree(data);
 	return status;
@@ -1798,7 +1818,7 @@ static int nvme_report_ns_ids(struct nvme_ctrl *ctrl, unsigned int nsid,
 		memcpy(ids->eui64, id->eui64, sizeof(id->eui64));
 	if (ctrl->vs >= NVME_VS(1, 2, 0))
 		memcpy(ids->nguid, id->nguid, sizeof(id->nguid));
-	if (ctrl->vs >= NVME_VS(1, 3, 0))
+	if (ctrl->vs >= NVME_VS(1, 3, 0) || nvme_multi_css(ctrl))
 		return nvme_identify_ns_descs(ctrl, nsid, ids);
 	return 0;
 }
@@ -1814,7 +1834,8 @@ static bool nvme_ns_ids_equal(struct nvme_ns_ids *a, struct nvme_ns_ids *b)
 {
 	return uuid_equal(&a->uuid, &b->uuid) &&
 		memcmp(&a->nguid, &b->nguid, sizeof(a->nguid)) == 0 &&
-		memcmp(&a->eui64, &b->eui64, sizeof(a->eui64)) == 0;
+		memcmp(&a->eui64, &b->eui64, sizeof(a->eui64)) == 0 &&
+		a->csi == b->csi;
 }
 
 static int nvme_setup_streams_ns(struct nvme_ctrl *ctrl, struct nvme_ns *ns,
@@ -1935,6 +1956,15 @@ static int __nvme_revalidate_disk(struct gendisk *disk, struct nvme_id_ns *id)
 	ns->lba_shift = id->lbaf[id->flbas & NVME_NS_FLBAS_LBA_MASK].ds;
 	if (ns->lba_shift == 0)
 		ns->lba_shift = 9;
+
+	switch (ns->head->ids.csi) {
+	case NVME_CSI_NVM:
+		break;
+	default:
+		dev_warn(ctrl->device, "unknown csi:%d ns:%d\n",
+			ns->head->ids.csi, ns->head->ns_id);
+		return -ENODEV;
+	}
 
 	if ((ctrl->quirks & NVME_QUIRK_STRIPE_SIZE) &&
 	    is_power_of_2(ctrl->max_hw_sectors))
@@ -2270,7 +2300,10 @@ int nvme_enable_ctrl(struct nvme_ctrl *ctrl)
 
 	ctrl->page_size = 1 << page_shift;
 
-	ctrl->ctrl_config = NVME_CC_CSS_NVM;
+	if (NVME_CAP_CSS(ctrl->cap) & NVME_CAP_CSS_CSI)
+		ctrl->ctrl_config = NVME_CC_CSS_CSI;
+	else
+		ctrl->ctrl_config = NVME_CC_CSS_NVM;
 	ctrl->ctrl_config |= (page_shift - 12) << NVME_CC_MPS_SHIFT;
 	ctrl->ctrl_config |= NVME_CC_AMS_RR | NVME_CC_SHN_NONE;
 	ctrl->ctrl_config |= NVME_CC_IOSQES | NVME_CC_IOCQES;
