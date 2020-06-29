@@ -159,7 +159,7 @@ struct blk_mq_alloc_data {
 
 static inline struct blk_mq_tags *blk_mq_tags_from_data(struct blk_mq_alloc_data *data)
 {
-	if (data->flags & BLK_MQ_REQ_INTERNAL)
+	if (data->q->elevator)
 		return data->hctx->sched_tags;
 
 	return data->hctx->tags;
