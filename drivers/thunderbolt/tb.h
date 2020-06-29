@@ -822,6 +822,7 @@ int tb_port_get_link_speed(struct tb_port *port);
 
 int tb_switch_find_vse_cap(struct tb_switch *sw, enum tb_switch_vse_cap vsec);
 int tb_switch_find_cap(struct tb_switch *sw, enum tb_switch_cap cap);
+int tb_switch_next_cap(struct tb_switch *sw, unsigned int offset);
 int tb_port_find_cap(struct tb_port *port, enum tb_port_cap cap);
 int tb_port_next_cap(struct tb_port *port, unsigned int offset);
 bool tb_port_is_enabled(struct tb_port *port);
