@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause) */
+/* SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause) */
 /*
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -37,6 +37,8 @@ enum sof_comp_type {
 	SOF_COMP_SELECTOR,		/**< channel selector component */
 	SOF_COMP_DEMUX,
 	SOF_COMP_ASRC,		/**< Asynchronous sample rate converter */
+	SOF_COMP_DCBLOCK,
+	SOF_COMP_SMART_AMP,             /**< smart amplifier component */
 	/* keep FILEREAD/FILEWRITE as the last ones */
 	SOF_COMP_FILEREAD = 10000,	/**< host test based file IO */
 	SOF_COMP_FILEWRITE = 10001,	/**< host test based file IO */
@@ -75,11 +77,23 @@ struct sof_ipc_comp {
 #define SOF_MEM_CAPS_CACHE			(1 << 6) /**< cacheable */
 #define SOF_MEM_CAPS_EXEC			(1 << 7) /**< executable */
 
+/*
+ * overrun will cause ring buffer overwrite, instead of XRUN.
+ */
+#define SOF_BUF_OVERRUN_PERMITTED	BIT(0)
+
+/*
+ * underrun will cause readback of 0s, instead of XRUN.
+ */
+#define SOF_BUF_UNDERRUN_PERMITTED	BIT(1)
+
 /* create new component buffer - SOF_IPC_TPLG_BUFFER_NEW */
 struct sof_ipc_buffer {
 	struct sof_ipc_comp comp;
 	uint32_t size;		/**< buffer size in bytes */
 	uint32_t caps;		/**< SOF_MEM_CAPS_ */
+	uint32_t flags;		/**< SOF_BUF_ flags defined above */
+	uint32_t reserved;	/**< reserved for future use */
 } __packed;
 
 /* generic component config data - must always be after struct sof_ipc_comp */
@@ -206,6 +220,8 @@ enum sof_ipc_process_type {
 	SOF_PROCESS_CHAN_SELECTOR,	/**< Channel Selector */
 	SOF_PROCESS_MUX,
 	SOF_PROCESS_DEMUX,
+	SOF_PROCESS_DCBLOCK,
+	SOF_PROCESS_SMART_AMP,	/**< Smart Amplifier */
 };
 
 /* generic "effect", "codec" or proprietary processing component */
@@ -218,7 +234,7 @@ struct sof_ipc_comp_process {
 	/* reserved for future use */
 	uint32_t reserved[7];
 
-	unsigned char data[0];
+	uint8_t data[0];
 } __packed;
 
 /* frees components, buffers and pipelines

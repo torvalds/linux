@@ -12,15 +12,16 @@ static inline bool mlx5e_rx_is_xdp(struct mlx5e_params *params,
 u16 mlx5e_get_linear_rq_headroom(struct mlx5e_params *params,
 				 struct mlx5e_xsk_param *xsk)
 {
-	u16 headroom = NET_IP_ALIGN;
+	u16 headroom;
 
-	if (mlx5e_rx_is_xdp(params, xsk)) {
+	if (xsk)
+		return xsk->headroom;
+
+	headroom = NET_IP_ALIGN;
+	if (mlx5e_rx_is_xdp(params, xsk))
 		headroom += XDP_PACKET_HEADROOM;
-		if (xsk)
-			headroom += xsk->headroom;
-	} else {
+	else
 		headroom += MLX5_RX_HEADROOM;
-	}
 
 	return headroom;
 }

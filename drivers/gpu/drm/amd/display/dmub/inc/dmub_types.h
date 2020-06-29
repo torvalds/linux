@@ -49,12 +49,23 @@ extern "C" {
 #define dmub_udelay(microseconds) udelay(microseconds)
 #endif
 
+/* Maximum number of streams on any ASIC. */
+#define DMUB_MAX_STREAMS 6
+
+/* Maximum number of planes on any ASIC. */
+#define DMUB_MAX_PLANES 6
+
 union dmub_addr {
 	struct {
 		uint32_t low_part;
 		uint32_t high_part;
 	} u;
 	uint64_t quad_part;
+};
+
+struct dmub_psr_debug_flags {
+	uint8_t visual_confirm : 1;
+	uint8_t reserved : 7;
 };
 
 #if defined(__cplusplus)

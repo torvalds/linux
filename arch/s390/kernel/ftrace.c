@@ -72,22 +72,6 @@ static inline void ftrace_generate_orig_insn(struct ftrace_insn *insn)
 #endif
 }
 
-static inline void ftrace_generate_kprobe_nop_insn(struct ftrace_insn *insn)
-{
-#ifdef CONFIG_KPROBES
-	insn->opc = BREAKPOINT_INSTRUCTION;
-	insn->disp = KPROBE_ON_FTRACE_NOP;
-#endif
-}
-
-static inline void ftrace_generate_kprobe_call_insn(struct ftrace_insn *insn)
-{
-#ifdef CONFIG_KPROBES
-	insn->opc = BREAKPOINT_INSTRUCTION;
-	insn->disp = KPROBE_ON_FTRACE_CALL;
-#endif
-}
-
 int ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
 		       unsigned long addr)
 {
@@ -99,7 +83,7 @@ int ftrace_make_nop(struct module *mod, struct dyn_ftrace *rec,
 {
 	struct ftrace_insn orig, new, old;
 
-	if (probe_kernel_read(&old, (void *) rec->ip, sizeof(old)))
+	if (copy_from_kernel_nofault(&old, (void *) rec->ip, sizeof(old)))
 		return -EFAULT;
 	if (addr == MCOUNT_ADDR) {
 		/* Initial code replacement */
@@ -121,7 +105,7 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 {
 	struct ftrace_insn orig, new, old;
 
-	if (probe_kernel_read(&old, (void *) rec->ip, sizeof(old)))
+	if (copy_from_kernel_nofault(&old, (void *) rec->ip, sizeof(old)))
 		return -EFAULT;
 	/* Replace nop with an ftrace call. */
 	ftrace_generate_nop_insn(&orig);

@@ -30,8 +30,6 @@ static enum uv_system_type	uv_system_type;
 static int			uv_hubbed_system;
 static int			uv_hubless_system;
 static u64			gru_start_paddr, gru_end_paddr;
-static u64			gru_dist_base, gru_first_node_paddr = -1LL, gru_last_node_paddr;
-static u64			gru_dist_lmask, gru_dist_umask;
 static union uvh_apicid		uvh_apicid;
 
 /* Unpack OEM/TABLE ID's to be NULL terminated strings */
@@ -48,11 +46,9 @@ static struct {
 	unsigned int gnode_shift;
 } uv_cpuid;
 
-int uv_min_hub_revision_id;
-EXPORT_SYMBOL_GPL(uv_min_hub_revision_id);
+static int uv_min_hub_revision_id;
 
 unsigned int uv_apicid_hibits;
-EXPORT_SYMBOL_GPL(uv_apicid_hibits);
 
 static struct apic apic_x2apic_uv_x;
 static struct uv_hub_info_s uv_hub_info_node0;
@@ -85,20 +81,7 @@ static unsigned long __init uv_early_read_mmr(unsigned long addr)
 
 static inline bool is_GRU_range(u64 start, u64 end)
 {
-	if (gru_dist_base) {
-		u64 su = start & gru_dist_umask; /* Upper (incl pnode) bits */
-		u64 sl = start & gru_dist_lmask; /* Base offset bits */
-		u64 eu = end & gru_dist_umask;
-		u64 el = end & gru_dist_lmask;
-
-		/* Must reside completely within a single GRU range: */
-		return (sl == gru_dist_base && el == gru_dist_base &&
-			su >= gru_first_node_paddr &&
-			su <= gru_last_node_paddr &&
-			eu == su);
-	} else {
-		return start >= gru_start_paddr && end <= gru_end_paddr;
-	}
+	return start >= gru_start_paddr && end <= gru_end_paddr;
 }
 
 static bool uv_is_untracked_pat_range(u64 start, u64 end)
@@ -385,11 +368,10 @@ int is_uv_hubbed(int uvtype)
 }
 EXPORT_SYMBOL_GPL(is_uv_hubbed);
 
-int is_uv_hubless(int uvtype)
+static int is_uv_hubless(int uvtype)
 {
 	return (uv_hubless_system & uvtype);
 }
-EXPORT_SYMBOL_GPL(is_uv_hubless);
 
 void **__uv_hub_info_list;
 EXPORT_SYMBOL_GPL(__uv_hub_info_list);
@@ -416,12 +398,6 @@ static __initdata unsigned short		*_pnode_to_socket;
 static __initdata struct uv_gam_range_s		*_gr_table;
 
 #define	SOCK_EMPTY	((unsigned short)~0)
-
-extern int uv_hub_info_version(void)
-{
-	return UV_HUB_INFO_VERSION;
-}
-EXPORT_SYMBOL(uv_hub_info_version);
 
 /* Default UV memory block size is 2GB */
 static unsigned long mem_block_size __initdata = (2UL << 30);
@@ -590,12 +566,21 @@ static int uv_wakeup_secondary(int phys_apicid, unsigned long start_rip)
 
 static void uv_send_IPI_one(int cpu, int vector)
 {
-	unsigned long apicid;
-	int pnode;
+	unsigned long apicid = per_cpu(x86_cpu_to_apicid, cpu);
+	int pnode = uv_apicid_to_pnode(apicid);
+	unsigned long dmode, val;
 
-	apicid = per_cpu(x86_cpu_to_apicid, cpu);
-	pnode = uv_apicid_to_pnode(apicid);
-	uv_hub_send_ipi(pnode, apicid, vector);
+	if (vector == NMI_VECTOR)
+		dmode = dest_NMI;
+	else
+		dmode = dest_Fixed;
+
+	val = (1UL << UVH_IPI_INT_SEND_SHFT) |
+		((apicid | uv_apicid_hibits) << UVH_IPI_INT_APIC_ID_SHFT) |
+		(dmode << UVH_IPI_INT_DELIVERY_MODE_SHFT) |
+		(vector << UVH_IPI_INT_VECTOR_SHFT);
+
+	uv_write_global_mmr64(pnode, UVH_IPI_INT, val);
 }
 
 static void uv_send_IPI_mask(const struct cpumask *mask, int vector)
@@ -797,42 +782,6 @@ static __init void map_high(char *id, unsigned long base, int pshift, int bshift
 		init_extra_mapping_wb(paddr, bytes);
 }
 
-static __init void map_gru_distributed(unsigned long c)
-{
-	union uvh_rh_gam_gru_overlay_config_mmr_u gru;
-	u64 paddr;
-	unsigned long bytes;
-	int nid;
-
-	gru.v = c;
-
-	/* Only base bits 42:28 relevant in dist mode */
-	gru_dist_base = gru.v & 0x000007fff0000000UL;
-	if (!gru_dist_base) {
-		pr_info("UV: Map GRU_DIST base address NULL\n");
-		return;
-	}
-
-	bytes = 1UL << UVH_RH_GAM_GRU_OVERLAY_CONFIG_MMR_BASE_SHFT;
-	gru_dist_lmask = ((1UL << uv_hub_info->m_val) - 1) & ~(bytes - 1);
-	gru_dist_umask = ~((1UL << uv_hub_info->m_val) - 1);
-	gru_dist_base &= gru_dist_lmask; /* Clear bits above M */
-
-	for_each_online_node(nid) {
-		paddr = ((u64)uv_node_to_pnode(nid) << uv_hub_info->m_val) |
-				gru_dist_base;
-		init_extra_mapping_wb(paddr, bytes);
-		gru_first_node_paddr = min(paddr, gru_first_node_paddr);
-		gru_last_node_paddr = max(paddr, gru_last_node_paddr);
-	}
-
-	/* Save upper (63:M) bits of address only for is_GRU_range */
-	gru_first_node_paddr &= gru_dist_umask;
-	gru_last_node_paddr &= gru_dist_umask;
-
-	pr_debug("UV: Map GRU_DIST base 0x%016llx  0x%016llx - 0x%016llx\n", gru_dist_base, gru_first_node_paddr, gru_last_node_paddr);
-}
-
 static __init void map_gru_high(int max_pnode)
 {
 	union uvh_rh_gam_gru_overlay_config_mmr_u gru;
@@ -843,12 +792,6 @@ static __init void map_gru_high(int max_pnode)
 	gru.v = uv_read_local_mmr(UVH_RH_GAM_GRU_OVERLAY_CONFIG_MMR);
 	if (!gru.s.enable) {
 		pr_info("UV: GRU disabled\n");
-		return;
-	}
-
-	/* Only UV3 has distributed GRU mode */
-	if (is_uv3_hub() && gru.s3.mode) {
-		map_gru_distributed(gru.v);
 		return;
 	}
 

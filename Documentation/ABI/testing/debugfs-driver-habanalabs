@@ -8,6 +8,16 @@ Description:    Sets the device address to be used for read or write through
                 only when the IOMMU is disabled.
                 The acceptable value is a string that starts with "0x"
 
+What:           /sys/kernel/debug/habanalabs/hl<n>/clk_gate
+Date:           May 2020
+KernelVersion:  5.8
+Contact:        oded.gabbay@gmail.com
+Description:    Allow the root user to disable/enable in runtime the clock
+                gating mechanism in Gaudi. Due to how Gaudi is built, the
+                clock gating needs to be disabled in order to access the
+                registers of the TPC and MME engines. This is sometimes needed
+                during debug by the user and hence the user needs this option
+
 What:           /sys/kernel/debug/habanalabs/hl<n>/command_buffers
 Date:           Jan 2019
 KernelVersion:  5.1
@@ -150,3 +160,10 @@ KernelVersion:  5.1
 Contact:        oded.gabbay@gmail.com
 Description:    Displays a list with information about all the active virtual
                 address mappings per ASID
+
+What:           /sys/kernel/debug/habanalabs/hl<n>/stop_on_err
+Date:           Mar 2020
+KernelVersion:  5.6
+Contact:        oded.gabbay@gmail.com
+Description:    Sets the stop-on_error option for the device engines. Value of
+                "0" is for disable, otherwise enable.

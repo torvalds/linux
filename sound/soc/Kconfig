@@ -10,7 +10,7 @@ menuconfig SND_SOC
 	select SND_JACK
 	select REGMAP_I2C if I2C
 	select REGMAP_SPI if SPI_MASTER
-	---help---
+	help
 
 	  If you want ASoC support, you should say Y here and also to the
 	  specific driver for your SoC platform below.

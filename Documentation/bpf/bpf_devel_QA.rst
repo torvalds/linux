@@ -437,6 +437,21 @@ needed::
 See the kernels selftest `Documentation/dev-tools/kselftest.rst`_
 document for further documentation.
 
+To maximize the number of tests passing, the .config of the kernel
+under test should match the config file fragment in
+tools/testing/selftests/bpf as closely as possible.
+
+Finally to ensure support for latest BPF Type Format features -
+discussed in `Documentation/bpf/btf.rst`_ - pahole version 1.16
+is required for kernels built with CONFIG_DEBUG_INFO_BTF=y.
+pahole is delivered in the dwarves package or can be built
+from source at
+
+https://github.com/acmel/dwarves
+
+Some distros have pahole version 1.16 packaged already, e.g.
+Fedora, Gentoo.
+
 Q: Which BPF kernel selftests version should I run my kernel against?
 ---------------------------------------------------------------------
 A: If you run a kernel ``xyz``, then always run the BPF kernel selftests

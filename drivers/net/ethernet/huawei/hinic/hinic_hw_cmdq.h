@@ -122,7 +122,7 @@ struct hinic_cmdq_ctxt {
 
 	u16     func_idx;
 	u8      cmdq_type;
-	u8      rsvd1[1];
+	u8      ppf_idx;
 
 	u8      rsvd2[4];
 

@@ -388,44 +388,6 @@ if major == 1 and minor < 6:
 #  author, documentclass [howto, manual, or own class]).
 # Sorted in alphabetical order
 latex_documents = [
-    ('admin-guide/index', 'linux-user.tex', 'Linux Kernel User Documentation',
-     'The kernel development community', 'manual'),
-    ('core-api/index', 'core-api.tex', 'The kernel core API manual',
-     'The kernel development community', 'manual'),
-    ('crypto/index', 'crypto-api.tex', 'Linux Kernel Crypto API manual',
-     'The kernel development community', 'manual'),
-    ('dev-tools/index', 'dev-tools.tex', 'Development tools for the Kernel',
-     'The kernel development community', 'manual'),
-    ('doc-guide/index', 'kernel-doc-guide.tex', 'Linux Kernel Documentation Guide',
-     'The kernel development community', 'manual'),
-    ('driver-api/index', 'driver-api.tex', 'The kernel driver API manual',
-     'The kernel development community', 'manual'),
-    ('filesystems/index', 'filesystems.tex', 'Linux Filesystems API',
-     'The kernel development community', 'manual'),
-    ('admin-guide/ext4', 'ext4-admin-guide.tex', 'ext4 Administration Guide',
-     'ext4 Community', 'manual'),
-    ('filesystems/ext4/index', 'ext4-data-structures.tex',
-     'ext4 Data Structures and Algorithms', 'ext4 Community', 'manual'),
-    ('gpu/index', 'gpu.tex', 'Linux GPU Driver Developer\'s Guide',
-     'The kernel development community', 'manual'),
-    ('input/index', 'linux-input.tex', 'The Linux input driver subsystem',
-     'The kernel development community', 'manual'),
-    ('kernel-hacking/index', 'kernel-hacking.tex', 'Unreliable Guide To Hacking The Linux Kernel',
-     'The kernel development community', 'manual'),
-    ('media/index', 'media.tex', 'Linux Media Subsystem Documentation',
-     'The kernel development community', 'manual'),
-    ('networking/index', 'networking.tex', 'Linux Networking Documentation',
-     'The kernel development community', 'manual'),
-    ('process/index', 'development-process.tex', 'Linux Kernel Development Documentation',
-     'The kernel development community', 'manual'),
-    ('security/index', 'security.tex', 'The kernel security subsystem manual',
-     'The kernel development community', 'manual'),
-    ('sh/index', 'sh.tex', 'SuperH architecture implementation manual',
-     'The kernel development community', 'manual'),
-    ('sound/index', 'sound.tex', 'Linux Sound Subsystem Documentation',
-     'The kernel development community', 'manual'),
-    ('userspace-api/index', 'userspace-api.tex', 'The Linux kernel user-space API guide',
-     'The kernel development community', 'manual'),
 ]
 
 # Add all other index files from Documentation/ subdirectories
@@ -576,7 +538,7 @@ epub_exclude_files = ['search.html']
 # Grouping the document tree into PDF files. List of tuples
 # (source start file, target name, title, author, options).
 #
-# See the Sphinx chapter of http://ralsina.me/static/manual.pdf
+# See the Sphinx chapter of https://ralsina.me/static/manual.pdf
 #
 # FIXME: Do not add the index file here; the result will be too big. Adding
 # multiple PDF files here actually tries to get the cross-referencing right

@@ -20,12 +20,6 @@ void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
 pte_t huge_ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
 			      pte_t *ptep);
 
-static inline int is_hugepage_only_range(struct mm_struct *mm,
-					 unsigned long addr,
-					 unsigned long len) {
-	return 0;
-}
-
 #define __HAVE_ARCH_HUGE_PTEP_CLEAR_FLUSH
 static inline void huge_ptep_clear_flush(struct vm_area_struct *vma,
 					 unsigned long addr, pte_t *ptep)
@@ -51,10 +45,6 @@ static inline int huge_ptep_set_access_flags(struct vm_area_struct *vma,
 		flush_tlb_page(vma, addr);
 	}
 	return changed;
-}
-
-static inline void arch_clear_hugepage_flags(struct page *page)
-{
 }
 
 #define __HAVE_ARCH_HUGETLB_FREE_PGD_RANGE

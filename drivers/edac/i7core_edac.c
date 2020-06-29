@@ -1815,7 +1815,7 @@ static int i7core_mce_check_error(struct notifier_block *nb, unsigned long val,
 	struct mem_ctl_info *mci;
 
 	i7_dev = get_i7core_dev(mce->socketid);
-	if (!i7_dev)
+	if (!i7_dev || (mce->kflags & MCE_HANDLED_CEC))
 		return NOTIFY_DONE;
 
 	mci = i7_dev->mci;
@@ -1834,7 +1834,8 @@ static int i7core_mce_check_error(struct notifier_block *nb, unsigned long val,
 	i7core_check_error(mci, mce);
 
 	/* Advise mcelog that the errors were handled */
-	return NOTIFY_STOP;
+	mce->kflags |= MCE_HANDLED_EDAC;
+	return NOTIFY_OK;
 }
 
 static struct notifier_block i7_mce_dec = {

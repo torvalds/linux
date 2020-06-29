@@ -124,6 +124,7 @@ enum vc5_model {
 	IDT_VC5_5P49V5933,
 	IDT_VC5_5P49V5935,
 	IDT_VC6_5P49V6901,
+	IDT_VC6_5P49V6965,
 };
 
 /* Structure to describe features of a particular VC5 model */
@@ -683,6 +684,7 @@ static int vc5_map_index_to_output(const enum vc5_model model,
 	case IDT_VC5_5P49V5925:
 	case IDT_VC5_5P49V5935:
 	case IDT_VC6_5P49V6901:
+	case IDT_VC6_5P49V6965:
 	default:
 		return n;
 	}
@@ -956,12 +958,20 @@ static const struct vc5_chip_info idt_5p49v6901_info = {
 	.flags = VC5_HAS_PFD_FREQ_DBL,
 };
 
+static const struct vc5_chip_info idt_5p49v6965_info = {
+	.model = IDT_VC6_5P49V6965,
+	.clk_fod_cnt = 4,
+	.clk_out_cnt = 5,
+	.flags = 0,
+};
+
 static const struct i2c_device_id vc5_id[] = {
 	{ "5p49v5923", .driver_data = IDT_VC5_5P49V5923 },
 	{ "5p49v5925", .driver_data = IDT_VC5_5P49V5925 },
 	{ "5p49v5933", .driver_data = IDT_VC5_5P49V5933 },
 	{ "5p49v5935", .driver_data = IDT_VC5_5P49V5935 },
 	{ "5p49v6901", .driver_data = IDT_VC6_5P49V6901 },
+	{ "5p49v6965", .driver_data = IDT_VC6_5P49V6965 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, vc5_id);
@@ -972,6 +982,7 @@ static const struct of_device_id clk_vc5_of_match[] = {
 	{ .compatible = "idt,5p49v5933", .data = &idt_5p49v5933_info },
 	{ .compatible = "idt,5p49v5935", .data = &idt_5p49v5935_info },
 	{ .compatible = "idt,5p49v6901", .data = &idt_5p49v6901_info },
+	{ .compatible = "idt,5p49v6965", .data = &idt_5p49v6965_info },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, clk_vc5_of_match);

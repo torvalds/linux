@@ -22,7 +22,6 @@
 #include <linux/swap_slots.h>
 #include <linux/huge_mm.h>
 
-#include <asm/pgtable.h>
 
 /*
  * swapper_space is a fiction, retained to simplify the path through
@@ -360,12 +359,13 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
 			struct vm_area_struct *vma, unsigned long addr,
 			bool *new_page_allocated)
 {
-	struct page *found_page = NULL, *new_page = NULL;
 	struct swap_info_struct *si;
-	int err;
+	struct page *page;
+
 	*new_page_allocated = false;
 
-	do {
+	for (;;) {
+		int err;
 		/*
 		 * First check the swap cache.  Since this is normally
 		 * called after lookup_swap_cache() failed, re-calling
@@ -373,12 +373,12 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
 		 */
 		si = get_swap_device(entry);
 		if (!si)
-			break;
-		found_page = find_get_page(swap_address_space(entry),
-					   swp_offset(entry));
+			return NULL;
+		page = find_get_page(swap_address_space(entry),
+				     swp_offset(entry));
 		put_swap_device(si);
-		if (found_page)
-			break;
+		if (page)
+			return page;
 
 		/*
 		 * Just skip read ahead for unused swap slot.
@@ -389,54 +389,71 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
 		 * else swap_off will be aborted if we return NULL.
 		 */
 		if (!__swp_swapcount(entry) && swap_slot_cache_enabled)
-			break;
+			return NULL;
 
 		/*
-		 * Get a new page to read into from swap.
+		 * Get a new page to read into from swap.  Allocate it now,
+		 * before marking swap_map SWAP_HAS_CACHE, when -EEXIST will
+		 * cause any racers to loop around until we add it to cache.
 		 */
-		if (!new_page) {
-			new_page = alloc_page_vma(gfp_mask, vma, addr);
-			if (!new_page)
-				break;		/* Out of memory */
-		}
+		page = alloc_page_vma(gfp_mask, vma, addr);
+		if (!page)
+			return NULL;
 
 		/*
 		 * Swap entry may have been freed since our caller observed it.
 		 */
 		err = swapcache_prepare(entry);
-		if (err == -EEXIST) {
-			/*
-			 * We might race against get_swap_page() and stumble
-			 * across a SWAP_HAS_CACHE swap_map entry whose page
-			 * has not been brought into the swapcache yet.
-			 */
-			cond_resched();
-			continue;
-		} else if (err)		/* swp entry is obsolete ? */
+		if (!err)
 			break;
 
-		/* May fail (-ENOMEM) if XArray node allocation failed. */
-		__SetPageLocked(new_page);
-		__SetPageSwapBacked(new_page);
-		err = add_to_swap_cache(new_page, entry, gfp_mask & GFP_KERNEL);
-		if (likely(!err)) {
-			/* Initiate read into locked page */
-			SetPageWorkingset(new_page);
-			lru_cache_add_anon(new_page);
-			*new_page_allocated = true;
-			return new_page;
-		}
-		__ClearPageLocked(new_page);
-		/*
-		 * add_to_swap_cache() doesn't return -EEXIST, so we can safely
-		 * clear SWAP_HAS_CACHE flag.
-		 */
-		put_swap_page(new_page, entry);
-	} while (err != -ENOMEM);
+		put_page(page);
+		if (err != -EEXIST)
+			return NULL;
 
-	if (new_page)
-		put_page(new_page);
-	return found_page;
+		/*
+		 * We might race against __delete_from_swap_cache(), and
+		 * stumble across a swap_map entry whose SWAP_HAS_CACHE
+		 * has not yet been cleared.  Or race against another
+		 * __read_swap_cache_async(), which has set SWAP_HAS_CACHE
+		 * in swap_map, but not yet added its page to swap cache.
+		 */
+		cond_resched();
+	}
+
+	/*
+	 * The swap entry is ours to swap in. Prepare the new page.
+	 */
+
+	__SetPageLocked(page);
+	__SetPageSwapBacked(page);
+
+	/* May fail (-ENOMEM) if XArray node allocation failed. */
+	if (add_to_swap_cache(page, entry, gfp_mask & GFP_KERNEL)) {
+		put_swap_page(page, entry);
+		goto fail_unlock;
+	}
+
+	if (mem_cgroup_charge(page, NULL, gfp_mask)) {
+		delete_from_swap_cache(page);
+		goto fail_unlock;
+	}
+
+	/* XXX: Move to lru_cache_add() when it supports new vs putback */
+	spin_lock_irq(&page_pgdat(page)->lru_lock);
+	lru_note_cost_page(page);
+	spin_unlock_irq(&page_pgdat(page)->lru_lock);
+
+	/* Caller will initiate read into locked page */
+	SetPageWorkingset(page);
+	lru_cache_add(page);
+	*new_page_allocated = true;
+	return page;
+
+fail_unlock:
+	unlock_page(page);
+	put_page(page);
+	return NULL;
 }
 
 /*
@@ -509,10 +526,11 @@ static unsigned long swapin_nr_pages(unsigned long offset)
 		return 1;
 
 	hits = atomic_xchg(&swapin_readahead_hits, 0);
-	pages = __swapin_nr_pages(prev_offset, offset, hits, max_pages,
+	pages = __swapin_nr_pages(READ_ONCE(prev_offset), offset, hits,
+				  max_pages,
 				  atomic_read(&last_readahead_pages));
 	if (!hits)
-		prev_offset = offset;
+		WRITE_ONCE(prev_offset, offset);
 	atomic_set(&last_readahead_pages, pages);
 
 	return pages;
@@ -534,7 +552,7 @@ static unsigned long swapin_nr_pages(unsigned long offset)
  * This has been extended to use the NUMA policies from the mm triggering
  * the readahead.
  *
- * Caller must hold read mmap_sem if vmf->vma is not NULL.
+ * Caller must hold read mmap_lock if vmf->vma is not NULL.
  */
 struct page *swap_cluster_readahead(swp_entry_t entry, gfp_t gfp_mask,
 				struct vm_fault *vmf)
@@ -716,7 +734,7 @@ static void swap_ra_info(struct vm_fault *vmf,
  * Primitive swap readahead code. We simply read in a few pages whoes
  * virtual addresses are around the fault address in the same vma.
  *
- * Caller must hold read mmap_sem if vmf->vma is not NULL.
+ * Caller must hold read mmap_lock if vmf->vma is not NULL.
  *
  */
 static struct page *swap_vma_readahead(swp_entry_t fentry, gfp_t gfp_mask,

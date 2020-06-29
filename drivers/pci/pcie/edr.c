@@ -148,10 +148,10 @@ static void edr_handle_event(acpi_handle handle, u32 event, void *data)
 	pci_ers_result_t estate = PCI_ERS_RESULT_DISCONNECT;
 	u16 status;
 
-	pci_info(pdev, "ACPI event %#x received\n", event);
-
 	if (event != ACPI_NOTIFY_DISCONNECT_RECOVER)
 		return;
+
+	pci_info(pdev, "EDR event received\n");
 
 	/* Locate the port which issued EDR event */
 	edev = acpi_dpc_port_get(pdev);

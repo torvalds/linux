@@ -6,7 +6,7 @@ menuconfig IP_VS
 	tristate "IP virtual server support"
 	depends on NET && INET && NETFILTER
 	depends on (NF_CONNTRACK || NF_CONNTRACK=n)
-	---help---
+	help
 	  IP Virtual Server support will let you build a high-performance
 	  virtual server based on cluster of two or more real servers. This
 	  option must be enabled for at least one of the clustered computers
@@ -31,14 +31,14 @@ config	IP_VS_IPV6
 	depends on IPV6 = y || IP_VS = IPV6
 	select IP6_NF_IPTABLES
 	select NF_DEFRAG_IPV6
-	---help---
+	help
 	  Add IPv6 support to IPVS.
 
 	  Say Y if unsure.
 
 config	IP_VS_DEBUG
 	bool "IP virtual server debugging"
-	---help---
+	help
 	  Say Y here if you want to get additional messages useful in
 	  debugging the IP virtual server code. You can change the debug
 	  level in /proc/sys/net/ipv4/vs/debug_level
@@ -47,7 +47,7 @@ config	IP_VS_TAB_BITS
 	int "IPVS connection table size (the Nth power of 2)"
 	range 8 20
 	default 12
-	---help---
+	help
 	  The IPVS connection hash table uses the chaining scheme to handle
 	  hash collisions. Using a big IPVS connection hash table will greatly
 	  reduce conflicts when there are hundreds of thousands of connections
@@ -78,13 +78,13 @@ comment "IPVS transport protocol load balancing support"
 
 config	IP_VS_PROTO_TCP
 	bool "TCP load balancing support"
-	---help---
+	help
 	  This option enables support for load balancing TCP transport
 	  protocol. Say Y if unsure.
 
 config	IP_VS_PROTO_UDP
 	bool "UDP load balancing support"
-	---help---
+	help
 	  This option enables support for load balancing UDP transport
 	  protocol. Say Y if unsure.
 
@@ -93,20 +93,20 @@ config	IP_VS_PROTO_AH_ESP
 
 config	IP_VS_PROTO_ESP
 	bool "ESP load balancing support"
-	---help---
+	help
 	  This option enables support for load balancing ESP (Encapsulation
 	  Security Payload) transport protocol. Say Y if unsure.
 
 config	IP_VS_PROTO_AH
 	bool "AH load balancing support"
-	---help---
+	help
 	  This option enables support for load balancing AH (Authentication
 	  Header) transport protocol. Say Y if unsure.
 
 config  IP_VS_PROTO_SCTP
 	bool "SCTP load balancing support"
 	select LIBCRC32C
-	---help---
+	help
 	  This option enables support for load balancing SCTP transport
 	  protocol. Say Y if unsure.
 
@@ -114,7 +114,7 @@ comment "IPVS scheduler"
 
 config	IP_VS_RR
 	tristate "round-robin scheduling"
-	---help---
+	help
 	  The robin-robin scheduling algorithm simply directs network
 	  connections to different real servers in a round-robin manner.
 
@@ -123,7 +123,7 @@ config	IP_VS_RR
  
 config	IP_VS_WRR
 	tristate "weighted round-robin scheduling"
-	---help---
+	help
 	  The weighted robin-robin scheduling algorithm directs network
 	  connections to different real servers based on server weights
 	  in a round-robin manner. Servers with higher weights receive
@@ -136,7 +136,7 @@ config	IP_VS_WRR
 
 config	IP_VS_LC
 	tristate "least-connection scheduling"
-	---help---
+	help
 	  The least-connection scheduling algorithm directs network
 	  connections to the server with the least number of active 
 	  connections.
@@ -146,7 +146,7 @@ config	IP_VS_LC
 
 config	IP_VS_WLC
 	tristate "weighted least-connection scheduling"
-	---help---
+	help
 	  The weighted least-connection scheduling algorithm directs network
 	  connections to the server with the least active connections
 	  normalized by the server weight.
@@ -156,7 +156,7 @@ config	IP_VS_WLC
 
 config  IP_VS_FO
 		tristate "weighted failover scheduling"
-	---help---
+	help
 	  The weighted failover scheduling algorithm directs network
 	  connections to the server with the highest weight that is
 	  currently available.
@@ -166,7 +166,7 @@ config  IP_VS_FO
 
 config  IP_VS_OVF
 	tristate "weighted overflow scheduling"
-	---help---
+	help
 	  The weighted overflow scheduling algorithm directs network
 	  connections to the server with the highest weight that is
 	  currently available and overflows to the next when active
@@ -177,7 +177,7 @@ config  IP_VS_OVF
 
 config	IP_VS_LBLC
 	tristate "locality-based least-connection scheduling"
-	---help---
+	help
 	  The locality-based least-connection scheduling algorithm is for
 	  destination IP load balancing. It is usually used in cache cluster.
 	  This algorithm usually directs packet destined for an IP address to
@@ -191,7 +191,7 @@ config	IP_VS_LBLC
 
 config  IP_VS_LBLCR
 	tristate "locality-based least-connection with replication scheduling"
-	---help---
+	help
 	  The locality-based least-connection with replication scheduling
 	  algorithm is also for destination IP load balancing. It is 
 	  usually used in cache cluster. It differs from the LBLC scheduling
@@ -209,7 +209,7 @@ config  IP_VS_LBLCR
 
 config	IP_VS_DH
 	tristate "destination hashing scheduling"
-	---help---
+	help
 	  The destination hashing scheduling algorithm assigns network
 	  connections to the servers through looking up a statically assigned
 	  hash table by their destination IP addresses.
@@ -219,7 +219,7 @@ config	IP_VS_DH
 
 config	IP_VS_SH
 	tristate "source hashing scheduling"
-	---help---
+	help
 	  The source hashing scheduling algorithm assigns network
 	  connections to the servers through looking up a statically assigned
 	  hash table by their source IP addresses.
@@ -229,7 +229,7 @@ config	IP_VS_SH
 
 config	IP_VS_MH
 	tristate "maglev hashing scheduling"
-	---help---
+	help
 	  The maglev consistent hashing scheduling algorithm provides the
 	  Google's Maglev hashing algorithm as a IPVS scheduler. It assigns
 	  network connections to the servers through looking up a statically
@@ -248,7 +248,7 @@ config	IP_VS_MH
 
 config	IP_VS_SED
 	tristate "shortest expected delay scheduling"
-	---help---
+	help
 	  The shortest expected delay scheduling algorithm assigns network
 	  connections to the server with the shortest expected delay. The 
 	  expected delay that the job will experience is (Ci + 1) / Ui if 
@@ -261,7 +261,7 @@ config	IP_VS_SED
 
 config	IP_VS_NQ
 	tristate "never queue scheduling"
-	---help---
+	help
 	  The never queue scheduling algorithm adopts a two-speed model.
 	  When there is an idle server available, the job will be sent to
 	  the idle server, instead of waiting for a fast one. When there
@@ -278,7 +278,7 @@ config IP_VS_SH_TAB_BITS
 	int "IPVS source hashing table size (the Nth power of 2)"
 	range 4 20
 	default 8
-	---help---
+	help
 	  The source hashing scheduler maps source IPs to destinations
 	  stored in a hash table. This table is tiled by each destination
 	  until all slots in the table are filled. When using weights to
@@ -293,7 +293,7 @@ config IP_VS_MH_TAB_INDEX
 	int "IPVS maglev hashing table index of size (the prime numbers)"
 	range 8 17
 	default 12
-	---help---
+	help
 	  The maglev hashing scheduler maps source IPs to destinations
 	  stored in a hash table. This table is assigned by a preference
 	  list of the positions to each destination until all slots in
@@ -312,7 +312,7 @@ config	IP_VS_FTP
 	depends on IP_VS_PROTO_TCP && NF_CONNTRACK && NF_NAT && \
 		NF_CONNTRACK_FTP
 	select IP_VS_NFCT
-	---help---
+	help
 	  FTP is a protocol that transfers IP address and/or port number in
 	  the payload. In the virtual server via Network Address Translation,
 	  the IP address and port number of real servers cannot be sent to
@@ -326,7 +326,7 @@ config	IP_VS_FTP
 config	IP_VS_NFCT
 	bool "Netfilter connection tracking"
 	depends on NF_CONNTRACK
-	---help---
+	help
 	  The Netfilter connection tracking support allows the IPVS
 	  connection state to be exported to the Netfilter framework
 	  for filtering purposes.
@@ -335,7 +335,7 @@ config	IP_VS_PE_SIP
 	tristate "SIP persistence engine"
 	depends on IP_VS_PROTO_UDP
 	depends on NF_CONNTRACK_SIP
-	---help---
+	help
 	  Allow persistence based on the SIP Call-ID
 
 endif # IP_VS

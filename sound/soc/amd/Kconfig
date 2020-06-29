@@ -29,10 +29,23 @@ config SND_SOC_AMD_ACP3x
 
 config SND_SOC_AMD_RV_RT5682_MACH
 	tristate "AMD RV support for RT5682"
-	select SND_SOC_RT5682
+	select SND_SOC_RT5682_I2C
 	select SND_SOC_MAX98357A
 	select SND_SOC_CROS_EC_CODEC
 	select I2C_CROS_EC_TUNNEL
 	depends on SND_SOC_AMD_ACP3x && I2C && CROS_EC
 	help
 	 This option enables machine driver for RT5682 and MAX9835.
+
+config SND_SOC_AMD_RENOIR
+	tristate "AMD Audio Coprocessor - Renoir support"
+	depends on X86 && PCI
+	help
+	 This option enables ACP support for Renoir platform
+
+config SND_SOC_AMD_RENOIR_MACH
+	tristate "AMD Renoir support for DMIC"
+	select SND_SOC_DMIC
+	depends on SND_SOC_AMD_RENOIR
+	help
+	 This option enables machine driver for DMIC

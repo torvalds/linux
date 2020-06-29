@@ -175,18 +175,20 @@ static int vega20_copy_table_from_smc(struct pp_hwmgr *hwmgr,
 	PP_ASSERT_WITH_CODE(priv->smu_tables.entry[table_id].size != 0,
 			"Invalid SMU Table Length!", return -EINVAL);
 
-	PP_ASSERT_WITH_CODE((ret = vega20_send_msg_to_smc_with_parameter(hwmgr,
+	PP_ASSERT_WITH_CODE((ret = smum_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrHigh,
-			upper_32_bits(priv->smu_tables.entry[table_id].mc_addr))) == 0,
+			upper_32_bits(priv->smu_tables.entry[table_id].mc_addr),
+			NULL)) == 0,
 			"[CopyTableFromSMC] Attempt to Set Dram Addr High Failed!",
 			return ret);
-	PP_ASSERT_WITH_CODE((ret = vega20_send_msg_to_smc_with_parameter(hwmgr,
+	PP_ASSERT_WITH_CODE((ret = smum_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrLow,
-			lower_32_bits(priv->smu_tables.entry[table_id].mc_addr))) == 0,
+			lower_32_bits(priv->smu_tables.entry[table_id].mc_addr),
+			NULL)) == 0,
 			"[CopyTableFromSMC] Attempt to Set Dram Addr Low Failed!",
 			return ret);
-	PP_ASSERT_WITH_CODE((ret = vega20_send_msg_to_smc_with_parameter(hwmgr,
-			PPSMC_MSG_TransferTableSmu2Dram, table_id)) == 0,
+	PP_ASSERT_WITH_CODE((ret = smum_send_msg_to_smc_with_parameter(hwmgr,
+			PPSMC_MSG_TransferTableSmu2Dram, table_id, NULL)) == 0,
 			"[CopyTableFromSMC] Attempt to Transfer Table From SMU Failed!",
 			return ret);
 
@@ -224,18 +226,20 @@ static int vega20_copy_table_to_smc(struct pp_hwmgr *hwmgr,
 
 	amdgpu_asic_flush_hdp(adev, NULL);
 
-	PP_ASSERT_WITH_CODE((ret = vega20_send_msg_to_smc_with_parameter(hwmgr,
+	PP_ASSERT_WITH_CODE((ret = smum_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrHigh,
-			upper_32_bits(priv->smu_tables.entry[table_id].mc_addr))) == 0,
+			upper_32_bits(priv->smu_tables.entry[table_id].mc_addr),
+			NULL)) == 0,
 			"[CopyTableToSMC] Attempt to Set Dram Addr High Failed!",
 			return ret);
-	PP_ASSERT_WITH_CODE((ret = vega20_send_msg_to_smc_with_parameter(hwmgr,
+	PP_ASSERT_WITH_CODE((ret = smum_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrLow,
-			lower_32_bits(priv->smu_tables.entry[table_id].mc_addr))) == 0,
+			lower_32_bits(priv->smu_tables.entry[table_id].mc_addr),
+			NULL)) == 0,
 			"[CopyTableToSMC] Attempt to Set Dram Addr Low Failed!",
 			return ret);
-	PP_ASSERT_WITH_CODE((ret = vega20_send_msg_to_smc_with_parameter(hwmgr,
-			PPSMC_MSG_TransferTableDram2Smu, table_id)) == 0,
+	PP_ASSERT_WITH_CODE((ret = smum_send_msg_to_smc_with_parameter(hwmgr,
+			PPSMC_MSG_TransferTableDram2Smu, table_id, NULL)) == 0,
 			"[CopyTableToSMC] Attempt to Transfer Table To SMU Failed!",
 			return ret);
 
@@ -255,18 +259,22 @@ int vega20_set_activity_monitor_coeff(struct pp_hwmgr *hwmgr,
 
 	amdgpu_asic_flush_hdp(adev, NULL);
 
-	PP_ASSERT_WITH_CODE((ret = vega20_send_msg_to_smc_with_parameter(hwmgr,
+	PP_ASSERT_WITH_CODE((ret = smum_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrHigh,
-			upper_32_bits(priv->smu_tables.entry[TABLE_ACTIVITY_MONITOR_COEFF].mc_addr))) == 0,
+			upper_32_bits(priv->smu_tables.entry[TABLE_ACTIVITY_MONITOR_COEFF].mc_addr),
+			NULL)) == 0,
 			"[SetActivityMonitor] Attempt to Set Dram Addr High Failed!",
 			return ret);
-	PP_ASSERT_WITH_CODE((ret = vega20_send_msg_to_smc_with_parameter(hwmgr,
+	PP_ASSERT_WITH_CODE((ret = smum_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrLow,
-			lower_32_bits(priv->smu_tables.entry[TABLE_ACTIVITY_MONITOR_COEFF].mc_addr))) == 0,
+			lower_32_bits(priv->smu_tables.entry[TABLE_ACTIVITY_MONITOR_COEFF].mc_addr),
+			NULL)) == 0,
 			"[SetActivityMonitor] Attempt to Set Dram Addr Low Failed!",
 			return ret);
-	PP_ASSERT_WITH_CODE((ret = vega20_send_msg_to_smc_with_parameter(hwmgr,
-			PPSMC_MSG_TransferTableDram2Smu, TABLE_ACTIVITY_MONITOR_COEFF | (workload_type << 16))) == 0,
+	PP_ASSERT_WITH_CODE((ret = smum_send_msg_to_smc_with_parameter(hwmgr,
+			PPSMC_MSG_TransferTableDram2Smu,
+			TABLE_ACTIVITY_MONITOR_COEFF | (workload_type << 16),
+			NULL)) == 0,
 			"[SetActivityMonitor] Attempt to Transfer Table To SMU Failed!",
 			return ret);
 
@@ -281,19 +289,21 @@ int vega20_get_activity_monitor_coeff(struct pp_hwmgr *hwmgr,
 	struct amdgpu_device *adev = hwmgr->adev;
 	int ret = 0;
 
-	PP_ASSERT_WITH_CODE((ret = vega20_send_msg_to_smc_with_parameter(hwmgr,
+	PP_ASSERT_WITH_CODE((ret = smum_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrHigh,
-			upper_32_bits(priv->smu_tables.entry[TABLE_ACTIVITY_MONITOR_COEFF].mc_addr))) == 0,
+			upper_32_bits(priv->smu_tables.entry[TABLE_ACTIVITY_MONITOR_COEFF].mc_addr),
+			NULL)) == 0,
 			"[GetActivityMonitor] Attempt to Set Dram Addr High Failed!",
 			return ret);
-	PP_ASSERT_WITH_CODE((ret = vega20_send_msg_to_smc_with_parameter(hwmgr,
+	PP_ASSERT_WITH_CODE((ret = smum_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrLow,
-			lower_32_bits(priv->smu_tables.entry[TABLE_ACTIVITY_MONITOR_COEFF].mc_addr))) == 0,
+			lower_32_bits(priv->smu_tables.entry[TABLE_ACTIVITY_MONITOR_COEFF].mc_addr),
+			NULL)) == 0,
 			"[GetActivityMonitor] Attempt to Set Dram Addr Low Failed!",
 			return ret);
-	PP_ASSERT_WITH_CODE((ret = vega20_send_msg_to_smc_with_parameter(hwmgr,
+	PP_ASSERT_WITH_CODE((ret = smum_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_TransferTableSmu2Dram,
-			TABLE_ACTIVITY_MONITOR_COEFF | (workload_type << 16))) == 0,
+			TABLE_ACTIVITY_MONITOR_COEFF | (workload_type << 16), NULL)) == 0,
 			"[GetActivityMonitor] Attempt to Transfer Table From SMU Failed!",
 			return ret);
 
@@ -316,21 +326,21 @@ int vega20_enable_smc_features(struct pp_hwmgr *hwmgr,
 	smu_features_high = (uint32_t)((feature_mask & SMU_FEATURES_HIGH_MASK) >> SMU_FEATURES_HIGH_SHIFT);
 
 	if (enable) {
-		PP_ASSERT_WITH_CODE((ret = vega20_send_msg_to_smc_with_parameter(hwmgr,
-				PPSMC_MSG_EnableSmuFeaturesLow, smu_features_low)) == 0,
+		PP_ASSERT_WITH_CODE((ret = smum_send_msg_to_smc_with_parameter(hwmgr,
+				PPSMC_MSG_EnableSmuFeaturesLow, smu_features_low, NULL)) == 0,
 				"[EnableDisableSMCFeatures] Attempt to enable SMU features Low failed!",
 				return ret);
-		PP_ASSERT_WITH_CODE((ret = vega20_send_msg_to_smc_with_parameter(hwmgr,
-				PPSMC_MSG_EnableSmuFeaturesHigh, smu_features_high)) == 0,
+		PP_ASSERT_WITH_CODE((ret = smum_send_msg_to_smc_with_parameter(hwmgr,
+				PPSMC_MSG_EnableSmuFeaturesHigh, smu_features_high, NULL)) == 0,
 				"[EnableDisableSMCFeatures] Attempt to enable SMU features High failed!",
 				return ret);
 	} else {
-		PP_ASSERT_WITH_CODE((ret = vega20_send_msg_to_smc_with_parameter(hwmgr,
-				PPSMC_MSG_DisableSmuFeaturesLow, smu_features_low)) == 0,
+		PP_ASSERT_WITH_CODE((ret = smum_send_msg_to_smc_with_parameter(hwmgr,
+				PPSMC_MSG_DisableSmuFeaturesLow, smu_features_low, NULL)) == 0,
 				"[EnableDisableSMCFeatures] Attempt to disable SMU features Low failed!",
 				return ret);
-		PP_ASSERT_WITH_CODE((ret = vega20_send_msg_to_smc_with_parameter(hwmgr,
-				PPSMC_MSG_DisableSmuFeaturesHigh, smu_features_high)) == 0,
+		PP_ASSERT_WITH_CODE((ret = smum_send_msg_to_smc_with_parameter(hwmgr,
+				PPSMC_MSG_DisableSmuFeaturesHigh, smu_features_high, NULL)) == 0,
 				"[EnableDisableSMCFeatures] Attempt to disable SMU features High failed!",
 				return ret);
 	}
@@ -347,16 +357,16 @@ int vega20_get_enabled_smc_features(struct pp_hwmgr *hwmgr,
 	if (features_enabled == NULL)
 		return -EINVAL;
 
-	PP_ASSERT_WITH_CODE((ret = vega20_send_msg_to_smc(hwmgr,
-			PPSMC_MSG_GetEnabledSmuFeaturesLow)) == 0,
+	PP_ASSERT_WITH_CODE((ret = smum_send_msg_to_smc(hwmgr,
+			PPSMC_MSG_GetEnabledSmuFeaturesLow,
+			&smc_features_low)) == 0,
 			"[GetEnabledSMCFeatures] Attempt to get SMU features Low failed!",
 			return ret);
-	smc_features_low = vega20_get_argument(hwmgr);
-	PP_ASSERT_WITH_CODE((ret = vega20_send_msg_to_smc(hwmgr,
-			PPSMC_MSG_GetEnabledSmuFeaturesHigh)) == 0,
+	PP_ASSERT_WITH_CODE((ret = smum_send_msg_to_smc(hwmgr,
+			PPSMC_MSG_GetEnabledSmuFeaturesHigh,
+			&smc_features_high)) == 0,
 			"[GetEnabledSMCFeatures] Attempt to get SMU features High failed!",
 			return ret);
-	smc_features_high = vega20_get_argument(hwmgr);
 
 	*features_enabled = ((((uint64_t)smc_features_low << SMU_FEATURES_LOW_SHIFT) & SMU_FEATURES_LOW_MASK) |
 			(((uint64_t)smc_features_high << SMU_FEATURES_HIGH_SHIFT) & SMU_FEATURES_HIGH_MASK));
@@ -371,13 +381,15 @@ static int vega20_set_tools_address(struct pp_hwmgr *hwmgr)
 	int ret = 0;
 
 	if (priv->smu_tables.entry[TABLE_PMSTATUSLOG].mc_addr) {
-		ret = vega20_send_msg_to_smc_with_parameter(hwmgr,
+		ret = smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetToolsDramAddrHigh,
-				upper_32_bits(priv->smu_tables.entry[TABLE_PMSTATUSLOG].mc_addr));
+				upper_32_bits(priv->smu_tables.entry[TABLE_PMSTATUSLOG].mc_addr),
+				NULL);
 		if (!ret)
-			ret = vega20_send_msg_to_smc_with_parameter(hwmgr,
+			ret = smum_send_msg_to_smc_with_parameter(hwmgr,
 					PPSMC_MSG_SetToolsDramAddrLow,
-					lower_32_bits(priv->smu_tables.entry[TABLE_PMSTATUSLOG].mc_addr));
+					lower_32_bits(priv->smu_tables.entry[TABLE_PMSTATUSLOG].mc_addr),
+					NULL);
 	}
 
 	return ret;
@@ -389,14 +401,16 @@ int vega20_set_pptable_driver_address(struct pp_hwmgr *hwmgr)
 			(struct vega20_smumgr *)(hwmgr->smu_backend);
 	int ret = 0;
 
-	PP_ASSERT_WITH_CODE((ret = vega20_send_msg_to_smc_with_parameter(hwmgr,
+	PP_ASSERT_WITH_CODE((ret = smum_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrHigh,
-			upper_32_bits(priv->smu_tables.entry[TABLE_PPTABLE].mc_addr))) == 0,
+			upper_32_bits(priv->smu_tables.entry[TABLE_PPTABLE].mc_addr),
+			NULL)) == 0,
 			"[SetPPtabeDriverAddress] Attempt to Set Dram Addr High Failed!",
 			return ret);
-	PP_ASSERT_WITH_CODE((ret = vega20_send_msg_to_smc_with_parameter(hwmgr,
+	PP_ASSERT_WITH_CODE((ret = smum_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrLow,
-			lower_32_bits(priv->smu_tables.entry[TABLE_PPTABLE].mc_addr))) == 0,
+			lower_32_bits(priv->smu_tables.entry[TABLE_PPTABLE].mc_addr),
+			NULL)) == 0,
 			"[SetPPtabeDriverAddress] Attempt to Set Dram Addr Low Failed!",
 			return ret);
 

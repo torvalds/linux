@@ -92,7 +92,9 @@
 #define HNS_ROCE_V2_CQC_TIMER_ENTRY_SZ		PAGE_SIZE
 #define HNS_ROCE_V2_PAGE_SIZE_SUPPORTED		0xFFFFF000
 #define HNS_ROCE_V2_MAX_INNER_MTPT_NUM		2
-#define HNS_ROCE_INVALID_LKEY			0x100
+#define HNS_ROCE_INVALID_LKEY			0x0
+#define HNS_ROCE_INVALID_SGE_LENGTH		0x80000000
+
 #define HNS_ROCE_CMQ_TX_TIMEOUT			30000
 #define HNS_ROCE_V2_UC_RC_SGE_NUM_IN_WQE	2
 #define HNS_ROCE_V2_RSV_QPS			8
@@ -1241,10 +1243,9 @@ struct hns_roce_func_clear {
 };
 
 #define FUNC_CLEAR_RST_FUN_DONE_S 0
-/* Each physical function manages up to 248 virtual functions；
- * it takes up to 100ms for each function to execute clear；
- * if an abnormal reset occurs, it is executed twice at most;
- * so it takes up to 249 * 2 * 100ms.
+/* Each physical function manages up to 248 virtual functions, it takes up to
+ * 100ms for each function to execute clear. If an abnormal reset occurs, it is
+ * executed twice at most, so it takes up to 249 * 2 * 100ms.
  */
 #define HNS_ROCE_V2_FUNC_CLEAR_TIMEOUT_MSECS	(249 * 2 * 100)
 #define HNS_ROCE_V2_READ_FUNC_CLEAR_FLAG_INTERVAL	40
@@ -1648,7 +1649,7 @@ struct hns_roce_query_pf_caps_c {
 struct hns_roce_query_pf_caps_d {
 	__le32 wq_hop_num_max_srqs;
 	__le16 srq_depth;
-	__le16 rsv;
+	__le16 cap_flags_ex;
 	__le32 num_ceqs_ceq_depth;
 	__le32 arm_st_aeq_depth;
 	__le32 num_uars_rsv_pds;
@@ -1978,7 +1979,7 @@ int hns_roce_v2_query_cqc_info(struct hns_roce_dev *hr_dev, u32 cqn,
 static inline void hns_roce_write64(struct hns_roce_dev *hr_dev, __le32 val[2],
 				    void __iomem *dest)
 {
-	struct hns_roce_v2_priv *priv = (struct hns_roce_v2_priv *)hr_dev->priv;
+	struct hns_roce_v2_priv *priv = hr_dev->priv;
 	struct hnae3_handle *handle = priv->handle;
 	const struct hnae3_ae_ops *ops = handle->ae_algo->ops;
 

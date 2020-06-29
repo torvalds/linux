@@ -254,7 +254,7 @@ void vnic_dev_free_desc_ring(struct vnic_dev *vdev, struct vnic_dev_ring *ring)
 	}
 }
 
-int vnic_dev_cmd1(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd, int wait)
+static int vnic_dev_cmd1(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd, int wait)
 {
 	struct vnic_devcmd __iomem *devcmd = vdev->devcmd;
 	int delay;
@@ -316,7 +316,7 @@ int vnic_dev_cmd1(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd, int wait)
 	return -ETIMEDOUT;
 }
 
-int vnic_dev_cmd2(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
+static int vnic_dev_cmd2(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
 		int wait)
 {
 	struct devcmd2_controller *dc2c = vdev->devcmd2;
@@ -411,7 +411,7 @@ int vnic_dev_cmd2(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
 }
 
 
-int vnic_dev_init_devcmd1(struct vnic_dev *vdev)
+static int vnic_dev_init_devcmd1(struct vnic_dev *vdev)
 {
 	vdev->devcmd = vnic_dev_get_res(vdev, RES_TYPE_DEVCMD, 0);
 	if (!vdev->devcmd)
@@ -422,7 +422,7 @@ int vnic_dev_init_devcmd1(struct vnic_dev *vdev)
 }
 
 
-int vnic_dev_init_devcmd2(struct vnic_dev *vdev)
+static int vnic_dev_init_devcmd2(struct vnic_dev *vdev)
 {
 	int err;
 	unsigned int fetch_index;
@@ -492,7 +492,7 @@ err_free_devcmd2:
 }
 
 
-void vnic_dev_deinit_devcmd2(struct vnic_dev *vdev)
+static void vnic_dev_deinit_devcmd2(struct vnic_dev *vdev)
 {
 	vnic_dev_free_desc_ring(vdev, &vdev->devcmd2->results_ring);
 	vnic_wq_disable(&vdev->devcmd2->wq);
@@ -503,7 +503,7 @@ void vnic_dev_deinit_devcmd2(struct vnic_dev *vdev)
 }
 
 
-int vnic_dev_cmd_no_proxy(struct vnic_dev *vdev,
+static int vnic_dev_cmd_no_proxy(struct vnic_dev *vdev,
 	enum vnic_devcmd_cmd cmd, u64 *a0, u64 *a1, int wait)
 {
 	int err;

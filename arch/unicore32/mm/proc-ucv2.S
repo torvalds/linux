@@ -8,10 +8,10 @@
  */
 #include <linux/init.h>
 #include <linux/linkage.h>
+#include <linux/pgtable.h>
 #include <asm/assembler.h>
 #include <asm/hwcap.h>
 #include <asm/pgtable-hwdef.h>
-#include <asm/pgtable.h>
 
 #include "proc-macros.S"
 

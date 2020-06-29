@@ -9,7 +9,7 @@ config I2C
 	tristate "I2C support"
 	select RT_MUTEXES
 	select IRQ_DOMAIN
-	---help---
+	help
 	  I2C (pronounce: I-squared-C) is a slow serial bus protocol used in
 	  many micro controller applications and developed by Philips.  SMBus,
 	  or System Management Bus is a subset of the I2C protocol.  More

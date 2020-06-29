@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause */
 /*
- * Copyright 2018-2019 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2018-2020 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #ifndef _EFA_H_
@@ -40,6 +40,7 @@ struct efa_sw_stats {
 	atomic64_t reg_mr_err;
 	atomic64_t alloc_ucontext_err;
 	atomic64_t create_ah_err;
+	atomic64_t mmap_err;
 };
 
 /* Don't use anything other than atomic64 */
@@ -153,8 +154,7 @@ int efa_mmap(struct ib_ucontext *ibucontext,
 	     struct vm_area_struct *vma);
 void efa_mmap_free(struct rdma_user_mmap_entry *rdma_entry);
 int efa_create_ah(struct ib_ah *ibah,
-		  struct rdma_ah_attr *ah_attr,
-		  u32 flags,
+		  struct rdma_ah_init_attr *init_attr,
 		  struct ib_udata *udata);
 void efa_destroy_ah(struct ib_ah *ibah, u32 flags);
 int efa_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr,

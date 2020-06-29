@@ -10,7 +10,7 @@
 #define LINUX_HMM_H
 
 #include <linux/kconfig.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 
 #include <linux/device.h>
 #include <linux/migrate.h>
@@ -19,51 +19,47 @@
 #include <linux/mmu_notifier.h>
 
 /*
- * hmm_pfn_flag_e - HMM flag enums
+ * On output:
+ * 0             - The page is faultable and a future call with 
+ *                 HMM_PFN_REQ_FAULT could succeed.
+ * HMM_PFN_VALID - the pfn field points to a valid PFN. This PFN is at
+ *                 least readable. If dev_private_owner is !NULL then this could
+ *                 point at a DEVICE_PRIVATE page.
+ * HMM_PFN_WRITE - if the page memory can be written to (requires HMM_PFN_VALID)
+ * HMM_PFN_ERROR - accessing the pfn is impossible and the device should
+ *                 fail. ie poisoned memory, special pages, no vma, etc
  *
- * Flags:
- * HMM_PFN_VALID: pfn is valid. It has, at least, read permission.
- * HMM_PFN_WRITE: CPU page table has write permission set
- *
- * The driver provides a flags array for mapping page protections to device
- * PTE bits. If the driver valid bit for an entry is bit 3,
- * i.e., (entry & (1 << 3)), then the driver must provide
- * an array in hmm_range.flags with hmm_range.flags[HMM_PFN_VALID] == 1 << 3.
- * Same logic apply to all flags. This is the same idea as vm_page_prot in vma
- * except that this is per device driver rather than per architecture.
+ * On input:
+ * 0                 - Return the current state of the page, do not fault it.
+ * HMM_PFN_REQ_FAULT - The output must have HMM_PFN_VALID or hmm_range_fault()
+ *                     will fail
+ * HMM_PFN_REQ_WRITE - The output must have HMM_PFN_WRITE or hmm_range_fault()
+ *                     will fail. Must be combined with HMM_PFN_REQ_FAULT.
  */
-enum hmm_pfn_flag_e {
-	HMM_PFN_VALID = 0,
-	HMM_PFN_WRITE,
-	HMM_PFN_FLAG_MAX
+enum hmm_pfn_flags {
+	/* Output flags */
+	HMM_PFN_VALID = 1UL << (BITS_PER_LONG - 1),
+	HMM_PFN_WRITE = 1UL << (BITS_PER_LONG - 2),
+	HMM_PFN_ERROR = 1UL << (BITS_PER_LONG - 3),
+
+	/* Input flags */
+	HMM_PFN_REQ_FAULT = HMM_PFN_VALID,
+	HMM_PFN_REQ_WRITE = HMM_PFN_WRITE,
+
+	HMM_PFN_FLAGS = HMM_PFN_VALID | HMM_PFN_WRITE | HMM_PFN_ERROR,
 };
 
 /*
- * hmm_pfn_value_e - HMM pfn special value
+ * hmm_pfn_to_page() - return struct page pointed to by a device entry
  *
- * Flags:
- * HMM_PFN_ERROR: corresponding CPU page table entry points to poisoned memory
- * HMM_PFN_NONE: corresponding CPU page table entry is pte_none()
- * HMM_PFN_SPECIAL: corresponding CPU page table entry is special; i.e., the
- *      result of vmf_insert_pfn() or vm_insert_page(). Therefore, it should not
- *      be mirrored by a device, because the entry will never have HMM_PFN_VALID
- *      set and the pfn value is undefined.
- *
- * Driver provides values for none entry, error entry, and special entry.
- * Driver can alias (i.e., use same value) error and special, but
- * it should not alias none with error or special.
- *
- * HMM pfn value returned by hmm_vma_get_pfns() or hmm_vma_fault() will be:
- * hmm_range.values[HMM_PFN_ERROR] if CPU page table entry is poisonous,
- * hmm_range.values[HMM_PFN_NONE] if there is no CPU page table entry,
- * hmm_range.values[HMM_PFN_SPECIAL] if CPU page table entry is a special one
+ * This must be called under the caller 'user_lock' after a successful
+ * mmu_interval_read_begin(). The caller must have tested for HMM_PFN_VALID
+ * already.
  */
-enum hmm_pfn_value_e {
-	HMM_PFN_ERROR,
-	HMM_PFN_NONE,
-	HMM_PFN_SPECIAL,
-	HMM_PFN_VALUE_MAX
-};
+static inline struct page *hmm_pfn_to_page(unsigned long hmm_pfn)
+{
+	return pfn_to_page(hmm_pfn & ~HMM_PFN_FLAGS);
+}
 
 /*
  * struct hmm_range - track invalidation lock on virtual address range
@@ -72,12 +68,9 @@ enum hmm_pfn_value_e {
  * @notifier_seq: result of mmu_interval_read_begin()
  * @start: range virtual start address (inclusive)
  * @end: range virtual end address (exclusive)
- * @pfns: array of pfns (big enough for the range)
- * @flags: pfn flags to match device driver page table
- * @values: pfn value for some special case (none, special, error, ...)
+ * @hmm_pfns: array of pfns (big enough for the range)
  * @default_flags: default flags for the range (write, read, ... see hmm doc)
  * @pfn_flags_mask: allows to mask pfn flags so that only default_flags matter
- * @pfn_shift: pfn shift value (should be <= PAGE_SHIFT)
  * @dev_private_owner: owner of device private pages
  */
 struct hmm_range {
@@ -85,42 +78,16 @@ struct hmm_range {
 	unsigned long		notifier_seq;
 	unsigned long		start;
 	unsigned long		end;
-	uint64_t		*pfns;
-	const uint64_t		*flags;
-	const uint64_t		*values;
-	uint64_t		default_flags;
-	uint64_t		pfn_flags_mask;
-	uint8_t			pfn_shift;
+	unsigned long		*hmm_pfns;
+	unsigned long		default_flags;
+	unsigned long		pfn_flags_mask;
 	void			*dev_private_owner;
 };
 
 /*
- * hmm_device_entry_to_page() - return struct page pointed to by a device entry
- * @range: range use to decode device entry value
- * @entry: device entry value to get corresponding struct page from
- * Return: struct page pointer if entry is a valid, NULL otherwise
- *
- * If the device entry is valid (ie valid flag set) then return the struct page
- * matching the entry value. Otherwise return NULL.
- */
-static inline struct page *hmm_device_entry_to_page(const struct hmm_range *range,
-						    uint64_t entry)
-{
-	if (entry == range->values[HMM_PFN_NONE])
-		return NULL;
-	if (entry == range->values[HMM_PFN_ERROR])
-		return NULL;
-	if (entry == range->values[HMM_PFN_SPECIAL])
-		return NULL;
-	if (!(entry & range->flags[HMM_PFN_VALID]))
-		return NULL;
-	return pfn_to_page(entry >> range->pfn_shift);
-}
-
-/*
  * Please see Documentation/vm/hmm.rst for how to use the range API.
  */
-long hmm_range_fault(struct hmm_range *range);
+int hmm_range_fault(struct hmm_range *range);
 
 /*
  * HMM_RANGE_DEFAULT_TIMEOUT - default timeout (ms) when waiting for a range

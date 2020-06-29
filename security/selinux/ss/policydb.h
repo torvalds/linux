@@ -81,12 +81,14 @@ struct role_datum {
 	struct ebitmap types;		/* set of authorized types for role */
 };
 
-struct role_trans {
+struct role_trans_key {
 	u32 role;		/* current role */
 	u32 type;		/* program executable type, or new object type */
 	u32 tclass;		/* process class, or new object class */
+};
+
+struct role_trans_datum {
 	u32 new_role;		/* new role */
-	struct role_trans *next;
 };
 
 struct filename_trans_key {
@@ -261,14 +263,15 @@ struct policydb {
 	struct avtab te_avtab;
 
 	/* role transitions */
-	struct role_trans *role_tr;
+	struct hashtab role_tr;
 
 	/* file transitions with the last path component */
 	/* quickly exclude lookups when parent ttype has no rules */
 	struct ebitmap filename_trans_ttypes;
 	/* actual set of filename_trans rules */
-	struct hashtab *filename_trans;
-	u32 filename_trans_count;
+	struct hashtab filename_trans;
+	/* only used if policyvers < POLICYDB_VERSION_COMP_FTRANS */
+	u32 compat_filename_trans_count;
 
 	/* bools indexed by (value - 1) */
 	struct cond_bool_datum **bool_val_to_struct;
@@ -291,7 +294,7 @@ struct policydb {
 	struct genfs *genfs;
 
 	/* range transitions table (range_trans_key -> mls_range) */
-	struct hashtab *range_tr;
+	struct hashtab range_tr;
 
 	/* type -> attribute reverse mapping */
 	struct ebitmap *type_attr_map_array;

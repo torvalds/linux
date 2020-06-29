@@ -91,7 +91,13 @@ const char *__attribute_const__ rdma_reject_msg(struct rdma_cm_id *id,
 }
 EXPORT_SYMBOL(rdma_reject_msg);
 
-bool rdma_is_consumer_reject(struct rdma_cm_id *id, int reason)
+/**
+ * rdma_is_consumer_reject - return true if the consumer rejected the connect
+ *                           request.
+ * @id: Communication identifier that received the REJECT event.
+ * @reason: Value returned in the REJECT event status field.
+ */
+static bool rdma_is_consumer_reject(struct rdma_cm_id *id, int reason)
 {
 	if (rdma_ib_or_roce(id->device, id->port_num))
 		return reason == IB_CM_REJ_CONSUMER_DEFINED;
@@ -102,7 +108,6 @@ bool rdma_is_consumer_reject(struct rdma_cm_id *id, int reason)
 	WARN_ON_ONCE(1);
 	return false;
 }
-EXPORT_SYMBOL(rdma_is_consumer_reject);
 
 const void *rdma_consumer_reject_data(struct rdma_cm_id *id,
 				      struct rdma_cm_event *ev, u8 *data_len)
@@ -148,7 +153,7 @@ struct rdma_cm_id *rdma_res_to_id(struct rdma_restrack_entry *res)
 }
 EXPORT_SYMBOL(rdma_res_to_id);
 
-static void cma_add_one(struct ib_device *device);
+static int cma_add_one(struct ib_device *device);
 static void cma_remove_one(struct ib_device *device, void *client_data);
 
 static struct ib_client cma_client = {
@@ -479,6 +484,7 @@ static void _cma_attach_to_dev(struct rdma_id_private *id_priv,
 		rdma_restrack_kadd(&id_priv->res);
 	else
 		rdma_restrack_uadd(&id_priv->res);
+	trace_cm_id_attach(id_priv, cma_dev->device);
 }
 
 static void cma_attach_to_dev(struct rdma_id_private *id_priv,
@@ -883,7 +889,6 @@ struct rdma_cm_id *__rdma_create_id(struct net *net,
 	id_priv->id.route.addr.dev_addr.net = get_net(net);
 	id_priv->seq_num &= 0x00ffffff;
 
-	trace_cm_id_create(id_priv);
 	return &id_priv->id;
 }
 EXPORT_SYMBOL(__rdma_create_id);
@@ -1906,6 +1911,9 @@ static void cma_set_rep_event_data(struct rdma_cm_event *event,
 	event->param.conn.rnr_retry_count = rep_data->rnr_retry_count;
 	event->param.conn.srq = rep_data->srq;
 	event->param.conn.qp_num = rep_data->remote_qpn;
+
+	event->ece.vendor_id = rep_data->ece.vendor_id;
+	event->ece.attr_mod = rep_data->ece.attr_mod;
 }
 
 static int cma_cm_event_handler(struct rdma_id_private *id_priv,
@@ -2124,6 +2132,9 @@ static void cma_set_req_event_data(struct rdma_cm_event *event,
 	event->param.conn.rnr_retry_count = req_data->rnr_retry_count;
 	event->param.conn.srq = req_data->srq;
 	event->param.conn.qp_num = req_data->remote_qpn;
+
+	event->ece.vendor_id = req_data->ece.vendor_id;
+	event->ece.attr_mod = req_data->ece.attr_mod;
 }
 
 static int cma_ib_check_req_qp_type(const struct rdma_cm_id *id,
@@ -2904,6 +2915,24 @@ static int iboe_tos_to_sl(struct net_device *ndev, int tos)
 		return 0;
 }
 
+static __be32 cma_get_roce_udp_flow_label(struct rdma_id_private *id_priv)
+{
+	struct sockaddr_in6 *addr6;
+	u16 dport, sport;
+	u32 hash, fl;
+
+	addr6 = (struct sockaddr_in6 *)cma_src_addr(id_priv);
+	fl = be32_to_cpu(addr6->sin6_flowinfo) & IB_GRH_FLOWLABEL_MASK;
+	if ((cma_family(id_priv) != AF_INET6) || !fl) {
+		dport = be16_to_cpu(cma_port(cma_dst_addr(id_priv)));
+		sport = be16_to_cpu(cma_port(cma_src_addr(id_priv)));
+		hash = (u32)sport * 31 + dport;
+		fl = hash & IB_GRH_FLOWLABEL_MASK;
+	}
+
+	return cpu_to_be32(fl);
+}
+
 static int cma_resolve_iboe_route(struct rdma_id_private *id_priv)
 {
 	struct rdma_route *route = &id_priv->id.route;
@@ -2969,6 +2998,11 @@ static int cma_resolve_iboe_route(struct rdma_id_private *id_priv)
 		ret = -EINVAL;
 		goto err2;
 	}
+
+	if (rdma_protocol_roce_udp_encap(id_priv->id.device,
+					 id_priv->id.port_num))
+		route->path_rec->flow_label =
+			cma_get_roce_udp_flow_label(id_priv);
 
 	cma_init_resolve_route_work(work, id_priv);
 	queue_work(cma_wq, &work->work);
@@ -3919,6 +3953,8 @@ static int cma_connect_ib(struct rdma_id_private *id_priv,
 	req.local_cm_response_timeout = CMA_CM_RESPONSE_TIMEOUT;
 	req.max_cm_retries = CMA_MAX_CM_RETRIES;
 	req.srq = id_priv->srq ? 1 : 0;
+	req.ece.vendor_id = id_priv->ece.vendor_id;
+	req.ece.attr_mod = id_priv->ece.attr_mod;
 
 	trace_cm_send_req(id_priv);
 	ret = ib_send_cm_req(id_priv->cm_id.ib, &req);
@@ -4008,6 +4044,27 @@ err:
 }
 EXPORT_SYMBOL(rdma_connect);
 
+/**
+ * rdma_connect_ece - Initiate an active connection request with ECE data.
+ * @id: Connection identifier to connect.
+ * @conn_param: Connection information used for connected QPs.
+ * @ece: ECE parameters
+ *
+ * See rdma_connect() explanation.
+ */
+int rdma_connect_ece(struct rdma_cm_id *id, struct rdma_conn_param *conn_param,
+		     struct rdma_ucm_ece *ece)
+{
+	struct rdma_id_private *id_priv =
+		container_of(id, struct rdma_id_private, id);
+
+	id_priv->ece.vendor_id = ece->vendor_id;
+	id_priv->ece.attr_mod = ece->attr_mod;
+
+	return rdma_connect(id, conn_param);
+}
+EXPORT_SYMBOL(rdma_connect_ece);
+
 static int cma_accept_ib(struct rdma_id_private *id_priv,
 			 struct rdma_conn_param *conn_param)
 {
@@ -4033,6 +4090,8 @@ static int cma_accept_ib(struct rdma_id_private *id_priv,
 	rep.flow_control = conn_param->flow_control;
 	rep.rnr_retry_count = min_t(u8, 7, conn_param->rnr_retry_count);
 	rep.srq = id_priv->srq ? 1 : 0;
+	rep.ece.vendor_id = id_priv->ece.vendor_id;
+	rep.ece.attr_mod = id_priv->ece.attr_mod;
 
 	trace_cm_send_rep(id_priv);
 	ret = ib_send_cm_rep(id_priv->cm_id.ib, &rep);
@@ -4080,7 +4139,11 @@ static int cma_send_sidr_rep(struct rdma_id_private *id_priv,
 			return ret;
 		rep.qp_num = id_priv->qp_num;
 		rep.qkey = id_priv->qkey;
+
+		rep.ece.vendor_id = id_priv->ece.vendor_id;
+		rep.ece.attr_mod = id_priv->ece.attr_mod;
 	}
+
 	rep.private_data = private_data;
 	rep.private_data_len = private_data_len;
 
@@ -4133,10 +4196,23 @@ int __rdma_accept(struct rdma_cm_id *id, struct rdma_conn_param *conn_param,
 	return 0;
 reject:
 	cma_modify_qp_err(id_priv);
-	rdma_reject(id, NULL, 0);
+	rdma_reject(id, NULL, 0, IB_CM_REJ_CONSUMER_DEFINED);
 	return ret;
 }
 EXPORT_SYMBOL(__rdma_accept);
+
+int __rdma_accept_ece(struct rdma_cm_id *id, struct rdma_conn_param *conn_param,
+		      const char *caller, struct rdma_ucm_ece *ece)
+{
+	struct rdma_id_private *id_priv =
+		container_of(id, struct rdma_id_private, id);
+
+	id_priv->ece.vendor_id = ece->vendor_id;
+	id_priv->ece.attr_mod = ece->attr_mod;
+
+	return __rdma_accept(id, conn_param, caller);
+}
+EXPORT_SYMBOL(__rdma_accept_ece);
 
 int rdma_notify(struct rdma_cm_id *id, enum ib_event_type event)
 {
@@ -4160,7 +4236,7 @@ int rdma_notify(struct rdma_cm_id *id, enum ib_event_type event)
 EXPORT_SYMBOL(rdma_notify);
 
 int rdma_reject(struct rdma_cm_id *id, const void *private_data,
-		u8 private_data_len)
+		u8 private_data_len, u8 reason)
 {
 	struct rdma_id_private *id_priv;
 	int ret;
@@ -4175,9 +4251,8 @@ int rdma_reject(struct rdma_cm_id *id, const void *private_data,
 						private_data, private_data_len);
 		} else {
 			trace_cm_send_rej(id_priv);
-			ret = ib_send_cm_rej(id_priv->cm_id.ib,
-					     IB_CM_REJ_CONSUMER_DEFINED, NULL,
-					     0, private_data, private_data_len);
+			ret = ib_send_cm_rej(id_priv->cm_id.ib, reason, NULL, 0,
+					     private_data, private_data_len);
 		}
 	} else if (rdma_cap_iw_cm(id->device, id->port_num)) {
 		ret = iw_cm_reject(id_priv->cm_id.iw,
@@ -4633,29 +4708,34 @@ static struct notifier_block cma_nb = {
 	.notifier_call = cma_netdev_callback
 };
 
-static void cma_add_one(struct ib_device *device)
+static int cma_add_one(struct ib_device *device)
 {
 	struct cma_device *cma_dev;
 	struct rdma_id_private *id_priv;
 	unsigned int i;
 	unsigned long supported_gids = 0;
+	int ret;
 
 	cma_dev = kmalloc(sizeof *cma_dev, GFP_KERNEL);
 	if (!cma_dev)
-		return;
+		return -ENOMEM;
 
 	cma_dev->device = device;
 	cma_dev->default_gid_type = kcalloc(device->phys_port_cnt,
 					    sizeof(*cma_dev->default_gid_type),
 					    GFP_KERNEL);
-	if (!cma_dev->default_gid_type)
+	if (!cma_dev->default_gid_type) {
+		ret = -ENOMEM;
 		goto free_cma_dev;
+	}
 
 	cma_dev->default_roce_tos = kcalloc(device->phys_port_cnt,
 					    sizeof(*cma_dev->default_roce_tos),
 					    GFP_KERNEL);
-	if (!cma_dev->default_roce_tos)
+	if (!cma_dev->default_roce_tos) {
+		ret = -ENOMEM;
 		goto free_gid_type;
+	}
 
 	rdma_for_each_port (device, i) {
 		supported_gids = roce_gid_type_mask_support(device, i);
@@ -4681,15 +4761,14 @@ static void cma_add_one(struct ib_device *device)
 	mutex_unlock(&lock);
 
 	trace_cm_add_one(device);
-	return;
+	return 0;
 
 free_gid_type:
 	kfree(cma_dev->default_gid_type);
 
 free_cma_dev:
 	kfree(cma_dev);
-
-	return;
+	return ret;
 }
 
 static int cma_remove_id_dev(struct rdma_id_private *id_priv)
@@ -4750,9 +4829,6 @@ static void cma_remove_one(struct ib_device *device, void *client_data)
 	struct cma_device *cma_dev = client_data;
 
 	trace_cm_remove_one(device);
-
-	if (!cma_dev)
-		return;
 
 	mutex_lock(&lock);
 	list_del(&cma_dev->list);

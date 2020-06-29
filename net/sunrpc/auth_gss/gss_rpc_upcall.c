@@ -223,7 +223,7 @@ static int gssp_alloc_receive_pages(struct gssx_arg_accept_sec_context *arg)
 
 static char *gssp_stringify(struct xdr_netobj *netobj)
 {
-	return kstrndup(netobj->data, netobj->len, GFP_KERNEL);
+	return kmemdup_nul(netobj->data, netobj->len, GFP_KERNEL);
 }
 
 static void gssp_hostbased_service(char **principal)

@@ -38,7 +38,8 @@
  */
 #if (PAGE_SIZE < 8192)
 #define ICE_2K_TOO_SMALL_WITH_PADDING \
-((NET_SKB_PAD + ICE_RXBUF_1536) > SKB_WITH_OVERHEAD(ICE_RXBUF_2048))
+	((unsigned int)(NET_SKB_PAD + ICE_RXBUF_1536) > \
+			SKB_WITH_OVERHEAD(ICE_RXBUF_2048))
 
 /**
  * ice_compute_pad - compute the padding
@@ -107,12 +108,19 @@ static inline int ice_skb_pad(void)
 #define DESC_NEEDED (MAX_SKB_FRAGS + ICE_DESCS_FOR_CTX_DESC + \
 		     ICE_DESCS_PER_CACHE_LINE + ICE_DESCS_FOR_SKB_DATA_PTR)
 #define ICE_DESC_UNUSED(R)	\
-	((((R)->next_to_clean > (R)->next_to_use) ? 0 : (R)->count) + \
-	(R)->next_to_clean - (R)->next_to_use - 1)
+	(u16)((((R)->next_to_clean > (R)->next_to_use) ? 0 : (R)->count) + \
+	      (R)->next_to_clean - (R)->next_to_use - 1)
 
 #define ICE_TX_FLAGS_TSO	BIT(0)
 #define ICE_TX_FLAGS_HW_VLAN	BIT(1)
 #define ICE_TX_FLAGS_SW_VLAN	BIT(2)
+/* ICE_TX_FLAGS_DUMMY_PKT is used to mark dummy packets that should be
+ * freed instead of returned like skb packets.
+ */
+#define ICE_TX_FLAGS_DUMMY_PKT	BIT(3)
+#define ICE_TX_FLAGS_IPV4	BIT(5)
+#define ICE_TX_FLAGS_IPV6	BIT(6)
+#define ICE_TX_FLAGS_TUNNEL	BIT(7)
 #define ICE_TX_FLAGS_VLAN_M	0xffff0000
 #define ICE_TX_FLAGS_VLAN_PR_M	0xe0000000
 #define ICE_TX_FLAGS_VLAN_PR_S	29
@@ -155,17 +163,16 @@ struct ice_tx_offload_params {
 };
 
 struct ice_rx_buf {
-	struct sk_buff *skb;
-	dma_addr_t dma;
 	union {
 		struct {
+			struct sk_buff *skb;
+			dma_addr_t dma;
 			struct page *page;
 			unsigned int page_offset;
 			u16 pagecnt_bias;
 		};
 		struct {
-			void *addr;
-			u64 handle;
+			struct xdp_buff *xdp;
 		};
 	};
 };
@@ -289,7 +296,6 @@ struct ice_ring {
 	struct rcu_head rcu;		/* to avoid race on free */
 	struct bpf_prog *xdp_prog;
 	struct xdp_umem *xsk_umem;
-	struct zero_copy_allocator zca;
 	/* CL3 - 3rd cacheline starts here */
 	struct xdp_rxq_info xdp_rxq;
 	/* CLX - the below items are only accessed infrequently and should be
@@ -373,5 +379,9 @@ int ice_setup_rx_ring(struct ice_ring *rx_ring);
 void ice_free_tx_ring(struct ice_ring *tx_ring);
 void ice_free_rx_ring(struct ice_ring *rx_ring);
 int ice_napi_poll(struct napi_struct *napi, int budget);
-
+int
+ice_prgm_fdir_fltr(struct ice_vsi *vsi, struct ice_fltr_desc *fdir_desc,
+		   u8 *raw_packet);
+int ice_clean_rx_irq(struct ice_ring *rx_ring, int budget);
+void ice_clean_ctrl_tx_irq(struct ice_ring *tx_ring);
 #endif /* _ICE_TXRX_H_ */

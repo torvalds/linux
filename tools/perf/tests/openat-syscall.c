@@ -27,14 +27,14 @@ int test__openat_syscall_event(struct test *test __maybe_unused, int subtest __m
 		return -1;
 	}
 
-	evsel = perf_evsel__newtp("syscalls", "sys_enter_openat");
+	evsel = evsel__newtp("syscalls", "sys_enter_openat");
 	if (IS_ERR(evsel)) {
 		tracing_path__strerror_open_tp(errno, errbuf, sizeof(errbuf), "syscalls", "sys_enter_openat");
 		pr_debug("%s\n", errbuf);
 		goto out_thread_map_delete;
 	}
 
-	if (perf_evsel__open_per_thread(evsel, threads) < 0) {
+	if (evsel__open_per_thread(evsel, threads) < 0) {
 		pr_debug("failed to open counter: %s, "
 			 "tweak /proc/sys/kernel/perf_event_paranoid?\n",
 			 str_error_r(errno, sbuf, sizeof(sbuf)));
@@ -46,13 +46,13 @@ int test__openat_syscall_event(struct test *test __maybe_unused, int subtest __m
 		close(fd);
 	}
 
-	if (perf_evsel__read_on_cpu(evsel, 0, 0) < 0) {
-		pr_debug("perf_evsel__read_on_cpu\n");
+	if (evsel__read_on_cpu(evsel, 0, 0) < 0) {
+		pr_debug("evsel__read_on_cpu\n");
 		goto out_close_fd;
 	}
 
 	if (perf_counts(evsel->counts, 0, 0)->val != nr_openat_calls) {
-		pr_debug("perf_evsel__read_on_cpu: expected to intercept %d calls, got %" PRIu64 "\n",
+		pr_debug("evsel__read_on_cpu: expected to intercept %d calls, got %" PRIu64 "\n",
 			 nr_openat_calls, perf_counts(evsel->counts, 0, 0)->val);
 		goto out_close_fd;
 	}

@@ -187,31 +187,31 @@ static const struct {
 		USB_EP_CAPS(USB_EP_CAPS_TYPE_BULK, USB_EP_CAPS_DIR_IN)),
 
 	/* and now some generic EPs so we have enough in multi config */
-	EP_INFO("ep3out",
+	EP_INFO("ep-aout",
 		USB_EP_CAPS(TYPE_BULK_OR_INT, USB_EP_CAPS_DIR_OUT)),
-	EP_INFO("ep4in",
+	EP_INFO("ep-bin",
 		USB_EP_CAPS(TYPE_BULK_OR_INT, USB_EP_CAPS_DIR_IN)),
-	EP_INFO("ep5out",
+	EP_INFO("ep-cout",
 		USB_EP_CAPS(TYPE_BULK_OR_INT, USB_EP_CAPS_DIR_OUT)),
-	EP_INFO("ep6out",
+	EP_INFO("ep-dout",
 		USB_EP_CAPS(TYPE_BULK_OR_INT, USB_EP_CAPS_DIR_OUT)),
-	EP_INFO("ep7in",
+	EP_INFO("ep-ein",
 		USB_EP_CAPS(TYPE_BULK_OR_INT, USB_EP_CAPS_DIR_IN)),
-	EP_INFO("ep8out",
+	EP_INFO("ep-fout",
 		USB_EP_CAPS(TYPE_BULK_OR_INT, USB_EP_CAPS_DIR_OUT)),
-	EP_INFO("ep9in",
+	EP_INFO("ep-gin",
 		USB_EP_CAPS(TYPE_BULK_OR_INT, USB_EP_CAPS_DIR_IN)),
-	EP_INFO("ep10out",
+	EP_INFO("ep-hout",
 		USB_EP_CAPS(TYPE_BULK_OR_INT, USB_EP_CAPS_DIR_OUT)),
-	EP_INFO("ep11out",
+	EP_INFO("ep-iout",
 		USB_EP_CAPS(TYPE_BULK_OR_INT, USB_EP_CAPS_DIR_OUT)),
-	EP_INFO("ep12in",
+	EP_INFO("ep-jin",
 		USB_EP_CAPS(TYPE_BULK_OR_INT, USB_EP_CAPS_DIR_IN)),
-	EP_INFO("ep13out",
+	EP_INFO("ep-kout",
 		USB_EP_CAPS(TYPE_BULK_OR_INT, USB_EP_CAPS_DIR_OUT)),
-	EP_INFO("ep14in",
+	EP_INFO("ep-lin",
 		USB_EP_CAPS(TYPE_BULK_OR_INT, USB_EP_CAPS_DIR_IN)),
-	EP_INFO("ep15out",
+	EP_INFO("ep-mout",
 		USB_EP_CAPS(TYPE_BULK_OR_INT, USB_EP_CAPS_DIR_OUT)),
 
 #undef EP_INFO
@@ -427,6 +427,7 @@ static void set_link_state_by_speed(struct dummy_hcd *dum_hcd)
 
 /* caller must hold lock */
 static void set_link_state(struct dummy_hcd *dum_hcd)
+	__must_hold(&dum->lock)
 {
 	struct dummy *dum = dum_hcd->dum;
 	unsigned int power_bit;

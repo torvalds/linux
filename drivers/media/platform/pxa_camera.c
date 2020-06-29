@@ -1016,7 +1016,7 @@ static void pxa_camera_wakeup(struct pxa_camera_dev *pcdev,
  *  - a videobuffer is queued on the pcdev->capture list
  *
  * Please check the "DMA hot chaining timeslice issue" in
- *   Documentation/media/v4l-drivers/pxa_camera.rst
+ *   Documentation/driver-api/media/drivers/pxa_camera.rst
  *
  * Context: should only be called within the dma irq handler
  */
@@ -1438,7 +1438,7 @@ static void pxac_vb2_queue(struct vb2_buffer *vb)
 
 /*
  * Please check the DMA prepared buffer structure in :
- *   Documentation/media/v4l-drivers/pxa_camera.rst
+ *   Documentation/driver-api/media/drivers/pxa_camera.rst
  * Please check also in pxa_camera_check_link_miss() to understand why DMA chain
  * modification while DMA chain is running will work anyway.
  */

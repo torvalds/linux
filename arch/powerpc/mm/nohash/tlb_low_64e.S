@@ -6,6 +6,7 @@
  *      Ben. Herrenschmidt (benh@kernel.crashing.org), IBM Corp.
  */
 
+#include <linux/pgtable.h>
 #include <asm/processor.h>
 #include <asm/reg.h>
 #include <asm/page.h>
@@ -13,7 +14,6 @@
 #include <asm/ppc_asm.h>
 #include <asm/asm-offsets.h>
 #include <asm/cputable.h>
-#include <asm/pgtable.h>
 #include <asm/exception-64e.h>
 #include <asm/ppc-opcode.h>
 #include <asm/kvm_asm.h>

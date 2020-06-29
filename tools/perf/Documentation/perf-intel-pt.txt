@@ -69,22 +69,22 @@ And profiled with 'perf report' e.g.
 To also trace kernel space presents a problem, namely kernel self-modifying
 code.  A fairly good kernel image is available in /proc/kcore but to get an
 accurate image a copy of /proc/kcore needs to be made under the same conditions
-as the data capture.  A script perf-with-kcore can do that, but beware that the
-script makes use of 'sudo' to copy /proc/kcore.  If you have perf installed
-locally from the source tree you can do:
+as the data capture. 'perf record' can make a copy of /proc/kcore if the option
+--kcore is used, but access to /proc/kcore is restricted e.g.
 
-	~/libexec/perf-core/perf-with-kcore record pt_ls -e intel_pt// -- ls
+	sudo perf record -o pt_ls --kcore -e intel_pt// -- ls
 
-which will create a directory named 'pt_ls' and put the perf.data file and
-copies of /proc/kcore, /proc/kallsyms and /proc/modules into it.  Then to use
-'perf report' becomes:
+which will create a directory named 'pt_ls' and put the perf.data file (named
+simply 'data') and copies of /proc/kcore, /proc/kallsyms and /proc/modules into
+it.  The other tools understand the directory format, so to use 'perf report'
+becomes:
 
-	~/libexec/perf-core/perf-with-kcore report pt_ls
+	sudo perf report -i pt_ls
 
 Because samples are synthesized after-the-fact, the sampling period can be
 selected for reporting. e.g. sample every microsecond
 
-	~/libexec/perf-core/perf-with-kcore report pt_ls --itrace=i1usge
+	sudo perf report pt_ls --itrace=i1usge
 
 See the sections below for more information about the --itrace option.
 
@@ -687,7 +687,7 @@ The v4.2 kernel introduced support for a context switch metadata event,
 PERF_RECORD_SWITCH, which allows unprivileged users to see when their processes
 are scheduled out and in, just not by whom, which is left for the
 PERF_RECORD_SWITCH_CPU_WIDE, that is only accessible in system wide context,
-which in turn requires CAP_SYS_ADMIN.
+which in turn requires CAP_PERFMON or CAP_SYS_ADMIN.
 
 Please see the 45ac1403f564 ("perf: Add PERF_RECORD_SWITCH to indicate context
 switches") commit, that introduces these metadata events for further info.
@@ -821,7 +821,9 @@ The letters are:
 	e	synthesize tracing error events
 	d	create a debug log
 	g	synthesize a call chain (use with i or x)
+	G	synthesize a call chain on existing event records
 	l	synthesize last branch entries (use with i or x)
+	L	synthesize last branch entries on existing event records
 	s	skip initial number of events
 
 "Instructions" events look like they were recorded by "perf record -e
@@ -911,6 +913,39 @@ transactions events can be specified. e.g.
 
 Note that last branch entries are cleared for each sample, so there is no overlap
 from one sample to the next.
+
+The G and L options are designed in particular for sample mode, and work much
+like g and l but add call chain and branch stack to the other selected events
+instead of synthesized events. For example, to record branch-misses events for
+'ls' and then add a call chain derived from the Intel PT trace:
+
+	perf record --aux-sample -e '{intel_pt//u,branch-misses:u}' -- ls
+	perf report --itrace=Ge
+
+Although in fact G is a default for perf report, so that is the same as just:
+
+	perf report
+
+One caveat with the G and L options is that they work poorly with "Large PEBS".
+Large PEBS means PEBS records will be accumulated by hardware and the written
+into the event buffer in one go.  That reduces interrupts, but can give very
+late timestamps.  Because the Intel PT trace is synchronized by timestamps,
+the PEBS events do not match the trace.  Currently, Large PEBS is used only in
+certain circumstances:
+	- hardware supports it
+	- PEBS is used
+	- event period is specified, instead of frequency
+	- the sample type is limited to the following flags:
+		PERF_SAMPLE_IP | PERF_SAMPLE_TID | PERF_SAMPLE_ADDR |
+		PERF_SAMPLE_ID | PERF_SAMPLE_CPU | PERF_SAMPLE_STREAM_ID |
+		PERF_SAMPLE_DATA_SRC | PERF_SAMPLE_IDENTIFIER |
+		PERF_SAMPLE_TRANSACTION | PERF_SAMPLE_PHYS_ADDR |
+		PERF_SAMPLE_REGS_INTR | PERF_SAMPLE_REGS_USER |
+		PERF_SAMPLE_PERIOD (and sometimes) | PERF_SAMPLE_TIME
+Because Intel PT sample mode uses a different sample type to the list above,
+Large PEBS is not used with Intel PT sample mode. To avoid Large PEBS in other
+cases, avoid specifying the event period i.e. avoid the 'perf record' -c option,
+--count option, or 'period' config term.
 
 To disable trace decoding entirely, use the option --no-itrace.
 

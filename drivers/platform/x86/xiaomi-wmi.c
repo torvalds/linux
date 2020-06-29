@@ -23,7 +23,7 @@ struct xiaomi_wmi {
 	unsigned int key_code;
 };
 
-int xiaomi_wmi_probe(struct wmi_device *wdev, const void *context)
+static int xiaomi_wmi_probe(struct wmi_device *wdev, const void *context)
 {
 	struct xiaomi_wmi *data;
 
@@ -48,7 +48,7 @@ int xiaomi_wmi_probe(struct wmi_device *wdev, const void *context)
 	return input_register_device(data->input_dev);
 }
 
-void xiaomi_wmi_notify(struct wmi_device *wdev, union acpi_object *dummy)
+static void xiaomi_wmi_notify(struct wmi_device *wdev, union acpi_object *dummy)
 {
 	struct xiaomi_wmi *data;
 

@@ -6,6 +6,7 @@
 #include <linux/clk/tegra.h>
 #include <linux/genalloc.h>
 #include <linux/mailbox_client.h>
+#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
@@ -869,12 +870,8 @@ static struct platform_driver tegra_bpmp_driver = {
 		.name = "tegra-bpmp",
 		.of_match_table = tegra_bpmp_match,
 		.pm = &tegra_bpmp_pm_ops,
+		.suppress_bind_attrs = true,
 	},
 	.probe = tegra_bpmp_probe,
 };
-
-static int __init tegra_bpmp_init(void)
-{
-	return platform_driver_register(&tegra_bpmp_driver);
-}
-core_initcall(tegra_bpmp_init);
+builtin_platform_driver(tegra_bpmp_driver);

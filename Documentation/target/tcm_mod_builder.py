@@ -568,8 +568,8 @@ def tcm_mod_build_kconfig(fabric_mod_dir_var, fabric_mod_name):
 	buf += "	tristate \"" + fabric_mod_name.upper() + " fabric module\"\n"
 	buf += "	depends on TARGET_CORE && CONFIGFS_FS\n"
 	buf += "	default n\n"
-	buf += "	---help---\n"
-	buf += "	Say Y here to enable the " + fabric_mod_name.upper() + " fabric module\n"
+	buf += "	help\n"
+	buf += "	  Say Y here to enable the " + fabric_mod_name.upper() + " fabric module\n"
 
 	ret = p.write(buf)
 	if ret:

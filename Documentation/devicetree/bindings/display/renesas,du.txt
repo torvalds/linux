@@ -50,6 +50,14 @@ Required Properties:
     VSP instance that serves the DU channel, and the channel index identifies
     the LIF instance in that VSP.
 
+Optional properties:
+  - resets: A list of phandle + reset-specifier pairs, one for each entry in
+    the reset-names property.
+  - reset-names: Names of the resets. This property is model-dependent.
+    - All but R8A7779 use one reset for a group of one or more successive
+      channels. The resets must be named "du.x" with "x" being the numerical
+      index of the lowest channel in the group.
+
 Required nodes:
 
 The connections to the DU output video ports are modeled using the OF graph
@@ -96,6 +104,8 @@ Example: R8A7795 (R-Car H3) ES2.0 DU
 			 <&cpg CPG_MOD 722>,
 			 <&cpg CPG_MOD 721>;
 		clock-names = "du.0", "du.1", "du.2", "du.3";
+		resets = <&cpg 724>, <&cpg 722>;
+		reset-names = "du.0", "du.2";
 		renesas,cmms = <&cmm0>, <&cmm1>, <&cmm2>, <&cmm3>;
 		renesas,vsps = <&vspd0 0>, <&vspd1 0>, <&vspd2 0>, <&vspd0 1>;
 

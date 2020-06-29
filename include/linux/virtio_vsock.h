@@ -48,6 +48,7 @@ struct virtio_vsock_pkt {
 	u32 len;
 	u32 off;
 	bool reply;
+	bool tap_delivered;
 };
 
 struct virtio_vsock_pkt_info {

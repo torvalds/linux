@@ -274,7 +274,7 @@ mlx5_esw_chains_destroy_fdb_table(struct mlx5_eswitch *esw,
 static int
 create_fdb_chain_restore(struct fdb_chain *fdb_chain)
 {
-	char modact[MLX5_UN_SZ_BYTES(set_action_in_add_action_in_auto)];
+	char modact[MLX5_UN_SZ_BYTES(set_add_copy_action_in_auto)];
 	struct mlx5_eswitch *esw = fdb_chain->esw;
 	struct mlx5_modify_hdr *mod_hdr;
 	u32 index;

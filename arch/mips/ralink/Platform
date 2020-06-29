@@ -1,7 +1,6 @@
 #
 # Ralink SoC common stuff
 #
-core-$(CONFIG_RALINK)		+= arch/mips/ralink/
 cflags-$(CONFIG_RALINK)		+= -I$(srctree)/arch/mips/include/asm/mach-ralink
 
 #

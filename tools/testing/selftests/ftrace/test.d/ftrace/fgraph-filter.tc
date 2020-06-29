@@ -1,13 +1,9 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
 # description: ftrace - function graph filters
+# requires: set_ftrace_filter function_graph:tracer
 
 # Make sure that function graph filtering works
-
-if ! grep -q function_graph available_tracers; then
-    echo "no function graph tracer configured"
-    exit_unsupported
-fi
 
 fail() { # msg
     echo $1

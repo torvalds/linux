@@ -30,8 +30,9 @@
 		0xc1108140 0x8>;
 	clocks = <&clkc CLKID_ETH>,
 		 <&clkc CLKID_MPLL2>,
-		 <&clkc CLKID_MPLL2>;
-	clock-names = "stmmaceth", "clkin0", "clkin1";
+		 <&clkc CLKID_MPLL2>,
+		 <&clkc CLKID_FCLK_DIV2>;
+	clock-names = "stmmaceth", "clkin0", "clkin1", "timing-adjustment";
 	resets = <&reset RESET_ETHERNET>;
 	reset-names = "stmmaceth";
 };
@@ -62,6 +63,14 @@
 
 &saradc {
 	compatible = "amlogic,meson8m2-saradc", "amlogic,meson-saradc";
+};
+
+&usb0_phy {
+	compatible = "amlogic,meson8m2-usb2-phy", "amlogic,meson-mx-usb2-phy";
+};
+
+&usb1_phy {
+	compatible = "amlogic,meson8m2-usb2-phy", "amlogic,meson-mx-usb2-phy";
 };
 
 &wdt {

@@ -89,7 +89,7 @@ static struct {
 	struct device *dev;
 	struct gpio_chip chip;
 	struct resource *gpio_base;	/* GPIO IO base */
-	struct resource *pm_base;	/* Power Mangagment IO base */
+	struct resource *pm_base;	/* Power Management IO base */
 	struct ichx_desc *desc;	/* Pointer to chipset-specific description */
 	u32 orig_gpio_ctrl;	/* Orig CTRL value, used to restore on exit */
 	u8 use_gpio;		/* Which GPIO groups are usable */

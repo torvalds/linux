@@ -18,6 +18,7 @@
 #include <linux/console.h>
 #include <linux/debugfs.h>
 #include <linux/of_fdt.h>
+#include <linux/pgtable.h>
 
 #include <asm/setup.h>
 #include <asm/sections.h>
@@ -33,7 +34,6 @@
 #include <asm/entry.h>
 #include <asm/cpuinfo.h>
 
-#include <asm/pgtable.h>
 
 DEFINE_PER_CPU(unsigned int, KSP);	/* Saved kernel stack pointer */
 DEFINE_PER_CPU(unsigned int, KM);	/* Kernel/user mode */

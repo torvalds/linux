@@ -33,8 +33,7 @@
 #include <linux/pm_wakeirq.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
-#include <linux/gpio.h>
-#include <linux/of_gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/platform_data/serial-omap.h>
 
 #define OMAP_MAX_HSUART_PORTS	10
@@ -153,7 +152,7 @@ struct uart_omap_port {
 	u32			errata;
 	u32			features;
 
-	int			rts_gpio;
+	struct gpio_desc	*rts_gpiod;
 
 	struct pm_qos_request	pm_qos_request;
 	u32			latency;
@@ -303,11 +302,11 @@ static void serial_omap_stop_tx(struct uart_port *port)
 			serial_out(up, UART_OMAP_SCR, up->scr);
 			res = (port->rs485.flags & SER_RS485_RTS_AFTER_SEND) ?
 				1 : 0;
-			if (gpio_get_value(up->rts_gpio) != res) {
+			if (gpiod_get_value(up->rts_gpiod) != res) {
 				if (port->rs485.delay_rts_after_send > 0)
 					mdelay(
 					port->rs485.delay_rts_after_send);
-				gpio_set_value(up->rts_gpio, res);
+				gpiod_set_value(up->rts_gpiod, res);
 			}
 		} else {
 			/* We're asked to stop, but there's still stuff in the
@@ -412,8 +411,8 @@ static void serial_omap_start_tx(struct uart_port *port)
 
 		/* if rts not already enabled */
 		res = (port->rs485.flags & SER_RS485_RTS_ON_SEND) ? 1 : 0;
-		if (gpio_get_value(up->rts_gpio) != res) {
-			gpio_set_value(up->rts_gpio, res);
+		if (gpiod_get_value(up->rts_gpiod) != res) {
+			gpiod_set_value(up->rts_gpiod, res);
 			if (port->rs485.delay_rts_before_send > 0)
 				mdelay(port->rs485.delay_rts_before_send);
 		}
@@ -1414,12 +1413,12 @@ serial_omap_config_rs485(struct uart_port *port, struct serial_rs485 *rs485)
 	 * Just as a precaution, only allow rs485
 	 * to be enabled if the gpio pin is valid
 	 */
-	if (gpio_is_valid(up->rts_gpio)) {
+	if (up->rts_gpiod) {
 		/* enable / disable rts */
 		val = (port->rs485.flags & SER_RS485_ENABLED) ?
 			SER_RS485_RTS_AFTER_SEND : SER_RS485_RTS_ON_SEND;
 		val = (port->rs485.flags & val) ? 1 : 0;
-		gpio_set_value(up->rts_gpio, val);
+		gpiod_set_value(up->rts_gpiod, val);
 	} else
 		port->rs485.flags &= ~SER_RS485_ENABLED;
 
@@ -1596,18 +1595,22 @@ static struct omap_uart_port_info *of_get_uart_port_info(struct device *dev)
 }
 
 static int serial_omap_probe_rs485(struct uart_omap_port *up,
-				   struct device_node *np)
+				   struct device *dev)
 {
 	struct serial_rs485 *rs485conf = &up->port.rs485;
+	struct device_node *np = dev->of_node;
+	enum gpiod_flags gflags;
 	int ret;
 
 	rs485conf->flags = 0;
-	up->rts_gpio = -EINVAL;
+	up->rts_gpiod = NULL;
 
 	if (!np)
 		return 0;
 
-	uart_get_rs485_mode(up->dev, rs485conf);
+	ret = uart_get_rs485_mode(&up->port);
+	if (ret)
+		return ret;
 
 	if (of_property_read_bool(np, "rs485-rts-active-high")) {
 		rs485conf->flags |= SER_RS485_RTS_ON_SEND;
@@ -1618,19 +1621,20 @@ static int serial_omap_probe_rs485(struct uart_omap_port *up,
 	}
 
 	/* check for tx enable gpio */
-	up->rts_gpio = of_get_named_gpio(np, "rts-gpio", 0);
-	if (gpio_is_valid(up->rts_gpio)) {
-		ret = devm_gpio_request(up->dev, up->rts_gpio, "omap-serial");
-		if (ret < 0)
+	gflags = rs485conf->flags & SER_RS485_RTS_AFTER_SEND ?
+		GPIOD_OUT_HIGH : GPIOD_OUT_LOW;
+	up->rts_gpiod = devm_gpiod_get_optional(dev, "rts", gflags);
+	if (IS_ERR(up->rts_gpiod)) {
+		ret = PTR_ERR(up->rts_gpiod);
+	        if (ret == -EPROBE_DEFER)
 			return ret;
-		ret = rs485conf->flags & SER_RS485_RTS_AFTER_SEND ? 1 : 0;
-		ret = gpio_direction_output(up->rts_gpio, ret);
-		if (ret < 0)
-			return ret;
-	} else if (up->rts_gpio == -EPROBE_DEFER) {
-		return -EPROBE_DEFER;
+		/*
+		 * FIXME: the code historically ignored any other error than
+		 * -EPROBE_DEFER and just went on without GPIO.
+		 */
+		up->rts_gpiod = NULL;
 	} else {
-		up->rts_gpio = -EINVAL;
+		gpiod_set_consumer_name(up->rts_gpiod, "omap-serial");
 	}
 
 	return 0;
@@ -1703,7 +1707,7 @@ static int serial_omap_probe(struct platform_device *pdev)
 		dev_info(up->port.dev, "no wakeirq for uart%d\n",
 			 up->port.line);
 
-	ret = serial_omap_probe_rs485(up, pdev->dev.of_node);
+	ret = serial_omap_probe_rs485(up, &pdev->dev);
 	if (ret < 0)
 		goto err_rs485;
 

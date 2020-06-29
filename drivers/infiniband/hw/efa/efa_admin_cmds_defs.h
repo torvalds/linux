@@ -37,7 +37,7 @@ enum efa_admin_aq_feature_id {
 	EFA_ADMIN_NETWORK_ATTR                      = 3,
 	EFA_ADMIN_QUEUE_ATTR                        = 4,
 	EFA_ADMIN_HW_HINTS                          = 5,
-	EFA_ADMIN_FEATURES_OPCODE_NUM               = 8,
+	EFA_ADMIN_HOST_INFO                         = 6,
 };
 
 /* QP transport type */
@@ -799,6 +799,54 @@ struct efa_admin_mmio_req_read_less_resp {
 	u32 reg_val;
 };
 
+enum efa_admin_os_type {
+	EFA_ADMIN_OS_LINUX                          = 0,
+};
+
+struct efa_admin_host_info {
+	/* OS distribution string format */
+	u8 os_dist_str[128];
+
+	/* Defined in enum efa_admin_os_type */
+	u32 os_type;
+
+	/* Kernel version string format */
+	u8 kernel_ver_str[32];
+
+	/* Kernel version numeric format */
+	u32 kernel_ver;
+
+	/*
+	 * 7:0 : driver_module_type
+	 * 15:8 : driver_sub_minor
+	 * 23:16 : driver_minor
+	 * 31:24 : driver_major
+	 */
+	u32 driver_ver;
+
+	/*
+	 * Device's Bus, Device and Function
+	 * 2:0 : function
+	 * 7:3 : device
+	 * 15:8 : bus
+	 */
+	u16 bdf;
+
+	/*
+	 * Spec version
+	 * 7:0 : spec_minor
+	 * 15:8 : spec_major
+	 */
+	u16 spec_ver;
+
+	/*
+	 * 0 : intree - Intree driver
+	 * 1 : gdr - GPUDirect RDMA supported
+	 * 31:2 : reserved2
+	 */
+	u32 flags;
+};
+
 /* create_qp_cmd */
 #define EFA_ADMIN_CREATE_QP_CMD_SQ_VIRT_MASK                BIT(0)
 #define EFA_ADMIN_CREATE_QP_CMD_RQ_VIRT_MASK                BIT(1)
@@ -819,5 +867,18 @@ struct efa_admin_mmio_req_read_less_resp {
 
 /* feature_device_attr_desc */
 #define EFA_ADMIN_FEATURE_DEVICE_ATTR_DESC_RDMA_READ_MASK   BIT(0)
+
+/* host_info */
+#define EFA_ADMIN_HOST_INFO_DRIVER_MODULE_TYPE_MASK         GENMASK(7, 0)
+#define EFA_ADMIN_HOST_INFO_DRIVER_SUB_MINOR_MASK           GENMASK(15, 8)
+#define EFA_ADMIN_HOST_INFO_DRIVER_MINOR_MASK               GENMASK(23, 16)
+#define EFA_ADMIN_HOST_INFO_DRIVER_MAJOR_MASK               GENMASK(31, 24)
+#define EFA_ADMIN_HOST_INFO_FUNCTION_MASK                   GENMASK(2, 0)
+#define EFA_ADMIN_HOST_INFO_DEVICE_MASK                     GENMASK(7, 3)
+#define EFA_ADMIN_HOST_INFO_BUS_MASK                        GENMASK(15, 8)
+#define EFA_ADMIN_HOST_INFO_SPEC_MINOR_MASK                 GENMASK(7, 0)
+#define EFA_ADMIN_HOST_INFO_SPEC_MAJOR_MASK                 GENMASK(15, 8)
+#define EFA_ADMIN_HOST_INFO_INTREE_MASK                     BIT(0)
+#define EFA_ADMIN_HOST_INFO_GDR_MASK                        BIT(1)
 
 #endif /* _EFA_ADMIN_CMDS_H_ */

@@ -41,7 +41,7 @@ NESTED(handle_sys, PT_SIZE, sp)
 #if 0
  SAVE_ALL
  move a1, v0
- PRINT("Scall %ld\n")
+ ASM_PRINT("Scall %ld\n")
  RESTORE_ALL
 #endif
 

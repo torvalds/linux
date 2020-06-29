@@ -101,6 +101,7 @@ static int mlxreg_hotplug_device_create(struct mlxreg_hotplug_priv_data *priv,
 					struct mlxreg_core_data *data)
 {
 	struct mlxreg_core_hotplug_platform_data *pdata;
+	struct i2c_client *client;
 
 	/* Notify user by sending hwmon uevent. */
 	kobject_uevent(&priv->hwmon->kobj, KOBJ_CHANGE);
@@ -121,17 +122,19 @@ static int mlxreg_hotplug_device_create(struct mlxreg_hotplug_priv_data *priv,
 		return -EFAULT;
 	}
 
-	data->hpdev.client = i2c_new_device(data->hpdev.adapter,
-					    data->hpdev.brdinfo);
-	if (!data->hpdev.client) {
+	client = i2c_new_client_device(data->hpdev.adapter,
+				       data->hpdev.brdinfo);
+	if (IS_ERR(client)) {
 		dev_err(priv->dev, "Failed to create client %s at bus %d at addr 0x%02x\n",
 			data->hpdev.brdinfo->type, data->hpdev.nr +
 			pdata->shift_nr, data->hpdev.brdinfo->addr);
 
 		i2c_put_adapter(data->hpdev.adapter);
 		data->hpdev.adapter = NULL;
-		return -EFAULT;
+		return PTR_ERR(client);
 	}
+
+	data->hpdev.client = client;
 
 	return 0;
 }

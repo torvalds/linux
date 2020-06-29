@@ -239,7 +239,7 @@ struct htt_tx_pdev_stats_tx_ppdu_stats_tlv_v {
  */
 struct htt_tx_pdev_stats_tried_mpdu_cnt_hist_tlv_v {
 	u32 hist_bin_size;
-	u32 tried_mpdu_cnt_hist[0]; /* HTT_TX_PDEV_TRIED_MPDU_CNT_HIST */
+	u32 tried_mpdu_cnt_hist[]; /* HTT_TX_PDEV_TRIED_MPDU_CNT_HIST */
 };
 
 /* == SOC ERROR STATS == */
@@ -550,7 +550,7 @@ struct htt_tx_hwq_stats_cmn_tlv {
 struct htt_tx_hwq_difs_latency_stats_tlv_v {
 	u32 hist_intvl;
 	/* histogram of ppdu post to hwsch - > cmd status received */
-	u32 difs_latency_hist[0]; /* HTT_TX_HWQ_MAX_DIFS_LATENCY_BINS */
+	u32 difs_latency_hist[]; /* HTT_TX_HWQ_MAX_DIFS_LATENCY_BINS */
 };
 
 /* NOTE: Variable length TLV, use length spec to infer array size */
@@ -586,7 +586,7 @@ struct htt_tx_hwq_fes_result_stats_tlv_v {
 struct htt_tx_hwq_tried_mpdu_cnt_hist_tlv_v {
 	u32 hist_bin_size;
 	/* Histogram of number of mpdus on tried mpdu */
-	u32 tried_mpdu_cnt_hist[0]; /* HTT_TX_HWQ_TRIED_MPDU_CNT_HIST */
+	u32 tried_mpdu_cnt_hist[]; /* HTT_TX_HWQ_TRIED_MPDU_CNT_HIST */
 };
 
 /* NOTE: Variable length TLV, use length spec to infer array size
@@ -1584,7 +1584,7 @@ struct htt_pdev_stats_twt_session_tlv {
 struct htt_pdev_stats_twt_sessions_tlv {
 	u32 pdev_id;
 	u32 num_sessions;
-	struct htt_pdev_stats_twt_session_tlv twt_session[0];
+	struct htt_pdev_stats_twt_session_tlv twt_session[];
 };
 
 enum htt_rx_reo_resource_sample_id_enum {

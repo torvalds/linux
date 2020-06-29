@@ -712,19 +712,68 @@ EXPORT_SYMBOL_GPL(software_node_register_nodes);
  * @nodes: Zero terminated array of software nodes to be unregistered
  *
  * Unregister multiple software nodes at once.
+ *
+ * NOTE: Be careful using this call if the nodes had parent pointers set up in
+ * them before registering.  If so, it is wiser to remove the nodes
+ * individually, in the correct order (child before parent) instead of relying
+ * on the sequential order of the list of nodes in the array.
  */
 void software_node_unregister_nodes(const struct software_node *nodes)
 {
-	struct swnode *swnode;
 	int i;
 
-	for (i = 0; nodes[i].name; i++) {
-		swnode = software_node_to_swnode(&nodes[i]);
+	for (i = 0; nodes[i].name; i++)
+		software_node_unregister(&nodes[i]);
+}
+EXPORT_SYMBOL_GPL(software_node_unregister_nodes);
+
+/**
+ * software_node_register_node_group - Register a group of software nodes
+ * @node_group: NULL terminated array of software node pointers to be registered
+ *
+ * Register multiple software nodes at once.
+ */
+int software_node_register_node_group(const struct software_node **node_group)
+{
+	unsigned int i;
+	int ret;
+
+	if (!node_group)
+		return 0;
+
+	for (i = 0; node_group[i]; i++) {
+		ret = software_node_register(node_group[i]);
+		if (ret) {
+			software_node_unregister_node_group(node_group);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(software_node_register_node_group);
+
+/**
+ * software_node_unregister_node_group - Unregister a group of software nodes
+ * @node_group: NULL terminated array of software node pointers to be unregistered
+ *
+ * Unregister multiple software nodes at once.
+ */
+void software_node_unregister_node_group(const struct software_node **node_group)
+{
+	struct swnode *swnode;
+	unsigned int i;
+
+	if (!node_group)
+		return;
+
+	for (i = 0; node_group[i]; i++) {
+		swnode = software_node_to_swnode(node_group[i]);
 		if (swnode)
 			fwnode_remove_software_node(&swnode->fwnode);
 	}
 }
-EXPORT_SYMBOL_GPL(software_node_unregister_nodes);
+EXPORT_SYMBOL_GPL(software_node_unregister_node_group);
 
 /**
  * software_node_register - Register static software node
@@ -740,6 +789,20 @@ int software_node_register(const struct software_node *node)
 	return PTR_ERR_OR_ZERO(swnode_register(node, parent, 0));
 }
 EXPORT_SYMBOL_GPL(software_node_register);
+
+/**
+ * software_node_unregister - Unregister static software node
+ * @node: The software node to be unregistered
+ */
+void software_node_unregister(const struct software_node *node)
+{
+	struct swnode *swnode;
+
+	swnode = software_node_to_swnode(node);
+	if (swnode)
+		fwnode_remove_software_node(&swnode->fwnode);
+}
+EXPORT_SYMBOL_GPL(software_node_unregister);
 
 struct fwnode_handle *
 fwnode_create_software_node(const struct property_entry *properties,

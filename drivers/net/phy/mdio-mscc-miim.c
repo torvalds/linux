@@ -16,6 +16,7 @@
 #include <linux/of_mdio.h>
 
 #define MSCC_MIIM_REG_STATUS		0x0
+#define		MSCC_MIIM_STATUS_STAT_PENDING	BIT(2)
 #define		MSCC_MIIM_STATUS_STAT_BUSY	BIT(3)
 #define MSCC_MIIM_REG_CMD		0x8
 #define		MSCC_MIIM_CMD_OPR_WRITE		BIT(1)
@@ -38,17 +39,35 @@ struct mscc_miim_dev {
 	void __iomem *phy_regs;
 };
 
+/* When high resolution timers aren't built-in: we can't use usleep_range() as
+ * we would sleep way too long. Use udelay() instead.
+ */
+#define mscc_readl_poll_timeout(addr, val, cond, delay_us, timeout_us)	\
+({									\
+	if (!IS_ENABLED(CONFIG_HIGH_RES_TIMERS))			\
+		readl_poll_timeout_atomic(addr, val, cond, delay_us,	\
+					  timeout_us);			\
+	readl_poll_timeout(addr, val, cond, delay_us, timeout_us);	\
+})
+
 static int mscc_miim_wait_ready(struct mii_bus *bus)
 {
 	struct mscc_miim_dev *miim = bus->priv;
 	u32 val;
 
-	readl_poll_timeout(miim->regs + MSCC_MIIM_REG_STATUS, val,
-			   !(val & MSCC_MIIM_STATUS_STAT_BUSY), 100, 250000);
-	if (val & MSCC_MIIM_STATUS_STAT_BUSY)
-		return -ETIMEDOUT;
+	return mscc_readl_poll_timeout(miim->regs + MSCC_MIIM_REG_STATUS, val,
+				       !(val & MSCC_MIIM_STATUS_STAT_BUSY), 50,
+				       10000);
+}
 
-	return 0;
+static int mscc_miim_wait_pending(struct mii_bus *bus)
+{
+	struct mscc_miim_dev *miim = bus->priv;
+	u32 val;
+
+	return mscc_readl_poll_timeout(miim->regs + MSCC_MIIM_REG_STATUS, val,
+				       !(val & MSCC_MIIM_STATUS_STAT_PENDING),
+				       50, 10000);
 }
 
 static int mscc_miim_read(struct mii_bus *bus, int mii_id, int regnum)
@@ -57,7 +76,7 @@ static int mscc_miim_read(struct mii_bus *bus, int mii_id, int regnum)
 	u32 val;
 	int ret;
 
-	ret = mscc_miim_wait_ready(bus);
+	ret = mscc_miim_wait_pending(bus);
 	if (ret)
 		goto out;
 
@@ -86,7 +105,7 @@ static int mscc_miim_write(struct mii_bus *bus, int mii_id,
 	struct mscc_miim_dev *miim = bus->priv;
 	int ret;
 
-	ret = mscc_miim_wait_ready(bus);
+	ret = mscc_miim_wait_pending(bus);
 	if (ret < 0)
 		goto out;
 

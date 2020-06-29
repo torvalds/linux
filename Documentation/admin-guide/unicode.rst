@@ -114,7 +114,7 @@ Unicode practice.
   This range is now officially managed by the ConScript Unicode
   Registry.  The normative reference is at:
 
-	http://www.evertype.com/standards/csur/klingon.html
+	https://www.evertype.com/standards/csur/klingon.html
 
 Klingon has an alphabet of 26 characters, a positional numeric writing
 system with 10 digits, and is written left-to-right, top-to-bottom.
@@ -178,7 +178,7 @@ fictional and artificial scripts has been established by John Cowan
 <jcowan@reutershealth.com> and Michael Everson <everson@evertype.com>.
 The ConScript Unicode Registry is accessible at:
 
-	  http://www.evertype.com/standards/csur/
+	  https://www.evertype.com/standards/csur/
 
 The ranges used fall at the low end of the End User Zone and can hence
 not be normatively assigned, but it is recommended that people who

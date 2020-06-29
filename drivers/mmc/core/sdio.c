@@ -27,6 +27,24 @@
 #include "sdio_ops.h"
 #include "sdio_cis.h"
 
+MMC_DEV_ATTR(vendor, "0x%04x\n", card->cis.vendor);
+MMC_DEV_ATTR(device, "0x%04x\n", card->cis.device);
+MMC_DEV_ATTR(ocr, "0x%08x\n", card->ocr);
+MMC_DEV_ATTR(rca, "0x%04x\n", card->rca);
+
+static struct attribute *sdio_std_attrs[] = {
+	&dev_attr_vendor.attr,
+	&dev_attr_device.attr,
+	&dev_attr_ocr.attr,
+	&dev_attr_rca.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(sdio_std);
+
+static struct device_type sdio_type = {
+	.groups = sdio_std_groups,
+};
+
 static int sdio_read_fbr(struct sdio_func *func)
 {
 	int ret;
@@ -543,13 +561,33 @@ out:
 	return err;
 }
 
-static void mmc_sdio_resend_if_cond(struct mmc_host *host,
-				    struct mmc_card *card)
+static int mmc_sdio_pre_init(struct mmc_host *host, u32 ocr,
+			     struct mmc_card *card)
 {
+	if (card)
+		mmc_remove_card(card);
+
+	/*
+	 * Reset the card by performing the same steps that are taken by
+	 * mmc_rescan_try_freq() and mmc_attach_sdio() during a "normal" probe.
+	 *
+	 * sdio_reset() is technically not needed. Having just powered up the
+	 * hardware, it should already be in reset state. However, some
+	 * platforms (such as SD8686 on OLPC) do not instantly cut power,
+	 * meaning that a reset is required when restoring power soon after
+	 * powering off. It is harmless in other cases.
+	 *
+	 * The CMD5 reset (mmc_send_io_op_cond()), according to the SDIO spec,
+	 * is not necessary for non-removable cards. However, it is required
+	 * for OLPC SD8686 (which expects a [CMD5,5,3,7] init sequence), and
+	 * harmless in other situations.
+	 *
+	 */
+
 	sdio_reset(host);
 	mmc_go_idle(host);
-	mmc_send_if_cond(host, host->ocr_avail);
-	mmc_remove_card(card);
+	mmc_send_if_cond(host, ocr);
+	return mmc_send_io_op_cond(host, 0, NULL);
 }
 
 /*
@@ -584,7 +622,7 @@ try_again:
 	 */
 	err = mmc_send_io_op_cond(host, ocr, &rocr);
 	if (err)
-		goto err;
+		return err;
 
 	/*
 	 * For SPI, enable CRC as appropriate.
@@ -592,17 +630,15 @@ try_again:
 	if (mmc_host_is_spi(host)) {
 		err = mmc_spi_set_crc(host, use_spi_crc);
 		if (err)
-			goto err;
+			return err;
 	}
 
 	/*
 	 * Allocate card structure.
 	 */
-	card = mmc_alloc_card(host, NULL);
-	if (IS_ERR(card)) {
-		err = PTR_ERR(card);
-		goto err;
-	}
+	card = mmc_alloc_card(host, &sdio_type);
+	if (IS_ERR(card))
+		return PTR_ERR(card);
 
 	if ((rocr & R4_MEMORY_PRESENT) &&
 	    mmc_sd_get_cid(host, ocr & rocr, card->raw_cid, NULL) == 0) {
@@ -610,19 +646,15 @@ try_again:
 
 		if (oldcard && (oldcard->type != MMC_TYPE_SD_COMBO ||
 		    memcmp(card->raw_cid, oldcard->raw_cid, sizeof(card->raw_cid)) != 0)) {
-			mmc_remove_card(card);
-			pr_debug("%s: Perhaps the card was replaced\n",
-				mmc_hostname(host));
-			return -ENOENT;
+			err = -ENOENT;
+			goto mismatch;
 		}
 	} else {
 		card->type = MMC_TYPE_SDIO;
 
 		if (oldcard && oldcard->type != MMC_TYPE_SDIO) {
-			mmc_remove_card(card);
-			pr_debug("%s: Perhaps the card was replaced\n",
-				mmc_hostname(host));
-			return -ENOENT;
+			err = -ENOENT;
+			goto mismatch;
 		}
 	}
 
@@ -646,7 +678,7 @@ try_again:
 	if (rocr & ocr & R4_18V_PRESENT) {
 		err = mmc_set_uhs_voltage(host, ocr_card);
 		if (err == -EAGAIN) {
-			mmc_sdio_resend_if_cond(host, card);
+			mmc_sdio_pre_init(host, ocr_card, card);
 			retries--;
 			goto try_again;
 		} else if (err) {
@@ -677,7 +709,7 @@ try_again:
 	if (!oldcard && card->type == MMC_TYPE_SD_COMBO) {
 		err = mmc_sd_get_csd(host, card);
 		if (err)
-			return err;
+			goto remove;
 
 		mmc_decode_cid(card);
 	}
@@ -704,7 +736,12 @@ try_again:
 			mmc_set_timing(card->host, MMC_TIMING_SD_HS);
 		}
 
-		goto finish;
+		if (oldcard)
+			mmc_remove_card(card);
+		else
+			host->card = card;
+
+		return 0;
 	}
 
 	/*
@@ -713,14 +750,13 @@ try_again:
 	 */
 	err = sdio_read_cccr(card, ocr);
 	if (err) {
-		mmc_sdio_resend_if_cond(host, card);
+		mmc_sdio_pre_init(host, ocr_card, card);
 		if (ocr & R4_18V_PRESENT) {
 			/* Retry init sequence, but without R4_18V_PRESENT. */
 			retries = 0;
 			goto try_again;
-		} else {
-			goto remove;
 		}
+		return err;
 	}
 
 	/*
@@ -731,16 +767,14 @@ try_again:
 		goto remove;
 
 	if (oldcard) {
-		int same = (card->cis.vendor == oldcard->cis.vendor &&
-			    card->cis.device == oldcard->cis.device);
-		mmc_remove_card(card);
-		if (!same) {
-			pr_debug("%s: Perhaps the card was replaced\n",
-				mmc_hostname(host));
-			return -ENOENT;
+		if (card->cis.vendor == oldcard->cis.vendor &&
+		    card->cis.device == oldcard->cis.device) {
+			mmc_remove_card(card);
+			card = oldcard;
+		} else {
+			err = -ENOENT;
+			goto mismatch;
 		}
-
-		card = oldcard;
 	}
 	card->ocr = ocr_card;
 	mmc_fixup_device(card, sdio_fixup_methods);
@@ -801,16 +835,15 @@ try_again:
 		err = -EINVAL;
 		goto remove;
 	}
-finish:
-	if (!oldcard)
-		host->card = card;
+
+	host->card = card;
 	return 0;
 
+mismatch:
+	pr_debug("%s: Perhaps the card was replaced\n", mmc_hostname(host));
 remove:
-	if (!oldcard)
+	if (oldcard != card)
 		mmc_remove_card(card);
-
-err:
 	return err;
 }
 
@@ -818,28 +851,7 @@ static int mmc_sdio_reinit_card(struct mmc_host *host)
 {
 	int ret;
 
-	/*
-	 * Reset the card by performing the same steps that are taken by
-	 * mmc_rescan_try_freq() and mmc_attach_sdio() during a "normal" probe.
-	 *
-	 * sdio_reset() is technically not needed. Having just powered up the
-	 * hardware, it should already be in reset state. However, some
-	 * platforms (such as SD8686 on OLPC) do not instantly cut power,
-	 * meaning that a reset is required when restoring power soon after
-	 * powering off. It is harmless in other cases.
-	 *
-	 * The CMD5 reset (mmc_send_io_op_cond()), according to the SDIO spec,
-	 * is not necessary for non-removable cards. However, it is required
-	 * for OLPC SD8686 (which expects a [CMD5,5,3,7] init sequence), and
-	 * harmless in other situations.
-	 *
-	 */
-
-	sdio_reset(host);
-	mmc_go_idle(host);
-	mmc_send_if_cond(host, host->card->ocr);
-
-	ret = mmc_send_io_op_cond(host, 0, NULL);
+	ret = mmc_sdio_pre_init(host, host->card->ocr, NULL);
 	if (ret)
 		return ret;
 

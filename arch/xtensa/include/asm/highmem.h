@@ -13,10 +13,10 @@
 #define _XTENSA_HIGHMEM_H
 
 #include <linux/wait.h>
+#include <linux/pgtable.h>
 #include <asm/cacheflush.h>
 #include <asm/fixmap.h>
 #include <asm/kmap_types.h>
-#include <asm/pgtable.h>
 
 #define PKMAP_BASE		((FIXADDR_START - \
 				  (LAST_PKMAP + 1) * PAGE_SIZE) & PMD_MASK)
@@ -63,37 +63,10 @@ static inline wait_queue_head_t *get_pkmap_wait_queue_head(unsigned int color)
 
 extern pte_t *pkmap_page_table;
 
-void *kmap_high(struct page *page);
-void kunmap_high(struct page *page);
-
-static inline void *kmap(struct page *page)
-{
-	/* Check if this memory layout is broken because PKMAP overlaps
-	 * page table.
-	 */
-	BUILD_BUG_ON(PKMAP_BASE <
-		     TLBTEMP_BASE_1 + TLBTEMP_SIZE);
-	BUG_ON(in_interrupt());
-	if (!PageHighMem(page))
-		return page_address(page);
-	return kmap_high(page);
-}
-
-static inline void kunmap(struct page *page)
-{
-	BUG_ON(in_interrupt());
-	if (!PageHighMem(page))
-		return;
-	kunmap_high(page);
-}
-
 static inline void flush_cache_kmaps(void)
 {
 	flush_cache_all();
 }
-
-void *kmap_atomic(struct page *page);
-void __kunmap_atomic(void *kvaddr);
 
 void kmap_init(void);
 

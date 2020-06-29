@@ -334,6 +334,8 @@ struct amdgpu_ras {
 	uint32_t flags;
 	bool reboot;
 	struct amdgpu_ras_eeprom_control eeprom_control;
+
+	bool error_query_ready;
 };
 
 struct ras_fs_data {
@@ -628,5 +630,7 @@ static inline void amdgpu_ras_intr_cleared(void)
 }
 
 void amdgpu_ras_global_ras_isr(struct amdgpu_device *adev);
+
+void amdgpu_ras_set_error_query_ready(struct amdgpu_device *adev, bool ready);
 
 #endif

@@ -26,10 +26,6 @@ struct mod_arch_specific {
 	unsigned int next_got_entry;	/* index of next available got entry */
 };
 
-#define MODULE_PROC_FAMILY	"ia64"
-#define MODULE_ARCH_VERMAGIC	MODULE_PROC_FAMILY \
-	"gcc-" __stringify(__GNUC__) "." __stringify(__GNUC_MINOR__)
-
 #define ARCH_SHF_SMALL	SHF_IA_64_SHORT
 
 #endif /* _ASM_IA64_MODULE_H */

@@ -142,7 +142,7 @@ asm volatile ("\n"					\
 		__get_user_asm(__gu_err, x, ptr, u32, l, r, -EFAULT);	\
 		break;							\
 	case 8: {							\
-		const void *__gu_ptr = (ptr);				\
+		const void __user *__gu_ptr = (ptr);			\
 		union {							\
 			u64 l;						\
 			__typeof__(*(ptr)) t;				\

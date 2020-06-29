@@ -62,7 +62,7 @@ int cmd_info(int argc, char **argv)
 		default:
 			print_wrong_arg_exit();
 		}
-	};
+	}
 
 	if (!params.params)
 		params.params = 0x7;

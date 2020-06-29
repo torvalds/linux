@@ -7,7 +7,6 @@
 #define SJA1105_TAS_CLKSRC_STANDALONE	1
 #define SJA1105_TAS_CLKSRC_AS6802	2
 #define SJA1105_TAS_CLKSRC_PTP		3
-#define SJA1105_TAS_MAX_DELTA		BIT(19)
 #define SJA1105_GATE_MASK		GENMASK_ULL(SJA1105_NUM_TC - 1, 0)
 
 #define work_to_sja1105_tas(d) \
@@ -15,22 +14,10 @@
 #define tas_to_sja1105(d) \
 	container_of((d), struct sja1105_private, tas_data)
 
-/* This is not a preprocessor macro because the "ns" argument may or may not be
- * s64 at caller side. This ensures it is properly type-cast before div_s64.
- */
-static s64 ns_to_sja1105_delta(s64 ns)
-{
-	return div_s64(ns, 200);
-}
-
-static s64 sja1105_delta_to_ns(s64 delta)
-{
-	return delta * 200;
-}
-
 static int sja1105_tas_set_runtime_params(struct sja1105_private *priv)
 {
 	struct sja1105_tas_data *tas_data = &priv->tas_data;
+	struct sja1105_gating_config *gating_cfg = &tas_data->gating_cfg;
 	struct dsa_switch *ds = priv->ds;
 	s64 earliest_base_time = S64_MAX;
 	s64 latest_base_time = 0;
@@ -56,6 +43,19 @@ static int sja1105_tas_set_runtime_params(struct sja1105_private *priv)
 		if (earliest_base_time > offload->base_time) {
 			earliest_base_time = offload->base_time;
 			its_cycle_time = offload->cycle_time;
+		}
+	}
+
+	if (!list_empty(&gating_cfg->entries)) {
+		tas_data->enabled = true;
+
+		if (max_cycle_time < gating_cfg->cycle_time)
+			max_cycle_time = gating_cfg->cycle_time;
+		if (latest_base_time < gating_cfg->base_time)
+			latest_base_time = gating_cfg->base_time;
+		if (earliest_base_time > gating_cfg->base_time) {
+			earliest_base_time = gating_cfg->base_time;
+			its_cycle_time = gating_cfg->cycle_time;
 		}
 	}
 
@@ -155,13 +155,14 @@ static int sja1105_tas_set_runtime_params(struct sja1105_private *priv)
  *  their "subschedule end index" (subscheind) equal to the last valid
  *  subschedule's end index (in this case 5).
  */
-static int sja1105_init_scheduling(struct sja1105_private *priv)
+int sja1105_init_scheduling(struct sja1105_private *priv)
 {
 	struct sja1105_schedule_entry_points_entry *schedule_entry_points;
 	struct sja1105_schedule_entry_points_params_entry
 					*schedule_entry_points_params;
 	struct sja1105_schedule_params_entry *schedule_params;
 	struct sja1105_tas_data *tas_data = &priv->tas_data;
+	struct sja1105_gating_config *gating_cfg = &tas_data->gating_cfg;
 	struct sja1105_schedule_entry *schedule;
 	struct sja1105_table *table;
 	int schedule_start_idx;
@@ -211,6 +212,11 @@ static int sja1105_init_scheduling(struct sja1105_private *priv)
 			num_entries += tas_data->offload[port]->num_entries;
 			num_cycles++;
 		}
+	}
+
+	if (!list_empty(&gating_cfg->entries)) {
+		num_entries += gating_cfg->num_entries;
+		num_cycles++;
 	}
 
 	/* Nothing to do */
@@ -310,6 +316,42 @@ static int sja1105_init_scheduling(struct sja1105_private *priv)
 					~offload->entries[i].gate_mask;
 		}
 		cycle++;
+	}
+
+	if (!list_empty(&gating_cfg->entries)) {
+		struct sja1105_gate_entry *e;
+
+		/* Relative base time */
+		s64 rbt;
+
+		schedule_start_idx = k;
+		schedule_end_idx = k + gating_cfg->num_entries - 1;
+		rbt = future_base_time(gating_cfg->base_time,
+				       gating_cfg->cycle_time,
+				       tas_data->earliest_base_time);
+		rbt -= tas_data->earliest_base_time;
+		entry_point_delta = ns_to_sja1105_delta(rbt) + 1;
+
+		schedule_entry_points[cycle].subschindx = cycle;
+		schedule_entry_points[cycle].delta = entry_point_delta;
+		schedule_entry_points[cycle].address = schedule_start_idx;
+
+		for (i = cycle; i < 8; i++)
+			schedule_params->subscheind[i] = schedule_end_idx;
+
+		list_for_each_entry(e, &gating_cfg->entries, list) {
+			schedule[k].delta = ns_to_sja1105_delta(e->interval);
+			schedule[k].destports = e->rule->vl.destports;
+			schedule[k].setvalid = true;
+			schedule[k].txen = true;
+			schedule[k].vlindex = e->rule->vl.sharindx;
+			schedule[k].winstindex = e->rule->vl.sharindx;
+			if (e->gate_state) /* Gate open */
+				schedule[k].winst = true;
+			else /* Gate closed */
+				schedule[k].winend = true;
+			k++;
+		}
 	}
 
 	return 0;
@@ -415,6 +457,54 @@ sja1105_tas_check_conflicts(struct sja1105_private *priv, int port,
 	return false;
 }
 
+/* Check the tc-taprio configuration on @port for conflicts with the tc-gate
+ * global subschedule. If @port is -1, check it against all ports.
+ * To reuse the sja1105_tas_check_conflicts logic without refactoring it,
+ * convert the gating configuration to a dummy tc-taprio offload structure.
+ */
+bool sja1105_gating_check_conflicts(struct sja1105_private *priv, int port,
+				    struct netlink_ext_ack *extack)
+{
+	struct sja1105_gating_config *gating_cfg = &priv->tas_data.gating_cfg;
+	size_t num_entries = gating_cfg->num_entries;
+	struct tc_taprio_qopt_offload *dummy;
+	struct sja1105_gate_entry *e;
+	bool conflict;
+	int i = 0;
+
+	if (list_empty(&gating_cfg->entries))
+		return false;
+
+	dummy = kzalloc(sizeof(struct tc_taprio_sched_entry) * num_entries +
+			sizeof(struct tc_taprio_qopt_offload), GFP_KERNEL);
+	if (!dummy) {
+		NL_SET_ERR_MSG_MOD(extack, "Failed to allocate memory");
+		return true;
+	}
+
+	dummy->num_entries = num_entries;
+	dummy->base_time = gating_cfg->base_time;
+	dummy->cycle_time = gating_cfg->cycle_time;
+
+	list_for_each_entry(e, &gating_cfg->entries, list)
+		dummy->entries[i++].interval = e->interval;
+
+	if (port != -1) {
+		conflict = sja1105_tas_check_conflicts(priv, port, dummy);
+	} else {
+		for (port = 0; port < SJA1105_NUM_PORTS; port++) {
+			conflict = sja1105_tas_check_conflicts(priv, port,
+							       dummy);
+			if (conflict)
+				break;
+		}
+	}
+
+	kfree(dummy);
+
+	return conflict;
+}
+
 int sja1105_setup_tc_taprio(struct dsa_switch *ds, int port,
 			    struct tc_taprio_qopt_offload *admin)
 {
@@ -471,6 +561,11 @@ int sja1105_setup_tc_taprio(struct dsa_switch *ds, int port,
 
 		if (sja1105_tas_check_conflicts(priv, other_port, admin))
 			return -ERANGE;
+	}
+
+	if (sja1105_gating_check_conflicts(priv, port, NULL)) {
+		dev_err(ds->dev, "Conflict with tc-gate schedule\n");
+		return -ERANGE;
 	}
 
 	tas_data->offload[port] = taprio_offload_get(admin);
@@ -779,6 +874,8 @@ void sja1105_tas_setup(struct dsa_switch *ds)
 	INIT_WORK(&tas_data->tas_work, sja1105_tas_state_machine);
 	tas_data->state = SJA1105_TAS_STATE_DISABLED;
 	tas_data->last_op = SJA1105_PTP_NONE;
+
+	INIT_LIST_HEAD(&tas_data->gating_cfg.entries);
 }
 
 void sja1105_tas_teardown(struct dsa_switch *ds)

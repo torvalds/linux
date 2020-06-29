@@ -195,7 +195,7 @@ void ath11k_debug_fw_stats_process(struct ath11k_base *ab, struct sk_buff *skb)
 				total_vdevs_started += ar->num_started_vdevs;
 		}
 
-		is_end = ((++num_vdev) == total_vdevs_started ? true : false);
+		is_end = ((++num_vdev) == total_vdevs_started);
 
 		list_splice_tail_init(&stats.vdevs,
 				      &ar->debug.fw_stats.vdevs);
@@ -215,7 +215,7 @@ void ath11k_debug_fw_stats_process(struct ath11k_base *ab, struct sk_buff *skb)
 		/* Mark end until we reached the count of all started VDEVs
 		 * within the PDEV
 		 */
-		is_end = ((++num_bcn) == ar->num_started_vdevs ? true : false);
+		is_end = ((++num_bcn) == ar->num_started_vdevs);
 
 		list_splice_tail_init(&stats.bcn,
 				      &ar->debug.fw_stats.bcn);
@@ -698,6 +698,8 @@ static ssize_t ath11k_write_extd_rx_stats(struct file *file,
 		tlv_filter = ath11k_mac_mon_status_filter_default;
 	}
 
+	ar->debug.rx_filter = tlv_filter.rx_filter;
+
 	ring_id = ar->dp.rx_mon_status_refill_ring.refill_buf_ring.ring_id;
 	ret = ath11k_dp_tx_htt_rx_filter_setup(ar->ab, ring_id, ar->dp.mac_id,
 					       HAL_RXDMA_MONITOR_STATUS,
@@ -803,6 +805,9 @@ static const struct file_operations fops_soc_rx_stats = {
 
 int ath11k_debug_pdev_create(struct ath11k_base *ab)
 {
+	if (test_bit(ATH11K_FLAG_REGISTERED, &ab->dev_flags))
+		return 0;
+
 	ab->debugfs_soc = debugfs_create_dir(ab->hw_params.name, ab->debugfs_ath11k);
 
 	if (IS_ERR_OR_NULL(ab->debugfs_soc)) {

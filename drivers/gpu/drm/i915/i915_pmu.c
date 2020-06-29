@@ -269,12 +269,48 @@ static bool exclusive_mmio_access(const struct drm_i915_private *i915)
 	return IS_GEN(i915, 7);
 }
 
+static void engine_sample(struct intel_engine_cs *engine, unsigned int period_ns)
+{
+	struct intel_engine_pmu *pmu = &engine->pmu;
+	bool busy;
+	u32 val;
+
+	val = ENGINE_READ_FW(engine, RING_CTL);
+	if (val == 0) /* powerwell off => engine idle */
+		return;
+
+	if (val & RING_WAIT)
+		add_sample(&pmu->sample[I915_SAMPLE_WAIT], period_ns);
+	if (val & RING_WAIT_SEMAPHORE)
+		add_sample(&pmu->sample[I915_SAMPLE_SEMA], period_ns);
+
+	/* No need to sample when busy stats are supported. */
+	if (intel_engine_supports_stats(engine))
+		return;
+
+	/*
+	 * While waiting on a semaphore or event, MI_MODE reports the
+	 * ring as idle. However, previously using the seqno, and with
+	 * execlists sampling, we account for the ring waiting as the
+	 * engine being busy. Therefore, we record the sample as being
+	 * busy if either waiting or !idle.
+	 */
+	busy = val & (RING_WAIT_SEMAPHORE | RING_WAIT);
+	if (!busy) {
+		val = ENGINE_READ_FW(engine, RING_MI_MODE);
+		busy = !(val & MODE_IDLE);
+	}
+	if (busy)
+		add_sample(&pmu->sample[I915_SAMPLE_BUSY], period_ns);
+}
+
 static void
 engines_sample(struct intel_gt *gt, unsigned int period_ns)
 {
 	struct drm_i915_private *i915 = gt->i915;
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
+	unsigned long flags;
 
 	if ((i915->pmu.enable & ENGINE_SAMPLE_MASK) == 0)
 		return;
@@ -283,53 +319,17 @@ engines_sample(struct intel_gt *gt, unsigned int period_ns)
 		return;
 
 	for_each_engine(engine, gt, id) {
-		struct intel_engine_pmu *pmu = &engine->pmu;
-		spinlock_t *mmio_lock;
-		unsigned long flags;
-		bool busy;
-		u32 val;
-
 		if (!intel_engine_pm_get_if_awake(engine))
 			continue;
 
-		mmio_lock = NULL;
-		if (exclusive_mmio_access(i915))
-			mmio_lock = &engine->uncore->lock;
-
-		if (unlikely(mmio_lock))
-			spin_lock_irqsave(mmio_lock, flags);
-
-		val = ENGINE_READ_FW(engine, RING_CTL);
-		if (val == 0) /* powerwell off => engine idle */
-			goto skip;
-
-		if (val & RING_WAIT)
-			add_sample(&pmu->sample[I915_SAMPLE_WAIT], period_ns);
-		if (val & RING_WAIT_SEMAPHORE)
-			add_sample(&pmu->sample[I915_SAMPLE_SEMA], period_ns);
-
-		/* No need to sample when busy stats are supported. */
-		if (intel_engine_supports_stats(engine))
-			goto skip;
-
-		/*
-		 * While waiting on a semaphore or event, MI_MODE reports the
-		 * ring as idle. However, previously using the seqno, and with
-		 * execlists sampling, we account for the ring waiting as the
-		 * engine being busy. Therefore, we record the sample as being
-		 * busy if either waiting or !idle.
-		 */
-		busy = val & (RING_WAIT_SEMAPHORE | RING_WAIT);
-		if (!busy) {
-			val = ENGINE_READ_FW(engine, RING_MI_MODE);
-			busy = !(val & MODE_IDLE);
+		if (exclusive_mmio_access(i915)) {
+			spin_lock_irqsave(&engine->uncore->lock, flags);
+			engine_sample(engine, period_ns);
+			spin_unlock_irqrestore(&engine->uncore->lock, flags);
+		} else {
+			engine_sample(engine, period_ns);
 		}
-		if (busy)
-			add_sample(&pmu->sample[I915_SAMPLE_BUSY], period_ns);
 
-skip:
-		if (unlikely(mmio_lock))
-			spin_unlock_irqrestore(mmio_lock, flags);
 		intel_engine_pm_put_async(engine);
 	}
 }
@@ -439,29 +439,10 @@ static u64 count_interrupts(struct drm_i915_private *i915)
 	return sum;
 }
 
-static void engine_event_destroy(struct perf_event *event)
-{
-	struct drm_i915_private *i915 =
-		container_of(event->pmu, typeof(*i915), pmu.base);
-	struct intel_engine_cs *engine;
-
-	engine = intel_engine_lookup_user(i915,
-					  engine_event_class(event),
-					  engine_event_instance(event));
-	if (drm_WARN_ON_ONCE(&i915->drm, !engine))
-		return;
-
-	if (engine_event_sample(event) == I915_SAMPLE_BUSY &&
-	    intel_engine_supports_stats(engine))
-		intel_disable_engine_stats(engine);
-}
-
 static void i915_pmu_event_destroy(struct perf_event *event)
 {
 	WARN_ON(event->parent);
-
-	if (is_engine_event(event))
-		engine_event_destroy(event);
+	module_put(THIS_MODULE);
 }
 
 static int
@@ -514,23 +495,13 @@ static int engine_event_init(struct perf_event *event)
 	struct drm_i915_private *i915 =
 		container_of(event->pmu, typeof(*i915), pmu.base);
 	struct intel_engine_cs *engine;
-	u8 sample;
-	int ret;
 
 	engine = intel_engine_lookup_user(i915, engine_event_class(event),
 					  engine_event_instance(event));
 	if (!engine)
 		return -ENODEV;
 
-	sample = engine_event_sample(event);
-	ret = engine_event_status(engine, sample);
-	if (ret)
-		return ret;
-
-	if (sample == I915_SAMPLE_BUSY && intel_engine_supports_stats(engine))
-		ret = intel_enable_engine_stats(engine);
-
-	return ret;
+	return engine_event_status(engine, engine_event_sample(event));
 }
 
 static int i915_pmu_event_init(struct perf_event *event)
@@ -563,8 +534,10 @@ static int i915_pmu_event_init(struct perf_event *event)
 	if (ret)
 		return ret;
 
-	if (!event->parent)
+	if (!event->parent) {
+		__module_get(THIS_MODULE);
 		event->destroy = i915_pmu_event_destroy;
+	}
 
 	return 0;
 }
@@ -1115,7 +1088,7 @@ void i915_pmu_register(struct drm_i915_private *i915)
 	int ret = -ENOMEM;
 
 	if (INTEL_GEN(i915) <= 2) {
-		dev_info(i915->drm.dev, "PMU not supported for this GPU.");
+		drm_info(&i915->drm, "PMU not supported for this GPU.");
 		return;
 	}
 
@@ -1178,7 +1151,7 @@ err_name:
 	if (!is_igp(i915))
 		kfree(pmu->name);
 err:
-	dev_notice(i915->drm.dev, "Failed to register PMU!\n");
+	drm_notice(&i915->drm, "Failed to register PMU!\n");
 }
 
 void i915_pmu_unregister(struct drm_i915_private *i915)

@@ -2,7 +2,7 @@
 config WLAN_VENDOR_INTERSIL
 	bool "Intersil devices"
 	default y
-	---help---
+	help
 	  If you have a wireless card belonging to this class, say Y.
 
 	  Note that the answer to this question doesn't directly affect the
@@ -23,7 +23,7 @@ config PRISM54
 	select WEXT_SPY
 	select WEXT_PRIV
 	select FW_LOADER
-	---help---
+	help
 	  This enables support for FullMAC PCI/Cardbus prism54 devices. This
 	  driver is now deprecated in favor for the SoftMAC driver, p54pci.
 	  p54pci supports FullMAC PCI/Cardbus devices as well.

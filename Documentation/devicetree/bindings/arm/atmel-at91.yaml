@@ -82,6 +82,13 @@ properties:
           - const: atmel,sama5d2
           - const: atmel,sama5
 
+      - description: Microchip SAMA5D2 Industrial Connectivity Platform
+        items:
+          - const: microchip,sama5d2-icp
+          - const: atmel,sama5d27
+          - const: atmel,sama5d2
+          - const: atmel,sama5
+
       - description: SAM9X60-EK board
         items:
           - const: microchip,sam9x60ek

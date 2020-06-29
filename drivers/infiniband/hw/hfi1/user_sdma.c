@@ -589,10 +589,6 @@ int hfi1_user_sdma_process_request(struct hfi1_filedata *fd,
 
 	set_comp_state(pq, cq, info.comp_idx, QUEUED, 0);
 	pq->state = SDMA_PKT_Q_ACTIVE;
-	/* Send the first N packets in the request to buy us some time */
-	ret = user_sdma_send_pkts(req, pcount);
-	if (unlikely(ret < 0 && ret != -EBUSY))
-		goto free_req;
 
 	/*
 	 * This is a somewhat blocking send implementation.

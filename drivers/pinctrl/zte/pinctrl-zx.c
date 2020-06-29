@@ -94,7 +94,7 @@ static int zx_set_mux(struct pinctrl_dev *pctldev, unsigned int func_selector,
 	if (data->aon_pin) {
 		/*
 		 * It's an AON pin, whose mux register offset and bit position
-		 * can be caluculated from pin number.  Each register covers 16
+		 * can be calculated from pin number.  Each register covers 16
 		 * pins, and each pin occupies 2 bits.
 		 */
 		u16 aoffset = pindesc->number / 16 * 4;

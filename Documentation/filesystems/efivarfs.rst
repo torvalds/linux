@@ -24,3 +24,20 @@ files that are not well-known standardized variables are created
 as immutable files.  This doesn't prevent removal - "chattr -i" will work -
 but it does prevent this kind of failure from being accomplished
 accidentally.
+
+.. warning ::
+      When a content of an UEFI variable in /sys/firmware/efi/efivars is
+      displayed, for example using "hexdump", pay attention that the first
+      4 bytes of the output represent the UEFI variable attributes,
+      in little-endian format.
+
+      Practically the output of each efivar is composed of:
+
+          +-----------------------------------+
+          |4_bytes_of_attributes + efivar_data|
+          +-----------------------------------+
+
+*See also:*
+
+- Documentation/admin-guide/acpi/ssdt-overlays.rst
+- Documentation/ABI/stable/sysfs-firmware-efi-vars

@@ -30,6 +30,11 @@
 #include "hantro_hw.h"
 #include "hantro_v4l2.h"
 
+static int hantro_set_fmt_out(struct hantro_ctx *ctx,
+			      struct v4l2_pix_format_mplane *pix_mp);
+static int hantro_set_fmt_cap(struct hantro_ctx *ctx,
+			      struct v4l2_pix_format_mplane *pix_mp);
+
 static const struct hantro_fmt *
 hantro_get_formats(const struct hantro_ctx *ctx, unsigned int *num_fmts)
 {
@@ -227,12 +232,12 @@ static int vidioc_g_fmt_cap_mplane(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_try_fmt(struct file *file, void *priv, struct v4l2_format *f,
-			  bool capture)
+static int hantro_try_fmt(const struct hantro_ctx *ctx,
+			  struct v4l2_pix_format_mplane *pix_mp,
+			  enum v4l2_buf_type type)
 {
-	struct hantro_ctx *ctx = fh_to_ctx(priv);
-	struct v4l2_pix_format_mplane *pix_mp = &f->fmt.pix_mp;
 	const struct hantro_fmt *fmt, *vpu_fmt;
+	bool capture = !V4L2_TYPE_IS_OUTPUT(type);
 	bool coded;
 
 	coded = capture == hantro_is_encoder_ctx(ctx);
@@ -246,7 +251,7 @@ static int vidioc_try_fmt(struct file *file, void *priv, struct v4l2_format *f,
 	fmt = hantro_find_format(ctx, pix_mp->pixelformat);
 	if (!fmt) {
 		fmt = hantro_get_default_fmt(ctx, coded);
-		f->fmt.pix_mp.pixelformat = fmt->fourcc;
+		pix_mp->pixelformat = fmt->fourcc;
 	}
 
 	if (coded) {
@@ -273,32 +278,11 @@ static int vidioc_try_fmt(struct file *file, void *priv, struct v4l2_format *f,
 		/* Fill remaining fields */
 		v4l2_fill_pixfmt_mp(pix_mp, fmt->fourcc, pix_mp->width,
 				    pix_mp->height);
-		/*
-		 * A decoded 8-bit 4:2:0 NV12 frame may need memory for up to
-		 * 448 bytes per macroblock with additional 32 bytes on
-		 * multi-core variants.
-		 *
-		 * The H264 decoder needs extra space on the output buffers
-		 * to store motion vectors. This is needed for reference
-		 * frames and only if the format is non-post-processed NV12.
-		 *
-		 * Memory layout is as follow:
-		 *
-		 * +---------------------------+
-		 * | Y-plane   256 bytes x MBs |
-		 * +---------------------------+
-		 * | UV-plane  128 bytes x MBs |
-		 * +---------------------------+
-		 * | MV buffer  64 bytes x MBs |
-		 * +---------------------------+
-		 * | MC sync          32 bytes |
-		 * +---------------------------+
-		 */
 		if (ctx->vpu_src_fmt->fourcc == V4L2_PIX_FMT_H264_SLICE &&
 		    !hantro_needs_postproc(ctx, fmt))
 			pix_mp->plane_fmt[0].sizeimage +=
-				64 * MB_WIDTH(pix_mp->width) *
-				     MB_WIDTH(pix_mp->height) + 32;
+				hantro_h264_mv_size(pix_mp->width,
+						    pix_mp->height);
 	} else if (!pix_mp->plane_fmt[0].sizeimage) {
 		/*
 		 * For coded formats the application can specify
@@ -315,13 +299,13 @@ static int vidioc_try_fmt(struct file *file, void *priv, struct v4l2_format *f,
 static int vidioc_try_fmt_cap_mplane(struct file *file, void *priv,
 				     struct v4l2_format *f)
 {
-	return vidioc_try_fmt(file, priv, f, true);
+	return hantro_try_fmt(fh_to_ctx(priv), &f->fmt.pix_mp, f->type);
 }
 
 static int vidioc_try_fmt_out_mplane(struct file *file, void *priv,
 				     struct v4l2_format *f)
 {
-	return vidioc_try_fmt(file, priv, f, false);
+	return hantro_try_fmt(fh_to_ctx(priv), &f->fmt.pix_mp, f->type);
 }
 
 static void
@@ -355,11 +339,12 @@ hantro_reset_encoded_fmt(struct hantro_ctx *ctx)
 	}
 
 	hantro_reset_fmt(fmt, vpu_fmt);
-	fmt->num_planes = 1;
 	fmt->width = vpu_fmt->frmsize.min_width;
 	fmt->height = vpu_fmt->frmsize.min_height;
-	fmt->plane_fmt[0].sizeimage = vpu_fmt->header_size +
-				fmt->width * fmt->height * vpu_fmt->max_depth;
+	if (hantro_is_encoder_ctx(ctx))
+		hantro_set_fmt_cap(ctx, fmt);
+	else
+		hantro_set_fmt_out(ctx, fmt);
 }
 
 static void
@@ -381,9 +366,12 @@ hantro_reset_raw_fmt(struct hantro_ctx *ctx)
 	}
 
 	hantro_reset_fmt(raw_fmt, raw_vpu_fmt);
-	v4l2_fill_pixfmt_mp(raw_fmt, raw_vpu_fmt->fourcc,
-			    encoded_fmt->width,
-			    encoded_fmt->height);
+	raw_fmt->width = encoded_fmt->width;
+	raw_fmt->width = encoded_fmt->width;
+	if (hantro_is_encoder_ctx(ctx))
+		hantro_set_fmt_out(ctx, raw_fmt);
+	else
+		hantro_set_fmt_cap(ctx, raw_fmt);
 }
 
 void hantro_reset_fmts(struct hantro_ctx *ctx)
@@ -409,15 +397,15 @@ hantro_update_requires_request(struct hantro_ctx *ctx, u32 fourcc)
 	}
 }
 
-static int
-vidioc_s_fmt_out_mplane(struct file *file, void *priv, struct v4l2_format *f)
+static int hantro_set_fmt_out(struct hantro_ctx *ctx,
+			      struct v4l2_pix_format_mplane *pix_mp)
 {
-	struct v4l2_pix_format_mplane *pix_mp = &f->fmt.pix_mp;
-	struct hantro_ctx *ctx = fh_to_ctx(priv);
-	struct vb2_queue *vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, f->type);
+	struct vb2_queue *vq;
 	int ret;
 
-	ret = vidioc_try_fmt_out_mplane(file, priv, f);
+	vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx,
+			     V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE);
+	ret = hantro_try_fmt(ctx, pix_mp, V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE);
 	if (ret)
 		return ret;
 
@@ -479,16 +467,15 @@ vidioc_s_fmt_out_mplane(struct file *file, void *priv, struct v4l2_format *f)
 	return 0;
 }
 
-static int vidioc_s_fmt_cap_mplane(struct file *file, void *priv,
-				   struct v4l2_format *f)
+static int hantro_set_fmt_cap(struct hantro_ctx *ctx,
+			      struct v4l2_pix_format_mplane *pix_mp)
 {
-	struct v4l2_pix_format_mplane *pix_mp = &f->fmt.pix_mp;
-	struct hantro_ctx *ctx = fh_to_ctx(priv);
 	struct vb2_queue *vq;
 	int ret;
 
 	/* Change not allowed if queue is busy. */
-	vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, f->type);
+	vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx,
+			     V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE);
 	if (vb2_is_busy(vq))
 		return -EBUSY;
 
@@ -509,7 +496,7 @@ static int vidioc_s_fmt_cap_mplane(struct file *file, void *priv,
 			return -EBUSY;
 	}
 
-	ret = vidioc_try_fmt_cap_mplane(file, priv, f);
+	ret = hantro_try_fmt(ctx, pix_mp, V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE);
 	if (ret)
 		return ret;
 
@@ -541,6 +528,18 @@ static int vidioc_s_fmt_cap_mplane(struct file *file, void *priv,
 	hantro_update_requires_request(ctx, pix_mp->pixelformat);
 
 	return 0;
+}
+
+static int
+vidioc_s_fmt_out_mplane(struct file *file, void *priv, struct v4l2_format *f)
+{
+	return hantro_set_fmt_out(fh_to_ctx(priv), &f->fmt.pix_mp);
+}
+
+static int
+vidioc_s_fmt_cap_mplane(struct file *file, void *priv, struct v4l2_format *f)
+{
+	return hantro_set_fmt_cap(fh_to_ctx(priv), &f->fmt.pix_mp);
 }
 
 const struct v4l2_ioctl_ops hantro_ioctl_ops = {
@@ -608,7 +607,7 @@ hantro_queue_setup(struct vb2_queue *vq, unsigned int *num_buffers,
 }
 
 static int
-hantro_buf_plane_check(struct vb2_buffer *vb, const struct hantro_fmt *vpu_fmt,
+hantro_buf_plane_check(struct vb2_buffer *vb,
 		       struct v4l2_pix_format_mplane *pixfmt)
 {
 	unsigned int sz;
@@ -630,12 +629,18 @@ static int hantro_buf_prepare(struct vb2_buffer *vb)
 {
 	struct vb2_queue *vq = vb->vb2_queue;
 	struct hantro_ctx *ctx = vb2_get_drv_priv(vq);
+	struct v4l2_pix_format_mplane *pix_fmt;
+	int ret;
 
 	if (V4L2_TYPE_IS_OUTPUT(vq->type))
-		return hantro_buf_plane_check(vb, ctx->vpu_src_fmt,
-						  &ctx->src_fmt);
-
-	return hantro_buf_plane_check(vb, ctx->vpu_dst_fmt, &ctx->dst_fmt);
+		pix_fmt = &ctx->src_fmt;
+	else
+		pix_fmt = &ctx->dst_fmt;
+	ret = hantro_buf_plane_check(vb, pix_fmt);
+	if (ret)
+		return ret;
+	vb2_set_plane_payload(vb, 0, pix_fmt->plane_fmt[0].sizeimage);
+	return 0;
 }
 
 static void hantro_buf_queue(struct vb2_buffer *vb)

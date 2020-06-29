@@ -111,8 +111,8 @@ int rvt_create_srq(struct ib_srq *ibsrq, struct ib_srq_init_attr *srq_init_attr,
 		u32 s = sizeof(struct rvt_rwq) + srq->rq.size * sz;
 
 		srq->ip = rvt_create_mmap_info(dev, s, udata, srq->rq.wq);
-		if (!srq->ip) {
-			ret = -ENOMEM;
+		if (IS_ERR(srq->ip)) {
+			ret = PTR_ERR(srq->ip);
 			goto bail_wq;
 		}
 

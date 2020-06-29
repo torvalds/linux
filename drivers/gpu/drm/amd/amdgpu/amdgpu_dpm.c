@@ -1188,3 +1188,13 @@ int amdgpu_dpm_set_df_cstate(struct amdgpu_device *adev,
 
 	return ret;
 }
+
+int amdgpu_dpm_allow_xgmi_power_down(struct amdgpu_device *adev, bool en)
+{
+	struct smu_context *smu = &adev->smu;
+
+	if (is_support_sw_smu(adev))
+		return smu_allow_xgmi_power_down(smu, en);
+
+	return 0;
+}

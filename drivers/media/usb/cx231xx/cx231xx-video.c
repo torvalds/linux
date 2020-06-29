@@ -1129,7 +1129,7 @@ int cx231xx_s_frequency(struct file *file, void *priv,
 {
 	struct cx231xx *dev = video_drvdata(file);
 	struct v4l2_frequency new_freq = *f;
-	int rc;
+	int rc, need_if_freq = 0;
 	u32 if_frequency = 5400000;
 
 	dev_dbg(dev->dev,
@@ -1142,14 +1142,30 @@ int cx231xx_s_frequency(struct file *file, void *priv,
 	/* set pre channel change settings in DIF first */
 	rc = cx231xx_tuner_pre_channel_change(dev);
 
-	call_all(dev, tuner, s_frequency, f);
-	call_all(dev, tuner, g_frequency, &new_freq);
-	dev->ctl_freq = new_freq.frequency;
+	switch (dev->model) { /* i2c device tuners */
+	case CX231XX_BOARD_HAUPPAUGE_930C_HD_1114xx:
+	case CX231XX_BOARD_HAUPPAUGE_935C:
+	case CX231XX_BOARD_HAUPPAUGE_955Q:
+	case CX231XX_BOARD_HAUPPAUGE_975:
+	case CX231XX_BOARD_EVROMEDIA_FULL_HYBRID_FULLHD:
+		if (dev->cx231xx_set_analog_freq)
+			dev->cx231xx_set_analog_freq(dev, f->frequency);
+		dev->ctl_freq = f->frequency;
+		need_if_freq = 1;
+		break;
+	default:
+		call_all(dev, tuner, s_frequency, f);
+		call_all(dev, tuner, g_frequency, &new_freq);
+		dev->ctl_freq = new_freq.frequency;
+		break;
+	}
+
+	pr_debug("%s() %u  :  %u\n", __func__, f->frequency, dev->ctl_freq);
 
 	/* set post channel change settings in DIF first */
 	rc = cx231xx_tuner_post_channel_change(dev);
 
-	if (dev->tuner_type == TUNER_NXP_TDA18271) {
+	if (need_if_freq || dev->tuner_type == TUNER_NXP_TDA18271) {
 		if (dev->norm & (V4L2_STD_MN | V4L2_STD_NTSC_443))
 			if_frequency = 5400000;  /*5.4MHz	*/
 		else if (dev->norm & V4L2_STD_B)
@@ -1362,9 +1378,20 @@ int cx231xx_querycap(struct file *file, void *priv,
 		V4L2_CAP_STREAMING | V4L2_CAP_DEVICE_CAPS;
 	if (video_is_registered(&dev->radio_dev))
 		cap->capabilities |= V4L2_CAP_RADIO;
-	if (dev->tuner_type != TUNER_ABSENT)
-		cap->capabilities |= V4L2_CAP_TUNER;
 
+	switch (dev->model) {
+	case CX231XX_BOARD_HAUPPAUGE_930C_HD_1114xx:
+	case CX231XX_BOARD_HAUPPAUGE_935C:
+	case CX231XX_BOARD_HAUPPAUGE_955Q:
+	case CX231XX_BOARD_HAUPPAUGE_975:
+	case CX231XX_BOARD_EVROMEDIA_FULL_HYBRID_FULLHD:
+		cap->capabilities |= V4L2_CAP_TUNER;
+		break;
+	default:
+		if (dev->tuner_type != TUNER_ABSENT)
+			cap->capabilities |= V4L2_CAP_TUNER;
+		break;
+	}
 	return 0;
 }
 
@@ -1708,10 +1735,20 @@ static void cx231xx_vdev_init(struct cx231xx *dev,
 
 	video_set_drvdata(vfd, dev);
 	if (dev->tuner_type == TUNER_ABSENT) {
-		v4l2_disable_ioctl(vfd, VIDIOC_G_FREQUENCY);
-		v4l2_disable_ioctl(vfd, VIDIOC_S_FREQUENCY);
-		v4l2_disable_ioctl(vfd, VIDIOC_G_TUNER);
-		v4l2_disable_ioctl(vfd, VIDIOC_S_TUNER);
+		switch (dev->model) {
+		case CX231XX_BOARD_HAUPPAUGE_930C_HD_1114xx:
+		case CX231XX_BOARD_HAUPPAUGE_935C:
+		case CX231XX_BOARD_HAUPPAUGE_955Q:
+		case CX231XX_BOARD_HAUPPAUGE_975:
+		case CX231XX_BOARD_EVROMEDIA_FULL_HYBRID_FULLHD:
+			break;
+		default:
+			v4l2_disable_ioctl(vfd, VIDIOC_G_FREQUENCY);
+			v4l2_disable_ioctl(vfd, VIDIOC_S_FREQUENCY);
+			v4l2_disable_ioctl(vfd, VIDIOC_G_TUNER);
+			v4l2_disable_ioctl(vfd, VIDIOC_S_TUNER);
+			break;
+		}
 	}
 }
 
@@ -1781,8 +1818,20 @@ int cx231xx_register_analog_devices(struct cx231xx *dev)
 	dev->vdev.queue = q;
 	dev->vdev.device_caps = V4L2_CAP_READWRITE | V4L2_CAP_STREAMING |
 				V4L2_CAP_VIDEO_CAPTURE;
-	if (dev->tuner_type != TUNER_ABSENT)
+
+	switch (dev->model) { /* i2c device tuners */
+	case CX231XX_BOARD_HAUPPAUGE_930C_HD_1114xx:
+	case CX231XX_BOARD_HAUPPAUGE_935C:
+	case CX231XX_BOARD_HAUPPAUGE_955Q:
+	case CX231XX_BOARD_HAUPPAUGE_975:
+	case CX231XX_BOARD_EVROMEDIA_FULL_HYBRID_FULLHD:
 		dev->vdev.device_caps |= V4L2_CAP_TUNER;
+		break;
+	default:
+		if (dev->tuner_type != TUNER_ABSENT)
+			dev->vdev.device_caps |= V4L2_CAP_TUNER;
+		break;
+	}
 
 	/* register v4l2 video video_device */
 	ret = video_register_device(&dev->vdev, VFL_TYPE_VIDEO,
@@ -1829,8 +1878,18 @@ int cx231xx_register_analog_devices(struct cx231xx *dev)
 	dev->vbi_dev.queue = q;
 	dev->vbi_dev.device_caps = V4L2_CAP_READWRITE | V4L2_CAP_STREAMING |
 				   V4L2_CAP_VBI_CAPTURE;
-	if (dev->tuner_type != TUNER_ABSENT)
+	switch (dev->model) { /* i2c device tuners */
+	case CX231XX_BOARD_HAUPPAUGE_930C_HD_1114xx:
+	case CX231XX_BOARD_HAUPPAUGE_935C:
+	case CX231XX_BOARD_HAUPPAUGE_955Q:
+	case CX231XX_BOARD_HAUPPAUGE_975:
+	case CX231XX_BOARD_EVROMEDIA_FULL_HYBRID_FULLHD:
 		dev->vbi_dev.device_caps |= V4L2_CAP_TUNER;
+		break;
+	default:
+		if (dev->tuner_type != TUNER_ABSENT)
+			dev->vbi_dev.device_caps |= V4L2_CAP_TUNER;
+	}
 
 	/* register v4l2 vbi video_device */
 	ret = video_register_device(&dev->vbi_dev, VFL_TYPE_VBI,

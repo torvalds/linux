@@ -10,7 +10,7 @@ them to a "housekeeping" CPU dedicated to such work.
 References
 ==========
 
--	Documentation/IRQ-affinity.txt:  Binding interrupts to sets of CPUs.
+-	Documentation/core-api/irq/irq-affinity.rst:  Binding interrupts to sets of CPUs.
 
 -	Documentation/admin-guide/cgroup-v1:  Using cgroups to bind tasks to sets of CPUs.
 

@@ -16,14 +16,15 @@
 
 /* PTPSYNCTS has no interrupt or update mechanism, because the intended
  * hardware use case is for the timestamp to be collected synchronously,
- * immediately after the CAS_MASTER SJA1105 switch has triggered a CASSYNC
- * pulse on the PTP_CLK pin. When used as a generic extts source, it needs
- * polling and a comparison with the old value. The polling interval is just
- * the Nyquist rate of a canonical PPS input (e.g. from a GPS module).
- * Anything of higher frequency than 1 Hz will be lost, since there is no
- * timestamp FIFO.
+ * immediately after the CAS_MASTER SJA1105 switch has performed a CASSYNC
+ * one-shot toggle (no return to level) on the PTP_CLK pin. When used as a
+ * generic extts source, the PTPSYNCTS register needs polling and a comparison
+ * with the old value. The polling interval is configured as the Nyquist rate
+ * of a signal with 50% duty cycle and 1Hz frequency, which is sadly all that
+ * this hardware can do (but may be enough for some setups). Anything of higher
+ * frequency than 1 Hz will be lost, since there is no timestamp FIFO.
  */
-#define SJA1105_EXTTS_INTERVAL		(HZ / 2)
+#define SJA1105_EXTTS_INTERVAL		(HZ / 4)
 
 /*            This range is actually +/- SJA1105_MAX_ADJ_PPB
  *            divided by 1000 (ppb -> ppm) and with a 16-bit
@@ -754,7 +755,16 @@ static int sja1105_extts_enable(struct sja1105_private *priv,
 		return -EOPNOTSUPP;
 
 	/* Reject requests with unsupported flags */
-	if (extts->flags)
+	if (extts->flags & ~(PTP_ENABLE_FEATURE |
+			     PTP_RISING_EDGE |
+			     PTP_FALLING_EDGE |
+			     PTP_STRICT_FLAGS))
+		return -EOPNOTSUPP;
+
+	/* We can only enable time stamping on both edges, sadly. */
+	if ((extts->flags & PTP_STRICT_FLAGS) &&
+	    (extts->flags & PTP_ENABLE_FEATURE) &&
+	    (extts->flags & PTP_EXTTS_EDGES) != PTP_EXTTS_EDGES)
 		return -EOPNOTSUPP;
 
 	rc = sja1105_change_ptp_clk_pin_func(priv, PTP_PF_EXTTS);
@@ -881,16 +891,16 @@ void sja1105_ptp_txtstamp_skb(struct dsa_switch *ds, int port,
 
 	mutex_lock(&ptp_data->lock);
 
-	rc = sja1105_ptpclkval_read(priv, &ticks, NULL);
+	rc = sja1105_ptpegr_ts_poll(ds, port, &ts);
 	if (rc < 0) {
-		dev_err(ds->dev, "Failed to read PTP clock: %d\n", rc);
+		dev_err(ds->dev, "timed out polling for tstamp\n");
 		kfree_skb(skb);
 		goto out;
 	}
 
-	rc = sja1105_ptpegr_ts_poll(ds, port, &ts);
+	rc = sja1105_ptpclkval_read(priv, &ticks, NULL);
 	if (rc < 0) {
-		dev_err(ds->dev, "timed out polling for tstamp\n");
+		dev_err(ds->dev, "Failed to read PTP clock: %d\n", rc);
 		kfree_skb(skb);
 		goto out;
 	}

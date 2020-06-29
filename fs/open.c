@@ -345,21 +345,14 @@ SYSCALL_DEFINE4(fallocate, int, fd, int, mode, loff_t, offset, loff_t, len)
  * We do this by temporarily clearing all FS-related capabilities and
  * switching the fsuid/fsgid around to the real ones.
  */
-long do_faccessat(int dfd, const char __user *filename, int mode)
+static const struct cred *access_override_creds(void)
 {
 	const struct cred *old_cred;
 	struct cred *override_cred;
-	struct path path;
-	struct inode *inode;
-	int res;
-	unsigned int lookup_flags = LOOKUP_FOLLOW;
-
-	if (mode & ~S_IRWXO)	/* where's F_OK, X_OK, W_OK, R_OK? */
-		return -EINVAL;
 
 	override_cred = prepare_creds();
 	if (!override_cred)
-		return -ENOMEM;
+		return NULL;
 
 	override_cred->fsuid = override_cred->uid;
 	override_cred->fsgid = override_cred->gid;
@@ -394,6 +387,38 @@ long do_faccessat(int dfd, const char __user *filename, int mode)
 	override_cred->non_rcu = 1;
 
 	old_cred = override_creds(override_cred);
+
+	/* override_cred() gets its own ref */
+	put_cred(override_cred);
+
+	return old_cred;
+}
+
+long do_faccessat(int dfd, const char __user *filename, int mode, int flags)
+{
+	struct path path;
+	struct inode *inode;
+	int res;
+	unsigned int lookup_flags = LOOKUP_FOLLOW;
+	const struct cred *old_cred = NULL;
+
+	if (mode & ~S_IRWXO)	/* where's F_OK, X_OK, W_OK, R_OK? */
+		return -EINVAL;
+
+	if (flags & ~(AT_EACCESS | AT_SYMLINK_NOFOLLOW | AT_EMPTY_PATH))
+		return -EINVAL;
+
+	if (flags & AT_SYMLINK_NOFOLLOW)
+		lookup_flags &= ~LOOKUP_FOLLOW;
+	if (flags & AT_EMPTY_PATH)
+		lookup_flags |= LOOKUP_EMPTY;
+
+	if (!(flags & AT_EACCESS)) {
+		old_cred = access_override_creds();
+		if (!old_cred)
+			return -ENOMEM;
+	}
+
 retry:
 	res = user_path_at(dfd, filename, lookup_flags, &path);
 	if (res)
@@ -435,19 +460,26 @@ out_path_release:
 		goto retry;
 	}
 out:
-	revert_creds(old_cred);
-	put_cred(override_cred);
+	if (old_cred)
+		revert_creds(old_cred);
+
 	return res;
 }
 
 SYSCALL_DEFINE3(faccessat, int, dfd, const char __user *, filename, int, mode)
 {
-	return do_faccessat(dfd, filename, mode);
+	return do_faccessat(dfd, filename, mode, 0);
+}
+
+SYSCALL_DEFINE4(faccessat2, int, dfd, const char __user *, filename, int, mode,
+		int, flags)
+{
+	return do_faccessat(dfd, filename, mode, flags);
 }
 
 SYSCALL_DEFINE2(access, const char __user *, filename, int, mode)
 {
-	return do_faccessat(AT_FDCWD, filename, mode);
+	return do_faccessat(AT_FDCWD, filename, mode, 0);
 }
 
 int ksys_chdir(const char __user *filename)
@@ -743,9 +775,8 @@ static int do_dentry_open(struct file *f,
 	path_get(&f->f_path);
 	f->f_inode = inode;
 	f->f_mapping = inode->i_mapping;
-
-	/* Ensure that we skip any errors that predate opening of the file */
 	f->f_wb_err = filemap_sample_wb_err(f->f_mapping);
+	f->f_sb_err = file_sample_sb_err(f);
 
 	if (unlikely(f->f_flags & O_PATH)) {
 		f->f_mode = FMODE_PATH | FMODE_OPENED;

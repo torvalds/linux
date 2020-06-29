@@ -20,10 +20,14 @@
 
 ALL_TESTS="
 	ping_ipv4
+	ping_ipv6
 	test_ip_dsfield
 	test_ip_dscp
 	test_ip_ecn
 	test_ip_dscp_ecn
+	test_ip6_dsfield
+	test_ip6_dscp
+	test_ip6_ecn
 "
 
 NUM_NETIFS=4
@@ -107,6 +111,11 @@ ping_ipv4()
 	ping_test $h1 192.0.2.2
 }
 
+ping_ipv6()
+{
+	ping6_test $h1 2001:db8:1::2
+}
+
 do_test_pedit_dsfield_common()
 {
 	local pedit_locus=$1; shift
@@ -123,7 +132,12 @@ do_test_pedit_dsfield_common()
 	local pkts
 	pkts=$(busywait "$TC_HIT_TIMEOUT" until_counter_is ">= 10" \
 			tc_rule_handle_stats_get "dev $h2 ingress" 101)
-	check_err $? "Expected to get 10 packets, but got $pkts."
+	check_err $? "Expected to get 10 packets on test probe, but got $pkts."
+
+	pkts=$(tc_rule_handle_stats_get "$pedit_locus" 101)
+	((pkts >= 10))
+	check_err $? "Expected to get 10 packets on pedit rule, but got $pkts."
+
 	log_test "$pedit_locus pedit $pedit_action"
 }
 
@@ -226,6 +240,63 @@ test_ip_dscp_ecn()
 {
 	do_test_ip_dscp_ecn "dev $swp1 ingress"
 	do_test_ip_dscp_ecn "dev $swp2 egress"
+}
+
+do_test_ip6_dsfield()
+{
+	local locus=$1; shift
+	local dsfield
+
+	for dsfield in 0 1 2 3 128 252 253 254 255; do
+		do_test_pedit_dsfield "$locus"				\
+				  "ip6 traffic_class set $dsfield"	\
+				  ipv6 "ip_tos $dsfield"		\
+				  "-6 -A 2001:db8:1::1 -B 2001:db8:1::2"
+	done
+}
+
+test_ip6_dsfield()
+{
+	do_test_ip6_dsfield "dev $swp1 ingress"
+	do_test_ip6_dsfield "dev $swp2 egress"
+}
+
+do_test_ip6_dscp()
+{
+	local locus=$1; shift
+	local dscp
+
+	for dscp in 0 1 2 3 32 61 62 63; do
+		do_test_pedit_dsfield "$locus"				       \
+			    "ip6 traffic_class set $((dscp << 2)) retain 0xfc" \
+			    ipv6 "ip_tos $(((dscp << 2) | 1))"		       \
+			    "-6 -A 2001:db8:1::1 -B 2001:db8:1::2"
+	done
+}
+
+test_ip6_dscp()
+{
+	do_test_ip6_dscp "dev $swp1 ingress"
+	do_test_ip6_dscp "dev $swp2 egress"
+}
+
+do_test_ip6_ecn()
+{
+	local locus=$1; shift
+	local ecn
+
+	for ecn in 0 1 2 3; do
+		do_test_pedit_dsfield "$locus"				\
+				"ip6 traffic_class set $ecn retain 0x3"	\
+				ipv6 "ip_tos $((124 | $ecn))"		\
+				"-6 -A 2001:db8:1::1 -B 2001:db8:1::2"
+	done
+}
+
+test_ip6_ecn()
+{
+	do_test_ip6_ecn "dev $swp1 ingress"
+	do_test_ip6_ecn "dev $swp2 egress"
 }
 
 trap cleanup EXIT

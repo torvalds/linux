@@ -176,7 +176,7 @@ static inline bool megasas_check_same_4gb_region
  * megasas_enable_intr_fusion -	Enables interrupts
  * @regs:			MFI register set
  */
-void
+static void
 megasas_enable_intr_fusion(struct megasas_instance *instance)
 {
 	struct megasas_register_set __iomem *regs;
@@ -198,7 +198,7 @@ megasas_enable_intr_fusion(struct megasas_instance *instance)
  * megasas_disable_intr_fusion - Disables interrupt
  * @regs:			 MFI register set
  */
-void
+static void
 megasas_disable_intr_fusion(struct megasas_instance *instance)
 {
 	u32 mask = 0xFFFFFFFF;
@@ -2070,7 +2070,6 @@ static bool
 megasas_is_prp_possible(struct megasas_instance *instance,
 			struct scsi_cmnd *scmd, int sge_count)
 {
-	int i;
 	u32 data_length = 0;
 	struct scatterlist *sg_scmd;
 	bool build_prp = false;
@@ -2097,63 +2096,6 @@ megasas_is_prp_possible(struct megasas_instance *instance,
 		/* check if 1st SG entry size is < residual beyond 4 pages */
 		if (sg_dma_len(sg_scmd) < (data_length - (mr_nvme_pg_size * 4)))
 			build_prp = true;
-	}
-
-/*
- * Below code detects gaps/holes in IO data buffers.
- * What does holes/gaps mean?
- * Any SGE except first one in a SGL starts at non NVME page size
- * aligned address OR Any SGE except last one in a SGL ends at
- * non NVME page size boundary.
- *
- * Driver has already informed block layer by setting boundary rules for
- * bio merging done at NVME page size boundary calling kernel API
- * blk_queue_virt_boundary inside slave_config.
- * Still there is possibility of IO coming with holes to driver because of
- * IO merging done by IO scheduler.
- *
- * With SCSI BLK MQ enabled, there will be no IO with holes as there is no
- * IO scheduling so no IO merging.
- *
- * With SCSI BLK MQ disabled, IO scheduler may attempt to merge IOs and
- * then sending IOs with holes.
- *
- * Though driver can request block layer to disable IO merging by calling-
- * blk_queue_flag_set(QUEUE_FLAG_NOMERGES, sdev->request_queue) but
- * user may tune sysfs parameter- nomerges again to 0 or 1.
- *
- * If in future IO scheduling is enabled with SCSI BLK MQ,
- * this algorithm to detect holes will be required in driver
- * for SCSI BLK MQ enabled case as well.
- *
- *
- */
-	scsi_for_each_sg(scmd, sg_scmd, sge_count, i) {
-		if ((i != 0) && (i != (sge_count - 1))) {
-			if (mega_mod64(sg_dma_len(sg_scmd), mr_nvme_pg_size) ||
-			    mega_mod64(sg_dma_address(sg_scmd),
-				       mr_nvme_pg_size)) {
-				build_prp = false;
-				break;
-			}
-		}
-
-		if ((sge_count > 1) && (i == 0)) {
-			if ((mega_mod64((sg_dma_address(sg_scmd) +
-					sg_dma_len(sg_scmd)),
-					mr_nvme_pg_size))) {
-				build_prp = false;
-				break;
-			}
-		}
-
-		if ((sge_count > 1) && (i == (sge_count - 1))) {
-			if (mega_mod64(sg_dma_address(sg_scmd),
-				       mr_nvme_pg_size)) {
-				build_prp = false;
-				break;
-			}
-		}
 	}
 
 	return build_prp;
@@ -4230,7 +4172,7 @@ void  megasas_reset_reply_desc(struct megasas_instance *instance)
  * megasas_refire_mgmt_cmd :	Re-fire management commands
  * @instance:				Controller's soft instance
 */
-void megasas_refire_mgmt_cmd(struct megasas_instance *instance,
+static void megasas_refire_mgmt_cmd(struct megasas_instance *instance,
 			     bool return_ioctl)
 {
 	int j;
@@ -4238,8 +4180,9 @@ void megasas_refire_mgmt_cmd(struct megasas_instance *instance,
 	struct fusion_context *fusion;
 	struct megasas_cmd *cmd_mfi;
 	union MEGASAS_REQUEST_DESCRIPTOR_UNION *req_desc;
+	struct MPI2_RAID_SCSI_IO_REQUEST *scsi_io_req;
 	u16 smid;
-	bool refire_cmd = 0;
+	bool refire_cmd = false;
 	u8 result;
 	u32 opcode = 0;
 
@@ -4304,6 +4247,11 @@ void megasas_refire_mgmt_cmd(struct megasas_instance *instance,
 			cmd_mfi->cmd_status_drv = DCMD_BUSY;
 			result = COMPLETE_CMD;
 		}
+
+		scsi_io_req = (struct MPI2_RAID_SCSI_IO_REQUEST *)
+				cmd_fusion->io_request;
+		if (scsi_io_req->Function == MPI2_FUNCTION_SCSI_TASK_MGMT)
+			result = RETURN_CMD;
 
 		switch (result) {
 		case REFIRE_CMD:
@@ -4533,7 +4481,6 @@ megasas_issue_tm(struct megasas_instance *instance, u16 device_handle,
 	if (!timeleft) {
 		dev_err(&instance->pdev->dev,
 			"task mgmt type 0x%x timed out\n", type);
-		cmd_mfi->flags |= DRV_DCMD_SKIP_REFIRE;
 		mutex_unlock(&instance->reset_mutex);
 		rc = megasas_reset_fusion(instance->host, MFI_IO_TIMEOUT_OCR);
 		mutex_lock(&instance->reset_mutex);
@@ -4713,12 +4660,12 @@ int megasas_task_abort_fusion(struct scsi_cmnd *scmd)
 		"attempting task abort! scmd(0x%p) tm_dev_handle 0x%x\n",
 		scmd, devhandle);
 
-	mr_device_priv_data->tm_busy = 1;
+	mr_device_priv_data->tm_busy = true;
 	ret = megasas_issue_tm(instance, devhandle,
 			scmd->device->channel, scmd->device->id, smid,
 			MPI2_SCSITASKMGMT_TASKTYPE_ABORT_TASK,
 			mr_device_priv_data);
-	mr_device_priv_data->tm_busy = 0;
+	mr_device_priv_data->tm_busy = false;
 
 	mutex_unlock(&instance->reset_mutex);
 	scmd_printk(KERN_INFO, scmd, "task abort %s!! scmd(0x%p)\n",
@@ -4783,12 +4730,12 @@ int megasas_reset_target_fusion(struct scsi_cmnd *scmd)
 	sdev_printk(KERN_INFO, scmd->device,
 		"attempting target reset! scmd(0x%p) tm_dev_handle: 0x%x\n",
 		scmd, devhandle);
-	mr_device_priv_data->tm_busy = 1;
+	mr_device_priv_data->tm_busy = true;
 	ret = megasas_issue_tm(instance, devhandle,
 			scmd->device->channel, scmd->device->id, 0,
 			MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET,
 			mr_device_priv_data);
-	mr_device_priv_data->tm_busy = 0;
+	mr_device_priv_data->tm_busy = false;
 	mutex_unlock(&instance->reset_mutex);
 	scmd_printk(KERN_NOTICE, scmd, "target reset %s!!\n",
 		(ret == SUCCESS) ? "SUCCESS" : "FAILED");

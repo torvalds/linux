@@ -316,6 +316,8 @@ static void vsc8584_macsec_mac_init(struct phy_device *phydev,
 /* Must be called with mdio_lock taken */
 static int __vsc8584_macsec_init(struct phy_device *phydev)
 {
+	struct vsc8531_private *priv = phydev->priv;
+	enum macsec_bank proc_bank;
 	u32 val;
 
 	vsc8584_macsec_block_init(phydev, MACSEC_INGR);
@@ -351,12 +353,14 @@ static int __vsc8584_macsec_init(struct phy_device *phydev)
 	val |= MSCC_FCBUF_ENA_CFG_TX_ENA | MSCC_FCBUF_ENA_CFG_RX_ENA;
 	vsc8584_macsec_phy_write(phydev, FC_BUFFER, MSCC_FCBUF_ENA_CFG, val);
 
-	val = vsc8584_macsec_phy_read(phydev, IP_1588,
-				      MSCC_PROC_0_IP_1588_TOP_CFG_STAT_MODE_CTL);
-	val &= ~MSCC_PROC_0_IP_1588_TOP_CFG_STAT_MODE_CTL_PROTOCOL_MODE_M;
-	val |= MSCC_PROC_0_IP_1588_TOP_CFG_STAT_MODE_CTL_PROTOCOL_MODE(4);
-	vsc8584_macsec_phy_write(phydev, IP_1588,
-				 MSCC_PROC_0_IP_1588_TOP_CFG_STAT_MODE_CTL, val);
+	proc_bank = (priv->addr < 2) ? PROC_0 : PROC_2;
+
+	val = vsc8584_macsec_phy_read(phydev, proc_bank,
+				      MSCC_PROC_IP_1588_TOP_CFG_STAT_MODE_CTL);
+	val &= ~MSCC_PROC_IP_1588_TOP_CFG_STAT_MODE_CTL_PROTOCOL_MODE_M;
+	val |= MSCC_PROC_IP_1588_TOP_CFG_STAT_MODE_CTL_PROTOCOL_MODE(4);
+	vsc8584_macsec_phy_write(phydev, proc_bank,
+				 MSCC_PROC_IP_1588_TOP_CFG_STAT_MODE_CTL, val);
 
 	return 0;
 }

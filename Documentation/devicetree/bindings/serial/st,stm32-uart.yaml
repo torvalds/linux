@@ -48,12 +48,26 @@ properties:
     minItems: 1
     maxItems: 2
 
+  cts-gpios:
+    maxItems: 1
+
+  rts-gpios:
+    maxItems: 1
+
   wakeup-source: true
 
   rs485-rts-delay: true
   rs485-rts-active-low: true
   linux,rs485-enabled-at-boot-time: true
   rs485-rx-during-tx: true
+
+if:
+  required:
+    - st,hw-flow-ctrl
+then:
+  properties:
+    cts-gpios: false
+    rts-gpios: false
 
 required:
   - compatible

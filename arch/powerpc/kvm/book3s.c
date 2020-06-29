@@ -36,41 +36,38 @@
 #include "book3s.h"
 #include "trace.h"
 
-#define VM_STAT(x, ...) offsetof(struct kvm, stat.x), KVM_STAT_VM, ## __VA_ARGS__
-#define VCPU_STAT(x, ...) offsetof(struct kvm_vcpu, stat.x), KVM_STAT_VCPU, ## __VA_ARGS__
-
 /* #define EXIT_DEBUG */
 
 struct kvm_stats_debugfs_item debugfs_entries[] = {
-	{ "exits",       VCPU_STAT(sum_exits) },
-	{ "mmio",        VCPU_STAT(mmio_exits) },
-	{ "sig",         VCPU_STAT(signal_exits) },
-	{ "sysc",        VCPU_STAT(syscall_exits) },
-	{ "inst_emu",    VCPU_STAT(emulated_inst_exits) },
-	{ "dec",         VCPU_STAT(dec_exits) },
-	{ "ext_intr",    VCPU_STAT(ext_intr_exits) },
-	{ "queue_intr",  VCPU_STAT(queue_intr) },
-	{ "halt_poll_success_ns",	VCPU_STAT(halt_poll_success_ns) },
-	{ "halt_poll_fail_ns",		VCPU_STAT(halt_poll_fail_ns) },
-	{ "halt_wait_ns",		VCPU_STAT(halt_wait_ns) },
-	{ "halt_successful_poll", VCPU_STAT(halt_successful_poll), },
-	{ "halt_attempted_poll", VCPU_STAT(halt_attempted_poll), },
-	{ "halt_successful_wait",	VCPU_STAT(halt_successful_wait) },
-	{ "halt_poll_invalid", VCPU_STAT(halt_poll_invalid) },
-	{ "halt_wakeup", VCPU_STAT(halt_wakeup) },
-	{ "pf_storage",  VCPU_STAT(pf_storage) },
-	{ "sp_storage",  VCPU_STAT(sp_storage) },
-	{ "pf_instruc",  VCPU_STAT(pf_instruc) },
-	{ "sp_instruc",  VCPU_STAT(sp_instruc) },
-	{ "ld",          VCPU_STAT(ld) },
-	{ "ld_slow",     VCPU_STAT(ld_slow) },
-	{ "st",          VCPU_STAT(st) },
-	{ "st_slow",     VCPU_STAT(st_slow) },
-	{ "pthru_all",       VCPU_STAT(pthru_all) },
-	{ "pthru_host",      VCPU_STAT(pthru_host) },
-	{ "pthru_bad_aff",   VCPU_STAT(pthru_bad_aff) },
-	{ "largepages_2M",    VM_STAT(num_2M_pages, .mode = 0444) },
-	{ "largepages_1G",    VM_STAT(num_1G_pages, .mode = 0444) },
+	VCPU_STAT("exits", sum_exits),
+	VCPU_STAT("mmio", mmio_exits),
+	VCPU_STAT("sig", signal_exits),
+	VCPU_STAT("sysc", syscall_exits),
+	VCPU_STAT("inst_emu", emulated_inst_exits),
+	VCPU_STAT("dec", dec_exits),
+	VCPU_STAT("ext_intr", ext_intr_exits),
+	VCPU_STAT("queue_intr", queue_intr),
+	VCPU_STAT("halt_poll_success_ns", halt_poll_success_ns),
+	VCPU_STAT("halt_poll_fail_ns", halt_poll_fail_ns),
+	VCPU_STAT("halt_wait_ns", halt_wait_ns),
+	VCPU_STAT("halt_successful_poll", halt_successful_poll),
+	VCPU_STAT("halt_attempted_poll", halt_attempted_poll),
+	VCPU_STAT("halt_successful_wait", halt_successful_wait),
+	VCPU_STAT("halt_poll_invalid", halt_poll_invalid),
+	VCPU_STAT("halt_wakeup", halt_wakeup),
+	VCPU_STAT("pf_storage", pf_storage),
+	VCPU_STAT("sp_storage", sp_storage),
+	VCPU_STAT("pf_instruc", pf_instruc),
+	VCPU_STAT("sp_instruc", sp_instruc),
+	VCPU_STAT("ld", ld),
+	VCPU_STAT("ld_slow", ld_slow),
+	VCPU_STAT("st", st),
+	VCPU_STAT("st_slow", st_slow),
+	VCPU_STAT("pthru_all", pthru_all),
+	VCPU_STAT("pthru_host", pthru_host),
+	VCPU_STAT("pthru_bad_aff", pthru_bad_aff),
+	VM_STAT("largepages_2M", num_2M_pages, .mode = 0444),
+	VM_STAT("largepages_1G", num_1G_pages, .mode = 0444),
 	{ NULL }
 };
 
@@ -758,9 +755,9 @@ void kvmppc_set_msr(struct kvm_vcpu *vcpu, u64 msr)
 }
 EXPORT_SYMBOL_GPL(kvmppc_set_msr);
 
-int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
+int kvmppc_vcpu_run(struct kvm_vcpu *vcpu)
 {
-	return vcpu->kvm->arch.kvm_ops->vcpu_run(kvm_run, vcpu);
+	return vcpu->kvm->arch.kvm_ops->vcpu_run(vcpu);
 }
 
 int kvm_arch_vcpu_ioctl_translate(struct kvm_vcpu *vcpu,

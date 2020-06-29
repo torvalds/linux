@@ -650,7 +650,7 @@ static int binderfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	struct binderfs_info *info;
 	struct binderfs_mount_opts *ctx = fc->fs_private;
 	struct inode *inode = NULL;
-	struct binderfs_device device_info = { 0 };
+	struct binderfs_device device_info = {};
 	const char *name;
 	size_t len;
 
@@ -747,7 +747,7 @@ static const struct fs_context_operations binderfs_fs_context_ops = {
 
 static int binderfs_init_fs_context(struct fs_context *fc)
 {
-	struct binderfs_mount_opts *ctx = fc->fs_private;
+	struct binderfs_mount_opts *ctx;
 
 	ctx = kzalloc(sizeof(struct binderfs_mount_opts), GFP_KERNEL);
 	if (!ctx)

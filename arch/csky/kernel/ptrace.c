@@ -18,7 +18,6 @@
 
 #include <asm/thread_info.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/processor.h>
 #include <asm/asm-offsets.h>
 
@@ -41,6 +40,9 @@ static void singlestep_disable(struct task_struct *tsk)
 
 	regs = task_pt_regs(tsk);
 	regs->sr = (regs->sr & TRACE_MODE_MASK) | TRACE_MODE_RUN;
+
+	/* Enable irq */
+	regs->sr |= BIT(6);
 }
 
 static void singlestep_enable(struct task_struct *tsk)
@@ -49,6 +51,9 @@ static void singlestep_enable(struct task_struct *tsk)
 
 	regs = task_pt_regs(tsk);
 	regs->sr = (regs->sr & TRACE_MODE_MASK) | TRACE_MODE_SI;
+
+	/* Disable irq */
+	regs->sr &= ~BIT(6);
 }
 
 /*
@@ -338,7 +343,7 @@ asmlinkage void syscall_trace_exit(struct pt_regs *regs)
 		trace_sys_exit(regs, syscall_get_return_value(current, regs));
 }
 
-extern void show_stack(struct task_struct *task, unsigned long *stack);
+extern void show_stack(struct task_struct *task, unsigned long *stack, const char *loglvl);
 void show_regs(struct pt_regs *fp)
 {
 	unsigned long   *sp;
@@ -414,6 +419,6 @@ void show_regs(struct pt_regs *fp)
 	}
 	pr_cont("\n");
 
-	show_stack(NULL, (unsigned long *)fp->regs[4]);
+	show_stack(NULL, (unsigned long *)fp->regs[4], KERN_INFO);
 	return;
 }

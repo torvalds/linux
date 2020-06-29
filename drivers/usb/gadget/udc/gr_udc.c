@@ -48,7 +48,6 @@
 #define	DRIVER_DESC	"Aeroflex Gaisler GRUSBDC USB Peripheral Controller"
 
 static const char driver_name[] = DRIVER_NAME;
-static const char driver_desc[] = DRIVER_DESC;
 
 #define gr_read32(x) (ioread32be((x)))
 #define gr_write32(x, v) (iowrite32be((v), (x)))

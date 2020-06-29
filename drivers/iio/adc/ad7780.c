@@ -206,10 +206,29 @@ static const struct ad_sigma_delta_info ad7780_sigma_delta_info = {
 	.irq_flags = IRQF_TRIGGER_LOW,
 };
 
-#define AD7780_CHANNEL(bits, wordsize) \
-	AD_SD_CHANNEL(1, 0, 0, bits, 32, (wordsize) - (bits))
-#define AD7170_CHANNEL(bits, wordsize) \
-	AD_SD_CHANNEL_NO_SAMP_FREQ(1, 0, 0, bits, 32, (wordsize) - (bits))
+#define _AD7780_CHANNEL(_bits, _wordsize, _mask_all)		\
+{								\
+	.type = IIO_VOLTAGE,					\
+	.indexed = 1,						\
+	.channel = 0,						\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |		\
+		BIT(IIO_CHAN_INFO_OFFSET),			\
+	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),	\
+	.info_mask_shared_by_all = _mask_all,			\
+	.scan_index = 1,					\
+	.scan_type = {						\
+		.sign = 'u',					\
+		.realbits = (_bits),				\
+		.storagebits = 32,				\
+		.shift = (_wordsize) - (_bits),			\
+		.endianness = IIO_BE,				\
+	},							\
+}
+
+#define AD7780_CHANNEL(_bits, _wordsize)	\
+	_AD7780_CHANNEL(_bits, _wordsize, BIT(IIO_CHAN_INFO_SAMP_FREQ))
+#define AD7170_CHANNEL(_bits, _wordsize)	\
+	_AD7780_CHANNEL(_bits, _wordsize, 0)
 
 static const struct ad7780_chip_info ad7780_chip_info_tbl[] = {
 	[ID_AD7170] = {

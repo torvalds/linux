@@ -618,6 +618,7 @@ struct x86_pmu {
 
 	/* PMI handler bits */
 	unsigned int	late_ack		:1,
+			enabled_ack		:1,
 			counter_freezing	:1;
 	/*
 	 * sysfs attrs
@@ -1133,3 +1134,12 @@ static inline int is_ht_workaround_enabled(void)
 	return 0;
 }
 #endif /* CONFIG_CPU_SUP_INTEL */
+
+#if ((defined CONFIG_CPU_SUP_CENTAUR) || (defined CONFIG_CPU_SUP_ZHAOXIN))
+int zhaoxin_pmu_init(void);
+#else
+static inline int zhaoxin_pmu_init(void)
+{
+	return 0;
+}
+#endif /*CONFIG_CPU_SUP_CENTAUR or CONFIG_CPU_SUP_ZHAOXIN*/

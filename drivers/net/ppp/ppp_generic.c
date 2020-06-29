@@ -1410,6 +1410,8 @@ static int ppp_dev_init(struct net_device *dev)
 {
 	struct ppp *ppp;
 
+	netdev_lockdep_set_classes(dev);
+
 	ppp = netdev_priv(dev);
 	/* Let the netdevice take a reference on the ppp file. This ensures
 	 * that ppp_destroy_interface() won't run before the device gets

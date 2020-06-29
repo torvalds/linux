@@ -472,3 +472,23 @@
 	phy-mode = "rgmii-rxid";
 	phy-handle = <&phy0>;
 };
+
+&dss {
+	/*
+	 * These clock assignments are chosen to enable the following outputs:
+	 *
+	 * VP0 - DisplayPort SST
+	 * VP1 - DPI0
+	 * VP2 - DSI
+	 * VP3 - DPI1
+	 */
+
+	assigned-clocks = <&k3_clks 152 1>,
+			  <&k3_clks 152 4>,
+			  <&k3_clks 152 9>,
+			  <&k3_clks 152 13>;
+	assigned-clock-parents = <&k3_clks 152 2>,	/* PLL16_HSDIV0 */
+				 <&k3_clks 152 6>,	/* PLL19_HSDIV0 */
+				 <&k3_clks 152 11>,	/* PLL18_HSDIV0 */
+				 <&k3_clks 152 18>;	/* PLL23_HSDIV0 */
+};

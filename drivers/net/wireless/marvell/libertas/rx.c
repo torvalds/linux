@@ -62,9 +62,6 @@ int lbs_process_rxed_packet(struct lbs_private *priv, struct sk_buff *skb)
 	struct rxpd *p_rx_pd;
 	int hdrchop;
 	struct ethhdr *p_ethhdr;
-	static const u8 rfc1042_eth_hdr[] = {
-		0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00
-	};
 
 	BUG_ON(!skb);
 
@@ -102,7 +99,7 @@ int lbs_process_rxed_packet(struct lbs_private *priv, struct sk_buff *skb)
 		sizeof(p_rx_pkt->eth803_hdr.src_addr));
 
 	if (memcmp(&p_rx_pkt->rfc1042_hdr,
-		   rfc1042_eth_hdr, sizeof(rfc1042_eth_hdr)) == 0) {
+		   rfc1042_header, sizeof(rfc1042_header)) == 0) {
 		/*
 		 *  Replace the 803 header and rfc1042 header (llc/snap) with an
 		 *    EthernetII header, keep the src/dst and snap_type (ethertype)

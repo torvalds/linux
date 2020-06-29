@@ -8,12 +8,6 @@
 
 const char *ice_vsi_type_str(enum ice_vsi_type vsi_type);
 
-int
-ice_add_mac_to_list(struct ice_vsi *vsi, struct list_head *add_list,
-		    const u8 *macaddr);
-
-void ice_free_fltr_list(struct device *dev, struct list_head *h);
-
 void ice_update_eth_stats(struct ice_vsi *vsi);
 
 int ice_vsi_cfg_rxqs(struct ice_vsi *vsi);
@@ -22,7 +16,8 @@ int ice_vsi_cfg_lan_txqs(struct ice_vsi *vsi);
 
 void ice_vsi_cfg_msix(struct ice_vsi *vsi);
 
-int ice_vsi_add_vlan(struct ice_vsi *vsi, u16 vid);
+int
+ice_vsi_add_vlan(struct ice_vsi *vsi, u16 vid, enum ice_sw_fwd_act_type action);
 
 int ice_vsi_kill_vlan(struct ice_vsi *vsi, u16 vid);
 
@@ -79,6 +74,9 @@ int ice_vsi_rebuild(struct ice_vsi *vsi, bool init_vsi);
 
 bool ice_is_reset_in_progress(unsigned long *state);
 
+void
+ice_write_qrxflxp_cntxt(struct ice_hw *hw, u16 pf_q, u32 rxdid, u32 prio);
+
 void ice_vsi_put_qs(struct ice_vsi *vsi);
 
 void ice_vsi_dis_irq(struct ice_vsi *vsi);
@@ -96,6 +94,8 @@ void ice_update_tx_ring_stats(struct ice_ring *ring, u64 pkts, u64 bytes);
 void ice_update_rx_ring_stats(struct ice_ring *ring, u64 pkts, u64 bytes);
 
 void ice_vsi_cfg_frame_size(struct ice_vsi *vsi);
+
+int ice_status_to_errno(enum ice_status err);
 
 u32 ice_intrl_usec_to_reg(u8 intrl, u8 gran);
 

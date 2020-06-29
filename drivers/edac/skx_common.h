@@ -112,6 +112,14 @@ struct decoded_addr {
 	int	bank_group;
 };
 
+struct res_config {
+	enum type type;
+	/* Configuration agent device ID */
+	unsigned int decs_did;
+	/* Default bus number configuration register offset */
+	int busno_cfg_offset;
+};
+
 typedef int (*get_dimm_config_f)(struct mem_ctl_info *mci);
 typedef bool (*skx_decode_f)(struct decoded_addr *res);
 typedef void (*skx_show_retry_log_f)(struct decoded_addr *res, char *msg, int len);
@@ -123,12 +131,11 @@ void skx_set_decode(skx_decode_f decode, skx_show_retry_log_f show_retry_log);
 int skx_get_src_id(struct skx_dev *d, int off, u8 *id);
 int skx_get_node_id(struct skx_dev *d, u8 *id);
 
-int skx_get_all_bus_mappings(unsigned int did, int off, enum type,
-			     struct list_head **list);
+int skx_get_all_bus_mappings(struct res_config *cfg, struct list_head **list);
 
 int skx_get_hi_lo(unsigned int did, int off[], u64 *tolm, u64 *tohm);
 
-int skx_get_dimm_info(u32 mtr, u32 amap, struct dimm_info *dimm,
+int skx_get_dimm_info(u32 mtr, u32 mcmtr, u32 amap, struct dimm_info *dimm,
 		      struct skx_imc *imc, int chan, int dimmno);
 
 int skx_get_nvdimm_info(struct dimm_info *dimm, struct skx_imc *imc,

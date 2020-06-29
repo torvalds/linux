@@ -843,7 +843,7 @@ static bool build_regamma(struct pwl_float_data_ex *rgb_regamma,
 	pow_buffer_ptr = -1; // reset back to no optimize
 	ret = true;
 release:
-	kfree(coeff);
+	kvfree(coeff);
 	return ret;
 }
 
@@ -1777,12 +1777,13 @@ bool calculate_user_regamma_ramp(struct dc_transfer_func *output_tf,
 
 	kfree(rgb_regamma);
 rgb_regamma_alloc_fail:
-	kvfree(rgb_user);
+	kfree(rgb_user);
 rgb_user_alloc_fail:
 	return ret;
 }
 
-bool mod_color_calculate_degamma_params(struct dc_transfer_func *input_tf,
+bool mod_color_calculate_degamma_params(struct dc_color_caps *dc_caps,
+		struct dc_transfer_func *input_tf,
 		const struct dc_gamma *ramp, bool mapUserRamp)
 {
 	struct dc_transfer_func_distributed_points *tf_pts = &input_tf->tf_pts;
@@ -1801,11 +1802,29 @@ bool mod_color_calculate_degamma_params(struct dc_transfer_func *input_tf,
 	/* we can use hardcoded curve for plain SRGB TF
 	 * If linear, it's bypass if on user ramp
 	 */
-	if (input_tf->type == TF_TYPE_PREDEFINED &&
-			(input_tf->tf == TRANSFER_FUNCTION_SRGB ||
-					input_tf->tf == TRANSFER_FUNCTION_LINEAR) &&
-					!mapUserRamp)
-		return true;
+	if (input_tf->type == TF_TYPE_PREDEFINED) {
+		if ((input_tf->tf == TRANSFER_FUNCTION_SRGB ||
+				input_tf->tf == TRANSFER_FUNCTION_LINEAR) &&
+				!mapUserRamp)
+			return true;
+
+		if (dc_caps != NULL &&
+			dc_caps->dpp.dcn_arch == 1) {
+
+			if (input_tf->tf == TRANSFER_FUNCTION_PQ &&
+					dc_caps->dpp.dgam_rom_caps.pq == 1)
+				return true;
+
+			if (input_tf->tf == TRANSFER_FUNCTION_GAMMA22 &&
+					dc_caps->dpp.dgam_rom_caps.gamma2_2 == 1)
+				return true;
+
+			// HLG OOTF not accounted for
+			if (input_tf->tf == TRANSFER_FUNCTION_HLG &&
+					dc_caps->dpp.dgam_rom_caps.hlg == 1)
+				return true;
+		}
+	}
 
 	input_tf->type = TF_TYPE_DISTRIBUTED_POINTS;
 
@@ -1902,7 +1921,7 @@ bool mod_color_calculate_degamma_params(struct dc_transfer_func *input_tf,
 
 
 
-	if (ramp->type == GAMMA_CUSTOM)
+	if (ramp && ramp->type == GAMMA_CUSTOM)
 		apply_lut_1d(ramp, MAX_HW_POINTS, tf_pts);
 
 	ret = true;

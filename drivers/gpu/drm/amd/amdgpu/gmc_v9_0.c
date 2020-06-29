@@ -362,6 +362,9 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 			dev_err(adev->dev,
 				"VM_L2_PROTECTION_FAULT_STATUS:0x%08X\n",
 				status);
+			dev_err(adev->dev, "\t Faulty UTCL2 client ID: 0x%lx\n",
+				REG_GET_FIELD(status,
+				VM_L2_PROTECTION_FAULT_STATUS, CID));
 			dev_err(adev->dev, "\t MORE_FAULTS: 0x%lx\n",
 				REG_GET_FIELD(status,
 				VM_L2_PROTECTION_FAULT_STATUS, MORE_FAULTS));
@@ -438,9 +441,8 @@ static bool gmc_v9_0_use_invalidate_semaphore(struct amdgpu_device *adev,
 	return ((vmhub == AMDGPU_MMHUB_0 ||
 		 vmhub == AMDGPU_MMHUB_1) &&
 		(!amdgpu_sriov_vf(adev)) &&
-		(!(adev->asic_type == CHIP_RAVEN &&
-		   adev->rev_id < 0x8 &&
-		   adev->pdev->device == 0x15d8)));
+		(!(!(adev->apu_flags & AMD_APU_IS_RAVEN2) &&
+		   (adev->apu_flags & AMD_APU_IS_PICASSO))));
 }
 
 static bool gmc_v9_0_get_atc_vmid_pasid_mapping_info(struct amdgpu_device *adev,
@@ -618,7 +620,13 @@ static int gmc_v9_0_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
 						      pasid, 2, all_hub);
 		kiq->pmf->kiq_invalidate_tlbs(ring,
 					pasid, flush_type, all_hub);
-		amdgpu_fence_emit_polling(ring, &seq);
+		r = amdgpu_fence_emit_polling(ring, &seq, MAX_KIQ_REG_WAIT);
+		if (r) {
+			amdgpu_ring_undo(ring);
+			spin_unlock(&adev->gfx.kiq.ring_lock);
+			return -ETIME;
+		}
+
 		amdgpu_ring_commit(ring);
 		spin_unlock(&adev->gfx.kiq.ring_lock);
 		r = amdgpu_fence_wait_polling(ring, seq, adev->usec_timeout);

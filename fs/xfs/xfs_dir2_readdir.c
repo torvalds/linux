@@ -524,7 +524,7 @@ xfs_readdir(
 	args.geo = dp->i_mount->m_dir_geo;
 	args.trans = tp;
 
-	if (dp->i_d.di_format == XFS_DINODE_FMT_LOCAL)
+	if (dp->i_df.if_format == XFS_DINODE_FMT_LOCAL)
 		rval = xfs_dir2_sf_getdents(&args, ctx);
 	else if ((rval = xfs_dir2_isblock(&args, &v)))
 		;

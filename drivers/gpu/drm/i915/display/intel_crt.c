@@ -203,27 +203,31 @@ static void intel_crt_set_dpms(struct intel_encoder *encoder,
 	intel_de_write(dev_priv, crt->adpa_reg, adpa);
 }
 
-static void intel_disable_crt(struct intel_encoder *encoder,
+static void intel_disable_crt(struct intel_atomic_state *state,
+			      struct intel_encoder *encoder,
 			      const struct intel_crtc_state *old_crtc_state,
 			      const struct drm_connector_state *old_conn_state)
 {
 	intel_crt_set_dpms(encoder, old_crtc_state, DRM_MODE_DPMS_OFF);
 }
 
-static void pch_disable_crt(struct intel_encoder *encoder,
+static void pch_disable_crt(struct intel_atomic_state *state,
+			    struct intel_encoder *encoder,
 			    const struct intel_crtc_state *old_crtc_state,
 			    const struct drm_connector_state *old_conn_state)
 {
 }
 
-static void pch_post_disable_crt(struct intel_encoder *encoder,
+static void pch_post_disable_crt(struct intel_atomic_state *state,
+				 struct intel_encoder *encoder,
 				 const struct intel_crtc_state *old_crtc_state,
 				 const struct drm_connector_state *old_conn_state)
 {
-	intel_disable_crt(encoder, old_crtc_state, old_conn_state);
+	intel_disable_crt(state, encoder, old_crtc_state, old_conn_state);
 }
 
-static void hsw_disable_crt(struct intel_encoder *encoder,
+static void hsw_disable_crt(struct intel_atomic_state *state,
+			    struct intel_encoder *encoder,
 			    const struct intel_crtc_state *old_crtc_state,
 			    const struct drm_connector_state *old_conn_state)
 {
@@ -234,7 +238,8 @@ static void hsw_disable_crt(struct intel_encoder *encoder,
 	intel_set_pch_fifo_underrun_reporting(dev_priv, PIPE_A, false);
 }
 
-static void hsw_post_disable_crt(struct intel_encoder *encoder,
+static void hsw_post_disable_crt(struct intel_atomic_state *state,
+				 struct intel_encoder *encoder,
 				 const struct intel_crtc_state *old_crtc_state,
 				 const struct drm_connector_state *old_conn_state)
 {
@@ -250,19 +255,20 @@ static void hsw_post_disable_crt(struct intel_encoder *encoder,
 
 	intel_ddi_disable_pipe_clock(old_crtc_state);
 
-	pch_post_disable_crt(encoder, old_crtc_state, old_conn_state);
+	pch_post_disable_crt(state, encoder, old_crtc_state, old_conn_state);
 
 	lpt_disable_pch_transcoder(dev_priv);
 	lpt_disable_iclkip(dev_priv);
 
-	intel_ddi_fdi_post_disable(encoder, old_crtc_state, old_conn_state);
+	intel_ddi_fdi_post_disable(state, encoder, old_crtc_state, old_conn_state);
 
 	drm_WARN_ON(&dev_priv->drm, !old_crtc_state->has_pch_encoder);
 
 	intel_set_pch_fifo_underrun_reporting(dev_priv, PIPE_A, true);
 }
 
-static void hsw_pre_pll_enable_crt(struct intel_encoder *encoder,
+static void hsw_pre_pll_enable_crt(struct intel_atomic_state *state,
+				   struct intel_encoder *encoder,
 				   const struct intel_crtc_state *crtc_state,
 				   const struct drm_connector_state *conn_state)
 {
@@ -273,7 +279,8 @@ static void hsw_pre_pll_enable_crt(struct intel_encoder *encoder,
 	intel_set_pch_fifo_underrun_reporting(dev_priv, PIPE_A, false);
 }
 
-static void hsw_pre_enable_crt(struct intel_encoder *encoder,
+static void hsw_pre_enable_crt(struct intel_atomic_state *state,
+			       struct intel_encoder *encoder,
 			       const struct intel_crtc_state *crtc_state,
 			       const struct drm_connector_state *conn_state)
 {
@@ -287,10 +294,11 @@ static void hsw_pre_enable_crt(struct intel_encoder *encoder,
 
 	hsw_fdi_link_train(encoder, crtc_state);
 
-	intel_ddi_enable_pipe_clock(crtc_state);
+	intel_ddi_enable_pipe_clock(encoder, crtc_state);
 }
 
-static void hsw_enable_crt(struct intel_encoder *encoder,
+static void hsw_enable_crt(struct intel_atomic_state *state,
+			   struct intel_encoder *encoder,
 			   const struct intel_crtc_state *crtc_state,
 			   const struct drm_connector_state *conn_state)
 {
@@ -299,6 +307,8 @@ static void hsw_enable_crt(struct intel_encoder *encoder,
 	enum pipe pipe = crtc->pipe;
 
 	drm_WARN_ON(&dev_priv->drm, !crtc_state->has_pch_encoder);
+
+	intel_ddi_enable_transcoder_func(encoder, crtc_state);
 
 	intel_enable_pipe(crtc_state);
 
@@ -314,7 +324,8 @@ static void hsw_enable_crt(struct intel_encoder *encoder,
 	intel_set_pch_fifo_underrun_reporting(dev_priv, PIPE_A, true);
 }
 
-static void intel_enable_crt(struct intel_encoder *encoder,
+static void intel_enable_crt(struct intel_atomic_state *state,
+			     struct intel_encoder *encoder,
 			     const struct intel_crtc_state *crtc_state,
 			     const struct drm_connector_state *conn_state)
 {
@@ -594,7 +605,8 @@ static struct edid *intel_crt_get_edid(struct drm_connector *connector,
 	edid = drm_get_edid(connector, i2c);
 
 	if (!edid && !intel_gmbus_is_forced_bit(i2c)) {
-		DRM_DEBUG_KMS("CRT GMBUS EDID read failed, retry using GPIO bit-banging\n");
+		drm_dbg_kms(connector->dev,
+			    "CRT GMBUS EDID read failed, retry using GPIO bit-banging\n");
 		intel_gmbus_force_bit(i2c, true);
 		edid = drm_get_edid(connector, i2c);
 		intel_gmbus_force_bit(i2c, false);

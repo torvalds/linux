@@ -32,7 +32,7 @@ int nvkm_outp_new(struct nvkm_disp *, int index, struct dcb_output *,
 void nvkm_outp_del(struct nvkm_outp **);
 void nvkm_outp_init(struct nvkm_outp *);
 void nvkm_outp_fini(struct nvkm_outp *);
-int nvkm_outp_acquire(struct nvkm_outp *, u8 user);
+int nvkm_outp_acquire(struct nvkm_outp *, u8 user, bool hda);
 void nvkm_outp_release(struct nvkm_outp *, u8 user);
 void nvkm_outp_route(struct nvkm_disp *);
 

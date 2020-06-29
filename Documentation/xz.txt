@@ -14,13 +14,13 @@ improve compression ratio of executable data.
 The XZ decompressor in Linux is called XZ Embedded. It supports
 the LZMA2 filter and optionally also BCJ filters. CRC32 is supported
 for integrity checking. The home page of XZ Embedded is at
-<http://tukaani.org/xz/embedded.html>, where you can find the
+<https://tukaani.org/xz/embedded.html>, where you can find the
 latest version and also information about using the code outside
 the Linux kernel.
 
 For userspace, XZ Utils provide a zlib-like compression library
 and a gzip-like command line tool. XZ Utils can be downloaded from
-<http://tukaani.org/xz/>.
+<https://tukaani.org/xz/>.
 
 XZ related components in the kernel
 ===================================
@@ -113,7 +113,7 @@ Reporting bugs
 ==============
 
 Before reporting a bug, please check that it's not fixed already
-at upstream. See <http://tukaani.org/xz/embedded.html> to get the
+at upstream. See <https://tukaani.org/xz/embedded.html> to get the
 latest code.
 
 Report bugs to <lasse.collin@tukaani.org> or visit #tukaani on

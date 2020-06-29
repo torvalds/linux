@@ -87,6 +87,7 @@ struct intel_vgpu_workload {
 	int status;
 
 	struct intel_vgpu_mm *shadow_mm;
+	struct list_head lri_shadow_mm; /* For PPGTT load cmd */
 
 	/* different submission model may need different handler */
 	int (*prepare)(struct intel_vgpu_workload *);

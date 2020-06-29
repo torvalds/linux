@@ -36,6 +36,7 @@
 #include <linux/iomap.h>
 #include <linux/namei.h>
 #include <linux/uio.h>
+#include <linux/fiemap.h>
 #include "ext2.h"
 #include "acl.h"
 #include "xattr.h"
@@ -877,11 +878,9 @@ static int ext2_readpage(struct file *file, struct page *page)
 	return mpage_readpage(page, ext2_get_block);
 }
 
-static int
-ext2_readpages(struct file *file, struct address_space *mapping,
-		struct list_head *pages, unsigned nr_pages)
+static void ext2_readahead(struct readahead_control *rac)
 {
-	return mpage_readpages(mapping, pages, nr_pages, ext2_get_block);
+	mpage_readahead(rac, ext2_get_block);
 }
 
 static int
@@ -967,7 +966,7 @@ ext2_dax_writepages(struct address_space *mapping, struct writeback_control *wbc
 
 const struct address_space_operations ext2_aops = {
 	.readpage		= ext2_readpage,
-	.readpages		= ext2_readpages,
+	.readahead		= ext2_readahead,
 	.writepage		= ext2_writepage,
 	.write_begin		= ext2_write_begin,
 	.write_end		= ext2_write_end,
@@ -981,7 +980,7 @@ const struct address_space_operations ext2_aops = {
 
 const struct address_space_operations ext2_nobh_aops = {
 	.readpage		= ext2_readpage,
-	.readpages		= ext2_readpages,
+	.readahead		= ext2_readahead,
 	.writepage		= ext2_nobh_writepage,
 	.write_begin		= ext2_nobh_write_begin,
 	.write_end		= nobh_write_end,

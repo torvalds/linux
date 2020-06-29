@@ -86,10 +86,10 @@ void intel_wopcm_init_early(struct intel_wopcm *wopcm)
 	else
 		wopcm->size = GEN9_WOPCM_SIZE;
 
-	DRM_DEV_DEBUG_DRIVER(i915->drm.dev, "WOPCM: %uK\n", wopcm->size / 1024);
+	drm_dbg(&i915->drm, "WOPCM: %uK\n", wopcm->size / 1024);
 }
 
-static inline u32 context_reserved_size(struct drm_i915_private *i915)
+static u32 context_reserved_size(struct drm_i915_private *i915)
 {
 	if (IS_GEN9_LP(i915))
 		return BXT_WOPCM_RC6_CTX_RESERVED;
@@ -99,8 +99,8 @@ static inline u32 context_reserved_size(struct drm_i915_private *i915)
 		return 0;
 }
 
-static inline bool gen9_check_dword_gap(struct drm_i915_private *i915,
-					u32 guc_wopcm_base, u32 guc_wopcm_size)
+static bool gen9_check_dword_gap(struct drm_i915_private *i915,
+				 u32 guc_wopcm_base, u32 guc_wopcm_size)
 {
 	u32 offset;
 
@@ -112,7 +112,7 @@ static inline bool gen9_check_dword_gap(struct drm_i915_private *i915,
 	offset = guc_wopcm_base + GEN9_GUC_WOPCM_OFFSET;
 	if (offset > guc_wopcm_size ||
 	    (guc_wopcm_size - offset) < sizeof(u32)) {
-		dev_err(i915->drm.dev,
+		drm_err(&i915->drm,
 			"WOPCM: invalid GuC region size: %uK < %uK\n",
 			guc_wopcm_size / SZ_1K,
 			(u32)(offset + sizeof(u32)) / SZ_1K);
@@ -122,8 +122,8 @@ static inline bool gen9_check_dword_gap(struct drm_i915_private *i915,
 	return true;
 }
 
-static inline bool gen9_check_huc_fw_fits(struct drm_i915_private *i915,
-					  u32 guc_wopcm_size, u32 huc_fw_size)
+static bool gen9_check_huc_fw_fits(struct drm_i915_private *i915,
+				   u32 guc_wopcm_size, u32 huc_fw_size)
 {
 	/*
 	 * On Gen9 & CNL A0, hardware requires the total available GuC WOPCM
@@ -131,7 +131,7 @@ static inline bool gen9_check_huc_fw_fits(struct drm_i915_private *i915,
 	 * firmware uploading would fail.
 	 */
 	if (huc_fw_size > guc_wopcm_size - GUC_WOPCM_RESERVED) {
-		dev_err(i915->drm.dev, "WOPCM: no space for %s: %uK < %uK\n",
+		drm_err(&i915->drm, "WOPCM: no space for %s: %uK < %uK\n",
 			intel_uc_fw_type_repr(INTEL_UC_FW_TYPE_HUC),
 			(guc_wopcm_size - GUC_WOPCM_RESERVED) / SZ_1K,
 			huc_fw_size / 1024);
@@ -141,32 +141,31 @@ static inline bool gen9_check_huc_fw_fits(struct drm_i915_private *i915,
 	return true;
 }
 
-static inline bool check_hw_restrictions(struct drm_i915_private *i915,
-					 u32 guc_wopcm_base, u32 guc_wopcm_size,
-					 u32 huc_fw_size)
+static bool check_hw_restrictions(struct drm_i915_private *i915,
+				  u32 guc_wopcm_base, u32 guc_wopcm_size,
+				  u32 huc_fw_size)
 {
 	if (IS_GEN(i915, 9) && !gen9_check_dword_gap(i915, guc_wopcm_base,
 						     guc_wopcm_size))
 		return false;
 
-	if ((IS_GEN(i915, 9) ||
-	     IS_CNL_REVID(i915, CNL_REVID_A0, CNL_REVID_A0)) &&
+	if (IS_GEN(i915, 9) &&
 	    !gen9_check_huc_fw_fits(i915, guc_wopcm_size, huc_fw_size))
 		return false;
 
 	return true;
 }
 
-static inline bool __check_layout(struct drm_i915_private *i915, u32 wopcm_size,
-				  u32 guc_wopcm_base, u32 guc_wopcm_size,
-				  u32 guc_fw_size, u32 huc_fw_size)
+static bool __check_layout(struct drm_i915_private *i915, u32 wopcm_size,
+			   u32 guc_wopcm_base, u32 guc_wopcm_size,
+			   u32 guc_fw_size, u32 huc_fw_size)
 {
 	const u32 ctx_rsvd = context_reserved_size(i915);
 	u32 size;
 
 	size = wopcm_size - ctx_rsvd;
 	if (unlikely(range_overflows(guc_wopcm_base, guc_wopcm_size, size))) {
-		dev_err(i915->drm.dev,
+		drm_err(&i915->drm,
 			"WOPCM: invalid GuC region layout: %uK + %uK > %uK\n",
 			guc_wopcm_base / SZ_1K, guc_wopcm_size / SZ_1K,
 			size / SZ_1K);
@@ -175,7 +174,7 @@ static inline bool __check_layout(struct drm_i915_private *i915, u32 wopcm_size,
 
 	size = guc_fw_size + GUC_WOPCM_RESERVED + GUC_WOPCM_STACK_RESERVED;
 	if (unlikely(guc_wopcm_size < size)) {
-		dev_err(i915->drm.dev, "WOPCM: no space for %s: %uK < %uK\n",
+		drm_err(&i915->drm, "WOPCM: no space for %s: %uK < %uK\n",
 			intel_uc_fw_type_repr(INTEL_UC_FW_TYPE_GUC),
 			guc_wopcm_size / SZ_1K, size / SZ_1K);
 		return false;
@@ -183,7 +182,7 @@ static inline bool __check_layout(struct drm_i915_private *i915, u32 wopcm_size,
 
 	size = huc_fw_size + WOPCM_RESERVED_SIZE;
 	if (unlikely(guc_wopcm_base < size)) {
-		dev_err(i915->drm.dev, "WOPCM: no space for %s: %uK < %uK\n",
+		drm_err(&i915->drm, "WOPCM: no space for %s: %uK < %uK\n",
 			intel_uc_fw_type_repr(INTEL_UC_FW_TYPE_HUC),
 			guc_wopcm_base / SZ_1K, size / SZ_1K);
 		return false;
@@ -242,10 +241,8 @@ void intel_wopcm_init(struct intel_wopcm *wopcm)
 		return;
 
 	if (__wopcm_regs_locked(gt->uncore, &guc_wopcm_base, &guc_wopcm_size)) {
-		DRM_DEV_DEBUG_DRIVER(i915->drm.dev,
-				     "GuC WOPCM is already locked [%uK, %uK)\n",
-				     guc_wopcm_base / SZ_1K,
-				     guc_wopcm_size / SZ_1K);
+		drm_dbg(&i915->drm, "GuC WOPCM is already locked [%uK, %uK)\n",
+			guc_wopcm_base / SZ_1K, guc_wopcm_size / SZ_1K);
 		goto check;
 	}
 
@@ -266,8 +263,8 @@ void intel_wopcm_init(struct intel_wopcm *wopcm)
 	guc_wopcm_size = wopcm->size - ctx_rsvd - guc_wopcm_base;
 	guc_wopcm_size &= GUC_WOPCM_SIZE_MASK;
 
-	DRM_DEV_DEBUG_DRIVER(i915->drm.dev, "Calculated GuC WOPCM [%uK, %uK)\n",
-			     guc_wopcm_base / SZ_1K, guc_wopcm_size / SZ_1K);
+	drm_dbg(&i915->drm, "Calculated GuC WOPCM [%uK, %uK)\n",
+		guc_wopcm_base / SZ_1K, guc_wopcm_size / SZ_1K);
 
 check:
 	if (__check_layout(i915, wopcm->size, guc_wopcm_base, guc_wopcm_size,

@@ -36,6 +36,7 @@
 
 #include "mlx5_ib.h"
 #include "cmd.h"
+#include "qp.h"
 
 #include <linux/mlx5/eq.h>
 
@@ -446,8 +447,7 @@ static void mlx5_ib_page_fault_resume(struct mlx5_ib_dev *dev,
 {
 	int wq_num = pfault->event_subtype == MLX5_PFAULT_SUBTYPE_WQE ?
 		     pfault->wqe.wq_num : pfault->token;
-	u32 out[MLX5_ST_SZ_DW(page_fault_resume_out)] = { };
-	u32 in[MLX5_ST_SZ_DW(page_fault_resume_in)]   = { };
+	u32 in[MLX5_ST_SZ_DW(page_fault_resume_in)] = {};
 	int err;
 
 	MLX5_SET(page_fault_resume_in, in, opcode, MLX5_CMD_OP_PAGE_FAULT_RESUME);
@@ -456,7 +456,7 @@ static void mlx5_ib_page_fault_resume(struct mlx5_ib_dev *dev,
 	MLX5_SET(page_fault_resume_in, in, wq_number, wq_num);
 	MLX5_SET(page_fault_resume_in, in, error, !!error);
 
-	err = mlx5_cmd_exec(dev->mdev, in, sizeof(in), out, sizeof(out));
+	err = mlx5_cmd_exec_in(dev->mdev, page_fault_resume, in);
 	if (err)
 		mlx5_ib_err(dev, "Failed to resolve the page fault on WQ 0x%x err %d\n",
 			    wq_num, err);
@@ -1135,8 +1135,7 @@ static int mlx5_ib_mr_initiator_pfault_handler(
 	if (qp->ibqp.qp_type == IB_QPT_XRC_INI)
 		*wqe += sizeof(struct mlx5_wqe_xrc_seg);
 
-	if (qp->ibqp.qp_type == IB_QPT_UD ||
-	    qp->qp_sub_type == MLX5_IB_QPT_DCI) {
+	if (qp->type == IB_QPT_UD || qp->type == MLX5_IB_QPT_DCI) {
 		av = *wqe;
 		if (av->dqp_dct & cpu_to_be32(MLX5_EXTENDED_UD_AV))
 			*wqe += sizeof(struct mlx5_av);
@@ -1189,7 +1188,7 @@ static int mlx5_ib_mr_responder_pfault_handler_rq(struct mlx5_ib_dev *dev,
 	struct mlx5_ib_wq *wq = &qp->rq;
 	int wqe_size = 1 << wq->wqe_shift;
 
-	if (qp->wq_sig) {
+	if (qp->flags_en & MLX5_QP_FLAG_SIGNATURE) {
 		mlx5_ib_err(dev, "ODP fault with WQE signatures is not supported\n");
 		return -EFAULT;
 	}
@@ -1219,7 +1218,7 @@ static inline struct mlx5_core_rsc_common *odp_get_rsc(struct mlx5_ib_dev *dev,
 	case MLX5_WQE_PF_TYPE_REQ_SEND_OR_WRITE:
 	case MLX5_WQE_PF_TYPE_RESP:
 	case MLX5_WQE_PF_TYPE_REQ_READ_OR_ATOMIC:
-		common = mlx5_core_res_hold(dev->mdev, wq_num, MLX5_RES_QP);
+		common = mlx5_core_res_hold(dev, wq_num, MLX5_RES_QP);
 		break;
 	default:
 		break;

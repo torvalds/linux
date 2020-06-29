@@ -7,7 +7,7 @@ config NET_VENDOR_ADAPTEC
 	bool "Adaptec devices"
 	default y
 	depends on PCI
-	---help---
+	help
 	  If you have a network (Ethernet) card belonging to this class, say Y.
 
 	  Note that the answer to this question doesn't directly affect the
@@ -22,7 +22,7 @@ config ADAPTEC_STARFIRE
 	depends on PCI
 	select CRC32
 	select MII
-	---help---
+	help
 	  Say Y here if you have an Adaptec Starfire (or DuraLAN) PCI network
 	  adapter. The DuraLAN chip is used on the 64 bit PCI boards from
 	  Adaptec e.g. the ANA-6922A. The older 32 bit boards use the tulip

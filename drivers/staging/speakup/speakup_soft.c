@@ -38,6 +38,7 @@ static struct var_t vars[] = {
 	{ PAUSE, .u.n = {"\x01P" } },
 	{ RATE, .u.n = {"\x01%ds", 2, 0, 9, 0, 0, NULL } },
 	{ PITCH, .u.n = {"\x01%dp", 5, 0, 9, 0, 0, NULL } },
+	{ INFLECTION, .u.n = {"\x01%dr", 5, 0, 9, 0, 0, NULL } },
 	{ VOL, .u.n = {"\x01%dv", 5, 0, 9, 0, 0, NULL } },
 	{ TONE, .u.n = {"\x01%dx", 1, 0, 2, 0, 0, NULL } },
 	{ PUNCT, .u.n = {"\x01%db", 0, 0, 2, 0, 0, NULL } },
@@ -57,6 +58,8 @@ static struct kobj_attribute freq_attribute =
 	__ATTR(freq, 0644, spk_var_show, spk_var_store);
 static struct kobj_attribute pitch_attribute =
 	__ATTR(pitch, 0644, spk_var_show, spk_var_store);
+static struct kobj_attribute inflection_attribute =
+	__ATTR(inflection, 0644, spk_var_show, spk_var_store);
 static struct kobj_attribute punct_attribute =
 	__ATTR(punct, 0644, spk_var_show, spk_var_store);
 static struct kobj_attribute rate_attribute =
@@ -96,6 +99,7 @@ static struct attribute *synth_attrs[] = {
 	&freq_attribute.attr,
 /*	&lang_attribute.attr, */
 	&pitch_attribute.attr,
+	&inflection_attribute.attr,
 	&punct_attribute.attr,
 	&rate_attribute.attr,
 	&tone_attribute.attr,

@@ -25,7 +25,6 @@
 #include <asm/dma.h>
 #include <asm/irq.h>
 #include <asm/mmu_context.h>
-#include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 
 #include "proto.h"

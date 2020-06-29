@@ -68,9 +68,8 @@ only one in the list (that is, the list was empty before) or the value of its
 governor currently in use, or the name of the new governor was passed to the
 kernel as the value of the ``cpuidle.governor=`` command line parameter, the new
 governor will be used from that point on (there can be only one ``CPUIdle``
-governor in use at a time).  Also, if ``cpuidle_sysfs_switch`` is passed to the
-kernel in the command line, user space can choose the ``CPUIdle`` governor to
-use at run time via ``sysfs``.
+governor in use at a time).  Also, user space can choose the ``CPUIdle``
+governor to use at run time via ``sysfs``.
 
 Once registered, ``CPUIdle`` governors cannot be unregistered, so it is not
 practical to put them into loadable kernel modules.

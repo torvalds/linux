@@ -648,6 +648,21 @@ struct vfsmount *lookup_mnt(const struct path *path)
 	return m;
 }
 
+static inline void lock_ns_list(struct mnt_namespace *ns)
+{
+	spin_lock(&ns->ns_lock);
+}
+
+static inline void unlock_ns_list(struct mnt_namespace *ns)
+{
+	spin_unlock(&ns->ns_lock);
+}
+
+static inline bool mnt_is_cursor(struct mount *mnt)
+{
+	return mnt->mnt.mnt_flags & MNT_CURSOR;
+}
+
 /*
  * __is_local_mountpoint - Test to see if dentry is a mountpoint in the
  *                         current mount namespace.
@@ -669,17 +684,18 @@ bool __is_local_mountpoint(struct dentry *dentry)
 	struct mount *mnt;
 	bool is_covered = false;
 
-	if (!d_mountpoint(dentry))
-		goto out;
-
 	down_read(&namespace_sem);
+	lock_ns_list(ns);
 	list_for_each_entry(mnt, &ns->list, mnt_list) {
+		if (mnt_is_cursor(mnt))
+			continue;
 		is_covered = (mnt->mnt_mountpoint == dentry);
 		if (is_covered)
 			break;
 	}
+	unlock_ns_list(ns);
 	up_read(&namespace_sem);
-out:
+
 	return is_covered;
 }
 
@@ -1245,46 +1261,71 @@ struct vfsmount *mnt_clone_internal(const struct path *path)
 }
 
 #ifdef CONFIG_PROC_FS
+static struct mount *mnt_list_next(struct mnt_namespace *ns,
+				   struct list_head *p)
+{
+	struct mount *mnt, *ret = NULL;
+
+	lock_ns_list(ns);
+	list_for_each_continue(p, &ns->list) {
+		mnt = list_entry(p, typeof(*mnt), mnt_list);
+		if (!mnt_is_cursor(mnt)) {
+			ret = mnt;
+			break;
+		}
+	}
+	unlock_ns_list(ns);
+
+	return ret;
+}
+
 /* iterator; we want it to have access to namespace_sem, thus here... */
 static void *m_start(struct seq_file *m, loff_t *pos)
 {
 	struct proc_mounts *p = m->private;
+	struct list_head *prev;
 
 	down_read(&namespace_sem);
-	if (p->cached_event == p->ns->event) {
-		void *v = p->cached_mount;
-		if (*pos == p->cached_index)
-			return v;
-		if (*pos == p->cached_index + 1) {
-			v = seq_list_next(v, &p->ns->list, &p->cached_index);
-			return p->cached_mount = v;
-		}
+	if (!*pos) {
+		prev = &p->ns->list;
+	} else {
+		prev = &p->cursor.mnt_list;
+
+		/* Read after we'd reached the end? */
+		if (list_empty(prev))
+			return NULL;
 	}
 
-	p->cached_event = p->ns->event;
-	p->cached_mount = seq_list_start(&p->ns->list, *pos);
-	p->cached_index = *pos;
-	return p->cached_mount;
+	return mnt_list_next(p->ns, prev);
 }
 
 static void *m_next(struct seq_file *m, void *v, loff_t *pos)
 {
 	struct proc_mounts *p = m->private;
+	struct mount *mnt = v;
 
-	p->cached_mount = seq_list_next(v, &p->ns->list, pos);
-	p->cached_index = *pos;
-	return p->cached_mount;
+	++*pos;
+	return mnt_list_next(p->ns, &mnt->mnt_list);
 }
 
 static void m_stop(struct seq_file *m, void *v)
 {
+	struct proc_mounts *p = m->private;
+	struct mount *mnt = v;
+
+	lock_ns_list(p->ns);
+	if (mnt)
+		list_move_tail(&p->cursor.mnt_list, &mnt->mnt_list);
+	else
+		list_del_init(&p->cursor.mnt_list);
+	unlock_ns_list(p->ns);
 	up_read(&namespace_sem);
 }
 
 static int m_show(struct seq_file *m, void *v)
 {
 	struct proc_mounts *p = m->private;
-	struct mount *r = list_entry(v, struct mount, mnt_list);
+	struct mount *r = v;
 	return p->show(m, &r->mnt);
 }
 
@@ -1294,6 +1335,15 @@ const struct seq_operations mounts_op = {
 	.stop	= m_stop,
 	.show	= m_show,
 };
+
+void mnt_cursor_del(struct mnt_namespace *ns, struct mount *cursor)
+{
+	down_read(&namespace_sem);
+	lock_ns_list(ns);
+	list_del(&cursor->mnt_list);
+	unlock_ns_list(ns);
+	up_read(&namespace_sem);
+}
 #endif  /* CONFIG_PROC_FS */
 
 /**
@@ -1733,6 +1783,11 @@ static struct mnt_namespace *to_mnt_ns(struct ns_common *ns)
 	return container_of(ns, struct mnt_namespace, ns);
 }
 
+struct ns_common *from_mnt_ns(struct mnt_namespace *mnt)
+{
+	return &mnt->ns;
+}
+
 static bool mnt_ns_loop(struct dentry *dentry)
 {
 	/* Could bind mounting the mount namespace inode cause a
@@ -1878,6 +1933,9 @@ struct vfsmount *clone_private_mount(const struct path *path)
 	new_mnt = clone_mnt(old_mnt, path->dentry, CL_PRIVATE);
 	if (IS_ERR(new_mnt))
 		return ERR_CAST(new_mnt);
+
+	/* Longterm mount to be removed by kern_unmount*() */
+	new_mnt->mnt_ns = MNT_NS_INTERNAL;
 
 	return &new_mnt->mnt;
 }
@@ -3202,6 +3260,7 @@ static struct mnt_namespace *alloc_mnt_ns(struct user_namespace *user_ns, bool a
 	atomic_set(&new_ns->count, 1);
 	INIT_LIST_HEAD(&new_ns->list);
 	init_waitqueue_head(&new_ns->poll);
+	spin_lock_init(&new_ns->ns_lock);
 	new_ns->user_ns = get_user_ns(user_ns);
 	new_ns->ucounts = ucounts;
 	return new_ns;
@@ -3595,7 +3654,7 @@ EXPORT_SYMBOL(path_is_under);
  * file system may be mounted on put_old. After all, new_root is a mountpoint.
  *
  * Also, the current root cannot be on the 'rootfs' (initial ramfs) filesystem.
- * See Documentation/filesystems/ramfs-rootfs-initramfs.txt for alternatives
+ * See Documentation/filesystems/ramfs-rootfs-initramfs.rst for alternatives
  * in this situation.
  *
  * Notes:
@@ -3804,6 +3863,19 @@ void kern_unmount(struct vfsmount *mnt)
 }
 EXPORT_SYMBOL(kern_unmount);
 
+void kern_unmount_array(struct vfsmount *mnt[], unsigned int num)
+{
+	unsigned int i;
+
+	for (i = 0; i < num; i++)
+		if (mnt[i])
+			real_mount(mnt[i])->mnt_ns = NULL;
+	synchronize_rcu_expedited();
+	for (i = 0; i < num; i++)
+		mntput(mnt[i]);
+}
+EXPORT_SYMBOL(kern_unmount_array);
+
 bool our_mnt(struct vfsmount *mnt)
 {
 	return check_mnt(real_mount(mnt));
@@ -3842,9 +3914,13 @@ static bool mnt_already_visible(struct mnt_namespace *ns,
 	bool visible = false;
 
 	down_read(&namespace_sem);
+	lock_ns_list(ns);
 	list_for_each_entry(mnt, &ns->list, mnt_list) {
 		struct mount *child;
 		int mnt_flags;
+
+		if (mnt_is_cursor(mnt))
+			continue;
 
 		if (mnt->mnt.mnt_sb->s_type != sb->s_type)
 			continue;
@@ -3893,6 +3969,7 @@ static bool mnt_already_visible(struct mnt_namespace *ns,
 	next:	;
 	}
 found:
+	unlock_ns_list(ns);
 	up_read(&namespace_sem);
 	return visible;
 }
@@ -3954,16 +4031,18 @@ static void mntns_put(struct ns_common *ns)
 	put_mnt_ns(to_mnt_ns(ns));
 }
 
-static int mntns_install(struct nsproxy *nsproxy, struct ns_common *ns)
+static int mntns_install(struct nsset *nsset, struct ns_common *ns)
 {
-	struct fs_struct *fs = current->fs;
+	struct nsproxy *nsproxy = nsset->nsproxy;
+	struct fs_struct *fs = nsset->fs;
 	struct mnt_namespace *mnt_ns = to_mnt_ns(ns), *old_mnt_ns;
+	struct user_namespace *user_ns = nsset->cred->user_ns;
 	struct path root;
 	int err;
 
 	if (!ns_capable(mnt_ns->user_ns, CAP_SYS_ADMIN) ||
-	    !ns_capable(current_user_ns(), CAP_SYS_CHROOT) ||
-	    !ns_capable(current_user_ns(), CAP_SYS_ADMIN))
+	    !ns_capable(user_ns, CAP_SYS_CHROOT) ||
+	    !ns_capable(user_ns, CAP_SYS_ADMIN))
 		return -EPERM;
 
 	if (is_anon_ns(mnt_ns))

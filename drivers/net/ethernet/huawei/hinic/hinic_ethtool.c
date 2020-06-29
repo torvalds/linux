@@ -33,6 +33,99 @@
 #include "hinic_rx.h"
 #include "hinic_dev.h"
 
+#define SET_LINK_STR_MAX_LEN	128
+
+#define GET_SUPPORTED_MODE	0
+#define GET_ADVERTISED_MODE	1
+
+#define ETHTOOL_ADD_SUPPORTED_SPEED_LINK_MODE(ecmd, mode)	\
+		((ecmd)->supported |=	\
+		(1UL << hw_to_ethtool_link_mode_table[mode].link_mode_bit))
+#define ETHTOOL_ADD_ADVERTISED_SPEED_LINK_MODE(ecmd, mode)	\
+		((ecmd)->advertising |=	\
+		(1UL << hw_to_ethtool_link_mode_table[mode].link_mode_bit))
+#define ETHTOOL_ADD_SUPPORTED_LINK_MODE(ecmd, mode)	\
+				((ecmd)->supported |= SUPPORTED_##mode)
+#define ETHTOOL_ADD_ADVERTISED_LINK_MODE(ecmd, mode)	\
+				((ecmd)->advertising |= ADVERTISED_##mode)
+
+struct hw2ethtool_link_mode {
+	enum ethtool_link_mode_bit_indices link_mode_bit;
+	u32 speed;
+	enum hinic_link_mode hw_link_mode;
+};
+
+struct cmd_link_settings {
+	u64	supported;
+	u64	advertising;
+
+	u32	speed;
+	u8	duplex;
+	u8	port;
+	u8	autoneg;
+};
+
+static u32 hw_to_ethtool_speed[LINK_SPEED_LEVELS] = {
+	SPEED_10, SPEED_100,
+	SPEED_1000, SPEED_10000,
+	SPEED_25000, SPEED_40000,
+	SPEED_100000
+};
+
+static struct hw2ethtool_link_mode
+	hw_to_ethtool_link_mode_table[HINIC_LINK_MODE_NUMBERS] = {
+	{
+		.link_mode_bit = ETHTOOL_LINK_MODE_10000baseKR_Full_BIT,
+		.speed = SPEED_10000,
+		.hw_link_mode = HINIC_10GE_BASE_KR,
+	},
+	{
+		.link_mode_bit = ETHTOOL_LINK_MODE_40000baseKR4_Full_BIT,
+		.speed = SPEED_40000,
+		.hw_link_mode = HINIC_40GE_BASE_KR4,
+	},
+	{
+		.link_mode_bit = ETHTOOL_LINK_MODE_40000baseCR4_Full_BIT,
+		.speed = SPEED_40000,
+		.hw_link_mode = HINIC_40GE_BASE_CR4,
+	},
+	{
+		.link_mode_bit = ETHTOOL_LINK_MODE_100000baseKR4_Full_BIT,
+		.speed = SPEED_100000,
+		.hw_link_mode = HINIC_100GE_BASE_KR4,
+	},
+	{
+		.link_mode_bit = ETHTOOL_LINK_MODE_100000baseCR4_Full_BIT,
+		.speed = SPEED_100000,
+		.hw_link_mode = HINIC_100GE_BASE_CR4,
+	},
+	{
+		.link_mode_bit = ETHTOOL_LINK_MODE_25000baseKR_Full_BIT,
+		.speed = SPEED_25000,
+		.hw_link_mode = HINIC_25GE_BASE_KR_S,
+	},
+	{
+		.link_mode_bit = ETHTOOL_LINK_MODE_25000baseCR_Full_BIT,
+		.speed = SPEED_25000,
+		.hw_link_mode = HINIC_25GE_BASE_CR_S,
+	},
+	{
+		.link_mode_bit = ETHTOOL_LINK_MODE_25000baseKR_Full_BIT,
+		.speed = SPEED_25000,
+		.hw_link_mode = HINIC_25GE_BASE_KR,
+	},
+	{
+		.link_mode_bit = ETHTOOL_LINK_MODE_25000baseCR_Full_BIT,
+		.speed = SPEED_25000,
+		.hw_link_mode = HINIC_25GE_BASE_CR,
+	},
+	{
+		.link_mode_bit = ETHTOOL_LINK_MODE_1000baseKX_Full_BIT,
+		.speed = SPEED_1000,
+		.hw_link_mode = HINIC_GE_BASE_KX,
+	},
+};
+
 static void set_link_speed(struct ethtool_link_ksettings *link_ksettings,
 			   enum hinic_speed speed)
 {
@@ -71,18 +164,91 @@ static void set_link_speed(struct ethtool_link_ksettings *link_ksettings,
 	}
 }
 
+static int hinic_get_link_mode_index(enum hinic_link_mode link_mode)
+{
+	int i = 0;
+
+	for (i = 0; i < HINIC_LINK_MODE_NUMBERS; i++) {
+		if (link_mode == hw_to_ethtool_link_mode_table[i].hw_link_mode)
+			break;
+	}
+
+	return i;
+}
+
+static void hinic_add_ethtool_link_mode(struct cmd_link_settings *link_settings,
+					enum hinic_link_mode hw_link_mode,
+					u32 name)
+{
+	enum hinic_link_mode link_mode;
+	int idx = 0;
+
+	for (link_mode = 0; link_mode < HINIC_LINK_MODE_NUMBERS; link_mode++) {
+		if (hw_link_mode & ((u32)1 << link_mode)) {
+			idx = hinic_get_link_mode_index(link_mode);
+			if (idx >= HINIC_LINK_MODE_NUMBERS)
+				continue;
+
+			if (name == GET_SUPPORTED_MODE)
+				ETHTOOL_ADD_SUPPORTED_SPEED_LINK_MODE
+					(link_settings, idx);
+			else
+				ETHTOOL_ADD_ADVERTISED_SPEED_LINK_MODE
+					(link_settings, idx);
+		}
+	}
+}
+
+static void hinic_link_port_type(struct cmd_link_settings *link_settings,
+				 enum hinic_port_type port_type)
+{
+	switch (port_type) {
+	case HINIC_PORT_ELEC:
+	case HINIC_PORT_TP:
+		ETHTOOL_ADD_SUPPORTED_LINK_MODE(link_settings, TP);
+		ETHTOOL_ADD_ADVERTISED_LINK_MODE(link_settings, TP);
+		link_settings->port = PORT_TP;
+		break;
+
+	case HINIC_PORT_AOC:
+	case HINIC_PORT_FIBRE:
+		ETHTOOL_ADD_SUPPORTED_LINK_MODE(link_settings, FIBRE);
+		ETHTOOL_ADD_ADVERTISED_LINK_MODE(link_settings, FIBRE);
+		link_settings->port = PORT_FIBRE;
+		break;
+
+	case HINIC_PORT_COPPER:
+		ETHTOOL_ADD_SUPPORTED_LINK_MODE(link_settings, FIBRE);
+		ETHTOOL_ADD_ADVERTISED_LINK_MODE(link_settings, FIBRE);
+		link_settings->port = PORT_DA;
+		break;
+
+	case HINIC_PORT_BACKPLANE:
+		ETHTOOL_ADD_SUPPORTED_LINK_MODE(link_settings, Backplane);
+		ETHTOOL_ADD_ADVERTISED_LINK_MODE(link_settings, Backplane);
+		link_settings->port = PORT_NONE;
+		break;
+
+	default:
+		link_settings->port = PORT_OTHER;
+		break;
+	}
+}
+
 static int hinic_get_link_ksettings(struct net_device *netdev,
 				    struct ethtool_link_ksettings
 				    *link_ksettings)
 {
 	struct hinic_dev *nic_dev = netdev_priv(netdev);
+	struct hinic_link_mode_cmd link_mode = { 0 };
+	struct hinic_pause_config pause_info = { 0 };
+	struct cmd_link_settings settings = { 0 };
 	enum hinic_port_link_state link_state;
 	struct hinic_port_cap port_cap;
 	int err;
 
+	ethtool_link_ksettings_zero_link_mode(link_ksettings, supported);
 	ethtool_link_ksettings_zero_link_mode(link_ksettings, advertising);
-	ethtool_link_ksettings_add_link_mode(link_ksettings, supported,
-					     Autoneg);
 
 	link_ksettings->base.speed = SPEED_UNKNOWN;
 	link_ksettings->base.autoneg = AUTONEG_DISABLE;
@@ -92,14 +258,19 @@ static int hinic_get_link_ksettings(struct net_device *netdev,
 	if (err)
 		return err;
 
+	hinic_link_port_type(&settings, port_cap.port_type);
+	link_ksettings->base.port = settings.port;
+
 	err = hinic_port_link_state(nic_dev, &link_state);
 	if (err)
 		return err;
 
-	if (link_state != HINIC_LINK_STATE_UP)
-		return err;
-
-	set_link_speed(link_ksettings, port_cap.speed);
+	if (link_state == HINIC_LINK_STATE_UP) {
+		set_link_speed(link_ksettings, port_cap.speed);
+		link_ksettings->base.duplex =
+			(port_cap.duplex == HINIC_DUPLEX_FULL) ?
+			DUPLEX_FULL : DUPLEX_HALF;
+	}
 
 	if (!!(port_cap.autoneg_cap & HINIC_AUTONEG_SUPPORTED))
 		ethtool_link_ksettings_add_link_mode(link_ksettings,
@@ -108,9 +279,241 @@ static int hinic_get_link_ksettings(struct net_device *netdev,
 	if (port_cap.autoneg_state == HINIC_AUTONEG_ACTIVE)
 		link_ksettings->base.autoneg = AUTONEG_ENABLE;
 
-	link_ksettings->base.duplex = (port_cap.duplex == HINIC_DUPLEX_FULL) ?
-					   DUPLEX_FULL : DUPLEX_HALF;
+	err = hinic_get_link_mode(nic_dev->hwdev, &link_mode);
+	if (err || link_mode.supported == HINIC_SUPPORTED_UNKNOWN ||
+	    link_mode.advertised == HINIC_SUPPORTED_UNKNOWN)
+		return -EIO;
+
+	hinic_add_ethtool_link_mode(&settings, link_mode.supported,
+				    GET_SUPPORTED_MODE);
+	hinic_add_ethtool_link_mode(&settings, link_mode.advertised,
+				    GET_ADVERTISED_MODE);
+
+	if (!HINIC_IS_VF(nic_dev->hwdev->hwif)) {
+		err = hinic_get_hw_pause_info(nic_dev->hwdev, &pause_info);
+		if (err)
+			return err;
+		ETHTOOL_ADD_SUPPORTED_LINK_MODE(&settings, Pause);
+		if (pause_info.rx_pause && pause_info.tx_pause) {
+			ETHTOOL_ADD_ADVERTISED_LINK_MODE(&settings, Pause);
+		} else if (pause_info.tx_pause) {
+			ETHTOOL_ADD_ADVERTISED_LINK_MODE(&settings, Asym_Pause);
+		} else if (pause_info.rx_pause) {
+			ETHTOOL_ADD_ADVERTISED_LINK_MODE(&settings, Pause);
+			ETHTOOL_ADD_ADVERTISED_LINK_MODE(&settings, Asym_Pause);
+		}
+	}
+
+	bitmap_copy(link_ksettings->link_modes.supported,
+		    (unsigned long *)&settings.supported,
+		    __ETHTOOL_LINK_MODE_MASK_NBITS);
+	bitmap_copy(link_ksettings->link_modes.advertising,
+		    (unsigned long *)&settings.advertising,
+		    __ETHTOOL_LINK_MODE_MASK_NBITS);
+
 	return 0;
+}
+
+static int hinic_ethtool_to_hw_speed_level(u32 speed)
+{
+	int i;
+
+	for (i = 0; i < LINK_SPEED_LEVELS; i++) {
+		if (hw_to_ethtool_speed[i] == speed)
+			break;
+	}
+
+	return i;
+}
+
+static bool hinic_is_support_speed(enum hinic_link_mode supported_link,
+				   u32 speed)
+{
+	enum hinic_link_mode link_mode;
+	int idx;
+
+	for (link_mode = 0; link_mode < HINIC_LINK_MODE_NUMBERS; link_mode++) {
+		if (!(supported_link & ((u32)1 << link_mode)))
+			continue;
+
+		idx = hinic_get_link_mode_index(link_mode);
+		if (idx >= HINIC_LINK_MODE_NUMBERS)
+			continue;
+
+		if (hw_to_ethtool_link_mode_table[idx].speed == speed)
+			return true;
+	}
+
+	return false;
+}
+
+static bool hinic_is_speed_legal(struct hinic_dev *nic_dev, u32 speed)
+{
+	struct hinic_link_mode_cmd link_mode = { 0 };
+	struct net_device *netdev = nic_dev->netdev;
+	enum nic_speed_level speed_level = 0;
+	int err;
+
+	err = hinic_get_link_mode(nic_dev->hwdev, &link_mode);
+	if (err)
+		return false;
+
+	if (link_mode.supported == HINIC_SUPPORTED_UNKNOWN ||
+	    link_mode.advertised == HINIC_SUPPORTED_UNKNOWN)
+		return false;
+
+	speed_level = hinic_ethtool_to_hw_speed_level(speed);
+	if (speed_level >= LINK_SPEED_LEVELS ||
+	    !hinic_is_support_speed(link_mode.supported, speed)) {
+		netif_err(nic_dev, drv, netdev,
+			  "Unsupported speed: %d\n", speed);
+		return false;
+	}
+
+	return true;
+}
+
+static int get_link_settings_type(struct hinic_dev *nic_dev,
+				  u8 autoneg, u32 speed, u32 *set_settings)
+{
+	struct hinic_port_cap port_cap = { 0 };
+	int err;
+
+	err = hinic_port_get_cap(nic_dev, &port_cap);
+	if (err)
+		return err;
+
+	/* always set autonegotiation */
+	if (port_cap.autoneg_cap)
+		*set_settings |= HILINK_LINK_SET_AUTONEG;
+
+	if (autoneg == AUTONEG_ENABLE) {
+		if (!port_cap.autoneg_cap) {
+			netif_err(nic_dev, drv, nic_dev->netdev, "Not support autoneg\n");
+			return -EOPNOTSUPP;
+		}
+	} else if (speed != (u32)SPEED_UNKNOWN) {
+		/* set speed only when autoneg is disabled */
+		if (!hinic_is_speed_legal(nic_dev, speed))
+			return -EINVAL;
+		*set_settings |= HILINK_LINK_SET_SPEED;
+	} else {
+		netif_err(nic_dev, drv, nic_dev->netdev, "Need to set speed when autoneg is off\n");
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+static int set_link_settings_separate_cmd(struct hinic_dev *nic_dev,
+					  u32 set_settings, u8 autoneg,
+					  u32 speed)
+{
+	enum nic_speed_level speed_level = 0;
+	int err = 0;
+
+	if (set_settings & HILINK_LINK_SET_AUTONEG) {
+		err = hinic_set_autoneg(nic_dev->hwdev,
+					(autoneg == AUTONEG_ENABLE));
+		if (err)
+			netif_err(nic_dev, drv, nic_dev->netdev, "%s autoneg failed\n",
+				  (autoneg == AUTONEG_ENABLE) ?
+				  "Enable" : "Disable");
+		else
+			netif_info(nic_dev, drv, nic_dev->netdev, "%s autoneg successfully\n",
+				   (autoneg == AUTONEG_ENABLE) ?
+				   "Enable" : "Disable");
+	}
+
+	if (!err && (set_settings & HILINK_LINK_SET_SPEED)) {
+		speed_level = hinic_ethtool_to_hw_speed_level(speed);
+		err = hinic_set_speed(nic_dev->hwdev, speed_level);
+		if (err)
+			netif_err(nic_dev, drv, nic_dev->netdev, "Set speed %d failed\n",
+				  speed);
+		else
+			netif_info(nic_dev, drv, nic_dev->netdev, "Set speed %d successfully\n",
+				   speed);
+	}
+
+	return err;
+}
+
+static int hinic_set_settings_to_hw(struct hinic_dev *nic_dev,
+				    u32 set_settings, u8 autoneg, u32 speed)
+{
+	struct hinic_link_ksettings_info settings = {0};
+	char set_link_str[SET_LINK_STR_MAX_LEN] = {0};
+	struct net_device *netdev = nic_dev->netdev;
+	enum nic_speed_level speed_level = 0;
+	int err;
+
+	err = snprintf(set_link_str, SET_LINK_STR_MAX_LEN, "%s",
+		       (set_settings & HILINK_LINK_SET_AUTONEG) ?
+		       (autoneg ? "autong enable " : "autong disable ") : "");
+	if (err < 0 || err >= SET_LINK_STR_MAX_LEN) {
+		netif_err(nic_dev, drv, netdev, "Failed to snprintf link state, function return(%d) and dest_len(%d)\n",
+			  err, SET_LINK_STR_MAX_LEN);
+		return -EFAULT;
+	}
+
+	if (set_settings & HILINK_LINK_SET_SPEED) {
+		speed_level = hinic_ethtool_to_hw_speed_level(speed);
+		err = snprintf(set_link_str, SET_LINK_STR_MAX_LEN,
+			       "%sspeed %d ", set_link_str, speed);
+		if (err <= 0 || err >= SET_LINK_STR_MAX_LEN) {
+			netif_err(nic_dev, drv, netdev, "Failed to snprintf link speed, function return(%d) and dest_len(%d)\n",
+				  err, SET_LINK_STR_MAX_LEN);
+			return -EFAULT;
+		}
+	}
+
+	settings.func_id = HINIC_HWIF_FUNC_IDX(nic_dev->hwdev->hwif);
+	settings.valid_bitmap = set_settings;
+	settings.autoneg = autoneg;
+	settings.speed = speed_level;
+
+	err = hinic_set_link_settings(nic_dev->hwdev, &settings);
+	if (err != HINIC_MGMT_CMD_UNSUPPORTED) {
+		if (err)
+			netif_err(nic_dev, drv, netdev, "Set %s failed\n",
+				  set_link_str);
+		else
+			netif_info(nic_dev, drv, netdev, "Set %s successfully\n",
+				   set_link_str);
+
+		return err;
+	}
+
+	return set_link_settings_separate_cmd(nic_dev, set_settings, autoneg,
+					      speed);
+}
+
+static int set_link_settings(struct net_device *netdev, u8 autoneg, u32 speed)
+{
+	struct hinic_dev *nic_dev = netdev_priv(netdev);
+	u32 set_settings = 0;
+	int err;
+
+	err = get_link_settings_type(nic_dev, autoneg, speed, &set_settings);
+	if (err)
+		return err;
+
+	if (set_settings)
+		err = hinic_set_settings_to_hw(nic_dev, set_settings,
+					       autoneg, speed);
+	else
+		netif_info(nic_dev, drv, netdev, "Nothing changed, exit without setting anything\n");
+
+	return err;
+}
+
+static int hinic_set_link_ksettings(struct net_device *netdev, const struct
+				    ethtool_link_ksettings *link_settings)
+{
+	/* only support to set autoneg and speed */
+	return set_link_settings(netdev, link_settings->base.autoneg,
+				 link_settings->base.speed);
 }
 
 static void hinic_get_drvinfo(struct net_device *netdev,
@@ -135,26 +538,118 @@ static void hinic_get_drvinfo(struct net_device *netdev,
 static void hinic_get_ringparam(struct net_device *netdev,
 				struct ethtool_ringparam *ring)
 {
-	ring->rx_max_pending = HINIC_RQ_DEPTH;
-	ring->tx_max_pending = HINIC_SQ_DEPTH;
-	ring->rx_pending = HINIC_RQ_DEPTH;
-	ring->tx_pending = HINIC_SQ_DEPTH;
+	struct hinic_dev *nic_dev = netdev_priv(netdev);
+
+	ring->rx_max_pending = HINIC_MAX_QUEUE_DEPTH;
+	ring->tx_max_pending = HINIC_MAX_QUEUE_DEPTH;
+	ring->rx_pending = nic_dev->rq_depth;
+	ring->tx_pending = nic_dev->sq_depth;
 }
 
+static int check_ringparam_valid(struct hinic_dev *nic_dev,
+				 struct ethtool_ringparam *ring)
+{
+	if (ring->rx_jumbo_pending || ring->rx_mini_pending) {
+		netif_err(nic_dev, drv, nic_dev->netdev,
+			  "Unsupported rx_jumbo_pending/rx_mini_pending\n");
+		return -EINVAL;
+	}
+
+	if (ring->tx_pending > HINIC_MAX_QUEUE_DEPTH ||
+	    ring->tx_pending < HINIC_MIN_QUEUE_DEPTH ||
+	    ring->rx_pending > HINIC_MAX_QUEUE_DEPTH ||
+	    ring->rx_pending < HINIC_MIN_QUEUE_DEPTH) {
+		netif_err(nic_dev, drv, nic_dev->netdev,
+			  "Queue depth out of range [%d-%d]\n",
+			  HINIC_MIN_QUEUE_DEPTH, HINIC_MAX_QUEUE_DEPTH);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int hinic_set_ringparam(struct net_device *netdev,
+			       struct ethtool_ringparam *ring)
+{
+	struct hinic_dev *nic_dev = netdev_priv(netdev);
+	u16 new_sq_depth, new_rq_depth;
+	int err;
+
+	err = check_ringparam_valid(nic_dev, ring);
+	if (err)
+		return err;
+
+	new_sq_depth = (u16)(1U << (u16)ilog2(ring->tx_pending));
+	new_rq_depth = (u16)(1U << (u16)ilog2(ring->rx_pending));
+
+	if (new_sq_depth == nic_dev->sq_depth &&
+	    new_rq_depth == nic_dev->rq_depth)
+		return 0;
+
+	netif_info(nic_dev, drv, netdev,
+		   "Change Tx/Rx ring depth from %d/%d to %d/%d\n",
+		   nic_dev->sq_depth, nic_dev->rq_depth,
+		   new_sq_depth, new_rq_depth);
+
+	nic_dev->sq_depth = new_sq_depth;
+	nic_dev->rq_depth = new_rq_depth;
+
+	if (netif_running(netdev)) {
+		netif_info(nic_dev, drv, netdev, "Restarting netdev\n");
+		err = hinic_close(netdev);
+		if (err) {
+			netif_err(nic_dev, drv, netdev,
+				  "Failed to close netdev\n");
+			return -EFAULT;
+		}
+
+		err = hinic_open(netdev);
+		if (err) {
+			netif_err(nic_dev, drv, netdev,
+				  "Failed to open netdev\n");
+			return -EFAULT;
+		}
+	}
+
+	return 0;
+}
 static void hinic_get_channels(struct net_device *netdev,
 			       struct ethtool_channels *channels)
 {
 	struct hinic_dev *nic_dev = netdev_priv(netdev);
 	struct hinic_hwdev *hwdev = nic_dev->hwdev;
 
-	channels->max_rx = hwdev->nic_cap.max_qps;
-	channels->max_tx = hwdev->nic_cap.max_qps;
-	channels->max_other = 0;
-	channels->max_combined = 0;
-	channels->rx_count = hinic_hwdev_num_qps(hwdev);
-	channels->tx_count = hinic_hwdev_num_qps(hwdev);
-	channels->other_count = 0;
-	channels->combined_count = 0;
+	channels->max_combined = nic_dev->max_qps;
+	channels->combined_count = hinic_hwdev_num_qps(hwdev);
+}
+
+static int hinic_set_channels(struct net_device *netdev,
+			      struct ethtool_channels *channels)
+{
+	struct hinic_dev *nic_dev = netdev_priv(netdev);
+	unsigned int count = channels->combined_count;
+	int err;
+
+	netif_info(nic_dev, drv, netdev, "Set max combined queue number from %d to %d\n",
+		   hinic_hwdev_num_qps(nic_dev->hwdev), count);
+
+	if (netif_running(netdev)) {
+		netif_info(nic_dev, drv, netdev, "Restarting netdev\n");
+		hinic_close(netdev);
+
+		nic_dev->hwdev->nic_cap.num_qps = count;
+
+		err = hinic_open(netdev);
+		if (err) {
+			netif_err(nic_dev, drv, netdev,
+				  "Failed to open netdev\n");
+			return -EFAULT;
+		}
+	} else {
+		nic_dev->hwdev->nic_cap.num_qps = count;
+	}
+
+	return 0;
 }
 
 static int hinic_get_rss_hash_opts(struct hinic_dev *nic_dev,
@@ -741,10 +1236,13 @@ static void hinic_get_strings(struct net_device *netdev,
 
 static const struct ethtool_ops hinic_ethtool_ops = {
 	.get_link_ksettings = hinic_get_link_ksettings,
+	.set_link_ksettings = hinic_set_link_ksettings,
 	.get_drvinfo = hinic_get_drvinfo,
 	.get_link = ethtool_op_get_link,
 	.get_ringparam = hinic_get_ringparam,
+	.set_ringparam = hinic_set_ringparam,
 	.get_channels = hinic_get_channels,
+	.set_channels = hinic_set_channels,
 	.get_rxnfc = hinic_get_rxnfc,
 	.set_rxnfc = hinic_set_rxnfc,
 	.get_rxfh_key_size = hinic_get_rxfh_key_size,

@@ -2599,21 +2599,44 @@ static void dml20v2_DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndP
 		}
 	}
 
+	{
+	float SecondMinActiveDRAMClockChangeMarginOneDisplayInVBLank = 999999;
+	int PlaneWithMinActiveDRAMClockChangeMargin = -1;
+
 	mode_lib->vba.MinActiveDRAMClockChangeMargin = 999999;
 	for (k = 0; k < mode_lib->vba.NumberOfActivePlanes; ++k) {
 		if (mode_lib->vba.ActiveDRAMClockChangeLatencyMargin[k]
 				< mode_lib->vba.MinActiveDRAMClockChangeMargin) {
 			mode_lib->vba.MinActiveDRAMClockChangeMargin =
 					mode_lib->vba.ActiveDRAMClockChangeLatencyMargin[k];
+			if (mode_lib->vba.BlendingAndTiming[k] == k) {
+				PlaneWithMinActiveDRAMClockChangeMargin = k;
+			} else {
+				for (j = 0; j < mode_lib->vba.NumberOfActivePlanes; ++j) {
+					if (mode_lib->vba.BlendingAndTiming[k] == j) {
+						PlaneWithMinActiveDRAMClockChangeMargin = j;
+					}
+				}
+			}
 		}
 	}
 
 	mode_lib->vba.MinActiveDRAMClockChangeLatencySupported =
 			mode_lib->vba.MinActiveDRAMClockChangeMargin
 					+ mode_lib->vba.DRAMClockChangeLatency;
+	for (k = 0; k < mode_lib->vba.NumberOfActivePlanes; ++k) {
+		if (!((k == PlaneWithMinActiveDRAMClockChangeMargin) && (mode_lib->vba.BlendingAndTiming[k] == k))
+				&& !(mode_lib->vba.BlendingAndTiming[k] == PlaneWithMinActiveDRAMClockChangeMargin)
+				&& mode_lib->vba.ActiveDRAMClockChangeLatencyMargin[k]
+						< SecondMinActiveDRAMClockChangeMarginOneDisplayInVBLank) {
+			SecondMinActiveDRAMClockChangeMarginOneDisplayInVBLank =
+					mode_lib->vba.ActiveDRAMClockChangeLatencyMargin[k];
+		}
+	}
 
 	if (mode_lib->vba.DRAMClockChangeSupportsVActive &&
 			mode_lib->vba.MinActiveDRAMClockChangeMargin > 60) {
+		mode_lib->vba.DRAMClockChangeWatermark += 25;
 
 		for (k = 0; k < mode_lib->vba.NumberOfActivePlanes; ++k) {
 			if (mode_lib->vba.PrefetchMode[mode_lib->vba.VoltageLevel][mode_lib->vba.maxMpcComb] == 0) {
@@ -2622,13 +2645,17 @@ static void dml20v2_DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndP
 					mode_lib->vba.MinTTUVBlank[k] += 25;
 			}
 		}
-		mode_lib->vba.DRAMClockChangeWatermark += 25;
+
 		mode_lib->vba.DRAMClockChangeSupport[0][0] = dm_dram_clock_change_vactive;
 	} else if (mode_lib->vba.DummyPStateCheck &&
 			mode_lib->vba.MinActiveDRAMClockChangeMargin > 0) {
 		mode_lib->vba.DRAMClockChangeSupport[0][0] = dm_dram_clock_change_vactive;
 	} else {
-		if (mode_lib->vba.SynchronizedVBlank || mode_lib->vba.NumberOfActivePlanes == 1) {
+		if ((mode_lib->vba.SynchronizedVBlank
+				|| mode_lib->vba.NumberOfActivePlanes == 1
+				|| (SecondMinActiveDRAMClockChangeMarginOneDisplayInVBLank > 0 &&
+						mode_lib->vba.AllowDramClockChangeOneDisplayVactive))
+					&& mode_lib->vba.PrefetchMode[mode_lib->vba.VoltageLevel][mode_lib->vba.maxMpcComb] == 0) {
 			mode_lib->vba.DRAMClockChangeSupport[0][0] = dm_dram_clock_change_vblank;
 			for (k = 0; k < mode_lib->vba.NumberOfActivePlanes; ++k) {
 				if (!mode_lib->vba.AllowDRAMClockChangeDuringVBlank[k]) {
@@ -2639,6 +2666,7 @@ static void dml20v2_DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndP
 		} else {
 			mode_lib->vba.DRAMClockChangeSupport[0][0] = dm_dram_clock_change_unsupported;
 		}
+	}
 	}
 	for (k = 0; k <= mode_lib->vba.soc.num_states; k++)
 		for (j = 0; j < 2; j++)

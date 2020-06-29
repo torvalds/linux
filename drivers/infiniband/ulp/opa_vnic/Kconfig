@@ -2,7 +2,7 @@
 config INFINIBAND_OPA_VNIC
 	tristate "Intel OPA VNIC support"
 	depends on X86_64 && INFINIBAND
-	---help---
+	help
 	This is Omni-Path (OPA) Virtual Network Interface Controller (VNIC)
 	driver for Ethernet over Omni-Path feature. It implements the HW
 	independent VNIC functionality. It interfaces with Linux stack for

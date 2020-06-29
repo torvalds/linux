@@ -158,7 +158,6 @@ static int pwm_lpss_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	return 0;
 }
 
-/* This function gets called once from pwmchip_add to get the initial state */
 static void pwm_lpss_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 			       struct pwm_state *state)
 {
@@ -166,6 +165,8 @@ static void pwm_lpss_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 	unsigned long base_unit_range;
 	unsigned long long base_unit, freq, on_time_div;
 	u32 ctrl;
+
+	pm_runtime_get_sync(chip->dev);
 
 	base_unit_range = BIT(lpwm->info->base_unit_bits);
 
@@ -187,8 +188,7 @@ static void pwm_lpss_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 	state->polarity = PWM_POLARITY_NORMAL;
 	state->enabled = !!(ctrl & PWM_ENABLE);
 
-	if (state->enabled)
-		pm_runtime_get(chip->dev);
+	pm_runtime_put(chip->dev);
 }
 
 static const struct pwm_ops pwm_lpss_ops = {
@@ -202,7 +202,8 @@ struct pwm_lpss_chip *pwm_lpss_probe(struct device *dev, struct resource *r,
 {
 	struct pwm_lpss_chip *lpwm;
 	unsigned long c;
-	int ret;
+	int i, ret;
+	u32 ctrl;
 
 	if (WARN_ON(info->npwm > MAX_PWMS))
 		return ERR_PTR(-ENODEV);
@@ -230,6 +231,12 @@ struct pwm_lpss_chip *pwm_lpss_probe(struct device *dev, struct resource *r,
 	if (ret) {
 		dev_err(dev, "failed to add PWM chip: %d\n", ret);
 		return ERR_PTR(ret);
+	}
+
+	for (i = 0; i < lpwm->info->npwm; i++) {
+		ctrl = pwm_lpss_read(&lpwm->chip.pwms[i]);
+		if (ctrl & PWM_ENABLE)
+			pm_runtime_get(dev);
 	}
 
 	return lpwm;

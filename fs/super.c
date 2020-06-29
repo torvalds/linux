@@ -361,7 +361,7 @@ EXPORT_SYMBOL(deactivate_locked_super);
  */
 void deactivate_super(struct super_block *s)
 {
-        if (!atomic_add_unless(&s->s_active, -1, 1)) {
+	if (!atomic_add_unless(&s->s_active, -1, 1)) {
 		down_write(&s->s_umount);
 		deactivate_locked_super(s);
 	}
@@ -1302,8 +1302,8 @@ int get_tree_bdev(struct fs_context *fc,
 	mutex_lock(&bdev->bd_fsfreeze_mutex);
 	if (bdev->bd_fsfreeze_count > 0) {
 		mutex_unlock(&bdev->bd_fsfreeze_mutex);
-		blkdev_put(bdev, mode);
 		warnf(fc, "%pg: Can't mount, blockdev is frozen", bdev);
+		blkdev_put(bdev, mode);
 		return -EBUSY;
 	}
 
@@ -1598,11 +1598,9 @@ int super_setup_bdi_name(struct super_block *sb, char *fmt, ...)
 	int err;
 	va_list args;
 
-	bdi = bdi_alloc(GFP_KERNEL);
+	bdi = bdi_alloc(NUMA_NO_NODE);
 	if (!bdi)
 		return -ENOMEM;
-
-	bdi->name = sb->s_type->name;
 
 	va_start(args, fmt);
 	err = bdi_register_va(bdi, fmt, args);

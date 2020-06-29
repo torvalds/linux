@@ -17,8 +17,8 @@
 #include <linux/preempt.h>
 #include <linux/extable.h>
 #include <linux/kdebug.h>
+#include <linux/pgtable.h>
 
-#include <asm/pgtable.h>
 #include <asm/sections.h>
 #include <asm/exception.h>
 

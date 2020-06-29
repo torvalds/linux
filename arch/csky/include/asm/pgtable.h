@@ -32,13 +32,6 @@
 #define pgd_ERROR(e) \
 	pr_err("%s:%d: bad pgd %08lx.\n", __FILE__, __LINE__, pgd_val(e))
 
-/* Find an entry in the third-level page table.. */
-#define __pte_offset_t(address) \
-	(((address) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
-#define pte_offset_kernel(dir, address) \
-	(pmd_page_vaddr(*(dir)) + __pte_offset_t(address))
-#define pte_offset_map(dir, address) \
-	((pte_t *)page_address(pmd_page(*(dir))) + __pte_offset_t(address))
 #define pmd_page(pmd)	(pfn_to_page(pmd_phys(pmd) >> PAGE_SHIFT))
 #define pte_clear(mm, addr, ptep)	set_pte((ptep), \
 	(((unsigned int) addr & PAGE_OFFSET) ? __pte(_PAGE_GLOBAL) : __pte(0)))
@@ -53,8 +46,6 @@
 
 #define _PAGE_CHG_MASK	(PAGE_MASK | _PAGE_ACCESSED | _PAGE_MODIFIED | \
 			 _CACHE_MASK)
-
-#define pte_unmap(pte)	((void)(pte))
 
 #define __swp_type(x)			(((x).val >> 4) & 0xff)
 #define __swp_offset(x)			((x).val >> 12)
@@ -229,15 +220,6 @@ static inline pte_t pte_mkyoung(pte_t pte)
 	return pte;
 }
 
-#define __pgd_offset(address)	pgd_index(address)
-#define __pud_offset(address)	(((address) >> PUD_SHIFT) & (PTRS_PER_PUD-1))
-#define __pmd_offset(address)	(((address) >> PMD_SHIFT) & (PTRS_PER_PMD-1))
-
-/* to find an entry in a kernel page-table-directory */
-#define pgd_offset_k(address)	pgd_offset(&init_mm, address)
-
-#define pgd_index(address)	((address) >> PGDIR_SHIFT)
-
 #define __HAVE_PHYS_MEM_ACCESS_PROT
 struct file;
 extern pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
@@ -281,19 +263,6 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 		     (pgprot_val(newprot)));
 }
 
-/* to find an entry in a page-table-directory */
-static inline pgd_t *pgd_offset(struct mm_struct *mm, unsigned long address)
-{
-	return mm->pgd + pgd_index(address);
-}
-
-/* Find an entry in the third-level page table.. */
-static inline pte_t *pte_offset(pmd_t *dir, unsigned long address)
-{
-	return (pte_t *) (pmd_page_vaddr(*dir)) +
-		((address >> PAGE_SHIFT) & (PTRS_PER_PTE - 1));
-}
-
 extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
 extern void paging_init(void);
 
@@ -305,7 +274,5 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
 
 #define io_remap_pfn_range(vma, vaddr, pfn, size, prot) \
 	remap_pfn_range(vma, vaddr, pfn, size, prot)
-
-#include <asm-generic/pgtable.h>
 
 #endif /* __ASM_CSKY_PGTABLE_H */

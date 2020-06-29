@@ -64,15 +64,6 @@ void iio_channel_release(struct iio_channel *chan);
 struct iio_channel *devm_iio_channel_get(struct device *dev,
 					 const char *consumer_channel);
 /**
- * devm_iio_channel_release() - Resource managed version of
- *				iio_channel_release().
- * @dev:		Pointer to consumer device for which resource
- *			is allocared.
- * @chan:		The channel to be released.
- */
-void devm_iio_channel_release(struct device *dev, struct iio_channel *chan);
-
-/**
  * iio_channel_get_all() - get all channels associated with a client
  * @dev:		Pointer to consumer device.
  *
@@ -105,15 +96,6 @@ void iio_channel_release_all(struct iio_channel *chan);
  * unbounded.
  */
 struct iio_channel *devm_iio_channel_get_all(struct device *dev);
-
-/**
- * devm_iio_channel_release_all() - Resource managed version of
- *				    iio_channel_release_all().
- * @dev:		Pointer to consumer device for which resource
- *			is allocared.
- * @chan:		Array channel to be released.
- */
-void devm_iio_channel_release_all(struct device *dev, struct iio_channel *chan);
 
 struct iio_cb_buffer;
 /**

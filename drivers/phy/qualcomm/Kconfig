@@ -18,6 +18,13 @@ config PHY_QCOM_APQ8064_SATA
 	depends on OF
 	select GENERIC_PHY
 
+config PHY_QCOM_IPQ4019_USB
+	tristate "Qualcomm IPQ4019 USB PHY driver"
+	depends on OF && (ARCH_QCOM || COMPILE_TEST)
+	select GENERIC_PHY
+	help
+	  Support for the USB PHY-s on Qualcomm IPQ40xx SoC-s.
+
 config PHY_QCOM_IPQ806X_SATA
 	tristate "Qualcomm IPQ806x SATA SerDes/PHY driver"
 	depends on ARCH_QCOM
@@ -84,6 +91,16 @@ config PHY_QCOM_USB_HS
 	help
 	  Support for the USB high-speed ULPI compliant phy on Qualcomm
 	  chipsets.
+
+config PHY_QCOM_USB_SNPS_FEMTO_V2
+	tristate "Qualcomm SNPS FEMTO USB HS PHY V2 module"
+	depends on OF && (ARCH_QCOM || COMPILE_TEST)
+	select GENERIC_PHY
+	help
+	  Enable support for the USB high-speed SNPS Femto phy on Qualcomm
+	  chipsets.  This PHY has differences in the register map compared
+	  to the V1 variants.  The PHY is paired with a Synopsys DWC3 USB
+	  controller on Qualcomm SOCs.
 
 config PHY_QCOM_USB_HSIC
 	tristate "Qualcomm USB HSIC ULPI PHY module"

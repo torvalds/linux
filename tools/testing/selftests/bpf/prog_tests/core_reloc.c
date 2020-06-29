@@ -392,7 +392,7 @@ static struct core_reloc_test_case test_cases[] = {
 		.input = STRUCT_TO_CHAR_PTR(core_reloc_existence___minimal) {
 			.a = 42,
 		},
-		.input_len = sizeof(struct core_reloc_existence),
+		.input_len = sizeof(struct core_reloc_existence___minimal),
 		.output = STRUCT_TO_CHAR_PTR(core_reloc_existence_output) {
 			.a_exists = 1,
 			.b_exists = 0,

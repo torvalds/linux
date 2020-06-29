@@ -183,6 +183,13 @@ static ssize_t soft_reset_store(struct device *dev,
 		goto out;
 	}
 
+	if (!hdev->supports_soft_reset) {
+		dev_err(hdev->dev, "Device does not support soft-reset\n");
+		goto out;
+	}
+
+	dev_warn(hdev->dev, "Soft-Reset requested through sysfs\n");
+
 	hl_device_reset(hdev, false, false);
 
 out:
@@ -204,6 +211,8 @@ static ssize_t hard_reset_store(struct device *dev,
 		goto out;
 	}
 
+	dev_warn(hdev->dev, "Hard-Reset requested through sysfs\n");
+
 	hl_device_reset(hdev, true, false);
 
 out:
@@ -219,6 +228,9 @@ static ssize_t device_type_show(struct device *dev,
 	switch (hdev->asic_type) {
 	case ASIC_GOYA:
 		str = "GOYA";
+		break;
+	case ASIC_GAUDI:
+		str = "GAUDI";
 		break;
 	default:
 		dev_err(hdev->dev, "Unrecognized ASIC type %d\n",
@@ -406,7 +418,10 @@ int hl_sysfs_init(struct hl_device *hdev)
 {
 	int rc;
 
-	hdev->pm_mng_profile = PM_AUTO;
+	if (hdev->asic_type == ASIC_GOYA)
+		hdev->pm_mng_profile = PM_AUTO;
+	else
+		hdev->pm_mng_profile = PM_MANUAL;
 	hdev->max_power = hdev->asic_prop.max_power_default;
 
 	hdev->asic_funcs->add_device_attr(hdev, &hl_dev_clks_attr_group);

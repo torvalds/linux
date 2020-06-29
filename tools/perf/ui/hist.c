@@ -43,12 +43,12 @@ static int __hpp__fmt(struct perf_hpp *hpp, struct hist_entry *he,
 	} else
 		ret = hpp__call_print_fn(hpp, print_fn, fmt, len, get_field(he));
 
-	if (perf_evsel__is_group_event(evsel)) {
+	if (evsel__is_group_event(evsel)) {
 		int prev_idx, idx_delta;
 		struct hist_entry *pair;
 		int nr_members = evsel->core.nr_members;
 
-		prev_idx = perf_evsel__group_idx(evsel);
+		prev_idx = evsel__group_idx(evsel);
 
 		list_for_each_entry(pair, &he->pairs.head, pairs.node) {
 			u64 period = get_field(pair);
@@ -58,7 +58,7 @@ static int __hpp__fmt(struct perf_hpp *hpp, struct hist_entry *he,
 				continue;
 
 			evsel = hists_to_evsel(pair->hists);
-			idx_delta = perf_evsel__group_idx(evsel) - prev_idx - 1;
+			idx_delta = evsel__group_idx(evsel) - prev_idx - 1;
 
 			while (idx_delta--) {
 				/*
@@ -82,7 +82,7 @@ static int __hpp__fmt(struct perf_hpp *hpp, struct hist_entry *he,
 							  len, period);
 			}
 
-			prev_idx = perf_evsel__group_idx(evsel);
+			prev_idx = evsel__group_idx(evsel);
 		}
 
 		idx_delta = nr_members - prev_idx - 1;
@@ -164,12 +164,12 @@ static int hist_entry__new_pair(struct hist_entry *a, struct hist_entry *b,
 
 	list_for_each_entry(pair, &a->pairs.head, pairs.node) {
 		struct evsel *evsel = hists_to_evsel(pair->hists);
-		fa[perf_evsel__group_idx(evsel)] = get_field(pair);
+		fa[evsel__group_idx(evsel)] = get_field(pair);
 	}
 
 	list_for_each_entry(pair, &b->pairs.head, pairs.node) {
 		struct evsel *evsel = hists_to_evsel(pair->hists);
-		fb[perf_evsel__group_idx(evsel)] = get_field(pair);
+		fb[evsel__group_idx(evsel)] = get_field(pair);
 	}
 
 	*fields_a = fa;
@@ -190,7 +190,7 @@ static int __hpp__group_sort_idx(struct hist_entry *a, struct hist_entry *b,
 	int cmp, nr_members, ret, i;
 
 	cmp = field_cmp(get_field(a), get_field(b));
-	if (!perf_evsel__is_group_event(evsel))
+	if (!evsel__is_group_event(evsel))
 		return cmp;
 
 	nr_members = evsel->core.nr_members;
@@ -240,7 +240,7 @@ static int __hpp__sort(struct hist_entry *a, struct hist_entry *b,
 		return ret;
 
 	evsel = hists_to_evsel(a->hists);
-	if (!perf_evsel__is_group_event(evsel))
+	if (!evsel__is_group_event(evsel))
 		return ret;
 
 	nr_members = evsel->core.nr_members;

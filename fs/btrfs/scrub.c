@@ -647,13 +647,9 @@ static int scrub_print_warning_inode(u64 inum, u64 offset, u64 root,
 	struct btrfs_fs_info *fs_info = swarn->dev->fs_info;
 	struct inode_fs_paths *ipath = NULL;
 	struct btrfs_root *local_root;
-	struct btrfs_key root_key;
 	struct btrfs_key key;
 
-	root_key.objectid = root;
-	root_key.type = BTRFS_ROOT_ITEM_KEY;
-	root_key.offset = (u64)-1;
-	local_root = btrfs_get_fs_root(fs_info, &root_key, true);
+	local_root = btrfs_get_fs_root(fs_info, root, true);
 	if (IS_ERR(local_root)) {
 		ret = PTR_ERR(local_root);
 		goto err;
@@ -3046,7 +3042,8 @@ out:
 static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 					   struct map_lookup *map,
 					   struct btrfs_device *scrub_dev,
-					   int num, u64 base, u64 length)
+					   int num, u64 base, u64 length,
+					   struct btrfs_block_group *cache)
 {
 	struct btrfs_path *path, *ppath;
 	struct btrfs_fs_info *fs_info = sctx->fs_info;
@@ -3284,6 +3281,20 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 				break;
 			}
 
+			/*
+			 * If our block group was removed in the meanwhile, just
+			 * stop scrubbing since there is no point in continuing.
+			 * Continuing would prevent reusing its device extents
+			 * for new block groups for a long time.
+			 */
+			spin_lock(&cache->lock);
+			if (cache->removed) {
+				spin_unlock(&cache->lock);
+				ret = 0;
+				goto out;
+			}
+			spin_unlock(&cache->lock);
+
 			extent = btrfs_item_ptr(l, slot,
 						struct btrfs_extent_item);
 			flags = btrfs_extent_flags(l, extent);
@@ -3328,13 +3339,14 @@ again:
 						   &extent_dev,
 						   &extent_mirror_num);
 
-			ret = btrfs_lookup_csums_range(csum_root,
-						       extent_logical,
-						       extent_logical +
-						       extent_len - 1,
-						       &sctx->csum_list, 1);
-			if (ret)
-				goto out;
+			if (flags & BTRFS_EXTENT_FLAG_DATA) {
+				ret = btrfs_lookup_csums_range(csum_root,
+						extent_logical,
+						extent_logical + extent_len - 1,
+						&sctx->csum_list, 1);
+				if (ret)
+					goto out;
+			}
 
 			ret = scrub_extent(sctx, map, extent_logical, extent_len,
 					   extent_physical, extent_dev, flags,
@@ -3457,7 +3469,7 @@ static noinline_for_stack int scrub_chunk(struct scrub_ctx *sctx,
 		if (map->stripes[i].dev->bdev == scrub_dev->bdev &&
 		    map->stripes[i].physical == dev_offset) {
 			ret = scrub_stripe(sctx, map, scrub_dev, i,
-					   chunk_offset, length);
+					   chunk_offset, length, cache);
 			if (ret)
 				goto out;
 		}
@@ -3555,6 +3567,23 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 			goto skip;
 
 		/*
+		 * Make sure that while we are scrubbing the corresponding block
+		 * group doesn't get its logical address and its device extents
+		 * reused for another block group, which can possibly be of a
+		 * different type and different profile. We do this to prevent
+		 * false error detections and crashes due to bogus attempts to
+		 * repair extents.
+		 */
+		spin_lock(&cache->lock);
+		if (cache->removed) {
+			spin_unlock(&cache->lock);
+			btrfs_put_block_group(cache);
+			goto skip;
+		}
+		btrfs_freeze_block_group(cache);
+		spin_unlock(&cache->lock);
+
+		/*
 		 * we need call btrfs_inc_block_group_ro() with scrubs_paused,
 		 * to avoid deadlock caused by:
 		 * btrfs_inc_block_group_ro()
@@ -3609,6 +3638,7 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 		} else {
 			btrfs_warn(fs_info,
 				   "failed setting block group ro: %d", ret);
+			btrfs_unfreeze_block_group(cache);
 			btrfs_put_block_group(cache);
 			scrub_pause_off(fs_info);
 			break;
@@ -3695,6 +3725,7 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 			spin_unlock(&cache->lock);
 		}
 
+		btrfs_unfreeze_block_group(cache);
 		btrfs_put_block_group(cache);
 		if (ret)
 			break;

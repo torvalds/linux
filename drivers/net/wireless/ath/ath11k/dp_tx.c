@@ -9,14 +9,14 @@
 #include "hw.h"
 #include "peer.h"
 
-/* NOTE: Any of the mapped ring id value must not exceed DP_TCL_NUM_RING_MAX */
-static const u8
-ath11k_txq_tcl_ring_map[ATH11K_HW_MAX_QUEUES] = { 0x0, 0x1, 0x2, 0x2 };
-
 static enum hal_tcl_encap_type
 ath11k_dp_tx_get_encap_type(struct ath11k_vif *arvif, struct sk_buff *skb)
 {
-	/* TODO: Determine encap type based on vif_type and configuration */
+	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
+
+	if (tx_info->control.flags & IEEE80211_TX_CTRL_HW_80211_ENCAP)
+		return HAL_TCL_ENCAP_TYPE_ETHERNET;
+
 	return HAL_TCL_ENCAP_TYPE_NATIVE_WIFI;
 }
 
@@ -40,8 +40,11 @@ static void ath11k_dp_tx_encap_nwifi(struct sk_buff *skb)
 static u8 ath11k_dp_tx_get_tid(struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr = (void *)skb->data;
+	struct ath11k_skb_cb *cb = ATH11K_SKB_CB(skb);
 
-	if (!ieee80211_is_data_qos(hdr->frame_control))
+	if (cb->flags & ATH11K_SKB_HW_80211_ENCAP)
+		return skb->priority & IEEE80211_QOS_CTL_TID_MASK;
+	else if (!ieee80211_is_data_qos(hdr->frame_control))
 		return HAL_DESC_REO_NON_QOS_TID;
 	else
 		return skb->priority & IEEE80211_QOS_CTL_TID_MASK;
@@ -84,15 +87,31 @@ int ath11k_dp_tx(struct ath11k *ar, struct ath11k_vif *arvif,
 	u8 pool_id;
 	u8 hal_ring_id;
 	int ret;
+	u8 ring_selector = 0, ring_map = 0;
+	bool tcl_ring_retry;
 
 	if (test_bit(ATH11K_FLAG_CRASH_FLUSH, &ar->ab->dev_flags))
 		return -ESHUTDOWN;
 
-	if (!ieee80211_is_data(hdr->frame_control))
+	if (!(info->control.flags & IEEE80211_TX_CTRL_HW_80211_ENCAP) &&
+	    !ieee80211_is_data(hdr->frame_control))
 		return -ENOTSUPP;
 
 	pool_id = skb_get_queue_mapping(skb) & (ATH11K_HW_MAX_QUEUES - 1);
-	ti.ring_id = ath11k_txq_tcl_ring_map[pool_id];
+
+	/* Let the default ring selection be based on a round robin
+	 * fashion where one of the 3 tcl rings are selected based on
+	 * the tcl_ring_selector counter. In case that ring
+	 * is full/busy, we resort to other available rings.
+	 * If all rings are full, we drop the packet.
+	 * //TODO Add throttling logic when all rings are full
+	 */
+	ring_selector = atomic_inc_return(&ab->tcl_ring_selector);
+
+tcl_ring_sel:
+	tcl_ring_retry = false;
+	ti.ring_id = ring_selector % DP_TCL_NUM_RING_MAX;
+	ring_map |= BIT(ti.ring_id);
 
 	tx_ring = &dp->tx_ring[ti.ring_id];
 
@@ -101,8 +120,14 @@ int ath11k_dp_tx(struct ath11k *ar, struct ath11k_vif *arvif,
 			DP_TX_IDR_SIZE - 1, GFP_ATOMIC);
 	spin_unlock_bh(&tx_ring->tx_idr_lock);
 
-	if (ret < 0)
-		return -ENOSPC;
+	if (ret < 0) {
+		if (ring_map == (BIT(DP_TCL_NUM_RING_MAX) - 1))
+			return -ENOSPC;
+
+		/* Check if the next ring is available */
+		ring_selector++;
+		goto tcl_ring_sel;
+	}
 
 	ti.desc_id = FIELD_PREP(DP_TX_DESC_ID_MAC_ID, ar->pdev_idx) |
 		     FIELD_PREP(DP_TX_DESC_ID_MSDU_ID, ret) |
@@ -149,7 +174,10 @@ int ath11k_dp_tx(struct ath11k *ar, struct ath11k_vif *arvif,
 		 *	  skb_checksum_help() is needed
 		 */
 	case HAL_TCL_ENCAP_TYPE_ETHERNET:
+		/* no need to encap */
+		break;
 	case HAL_TCL_ENCAP_TYPE_802_3:
+	default:
 		/* TODO: Take care of other encap modes as well */
 		ret = -EINVAL;
 		goto fail_remove_idr;
@@ -178,11 +206,21 @@ int ath11k_dp_tx(struct ath11k *ar, struct ath11k_vif *arvif,
 	if (!hal_tcl_desc) {
 		/* NOTE: It is highly unlikely we'll be running out of tcl_ring
 		 * desc because the desc is directly enqueued onto hw queue.
-		 * So add tx packet throttling logic in future if required.
 		 */
 		ath11k_hal_srng_access_end(ab, tcl_ring);
 		spin_unlock_bh(&tcl_ring->lock);
 		ret = -ENOMEM;
+
+		/* Checking for available tcl descritors in another ring in
+		 * case of failure due to full tcl ring now, is better than
+		 * checking this ring earlier for each pkt tx.
+		 * Restart ring selection if some rings are not checked yet.
+		 */
+		if (ring_map != (BIT(DP_TCL_NUM_RING_MAX) - 1)) {
+			tcl_ring_retry = true;
+			ring_selector++;
+		}
+
 		goto fail_unmap_dma;
 	}
 
@@ -205,6 +243,9 @@ fail_remove_idr:
 	idr_remove(&tx_ring->txbuf_idr,
 		   FIELD_GET(DP_TX_DESC_ID_MSDU_ID, ti.desc_id));
 	spin_unlock_bh(&tx_ring->tx_idr_lock);
+
+	if (tcl_ring_retry)
+		goto tcl_ring_sel;
 
 	return ret;
 }
@@ -543,8 +584,12 @@ int ath11k_dp_tx_send_reo_cmd(struct ath11k_base *ab, struct dp_rx_tid *rx_tid,
 	cmd_ring = &ab->hal.srng_list[dp->reo_cmd_ring.ring_id];
 	cmd_num = ath11k_hal_reo_cmd_send(ab, cmd_ring, type, cmd);
 
+	/* cmd_num should start from 1, during failure return the error code */
+	if (cmd_num < 0)
+		return cmd_num;
+
 	/* reo cmd ring descriptors has cmd_num starting from 1 */
-	if (cmd_num <= 0)
+	if (cmd_num == 0)
 		return -EINVAL;
 
 	if (!cb)

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 
 #ifndef BTRFS_DISCARD_H
 #define BTRFS_DISCARD_H

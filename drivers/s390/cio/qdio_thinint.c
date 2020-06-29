@@ -197,47 +197,21 @@ out:
 	return rc;
 }
 
-/* allocate non-shared indicators and shared indicator */
-int __init tiqdio_allocate_memory(void)
-{
-	q_indicators = kcalloc(TIQDIO_NR_INDICATORS,
-			       sizeof(struct indicator_t),
-			       GFP_KERNEL);
-	if (!q_indicators)
-		return -ENOMEM;
-	return 0;
-}
-
-void tiqdio_free_memory(void)
-{
-	kfree(q_indicators);
-}
-
-int __init tiqdio_register_thinints(void)
+int qdio_establish_thinint(struct qdio_irq *irq_ptr)
 {
 	int rc;
 
-	rc = register_adapter_interrupt(&tiqdio_airq);
-	if (rc) {
-		DBF_EVENT("RTI:%x", rc);
-		return rc;
-	}
-	return 0;
-}
-
-int qdio_establish_thinint(struct qdio_irq *irq_ptr)
-{
 	if (!is_thinint_irq(irq_ptr))
 		return 0;
-	return set_subchannel_ind(irq_ptr, 0);
-}
 
-void qdio_setup_thinint(struct qdio_irq *irq_ptr)
-{
-	if (!is_thinint_irq(irq_ptr))
-		return;
 	irq_ptr->dsci = get_indicator();
 	DBF_HEX(&irq_ptr->dsci, sizeof(void *));
+
+	rc = set_subchannel_ind(irq_ptr, 0);
+	if (rc)
+		put_indicator(irq_ptr->dsci);
+
+	return rc;
 }
 
 void qdio_shutdown_thinint(struct qdio_irq *irq_ptr)
@@ -250,8 +224,27 @@ void qdio_shutdown_thinint(struct qdio_irq *irq_ptr)
 	put_indicator(irq_ptr->dsci);
 }
 
-void __exit tiqdio_unregister_thinints(void)
+int __init qdio_thinint_init(void)
+{
+	int rc;
+
+	q_indicators = kcalloc(TIQDIO_NR_INDICATORS, sizeof(struct indicator_t),
+			       GFP_KERNEL);
+	if (!q_indicators)
+		return -ENOMEM;
+
+	rc = register_adapter_interrupt(&tiqdio_airq);
+	if (rc) {
+		DBF_EVENT("RTI:%x", rc);
+		kfree(q_indicators);
+		return rc;
+	}
+	return 0;
+}
+
+void __exit qdio_thinint_exit(void)
 {
 	WARN_ON(!list_empty(&tiq_list));
 	unregister_adapter_interrupt(&tiqdio_airq);
+	kfree(q_indicators);
 }

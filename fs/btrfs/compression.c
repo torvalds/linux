@@ -194,11 +194,9 @@ static int check_compressed_csum(struct btrfs_inode *inode,
 	for (i = 0; i < cb->nr_pages; i++) {
 		page = cb->compressed_pages[i];
 
-		crypto_shash_init(shash);
 		kaddr = kmap_atomic(page);
-		crypto_shash_update(shash, kaddr, PAGE_SIZE);
+		crypto_shash_digest(shash, kaddr, PAGE_SIZE, csum);
 		kunmap_atomic(kaddr);
-		crypto_shash_final(shash, (u8 *)&csum);
 
 		if (memcmp(&csum, cb_sum, csum_size)) {
 			btrfs_print_data_csum_error(inode, disk_start,
@@ -1142,6 +1140,22 @@ static void put_workspace(int type, struct list_head *ws)
 }
 
 /*
+ * Adjust @level according to the limits of the compression algorithm or
+ * fallback to default
+ */
+static unsigned int btrfs_compress_set_level(int type, unsigned level)
+{
+	const struct btrfs_compress_op *ops = btrfs_compress_op[type];
+
+	if (level == 0)
+		level = ops->default_level;
+	else
+		level = min(level, ops->max_level);
+
+	return level;
+}
+
+/*
  * Given an address space and start and length, compress the bytes into @pages
  * that are allocated on demand.
  *
@@ -1745,22 +1759,6 @@ unsigned int btrfs_compress_str2level(unsigned int type, const char *str)
 	}
 
 	level = btrfs_compress_set_level(type, level);
-
-	return level;
-}
-
-/*
- * Adjust @level according to the limits of the compression algorithm or
- * fallback to default
- */
-unsigned int btrfs_compress_set_level(int type, unsigned level)
-{
-	const struct btrfs_compress_op *ops = btrfs_compress_op[type];
-
-	if (level == 0)
-		level = ops->default_level;
-	else
-		level = min(level, ops->max_level);
 
 	return level;
 }

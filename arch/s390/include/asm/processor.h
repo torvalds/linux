@@ -14,17 +14,15 @@
 
 #include <linux/bits.h>
 
-#define CIF_MCCK_PENDING	0	/* machine check handling is pending */
-#define CIF_ASCE_PRIMARY	1	/* primary asce needs fixup / uaccess */
-#define CIF_ASCE_SECONDARY	2	/* secondary asce needs fixup / uaccess */
-#define CIF_NOHZ_DELAY		3	/* delay HZ disable for a tick */
-#define CIF_FPU			4	/* restore FPU registers */
-#define CIF_IGNORE_IRQ		5	/* ignore interrupt (for udelay) */
-#define CIF_ENABLED_WAIT	6	/* in enabled wait state */
-#define CIF_MCCK_GUEST		7	/* machine check happening in guest */
-#define CIF_DEDICATED_CPU	8	/* this CPU is dedicated */
+#define CIF_ASCE_PRIMARY	0	/* primary asce needs fixup / uaccess */
+#define CIF_ASCE_SECONDARY	1	/* secondary asce needs fixup / uaccess */
+#define CIF_NOHZ_DELAY		2	/* delay HZ disable for a tick */
+#define CIF_FPU			3	/* restore FPU registers */
+#define CIF_IGNORE_IRQ		4	/* ignore interrupt (for udelay) */
+#define CIF_ENABLED_WAIT	5	/* in enabled wait state */
+#define CIF_MCCK_GUEST		6	/* machine check happening in guest */
+#define CIF_DEDICATED_CPU	7	/* this CPU is dedicated */
 
-#define _CIF_MCCK_PENDING	BIT(CIF_MCCK_PENDING)
 #define _CIF_ASCE_PRIMARY	BIT(CIF_ASCE_PRIMARY)
 #define _CIF_ASCE_SECONDARY	BIT(CIF_ASCE_SECONDARY)
 #define _CIF_NOHZ_DELAY		BIT(CIF_NOHZ_DELAY)

@@ -27,6 +27,14 @@ static bool access_actlr(struct kvm_vcpu *vcpu,
 		return ignore_write(vcpu, p);
 
 	p->regval = vcpu_read_sys_reg(vcpu, ACTLR_EL1);
+
+	if (p->is_aarch32) {
+		if (r->Op2 & 2)
+			p->regval = upper_32_bits(p->regval);
+		else
+			p->regval = lower_32_bits(p->regval);
+	}
+
 	return true;
 }
 
@@ -46,6 +54,8 @@ static const struct sys_reg_desc genericv8_sys_regs[] = {
 static const struct sys_reg_desc genericv8_cp15_regs[] = {
 	/* ACTLR */
 	{ Op1(0b000), CRn(0b0001), CRm(0b0000), Op2(0b001),
+	  access_actlr },
+	{ Op1(0b000), CRn(0b0001), CRm(0b0000), Op2(0b011),
 	  access_actlr },
 };
 

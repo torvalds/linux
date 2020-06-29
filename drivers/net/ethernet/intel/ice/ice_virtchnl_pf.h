@@ -7,7 +7,10 @@
 
 /* Restrict number of MAC Addr and VLAN that non-trusted VF can programmed */
 #define ICE_MAX_VLAN_PER_VF		8
-#define ICE_MAX_MACADDR_PER_VF		12
+/* MAC filters: 1 is reserved for the VF's default/perm_addr/LAA MAC, 1 for
+ * broadcast, and 16 for additional unicast/multicast filters
+ */
+#define ICE_MAX_MACADDR_PER_VF		18
 
 /* Malicious Driver Detection */
 #define ICE_DFLT_NUM_INVAL_MSGS_ALLOWED		10
@@ -64,7 +67,7 @@ struct ice_mdd_vf_events {
 struct ice_vf {
 	struct ice_pf *pf;
 
-	s16 vf_id;			/* VF ID in the PF space */
+	u16 vf_id;			/* VF ID in the PF space */
 	u16 lan_vsi_idx;		/* index into PF struct */
 	/* first vector index of this VF in the PF space */
 	int first_vector_idx;
@@ -128,9 +131,11 @@ void ice_set_vf_state_qs_dis(struct ice_vf *vf);
 int
 ice_get_vf_stats(struct net_device *netdev, int vf_id,
 		 struct ifla_vf_stats *vf_stats);
+bool ice_is_any_vf_in_promisc(struct ice_pf *pf);
 void
 ice_vf_lan_overflow_event(struct ice_pf *pf, struct ice_rq_event_info *event);
 void ice_print_vfs_mdd_events(struct ice_pf *pf);
+void ice_print_vf_rx_mdd_event(struct ice_vf *vf);
 #else /* CONFIG_PCI_IOV */
 #define ice_process_vflr_event(pf) do {} while (0)
 #define ice_free_vfs(pf) do {} while (0)
@@ -140,6 +145,7 @@ void ice_print_vfs_mdd_events(struct ice_pf *pf);
 #define ice_set_vf_state_qs_dis(vf) do {} while (0)
 #define ice_vf_lan_overflow_event(pf, event) do {} while (0)
 #define ice_print_vfs_mdd_events(pf) do {} while (0)
+#define ice_print_vf_rx_mdd_event(vf) do {} while (0)
 
 static inline bool
 ice_reset_all_vfs(struct ice_pf __always_unused *pf,
@@ -218,6 +224,11 @@ ice_get_vf_stats(struct net_device __always_unused *netdev,
 		 struct ifla_vf_stats __always_unused *vf_stats)
 {
 	return -EOPNOTSUPP;
+}
+
+static inline bool ice_is_any_vf_in_promisc(struct ice_pf __always_unused *pf)
+{
+	return false;
 }
 #endif /* CONFIG_PCI_IOV */
 #endif /* _ICE_VIRTCHNL_PF_H_ */

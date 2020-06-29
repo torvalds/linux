@@ -78,7 +78,7 @@ static struct qcom_icc_node *sdm845_osm_l3_nodes[] = {
 	[SLAVE_OSM_L3] = &sdm845_osm_l3,
 };
 
-const static struct qcom_icc_desc sdm845_icc_osm_l3 = {
+static const struct qcom_icc_desc sdm845_icc_osm_l3 = {
 	.nodes = sdm845_osm_l3_nodes,
 	.num_nodes = ARRAY_SIZE(sdm845_osm_l3_nodes),
 };
@@ -91,7 +91,7 @@ static struct qcom_icc_node *sc7180_osm_l3_nodes[] = {
 	[SLAVE_OSM_L3] = &sc7180_osm_l3,
 };
 
-const static struct qcom_icc_desc sc7180_icc_osm_l3 = {
+static const struct qcom_icc_desc sc7180_icc_osm_l3 = {
 	.nodes = sc7180_osm_l3_nodes,
 	.num_nodes = ARRAY_SIZE(sc7180_osm_l3_nodes),
 };

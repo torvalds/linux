@@ -3,7 +3,7 @@ menu "CAN Device Drivers"
 
 config CAN_VCAN
 	tristate "Virtual Local CAN Interface (vcan)"
-	---help---
+	help
 	  Similar to the network loopback devices, vcan offers a
 	  virtual local CAN interface.
 
@@ -12,7 +12,7 @@ config CAN_VCAN
 
 config CAN_VXCAN
 	tristate "Virtual CAN Tunnel (vxcan)"
-	---help---
+	help
 	  Similar to the virtual ethernet driver veth, vxcan implements a
 	  local CAN traffic tunnel between two virtual CAN network devices.
 	  When creating a vxcan, two vxcan devices are created as pair.
@@ -31,7 +31,7 @@ config CAN_VXCAN
 config CAN_SLCAN
 	tristate "Serial / USB serial CAN Adaptors (slcan)"
 	depends on TTY
-	---help---
+	help
 	  CAN driver for several 'low cost' CAN interfaces that are attached
 	  via serial lines or via USB-to-serial adapters using the LAWICEL
 	  ASCII protocol. The driver implements the tty linediscipline N_SLCAN.
@@ -51,7 +51,7 @@ config CAN_SLCAN
 config CAN_DEV
 	tristate "Platform CAN drivers with Netlink support"
 	default y
-	---help---
+	help
 	  Enables the common framework for platform CAN drivers with Netlink
 	  support. This is the standard library for CAN drivers.
 	  If unsure, say Y.
@@ -61,7 +61,7 @@ if CAN_DEV
 config CAN_CALC_BITTIMING
 	bool "CAN bit-timing calculation"
 	default y
-	---help---
+	help
 	  If enabled, CAN bit-timing parameters will be calculated for the
 	  bit-rate specified via Netlink argument "bitrate" when the device
 	  get started. This works fine for the most common CAN controllers
@@ -81,7 +81,7 @@ config CAN_LEDS
 	# fulfills your needs instead of fixing this driver.
 	depends on BROKEN
 	select LEDS_TRIGGERS
-	---help---
+	help
 	  This option adds two LED triggers for packet receive and transmit
 	  events on each supported CAN device.
 
@@ -91,20 +91,20 @@ config CAN_LEDS
 config CAN_AT91
 	tristate "Atmel AT91 onchip CAN controller"
 	depends on (ARCH_AT91 || COMPILE_TEST) && HAS_IOMEM
-	---help---
+	help
 	  This is a driver for the SoC CAN controller in Atmel's AT91SAM9263
 	  and AT91SAM9X5 processors.
 
 config CAN_FLEXCAN
 	tristate "Support for Freescale FLEXCAN based chips"
 	depends on OF && HAS_IOMEM
-	---help---
+	help
 	  Say Y here if you want to support for Freescale FlexCAN.
 
 config CAN_GRCAN
 	tristate "Aeroflex Gaisler GRCAN and GRHCAN CAN devices"
 	depends on OF && HAS_DMA
-	---help---
+	help
 	  Say Y here if you want to use Aeroflex Gaisler GRCAN or GRHCAN.
 	  Note that the driver supports little endian, even though little
 	  endian syntheses of the cores would need some modifications on
@@ -113,7 +113,7 @@ config CAN_GRCAN
 config CAN_JANZ_ICAN3
 	tristate "Janz VMOD-ICAN3 Intelligent CAN controller"
 	depends on MFD_JANZ_CMODIO
-	---help---
+	help
 	  Driver for Janz VMOD-ICAN3 Intelligent CAN controller module, which
 	  connects to a MODULbus carrier board.
 
@@ -136,7 +136,7 @@ config CAN_KVASER_PCIEFD
 config CAN_SUN4I
 	tristate "Allwinner A10 CAN controller"
 	depends on MACH_SUN4I || MACH_SUN7I || COMPILE_TEST
-	---help---
+	help
 	  Say Y here if you want to use CAN controller found on Allwinner
 	  A10/A20 SoCs.
 
@@ -146,7 +146,7 @@ config CAN_SUN4I
 config CAN_TI_HECC
 	depends on ARM
 	tristate "TI High End CAN Controller"
-	---help---
+	help
 	  Driver for TI HECC (High End CAN Controller) module found on many
 	  TI devices. The device specifications are available from www.ti.com
 
@@ -154,14 +154,14 @@ config CAN_XILINXCAN
 	tristate "Xilinx CAN"
 	depends on ARCH_ZYNQ || ARM64 || MICROBLAZE || COMPILE_TEST
 	depends on COMMON_CLK && HAS_IOMEM
-	---help---
+	help
 	  Xilinx CAN driver. This driver supports both soft AXI CAN IP and
 	  Zynq CANPS IP.
 
 config PCH_CAN
 	tristate "Intel EG20T PCH CAN controller"
 	depends on PCI && (X86_32 || COMPILE_TEST)
-	---help---
+	help
 	  This driver is for PCH CAN of Topcliff (Intel EG20T PCH) which
 	  is an IOH for x86 embedded processor (Intel Atom E6xx series).
 	  This driver can access CAN bus.
@@ -182,7 +182,7 @@ endif
 
 config CAN_DEBUG_DEVICES
 	bool "CAN devices debugging messages"
-	---help---
+	help
 	  Say Y here if you want the CAN device drivers to produce a bunch of
 	  debug messages to the system log.  Select this if you are having
 	  a problem with CAN support and want to see more of what is going

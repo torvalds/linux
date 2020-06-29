@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause)
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause)
 //
 // This file is provided under a dual BSD/GPLv2 license.  When using or
 // redistributing this file, you may do so under either license.
@@ -226,10 +226,10 @@ bool hda_dsp_core_is_enabled(struct snd_sof_dev *sdev,
 
 	val = snd_sof_dsp_read(sdev, HDA_DSP_BAR, HDA_DSP_REG_ADSPCS);
 
-	is_enable = ((val & HDA_DSP_ADSPCS_CPA_MASK(core_mask)) &&
-			(val & HDA_DSP_ADSPCS_SPA_MASK(core_mask)) &&
-			!(val & HDA_DSP_ADSPCS_CRST_MASK(core_mask)) &&
-			!(val & HDA_DSP_ADSPCS_CSTALL_MASK(core_mask)));
+	is_enable = (val & HDA_DSP_ADSPCS_CPA_MASK(core_mask)) &&
+		    (val & HDA_DSP_ADSPCS_SPA_MASK(core_mask)) &&
+		    !(val & HDA_DSP_ADSPCS_CRST_MASK(core_mask)) &&
+		    !(val & HDA_DSP_ADSPCS_CSTALL_MASK(core_mask));
 
 	dev_dbg(sdev->dev, "DSP core(s) enabled? %d : core_mask %x\n",
 		is_enable, core_mask);

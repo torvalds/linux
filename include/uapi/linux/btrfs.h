@@ -36,12 +36,10 @@ struct btrfs_ioctl_vol_args {
 #define BTRFS_DEVICE_PATH_NAME_MAX	1024
 #define BTRFS_SUBVOL_NAME_MAX 		4039
 
-/*
- * Deprecated since 5.7:
- *
- * BTRFS_SUBVOL_CREATE_ASYNC	(1ULL << 0)
- */
-
+#ifndef __KERNEL__
+/* Deprecated since 5.7 */
+# define BTRFS_SUBVOL_CREATE_ASYNC	(1ULL << 0)
+#endif
 #define BTRFS_SUBVOL_RDONLY		(1ULL << 1)
 #define BTRFS_SUBVOL_QGROUP_INHERIT	(1ULL << 2)
 

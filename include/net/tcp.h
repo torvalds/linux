@@ -23,7 +23,6 @@
 #include <linux/cache.h>
 #include <linux/percpu.h>
 #include <linux/skbuff.h>
-#include <linux/cryptohash.h>
 #include <linux/kref.h>
 #include <linux/ktime.h>
 
@@ -51,7 +50,7 @@ extern struct inet_hashinfo tcp_hashinfo;
 extern struct percpu_counter tcp_orphan_count;
 void tcp_time_wait(struct sock *sk, int state, int timeo);
 
-#define MAX_TCP_HEADER	(128 + MAX_HEADER)
+#define MAX_TCP_HEADER	L1_CACHE_ALIGN(128 + MAX_HEADER)
 #define MAX_TCP_OPTION_SPACE 40
 #define TCP_MIN_SND_MSS		48
 #define TCP_MIN_GSO_SIZE	(TCP_MIN_SND_MSS - MAX_TCP_OPTION_SPACE)
@@ -126,6 +125,7 @@ void tcp_time_wait(struct sock *sk, int state, int timeo);
 				  * to combine FIN-WAIT-2 timeout with
 				  * TIME-WAIT timer.
 				  */
+#define TCP_FIN_TIMEOUT_MAX (120 * HZ) /* max TCP_LINGER2 value (two minutes) */
 
 #define TCP_DELACK_MAX	((unsigned)(HZ/5))	/* maximal time to delay before sending an ACK */
 #if HZ >= 100
@@ -436,6 +436,7 @@ u16 tcp_get_syncookie_mss(struct request_sock_ops *rsk_ops,
 void tcp_v4_send_check(struct sock *sk, struct sk_buff *skb);
 void tcp_v4_mtu_reduced(struct sock *sk);
 void tcp_req_err(struct sock *sk, u32 seq, bool abort);
+void tcp_ld_RTO_revert(struct sock *sk, u32 seq);
 int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb);
 struct sock *tcp_create_openreq_child(const struct sock *sk,
 				      struct request_sock *req,
@@ -660,7 +661,6 @@ void tcp_initialize_rcv_mss(struct sock *sk);
 int tcp_mtu_to_mss(struct sock *sk, int pmtu);
 int tcp_mss_to_mtu(struct sock *sk, int mss);
 void tcp_mtup_init(struct sock *sk);
-void tcp_init_buffer_space(struct sock *sk);
 
 static inline void tcp_bound_rto(const struct sock *sk)
 {
@@ -1288,26 +1288,22 @@ static inline bool tcp_needs_internal_pacing(const struct sock *sk)
 	return smp_load_acquire(&sk->sk_pacing_status) == SK_PACING_NEEDED;
 }
 
-/* Return in jiffies the delay before one skb is sent.
- * If @skb is NULL, we look at EDT for next packet being sent on the socket.
+/* Estimates in how many jiffies next packet for this flow can be sent.
+ * Scheduling a retransmit timer too early would be silly.
  */
-static inline unsigned long tcp_pacing_delay(const struct sock *sk,
-					     const struct sk_buff *skb)
+static inline unsigned long tcp_pacing_delay(const struct sock *sk)
 {
-	s64 pacing_delay = skb ? skb->tstamp : tcp_sk(sk)->tcp_wstamp_ns;
+	s64 delay = tcp_sk(sk)->tcp_wstamp_ns - tcp_sk(sk)->tcp_clock_cache;
 
-	pacing_delay -= tcp_sk(sk)->tcp_clock_cache;
-
-	return pacing_delay > 0 ? nsecs_to_jiffies(pacing_delay) : 0;
+	return delay > 0 ? nsecs_to_jiffies(delay) : 0;
 }
 
 static inline void tcp_reset_xmit_timer(struct sock *sk,
 					const int what,
 					unsigned long when,
-					const unsigned long max_when,
-					const struct sk_buff *skb)
+					const unsigned long max_when)
 {
-	inet_csk_reset_xmit_timer(sk, what, when + tcp_pacing_delay(sk, skb),
+	inet_csk_reset_xmit_timer(sk, what, when + tcp_pacing_delay(sk),
 				  max_when);
 }
 
@@ -1335,8 +1331,7 @@ static inline void tcp_check_probe_timer(struct sock *sk)
 {
 	if (!tcp_sk(sk)->packets_out && !inet_csk(sk)->icsk_pending)
 		tcp_reset_xmit_timer(sk, ICSK_TIME_PROBE0,
-				     tcp_probe0_base(sk), TCP_RTO_MAX,
-				     NULL);
+				     tcp_probe0_base(sk), TCP_RTO_MAX);
 }
 
 static inline void tcp_init_wl(struct tcp_sock *tp, u32 seq)
@@ -1376,7 +1371,6 @@ static inline void tcp_sack_reset(struct tcp_options_received *rx_opt)
 	rx_opt->num_sacks = 0;
 }
 
-u32 tcp_default_init_rwnd(u32 mss);
 void tcp_cwnd_restart(struct sock *sk, s32 delta);
 
 static inline void tcp_slow_start_after_idle_check(struct sock *sk)
@@ -1419,6 +1413,19 @@ static inline int tcp_space(const struct sock *sk)
 static inline int tcp_full_space(const struct sock *sk)
 {
 	return tcp_win_from_space(sk, READ_ONCE(sk->sk_rcvbuf));
+}
+
+/* We provision sk_rcvbuf around 200% of sk_rcvlowat.
+ * If 87.5 % (7/8) of the space has been consumed, we want to override
+ * SO_RCVLOWAT constraint, since we are receiving skbs with too small
+ * len/truesize ratio.
+ */
+static inline bool tcp_rmem_pressure(const struct sock *sk)
+{
+	int rcvbuf = READ_ONCE(sk->sk_rcvbuf);
+	int threshold = rcvbuf - (rcvbuf >> 3);
+
+	return atomic_read(&sk->sk_rmem_alloc) > threshold;
 }
 
 extern void tcp_openreq_init_rwin(struct request_sock *req,

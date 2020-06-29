@@ -46,6 +46,17 @@ config ATMEL_EBI
 	  tree is used. This bus supports NANDs, external ethernet controller,
 	  SRAMs, ATA devices, etc.
 
+config BT1_L2_CTL
+	bool "Baikal-T1 CM2 L2-RAM Cache Control Block"
+	depends on MIPS_BAIKAL_T1 || COMPILE_TEST
+	select MFD_SYSCON
+	help
+	  Baikal-T1 CPU is based on the MIPS P5600 Warrior IP-core. The CPU
+	  resides Coherency Manager v2 with embedded 1MB L2-cache. It's
+	  possible to tune the L2 cache performance up by setting the data,
+	  tags and way-select latencies of RAM access. This driver provides a
+	  dt properties-based and sysfs interface for it.
+
 config TI_AEMIF
 	tristate "Texas Instruments AEMIF driver"
 	depends on (ARCH_DAVINCI || ARCH_KEYSTONE) && OF

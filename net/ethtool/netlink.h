@@ -19,6 +19,8 @@ int ethnl_fill_reply_header(struct sk_buff *skb, struct net_device *dev,
 struct sk_buff *ethnl_reply_init(size_t payload, struct net_device *dev, u8 cmd,
 				 u16 hdr_attrtype, struct genl_info *info,
 				 void **ehdrp);
+void *ethnl_bcastmsg_put(struct sk_buff *skb, u8 cmd);
+int ethnl_multicast(struct sk_buff *skb, struct net_device *dev);
 
 /**
  * ethnl_strz_size() - calculate attribute length for fixed size string
@@ -357,5 +359,7 @@ int ethnl_set_channels(struct sk_buff *skb, struct genl_info *info);
 int ethnl_set_coalesce(struct sk_buff *skb, struct genl_info *info);
 int ethnl_set_pause(struct sk_buff *skb, struct genl_info *info);
 int ethnl_set_eee(struct sk_buff *skb, struct genl_info *info);
+int ethnl_act_cable_test(struct sk_buff *skb, struct genl_info *info);
+int ethnl_act_cable_test_tdr(struct sk_buff *skb, struct genl_info *info);
 
 #endif /* _NET_ETHTOOL_NETLINK_H */

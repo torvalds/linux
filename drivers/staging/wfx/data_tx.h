@@ -26,7 +26,7 @@ struct tx_policy {
 };
 
 struct tx_policy_cache {
-	struct tx_policy cache[HIF_MIB_NUM_TX_RATE_RETRY_POLICIES];
+	struct tx_policy cache[HIF_TX_RETRY_POLICY_MAX];
 	// FIXME: use a trees and drop hash from tx_policy
 	struct list_head used;
 	struct list_head free;
@@ -36,8 +36,7 @@ struct tx_policy_cache {
 struct wfx_tx_priv {
 	ktime_t xmit_timestamp;
 	struct ieee80211_key_conf *hw_key;
-	u8 link_id;
-	u8 raw_link_id;
+	bool has_sta;
 } __packed;
 
 void wfx_tx_policy_init(struct wfx_vif *wvif);
@@ -46,7 +45,8 @@ void wfx_tx_policy_upload_work(struct work_struct *work);
 void wfx_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 	    struct sk_buff *skb);
 void wfx_tx_confirm_cb(struct wfx_vif *wvif, const struct hif_cnf_tx *arg);
-void wfx_skb_dtor(struct wfx_dev *wdev, struct sk_buff *skb);
+void wfx_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+	       u32 queues, bool drop);
 
 static inline struct wfx_tx_priv *wfx_skb_tx_priv(struct sk_buff *skb)
 {

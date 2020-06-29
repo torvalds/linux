@@ -4,7 +4,7 @@
 * Copyright (C) 2006 Mario Hlawitschka (dh1pa@amsat.org)
 * Copyright (C) 2006 Marco Gittler (g.marco@freenet.de)
 *
-* see Documentation/media/dvb-drivers/dvb-usb.rst for more information
+* see Documentation/driver-api/media/drivers/dvb-usb.rst for more information
 */
 
 #define DVB_USB_LOG_PREFIX "opera"

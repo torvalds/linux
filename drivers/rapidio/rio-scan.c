@@ -39,7 +39,7 @@ struct rio_id_table {
 	u16 start;	/* logical minimal id */
 	u32 max;	/* max number of IDs in table */
 	spinlock_t lock;
-	unsigned long table[0];
+	unsigned long table[];
 };
 
 static int next_destid = 0;

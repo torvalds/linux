@@ -853,7 +853,7 @@ static bool icmp_unreach(struct sk_buff *skb)
 		case ICMP_FRAG_NEEDED:
 			/* for documentation of the ip_no_pmtu_disc
 			 * values please see
-			 * Documentation/networking/ip-sysctl.txt
+			 * Documentation/networking/ip-sysctl.rst
 			 */
 			switch (net->ipv4.sysctl_ip_no_pmtu_disc) {
 			default:

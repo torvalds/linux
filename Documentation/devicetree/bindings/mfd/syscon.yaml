@@ -33,13 +33,13 @@ properties:
   compatible:
     anyOf:
       - items:
-        - enum:
-          - allwinner,sun8i-a83t-system-controller
-          - allwinner,sun8i-h3-system-controller
-          - allwinner,sun8i-v3s-system-controller
-          - allwinner,sun50i-a64-system-controller
+          - enum:
+              - allwinner,sun8i-a83t-system-controller
+              - allwinner,sun8i-h3-system-controller
+              - allwinner,sun8i-v3s-system-controller
+              - allwinner,sun50i-a64-system-controller
 
-        - const: syscon
+          - const: syscon
 
       - contains:
           const: syscon
@@ -52,9 +52,8 @@ properties:
     description: |
       The size (in bytes) of the IO accesses that should be performed
       on the device.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - enum: [ 1, 2, 4, 8 ]
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [1, 2, 4, 8]
 
   hwlocks:
     maxItems: 1

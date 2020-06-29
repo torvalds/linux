@@ -51,7 +51,6 @@ static void stackleak_add_track_stack(gimple_stmt_iterator *gsi, bool after)
 	gimple stmt;
 	gcall *stackleak_track_stack;
 	cgraph_node_ptr node;
-	int frequency;
 	basic_block bb;
 
 	/* Insert call to void stackleak_track_stack(void) */
@@ -68,9 +67,9 @@ static void stackleak_add_track_stack(gimple_stmt_iterator *gsi, bool after)
 	bb = gimple_bb(stackleak_track_stack);
 	node = cgraph_get_create_node(track_function_decl);
 	gcc_assert(node);
-	frequency = compute_call_stmt_bb_frequency(current_function_decl, bb);
 	cgraph_create_edge(cgraph_get_node(current_function_decl), node,
-			stackleak_track_stack, bb->count, frequency);
+			stackleak_track_stack, bb->count,
+			compute_call_stmt_bb_frequency(current_function_decl, bb));
 }
 
 static bool is_alloca(gimple stmt)

@@ -154,19 +154,6 @@ static inline bool mp_is_legacy_irq(int irq)
 	return irq >= 0 && irq < nr_legacy_irqs();
 }
 
-/*
- * Initialize all legacy IRQs and all pins on the first IOAPIC
- * if we have legacy interrupt controller. Kernel boot option "pirq="
- * may rely on non-legacy pins on the first IOAPIC.
- */
-static inline int mp_init_irq_at_boot(int ioapic, int irq)
-{
-	if (!nr_legacy_irqs())
-		return 0;
-
-	return ioapic == 0 || mp_is_legacy_irq(irq);
-}
-
 static inline struct irq_domain *mp_ioapic_irqdomain(int ioapic)
 {
 	return ioapics[ioapic].irqdomain;

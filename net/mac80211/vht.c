@@ -4,7 +4,7 @@
  *
  * Portions of this file
  * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
- * Copyright (C) 2018 - 2019 Intel Corporation
+ * Copyright (C) 2018 - 2020 Intel Corporation
  */
 
 #include <linux/ieee80211.h>
@@ -575,15 +575,21 @@ u32 __ieee80211_vht_handle_opmode(struct ieee80211_sub_if_data *sdata,
 
 	switch (opmode & IEEE80211_OPMODE_NOTIF_CHANWIDTH_MASK) {
 	case IEEE80211_OPMODE_NOTIF_CHANWIDTH_20MHZ:
+		/* ignore IEEE80211_OPMODE_NOTIF_BW_160_80P80 must not be set */
 		sta->cur_max_bandwidth = IEEE80211_STA_RX_BW_20;
 		break;
 	case IEEE80211_OPMODE_NOTIF_CHANWIDTH_40MHZ:
+		/* ignore IEEE80211_OPMODE_NOTIF_BW_160_80P80 must not be set */
 		sta->cur_max_bandwidth = IEEE80211_STA_RX_BW_40;
 		break;
 	case IEEE80211_OPMODE_NOTIF_CHANWIDTH_80MHZ:
-		sta->cur_max_bandwidth = IEEE80211_STA_RX_BW_80;
+		if (opmode & IEEE80211_OPMODE_NOTIF_BW_160_80P80)
+			sta->cur_max_bandwidth = IEEE80211_STA_RX_BW_160;
+		else
+			sta->cur_max_bandwidth = IEEE80211_STA_RX_BW_80;
 		break;
 	case IEEE80211_OPMODE_NOTIF_CHANWIDTH_160MHZ:
+		/* legacy only, no longer used by newer spec */
 		sta->cur_max_bandwidth = IEEE80211_STA_RX_BW_160;
 		break;
 	}

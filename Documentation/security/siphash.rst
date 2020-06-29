@@ -7,7 +7,7 @@ SipHash - a short input PRF
 SipHash is a cryptographically secure PRF -- a keyed hash function -- that
 performs very well for short inputs, hence the name. It was designed by
 cryptographers Daniel J. Bernstein and Jean-Philippe Aumasson. It is intended
-as a replacement for some uses of: `jhash`, `md5_transform`, `sha_transform`,
+as a replacement for some uses of: `jhash`, `md5_transform`, `sha1_transform`,
 and so forth.
 
 SipHash takes a secret key filled with randomly generated numbers and either

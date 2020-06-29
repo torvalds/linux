@@ -9,7 +9,7 @@ menuconfig VIRTUALIZATION
 	bool "Virtualization"
 	depends on HAVE_KVM || X86
 	default y
-	---help---
+	help
 	  Say Y here to get to see options for using your Linux host to run other
 	  operating systems inside virtual machines (guests).
 	  This option alone does not add any kernel code.
@@ -45,7 +45,7 @@ config KVM
 	select KVM_GENERIC_DIRTYLOG_READ_PROTECT
 	select KVM_VFIO
 	select SRCU
-	---help---
+	help
 	  Support hosting fully virtualized guest machines using hardware
 	  virtualization extensions.  You will need a fairly recent
 	  processor equipped with virtualization extensions. You will also
@@ -75,7 +75,7 @@ config KVM_WERROR
 config KVM_INTEL
 	tristate "KVM for Intel (and compatible) processors support"
 	depends on KVM && IA32_FEAT_CTL
-	---help---
+	help
 	  Provides support for KVM on processors equipped with Intel's VT
 	  extensions, a.k.a. Virtual Machine Extensions (VMX).
 
@@ -85,7 +85,7 @@ config KVM_INTEL
 config KVM_AMD
 	tristate "KVM for AMD processors support"
 	depends on KVM
-	---help---
+	help
 	  Provides support for KVM on AMD processors equipped with the AMD-V
 	  (SVM) extensions.
 
@@ -97,13 +97,13 @@ config KVM_AMD_SEV
 	bool "AMD Secure Encrypted Virtualization (SEV) support"
 	depends on KVM_AMD && X86_64
 	depends on CRYPTO_DEV_SP_PSP && !(KVM_AMD=y && CRYPTO_DEV_CCP_DD=m)
-	---help---
+	help
 	Provides support for launching Encrypted VMs on AMD processors.
 
 config KVM_MMU_AUDIT
 	bool "Audit KVM MMU"
 	depends on KVM && TRACEPOINTS
-	---help---
+	help
 	 This option adds a R/W kVM module parameter 'mmu_audit', which allows
 	 auditing of KVM MMU events at runtime.
 

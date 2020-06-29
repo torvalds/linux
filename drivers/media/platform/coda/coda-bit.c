@@ -1215,7 +1215,8 @@ static int coda_start_encoding(struct coda_ctx *ctx)
 		coda_write(dev, value, CODA_CMD_ENC_SEQ_GOP_SIZE);
 	}
 
-	if (ctx->params.bitrate) {
+	if (ctx->params.bitrate && (ctx->params.frame_rc_enable ||
+				    ctx->params.mb_rc_enable)) {
 		ctx->params.bitrate_changed = false;
 		ctx->params.h264_intra_qp_changed = false;
 
@@ -1276,7 +1277,11 @@ static int coda_start_encoding(struct coda_ctx *ctx)
 	}
 	coda_write(dev, value, CODA_CMD_ENC_SEQ_OPTION);
 
-	coda_write(dev, 0, CODA_CMD_ENC_SEQ_RC_INTERVAL_MODE);
+	if (ctx->params.frame_rc_enable && !ctx->params.mb_rc_enable)
+		value = 1;
+	else
+		value = 0;
+	coda_write(dev, value, CODA_CMD_ENC_SEQ_RC_INTERVAL_MODE);
 
 	coda_setup_iram(ctx);
 

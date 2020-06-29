@@ -54,13 +54,13 @@ properties:
   clock-names:
     oneOf:
       - items:
-        - const: sysmmu
+          - const: sysmmu
       - items:
-        - const: sysmmu
-        - const: master
+          - const: sysmmu
+          - const: master
       - items:
-        - const: aclk
-        - const: pclk
+          - const: aclk
+          - const: pclk
 
   "#iommu-cells":
     const: 0

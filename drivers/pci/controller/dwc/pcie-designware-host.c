@@ -236,7 +236,7 @@ static void dw_pcie_irq_domain_free(struct irq_domain *domain,
 				    unsigned int virq, unsigned int nr_irqs)
 {
 	struct irq_data *d = irq_domain_get_irq_data(domain, virq);
-	struct pcie_port *pp = irq_data_get_irq_chip_data(d);
+	struct pcie_port *pp = domain->host_data;
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&pp->lock, flags);
@@ -263,6 +263,8 @@ int dw_pcie_allocate_domains(struct pcie_port *pp)
 		dev_err(pci->dev, "Failed to create IRQ domain\n");
 		return -ENOMEM;
 	}
+
+	irq_domain_update_bus_token(pp->irq_domain, DOMAIN_BUS_NEXUS);
 
 	pp->msi_domain = pci_msi_create_irq_domain(fwnode,
 						   &dw_pcie_msi_domain_info,

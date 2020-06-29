@@ -2669,6 +2669,7 @@ const struct pp_smumgr_func iceland_smu_funcs = {
 	.request_smu_load_specific_fw = &iceland_request_smu_load_specific_fw,
 	.send_msg_to_smc = &smu7_send_msg_to_smc,
 	.send_msg_to_smc_with_parameter = &smu7_send_msg_to_smc_with_parameter,
+	.get_argument = smu7_get_argument,
 	.download_pptable_settings = NULL,
 	.upload_pptable_settings = NULL,
 	.get_offsetof = iceland_get_offsetof,

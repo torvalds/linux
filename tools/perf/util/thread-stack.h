@@ -81,10 +81,19 @@ struct call_return_processor {
 };
 
 int thread_stack__event(struct thread *thread, int cpu, u32 flags, u64 from_ip,
-			u64 to_ip, u16 insn_len, u64 trace_nr);
+			u64 to_ip, u16 insn_len, u64 trace_nr, bool callstack,
+			unsigned int br_stack_sz, bool mispred_all);
 void thread_stack__set_trace_nr(struct thread *thread, int cpu, u64 trace_nr);
 void thread_stack__sample(struct thread *thread, int cpu, struct ip_callchain *chain,
 			  size_t sz, u64 ip, u64 kernel_start);
+void thread_stack__sample_late(struct thread *thread, int cpu,
+			       struct ip_callchain *chain, size_t sz, u64 ip,
+			       u64 kernel_start);
+void thread_stack__br_sample(struct thread *thread, int cpu,
+			     struct branch_stack *dst, unsigned int sz);
+void thread_stack__br_sample_late(struct thread *thread, int cpu,
+				  struct branch_stack *dst, unsigned int sz,
+				  u64 sample_ip, u64 kernel_start);
 int thread_stack__flush(struct thread *thread);
 void thread_stack__free(struct thread *thread);
 size_t thread_stack__depth(struct thread *thread, int cpu);

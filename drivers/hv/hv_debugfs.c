@@ -11,7 +11,7 @@
 
 #include "hyperv_vmbus.h"
 
-struct dentry *hv_debug_root;
+static struct dentry *hv_debug_root;
 
 static int hv_debugfs_delay_get(void *data, u64 *val)
 {

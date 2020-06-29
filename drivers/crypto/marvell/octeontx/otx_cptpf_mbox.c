@@ -63,11 +63,11 @@ static void dump_mbox_msg(struct otx_cpt_mbox *mbox_msg, int vf_id)
 	hex_dump_to_buffer(mbox_msg, sizeof(struct otx_cpt_mbox), 16, 8,
 			   raw_data_str, OTX_CPT_MAX_MBOX_DATA_STR_SIZE, false);
 	if (vf_id >= 0)
-		pr_debug("MBOX opcode %s received from VF%d raw_data %s",
+		pr_debug("MBOX opcode %s received from VF%d raw_data %s\n",
 			 get_mbox_opcode_str(mbox_msg->msg), vf_id,
 			 raw_data_str);
 	else
-		pr_debug("MBOX opcode %s received from PF raw_data %s",
+		pr_debug("MBOX opcode %s received from PF raw_data %s\n",
 			 get_mbox_opcode_str(mbox_msg->msg), raw_data_str);
 }
 
@@ -140,20 +140,20 @@ static int otx_cpt_bind_vq_to_grp(struct otx_cpt_device *cpt, u8 q, u8 grp)
 	struct otx_cpt_ucode *ucode;
 
 	if (q >= cpt->max_vfs) {
-		dev_err(dev, "Requested queue %d is > than maximum avail %d",
+		dev_err(dev, "Requested queue %d is > than maximum avail %d\n",
 			q, cpt->max_vfs);
 		return -EINVAL;
 	}
 
 	if (grp >= OTX_CPT_MAX_ENGINE_GROUPS) {
-		dev_err(dev, "Requested group %d is > than maximum avail %d",
+		dev_err(dev, "Requested group %d is > than maximum avail %d\n",
 			grp, OTX_CPT_MAX_ENGINE_GROUPS);
 		return -EINVAL;
 	}
 
 	eng_grp = &cpt->eng_grps.grp[grp];
 	if (!eng_grp->is_enabled) {
-		dev_err(dev, "Requested engine group %d is disabled", grp);
+		dev_err(dev, "Requested engine group %d is disabled\n", grp);
 		return -EINVAL;
 	}
 
@@ -212,7 +212,7 @@ static void otx_cpt_handle_mbox_intr(struct otx_cpt_device *cpt, int vf)
 		vftype = otx_cpt_bind_vq_to_grp(cpt, vf, (u8)mbx.data);
 		if ((vftype != OTX_CPT_AE_TYPES) &&
 		    (vftype != OTX_CPT_SE_TYPES)) {
-			dev_err(dev, "VF%d binding to eng group %llu failed",
+			dev_err(dev, "VF%d binding to eng group %llu failed\n",
 				vf, mbx.data);
 			otx_cptpf_mbox_send_nack(cpt, vf, &mbx);
 		} else {

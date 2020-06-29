@@ -127,7 +127,7 @@ struct moxart_desc {
 	unsigned int			dma_cycles;
 	struct virt_dma_desc		vd;
 	uint8_t				es;
-	struct moxart_sg		sg[0];
+	struct moxart_sg		sg[];
 };
 
 struct moxart_chan {
@@ -568,7 +568,7 @@ static int moxart_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *node = dev->of_node;
 	struct resource *res;
-	static void __iomem *dma_base_addr;
+	void __iomem *dma_base_addr;
 	int ret, i;
 	unsigned int irq;
 	struct moxart_chan *ch;

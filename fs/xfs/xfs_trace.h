@@ -1897,8 +1897,8 @@ DECLARE_EVENT_CLASS(xfs_swap_extent_class,
 		__entry->dev = VFS_I(ip)->i_sb->s_dev;
 		__entry->which = which;
 		__entry->ino = ip->i_ino;
-		__entry->format = ip->i_d.di_format;
-		__entry->nex = ip->i_d.di_nextents;
+		__entry->format = ip->i_df.if_format;
+		__entry->nex = ip->i_df.if_nextents;
 		__entry->broot_size = ip->i_df.if_broot_bytes;
 		__entry->fork_off = XFS_IFORK_BOFF(ip);
 	),

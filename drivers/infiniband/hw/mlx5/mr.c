@@ -1439,6 +1439,7 @@ struct ib_mr *mlx5_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 
 	if (is_odp_mr(mr)) {
 		to_ib_umem_odp(mr->umem)->private = mr;
+		init_waitqueue_head(&mr->q_deferred_work);
 		atomic_set(&mr->num_deferred_work, 0);
 		err = xa_err(xa_store(&dev->odp_mkeys,
 				      mlx5_base_mkey(mr->mmkey.key), &mr->mmkey,

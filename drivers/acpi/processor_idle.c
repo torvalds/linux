@@ -308,11 +308,7 @@ static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
 	if (ret)
 		return ret;
 
-	/*
-	 * It is expected that there will be at least 2 states, C1 and
-	 * something else (C2 or C3), so fail if that is not the case.
-	 */
-	if (pr->power.count < 2)
+	if (!pr->power.count)
 		return -EFAULT;
 
 	pr->flags.has_cst = 1;
@@ -468,8 +464,7 @@ static int acpi_processor_get_cstate_info(struct acpi_processor *pr)
 	for (i = 1; i < ACPI_PROCESSOR_MAX_POWER; i++) {
 		if (pr->power.states[i].valid) {
 			pr->power.count = i;
-			if (pr->power.states[i].type >= ACPI_STATE_C2)
-				pr->flags.power = 1;
+			pr->flags.power = 1;
 		}
 	}
 

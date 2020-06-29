@@ -81,8 +81,8 @@ static int dpaa2_dbg_fqs_show(struct seq_file *file, void *offset)
 	int i, err;
 
 	seq_printf(file, "FQ stats for %s:\n", priv->net_dev->name);
-	seq_printf(file, "%s%16s%16s%16s%16s\n",
-		   "VFQID", "CPU", "Type", "Frames", "Pending frames");
+	seq_printf(file, "%s%16s%16s%16s%16s%16s\n",
+		   "VFQID", "CPU", "TC", "Type", "Frames", "Pending frames");
 
 	for (i = 0; i <  priv->num_fqs; i++) {
 		fq = &priv->fq[i];
@@ -90,9 +90,10 @@ static int dpaa2_dbg_fqs_show(struct seq_file *file, void *offset)
 		if (err)
 			fcnt = 0;
 
-		seq_printf(file, "%5d%16d%16s%16llu%16u\n",
+		seq_printf(file, "%5d%16d%16d%16s%16llu%16u\n",
 			   fq->fqid,
 			   fq->target_cpu,
+			   fq->tc,
 			   fq_type_to_str(fq),
 			   fq->stats.frames,
 			   fcnt);
@@ -127,16 +128,19 @@ static int dpaa2_dbg_ch_show(struct seq_file *file, void *offset)
 	int i;
 
 	seq_printf(file, "Channel stats for %s:\n", priv->net_dev->name);
-	seq_printf(file, "%s%16s%16s%16s%16s\n",
-		   "CHID", "CPU", "Deq busy", "CDANs", "Buf count");
+	seq_printf(file, "%s%16s%16s%16s%16s%16s%16s\n",
+		   "CHID", "CPU", "Deq busy", "Frames", "CDANs",
+		   "Avg Frm/CDAN", "Buf count");
 
 	for (i = 0; i < priv->num_channels; i++) {
 		ch = priv->channel[i];
-		seq_printf(file, "%4d%16d%16llu%16llu%16d\n",
+		seq_printf(file, "%4d%16d%16llu%16llu%16llu%16llu%16d\n",
 			   ch->ch_id,
 			   ch->nctx.desired_cpu,
 			   ch->stats.dequeue_portal_busy,
+			   ch->stats.frames,
 			   ch->stats.cdan,
+			   div64_u64(ch->stats.frames, ch->stats.cdan),
 			   ch->buf_count);
 	}
 

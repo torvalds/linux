@@ -333,7 +333,7 @@ static void do_remove(struct mmu_rb_handler *handler,
 
 /*
  * Work queue function to remove all nodes that have been queued up to
- * be removed.  The key feature is that mm->mmap_sem is not being held
+ * be removed.  The key feature is that mm->mmap_lock is not being held
  * and the remove callback can sleep while taking it, if needed.
  */
 static void handle_remove(struct work_struct *work)

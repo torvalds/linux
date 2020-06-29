@@ -2505,6 +2505,30 @@ ath10k_peer_assoc_h_vht_limit(u16 tx_mcs_set,
 	return tx_mcs_set;
 }
 
+static u32 get_160mhz_nss_from_maxrate(int rate)
+{
+	u32 nss;
+
+	switch (rate) {
+	case 780:
+		nss = 1;
+		break;
+	case 1560:
+		nss = 2;
+		break;
+	case 2106:
+		nss = 3; /* not support MCS9 from spec*/
+		break;
+	case 3120:
+		nss = 4;
+		break;
+	default:
+		 nss = 1;
+	}
+
+	return nss;
+}
+
 static void ath10k_peer_assoc_h_vht(struct ath10k *ar,
 				    struct ieee80211_vif *vif,
 				    struct ieee80211_sta *sta,
@@ -2512,6 +2536,7 @@ static void ath10k_peer_assoc_h_vht(struct ath10k *ar,
 {
 	const struct ieee80211_sta_vht_cap *vht_cap = &sta->vht_cap;
 	struct ath10k_vif *arvif = (void *)vif->drv_priv;
+	struct ath10k_hw_params *hw = &ar->hw_params;
 	struct cfg80211_chan_def def;
 	enum nl80211_band band;
 	const u16 *vht_mcs_mask;
@@ -2578,22 +2603,38 @@ static void ath10k_peer_assoc_h_vht(struct ath10k *ar,
 	arg->peer_vht_rates.tx_mcs_set = ath10k_peer_assoc_h_vht_limit(
 		__le16_to_cpu(vht_cap->vht_mcs.tx_mcs_map), vht_mcs_mask);
 
-	ath10k_dbg(ar, ATH10K_DBG_MAC, "mac vht peer %pM max_mpdu %d flags 0x%x\n",
-		   sta->addr, arg->peer_max_mpdu, arg->peer_flags);
+	/* Configure bandwidth-NSS mapping to FW
+	 * for the chip's tx chains setting on 160Mhz bw
+	 */
+	if (arg->peer_phymode == MODE_11AC_VHT160 ||
+	    arg->peer_phymode == MODE_11AC_VHT80_80) {
+		u32 rx_nss;
+		u32 max_rate;
 
-	if (arg->peer_vht_rates.rx_max_rate &&
-	    (sta->vht_cap.cap & IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK)) {
-		switch (arg->peer_vht_rates.rx_max_rate) {
-		case 1560:
-			/* Must be 2x2 at 160Mhz is all it can do. */
-			arg->peer_bw_rxnss_override = 2;
-			break;
-		case 780:
-			/* Can only do 1x1 at 160Mhz (Long Guard Interval) */
-			arg->peer_bw_rxnss_override = 1;
-			break;
+		max_rate = arg->peer_vht_rates.rx_max_rate;
+		rx_nss = get_160mhz_nss_from_maxrate(max_rate);
+
+		if (rx_nss == 0)
+			rx_nss = arg->peer_num_spatial_streams;
+		else
+			rx_nss = min(arg->peer_num_spatial_streams, rx_nss);
+
+		max_rate = hw->vht160_mcs_tx_highest;
+		rx_nss = min(rx_nss, get_160mhz_nss_from_maxrate(max_rate));
+
+		arg->peer_bw_rxnss_override =
+			FIELD_PREP(WMI_PEER_NSS_MAP_ENABLE, 1) |
+			FIELD_PREP(WMI_PEER_NSS_160MHZ_MASK, (rx_nss - 1));
+
+		if (arg->peer_phymode == MODE_11AC_VHT80_80) {
+			arg->peer_bw_rxnss_override |=
+			FIELD_PREP(WMI_PEER_NSS_80_80MHZ_MASK, (rx_nss - 1));
 		}
 	}
+	ath10k_dbg(ar, ATH10K_DBG_MAC,
+		   "mac vht peer %pM max_mpdu %d flags 0x%x peer_rx_nss_override 0x%x\n",
+		   sta->addr, arg->peer_max_mpdu,
+		   arg->peer_flags, arg->peer_bw_rxnss_override);
 }
 
 static void ath10k_peer_assoc_h_qos(struct ath10k *ar,
@@ -2745,9 +2786,9 @@ static int ath10k_peer_assoc_prepare(struct ath10k *ar,
 	ath10k_peer_assoc_h_crypto(ar, vif, sta, arg);
 	ath10k_peer_assoc_h_rates(ar, vif, sta, arg);
 	ath10k_peer_assoc_h_ht(ar, vif, sta, arg);
+	ath10k_peer_assoc_h_phymode(ar, vif, sta, arg);
 	ath10k_peer_assoc_h_vht(ar, vif, sta, arg);
 	ath10k_peer_assoc_h_qos(ar, vif, sta, arg);
-	ath10k_peer_assoc_h_phymode(ar, vif, sta, arg);
 
 	return 0;
 }
@@ -2917,6 +2958,11 @@ static void ath10k_bss_assoc(struct ieee80211_hw *hw,
 
 	arvif->aid = bss_conf->aid;
 	ether_addr_copy(arvif->bssid, bss_conf->bssid);
+
+	ret = ath10k_wmi_pdev_set_param(ar,
+					ar->wmi.pdev_param->peer_stats_info_enable, 1);
+	if (ret)
+		ath10k_warn(ar, "failed to enable peer stats info: %d\n", ret);
 
 	ret = ath10k_wmi_vdev_up(ar, arvif->vdev_id, arvif->aid, arvif->bssid);
 	if (ret) {
@@ -3921,6 +3967,9 @@ void ath10k_mgmt_over_wmi_tx_work(struct work_struct *work)
 			if (ret) {
 				ath10k_warn(ar, "failed to transmit management frame by ref via WMI: %d\n",
 					    ret);
+				/* remove this msdu from idr tracking */
+				ath10k_wmi_cleanup_mgmt_tx_send(ar, skb);
+
 				dma_unmap_single(ar->dev, paddr, skb->len,
 						 DMA_TO_DEVICE);
 				ieee80211_free_txskb(ar->hw, skb);
@@ -4488,17 +4537,18 @@ static int ath10k_get_antenna(struct ieee80211_hw *hw, u32 *tx_ant, u32 *rx_ant)
 	return 0;
 }
 
-static void ath10k_check_chain_mask(struct ath10k *ar, u32 cm, const char *dbg)
+static bool ath10k_check_chain_mask(struct ath10k *ar, u32 cm, const char *dbg)
 {
 	/* It is not clear that allowing gaps in chainmask
 	 * is helpful.  Probably it will not do what user
 	 * is hoping for, so warn in that case.
 	 */
 	if (cm == 15 || cm == 7 || cm == 3 || cm == 1 || cm == 0)
-		return;
+		return true;
 
-	ath10k_warn(ar, "mac %s antenna chainmask may be invalid: 0x%x.  Suggested values: 15, 7, 3, 1 or 0.\n",
+	ath10k_warn(ar, "mac %s antenna chainmask is invalid: 0x%x.  Suggested values: 15, 7, 3, 1 or 0.\n",
 		    dbg, cm);
+	return false;
 }
 
 static int ath10k_mac_get_vht_cap_bf_sts(struct ath10k *ar)
@@ -4562,13 +4612,6 @@ static struct ieee80211_sta_vht_cap ath10k_create_vht_cap(struct ath10k *ar)
 
 		vht_cap.cap |= val;
 	}
-
-	/* Currently the firmware seems to be buggy, don't enable 80+80
-	 * mode until that's resolved.
-	 */
-	if ((ar->vht_cap_info & IEEE80211_VHT_CAP_SHORT_GI_160) &&
-	    (ar->vht_cap_info & IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK) == 0)
-		vht_cap.cap |= IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160MHZ;
 
 	mcs_map = 0;
 	for (i = 0; i < 8; i++) {
@@ -4688,11 +4731,15 @@ static void ath10k_mac_setup_ht_vht_cap(struct ath10k *ar)
 static int __ath10k_set_antenna(struct ath10k *ar, u32 tx_ant, u32 rx_ant)
 {
 	int ret;
+	bool is_valid_tx_chain_mask, is_valid_rx_chain_mask;
 
 	lockdep_assert_held(&ar->conf_mutex);
 
-	ath10k_check_chain_mask(ar, tx_ant, "tx");
-	ath10k_check_chain_mask(ar, rx_ant, "rx");
+	is_valid_tx_chain_mask = ath10k_check_chain_mask(ar, tx_ant, "tx");
+	is_valid_rx_chain_mask = ath10k_check_chain_mask(ar, rx_ant, "rx");
+
+	if (!is_valid_tx_chain_mask || !is_valid_rx_chain_mask)
+		return -EINVAL;
 
 	ar->cfg_tx_chainmask = tx_ant;
 	ar->cfg_rx_chainmask = rx_ant;
@@ -7190,6 +7237,7 @@ static void ath10k_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 					ath10k_wmi_peer_flush(ar, arvif->vdev_id,
 							      arvif->bssid, bitmap);
 			}
+			ath10k_htt_flush_tx(&ar->htt);
 		}
 		return;
 	}
@@ -8260,6 +8308,215 @@ static void ath10k_mac_op_sta_pre_rcu_remove(struct ieee80211_hw *hw,
 			peer->removed = true;
 }
 
+/* HT MCS parameters with Nss = 1 */
+static const struct ath10k_index_ht_data_rate_type supported_ht_mcs_rate_nss1[] = {
+	/* MCS  L20   L40   S20  S40 */
+	{0,  { 65,  135,  72,  150} },
+	{1,  { 130, 270,  144, 300} },
+	{2,  { 195, 405,  217, 450} },
+	{3,  { 260, 540,  289, 600} },
+	{4,  { 390, 810,  433, 900} },
+	{5,  { 520, 1080, 578, 1200} },
+	{6,  { 585, 1215, 650, 1350} },
+	{7,  { 650, 1350, 722, 1500} }
+};
+
+/* HT MCS parameters with Nss = 2 */
+static const struct ath10k_index_ht_data_rate_type supported_ht_mcs_rate_nss2[] = {
+	/* MCS  L20    L40   S20   S40 */
+	{0,  {130,  270,  144,  300} },
+	{1,  {260,  540,  289,  600} },
+	{2,  {390,  810,  433,  900} },
+	{3,  {520,  1080, 578,  1200} },
+	{4,  {780,  1620, 867,  1800} },
+	{5,  {1040, 2160, 1156, 2400} },
+	{6,  {1170, 2430, 1300, 2700} },
+	{7,  {1300, 2700, 1444, 3000} }
+};
+
+/* MCS parameters with Nss = 1 */
+static const struct ath10k_index_vht_data_rate_type supported_vht_mcs_rate_nss1[] = {
+	/* MCS  L80    S80     L40   S40    L20   S20 */
+	{0,  {293,  325},  {135,  150},  {65,   72} },
+	{1,  {585,  650},  {270,  300},  {130,  144} },
+	{2,  {878,  975},  {405,  450},  {195,  217} },
+	{3,  {1170, 1300}, {540,  600},  {260,  289} },
+	{4,  {1755, 1950}, {810,  900},  {390,  433} },
+	{5,  {2340, 2600}, {1080, 1200}, {520,  578} },
+	{6,  {2633, 2925}, {1215, 1350}, {585,  650} },
+	{7,  {2925, 3250}, {1350, 1500}, {650,  722} },
+	{8,  {3510, 3900}, {1620, 1800}, {780,  867} },
+	{9,  {3900, 4333}, {1800, 2000}, {780,  867} }
+};
+
+/*MCS parameters with Nss = 2 */
+static const struct ath10k_index_vht_data_rate_type supported_vht_mcs_rate_nss2[] = {
+	/* MCS  L80    S80     L40   S40    L20   S20 */
+	{0,  {585,  650},  {270,  300},  {130,  144} },
+	{1,  {1170, 1300}, {540,  600},  {260,  289} },
+	{2,  {1755, 1950}, {810,  900},  {390,  433} },
+	{3,  {2340, 2600}, {1080, 1200}, {520,  578} },
+	{4,  {3510, 3900}, {1620, 1800}, {780,  867} },
+	{5,  {4680, 5200}, {2160, 2400}, {1040, 1156} },
+	{6,  {5265, 5850}, {2430, 2700}, {1170, 1300} },
+	{7,  {5850, 6500}, {2700, 3000}, {1300, 1444} },
+	{8,  {7020, 7800}, {3240, 3600}, {1560, 1733} },
+	{9,  {7800, 8667}, {3600, 4000}, {1560, 1733} }
+};
+
+static void ath10k_mac_get_rate_flags_ht(struct ath10k *ar, u32 rate, u8 nss, u8 mcs,
+					 u8 *flags, u8 *bw)
+{
+	struct ath10k_index_ht_data_rate_type *mcs_rate;
+
+	mcs_rate = (struct ath10k_index_ht_data_rate_type *)
+		   ((nss == 1) ? &supported_ht_mcs_rate_nss1 :
+		   &supported_ht_mcs_rate_nss2);
+
+	if (rate == mcs_rate[mcs].supported_rate[0]) {
+		*bw = RATE_INFO_BW_20;
+	} else if (rate == mcs_rate[mcs].supported_rate[1]) {
+		*bw |= RATE_INFO_BW_40;
+	} else if (rate == mcs_rate[mcs].supported_rate[2]) {
+		*bw |= RATE_INFO_BW_20;
+		*flags |= RATE_INFO_FLAGS_SHORT_GI;
+	} else if (rate == mcs_rate[mcs].supported_rate[3]) {
+		*bw |= RATE_INFO_BW_40;
+		*flags |= RATE_INFO_FLAGS_SHORT_GI;
+	} else {
+		ath10k_warn(ar, "invalid ht params rate %d 100kbps nss %d mcs %d",
+			    rate, nss, mcs);
+	}
+}
+
+static void ath10k_mac_get_rate_flags_vht(struct ath10k *ar, u32 rate, u8 nss, u8 mcs,
+					  u8 *flags, u8 *bw)
+{
+	struct ath10k_index_vht_data_rate_type *mcs_rate;
+
+	mcs_rate = (struct ath10k_index_vht_data_rate_type *)
+		   ((nss == 1) ? &supported_vht_mcs_rate_nss1 :
+		   &supported_vht_mcs_rate_nss2);
+
+	if (rate == mcs_rate[mcs].supported_VHT80_rate[0]) {
+		*bw = RATE_INFO_BW_80;
+	} else if (rate == mcs_rate[mcs].supported_VHT80_rate[1]) {
+		*bw = RATE_INFO_BW_80;
+		*flags |= RATE_INFO_FLAGS_SHORT_GI;
+	} else if (rate == mcs_rate[mcs].supported_VHT40_rate[0]) {
+		*bw = RATE_INFO_BW_40;
+	} else if (rate == mcs_rate[mcs].supported_VHT40_rate[1]) {
+		*bw = RATE_INFO_BW_40;
+		*flags |= RATE_INFO_FLAGS_SHORT_GI;
+	} else if (rate == mcs_rate[mcs].supported_VHT20_rate[0]) {
+		*bw = RATE_INFO_BW_20;
+	} else if (rate == mcs_rate[mcs].supported_VHT20_rate[1]) {
+		*bw = RATE_INFO_BW_20;
+		*flags |= RATE_INFO_FLAGS_SHORT_GI;
+	} else {
+		ath10k_warn(ar, "invalid vht params rate %d 100kbps nss %d mcs %d",
+			    rate, nss, mcs);
+	}
+}
+
+static void ath10k_mac_get_rate_flags(struct ath10k *ar, u32 rate,
+				      enum ath10k_phy_mode mode, u8 nss, u8 mcs,
+				      u8 *flags, u8 *bw)
+{
+	if (mode == ATH10K_PHY_MODE_HT) {
+		*flags = RATE_INFO_FLAGS_MCS;
+		ath10k_mac_get_rate_flags_ht(ar, rate, nss, mcs, flags, bw);
+	} else if (mode == ATH10K_PHY_MODE_VHT) {
+		*flags = RATE_INFO_FLAGS_VHT_MCS;
+		ath10k_mac_get_rate_flags_vht(ar, rate, nss, mcs, flags, bw);
+	}
+}
+
+static void ath10k_mac_parse_bitrate(struct ath10k *ar, u32 rate_code,
+				     u32 bitrate_kbps, struct rate_info *rate)
+{
+	enum ath10k_phy_mode mode = ATH10K_PHY_MODE_LEGACY;
+	enum wmi_rate_preamble preamble = WMI_TLV_GET_HW_RC_PREAM_V1(rate_code);
+	u8 nss = WMI_TLV_GET_HW_RC_NSS_V1(rate_code) + 1;
+	u8 mcs = WMI_TLV_GET_HW_RC_RATE_V1(rate_code);
+	u8 flags = 0, bw = 0;
+
+	if (preamble == WMI_RATE_PREAMBLE_HT)
+		mode = ATH10K_PHY_MODE_HT;
+	else if (preamble == WMI_RATE_PREAMBLE_VHT)
+		mode = ATH10K_PHY_MODE_VHT;
+
+	ath10k_mac_get_rate_flags(ar, bitrate_kbps / 100, mode, nss, mcs, &flags, &bw);
+
+	ath10k_dbg(ar, ATH10K_DBG_MAC,
+		   "mac parse bitrate preamble %d mode %d nss %d mcs %d flags %x bw %d\n",
+		   preamble, mode, nss, mcs, flags, bw);
+
+	rate->flags = flags;
+	rate->bw = bw;
+	rate->legacy = bitrate_kbps / 100;
+	rate->nss = nss;
+	rate->mcs = mcs;
+}
+
+static void ath10k_mac_sta_get_peer_stats_info(struct ath10k *ar,
+					       struct ieee80211_sta *sta,
+					       struct station_info *sinfo)
+{
+	struct ath10k_sta *arsta = (struct ath10k_sta *)sta->drv_priv;
+	struct ath10k_peer *peer;
+	unsigned long time_left;
+	int ret;
+
+	if (!(ar->hw_params.supports_peer_stats_info &&
+	      arsta->arvif->vdev_type == WMI_VDEV_TYPE_STA))
+		return;
+
+	spin_lock_bh(&ar->data_lock);
+	peer = ath10k_peer_find(ar, arsta->arvif->vdev_id, sta->addr);
+	spin_unlock_bh(&ar->data_lock);
+	if (!peer)
+		return;
+
+	reinit_completion(&ar->peer_stats_info_complete);
+
+	ret = ath10k_wmi_request_peer_stats_info(ar,
+						 arsta->arvif->vdev_id,
+						 WMI_REQUEST_ONE_PEER_STATS_INFO,
+						 arsta->arvif->bssid,
+						 0);
+	if (ret && ret != -EOPNOTSUPP) {
+		ath10k_warn(ar, "could not request peer stats info: %d\n", ret);
+		return;
+	}
+
+	time_left = wait_for_completion_timeout(&ar->peer_stats_info_complete, 3 * HZ);
+	if (time_left == 0) {
+		ath10k_warn(ar, "timed out waiting peer stats info\n");
+		return;
+	}
+
+	if (arsta->rx_rate_code != 0 && arsta->rx_bitrate_kbps != 0) {
+		ath10k_mac_parse_bitrate(ar, arsta->rx_rate_code,
+					 arsta->rx_bitrate_kbps,
+					 &sinfo->rxrate);
+
+		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_RX_BITRATE);
+		arsta->rx_rate_code = 0;
+		arsta->rx_bitrate_kbps = 0;
+	}
+
+	if (arsta->tx_rate_code != 0 && arsta->tx_bitrate_kbps != 0) {
+		ath10k_mac_parse_bitrate(ar, arsta->tx_rate_code,
+					 arsta->tx_bitrate_kbps,
+					 &sinfo->txrate);
+
+		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_BITRATE);
+		arsta->tx_rate_code = 0;
+		arsta->tx_bitrate_kbps = 0;
+	}
+}
+
 static void ath10k_sta_statistics(struct ieee80211_hw *hw,
 				  struct ieee80211_vif *vif,
 				  struct ieee80211_sta *sta,
@@ -8270,6 +8527,8 @@ static void ath10k_sta_statistics(struct ieee80211_hw *hw,
 
 	if (!ath10k_peer_stats_enabled(ar))
 		return;
+
+	ath10k_debug_fw_stats_request(ar);
 
 	sinfo->rx_duration = arsta->rx_duration;
 	sinfo->filled |= BIT_ULL(NL80211_STA_INFO_RX_DURATION);
@@ -8286,6 +8545,15 @@ static void ath10k_sta_statistics(struct ieee80211_hw *hw,
 	}
 	sinfo->txrate.flags = arsta->txrate.flags;
 	sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_BITRATE);
+
+	if (ar->htt.disable_tx_comp) {
+		sinfo->tx_retries = arsta->tx_retries;
+		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_RETRIES);
+		sinfo->tx_failed = arsta->tx_failed;
+		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_FAILED);
+	}
+
+	ath10k_mac_sta_get_peer_stats_info(ar, sta, sinfo);
 }
 
 static const struct ieee80211_ops ath10k_ops = {
@@ -8625,7 +8893,9 @@ static const struct ieee80211_iface_combination ath10k_10_4_if_comb[] = {
 		.radar_detect_widths =	BIT(NL80211_CHAN_WIDTH_20_NOHT) |
 					BIT(NL80211_CHAN_WIDTH_20) |
 					BIT(NL80211_CHAN_WIDTH_40) |
-					BIT(NL80211_CHAN_WIDTH_80),
+					BIT(NL80211_CHAN_WIDTH_80) |
+					BIT(NL80211_CHAN_WIDTH_80P80) |
+					BIT(NL80211_CHAN_WIDTH_160),
 #endif
 	},
 };
@@ -8643,7 +8913,9 @@ ieee80211_iface_combination ath10k_10_4_bcn_int_if_comb[] = {
 		.radar_detect_widths =  BIT(NL80211_CHAN_WIDTH_20_NOHT) |
 					BIT(NL80211_CHAN_WIDTH_20) |
 					BIT(NL80211_CHAN_WIDTH_40) |
-					BIT(NL80211_CHAN_WIDTH_80),
+					BIT(NL80211_CHAN_WIDTH_80) |
+					BIT(NL80211_CHAN_WIDTH_80P80) |
+					BIT(NL80211_CHAN_WIDTH_160),
 #endif
 	},
 };
@@ -8919,7 +9191,6 @@ int ath10k_mac_register(struct ath10k *ar)
 	ar->hw->wiphy->max_scan_ie_len = WLAN_SCAN_PARAMS_MAX_IE_LEN;
 
 	if (test_bit(WMI_SERVICE_NLO, ar->wmi.svc_map)) {
-		ar->hw->wiphy->max_sched_scan_reqs = 1;
 		ar->hw->wiphy->max_sched_scan_ssids = WMI_PNO_MAX_SUPP_NETWORKS;
 		ar->hw->wiphy->max_match_sets = WMI_PNO_MAX_SUPP_NETWORKS;
 		ar->hw->wiphy->max_sched_scan_ie_len = WMI_PNO_MAX_IE_LENGTH;

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause)
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause)
 //
 // Copyright 2019 NXP
 //
@@ -119,7 +119,7 @@ static void imx8_dsp_handle_request(struct imx_dsp_ipc *ipc)
 	snd_sof_ipc_msgs_rx(priv->sdev);
 }
 
-struct imx_dsp_ops dsp_ops = {
+static struct imx_dsp_ops dsp_ops = {
 	.handle_reply		= imx8_dsp_handle_reply,
 	.handle_request		= imx8_dsp_handle_request,
 };

@@ -315,4 +315,19 @@ int qed_init_fw_data(struct qed_dev *cdev,
 int qed_dmae_sanity(struct qed_hwfn *p_hwfn,
 		    struct qed_ptt *p_ptt, const char *phase);
 
+#define QED_HW_ERR_MAX_STR_SIZE 256
+
+/**
+ * @brief qed_hw_err_notify - Notify upper layer driver and management FW
+ *	about a HW error.
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ * @param err_type
+ * @param fmt - debug data buffer to send to the MFW
+ * @param ... - buffer format args
+ */
+void qed_hw_err_notify(struct qed_hwfn *p_hwfn,
+		       struct qed_ptt *p_ptt,
+		       enum qed_hw_err_type err_type, char *fmt, ...);
 #endif

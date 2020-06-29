@@ -90,7 +90,7 @@ int __mm_isBranchInstr(struct pt_regs *regs, struct mm_decoded_insn dec_insn,
 			regs->regs[31] = regs->cp0_epc +
 				dec_insn.pc_inc +
 				dec_insn.next_pc_inc;
-			/* Fall through */
+			fallthrough;
 		case mm_bltz_op:
 			if ((long)regs->regs[insn.mm_i_format.rs] < 0)
 				*contpc = regs->cp0_epc +
@@ -106,7 +106,7 @@ int __mm_isBranchInstr(struct pt_regs *regs, struct mm_decoded_insn dec_insn,
 			regs->regs[31] = regs->cp0_epc +
 					dec_insn.pc_inc +
 					dec_insn.next_pc_inc;
-			/* Fall through */
+			fallthrough;
 		case mm_bgez_op:
 			if ((long)regs->regs[insn.mm_i_format.rs] >= 0)
 				*contpc = regs->cp0_epc +
@@ -144,7 +144,7 @@ int __mm_isBranchInstr(struct pt_regs *regs, struct mm_decoded_insn dec_insn,
 			unsigned int bit;
 
 			bc_false = 1;
-			/* Fall through */
+			fallthrough;
 		case mm_bc2t_op:
 		case mm_bc1t_op:
 			preempt_disable();
@@ -178,7 +178,7 @@ int __mm_isBranchInstr(struct pt_regs *regs, struct mm_decoded_insn dec_insn,
 		case mm_jalrs16_op:
 			regs->regs[31] = regs->cp0_epc +
 				dec_insn.pc_inc + dec_insn.next_pc_inc;
-			/* Fall through */
+			fallthrough;
 		case mm_jr16_op:
 			*contpc = regs->regs[insn.mm_i_format.rs];
 			return 1;
@@ -239,7 +239,7 @@ int __mm_isBranchInstr(struct pt_regs *regs, struct mm_decoded_insn dec_insn,
 	case mm_jal32_op:
 		regs->regs[31] = regs->cp0_epc +
 			dec_insn.pc_inc + dec_insn.next_pc_inc;
-		/* Fall through */
+		fallthrough;
 	case mm_j32_op:
 		*contpc = regs->cp0_epc + dec_insn.pc_inc;
 		*contpc >>= 27;
@@ -432,7 +432,7 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 		switch (insn.r_format.func) {
 		case jalr_op:
 			regs->regs[insn.r_format.rd] = epc + 8;
-			/* Fall through */
+			fallthrough;
 		case jr_op:
 			if (NO_R6EMU && insn.r_format.func == jr_op)
 				goto sigill_r2r6;
@@ -451,7 +451,7 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 		case bltzl_op:
 			if (NO_R6EMU)
 				goto sigill_r2r6;
-			/* fall through */
+			fallthrough;
 		case bltz_op:
 			if ((long)regs->regs[insn.i_format.rs] < 0) {
 				epc = epc + 4 + (insn.i_format.simmediate << 2);
@@ -465,7 +465,7 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 		case bgezl_op:
 			if (NO_R6EMU)
 				goto sigill_r2r6;
-			/* fall through */
+			fallthrough;
 		case bgez_op:
 			if ((long)regs->regs[insn.i_format.rs] >= 0) {
 				epc = epc + 4 + (insn.i_format.simmediate << 2);
@@ -561,7 +561,7 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 	case jalx_op:
 	case jal_op:
 		regs->regs[31] = regs->cp0_epc + 8;
-		/* fall through */
+		fallthrough;
 	case j_op:
 		epc += 4;
 		epc >>= 28;
@@ -578,7 +578,7 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 	case beql_op:
 		if (NO_R6EMU)
 			goto sigill_r2r6;
-		/* fall through */
+		fallthrough;
 	case beq_op:
 		if (regs->regs[insn.i_format.rs] ==
 		    regs->regs[insn.i_format.rt]) {
@@ -593,7 +593,7 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 	case bnel_op:
 		if (NO_R6EMU)
 			goto sigill_r2r6;
-		/* fall through */
+		fallthrough;
 	case bne_op:
 		if (regs->regs[insn.i_format.rs] !=
 		    regs->regs[insn.i_format.rt]) {
@@ -608,7 +608,7 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 	case blezl_op: /* not really i_format */
 		if (!insn.i_format.rt && NO_R6EMU)
 			goto sigill_r2r6;
-		/* fall through */
+		fallthrough;
 	case blez_op:
 		/*
 		 * Compact branches for R6 for the
@@ -644,7 +644,7 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 	case bgtzl_op:
 		if (!insn.i_format.rt && NO_R6EMU)
 			goto sigill_r2r6;
-		/* fall through */
+		fallthrough;
 	case bgtz_op:
 		/*
 		 * Compact branches for R6 for the

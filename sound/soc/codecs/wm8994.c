@@ -285,7 +285,6 @@ static const DECLARE_TLV_DB_SCALE(st_tlv, -3600, 300, 0);
 static const DECLARE_TLV_DB_SCALE(wm8994_3d_tlv, -1600, 183, 0);
 static const DECLARE_TLV_DB_SCALE(eq_tlv, -1200, 100, 0);
 static const DECLARE_TLV_DB_SCALE(ng_tlv, -10200, 600, 0);
-static const DECLARE_TLV_DB_SCALE(mixin_boost_tlv, 0, 900, 0);
 
 #define WM8994_DRC_SWITCH(xname, reg, shift) \
 	SOC_SINGLE_EXT(xname, reg, shift, 1, 0, \
@@ -731,13 +730,6 @@ SOC_ENUM("AIF2DAC Noise Gate Hold Time", wm8958_aif2dac_ng_hold),
 SOC_SINGLE_TLV("AIF2DAC Noise Gate Threshold Volume",
 	       WM8958_AIF2_DAC_NOISE_GATE, WM8958_AIF2DAC_NG_THR_SHIFT,
 	       7, 1, ng_tlv),
-};
-
-static const struct snd_kcontrol_new wm1811_snd_controls[] = {
-SOC_SINGLE_TLV("MIXINL IN1LP Boost Volume", WM8994_INPUT_MIXER_1, 7, 1, 0,
-	       mixin_boost_tlv),
-SOC_SINGLE_TLV("MIXINL IN1RP Boost Volume", WM8994_INPUT_MIXER_1, 8, 1, 0,
-	       mixin_boost_tlv),
 };
 
 /* We run all mode setting through a function to enforce audio mode */

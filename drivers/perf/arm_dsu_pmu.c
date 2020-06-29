@@ -690,10 +690,8 @@ static int dsu_pmu_device_probe(struct platform_device *pdev)
 	}
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_warn(&pdev->dev, "Failed to find IRQ\n");
+	if (irq < 0)
 		return -EINVAL;
-	}
 
 	name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%s_%d",
 				PMUNAME, atomic_inc_return(&pmu_idx));

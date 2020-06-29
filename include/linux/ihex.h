@@ -18,7 +18,7 @@
 struct ihex_binrec {
 	__be32 addr;
 	__be16 len;
-	uint8_t data[0];
+	uint8_t data[];
 } __attribute__((packed));
 
 static inline uint16_t ihex_binrec_size(const struct ihex_binrec *p)

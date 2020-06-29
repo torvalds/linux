@@ -21,7 +21,7 @@ SYNOPSIS
 MAP COMMANDS
 =============
 
-|	**bpftool** **map { show | list }**   [*MAP*]
+|	**bpftool** **map** { **show** | **list** }   [*MAP*]
 |	**bpftool** **map create**     *FILE* **type** *TYPE* **key** *KEY_SIZE* **value** *VALUE_SIZE* \
 |		**entries** *MAX_ENTRIES* **name** *NAME* [**flags** *FLAGS*] [**dev** *NAME*]
 |	**bpftool** **map dump**       *MAP*
@@ -49,7 +49,7 @@ MAP COMMANDS
 |		| **lru_percpu_hash** | **lpm_trie** | **array_of_maps** | **hash_of_maps**
 |		| **devmap** | **devmap_hash** | **sockmap** | **cpumap** | **xskmap** | **sockhash**
 |		| **cgroup_storage** | **reuseport_sockarray** | **percpu_cgroup_storage**
-|		| **queue** | **stack** }
+|		| **queue** | **stack** | **sk_storage** | **struct_ops** }
 
 DESCRIPTION
 ===========
@@ -66,6 +66,13 @@ DESCRIPTION
 		  Create a new map with given parameters and pin it to *bpffs*
 		  as *FILE*.
 
+		  *FLAGS* should be an integer which is the combination of
+		  desired flags, e.g. 1024 for **BPF_F_MMAPABLE** (see bpf.h
+		  UAPI header for existing flags).
+
+		  Keyword **dev** expects a network interface name, and is used
+		  to request hardware offload for the map.
+
 	**bpftool map dump**    *MAP*
 		  Dump all entries in a given *MAP*.  In case of **name**,
 		  *MAP* may match several maps which will all be dumped.
@@ -78,7 +85,7 @@ DESCRIPTION
 		  exists; **noexist** update only if entry doesn't exist.
 
 		  If the **hex** keyword is provided in front of the bytes
-		  sequence, the bytes are parsed as hexadeximal values, even if
+		  sequence, the bytes are parsed as hexadecimal values, even if
 		  no "0x" prefix is added. If the keyword is not provided, then
 		  the bytes are parsed as decimal values, unless a "0x" prefix
 		  (for hexadecimal) or a "0" prefix (for octal) is provided.
@@ -100,10 +107,10 @@ DESCRIPTION
 		  extensions of *bpffs*.
 
 	**bpftool** **map event_pipe** *MAP* [**cpu** *N* **index** *M*]
-		  Read events from a BPF_MAP_TYPE_PERF_EVENT_ARRAY map.
+		  Read events from a **BPF_MAP_TYPE_PERF_EVENT_ARRAY** map.
 
 		  Install perf rings into a perf event array map and dump
-		  output of any bpf_perf_event_output() call in the kernel.
+		  output of any **bpf_perf_event_output**\ () call in the kernel.
 		  By default read the number of CPUs on the system and
 		  install perf ring for each CPU in the corresponding index
 		  in the array.
@@ -116,24 +123,24 @@ DESCRIPTION
 		  receiving events if it installed its rings earlier.
 
 	**bpftool map peek**  *MAP*
-		  Peek next **value** in the queue or stack.
+		  Peek next value in the queue or stack.
 
 	**bpftool map push**  *MAP* **value** *VALUE*
-		  Push **value** onto the stack.
+		  Push *VALUE* onto the stack.
 
 	**bpftool map pop**  *MAP*
-		  Pop and print **value** from the stack.
+		  Pop and print value from the stack.
 
 	**bpftool map enqueue**  *MAP* **value** *VALUE*
-		  Enqueue **value** into the queue.
+		  Enqueue *VALUE* into the queue.
 
 	**bpftool map dequeue**  *MAP*
-		  Dequeue and print **value** from the queue.
+		  Dequeue and print value from the queue.
 
 	**bpftool map freeze**  *MAP*
 		  Freeze the map as read-only from user space. Entries from a
 		  frozen map can not longer be updated or deleted with the
-		  **bpf\ ()** system call. This operation is not reversible,
+		  **bpf**\ () system call. This operation is not reversible,
 		  and the map remains immutable from user space until its
 		  destruction. However, read and write permissions for BPF
 		  programs to the map remain unchanged.
@@ -269,9 +276,13 @@ SEE ALSO
 	**bpf**\ (2),
 	**bpf-helpers**\ (7),
 	**bpftool**\ (8),
-	**bpftool-prog**\ (8),
+	**bpftool-btf**\ (8),
 	**bpftool-cgroup**\ (8),
 	**bpftool-feature**\ (8),
+	**bpftool-gen**\ (8),
+	**bpftool-iter**\ (8),
+	**bpftool-link**\ (8),
 	**bpftool-net**\ (8),
 	**bpftool-perf**\ (8),
-	**bpftool-btf**\ (8)
+	**bpftool-prog**\ (8),
+	**bpftool-struct_ops**\ (8)

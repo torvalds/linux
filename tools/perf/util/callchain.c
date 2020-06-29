@@ -1599,3 +1599,17 @@ void callchain_cursor_reset(struct callchain_cursor *cursor)
 	for (node = cursor->first; node != NULL; node = node->next)
 		map__zput(node->ms.map);
 }
+
+void callchain_param_setup(u64 sample_type)
+{
+	if (symbol_conf.use_callchain || symbol_conf.cumulate_callchain) {
+		if ((sample_type & PERF_SAMPLE_REGS_USER) &&
+		    (sample_type & PERF_SAMPLE_STACK_USER)) {
+			callchain_param.record_mode = CALLCHAIN_DWARF;
+			dwarf_callchain_users = true;
+		} else if (sample_type & PERF_SAMPLE_BRANCH_STACK)
+			callchain_param.record_mode = CALLCHAIN_LBR;
+		else
+			callchain_param.record_mode = CALLCHAIN_FP;
+	}
+}

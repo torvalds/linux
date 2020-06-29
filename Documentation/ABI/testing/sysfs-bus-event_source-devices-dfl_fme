@@ -1,0 +1,104 @@
+What:		/sys/bus/event_source/devices/dfl_fmeX/format
+Date:		April 2020
+KernelVersion:  5.8
+Contact:	Wu Hao <hao.wu@intel.com>
+Description:	Read-only. Attribute group to describe the magic bits
+		that go into perf_event_attr.config for a particular pmu.
+		(See ABI/testing/sysfs-bus-event_source-devices-format).
+
+		Each attribute under this group defines a bit range of the
+		perf_event_attr.config. All supported attributes are listed
+		below.
+
+		    event  = "config:0-11"  - event ID
+		    evtype = "config:12-15" - event type
+		    portid = "config:16-23" - event source
+
+		For example,
+
+		    fab_mmio_read = "event=0x06,evtype=0x02,portid=0xff"
+
+		It shows this fab_mmio_read is a fabric type (0x02) event with
+		0x06 local event id for overall monitoring (portid=0xff).
+
+What:		/sys/bus/event_source/devices/dfl_fmeX/cpumask
+Date:		April 2020
+KernelVersion:  5.8
+Contact:	Wu Hao <hao.wu@intel.com>
+Description:	Read-only. This file always returns cpu which the PMU is bound
+		for access to all fme pmu performance monitoring events.
+
+What:		/sys/bus/event_source/devices/dfl_fmeX/events
+Date:		April 2020
+KernelVersion:  5.8
+Contact:	Wu Hao <hao.wu@intel.com>
+Description:	Read-only. Attribute group to describe performance monitoring
+		events specific to fme. Each attribute in this group describes
+		a single performance monitoring event supported by this fme pmu.
+		The name of the file is the name of the event.
+		(See ABI/testing/sysfs-bus-event_source-devices-events).
+
+		All supported performance monitoring events are listed below.
+
+		Basic events (evtype=0x00)
+
+		    clock = "event=0x00,evtype=0x00,portid=0xff"
+
+		Cache events (evtype=0x01)
+
+		    cache_read_hit      = "event=0x00,evtype=0x01,portid=0xff"
+		    cache_read_miss     = "event=0x01,evtype=0x01,portid=0xff"
+		    cache_write_hit     = "event=0x02,evtype=0x01,portid=0xff"
+		    cache_write_miss    = "event=0x03,evtype=0x01,portid=0xff"
+		    cache_hold_request  = "event=0x05,evtype=0x01,portid=0xff"
+		    cache_data_write_port_contention =
+		                          "event=0x06,evtype=0x01,portid=0xff"
+		    cache_tag_write_port_contention =
+		                          "event=0x07,evtype=0x01,portid=0xff"
+		    cache_tx_req_stall  = "event=0x08,evtype=0x01,portid=0xff"
+		    cache_rx_req_stall  = "event=0x09,evtype=0x01,portid=0xff"
+		    cache_eviction      = "event=0x0a,evtype=0x01,portid=0xff"
+
+		Fabric events (evtype=0x02)
+
+		    fab_pcie0_read       = "event=0x00,evtype=0x02,portid=0xff"
+		    fab_pcie0_write      = "event=0x01,evtype=0x02,portid=0xff"
+		    fab_pcie1_read       = "event=0x02,evtype=0x02,portid=0xff"
+		    fab_pcie1_write      = "event=0x03,evtype=0x02,portid=0xff"
+		    fab_upi_read         = "event=0x04,evtype=0x02,portid=0xff"
+		    fab_upi_write        = "event=0x05,evtype=0x02,portid=0xff"
+		    fab_mmio_read        = "event=0x06,evtype=0x02,portid=0xff"
+		    fab_mmio_write       = "event=0x07,evtype=0x02,portid=0xff"
+		    fab_port_pcie0_read  = "event=0x00,evtype=0x02,portid=?"
+		    fab_port_pcie0_write = "event=0x01,evtype=0x02,portid=?"
+		    fab_port_pcie1_read  = "event=0x02,evtype=0x02,portid=?"
+		    fab_port_pcie1_write = "event=0x03,evtype=0x02,portid=?"
+		    fab_port_upi_read    = "event=0x04,evtype=0x02,portid=?"
+		    fab_port_upi_write   = "event=0x05,evtype=0x02,portid=?"
+		    fab_port_mmio_read   = "event=0x06,evtype=0x02,portid=?"
+		    fab_port_mmio_write  = "event=0x07,evtype=0x02,portid=?"
+
+		VTD events (evtype=0x03)
+
+		    vtd_port_read_transaction  = "event=0x00,evtype=0x03,portid=?"
+		    vtd_port_write_transaction = "event=0x01,evtype=0x03,portid=?"
+		    vtd_port_devtlb_read_hit   = "event=0x02,evtype=0x03,portid=?"
+		    vtd_port_devtlb_write_hit  = "event=0x03,evtype=0x03,portid=?"
+		    vtd_port_devtlb_4k_fill    = "event=0x04,evtype=0x03,portid=?"
+		    vtd_port_devtlb_2m_fill    = "event=0x05,evtype=0x03,portid=?"
+		    vtd_port_devtlb_1g_fill    = "event=0x06,evtype=0x03,portid=?"
+
+		VTD SIP events (evtype=0x04)
+
+		    vtd_sip_iotlb_4k_hit  = "event=0x00,evtype=0x04,portid=0xff"
+		    vtd_sip_iotlb_2m_hit  = "event=0x01,evtype=0x04,portid=0xff"
+		    vtd_sip_iotlb_1g_hit  = "event=0x02,evtype=0x04,portid=0xff"
+		    vtd_sip_slpwc_l3_hit  = "event=0x03,evtype=0x04,portid=0xff"
+		    vtd_sip_slpwc_l4_hit  = "event=0x04,evtype=0x04,portid=0xff"
+		    vtd_sip_rcc_hit       = "event=0x05,evtype=0x04,portid=0xff"
+		    vtd_sip_iotlb_4k_miss = "event=0x06,evtype=0x04,portid=0xff"
+		    vtd_sip_iotlb_2m_miss = "event=0x07,evtype=0x04,portid=0xff"
+		    vtd_sip_iotlb_1g_miss = "event=0x08,evtype=0x04,portid=0xff"
+		    vtd_sip_slpwc_l3_miss = "event=0x09,evtype=0x04,portid=0xff"
+		    vtd_sip_slpwc_l4_miss = "event=0x0a,evtype=0x04,portid=0xff"
+		    vtd_sip_rcc_miss      = "event=0x0b,evtype=0x04,portid=0xff"

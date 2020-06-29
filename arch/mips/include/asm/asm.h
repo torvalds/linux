@@ -74,10 +74,15 @@ symbol:		.insn
 		.globl	symbol;				\
 symbol		=	value
 
-#define PANIC(msg)					\
+#define TEXT(msg)					\
+		.pushsection .data;			\
+8:		.asciiz msg;				\
+		.popsection;
+
+#define ASM_PANIC(msg)					\
 		.set	push;				\
 		.set	reorder;			\
-		PTR_LA	a0, 8f;				 \
+		PTR_LA	a0, 8f;				\
 		jal	panic;				\
 9:		b	9b;				\
 		.set	pop;				\
@@ -87,21 +92,16 @@ symbol		=	value
  * Print formatted string
  */
 #ifdef CONFIG_PRINTK
-#define PRINT(string)					\
+#define ASM_PRINT(string)				\
 		.set	push;				\
 		.set	reorder;			\
-		PTR_LA	a0, 8f;				 \
+		PTR_LA	a0, 8f;				\
 		jal	printk;				\
 		.set	pop;				\
 		TEXT(string)
 #else
-#define PRINT(string)
+#define ASM_PRINT(string)
 #endif
-
-#define TEXT(msg)					\
-		.pushsection .data;			\
-8:		.asciiz msg;				\
-		.popsection;
 
 /*
  * Stack alignment
@@ -202,7 +202,9 @@ symbol		=	value
 #define LONG_SRA	sra
 #define LONG_SRAV	srav
 
+#ifdef __ASSEMBLY__
 #define LONG		.word
+#endif
 #define LONGSIZE	4
 #define LONGMASK	3
 #define LONGLOG		2
@@ -225,7 +227,9 @@ symbol		=	value
 #define LONG_SRA	dsra
 #define LONG_SRAV	dsrav
 
+#ifdef __ASSEMBLY__
 #define LONG		.dword
+#endif
 #define LONGSIZE	8
 #define LONGMASK	7
 #define LONGLOG		3

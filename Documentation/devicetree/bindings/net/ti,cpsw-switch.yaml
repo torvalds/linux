@@ -23,14 +23,14 @@ properties:
     oneOf:
       - const: ti,cpsw-switch
       - items:
-         - const: ti,am335x-cpsw-switch
-         - const: ti,cpsw-switch
+          - const: ti,am335x-cpsw-switch
+          - const: ti,cpsw-switch
       - items:
-        - const: ti,am4372-cpsw-switch
-        - const: ti,cpsw-switch
+          - const: ti,am4372-cpsw-switch
+          - const: ti,cpsw-switch
       - items:
-        - const: ti,dra7-cpsw-switch
-        - const: ti,cpsw-switch
+          - const: ti,dra7-cpsw-switch
+          - const: ti,cpsw-switch
 
   reg:
     maxItems: 1
@@ -105,8 +105,7 @@ properties:
               description: label associated with this port
 
             ti,dual-emac-pvid:
-              allOf:
-                - $ref: /schemas/types.yaml#/definitions/uint32
+              $ref: /schemas/types.yaml#/definitions/uint32
               minimum: 1
               maximum: 1024
               description:
@@ -150,10 +149,9 @@ properties:
 patternProperties:
   "^mdio@":
     type: object
-    allOf:
-      - $ref: "ti,davinci-mdio.yaml#"
     description:
       CPSW MDIO bus.
+    $ref: "ti,davinci-mdio.yaml#"
 
 
 required:

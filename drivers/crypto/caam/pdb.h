@@ -453,7 +453,7 @@ struct srtp_decap_pdb {
 #define DSA_PDB_N_MASK		0x7f
 
 struct dsa_sign_pdb {
-	u32 sgf_ln; /* Use DSA_PDB_ defintions per above */
+	u32 sgf_ln; /* Use DSA_PDB_ definitions per above */
 	u8 *q;
 	u8 *r;
 	u8 *g;	/* or Gx,y */

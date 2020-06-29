@@ -809,7 +809,7 @@ static int bch_root_node_dirty_init(struct cache_set *c,
 			schedule_timeout_interruptible(
 				msecs_to_jiffies(INIT_KEYS_SLEEP_MS));
 		else if (ret < 0) {
-			pr_warn("sectors dirty init failed, ret=%d!", ret);
+			pr_warn("sectors dirty init failed, ret=%d!\n", ret);
 			break;
 		}
 	} while (ret == -EAGAIN);
@@ -917,7 +917,7 @@ void bch_sectors_dirty_init(struct bcache_device *d)
 
 	state = kzalloc(sizeof(struct bch_dirty_init_state), GFP_KERNEL);
 	if (!state) {
-		pr_warn("sectors dirty init failed: cannot allocate memory");
+		pr_warn("sectors dirty init failed: cannot allocate memory\n");
 		return;
 	}
 
@@ -945,7 +945,7 @@ void bch_sectors_dirty_init(struct bcache_device *d)
 				    &state->infos[i],
 				    name);
 		if (IS_ERR(state->infos[i].thread)) {
-			pr_err("fails to run thread bch_dirty_init[%d]", i);
+			pr_err("fails to run thread bch_dirty_init[%d]\n", i);
 			for (--i; i >= 0; i--)
 				kthread_stop(state->infos[i].thread);
 			goto out;

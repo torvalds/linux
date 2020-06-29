@@ -155,10 +155,6 @@ static int pdr_register_listener(struct pdr_handle *pdr,
 		return ret;
 	}
 
-	if ((int)resp.curr_state < INT_MIN || (int)resp.curr_state > INT_MAX)
-		pr_err("PDR: %s notification state invalid: 0x%x\n",
-		       pds->service_path, resp.curr_state);
-
 	pds->state = resp.curr_state;
 
 	return 0;

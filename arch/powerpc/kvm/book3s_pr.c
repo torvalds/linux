@@ -700,7 +700,7 @@ static bool kvmppc_visible_gpa(struct kvm_vcpu *vcpu, gpa_t gpa)
 	return kvm_is_visible_gfn(vcpu->kvm, gpa >> PAGE_SHIFT);
 }
 
-int kvmppc_handle_pagefault(struct kvm_run *run, struct kvm_vcpu *vcpu,
+static int kvmppc_handle_pagefault(struct kvm_vcpu *vcpu,
 			    ulong eaddr, int vec)
 {
 	bool data = (vec == BOOK3S_INTERRUPT_DATA_STORAGE);
@@ -795,7 +795,7 @@ int kvmppc_handle_pagefault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		/* The guest's PTE is not mapped yet. Map on the host */
 		if (kvmppc_mmu_map_page(vcpu, &pte, iswrite) == -EIO) {
 			/* Exit KVM if mapping failed */
-			run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
+			vcpu->run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
 			return RESUME_HOST;
 		}
 		if (data)
@@ -808,7 +808,7 @@ int kvmppc_handle_pagefault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		vcpu->stat.mmio_exits++;
 		vcpu->arch.paddr_accessed = pte.raddr;
 		vcpu->arch.vaddr_accessed = pte.eaddr;
-		r = kvmppc_emulate_mmio(run, vcpu);
+		r = kvmppc_emulate_mmio(vcpu);
 		if ( r == RESUME_HOST_NV )
 			r = RESUME_HOST;
 	}
@@ -992,7 +992,7 @@ static void kvmppc_emulate_fac(struct kvm_vcpu *vcpu, ulong fac)
 	enum emulation_result er = EMULATE_FAIL;
 
 	if (!(kvmppc_get_msr(vcpu) & MSR_PR))
-		er = kvmppc_emulate_instruction(vcpu->run, vcpu);
+		er = kvmppc_emulate_instruction(vcpu);
 
 	if ((er != EMULATE_DONE) && (er != EMULATE_AGAIN)) {
 		/* Couldn't emulate, trigger interrupt in guest */
@@ -1089,8 +1089,7 @@ static void kvmppc_clear_debug(struct kvm_vcpu *vcpu)
 	}
 }
 
-static int kvmppc_exit_pr_progint(struct kvm_run *run, struct kvm_vcpu *vcpu,
-				  unsigned int exit_nr)
+static int kvmppc_exit_pr_progint(struct kvm_vcpu *vcpu, unsigned int exit_nr)
 {
 	enum emulation_result er;
 	ulong flags;
@@ -1124,7 +1123,7 @@ static int kvmppc_exit_pr_progint(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	}
 
 	vcpu->stat.emulated_inst_exits++;
-	er = kvmppc_emulate_instruction(run, vcpu);
+	er = kvmppc_emulate_instruction(vcpu);
 	switch (er) {
 	case EMULATE_DONE:
 		r = RESUME_GUEST_NV;
@@ -1139,7 +1138,7 @@ static int kvmppc_exit_pr_progint(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		r = RESUME_GUEST;
 		break;
 	case EMULATE_DO_MMIO:
-		run->exit_reason = KVM_EXIT_MMIO;
+		vcpu->run->exit_reason = KVM_EXIT_MMIO;
 		r = RESUME_HOST_NV;
 		break;
 	case EMULATE_EXIT_USER:
@@ -1198,7 +1197,7 @@ int kvmppc_handle_exit_pr(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		/* only care about PTEG not found errors, but leave NX alone */
 		if (shadow_srr1 & 0x40000000) {
 			int idx = srcu_read_lock(&vcpu->kvm->srcu);
-			r = kvmppc_handle_pagefault(run, vcpu, kvmppc_get_pc(vcpu), exit_nr);
+			r = kvmppc_handle_pagefault(vcpu, kvmppc_get_pc(vcpu), exit_nr);
 			srcu_read_unlock(&vcpu->kvm->srcu, idx);
 			vcpu->stat.sp_instruc++;
 		} else if (vcpu->arch.mmu.is_dcbz32(vcpu) &&
@@ -1248,7 +1247,7 @@ int kvmppc_handle_exit_pr(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		 */
 		if (fault_dsisr & (DSISR_NOHPTE | DSISR_PROTFAULT)) {
 			int idx = srcu_read_lock(&vcpu->kvm->srcu);
-			r = kvmppc_handle_pagefault(run, vcpu, dar, exit_nr);
+			r = kvmppc_handle_pagefault(vcpu, dar, exit_nr);
 			srcu_read_unlock(&vcpu->kvm->srcu, idx);
 		} else {
 			kvmppc_core_queue_data_storage(vcpu, dar, fault_dsisr);
@@ -1292,7 +1291,7 @@ int kvmppc_handle_exit_pr(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		break;
 	case BOOK3S_INTERRUPT_PROGRAM:
 	case BOOK3S_INTERRUPT_H_EMUL_ASSIST:
-		r = kvmppc_exit_pr_progint(run, vcpu, exit_nr);
+		r = kvmppc_exit_pr_progint(vcpu, exit_nr);
 		break;
 	case BOOK3S_INTERRUPT_SYSCALL:
 	{
@@ -1370,7 +1369,7 @@ int kvmppc_handle_exit_pr(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			emul = kvmppc_get_last_inst(vcpu, INST_GENERIC,
 						    &last_inst);
 			if (emul == EMULATE_DONE)
-				r = kvmppc_exit_pr_progint(run, vcpu, exit_nr);
+				r = kvmppc_exit_pr_progint(vcpu, exit_nr);
 			else
 				r = RESUME_GUEST;
 
@@ -1825,8 +1824,9 @@ static void kvmppc_core_vcpu_free_pr(struct kvm_vcpu *vcpu)
 	vfree(vcpu_book3s);
 }
 
-static int kvmppc_vcpu_run_pr(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
+static int kvmppc_vcpu_run_pr(struct kvm_vcpu *vcpu)
 {
+	struct kvm_run *run = vcpu->run;
 	int ret;
 #ifdef CONFIG_ALTIVEC
 	unsigned long uninitialized_var(vrsave);
@@ -1834,7 +1834,7 @@ static int kvmppc_vcpu_run_pr(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 
 	/* Check if we can run the vcpu at all */
 	if (!vcpu->arch.sane) {
-		kvm_run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
+		run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
 		ret = -EINVAL;
 		goto out;
 	}
@@ -1861,7 +1861,7 @@ static int kvmppc_vcpu_run_pr(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 
 	kvmppc_fix_ee_before_entry();
 
-	ret = __kvmppc_vcpu_run(kvm_run, vcpu);
+	ret = __kvmppc_vcpu_run(run, vcpu);
 
 	kvmppc_clear_debug(vcpu);
 

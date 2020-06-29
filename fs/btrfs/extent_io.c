@@ -2333,7 +2333,7 @@ int repair_io_failure(struct btrfs_fs_info *fs_info, u64 ino, u64 start,
 	return 0;
 }
 
-int btrfs_repair_eb_io_failure(struct extent_buffer *eb, int mirror_num)
+int btrfs_repair_eb_io_failure(const struct extent_buffer *eb, int mirror_num)
 {
 	struct btrfs_fs_info *fs_info = eb->fs_info;
 	u64 start = eb->start;
@@ -2537,8 +2537,9 @@ int btrfs_get_io_failure_record(struct inode *inode, u64 start, u64 end,
 	return 0;
 }
 
-bool btrfs_check_repairable(struct inode *inode, unsigned failed_bio_pages,
-			   struct io_failure_record *failrec, int failed_mirror)
+static bool btrfs_check_repairable(struct inode *inode, bool needs_validation,
+				   struct io_failure_record *failrec,
+				   int failed_mirror)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	int num_copies;
@@ -2561,7 +2562,7 @@ bool btrfs_check_repairable(struct inode *inode, unsigned failed_bio_pages,
 	 *	a) deliver good data to the caller
 	 *	b) correct the bad sectors on disk
 	 */
-	if (failed_bio_pages > 1) {
+	if (needs_validation) {
 		/*
 		 * to fulfill b), we need to know the exact failing sectors, as
 		 * we don't want to rewrite any more than the failed ones. thus,
@@ -2600,94 +2601,115 @@ bool btrfs_check_repairable(struct inode *inode, unsigned failed_bio_pages,
 	return true;
 }
 
-
-struct bio *btrfs_create_repair_bio(struct inode *inode, struct bio *failed_bio,
-				    struct io_failure_record *failrec,
-				    struct page *page, int pg_offset, int icsum,
-				    bio_end_io_t *endio_func, void *data)
+static bool btrfs_io_needs_validation(struct inode *inode, struct bio *bio)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
-	struct bio *bio;
-	struct btrfs_io_bio *btrfs_failed_bio;
-	struct btrfs_io_bio *btrfs_bio;
+	u64 len = 0;
+	const u32 blocksize = inode->i_sb->s_blocksize;
 
-	bio = btrfs_io_bio_alloc(1);
-	bio->bi_end_io = endio_func;
-	bio->bi_iter.bi_sector = failrec->logical >> 9;
-	bio->bi_iter.bi_size = 0;
-	bio->bi_private = data;
+	/*
+	 * If bi_status is BLK_STS_OK, then this was a checksum error, not an
+	 * I/O error. In this case, we already know exactly which sector was
+	 * bad, so we don't need to validate.
+	 */
+	if (bio->bi_status == BLK_STS_OK)
+		return false;
 
-	btrfs_failed_bio = btrfs_io_bio(failed_bio);
-	if (btrfs_failed_bio->csum) {
-		u16 csum_size = btrfs_super_csum_size(fs_info->super_copy);
+	/*
+	 * We need to validate each sector individually if the failed I/O was
+	 * for multiple sectors.
+	 *
+	 * There are a few possible bios that can end up here:
+	 * 1. A buffered read bio, which is not cloned.
+	 * 2. A direct I/O read bio, which is cloned.
+	 * 3. A (buffered or direct) repair bio, which is not cloned.
+	 *
+	 * For cloned bios (case 2), we can get the size from
+	 * btrfs_io_bio->iter; for non-cloned bios (cases 1 and 3), we can get
+	 * it from the bvecs.
+	 */
+	if (bio_flagged(bio, BIO_CLONED)) {
+		if (btrfs_io_bio(bio)->iter.bi_size > blocksize)
+			return true;
+	} else {
+		struct bio_vec *bvec;
+		int i;
 
-		btrfs_bio = btrfs_io_bio(bio);
-		btrfs_bio->csum = btrfs_bio->csum_inline;
-		icsum *= csum_size;
-		memcpy(btrfs_bio->csum, btrfs_failed_bio->csum + icsum,
-		       csum_size);
+		bio_for_each_bvec_all(bvec, bio, i) {
+			len += bvec->bv_len;
+			if (len > blocksize)
+				return true;
+		}
 	}
-
-	bio_add_page(bio, page, failrec->len, pg_offset);
-
-	return bio;
+	return false;
 }
 
-/*
- * This is a generic handler for readpage errors. If other copies exist, read
- * those and write back good data to the failed position. Does not investigate
- * in remapping the failed extent elsewhere, hoping the device will be smart
- * enough to do this as needed
- */
-static int bio_readpage_error(struct bio *failed_bio, u64 phy_offset,
-			      struct page *page, u64 start, u64 end,
-			      int failed_mirror)
+blk_status_t btrfs_submit_read_repair(struct inode *inode,
+				      struct bio *failed_bio, u64 phy_offset,
+				      struct page *page, unsigned int pgoff,
+				      u64 start, u64 end, int failed_mirror,
+				      submit_bio_hook_t *submit_bio_hook)
 {
 	struct io_failure_record *failrec;
-	struct inode *inode = page->mapping->host;
+	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct extent_io_tree *tree = &BTRFS_I(inode)->io_tree;
 	struct extent_io_tree *failure_tree = &BTRFS_I(inode)->io_failure_tree;
-	struct bio *bio;
-	int read_mode = 0;
+	struct btrfs_io_bio *failed_io_bio = btrfs_io_bio(failed_bio);
+	const int icsum = phy_offset >> inode->i_sb->s_blocksize_bits;
+	bool need_validation;
+	struct bio *repair_bio;
+	struct btrfs_io_bio *repair_io_bio;
 	blk_status_t status;
 	int ret;
-	unsigned failed_bio_pages = failed_bio->bi_iter.bi_size >> PAGE_SHIFT;
+
+	btrfs_debug(fs_info,
+		   "repair read error: read error at %llu", start);
 
 	BUG_ON(bio_op(failed_bio) == REQ_OP_WRITE);
 
 	ret = btrfs_get_io_failure_record(inode, start, end, &failrec);
 	if (ret)
-		return ret;
+		return errno_to_blk_status(ret);
 
-	if (!btrfs_check_repairable(inode, failed_bio_pages, failrec,
+	need_validation = btrfs_io_needs_validation(inode, failed_bio);
+
+	if (!btrfs_check_repairable(inode, need_validation, failrec,
 				    failed_mirror)) {
 		free_io_failure(failure_tree, tree, failrec);
-		return -EIO;
+		return BLK_STS_IOERR;
 	}
 
-	if (failed_bio_pages > 1)
-		read_mode |= REQ_FAILFAST_DEV;
+	repair_bio = btrfs_io_bio_alloc(1);
+	repair_io_bio = btrfs_io_bio(repair_bio);
+	repair_bio->bi_opf = REQ_OP_READ;
+	if (need_validation)
+		repair_bio->bi_opf |= REQ_FAILFAST_DEV;
+	repair_bio->bi_end_io = failed_bio->bi_end_io;
+	repair_bio->bi_iter.bi_sector = failrec->logical >> 9;
+	repair_bio->bi_private = failed_bio->bi_private;
 
-	phy_offset >>= inode->i_sb->s_blocksize_bits;
-	bio = btrfs_create_repair_bio(inode, failed_bio, failrec, page,
-				      start - page_offset(page),
-				      (int)phy_offset, failed_bio->bi_end_io,
-				      NULL);
-	bio->bi_opf = REQ_OP_READ | read_mode;
+	if (failed_io_bio->csum) {
+		const u16 csum_size = btrfs_super_csum_size(fs_info->super_copy);
+
+		repair_io_bio->csum = repair_io_bio->csum_inline;
+		memcpy(repair_io_bio->csum,
+		       failed_io_bio->csum + csum_size * icsum, csum_size);
+	}
+
+	bio_add_page(repair_bio, page, failrec->len, pgoff);
+	repair_io_bio->logical = failrec->start;
+	repair_io_bio->iter = repair_bio->bi_iter;
 
 	btrfs_debug(btrfs_sb(inode->i_sb),
-		"Repair Read Error: submitting new read[%#x] to this_mirror=%d, in_validation=%d",
-		read_mode, failrec->this_mirror, failrec->in_validation);
+"repair read error: submitting new read to mirror %d, in_validation=%d",
+		    failrec->this_mirror, failrec->in_validation);
 
-	status = tree->ops->submit_bio_hook(tree->private_data, bio, failrec->this_mirror,
-					 failrec->bio_flags);
+	status = submit_bio_hook(inode, repair_bio, failrec->this_mirror,
+				 failrec->bio_flags);
 	if (status) {
 		free_io_failure(failure_tree, tree, failrec);
-		bio_put(bio);
-		ret = blk_status_to_errno(status);
+		bio_put(repair_bio);
 	}
-
-	return ret;
+	return status;
 }
 
 /* lots and lots of room for performance fixes in the end_bio funcs */
@@ -2859,9 +2881,10 @@ static void end_bio_extent_readpage(struct bio *bio)
 			 * If it can't handle the error it will return -EIO and
 			 * we remain responsible for that page.
 			 */
-			ret = bio_readpage_error(bio, offset, page, start, end,
-						 mirror);
-			if (ret == 0) {
+			if (!btrfs_submit_read_repair(inode, bio, offset, page,
+						start - page_offset(page),
+						start, end, mirror,
+						tree->ops->submit_bio_hook)) {
 				uptodate = !bio->bi_status;
 				offset += len;
 				continue;
@@ -3076,22 +3099,16 @@ static int submit_extent_page(unsigned int opf,
 static void attach_extent_buffer_page(struct extent_buffer *eb,
 				      struct page *page)
 {
-	if (!PagePrivate(page)) {
-		SetPagePrivate(page);
-		get_page(page);
-		set_page_private(page, (unsigned long)eb);
-	} else {
+	if (!PagePrivate(page))
+		attach_page_private(page, eb);
+	else
 		WARN_ON(page->private != (unsigned long)eb);
-	}
 }
 
 void set_page_extent_mapped(struct page *page)
 {
-	if (!PagePrivate(page)) {
-		SetPagePrivate(page);
-		get_page(page);
-		set_page_private(page, EXTENT_PAGE_PRIVATE);
-	}
+	if (!PagePrivate(page))
+		attach_page_private(page, (void *)EXTENT_PAGE_PRIVATE);
 }
 
 static struct extent_map *
@@ -4367,51 +4384,32 @@ int extent_writepages(struct address_space *mapping,
 	return ret;
 }
 
-int extent_readpages(struct address_space *mapping, struct list_head *pages,
-		     unsigned nr_pages)
+void extent_readahead(struct readahead_control *rac)
 {
 	struct bio *bio = NULL;
 	unsigned long bio_flags = 0;
 	struct page *pagepool[16];
 	struct extent_map *em_cached = NULL;
-	int nr = 0;
 	u64 prev_em_start = (u64)-1;
+	int nr;
 
-	while (!list_empty(pages)) {
-		u64 contig_end = 0;
+	while ((nr = readahead_page_batch(rac, pagepool))) {
+		u64 contig_start = page_offset(pagepool[0]);
+		u64 contig_end = page_offset(pagepool[nr - 1]) + PAGE_SIZE - 1;
 
-		for (nr = 0; nr < ARRAY_SIZE(pagepool) && !list_empty(pages);) {
-			struct page *page = lru_to_page(pages);
+		ASSERT(contig_start + nr * PAGE_SIZE - 1 == contig_end);
 
-			prefetchw(&page->flags);
-			list_del(&page->lru);
-			if (add_to_page_cache_lru(page, mapping, page->index,
-						readahead_gfp_mask(mapping))) {
-				put_page(page);
-				break;
-			}
-
-			pagepool[nr++] = page;
-			contig_end = page_offset(page) + PAGE_SIZE - 1;
-		}
-
-		if (nr) {
-			u64 contig_start = page_offset(pagepool[0]);
-
-			ASSERT(contig_start + nr * PAGE_SIZE - 1 == contig_end);
-
-			contiguous_readpages(pagepool, nr, contig_start,
-				     contig_end, &em_cached, &bio, &bio_flags,
-				     &prev_em_start);
-		}
+		contiguous_readpages(pagepool, nr, contig_start, contig_end,
+				&em_cached, &bio, &bio_flags, &prev_em_start);
 	}
 
 	if (em_cached)
 		free_extent_map(em_cached);
 
-	if (bio)
-		return submit_one_bio(bio, 0, bio_flags);
-	return 0;
+	if (bio) {
+		if (submit_one_bio(bio, 0, bio_flags))
+			return;
+	}
 }
 
 /*
@@ -4887,7 +4885,7 @@ static void __free_extent_buffer(struct extent_buffer *eb)
 	kmem_cache_free(extent_buffer_cache, eb);
 }
 
-int extent_buffer_under_io(struct extent_buffer *eb)
+int extent_buffer_under_io(const struct extent_buffer *eb)
 {
 	return (atomic_read(&eb->io_pages) ||
 		test_bit(EXTENT_BUFFER_WRITEBACK, &eb->bflags) ||
@@ -4929,10 +4927,7 @@ static void btrfs_release_extent_buffer_pages(struct extent_buffer *eb)
 			 * We need to make sure we haven't be attached
 			 * to a new eb.
 			 */
-			ClearPagePrivate(page);
-			set_page_private(page, 0);
-			/* One for the page private */
-			put_page(page);
+			detach_page_private(page);
 		}
 
 		if (mapped)
@@ -4995,7 +4990,7 @@ __alloc_extent_buffer(struct btrfs_fs_info *fs_info, u64 start,
 	return eb;
 }
 
-struct extent_buffer *btrfs_clone_extent_buffer(struct extent_buffer *src)
+struct extent_buffer *btrfs_clone_extent_buffer(const struct extent_buffer *src)
 {
 	int i;
 	struct page *p;
@@ -5401,7 +5396,7 @@ void free_extent_buffer_stale(struct extent_buffer *eb)
 	release_extent_buffer(eb);
 }
 
-void clear_extent_buffer_dirty(struct extent_buffer *eb)
+void clear_extent_buffer_dirty(const struct extent_buffer *eb)
 {
 	int i;
 	int num_pages;
@@ -5599,8 +5594,7 @@ void read_extent_buffer(const struct extent_buffer *eb, void *dstv,
 	struct page *page;
 	char *kaddr;
 	char *dst = (char *)dstv;
-	size_t start_offset = offset_in_page(eb->start);
-	unsigned long i = (start_offset + start) >> PAGE_SHIFT;
+	unsigned long i = start >> PAGE_SHIFT;
 
 	if (start + len > eb->len) {
 		WARN(1, KERN_ERR "btrfs bad mapping eb start %llu len %lu, wanted %lu %lu\n",
@@ -5609,7 +5603,7 @@ void read_extent_buffer(const struct extent_buffer *eb, void *dstv,
 		return;
 	}
 
-	offset = offset_in_page(start_offset + start);
+	offset = offset_in_page(start);
 
 	while (len > 0) {
 		page = eb->pages[i];
@@ -5634,14 +5628,13 @@ int read_extent_buffer_to_user(const struct extent_buffer *eb,
 	struct page *page;
 	char *kaddr;
 	char __user *dst = (char __user *)dstv;
-	size_t start_offset = offset_in_page(eb->start);
-	unsigned long i = (start_offset + start) >> PAGE_SHIFT;
+	unsigned long i = start >> PAGE_SHIFT;
 	int ret = 0;
 
 	WARN_ON(start > eb->len);
 	WARN_ON(start + len > eb->start + eb->len);
 
-	offset = offset_in_page(start_offset + start);
+	offset = offset_in_page(start);
 
 	while (len > 0) {
 		page = eb->pages[i];
@@ -5662,48 +5655,6 @@ int read_extent_buffer_to_user(const struct extent_buffer *eb,
 	return ret;
 }
 
-/*
- * return 0 if the item is found within a page.
- * return 1 if the item spans two pages.
- * return -EINVAL otherwise.
- */
-int map_private_extent_buffer(const struct extent_buffer *eb,
-			      unsigned long start, unsigned long min_len,
-			      char **map, unsigned long *map_start,
-			      unsigned long *map_len)
-{
-	size_t offset;
-	char *kaddr;
-	struct page *p;
-	size_t start_offset = offset_in_page(eb->start);
-	unsigned long i = (start_offset + start) >> PAGE_SHIFT;
-	unsigned long end_i = (start_offset + start + min_len - 1) >>
-		PAGE_SHIFT;
-
-	if (start + min_len > eb->len) {
-		WARN(1, KERN_ERR "btrfs bad mapping eb start %llu len %lu, wanted %lu %lu\n",
-		       eb->start, eb->len, start, min_len);
-		return -EINVAL;
-	}
-
-	if (i != end_i)
-		return 1;
-
-	if (i == 0) {
-		offset = start_offset;
-		*map_start = 0;
-	} else {
-		offset = 0;
-		*map_start = ((u64)i << PAGE_SHIFT) - start_offset;
-	}
-
-	p = eb->pages[i];
-	kaddr = page_address(p);
-	*map = kaddr + offset;
-	*map_len = PAGE_SIZE - offset;
-	return 0;
-}
-
 int memcmp_extent_buffer(const struct extent_buffer *eb, const void *ptrv,
 			 unsigned long start, unsigned long len)
 {
@@ -5712,14 +5663,13 @@ int memcmp_extent_buffer(const struct extent_buffer *eb, const void *ptrv,
 	struct page *page;
 	char *kaddr;
 	char *ptr = (char *)ptrv;
-	size_t start_offset = offset_in_page(eb->start);
-	unsigned long i = (start_offset + start) >> PAGE_SHIFT;
+	unsigned long i = start >> PAGE_SHIFT;
 	int ret = 0;
 
 	WARN_ON(start > eb->len);
 	WARN_ON(start + len > eb->start + eb->len);
 
-	offset = offset_in_page(start_offset + start);
+	offset = offset_in_page(start);
 
 	while (len > 0) {
 		page = eb->pages[i];
@@ -5739,7 +5689,7 @@ int memcmp_extent_buffer(const struct extent_buffer *eb, const void *ptrv,
 	return ret;
 }
 
-void write_extent_buffer_chunk_tree_uuid(struct extent_buffer *eb,
+void write_extent_buffer_chunk_tree_uuid(const struct extent_buffer *eb,
 		const void *srcv)
 {
 	char *kaddr;
@@ -5750,7 +5700,7 @@ void write_extent_buffer_chunk_tree_uuid(struct extent_buffer *eb,
 			BTRFS_FSID_SIZE);
 }
 
-void write_extent_buffer_fsid(struct extent_buffer *eb, const void *srcv)
+void write_extent_buffer_fsid(const struct extent_buffer *eb, const void *srcv)
 {
 	char *kaddr;
 
@@ -5760,7 +5710,7 @@ void write_extent_buffer_fsid(struct extent_buffer *eb, const void *srcv)
 			BTRFS_FSID_SIZE);
 }
 
-void write_extent_buffer(struct extent_buffer *eb, const void *srcv,
+void write_extent_buffer(const struct extent_buffer *eb, const void *srcv,
 			 unsigned long start, unsigned long len)
 {
 	size_t cur;
@@ -5768,13 +5718,12 @@ void write_extent_buffer(struct extent_buffer *eb, const void *srcv,
 	struct page *page;
 	char *kaddr;
 	char *src = (char *)srcv;
-	size_t start_offset = offset_in_page(eb->start);
-	unsigned long i = (start_offset + start) >> PAGE_SHIFT;
+	unsigned long i = start >> PAGE_SHIFT;
 
 	WARN_ON(start > eb->len);
 	WARN_ON(start + len > eb->start + eb->len);
 
-	offset = offset_in_page(start_offset + start);
+	offset = offset_in_page(start);
 
 	while (len > 0) {
 		page = eb->pages[i];
@@ -5791,20 +5740,19 @@ void write_extent_buffer(struct extent_buffer *eb, const void *srcv,
 	}
 }
 
-void memzero_extent_buffer(struct extent_buffer *eb, unsigned long start,
+void memzero_extent_buffer(const struct extent_buffer *eb, unsigned long start,
 		unsigned long len)
 {
 	size_t cur;
 	size_t offset;
 	struct page *page;
 	char *kaddr;
-	size_t start_offset = offset_in_page(eb->start);
-	unsigned long i = (start_offset + start) >> PAGE_SHIFT;
+	unsigned long i = start >> PAGE_SHIFT;
 
 	WARN_ON(start > eb->len);
 	WARN_ON(start + len > eb->start + eb->len);
 
-	offset = offset_in_page(start_offset + start);
+	offset = offset_in_page(start);
 
 	while (len > 0) {
 		page = eb->pages[i];
@@ -5820,8 +5768,8 @@ void memzero_extent_buffer(struct extent_buffer *eb, unsigned long start,
 	}
 }
 
-void copy_extent_buffer_full(struct extent_buffer *dst,
-			     struct extent_buffer *src)
+void copy_extent_buffer_full(const struct extent_buffer *dst,
+			     const struct extent_buffer *src)
 {
 	int i;
 	int num_pages;
@@ -5834,7 +5782,8 @@ void copy_extent_buffer_full(struct extent_buffer *dst,
 				page_address(src->pages[i]));
 }
 
-void copy_extent_buffer(struct extent_buffer *dst, struct extent_buffer *src,
+void copy_extent_buffer(const struct extent_buffer *dst,
+			const struct extent_buffer *src,
 			unsigned long dst_offset, unsigned long src_offset,
 			unsigned long len)
 {
@@ -5843,12 +5792,11 @@ void copy_extent_buffer(struct extent_buffer *dst, struct extent_buffer *src,
 	size_t offset;
 	struct page *page;
 	char *kaddr;
-	size_t start_offset = offset_in_page(dst->start);
-	unsigned long i = (start_offset + dst_offset) >> PAGE_SHIFT;
+	unsigned long i = dst_offset >> PAGE_SHIFT;
 
 	WARN_ON(src->len != dst_len);
 
-	offset = offset_in_page(start_offset + dst_offset);
+	offset = offset_in_page(dst_offset);
 
 	while (len > 0) {
 		page = dst->pages[i];
@@ -5879,12 +5827,11 @@ void copy_extent_buffer(struct extent_buffer *dst, struct extent_buffer *src,
  * This helper hides the ugliness of finding the byte in an extent buffer which
  * contains a given bit.
  */
-static inline void eb_bitmap_offset(struct extent_buffer *eb,
+static inline void eb_bitmap_offset(const struct extent_buffer *eb,
 				    unsigned long start, unsigned long nr,
 				    unsigned long *page_index,
 				    size_t *page_offset)
 {
-	size_t start_offset = offset_in_page(eb->start);
 	size_t byte_offset = BIT_BYTE(nr);
 	size_t offset;
 
@@ -5893,7 +5840,7 @@ static inline void eb_bitmap_offset(struct extent_buffer *eb,
 	 * the bitmap item in the extent buffer + the offset of the byte in the
 	 * bitmap item.
 	 */
-	offset = start_offset + start + byte_offset;
+	offset = start + byte_offset;
 
 	*page_index = offset >> PAGE_SHIFT;
 	*page_offset = offset_in_page(offset);
@@ -5905,7 +5852,7 @@ static inline void eb_bitmap_offset(struct extent_buffer *eb,
  * @start: offset of the bitmap item in the extent buffer
  * @nr: bit number to test
  */
-int extent_buffer_test_bit(struct extent_buffer *eb, unsigned long start,
+int extent_buffer_test_bit(const struct extent_buffer *eb, unsigned long start,
 			   unsigned long nr)
 {
 	u8 *kaddr;
@@ -5927,7 +5874,7 @@ int extent_buffer_test_bit(struct extent_buffer *eb, unsigned long start,
  * @pos: bit number of the first bit
  * @len: number of bits to set
  */
-void extent_buffer_bitmap_set(struct extent_buffer *eb, unsigned long start,
+void extent_buffer_bitmap_set(const struct extent_buffer *eb, unsigned long start,
 			      unsigned long pos, unsigned long len)
 {
 	u8 *kaddr;
@@ -5969,8 +5916,9 @@ void extent_buffer_bitmap_set(struct extent_buffer *eb, unsigned long start,
  * @pos: bit number of the first bit
  * @len: number of bits to clear
  */
-void extent_buffer_bitmap_clear(struct extent_buffer *eb, unsigned long start,
-				unsigned long pos, unsigned long len)
+void extent_buffer_bitmap_clear(const struct extent_buffer *eb,
+				unsigned long start, unsigned long pos,
+				unsigned long len)
 {
 	u8 *kaddr;
 	struct page *page;
@@ -6031,14 +5979,14 @@ static void copy_pages(struct page *dst_page, struct page *src_page,
 		memcpy(dst_kaddr + dst_off, src_kaddr + src_off, len);
 }
 
-void memcpy_extent_buffer(struct extent_buffer *dst, unsigned long dst_offset,
-			   unsigned long src_offset, unsigned long len)
+void memcpy_extent_buffer(const struct extent_buffer *dst,
+			  unsigned long dst_offset, unsigned long src_offset,
+			  unsigned long len)
 {
 	struct btrfs_fs_info *fs_info = dst->fs_info;
 	size_t cur;
 	size_t dst_off_in_page;
 	size_t src_off_in_page;
-	size_t start_offset = offset_in_page(dst->start);
 	unsigned long dst_i;
 	unsigned long src_i;
 
@@ -6056,11 +6004,11 @@ void memcpy_extent_buffer(struct extent_buffer *dst, unsigned long dst_offset,
 	}
 
 	while (len > 0) {
-		dst_off_in_page = offset_in_page(start_offset + dst_offset);
-		src_off_in_page = offset_in_page(start_offset + src_offset);
+		dst_off_in_page = offset_in_page(dst_offset);
+		src_off_in_page = offset_in_page(src_offset);
 
-		dst_i = (start_offset + dst_offset) >> PAGE_SHIFT;
-		src_i = (start_offset + src_offset) >> PAGE_SHIFT;
+		dst_i = dst_offset >> PAGE_SHIFT;
+		src_i = src_offset >> PAGE_SHIFT;
 
 		cur = min(len, (unsigned long)(PAGE_SIZE -
 					       src_off_in_page));
@@ -6076,8 +6024,9 @@ void memcpy_extent_buffer(struct extent_buffer *dst, unsigned long dst_offset,
 	}
 }
 
-void memmove_extent_buffer(struct extent_buffer *dst, unsigned long dst_offset,
-			   unsigned long src_offset, unsigned long len)
+void memmove_extent_buffer(const struct extent_buffer *dst,
+			   unsigned long dst_offset, unsigned long src_offset,
+			   unsigned long len)
 {
 	struct btrfs_fs_info *fs_info = dst->fs_info;
 	size_t cur;
@@ -6085,7 +6034,6 @@ void memmove_extent_buffer(struct extent_buffer *dst, unsigned long dst_offset,
 	size_t src_off_in_page;
 	unsigned long dst_end = dst_offset + len - 1;
 	unsigned long src_end = src_offset + len - 1;
-	size_t start_offset = offset_in_page(dst->start);
 	unsigned long dst_i;
 	unsigned long src_i;
 
@@ -6106,11 +6054,11 @@ void memmove_extent_buffer(struct extent_buffer *dst, unsigned long dst_offset,
 		return;
 	}
 	while (len > 0) {
-		dst_i = (start_offset + dst_end) >> PAGE_SHIFT;
-		src_i = (start_offset + src_end) >> PAGE_SHIFT;
+		dst_i = dst_end >> PAGE_SHIFT;
+		src_i = src_end >> PAGE_SHIFT;
 
-		dst_off_in_page = offset_in_page(start_offset + dst_end);
-		src_off_in_page = offset_in_page(start_offset + src_end);
+		dst_off_in_page = offset_in_page(dst_end);
+		src_off_in_page = offset_in_page(src_end);
 
 		cur = min_t(unsigned long, len, src_off_in_page + 1);
 		cur = min(cur, dst_off_in_page + 1);

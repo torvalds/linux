@@ -94,10 +94,10 @@ static char lancestr[] = "LANCE";
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/gfp.h>
+#include <linux/pgtable.h>
 
 #include <asm/io.h>
 #include <asm/dma.h>
-#include <asm/pgtable.h>
 #include <asm/byteorder.h>	/* Used by the checksum routines */
 #include <asm/idprom.h>
 #include <asm/prom.h>

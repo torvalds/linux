@@ -8,6 +8,7 @@
 #include <net/rpl.h>
 
 #define IPV6_PFXTAIL_LEN(x) (sizeof(struct in6_addr) - (x))
+#define IPV6_RPL_BEST_ADDR_COMPRESSION 15
 
 static void ipv6_rpl_addr_decompress(struct in6_addr *dst,
 				     const struct in6_addr *daddr,
@@ -73,7 +74,7 @@ static unsigned char ipv6_rpl_srh_calc_cmpri(const struct ipv6_rpl_sr_hdr *inhdr
 		}
 	}
 
-	return plen;
+	return IPV6_RPL_BEST_ADDR_COMPRESSION;
 }
 
 static unsigned char ipv6_rpl_srh_calc_cmpre(const struct in6_addr *daddr,
@@ -83,10 +84,10 @@ static unsigned char ipv6_rpl_srh_calc_cmpre(const struct in6_addr *daddr,
 
 	for (plen = 0; plen < sizeof(*daddr); plen++) {
 		if (daddr->s6_addr[plen] != last_segment->s6_addr[plen])
-			break;
+			return plen;
 	}
 
-	return plen;
+	return IPV6_RPL_BEST_ADDR_COMPRESSION;
 }
 
 void ipv6_rpl_srh_compress(struct ipv6_rpl_sr_hdr *outhdr,

@@ -4,7 +4,7 @@ config MLX4_INFINIBAND
 	depends on NETDEVICES && ETHERNET && PCI && INET
 	select NET_VENDOR_MELLANOX
 	select MLX4_CORE
-	---help---
+	help
 	  This driver provides low-level InfiniBand support for
 	  Mellanox ConnectX PCI Express host channel adapters (HCAs).
 	  This is required to use InfiniBand protocols such as

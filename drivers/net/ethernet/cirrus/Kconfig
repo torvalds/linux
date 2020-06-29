@@ -7,7 +7,7 @@ config NET_VENDOR_CIRRUS
 	bool "Cirrus devices"
 	default y
 	depends on ISA || EISA || ARM || MAC
-	---help---
+	help
 	  If you have a network (Ethernet) card belonging to this class, say Y.
 
 	  Note that the answer to this question doesn't directly affect the
@@ -21,10 +21,10 @@ config CS89x0
 	tristate "CS89x0 support"
 	depends on ISA || EISA || ARM
 	depends on !PPC32
-	---help---
+	help
 	  Support for CS89x0 chipset based Ethernet cards. If you have a
 	  network (Ethernet) card of this type, say Y and read the file
-	  <file:Documentation/networking/device_drivers/cirrus/cs89x0.txt>.
+	  <file:Documentation/networking/device_drivers/cirrus/cs89x0.rst>.
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called cs89x0.
@@ -51,7 +51,7 @@ config EP93XX_ETH
 config MAC89x0
 	tristate "Macintosh CS89x0 based ethernet cards"
 	depends on MAC
-	---help---
+	help
 	  Support for CS89x0 chipset based Ethernet cards.  If you have a
 	  Nubus or LC-PDS network (Ethernet) card of this type, say Y here.
 

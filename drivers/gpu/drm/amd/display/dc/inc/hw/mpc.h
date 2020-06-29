@@ -210,6 +210,22 @@ struct mpc_funcs {
 		struct mpcc_blnd_cfg *blnd_cfg,
 		int mpcc_id);
 
+	/*
+	 * Lock cursor updates for the specified OPP.
+	 * OPP defines the set of MPCC that are locked together for cursor.
+	 *
+	 * Parameters:
+	 * [in] 	mpc		- MPC context.
+	 * [in]     opp_id	- The OPP to lock cursor updates on
+	 * [in]		lock	- lock/unlock the OPP
+	 *
+	 * Return:  void
+	 */
+	void (*cursor_lock)(
+			struct mpc *mpc,
+			int opp_id,
+			bool lock);
+
 	struct mpcc* (*get_mpcc_for_dpp)(
 			struct mpc_tree *tree,
 			int dpp_id);

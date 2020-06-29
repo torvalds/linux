@@ -266,7 +266,7 @@ static int goya_config_stm(struct hl_device *hdev,
 		WREG32(base_reg + 0xDF4, 0x80);
 		WREG32(base_reg + 0xE8C, input->frequency);
 		WREG32(base_reg + 0xE90, 0x7FF);
-		WREG32(base_reg + 0xE80, 0x7 | (input->id << 16));
+		WREG32(base_reg + 0xE80, 0x27 | (input->id << 16));
 	} else {
 		WREG32(base_reg + 0xE80, 4);
 		WREG32(base_reg + 0xD64, 0);

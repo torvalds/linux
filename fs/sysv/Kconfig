@@ -28,7 +28,7 @@ config SYSV_FS
 	  tar" or preferably "info tar").  Note also that this option has
 	  nothing whatsoever to do with the option "System V IPC". Read about
 	  the System V file system in
-	  <file:Documentation/filesystems/sysv-fs.txt>.
+	  <file:Documentation/filesystems/sysv-fs.rst>.
 	  Saying Y here will enlarge your kernel by about 27 KB.
 
 	  To compile this as a module, choose M here: the module will be called

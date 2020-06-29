@@ -1038,8 +1038,7 @@ int cvm_mmc_of_slot_probe(struct device *dev, struct cvm_mmc_host *host)
 	 * Disable bounce buffers for max_segs = 1
 	 */
 	mmc->caps |= MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED |
-		     MMC_CAP_ERASE | MMC_CAP_CMD23 | MMC_CAP_POWER_OFF_CARD |
-		     MMC_CAP_3_3V_DDR;
+		     MMC_CAP_CMD23 | MMC_CAP_POWER_OFF_CARD | MMC_CAP_3_3V_DDR;
 
 	if (host->use_sg)
 		mmc->max_segs = 16;

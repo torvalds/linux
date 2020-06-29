@@ -50,6 +50,11 @@
 		enable-active-high;
 	};
 
+	wlan_pwrseq: sdhci3-pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		reset-gpios = <&gpe3 1 GPIO_ACTIVE_LOW>;
+	};
+
 	gpio-keys {
 		compatible = "gpio-keys";
 
@@ -164,7 +169,8 @@
 
 	hdmi_ddc: i2c-ddc {
 		compatible = "i2c-gpio";
-		gpios = <&gpe4 2 GPIO_ACTIVE_HIGH &gpe4 3 GPIO_ACTIVE_HIGH>;
+		sda-gpios = <&gpe4 2 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&gpe4 3 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 		i2c-gpio,delay-us = <100>;
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -317,7 +323,7 @@
 		max8952,sync-freq = <0>;
 		max8952,ramp-speed = <0>;
 
-		regulator-name = "vdd_arm";
+		regulator-name = "VARM_1.2V_C210";
 		regulator-min-microvolt = <770000>;
 		regulator-max-microvolt = <1400000>;
 		regulator-always-on;
@@ -561,6 +567,29 @@
 	vmmc-supply = <&ldo5_reg>;
 	cd-gpios = <&gpx3 4 GPIO_ACTIVE_LOW>;
 	status = "okay";
+};
+
+&sdhci_3 {
+	status = "okay";
+
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	non-removable;
+	bus-width = <4>;
+	mmc-pwrseq = <&wlan_pwrseq>;
+	vmmc-supply = <&ldo5_reg>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&sd3_clk>, <&sd3_cmd>, <&sd3_bus4>;
+
+	brcmf: wifi@1 {
+		compatible = "brcm,bcm4330-fmac";
+		reg = <1>;
+		interrupt-parent = <&gpx2>;
+		interrupts = <5 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "host-wake";
+	};
 };
 
 &serial_0 {

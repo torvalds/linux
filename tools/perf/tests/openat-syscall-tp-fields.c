@@ -46,9 +46,9 @@ int test__syscall_openat_tp_fields(struct test *test __maybe_unused, int subtest
 		goto out;
 	}
 
-	evsel = perf_evsel__newtp("syscalls", "sys_enter_openat");
+	evsel = evsel__newtp("syscalls", "sys_enter_openat");
 	if (IS_ERR(evsel)) {
-		pr_debug("%s: perf_evsel__newtp\n", __func__);
+		pr_debug("%s: evsel__newtp\n", __func__);
 		goto out_delete_evlist;
 	}
 
@@ -60,7 +60,7 @@ int test__syscall_openat_tp_fields(struct test *test __maybe_unused, int subtest
 		goto out_delete_evlist;
 	}
 
-	perf_evsel__config(evsel, &opts, NULL);
+	evsel__config(evsel, &opts, NULL);
 
 	perf_thread_map__set_pid(evlist->core.threads, 0, getpid());
 
@@ -108,13 +108,13 @@ int test__syscall_openat_tp_fields(struct test *test __maybe_unused, int subtest
 					continue;
 				}
 
-				err = perf_evsel__parse_sample(evsel, event, &sample);
+				err = evsel__parse_sample(evsel, event, &sample);
 				if (err) {
 					pr_debug("Can't parse sample, err = %d\n", err);
 					goto out_delete_evlist;
 				}
 
-				tp_flags = perf_evsel__intval(evsel, &sample, "flags");
+				tp_flags = evsel__intval(evsel, &sample, "flags");
 
 				if (flags != tp_flags) {
 					pr_debug("%s: Expected flags=%#x, got %#x\n",

@@ -330,9 +330,8 @@
 			};
 		};
 
-		target-module@31000 {			/* 0x44e31000, ap 25 40.0 */
+		timer1_target: target-module@31000 {	/* 0x44e31000, ap 25 40.0 */
 			compatible = "ti,sysc-omap2-timer", "ti,sysc";
-			ti,hwmods = "timer1";
 			reg = <0x31000 0x4>,
 			      <0x31010 0x4>,
 			      <0x31014 0x4>;
@@ -1117,9 +1116,8 @@
 			};
 		};
 
-		target-module@40000 {			/* 0x48040000, ap 22 1e.0 */
+		timer2_target: target-module@40000 {	/* 0x48040000, ap 22 1e.0 */
 			compatible = "ti,sysc-omap4-timer", "ti,sysc";
-			ti,hwmods = "timer2";
 			reg = <0x40000 0x4>,
 			      <0x40010 0x4>,
 			      <0x40014 0x4>;

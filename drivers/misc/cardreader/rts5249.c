@@ -347,31 +347,6 @@ static int rtsx_base_switch_output_voltage(struct rtsx_pcr *pcr, u8 voltage)
 	return rtsx_pci_send_cmd(pcr, 100);
 }
 
-static void rts5249_set_aspm(struct rtsx_pcr *pcr, bool enable)
-{
-	struct rtsx_cr_option *option = &pcr->option;
-	u8 val = 0;
-
-	if (pcr->aspm_enabled == enable)
-		return;
-
-	if (option->dev_aspm_mode == DEV_ASPM_DYNAMIC) {
-		if (enable)
-			val = pcr->aspm_en;
-		rtsx_pci_update_cfg_byte(pcr,
-			pcr->pcie_cap + PCI_EXP_LNKCTL,
-			ASPM_MASK_NEG, val);
-	} else if (option->dev_aspm_mode == DEV_ASPM_BACKDOOR) {
-		u8 mask = FORCE_ASPM_VAL_MASK | FORCE_ASPM_CTL0;
-
-		if (!enable)
-			val = FORCE_ASPM_CTL0;
-		rtsx_pci_write_register(pcr, ASPM_FORCE_CTL, mask, val);
-	}
-
-	pcr->aspm_enabled = enable;
-}
-
 static const struct pcr_ops rts5249_pcr_ops = {
 	.fetch_vendor_settings = rtsx_base_fetch_vendor_settings,
 	.extra_init_hw = rts5249_extra_init_hw,
@@ -384,7 +359,6 @@ static const struct pcr_ops rts5249_pcr_ops = {
 	.card_power_off = rtsx_base_card_power_off,
 	.switch_output_voltage = rtsx_base_switch_output_voltage,
 	.force_power_down = rtsx_base_force_power_down,
-	.set_aspm = rts5249_set_aspm,
 };
 
 /* SD Pull Control Enable:
@@ -471,7 +445,6 @@ void rts5249_init_params(struct rtsx_pcr *pcr)
 	option->ltr_active_latency = LTR_ACTIVE_LATENCY_DEF;
 	option->ltr_idle_latency = LTR_IDLE_LATENCY_DEF;
 	option->ltr_l1off_latency = LTR_L1OFF_LATENCY_DEF;
-	option->dev_aspm_mode = DEV_ASPM_DYNAMIC;
 	option->l1_snooze_delay = L1_SNOOZE_DELAY_DEF;
 	option->ltr_l1off_sspwrgate = LTR_L1OFF_SSPWRGATE_5249_DEF;
 	option->ltr_l1off_snooze_sspwrgate =
@@ -612,7 +585,6 @@ static const struct pcr_ops rts524a_pcr_ops = {
 	.switch_output_voltage = rtsx_base_switch_output_voltage,
 	.force_power_down = rtsx_base_force_power_down,
 	.set_l1off_cfg_sub_d0 = rts5250_set_l1off_cfg_sub_d0,
-	.set_aspm = rts5249_set_aspm,
 };
 
 void rts524a_init_params(struct rtsx_pcr *pcr)
@@ -728,7 +700,6 @@ static const struct pcr_ops rts525a_pcr_ops = {
 	.switch_output_voltage = rts525a_switch_output_voltage,
 	.force_power_down = rtsx_base_force_power_down,
 	.set_l1off_cfg_sub_d0 = rts5250_set_l1off_cfg_sub_d0,
-	.set_aspm = rts5249_set_aspm,
 };
 
 void rts525a_init_params(struct rtsx_pcr *pcr)

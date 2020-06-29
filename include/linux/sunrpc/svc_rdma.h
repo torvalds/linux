@@ -48,7 +48,6 @@
 #include <linux/sunrpc/rpc_rdma.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/rdma_cm.h>
-#define SVCRDMA_DEBUG
 
 /* Default and maximum inline threshold sizes */
 enum {
@@ -160,9 +159,8 @@ struct svc_rdma_send_ctxt {
 };
 
 /* svc_rdma_backchannel.c */
-extern int svc_rdma_handle_bc_reply(struct rpc_xprt *xprt,
-				    __be32 *rdma_resp,
-				    struct xdr_buf *rcvbuf);
+extern void svc_rdma_handle_bc_reply(struct svc_rqst *rqstp,
+				     struct svc_rdma_recv_ctxt *rctxt);
 
 /* svc_rdma_recvfrom.c */
 extern void svc_rdma_recv_ctxts_destroy(struct svcxprt_rdma *rdma);
@@ -170,6 +168,7 @@ extern bool svc_rdma_post_recvs(struct svcxprt_rdma *rdma);
 extern void svc_rdma_recv_ctxt_put(struct svcxprt_rdma *rdma,
 				   struct svc_rdma_recv_ctxt *ctxt);
 extern void svc_rdma_flush_recv_queues(struct svcxprt_rdma *rdma);
+extern void svc_rdma_release_rqst(struct svc_rqst *rqstp);
 extern int svc_rdma_recvfrom(struct svc_rqst *);
 
 /* svc_rdma_rw.c */

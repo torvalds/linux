@@ -44,6 +44,8 @@ struct test_sysctl_data {
 	int int_0002;
 	int int_0003[4];
 
+	int boot_int;
+
 	unsigned int uint_0001;
 
 	char string_0001[65];
@@ -60,6 +62,8 @@ static struct test_sysctl_data test_data = {
 	.int_0003[1] = 1,
 	.int_0003[2] = 2,
 	.int_0003[3] = 3,
+
+	.boot_int = 0,
 
 	.uint_0001 = 314,
 
@@ -90,6 +94,15 @@ static struct ctl_table test_table[] = {
 		.maxlen		= sizeof(test_data.int_0003),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
+	},
+	{
+		.procname	= "boot_int",
+		.data		= &test_data.boot_int,
+		.maxlen		= sizeof(test_data.boot_int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+		.extra1		= SYSCTL_ZERO,
+		.extra2         = SYSCTL_ONE,
 	},
 	{
 		.procname	= "uint_0001",
@@ -149,7 +162,7 @@ static int __init test_sysctl_init(void)
 	}
 	return 0;
 }
-late_initcall(test_sysctl_init);
+module_init(test_sysctl_init);
 
 static void __exit test_sysctl_exit(void)
 {

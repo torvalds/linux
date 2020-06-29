@@ -10,14 +10,6 @@
 
 #define ATH10K_HIF_MBOX_BLOCK_SIZE              256
 
-#define QCA_MANUFACTURER_ID_BASE                GENMASK(11, 8)
-#define QCA_MANUFACTURER_ID_AR6005_BASE         0x5
-#define QCA_MANUFACTURER_ID_QCA9377_BASE        0x7
-#define QCA_SDIO_ID_AR6005_BASE                 0x500
-#define QCA_SDIO_ID_QCA9377_BASE                0x700
-#define QCA_MANUFACTURER_ID_REV_MASK            0x00FF
-#define QCA_MANUFACTURER_CODE                   0x271 /* Qualcomm/Atheros */
-
 #define ATH10K_SDIO_MAX_BUFFER_SIZE             4096 /*Unsure of this constant*/
 
 /* Mailbox address in SDIO address space */
@@ -37,7 +29,7 @@
 	(ATH10K_SDIO_MAX_BUFFER_SIZE - sizeof(struct ath10k_htc_hdr))
 
 #define ATH10K_HIF_MBOX_NUM_MAX                 4
-#define ATH10K_SDIO_BUS_REQUEST_MAX_NUM         64
+#define ATH10K_SDIO_BUS_REQUEST_MAX_NUM         1024
 
 #define ATH10K_SDIO_HIF_COMMUNICATION_TIMEOUT_HZ (100 * HZ)
 
@@ -98,6 +90,21 @@
 #define ATH10K_FIFO_TIMEOUT_AND_CHIP_CONTROL_DISABLE_SLEEP_OFF 0xFFFEFFFF
 #define ATH10K_FIFO_TIMEOUT_AND_CHIP_CONTROL_DISABLE_SLEEP_ON 0x10000
 
+enum sdio_mbox_state {
+	SDIO_MBOX_UNKNOWN_STATE = 0,
+	SDIO_MBOX_REQUEST_TO_SLEEP_STATE = 1,
+	SDIO_MBOX_SLEEP_STATE = 2,
+	SDIO_MBOX_AWAKE_STATE = 3,
+};
+
+#define ATH10K_CIS_READ_WAIT_4_RTC_CYCLE_IN_US	125
+#define ATH10K_CIS_RTC_STATE_ADDR		0x1138
+#define ATH10K_CIS_RTC_STATE_ON			0x01
+#define ATH10K_CIS_XTAL_SETTLE_DURATION_IN_US	1500
+#define ATH10K_CIS_READ_RETRY			10
+#define ATH10K_MIN_SLEEP_INACTIVITY_TIME_MS	50
+
+/* TODO: remove this and use skb->cb instead, much cleaner approach */
 struct ath10k_sdio_bus_request {
 	struct list_head list;
 
@@ -217,6 +224,8 @@ struct ath10k_sdio {
 	spinlock_t wr_async_lock;
 
 	struct work_struct async_work_rx;
+	struct timer_list sleep_timer;
+	enum sdio_mbox_state mbox_state;
 };
 
 static inline struct ath10k_sdio *ath10k_sdio_priv(struct ath10k *ar)

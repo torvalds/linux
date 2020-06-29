@@ -12,7 +12,7 @@ extern int debug_locks __read_mostly;
 extern int debug_locks_silent __read_mostly;
 
 
-static inline int __debug_locks_off(void)
+static __always_inline int __debug_locks_off(void)
 {
 	return xchg(&debug_locks, 0);
 }

@@ -407,7 +407,9 @@ cdns_fill_msg_resp(struct sdw_cdns *cdns,
 	if (nack) {
 		dev_err_ratelimited(cdns->dev, "Msg NACKed for Slave %d\n", msg->dev_num);
 		return SDW_CMD_FAIL;
-	} else if (no_ack) {
+	}
+
+	if (no_ack) {
 		dev_dbg_ratelimited(cdns->dev, "Msg ignored for Slave %d\n", msg->dev_num);
 		return SDW_CMD_IGNORED;
 	}
@@ -520,7 +522,9 @@ cdns_program_scp_addr(struct sdw_cdns *cdns, struct sdw_msg *msg)
 		dev_err_ratelimited(cdns->dev,
 				    "SCP_addrpage NACKed for Slave %d\n", msg->dev_num);
 		return SDW_CMD_FAIL;
-	} else if (no_ack) {
+	}
+
+	if (no_ack) {
 		dev_dbg_ratelimited(cdns->dev,
 				    "SCP_addrpage ignored for Slave %d\n", msg->dev_num);
 		return SDW_CMD_IGNORED;

@@ -136,28 +136,35 @@ mlxsw_sp_act_mirror_add(void *priv, u8 local_in_port,
 			const struct net_device *out_dev,
 			bool ingress, int *p_span_id)
 {
-	struct mlxsw_sp_port *in_port;
+	struct mlxsw_sp_port *mlxsw_sp_port;
 	struct mlxsw_sp *mlxsw_sp = priv;
-	enum mlxsw_sp_span_type type;
+	int err;
 
-	type = ingress ? MLXSW_SP_SPAN_INGRESS : MLXSW_SP_SPAN_EGRESS;
-	in_port = mlxsw_sp->ports[local_in_port];
+	err = mlxsw_sp_span_agent_get(mlxsw_sp, out_dev, p_span_id);
+	if (err)
+		return err;
 
-	return mlxsw_sp_span_mirror_add(in_port, out_dev, type,
-					false, p_span_id);
+	mlxsw_sp_port = mlxsw_sp->ports[local_in_port];
+	err = mlxsw_sp_span_analyzed_port_get(mlxsw_sp_port, ingress);
+	if (err)
+		goto err_analyzed_port_get;
+
+	return 0;
+
+err_analyzed_port_get:
+	mlxsw_sp_span_agent_put(mlxsw_sp, *p_span_id);
+	return err;
 }
 
 static void
 mlxsw_sp_act_mirror_del(void *priv, u8 local_in_port, int span_id, bool ingress)
 {
+	struct mlxsw_sp_port *mlxsw_sp_port;
 	struct mlxsw_sp *mlxsw_sp = priv;
-	struct mlxsw_sp_port *in_port;
-	enum mlxsw_sp_span_type type;
 
-	type = ingress ? MLXSW_SP_SPAN_INGRESS : MLXSW_SP_SPAN_EGRESS;
-	in_port = mlxsw_sp->ports[local_in_port];
-
-	mlxsw_sp_span_mirror_del(in_port, span_id, type, false);
+	mlxsw_sp_port = mlxsw_sp->ports[local_in_port];
+	mlxsw_sp_span_analyzed_port_put(mlxsw_sp_port, ingress);
+	mlxsw_sp_span_agent_put(mlxsw_sp, span_id);
 }
 
 const struct mlxsw_afa_ops mlxsw_sp1_act_afa_ops = {

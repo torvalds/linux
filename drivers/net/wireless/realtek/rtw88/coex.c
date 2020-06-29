@@ -283,6 +283,7 @@ void rtw_coex_write_scbd(struct rtw_dev *rtwdev, u16 bitpos, bool set)
 		rtw_write16(rtwdev, REG_WIFI_BT_INFO, val);
 	}
 }
+EXPORT_SYMBOL(rtw_coex_write_scbd);
 
 static u16 rtw_coex_read_scbd(struct rtw_dev *rtwdev)
 {
@@ -732,6 +733,7 @@ u32 rtw_coex_read_indirect_reg(struct rtw_dev *rtwdev, u16 addr)
 
 	return val;
 }
+EXPORT_SYMBOL(rtw_coex_read_indirect_reg);
 
 void rtw_coex_write_indirect_reg(struct rtw_dev *rtwdev, u16 addr,
 				 u32 mask, u32 val)
@@ -745,13 +747,22 @@ void rtw_coex_write_indirect_reg(struct rtw_dev *rtwdev, u16 addr,
 	if (!ltecoex_reg_write(rtwdev, addr, tmp))
 		rtw_err(rtwdev, "failed to write indirect register\n");
 }
+EXPORT_SYMBOL(rtw_coex_write_indirect_reg);
 
 static void rtw_coex_coex_ctrl_owner(struct rtw_dev *rtwdev, bool wifi_control)
 {
-	if (wifi_control)
+	struct rtw_chip_info *chip = rtwdev->chip;
+	const struct rtw_hw_reg *btg_reg = chip->btg_reg;
+
+	if (wifi_control) {
 		rtw_write32_set(rtwdev, REG_SYS_SDIO_CTRL, BIT_LTE_MUX_CTRL_PATH);
-	else
+		if (btg_reg)
+			rtw_write8_set(rtwdev, btg_reg->addr, btg_reg->mask);
+	} else {
 		rtw_write32_clr(rtwdev, REG_SYS_SDIO_CTRL, BIT_LTE_MUX_CTRL_PATH);
+		if (btg_reg)
+			rtw_write8_clr(rtwdev, btg_reg->addr, btg_reg->mask);
+	}
 }
 
 static void rtw_coex_set_gnt_bt(struct rtw_dev *rtwdev, u8 state)
@@ -1343,11 +1354,14 @@ static void rtw_coex_action_bt_inquiry(struct rtw_dev *rtwdev)
 				tdma_case = 108;
 			else
 				tdma_case = 109;
+		} else if (coex_stat->wl_gl_busy) {
+			table_case = 114;
+			tdma_case = 121;
 		} else if (coex_stat->wl_connected) {
-			table_case = 101;
-			tdma_case = 110;
-		} else {
 			table_case = 100;
+			tdma_case = 100;
+		} else {
+			table_case = 101;
 			tdma_case = 100;
 		}
 	}

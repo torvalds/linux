@@ -143,6 +143,31 @@ static int broadwell_rtd_init(struct snd_soc_pcm_runtime *rtd)
 }
 #endif
 
+static const unsigned int channels[] = {
+	2,
+};
+
+static const struct snd_pcm_hw_constraint_list constraints_channels = {
+	.count = ARRAY_SIZE(channels),
+	.list = channels,
+	.mask = 0,
+};
+
+static int broadwell_fe_startup(struct snd_pcm_substream *substream)
+{
+	struct snd_pcm_runtime *runtime = substream->runtime;
+
+	/* Board supports stereo configuration only */
+	runtime->hw.channels_max = 2;
+	return snd_pcm_hw_constraint_list(runtime, 0,
+					  SNDRV_PCM_HW_PARAM_CHANNELS,
+					  &constraints_channels);
+}
+
+static const struct snd_soc_ops broadwell_fe_ops = {
+	.startup = broadwell_fe_startup,
+};
+
 SND_SOC_DAILINK_DEF(system,
 	DAILINK_COMP_ARRAY(COMP_CPU("System Pin")));
 
@@ -180,6 +205,7 @@ static struct snd_soc_dai_link broadwell_rt286_dais[] = {
 		.init = broadwell_rtd_init,
 #endif
 		.trigger = {SND_SOC_DPCM_TRIGGER_POST, SND_SOC_DPCM_TRIGGER_POST},
+		.ops = &broadwell_fe_ops,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
 		SND_SOC_DAILINK_REG(system, dummy, platform),
@@ -230,7 +256,8 @@ static struct snd_soc_dai_link broadwell_rt286_dais[] = {
 	},
 };
 
-static int broadwell_suspend(struct snd_soc_card *card){
+static int broadwell_disable_jack(struct snd_soc_card *card)
+{
 	struct snd_soc_component *component;
 
 	for_each_card_components(card, component) {
@@ -241,7 +268,13 @@ static int broadwell_suspend(struct snd_soc_card *card){
 			break;
 		}
 	}
+
 	return 0;
+}
+
+static int broadwell_suspend(struct snd_soc_card *card)
+{
+	return broadwell_disable_jack(card);
 }
 
 static int broadwell_resume(struct snd_soc_card *card){
@@ -292,8 +325,16 @@ static int broadwell_audio_probe(struct platform_device *pdev)
 	return devm_snd_soc_register_card(&pdev->dev, &broadwell_rt286);
 }
 
+static int broadwell_audio_remove(struct platform_device *pdev)
+{
+	struct snd_soc_card *card = platform_get_drvdata(pdev);
+
+	return broadwell_disable_jack(card);
+}
+
 static struct platform_driver broadwell_audio = {
 	.probe = broadwell_audio_probe,
+	.remove = broadwell_audio_remove,
 	.driver = {
 		.name = "broadwell-audio",
 	},

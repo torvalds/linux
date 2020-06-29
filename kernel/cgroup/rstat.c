@@ -33,12 +33,9 @@ void cgroup_rstat_updated(struct cgroup *cgrp, int cpu)
 		return;
 
 	/*
-	 * Paired with the one in cgroup_rstat_cpu_pop_updated().  Either we
-	 * see NULL updated_next or they see our updated stat.
-	 */
-	smp_mb();
-
-	/*
+	 * Speculative already-on-list test. This may race leading to
+	 * temporary inaccuracies, which is fine.
+	 *
 	 * Because @parent's updated_children is terminated with @parent
 	 * instead of NULL, we can tell whether @cgrp is on the list by
 	 * testing the next pointer for NULL.
@@ -133,13 +130,6 @@ static struct cgroup *cgroup_rstat_cpu_pop_updated(struct cgroup *pos,
 
 		*nextp = rstatc->updated_next;
 		rstatc->updated_next = NULL;
-
-		/*
-		 * Paired with the one in cgroup_rstat_cpu_updated().
-		 * Either they see NULL updated_next or we see their
-		 * updated stat.
-		 */
-		smp_mb();
 
 		return pos;
 	}
@@ -399,18 +389,62 @@ void __cgroup_account_cputime_field(struct cgroup *cgrp,
 	cgroup_base_stat_cputime_account_end(cgrp, rstatc);
 }
 
+/*
+ * compute the cputime for the root cgroup by getting the per cpu data
+ * at a global level, then categorizing the fields in a manner consistent
+ * with how it is done by __cgroup_account_cputime_field for each bit of
+ * cpu time attributed to a cgroup.
+ */
+static void root_cgroup_cputime(struct task_cputime *cputime)
+{
+	int i;
+
+	cputime->stime = 0;
+	cputime->utime = 0;
+	cputime->sum_exec_runtime = 0;
+	for_each_possible_cpu(i) {
+		struct kernel_cpustat kcpustat;
+		u64 *cpustat = kcpustat.cpustat;
+		u64 user = 0;
+		u64 sys = 0;
+
+		kcpustat_cpu_fetch(&kcpustat, i);
+
+		user += cpustat[CPUTIME_USER];
+		user += cpustat[CPUTIME_NICE];
+		cputime->utime += user;
+
+		sys += cpustat[CPUTIME_SYSTEM];
+		sys += cpustat[CPUTIME_IRQ];
+		sys += cpustat[CPUTIME_SOFTIRQ];
+		cputime->stime += sys;
+
+		cputime->sum_exec_runtime += user;
+		cputime->sum_exec_runtime += sys;
+		cputime->sum_exec_runtime += cpustat[CPUTIME_STEAL];
+		cputime->sum_exec_runtime += cpustat[CPUTIME_GUEST];
+		cputime->sum_exec_runtime += cpustat[CPUTIME_GUEST_NICE];
+	}
+}
+
 void cgroup_base_stat_cputime_show(struct seq_file *seq)
 {
 	struct cgroup *cgrp = seq_css(seq)->cgroup;
 	u64 usage, utime, stime;
+	struct task_cputime cputime;
 
-	if (!cgroup_parent(cgrp))
-		return;
-
-	cgroup_rstat_flush_hold(cgrp);
-	usage = cgrp->bstat.cputime.sum_exec_runtime;
-	cputime_adjust(&cgrp->bstat.cputime, &cgrp->prev_cputime, &utime, &stime);
-	cgroup_rstat_flush_release();
+	if (cgroup_parent(cgrp)) {
+		cgroup_rstat_flush_hold(cgrp);
+		usage = cgrp->bstat.cputime.sum_exec_runtime;
+		cputime_adjust(&cgrp->bstat.cputime, &cgrp->prev_cputime,
+			       &utime, &stime);
+		cgroup_rstat_flush_release();
+	} else {
+		root_cgroup_cputime(&cputime);
+		usage = cputime.sum_exec_runtime;
+		utime = cputime.utime;
+		stime = cputime.stime;
+	}
 
 	do_div(usage, NSEC_PER_USEC);
 	do_div(utime, NSEC_PER_USEC);

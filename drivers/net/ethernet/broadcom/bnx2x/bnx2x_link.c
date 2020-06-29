@@ -3085,6 +3085,7 @@ static int bnx2x_bsc_read(struct link_params *params,
 			  u8 xfer_cnt,
 			  u32 *data_array)
 {
+	u64 t0, delta;
 	u32 val, i;
 	int rc = 0;
 
@@ -3114,17 +3115,18 @@ static int bnx2x_bsc_read(struct link_params *params,
 	REG_WR(bp, MCP_REG_MCPR_IMC_COMMAND, val);
 
 	/* Poll for completion */
-	i = 0;
+	t0 = ktime_get_ns();
 	val = REG_RD(bp, MCP_REG_MCPR_IMC_COMMAND);
 	while (((val >> MCPR_IMC_COMMAND_IMC_STATUS_BITSHIFT) & 0x3) != 1) {
-		udelay(10);
-		val = REG_RD(bp, MCP_REG_MCPR_IMC_COMMAND);
-		if (i++ > 1000) {
-			DP(NETIF_MSG_LINK, "wr 0 byte timed out after %d try\n",
-								i);
+		delta = ktime_get_ns() - t0;
+		if (delta > 10 * NSEC_PER_MSEC) {
+			DP(NETIF_MSG_LINK, "wr 0 byte timed out after %Lu ns\n",
+					   delta);
 			rc = -EFAULT;
 			break;
 		}
+		usleep_range(10, 20);
+		val = REG_RD(bp, MCP_REG_MCPR_IMC_COMMAND);
 	}
 	if (rc == -EFAULT)
 		return rc;
@@ -3138,16 +3140,18 @@ static int bnx2x_bsc_read(struct link_params *params,
 	REG_WR(bp, MCP_REG_MCPR_IMC_COMMAND, val);
 
 	/* Poll for completion */
-	i = 0;
+	t0 = ktime_get_ns();
 	val = REG_RD(bp, MCP_REG_MCPR_IMC_COMMAND);
 	while (((val >> MCPR_IMC_COMMAND_IMC_STATUS_BITSHIFT) & 0x3) != 1) {
-		udelay(10);
-		val = REG_RD(bp, MCP_REG_MCPR_IMC_COMMAND);
-		if (i++ > 1000) {
-			DP(NETIF_MSG_LINK, "rd op timed out after %d try\n", i);
+		delta = ktime_get_ns() - t0;
+		if (delta > 10 * NSEC_PER_MSEC) {
+			DP(NETIF_MSG_LINK, "rd op timed out after %Lu ns\n",
+					   delta);
 			rc = -EFAULT;
 			break;
 		}
+		usleep_range(10, 20);
+		val = REG_RD(bp, MCP_REG_MCPR_IMC_COMMAND);
 	}
 	if (rc == -EFAULT)
 		return rc;

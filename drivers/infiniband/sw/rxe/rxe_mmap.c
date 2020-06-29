@@ -35,7 +35,6 @@
 #include <linux/vmalloc.h>
 #include <linux/mm.h>
 #include <linux/errno.h>
-#include <asm/pgtable.h>
 #include <rdma/uverbs_ioctl.h>
 
 #include "rxe.h"
@@ -151,7 +150,7 @@ struct rxe_mmap_info *rxe_create_mmap_info(struct rxe_dev *rxe, u32 size,
 
 	ip = kmalloc(sizeof(*ip), GFP_KERNEL);
 	if (!ip)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	size = PAGE_ALIGN(size);
 

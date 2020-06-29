@@ -230,6 +230,13 @@ void test_cgroup_attach_multi(void)
 		  "prog_replace", "errno=%d\n", errno))
 		goto err;
 
+	/* replace program with itself */
+	attach_opts.replace_prog_fd = allow_prog[6];
+	if (CHECK(bpf_prog_attach_xattr(allow_prog[6], cg1,
+					BPF_CGROUP_INET_EGRESS, &attach_opts),
+		  "prog_replace", "errno=%d\n", errno))
+		goto err;
+
 	value = 0;
 	CHECK_FAIL(bpf_map_update_elem(map_fd, &key, &value, 0));
 	CHECK_FAIL(system(PING_CMD));

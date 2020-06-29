@@ -21,8 +21,6 @@
 
 #include "hci_uart.h"
 
-static struct serdev_device_ops hci_serdev_client_ops;
-
 static inline void hci_uart_tx_complete(struct hci_uart *hu, int pkt_type)
 {
 	struct hci_dev *hdev = hu->hdev;
@@ -260,7 +258,7 @@ static int hci_uart_receive_buf(struct serdev_device *serdev, const u8 *data,
 	return count;
 }
 
-static struct serdev_device_ops hci_serdev_client_ops = {
+static const struct serdev_device_ops hci_serdev_client_ops = {
 	.receive_buf = hci_uart_receive_buf,
 	.write_wakeup = hci_uart_write_wakeup,
 };

@@ -73,15 +73,19 @@ config SWIOTLB
 config DMA_NONCOHERENT_MMAP
 	bool
 
+config DMA_COHERENT_POOL
+	bool
+
 config DMA_REMAP
+	bool
 	depends on MMU
 	select GENERIC_ALLOCATOR
 	select DMA_NONCOHERENT_MMAP
-	bool
 
 config DMA_DIRECT_REMAP
 	bool
 	select DMA_REMAP
+	select DMA_COHERENT_POOL
 
 config DMA_CMA
 	bool "DMA Contiguous Memory Allocator"

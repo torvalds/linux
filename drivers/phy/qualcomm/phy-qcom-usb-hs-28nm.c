@@ -160,18 +160,11 @@ static int qcom_snps_hsphy_power_on(struct phy *phy)
 	ret = regulator_bulk_enable(VREG_NUM, priv->vregs);
 	if (ret)
 		return ret;
-	ret = clk_bulk_prepare_enable(priv->num_clks, priv->clks);
-	if (ret)
-		goto err_disable_regulator;
+
 	qcom_snps_hsphy_disable_hv_interrupts(priv);
 	qcom_snps_hsphy_exit_retention(priv);
 
 	return 0;
-
-err_disable_regulator:
-	regulator_bulk_disable(VREG_NUM, priv->vregs);
-
-	return ret;
 }
 
 static int qcom_snps_hsphy_power_off(struct phy *phy)
@@ -180,7 +173,6 @@ static int qcom_snps_hsphy_power_off(struct phy *phy)
 
 	qcom_snps_hsphy_enter_retention(priv);
 	qcom_snps_hsphy_enable_hv_interrupts(priv);
-	clk_bulk_disable_unprepare(priv->num_clks, priv->clks);
 	regulator_bulk_disable(VREG_NUM, priv->vregs);
 
 	return 0;
@@ -266,21 +258,39 @@ static int qcom_snps_hsphy_init(struct phy *phy)
 	struct hsphy_priv *priv = phy_get_drvdata(phy);
 	int ret;
 
-	ret = qcom_snps_hsphy_reset(priv);
+	ret = clk_bulk_prepare_enable(priv->num_clks, priv->clks);
 	if (ret)
 		return ret;
+
+	ret = qcom_snps_hsphy_reset(priv);
+	if (ret)
+		goto disable_clocks;
 
 	qcom_snps_hsphy_init_sequence(priv);
 
 	ret = qcom_snps_hsphy_por_reset(priv);
 	if (ret)
-		return ret;
+		goto disable_clocks;
+
+	return 0;
+
+disable_clocks:
+	clk_bulk_disable_unprepare(priv->num_clks, priv->clks);
+	return ret;
+}
+
+static int qcom_snps_hsphy_exit(struct phy *phy)
+{
+	struct hsphy_priv *priv = phy_get_drvdata(phy);
+
+	clk_bulk_disable_unprepare(priv->num_clks, priv->clks);
 
 	return 0;
 }
 
 static const struct phy_ops qcom_snps_hsphy_ops = {
 	.init = qcom_snps_hsphy_init,
+	.exit = qcom_snps_hsphy_exit,
 	.power_on = qcom_snps_hsphy_power_on,
 	.power_off = qcom_snps_hsphy_power_off,
 	.set_mode = qcom_snps_hsphy_set_mode,

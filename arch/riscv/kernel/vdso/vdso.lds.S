@@ -2,11 +2,13 @@
 /*
  * Copyright (C) 2012 Regents of the University of California
  */
+#include <asm/page.h>
 
 OUTPUT_ARCH(riscv)
 
 SECTIONS
 {
+	PROVIDE(_vdso_data = . + PAGE_SIZE);
 	. = SIZEOF_HEADERS;
 
 	.hash		: { *(.hash) }			:text

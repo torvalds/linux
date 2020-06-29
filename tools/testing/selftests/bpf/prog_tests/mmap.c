@@ -19,14 +19,15 @@ void test_mmap(void)
 	const size_t map_sz = roundup_page(sizeof(struct map_data));
 	const int zero = 0, one = 1, two = 2, far = 1500;
 	const long page_size = sysconf(_SC_PAGE_SIZE);
-	int err, duration = 0, i, data_map_fd;
+	int err, duration = 0, i, data_map_fd, data_map_id, tmp_fd, rdmap_fd;
 	struct bpf_map *data_map, *bss_map;
 	void *bss_mmaped = NULL, *map_mmaped = NULL, *tmp1, *tmp2;
 	struct test_mmap__bss *bss_data;
+	struct bpf_map_info map_info;
+	__u32 map_info_sz = sizeof(map_info);
 	struct map_data *map_data;
 	struct test_mmap *skel;
 	__u64 val = 0;
-
 
 	skel = test_mmap__open_and_load();
 	if (CHECK(!skel, "skel_open_and_load", "skeleton open/load failed\n"))
@@ -36,6 +37,25 @@ void test_mmap(void)
 	data_map = skel->maps.data_map;
 	data_map_fd = bpf_map__fd(data_map);
 
+	rdmap_fd = bpf_map__fd(skel->maps.rdonly_map);
+	tmp1 = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, rdmap_fd, 0);
+	if (CHECK(tmp1 != MAP_FAILED, "rdonly_write_mmap", "unexpected success\n")) {
+		munmap(tmp1, 4096);
+		goto cleanup;
+	}
+	/* now double-check if it's mmap()'able at all */
+	tmp1 = mmap(NULL, 4096, PROT_READ, MAP_SHARED, rdmap_fd, 0);
+	if (CHECK(tmp1 == MAP_FAILED, "rdonly_read_mmap", "failed: %d\n", errno))
+		goto cleanup;
+
+	/* get map's ID */
+	memset(&map_info, 0, map_info_sz);
+	err = bpf_obj_get_info_by_fd(data_map_fd, &map_info, &map_info_sz);
+	if (CHECK(err, "map_get_info", "failed %d\n", errno))
+		goto cleanup;
+	data_map_id = map_info.id;
+
+	/* mmap BSS map */
 	bss_mmaped = mmap(NULL, bss_sz, PROT_READ | PROT_WRITE, MAP_SHARED,
 			  bpf_map__fd(bss_map), 0);
 	if (CHECK(bss_mmaped == MAP_FAILED, "bss_mmap",
@@ -98,6 +118,10 @@ void test_mmap(void)
 		  "data_map freeze succeeded: err=%d, errno=%d\n", err, errno))
 		goto cleanup;
 
+	err = mprotect(map_mmaped, map_sz, PROT_READ);
+	if (CHECK(err, "mprotect_ro", "mprotect to r/o failed %d\n", errno))
+		goto cleanup;
+
 	/* unmap R/W mapping */
 	err = munmap(map_mmaped, map_sz);
 	map_mmaped = NULL;
@@ -111,6 +135,12 @@ void test_mmap(void)
 		map_mmaped = NULL;
 		goto cleanup;
 	}
+	err = mprotect(map_mmaped, map_sz, PROT_WRITE);
+	if (CHECK(!err, "mprotect_wr", "mprotect() succeeded unexpectedly!\n"))
+		goto cleanup;
+	err = mprotect(map_mmaped, map_sz, PROT_EXEC);
+	if (CHECK(!err, "mprotect_ex", "mprotect() succeeded unexpectedly!\n"))
+		goto cleanup;
 	map_data = map_mmaped;
 
 	/* map/unmap in a loop to test ref counting */
@@ -197,6 +227,53 @@ void test_mmap(void)
 	CHECK_FAIL(map_data->val[far] != 3 * 321);
 
 	munmap(tmp2, 4 * page_size);
+
+	/* map all 4 pages, but with pg_off=1 page, should fail */
+	tmp1 = mmap(NULL, 4 * page_size, PROT_READ, MAP_SHARED | MAP_FIXED,
+		    data_map_fd, page_size /* initial page shift */);
+	if (CHECK(tmp1 != MAP_FAILED, "adv_mmap7", "unexpected success")) {
+		munmap(tmp1, 4 * page_size);
+		goto cleanup;
+	}
+
+	tmp1 = mmap(NULL, map_sz, PROT_READ, MAP_SHARED, data_map_fd, 0);
+	if (CHECK(tmp1 == MAP_FAILED, "last_mmap", "failed %d\n", errno))
+		goto cleanup;
+
+	test_mmap__destroy(skel);
+	skel = NULL;
+	CHECK_FAIL(munmap(bss_mmaped, bss_sz));
+	bss_mmaped = NULL;
+	CHECK_FAIL(munmap(map_mmaped, map_sz));
+	map_mmaped = NULL;
+
+	/* map should be still held by active mmap */
+	tmp_fd = bpf_map_get_fd_by_id(data_map_id);
+	if (CHECK(tmp_fd < 0, "get_map_by_id", "failed %d\n", errno)) {
+		munmap(tmp1, map_sz);
+		goto cleanup;
+	}
+	close(tmp_fd);
+
+	/* this should release data map finally */
+	munmap(tmp1, map_sz);
+
+	/* we need to wait for RCU grace period */
+	for (i = 0; i < 10000; i++) {
+		__u32 id = data_map_id - 1;
+		if (bpf_map_get_next_id(id, &id) || id > data_map_id)
+			break;
+		usleep(1);
+	}
+
+	/* should fail to get map FD by non-existing ID */
+	tmp_fd = bpf_map_get_fd_by_id(data_map_id);
+	if (CHECK(tmp_fd >= 0, "get_map_by_id_after",
+		  "unexpectedly succeeded %d\n", tmp_fd)) {
+		close(tmp_fd);
+		goto cleanup;
+	}
+
 cleanup:
 	if (bss_mmaped)
 		CHECK_FAIL(munmap(bss_mmaped, bss_sz));

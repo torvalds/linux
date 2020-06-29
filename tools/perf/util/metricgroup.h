@@ -22,16 +22,20 @@ struct metric_expr {
 	const char *metric_name;
 	const char *metric_unit;
 	struct evsel **metric_events;
+	int runtime;
 };
 
 struct metric_event *metricgroup__lookup(struct rblist *metric_events,
 					 struct evsel *evsel,
 					 bool create);
 int metricgroup__parse_groups(const struct option *opt,
-			const char *str,
-			struct rblist *metric_events);
+			      const char *str,
+			      bool metric_no_group,
+			      bool metric_no_merge,
+			      struct rblist *metric_events);
 
 void metricgroup__print(bool metrics, bool groups, char *filter,
 			bool raw, bool details);
 bool metricgroup__has_metric(const char *metric);
+int arch_get_runtimeparam(void);
 #endif

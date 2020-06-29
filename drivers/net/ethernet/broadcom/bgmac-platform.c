@@ -202,13 +202,8 @@ static int bgmac_probe(struct platform_device *pdev)
 	if (bgmac->irq < 0)
 		return bgmac->irq;
 
-	regs = platform_get_resource_byname(pdev, IORESOURCE_MEM, "amac_base");
-	if (!regs) {
-		dev_err(&pdev->dev, "Unable to obtain base resource\n");
-		return -EINVAL;
-	}
-
-	bgmac->plat.base = devm_ioremap_resource(&pdev->dev, regs);
+	bgmac->plat.base =
+		devm_platform_ioremap_resource_byname(pdev, "amac_base");
 	if (IS_ERR(bgmac->plat.base))
 		return PTR_ERR(bgmac->plat.base);
 

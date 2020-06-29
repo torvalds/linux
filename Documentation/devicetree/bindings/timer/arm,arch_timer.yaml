@@ -28,10 +28,10 @@ properties:
               - arm,armv7-timer
       - items:
           - enum:
-            - arm,armv7-timer
+              - arm,armv7-timer
       - items:
           - enum:
-            - arm,armv8-timer
+              - arm,armv8-timer
 
   interrupts:
     items:
@@ -50,6 +50,12 @@ properties:
     type: boolean
     description: If present, the timer is powered through an always-on power
       domain, therefore it never loses context.
+
+  allwinner,erratum-unknown1:
+    type: boolean
+    description: Indicates the presence of an erratum found in Allwinner SoCs,
+      where reading certain values from the counter is unreliable. This also
+      affects writes to the tval register, due to the implicit counter read.
 
   fsl,erratum-a008585:
     type: boolean

@@ -192,7 +192,7 @@ static struct qcom_icc_node *aggre1_noc_nodes[] = {
 	[SLAVE_ANOC_PCIE_A1NOC_SNOC] = &qns_pcie_a1noc_snoc,
 };
 
-const static struct qcom_icc_desc sdm845_aggre1_noc = {
+static const struct qcom_icc_desc sdm845_aggre1_noc = {
 	.nodes = aggre1_noc_nodes,
 	.num_nodes = ARRAY_SIZE(aggre1_noc_nodes),
 	.bcms = aggre1_noc_bcms,
@@ -220,7 +220,7 @@ static struct qcom_icc_node *aggre2_noc_nodes[] = {
 	[SLAVE_SERVICE_A2NOC] = &srvc_aggre2_noc,
 };
 
-const static struct qcom_icc_desc sdm845_aggre2_noc = {
+static const struct qcom_icc_desc sdm845_aggre2_noc = {
 	.nodes = aggre2_noc_nodes,
 	.num_nodes = ARRAY_SIZE(aggre2_noc_nodes),
 	.bcms = aggre2_noc_bcms,
@@ -281,7 +281,7 @@ static struct qcom_icc_node *config_noc_nodes[] = {
 	[SLAVE_SERVICE_CNOC] = &srvc_cnoc,
 };
 
-const static struct qcom_icc_desc sdm845_config_noc = {
+static const struct qcom_icc_desc sdm845_config_noc = {
 	.nodes = config_noc_nodes,
 	.num_nodes = ARRAY_SIZE(config_noc_nodes),
 	.bcms = config_noc_bcms,
@@ -297,7 +297,7 @@ static struct qcom_icc_node *dc_noc_nodes[] = {
 	[SLAVE_MEM_NOC_CFG] = &qhs_memnoc,
 };
 
-const static struct qcom_icc_desc sdm845_dc_noc = {
+static const struct qcom_icc_desc sdm845_dc_noc = {
 	.nodes = dc_noc_nodes,
 	.num_nodes = ARRAY_SIZE(dc_noc_nodes),
 	.bcms = dc_noc_bcms,
@@ -315,7 +315,7 @@ static struct qcom_icc_node *gladiator_noc_nodes[] = {
 	[SLAVE_SERVICE_GNOC] = &srvc_gnoc,
 };
 
-const static struct qcom_icc_desc sdm845_gladiator_noc = {
+static const struct qcom_icc_desc sdm845_gladiator_noc = {
 	.nodes = gladiator_noc_nodes,
 	.num_nodes = ARRAY_SIZE(gladiator_noc_nodes),
 	.bcms = gladiator_noc_bcms,
@@ -350,7 +350,7 @@ static struct qcom_icc_node *mem_noc_nodes[] = {
 	[SLAVE_EBI1] = &ebi,
 };
 
-const static struct qcom_icc_desc sdm845_mem_noc = {
+static const struct qcom_icc_desc sdm845_mem_noc = {
 	.nodes = mem_noc_nodes,
 	.num_nodes = ARRAY_SIZE(mem_noc_nodes),
 	.bcms = mem_noc_bcms,
@@ -384,7 +384,7 @@ static struct qcom_icc_node *mmss_noc_nodes[] = {
 	[SLAVE_CAMNOC_UNCOMP] = &qns_camnoc_uncomp,
 };
 
-const static struct qcom_icc_desc sdm845_mmss_noc = {
+static const struct qcom_icc_desc sdm845_mmss_noc = {
 	.nodes = mmss_noc_nodes,
 	.num_nodes = ARRAY_SIZE(mmss_noc_nodes),
 	.bcms = mmss_noc_bcms,
@@ -430,7 +430,7 @@ static struct qcom_icc_node *system_noc_nodes[] = {
 	[SLAVE_TCU] = &xs_sys_tcu_cfg,
 };
 
-const static struct qcom_icc_desc sdm845_system_noc = {
+static const struct qcom_icc_desc sdm845_system_noc = {
 	.nodes = system_noc_nodes,
 	.num_nodes = ARRAY_SIZE(system_noc_nodes),
 	.bcms = system_noc_bcms,

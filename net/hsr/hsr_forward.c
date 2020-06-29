@@ -321,7 +321,7 @@ static int hsr_fill_frame_info(struct hsr_frame_info *frame,
 	if (ethhdr->h_proto == htons(ETH_P_8021Q)) {
 		frame->is_vlan = true;
 		/* FIXME: */
-		WARN_ONCE(1, "HSR: VLAN not yet supported");
+		netdev_warn_once(skb->dev, "VLAN not yet supported");
 	}
 	if (ethhdr->h_proto == htons(ETH_P_PRP) ||
 	    ethhdr->h_proto == htons(ETH_P_HSR)) {

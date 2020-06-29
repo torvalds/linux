@@ -576,7 +576,7 @@ static int mlx5_cmd_dr_modify_header_alloc(struct mlx5_flow_root_namespace *ns,
 	struct mlx5dr_action *action;
 	size_t actions_sz;
 
-	actions_sz = MLX5_UN_SZ_BYTES(set_action_in_add_action_in_auto) *
+	actions_sz = MLX5_UN_SZ_BYTES(set_add_copy_action_in_auto) *
 		num_actions;
 	action = mlx5dr_action_create_modify_header(dr_domain, 0,
 						    actions_sz,

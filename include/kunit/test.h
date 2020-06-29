@@ -175,7 +175,7 @@ struct kunit_suite {
 	void (*exit)(struct kunit *test);
 	struct kunit_case *test_cases;
 
-	/* private - internal use only */
+	/* private: internal use only */
 	struct dentry *debugfs;
 	char *log;
 };
@@ -232,12 +232,12 @@ void __kunit_test_suites_exit(struct kunit_suite **suites);
  * kunit_test_suites() - used to register one or more &struct kunit_suite
  *			 with KUnit.
  *
- * @suites: a statically allocated list of &struct kunit_suite.
+ * @suites_list...: a statically allocated list of &struct kunit_suite.
  *
- * Registers @suites with the test framework. See &struct kunit_suite for
+ * Registers @suites_list with the test framework. See &struct kunit_suite for
  * more information.
  *
- * When builtin,  KUnit tests are all run as late_initcalls; this means
+ * When builtin, KUnit tests are all run as late_initcalls; this means
  * that they cannot test anything where tests must run at a different init
  * phase. One significant restriction resulting from this is that KUnit
  * cannot reliably test anything that is initialize in the late_init phase;
@@ -253,8 +253,8 @@ void __kunit_test_suites_exit(struct kunit_suite **suites);
  * tests from the same place, and at the very least to do so after
  * everything else is definitely initialized.
  */
-#define kunit_test_suites(...)						\
-	static struct kunit_suite *suites[] = { __VA_ARGS__, NULL};	\
+#define kunit_test_suites(suites_list...)				\
+	static struct kunit_suite *suites[] = {suites_list, NULL};	\
 	static int kunit_test_suites_init(void)				\
 	{								\
 		return __kunit_test_suites_init(suites);		\

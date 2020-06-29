@@ -1008,7 +1008,6 @@ static int i3c_master_getmrl_locked(struct i3c_master_controller *master,
 				    struct i3c_device_info *info)
 {
 	struct i3c_ccc_cmd_dest dest;
-	unsigned int expected_len;
 	struct i3c_ccc_mrl *mrl;
 	struct i3c_ccc_cmd cmd;
 	int ret;
@@ -1024,21 +1023,22 @@ static int i3c_master_getmrl_locked(struct i3c_master_controller *master,
 	if (!(info->bcr & I3C_BCR_IBI_PAYLOAD))
 		dest.payload.len -= 1;
 
-	expected_len = dest.payload.len;
 	i3c_ccc_cmd_init(&cmd, true, I3C_CCC_GETMRL, &dest, 1);
 	ret = i3c_master_send_ccc_cmd_locked(master, &cmd);
 	if (ret)
 		goto out;
 
-	if (dest.payload.len != expected_len) {
+	switch (dest.payload.len) {
+	case 3:
+		info->max_ibi_len = mrl->ibi_len;
+		fallthrough;
+	case 2:
+		info->max_read_len = be16_to_cpu(mrl->read_len);
+		break;
+	default:
 		ret = -EIO;
 		goto out;
 	}
-
-	info->max_read_len = be16_to_cpu(mrl->read_len);
-
-	if (info->bcr & I3C_BCR_IBI_PAYLOAD)
-		info->max_ibi_len = mrl->ibi_len;
 
 out:
 	i3c_ccc_cmd_dest_cleanup(&dest);

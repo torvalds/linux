@@ -208,6 +208,84 @@
         "MetricName": "fxu_stall_cpi"
     },
     {
+        "BriefDescription": "Instruction Completion Table empty for this thread due to branch mispred",
+        "MetricExpr": "PM_ICT_NOSLOT_BR_MPRED/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "ict_noslot_br_mpred_cpi"
+    },
+    {
+        "BriefDescription": "Instruction Completion Table empty for this thread due to Icache Miss and branch mispred",
+        "MetricExpr": "PM_ICT_NOSLOT_BR_MPRED_ICMISS/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "ict_noslot_br_mpred_icmiss_cpi"
+    },
+    {
+        "BriefDescription": "Instruction Completion Table other stalls",
+        "MetricExpr": "(PM_ICT_NOSLOT_CYC - PM_ICT_NOSLOT_IC_MISS - PM_ICT_NOSLOT_BR_MPRED_ICMISS - PM_ICT_NOSLOT_BR_MPRED - PM_ICT_NOSLOT_DISP_HELD)/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "ict_noslot_cyc_other_cpi"
+    },
+    {
+        "BriefDescription": "Cycles in which the NTC instruciton is held at dispatch for any reason",
+        "MetricExpr": "PM_ICT_NOSLOT_DISP_HELD/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "ict_noslot_disp_held_cpi"
+    },
+    {
+        "BriefDescription": "Instruction Completion Table empty for this thread due to dispatch holds because the History Buffer was full. Could be GPR/VSR/VMR/FPR/CR/XVF",
+        "MetricExpr": "PM_ICT_NOSLOT_DISP_HELD_HB_FULL/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "ict_noslot_disp_held_hb_full_cpi"
+    },
+    {
+        "BriefDescription": "Instruction Completion Table empty for this thread due to dispatch hold on this thread due to Issue q full, BRQ full, XVCF Full, Count cache, Link, Tar full",
+        "MetricExpr": "PM_ICT_NOSLOT_DISP_HELD_ISSQ/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "ict_noslot_disp_held_issq_cpi"
+    },
+    {
+        "BriefDescription": "ICT_NOSLOT_DISP_HELD_OTHER_CPI",
+        "MetricExpr": "(PM_ICT_NOSLOT_DISP_HELD - PM_ICT_NOSLOT_DISP_HELD_HB_FULL - PM_ICT_NOSLOT_DISP_HELD_SYNC - PM_ICT_NOSLOT_DISP_HELD_TBEGIN - PM_ICT_NOSLOT_DISP_HELD_ISSQ)/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "ict_noslot_disp_held_other_cpi"
+    },
+    {
+        "BriefDescription": "Dispatch held due to a synchronizing instruction at dispatch",
+        "MetricExpr": "PM_ICT_NOSLOT_DISP_HELD_SYNC/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "ict_noslot_disp_held_sync_cpi"
+    },
+    {
+        "BriefDescription": "the NTC instruction is being held at dispatch because it is a tbegin instruction and there is an older tbegin in the pipeline that must complete before the younger tbegin can dispatch",
+        "MetricExpr": "PM_ICT_NOSLOT_DISP_HELD_TBEGIN/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "ict_noslot_disp_held_tbegin_cpi"
+    },
+    {
+        "BriefDescription": "ICT_NOSLOT_IC_L2_CPI",
+        "MetricExpr": "(PM_ICT_NOSLOT_IC_MISS - PM_ICT_NOSLOT_IC_L3 - PM_ICT_NOSLOT_IC_L3MISS)/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "ict_noslot_ic_l2_cpi"
+    },
+    {
+        "BriefDescription": "Instruction Completion Table empty for this thread due to icache misses that were sourced from the local L3",
+        "MetricExpr": "PM_ICT_NOSLOT_IC_L3/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "ict_noslot_ic_l3_cpi"
+    },
+    {
+        "BriefDescription": "Instruction Completion Table empty for this thread due to icache misses that were sourced from beyond the local L3. The source could be local/remote/distant memory or another core's cache",
+        "MetricExpr": "PM_ICT_NOSLOT_IC_L3MISS/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "ict_noslot_ic_l3miss_cpi"
+    },
+    {
+        "BriefDescription": "Instruction Completion Table empty for this thread due to Icache Miss",
+        "MetricExpr": "PM_ICT_NOSLOT_IC_MISS/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "ict_noslot_ic_miss_cpi"
+    },
+    {
         "MetricExpr": "(PM_NTC_ISSUE_HELD_DARQ_FULL + PM_NTC_ISSUE_HELD_ARB + PM_NTC_ISSUE_HELD_OTHER)/PM_RUN_INST_CMPL",
         "MetricGroup": "cpi_breakdown",
         "MetricName": "issue_hold_cpi"
@@ -313,7 +391,7 @@
         "MetricName": "nested_tend_stall_cpi"
     },
     {
-        "BriefDescription": "Number of cycles the ICT has no itags assigned to this thread",
+        "BriefDescription": "Number of cycles the Instruction Completion Table has no itags assigned to this thread",
         "MetricExpr": "PM_ICT_NOSLOT_CYC/PM_RUN_INST_CMPL",
         "MetricGroup": "cpi_breakdown",
         "MetricName": "nothing_dispatched_cpi"
@@ -362,7 +440,7 @@
     },
     {
         "BriefDescription": "Completion stall for other reasons",
-        "MetricExpr": "PM_CMPLU_STALL - PM_CMPLU_STALL_NTC_DISP_FIN - PM_CMPLU_STALL_NTC_FLUSH - PM_CMPLU_STALL_LSU - PM_CMPLU_STALL_EXEC_UNIT - PM_CMPLU_STALL_BRU)/PM_RUN_INST_CMPL",
+        "MetricExpr": "(PM_CMPLU_STALL - PM_CMPLU_STALL_NTC_DISP_FIN - PM_CMPLU_STALL_NTC_FLUSH - PM_CMPLU_STALL_LSU - PM_CMPLU_STALL_EXEC_UNIT - PM_CMPLU_STALL_BRU)/PM_RUN_INST_CMPL",
         "MetricGroup": "cpi_breakdown",
         "MetricName": "other_stall_cpi"
     },
@@ -425,7 +503,7 @@
         "MetricName": "st_fwd_stall_cpi"
     },
     {
-        "BriefDescription": "Nothing completed and ICT not empty",
+        "BriefDescription": "Nothing completed and Instruction Completion Table not empty",
         "MetricExpr": "PM_CMPLU_STALL/PM_RUN_INST_CMPL",
         "MetricGroup": "cpi_breakdown",
         "MetricName": "stall_cpi"
@@ -1818,71 +1896,6 @@
         "BriefDescription": "All FXU Idle",
         "MetricExpr": "PM_FXU_IDLE / PM_CYC",
         "MetricName": "fxu_all_idle"
-    },
-    {
-        "BriefDescription": "Ict empty for this thread due to branch mispred",
-        "MetricExpr": "PM_ICT_NOSLOT_BR_MPRED/PM_RUN_INST_CMPL",
-        "MetricName": "ict_noslot_br_mpred_cpi"
-    },
-    {
-        "BriefDescription": "Ict empty for this thread due to Icache Miss and branch mispred",
-        "MetricExpr": "PM_ICT_NOSLOT_BR_MPRED_ICMISS/PM_RUN_INST_CMPL",
-        "MetricName": "ict_noslot_br_mpred_icmiss_cpi"
-    },
-    {
-        "BriefDescription": "ICT other stalls",
-        "MetricExpr": "(PM_ICT_NOSLOT_CYC - PM_ICT_NOSLOT_IC_MISS - PM_ICT_NOSLOT_BR_MPRED_ICMISS - PM_ICT_NOSLOT_BR_MPRED - PM_ICT_NOSLOT_DISP_HELD)/PM_RUN_INST_CMPL",
-        "MetricName": "ict_noslot_cyc_other_cpi"
-    },
-    {
-        "BriefDescription": "Cycles in which the NTC instruciton is held at dispatch for any reason",
-        "MetricExpr": "PM_ICT_NOSLOT_DISP_HELD/PM_RUN_INST_CMPL",
-        "MetricName": "ict_noslot_disp_held_cpi"
-    },
-    {
-        "BriefDescription": "Ict empty for this thread due to dispatch holds because the History Buffer was full. Could be GPR/VSR/VMR/FPR/CR/XVF",
-        "MetricExpr": "PM_ICT_NOSLOT_DISP_HELD_HB_FULL/PM_RUN_INST_CMPL",
-        "MetricName": "ict_noslot_disp_held_hb_full_cpi"
-    },
-    {
-        "BriefDescription": "Ict empty for this thread due to dispatch hold on this thread due to Issue q full, BRQ full, XVCF Full, Count cache, Link, Tar full",
-        "MetricExpr": "PM_ICT_NOSLOT_DISP_HELD_ISSQ/PM_RUN_INST_CMPL",
-        "MetricName": "ict_noslot_disp_held_issq_cpi"
-    },
-    {
-        "BriefDescription": "ICT_NOSLOT_DISP_HELD_OTHER_CPI",
-        "MetricExpr": "(PM_ICT_NOSLOT_DISP_HELD - PM_ICT_NOSLOT_DISP_HELD_HB_FULL - PM_ICT_NOSLOT_DISP_HELD_SYNC - PM_ICT_NOSLOT_DISP_HELD_TBEGIN - PM_ICT_NOSLOT_DISP_HELD_ISSQ)/PM_RUN_INST_CMPL",
-        "MetricName": "ict_noslot_disp_held_other_cpi"
-    },
-    {
-        "BriefDescription": "Dispatch held due to a synchronizing instruction at dispatch",
-        "MetricExpr": "PM_ICT_NOSLOT_DISP_HELD_SYNC/PM_RUN_INST_CMPL",
-        "MetricName": "ict_noslot_disp_held_sync_cpi"
-    },
-    {
-        "BriefDescription": "the NTC instruction is being held at dispatch because it is a tbegin instruction and there is an older tbegin in the pipeline that must complete before the younger tbegin can dispatch",
-        "MetricExpr": "PM_ICT_NOSLOT_DISP_HELD_TBEGIN/PM_RUN_INST_CMPL",
-        "MetricName": "ict_noslot_disp_held_tbegin_cpi"
-    },
-    {
-        "BriefDescription": "ICT_NOSLOT_IC_L2_CPI",
-        "MetricExpr": "(PM_ICT_NOSLOT_IC_MISS - PM_ICT_NOSLOT_IC_L3 - PM_ICT_NOSLOT_IC_L3MISS)/PM_RUN_INST_CMPL",
-        "MetricName": "ict_noslot_ic_l2_cpi"
-    },
-    {
-        "BriefDescription": "Ict empty for this thread due to icache misses that were sourced from the local L3",
-        "MetricExpr": "PM_ICT_NOSLOT_IC_L3/PM_RUN_INST_CMPL",
-        "MetricName": "ict_noslot_ic_l3_cpi"
-    },
-    {
-        "BriefDescription": "Ict empty for this thread due to icache misses that were sourced from beyond the local L3. The source could be local/remote/distant memory or another core's cache",
-        "MetricExpr": "PM_ICT_NOSLOT_IC_L3MISS/PM_RUN_INST_CMPL",
-        "MetricName": "ict_noslot_ic_l3miss_cpi"
-    },
-    {
-        "BriefDescription": "Ict empty for this thread due to Icache Miss",
-        "MetricExpr": "PM_ICT_NOSLOT_IC_MISS/PM_RUN_INST_CMPL",
-        "MetricName": "ict_noslot_ic_miss_cpi"
     },
     {
         "BriefDescription": "Rate of IERAT reloads from L2",

@@ -12,14 +12,15 @@
 #include <linux/types.h>
 #include <linux/ptrace.h>
 #include <linux/extable.h>
+#include <linux/pgtable.h>
 #include <asm/mmu.h>
 #include <asm/mce.h>
 #include <asm/machdep.h>
-#include <asm/pgtable.h>
 #include <asm/pte-walk.h>
 #include <asm/sstep.h>
 #include <asm/exception-64s.h>
 #include <asm/extable.h>
+#include <asm/inst.h>
 
 /*
  * Convert an address related to an mm to a PFN. NOTE: we are in real
@@ -27,7 +28,7 @@
  */
 unsigned long addr_to_pfn(struct pt_regs *regs, unsigned long addr)
 {
-	pte_t *ptep;
+	pte_t *ptep, pte;
 	unsigned int shift;
 	unsigned long pfn, flags;
 	struct mm_struct *mm;
@@ -39,19 +40,23 @@ unsigned long addr_to_pfn(struct pt_regs *regs, unsigned long addr)
 
 	local_irq_save(flags);
 	ptep = __find_linux_pte(mm->pgd, addr, NULL, &shift);
+	if (!ptep) {
+		pfn = ULONG_MAX;
+		goto out;
+	}
+	pte = READ_ONCE(*ptep);
 
-	if (!ptep || pte_special(*ptep)) {
+	if (!pte_present(pte) || pte_special(pte)) {
 		pfn = ULONG_MAX;
 		goto out;
 	}
 
 	if (shift <= PAGE_SHIFT)
-		pfn = pte_pfn(*ptep);
+		pfn = pte_pfn(pte);
 	else {
 		unsigned long rpnmask = (1ul << shift) - PAGE_SIZE;
-		pfn = pte_pfn(__pte(pte_val(*ptep) | (addr & rpnmask)));
+		pfn = pte_pfn(__pte(pte_val(pte) | (addr & rpnmask)));
 	}
-
 out:
 	local_irq_restore(flags);
 	return pfn;
@@ -365,7 +370,7 @@ static int mce_find_instr_ea_and_phys(struct pt_regs *regs, uint64_t *addr,
 	 * in real-mode is tricky and can lead to recursive
 	 * faults
 	 */
-	int instr;
+	struct ppc_inst instr;
 	unsigned long pfn, instr_addr;
 	struct instruction_op op;
 	struct pt_regs tmp = *regs;
@@ -373,7 +378,7 @@ static int mce_find_instr_ea_and_phys(struct pt_regs *regs, uint64_t *addr,
 	pfn = addr_to_pfn(regs, regs->nip);
 	if (pfn != ULONG_MAX) {
 		instr_addr = (pfn << PAGE_SHIFT) + (regs->nip & ~PAGE_MASK);
-		instr = *(unsigned int *)(instr_addr);
+		instr = ppc_inst_read((struct ppc_inst *)instr_addr);
 		if (!analyse_instr(&op, &tmp, instr)) {
 			pfn = addr_to_pfn(regs, op.ea);
 			*addr = op.ea;

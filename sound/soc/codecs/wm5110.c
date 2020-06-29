@@ -2237,10 +2237,10 @@ static struct snd_soc_dai_driver wm5110_dai[] = {
 	},
 };
 
-static int wm5110_open(struct snd_compr_stream *stream)
+static int wm5110_open(struct snd_soc_component *component,
+		       struct snd_compr_stream *stream)
 {
 	struct snd_soc_pcm_runtime *rtd = stream->private_data;
-	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, DRV_NAME);
 	struct wm5110_priv *priv = snd_soc_component_get_drvdata(component);
 	struct arizona *arizona = priv->core.arizona;
 	int n_adsp;
@@ -2355,7 +2355,7 @@ static unsigned int wm5110_digital_vu[] = {
 	ARIZONA_DAC_DIGITAL_VOLUME_6R,
 };
 
-static struct snd_compr_ops wm5110_compr_ops = {
+static struct snd_compress_ops wm5110_compress_ops = {
 	.open		= wm5110_open,
 	.free		= wm_adsp_compr_free,
 	.set_params	= wm_adsp_compr_set_params,
@@ -2371,7 +2371,7 @@ static const struct snd_soc_component_driver soc_component_dev_wm5110 = {
 	.set_sysclk		= arizona_set_sysclk,
 	.set_pll		= wm5110_set_fll,
 	.name			= DRV_NAME,
-	.compr_ops		= &wm5110_compr_ops,
+	.compress_ops		= &wm5110_compress_ops,
 	.controls		= wm5110_snd_controls,
 	.num_controls		= ARRAY_SIZE(wm5110_snd_controls),
 	.dapm_widgets		= wm5110_dapm_widgets,

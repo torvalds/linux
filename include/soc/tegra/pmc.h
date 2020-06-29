@@ -168,7 +168,6 @@ int tegra_io_pad_power_disable(enum tegra_io_pad id);
 int tegra_io_rail_power_on(unsigned int id);
 int tegra_io_rail_power_off(unsigned int id);
 
-enum tegra_suspend_mode tegra_pmc_get_suspend_mode(void);
 void tegra_pmc_set_suspend_mode(enum tegra_suspend_mode mode);
 void tegra_pmc_enter_suspend_mode(enum tegra_suspend_mode mode);
 
@@ -220,11 +219,6 @@ static inline int tegra_io_rail_power_off(unsigned int id)
 	return -ENOSYS;
 }
 
-static inline enum tegra_suspend_mode tegra_pmc_get_suspend_mode(void)
-{
-	return TEGRA_SUSPEND_NONE;
-}
-
 static inline void tegra_pmc_set_suspend_mode(enum tegra_suspend_mode mode)
 {
 }
@@ -234,5 +228,14 @@ static inline void tegra_pmc_enter_suspend_mode(enum tegra_suspend_mode mode)
 }
 
 #endif /* CONFIG_SOC_TEGRA_PMC */
+
+#if defined(CONFIG_SOC_TEGRA_PMC) && defined(CONFIG_PM_SLEEP)
+enum tegra_suspend_mode tegra_pmc_get_suspend_mode(void);
+#else
+static inline enum tegra_suspend_mode tegra_pmc_get_suspend_mode(void)
+{
+	return TEGRA_SUSPEND_NONE;
+}
+#endif
 
 #endif /* __SOC_TEGRA_PMC_H__ */

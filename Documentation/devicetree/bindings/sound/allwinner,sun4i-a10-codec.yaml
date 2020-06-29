@@ -57,32 +57,31 @@ properties:
       A list of the connections between audio components.  Each entry
       is a pair of strings, the first being the connection's sink, the
       second being the connection's source.
-    allOf:
-      - $ref: /schemas/types.yaml#definitions/non-unique-string-array
-      - minItems: 2
-        maxItems: 18
-        items:
-          enum:
-            # Audio Pins on the SoC
-            - HP
-            - HPCOM
-            - LINEIN
-            - LINEOUT
-            - MIC1
-            - MIC2
-            - MIC3
+    $ref: /schemas/types.yaml#definitions/non-unique-string-array
+    minItems: 2
+    maxItems: 18
+    items:
+      enum:
+        # Audio Pins on the SoC
+        - HP
+        - HPCOM
+        - LINEIN
+        - LINEOUT
+        - MIC1
+        - MIC2
+        - MIC3
 
-            # Microphone Biases from the SoC
-            - HBIAS
-            - MBIAS
+        # Microphone Biases from the SoC
+        - HBIAS
+        - MBIAS
 
-            # Board Connectors
-            - Headphone
-            - Headset Mic
-            - Line In
-            - Line Out
-            - Mic
-            - Speaker
+        # Board Connectors
+        - Headphone
+        - Headset Mic
+        - Line In
+        - Line Out
+        - Mic
+        - Speaker
 
   allwinner,codec-analog-controls:
     $ref: /schemas/types.yaml#/definitions/phandle

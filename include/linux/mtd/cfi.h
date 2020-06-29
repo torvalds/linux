@@ -138,7 +138,7 @@ struct cfi_ident {
 	uint16_t InterfaceDesc;
 	uint16_t MaxBufWriteSize;
 	uint8_t  NumEraseRegions;
-	uint32_t EraseRegionInfo[0]; /* Not host ordered */
+	uint32_t EraseRegionInfo[]; /* Not host ordered */
 } __packed;
 
 /* Extended Query Structure for both PRI and ALT */
@@ -165,7 +165,7 @@ struct cfi_pri_intelext {
 	uint16_t ProtRegAddr;
 	uint8_t  FactProtRegSize;
 	uint8_t  UserProtRegSize;
-	uint8_t  extra[0];
+	uint8_t  extra[];
 } __packed;
 
 struct cfi_intelext_otpinfo {
@@ -286,7 +286,7 @@ struct cfi_private {
 	map_word sector_erase_cmd;
 	unsigned long chipshift; /* Because they're of the same type */
 	const char *im_name;	 /* inter_module name for cmdset_setup */
-	struct flchip chips[0];  /* per-chip data structure for each chip */
+	struct flchip chips[];  /* per-chip data structure for each chip */
 };
 
 uint32_t cfi_build_cmd_addr(uint32_t cmd_ofs,

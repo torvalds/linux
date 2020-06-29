@@ -301,16 +301,6 @@ struct iscsi_queue_req {
 	struct list_head	qr_list;
 };
 
-struct iscsi_data_count {
-	int			data_length;
-	int			sync_and_steering;
-	enum data_count_type	type;
-	u32			iov_count;
-	u32			ss_iov_count;
-	u32			ss_marker_count;
-	struct kvec		*iov;
-};
-
 struct iscsi_param_list {
 	bool			iser;
 	struct list_head	param_list;

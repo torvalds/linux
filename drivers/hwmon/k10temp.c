@@ -186,7 +186,7 @@ static long get_raw_temp(struct k10temp_data *data)
 	return temp;
 }
 
-const char *k10temp_temp_label[] = {
+static const char *k10temp_temp_label[] = {
 	"Tctl",
 	"Tdie",
 	"Tccd1",
@@ -199,12 +199,12 @@ const char *k10temp_temp_label[] = {
 	"Tccd8",
 };
 
-const char *k10temp_in_label[] = {
+static const char *k10temp_in_label[] = {
 	"Vcore",
 	"Vsoc",
 };
 
-const char *k10temp_curr_label[] = {
+static const char *k10temp_curr_label[] = {
 	"Icore",
 	"Isoc",
 };
@@ -632,6 +632,7 @@ static const struct pci_device_id k10temp_id_table[] = {
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_17H_DF_F3) },
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_17H_M10H_DF_F3) },
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_17H_M30H_DF_F3) },
+	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_17H_M60H_DF_F3) },
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_17H_M70H_DF_F3) },
 	{ PCI_VDEVICE(HYGON, PCI_DEVICE_ID_AMD_17H_DF_F3) },
 	{}

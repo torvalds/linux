@@ -16,6 +16,7 @@
 #include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/types.h>
@@ -844,7 +845,7 @@ static struct i2c_driver opt3001_driver = {
 
 	.driver = {
 		.name = "opt3001",
-		.of_match_table = of_match_ptr(opt3001_of_match),
+		.of_match_table = opt3001_of_match,
 	},
 };
 

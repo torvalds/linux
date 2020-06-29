@@ -635,7 +635,7 @@ xchk_directory_blocks(
 {
 	struct xfs_bmbt_irec	got;
 	struct xfs_da_args	args;
-	struct xfs_ifork	*ifp;
+	struct xfs_ifork	*ifp = XFS_IFORK_PTR(sc->ip, XFS_DATA_FORK);
 	struct xfs_mount	*mp = sc->mp;
 	xfs_fileoff_t		leaf_lblk;
 	xfs_fileoff_t		free_lblk;
@@ -647,11 +647,10 @@ xchk_directory_blocks(
 	int			error;
 
 	/* Ignore local format directories. */
-	if (sc->ip->i_d.di_format != XFS_DINODE_FMT_EXTENTS &&
-	    sc->ip->i_d.di_format != XFS_DINODE_FMT_BTREE)
+	if (ifp->if_format != XFS_DINODE_FMT_EXTENTS &&
+	    ifp->if_format != XFS_DINODE_FMT_BTREE)
 		return 0;
 
-	ifp = XFS_IFORK_PTR(sc->ip, XFS_DATA_FORK);
 	lblk = XFS_B_TO_FSB(mp, XFS_DIR2_DATA_OFFSET);
 	leaf_lblk = XFS_B_TO_FSB(mp, XFS_DIR2_LEAF_OFFSET);
 	free_lblk = XFS_B_TO_FSB(mp, XFS_DIR2_FREE_OFFSET);

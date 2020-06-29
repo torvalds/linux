@@ -1274,7 +1274,6 @@ static void enc1_se_audio_setup(
 {
 	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
 
-	uint32_t speakers = 0;
 	uint32_t channels = 0;
 
 	ASSERT(audio_info);
@@ -1282,7 +1281,6 @@ static void enc1_se_audio_setup(
 		/* This should not happen.it does so we don't get BSOD*/
 		return;
 
-	speakers = audio_info->flags.info.ALLSPEAKERS;
 	channels = speakers_to_channels(audio_info->flags.speaker_flags).all;
 
 	/* setup the audio stream source select (audio -> dig mapping) */

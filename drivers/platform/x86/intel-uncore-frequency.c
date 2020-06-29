@@ -53,7 +53,7 @@ static int uncore_max_entries __read_mostly;
 /* Storage for uncore data for all instances */
 static struct uncore_data *uncore_instances;
 /* Root of the all uncore sysfs kobjs */
-struct kobject *uncore_root_kobj;
+static struct kobject *uncore_root_kobj;
 /* Stores the CPU mask of the target CPUs to use during uncore read/write */
 static cpumask_t uncore_cpu_mask;
 /* CPU online callback register instance */

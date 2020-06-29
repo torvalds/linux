@@ -225,7 +225,7 @@ struct tegra_dma {
 	u32				global_pause_count;
 
 	/* Last member of the structure */
-	struct tegra_dma_channel channels[0];
+	struct tegra_dma_channel channels[];
 };
 
 static inline void tdma_write(struct tegra_dma *tdma, u32 reg, u32 val)
@@ -816,6 +816,13 @@ static bool tegra_dma_eoc_interrupt_deasserted(struct tegra_dma_channel *tdc)
 static void tegra_dma_synchronize(struct dma_chan *dc)
 {
 	struct tegra_dma_channel *tdc = to_tegra_dma_chan(dc);
+	int err;
+
+	err = pm_runtime_get_sync(tdc->tdma->dev);
+	if (err < 0) {
+		dev_err(tdc2dev(tdc), "Failed to synchronize DMA: %d\n", err);
+		return;
+	}
 
 	/*
 	 * CPU, which handles interrupt, could be busy in
@@ -825,6 +832,8 @@ static void tegra_dma_synchronize(struct dma_chan *dc)
 	wait_event(tdc->wq, tegra_dma_eoc_interrupt_deasserted(tdc));
 
 	tasklet_kill(&tdc->tasklet);
+
+	pm_runtime_put(tdc->tdma->dev);
 }
 
 static unsigned int tegra_dma_sg_bytes_xferred(struct tegra_dma_channel *tdc,

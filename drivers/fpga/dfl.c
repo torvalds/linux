@@ -1079,6 +1079,7 @@ static int __init dfl_fpga_init(void)
  */
 int dfl_fpga_cdev_release_port(struct dfl_fpga_cdev *cdev, int port_id)
 {
+	struct dfl_feature_platform_data *pdata;
 	struct platform_device *port_pdev;
 	int ret = -ENODEV;
 
@@ -1093,7 +1094,11 @@ int dfl_fpga_cdev_release_port(struct dfl_fpga_cdev *cdev, int port_id)
 		goto put_dev_exit;
 	}
 
-	ret = dfl_feature_dev_use_begin(dev_get_platdata(&port_pdev->dev));
+	pdata = dev_get_platdata(&port_pdev->dev);
+
+	mutex_lock(&pdata->lock);
+	ret = dfl_feature_dev_use_begin(pdata, true);
+	mutex_unlock(&pdata->lock);
 	if (ret)
 		goto put_dev_exit;
 
@@ -1120,6 +1125,7 @@ EXPORT_SYMBOL_GPL(dfl_fpga_cdev_release_port);
  */
 int dfl_fpga_cdev_assign_port(struct dfl_fpga_cdev *cdev, int port_id)
 {
+	struct dfl_feature_platform_data *pdata;
 	struct platform_device *port_pdev;
 	int ret = -ENODEV;
 
@@ -1138,7 +1144,12 @@ int dfl_fpga_cdev_assign_port(struct dfl_fpga_cdev *cdev, int port_id)
 	if (ret)
 		goto put_dev_exit;
 
-	dfl_feature_dev_use_end(dev_get_platdata(&port_pdev->dev));
+	pdata = dev_get_platdata(&port_pdev->dev);
+
+	mutex_lock(&pdata->lock);
+	dfl_feature_dev_use_end(pdata);
+	mutex_unlock(&pdata->lock);
+
 	cdev->released_port_num--;
 put_dev_exit:
 	put_device(&port_pdev->dev);

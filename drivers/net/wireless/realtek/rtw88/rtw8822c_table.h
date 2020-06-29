@@ -12,6 +12,7 @@ extern const struct rtw_table rtw8822c_bb_pg_type0_tbl;
 extern const struct rtw_table rtw8822c_rf_a_tbl;
 extern const struct rtw_table rtw8822c_rf_b_tbl;
 extern const struct rtw_table rtw8822c_txpwr_lmt_type0_tbl;
+extern const struct rtw_table rtw8822c_txpwr_lmt_type5_tbl;
 extern const struct rtw_table rtw8822c_dpk_afe_no_dpk_tbl;
 extern const struct rtw_table rtw8822c_dpk_afe_is_dpk_tbl;
 extern const struct rtw_table rtw8822c_dpk_mac_bb_tbl;

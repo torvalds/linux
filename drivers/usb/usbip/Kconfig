@@ -5,7 +5,7 @@ config USBIP_CORE
 	depends on NET
 	select USB_COMMON
 	select SGL_ALLOC
-	---help---
+	help
 	  This enables pushing USB packets over IP to allow remote
 	  machines direct access to USB devices. It provides the
 	  USB/IP core that is required by both drivers.
@@ -21,7 +21,7 @@ config USBIP_CORE
 config USBIP_VHCI_HCD
 	tristate "VHCI hcd"
 	depends on USBIP_CORE && USB
-	---help---
+	help
 	  This enables the USB/IP virtual host controller driver,
 	  which is run on the remote machine.
 
@@ -33,7 +33,7 @@ config USBIP_VHCI_HC_PORTS
 	range 1 15
 	default 8
 	depends on USBIP_VHCI_HCD
-	---help---
+	help
 	  To increase number of ports available for USB/IP virtual
 	  host controller driver, this defines number of ports per
 	  USB/IP virtual host controller.
@@ -43,7 +43,7 @@ config USBIP_VHCI_NR_HCS
 	range 1 128
 	default 1
 	depends on USBIP_VHCI_HCD
-	---help---
+	help
 	  To increase number of ports available for USB/IP virtual
 	  host controller driver, this defines number of USB/IP
 	  virtual host controllers as if adding physical host
@@ -52,7 +52,7 @@ config USBIP_VHCI_NR_HCS
 config USBIP_HOST
 	tristate "Host driver"
 	depends on USBIP_CORE && USB
-	---help---
+	help
 	  This enables the USB/IP host driver, which is run on the
 	  machine that is sharing the USB devices.
 
@@ -62,7 +62,7 @@ config USBIP_HOST
 config USBIP_VUDC
 	tristate "VUDC driver"
 	depends on USBIP_CORE && USB_GADGET
-	---help---
+	help
 	  This enables the USB/IP virtual USB device controller
 	  driver, which is run on the host machine, allowing the
 	  machine itself to act as a device.
@@ -73,5 +73,5 @@ config USBIP_VUDC
 config USBIP_DEBUG
 	bool "Debug messages for USB/IP"
 	depends on USBIP_CORE
-	---help---
+	help
 	  This enables the debug messages from the USB/IP drivers.

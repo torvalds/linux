@@ -3642,36 +3642,19 @@ finish:
 	return done;
 }
 
-static int regulator_balance_voltage(struct regulator_dev *rdev,
-				     suspend_state_t state)
+int regulator_do_balance_voltage(struct regulator_dev *rdev,
+				 suspend_state_t state, bool skip_coupled)
 {
 	struct regulator_dev **c_rdevs;
 	struct regulator_dev *best_rdev;
 	struct coupling_desc *c_desc = &rdev->coupling_desc;
-	struct regulator_coupler *coupler = c_desc->coupler;
 	int i, ret, n_coupled, best_min_uV, best_max_uV, best_c_rdev;
 	unsigned int delta, best_delta;
 	unsigned long c_rdev_done = 0;
 	bool best_c_rdev_done;
 
 	c_rdevs = c_desc->coupled_rdevs;
-	n_coupled = c_desc->n_coupled;
-
-	/*
-	 * If system is in a state other than PM_SUSPEND_ON, don't check
-	 * other coupled regulators.
-	 */
-	if (state != PM_SUSPEND_ON)
-		n_coupled = 1;
-
-	if (c_desc->n_resolved < n_coupled) {
-		rdev_err(rdev, "Not all coupled regulators registered\n");
-		return -EPERM;
-	}
-
-	/* Invoke custom balancer for customized couplers */
-	if (coupler && coupler->balance_voltage)
-		return coupler->balance_voltage(coupler, rdev, state);
+	n_coupled = skip_coupled ? 1 : c_desc->n_coupled;
 
 	/*
 	 * Find the best possible voltage change on each loop. Leave the loop
@@ -3740,6 +3723,32 @@ static int regulator_balance_voltage(struct regulator_dev *rdev,
 
 out:
 	return ret;
+}
+
+static int regulator_balance_voltage(struct regulator_dev *rdev,
+				     suspend_state_t state)
+{
+	struct coupling_desc *c_desc = &rdev->coupling_desc;
+	struct regulator_coupler *coupler = c_desc->coupler;
+	bool skip_coupled = false;
+
+	/*
+	 * If system is in a state other than PM_SUSPEND_ON, don't check
+	 * other coupled regulators.
+	 */
+	if (state != PM_SUSPEND_ON)
+		skip_coupled = true;
+
+	if (c_desc->n_resolved < c_desc->n_coupled) {
+		rdev_err(rdev, "Not all coupled regulators registered\n");
+		return -EPERM;
+	}
+
+	/* Invoke custom balancer for customized couplers */
+	if (coupler && coupler->balance_voltage)
+		return coupler->balance_voltage(coupler, rdev, state);
+
+	return regulator_do_balance_voltage(rdev, state, skip_coupled);
 }
 
 /**
@@ -4312,6 +4321,7 @@ EXPORT_SYMBOL_GPL(regulator_set_load);
 int regulator_allow_bypass(struct regulator *regulator, bool enable)
 {
 	struct regulator_dev *rdev = regulator->rdev;
+	const char *name = rdev_get_name(rdev);
 	int ret = 0;
 
 	if (!rdev->desc->ops->set_bypass)
@@ -4326,18 +4336,26 @@ int regulator_allow_bypass(struct regulator *regulator, bool enable)
 		rdev->bypass_count++;
 
 		if (rdev->bypass_count == rdev->open_count) {
+			trace_regulator_bypass_enable(name);
+
 			ret = rdev->desc->ops->set_bypass(rdev, enable);
 			if (ret != 0)
 				rdev->bypass_count--;
+			else
+				trace_regulator_bypass_enable_complete(name);
 		}
 
 	} else if (!enable && regulator->bypass) {
 		rdev->bypass_count--;
 
 		if (rdev->bypass_count != rdev->open_count) {
+			trace_regulator_bypass_disable(name);
+
 			ret = rdev->desc->ops->set_bypass(rdev, enable);
 			if (ret != 0)
 				rdev->bypass_count++;
+			else
+				trace_regulator_bypass_disable_complete(name);
 		}
 	}
 
@@ -5496,6 +5514,7 @@ static void regulator_summary_show_subtree(struct seq_file *s,
 		seq_printf(s, "%*s%-*s ",
 			   (level + 1) * 3 + 1, "",
 			   30 - (level + 1) * 3,
+			   consumer->supply_name ? consumer->supply_name :
 			   consumer->dev ? dev_name(consumer->dev) : "deviceless");
 
 		switch (rdev->desc->type) {
@@ -5754,10 +5773,6 @@ static DECLARE_DELAYED_WORK(regulator_init_complete_work,
 
 static int __init regulator_init_complete(void)
 {
-	int delay = driver_deferred_probe_timeout;
-
-	if (delay < 0)
-		delay = 0;
 	/*
 	 * Since DT doesn't provide an idiomatic mechanism for
 	 * enabling full constraints and since it's much more natural
@@ -5768,17 +5783,18 @@ static int __init regulator_init_complete(void)
 		has_full_constraints = true;
 
 	/*
-	 * If driver_deferred_probe_timeout is set, we punt
-	 * completion for that many seconds since systems like
-	 * distros will load many drivers from userspace so consumers
-	 * might not always be ready yet, this is particularly an
-	 * issue with laptops where this might bounce the display off
-	 * then on.  Ideally we'd get a notification from userspace
-	 * when this happens but we don't so just wait a bit and hope
-	 * we waited long enough.  It'd be better if we'd only do
-	 * this on systems that need it.
+	 * We punt completion for an arbitrary amount of time since
+	 * systems like distros will load many drivers from userspace
+	 * so consumers might not always be ready yet, this is
+	 * particularly an issue with laptops where this might bounce
+	 * the display off then on.  Ideally we'd get a notification
+	 * from userspace when this happens but we don't so just wait
+	 * a bit and hope we waited long enough.  It'd be better if
+	 * we'd only do this on systems that need it, and a kernel
+	 * command line option might be useful.
 	 */
-	schedule_delayed_work(&regulator_init_complete_work, delay * HZ);
+	schedule_delayed_work(&regulator_init_complete_work,
+			      msecs_to_jiffies(30000));
 
 	return 0;
 }

@@ -47,7 +47,13 @@ static inline void slow_down_io(void)
 #endif
 }
 
-static inline void __flush_tlb(void)
+void native_flush_tlb_local(void);
+void native_flush_tlb_global(void);
+void native_flush_tlb_one_user(unsigned long addr);
+void native_flush_tlb_others(const struct cpumask *cpumask,
+			     const struct flush_tlb_info *info);
+
+static inline void __flush_tlb_local(void)
 {
 	PVOP_VCALL0(mmu.flush_tlb_user);
 }
@@ -62,8 +68,8 @@ static inline void __flush_tlb_one_user(unsigned long addr)
 	PVOP_VCALL1(mmu.flush_tlb_one_user, addr);
 }
 
-static inline void flush_tlb_others(const struct cpumask *cpumask,
-				    const struct flush_tlb_info *info)
+static inline void __flush_tlb_others(const struct cpumask *cpumask,
+				      const struct flush_tlb_info *info)
 {
 	PVOP_VCALL2(mmu.flush_tlb_others, cpumask, info);
 }

@@ -958,13 +958,6 @@ static int s3cmci_setup_data(struct s3cmci_host *host, struct mmc_data *data)
 {
 	u32 dcon, imsk, stoptries = 3;
 
-	/* write DCON register */
-
-	if (!data) {
-		writel(0, host->base + S3C2410_SDIDCON);
-		return 0;
-	}
-
 	if ((data->blksz & 3) != 0) {
 		/* We cannot deal with unaligned blocks with more than
 		 * one block being transferred. */

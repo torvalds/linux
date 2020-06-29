@@ -267,13 +267,18 @@ int hl_pci_init_iatu(struct hl_device *hdev, u64 sram_base_address,
 	/* Enable + Bar match + match enable */
 	rc |= hl_pci_iatu_write(hdev, 0x104, 0xC0080000);
 
+	/* Return the DBI window to the default location */
+	rc |= hl_pci_elbi_write(hdev, prop->pcie_aux_dbi_reg_addr, 0);
+	rc |= hl_pci_elbi_write(hdev, prop->pcie_aux_dbi_reg_addr + 4, 0);
+
+	hdev->asic_funcs->set_dma_mask_from_fw(hdev);
+
 	/* Point to DRAM */
 	if (!hdev->asic_funcs->set_dram_bar_base)
 		return -EINVAL;
 	if (hdev->asic_funcs->set_dram_bar_base(hdev, dram_base_address) ==
 								U64_MAX)
 		return -EIO;
-
 
 	/* Outbound Region 0 - Point to Host */
 	host_phys_end_addr = host_phys_base_address + host_phys_size - 1;
@@ -283,7 +288,12 @@ int hl_pci_init_iatu(struct hl_device *hdev, u64 sram_base_address,
 				upper_32_bits(host_phys_base_address));
 	rc |= hl_pci_iatu_write(hdev, 0x010, lower_32_bits(host_phys_end_addr));
 	rc |= hl_pci_iatu_write(hdev, 0x014, 0);
-	rc |= hl_pci_iatu_write(hdev, 0x018, 0);
+
+	if ((hdev->power9_64bit_dma_enable) && (hdev->dma_mask == 64))
+		rc |= hl_pci_iatu_write(hdev, 0x018, 0x08000000);
+	else
+		rc |= hl_pci_iatu_write(hdev, 0x018, 0);
+
 	rc |= hl_pci_iatu_write(hdev, 0x020, upper_32_bits(host_phys_end_addr));
 	/* Increase region size */
 	rc |= hl_pci_iatu_write(hdev, 0x000, 0x00002000);
@@ -310,41 +320,25 @@ int hl_pci_init_iatu(struct hl_device *hdev, u64 sram_base_address,
  *
  * Return: 0 on success, non-zero for failure.
  */
-int hl_pci_set_dma_mask(struct hl_device *hdev, u8 dma_mask)
+static int hl_pci_set_dma_mask(struct hl_device *hdev)
 {
 	struct pci_dev *pdev = hdev->pdev;
 	int rc;
 
 	/* set DMA mask */
-	rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(dma_mask));
+	rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(hdev->dma_mask));
 	if (rc) {
-		dev_warn(hdev->dev,
+		dev_err(hdev->dev,
 			"Failed to set pci dma mask to %d bits, error %d\n",
-			dma_mask, rc);
-
-		dma_mask = hdev->dma_mask;
-
-		rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(dma_mask));
-		if (rc) {
-			dev_err(hdev->dev,
-				"Failed to set pci dma mask to %d bits, error %d\n",
-				dma_mask, rc);
-			return rc;
-		}
+			hdev->dma_mask, rc);
+		return rc;
 	}
 
-	/*
-	 * We managed to set the dma mask, so update the dma mask field. If
-	 * the set to the coherent mask will fail with that mask, we will
-	 * fail the entire function
-	 */
-	hdev->dma_mask = dma_mask;
-
-	rc = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(dma_mask));
+	rc = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(hdev->dma_mask));
 	if (rc) {
 		dev_err(hdev->dev,
 			"Failed to set pci consistent dma mask to %d bits, error %d\n",
-			dma_mask, rc);
+			hdev->dma_mask, rc);
 		return rc;
 	}
 
@@ -354,20 +348,15 @@ int hl_pci_set_dma_mask(struct hl_device *hdev, u8 dma_mask)
 /**
  * hl_pci_init() - PCI initialization code.
  * @hdev: Pointer to hl_device structure.
- * @dma_mask: number of bits for the requested dma mask.
  *
  * Set DMA masks, initialize the PCI controller and map the PCI BARs.
  *
  * Return: 0 on success, non-zero for failure.
  */
-int hl_pci_init(struct hl_device *hdev, u8 dma_mask)
+int hl_pci_init(struct hl_device *hdev)
 {
 	struct pci_dev *pdev = hdev->pdev;
 	int rc;
-
-	rc = hl_pci_set_dma_mask(hdev, dma_mask);
-	if (rc)
-		return rc;
 
 	if (hdev->reset_pcilink)
 		hl_pci_reset_link_through_bridge(hdev);
@@ -380,17 +369,21 @@ int hl_pci_init(struct hl_device *hdev, u8 dma_mask)
 
 	pci_set_master(pdev);
 
+	rc = hdev->asic_funcs->pci_bars_map(hdev);
+	if (rc) {
+		dev_err(hdev->dev, "Failed to initialize PCI BARs\n");
+		goto disable_device;
+	}
+
 	rc = hdev->asic_funcs->init_iatu(hdev);
 	if (rc) {
 		dev_err(hdev->dev, "Failed to initialize iATU\n");
 		goto disable_device;
 	}
 
-	rc = hdev->asic_funcs->pci_bars_map(hdev);
-	if (rc) {
-		dev_err(hdev->dev, "Failed to initialize PCI BARs\n");
+	rc = hl_pci_set_dma_mask(hdev);
+	if (rc)
 		goto disable_device;
-	}
 
 	return 0;
 

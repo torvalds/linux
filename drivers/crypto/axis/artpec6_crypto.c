@@ -2239,16 +2239,12 @@ artpec6_crypto_hash_set_key(struct crypto_ahash *tfm,
 	blocksize = crypto_tfm_alg_blocksize(crypto_ahash_tfm(tfm));
 
 	if (keylen > blocksize) {
-		SHASH_DESC_ON_STACK(hdesc, tfm_ctx->child_hash);
-
-		hdesc->tfm = tfm_ctx->child_hash;
-
 		tfm_ctx->hmac_key_length = blocksize;
-		ret = crypto_shash_digest(hdesc, key, keylen,
-					  tfm_ctx->hmac_key);
+
+		ret = crypto_shash_tfm_digest(tfm_ctx->child_hash, key, keylen,
+					      tfm_ctx->hmac_key);
 		if (ret)
 			return ret;
-
 	} else {
 		memcpy(tfm_ctx->hmac_key, key, keylen);
 		tfm_ctx->hmac_key_length = keylen;

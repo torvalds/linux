@@ -278,6 +278,14 @@ struct qede_dev {
 	struct qede_rdma_dev		rdma_info;
 
 	struct bpf_prog *xdp_prog;
+
+	unsigned long err_flags;
+#define QEDE_ERR_IS_HANDLED	31
+#define QEDE_ERR_ATTN_CLR_EN	0
+#define QEDE_ERR_GET_DBG_INFO	1
+#define QEDE_ERR_IS_RECOVERABLE	2
+#define QEDE_ERR_WARN		3
+
 	struct qede_dump_info		dump_info;
 };
 
@@ -485,11 +493,15 @@ struct qede_fastpath {
 
 #define QEDE_SP_RECOVERY		0
 #define QEDE_SP_RX_MODE			1
+#define QEDE_SP_RSVD1                   2
+#define QEDE_SP_RSVD2                   3
+#define QEDE_SP_HW_ERR                  4
+#define QEDE_SP_ARFS_CONFIG             5
+#define QEDE_SP_AER			7
 
 #ifdef CONFIG_RFS_ACCEL
 int qede_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 		       u16 rxq_index, u32 flow_id);
-#define QEDE_SP_ARFS_CONFIG	4
 #define QEDE_SP_TASK_POLL_DELAY	(5 * HZ)
 #endif
 
@@ -521,7 +533,6 @@ u16 qede_select_queue(struct net_device *dev, struct sk_buff *skb,
 netdev_features_t qede_features_check(struct sk_buff *skb,
 				      struct net_device *dev,
 				      netdev_features_t features);
-void qede_tx_log_print(struct qede_dev *edev, struct qede_fastpath *fp);
 int qede_alloc_rx_buffer(struct qede_rx_queue *rxq, bool allow_lazy);
 int qede_free_tx_pkt(struct qede_dev *edev,
 		     struct qede_tx_queue *txq, int *len);
@@ -574,12 +585,14 @@ int qede_add_tc_flower_fltr(struct qede_dev *edev, __be16 proto,
 #define RX_RING_SIZE		((u16)BIT(RX_RING_SIZE_POW))
 #define NUM_RX_BDS_MAX		(RX_RING_SIZE - 1)
 #define NUM_RX_BDS_MIN		128
+#define NUM_RX_BDS_KDUMP_MIN	63
 #define NUM_RX_BDS_DEF		((u16)BIT(10) - 1)
 
 #define TX_RING_SIZE_POW	13
 #define TX_RING_SIZE		((u16)BIT(TX_RING_SIZE_POW))
 #define NUM_TX_BDS_MAX		(TX_RING_SIZE - 1)
 #define NUM_TX_BDS_MIN		128
+#define NUM_TX_BDS_KDUMP_MIN	63
 #define NUM_TX_BDS_DEF		NUM_TX_BDS_MAX
 
 #define QEDE_MIN_PKT_LEN		64

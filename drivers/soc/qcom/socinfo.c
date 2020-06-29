@@ -188,6 +188,10 @@ static const struct soc_id soc_id[] = {
 	{ 216, "MSM8674PRO" },
 	{ 217, "MSM8974-AA" },
 	{ 218, "MSM8974-AB" },
+	{ 233, "MSM8936" },
+	{ 239, "MSM8939" },
+	{ 240, "APQ8036" },
+	{ 241, "APQ8039" },
 	{ 246, "MSM8996" },
 	{ 247, "APQ8016" },
 	{ 248, "MSM8216" },
@@ -430,6 +434,8 @@ static int qcom_socinfo_probe(struct platform_device *pdev)
 	qs->attr.family = "Snapdragon";
 	qs->attr.machine = socinfo_machine(&pdev->dev,
 					   le32_to_cpu(info->id));
+	qs->attr.soc_id = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%u",
+					 le32_to_cpu(info->id));
 	qs->attr.revision = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%u.%u",
 					   SOCINFO_MAJOR(le32_to_cpu(info->ver)),
 					   SOCINFO_MINOR(le32_to_cpu(info->ver)));

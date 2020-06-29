@@ -72,7 +72,7 @@ static int attach__current_disabled(struct evlist *evlist)
 
 	evsel->core.attr.disabled = 1;
 
-	err = perf_evsel__open_per_thread(evsel, threads);
+	err = evsel__open_per_thread(evsel, threads);
 	if (err) {
 		pr_debug("Failed to open event cpu-clock:u\n");
 		return err;
@@ -96,7 +96,7 @@ static int attach__current_enabled(struct evlist *evlist)
 		return -1;
 	}
 
-	err = perf_evsel__open_per_thread(evsel, threads);
+	err = evsel__open_per_thread(evsel, threads);
 
 	perf_thread_map__put(threads);
 	return err == 0 ? TEST_OK : TEST_FAIL;
@@ -125,7 +125,7 @@ static int attach__cpu_disabled(struct evlist *evlist)
 
 	evsel->core.attr.disabled = 1;
 
-	err = perf_evsel__open_per_cpu(evsel, cpus, -1);
+	err = evsel__open_per_cpu(evsel, cpus, -1);
 	if (err) {
 		if (err == -EACCES)
 			return TEST_SKIP;
@@ -152,7 +152,7 @@ static int attach__cpu_enabled(struct evlist *evlist)
 		return -1;
 	}
 
-	err = perf_evsel__open_per_cpu(evsel, cpus, -1);
+	err = evsel__open_per_cpu(evsel, cpus, -1);
 	if (err == -EACCES)
 		return TEST_SKIP;
 

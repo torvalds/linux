@@ -8,6 +8,7 @@
  *   Author: Wolfram Sang <kernel@pengutronix.de>
  */
 
+#include <linux/bitfield.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
 #include <linux/delay.h>
@@ -89,7 +90,8 @@
 #define ESDHC_STD_TUNING_EN		(1 << 24)
 /* NOTE: the minimum valid tuning start tap for mx6sl is 1 */
 #define ESDHC_TUNING_START_TAP_DEFAULT	0x1
-#define ESDHC_TUNING_START_TAP_MASK	0xff
+#define ESDHC_TUNING_START_TAP_MASK	0x7f
+#define ESDHC_TUNING_CMD_CRC_CHECK_DISABLE	(1 << 7)
 #define ESDHC_TUNING_STEP_MASK		0x00070000
 #define ESDHC_TUNING_STEP_SHIFT		16
 
@@ -214,6 +216,7 @@ static const struct esdhc_soc_data usdhc_imx6sl_data = {
 static const struct esdhc_soc_data usdhc_imx6sll_data = {
 	.flags = ESDHC_FLAG_USDHC | ESDHC_FLAG_STD_TUNING
 			| ESDHC_FLAG_HAVE_CAP1 | ESDHC_FLAG_HS200
+			| ESDHC_FLAG_HS400
 			| ESDHC_FLAG_STATE_LOST_IN_LPMODE,
 };
 
@@ -399,7 +402,8 @@ static u32 esdhc_readl_le(struct sdhci_host *host, int reg)
 				val = SDHCI_SUPPORT_DDR50 | SDHCI_SUPPORT_SDR104
 					| SDHCI_SUPPORT_SDR50
 					| SDHCI_USE_SDR50_TUNING
-					| (SDHCI_TUNING_MODE_3 << SDHCI_RETUNING_MODE_SHIFT);
+					| FIELD_PREP(SDHCI_RETUNING_MODE_MASK,
+						     SDHCI_TUNING_MODE_3);
 
 			if (imx_data->socdata->flags & ESDHC_FLAG_HS400)
 				val |= SDHCI_SUPPORT_HS400;
@@ -417,9 +421,9 @@ static u32 esdhc_readl_le(struct sdhci_host *host, int reg)
 
 	if (unlikely(reg == SDHCI_MAX_CURRENT) && esdhc_is_usdhc(imx_data)) {
 		val = 0;
-		val |= 0xFF << SDHCI_MAX_CURRENT_330_SHIFT;
-		val |= 0xFF << SDHCI_MAX_CURRENT_300_SHIFT;
-		val |= 0xFF << SDHCI_MAX_CURRENT_180_SHIFT;
+		val |= FIELD_PREP(SDHCI_MAX_CURRENT_330_MASK, 0xFF);
+		val |= FIELD_PREP(SDHCI_MAX_CURRENT_300_MASK, 0xFF);
+		val |= FIELD_PREP(SDHCI_MAX_CURRENT_180_MASK, 0xFF);
 	}
 
 	if (unlikely(reg == SDHCI_INT_STATUS)) {
@@ -1313,6 +1317,18 @@ static void sdhci_esdhc_imx_hwinit(struct sdhci_host *host)
 				tmp |= imx_data->boarddata.tuning_step
 					<< ESDHC_TUNING_STEP_SHIFT;
 			}
+
+			/* Disable the CMD CRC check for tuning, if not, need to
+			 * add some delay after every tuning command, because
+			 * hardware standard tuning logic will directly go to next
+			 * step once it detect the CMD CRC error, will not wait for
+			 * the card side to finally send out the tuning data, trigger
+			 * the buffer read ready interrupt immediately. If usdhc send
+			 * the next tuning command some eMMC card will stuck, can't
+			 * response, block the tuning procedure or the first command
+			 * after the whole tuning procedure always can't get any response.
+			 */
+			 tmp |= ESDHC_TUNING_CMD_CRC_CHECK_DISABLE;
 			writel(tmp, host->ioaddr + ESDHC_TUNING_CTRL);
 		} else if (imx_data->socdata->flags & ESDHC_FLAG_MAN_TUNING) {
 			/*
@@ -1596,6 +1612,10 @@ static int sdhci_esdhc_imx_probe(struct platform_device *pdev)
 	if (esdhc_is_usdhc(imx_data)) {
 		host->quirks2 |= SDHCI_QUIRK2_PRESET_VALUE_BROKEN;
 		host->mmc->caps |= MMC_CAP_1_8V_DDR | MMC_CAP_3_3V_DDR;
+
+		/* GPIO CD can be set as a wakeup source */
+		host->mmc->caps |= MMC_CAP_CD_WAKE;
+
 		if (!(imx_data->socdata->flags & ESDHC_FLAG_HS200))
 			host->quirks2 |= SDHCI_QUIRK2_BROKEN_HS200;
 
@@ -1652,8 +1672,6 @@ static int sdhci_esdhc_imx_probe(struct platform_device *pdev)
 		err = sdhci_esdhc_imx_probe_nondt(pdev, host, imx_data);
 	if (err)
 		goto disable_ahb_clk;
-
-	host->tuning_delay = 1;
 
 	sdhci_esdhc_imx_hwinit(host);
 
@@ -1731,8 +1749,14 @@ static int sdhci_esdhc_suspend(struct device *dev)
 		mmc_retune_needed(host->mmc);
 
 	ret = sdhci_suspend_host(host);
-	if (!ret)
-		return pinctrl_pm_select_sleep_state(dev);
+	if (ret)
+		return ret;
+
+	ret = pinctrl_pm_select_sleep_state(dev);
+	if (ret)
+		return ret;
+
+	ret = mmc_gpio_set_cd_wake(host->mmc, true);
 
 	return ret;
 }
@@ -1755,6 +1779,9 @@ static int sdhci_esdhc_resume(struct device *dev)
 
 	if (host->mmc->caps2 & MMC_CAP2_CQE)
 		ret = cqhci_resume(host->mmc);
+
+	if (!ret)
+		ret = mmc_gpio_set_cd_wake(host->mmc, false);
 
 	return ret;
 }

@@ -8,7 +8,6 @@
 # option) any later version.
 #
 
-platform-$(CONFIG_MIPS_GENERIC)	+= generic/
 cflags-$(CONFIG_MIPS_GENERIC)	+= -I$(srctree)/arch/mips/include/asm/mach-generic
 load-$(CONFIG_MIPS_GENERIC)	+= 0xffffffff80100000
 all-$(CONFIG_MIPS_GENERIC)	:= vmlinux.gz.itb

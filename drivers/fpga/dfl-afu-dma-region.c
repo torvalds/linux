@@ -61,10 +61,10 @@ static int afu_dma_pin_pages(struct dfl_feature_platform_data *pdata,
 				     region->pages);
 	if (pinned < 0) {
 		ret = pinned;
-		goto put_pages;
+		goto free_pages;
 	} else if (pinned != npages) {
 		ret = -EFAULT;
-		goto free_pages;
+		goto put_pages;
 	}
 
 	dev_dbg(dev, "%d pages pinned\n", pinned);
@@ -322,10 +322,6 @@ int afu_dma_map_region(struct dfl_feature_platform_data *pdata,
 
 	/* Check overflow */
 	if (user_addr + length < user_addr)
-		return -EINVAL;
-
-	if (!access_ok((void __user *)(unsigned long)user_addr,
-		       length))
 		return -EINVAL;
 
 	region = kzalloc(sizeof(*region), GFP_KERNEL);

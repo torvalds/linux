@@ -220,6 +220,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define TLV_TYPE_BSS_MODE           (PROPRIETARY_TLV_BASE_ID + 206)
 #define TLV_TYPE_RANDOM_MAC         (PROPRIETARY_TLV_BASE_ID + 236)
 #define TLV_TYPE_CHAN_ATTR_CFG      (PROPRIETARY_TLV_BASE_ID + 237)
+#define TLV_TYPE_MAX_CONN           (PROPRIETARY_TLV_BASE_ID + 279)
 
 #define MWIFIEX_TX_DATA_BUF_SIZE_2K        2048
 
@@ -1052,6 +1053,8 @@ struct host_cmd_ds_802_11_ps_mode_enh {
 enum API_VER_ID {
 	KEY_API_VER_ID = 1,
 	FW_API_VER_ID = 2,
+	UAP_FW_API_VER_ID = 3,
+	CHANRPT_API_VER_ID = 4,
 };
 
 struct hw_spec_api_rev {
@@ -2386,4 +2389,11 @@ struct mwifiex_opt_sleep_confirm {
 	__le16 action;
 	__le16 resp_ctrl;
 } __packed;
+
+struct hw_spec_max_conn {
+	struct mwifiex_ie_types_header header;
+	u8 max_p2p_conn;
+	u8 max_sta_conn;
+} __packed;
+
 #endif /* !_MWIFIEX_FW_H_ */

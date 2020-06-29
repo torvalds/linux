@@ -18,6 +18,8 @@ extern int __read_mostly pt_mode;
 #define PT_MODE_SYSTEM		0
 #define PT_MODE_HOST_GUEST	1
 
+#define PMU_CAP_FW_WRITES	(1ULL << 13)
+
 struct nested_vmx_msrs {
 	/*
 	 * We only store the "true" versions of the VMX capability MSRs. We
@@ -365,6 +367,15 @@ static inline bool vmx_pt_mode_is_system(void)
 static inline bool vmx_pt_mode_is_host_guest(void)
 {
 	return pt_mode == PT_MODE_HOST_GUEST;
+}
+
+static inline u64 vmx_get_perf_capabilities(void)
+{
+	/*
+	 * Since counters are virtualized, KVM would support full
+	 * width counting unconditionally, even if the host lacks it.
+	 */
+	return PMU_CAP_FW_WRITES;
 }
 
 #endif /* __KVM_X86_VMX_CAPS_H */

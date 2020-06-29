@@ -91,7 +91,7 @@ required:
 
 examples:
   - |
-    vco1: clock@00 {
+    vco1: clock {
       compatible = "arm,impd1-vco1";
       #clock-cells = <0>;
       lock-offset = <0x08>;

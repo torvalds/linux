@@ -71,7 +71,7 @@ Solution
 
 gcc (v4.5) adds a new 'asm goto' statement that allows branching to a label:
 
-http://gcc.gnu.org/ml/gcc-patches/2009-07/msg01556.html
+https://gcc.gnu.org/ml/gcc-patches/2009-07/msg01556.html
 
 Using the 'asm goto', we can create branches that are either taken or not taken
 by default, without the need to check memory. Then, at run-time, we can patch

@@ -49,7 +49,7 @@
  *   Index into __pte2cachemode_tbl[] are the caching attribute bits of the pte
  *   (_PAGE_PWT, _PAGE_PCD, _PAGE_PAT) at index bit positions 0, 1, 2.
  */
-uint16_t __cachemode2pte_tbl[_PAGE_CACHE_MODE_NUM] = {
+static uint16_t __cachemode2pte_tbl[_PAGE_CACHE_MODE_NUM] = {
 	[_PAGE_CACHE_MODE_WB      ]	= 0         | 0        ,
 	[_PAGE_CACHE_MODE_WC      ]	= 0         | _PAGE_PCD,
 	[_PAGE_CACHE_MODE_UC_MINUS]	= 0         | _PAGE_PCD,
@@ -57,9 +57,16 @@ uint16_t __cachemode2pte_tbl[_PAGE_CACHE_MODE_NUM] = {
 	[_PAGE_CACHE_MODE_WT      ]	= 0         | _PAGE_PCD,
 	[_PAGE_CACHE_MODE_WP      ]	= 0         | _PAGE_PCD,
 };
-EXPORT_SYMBOL(__cachemode2pte_tbl);
 
-uint8_t __pte2cachemode_tbl[8] = {
+unsigned long cachemode2protval(enum page_cache_mode pcm)
+{
+	if (likely(pcm == 0))
+		return 0;
+	return __cachemode2pte_tbl[pcm];
+}
+EXPORT_SYMBOL(cachemode2protval);
+
+static uint8_t __pte2cachemode_tbl[8] = {
 	[__pte2cm_idx( 0        | 0         | 0        )] = _PAGE_CACHE_MODE_WB,
 	[__pte2cm_idx(_PAGE_PWT | 0         | 0        )] = _PAGE_CACHE_MODE_UC_MINUS,
 	[__pte2cm_idx( 0        | _PAGE_PCD | 0        )] = _PAGE_CACHE_MODE_UC_MINUS,
@@ -69,7 +76,22 @@ uint8_t __pte2cachemode_tbl[8] = {
 	[__pte2cm_idx(0         | _PAGE_PCD | _PAGE_PAT)] = _PAGE_CACHE_MODE_UC_MINUS,
 	[__pte2cm_idx(_PAGE_PWT | _PAGE_PCD | _PAGE_PAT)] = _PAGE_CACHE_MODE_UC,
 };
-EXPORT_SYMBOL(__pte2cachemode_tbl);
+
+/* Check that the write-protect PAT entry is set for write-protect */
+bool x86_has_pat_wp(void)
+{
+	return __pte2cachemode_tbl[_PAGE_CACHE_MODE_WP] == _PAGE_CACHE_MODE_WP;
+}
+
+enum page_cache_mode pgprot2cachemode(pgprot_t pgprot)
+{
+	unsigned long masked;
+
+	masked = pgprot_val(pgprot) & _PAGE_CACHE_MASK;
+	if (likely(masked == 0))
+		return 0;
+	return __pte2cachemode_tbl[__pte2cm_idx(masked)];
+}
 
 static unsigned long __initdata pgt_buf_start;
 static unsigned long __initdata pgt_buf_end;
@@ -121,8 +143,6 @@ __ref void *alloc_low_pages(unsigned int num)
 	} else {
 		pfn = pgt_buf_end;
 		pgt_buf_end += num;
-		printk(KERN_DEBUG "BRK [%#010lx, %#010lx] PGTABLE\n",
-			pfn << PAGE_SHIFT, (pgt_buf_end << PAGE_SHIFT) - 1);
 	}
 
 	for (i = 0; i < num; i++) {
@@ -171,6 +191,19 @@ struct map_range {
 };
 
 static int page_size_mask;
+
+/*
+ * Save some of cr4 feature set we're using (e.g.  Pentium 4MB
+ * enable and PPro Global page enable), so that any CPU's that boot
+ * up after us can get the correct flags. Invoked on the boot CPU.
+ */
+static inline void cr4_set_bits_and_update_boot(unsigned long mask)
+{
+	mmu_cr4_features |= mask;
+	if (trampoline_cr4_features)
+		*trampoline_cr4_features = mmu_cr4_features;
+	cr4_set_bits(mask);
+}
 
 static void __init probe_page_size_mask(void)
 {
@@ -647,6 +680,28 @@ static void __init memory_map_bottom_up(unsigned long map_start,
 	}
 }
 
+/*
+ * The real mode trampoline, which is required for bootstrapping CPUs
+ * occupies only a small area under the low 1MB.  See reserve_real_mode()
+ * for details.
+ *
+ * If KASLR is disabled the first PGD entry of the direct mapping is copied
+ * to map the real mode trampoline.
+ *
+ * If KASLR is enabled, copy only the PUD which covers the low 1MB
+ * area. This limits the randomization granularity to 1GB for both 4-level
+ * and 5-level paging.
+ */
+static void __init init_trampoline(void)
+{
+#ifdef CONFIG_X86_64
+	if (!kaslr_memory_enabled())
+		trampoline_pgd_entry = init_top_pgt[pgd_index(__PAGE_OFFSET)];
+	else
+		init_trampoline_kaslr();
+#endif
+}
+
 void __init init_mem_mapping(void)
 {
 	unsigned long end;
@@ -949,7 +1004,7 @@ void __init zone_sizes_init(void)
 	max_zone_pfns[ZONE_HIGHMEM]	= max_pfn;
 #endif
 
-	free_area_init_nodes(max_zone_pfns);
+	free_area_init(max_zone_pfns);
 }
 
 __visible DEFINE_PER_CPU_SHARED_ALIGNED(struct tlb_state, cpu_tlbstate) = {
@@ -957,7 +1012,6 @@ __visible DEFINE_PER_CPU_SHARED_ALIGNED(struct tlb_state, cpu_tlbstate) = {
 	.next_asid = 1,
 	.cr4 = ~0UL,	/* fail hard if we screw up cr4 shadow initialization */
 };
-EXPORT_PER_CPU_SYMBOL(cpu_tlbstate);
 
 void update_cache_mode_entry(unsigned entry, enum page_cache_mode cache)
 {

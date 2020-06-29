@@ -47,7 +47,6 @@
 #include <asm/unistd.h>
 #else
 #include <asm/ucontext.h>
-#include <asm/pgtable.h>
 #endif
 
 #include "signal.h"
@@ -500,7 +499,7 @@ static long restore_user_regs(struct pt_regs *regs,
 	if (!sig)
 		save_r2 = (unsigned int)regs->gpr[2];
 	err = restore_general_regs(regs, sr);
-	regs->trap = 0;
+	set_trap_norestart(regs);
 	err |= __get_user(msr, &sr->mc_gregs[PT_MSR]);
 	if (!sig)
 		regs->gpr[2] = (unsigned long) save_r2;

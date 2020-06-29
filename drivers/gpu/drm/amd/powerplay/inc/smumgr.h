@@ -81,16 +81,15 @@ enum SMU10_TABLE_ID {
 	SMU10_CLOCKTABLE,
 };
 
-extern uint32_t smum_get_argument(struct pp_hwmgr *hwmgr);
-
 extern int smum_download_powerplay_table(struct pp_hwmgr *hwmgr, void **table);
 
 extern int smum_upload_powerplay_table(struct pp_hwmgr *hwmgr);
 
-extern int smum_send_msg_to_smc(struct pp_hwmgr *hwmgr, uint16_t msg);
+extern int smum_send_msg_to_smc(struct pp_hwmgr *hwmgr, uint16_t msg, uint32_t *resp);
 
 extern int smum_send_msg_to_smc_with_parameter(struct pp_hwmgr *hwmgr,
-					uint16_t msg, uint32_t parameter);
+					uint16_t msg, uint32_t parameter,
+					uint32_t *resp);
 
 extern int smum_update_sclk_threshold(struct pp_hwmgr *hwmgr);
 

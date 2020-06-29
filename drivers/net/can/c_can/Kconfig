@@ -7,7 +7,7 @@ if CAN_C_CAN
 
 config CAN_C_CAN_PLATFORM
 	tristate "Generic Platform Bus based C_CAN/D_CAN driver"
-	---help---
+	help
 	  This driver adds support for the C_CAN/D_CAN chips connected
 	  to the "platform bus" (Linux abstraction for directly to the
 	  processor attached devices) which can be found on various
@@ -18,7 +18,7 @@ config CAN_C_CAN_PLATFORM
 config CAN_C_CAN_PCI
 	tristate "Generic PCI Bus based C_CAN/D_CAN driver"
 	depends on PCI
-	---help---
+	help
 	  This driver adds support for the C_CAN/D_CAN chips connected
 	  to the PCI bus.
 endif

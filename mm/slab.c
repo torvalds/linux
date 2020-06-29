@@ -3106,7 +3106,7 @@ static void *fallback_alloc(struct kmem_cache *cache, gfp_t flags)
 	struct zonelist *zonelist;
 	struct zoneref *z;
 	struct zone *zone;
-	enum zone_type high_zoneidx = gfp_zone(flags);
+	enum zone_type highest_zoneidx = gfp_zone(flags);
 	void *obj = NULL;
 	struct page *page;
 	int nid;
@@ -3124,7 +3124,7 @@ retry:
 	 * Look through allowed nodes for objects available
 	 * from existing per node queues.
 	 */
-	for_each_zone_zonelist(zone, z, zonelist, high_zoneidx) {
+	for_each_zone_zonelist(zone, z, zonelist, highest_zoneidx) {
 		nid = zone_to_nid(zone);
 
 		if (cpuset_zone_allowed(zone, flags) &&

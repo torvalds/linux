@@ -61,6 +61,7 @@ lack of a better place.
    botching-up-ioctls
    clang-format
    ../riscv/patch-acceptance
+   unaligned-memory-access
 
 .. only::  subproject and html
 

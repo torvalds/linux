@@ -254,3 +254,19 @@ LIBBPF_0.0.8 {
 		bpf_program__set_lsm;
 		bpf_set_link_xdp_fd_opts;
 } LIBBPF_0.0.7;
+
+LIBBPF_0.0.9 {
+	global:
+		bpf_enable_stats;
+		bpf_iter_create;
+		bpf_link_get_fd_by_id;
+		bpf_link_get_next_id;
+		bpf_program__attach_iter;
+		bpf_program__attach_netns;
+		perf_buffer__consume;
+		ring_buffer__add;
+		ring_buffer__consume;
+		ring_buffer__free;
+		ring_buffer__new;
+		ring_buffer__poll;
+} LIBBPF_0.0.8;

@@ -46,6 +46,7 @@ static size_t clone__scnprintf_flags(unsigned long flags, char *bf, size_t size,
 	P_FLAG(NEWNET);
 	P_FLAG(IO);
 	P_FLAG(CLEAR_SIGHAND);
+	P_FLAG(INTO_CGROUP);
 #undef P_FLAG
 
 	if (flags)

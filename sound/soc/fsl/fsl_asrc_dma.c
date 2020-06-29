@@ -12,7 +12,7 @@
 #include <sound/dmaengine_pcm.h>
 #include <sound/pcm_params.h>
 
-#include "fsl_asrc.h"
+#include "fsl_asrc_common.h"
 
 #define FSL_ASRC_DMABUF_SIZE	(256 * 1024)
 
@@ -135,7 +135,7 @@ static int fsl_asrc_dma_hw_params(struct snd_soc_component *component,
 	struct snd_dmaengine_dai_dma_data *dma_params_be = NULL;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct fsl_asrc_pair *pair = runtime->private_data;
-	struct fsl_asrc *asrc_priv = pair->asrc_priv;
+	struct fsl_asrc *asrc = pair->asrc;
 	struct dma_slave_config config_fe, config_be;
 	enum asrc_pair_index index = pair->index;
 	struct device *dev = component->dev;
@@ -146,7 +146,7 @@ static int fsl_asrc_dma_hw_params(struct snd_soc_component *component,
 	struct device *dev_be;
 	u8 dir = tx ? OUT : IN;
 	dma_cap_mask_t mask;
-	int ret;
+	int ret, width;
 
 	/* Fetch the Back-End dma_data from DPCM */
 	for_each_dpcm_be(rtd, stream, dpcm) {
@@ -170,10 +170,10 @@ static int fsl_asrc_dma_hw_params(struct snd_soc_component *component,
 
 	/* Override dma_data of the Front-End and config its dmaengine */
 	dma_params_fe = snd_soc_dai_get_dma_data(asoc_rtd_to_cpu(rtd, 0), substream);
-	dma_params_fe->addr = asrc_priv->paddr + REG_ASRDx(!dir, index);
+	dma_params_fe->addr = asrc->paddr + asrc->get_fifo_addr(!dir, index);
 	dma_params_fe->maxburst = dma_params_be->maxburst;
 
-	pair->dma_chan[!dir] = fsl_asrc_get_dma_channel(pair, !dir);
+	pair->dma_chan[!dir] = asrc->get_dma_channel(pair, !dir);
 	if (!pair->dma_chan[!dir]) {
 		dev_err(dev, "failed to request DMA channel\n");
 		return -EINVAL;
@@ -203,7 +203,7 @@ static int fsl_asrc_dma_hw_params(struct snd_soc_component *component,
 	 * need to configure dma_request and dma_request2, but get dma_chan via
 	 * dma_request_slave_channel directly with dma name of Front-End device
 	 */
-	if (!asrc_priv->soc->use_edma) {
+	if (!asrc->use_edma) {
 		/* Get DMA request of Back-End */
 		tmp_chan = dma_request_slave_channel(dev_be, tx ? "tx" : "rx");
 		tmp_data = tmp_chan->private;
@@ -211,7 +211,7 @@ static int fsl_asrc_dma_hw_params(struct snd_soc_component *component,
 		dma_release_channel(tmp_chan);
 
 		/* Get DMA request of Front-End */
-		tmp_chan = fsl_asrc_get_dma_channel(pair, dir);
+		tmp_chan = asrc->get_dma_channel(pair, dir);
 		tmp_data = tmp_chan->private;
 		pair->dma_data.dma_request2 = tmp_data->dma_request;
 		pair->dma_data.peripheral_type = tmp_data->peripheral_type;
@@ -222,7 +222,7 @@ static int fsl_asrc_dma_hw_params(struct snd_soc_component *component,
 			dma_request_channel(mask, filter, &pair->dma_data);
 	} else {
 		pair->dma_chan[dir] =
-			fsl_asrc_get_dma_channel(pair, dir);
+			asrc->get_dma_channel(pair, dir);
 	}
 
 	if (!pair->dma_chan[dir]) {
@@ -230,10 +230,19 @@ static int fsl_asrc_dma_hw_params(struct snd_soc_component *component,
 		return -EINVAL;
 	}
 
-	if (asrc_priv->asrc_width == 16)
+	width = snd_pcm_format_physical_width(asrc->asrc_format);
+	if (width < 8 || width > 64)
+		return -EINVAL;
+	else if (width == 8)
+		buswidth = DMA_SLAVE_BUSWIDTH_1_BYTE;
+	else if (width == 16)
 		buswidth = DMA_SLAVE_BUSWIDTH_2_BYTES;
-	else
+	else if (width == 24)
+		buswidth = DMA_SLAVE_BUSWIDTH_3_BYTES;
+	else if (width <= 32)
 		buswidth = DMA_SLAVE_BUSWIDTH_4_BYTES;
+	else
+		buswidth = DMA_SLAVE_BUSWIDTH_8_BYTES;
 
 	config_be.direction = DMA_DEV_TO_DEV;
 	config_be.src_addr_width = buswidth;
@@ -242,16 +251,17 @@ static int fsl_asrc_dma_hw_params(struct snd_soc_component *component,
 	config_be.dst_maxburst = dma_params_be->maxburst;
 
 	if (tx) {
-		config_be.src_addr = asrc_priv->paddr + REG_ASRDO(index);
+		config_be.src_addr = asrc->paddr + asrc->get_fifo_addr(OUT, index);
 		config_be.dst_addr = dma_params_be->addr;
 	} else {
-		config_be.dst_addr = asrc_priv->paddr + REG_ASRDI(index);
+		config_be.dst_addr = asrc->paddr + asrc->get_fifo_addr(IN, index);
 		config_be.src_addr = dma_params_be->addr;
 	}
 
 	ret = dmaengine_slave_config(pair->dma_chan[dir], &config_be);
 	if (ret) {
 		dev_err(dev, "failed to config DMA channel for Back-End\n");
+		dma_release_channel(pair->dma_chan[dir]);
 		return ret;
 	}
 
@@ -288,7 +298,7 @@ static int fsl_asrc_dma_startup(struct snd_soc_component *component,
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_dmaengine_dai_dma_data *dma_data;
 	struct device *dev = component->dev;
-	struct fsl_asrc *asrc_priv = dev_get_drvdata(dev);
+	struct fsl_asrc *asrc = dev_get_drvdata(dev);
 	struct fsl_asrc_pair *pair;
 	struct dma_chan *tmp_chan = NULL;
 	u8 dir = tx ? OUT : IN;
@@ -302,11 +312,12 @@ static int fsl_asrc_dma_startup(struct snd_soc_component *component,
 		return ret;
 	}
 
-	pair = kzalloc(sizeof(struct fsl_asrc_pair), GFP_KERNEL);
+	pair = kzalloc(sizeof(*pair) + asrc->pair_priv_size, GFP_KERNEL);
 	if (!pair)
 		return -ENOMEM;
 
-	pair->asrc_priv = asrc_priv;
+	pair->asrc = asrc;
+	pair->private = (void *)pair + sizeof(struct fsl_asrc_pair);
 
 	runtime->private_data = pair;
 
@@ -314,14 +325,14 @@ static int fsl_asrc_dma_startup(struct snd_soc_component *component,
 	 * Request pair function needs channel num as input, for this
 	 * dummy pair, we just request "1" channel temporarily.
 	 */
-	ret = fsl_asrc_request_pair(1, pair);
+	ret = asrc->request_pair(1, pair);
 	if (ret < 0) {
 		dev_err(dev, "failed to request asrc pair\n");
 		goto req_pair_err;
 	}
 
 	/* Request a dummy dma channel, which will be released later. */
-	tmp_chan = fsl_asrc_get_dma_channel(pair, dir);
+	tmp_chan = asrc->get_dma_channel(pair, dir);
 	if (!tmp_chan) {
 		dev_err(dev, "failed to get dma channel\n");
 		ret = -EINVAL;
@@ -347,7 +358,7 @@ out:
 	dma_release_channel(tmp_chan);
 
 dma_chan_err:
-	fsl_asrc_release_pair(pair);
+	asrc->release_pair(pair);
 
 req_pair_err:
 	if (release_pair)
@@ -361,15 +372,15 @@ static int fsl_asrc_dma_shutdown(struct snd_soc_component *component,
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct fsl_asrc_pair *pair = runtime->private_data;
-	struct fsl_asrc *asrc_priv;
+	struct fsl_asrc *asrc;
 
 	if (!pair)
 		return 0;
 
-	asrc_priv = pair->asrc_priv;
+	asrc = pair->asrc;
 
-	if (asrc_priv->pair[pair->index] == pair)
-		asrc_priv->pair[pair->index] = NULL;
+	if (asrc->pair[pair->index] == pair)
+		asrc->pair[pair->index] = NULL;
 
 	kfree(pair);
 

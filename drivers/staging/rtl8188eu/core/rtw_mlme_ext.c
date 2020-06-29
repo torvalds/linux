@@ -1781,7 +1781,7 @@ static void issue_action_BSSCoexistPacket(struct adapter *padapter)
 
 			p = rtw_get_ie(pbss_network->ies + _FIXED_IE_LENGTH_, _HT_CAPABILITY_IE_, &len, pbss_network->ie_length - _FIXED_IE_LENGTH_);
 			if (!p || len == 0) { /* non-HT */
-				if ((pbss_network->Configuration.DSConfig <= 0) || (pbss_network->Configuration.DSConfig > 14))
+				if (pbss_network->Configuration.DSConfig <= 0)
 					continue;
 
 				ICS[0][pbss_network->Configuration.DSConfig] = 1;
@@ -1932,11 +1932,11 @@ static void site_survey(struct adapter *padapter)
 				if (pmlmeext->sitesurvey_res.ssid[i].ssid_length) {
 					/* todo: to issue two probe req??? */
 					issue_probereq(padapter,
-					&(pmlmeext->sitesurvey_res.ssid[i]),
+					&pmlmeext->sitesurvey_res.ssid[i],
 								NULL, false);
 					/* msleep(SURVEY_TO>>1); */
 					issue_probereq(padapter,
-					&(pmlmeext->sitesurvey_res.ssid[i]),
+					&pmlmeext->sitesurvey_res.ssid[i],
 								NULL, false);
 				}
 			}

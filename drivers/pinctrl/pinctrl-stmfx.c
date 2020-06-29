@@ -288,17 +288,13 @@ static int stmfx_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 	struct pinctrl_gpio_range *range;
 	enum pin_config_param param;
 	u32 arg;
-	int dir, i, ret;
+	int i, ret;
 
 	range = pinctrl_find_gpio_range_from_pin_nolock(pctldev, pin);
 	if (!range) {
 		dev_err(pctldev->dev, "pin %d is not available\n", pin);
 		return -EINVAL;
 	}
-
-	dir = stmfx_gpio_get_direction(&pctl->gpio_chip, pin);
-	if (dir < 0)
-		return dir;
 
 	for (i = 0; i < num_configs; i++) {
 		param = pinconf_to_config_param(configs[i]);

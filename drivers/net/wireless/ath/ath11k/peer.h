@@ -13,6 +13,7 @@ struct ath11k_peer {
 	u8 addr[ETH_ALEN];
 	int peer_id;
 	u16 ast_hash;
+	u8 pdev_idx;
 
 	/* protected by ab->data_lock */
 	struct ieee80211_key_conf *keys[WMI_MAX_KEY_INDEX + 1];

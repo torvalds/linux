@@ -6,6 +6,7 @@ config SCSI_HISI_SAS
 	select SCSI_SAS_LIBSAS
 	select BLK_DEV_INTEGRITY
 	depends on ATA
+	select SATA_HOST
 	help
 		This driver supports HiSilicon's SAS HBA, including support based
 		on platform device

@@ -28,7 +28,7 @@ struct tcpa_event {
 	u32 event_type;
 	u8 pcr_value[20];	/* SHA1 */
 	u32 event_size;
-	u8 event_data[0];
+	u8 event_data[];
 };
 
 enum tcpa_event_types {
@@ -55,7 +55,7 @@ enum tcpa_event_types {
 struct tcpa_pc_event {
 	u32 event_id;
 	u32 event_size;
-	u8 event_data[0];
+	u8 event_data[];
 };
 
 enum tcpa_pc_event_ids {
@@ -97,12 +97,12 @@ struct tcg_pcr_event {
 	u32 event_type;
 	u8 digest[20];
 	u32 event_size;
-	u8 event[0];
+	u8 event[];
 } __packed;
 
 struct tcg_event_field {
 	u32 event_size;
-	u8 event[0];
+	u8 event[];
 } __packed;
 
 struct tcg_pcr_event2_head {

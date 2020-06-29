@@ -76,7 +76,7 @@ struct gen_pool_chunk {
 	void *owner;			/* private data to retrieve at alloc time */
 	unsigned long start_addr;	/* start address of memory chunk */
 	unsigned long end_addr;		/* end address of memory chunk (inclusive) */
-	unsigned long bits[0];		/* bitmap for allocating memory chunk */
+	unsigned long bits[];		/* bitmap for allocating memory chunk */
 };
 
 /*

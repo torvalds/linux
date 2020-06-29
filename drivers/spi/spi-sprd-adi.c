@@ -319,7 +319,7 @@ static int sprd_adi_transfer_one(struct spi_controller *ctlr,
 
 static void sprd_adi_set_wdt_rst_mode(struct sprd_adi *sadi)
 {
-#ifdef CONFIG_SPRD_WATCHDOG
+#if IS_ENABLED(CONFIG_SPRD_WATCHDOG)
 	u32 val;
 
 	/* Set default watchdog reboot mode */

@@ -4,7 +4,7 @@ config INFINIBAND_HNS
 	depends on NET_VENDOR_HISILICON
 	depends on ARM64 || (COMPILE_TEST && 64BIT)
 	depends on (HNS_DSAF && HNS_ENET) || HNS3
-	---help---
+	help
 	  This is a RoCE/RDMA driver for the Hisilicon RoCE engine. The engine
 	  is used in Hisilicon Hip06 and more further ICT SoC based on
 	  platform device.
@@ -15,7 +15,7 @@ config INFINIBAND_HNS_HIP06
 	bool "Hisilicon Hip06 Family RoCE support"
 	depends on INFINIBAND_HNS && HNS && HNS_DSAF && HNS_ENET
 	depends on INFINIBAND_HNS=m || (HNS_DSAF=y && HNS_ENET=y)
-	---help---
+	help
 	  RoCE driver support for Hisilicon RoCE engine in Hisilicon Hip06 and
 	  Hip07 SoC. These RoCE engines are platform devices.
 
@@ -26,7 +26,7 @@ config INFINIBAND_HNS_HIP08
 	bool "Hisilicon Hip08 Family RoCE support"
 	depends on INFINIBAND_HNS && PCI && HNS3
 	depends on INFINIBAND_HNS=m || HNS3=y
-	---help---
+	help
 	  RoCE driver support for Hisilicon RoCE engine in Hisilicon Hip08 SoC.
 	  The RoCE engine is a PCI device.
 

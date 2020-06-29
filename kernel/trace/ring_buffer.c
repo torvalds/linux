@@ -193,7 +193,7 @@ rb_event_length(struct ring_buffer_event *event)
 	case RINGBUF_TYPE_DATA:
 		return rb_event_data_length(event);
 	default:
-		BUG();
+		WARN_ON_ONCE(1);
 	}
 	/* not hit */
 	return 0;
@@ -249,7 +249,7 @@ rb_event_data(struct ring_buffer_event *event)
 {
 	if (extended_time(event))
 		event = skip_time_extend(event);
-	BUG_ON(event->type_len > RINGBUF_TYPE_DATA_TYPE_LEN_MAX);
+	WARN_ON_ONCE(event->type_len > RINGBUF_TYPE_DATA_TYPE_LEN_MAX);
 	/* If length is in len field, then array[0] has the data */
 	if (event->type_len)
 		return (void *)&event->array[0];
@@ -3727,7 +3727,7 @@ rb_update_read_stamp(struct ring_buffer_per_cpu *cpu_buffer,
 		return;
 
 	default:
-		BUG();
+		RB_WARN_ON(cpu_buffer, 1);
 	}
 	return;
 }
@@ -3757,7 +3757,7 @@ rb_update_iter_read_stamp(struct ring_buffer_iter *iter,
 		return;
 
 	default:
-		BUG();
+		RB_WARN_ON(iter->cpu_buffer, 1);
 	}
 	return;
 }
@@ -4020,7 +4020,7 @@ rb_buffer_peek(struct ring_buffer_per_cpu *cpu_buffer, u64 *ts,
 		return event;
 
 	default:
-		BUG();
+		RB_WARN_ON(cpu_buffer, 1);
 	}
 
 	return NULL;
@@ -4034,7 +4034,6 @@ rb_iter_peek(struct ring_buffer_iter *iter, u64 *ts)
 	struct ring_buffer_per_cpu *cpu_buffer;
 	struct ring_buffer_event *event;
 	int nr_loops = 0;
-	bool failed = false;
 
 	if (ts)
 		*ts = 0;
@@ -4056,19 +4055,14 @@ rb_iter_peek(struct ring_buffer_iter *iter, u64 *ts)
 		return NULL;
 
 	/*
-	 * We repeat when a time extend is encountered or we hit
-	 * the end of the page. Since the time extend is always attached
-	 * to a data event, we should never loop more than three times.
-	 * Once for going to next page, once on time extend, and
-	 * finally once to get the event.
-	 * We should never hit the following condition more than thrice,
-	 * unless the buffer is very small, and there's a writer
-	 * that is causing the reader to fail getting an event.
+	 * As the writer can mess with what the iterator is trying
+	 * to read, just give up if we fail to get an event after
+	 * three tries. The iterator is not as reliable when reading
+	 * the ring buffer with an active write as the consumer is.
+	 * Do not warn if the three failures is reached.
 	 */
-	if (++nr_loops > 3) {
-		RB_WARN_ON(cpu_buffer, !failed);
+	if (++nr_loops > 3)
 		return NULL;
-	}
 
 	if (rb_per_cpu_empty(cpu_buffer))
 		return NULL;
@@ -4079,10 +4073,8 @@ rb_iter_peek(struct ring_buffer_iter *iter, u64 *ts)
 	}
 
 	event = rb_iter_head_event(iter);
-	if (!event) {
-		failed = true;
+	if (!event)
 		goto again;
-	}
 
 	switch (event->type_len) {
 	case RINGBUF_TYPE_PADDING:
@@ -4117,7 +4109,7 @@ rb_iter_peek(struct ring_buffer_iter *iter, u64 *ts)
 		return event;
 
 	default:
-		BUG();
+		RB_WARN_ON(cpu_buffer, 1);
 	}
 
 	return NULL;

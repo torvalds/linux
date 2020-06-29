@@ -12,6 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/highmem.h>
 #include <linux/psp-sev.h>
+#include <linux/pagemap.h>
 #include <linux/swap.h>
 
 #include "x86.h"
@@ -335,8 +336,7 @@ static struct page **sev_pin_memory(struct kvm *kvm, unsigned long uaddr,
 	/* Avoid using vmalloc for smaller buffers. */
 	size = npages * sizeof(struct page *);
 	if (size > PAGE_SIZE)
-		pages = __vmalloc(size, GFP_KERNEL_ACCOUNT | __GFP_ZERO,
-				  PAGE_KERNEL);
+		pages = __vmalloc(size, GFP_KERNEL_ACCOUNT | __GFP_ZERO);
 	else
 		pages = kmalloc(size, GFP_KERNEL_ACCOUNT);
 
@@ -344,7 +344,7 @@ static struct page **sev_pin_memory(struct kvm *kvm, unsigned long uaddr,
 		return NULL;
 
 	/* Pin the user virtual address. */
-	npinned = get_user_pages_fast(uaddr, npages, FOLL_WRITE, pages);
+	npinned = get_user_pages_fast(uaddr, npages, write ? FOLL_WRITE : 0, pages);
 	if (npinned != npages) {
 		pr_err("SEV: Failure locking %lu pages.\n", npages);
 		goto err;
@@ -1117,7 +1117,7 @@ int __init sev_hardware_setup(void)
 	/* Maximum number of encrypted guests supported simultaneously */
 	max_sev_asid = cpuid_ecx(0x8000001F);
 
-	if (!max_sev_asid)
+	if (!svm_sev_enabled())
 		return 1;
 
 	/* Minimum ASID value that should be used for SEV guest */
@@ -1156,6 +1156,9 @@ err:
 
 void sev_hardware_teardown(void)
 {
+	if (!svm_sev_enabled())
+		return;
+
 	bitmap_free(sev_asid_bitmap);
 	bitmap_free(sev_reclaim_asid_bitmap);
 

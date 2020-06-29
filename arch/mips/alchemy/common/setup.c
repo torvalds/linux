@@ -27,6 +27,7 @@
 
 #include <linux/init.h>
 #include <linux/ioport.h>
+#include <linux/mm.h>
 
 #include <asm/dma-coherence.h>
 #include <asm/mipsregs.h>
@@ -72,9 +73,9 @@ void __init plat_mem_setup(void)
 	iomem_resource.end = IOMEM_RESOURCE_END;
 }
 
-#if defined(CONFIG_PHYS_ADDR_T_64BIT) && defined(CONFIG_PCI)
+#ifdef CONFIG_MIPS_FIXUP_BIGPHYS_ADDR
 /* This routine should be valid for all Au1x based boards */
-phys_addr_t __fixup_bigphys_addr(phys_addr_t phys_addr, phys_addr_t size)
+phys_addr_t fixup_bigphys_addr(phys_addr_t phys_addr, phys_addr_t size)
 {
 	unsigned long start = ALCHEMY_PCI_MEMWIN_START;
 	unsigned long end = ALCHEMY_PCI_MEMWIN_END;
@@ -90,5 +91,13 @@ phys_addr_t __fixup_bigphys_addr(phys_addr_t phys_addr, phys_addr_t size)
 	/* default nop */
 	return phys_addr;
 }
-EXPORT_SYMBOL(__fixup_bigphys_addr);
-#endif
+
+int io_remap_pfn_range(struct vm_area_struct *vma, unsigned long vaddr,
+		unsigned long pfn, unsigned long size, pgprot_t prot)
+{
+	phys_addr_t phys_addr = fixup_bigphys_addr(pfn << PAGE_SHIFT, size);
+
+	return remap_pfn_range(vma, vaddr, phys_addr >> PAGE_SHIFT, size, prot);
+}
+EXPORT_SYMBOL(io_remap_pfn_range);
+#endif /* CONFIG_MIPS_FIXUP_BIGPHYS_ADDR */

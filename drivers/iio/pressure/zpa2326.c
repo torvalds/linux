@@ -64,6 +64,7 @@
 #include <linux/iio/trigger.h>
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
+#include <asm/unaligned.h>
 #include "zpa2326.h"
 
 /* 200 ms should be enough for the longest conversion time in one-shot mode. */
@@ -1005,22 +1006,20 @@ static int zpa2326_fetch_raw_sample(const struct iio_dev *indio_dev,
 	struct regmap *regs = ((struct zpa2326_private *)
 			       iio_priv(indio_dev))->regmap;
 	int            err;
+	u8             v[3];
 
 	switch (type) {
 	case IIO_PRESSURE:
 		zpa2326_dbg(indio_dev, "fetching raw pressure sample");
 
-		err = regmap_bulk_read(regs, ZPA2326_PRESS_OUT_XL_REG, value,
-				       3);
+		err = regmap_bulk_read(regs, ZPA2326_PRESS_OUT_XL_REG, v, sizeof(v));
 		if (err) {
 			zpa2326_warn(indio_dev, "failed to fetch pressure (%d)",
 				     err);
 			return err;
 		}
 
-		/* Pressure is a 24 bits wide little-endian unsigned int. */
-		*value = (((u8 *)value)[2] << 16) | (((u8 *)value)[1] << 8) |
-			 ((u8 *)value)[0];
+		*value = get_unaligned_le24(&v[0]);
 
 		return IIO_VAL_INT;
 

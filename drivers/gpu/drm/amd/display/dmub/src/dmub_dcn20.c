@@ -23,7 +23,7 @@
  *
  */
 
-#include "../inc/dmub_srv.h"
+#include "../dmub_srv.h"
 #include "dmub_reg.h"
 #include "dmub_dcn20.h"
 
@@ -186,14 +186,22 @@ void dmub_dcn20_setup_windows(struct dmub_srv *dmub,
 
 	dmub_dcn20_get_fb_base_offset(dmub, &fb_base, &fb_offset);
 
-	dmub_dcn20_translate_addr(&cw2->offset, fb_base, fb_offset, &offset);
+	if (cw2->region.base != cw2->region.top) {
+		dmub_dcn20_translate_addr(&cw2->offset, fb_base, fb_offset,
+					  &offset);
 
-	REG_WRITE(DMCUB_REGION3_CW2_OFFSET, offset.u.low_part);
-	REG_WRITE(DMCUB_REGION3_CW2_OFFSET_HIGH, offset.u.high_part);
-	REG_WRITE(DMCUB_REGION3_CW2_BASE_ADDRESS, cw2->region.base);
-	REG_SET_2(DMCUB_REGION3_CW2_TOP_ADDRESS, 0,
-		  DMCUB_REGION3_CW2_TOP_ADDRESS, cw2->region.top,
-		  DMCUB_REGION3_CW2_ENABLE, 1);
+		REG_WRITE(DMCUB_REGION3_CW2_OFFSET, offset.u.low_part);
+		REG_WRITE(DMCUB_REGION3_CW2_OFFSET_HIGH, offset.u.high_part);
+		REG_WRITE(DMCUB_REGION3_CW2_BASE_ADDRESS, cw2->region.base);
+		REG_SET_2(DMCUB_REGION3_CW2_TOP_ADDRESS, 0,
+			  DMCUB_REGION3_CW2_TOP_ADDRESS, cw2->region.top,
+			  DMCUB_REGION3_CW2_ENABLE, 1);
+	} else {
+		REG_WRITE(DMCUB_REGION3_CW2_OFFSET, 0);
+		REG_WRITE(DMCUB_REGION3_CW2_OFFSET_HIGH, 0);
+		REG_WRITE(DMCUB_REGION3_CW2_BASE_ADDRESS, 0);
+		REG_WRITE(DMCUB_REGION3_CW2_TOP_ADDRESS, 0);
+	}
 
 	dmub_dcn20_translate_addr(&cw3->offset, fb_base, fb_offset, &offset);
 

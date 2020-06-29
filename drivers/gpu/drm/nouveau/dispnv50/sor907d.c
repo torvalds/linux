@@ -21,6 +21,7 @@
  */
 #include "core.h"
 
+#include <nouveau_bo.h>
 #include <nvif/class.h>
 
 static void
@@ -35,7 +36,17 @@ sor907d_ctrl(struct nv50_core *core, int or, u32 ctrl,
 	}
 }
 
+static void
+sor907d_get_caps(struct nv50_disp *disp, struct nouveau_encoder *outp, int or)
+{
+	const int off = or * 2;
+	u32 tmp = nouveau_bo_rd32(disp->sync, 0x000014 + off);
+
+	outp->caps.dp_interlace = !!(tmp & 0x04000000);
+}
+
 const struct nv50_outp_func
 sor907d = {
 	.ctrl = sor907d_ctrl,
+	.get_caps = sor907d_get_caps,
 };

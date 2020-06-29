@@ -1460,7 +1460,7 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 	if (!info->input) {
 		dev_err(arizona->dev, "Can't allocate input dev\n");
 		ret = -ENOMEM;
-		goto err_register;
+		return ret;
 	}
 
 	info->input->name = "Headset";
@@ -1492,7 +1492,7 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 		if (ret != 0) {
 			dev_err(arizona->dev, "Failed to request GPIO%d: %d\n",
 				pdata->micd_pol_gpio, ret);
-			goto err_register;
+			return ret;
 		}
 
 		info->micd_pol_gpio = gpio_to_desc(pdata->micd_pol_gpio);
@@ -1515,7 +1515,7 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 			dev_err(arizona->dev,
 				"Failed to get microphone polarity GPIO: %d\n",
 				ret);
-			goto err_register;
+			return ret;
 		}
 	}
 
@@ -1672,7 +1672,7 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 	if (ret != 0) {
 		dev_err(&pdev->dev, "Failed to get JACKDET rise IRQ: %d\n",
 			ret);
-		goto err_gpio;
+		goto err_pm;
 	}
 
 	ret = arizona_set_irq_wake(arizona, jack_irq_rise, 1);
@@ -1721,13 +1721,13 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 		dev_warn(arizona->dev, "Failed to set MICVDD to bypass: %d\n",
 			 ret);
 
-	pm_runtime_put(&pdev->dev);
-
 	ret = input_register_device(info->input);
 	if (ret) {
 		dev_err(&pdev->dev, "Can't register input device: %d\n", ret);
 		goto err_hpdet;
 	}
+
+	pm_runtime_put(&pdev->dev);
 
 	return 0;
 
@@ -1743,10 +1743,11 @@ err_rise_wake:
 	arizona_set_irq_wake(arizona, jack_irq_rise, 0);
 err_rise:
 	arizona_free_irq(arizona, jack_irq_rise, info);
+err_pm:
+	pm_runtime_put(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
 err_gpio:
 	gpiod_put(info->micd_pol_gpio);
-err_register:
-	pm_runtime_disable(&pdev->dev);
 	return ret;
 }
 

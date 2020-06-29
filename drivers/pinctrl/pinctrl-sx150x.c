@@ -988,7 +988,7 @@ static unsigned int sx150x_maybe_swizzle(struct sx150x_pinctrl *pctl,
 /*
  * In order to mask the differences between 16 and 8 bit expander
  * devices we set up a sligthly ficticious regmap that pretends to be
- * a set of 32-bit (to accomodate RegSenseLow/RegSenseHigh
+ * a set of 32-bit (to accommodate RegSenseLow/RegSenseHigh
  * pair/quartet) registers and transparently reconstructs those
  * registers via multiple I2C/SMBus reads
  *

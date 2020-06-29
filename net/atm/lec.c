@@ -1264,6 +1264,12 @@ static void lec_arp_clear_vccs(struct lec_arp_table *entry)
 		entry->vcc = NULL;
 	}
 	if (entry->recv_vcc) {
+		struct atm_vcc *vcc = entry->recv_vcc;
+		struct lec_vcc_priv *vpriv = LEC_VCC_PRIV(vcc);
+
+		kfree(vpriv);
+		vcc->user_back = NULL;
+
 		entry->recv_vcc->push = entry->old_recv_push;
 		vcc_release_async(entry->recv_vcc, -EPIPE);
 		entry->recv_vcc = NULL;
@@ -1530,10 +1536,8 @@ static struct lec_arp_table *make_entry(struct lec_priv *priv,
 	struct lec_arp_table *to_return;
 
 	to_return = kzalloc(sizeof(struct lec_arp_table), GFP_ATOMIC);
-	if (!to_return) {
-		pr_info("LEC: Arp entry kmalloc failed\n");
+	if (!to_return)
 		return NULL;
-	}
 	ether_addr_copy(to_return->mac_addr, mac_addr);
 	INIT_HLIST_NODE(&to_return->next);
 	timer_setup(&to_return->timer, lec_arp_expire_arp, 0);

@@ -70,7 +70,7 @@ static int rx_helper(struct wfx_dev *wdev, size_t read_len, int *is_cnf)
 	if (wfx_data_read(wdev, skb->data, alloc_len))
 		goto err;
 
-	piggyback = le16_to_cpup((u16 *)(skb->data + alloc_len - 2));
+	piggyback = le16_to_cpup((__le16 *)(skb->data + alloc_len - 2));
 	_trace_piggyback(piggyback, false);
 
 	hif = (struct hif_msg *)skb->data;
@@ -84,13 +84,12 @@ static int rx_helper(struct wfx_dev *wdev, size_t read_len, int *is_cnf)
 			// piggyback is probably correct.
 			return piggyback;
 		}
-		le16_to_cpus(&hif->len);
-		computed_len = round_up(hif->len - sizeof(hif->len), 16)
-			       + sizeof(struct hif_sl_msg)
-			       + sizeof(struct hif_sl_tag);
+		computed_len =
+			round_up(le16_to_cpu(hif->len) - sizeof(hif->len), 16) +
+			sizeof(struct hif_sl_msg) +
+			sizeof(struct hif_sl_tag);
 	} else {
-		le16_to_cpus(&hif->len);
-		computed_len = round_up(hif->len, 2);
+		computed_len = round_up(le16_to_cpu(hif->len), 2);
 	}
 	if (computed_len != read_len) {
 		dev_err(wdev->dev, "inconsistent message length: %zu != %zu\n",
@@ -103,13 +102,11 @@ static int rx_helper(struct wfx_dev *wdev, size_t read_len, int *is_cnf)
 	if (!(hif->id & HIF_ID_IS_INDICATION)) {
 		(*is_cnf)++;
 		if (hif->id == HIF_CNF_ID_MULTI_TRANSMIT)
-			release_count = le32_to_cpu(((struct hif_cnf_multi_transmit *)hif->body)->num_tx_confs);
+			release_count = ((struct hif_cnf_multi_transmit *)hif->body)->num_tx_confs;
 		else
 			release_count = 1;
 		WARN(wdev->hif.tx_buffers_used < release_count, "corrupted buffer counter");
 		wdev->hif.tx_buffers_used -= release_count;
-		if (!wdev->hif.tx_buffers_used)
-			wake_up(&wdev->hif.tx_buffers_empty);
 	}
 	_trace_hif_recv(hif, wdev->hif.tx_buffers_used);
 
@@ -120,9 +117,11 @@ static int rx_helper(struct wfx_dev *wdev, size_t read_len, int *is_cnf)
 		wdev->hif.rx_seqnum = (hif->seqnum + 1) % (HIF_COUNTER_MAX + 1);
 	}
 
-	skb_put(skb, hif->len);
+	skb_put(skb, le16_to_cpu(hif->len));
 	// wfx_handle_rx takes care on SKB livetime
 	wfx_handle_rx(wdev, skb);
+	if (!wdev->hif.tx_buffers_used)
+		wake_up(&wdev->hif.tx_buffers_empty);
 
 	return piggyback;
 
@@ -305,6 +304,35 @@ void wfx_bh_request_rx(struct wfx_dev *wdev)
 void wfx_bh_request_tx(struct wfx_dev *wdev)
 {
 	queue_work(system_highpri_wq, &wdev->hif.bh);
+}
+
+/*
+ * If IRQ is not available, this function allow to manually poll the control
+ * register and simulate an IRQ ahen an event happened.
+ *
+ * Note that the device has a bug: If an IRQ raise while host read control
+ * register, the IRQ is lost. So, use this function carefully (only duing
+ * device initialisation).
+ */
+void wfx_bh_poll_irq(struct wfx_dev *wdev)
+{
+	ktime_t now, start;
+	u32 reg;
+
+	WARN(!wdev->poll_irq, "unexpected IRQ polling can mask IRQ");
+	start = ktime_get();
+	for (;;) {
+		control_reg_read(wdev, &reg);
+		now = ktime_get();
+		if (reg & 0xFFF)
+			break;
+		if (ktime_after(now, ktime_add_ms(start, 1000))) {
+			dev_err(wdev->dev, "time out while polling control register\n");
+			return;
+		}
+		udelay(200);
+	}
+	wfx_bh_request_rx(wdev);
 }
 
 void wfx_bh_register(struct wfx_dev *wdev)

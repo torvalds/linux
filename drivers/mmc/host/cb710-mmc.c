@@ -10,6 +10,8 @@
 #include <linux/delay.h>
 #include "cb710-mmc.h"
 
+#define CB710_MMC_REQ_TIMEOUT_MS	2000
+
 static const u8 cb710_clock_divider_log2[8] = {
 /*	1, 2, 4, 8, 16, 32, 128, 512 */
 	0, 1, 2, 3,  4,  5,   7,   9
@@ -707,6 +709,12 @@ static int cb710_mmc_init(struct platform_device *pdev)
 	mmc->f_min = val >> cb710_clock_divider_log2[CB710_MAX_DIVIDER_IDX];
 	mmc->ocr_avail = MMC_VDD_32_33|MMC_VDD_33_34;
 	mmc->caps = MMC_CAP_4_BIT_DATA;
+	/*
+	 * In cb710_wait_for_event() we use a fixed timeout of ~2s, hence let's
+	 * inform the core about it. A future improvement should instead make
+	 * use of the cmd->busy_timeout.
+	 */
+	mmc->max_busy_timeout = CB710_MMC_REQ_TIMEOUT_MS;
 
 	reader = mmc_priv(mmc);
 

@@ -7,7 +7,7 @@ config NET_VENDOR_NETERION
 	bool "Neterion (Exar) devices"
 	default y
 	depends on PCI
-	---help---
+	help
 	  If you have a network (Ethernet) card belonging to this class, say Y.
 
 	  Note that the answer to this question doesn't directly affect the
@@ -20,14 +20,14 @@ if NET_VENDOR_NETERION
 config S2IO
 	tristate "Neterion (Exar) Xframe 10Gb Ethernet Adapter"
 	depends on PCI
-	---help---
+	help
 	  This driver supports Exar Corp's Xframe Series 10Gb Ethernet Adapters.
 	  These were originally released from S2IO, which renamed itself
 	  Neterion.  So, the adapters might be labeled as either one, depending
 	  on its age.
 
 	  More specific information on configuring the driver is in
-	  <file:Documentation/networking/device_drivers/neterion/s2io.txt>.
+	  <file:Documentation/networking/device_drivers/neterion/s2io.rst>.
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called s2io.
@@ -35,14 +35,14 @@ config S2IO
 config VXGE
 	tristate "Neterion (Exar) X3100 Series 10GbE PCIe Server Adapter"
 	depends on PCI
-	---help---
+	help
 	  This driver supports Exar Corp's X3100 Series 10 GbE PCIe
 	  I/O Virtualized Server Adapter.  These were originally released from
 	  Neterion, which was later acquired by Exar.  So, the adapters might be
 	  labeled as either one, depending on its age.
 
 	  More specific information on configuring the driver is in
-	  <file:Documentation/networking/device_drivers/neterion/vxge.txt>.
+	  <file:Documentation/networking/device_drivers/neterion/vxge.rst>.
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called vxge.
@@ -51,7 +51,7 @@ config VXGE_DEBUG_TRACE_ALL
 	bool "Enabling All Debug trace statements in driver"
 	default n
 	depends on VXGE
-	---help---
+	help
 	  Say Y here if you want to enabling all the debug trace statements in
 	  the vxge driver. By default only few debug trace statements are
 	  enabled.

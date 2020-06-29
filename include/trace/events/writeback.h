@@ -36,7 +36,6 @@
 	EM( WB_REASON_SYNC,			"sync")			\
 	EM( WB_REASON_PERIODIC,			"periodic")		\
 	EM( WB_REASON_LAPTOP_TIMER,		"laptop_timer")		\
-	EM( WB_REASON_FREE_MORE_MEM,		"free_more_memory")	\
 	EM( WB_REASON_FS_FREE_SPACE,		"fs_free_space")	\
 	EMe(WB_REASON_FORKER_THREAD,		"forker_thread")
 
@@ -542,7 +541,6 @@ TRACE_EVENT(global_dirty_state,
 	TP_STRUCT__entry(
 		__field(unsigned long,	nr_dirty)
 		__field(unsigned long,	nr_writeback)
-		__field(unsigned long,	nr_unstable)
 		__field(unsigned long,	background_thresh)
 		__field(unsigned long,	dirty_thresh)
 		__field(unsigned long,	dirty_limit)
@@ -553,7 +551,6 @@ TRACE_EVENT(global_dirty_state,
 	TP_fast_assign(
 		__entry->nr_dirty	= global_node_page_state(NR_FILE_DIRTY);
 		__entry->nr_writeback	= global_node_page_state(NR_WRITEBACK);
-		__entry->nr_unstable	= global_node_page_state(NR_UNSTABLE_NFS);
 		__entry->nr_dirtied	= global_node_page_state(NR_DIRTIED);
 		__entry->nr_written	= global_node_page_state(NR_WRITTEN);
 		__entry->background_thresh = background_thresh;
@@ -561,12 +558,11 @@ TRACE_EVENT(global_dirty_state,
 		__entry->dirty_limit	= global_wb_domain.dirty_limit;
 	),
 
-	TP_printk("dirty=%lu writeback=%lu unstable=%lu "
+	TP_printk("dirty=%lu writeback=%lu "
 		  "bg_thresh=%lu thresh=%lu limit=%lu "
 		  "dirtied=%lu written=%lu",
 		  __entry->nr_dirty,
 		  __entry->nr_writeback,
-		  __entry->nr_unstable,
 		  __entry->background_thresh,
 		  __entry->dirty_thresh,
 		  __entry->dirty_limit,

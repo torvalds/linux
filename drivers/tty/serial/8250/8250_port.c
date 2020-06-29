@@ -681,6 +681,9 @@ int serial8250_em485_config(struct uart_port *port, struct serial_rs485 *rs485)
 	memset(rs485->padding, 0, sizeof(rs485->padding));
 	port->rs485 = *rs485;
 
+	gpiod_set_value(port->rs485_term_gpio,
+			rs485->flags & SER_RS485_TERMINATE_BUS);
+
 	/*
 	 * Both serial8250_em485_init() and serial8250_em485_destroy()
 	 * are idempotent.
@@ -1432,7 +1435,7 @@ static void serial8250_stop_rx(struct uart_port *port)
 
 /**
  * serial8250_em485_stop_tx() - generic ->rs485_stop_tx() callback
- * @up: uart 8250 port
+ * @p: uart 8250 port
  *
  * Generic callback usable by 8250 uart drivers to stop rs485 transmission.
  */
@@ -2615,6 +2618,8 @@ static unsigned int serial8250_get_baud_rate(struct uart_port *port,
 					     struct ktermios *termios,
 					     struct ktermios *old)
 {
+	unsigned int tolerance = port->uartclk / 100;
+
 	/*
 	 * Ask the core to calculate the divisor for us.
 	 * Allow 1% tolerance at the upper limit so uart clks marginally
@@ -2623,7 +2628,7 @@ static unsigned int serial8250_get_baud_rate(struct uart_port *port,
 	 */
 	return uart_get_baud_rate(port, termios, old,
 				  port->uartclk / 16 / UART_DIV_MAX,
-				  port->uartclk);
+				  (port->uartclk + tolerance) / 16);
 }
 
 void

@@ -15,7 +15,7 @@
 #include <bpf/bpf_helpers.h>
 #include "hash_func01.h"
 
-#define MAX_CPUS 64 /* WARNING - sync with _user.c */
+#define MAX_CPUS NR_CPUS
 
 /* Special map type that can XDP_REDIRECT frames to another CPU */
 struct {

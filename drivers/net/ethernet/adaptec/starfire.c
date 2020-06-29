@@ -45,7 +45,6 @@
 #include <asm/processor.h>		/* Processor type for cache alignment. */
 #include <linux/uaccess.h>
 #include <asm/io.h>
-#include <linux/vermagic.h>
 
 /*
  * The current frame processor firmware fails to checksum a fragment

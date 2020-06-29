@@ -66,7 +66,7 @@ struct pci_controller {
 
 	void __iomem *io_base_virt;
 #ifdef CONFIG_PPC64
-	void *io_base_alloc;
+	void __iomem *io_base_alloc;
 #endif
 	resource_size_t io_base_phys;
 	resource_size_t pci_io_size;

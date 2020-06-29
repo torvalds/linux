@@ -76,7 +76,7 @@ static void invalid_numa_statistics(void)
 static DEFINE_MUTEX(vm_numa_stat_lock);
 
 int sysctl_vm_numa_stat_handler(struct ctl_table *table, int write,
-		void __user *buffer, size_t *length, loff_t *ppos)
+		void *buffer, size_t *length, loff_t *ppos)
 {
 	int ret, oldval;
 
@@ -1108,7 +1108,7 @@ int fragmentation_index(struct zone *zone, unsigned int order)
 					TEXT_FOR_HIGHMEM(xx) xx "_movable",
 
 const char * const vmstat_text[] = {
-	/* enum zone_stat_item countes */
+	/* enum zone_stat_item counters */
 	"nr_free_pages",
 	"nr_zone_inactive_anon",
 	"nr_zone_active_anon",
@@ -1119,6 +1119,9 @@ const char * const vmstat_text[] = {
 	"nr_mlock",
 	"nr_page_table_pages",
 	"nr_kernel_stack",
+#if IS_ENABLED(CONFIG_SHADOW_CALL_STACK)
+	"nr_shadow_call_stack",
+#endif
 	"nr_bounce",
 #if IS_ENABLED(CONFIG_ZSMALLOC)
 	"nr_zspages",
@@ -1162,7 +1165,6 @@ const char * const vmstat_text[] = {
 	"nr_file_hugepages",
 	"nr_file_pmdmapped",
 	"nr_anon_transparent_hugepages",
-	"nr_unstable",
 	"nr_vmscan_write",
 	"nr_vmscan_immediate_reclaim",
 	"nr_dirtied",
@@ -1201,6 +1203,10 @@ const char * const vmstat_text[] = {
 	"pgscan_kswapd",
 	"pgscan_direct",
 	"pgscan_direct_throttle",
+	"pgscan_anon",
+	"pgscan_file",
+	"pgsteal_anon",
+	"pgsteal_file",
 
 #ifdef CONFIG_NUMA
 	"zone_reclaim_failed",
@@ -1590,18 +1596,18 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
 		   zone->present_pages,
 		   zone_managed_pages(zone));
 
+	/* If unpopulated, no other information is useful */
+	if (!populated_zone(zone)) {
+		seq_putc(m, '\n');
+		return;
+	}
+
 	seq_printf(m,
 		   "\n        protection: (%ld",
 		   zone->lowmem_reserve[0]);
 	for (i = 1; i < ARRAY_SIZE(zone->lowmem_reserve); i++)
 		seq_printf(m, ", %ld", zone->lowmem_reserve[i]);
 	seq_putc(m, ')');
-
-	/* If unpopulated, no other information is useful */
-	if (!populated_zone(zone)) {
-		seq_putc(m, '\n');
-		return;
-	}
 
 	for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
 		seq_printf(m, "\n      %-12s %lu", zone_stat_name(i),
@@ -1723,6 +1729,14 @@ static int vmstat_show(struct seq_file *m, void *arg)
 	seq_puts(m, vmstat_text[off]);
 	seq_put_decimal_ull(m, " ", *l);
 	seq_putc(m, '\n');
+
+	if (off == NR_VMSTAT_ITEMS - 1) {
+		/*
+		 * We've come to the end - add any deprecated counters to avoid
+		 * breaking userspace which might depend on them being present.
+		 */
+		seq_puts(m, "nr_unstable 0\n");
+	}
 	return 0;
 }
 
@@ -1751,7 +1765,7 @@ static void refresh_vm_stats(struct work_struct *work)
 }
 
 int vmstat_refresh(struct ctl_table *table, int write,
-		   void __user *buffer, size_t *lenp, loff_t *ppos)
+		   void *buffer, size_t *lenp, loff_t *ppos)
 {
 	long val;
 	int err;
@@ -2055,24 +2069,14 @@ static int unusable_show(struct seq_file *m, void *arg)
 	return 0;
 }
 
-static const struct seq_operations unusable_op = {
+static const struct seq_operations unusable_sops = {
 	.start	= frag_start,
 	.next	= frag_next,
 	.stop	= frag_stop,
 	.show	= unusable_show,
 };
 
-static int unusable_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &unusable_op);
-}
-
-static const struct file_operations unusable_file_ops = {
-	.open		= unusable_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
-};
+DEFINE_SEQ_ATTRIBUTE(unusable);
 
 static void extfrag_show_print(struct seq_file *m,
 					pg_data_t *pgdat, struct zone *zone)
@@ -2107,24 +2111,14 @@ static int extfrag_show(struct seq_file *m, void *arg)
 	return 0;
 }
 
-static const struct seq_operations extfrag_op = {
+static const struct seq_operations extfrag_sops = {
 	.start	= frag_start,
 	.next	= frag_next,
 	.stop	= frag_stop,
 	.show	= extfrag_show,
 };
 
-static int extfrag_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &extfrag_op);
-}
-
-static const struct file_operations extfrag_file_ops = {
-	.open		= extfrag_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
-};
+DEFINE_SEQ_ATTRIBUTE(extfrag);
 
 static int __init extfrag_debug_init(void)
 {
@@ -2133,10 +2127,10 @@ static int __init extfrag_debug_init(void)
 	extfrag_debug_root = debugfs_create_dir("extfrag", NULL);
 
 	debugfs_create_file("unusable_index", 0444, extfrag_debug_root, NULL,
-			    &unusable_file_ops);
+			    &unusable_fops);
 
 	debugfs_create_file("extfrag_index", 0444, extfrag_debug_root, NULL,
-			    &extfrag_file_ops);
+			    &extfrag_fops);
 
 	return 0;
 }

@@ -16,6 +16,13 @@
 	model = "Atmel SAMA5D2 Xplained";
 	compatible = "atmel,sama5d2-xplained", "atmel,sama5d2", "atmel,sama5";
 
+	aliases {
+		serial0 = &uart1;	/* DBGU */
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
+		i2c2 = &i2c2;		/* XPRO EXT2 */
+	};
+
 	chosen {
 		stdout-path = "serial0:115200n8";
 	};
@@ -72,6 +79,58 @@
 		};
 
 		apb {
+			qspi0: spi@f0020000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_qspi0_default>;
+				status = "disabled"; /* conflict with sdmmc1 */
+
+				flash@0 {
+					#address-cells = <1>;
+					#size-cells = <1>;
+					compatible = "jedec,spi-nor";
+					reg = <0>;
+					spi-max-frequency = <80000000>;
+					spi-tx-bus-width = <4>;
+					spi-rx-bus-width = <4>;
+					m25p,fast-read;
+
+					at91bootstrap@00000000 {
+						label = "at91bootstrap";
+						reg = <0x00000000 0x00040000>;
+					};
+
+					bootloader@00040000 {
+						label = "bootloader";
+						reg = <0x00040000 0x000c0000>;
+					};
+
+					bootloaderenvred@00100000 {
+						label = "bootloader env redundant";
+						reg = <0x00100000 0x00040000>;
+					};
+
+					bootloaderenv@00140000 {
+						label = "bootloader env";
+						reg = <0x00140000 0x00040000>;
+					};
+
+					dtb@00180000 {
+						label = "device tree";
+						reg = <0x00180000 0x00080000>;
+					};
+
+					kernel@00200000 {
+						label = "kernel";
+						reg = <0x00200000 0x00600000>;
+					};
+
+					misc@00800000 {
+						label = "misc";
+						reg = <0x00800000 0x00000000>;
+					};
+				};
+			};
+
 			spi0: spi@f8000000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_spi0_default>;
@@ -133,7 +192,7 @@
 				pinctrl-0 = <&pinctrl_i2c0_default>;
 				pinctrl-1 = <&pinctrl_i2c0_gpio>;
 				sda-gpios = <&pioA PIN_PD21 GPIO_ACTIVE_HIGH>;
-				scl-gpios = <&pioA PIN_PD22 GPIO_ACTIVE_HIGH>;
+				scl-gpios = <&pioA PIN_PD22 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 				i2c-sda-hold-time-ns = <350>;
 				status = "okay";
 
@@ -275,15 +334,24 @@
 				status = "disabled"; /* conflict with ISC_D2 & ISC_D3 data pins */
 
 				uart5: serial@200 {
-					compatible = "atmel,at91sam9260-usart";
-					reg = <0x200 0x200>;
-					interrupts = <19 IRQ_TYPE_LEVEL_HIGH 7>;
-					clocks = <&pmc PMC_TYPE_PERIPHERAL 19>;
-					clock-names = "usart";
+					dmas = <0>, <0>;
 					pinctrl-names = "default";
 					pinctrl-0 = <&pinctrl_flx0_default>;
-					atmel,fifo-size = <32>;
 					status = "okay";
+				};
+
+				i2c2: i2c@600 {
+					dmas = <0>, <0>;
+					pinctrl-names = "default", "gpio";
+					pinctrl-0 = <&pinctrl_flx0_default>;
+					pinctrl-1 = <&pinctrl_i2c2_gpio>;
+					sda-gpios = <&pioA PIN_PB28 GPIO_ACTIVE_HIGH>;
+					scl-gpios = <&pioA PIN_PB29 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+					i2c-sda-hold-time-ns = <350>;
+					i2c-analog-filter;
+					i2c-digital-filter;
+					i2c-digital-filter-width-ns = <35>;
+					status = "disabled"; /* conflict with ISC_D2 & ISC_D3 data pins */
 				};
 			};
 
@@ -325,21 +393,13 @@
 				atmel,flexcom-mode = <ATMEL_FLEXCOM_MODE_TWI>;
 				status = "okay";
 
-				i2c2: i2c@600 {
-					compatible = "atmel,sama5d2-i2c";
-					reg = <0x600 0x200>;
-					interrupts = <23 IRQ_TYPE_LEVEL_HIGH 7>;
+				i2c6: i2c@600 {
 					dmas = <0>, <0>;
-					dma-names = "tx", "rx";
-					#address-cells = <1>;
-					#size-cells = <0>;
-					clocks = <&pmc PMC_TYPE_PERIPHERAL 23>;
 					pinctrl-names = "default", "gpio";
 					pinctrl-0 = <&pinctrl_flx4_default>;
 					pinctrl-1 = <&pinctrl_flx4_gpio>;
 					sda-gpios = <&pioA PIN_PD12 GPIO_ACTIVE_HIGH>;
-					scl-gpios = <&pioA PIN_PD13 GPIO_ACTIVE_HIGH>;
-					atmel,fifo-size = <16>;
+					scl-gpios = <&pioA PIN_PD13 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 					i2c-analog-filter;
 					i2c-digital-filter;
 					i2c-digital-filter-width-ns = <35>;
@@ -356,7 +416,7 @@
 				i2c-digital-filter-width-ns = <35>;
 				pinctrl-1 = <&pinctrl_i2c1_gpio>;
 				sda-gpios = <&pioA PIN_PD4 GPIO_ACTIVE_HIGH>;
-				scl-gpios = <&pioA PIN_PD5 GPIO_ACTIVE_HIGH>;
+				scl-gpios = <&pioA PIN_PD5 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 				status = "okay";
 
 				at24@54 {
@@ -480,6 +540,12 @@
 					bias-disable;
 				};
 
+				pinctrl_i2c2_gpio: i2c2_gpio {
+					pinmux = <PIN_PB28__GPIO>,
+						 <PIN_PB29__GPIO>;
+					bias-disable;
+				};
+
 				pinctrl_i2s0_default: i2s0_default {
 					pinmux = <PIN_PC1__I2SC0_CK>,
 						 <PIN_PC2__I2SC0_MCK>,
@@ -533,6 +599,22 @@
 					pinmux = <PIN_PB26__PDMIC_DAT>,
 						<PIN_PB27__PDMIC_CLK>;
 					bias-disable;
+				};
+
+				pinctrl_qspi0_default: qspi0_default {
+					sck_cs {
+						pinmux = <PIN_PA22__QSPI0_SCK>,
+							 <PIN_PA23__QSPI0_CS>;
+						bias-disable;
+					};
+
+					data {
+						pinmux = <PIN_PA24__QSPI0_IO0>,
+							 <PIN_PA25__QSPI0_IO1>,
+							 <PIN_PA26__QSPI0_IO2>,
+							 <PIN_PA27__QSPI0_IO3>;
+						bias-pull-up;
+					};
 				};
 
 				pinctrl_sdmmc0_default: sdmmc0_default {

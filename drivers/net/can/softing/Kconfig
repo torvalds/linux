@@ -2,7 +2,7 @@
 config CAN_SOFTING
 	tristate "Softing Gmbh CAN generic support"
 	depends on HAS_IOMEM
-	---help---
+	help
 	  Support for CAN cards from Softing Gmbh & some cards
 	  from Vector Gmbh.
 	  Softing Gmbh CAN cards come with 1 or 2 physical busses.
@@ -20,7 +20,7 @@ config CAN_SOFTING_CS
 	tristate "Softing Gmbh CAN pcmcia cards"
 	depends on PCMCIA
 	depends on CAN_SOFTING
-	---help---
+	help
 	  Support for PCMCIA cards from Softing Gmbh & some cards
 	  from Vector Gmbh.
 	  You need firmware for these, which you can get at

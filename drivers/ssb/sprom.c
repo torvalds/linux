@@ -78,7 +78,8 @@ ssize_t ssb_attr_sprom_show(struct ssb_bus *bus, char *buf,
 
 	/* Use interruptible locking, as the SPROM write might
 	 * be holding the lock for several seconds. So allow userspace
-	 * to cancel operation. */
+	 * to cancel operation.
+	 */
 	err = -ERESTARTSYS;
 	if (mutex_lock_interruptible(&bus->sprom_mutex))
 		goto out_kfree;
@@ -121,7 +122,8 @@ ssize_t ssb_attr_sprom_store(struct ssb_bus *bus,
 
 	/* Use interruptible locking, as the SPROM write might
 	 * be holding the lock for several seconds. So allow userspace
-	 * to cancel operation. */
+	 * to cancel operation.
+	 */
 	err = -ERESTARTSYS;
 	if (mutex_lock_interruptible(&bus->sprom_mutex))
 		goto out_kfree;
@@ -188,9 +190,11 @@ int ssb_fill_sprom_with_fallback(struct ssb_bus *bus, struct ssb_sprom *out)
 bool ssb_is_sprom_available(struct ssb_bus *bus)
 {
 	/* status register only exists on chipcomon rev >= 11 and we need check
-	   for >= 31 only */
+	 * for >= 31 only
+	 */
 	/* this routine differs from specs as we do not access SPROM directly
-	   on PCMCIA */
+	 * on PCMCIA
+	 */
 	if (bus->bustype == SSB_BUSTYPE_PCI &&
 	    bus->chipco.dev &&	/* can be unavailable! */
 	    bus->chipco.dev->id.revision >= 31)

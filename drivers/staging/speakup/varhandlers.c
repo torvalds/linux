@@ -37,6 +37,7 @@ static struct st_var_header var_headers[] = {
 	{ "bell_pos", BELL_POS, VAR_NUM, &spk_bell_pos, NULL },
 	{ "rate", RATE, VAR_NUM, NULL, NULL },
 	{ "pitch", PITCH, VAR_NUM, NULL, NULL },
+	{ "inflection", INFLECTION, VAR_NUM, NULL, NULL },
 	{ "vol", VOL, VAR_NUM, NULL, NULL },
 	{ "tone", TONE, VAR_NUM, NULL, NULL },
 	{ "punct", PUNCT, VAR_NUM, NULL, NULL   },

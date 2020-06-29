@@ -203,8 +203,6 @@ nfp_get_drvinfo(struct nfp_app *app, struct pci_dev *pdev,
 	char nsp_version[ETHTOOL_FWVERS_LEN] = {};
 
 	strlcpy(drvinfo->driver, pdev->driver->name, sizeof(drvinfo->driver));
-	strlcpy(drvinfo->version, nfp_driver_version, sizeof(drvinfo->version));
-
 	nfp_net_get_nspinfo(app, nsp_version);
 	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
 		 "%s %s %s %s", vnic_version, nsp_version,
@@ -1440,8 +1438,7 @@ static int nfp_net_set_channels(struct net_device *netdev,
 	unsigned int total_rx, total_tx;
 
 	/* Reject unsupported */
-	if (!channel->combined_count ||
-	    channel->other_count != NFP_NET_NON_Q_VECTORS ||
+	if (channel->other_count != NFP_NET_NON_Q_VECTORS ||
 	    (channel->rx_count && channel->tx_count))
 		return -EINVAL;
 

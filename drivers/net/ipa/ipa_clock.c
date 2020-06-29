@@ -66,8 +66,8 @@ ipa_interconnect_init_one(struct device *dev, const char *name)
 
 	path = of_icc_get(dev, name);
 	if (IS_ERR(path))
-		dev_err(dev, "error %ld getting memory interconnect\n",
-			PTR_ERR(path));
+		dev_err(dev, "error %ld getting %s interconnect\n",
+			PTR_ERR(path), name);
 
 	return path;
 }

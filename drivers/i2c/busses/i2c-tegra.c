@@ -6,6 +6,7 @@
  * Author: Colin Cross <ccross@android.com>
  */
 
+#include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/dmaengine.h>
@@ -29,16 +30,17 @@
 #define BYTES_PER_FIFO_WORD 4
 
 #define I2C_CNFG				0x000
-#define I2C_CNFG_DEBOUNCE_CNT_SHIFT		12
+#define I2C_CNFG_DEBOUNCE_CNT			GENMASK(14, 12)
 #define I2C_CNFG_PACKET_MODE_EN			BIT(10)
 #define I2C_CNFG_NEW_MASTER_FSM			BIT(11)
 #define I2C_CNFG_MULTI_MASTER_MODE		BIT(17)
-#define I2C_STATUS				0x01C
+#define I2C_STATUS				0x01c
 #define I2C_SL_CNFG				0x020
 #define I2C_SL_CNFG_NACK			BIT(1)
 #define I2C_SL_CNFG_NEWSL			BIT(2)
 #define I2C_SL_ADDR1				0x02c
 #define I2C_SL_ADDR2				0x030
+#define I2C_TLOW_SEXT				0x034
 #define I2C_TX_FIFO				0x050
 #define I2C_RX_FIFO				0x054
 #define I2C_PACKET_TRANSFER_STATUS		0x058
@@ -48,10 +50,8 @@
 #define I2C_FIFO_CONTROL_TX_TRIG(x)		(((x) - 1) << 5)
 #define I2C_FIFO_CONTROL_RX_TRIG(x)		(((x) - 1) << 2)
 #define I2C_FIFO_STATUS				0x060
-#define I2C_FIFO_STATUS_TX_MASK			0xF0
-#define I2C_FIFO_STATUS_TX_SHIFT		4
-#define I2C_FIFO_STATUS_RX_MASK			0x0F
-#define I2C_FIFO_STATUS_RX_SHIFT		0
+#define I2C_FIFO_STATUS_TX			GENMASK(7, 4)
+#define I2C_FIFO_STATUS_RX			GENMASK(3, 0)
 #define I2C_INT_MASK				0x064
 #define I2C_INT_STATUS				0x068
 #define I2C_INT_BUS_CLR_DONE			BIT(11)
@@ -61,7 +61,8 @@
 #define I2C_INT_TX_FIFO_DATA_REQ		BIT(1)
 #define I2C_INT_RX_FIFO_DATA_REQ		BIT(0)
 #define I2C_CLK_DIVISOR				0x06c
-#define I2C_CLK_DIVISOR_STD_FAST_MODE_SHIFT	16
+#define I2C_CLK_DIVISOR_STD_FAST_MODE		GENMASK(31, 16)
+#define I2C_CLK_DIVISOR_HSMODE			GENMASK(15, 0)
 
 #define DVC_CTRL_REG1				0x000
 #define DVC_CTRL_REG1_INTR_EN			BIT(10)
@@ -77,10 +78,11 @@
 #define I2C_ERR_UNKNOWN_INTERRUPT		BIT(2)
 #define I2C_ERR_RX_BUFFER_OVERFLOW		BIT(3)
 
-#define PACKET_HEADER0_HEADER_SIZE_SHIFT	28
-#define PACKET_HEADER0_PACKET_ID_SHIFT		16
-#define PACKET_HEADER0_CONT_ID_SHIFT		12
-#define PACKET_HEADER0_PROTOCOL_I2C		BIT(4)
+#define PACKET_HEADER0_HEADER_SIZE		GENMASK(29, 28)
+#define PACKET_HEADER0_PACKET_ID		GENMASK(23, 16)
+#define PACKET_HEADER0_CONT_ID			GENMASK(15, 12)
+#define PACKET_HEADER0_PROTOCOL			GENMASK(7, 4)
+#define PACKET_HEADER0_PROTOCOL_I2C		1
 
 #define I2C_HEADER_CONT_ON_NAK			BIT(21)
 #define I2C_HEADER_READ				BIT(19)
@@ -91,21 +93,35 @@
 #define I2C_HEADER_SLAVE_ADDR_SHIFT		1
 
 #define I2C_BUS_CLEAR_CNFG			0x084
-#define I2C_BC_SCLK_THRESHOLD			9
-#define I2C_BC_SCLK_THRESHOLD_SHIFT		16
+#define I2C_BC_SCLK_THRESHOLD			GENMASK(23, 16)
 #define I2C_BC_STOP_COND			BIT(2)
 #define I2C_BC_TERMINATE			BIT(1)
 #define I2C_BC_ENABLE				BIT(0)
 #define I2C_BUS_CLEAR_STATUS			0x088
 #define I2C_BC_STATUS				BIT(0)
 
-#define I2C_CONFIG_LOAD				0x08C
+#define I2C_CONFIG_LOAD				0x08c
 #define I2C_MSTR_CONFIG_LOAD			BIT(0)
 
 #define I2C_CLKEN_OVERRIDE			0x090
 #define I2C_MST_CORE_CLKEN_OVR			BIT(0)
 
-#define I2C_CONFIG_LOAD_TIMEOUT			1000000
+#define I2C_INTERFACE_TIMING_0			0x094
+#define  I2C_INTERFACE_TIMING_THIGH		GENMASK(13, 8)
+#define  I2C_INTERFACE_TIMING_TLOW		GENMASK(5, 0)
+#define I2C_INTERFACE_TIMING_1			0x098
+#define  I2C_INTERFACE_TIMING_TBUF		GENMASK(29, 24)
+#define  I2C_INTERFACE_TIMING_TSU_STO		GENMASK(21, 16)
+#define  I2C_INTERFACE_TIMING_THD_STA		GENMASK(13, 8)
+#define  I2C_INTERFACE_TIMING_TSU_STA		GENMASK(5, 0)
+
+#define I2C_HS_INTERFACE_TIMING_0		0x09c
+#define  I2C_HS_INTERFACE_TIMING_THIGH		GENMASK(13, 8)
+#define  I2C_HS_INTERFACE_TIMING_TLOW		GENMASK(5, 0)
+#define I2C_HS_INTERFACE_TIMING_1		0x0a0
+#define  I2C_HS_INTERFACE_TIMING_TSU_STO	GENMASK(21, 16)
+#define  I2C_HS_INTERFACE_TIMING_THD_STA	GENMASK(13, 8)
+#define  I2C_HS_INTERFACE_TIMING_TSU_STA	GENMASK(5, 0)
 
 #define I2C_MST_FIFO_CONTROL			0x0b4
 #define I2C_MST_FIFO_CONTROL_RX_FLUSH		BIT(0)
@@ -114,14 +130,11 @@
 #define I2C_MST_FIFO_CONTROL_TX_TRIG(x)		(((x) - 1) << 16)
 
 #define I2C_MST_FIFO_STATUS			0x0b8
-#define I2C_MST_FIFO_STATUS_RX_MASK		0xff
-#define I2C_MST_FIFO_STATUS_RX_SHIFT		0
-#define I2C_MST_FIFO_STATUS_TX_MASK		0xff0000
-#define I2C_MST_FIFO_STATUS_TX_SHIFT		16
+#define I2C_MST_FIFO_STATUS_TX			GENMASK(23, 16)
+#define I2C_MST_FIFO_STATUS_RX			GENMASK(7, 0)
 
-#define I2C_INTERFACE_TIMING_0			0x94
-#define I2C_THIGH_SHIFT				8
-#define I2C_INTERFACE_TIMING_1			0x98
+/* configuration load timeout in microseconds */
+#define I2C_CONFIG_LOAD_TIMEOUT			1000000
 
 /* Packet header size in bytes */
 #define I2C_PACKET_HEADER_SIZE			12
@@ -230,6 +243,7 @@ struct tegra_i2c_hw_feature {
  * @cont_id: I2C controller ID, used for packet header
  * @irq: IRQ number of transfer complete interrupt
  * @is_dvc: identifies the DVC I2C controller, has a different register layout
+ * @is_vi: identifies the VI I2C controller, has a different register layout
  * @msg_complete: transfer completion notifier
  * @msg_err: error code for completed message
  * @msg_buf: pointer to current message data
@@ -253,12 +267,14 @@ struct tegra_i2c_dev {
 	struct i2c_adapter adapter;
 	struct clk *div_clk;
 	struct clk *fast_clk;
+	struct clk *slow_clk;
 	struct reset_control *rst;
 	void __iomem *base;
 	phys_addr_t base_phys;
 	int cont_id;
 	int irq;
 	int is_dvc;
+	bool is_vi;
 	struct completion msg_complete;
 	int msg_err;
 	u8 *msg_buf;
@@ -297,6 +313,8 @@ static unsigned long tegra_i2c_reg_addr(struct tegra_i2c_dev *i2c_dev,
 {
 	if (i2c_dev->is_dvc)
 		reg += (reg >= I2C_TX_FIFO) ? 0x10 : 0x40;
+	else if (i2c_dev->is_vi)
+		reg = 0xc00 + (reg << 2);
 	return reg;
 }
 
@@ -495,12 +513,10 @@ static int tegra_i2c_empty_rx_fifo(struct tegra_i2c_dev *i2c_dev)
 
 	if (i2c_dev->hw->has_mst_fifo) {
 		val = i2c_readl(i2c_dev, I2C_MST_FIFO_STATUS);
-		rx_fifo_avail = (val & I2C_MST_FIFO_STATUS_RX_MASK) >>
-			I2C_MST_FIFO_STATUS_RX_SHIFT;
+		rx_fifo_avail = FIELD_GET(I2C_MST_FIFO_STATUS_RX, val);
 	} else {
 		val = i2c_readl(i2c_dev, I2C_FIFO_STATUS);
-		rx_fifo_avail = (val & I2C_FIFO_STATUS_RX_MASK) >>
-			I2C_FIFO_STATUS_RX_SHIFT;
+		rx_fifo_avail = FIELD_GET(I2C_FIFO_STATUS_RX, val);
 	}
 
 	/* Rounds down to not include partial word at the end of buf */
@@ -551,12 +567,10 @@ static int tegra_i2c_fill_tx_fifo(struct tegra_i2c_dev *i2c_dev)
 
 	if (i2c_dev->hw->has_mst_fifo) {
 		val = i2c_readl(i2c_dev, I2C_MST_FIFO_STATUS);
-		tx_fifo_avail = (val & I2C_MST_FIFO_STATUS_TX_MASK) >>
-			I2C_MST_FIFO_STATUS_TX_SHIFT;
+		tx_fifo_avail = FIELD_GET(I2C_MST_FIFO_STATUS_TX, val);
 	} else {
 		val = i2c_readl(i2c_dev, I2C_FIFO_STATUS);
-		tx_fifo_avail = (val & I2C_FIFO_STATUS_TX_MASK) >>
-			I2C_FIFO_STATUS_TX_SHIFT;
+		tx_fifo_avail = FIELD_GET(I2C_FIFO_STATUS_TX, val);
 	}
 
 	/* Rounds down to not include partial word at the end of buf */
@@ -650,6 +664,14 @@ static int __maybe_unused tegra_i2c_runtime_resume(struct device *dev)
 		}
 	}
 
+	if (i2c_dev->slow_clk) {
+		ret = clk_enable(i2c_dev->slow_clk);
+		if (ret < 0) {
+			dev_err(dev, "failed to enable slow clock: %d\n", ret);
+			return ret;
+		}
+	}
+
 	ret = clk_enable(i2c_dev->div_clk);
 	if (ret < 0) {
 		dev_err(i2c_dev->dev,
@@ -666,6 +688,10 @@ static int __maybe_unused tegra_i2c_runtime_suspend(struct device *dev)
 	struct tegra_i2c_dev *i2c_dev = dev_get_drvdata(dev);
 
 	clk_disable(i2c_dev->div_clk);
+
+	if (i2c_dev->slow_clk)
+		clk_disable(i2c_dev->slow_clk);
+
 	if (!i2c_dev->hw->has_single_clk_source)
 		clk_disable(i2c_dev->fast_clk);
 
@@ -703,6 +729,35 @@ static int tegra_i2c_wait_for_config_load(struct tegra_i2c_dev *i2c_dev)
 	return 0;
 }
 
+static void tegra_i2c_vi_init(struct tegra_i2c_dev *i2c_dev)
+{
+	u32 value;
+
+	value = FIELD_PREP(I2C_INTERFACE_TIMING_THIGH, 2) |
+		FIELD_PREP(I2C_INTERFACE_TIMING_TLOW, 4);
+	i2c_writel(i2c_dev, value, I2C_INTERFACE_TIMING_0);
+
+	value = FIELD_PREP(I2C_INTERFACE_TIMING_TBUF, 4) |
+		FIELD_PREP(I2C_INTERFACE_TIMING_TSU_STO, 7) |
+		FIELD_PREP(I2C_INTERFACE_TIMING_THD_STA, 4) |
+		FIELD_PREP(I2C_INTERFACE_TIMING_TSU_STA, 4);
+	i2c_writel(i2c_dev, value, I2C_INTERFACE_TIMING_1);
+
+	value = FIELD_PREP(I2C_HS_INTERFACE_TIMING_THIGH, 3) |
+		FIELD_PREP(I2C_HS_INTERFACE_TIMING_TLOW, 8);
+	i2c_writel(i2c_dev, value, I2C_HS_INTERFACE_TIMING_0);
+
+	value = FIELD_PREP(I2C_HS_INTERFACE_TIMING_TSU_STO, 11) |
+		FIELD_PREP(I2C_HS_INTERFACE_TIMING_THD_STA, 11) |
+		FIELD_PREP(I2C_HS_INTERFACE_TIMING_TSU_STA, 11);
+	i2c_writel(i2c_dev, value, I2C_HS_INTERFACE_TIMING_1);
+
+	value = FIELD_PREP(I2C_BC_SCLK_THRESHOLD, 9) | I2C_BC_STOP_COND;
+	i2c_writel(i2c_dev, value, I2C_BUS_CLEAR_CNFG);
+
+	i2c_writel(i2c_dev, 0x0, I2C_TLOW_SEXT);
+}
+
 static int tegra_i2c_init(struct tegra_i2c_dev *i2c_dev, bool clk_reinit)
 {
 	u32 val;
@@ -719,7 +774,7 @@ static int tegra_i2c_init(struct tegra_i2c_dev *i2c_dev, bool clk_reinit)
 		tegra_dvc_init(i2c_dev);
 
 	val = I2C_CNFG_NEW_MASTER_FSM | I2C_CNFG_PACKET_MODE_EN |
-		(0x2 << I2C_CNFG_DEBOUNCE_CNT_SHIFT);
+	      FIELD_PREP(I2C_CNFG_DEBOUNCE_CNT, 2);
 
 	if (i2c_dev->hw->has_multi_master_mode)
 		val |= I2C_CNFG_MULTI_MASTER_MODE;
@@ -727,10 +782,14 @@ static int tegra_i2c_init(struct tegra_i2c_dev *i2c_dev, bool clk_reinit)
 	i2c_writel(i2c_dev, val, I2C_CNFG);
 	i2c_writel(i2c_dev, 0, I2C_INT_MASK);
 
+	if (i2c_dev->is_vi)
+		tegra_i2c_vi_init(i2c_dev);
+
 	/* Make sure clock divisor programmed correctly */
-	clk_divisor = i2c_dev->hw->clk_divisor_hs_mode;
-	clk_divisor |= i2c_dev->clk_divisor_non_hs_mode <<
-					I2C_CLK_DIVISOR_STD_FAST_MODE_SHIFT;
+	clk_divisor = FIELD_PREP(I2C_CLK_DIVISOR_HSMODE,
+				 i2c_dev->hw->clk_divisor_hs_mode) |
+		      FIELD_PREP(I2C_CLK_DIVISOR_STD_FAST_MODE,
+				 i2c_dev->clk_divisor_non_hs_mode);
 	i2c_writel(i2c_dev, clk_divisor, I2C_CLK_DIVISOR);
 
 	if (i2c_dev->bus_clk_rate > I2C_MAX_STANDARD_MODE_FREQ &&
@@ -745,7 +804,8 @@ static int tegra_i2c_init(struct tegra_i2c_dev *i2c_dev, bool clk_reinit)
 	}
 
 	if (i2c_dev->hw->has_interface_timing_reg) {
-		val = (thigh << I2C_THIGH_SHIFT) | tlow;
+		val = FIELD_PREP(I2C_INTERFACE_TIMING_THIGH, thigh) |
+		      FIELD_PREP(I2C_INTERFACE_TIMING_TLOW, tlow);
 		i2c_writel(i2c_dev, val, I2C_INTERFACE_TIMING_0);
 	}
 
@@ -768,7 +828,7 @@ static int tegra_i2c_init(struct tegra_i2c_dev *i2c_dev, bool clk_reinit)
 		}
 	}
 
-	if (!i2c_dev->is_dvc) {
+	if (!i2c_dev->is_dvc && !i2c_dev->is_vi) {
 		u32 sl_cfg = i2c_readl(i2c_dev, I2C_SL_CNFG);
 
 		sl_cfg |= I2C_SL_CNFG_NACK | I2C_SL_CNFG_NEWSL;
@@ -996,14 +1056,13 @@ tegra_i2c_poll_completion_timeout(struct tegra_i2c_dev *i2c_dev,
 	do {
 		u32 status = i2c_readl(i2c_dev, I2C_INT_STATUS);
 
-		if (status) {
+		if (status)
 			tegra_i2c_isr(i2c_dev->irq, i2c_dev);
 
-			if (completion_done(complete)) {
-				s64 delta = ktime_ms_delta(ktimeout, ktime);
+		if (completion_done(complete)) {
+			s64 delta = ktime_ms_delta(ktimeout, ktime);
 
-				return msecs_to_jiffies(delta) ?: 1;
-			}
+			return msecs_to_jiffies(delta) ?: 1;
 		}
 
 		ktime = ktime_get();
@@ -1030,14 +1089,18 @@ tegra_i2c_wait_completion_timeout(struct tegra_i2c_dev *i2c_dev,
 		disable_irq(i2c_dev->irq);
 
 		/*
-		 * There is a chance that completion may happen after IRQ
-		 * synchronization, which is done by disable_irq().
+		 * Under some rare circumstances (like running KASAN +
+		 * NFS root) CPU, which handles interrupt, may stuck in
+		 * uninterruptible state for a significant time.  In this
+		 * case we will get timeout if I2C transfer is running on
+		 * a sibling CPU, despite of IRQ being raised.
+		 *
+		 * In order to handle this rare condition, the IRQ status
+		 * needs to be checked after timeout.
 		 */
-		if (ret == 0 && completion_done(complete)) {
-			dev_warn(i2c_dev->dev,
-				 "completion done after timeout\n");
-			ret = 1;
-		}
+		if (ret == 0)
+			ret = tegra_i2c_poll_completion_timeout(i2c_dev,
+								complete, 0);
 	}
 
 	return ret;
@@ -1051,8 +1114,8 @@ static int tegra_i2c_issue_bus_clear(struct i2c_adapter *adap)
 	u32 reg;
 
 	reinit_completion(&i2c_dev->msg_complete);
-	reg = (I2C_BC_SCLK_THRESHOLD << I2C_BC_SCLK_THRESHOLD_SHIFT) |
-	      I2C_BC_STOP_COND | I2C_BC_TERMINATE;
+	reg = FIELD_PREP(I2C_BC_SCLK_THRESHOLD, 9) | I2C_BC_STOP_COND |
+	      I2C_BC_TERMINATE;
 	i2c_writel(i2c_dev, reg, I2C_BUS_CLEAR_CNFG);
 	if (i2c_dev->hw->has_config_load_reg) {
 		err = tegra_i2c_wait_for_config_load(i2c_dev);
@@ -1145,10 +1208,11 @@ static int tegra_i2c_xfer_msg(struct tegra_i2c_dev *i2c_dev,
 		}
 	}
 
-	packet_header = (0 << PACKET_HEADER0_HEADER_SIZE_SHIFT) |
-			PACKET_HEADER0_PROTOCOL_I2C |
-			(i2c_dev->cont_id << PACKET_HEADER0_CONT_ID_SHIFT) |
-			(1 << PACKET_HEADER0_PACKET_ID_SHIFT);
+	packet_header = FIELD_PREP(PACKET_HEADER0_HEADER_SIZE, 0) |
+			FIELD_PREP(PACKET_HEADER0_PROTOCOL,
+				   PACKET_HEADER0_PROTOCOL_I2C) |
+			FIELD_PREP(PACKET_HEADER0_CONT_ID, i2c_dev->cont_id) |
+			FIELD_PREP(PACKET_HEADER0_PACKET_ID, 1);
 	if (dma && !i2c_dev->msg_read)
 		*buffer++ = packet_header;
 	else
@@ -1215,6 +1279,15 @@ static int tegra_i2c_xfer_msg(struct tegra_i2c_dev *i2c_dev,
 	if (dma) {
 		time_left = tegra_i2c_wait_completion_timeout(
 				i2c_dev, &i2c_dev->dma_complete, xfer_time);
+
+		/*
+		 * Synchronize DMA first, since dmaengine_terminate_sync()
+		 * performs synchronization after the transfer's termination
+		 * and we want to get a completion if transfer succeeded.
+		 */
+		dmaengine_synchronize(i2c_dev->msg_read ?
+				      i2c_dev->rx_dma_chan :
+				      i2c_dev->tx_dma_chan);
 
 		dmaengine_terminate_sync(i2c_dev->msg_read ?
 					 i2c_dev->rx_dma_chan :
@@ -1544,6 +1617,7 @@ static const struct tegra_i2c_hw_feature tegra194_i2c_hw = {
 static const struct of_device_id tegra_i2c_of_match[] = {
 	{ .compatible = "nvidia,tegra194-i2c", .data = &tegra194_i2c_hw, },
 	{ .compatible = "nvidia,tegra186-i2c", .data = &tegra186_i2c_hw, },
+	{ .compatible = "nvidia,tegra210-i2c-vi", .data = &tegra210_i2c_hw, },
 	{ .compatible = "nvidia,tegra210-i2c", .data = &tegra210_i2c_hw, },
 	{ .compatible = "nvidia,tegra124-i2c", .data = &tegra124_i2c_hw, },
 	{ .compatible = "nvidia,tegra114-i2c", .data = &tegra114_i2c_hw, },
@@ -1556,6 +1630,7 @@ MODULE_DEVICE_TABLE(of, tegra_i2c_of_match);
 
 static int tegra_i2c_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct tegra_i2c_dev *i2c_dev;
 	struct resource *res;
 	struct clk *div_clk;
@@ -1611,6 +1686,8 @@ static int tegra_i2c_probe(struct platform_device *pdev)
 	i2c_dev->hw = of_device_get_match_data(&pdev->dev);
 	i2c_dev->is_dvc = of_device_is_compatible(pdev->dev.of_node,
 						  "nvidia,tegra20-i2c-dvc");
+	i2c_dev->is_vi = of_device_is_compatible(dev->of_node,
+						 "nvidia,tegra210-i2c-vi");
 	i2c_dev->adapter.quirks = i2c_dev->hw->quirks;
 	i2c_dev->dma_buf_size = i2c_dev->adapter.quirks->max_write_len +
 				I2C_PACKET_HEADER_SIZE;
@@ -1626,6 +1703,17 @@ static int tegra_i2c_probe(struct platform_device *pdev)
 		i2c_dev->fast_clk = fast_clk;
 	}
 
+	if (i2c_dev->is_vi) {
+		i2c_dev->slow_clk = devm_clk_get(dev, "slow");
+		if (IS_ERR(i2c_dev->slow_clk)) {
+			if (PTR_ERR(i2c_dev->slow_clk) != -EPROBE_DEFER)
+				dev_err(dev, "failed to get slow clock: %ld\n",
+					PTR_ERR(i2c_dev->slow_clk));
+
+			return PTR_ERR(i2c_dev->slow_clk);
+		}
+	}
+
 	platform_set_drvdata(pdev, i2c_dev);
 
 	if (!i2c_dev->hw->has_single_clk_source) {
@@ -1633,6 +1721,14 @@ static int tegra_i2c_probe(struct platform_device *pdev)
 		if (ret < 0) {
 			dev_err(i2c_dev->dev, "Clock prepare failed %d\n", ret);
 			return ret;
+		}
+	}
+
+	if (i2c_dev->slow_clk) {
+		ret = clk_prepare(i2c_dev->slow_clk);
+		if (ret < 0) {
+			dev_err(dev, "failed to prepare slow clock: %d\n", ret);
+			goto unprepare_fast_clk;
 		}
 	}
 
@@ -1651,7 +1747,7 @@ static int tegra_i2c_probe(struct platform_device *pdev)
 	ret = clk_prepare(i2c_dev->div_clk);
 	if (ret < 0) {
 		dev_err(i2c_dev->dev, "Clock prepare failed %d\n", ret);
-		goto unprepare_fast_clk;
+		goto unprepare_slow_clk;
 	}
 
 	pm_runtime_irq_safe(&pdev->dev);
@@ -1694,8 +1790,8 @@ static int tegra_i2c_probe(struct platform_device *pdev)
 
 	irq_set_status_flags(i2c_dev->irq, IRQ_NOAUTOEN);
 
-	ret = devm_request_irq(&pdev->dev, i2c_dev->irq,
-			       tegra_i2c_isr, 0, dev_name(&pdev->dev), i2c_dev);
+	ret = devm_request_irq(&pdev->dev, i2c_dev->irq, tegra_i2c_isr,
+			       IRQF_NO_SUSPEND, dev_name(&pdev->dev), i2c_dev);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to request irq %i\n", i2c_dev->irq);
 		goto release_dma;
@@ -1738,6 +1834,10 @@ disable_rpm:
 unprepare_div_clk:
 	clk_unprepare(i2c_dev->div_clk);
 
+unprepare_slow_clk:
+	if (i2c_dev->is_vi)
+		clk_unprepare(i2c_dev->slow_clk);
+
 unprepare_fast_clk:
 	if (!i2c_dev->hw->has_single_clk_source)
 		clk_unprepare(i2c_dev->fast_clk);
@@ -1759,6 +1859,10 @@ static int tegra_i2c_remove(struct platform_device *pdev)
 		tegra_i2c_runtime_suspend(&pdev->dev);
 
 	clk_unprepare(i2c_dev->div_clk);
+
+	if (i2c_dev->slow_clk)
+		clk_unprepare(i2c_dev->slow_clk);
+
 	if (!i2c_dev->hw->has_single_clk_source)
 		clk_unprepare(i2c_dev->fast_clk);
 
@@ -1769,15 +1873,14 @@ static int tegra_i2c_remove(struct platform_device *pdev)
 static int __maybe_unused tegra_i2c_suspend(struct device *dev)
 {
 	struct tegra_i2c_dev *i2c_dev = dev_get_drvdata(dev);
-	int err;
+	int err = 0;
 
 	i2c_mark_adapter_suspended(&i2c_dev->adapter);
 
-	err = pm_runtime_force_suspend(dev);
-	if (err < 0)
-		return err;
+	if (!pm_runtime_status_suspended(dev))
+		err = tegra_i2c_runtime_suspend(dev);
 
-	return 0;
+	return err;
 }
 
 static int __maybe_unused tegra_i2c_resume(struct device *dev)
@@ -1785,6 +1888,10 @@ static int __maybe_unused tegra_i2c_resume(struct device *dev)
 	struct tegra_i2c_dev *i2c_dev = dev_get_drvdata(dev);
 	int err;
 
+	/*
+	 * We need to ensure that clocks are enabled so that registers can be
+	 * restored in tegra_i2c_init().
+	 */
 	err = tegra_i2c_runtime_resume(dev);
 	if (err)
 		return err;
@@ -1793,13 +1900,16 @@ static int __maybe_unused tegra_i2c_resume(struct device *dev)
 	if (err)
 		return err;
 
-	err = tegra_i2c_runtime_suspend(dev);
-	if (err)
-		return err;
-
-	err = pm_runtime_force_resume(dev);
-	if (err < 0)
-		return err;
+	/*
+	 * In case we are runtime suspended, disable clocks again so that we
+	 * don't unbalance the clock reference counts during the next runtime
+	 * resume transition.
+	 */
+	if (pm_runtime_status_suspended(dev)) {
+		err = tegra_i2c_runtime_suspend(dev);
+		if (err)
+			return err;
+	}
 
 	i2c_mark_adapter_resumed(&i2c_dev->adapter);
 

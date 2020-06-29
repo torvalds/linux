@@ -32,10 +32,10 @@
 static int vega12_get_current_rpm(struct pp_hwmgr *hwmgr, uint32_t *current_rpm)
 {
 	PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc(hwmgr,
-				PPSMC_MSG_GetCurrentRpm),
+				PPSMC_MSG_GetCurrentRpm,
+				current_rpm),
 			"Attempt to get current RPM from SMC Failed!",
 			return -EINVAL);
-	*current_rpm = smum_get_argument(hwmgr);
 
 	return 0;
 }
@@ -259,7 +259,8 @@ int vega12_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 
 	ret = smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetFanTemperatureTarget,
-				(uint32_t)table->FanTargetTemperature);
+				(uint32_t)table->FanTargetTemperature,
+				NULL);
 
 	return ret;
 }

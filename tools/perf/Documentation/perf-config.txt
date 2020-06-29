@@ -667,6 +667,11 @@ convert.*::
 		Limit the size of ordered_events queue, so we could control
 		allocation size of perf data files without proper finished
 		round events.
+stat.*::
+
+	stat.big-num::
+		(boolean) Change the default for "--big-num". To make
+		"--no-big-num" the default, set "stat.big-num=false".
 
 intel-pt.*::
 

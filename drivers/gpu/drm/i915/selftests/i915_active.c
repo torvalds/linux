@@ -153,7 +153,7 @@ static int live_active_wait(void *arg)
 	if (IS_ERR(active))
 		return PTR_ERR(active);
 
-	i915_active_wait(&active->base);
+	__i915_active_wait(&active->base, TASK_UNINTERRUPTIBLE);
 	if (!READ_ONCE(active->retired)) {
 		struct drm_printer p = drm_err_printer(__func__);
 
@@ -228,11 +228,11 @@ static int live_active_barrier(void *arg)
 	}
 
 	i915_active_release(&active->base);
+	if (err)
+		goto out;
 
-	if (err == 0)
-		err = i915_active_wait(&active->base);
-
-	if (err == 0 && !READ_ONCE(active->retired)) {
+	__i915_active_wait(&active->base, TASK_UNINTERRUPTIBLE);
+	if (!READ_ONCE(active->retired)) {
 		pr_err("i915_active not retired after flushing barriers!\n");
 		err = -EINVAL;
 	}
@@ -277,7 +277,7 @@ static struct intel_engine_cs *node_to_barrier(struct active_node *it)
 
 void i915_active_print(struct i915_active *ref, struct drm_printer *m)
 {
-	drm_printf(m, "active %pS:%pS\n", ref->active, ref->retire);
+	drm_printf(m, "active %ps:%ps\n", ref->active, ref->retire);
 	drm_printf(m, "\tcount: %d\n", atomic_read(&ref->count));
 	drm_printf(m, "\tpreallocated barriers? %s\n",
 		   yesno(!llist_empty(&ref->preallocated_barriers)));

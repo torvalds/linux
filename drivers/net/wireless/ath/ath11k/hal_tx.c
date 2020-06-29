@@ -3,9 +3,10 @@
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
  */
 
-#include "ahb.h"
+#include "hal_desc.h"
 #include "hal.h"
 #include "hal_tx.h"
+#include "hif.h"
 
 #define DSCP_TID_MAP_TBL_ENTRY_SIZE 64
 
@@ -83,11 +84,11 @@ void ath11k_hal_tx_set_dscp_tid_map(struct ath11k_base *ab, int id)
 	u32 value;
 	int cnt = 0;
 
-	ctrl_reg_val = ath11k_ahb_read32(ab, HAL_SEQ_WCSS_UMAC_TCL_REG +
+	ctrl_reg_val = ath11k_hif_read32(ab, HAL_SEQ_WCSS_UMAC_TCL_REG +
 					 HAL_TCL1_RING_CMN_CTRL_REG);
 	/* Enable read/write access */
 	ctrl_reg_val |= HAL_TCL1_RING_CMN_CTRL_DSCP_TID_MAP_PROG_EN;
-	ath11k_ahb_write32(ab, HAL_SEQ_WCSS_UMAC_TCL_REG +
+	ath11k_hif_write32(ab, HAL_SEQ_WCSS_UMAC_TCL_REG +
 			   HAL_TCL1_RING_CMN_CTRL_REG, ctrl_reg_val);
 
 	addr = HAL_SEQ_WCSS_UMAC_TCL_REG + HAL_TCL1_RING_DSCP_TID_MAP +
@@ -118,15 +119,15 @@ void ath11k_hal_tx_set_dscp_tid_map(struct ath11k_base *ab, int id)
 	}
 
 	for (i = 0; i < HAL_DSCP_TID_TBL_SIZE; i += 4) {
-		ath11k_ahb_write32(ab, addr, *(u32 *)&hw_map_val[i]);
+		ath11k_hif_write32(ab, addr, *(u32 *)&hw_map_val[i]);
 		addr += 4;
 	}
 
 	/* Disable read/write access */
-	ctrl_reg_val = ath11k_ahb_read32(ab, HAL_SEQ_WCSS_UMAC_TCL_REG +
+	ctrl_reg_val = ath11k_hif_read32(ab, HAL_SEQ_WCSS_UMAC_TCL_REG +
 					 HAL_TCL1_RING_CMN_CTRL_REG);
 	ctrl_reg_val &= ~HAL_TCL1_RING_CMN_CTRL_DSCP_TID_MAP_PROG_EN;
-	ath11k_ahb_write32(ab, HAL_SEQ_WCSS_UMAC_TCL_REG +
+	ath11k_hif_write32(ab, HAL_SEQ_WCSS_UMAC_TCL_REG +
 			   HAL_TCL1_RING_CMN_CTRL_REG,
 			   ctrl_reg_val);
 }

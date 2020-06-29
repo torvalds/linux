@@ -85,6 +85,9 @@
 /* Maximum charging percentage */
 #define ASUS_WMI_DEVID_RSOC		0x00120057
 
+/* Keyboard dock */
+#define ASUS_WMI_DEVID_KBD_DOCK		0x00120063
+
 /* DSTS masks */
 #define ASUS_WMI_DSTS_STATUS_BIT	0x00000001
 #define ASUS_WMI_DSTS_UNKNOWN_BIT	0x00000002

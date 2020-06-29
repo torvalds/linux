@@ -6,7 +6,7 @@
 config NET_VENDOR_RENESAS
 	bool "Renesas devices"
 	default y
-	---help---
+	help
 	  If you have a network (Ethernet) card belonging to this class, say Y.
 
 	  Note that the answer to this question doesn't directly affect the
@@ -23,7 +23,7 @@ config SH_ETH
 	select MII
 	select MDIO_BITBANG
 	select PHYLIB
-	---help---
+	help
 	  Renesas SuperH Ethernet device driver.
 	  This driver supporting CPUs are:
 		- SH7619, SH7710, SH7712, SH7724, SH7734, SH7763, SH7757,

@@ -36,6 +36,7 @@ struct dp_rx_tid {
 	struct ath11k_base *ab;
 };
 
+#define DP_REO_DESC_FREE_THRESHOLD  64
 #define DP_REO_DESC_FREE_TIMEOUT_MS 1000
 
 struct dp_reo_cache_flush_elem {
@@ -169,8 +170,8 @@ struct ath11k_pdev_dp {
 
 #define DP_WBM_RELEASE_RING_SIZE	64
 #define DP_TCL_DATA_RING_SIZE		512
-#define DP_TX_COMP_RING_SIZE		8192
-#define DP_TX_IDR_SIZE			(DP_TX_COMP_RING_SIZE << 1)
+#define DP_TX_COMP_RING_SIZE		32768
+#define DP_TX_IDR_SIZE			DP_TX_COMP_RING_SIZE
 #define DP_TCL_CMD_RING_SIZE		32
 #define DP_TCL_STATUS_RING_SIZE		32
 #define DP_REO_DST_RING_MAX		4
@@ -222,7 +223,13 @@ struct ath11k_dp {
 	struct hal_wbm_idle_scatter_list scatter_list[DP_IDLE_SCATTER_BUFS_MAX];
 	struct list_head reo_cmd_list;
 	struct list_head reo_cmd_cache_flush_list;
-	/* protects access to reo_cmd_list and reo_cmd_cache_flush_list */
+	u32 reo_cmd_cache_flush_count;
+	/**
+	 * protects access to below fields,
+	 * - reo_cmd_list
+	 * - reo_cmd_cache_flush_list
+	 * - reo_cmd_cache_flush_count
+	 */
 	spinlock_t reo_cmd_lock;
 };
 
@@ -1510,6 +1517,7 @@ struct htt_ext_stats_cfg_params {
  *       4 bytes.
  */
 
+#define HTT_T2H_EXT_STATS_INFO1_DONE	BIT(11)
 #define HTT_T2H_EXT_STATS_INFO1_LENGTH   GENMASK(31, 16)
 
 struct ath11k_htt_extd_stats_msg {

@@ -66,34 +66,195 @@ reprogrammed with the updated static configuration.
 Traffic support
 ===============
 
-The switches do not support switch tagging in hardware. But they do support
-customizing the TPID by which VLAN traffic is identified as such. The switch
-driver is leveraging ``CONFIG_NET_DSA_TAG_8021Q`` by requesting that special
-VLANs (with a custom TPID of ``ETH_P_EDSA`` instead of ``ETH_P_8021Q``) are
-installed on its ports when not in ``vlan_filtering`` mode. This does not
-interfere with the reception and transmission of real 802.1Q-tagged traffic,
-because the switch does no longer parse those packets as VLAN after the TPID
-change.
-The TPID is restored when ``vlan_filtering`` is requested by the user through
-the bridge layer, and general IP termination becomes no longer possible through
-the switch netdevices in this mode.
-
-The switches have two programmable filters for link-local destination MACs.
+The switches do not have hardware support for DSA tags, except for "slow
+protocols" for switch control as STP and PTP. For these, the switches have two
+programmable filters for link-local destination MACs.
 These are used to trap BPDUs and PTP traffic to the master netdevice, and are
 further used to support STP and 1588 ordinary clock/boundary clock
-functionality.
+functionality. For frames trapped to the CPU, source port and switch ID
+information is encoded by the hardware into the frames.
 
-The following traffic modes are supported over the switch netdevices:
+But by leveraging ``CONFIG_NET_DSA_TAG_8021Q`` (a software-defined DSA tagging
+format based on VLANs), general-purpose traffic termination through the network
+stack can be supported under certain circumstances.
 
-+--------------------+------------+------------------+------------------+
-|                    | Standalone | Bridged with     | Bridged with     |
-|                    | ports      | vlan_filtering 0 | vlan_filtering 1 |
-+====================+============+==================+==================+
-| Regular traffic    |     Yes    |       Yes        |  No (use master) |
-+--------------------+------------+------------------+------------------+
-| Management traffic |     Yes    |       Yes        |       Yes        |
-| (BPDU, PTP)        |            |                  |                  |
-+--------------------+------------+------------------+------------------+
+Depending on VLAN awareness state, the following operating modes are possible
+with the switch:
+
+- Mode 1 (VLAN-unaware): a port is in this mode when it is used as a standalone
+  net device, or when it is enslaved to a bridge with ``vlan_filtering=0``.
+- Mode 2 (fully VLAN-aware): a port is in this mode when it is enslaved to a
+  bridge with ``vlan_filtering=1``. Access to the entire VLAN range is given to
+  the user through ``bridge vlan`` commands, but general-purpose (anything
+  other than STP, PTP etc) traffic termination is not possible through the
+  switch net devices. The other packets can be still by user space processed
+  through the DSA master interface (similar to ``DSA_TAG_PROTO_NONE``).
+- Mode 3 (best-effort VLAN-aware): a port is in this mode when enslaved to a
+  bridge with ``vlan_filtering=1``, and the devlink property of its parent
+  switch named ``best_effort_vlan_filtering`` is set to ``true``. When
+  configured like this, the range of usable VIDs is reduced (0 to 1023 and 3072
+  to 4094), so is the number of usable VIDs (maximum of 7 non-pvid VLANs per
+  port*), and shared VLAN learning is performed (FDB lookup is done only by
+  DMAC, not also by VID).
+
+To summarize, in each mode, the following types of traffic are supported over
+the switch net devices:
+
++-------------+-----------+--------------+------------+
+|             |   Mode 1  |    Mode 2    |   Mode 3   |
++=============+===========+==============+============+
+|   Regular   |    Yes    | No           |     Yes    |
+|   traffic   |           | (use master) |            |
++-------------+-----------+--------------+------------+
+| Management  |    Yes    |     Yes      |     Yes    |
+| traffic     |           |              |            |
+| (BPDU, PTP) |           |              |            |
++-------------+-----------+--------------+------------+
+
+To configure the switch to operate in Mode 3, the following steps can be
+followed::
+
+  ip link add dev br0 type bridge
+  # swp2 operates in Mode 1 now
+  ip link set dev swp2 master br0
+  # swp2 temporarily moves to Mode 2
+  ip link set dev br0 type bridge vlan_filtering 1
+  [   61.204770] sja1105 spi0.1: Reset switch and programmed static config. Reason: VLAN filtering
+  [   61.239944] sja1105 spi0.1: Disabled switch tagging
+  # swp3 now operates in Mode 3
+  devlink dev param set spi/spi0.1 name best_effort_vlan_filtering value true cmode runtime
+  [   64.682927] sja1105 spi0.1: Reset switch and programmed static config. Reason: VLAN filtering
+  [   64.711925] sja1105 spi0.1: Enabled switch tagging
+  # Cannot use VLANs in range 1024-3071 while in Mode 3.
+  bridge vlan add dev swp2 vid 1025 untagged pvid
+  RTNETLINK answers: Operation not permitted
+  bridge vlan add dev swp2 vid 100
+  bridge vlan add dev swp2 vid 101 untagged
+  bridge vlan
+  port    vlan ids
+  swp5     1 PVID Egress Untagged
+
+  swp2     1 PVID Egress Untagged
+           100
+           101 Egress Untagged
+
+  swp3     1 PVID Egress Untagged
+
+  swp4     1 PVID Egress Untagged
+
+  br0      1 PVID Egress Untagged
+  bridge vlan add dev swp2 vid 102
+  bridge vlan add dev swp2 vid 103
+  bridge vlan add dev swp2 vid 104
+  bridge vlan add dev swp2 vid 105
+  bridge vlan add dev swp2 vid 106
+  bridge vlan add dev swp2 vid 107
+  # Cannot use mode than 7 VLANs per port while in Mode 3.
+  [ 3885.216832] sja1105 spi0.1: No more free subvlans
+
+\* "maximum of 7 non-pvid VLANs per port": Decoding VLAN-tagged packets on the
+CPU in mode 3 is possible through VLAN retagging of packets that go from the
+switch to the CPU. In cross-chip topologies, the port that goes to the CPU
+might also go to other switches. In that case, those other switches will see
+only a retagged packet (which only has meaning for the CPU). So if they are
+interested in this VLAN, they need to apply retagging in the reverse direction,
+to recover the original value from it. This consumes extra hardware resources
+for this switch. There is a maximum of 32 entries in the Retagging Table of
+each switch device.
+
+As an example, consider this cross-chip topology::
+
+  +-------------------------------------------------+
+  | Host SoC                                        |
+  |           +-------------------------+           |
+  |           | DSA master for embedded |           |
+  |           |   switch (non-sja1105)  |           |
+  |  +--------+-------------------------+--------+  |
+  |  |   embedded L2 switch                      |  |
+  |  |                                           |  |
+  |  |   +--------------+     +--------------+   |  |
+  |  |   |DSA master for|     |DSA master for|   |  |
+  |  |   |  SJA1105 1   |     |  SJA1105 2   |   |  |
+  +--+---+--------------+-----+--------------+---+--+
+
+  +-----------------------+ +-----------------------+
+  |   SJA1105 switch 1    | |   SJA1105 switch 2    |
+  +-----+-----+-----+-----+ +-----+-----+-----+-----+
+  |sw1p0|sw1p1|sw1p2|sw1p3| |sw2p0|sw2p1|sw2p2|sw2p3|
+  +-----+-----+-----+-----+ +-----+-----+-----+-----+
+
+To reach the CPU, SJA1105 switch 1 (spi/spi2.1) uses the same port as is uses
+to reach SJA1105 switch 2 (spi/spi2.2), which would be port 4 (not drawn).
+Similarly for SJA1105 switch 2.
+
+Also consider the following commands, that add VLAN 100 to every sja1105 user
+port::
+
+  devlink dev param set spi/spi2.1 name best_effort_vlan_filtering value true cmode runtime
+  devlink dev param set spi/spi2.2 name best_effort_vlan_filtering value true cmode runtime
+  ip link add dev br0 type bridge
+  for port in sw1p0 sw1p1 sw1p2 sw1p3 \
+              sw2p0 sw2p1 sw2p2 sw2p3; do
+      ip link set dev $port master br0
+  done
+  ip link set dev br0 type bridge vlan_filtering 1
+  for port in sw1p0 sw1p1 sw1p2 sw1p3 \
+              sw2p0 sw2p1 sw2p2; do
+      bridge vlan add dev $port vid 100
+  done
+  ip link add link br0 name br0.100 type vlan id 100 && ip link set dev br0.100 up
+  ip addr add 192.168.100.3/24 dev br0.100
+  bridge vlan add dev br0 vid 100 self
+
+  bridge vlan
+  port    vlan ids
+  sw1p0    1 PVID Egress Untagged
+           100
+
+  sw1p1    1 PVID Egress Untagged
+           100
+
+  sw1p2    1 PVID Egress Untagged
+           100
+
+  sw1p3    1 PVID Egress Untagged
+           100
+
+  sw2p0    1 PVID Egress Untagged
+           100
+
+  sw2p1    1 PVID Egress Untagged
+           100
+
+  sw2p2    1 PVID Egress Untagged
+           100
+
+  sw2p3    1 PVID Egress Untagged
+
+  br0      1 PVID Egress Untagged
+           100
+
+SJA1105 switch 1 consumes 1 retagging entry for each VLAN on each user port
+towards the CPU. It also consumes 1 retagging entry for each non-pvid VLAN that
+it is also interested in, which is configured on any port of any neighbor
+switch.
+
+In this case, SJA1105 switch 1 consumes a total of 11 retagging entries, as
+follows:
+
+- 8 retagging entries for VLANs 1 and 100 installed on its user ports
+  (``sw1p0`` - ``sw1p3``)
+- 3 retagging entries for VLAN 100 installed on the user ports of SJA1105
+  switch 2 (``sw2p0`` - ``sw2p2``), because it also has ports that are
+  interested in it. The VLAN 1 is a pvid on SJA1105 switch 2 and does not need
+  reverse retagging.
+
+SJA1105 switch 2 also consumes 11 retagging entries, but organized as follows:
+
+- 7 retagging entries for the bridge VLANs on its user ports (``sw2p0`` -
+  ``sw2p3``).
+- 4 retagging entries for VLAN 100 installed on the user ports of SJA1105
+  switch 1 (``sw1p0`` - ``sw1p3``).
 
 Switching features
 ==================
@@ -229,6 +390,122 @@ are hardware restrictions related to the fact that no gate event may trigger
 simultaneously on two ports. The driver checks the consistency of the schedules
 against this restriction and errors out when appropriate. Schedule analysis is
 needed to avoid this, which is outside the scope of the document.
+
+Routing actions (redirect, trap, drop)
+--------------------------------------
+
+The switch is able to offload flow-based redirection of packets to a set of
+destination ports specified by the user. Internally, this is implemented by
+making use of Virtual Links, a TTEthernet concept.
+
+The driver supports 2 types of keys for Virtual Links:
+
+- VLAN-aware virtual links: these match on destination MAC address, VLAN ID and
+  VLAN PCP.
+- VLAN-unaware virtual links: these match on destination MAC address only.
+
+The VLAN awareness state of the bridge (vlan_filtering) cannot be changed while
+there are virtual link rules installed.
+
+Composing multiple actions inside the same rule is supported. When only routing
+actions are requested, the driver creates a "non-critical" virtual link. When
+the action list also contains tc-gate (more details below), the virtual link
+becomes "time-critical" (draws frame buffers from a reserved memory partition,
+etc).
+
+The 3 routing actions that are supported are "trap", "drop" and "redirect".
+
+Example 1: send frames received on swp2 with a DA of 42:be:24:9b:76:20 to the
+CPU and to swp3. This type of key (DA only) when the port's VLAN awareness
+state is off::
+
+  tc qdisc add dev swp2 clsact
+  tc filter add dev swp2 ingress flower skip_sw dst_mac 42:be:24:9b:76:20 \
+          action mirred egress redirect dev swp3 \
+          action trap
+
+Example 2: drop frames received on swp2 with a DA of 42:be:24:9b:76:20, a VID
+of 100 and a PCP of 0::
+
+  tc filter add dev swp2 ingress protocol 802.1Q flower skip_sw \
+          dst_mac 42:be:24:9b:76:20 vlan_id 100 vlan_prio 0 action drop
+
+Time-based ingress policing
+---------------------------
+
+The TTEthernet hardware abilities of the switch can be constrained to act
+similarly to the Per-Stream Filtering and Policing (PSFP) clause specified in
+IEEE 802.1Q-2018 (formerly 802.1Qci). This means it can be used to perform
+tight timing-based admission control for up to 1024 flows (identified by a
+tuple composed of destination MAC address, VLAN ID and VLAN PCP). Packets which
+are received outside their expected reception window are dropped.
+
+This capability can be managed through the offload of the tc-gate action. As
+routing actions are intrinsic to virtual links in TTEthernet (which performs
+explicit routing of time-critical traffic and does not leave that in the hands
+of the FDB, flooding etc), the tc-gate action may never appear alone when
+asking sja1105 to offload it. One (or more) redirect or trap actions must also
+follow along.
+
+Example: create a tc-taprio schedule that is phase-aligned with a tc-gate
+schedule (the clocks must be synchronized by a 1588 application stack, which is
+outside the scope of this document). No packet delivered by the sender will be
+dropped. Note that the reception window is larger than the transmission window
+(and much more so, in this example) to compensate for the packet propagation
+delay of the link (which can be determined by the 1588 application stack).
+
+Receiver (sja1105)::
+
+  tc qdisc add dev swp2 clsact
+  now=$(phc_ctl /dev/ptp1 get | awk '/clock time is/ {print $5}') && \
+          sec=$(echo $now | awk -F. '{print $1}') && \
+          base_time="$(((sec + 2) * 1000000000))" && \
+          echo "base time ${base_time}"
+  tc filter add dev swp2 ingress flower skip_sw \
+          dst_mac 42:be:24:9b:76:20 \
+          action gate base-time ${base_time} \
+          sched-entry OPEN  60000 -1 -1 \
+          sched-entry CLOSE 40000 -1 -1 \
+          action trap
+
+Sender::
+
+  now=$(phc_ctl /dev/ptp0 get | awk '/clock time is/ {print $5}') && \
+          sec=$(echo $now | awk -F. '{print $1}') && \
+          base_time="$(((sec + 2) * 1000000000))" && \
+          echo "base time ${base_time}"
+  tc qdisc add dev eno0 parent root taprio \
+          num_tc 8 \
+          map 0 1 2 3 4 5 6 7 \
+          queues 1@0 1@1 1@2 1@3 1@4 1@5 1@6 1@7 \
+          base-time ${base_time} \
+          sched-entry S 01  50000 \
+          sched-entry S 00  50000 \
+          flags 2
+
+The engine used to schedule the ingress gate operations is the same that the
+one used for the tc-taprio offload. Therefore, the restrictions regarding the
+fact that no two gate actions (either tc-gate or tc-taprio gates) may fire at
+the same time (during the same 200 ns slot) still apply.
+
+To come in handy, it is possible to share time-triggered virtual links across
+more than 1 ingress port, via flow blocks. In this case, the restriction of
+firing at the same time does not apply because there is a single schedule in
+the system, that of the shared virtual link::
+
+  tc qdisc add dev swp2 ingress_block 1 clsact
+  tc qdisc add dev swp3 ingress_block 1 clsact
+  tc filter add block 1 flower skip_sw dst_mac 42:be:24:9b:76:20 \
+          action gate index 2 \
+          base-time 0 \
+          sched-entry OPEN 50000000 -1 -1 \
+          sched-entry CLOSE 50000000 -1 -1 \
+          action trap
+
+Hardware statistics for each flow are also available ("pkts" counts the number
+of dropped frames, which is a sum of frames dropped due to timing violations,
+lack of destination ports and MTU enforcement checks). Byte-level counters are
+not available.
 
 Device Tree bindings and board design
 =====================================

@@ -161,9 +161,14 @@ static inline u32 kvm_lapic_get_reg(struct kvm_lapic *apic, int reg_off)
 	return *((u32 *) (apic->regs + reg_off));
 }
 
+static inline void __kvm_lapic_set_reg(char *regs, int reg_off, u32 val)
+{
+	*((u32 *) (regs + reg_off)) = val;
+}
+
 static inline void kvm_lapic_set_reg(struct kvm_lapic *apic, int reg_off, u32 val)
 {
-	*((u32 *) (apic->regs + reg_off)) = val;
+	__kvm_lapic_set_reg(apic->regs, reg_off, val);
 }
 
 extern struct static_key kvm_no_apic_vcpu;
@@ -245,7 +250,7 @@ void kvm_lapic_switch_to_hv_timer(struct kvm_vcpu *vcpu);
 void kvm_lapic_expired_hv_timer(struct kvm_vcpu *vcpu);
 bool kvm_lapic_hv_timer_in_use(struct kvm_vcpu *vcpu);
 void kvm_lapic_restart_hv_timer(struct kvm_vcpu *vcpu);
-bool kvm_can_post_timer_interrupt(struct kvm_vcpu *vcpu);
+bool kvm_can_use_hv_timer(struct kvm_vcpu *vcpu);
 
 static inline enum lapic_mode kvm_apic_mode(u64 apic_base)
 {

@@ -774,7 +774,7 @@ static int alignment_get_arm(struct pt_regs *regs, u32 *ip, u32 *inst)
 	if (user_mode(regs))
 		fault = get_user(instr, ip);
 	else
-		fault = probe_kernel_address(ip, instr);
+		fault = get_kernel_nofault(instr, ip);
 
 	*inst = __mem_to_opcode_arm(instr);
 
@@ -789,7 +789,7 @@ static int alignment_get_thumb(struct pt_regs *regs, u16 *ip, u16 *inst)
 	if (user_mode(regs))
 		fault = get_user(instr, ip);
 	else
-		fault = probe_kernel_address(ip, instr);
+		fault = get_kernel_nofault(instr, ip);
 
 	*inst = __mem_to_opcode_thumb16(instr);
 

@@ -64,7 +64,6 @@ struct hisi_zip_req_q {
 
 struct hisi_zip_qp_ctx {
 	struct hisi_qp *qp;
-	struct hisi_zip_sqe zip_sqe;
 	struct hisi_zip_req_q req_q;
 	struct hisi_acc_sgl_pool *sgl_pool;
 	struct hisi_zip *zip_dev;
@@ -333,6 +332,7 @@ static void hisi_zip_acomp_cb(struct hisi_qp *qp, void *data)
 {
 	struct hisi_zip_sqe *sqe = data;
 	struct hisi_zip_qp_ctx *qp_ctx = qp->qp_ctx;
+	struct hisi_zip_dfx *dfx = &qp_ctx->zip_dev->dfx;
 	struct hisi_zip_req_q *req_q = &qp_ctx->req_q;
 	struct hisi_zip_req *req = req_q->q + sqe->tag;
 	struct acomp_req *acomp_req = req->req;
@@ -340,12 +340,14 @@ static void hisi_zip_acomp_cb(struct hisi_qp *qp, void *data)
 	u32 status, dlen, head_size;
 	int err = 0;
 
+	atomic64_inc(&dfx->recv_cnt);
 	status = sqe->dw3 & HZIP_BD_STATUS_M;
 
 	if (status != 0 && status != HZIP_NC_ERR) {
 		dev_err(dev, "%scompress fail in qp%u: %u, output: %u\n",
 			(qp->alg_type == 0) ? "" : "de", qp->qp_id, status,
 			sqe->produced);
+		atomic64_inc(&dfx->err_bd_cnt);
 		err = -EIO;
 	}
 	dlen = sqe->produced;
@@ -484,11 +486,12 @@ static struct hisi_zip_req *hisi_zip_create_req(struct acomp_req *req,
 static int hisi_zip_do_work(struct hisi_zip_req *req,
 			    struct hisi_zip_qp_ctx *qp_ctx)
 {
-	struct hisi_zip_sqe *zip_sqe = &qp_ctx->zip_sqe;
 	struct acomp_req *a_req = req->req;
 	struct hisi_qp *qp = qp_ctx->qp;
 	struct device *dev = &qp->qm->pdev->dev;
 	struct hisi_acc_sgl_pool *pool = qp_ctx->sgl_pool;
+	struct hisi_zip_dfx *dfx = &qp_ctx->zip_dev->dfx;
+	struct hisi_zip_sqe zip_sqe;
 	dma_addr_t input;
 	dma_addr_t output;
 	int ret;
@@ -511,15 +514,18 @@ static int hisi_zip_do_work(struct hisi_zip_req *req,
 	}
 	req->dma_dst = output;
 
-	hisi_zip_fill_sqe(zip_sqe, qp->req_type, input, output, a_req->slen,
+	hisi_zip_fill_sqe(&zip_sqe, qp->req_type, input, output, a_req->slen,
 			  a_req->dlen, req->sskip, req->dskip);
-	hisi_zip_config_buf_type(zip_sqe, HZIP_SGL);
-	hisi_zip_config_tag(zip_sqe, req->req_id);
+	hisi_zip_config_buf_type(&zip_sqe, HZIP_SGL);
+	hisi_zip_config_tag(&zip_sqe, req->req_id);
 
 	/* send command to start a task */
-	ret = hisi_qp_send(qp, zip_sqe);
-	if (ret < 0)
+	atomic64_inc(&dfx->send_cnt);
+	ret = hisi_qp_send(qp, &zip_sqe);
+	if (ret < 0) {
+		atomic64_inc(&dfx->send_busy_cnt);
 		goto err_unmap_output;
+	}
 
 	return -EINPROGRESS;
 

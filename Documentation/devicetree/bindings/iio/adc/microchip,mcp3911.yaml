@@ -38,10 +38,9 @@ properties:
 
   microchip,device-addr:
     description: Device address when multiple MCP3911 chips are present on the same SPI bus.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - enum: [0, 1, 2, 3]
-      - default: 0
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1, 2, 3]
+    default: 0
 
   vref-supply:
     description: |

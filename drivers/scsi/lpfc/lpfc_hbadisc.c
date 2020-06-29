@@ -36,8 +36,6 @@
 #include <scsi/scsi_transport_fc.h>
 #include <scsi/fc/fc_fs.h>
 
-#include <linux/nvme-fc-driver.h>
-
 #include "lpfc_hw4.h"
 #include "lpfc_hw.h"
 #include "lpfc_nl.h"
@@ -825,6 +823,12 @@ lpfc_cleanup_rpis(struct lpfc_vport *vport, int remove)
 		if ((phba->sli_rev < LPFC_SLI_REV4) &&
 		    (!remove && ndlp->nlp_type & NLP_FABRIC))
 			continue;
+
+		/* Notify transport of connectivity loss to trigger cleanup. */
+		if (phba->nvmet_support &&
+		    ndlp->nlp_state == NLP_STE_UNMAPPED_NODE)
+			lpfc_nvmet_invalidate_host(phba, ndlp);
+
 		lpfc_disc_state_machine(vport, ndlp, NULL,
 					remove
 					? NLP_EVT_DEVICE_RM
@@ -1356,14 +1360,14 @@ lpfc_vlan_id_match(uint16_t curr_vlan_id, uint16_t new_vlan_id)
 }
 
 /**
- * lpfc_update_fcf_record - Update driver fcf record
  * __lpfc_update_fcf_record_pri - update the lpfc_fcf_pri record.
  * @phba: pointer to lpfc hba data structure.
  * @fcf_index: Index for the lpfc_fcf_record.
  * @new_fcf_record: pointer to hba fcf record.
  *
  * This routine updates the driver FCF priority record from the new HBA FCF
- * record. This routine is called with the host lock held.
+ * record. The hbalock is asserted held in the code path calling this
+ * routine.
  **/
 static void
 __lpfc_update_fcf_record_pri(struct lpfc_hba *phba, uint16_t fcf_index,
@@ -1371,8 +1375,6 @@ __lpfc_update_fcf_record_pri(struct lpfc_hba *phba, uint16_t fcf_index,
 				 )
 {
 	struct lpfc_fcf_pri *fcf_pri;
-
-	lockdep_assert_held(&phba->hbalock);
 
 	fcf_pri = &phba->fcf.fcf_pri[fcf_index];
 	fcf_pri->fcf_rec.fcf_index = fcf_index;
@@ -1451,7 +1453,7 @@ lpfc_copy_fcf_record(struct lpfc_fcf_rec *fcf_rec,
  *
  * This routine updates the driver FCF record from the new HBA FCF record
  * together with the address mode, vlan_id, and other informations. This
- * routine is called with the host lock held.
+ * routine is called with the hbalock held.
  **/
 static void
 __lpfc_update_fcf_record(struct lpfc_hba *phba, struct lpfc_fcf_rec *fcf_rec,

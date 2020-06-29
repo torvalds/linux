@@ -567,6 +567,9 @@ static int hv_probe(struct platform_device *op)
 	sunserial_console_match(&sunhv_console, op->dev.of_node,
 				&sunhv_reg, port->line, false);
 
+	/* We need to initialize lock even for non-registered console */
+	spin_lock_init(&port->lock);
+
 	err = uart_add_one_port(&sunhv_reg, port);
 	if (err)
 		goto out_unregister_driver;

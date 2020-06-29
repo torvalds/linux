@@ -167,8 +167,7 @@ config YOSEMITE
 
 config ISS4xx
 	bool "ISS 4xx Simulator"
-	depends on (44x || 40x)
-	select 405GP if 40x
+	depends on 44x
 	select 440GP if 44x && !PPC_47x
 	select PPC_FPU
 	select OF_RTC
@@ -231,33 +230,6 @@ config ICON
 	select PPC4xx_PCI_EXPRESS
 	help
 	  This option enables support for the AMCC PPC440SPe evaluation board.
-
-config XILINX_VIRTEX440_GENERIC_BOARD
-	bool "Generic Xilinx Virtex 5 FXT board support"
-	depends on 44x
-	select XILINX_VIRTEX_5_FXT
-	select XILINX_INTC
-	help
-	  This option enables generic support for Xilinx Virtex based boards
-	  that use a 440 based processor in the Virtex 5 FXT FPGA architecture.
-
-	  The generic virtex board support matches any device tree which
-	  specifies 'xlnx,virtex440' in its compatible field.  This includes
-	  the Xilinx ML5xx reference designs using the powerpc core.
-
-	  Most Virtex 5 designs should use this unless it needs to do some
-	  special configuration at board probe time.
-
-config XILINX_ML510
-	bool "Xilinx ML510 extra support"
-	depends on XILINX_VIRTEX440_GENERIC_BOARD
-	select HAVE_PCI
-	select XILINX_PCI if PCI
-	select PPC_INDIRECT_PCI if PCI
-	select PPC_I8259 if PCI
-	help
-	  This option enables extra support for features on the Xilinx ML510
-	  board.  The ML510 has a PCI bus with ALI south bridge.
 
 config PPC44x_SIMPLE
 	bool "Simple PowerPC 44x board support"
@@ -353,14 +325,4 @@ config 476FPE_ERR46
 # 44x errata/workaround config symbols, selected by the CPU models above
 config IBM440EP_ERR42
 	bool
-
-# Xilinx specific config options.
-config XILINX_VIRTEX
-	bool
-	select DEFAULT_UIMAGE
-
-# Xilinx Virtex 5 FXT FPGA architecture, selected by a Xilinx board above
-config XILINX_VIRTEX_5_FXT
-	bool
-	select XILINX_VIRTEX
 

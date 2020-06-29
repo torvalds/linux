@@ -6,7 +6,7 @@
 menuconfig NET_SCHED
 	bool "QoS and/or fair queueing"
 	select NET_SCH_FIFO
-	---help---
+	help
 	  When the kernel has several packets to send out over a network
 	  device, it has to decide which ones to send first, which ones to
 	  delay, and which ones to drop. This is the job of the queueing
@@ -47,7 +47,7 @@ comment "Queueing/Scheduling"
 
 config NET_SCH_CBQ
 	tristate "Class Based Queueing (CBQ)"
-	---help---
+	help
 	  Say Y here if you want to use the Class-Based Queueing (CBQ) packet
 	  scheduling algorithm. This algorithm classifies the waiting packets
 	  into a tree-like hierarchy of classes; the leaves of this tree are
@@ -64,7 +64,7 @@ config NET_SCH_CBQ
 
 config NET_SCH_HTB
 	tristate "Hierarchical Token Bucket (HTB)"
-	---help---
+	help
 	  Say Y here if you want to use the Hierarchical Token Buckets (HTB)
 	  packet scheduling algorithm. See
 	  <http://luxik.cdi.cz/~devik/qos/htb/> for complete manual and
@@ -78,7 +78,7 @@ config NET_SCH_HTB
 
 config NET_SCH_HFSC
 	tristate "Hierarchical Fair Service Curve (HFSC)"
-	---help---
+	help
 	  Say Y here if you want to use the Hierarchical Fair Service Curve
 	  (HFSC) packet scheduling algorithm.
 
@@ -88,7 +88,7 @@ config NET_SCH_HFSC
 config NET_SCH_ATM
 	tristate "ATM Virtual Circuits (ATM)"
 	depends on ATM
-	---help---
+	help
 	  Say Y here if you want to use the ATM pseudo-scheduler.  This
 	  provides a framework for invoking classifiers, which in turn
 	  select classes of this queuing discipline.  Each class maps
@@ -101,7 +101,7 @@ config NET_SCH_ATM
 
 config NET_SCH_PRIO
 	tristate "Multi Band Priority Queueing (PRIO)"
-	---help---
+	help
 	  Say Y here if you want to use an n-band priority queue packet
 	  scheduler.
 
@@ -110,7 +110,7 @@ config NET_SCH_PRIO
 
 config NET_SCH_MULTIQ
 	tristate "Hardware Multiqueue-aware Multi Band Queuing (MULTIQ)"
-	---help---
+	help
 	  Say Y here if you want to use an n-band queue packet scheduler
 	  to support devices that have multiple hardware transmit queues.
 
@@ -119,7 +119,7 @@ config NET_SCH_MULTIQ
 
 config NET_SCH_RED
 	tristate "Random Early Detection (RED)"
-	---help---
+	help
 	  Say Y here if you want to use the Random Early Detection (RED)
 	  packet scheduling algorithm.
 
@@ -130,7 +130,7 @@ config NET_SCH_RED
 
 config NET_SCH_SFB
 	tristate "Stochastic Fair Blue (SFB)"
-	---help---
+	help
 	  Say Y here if you want to use the Stochastic Fair Blue (SFB)
 	  packet scheduling algorithm.
 
@@ -141,7 +141,7 @@ config NET_SCH_SFB
 
 config NET_SCH_SFQ
 	tristate "Stochastic Fairness Queueing (SFQ)"
-	---help---
+	help
 	  Say Y here if you want to use the Stochastic Fairness Queueing (SFQ)
 	  packet scheduling algorithm.
 
@@ -152,7 +152,7 @@ config NET_SCH_SFQ
 
 config NET_SCH_TEQL
 	tristate "True Link Equalizer (TEQL)"
-	---help---
+	help
 	  Say Y here if you want to use the True Link Equalizer (TLE) packet
 	  scheduling algorithm. This queueing discipline allows the combination
 	  of several physical devices into one virtual device.
@@ -164,7 +164,7 @@ config NET_SCH_TEQL
 
 config NET_SCH_TBF
 	tristate "Token Bucket Filter (TBF)"
-	---help---
+	help
 	  Say Y here if you want to use the Token Bucket Filter (TBF) packet
 	  scheduling algorithm.
 
@@ -175,7 +175,7 @@ config NET_SCH_TBF
 
 config NET_SCH_CBS
 	tristate "Credit Based Shaper (CBS)"
-	---help---
+	help
 	  Say Y here if you want to use the Credit Based Shaper (CBS) packet
 	  scheduling algorithm.
 
@@ -208,7 +208,7 @@ config NET_SCH_TAPRIO
 
 config NET_SCH_GRED
 	tristate "Generic Random Early Detection (GRED)"
-	---help---
+	help
 	  Say Y here if you want to use the Generic Random Early Detection
 	  (GRED) packet scheduling algorithm for some of your network devices
 	  (see the top of <file:net/sched/sch_red.c> for details and
@@ -219,7 +219,7 @@ config NET_SCH_GRED
 
 config NET_SCH_DSMARK
 	tristate "Differentiated Services marker (DSMARK)"
-	---help---
+	help
 	  Say Y if you want to schedule packets according to the
 	  Differentiated Services architecture proposed in RFC 2475.
 	  Technical information on this method, with pointers to associated
@@ -230,7 +230,7 @@ config NET_SCH_DSMARK
 
 config NET_SCH_NETEM
 	tristate "Network emulator (NETEM)"
-	---help---
+	help
 	  Say Y if you want to emulate network delay, loss, and packet
 	  re-ordering. This is often useful to simulate networks when
 	  testing applications or protocols.
@@ -384,7 +384,7 @@ config NET_SCH_INGRESS
 	depends on NET_CLS_ACT
 	select NET_INGRESS
 	select NET_EGRESS
-	---help---
+	help
 	  Say Y here if you want to use classifiers for incoming and/or outgoing
 	  packets. This qdisc doesn't do anything else besides running classifiers,
 	  which can also have actions attached to them. In case of outgoing packets,
@@ -398,7 +398,7 @@ config NET_SCH_INGRESS
 
 config NET_SCH_PLUG
 	tristate "Plug network traffic until release (PLUG)"
-	---help---
+	help
 
 	  This queuing discipline allows userspace to plug/unplug a network
 	  output queue, using the netlink interface.  When it receives an
@@ -441,7 +441,7 @@ config NET_SCH_ETS
 
 menuconfig NET_SCH_DEFAULT
 	bool "Allow override default queue discipline"
-	---help---
+	help
 	  Support for selection of default queuing discipline.
 
 	  Nearly all users can safely say no here, and the default
@@ -492,7 +492,7 @@ config NET_CLS
 config NET_CLS_BASIC
 	tristate "Elementary classification (BASIC)"
 	select NET_CLS
-	---help---
+	help
 	  Say Y here if you want to be able to classify packets using
 	  only extended matches and actions.
 
@@ -502,7 +502,7 @@ config NET_CLS_BASIC
 config NET_CLS_TCINDEX
 	tristate "Traffic-Control Index (TCINDEX)"
 	select NET_CLS
-	---help---
+	help
 	  Say Y here if you want to be able to classify packets based on
 	  traffic control indices. You will want this feature if you want
 	  to implement Differentiated Services together with DSMARK.
@@ -515,7 +515,7 @@ config NET_CLS_ROUTE4
 	depends on INET
 	select IP_ROUTE_CLASSID
 	select NET_CLS
-	---help---
+	help
 	  If you say Y here, you will be able to classify packets
 	  according to the route table entry they matched.
 
@@ -525,7 +525,7 @@ config NET_CLS_ROUTE4
 config NET_CLS_FW
 	tristate "Netfilter mark (FW)"
 	select NET_CLS
-	---help---
+	help
 	  If you say Y here, you will be able to classify packets
 	  according to netfilter/firewall marks.
 
@@ -535,7 +535,7 @@ config NET_CLS_FW
 config NET_CLS_U32
 	tristate "Universal 32bit comparisons w/ hashing (U32)"
 	select NET_CLS
-	---help---
+	help
 	  Say Y here to be able to classify packets using a universal
 	  32bit pieces based comparison scheme.
 
@@ -545,20 +545,20 @@ config NET_CLS_U32
 config CLS_U32_PERF
 	bool "Performance counters support"
 	depends on NET_CLS_U32
-	---help---
+	help
 	  Say Y here to make u32 gather additional statistics useful for
 	  fine tuning u32 classifiers.
 
 config CLS_U32_MARK
 	bool "Netfilter marks support"
 	depends on NET_CLS_U32
-	---help---
+	help
 	  Say Y here to be able to use netfilter marks as u32 key.
 
 config NET_CLS_RSVP
 	tristate "IPv4 Resource Reservation Protocol (RSVP)"
 	select NET_CLS
-	---help---
+	help
 	  The Resource Reservation Protocol (RSVP) permits end systems to
 	  request a minimum and maximum data flow rate for a connection; this
 	  is important for real time data such as streaming sound or video.
@@ -572,7 +572,7 @@ config NET_CLS_RSVP
 config NET_CLS_RSVP6
 	tristate "IPv6 Resource Reservation Protocol (RSVP6)"
 	select NET_CLS
-	---help---
+	help
 	  The Resource Reservation Protocol (RSVP) permits end systems to
 	  request a minimum and maximum data flow rate for a connection; this
 	  is important for real time data such as streaming sound or video.
@@ -586,7 +586,7 @@ config NET_CLS_RSVP6
 config NET_CLS_FLOW
 	tristate "Flow classifier"
 	select NET_CLS
-	---help---
+	help
 	  If you say Y here, you will be able to classify packets based on
 	  a configurable combination of packet keys. This is mostly useful
 	  in combination with SFQ.
@@ -599,7 +599,7 @@ config NET_CLS_CGROUP
 	select NET_CLS
 	select CGROUP_NET_CLASSID
 	depends on CGROUPS
-	---help---
+	help
 	  Say Y here if you want to classify packets based on the control
 	  cgroup of their process.
 
@@ -609,7 +609,7 @@ config NET_CLS_CGROUP
 config NET_CLS_BPF
 	tristate "BPF-based classifier"
 	select NET_CLS
-	---help---
+	help
 	  If you say Y here, you will be able to classify packets based on
 	  programmable BPF (JIT'ed) filters as an alternative to ematches.
 
@@ -619,7 +619,7 @@ config NET_CLS_BPF
 config NET_CLS_FLOWER
 	tristate "Flower classifier"
 	select NET_CLS
-	---help---
+	help
 	  If you say Y here, you will be able to classify packets based on
 	  a configurable combination of packet keys and masks.
 
@@ -629,7 +629,7 @@ config NET_CLS_FLOWER
 config NET_CLS_MATCHALL
 	tristate "Match-all classifier"
 	select NET_CLS
-	---help---
+	help
 	  If you say Y here, you will be able to classify packets based on
 	  nothing. Every packet will match.
 
@@ -639,7 +639,7 @@ config NET_CLS_MATCHALL
 config NET_EMATCH
 	bool "Extended Matches"
 	select NET_CLS
-	---help---
+	help
 	  Say Y here if you want to use extended matches on top of classifiers
 	  and select the extended matches below.
 
@@ -653,7 +653,7 @@ config NET_EMATCH_STACK
 	int "Stack size"
 	depends on NET_EMATCH
 	default "32"
-	---help---
+	help
 	  Size of the local stack variable used while evaluating the tree of
 	  ematches. Limits the depth of the tree, i.e. the number of
 	  encapsulated precedences. Every level requires 4 bytes of additional
@@ -662,7 +662,7 @@ config NET_EMATCH_STACK
 config NET_EMATCH_CMP
 	tristate "Simple packet data comparison"
 	depends on NET_EMATCH
-	---help---
+	help
 	  Say Y here if you want to be able to classify packets based on
 	  simple packet data comparisons for 8, 16, and 32bit values.
 
@@ -672,7 +672,7 @@ config NET_EMATCH_CMP
 config NET_EMATCH_NBYTE
 	tristate "Multi byte comparison"
 	depends on NET_EMATCH
-	---help---
+	help
 	  Say Y here if you want to be able to classify packets based on
 	  multiple byte comparisons mainly useful for IPv6 address comparisons.
 
@@ -682,7 +682,7 @@ config NET_EMATCH_NBYTE
 config NET_EMATCH_U32
 	tristate "U32 key"
 	depends on NET_EMATCH
-	---help---
+	help
 	  Say Y here if you want to be able to classify packets using
 	  the famous u32 key in combination with logic relations.
 
@@ -692,7 +692,7 @@ config NET_EMATCH_U32
 config NET_EMATCH_META
 	tristate "Metadata"
 	depends on NET_EMATCH
-	---help---
+	help
 	  Say Y here if you want to be able to classify packets based on
 	  metadata such as load average, netfilter attributes, socket
 	  attributes and routing decisions.
@@ -707,7 +707,7 @@ config NET_EMATCH_TEXT
 	select TEXTSEARCH_KMP
 	select TEXTSEARCH_BM
 	select TEXTSEARCH_FSM
-	---help---
+	help
 	  Say Y here if you want to be able to classify packets based on
 	  textsearch comparisons.
 
@@ -717,7 +717,7 @@ config NET_EMATCH_TEXT
 config NET_EMATCH_CANID
 	tristate "CAN Identifier"
 	depends on NET_EMATCH && (CAN=y || CAN=m)
-	---help---
+	help
 	  Say Y here if you want to be able to classify CAN frames based
 	  on CAN Identifier.
 
@@ -727,7 +727,7 @@ config NET_EMATCH_CANID
 config NET_EMATCH_IPSET
 	tristate "IPset"
 	depends on NET_EMATCH && IP_SET
-	---help---
+	help
 	  Say Y here if you want to be able to classify packets based on
 	  ipset membership.
 
@@ -737,7 +737,7 @@ config NET_EMATCH_IPSET
 config NET_EMATCH_IPT
 	tristate "IPtables Matches"
 	depends on NET_EMATCH && NETFILTER && NETFILTER_XTABLES
-	---help---
+	help
 	  Say Y here to be able to classify packets based on iptables
 	  matches.
 	  Current supported match is "policy" which allows packet classification
@@ -749,7 +749,7 @@ config NET_EMATCH_IPT
 config NET_CLS_ACT
 	bool "Actions"
 	select NET_CLS
-	---help---
+	help
 	  Say Y here if you want to use traffic control actions. Actions
 	  get attached to classifiers and are invoked after a successful
 	  classification. They are used to overwrite the classification
@@ -761,7 +761,7 @@ config NET_CLS_ACT
 config NET_ACT_POLICE
 	tristate "Traffic Policing"
 	depends on NET_CLS_ACT
-	---help---
+	help
 	  Say Y here if you want to do traffic policing, i.e. strict
 	  bandwidth limiting. This action replaces the existing policing
 	  module.
@@ -772,7 +772,7 @@ config NET_ACT_POLICE
 config NET_ACT_GACT
 	tristate "Generic actions"
 	depends on NET_CLS_ACT
-	---help---
+	help
 	  Say Y here to take generic actions such as dropping and
 	  accepting packets.
 
@@ -782,13 +782,13 @@ config NET_ACT_GACT
 config GACT_PROB
 	bool "Probability support"
 	depends on NET_ACT_GACT
-	---help---
+	help
 	  Say Y here to use the generic action randomly or deterministically.
 
 config NET_ACT_MIRRED
 	tristate "Redirecting and Mirroring"
 	depends on NET_CLS_ACT
-	---help---
+	help
 	  Say Y here to allow packets to be mirrored or redirected to
 	  other devices.
 
@@ -799,7 +799,7 @@ config NET_ACT_SAMPLE
 	tristate "Traffic Sampling"
 	depends on NET_CLS_ACT
 	select PSAMPLE
-	---help---
+	help
 	  Say Y here to allow packet sampling tc action. The packet sample
 	  action consists of statistically choosing packets and sampling
 	  them using the psample module.
@@ -810,7 +810,7 @@ config NET_ACT_SAMPLE
 config NET_ACT_IPT
 	tristate "IPtables targets"
 	depends on NET_CLS_ACT && NETFILTER && IP_NF_IPTABLES
-	---help---
+	help
 	  Say Y here to be able to invoke iptables targets after successful
 	  classification.
 
@@ -820,7 +820,7 @@ config NET_ACT_IPT
 config NET_ACT_NAT
 	tristate "Stateless NAT"
 	depends on NET_CLS_ACT
-	---help---
+	help
 	  Say Y here to do stateless NAT on IPv4 packets.  You should use
 	  netfilter for NAT unless you know what you are doing.
 
@@ -830,7 +830,7 @@ config NET_ACT_NAT
 config NET_ACT_PEDIT
 	tristate "Packet Editing"
 	depends on NET_CLS_ACT
-	---help---
+	help
 	  Say Y here if you want to mangle the content of packets.
 
 	  To compile this code as a module, choose M here: the
@@ -839,7 +839,7 @@ config NET_ACT_PEDIT
 config NET_ACT_SIMP
 	tristate "Simple Example (Debug)"
 	depends on NET_CLS_ACT
-	---help---
+	help
 	  Say Y here to add a simple action for demonstration purposes.
 	  It is meant as an example and for debugging purposes. It will
 	  print a configured policy string followed by the packet count
@@ -853,7 +853,7 @@ config NET_ACT_SIMP
 config NET_ACT_SKBEDIT
 	tristate "SKB Editing"
 	depends on NET_CLS_ACT
-	---help---
+	help
 	  Say Y here to change skb priority or queue_mapping settings.
 
 	  If unsure, say N.
@@ -865,7 +865,7 @@ config NET_ACT_CSUM
 	tristate "Checksum Updating"
 	depends on NET_CLS_ACT && INET
 	select LIBCRC32C
-	---help---
+	help
 	  Say Y here to update some common checksum after some direct
 	  packet alterations.
 
@@ -886,7 +886,7 @@ config NET_ACT_MPLS
 config NET_ACT_VLAN
 	tristate "Vlan manipulation"
 	depends on NET_CLS_ACT
-	---help---
+	help
 	  Say Y here to push or pop vlan headers.
 
 	  If unsure, say N.
@@ -897,7 +897,7 @@ config NET_ACT_VLAN
 config NET_ACT_BPF
 	tristate "BPF based action"
 	depends on NET_CLS_ACT
-	---help---
+	help
 	  Say Y here to execute BPF code on packets. The BPF code will decide
 	  if the packet should be dropped or not.
 
@@ -910,7 +910,7 @@ config NET_ACT_CONNMARK
 	tristate "Netfilter Connection Mark Retriever"
 	depends on NET_CLS_ACT && NETFILTER && IP_NF_IPTABLES
 	depends on NF_CONNTRACK && NF_CONNTRACK_MARK
-	---help---
+	help
 	  Say Y here to allow retrieving of conn mark
 
 	  If unsure, say N.
@@ -938,7 +938,7 @@ config NET_ACT_CTINFO
 config NET_ACT_SKBMOD
 	tristate "skb data modification action"
 	depends on NET_CLS_ACT
-	---help---
+	help
 	 Say Y here to allow modification of skb data
 
 	 If unsure, say N.
@@ -950,7 +950,7 @@ config NET_ACT_IFE
 	tristate "Inter-FE action based on IETF ForCES InterFE LFB"
 	depends on NET_CLS_ACT
 	select NET_IFE
-	---help---
+	help
 	  Say Y here to allow for sourcing and terminating metadata
 	  For details refer to netdev01 paper:
 	  "Distributing Linux Traffic Control Classifier-Action Subsystem"
@@ -962,7 +962,7 @@ config NET_ACT_IFE
 config NET_ACT_TUNNEL_KEY
 	tristate "IP tunnel metadata manipulation"
 	depends on NET_CLS_ACT
-	---help---
+	help
 	  Say Y here to set/release ip tunnel metadata.
 
 	  If unsure, say N.
@@ -980,6 +980,18 @@ config NET_ACT_CT
 
 	  To compile this code as a module, choose M here: the
 	  module will be called act_ct.
+
+config NET_ACT_GATE
+	tristate "Frame gate entry list control tc action"
+	depends on NET_CLS_ACT
+	help
+	  Say Y here to allow to control the ingress flow to be passed at
+	  specific time slot and be dropped at other specific time slot by
+	  the gate entry list.
+
+	  If unsure, say N.
+	  To compile this code as a module, choose M here: the
+	  module will be called act_gate.
 
 config NET_IFE_SKBMARK
 	tristate "Support to encoding decoding skb mark on IFE action"

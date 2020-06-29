@@ -111,7 +111,7 @@ static int ext_queue_sanity_checks(struct hl_device *hdev,
 				bool reserve_cq_entry)
 {
 	atomic_t *free_slots =
-			&hdev->completion_queue[q->hw_queue_id].free_slots_cnt;
+			&hdev->completion_queue[q->cq_id].free_slots_cnt;
 	int free_slots_cnt;
 
 	/* Check we have enough space in the queue */
@@ -194,7 +194,7 @@ static int hw_queue_sanity_checks(struct hl_device *hdev, struct hl_hw_queue *q,
 					int num_of_entries)
 {
 	atomic_t *free_slots =
-			&hdev->completion_queue[q->hw_queue_id].free_slots_cnt;
+			&hdev->completion_queue[q->cq_id].free_slots_cnt;
 
 	/*
 	 * Check we have enough space in the completion queue.
@@ -308,13 +308,14 @@ static void ext_queue_schedule_job(struct hl_cs_job *job)
 	 * No need to check if CQ is full because it was already
 	 * checked in ext_queue_sanity_checks
 	 */
-	cq = &hdev->completion_queue[q->hw_queue_id];
+	cq = &hdev->completion_queue[q->cq_id];
 	cq_addr = cq->bus_address + cq->pi * sizeof(struct hl_cq_entry);
 
 	hdev->asic_funcs->add_end_of_cb_packets(hdev, cb->kernel_address, len,
 						cq_addr,
 						le32_to_cpu(cq_pkt.data),
-						q->hw_queue_id);
+						q->msi_vec,
+						job->contains_dma_pkt);
 
 	q->shadow_queue[hl_pi_2_offset(q->pi)] = job;
 
@@ -401,21 +402,111 @@ static void hw_queue_schedule_job(struct hl_cs_job *job)
 	 * No need to check if CQ is full because it was already
 	 * checked in hw_queue_sanity_checks
 	 */
-	cq = &hdev->completion_queue[q->hw_queue_id];
+	cq = &hdev->completion_queue[q->cq_id];
+
 	cq->pi = hl_cq_inc_ptr(cq->pi);
 
 	ext_and_hw_queue_submit_bd(hdev, q, ctl, len, ptr);
 }
 
 /*
+ * init_signal_wait_cs - initialize a signal/wait CS
+ * @cs: pointer to the signal/wait CS
+ *
+ * H/W queues spinlock should be taken before calling this function
+ */
+static void init_signal_wait_cs(struct hl_cs *cs)
+{
+	struct hl_ctx *ctx = cs->ctx;
+	struct hl_device *hdev = ctx->hdev;
+	struct hl_hw_queue *hw_queue;
+	struct hl_cs_compl *cs_cmpl =
+			container_of(cs->fence, struct hl_cs_compl, base_fence);
+
+	struct hl_hw_sob *hw_sob;
+	struct hl_cs_job *job;
+	u32 q_idx;
+
+	/* There is only one job in a signal/wait CS */
+	job = list_first_entry(&cs->job_list, struct hl_cs_job,
+				cs_node);
+	q_idx = job->hw_queue_id;
+	hw_queue = &hdev->kernel_queues[q_idx];
+
+	if (cs->type & CS_TYPE_SIGNAL) {
+		hw_sob = &hw_queue->hw_sob[hw_queue->curr_sob_offset];
+
+		cs_cmpl->hw_sob = hw_sob;
+		cs_cmpl->sob_val = hw_queue->next_sob_val++;
+
+		dev_dbg(hdev->dev,
+			"generate signal CB, sob_id: %d, sob val: 0x%x, q_idx: %d\n",
+			cs_cmpl->hw_sob->sob_id, cs_cmpl->sob_val, q_idx);
+
+		hdev->asic_funcs->gen_signal_cb(hdev, job->patched_cb,
+					cs_cmpl->hw_sob->sob_id);
+
+		kref_get(&hw_sob->kref);
+
+		/* check for wraparound */
+		if (hw_queue->next_sob_val == HL_MAX_SOB_VAL) {
+			/*
+			 * Decrement as we reached the max value.
+			 * The release function won't be called here as we've
+			 * just incremented the refcount.
+			 */
+			kref_put(&hw_sob->kref, hl_sob_reset_error);
+			hw_queue->next_sob_val = 1;
+			/* only two SOBs are currently in use */
+			hw_queue->curr_sob_offset =
+					(hw_queue->curr_sob_offset + 1) %
+						HL_RSVD_SOBS_IN_USE;
+
+			dev_dbg(hdev->dev, "switched to SOB %d, q_idx: %d\n",
+					hw_queue->curr_sob_offset, q_idx);
+		}
+	} else if (cs->type & CS_TYPE_WAIT) {
+		struct hl_cs_compl *signal_cs_cmpl;
+
+		signal_cs_cmpl = container_of(cs->signal_fence,
+						struct hl_cs_compl,
+						base_fence);
+
+		/* copy the the SOB id and value of the signal CS */
+		cs_cmpl->hw_sob = signal_cs_cmpl->hw_sob;
+		cs_cmpl->sob_val = signal_cs_cmpl->sob_val;
+
+		dev_dbg(hdev->dev,
+			"generate wait CB, sob_id: %d, sob_val: 0x%x, mon_id: %d, q_idx: %d\n",
+			cs_cmpl->hw_sob->sob_id, cs_cmpl->sob_val,
+			hw_queue->base_mon_id, q_idx);
+
+		hdev->asic_funcs->gen_wait_cb(hdev, job->patched_cb,
+						cs_cmpl->hw_sob->sob_id,
+						cs_cmpl->sob_val,
+						hw_queue->base_mon_id,
+						q_idx);
+
+		kref_get(&cs_cmpl->hw_sob->kref);
+		/*
+		 * Must put the signal fence after the SOB refcnt increment so
+		 * the SOB refcnt won't turn 0 and reset the SOB before the
+		 * wait CS was submitted.
+		 */
+		mb();
+		dma_fence_put(cs->signal_fence);
+		cs->signal_fence = NULL;
+	}
+}
+
+/*
  * hl_hw_queue_schedule_cs - schedule a command submission
- *
- * @job        : pointer to the CS
- *
+ * @cs: pointer to the CS
  */
 int hl_hw_queue_schedule_cs(struct hl_cs *cs)
 {
-	struct hl_device *hdev = cs->ctx->hdev;
+	struct hl_ctx *ctx = cs->ctx;
+	struct hl_device *hdev = ctx->hdev;
 	struct hl_cs_job *job, *tmp;
 	struct hl_hw_queue *q;
 	int rc = 0, i, cq_cnt;
@@ -460,6 +551,9 @@ int hl_hw_queue_schedule_cs(struct hl_cs *cs)
 				cq_cnt++;
 		}
 	}
+
+	if ((cs->type == CS_TYPE_SIGNAL) || (cs->type == CS_TYPE_WAIT))
+		init_signal_wait_cs(cs);
 
 	spin_lock(&hdev->hw_queues_mirror_lock);
 	list_add_tail(&cs->mirror_node, &hdev->hw_queues_mirror_list);
@@ -568,6 +662,9 @@ static int ext_and_cpu_queue_init(struct hl_device *hdev, struct hl_hw_queue *q,
 	/* Make sure read/write pointers are initialized to start of queue */
 	q->ci = 0;
 	q->pi = 0;
+
+	if (!is_cpu_queue)
+		hdev->asic_funcs->ext_queue_init(hdev, q->hw_queue_id);
 
 	return 0;
 
@@ -791,5 +888,8 @@ void hl_hw_queue_reset(struct hl_device *hdev, bool hard_reset)
 			((!hard_reset) && (q->queue_type == QUEUE_TYPE_CPU)))
 			continue;
 		q->pi = q->ci = 0;
+
+		if (q->queue_type == QUEUE_TYPE_EXT)
+			hdev->asic_funcs->ext_queue_reset(hdev, q->hw_queue_id);
 	}
 }

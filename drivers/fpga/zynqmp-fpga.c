@@ -40,15 +40,11 @@ static int zynqmp_fpga_ops_write_init(struct fpga_manager *mgr,
 static int zynqmp_fpga_ops_write(struct fpga_manager *mgr,
 				 const char *buf, size_t size)
 {
-	const struct zynqmp_eemi_ops *eemi_ops = zynqmp_pm_get_eemi_ops();
 	struct zynqmp_fpga_priv *priv;
 	dma_addr_t dma_addr;
 	u32 eemi_flags = 0;
 	char *kbuf;
 	int ret;
-
-	if (IS_ERR_OR_NULL(eemi_ops) || !eemi_ops->fpga_load)
-		return -ENXIO;
 
 	priv = mgr->priv;
 
@@ -63,7 +59,7 @@ static int zynqmp_fpga_ops_write(struct fpga_manager *mgr,
 	if (priv->flags & FPGA_MGR_PARTIAL_RECONFIG)
 		eemi_flags |= XILINX_ZYNQMP_PM_FPGA_PARTIAL;
 
-	ret = eemi_ops->fpga_load(dma_addr, size, eemi_flags);
+	ret = zynqmp_pm_fpga_load(dma_addr, size, eemi_flags);
 
 	dma_free_coherent(priv->dev, size, kbuf, dma_addr);
 
@@ -78,13 +74,9 @@ static int zynqmp_fpga_ops_write_complete(struct fpga_manager *mgr,
 
 static enum fpga_mgr_states zynqmp_fpga_ops_state(struct fpga_manager *mgr)
 {
-	const struct zynqmp_eemi_ops *eemi_ops = zynqmp_pm_get_eemi_ops();
-	u32 status;
+	u32 status = 0;
 
-	if (IS_ERR_OR_NULL(eemi_ops) || !eemi_ops->fpga_get_status)
-		return FPGA_MGR_STATE_UNKNOWN;
-
-	eemi_ops->fpga_get_status(&status);
+	zynqmp_pm_fpga_get_status(&status);
 	if (status & IXR_FPGA_DONE_MASK)
 		return FPGA_MGR_STATE_OPERATING;
 

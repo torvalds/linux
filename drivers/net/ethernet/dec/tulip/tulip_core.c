@@ -1277,7 +1277,7 @@ static const struct net_device_ops tulip_netdev_ops = {
 #endif
 };
 
-const struct pci_device_id early_486_chipsets[] = {
+static const struct pci_device_id early_486_chipsets[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82424) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_SI, PCI_DEVICE_ID_SI_496) },
 	{ },

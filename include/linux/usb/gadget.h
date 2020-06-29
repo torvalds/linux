@@ -42,6 +42,8 @@ struct usb_ep;
  * @num_mapped_sgs: number of SG entries mapped to DMA (internal)
  * @length: Length of that data
  * @stream_id: The stream id, when USB3.0 bulk streams are being used
+ * @is_last: Indicates if this is the last request of a stream_id before
+ *	switching to a different stream (required for DWC3 controllers).
  * @no_interrupt: If true, hints that no completion irq is needed.
  *	Helpful sometimes with deep request queues that are handled
  *	directly by DMA controllers.
@@ -104,6 +106,7 @@ struct usb_request {
 	unsigned		num_mapped_sgs;
 
 	unsigned		stream_id:16;
+	unsigned		is_last:1;
 	unsigned		no_interrupt:1;
 	unsigned		zero:1;
 	unsigned		short_not_ok:1;
@@ -373,6 +376,7 @@ struct usb_gadget_ops {
  * @connected: True if gadget is connected.
  * @lpm_capable: If the gadget max_speed is FULL or HIGH, this flag
  *	indicates that it supports LPM as per the LPM ECN & errata.
+ * @irq: the interrupt number for device controller.
  *
  * Gadgets have a mostly-portable "gadget driver" implementing device
  * functions, handling all usb configurations and interfaces.  Gadget
@@ -427,6 +431,7 @@ struct usb_gadget {
 	unsigned			deactivated:1;
 	unsigned			connected:1;
 	unsigned			lpm_capable:1;
+	int				irq;
 };
 #define work_to_gadget(w)	(container_of((w), struct usb_gadget, work))
 
@@ -772,6 +777,9 @@ struct usb_gadget_string_container {
 
 /* put descriptor for string with that id into buf (buflen >= 256) */
 int usb_gadget_get_string(const struct usb_gadget_strings *table, int id, u8 *buf);
+
+/* check if the given language identifier is valid */
+bool usb_validate_langid(u16 langid);
 
 /*-------------------------------------------------------------------------*/
 

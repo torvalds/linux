@@ -1880,12 +1880,6 @@ static inline void qlcnic_write_crb(struct qlcnic_adapter *adapter, char *buf,
 	adapter->ahw->hw_ops->write_crb(adapter, buf, offset, size);
 }
 
-static inline int qlcnic_hw_write_wx_2M(struct qlcnic_adapter *adapter,
-					ulong off, u32 data)
-{
-	return adapter->ahw->hw_ops->write_reg(adapter, off, data);
-}
-
 static inline int qlcnic_get_mac_address(struct qlcnic_adapter *adapter,
 					 u8 *mac, u8 function)
 {

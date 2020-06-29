@@ -2091,10 +2091,9 @@ static inline u8 ethofld_calc_tx_flits(struct adapter *adap,
 	return flits + nsgl;
 }
 
-static inline void *write_eo_wr(struct adapter *adap,
-				struct sge_eosw_txq *eosw_txq,
-				struct sk_buff *skb, struct fw_eth_tx_eo_wr *wr,
-				u32 hdr_len, u32 wrlen)
+static void *write_eo_wr(struct adapter *adap, struct sge_eosw_txq *eosw_txq,
+			 struct sk_buff *skb, struct fw_eth_tx_eo_wr *wr,
+			 u32 hdr_len, u32 wrlen)
 {
 	const struct skb_shared_info *ssi = skb_shinfo(skb);
 	struct cpl_tx_pkt_core *cpl;
@@ -2113,7 +2112,8 @@ static inline void *write_eo_wr(struct adapter *adap,
 	immd_len += hdr_len;
 
 	if (!eosw_txq->ncompl ||
-	    eosw_txq->last_compl >= adap->params.ofldq_wr_cred / 2) {
+	    (eosw_txq->last_compl + wrlen16) >=
+	    (adap->params.ofldq_wr_cred / 2)) {
 		compl = true;
 		eosw_txq->ncompl++;
 		eosw_txq->last_compl = 0;
@@ -2153,8 +2153,8 @@ static inline void *write_eo_wr(struct adapter *adap,
 	return cpl;
 }
 
-static void ethofld_hard_xmit(struct net_device *dev,
-			      struct sge_eosw_txq *eosw_txq)
+static int ethofld_hard_xmit(struct net_device *dev,
+			     struct sge_eosw_txq *eosw_txq)
 {
 	struct port_info *pi = netdev2pinfo(dev);
 	struct adapter *adap = netdev2adap(dev);
@@ -2167,8 +2167,8 @@ static void ethofld_hard_xmit(struct net_device *dev,
 	bool skip_eotx_wr = false;
 	struct tx_sw_desc *d;
 	struct sk_buff *skb;
+	int left, ret = 0;
 	u8 flits, ndesc;
-	int left;
 
 	eohw_txq = &adap->sge.eohw_txq[eosw_txq->hwqid];
 	spin_lock(&eohw_txq->lock);
@@ -2198,15 +2198,26 @@ static void ethofld_hard_xmit(struct net_device *dev,
 	wrlen = flits * 8;
 	wrlen16 = DIV_ROUND_UP(wrlen, 16);
 
-	/* If there are no CPL credits, then wait for credits
-	 * to come back and retry again
+	left = txq_avail(&eohw_txq->q) - ndesc;
+
+	/* If there are no descriptors left in hardware queues or no
+	 * CPL credits left in software queues, then wait for them
+	 * to come back and retry again. Note that we always request
+	 * for credits update via interrupt for every half credits
+	 * consumed. So, the interrupt will eventually restore the
+	 * credits and invoke the Tx path again.
 	 */
-	if (unlikely(wrlen16 > eosw_txq->cred))
+	if (unlikely(left < 0 || wrlen16 > eosw_txq->cred)) {
+		ret = -ENOMEM;
 		goto out_unlock;
+	}
 
 	if (unlikely(skip_eotx_wr)) {
 		start = (u64 *)wr;
 		eosw_txq->state = next_state;
+		eosw_txq->cred -= wrlen16;
+		eosw_txq->ncompl++;
+		eosw_txq->last_compl = 0;
 		goto write_wr_headers;
 	}
 
@@ -2228,7 +2239,8 @@ write_wr_headers:
 	sgl = (u64 *)inline_tx_skb_header(skb, &eohw_txq->q, (void *)start,
 					  hdr_len);
 	if (data_len) {
-		if (unlikely(cxgb4_map_skb(adap->pdev_dev, skb, d->addr))) {
+		ret = cxgb4_map_skb(adap->pdev_dev, skb, d->addr);
+		if (unlikely(ret)) {
 			memset(d->addr, 0, sizeof(d->addr));
 			eohw_txq->mapping_err++;
 			goto out_unlock;
@@ -2274,12 +2286,13 @@ write_wr_headers:
 
 out_unlock:
 	spin_unlock(&eohw_txq->lock);
+	return ret;
 }
 
 static void ethofld_xmit(struct net_device *dev, struct sge_eosw_txq *eosw_txq)
 {
 	struct sk_buff *skb;
-	int pktcount;
+	int pktcount, ret;
 
 	switch (eosw_txq->state) {
 	case CXGB4_EO_STATE_ACTIVE:
@@ -2304,7 +2317,9 @@ static void ethofld_xmit(struct net_device *dev, struct sge_eosw_txq *eosw_txq)
 			continue;
 		}
 
-		ethofld_hard_xmit(dev, eosw_txq);
+		ret = ethofld_hard_xmit(dev, eosw_txq);
+		if (ret)
+			break;
 	}
 }
 
@@ -2363,6 +2378,34 @@ netdev_tx_t t4_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		return cxgb4_ethofld_xmit(skb, dev);
 
 	return cxgb4_eth_xmit(skb, dev);
+}
+
+static void eosw_txq_flush_pending_skbs(struct sge_eosw_txq *eosw_txq)
+{
+	int pktcount = eosw_txq->pidx - eosw_txq->last_pidx;
+	int pidx = eosw_txq->pidx;
+	struct sk_buff *skb;
+
+	if (!pktcount)
+		return;
+
+	if (pktcount < 0)
+		pktcount += eosw_txq->ndesc;
+
+	while (pktcount--) {
+		pidx--;
+		if (pidx < 0)
+			pidx += eosw_txq->ndesc;
+
+		skb = eosw_txq->desc[pidx].skb;
+		if (skb) {
+			dev_consume_skb_any(skb);
+			eosw_txq->desc[pidx].skb = NULL;
+			eosw_txq->inuse--;
+		}
+	}
+
+	eosw_txq->pidx = eosw_txq->last_pidx + 1;
 }
 
 /**
@@ -2440,9 +2483,11 @@ int cxgb4_ethofld_send_flowc(struct net_device *dev, u32 eotid, u32 tc)
 					    FW_FLOWC_MNEM_EOSTATE_CLOSING :
 					    FW_FLOWC_MNEM_EOSTATE_ESTABLISHED);
 
-	eosw_txq->cred -= len16;
-	eosw_txq->ncompl++;
-	eosw_txq->last_compl = 0;
+	/* Free up any pending skbs to ensure there's room for
+	 * termination FLOWC.
+	 */
+	if (tc == FW_SCHED_CLS_NONE)
+		eosw_txq_flush_pending_skbs(eosw_txq);
 
 	ret = eosw_txq_enqueue(eosw_txq, skb);
 	if (ret) {
@@ -2695,6 +2740,7 @@ static void ofldtxq_stop(struct sge_uld_txq *q, struct fw_wr_hdr *wr)
  *	is ever running at a time ...
  */
 static void service_ofldq(struct sge_uld_txq *q)
+	__must_hold(&q->sendq.lock)
 {
 	u64 *pos, *before, *end;
 	int credits;

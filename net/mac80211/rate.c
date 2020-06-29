@@ -214,17 +214,16 @@ static ssize_t rcname_read(struct file *file, char __user *userbuf,
 				       ref->ops->name, len);
 }
 
-static const struct file_operations rcname_ops = {
+const struct file_operations rcname_ops = {
 	.read = rcname_read,
 	.open = simple_open,
 	.llseek = default_llseek,
 };
 #endif
 
-static struct rate_control_ref *rate_control_alloc(const char *name,
-					    struct ieee80211_local *local)
+static struct rate_control_ref *
+rate_control_alloc(const char *name, struct ieee80211_local *local)
 {
-	struct dentry *debugfsdir = NULL;
 	struct rate_control_ref *ref;
 
 	ref = kmalloc(sizeof(struct rate_control_ref), GFP_KERNEL);
@@ -234,13 +233,7 @@ static struct rate_control_ref *rate_control_alloc(const char *name,
 	if (!ref->ops)
 		goto free;
 
-#ifdef CONFIG_MAC80211_DEBUGFS
-	debugfsdir = debugfs_create_dir("rc", local->hw.wiphy->debugfsdir);
-	local->debugfs.rcdir = debugfsdir;
-	debugfs_create_file("name", 0400, debugfsdir, ref, &rcname_ops);
-#endif
-
-	ref->priv = ref->ops->alloc(&local->hw, debugfsdir);
+	ref->priv = ref->ops->alloc(&local->hw);
 	if (!ref->priv)
 		goto free;
 	return ref;

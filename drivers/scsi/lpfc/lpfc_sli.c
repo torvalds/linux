@@ -39,8 +39,6 @@
 #include <asm/set_memory.h>
 #endif
 
-#include <linux/nvme-fc-driver.h>
-
 #include "lpfc_hw4.h"
 #include "lpfc_hw.h"
 #include "lpfc_sli.h"
@@ -50,7 +48,6 @@
 #include "lpfc.h"
 #include "lpfc_scsi.h"
 #include "lpfc_nvme.h"
-#include "lpfc_nvmet.h"
 #include "lpfc_crtn.h"
 #include "lpfc_logmsg.h"
 #include "lpfc_compat.h"
@@ -538,7 +535,7 @@ lpfc_sli4_process_eq(struct lpfc_hba *phba, struct lpfc_queue *eq,
 	if (count > eq->EQ_max_eqe)
 		eq->EQ_max_eqe = count;
 
-	eq->queue_claimed = 0;
+	xchg(&eq->queue_claimed, 0);
 
 rearm_and_exit:
 	/* Always clear the EQ. */
@@ -1248,8 +1245,8 @@ lpfc_sli_get_iocbq(struct lpfc_hba *phba)
  * @phba: Pointer to HBA context object.
  * @iocbq: Pointer to driver iocb object.
  *
- * This function is called with hbalock held to release driver
- * iocb object to the iocb pool. The iotag in the iocb object
+ * This function is called to release the driver iocb object
+ * to the iocb pool. The iotag in the iocb object
  * does not change for each use of the iocb object. This function
  * clears all other fields of the iocb object when it is freed.
  * The sqlq structure that holds the xritag and phys and virtual
@@ -1259,7 +1256,8 @@ lpfc_sli_get_iocbq(struct lpfc_hba *phba)
  * this IO was aborted then the sglq entry it put on the
  * lpfc_abts_els_sgl_list until the CQ_ABORTED_XRI is received. If the
  * IO has good status or fails for any other reason then the sglq
- * entry is added to the free list (lpfc_els_sgl_list).
+ * entry is added to the free list (lpfc_els_sgl_list). The hbalock is
+ *  asserted held in the code path calling this routine.
  **/
 static void
 __lpfc_sli_release_iocbq_s4(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq)
@@ -1268,8 +1266,6 @@ __lpfc_sli_release_iocbq_s4(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq)
 	size_t start_clean = offsetof(struct lpfc_iocbq, iocb);
 	unsigned long iflag = 0;
 	struct lpfc_sli_ring *pring;
-
-	lockdep_assert_held(&phba->hbalock);
 
 	if (iocbq->sli4_xritag == NO_XRI)
 		sglq = NULL;
@@ -1333,17 +1329,16 @@ out:
  * @phba: Pointer to HBA context object.
  * @iocbq: Pointer to driver iocb object.
  *
- * This function is called with hbalock held to release driver
- * iocb object to the iocb pool. The iotag in the iocb object
- * does not change for each use of the iocb object. This function
- * clears all other fields of the iocb object when it is freed.
+ * This function is called to release the driver iocb object to the
+ * iocb pool. The iotag in the iocb object does not change for each
+ * use of the iocb object. This function clears all other fields of
+ * the iocb object when it is freed. The hbalock is asserted held in
+ * the code path calling this routine.
  **/
 static void
 __lpfc_sli_release_iocbq_s3(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq)
 {
 	size_t start_clean = offsetof(struct lpfc_iocbq, iocb);
-
-	lockdep_assert_held(&phba->hbalock);
 
 	/*
 	 * Clean all volatile data fields, preserve iotag and node struct.
@@ -1789,17 +1784,17 @@ lpfc_sli_next_iotag(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq)
  * @nextiocb: Pointer to driver iocb object which need to be
  *            posted to firmware.
  *
- * This function is called with hbalock held to post a new iocb to
- * the firmware. This function copies the new iocb to ring iocb slot and
- * updates the ring pointers. It adds the new iocb to txcmplq if there is
+ * This function is called to post a new iocb to the firmware. This
+ * function copies the new iocb to ring iocb slot and updates the
+ * ring pointers. It adds the new iocb to txcmplq if there is
  * a completion call back for this iocb else the function will free the
- * iocb object.
+ * iocb object.  The hbalock is asserted held in the code path calling
+ * this routine.
  **/
 static void
 lpfc_sli_submit_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		IOCB_t *iocb, struct lpfc_iocbq *nextiocb)
 {
-	lockdep_assert_held(&phba->hbalock);
 	/*
 	 * Set up an iotag
 	 */
@@ -2796,6 +2791,123 @@ lpfc_sli_get_buff(struct lpfc_hba *phba,
 }
 
 /**
+ * lpfc_nvme_unsol_ls_handler - Process an unsolicited event data buffer
+ *                              containing a NVME LS request.
+ * @phba: pointer to lpfc hba data structure.
+ * @piocb: pointer to the iocbq struct representing the sequence starting
+ *        frame.
+ *
+ * This routine initially validates the NVME LS, validates there is a login
+ * with the port that sent the LS, and then calls the appropriate nvme host
+ * or target LS request handler.
+ **/
+static void
+lpfc_nvme_unsol_ls_handler(struct lpfc_hba *phba, struct lpfc_iocbq *piocb)
+{
+	struct lpfc_nodelist *ndlp;
+	struct lpfc_dmabuf *d_buf;
+	struct hbq_dmabuf *nvmebuf;
+	struct fc_frame_header *fc_hdr;
+	struct lpfc_async_xchg_ctx *axchg = NULL;
+	char *failwhy = NULL;
+	uint32_t oxid, sid, did, fctl, size;
+	int ret = 1;
+
+	d_buf = piocb->context2;
+
+	nvmebuf = container_of(d_buf, struct hbq_dmabuf, dbuf);
+	fc_hdr = nvmebuf->hbuf.virt;
+	oxid = be16_to_cpu(fc_hdr->fh_ox_id);
+	sid = sli4_sid_from_fc_hdr(fc_hdr);
+	did = sli4_did_from_fc_hdr(fc_hdr);
+	fctl = (fc_hdr->fh_f_ctl[0] << 16 |
+		fc_hdr->fh_f_ctl[1] << 8 |
+		fc_hdr->fh_f_ctl[2]);
+	size = bf_get(lpfc_rcqe_length, &nvmebuf->cq_event.cqe.rcqe_cmpl);
+
+	lpfc_nvmeio_data(phba, "NVME LS    RCV: xri x%x sz %d from %06x\n",
+			 oxid, size, sid);
+
+	if (phba->pport->load_flag & FC_UNLOADING) {
+		failwhy = "Driver Unloading";
+	} else if (!(phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME)) {
+		failwhy = "NVME FC4 Disabled";
+	} else if (!phba->nvmet_support && !phba->pport->localport) {
+		failwhy = "No Localport";
+	} else if (phba->nvmet_support && !phba->targetport) {
+		failwhy = "No Targetport";
+	} else if (unlikely(fc_hdr->fh_r_ctl != FC_RCTL_ELS4_REQ)) {
+		failwhy = "Bad NVME LS R_CTL";
+	} else if (unlikely((fctl & 0x00FF0000) !=
+			(FC_FC_FIRST_SEQ | FC_FC_END_SEQ | FC_FC_SEQ_INIT))) {
+		failwhy = "Bad NVME LS F_CTL";
+	} else {
+		axchg = kzalloc(sizeof(*axchg), GFP_ATOMIC);
+		if (!axchg)
+			failwhy = "No CTX memory";
+	}
+
+	if (unlikely(failwhy)) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_NVME_DISC | LOG_NVME_IOERR,
+				"6154 Drop NVME LS: SID %06X OXID x%X: %s\n",
+				sid, oxid, failwhy);
+		goto out_fail;
+	}
+
+	/* validate the source of the LS is logged in */
+	ndlp = lpfc_findnode_did(phba->pport, sid);
+	if (!ndlp || !NLP_CHK_NODE_ACT(ndlp) ||
+	    ((ndlp->nlp_state != NLP_STE_UNMAPPED_NODE) &&
+	     (ndlp->nlp_state != NLP_STE_MAPPED_NODE))) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_NVME_DISC,
+				"6216 NVME Unsol rcv: No ndlp: "
+				"NPort_ID x%x oxid x%x\n",
+				sid, oxid);
+		goto out_fail;
+	}
+
+	axchg->phba = phba;
+	axchg->ndlp = ndlp;
+	axchg->size = size;
+	axchg->oxid = oxid;
+	axchg->sid = sid;
+	axchg->wqeq = NULL;
+	axchg->state = LPFC_NVME_STE_LS_RCV;
+	axchg->entry_cnt = 1;
+	axchg->rqb_buffer = (void *)nvmebuf;
+	axchg->hdwq = &phba->sli4_hba.hdwq[0];
+	axchg->payload = nvmebuf->dbuf.virt;
+	INIT_LIST_HEAD(&axchg->list);
+
+	if (phba->nvmet_support)
+		ret = lpfc_nvmet_handle_lsreq(phba, axchg);
+	else
+		ret = lpfc_nvme_handle_lsreq(phba, axchg);
+
+	/* if zero, LS was successfully handled. If non-zero, LS not handled */
+	if (!ret)
+		return;
+
+	lpfc_printf_log(phba, KERN_ERR, LOG_NVME_DISC | LOG_NVME_IOERR,
+			"6155 Drop NVME LS from DID %06X: SID %06X OXID x%X "
+			"NVMe%s handler failed %d\n",
+			did, sid, oxid,
+			(phba->nvmet_support) ? "T" : "I", ret);
+
+out_fail:
+
+	/* recycle receive buffer */
+	lpfc_in_buf_free(phba, &nvmebuf->dbuf);
+
+	/* If start of new exchange, abort it */
+	if (axchg && (fctl & FC_FC_FIRST_SEQ && !(fctl & FC_FC_EX_CTX)))
+		ret = lpfc_nvme_unsol_ls_issue_abort(phba, axchg, sid, oxid);
+
+	if (ret)
+		kfree(axchg);
+}
+
+/**
  * lpfc_complete_unsol_iocb - Complete an unsolicited sequence
  * @phba: Pointer to HBA context object.
  * @pring: Pointer to driver SLI ring object.
@@ -2816,7 +2928,7 @@ lpfc_complete_unsol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 
 	switch (fch_type) {
 	case FC_TYPE_NVME:
-		lpfc_nvmet_unsol_ls_event(phba, pring, saveq);
+		lpfc_nvme_unsol_ls_handler(phba, saveq);
 		return 1;
 	default:
 		break;
@@ -11170,6 +11282,7 @@ lpfc_ignore_els_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
  * request, this function issues abort out unconditionally. This function is
  * called with hbalock held. The function returns 0 when it fails due to
  * memory allocation failure or when the command iocb is an abort request.
+ * The hbalock is asserted held in the code path calling this routine.
  **/
 static int
 lpfc_sli_abort_iotag_issue(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
@@ -11182,8 +11295,6 @@ lpfc_sli_abort_iotag_issue(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	int retval;
 	unsigned long iflags;
 	struct lpfc_nodelist *ndlp;
-
-	lockdep_assert_held(&phba->hbalock);
 
 	/*
 	 * There are certain command types we don't want to abort.  And we
@@ -13694,7 +13805,7 @@ __lpfc_sli4_process_cq(struct lpfc_hba *phba, struct lpfc_queue *cq,
 				"0369 No entry from completion queue "
 				"qid=%d\n", cq->queue_id);
 
-	cq->queue_claimed = 0;
+	xchg(&cq->queue_claimed, 0);
 
 rearm_and_exit:
 	phba->sli4_hba.sli4_write_cq_db(phba, cq, consumed,
@@ -13981,8 +14092,8 @@ lpfc_sli4_nvmet_handle_rcqe(struct lpfc_hba *phba, struct lpfc_queue *cq,
 
 		/* Just some basic sanity checks on FCP Command frame */
 		fctl = (fc_hdr->fh_f_ctl[0] << 16 |
-		fc_hdr->fh_f_ctl[1] << 8 |
-		fc_hdr->fh_f_ctl[2]);
+			fc_hdr->fh_f_ctl[1] << 8 |
+			fc_hdr->fh_f_ctl[2]);
 		if (((fctl &
 		    (FC_FC_FIRST_SEQ | FC_FC_END_SEQ | FC_FC_SEQ_INIT)) !=
 		    (FC_FC_FIRST_SEQ | FC_FC_END_SEQ | FC_FC_SEQ_INIT)) ||
@@ -14275,7 +14386,6 @@ lpfc_sli4_hba_intr_handler(int irq, void *dev_id)
 	int ecount = 0;
 	int hba_eqidx;
 	struct lpfc_eq_intr_info *eqi;
-	uint32_t icnt;
 
 	/* Get the driver's phba structure from the dev_id */
 	hba_eq_hdl = (struct lpfc_hba_eq_hdl *)dev_id;
@@ -14303,11 +14413,12 @@ lpfc_sli4_hba_intr_handler(int irq, void *dev_id)
 		return IRQ_NONE;
 	}
 
-	eqi = phba->sli4_hba.eq_info;
-	icnt = this_cpu_inc_return(eqi->icnt);
+	eqi = this_cpu_ptr(phba->sli4_hba.eq_info);
+	eqi->icnt++;
+
 	fpeq->last_cpu = raw_smp_processor_id();
 
-	if (icnt > LPFC_EQD_ISR_TRIGGER &&
+	if (eqi->icnt > LPFC_EQD_ISR_TRIGGER &&
 	    fpeq->q_flag & HBA_EQ_DELAY_CHK &&
 	    phba->cfg_auto_imax &&
 	    fpeq->q_mode != LPFC_MAX_AUTO_EQ_DELAY &&
@@ -19891,7 +20002,7 @@ lpfc_sli4_issue_wqe(struct lpfc_hba *phba, struct lpfc_sli4_hdw_queue *qp,
 		    struct lpfc_iocbq *pwqe)
 {
 	union lpfc_wqe128 *wqe = &pwqe->wqe;
-	struct lpfc_nvmet_rcv_ctx *ctxp;
+	struct lpfc_async_xchg_ctx *ctxp;
 	struct lpfc_queue *wq;
 	struct lpfc_sglq *sglq;
 	struct lpfc_sli_ring *pring;

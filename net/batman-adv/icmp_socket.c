@@ -135,9 +135,6 @@ static ssize_t batadv_socket_read(struct file *file, char __user *buf,
 	if (!buf || count < sizeof(struct batadv_icmp_packet))
 		return -EINVAL;
 
-	if (!access_ok(buf, count))
-		return -EFAULT;
-
 	error = wait_event_interruptible(socket_client->queue_wait,
 					 socket_client->queue_len);
 

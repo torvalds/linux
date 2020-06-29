@@ -241,7 +241,7 @@ static int ftpm_tee_probe(struct platform_device *pdev)
 
 	/* Open a session with fTPM TA */
 	memset(&sess_arg, 0, sizeof(sess_arg));
-	memcpy(sess_arg.uuid, ftpm_ta_uuid.b, TEE_IOCTL_UUID_LEN);
+	export_uuid(sess_arg.uuid, &ftpm_ta_uuid);
 	sess_arg.clnt_login = TEE_IOCTL_LOGIN_PUBLIC;
 	sess_arg.num_params = 0;
 

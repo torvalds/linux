@@ -3,10 +3,10 @@
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
  */
 #include <linux/dma-mapping.h>
-#include "ahb.h"
 #include "hal_tx.h"
 #include "debug.h"
 #include "hal_desc.h"
+#include "hif.h"
 
 static const struct hal_srng_config hw_srng_config[] = {
 	/* TODO: max_rings can populated by querying HW capabilities */
@@ -351,11 +351,12 @@ static void ath11k_hal_ce_dst_setup(struct ath11k_base *ab,
 	addr = HAL_CE_DST_RING_CTRL +
 	       srng_config->reg_start[HAL_SRNG_REG_GRP_R0] +
 	       ring_num * srng_config->reg_size[HAL_SRNG_REG_GRP_R0];
-	val = ath11k_ahb_read32(ab, addr);
+
+	val = ath11k_hif_read32(ab, addr);
 	val &= ~HAL_CE_DST_R0_DEST_CTRL_MAX_LEN;
 	val |= FIELD_PREP(HAL_CE_DST_R0_DEST_CTRL_MAX_LEN,
 			  srng->u.dst_ring.max_buffer_length);
-	ath11k_ahb_write32(ab, addr, val);
+	ath11k_hif_write32(ab, addr, val);
 }
 
 static void ath11k_hal_srng_dst_hw_init(struct ath11k_base *ab,
@@ -369,34 +370,34 @@ static void ath11k_hal_srng_dst_hw_init(struct ath11k_base *ab,
 	reg_base = srng->hwreg_base[HAL_SRNG_REG_GRP_R0];
 
 	if (srng->flags & HAL_SRNG_FLAGS_MSI_INTR) {
-		ath11k_ahb_write32(ab, reg_base +
-				       HAL_REO1_RING_MSI1_BASE_LSB_OFFSET,
+		ath11k_hif_write32(ab, reg_base +
+				   HAL_REO1_RING_MSI1_BASE_LSB_OFFSET,
 				   (u32)srng->msi_addr);
 
 		val = FIELD_PREP(HAL_REO1_RING_MSI1_BASE_MSB_ADDR,
 				 ((u64)srng->msi_addr >>
 				  HAL_ADDR_MSB_REG_SHIFT)) |
 		      HAL_REO1_RING_MSI1_BASE_MSB_MSI1_ENABLE;
-		ath11k_ahb_write32(ab, reg_base +
+		ath11k_hif_write32(ab, reg_base +
 				       HAL_REO1_RING_MSI1_BASE_MSB_OFFSET, val);
 
-		ath11k_ahb_write32(ab,
+		ath11k_hif_write32(ab,
 				   reg_base + HAL_REO1_RING_MSI1_DATA_OFFSET,
 				   srng->msi_data);
 	}
 
-	ath11k_ahb_write32(ab, reg_base, (u32)srng->ring_base_paddr);
+	ath11k_hif_write32(ab, reg_base, (u32)srng->ring_base_paddr);
 
 	val = FIELD_PREP(HAL_REO1_RING_BASE_MSB_RING_BASE_ADDR_MSB,
 			 ((u64)srng->ring_base_paddr >>
 			  HAL_ADDR_MSB_REG_SHIFT)) |
 	      FIELD_PREP(HAL_REO1_RING_BASE_MSB_RING_SIZE,
 			 (srng->entry_size * srng->num_entries));
-	ath11k_ahb_write32(ab, reg_base + HAL_REO1_RING_BASE_MSB_OFFSET, val);
+	ath11k_hif_write32(ab, reg_base + HAL_REO1_RING_BASE_MSB_OFFSET, val);
 
 	val = FIELD_PREP(HAL_REO1_RING_ID_RING_ID, srng->ring_id) |
 	      FIELD_PREP(HAL_REO1_RING_ID_ENTRY_SIZE, srng->entry_size);
-	ath11k_ahb_write32(ab, reg_base + HAL_REO1_RING_ID_OFFSET, val);
+	ath11k_hif_write32(ab, reg_base + HAL_REO1_RING_ID_OFFSET, val);
 
 	/* interrupt setup */
 	val = FIELD_PREP(HAL_REO1_RING_PRDR_INT_SETUP_INTR_TMR_THOLD,
@@ -406,22 +407,22 @@ static void ath11k_hal_srng_dst_hw_init(struct ath11k_base *ab,
 			  (srng->intr_batch_cntr_thres_entries *
 			   srng->entry_size));
 
-	ath11k_ahb_write32(ab,
+	ath11k_hif_write32(ab,
 			   reg_base + HAL_REO1_RING_PRODUCER_INT_SETUP_OFFSET,
 			   val);
 
 	hp_addr = hal->rdp.paddr +
 		  ((unsigned long)srng->u.dst_ring.hp_addr -
 		   (unsigned long)hal->rdp.vaddr);
-	ath11k_ahb_write32(ab, reg_base + HAL_REO1_RING_HP_ADDR_LSB_OFFSET,
+	ath11k_hif_write32(ab, reg_base + HAL_REO1_RING_HP_ADDR_LSB_OFFSET,
 			   hp_addr & HAL_ADDR_LSB_REG_MASK);
-	ath11k_ahb_write32(ab, reg_base + HAL_REO1_RING_HP_ADDR_MSB_OFFSET,
+	ath11k_hif_write32(ab, reg_base + HAL_REO1_RING_HP_ADDR_MSB_OFFSET,
 			   hp_addr >> HAL_ADDR_MSB_REG_SHIFT);
 
 	/* Initialize head and tail pointers to indicate ring is empty */
 	reg_base = srng->hwreg_base[HAL_SRNG_REG_GRP_R2];
-	ath11k_ahb_write32(ab, reg_base, 0);
-	ath11k_ahb_write32(ab, reg_base + HAL_REO1_RING_TP_OFFSET, 0);
+	ath11k_hif_write32(ab, reg_base, 0);
+	ath11k_hif_write32(ab, reg_base + HAL_REO1_RING_TP_OFFSET, 0);
 	*srng->u.dst_ring.hp_addr = 0;
 
 	reg_base = srng->hwreg_base[HAL_SRNG_REG_GRP_R0];
@@ -434,7 +435,7 @@ static void ath11k_hal_srng_dst_hw_init(struct ath11k_base *ab,
 		val |= HAL_REO1_RING_MISC_MSI_SWAP;
 	val |= HAL_REO1_RING_MISC_SRNG_ENABLE;
 
-	ath11k_ahb_write32(ab, reg_base + HAL_REO1_RING_MISC_OFFSET, val);
+	ath11k_hif_write32(ab, reg_base + HAL_REO1_RING_MISC_OFFSET, val);
 }
 
 static void ath11k_hal_srng_src_hw_init(struct ath11k_base *ab,
@@ -448,34 +449,34 @@ static void ath11k_hal_srng_src_hw_init(struct ath11k_base *ab,
 	reg_base = srng->hwreg_base[HAL_SRNG_REG_GRP_R0];
 
 	if (srng->flags & HAL_SRNG_FLAGS_MSI_INTR) {
-		ath11k_ahb_write32(ab, reg_base +
-				       HAL_TCL1_RING_MSI1_BASE_LSB_OFFSET,
+		ath11k_hif_write32(ab, reg_base +
+				    HAL_TCL1_RING_MSI1_BASE_LSB_OFFSET,
 				   (u32)srng->msi_addr);
 
 		val = FIELD_PREP(HAL_TCL1_RING_MSI1_BASE_MSB_ADDR,
 				 ((u64)srng->msi_addr >>
 				  HAL_ADDR_MSB_REG_SHIFT)) |
 		      HAL_TCL1_RING_MSI1_BASE_MSB_MSI1_ENABLE;
-		ath11k_ahb_write32(ab, reg_base +
+		ath11k_hif_write32(ab, reg_base +
 				       HAL_TCL1_RING_MSI1_BASE_MSB_OFFSET,
 				   val);
 
-		ath11k_ahb_write32(ab, reg_base +
+		ath11k_hif_write32(ab, reg_base +
 				       HAL_TCL1_RING_MSI1_DATA_OFFSET,
 				   srng->msi_data);
 	}
 
-	ath11k_ahb_write32(ab, reg_base, (u32)srng->ring_base_paddr);
+	ath11k_hif_write32(ab, reg_base, (u32)srng->ring_base_paddr);
 
 	val = FIELD_PREP(HAL_TCL1_RING_BASE_MSB_RING_BASE_ADDR_MSB,
 			 ((u64)srng->ring_base_paddr >>
 			  HAL_ADDR_MSB_REG_SHIFT)) |
 	      FIELD_PREP(HAL_TCL1_RING_BASE_MSB_RING_SIZE,
 			 (srng->entry_size * srng->num_entries));
-	ath11k_ahb_write32(ab, reg_base + HAL_TCL1_RING_BASE_MSB_OFFSET, val);
+	ath11k_hif_write32(ab, reg_base + HAL_TCL1_RING_BASE_MSB_OFFSET, val);
 
 	val = FIELD_PREP(HAL_REO1_RING_ID_ENTRY_SIZE, srng->entry_size);
-	ath11k_ahb_write32(ab, reg_base + HAL_TCL1_RING_ID_OFFSET, val);
+	ath11k_hif_write32(ab, reg_base + HAL_TCL1_RING_ID_OFFSET, val);
 
 	/* interrupt setup */
 	/* NOTE: IPQ8074 v2 requires the interrupt timer threshold in the
@@ -488,7 +489,7 @@ static void ath11k_hal_srng_src_hw_init(struct ath11k_base *ab,
 			  (srng->intr_batch_cntr_thres_entries *
 			   srng->entry_size));
 
-	ath11k_ahb_write32(ab,
+	ath11k_hif_write32(ab,
 			   reg_base + HAL_TCL1_RING_CONSR_INT_SETUP_IX0_OFFSET,
 			   val);
 
@@ -497,7 +498,7 @@ static void ath11k_hal_srng_src_hw_init(struct ath11k_base *ab,
 		val |= FIELD_PREP(HAL_TCL1_RING_CONSR_INT_SETUP_IX1_LOW_THOLD,
 				  srng->u.src_ring.low_threshold);
 	}
-	ath11k_ahb_write32(ab,
+	ath11k_hif_write32(ab,
 			   reg_base + HAL_TCL1_RING_CONSR_INT_SETUP_IX1_OFFSET,
 			   val);
 
@@ -505,18 +506,18 @@ static void ath11k_hal_srng_src_hw_init(struct ath11k_base *ab,
 		tp_addr = hal->rdp.paddr +
 			  ((unsigned long)srng->u.src_ring.tp_addr -
 			   (unsigned long)hal->rdp.vaddr);
-		ath11k_ahb_write32(ab,
+		ath11k_hif_write32(ab,
 				   reg_base + HAL_TCL1_RING_TP_ADDR_LSB_OFFSET,
 				   tp_addr & HAL_ADDR_LSB_REG_MASK);
-		ath11k_ahb_write32(ab,
+		ath11k_hif_write32(ab,
 				   reg_base + HAL_TCL1_RING_TP_ADDR_MSB_OFFSET,
 				   tp_addr >> HAL_ADDR_MSB_REG_SHIFT);
 	}
 
 	/* Initialize head and tail pointers to indicate ring is empty */
 	reg_base = srng->hwreg_base[HAL_SRNG_REG_GRP_R2];
-	ath11k_ahb_write32(ab, reg_base, 0);
-	ath11k_ahb_write32(ab, reg_base + HAL_TCL1_RING_TP_OFFSET, 0);
+	ath11k_hif_write32(ab, reg_base, 0);
+	ath11k_hif_write32(ab, reg_base + HAL_TCL1_RING_TP_OFFSET, 0);
 	*srng->u.src_ring.tp_addr = 0;
 
 	reg_base = srng->hwreg_base[HAL_SRNG_REG_GRP_R0];
@@ -533,7 +534,7 @@ static void ath11k_hal_srng_src_hw_init(struct ath11k_base *ab,
 
 	val |= HAL_TCL1_RING_MISC_SRNG_ENABLE;
 
-	ath11k_ahb_write32(ab, reg_base + HAL_TCL1_RING_MISC_OFFSET, val);
+	ath11k_hif_write32(ab, reg_base + HAL_TCL1_RING_MISC_OFFSET, val);
 }
 
 static void ath11k_hal_srng_hw_init(struct ath11k_base *ab,
@@ -889,13 +890,13 @@ void ath11k_hal_srng_access_end(struct ath11k_base *ab, struct hal_srng *srng)
 		if (srng->ring_dir == HAL_SRNG_DIR_SRC) {
 			srng->u.src_ring.last_tp =
 				*(volatile u32 *)srng->u.src_ring.tp_addr;
-			ath11k_ahb_write32(ab,
+			ath11k_hif_write32(ab,
 					   (unsigned long)srng->u.src_ring.hp_addr -
 					   (unsigned long)ab->mem,
 					   srng->u.src_ring.hp);
 		} else {
 			srng->u.dst_ring.last_hp = *srng->u.dst_ring.hp_addr;
-			ath11k_ahb_write32(ab,
+			ath11k_hif_write32(ab,
 					   (unsigned long)srng->u.dst_ring.tp_addr -
 					   (unsigned long)ab->mem,
 					   srng->u.dst_ring.tp);
@@ -929,20 +930,20 @@ void ath11k_hal_setup_link_idle_list(struct ath11k_base *ab,
 			     HAL_WBM_IDLE_SCATTER_BUF_SIZE;
 	}
 
-	ath11k_ahb_write32(ab,
+	ath11k_hif_write32(ab,
 			   HAL_SEQ_WCSS_UMAC_WBM_REG + HAL_WBM_R0_IDLE_LIST_CONTROL_ADDR,
 			   FIELD_PREP(HAL_WBM_SCATTER_BUFFER_SIZE, reg_scatter_buf_sz) |
 			   FIELD_PREP(HAL_WBM_LINK_DESC_IDLE_LIST_MODE, 0x1));
-	ath11k_ahb_write32(ab,
+	ath11k_hif_write32(ab,
 			   HAL_SEQ_WCSS_UMAC_WBM_REG + HAL_WBM_R0_IDLE_LIST_SIZE_ADDR,
 			   FIELD_PREP(HAL_WBM_SCATTER_RING_SIZE_OF_IDLE_LINK_DESC_LIST,
 				      reg_scatter_buf_sz * nsbufs));
-	ath11k_ahb_write32(ab,
+	ath11k_hif_write32(ab,
 			   HAL_SEQ_WCSS_UMAC_WBM_REG +
 			   HAL_WBM_SCATTERED_RING_BASE_LSB,
 			   FIELD_PREP(BUFFER_ADDR_INFO0_ADDR,
 				      sbuf[0].paddr & HAL_ADDR_LSB_REG_MASK));
-	ath11k_ahb_write32(ab,
+	ath11k_hif_write32(ab,
 			   HAL_SEQ_WCSS_UMAC_WBM_REG +
 			   HAL_WBM_SCATTERED_RING_BASE_MSB,
 			   FIELD_PREP(
@@ -953,12 +954,12 @@ void ath11k_hal_setup_link_idle_list(struct ath11k_base *ab,
 				BASE_ADDR_MATCH_TAG_VAL));
 
 	/* Setup head and tail pointers for the idle list */
-	ath11k_ahb_write32(ab,
+	ath11k_hif_write32(ab,
 			   HAL_SEQ_WCSS_UMAC_WBM_REG +
 			   HAL_WBM_SCATTERED_DESC_PTR_HEAD_INFO_IX0,
 			   FIELD_PREP(BUFFER_ADDR_INFO0_ADDR,
 				      sbuf[nsbufs - 1].paddr));
-	ath11k_ahb_write32(ab,
+	ath11k_hif_write32(ab,
 			   HAL_SEQ_WCSS_UMAC_WBM_REG +
 			   HAL_WBM_SCATTERED_DESC_PTR_HEAD_INFO_IX1,
 			   FIELD_PREP(
@@ -967,18 +968,18 @@ void ath11k_hal_setup_link_idle_list(struct ath11k_base *ab,
 				 HAL_ADDR_MSB_REG_SHIFT)) |
 			   FIELD_PREP(HAL_WBM_SCATTERED_DESC_HEAD_P_OFFSET_IX1,
 				      (end_offset >> 2)));
-	ath11k_ahb_write32(ab,
+	ath11k_hif_write32(ab,
 			   HAL_SEQ_WCSS_UMAC_WBM_REG +
 			   HAL_WBM_SCATTERED_DESC_PTR_HEAD_INFO_IX0,
 			   FIELD_PREP(BUFFER_ADDR_INFO0_ADDR,
 				      sbuf[0].paddr));
 
-	ath11k_ahb_write32(ab,
+	ath11k_hif_write32(ab,
 			   HAL_SEQ_WCSS_UMAC_WBM_REG +
 			   HAL_WBM_SCATTERED_DESC_PTR_TAIL_INFO_IX0,
 			   FIELD_PREP(BUFFER_ADDR_INFO0_ADDR,
 				      sbuf[0].paddr));
-	ath11k_ahb_write32(ab,
+	ath11k_hif_write32(ab,
 			   HAL_SEQ_WCSS_UMAC_WBM_REG +
 			   HAL_WBM_SCATTERED_DESC_PTR_TAIL_INFO_IX1,
 			   FIELD_PREP(
@@ -986,13 +987,13 @@ void ath11k_hal_setup_link_idle_list(struct ath11k_base *ab,
 				((u64)sbuf[0].paddr >> HAL_ADDR_MSB_REG_SHIFT)) |
 			   FIELD_PREP(HAL_WBM_SCATTERED_DESC_TAIL_P_OFFSET_IX1,
 				      0));
-	ath11k_ahb_write32(ab,
+	ath11k_hif_write32(ab,
 			   HAL_SEQ_WCSS_UMAC_WBM_REG +
 			   HAL_WBM_SCATTERED_DESC_PTR_HP_ADDR,
 			   2 * tot_link_desc);
 
 	/* Enable the SRNG */
-	ath11k_ahb_write32(ab,
+	ath11k_hif_write32(ab,
 			   HAL_SEQ_WCSS_UMAC_WBM_REG +
 			   HAL_WBM_IDLE_LINK_RING_MISC_ADDR, 0x40);
 }

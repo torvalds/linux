@@ -197,6 +197,7 @@ void wakeup_flusher_threads(enum wb_reason reason);
 void wakeup_flusher_threads_bdi(struct backing_dev_info *bdi,
 				enum wb_reason reason);
 void inode_wait_for_writeback(struct inode *inode);
+void inode_io_list_del(struct inode *inode);
 
 /* writeback.h requires fs.h; it, too, is not included from here. */
 static inline void wait_on_inode(struct inode *inode)
@@ -362,24 +363,18 @@ extern int vm_highmem_is_dirtyable;
 extern int block_dump;
 extern int laptop_mode;
 
-extern int dirty_background_ratio_handler(struct ctl_table *table, int write,
-		void __user *buffer, size_t *lenp,
-		loff_t *ppos);
-extern int dirty_background_bytes_handler(struct ctl_table *table, int write,
-		void __user *buffer, size_t *lenp,
-		loff_t *ppos);
-extern int dirty_ratio_handler(struct ctl_table *table, int write,
-		void __user *buffer, size_t *lenp,
-		loff_t *ppos);
-extern int dirty_bytes_handler(struct ctl_table *table, int write,
-		void __user *buffer, size_t *lenp,
-		loff_t *ppos);
+int dirty_background_ratio_handler(struct ctl_table *table, int write,
+		void *buffer, size_t *lenp, loff_t *ppos);
+int dirty_background_bytes_handler(struct ctl_table *table, int write,
+		void *buffer, size_t *lenp, loff_t *ppos);
+int dirty_ratio_handler(struct ctl_table *table, int write,
+		void *buffer, size_t *lenp, loff_t *ppos);
+int dirty_bytes_handler(struct ctl_table *table, int write,
+		void *buffer, size_t *lenp, loff_t *ppos);
 int dirtytime_interval_handler(struct ctl_table *table, int write,
-			       void __user *buffer, size_t *lenp, loff_t *ppos);
-
-struct ctl_table;
-int dirty_writeback_centisecs_handler(struct ctl_table *, int,
-				      void __user *, size_t *, loff_t *);
+		void *buffer, size_t *lenp, loff_t *ppos);
+int dirty_writeback_centisecs_handler(struct ctl_table *table, int write,
+		void *buffer, size_t *lenp, loff_t *ppos);
 
 void global_dirty_limits(unsigned long *pbackground, unsigned long *pdirty);
 unsigned long wb_calc_thresh(struct bdi_writeback *wb, unsigned long thresh);

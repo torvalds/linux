@@ -17,7 +17,7 @@
 
 /* adminq functions */
 i40e_status i40e_init_adminq(struct i40e_hw *hw);
-i40e_status i40e_shutdown_adminq(struct i40e_hw *hw);
+void i40e_shutdown_adminq(struct i40e_hw *hw);
 void i40e_adminq_init_ring_data(struct i40e_hw *hw);
 i40e_status i40e_clean_arq_element(struct i40e_hw *hw,
 					     struct i40e_arq_event_info *e,

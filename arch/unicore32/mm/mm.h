@@ -14,16 +14,6 @@ extern int sysctl_overcommit_memory;
 
 #define TOP_PTE(x)	pte_offset_kernel(top_pmd, x)
 
-static inline pmd_t *pmd_off(pgd_t *pgd, unsigned long virt)
-{
-	return pmd_offset((pud_t *)pgd, virt);
-}
-
-static inline pmd_t *pmd_off_k(unsigned long virt)
-{
-	return pmd_off(pgd_offset_k(virt), virt);
-}
-
 struct mem_type {
 	unsigned int prot_pte;
 	unsigned int prot_l1;

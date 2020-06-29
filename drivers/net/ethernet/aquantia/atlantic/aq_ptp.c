@@ -945,26 +945,29 @@ void aq_ptp_ring_deinit(struct aq_nic_s *aq_nic)
 #define PTP_4TC_RING_IDX            16
 #define PTP_HWST_RING_IDX           31
 
+/* Index must be 8 (8 TCs) or 16 (4 TCs).
+ * It depends on Traffic Class mode.
+ */
+static unsigned int ptp_ring_idx(const enum aq_tc_mode tc_mode)
+{
+	if (tc_mode == AQ_TC_MODE_8TCS)
+		return PTP_8TC_RING_IDX;
+
+	return PTP_4TC_RING_IDX;
+}
+
 int aq_ptp_ring_alloc(struct aq_nic_s *aq_nic)
 {
 	struct aq_ptp_s *aq_ptp = aq_nic->aq_ptp;
 	unsigned int tx_ring_idx, rx_ring_idx;
 	struct aq_ring_s *hwts;
-	u32 tx_tc_mode, rx_tc_mode;
 	struct aq_ring_s *ring;
 	int err;
 
 	if (!aq_ptp)
 		return 0;
 
-	/* Index must to be 8 (8 TCs) or 16 (4 TCs).
-	 * It depends from Traffic Class mode.
-	 */
-	aq_nic->aq_hw_ops->hw_tx_tc_mode_get(aq_nic->aq_hw, &tx_tc_mode);
-	if (tx_tc_mode == 0)
-		tx_ring_idx = PTP_8TC_RING_IDX;
-	else
-		tx_ring_idx = PTP_4TC_RING_IDX;
+	tx_ring_idx = ptp_ring_idx(aq_nic->aq_nic_cfg.tc_mode);
 
 	ring = aq_ring_tx_alloc(&aq_ptp->ptp_tx, aq_nic,
 				tx_ring_idx, &aq_nic->aq_nic_cfg);
@@ -973,11 +976,7 @@ int aq_ptp_ring_alloc(struct aq_nic_s *aq_nic)
 		goto err_exit;
 	}
 
-	aq_nic->aq_hw_ops->hw_rx_tc_mode_get(aq_nic->aq_hw, &rx_tc_mode);
-	if (rx_tc_mode == 0)
-		rx_ring_idx = PTP_8TC_RING_IDX;
-	else
-		rx_ring_idx = PTP_4TC_RING_IDX;
+	rx_ring_idx = ptp_ring_idx(aq_nic->aq_nic_cfg.tc_mode);
 
 	ring = aq_ring_rx_alloc(&aq_ptp->ptp_rx, aq_nic,
 				rx_ring_idx, &aq_nic->aq_nic_cfg);

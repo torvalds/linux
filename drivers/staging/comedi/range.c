@@ -46,17 +46,14 @@ EXPORT_SYMBOL_GPL(range_unknown);
  *	array of comedi_krange structures to rangeinfo->range_ptr pointer
  */
 int do_rangeinfo_ioctl(struct comedi_device *dev,
-		       struct comedi_rangeinfo __user *arg)
+		       struct comedi_rangeinfo *it)
 {
-	struct comedi_rangeinfo it;
 	int subd, chan;
 	const struct comedi_lrange *lr;
 	struct comedi_subdevice *s;
 
-	if (copy_from_user(&it, arg, sizeof(struct comedi_rangeinfo)))
-		return -EFAULT;
-	subd = (it.range_type >> 24) & 0xf;
-	chan = (it.range_type >> 16) & 0xff;
+	subd = (it->range_type >> 24) & 0xf;
+	chan = (it->range_type >> 16) & 0xff;
 
 	if (!dev->attached)
 		return -EINVAL;
@@ -73,15 +70,15 @@ int do_rangeinfo_ioctl(struct comedi_device *dev,
 		return -EINVAL;
 	}
 
-	if (RANGE_LENGTH(it.range_type) != lr->length) {
+	if (RANGE_LENGTH(it->range_type) != lr->length) {
 		dev_dbg(dev->class_dev,
 			"wrong length %d should be %d (0x%08x)\n",
-			RANGE_LENGTH(it.range_type),
-			lr->length, it.range_type);
+			RANGE_LENGTH(it->range_type),
+			lr->length, it->range_type);
 		return -EINVAL;
 	}
 
-	if (copy_to_user(it.range_ptr, lr->range,
+	if (copy_to_user(it->range_ptr, lr->range,
 			 sizeof(struct comedi_krange) * lr->length))
 		return -EFAULT;
 

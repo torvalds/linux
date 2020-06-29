@@ -12,6 +12,7 @@
 #include <linux/bug.h>
 #include <linux/cache.h>
 #include <linux/compat.h>
+#include <linux/compiler.h>
 #include <linux/cpu.h>
 #include <linux/cpu_pm.h>
 #include <linux/kernel.h>
@@ -119,9 +120,19 @@ struct fpsimd_last_state_struct {
 static DEFINE_PER_CPU(struct fpsimd_last_state_struct, fpsimd_last_state);
 
 /* Default VL for tasks that don't set it explicitly: */
-static int sve_default_vl = -1;
+static int __sve_default_vl = -1;
+
+static int get_sve_default_vl(void)
+{
+	return READ_ONCE(__sve_default_vl);
+}
 
 #ifdef CONFIG_ARM64_SVE
+
+static void set_sve_default_vl(int val)
+{
+	WRITE_ONCE(__sve_default_vl, val);
+}
 
 /* Maximum supported vector length across all CPUs (initially poisoned) */
 int __ro_after_init sve_max_vl = SVE_VL_MIN;
@@ -338,14 +349,13 @@ static unsigned int find_supported_vector_length(unsigned int vl)
 	return sve_vl_from_vq(__bit_to_vq(bit));
 }
 
-#ifdef CONFIG_SYSCTL
+#if defined(CONFIG_ARM64_SVE) && defined(CONFIG_SYSCTL)
 
 static int sve_proc_do_default_vl(struct ctl_table *table, int write,
-				  void __user *buffer, size_t *lenp,
-				  loff_t *ppos)
+				  void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int ret;
-	int vl = sve_default_vl;
+	int vl = get_sve_default_vl();
 	struct ctl_table tmp_table = {
 		.data = &vl,
 		.maxlen = sizeof(vl),
@@ -362,7 +372,7 @@ static int sve_proc_do_default_vl(struct ctl_table *table, int write,
 	if (!sve_vl_valid(vl))
 		return -EINVAL;
 
-	sve_default_vl = find_supported_vector_length(vl);
+	set_sve_default_vl(find_supported_vector_length(vl));
 	return 0;
 }
 
@@ -384,9 +394,9 @@ static int __init sve_sysctl_init(void)
 	return 0;
 }
 
-#else /* ! CONFIG_SYSCTL */
+#else /* ! (CONFIG_ARM64_SVE && CONFIG_SYSCTL) */
 static int __init sve_sysctl_init(void) { return 0; }
-#endif /* ! CONFIG_SYSCTL */
+#endif /* ! (CONFIG_ARM64_SVE && CONFIG_SYSCTL) */
 
 #define ZREG(sve_state, vq, n) ((char *)(sve_state) +		\
 	(SVE_SIG_ZREG_OFFSET(vq, n) - SVE_SIG_REGS_OFFSET))
@@ -869,7 +879,7 @@ void __init sve_setup(void)
 	 * For the default VL, pick the maximum supported value <= 64.
 	 * VL == 64 is guaranteed not to grow the signal frame.
 	 */
-	sve_default_vl = find_supported_vector_length(64);
+	set_sve_default_vl(find_supported_vector_length(64));
 
 	bitmap_andnot(tmp_map, sve_vq_partial_map, sve_vq_map,
 		      SVE_VQ_MAX);
@@ -890,7 +900,7 @@ void __init sve_setup(void)
 	pr_info("SVE: maximum available vector length %u bytes per vector\n",
 		sve_max_vl);
 	pr_info("SVE: default vector length %u bytes per vector\n",
-		sve_default_vl);
+		get_sve_default_vl());
 
 	/* KVM decides whether to support mismatched systems. Just warn here: */
 	if (sve_max_virtualisable_vl < sve_max_vl)
@@ -1030,13 +1040,13 @@ void fpsimd_flush_thread(void)
 		 * vector length configured: no kernel task can become a user
 		 * task without an exec and hence a call to this function.
 		 * By the time the first call to this function is made, all
-		 * early hardware probing is complete, so sve_default_vl
+		 * early hardware probing is complete, so __sve_default_vl
 		 * should be valid.
 		 * If a bug causes this to go wrong, we make some noise and
 		 * try to fudge thread.sve_vl to a safe value here.
 		 */
 		vl = current->thread.sve_vl_onexec ?
-			current->thread.sve_vl_onexec : sve_default_vl;
+			current->thread.sve_vl_onexec : get_sve_default_vl();
 
 		if (WARN_ON(!sve_vl_valid(vl)))
 			vl = SVE_VL_MIN;

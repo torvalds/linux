@@ -158,6 +158,8 @@ static int wc_set(struct context *ctx, unsigned long offset, u32 v)
 		return PTR_ERR(map);
 
 	map[offset / sizeof(*map)] = v;
+
+	__i915_gem_object_flush_map(ctx->obj, offset, sizeof(*map));
 	i915_gem_object_unpin_map(ctx->obj);
 
 	return 0;

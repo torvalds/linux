@@ -189,7 +189,7 @@ struct __packed pucan_rx_msg {
 	u8	client;
 	__le16	flags;
 	__le32	can_id;
-	u8	d[0];
+	u8	d[];
 };
 
 /* uCAN error types */
@@ -266,7 +266,7 @@ struct __packed pucan_tx_msg {
 	u8	client;
 	__le16	flags;
 	__le32	can_id;
-	u8	d[0];
+	u8	d[];
 };
 
 /* build the cmd opcode_channel field with respect to the correct endianness */

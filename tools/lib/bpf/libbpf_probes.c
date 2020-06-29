@@ -238,6 +238,11 @@ bool bpf_probe_map_type(enum bpf_map_type map_type, __u32 ifindex)
 		if (btf_fd < 0)
 			return false;
 		break;
+	case BPF_MAP_TYPE_RINGBUF:
+		key_size = 0;
+		value_size = 0;
+		max_entries = 4096;
+		break;
 	case BPF_MAP_TYPE_UNSPEC:
 	case BPF_MAP_TYPE_HASH:
 	case BPF_MAP_TYPE_ARRAY:

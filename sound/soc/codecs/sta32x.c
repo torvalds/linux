@@ -893,13 +893,13 @@ static int sta32x_probe(struct snd_soc_component *component)
 				    sta32x->supplies);
 	if (ret != 0) {
 		dev_err(component->dev, "Failed to enable supplies: %d\n", ret);
-		return ret;
+		goto err_clk_disable_unprepare;
 	}
 
 	ret = sta32x_startup_sequence(sta32x);
 	if (ret < 0) {
 		dev_err(component->dev, "Failed to startup device\n");
-		return ret;
+		goto err_regulator_bulk_disable;
 	}
 
 	/* CONFA */
@@ -983,6 +983,13 @@ static int sta32x_probe(struct snd_soc_component *component)
 	regulator_bulk_disable(ARRAY_SIZE(sta32x->supplies), sta32x->supplies);
 
 	return 0;
+
+err_regulator_bulk_disable:
+	regulator_bulk_disable(ARRAY_SIZE(sta32x->supplies), sta32x->supplies);
+err_clk_disable_unprepare:
+	if (sta32x->xti_clk)
+		clk_disable_unprepare(sta32x->xti_clk);
+	return ret;
 }
 
 static void sta32x_remove(struct snd_soc_component *component)

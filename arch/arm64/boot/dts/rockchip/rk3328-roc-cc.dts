@@ -86,7 +86,7 @@
 	leds {
 		compatible = "gpio-leds";
 
-		power {
+		power_led: led-0 {
 			label = "firefly:blue:power";
 			linux,default-trigger = "heartbeat";
 			gpios = <&rk805 1 GPIO_ACTIVE_LOW>;
@@ -94,7 +94,7 @@
 			mode = <0x23>;
 		};
 
-		user {
+		user_led: led-1 {
 			label = "firefly:yellow:user";
 			linux,default-trigger = "mmc1";
 			gpios = <&rk805 0 GPIO_ACTIVE_LOW>;

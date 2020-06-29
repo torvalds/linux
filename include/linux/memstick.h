@@ -288,7 +288,7 @@ struct memstick_host {
 	int                 (*set_param)(struct memstick_host *host,
 					 enum memstick_param param,
 					 int value);
-	unsigned long       private[0] ____cacheline_aligned;
+	unsigned long       private[] ____cacheline_aligned;
 };
 
 struct memstick_driver {

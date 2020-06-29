@@ -399,13 +399,14 @@ void gsi_trans_cmd_add(struct gsi_trans *trans, void *buf, u32 size,
 	/* assert(which < trans->tre_count); */
 
 	/* Set the page information for the buffer.  We also need to fill in
-	 * the DMA address for the buffer (something dma_map_sg() normally
-	 * does).
+	 * the DMA address and length for the buffer (something dma_map_sg()
+	 * normally does).
 	 */
 	sg = &trans->sgl[which];
 
 	sg_set_buf(sg, buf, size);
 	sg_dma_address(sg) = addr;
+	sg_dma_len(sg) = sg->length;
 
 	info = &trans->info[which];
 	info->opcode = opcode;

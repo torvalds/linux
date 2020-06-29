@@ -130,7 +130,9 @@ mlx5_tc_ct_parse_match(struct mlx5e_priv *priv,
 		       struct flow_cls_offload *f,
 		       struct netlink_ext_ack *extack)
 {
-	if (!flow_rule_match_key(f->rule, FLOW_DISSECTOR_KEY_CT))
+	struct flow_rule *rule = flow_cls_offload_flow_rule(f);
+
+	if (!flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_CT))
 		return 0;
 
 	NL_SET_ERR_MSG_MOD(extack, "mlx5 tc ct offload isn't enabled.");

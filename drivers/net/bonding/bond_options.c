@@ -1398,8 +1398,6 @@ static int bond_option_slaves_set(struct bonding *bond,
 	case '-':
 		slave_dbg(bond->dev, dev, "Releasing interface\n");
 		ret = bond_release(bond->dev, dev);
-		if (!ret)
-			netdev_update_lockdep_key(dev);
 		break;
 
 	default:

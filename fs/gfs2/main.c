@@ -143,6 +143,12 @@ static int __init init_gfs2_fs(void)
 	if (!gfs2_qadata_cachep)
 		goto fail_cachep7;
 
+	gfs2_trans_cachep = kmem_cache_create("gfs2_trans",
+					       sizeof(struct gfs2_trans),
+					       0, 0, NULL);
+	if (!gfs2_trans_cachep)
+		goto fail_cachep8;
+
 	error = register_shrinker(&gfs2_qd_shrinker);
 	if (error)
 		goto fail_shrinker;
@@ -194,6 +200,8 @@ fail_fs2:
 fail_fs1:
 	unregister_shrinker(&gfs2_qd_shrinker);
 fail_shrinker:
+	kmem_cache_destroy(gfs2_trans_cachep);
+fail_cachep8:
 	kmem_cache_destroy(gfs2_qadata_cachep);
 fail_cachep7:
 	kmem_cache_destroy(gfs2_quotad_cachep);
@@ -236,6 +244,7 @@ static void __exit exit_gfs2_fs(void)
 	rcu_barrier();
 
 	mempool_destroy(gfs2_page_pool);
+	kmem_cache_destroy(gfs2_trans_cachep);
 	kmem_cache_destroy(gfs2_qadata_cachep);
 	kmem_cache_destroy(gfs2_quotad_cachep);
 	kmem_cache_destroy(gfs2_rgrpd_cachep);

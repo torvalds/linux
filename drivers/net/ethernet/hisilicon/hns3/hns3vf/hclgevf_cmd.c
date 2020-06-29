@@ -11,9 +11,6 @@
 #include "hclgevf_main.h"
 #include "hnae3.h"
 
-#define hclgevf_is_csq(ring) ((ring)->flag & HCLGEVF_TYPE_CSQ)
-#define hclgevf_ring_to_dma_dir(ring) (hclgevf_is_csq(ring) ? \
-					DMA_TO_DEVICE : DMA_FROM_DEVICE)
 #define cmq_ring_to_dev(ring)   (&(ring)->dev->pdev->dev)
 
 static int hclgevf_ring_space(struct hclgevf_cmq_ring *ring)

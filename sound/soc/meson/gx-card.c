@@ -108,8 +108,10 @@ static int gx_card_add_link(struct snd_soc_card *card, struct device_node *np,
 		ret = gx_card_parse_i2s(card, np, index);
 
 	/* Or apply codec to codec params if necessary */
-	else if (gx_card_cpu_identify(dai_link->cpus, "CODEC CTRL"))
+	else if (gx_card_cpu_identify(dai_link->cpus, "CODEC CTRL")) {
 		dai_link->params = &codec_params;
+		dai_link->no_pcm = 0; /* link is not a DPCM BE */
+	}
 
 	return ret;
 }

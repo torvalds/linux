@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0
  *
- * Copyright 2016-2018 HabanaLabs, Ltd.
+ * Copyright 2016-2020 HabanaLabs, Ltd.
  * All Rights Reserved.
  *
  */

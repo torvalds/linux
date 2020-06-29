@@ -2399,7 +2399,7 @@ static void ab8500_fg_reinit_work(struct work_struct *work)
 	struct ab8500_fg *di = container_of(work, struct ab8500_fg,
 		fg_reinit_work.work);
 
-	if (di->flags.calibrate == false) {
+	if (!di->flags.calibrate) {
 		dev_dbg(di->dev, "Resetting FG state machine to init.\n");
 		ab8500_fg_clear_cap_samples(di);
 		ab8500_fg_calc_cap_discharge_voltage(di, true);

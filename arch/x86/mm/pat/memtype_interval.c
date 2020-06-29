@@ -14,8 +14,8 @@
 #include <linux/interval_tree_generic.h>
 #include <linux/sched.h>
 #include <linux/gfp.h>
+#include <linux/pgtable.h>
 
-#include <asm/pgtable.h>
 #include <asm/memtype.h>
 
 #include "memtype.h"

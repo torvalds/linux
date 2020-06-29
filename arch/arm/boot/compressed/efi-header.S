@@ -60,7 +60,7 @@ optional_header:
 		.long	__pecoff_code_size		@ SizeOfCode
 		.long	__pecoff_data_size		@ SizeOfInitializedData
 		.long	0				@ SizeOfUninitializedData
-		.long	efi_entry - start		@ AddressOfEntryPoint
+		.long	efi_pe_entry - start		@ AddressOfEntryPoint
 		.long	start_offset			@ BaseOfCode
 		.long	__pecoff_data_start - start	@ BaseOfData
 

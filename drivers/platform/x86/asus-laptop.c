@@ -640,22 +640,15 @@ static enum led_brightness asus_kled_cdev_get(struct led_classdev *led_cdev)
 
 static void asus_led_exit(struct asus_laptop *asus)
 {
-	if (!IS_ERR_OR_NULL(asus->wled.led.dev))
-		led_classdev_unregister(&asus->wled.led);
-	if (!IS_ERR_OR_NULL(asus->bled.led.dev))
-		led_classdev_unregister(&asus->bled.led);
-	if (!IS_ERR_OR_NULL(asus->mled.led.dev))
-		led_classdev_unregister(&asus->mled.led);
-	if (!IS_ERR_OR_NULL(asus->tled.led.dev))
-		led_classdev_unregister(&asus->tled.led);
-	if (!IS_ERR_OR_NULL(asus->pled.led.dev))
-		led_classdev_unregister(&asus->pled.led);
-	if (!IS_ERR_OR_NULL(asus->rled.led.dev))
-		led_classdev_unregister(&asus->rled.led);
-	if (!IS_ERR_OR_NULL(asus->gled.led.dev))
-		led_classdev_unregister(&asus->gled.led);
-	if (!IS_ERR_OR_NULL(asus->kled.led.dev))
-		led_classdev_unregister(&asus->kled.led);
+	led_classdev_unregister(&asus->wled.led);
+	led_classdev_unregister(&asus->bled.led);
+	led_classdev_unregister(&asus->mled.led);
+	led_classdev_unregister(&asus->tled.led);
+	led_classdev_unregister(&asus->pled.led);
+	led_classdev_unregister(&asus->rled.led);
+	led_classdev_unregister(&asus->gled.led);
+	led_classdev_unregister(&asus->kled.led);
+
 	if (asus->led_workqueue) {
 		destroy_workqueue(asus->led_workqueue);
 		asus->led_workqueue = NULL;

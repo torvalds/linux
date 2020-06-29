@@ -75,7 +75,7 @@ static void skip(int size)
 		r = size > BUFSIZ ? BUFSIZ : size;
 		do_read(buf, r);
 		size -= r;
-	};
+	}
 }
 
 static unsigned int read4(struct tep_handle *pevent)

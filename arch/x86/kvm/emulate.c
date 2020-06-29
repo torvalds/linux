@@ -4800,8 +4800,12 @@ static const struct opcode twobyte_table[256] = {
 	GP(ModRM | DstReg | SrcMem | Mov | Sse, &pfx_0f_10_0f_11),
 	GP(ModRM | DstMem | SrcReg | Mov | Sse, &pfx_0f_10_0f_11),
 	N, N, N, N, N, N,
-	D(ImplicitOps | ModRM | SrcMem | NoAccess),
-	N, N, N, N, N, N, D(ImplicitOps | ModRM | SrcMem | NoAccess),
+	D(ImplicitOps | ModRM | SrcMem | NoAccess), /* 4 * prefetch + 4 * reserved NOP */
+	D(ImplicitOps | ModRM | SrcMem | NoAccess), N, N,
+	D(ImplicitOps | ModRM | SrcMem | NoAccess), /* 8 * reserved NOP */
+	D(ImplicitOps | ModRM | SrcMem | NoAccess), /* 8 * reserved NOP */
+	D(ImplicitOps | ModRM | SrcMem | NoAccess), /* 8 * reserved NOP */
+	D(ImplicitOps | ModRM | SrcMem | NoAccess), /* NOP + 7 * reserved NOP */
 	/* 0x20 - 0x2F */
 	DIP(ModRM | DstMem | Priv | Op3264 | NoMod, cr_read, check_cr_read),
 	DIP(ModRM | DstMem | Priv | Op3264 | NoMod, dr_read, check_dr_read),
@@ -5798,6 +5802,8 @@ writeback:
 	}
 
 	ctxt->eip = ctxt->_eip;
+	if (ctxt->mode != X86EMUL_MODE_PROT64)
+		ctxt->eip = (u32)ctxt->_eip;
 
 done:
 	if (rc == X86EMUL_PROPAGATE_FAULT) {

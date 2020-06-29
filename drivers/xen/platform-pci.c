@@ -168,7 +168,7 @@ static const struct pci_device_id platform_pci_tbl[] = {
 	{0,}
 };
 
-static struct dev_pm_ops platform_pm_ops = {
+static const struct dev_pm_ops platform_pm_ops = {
 	.resume_noirq =   platform_pci_resume,
 };
 

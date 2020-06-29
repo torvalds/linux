@@ -26,7 +26,7 @@ config PCI_DRA7XX_HOST
 	depends on OF && HAS_IOMEM && TI_PIPE3
 	select PCIE_DW_HOST
 	select PCI_DRA7XX
-	default y
+	default y if SOC_DRA7XX
 	help
 	  Enables support for the PCIe controller in the DRA7xx SoC to work in
 	  host mode. There are two instances of PCIe controller in DRA7xx.
@@ -111,7 +111,6 @@ config PCI_KEYSTONE_HOST
 	depends on PCI_MSI_IRQ_DOMAIN
 	select PCIE_DW_HOST
 	select PCI_KEYSTONE
-	default y
 	help
 	  Enables support for the PCIe controller in the Keystone SoC to
 	  work in host mode. The PCI controller on Keystone is based on
@@ -281,14 +280,24 @@ config PCIE_TEGRA194_EP
 	  selected. This uses the DesignWare core.
 
 config PCIE_UNIPHIER
-	bool "Socionext UniPhier PCIe controllers"
+	bool "Socionext UniPhier PCIe host controllers"
 	depends on ARCH_UNIPHIER || COMPILE_TEST
 	depends on OF && HAS_IOMEM
 	depends on PCI_MSI_IRQ_DOMAIN
 	select PCIE_DW_HOST
 	help
-	  Say Y here if you want PCIe controller support on UniPhier SoCs.
+	  Say Y here if you want PCIe host controller support on UniPhier SoCs.
 	  This driver supports LD20 and PXs3 SoCs.
+
+config PCIE_UNIPHIER_EP
+	bool "Socionext UniPhier PCIe endpoint controllers"
+	depends on ARCH_UNIPHIER || COMPILE_TEST
+	depends on OF && HAS_IOMEM
+	depends on PCI_ENDPOINT
+	select PCIE_DW_EP
+	help
+	  Say Y here if you want PCIe endpoint controller support on
+	  UniPhier SoCs. This driver supports Pro5 SoC.
 
 config PCIE_AL
 	bool "Amazon Annapurna Labs PCIe controller"

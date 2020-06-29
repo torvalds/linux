@@ -4,7 +4,6 @@ Device Drivers
 
 See the kerneldoc for the struct device_driver.
 
-
 Allocation
 ~~~~~~~~~~
 
@@ -167,9 +166,26 @@ the driver to that device.
 
 A driver's probe() may return a negative errno value to indicate that
 the driver did not bind to this device, in which case it should have
-released all resources it allocated::
+released all resources it allocated.
 
-	void (*sync_state)(struct device *dev);
+Optionally, probe() may return -EPROBE_DEFER if the driver depends on
+resources that are not yet available (e.g., supplied by a driver that
+hasn't initialized yet).  The driver core will put the device onto the
+deferred probe list and will try to call it again later. If a driver
+must defer, it should return -EPROBE_DEFER as early as possible to
+reduce the amount of time spent on setup work that will need to be
+unwound and reexecuted at a later time.
+
+.. warning::
+      -EPROBE_DEFER must not be returned if probe() has already created
+      child devices, even if those child devices are removed again
+      in a cleanup path. If -EPROBE_DEFER is returned after a child
+      device has been registered, it may result in an infinite loop of
+      .probe() calls to the same driver.
+
+::
+
+	void	(*sync_state)	(struct device *dev);
 
 sync_state is called only once for a device. It's called when all the consumer
 devices of the device have successfully probed. The list of consumers of the
@@ -212,6 +228,8 @@ over management of devices from the bootloader, the usage of sync_state() is
 not restricted to that. Use it whenever it makes sense to take an action after
 all the consumers of a device have probed::
 
+::
+
 	int 	(*remove)	(struct device *dev);
 
 remove is called to unbind a driver from a device. This may be
@@ -224,11 +242,15 @@ not. It should free any resources allocated specifically for the
 device; i.e. anything in the device's driver_data field.
 
 If the device is still present, it should quiesce the device and place
-it into a supported low-power state::
+it into a supported low-power state.
+
+::
 
 	int	(*suspend)	(struct device *dev, pm_message_t state);
 
-suspend is called to put the device in a low power state::
+suspend is called to put the device in a low power state.
+
+::
 
 	int	(*resume)	(struct device *dev);
 

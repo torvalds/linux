@@ -165,7 +165,7 @@ static void tell_host(struct virtio_balloon *vb, struct virtqueue *vq)
 
 }
 
-int virtballoon_free_page_report(struct page_reporting_dev_info *pr_dev_info,
+static int virtballoon_free_page_report(struct page_reporting_dev_info *pr_dev_info,
 				   struct scatterlist *sg, unsigned int nents)
 {
 	struct virtio_balloon *vb =
@@ -580,7 +580,7 @@ static u32 virtio_balloon_cmd_id_received(struct virtio_balloon *vb)
 	if (test_and_clear_bit(VIRTIO_BALLOON_CONFIG_READ_CMD_ID,
 			       &vb->config_read_bitmap))
 		virtio_cread(vb->vdev, struct virtio_balloon_config,
-			     free_page_report_cmd_id,
+			     free_page_hint_cmd_id,
 			     &vb->cmd_id_received_cache);
 
 	return vb->cmd_id_received_cache;
@@ -1107,11 +1107,18 @@ static int virtballoon_restore(struct virtio_device *vdev)
 
 static int virtballoon_validate(struct virtio_device *vdev)
 {
-	/* Tell the host whether we care about poisoned pages. */
+	/*
+	 * Inform the hypervisor that our pages are poisoned or
+	 * initialized. If we cannot do that then we should disable
+	 * page reporting as it could potentially change the contents
+	 * of our free pages.
+	 */
 	if (!want_init_on_free() &&
 	    (IS_ENABLED(CONFIG_PAGE_POISONING_NO_SANITY) ||
 	     !page_poisoning_enabled()))
 		__virtio_clear_bit(vdev, VIRTIO_BALLOON_F_PAGE_POISON);
+	else if (!virtio_has_feature(vdev, VIRTIO_BALLOON_F_PAGE_POISON))
+		__virtio_clear_bit(vdev, VIRTIO_BALLOON_F_REPORTING);
 
 	__virtio_clear_bit(vdev, VIRTIO_F_IOMMU_PLATFORM);
 	return 0;

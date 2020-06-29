@@ -88,6 +88,44 @@ static const struct phy_ops mtk_mipi_tx_ops = {
 	.owner = THIS_MODULE,
 };
 
+static void mtk_mipi_tx_get_calibration_datal(struct mtk_mipi_tx *mipi_tx)
+{
+	struct nvmem_cell *cell;
+	size_t len;
+	u32 *buf;
+
+	cell = nvmem_cell_get(mipi_tx->dev, "calibration-data");
+	if (IS_ERR(cell)) {
+		dev_info(mipi_tx->dev, "can't get nvmem_cell_get, ignore it\n");
+		return;
+	}
+	buf = (u32 *)nvmem_cell_read(cell, &len);
+	nvmem_cell_put(cell);
+
+	if (IS_ERR(buf)) {
+		dev_info(mipi_tx->dev, "can't get data, ignore it\n");
+		return;
+	}
+
+	if (len < 3 * sizeof(u32)) {
+		dev_info(mipi_tx->dev, "invalid calibration data\n");
+		kfree(buf);
+		return;
+	}
+
+	mipi_tx->rt_code[0] = ((buf[0] >> 6 & 0x1f) << 5) |
+			       (buf[0] >> 11 & 0x1f);
+	mipi_tx->rt_code[1] = ((buf[1] >> 27 & 0x1f) << 5) |
+			       (buf[0] >> 1 & 0x1f);
+	mipi_tx->rt_code[2] = ((buf[1] >> 17 & 0x1f) << 5) |
+			       (buf[1] >> 22 & 0x1f);
+	mipi_tx->rt_code[3] = ((buf[1] >> 7 & 0x1f) << 5) |
+			       (buf[1] >> 12 & 0x1f);
+	mipi_tx->rt_code[4] = ((buf[2] >> 27 & 0x1f) << 5) |
+			       (buf[1] >> 2 & 0x1f);
+	kfree(buf);
+}
+
 static int mtk_mipi_tx_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -125,6 +163,20 @@ static int mtk_mipi_tx_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	ret = of_property_read_u32(dev->of_node, "drive-strength-microamp",
+				   &mipi_tx->mipitx_drive);
+	/* If can't get the "mipi_tx->mipitx_drive", set it default 0x8 */
+	if (ret < 0)
+		mipi_tx->mipitx_drive = 4600;
+
+	/* check the mipitx_drive valid */
+	if (mipi_tx->mipitx_drive > 6000 || mipi_tx->mipitx_drive < 3000) {
+		dev_warn(dev, "drive-strength-microamp is invalid %d, not in 3000 ~ 6000\n",
+			 mipi_tx->mipitx_drive);
+		mipi_tx->mipitx_drive = clamp_val(mipi_tx->mipitx_drive, 3000,
+						  6000);
+	}
+
 	ref_clk_name = __clk_get_name(ref_clk);
 
 	ret = of_property_read_string(dev->of_node, "clock-output-names",
@@ -159,6 +211,8 @@ static int mtk_mipi_tx_probe(struct platform_device *pdev)
 	}
 
 	mipi_tx->dev = dev;
+
+	mtk_mipi_tx_get_calibration_datal(mipi_tx);
 
 	return of_clk_add_provider(dev->of_node, of_clk_src_simple_get,
 				   mipi_tx->pll);

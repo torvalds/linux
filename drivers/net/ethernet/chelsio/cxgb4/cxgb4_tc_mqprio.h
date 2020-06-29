@@ -33,6 +33,7 @@ struct cxgb4_tc_port_mqprio {
 
 struct cxgb4_tc_mqprio {
 	refcount_t refcnt; /* Refcount for adapter-wide resources */
+	struct mutex mqprio_mutex; /* Lock for accessing MQPRIO info */
 	struct cxgb4_tc_port_mqprio *port_mqprio; /* Per port MQPRIO info */
 };
 

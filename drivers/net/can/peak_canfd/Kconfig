@@ -2,7 +2,7 @@
 config CAN_PEAK_PCIEFD
 	depends on PCI
 	tristate "PEAK-System PCAN-PCIe FD cards"
-	---help---
+	help
 	  This driver adds support for the PEAK-System PCI Express FD
 	  CAN-FD cards family.
 	  These 1x or 2x CAN-FD channels cards offer CAN 2.0 a/b as well as

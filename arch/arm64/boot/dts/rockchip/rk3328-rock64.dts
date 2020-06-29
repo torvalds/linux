@@ -73,12 +73,12 @@
 	leds {
 		compatible = "gpio-leds";
 
-		power {
+		power_led: led-0 {
 			gpios = <&rk805 1 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "mmc0";
 		};
 
-		standby {
+		standby_led: led-1 {
 			gpios = <&rk805 0 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "heartbeat";
 		};
@@ -170,7 +170,7 @@
 &i2c1 {
 	status = "okay";
 
-	rk805: rk805@18 {
+	rk805: pmic@18 {
 		compatible = "rockchip,rk805";
 		reg = <0x18>;
 		interrupt-parent = <&gpio2>;

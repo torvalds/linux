@@ -168,21 +168,18 @@ int efx_mcdi_tx_init(struct efx_tx_queue *tx_queue, bool tso_v2)
 	size_t entries = tx_queue->txd.buf.len / EFX_BUF_SIZE;
 	struct efx_channel *channel = tx_queue->channel;
 	struct efx_nic *efx = tx_queue->efx;
-	struct efx_ef10_nic_data *nic_data;
 	dma_addr_t dma_addr;
 	size_t inlen;
 	int rc, i;
 
 	BUILD_BUG_ON(MC_CMD_INIT_TXQ_OUT_LEN != 0);
 
-	nic_data = efx->nic_data;
-
 	MCDI_SET_DWORD(inbuf, INIT_TXQ_IN_SIZE, tx_queue->ptr_mask + 1);
 	MCDI_SET_DWORD(inbuf, INIT_TXQ_IN_TARGET_EVQ, channel->channel);
 	MCDI_SET_DWORD(inbuf, INIT_TXQ_IN_LABEL, tx_queue->queue);
 	MCDI_SET_DWORD(inbuf, INIT_TXQ_IN_INSTANCE, tx_queue->queue);
 	MCDI_SET_DWORD(inbuf, INIT_TXQ_IN_OWNER_ID, 0);
-	MCDI_SET_DWORD(inbuf, INIT_TXQ_IN_PORT_ID, nic_data->vport_id);
+	MCDI_SET_DWORD(inbuf, INIT_TXQ_IN_PORT_ID, efx->vport_id);
 
 	dma_addr = tx_queue->txd.buf.dma_addr;
 
@@ -276,7 +273,6 @@ void efx_mcdi_rx_init(struct efx_rx_queue *rx_queue)
 	struct efx_channel *channel = efx_rx_queue_channel(rx_queue);
 	size_t entries = rx_queue->rxd.buf.len / EFX_BUF_SIZE;
 	struct efx_nic *efx = rx_queue->efx;
-	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 	dma_addr_t dma_addr;
 	size_t inlen;
 	int rc;
@@ -295,7 +291,7 @@ void efx_mcdi_rx_init(struct efx_rx_queue *rx_queue)
 			      INIT_RXQ_IN_FLAG_PREFIX, 1,
 			      INIT_RXQ_IN_FLAG_TIMESTAMP, 1);
 	MCDI_SET_DWORD(inbuf, INIT_RXQ_IN_OWNER_ID, 0);
-	MCDI_SET_DWORD(inbuf, INIT_RXQ_IN_PORT_ID, nic_data->vport_id);
+	MCDI_SET_DWORD(inbuf, INIT_RXQ_IN_PORT_ID, efx->vport_id);
 
 	dma_addr = rx_queue->rxd.buf.dma_addr;
 

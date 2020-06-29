@@ -26,6 +26,11 @@ static bool retire_requests(struct intel_timeline *tl)
 	return !i915_active_fence_isset(&tl->last_request);
 }
 
+static bool engine_active(const struct intel_engine_cs *engine)
+{
+	return !list_empty(&engine->kernel_context->timeline->requests);
+}
+
 static bool flush_submission(struct intel_gt *gt)
 {
 	struct intel_engine_cs *engine;
@@ -37,8 +42,13 @@ static bool flush_submission(struct intel_gt *gt)
 
 	for_each_engine(engine, gt, id) {
 		intel_engine_flush_submission(engine);
-		active |= flush_work(&engine->retire_work);
-		active |= flush_work(&engine->wakeref.work);
+
+		/* Flush the background retirement and idle barriers */
+		flush_work(&engine->retire_work);
+		flush_delayed_work(&engine->wakeref.work);
+
+		/* Is the idle barrier still outstanding? */
+		active |= engine_active(engine);
 	}
 
 	return active;
@@ -162,7 +172,7 @@ long intel_gt_retire_requests_timeout(struct intel_gt *gt, long timeout)
 			}
 		}
 
-		if (!retire_requests(tl) || flush_submission(gt))
+		if (!retire_requests(tl))
 			active_count++;
 		mutex_unlock(&tl->mutex);
 
@@ -172,7 +182,6 @@ out_active:	spin_lock(&timelines->lock);
 		list_safe_reset_next(tl, tn, link);
 		if (atomic_dec_and_test(&tl->active_count))
 			list_del(&tl->link);
-
 
 		/* Defer the final release to after the spinlock */
 		if (refcount_dec_and_test(&tl->kref.refcount)) {
@@ -184,6 +193,9 @@ out_active:	spin_lock(&timelines->lock);
 
 	list_for_each_entry_safe(tl, tn, &free, link)
 		__intel_timeline_free(&tl->kref);
+
+	if (flush_submission(gt)) /* Wait, there's more! */
+		active_count++;
 
 	return active_count ? timeout : 0;
 }

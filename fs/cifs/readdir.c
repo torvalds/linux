@@ -53,7 +53,7 @@ static void dump_cifs_file_struct(struct file *file, char *label)
 			return;
 		}
 		if (cf->invalidHandle)
-			cifs_dbg(FYI, "invalid handle\n");
+			cifs_dbg(FYI, "Invalid handle\n");
 		if (cf->srch_inf.endOfSearch)
 			cifs_dbg(FYI, "end of search\n");
 		if (cf->srch_inf.emptyDir)
@@ -246,7 +246,7 @@ cifs_posix_to_fattr(struct cifs_fattr *fattr, struct smb2_posix_info *info,
 	 */
 	fattr->cf_mode = le32_to_cpu(info->Mode) & ~S_IFMT;
 
-	cifs_dbg(FYI, "posix fattr: dev %d, reparse %d, mode %o",
+	cifs_dbg(FYI, "posix fattr: dev %d, reparse %d, mode %o\n",
 		 le32_to_cpu(info->DeviceId),
 		 le32_to_cpu(info->ReparseTag),
 		 le32_to_cpu(info->Mode));
@@ -478,7 +478,7 @@ static char *nxt_dir_entry(char *old_entry, char *end_of_smb, int level)
 		u32 next_offset = le32_to_cpu(pDirInfo->NextEntryOffset);
 
 		if (old_entry + next_offset < old_entry) {
-			cifs_dbg(VFS, "invalid offset %u\n", next_offset);
+			cifs_dbg(VFS, "Invalid offset %u\n", next_offset);
 			return NULL;
 		}
 		new_entry = old_entry + next_offset;
@@ -515,7 +515,7 @@ static void cifs_fill_dirent_posix(struct cifs_dirent *de,
 
 	/* payload should have already been checked at this point */
 	if (posix_info_parse(info, NULL, &parsed) < 0) {
-		cifs_dbg(VFS, "invalid POSIX info payload");
+		cifs_dbg(VFS, "Invalid POSIX info payload\n");
 		return;
 	}
 
@@ -968,7 +968,7 @@ int cifs_readdir(struct file *file, struct dir_context *ctx)
 	} else if (current_entry != NULL) {
 		cifs_dbg(FYI, "entry %lld found\n", ctx->pos);
 	} else {
-		cifs_dbg(FYI, "could not find entry\n");
+		cifs_dbg(FYI, "Could not find entry\n");
 		goto rddir2_exit;
 	}
 	cifs_dbg(FYI, "loop through %d times filling dir for net buf %p\n",

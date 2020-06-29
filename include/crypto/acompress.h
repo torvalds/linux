@@ -157,7 +157,7 @@ static inline int crypto_has_acomp(const char *alg_name, u32 type, u32 mask)
 {
 	type &= ~CRYPTO_ALG_TYPE_MASK;
 	type |= CRYPTO_ALG_TYPE_ACOMPRESS;
-	mask |= CRYPTO_ALG_TYPE_MASK;
+	mask |= CRYPTO_ALG_TYPE_ACOMPRESS_MASK;
 
 	return crypto_has_alg(alg_name, type, mask);
 }

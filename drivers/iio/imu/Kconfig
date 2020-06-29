@@ -29,6 +29,19 @@ config ADIS16460
 	  To compile this driver as a module, choose M here: the module will be
 	  called adis16460.
 
+config ADIS16475
+	tristate "Analog Devices ADIS16475 and similar IMU driver"
+	depends on SPI
+	select IIO_ADIS_LIB
+	select IIO_ADIS_LIB_BUFFER if IIO_BUFFER
+	help
+	  Say yes here to build support for Analog Devices ADIS16470, ADIS16475,
+	  ADIS16477, ADIS16465, ADIS16467, ADIS16500, ADIS16505, ADIS16507 inertial
+	  sensors.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called adis16475.
+
 config ADIS16480
 	tristate "Analog Devices ADIS16480 and similar IMU driver"
 	depends on SPI

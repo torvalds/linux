@@ -41,8 +41,7 @@ properties:
       Color of the LED. Use one of the LED_COLOR_ID_* prefixed definitions from
       the header include/dt-bindings/leds/common.h. If there is no matching
       LED_COLOR_ID available, add a new one.
-    allOf:
-      - $ref: /schemas/types.yaml#definitions/uint32
+    $ref: /schemas/types.yaml#definitions/uint32
     minimum: 0
     maximum: 8
 
@@ -67,8 +66,7 @@ properties:
       produced where the LED momentarily turns off (or on). The "keep" setting
       will keep the LED at whatever its current state is, without producing a
       glitch.
-    allOf:
-      - $ref: /schemas/types.yaml#definitions/string
+    $ref: /schemas/types.yaml#definitions/string
     enum:
       - on
       - off
@@ -79,8 +77,8 @@ properties:
     description:
       This parameter, if present, is a string defining the trigger assigned to
       the LED.
-    allOf:
-      - $ref: /schemas/types.yaml#definitions/string
+    $ref: /schemas/types.yaml#definitions/string
+
     enum:
         # LED will act as a back-light, controlled by the framebuffer system
       - backlight
@@ -111,8 +109,7 @@ properties:
           brightness and duration (in ms).  The exact format is
           described in:
           Documentation/devicetree/bindings/leds/leds-trigger-pattern.txt
-    allOf:
-      - $ref: /schemas/types.yaml#definitions/uint32-matrix
+    $ref: /schemas/types.yaml#definitions/uint32-matrix
     items:
       minItems: 2
       maxItems: 2

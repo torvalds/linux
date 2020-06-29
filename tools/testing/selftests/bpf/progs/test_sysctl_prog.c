@@ -45,7 +45,7 @@ int sysctl_tcp_mem(struct bpf_sysctl *ctx)
 	unsigned long tcp_mem[3] = {0, 0, 0};
 	char value[MAX_VALUE_STR_LEN];
 	unsigned char i, off = 0;
-	int ret;
+	volatile int ret;
 
 	if (ctx->write)
 		return 0;

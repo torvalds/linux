@@ -17,7 +17,6 @@
 
 #include <asm/setup.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/mmu_context.h>
 #include <asm/mcf_pgalloc.h>
 #include <asm/tlbflush.h>
@@ -39,7 +38,7 @@ void __init paging_init(void)
 	pte_t *pg_table;
 	unsigned long address, size;
 	unsigned long next_pgtable, bootmem_end;
-	unsigned long zones_size[MAX_NR_ZONES];
+	unsigned long max_zone_pfn[MAX_NR_ZONES] = { 0 };
 	enum zone_type zone;
 	int i;
 
@@ -80,11 +79,8 @@ void __init paging_init(void)
 	}
 
 	current->mm = NULL;
-
-	for (zone = 0; zone < MAX_NR_ZONES; zone++)
-		zones_size[zone] = 0x0;
-	zones_size[ZONE_DMA] = num_pages;
-	free_area_init(zones_size);
+	max_zone_pfn[ZONE_DMA] = PFN_DOWN(_ramend);
+	free_area_init(max_zone_pfn);
 }
 
 int cf_tlb_miss(struct pt_regs *regs, int write, int dtlb, int extension_word)

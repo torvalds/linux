@@ -16,33 +16,33 @@ properties:
     oneOf:
       - items:
           - enum:
-             - samsung,exynos5250-mali
+              - samsung,exynos5250-mali
           - const: arm,mali-t604
       - items:
           - enum:
-             - samsung,exynos5420-mali
+              - samsung,exynos5420-mali
           - const: arm,mali-t628
       - items:
           - enum:
-             - allwinner,sun50i-h6-mali
+              - allwinner,sun50i-h6-mali
           - const: arm,mali-t720
       - items:
           - enum:
-             - amlogic,meson-gxm-mali
-             - realtek,rtd1295-mali
+              - amlogic,meson-gxm-mali
+              - realtek,rtd1295-mali
           - const: arm,mali-t820
       - items:
           - enum:
-             - arm,juno-mali
+              - arm,juno-mali
           - const: arm,mali-t624
       - items:
           - enum:
-             - rockchip,rk3288-mali
-             - samsung,exynos5433-mali
+              - rockchip,rk3288-mali
+              - samsung,exynos5433-mali
           - const: arm,mali-t760
       - items:
           - enum:
-             - rockchip,rk3399-mali
+              - rockchip,rk3399-mali
           - const: arm,mali-t860
 
           # "arm,mali-t830"
@@ -86,6 +86,8 @@ properties:
 
   "#cooling-cells":
     const: 2
+
+  dma-coherent: true
 
 required:
   - compatible

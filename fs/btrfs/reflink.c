@@ -264,6 +264,7 @@ copy_inline_extent:
 			    size);
 	inode_add_bytes(dst, datal);
 	set_bit(BTRFS_INODE_NEEDS_FULL_SYNC, &BTRFS_I(dst)->runtime_flags);
+	ret = btrfs_inode_set_file_extent_range(BTRFS_I(dst), 0, aligned_end);
 out:
 	if (!ret && !trans) {
 		/*

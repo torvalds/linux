@@ -1274,9 +1274,11 @@ int rds_sendmsg(struct socket *sock, struct msghdr *msg, size_t payload_len)
 
 	/* Attach data to the rm */
 	if (payload_len) {
-		rm->data.op_sg = rds_message_alloc_sgs(rm, num_sgs, &ret);
-		if (!rm->data.op_sg)
+		rm->data.op_sg = rds_message_alloc_sgs(rm, num_sgs);
+		if (IS_ERR(rm->data.op_sg)) {
+			ret = PTR_ERR(rm->data.op_sg);
 			goto out;
+		}
 		ret = rds_message_copy_from_user(rm, &msg->msg_iter, zcopy);
 		if (ret)
 			goto out;

@@ -398,7 +398,7 @@ static int dwc3_octeon_clocks_start(struct device *dev, u64 base)
 	default:
 		dev_err(dev, "Invalid ref_clk %u, using 100000000 instead\n",
 			clock_rate);
-		/* fall through */
+		fallthrough;
 	case 100000000:
 		mpll_mul = 0x19;
 		if (ref_clk_sel < 2)

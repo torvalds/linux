@@ -35,14 +35,15 @@ struct hashtab_info {
 };
 
 /*
- * Creates a new hash table with the specified characteristics.
+ * Initializes a new hash table with the specified characteristics.
  *
- * Returns NULL if insufficent space is available or
- * the new hash table otherwise.
+ * Returns -ENOMEM if insufficient space is available or 0 otherwise.
  */
-struct hashtab *hashtab_create(u32 (*hash_value)(struct hashtab *h, const void *key),
-			       int (*keycmp)(struct hashtab *h, const void *key1, const void *key2),
-			       u32 nel_hint);
+int hashtab_init(struct hashtab *h,
+		 u32 (*hash_value)(struct hashtab *h, const void *key),
+		 int (*keycmp)(struct hashtab *h, const void *key1,
+			       const void *key2),
+		 u32 nel_hint);
 
 /*
  * Inserts the specified (key, datum) pair into the specified hash table.

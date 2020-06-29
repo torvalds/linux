@@ -93,6 +93,64 @@ struct usb_raw_ep_io {
 	__u8		data[0];
 };
 
+/* Maximum number of non-control endpoints in struct usb_raw_eps_info. */
+#define USB_RAW_EPS_NUM_MAX	30
+
+/* Maximum length of UDC endpoint name in struct usb_raw_ep_info. */
+#define USB_RAW_EP_NAME_MAX	16
+
+/* Used as addr in struct usb_raw_ep_info if endpoint accepts any address. */
+#define USB_RAW_EP_ADDR_ANY	0xff
+
+/*
+ * struct usb_raw_ep_caps - exposes endpoint capabilities from struct usb_ep
+ *     (technically from its member struct usb_ep_caps).
+ */
+struct usb_raw_ep_caps {
+	__u32	type_control	: 1;
+	__u32	type_iso	: 1;
+	__u32	type_bulk	: 1;
+	__u32	type_int	: 1;
+	__u32	dir_in		: 1;
+	__u32	dir_out		: 1;
+};
+
+/*
+ * struct usb_raw_ep_limits - exposes endpoint limits from struct usb_ep.
+ * @maxpacket_limit: Maximum packet size value supported by this endpoint.
+ * @max_streams: maximum number of streams supported by this endpoint
+ *     (actual number is 2^n).
+ * @reserved: Empty, reserved for potential future extensions.
+ */
+struct usb_raw_ep_limits {
+	__u16	maxpacket_limit;
+	__u16	max_streams;
+	__u32	reserved;
+};
+
+/*
+ * struct usb_raw_ep_info - stores information about a gadget endpoint.
+ * @name: Name of the endpoint as it is defined in the UDC driver.
+ * @addr: Address of the endpoint that must be specified in the endpoint
+ *     descriptor passed to USB_RAW_IOCTL_EP_ENABLE ioctl.
+ * @caps: Endpoint capabilities.
+ * @limits: Endpoint limits.
+ */
+struct usb_raw_ep_info {
+	__u8				name[USB_RAW_EP_NAME_MAX];
+	__u32				addr;
+	struct usb_raw_ep_caps		caps;
+	struct usb_raw_ep_limits	limits;
+};
+
+/*
+ * struct usb_raw_eps_info - argument for USB_RAW_IOCTL_EPS_INFO ioctl.
+ * eps: Structures that store information about non-control endpoints.
+ */
+struct usb_raw_eps_info {
+	struct usb_raw_ep_info	eps[USB_RAW_EPS_NUM_MAX];
+};
+
 /*
  * Initializes a Raw Gadget instance.
  * Accepts a pointer to the usb_raw_init struct as an argument.
@@ -115,37 +173,38 @@ struct usb_raw_ep_io {
 #define USB_RAW_IOCTL_EVENT_FETCH	_IOR('U', 2, struct usb_raw_event)
 
 /*
- * Queues an IN (OUT for READ) urb as a response to the last control request
- * received on endpoint 0, provided that was an IN (OUT for READ) request and
- * waits until the urb is completed. Copies received data to user for READ.
+ * Queues an IN (OUT for READ) request as a response to the last setup request
+ * received on endpoint 0 (provided that was an IN (OUT for READ) request), and
+ * waits until the request is completed. Copies received data to user for READ.
  * Accepts a pointer to the usb_raw_ep_io struct as an argument.
- * Returns length of trasferred data on success or negative error code on
+ * Returns length of transferred data on success or negative error code on
  * failure.
  */
 #define USB_RAW_IOCTL_EP0_WRITE		_IOW('U', 3, struct usb_raw_ep_io)
 #define USB_RAW_IOCTL_EP0_READ		_IOWR('U', 4, struct usb_raw_ep_io)
 
 /*
- * Finds an endpoint that supports the transfer type specified in the
- * descriptor and enables it.
- * Accepts a pointer to the usb_endpoint_descriptor struct as an argument.
+ * Finds an endpoint that satisfies the parameters specified in the provided
+ * descriptors (address, transfer type, etc.) and enables it.
+ * Accepts a pointer to the usb_raw_ep_descs struct as an argument.
  * Returns enabled endpoint handle on success or negative error code on failure.
  */
 #define USB_RAW_IOCTL_EP_ENABLE		_IOW('U', 5, struct usb_endpoint_descriptor)
 
-/* Disables specified endpoint.
+/*
+ * Disables specified endpoint.
  * Accepts endpoint handle as an argument.
  * Returns 0 on success or negative error code on failure.
  */
 #define USB_RAW_IOCTL_EP_DISABLE	_IOW('U', 6, __u32)
 
 /*
- * Queues an IN (OUT for READ) urb as a response to the last control request
- * received on endpoint usb_raw_ep_io.ep, provided that was an IN (OUT for READ)
- * request and waits until the urb is completed. Copies received data to user
- * for READ.
+ * Queues an IN (OUT for READ) request as a response to the last setup request
+ * received on endpoint usb_raw_ep_io.ep (provided that was an IN (OUT for READ)
+ * request), and waits until the request is completed. Copies received data to
+ * user for READ.
  * Accepts a pointer to the usb_raw_ep_io struct as an argument.
- * Returns length of trasferred data on success or negative error code on
+ * Returns length of transferred data on success or negative error code on
  * failure.
  */
 #define USB_RAW_IOCTL_EP_WRITE		_IOW('U', 7, struct usb_raw_ep_io)
@@ -163,5 +222,28 @@ struct usb_raw_ep_io {
  * Returns 0 on success or negative error code on failure.
  */
 #define USB_RAW_IOCTL_VBUS_DRAW		_IOW('U', 10, __u32)
+
+/*
+ * Fills in the usb_raw_eps_info structure with information about non-control
+ * endpoints available for the currently connected UDC.
+ * Returns the number of available endpoints on success or negative error code
+ * on failure.
+ */
+#define USB_RAW_IOCTL_EPS_INFO		_IOR('U', 11, struct usb_raw_eps_info)
+
+/*
+ * Stalls a pending control request on endpoint 0.
+ * Returns 0 on success or negative error code on failure.
+ */
+#define USB_RAW_IOCTL_EP0_STALL		_IO('U', 12)
+
+/*
+ * Sets or clears halt or wedge status of the endpoint.
+ * Accepts endpoint handle as an argument.
+ * Returns 0 on success or negative error code on failure.
+ */
+#define USB_RAW_IOCTL_EP_SET_HALT	_IOW('U', 13, __u32)
+#define USB_RAW_IOCTL_EP_CLEAR_HALT	_IOW('U', 14, __u32)
+#define USB_RAW_IOCTL_EP_SET_WEDGE	_IOW('U', 15, __u32)
 
 #endif /* _UAPI__LINUX_USB_RAW_GADGET_H */

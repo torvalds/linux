@@ -22,6 +22,7 @@
 #include "core.h"
 #include "head.h"
 
+#include <nvif/class.h>
 #include <nouveau_bo.h>
 
 #include <nvif/timer.h>
@@ -87,6 +88,30 @@ corec37d_ntfy_init(struct nouveau_bo *bo, u32 offset)
 	nouveau_bo_wr32(bo, offset / 4 + 3, 0x00000000);
 }
 
+int corec37d_caps_init(struct nouveau_drm *drm, struct nv50_disp *disp)
+{
+	int ret;
+
+	ret = nvif_object_init(&disp->disp->object, 0, GV100_DISP_CAPS,
+			       NULL, 0, &disp->caps);
+	if (ret) {
+		NV_ERROR(drm,
+			 "Failed to init notifier caps region: %d\n",
+			 ret);
+		return ret;
+	}
+
+	ret = nvif_object_map(&disp->caps, NULL, 0);
+	if (ret) {
+		NV_ERROR(drm,
+			 "Failed to map notifier caps region: %d\n",
+			 ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 static void
 corec37d_init(struct nv50_core *core)
 {
@@ -111,6 +136,7 @@ static const struct nv50_core_func
 corec37d = {
 	.init = corec37d_init,
 	.ntfy_init = corec37d_ntfy_init,
+	.caps_init = corec37d_caps_init,
 	.ntfy_wait_done = corec37d_ntfy_wait_done,
 	.update = corec37d_update,
 	.wndw.owner = corec37d_wndw_owner,

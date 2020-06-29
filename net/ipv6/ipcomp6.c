@@ -183,6 +183,7 @@ static const struct xfrm_type ipcomp6_type = {
 
 static struct xfrm6_protocol ipcomp6_protocol = {
 	.handler	= xfrm6_rcv,
+	.input_handler	= xfrm_input,
 	.cb_handler	= ipcomp6_rcv_cb,
 	.err_handler	= ipcomp6_err,
 	.priority	= 0,

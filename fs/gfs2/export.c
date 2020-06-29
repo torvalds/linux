@@ -134,7 +134,9 @@ static struct dentry *gfs2_get_dentry(struct super_block *sb,
 	struct gfs2_sbd *sdp = sb->s_fs_info;
 	struct inode *inode;
 
-	inode = gfs2_lookup_by_inum(sdp, inum->no_addr, &inum->no_formal_ino,
+	if (!inum->no_formal_ino)
+		return ERR_PTR(-ESTALE);
+	inode = gfs2_lookup_by_inum(sdp, inum->no_addr, inum->no_formal_ino,
 				    GFS2_BLKST_DINODE);
 	if (IS_ERR(inode))
 		return ERR_CAST(inode);

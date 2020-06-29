@@ -410,6 +410,7 @@ void btrfs_tree_read_unlock_blocking(struct extent_buffer *eb)
  * The rwlock is held for write upon exit.
  */
 void btrfs_tree_lock(struct extent_buffer *eb)
+	__acquires(&eb->lock)
 {
 	u64 start_ns = 0;
 

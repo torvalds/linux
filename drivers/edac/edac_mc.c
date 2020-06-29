@@ -43,8 +43,6 @@
 int edac_op_state = EDAC_OPSTATE_INVAL;
 EXPORT_SYMBOL_GPL(edac_op_state);
 
-static int edac_report = EDAC_REPORTING_ENABLED;
-
 /* lock to memory controller's control array */
 static DEFINE_MUTEX(mem_ctls_mutex);
 static LIST_HEAD(mc_devices);
@@ -59,65 +57,6 @@ static struct mem_ctl_info *error_desc_to_mci(struct edac_raw_error_desc *e)
 {
 	return container_of(e, struct mem_ctl_info, error_desc);
 }
-
-int edac_get_report_status(void)
-{
-	return edac_report;
-}
-EXPORT_SYMBOL_GPL(edac_get_report_status);
-
-void edac_set_report_status(int new)
-{
-	if (new == EDAC_REPORTING_ENABLED ||
-	    new == EDAC_REPORTING_DISABLED ||
-	    new == EDAC_REPORTING_FORCE)
-		edac_report = new;
-}
-EXPORT_SYMBOL_GPL(edac_set_report_status);
-
-static int edac_report_set(const char *str, const struct kernel_param *kp)
-{
-	if (!str)
-		return -EINVAL;
-
-	if (!strncmp(str, "on", 2))
-		edac_report = EDAC_REPORTING_ENABLED;
-	else if (!strncmp(str, "off", 3))
-		edac_report = EDAC_REPORTING_DISABLED;
-	else if (!strncmp(str, "force", 5))
-		edac_report = EDAC_REPORTING_FORCE;
-
-	return 0;
-}
-
-static int edac_report_get(char *buffer, const struct kernel_param *kp)
-{
-	int ret = 0;
-
-	switch (edac_report) {
-	case EDAC_REPORTING_ENABLED:
-		ret = sprintf(buffer, "on");
-		break;
-	case EDAC_REPORTING_DISABLED:
-		ret = sprintf(buffer, "off");
-		break;
-	case EDAC_REPORTING_FORCE:
-		ret = sprintf(buffer, "force");
-		break;
-	default:
-		ret = -EINVAL;
-		break;
-	}
-
-	return ret;
-}
-
-static const struct kernel_param_ops edac_report_ops = {
-	.set = edac_report_set,
-	.get = edac_report_get,
-};
-
-module_param_cb(edac_report, &edac_report_ops, &edac_report, 0644);
 
 unsigned int edac_dimm_info_location(struct dimm_info *dimm, char *buf,
 				     unsigned int len)

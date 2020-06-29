@@ -145,9 +145,8 @@ static int pblk_l2p_init(struct pblk *pblk, bool factory_init)
 	int ret = 0;
 
 	map_size = pblk_trans_map_size(pblk);
-	pblk->trans_map = __vmalloc(map_size, GFP_KERNEL | __GFP_NOWARN
-					| __GFP_RETRY_MAYFAIL | __GFP_HIGHMEM,
-					PAGE_KERNEL);
+	pblk->trans_map = __vmalloc(map_size, GFP_KERNEL | __GFP_NOWARN |
+				    __GFP_RETRY_MAYFAIL | __GFP_HIGHMEM);
 	if (!pblk->trans_map) {
 		pblk_err(pblk, "failed to allocate L2P (need %zu of memory)\n",
 				map_size);

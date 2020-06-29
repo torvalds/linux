@@ -45,7 +45,6 @@
 #include "qed_iwarp.h"
 #include "qed_roce.h"
 
-#define QED_RDMA_MAX_FMR                    (RDMA_MAX_TIDS)
 #define QED_RDMA_MAX_P_KEY                  (1)
 #define QED_RDMA_MAX_WQE                    (0x7FFF)
 #define QED_RDMA_MAX_SRQ_WQE_ELEM           (0x7FFF)
@@ -62,6 +61,11 @@
 
 #define QED_RDMA_MAX_CQE_32_BIT             (0x7FFFFFFF - 1)
 #define QED_RDMA_MAX_CQE_16_BIT             (0x7FFF - 1)
+
+/* Up to 2^16 XRC Domains are supported, but the actual number of supported XRC
+ * SRQs is much smaller so there's no need to have that many domains.
+ */
+#define QED_RDMA_MAX_XRCDS      (roundup_pow_of_two(RDMA_MAX_XRC_SRQS))
 
 enum qed_rdma_toggle_bit {
 	QED_RDMA_TOGGLE_BIT_CLEAR = 0,
@@ -81,9 +85,11 @@ struct qed_rdma_info {
 
 	struct qed_bmap cq_map;
 	struct qed_bmap pd_map;
+	struct qed_bmap xrcd_map;
 	struct qed_bmap tid_map;
 	struct qed_bmap qp_map;
 	struct qed_bmap srq_map;
+	struct qed_bmap xrc_srq_map;
 	struct qed_bmap cid_map;
 	struct qed_bmap tcp_cid_map;
 	struct qed_bmap real_cid_map;
@@ -111,6 +117,7 @@ struct qed_rdma_qp {
 	u32 qpid;
 	u16 icid;
 	enum qed_roce_qp_state cur_state;
+	enum qed_rdma_qp_type qp_type;
 	enum qed_iwarp_qp_state iwarp_state;
 	bool use_srq;
 	bool signal_all;
@@ -153,18 +160,21 @@ struct qed_rdma_qp {
 	dma_addr_t orq_phys_addr;
 	u8 orq_num_pages;
 	bool req_offloaded;
+	bool has_req;
 
 	/* responder */
 	u8 max_rd_atomic_resp;
 	u32 rq_psn;
 	u16 rq_cq_id;
 	u16 rq_num_pages;
+	u16 xrcd_id;
 	dma_addr_t rq_pbl_ptr;
 	void *irq;
 	dma_addr_t irq_phys_addr;
 	u8 irq_num_pages;
 	bool resp_offloaded;
 	u32 cq_prod;
+	bool has_resp;
 
 	u8 remote_mac_addr[6];
 	u8 local_mac_addr[6];
@@ -172,8 +182,17 @@ struct qed_rdma_qp {
 	void *shared_queue;
 	dma_addr_t shared_queue_phys_addr;
 	struct qed_iwarp_ep *ep;
+	u8 edpm_mode;
 };
 
+static inline bool qed_rdma_is_xrc_qp(struct qed_rdma_qp *qp)
+{
+	if (qp->qp_type == QED_RDMA_QP_TYPE_XRC_TGT ||
+	    qp->qp_type == QED_RDMA_QP_TYPE_XRC_INI)
+		return true;
+
+	return false;
+}
 #if IS_ENABLED(CONFIG_QED_RDMA)
 void qed_rdma_dpm_bar(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
 void qed_rdma_dpm_conf(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);

@@ -24,7 +24,7 @@
  */
 
 #include "dmub_reg.h"
-#include "../inc/dmub_srv.h"
+#include "../dmub_srv.h"
 
 struct dmub_reg_value_masks {
 	uint32_t value;

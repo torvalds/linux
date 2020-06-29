@@ -1,0 +1,10 @@
+What:		/sys/bus/iio/devices/iio:deviceX/in_proximity_nearlevel
+Date:		March 2020
+KernelVersion:	5.7
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Near level for proximity sensors. This is a single integer
+		value that tells user space when an object should be
+		considered close to the device. If the value read from the
+		sensor is above or equal to the value in this file an object
+		should typically be considered near.

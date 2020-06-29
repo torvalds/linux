@@ -1104,7 +1104,7 @@ xfs_dir2_sf_to_block(
 	ASSERT(ifp->if_bytes == dp->i_d.di_size);
 	ASSERT(ifp->if_u1.if_data != NULL);
 	ASSERT(dp->i_d.di_size >= xfs_dir2_sf_hdr_size(oldsfp->i8count));
-	ASSERT(dp->i_d.di_nextents == 0);
+	ASSERT(dp->i_df.if_nextents == 0);
 
 	/*
 	 * Copy the directory into a temporary buffer.

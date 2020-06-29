@@ -287,6 +287,7 @@ static ssize_t ext4_handle_inode_extension(struct inode *inode, loff_t offset,
 	bool truncate = false;
 	u8 blkbits = inode->i_blkbits;
 	ext4_lblk_t written_blk, end_blk;
+	int ret;
 
 	/*
 	 * Note that EXT4_I(inode)->i_disksize can get extended up to
@@ -327,8 +328,14 @@ static ssize_t ext4_handle_inode_extension(struct inode *inode, loff_t offset,
 		goto truncate;
 	}
 
-	if (ext4_update_inode_size(inode, offset + written))
-		ext4_mark_inode_dirty(handle, inode);
+	if (ext4_update_inode_size(inode, offset + written)) {
+		ret = ext4_mark_inode_dirty(handle, inode);
+		if (unlikely(ret)) {
+			written = ret;
+			ext4_journal_stop(handle);
+			goto truncate;
+		}
+	}
 
 	/*
 	 * We may need to truncate allocated but not written blocks beyond EOF.
@@ -494,6 +501,12 @@ static ssize_t ext4_dio_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	ret = ext4_dio_write_checks(iocb, from, &ilock_shared, &extend);
 	if (ret <= 0)
 		return ret;
+
+	/* if we're going to block and IOCB_NOWAIT is set, return -EAGAIN */
+	if ((iocb->ki_flags & IOCB_NOWAIT) && (unaligned_io || extend)) {
+		ret = -EAGAIN;
+		goto out;
+	}
 
 	offset = iocb->ki_pos;
 	count = ret;

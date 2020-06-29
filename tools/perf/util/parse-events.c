@@ -26,7 +26,7 @@
 #include <api/fs/tracing_path.h>
 #include <perf/cpumap.h>
 #include "parse-events-bison.h"
-#define YY_EXTRA_TYPE int
+#define YY_EXTRA_TYPE void*
 #include "parse-events-flex.h"
 #include "pmu.h"
 #include "thread_map.h"
@@ -36,6 +36,7 @@
 #include "metricgroup.h"
 #include "util/evsel_config.h"
 #include "util/event.h"
+#include "util/pfm.h"
 
 #define MAX_NAME_LEN 100
 
@@ -204,7 +205,8 @@ void parse_events__handle_error(struct parse_events_error *err, int idx,
 		err->help = help;
 		break;
 	default:
-		WARN_ONCE(1, "WARNING: multiple event parsing errors\n");
+		pr_debug("Multiple errors dropping message: %s (%s)\n",
+			err->str, err->help);
 		free(err->str);
 		err->str = str;
 		free(err->help);
@@ -344,6 +346,7 @@ static char *get_config_name(struct list_head *head_terms)
 static struct evsel *
 __add_event(struct list_head *list, int *idx,
 	    struct perf_event_attr *attr,
+	    bool init_attr,
 	    char *name, struct perf_pmu *pmu,
 	    struct list_head *config_terms, bool auto_merge_stats,
 	    const char *cpu_list)
@@ -352,9 +355,10 @@ __add_event(struct list_head *list, int *idx,
 	struct perf_cpu_map *cpus = pmu ? pmu->cpus :
 			       cpu_list ? perf_cpu_map__new(cpu_list) : NULL;
 
-	event_attr_init(attr);
+	if (init_attr)
+		event_attr_init(attr);
 
-	evsel = perf_evsel__new_idx(attr, *idx);
+	evsel = evsel__new_idx(attr, *idx);
 	if (!evsel)
 		return NULL;
 
@@ -370,15 +374,25 @@ __add_event(struct list_head *list, int *idx,
 	if (config_terms)
 		list_splice(config_terms, &evsel->config_terms);
 
-	list_add_tail(&evsel->core.node, list);
+	if (list)
+		list_add_tail(&evsel->core.node, list);
+
 	return evsel;
+}
+
+struct evsel *parse_events__add_event(int idx, struct perf_event_attr *attr,
+					char *name, struct perf_pmu *pmu)
+{
+	return __add_event(NULL, &idx, attr, false, name, pmu, NULL, false,
+			   NULL);
 }
 
 static int add_event(struct list_head *list, int *idx,
 		     struct perf_event_attr *attr, char *name,
 		     struct list_head *config_terms)
 {
-	return __add_event(list, idx, attr, name, NULL, config_terms, false, NULL) ? 0 : -ENOMEM;
+	return __add_event(list, idx, attr, true, name, NULL, config_terms,
+			   false, NULL) ? 0 : -ENOMEM;
 }
 
 static int add_event_tool(struct list_head *list, int *idx,
@@ -390,7 +404,8 @@ static int add_event_tool(struct list_head *list, int *idx,
 		.config = PERF_COUNT_SW_DUMMY,
 	};
 
-	evsel = __add_event(list, idx, &attr, NULL, NULL, NULL, false, "0");
+	evsel = __add_event(list, idx, &attr, true, NULL, NULL, NULL, false,
+			    "0");
 	if (!evsel)
 		return -ENOMEM;
 	evsel->tool_event = tool_event;
@@ -399,13 +414,13 @@ static int add_event_tool(struct list_head *list, int *idx,
 	return 0;
 }
 
-static int parse_aliases(char *str, const char *names[][PERF_EVSEL__MAX_ALIASES], int size)
+static int parse_aliases(char *str, const char *names[][EVSEL__MAX_ALIASES], int size)
 {
 	int i, j;
 	int n, longest = -1;
 
 	for (i = 0; i < size; i++) {
-		for (j = 0; j < PERF_EVSEL__MAX_ALIASES && names[i][j]; j++) {
+		for (j = 0; j < EVSEL__MAX_ALIASES && names[i][j]; j++) {
 			n = strlen(names[i][j]);
 			if (n > longest && !strncasecmp(str, names[i][j], n))
 				longest = n;
@@ -444,8 +459,7 @@ int parse_events_add_cache(struct list_head *list, int *idx,
 	 * No fallback - if we cannot get a clear cache type
 	 * then bail out:
 	 */
-	cache_type = parse_aliases(type, perf_evsel__hw_cache,
-				   PERF_COUNT_HW_CACHE_MAX);
+	cache_type = parse_aliases(type, evsel__hw_cache, PERF_COUNT_HW_CACHE_MAX);
 	if (cache_type == -1)
 		return -EINVAL;
 
@@ -458,17 +472,17 @@ int parse_events_add_cache(struct list_head *list, int *idx,
 		n += snprintf(name + n, MAX_NAME_LEN - n, "-%s", str);
 
 		if (cache_op == -1) {
-			cache_op = parse_aliases(str, perf_evsel__hw_cache_op,
+			cache_op = parse_aliases(str, evsel__hw_cache_op,
 						 PERF_COUNT_HW_CACHE_OP_MAX);
 			if (cache_op >= 0) {
-				if (!perf_evsel__is_cache_op_valid(cache_type, cache_op))
+				if (!evsel__is_cache_op_valid(cache_type, cache_op))
 					return -EINVAL;
 				continue;
 			}
 		}
 
 		if (cache_result == -1) {
-			cache_result = parse_aliases(str, perf_evsel__hw_cache_result,
+			cache_result = parse_aliases(str, evsel__hw_cache_result,
 						     PERF_COUNT_HW_CACHE_RESULT_MAX);
 			if (cache_result >= 0)
 				continue;
@@ -538,9 +552,8 @@ static int add_tracepoint(struct list_head *list, int *idx,
 			  struct parse_events_error *err,
 			  struct list_head *head_config)
 {
-	struct evsel *evsel;
+	struct evsel *evsel = evsel__newtp_idx(sys_name, evt_name, (*idx)++);
 
-	evsel = perf_evsel__newtp_idx(sys_name, evt_name, (*idx)++);
 	if (IS_ERR(evsel)) {
 		tracepoint_error(err, PTR_ERR(evsel), sys_name, evt_name);
 		return PTR_ERR(evsel);
@@ -1214,14 +1227,14 @@ static int get_config_terms(struct list_head *head_config,
 			    struct list_head *head_terms __maybe_unused)
 {
 #define ADD_CONFIG_TERM(__type, __weak)				\
-	struct perf_evsel_config_term *__t;			\
+	struct evsel_config_term *__t;			\
 								\
 	__t = zalloc(sizeof(*__t));				\
 	if (!__t)						\
 		return -ENOMEM;					\
 								\
 	INIT_LIST_HEAD(&__t->list);				\
-	__t->type       = PERF_EVSEL__CONFIG_TERM_ ## __type;	\
+	__t->type       = EVSEL__CONFIG_TERM_ ## __type;	\
 	__t->weak	= __weak;				\
 	list_add_tail(&__t->list, head_terms)
 
@@ -1312,7 +1325,7 @@ do {								\
 }
 
 /*
- * Add PERF_EVSEL__CONFIG_TERM_CFG_CHG where cfg_chg will have a bit set for
+ * Add EVSEL__CONFIG_TERM_CFG_CHG where cfg_chg will have a bit set for
  * each bit of attr->config that the user has changed.
  */
 static int get_config_chgs(struct perf_pmu *pmu, struct list_head *head_config,
@@ -1400,10 +1413,10 @@ int parse_events_add_tool(struct parse_events_state *parse_state,
 
 static bool config_term_percore(struct list_head *config_terms)
 {
-	struct perf_evsel_config_term *term;
+	struct evsel_config_term *term;
 
 	list_for_each_entry(term, config_terms, list) {
-		if (term->type == PERF_EVSEL__CONFIG_TERM_PERCORE)
+		if (term->type == EVSEL__CONFIG_TERM_PERCORE)
 			return term->val.percore;
 	}
 
@@ -1423,6 +1436,19 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 	struct parse_events_error *err = parse_state->error;
 	bool use_uncore_alias;
 	LIST_HEAD(config_terms);
+
+	if (verbose > 1) {
+		fprintf(stderr, "Attempting to add event pmu '%s' with '",
+			name);
+		if (head_config) {
+			struct parse_events_term *term;
+
+			list_for_each_entry(term, head_config, list) {
+				fprintf(stderr, "%s,", term->config);
+			}
+		}
+		fprintf(stderr, "' that may result in non-fatal errors\n");
+	}
 
 	pmu = perf_pmu__find(name);
 	if (!pmu) {
@@ -1446,8 +1472,8 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 
 	if (!head_config) {
 		attr.type = pmu->type;
-		evsel = __add_event(list, &parse_state->idx, &attr, NULL, pmu, NULL,
-				    auto_merge_stats, NULL);
+		evsel = __add_event(list, &parse_state->idx, &attr, true, NULL,
+				    pmu, NULL, auto_merge_stats, NULL);
 		if (evsel) {
 			evsel->pmu_name = name ? strdup(name) : NULL;
 			evsel->use_uncore_alias = use_uncore_alias;
@@ -1459,6 +1485,19 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 
 	if (perf_pmu__check_alias(pmu, head_config, &info))
 		return -EINVAL;
+
+	if (verbose > 1) {
+		fprintf(stderr, "After aliases, add event pmu '%s' with '",
+			name);
+		if (head_config) {
+			struct parse_events_term *term;
+
+			list_for_each_entry(term, head_config, list) {
+				fprintf(stderr, "%s,", term->config);
+			}
+		}
+		fprintf(stderr, "' that may result in non-fatal errors\n");
+	}
 
 	/*
 	 * Configure hardcoded terms first, no need to check
@@ -1478,16 +1517,18 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 		return -ENOMEM;
 
 	if (perf_pmu__config(pmu, &attr, head_config, parse_state->error)) {
-		struct perf_evsel_config_term *pos, *tmp;
+		struct evsel_config_term *pos, *tmp;
 
 		list_for_each_entry_safe(pos, tmp, &config_terms, list) {
 			list_del_init(&pos->list);
+			if (pos->free_str)
+				zfree(&pos->val.str);
 			free(pos);
 		}
 		return -EINVAL;
 	}
 
-	evsel = __add_event(list, &parse_state->idx, &attr,
+	evsel = __add_event(list, &parse_state->idx, &attr, true,
 			    get_config_name(head_config), pmu,
 			    &config_terms, auto_merge_stats, NULL);
 	if (evsel) {
@@ -1629,12 +1670,11 @@ parse_events__set_leader_for_uncore_aliase(char *name, struct list_head *list,
 		 * event. That can be used to distinguish the leader from
 		 * other members, even they have the same event name.
 		 */
-		if ((leader != evsel) && (leader->pmu_name == evsel->pmu_name)) {
+		if ((leader != evsel) &&
+		    !strcmp(leader->pmu_name, evsel->pmu_name)) {
 			is_leader = false;
 			continue;
 		}
-		/* The name is always alias name */
-		WARN_ON(strcmp(leader->name, evsel->name));
 
 		/* Store the leader event for each PMU */
 		leaders[nr_pmu++] = (uintptr_t) evsel;
@@ -1870,7 +1910,7 @@ int parse_events__modifier_event(struct list_head *list, char *str, bool add)
 		evsel->precise_max         = mod.precise_max;
 		evsel->weak_group	   = mod.weak;
 
-		if (perf_evsel__is_group_leader(evsel))
+		if (evsel__is_group_leader(evsel))
 			evsel->core.attr.pinned = mod.pinned;
 	}
 
@@ -2001,13 +2041,14 @@ perf_pmu__parse_check(const char *name)
 	return r ? r->type : PMU_EVENT_SYMBOL_ERR;
 }
 
-static int parse_events__scanner(const char *str, void *parse_state, int start_token)
+static int parse_events__scanner(const char *str,
+				 struct parse_events_state *parse_state)
 {
 	YY_BUFFER_STATE buffer;
 	void *scanner;
 	int ret;
 
-	ret = parse_events_lex_init_extra(start_token, &scanner);
+	ret = parse_events_lex_init_extra(parse_state, &scanner);
 	if (ret)
 		return ret;
 
@@ -2015,6 +2056,7 @@ static int parse_events__scanner(const char *str, void *parse_state, int start_t
 
 #ifdef PARSER_DEBUG
 	parse_events_debug = 1;
+	parse_events_set_debug(1, scanner);
 #endif
 	ret = parse_events_parse(parse_state, scanner);
 
@@ -2030,11 +2072,12 @@ static int parse_events__scanner(const char *str, void *parse_state, int start_t
 int parse_events_terms(struct list_head *terms, const char *str)
 {
 	struct parse_events_state parse_state = {
-		.terms = NULL,
+		.terms  = NULL,
+		.stoken = PE_START_TERMS,
 	};
 	int ret;
 
-	ret = parse_events__scanner(str, &parse_state, PE_START_TERMS);
+	ret = parse_events__scanner(str, &parse_state);
 	if (!ret) {
 		list_splice(parse_state.terms, terms);
 		zfree(&parse_state.terms);
@@ -2053,10 +2096,11 @@ int parse_events(struct evlist *evlist, const char *str,
 		.idx    = evlist->core.nr_entries,
 		.error  = err,
 		.evlist = evlist,
+		.stoken = PE_START_EVENTS,
 	};
 	int ret;
 
-	ret = parse_events__scanner(str, &parse_state, PE_START_EVENTS);
+	ret = parse_events__scanner(str, &parse_state);
 	perf_pmu__parse_cleanup();
 
 	if (!ret && list_empty(&parse_state.list)) {
@@ -2190,6 +2234,29 @@ int parse_events_option(const struct option *opt, const char *str,
 	return ret;
 }
 
+int parse_events_option_new_evlist(const struct option *opt, const char *str, int unset)
+{
+	struct evlist **evlistp = opt->value;
+	int ret;
+
+	if (*evlistp == NULL) {
+		*evlistp = evlist__new();
+
+		if (*evlistp == NULL) {
+			fprintf(stderr, "Not enough memory to create evlist\n");
+			return -1;
+		}
+	}
+
+	ret = parse_events_option(opt, str, unset);
+	if (ret) {
+		evlist__delete(*evlistp);
+		*evlistp = NULL;
+	}
+
+	return ret;
+}
+
 static int
 foreach_evsel_in_last_glob(struct evlist *evlist,
 			   int (*func)(struct evsel *evsel,
@@ -2237,7 +2304,7 @@ static int set_filter(struct evsel *evsel, const void *arg)
 	}
 
 	if (evsel->core.attr.type == PERF_TYPE_TRACEPOINT) {
-		if (perf_evsel__append_tp_filter(evsel, str) < 0) {
+		if (evsel__append_tp_filter(evsel, str) < 0) {
 			fprintf(stderr,
 				"not enough memory to hold filter string\n");
 			return -1;
@@ -2262,7 +2329,7 @@ static int set_filter(struct evsel *evsel, const void *arg)
 		return -1;
 	}
 
-	if (perf_evsel__append_addr_filter(evsel, str) < 0) {
+	if (evsel__append_addr_filter(evsel, str) < 0) {
 		fprintf(stderr,
 			"not enough memory to hold filter string\n");
 		return -1;
@@ -2293,7 +2360,7 @@ static int add_exclude_perf_filter(struct evsel *evsel,
 
 	snprintf(new_filter, sizeof(new_filter), "common_pid != %d", getpid());
 
-	if (perf_evsel__append_tp_filter(evsel, new_filter) < 0) {
+	if (evsel__append_tp_filter(evsel, new_filter) < 0) {
 		fprintf(stderr,
 			"not enough memory to hold filter string\n");
 		return -1;
@@ -2603,12 +2670,11 @@ restart:
 	for (type = 0; type < PERF_COUNT_HW_CACHE_MAX; type++) {
 		for (op = 0; op < PERF_COUNT_HW_CACHE_OP_MAX; op++) {
 			/* skip invalid cache type */
-			if (!perf_evsel__is_cache_op_valid(type, op))
+			if (!evsel__is_cache_op_valid(type, op))
 				continue;
 
 			for (i = 0; i < PERF_COUNT_HW_CACHE_RESULT_MAX; i++) {
-				__perf_evsel__hw_cache_type_op_res_name(type, op, i,
-									name, sizeof(name));
+				__evsel__hw_cache_type_op_res_name(type, op, i, name, sizeof(name));
 				if (event_glob != NULL && !strglobmatch(name, event_glob))
 					continue;
 
@@ -2794,6 +2860,8 @@ void print_events(const char *event_glob, bool name_only, bool quiet_flag,
 	print_sdt_events(NULL, NULL, name_only);
 
 	metricgroup__print(true, true, NULL, name_only, details_flag);
+
+	print_libpfm_events(name_only, long_desc);
 }
 
 int parse_events__is_hardcoded_term(struct parse_events_term *term)

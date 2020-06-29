@@ -30,6 +30,7 @@ struct dc_transfer_func;
 struct dc_gamma;
 struct dc_transfer_func_distributed_points;
 struct dc_rgb_fixed;
+struct dc_color_caps;
 enum dc_transfer_func_predefined;
 
 /* For SetRegamma ADL interface support
@@ -100,7 +101,8 @@ bool mod_color_calculate_regamma_params(struct dc_transfer_func *output_tf,
 		const struct dc_gamma *ramp, bool mapUserRamp, bool canRomBeUsed,
 		const struct freesync_hdr_tf_params *fs_params);
 
-bool mod_color_calculate_degamma_params(struct dc_transfer_func *output_tf,
+bool mod_color_calculate_degamma_params(struct dc_color_caps *dc_caps,
+		struct dc_transfer_func *output_tf,
 		const struct dc_gamma *ramp, bool mapUserRamp);
 
 bool mod_color_calculate_degamma_curve(enum dc_transfer_func_predefined trans,

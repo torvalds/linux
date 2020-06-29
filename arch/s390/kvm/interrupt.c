@@ -393,7 +393,7 @@ static unsigned long deliverable_irqs(struct kvm_vcpu *vcpu)
 	if (psw_mchk_disabled(vcpu))
 		active_mask &= ~IRQ_PEND_MCHK_MASK;
 	/* PV guest cpus can have a single interruption injected at a time. */
-	if (kvm_s390_pv_cpu_is_protected(vcpu) &&
+	if (kvm_s390_pv_cpu_get_handle(vcpu) &&
 	    vcpu->arch.sie_block->iictl != IICTL_CODE_NONE)
 		active_mask &= ~(IRQ_PEND_EXT_II_MASK |
 				 IRQ_PEND_IO_MASK |
@@ -2767,10 +2767,10 @@ static struct page *get_map_page(struct kvm *kvm, u64 uaddr)
 {
 	struct page *page = NULL;
 
-	down_read(&kvm->mm->mmap_sem);
+	mmap_read_lock(kvm->mm);
 	get_user_pages_remote(NULL, kvm->mm, uaddr, 1, FOLL_WRITE,
 			      &page, NULL, NULL);
-	up_read(&kvm->mm->mmap_sem);
+	mmap_read_unlock(kvm->mm);
 	return page;
 }
 
@@ -3082,7 +3082,7 @@ static enum hrtimer_restart gisa_vcpu_kicker(struct hrtimer *timer)
 		__airqs_kick_single_vcpu(kvm, pending_mask);
 		hrtimer_forward_now(timer, ns_to_ktime(gi->expires));
 		return HRTIMER_RESTART;
-	};
+	}
 
 	return HRTIMER_NORESTART;
 }

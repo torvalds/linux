@@ -363,6 +363,25 @@ void change_pid(struct task_struct *task, enum pid_type type,
 	attach_pid(task, type);
 }
 
+void exchange_tids(struct task_struct *left, struct task_struct *right)
+{
+	struct pid *pid1 = left->thread_pid;
+	struct pid *pid2 = right->thread_pid;
+	struct hlist_head *head1 = &pid1->tasks[PIDTYPE_PID];
+	struct hlist_head *head2 = &pid2->tasks[PIDTYPE_PID];
+
+	/* Swap the single entry tid lists */
+	hlists_swap_heads_rcu(head1, head2);
+
+	/* Swap the per task_struct pid */
+	rcu_assign_pointer(left->thread_pid, pid2);
+	rcu_assign_pointer(right->thread_pid, pid1);
+
+	/* Swap the cached value */
+	WRITE_ONCE(left->pid, pid_nr(pid2));
+	WRITE_ONCE(right->pid, pid_nr(pid1));
+}
+
 /* transfer_pid is an optimization of attach_pid(new), detach_pid(old) */
 void transfer_pid(struct task_struct *old, struct task_struct *new,
 			   enum pid_type type)
@@ -476,8 +495,7 @@ pid_t __task_pid_nr_ns(struct task_struct *task, enum pid_type type,
 	rcu_read_lock();
 	if (!ns)
 		ns = task_active_pid_ns(current);
-	if (likely(pid_alive(task)))
-		nr = pid_nr_ns(rcu_dereference(*task_pid_ptr(task, type)), ns);
+	nr = pid_nr_ns(rcu_dereference(*task_pid_ptr(task, type)), ns);
 	rcu_read_unlock();
 
 	return nr;

@@ -83,6 +83,8 @@ igt_emit_store_dw(struct i915_vma *vma,
 		offset += PAGE_SIZE;
 	}
 	*cmd = MI_BATCH_BUFFER_END;
+
+	i915_gem_object_flush_map(obj);
 	i915_gem_object_unpin_map(obj);
 
 	intel_gt_chipset_flush(vma->vm->gt);
@@ -126,16 +128,6 @@ int igt_gpu_fill_dw(struct intel_context *ce,
 		goto err_batch;
 	}
 
-	flags = 0;
-	if (INTEL_GEN(ce->vm->i915) <= 5)
-		flags |= I915_DISPATCH_SECURE;
-
-	err = rq->engine->emit_bb_start(rq,
-					batch->node.start, batch->node.size,
-					flags);
-	if (err)
-		goto err_request;
-
 	i915_vma_lock(batch);
 	err = i915_request_await_object(rq, batch->obj, false);
 	if (err == 0)
@@ -152,15 +144,17 @@ int igt_gpu_fill_dw(struct intel_context *ce,
 	if (err)
 		goto skip_request;
 
-	i915_request_add(rq);
+	flags = 0;
+	if (INTEL_GEN(ce->vm->i915) <= 5)
+		flags |= I915_DISPATCH_SECURE;
 
-	i915_vma_unpin_and_release(&batch, 0);
-
-	return 0;
+	err = rq->engine->emit_bb_start(rq,
+					batch->node.start, batch->node.size,
+					flags);
 
 skip_request:
-	i915_request_set_error_once(rq, err);
-err_request:
+	if (err)
+		i915_request_set_error_once(rq, err);
 	i915_request_add(rq);
 err_batch:
 	i915_vma_unpin_and_release(&batch, 0);

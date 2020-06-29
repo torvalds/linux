@@ -33,6 +33,7 @@ properties:
 
       - items:
           - enum:
+              - renesas,scif-r8a7742      # RZ/G1H
               - renesas,scif-r8a7743      # RZ/G1M
               - renesas,scif-r8a7744      # RZ/G1N
               - renesas,scif-r8a7745      # RZ/G1E

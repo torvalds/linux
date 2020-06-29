@@ -53,11 +53,11 @@ static u32 __init imx8mq_soc_revision(void)
 	struct device_node *np;
 	void __iomem *ocotp_base;
 	u32 magic;
-	u32 rev = 0;
+	u32 rev;
 
 	np = of_find_compatible_node(NULL, NULL, "fsl,imx8mq-ocotp");
 	if (!np)
-		goto out;
+		return 0;
 
 	ocotp_base = of_iomap(np, 0);
 	WARN_ON(!ocotp_base);
@@ -78,9 +78,8 @@ static u32 __init imx8mq_soc_revision(void)
 	soc_uid |= readl_relaxed(ocotp_base + OCOTP_UID_LOW);
 
 	iounmap(ocotp_base);
-
-out:
 	of_node_put(np);
+
 	return rev;
 }
 

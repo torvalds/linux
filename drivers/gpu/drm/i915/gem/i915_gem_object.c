@@ -135,9 +135,7 @@ void i915_gem_close_object(struct drm_gem_object *gem, struct drm_file *file)
 		if (vma) {
 			GEM_BUG_ON(vma->obj != obj);
 			GEM_BUG_ON(!atomic_read(&vma->open_count));
-			if (atomic_dec_and_test(&vma->open_count) &&
-			    !i915_vma_is_ggtt(vma))
-				i915_vma_close(vma);
+			i915_vma_close(vma);
 		}
 		mutex_unlock(&ctx->mutex);
 
@@ -164,9 +162,7 @@ static void __i915_gem_free_objects(struct drm_i915_private *i915,
 				    struct llist_node *freed)
 {
 	struct drm_i915_gem_object *obj, *on;
-	intel_wakeref_t wakeref;
 
-	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 	llist_for_each_entry_safe(obj, on, freed, freed) {
 		struct i915_mmap_offset *mmo, *mn;
 
@@ -206,7 +202,6 @@ static void __i915_gem_free_objects(struct drm_i915_private *i915,
 		}
 		obj->mmo.offsets = RB_ROOT;
 
-		GEM_BUG_ON(atomic_read(&obj->bind_count));
 		GEM_BUG_ON(obj->userfault_count);
 		GEM_BUG_ON(!list_empty(&obj->lut_list));
 
@@ -227,7 +222,6 @@ static void __i915_gem_free_objects(struct drm_i915_private *i915,
 		call_rcu(&obj->rcu, __i915_gem_free_object_rcu);
 		cond_resched();
 	}
-	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 }
 
 void i915_gem_flush_free_objects(struct drm_i915_private *i915)

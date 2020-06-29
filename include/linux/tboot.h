@@ -121,13 +121,7 @@ struct tboot {
 #define TBOOT_UUID	{0xff, 0x8d, 0x3c, 0x66, 0xb3, 0xe8, 0x82, 0x4b, 0xbf,\
 			 0xaa, 0x19, 0xea, 0x4d, 0x5, 0x7a, 0x8}
 
-extern struct tboot *tboot;
-
-static inline int tboot_enabled(void)
-{
-	return tboot != NULL;
-}
-
+bool tboot_enabled(void);
 extern void tboot_probe(void);
 extern void tboot_shutdown(u32 shutdown_type);
 extern struct acpi_table_header *tboot_get_dmar_table(

@@ -354,11 +354,6 @@ static void sierra_net_set_ctx_index(struct sierra_net_data *priv, u8 ctx_ix)
 		cpu_to_be16(SIERRA_NET_HIP_EXT_IP_OUT_ID);
 }
 
-static inline int sierra_net_is_valid_addrlen(u8 len)
-{
-	return len == sizeof(struct in_addr);
-}
-
 static int sierra_net_parse_lsi(struct usbnet *dev, char *data, int datalen)
 {
 	struct lsi_umts *lsi = (struct lsi_umts *)data;

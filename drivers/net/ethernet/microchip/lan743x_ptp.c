@@ -2,12 +2,12 @@
 /* Copyright (C) 2018 Microchip Technology Inc. */
 
 #include <linux/netdevice.h>
-#include "lan743x_main.h"
 
 #include <linux/ptp_clock_kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/net_tstamp.h>
+#include "lan743x_main.h"
 
 #include "lan743x_ptp.h"
 

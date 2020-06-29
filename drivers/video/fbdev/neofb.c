@@ -70,7 +70,6 @@
 
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/pgtable.h>
 #include <video/vga.h>
 #include <video/neomagic.h>
 

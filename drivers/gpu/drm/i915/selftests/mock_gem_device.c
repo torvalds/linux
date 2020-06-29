@@ -192,11 +192,11 @@ struct drm_i915_private *mock_gem_device(void)
 
 	mkwrite_device_info(i915)->engine_mask = BIT(0);
 
-	i915->engine[RCS0] = mock_engine(i915, "mock", RCS0);
-	if (!i915->engine[RCS0])
+	i915->gt.engine[RCS0] = mock_engine(i915, "mock", RCS0);
+	if (!i915->gt.engine[RCS0])
 		goto err_unlock;
 
-	if (mock_engine_init(i915->engine[RCS0]))
+	if (mock_engine_init(i915->gt.engine[RCS0]))
 		goto err_context;
 
 	__clear_bit(I915_WEDGED, &i915->gt.reset.flags);

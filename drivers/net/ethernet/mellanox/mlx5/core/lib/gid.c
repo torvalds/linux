@@ -124,8 +124,7 @@ int mlx5_core_roce_gid_set(struct mlx5_core_dev *dev, unsigned int index,
 			   const u8 *mac, bool vlan, u16 vlan_id, u8 port_num)
 {
 #define MLX5_SET_RA(p, f, v) MLX5_SET(roce_addr_layout, p, f, v)
-	u32  in[MLX5_ST_SZ_DW(set_roce_address_in)] = {0};
-	u32 out[MLX5_ST_SZ_DW(set_roce_address_out)] = {0};
+	u32 in[MLX5_ST_SZ_DW(set_roce_address_in)] = {};
 	void *in_addr = MLX5_ADDR_OF(set_roce_address_in, in, roce_address);
 	char *addr_l3_addr = MLX5_ADDR_OF(roce_addr_layout, in_addr,
 					  source_l3_address);
@@ -153,6 +152,6 @@ int mlx5_core_roce_gid_set(struct mlx5_core_dev *dev, unsigned int index,
 
 	MLX5_SET(set_roce_address_in, in, roce_address_index, index);
 	MLX5_SET(set_roce_address_in, in, opcode, MLX5_CMD_OP_SET_ROCE_ADDRESS);
-	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+	return mlx5_cmd_exec_in(dev, set_roce_address, in);
 }
 EXPORT_SYMBOL(mlx5_core_roce_gid_set);

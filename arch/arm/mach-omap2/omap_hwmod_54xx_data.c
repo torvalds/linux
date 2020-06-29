@@ -194,39 +194,6 @@ static struct omap_hwmod omap54xx_mpu_private_hwmod = {
 };
 
 /*
- * 'counter' class
- * 32-bit ordinary counter, clocked by the falling edge of the 32 khz clock
- */
-
-static struct omap_hwmod_class_sysconfig omap54xx_counter_sysc = {
-	.rev_offs	= 0x0000,
-	.sysc_offs	= 0x0010,
-	.sysc_flags	= SYSC_HAS_SIDLEMODE,
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO),
-	.sysc_fields	= &omap_hwmod_sysc_type1,
-};
-
-static struct omap_hwmod_class omap54xx_counter_hwmod_class = {
-	.name	= "counter",
-	.sysc	= &omap54xx_counter_sysc,
-};
-
-/* counter_32k */
-static struct omap_hwmod omap54xx_counter_32k_hwmod = {
-	.name		= "counter_32k",
-	.class		= &omap54xx_counter_hwmod_class,
-	.clkdm_name	= "wkupaon_clkdm",
-	.flags		= HWMOD_SWSUP_SIDLE,
-	.main_clk	= "wkupaon_iclk_mux",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = OMAP54XX_CM_WKUPAON_COUNTER_32K_CLKCTRL_OFFSET,
-			.context_offs = OMAP54XX_RM_WKUPAON_COUNTER_32K_CONTEXT_OFFSET,
-		},
-	},
-};
-
-/*
  * 'emif' class
  * external memory interface no1 (wrapper)
  */
@@ -295,44 +262,6 @@ static struct omap_hwmod omap54xx_mpu_hwmod = {
 		.omap4 = {
 			.clkctrl_offs = OMAP54XX_CM_MPU_MPU_CLKCTRL_OFFSET,
 			.context_offs = OMAP54XX_RM_MPU_MPU_CONTEXT_OFFSET,
-		},
-	},
-};
-
-
-/*
- * 'timer' class
- * general purpose timer module with accurate 1ms tick
- * This class contains several variants: ['timer_1ms', 'timer']
- */
-
-static struct omap_hwmod_class_sysconfig omap54xx_timer_1ms_sysc = {
-	.rev_offs	= 0x0000,
-	.sysc_offs	= 0x0010,
-	.sysc_flags	= (SYSC_HAS_EMUFREE | SYSC_HAS_RESET_STATUS |
-			   SYSC_HAS_SIDLEMODE | SYSC_HAS_SOFTRESET),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART |
-			   SIDLE_SMART_WKUP),
-	.sysc_fields	= &omap_hwmod_sysc_type2,
-};
-
-static struct omap_hwmod_class omap54xx_timer_1ms_hwmod_class = {
-	.name	= "timer",
-	.sysc	= &omap54xx_timer_1ms_sysc,
-};
-
-/* timer1 */
-static struct omap_hwmod omap54xx_timer1_hwmod = {
-	.name		= "timer1",
-	.class		= &omap54xx_timer_1ms_hwmod_class,
-	.clkdm_name	= "wkupaon_clkdm",
-	.main_clk	= "timer1_gfclk_mux",
-	.flags		= HWMOD_SET_DEFAULT_CLOCKACT,
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = OMAP54XX_CM_WKUPAON_TIMER1_CLKCTRL_OFFSET,
-			.context_offs = OMAP54XX_RM_WKUPAON_TIMER1_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
 };
@@ -666,14 +595,6 @@ static struct omap_hwmod_ocp_if omap54xx_mpu__mpu_private = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-/* l4_wkup -> counter_32k */
-static struct omap_hwmod_ocp_if omap54xx_l4_wkup__counter_32k = {
-	.master		= &omap54xx_l4_wkup_hwmod,
-	.slave		= &omap54xx_counter_32k_hwmod,
-	.clk		= "wkupaon_iclk_mux",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
 /* mpu -> emif1 */
 static struct omap_hwmod_ocp_if omap54xx_mpu__emif1 = {
 	.master		= &omap54xx_mpu_hwmod,
@@ -695,14 +616,6 @@ static struct omap_hwmod_ocp_if omap54xx_l4_cfg__mpu = {
 	.master		= &omap54xx_l4_cfg_hwmod,
 	.slave		= &omap54xx_mpu_hwmod,
 	.clk		= "l4_root_clk_div",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* l4_wkup -> timer1 */
-static struct omap_hwmod_ocp_if omap54xx_l4_wkup__timer1 = {
-	.master		= &omap54xx_l4_wkup_hwmod,
-	.slave		= &omap54xx_timer1_hwmod,
-	.clk		= "wkupaon_iclk_mux",
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
@@ -747,11 +660,9 @@ static struct omap_hwmod_ocp_if *omap54xx_hwmod_ocp_ifs[] __initdata = {
 	&omap54xx_l3_main_2__l4_per,
 	&omap54xx_l3_main_1__l4_wkup,
 	&omap54xx_mpu__mpu_private,
-	&omap54xx_l4_wkup__counter_32k,
 	&omap54xx_mpu__emif1,
 	&omap54xx_mpu__emif2,
 	&omap54xx_l4_cfg__mpu,
-	&omap54xx_l4_wkup__timer1,
 	&omap54xx_l4_cfg__usb_host_hs,
 	&omap54xx_l4_cfg__usb_tll_hs,
 	&omap54xx_l4_cfg__usb_otg_ss,

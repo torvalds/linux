@@ -60,9 +60,9 @@ static int cachefiles_read_waiter(wait_queue_entry_t *wait, unsigned mode,
 	object = container_of(op->op.object, struct cachefiles_object, fscache);
 	spin_lock(&object->work_lock);
 	list_add_tail(&monitor->op_link, &op->to_do);
+	fscache_enqueue_retrieval(op);
 	spin_unlock(&object->work_lock);
 
-	fscache_enqueue_retrieval(op);
 	fscache_put_retrieval(op);
 	return 0;
 }
@@ -398,7 +398,7 @@ int cachefiles_read_or_alloc_page(struct fscache_retrieval *op,
 	struct inode *inode;
 	sector_t block;
 	unsigned shift;
-	int ret;
+	int ret, ret2;
 
 	object = container_of(op->op.object,
 			      struct cachefiles_object, fscache);
@@ -430,8 +430,8 @@ int cachefiles_read_or_alloc_page(struct fscache_retrieval *op,
 	block = page->index;
 	block <<= shift;
 
-	ret = bmap(inode, &block);
-	ASSERT(ret < 0);
+	ret2 = bmap(inode, &block);
+	ASSERT(ret2 == 0);
 
 	_debug("%llx -> %llx",
 	       (unsigned long long) (page->index << shift),
@@ -739,8 +739,8 @@ int cachefiles_read_or_alloc_pages(struct fscache_retrieval *op,
 		block = page->index;
 		block <<= shift;
 
-		ret = bmap(inode, &block);
-		ASSERT(!ret);
+		ret2 = bmap(inode, &block);
+		ASSERT(ret2 == 0);
 
 		_debug("%llx -> %llx",
 		       (unsigned long long) (page->index << shift),

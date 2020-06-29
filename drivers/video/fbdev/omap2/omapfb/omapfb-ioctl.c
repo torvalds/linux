@@ -482,9 +482,6 @@ static int omapfb_memory_read(struct fb_info *fbi,
 	if (!display || !display->driver->memory_read)
 		return -ENOENT;
 
-	if (!access_ok(mr->buffer, mr->buffer_size))
-		return -EFAULT;
-
 	if (mr->w > 4096 || mr->h > 4096)
 		return -EINVAL;
 

@@ -96,6 +96,7 @@ struct aeu_invert_reg_bit {
 #define ATTENTION_BB(value)             (value << ATTENTION_BB_SHIFT)
 #define ATTENTION_BB_DIFFERENT          BIT(23)
 
+#define ATTENTION_CLEAR_ENABLE          BIT(28)
 	unsigned int flags;
 
 	/* Callback to call if attention will be triggered */
@@ -363,6 +364,21 @@ static int qed_pglueb_rbc_attn_cb(struct qed_hwfn *p_hwfn)
 	return qed_pglueb_rbc_attn_handler(p_hwfn, p_hwfn->p_dpc_ptt);
 }
 
+static int qed_fw_assertion(struct qed_hwfn *p_hwfn)
+{
+	qed_hw_err_notify(p_hwfn, p_hwfn->p_dpc_ptt, QED_HW_ERR_FW_ASSERT,
+			  "FW assertion!\n");
+
+	return -EINVAL;
+}
+
+static int qed_general_attention_35(struct qed_hwfn *p_hwfn)
+{
+	DP_INFO(p_hwfn, "General attention 35!\n");
+
+	return 0;
+}
+
 #define QED_DORQ_ATTENTION_REASON_MASK  (0xfffff)
 #define QED_DORQ_ATTENTION_OPAQUE_MASK  (0xffff)
 #define QED_DORQ_ATTENTION_OPAQUE_SHIFT (0x0)
@@ -605,13 +621,15 @@ static struct aeu_invert_reg aeu_descs[NUM_ATTN_REGS] = {
 
 	{
 		{       /* After Invert 4 */
-			{"General Attention 32", ATTENTION_SINGLE,
-			 NULL, MAX_BLOCK_ID},
+			{"General Attention 32", ATTENTION_SINGLE |
+			 ATTENTION_CLEAR_ENABLE, qed_fw_assertion,
+			 MAX_BLOCK_ID},
 			{"General Attention %d",
 			 (2 << ATTENTION_LENGTH_SHIFT) |
 			 (33 << ATTENTION_OFFSET_SHIFT), NULL, MAX_BLOCK_ID},
-			{"General Attention 35", ATTENTION_SINGLE,
-			 NULL, MAX_BLOCK_ID},
+			{"General Attention 35", ATTENTION_SINGLE |
+			 ATTENTION_CLEAR_ENABLE, qed_general_attention_35,
+			 MAX_BLOCK_ID},
 			{"NWS Parity",
 			 ATTENTION_PAR | ATTENTION_BB_DIFFERENT |
 			 ATTENTION_BB(AEU_INVERT_REG_SPECIAL_CNIG_0),
@@ -927,9 +945,12 @@ qed_int_deassertion_aeu_bit(struct qed_hwfn *p_hwfn,
 		qed_int_attn_print(p_hwfn, p_aeu->block_index,
 				   ATTN_TYPE_INTERRUPT, !b_fatal);
 
-
-	/* If the attention is benign, no need to prevent it */
-	if (!rc)
+	/* Reach assertion if attention is fatal */
+	if (b_fatal)
+		qed_hw_err_notify(p_hwfn, p_hwfn->p_dpc_ptt, QED_HW_ERR_HW_ATTN,
+				  "`%s': Fatal attention\n",
+				  p_bit_name);
+	else /* If the attention is benign, no need to prevent it */
 		goto out;
 
 	/* Prevent this Attention from being asserted in the future */
@@ -2347,6 +2368,11 @@ void qed_int_disable_post_isr_release(struct qed_dev *cdev)
 
 	for_each_hwfn(cdev, i)
 		cdev->hwfns[i].b_int_requested = false;
+}
+
+void qed_int_attn_clr_enable(struct qed_dev *cdev, bool clr_enable)
+{
+	cdev->attn_clr_en = clr_enable;
 }
 
 int qed_int_set_timer_res(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,

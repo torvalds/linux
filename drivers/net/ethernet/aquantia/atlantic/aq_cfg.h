@@ -80,8 +80,8 @@
 
 #define AQ_CFG_LOCK_TRYS   100U
 
-#define AQ_CFG_DRV_AUTHOR      "aQuantia"
-#define AQ_CFG_DRV_DESC        "aQuantia Corporation(R) Network Driver"
+#define AQ_CFG_DRV_AUTHOR      "Marvell"
+#define AQ_CFG_DRV_DESC        "Marvell (Aquantia) Corporation(R) Network Driver"
 #define AQ_CFG_DRV_NAME        "atlantic"
 
 #endif /* AQ_CFG_H */

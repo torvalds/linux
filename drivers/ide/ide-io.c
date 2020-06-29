@@ -233,10 +233,13 @@ static ide_startstop_t do_special(ide_drive_t *drive)
 void ide_map_sg(ide_drive_t *drive, struct ide_cmd *cmd)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	struct scatterlist *sg = hwif->sg_table;
+	struct scatterlist *sg = hwif->sg_table, *last_sg = NULL;
 	struct request *rq = cmd->rq;
 
-	cmd->sg_nents = blk_rq_map_sg(drive->queue, rq, sg);
+	cmd->sg_nents = __blk_rq_map_sg(drive->queue, rq, sg, &last_sg);
+	if (blk_rq_bytes(rq) && (blk_rq_bytes(rq) & rq->q->dma_pad_mask))
+		last_sg->length +=
+			(rq->q->dma_pad_mask & ~blk_rq_bytes(rq)) + 1;
 }
 EXPORT_SYMBOL_GPL(ide_map_sg);
 

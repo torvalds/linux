@@ -33,8 +33,6 @@
 extern "C" {
 #endif
 
-struct dmub_cmd_header;
-
 struct dmub_rb_init_params {
 	void *ctx;
 	void *base_address;
@@ -71,7 +69,7 @@ static inline bool dmub_rb_full(struct dmub_rb *rb)
 }
 
 static inline bool dmub_rb_push_front(struct dmub_rb *rb,
-				      const struct dmub_cmd_header *cmd)
+				      const union dmub_rb_cmd *cmd)
 {
 	uint64_t volatile *dst = (uint64_t volatile *)(rb->base_address) + rb->wrpt / sizeof(uint64_t);
 	const uint64_t *src = (const uint64_t *)cmd;
@@ -93,7 +91,7 @@ static inline bool dmub_rb_push_front(struct dmub_rb *rb,
 }
 
 static inline bool dmub_rb_front(struct dmub_rb *rb,
-				 struct dmub_cmd_header *cmd)
+				 union dmub_rb_cmd  *cmd)
 {
 	uint8_t *rd_ptr = (uint8_t *)rb->base_address + rb->rptr;
 

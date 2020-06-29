@@ -168,7 +168,7 @@ static int src_get_rsc_ctrl_blk(void **rblk)
 
 static int src_put_rsc_ctrl_blk(void *blk)
 {
-	kfree((struct src_rsc_ctrl_blk *)blk);
+	kfree(blk);
 
 	return 0;
 }
@@ -494,7 +494,7 @@ static int src_mgr_get_ctrl_blk(void **rblk)
 
 static int src_mgr_put_ctrl_blk(void *blk)
 {
-	kfree((struct src_mgr_ctrl_blk *)blk);
+	kfree(blk);
 
 	return 0;
 }
@@ -515,7 +515,7 @@ static int srcimp_mgr_get_ctrl_blk(void **rblk)
 
 static int srcimp_mgr_put_ctrl_blk(void *blk)
 {
-	kfree((struct srcimp_mgr_ctrl_blk *)blk);
+	kfree(blk);
 
 	return 0;
 }
@@ -702,7 +702,7 @@ static int amixer_rsc_get_ctrl_blk(void **rblk)
 
 static int amixer_rsc_put_ctrl_blk(void *blk)
 {
-	kfree((struct amixer_rsc_ctrl_blk *)blk);
+	kfree(blk);
 
 	return 0;
 }
@@ -909,7 +909,7 @@ static int dai_get_ctrl_blk(void **rblk)
 
 static int dai_put_ctrl_blk(void *blk)
 {
-	kfree((struct dai_ctrl_blk *)blk);
+	kfree(blk);
 
 	return 0;
 }
@@ -958,7 +958,7 @@ static int dao_get_ctrl_blk(void **rblk)
 
 static int dao_put_ctrl_blk(void *blk)
 {
-	kfree((struct dao_ctrl_blk *)blk);
+	kfree(blk);
 
 	return 0;
 }
@@ -1156,7 +1156,7 @@ static int daio_mgr_get_ctrl_blk(struct hw *hw, void **rblk)
 
 static int daio_mgr_put_ctrl_blk(void *blk)
 {
-	kfree((struct daio_mgr_ctrl_blk *)blk);
+	kfree(blk);
 
 	return 0;
 }

@@ -17,8 +17,11 @@ enum host1x_class {
 	HOST1X_CLASS_GR3D = 0x60,
 };
 
+struct host1x;
 struct host1x_client;
 struct iommu_group;
+
+u64 host1x_get_dma_mask(struct host1x *host1x);
 
 /**
  * struct host1x_client_ops - host1x client operations

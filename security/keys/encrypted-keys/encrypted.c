@@ -323,19 +323,6 @@ error:
 	return ukey;
 }
 
-static int calc_hash(struct crypto_shash *tfm, u8 *digest,
-		     const u8 *buf, unsigned int buflen)
-{
-	SHASH_DESC_ON_STACK(desc, tfm);
-	int err;
-
-	desc->tfm = tfm;
-
-	err = crypto_shash_digest(desc, buf, buflen, digest);
-	shash_desc_zero(desc);
-	return err;
-}
-
 static int calc_hmac(u8 *digest, const u8 *key, unsigned int keylen,
 		     const u8 *buf, unsigned int buflen)
 {
@@ -351,7 +338,7 @@ static int calc_hmac(u8 *digest, const u8 *key, unsigned int keylen,
 
 	err = crypto_shash_setkey(tfm, key, keylen);
 	if (!err)
-		err = calc_hash(tfm, digest, buf, buflen);
+		err = crypto_shash_tfm_digest(tfm, buf, buflen, digest);
 	crypto_free_shash(tfm);
 	return err;
 }
@@ -381,7 +368,8 @@ static int get_derived_key(u8 *derived_key, enum derived_key_type key_type,
 
 	memcpy(derived_buf + strlen(derived_buf) + 1, master_key,
 	       master_keylen);
-	ret = calc_hash(hash_tfm, derived_key, derived_buf, derived_buf_len);
+	ret = crypto_shash_tfm_digest(hash_tfm, derived_buf, derived_buf_len,
+				      derived_key);
 	kzfree(derived_buf);
 	return ret;
 }

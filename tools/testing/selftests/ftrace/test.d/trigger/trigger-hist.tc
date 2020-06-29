@@ -1,6 +1,7 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
 # description: event trigger - test histogram trigger
+# requires: set_event events/sched/sched_process_fork/trigger events/sched/sched_process_fork/hist
 # flags: instance
 
 fail() { #msg
@@ -8,22 +9,7 @@ fail() { #msg
     exit_fail
 }
 
-if [ ! -f set_event -o ! -d events/sched ]; then
-    echo "event tracing is not supported"
-    exit_unsupported
-fi
-
-if [ ! -f events/sched/sched_process_fork/trigger ]; then
-    echo "event trigger is not supported"
-    exit_unsupported
-fi
-
-if [ ! -f events/sched/sched_process_fork/hist ]; then
-    echo "hist trigger is not supported"
-    exit_unsupported
-fi
-
-echo "Test histogram basic tigger"
+echo "Test histogram basic trigger"
 
 echo 'hist:keys=parent_pid:vals=child_pid' > events/sched/sched_process_fork/trigger
 for i in `seq 1 10` ; do ( echo "forked" > /dev/null); done

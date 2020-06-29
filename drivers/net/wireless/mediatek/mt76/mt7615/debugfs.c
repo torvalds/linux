@@ -20,11 +20,15 @@ static int
 mt7615_scs_set(void *data, u64 val)
 {
 	struct mt7615_dev *dev = data;
+	struct mt7615_phy *ext_phy;
 
 	if (!mt7615_wait_for_mcu_init(dev))
 		return 0;
 
-	mt7615_mac_set_scs(dev, val);
+	mt7615_mac_set_scs(&dev->phy, val);
+	ext_phy = mt7615_ext_phy(dev);
+	if (ext_phy)
+		mt7615_mac_set_scs(ext_phy, val);
 
 	return 0;
 }
@@ -34,7 +38,7 @@ mt7615_scs_get(void *data, u64 *val)
 {
 	struct mt7615_dev *dev = data;
 
-	*val = dev->scs_en;
+	*val = dev->phy.scs_en;
 
 	return 0;
 }
@@ -120,27 +124,51 @@ mt7615_reset_test_set(void *data, u64 val)
 DEFINE_DEBUGFS_ATTRIBUTE(fops_reset_test, NULL,
 			 mt7615_reset_test_set, "%lld\n");
 
-static int
-mt7615_ampdu_stat_read(struct seq_file *file, void *data)
+static void
+mt7615_ampdu_stat_read_phy(struct mt7615_phy *phy,
+			   struct seq_file *file)
 {
 	struct mt7615_dev *dev = file->private;
+	u32 reg = is_mt7663(&dev->mt76) ? MT_MIB_ARNG(0) : MT_AGG_ASRCR0;
+	bool ext_phy = phy != &dev->phy;
 	int bound[7], i, range;
 
-	range = mt76_rr(dev, MT_AGG_ASRCR0);
+	if (!phy)
+		return;
+
+	range = mt76_rr(dev, reg);
 	for (i = 0; i < 4; i++)
 		bound[i] = MT_AGG_ASRCR_RANGE(range, i) + 1;
-	range = mt76_rr(dev, MT_AGG_ASRCR1);
+
+	range = mt76_rr(dev, reg + 4);
 	for (i = 0; i < 3; i++)
 		bound[i + 4] = MT_AGG_ASRCR_RANGE(range, i) + 1;
+
+	seq_printf(file, "\nPhy %d\n", ext_phy);
 
 	seq_printf(file, "Length: %8d | ", bound[0]);
 	for (i = 0; i < ARRAY_SIZE(bound) - 1; i++)
 		seq_printf(file, "%3d -%3d | ",
 			   bound[i], bound[i + 1]);
 	seq_puts(file, "\nCount:  ");
+
+	range = ext_phy ? ARRAY_SIZE(dev->mt76.aggr_stats) / 2 : 0;
 	for (i = 0; i < ARRAY_SIZE(bound); i++)
-		seq_printf(file, "%8d | ", dev->mt76.aggr_stats[i]);
+		seq_printf(file, "%8d | ", dev->mt76.aggr_stats[i + range]);
 	seq_puts(file, "\n");
+
+	seq_printf(file, "BA miss count: %d\n", phy->mib.ba_miss_cnt);
+	seq_printf(file, "PER: %ld.%1ld%%\n",
+		   phy->mib.aggr_per / 10, phy->mib.aggr_per % 10);
+}
+
+static int
+mt7615_ampdu_stat_read(struct seq_file *file, void *data)
+{
+	struct mt7615_dev *dev = file->private;
+
+	mt7615_ampdu_stat_read_phy(&dev->phy, file);
+	mt7615_ampdu_stat_read_phy(mt7615_ext_phy(dev), file);
 
 	return 0;
 }
@@ -265,10 +293,10 @@ int mt7615_init_debugfs(struct mt7615_dev *dev)
 		return -ENOMEM;
 
 	if (is_mt7615(&dev->mt76))
-		debugfs_create_devm_seqfile(dev->mt76.dev, "queues", dir,
+		debugfs_create_devm_seqfile(dev->mt76.dev, "xmit-queues", dir,
 					    mt7615_queues_read);
 	else
-		debugfs_create_devm_seqfile(dev->mt76.dev, "queues", dir,
+		debugfs_create_devm_seqfile(dev->mt76.dev, "xmit-queues", dir,
 					    mt76_queues_read);
 	debugfs_create_devm_seqfile(dev->mt76.dev, "acq", dir,
 				    mt7615_queues_acq);
@@ -297,3 +325,4 @@ int mt7615_init_debugfs(struct mt7615_dev *dev)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(mt7615_init_debugfs);

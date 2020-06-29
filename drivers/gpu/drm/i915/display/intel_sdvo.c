@@ -1430,7 +1430,8 @@ static void intel_sdvo_update_props(struct intel_sdvo *intel_sdvo,
 #undef UPDATE_PROPERTY
 }
 
-static void intel_sdvo_pre_enable(struct intel_encoder *intel_encoder,
+static void intel_sdvo_pre_enable(struct intel_atomic_state *state,
+				  struct intel_encoder *intel_encoder,
 				  const struct intel_crtc_state *crtc_state,
 				  const struct drm_connector_state *conn_state)
 {
@@ -1727,7 +1728,8 @@ static void intel_sdvo_enable_audio(struct intel_sdvo *intel_sdvo,
 				   SDVO_AUDIO_PRESENCE_DETECT);
 }
 
-static void intel_disable_sdvo(struct intel_encoder *encoder,
+static void intel_disable_sdvo(struct intel_atomic_state *state,
+			       struct intel_encoder *encoder,
 			       const struct intel_crtc_state *old_crtc_state,
 			       const struct drm_connector_state *conn_state)
 {
@@ -1775,20 +1777,23 @@ static void intel_disable_sdvo(struct intel_encoder *encoder,
 	}
 }
 
-static void pch_disable_sdvo(struct intel_encoder *encoder,
+static void pch_disable_sdvo(struct intel_atomic_state *state,
+			     struct intel_encoder *encoder,
 			     const struct intel_crtc_state *old_crtc_state,
 			     const struct drm_connector_state *old_conn_state)
 {
 }
 
-static void pch_post_disable_sdvo(struct intel_encoder *encoder,
+static void pch_post_disable_sdvo(struct intel_atomic_state *state,
+				  struct intel_encoder *encoder,
 				  const struct intel_crtc_state *old_crtc_state,
 				  const struct drm_connector_state *old_conn_state)
 {
-	intel_disable_sdvo(encoder, old_crtc_state, old_conn_state);
+	intel_disable_sdvo(state, encoder, old_crtc_state, old_conn_state);
 }
 
-static void intel_enable_sdvo(struct intel_encoder *encoder,
+static void intel_enable_sdvo(struct intel_atomic_state *state,
+			      struct intel_encoder *encoder,
 			      const struct intel_crtc_state *pipe_config,
 			      const struct drm_connector_state *conn_state)
 {
@@ -1934,12 +1939,11 @@ static void intel_sdvo_enable_hotplug(struct intel_encoder *encoder)
 
 static enum intel_hotplug_state
 intel_sdvo_hotplug(struct intel_encoder *encoder,
-		   struct intel_connector *connector,
-		   bool irq_received)
+		   struct intel_connector *connector)
 {
 	intel_sdvo_enable_hotplug(encoder);
 
-	return intel_encoder_hotplug(encoder, connector, irq_received);
+	return intel_encoder_hotplug(encoder, connector);
 }
 
 static bool

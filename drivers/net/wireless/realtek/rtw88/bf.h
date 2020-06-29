@@ -89,4 +89,26 @@ void rtw_bf_set_gid_table(struct rtw_dev *rtwdev, struct ieee80211_vif *vif,
 void rtw_bf_phy_init(struct rtw_dev *rtwdev);
 void rtw_bf_cfg_csi_rate(struct rtw_dev *rtwdev, u8 rssi, u8 cur_rate,
 			 u8 fixrate_en, u8 *new_rate);
+static inline void rtw_chip_config_bfee(struct rtw_dev *rtwdev, struct rtw_vif *vif,
+					struct rtw_bfee *bfee, bool enable)
+{
+	if (rtwdev->chip->ops->config_bfee)
+		rtwdev->chip->ops->config_bfee(rtwdev, vif, bfee, enable);
+}
+
+static inline void rtw_chip_set_gid_table(struct rtw_dev *rtwdev,
+					  struct ieee80211_vif *vif,
+					  struct ieee80211_bss_conf *conf)
+{
+	if (rtwdev->chip->ops->set_gid_table)
+		rtwdev->chip->ops->set_gid_table(rtwdev, vif, conf);
+}
+
+static inline void rtw_chip_cfg_csi_rate(struct rtw_dev *rtwdev, u8 rssi, u8 cur_rate,
+					 u8 fixrate_en, u8 *new_rate)
+{
+	if (rtwdev->chip->ops->cfg_csi_rate)
+		rtwdev->chip->ops->cfg_csi_rate(rtwdev, rssi, cur_rate,
+						fixrate_en, new_rate);
+}
 #endif

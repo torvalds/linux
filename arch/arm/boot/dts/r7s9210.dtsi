@@ -304,7 +304,6 @@
 			reg = <0xe803b000 0x30>;
 			interrupts = <GIC_SPI 56 IRQ_TYPE_EDGE_RISING>;
 			clocks = <&cpg CPG_MOD 36>;
-			clock-names = "ostm0";
 			power-domains = <&cpg>;
 			status = "disabled";
 		};
@@ -314,7 +313,6 @@
 			reg = <0xe803c000 0x30>;
 			interrupts = <GIC_SPI 57 IRQ_TYPE_EDGE_RISING>;
 			clocks = <&cpg CPG_MOD 35>;
-			clock-names = "ostm1";
 			power-domains = <&cpg>;
 			status = "disabled";
 		};
@@ -324,7 +322,6 @@
 			reg = <0xe803d000 0x30>;
 			interrupts = <GIC_SPI 58 IRQ_TYPE_EDGE_RISING>;
 			clocks = <&cpg CPG_MOD 34>;
-			clock-names = "ostm2";
 			power-domains = <&cpg>;
 			status = "disabled";
 		};

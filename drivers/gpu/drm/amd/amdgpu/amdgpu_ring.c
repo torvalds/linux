@@ -162,11 +162,13 @@ void amdgpu_ring_undo(struct amdgpu_ring *ring)
  * Returns 0 on success, error on failure.
  */
 int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
-		     unsigned max_dw, struct amdgpu_irq_src *irq_src,
-		     unsigned irq_type)
+		     unsigned int max_dw, struct amdgpu_irq_src *irq_src,
+		     unsigned int irq_type, unsigned int hw_prio)
 {
 	int r, i;
 	int sched_hw_submission = amdgpu_sched_hw_submission;
+	u32 *num_sched;
+	u32 hw_ip;
 
 	/* Set the hw submission limit higher for KIQ because
 	 * it's used for a number of gfx/compute tasks by both
@@ -257,6 +259,13 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 	ring->max_dw = max_dw;
 	ring->priority = DRM_SCHED_PRIORITY_NORMAL;
 	mutex_init(&ring->priority_mutex);
+
+	if (!ring->no_scheduler) {
+		hw_ip = ring->funcs->type;
+		num_sched = &adev->gpu_sched[hw_ip][hw_prio].num_scheds;
+		adev->gpu_sched[hw_ip][hw_prio].sched[(*num_sched)++] =
+			&ring->sched;
+	}
 
 	for (i = 0; i < DRM_SCHED_PRIORITY_MAX; ++i)
 		atomic_set(&ring->num_jobs[i], 0);

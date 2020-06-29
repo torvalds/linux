@@ -341,8 +341,7 @@ static int remove_board(struct slot *p_slot)
 	u8 hp_slot;
 	int rc;
 
-	if (shpchp_unconfigure_device(p_slot))
-		return(1);
+	shpchp_unconfigure_device(p_slot);
 
 	hp_slot = p_slot->device - ctrl->slot_device_offset;
 	p_slot = shpchp_find_slot(ctrl, hp_slot + ctrl->slot_device_offset);

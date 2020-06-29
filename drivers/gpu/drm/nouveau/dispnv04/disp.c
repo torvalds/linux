@@ -30,6 +30,7 @@
 #include "nouveau_encoder.h"
 #include "nouveau_connector.h"
 #include "nouveau_bo.h"
+#include "nouveau_gem.h"
 
 #include <nvif/if0004.h>
 
@@ -52,13 +53,13 @@ nv04_display_fini(struct drm_device *dev, bool suspend)
 
 	/* Un-pin FB and cursors so they'll be evicted to system memory. */
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		struct nouveau_framebuffer *nouveau_fb;
+		struct drm_framebuffer *fb = crtc->primary->fb;
+		struct nouveau_bo *nvbo;
 
-		nouveau_fb = nouveau_framebuffer(crtc->primary->fb);
-		if (!nouveau_fb || !nouveau_fb->nvbo)
+		if (!fb || !fb->obj[0])
 			continue;
-
-		nouveau_bo_unpin(nouveau_fb->nvbo);
+		nvbo = nouveau_gem_object(fb->obj[0]);
+		nouveau_bo_unpin(nvbo);
 	}
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
@@ -104,13 +105,13 @@ nv04_display_init(struct drm_device *dev, bool resume, bool runtime)
 
 	/* Re-pin FB/cursors. */
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		struct nouveau_framebuffer *nouveau_fb;
+		struct drm_framebuffer *fb = crtc->primary->fb;
+		struct nouveau_bo *nvbo;
 
-		nouveau_fb = nouveau_framebuffer(crtc->primary->fb);
-		if (!nouveau_fb || !nouveau_fb->nvbo)
+		if (!fb || !fb->obj[0])
 			continue;
-
-		ret = nouveau_bo_pin(nouveau_fb->nvbo, TTM_PL_FLAG_VRAM, true);
+		nvbo = nouveau_gem_object(fb->obj[0]);
+		ret = nouveau_bo_pin(nvbo, TTM_PL_FLAG_VRAM, true);
 		if (ret)
 			NV_ERROR(drm, "Could not pin framebuffer\n");
 	}

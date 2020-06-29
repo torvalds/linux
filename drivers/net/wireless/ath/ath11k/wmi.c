@@ -87,8 +87,8 @@ static const struct wmi_tlv_policy wmi_tlv_policies[] = {
 		= { .min_len = sizeof(struct wmi_pdev_bss_chan_info_event) },
 	[WMI_TAG_VDEV_INSTALL_KEY_COMPLETE_EVENT]
 		= { .min_len = sizeof(struct wmi_vdev_install_key_compl_event) },
-	[WMI_TAG_READY_EVENT]
-		= {.min_len = sizeof(struct wmi_ready_event) },
+	[WMI_TAG_READY_EVENT] = {
+		.min_len = sizeof(struct wmi_ready_event_min) },
 	[WMI_TAG_SERVICE_AVAILABLE_EVENT]
 		= {.min_len = sizeof(struct wmi_service_available_event) },
 	[WMI_TAG_PEER_ASSOC_CONF_EVENT]
@@ -2368,6 +2368,146 @@ int ath11k_wmi_send_dfs_phyerr_offload_enable_cmd(struct ath11k *ar,
 	return ret;
 }
 
+int ath11k_wmi_delba_send(struct ath11k *ar, u32 vdev_id, const u8 *mac,
+			  u32 tid, u32 initiator, u32 reason)
+{
+	struct ath11k_pdev_wmi *wmi = ar->wmi;
+	struct wmi_delba_send_cmd *cmd;
+	struct sk_buff *skb;
+	int ret;
+
+	skb = ath11k_wmi_alloc_skb(wmi->wmi_ab, sizeof(*cmd));
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct wmi_delba_send_cmd *)skb->data;
+	cmd->tlv_header = FIELD_PREP(WMI_TLV_TAG, WMI_TAG_DELBA_SEND_CMD) |
+			FIELD_PREP(WMI_TLV_LEN, sizeof(*cmd) - TLV_HDR_SIZE);
+	cmd->vdev_id = vdev_id;
+	ether_addr_copy(cmd->peer_macaddr.addr, mac);
+	cmd->tid = tid;
+	cmd->initiator = initiator;
+	cmd->reasoncode = reason;
+
+	ath11k_dbg(ar->ab, ATH11K_DBG_WMI,
+		   "wmi delba send vdev_id 0x%X mac_addr %pM tid %u initiator %u reason %u\n",
+		   vdev_id, mac, tid, initiator, reason);
+
+	ret = ath11k_wmi_cmd_send(wmi, skb, WMI_DELBA_SEND_CMDID);
+
+	if (ret) {
+		ath11k_warn(ar->ab,
+			    "failed to send WMI_DELBA_SEND_CMDID cmd\n");
+		dev_kfree_skb(skb);
+	}
+
+	return ret;
+}
+
+int ath11k_wmi_addba_set_resp(struct ath11k *ar, u32 vdev_id, const u8 *mac,
+			      u32 tid, u32 status)
+{
+	struct ath11k_pdev_wmi *wmi = ar->wmi;
+	struct wmi_addba_setresponse_cmd *cmd;
+	struct sk_buff *skb;
+	int ret;
+
+	skb = ath11k_wmi_alloc_skb(wmi->wmi_ab, sizeof(*cmd));
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct wmi_addba_setresponse_cmd *)skb->data;
+	cmd->tlv_header =
+		FIELD_PREP(WMI_TLV_TAG, WMI_TAG_ADDBA_SETRESPONSE_CMD) |
+		FIELD_PREP(WMI_TLV_LEN, sizeof(*cmd) - TLV_HDR_SIZE);
+	cmd->vdev_id = vdev_id;
+	ether_addr_copy(cmd->peer_macaddr.addr, mac);
+	cmd->tid = tid;
+	cmd->statuscode = status;
+
+	ath11k_dbg(ar->ab, ATH11K_DBG_WMI,
+		   "wmi addba set resp vdev_id 0x%X mac_addr %pM tid %u status %u\n",
+		   vdev_id, mac, tid, status);
+
+	ret = ath11k_wmi_cmd_send(wmi, skb, WMI_ADDBA_SET_RESP_CMDID);
+
+	if (ret) {
+		ath11k_warn(ar->ab,
+			    "failed to send WMI_ADDBA_SET_RESP_CMDID cmd\n");
+		dev_kfree_skb(skb);
+	}
+
+	return ret;
+}
+
+int ath11k_wmi_addba_send(struct ath11k *ar, u32 vdev_id, const u8 *mac,
+			  u32 tid, u32 buf_size)
+{
+	struct ath11k_pdev_wmi *wmi = ar->wmi;
+	struct wmi_addba_send_cmd *cmd;
+	struct sk_buff *skb;
+	int ret;
+
+	skb = ath11k_wmi_alloc_skb(wmi->wmi_ab, sizeof(*cmd));
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct wmi_addba_send_cmd *)skb->data;
+	cmd->tlv_header = FIELD_PREP(WMI_TLV_TAG, WMI_TAG_ADDBA_SEND_CMD) |
+		FIELD_PREP(WMI_TLV_LEN, sizeof(*cmd) - TLV_HDR_SIZE);
+	cmd->vdev_id = vdev_id;
+	ether_addr_copy(cmd->peer_macaddr.addr, mac);
+	cmd->tid = tid;
+	cmd->buffersize = buf_size;
+
+	ath11k_dbg(ar->ab, ATH11K_DBG_WMI,
+		   "wmi addba send vdev_id 0x%X mac_addr %pM tid %u bufsize %u\n",
+		   vdev_id, mac, tid, buf_size);
+
+	ret = ath11k_wmi_cmd_send(wmi, skb, WMI_ADDBA_SEND_CMDID);
+
+	if (ret) {
+		ath11k_warn(ar->ab,
+			    "failed to send WMI_ADDBA_SEND_CMDID cmd\n");
+		dev_kfree_skb(skb);
+	}
+
+	return ret;
+}
+
+int ath11k_wmi_addba_clear_resp(struct ath11k *ar, u32 vdev_id, const u8 *mac)
+{
+	struct ath11k_pdev_wmi *wmi = ar->wmi;
+	struct wmi_addba_clear_resp_cmd *cmd;
+	struct sk_buff *skb;
+	int ret;
+
+	skb = ath11k_wmi_alloc_skb(wmi->wmi_ab, sizeof(*cmd));
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct wmi_addba_clear_resp_cmd *)skb->data;
+	cmd->tlv_header =
+		FIELD_PREP(WMI_TLV_TAG, WMI_TAG_ADDBA_CLEAR_RESP_CMD) |
+		FIELD_PREP(WMI_TLV_LEN, sizeof(*cmd) - TLV_HDR_SIZE);
+	cmd->vdev_id = vdev_id;
+	ether_addr_copy(cmd->peer_macaddr.addr, mac);
+
+	ath11k_dbg(ar->ab, ATH11K_DBG_WMI,
+		   "wmi addba clear resp vdev_id 0x%X mac_addr %pM\n",
+		   vdev_id, mac);
+
+	ret = ath11k_wmi_cmd_send(wmi, skb, WMI_ADDBA_CLEAR_RESP_CMDID);
+
+	if (ret) {
+		ath11k_warn(ar->ab,
+			    "failed to send WMI_ADDBA_CLEAR_RESP_CMDID cmd\n");
+		dev_kfree_skb(skb);
+	}
+
+	return ret;
+}
+
 int ath11k_wmi_pdev_peer_pktlog_filter(struct ath11k *ar, u8 *addr, u8 enable)
 {
 	struct ath11k_pdev_wmi *wmi = ar->wmi;
@@ -2779,7 +2919,7 @@ int ath11k_wmi_send_bss_color_change_enable_cmd(struct ath11k *ar, u32 vdev_id,
 	ret = ath11k_wmi_cmd_send(wmi, skb,
 				  WMI_BSS_COLOR_CHANGE_ENABLE_CMDID);
 	if (ret) {
-		ath11k_warn(ab, "Failed to send WMI_TWT_DIeABLE_CMDID");
+		ath11k_warn(ab, "Failed to send WMI_BSS_COLOR_CHANGE_ENABLE_CMDID");
 		dev_kfree_skb(skb);
 	}
 	return ret;
@@ -3105,7 +3245,7 @@ int ath11k_wmi_cmd_init(struct ath11k_base *ab)
 	config.beacon_tx_offload_max_vdev = ab->num_radios * TARGET_MAX_BCN_OFFLD;
 	config.rx_batchmode = TARGET_RX_BATCHMODE;
 	config.peer_map_unmap_v2_support = 1;
-	config.twt_ap_pdev_count = 2;
+	config.twt_ap_pdev_count = ab->num_radios;
 	config.twt_ap_sta_count = 1000;
 
 	memcpy(&wmi_sc->wlan_resource_config, &config, sizeof(config));
@@ -3740,8 +3880,9 @@ static int wmi_process_mgmt_tx_comp(struct ath11k *ar, u32 desc_id,
 
 	ieee80211_tx_status_irqsafe(ar->hw, msdu);
 
-	WARN_ON_ONCE(atomic_read(&ar->num_pending_mgmt_tx) == 0);
-	atomic_dec(&ar->num_pending_mgmt_tx);
+	/* WARN when we received this event without doing any mgmt tx */
+	if (atomic_dec_if_positive(&ar->num_pending_mgmt_tx) < 0)
+		WARN_ON_ONCE(1);
 
 	return 0;
 }
@@ -4851,7 +4992,7 @@ static int ath11k_wmi_tlv_rdy_parse(struct ath11k_base *ab, u16 tag, u16 len,
 				    const void *ptr, void *data)
 {
 	struct wmi_tlv_rdy_parse *rdy_parse = data;
-	struct wmi_ready_event *fixed_param;
+	struct wmi_ready_event fixed_param;
 	struct wmi_mac_addr *addr_list;
 	struct ath11k_pdev *pdev;
 	u32 num_mac_addr;
@@ -4859,11 +5000,16 @@ static int ath11k_wmi_tlv_rdy_parse(struct ath11k_base *ab, u16 tag, u16 len,
 
 	switch (tag) {
 	case WMI_TAG_READY_EVENT:
-		fixed_param = (struct wmi_ready_event *)ptr;
-		ab->wlan_init_status = fixed_param->status;
-		rdy_parse->num_extra_mac_addr = fixed_param->num_extra_mac_addr;
+		memset(&fixed_param, 0, sizeof(fixed_param));
+		memcpy(&fixed_param, (struct wmi_ready_event *)ptr,
+		       min_t(u16, sizeof(fixed_param), len));
+		ab->wlan_init_status = fixed_param.ready_event_min.status;
+		rdy_parse->num_extra_mac_addr =
+			fixed_param.ready_event_min.num_extra_mac_addr;
 
-		ether_addr_copy(ab->mac_addr, fixed_param->mac_addr.addr);
+		ether_addr_copy(ab->mac_addr,
+				fixed_param.ready_event_min.mac_addr.addr);
+		ab->pktlog_defs_checksum = fixed_param.pktlog_defs_checksum;
 		ab->wmi_ready = true;
 		break;
 	case WMI_TAG_ARRAY_FIXED_STRUCT:

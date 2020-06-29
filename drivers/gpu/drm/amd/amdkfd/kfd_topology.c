@@ -478,6 +478,8 @@ static ssize_t node_show(struct kobject *kobj, struct attribute *attr,
 			dev->node_props.device_id);
 	sysfs_show_32bit_prop(buffer, "location_id",
 			dev->node_props.location_id);
+	sysfs_show_32bit_prop(buffer, "domain",
+			dev->node_props.domain);
 	sysfs_show_32bit_prop(buffer, "drm_render_minor",
 			dev->node_props.drm_render_minor);
 	sysfs_show_64bit_prop(buffer, "hive_id",
@@ -787,7 +789,6 @@ static int kfd_topology_update_sysfs(void)
 {
 	int ret;
 
-	pr_info("Creating topology SYSFS entries\n");
 	if (!sys_props.kobj_topology) {
 		sys_props.kobj_topology =
 				kfd_alloc_struct(sys_props.kobj_topology);
@@ -1048,7 +1049,6 @@ int kfd_topology_init(void)
 		sys_props.generation_count++;
 		kfd_update_system_properties();
 		kfd_debug_print_topology();
-		pr_info("Finished initializing topology\n");
 	} else
 		pr_err("Failed to update topology in sysfs ret=%d\n", ret);
 
@@ -1303,7 +1303,12 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 
 	dev->node_props.vendor_id = gpu->pdev->vendor;
 	dev->node_props.device_id = gpu->pdev->device;
+	dev->node_props.capability |=
+		((amdgpu_amdkfd_get_asic_rev_id(dev->gpu->kgd) <<
+			HSA_CAP_ASIC_REVISION_SHIFT) &
+			HSA_CAP_ASIC_REVISION_MASK);
 	dev->node_props.location_id = pci_dev_id(gpu->pdev);
+	dev->node_props.domain = pci_domain_nr(gpu->pdev->bus);
 	dev->node_props.max_engine_clk_fcompute =
 		amdgpu_amdkfd_get_max_engine_clock_in_mhz(dev->gpu->kgd);
 	dev->node_props.max_engine_clk_ccompute =
@@ -1317,7 +1322,7 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 				gpu->device_info->num_xgmi_sdma_engines;
 	dev->node_props.num_sdma_queues_per_engine =
 				gpu->device_info->num_sdma_queues_per_engine;
-	dev->node_props.num_gws = (hws_gws_support &&
+	dev->node_props.num_gws = (dev->gpu->gws &&
 		dev->gpu->dqm->sched_policy != KFD_SCHED_POLICY_NO_HWS) ?
 		amdgpu_amdkfd_get_num_gws(dev->gpu->kgd) : 0;
 	dev->node_props.num_cp_queues = get_cp_queues_num(dev->gpu->dqm);

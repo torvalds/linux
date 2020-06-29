@@ -203,7 +203,7 @@ static void __init register_insn_emulation(struct insn_emulation_ops *ops)
 }
 
 static int emulation_proc_handler(struct ctl_table *table, int write,
-				  void __user *buffer, size_t *lenp,
+				  void *buffer, size_t *lenp,
 				  loff_t *ppos)
 {
 	int ret = 0;

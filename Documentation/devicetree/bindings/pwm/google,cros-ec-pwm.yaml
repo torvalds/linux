@@ -31,10 +31,17 @@ additionalProperties: false
 
 examples:
   - |
-    cros-ec@0 {
-        compatible = "google,cros-ec-spi";
-        cros_ec_pwm: ec-pwm {
-            compatible = "google,cros-ec-pwm";
-            #pwm-cells = <1>;
+    spi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        cros-ec@0 {
+            compatible = "google,cros-ec-spi";
+            reg = <0>;
+
+            cros_ec_pwm: ec-pwm {
+                compatible = "google,cros-ec-pwm";
+                #pwm-cells = <1>;
+            };
         };
     };

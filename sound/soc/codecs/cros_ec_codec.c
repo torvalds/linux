@@ -8,7 +8,6 @@
  * EC for audio function.
  */
 
-#include <crypto/hash.h>
 #include <crypto/sha.h>
 #include <linux/acpi.h>
 #include <linux/delay.h>
@@ -107,24 +106,11 @@ error:
 static int calculate_sha256(struct cros_ec_codec_priv *priv,
 			    uint8_t *buf, uint32_t size, uint8_t *digest)
 {
-	struct crypto_shash *tfm;
+	struct sha256_state sctx;
 
-	tfm = crypto_alloc_shash("sha256", CRYPTO_ALG_TYPE_SHASH, 0);
-	if (IS_ERR(tfm)) {
-		dev_err(priv->dev, "can't alloc shash\n");
-		return PTR_ERR(tfm);
-	}
-
-	{
-		SHASH_DESC_ON_STACK(desc, tfm);
-
-		desc->tfm = tfm;
-
-		crypto_shash_digest(desc, buf, size, digest);
-		shash_desc_zero(desc);
-	}
-
-	crypto_free_shash(tfm);
+	sha256_init(&sctx);
+	sha256_update(&sctx, buf, size);
+	sha256_final(&sctx, digest);
 
 #ifdef DEBUG
 	{

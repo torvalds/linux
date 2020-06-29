@@ -1,7 +1,12 @@
-                     p m - g r a p h
+                                                _
+    _ __  _ __ ___         __ _ _ __ __ _ _ __ | |__
+   | '_ \| '_ ` _ \ _____ / _` | '__/ _` | '_ \| '_ \
+   | |_) | | | | | |_____| (_| | | | (_| | |_) | | | |
+   | .__/|_| |_| |_|      \__, |_|  \__,_| .__/|_| |_|
+   |_|                    |___/          |_|
 
    pm-graph: suspend/resume/boot timing analysis tools
-    Version: 5.5
+    Version: 5.6
      Author: Todd Brandt <todd.e.brandt@intel.com>
   Home Page: https://01.org/pm-graph
 
@@ -18,10 +23,6 @@
 	- upstream version in git:
 	  https://github.com/intel/pm-graph/
 
- Requirements:
-	- runs with python2 or python3, choice is made by /usr/bin/python link
-	- python2 now requires python-configparser be installed
-
  Table of Contents
 	- Overview
 	- Setup
@@ -29,6 +30,8 @@
 		- Basic Usage
 		- Dev Mode Usage
 		- Proc Mode Usage
+	- Endurance Testing
+		- Usage Examples
 	- Configuration Files
 		- Usage Examples
 		- Config File Options
@@ -54,15 +57,18 @@
 |                            SETUP                               |
 ------------------------------------------------------------------
 
-    These packages are required to execute the scripts
+    Package Requirements
+       - runs with python2 or python3, choice is made by /usr/bin/python link
        - python
-       - python-requests
+       - python-configparser (for python2 sleepgraph)
+       - python-requests (for googlesheet.py)
+       - linux-tools-common (for turbostat usage in sleepgraph)
 
        Ubuntu:
-          sudo apt-get install python python-requests
+          sudo apt-get install python python-configparser python-requests linux-tools-common
 
        Fedora:
-          sudo dnf install python python-requests
+          sudo dnf install python python-configparser python-requests linux-tools-common
 
     The tools can most easily be installed via git clone and make install
 
@@ -190,6 +196,104 @@ _______________
 
  %> sudo ./sleepgraph.py -config config/suspend-proc.cfg
 
+------------------------------------------------------------------
+|                     ENDURANCE TESTING                          |
+------------------------------------------------------------------
+
+ The best way to gauge the health of a system is to run a series of
+ suspend/resumes over an extended period and analyze the behavior. This can be
+ accomplished with sleepgraph's -multi argument. You specify two numbers: the
+ number of tests to run OR the duration in days, hours, or minutes, and the
+ delay in seconds between them. For instance, -multi 20 5: execute 20 tests with
+ a 5 second delay between each, or -multi 24h 0: execute tests over a 24 hour
+ period with no delay between tests. You can include any other options you like
+ to generate the data you want. It's most useful to collect dev mode timelines
+ as the kprobes don't alter the performance much and you get more insight.
+
+ On completion, the output folder contains a series of folders for the
+ individual test data and a set of summary pages in the root. The summary.html
+ file is a tabular list of the tests with relevant info and links. The
+ summary-issue.html and summary-devices.html files include data taken from
+ all tests on kernel issues and device performance. The folder looks like this:
+
+  suspend-xN-{date}-{time}:
+	summary.html
+	summary-issues.html
+	summary-devices.html
+	suspend-{date}-{time} (1)
+	suspend-{date}-{time} (2)
+	...
+
+ These are the relevant arguments to use for testing:
+
+  -m mode
+	Mode to initiate for suspend e.g. mem, freeze, standby (default: mem).
+
+  -rtcwake t
+	Use rtcwake to autoresume after t seconds (default: 15).
+
+  -gzip (optional)
+	Gzip the trace and dmesg logs to save space. The tool can also read in
+	gzipped logs for processing. This reduces the multitest folder size.
+
+  -dev (optional)
+	Add kernel source calls and threads to the timeline (default: disabled).
+
+  -multi n d
+	Execute n consecutive tests at d seconds intervals. The outputs will be
+	created in a new subdirectory: suspend-xN-{date}-{time}. When the multitest
+	run is done, the -summary command is called automatically to create summary
+	html files for all the data (unless you use -skiphtml). -skiphtml will
+	speed up the testing by not creating timelines or summary html files. You
+	can then run the tool again at a later time with -summary and -genhtml to
+	create the timelines.
+
+  -skiphtml (optional)
+	Run the test and capture the trace logs, but skip the timeline and summary
+	html generation. This can greatly speed up overall testing. You can then
+	copy the data to a faster host machine and run -summary -genhtml to
+	generate the timelines and summary.
+
+ These are the relevant commands to use after testing is complete:
+
+  -summary indir
+	Generate or regenerate the summary for a -multi test run. Creates three
+	files: summary.html, summary-issues.html, and summary-devices.html in the
+	current folder. summary.html is a table of tests with relevant info sorted
+	by kernel/host/mode, and links to the test html files. summary-issues.html
+	is a list of kernel issues found in dmesg from all the tests.
+	summary-devices.html is a list of devices and times from all the tests.
+
+  -genhtml
+	Used  with -summary to regenerate any missing html timelines from their
+	dmesg and ftrace logs. This will require a significant amount of time if
+	there are thousands of tests.
+
+Usage Examples
+_______________
+
+ A multitest is initiated like this:
+
+  %> sudo ./sleepgraph.py -m mem -rtcwake 10 -dev -gzip -multi 2000 0
+
+	or you can skip timeline generation in order to speed things up
+
+  %> sudo ./sleepgraph.py -m mem -rtcwake 10 -dev -gzip -multi 2000 0 -skiphtml
+
+ The tool will produce an output folder with all the test subfolders inside.
+ Each test subfolder contains the dmesg/ftrace logs and/or the html timeline
+ depending on whether you used the -skiphtml option. The root folder contains
+ the summary.html files.
+
+ The summary for an existing multitest is generated like this:
+
+  %> cd suspend-x2000-{date}-{time}
+  %> sleepgraph.py -summary .
+
+	or if you need to generate the html timelines you can use -genhtml
+
+  %> cd suspend-xN-{date}-{time}
+  %> sleepgraph.py -summary . -genhtml
 
 ------------------------------------------------------------------
 |                    CONFIGURATION FILES                         |

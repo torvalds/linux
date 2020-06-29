@@ -5,5 +5,5 @@ config INFINIBAND_I40IW
 	depends on IPV6 || !IPV6
 	depends on PCI
 	select GENERIC_ALLOCATOR
-	---help---
+	help
 	Intel(R) Ethernet X722 iWARP Driver

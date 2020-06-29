@@ -272,8 +272,8 @@
 
 	hdmi-encoder@39 {
 		compatible = "adi,adv7511w";
-		reg = <0x39>, <0x3f>, <0x38>, <0x3c>;
-		reg-names = "main", "edid", "packet", "cec";
+		reg = <0x39>, <0x3f>, <0x3c>, <0x38>;
+		reg-names = "main", "edid", "cec", "packet";
 		interrupt-parent = <&gpio1>;
 		interrupts = <28 IRQ_TYPE_LEVEL_LOW>;
 
@@ -284,8 +284,6 @@
 		adi,input-depth = <8>;
 		adi,input-colorspace = "rgb";
 		adi,input-clock = "1x";
-		adi,input-style = <1>;
-		adi,input-justification = "evenly";
 
 		ports {
 			#address-cells = <1>;

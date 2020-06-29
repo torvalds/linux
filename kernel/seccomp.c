@@ -1776,7 +1776,7 @@ static void audit_actions_logged(u32 actions_logged, u32 old_actions_logged,
 }
 
 static int seccomp_actions_logged_handler(struct ctl_table *ro_table, int write,
-					  void __user *buffer, size_t *lenp,
+					  void *buffer, size_t *lenp,
 					  loff_t *ppos)
 {
 	int ret;

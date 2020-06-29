@@ -379,19 +379,19 @@ static inline unsigned int iavf_itr_divisor(struct iavf_q_vector *q_vector)
 	unsigned int divisor;
 
 	switch (q_vector->adapter->link_speed) {
-	case IAVF_LINK_SPEED_40GB:
+	case VIRTCHNL_LINK_SPEED_40GB:
 		divisor = IAVF_ITR_ADAPTIVE_MIN_INC * 1024;
 		break;
-	case IAVF_LINK_SPEED_25GB:
-	case IAVF_LINK_SPEED_20GB:
+	case VIRTCHNL_LINK_SPEED_25GB:
+	case VIRTCHNL_LINK_SPEED_20GB:
 		divisor = IAVF_ITR_ADAPTIVE_MIN_INC * 512;
 		break;
 	default:
-	case IAVF_LINK_SPEED_10GB:
+	case VIRTCHNL_LINK_SPEED_10GB:
 		divisor = IAVF_ITR_ADAPTIVE_MIN_INC * 256;
 		break;
-	case IAVF_LINK_SPEED_1GB:
-	case IAVF_LINK_SPEED_100MB:
+	case VIRTCHNL_LINK_SPEED_1GB:
+	case VIRTCHNL_LINK_SPEED_100MB:
 		divisor = IAVF_ITR_ADAPTIVE_MIN_INC * 32;
 		break;
 	}

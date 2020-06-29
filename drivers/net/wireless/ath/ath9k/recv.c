@@ -413,7 +413,8 @@ u32 ath_calcrxfilter(struct ath_softc *sc)
 	if (sc->cur_chandef.width != NL80211_CHAN_WIDTH_20_NOHT)
 		rfilt |= ATH9K_RX_FILTER_COMP_BAR;
 
-	if (sc->cur_chan->nvifs > 1 || (sc->cur_chan->rxfilter & FIF_OTHER_BSS)) {
+	if (sc->cur_chan->nvifs > 1 ||
+	    (sc->cur_chan->rxfilter & (FIF_OTHER_BSS | FIF_MCAST_ACTION))) {
 		/* This is needed for older chips */
 		if (sc->sc_ah->hw_version.macVersion <= AR_SREV_VERSION_9160)
 			rfilt |= ATH9K_RX_FILTER_PROM;

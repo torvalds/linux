@@ -548,7 +548,7 @@ static int wlcore_irq_locked(struct wl1271 *wl)
 
 		ret = wlcore_fw_status(wl, wl->fw_status);
 		if (ret < 0)
-			goto out;
+			goto err_ret;
 
 		wlcore_hw_tx_immediate_compl(wl);
 
@@ -565,7 +565,7 @@ static int wlcore_irq_locked(struct wl1271 *wl)
 			ret = -EIO;
 
 			/* restarting the chip. ignore any other interrupt. */
-			goto out;
+			goto err_ret;
 		}
 
 		if (unlikely(intr & WL1271_ACX_SW_INTR_WATCHDOG)) {
@@ -575,7 +575,7 @@ static int wlcore_irq_locked(struct wl1271 *wl)
 			ret = -EIO;
 
 			/* restarting the chip. ignore any other interrupt. */
-			goto out;
+			goto err_ret;
 		}
 
 		if (likely(intr & WL1271_ACX_INTR_DATA)) {
@@ -583,7 +583,7 @@ static int wlcore_irq_locked(struct wl1271 *wl)
 
 			ret = wlcore_rx(wl, wl->fw_status);
 			if (ret < 0)
-				goto out;
+				goto err_ret;
 
 			/* Check if any tx blocks were freed */
 			spin_lock_irqsave(&wl->wl_lock, flags);
@@ -596,7 +596,7 @@ static int wlcore_irq_locked(struct wl1271 *wl)
 				 */
 				ret = wlcore_tx_work_locked(wl);
 				if (ret < 0)
-					goto out;
+					goto err_ret;
 			} else {
 				spin_unlock_irqrestore(&wl->wl_lock, flags);
 			}
@@ -604,7 +604,7 @@ static int wlcore_irq_locked(struct wl1271 *wl)
 			/* check for tx results */
 			ret = wlcore_hw_tx_delayed_compl(wl);
 			if (ret < 0)
-				goto out;
+				goto err_ret;
 
 			/* Make sure the deferred queues don't get too long */
 			defer_count = skb_queue_len(&wl->deferred_tx_queue) +
@@ -617,14 +617,14 @@ static int wlcore_irq_locked(struct wl1271 *wl)
 			wl1271_debug(DEBUG_IRQ, "WL1271_ACX_INTR_EVENT_A");
 			ret = wl1271_event_handle(wl, 0);
 			if (ret < 0)
-				goto out;
+				goto err_ret;
 		}
 
 		if (intr & WL1271_ACX_INTR_EVENT_B) {
 			wl1271_debug(DEBUG_IRQ, "WL1271_ACX_INTR_EVENT_B");
 			ret = wl1271_event_handle(wl, 1);
 			if (ret < 0)
-				goto out;
+				goto err_ret;
 		}
 
 		if (intr & WL1271_ACX_INTR_INIT_COMPLETE)
@@ -635,6 +635,7 @@ static int wlcore_irq_locked(struct wl1271 *wl)
 			wl1271_debug(DEBUG_IRQ, "WL1271_ACX_INTR_HW_AVAILABLE");
 	}
 
+err_ret:
 	pm_runtime_mark_last_busy(wl->dev);
 	pm_runtime_put_autosuspend(wl->dev);
 
@@ -1746,9 +1747,7 @@ static int __maybe_unused wl1271_op_suspend(struct ieee80211_hw *hw,
 
 		ret = wl1271_configure_suspend(wl, wlvif, wow);
 		if (ret < 0) {
-			mutex_unlock(&wl->mutex);
-			wl1271_warning("couldn't prepare device to suspend");
-			return ret;
+			goto out_sleep;
 		}
 	}
 
@@ -2698,12 +2697,16 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl,
 
 		if (!wlcore_is_p2p_mgmt(wlvif)) {
 			ret = wl12xx_cmd_role_disable(wl, &wlvif->role_id);
-			if (ret < 0)
+			if (ret < 0) {
+				pm_runtime_put_noidle(wl->dev);
 				goto deinit;
+			}
 		} else {
 			ret = wl12xx_cmd_role_disable(wl, &wlvif->dev_role_id);
-			if (ret < 0)
+			if (ret < 0) {
+				pm_runtime_put_noidle(wl->dev);
 				goto deinit;
+			}
 		}
 
 		pm_runtime_mark_last_busy(wl->dev);
@@ -3547,6 +3550,9 @@ int wlcore_set_key(struct wl1271 *wl, enum set_key_cmd cmd,
 	case WL1271_CIPHER_SUITE_GEM:
 		key_type = KEY_GEM;
 		break;
+	case WLAN_CIPHER_SUITE_AES_CMAC:
+		key_type = KEY_IGTK;
+		break;
 	default:
 		wl1271_error("Unknown key algo 0x%x", key_conf->cipher);
 
@@ -3662,8 +3668,10 @@ void wlcore_regdomain_config(struct wl1271 *wl)
 		goto out;
 
 	ret = pm_runtime_get_sync(wl->dev);
-	if (ret < 0)
+	if (ret < 0) {
+		pm_runtime_put_autosuspend(wl->dev);
 		goto out;
+	}
 
 	ret = wlcore_cmd_regdomain_config_locked(wl);
 	if (ret < 0) {
@@ -6214,6 +6222,7 @@ static int wl1271_init_ieee80211(struct wl1271 *wl)
 		WLAN_CIPHER_SUITE_TKIP,
 		WLAN_CIPHER_SUITE_CCMP,
 		WL1271_CIPHER_SUITE_GEM,
+		WLAN_CIPHER_SUITE_AES_CMAC,
 	};
 
 	/* The tx descriptor buffer */

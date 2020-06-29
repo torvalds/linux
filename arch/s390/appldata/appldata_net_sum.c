@@ -25,10 +25,6 @@
  * This is accessed as binary data by z/VM. If changes to it can't be avoided,
  * the structure version (product ID, see appldata_base.c) needs to be changed
  * as well and all documentation and z/VM applications using it must be updated.
- *
- * The record layout is documented in the Linux for zSeries Device Drivers
- * book:
- * http://oss.software.ibm.com/developerworks/opensource/linux390/index.shtml
  */
 struct appldata_net_sum_data {
 	u64 timestamp;

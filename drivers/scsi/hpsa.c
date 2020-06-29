@@ -254,6 +254,10 @@ static irqreturn_t do_hpsa_intr_intx(int irq, void *dev_id);
 static irqreturn_t do_hpsa_intr_msi(int irq, void *dev_id);
 static int hpsa_ioctl(struct scsi_device *dev, unsigned int cmd,
 		      void __user *arg);
+static int hpsa_passthru_ioctl(struct ctlr_info *h,
+			       IOCTL_Command_struct *iocommand);
+static int hpsa_big_passthru_ioctl(struct ctlr_info *h,
+				   BIG_IOCTL_Command_struct *ioc);
 
 #ifdef CONFIG_COMPAT
 static int hpsa_compat_ioctl(struct scsi_device *dev, unsigned int cmd,
@@ -6217,75 +6221,63 @@ static void cmd_free(struct ctlr_info *h, struct CommandList *c)
 static int hpsa_ioctl32_passthru(struct scsi_device *dev, unsigned int cmd,
 	void __user *arg)
 {
-	IOCTL32_Command_struct __user *arg32 =
-	    (IOCTL32_Command_struct __user *) arg;
+	struct ctlr_info *h = sdev_to_hba(dev);
+	IOCTL32_Command_struct __user *arg32 = arg;
 	IOCTL_Command_struct arg64;
-	IOCTL_Command_struct __user *p = compat_alloc_user_space(sizeof(arg64));
 	int err;
 	u32 cp;
 
+	if (!arg)
+		return -EINVAL;
+
 	memset(&arg64, 0, sizeof(arg64));
-	err = 0;
-	err |= copy_from_user(&arg64.LUN_info, &arg32->LUN_info,
-			   sizeof(arg64.LUN_info));
-	err |= copy_from_user(&arg64.Request, &arg32->Request,
-			   sizeof(arg64.Request));
-	err |= copy_from_user(&arg64.error_info, &arg32->error_info,
-			   sizeof(arg64.error_info));
-	err |= get_user(arg64.buf_size, &arg32->buf_size);
-	err |= get_user(cp, &arg32->buf);
-	arg64.buf = compat_ptr(cp);
-	err |= copy_to_user(p, &arg64, sizeof(arg64));
-
-	if (err)
+	if (copy_from_user(&arg64, arg32, offsetof(IOCTL_Command_struct, buf)))
 		return -EFAULT;
+	if (get_user(cp, &arg32->buf))
+		return -EFAULT;
+	arg64.buf = compat_ptr(cp);
 
-	err = hpsa_ioctl(dev, CCISS_PASSTHRU, p);
+	if (atomic_dec_if_positive(&h->passthru_cmds_avail) < 0)
+		return -EAGAIN;
+	err = hpsa_passthru_ioctl(h, &arg64);
+	atomic_inc(&h->passthru_cmds_avail);
 	if (err)
 		return err;
-	err |= copy_in_user(&arg32->error_info, &p->error_info,
-			 sizeof(arg32->error_info));
-	if (err)
+	if (copy_to_user(&arg32->error_info, &arg64.error_info,
+			 sizeof(arg32->error_info)))
 		return -EFAULT;
-	return err;
+	return 0;
 }
 
 static int hpsa_ioctl32_big_passthru(struct scsi_device *dev,
 	unsigned int cmd, void __user *arg)
 {
-	BIG_IOCTL32_Command_struct __user *arg32 =
-	    (BIG_IOCTL32_Command_struct __user *) arg;
+	struct ctlr_info *h = sdev_to_hba(dev);
+	BIG_IOCTL32_Command_struct __user *arg32 = arg;
 	BIG_IOCTL_Command_struct arg64;
-	BIG_IOCTL_Command_struct __user *p =
-	    compat_alloc_user_space(sizeof(arg64));
 	int err;
 	u32 cp;
 
+	if (!arg)
+		return -EINVAL;
 	memset(&arg64, 0, sizeof(arg64));
-	err = 0;
-	err |= copy_from_user(&arg64.LUN_info, &arg32->LUN_info,
-			   sizeof(arg64.LUN_info));
-	err |= copy_from_user(&arg64.Request, &arg32->Request,
-			   sizeof(arg64.Request));
-	err |= copy_from_user(&arg64.error_info, &arg32->error_info,
-			   sizeof(arg64.error_info));
-	err |= get_user(arg64.buf_size, &arg32->buf_size);
-	err |= get_user(arg64.malloc_size, &arg32->malloc_size);
-	err |= get_user(cp, &arg32->buf);
-	arg64.buf = compat_ptr(cp);
-	err |= copy_to_user(p, &arg64, sizeof(arg64));
-
-	if (err)
+	if (copy_from_user(&arg64, arg32,
+			   offsetof(BIG_IOCTL32_Command_struct, buf)))
 		return -EFAULT;
+	if (get_user(cp, &arg32->buf))
+		return -EFAULT;
+	arg64.buf = compat_ptr(cp);
 
-	err = hpsa_ioctl(dev, CCISS_BIG_PASSTHRU, p);
+	if (atomic_dec_if_positive(&h->passthru_cmds_avail) < 0)
+		return -EAGAIN;
+	err = hpsa_big_passthru_ioctl(h, &arg64);
+	atomic_inc(&h->passthru_cmds_avail);
 	if (err)
 		return err;
-	err |= copy_in_user(&arg32->error_info, &p->error_info,
-			 sizeof(arg32->error_info));
-	if (err)
+	if (copy_to_user(&arg32->error_info, &arg64.error_info,
+			 sizeof(arg32->error_info)))
 		return -EFAULT;
-	return err;
+	return 0;
 }
 
 static int hpsa_compat_ioctl(struct scsi_device *dev, unsigned int cmd,
@@ -6358,37 +6350,33 @@ static int hpsa_getdrivver_ioctl(struct ctlr_info *h, void __user *argp)
 	return 0;
 }
 
-static int hpsa_passthru_ioctl(struct ctlr_info *h, void __user *argp)
+static int hpsa_passthru_ioctl(struct ctlr_info *h,
+			       IOCTL_Command_struct *iocommand)
 {
-	IOCTL_Command_struct iocommand;
 	struct CommandList *c;
 	char *buff = NULL;
 	u64 temp64;
 	int rc = 0;
 
-	if (!argp)
-		return -EINVAL;
 	if (!capable(CAP_SYS_RAWIO))
 		return -EPERM;
-	if (copy_from_user(&iocommand, argp, sizeof(iocommand)))
-		return -EFAULT;
-	if ((iocommand.buf_size < 1) &&
-	    (iocommand.Request.Type.Direction != XFER_NONE)) {
+	if ((iocommand->buf_size < 1) &&
+	    (iocommand->Request.Type.Direction != XFER_NONE)) {
 		return -EINVAL;
 	}
-	if (iocommand.buf_size > 0) {
-		buff = kmalloc(iocommand.buf_size, GFP_KERNEL);
+	if (iocommand->buf_size > 0) {
+		buff = kmalloc(iocommand->buf_size, GFP_KERNEL);
 		if (buff == NULL)
 			return -ENOMEM;
-		if (iocommand.Request.Type.Direction & XFER_WRITE) {
+		if (iocommand->Request.Type.Direction & XFER_WRITE) {
 			/* Copy the data into the buffer we created */
-			if (copy_from_user(buff, iocommand.buf,
-				iocommand.buf_size)) {
+			if (copy_from_user(buff, iocommand->buf,
+				iocommand->buf_size)) {
 				rc = -EFAULT;
 				goto out_kfree;
 			}
 		} else {
-			memset(buff, 0, iocommand.buf_size);
+			memset(buff, 0, iocommand->buf_size);
 		}
 	}
 	c = cmd_alloc(h);
@@ -6398,23 +6386,23 @@ static int hpsa_passthru_ioctl(struct ctlr_info *h, void __user *argp)
 	c->scsi_cmd = SCSI_CMD_BUSY;
 	/* Fill in Command Header */
 	c->Header.ReplyQueue = 0; /* unused in simple mode */
-	if (iocommand.buf_size > 0) {	/* buffer to fill */
+	if (iocommand->buf_size > 0) {	/* buffer to fill */
 		c->Header.SGList = 1;
 		c->Header.SGTotal = cpu_to_le16(1);
 	} else	{ /* no buffers to fill */
 		c->Header.SGList = 0;
 		c->Header.SGTotal = cpu_to_le16(0);
 	}
-	memcpy(&c->Header.LUN, &iocommand.LUN_info, sizeof(c->Header.LUN));
+	memcpy(&c->Header.LUN, &iocommand->LUN_info, sizeof(c->Header.LUN));
 
 	/* Fill in Request block */
-	memcpy(&c->Request, &iocommand.Request,
+	memcpy(&c->Request, &iocommand->Request,
 		sizeof(c->Request));
 
 	/* Fill in the scatter gather information */
-	if (iocommand.buf_size > 0) {
+	if (iocommand->buf_size > 0) {
 		temp64 = dma_map_single(&h->pdev->dev, buff,
-			iocommand.buf_size, DMA_BIDIRECTIONAL);
+			iocommand->buf_size, DMA_BIDIRECTIONAL);
 		if (dma_mapping_error(&h->pdev->dev, (dma_addr_t) temp64)) {
 			c->SG[0].Addr = cpu_to_le64(0);
 			c->SG[0].Len = cpu_to_le32(0);
@@ -6422,12 +6410,12 @@ static int hpsa_passthru_ioctl(struct ctlr_info *h, void __user *argp)
 			goto out;
 		}
 		c->SG[0].Addr = cpu_to_le64(temp64);
-		c->SG[0].Len = cpu_to_le32(iocommand.buf_size);
+		c->SG[0].Len = cpu_to_le32(iocommand->buf_size);
 		c->SG[0].Ext = cpu_to_le32(HPSA_SG_LAST); /* not chaining */
 	}
 	rc = hpsa_scsi_do_simple_cmd(h, c, DEFAULT_REPLY_QUEUE,
 					NO_TIMEOUT);
-	if (iocommand.buf_size > 0)
+	if (iocommand->buf_size > 0)
 		hpsa_pci_unmap(h->pdev, c, 1, DMA_BIDIRECTIONAL);
 	check_ioctl_unit_attention(h, c);
 	if (rc) {
@@ -6436,16 +6424,12 @@ static int hpsa_passthru_ioctl(struct ctlr_info *h, void __user *argp)
 	}
 
 	/* Copy the error information out */
-	memcpy(&iocommand.error_info, c->err_info,
-		sizeof(iocommand.error_info));
-	if (copy_to_user(argp, &iocommand, sizeof(iocommand))) {
-		rc = -EFAULT;
-		goto out;
-	}
-	if ((iocommand.Request.Type.Direction & XFER_READ) &&
-		iocommand.buf_size > 0) {
+	memcpy(&iocommand->error_info, c->err_info,
+		sizeof(iocommand->error_info));
+	if ((iocommand->Request.Type.Direction & XFER_READ) &&
+		iocommand->buf_size > 0) {
 		/* Copy the data out of the buffer we created */
-		if (copy_to_user(iocommand.buf, buff, iocommand.buf_size)) {
+		if (copy_to_user(iocommand->buf, buff, iocommand->buf_size)) {
 			rc = -EFAULT;
 			goto out;
 		}
@@ -6457,9 +6441,9 @@ out_kfree:
 	return rc;
 }
 
-static int hpsa_big_passthru_ioctl(struct ctlr_info *h, void __user *argp)
+static int hpsa_big_passthru_ioctl(struct ctlr_info *h,
+				   BIG_IOCTL_Command_struct *ioc)
 {
-	BIG_IOCTL_Command_struct *ioc;
 	struct CommandList *c;
 	unsigned char **buff = NULL;
 	int *buff_size = NULL;
@@ -6470,29 +6454,17 @@ static int hpsa_big_passthru_ioctl(struct ctlr_info *h, void __user *argp)
 	u32 sz;
 	BYTE __user *data_ptr;
 
-	if (!argp)
-		return -EINVAL;
 	if (!capable(CAP_SYS_RAWIO))
 		return -EPERM;
-	ioc = vmemdup_user(argp, sizeof(*ioc));
-	if (IS_ERR(ioc)) {
-		status = PTR_ERR(ioc);
-		goto cleanup1;
-	}
+
 	if ((ioc->buf_size < 1) &&
-	    (ioc->Request.Type.Direction != XFER_NONE)) {
-		status = -EINVAL;
-		goto cleanup1;
-	}
+	    (ioc->Request.Type.Direction != XFER_NONE))
+		return -EINVAL;
 	/* Check kmalloc limits  using all SGs */
-	if (ioc->malloc_size > MAX_KMALLOC_SIZE) {
-		status = -EINVAL;
-		goto cleanup1;
-	}
-	if (ioc->buf_size > ioc->malloc_size * SG_ENTRIES_IN_CMD) {
-		status = -EINVAL;
-		goto cleanup1;
-	}
+	if (ioc->malloc_size > MAX_KMALLOC_SIZE)
+		return -EINVAL;
+	if (ioc->buf_size > ioc->malloc_size * SG_ENTRIES_IN_CMD)
+		return -EINVAL;
 	buff = kcalloc(SG_ENTRIES_IN_CMD, sizeof(char *), GFP_KERNEL);
 	if (!buff) {
 		status = -ENOMEM;
@@ -6565,10 +6537,6 @@ static int hpsa_big_passthru_ioctl(struct ctlr_info *h, void __user *argp)
 
 	/* Copy the error information out */
 	memcpy(&ioc->error_info, c->err_info, sizeof(ioc->error_info));
-	if (copy_to_user(argp, ioc, sizeof(*ioc))) {
-		status = -EFAULT;
-		goto cleanup0;
-	}
 	if ((ioc->Request.Type.Direction & XFER_READ) && ioc->buf_size > 0) {
 		int i;
 
@@ -6594,7 +6562,6 @@ cleanup1:
 		kfree(buff);
 	}
 	kfree(buff_size);
-	kvfree(ioc);
 	return status;
 }
 
@@ -6610,13 +6577,10 @@ static void check_ioctl_unit_attention(struct ctlr_info *h,
  * ioctl
  */
 static int hpsa_ioctl(struct scsi_device *dev, unsigned int cmd,
-		      void __user *arg)
+		      void __user *argp)
 {
-	struct ctlr_info *h;
-	void __user *argp = (void __user *)arg;
+	struct ctlr_info *h = sdev_to_hba(dev);
 	int rc;
-
-	h = sdev_to_hba(dev);
 
 	switch (cmd) {
 	case CCISS_DEREGDISK:
@@ -6628,18 +6592,35 @@ static int hpsa_ioctl(struct scsi_device *dev, unsigned int cmd,
 		return hpsa_getpciinfo_ioctl(h, argp);
 	case CCISS_GETDRIVVER:
 		return hpsa_getdrivver_ioctl(h, argp);
-	case CCISS_PASSTHRU:
+	case CCISS_PASSTHRU: {
+		IOCTL_Command_struct iocommand;
+
+		if (!argp)
+			return -EINVAL;
+		if (copy_from_user(&iocommand, argp, sizeof(iocommand)))
+			return -EFAULT;
 		if (atomic_dec_if_positive(&h->passthru_cmds_avail) < 0)
 			return -EAGAIN;
-		rc = hpsa_passthru_ioctl(h, argp);
+		rc = hpsa_passthru_ioctl(h, &iocommand);
 		atomic_inc(&h->passthru_cmds_avail);
+		if (!rc && copy_to_user(argp, &iocommand, sizeof(iocommand)))
+			rc = -EFAULT;
 		return rc;
-	case CCISS_BIG_PASSTHRU:
+	}
+	case CCISS_BIG_PASSTHRU: {
+		BIG_IOCTL_Command_struct ioc;
+		if (!argp)
+			return -EINVAL;
+		if (copy_from_user(&ioc, argp, sizeof(ioc)))
+			return -EFAULT;
 		if (atomic_dec_if_positive(&h->passthru_cmds_avail) < 0)
 			return -EAGAIN;
-		rc = hpsa_big_passthru_ioctl(h, argp);
+		rc = hpsa_big_passthru_ioctl(h, &ioc);
 		atomic_inc(&h->passthru_cmds_avail);
+		if (!rc && copy_to_user(argp, &ioc, sizeof(ioc)))
+			rc = -EFAULT;
 		return rc;
+	}
 	default:
 		return -ENOTTY;
 	}

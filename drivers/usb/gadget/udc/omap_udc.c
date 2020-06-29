@@ -2576,7 +2576,7 @@ omap_ep_setup(char *name, u8 addr, u8 type,
 	case USB_ENDPOINT_XFER_INT:
 		ep->ep.caps.type_int = true;
 		break;
-	};
+	}
 
 	if (addr & USB_DIR_IN)
 		ep->ep.caps.dir_in = true;

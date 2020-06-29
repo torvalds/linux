@@ -312,6 +312,7 @@ static int mlxsw_sp_port_pb_init(struct mlxsw_sp_port *mlxsw_sp_port)
 
 		if (i == MLXSW_SP_PB_UNUSED)
 			continue;
+		mlxsw_sp_port_headroom_8x_adjust(mlxsw_sp_port, &size);
 		mlxsw_reg_pbmc_lossy_buffer_pack(pbmc_pl, i, size);
 	}
 	mlxsw_reg_pbmc_lossy_buffer_pack(pbmc_pl,
@@ -614,7 +615,7 @@ static const struct mlxsw_sp_sb_cm mlxsw_sp2_sb_cms_egress[] = {
 #define MLXSW_SP_CPU_PORT_SB_CM MLXSW_SP_SB_CM(0, 0, MLXSW_SP_SB_POOL_EGR_CPU)
 
 static const struct mlxsw_sp_sb_cm mlxsw_sp_cpu_port_sb_cms[] = {
-	MLXSW_SP_CPU_PORT_SB_CM,
+	MLXSW_SP_SB_CM(1000, 8, MLXSW_SP_SB_POOL_EGR_CPU),
 	MLXSW_SP_SB_CM(1000, 8, MLXSW_SP_SB_POOL_EGR_CPU),
 	MLXSW_SP_SB_CM(1000, 8, MLXSW_SP_SB_POOL_EGR_CPU),
 	MLXSW_SP_SB_CM(1000, 8, MLXSW_SP_SB_POOL_EGR_CPU),

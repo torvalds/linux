@@ -167,7 +167,7 @@ static int mlx5e_tls_resync(struct net_device *netdev, struct sock *sk,
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 	struct mlx5e_tls_offload_context_rx *rx_ctx;
-	u64 rcd_sn = *(u64 *)rcd_sn_data;
+	__be64 rcd_sn = *(__be64 *)rcd_sn_data;
 
 	if (WARN_ON_ONCE(direction != TLS_OFFLOAD_CTX_DIR_RX))
 		return -EINVAL;
@@ -239,4 +239,18 @@ void mlx5e_tls_cleanup(struct mlx5e_priv *priv)
 
 	kfree(tls);
 	priv->tls = NULL;
+}
+
+u16 mlx5e_tls_get_stop_room(struct mlx5e_txqsq *sq)
+{
+	struct mlx5_core_dev *mdev = sq->channel->mdev;
+
+	if (!mlx5_accel_is_tls_device(mdev))
+		return 0;
+
+	if (MLX5_CAP_GEN(mdev, tls_tx))
+		return mlx5e_ktls_get_stop_room(sq);
+
+	/* Resync SKB. */
+	return mlx5e_stop_room_for_wqe(MLX5_SEND_WQE_MAX_WQEBBS);
 }

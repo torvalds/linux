@@ -136,6 +136,8 @@
 
 #define USDHI6_MIN_DMA 64
 
+#define USDHI6_REQ_TIMEOUT_MS 4000
+
 enum usdhi6_wait_for {
 	USDHI6_WAIT_FOR_REQUEST,
 	USDHI6_WAIT_FOR_CMD,
@@ -1763,7 +1765,12 @@ static int usdhi6_probe(struct platform_device *pdev)
 	host		= mmc_priv(mmc);
 	host->mmc	= mmc;
 	host->wait	= USDHI6_WAIT_FOR_REQUEST;
-	host->timeout	= msecs_to_jiffies(4000);
+	host->timeout	= msecs_to_jiffies(USDHI6_REQ_TIMEOUT_MS);
+	/*
+	 * We use a fixed timeout of 4s, hence inform the core about it. A
+	 * future improvement should instead respect the cmd->busy_timeout.
+	 */
+	mmc->max_busy_timeout = USDHI6_REQ_TIMEOUT_MS;
 
 	host->pinctrl = devm_pinctrl_get(&pdev->dev);
 	if (IS_ERR(host->pinctrl)) {

@@ -393,6 +393,10 @@ long __sys_setregid(gid_t rgid, gid_t egid)
 		new->sgid = new->egid;
 	new->fsgid = new->egid;
 
+	retval = security_task_fix_setgid(new, old, LSM_SETID_RE);
+	if (retval < 0)
+		goto error;
+
 	return commit_creds(new);
 
 error:
@@ -433,6 +437,10 @@ long __sys_setgid(gid_t gid)
 	else if (gid_eq(kgid, old->gid) || gid_eq(kgid, old->sgid))
 		new->egid = new->fsgid = kgid;
 	else
+		goto error;
+
+	retval = security_task_fix_setgid(new, old, LSM_SETID_ID);
+	if (retval < 0)
 		goto error;
 
 	return commit_creds(new);
@@ -756,6 +764,10 @@ long __sys_setresgid(gid_t rgid, gid_t egid, gid_t sgid)
 		new->sgid = ksgid;
 	new->fsgid = new->egid;
 
+	retval = security_task_fix_setgid(new, old, LSM_SETID_RES);
+	if (retval < 0)
+		goto error;
+
 	return commit_creds(new);
 
 error:
@@ -862,7 +874,8 @@ long __sys_setfsgid(gid_t gid)
 	    ns_capable(old->user_ns, CAP_SETGID)) {
 		if (!gid_eq(kgid, old->fsgid)) {
 			new->fsgid = kgid;
-			goto change_okay;
+			if (security_task_fix_setgid(new,old,LSM_SETID_FS) == 0)
+				goto change_okay;
 		}
 	}
 
@@ -1846,7 +1859,7 @@ static int prctl_set_mm_exe_file(struct mm_struct *mm, unsigned int fd)
 	if (exe_file) {
 		struct vm_area_struct *vma;
 
-		down_read(&mm->mmap_sem);
+		mmap_read_lock(mm);
 		for (vma = mm->mmap; vma; vma = vma->vm_next) {
 			if (!vma->vm_file)
 				continue;
@@ -1855,7 +1868,7 @@ static int prctl_set_mm_exe_file(struct mm_struct *mm, unsigned int fd)
 				goto exit_err;
 		}
 
-		up_read(&mm->mmap_sem);
+		mmap_read_unlock(mm);
 		fput(exe_file);
 	}
 
@@ -1869,7 +1882,7 @@ exit:
 	fdput(exe);
 	return err;
 exit_err:
-	up_read(&mm->mmap_sem);
+	mmap_read_unlock(mm);
 	fput(exe_file);
 	goto exit;
 }
@@ -2007,10 +2020,10 @@ static int prctl_set_mm_map(int opt, const void __user *addr, unsigned long data
 	}
 
 	/*
-	 * arg_lock protects concurent updates but we still need mmap_sem for
+	 * arg_lock protects concurent updates but we still need mmap_lock for
 	 * read to exclude races with sys_brk.
 	 */
-	down_read(&mm->mmap_sem);
+	mmap_read_lock(mm);
 
 	/*
 	 * We don't validate if these members are pointing to
@@ -2049,7 +2062,7 @@ static int prctl_set_mm_map(int opt, const void __user *addr, unsigned long data
 	if (prctl_map.auxv_size)
 		memcpy(mm->saved_auxv, user_auxv, sizeof(user_auxv));
 
-	up_read(&mm->mmap_sem);
+	mmap_read_unlock(mm);
 	return 0;
 }
 #endif /* CONFIG_CHECKPOINT_RESTORE */
@@ -2122,10 +2135,10 @@ static int prctl_set_mm(int opt, unsigned long addr,
 
 	/*
 	 * arg_lock protects concurent updates of arg boundaries, we need
-	 * mmap_sem for a) concurrent sys_brk, b) finding VMA for addr
+	 * mmap_lock for a) concurrent sys_brk, b) finding VMA for addr
 	 * validation.
 	 */
-	down_read(&mm->mmap_sem);
+	mmap_read_lock(mm);
 	vma = find_vma(mm, addr);
 
 	spin_lock(&mm->arg_lock);
@@ -2217,7 +2230,7 @@ static int prctl_set_mm(int opt, unsigned long addr,
 	error = 0;
 out:
 	spin_unlock(&mm->arg_lock);
-	up_read(&mm->mmap_sem);
+	mmap_read_unlock(mm);
 	return error;
 }
 
@@ -2262,7 +2275,7 @@ int __weak arch_prctl_spec_ctrl_set(struct task_struct *t, unsigned long which,
 	return -EINVAL;
 }
 
-#define PR_IO_FLUSHER (PF_MEMALLOC_NOIO | PF_LESS_THROTTLE)
+#define PR_IO_FLUSHER (PF_MEMALLOC_NOIO | PF_LOCAL_THROTTLE)
 
 SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
 		unsigned long, arg4, unsigned long, arg5)
@@ -2442,13 +2455,13 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
 	case PR_SET_THP_DISABLE:
 		if (arg3 || arg4 || arg5)
 			return -EINVAL;
-		if (down_write_killable(&me->mm->mmap_sem))
+		if (mmap_write_lock_killable(me->mm))
 			return -EINTR;
 		if (arg2)
 			set_bit(MMF_DISABLE_THP, &me->mm->flags);
 		else
 			clear_bit(MMF_DISABLE_THP, &me->mm->flags);
-		up_write(&me->mm->mmap_sem);
+		mmap_write_unlock(me->mm);
 		break;
 	case PR_MPX_ENABLE_MANAGEMENT:
 	case PR_MPX_DISABLE_MANAGEMENT:
@@ -2634,6 +2647,7 @@ struct compat_sysinfo {
 COMPAT_SYSCALL_DEFINE1(sysinfo, struct compat_sysinfo __user *, info)
 {
 	struct sysinfo s;
+	struct compat_sysinfo s_32;
 
 	do_sysinfo(&s);
 
@@ -2658,23 +2672,23 @@ COMPAT_SYSCALL_DEFINE1(sysinfo, struct compat_sysinfo __user *, info)
 		s.freehigh >>= bitcount;
 	}
 
-	if (!access_ok(info, sizeof(struct compat_sysinfo)) ||
-	    __put_user(s.uptime, &info->uptime) ||
-	    __put_user(s.loads[0], &info->loads[0]) ||
-	    __put_user(s.loads[1], &info->loads[1]) ||
-	    __put_user(s.loads[2], &info->loads[2]) ||
-	    __put_user(s.totalram, &info->totalram) ||
-	    __put_user(s.freeram, &info->freeram) ||
-	    __put_user(s.sharedram, &info->sharedram) ||
-	    __put_user(s.bufferram, &info->bufferram) ||
-	    __put_user(s.totalswap, &info->totalswap) ||
-	    __put_user(s.freeswap, &info->freeswap) ||
-	    __put_user(s.procs, &info->procs) ||
-	    __put_user(s.totalhigh, &info->totalhigh) ||
-	    __put_user(s.freehigh, &info->freehigh) ||
-	    __put_user(s.mem_unit, &info->mem_unit))
+	memset(&s_32, 0, sizeof(s_32));
+	s_32.uptime = s.uptime;
+	s_32.loads[0] = s.loads[0];
+	s_32.loads[1] = s.loads[1];
+	s_32.loads[2] = s.loads[2];
+	s_32.totalram = s.totalram;
+	s_32.freeram = s.freeram;
+	s_32.sharedram = s.sharedram;
+	s_32.bufferram = s.bufferram;
+	s_32.totalswap = s.totalswap;
+	s_32.freeswap = s.freeswap;
+	s_32.procs = s.procs;
+	s_32.totalhigh = s.totalhigh;
+	s_32.freehigh = s.freehigh;
+	s_32.mem_unit = s.mem_unit;
+	if (copy_to_user(info, &s_32, sizeof(s_32)))
 		return -EFAULT;
-
 	return 0;
 }
 #endif /* CONFIG_COMPAT */

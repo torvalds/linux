@@ -5,7 +5,7 @@
 
 config HSR
 	tristate "High-availability Seamless Redundancy (HSR)"
-	---help---
+	help
 	  If you say Y here, then your Linux box will be able to act as a
 	  DANH ("Doubly attached node implementing HSR"). For this to work,
 	  your Linux box needs (at least) two physical Ethernet interfaces,

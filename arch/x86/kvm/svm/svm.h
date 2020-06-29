@@ -86,25 +86,17 @@ struct nested_state {
 	u64 hsave_msr;
 	u64 vm_cr_msr;
 	u64 vmcb;
+	u32 host_intercept_exceptions;
 
 	/* These are the merged vectors */
 	u32 *msrpm;
 
-	/* gpa pointers to the real vectors */
-	u64 vmcb_msrpm;
-	u64 vmcb_iopm;
+	/* A VMRUN has started but has not yet been performed, so
+	 * we cannot inject a nested vmexit yet.  */
+	bool nested_run_pending;
 
-	/* A VMEXIT is required but not yet emulated */
-	bool exit_required;
-
-	/* cache for intercepts of the guest */
-	u32 intercept_cr;
-	u32 intercept_dr;
-	u32 intercept_exceptions;
-	u64 intercept;
-
-	/* Nested Paging related state */
-	u64 nested_cr3;
+	/* cache for control fields of the guest */
+	struct vmcb_control_area ctl;
 };
 
 struct vcpu_svm {
@@ -360,8 +352,12 @@ u32 svm_msrpm_offset(u32 msr);
 void svm_set_efer(struct kvm_vcpu *vcpu, u64 efer);
 void svm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0);
 int svm_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4);
-void svm_flush_tlb(struct kvm_vcpu *vcpu, bool invalidate_gpa);
+void svm_flush_tlb(struct kvm_vcpu *vcpu);
 void disable_nmi_singlestep(struct vcpu_svm *svm);
+bool svm_smi_blocked(struct kvm_vcpu *vcpu);
+bool svm_nmi_blocked(struct kvm_vcpu *vcpu);
+bool svm_interrupt_blocked(struct kvm_vcpu *vcpu);
+void svm_set_gif(struct vcpu_svm *svm, bool value);
 
 /* nested.c */
 
@@ -369,28 +365,31 @@ void disable_nmi_singlestep(struct vcpu_svm *svm);
 #define NESTED_EXIT_DONE	1	/* Exit caused nested vmexit  */
 #define NESTED_EXIT_CONTINUE	2	/* Further checks needed      */
 
-/* This function returns true if it is save to enable the nmi window */
-static inline bool nested_svm_nmi(struct vcpu_svm *svm)
-{
-	if (!is_guest_mode(&svm->vcpu))
-		return true;
-
-	if (!(svm->nested.intercept & (1ULL << INTERCEPT_NMI)))
-		return true;
-
-	svm->vmcb->control.exit_code = SVM_EXIT_NMI;
-	svm->nested.exit_required = true;
-
-	return false;
-}
-
 static inline bool svm_nested_virtualize_tpr(struct kvm_vcpu *vcpu)
 {
-	return is_guest_mode(vcpu) && (vcpu->arch.hflags & HF_VINTR_MASK);
+	struct vcpu_svm *svm = to_svm(vcpu);
+
+	return is_guest_mode(vcpu) && (svm->nested.ctl.int_ctl & V_INTR_MASKING_MASK);
+}
+
+static inline bool nested_exit_on_smi(struct vcpu_svm *svm)
+{
+	return (svm->nested.ctl.intercept & (1ULL << INTERCEPT_SMI));
+}
+
+static inline bool nested_exit_on_intr(struct vcpu_svm *svm)
+{
+	return (svm->nested.ctl.intercept & (1ULL << INTERCEPT_INTR));
+}
+
+static inline bool nested_exit_on_nmi(struct vcpu_svm *svm)
+{
+	return (svm->nested.ctl.intercept & (1ULL << INTERCEPT_NMI));
 }
 
 void enter_svm_guest_mode(struct vcpu_svm *svm, u64 vmcb_gpa,
-			  struct vmcb *nested_vmcb, struct kvm_host_map *map);
+			  struct vmcb *nested_vmcb);
+void svm_leave_nested(struct vcpu_svm *svm);
 int nested_svm_vmrun(struct vcpu_svm *svm);
 void nested_svm_vmloadsave(struct vmcb *from_vmcb, struct vmcb *to_vmcb);
 int nested_svm_vmexit(struct vcpu_svm *svm);
@@ -398,8 +397,10 @@ int nested_svm_exit_handled(struct vcpu_svm *svm);
 int nested_svm_check_permissions(struct vcpu_svm *svm);
 int nested_svm_check_exception(struct vcpu_svm *svm, unsigned nr,
 			       bool has_error_code, u32 error_code);
-int svm_check_nested_events(struct kvm_vcpu *vcpu);
 int nested_svm_exit_special(struct vcpu_svm *svm);
+void sync_nested_vmcb_control(struct vcpu_svm *svm);
+
+extern struct kvm_x86_nested_ops svm_nested_ops;
 
 /* avic.c */
 

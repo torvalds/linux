@@ -724,11 +724,11 @@ struct mmal_parameter_imagefx_parameters {
 #define MMAL_PARAMETER_CAMERA_INFO_MAX_STR_LEN 16
 
 struct mmal_parameter_camera_info_camera_t {
-	u32    port_id;
-	u32    max_width;
-	u32    max_height;
-	u32    lens_present;
-	u8     camera_name[MMAL_PARAMETER_CAMERA_INFO_MAX_STR_LEN];
+	u32 port_id;
+	u32 max_width;
+	u32 max_height;
+	u32 lens_present;
+	u8 camera_name[MMAL_PARAMETER_CAMERA_INFO_MAX_STR_LEN];
 };
 
 enum mmal_parameter_camera_info_flash_type_t {
@@ -744,8 +744,8 @@ struct mmal_parameter_camera_info_flash_t {
 };
 
 struct mmal_parameter_camera_info_t {
-	u32                            num_cameras;
-	u32                            num_flashes;
+	u32 num_cameras;
+	u32 num_flashes;
 	struct mmal_parameter_camera_info_camera_t
 				cameras[MMAL_PARAMETER_CAMERA_INFO_MAX_CAMERAS];
 	struct mmal_parameter_camera_info_flash_t

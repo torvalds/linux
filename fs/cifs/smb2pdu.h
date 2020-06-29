@@ -143,8 +143,17 @@ struct smb2_transform_hdr {
 	__u64  SessionId;
 } __packed;
 
+/* See MS-SMB2 2.2.42 */
+struct smb2_compression_transform_hdr {
+	__le32 ProtocolId;	/* 0xFC 'S' 'M' 'B' */
+	__le32 OriginalCompressedSegmentSize;
+	__le16 CompressionAlgorithm;
+	__le16 Flags;
+	__le16 Length; /* if chained it is length, else offset */
+} __packed;
+
 /* See MS-SMB2 2.2.42.1 */
-struct compression_playload_header {
+struct compression_payload_header {
 	__le16	AlgorithmId;
 	__le16	Reserved;
 	__le32	Length;
@@ -333,7 +342,7 @@ struct smb2_encryption_neg_context {
 #define SMB3_COMPRESS_LZ77	cpu_to_le16(0x0002)
 #define SMB3_COMPRESS_LZ77_HUFF	cpu_to_le16(0x0003)
 /* Pattern scanning algorithm See MS-SMB2 3.1.4.4.1 */
-#define SMB3_COMPRESS_PATTERN	cpu_to_le16(0x0004)
+#define SMB3_COMPRESS_PATTERN	cpu_to_le16(0x0004) /* Pattern_V1 */
 
 /* Compression Flags */
 #define SMB2_COMPRESSION_CAPABILITIES_FLAG_NONE		cpu_to_le32(0x00000000)
@@ -1644,7 +1653,7 @@ struct create_posix_rsp {
 } __packed;
 
 /*
- * SMB2-only POSIX info level
+ * SMB2-only POSIX info level for query dir
  *
  * See posix_info_sid_size(), posix_info_extra_size() and
  * posix_info_parse() to help with the handling of this struct.
@@ -1666,6 +1675,31 @@ struct smb2_posix_info {
 	__le32 HardLinks;
 	__le32 ReparseTag;
 	__le32 Mode;
+	/*
+	 * var sized owner SID
+	 * var sized group SID
+	 * le32 filenamelength
+	 * u8  filename[]
+	 */
+} __packed;
+
+/* Level 100 query info */
+struct smb311_posix_qinfo {
+	__le64 CreationTime;
+	__le64 LastAccessTime;
+	__le64 LastWriteTime;
+	__le64 ChangeTime;
+	__le64 EndOfFile;
+	__le64 AllocationSize;
+	__le32 DosAttributes;
+	__le64 Inode;
+	__le32 DeviceId;
+	__le32 Zero;
+	/* beginning of POSIX Create Context Response */
+	__le32 HardLinks;
+	__le32 ReparseTag;
+	__le32 Mode;
+	u8     Sids[];
 	/*
 	 * var sized owner SID
 	 * var sized group SID

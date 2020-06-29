@@ -82,7 +82,7 @@ static bool is_packet_valid(struct Qdisc *sch, struct sk_buff *nskb)
 	if (q->skip_sock_check)
 		goto skip;
 
-	if (!sk)
+	if (!sk || !sk_fullsock(sk))
 		return false;
 
 	if (!sock_flag(sk, SOCK_TXTIME))
@@ -137,8 +137,9 @@ static void report_sock_error(struct sk_buff *skb, u32 err, u8 code)
 	struct sock_exterr_skb *serr;
 	struct sk_buff *clone;
 	ktime_t txtime = skb->tstamp;
+	struct sock *sk = skb->sk;
 
-	if (!skb->sk || !(skb->sk->sk_txtime_report_errors))
+	if (!sk || !sk_fullsock(sk) || !(sk->sk_txtime_report_errors))
 		return;
 
 	clone = skb_clone(skb, GFP_ATOMIC);
@@ -154,7 +155,7 @@ static void report_sock_error(struct sk_buff *skb, u32 err, u8 code)
 	serr->ee.ee_data = (txtime >> 32); /* high part of tstamp */
 	serr->ee.ee_info = txtime; /* low part of tstamp */
 
-	if (sock_queue_err_skb(skb->sk, clone))
+	if (sock_queue_err_skb(sk, clone))
 		kfree_skb(clone);
 }
 

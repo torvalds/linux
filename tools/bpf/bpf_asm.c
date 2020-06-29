@@ -11,7 +11,7 @@
  *
  * How to get into it:
  *
- * 1) read Documentation/networking/filter.txt
+ * 1) read Documentation/networking/filter.rst
  * 2) Run `bpf_asm [-c] <filter-prog file>` to translate into binary
  *    blob that is loadable with xt_bpf, cls_bpf et al. Note: -c will
  *    pretty print a C-like construct.

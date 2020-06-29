@@ -876,13 +876,14 @@ static int fsl_qspi_probe(struct platform_device *pdev)
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 					"QuadSPI-memory");
-	q->ahb_addr = devm_ioremap_resource(dev, res);
-	if (IS_ERR(q->ahb_addr)) {
-		ret = PTR_ERR(q->ahb_addr);
+	q->memmap_phy = res->start;
+	/* Since there are 4 cs, map size required is 4 times ahb_buf_size */
+	q->ahb_addr = devm_ioremap(dev, q->memmap_phy,
+				   (q->devtype_data->ahb_buf_size * 4));
+	if (!q->ahb_addr) {
+		ret = -ENOMEM;
 		goto err_put_ctrl;
 	}
-
-	q->memmap_phy = res->start;
 
 	/* find the clocks */
 	q->clk_en = devm_clk_get(dev, "qspi_en");

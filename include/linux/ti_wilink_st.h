@@ -295,7 +295,7 @@ struct bts_header {
 	u32 magic;
 	u32 version;
 	u8 future[24];
-	u8 actions[0];
+	u8 actions[];
 } __attribute__ ((packed));
 
 /**
@@ -305,7 +305,7 @@ struct bts_header {
 struct bts_action {
 	u16 type;
 	u16 size;
-	u8 data[0];
+	u8 data[];
 } __attribute__ ((packed));
 
 struct bts_action_send {
@@ -315,7 +315,7 @@ struct bts_action_send {
 struct bts_action_wait {
 	u32 msec;
 	u32 size;
-	u8 data[0];
+	u8 data[];
 } __attribute__ ((packed));
 
 struct bts_action_delay {

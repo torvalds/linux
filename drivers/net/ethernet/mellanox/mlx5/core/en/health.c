@@ -43,7 +43,7 @@ int mlx5e_reporter_cq_diagnose(struct mlx5e_cq *cq, struct devlink_fmsg *fmsg)
 	void *cqc;
 	int err;
 
-	err = mlx5_core_query_cq(priv->mdev, &cq->mcq, out, sizeof(out));
+	err = mlx5_core_query_cq(priv->mdev, &cq->mcq, out);
 	if (err)
 		return err;
 

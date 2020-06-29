@@ -30,7 +30,7 @@ static void *get_uts(struct ctl_table *table)
  *	to observe. Should this be in kernel/sys.c ????
  */
 static int proc_do_uts_string(struct ctl_table *table, int write,
-		  void __user *buffer, size_t *lenp, loff_t *ppos)
+		  void *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct ctl_table uts_table;
 	int r;

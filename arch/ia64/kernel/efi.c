@@ -37,7 +37,6 @@
 #include <asm/io.h>
 #include <asm/kregs.h>
 #include <asm/meminit.h>
-#include <asm/pgtable.h>
 #include <asm/processor.h>
 #include <asm/mca.h>
 #include <asm/setup.h>
@@ -57,12 +56,12 @@ unsigned long hcdp_phys = EFI_INVALID_TABLE_ADDR;
 unsigned long sal_systab_phys = EFI_INVALID_TABLE_ADDR;
 
 static const efi_config_table_type_t arch_tables[] __initconst = {
-	{ESI_TABLE_GUID, "ESI", &esi_phys},
-	{HCDP_TABLE_GUID, "HCDP", &hcdp_phys},
-	{MPS_TABLE_GUID, "MPS", &mps_phys},
-	{PROCESSOR_ABSTRACTION_LAYER_OVERWRITE_GUID, "PALO", &palo_phys},
-	{SAL_SYSTEM_TABLE_GUID, "SALsystab", &sal_systab_phys},
-	{NULL_GUID, NULL, 0},
+	{ESI_TABLE_GUID,				&esi_phys,		"ESI"		},
+	{HCDP_TABLE_GUID,				&hcdp_phys,		"HCDP"		},
+	{MPS_TABLE_GUID,				&mps_phys,		"MPS"		},
+	{PROCESSOR_ABSTRACTION_LAYER_OVERWRITE_GUID,	&palo_phys,		"PALO"		},
+	{SAL_SYSTEM_TABLE_GUID,				&sal_systab_phys,	"SALsystab"	},
+	{},
 };
 
 extern efi_status_t efi_call_phys (void *, ...);

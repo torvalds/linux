@@ -142,7 +142,7 @@ static void caif_flow_cb(struct sk_buff *skb)
 
 	spin_lock_bh(&caifd->flow_lock);
 	send_xoff = caifd->xoff;
-	caifd->xoff = 0;
+	caifd->xoff = false;
 	dtor = caifd->xoff_skb_dtor;
 
 	if (WARN_ON(caifd->xoff_skb != skb))
@@ -220,7 +220,7 @@ static int transmit(struct cflayer *layer, struct cfpkt *pkt)
 	pr_debug("queue has stopped(%d) or is full (%d > %d)\n",
 			netif_queue_stopped(caifd->netdev),
 			qlen, high);
-	caifd->xoff = 1;
+	caifd->xoff = true;
 	caifd->xoff_skb = skb;
 	caifd->xoff_skb_dtor = skb->destructor;
 	skb->destructor = caif_flow_cb;
@@ -407,7 +407,7 @@ static int caif_device_notify(struct notifier_block *me, unsigned long what,
 			break;
 		}
 
-		caifd->xoff = 0;
+		caifd->xoff = false;
 		cfcnfg_set_phy_state(cfg, &caifd->layer, true);
 		rcu_read_unlock();
 
@@ -442,7 +442,7 @@ static int caif_device_notify(struct notifier_block *me, unsigned long what,
 		if (caifd->xoff_skb_dtor != NULL && caifd->xoff_skb != NULL)
 			caifd->xoff_skb->destructor = caifd->xoff_skb_dtor;
 
-		caifd->xoff = 0;
+		caifd->xoff = false;
 		caifd->xoff_skb_dtor = NULL;
 		caifd->xoff_skb = NULL;
 

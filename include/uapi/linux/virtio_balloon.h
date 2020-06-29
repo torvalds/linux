@@ -48,8 +48,15 @@ struct virtio_balloon_config {
 	__u32 num_pages;
 	/* Number of pages we've actually got in balloon. */
 	__u32 actual;
-	/* Free page report command id, readonly by guest */
-	__u32 free_page_report_cmd_id;
+	/*
+	 * Free page hint command id, readonly by guest.
+	 * Was previously named free_page_report_cmd_id so we
+	 * need to carry that name for legacy support.
+	 */
+	union {
+		__u32 free_page_hint_cmd_id;
+		__u32 free_page_report_cmd_id;	/* deprecated */
+	};
 	/* Stores PAGE_POISON if page poisoning is in use */
 	__u32 poison_val;
 };

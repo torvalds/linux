@@ -110,6 +110,9 @@ Ethernet switch connected via MDIO to the host, CPU port wired to eth0:
 			#size-cells = <0>;
 
 			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
 				port0@0 {
 					reg = <0>;
 					label = "lan1";

@@ -152,15 +152,15 @@ struct mt6380_regulator_info {
 	.modeset_mask = _modeset_mask,					\
 }
 
-static const struct regulator_linear_range buck_volt_range1[] = {
+static const struct linear_range buck_volt_range1[] = {
 	REGULATOR_LINEAR_RANGE(600000, 0, 0xfe, 6250),
 };
 
-static const struct regulator_linear_range buck_volt_range2[] = {
+static const struct linear_range buck_volt_range2[] = {
 	REGULATOR_LINEAR_RANGE(600000, 0, 0xfe, 6250),
 };
 
-static const struct regulator_linear_range buck_volt_range3[] = {
+static const struct linear_range buck_volt_range3[] = {
 	REGULATOR_LINEAR_RANGE(1200000, 0, 0x3c, 25000),
 };
 

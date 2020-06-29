@@ -297,9 +297,9 @@ static int fq_pie_change(struct Qdisc *sch, struct nlattr *opt,
 			goto flow_error;
 		}
 		q->flows_cnt = nla_get_u32(tb[TCA_FQ_PIE_FLOWS]);
-		if (!q->flows_cnt || q->flows_cnt > 65536) {
+		if (!q->flows_cnt || q->flows_cnt >= 65536) {
 			NL_SET_ERR_MSG_MOD(extack,
-					   "Number of flows must be < 65536");
+					   "Number of flows must range in [1..65535]");
 			goto flow_error;
 		}
 	}

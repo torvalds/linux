@@ -12,6 +12,7 @@
 
 #include <media/media-device.h>
 #include <media/v4l2-dev.h>
+#include <media/v4l2-subdev.h>
 #include <linux/types.h>
 
 /* We don't need to include pci.h or usb.h here */
@@ -84,6 +85,53 @@ void v4l_disable_media_source(struct video_device *vdev);
  */
 int v4l_vb2q_enable_media_source(struct vb2_queue *q);
 
+/**
+ * v4l2_create_fwnode_links_to_pad - Create fwnode-based links from a
+ *                                   source subdev to a sink subdev pad.
+ *
+ * @src_sd - pointer to a source subdev
+ * @sink - pointer to a subdev sink pad
+ *
+ * This function searches for fwnode endpoint connections from a source
+ * subdevice to a single sink pad, and if suitable connections are found,
+ * translates them into media links to that pad. The function can be
+ * called by the sink subdevice, in its v4l2-async notifier subdev bound
+ * callback, to create links from a bound source subdevice.
+ *
+ * .. note::
+ *
+ *    Any sink subdevice that calls this function must implement the
+ *    .get_fwnode_pad media operation in order to verify endpoints passed
+ *    to the sink are owned by the sink.
+ *
+ * Return 0 on success or a negative error code on failure.
+ */
+int v4l2_create_fwnode_links_to_pad(struct v4l2_subdev *src_sd,
+				    struct media_pad *sink);
+
+/**
+ * v4l2_create_fwnode_links - Create fwnode-based links from a source
+ *                            subdev to a sink subdev.
+ *
+ * @src_sd - pointer to a source subdevice
+ * @sink_sd - pointer to a sink subdevice
+ *
+ * This function searches for any and all fwnode endpoint connections
+ * between source and sink subdevices, and translates them into media
+ * links. The function can be called by the sink subdevice, in its
+ * v4l2-async notifier subdev bound callback, to create all links from
+ * a bound source subdevice.
+ *
+ * .. note::
+ *
+ *    Any sink subdevice that calls this function must implement the
+ *    .get_fwnode_pad media operation in order to verify endpoints passed
+ *    to the sink are owned by the sink.
+ *
+ * Return 0 on success or a negative error code on failure.
+ */
+int v4l2_create_fwnode_links(struct v4l2_subdev *src_sd,
+			     struct v4l2_subdev *sink_sd);
 
 /**
  * v4l2_pipeline_pm_get - Increase the use count of a pipeline

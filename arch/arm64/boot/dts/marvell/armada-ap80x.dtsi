@@ -201,7 +201,6 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
-				timeout-ms = <1000>;
 				clocks = <&ap_clk 3>;
 				status = "disabled";
 			};

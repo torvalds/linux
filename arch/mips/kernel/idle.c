@@ -180,7 +180,8 @@ void __init check_wait(void)
 		break;
 	case CPU_LOONGSON64:
 		if ((c->processor_id & (PRID_IMP_MASK | PRID_REV_MASK)) >=
-				(PRID_IMP_LOONGSON_64C | PRID_REV_LOONGSON3A_R2_0))
+				(PRID_IMP_LOONGSON_64C | PRID_REV_LOONGSON3A_R2_0) ||
+				(c->processor_id & PRID_IMP_MASK) == PRID_IMP_LOONGSON_64R)
 			cpu_wait = r4k_wait;
 		break;
 
@@ -201,7 +202,7 @@ void __init check_wait(void)
 		 */
 		if (IS_ENABLED(CONFIG_MIPS_EJTAG_FDC_TTY))
 			break;
-		/* fall through */
+		fallthrough;
 	case CPU_M14KC:
 	case CPU_M14KEC:
 	case CPU_24K:

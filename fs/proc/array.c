@@ -92,7 +92,6 @@
 #include <linux/user_namespace.h>
 #include <linux/fs_struct.h>
 
-#include <asm/pgtable.h>
 #include <asm/processor.h>
 #include "internal.h"
 
@@ -248,8 +247,8 @@ void render_sigset_t(struct seq_file *m, const char *header,
 	seq_putc(m, '\n');
 }
 
-static void collect_sigign_sigcatch(struct task_struct *p, sigset_t *ign,
-				    sigset_t *catch)
+static void collect_sigign_sigcatch(struct task_struct *p, sigset_t *sigign,
+				    sigset_t *sigcatch)
 {
 	struct k_sigaction *k;
 	int i;
@@ -257,9 +256,9 @@ static void collect_sigign_sigcatch(struct task_struct *p, sigset_t *ign,
 	k = p->sighand->action;
 	for (i = 1; i <= _NSIG; ++i, ++k) {
 		if (k->sa.sa_handler == SIG_IGN)
-			sigaddset(ign, i);
+			sigaddset(sigign, i);
 		else if (k->sa.sa_handler != SIG_DFL)
-			sigaddset(catch, i);
+			sigaddset(sigcatch, i);
 	}
 }
 
@@ -728,7 +727,7 @@ static int children_seq_show(struct seq_file *seq, void *v)
 {
 	struct inode *inode = file_inode(seq->file);
 
-	seq_printf(seq, "%d ", pid_nr_ns(v, proc_pid_ns(inode)));
+	seq_printf(seq, "%d ", pid_nr_ns(v, proc_pid_ns(inode->i_sb)));
 	return 0;
 }
 

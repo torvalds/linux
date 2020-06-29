@@ -279,7 +279,7 @@ static irqreturn_t gpio_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static struct phy_ops ops = {
+static const struct phy_ops ops = {
 	.init		= ns2_drd_phy_init,
 	.power_on	= ns2_drd_phy_poweron,
 	.power_off	= ns2_drd_phy_poweroff,

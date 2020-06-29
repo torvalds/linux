@@ -13,6 +13,7 @@ The kernel provides a variety of locking primitives which can be divided
 into two categories:
 
  - Sleeping locks
+ - CPU local locks
  - Spinning locks
 
 This document conceptually describes these lock types and provides rules
@@ -44,8 +45,22 @@ Sleeping lock types:
 
 On PREEMPT_RT kernels, these lock types are converted to sleeping locks:
 
+ - local_lock
  - spinlock_t
  - rwlock_t
+
+
+CPU local locks
+---------------
+
+ - local_lock
+
+On non-PREEMPT_RT kernels, local_lock functions are wrappers around
+preemption and interrupt disabling primitives. Contrary to other locking
+mechanisms, disabling preemption or interrupts are pure CPU local
+concurrency control mechanisms and not suited for inter-CPU concurrency
+control.
+
 
 Spinning locks
 --------------
@@ -66,6 +81,7 @@ can have suffixes which apply further protections:
  _irq()               Disable / enable interrupts
  _irqsave/restore()   Save and disable / restore interrupt disabled state
  ===================  ====================================================
+
 
 Owner semantics
 ===============
@@ -137,6 +153,56 @@ implementation, thus changing the fairness:
  can grant their priority to a writer, a preempted low-priority writer will
  have its priority boosted until it releases the lock, thus preventing that
  writer from starving readers.
+
+
+local_lock
+==========
+
+local_lock provides a named scope to critical sections which are protected
+by disabling preemption or interrupts.
+
+On non-PREEMPT_RT kernels local_lock operations map to the preemption and
+interrupt disabling and enabling primitives:
+
+ =========================== ======================
+ local_lock(&llock)          preempt_disable()
+ local_unlock(&llock)        preempt_enable()
+ local_lock_irq(&llock)      local_irq_disable()
+ local_unlock_irq(&llock)    local_irq_enable()
+ local_lock_save(&llock)     local_irq_save()
+ local_lock_restore(&llock)  local_irq_save()
+ =========================== ======================
+
+The named scope of local_lock has two advantages over the regular
+primitives:
+
+  - The lock name allows static analysis and is also a clear documentation
+    of the protection scope while the regular primitives are scopeless and
+    opaque.
+
+  - If lockdep is enabled the local_lock gains a lockmap which allows to
+    validate the correctness of the protection. This can detect cases where
+    e.g. a function using preempt_disable() as protection mechanism is
+    invoked from interrupt or soft-interrupt context. Aside of that
+    lockdep_assert_held(&llock) works as with any other locking primitive.
+
+local_lock and PREEMPT_RT
+-------------------------
+
+PREEMPT_RT kernels map local_lock to a per-CPU spinlock_t, thus changing
+semantics:
+
+  - All spinlock_t changes also apply to local_lock.
+
+local_lock usage
+----------------
+
+local_lock should be used in situations where disabling preemption or
+interrupts is the appropriate form of concurrency control to protect
+per-CPU data structures on a non PREEMPT_RT kernel.
+
+local_lock is not suitable to protect against preemption or interrupts on a
+PREEMPT_RT kernel due to the PREEMPT_RT specific spinlock_t semantics.
 
 
 raw_spinlock_t and spinlock_t
@@ -258,10 +324,82 @@ implementation, thus changing semantics:
 PREEMPT_RT caveats
 ==================
 
+local_lock on RT
+----------------
+
+The mapping of local_lock to spinlock_t on PREEMPT_RT kernels has a few
+implications. For example, on a non-PREEMPT_RT kernel the following code
+sequence works as expected::
+
+  local_lock_irq(&local_lock);
+  raw_spin_lock(&lock);
+
+and is fully equivalent to::
+
+   raw_spin_lock_irq(&lock);
+
+On a PREEMPT_RT kernel this code sequence breaks because local_lock_irq()
+is mapped to a per-CPU spinlock_t which neither disables interrupts nor
+preemption. The following code sequence works perfectly correct on both
+PREEMPT_RT and non-PREEMPT_RT kernels::
+
+  local_lock_irq(&local_lock);
+  spin_lock(&lock);
+
+Another caveat with local locks is that each local_lock has a specific
+protection scope. So the following substitution is wrong::
+
+  func1()
+  {
+    local_irq_save(flags);    -> local_lock_irqsave(&local_lock_1, flags);
+    func3();
+    local_irq_restore(flags); -> local_lock_irqrestore(&local_lock_1, flags);
+  }
+
+  func2()
+  {
+    local_irq_save(flags);    -> local_lock_irqsave(&local_lock_2, flags);
+    func3();
+    local_irq_restore(flags); -> local_lock_irqrestore(&local_lock_2, flags);
+  }
+
+  func3()
+  {
+    lockdep_assert_irqs_disabled();
+    access_protected_data();
+  }
+
+On a non-PREEMPT_RT kernel this works correctly, but on a PREEMPT_RT kernel
+local_lock_1 and local_lock_2 are distinct and cannot serialize the callers
+of func3(). Also the lockdep assert will trigger on a PREEMPT_RT kernel
+because local_lock_irqsave() does not disable interrupts due to the
+PREEMPT_RT-specific semantics of spinlock_t. The correct substitution is::
+
+  func1()
+  {
+    local_irq_save(flags);    -> local_lock_irqsave(&local_lock, flags);
+    func3();
+    local_irq_restore(flags); -> local_lock_irqrestore(&local_lock, flags);
+  }
+
+  func2()
+  {
+    local_irq_save(flags);    -> local_lock_irqsave(&local_lock, flags);
+    func3();
+    local_irq_restore(flags); -> local_lock_irqrestore(&local_lock, flags);
+  }
+
+  func3()
+  {
+    lockdep_assert_held(&local_lock);
+    access_protected_data();
+  }
+
+
 spinlock_t and rwlock_t
 -----------------------
 
-These changes in spinlock_t and rwlock_t semantics on PREEMPT_RT kernels
+The changes in spinlock_t and rwlock_t semantics on PREEMPT_RT kernels
 have a few implications.  For example, on a non-PREEMPT_RT kernel the
 following code sequence works as expected::
 
@@ -282,9 +420,61 @@ local_lock mechanism.  Acquiring the local_lock pins the task to a CPU,
 allowing things like per-CPU interrupt disabled locks to be acquired.
 However, this approach should be used only where absolutely necessary.
 
+A typical scenario is protection of per-CPU variables in thread context::
 
-raw_spinlock_t
---------------
+  struct foo *p = get_cpu_ptr(&var1);
+
+  spin_lock(&p->lock);
+  p->count += this_cpu_read(var2);
+
+This is correct code on a non-PREEMPT_RT kernel, but on a PREEMPT_RT kernel
+this breaks. The PREEMPT_RT-specific change of spinlock_t semantics does
+not allow to acquire p->lock because get_cpu_ptr() implicitly disables
+preemption. The following substitution works on both kernels::
+
+  struct foo *p;
+
+  migrate_disable();
+  p = this_cpu_ptr(&var1);
+  spin_lock(&p->lock);
+  p->count += this_cpu_read(var2);
+
+On a non-PREEMPT_RT kernel migrate_disable() maps to preempt_disable()
+which makes the above code fully equivalent. On a PREEMPT_RT kernel
+migrate_disable() ensures that the task is pinned on the current CPU which
+in turn guarantees that the per-CPU access to var1 and var2 are staying on
+the same CPU.
+
+The migrate_disable() substitution is not valid for the following
+scenario::
+
+  func()
+  {
+    struct foo *p;
+
+    migrate_disable();
+    p = this_cpu_ptr(&var1);
+    p->val = func2();
+
+While correct on a non-PREEMPT_RT kernel, this breaks on PREEMPT_RT because
+here migrate_disable() does not protect against reentrancy from a
+preempting task. A correct substitution for this case is::
+
+  func()
+  {
+    struct foo *p;
+
+    local_lock(&foo_lock);
+    p = this_cpu_ptr(&var1);
+    p->val = func2();
+
+On a non-PREEMPT_RT kernel this protects against reentrancy by disabling
+preemption. On a PREEMPT_RT kernel this is achieved by acquiring the
+underlying per-CPU spinlock.
+
+
+raw_spinlock_t on RT
+--------------------
 
 Acquiring a raw_spinlock_t disables preemption and possibly also
 interrupts, so the critical section must avoid acquiring a regular
@@ -325,22 +515,25 @@ Lock type nesting rules
 
 The most basic rules are:
 
-  - Lock types of the same lock category (sleeping, spinning) can nest
-    arbitrarily as long as they respect the general lock ordering rules to
-    prevent deadlocks.
+  - Lock types of the same lock category (sleeping, CPU local, spinning)
+    can nest arbitrarily as long as they respect the general lock ordering
+    rules to prevent deadlocks.
 
-  - Sleeping lock types cannot nest inside spinning lock types.
+  - Sleeping lock types cannot nest inside CPU local and spinning lock types.
 
-  - Spinning lock types can nest inside sleeping lock types.
+  - CPU local and spinning lock types can nest inside sleeping lock types.
+
+  - Spinning lock types can nest inside all lock types
 
 These constraints apply both in PREEMPT_RT and otherwise.
 
 The fact that PREEMPT_RT changes the lock category of spinlock_t and
-rwlock_t from spinning to sleeping means that they cannot be acquired while
-holding a raw spinlock.  This results in the following nesting ordering:
+rwlock_t from spinning to sleeping and substitutes local_lock with a
+per-CPU spinlock_t means that they cannot be acquired while holding a raw
+spinlock.  This results in the following nesting ordering:
 
   1) Sleeping locks
-  2) spinlock_t and rwlock_t
+  2) spinlock_t, rwlock_t, local_lock
   3) raw_spinlock_t and bit spinlocks
 
 Lockdep will complain if these constraints are violated, both in

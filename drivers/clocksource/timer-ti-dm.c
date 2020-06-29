@@ -258,9 +258,7 @@ static int omap_dm_timer_prepare(struct omap_dm_timer *timer)
 	__omap_dm_timer_enable_posted(timer);
 	omap_dm_timer_disable(timer);
 
-	rc = omap_dm_timer_set_source(timer, OMAP_TIMER_SRC_32_KHZ);
-
-	return rc;
+	return 0;
 }
 
 static inline u32 omap_dm_timer_reserved_systimer(int id)

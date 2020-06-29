@@ -99,8 +99,6 @@ int ocrdma_query_device(struct ib_device *ibdev, struct ib_device_attr *attr,
 	attr->max_mw = dev->attr.max_mw;
 	attr->max_pd = dev->attr.max_pd;
 	attr->atomic_cap = 0;
-	attr->max_fmr = 0;
-	attr->max_map_per_fmr = 0;
 	attr->max_qp_rd_atom =
 	    min(dev->attr.max_ord_per_qp, dev->attr.max_ird_per_qp);
 	attr->max_qp_init_rd_atom = dev->attr.max_ord_per_qp;

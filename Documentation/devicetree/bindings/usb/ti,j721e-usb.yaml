@@ -57,30 +57,36 @@ examples:
   - |
     #include <dt-bindings/soc/ti,sci_pm_domain.h>
     #include <dt-bindings/interrupt-controller/arm-gic.h>
-    cdns_usb@4104000 {
-          compatible = "ti,j721e-usb";
-          reg = <0x00 0x4104000 0x00 0x100>;
-          power-domains = <&k3_pds 288 TI_SCI_PD_EXCLUSIVE>;
-          clocks = <&k3_clks 288 15>, <&k3_clks 288 3>;
-          clock-names = "ref", "lpm";
-          assigned-clocks = <&k3_clks 288 15>;	/* USB2_REFCLK */
-          assigned-clock-parents = <&k3_clks 288 16>; /* HFOSC0 */
-          #address-cells = <2>;
-          #size-cells = <2>;
 
-          usb@6000000 {
-                compatible = "cdns,usb3";
-                reg = <0x00 0x6000000 0x00 0x10000>,
-                      <0x00 0x6010000 0x00 0x10000>,
-                      <0x00 0x6020000 0x00 0x10000>;
-                reg-names = "otg", "xhci", "dev";
-                interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>,	/* irq.0 */
-                             <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>,	/* irq.6 */
-                             <GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>;	/* otgirq.0 */
-                interrupt-names = "host",
-                                  "peripheral",
-                                  "otg";
-                maximum-speed = "super-speed";
-                dr_mode = "otg";
+    bus {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        cdns_usb@4104000 {
+            compatible = "ti,j721e-usb";
+            reg = <0x00 0x4104000 0x00 0x100>;
+            power-domains = <&k3_pds 288 TI_SCI_PD_EXCLUSIVE>;
+            clocks = <&k3_clks 288 15>, <&k3_clks 288 3>;
+            clock-names = "ref", "lpm";
+            assigned-clocks = <&k3_clks 288 15>;	/* USB2_REFCLK */
+            assigned-clock-parents = <&k3_clks 288 16>; /* HFOSC0 */
+            #address-cells = <2>;
+            #size-cells = <2>;
+
+            usb@6000000 {
+                  compatible = "cdns,usb3";
+                  reg = <0x00 0x6000000 0x00 0x10000>,
+                        <0x00 0x6010000 0x00 0x10000>,
+                        <0x00 0x6020000 0x00 0x10000>;
+                  reg-names = "otg", "xhci", "dev";
+                  interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>,	/* irq.0 */
+                               <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>,	/* irq.6 */
+                               <GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>;	/* otgirq.0 */
+                  interrupt-names = "host",
+                                    "peripheral",
+                                    "otg";
+                  maximum-speed = "super-speed";
+                  dr_mode = "otg";
+            };
         };
     };

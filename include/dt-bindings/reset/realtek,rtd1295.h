@@ -75,6 +75,9 @@
 #define RTD1295_RSTN_CBUS_TX		30
 #define RTD1295_RSTN_SDS_PHY		31
 
+/* soft reset 3 */
+#define RTD1295_RSTN_SB2		0
+
 /* soft reset 4 */
 #define RTD1295_RSTN_DCPHY_CRT		0
 #define RTD1295_RSTN_DCPHY_ALERT_RX	1

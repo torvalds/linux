@@ -6,6 +6,11 @@
 #include <test_progs.h>
 #include "bpf/libbpf_internal.h"
 
+/* AddressSanitizer sometimes crashes due to data dereference below, due to
+ * this being mmap()'ed memory. Disable instrumentation with
+ * no_sanitize_address attribute
+ */
+__attribute__((no_sanitize_address))
 static void on_sample(void *ctx, int cpu, void *data, __u32 size)
 {
 	int cpu_data = *(int *)data, duration = 0;

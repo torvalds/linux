@@ -46,7 +46,7 @@ static umode_t soc_attribute_mode(struct kobject *kobj,
 				struct attribute *attr,
 				int index)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct soc_device *soc_dev = container_of(dev, struct soc_device, dev);
 
 	if ((attr == &dev_attr_machine.attr)

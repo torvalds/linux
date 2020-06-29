@@ -8,12 +8,15 @@
 
 #include <linux/types.h>
 
-#define PBR_SIGNATURE		0xAA55
+#define BOOT_SIGNATURE		0xAA55
+#define EXBOOT_SIGNATURE	0xAA550000
+#define STR_EXFAT		"EXFAT   "	/* size should be 8 */
 
 #define EXFAT_MAX_FILE_LEN	255
 
 #define VOL_CLEAN		0x0000
 #define VOL_DIRTY		0x0002
+#define ERR_MEDIUM		0x0004
 
 #define EXFAT_EOF_CLUSTER	0xFFFFFFFFu
 #define EXFAT_BAD_CLUSTER	0xFFFFFFF7u
@@ -55,7 +58,7 @@
 
 /* checksum types */
 #define CS_DIR_ENTRY		0
-#define CS_PBR_SECTOR		1
+#define CS_BOOT_SECTOR		1
 #define CS_DEFAULT		2
 
 /* file attributes */
@@ -69,57 +72,35 @@
 #define ATTR_RWMASK		(ATTR_HIDDEN | ATTR_SYSTEM | ATTR_VOLUME | \
 				 ATTR_SUBDIR | ATTR_ARCHIVE)
 
-#define PBR64_JUMP_BOOT_LEN		3
-#define PBR64_OEM_NAME_LEN		8
-#define PBR64_RESERVED_LEN		53
+#define BOOTSEC_JUMP_BOOT_LEN		3
+#define BOOTSEC_FS_NAME_LEN		8
+#define BOOTSEC_OLDBPB_LEN		53
 
 #define EXFAT_FILE_NAME_LEN		15
 
-/* EXFAT BIOS parameter block (64 bytes) */
-struct bpb64 {
-	__u8 jmp_boot[PBR64_JUMP_BOOT_LEN];
-	__u8 oem_name[PBR64_OEM_NAME_LEN];
-	__u8 res_zero[PBR64_RESERVED_LEN];
-} __packed;
-
-/* EXFAT EXTEND BIOS parameter block (56 bytes) */
-struct bsx64 {
-	__le64 vol_offset;
-	__le64 vol_length;
-	__le32 fat_offset;
-	__le32 fat_length;
-	__le32 clu_offset;
-	__le32 clu_count;
-	__le32 root_cluster;
-	__le32 vol_serial;
-	__u8 fs_version[2];
-	__le16 vol_flags;
-	__u8 sect_size_bits;
-	__u8 sect_per_clus_bits;
-	__u8 num_fats;
-	__u8 phy_drv_no;
-	__u8 perc_in_use;
-	__u8 reserved2[7];
-} __packed;
-
-/* EXFAT PBR[BPB+BSX] (120 bytes) */
-struct pbr64 {
-	struct bpb64 bpb;
-	struct bsx64 bsx;
-} __packed;
-
-/* Common PBR[Partition Boot Record] (512 bytes) */
-struct pbr {
-	union {
-		__u8 raw[64];
-		struct bpb64 f64;
-	} bpb;
-	union {
-		__u8 raw[56];
-		struct bsx64 f64;
-	} bsx;
-	__u8 boot_code[390];
-	__le16 signature;
+/* EXFAT: Main and Backup Boot Sector (512 bytes) */
+struct boot_sector {
+	__u8	jmp_boot[BOOTSEC_JUMP_BOOT_LEN];
+	__u8	fs_name[BOOTSEC_FS_NAME_LEN];
+	__u8	must_be_zero[BOOTSEC_OLDBPB_LEN];
+	__le64	partition_offset;
+	__le64	vol_length;
+	__le32	fat_offset;
+	__le32	fat_length;
+	__le32	clu_offset;
+	__le32	clu_count;
+	__le32	root_cluster;
+	__le32	vol_serial;
+	__u8	fs_revision[2];
+	__le16	vol_flags;
+	__u8	sect_size_bits;
+	__u8	sect_per_clus_bits;
+	__u8	num_fats;
+	__u8	drv_sel;
+	__u8	percent_in_use;
+	__u8	reserved[7];
+	__u8	boot_code[390];
+	__le16	signature;
 } __packed;
 
 struct exfat_dentry {
@@ -136,8 +117,8 @@ struct exfat_dentry {
 			__le16 modify_date;
 			__le16 access_time;
 			__le16 access_date;
-			__u8 create_time_ms;
-			__u8 modify_time_ms;
+			__u8 create_time_cs;
+			__u8 modify_time_cs;
 			__u8 create_tz;
 			__u8 modify_tz;
 			__u8 access_tz;

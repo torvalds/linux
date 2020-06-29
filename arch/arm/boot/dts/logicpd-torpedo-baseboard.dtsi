@@ -65,6 +65,7 @@
 		pinctrl-0 = <&pwm_pins>;
 		ti,timers = <&timer10>;
 		#pwm-cells = <3>;
+		ti,clock-source = <0x01>;
 	};
 
 };

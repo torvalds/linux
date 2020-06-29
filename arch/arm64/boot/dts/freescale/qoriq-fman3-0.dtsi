@@ -81,4 +81,5 @@ ptp_timer0: ptp-timer@1afe000 {
 	reg = <0x0 0x1afe000 0x0 0x1000>;
 	interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
 	clocks = <&clockgen 3 0>;
+	fsl,extts-fifo;
 };

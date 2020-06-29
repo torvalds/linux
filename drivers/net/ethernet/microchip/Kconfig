@@ -6,7 +6,7 @@
 config NET_VENDOR_MICROCHIP
 	bool "Microchip devices"
 	default y
-	---help---
+	help
 	  If you have a network (Ethernet) card belonging to this class, say Y.
 
 	  Note that the answer to this question doesn't directly affect the
@@ -20,7 +20,7 @@ config ENC28J60
 	tristate "ENC28J60 support"
 	depends on SPI
 	select CRC32
-	---help---
+	help
 	  Support for the Microchip EN28J60 ethernet chip.
 
 	  To compile this driver as a module, choose M here. The module will be
@@ -29,14 +29,14 @@ config ENC28J60
 config ENC28J60_WRITEVERIFY
 	bool "Enable write verify"
 	depends on ENC28J60
-	---help---
+	help
 	  Enable the verify after the buffer write useful for debugging purpose.
 	  If unsure, say N.
 
 config ENCX24J600
     tristate "ENCX24J600 support"
     depends on SPI
-    ---help---
+	help
       Support for the Microchip ENC424J600/624J600 ethernet chip.
 
       To compile this driver as a module, choose M here. The module will be
@@ -47,7 +47,7 @@ config LAN743X
 	depends on PCI
 	select PHYLIB
 	select CRC16
-	---help---
+	help
 	  Support for the Microchip LAN743x PCI Express Gigabit Ethernet chip
 
 	  To compile this driver as a module, choose M here. The module will be

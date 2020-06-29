@@ -148,11 +148,11 @@ struct pt_regs;
 #define PT_REGS_PARM3_CORE(x) BPF_CORE_READ((PT_REGS_S390 *)(x), gprs[4])
 #define PT_REGS_PARM4_CORE(x) BPF_CORE_READ((PT_REGS_S390 *)(x), gprs[5])
 #define PT_REGS_PARM5_CORE(x) BPF_CORE_READ((PT_REGS_S390 *)(x), gprs[6])
-#define PT_REGS_RET_CORE(x) BPF_CORE_READ((PT_REGS_S390 *)(x), grps[14])
+#define PT_REGS_RET_CORE(x) BPF_CORE_READ((PT_REGS_S390 *)(x), gprs[14])
 #define PT_REGS_FP_CORE(x) BPF_CORE_READ((PT_REGS_S390 *)(x), gprs[11])
 #define PT_REGS_RC_CORE(x) BPF_CORE_READ((PT_REGS_S390 *)(x), gprs[2])
 #define PT_REGS_SP_CORE(x) BPF_CORE_READ((PT_REGS_S390 *)(x), gprs[15])
-#define PT_REGS_IP_CORE(x) BPF_CORE_READ((PT_REGS_S390 *)(x), pdw.addr)
+#define PT_REGS_IP_CORE(x) BPF_CORE_READ((PT_REGS_S390 *)(x), psw.addr)
 
 #elif defined(bpf_target_arm)
 
@@ -412,5 +412,21 @@ typeof(name(0)) name(struct pt_regs *ctx)				    \
 	_Pragma("GCC diagnostic pop")					    \
 }									    \
 static __always_inline typeof(name(0)) ____##name(struct pt_regs *ctx, ##args)
+
+/*
+ * BPF_SEQ_PRINTF to wrap bpf_seq_printf to-be-printed values
+ * in a structure.
+ */
+#define BPF_SEQ_PRINTF(seq, fmt, args...)				    \
+	({								    \
+		_Pragma("GCC diagnostic push")				    \
+		_Pragma("GCC diagnostic ignored \"-Wint-conversion\"")	    \
+		static const char ___fmt[] = fmt;			    \
+		unsigned long long ___param[] = { args };		    \
+		_Pragma("GCC diagnostic pop")				    \
+		int ___ret = bpf_seq_printf(seq, ___fmt, sizeof(___fmt),    \
+					    ___param, sizeof(___param));    \
+		___ret;							    \
+	})
 
 #endif

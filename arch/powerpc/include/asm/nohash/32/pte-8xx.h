@@ -46,6 +46,8 @@
 #define _PAGE_NA	0x0200	/* Supervisor NA, User no access */
 #define _PAGE_RO	0x0600	/* Supervisor RO, User no access */
 
+#define _PAGE_HUGE	0x0800	/* Copied to L1 PS bit 29 */
+
 /* cache related flags non existing on 8xx */
 #define _PAGE_COHERENT	0
 #define _PAGE_WRITETHRU	0
@@ -128,7 +130,7 @@ static inline pte_t pte_mkuser(pte_t pte)
 
 static inline pte_t pte_mkhuge(pte_t pte)
 {
-	return __pte(pte_val(pte) | _PAGE_SPS);
+	return __pte(pte_val(pte) | _PAGE_SPS | _PAGE_HUGE);
 }
 
 #define pte_mkhuge pte_mkhuge

@@ -13,7 +13,7 @@ STATIC int
 xfs_stats_clear_proc_handler(
 	struct ctl_table	*ctl,
 	int			write,
-	void			__user *buffer,
+	void			*buffer,
 	size_t			*lenp,
 	loff_t			*ppos)
 {
@@ -33,7 +33,7 @@ STATIC int
 xfs_panic_mask_proc_handler(
 	struct ctl_table	*ctl,
 	int			write,
-	void			__user *buffer,
+	void			*buffer,
 	size_t			*lenp,
 	loff_t			*ppos)
 {

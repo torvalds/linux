@@ -519,7 +519,7 @@ int ucc_set_tdm_rxtx_clk(u32 tdm_num, enum qe_clock clock,
 	int clock_bits;
 	u32 shift;
 	struct qe_mux __iomem *qe_mux_reg;
-	 __be32 __iomem *cmxs1cr;
+	__be32 __iomem *cmxs1cr;
 
 	qe_mux_reg = &qe_immr->qmx;
 

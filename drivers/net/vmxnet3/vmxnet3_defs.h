@@ -1,7 +1,7 @@
 /*
  * Linux driver for VMware's vmxnet3 ethernet NIC.
  *
- * Copyright (C) 2008-2016, VMware, Inc. All Rights Reserved.
+ * Copyright (C) 2008-2020, VMware, Inc. All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -82,6 +82,7 @@ enum {
 	VMXNET3_CMD_RESERVED3,
 	VMXNET3_CMD_SET_COALESCE,
 	VMXNET3_CMD_REGISTER_MEMREGS,
+	VMXNET3_CMD_SET_RSS_FIELDS,
 
 	VMXNET3_CMD_FIRST_GET = 0xF00D0000,
 	VMXNET3_CMD_GET_QUEUE_STATUS = VMXNET3_CMD_FIRST_GET,
@@ -96,19 +97,20 @@ enum {
 	VMXNET3_CMD_GET_RESERVED1,
 	VMXNET3_CMD_GET_TXDATA_DESC_SIZE,
 	VMXNET3_CMD_GET_COALESCE,
+	VMXNET3_CMD_GET_RSS_FIELDS,
 };
 
 /*
  *	Little Endian layout of bitfields -
  *	Byte 0 :	7.....len.....0
- *	Byte 1 :	rsvd gen 13.len.8
+ *	Byte 1 :	oco gen 13.len.8
  *	Byte 2 : 	5.msscof.0 ext1  dtype
  *	Byte 3 : 	13...msscof...6
  *
  *	Big Endian layout of bitfields -
  *	Byte 0:		13...msscof...6
  *	Byte 1 : 	5.msscof.0 ext1  dtype
- *	Byte 2 :	rsvd gen 13.len.8
+ *	Byte 2 :	oco gen 13.len.8
  *	Byte 3 :	7.....len.....0
  *
  *	Thus, le32_to_cpu on the dword will allow the big endian driver to read
@@ -123,13 +125,13 @@ struct Vmxnet3_TxDesc {
 	u32 msscof:14;  /* MSS, checksum offset, flags */
 	u32 ext1:1;
 	u32 dtype:1;    /* descriptor type */
-	u32 rsvd:1;
+	u32 oco:1;
 	u32 gen:1;      /* generation bit */
 	u32 len:14;
 #else
 	u32 len:14;
 	u32 gen:1;      /* generation bit */
-	u32 rsvd:1;
+	u32 oco:1;
 	u32 dtype:1;    /* descriptor type */
 	u32 ext1:1;
 	u32 msscof:14;  /* MSS, checksum offset, flags */
@@ -155,9 +157,10 @@ struct Vmxnet3_TxDesc {
 };
 
 /* TxDesc.OM values */
-#define VMXNET3_OM_NONE		0
-#define VMXNET3_OM_CSUM		2
-#define VMXNET3_OM_TSO		3
+#define VMXNET3_OM_NONE         0
+#define VMXNET3_OM_ENCAP        1
+#define VMXNET3_OM_CSUM         2
+#define VMXNET3_OM_TSO          3
 
 /* fields in TxDesc we access w/o using bit fields */
 #define VMXNET3_TXD_EOP_SHIFT	12
@@ -223,6 +226,8 @@ struct Vmxnet3_RxDesc {
 /* fields in RxDesc we access w/o using bit fields */
 #define VMXNET3_RXD_BTYPE_SHIFT  14
 #define VMXNET3_RXD_GEN_SHIFT    31
+
+#define VMXNET3_RCD_HDR_INNER_SHIFT  13
 
 struct Vmxnet3_RxCompDesc {
 #ifdef __BIG_ENDIAN_BITFIELD
@@ -685,12 +690,22 @@ struct Vmxnet3_MemRegs {
 	struct Vmxnet3_MemoryRegion		memRegs[1];
 };
 
+enum Vmxnet3_RSSField {
+	VMXNET3_RSS_FIELDS_TCPIP4 = 0x0001,
+	VMXNET3_RSS_FIELDS_TCPIP6 = 0x0002,
+	VMXNET3_RSS_FIELDS_UDPIP4 = 0x0004,
+	VMXNET3_RSS_FIELDS_UDPIP6 = 0x0008,
+	VMXNET3_RSS_FIELDS_ESPIP4 = 0x0010,
+	VMXNET3_RSS_FIELDS_ESPIP6 = 0x0020,
+};
+
 /* If the command data <= 16 bytes, use the shared memory directly.
  * otherwise, use variable length configuration descriptor.
  */
 union Vmxnet3_CmdInfo {
 	struct Vmxnet3_VariableLenConfDesc	varConf;
 	struct Vmxnet3_SetPolling		setPolling;
+	enum   Vmxnet3_RSSField                 setRssFields;
 	__le64					data[2];
 };
 

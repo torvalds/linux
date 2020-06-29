@@ -88,9 +88,8 @@ properties:
       - "#size-cells"
 
   ti,am65x-oldi-io-ctrl:
-    allOf:
-      - $ref: "/schemas/types.yaml#/definitions/phandle-array"
-      - maxItems: 1
+    $ref: "/schemas/types.yaml#/definitions/phandle-array"
+    maxItems: 1
     description:
       phandle to syscon device node mapping OLDI IO_CTRL registers.
       The mapped range should point to OLDI_DAT0_IO_CTRL, map it and
@@ -123,13 +122,13 @@ examples:
 
     dss: dss@4a00000 {
             compatible = "ti,am65x-dss";
-            reg =   <0x0 0x04a00000 0x0 0x1000>, /* common */
-                    <0x0 0x04a02000 0x0 0x1000>, /* vidl1 */
-                    <0x0 0x04a06000 0x0 0x1000>, /* vid */
-                    <0x0 0x04a07000 0x0 0x1000>, /* ovr1 */
-                    <0x0 0x04a08000 0x0 0x1000>, /* ovr2 */
-                    <0x0 0x04a0a000 0x0 0x1000>, /* vp1 */
-                    <0x0 0x04a0b000 0x0 0x1000>; /* vp2 */
+            reg =   <0x04a00000 0x1000>, /* common */
+                    <0x04a02000 0x1000>, /* vidl1 */
+                    <0x04a06000 0x1000>, /* vid */
+                    <0x04a07000 0x1000>, /* ovr1 */
+                    <0x04a08000 0x1000>, /* ovr2 */
+                    <0x04a0a000 0x1000>, /* vp1 */
+                    <0x04a0b000 0x1000>; /* vp2 */
             reg-names = "common", "vidl1", "vid",
                     "ovr1", "ovr2", "vp1", "vp2";
             ti,am65x-oldi-io-ctrl = <&dss_oldi_io_ctrl>;

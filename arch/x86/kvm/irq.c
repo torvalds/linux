@@ -83,6 +83,7 @@ int kvm_cpu_has_injectable_intr(struct kvm_vcpu *v)
 
 	return kvm_apic_has_interrupt(v) != -1; /* LAPIC */
 }
+EXPORT_SYMBOL_GPL(kvm_cpu_has_injectable_intr);
 
 /*
  * check if there is pending interrupt without
@@ -159,6 +160,8 @@ void __kvm_migrate_timers(struct kvm_vcpu *vcpu)
 {
 	__kvm_migrate_apic_timer(vcpu);
 	__kvm_migrate_pit_timer(vcpu);
+	if (kvm_x86_ops.migrate_timers)
+		kvm_x86_ops.migrate_timers(vcpu);
 }
 
 bool kvm_arch_irqfd_allowed(struct kvm *kvm, struct kvm_irqfd *args)

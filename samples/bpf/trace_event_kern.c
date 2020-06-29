@@ -18,19 +18,19 @@ struct key_t {
 	u32 userstack;
 };
 
-struct bpf_map_def SEC("maps") counts = {
-	.type = BPF_MAP_TYPE_HASH,
-	.key_size = sizeof(struct key_t),
-	.value_size = sizeof(u64),
-	.max_entries = 10000,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__type(key, struct key_t);
+	__type(value, u64);
+	__uint(max_entries, 10000);
+} counts SEC(".maps");
 
-struct bpf_map_def SEC("maps") stackmap = {
-	.type = BPF_MAP_TYPE_STACK_TRACE,
-	.key_size = sizeof(u32),
-	.value_size = PERF_MAX_STACK_DEPTH * sizeof(u64),
-	.max_entries = 10000,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_STACK_TRACE);
+	__uint(key_size, sizeof(u32));
+	__uint(value_size, PERF_MAX_STACK_DEPTH * sizeof(u64));
+	__uint(max_entries, 10000);
+} stackmap SEC(".maps");
 
 #define KERN_STACKID_FLAGS (0 | BPF_F_FAST_STACK_CMP)
 #define USER_STACKID_FLAGS (0 | BPF_F_FAST_STACK_CMP | BPF_F_USER_STACK)

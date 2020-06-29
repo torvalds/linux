@@ -192,14 +192,22 @@ int amdgpu_fence_emit(struct amdgpu_ring *ring, struct dma_fence **f,
  * Used For polling fence.
  * Returns 0 on success, -ENOMEM on failure.
  */
-int amdgpu_fence_emit_polling(struct amdgpu_ring *ring, uint32_t *s)
+int amdgpu_fence_emit_polling(struct amdgpu_ring *ring, uint32_t *s,
+			      uint32_t timeout)
 {
 	uint32_t seq;
+	signed long r;
 
 	if (!s)
 		return -EINVAL;
 
 	seq = ++ring->fence_drv.sync_seq;
+	r = amdgpu_fence_wait_polling(ring,
+				      seq - ring->fence_drv.num_fences_mask,
+				      timeout);
+	if (r < 1)
+		return -ETIMEDOUT;
+
 	amdgpu_ring_emit_fence(ring, ring->fence_drv.gpu_addr,
 			       seq, 0);
 

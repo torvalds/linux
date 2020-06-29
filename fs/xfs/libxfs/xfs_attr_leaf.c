@@ -309,14 +309,6 @@ xfs_attr3_leaf_verify(
 		return fa;
 
 	/*
-	 * In recovery there is a transient state where count == 0 is valid
-	 * because we may have transitioned an empty shortform attr to a leaf
-	 * if the attr didn't fit in shortform.
-	 */
-	if (!xfs_log_in_recovery(mp) && ichdr.count == 0)
-		return __this_address;
-
-	/*
 	 * firstused is the block offset of the first name info structure.
 	 * Make sure it doesn't go off the block or crash into the header.
 	 */
@@ -331,6 +323,13 @@ xfs_attr3_leaf_verify(
 	    (char *)bp->b_addr + ichdr.firstused)
 		return __this_address;
 
+	/*
+	 * NOTE: This verifier historically failed empty leaf buffers because
+	 * we expect the fork to be in another format. Empty attr fork format
+	 * conversions are possible during xattr set, however, and format
+	 * conversion is not atomic with the xattr set that triggers it. We
+	 * cannot assume leaf blocks are non-empty until that is addressed.
+	*/
 	buf_end = (char *)bp->b_addr + mp->m_attr_geo->blksize;
 	for (i = 0, ent = entries; i < ichdr.count; ent++, i++) {
 		fa = xfs_attr3_leaf_verify_entry(mp, buf_end, leaf, &ichdr,
@@ -489,7 +488,7 @@ xfs_attr_copy_value(
 	}
 
 	if (!args->value) {
-		args->value = kmem_alloc_large(valuelen, 0);
+		args->value = kmem_alloc_large(valuelen, KM_NOLOCKDEP);
 		if (!args->value)
 			return -ENOMEM;
 	}
@@ -539,7 +538,7 @@ xfs_attr_shortform_bytesfit(
 	/* rounded down */
 	offset = (XFS_LITINO(mp) - bytes) >> 3;
 
-	if (dp->i_d.di_format == XFS_DINODE_FMT_DEV) {
+	if (dp->i_df.if_format == XFS_DINODE_FMT_DEV) {
 		minforkoff = roundup(sizeof(xfs_dev_t), 8) >> 3;
 		return (offset >= minforkoff) ? minforkoff : 0;
 	}
@@ -567,7 +566,7 @@ xfs_attr_shortform_bytesfit(
 
 	dsize = dp->i_df.if_bytes;
 
-	switch (dp->i_d.di_format) {
+	switch (dp->i_df.if_format) {
 	case XFS_DINODE_FMT_EXTENTS:
 		/*
 		 * If there is no attr fork and the data fork is extents, 
@@ -636,22 +635,19 @@ xfs_sbversion_add_attr2(xfs_mount_t *mp, xfs_trans_t *tp)
  * Create the initial contents of a shortform attribute list.
  */
 void
-xfs_attr_shortform_create(xfs_da_args_t *args)
+xfs_attr_shortform_create(
+	struct xfs_da_args	*args)
 {
-	xfs_attr_sf_hdr_t *hdr;
-	xfs_inode_t *dp;
-	struct xfs_ifork *ifp;
+	struct xfs_inode	*dp = args->dp;
+	struct xfs_ifork	*ifp = dp->i_afp;
+	struct xfs_attr_sf_hdr	*hdr;
 
 	trace_xfs_attr_sf_create(args);
 
-	dp = args->dp;
-	ASSERT(dp != NULL);
-	ifp = dp->i_afp;
-	ASSERT(ifp != NULL);
 	ASSERT(ifp->if_bytes == 0);
-	if (dp->i_d.di_aformat == XFS_DINODE_FMT_EXTENTS) {
+	if (ifp->if_format == XFS_DINODE_FMT_EXTENTS) {
 		ifp->if_flags &= ~XFS_IFEXTENTS;	/* just in case */
-		dp->i_d.di_aformat = XFS_DINODE_FMT_LOCAL;
+		ifp->if_format = XFS_DINODE_FMT_LOCAL;
 		ifp->if_flags |= XFS_IFINLINE;
 	} else {
 		ASSERT(ifp->if_flags & XFS_IFINLINE);
@@ -719,13 +715,12 @@ xfs_attr_fork_remove(
 	struct xfs_inode	*ip,
 	struct xfs_trans	*tp)
 {
-	xfs_idestroy_fork(ip, XFS_ATTR_FORK);
+	ASSERT(ip->i_afp->if_nextents == 0);
+
+	xfs_idestroy_fork(ip->i_afp);
+	kmem_cache_free(xfs_ifork_zone, ip->i_afp);
+	ip->i_afp = NULL;
 	ip->i_d.di_forkoff = 0;
-	ip->i_d.di_aformat = XFS_DINODE_FMT_EXTENTS;
-
-	ASSERT(ip->i_d.di_anextents == 0);
-	ASSERT(ip->i_afp == NULL);
-
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 }
 
@@ -775,7 +770,7 @@ xfs_attr_shortform_remove(xfs_da_args_t *args)
 	totsize -= size;
 	if (totsize == sizeof(xfs_attr_sf_hdr_t) &&
 	    (mp->m_flags & XFS_MOUNT_ATTR2) &&
-	    (dp->i_d.di_format != XFS_DINODE_FMT_BTREE) &&
+	    (dp->i_df.if_format != XFS_DINODE_FMT_BTREE) &&
 	    !(args->op_flags & XFS_DA_OP_ADDNAME)) {
 		xfs_attr_fork_remove(dp, args->trans);
 	} else {
@@ -785,7 +780,7 @@ xfs_attr_shortform_remove(xfs_da_args_t *args)
 		ASSERT(totsize > sizeof(xfs_attr_sf_hdr_t) ||
 				(args->op_flags & XFS_DA_OP_ADDNAME) ||
 				!(mp->m_flags & XFS_MOUNT_ATTR2) ||
-				dp->i_d.di_format == XFS_DINODE_FMT_BTREE);
+				dp->i_df.if_format == XFS_DINODE_FMT_BTREE);
 		xfs_trans_log_inode(args->trans, dp,
 					XFS_ILOG_CORE | XFS_ILOG_ADATA);
 	}
@@ -962,7 +957,7 @@ xfs_attr_shortform_allfit(
 				+ be16_to_cpu(name_loc->valuelen);
 	}
 	if ((dp->i_mount->m_flags & XFS_MOUNT_ATTR2) &&
-	    (dp->i_d.di_format != XFS_DINODE_FMT_BTREE) &&
+	    (dp->i_df.if_format != XFS_DINODE_FMT_BTREE) &&
 	    (bytes == sizeof(struct xfs_attr_sf_hdr)))
 		return -1;
 	return xfs_attr_shortform_bytesfit(dp, bytes);
@@ -981,7 +976,7 @@ xfs_attr_shortform_verify(
 	int				i;
 	int64_t				size;
 
-	ASSERT(ip->i_d.di_aformat == XFS_DINODE_FMT_LOCAL);
+	ASSERT(ip->i_afp->if_format == XFS_DINODE_FMT_LOCAL);
 	ifp = XFS_IFORK_PTR(ip, XFS_ATTR_FORK);
 	sfp = (struct xfs_attr_shortform *)ifp->if_u1.if_data;
 	size = ifp->if_bytes;
@@ -1085,7 +1080,7 @@ xfs_attr3_leaf_to_shortform(
 
 	if (forkoff == -1) {
 		ASSERT(dp->i_mount->m_flags & XFS_MOUNT_ATTR2);
-		ASSERT(dp->i_d.di_format != XFS_DINODE_FMT_BTREE);
+		ASSERT(dp->i_df.if_format != XFS_DINODE_FMT_BTREE);
 		xfs_attr_fork_remove(dp, args->trans);
 		goto out;
 	}

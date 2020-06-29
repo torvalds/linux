@@ -83,6 +83,17 @@ config LEDS_APU
 	  To compile this driver as a module, choose M here: the
 	  module will be called leds-apu.
 
+config LEDS_ARIEL
+	tristate "Dell Wyse 3020 status LED support"
+	depends on LEDS_CLASS
+	depends on (MACH_MMP3_DT && MFD_ENE_KB3930) || COMPILE_TEST
+	help
+	  This driver adds support for controlling the front panel status
+	  LEDs on Dell Wyse 3020 (Ariel) board via the KB3930 Embedded
+	  Controller.
+
+	  Say Y to if your machine is a Dell Wyse 3020 thin client.
+
 config LEDS_AS3645A
 	tristate "AS3645A and LM3555 LED flash controllers support"
 	depends on I2C && LEDS_CLASS_FLASH
@@ -91,6 +102,16 @@ config LEDS_AS3645A
 	  Enable LED flash class support for AS3645A LED flash
 	  controller. V4L2 flash API is provided as well if
 	  CONFIG_V4L2_FLASH_API is enabled.
+
+config LEDS_AW2013
+	tristate "LED support for Awinic AW2013"
+	depends on LEDS_CLASS && I2C && OF
+	help
+	  This option enables support for the AW2013 3-channel
+	  LED driver.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called leds-aw2013.
 
 config LEDS_BCM6328
 	tristate "LED Support for Broadcom BCM6328"
@@ -856,6 +877,14 @@ config LEDS_IP30
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called leds-ip30.
+
+config LEDS_SGM3140
+	tristate "LED support for the SGM3140"
+	depends on LEDS_CLASS_FLASH
+	depends on V4L2_FLASH_LED_CLASS || !V4L2_FLASH_LED_CLASS
+	help
+	  This option enables support for the SGM3140 500mA Buck/Boost Charge
+	  Pump LED Driver.
 
 comment "LED Triggers"
 source "drivers/leds/trigger/Kconfig"

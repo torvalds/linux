@@ -1039,6 +1039,7 @@ void tegra_drm_free(struct tegra_drm *tegra, size_t size, void *virt,
 
 static bool host1x_drm_wants_iommu(struct host1x_device *dev)
 {
+	struct host1x *host1x = dev_get_drvdata(dev->dev.parent);
 	struct iommu_domain *domain;
 
 	/*
@@ -1076,7 +1077,7 @@ static bool host1x_drm_wants_iommu(struct host1x_device *dev)
 	 * sufficient and whether or not the host1x is attached to an IOMMU
 	 * doesn't matter.
 	 */
-	if (!domain && dma_get_mask(dev->dev.parent) <= DMA_BIT_MASK(32))
+	if (!domain && host1x_get_dma_mask(host1x) <= DMA_BIT_MASK(32))
 		return true;
 
 	return domain != NULL;

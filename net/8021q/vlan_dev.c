@@ -88,12 +88,11 @@ static int vlan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 static inline netdev_tx_t vlan_netpoll_send_skb(struct vlan_dev_priv *vlan, struct sk_buff *skb)
 {
 #ifdef CONFIG_NET_POLL_CONTROLLER
-	if (vlan->netpoll)
-		netpoll_send_skb(vlan->netpoll, skb);
+	return netpoll_send_skb(vlan->netpoll, skb);
 #else
 	BUG();
-#endif
 	return NETDEV_TX_OK;
+#endif
 }
 
 static netdev_tx_t vlan_dev_hard_start_xmit(struct sk_buff *skb,
@@ -489,6 +488,29 @@ static void vlan_dev_set_rx_mode(struct net_device *vlan_dev)
 	dev_uc_sync(vlan_dev_priv(vlan_dev)->real_dev, vlan_dev);
 }
 
+/*
+ * vlan network devices have devices nesting below it, and are a special
+ * "super class" of normal network devices; split their locks off into a
+ * separate class since they always nest.
+ */
+static struct lock_class_key vlan_netdev_xmit_lock_key;
+static struct lock_class_key vlan_netdev_addr_lock_key;
+
+static void vlan_dev_set_lockdep_one(struct net_device *dev,
+				     struct netdev_queue *txq,
+				     void *unused)
+{
+	lockdep_set_class(&txq->_xmit_lock, &vlan_netdev_xmit_lock_key);
+}
+
+static void vlan_dev_set_lockdep_class(struct net_device *dev, int subclass)
+{
+	lockdep_set_class_and_subclass(&dev->addr_list_lock,
+				       &vlan_netdev_addr_lock_key,
+				       subclass);
+	netdev_for_each_tx_queue(dev, vlan_dev_set_lockdep_one, NULL);
+}
+
 static const struct header_ops vlan_header_ops = {
 	.create	 = vlan_dev_hard_header,
 	.parse	 = eth_header_parse,
@@ -578,6 +600,8 @@ static int vlan_dev_init(struct net_device *dev)
 	dev->netdev_ops = &vlan_netdev_ops;
 
 	SET_NETDEV_DEVTYPE(dev, &vlan_type);
+
+	vlan_dev_set_lockdep_class(dev, dev->lower_level);
 
 	vlan->vlan_pcpu_stats = netdev_alloc_pcpu_stats(struct vlan_pcpu_stats);
 	if (!vlan->vlan_pcpu_stats)

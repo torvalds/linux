@@ -127,9 +127,9 @@ static int ad5686_read_raw(struct iio_dev *indio_dev,
 
 	switch (m) {
 	case IIO_CHAN_INFO_RAW:
-		mutex_lock(&indio_dev->mlock);
+		mutex_lock(&st->lock);
 		ret = st->read(st, chan->address);
-		mutex_unlock(&indio_dev->mlock);
+		mutex_unlock(&st->lock);
 		if (ret < 0)
 			return ret;
 		*val = (ret >> chan->scan_type.shift) &
@@ -157,12 +157,12 @@ static int ad5686_write_raw(struct iio_dev *indio_dev,
 		if (val > (1 << chan->scan_type.realbits) || val < 0)
 			return -EINVAL;
 
-		mutex_lock(&indio_dev->mlock);
+		mutex_lock(&st->lock);
 		ret = st->write(st,
 				AD5686_CMD_WRITE_INPUT_N_UPDATE_N,
 				chan->address,
 				val << chan->scan_type.shift);
-		mutex_unlock(&indio_dev->mlock);
+		mutex_unlock(&st->lock);
 		break;
 	default:
 		ret = -EINVAL;
@@ -467,6 +467,8 @@ int ad5686_probe(struct device *dev,
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = st->chip_info->channels;
 	indio_dev->num_channels = st->chip_info->num_channels;
+
+	mutex_init(&st->lock);
 
 	switch (st->chip_info->regmap_type) {
 	case AD5310_REGMAP:

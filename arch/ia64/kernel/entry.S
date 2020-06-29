@@ -38,12 +38,12 @@
  */
 
 
+#include <linux/pgtable.h>
 #include <asm/asmmacro.h>
 #include <asm/cache.h>
 #include <asm/errno.h>
 #include <asm/kregs.h>
 #include <asm/asm-offsets.h>
-#include <asm/pgtable.h>
 #include <asm/percpu.h>
 #include <asm/processor.h>
 #include <asm/thread_info.h>

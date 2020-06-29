@@ -41,51 +41,8 @@
 #include "amdgpu_dm_debugfs.h"
 #endif
 
-
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 #include "dc/dcn20/dcn20_resource.h"
-#endif
-
-/* #define TRACE_DPCD */
-
-#ifdef TRACE_DPCD
-#define SIDE_BAND_MSG(address) (address >= DP_SIDEBAND_MSG_DOWN_REQ_BASE && address < DP_SINK_COUNT_ESI)
-
-static inline char *side_band_msg_type_to_str(uint32_t address)
-{
-	static char str[10] = {0};
-
-	if (address < DP_SIDEBAND_MSG_UP_REP_BASE)
-		strcpy(str, "DOWN_REQ");
-	else if (address < DP_SIDEBAND_MSG_DOWN_REP_BASE)
-		strcpy(str, "UP_REP");
-	else if (address < DP_SIDEBAND_MSG_UP_REQ_BASE)
-		strcpy(str, "DOWN_REP");
-	else
-		strcpy(str, "UP_REQ");
-
-	return str;
-}
-
-static void log_dpcd(uint8_t type,
-		     uint32_t address,
-		     uint8_t *data,
-		     uint32_t size,
-		     bool res)
-{
-	DRM_DEBUG_KMS("Op: %s, addr: %04x, SideBand Msg: %s, Op res: %s\n",
-			(type == DP_AUX_NATIVE_READ) ||
-			(type == DP_AUX_I2C_READ) ?
-					"Read" : "Write",
-			address,
-			SIDE_BAND_MSG(address) ?
-					side_band_msg_type_to_str(address) : "Nop",
-			res ? "OK" : "Fail");
-
-	if (res) {
-		print_hex_dump(KERN_INFO, "Body: ", DUMP_PREFIX_NONE, 16, 1, data, size, false);
-	}
-}
 #endif
 
 static ssize_t dm_dp_aux_transfer(struct drm_dp_aux *aux,
@@ -162,16 +119,16 @@ amdgpu_dm_mst_connector_late_register(struct drm_connector *connector)
 		to_amdgpu_dm_connector(connector);
 	int r;
 
-	amdgpu_dm_connector->dm_dp_aux.aux.dev = connector->kdev;
-	r = drm_dp_aux_register(&amdgpu_dm_connector->dm_dp_aux.aux);
-	if (r)
+	r = drm_dp_mst_connector_late_register(connector,
+					       amdgpu_dm_connector->port);
+	if (r < 0)
 		return r;
 
 #if defined(CONFIG_DEBUG_FS)
 	connector_debugfs_init(amdgpu_dm_connector);
 #endif
 
-	return r;
+	return 0;
 }
 
 static void
@@ -451,9 +408,12 @@ static const struct drm_dp_mst_topology_cbs dm_mst_cbs = {
 };
 
 void amdgpu_dm_initialize_dp_connector(struct amdgpu_display_manager *dm,
-				       struct amdgpu_dm_connector *aconnector)
+				       struct amdgpu_dm_connector *aconnector,
+				       int link_index)
 {
-	aconnector->dm_dp_aux.aux.name = "dmdc";
+	aconnector->dm_dp_aux.aux.name =
+		kasprintf(GFP_KERNEL, "AMDGPU DM aux hw bus %d",
+			  link_index);
 	aconnector->dm_dp_aux.aux.transfer = dm_dp_aux_transfer;
 	aconnector->dm_dp_aux.ddc_service = aconnector->dc_link->ddc;
 

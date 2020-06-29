@@ -9,6 +9,7 @@
 #include <drv_types.h>
 #include <rtw_debug.h>
 #include <linux/jiffies.h>
+#include <net/cfg80211.h>
 
 void rtw_os_free_recvframe(union recv_frame *precvframe)
 {
@@ -60,27 +61,20 @@ _pkt *rtw_os_alloc_msdu_pkt(union recv_frame *prframe, u16 nSubframe_Length, u8 
 	pattrib = &prframe->u.hdr.attrib;
 
 	sub_skb = rtw_skb_alloc(nSubframe_Length + 12);
-	if (sub_skb) {
-		skb_reserve(sub_skb, 12);
-		skb_put_data(sub_skb, (pdata + ETH_HLEN), nSubframe_Length);
-	} else {
-		sub_skb = rtw_skb_clone(prframe->u.hdr.pkt);
-		if (sub_skb) {
-			sub_skb->data = pdata + ETH_HLEN;
-			sub_skb->len = nSubframe_Length;
-			skb_set_tail_pointer(sub_skb, nSubframe_Length);
-		} else {
-			DBG_871X("%s(): rtw_skb_clone() Fail!!!\n", __func__);
-			return NULL;
-		}
+	if (!sub_skb) {
+		DBG_871X("%s(): rtw_skb_alloc() Fail!!!\n", __func__);
+		return NULL;
 	}
+
+	skb_reserve(sub_skb, 12);
+	skb_put_data(sub_skb, (pdata + ETH_HLEN), nSubframe_Length);
 
 	eth_type = RTW_GET_BE16(&sub_skb->data[6]);
 
 	if (sub_skb->len >= 8 &&
-		((!memcmp(sub_skb->data, rtw_rfc1042_header, SNAP_SIZE) &&
+		((!memcmp(sub_skb->data, rfc1042_header, SNAP_SIZE) &&
 		  eth_type != ETH_P_AARP && eth_type != ETH_P_IPX) ||
-		 !memcmp(sub_skb->data, rtw_bridge_tunnel_header, SNAP_SIZE))) {
+		 !memcmp(sub_skb->data, bridge_tunnel_header, SNAP_SIZE))) {
 		/*
 		 * remove RFC1042 or Bridge-Tunnel encapsulation and replace
 		 * EtherType
@@ -230,7 +224,7 @@ static void rtw_os_ksocket_send(struct adapter *padapter, union recv_frame *prec
 
 		if (rx_pid == psta->pid) {
 			int i;
-			u16 len = *(u16*)(skb->data+ETH_HLEN+2);
+			u16 len = *(u16 *)(skb->data+ETH_HLEN+2);
 			DBG_871X("eth, RC: len = 0x%x\n", len);
 
 			for (i = 0; i < len; i++)

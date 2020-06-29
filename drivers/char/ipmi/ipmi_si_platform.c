@@ -393,6 +393,8 @@ static int acpi_ipmi_probe(struct platform_device *pdev)
 	dev_info(io.dev, "%pR regsize %d spacing %d irq %d\n",
 		 res, io.regsize, io.regspacing, io.irq);
 
+	request_module("acpi_ipmi");
+
 	return ipmi_si_add_smi(&io);
 
 err_free:

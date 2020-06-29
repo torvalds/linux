@@ -7,6 +7,7 @@
 #include <net/dst_metadata.h>
 #include <net/rtnetlink.h>
 #include <net/switchdev.h>
+#include <net/nexthop.h>
 
 #define IANA_VXLAN_UDP_PORT     4789
 
@@ -485,6 +486,30 @@ static inline void vxlan_flag_attr_error(int attrtype,
 		break;
 	}
 #undef VXLAN_FLAG
+}
+
+static inline bool vxlan_fdb_nh_path_select(struct nexthop *nh,
+					    int hash,
+					    struct vxlan_rdst *rdst)
+{
+	struct fib_nh_common *nhc;
+
+	nhc = nexthop_path_fdb_result(nh, hash);
+	if (unlikely(!nhc))
+		return false;
+
+	switch (nhc->nhc_gw_family) {
+	case AF_INET:
+		rdst->remote_ip.sin.sin_addr.s_addr = nhc->nhc_gw.ipv4;
+		rdst->remote_ip.sa.sa_family = AF_INET;
+		break;
+	case AF_INET6:
+		rdst->remote_ip.sin6.sin6_addr = nhc->nhc_gw.ipv6;
+		rdst->remote_ip.sa.sa_family = AF_INET6;
+		break;
+	}
+
+	return true;
 }
 
 #endif

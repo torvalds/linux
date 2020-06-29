@@ -23,8 +23,9 @@
  *
  * ... where <entry> is either ftrace_caller or ftrace_regs_caller.
  *
- * Each instrumented function follows the AAPCS, so here x0-x8 and x19-x30 are
- * live, and x9-x18 are safe to clobber.
+ * Each instrumented function follows the AAPCS, so here x0-x8 and x18-x30 are
+ * live (x18 holds the Shadow Call Stack pointer), and x9-x17 are safe to
+ * clobber.
  *
  * We save the callsite's context into a pt_regs before invoking any ftrace
  * callbacks. So that we can get a sensible backtrace, we create a stack record

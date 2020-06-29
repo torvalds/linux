@@ -26,8 +26,36 @@ static int uverbs_async_event_destroy_uobj(struct ib_uobject *uobj,
 		container_of(uobj, struct ib_uverbs_async_event_file, uobj);
 
 	ib_unregister_event_handler(&event_file->event_handler);
-	ib_uverbs_free_event_queue(&event_file->ev_queue);
+
+	if (why == RDMA_REMOVE_DRIVER_REMOVE)
+		ib_uverbs_async_handler(event_file, 0, IB_EVENT_DEVICE_FATAL,
+					NULL, NULL);
 	return 0;
+}
+
+int uverbs_async_event_release(struct inode *inode, struct file *filp)
+{
+	struct ib_uverbs_async_event_file *event_file;
+	struct ib_uobject *uobj = filp->private_data;
+	int ret;
+
+	if (!uobj)
+		return uverbs_uobject_fd_release(inode, filp);
+
+	event_file =
+		container_of(uobj, struct ib_uverbs_async_event_file, uobj);
+
+	/*
+	 * The async event FD has to deliver IB_EVENT_DEVICE_FATAL even after
+	 * disassociation, so cleaning the event list must only happen after
+	 * release. The user knows it has reached the end of the event stream
+	 * when it sees IB_EVENT_DEVICE_FATAL.
+	 */
+	uverbs_uobject_get(uobj);
+	ret = uverbs_uobject_fd_release(inode, filp);
+	ib_uverbs_free_event_queue(&event_file->ev_queue);
+	uverbs_uobject_put(uobj);
+	return ret;
 }
 
 DECLARE_UVERBS_NAMED_METHOD(

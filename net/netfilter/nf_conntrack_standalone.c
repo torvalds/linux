@@ -348,7 +348,9 @@ static int ct_seq_show(struct seq_file *s, void *v)
 	if (seq_print_acct(s, ct, IP_CT_DIR_REPLY))
 		goto release;
 
-	if (test_bit(IPS_OFFLOAD_BIT, &ct->status))
+	if (test_bit(IPS_HW_OFFLOAD_BIT, &ct->status))
+		seq_puts(s, "[HW_OFFLOAD] ");
+	else if (test_bit(IPS_OFFLOAD_BIT, &ct->status))
 		seq_puts(s, "[OFFLOAD] ");
 	else if (test_bit(IPS_ASSURED_BIT, &ct->status))
 		seq_puts(s, "[ASSURED] ");
@@ -517,7 +519,7 @@ static unsigned int nf_conntrack_htable_size_user __read_mostly;
 
 static int
 nf_conntrack_hash_sysctl(struct ctl_table *table, int write,
-			 void __user *buffer, size_t *lenp, loff_t *ppos)
+			 void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int ret;
 

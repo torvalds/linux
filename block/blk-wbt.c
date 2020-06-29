@@ -313,7 +313,7 @@ static void scale_up(struct rq_wb *rwb)
 	calc_wb_limits(rwb);
 	rwb->unknown_cnt = 0;
 	rwb_wake_all(rwb);
-	rwb_trace_step(rwb, "scale up");
+	rwb_trace_step(rwb, tracepoint_string("scale up"));
 }
 
 static void scale_down(struct rq_wb *rwb, bool hard_throttle)
@@ -322,7 +322,7 @@ static void scale_down(struct rq_wb *rwb, bool hard_throttle)
 		return;
 	calc_wb_limits(rwb);
 	rwb->unknown_cnt = 0;
-	rwb_trace_step(rwb, "scale down");
+	rwb_trace_step(rwb, tracepoint_string("scale down"));
 }
 
 static void rwb_arm_timer(struct rq_wb *rwb)
@@ -405,7 +405,7 @@ static void wb_timer_fn(struct blk_stat_callback *cb)
 		rwb_arm_timer(rwb);
 }
 
-static void __wbt_update_limits(struct rq_wb *rwb)
+static void wbt_update_limits(struct rq_wb *rwb)
 {
 	struct rq_depth *rqd = &rwb->rq_depth;
 
@@ -416,14 +416,6 @@ static void __wbt_update_limits(struct rq_wb *rwb)
 	calc_wb_limits(rwb);
 
 	rwb_wake_all(rwb);
-}
-
-void wbt_update_limits(struct request_queue *q)
-{
-	struct rq_qos *rqos = wbt_rq_qos(q);
-	if (!rqos)
-		return;
-	__wbt_update_limits(RQWB(rqos));
 }
 
 u64 wbt_get_min_lat(struct request_queue *q)
@@ -441,7 +433,7 @@ void wbt_set_min_lat(struct request_queue *q, u64 val)
 		return;
 	RQWB(rqos)->min_lat_nsec = val;
 	RQWB(rqos)->enable_state = WBT_STATE_ON_MANUAL;
-	__wbt_update_limits(RQWB(rqos));
+	wbt_update_limits(RQWB(rqos));
 }
 
 
@@ -685,7 +677,7 @@ static int wbt_data_dir(const struct request *rq)
 static void wbt_queue_depth_changed(struct rq_qos *rqos)
 {
 	RQWB(rqos)->rq_depth.queue_depth = blk_queue_depth(rqos->q);
-	__wbt_update_limits(RQWB(rqos));
+	wbt_update_limits(RQWB(rqos));
 }
 
 static void wbt_exit(struct rq_qos *rqos)
@@ -843,7 +835,7 @@ int wbt_init(struct request_queue *q)
 	rwb->enable_state = WBT_STATE_ON_DEFAULT;
 	rwb->wc = 1;
 	rwb->rq_depth.default_depth = RWB_DEF_DEPTH;
-	__wbt_update_limits(rwb);
+	wbt_update_limits(rwb);
 
 	/*
 	 * Assign rwb and add the stats callback.

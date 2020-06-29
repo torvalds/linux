@@ -32,20 +32,10 @@
 /* use value, which < 0K, to indicate an invalid/uninitialized temperature */
 #define THERMAL_TEMP_INVALID	-274000
 
-/* Default Thermal Governor */
-#if defined(CONFIG_THERMAL_DEFAULT_GOV_STEP_WISE)
-#define DEFAULT_THERMAL_GOVERNOR       "step_wise"
-#elif defined(CONFIG_THERMAL_DEFAULT_GOV_FAIR_SHARE)
-#define DEFAULT_THERMAL_GOVERNOR       "fair_share"
-#elif defined(CONFIG_THERMAL_DEFAULT_GOV_USER_SPACE)
-#define DEFAULT_THERMAL_GOVERNOR       "user_space"
-#elif defined(CONFIG_THERMAL_DEFAULT_GOV_POWER_ALLOCATOR)
-#define DEFAULT_THERMAL_GOVERNOR       "power_allocator"
-#endif
-
 struct thermal_zone_device;
 struct thermal_cooling_device;
 struct thermal_instance;
+struct thermal_attr;
 
 enum thermal_device_mode {
 	THERMAL_DEVICE_DISABLED = 0,
@@ -128,11 +118,6 @@ struct thermal_cooling_device {
 	struct mutex lock; /* protect thermal_instances list */
 	struct list_head thermal_instances;
 	struct list_head node;
-};
-
-struct thermal_attr {
-	struct device_attribute attr;
-	char name[THERMAL_NAME_LENGTH];
 };
 
 /**
@@ -347,21 +332,6 @@ struct thermal_zone_of_device_ops {
 	int (*set_trip_temp)(void *, int, int);
 };
 
-/**
- * struct thermal_trip - representation of a point in temperature domain
- * @np: pointer to struct device_node that this trip point was created from
- * @temperature: temperature value in miliCelsius
- * @hysteresis: relative hysteresis in miliCelsius
- * @type: trip point type
- */
-
-struct thermal_trip {
-	struct device_node *np;
-	int temperature;
-	int hysteresis;
-	enum thermal_trip_type type;
-};
-
 /* Function declarations */
 #ifdef CONFIG_THERMAL_OF
 int thermal_zone_of_get_sensor_id(struct device_node *tz_np,
@@ -413,19 +383,7 @@ void devm_thermal_zone_of_sensor_unregister(struct device *dev,
 
 #endif
 
-#if IS_ENABLED(CONFIG_THERMAL)
-static inline bool cdev_is_power_actor(struct thermal_cooling_device *cdev)
-{
-	return cdev->ops->get_requested_power && cdev->ops->state2power &&
-		cdev->ops->power2state;
-}
-
-int power_actor_get_max_power(struct thermal_cooling_device *,
-			      struct thermal_zone_device *tz, u32 *max_power);
-int power_actor_get_min_power(struct thermal_cooling_device *,
-			      struct thermal_zone_device *tz, u32 *min_power);
-int power_actor_set_power(struct thermal_cooling_device *,
-			  struct thermal_instance *, u32);
+#ifdef CONFIG_THERMAL
 struct thermal_zone_device *thermal_zone_device_register(const char *, int, int,
 		void *, struct thermal_zone_device_ops *,
 		struct thermal_zone_params *, int, int);
@@ -439,7 +397,6 @@ int thermal_zone_unbind_cooling_device(struct thermal_zone_device *, int,
 				       struct thermal_cooling_device *);
 void thermal_zone_device_update(struct thermal_zone_device *,
 				enum thermal_notify_event);
-void thermal_zone_set_trips(struct thermal_zone_device *);
 
 struct thermal_cooling_device *thermal_cooling_device_register(const char *,
 		void *, const struct thermal_cooling_device_ops *);
@@ -457,24 +414,9 @@ int thermal_zone_get_temp(struct thermal_zone_device *tz, int *temp);
 int thermal_zone_get_slope(struct thermal_zone_device *tz);
 int thermal_zone_get_offset(struct thermal_zone_device *tz);
 
-int get_tz_trend(struct thermal_zone_device *, int);
-struct thermal_instance *get_thermal_instance(struct thermal_zone_device *,
-		struct thermal_cooling_device *, int);
 void thermal_cdev_update(struct thermal_cooling_device *);
 void thermal_notify_framework(struct thermal_zone_device *, int);
 #else
-static inline bool cdev_is_power_actor(struct thermal_cooling_device *cdev)
-{ return false; }
-static inline int power_actor_get_max_power(struct thermal_cooling_device *cdev,
-			      struct thermal_zone_device *tz, u32 *max_power)
-{ return 0; }
-static inline int power_actor_get_min_power(struct thermal_cooling_device *cdev,
-					    struct thermal_zone_device *tz,
-					    u32 *min_power)
-{ return -ENODEV; }
-static inline int power_actor_set_power(struct thermal_cooling_device *cdev,
-			  struct thermal_instance *tz, u32 power)
-{ return 0; }
 static inline struct thermal_zone_device *thermal_zone_device_register(
 	const char *type, int trips, int mask, void *devdata,
 	struct thermal_zone_device_ops *ops,
@@ -483,21 +425,6 @@ static inline struct thermal_zone_device *thermal_zone_device_register(
 { return ERR_PTR(-ENODEV); }
 static inline void thermal_zone_device_unregister(
 	struct thermal_zone_device *tz)
-{ }
-static inline int thermal_zone_bind_cooling_device(
-	struct thermal_zone_device *tz, int trip,
-	struct thermal_cooling_device *cdev,
-	unsigned long upper, unsigned long lower,
-	unsigned int weight)
-{ return -ENODEV; }
-static inline int thermal_zone_unbind_cooling_device(
-	struct thermal_zone_device *tz, int trip,
-	struct thermal_cooling_device *cdev)
-{ return -ENODEV; }
-static inline void thermal_zone_device_update(struct thermal_zone_device *tz,
-					      enum thermal_notify_event event)
-{ }
-static inline void thermal_zone_set_trips(struct thermal_zone_device *tz)
 { }
 static inline struct thermal_cooling_device *
 thermal_cooling_device_register(char *type, void *devdata,
@@ -530,12 +457,7 @@ static inline int thermal_zone_get_slope(
 static inline int thermal_zone_get_offset(
 		struct thermal_zone_device *tz)
 { return -ENODEV; }
-static inline int get_tz_trend(struct thermal_zone_device *tz, int trip)
-{ return -ENODEV; }
-static inline struct thermal_instance *
-get_thermal_instance(struct thermal_zone_device *tz,
-	struct thermal_cooling_device *cdev, int trip)
-{ return ERR_PTR(-ENODEV); }
+
 static inline void thermal_cdev_update(struct thermal_cooling_device *cdev)
 { }
 static inline void thermal_notify_framework(struct thermal_zone_device *tz,

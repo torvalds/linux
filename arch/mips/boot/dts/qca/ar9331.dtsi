@@ -59,7 +59,7 @@
 				#qca,ddr-wb-channel-cells = <1>;
 			};
 
-			uart: uart@18020000 {
+			uart: serial@18020000 {
 				compatible = "qca,ar9330-uart";
 				reg = <0x18020000 0x14>;
 

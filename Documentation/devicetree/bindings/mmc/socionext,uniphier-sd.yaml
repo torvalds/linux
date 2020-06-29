@@ -35,15 +35,15 @@ properties:
     oneOf:
       - const: host
       - items:
-        - const: host
-        - const: bridge
+          - const: host
+          - const: bridge
       - items:
-        - const: host
-        - const: hw
+          - const: host
+          - const: hw
       - items:
-        - const: host
-        - const: bridge
-        - const: hw
+          - const: host
+          - const: bridge
+          - const: hw
 
   resets:
     minItems: 1

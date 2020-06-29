@@ -37,9 +37,10 @@ perf_counts__set_loaded(struct perf_counts *counts, int cpu, int thread, bool lo
 
 struct perf_counts *perf_counts__new(int ncpus, int nthreads);
 void perf_counts__delete(struct perf_counts *counts);
+void perf_counts__reset(struct perf_counts *counts);
 
-void perf_evsel__reset_counts(struct evsel *evsel);
-int perf_evsel__alloc_counts(struct evsel *evsel, int ncpus, int nthreads);
-void perf_evsel__free_counts(struct evsel *evsel);
+void evsel__reset_counts(struct evsel *evsel);
+int evsel__alloc_counts(struct evsel *evsel, int ncpus, int nthreads);
+void evsel__free_counts(struct evsel *evsel);
 
 #endif /* __PERF_COUNTS_H */

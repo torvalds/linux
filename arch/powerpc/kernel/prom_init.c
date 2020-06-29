@@ -26,6 +26,7 @@
 #include <linux/delay.h>
 #include <linux/initrd.h>
 #include <linux/bitops.h>
+#include <linux/pgtable.h>
 #include <asm/prom.h>
 #include <asm/rtas.h>
 #include <asm/page.h>
@@ -34,7 +35,6 @@
 #include <asm/io.h>
 #include <asm/smp.h>
 #include <asm/mmu.h>
-#include <asm/pgtable.h>
 #include <asm/iommu.h>
 #include <asm/btext.h>
 #include <asm/sections.h>
@@ -920,7 +920,7 @@ struct option_vector6 {
 } __packed;
 
 struct ibm_arch_vec {
-	struct { u32 mask, val; } pvrs[12];
+	struct { u32 mask, val; } pvrs[14];
 
 	u8 num_vectors;
 
@@ -974,6 +974,14 @@ static const struct ibm_arch_vec ibm_architecture_vec_template __initconst = {
 			.val  = cpu_to_be32(0x004e0000),
 		},
 		{
+			.mask = cpu_to_be32(0xffff0000), /* POWER10 */
+			.val  = cpu_to_be32(0x00800000),
+		},
+		{
+			.mask = cpu_to_be32(0xffffffff), /* all 3.1-compliant */
+			.val  = cpu_to_be32(0x0f000006),
+		},
+		{
 			.mask = cpu_to_be32(0xffffffff), /* all 3.00-compliant */
 			.val  = cpu_to_be32(0x0f000005),
 		},
@@ -1002,7 +1010,7 @@ static const struct ibm_arch_vec ibm_architecture_vec_template __initconst = {
 		.byte1 = 0,
 		.arch_versions = OV1_PPC_2_00 | OV1_PPC_2_01 | OV1_PPC_2_02 | OV1_PPC_2_03 |
 				 OV1_PPC_2_04 | OV1_PPC_2_05 | OV1_PPC_2_06 | OV1_PPC_2_07,
-		.arch_versions3 = OV1_PPC_3_00,
+		.arch_versions3 = OV1_PPC_3_00 | OV1_PPC_3_1,
 	},
 
 	.vec2_len = VECTOR_LENGTH(sizeof(struct option_vector2)),
@@ -1449,18 +1457,18 @@ static unsigned long __init alloc_up(unsigned long size, unsigned long align)
 	unsigned long addr = 0;
 
 	if (align)
-		base = _ALIGN_UP(base, align);
+		base = ALIGN(base, align);
 	prom_debug("%s(%lx, %lx)\n", __func__, size, align);
 	if (ram_top == 0)
 		prom_panic("alloc_up() called with mem not initialized\n");
 
 	if (align)
-		base = _ALIGN_UP(alloc_bottom, align);
+		base = ALIGN(alloc_bottom, align);
 	else
 		base = alloc_bottom;
 
 	for(; (base + size) <= alloc_top; 
-	    base = _ALIGN_UP(base + 0x100000, align)) {
+	    base = ALIGN(base + 0x100000, align)) {
 		prom_debug("    trying: 0x%lx\n\r", base);
 		addr = (unsigned long)prom_claim(base, size, 0);
 		if (addr != PROM_ERROR && addr != 0)
@@ -1500,7 +1508,7 @@ static unsigned long __init alloc_down(unsigned long size, unsigned long align,
 
 	if (highmem) {
 		/* Carve out storage for the TCE table. */
-		addr = _ALIGN_DOWN(alloc_top_high - size, align);
+		addr = ALIGN_DOWN(alloc_top_high - size, align);
 		if (addr <= alloc_bottom)
 			return 0;
 		/* Will we bump into the RMO ? If yes, check out that we
@@ -1518,9 +1526,9 @@ static unsigned long __init alloc_down(unsigned long size, unsigned long align,
 		goto bail;
 	}
 
-	base = _ALIGN_DOWN(alloc_top - size, align);
+	base = ALIGN_DOWN(alloc_top - size, align);
 	for (; base > alloc_bottom;
-	     base = _ALIGN_DOWN(base - 0x100000, align))  {
+	     base = ALIGN_DOWN(base - 0x100000, align))  {
 		prom_debug("    trying: 0x%lx\n\r", base);
 		addr = (unsigned long)prom_claim(base, size, 0);
 		if (addr != PROM_ERROR && addr != 0)
@@ -1586,8 +1594,8 @@ static void __init reserve_mem(u64 base, u64 size)
 	 * have our terminator with "size" set to 0 since we are
 	 * dumb and just copy this entire array to the boot params
 	 */
-	base = _ALIGN_DOWN(base, PAGE_SIZE);
-	top = _ALIGN_UP(top, PAGE_SIZE);
+	base = ALIGN_DOWN(base, PAGE_SIZE);
+	top = ALIGN(top, PAGE_SIZE);
 	size = top - base;
 
 	if (cnt >= (MEM_RESERVE_MAP_SIZE - 1))
@@ -2426,7 +2434,7 @@ static void __init *make_room(unsigned long *mem_start, unsigned long *mem_end,
 {
 	void *ret;
 
-	*mem_start = _ALIGN(*mem_start, align);
+	*mem_start = ALIGN(*mem_start, align);
 	while ((*mem_start + needed) > *mem_end) {
 		unsigned long room, chunk;
 
@@ -2562,7 +2570,7 @@ static void __init scan_dt_build_struct(phandle node, unsigned long *mem_start,
 				*lp++ = *p;
 		}
 		*lp = 0;
-		*mem_start = _ALIGN((unsigned long)lp + 1, 4);
+		*mem_start = ALIGN((unsigned long)lp + 1, 4);
 	}
 
 	/* get it again for debugging */
@@ -2608,7 +2616,7 @@ static void __init scan_dt_build_struct(phandle node, unsigned long *mem_start,
 		/* push property content */
 		valp = make_room(mem_start, mem_end, l, 4);
 		call_prom("getprop", 4, 1, node, pname, valp, l);
-		*mem_start = _ALIGN(*mem_start, 4);
+		*mem_start = ALIGN(*mem_start, 4);
 
 		if (!prom_strcmp(pname, "phandle"))
 			has_phandle = 1;
@@ -2667,7 +2675,7 @@ static void __init flatten_device_tree(void)
 		prom_panic ("couldn't get device tree root\n");
 
 	/* Build header and make room for mem rsv map */ 
-	mem_start = _ALIGN(mem_start, 4);
+	mem_start = ALIGN(mem_start, 4);
 	hdr = make_room(&mem_start, &mem_end,
 			sizeof(struct boot_param_header), 4);
 	dt_header_start = (unsigned long)hdr;

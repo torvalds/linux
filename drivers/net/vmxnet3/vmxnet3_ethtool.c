@@ -1,7 +1,7 @@
 /*
  * Linux driver for VMware's vmxnet3 ethernet NIC.
  *
- * Copyright (C) 2008-2016, VMware, Inc. All Rights Reserved.
+ * Copyright (C) 2008-2020, VMware, Inc. All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -267,14 +267,43 @@ netdev_features_t vmxnet3_fix_features(struct net_device *netdev,
 	return features;
 }
 
+static void vmxnet3_enable_encap_offloads(struct net_device *netdev)
+{
+	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
+
+	if (VMXNET3_VERSION_GE_4(adapter)) {
+		netdev->hw_enc_features |= NETIF_F_SG | NETIF_F_RXCSUM |
+			NETIF_F_HW_CSUM | NETIF_F_HW_VLAN_CTAG_TX |
+			NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_TSO | NETIF_F_TSO6 |
+			NETIF_F_LRO | NETIF_F_GSO_UDP_TUNNEL |
+			NETIF_F_GSO_UDP_TUNNEL_CSUM;
+	}
+}
+
+static void vmxnet3_disable_encap_offloads(struct net_device *netdev)
+{
+	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
+
+	if (VMXNET3_VERSION_GE_4(adapter)) {
+		netdev->hw_enc_features &= ~(NETIF_F_SG | NETIF_F_RXCSUM |
+			NETIF_F_HW_CSUM | NETIF_F_HW_VLAN_CTAG_TX |
+			NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_TSO | NETIF_F_TSO6 |
+			NETIF_F_LRO | NETIF_F_GSO_UDP_TUNNEL |
+			NETIF_F_GSO_UDP_TUNNEL_CSUM);
+	}
+}
+
 int vmxnet3_set_features(struct net_device *netdev, netdev_features_t features)
 {
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
 	unsigned long flags;
 	netdev_features_t changed = features ^ netdev->features;
+	netdev_features_t tun_offload_mask = NETIF_F_GSO_UDP_TUNNEL |
+					     NETIF_F_GSO_UDP_TUNNEL_CSUM;
+	u8 udp_tun_enabled = (netdev->features & tun_offload_mask) != 0;
 
 	if (changed & (NETIF_F_RXCSUM | NETIF_F_LRO |
-		       NETIF_F_HW_VLAN_CTAG_RX)) {
+		       NETIF_F_HW_VLAN_CTAG_RX | tun_offload_mask)) {
 		if (features & NETIF_F_RXCSUM)
 			adapter->shared->devRead.misc.uptFeatures |=
 			UPT1_F_RXCSUM;
@@ -296,6 +325,17 @@ int vmxnet3_set_features(struct net_device *netdev, netdev_features_t features)
 		else
 			adapter->shared->devRead.misc.uptFeatures &=
 			~UPT1_F_RXVLAN;
+
+		if ((features & tun_offload_mask) != 0 && !udp_tun_enabled) {
+			vmxnet3_enable_encap_offloads(netdev);
+			adapter->shared->devRead.misc.uptFeatures |=
+			UPT1_F_RXINNEROFLD;
+		} else if ((features & tun_offload_mask) == 0 &&
+			   udp_tun_enabled) {
+			vmxnet3_disable_encap_offloads(netdev);
+			adapter->shared->devRead.misc.uptFeatures &=
+			~UPT1_F_RXINNEROFLD;
+		}
 
 		spin_lock_irqsave(&adapter->cmd_lock, flags);
 		VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
@@ -665,18 +705,244 @@ out:
 	return err;
 }
 
+static int
+vmxnet3_get_rss_hash_opts(struct vmxnet3_adapter *adapter,
+			  struct ethtool_rxnfc *info)
+{
+	enum Vmxnet3_RSSField rss_fields;
+
+	if (netif_running(adapter->netdev)) {
+		unsigned long flags;
+
+		spin_lock_irqsave(&adapter->cmd_lock, flags);
+
+		VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
+				       VMXNET3_CMD_GET_RSS_FIELDS);
+		rss_fields = VMXNET3_READ_BAR1_REG(adapter, VMXNET3_REG_CMD);
+		spin_unlock_irqrestore(&adapter->cmd_lock, flags);
+	} else {
+		rss_fields = adapter->rss_fields;
+	}
+
+	info->data = 0;
+
+	/* Report default options for RSS on vmxnet3 */
+	switch (info->flow_type) {
+	case TCP_V4_FLOW:
+	case TCP_V6_FLOW:
+		info->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3 |
+			      RXH_IP_SRC | RXH_IP_DST;
+		break;
+	case UDP_V4_FLOW:
+		if (rss_fields & VMXNET3_RSS_FIELDS_UDPIP4)
+			info->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
+		info->data |= RXH_IP_SRC | RXH_IP_DST;
+		break;
+	case AH_ESP_V4_FLOW:
+	case AH_V4_FLOW:
+	case ESP_V4_FLOW:
+		if (rss_fields & VMXNET3_RSS_FIELDS_ESPIP4)
+			info->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
+			/* fallthrough */
+	case SCTP_V4_FLOW:
+	case IPV4_FLOW:
+		info->data |= RXH_IP_SRC | RXH_IP_DST;
+		break;
+	case UDP_V6_FLOW:
+		if (rss_fields & VMXNET3_RSS_FIELDS_UDPIP6)
+			info->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
+		info->data |= RXH_IP_SRC | RXH_IP_DST;
+		break;
+	case AH_ESP_V6_FLOW:
+	case AH_V6_FLOW:
+	case ESP_V6_FLOW:
+	case SCTP_V6_FLOW:
+	case IPV6_FLOW:
+		info->data |= RXH_IP_SRC | RXH_IP_DST;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int
+vmxnet3_set_rss_hash_opt(struct net_device *netdev,
+			 struct vmxnet3_adapter *adapter,
+			 struct ethtool_rxnfc *nfc)
+{
+	enum Vmxnet3_RSSField rss_fields = adapter->rss_fields;
+
+	/* RSS does not support anything other than hashing
+	 * to queues on src and dst IPs and ports
+	 */
+	if (nfc->data & ~(RXH_IP_SRC | RXH_IP_DST |
+			  RXH_L4_B_0_1 | RXH_L4_B_2_3))
+		return -EINVAL;
+
+	switch (nfc->flow_type) {
+	case TCP_V4_FLOW:
+	case TCP_V6_FLOW:
+		if (!(nfc->data & RXH_IP_SRC) ||
+		    !(nfc->data & RXH_IP_DST) ||
+		    !(nfc->data & RXH_L4_B_0_1) ||
+		    !(nfc->data & RXH_L4_B_2_3))
+			return -EINVAL;
+		break;
+	case UDP_V4_FLOW:
+		if (!(nfc->data & RXH_IP_SRC) ||
+		    !(nfc->data & RXH_IP_DST))
+			return -EINVAL;
+		switch (nfc->data & (RXH_L4_B_0_1 | RXH_L4_B_2_3)) {
+		case 0:
+			rss_fields &= ~VMXNET3_RSS_FIELDS_UDPIP4;
+			break;
+		case (RXH_L4_B_0_1 | RXH_L4_B_2_3):
+			rss_fields |= VMXNET3_RSS_FIELDS_UDPIP4;
+			break;
+		default:
+			return -EINVAL;
+		}
+		break;
+	case UDP_V6_FLOW:
+		if (!(nfc->data & RXH_IP_SRC) ||
+		    !(nfc->data & RXH_IP_DST))
+			return -EINVAL;
+		switch (nfc->data & (RXH_L4_B_0_1 | RXH_L4_B_2_3)) {
+		case 0:
+			rss_fields &= ~VMXNET3_RSS_FIELDS_UDPIP6;
+			break;
+		case (RXH_L4_B_0_1 | RXH_L4_B_2_3):
+			rss_fields |= VMXNET3_RSS_FIELDS_UDPIP6;
+			break;
+		default:
+			return -EINVAL;
+		}
+		break;
+	case ESP_V4_FLOW:
+	case AH_V4_FLOW:
+	case AH_ESP_V4_FLOW:
+		if (!(nfc->data & RXH_IP_SRC) ||
+		    !(nfc->data & RXH_IP_DST))
+			return -EINVAL;
+		switch (nfc->data & (RXH_L4_B_0_1 | RXH_L4_B_2_3)) {
+		case 0:
+			rss_fields &= ~VMXNET3_RSS_FIELDS_ESPIP4;
+			break;
+		case (RXH_L4_B_0_1 | RXH_L4_B_2_3):
+			rss_fields |= VMXNET3_RSS_FIELDS_ESPIP4;
+		break;
+		default:
+			return -EINVAL;
+		}
+		break;
+	case ESP_V6_FLOW:
+	case AH_V6_FLOW:
+	case AH_ESP_V6_FLOW:
+	case SCTP_V4_FLOW:
+	case SCTP_V6_FLOW:
+		if (!(nfc->data & RXH_IP_SRC) ||
+		    !(nfc->data & RXH_IP_DST) ||
+		    (nfc->data & RXH_L4_B_0_1) ||
+		    (nfc->data & RXH_L4_B_2_3))
+			return -EINVAL;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	/* if we changed something we need to update flags */
+	if (rss_fields != adapter->rss_fields) {
+		adapter->default_rss_fields = false;
+		if (netif_running(netdev)) {
+			struct Vmxnet3_DriverShared *shared = adapter->shared;
+			union Vmxnet3_CmdInfo *cmdInfo = &shared->cu.cmdInfo;
+			unsigned long flags;
+
+			spin_lock_irqsave(&adapter->cmd_lock, flags);
+			cmdInfo->setRssFields = rss_fields;
+			VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
+					       VMXNET3_CMD_SET_RSS_FIELDS);
+
+			/* Not all requested RSS may get applied, so get and
+			 * cache what was actually applied.
+			 */
+			VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
+					       VMXNET3_CMD_GET_RSS_FIELDS);
+			adapter->rss_fields =
+				VMXNET3_READ_BAR1_REG(adapter, VMXNET3_REG_CMD);
+			spin_unlock_irqrestore(&adapter->cmd_lock, flags);
+		} else {
+			/* When the device is activated, we will try to apply
+			 * these rules and cache the applied value later.
+			 */
+			adapter->rss_fields = rss_fields;
+		}
+	}
+	return 0;
+}
 
 static int
 vmxnet3_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *info,
 		  u32 *rules)
 {
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
+	int err = 0;
+
 	switch (info->cmd) {
 	case ETHTOOL_GRXRINGS:
 		info->data = adapter->num_rx_queues;
-		return 0;
+		break;
+	case ETHTOOL_GRXFH:
+		if (!VMXNET3_VERSION_GE_4(adapter)) {
+			err = -EOPNOTSUPP;
+			break;
+		}
+#ifdef VMXNET3_RSS
+		if (!adapter->rss) {
+			err = -EOPNOTSUPP;
+			break;
+		}
+#endif
+		err = vmxnet3_get_rss_hash_opts(adapter, info);
+		break;
+	default:
+		err = -EOPNOTSUPP;
+		break;
 	}
-	return -EOPNOTSUPP;
+
+	return err;
+}
+
+static int
+vmxnet3_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *info)
+{
+	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
+	int err = 0;
+
+	if (!VMXNET3_VERSION_GE_4(adapter)) {
+		err = -EOPNOTSUPP;
+		goto done;
+	}
+#ifdef VMXNET3_RSS
+	if (!adapter->rss) {
+		err = -EOPNOTSUPP;
+		goto done;
+	}
+#endif
+
+	switch (info->cmd) {
+	case ETHTOOL_SRXFH:
+		err = vmxnet3_set_rss_hash_opt(netdev, adapter, info);
+		break;
+	default:
+		err = -EOPNOTSUPP;
+		break;
+	}
+
+done:
+	return err;
 }
 
 #ifdef VMXNET3_RSS
@@ -699,6 +965,8 @@ vmxnet3_get_rss(struct net_device *netdev, u32 *p, u8 *key, u8 *hfunc)
 	if (hfunc)
 		*hfunc = ETH_RSS_HASH_TOP;
 	if (!p)
+		return 0;
+	if (n > UPT1_RSS_MAX_IND_TABLE_SIZE)
 		return 0;
 	while (n--)
 		p[n] = rssConf->indTable[n];
@@ -887,6 +1155,7 @@ static const struct ethtool_ops vmxnet3_ethtool_ops = {
 	.get_ringparam     = vmxnet3_get_ringparam,
 	.set_ringparam     = vmxnet3_set_ringparam,
 	.get_rxnfc         = vmxnet3_get_rxnfc,
+	.set_rxnfc         = vmxnet3_set_rxnfc,
 #ifdef VMXNET3_RSS
 	.get_rxfh_indir_size = vmxnet3_get_rss_indir_size,
 	.get_rxfh          = vmxnet3_get_rss,

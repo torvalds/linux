@@ -101,7 +101,7 @@ static int pxa2xx_i2s_startup(struct snd_pcm_substream *substream,
 	if (IS_ERR(clk_i2s))
 		return PTR_ERR(clk_i2s);
 
-	if (!cpu_dai->active)
+	if (!snd_soc_dai_active(cpu_dai))
 		SACR0 = 0;
 
 	return 0;

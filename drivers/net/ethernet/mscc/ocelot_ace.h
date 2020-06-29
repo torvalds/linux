@@ -194,7 +194,7 @@ struct ocelot_ace_rule {
 
 	enum ocelot_ace_action action;
 	struct ocelot_ace_stats stats;
-	u16 ingress_port_mask;
+	unsigned long ingress_port_mask;
 
 	enum ocelot_vcap_bit dmac_mc;
 	enum ocelot_vcap_bit dmac_bc;
@@ -215,7 +215,8 @@ struct ocelot_ace_rule {
 };
 
 int ocelot_ace_rule_offload_add(struct ocelot *ocelot,
-				struct ocelot_ace_rule *rule);
+				struct ocelot_ace_rule *rule,
+				struct netlink_ext_ack *extack);
 int ocelot_ace_rule_offload_del(struct ocelot *ocelot,
 				struct ocelot_ace_rule *rule);
 int ocelot_ace_rule_stats_update(struct ocelot *ocelot,

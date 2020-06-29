@@ -28,6 +28,7 @@ properties:
           - enum:
               - qcom,msm8996-smmu-v2
               - qcom,msm8998-smmu-v2
+              - qcom,sc7180-smmu-v2
               - qcom,sdm845-smmu-v2
           - const: qcom,smmu-v2
 
@@ -41,7 +42,9 @@ properties:
           - const: arm,mmu-500
           - const: arm,smmu-v2
       - items:
-          - const: arm,mmu-401
+          - enum:
+              - arm,mmu-400
+              - arm,mmu-401
           - const: arm,smmu-v1
       - enum:
           - arm,smmu-v1
@@ -56,8 +59,7 @@ properties:
 
   '#global-interrupts':
     description: The number of global interrupts exposed by the device.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 260   # 2 secure, 2 non-secure, and up to 256 perf counters
 

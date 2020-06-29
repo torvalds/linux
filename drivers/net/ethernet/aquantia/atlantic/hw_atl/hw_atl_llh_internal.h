@@ -2038,6 +2038,42 @@
 /* default value of bitfield lso_tcp_flag_mid[b:0] */
 #define HW_ATL_THM_LSO_TCP_FLAG_MID_DEFAULT 0x0
 
+/* tx tx_tc_mode bitfield definitions
+ * preprocessor definitions for the bitfield "tx_tc_mode".
+ * port="pif_tpb_tx_tc_mode_i,pif_tps_tx_tc_mode_i"
+ */
+
+/* register address for bitfield tx_tc_mode */
+#define HW_ATL_TPB_TX_TC_MODE_ADDR 0x00007900
+/* bitmask for bitfield tx_tc_mode */
+#define HW_ATL_TPB_TX_TC_MODE_MSK 0x00000100
+/* inverted bitmask for bitfield tx_tc_mode */
+#define HW_ATL_TPB_TX_TC_MODE_MSKN 0xFFFFFEFF
+/* lower bit position of bitfield tx_tc_mode */
+#define HW_ATL_TPB_TX_TC_MODE_SHIFT 8
+/* width of bitfield tx_tc_mode */
+#define HW_ATL_TPB_TX_TC_MODE_WIDTH 1
+/* default value of bitfield tx_tc_mode */
+#define HW_ATL_TPB_TX_TC_MODE_DEFAULT 0x0
+
+/* tx tx_desc_rate_mode bitfield definitions
+ * preprocessor definitions for the bitfield "tx_desc_rate_mode".
+ * port="pif_tps_desc_rate_mode_i"
+ */
+
+/* register address for bitfield tx_desc_rate_mode */
+#define HW_ATL_TPS_TX_DESC_RATE_MODE_ADR 0x00007900
+/* bitmask for bitfield tx_desc_rate_mode */
+#define HW_ATL_TPS_TX_DESC_RATE_MODE_MSK 0x00000080
+/* inverted bitmask for bitfield tx_desc_rate_mode */
+#define HW_ATL_TPS_TX_DESC_RATE_MODE_MSKN 0xFFFFFF7F
+/* lower bit position of bitfield tx_desc_rate_mode */
+#define HW_ATL_TPS_TX_DESC_RATE_MODE_SHIFT 7
+/* width of bitfield tx_desc_rate_mode */
+#define HW_ATL_TPS_TX_DESC_RATE_MODE_WIDTH 1
+/* default value of bitfield tx_desc_rate_mode */
+#define HW_ATL_TPS_TX_DESC_RATE_MODE_DEFAULT 0x0
+
 /* tx tx_buf_en bitfield definitions
  * preprocessor definitions for the bitfield "tx_buf_en".
  * port="pif_tpb_tx_buf_en_i"
@@ -2055,19 +2091,6 @@
 #define HW_ATL_TPB_TX_BUF_EN_WIDTH 1
 /* default value of bitfield tx_buf_en */
 #define HW_ATL_TPB_TX_BUF_EN_DEFAULT 0x0
-
-/* register address for bitfield tx_tc_mode */
-#define HW_ATL_TPB_TX_TC_MODE_ADDR 0x00007900
-/* bitmask for bitfield tx_tc_mode */
-#define HW_ATL_TPB_TX_TC_MODE_MSK 0x00000100
-/* inverted bitmask for bitfield tx_tc_mode */
-#define HW_ATL_TPB_TX_TC_MODE_MSKN 0xFFFFFEFF
-/* lower bit position of bitfield tx_tc_mode */
-#define HW_ATL_TPB_TX_TC_MODE_SHIFT 8
-/* width of bitfield tx_tc_mode */
-#define HW_ATL_TPB_TX_TC_MODE_WIDTH 1
-/* default value of bitfield tx_tc_mode */
-#define HW_ATL_TPB_TX_TC_MODE_DEFAULT 0x0
 
 /* tx tx{b}_hi_thresh[c:0] bitfield definitions
  * preprocessor definitions for the bitfield "tx{b}_hi_thresh[c:0]".
@@ -2269,6 +2292,58 @@
 #define HW_ATL_TPS_DATA_TC_ARB_MODE_WIDTH 1
 /* default value of bitfield data_tc_arb_mode */
 #define HW_ATL_TPS_DATA_TC_ARB_MODE_DEFAULT 0x0
+
+/* tx desc{r}_rate_en bitfield definitions
+ * preprocessor definitions for the bitfield "desc{r}_rate_en".
+ * port="pif_tps_desc_rate_en_i[0]"
+ */
+
+/* register address for bitfield desc{r}_rate_en */
+#define HW_ATL_TPS_DESC_RATE_EN_ADR(desc) (0x00007408 + (desc) * 0x10)
+/* bitmask for bitfield desc{r}_rate_en */
+#define HW_ATL_TPS_DESC_RATE_EN_MSK 0x80000000
+/* inverted bitmask for bitfield desc{r}_rate_en */
+#define HW_ATL_TPS_DESC_RATE_EN_MSKN 0x7FFFFFFF
+/* lower bit position of bitfield desc{r}_rate_en */
+#define HW_ATL_TPS_DESC_RATE_EN_SHIFT 31
+/* width of bitfield desc{r}_rate_en */
+#define HW_ATL_TPS_DESC_RATE_EN_WIDTH 1
+/* default value of bitfield desc{r}_rate_en */
+#define HW_ATL_TPS_DESC_RATE_EN_DEFAULT 0x0
+
+/* tx desc{r}_rate_x bitfield definitions
+ * preprocessor definitions for the bitfield "desc{r}_rate_x".
+ * port="pif_tps_desc0_rate_x"
+ */
+/* register address for bitfield desc{r}_rate_x */
+#define HW_ATL_TPS_DESC_RATE_X_ADR(desc) (0x00007408 + (desc) * 0x10)
+/* bitmask for bitfield desc{r}_rate_x */
+#define HW_ATL_TPS_DESC_RATE_X_MSK 0x03FF0000
+/* inverted bitmask for bitfield desc{r}_rate_x */
+#define HW_ATL_TPS_DESC_RATE_X_MSKN 0xFC00FFFF
+/* lower bit position of bitfield desc{r}_rate_x */
+#define HW_ATL_TPS_DESC_RATE_X_SHIFT 16
+/* width of bitfield desc{r}_rate_x */
+#define HW_ATL_TPS_DESC_RATE_X_WIDTH 10
+/* default value of bitfield desc{r}_rate_x */
+#define HW_ATL_TPS_DESC_RATE_X_DEFAULT 0x0
+
+/* tx desc{r}_rate_y bitfield definitions
+ * preprocessor definitions for the bitfield "desc{r}_rate_y".
+ * port="pif_tps_desc0_rate_y"
+ */
+/* register address for bitfield desc{r}_rate_y */
+#define HW_ATL_TPS_DESC_RATE_Y_ADR(desc) (0x00007408 + (desc) * 0x10)
+/* bitmask for bitfield desc{r}_rate_y */
+#define HW_ATL_TPS_DESC_RATE_Y_MSK 0x00003FFF
+/* inverted bitmask for bitfield desc{r}_rate_y */
+#define HW_ATL_TPS_DESC_RATE_Y_MSKN 0xFFFFC000
+/* lower bit position of bitfield desc{r}_rate_y */
+#define HW_ATL_TPS_DESC_RATE_Y_SHIFT 0
+/* width of bitfield desc{r}_rate_y */
+#define HW_ATL_TPS_DESC_RATE_Y_WIDTH 14
+/* default value of bitfield desc{r}_rate_y */
+#define HW_ATL_TPS_DESC_RATE_Y_DEFAULT 0x0
 
 /* tx desc_rate_ta_rst bitfield definitions
  * preprocessor definitions for the bitfield "desc_rate_ta_rst".

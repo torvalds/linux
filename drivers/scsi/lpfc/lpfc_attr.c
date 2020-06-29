@@ -37,8 +37,6 @@
 #include <scsi/scsi_transport_fc.h>
 #include <scsi/fc/fc_fs.h>
 
-#include <linux/nvme-fc-driver.h>
-
 #include "lpfc_hw4.h"
 #include "lpfc_hw.h"
 #include "lpfc_sli.h"
@@ -48,7 +46,6 @@
 #include "lpfc.h"
 #include "lpfc_scsi.h"
 #include "lpfc_nvme.h"
-#include "lpfc_nvmet.h"
 #include "lpfc_logmsg.h"
 #include "lpfc_version.h"
 #include "lpfc_compat.h"
@@ -4877,7 +4874,7 @@ lpfc_request_firmware_upgrade_store(struct device *dev,
 	struct Scsi_Host *shost = class_to_shost(dev);
 	struct lpfc_vport *vport = (struct lpfc_vport *)shost->hostdata;
 	struct lpfc_hba *phba = vport->phba;
-	int val = 0, rc = -EINVAL;
+	int val = 0, rc;
 
 	/* Sanity check on user data */
 	if (!isdigit(buf[0]))
@@ -5704,17 +5701,69 @@ LPFC_ATTR_R(hdw_queue,
 	    LPFC_HBA_HDWQ_MIN, LPFC_HBA_HDWQ_MAX,
 	    "Set the number of I/O Hardware Queues");
 
-static inline void
-lpfc_assign_default_irq_numa(struct lpfc_hba *phba)
+#if IS_ENABLED(CONFIG_X86)
+/**
+ * lpfc_cpumask_irq_mode_init - initalizes cpumask of phba based on
+ *				irq_chann_mode
+ * @phba: Pointer to HBA context object.
+ **/
+static void
+lpfc_cpumask_irq_mode_init(struct lpfc_hba *phba)
+{
+	unsigned int cpu, first_cpu, numa_node = NUMA_NO_NODE;
+	const struct cpumask *sibling_mask;
+	struct cpumask *aff_mask = &phba->sli4_hba.irq_aff_mask;
+
+	cpumask_clear(aff_mask);
+
+	if (phba->irq_chann_mode == NUMA_MODE) {
+		/* Check if we're a NUMA architecture */
+		numa_node = dev_to_node(&phba->pcidev->dev);
+		if (numa_node == NUMA_NO_NODE) {
+			phba->irq_chann_mode = NORMAL_MODE;
+			return;
+		}
+	}
+
+	for_each_possible_cpu(cpu) {
+		switch (phba->irq_chann_mode) {
+		case NUMA_MODE:
+			if (cpu_to_node(cpu) == numa_node)
+				cpumask_set_cpu(cpu, aff_mask);
+			break;
+		case NHT_MODE:
+			sibling_mask = topology_sibling_cpumask(cpu);
+			first_cpu = cpumask_first(sibling_mask);
+			if (first_cpu < nr_cpu_ids)
+				cpumask_set_cpu(first_cpu, aff_mask);
+			break;
+		default:
+			break;
+		}
+	}
+}
+#endif
+
+static void
+lpfc_assign_default_irq_chann(struct lpfc_hba *phba)
 {
 #if IS_ENABLED(CONFIG_X86)
-	/* If AMD architecture, then default is LPFC_IRQ_CHANN_NUMA */
-	if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD)
-		phba->cfg_irq_numa = 1;
-	else
-		phba->cfg_irq_numa = 0;
+	switch (boot_cpu_data.x86_vendor) {
+	case X86_VENDOR_AMD:
+		/* If AMD architecture, then default is NUMA_MODE */
+		phba->irq_chann_mode = NUMA_MODE;
+		break;
+	case X86_VENDOR_INTEL:
+		/* If Intel architecture, then default is no hyperthread mode */
+		phba->irq_chann_mode = NHT_MODE;
+		break;
+	default:
+		phba->irq_chann_mode = NORMAL_MODE;
+		break;
+	}
+	lpfc_cpumask_irq_mode_init(phba);
 #else
-	phba->cfg_irq_numa = 0;
+	phba->irq_chann_mode = NORMAL_MODE;
 #endif
 }
 
@@ -5726,6 +5775,7 @@ lpfc_assign_default_irq_numa(struct lpfc_hba *phba)
  *
  *	0		= Configure number of IRQ Channels to:
  *			  if AMD architecture, number of CPUs on HBA's NUMA node
+ *			  if Intel architecture, number of physical CPUs.
  *			  otherwise, number of active CPUs.
  *	[1,256]		= Manually specify how many IRQ Channels to use.
  *
@@ -5751,35 +5801,44 @@ MODULE_PARM_DESC(lpfc_irq_chann, "Set number of interrupt vectors to allocate");
 static int
 lpfc_irq_chann_init(struct lpfc_hba *phba, uint32_t val)
 {
-	const struct cpumask *numa_mask;
+	const struct cpumask *aff_mask;
 
 	if (phba->cfg_use_msi != 2) {
 		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
 				"8532 use_msi = %u ignoring cfg_irq_numa\n",
 				phba->cfg_use_msi);
-		phba->cfg_irq_numa = 0;
-		phba->cfg_irq_chann = LPFC_IRQ_CHANN_MIN;
+		phba->irq_chann_mode = NORMAL_MODE;
+		phba->cfg_irq_chann = LPFC_IRQ_CHANN_DEF;
 		return 0;
 	}
 
 	/* Check if default setting was passed */
 	if (val == LPFC_IRQ_CHANN_DEF)
-		lpfc_assign_default_irq_numa(phba);
+		lpfc_assign_default_irq_chann(phba);
 
-	if (phba->cfg_irq_numa) {
-		numa_mask = &phba->sli4_hba.numa_mask;
+	if (phba->irq_chann_mode != NORMAL_MODE) {
+		aff_mask = &phba->sli4_hba.irq_aff_mask;
 
-		if (cpumask_empty(numa_mask)) {
+		if (cpumask_empty(aff_mask)) {
 			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
-					"8533 Could not identify NUMA node, "
-					"ignoring cfg_irq_numa\n");
-			phba->cfg_irq_numa = 0;
-			phba->cfg_irq_chann = LPFC_IRQ_CHANN_MIN;
+					"8533 Could not identify CPUS for "
+					"mode %d, ignoring\n",
+					phba->irq_chann_mode);
+			phba->irq_chann_mode = NORMAL_MODE;
+			phba->cfg_irq_chann = LPFC_IRQ_CHANN_DEF;
 		} else {
-			phba->cfg_irq_chann = cpumask_weight(numa_mask);
+			phba->cfg_irq_chann = cpumask_weight(aff_mask);
+
+			/* If no hyperthread mode, then set hdwq count to
+			 * aff_mask weight as well
+			 */
+			if (phba->irq_chann_mode == NHT_MODE)
+				phba->cfg_hdw_queue = phba->cfg_irq_chann;
+
 			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
 					"8543 lpfc_irq_chann set to %u "
-					"(numa)\n", phba->cfg_irq_chann);
+					"(mode: %d)\n", phba->cfg_irq_chann,
+					phba->irq_chann_mode);
 		}
 	} else {
 		if (val > LPFC_IRQ_CHANN_MAX) {
@@ -5790,7 +5849,7 @@ lpfc_irq_chann_init(struct lpfc_hba *phba, uint32_t val)
 					val,
 					LPFC_IRQ_CHANN_MIN,
 					LPFC_IRQ_CHANN_MAX);
-			phba->cfg_irq_chann = LPFC_IRQ_CHANN_MIN;
+			phba->cfg_irq_chann = LPFC_IRQ_CHANN_DEF;
 			return -EINVAL;
 		}
 		phba->cfg_irq_chann = val;

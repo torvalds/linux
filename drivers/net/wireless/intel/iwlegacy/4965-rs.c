@@ -2474,7 +2474,7 @@ il4965_rs_fill_link_cmd(struct il_priv *il, struct il_lq_sta *lq_sta,
 }
 
 static void *
-il4965_rs_alloc(struct ieee80211_hw *hw, struct dentry *debugfsdir)
+il4965_rs_alloc(struct ieee80211_hw *hw)
 {
 	return hw->priv;
 }

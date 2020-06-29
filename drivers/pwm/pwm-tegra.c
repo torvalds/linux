@@ -4,8 +4,36 @@
  *
  * Tegra pulse-width-modulation controller driver
  *
- * Copyright (c) 2010, NVIDIA Corporation.
+ * Copyright (c) 2010-2020, NVIDIA Corporation.
  * Based on arch/arm/plat-mxc/pwm.c by Sascha Hauer <s.hauer@pengutronix.de>
+ *
+ * Overview of Tegra Pulse Width Modulator Register:
+ * 1. 13-bit: Frequency division (SCALE)
+ * 2. 8-bit : Pulse division (DUTY)
+ * 3. 1-bit : Enable bit
+ *
+ * The PWM clock frequency is divided by 256 before subdividing it based
+ * on the programmable frequency division value to generate the required
+ * frequency for PWM output. The maximum output frequency that can be
+ * achieved is (max rate of source clock) / 256.
+ * e.g. if source clock rate is 408 MHz, maximum output frequency can be:
+ * 408 MHz/256 = 1.6 MHz.
+ * This 1.6 MHz frequency can further be divided using SCALE value in PWM.
+ *
+ * PWM pulse width: 8 bits are usable [23:16] for varying pulse width.
+ * To achieve 100% duty cycle, program Bit [24] of this register to
+ * 1’b1. In which case the other bits [23:16] are set to don't care.
+ *
+ * Limitations:
+ * -	When PWM is disabled, the output is driven to inactive.
+ * -	It does not allow the current PWM period to complete and
+ *	stops abruptly.
+ *
+ * -	If the register is reconfigured while PWM is running,
+ *	it does not complete the currently running period.
+ *
+ * -	If the user input duty is beyond acceptible limits,
+ *	-EINVAL is returned.
  */
 
 #include <linux/clk.h>
@@ -41,6 +69,7 @@ struct tegra_pwm_chip {
 	struct reset_control*rst;
 
 	unsigned long clk_rate;
+	unsigned long min_period_ns;
 
 	void __iomem *regs;
 
@@ -68,7 +97,7 @@ static int tegra_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 {
 	struct tegra_pwm_chip *pc = to_tegra_pwm_chip(chip);
 	unsigned long long c = duty_ns, hz;
-	unsigned long rate;
+	unsigned long rate, required_clk_rate;
 	u32 val = 0;
 	int err;
 
@@ -83,9 +112,47 @@ static int tegra_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	val = (u32)c << PWM_DUTY_SHIFT;
 
 	/*
+	 *  min period = max clock limit >> PWM_DUTY_WIDTH
+	 */
+	if (period_ns < pc->min_period_ns)
+		return -EINVAL;
+
+	/*
 	 * Compute the prescaler value for which (1 << PWM_DUTY_WIDTH)
 	 * cycles at the PWM clock rate will take period_ns nanoseconds.
+	 *
+	 * num_channels: If single instance of PWM controller has multiple
+	 * channels (e.g. Tegra210 or older) then it is not possible to
+	 * configure separate clock rates to each of the channels, in such
+	 * case the value stored during probe will be referred.
+	 *
+	 * If every PWM controller instance has one channel respectively, i.e.
+	 * nums_channels == 1 then only the clock rate can be modified
+	 * dynamically (e.g. Tegra186 or Tegra194).
 	 */
+	if (pc->soc->num_channels == 1) {
+		/*
+		 * Rate is multiplied with 2^PWM_DUTY_WIDTH so that it matches
+		 * with the maximum possible rate that the controller can
+		 * provide. Any further lower value can be derived by setting
+		 * PFM bits[0:12].
+		 *
+		 * required_clk_rate is a reference rate for source clock and
+		 * it is derived based on user requested period. By setting the
+		 * source clock rate as required_clk_rate, PWM controller will
+		 * be able to configure the requested period.
+		 */
+		required_clk_rate =
+			(NSEC_PER_SEC / period_ns) << PWM_DUTY_WIDTH;
+
+		err = clk_set_rate(pc->clk, required_clk_rate);
+		if (err < 0)
+			return -EINVAL;
+
+		/* Store the new rate for further references */
+		pc->clk_rate = clk_get_rate(pc->clk);
+	}
+
 	rate = pc->clk_rate >> PWM_DUTY_WIDTH;
 
 	/* Consider precision in PWM_SCALE_WIDTH rate calculation */
@@ -94,7 +161,7 @@ static int tegra_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	/*
 	 * Since the actual PWM divider is the register's frequency divider
-	 * field minus 1, we need to decrement to get the correct value to
+	 * field plus 1, we need to decrement to get the correct value to
 	 * write to the register.
 	 */
 	if (rate > 0)
@@ -205,6 +272,10 @@ static int tegra_pwm_probe(struct platform_device *pdev)
 	 */
 	pwm->clk_rate = clk_get_rate(pwm->clk);
 
+	/* Set minimum limit of PWM period for the IP */
+	pwm->min_period_ns =
+	    (NSEC_PER_SEC / (pwm->soc->max_frequency >> PWM_DUTY_WIDTH)) + 1;
+
 	pwm->rst = devm_reset_control_get_exclusive(&pdev->dev, "pwm");
 	if (IS_ERR(pwm->rst)) {
 		ret = PTR_ERR(pwm->rst);
@@ -312,5 +383,6 @@ static struct platform_driver tegra_pwm_driver = {
 module_platform_driver(tegra_pwm_driver);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("NVIDIA Corporation");
+MODULE_AUTHOR("Sandipan Patra <spatra@nvidia.com>");
+MODULE_DESCRIPTION("Tegra PWM controller driver");
 MODULE_ALIAS("platform:tegra-pwm");

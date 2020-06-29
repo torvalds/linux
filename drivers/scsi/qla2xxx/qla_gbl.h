@@ -173,6 +173,7 @@ extern int ql2xenablemsix;
 extern int qla2xuseresexchforels;
 extern int ql2xexlogins;
 extern int ql2xdifbundlinginternalbuffers;
+extern int ql2xfulldump_on_mpifail;
 
 extern int qla2x00_loop_reset(scsi_qla_host_t *);
 extern void qla2x00_abort_all_cmds(scsi_qla_host_t *, int);
@@ -636,15 +637,17 @@ extern int qla24xx_read_fcp_prio_cfg(scsi_qla_host_t *);
 /*
  * Global Function Prototypes in qla_dbg.c source file.
  */
-extern void qla2100_fw_dump(scsi_qla_host_t *, int);
-extern void qla2300_fw_dump(scsi_qla_host_t *, int);
-extern void qla24xx_fw_dump(scsi_qla_host_t *, int);
-extern void qla25xx_fw_dump(scsi_qla_host_t *, int);
-extern void qla81xx_fw_dump(scsi_qla_host_t *, int);
-extern void qla82xx_fw_dump(scsi_qla_host_t *, int);
-extern void qla8044_fw_dump(scsi_qla_host_t *, int);
+void qla2xxx_dump_fw(scsi_qla_host_t *vha);
+void qla2100_fw_dump(scsi_qla_host_t *vha);
+void qla2300_fw_dump(scsi_qla_host_t *vha);
+void qla24xx_fw_dump(scsi_qla_host_t *vha);
+void qla25xx_fw_dump(scsi_qla_host_t *vha);
+void qla81xx_fw_dump(scsi_qla_host_t *vha);
+void qla82xx_fw_dump(scsi_qla_host_t *vha);
+void qla8044_fw_dump(scsi_qla_host_t *vha);
 
-extern void qla27xx_fwdump(scsi_qla_host_t *, int);
+void qla27xx_fwdump(scsi_qla_host_t *vha);
+extern void qla27xx_mpi_fwdump(scsi_qla_host_t *, int);
 extern ulong qla27xx_fwdt_calculate_dump_size(struct scsi_qla_host *, void *);
 extern int qla27xx_fwdt_template_valid(void *);
 extern ulong qla27xx_fwdt_template_size(void *);
@@ -769,7 +772,7 @@ extern int qlafx00_fw_ready(scsi_qla_host_t *);
 extern int qlafx00_configure_devices(scsi_qla_host_t *);
 extern int qlafx00_reset_initialize(scsi_qla_host_t *);
 extern int qlafx00_fx_disc(scsi_qla_host_t *, fc_port_t *, uint16_t);
-extern int qlafx00_process_aen(struct scsi_qla_host *, struct qla_work_evt *);
+extern void qlafx00_process_aen(struct scsi_qla_host *, struct qla_work_evt *);
 extern int qlafx00_post_aenfx_work(struct scsi_qla_host *,  uint32_t,
 				   uint32_t *, int);
 extern uint32_t qlafx00_fw_state_show(struct device *,
@@ -871,7 +874,7 @@ extern int qla2x00_get_idma_speed(scsi_qla_host_t *, uint16_t,
 	uint16_t *, uint16_t *);
 
 /* 83xx related functions */
-extern void qla83xx_fw_dump(scsi_qla_host_t *, int);
+void qla83xx_fw_dump(scsi_qla_host_t *vha);
 
 /* Minidump related functions */
 extern int qla82xx_md_get_template_size(scsi_qla_host_t *);
@@ -933,5 +936,6 @@ extern void qla24xx_process_purex_list(struct purex_list *);
 
 /* nvme.c */
 void qla_nvme_unregister_remote_port(struct fc_port *fcport);
+void qla27xx_reset_mpi(scsi_qla_host_t *vha);
 void qla_handle_els_plogi_done(scsi_qla_host_t *vha, struct event_arg *ea);
 #endif /* _QLA_GBL_H */

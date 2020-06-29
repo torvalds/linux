@@ -138,12 +138,8 @@ properties:
   # 'description'.
   vendor,int-property:
     description: Vendor specific properties must have a description
-    # 'allOf' is the json-schema way of subclassing a schema. Here the base
-    # type schema is referenced and then additional constraints on the values
-    # are added.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - enum: [2, 4, 6, 8, 10]
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [2, 4, 6, 8, 10]
 
   vendor,bool-property:
     description: Vendor specific properties must have a description. Boolean
@@ -154,11 +150,10 @@ properties:
   vendor,string-array-property:
     description: Vendor specific properties should reference a type in the
       core schema.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/string-array
-      - items:
-          - enum: [ foo, bar ]
-          - enum: [ baz, boo ]
+    $ref: /schemas/types.yaml#/definitions/string-array
+    items:
+      - enum: [foo, bar]
+      - enum: [baz, boo]
 
   vendor,property-in-standard-units-microvolt:
     description: Vendor specific properties having a standard unit suffix

@@ -162,8 +162,10 @@ static uint32_t smu8_get_max_sclk_level(struct pp_hwmgr *hwmgr)
 	struct smu8_hwmgr *data = hwmgr->backend;
 
 	if (data->max_sclk_level == 0) {
-		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetMaxSclkLevel);
-		data->max_sclk_level = smum_get_argument(hwmgr) + 1;
+		smum_send_msg_to_smc(hwmgr,
+				PPSMC_MSG_GetMaxSclkLevel,
+				&data->max_sclk_level);
+		data->max_sclk_level += 1;
 	}
 
 	return data->max_sclk_level;
@@ -580,7 +582,8 @@ static int smu8_init_uvd_limit(struct pp_hwmgr *hwmgr)
 	struct smu8_hwmgr *data = hwmgr->backend;
 	struct phm_uvd_clock_voltage_dependency_table *table =
 				hwmgr->dyn_state.uvd_clock_voltage_dependency_table;
-	unsigned long clock = 0, level;
+	unsigned long clock = 0;
+	uint32_t level;
 
 	if (NULL == table || table->count <= 0)
 		return -EINVAL;
@@ -588,8 +591,7 @@ static int smu8_init_uvd_limit(struct pp_hwmgr *hwmgr)
 	data->uvd_dpm.soft_min_clk = 0;
 	data->uvd_dpm.hard_min_clk = 0;
 
-	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetMaxUvdLevel);
-	level = smum_get_argument(hwmgr);
+	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetMaxUvdLevel, &level);
 
 	if (level < table->count)
 		clock = table->entries[level].vclk;
@@ -607,7 +609,8 @@ static int smu8_init_vce_limit(struct pp_hwmgr *hwmgr)
 	struct smu8_hwmgr *data = hwmgr->backend;
 	struct phm_vce_clock_voltage_dependency_table *table =
 				hwmgr->dyn_state.vce_clock_voltage_dependency_table;
-	unsigned long clock = 0, level;
+	unsigned long clock = 0;
+	uint32_t level;
 
 	if (NULL == table || table->count <= 0)
 		return -EINVAL;
@@ -615,8 +618,7 @@ static int smu8_init_vce_limit(struct pp_hwmgr *hwmgr)
 	data->vce_dpm.soft_min_clk = 0;
 	data->vce_dpm.hard_min_clk = 0;
 
-	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetMaxEclkLevel);
-	level = smum_get_argument(hwmgr);
+	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetMaxEclkLevel, &level);
 
 	if (level < table->count)
 		clock = table->entries[level].ecclk;
@@ -634,7 +636,8 @@ static int smu8_init_acp_limit(struct pp_hwmgr *hwmgr)
 	struct smu8_hwmgr *data = hwmgr->backend;
 	struct phm_acp_clock_voltage_dependency_table *table =
 				hwmgr->dyn_state.acp_clock_voltage_dependency_table;
-	unsigned long clock = 0, level;
+	unsigned long clock = 0;
+	uint32_t level;
 
 	if (NULL == table || table->count <= 0)
 		return -EINVAL;
@@ -642,8 +645,7 @@ static int smu8_init_acp_limit(struct pp_hwmgr *hwmgr)
 	data->acp_dpm.soft_min_clk = 0;
 	data->acp_dpm.hard_min_clk = 0;
 
-	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetMaxAclkLevel);
-	level = smum_get_argument(hwmgr);
+	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetMaxAclkLevel, &level);
 
 	if (level < table->count)
 		clock = table->entries[level].acpclk;
@@ -665,7 +667,7 @@ static void smu8_init_power_gate_state(struct pp_hwmgr *hwmgr)
 #ifdef CONFIG_DRM_AMD_ACP
 	data->acp_power_gated = false;
 #else
-	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_ACPPowerOFF);
+	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_ACPPowerOFF, NULL);
 	data->acp_power_gated = true;
 #endif
 
@@ -708,7 +710,8 @@ static int smu8_update_sclk_limit(struct pp_hwmgr *hwmgr)
 						PPSMC_MSG_SetSclkHardMin,
 						 smu8_get_sclk_level(hwmgr,
 					data->sclk_dpm.hard_min_clk,
-					     PPSMC_MSG_SetSclkHardMin));
+					     PPSMC_MSG_SetSclkHardMin),
+						 NULL);
 	}
 
 	clock = data->sclk_dpm.soft_min_clk;
@@ -731,7 +734,8 @@ static int smu8_update_sclk_limit(struct pp_hwmgr *hwmgr)
 						PPSMC_MSG_SetSclkSoftMin,
 						smu8_get_sclk_level(hwmgr,
 					data->sclk_dpm.soft_min_clk,
-					     PPSMC_MSG_SetSclkSoftMin));
+					     PPSMC_MSG_SetSclkSoftMin),
+						NULL);
 	}
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
@@ -742,7 +746,8 @@ static int smu8_update_sclk_limit(struct pp_hwmgr *hwmgr)
 						PPSMC_MSG_SetSclkSoftMax,
 						smu8_get_sclk_level(hwmgr,
 					data->sclk_dpm.soft_max_clk,
-					PPSMC_MSG_SetSclkSoftMax));
+					PPSMC_MSG_SetSclkSoftMax),
+						NULL);
 	}
 
 	return 0;
@@ -760,7 +765,8 @@ static int smu8_set_deep_sleep_sclk_threshold(struct pp_hwmgr *hwmgr)
 
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetMinDeepSleepSclk,
-				clks);
+				clks,
+				NULL);
 	}
 
 	return 0;
@@ -773,7 +779,8 @@ static int smu8_set_watermark_threshold(struct pp_hwmgr *hwmgr)
 
 	smum_send_msg_to_smc_with_parameter(hwmgr,
 					PPSMC_MSG_SetWatermarkFrequency,
-					data->sclk_dpm.soft_max_clk);
+					data->sclk_dpm.soft_max_clk,
+					NULL);
 
 	return 0;
 }
@@ -788,13 +795,15 @@ static int smu8_nbdpm_pstate_enable_disable(struct pp_hwmgr *hwmgr, bool enable,
 
 			return smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_EnableLowMemoryPstate,
-						(lock ? 1 : 0));
+						(lock ? 1 : 0),
+						NULL);
 		} else {
 			PP_DBG_LOG("disable Low Memory PState.\n");
 
 			return smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_DisableLowMemoryPstate,
-						(lock ? 1 : 0));
+						(lock ? 1 : 0),
+						NULL);
 		}
 	}
 
@@ -814,7 +823,8 @@ static int smu8_disable_nb_dpm(struct pp_hwmgr *hwmgr)
 		ret = smum_send_msg_to_smc_with_parameter(
 							  hwmgr,
 							  PPSMC_MSG_DisableAllSmuFeatures,
-							  dpm_features);
+							  dpm_features,
+							  NULL);
 		if (ret == 0)
 			data->is_nb_dpm_enabled = false;
 	}
@@ -835,7 +845,8 @@ static int smu8_enable_nb_dpm(struct pp_hwmgr *hwmgr)
 		ret = smum_send_msg_to_smc_with_parameter(
 							  hwmgr,
 							  PPSMC_MSG_EnableAllSmuFeatures,
-							  dpm_features);
+							  dpm_features,
+							  NULL);
 		if (ret == 0)
 			data->is_nb_dpm_enabled = true;
 	}
@@ -953,7 +964,8 @@ static int smu8_start_dpm(struct pp_hwmgr *hwmgr)
 
 	return smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_EnableAllSmuFeatures,
-				SCLK_DPM_MASK);
+				SCLK_DPM_MASK,
+				NULL);
 }
 
 static int smu8_stop_dpm(struct pp_hwmgr *hwmgr)
@@ -967,7 +979,8 @@ static int smu8_stop_dpm(struct pp_hwmgr *hwmgr)
 		data->dpm_flags &= ~DPMFlags_SCLK_Enabled;
 		ret = smum_send_msg_to_smc_with_parameter(hwmgr,
 					PPSMC_MSG_DisableAllSmuFeatures,
-					dpm_features);
+					dpm_features,
+					NULL);
 	}
 	return ret;
 }
@@ -983,13 +996,15 @@ static int smu8_program_bootup_state(struct pp_hwmgr *hwmgr)
 				PPSMC_MSG_SetSclkSoftMin,
 				smu8_get_sclk_level(hwmgr,
 				data->sclk_dpm.soft_min_clk,
-				PPSMC_MSG_SetSclkSoftMin));
+				PPSMC_MSG_SetSclkSoftMin),
+				NULL);
 
 	smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetSclkSoftMax,
 				smu8_get_sclk_level(hwmgr,
 				data->sclk_dpm.soft_max_clk,
-				PPSMC_MSG_SetSclkSoftMax));
+				PPSMC_MSG_SetSclkSoftMax),
+				NULL);
 
 	return 0;
 }
@@ -1127,13 +1142,15 @@ static int smu8_phm_force_dpm_highest(struct pp_hwmgr *hwmgr)
 					PPSMC_MSG_SetSclkSoftMin,
 					smu8_get_sclk_level(hwmgr,
 					data->sclk_dpm.soft_max_clk,
-					PPSMC_MSG_SetSclkSoftMin));
+					PPSMC_MSG_SetSclkSoftMin),
+					NULL);
 
 	smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetSclkSoftMax,
 				smu8_get_sclk_level(hwmgr,
 				data->sclk_dpm.soft_max_clk,
-				PPSMC_MSG_SetSclkSoftMax));
+				PPSMC_MSG_SetSclkSoftMax),
+				NULL);
 
 	return 0;
 }
@@ -1167,13 +1184,15 @@ static int smu8_phm_unforce_dpm_levels(struct pp_hwmgr *hwmgr)
 				PPSMC_MSG_SetSclkSoftMin,
 				smu8_get_sclk_level(hwmgr,
 				data->sclk_dpm.soft_min_clk,
-				PPSMC_MSG_SetSclkSoftMin));
+				PPSMC_MSG_SetSclkSoftMin),
+				NULL);
 
 	smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetSclkSoftMax,
 				smu8_get_sclk_level(hwmgr,
 				data->sclk_dpm.soft_max_clk,
-				PPSMC_MSG_SetSclkSoftMax));
+				PPSMC_MSG_SetSclkSoftMax),
+				NULL);
 
 	return 0;
 }
@@ -1186,13 +1205,15 @@ static int smu8_phm_force_dpm_lowest(struct pp_hwmgr *hwmgr)
 			PPSMC_MSG_SetSclkSoftMax,
 			smu8_get_sclk_level(hwmgr,
 			data->sclk_dpm.soft_min_clk,
-			PPSMC_MSG_SetSclkSoftMax));
+			PPSMC_MSG_SetSclkSoftMax),
+			NULL);
 
 	smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetSclkSoftMin,
 				smu8_get_sclk_level(hwmgr,
 				data->sclk_dpm.soft_min_clk,
-				PPSMC_MSG_SetSclkSoftMin));
+				PPSMC_MSG_SetSclkSoftMin),
+				NULL);
 
 	return 0;
 }
@@ -1227,7 +1248,7 @@ static int smu8_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 static int smu8_dpm_powerdown_uvd(struct pp_hwmgr *hwmgr)
 {
 	if (PP_CAP(PHM_PlatformCaps_UVDPowerGating))
-		return smum_send_msg_to_smc(hwmgr, PPSMC_MSG_UVDPowerOFF);
+		return smum_send_msg_to_smc(hwmgr, PPSMC_MSG_UVDPowerOFF, NULL);
 	return 0;
 }
 
@@ -1237,7 +1258,8 @@ static int smu8_dpm_powerup_uvd(struct pp_hwmgr *hwmgr)
 		return smum_send_msg_to_smc_with_parameter(
 			hwmgr,
 			PPSMC_MSG_UVDPowerON,
-			PP_CAP(PHM_PlatformCaps_UVDDynamicPowerGating) ? 1 : 0);
+			PP_CAP(PHM_PlatformCaps_UVDDynamicPowerGating) ? 1 : 0,
+			NULL);
 	}
 
 	return 0;
@@ -1259,15 +1281,20 @@ static int  smu8_dpm_update_vce_dpm(struct pp_hwmgr *hwmgr)
 			PPSMC_MSG_SetEclkHardMin,
 			smu8_get_eclk_level(hwmgr,
 				data->vce_dpm.hard_min_clk,
-				PPSMC_MSG_SetEclkHardMin));
+				PPSMC_MSG_SetEclkHardMin),
+			NULL);
 	} else {
 
 		smum_send_msg_to_smc_with_parameter(hwmgr,
-					PPSMC_MSG_SetEclkHardMin, 0);
+					PPSMC_MSG_SetEclkHardMin,
+					0,
+					NULL);
 		/* disable ECLK DPM 0. Otherwise VCE could hang if
 		 * switching SCLK from DPM 0 to 6/7 */
 		smum_send_msg_to_smc_with_parameter(hwmgr,
-					PPSMC_MSG_SetEclkSoftMin, 1);
+					PPSMC_MSG_SetEclkSoftMin,
+					1,
+					NULL);
 	}
 	return 0;
 }
@@ -1276,7 +1303,8 @@ static int smu8_dpm_powerdown_vce(struct pp_hwmgr *hwmgr)
 {
 	if (PP_CAP(PHM_PlatformCaps_VCEPowerGating))
 		return smum_send_msg_to_smc(hwmgr,
-						     PPSMC_MSG_VCEPowerOFF);
+					    PPSMC_MSG_VCEPowerOFF,
+					    NULL);
 	return 0;
 }
 
@@ -1284,7 +1312,8 @@ static int smu8_dpm_powerup_vce(struct pp_hwmgr *hwmgr)
 {
 	if (PP_CAP(PHM_PlatformCaps_VCEPowerGating))
 		return smum_send_msg_to_smc(hwmgr,
-						     PPSMC_MSG_VCEPowerON);
+					    PPSMC_MSG_VCEPowerON,
+					    NULL);
 	return 0;
 }
 
@@ -1435,7 +1464,8 @@ static void smu8_hw_print_display_cfg(
 
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetDisplaySizePowerParams,
-						data);
+						data,
+						NULL);
 	}
 
 	return 0;
@@ -1497,10 +1527,12 @@ static int smu8_force_clock_level(struct pp_hwmgr *hwmgr,
 	case PP_SCLK:
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetSclkSoftMin,
-				mask);
+				mask,
+				NULL);
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetSclkSoftMax,
-				mask);
+				mask,
+				NULL);
 		break;
 	default:
 		break;
@@ -1753,9 +1785,10 @@ static int smu8_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 		*((uint32_t *)value) = 0;
 		return 0;
 	case AMDGPU_PP_SENSOR_GPU_LOAD:
-		result = smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetAverageGraphicsActivity);
+		result = smum_send_msg_to_smc(hwmgr,
+				PPSMC_MSG_GetAverageGraphicsActivity,
+				&activity_percent);
 		if (0 == result) {
-			activity_percent = cgs_read_register(hwmgr->device, mmSMU_MP1_SRBM2P_ARG_0);
 			activity_percent = activity_percent > 100 ? 100 : activity_percent;
 		} else {
 			activity_percent = 50;
@@ -1785,20 +1818,25 @@ static int smu8_notify_cac_buffer_info(struct pp_hwmgr *hwmgr,
 {
 	smum_send_msg_to_smc_with_parameter(hwmgr,
 					PPSMC_MSG_DramAddrHiVirtual,
-					mc_addr_hi);
+					mc_addr_hi,
+					NULL);
 	smum_send_msg_to_smc_with_parameter(hwmgr,
 					PPSMC_MSG_DramAddrLoVirtual,
-					mc_addr_low);
+					mc_addr_low,
+					NULL);
 	smum_send_msg_to_smc_with_parameter(hwmgr,
 					PPSMC_MSG_DramAddrHiPhysical,
-					virtual_addr_hi);
+					virtual_addr_hi,
+					NULL);
 	smum_send_msg_to_smc_with_parameter(hwmgr,
 					PPSMC_MSG_DramAddrLoPhysical,
-					virtual_addr_low);
+					virtual_addr_low,
+					NULL);
 
 	smum_send_msg_to_smc_with_parameter(hwmgr,
 					PPSMC_MSG_DramBufferSize,
-					size);
+					size,
+					NULL);
 	return 0;
 }
 
@@ -1827,12 +1865,16 @@ static int smu8_enable_disable_uvd_dpm(struct pp_hwmgr *hwmgr, bool enable)
 		data->dpm_flags |= DPMFlags_UVD_Enabled;
 		dpm_features |= UVD_DPM_MASK;
 		smum_send_msg_to_smc_with_parameter(hwmgr,
-			    PPSMC_MSG_EnableAllSmuFeatures, dpm_features);
+			    PPSMC_MSG_EnableAllSmuFeatures,
+			    dpm_features,
+			    NULL);
 	} else {
 		dpm_features |= UVD_DPM_MASK;
 		data->dpm_flags &= ~DPMFlags_UVD_Enabled;
 		smum_send_msg_to_smc_with_parameter(hwmgr,
-			   PPSMC_MSG_DisableAllSmuFeatures, dpm_features);
+			   PPSMC_MSG_DisableAllSmuFeatures,
+			   dpm_features,
+			   NULL);
 	}
 	return 0;
 }
@@ -1854,7 +1896,8 @@ int smu8_dpm_update_uvd_dpm(struct pp_hwmgr *hwmgr, bool bgate)
 				PPSMC_MSG_SetUvdHardMin,
 				smu8_get_uvd_level(hwmgr,
 					data->uvd_dpm.hard_min_clk,
-					PPSMC_MSG_SetUvdHardMin));
+					PPSMC_MSG_SetUvdHardMin),
+				NULL);
 
 			smu8_enable_disable_uvd_dpm(hwmgr, true);
 		} else {
@@ -1878,12 +1921,16 @@ static int smu8_enable_disable_vce_dpm(struct pp_hwmgr *hwmgr, bool enable)
 		data->dpm_flags |= DPMFlags_VCE_Enabled;
 		dpm_features |= VCE_DPM_MASK;
 		smum_send_msg_to_smc_with_parameter(hwmgr,
-			    PPSMC_MSG_EnableAllSmuFeatures, dpm_features);
+			    PPSMC_MSG_EnableAllSmuFeatures,
+			    dpm_features,
+			    NULL);
 	} else {
 		dpm_features |= VCE_DPM_MASK;
 		data->dpm_flags &= ~DPMFlags_VCE_Enabled;
 		smum_send_msg_to_smc_with_parameter(hwmgr,
-			   PPSMC_MSG_DisableAllSmuFeatures, dpm_features);
+			   PPSMC_MSG_DisableAllSmuFeatures,
+			   dpm_features,
+			   NULL);
 	}
 
 	return 0;
@@ -1898,9 +1945,9 @@ static void smu8_dpm_powergate_acp(struct pp_hwmgr *hwmgr, bool bgate)
 		return;
 
 	if (bgate)
-		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_ACPPowerOFF);
+		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_ACPPowerOFF, NULL);
 	else
-		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_ACPPowerON);
+		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_ACPPowerON, NULL);
 }
 
 static void smu8_dpm_powergate_uvd(struct pp_hwmgr *hwmgr, bool bgate)

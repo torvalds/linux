@@ -5,10 +5,9 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014, 2018 - 2020 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright (C) 2015 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -28,10 +27,9 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014, 2018 - 2020 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright (C) 2015 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -588,6 +586,23 @@ static void iwl_mvm_dump_lmac_error_log(struct iwl_mvm *mvm, u8 lmac_num)
 	IWL_ERR(mvm, "0x%08X | flow_handler\n", table.flow_handler);
 }
 
+static void iwl_mvm_dump_iml_error_log(struct iwl_mvm *mvm)
+{
+	struct iwl_trans *trans = mvm->trans;
+	u32 error;
+
+	error = iwl_read_umac_prph(trans, UMAG_SB_CPU_2_STATUS);
+
+	IWL_ERR(trans, "IML/ROM dump:\n");
+
+	if (error & 0xFFFF0000)
+		IWL_ERR(trans, "IML/ROM SYSASSERT:\n");
+
+	IWL_ERR(mvm, "0x%08X | IML/ROM error/state\n", error);
+	IWL_ERR(mvm, "0x%08X | IML/ROM data1\n",
+		iwl_read_umac_prph(trans, UMAG_SB_CPU_1_STATUS));
+}
+
 void iwl_mvm_dump_nic_error_log(struct iwl_mvm *mvm)
 {
 	if (!test_bit(STATUS_DEVICE_ENABLED, &mvm->trans->status)) {
@@ -602,6 +617,9 @@ void iwl_mvm_dump_nic_error_log(struct iwl_mvm *mvm)
 		iwl_mvm_dump_lmac_error_log(mvm, 1);
 
 	iwl_mvm_dump_umac_error_log(mvm);
+
+	if (mvm->trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
+		iwl_mvm_dump_iml_error_log(mvm);
 
 	iwl_fw_error_print_fseq_regs(&mvm->fwrt);
 }
@@ -952,8 +970,7 @@ unsigned int iwl_mvm_get_wd_timeout(struct iwl_mvm *mvm,
 				IWL_UCODE_TLV_CAPA_STA_PM_NOTIF) &&
 		    vif && vif->type == NL80211_IFTYPE_AP)
 			return IWL_WATCHDOG_DISABLED;
-		return iwlmvm_mod_params.tfd_q_hang_detect ?
-			default_timeout : IWL_WATCHDOG_DISABLED;
+		return default_timeout;
 	}
 
 	trigger = iwl_fw_dbg_get_trigger(mvm->fw, FW_DBG_TRIGGER_TXQ_TIMERS);

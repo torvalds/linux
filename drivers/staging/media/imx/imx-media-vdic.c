@@ -548,7 +548,8 @@ static int vdic_enum_mbus_code(struct v4l2_subdev *sd,
 	if (code->pad >= VDIC_NUM_PADS)
 		return -EINVAL;
 
-	return imx_media_enum_ipu_format(&code->code, code->index, CS_SEL_YUV);
+	return imx_media_enum_ipu_formats(&code->code, code->index,
+					  PIXFMT_SEL_YUV);
 }
 
 static int vdic_get_fmt(struct v4l2_subdev *sd,
@@ -583,12 +584,13 @@ static void vdic_try_fmt(struct vdic_priv *priv,
 {
 	struct v4l2_mbus_framefmt *infmt;
 
-	*cc = imx_media_find_ipu_format(sdformat->format.code, CS_SEL_YUV);
+	*cc = imx_media_find_ipu_format(sdformat->format.code,
+					PIXFMT_SEL_YUV);
 	if (!*cc) {
 		u32 code;
 
-		imx_media_enum_ipu_format(&code, 0, CS_SEL_YUV);
-		*cc = imx_media_find_ipu_format(code, CS_SEL_YUV);
+		imx_media_enum_ipu_formats(&code, 0, PIXFMT_SEL_YUV);
+		*cc = imx_media_find_ipu_format(code, PIXFMT_SEL_YUV);
 		sdformat->format.code = (*cc)->codes[0];
 	}
 
@@ -850,7 +852,7 @@ static int vdic_registered(struct v4l2_subdev *sd)
 	for (i = 0; i < VDIC_NUM_PADS; i++) {
 		code = 0;
 		if (i != VDIC_SINK_PAD_IDMAC)
-			imx_media_enum_ipu_format(&code, 0, CS_SEL_YUV);
+			imx_media_enum_ipu_formats(&code, 0, PIXFMT_SEL_YUV);
 
 		/* set a default mbus format  */
 		ret = imx_media_init_mbus_fmt(&priv->format_mbus[i],

@@ -59,8 +59,15 @@ struct aq_nic_cfg_s {
 	bool is_polling;
 	bool is_rss;
 	bool is_lro;
+	bool is_qos;
+	bool is_ptp;
+	enum aq_tc_mode tc_mode;
 	u32 priv_flags;
 	u8  tcs;
+	u8 prio_tc_map[8];
+	u32 tc_max_rate[AQ_CFG_TCS_MAX];
+	unsigned long tc_min_rate_msk;
+	u32 tc_min_rate[AQ_CFG_TCS_MAX];
 	struct aq_rss_parameters aq_rss;
 	u32 eee_speeds;
 };
@@ -77,8 +84,16 @@ struct aq_nic_cfg_s {
 #define AQ_NIC_WOL_MODES        (WAKE_MAGIC |\
 				 WAKE_PHY)
 
-#define AQ_NIC_TCVEC2RING(_NIC_, _TC_, _VEC_) \
-	((_TC_) * AQ_CFG_TCS_MAX + (_VEC_))
+#define AQ_NIC_CFG_RING_PER_TC(_NIC_CFG_) \
+	(((_NIC_CFG_)->tc_mode == AQ_TC_MODE_4TCS) ? 8 : 4)
+
+#define AQ_NIC_CFG_TCVEC2RING(_NIC_CFG_, _TC_, _VEC_) \
+	((_TC_) * AQ_NIC_CFG_RING_PER_TC(_NIC_CFG_) + (_VEC_))
+
+#define AQ_NIC_RING2QMAP(_NIC_, _ID_) \
+	((_ID_) / AQ_NIC_CFG_RING_PER_TC(&(_NIC_)->aq_nic_cfg) * \
+		(_NIC_)->aq_vecs + \
+	((_ID_) % AQ_NIC_CFG_RING_PER_TC(&(_NIC_)->aq_nic_cfg)))
 
 struct aq_hw_rx_fl2 {
 	struct aq_rx_filter_vlan aq_vlans[AQ_VLAN_MAX_FILTERS];
@@ -104,7 +119,7 @@ struct aq_nic_s {
 	atomic_t flags;
 	u32 msg_enable;
 	struct aq_vec_s *aq_vec[AQ_CFG_VECS_MAX];
-	struct aq_ring_s *aq_ring_tx[AQ_CFG_VECS_MAX * AQ_CFG_TCS_MAX];
+	struct aq_ring_s *aq_ring_tx[AQ_HW_QUEUES_MAX];
 	struct aq_hw_s *aq_hw;
 	struct net_device *ndev;
 	unsigned int aq_vecs;
@@ -164,6 +179,7 @@ void aq_nic_deinit(struct aq_nic_s *self, bool link_down);
 void aq_nic_set_power(struct aq_nic_s *self);
 void aq_nic_free_hot_resources(struct aq_nic_s *self);
 void aq_nic_free_vectors(struct aq_nic_s *self);
+int aq_nic_realloc_vectors(struct aq_nic_s *self);
 int aq_nic_set_mtu(struct aq_nic_s *self, int new_mtu);
 int aq_nic_set_mac(struct aq_nic_s *self, struct net_device *ndev);
 int aq_nic_set_packet_filter(struct aq_nic_s *self, unsigned int flags);
@@ -181,4 +197,9 @@ void aq_nic_shutdown(struct aq_nic_s *self);
 u8 aq_nic_reserve_filter(struct aq_nic_s *self, enum aq_rx_filter_type type);
 void aq_nic_release_filter(struct aq_nic_s *self, enum aq_rx_filter_type type,
 			   u32 location);
+int aq_nic_setup_tc_mqprio(struct aq_nic_s *self, u32 tcs, u8 *prio_tc_map);
+int aq_nic_setup_tc_max_rate(struct aq_nic_s *self, const unsigned int tc,
+			     const u32 max_rate);
+int aq_nic_setup_tc_min_rate(struct aq_nic_s *self, const unsigned int tc,
+			     const u32 min_rate);
 #endif /* AQ_NIC_H */

@@ -125,7 +125,7 @@ static inline void arch_send_call_function_single_ipi(int cpu)
 {
 	extern const struct plat_smp_ops *mp_ops;	/* private */
 
-	mp_ops->send_ipi_mask(cpumask_of(cpu), SMP_CALL_FUNCTION);
+	mp_ops->send_ipi_single(cpu, SMP_CALL_FUNCTION);
 }
 
 static inline void arch_send_call_function_ipi_mask(const struct cpumask *mask)

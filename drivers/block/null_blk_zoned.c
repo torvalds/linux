@@ -13,7 +13,7 @@ static inline unsigned int null_zone_no(struct nullb_device *dev, sector_t sect)
 	return sect >> ilog2(dev->zone_size_sects);
 }
 
-int null_zone_init(struct nullb_device *dev)
+int null_init_zoned_dev(struct nullb_device *dev, struct request_queue *q)
 {
 	sector_t dev_size = (sector_t)dev->size * 1024 * 1024;
 	sector_t sector = 0;
@@ -21,6 +21,10 @@ int null_zone_init(struct nullb_device *dev)
 
 	if (!is_power_of_2(dev->zone_size)) {
 		pr_err("zone_size must be power-of-two\n");
+		return -EINVAL;
+	}
+	if (dev->zone_size > dev->size) {
+		pr_err("Zone size larger than device capacity\n");
 		return -EINVAL;
 	}
 
@@ -61,10 +65,34 @@ int null_zone_init(struct nullb_device *dev)
 		sector += dev->zone_size_sects;
 	}
 
+	q->limits.zoned = BLK_ZONED_HM;
+	blk_queue_flag_set(QUEUE_FLAG_ZONE_RESETALL, q);
+	blk_queue_required_elevator_features(q, ELEVATOR_F_ZBD_SEQ_WRITE);
+
 	return 0;
 }
 
-void null_zone_exit(struct nullb_device *dev)
+int null_register_zoned_dev(struct nullb *nullb)
+{
+	struct nullb_device *dev = nullb->dev;
+	struct request_queue *q = nullb->q;
+
+	if (queue_is_mq(q)) {
+		int ret = blk_revalidate_disk_zones(nullb->disk, NULL);
+
+		if (ret)
+			return ret;
+	} else {
+		blk_queue_chunk_sectors(q, dev->zone_size_sects);
+		q->nr_zones = blkdev_nr_zones(nullb->disk);
+	}
+
+	blk_queue_max_zone_append_sectors(q, dev->zone_size_sects);
+
+	return 0;
+}
+
+void null_free_zoned_dev(struct nullb_device *dev)
 {
 	kvfree(dev->zones);
 }
@@ -121,41 +149,57 @@ size_t null_zone_valid_read_len(struct nullb *nullb,
 }
 
 static blk_status_t null_zone_write(struct nullb_cmd *cmd, sector_t sector,
-		     unsigned int nr_sectors)
+				    unsigned int nr_sectors, bool append)
 {
 	struct nullb_device *dev = cmd->nq->dev;
 	unsigned int zno = null_zone_no(dev, sector);
 	struct blk_zone *zone = &dev->zones[zno];
+	blk_status_t ret;
+
+	trace_nullb_zone_op(cmd, zno, zone->cond);
+
+	if (zone->type == BLK_ZONE_TYPE_CONVENTIONAL)
+		return null_process_cmd(cmd, REQ_OP_WRITE, sector, nr_sectors);
 
 	switch (zone->cond) {
 	case BLK_ZONE_COND_FULL:
 		/* Cannot write to a full zone */
-		cmd->error = BLK_STS_IOERR;
 		return BLK_STS_IOERR;
 	case BLK_ZONE_COND_EMPTY:
 	case BLK_ZONE_COND_IMP_OPEN:
 	case BLK_ZONE_COND_EXP_OPEN:
 	case BLK_ZONE_COND_CLOSED:
-		/* Writes must be at the write pointer position */
-		if (sector != zone->wp)
+		/*
+		 * Regular writes must be at the write pointer position.
+		 * Zone append writes are automatically issued at the write
+		 * pointer and the position returned using the request or BIO
+		 * sector.
+		 */
+		if (append) {
+			sector = zone->wp;
+			if (cmd->bio)
+				cmd->bio->bi_iter.bi_sector = sector;
+			else
+				cmd->rq->__sector = sector;
+		} else if (sector != zone->wp) {
 			return BLK_STS_IOERR;
+		}
 
 		if (zone->cond != BLK_ZONE_COND_EXP_OPEN)
 			zone->cond = BLK_ZONE_COND_IMP_OPEN;
 
+		ret = null_process_cmd(cmd, REQ_OP_WRITE, sector, nr_sectors);
+		if (ret != BLK_STS_OK)
+			return ret;
+
 		zone->wp += nr_sectors;
 		if (zone->wp == zone->start + zone->len)
 			zone->cond = BLK_ZONE_COND_FULL;
-		break;
-	case BLK_ZONE_COND_NOT_WP:
-		break;
+		return BLK_STS_OK;
 	default:
 		/* Invalid zone condition */
 		return BLK_STS_IOERR;
 	}
-
-	trace_nullb_zone_op(cmd, zno, zone->cond);
-	return BLK_STS_OK;
 }
 
 static blk_status_t null_zone_mgmt(struct nullb_cmd *cmd, enum req_opf op,
@@ -216,12 +260,14 @@ static blk_status_t null_zone_mgmt(struct nullb_cmd *cmd, enum req_opf op,
 	return BLK_STS_OK;
 }
 
-blk_status_t null_handle_zoned(struct nullb_cmd *cmd, enum req_opf op,
-			       sector_t sector, sector_t nr_sectors)
+blk_status_t null_process_zoned_cmd(struct nullb_cmd *cmd, enum req_opf op,
+				    sector_t sector, sector_t nr_sectors)
 {
 	switch (op) {
 	case REQ_OP_WRITE:
-		return null_zone_write(cmd, sector, nr_sectors);
+		return null_zone_write(cmd, sector, nr_sectors, false);
+	case REQ_OP_ZONE_APPEND:
+		return null_zone_write(cmd, sector, nr_sectors, true);
 	case REQ_OP_ZONE_RESET:
 	case REQ_OP_ZONE_RESET_ALL:
 	case REQ_OP_ZONE_OPEN:
@@ -229,6 +275,6 @@ blk_status_t null_handle_zoned(struct nullb_cmd *cmd, enum req_opf op,
 	case REQ_OP_ZONE_FINISH:
 		return null_zone_mgmt(cmd, op, sector);
 	default:
-		return BLK_STS_OK;
+		return null_process_cmd(cmd, op, sector, nr_sectors);
 	}
 }

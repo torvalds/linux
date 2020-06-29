@@ -2,9 +2,9 @@
 config VIDEO_IPU3_CIO2
 	tristate "Intel ipu3-cio2 driver"
 	depends on VIDEO_V4L2 && PCI
-	depends on VIDEO_V4L2_SUBDEV_API
 	depends on (X86 && ACPI) || COMPILE_TEST
-	depends on MEDIA_CONTROLLER
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	select V4L2_FWNODE
 	select VIDEOBUF2_DMA_SG
 

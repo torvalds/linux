@@ -61,7 +61,7 @@ examples:
     #include <dt-bindings/clock/qcom,rpmh.h>
     clock-controller@100000 {
       compatible = "qcom,gcc-sm8250";
-      reg = <0 0x00100000 0 0x1f0000>;
+      reg = <0x00100000 0x1f0000>;
       clocks = <&rpmhcc RPMH_CXO_CLK>,
                <&sleep_clk>;
       clock-names = "bi_tcxo", "sleep_clk";

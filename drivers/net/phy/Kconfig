@@ -134,7 +134,7 @@ config MDIO_GPIO
 	tristate "GPIO lib-based bitbanged MDIO buses"
 	depends on MDIO_BITBANG
 	depends on GPIOLIB || COMPILE_TEST
-	---help---
+	help
 	  Supports GPIO lib-based MDIO busses.
 
 	  To compile this driver as a module, choose M here: the module
@@ -157,6 +157,13 @@ config MDIO_I2C
 
 	  This is library mode.
 
+config MDIO_IPQ4019
+	tristate "Qualcomm IPQ4019 MDIO interface support"
+	depends on HAS_IOMEM && OF_MDIO
+	help
+	  This driver supports the MDIO interface found in Qualcomm
+	  IPQ40xx series Soc-s.
+
 config MDIO_IPQ8064
 	tristate "Qualcomm IPQ8064 MDIO interface support"
 	depends on HAS_IOMEM && OF_MDIO
@@ -177,7 +184,8 @@ config MDIO_MSCC_MIIM
 	depends on HAS_IOMEM
 	help
 	  This driver supports the MIIM (MDIO) interface found in the network
-	  switches of the Microsemi SoCs
+	  switches of the Microsemi SoCs; it is recommended to switch on
+	  CONFIG_HIGH_RES_TIMERS
 
 config MDIO_MVUSB
 	tristate "Marvell USB to MDIO Adapter"
@@ -257,7 +265,7 @@ config SWPHY
 config LED_TRIGGER_PHY
 	bool "Support LED triggers for tracking link state"
 	depends on LEDS_TRIGGERS
-	---help---
+	help
 	  Adds support for a set of LED trigger events per-PHY.  Link
 	  state change will trigger the events, for consumption by an
 	  LED class driver.  There are triggers for each link speed currently
@@ -290,12 +298,12 @@ config ADIN_PHY
 
 config AMD_PHY
 	tristate "AMD PHYs"
-	---help---
+	help
 	  Currently supports the am79c874
 
 config AQUANTIA_PHY
 	tristate "Aquantia PHYs"
-	---help---
+	help
 	  Currently supports the Aquantia AQ1202, AQ2104, AQR105, AQR405
 
 config AX88796B_PHY
@@ -308,13 +316,13 @@ config BCM63XX_PHY
 	tristate "Broadcom 63xx SOCs internal PHY"
 	depends on BCM63XX || COMPILE_TEST
 	select BCM_NET_PHYLIB
-	---help---
+	help
 	  Currently supports the 6348 and 6358 PHYs.
 
 config BCM7XXX_PHY
 	tristate "Broadcom 7xxx SOCs internal PHYs"
 	select BCM_NET_PHYLIB
-	---help---
+	help
 	  Currently supports the BCM7366, BCM7439, BCM7445, and
 	  40nm and 65nm generation of BCM7xxx Set Top Box SoCs.
 
@@ -328,7 +336,7 @@ config BCM_CYGNUS_PHY
 	depends on ARCH_BCM_IPROC || COMPILE_TEST
 	depends on MDIO_BCM_IPROC
 	select BCM_NET_PHYLIB
-	---help---
+	help
 	  This PHY driver is for the 1G internal PHYs of the Broadcom
 	  Cygnus and Omega Family SoC.
 
@@ -342,55 +350,66 @@ config BCM_NET_PHYLIB
 config BROADCOM_PHY
 	tristate "Broadcom PHYs"
 	select BCM_NET_PHYLIB
-	---help---
+	help
 	  Currently supports the BCM5411, BCM5421, BCM5461, BCM54616S, BCM5464,
 	  BCM5481, BCM54810 and BCM5482 PHYs.
+
+config BCM54140_PHY
+	tristate "Broadcom BCM54140 PHY"
+	depends on PHYLIB
+	depends on HWMON || HWMON=n
+	select BCM_NET_PHYLIB
+	help
+	  Support the Broadcom BCM54140 Quad SGMII/QSGMII PHY.
+
+	  This driver also supports the hardware monitoring of this PHY and
+	  exposes voltage and temperature sensors.
 
 config BCM84881_PHY
 	tristate "Broadcom BCM84881 PHY"
 	depends on PHYLIB
-	---help---
+	help
 	  Support the Broadcom BCM84881 PHY.
 
 config CICADA_PHY
 	tristate "Cicada PHYs"
-	---help---
+	help
 	  Currently supports the cis8204
 
 config CORTINA_PHY
 	tristate "Cortina EDC CDR 10G Ethernet PHY"
-	---help---
+	help
 	  Currently supports the CS4340 phy.
 
 config DAVICOM_PHY
 	tristate "Davicom PHYs"
-	---help---
+	help
 	  Currently supports dm9161e and dm9131
 
 config DP83822_PHY
 	tristate "Texas Instruments DP83822/825/826 PHYs"
-	---help---
+	help
 	  Supports the DP83822, DP83825I, DP83825CM, DP83825CS, DP83825S,
 	  DP83826C and DP83826NC PHYs.
 
 config DP83TC811_PHY
 	tristate "Texas Instruments DP83TC811 PHY"
-	---help---
+	help
 	  Supports the DP83TC811 PHY.
 
 config DP83848_PHY
 	tristate "Texas Instruments DP83848 PHY"
-	---help---
+	help
 	  Supports the DP83848 PHY.
 
 config DP83867_PHY
 	tristate "Texas Instruments DP83867 Gigabit PHY"
-	---help---
+	help
 	  Currently supports the DP83867 PHY.
 
 config DP83869_PHY
 	tristate "Texas Instruments DP83869 Gigabit PHY"
-	---help---
+	help
 	  Currently supports the DP83869 PHY.  This PHY supports copper and
 	  fiber connections.
 
@@ -398,7 +417,7 @@ config FIXED_PHY
 	tristate "MDIO Bus/PHY emulation with fixed speed/link PHYs"
 	depends on PHYLIB
 	select SWPHY
-	---help---
+	help
 	  Adds the platform "fixed" MDIO Bus to cover the boards that use
 	  PHYs that are not connected to the real MDIO bus.
 
@@ -406,12 +425,12 @@ config FIXED_PHY
 
 config ICPLUS_PHY
 	tristate "ICPlus PHYs"
-	---help---
+	help
 	  Currently supports the IP175C and IP1001 PHYs.
 
 config INTEL_XWAY_PHY
 	tristate "Intel XWAY PHYs"
-	---help---
+	help
 	  Supports the Intel XWAY (former Lantiq) 11G and 22E PHYs.
 	  These PHYs are marked as standalone chips under the names
 	  PEF 7061, PEF 7071 and PEF 7072 or integrated into the Intel
@@ -419,33 +438,33 @@ config INTEL_XWAY_PHY
 
 config LSI_ET1011C_PHY
 	tristate "LSI ET1011C PHY"
-	---help---
+	help
 	  Supports the LSI ET1011C PHY.
 
 config LXT_PHY
 	tristate "Intel LXT PHYs"
-	---help---
+	help
 	  Currently supports the lxt970, lxt971
 
 config MARVELL_PHY
 	tristate "Marvell PHYs"
-	---help---
+	help
 	  Currently has a driver for the 88E1011S
 
 config MARVELL_10G_PHY
 	tristate "Marvell Alaska 10Gbit PHYs"
-	---help---
+	help
 	  Support for the Marvell Alaska MV88X3310 and compatible PHYs.
 
 config MESON_GXL_PHY
 	tristate "Amlogic Meson GXL Internal PHY"
 	depends on ARCH_MESON || COMPILE_TEST
-	---help---
+	help
 	  Currently has a driver for the Amlogic Meson GXL Internal PHY
 
 config MICREL_PHY
 	tristate "Micrel PHYs"
-	---help---
+	help
 	  Supports the KSZ9021, VSC8201, KS8001 PHYs.
 
 config MICROCHIP_PHY
@@ -455,7 +474,7 @@ config MICROCHIP_PHY
 
 config MICROCHIP_T1_PHY
 	tristate "Microchip T1 PHYs"
-	---help---
+	help
 	  Supports the LAN87XX PHYs.
 
 config MICROSEMI_PHY
@@ -463,18 +482,18 @@ config MICROSEMI_PHY
 	depends on MACSEC || MACSEC=n
 	select CRYPTO_AES
 	select CRYPTO_ECB
-	---help---
+	help
 	  Currently supports VSC8514, VSC8530, VSC8531, VSC8540 and VSC8541 PHYs
 
 config NATIONAL_PHY
 	tristate "National Semiconductor PHYs"
-	---help---
+	help
 	  Currently supports the DP83865 PHY.
 
 config NXP_TJA11XX_PHY
 	tristate "NXP TJA11xx PHYs support"
 	depends on HWMON
-	---help---
+	help
 	  Currently supports the NXP TJA1100 and TJA1101 PHY.
 
 config AT803X_PHY
@@ -485,47 +504,47 @@ config AT803X_PHY
 
 config QSEMI_PHY
 	tristate "Quality Semiconductor PHYs"
-	---help---
+	help
 	  Currently supports the qs6612
 
 config REALTEK_PHY
 	tristate "Realtek PHYs"
-	---help---
+	help
 	  Supports the Realtek 821x PHY.
 
 config RENESAS_PHY
 	tristate "Driver for Renesas PHYs"
-	---help---
+	help
 	  Supports the Renesas PHYs uPD60620 and uPD60620A.
 
 config ROCKCHIP_PHY
 	tristate "Driver for Rockchip Ethernet PHYs"
-	---help---
+	help
 	  Currently supports the integrated Ethernet PHY.
 
 config SMSC_PHY
 	tristate "SMSC PHYs"
-	---help---
+	help
 	  Currently supports the LAN83C185, LAN8187 and LAN8700 PHYs
 
 config STE10XP
 	tristate "STMicroelectronics STe10Xp PHYs"
-	---help---
+	help
 	  This is the driver for the STe100p and STe101p PHYs.
 
 config TERANETICS_PHY
 	tristate "Teranetics PHYs"
-	---help---
+	help
 	  Currently supports the Teranetics TN2020
 
 config VITESSE_PHY
 	tristate "Vitesse PHYs"
-	---help---
+	help
 	  Currently supports the vsc8244
 
 config XILINX_GMII2RGMII
 	tristate "Xilinx GMII2RGMII converter driver"
-	---help---
+	help
 	  This driver support xilinx GMII to RGMII IP core it provides
 	  the Reduced Gigabit Media Independent Interface(RGMII) between
 	  Ethernet physical media devices and the Gigabit Ethernet controller.

@@ -765,7 +765,7 @@ static int atmel_ssc_suspend(struct snd_soc_component *component)
 	struct atmel_ssc_info *ssc_p;
 	struct platform_device *pdev = to_platform_device(component->dev);
 
-	if (!component->active)
+	if (!snd_soc_component_active(component))
 		return 0;
 
 	ssc_p = &ssc_info[pdev->id];
@@ -793,7 +793,7 @@ static int atmel_ssc_resume(struct snd_soc_component *component)
 	struct platform_device *pdev = to_platform_device(component->dev);
 	u32 cr;
 
-	if (!component->active)
+	if (!snd_soc_component_active(component))
 		return 0;
 
 	ssc_p = &ssc_info[pdev->id];

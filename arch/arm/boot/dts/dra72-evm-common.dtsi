@@ -5,6 +5,7 @@
 /dts-v1/;
 
 #include "dra72x.dtsi"
+#include "dra7-ipu-dsp-common.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/clock/ti-dra7-atl.h>
 
@@ -581,23 +582,6 @@
 	>;
 	tx-num-evt = <32>;
 	rx-num-evt = <32>;
-};
-
-&mailbox5 {
-	status = "okay";
-	mbox_ipu1_ipc3x: mbox_ipu1_ipc3x {
-		status = "okay";
-	};
-	mbox_dsp1_ipc3x: mbox_dsp1_ipc3x {
-		status = "okay";
-	};
-};
-
-&mailbox6 {
-	status = "okay";
-	mbox_ipu2_ipc3x: mbox_ipu2_ipc3x {
-		status = "okay";
-	};
 };
 
 &pcie1_rc {

@@ -21,6 +21,8 @@ void rtw_phy_dynamic_mechanism(struct rtw_dev *rtwdev);
 u8 rtw_phy_rf_power_2_rssi(s8 *rf_power, u8 path_num);
 u32 rtw_phy_read_rf(struct rtw_dev *rtwdev, enum rtw_rf_path rf_path,
 		    u32 addr, u32 mask);
+u32 rtw_phy_read_rf_sipi(struct rtw_dev *rtwdev, enum rtw_rf_path rf_path,
+			 u32 addr, u32 mask);
 bool rtw_phy_write_rf_reg_sipi(struct rtw_dev *rtwdev, enum rtw_rf_path rf_path,
 			       u32 addr, u32 mask, u32 data);
 bool rtw_phy_write_rf_reg(struct rtw_dev *rtwdev, enum rtw_rf_path rf_path,
@@ -139,6 +141,7 @@ struct rtw_power_params {
 	u8 pwr_base;
 	s8 pwr_offset;
 	s8 pwr_limit;
+	s8 pwr_remnant;
 };
 
 void
@@ -177,5 +180,9 @@ enum rtw_phy_cck_pd_lv {
 #define	MASKL3BYTES		0x00ffffff
 
 #define CCK_FA_AVG_RESET 0xffffffff
+
+#define LSSI_READ_ADDR_MASK	0x7f800000
+#define LSSI_READ_EDGE_MASK	0x80000000
+#define LSSI_READ_DATA_MASK	0xfffff
 
 #endif

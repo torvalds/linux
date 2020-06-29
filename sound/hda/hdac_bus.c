@@ -81,7 +81,6 @@ int snd_hdac_bus_exec_verb(struct hdac_bus *bus, unsigned int addr,
 	mutex_unlock(&bus->cmd_mutex);
 	return err;
 }
-EXPORT_SYMBOL_GPL(snd_hdac_bus_exec_verb);
 
 /**
  * snd_hdac_bus_exec_verb_unlocked - unlocked version
@@ -150,7 +149,6 @@ void snd_hdac_bus_queue_event(struct hdac_bus *bus, u32 res, u32 res_ex)
 
 	schedule_work(&bus->unsol_work);
 }
-EXPORT_SYMBOL_GPL(snd_hdac_bus_queue_event);
 
 /*
  * process queued unsolicited events
@@ -162,6 +160,7 @@ static void snd_hdac_bus_process_unsol_events(struct work_struct *work)
 	struct hdac_driver *drv;
 	unsigned int rp, caddr, res;
 
+	spin_lock_irq(&bus->reg_lock);
 	while (bus->unsol_rp != bus->unsol_wp) {
 		rp = (bus->unsol_rp + 1) % HDA_UNSOL_QUEUE_SIZE;
 		bus->unsol_rp = rp;
@@ -173,10 +172,13 @@ static void snd_hdac_bus_process_unsol_events(struct work_struct *work)
 		codec = bus->caddr_tbl[caddr & 0x0f];
 		if (!codec || !codec->dev.driver)
 			continue;
+		spin_unlock_irq(&bus->reg_lock);
 		drv = drv_to_hdac_driver(codec->dev.driver);
 		if (drv->unsol_event)
 			drv->unsol_event(codec, res);
+		spin_lock_irq(&bus->reg_lock);
 	}
+	spin_unlock_irq(&bus->reg_lock);
 }
 
 /**

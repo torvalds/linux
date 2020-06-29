@@ -332,13 +332,6 @@ static int cdns3_ep0_feature_handle_device(struct cdns3_device *priv_dev,
 		case TEST_K:
 		case TEST_SE0_NAK:
 		case TEST_PACKET:
-			cdns3_ep0_complete_setup(priv_dev, 0, 1);
-			/**
-			 *  Little delay to give the controller some time
-			 * for sending status stage.
-			 * This time should be less then 3ms.
-			 */
-			mdelay(1);
 			cdns3_set_register_bit(&priv_dev->regs->usb_cmd,
 					       USB_CMD_STMODE |
 					       USB_STS_TMODE_SEL(tmode - 1));

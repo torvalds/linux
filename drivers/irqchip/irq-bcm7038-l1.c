@@ -416,7 +416,7 @@ static const struct irq_domain_ops bcm7038_l1_domain_ops = {
 	.map			= bcm7038_l1_map,
 };
 
-int __init bcm7038_l1_of_init(struct device_node *dn,
+static int __init bcm7038_l1_of_init(struct device_node *dn,
 			      struct device_node *parent)
 {
 	struct bcm7038_l1_chip *intc;

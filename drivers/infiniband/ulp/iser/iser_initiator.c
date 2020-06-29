@@ -72,7 +72,7 @@ static int iser_prepare_read_cmd(struct iscsi_task *task)
 			return err;
 	}
 
-	err = iser_reg_rdma_mem(iser_task, ISER_DIR_IN, false);
+	err = iser_reg_mem_fastreg(iser_task, ISER_DIR_IN, false);
 	if (err) {
 		iser_err("Failed to set up Data-IN RDMA\n");
 		return err;
@@ -126,8 +126,8 @@ iser_prepare_write_cmd(struct iscsi_task *task,
 			return err;
 	}
 
-	err = iser_reg_rdma_mem(iser_task, ISER_DIR_OUT,
-				buf_out->data_len == imm_sz);
+	err = iser_reg_mem_fastreg(iser_task, ISER_DIR_OUT,
+				   buf_out->data_len == imm_sz);
 	if (err != 0) {
 		iser_err("Failed to register write cmd RDMA mem\n");
 		return err;
@@ -250,8 +250,8 @@ int iser_alloc_rx_descriptors(struct iser_conn *iser_conn,
 	iser_conn->qp_max_recv_dtos_mask = session->cmds_max - 1; /* cmds_max is 2^N */
 	iser_conn->min_posted_rx = iser_conn->qp_max_recv_dtos >> 2;
 
-	if (device->reg_ops->alloc_reg_res(ib_conn, session->scsi_cmds_max,
-					   iser_conn->pages_per_mr))
+	if (iser_alloc_fastreg_pool(ib_conn, session->scsi_cmds_max,
+				    iser_conn->pages_per_mr))
 		goto create_rdma_reg_res_failed;
 
 	if (iser_alloc_login_buf(iser_conn))
@@ -293,7 +293,7 @@ rx_desc_dma_map_failed:
 rx_desc_alloc_fail:
 	iser_free_login_buf(iser_conn);
 alloc_login_buf_fail:
-	device->reg_ops->free_reg_res(ib_conn);
+	iser_free_fastreg_pool(ib_conn);
 create_rdma_reg_res_failed:
 	iser_err("failed allocating rx descriptors / data buffers\n");
 	return -ENOMEM;
@@ -306,8 +306,7 @@ void iser_free_rx_descriptors(struct iser_conn *iser_conn)
 	struct ib_conn *ib_conn = &iser_conn->ib_conn;
 	struct iser_device *device = ib_conn->device;
 
-	if (device->reg_ops->free_reg_res)
-		device->reg_ops->free_reg_res(ib_conn);
+	iser_free_fastreg_pool(ib_conn);
 
 	rx_desc = iser_conn->rx_descs;
 	for (i = 0; i < iser_conn->qp_max_recv_dtos; i++, rx_desc++)
@@ -768,7 +767,7 @@ void iser_task_rdma_finalize(struct iscsi_iser_task *iser_task)
 	int prot_count = scsi_prot_sg_count(iser_task->sc);
 
 	if (iser_task->dir[ISER_DIR_IN]) {
-		iser_unreg_rdma_mem(iser_task, ISER_DIR_IN);
+		iser_unreg_mem_fastreg(iser_task, ISER_DIR_IN);
 		iser_dma_unmap_task_data(iser_task,
 					 &iser_task->data[ISER_DIR_IN],
 					 DMA_FROM_DEVICE);
@@ -779,7 +778,7 @@ void iser_task_rdma_finalize(struct iscsi_iser_task *iser_task)
 	}
 
 	if (iser_task->dir[ISER_DIR_OUT]) {
-		iser_unreg_rdma_mem(iser_task, ISER_DIR_OUT);
+		iser_unreg_mem_fastreg(iser_task, ISER_DIR_OUT);
 		iser_dma_unmap_task_data(iser_task,
 					 &iser_task->data[ISER_DIR_OUT],
 					 DMA_TO_DEVICE);

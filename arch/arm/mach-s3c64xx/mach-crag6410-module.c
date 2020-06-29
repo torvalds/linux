@@ -405,10 +405,9 @@ static int wlf_gf_module_probe(struct i2c_client *i2c,
 			 gf_mods[i].name, rev + 1);
 
 		for (j = 0; j < gf_mods[i].num_i2c_devs; j++) {
-			if (!i2c_new_device(i2c->adapter,
-					    &(gf_mods[i].i2c_devs[j])))
-				dev_err(&i2c->dev,
-					"Failed to register dev: %d\n", ret);
+			if (IS_ERR(i2c_new_client_device(i2c->adapter,
+							 &(gf_mods[i].i2c_devs[j]))))
+				dev_err(&i2c->dev, "Failed to register\n");
 		}
 
 		spi_register_board_info(gf_mods[i].spi_devs,

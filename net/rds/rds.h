@@ -291,7 +291,7 @@ struct rds_incoming {
 
 struct rds_mr {
 	struct rb_node		r_rb_node;
-	refcount_t		r_refcount;
+	struct kref		r_kref;
 	u32			r_key;
 
 	/* A copy of the creation flags */
@@ -299,18 +299,10 @@ struct rds_mr {
 	unsigned int		r_invalidate:1;
 	unsigned int		r_write:1;
 
-	/* This is for RDS_MR_DEAD.
-	 * It would be nice & consistent to make this part of the above
-	 * bit field here, but we need to use test_and_set_bit.
-	 */
-	unsigned long		r_state;
 	struct rds_sock		*r_sock; /* back pointer to the socket that owns us */
 	struct rds_transport	*r_trans;
 	void			*r_trans_private;
 };
-
-/* Flags for mr->r_state */
-#define RDS_MR_DEAD		0
 
 static inline rds_rdma_cookie_t rds_rdma_make_cookie(u32 r_key, u32 offset)
 {
@@ -852,8 +844,7 @@ rds_conn_connecting(struct rds_connection *conn)
 
 /* message.c */
 struct rds_message *rds_message_alloc(unsigned int nents, gfp_t gfp);
-struct scatterlist *rds_message_alloc_sgs(struct rds_message *rm, int nents,
-					  int *ret);
+struct scatterlist *rds_message_alloc_sgs(struct rds_message *rm, int nents);
 int rds_message_copy_from_user(struct rds_message *rm, struct iov_iter *from,
 			       bool zcopy);
 struct rds_message *rds_message_map_pages(unsigned long *page_addrs, unsigned int total_len);
@@ -946,12 +937,7 @@ void rds_atomic_send_complete(struct rds_message *rm, int wc_status);
 int rds_cmsg_atomic(struct rds_sock *rs, struct rds_message *rm,
 		    struct cmsghdr *cmsg);
 
-void __rds_put_mr_final(struct rds_mr *mr);
-static inline void rds_mr_put(struct rds_mr *mr)
-{
-	if (refcount_dec_and_test(&mr->r_refcount))
-		__rds_put_mr_final(mr);
-}
+void __rds_put_mr_final(struct kref *kref);
 
 static inline bool rds_destroy_pending(struct rds_connection *conn)
 {

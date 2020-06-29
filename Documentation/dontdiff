@@ -251,6 +251,7 @@ vmlinux-*
 vmlinux.aout
 vmlinux.bin.all
 vmlinux.lds
+vmlinux.symvers
 vmlinuz
 voffset.h
 vsyscall.lds

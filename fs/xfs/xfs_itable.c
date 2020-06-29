@@ -104,9 +104,9 @@ xfs_bulkstat_one_int(
 
 	buf->bs_xflags = xfs_ip2xflags(ip);
 	buf->bs_extsize_blks = dic->di_extsize;
-	buf->bs_extents = dic->di_nextents;
+	buf->bs_extents = xfs_ifork_nextents(&ip->i_df);
 	xfs_bulkstat_health(ip, buf);
-	buf->bs_aextents = dic->di_anextents;
+	buf->bs_aextents = xfs_ifork_nextents(ip->i_afp);
 	buf->bs_forkoff = XFS_IFORK_BOFF(ip);
 	buf->bs_version = XFS_BULKSTAT_VERSION_V5;
 
@@ -115,7 +115,7 @@ xfs_bulkstat_one_int(
 			buf->bs_cowextsize_blks = dic->di_cowextsize;
 	}
 
-	switch (dic->di_format) {
+	switch (ip->i_df.if_format) {
 	case XFS_DINODE_FMT_DEV:
 		buf->bs_rdev = sysv_encode_dev(inode->i_rdev);
 		buf->bs_blksize = BLKDEV_IOSIZE;

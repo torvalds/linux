@@ -5,6 +5,7 @@
 
 #include <linux/types.h>
 #include <linux/skbuff.h>
+#include <net/rtnetlink.h>
 
 struct bareudp_conf {
 	__be16 ethertype;
@@ -16,5 +17,11 @@ struct bareudp_conf {
 struct net_device *bareudp_dev_create(struct net *net, const char *name,
 				      u8 name_assign_type,
 				      struct bareudp_conf *info);
+
+static inline bool netif_is_bareudp(const struct net_device *dev)
+{
+	return dev->rtnl_link_ops &&
+	       !strcmp(dev->rtnl_link_ops->kind, "bareudp");
+}
 
 #endif

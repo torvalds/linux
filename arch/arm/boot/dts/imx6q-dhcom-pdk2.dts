@@ -22,6 +22,53 @@
 		clock-frequency = <24000000>;
 	};
 
+	display_bl: display-bl {
+		compatible = "pwm-backlight";
+		pwms = <&pwm1 0 50000 PWM_POLARITY_INVERTED>;
+		brightness-levels = <0 16 22 30 40 55 75 102 138 188 255>;
+		default-brightness-level = <8>;
+		enable-gpios = <&gpio3 27 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+
+	lcd_display: disp0 {
+		compatible = "fsl,imx-parallel-display";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		interface-pix-fmt = "rgb24";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_ipu1_lcdif>;
+		status = "okay";
+
+		port@0 {
+			reg = <0>;
+
+			lcd_display_in: endpoint {
+				remote-endpoint = <&ipu1_di0_disp0>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+
+			lcd_display_out: endpoint {
+				remote-endpoint = <&lcd_panel_in>;
+			};
+		};
+	};
+
+	panel {
+		compatible = "edt,etm0700g0edh6";
+		ddc-i2c-bus = <&i2c2>;
+		backlight = <&display_bl>;
+
+		port {
+			lcd_panel_in: endpoint {
+				remote-endpoint = <&lcd_display_out>;
+			};
+		};
+	};
+
 	sound {
 		compatible = "fsl,imx-audio-sgtl5000";
 		model = "imx-sgtl5000";
@@ -65,6 +112,15 @@
 		VDDA-supply = <&reg_3p3v>;
 		VDDIO-supply = <&sw2_reg>;
 	};
+
+	touchscreen@38 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_touchscreen>;
+		compatible = "edt,edt-ft5406";
+		reg = <0x38>;
+		interrupt-parent = <&gpio4>;
+		interrupts = <5 IRQ_TYPE_EDGE_FALLING>; /* GPIO E */
+	};
 };
 
 &iomuxc {
@@ -77,9 +133,7 @@
 			MX6QDL_PAD_GPIO_4__GPIO1_IO04		0x400120b0
 			MX6QDL_PAD_GPIO_5__GPIO1_IO05		0x400120b0
 			MX6QDL_PAD_CSI0_DAT17__GPIO6_IO03	0x400120b0
-			MX6QDL_PAD_GPIO_19__GPIO4_IO05		0x120b0
 			MX6QDL_PAD_DI0_PIN4__GPIO4_IO20		0x400120b0
-			MX6QDL_PAD_EIM_D27__GPIO3_IO27		0x120b0
 			MX6QDL_PAD_KEY_ROW0__GPIO4_IO07		0x120b0
 			MX6QDL_PAD_KEY_COL1__GPIO4_IO08		0x400120b0
 			MX6QDL_PAD_NANDF_CS1__GPIO6_IO14	0x400120b0
@@ -132,6 +186,52 @@
 		>;
 	};
 
+	pinctrl_ipu1_lcdif: ipu1-lcdif-grp {
+		fsl,pins = <
+			MX6QDL_PAD_DI0_DISP_CLK__IPU1_DI0_DISP_CLK	0x38
+			MX6QDL_PAD_DI0_PIN15__IPU1_DI0_PIN15		0x38
+			MX6QDL_PAD_DI0_PIN2__IPU1_DI0_PIN02		0x38
+			MX6QDL_PAD_DI0_PIN3__IPU1_DI0_PIN03		0x38
+			MX6QDL_PAD_DISP0_DAT0__IPU1_DISP0_DATA00	0x38
+			MX6QDL_PAD_DISP0_DAT1__IPU1_DISP0_DATA01	0x38
+			MX6QDL_PAD_DISP0_DAT2__IPU1_DISP0_DATA02	0x38
+			MX6QDL_PAD_DISP0_DAT3__IPU1_DISP0_DATA03	0x38
+			MX6QDL_PAD_DISP0_DAT4__IPU1_DISP0_DATA04	0x38
+			MX6QDL_PAD_DISP0_DAT5__IPU1_DISP0_DATA05	0x38
+			MX6QDL_PAD_DISP0_DAT6__IPU1_DISP0_DATA06	0x38
+			MX6QDL_PAD_DISP0_DAT7__IPU1_DISP0_DATA07	0x38
+			MX6QDL_PAD_DISP0_DAT8__IPU1_DISP0_DATA08	0x38
+			MX6QDL_PAD_DISP0_DAT9__IPU1_DISP0_DATA09	0x38
+			MX6QDL_PAD_DISP0_DAT10__IPU1_DISP0_DATA10	0x38
+			MX6QDL_PAD_DISP0_DAT11__IPU1_DISP0_DATA11	0x38
+			MX6QDL_PAD_DISP0_DAT12__IPU1_DISP0_DATA12	0x38
+			MX6QDL_PAD_DISP0_DAT13__IPU1_DISP0_DATA13	0x38
+			MX6QDL_PAD_DISP0_DAT14__IPU1_DISP0_DATA14	0x38
+			MX6QDL_PAD_DISP0_DAT15__IPU1_DISP0_DATA15	0x38
+			MX6QDL_PAD_DISP0_DAT16__IPU1_DISP0_DATA16	0x38
+			MX6QDL_PAD_DISP0_DAT17__IPU1_DISP0_DATA17	0x38
+			MX6QDL_PAD_DISP0_DAT18__IPU1_DISP0_DATA18	0x38
+			MX6QDL_PAD_DISP0_DAT19__IPU1_DISP0_DATA19	0x38
+			MX6QDL_PAD_DISP0_DAT20__IPU1_DISP0_DATA20	0x38
+			MX6QDL_PAD_DISP0_DAT21__IPU1_DISP0_DATA21	0x38
+			MX6QDL_PAD_DISP0_DAT22__IPU1_DISP0_DATA22	0x38
+			MX6QDL_PAD_DISP0_DAT23__IPU1_DISP0_DATA23	0x38
+			MX6QDL_PAD_EIM_D27__GPIO3_IO27			0x120b0
+		>;
+	};
+
+	pinctrl_pwm1: pwm1-grp {
+		fsl,pins = <
+			MX6QDL_PAD_SD1_DAT3__PWM1_OUT		0x1b0b1
+		>;
+	};
+
+	pinctrl_touchscreen: touchscreen-grp {
+		fsl,pins = <
+			MX6QDL_PAD_GPIO_19__GPIO4_IO05		0x1b0b1
+		>;
+	};
+
 	pinctrl_pcie: pcie-grp {
 		fsl,pins = <
 			MX6QDL_PAD_CSI0_DATA_EN__GPIO5_IO20	0x1b0b1
@@ -139,10 +239,21 @@
 	};
 };
 
+&ipu1_di0_disp0 {
+	remote-endpoint = <&lcd_display_in>;
+};
+
 &pcie {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pcie>;
 	reset-gpio = <&gpio6 14 GPIO_ACTIVE_LOW>;
+	status = "okay";
+};
+
+&pwm1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm1>;
+	#pwm-cells = <3>;
 	status = "okay";
 };
 

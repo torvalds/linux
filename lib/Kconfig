@@ -19,6 +19,9 @@ config RAID6_PQ_BENCHMARK
 	  Benchmark all available RAID6 PQ functions on init and choose the
 	  fastest one.
 
+config LINEAR_RANGES
+	tristate
+
 config PACKING
 	bool "Generic bitfield packing and unpacking"
 	default n
@@ -78,6 +81,9 @@ config ARCH_USE_CMPXCHG_LOCKREF
 	bool
 
 config ARCH_HAS_FAST_MULTIPLIER
+	bool
+
+config ARCH_USE_SYM_ANNOTATIONS
 	bool
 
 config INDIRECT_PIO
@@ -427,7 +433,7 @@ config INTERVAL_TREE
 
 	  See:
 
-		Documentation/rbtree.txt
+		Documentation/core-api/rbtree.rst
 
 	  for more information.
 

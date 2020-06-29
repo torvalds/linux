@@ -18,6 +18,12 @@
 #define AQ_HW_MAC_COUNTER_HZ   312500000ll
 #define AQ_HW_PHY_COUNTER_HZ   160000000ll
 
+enum aq_tc_mode {
+	AQ_TC_MODE_INVALID = -1,
+	AQ_TC_MODE_8TCS,
+	AQ_TC_MODE_4TCS,
+};
+
 #define AQ_RX_FIRST_LOC_FVLANID     0U
 #define AQ_RX_LAST_LOC_FVLANID	   15U
 #define AQ_RX_FIRST_LOC_FETHERT    16U
@@ -28,6 +34,9 @@
 #define AQ_VLAN_MAX_FILTERS   \
 			(AQ_RX_LAST_LOC_FVLANID - AQ_RX_FIRST_LOC_FVLANID + 1U)
 #define AQ_RX_QUEUE_NOT_ASSIGNED   0xFFU
+
+/* Used for rate to Mbps conversion */
+#define AQ_MBPS_DIVISOR         125000 /* 1000000 / 8 */
 
 /* NIC H/W capabilities */
 struct aq_hw_caps_s {
@@ -46,7 +55,7 @@ struct aq_hw_caps_s {
 	u32 mac_regs_count;
 	u32 hw_alive_check_addr;
 	u8 msix_irqs;
-	u8 tcs;
+	u8 tcs_max;
 	u8 rxd_alignment;
 	u8 rxd_size;
 	u8 txd_alignment;
@@ -55,6 +64,7 @@ struct aq_hw_caps_s {
 	u8 rx_rings;
 	bool flow_control;
 	bool is_64_dma;
+	u32 priv_data_len;
 };
 
 struct aq_hw_link_status_s {
@@ -117,7 +127,10 @@ struct aq_stats_s {
 #define AQ_HW_TXD_MULTIPLE 8U
 #define AQ_HW_RXD_MULTIPLE 8U
 
+#define AQ_HW_QUEUES_MAX                32U
 #define AQ_HW_MULTICAST_ADDRESS_MAX     32U
+
+#define AQ_HW_PTP_TC                    2U
 
 #define AQ_HW_LED_BLINK    0x2U
 #define AQ_HW_LED_DEFAULT  0x0U
@@ -135,6 +148,19 @@ enum aq_priv_flags {
 				 BIT(AQ_HW_LOOPBACK_DMA_NET) |\
 				 BIT(AQ_HW_LOOPBACK_PHYINT_SYS) |\
 				 BIT(AQ_HW_LOOPBACK_PHYEXT_SYS))
+
+#define ATL_HW_CHIP_MIPS         0x00000001U
+#define ATL_HW_CHIP_TPO2         0x00000002U
+#define ATL_HW_CHIP_RPF2         0x00000004U
+#define ATL_HW_CHIP_MPI_AQ       0x00000010U
+#define ATL_HW_CHIP_ATLANTIC     0x00800000U
+#define ATL_HW_CHIP_REVISION_A0  0x01000000U
+#define ATL_HW_CHIP_REVISION_B0  0x02000000U
+#define ATL_HW_CHIP_REVISION_B1  0x04000000U
+#define ATL_HW_CHIP_ANTIGUA      0x08000000U
+
+#define ATL_HW_IS_CHIP_FEATURE(_HW_, _F_) (!!(ATL_HW_CHIP_##_F_ & \
+	(_HW_)->chip_features))
 
 struct aq_hw_s {
 	atomic_t flags;
@@ -159,6 +185,7 @@ struct aq_hw_s {
 	struct hw_atl_utils_fw_rpc rpc;
 	s64 ptp_clk_offset;
 	u16 phy_id;
+	void *priv;
 };
 
 struct aq_ring_s;
@@ -181,6 +208,11 @@ struct aq_hw_ops {
 				      struct aq_ring_s *aq_ring);
 
 	int (*hw_set_mac_address)(struct aq_hw_s *self, u8 *mac_addr);
+
+	int (*hw_soft_reset)(struct aq_hw_s *self);
+
+	int (*hw_prepare)(struct aq_hw_s *self,
+			  const struct aq_fw_ops **fw_ops);
 
 	int (*hw_reset)(struct aq_hw_s *self);
 
@@ -248,20 +280,18 @@ struct aq_hw_ops {
 	int (*hw_rss_hash_set)(struct aq_hw_s *self,
 			       struct aq_rss_parameters *rss_params);
 
+	int (*hw_tc_rate_limit_set)(struct aq_hw_s *self);
+
 	int (*hw_get_regs)(struct aq_hw_s *self,
 			   const struct aq_hw_caps_s *aq_hw_caps,
 			   u32 *regs_buff);
 
 	struct aq_stats_s *(*hw_get_hw_stats)(struct aq_hw_s *self);
 
-	int (*hw_get_fw_version)(struct aq_hw_s *self, u32 *fw_version);
+	u32 (*hw_get_fw_version)(struct aq_hw_s *self);
 
 	int (*hw_set_offload)(struct aq_hw_s *self,
 			      struct aq_nic_cfg_s *aq_nic_cfg);
-
-	int (*hw_tx_tc_mode_get)(struct aq_hw_s *self, u32 *tc_mode);
-
-	int (*hw_rx_tc_mode_get)(struct aq_hw_s *self, u32 *tc_mode);
 
 	int (*hw_ring_hwts_rx_fill)(struct aq_hw_s *self,
 				    struct aq_ring_s *aq_ring);

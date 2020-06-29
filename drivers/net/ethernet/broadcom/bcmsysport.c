@@ -664,7 +664,8 @@ static struct sk_buff *bcm_sysport_rx_refill(struct bcm_sysport_priv *priv,
 	dma_addr_t mapping;
 
 	/* Allocate a new SKB for a new packet */
-	skb = netdev_alloc_skb(priv->netdev, RX_BUF_LENGTH);
+	skb = __netdev_alloc_skb(priv->netdev, RX_BUF_LENGTH,
+				 GFP_ATOMIC | __GFP_NOWARN);
 	if (!skb) {
 		priv->mib.alloc_rx_buff_failed++;
 		netif_err(priv, rx_err, ndev, "SKB alloc failed\n");
@@ -2475,7 +2476,6 @@ static int bcm_sysport_probe(struct platform_device *pdev)
 		priv->wol_irq = platform_get_irq(pdev, 1);
 	}
 	if (priv->irq0 <= 0 || (priv->irq1 <= 0 && !priv->is_lite)) {
-		dev_err(&pdev->dev, "invalid interrupts\n");
 		ret = -EINVAL;
 		goto err_free_netdev;
 	}

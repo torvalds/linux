@@ -315,6 +315,9 @@ struct cred *prepare_exec_creds(void)
 	new->process_keyring = NULL;
 #endif
 
+	new->suid = new->fsuid = new->euid;
+	new->sgid = new->fsgid = new->egid;
+
 	return new;
 }
 

@@ -60,8 +60,7 @@ patternProperties:
             maximum: 1066000000
 
           nvidia,emem-configuration:
-            allOf:
-              - $ref: /schemas/types.yaml#/definitions/uint32-array
+            $ref: /schemas/types.yaml#/definitions/uint32-array
             description: |
               Values to be written to the EMEM register block. See section
               "15.6.1 MC Registers" in the TRM.
@@ -112,7 +111,7 @@ examples:
   - |
     memory-controller@70019000 {
         compatible = "nvidia,tegra124-mc";
-        reg = <0x0 0x70019000 0x0 0x1000>;
+        reg = <0x70019000 0x1000>;
         clocks = <&tegra_car 32>;
         clock-names = "mc";
 

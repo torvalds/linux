@@ -27,7 +27,10 @@ parse_symbol() {
 	elif [[ "${modcache[$module]+isset}" == "isset" ]]; then
 		local objfile=${modcache[$module]}
 	else
-		[[ $modpath == "" ]] && return
+		if [[ $modpath == "" ]]; then
+			echo "WARNING! Modules path isn't set, but is needed to parse this symbol" >&2
+			return
+		fi
 		local objfile=$(find "$modpath" -name "${module//_/[-_]}.ko*" -print -quit)
 		[[ $objfile == "" ]] && return
 		modcache[$module]=$objfile

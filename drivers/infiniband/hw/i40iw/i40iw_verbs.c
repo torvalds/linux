@@ -83,7 +83,6 @@ static int i40iw_query_device(struct ib_device *ibdev,
 	props->max_qp_rd_atom = I40IW_MAX_IRD_SIZE;
 	props->max_qp_init_rd_atom = props->max_qp_rd_atom;
 	props->atomic_cap = IB_ATOMIC_NONE;
-	props->max_map_per_fmr = 1;
 	props->max_fast_reg_page_list_len = I40IW_MAX_PAGES_PER_FMR;
 	return 0;
 }

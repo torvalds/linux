@@ -21,6 +21,7 @@
 #include <linux/mm.h>
 #include <linux/stat.h>
 #include <linux/slab.h>
+#include <linux/xarray.h>
 
 #include <linux/atomic.h>
 #include <linux/uaccess.h>
@@ -73,6 +74,13 @@ static struct bus_type memory_subsys = {
 	.online = memory_subsys_online,
 	.offline = memory_subsys_offline,
 };
+
+/*
+ * Memory blocks are cached in a local radix tree to avoid
+ * a costly linear search for the corresponding device on
+ * the subsystem bus.
+ */
+static DEFINE_XARRAY(memory_blocks);
 
 static BLOCKING_NOTIFIER_HEAD(memory_chain);
 
@@ -489,22 +497,23 @@ int __weak arch_get_memory_phys_device(unsigned long start_pfn)
 	return 0;
 }
 
-/* A reference for the returned memory block device is acquired. */
+/*
+ * A reference for the returned memory block device is acquired.
+ *
+ * Called under device_hotplug_lock.
+ */
 static struct memory_block *find_memory_block_by_id(unsigned long block_id)
 {
-	struct device *dev;
+	struct memory_block *mem;
 
-	dev = subsys_find_device_by_id(&memory_subsys, block_id, NULL);
-	return dev ? to_memory_block(dev) : NULL;
+	mem = xa_load(&memory_blocks, block_id);
+	if (mem)
+		get_device(&mem->dev);
+	return mem;
 }
 
 /*
- * For now, we have a linear search to go find the appropriate
- * memory_block corresponding to a particular phys_index. If
- * this gets to be a real problem, we can always use a radix
- * tree or something here.
- *
- * This could be made generic for all device subsystems.
+ * Called under device_hotplug_lock.
  */
 struct memory_block *find_memory_block(struct mem_section *section)
 {
@@ -548,9 +557,16 @@ int register_memory(struct memory_block *memory)
 	memory->dev.offline = memory->state == MEM_OFFLINE;
 
 	ret = device_register(&memory->dev);
-	if (ret)
+	if (ret) {
 		put_device(&memory->dev);
-
+		return ret;
+	}
+	ret = xa_err(xa_store(&memory_blocks, memory->dev.id, memory,
+			      GFP_KERNEL));
+	if (ret) {
+		put_device(&memory->dev);
+		device_unregister(&memory->dev);
+	}
 	return ret;
 }
 
@@ -603,6 +619,8 @@ static void unregister_memory(struct memory_block *memory)
 {
 	if (WARN_ON_ONCE(memory->dev.bus != &memory_subsys))
 		return;
+
+	WARN_ON(xa_erase(&memory_blocks, memory->dev.id) == NULL);
 
 	/* drop the ref. we got via find_memory_block() */
 	put_device(&memory->dev);
@@ -750,6 +768,8 @@ void __init memory_dev_init(void)
  *
  * In case func() returns an error, walking is aborted and the error is
  * returned.
+ *
+ * Called under device_hotplug_lock.
  */
 int walk_memory_blocks(unsigned long start, unsigned long size,
 		       void *arg, walk_memory_blocks_func_t func)

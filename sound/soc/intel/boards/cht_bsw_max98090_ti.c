@@ -616,6 +616,9 @@ static int snd_cht_mc_remove(struct platform_device *pdev)
 static struct platform_driver snd_cht_mc_driver = {
 	.driver = {
 		.name = "cht-bsw-max98090",
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_BAYTRAIL)
+		.pm = &snd_soc_pm_ops,
+#endif
 	},
 	.probe = snd_cht_mc_probe,
 	.remove = snd_cht_mc_remove,

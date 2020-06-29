@@ -13,6 +13,8 @@
  * Marek Szyprowski, <m.szyprowski@samsung.com>
  */
 
+#include <linux/pm_runtime.h>
+
 #include <media/videobuf2-dma-contig.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
@@ -273,7 +275,6 @@ static int cedrus_s_fmt_vid_cap(struct file *file, void *priv,
 				struct v4l2_format *f)
 {
 	struct cedrus_ctx *ctx = cedrus_file2ctx(file);
-	struct cedrus_dev *dev = ctx->dev;
 	struct vb2_queue *vq;
 	int ret;
 
@@ -286,8 +287,6 @@ static int cedrus_s_fmt_vid_cap(struct file *file, void *priv,
 		return ret;
 
 	ctx->dst_fmt = f->fmt.pix;
-
-	cedrus_dst_format_set(dev, &ctx->dst_fmt);
 
 	return 0;
 }
@@ -453,12 +452,24 @@ static int cedrus_start_streaming(struct vb2_queue *vq, unsigned int count)
 		return -EINVAL;
 	}
 
-	if (V4L2_TYPE_IS_OUTPUT(vq->type) &&
-	    dev->dec_ops[ctx->current_codec]->start)
-		ret = dev->dec_ops[ctx->current_codec]->start(ctx);
+	if (V4L2_TYPE_IS_OUTPUT(vq->type)) {
+		ret = pm_runtime_get_sync(dev->dev);
+		if (ret < 0)
+			goto err_cleanup;
 
-	if (ret)
-		cedrus_queue_cleanup(vq, VB2_BUF_STATE_QUEUED);
+		if (dev->dec_ops[ctx->current_codec]->start) {
+			ret = dev->dec_ops[ctx->current_codec]->start(ctx);
+			if (ret)
+				goto err_pm;
+		}
+	}
+
+	return 0;
+
+err_pm:
+	pm_runtime_put(dev->dev);
+err_cleanup:
+	cedrus_queue_cleanup(vq, VB2_BUF_STATE_QUEUED);
 
 	return ret;
 }
@@ -468,9 +479,12 @@ static void cedrus_stop_streaming(struct vb2_queue *vq)
 	struct cedrus_ctx *ctx = vb2_get_drv_priv(vq);
 	struct cedrus_dev *dev = ctx->dev;
 
-	if (V4L2_TYPE_IS_OUTPUT(vq->type) &&
-	    dev->dec_ops[ctx->current_codec]->stop)
-		dev->dec_ops[ctx->current_codec]->stop(ctx);
+	if (V4L2_TYPE_IS_OUTPUT(vq->type)) {
+		if (dev->dec_ops[ctx->current_codec]->stop)
+			dev->dec_ops[ctx->current_codec]->stop(ctx);
+
+		pm_runtime_put(dev->dev);
+	}
 
 	cedrus_queue_cleanup(vq, VB2_BUF_STATE_ERROR);
 }

@@ -846,8 +846,7 @@ static int get_ingress_sakey_record(struct aq_hw_s *hw,
 	rec->key[7] = packed_record[14];
 	rec->key[7] |= packed_record[15] << 16;
 
-	rec->key_len = (rec->key_len & 0xFFFFFFFC) |
-		       (packed_record[16] & 0x3);
+	rec->key_len = packed_record[16] & 0x3;
 
 	return 0;
 }
@@ -1158,6 +1157,7 @@ static int set_egress_ctlf_record(struct aq_hw_s *hw,
 
 	packed_record[0] = rec->sa_da[0] & 0xFFFF;
 	packed_record[1] = (rec->sa_da[0] >> 16) & 0xFFFF;
+
 	packed_record[2] = rec->sa_da[1] & 0xFFFF;
 
 	packed_record[3] = rec->eth_type & 0xFFFF;
@@ -1552,7 +1552,7 @@ static int set_egress_sc_record(struct aq_hw_s *hw,
 
 	packed_record[5] |= (rec->sak_len & 0x3) << 4;
 
-	packed_record[7] |= (rec->valid & 0x1) << 15;
+	packed_record[7] = (rec->valid & 0x1) << 15;
 
 	return set_raw_egress_record(hw, packed_record, 8, 2,
 				     ROWOFFSET_EGRESSSCRECORD + table_index);

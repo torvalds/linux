@@ -575,7 +575,7 @@ static int __init bootcmdline_scan_chosen(unsigned long node, const char *uname,
 
 #endif /* CONFIG_OF_EARLY_FLATTREE */
 
-static void __init bootcmdline_init(char **cmdline_p)
+static void __init bootcmdline_init(void)
 {
 	bool dt_bootargs = false;
 
@@ -654,13 +654,11 @@ static void __init bootcmdline_init(char **cmdline_p)
  */
 static void __init arch_mem_init(char **cmdline_p)
 {
-	extern void plat_mem_setup(void);
-
 	/* call board setup routine */
 	plat_mem_setup();
 	memblock_set_bottom_up(true);
 
-	bootcmdline_init(cmdline_p);
+	bootcmdline_init();
 	strlcpy(command_line, boot_command_line, COMMAND_LINE_SIZE);
 	*cmdline_p = command_line;
 
@@ -702,7 +700,17 @@ static void __init arch_mem_init(char **cmdline_p)
 		memblock_reserve(crashk_res.start, resource_size(&crashk_res));
 #endif
 	device_tree_init();
+
+	/*
+	 * In order to reduce the possibility of kernel panic when failed to
+	 * get IO TLB memory under CONFIG_SWIOTLB, it is better to allocate
+	 * low memory as small as possible before plat_swiotlb_setup(), so
+	 * make sparse_init() using top-down allocation.
+	 */
+	memblock_set_bottom_up(false);
 	sparse_init();
+	memblock_set_bottom_up(true);
+
 	plat_swiotlb_setup();
 
 	dma_contiguous_reserve(PFN_PHYS(max_low_pfn));
@@ -831,7 +839,7 @@ arch_initcall(debugfs_mips);
 /* User defined DMA coherency from command line. */
 enum coherent_io_user_state coherentio = IO_COHERENCE_DEFAULT;
 EXPORT_SYMBOL_GPL(coherentio);
-int hw_coherentio = 0;	/* Actual hardware supported DMA coherency setting. */
+int hw_coherentio;	/* Actual hardware supported DMA coherency setting. */
 
 static int __init setcoherentio(char *str)
 {

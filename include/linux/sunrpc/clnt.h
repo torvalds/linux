@@ -71,7 +71,13 @@ struct rpc_clnt {
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 	struct dentry		*cl_debugfs;	/* debugfs directory */
 #endif
-	struct rpc_xprt_iter	cl_xpi;
+	/* cl_work is only needed after cl_xpi is no longer used,
+	 * and that are of similar size
+	 */
+	union {
+		struct rpc_xprt_iter	cl_xpi;
+		struct work_struct	cl_work;
+	};
 	const struct cred	*cl_cred;
 };
 
@@ -236,4 +242,9 @@ static inline int rpc_reply_expected(struct rpc_task *task)
 		(task->tk_msg.rpc_proc->p_decode != NULL);
 }
 
+static inline void rpc_task_close_connection(struct rpc_task *task)
+{
+	if (task->tk_xprt)
+		xprt_force_disconnect(task->tk_xprt);
+}
 #endif /* _LINUX_SUNRPC_CLNT_H */

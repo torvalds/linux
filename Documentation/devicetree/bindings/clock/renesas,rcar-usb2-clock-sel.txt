@@ -27,7 +27,9 @@ Required properties:
 - compatible: "renesas,r8a7795-rcar-usb2-clock-sel" if the device is a part of
 	      an R8A7795 SoC.
 	      "renesas,r8a7796-rcar-usb2-clock-sel" if the device if a part of
-	      an R8A7796 SoC.
+	      an R8A77960 SoC.
+	      "renesas,r8a77961-rcar-usb2-clock-sel" if the device if a part of
+	      an R8A77961 SoC.
 	      "renesas,rcar-gen3-usb2-clock-sel" for a generic R-Car Gen3
 	      compatible device.
 

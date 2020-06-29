@@ -39,9 +39,9 @@
 	leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
-		pinctrl-0 = <&power_led_gpio>;
+		pinctrl-0 = <&power_led_pin>;
 
-		led-0 {
+		power_led: led-0 {
 			label = "blue:power";
 			gpios = <&gpio4 RK_PC2 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
@@ -510,7 +510,7 @@
 	};
 
 	leds {
-		power_led_gpio: power-led-gpio {
+		power_led_pin: power-led-pin {
 			rockchip,pins = <4 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
@@ -633,7 +633,6 @@
 &spdif {
 	status = "okay";
 	pinctrl-0 = <&spdif_bus_1>;
-	#sound-dai-cells = <0>;
 };
 
 &spi1 {

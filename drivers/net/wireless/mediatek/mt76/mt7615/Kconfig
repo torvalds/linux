@@ -1,7 +1,12 @@
 # SPDX-License-Identifier: GPL-2.0-only
-config MT7615E
-	tristate "MediaTek MT7615E (PCIe) support"
+
+config MT7615_COMMON
+	tristate
 	select MT76_CORE
+
+config MT7615E
+	tristate "MediaTek MT7615E and MT7663E (PCIe) support"
+	select MT7615_COMMON
 	depends on MAC80211
 	depends on PCI
 	help
@@ -22,3 +27,14 @@ config MT7622_WMAC
 	  This adds support for the built-in WMAC on MT7622 SoC devices
 	  which has the same feature set as a MT7615, but limited to
 	  2.4 GHz only.
+
+config MT7663U
+	tristate "MediaTek MT7663U (USB) support"
+	select MT76_USB
+	select MT7615_COMMON
+	depends on MAC80211
+	depends on USB
+	help
+	  This adds support for MT7663U 802.11ax 2x2:2 wireless devices.
+
+	  To compile this driver as a module, choose M here.

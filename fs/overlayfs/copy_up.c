@@ -47,7 +47,7 @@ int ovl_copy_xattr(struct dentry *old, struct dentry *new)
 {
 	ssize_t list_size, size, value_size = 0;
 	char *buf, *name, *value = NULL;
-	int uninitialized_var(error);
+	int error = 0;
 	size_t slen;
 
 	if (!(old->d_inode->i_opflags & IOP_XATTR) ||
@@ -584,9 +584,10 @@ static int ovl_copy_up_workdir(struct ovl_copy_up_ctx *c)
 		.link = c->link
 	};
 
-	err = ovl_lock_rename_workdir(c->workdir, c->destdir);
-	if (err)
-		return err;
+	/* workdir and destdir could be the same when copying up to indexdir */
+	err = -EIO;
+	if (lock_rename(c->workdir, c->destdir) != NULL)
+		goto unlock;
 
 	err = ovl_prep_cu_creds(c->dentry, &cc);
 	if (err)

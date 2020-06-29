@@ -22,7 +22,6 @@
 #include "i915_pmu.h"
 #include "i915_priolist_types.h"
 #include "i915_selftest.h"
-#include "intel_engine_pool_types.h"
 #include "intel_sseu.h"
 #include "intel_timeline_types.h"
 #include "intel_wakeref.h"
@@ -157,6 +156,20 @@ struct intel_engine_execlists {
 	struct i915_priolist default_priolist;
 
 	/**
+	 * @ccid: identifier for contexts submitted to this engine
+	 */
+	u32 ccid;
+
+	/**
+	 * @yield: CCID at the time of the last semaphore-wait interrupt.
+	 *
+	 * Instead of leaving a semaphore busy-spinning on an engine, we would
+	 * like to switch to another ready context, i.e. yielding the semaphore
+	 * timeslice.
+	 */
+	u32 yield;
+
+	/**
 	 * @error_interrupt: CS Master EIR
 	 *
 	 * The CS generates an interrupt when it detects an error. We capture
@@ -165,6 +178,11 @@ struct intel_engine_execlists {
 	 * the guilty request, and then reset the engine.
 	 */
 	u32 error_interrupt;
+
+	/**
+	 * @reset_ccid: Active CCID [EXECLISTS_STATUS_HI] at the time of reset
+	 */
+	u32 reset_ccid;
 
 	/**
 	 * @no_priolist: priority lists disabled
@@ -295,8 +313,7 @@ struct intel_engine_cs {
 	u32 context_size;
 	u32 mmio_base;
 
-	unsigned int context_tag;
-#define NUM_CONTEXT_TAG roundup_pow_of_two(2 * EXECLIST_MAX_PORTS)
+	unsigned long context_tag;
 
 	struct rb_node uabi_node;
 
@@ -307,6 +324,9 @@ struct intel_engine_cs {
 		struct list_head requests;
 		struct list_head hold; /* ready requests, but on hold */
 	} active;
+
+	/* keep a request in reserve for a [pm] barrier under oom */
+	struct i915_request *request_pool;
 
 	struct llist_head barrier_tasks;
 
@@ -323,8 +343,7 @@ struct intel_engine_cs {
 
 	unsigned long wakeref_serial;
 	struct intel_wakeref wakeref;
-	struct drm_i915_gem_object *default_state;
-	void *pinned_default_state;
+	struct file *default_state;
 
 	struct {
 		struct intel_ring *ring;
@@ -358,6 +377,8 @@ struct intel_engine_cs {
 		spinlock_t irq_lock;
 		struct list_head signalers;
 
+		struct list_head signaled_requests;
+
 		struct irq_work irq_work; /* for use from inside irq_lock */
 
 		unsigned int irq_enabled;
@@ -389,13 +410,6 @@ struct intel_engine_cs {
 		struct i915_pmu_sample sample[I915_ENGINE_SAMPLE_COUNT];
 	} pmu;
 
-	/*
-	 * A pool of objects to use as shadow copies of client batch buffers
-	 * when the command parser is enabled. Prevents the client from
-	 * modifying the batch contents after software parsing.
-	 */
-	struct intel_engine_pool pool;
-
 	struct intel_hw_status_page status_page;
 	struct i915_ctx_workarounds wa_ctx;
 	struct i915_wa_list ctx_wa_list;
@@ -407,6 +421,7 @@ struct intel_engine_cs {
 	void		(*irq_enable)(struct intel_engine_cs *engine);
 	void		(*irq_disable)(struct intel_engine_cs *engine);
 
+	void		(*sanitize)(struct intel_engine_cs *engine);
 	int		(*resume)(struct intel_engine_cs *engine);
 
 	struct {
@@ -483,10 +498,11 @@ struct intel_engine_cs {
 #define I915_ENGINE_SUPPORTS_STATS   BIT(1)
 #define I915_ENGINE_HAS_PREEMPTION   BIT(2)
 #define I915_ENGINE_HAS_SEMAPHORES   BIT(3)
-#define I915_ENGINE_NEEDS_BREADCRUMB_TASKLET BIT(4)
-#define I915_ENGINE_IS_VIRTUAL       BIT(5)
-#define I915_ENGINE_HAS_RELATIVE_MMIO BIT(6)
-#define I915_ENGINE_REQUIRES_CMD_PARSER BIT(7)
+#define I915_ENGINE_HAS_TIMESLICES   BIT(4)
+#define I915_ENGINE_NEEDS_BREADCRUMB_TASKLET BIT(5)
+#define I915_ENGINE_IS_VIRTUAL       BIT(6)
+#define I915_ENGINE_HAS_RELATIVE_MMIO BIT(7)
+#define I915_ENGINE_REQUIRES_CMD_PARSER BIT(8)
 	unsigned int flags;
 
 	/*
@@ -515,27 +531,15 @@ struct intel_engine_cs {
 
 	struct {
 		/**
+		 * @active: Number of contexts currently scheduled in.
+		 */
+		atomic_t active;
+
+		/**
 		 * @lock: Lock protecting the below fields.
 		 */
 		seqlock_t lock;
-		/**
-		 * @enabled: Reference count indicating number of listeners.
-		 */
-		unsigned int enabled;
-		/**
-		 * @active: Number of contexts currently scheduled in.
-		 */
-		unsigned int active;
-		/**
-		 * @enabled_at: Timestamp when busy stats were enabled.
-		 */
-		ktime_t enabled_at;
-		/**
-		 * @start: Timestamp of the last idle to active transition.
-		 *
-		 * Idle is defined as active == 0, active is active > 0.
-		 */
-		ktime_t start;
+
 		/**
 		 * @total: Total time this engine was busy.
 		 *
@@ -543,6 +547,18 @@ struct intel_engine_cs {
 		 * where engine is currently busy (active > 0).
 		 */
 		ktime_t total;
+
+		/**
+		 * @start: Timestamp of the last idle to active transition.
+		 *
+		 * Idle is defined as active == 0, active is active > 0.
+		 */
+		ktime_t start;
+
+		/**
+		 * @rps: Utilisation at last RPS sampling.
+		 */
+		ktime_t rps;
 	} stats;
 
 	struct {
@@ -551,7 +567,7 @@ struct intel_engine_cs {
 		unsigned long preempt_timeout_ms;
 		unsigned long stop_timeout_ms;
 		unsigned long timeslice_duration_ms;
-	} props;
+	} props, defaults;
 };
 
 static inline bool
@@ -582,6 +598,15 @@ static inline bool
 intel_engine_has_semaphores(const struct intel_engine_cs *engine)
 {
 	return engine->flags & I915_ENGINE_HAS_SEMAPHORES;
+}
+
+static inline bool
+intel_engine_has_timeslices(const struct intel_engine_cs *engine)
+{
+	if (!IS_ACTIVE(CONFIG_DRM_I915_TIMESLICE_DURATION))
+		return false;
+
+	return engine->flags & I915_ENGINE_HAS_TIMESLICES;
 }
 
 static inline bool

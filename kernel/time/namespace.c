@@ -280,8 +280,9 @@ static void timens_put(struct ns_common *ns)
 	put_time_ns(to_time_ns(ns));
 }
 
-static int timens_install(struct nsproxy *nsproxy, struct ns_common *new)
+static int timens_install(struct nsset *nsset, struct ns_common *new)
 {
+	struct nsproxy *nsproxy = nsset->nsproxy;
 	struct time_namespace *ns = to_time_ns(new);
 	int err;
 
@@ -289,7 +290,7 @@ static int timens_install(struct nsproxy *nsproxy, struct ns_common *new)
 		return -EUSERS;
 
 	if (!ns_capable(ns->user_ns, CAP_SYS_ADMIN) ||
-	    !ns_capable(current_user_ns(), CAP_SYS_ADMIN))
+	    !ns_capable(nsset->cred->user_ns, CAP_SYS_ADMIN))
 		return -EPERM;
 
 	timens_set_vvar_page(current, ns);
@@ -338,7 +339,20 @@ static struct user_namespace *timens_owner(struct ns_common *ns)
 
 static void show_offset(struct seq_file *m, int clockid, struct timespec64 *ts)
 {
-	seq_printf(m, "%d %lld %ld\n", clockid, ts->tv_sec, ts->tv_nsec);
+	char *clock;
+
+	switch (clockid) {
+	case CLOCK_BOOTTIME:
+		clock = "boottime";
+		break;
+	case CLOCK_MONOTONIC:
+		clock = "monotonic";
+		break;
+	default:
+		clock = "unknown";
+		break;
+	}
+	seq_printf(m, "%-10s %10lld %9ld\n", clock, ts->tv_sec, ts->tv_nsec);
 }
 
 void proc_timens_show_offsets(struct task_struct *p, struct seq_file *m)

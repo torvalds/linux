@@ -145,6 +145,7 @@ static u32
 ieee80211_determine_chantype(struct ieee80211_sub_if_data *sdata,
 			     struct ieee80211_supported_band *sband,
 			     struct ieee80211_channel *channel,
+			     u32 vht_cap_info,
 			     const struct ieee80211_ht_operation *ht_oper,
 			     const struct ieee80211_vht_operation *vht_oper,
 			     const struct ieee80211_he_operation *he_oper,
@@ -155,13 +156,25 @@ ieee80211_determine_chantype(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_sta_ht_cap sta_ht_cap;
 	u32 ht_cfreq, ret;
 
-	memcpy(&sta_ht_cap, &sband->ht_cap, sizeof(sta_ht_cap));
-	ieee80211_apply_htcap_overrides(sdata, &sta_ht_cap);
-
 	memset(chandef, 0, sizeof(struct cfg80211_chan_def));
 	chandef->chan = channel;
 	chandef->width = NL80211_CHAN_WIDTH_20_NOHT;
 	chandef->center_freq1 = channel->center_freq;
+	chandef->freq1_offset = channel->freq_offset;
+
+	if (channel->band == NL80211_BAND_6GHZ) {
+		if (!ieee80211_chandef_he_6ghz_oper(sdata, he_oper, chandef))
+			ret = IEEE80211_STA_DISABLE_HT |
+			      IEEE80211_STA_DISABLE_VHT |
+			      IEEE80211_STA_DISABLE_HE;
+		else
+			ret = 0;
+		vht_chandef = *chandef;
+		goto out;
+	}
+
+	memcpy(&sta_ht_cap, &sband->ht_cap, sizeof(sta_ht_cap));
+	ieee80211_apply_htcap_overrides(sdata, &sta_ht_cap);
 
 	if (!ht_oper || !sta_ht_cap.ht_supported) {
 		ret = IEEE80211_STA_DISABLE_HT |
@@ -222,7 +235,7 @@ ieee80211_determine_chantype(struct ieee80211_sub_if_data *sdata,
 		memcpy(&he_oper_vht_cap, he_oper->optional, 3);
 		he_oper_vht_cap.basic_mcs_set = cpu_to_le16(0);
 
-		if (!ieee80211_chandef_vht_oper(&sdata->local->hw,
+		if (!ieee80211_chandef_vht_oper(&sdata->local->hw, vht_cap_info,
 						&he_oper_vht_cap, ht_oper,
 						&vht_chandef)) {
 			if (!(ifmgd->flags & IEEE80211_STA_DISABLE_HE))
@@ -231,8 +244,10 @@ ieee80211_determine_chantype(struct ieee80211_sub_if_data *sdata,
 			ret = IEEE80211_STA_DISABLE_HE;
 			goto out;
 		}
-	} else if (!ieee80211_chandef_vht_oper(&sdata->local->hw, vht_oper,
-					       ht_oper, &vht_chandef)) {
+	} else if (!ieee80211_chandef_vht_oper(&sdata->local->hw,
+					       vht_cap_info,
+					       vht_oper, ht_oper,
+					       &vht_chandef)) {
 		if (!(ifmgd->flags & IEEE80211_STA_DISABLE_VHT))
 			sdata_info(sdata,
 				   "AP VHT information is invalid, disable VHT\n");
@@ -328,6 +343,7 @@ out:
 static int ieee80211_config_bw(struct ieee80211_sub_if_data *sdata,
 			       struct sta_info *sta,
 			       const struct ieee80211_ht_cap *ht_cap,
+			       const struct ieee80211_vht_cap *vht_cap,
 			       const struct ieee80211_ht_operation *ht_oper,
 			       const struct ieee80211_vht_operation *vht_oper,
 			       const struct ieee80211_he_operation *he_oper,
@@ -342,6 +358,7 @@ static int ieee80211_config_bw(struct ieee80211_sub_if_data *sdata,
 	u16 ht_opmode;
 	u32 flags;
 	enum ieee80211_sta_rx_bandwidth new_sta_bw;
+	u32 vht_cap_info = 0;
 	int ret;
 
 	/* if HT was/is disabled, don't track any bandwidth changes */
@@ -370,8 +387,11 @@ static int ieee80211_config_bw(struct ieee80211_sub_if_data *sdata,
 		sdata->vif.bss_conf.ht_operation_mode = ht_opmode;
 	}
 
+	if (vht_cap)
+		vht_cap_info = le32_to_cpu(vht_cap->vht_cap_info);
+
 	/* calculate new channel (type) based on HT/VHT/HE operation IEs */
-	flags = ieee80211_determine_chantype(sdata, sband, chan,
+	flags = ieee80211_determine_chantype(sdata, sband, chan, vht_cap_info,
 					     ht_oper, vht_oper, he_oper,
 					     &chandef, true);
 
@@ -396,9 +416,12 @@ static int ieee80211_config_bw(struct ieee80211_sub_if_data *sdata,
 		return 0;
 
 	sdata_info(sdata,
-		   "AP %pM changed bandwidth, new config is %d MHz, width %d (%d/%d MHz)\n",
-		   ifmgd->bssid, chandef.chan->center_freq, chandef.width,
-		   chandef.center_freq1, chandef.center_freq2);
+		   "AP %pM changed bandwidth, new config is %d.%03d MHz, "
+		   "width %d (%d.%03d/%d MHz)\n",
+		   ifmgd->bssid, chandef.chan->center_freq,
+		   chandef.chan->freq_offset, chandef.width,
+		   chandef.center_freq1, chandef.freq1_offset,
+		   chandef.center_freq2);
 
 	if (flags != (ifmgd->flags & (IEEE80211_STA_DISABLE_HT |
 				      IEEE80211_STA_DISABLE_VHT |
@@ -654,6 +677,8 @@ static void ieee80211_add_he_ie(struct ieee80211_sub_if_data *sdata,
 				      he_cap->he_cap_elem.phy_cap_info);
 	pos = skb_put(skb, he_cap_size);
 	ieee80211_ie_build_he_cap(pos, he_cap, pos + he_cap_size);
+
+	ieee80211_ie_build_he_6ghz_cap(sdata, skb);
 }
 
 static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
@@ -727,6 +752,7 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 			2 + 1 + sizeof(struct ieee80211_he_cap_elem) + /* HE */
 				sizeof(struct ieee80211_he_mcs_nss_supp) +
 				IEEE80211_HE_PPE_THRES_MAX_LEN +
+			2 + 1 + sizeof(struct ieee80211_he_6ghz_capa) +
 			assoc_data->ie_len + /* extra IEs */
 			(assoc_data->fils_kek_len ? 16 /* AES-SIV */ : 0) +
 			9, /* WMM */
@@ -899,7 +925,8 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 			 !(ifmgd->flags & IEEE80211_STA_DISABLE_VHT)))
 		ifmgd->flags |= IEEE80211_STA_DISABLE_VHT;
 
-	if (!(ifmgd->flags & IEEE80211_STA_DISABLE_HT))
+	if (sband->band != NL80211_BAND_6GHZ &&
+	    !(ifmgd->flags & IEEE80211_STA_DISABLE_HT))
 		ieee80211_add_ht_ie(sdata, skb, assoc_data->ap_ht_param,
 				    sband, chan, sdata->smps_mode);
 
@@ -953,7 +980,8 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 		offset = noffset;
 	}
 
-	if (!(ifmgd->flags & IEEE80211_STA_DISABLE_VHT))
+	if (sband->band != NL80211_BAND_6GHZ &&
+	    !(ifmgd->flags & IEEE80211_STA_DISABLE_VHT))
 		ieee80211_add_vht_ie(sdata, skb, sband,
 				     &assoc_data->ap_vht_cap);
 
@@ -1320,6 +1348,7 @@ ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 	enum nl80211_band current_band;
 	struct ieee80211_csa_ie csa_ie;
 	struct ieee80211_channel_switch ch_switch;
+	struct ieee80211_bss *bss;
 	int res;
 
 	sdata_assert_lock(sdata);
@@ -1331,7 +1360,9 @@ ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 		return;
 
 	current_band = cbss->channel->band;
+	bss = (void *)cbss->priv;
 	res = ieee80211_parse_ch_switch_ie(sdata, elems, current_band,
+					   bss->vht_cap_info,
 					   ifmgd->flags,
 					   ifmgd->associated->bssid, &csa_ie);
 
@@ -1364,10 +1395,14 @@ ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 	if (!cfg80211_chandef_usable(local->hw.wiphy, &csa_ie.chandef,
 				     IEEE80211_CHAN_DISABLED)) {
 		sdata_info(sdata,
-			   "AP %pM switches to unsupported channel (%d MHz, width:%d, CF1/2: %d/%d MHz), disconnecting\n",
+			   "AP %pM switches to unsupported channel "
+			   "(%d.%03d MHz, width:%d, CF1/2: %d.%03d/%d MHz), "
+			   "disconnecting\n",
 			   ifmgd->associated->bssid,
 			   csa_ie.chandef.chan->center_freq,
+			   csa_ie.chandef.chan->freq_offset,
 			   csa_ie.chandef.width, csa_ie.chandef.center_freq1,
+			   csa_ie.chandef.freq1_offset,
 			   csa_ie.chandef.center_freq2);
 		ieee80211_queue_work(&local->hw,
 				     &ifmgd->csa_connection_drop_work);
@@ -1500,6 +1535,7 @@ ieee80211_find_80211h_pwr_constr(struct ieee80211_sub_if_data *sdata,
 		chan_increment = 1;
 		break;
 	case NL80211_BAND_5GHZ:
+	case NL80211_BAND_6GHZ:
 		chan_increment = 4;
 		break;
 	}
@@ -2137,7 +2173,8 @@ static u32 ieee80211_handle_bss_capability(struct ieee80211_sub_if_data *sdata,
 	}
 
 	use_short_slot = !!(capab & WLAN_CAPABILITY_SHORT_SLOT_TIME);
-	if (sband->band == NL80211_BAND_5GHZ)
+	if (sband->band == NL80211_BAND_5GHZ ||
+	    sband->band == NL80211_BAND_6GHZ)
 		use_short_slot = true;
 
 	if (use_protection != bss_conf->use_cts_prot) {
@@ -2948,10 +2985,15 @@ static void ieee80211_rx_mgmt_auth(struct ieee80211_sub_if_data *sdata,
 	}
 
 	if (status_code != WLAN_STATUS_SUCCESS) {
+		cfg80211_rx_mlme_mgmt(sdata->dev, (u8 *)mgmt, len);
+
+		if (auth_alg == WLAN_AUTH_SAE &&
+		    status_code == WLAN_STATUS_ANTI_CLOG_REQUIRED)
+			return;
+
 		sdata_info(sdata, "%pM denied authentication (status %d)\n",
 			   mgmt->sa, status_code);
 		ieee80211_destroy_auth_data(sdata, false);
-		cfg80211_rx_mlme_mgmt(sdata->dev, (u8 *)mgmt, len);
 		event.u.mlme.status = MLME_DENIED;
 		event.u.mlme.reason = status_code;
 		drv_event_callback(sdata->local, sdata, &event);
@@ -3149,15 +3191,16 @@ static void ieee80211_get_rates(struct ieee80211_supported_band *sband,
 			*have_higher_than_11mbit = true;
 
 		/*
-		 * Skip HT and VHT BSS membership selectors since they're not
-		 * rates.
+		 * Skip HT, VHT and HE BSS membership selectors since they're
+		 * not rates.
 		 *
 		 * Note: Even though the membership selector and the basic
 		 *	 rate flag share the same bit, they are not exactly
 		 *	 the same.
 		 */
 		if (supp_rates[i] == (0x80 | BSS_MEMBERSHIP_SELECTOR_HT_PHY) ||
-		    supp_rates[i] == (0x80 | BSS_MEMBERSHIP_SELECTOR_VHT_PHY))
+		    supp_rates[i] == (0x80 | BSS_MEMBERSHIP_SELECTOR_VHT_PHY) ||
+		    supp_rates[i] == (0x80 | BSS_MEMBERSHIP_SELECTOR_HE_PHY))
 			continue;
 
 		for (j = 0; j < sband->n_bitrates; j++) {
@@ -3220,6 +3263,7 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_bss_conf *bss_conf = &sdata->vif.bss_conf;
 	const struct cfg80211_bss_ies *bss_ies = NULL;
 	struct ieee80211_mgd_assoc_data *assoc_data = ifmgd->assoc_data;
+	bool is_6ghz = cbss->channel->band == NL80211_BAND_6GHZ;
 	u32 changed = 0;
 	int err;
 	bool ret;
@@ -3249,7 +3293,7 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 		return false;
 	}
 
-	ifmgd->aid = aid;
+	sdata->vif.bss_conf.aid = aid;
 	ifmgd->tdls_chan_switch_prohibited =
 		elems->ext_capab && elems->ext_capab_len >= 5 &&
 		(elems->ext_capab[4] & WLAN_EXT_CAPA5_TDLS_CH_SW_PROHIBITED);
@@ -3261,11 +3305,12 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 	 * 2G/3G/4G wifi routers, reported models include the "Onda PN51T",
 	 * "Vodafone PocketWiFi 2", "ZTE MF60" and a similar T-Mobile device.
 	 */
-	if ((assoc_data->wmm && !elems->wmm_param) ||
-	    (!(ifmgd->flags & IEEE80211_STA_DISABLE_HT) &&
-	     (!elems->ht_cap_elem || !elems->ht_operation)) ||
-	    (!(ifmgd->flags & IEEE80211_STA_DISABLE_VHT) &&
-	     (!elems->vht_cap_elem || !elems->vht_operation))) {
+	if (!is_6ghz &&
+	    ((assoc_data->wmm && !elems->wmm_param) ||
+	     (!(ifmgd->flags & IEEE80211_STA_DISABLE_HT) &&
+	      (!elems->ht_cap_elem || !elems->ht_operation)) ||
+	     (!(ifmgd->flags & IEEE80211_STA_DISABLE_VHT) &&
+	      (!elems->vht_cap_elem || !elems->vht_operation)))) {
 		const struct cfg80211_bss_ies *ies;
 		struct ieee802_11_elems bss_elems;
 
@@ -3323,7 +3368,7 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 	 * We previously checked these in the beacon/probe response, so
 	 * they should be present here. This is just a safety net.
 	 */
-	if (!(ifmgd->flags & IEEE80211_STA_DISABLE_HT) &&
+	if (!is_6ghz && !(ifmgd->flags & IEEE80211_STA_DISABLE_HT) &&
 	    (!elems->wmm_param || !elems->ht_cap_elem || !elems->ht_operation)) {
 		sdata_info(sdata,
 			   "HT AP is missing WMM params or HT capability/operation\n");
@@ -3331,10 +3376,18 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 		goto out;
 	}
 
-	if (!(ifmgd->flags & IEEE80211_STA_DISABLE_VHT) &&
+	if (!is_6ghz && !(ifmgd->flags & IEEE80211_STA_DISABLE_VHT) &&
 	    (!elems->vht_cap_elem || !elems->vht_operation)) {
 		sdata_info(sdata,
 			   "VHT AP is missing VHT capability/operation\n");
+		ret = false;
+		goto out;
+	}
+
+	if (is_6ghz && !(ifmgd->flags & IEEE80211_STA_DISABLE_HE) &&
+	    !elems->he_6ghz_capa) {
+		sdata_info(sdata,
+			   "HE 6 GHz AP is missing HE 6 GHz band capability\n");
 		ret = false;
 		goto out;
 	}
@@ -3381,13 +3434,23 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 		ieee80211_he_cap_ie_to_sta_he_cap(sdata, sband,
 						  elems->he_cap,
 						  elems->he_cap_len,
+						  elems->he_6ghz_capa,
 						  sta);
 
 		bss_conf->he_support = sta->sta.he_cap.has_he;
+		if (elems->rsnx && elems->rsnx_len &&
+		    (elems->rsnx[0] & WLAN_RSNX_CAPA_PROTECTED_TWT) &&
+		    wiphy_ext_feature_isset(local->hw.wiphy,
+					    NL80211_EXT_FEATURE_PROTECTED_TWT))
+			bss_conf->twt_protected = true;
+		else
+			bss_conf->twt_protected = false;
+
 		changed |= ieee80211_recalc_twt_req(sdata, sta, elems);
 	} else {
 		bss_conf->he_support = false;
 		bss_conf->twt_requester = false;
+		bss_conf->twt_protected = false;
 	}
 
 	if (bss_conf->he_support) {
@@ -3521,9 +3584,8 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 		bss_conf->protected_keep_alive = false;
 	}
 
-	/* set AID and assoc capability,
+	/* set assoc capability (AID was already set earlier),
 	 * ieee80211_set_associated() will tell the driver */
-	bss_conf->aid = aid;
 	bss_conf->assoc_capability = capab_info;
 	ieee80211_set_associated(sdata, cbss, changed);
 
@@ -3661,7 +3723,8 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 
 	sdata_assert_lock(sdata);
 
-	channel = ieee80211_get_channel(local->hw.wiphy, rx_status->freq);
+	channel = ieee80211_get_channel_khz(local->hw.wiphy,
+					ieee80211_rx_status_to_khz(rx_status));
 	if (!channel)
 		return;
 
@@ -3877,7 +3940,8 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 		return;
 	}
 
-	if (rx_status->freq != chanctx_conf->def.chan->center_freq) {
+	if (ieee80211_rx_status_to_khz(rx_status) !=
+	    ieee80211_channel_to_khz(chanctx_conf->def.chan)) {
 		rcu_read_unlock();
 		return;
 	}
@@ -3948,7 +4012,7 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 					  mgmt->bssid, bssid);
 
 	if (ieee80211_hw_check(&local->hw, PS_NULLFUNC_STACK) &&
-	    ieee80211_check_tim(elems.tim, elems.tim_len, ifmgd->aid)) {
+	    ieee80211_check_tim(elems.tim, elems.tim_len, bss_conf->aid)) {
 		if (local->hw.conf.dynamic_ps_timeout > 0) {
 			if (local->hw.conf.flags & IEEE80211_CONF_PS) {
 				local->hw.conf.flags &= ~IEEE80211_CONF_PS;
@@ -4070,8 +4134,8 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 
 	changed |= ieee80211_recalc_twt_req(sdata, sta, &elems);
 
-	if (ieee80211_config_bw(sdata, sta,
-				elems.ht_cap_elem, elems.ht_operation,
+	if (ieee80211_config_bw(sdata, sta, elems.ht_cap_elem,
+				elems.vht_cap_elem, elems.ht_operation,
 				elems.vht_operation, elems.he_operation,
 				bssid, &changed)) {
 		mutex_unlock(&local->sta_mtx);
@@ -4788,6 +4852,8 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 	const struct ieee80211_he_operation *he_oper = NULL;
 	struct ieee80211_supported_band *sband;
 	struct cfg80211_chan_def chandef;
+	bool is_6ghz = cbss->channel->band == NL80211_BAND_6GHZ;
+	struct ieee80211_bss *bss = (void *)cbss->priv;
 	int ret;
 	u32 i;
 	bool have_80mhz;
@@ -4799,21 +4865,23 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 			  IEEE80211_STA_DISABLE_160MHZ);
 
 	/* disable HT/VHT/HE if we don't support them */
-	if (!sband->ht_cap.ht_supported) {
+	if (!sband->ht_cap.ht_supported && !is_6ghz) {
 		ifmgd->flags |= IEEE80211_STA_DISABLE_HT;
 		ifmgd->flags |= IEEE80211_STA_DISABLE_VHT;
 		ifmgd->flags |= IEEE80211_STA_DISABLE_HE;
 	}
 
-	if (!sband->vht_cap.vht_supported)
+	if (!sband->vht_cap.vht_supported && !is_6ghz) {
 		ifmgd->flags |= IEEE80211_STA_DISABLE_VHT;
+		ifmgd->flags |= IEEE80211_STA_DISABLE_HE;
+	}
 
 	if (!ieee80211_get_he_sta_cap(sband))
 		ifmgd->flags |= IEEE80211_STA_DISABLE_HE;
 
 	rcu_read_lock();
 
-	if (!(ifmgd->flags & IEEE80211_STA_DISABLE_HT)) {
+	if (!(ifmgd->flags & IEEE80211_STA_DISABLE_HT) && !is_6ghz) {
 		const u8 *ht_oper_ie, *ht_cap_ie;
 
 		ht_oper_ie = ieee80211_bss_get_ie(cbss, WLAN_EID_HT_OPERATION);
@@ -4830,7 +4898,7 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 		}
 	}
 
-	if (!(ifmgd->flags & IEEE80211_STA_DISABLE_VHT)) {
+	if (!(ifmgd->flags & IEEE80211_STA_DISABLE_VHT) && !is_6ghz) {
 		const u8 *vht_oper_ie, *vht_cap;
 
 		vht_oper_ie = ieee80211_bss_get_ie(cbss,
@@ -4886,6 +4954,7 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 
 	ifmgd->flags |= ieee80211_determine_chantype(sdata, sband,
 						     cbss->channel,
+						     bss->vht_cap_info,
 						     ht_oper, vht_oper, he_oper,
 						     &chandef, false);
 
@@ -4893,6 +4962,11 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 				      local->rx_chains);
 
 	rcu_read_unlock();
+
+	if (ifmgd->flags & IEEE80211_STA_DISABLE_HE && is_6ghz) {
+		sdata_info(sdata, "Rejecting non-HE 6/7 GHz connection");
+		return -EINVAL;
+	}
 
 	/* will change later if needed */
 	sdata->smps_mode = IEEE80211_SMPS_OFF;
@@ -5022,8 +5096,16 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 		 * doesn't happen any more, but keep the workaround so
 		 * in case some *other* APs are buggy in different ways
 		 * we can connect -- with a warning.
+		 * Allow this workaround only in case the AP provided at least
+		 * one rate.
 		 */
-		if (!basic_rates && min_rate_index >= 0) {
+		if (min_rate_index < 0) {
+			sdata_info(sdata,
+				   "No legacy rates in association response\n");
+
+			sta_info_free(local, new_sta);
+			return -EINVAL;
+		} else if (!basic_rates) {
 			sdata_info(sdata,
 				   "No basic rates, using min rate instead\n");
 			basic_rates = BIT(min_rate_index);
@@ -5267,6 +5349,7 @@ int ieee80211_mgd_auth(struct ieee80211_sub_if_data *sdata,
 int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 			struct cfg80211_assoc_request *req)
 {
+	bool is_6ghz = req->bss->channel->band == NL80211_BAND_6GHZ;
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	struct ieee80211_bss *bss = (void *)req->bss->priv;
@@ -5409,14 +5492,15 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 	if (ht_ie && ht_ie[1] >= sizeof(struct ieee80211_ht_operation))
 		assoc_data->ap_ht_param =
 			((struct ieee80211_ht_operation *)(ht_ie + 2))->ht_param;
-	else
+	else if (!is_6ghz)
 		ifmgd->flags |= IEEE80211_STA_DISABLE_HT;
 	vht_ie = ieee80211_bss_get_ie(req->bss, WLAN_EID_VHT_CAPABILITY);
 	if (vht_ie && vht_ie[1] >= sizeof(struct ieee80211_vht_cap))
 		memcpy(&assoc_data->ap_vht_cap, vht_ie + 2,
 		       sizeof(struct ieee80211_vht_cap));
-	else
-		ifmgd->flags |= IEEE80211_STA_DISABLE_VHT;
+	else if (!is_6ghz)
+		ifmgd->flags |= IEEE80211_STA_DISABLE_VHT |
+				IEEE80211_STA_DISABLE_HE;
 	rcu_read_unlock();
 
 	if (WARN((sdata->vif.driver_flags & IEEE80211_VIF_SUPPORTS_UAPSD) &&
@@ -5517,7 +5601,7 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 		assoc_data->timeout_started = true;
 		assoc_data->need_beacon = true;
 	} else if (beacon_ies) {
-		const u8 *ie;
+		const struct element *elem;
 		u8 dtim_count = 0;
 
 		ieee80211_get_dtim(beacon_ies, &dtim_count,
@@ -5534,15 +5618,15 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 			sdata->vif.bss_conf.sync_dtim_count = dtim_count;
 		}
 
-		ie = cfg80211_find_ext_ie(WLAN_EID_EXT_MULTIPLE_BSSID_CONFIGURATION,
-					  beacon_ies->data, beacon_ies->len);
-		if (ie && ie[1] >= 3)
-			sdata->vif.bss_conf.profile_periodicity = ie[4];
+		elem = cfg80211_find_ext_elem(WLAN_EID_EXT_MULTIPLE_BSSID_CONFIGURATION,
+					      beacon_ies->data, beacon_ies->len);
+		if (elem && elem->datalen >= 3)
+			sdata->vif.bss_conf.profile_periodicity = elem->data[2];
 
-		ie = cfg80211_find_ie(WLAN_EID_EXT_CAPABILITY,
-				      beacon_ies->data, beacon_ies->len);
-		if (ie && ie[1] >= 11 &&
-		    (ie[10] & WLAN_EXT_CAPA11_EMA_SUPPORT))
+		elem = cfg80211_find_elem(WLAN_EID_EXT_CAPABILITY,
+					  beacon_ies->data, beacon_ies->len);
+		if (elem && elem->datalen >= 11 &&
+		    (elem->data[10] & WLAN_EXT_CAPA11_EMA_SUPPORT))
 			sdata->vif.bss_conf.ema_ap = true;
 	} else {
 		assoc_data->timeout = jiffies;

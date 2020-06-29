@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2005 Patrick Boettcher <patrick.boettcher@posteo.de>
  *
- * see Documentation/media/dvb-drivers/dvb-usb.rst for more information
+ * see Documentation/driver-api/media/drivers/dvb-usb.rst for more information
  */
 #include "dtt200u.h"
 

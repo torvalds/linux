@@ -8,7 +8,7 @@
 #define YFS_FS_SERVICE	2500
 #define YFS_CM_SERVICE	2501
 
-#define YFSCBMAX 1024
+#define YFSCBMAX	1024
 
 enum YFS_CM_Operations {
 	YFSCBProbe		= 206,	/* probe client */

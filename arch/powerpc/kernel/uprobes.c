@@ -14,6 +14,7 @@
 #include <linux/kdebug.h>
 
 #include <asm/sstep.h>
+#include <asm/inst.h>
 
 #define UPROBE_TRAP_NR	UINT_MAX
 
@@ -111,7 +112,7 @@ int arch_uprobe_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 	 * support doesn't exist and have to fix-up the next instruction
 	 * to be executed.
 	 */
-	regs->nip = utask->vaddr + MAX_UINSN_BYTES;
+	regs->nip = (unsigned long)ppc_inst_next((void *)utask->vaddr, &auprobe->insn);
 
 	user_disable_single_step(current);
 	return 0;
@@ -173,7 +174,7 @@ bool arch_uprobe_skip_sstep(struct arch_uprobe *auprobe, struct pt_regs *regs)
 	 * emulate_step() returns 1 if the insn was successfully emulated.
 	 * For all other cases, we need to single-step in hardware.
 	 */
-	ret = emulate_step(regs, auprobe->insn);
+	ret = emulate_step(regs, ppc_inst_read(&auprobe->insn));
 	if (ret > 0)
 		return true;
 

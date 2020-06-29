@@ -212,11 +212,9 @@ static bool has_annotation(struct perf_annotate *ann)
 	return ui__has_annotation() || ann->use_stdio2;
 }
 
-static int perf_evsel__add_sample(struct evsel *evsel,
-				  struct perf_sample *sample,
-				  struct addr_location *al,
-				  struct perf_annotate *ann,
-				  struct machine *machine)
+static int evsel__add_sample(struct evsel *evsel, struct perf_sample *sample,
+			     struct addr_location *al, struct perf_annotate *ann,
+			     struct machine *machine)
 {
 	struct hists *hists = evsel__hists(evsel);
 	struct hist_entry *he;
@@ -278,7 +276,7 @@ static int process_sample_event(struct perf_tool *tool,
 		goto out_put;
 
 	if (!al.filtered &&
-	    perf_evsel__add_sample(evsel, sample, &al, ann, machine)) {
+	    evsel__add_sample(evsel, sample, &al, ann, machine)) {
 		pr_warning("problem incrementing symbol count, "
 			   "skipping event\n");
 		ret = -1;
@@ -433,11 +431,10 @@ static int __cmd_annotate(struct perf_annotate *ann)
 			total_nr_samples += nr_samples;
 			hists__collapse_resort(hists, NULL);
 			/* Don't sort callchain */
-			perf_evsel__reset_sample_bit(pos, CALLCHAIN);
-			perf_evsel__output_resort(pos, NULL);
+			evsel__reset_sample_bit(pos, CALLCHAIN);
+			evsel__output_resort(pos, NULL);
 
-			if (symbol_conf.event_group &&
-			    !perf_evsel__is_group_leader(pos))
+			if (symbol_conf.event_group && !evsel__is_group_leader(pos))
 				continue;
 
 			hists__find_annotations(hists, pos, ann);

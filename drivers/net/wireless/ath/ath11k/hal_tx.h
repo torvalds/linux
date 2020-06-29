@@ -7,6 +7,7 @@
 #define ATH11K_HAL_TX_H
 
 #include "hal_desc.h"
+#include "core.h"
 
 #define HAL_TX_ADDRX_EN			1
 #define HAL_TX_ADDRY_EN			2

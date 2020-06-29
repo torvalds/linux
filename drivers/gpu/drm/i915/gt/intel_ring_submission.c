@@ -42,6 +42,7 @@
 #include "intel_reset.h"
 #include "intel_ring.h"
 #include "intel_workarounds.h"
+#include "shmem_utils.h"
 
 /* Rough estimate of the typical request size, performing a flush,
  * set-context and then emitting the batch.
@@ -577,8 +578,9 @@ static void flush_cs_tlb(struct intel_engine_cs *engine)
 				    RING_INSTPM(engine->mmio_base),
 				    INSTPM_SYNC_FLUSH, 0,
 				    1000))
-		DRM_ERROR("%s: wait for SyncFlush to complete for TLB invalidation timed out\n",
-			  engine->name);
+		drm_err(&dev_priv->drm,
+			"%s: wait for SyncFlush to complete for TLB invalidation timed out\n",
+			engine->name);
 }
 
 static void ring_setup_status_page(struct intel_engine_cs *engine)
@@ -601,8 +603,9 @@ static bool stop_ring(struct intel_engine_cs *engine)
 					    MODE_IDLE,
 					    MODE_IDLE,
 					    1000)) {
-			DRM_ERROR("%s : timed out trying to stop ring\n",
-				  engine->name);
+			drm_err(&dev_priv->drm,
+				"%s : timed out trying to stop ring\n",
+				engine->name);
 
 			/*
 			 * Sometimes we observe that the idle flag is not
@@ -661,22 +664,23 @@ static int xcs_resume(struct intel_engine_cs *engine)
 	/* WaClearRingBufHeadRegAtInit:ctg,elk */
 	if (!stop_ring(engine)) {
 		/* G45 ring initialization often fails to reset head to zero */
-		DRM_DEBUG_DRIVER("%s head not reset to zero "
+		drm_dbg(&dev_priv->drm, "%s head not reset to zero "
+			"ctl %08x head %08x tail %08x start %08x\n",
+			engine->name,
+			ENGINE_READ(engine, RING_CTL),
+			ENGINE_READ(engine, RING_HEAD),
+			ENGINE_READ(engine, RING_TAIL),
+			ENGINE_READ(engine, RING_START));
+
+		if (!stop_ring(engine)) {
+			drm_err(&dev_priv->drm,
+				"failed to set %s head to zero "
 				"ctl %08x head %08x tail %08x start %08x\n",
 				engine->name,
 				ENGINE_READ(engine, RING_CTL),
 				ENGINE_READ(engine, RING_HEAD),
 				ENGINE_READ(engine, RING_TAIL),
 				ENGINE_READ(engine, RING_START));
-
-		if (!stop_ring(engine)) {
-			DRM_ERROR("failed to set %s head to zero "
-				  "ctl %08x head %08x tail %08x start %08x\n",
-				  engine->name,
-				  ENGINE_READ(engine, RING_CTL),
-				  ENGINE_READ(engine, RING_HEAD),
-				  ENGINE_READ(engine, RING_TAIL),
-				  ENGINE_READ(engine, RING_START));
 			ret = -EIO;
 			goto out;
 		}
@@ -719,7 +723,7 @@ static int xcs_resume(struct intel_engine_cs *engine)
 				    RING_CTL(engine->mmio_base),
 				    RING_VALID, RING_VALID,
 				    50)) {
-		DRM_ERROR("%s initialization failed "
+		drm_err(&dev_priv->drm, "%s initialization failed "
 			  "ctl %08x (valid? %d) head %08x [%08x] tail %08x [%08x] start %08x [expected %08x]\n",
 			  engine->name,
 			  ENGINE_READ(engine, RING_CTL),
@@ -1238,7 +1242,7 @@ alloc_context_vma(struct intel_engine_cs *engine)
 		i915_gem_object_set_cache_coherency(obj, I915_CACHE_L3_LLC);
 
 	if (engine->default_state) {
-		void *defaults, *vaddr;
+		void *vaddr;
 
 		vaddr = i915_gem_object_pin_map(obj, I915_MAP_WB);
 		if (IS_ERR(vaddr)) {
@@ -1246,15 +1250,8 @@ alloc_context_vma(struct intel_engine_cs *engine)
 			goto err_obj;
 		}
 
-		defaults = i915_gem_object_pin_map(engine->default_state,
-						   I915_MAP_WB);
-		if (IS_ERR(defaults)) {
-			err = PTR_ERR(defaults);
-			goto err_map;
-		}
-
-		memcpy(vaddr, defaults, engine->context_size);
-		i915_gem_object_unpin_map(engine->default_state);
+		shmem_read(engine->default_state, 0,
+			   vaddr, engine->context_size);
 
 		i915_gem_object_flush_map(obj);
 		i915_gem_object_unpin_map(obj);
@@ -1268,8 +1265,6 @@ alloc_context_vma(struct intel_engine_cs *engine)
 
 	return vma;
 
-err_map:
-	i915_gem_object_unpin_map(obj);
 err_obj:
 	i915_gem_object_put(obj);
 	return ERR_PTR(err);

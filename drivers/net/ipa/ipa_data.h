@@ -80,18 +80,12 @@ struct gsi_channel_data {
 /**
  * struct ipa_endpoint_tx_data - configuration data for TX endpoints
  * @status_endpoint:	endpoint to which status elements are sent
- * @delay:		whether endpoint starts in delay mode
- *
- * Delay mode prevents a TX endpoint from transmitting anything, even if
- * commands have been presented to the hardware.  Once the endpoint exits
- * delay mode, queued transfer commands are sent.
  *
  * The @status_endpoint is only valid if the endpoint's @status_enable
  * flag is set.
  */
 struct ipa_endpoint_tx_data {
 	enum ipa_endpoint_name status_endpoint;
-	bool delay;
 };
 
 /**
@@ -245,15 +239,21 @@ struct ipa_resource_data {
 };
 
 /**
- * struct ipa_mem - IPA-local memory region description
- * @offset:		offset in IPA memory space to base of the region
- * @size:		size in bytes base of the region
- * @canary_count:	number of 32-bit "canary" values that precede region
+ * struct ipa_mem - description of IPA memory regions
+ * @local_count:	number of regions defined in the local[] array
+ * @local:		array of IPA-local memory region descriptors
+ * @imem_addr:		physical address of IPA region within IMEM
+ * @imem_size:		size in bytes of IPA IMEM region
+ * @smem_id:		item identifier for IPA region within SMEM memory
+ * @imem_size:		size in bytes of the IPA SMEM region
  */
 struct ipa_mem_data {
-	u32 offset;
-	u16 size;
-	u16 canary_count;
+	u32 local_count;
+	const struct ipa_mem *local;
+	u32 imem_addr;
+	u32 imem_size;
+	u32 smem_id;
+	u32 smem_size;
 };
 
 /**
@@ -270,8 +270,7 @@ struct ipa_data {
 	u32 endpoint_count;	/* # entries in endpoint_data[] */
 	const struct ipa_gsi_endpoint_data *endpoint_data;
 	const struct ipa_resource_data *resource_data;
-	u32 mem_count;		/* # entries in mem_data[] */
-	const struct ipa_mem *mem_data;
+	const struct ipa_mem_data *mem_data;
 };
 
 extern const struct ipa_data ipa_data_sdm845;

@@ -54,8 +54,8 @@ static phys_addr_t __init efi_to_phys(unsigned long addr)
 static __initdata unsigned long screen_info_table = EFI_INVALID_TABLE_ADDR;
 
 static const efi_config_table_type_t arch_tables[] __initconst = {
-	{LINUX_EFI_ARM_SCREEN_INFO_TABLE_GUID, NULL, &screen_info_table},
-	{NULL_GUID, NULL, NULL}
+	{LINUX_EFI_ARM_SCREEN_INFO_TABLE_GUID, &screen_info_table},
+	{}
 };
 
 static void __init init_screen_info(void)

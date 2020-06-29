@@ -37,19 +37,13 @@ enum mac_op {
 static int change_mac(struct hinic_dev *nic_dev, const u8 *addr,
 		      u16 vlan_id, enum mac_op op)
 {
-	struct net_device *netdev = nic_dev->netdev;
 	struct hinic_hwdev *hwdev = nic_dev->hwdev;
 	struct hinic_port_mac_cmd port_mac_cmd;
 	struct hinic_hwif *hwif = hwdev->hwif;
+	u16 out_size = sizeof(port_mac_cmd);
 	struct pci_dev *pdev = hwif->pdev;
 	enum hinic_port_cmd cmd;
-	u16 out_size;
 	int err;
-
-	if (vlan_id >= VLAN_N_VID) {
-		netif_err(nic_dev, drv, netdev, "Invalid VLAN number\n");
-		return -EINVAL;
-	}
 
 	if (op == MAC_SET)
 		cmd = HINIC_PORT_CMD_SET_MAC;
@@ -63,11 +57,24 @@ static int change_mac(struct hinic_dev *nic_dev, const u8 *addr,
 	err = hinic_port_msg_cmd(hwdev, cmd, &port_mac_cmd,
 				 sizeof(port_mac_cmd),
 				 &port_mac_cmd, &out_size);
-	if (err || (out_size != sizeof(port_mac_cmd)) || port_mac_cmd.status) {
+	if (err || out_size != sizeof(port_mac_cmd) ||
+	    (port_mac_cmd.status  &&
+	    port_mac_cmd.status != HINIC_PF_SET_VF_ALREADY &&
+	    port_mac_cmd.status != HINIC_MGMT_STATUS_EXIST)) {
 		dev_err(&pdev->dev, "Failed to change MAC, ret = %d\n",
 			port_mac_cmd.status);
 		return -EFAULT;
 	}
+
+	if (port_mac_cmd.status == HINIC_PF_SET_VF_ALREADY) {
+		dev_warn(&pdev->dev, "PF has already set VF mac, ignore %s operation\n",
+			 (op == MAC_SET) ? "set" : "del");
+		return HINIC_PF_SET_VF_ALREADY;
+	}
+
+	if (cmd == HINIC_PORT_CMD_SET_MAC && port_mac_cmd.status ==
+	    HINIC_MGMT_STATUS_EXIST)
+		dev_warn(&pdev->dev, "MAC is repeated, ignore set operation\n");
 
 	return 0;
 }
@@ -112,8 +119,8 @@ int hinic_port_get_mac(struct hinic_dev *nic_dev, u8 *addr)
 	struct hinic_hwdev *hwdev = nic_dev->hwdev;
 	struct hinic_port_mac_cmd port_mac_cmd;
 	struct hinic_hwif *hwif = hwdev->hwif;
+	u16 out_size = sizeof(port_mac_cmd);
 	struct pci_dev *pdev = hwif->pdev;
-	u16 out_size;
 	int err;
 
 	port_mac_cmd.func_idx = HINIC_HWIF_FUNC_IDX(hwif);
@@ -144,9 +151,9 @@ int hinic_port_set_mtu(struct hinic_dev *nic_dev, int new_mtu)
 	struct hinic_hwdev *hwdev = nic_dev->hwdev;
 	struct hinic_port_mtu_cmd port_mtu_cmd;
 	struct hinic_hwif *hwif = hwdev->hwif;
+	u16 out_size = sizeof(port_mtu_cmd);
 	struct pci_dev *pdev = hwif->pdev;
 	int err, max_frame;
-	u16 out_size;
 
 	if (new_mtu < HINIC_MIN_MTU_SIZE) {
 		netif_err(nic_dev, drv, netdev, "mtu < MIN MTU size");
@@ -248,13 +255,8 @@ int hinic_port_link_state(struct hinic_dev *nic_dev,
 	struct hinic_hwif *hwif = hwdev->hwif;
 	struct hinic_port_link_cmd link_cmd;
 	struct pci_dev *pdev = hwif->pdev;
-	u16 out_size;
+	u16 out_size = sizeof(link_cmd);
 	int err;
-
-	if (!HINIC_IS_PF(hwif) && !HINIC_IS_PPF(hwif)) {
-		dev_err(&pdev->dev, "unsupported PCI Function type\n");
-		return -EINVAL;
-	}
 
 	link_cmd.func_idx = HINIC_HWIF_FUNC_IDX(hwif);
 
@@ -284,13 +286,11 @@ int hinic_port_set_state(struct hinic_dev *nic_dev, enum hinic_port_state state)
 	struct hinic_port_state_cmd port_state;
 	struct hinic_hwif *hwif = hwdev->hwif;
 	struct pci_dev *pdev = hwif->pdev;
-	u16 out_size;
+	u16 out_size = sizeof(port_state);
 	int err;
 
-	if (!HINIC_IS_PF(hwif) && !HINIC_IS_PPF(hwif)) {
-		dev_err(&pdev->dev, "unsupported PCI Function type\n");
-		return -EINVAL;
-	}
+	if (HINIC_IS_VF(hwdev->hwif))
+		return 0;
 
 	port_state.state = state;
 
@@ -320,7 +320,7 @@ int hinic_port_set_func_state(struct hinic_dev *nic_dev,
 	struct hinic_hwdev *hwdev = nic_dev->hwdev;
 	struct hinic_hwif *hwif = hwdev->hwif;
 	struct pci_dev *pdev = hwif->pdev;
-	u16 out_size;
+	u16 out_size = sizeof(func_state);
 	int err;
 
 	func_state.func_idx = HINIC_HWIF_FUNC_IDX(hwif);
@@ -351,7 +351,7 @@ int hinic_port_get_cap(struct hinic_dev *nic_dev,
 	struct hinic_hwdev *hwdev = nic_dev->hwdev;
 	struct hinic_hwif *hwif = hwdev->hwif;
 	struct pci_dev *pdev = hwif->pdev;
-	u16 out_size;
+	u16 out_size = sizeof(*port_cap);
 	int err;
 
 	port_cap->func_idx = HINIC_HWIF_FUNC_IDX(hwif);
@@ -382,7 +382,7 @@ int hinic_port_set_tso(struct hinic_dev *nic_dev, enum hinic_tso_state state)
 	struct hinic_hwif *hwif = hwdev->hwif;
 	struct hinic_tso_config tso_cfg = {0};
 	struct pci_dev *pdev = hwif->pdev;
-	u16 out_size;
+	u16 out_size = sizeof(tso_cfg);
 	int err;
 
 	tso_cfg.func_id = HINIC_HWIF_FUNC_IDX(hwif);
@@ -405,9 +405,9 @@ int hinic_set_rx_csum_offload(struct hinic_dev *nic_dev, u32 en)
 {
 	struct hinic_checksum_offload rx_csum_cfg = {0};
 	struct hinic_hwdev *hwdev = nic_dev->hwdev;
+	u16 out_size = sizeof(rx_csum_cfg);
 	struct hinic_hwif *hwif;
 	struct pci_dev *pdev;
-	u16 out_size;
 	int err;
 
 	if (!hwdev)
@@ -443,6 +443,7 @@ int hinic_set_rx_vlan_offload(struct hinic_dev *nic_dev, u8 en)
 	if (!hwdev)
 		return -EINVAL;
 
+	out_size = sizeof(vlan_cfg);
 	hwif = hwdev->hwif;
 	pdev = hwif->pdev;
 	vlan_cfg.func_id = HINIC_HWIF_FUNC_IDX(hwif);
@@ -465,14 +466,14 @@ int hinic_set_max_qnum(struct hinic_dev *nic_dev, u8 num_rqs)
 {
 	struct hinic_hwdev *hwdev = nic_dev->hwdev;
 	struct hinic_hwif *hwif = hwdev->hwif;
-	struct pci_dev *pdev = hwif->pdev;
 	struct hinic_rq_num rq_num = { 0 };
+	struct pci_dev *pdev = hwif->pdev;
 	u16 out_size = sizeof(rq_num);
 	int err;
 
 	rq_num.func_id = HINIC_HWIF_FUNC_IDX(hwif);
 	rq_num.num_rqs = num_rqs;
-	rq_num.rq_depth = ilog2(HINIC_SQ_DEPTH);
+	rq_num.rq_depth = ilog2(nic_dev->rq_depth);
 
 	err = hinic_port_msg_cmd(hwdev, HINIC_PORT_CMD_SET_RQ_IQ_MAP,
 				 &rq_num, sizeof(rq_num),
@@ -491,8 +492,8 @@ static int hinic_set_rx_lro(struct hinic_dev *nic_dev, u8 ipv4_en, u8 ipv6_en,
 			    u8 max_wqe_num)
 {
 	struct hinic_hwdev *hwdev = nic_dev->hwdev;
-	struct hinic_hwif *hwif = hwdev->hwif;
 	struct hinic_lro_config lro_cfg = { 0 };
+	struct hinic_hwif *hwif = hwdev->hwif;
 	struct pci_dev *pdev = hwif->pdev;
 	u16 out_size = sizeof(lro_cfg);
 	int err;
@@ -567,6 +568,9 @@ int hinic_set_rx_lro_state(struct hinic_dev *nic_dev, u8 lro_en,
 	err = hinic_set_rx_lro(nic_dev, ipv4_en, ipv6_en, (u8)wqe_num);
 	if (err)
 		return err;
+
+	if (HINIC_IS_VF(nic_dev->hwdev->hwif))
+		return 0;
 
 	err = hinic_set_rx_lro_timer(nic_dev, lro_timer);
 	if (err)
@@ -741,9 +745,9 @@ int hinic_get_rss_type(struct hinic_dev *nic_dev, u32 tmpl_idx,
 {
 	struct hinic_rss_context_table ctx_tbl = { 0 };
 	struct hinic_hwdev *hwdev = nic_dev->hwdev;
+	u16 out_size = sizeof(ctx_tbl);
 	struct hinic_hwif *hwif;
 	struct pci_dev *pdev;
-	u16 out_size = sizeof(ctx_tbl);
 	int err;
 
 	if (!hwdev || !rss_type)
@@ -784,7 +788,7 @@ int hinic_rss_set_template_tbl(struct hinic_dev *nic_dev, u32 template_id,
 	struct hinic_hwif *hwif = hwdev->hwif;
 	struct hinic_rss_key rss_key = { 0 };
 	struct pci_dev *pdev = hwif->pdev;
-	u16 out_size;
+	u16 out_size = sizeof(rss_key);
 	int err;
 
 	rss_key.func_id = HINIC_HWIF_FUNC_IDX(hwif);
@@ -809,9 +813,9 @@ int hinic_rss_get_template_tbl(struct hinic_dev *nic_dev, u32 tmpl_idx,
 {
 	struct hinic_rss_template_key temp_key = { 0 };
 	struct hinic_hwdev *hwdev = nic_dev->hwdev;
+	u16 out_size = sizeof(temp_key);
 	struct hinic_hwif *hwif;
 	struct pci_dev *pdev;
-	u16 out_size = sizeof(temp_key);
 	int err;
 
 	if (!hwdev || !temp)
@@ -844,7 +848,7 @@ int hinic_rss_set_hash_engine(struct hinic_dev *nic_dev, u8 template_id,
 	struct hinic_hwdev *hwdev = nic_dev->hwdev;
 	struct hinic_hwif *hwif = hwdev->hwif;
 	struct pci_dev *pdev = hwif->pdev;
-	u16 out_size;
+	u16 out_size = sizeof(rss_engine);
 	int err;
 
 	rss_engine.func_id = HINIC_HWIF_FUNC_IDX(hwif);
@@ -868,9 +872,9 @@ int hinic_rss_get_hash_engine(struct hinic_dev *nic_dev, u8 tmpl_idx, u8 *type)
 {
 	struct hinic_rss_engine_type hash_type = { 0 };
 	struct hinic_hwdev *hwdev = nic_dev->hwdev;
+	u16 out_size = sizeof(hash_type);
 	struct hinic_hwif *hwif;
 	struct pci_dev *pdev;
-	u16 out_size = sizeof(hash_type);
 	int err;
 
 	if (!hwdev || !type)
@@ -901,7 +905,7 @@ int hinic_rss_cfg(struct hinic_dev *nic_dev, u8 rss_en, u8 template_id)
 	struct hinic_rss_config rss_cfg = { 0 };
 	struct hinic_hwif *hwif = hwdev->hwif;
 	struct pci_dev *pdev = hwif->pdev;
-	u16 out_size;
+	u16 out_size = sizeof(rss_cfg);
 	int err;
 
 	rss_cfg.func_id = HINIC_HWIF_FUNC_IDX(hwif);
@@ -927,8 +931,8 @@ int hinic_rss_template_alloc(struct hinic_dev *nic_dev, u8 *tmpl_idx)
 	struct hinic_rss_template_mgmt template_mgmt = { 0 };
 	struct hinic_hwdev *hwdev = nic_dev->hwdev;
 	struct hinic_hwif *hwif = hwdev->hwif;
+	u16 out_size = sizeof(template_mgmt);
 	struct pci_dev *pdev = hwif->pdev;
-	u16 out_size;
 	int err;
 
 	template_mgmt.func_id = HINIC_HWIF_FUNC_IDX(hwif);
@@ -953,8 +957,8 @@ int hinic_rss_template_free(struct hinic_dev *nic_dev, u8 tmpl_idx)
 	struct hinic_rss_template_mgmt template_mgmt = { 0 };
 	struct hinic_hwdev *hwdev = nic_dev->hwdev;
 	struct hinic_hwif *hwif = hwdev->hwif;
+	u16 out_size = sizeof(template_mgmt);
 	struct pci_dev *pdev = hwif->pdev;
-	u16 out_size;
 	int err;
 
 	template_mgmt.func_id = HINIC_HWIF_FUNC_IDX(hwif);
@@ -1043,9 +1047,9 @@ int hinic_get_mgmt_version(struct hinic_dev *nic_dev, u8 *mgmt_ver)
 {
 	struct hinic_hwdev *hwdev = nic_dev->hwdev;
 	struct hinic_version_info up_ver = {0};
+	u16 out_size = sizeof(up_ver);
 	struct hinic_hwif *hwif;
 	struct pci_dev *pdev;
-	u16 out_size;
 	int err;
 
 	if (!hwdev)
@@ -1065,6 +1069,135 @@ int hinic_get_mgmt_version(struct hinic_dev *nic_dev, u8 *mgmt_ver)
 	}
 
 	snprintf(mgmt_ver, HINIC_MGMT_VERSION_MAX_LEN, "%s", up_ver.ver);
+
+	return 0;
+}
+
+int hinic_get_link_mode(struct hinic_hwdev *hwdev,
+			struct hinic_link_mode_cmd *link_mode)
+{
+	u16 out_size;
+	int err;
+
+	if (!hwdev || !link_mode)
+		return -EINVAL;
+
+	out_size = sizeof(*link_mode);
+
+	err = hinic_port_msg_cmd(hwdev, HINIC_PORT_CMD_GET_LINK_MODE,
+				 link_mode, sizeof(*link_mode),
+				 link_mode, &out_size);
+	if (err || !out_size || link_mode->status) {
+		dev_err(&hwdev->hwif->pdev->dev,
+			"Failed to get link mode, err: %d, status: 0x%x, out size: 0x%x\n",
+			err, link_mode->status, out_size);
+		return -EIO;
+	}
+
+	return 0;
+}
+
+int hinic_set_autoneg(struct hinic_hwdev *hwdev, bool enable)
+{
+	struct hinic_set_autoneg_cmd autoneg = {0};
+	u16 out_size = sizeof(autoneg);
+	int err;
+
+	if (!hwdev)
+		return -EINVAL;
+
+	autoneg.func_id = HINIC_HWIF_FUNC_IDX(hwdev->hwif);
+	autoneg.enable = enable;
+
+	err = hinic_port_msg_cmd(hwdev, HINIC_PORT_CMD_SET_AUTONEG,
+				 &autoneg, sizeof(autoneg),
+				 &autoneg, &out_size);
+	if (err || !out_size || autoneg.status) {
+		dev_err(&hwdev->hwif->pdev->dev, "Failed to %s autoneg, err: %d, status: 0x%x, out size: 0x%x\n",
+			enable ? "enable" : "disable", err, autoneg.status,
+			out_size);
+		return -EIO;
+	}
+
+	return 0;
+}
+
+int hinic_set_speed(struct hinic_hwdev *hwdev, enum nic_speed_level speed)
+{
+	struct hinic_speed_cmd speed_info = {0};
+	u16 out_size = sizeof(speed_info);
+	int err;
+
+	if (!hwdev)
+		return -EINVAL;
+
+	speed_info.func_id = HINIC_HWIF_FUNC_IDX(hwdev->hwif);
+	speed_info.speed = speed;
+
+	err = hinic_port_msg_cmd(hwdev, HINIC_PORT_CMD_SET_SPEED,
+				 &speed_info, sizeof(speed_info),
+				 &speed_info, &out_size);
+	if (err || !out_size || speed_info.status) {
+		dev_err(&hwdev->hwif->pdev->dev,
+			"Failed to set speed, err: %d, status: 0x%x, out size: 0x%x\n",
+			err, speed_info.status, out_size);
+		return -EIO;
+	}
+
+	return 0;
+}
+
+int hinic_set_link_settings(struct hinic_hwdev *hwdev,
+			    struct hinic_link_ksettings_info *info)
+{
+	u16 out_size = sizeof(*info);
+	int err;
+
+	err = hinic_hilink_msg_cmd(hwdev, HINIC_HILINK_CMD_SET_LINK_SETTINGS,
+				   info, sizeof(*info), info, &out_size);
+	if ((info->status != HINIC_MGMT_CMD_UNSUPPORTED &&
+	     info->status) || err || !out_size) {
+		dev_err(&hwdev->hwif->pdev->dev,
+			"Failed to set link settings, err: %d, status: 0x%x, out size: 0x%x\n",
+			err, info->status, out_size);
+		return -EFAULT;
+	}
+
+	return info->status;
+}
+
+int hinic_get_hw_pause_info(struct hinic_hwdev *hwdev,
+			    struct hinic_pause_config *pause_info)
+{
+	u16 out_size = sizeof(*pause_info);
+	int err;
+
+	err = hinic_port_msg_cmd(hwdev, HINIC_PORT_CMD_GET_PAUSE_INFO,
+				 pause_info, sizeof(*pause_info),
+				 pause_info, &out_size);
+	if (err || !out_size || pause_info->status) {
+		dev_err(&hwdev->hwif->pdev->dev, "Failed to get pause info, err: %d, status: 0x%x, out size: 0x%x\n",
+			err, pause_info->status, out_size);
+		return -EIO;
+	}
+
+	return 0;
+}
+
+int hinic_set_hw_pause_info(struct hinic_hwdev *hwdev,
+			    struct hinic_pause_config *pause_info)
+{
+	u16 out_size = sizeof(*pause_info);
+	int err;
+
+	err = hinic_port_msg_cmd(hwdev, HINIC_PORT_CMD_SET_PAUSE_INFO,
+				 pause_info, sizeof(*pause_info),
+				 pause_info, &out_size);
+	if (err || !out_size || pause_info->status) {
+		dev_err(&hwdev->hwif->pdev->dev, "Failed to set pause info, err: %d, status: 0x%x, out size: 0x%x\n",
+			err, pause_info->status, out_size);
+		return -EIO;
+	}
 
 	return 0;
 }

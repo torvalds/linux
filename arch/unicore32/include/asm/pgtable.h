@@ -9,7 +9,6 @@
 #ifndef __UNICORE_PGTABLE_H__
 #define __UNICORE_PGTABLE_H__
 
-#define __ARCH_USE_5LEVEL_HACK
 #include <asm-generic/pgtable-nopmd.h>
 #include <asm/cpu-single.h>
 
@@ -154,12 +153,6 @@ extern struct page *empty_zero_page;
 #define pte_none(pte)			(!pte_val(pte))
 #define pte_clear(mm, addr, ptep)	set_pte(ptep, __pte(0))
 #define pte_page(pte)			(pfn_to_page(pte_pfn(pte)))
-#define pte_offset_kernel(dir, addr)	(pmd_page_vaddr(*(dir)) \
-						+ __pte_index(addr))
-
-#define pte_offset_map(dir, addr)	(pmd_page_vaddr(*(dir)) \
-						+ __pte_index(addr))
-#define pte_unmap(pte)			do { } while (0)
 
 #define set_pte(ptep, pte)	cpu_set_pte(ptep, pte)
 
@@ -222,17 +215,6 @@ PTE_BIT_FUNC(mkyoung,   |= PTE_YOUNG);
  */
 #define mk_pte(page, prot)	pfn_pte(page_to_pfn(page), prot)
 
-/* to find an entry in a page-table-directory */
-#define pgd_index(addr)		((addr) >> PGDIR_SHIFT)
-
-#define pgd_offset(mm, addr)	((mm)->pgd+pgd_index(addr))
-
-/* to find an entry in a kernel page-table-directory */
-#define pgd_offset_k(addr)	pgd_offset(&init_mm, addr)
-
-/* Find an entry in the third-level page table.. */
-#define __pte_index(addr)	(((addr) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
-
 static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 {
 	const unsigned long mask = PTE_EXEC | PTE_WRITE | PTE_READ;
@@ -279,8 +261,6 @@ extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
 /* Needs to be defined here and not in linux/mm.h, as it is arch dependent */
 /* FIXME: this is not correct */
 #define kern_addr_valid(addr)	(1)
-
-#include <asm-generic/pgtable.h>
 
 #endif /* !__ASSEMBLY__ */
 

@@ -85,9 +85,8 @@ properties:
       CPU power good signal from external PMIC to PMC is enabled.
 
   nvidia,suspend-mode:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - enum: [0, 1, 2]
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1, 2]
     description:
       The suspend mode that the platform should use.
       Mode 0 is for LP0, CPU + Core voltage off and DRAM in self-refresh
@@ -323,7 +322,7 @@ examples:
 
     tegra_pmc: pmc@7000e400 {
               compatible = "nvidia,tegra210-pmc";
-              reg = <0x0 0x7000e400 0x0 0x400>;
+              reg = <0x7000e400 0x400>;
               clocks = <&tegra_car TEGRA210_CLK_PCLK>, <&clk32k_in>;
               clock-names = "pclk", "clk32k_in";
               #clock-cells = <1>;

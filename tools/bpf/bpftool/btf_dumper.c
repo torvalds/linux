@@ -271,8 +271,8 @@ static void btf_int128_print(json_writer_t *jw, const void *data,
 	}
 }
 
-static void btf_int128_shift(__u64 *print_num, u16 left_shift_bits,
-			     u16 right_shift_bits)
+static void btf_int128_shift(__u64 *print_num, __u16 left_shift_bits,
+			     __u16 right_shift_bits)
 {
 	__u64 upper_num, lower_num;
 

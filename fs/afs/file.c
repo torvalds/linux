@@ -69,7 +69,7 @@ static const struct vm_operations_struct afs_vm_ops = {
  */
 void afs_put_wb_key(struct afs_wb_key *wbk)
 {
-	if (refcount_dec_and_test(&wbk->usage)) {
+	if (wbk && refcount_dec_and_test(&wbk->usage)) {
 		key_put(wbk->key);
 		kfree(wbk);
 	}
@@ -220,14 +220,35 @@ static void afs_file_readpage_read_complete(struct page *page,
 }
 #endif
 
+static void afs_fetch_data_success(struct afs_operation *op)
+{
+	struct afs_vnode *vnode = op->file[0].vnode;
+
+	_enter("op=%08x", op->debug_id);
+	afs_vnode_commit_status(op, &op->file[0]);
+	afs_stat_v(vnode, n_fetches);
+	atomic_long_add(op->fetch.req->actual_len, &op->net->n_fetch_bytes);
+}
+
+static void afs_fetch_data_put(struct afs_operation *op)
+{
+	afs_put_read(op->fetch.req);
+}
+
+static const struct afs_operation_ops afs_fetch_data_operation = {
+	.issue_afs_rpc	= afs_fs_fetch_data,
+	.issue_yfs_rpc	= yfs_fs_fetch_data,
+	.success	= afs_fetch_data_success,
+	.aborted	= afs_check_for_remote_deletion,
+	.put		= afs_fetch_data_put,
+};
+
 /*
  * Fetch file data from the volume.
  */
 int afs_fetch_data(struct afs_vnode *vnode, struct key *key, struct afs_read *req)
 {
-	struct afs_fs_cursor fc;
-	struct afs_status_cb *scb;
-	int ret;
+	struct afs_operation *op;
 
 	_enter("%s{%llx:%llu.%u},%x,,,",
 	       vnode->volume->name,
@@ -236,34 +257,15 @@ int afs_fetch_data(struct afs_vnode *vnode, struct key *key, struct afs_read *re
 	       vnode->fid.unique,
 	       key_serial(key));
 
-	scb = kzalloc(sizeof(struct afs_status_cb), GFP_KERNEL);
-	if (!scb)
-		return -ENOMEM;
+	op = afs_alloc_operation(key, vnode->volume);
+	if (IS_ERR(op))
+		return PTR_ERR(op);
 
-	ret = -ERESTARTSYS;
-	if (afs_begin_vnode_operation(&fc, vnode, key, true)) {
-		afs_dataversion_t data_version = vnode->status.data_version;
+	afs_op_set_vnode(op, 0, vnode);
 
-		while (afs_select_fileserver(&fc)) {
-			fc.cb_break = afs_calc_vnode_cb_break(vnode);
-			afs_fs_fetch_data(&fc, scb, req);
-		}
-
-		afs_check_for_remote_deletion(&fc, vnode);
-		afs_vnode_commit_status(&fc, vnode, fc.cb_break,
-					&data_version, scb);
-		ret = afs_end_vnode_operation(&fc);
-	}
-
-	if (ret == 0) {
-		afs_stat_v(vnode, n_fetches);
-		atomic_long_add(req->actual_len,
-				&afs_v2net(vnode)->n_fetch_bytes);
-	}
-
-	kfree(scb);
-	_leave(" = %d", ret);
-	return ret;
+	op->fetch.req	= afs_get_read(req);
+	op->ops		= &afs_fetch_data_operation;
+	return afs_do_sync_operation(op);
 }
 
 /*

@@ -132,14 +132,13 @@ struct irq_domain *__irq_domain_add(struct fwnode_handle *fwnode, int size,
 				    const struct irq_domain_ops *ops,
 				    void *host_data)
 {
-	struct device_node *of_node = to_of_node(fwnode);
 	struct irqchip_fwid *fwid;
 	struct irq_domain *domain;
 
 	static atomic_t unknown_domains;
 
 	domain = kzalloc_node(sizeof(*domain) + (sizeof(unsigned int) * size),
-			      GFP_KERNEL, of_node_to_nid(of_node));
+			      GFP_KERNEL, of_node_to_nid(to_of_node(fwnode)));
 	if (!domain)
 		return NULL;
 
@@ -162,30 +161,16 @@ struct irq_domain *__irq_domain_add(struct fwnode_handle *fwnode, int size,
 			domain->name = fwid->name;
 			break;
 		}
-#ifdef CONFIG_ACPI
-	} else if (is_acpi_device_node(fwnode)) {
-		struct acpi_buffer buf = {
-			.length = ACPI_ALLOCATE_BUFFER,
-		};
-		acpi_handle handle;
-
-		handle = acpi_device_handle(to_acpi_device_node(fwnode));
-		if (acpi_get_name(handle, ACPI_FULL_PATHNAME, &buf) == AE_OK) {
-			domain->name = buf.pointer;
-			domain->flags |= IRQ_DOMAIN_NAME_ALLOCATED;
-		}
-
-		domain->fwnode = fwnode;
-#endif
-	} else if (of_node) {
+	} else if (is_of_node(fwnode) || is_acpi_device_node(fwnode) ||
+		   is_software_node(fwnode)) {
 		char *name;
 
 		/*
-		 * DT paths contain '/', which debugfs is legitimately
+		 * fwnode paths contain '/', which debugfs is legitimately
 		 * unhappy about. Replace them with ':', which does
 		 * the trick and is not as offensive as '\'...
 		 */
-		name = kasprintf(GFP_KERNEL, "%pOF", of_node);
+		name = kasprintf(GFP_KERNEL, "%pfw", fwnode);
 		if (!name) {
 			kfree(domain);
 			return NULL;
@@ -210,7 +195,7 @@ struct irq_domain *__irq_domain_add(struct fwnode_handle *fwnode, int size,
 		domain->flags |= IRQ_DOMAIN_NAME_ALLOCATED;
 	}
 
-	of_node_get(of_node);
+	fwnode_handle_get(fwnode);
 
 	/* Fill structure */
 	INIT_RADIX_TREE(&domain->revmap_tree, GFP_KERNEL);
@@ -259,7 +244,7 @@ void irq_domain_remove(struct irq_domain *domain)
 
 	pr_debug("Removed domain %s\n", domain->name);
 
-	of_node_put(irq_domain_get_of_node(domain));
+	fwnode_handle_put(domain->fwnode);
 	if (domain->flags & IRQ_DOMAIN_NAME_ALLOCATED)
 		kfree(domain->name);
 	kfree(domain);
@@ -1047,6 +1032,18 @@ int irq_domain_alloc_descs(int virq, unsigned int cnt, irq_hw_number_t hwirq,
 	return virq;
 }
 
+/**
+ * irq_domain_reset_irq_data - Clear hwirq, chip and chip_data in @irq_data
+ * @irq_data:	The pointer to irq_data
+ */
+void irq_domain_reset_irq_data(struct irq_data *irq_data)
+{
+	irq_data->hwirq = 0;
+	irq_data->chip = &no_irq_chip;
+	irq_data->chip_data = NULL;
+}
+EXPORT_SYMBOL_GPL(irq_domain_reset_irq_data);
+
 #ifdef	CONFIG_IRQ_DOMAIN_HIERARCHY
 /**
  * irq_domain_create_hierarchy - Add a irqdomain into the hierarchy
@@ -1246,18 +1243,6 @@ void irq_domain_set_info(struct irq_domain *domain, unsigned int virq,
 	irq_set_handler_data(virq, handler_data);
 }
 EXPORT_SYMBOL(irq_domain_set_info);
-
-/**
- * irq_domain_reset_irq_data - Clear hwirq, chip and chip_data in @irq_data
- * @irq_data:	The pointer to irq_data
- */
-void irq_domain_reset_irq_data(struct irq_data *irq_data)
-{
-	irq_data->hwirq = 0;
-	irq_data->chip = &no_irq_chip;
-	irq_data->chip_data = NULL;
-}
-EXPORT_SYMBOL_GPL(irq_domain_reset_irq_data);
 
 /**
  * irq_domain_free_irqs_common - Clear irq_data and free the parent

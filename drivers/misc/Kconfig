@@ -60,7 +60,7 @@ config ATMEL_TCLIB
 
 config DUMMY_IRQ
 	tristate "Dummy IRQ handler"
-	---help---
+	help
 	  This module accepts a single 'irq' parameter, which it should register for.
 	  The sole purpose of this module is to help with debugging of systems on
 	  which spurious IRQs would happen on disabled IRQ vector.
@@ -69,7 +69,7 @@ config IBM_ASM
 	tristate "Device driver for IBM RSA service processor"
 	depends on X86 && PCI && INPUT
 	depends on SERIAL_8250 || SERIAL_8250=n
-	---help---
+	help
 	  This option enables device driver support for in-band access to the
 	  IBM RSA (Condor) service processor in eServer xSeries systems.
 	  The ibmasm device driver allows user space application to access
@@ -167,7 +167,7 @@ config ICS932S401
 config ATMEL_SSC
 	tristate "Device driver for Atmel SSC peripheral"
 	depends on HAS_IOMEM && (ARCH_AT91 || COMPILE_TEST)
-	---help---
+	help
 	  This option enables device driver support for Atmel Synchronized
 	  Serial Communication peripheral (SSC).
 
@@ -190,7 +190,7 @@ config SGI_XP
 	depends on (IA64_SGI_UV || X86_UV) && SMP
 	depends on X86_64 || BROKEN
 	select SGI_GRU if X86_64 && SMP
-	---help---
+	help
 	  An SGI machine can be divided into multiple Single System
 	  Images which act independently of each other and have
 	  hardware based memory protection from the others.  Enabling
@@ -267,7 +267,7 @@ config SGI_GRU
 	tristate "SGI GRU driver"
 	depends on X86_UV && SMP
 	select MMU_NOTIFIER
-	---help---
+	help
 	The GRU is a hardware resource located in the system chipset. The GRU
 	contains memory that can be mmapped into the user address space. This memory is
 	used to communicate with the GRU to perform functions such as load/store,
@@ -280,7 +280,7 @@ config SGI_GRU
 config SGI_GRU_DEBUG
 	bool  "SGI GRU driver debug"
 	depends on SGI_GRU
-	---help---
+	help
 	This option enables additional debugging code for the SGI GRU driver.
 	If you are unsure, say N.
 
@@ -327,7 +327,7 @@ config SENSORS_TSL2550
 config SENSORS_BH1770
 	 tristate "BH1770GLC / SFH7770 combined ALS - Proximity sensor"
 	 depends on I2C
-	 ---help---
+	help
 	   Say Y here if you want to build a driver for BH1770GLC (ROHM) or
 	   SFH7770 (Osram) combined ambient light and proximity sensor chip.
 
@@ -337,7 +337,7 @@ config SENSORS_BH1770
 config SENSORS_APDS990X
 	 tristate "APDS990X combined als and proximity sensors"
 	 depends on I2C
-	 ---help---
+	help
 	   Say Y here if you want to build a driver for Avago APDS990x
 	   combined ambient light and proximity sensor chip.
 
@@ -423,20 +423,11 @@ config SRAM
 config SRAM_EXEC
 	bool
 
-config VEXPRESS_SYSCFG
-	bool "Versatile Express System Configuration driver"
-	depends on VEXPRESS_CONFIG
-	default y
-	help
-	  ARM Ltd. Versatile Express uses specialised platform configuration
-	  bus. System Configuration interface is one of the possible means
-	  of generating transactions on this bus.
-
 config PCI_ENDPOINT_TEST
 	depends on PCI
 	select CRC32
 	tristate "PCI Endpoint Test driver"
-	---help---
+	help
 	   Enable this configuration option to enable the host side test driver
 	   for PCI Endpoint.
 

@@ -45,12 +45,15 @@ int do_mmap_info(struct rxe_dev *rxe, struct mminfo __user *outbuf,
 
 	if (outbuf) {
 		ip = rxe_create_mmap_info(rxe, buf_size, udata, buf);
-		if (!ip)
+		if (IS_ERR(ip)) {
+			err = PTR_ERR(ip);
 			goto err1;
+		}
 
-		err = copy_to_user(outbuf, &ip->info, sizeof(ip->info));
-		if (err)
+		if (copy_to_user(outbuf, &ip->info, sizeof(ip->info))) {
+			err = -EFAULT;
 			goto err2;
+		}
 
 		spin_lock_bh(&rxe->pending_lock);
 		list_add(&ip->pending_mmaps, &rxe->pending_mmaps);
@@ -64,7 +67,7 @@ int do_mmap_info(struct rxe_dev *rxe, struct mminfo __user *outbuf,
 err2:
 	kfree(ip);
 err1:
-	return -EINVAL;
+	return err;
 }
 
 inline void rxe_queue_reset(struct rxe_queue *q)
