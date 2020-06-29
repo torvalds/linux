@@ -1211,12 +1211,9 @@ xfs_reclaim_inodes_ag(
 	int			*nr_to_scan)
 {
 	struct xfs_perag	*pag;
-	xfs_agnumber_t		ag;
-	int			trylock = flags & SYNC_TRYLOCK;
-	int			skipped;
+	xfs_agnumber_t		ag = 0;
+	int			skipped = 0;
 
-	ag = 0;
-	skipped = 0;
 	while ((pag = xfs_perag_get_tag(mp, ag, XFS_ICI_RECLAIM_TAG))) {
 		unsigned long	first_index = 0;
 		int		done = 0;
@@ -1224,15 +1221,13 @@ xfs_reclaim_inodes_ag(
 
 		ag = pag->pag_agno + 1;
 
-		if (trylock) {
-			if (!mutex_trylock(&pag->pag_ici_reclaim_lock)) {
-				skipped++;
-				xfs_perag_put(pag);
-				continue;
-			}
-			first_index = pag->pag_ici_reclaim_cursor;
-		} else
-			mutex_lock(&pag->pag_ici_reclaim_lock);
+		/*
+		 * If the cursor is not zero, we haven't scanned the whole AG
+		 * so we might have skipped inodes here.
+		 */
+		first_index = READ_ONCE(pag->pag_ici_reclaim_cursor);
+		if (first_index)
+			skipped++;
 
 		do {
 			struct xfs_inode *batch[XFS_LOOKUP_BATCH];
@@ -1298,11 +1293,9 @@ xfs_reclaim_inodes_ag(
 
 		} while (nr_found && !done && *nr_to_scan > 0);
 
-		if (trylock && !done)
-			pag->pag_ici_reclaim_cursor = first_index;
-		else
-			pag->pag_ici_reclaim_cursor = 0;
-		mutex_unlock(&pag->pag_ici_reclaim_lock);
+		if (done)
+			first_index = 0;
+		WRITE_ONCE(pag->pag_ici_reclaim_cursor, first_index);
 		xfs_perag_put(pag);
 	}
 	return skipped;
