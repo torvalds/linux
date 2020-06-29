@@ -1055,7 +1055,9 @@ xfs_reflink_remap_extent(
 	 *
 	 * If we are mapping a written extent into the file, we need to have
 	 * enough quota block count reservation to handle the blocks in that
-	 * extent.
+	 * extent.  We log only the delta to the quota block counts, so if the
+	 * extent we're unmapping also has blocks allocated to it, we don't
+	 * need a quota reservation for the extent itself.
 	 *
 	 * Note that if we're replacing a delalloc reservation with a written
 	 * extent, we have to take the full quota reservation because removing
@@ -1067,7 +1069,7 @@ xfs_reflink_remap_extent(
 	qres = qdelta = 0;
 	if (smap_real || dmap_written)
 		qres = XFS_EXTENTADD_SPACE_RES(mp, XFS_DATA_FORK);
-	if (dmap_written)
+	if (!smap_real && dmap_written)
 		qres += dmap->br_blockcount;
 	if (qres > 0) {
 		error = xfs_trans_reserve_quota_nblks(tp, ip, qres, 0,
