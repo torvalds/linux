@@ -47,6 +47,7 @@ int null_init_zoned_dev(struct nullb_device *dev, struct request_queue *q)
 
 		zone->start = sector;
 		zone->len = dev->zone_size_sects;
+		zone->capacity = zone->len;
 		zone->wp = zone->start + zone->len;
 		zone->type = BLK_ZONE_TYPE_CONVENTIONAL;
 		zone->cond = BLK_ZONE_COND_NOT_WP;
@@ -59,6 +60,7 @@ int null_init_zoned_dev(struct nullb_device *dev, struct request_queue *q)
 
 		zone->start = zone->wp = sector;
 		zone->len = dev->zone_size_sects;
+		zone->capacity = zone->len;
 		zone->type = BLK_ZONE_TYPE_SEQWRITE_REQ;
 		zone->cond = BLK_ZONE_COND_EMPTY;
 
