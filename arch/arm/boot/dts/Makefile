@@ -1197,6 +1197,7 @@ dtb-$(CONFIG_MACH_SUNIV) += \
 dtb-$(CONFIG_ARCH_TANGO) += \
 	tango4-vantage-1172.dtb
 dtb-$(CONFIG_ARCH_TEGRA_2x_SOC) += \
+	tegra20-acer-a500-picasso.dtb \
 	tegra20-harmony.dtb \
 	tegra20-colibri-eval-v3.dtb \
 	tegra20-colibri-iris.dtb \
