@@ -598,7 +598,7 @@ struct sched_class *cxgb4_sched_class_alloc(struct net_device *dev,
 /**
  * cxgb4_sched_class_free - free a scheduling class
  * @dev: net_device pointer
- * @e: scheduling class
+ * @classid: scheduling class id to free
  *
  * Frees a scheduling class if there are no users.
  */

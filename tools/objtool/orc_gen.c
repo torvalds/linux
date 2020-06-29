@@ -222,7 +222,7 @@ int create_orc_sections(struct objtool_file *file)
 		}
 	}
 
-	if (elf_rebuild_rela_section(ip_relasec))
+	if (elf_rebuild_rela_section(file->elf, ip_relasec))
 		return -1;
 
 	return 0;

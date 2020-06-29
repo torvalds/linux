@@ -11,6 +11,7 @@
 #include <linux/netdevice.h>
 #include "hsr_main.h"
 
+void hsr_del_ports(struct hsr_priv *hsr);
 void hsr_dev_setup(struct net_device *dev);
 int hsr_dev_finalize(struct net_device *hsr_dev, struct net_device *slave[2],
 		     unsigned char multicast_spec, u8 protocol_version,
@@ -18,5 +19,4 @@ int hsr_dev_finalize(struct net_device *hsr_dev, struct net_device *slave[2],
 void hsr_check_carrier_and_operstate(struct hsr_priv *hsr);
 bool is_hsr_master(struct net_device *dev);
 int hsr_get_max_mtu(struct hsr_priv *hsr);
-
 #endif /* __HSR_DEVICE_H */

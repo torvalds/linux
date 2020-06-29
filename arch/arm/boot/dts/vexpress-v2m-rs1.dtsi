@@ -100,79 +100,6 @@
 		};
 	};
 
-	mcc {
-		compatible = "arm,vexpress,config-bus";
-		arm,vexpress,config-bridge = <&v2m_sysreg>;
-
-		oscclk0 {
-			/* MCC static memory clock */
-			compatible = "arm,vexpress-osc";
-			arm,vexpress-sysreg,func = <1 0>;
-			freq-range = <25000000 60000000>;
-			#clock-cells = <0>;
-			clock-output-names = "v2m:oscclk0";
-		};
-
-		v2m_oscclk1: oscclk1 {
-			/* CLCD clock */
-			compatible = "arm,vexpress-osc";
-			arm,vexpress-sysreg,func = <1 1>;
-			freq-range = <23750000 65000000>;
-			#clock-cells = <0>;
-			clock-output-names = "v2m:oscclk1";
-		};
-
-		v2m_oscclk2: oscclk2 {
-			/* IO FPGA peripheral clock */
-			compatible = "arm,vexpress-osc";
-			arm,vexpress-sysreg,func = <1 2>;
-			freq-range = <24000000 24000000>;
-			#clock-cells = <0>;
-			clock-output-names = "v2m:oscclk2";
-		};
-
-		volt-vio {
-			/* Logic level voltage */
-			compatible = "arm,vexpress-volt";
-			arm,vexpress-sysreg,func = <2 0>;
-			regulator-name = "VIO";
-			regulator-always-on;
-			label = "VIO";
-		};
-
-		temp-mcc {
-			/* MCC internal operating temperature */
-			compatible = "arm,vexpress-temp";
-			arm,vexpress-sysreg,func = <4 0>;
-			label = "MCC";
-		};
-
-		reset {
-			compatible = "arm,vexpress-reset";
-			arm,vexpress-sysreg,func = <5 0>;
-		};
-
-		muxfpga {
-			compatible = "arm,vexpress-muxfpga";
-			arm,vexpress-sysreg,func = <7 0>;
-		};
-
-		shutdown {
-			compatible = "arm,vexpress-shutdown";
-			arm,vexpress-sysreg,func = <8 0>;
-		};
-
-		reboot {
-			compatible = "arm,vexpress-reboot";
-			arm,vexpress-sysreg,func = <9 0>;
-		};
-
-		dvimode {
-			compatible = "arm,vexpress-dvimode";
-			arm,vexpress-sysreg,func = <11 0>;
-		};
-	};
-
 	bus@8000000 {
 		motherboard-bus {
 			model = "V2M-P1";
@@ -433,6 +360,79 @@
 							remote-endpoint = <&dvi_bridge_in>;
 							arm,pl11x,tft-r0g0b0-pads = <0 8 16>;
 						};
+					};
+				};
+
+				mcc {
+					compatible = "arm,vexpress,config-bus";
+					arm,vexpress,config-bridge = <&v2m_sysreg>;
+
+					oscclk0 {
+						/* MCC static memory clock */
+						compatible = "arm,vexpress-osc";
+						arm,vexpress-sysreg,func = <1 0>;
+						freq-range = <25000000 60000000>;
+						#clock-cells = <0>;
+						clock-output-names = "v2m:oscclk0";
+					};
+
+					v2m_oscclk1: oscclk1 {
+						/* CLCD clock */
+						compatible = "arm,vexpress-osc";
+						arm,vexpress-sysreg,func = <1 1>;
+						freq-range = <23750000 65000000>;
+						#clock-cells = <0>;
+						clock-output-names = "v2m:oscclk1";
+					};
+
+					v2m_oscclk2: oscclk2 {
+						/* IO FPGA peripheral clock */
+						compatible = "arm,vexpress-osc";
+						arm,vexpress-sysreg,func = <1 2>;
+						freq-range = <24000000 24000000>;
+						#clock-cells = <0>;
+						clock-output-names = "v2m:oscclk2";
+					};
+
+					volt-vio {
+						/* Logic level voltage */
+						compatible = "arm,vexpress-volt";
+						arm,vexpress-sysreg,func = <2 0>;
+						regulator-name = "VIO";
+						regulator-always-on;
+						label = "VIO";
+					};
+
+					temp-mcc {
+						/* MCC internal operating temperature */
+						compatible = "arm,vexpress-temp";
+						arm,vexpress-sysreg,func = <4 0>;
+						label = "MCC";
+					};
+
+					reset {
+						compatible = "arm,vexpress-reset";
+						arm,vexpress-sysreg,func = <5 0>;
+					};
+
+					muxfpga {
+						compatible = "arm,vexpress-muxfpga";
+						arm,vexpress-sysreg,func = <7 0>;
+					};
+
+					shutdown {
+						compatible = "arm,vexpress-shutdown";
+						arm,vexpress-sysreg,func = <8 0>;
+					};
+
+					reboot {
+						compatible = "arm,vexpress-reboot";
+						arm,vexpress-sysreg,func = <9 0>;
+					};
+
+					dvimode {
+						compatible = "arm,vexpress-dvimode";
+						arm,vexpress-sysreg,func = <11 0>;
 					};
 				};
 			};

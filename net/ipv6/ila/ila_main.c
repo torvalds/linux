@@ -120,3 +120,4 @@ module_init(ila_init);
 module_exit(ila_fini);
 MODULE_AUTHOR("Tom Herbert <tom@herbertland.com>");
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("IPv6: Identifier Locator Addressing (ILA)");
