@@ -59,13 +59,42 @@ static void tb_port_dummy_read(struct tb_port *port)
 	}
 }
 
+/**
+ * tb_port_next_cap() - Return next capability in the linked list
+ * @port: Port to find the capability for
+ * @offset: Previous capability offset (%0 for start)
+ *
+ * Returns dword offset of the next capability in port config space
+ * capability list and returns it. Passing %0 returns the first entry in
+ * the capability list. If no next capability is found returns %0. In case
+ * of failure returns negative errno.
+ */
+int tb_port_next_cap(struct tb_port *port, unsigned int offset)
+{
+	struct tb_cap_any header;
+	int ret;
+
+	if (!offset)
+		return port->config.first_cap_offset;
+
+	ret = tb_port_read(port, &header, TB_CFG_PORT, offset, 1);
+	if (ret)
+		return ret;
+
+	return header.basic.next;
+}
+
 static int __tb_port_find_cap(struct tb_port *port, enum tb_port_cap cap)
 {
-	u32 offset = 1;
+	int offset = 0;
 
 	do {
 		struct tb_cap_any header;
 		int ret;
+
+		offset = tb_port_next_cap(port, offset);
+		if (offset < 0)
+			return offset;
 
 		ret = tb_port_read(port, &header, TB_CFG_PORT, offset, 1);
 		if (ret)
@@ -73,9 +102,7 @@ static int __tb_port_find_cap(struct tb_port *port, enum tb_port_cap cap)
 
 		if (header.basic.cap == cap)
 			return offset;
-
-		offset = header.basic.next;
-	} while (offset);
+	} while (offset > 0);
 
 	return -ENOENT;
 }
