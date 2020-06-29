@@ -277,23 +277,22 @@ static void rk_crypto_action(void *data)
 		reset_control_assert(crypto_info->rst);
 }
 
-#ifdef CONFIG_CRYPTO_DEV_ROCKCHIP_V2
-static const char * const px30_crypto_clks[] = {
+static const char * const crypto_v2_clks[] = {
 	"hclk",
 	"aclk",
 	"sclk",
 	"apb_pclk",
 };
 
-static const char * const px30_crypto_rsts[] = {
+static const char * const crypto_v2_rsts[] = {
 	"crypto-rst",
 };
 
 static struct rk_crypto_tmp *px30_cipher_algs[] = {
 	&rk_v2_ecb_aes_alg,
 	&rk_v2_cbc_aes_alg,
-	&rk_v2_ecb_des_alg,
 	&rk_v2_xts_aes_alg,
+	&rk_v2_ecb_des_alg,
 	&rk_v2_cbc_des_alg,
 	&rk_v2_ecb_des3_ede_alg,
 	&rk_v2_cbc_des3_ede_alg,
@@ -302,26 +301,23 @@ static struct rk_crypto_tmp *px30_cipher_algs[] = {
 static const struct rk_crypto_soc_data px30_soc_data = {
 	.cipher_algs = &px30_cipher_algs[0],
 	.cipher_num = ARRAY_SIZE(px30_cipher_algs),
-	.clks = px30_crypto_clks,
-	.clks_num = ARRAY_SIZE(px30_crypto_clks),
-	.rsts = px30_crypto_rsts,
-	.rsts_num = ARRAY_SIZE(px30_crypto_rsts),
+	.clks = crypto_v2_clks,
+	.clks_num = ARRAY_SIZE(crypto_v2_clks),
+	.rsts = crypto_v2_rsts,
+	.rsts_num = ARRAY_SIZE(crypto_v2_rsts),
 	.hw_init = rk_hw_crypto_v2_init,
 	.hw_deinit = rk_hw_crypto_v2_deinit,
 	.hw_info_size = sizeof(struct rk_hw_crypto_v2_info),
 };
-#endif
 
-#ifdef CONFIG_CRYPTO_DEV_ROCKCHIP_V1
-
-static const char * const rk3288_crypto_clks[] = {
+static const char * const crypto_v1_clks[] = {
 	"hclk",
 	"aclk",
 	"sclk",
 	"apb_pclk",
 };
 
-static const char * const rk3288_crypto_rsts[] = {
+static const char * const crypto_v1_rsts[] = {
 	"crypto-rst",
 };
 
@@ -340,29 +336,26 @@ static struct rk_crypto_tmp *rk3288_cipher_algs[] = {
 static const struct rk_crypto_soc_data rk3288_soc_data = {
 	.cipher_algs = &rk3288_cipher_algs[0],
 	.cipher_num = ARRAY_SIZE(rk3288_cipher_algs),
-	.clks = rk3288_crypto_clks,
-	.clks_num = ARRAY_SIZE(rk3288_crypto_clks),
-	.rsts = rk3288_crypto_rsts,
-	.rsts_num = ARRAY_SIZE(rk3288_crypto_rsts),
+	.clks = crypto_v1_clks,
+	.clks_num = ARRAY_SIZE(crypto_v1_clks),
+	.rsts = crypto_v1_rsts,
+	.rsts_num = ARRAY_SIZE(crypto_v1_rsts),
 	.hw_init = rk_hw_crypto_v1_init,
 	.hw_deinit = rk_hw_crypto_v1_deinit,
 	.hw_info_size = sizeof(struct rk_hw_crypto_v1_info),
 };
-#endif
 
 static const struct of_device_id crypto_of_id_table[] = {
-#ifdef CONFIG_CRYPTO_DEV_ROCKCHIP_V2
+	/* crypto v2 in belows */
 	{
 		.compatible = "rockchip,px30-crypto",
 		.data = (void *)&px30_soc_data,
 	},
-#endif
-#ifdef CONFIG_CRYPTO_DEV_ROCKCHIP_V1
+	/* crypto v1 in belows */
 	{
 		.compatible = "rockchip,rk3288-crypto",
 		.data = (void *)&rk3288_soc_data,
 	},
-#endif
 	{ /* sentinel */ }
 };
 
