@@ -285,6 +285,9 @@ struct dpaa2_eth_drv_stats {
 	__u64	tx_sg_bytes;
 	__u64	rx_sg_frames;
 	__u64	rx_sg_bytes;
+	/* Linear skbs sent as a S/G FD due to insufficient headroom */
+	__u64	tx_converted_sg_frames;
+	__u64	tx_converted_sg_bytes;
 	/* Enqueues retried due to portal busy */
 	__u64	tx_portal_busy;
 };

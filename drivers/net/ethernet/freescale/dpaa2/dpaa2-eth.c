@@ -960,6 +960,8 @@ static netdev_tx_t dpaa2_eth_tx(struct sk_buff *skb, struct net_device *net_dev)
 		err = build_sg_fd_single_buf(priv, skb, &fd);
 		percpu_extras->tx_sg_frames++;
 		percpu_extras->tx_sg_bytes += skb->len;
+		percpu_extras->tx_converted_sg_frames++;
+		percpu_extras->tx_converted_sg_bytes += skb->len;
 	} else {
 		err = build_single_fd(priv, skb, &fd);
 	}

@@ -45,6 +45,8 @@ static char dpaa2_ethtool_extras[][ETH_GSTRING_LEN] = {
 	"[drv] tx sg bytes",
 	"[drv] rx sg frames",
 	"[drv] rx sg bytes",
+	"[drv] tx converted sg frames",
+	"[drv] tx converted sg bytes",
 	"[drv] enqueue portal busy",
 	/* Channel stats */
 	"[drv] dequeue portal busy",
