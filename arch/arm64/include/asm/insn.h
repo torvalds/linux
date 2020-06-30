@@ -10,8 +10,7 @@
 #include <linux/build_bug.h>
 #include <linux/types.h>
 
-/* A64 instructions are always 32 bits. */
-#define	AARCH64_INSN_SIZE		4
+#include <asm/alternative.h>
 
 #ifndef __ASSEMBLY__
 /*
