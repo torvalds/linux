@@ -199,13 +199,12 @@ static int hotplug_tests(void)
 	if (!page_buf)
 		goto out_free_cpu_groups;
 
-	err = 0;
 	/*
 	 * Of course the last CPU cannot be powered down and cpu_down() should
 	 * refuse doing that.
 	 */
 	pr_info("Trying to turn off and on again all CPUs\n");
-	err += down_and_up_cpus(cpu_online_mask, offlined_cpus);
+	err = down_and_up_cpus(cpu_online_mask, offlined_cpus);
 
 	/*
 	 * Take down CPUs by cpu group this time. When the last CPU is turned
