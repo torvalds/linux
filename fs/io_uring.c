@@ -1569,28 +1569,38 @@ static bool io_link_cancel_timeout(struct io_kiocb *req)
 	return false;
 }
 
-static void io_kill_linked_timeout(struct io_kiocb *req)
+static bool __io_kill_linked_timeout(struct io_kiocb *req)
 {
-	struct io_ring_ctx *ctx = req->ctx;
 	struct io_kiocb *link;
-	bool wake_ev = false;
-	unsigned long flags = 0; /* false positive warning */
-
-	if (!(req->flags & REQ_F_COMP_LOCKED))
-		spin_lock_irqsave(&ctx->completion_lock, flags);
+	bool wake_ev;
 
 	if (list_empty(&req->link_list))
-		goto out;
+		return false;
 	link = list_first_entry(&req->link_list, struct io_kiocb, link_list);
 	if (link->opcode != IORING_OP_LINK_TIMEOUT)
-		goto out;
+		return false;
 
 	list_del_init(&link->link_list);
 	wake_ev = io_link_cancel_timeout(link);
 	req->flags &= ~REQ_F_LINK_TIMEOUT;
-out:
-	if (!(req->flags & REQ_F_COMP_LOCKED))
+	return wake_ev;
+}
+
+static void io_kill_linked_timeout(struct io_kiocb *req)
+{
+	struct io_ring_ctx *ctx = req->ctx;
+	bool wake_ev;
+
+	if (!(req->flags & REQ_F_COMP_LOCKED)) {
+		unsigned long flags;
+
+		spin_lock_irqsave(&ctx->completion_lock, flags);
+		wake_ev = __io_kill_linked_timeout(req);
 		spin_unlock_irqrestore(&ctx->completion_lock, flags);
+	} else {
+		wake_ev = __io_kill_linked_timeout(req);
+	}
+
 	if (wake_ev)
 		io_cqring_ev_posted(ctx);
 }
