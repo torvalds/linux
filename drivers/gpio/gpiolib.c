@@ -2594,10 +2594,9 @@ int gpiod_get_array_value_complex(bool raw, bool can_sleep,
 			bitmap_xor(value_bitmap, value_bitmap,
 				   array_info->invert_mask, array_size);
 
-		if (bitmap_full(array_info->get_mask, array_size))
-			return 0;
-
 		i = find_first_zero_bit(array_info->get_mask, array_size);
+		if (i == array_size)
+			return 0;
 	} else {
 		array_info = NULL;
 	}
@@ -2878,10 +2877,9 @@ int gpiod_set_array_value_complex(bool raw, bool can_sleep,
 		gpio_chip_set_multiple(array_info->chip, array_info->set_mask,
 				       value_bitmap);
 
-		if (bitmap_full(array_info->set_mask, array_size))
-			return 0;
-
 		i = find_first_zero_bit(array_info->set_mask, array_size);
+		if (i == array_size)
+			return 0;
 	} else {
 		array_info = NULL;
 	}
