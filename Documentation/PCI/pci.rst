@@ -214,7 +214,7 @@ the PCI device by calling pci_enable_device(). This will:
    problem and unlikely to get fixed soon.
 
    This has been discussed before but not changed as of 2.6.19:
-   http://lkml.org/lkml/2006/3/2/194
+   https://lore.kernel.org/r/20060302180025.GC28895@flint.arm.linux.org.uk/
 
 
 pci_set_master() will enable DMA by setting the bus master bit

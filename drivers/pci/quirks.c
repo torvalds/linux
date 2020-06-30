@@ -3549,7 +3549,7 @@ static void quirk_no_bus_reset(struct pci_dev *dev)
  * The device will throw a Link Down error on AER-capable systems and
  * regardless of AER, config space of the device is never accessible again
  * and typically causes the system to hang or reset when access is attempted.
- * http://www.spinics.net/lists/linux-pci/msg34797.html
+ * https://lore.kernel.org/r/20140923210318.498dacbd@dualc.maya.org/
  */
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_ATHEROS, 0x0030, quirk_no_bus_reset);
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_ATHEROS, 0x0032, quirk_no_bus_reset);
@@ -4378,9 +4378,9 @@ static int pci_acs_ctrl_enabled(u16 acs_ctrl_req, u16 acs_ctrl_ena)
  * redirect (CR) since all transactions are redirected to the upstream
  * root complex.
  *
- * http://permalink.gmane.org/gmane.comp.emulators.kvm.devel/94086
- * http://permalink.gmane.org/gmane.comp.emulators.kvm.devel/94102
- * http://permalink.gmane.org/gmane.comp.emulators.kvm.devel/99402
+ * https://lore.kernel.org/r/201207111426.q6BEQTbh002928@mail.maya.org/
+ * https://lore.kernel.org/r/20120711165854.GM25282@amd.com/
+ * https://lore.kernel.org/r/20121005130857.GX4009@amd.com/
  *
  * 1002:4385 SBx00 SMBus Controller
  * 1002:439c SB7x0/SB8x0/SB9x0 IDE Controller
