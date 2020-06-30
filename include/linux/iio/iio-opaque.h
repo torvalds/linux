@@ -6,6 +6,7 @@
 /**
  * struct iio_dev_opaque - industrial I/O device opaque information
  * @indio_dev:			public industrial I/O device information
+ * @event_interface:		event chrdevs associated with interrupt lines
  * @buffer_list:		list of all buffers currently attached
  * @channel_attr_list:		keep track of automatically created channel
  *				attributes
@@ -17,6 +18,7 @@
  */
 struct iio_dev_opaque {
 	struct iio_dev			indio_dev;
+	struct iio_event_interface	*event_interface;
 	struct list_head		buffer_list;
 	struct list_head		channel_attr_list;
 	struct attribute_group		chan_attr_group;

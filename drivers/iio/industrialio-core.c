@@ -211,7 +211,8 @@ EXPORT_SYMBOL(iio_read_const_attr);
 int iio_device_set_clock(struct iio_dev *indio_dev, clockid_t clock_id)
 {
 	int ret;
-	const struct iio_event_interface *ev_int = indio_dev->event_interface;
+	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
+	const struct iio_event_interface *ev_int = iio_dev_opaque->event_interface;
 
 	ret = mutex_lock_interruptible(&indio_dev->mlock);
 	if (ret)
@@ -1442,7 +1443,7 @@ static int iio_device_register_sysfs(struct iio_dev *indio_dev)
 			attrcount += ret;
 		}
 
-	if (indio_dev->event_interface)
+	if (iio_dev_opaque->event_interface)
 		clk = &dev_attr_current_timestamp_clock.attr;
 
 	if (indio_dev->name)
