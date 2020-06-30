@@ -817,6 +817,19 @@ err_set:
 	return err;
 }
 
+static void
+mlx5_tc_ct_del_ft_entry(struct mlx5_tc_ct_priv *ct_priv,
+			struct mlx5_ct_entry *entry)
+{
+	mlx5_tc_ct_entry_del_rules(ct_priv, entry);
+	if (entry->tuple_node.next)
+		rhashtable_remove_fast(&ct_priv->ct_tuples_nat_ht,
+				       &entry->tuple_nat_node,
+				       tuples_nat_ht_params);
+	rhashtable_remove_fast(&ct_priv->ct_tuples_ht, &entry->tuple_node,
+			       tuples_ht_params);
+}
+
 static int
 mlx5_tc_ct_block_flow_offload_del(struct mlx5_ct_ft *ft,
 				  struct flow_cls_offload *flow)
@@ -829,13 +842,7 @@ mlx5_tc_ct_block_flow_offload_del(struct mlx5_ct_ft *ft,
 	if (!entry)
 		return -ENOENT;
 
-	mlx5_tc_ct_entry_del_rules(ft->ct_priv, entry);
-	if (entry->tuple_node.next)
-		rhashtable_remove_fast(&ft->ct_priv->ct_tuples_nat_ht,
-				       &entry->tuple_nat_node,
-				       tuples_nat_ht_params);
-	rhashtable_remove_fast(&ft->ct_priv->ct_tuples_ht, &entry->tuple_node,
-			       tuples_ht_params);
+	mlx5_tc_ct_del_ft_entry(ft->ct_priv, entry);
 	WARN_ON(rhashtable_remove_fast(&ft->ct_entries_ht,
 				       &entry->node,
 				       cts_ht_params));
@@ -1348,7 +1355,8 @@ mlx5_tc_ct_flush_ft_entry(void *ptr, void *arg)
 	struct mlx5_tc_ct_priv *ct_priv = arg;
 	struct mlx5_ct_entry *entry = ptr;
 
-	mlx5_tc_ct_entry_del_rules(ct_priv, entry);
+	mlx5_tc_ct_del_ft_entry(ct_priv, entry);
+	kfree(entry);
 }
 
 static void
