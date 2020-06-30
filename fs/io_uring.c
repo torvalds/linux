@@ -1664,12 +1664,9 @@ static void io_fail_links(struct io_kiocb *req)
 	io_cqring_ev_posted(ctx);
 }
 
-static struct io_kiocb *io_req_find_next(struct io_kiocb *req)
+static struct io_kiocb *__io_req_find_next(struct io_kiocb *req)
 {
-	if (likely(!(req->flags & REQ_F_LINK_HEAD)))
-		return NULL;
 	req->flags &= ~REQ_F_LINK_HEAD;
-
 	if (req->flags & REQ_F_LINK_TIMEOUT)
 		io_kill_linked_timeout(req);
 
@@ -1683,6 +1680,13 @@ static struct io_kiocb *io_req_find_next(struct io_kiocb *req)
 		return io_req_link_next(req);
 	io_fail_links(req);
 	return NULL;
+}
+
+static struct io_kiocb *io_req_find_next(struct io_kiocb *req)
+{
+	if (likely(!(req->flags & REQ_F_LINK_HEAD)))
+		return NULL;
+	return __io_req_find_next(req);
 }
 
 static void __io_req_task_cancel(struct io_kiocb *req, int error)
