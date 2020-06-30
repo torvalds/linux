@@ -1,105 +1,139 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 // Copyright (c) 2019 Mellanox Technologies.
 
-#include <linux/tls.h>
-#include "en.h"
-#include "en/txrx.h"
-#include "en_accel/ktls.h"
+#include "en_accel/ktls_txrx.h"
+#include "en_accel/ktls_utils.h"
 
-enum {
-	MLX5E_STATIC_PARAMS_CONTEXT_TLS_1_2 = 0x2,
+struct mlx5e_dump_wqe {
+	struct mlx5_wqe_ctrl_seg ctrl;
+	struct mlx5_wqe_data_seg data;
 };
 
-enum {
-	MLX5E_ENCRYPTION_STANDARD_TLS = 0x1,
+#define MLX5E_KTLS_DUMP_WQEBBS \
+	(DIV_ROUND_UP(sizeof(struct mlx5e_dump_wqe), MLX5_SEND_WQE_BB))
+
+static u8
+mlx5e_ktls_dumps_num_wqes(struct mlx5e_txqsq *sq, unsigned int nfrags,
+			  unsigned int sync_len)
+{
+	/* Given the MTU and sync_len, calculates an upper bound for the
+	 * number of DUMP WQEs needed for the TX resync of a record.
+	 */
+	return nfrags + DIV_ROUND_UP(sync_len, sq->hw_mtu);
+}
+
+u16 mlx5e_ktls_get_stop_room(struct mlx5e_txqsq *sq)
+{
+	u16 num_dumps, stop_room = 0;
+
+	num_dumps = mlx5e_ktls_dumps_num_wqes(sq, MAX_SKB_FRAGS, TLS_MAX_PAYLOAD_SIZE);
+
+	stop_room += mlx5e_stop_room_for_wqe(MLX5E_TLS_SET_STATIC_PARAMS_WQEBBS);
+	stop_room += mlx5e_stop_room_for_wqe(MLX5E_TLS_SET_PROGRESS_PARAMS_WQEBBS);
+	stop_room += num_dumps * mlx5e_stop_room_for_wqe(MLX5E_KTLS_DUMP_WQEBBS);
+
+	return stop_room;
+}
+
+static int mlx5e_ktls_create_tis(struct mlx5_core_dev *mdev, u32 *tisn)
+{
+	u32 in[MLX5_ST_SZ_DW(create_tis_in)] = {};
+	void *tisc;
+
+	tisc = MLX5_ADDR_OF(create_tis_in, in, ctx);
+
+	MLX5_SET(tisc, tisc, tls_en, 1);
+
+	return mlx5e_create_tis(mdev, in, tisn);
+}
+
+struct mlx5e_ktls_offload_context_tx {
+	struct tls_offload_context_tx *tx_ctx;
+	struct tls12_crypto_info_aes_gcm_128 crypto_info;
+	u32 expected_seq;
+	u32 tisn;
+	u32 key_id;
+	bool ctx_post_pending;
 };
 
-#define EXTRACT_INFO_FIELDS do { \
-	salt    = info->salt;    \
-	rec_seq = info->rec_seq; \
-	salt_sz    = sizeof(info->salt);    \
-	rec_seq_sz = sizeof(info->rec_seq); \
-} while (0)
-
 static void
-fill_static_params_ctx(void *ctx, struct mlx5e_ktls_offload_context_tx *priv_tx)
+mlx5e_set_ktls_tx_priv_ctx(struct tls_context *tls_ctx,
+			   struct mlx5e_ktls_offload_context_tx *priv_tx)
 {
-	struct tls12_crypto_info_aes_gcm_128 *info = &priv_tx->crypto_info;
-	char *initial_rn, *gcm_iv;
-	u16 salt_sz, rec_seq_sz;
-	char *salt, *rec_seq;
-	u8 tls_version;
+	struct mlx5e_ktls_offload_context_tx **ctx =
+		__tls_driver_ctx(tls_ctx, TLS_OFFLOAD_CTX_DIR_TX);
 
-	EXTRACT_INFO_FIELDS;
+	BUILD_BUG_ON(sizeof(struct mlx5e_ktls_offload_context_tx *) >
+		     TLS_OFFLOAD_CONTEXT_SIZE_TX);
 
-	gcm_iv      = MLX5_ADDR_OF(tls_static_params, ctx, gcm_iv);
-	initial_rn  = MLX5_ADDR_OF(tls_static_params, ctx, initial_record_number);
-
-	memcpy(gcm_iv,      salt,    salt_sz);
-	memcpy(initial_rn,  rec_seq, rec_seq_sz);
-
-	tls_version = MLX5E_STATIC_PARAMS_CONTEXT_TLS_1_2;
-
-	MLX5_SET(tls_static_params, ctx, tls_version, tls_version);
-	MLX5_SET(tls_static_params, ctx, const_1, 1);
-	MLX5_SET(tls_static_params, ctx, const_2, 2);
-	MLX5_SET(tls_static_params, ctx, encryption_standard,
-		 MLX5E_ENCRYPTION_STANDARD_TLS);
-	MLX5_SET(tls_static_params, ctx, dek_index, priv_tx->key_id);
+	*ctx = priv_tx;
 }
 
-static void
-build_static_params(struct mlx5e_umr_wqe *wqe, u16 pc, u32 sqn,
-		    struct mlx5e_ktls_offload_context_tx *priv_tx,
-		    bool fence)
+static struct mlx5e_ktls_offload_context_tx *
+mlx5e_get_ktls_tx_priv_ctx(struct tls_context *tls_ctx)
 {
-	struct mlx5_wqe_ctrl_seg     *cseg  = &wqe->ctrl;
-	struct mlx5_wqe_umr_ctrl_seg *ucseg = &wqe->uctrl;
+	struct mlx5e_ktls_offload_context_tx **ctx =
+		__tls_driver_ctx(tls_ctx, TLS_OFFLOAD_CTX_DIR_TX);
 
-#define STATIC_PARAMS_DS_CNT \
-	DIV_ROUND_UP(MLX5E_KTLS_STATIC_UMR_WQE_SZ, MLX5_SEND_WQE_DS)
-
-	cseg->opmod_idx_opcode = cpu_to_be32((pc << 8) | MLX5_OPCODE_UMR |
-					     (MLX5_OPC_MOD_TLS_TIS_STATIC_PARAMS << 24));
-	cseg->qpn_ds           = cpu_to_be32((sqn << MLX5_WQE_CTRL_QPN_SHIFT) |
-					     STATIC_PARAMS_DS_CNT);
-	cseg->fm_ce_se         = fence ? MLX5_FENCE_MODE_INITIATOR_SMALL : 0;
-	cseg->tisn             = cpu_to_be32(priv_tx->tisn << 8);
-
-	ucseg->flags = MLX5_UMR_INLINE;
-	ucseg->bsf_octowords = cpu_to_be16(MLX5_ST_SZ_BYTES(tls_static_params) / 16);
-
-	fill_static_params_ctx(wqe->tls_static_params_ctx, priv_tx);
+	return *ctx;
 }
 
-static void
-fill_progress_params_ctx(void *ctx, struct mlx5e_ktls_offload_context_tx *priv_tx)
+int mlx5e_ktls_add_tx(struct net_device *netdev, struct sock *sk,
+		      struct tls_crypto_info *crypto_info, u32 start_offload_tcp_sn)
 {
-	MLX5_SET(tls_progress_params, ctx, tisn, priv_tx->tisn);
-	MLX5_SET(tls_progress_params, ctx, record_tracker_state,
-		 MLX5E_TLS_PROGRESS_PARAMS_RECORD_TRACKER_STATE_START);
-	MLX5_SET(tls_progress_params, ctx, auth_state,
-		 MLX5E_TLS_PROGRESS_PARAMS_AUTH_STATE_NO_OFFLOAD);
+	struct mlx5e_ktls_offload_context_tx *priv_tx;
+	struct tls_context *tls_ctx;
+	struct mlx5_core_dev *mdev;
+	struct mlx5e_priv *priv;
+	int err;
+
+	tls_ctx = tls_get_ctx(sk);
+	priv = netdev_priv(netdev);
+	mdev = priv->mdev;
+
+	priv_tx = kzalloc(sizeof(*priv_tx), GFP_KERNEL);
+	if (!priv_tx)
+		return -ENOMEM;
+
+	err = mlx5_ktls_create_key(mdev, crypto_info, &priv_tx->key_id);
+	if (err)
+		goto err_create_key;
+
+	priv_tx->expected_seq = start_offload_tcp_sn;
+	priv_tx->crypto_info  =
+		*(struct tls12_crypto_info_aes_gcm_128 *)crypto_info;
+	priv_tx->tx_ctx = tls_offload_ctx_tx(tls_ctx);
+
+	mlx5e_set_ktls_tx_priv_ctx(tls_ctx, priv_tx);
+
+	err = mlx5e_ktls_create_tis(mdev, &priv_tx->tisn);
+	if (err)
+		goto err_create_tis;
+
+	priv_tx->ctx_post_pending = true;
+
+	return 0;
+
+err_create_tis:
+	mlx5_ktls_destroy_key(mdev, priv_tx->key_id);
+err_create_key:
+	kfree(priv_tx);
+	return err;
 }
 
-static void
-build_progress_params(struct mlx5e_tx_wqe *wqe, u16 pc, u32 sqn,
-		      struct mlx5e_ktls_offload_context_tx *priv_tx,
-		      bool fence)
+void mlx5e_ktls_del_tx(struct net_device *netdev, struct tls_context *tls_ctx)
 {
-	struct mlx5_wqe_ctrl_seg *cseg = &wqe->ctrl;
+	struct mlx5e_ktls_offload_context_tx *priv_tx;
+	struct mlx5_core_dev *mdev;
+	struct mlx5e_priv *priv;
 
-#define PROGRESS_PARAMS_DS_CNT \
-	DIV_ROUND_UP(MLX5E_KTLS_PROGRESS_WQE_SZ, MLX5_SEND_WQE_DS)
+	priv_tx = mlx5e_get_ktls_tx_priv_ctx(tls_ctx);
+	priv = netdev_priv(netdev);
+	mdev = priv->mdev;
 
-	cseg->opmod_idx_opcode =
-		cpu_to_be32((pc << 8) | MLX5_OPCODE_SET_PSV |
-			    (MLX5_OPC_MOD_TLS_TIS_PROGRESS_PARAMS << 24));
-	cseg->qpn_ds           = cpu_to_be32((sqn << MLX5_WQE_CTRL_QPN_SHIFT) |
-					     PROGRESS_PARAMS_DS_CNT);
-	cseg->fm_ce_se         = fence ? MLX5_FENCE_MODE_INITIATOR_SMALL : 0;
-
-	fill_progress_params_ctx(wqe->tls_progress_params_ctx, priv_tx);
+	mlx5e_destroy_tis(mdev, priv_tx->tisn);
+	mlx5_ktls_destroy_key(mdev, priv_tx->key_id);
+	kfree(priv_tx);
 }
 
 static void tx_fill_wi(struct mlx5e_txqsq *sq,
@@ -113,11 +147,6 @@ static void tx_fill_wi(struct mlx5e_txqsq *sq,
 		.num_bytes  = num_bytes,
 		.resync_dump_frag_page = page,
 	};
-}
-
-void mlx5e_ktls_tx_offload_set_pending(struct mlx5e_ktls_offload_context_tx *priv_tx)
-{
-	priv_tx->ctx_post_pending = true;
 }
 
 static bool
@@ -135,12 +164,15 @@ post_static_params(struct mlx5e_txqsq *sq,
 		   struct mlx5e_ktls_offload_context_tx *priv_tx,
 		   bool fence)
 {
-	u16 pi, num_wqebbs = MLX5E_KTLS_STATIC_WQEBBS;
-	struct mlx5e_umr_wqe *umr_wqe;
+	struct mlx5e_set_tls_static_params_wqe *wqe;
+	u16 pi, num_wqebbs;
 
+	num_wqebbs = MLX5E_TLS_SET_STATIC_PARAMS_WQEBBS;
 	pi = mlx5e_txqsq_get_next_pi(sq, num_wqebbs);
-	umr_wqe = MLX5E_TLS_FETCH_UMR_WQE(sq, pi);
-	build_static_params(umr_wqe, sq->pc, sq->sqn, priv_tx, fence);
+	wqe = MLX5E_TLS_FETCH_SET_STATIC_PARAMS_WQE(sq, pi);
+	mlx5e_ktls_build_static_params(wqe, sq->pc, sq->sqn, &priv_tx->crypto_info,
+				       priv_tx->tisn, priv_tx->key_id, 0, fence,
+				       TLS_OFFLOAD_CTX_DIR_TX);
 	tx_fill_wi(sq, pi, num_wqebbs, 0, NULL);
 	sq->pc += num_wqebbs;
 }
@@ -150,12 +182,14 @@ post_progress_params(struct mlx5e_txqsq *sq,
 		     struct mlx5e_ktls_offload_context_tx *priv_tx,
 		     bool fence)
 {
-	u16 pi, num_wqebbs = MLX5E_KTLS_PROGRESS_WQEBBS;
-	struct mlx5e_tx_wqe *wqe;
+	struct mlx5e_set_tls_progress_params_wqe *wqe;
+	u16 pi, num_wqebbs;
 
+	num_wqebbs = MLX5E_TLS_SET_PROGRESS_PARAMS_WQEBBS;
 	pi = mlx5e_txqsq_get_next_pi(sq, num_wqebbs);
-	wqe = MLX5E_TLS_FETCH_PROGRESS_WQE(sq, pi);
-	build_progress_params(wqe, sq->pc, sq->sqn, priv_tx, fence);
+	wqe = MLX5E_TLS_FETCH_SET_PROGRESS_PARAMS_WQE(sq, pi);
+	mlx5e_ktls_build_progress_params(wqe, sq->pc, sq->sqn, priv_tx->tisn, fence, 0,
+					 TLS_OFFLOAD_CTX_DIR_TX);
 	tx_fill_wi(sq, pi, num_wqebbs, 0, NULL);
 	sq->pc += num_wqebbs;
 }
@@ -284,7 +318,7 @@ tx_post_resync_dump(struct mlx5e_txqsq *sq, skb_frag_t *frag, u32 tisn, bool fir
 
 	cseg->opmod_idx_opcode = cpu_to_be32((sq->pc << 8)  | MLX5_OPCODE_DUMP);
 	cseg->qpn_ds           = cpu_to_be32((sq->sqn << 8) | ds_cnt);
-	cseg->tisn             = cpu_to_be32(tisn << 8);
+	cseg->tis_tir_num      = cpu_to_be32(tisn << 8);
 	cseg->fm_ce_se         = first ? MLX5_FENCE_MODE_INITIATOR_SMALL : 0;
 
 	fsz = skb_frag_size(frag);

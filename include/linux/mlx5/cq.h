@@ -33,7 +33,6 @@
 #ifndef MLX5_CORE_CQ_H
 #define MLX5_CORE_CQ_H
 
-#include <rdma/ib_verbs.h>
 #include <linux/mlx5/driver.h>
 #include <linux/refcount.h>
 

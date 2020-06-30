@@ -578,6 +578,33 @@ bool mlx5e_post_rx_wqes(struct mlx5e_rq *rq)
 	return !!err;
 }
 
+void mlx5e_free_icosq_descs(struct mlx5e_icosq *sq)
+{
+	u16 sqcc;
+
+	sqcc = sq->cc;
+
+	while (sqcc != sq->pc) {
+		struct mlx5e_icosq_wqe_info *wi;
+		u16 ci;
+
+		ci = mlx5_wq_cyc_ctr2ix(&sq->wq, sqcc);
+		wi = &sq->db.wqe_info[ci];
+		sqcc += wi->num_wqebbs;
+#ifdef CONFIG_MLX5_EN_TLS
+		switch (wi->wqe_type) {
+		case MLX5E_ICOSQ_WQE_SET_PSV_TLS:
+			mlx5e_ktls_handle_ctx_completion(wi);
+			break;
+		case MLX5E_ICOSQ_WQE_GET_PSV_TLS:
+			mlx5e_ktls_handle_get_psv_completion(wi, sq);
+			break;
+		}
+#endif
+	}
+	sq->cc = sqcc;
+}
+
 int mlx5e_poll_ico_cq(struct mlx5e_cq *cq)
 {
 	struct mlx5e_icosq *sq = container_of(cq, struct mlx5e_icosq, cq);
@@ -633,6 +660,16 @@ int mlx5e_poll_ico_cq(struct mlx5e_cq *cq)
 				break;
 			case MLX5E_ICOSQ_WQE_NOP:
 				break;
+#ifdef CONFIG_MLX5_EN_TLS
+			case MLX5E_ICOSQ_WQE_UMR_TLS:
+				break;
+			case MLX5E_ICOSQ_WQE_SET_PSV_TLS:
+				mlx5e_ktls_handle_ctx_completion(wi);
+				break;
+			case MLX5E_ICOSQ_WQE_GET_PSV_TLS:
+				mlx5e_ktls_handle_get_psv_completion(wi, sq);
+				break;
+#endif
 			default:
 				netdev_WARN_ONCE(cq->channel->netdev,
 						 "Bad WQE type in ICOSQ WQE info: 0x%x\n",
@@ -982,9 +1019,7 @@ static inline void mlx5e_build_rx_skb(struct mlx5_cqe64 *cqe,
 
 	skb->mac_len = ETH_HLEN;
 
-#ifdef CONFIG_MLX5_EN_TLS
-	mlx5e_tls_handle_rx_skb(netdev, skb, &cqe_bcnt);
-#endif
+	mlx5e_tls_handle_rx_skb(rq, skb, cqe, &cqe_bcnt);
 
 	if (lro_num_seg > 1) {
 		mlx5e_lro_update_hdr(skb, cqe, cqe_bcnt);
