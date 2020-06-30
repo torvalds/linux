@@ -23,7 +23,8 @@ properties:
 
   reg:
     items:
-      - description: I2S configuration
+      - description: I2S registers
+      - description: I2S gen configuration
 
   reg-names:
     items:
@@ -60,7 +61,8 @@ examples:
      i2s3: i2s@20140000 {
          compatible = "intel,keembay-i2s";
          #sound-dai-cells = <0>;
-         reg = <0x20140000 0x200 0x202a00a4 0x4>;
+         reg = <0x20140000 0x200>, /* I2S registers */
+               <0x202a00a4 0x4>; /* I2S gen configuration */
          reg-names = "i2s-regs", "i2s_gen_cfg";
          interrupts = <GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>;
          clock-names = "osc", "apb_clk";
