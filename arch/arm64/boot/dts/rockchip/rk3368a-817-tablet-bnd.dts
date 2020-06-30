@@ -263,7 +263,7 @@
 	>;
 	vop-dclk-mode = <1>;
 	auto-min-freq = <240000>;
-	auto-freq-en = <1>;
+	auto-freq-en = <0>;
 };
 
 &dsi {
