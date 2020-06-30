@@ -1797,22 +1797,12 @@ static long bch2_dio_write_loop(struct dio_write *dio)
 		goto loop;
 
 	while (1) {
-		size_t extra = dio->iter.count -
-			min(BIO_MAX_VECS * PAGE_SIZE, dio->iter.count);
-
 		if (kthread)
 			kthread_use_mm(dio->mm);
 		BUG_ON(current->faults_disabled_mapping);
 		current->faults_disabled_mapping = mapping;
 
-		/*
-		 * Don't issue more than 2MB at once, the bcachefs io path in
-		 * io.c can't bounce more than that:
-		 */
-
-		dio->iter.count -= extra;
 		ret = bio_iov_iter_get_pages(bio, &dio->iter);
-		dio->iter.count += extra;
 
 		current->faults_disabled_mapping = NULL;
 		if (kthread)
