@@ -3744,51 +3744,23 @@ static void modify_qp_init_to_init(struct ib_qp *ibqp,
 	}
 }
 
-static bool check_wqe_rq_mtt_count(struct hns_roce_dev *hr_dev,
-				   struct hns_roce_qp *hr_qp, int mtt_cnt,
-				   u32 page_size)
-{
-	struct ib_device *ibdev = &hr_dev->ib_dev;
-
-	if (hr_qp->rq.wqe_cnt < 1)
-		return true;
-
-	if (mtt_cnt < 1) {
-		ibdev_err(ibdev, "failed to find RQWQE buf ba of QP(0x%lx)\n",
-			  hr_qp->qpn);
-		return false;
-	}
-
-	if (mtt_cnt < MTT_MIN_COUNT &&
-		(hr_qp->rq.offset + page_size) < hr_qp->buff_size) {
-		ibdev_err(ibdev,
-			  "failed to find next RQWQE buf ba of QP(0x%lx)\n",
-			  hr_qp->qpn);
-		return false;
-	}
-
-	return true;
-}
-
 static int config_qp_rq_buf(struct hns_roce_dev *hr_dev,
 			    struct hns_roce_qp *hr_qp,
 			    struct hns_roce_v2_qp_context *context,
 			    struct hns_roce_v2_qp_context *qpc_mask)
 {
-	struct ib_qp *ibqp = &hr_qp->ibqp;
 	u64 mtts[MTT_MIN_COUNT] = { 0 };
 	u64 wqe_sge_ba;
-	u32 page_size;
 	int count;
 
 	/* Search qp buf's mtts */
-	page_size = 1 << hr_qp->mtr.hem_cfg.buf_pg_shift;
-	count = hns_roce_mtr_find(hr_dev, &hr_qp->mtr,
-				  hr_qp->rq.offset / page_size, mtts,
+	count = hns_roce_mtr_find(hr_dev, &hr_qp->mtr, hr_qp->rq.offset, mtts,
 				  MTT_MIN_COUNT, &wqe_sge_ba);
-	if (!ibqp->srq)
-		if (!check_wqe_rq_mtt_count(hr_dev, hr_qp, count, page_size))
-			return -EINVAL;
+	if (hr_qp->rq.wqe_cnt && count < 1) {
+		ibdev_err(&hr_dev->ib_dev,
+			  "failed to find RQ WQE, QPN = 0x%lx.\n", hr_qp->qpn);
+		return -EINVAL;
+	}
 
 	context->wqe_sge_ba = cpu_to_le32(wqe_sge_ba >> 3);
 	qpc_mask->wqe_sge_ba = 0;
@@ -3890,7 +3862,6 @@ static int config_qp_sq_buf(struct hns_roce_dev *hr_dev,
 	struct ib_device *ibdev = &hr_dev->ib_dev;
 	u64 sge_cur_blk = 0;
 	u64 sq_cur_blk = 0;
-	u32 page_size;
 	int count;
 
 	/* search qp buf's mtts */
@@ -3901,9 +3872,8 @@ static int config_qp_sq_buf(struct hns_roce_dev *hr_dev,
 		return -EINVAL;
 	}
 	if (hr_qp->sge.sge_cnt > 0) {
-		page_size = 1 << hr_qp->mtr.hem_cfg.buf_pg_shift;
 		count = hns_roce_mtr_find(hr_dev, &hr_qp->mtr,
-					  hr_qp->sge.offset / page_size,
+					  hr_qp->sge.offset,
 					  &sge_cur_blk, 1, NULL);
 		if (count < 1) {
 			ibdev_err(ibdev, "failed to find QP(0x%lx) SGE buf.\n",

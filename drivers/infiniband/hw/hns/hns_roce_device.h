@@ -348,20 +348,22 @@ struct hns_roce_buf_attr {
 	bool mtt_only; /* only alloc buffer-required MTT memory */
 };
 
+struct hns_roce_hem_cfg {
+	dma_addr_t	root_ba; /* root BA table's address */
+	bool		is_direct; /* addressing without BA table */
+	unsigned int	ba_pg_shift; /* BA table page shift */
+	unsigned int	buf_pg_shift; /* buffer page shift */
+	unsigned int	buf_pg_count;  /* buffer page count */
+	struct hns_roce_buf_region region[HNS_ROCE_MAX_BT_REGION];
+	int		region_count;
+};
+
 /* memory translate region */
 struct hns_roce_mtr {
 	struct hns_roce_hem_list hem_list; /* multi-hop addressing resource */
 	struct ib_umem		*umem; /* user space buffer */
 	struct hns_roce_buf	*kmem; /* kernel space buffer */
-	struct {
-		dma_addr_t	root_ba; /* root BA table's address */
-		bool		is_direct; /* addressing without BA table */
-		unsigned int	ba_pg_shift; /* BA table page shift */
-		unsigned int	buf_pg_shift; /* buffer page shift */
-		int		buf_pg_count;  /* buffer page count */
-		struct hns_roce_buf_region region[HNS_ROCE_MAX_BT_REGION];
-		unsigned int	region_count;
-	} hem_cfg; /* config for hardware addressing */
+	struct hns_roce_hem_cfg  hem_cfg; /* config for hardware addressing */
 };
 
 struct hns_roce_mw {
