@@ -110,6 +110,9 @@ static inline bool efx_nic_may_tx_pio(struct efx_tx_queue *tx_queue)
 	       efx_nic_tx_is_empty(partner);
 }
 
+int efx_enqueue_skb_tso(struct efx_tx_queue *tx_queue, struct sk_buff *skb,
+			bool *data_mapped);
+
 /* Decide whether to push a TX descriptor to the NIC vs merely writing
  * the doorbell.  This can reduce latency when we are adding a single
  * descriptor to an empty queue, but is otherwise pointless.  Further,

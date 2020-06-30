@@ -10,7 +10,7 @@
 
 #include "net_driver.h"
 #include "efx.h"
-#include "nic.h"
+#include "nic_common.h"
 #include "tx_common.h"
 
 static unsigned int efx_tx_cb_page_count(struct efx_tx_queue *tx_queue)
