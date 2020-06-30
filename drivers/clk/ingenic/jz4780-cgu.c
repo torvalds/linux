@@ -4,6 +4,7 @@
  *
  * Copyright (c) 2013-2015 Imagination Technologies
  * Author: Paul Burton <paul.burton@mips.com>
+ * Copyright (c) 2020 周琰杰 (Zhou Yanjie) <zhouyanjie@wanyeetech.com>
  */
 
 #include <linux/clk-provider.h>
@@ -59,6 +60,7 @@
 #define USBPCR_VBUSVLDEXT	BIT(24)
 #define USBPCR_VBUSVLDEXTSEL	BIT(23)
 #define USBPCR_POR		BIT(22)
+#define USBPCR_SIDDQ		BIT(21)
 #define USBPCR_OTG_DISABLE	BIT(20)
 #define USBPCR_COMPDISTUNE_MASK	(0x7 << 17)
 #define USBPCR_OTGTUNE_MASK	(0x7 << 14)
@@ -100,32 +102,6 @@
 
 static struct ingenic_cgu *cgu;
 
-static u8 jz4780_otg_phy_get_parent(struct clk_hw *hw)
-{
-	/* we only use CLKCORE, revisit if that ever changes */
-	return 0;
-}
-
-static int jz4780_otg_phy_set_parent(struct clk_hw *hw, u8 idx)
-{
-	unsigned long flags;
-	u32 usbpcr1;
-
-	if (idx > 0)
-		return -EINVAL;
-
-	spin_lock_irqsave(&cgu->lock, flags);
-
-	usbpcr1 = readl(cgu->base + CGU_REG_USBPCR1);
-	usbpcr1 &= ~USBPCR1_REFCLKSEL_MASK;
-	/* we only use CLKCORE */
-	usbpcr1 |= USBPCR1_REFCLKSEL_CORE;
-	writel(usbpcr1, cgu->base + CGU_REG_USBPCR1);
-
-	spin_unlock_irqrestore(&cgu->lock, flags);
-	return 0;
-}
-
 static unsigned long jz4780_otg_phy_recalc_rate(struct clk_hw *hw,
 						unsigned long parent_rate)
 {
@@ -149,7 +125,6 @@ static unsigned long jz4780_otg_phy_recalc_rate(struct clk_hw *hw,
 		return 19200000;
 	}
 
-	BUG();
 	return parent_rate;
 }
 
@@ -206,13 +181,43 @@ static int jz4780_otg_phy_set_rate(struct clk_hw *hw, unsigned long req_rate,
 	return 0;
 }
 
-static const struct clk_ops jz4780_otg_phy_ops = {
-	.get_parent = jz4780_otg_phy_get_parent,
-	.set_parent = jz4780_otg_phy_set_parent,
+static int jz4780_otg_phy_enable(struct clk_hw *hw)
+{
+	void __iomem *reg_opcr		= cgu->base + CGU_REG_OPCR;
+	void __iomem *reg_usbpcr	= cgu->base + CGU_REG_USBPCR;
 
+	writel(readl(reg_opcr) | OPCR_SPENDN0, reg_opcr);
+	writel(readl(reg_usbpcr) & ~USBPCR_OTG_DISABLE & ~USBPCR_SIDDQ, reg_usbpcr);
+	return 0;
+}
+
+static void jz4780_otg_phy_disable(struct clk_hw *hw)
+{
+	void __iomem *reg_opcr		= cgu->base + CGU_REG_OPCR;
+	void __iomem *reg_usbpcr	= cgu->base + CGU_REG_USBPCR;
+
+	writel(readl(reg_opcr) & ~OPCR_SPENDN0, reg_opcr);
+	writel(readl(reg_usbpcr) | USBPCR_OTG_DISABLE | USBPCR_SIDDQ, reg_usbpcr);
+}
+
+static int jz4780_otg_phy_is_enabled(struct clk_hw *hw)
+{
+	void __iomem *reg_opcr		= cgu->base + CGU_REG_OPCR;
+	void __iomem *reg_usbpcr	= cgu->base + CGU_REG_USBPCR;
+
+	return (readl(reg_opcr) & OPCR_SPENDN0) &&
+		!(readl(reg_usbpcr) & USBPCR_SIDDQ) &&
+		!(readl(reg_usbpcr) & USBPCR_OTG_DISABLE);
+}
+
+static const struct clk_ops jz4780_otg_phy_ops = {
 	.recalc_rate = jz4780_otg_phy_recalc_rate,
 	.round_rate = jz4780_otg_phy_round_rate,
 	.set_rate = jz4780_otg_phy_set_rate,
+
+	.enable		= jz4780_otg_phy_enable,
+	.disable	= jz4780_otg_phy_disable,
+	.is_enabled	= jz4780_otg_phy_is_enabled,
 };
 
 static int jz4780_core1_enable(struct clk_hw *hw)
