@@ -1837,7 +1837,7 @@ void blk_cgroup_bio_start(struct bio *bio)
 	 */
 	if (!bio_flagged(bio, BIO_CGROUP_ACCT)) {
 		bio_set_flag(bio, BIO_CGROUP_ACCT);
-			bis->cur.bytes[rwd] += bio->bi_iter.bi_size;
+		bis->cur.bytes[rwd] += bio->bi_iter.bi_size;
 	}
 	bis->cur.ios[rwd]++;
 
