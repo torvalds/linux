@@ -7332,6 +7332,10 @@ enum intel_display_power_domain intel_port_to_power_domain(enum port port)
 		return POWER_DOMAIN_PORT_DDI_F_LANES;
 	case PORT_G:
 		return POWER_DOMAIN_PORT_DDI_G_LANES;
+	case PORT_H:
+		return POWER_DOMAIN_PORT_DDI_H_LANES;
+	case PORT_I:
+		return POWER_DOMAIN_PORT_DDI_I_LANES;
 	default:
 		MISSING_CASE(port);
 		return POWER_DOMAIN_PORT_OTHER;
