@@ -618,8 +618,6 @@ force_link:
 		break;
 	}
 
-	if (state->link)
-		reg |= LINK_STS;
 	if (state->duplex == DUPLEX_FULL)
 		reg |= DUPLX_MODE;
 
@@ -650,6 +648,20 @@ static void bcm_sf2_sw_mac_link_down(struct dsa_switch *ds, int port,
 				     unsigned int mode,
 				     phy_interface_t interface)
 {
+	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
+	u32 reg, offset;
+
+	if (port != core_readl(priv, CORE_IMP0_PRT_ID)) {
+		if (priv->type == BCM7445_DEVICE_ID)
+			offset = CORE_STS_OVERRIDE_GMIIP_PORT(port);
+		else
+			offset = CORE_STS_OVERRIDE_GMIIP2_PORT(port);
+
+		reg = core_readl(priv, offset);
+		reg &= ~LINK_STS;
+		core_writel(priv, reg, offset);
+	}
+
 	bcm_sf2_sw_mac_link_set(ds, port, interface, false);
 }
 
@@ -662,8 +674,20 @@ static void bcm_sf2_sw_mac_link_up(struct dsa_switch *ds, int port,
 {
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
 	struct ethtool_eee *p = &priv->dev->ports[port].eee;
+	u32 reg, offset;
 
 	bcm_sf2_sw_mac_link_set(ds, port, interface, true);
+
+	if (port != core_readl(priv, CORE_IMP0_PRT_ID)) {
+		if (priv->type == BCM7445_DEVICE_ID)
+			offset = CORE_STS_OVERRIDE_GMIIP_PORT(port);
+		else
+			offset = CORE_STS_OVERRIDE_GMIIP2_PORT(port);
+
+		reg = core_readl(priv, offset);
+		reg |= LINK_STS;
+		core_writel(priv, reg, offset);
+	}
 
 	if (mode == MLO_AN_PHY && phydev)
 		p->eee_enabled = b53_eee_init(ds, port, phydev);
