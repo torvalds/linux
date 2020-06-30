@@ -238,7 +238,7 @@ static int acp3x_dma_open(struct snd_soc_component *component,
 	}
 
 	if (!adata->play_stream && !adata->capture_stream &&
-		adata->i2ssp_play_stream && !adata->i2ssp_capture_stream)
+	    !adata->i2ssp_play_stream && !adata->i2ssp_capture_stream)
 		rv_writel(1, adata->acp3x_base + mmACP_EXTERNAL_INTR_ENB);
 
 	i2s_data->acp3x_base = adata->acp3x_base;
