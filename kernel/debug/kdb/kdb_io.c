@@ -545,18 +545,18 @@ static int kdb_search_string(char *searched, char *searchfor)
 static void kdb_msg_write(const char *msg, int msg_len)
 {
 	struct console *c;
+	const char *cp;
+	int len;
 
 	if (msg_len == 0)
 		return;
 
-	if (dbg_io_ops) {
-		const char *cp = msg;
-		int len = msg_len;
+	cp = msg;
+	len = msg_len;
 
-		while (len--) {
-			dbg_io_ops->write_char(*cp);
-			cp++;
-		}
+	while (len--) {
+		dbg_io_ops->write_char(*cp);
+		cp++;
 	}
 
 	for_each_console(c) {
