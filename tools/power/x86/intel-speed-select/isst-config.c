@@ -198,7 +198,7 @@ int out_format_is_json(void)
 
 static int get_stored_topology_info(int cpu, int *core_id, int *pkg_id, int *die_id)
 {
-	const char *pathname = "/tmp/isst_cpu_topology.dat";
+	const char *pathname = "/var/run/isst_cpu_topology.dat";
 	struct cpu_topology cpu_top;
 	FILE *fp;
 	int ret;
@@ -230,7 +230,7 @@ err_ret:
 
 static void store_cpu_topology(void)
 {
-	const char *pathname = "/tmp/isst_cpu_topology.dat";
+	const char *pathname = "/var/run/isst_cpu_topology.dat";
 	FILE *fp;
 	int i;
 
@@ -246,6 +246,8 @@ static void store_cpu_topology(void)
 		fprintf(stderr, "Can't create file:%s\n", pathname);
 		return;
 	}
+
+	fprintf(stderr, "Caching topology information\n");
 
 	for (i = 0; i < topo_max_cpus; ++i) {
 		struct cpu_topology cpu_top;
