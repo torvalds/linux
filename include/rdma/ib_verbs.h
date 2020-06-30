@@ -2645,6 +2645,10 @@ struct ib_device_ops {
 	 */
 	int (*fill_stat_mr_entry)(struct sk_buff *msg, struct ib_mr *ibmr);
 
+	/* query driver for its ucontext properties */
+	int (*query_ucontext)(struct ib_ucontext *context,
+			      struct uverbs_attr_bundle *attrs);
+
 	DECLARE_RDMA_OBJ_SIZE(ib_ah);
 	DECLARE_RDMA_OBJ_SIZE(ib_cq);
 	DECLARE_RDMA_OBJ_SIZE(ib_pd);
