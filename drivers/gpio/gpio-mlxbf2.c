@@ -309,7 +309,7 @@ static int mlxbf2_gpio_resume(struct platform_device *pdev)
 }
 #endif
 
-static const struct acpi_device_id mlxbf2_gpio_acpi_match[] = {
+static const struct acpi_device_id __maybe_unused mlxbf2_gpio_acpi_match[] = {
 	{ "MLNXBF22", 0 },
 	{},
 };
