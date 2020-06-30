@@ -39,8 +39,6 @@ do {								\
 
 #define ELF_FDPIC_CORE_EFLAGS	0
 
-#define ELF_CORE_COPY_FPREGS(...) 0 /* No FPU regs to copy */
-
 /*
  * These are used to set parameters in the core dumps.
  */
