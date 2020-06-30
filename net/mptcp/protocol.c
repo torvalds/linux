@@ -179,13 +179,6 @@ static bool __mptcp_move_skbs_from_subflow(struct mptcp_sock *msk,
 		return false;
 	}
 
-	if (!(sk->sk_userlocks & SOCK_RCVBUF_LOCK)) {
-		int rcvbuf = max(ssk->sk_rcvbuf, sk->sk_rcvbuf);
-
-		if (rcvbuf > sk->sk_rcvbuf)
-			sk->sk_rcvbuf = rcvbuf;
-	}
-
 	tp = tcp_sk(ssk);
 	do {
 		u32 map_remaining, offset;
@@ -916,6 +909,100 @@ static int __mptcp_recvmsg_mskq(struct mptcp_sock *msk,
 	return copied;
 }
 
+/* receive buffer autotuning.  See tcp_rcv_space_adjust for more information.
+ *
+ * Only difference: Use highest rtt estimate of the subflows in use.
+ */
+static void mptcp_rcv_space_adjust(struct mptcp_sock *msk, int copied)
+{
+	struct mptcp_subflow_context *subflow;
+	struct sock *sk = (struct sock *)msk;
+	u32 time, advmss = 1;
+	u64 rtt_us, mstamp;
+
+	sock_owned_by_me(sk);
+
+	if (copied <= 0)
+		return;
+
+	msk->rcvq_space.copied += copied;
+
+	mstamp = div_u64(tcp_clock_ns(), NSEC_PER_USEC);
+	time = tcp_stamp_us_delta(mstamp, msk->rcvq_space.time);
+
+	rtt_us = msk->rcvq_space.rtt_us;
+	if (rtt_us && time < (rtt_us >> 3))
+		return;
+
+	rtt_us = 0;
+	mptcp_for_each_subflow(msk, subflow) {
+		const struct tcp_sock *tp;
+		u64 sf_rtt_us;
+		u32 sf_advmss;
+
+		tp = tcp_sk(mptcp_subflow_tcp_sock(subflow));
+
+		sf_rtt_us = READ_ONCE(tp->rcv_rtt_est.rtt_us);
+		sf_advmss = READ_ONCE(tp->advmss);
+
+		rtt_us = max(sf_rtt_us, rtt_us);
+		advmss = max(sf_advmss, advmss);
+	}
+
+	msk->rcvq_space.rtt_us = rtt_us;
+	if (time < (rtt_us >> 3) || rtt_us == 0)
+		return;
+
+	if (msk->rcvq_space.copied <= msk->rcvq_space.space)
+		goto new_measure;
+
+	if (sock_net(sk)->ipv4.sysctl_tcp_moderate_rcvbuf &&
+	    !(sk->sk_userlocks & SOCK_RCVBUF_LOCK)) {
+		int rcvmem, rcvbuf;
+		u64 rcvwin, grow;
+
+		rcvwin = ((u64)msk->rcvq_space.copied << 1) + 16 * advmss;
+
+		grow = rcvwin * (msk->rcvq_space.copied - msk->rcvq_space.space);
+
+		do_div(grow, msk->rcvq_space.space);
+		rcvwin += (grow << 1);
+
+		rcvmem = SKB_TRUESIZE(advmss + MAX_TCP_HEADER);
+		while (tcp_win_from_space(sk, rcvmem) < advmss)
+			rcvmem += 128;
+
+		do_div(rcvwin, advmss);
+		rcvbuf = min_t(u64, rcvwin * rcvmem,
+			       sock_net(sk)->ipv4.sysctl_tcp_rmem[2]);
+
+		if (rcvbuf > sk->sk_rcvbuf) {
+			u32 window_clamp;
+
+			window_clamp = tcp_win_from_space(sk, rcvbuf);
+			WRITE_ONCE(sk->sk_rcvbuf, rcvbuf);
+
+			/* Make subflows follow along.  If we do not do this, we
+			 * get drops at subflow level if skbs can't be moved to
+			 * the mptcp rx queue fast enough (announced rcv_win can
+			 * exceed ssk->sk_rcvbuf).
+			 */
+			mptcp_for_each_subflow(msk, subflow) {
+				struct sock *ssk;
+
+				ssk = mptcp_subflow_tcp_sock(subflow);
+				WRITE_ONCE(ssk->sk_rcvbuf, rcvbuf);
+				tcp_sk(ssk)->window_clamp = window_clamp;
+			}
+		}
+	}
+
+	msk->rcvq_space.space = msk->rcvq_space.copied;
+new_measure:
+	msk->rcvq_space.copied = 0;
+	msk->rcvq_space.time = mstamp;
+}
+
 static bool __mptcp_move_skbs(struct mptcp_sock *msk)
 {
 	unsigned int moved = 0;
@@ -1028,6 +1115,8 @@ static int mptcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 		set_bit(MPTCP_DATA_READY, &msk->flags);
 	}
 out_err:
+	mptcp_rcv_space_adjust(msk, copied);
+
 	release_sock(sk);
 	return copied;
 }
@@ -1241,6 +1330,7 @@ static int mptcp_init_sock(struct sock *sk)
 		return ret;
 
 	sk_sockets_allocated_inc(sk);
+	sk->sk_rcvbuf = sock_net(sk)->ipv4.sysctl_tcp_rmem[1];
 	sk->sk_sndbuf = sock_net(sk)->ipv4.sysctl_tcp_wmem[2];
 
 	return 0;
@@ -1423,6 +1513,22 @@ struct sock *mptcp_sk_clone(const struct sock *sk,
 	return nsk;
 }
 
+void mptcp_rcv_space_init(struct mptcp_sock *msk, const struct sock *ssk)
+{
+	const struct tcp_sock *tp = tcp_sk(ssk);
+
+	msk->rcvq_space.copied = 0;
+	msk->rcvq_space.rtt_us = 0;
+
+	msk->rcvq_space.time = tp->tcp_mstamp;
+
+	/* initial rcv_space offering made to peer */
+	msk->rcvq_space.space = min_t(u32, tp->rcv_wnd,
+				      TCP_INIT_CWND * tp->advmss);
+	if (msk->rcvq_space.space == 0)
+		msk->rcvq_space.space = TCP_INIT_CWND * TCP_MSS_DEFAULT;
+}
+
 static struct sock *mptcp_accept(struct sock *sk, int flags, int *err,
 				 bool kern)
 {
@@ -1471,6 +1577,7 @@ static struct sock *mptcp_accept(struct sock *sk, int flags, int *err,
 		list_add(&subflow->node, &msk->conn_list);
 		inet_sk_state_store(newsk, TCP_ESTABLISHED);
 
+		mptcp_rcv_space_init(msk, ssk);
 		bh_unlock_sock(new_mptcp_sock);
 
 		__MPTCP_INC_STATS(sock_net(sk), MPTCP_MIB_MPCAPABLEPASSIVEACK);
@@ -1631,6 +1738,8 @@ void mptcp_finish_connect(struct sock *ssk)
 	atomic64_set(&msk->snd_una, msk->write_seq);
 
 	mptcp_pm_new_connection(msk, 0);
+
+	mptcp_rcv_space_init(msk, ssk);
 }
 
 static void mptcp_sock_graft(struct sock *sk, struct socket *parent)
