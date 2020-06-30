@@ -2913,7 +2913,7 @@ static void pcnet32_watchdog(struct timer_list *t)
 	mod_timer(&lp->watchdog_timer, round_jiffies(PCNET32_WATCHDOG_TIMEOUT));
 }
 
-static int pcnet32_pm_suspend(struct device *device_d)
+static int __maybe_unused pcnet32_pm_suspend(struct device *device_d)
 {
 	struct net_device *dev = dev_get_drvdata(device_d);
 
@@ -2925,7 +2925,7 @@ static int pcnet32_pm_suspend(struct device *device_d)
 	return 0;
 }
 
-static int pcnet32_pm_resume(struct device *device_d)
+static int __maybe_unused pcnet32_pm_resume(struct device *device_d)
 {
 	struct net_device *dev = dev_get_drvdata(device_d);
 
