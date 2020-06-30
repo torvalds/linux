@@ -385,7 +385,6 @@ static int efx_probe_all(struct efx_nic *efx)
 		rc = -EINVAL;
 		goto fail3;
 	}
-	efx->rxq_entries = efx->txq_entries = EFX_DEFAULT_DMAQ_SIZE;
 
 #ifdef CONFIG_SFC_SRIOV
 	rc = efx->type->vswitching_probe(efx);

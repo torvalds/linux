@@ -1035,6 +1035,9 @@ int efx_init_struct(struct efx_nic *efx,
 	INIT_WORK(&efx->mac_work, efx_mac_work);
 	init_waitqueue_head(&efx->flush_wq);
 
+	efx->rxq_entries = EFX_DEFAULT_DMAQ_SIZE;
+	efx->txq_entries = EFX_DEFAULT_DMAQ_SIZE;
+
 	efx->mem_bar = UINT_MAX;
 
 	rc = efx_init_channels(efx);
