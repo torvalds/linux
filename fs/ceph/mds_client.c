@@ -1485,6 +1485,7 @@ int ceph_iterate_session_caps(struct ceph_mds_session *session,
 			cap->session = NULL;
 			list_del_init(&cap->session_caps);
 			session->s_nr_caps--;
+			atomic64_dec(&session->s_mdsc->metric.total_caps);
 			if (cap->queue_release)
 				__ceph_queue_cap_release(session, cap);
 			else

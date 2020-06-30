@@ -22,6 +22,7 @@ int ceph_metric_init(struct ceph_client_metric *m)
 	if (ret)
 		goto err_d_lease_mis;
 
+	atomic64_set(&m->total_caps, 0);
 	ret = percpu_counter_init(&m->i_caps_hit, 0, GFP_KERNEL);
 	if (ret)
 		goto err_i_caps_hit;

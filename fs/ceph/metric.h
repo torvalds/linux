@@ -12,6 +12,7 @@ struct ceph_client_metric {
 	struct percpu_counter d_lease_hit;
 	struct percpu_counter d_lease_mis;
 
+	atomic64_t            total_caps;
 	struct percpu_counter i_caps_hit;
 	struct percpu_counter i_caps_mis;
 
