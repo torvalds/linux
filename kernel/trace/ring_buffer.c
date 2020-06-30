@@ -3260,7 +3260,7 @@ __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
 	 * If this is the first commit on the page, then update
 	 * its timestamp.
 	 */
-	if (!tail)
+	if (unlikely(!tail))
 		tail_page->page->time_stamp = info->ts;
 
 	/* account for these added bytes */
