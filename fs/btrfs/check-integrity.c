@@ -660,7 +660,7 @@ static int btrfsic_process_superblock(struct btrfsic_state *state,
 		return -1;
 	}
 
-	state->csum_size = btrfs_super_csum_size(selected_super);
+	state->csum_size = state->fs_info->csum_size;
 
 	for (pass = 0; pass < 3; pass++) {
 		int num_copies;

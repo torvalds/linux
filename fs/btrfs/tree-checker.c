@@ -336,7 +336,7 @@ static int check_csum_item(struct extent_buffer *leaf, struct btrfs_key *key,
 {
 	struct btrfs_fs_info *fs_info = leaf->fs_info;
 	u32 sectorsize = fs_info->sectorsize;
-	u32 csumsize = btrfs_super_csum_size(fs_info->super_copy);
+	const u16 csumsize = fs_info->csum_size;
 
 	if (key->objectid != BTRFS_EXTENT_CSUM_OBJECTID) {
 		generic_err(leaf, slot,

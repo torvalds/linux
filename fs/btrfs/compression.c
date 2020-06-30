@@ -131,7 +131,7 @@ static int btrfs_decompress_bio(struct compressed_bio *cb);
 static inline int compressed_bio_size(struct btrfs_fs_info *fs_info,
 				      unsigned long disk_size)
 {
-	u16 csum_size = btrfs_super_csum_size(fs_info->super_copy);
+	const u16 csum_size = fs_info->csum_size;
 
 	return sizeof(struct compressed_bio) +
 		(DIV_ROUND_UP(disk_size, fs_info->sectorsize)) * csum_size;
@@ -142,7 +142,7 @@ static int check_compressed_csum(struct btrfs_inode *inode, struct bio *bio,
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	SHASH_DESC_ON_STACK(shash, fs_info->csum_shash);
-	const u16 csum_size = btrfs_super_csum_size(fs_info->super_copy);
+	const u16 csum_size = fs_info->csum_size;
 	struct page *page;
 	unsigned long i;
 	char *kaddr;
@@ -628,7 +628,7 @@ blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 	struct extent_map *em;
 	blk_status_t ret = BLK_STS_RESOURCE;
 	int faili = 0;
-	const u16 csum_size = btrfs_super_csum_size(fs_info->super_copy);
+	const u16 csum_size = fs_info->csum_size;
 	u8 *sums;
 
 	em_tree = &BTRFS_I(inode)->extent_tree;

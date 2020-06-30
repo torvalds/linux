@@ -610,7 +610,7 @@ static noinline_for_stack struct scrub_ctx *scrub_setup_ctx(
 	atomic_set(&sctx->bios_in_flight, 0);
 	atomic_set(&sctx->workers_pending, 0);
 	atomic_set(&sctx->cancel_req, 0);
-	sctx->csum_size = btrfs_super_csum_size(fs_info->super_copy);
+	sctx->csum_size = fs_info->csum_size;
 
 	spin_lock_init(&sctx->list_lock);
 	spin_lock_init(&sctx->stat_lock);

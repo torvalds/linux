@@ -321,7 +321,7 @@ static int btrfs_check_super_csum(struct btrfs_fs_info *fs_info,
 	crypto_shash_digest(shash, raw_disk_sb + BTRFS_CSUM_SIZE,
 			    BTRFS_SUPER_INFO_SIZE - BTRFS_CSUM_SIZE, result);
 
-	if (memcmp(disk_sb->csum, result, btrfs_super_csum_size(disk_sb)))
+	if (memcmp(disk_sb->csum, result, fs_info->csum_size))
 		return 1;
 
 	return 0;
@@ -454,7 +454,7 @@ static int csum_dirty_buffer(struct btrfs_fs_info *fs_info, struct page *page)
 	u64 start = page_offset(page);
 	u64 found_start;
 	u8 result[BTRFS_CSUM_SIZE];
-	u16 csum_size = btrfs_super_csum_size(fs_info->super_copy);
+	const u16 csum_size = fs_info->csum_size;
 	struct extent_buffer *eb;
 	int ret;
 
@@ -543,7 +543,7 @@ int btrfs_validate_metadata_buffer(struct btrfs_io_bio *io_bio, u64 phy_offset,
 
 	eb = (struct extent_buffer *)page->private;
 	fs_info = eb->fs_info;
-	csum_size = btrfs_super_csum_size(fs_info->super_copy);
+	csum_size = fs_info->csum_size;
 
 	/* the pending IO might have been the only thing that kept this buffer
 	 * in memory.  Make sure we have a ref for all this other checks

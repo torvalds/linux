@@ -2906,7 +2906,7 @@ static int check_data_csum(struct inode *inode, struct btrfs_io_bio *io_bio,
 	SHASH_DESC_ON_STACK(shash, fs_info->csum_shash);
 	char *kaddr;
 	u32 len = fs_info->sectorsize;
-	u16 csum_size = btrfs_super_csum_size(fs_info->super_copy);
+	const u16 csum_size = fs_info->csum_size;
 	u8 *csum_expected;
 	u8 csum[BTRFS_CSUM_SIZE];
 
@@ -7825,7 +7825,7 @@ static inline blk_status_t btrfs_submit_dio_bio(struct bio *bio,
 
 		csum_offset = file_offset - dip->logical_offset;
 		csum_offset >>= fs_info->sectorsize_bits;
-		csum_offset *= btrfs_super_csum_size(fs_info->super_copy);
+		csum_offset *= fs_info->csum_size;
 		btrfs_io_bio(bio)->csum = dip->csums + csum_offset;
 	}
 map:
@@ -7850,7 +7850,7 @@ static struct btrfs_dio_private *btrfs_create_dio_private(struct bio *dio_bio,
 	dip_size = sizeof(*dip);
 	if (!write && csum) {
 		struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
-		const u16 csum_size = btrfs_super_csum_size(fs_info->super_copy);
+		const u16 csum_size = fs_info->csum_size;
 		size_t nblocks;
 
 		nblocks = dio_bio->bi_iter.bi_size >> fs_info->sectorsize_bits;
