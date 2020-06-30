@@ -482,7 +482,6 @@ void intel_hpd_irq_handler(struct drm_i915_private *dev_priv,
 	 * only the one of them (DP) will have ->hpd_pulse().
 	 */
 	for_each_intel_encoder(&dev_priv->drm, encoder) {
-		bool has_hpd_pulse = intel_encoder_has_hpd_pulse(encoder);
 		enum port port = encoder->port;
 		bool long_hpd;
 
@@ -490,7 +489,7 @@ void intel_hpd_irq_handler(struct drm_i915_private *dev_priv,
 		if (!(BIT(pin) & pin_mask))
 			continue;
 
-		if (!has_hpd_pulse)
+		if (!intel_encoder_has_hpd_pulse(encoder))
 			continue;
 
 		long_hpd = long_mask & BIT(pin);
