@@ -634,7 +634,7 @@ static long zcrypt_rsa_modexpo(struct ap_perms *perms,
 {
 	struct zcrypt_card *zc, *pref_zc;
 	struct zcrypt_queue *zq, *pref_zq;
-	unsigned int weight, pref_weight;
+	unsigned int weight = 0, pref_weight = 0;
 	unsigned int func_code;
 	int qid = 0, rc = -ENODEV;
 	struct module *mod;
@@ -718,7 +718,7 @@ static long zcrypt_rsa_crt(struct ap_perms *perms,
 {
 	struct zcrypt_card *zc, *pref_zc;
 	struct zcrypt_queue *zq, *pref_zq;
-	unsigned int weight, pref_weight;
+	unsigned int weight = 0, pref_weight = 0;
 	unsigned int func_code;
 	int qid = 0, rc = -ENODEV;
 	struct module *mod;
@@ -803,7 +803,7 @@ static long _zcrypt_send_cprb(struct ap_perms *perms,
 	struct zcrypt_card *zc, *pref_zc;
 	struct zcrypt_queue *zq, *pref_zq;
 	struct ap_message ap_msg;
-	unsigned int weight, pref_weight;
+	unsigned int weight = 0, pref_weight = 0;
 	unsigned int func_code;
 	unsigned short *domain, tdom;
 	int qid = 0, rc = -ENODEV;
@@ -822,7 +822,7 @@ static long _zcrypt_send_cprb(struct ap_perms *perms,
 	 * domain but a control only domain, use the default domain as target.
 	 */
 	tdom = *domain;
-	if (tdom >= 0 && tdom < AP_DOMAINS &&
+	if (tdom < AP_DOMAINS &&
 	    !ap_test_config_usage_domain(tdom) &&
 	    ap_test_config_ctrl_domain(tdom) &&
 	    ap_domain_index >= 0)
@@ -931,7 +931,7 @@ static long _zcrypt_send_ep11_cprb(struct ap_perms *perms,
 	struct zcrypt_queue *zq, *pref_zq;
 	struct ep11_target_dev *targets;
 	unsigned short target_num;
-	unsigned int weight, pref_weight;
+	unsigned int weight = 0, pref_weight = 0;
 	unsigned int func_code;
 	struct ap_message ap_msg;
 	int qid = 0, rc = -ENODEV;
@@ -1040,7 +1040,7 @@ static long zcrypt_rng(char *buffer)
 {
 	struct zcrypt_card *zc, *pref_zc;
 	struct zcrypt_queue *zq, *pref_zq;
-	unsigned int weight, pref_weight;
+	unsigned int weight = 0, pref_weight = 0;
 	unsigned int func_code;
 	struct ap_message ap_msg;
 	unsigned int domain;

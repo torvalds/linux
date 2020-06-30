@@ -250,7 +250,7 @@ static ssize_t ep11_card_op_modes_show(struct device *dev,
 	ep11_get_card_info(ac->id, &ci, zc->online);
 
 	for (i = 0; ep11_op_modes[i].mode_txt; i++) {
-		if (ci.op_mode & (1 << ep11_op_modes[i].mode_bit)) {
+		if (ci.op_mode & (1ULL << ep11_op_modes[i].mode_bit)) {
 			if (n > 0)
 				buf[n++] = ' ';
 			n += scnprintf(buf + n, PAGE_SIZE - n,
@@ -345,7 +345,7 @@ static ssize_t ep11_queue_op_modes_show(struct device *dev,
 				     &di);
 
 	for (i = 0; ep11_op_modes[i].mode_txt; i++) {
-		if (di.op_mode & (1 << ep11_op_modes[i].mode_bit)) {
+		if (di.op_mode & (1ULL << ep11_op_modes[i].mode_bit)) {
 			if (n > 0)
 				buf[n++] = ' ';
 			n += scnprintf(buf + n, PAGE_SIZE - n,
