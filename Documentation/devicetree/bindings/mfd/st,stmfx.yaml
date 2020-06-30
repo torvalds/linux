@@ -73,8 +73,6 @@ properties:
           output-high: true
           output-low: true
 
-      additionalProperties: false
-
     additionalProperties: false
 
     required:
