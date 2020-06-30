@@ -829,6 +829,7 @@
 			num-cs = <4>;
 			clocks = <&spi_m_clk>;
 			resets = <&rst SPIM0_RESET>;
+			reset-names = "spi";
 			status = "disabled";
 		};
 
@@ -841,6 +842,7 @@
 			num-cs = <4>;
 			clocks = <&spi_m_clk>;
 			resets = <&rst SPIM1_RESET>;
+			reset-names = "spi";
 			status = "disabled";
 		};
 
