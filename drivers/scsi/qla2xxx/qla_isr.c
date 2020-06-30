@@ -31,35 +31,11 @@ const char *const port_state_str[] = {
 	"ONLINE"
 };
 
-static void qla24xx_purex_iocb(scsi_qla_host_t *vha, void *pkt,
-	void (*process_item)(struct scsi_qla_host *vha, void *pkt))
-{
-	struct purex_list *list = &vha->purex_list;
-	struct purex_item *item;
-	ulong flags;
-
-	item = kzalloc(sizeof(*item), GFP_KERNEL);
-	if (!item) {
-		ql_log(ql_log_warn, vha, 0x5092,
-		    ">> Failed allocate purex list item.\n");
-		return;
-	}
-
-	item->vha = vha;
-	item->process_item = process_item;
-	memcpy(&item->iocb, pkt, sizeof(item->iocb));
-
-	spin_lock_irqsave(&list->lock, flags);
-	list_add_tail(&item->list, &list->head);
-	spin_unlock_irqrestore(&list->lock, flags);
-
-	set_bit(PROCESS_PUREX_IOCB, &vha->dpc_flags);
-}
-
 static void
-qla24xx_process_abts(struct scsi_qla_host *vha, void *pkt)
+qla24xx_process_abts(struct scsi_qla_host *vha, struct purex_item *pkt)
 {
-	struct abts_entry_24xx *abts = pkt;
+	struct abts_entry_24xx *abts =
+	    (struct abts_entry_24xx *)&pkt->iocb;
 	struct qla_hw_data *ha = vha->hw;
 	struct els_entry_24xx *rsp_els;
 	struct abts_entry_24xx *abts_rsp;
@@ -787,6 +763,74 @@ qla27xx_handle_8200_aen(scsi_qla_host_t *vha, uint16_t *mb)
 		set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
 		qla2xxx_wake_dpc(vha);
 	}
+}
+
+struct purex_item *
+qla24xx_alloc_purex_item(scsi_qla_host_t *vha, uint16_t size)
+{
+	struct purex_item *item = NULL;
+	uint8_t item_hdr_size = sizeof(*item);
+
+	if (size > QLA_DEFAULT_PAYLOAD_SIZE) {
+		item = kzalloc(item_hdr_size +
+		    (size - QLA_DEFAULT_PAYLOAD_SIZE), GFP_ATOMIC);
+	} else {
+		if (atomic_inc_return(&vha->default_item.in_use) == 1) {
+			item = &vha->default_item;
+			goto initialize_purex_header;
+		} else {
+			item = kzalloc(item_hdr_size, GFP_ATOMIC);
+		}
+	}
+	if (!item) {
+		ql_log(ql_log_warn, vha, 0x5092,
+		       ">> Failed allocate purex list item.\n");
+
+		return NULL;
+	}
+
+initialize_purex_header:
+	item->vha = vha;
+	item->size = size;
+	return item;
+}
+
+static void
+qla24xx_queue_purex_item(scsi_qla_host_t *vha, struct purex_item *pkt,
+			 void (*process_item)(struct scsi_qla_host *vha,
+					      struct purex_item *pkt))
+{
+	struct purex_list *list = &vha->purex_list;
+	ulong flags;
+
+	pkt->process_item = process_item;
+
+	spin_lock_irqsave(&list->lock, flags);
+	list_add_tail(&pkt->list, &list->head);
+	spin_unlock_irqrestore(&list->lock, flags);
+
+	set_bit(PROCESS_PUREX_IOCB, &vha->dpc_flags);
+}
+
+/**
+ * qla24xx_copy_std_pkt() - Copy over purex ELS which is
+ * contained in a single IOCB.
+ * purex packet.
+ * @vha: SCSI driver HA context
+ * @pkt: ELS packet
+ */
+struct purex_item
+*qla24xx_copy_std_pkt(struct scsi_qla_host *vha, void *pkt)
+{
+	struct purex_item *item;
+
+	item = qla24xx_alloc_purex_item(vha,
+					QLA_DEFAULT_PAYLOAD_SIZE);
+	if (!item)
+		return item;
+
+	memcpy(&item->iocb, pkt, sizeof(item->iocb));
+	return item;
 }
 
 /**
@@ -3229,6 +3273,7 @@ void qla24xx_process_response_queue(struct scsi_qla_host *vha,
 {
 	struct sts_entry_24xx *pkt;
 	struct qla_hw_data *ha = vha->hw;
+	struct purex_item *pure_item;
 
 	if (!ha->flags.fw_started)
 		return;
@@ -3280,8 +3325,12 @@ process_err:
 			break;
 		case ABTS_RECV_24XX:
 			if (qla_ini_mode_enabled(vha)) {
-				qla24xx_purex_iocb(vha, pkt,
-				    qla24xx_process_abts);
+				pure_item = qla24xx_copy_std_pkt(vha, pkt);
+				if (!pure_item)
+					break;
+
+				qla24xx_queue_purex_item(vha, pure_item,
+							 qla24xx_process_abts);
 				break;
 			}
 			if (IS_QLA83XX(ha) || IS_QLA27XX(ha) ||
@@ -3332,13 +3381,18 @@ process_err:
 		{
 			struct purex_entry_24xx *purex = (void *)pkt;
 
-			if (purex->els_frame_payload[3] != ELS_COMMAND_RDP) {
+			if (purex->els_frame_payload[3] != ELS_RDP) {
 				ql_dbg(ql_dbg_init, vha, 0x5091,
 				    "Discarding ELS Request opcode %#x...\n",
 				    purex->els_frame_payload[3]);
 				break;
 			}
-			qla24xx_purex_iocb(vha, pkt, qla24xx_process_purex_rdp);
+			pure_item = qla24xx_copy_std_pkt(vha, pkt);
+			if (!pure_item)
+				break;
+
+			qla24xx_queue_purex_item(vha, pure_item,
+						 qla24xx_process_purex_rdp);
 			break;
 		}
 		default:

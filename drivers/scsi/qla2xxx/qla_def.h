@@ -34,6 +34,8 @@
 #include <scsi/scsi_transport_fc.h>
 #include <scsi/scsi_bsg_fc.h>
 
+#include <uapi/scsi/fc/fc_els.h>
+
 /* Big endian Fibre Channel S_ID (source ID) or D_ID (destination ID). */
 typedef struct {
 	uint8_t domain;
@@ -1304,7 +1306,6 @@ static inline bool qla2xxx_is_valid_mbs(unsigned int mbs)
 #define RNID_TYPE_ASIC_TEMP	0xC
 
 #define ELS_CMD_MAP_SIZE	32
-#define ELS_COMMAND_RDP		0x18
 
 /*
  * Firmware state codes from get firmware state mailbox command
@@ -4522,10 +4523,19 @@ struct active_regions {
 #define QLA_SET_DATA_RATE_NOLR	1
 #define QLA_SET_DATA_RATE_LR	2 /* Set speed and initiate LR */
 
+#define QLA_DEFAULT_PAYLOAD_SIZE	64
+/*
+ * This item might be allocated with a size > sizeof(struct purex_item).
+ * The "size" variable gives the size of the payload (which
+ * is variable) starting at "iocb".
+ */
 struct purex_item {
 	struct list_head list;
 	struct scsi_qla_host *vha;
-	void (*process_item)(struct scsi_qla_host *vha, void *pkt);
+	void (*process_item)(struct scsi_qla_host *vha,
+			     struct purex_item *pkt);
+	atomic_t in_use;
+	uint16_t size;
 	struct {
 		uint8_t iocb[64];
 	} iocb;
@@ -4725,6 +4735,7 @@ typedef struct scsi_qla_host {
 		struct list_head head;
 		spinlock_t lock;
 	} purex_list;
+	struct purex_item default_item;
 
 	struct name_list_extended gnl;
 	/* Count of active session/fcport */

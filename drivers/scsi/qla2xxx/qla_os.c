@@ -5893,10 +5893,12 @@ qla25xx_rdp_port_speed_currently(struct qla_hw_data *ha)
  * vha:	SCSI qla host
  * purex: RDP request received by HBA
  */
-void qla24xx_process_purex_rdp(struct scsi_qla_host *vha, void *pkt)
+void qla24xx_process_purex_rdp(struct scsi_qla_host *vha,
+			       struct purex_item *item)
 {
 	struct qla_hw_data *ha = vha->hw;
-	struct purex_entry_24xx *purex = pkt;
+	struct purex_entry_24xx *purex =
+	    (struct purex_entry_24xx *)&item->iocb;
 	dma_addr_t rsp_els_dma;
 	dma_addr_t rsp_payload_dma;
 	dma_addr_t stat_dma;
@@ -6306,6 +6308,15 @@ dealloc:
 		    rsp_els, rsp_els_dma);
 }
 
+void
+qla24xx_free_purex_item(struct purex_item *item)
+{
+	if (item == &item->vha->default_item)
+		memset(&item->vha->default_item, 0, sizeof(struct purex_item));
+	else
+		kfree(item);
+}
+
 void qla24xx_process_purex_list(struct purex_list *list)
 {
 	struct list_head head = LIST_HEAD_INIT(head);
@@ -6318,8 +6329,8 @@ void qla24xx_process_purex_list(struct purex_list *list)
 
 	list_for_each_entry_safe(item, next, &head, list) {
 		list_del(&item->list);
-		item->process_item(item->vha, &item->iocb);
-		kfree(item);
+		item->process_item(item->vha, item);
+		qla24xx_free_purex_item(item);
 	}
 }
 

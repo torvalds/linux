@@ -59,6 +59,7 @@ static struct rom_cmd {
 	{ MBC_IOCB_COMMAND_A64 },
 	{ MBC_GET_ADAPTER_LOOP_ID },
 	{ MBC_READ_SFP },
+	{ MBC_SET_RNID_PARAMS },
 	{ MBC_GET_RNID_PARAMS },
 	{ MBC_GET_SET_ZIO_THRESHOLD },
 };
@@ -4866,6 +4867,7 @@ qla24xx_get_port_login_templ(scsi_qla_host_t *vha, dma_addr_t buf_dma,
 	return rval;
 }
 
+#define PUREX_CMD_COUNT	2
 int
 qla25xx_set_els_cmds_supported(scsi_qla_host_t *vha)
 {
@@ -4874,12 +4876,12 @@ qla25xx_set_els_cmds_supported(scsi_qla_host_t *vha)
 	mbx_cmd_t *mcp = &mc;
 	uint8_t *els_cmd_map;
 	dma_addr_t els_cmd_map_dma;
-	uint cmd_opcode = ELS_COMMAND_RDP;
-	uint index = cmd_opcode / 8;
-	uint bit = cmd_opcode % 8;
+	uint8_t cmd_opcode[PUREX_CMD_COUNT];
+	uint8_t i, index, purex_bit;
 	struct qla_hw_data *ha = vha->hw;
 
-	if (!IS_QLA25XX(ha) && !IS_QLA2031(ha) && !IS_QLA27XX(ha))
+	if (!IS_QLA25XX(ha) && !IS_QLA2031(ha) &&
+	    !IS_QLA27XX(ha) && !IS_QLA28XX(ha))
 		return QLA_SUCCESS;
 
 	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1197,
@@ -4893,7 +4895,17 @@ qla25xx_set_els_cmds_supported(scsi_qla_host_t *vha)
 		return QLA_MEMORY_ALLOC_FAILED;
 	}
 
-	els_cmd_map[index] |= 1 << bit;
+	memset(els_cmd_map, 0, ELS_CMD_MAP_SIZE);
+
+	/* List of Purex ELS */
+	cmd_opcode[0] = ELS_FPIN;
+	cmd_opcode[1] = ELS_RDP;
+
+	for (i = 0; i < PUREX_CMD_COUNT; i++) {
+		index = cmd_opcode[i] / 8;
+		purex_bit = cmd_opcode[i] % 8;
+		els_cmd_map[index] |= 1 << purex_bit;
+	}
 
 	mcp->mb[0] = MBC_SET_RNID_PARAMS;
 	mcp->mb[1] = RNID_TYPE_ELS_CMD << 8;
