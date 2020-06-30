@@ -1247,7 +1247,11 @@ static void set_tdp_level_for_cpu(int cpu, void *arg1, void *arg2, void *arg3,
 			fprintf(stderr, "Option is set to online/offline\n");
 			ctdp_level.core_cpumask_size =
 				alloc_cpu_set(&ctdp_level.core_cpumask);
-			isst_get_coremask_info(cpu, tdp_level, &ctdp_level);
+			ret = isst_get_coremask_info(cpu, tdp_level, &ctdp_level);
+			if (ret) {
+				isst_display_error_info_message(1, "Can't get coremask, online/offline option is ignored", 0, 0);
+				return;
+			}
 			if (ctdp_level.cpu_count) {
 				int i, max_cpus = get_topo_max_cpus();
 				for (i = 0; i < max_cpus; ++i) {
