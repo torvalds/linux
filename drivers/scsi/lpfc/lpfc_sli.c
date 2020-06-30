@@ -1567,7 +1567,7 @@ lpfc_sli_ring_map(struct lpfc_hba *phba)
 		lpfc_config_ring(phba, i, pmb);
 		rc = lpfc_sli_issue_mbox(phba, pmb, MBX_POLL);
 		if (rc != MBX_SUCCESS) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"0446 Adapter failed to init (%d), "
 					"mbxCmd x%x CFG_RING, mbxStatus x%x, "
 					"ring %d\n",
@@ -1676,7 +1676,7 @@ lpfc_sli_next_iocb_slot (struct lpfc_hba *phba, struct lpfc_sli_ring *pring)
 		pring->sli.sli3.local_getidx = le32_to_cpu(pgp->cmdGetInx);
 
 		if (unlikely(pring->sli.sli3.local_getidx >= max_cmd_idx)) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"0315 Ring %d issue: portCmdGet %d "
 					"is bigger than cmd ring %d\n",
 					pring->ringno,
@@ -1962,8 +1962,7 @@ lpfc_sli_next_hbq_slot(struct lpfc_hba *phba, uint32_t hbqno)
 		hbqp->local_hbqGetIdx = getidx;
 
 		if (unlikely(hbqp->local_hbqGetIdx >= hbqp->entry_count)) {
-			lpfc_printf_log(phba, KERN_ERR,
-					LOG_SLI | LOG_VPORT,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"1802 HBQ %d: local_hbqGetIdx "
 					"%u is > than hbqp->entry_count %u\n",
 					hbqno, hbqp->local_hbqGetIdx,
@@ -2302,7 +2301,7 @@ lpfc_sli_hbqbuf_find(struct lpfc_hba *phba, uint32_t tag)
 		}
 	}
 	spin_unlock_irq(&phba->hbalock);
-	lpfc_printf_log(phba, KERN_ERR, LOG_SLI | LOG_VPORT,
+	lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 			"1803 Bad hbq tag. Data: x%x x%x\n",
 			tag, phba->hbqs[tag >> 16].buffer_count);
 	return NULL;
@@ -2556,7 +2555,7 @@ lpfc_sli_def_mbox_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	/* Check security permission status on INIT_LINK mailbox command */
 	if ((pmb->u.mb.mbxCommand == MBX_INIT_LINK) &&
 	    (pmb->u.mb.mbxStatus == MBXERR_SEC_NO_PERMISSION))
-		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2860 SLI authentication is required "
 				"for INIT_LINK but has not done yet\n");
 
@@ -2692,7 +2691,7 @@ lpfc_sli_handle_mb_event(struct lpfc_hba *phba)
 		if (lpfc_sli_chk_mbx_command(pmbox->mbxCommand) ==
 		    MBX_SHUTDOWN) {
 			/* Unknown mailbox command compl */
-			lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"(%d):0323 Unknown Mailbox command "
 					"x%x (x%x/x%x) Cmpl\n",
 					pmb->vport ? pmb->vport->vpi :
@@ -2850,7 +2849,7 @@ lpfc_nvme_unsol_ls_handler(struct lpfc_hba *phba, struct lpfc_iocbq *piocb)
 	}
 
 	if (unlikely(failwhy)) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_NVME_DISC | LOG_NVME_IOERR,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"6154 Drop NVME LS: SID %06X OXID x%X: %s\n",
 				sid, oxid, failwhy);
 		goto out_fail;
@@ -2890,7 +2889,7 @@ lpfc_nvme_unsol_ls_handler(struct lpfc_hba *phba, struct lpfc_iocbq *piocb)
 	if (!ret)
 		return;
 
-	lpfc_printf_log(phba, KERN_ERR, LOG_NVME_DISC | LOG_NVME_IOERR,
+	lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 			"6155 Drop NVME LS from DID %06X: SID %06X OXID x%X "
 			"NVMe%s handler failed %d\n",
 			did, sid, oxid,
@@ -3173,7 +3172,7 @@ lpfc_sli_iocbq_lookup(struct lpfc_hba *phba,
 	}
 
 	spin_unlock_irqrestore(temp_lock, iflag);
-	lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+	lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 			"0317 iotag x%x is out of "
 			"range: max iotag x%x wd0 x%x\n",
 			iotag, phba->sli.last_iotag,
@@ -3220,7 +3219,7 @@ lpfc_sli_iocbq_lookup_by_tag(struct lpfc_hba *phba,
 	}
 
 	spin_unlock_irqrestore(temp_lock, iflag);
-	lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+	lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 			"0372 iotag x%x lookup error: max iotag (x%x) "
 			"iocb_flag x%x\n",
 			iotag, phba->sli.last_iotag,
@@ -3396,7 +3395,7 @@ lpfc_sli_rsp_pointers_error(struct lpfc_hba *phba, struct lpfc_sli_ring *pring)
 	 * Ring <ringno> handler: portRspPut <portRspPut> is bigger than
 	 * rsp ring <portRspMax>
 	 */
-	lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+	lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 			"0312 Ring %d handler: portRspPut %d "
 			"is bigger than rsp ring %d\n",
 			pring->ringno, le32_to_cpu(pgp->rspPutInx),
@@ -3615,7 +3614,7 @@ lpfc_sli_handle_fast_ring_event(struct lpfc_hba *phba,
 					 phba->brd_no, adaptermsg);
 			} else {
 				/* Unknown IOCB command */
-				lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+				lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 						"0334 Unknown IOCB command "
 						"Data: x%x, x%x x%x x%x x%x\n",
 						type, irsp->ulpCommand,
@@ -3813,7 +3812,7 @@ lpfc_sli_sp_handle_rspiocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 					 phba->brd_no, adaptermsg);
 			} else {
 				/* Unknown IOCB command */
-				lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+				lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 						"0335 Unknown IOCB "
 						"command Data: x%x "
 						"x%x x%x x%x\n",
@@ -3893,7 +3892,7 @@ lpfc_sli_handle_slow_ring_event_s3(struct lpfc_hba *phba,
 		 * Ring <ringno> handler: portRspPut <portRspPut> is bigger than
 		 * rsp ring <portRspMax>
 		 */
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0303 Ring %d handler: portRspPut %d "
 				"is bigger than rsp ring %d\n",
 				pring->ringno, portRspPut, portRspMax);
@@ -4265,7 +4264,7 @@ lpfc_sli_brdready_s3(struct lpfc_hba *phba, uint32_t mask)
 
 	/* Check to see if any errors occurred during init */
 	if ((status & HS_FFERM) || (i >= 20)) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2751 Adapter failed to restart, "
 				"status reg x%x, FW Data: A8 x%x AC x%x\n",
 				status,
@@ -4487,7 +4486,7 @@ lpfc_sli_brdkill(struct lpfc_hba *phba)
 	if (retval != MBX_SUCCESS) {
 		if (retval != MBX_BUSY)
 			mempool_free(pmb, phba->mbox_mem_pool);
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2752 KILL_BOARD command failed retval %d\n",
 				retval);
 		spin_lock_irq(&phba->hbalock);
@@ -4839,7 +4838,7 @@ lpfc_sli_chipset_init(struct lpfc_hba *phba)
 		if (i++ >= 200) {
 			/* Adapter failed to init, timeout, status reg
 			   <status> */
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"0436 Adapter failed to init, "
 					"timeout, status reg x%x, "
 					"FW Data: A8 x%x AC x%x\n", status,
@@ -4854,7 +4853,7 @@ lpfc_sli_chipset_init(struct lpfc_hba *phba)
 			/* ERROR: During chipset initialization */
 			/* Adapter failed to init, chipset, status reg
 			   <status> */
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"0437 Adapter failed to init, "
 					"chipset, status reg x%x, "
 					"FW Data: A8 x%x AC x%x\n", status,
@@ -4885,7 +4884,7 @@ lpfc_sli_chipset_init(struct lpfc_hba *phba)
 	if (status & HS_FFERM) {
 		/* ERROR: During chipset initialization */
 		/* Adapter failed to init, chipset, status reg <status> */
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0438 Adapter failed to init, chipset, "
 				"status reg x%x, "
 				"FW Data: A8 x%x AC x%x\n", status,
@@ -5108,7 +5107,7 @@ lpfc_sli_config_port(struct lpfc_hba *phba, int sli_mode)
 					LPFC_SLI3_CRP_ENABLED |
 					LPFC_SLI3_DSS_ENABLED);
 		if (rc != MBX_SUCCESS) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0442 Adapter failed to init, mbxCmd x%x "
 				"CONFIG_PORT, mbxStatus x%x Data: x%x\n",
 				pmb->u.mb.mbxCommand, pmb->u.mb.mbxStatus, 0);
@@ -5158,7 +5157,7 @@ lpfc_sli_config_port(struct lpfc_hba *phba, int sli_mode)
 			if (pmb->u.mb.un.varCfgPort.gbg == 0) {
 				phba->cfg_enable_bg = 0;
 				phba->sli3_options &= ~LPFC_SLI3_BG_ENABLED;
-				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 						"0443 Adapter did not grant "
 						"BlockGuard\n");
 			}
@@ -5197,7 +5196,7 @@ lpfc_sli_hba_setup(struct lpfc_hba *phba)
 	switch (phba->cfg_sli_mode) {
 	case 2:
 		if (phba->cfg_enable_npiv) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT | LOG_VPORT,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"1824 NPIV enabled: Override sli_mode "
 				"parameter (%d) to auto (0).\n",
 				phba->cfg_sli_mode);
@@ -5209,7 +5208,7 @@ lpfc_sli_hba_setup(struct lpfc_hba *phba)
 	case 3:
 		break;
 	default:
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT | LOG_VPORT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"1819 Unrecognized sli_mode parameter: %d.\n",
 				phba->cfg_sli_mode);
 
@@ -5220,7 +5219,7 @@ lpfc_sli_hba_setup(struct lpfc_hba *phba)
 	rc = lpfc_sli_config_port(phba, mode);
 
 	if (rc && phba->cfg_sli_mode == 3)
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT | LOG_VPORT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"1820 Unable to select SLI-3.  "
 				"Not supported by adapter.\n");
 	if (rc && mode != 2)
@@ -5314,7 +5313,7 @@ lpfc_sli_hba_setup(struct lpfc_hba *phba)
 
 lpfc_sli_hba_setup_error:
 	phba->link_state = LPFC_HBA_ERROR;
-	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+	lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 			"0445 Firmware initialization failed\n");
 	return rc;
 }
@@ -5511,7 +5510,7 @@ lpfc_sli4_get_ctl_attr(struct lpfc_hba *phba)
 			LPFC_SLI4_MBX_NEMBED);
 
 	if (alloclen < reqlen) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"3084 Allocated DMA memory size (%d) is "
 				"less than the requested DMA memory size "
 				"(%d)\n", alloclen, reqlen);
@@ -5771,7 +5770,7 @@ lpfc_sli4_get_avail_extnt_rsrc(struct lpfc_hba *phba, uint16_t type,
 	rsrc_info = &mbox->u.mqe.un.rsrc_extent_info;
 	if (bf_get(lpfc_mbox_hdr_status,
 		   &rsrc_info->header.cfg_shdr.response)) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2930 Failed to get resource extents "
 				"Status 0x%x Add'l Status 0x%x\n",
 				bf_get(lpfc_mbox_hdr_status,
@@ -5909,7 +5908,7 @@ lpfc_sli4_cfg_post_extnts(struct lpfc_hba *phba, uint16_t extnt_cnt,
 				     LPFC_MBOX_OPCODE_ALLOC_RSRC_EXTENT,
 				     req_len, *emb);
 	if (alloc_len < req_len) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 			"2982 Allocated DMA memory size (x%x) is "
 			"less than the requested DMA memory "
 			"size (x%x)\n", alloc_len, req_len);
@@ -5965,7 +5964,7 @@ lpfc_sli4_alloc_extent(struct lpfc_hba *phba, uint16_t type)
 		return -EIO;
 
 	if ((rsrc_cnt == 0) || (rsrc_size == 0)) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 			"3009 No available Resource Extents "
 			"for resource type 0x%x: Count: 0x%x, "
 			"Size 0x%x\n", type, rsrc_cnt,
@@ -6216,7 +6215,7 @@ lpfc_sli4_dealloc_extent(struct lpfc_hba *phba, uint16_t type)
 	dealloc_rsrc = &mbox->u.mqe.un.dealloc_rsrc_extents;
 	if (bf_get(lpfc_mbox_hdr_status,
 		   &dealloc_rsrc->header.cfg_shdr.response)) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2919 Failed to release resource extents "
 				"for type %d - Status 0x%x Add'l Status 0x%x. "
 				"Resource memory not released.\n",
@@ -6410,7 +6409,7 @@ lpfc_sli4_ras_dma_alloc(struct lpfc_hba *phba,
 					    &ras_fwlog->lwpd.phys,
 					    GFP_KERNEL);
 	if (!ras_fwlog->lwpd.virt) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"6185 LWPD Memory Alloc Failed\n");
 
 		return -ENOMEM;
@@ -6471,7 +6470,7 @@ lpfc_sli4_ras_mbox_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	shdr_add_status = bf_get(lpfc_mbox_hdr_add_status, &shdr->response);
 
 	if (mb->mbxStatus != MBX_SUCCESS || shdr_status) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"6188 FW LOG mailbox "
 				"completed with status x%x add_status x%x,"
 				" mbx status x%x\n",
@@ -6539,7 +6538,7 @@ lpfc_sli4_ras_fwlog_init(struct lpfc_hba *phba,
 	/* Setup Mailbox command */
 	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!mbox) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"6190 RAS MBX Alloc Failed");
 		rc = -ENOMEM;
 		goto mem_free;
@@ -6587,7 +6586,7 @@ lpfc_sli4_ras_fwlog_init(struct lpfc_hba *phba,
 	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
 
 	if (rc == MBX_NOT_FINISHED) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"6191 FW-Log Mailbox failed. "
 				"status %d mbxStatus : x%x", rc,
 				bf_get(lpfc_mqe_status, &mbox->u.mqe));
@@ -6723,7 +6722,7 @@ lpfc_sli4_alloc_resource_identifiers(struct lpfc_hba *phba)
 		/* RPIs. */
 		count = phba->sli4_hba.max_cfg_param.max_rpi;
 		if (count <= 0) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"3279 Invalid provisioning of "
 					"rpi:%d\n", count);
 			rc = -EINVAL;
@@ -6751,7 +6750,7 @@ lpfc_sli4_alloc_resource_identifiers(struct lpfc_hba *phba)
 		/* VPIs. */
 		count = phba->sli4_hba.max_cfg_param.max_vpi;
 		if (count <= 0) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"3280 Invalid provisioning of "
 					"vpi:%d\n", count);
 			rc = -EINVAL;
@@ -6778,7 +6777,7 @@ lpfc_sli4_alloc_resource_identifiers(struct lpfc_hba *phba)
 		/* XRIs. */
 		count = phba->sli4_hba.max_cfg_param.max_xri;
 		if (count <= 0) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"3281 Invalid provisioning of "
 					"xri:%d\n", count);
 			rc = -EINVAL;
@@ -6807,7 +6806,7 @@ lpfc_sli4_alloc_resource_identifiers(struct lpfc_hba *phba)
 		/* VFIs. */
 		count = phba->sli4_hba.max_cfg_param.max_vfi;
 		if (count <= 0) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"3282 Invalid provisioning of "
 					"vfi:%d\n", count);
 			rc = -EINVAL;
@@ -6985,7 +6984,7 @@ lpfc_sli4_get_allocated_extnts(struct lpfc_hba *phba, uint16_t type,
 				     LPFC_MBOX_OPCODE_GET_ALLOC_RSRC_EXTENT,
 				     req_len, emb);
 	if (alloc_len < req_len) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 			"2983 Allocated DMA memory size (x%x) is "
 			"less than the requested DMA memory "
 			"size (x%x)\n", alloc_len, req_len);
@@ -7028,7 +7027,7 @@ lpfc_sli4_get_allocated_extnts(struct lpfc_hba *phba, uint16_t type,
 	}
 
 	if (bf_get(lpfc_mbox_hdr_status, &shdr->response)) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 			"2984 Failed to read allocated resources "
 			"for type %d - Status 0x%x Add'l Status 0x%x.\n",
 			type,
@@ -7183,7 +7182,7 @@ lpfc_sli4_repost_sgl_list(struct lpfc_hba *phba,
 		spin_unlock(&phba->sli4_hba.sgl_list_lock);
 		spin_unlock_irq(&phba->hbalock);
 	} else {
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"3161 Failure to post sgl to port.\n");
 		return -EIO;
 	}
@@ -7280,7 +7279,7 @@ lpfc_post_rq_buffer(struct lpfc_hba *phba, struct lpfc_queue *hrq,
 		drqe.address_hi = putPaddrHigh(rqb_buffer->dbuf.phys);
 		rc = lpfc_sli4_rq_put(hrq, drq, &hrqe, &drqe);
 		if (rc < 0) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"6421 Cannot post to HRQ %d: %x %x %x "
 					"DRQ %x %x\n",
 					hrq->queue_id,
@@ -7355,7 +7354,7 @@ static void lpfc_sli4_dip(struct lpfc_hba *phba)
 			return;
 
 		if (bf_get(lpfc_sliport_status_dip, &reg_data))
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"2904 Firmware Dump Image Present"
 					" on Adapter");
 	}
@@ -7441,7 +7440,7 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 	phba->hba_flag &= ~HBA_IOQ_FLUSH;
 
 	if (phba->sli_rev != LPFC_SLI_REV4) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 			"0376 READ_REV Error. SLI Level %d "
 			"FCoE enabled %d\n",
 			phba->sli_rev, phba->hba_flag & HBA_FCOE_MODE);
@@ -7483,7 +7482,7 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 	 */
 	rc = lpfc_parse_vpd(phba, vpd, vpd_size);
 	if (unlikely(!rc)) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0377 Error %d parsing vpd. "
 				"Using defaults.\n", rc);
 		rc = 0;
@@ -7622,7 +7621,7 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
 	dd = bf_get(lpfc_mbx_set_feature_dd, &mboxq->u.mqe.un.set_feature);
 	if ((rc == MBX_SUCCESS) && (dd == LPFC_ENABLE_DUAL_DUMP))
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI | LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 				"6448 Dual Dump is enabled\n");
 	else
 		lpfc_printf_log(phba, KERN_INFO, LOG_SLI | LOG_INIT,
@@ -7640,7 +7639,7 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 	 */
 	rc = lpfc_sli4_alloc_resource_identifiers(phba);
 	if (rc) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2920 Failed to alloc Resource IDs "
 				"rc = x%x\n", rc);
 		goto out_free_mbox;
@@ -7679,7 +7678,7 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 	kfree(mp);
 	mboxq->ctx_buf = NULL;
 	if (unlikely(rc)) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0382 READ_SPARAM command failed "
 				"status %d, mbxStatus x%x\n",
 				rc, bf_get(lpfc_mqe_status, mqe));
@@ -7697,7 +7696,7 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 	/* Create all the SLI4 queues */
 	rc = lpfc_sli4_queue_create(phba);
 	if (rc) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"3089 Failed to allocate queues\n");
 		rc = -ENODEV;
 		goto out_free_mbox;
@@ -7705,7 +7704,7 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 	/* Set up all the queues to the device */
 	rc = lpfc_sli4_queue_setup(phba);
 	if (unlikely(rc)) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0381 Error %d during queue setup.\n ", rc);
 		goto out_stop_timers;
 	}
@@ -7716,7 +7715,7 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 	/* update host els xri-sgl sizes and mappings */
 	rc = lpfc_sli4_els_sgl_update(phba);
 	if (unlikely(rc)) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"1400 Failed to update xri-sgl size and "
 				"mapping: %d\n", rc);
 		goto out_destroy_queue;
@@ -7726,7 +7725,7 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 	rc = lpfc_sli4_repost_sgl_list(phba, &phba->sli4_hba.lpfc_els_sgl_list,
 				       phba->sli4_hba.els_xri_cnt);
 	if (unlikely(rc < 0)) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0582 Error %d during els sgl post "
 				"operation\n", rc);
 		rc = -ENODEV;
@@ -7738,7 +7737,7 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 		/* update host nvmet xri-sgl sizes and mappings */
 		rc = lpfc_sli4_nvmet_sgl_update(phba);
 		if (unlikely(rc)) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"6308 Failed to update nvmet-sgl size "
 					"and mapping: %d\n", rc);
 			goto out_destroy_queue;
@@ -7750,7 +7749,7 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 			&phba->sli4_hba.lpfc_nvmet_sgl_list,
 			phba->sli4_hba.nvmet_xri_cnt);
 		if (unlikely(rc < 0)) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"3117 Error %d during nvmet "
 					"sgl post\n", rc);
 			rc = -ENODEV;
@@ -7767,7 +7766,7 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 		/* update host common xri-sgl sizes and mappings */
 		rc = lpfc_sli4_io_sgl_update(phba);
 		if (unlikely(rc)) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"6082 Failed to update nvme-sgl size "
 					"and mapping: %d\n", rc);
 			goto out_destroy_queue;
@@ -7776,7 +7775,7 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 		/* register the allocated common sgl pool to the port */
 		rc = lpfc_sli4_repost_io_sgl_list(phba);
 		if (unlikely(rc)) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"6116 Error %d during nvme sgl post "
 					"operation\n", rc);
 			/* Some NVME buffers were moved to abort nvme list */
@@ -7797,7 +7796,7 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 				cnt);
 		rc = lpfc_init_iocb_list(phba, cnt);
 		if (rc) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"1413 Failed to init iocb list.\n");
 			goto out_destroy_queue;
 		}
@@ -7826,7 +7825,7 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 	/* Post the rpi header region to the device. */
 	rc = lpfc_sli4_post_all_rpi_hdrs(phba);
 	if (unlikely(rc)) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0393 Error %d during rpi post operation\n",
 				rc);
 		rc = -ENODEV;
@@ -7970,12 +7969,12 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 
 	if (!(phba->hba_flag & HBA_FCOE_MODE) &&
 	    (phba->hba_flag & LINK_DISABLED)) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT | LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"3103 Adapter Link is disabled.\n");
 		lpfc_down_link(phba, mboxq);
 		rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
 		if (rc != MBX_SUCCESS) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT | LOG_SLI,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"3104 Adapter failed to issue "
 					"DOWN_LINK mbox cmd, rc:x%x\n", rc);
 			goto out_io_buff_free;
@@ -8182,7 +8181,7 @@ lpfc_mbox_timeout_handler(struct lpfc_hba *phba)
 	}
 
 	/* Mbox cmd <mbxCommand> timeout */
-	lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
+	lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 			"0310 Mailbox command x%x timeout Data: x%x x%x x%px\n",
 			mb->mbxCommand,
 			phba->pport->port_state,
@@ -8204,7 +8203,7 @@ lpfc_mbox_timeout_handler(struct lpfc_hba *phba)
 
 	lpfc_sli_abort_fcp_rings(phba);
 
-	lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
+	lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 			"0345 Resetting board due to mailbox timeout\n");
 
 	/* Reset the HBA device */
@@ -8302,7 +8301,7 @@ lpfc_sli_issue_mbox_s3(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmbox,
 		spin_unlock_irqrestore(&phba->hbalock, drvr_flag);
 
 		/* Mbox command <mbxCommand> cannot issue */
-		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"(%d):0311 Mailbox command x%x cannot "
 				"issue Data: x%x x%x\n",
 				pmbox->vport ? pmbox->vport->vpi : 0,
@@ -8314,7 +8313,7 @@ lpfc_sli_issue_mbox_s3(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmbox,
 		if (lpfc_readl(phba->HCregaddr, &hc_copy) ||
 			!(hc_copy & HC_MBINT_ENA)) {
 			spin_unlock_irqrestore(&phba->hbalock, drvr_flag);
-			lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"(%d):2528 Mailbox command x%x cannot "
 				"issue Data: x%x x%x\n",
 				pmbox->vport ? pmbox->vport->vpi : 0,
@@ -8333,7 +8332,7 @@ lpfc_sli_issue_mbox_s3(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmbox,
 			spin_unlock_irqrestore(&phba->hbalock, drvr_flag);
 
 			/* Mbox command <mbxCommand> cannot issue */
-			lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"(%d):2529 Mailbox command x%x "
 					"cannot issue Data: x%x x%x\n",
 					pmbox->vport ? pmbox->vport->vpi : 0,
@@ -8345,7 +8344,7 @@ lpfc_sli_issue_mbox_s3(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmbox,
 		if (!(psli->sli_flag & LPFC_SLI_ACTIVE)) {
 			spin_unlock_irqrestore(&phba->hbalock, drvr_flag);
 			/* Mbox command <mbxCommand> cannot issue */
-			lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"(%d):2530 Mailbox command x%x "
 					"cannot issue Data: x%x x%x\n",
 					pmbox->vport ? pmbox->vport->vpi : 0,
@@ -8398,7 +8397,7 @@ lpfc_sli_issue_mbox_s3(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmbox,
 			psli->sli_flag &= ~LPFC_SLI_MBOX_ACTIVE;
 			spin_unlock_irqrestore(&phba->hbalock, drvr_flag);
 			/* Mbox command <mbxCommand> cannot issue */
-			lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"(%d):2531 Mailbox command x%x "
 					"cannot issue Data: x%x x%x\n",
 					pmbox->vport ? pmbox->vport->vpi : 0,
@@ -8789,7 +8788,7 @@ lpfc_sli4_post_sync_mbox(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	spin_lock_irqsave(&phba->hbalock, iflag);
 	if (psli->sli_flag & LPFC_SLI_MBOX_ACTIVE) {
 		spin_unlock_irqrestore(&phba->hbalock, iflag);
-		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"(%d):2532 Mailbox command x%x (x%x/x%x) "
 				"cannot issue Data: x%x x%x\n",
 				mboxq->vport ? mboxq->vport->vpi : 0,
@@ -8910,7 +8909,7 @@ lpfc_sli_issue_mbox_s4(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq,
 
 	rc = lpfc_mbox_dev_check(phba);
 	if (unlikely(rc)) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"(%d):2544 Mailbox command x%x (x%x/x%x) "
 				"cannot issue Data: x%x x%x\n",
 				mboxq->vport ? mboxq->vport->vpi : 0,
@@ -8987,7 +8986,7 @@ lpfc_sli_issue_mbox_s4(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq,
 	/* Now, interrupt mode asynchronous mailbox command */
 	rc = lpfc_mbox_cmd_check(phba, mboxq);
 	if (rc) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"(%d):2543 Mailbox command x%x (x%x/x%x) "
 				"cannot issue Data: x%x x%x\n",
 				mboxq->vport ? mboxq->vport->vpi : 0,
@@ -9055,7 +9054,7 @@ lpfc_sli4_post_async_mbox(struct lpfc_hba *phba)
 	}
 	if (unlikely(phba->sli.mbox_active)) {
 		spin_unlock_irqrestore(&phba->hbalock, iflags);
-		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0384 There is pending active mailbox cmd\n");
 		return MBX_NOT_FINISHED;
 	}
@@ -9116,7 +9115,7 @@ lpfc_sli4_post_async_mbox(struct lpfc_hba *phba)
 	/* Post the mailbox command to the port */
 	rc = lpfc_sli4_mq_put(phba->sli4_hba.mbx_wq, mqe);
 	if (rc != MBX_SUCCESS) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"(%d):2533 Mailbox command x%x (x%x/x%x) "
 				"cannot issue Data: x%x x%x\n",
 				mboxq->vport ? mboxq->vport->vpi : 0,
@@ -9192,7 +9191,7 @@ lpfc_mbox_api_table_setup(struct lpfc_hba *phba, uint8_t dev_grp)
 		phba->lpfc_sli_brdready = lpfc_sli_brdready_s4;
 		break;
 	default:
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"1420 Invalid HBA PCI-device group: 0x%x\n",
 				dev_grp);
 		return -ENODEV;
@@ -9293,8 +9292,7 @@ __lpfc_sli_issue_iocb_s3(struct lpfc_hba *phba, uint32_t ring_number,
 	if (piocb->iocb_cmpl && (!piocb->vport) &&
 	   (piocb->iocb.ulpCommand != CMD_ABORT_XRI_CN) &&
 	   (piocb->iocb.ulpCommand != CMD_CLOSE_XRI_CN)) {
-		lpfc_printf_log(phba, KERN_ERR,
-				LOG_SLI | LOG_VPORT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"1807 IOCB x%x failed. No vport\n",
 				piocb->iocb.ulpCommand);
 		dump_stack();
@@ -9589,7 +9587,7 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 		else
 			ndlp = (struct lpfc_nodelist *)iocbq->context1;
 		if (!iocbq->iocb.ulpLe) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2007 Only Limited Edition cmd Format"
 				" supported 0x%x\n",
 				iocbq->iocb.ulpCommand);
@@ -9897,7 +9895,7 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 		/* word6 context tag copied in memcpy */
 		if (iocbq->iocb.ulpCt_h  || iocbq->iocb.ulpCt_l) {
 			ct = ((iocbq->iocb.ulpCt_h << 1) | iocbq->iocb.ulpCt_l);
-			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2015 Invalid CT %x command 0x%x\n",
 				ct, iocbq->iocb.ulpCommand);
 			return IOCB_ERROR;
@@ -10076,7 +10074,7 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 	case CMD_FCP_TRSP64_CX: /* Target mode rcv */
 	case CMD_FCP_AUTO_TRSP_CX: /* Auto target rsp */
 	default:
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2014 Invalid command 0x%x\n",
 				iocbq->iocb.ulpCommand);
 		return IOCB_ERROR;
@@ -10238,7 +10236,7 @@ lpfc_sli_api_table_setup(struct lpfc_hba *phba, uint8_t dev_grp)
 		phba->__lpfc_sli_release_iocbq = __lpfc_sli_release_iocbq_s4;
 		break;
 	default:
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"1419 Invalid HBA PCI-device group: 0x%x\n",
 				dev_grp);
 		return -ENODEV;
@@ -10498,13 +10496,13 @@ lpfc_sli_async_event_handler(struct lpfc_hba * phba,
 		temp_event_data.event_type = FC_REG_TEMPERATURE_EVENT;
 		if (evt_code == ASYNC_TEMP_WARN) {
 			temp_event_data.event_code = LPFC_THRESHOLD_TEMP;
-			lpfc_printf_log(phba, KERN_ERR, LOG_TEMP,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0347 Adapter is very hot, please take "
 				"corrective action. temperature : %d Celsius\n",
 				(uint32_t) icmd->ulpContext);
 		} else {
 			temp_event_data.event_code = LPFC_NORMAL_TEMP;
-			lpfc_printf_log(phba, KERN_ERR, LOG_TEMP,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0340 Adapter temperature is OK now. "
 				"temperature : %d Celsius\n",
 				(uint32_t) icmd->ulpContext);
@@ -10521,7 +10519,7 @@ lpfc_sli_async_event_handler(struct lpfc_hba * phba,
 		break;
 	default:
 		iocb_w = (uint32_t *) icmd;
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 			"0346 Ring %d handler: unexpected ASYNC_STATUS"
 			" evt_code 0x%x\n"
 			"W0  0x%08x W1  0x%08x W2  0x%08x W3  0x%08x\n"
@@ -11195,7 +11193,7 @@ lpfc_sli_ring_taggedbuf_get(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	}
 
 	spin_unlock_irq(&phba->hbalock);
-	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+	lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 			"0402 Cannot find virtual addr for buffer tag on "
 			"ring %d Data x%lx x%px x%px x%x\n",
 			pring->ringno, (unsigned long) tag,
@@ -11239,7 +11237,7 @@ lpfc_sli_ringpostbuf_get(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	}
 
 	spin_unlock_irq(&phba->hbalock);
-	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+	lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 			"0410 Cannot find virtual addr for mapped buf on "
 			"ring %d Data x%llx x%px x%px x%x\n",
 			pring->ringno, (unsigned long long)phys,
@@ -12133,12 +12131,12 @@ lpfc_sli_issue_iocb_wait(struct lpfc_hba *phba,
 			 * completed. Not that it completed successfully.
 			 * */
 		} else if (timeleft == 0) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"0338 IOCB wait timeout error - no "
 					"wake response Data x%x\n", timeout);
 			retval = IOCB_TIMEDOUT;
 		} else {
-			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"0330 IOCB wake NOT set, "
 					"Data x%x x%lx\n",
 					timeout, (timeleft / jiffies));
@@ -12400,7 +12398,7 @@ lpfc_sli4_eratt_read(struct lpfc_hba *phba)
 		}
 		if ((~phba->sli4_hba.ue_mask_lo & uerr_sta_lo) ||
 		    (~phba->sli4_hba.ue_mask_hi & uerr_sta_hi)) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"1423 HBA Unrecoverable error: "
 					"uerr_lo_reg=0x%x, uerr_hi_reg=0x%x, "
 					"ue_mask_lo_reg=0x%x, "
@@ -12431,7 +12429,7 @@ lpfc_sli4_eratt_read(struct lpfc_hba *phba)
 				readl(phba->sli4_hba.u.if_type2.ERR1regaddr);
 			phba->work_status[1] =
 				readl(phba->sli4_hba.u.if_type2.ERR2regaddr);
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"2885 Port Status Event: "
 					"port status reg 0x%x, "
 					"port smphr reg 0x%x, "
@@ -12447,7 +12445,7 @@ lpfc_sli4_eratt_read(struct lpfc_hba *phba)
 		break;
 	case LPFC_SLI_INTF_IF_TYPE_1:
 	default:
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2886 HBA Error Attention on unsupported "
 				"if type %d.", if_type);
 		return 1;
@@ -12511,7 +12509,7 @@ lpfc_sli_check_eratt(struct lpfc_hba *phba)
 		ha_copy = lpfc_sli4_eratt_read(phba);
 		break;
 	default:
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0299 Invalid SLI revision (%d)\n",
 				phba->sli_rev);
 		ha_copy = 0;
@@ -12744,8 +12742,7 @@ lpfc_sli_sp_intr_handler(int irq, void *dev_id)
 				 * Stray Mailbox Interrupt, mbxCommand <cmd>
 				 * mbxStatus <status>
 				 */
-				lpfc_printf_log(phba, KERN_ERR, LOG_MBOX |
-						LOG_SLI,
+				lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 						"(%d):0304 Stray Mailbox "
 						"Interrupt mbxCommand x%x "
 						"mbxStatus x%x\n",
@@ -12805,7 +12802,7 @@ lpfc_sli_sp_intr_handler(int irq, void *dev_id)
 						if (rc != MBX_BUSY)
 							lpfc_printf_log(phba,
 							KERN_ERR,
-							LOG_MBOX | LOG_SLI,
+							LOG_TRACE_EVENT,
 							"0350 rc should have"
 							"been MBX_BUSY\n");
 						if (rc != MBX_NOT_FINISHED)
@@ -12834,8 +12831,9 @@ send_current_mbox:
 							 MBX_NOWAIT);
 			} while (rc == MBX_NOT_FINISHED);
 			if (rc != MBX_SUCCESS)
-				lpfc_printf_log(phba, KERN_ERR, LOG_MBOX |
-						LOG_SLI, "0349 rc should be "
+				lpfc_printf_log(phba, KERN_ERR,
+						LOG_TRACE_EVENT,
+						"0349 rc should be "
 						"MBX_SUCCESS\n");
 		}
 
@@ -13262,7 +13260,7 @@ lpfc_cq_event_setup(struct lpfc_hba *phba, void *entry, int size)
 	/* Allocate a new internal CQ_EVENT entry */
 	cq_event = lpfc_sli4_cq_event_alloc(phba);
 	if (!cq_event) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0602 Failed to alloc CQ_EVENT entry\n");
 		return NULL;
 	}
@@ -13337,7 +13335,7 @@ lpfc_sli4_sp_handle_mbox_event(struct lpfc_hba *phba, struct lpfc_mcqe *mcqe)
 	spin_lock_irqsave(&phba->hbalock, iflags);
 	pmb = phba->sli.mbox_active;
 	if (unlikely(!pmb)) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"1832 No pending MBOX command to handle\n");
 		spin_unlock_irqrestore(&phba->hbalock, iflags);
 		goto out_no_mqe_complete;
@@ -13386,8 +13384,9 @@ lpfc_sli4_sp_handle_mbox_event(struct lpfc_hba *phba, struct lpfc_mcqe *mcqe)
 			pmb->vport = vport;
 			rc = lpfc_sli_issue_mbox(phba, pmb, MBX_NOWAIT);
 			if (rc != MBX_BUSY)
-				lpfc_printf_log(phba, KERN_ERR, LOG_MBOX |
-						LOG_SLI, "0385 rc should "
+				lpfc_printf_log(phba, KERN_ERR,
+						LOG_TRACE_EVENT,
+						"0385 rc should "
 						"have been MBX_BUSY\n");
 			if (rc != MBX_NOT_FINISHED)
 				goto send_current_mbox;
@@ -13494,7 +13493,7 @@ lpfc_sli4_sp_handle_els_wcqe(struct lpfc_hba *phba, struct lpfc_queue *cq,
 			txq_cnt++;
 		if (!list_empty(&pring->txcmplq))
 			txcmplq_cnt++;
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 			"0387 NO IOCBQ data: txq_cnt=%d iocb_cnt=%d "
 			"els_txcmplq_cnt=%d\n",
 			txq_cnt, phba->iocb_cnt,
@@ -13585,7 +13584,7 @@ lpfc_sli4_sp_handle_abort_xri_wcqe(struct lpfc_hba *phba,
 		workposted = true;
 		break;
 	default:
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0603 Invalid CQ subtype %d: "
 				"%08x %08x %08x %08x\n",
 				cq->subtype, wcqe->word0, wcqe->parameter,
@@ -13633,7 +13632,7 @@ lpfc_sli4_sp_handle_rcqe(struct lpfc_hba *phba, struct lpfc_rcqe *rcqe)
 	status = bf_get(lpfc_rcqe_status, rcqe);
 	switch (status) {
 	case FC_STATUS_RQ_BUF_LEN_EXCEEDED:
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2537 Receive Frame Truncated!!\n");
 		/* fall through */
 	case FC_STATUS_RQ_SUCCESS:
@@ -13670,7 +13669,7 @@ lpfc_sli4_sp_handle_rcqe(struct lpfc_hba *phba, struct lpfc_rcqe *rcqe)
 	case FC_STATUS_INSUFF_BUF_FRM_DISC:
 		if (phba->nvmet_support) {
 			tgtp = phba->targetport->private;
-			lpfc_printf_log(phba, KERN_ERR, LOG_SLI | LOG_NVME,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"6402 RQE Error x%x, posted %d err_cnt "
 					"%d: %x %x %x\n",
 					status, hrq->RQ_buf_posted,
@@ -13742,7 +13741,7 @@ lpfc_sli4_sp_handle_cqe(struct lpfc_hba *phba, struct lpfc_queue *cq,
 				(struct lpfc_rcqe *)&cqevt);
 		break;
 	default:
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0388 Not a valid WCQE code: x%x\n",
 				bf_get(lpfc_cqe_code, &cqevt));
 		break;
@@ -13782,7 +13781,7 @@ lpfc_sli4_sp_handle_eqe(struct lpfc_hba *phba, struct lpfc_eqe *eqe,
 	}
 	if (unlikely(!cq)) {
 		if (phba->sli.sli_flag & LPFC_SLI_ACTIVE)
-			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"0365 Slow-path CQ identifier "
 					"(%d) does not exist\n", cqid);
 		return;
@@ -13797,7 +13796,7 @@ lpfc_sli4_sp_handle_eqe(struct lpfc_hba *phba, struct lpfc_eqe *eqe,
 		ret = queue_work_on(cq->chann, phba->wq, &cq->spwork);
 
 	if (!ret)
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0390 Cannot schedule queue work "
 				"for CQ eqcqid=%d, cqid=%d on CPU %d\n",
 				cqid, cq->queue_id, raw_smp_processor_id());
@@ -13935,7 +13934,7 @@ __lpfc_sli4_sp_process_cq(struct lpfc_queue *cq)
 						&delay, LPFC_QUEUE_WORK);
 		break;
 	default:
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0370 Invalid completion queue type (%d)\n",
 				cq->type);
 		return;
@@ -13949,7 +13948,7 @@ __lpfc_sli4_sp_process_cq(struct lpfc_queue *cq)
 			ret = queue_delayed_work_on(cq->chann, phba->wq,
 						&cq->sched_spwork, delay);
 		if (!ret)
-			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0394 Cannot schedule queue work "
 				"for cqid=%d on CPU %d\n",
 				cq->queue_id, cq->chann);
@@ -14159,7 +14158,7 @@ lpfc_sli4_nvmet_handle_rcqe(struct lpfc_hba *phba, struct lpfc_queue *cq,
 	status = bf_get(lpfc_rcqe_status, rcqe);
 	switch (status) {
 	case FC_STATUS_RQ_BUF_LEN_EXCEEDED:
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"6126 Receive Frame Truncated!!\n");
 		/* fall through */
 	case FC_STATUS_RQ_SUCCESS:
@@ -14199,7 +14198,7 @@ drop:
 	case FC_STATUS_INSUFF_BUF_FRM_DISC:
 		if (phba->nvmet_support) {
 			tgtp = phba->targetport->private;
-			lpfc_printf_log(phba, KERN_ERR, LOG_SLI | LOG_NVME,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"6401 RQE Error x%x, posted %d err_cnt "
 					"%d: %x %x %x\n",
 					status, hrq->RQ_buf_posted,
@@ -14273,7 +14272,7 @@ lpfc_sli4_fp_handle_cqe(struct lpfc_hba *phba, struct lpfc_queue *cq,
 		}
 		break;
 	default:
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0144 Not a valid CQE code: x%x\n",
 				bf_get(lpfc_wcqe_c_code, &wcqe));
 		break;
@@ -14311,7 +14310,7 @@ static void lpfc_sli4_sched_cq_work(struct lpfc_hba *phba,
 		else
 			ret = queue_work_on(cq->chann, phba->wq, &cq->irqwork);
 		if (!ret)
-			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"0383 Cannot schedule queue work "
 					"for CQ eqcqid=%d, cqid=%d on CPU %d\n",
 					cqid, cq->queue_id,
@@ -14340,7 +14339,7 @@ lpfc_sli4_hba_handle_eqe(struct lpfc_hba *phba, struct lpfc_queue *eq,
 	uint16_t cqid, id;
 
 	if (unlikely(bf_get_le32(lpfc_eqe_major_code, eqe) != 0)) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0366 Not a valid completion "
 				"event: majorcode=x%x, minorcode=x%x\n",
 				bf_get_le32(lpfc_eqe_major_code, eqe),
@@ -14383,7 +14382,7 @@ lpfc_sli4_hba_handle_eqe(struct lpfc_hba *phba, struct lpfc_queue *eq,
 
 process_cq:
 	if (unlikely(cqid != cq->queue_id)) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0368 Miss-matched fast-path completion "
 				"queue identifier: eqcqid=%d, fcpcqid=%d\n",
 				cqid, cq->queue_id);
@@ -14437,7 +14436,7 @@ __lpfc_sli4_hba_process_cq(struct lpfc_queue *cq,
 			ret = queue_delayed_work_on(cq->chann, phba->wq,
 						&cq->sched_irqwork, delay);
 		if (!ret)
-			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"0367 Cannot schedule queue work "
 					"for cqid=%d on CPU %d\n",
 					cq->queue_id, cq->chann);
@@ -14968,7 +14967,7 @@ lpfc_modify_hba_eq_delay(struct lpfc_hba *phba, uint32_t startq,
 
 	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!mbox) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT | LOG_FCP | LOG_NVME,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"6428 Failed allocating mailbox cmd buffer."
 				" EQ delay was not set.\n");
 		return;
@@ -15010,7 +15009,7 @@ lpfc_modify_hba_eq_delay(struct lpfc_hba *phba, uint32_t startq,
 	shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
 	shdr_add_status = bf_get(lpfc_mbox_hdr_add_status, &shdr->response);
 	if (shdr_status || shdr_add_status || rc) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2512 MODIFY_EQ_DELAY mailbox failed with "
 				"status x%x add_status x%x, mbx status x%x\n",
 				shdr_status, shdr_add_status, rc);
@@ -15087,7 +15086,7 @@ lpfc_eq_create(struct lpfc_hba *phba, struct lpfc_queue *eq, uint32_t imax)
 	       dmult);
 	switch (eq->entry_count) {
 	default:
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0360 Unsupported EQ count. (%d)\n",
 				eq->entry_count);
 		if (eq->entry_count < 256) {
@@ -15131,7 +15130,7 @@ lpfc_eq_create(struct lpfc_hba *phba, struct lpfc_queue *eq, uint32_t imax)
 	shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
 	shdr_add_status = bf_get(lpfc_mbox_hdr_add_status, &shdr->response);
 	if (shdr_status || shdr_add_status || rc) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2500 EQ_CREATE mailbox failed with "
 				"status x%x add_status x%x, mbx status x%x\n",
 				shdr_status, shdr_add_status, rc);
@@ -15236,7 +15235,7 @@ lpfc_cq_create(struct lpfc_hba *phba, struct lpfc_queue *cq,
 		}
 		/* fall through */
 	default:
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0361 Unsupported CQ count: "
 				"entry cnt %d sz %d pg cnt %d\n",
 				cq->entry_count, cq->entry_size,
@@ -15272,7 +15271,7 @@ lpfc_cq_create(struct lpfc_hba *phba, struct lpfc_queue *cq,
 	shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
 	shdr_add_status = bf_get(lpfc_mbox_hdr_add_status, &shdr->response);
 	if (shdr_status || shdr_add_status || rc) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2501 CQ_CREATE mailbox failed with "
 				"status x%x add_status x%x, mbx status x%x\n",
 				shdr_status, shdr_add_status, rc);
@@ -15359,7 +15358,7 @@ lpfc_cq_create_set(struct lpfc_hba *phba, struct lpfc_queue **cqp,
 			LPFC_MBOX_OPCODE_FCOE_CQ_CREATE_SET, length,
 			LPFC_SLI4_MBX_NEMBED);
 	if (alloclen < length) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"3098 Allocated DMA memory size (%d) is "
 				"less than the requested DMA memory size "
 				"(%d)\n", alloclen, length);
@@ -15413,7 +15412,7 @@ lpfc_cq_create_set(struct lpfc_hba *phba, struct lpfc_queue **cqp,
 				}
 				/* fall through */
 			default:
-				lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+				lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 						"3118 Bad CQ count. (%d)\n",
 						cq->entry_count);
 				if (cq->entry_count < 256) {
@@ -15531,7 +15530,7 @@ lpfc_cq_create_set(struct lpfc_hba *phba, struct lpfc_queue **cqp,
 	shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
 	shdr_add_status = bf_get(lpfc_mbox_hdr_add_status, &shdr->response);
 	if (shdr_status || shdr_add_status || rc) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"3119 CQ_CREATE_SET mailbox failed with "
 				"status x%x add_status x%x, mbx status x%x\n",
 				shdr_status, shdr_add_status, rc);
@@ -15689,7 +15688,7 @@ lpfc_mq_create(struct lpfc_hba *phba, struct lpfc_queue *mq,
 		       cq->queue_id);
 	switch (mq->entry_count) {
 	default:
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0362 Unsupported MQ count. (%d)\n",
 				mq->entry_count);
 		if (mq->entry_count < 16) {
@@ -15745,7 +15744,7 @@ lpfc_mq_create(struct lpfc_hba *phba, struct lpfc_queue *mq,
 	shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
 	shdr_add_status = bf_get(lpfc_mbox_hdr_add_status, &shdr->response);
 	if (shdr_status || shdr_add_status || rc) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2502 MQ_CREATE mailbox failed with "
 				"status x%x add_status x%x, mbx status x%x\n",
 				shdr_status, shdr_add_status, rc);
@@ -15894,7 +15893,7 @@ lpfc_wq_create(struct lpfc_hba *phba, struct lpfc_queue *wq,
 	shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
 	shdr_add_status = bf_get(lpfc_mbox_hdr_add_status, &shdr->response);
 	if (shdr_status || shdr_add_status || rc) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2503 WQ_CREATE mailbox failed with "
 				"status x%x add_status x%x, mbx status x%x\n",
 				shdr_status, shdr_add_status, rc);
@@ -15921,7 +15920,7 @@ lpfc_wq_create(struct lpfc_hba *phba, struct lpfc_queue *wq,
 					       &wq_create->u.response);
 			if ((wq->db_format != LPFC_DB_LIST_FORMAT) &&
 			    (wq->db_format != LPFC_DB_RING_FORMAT)) {
-				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 						"3265 WQ[%d] doorbell format "
 						"not supported: x%x\n",
 						wq->queue_id, wq->db_format);
@@ -15933,7 +15932,7 @@ lpfc_wq_create(struct lpfc_hba *phba, struct lpfc_queue *wq,
 			bar_memmap_p = lpfc_dual_chute_pci_bar_map(phba,
 								   pci_barset);
 			if (!bar_memmap_p) {
-				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 						"3263 WQ[%d] failed to memmap "
 						"pci barset:x%x\n",
 						wq->queue_id, pci_barset);
@@ -15943,7 +15942,7 @@ lpfc_wq_create(struct lpfc_hba *phba, struct lpfc_queue *wq,
 			db_offset = wq_create->u.response.doorbell_offset;
 			if ((db_offset != LPFC_ULP0_WQ_DOORBELL) &&
 			    (db_offset != LPFC_ULP1_WQ_DOORBELL)) {
-				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 						"3252 WQ[%d] doorbell offset "
 						"not supported: x%x\n",
 						wq->queue_id, db_offset);
@@ -15967,7 +15966,7 @@ lpfc_wq_create(struct lpfc_hba *phba, struct lpfc_queue *wq,
 			bar_memmap_p = lpfc_dual_chute_pci_bar_map(phba,
 								   pci_barset);
 			if (!bar_memmap_p) {
-				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 						"3267 WQ[%d] failed to memmap "
 						"pci barset:x%x\n",
 						wq->queue_id, pci_barset);
@@ -15983,7 +15982,7 @@ lpfc_wq_create(struct lpfc_hba *phba, struct lpfc_queue *wq,
 			bar_memmap_p = lpfc_dual_chute_pci_bar_map(phba,
 								   dpp_barset);
 			if (!bar_memmap_p) {
-				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 						"3268 WQ[%d] failed to memmap "
 						"pci barset:x%x\n",
 						wq->queue_id, dpp_barset);
@@ -16107,7 +16106,7 @@ lpfc_rq_create(struct lpfc_hba *phba, struct lpfc_queue *hrq,
 	} else {
 		switch (hrq->entry_count) {
 		default:
-			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"2535 Unsupported RQ count. (%d)\n",
 					hrq->entry_count);
 			if (hrq->entry_count < 512) {
@@ -16158,7 +16157,7 @@ lpfc_rq_create(struct lpfc_hba *phba, struct lpfc_queue *hrq,
 	shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
 	shdr_add_status = bf_get(lpfc_mbox_hdr_add_status, &shdr->response);
 	if (shdr_status || shdr_add_status || rc) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2504 RQ_CREATE mailbox failed with "
 				"status x%x add_status x%x, mbx status x%x\n",
 				shdr_status, shdr_add_status, rc);
@@ -16176,7 +16175,7 @@ lpfc_rq_create(struct lpfc_hba *phba, struct lpfc_queue *hrq,
 					&rq_create->u.response);
 		if ((hrq->db_format != LPFC_DB_LIST_FORMAT) &&
 		    (hrq->db_format != LPFC_DB_RING_FORMAT)) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"3262 RQ [%d] doorbell format not "
 					"supported: x%x\n", hrq->queue_id,
 					hrq->db_format);
@@ -16188,7 +16187,7 @@ lpfc_rq_create(struct lpfc_hba *phba, struct lpfc_queue *hrq,
 				    &rq_create->u.response);
 		bar_memmap_p = lpfc_dual_chute_pci_bar_map(phba, pci_barset);
 		if (!bar_memmap_p) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"3269 RQ[%d] failed to memmap pci "
 					"barset:x%x\n", hrq->queue_id,
 					pci_barset);
@@ -16199,7 +16198,7 @@ lpfc_rq_create(struct lpfc_hba *phba, struct lpfc_queue *hrq,
 		db_offset = rq_create->u.response.doorbell_offset;
 		if ((db_offset != LPFC_ULP0_RQ_DOORBELL) &&
 		    (db_offset != LPFC_ULP1_RQ_DOORBELL)) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"3270 RQ[%d] doorbell offset not "
 					"supported: x%x\n", hrq->queue_id,
 					db_offset);
@@ -16244,7 +16243,7 @@ lpfc_rq_create(struct lpfc_hba *phba, struct lpfc_queue *hrq,
 	} else {
 		switch (drq->entry_count) {
 		default:
-			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"2536 Unsupported RQ count. (%d)\n",
 					drq->entry_count);
 			if (drq->entry_count < 512) {
@@ -16381,7 +16380,7 @@ lpfc_mrq_create(struct lpfc_hba *phba, struct lpfc_queue **hrqp,
 				    LPFC_MBOX_OPCODE_FCOE_RQ_CREATE, length,
 				    LPFC_SLI4_MBX_NEMBED);
 	if (alloclen < length) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"3099 Allocated DMA memory size (%d) is "
 				"less than the requested DMA memory size "
 				"(%d)\n", alloclen, length);
@@ -16491,7 +16490,7 @@ lpfc_mrq_create(struct lpfc_hba *phba, struct lpfc_queue **hrqp,
 	shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
 	shdr_add_status = bf_get(lpfc_mbox_hdr_add_status, &shdr->response);
 	if (shdr_status || shdr_add_status || rc) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"3120 RQ_CREATE mailbox failed with "
 				"status x%x add_status x%x, mbx status x%x\n",
 				shdr_status, shdr_add_status, rc);
@@ -16561,7 +16560,7 @@ lpfc_eq_destroy(struct lpfc_hba *phba, struct lpfc_queue *eq)
 	shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
 	shdr_add_status = bf_get(lpfc_mbox_hdr_add_status, &shdr->response);
 	if (shdr_status || shdr_add_status || rc) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2505 EQ_DESTROY mailbox failed with "
 				"status x%x add_status x%x, mbx status x%x\n",
 				shdr_status, shdr_add_status, rc);
@@ -16616,7 +16615,7 @@ lpfc_cq_destroy(struct lpfc_hba *phba, struct lpfc_queue *cq)
 	shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
 	shdr_add_status = bf_get(lpfc_mbox_hdr_add_status, &shdr->response);
 	if (shdr_status || shdr_add_status || rc) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2506 CQ_DESTROY mailbox failed with "
 				"status x%x add_status x%x, mbx status x%x\n",
 				shdr_status, shdr_add_status, rc);
@@ -16670,7 +16669,7 @@ lpfc_mq_destroy(struct lpfc_hba *phba, struct lpfc_queue *mq)
 	shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
 	shdr_add_status = bf_get(lpfc_mbox_hdr_add_status, &shdr->response);
 	if (shdr_status || shdr_add_status || rc) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2507 MQ_DESTROY mailbox failed with "
 				"status x%x add_status x%x, mbx status x%x\n",
 				shdr_status, shdr_add_status, rc);
@@ -16723,7 +16722,7 @@ lpfc_wq_destroy(struct lpfc_hba *phba, struct lpfc_queue *wq)
 	shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
 	shdr_add_status = bf_get(lpfc_mbox_hdr_add_status, &shdr->response);
 	if (shdr_status || shdr_add_status || rc) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2508 WQ_DESTROY mailbox failed with "
 				"status x%x add_status x%x, mbx status x%x\n",
 				shdr_status, shdr_add_status, rc);
@@ -16780,7 +16779,7 @@ lpfc_rq_destroy(struct lpfc_hba *phba, struct lpfc_queue *hrq,
 	shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
 	shdr_add_status = bf_get(lpfc_mbox_hdr_add_status, &shdr->response);
 	if (shdr_status || shdr_add_status || rc) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2509 RQ_DESTROY mailbox failed with "
 				"status x%x add_status x%x, mbx status x%x\n",
 				shdr_status, shdr_add_status, rc);
@@ -16796,7 +16795,7 @@ lpfc_rq_destroy(struct lpfc_hba *phba, struct lpfc_queue *hrq,
 	shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
 	shdr_add_status = bf_get(lpfc_mbox_hdr_add_status, &shdr->response);
 	if (shdr_status || shdr_add_status || rc) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2510 RQ_DESTROY mailbox failed with "
 				"status x%x add_status x%x, mbx status x%x\n",
 				shdr_status, shdr_add_status, rc);
@@ -16844,7 +16843,7 @@ lpfc_sli4_post_sgl(struct lpfc_hba *phba,
 	union lpfc_sli4_cfg_shdr *shdr;
 
 	if (xritag == NO_XRI) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0364 Invalid param:\n");
 		return -EINVAL;
 	}
@@ -16885,7 +16884,7 @@ lpfc_sli4_post_sgl(struct lpfc_hba *phba,
 	if (rc != MBX_TIMEOUT)
 		mempool_free(mbox, phba->mbox_mem_pool);
 	if (shdr_status || shdr_add_status || rc) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2511 POST_SGL mailbox failed with "
 				"status x%x add_status x%x, mbx status x%x\n",
 				shdr_status, shdr_add_status, rc);
@@ -17016,7 +17015,7 @@ lpfc_sli4_post_sgl_list(struct lpfc_hba *phba,
 	reqlen = post_cnt * sizeof(struct sgl_page_pairs) +
 		 sizeof(union lpfc_sli4_cfg_shdr) + sizeof(uint32_t);
 	if (reqlen > SLI4_PAGE_SIZE) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2559 Block sgl registration required DMA "
 				"size (%d) great than a page\n", reqlen);
 		return -ENOMEM;
@@ -17032,7 +17031,7 @@ lpfc_sli4_post_sgl_list(struct lpfc_hba *phba,
 			 LPFC_SLI4_MBX_NEMBED);
 
 	if (alloclen < reqlen) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0285 Allocated DMA memory size (%d) is "
 				"less than the requested DMA memory "
 				"size (%d)\n", alloclen, reqlen);
@@ -17080,7 +17079,7 @@ lpfc_sli4_post_sgl_list(struct lpfc_hba *phba,
 	if (rc != MBX_TIMEOUT)
 		lpfc_sli4_mbox_cmd_free(phba, mbox);
 	if (shdr_status || shdr_add_status || rc) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2513 POST_SGL_BLOCK mailbox command failed "
 				"status x%x add_status x%x mbx status x%x\n",
 				shdr_status, shdr_add_status, rc);
@@ -17128,7 +17127,7 @@ lpfc_sli4_post_io_sgl_block(struct lpfc_hba *phba, struct list_head *nblist,
 	}
 	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!mbox) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"6119 Failed to allocate mbox cmd memory\n");
 		return -ENOMEM;
 	}
@@ -17139,7 +17138,7 @@ lpfc_sli4_post_io_sgl_block(struct lpfc_hba *phba, struct list_head *nblist,
 				    reqlen, LPFC_SLI4_MBX_NEMBED);
 
 	if (alloclen < reqlen) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"6120 Allocated DMA memory size (%d) is "
 				"less than the requested DMA memory "
 				"size (%d)\n", alloclen, reqlen);
@@ -17193,7 +17192,7 @@ lpfc_sli4_post_io_sgl_block(struct lpfc_hba *phba, struct list_head *nblist,
 	if (rc != MBX_TIMEOUT)
 		lpfc_sli4_mbox_cmd_free(phba, mbox);
 	if (shdr_status || shdr_add_status || rc) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"6125 POST_SGL_BLOCK mailbox command failed "
 				"status x%x add_status x%x mbx status x%x\n",
 				shdr_status, shdr_add_status, rc);
@@ -17777,7 +17776,7 @@ lpfc_sli4_seq_abort_rsp_cmpl(struct lpfc_hba *phba,
 
 	/* Failure means BLS ABORT RSP did not get delivered to remote node*/
 	if (rsp_iocbq && rsp_iocbq->iocb.ulpStatus)
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 			"3154 BLS ABORT RSP failed, data:  x%x/x%x\n",
 			rsp_iocbq->iocb.ulpStatus,
 			rsp_iocbq->iocb.un.ulpWord[4]);
@@ -17939,7 +17938,7 @@ lpfc_sli4_seq_abort_rsp(struct lpfc_vport *vport,
 
 	rc = lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, ctiocb, 0);
 	if (rc == IOCB_ERROR) {
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 				 "2925 Failed to issue CT ABTS RSP x%x on "
 				 "xri x%x, Data x%x\n",
 				 icmd->un.xseq64.w5.hcsw.Rctl, oxid,
@@ -18189,7 +18188,7 @@ lpfc_sli4_send_seq_to_ulp(struct lpfc_vport *vport,
 	fc_hdr = (struct fc_frame_header *)seq_dmabuf->hbuf.virt;
 	iocbq = lpfc_prep_seq(vport, seq_dmabuf);
 	if (!iocbq) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2707 Ring %d handler: Failed to allocate "
 				"iocb Rctl x%x Type x%x received\n",
 				LPFC_ELS_RING,
@@ -18200,7 +18199,7 @@ lpfc_sli4_send_seq_to_ulp(struct lpfc_vport *vport,
 				      phba->sli4_hba.els_wq->pring,
 				      iocbq, fc_hdr->fh_r_ctl,
 				      fc_hdr->fh_type))
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2540 Ring %d handler: unexpected Rctl "
 				"x%x Type x%x received\n",
 				LPFC_ELS_RING,
@@ -18465,7 +18464,7 @@ lpfc_sli4_post_all_rpi_hdrs(struct lpfc_hba *phba)
 
 		rc = lpfc_sli4_post_rpi_hdr(phba, rpi_page);
 		if (rc != MBX_SUCCESS) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"2008 Error %d posting all rpi "
 					"headers\n", rc);
 			rc = -EIO;
@@ -18511,7 +18510,7 @@ lpfc_sli4_post_rpi_hdr(struct lpfc_hba *phba, struct lpfc_rpi_hdr *rpi_page)
 	/* The port is notified of the header region via a mailbox command. */
 	mboxq = (LPFC_MBOXQ_t *) mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!mboxq) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2001 Unable to allocate memory for issuing "
 				"SLI_CONFIG_SPECIAL mailbox command\n");
 		return -ENOMEM;
@@ -18541,7 +18540,7 @@ lpfc_sli4_post_rpi_hdr(struct lpfc_hba *phba, struct lpfc_rpi_hdr *rpi_page)
 	if (rc != MBX_TIMEOUT)
 		mempool_free(mboxq, phba->mbox_mem_pool);
 	if (shdr_status || shdr_add_status || rc) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2514 POST_RPI_HDR mailbox failed with "
 				"status x%x add_status x%x, mbx status x%x\n",
 				shdr_status, shdr_add_status, rc);
@@ -18631,7 +18630,7 @@ lpfc_sli4_alloc_rpi(struct lpfc_hba *phba)
 	if (rpi_remaining < LPFC_RPI_LOW_WATER_MARK) {
 		rpi_hdr = lpfc_sli4_create_rpi_hdr(phba);
 		if (!rpi_hdr) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"2002 Error Could not grow rpi "
 					"count\n");
 		} else {
@@ -18733,7 +18732,7 @@ lpfc_sli4_resume_rpi(struct lpfc_nodelist *ndlp,
 	mboxq->vport = ndlp->vport;
 	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_NOWAIT);
 	if (rc == MBX_NOT_FINISHED) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2010 Resume RPI Mailbox failed "
 				"status %d, mbxStatus x%x\n", rc,
 				bf_get(lpfc_mqe_status, &mboxq->u.mqe));
@@ -18768,7 +18767,7 @@ lpfc_sli4_init_vpi(struct lpfc_vport *vport)
 	mbox_tmo = lpfc_mbox_tmo_val(phba, mboxq);
 	rc = lpfc_sli_issue_mbox_wait(phba, mboxq, mbox_tmo);
 	if (rc != MBX_SUCCESS) {
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_SLI,
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 				"2022 INIT VPI Mailbox failed "
 				"status %d, mbxStatus x%x\n", rc,
 				bf_get(lpfc_mqe_status, &mboxq->u.mqe));
@@ -18804,7 +18803,7 @@ lpfc_mbx_cmpl_add_fcf_record(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 
 	if ((shdr_status || shdr_add_status) &&
 		(shdr_status != STATUS_FCF_IN_USE))
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 			"2558 ADD_FCF_RECORD mailbox failed with "
 			"status x%x add_status x%x\n",
 			shdr_status, shdr_add_status);
@@ -18834,7 +18833,7 @@ lpfc_sli4_add_fcf_record(struct lpfc_hba *phba, struct fcf_record *fcf_record)
 
 	mboxq = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!mboxq) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 			"2009 Failed to allocate mbox for ADD_FCF cmd\n");
 		return -ENOMEM;
 	}
@@ -18847,7 +18846,7 @@ lpfc_sli4_add_fcf_record(struct lpfc_hba *phba, struct fcf_record *fcf_record)
 				     LPFC_MBOX_OPCODE_FCOE_ADD_FCF,
 				     req_len, LPFC_SLI4_MBX_NEMBED);
 	if (alloc_len < req_len) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 			"2523 Allocated DMA memory size (x%x) is "
 			"less than the requested DMA memory "
 			"size (x%x)\n", alloc_len, req_len);
@@ -18880,7 +18879,7 @@ lpfc_sli4_add_fcf_record(struct lpfc_hba *phba, struct fcf_record *fcf_record)
 	mboxq->mbox_cmpl = lpfc_mbx_cmpl_add_fcf_record;
 	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_NOWAIT);
 	if (rc == MBX_NOT_FINISHED) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 			"2515 ADD_FCF_RECORD mailbox failed with "
 			"status 0x%x\n", rc);
 		lpfc_sli4_mbox_cmd_free(phba, mboxq);
@@ -18953,7 +18952,7 @@ lpfc_sli4_fcf_scan_read_fcf_rec(struct lpfc_hba *phba, uint16_t fcf_index)
 	phba->fcoe_cvl_eventtag_attn = phba->fcoe_cvl_eventtag;
 	mboxq = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!mboxq) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2000 Failed to allocate mbox for "
 				"READ_FCF cmd\n");
 		error = -ENOMEM;
@@ -19396,7 +19395,7 @@ lpfc_sli4_redisc_fcf_table(struct lpfc_hba *phba)
 
 	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!mbox) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2745 Failed to allocate mbox for "
 				"requesting FCF rediscover.\n");
 		return -ENOMEM;
@@ -19471,7 +19470,7 @@ lpfc_sli_get_config_region23(struct lpfc_hba *phba, char *rgn23_data)
 
 	pmb = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!pmb) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2600 failed to allocate mailbox memory\n");
 		return 0;
 	}
@@ -19530,7 +19529,7 @@ lpfc_sli4_get_config_region23(struct lpfc_hba *phba, char *rgn23_data)
 
 	mboxq = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!mboxq) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"3105 failed to allocate mailbox memory\n");
 		return 0;
 	}
@@ -19594,7 +19593,7 @@ lpfc_sli_read_link_ste(struct lpfc_hba *phba)
 
 	/* Check the region signature first */
 	if (memcmp(&rgn23_data[offset], LPFC_REGION23_SIGNATURE, 4)) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 			"2619 Config region 23 has bad signature\n");
 			goto out;
 	}
@@ -19602,7 +19601,7 @@ lpfc_sli_read_link_ste(struct lpfc_hba *phba)
 
 	/* Check the data structure version */
 	if (rgn23_data[offset] != LPFC_REGION23_VERSION) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 			"2620 Config region 23 has bad version\n");
 		goto out;
 	}
@@ -19779,7 +19778,7 @@ lpfc_wr_object(struct lpfc_hba *phba, struct list_head *dmabuf_list,
 	if (rc != MBX_TIMEOUT)
 		mempool_free(mbox, phba->mbox_mem_pool);
 	if (shdr_status || shdr_add_status || rc) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"3025 Write Object mailbox failed with "
 				"status x%x add_status x%x, mbx status x%x\n",
 				shdr_status, shdr_add_status, rc);
@@ -19959,7 +19958,7 @@ lpfc_drain_txq(struct lpfc_hba *phba)
 		piocbq = lpfc_sli_ringtx_get(phba, pring);
 		if (!piocbq) {
 			spin_unlock_irqrestore(&pring->ring_lock, iflags);
-			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2823 txq empty and txq_cnt is %d\n ",
 				txq_cnt);
 			break;
@@ -19988,7 +19987,7 @@ lpfc_drain_txq(struct lpfc_hba *phba)
 
 		if (fail_msg) {
 			/* Failed means we can't issue and need to cancel */
-			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"2822 IOCB failed %s iotag 0x%x "
 					"xri 0x%x\n",
 					fail_msg,

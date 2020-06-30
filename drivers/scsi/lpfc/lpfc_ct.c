@@ -750,7 +750,7 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		if (vport->fc_flag & FC_RSCN_MODE)
 			lpfc_els_flush_rscn(vport);
 		lpfc_vport_set_state(vport, FC_VPORT_FAILED);
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 				 "0257 GID_FT Query error: 0x%x 0x%x\n",
 				 irsp->ulpStatus, vport->fc_ns_retry);
 	} else {
@@ -811,7 +811,7 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 		} else {
 			/* NameServer Rsp Error */
-			lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 					"0241 NameServer Rsp Error "
 					"Data: x%x x%x x%x x%x\n",
 					CTrsp->CommandResponse.bits.CmdRsp,
@@ -951,7 +951,7 @@ lpfc_cmpl_ct_cmd_gid_pt(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		if (vport->fc_flag & FC_RSCN_MODE)
 			lpfc_els_flush_rscn(vport);
 		lpfc_vport_set_state(vport, FC_VPORT_FAILED);
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 				 "4103 GID_FT Query error: 0x%x 0x%x\n",
 				 irsp->ulpStatus, vport->fc_ns_retry);
 	} else {
@@ -1012,7 +1012,7 @@ lpfc_cmpl_ct_cmd_gid_pt(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			}
 		} else {
 			/* NameServer Rsp Error */
-			lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 					 "4109 NameServer Rsp Error "
 					 "Data: x%x x%x x%x x%x\n",
 					 CTrsp->CommandResponse.bits.CmdRsp,
@@ -1143,7 +1143,7 @@ lpfc_cmpl_ct_cmd_gff_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				}
 			}
 		}
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 				 "0267 NameServer GFF Rsp "
 				 "x%x Error (%d %d) Data: x%x x%x\n",
 				 did, irsp->ulpStatus, irsp->un.ulpWord[4],
@@ -1271,7 +1271,7 @@ lpfc_cmpl_ct_cmd_gft_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			}
 		}
 	} else
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 				 "3065 GFT_ID failed x%08x\n", irsp->ulpStatus);
 
 	lpfc_ct_free_iocb(phba, cmdiocb);
@@ -1320,7 +1320,7 @@ lpfc_cmpl_ct(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		irsp->ulpStatus, irsp->un.ulpWord[4], cmdcode);
 
 	if (irsp->ulpStatus) {
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 				 "0268 NS cmd x%x Error (x%x x%x)\n",
 				 cmdcode, irsp->ulpStatus, irsp->un.ulpWord[4]);
 
@@ -1843,7 +1843,7 @@ ns_cmd_free_mpvirt:
 ns_cmd_free_mp:
 	kfree(mp);
 ns_cmd_exit:
-	lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
+	lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 			 "0266 Issue NameServer Req x%x err %d Data: x%x x%x\n",
 			 cmdcode, rc, vport->fc_flag, vport->fc_rscn_id_cnt);
 	return 1;

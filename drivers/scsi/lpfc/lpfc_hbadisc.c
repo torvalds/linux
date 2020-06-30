@@ -155,17 +155,17 @@ lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
 		return;
 
 	if (rport->port_name != wwn_to_u64(ndlp->nlp_portname.u.wwn))
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_NODE,
-				"6789 rport name %llx != node port name %llx",
-				rport->port_name,
-				wwn_to_u64(ndlp->nlp_portname.u.wwn));
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
+				 "6789 rport name %llx != node port name %llx",
+				 rport->port_name,
+				 wwn_to_u64(ndlp->nlp_portname.u.wwn));
 
 	evtp = &ndlp->dev_loss_evt;
 
 	if (!list_empty(&evtp->evt_listp)) {
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_NODE,
-				"6790 rport name %llx dev_loss_evt pending",
-				rport->port_name);
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
+				 "6790 rport name %llx dev_loss_evt pending",
+				 rport->port_name);
 		return;
 	}
 
@@ -295,7 +295,7 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 	}
 
 	if (warn_on) {
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 				 "0203 Devloss timeout on "
 				 "WWPN %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x "
 				 "NPort x%06x Data: x%x x%x x%x\n",
@@ -304,7 +304,7 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 				 ndlp->nlp_DID, ndlp->nlp_flag,
 				 ndlp->nlp_state, ndlp->nlp_rpi);
 	} else {
-		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_TRACE_EVENT,
 				 "0204 Devloss timeout on "
 				 "WWPN %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x "
 				 "NPort x%06x Data: x%x x%x x%x\n",
@@ -755,7 +755,7 @@ lpfc_do_work(void *p)
 					 || kthread_should_stop()));
 		/* Signal wakeup shall terminate the worker thread */
 		if (rc) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_ELS,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"0433 Wakeup on signal: rc=x%x\n", rc);
 			break;
 		}
@@ -1092,7 +1092,7 @@ lpfc_mbx_cmpl_clear_la(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	/* Check for error */
 	if ((mb->mbxStatus) && (mb->mbxStatus != 0x1601)) {
 		/* CLEAR_LA mbox error <mbxStatus> state <hba_state> */
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_MBOX,
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 				 "0320 CLEAR_LA mbxStatus error x%x hba "
 				 "state x%x\n",
 				 mb->mbxStatus, vport->port_state);
@@ -1180,7 +1180,7 @@ lpfc_mbx_cmpl_local_config_link(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	return;
 
 out:
-	lpfc_printf_vlog(vport, KERN_ERR, LOG_MBOX,
+	lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 			 "0306 CONFIG_LINK mbxStatus error x%x "
 			 "HBA state x%x\n",
 			 pmb->u.mb.mbxStatus, vport->port_state);
@@ -1188,7 +1188,7 @@ out:
 
 	lpfc_linkdown(phba);
 
-	lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
+	lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 			 "0200 CONFIG_LINK bad hba state x%x\n",
 			 vport->port_state);
 
@@ -1224,10 +1224,10 @@ lpfc_mbx_cmpl_reg_fcfi(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	struct lpfc_vport *vport = mboxq->vport;
 
 	if (mboxq->u.mb.mbxStatus) {
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_MBOX,
-			 "2017 REG_FCFI mbxStatus error x%x "
-			 "HBA state x%x\n",
-			 mboxq->u.mb.mbxStatus, vport->port_state);
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
+				 "2017 REG_FCFI mbxStatus error x%x "
+				 "HBA state x%x\n", mboxq->u.mb.mbxStatus,
+				 vport->port_state);
 		goto fail_out;
 	}
 
@@ -1848,7 +1848,7 @@ lpfc_sli4_fcf_rec_mbox_parse(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq,
 	 */
 	lpfc_sli4_mbx_sge_get(mboxq, 0, &sge);
 	if (unlikely(!mboxq->sge_array)) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2524 Failed to get the non-embedded SGE "
 				"virtual address\n");
 		return NULL;
@@ -1864,11 +1864,12 @@ lpfc_sli4_fcf_rec_mbox_parse(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq,
 	if (shdr_status || shdr_add_status) {
 		if (shdr_status == STATUS_FCF_TABLE_EMPTY ||
 					if_type == LPFC_SLI_INTF_IF_TYPE_2)
-			lpfc_printf_log(phba, KERN_ERR, LOG_FIP,
+			lpfc_printf_log(phba, KERN_ERR,
+					LOG_TRACE_EVENT,
 					"2726 READ_FCF_RECORD Indicates empty "
 					"FCF table.\n");
 		else
-			lpfc_printf_log(phba, KERN_ERR, LOG_FIP,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"2521 READ_FCF_RECORD mailbox failed "
 					"with status x%x add_status x%x, "
 					"mbx\n", shdr_status, shdr_add_status);
@@ -2246,7 +2247,7 @@ lpfc_mbx_cmpl_fcf_scan_read_fcf_rec(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	new_fcf_record = lpfc_sli4_fcf_rec_mbox_parse(phba, mboxq,
 						      &next_fcf_index);
 	if (!new_fcf_record) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_FIP,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2765 Mailbox command READ_FCF_RECORD "
 				"failed to retrieve a FCF record.\n");
 		/* Let next new FCF event trigger fast failover */
@@ -2290,7 +2291,8 @@ lpfc_mbx_cmpl_fcf_scan_read_fcf_rec(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 		    new_fcf_record, LPFC_FCOE_IGNORE_VID)) {
 			if (bf_get(lpfc_fcf_record_fcf_index, new_fcf_record) !=
 			    phba->fcf.current_rec.fcf_indx) {
-				lpfc_printf_log(phba, KERN_ERR, LOG_FIP,
+				lpfc_printf_log(phba, KERN_ERR,
+						LOG_TRACE_EVENT,
 					"2862 FCF (x%x) matches property "
 					"of in-use FCF (x%x)\n",
 					bf_get(lpfc_fcf_record_fcf_index,
@@ -2360,7 +2362,7 @@ lpfc_mbx_cmpl_fcf_scan_read_fcf_rec(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 						phba->pport->fc_flag);
 				goto out;
 			} else
-				lpfc_printf_log(phba, KERN_ERR, LOG_FIP,
+				lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"2863 New FCF (x%x) matches "
 					"property of in-use FCF (x%x)\n",
 					bf_get(lpfc_fcf_record_fcf_index,
@@ -2774,10 +2776,9 @@ lpfc_init_vfi_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	    (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) !=
 			LPFC_SLI_INTF_IF_TYPE_0) &&
 	    mboxq->u.mb.mbxStatus != MBX_VFI_IN_USE) {
-		lpfc_printf_vlog(vport, KERN_ERR,
-				LOG_MBOX,
-				"2891 Init VFI mailbox failed 0x%x\n",
-				mboxq->u.mb.mbxStatus);
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
+				 "2891 Init VFI mailbox failed 0x%x\n",
+				 mboxq->u.mb.mbxStatus);
 		mempool_free(mboxq, phba->mbox_mem_pool);
 		lpfc_vport_set_state(vport, FC_VPORT_FAILED);
 		return;
@@ -2805,7 +2806,7 @@ lpfc_issue_init_vfi(struct lpfc_vport *vport)
 	mboxq = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!mboxq) {
 		lpfc_printf_vlog(vport, KERN_ERR,
-			LOG_MBOX, "2892 Failed to allocate "
+			LOG_TRACE_EVENT, "2892 Failed to allocate "
 			"init_vfi mailbox\n");
 		return;
 	}
@@ -2813,8 +2814,8 @@ lpfc_issue_init_vfi(struct lpfc_vport *vport)
 	mboxq->mbox_cmpl = lpfc_init_vfi_cmpl;
 	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_NOWAIT);
 	if (rc == MBX_NOT_FINISHED) {
-		lpfc_printf_vlog(vport, KERN_ERR,
-			LOG_MBOX, "2893 Failed to issue init_vfi mailbox\n");
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
+				 "2893 Failed to issue init_vfi mailbox\n");
 		mempool_free(mboxq, vport->phba->mbox_mem_pool);
 	}
 }
@@ -2834,10 +2835,9 @@ lpfc_init_vpi_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 
 	if (mboxq->u.mb.mbxStatus) {
-		lpfc_printf_vlog(vport, KERN_ERR,
-				LOG_MBOX,
-				"2609 Init VPI mailbox failed 0x%x\n",
-				mboxq->u.mb.mbxStatus);
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
+				 "2609 Init VPI mailbox failed 0x%x\n",
+				 mboxq->u.mb.mbxStatus);
 		mempool_free(mboxq, phba->mbox_mem_pool);
 		lpfc_vport_set_state(vport, FC_VPORT_FAILED);
 		return;
@@ -2851,7 +2851,7 @@ lpfc_init_vpi_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 			ndlp = lpfc_findnode_did(vport, Fabric_DID);
 			if (!ndlp)
 				lpfc_printf_vlog(vport, KERN_ERR,
-					LOG_DISCOVERY,
+					LOG_TRACE_EVENT,
 					"2731 Cannot find fabric "
 					"controller node\n");
 			else
@@ -2864,7 +2864,7 @@ lpfc_init_vpi_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 		lpfc_initial_fdisc(vport);
 	else {
 		lpfc_vport_set_state(vport, FC_VPORT_NO_FABRIC_SUPP);
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 				 "2606 No NPIV Fabric support\n");
 	}
 	mempool_free(mboxq, phba->mbox_mem_pool);
@@ -2887,8 +2887,7 @@ lpfc_issue_init_vpi(struct lpfc_vport *vport)
 	if ((vport->port_type != LPFC_PHYSICAL_PORT) && (!vport->vpi)) {
 		vpi = lpfc_alloc_vpi(vport->phba);
 		if (!vpi) {
-			lpfc_printf_vlog(vport, KERN_ERR,
-					 LOG_MBOX,
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 					 "3303 Failed to obtain vport vpi\n");
 			lpfc_vport_set_state(vport, FC_VPORT_FAILED);
 			return;
@@ -2899,7 +2898,7 @@ lpfc_issue_init_vpi(struct lpfc_vport *vport)
 	mboxq = mempool_alloc(vport->phba->mbox_mem_pool, GFP_KERNEL);
 	if (!mboxq) {
 		lpfc_printf_vlog(vport, KERN_ERR,
-			LOG_MBOX, "2607 Failed to allocate "
+			LOG_TRACE_EVENT, "2607 Failed to allocate "
 			"init_vpi mailbox\n");
 		return;
 	}
@@ -2908,8 +2907,8 @@ lpfc_issue_init_vpi(struct lpfc_vport *vport)
 	mboxq->mbox_cmpl = lpfc_init_vpi_cmpl;
 	rc = lpfc_sli_issue_mbox(vport->phba, mboxq, MBX_NOWAIT);
 	if (rc == MBX_NOT_FINISHED) {
-		lpfc_printf_vlog(vport, KERN_ERR,
-			LOG_MBOX, "2608 Failed to issue init_vpi mailbox\n");
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
+				 "2608 Failed to issue init_vpi mailbox\n");
 		mempool_free(mboxq, vport->phba->mbox_mem_pool);
 	}
 }
@@ -2953,7 +2952,7 @@ lpfc_start_fdiscs(struct lpfc_hba *phba)
 				lpfc_vport_set_state(vports[i],
 						     FC_VPORT_NO_FABRIC_SUPP);
 				lpfc_printf_vlog(vports[i], KERN_ERR,
-						 LOG_ELS,
+						 LOG_TRACE_EVENT,
 						 "0259 No NPIV "
 						 "Fabric support\n");
 			}
@@ -2977,10 +2976,10 @@ lpfc_mbx_cmpl_reg_vfi(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	    (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) !=
 			LPFC_SLI_INTF_IF_TYPE_0) &&
 	    mboxq->u.mb.mbxStatus != MBX_VFI_IN_USE) {
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_MBOX,
-			 "2018 REG_VFI mbxStatus error x%x "
-			 "HBA state x%x\n",
-			 mboxq->u.mb.mbxStatus, vport->port_state);
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
+				 "2018 REG_VFI mbxStatus error x%x "
+				 "HBA state x%x\n",
+				 mboxq->u.mb.mbxStatus, vport->port_state);
 		if (phba->fc_topology == LPFC_TOPOLOGY_LOOP) {
 			/* FLOGI failed, use loop map to make discovery list */
 			lpfc_disc_list_loopmap(vport);
@@ -3067,7 +3066,7 @@ lpfc_mbx_cmpl_read_sparam(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	/* Check for error */
 	if (mb->mbxStatus) {
 		/* READ_SPARAM mbox error <mbxStatus> state <hba_state> */
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_MBOX,
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 				 "0319 READ_SPARAM mbxStatus error x%x "
 				 "hba state x%x>\n",
 				 mb->mbxStatus, vport->port_state);
@@ -3286,7 +3285,7 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, struct lpfc_mbx_read_top *la)
 					GFP_KERNEL);
 			if (unlikely(!fcf_record)) {
 				lpfc_printf_log(phba, KERN_ERR,
-					LOG_MBOX | LOG_SLI,
+					LOG_TRACE_EVENT,
 					"2554 Could not allocate memory for "
 					"fcf record\n");
 				rc = -ENODEV;
@@ -3298,7 +3297,7 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, struct lpfc_mbx_read_top *la)
 			rc = lpfc_sli4_add_fcf_record(phba, fcf_record);
 			if (unlikely(rc)) {
 				lpfc_printf_log(phba, KERN_ERR,
-					LOG_MBOX | LOG_SLI,
+					LOG_TRACE_EVENT,
 					"2013 Could not manually add FCF "
 					"record 0, status %d\n", rc);
 				rc = -ENODEV;
@@ -3344,7 +3343,7 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, struct lpfc_mbx_read_top *la)
 	return;
 out:
 	lpfc_vport_set_state(vport, FC_VPORT_FAILED);
-	lpfc_printf_vlog(vport, KERN_ERR, LOG_MBOX,
+	lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 			 "0263 Discovery Mailbox error: state: 0x%x : x%px x%px\n",
 			 vport->port_state, sparam_mbox, cfglink_mbox);
 	lpfc_issue_clear_la(phba, vport);
@@ -3617,7 +3616,7 @@ lpfc_mbx_cmpl_unreg_vpi(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		break;
 	/* If VPI is busy, reset the HBA */
 	case 0x9700:
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_NODE,
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 			"2798 Unreg_vpi failed vpi 0x%x, mb status = 0x%x\n",
 			vport->vpi, mb->mbxStatus);
 		if (!(phba->pport->load_flag & FC_UNLOADING))
@@ -3655,7 +3654,7 @@ lpfc_mbx_unreg_vpi(struct lpfc_vport *vport)
 	mbox->mbox_cmpl = lpfc_mbx_cmpl_unreg_vpi;
 	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
 	if (rc == MBX_NOT_FINISHED) {
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_MBOX | LOG_VPORT,
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 				 "1800 Could not issue unreg_vpi\n");
 		mempool_free(mbox, phba->mbox_mem_pool);
 		vport->unreg_vpi_cmpl = VPORT_ERROR;
@@ -3742,7 +3741,7 @@ lpfc_create_static_vport(struct lpfc_hba *phba)
 
 	pmb = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!pmb) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0542 lpfc_create_static_vport failed to"
 				" allocate mailbox memory\n");
 		return;
@@ -3752,7 +3751,7 @@ lpfc_create_static_vport(struct lpfc_hba *phba)
 
 	vport_info = kzalloc(sizeof(struct static_vport_info), GFP_KERNEL);
 	if (!vport_info) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0543 lpfc_create_static_vport failed to"
 				" allocate vport_info\n");
 		mempool_free(pmb, phba->mbox_mem_pool);
@@ -3813,11 +3812,12 @@ lpfc_create_static_vport(struct lpfc_hba *phba)
 	if ((le32_to_cpu(vport_info->signature) != VPORT_INFO_SIG) ||
 		((le32_to_cpu(vport_info->rev) & VPORT_INFO_REV_MASK)
 			!= VPORT_INFO_REV)) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-			"0545 lpfc_create_static_vport bad"
-			" information header 0x%x 0x%x\n",
-			le32_to_cpu(vport_info->signature),
-			le32_to_cpu(vport_info->rev) & VPORT_INFO_REV_MASK);
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
+				"0545 lpfc_create_static_vport bad"
+				" information header 0x%x 0x%x\n",
+				le32_to_cpu(vport_info->signature),
+				le32_to_cpu(vport_info->rev) &
+				VPORT_INFO_REV_MASK);
 
 		goto out;
 	}
@@ -3881,7 +3881,7 @@ lpfc_mbx_cmpl_fabric_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	pmb->ctx_buf = NULL;
 
 	if (mb->mbxStatus) {
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_MBOX,
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 				 "0258 Register Fabric login error: 0x%x\n",
 				 mb->mbxStatus);
 		lpfc_mbuf_free(phba, mp->virt, mp->phys);
@@ -3954,7 +3954,8 @@ lpfc_issue_gidft(struct lpfc_vport *vport)
 			/* Cannot issue NameServer FCP Query, so finish up
 			 * discovery
 			 */
-			lpfc_printf_vlog(vport, KERN_ERR, LOG_SLI,
+			lpfc_printf_vlog(vport, KERN_ERR,
+					 LOG_TRACE_EVENT,
 					 "0604 %s FC TYPE %x %s\n",
 					 "Failed to issue GID_FT to ",
 					 FC_TYPE_FCP,
@@ -3970,7 +3971,8 @@ lpfc_issue_gidft(struct lpfc_vport *vport)
 			/* Cannot issue NameServer NVME Query, so finish up
 			 * discovery
 			 */
-			lpfc_printf_vlog(vport, KERN_ERR, LOG_SLI,
+			lpfc_printf_vlog(vport, KERN_ERR,
+					 LOG_TRACE_EVENT,
 					 "0605 %s FC_TYPE %x %s %d\n",
 					 "Failed to issue GID_FT to ",
 					 FC_TYPE_NVME,
@@ -4002,7 +4004,7 @@ lpfc_issue_gidpt(struct lpfc_vport *vport)
 		/* Cannot issue NameServer FCP Query, so finish up
 		 * discovery
 		 */
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_SLI,
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 				 "0606 %s Port TYPE %x %s\n",
 				 "Failed to issue GID_PT to ",
 				 GID_PT_N_PORT,
@@ -4032,7 +4034,7 @@ lpfc_mbx_cmpl_ns_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	vport->gidft_inp = 0;
 
 	if (mb->mbxStatus) {
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 				 "0260 Register NameServer error: 0x%x\n",
 				 mb->mbxStatus);
 
@@ -4344,7 +4346,7 @@ lpfc_nlp_state_cleanup(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 					 GFP_KERNEL);
 
 		if (!ndlp->lat_data)
-			lpfc_printf_vlog(vport, KERN_ERR, LOG_NODE,
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 				"0286 lpfc_nlp_state_cleanup failed to "
 				"allocate statistical data buffer DID "
 				"0x%x\n", ndlp->nlp_DID);
@@ -5013,8 +5015,8 @@ lpfc_unreg_hba_rpis(struct lpfc_hba *phba)
 
 	vports = lpfc_create_vport_work_array(phba);
 	if (!vports) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY,
-			"2884 Vport array allocation failed \n");
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
+				"2884 Vport array allocation failed \n");
 		return;
 	}
 	for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++) {
@@ -5057,9 +5059,10 @@ lpfc_unreg_all_rpis(struct lpfc_vport *vport)
 			mempool_free(mbox, phba->mbox_mem_pool);
 
 		if ((rc == MBX_TIMEOUT) || (rc == MBX_NOT_FINISHED))
-			lpfc_printf_vlog(vport, KERN_ERR, LOG_MBOX | LOG_VPORT,
-				"1836 Could not issue "
-				"unreg_login(all_rpis) status %d\n", rc);
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
+					 "1836 Could not issue "
+					 "unreg_login(all_rpis) status %d\n",
+					 rc);
 	}
 }
 
@@ -5086,7 +5089,7 @@ lpfc_unreg_default_rpis(struct lpfc_vport *vport)
 			mempool_free(mbox, phba->mbox_mem_pool);
 
 		if ((rc == MBX_TIMEOUT) || (rc == MBX_NOT_FINISHED))
-			lpfc_printf_vlog(vport, KERN_ERR, LOG_MBOX | LOG_VPORT,
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 					 "1815 Could not issue "
 					 "unreg_did (default rpis) status %d\n",
 					 rc);
@@ -5907,7 +5910,8 @@ lpfc_disc_timeout_handler(struct lpfc_vport *vport)
 	case LPFC_FLOGI:
 	/* port_state is identically LPFC_FLOGI while waiting for FLOGI cmpl */
 		/* Initial FLOGI timeout */
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
+		lpfc_printf_vlog(vport, KERN_ERR,
+				 LOG_TRACE_EVENT,
 				 "0222 Initial %s timeout\n",
 				 vport->vpi ? "FDISC" : "FLOGI");
 
@@ -5925,7 +5929,8 @@ lpfc_disc_timeout_handler(struct lpfc_vport *vport)
 	case LPFC_FABRIC_CFG_LINK:
 	/* hba_state is identically LPFC_FABRIC_CFG_LINK while waiting for
 	   NameServer login */
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
+		lpfc_printf_vlog(vport, KERN_ERR,
+				 LOG_TRACE_EVENT,
 				 "0223 Timeout while waiting for "
 				 "NameServer login\n");
 		/* Next look for NameServer ndlp */
@@ -5938,7 +5943,8 @@ lpfc_disc_timeout_handler(struct lpfc_vport *vport)
 
 	case LPFC_NS_QRY:
 	/* Check for wait for NameServer Rsp timeout */
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
+		lpfc_printf_vlog(vport, KERN_ERR,
+				 LOG_TRACE_EVENT,
 				 "0224 NameServer Query timeout "
 				 "Data: x%x x%x\n",
 				 vport->fc_ns_retry, LPFC_MAX_NS_RETRY);
@@ -5971,7 +5977,8 @@ restart_disc:
 		/* Setup and issue mailbox INITIALIZE LINK command */
 		initlinkmbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 		if (!initlinkmbox) {
-			lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
+			lpfc_printf_vlog(vport, KERN_ERR,
+					 LOG_TRACE_EVENT,
 					 "0206 Device Discovery "
 					 "completion error\n");
 			phba->link_state = LPFC_HBA_ERROR;
@@ -5993,7 +6000,8 @@ restart_disc:
 
 	case LPFC_DISC_AUTH:
 	/* Node Authentication timeout */
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
+		lpfc_printf_vlog(vport, KERN_ERR,
+				 LOG_TRACE_EVENT,
 				 "0227 Node Authentication timeout\n");
 		lpfc_disc_flush_list(vport);
 
@@ -6013,7 +6021,8 @@ restart_disc:
 
 	case LPFC_VPORT_READY:
 		if (vport->fc_flag & FC_RSCN_MODE) {
-			lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
+			lpfc_printf_vlog(vport, KERN_ERR,
+					 LOG_TRACE_EVENT,
 					 "0231 RSCN timeout Data: x%x "
 					 "x%x\n",
 					 vport->fc_ns_retry, LPFC_MAX_NS_RETRY);
@@ -6027,7 +6036,8 @@ restart_disc:
 		break;
 
 	default:
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
+		lpfc_printf_vlog(vport, KERN_ERR,
+				 LOG_TRACE_EVENT,
 				 "0273 Unexpected discovery timeout, "
 				 "vport State x%x\n", vport->port_state);
 		break;
@@ -6036,7 +6046,8 @@ restart_disc:
 	switch (phba->link_state) {
 	case LPFC_CLEAR_LA:
 				/* CLEAR LA timeout */
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
+		lpfc_printf_vlog(vport, KERN_ERR,
+				 LOG_TRACE_EVENT,
 				 "0228 CLEAR LA timeout\n");
 		clrlaerr = 1;
 		break;
@@ -6050,7 +6061,8 @@ restart_disc:
 	case LPFC_INIT_MBX_CMDS:
 	case LPFC_LINK_DOWN:
 	case LPFC_HBA_ERROR:
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
+		lpfc_printf_vlog(vport, KERN_ERR,
+				 LOG_TRACE_EVENT,
 				 "0230 Unexpected timeout, hba link "
 				 "state x%x\n", phba->link_state);
 		clrlaerr = 1;
@@ -6241,9 +6253,9 @@ lpfc_find_vport_by_vpid(struct lpfc_hba *phba, uint16_t vpi)
 		}
 
 		if (i >= phba->max_vpi) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_ELS,
-					 "2936 Could not find Vport mapped "
-					 "to vpi %d\n", vpi);
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
+					"2936 Could not find Vport mapped "
+					"to vpi %d\n", vpi);
 			return NULL;
 		}
 	}
@@ -6547,10 +6559,10 @@ lpfc_unregister_vfi_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 
 	if (mboxq->u.mb.mbxStatus) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY|LOG_MBOX,
-			"2555 UNREG_VFI mbxStatus error x%x "
-			"HBA state x%x\n",
-			mboxq->u.mb.mbxStatus, vport->port_state);
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
+				"2555 UNREG_VFI mbxStatus error x%x "
+				"HBA state x%x\n",
+				mboxq->u.mb.mbxStatus, vport->port_state);
 	}
 	spin_lock_irq(shost->host_lock);
 	phba->pport->fc_flag &= ~FC_VFI_REGISTERED;
@@ -6572,10 +6584,10 @@ lpfc_unregister_fcfi_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	struct lpfc_vport *vport = mboxq->vport;
 
 	if (mboxq->u.mb.mbxStatus) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY|LOG_MBOX,
-			"2550 UNREG_FCFI mbxStatus error x%x "
-			"HBA state x%x\n",
-			mboxq->u.mb.mbxStatus, vport->port_state);
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
+				"2550 UNREG_FCFI mbxStatus error x%x "
+				"HBA state x%x\n",
+				mboxq->u.mb.mbxStatus, vport->port_state);
 	}
 	mempool_free(mboxq, phba->mbox_mem_pool);
 	return;
@@ -6664,7 +6676,7 @@ lpfc_sli4_unregister_fcf(struct lpfc_hba *phba)
 
 	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!mbox) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY|LOG_MBOX,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2551 UNREG_FCFI mbox allocation failed"
 				"HBA state x%x\n", phba->pport->port_state);
 		return -ENOMEM;
@@ -6675,7 +6687,7 @@ lpfc_sli4_unregister_fcf(struct lpfc_hba *phba)
 	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
 
 	if (rc == MBX_NOT_FINISHED) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2552 Unregister FCFI command failed rc x%x "
 				"HBA state x%x\n",
 				rc, phba->pport->port_state);
@@ -6699,7 +6711,7 @@ lpfc_unregister_fcf_rescan(struct lpfc_hba *phba)
 	/* Preparation for unregistering fcf */
 	rc = lpfc_unregister_fcf_prep(phba);
 	if (rc) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2748 Failed to prepare for unregistering "
 				"HBA's FCF record: rc=%d\n", rc);
 		return;
@@ -6735,7 +6747,7 @@ lpfc_unregister_fcf_rescan(struct lpfc_hba *phba)
 		spin_lock_irq(&phba->hbalock);
 		phba->fcf.fcf_flag &= ~FCF_INIT_DISC;
 		spin_unlock_irq(&phba->hbalock);
-		lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY|LOG_MBOX,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2553 lpfc_unregister_unused_fcf failed "
 				"to read FCF record HBA state x%x\n",
 				phba->pport->port_state);
@@ -6757,7 +6769,7 @@ lpfc_unregister_fcf(struct lpfc_hba *phba)
 	/* Preparation for unregistering fcf */
 	rc = lpfc_unregister_fcf_prep(phba);
 	if (rc) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2749 Failed to prepare for unregistering "
 				"HBA's FCF record: rc=%d\n", rc);
 		return;
@@ -6844,9 +6856,9 @@ lpfc_read_fcf_conn_tbl(struct lpfc_hba *phba,
 		conn_entry = kzalloc(sizeof(struct lpfc_fcf_conn_entry),
 			GFP_KERNEL);
 		if (!conn_entry) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"2566 Failed to allocate connection"
-				" table entry\n");
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
+					"2566 Failed to allocate connection"
+					" table entry\n");
 			return;
 		}
 
@@ -6990,7 +7002,7 @@ lpfc_parse_fcoe_conf(struct lpfc_hba *phba,
 
 	/* Check the region signature first */
 	if (memcmp(buff, LPFC_REGION23_SIGNATURE, 4)) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 			"2567 Config region 23 has bad signature\n");
 		return;
 	}
@@ -6999,8 +7011,8 @@ lpfc_parse_fcoe_conf(struct lpfc_hba *phba,
 
 	/* Check the data structure version */
 	if (buff[offset] != LPFC_REGION23_VERSION) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-			"2568 Config region 23 has bad version\n");
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
+				"2568 Config region 23 has bad version\n");
 		return;
 	}
 	offset += 4;

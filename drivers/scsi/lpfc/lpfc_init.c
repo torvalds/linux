@@ -153,7 +153,7 @@ lpfc_config_port_prep(struct lpfc_hba *phba)
 		rc = lpfc_sli_issue_mbox(phba, pmb, MBX_POLL);
 
 		if (rc != MBX_SUCCESS) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_MBOX,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"0324 Config Port initialization "
 					"error, mbxCmd x%x READ_NVPARM, "
 					"mbxStatus x%x\n",
@@ -177,7 +177,7 @@ lpfc_config_port_prep(struct lpfc_hba *phba)
 	lpfc_read_rev(phba, pmb);
 	rc = lpfc_sli_issue_mbox(phba, pmb, MBX_POLL);
 	if (rc != MBX_SUCCESS) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0439 Adapter failed to init, mbxCmd x%x "
 				"READ_REV, mbxStatus x%x\n",
 				mb->mbxCommand, mb->mbxStatus);
@@ -192,7 +192,7 @@ lpfc_config_port_prep(struct lpfc_hba *phba)
 	 */
 	if (mb->un.varRdRev.rr == 0) {
 		vp->rev.rBit = 0;
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0440 Adapter failed to init, READ_REV has "
 				"missing revision information.\n");
 		mempool_free(pmb, phba->mbox_mem_pool);
@@ -444,7 +444,7 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 
 	pmb->vport = vport;
 	if (lpfc_sli_issue_mbox(phba, pmb, MBX_POLL) != MBX_SUCCESS) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0448 Adapter failed init, mbxCmd x%x "
 				"READ_SPARM mbxStatus x%x\n",
 				mb->mbxCommand, mb->mbxStatus);
@@ -498,7 +498,7 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 	lpfc_read_config(phba, pmb);
 	pmb->vport = vport;
 	if (lpfc_sli_issue_mbox(phba, pmb, MBX_POLL) != MBX_SUCCESS) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0453 Adapter failed to init, mbxCmd x%x "
 				"READ_CONFIG, mbxStatus x%x\n",
 				mb->mbxCommand, mb->mbxStatus);
@@ -547,7 +547,7 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 		}
 		rc = lpfc_sli_issue_mbox(phba, pmb, MBX_POLL);
 		if (rc != MBX_SUCCESS) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_MBOX,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"0352 Config MSI mailbox command "
 					"failed, mbxCmd x%x, mbxStatus x%x\n",
 					pmb->u.mb.mbxCommand,
@@ -598,17 +598,15 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 		  jiffies + msecs_to_jiffies(1000 * phba->eratt_poll_interval));
 
 	if (phba->hba_flag & LINK_DISABLED) {
-		lpfc_printf_log(phba,
-			KERN_ERR, LOG_INIT,
-			"2598 Adapter Link is disabled.\n");
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
+				"2598 Adapter Link is disabled.\n");
 		lpfc_down_link(phba, pmb);
 		pmb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
 		rc = lpfc_sli_issue_mbox(phba, pmb, MBX_NOWAIT);
 		if ((rc != MBX_SUCCESS) && (rc != MBX_BUSY)) {
-			lpfc_printf_log(phba,
-			KERN_ERR, LOG_INIT,
-			"2599 Adapter failed to issue DOWN_LINK"
-			" mbox command rc 0x%x\n", rc);
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
+					"2599 Adapter failed to issue DOWN_LINK"
+					" mbox command rc 0x%x\n", rc);
 
 			mempool_free(pmb, phba->mbox_mem_pool);
 			return -EIO;
@@ -632,9 +630,7 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 	rc = lpfc_sli_issue_mbox(phba, pmb, MBX_NOWAIT);
 
 	if ((rc != MBX_BUSY) && (rc != MBX_SUCCESS)) {
-		lpfc_printf_log(phba,
-				KERN_ERR,
-				LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0456 Adapter failed to issue "
 				"ASYNCEVT_ENABLE mbox status x%x\n",
 				rc);
@@ -654,7 +650,8 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 	rc = lpfc_sli_issue_mbox(phba, pmb, MBX_NOWAIT);
 
 	if ((rc != MBX_BUSY) && (rc != MBX_SUCCESS)) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT, "0435 Adapter failed "
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
+				"0435 Adapter failed "
 				"to get Option ROM version status x%x\n", rc);
 		mempool_free(pmb, phba->mbox_mem_pool);
 	}
@@ -732,10 +729,10 @@ lpfc_hba_init_link_fc_topology(struct lpfc_hba *phba, uint32_t fc_topology,
 	    ((phba->cfg_link_speed == LPFC_USER_LINK_SPEED_64G) &&
 	     !(phba->lmt & LMT_64Gb))) {
 		/* Reset link speed to auto */
-		lpfc_printf_log(phba, KERN_ERR, LOG_LINK_EVENT,
-			"1302 Invalid speed for this board:%d "
-			"Reset link speed to auto.\n",
-			phba->cfg_link_speed);
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
+				"1302 Invalid speed for this board:%d "
+				"Reset link speed to auto.\n",
+				phba->cfg_link_speed);
 			phba->cfg_link_speed = LPFC_USER_LINK_SPEED_AUTO;
 	}
 	lpfc_init_link(phba, pmb, fc_topology, phba->cfg_link_speed);
@@ -744,10 +741,10 @@ lpfc_hba_init_link_fc_topology(struct lpfc_hba *phba, uint32_t fc_topology,
 		lpfc_set_loopback_flag(phba);
 	rc = lpfc_sli_issue_mbox(phba, pmb, flag);
 	if ((rc != MBX_BUSY) && (rc != MBX_SUCCESS)) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-			"0498 Adapter failed to init, mbxCmd x%x "
-			"INIT_LINK, mbxStatus x%x\n",
-			mb->mbxCommand, mb->mbxStatus);
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
+				"0498 Adapter failed to init, mbxCmd x%x "
+				"INIT_LINK, mbxStatus x%x\n",
+				mb->mbxCommand, mb->mbxStatus);
 		if (phba->sli_rev <= LPFC_SLI_REV3) {
 			/* Clear all interrupt enable conditions */
 			writel(0, phba->HCregaddr);
@@ -793,17 +790,15 @@ lpfc_hba_down_link(struct lpfc_hba *phba, uint32_t flag)
 		return -ENOMEM;
 	}
 
-	lpfc_printf_log(phba,
-		KERN_ERR, LOG_INIT,
-		"0491 Adapter Link is disabled.\n");
+	lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
+			"0491 Adapter Link is disabled.\n");
 	lpfc_down_link(phba, pmb);
 	pmb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
 	rc = lpfc_sli_issue_mbox(phba, pmb, flag);
 	if ((rc != MBX_SUCCESS) && (rc != MBX_BUSY)) {
-		lpfc_printf_log(phba,
-		KERN_ERR, LOG_INIT,
-		"2522 Adapter failed to issue DOWN_LINK"
-		" mbox command rc 0x%x\n", rc);
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
+				"2522 Adapter failed to issue DOWN_LINK"
+				" mbox command rc 0x%x\n", rc);
 
 		mempool_free(pmb, phba->mbox_mem_pool);
 		return -EIO;
@@ -1609,11 +1604,11 @@ lpfc_handle_deferred_eratt(struct lpfc_hba *phba)
 		return;
 	}
 
-	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-		"0479 Deferred Adapter Hardware Error "
-		"Data: x%x x%x x%x\n",
-		phba->work_hs,
-		phba->work_status[0], phba->work_status[1]);
+	lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
+			"0479 Deferred Adapter Hardware Error "
+			"Data: x%x x%x x%x\n",
+			phba->work_hs, phba->work_status[0],
+			phba->work_status[1]);
 
 	spin_lock_irq(&phba->hbalock);
 	psli->sli_flag &= ~LPFC_SLI_ACTIVE;
@@ -1764,7 +1759,7 @@ lpfc_handle_eratt_s3(struct lpfc_hba *phba)
 		temp_event_data.event_code = LPFC_CRIT_TEMP;
 		temp_event_data.data = (uint32_t)temperature;
 
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0406 Adapter maximum temperature exceeded "
 				"(%ld), taking this port offline "
 				"Data: x%x x%x x%x\n",
@@ -1788,7 +1783,7 @@ lpfc_handle_eratt_s3(struct lpfc_hba *phba)
 		 * failure is a value other than FFER6. Do not call the offline
 		 * twice. This is the adapter hardware error path.
 		 */
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0457 Adapter Hardware Error "
 				"Data: x%x x%x x%x\n",
 				phba->work_hs,
@@ -1836,7 +1831,7 @@ lpfc_sli4_port_sta_fn_reset(struct lpfc_hba *phba, int mbx_action,
 
 	/* need reset: attempt for port recovery */
 	if (en_rn_msg)
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2887 Reset Needed: Attempting Port "
 				"Recovery...\n");
 	lpfc_offline_prep(phba, mbx_action);
@@ -1846,14 +1841,14 @@ lpfc_sli4_port_sta_fn_reset(struct lpfc_hba *phba, int mbx_action,
 	lpfc_sli4_disable_intr(phba);
 	rc = lpfc_sli_brdrestart(phba);
 	if (rc) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"6309 Failed to restart board\n");
 		return rc;
 	}
 	/* request and enable interrupt */
 	intr_mode = lpfc_sli4_enable_intr(phba, phba->intr_mode);
 	if (intr_mode == LPFC_INTR_ERROR) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"3175 Failed to enable interrupt\n");
 		return -EIO;
 	}
@@ -1892,7 +1887,7 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 	 * we cannot communicate with the pci card anyway.
 	 */
 	if (pci_channel_offline(phba->pcidev)) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"3166 pci channel is offline\n");
 		lpfc_sli4_offline_eratt(phba);
 		return;
@@ -1915,7 +1910,7 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 			lpfc_sli4_offline_eratt(phba);
 			return;
 		}
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"7623 Checking UE recoverable");
 
 		for (i = 0; i < phba->sli4_hba.ue_to_sr / 1000; i++) {
@@ -1932,7 +1927,7 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 			msleep(1000);
 		}
 
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"4827 smphr_port_status x%x : Waited %dSec",
 				smphr_port_status, i);
 
@@ -1950,14 +1945,14 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 						LPFC_MBX_NO_WAIT, en_rn_msg);
 					if (rc == 0)
 						return;
-					lpfc_printf_log(phba,
-						KERN_ERR, LOG_INIT,
+					lpfc_printf_log(phba, KERN_ERR,
+						LOG_TRACE_EVENT,
 						"4215 Failed to recover UE");
 					break;
 				}
 			}
 		}
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"7624 Firmware not ready: Failing UE recovery,"
 				" waited %dSec", i);
 		phba->link_state = LPFC_HBA_ERROR;
@@ -1970,7 +1965,7 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 				&portstat_reg.word0);
 		/* consider PCI bus read error as pci_channel_offline */
 		if (pci_rd_rc1 == -EIO) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"3151 PCI bus read access failure: x%x\n",
 				readl(phba->sli4_hba.u.if_type2.STATUSregaddr));
 			lpfc_sli4_offline_eratt(phba);
@@ -1979,10 +1974,10 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 		reg_err1 = readl(phba->sli4_hba.u.if_type2.ERR1regaddr);
 		reg_err2 = readl(phba->sli4_hba.u.if_type2.ERR2regaddr);
 		if (bf_get(lpfc_sliport_status_oti, &portstat_reg)) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"2889 Port Overtemperature event, "
-				"taking port offline Data: x%x x%x\n",
-				reg_err1, reg_err2);
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
+					"2889 Port Overtemperature event, "
+					"taking port offline Data: x%x x%x\n",
+					reg_err1, reg_err2);
 
 			phba->sfp_alarm |= LPFC_TRANSGRESSION_HIGH_TEMPERATURE;
 			temp_event_data.event_type = FC_REG_TEMPERATURE_EVENT;
@@ -2004,17 +1999,17 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 		}
 		if (reg_err1 == SLIPORT_ERR1_REG_ERR_CODE_2 &&
 		    reg_err2 == SLIPORT_ERR2_REG_FW_RESTART) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"3143 Port Down: Firmware Update "
 					"Detected\n");
 			en_rn_msg = false;
 		} else if (reg_err1 == SLIPORT_ERR1_REG_ERR_CODE_2 &&
 			 reg_err2 == SLIPORT_ERR2_REG_FORCED_DUMP)
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"3144 Port Down: Debug Dump\n");
 		else if (reg_err1 == SLIPORT_ERR1_REG_ERR_CODE_2 &&
 			 reg_err2 == SLIPORT_ERR2_REG_FUNC_PROVISON)
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"3145 Port Down: Provisioning\n");
 
 		/* If resets are disabled then leave the HBA alone and return */
@@ -2033,7 +2028,7 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 				break;
 		}
 		/* fall through for not able to recover */
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"3152 Unrecoverable error\n");
 		phba->link_state = LPFC_HBA_ERROR;
 		break;
@@ -2151,8 +2146,8 @@ lpfc_handle_latt_err_exit:
 	lpfc_linkdown(phba);
 	phba->link_state = LPFC_HBA_ERROR;
 
-	lpfc_printf_log(phba, KERN_ERR, LOG_MBOX,
-		     "0300 LATT: Cannot issue READ_LA: Data:%d\n", rc);
+	lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
+			"0300 LATT: Cannot issue READ_LA: Data:%d\n", rc);
 
 	return;
 }
@@ -2901,12 +2896,13 @@ lpfc_cleanup(struct lpfc_vport *vport)
 	 */
 	while (!list_empty(&vport->fc_nodes)) {
 		if (i++ > 3000) {
-			lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
+			lpfc_printf_vlog(vport, KERN_ERR,
+					 LOG_TRACE_EVENT,
 				"0233 Nodelist not empty\n");
 			list_for_each_entry_safe(ndlp, next_ndlp,
 						&vport->fc_nodes, nlp_listp) {
 				lpfc_printf_vlog(ndlp->vport, KERN_ERR,
-						LOG_NODE,
+						LOG_TRACE_EVENT,
 						"0282 did:x%x ndlp:x%px "
 						"usgmap:x%x refcnt:%d\n",
 						ndlp->nlp_DID, (void *)ndlp,
@@ -3014,7 +3010,7 @@ lpfc_stop_hba_timers(struct lpfc_hba *phba)
 		lpfc_sli4_stop_fcf_redisc_wait_timer(phba);
 		break;
 	default:
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0297 Invalid device group (x%x)\n",
 				phba->pci_dev_grp);
 		break;
@@ -3061,10 +3057,10 @@ lpfc_block_mgmt_io(struct lpfc_hba *phba, int mbx_action)
 		/* Check active mailbox complete status every 2ms */
 		msleep(2);
 		if (time_after(jiffies, timeout)) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-				"2813 Mgmt IO is Blocked %x "
-				"- mbox cmd %x still active\n",
-				phba->sli.sli_flag, actcmd);
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
+					"2813 Mgmt IO is Blocked %x "
+					"- mbox cmd %x still active\n",
+					phba->sli.sli_flag, actcmd);
 			break;
 		}
 	}
@@ -3409,7 +3405,7 @@ lpfc_online(struct lpfc_hba *phba)
 				!phba->nvmet_support) {
 			error = lpfc_nvme_create_localport(phba->pport);
 			if (error)
-				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"6132 NVME restore reg failed "
 					"on nvmei error x%x\n", error);
 		}
@@ -3749,7 +3745,8 @@ lpfc_sli4_els_sgl_update(struct lpfc_hba *phba)
 			sglq_entry = kzalloc(sizeof(struct lpfc_sglq),
 					     GFP_KERNEL);
 			if (sglq_entry == NULL) {
-				lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+				lpfc_printf_log(phba, KERN_ERR,
+						LOG_TRACE_EVENT,
 						"2562 Failure to allocate an "
 						"ELS sgl entry:%d\n", i);
 				rc = -ENOMEM;
@@ -3760,7 +3757,8 @@ lpfc_sli4_els_sgl_update(struct lpfc_hba *phba)
 							   &sglq_entry->phys);
 			if (sglq_entry->virt == NULL) {
 				kfree(sglq_entry);
-				lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+				lpfc_printf_log(phba, KERN_ERR,
+						LOG_TRACE_EVENT,
 						"2563 Failure to allocate an "
 						"ELS mbuf:%d\n", i);
 				rc = -ENOMEM;
@@ -3815,7 +3813,8 @@ lpfc_sli4_els_sgl_update(struct lpfc_hba *phba)
 				 &phba->sli4_hba.lpfc_els_sgl_list, list) {
 		lxri = lpfc_sli4_next_xritag(phba);
 		if (lxri == NO_XRI) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+			lpfc_printf_log(phba, KERN_ERR,
+					LOG_TRACE_EVENT,
 					"2400 Failed to allocate xri for "
 					"ELS sgl\n");
 			rc = -ENOMEM;
@@ -3870,7 +3869,8 @@ lpfc_sli4_nvmet_sgl_update(struct lpfc_hba *phba)
 			sglq_entry = kzalloc(sizeof(struct lpfc_sglq),
 					     GFP_KERNEL);
 			if (sglq_entry == NULL) {
-				lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+				lpfc_printf_log(phba, KERN_ERR,
+						LOG_TRACE_EVENT,
 						"6303 Failure to allocate an "
 						"NVMET sgl entry:%d\n", i);
 				rc = -ENOMEM;
@@ -3881,7 +3881,8 @@ lpfc_sli4_nvmet_sgl_update(struct lpfc_hba *phba)
 							   &sglq_entry->phys);
 			if (sglq_entry->virt == NULL) {
 				kfree(sglq_entry);
-				lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+				lpfc_printf_log(phba, KERN_ERR,
+						LOG_TRACE_EVENT,
 						"6304 Failure to allocate an "
 						"NVMET buf:%d\n", i);
 				rc = -ENOMEM;
@@ -3937,7 +3938,8 @@ lpfc_sli4_nvmet_sgl_update(struct lpfc_hba *phba)
 				 &phba->sli4_hba.lpfc_nvmet_sgl_list, list) {
 		lxri = lpfc_sli4_next_xritag(phba);
 		if (lxri == NO_XRI) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+			lpfc_printf_log(phba, KERN_ERR,
+					LOG_TRACE_EVENT,
 					"6307 Failed to allocate xri for "
 					"NVMET sgl\n");
 			rc = -ENOMEM;
@@ -4111,7 +4113,8 @@ lpfc_sli4_io_sgl_update(struct lpfc_hba *phba)
 				 &io_sgl_list, list) {
 		lxri = lpfc_sli4_next_xritag(phba);
 		if (lxri == NO_XRI) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+			lpfc_printf_log(phba, KERN_ERR,
+					LOG_TRACE_EVENT,
 					"6075 Failed to allocate xri for "
 					"nvme buffer\n");
 			rc = -ENOMEM;
@@ -4181,7 +4184,8 @@ lpfc_new_io_buf(struct lpfc_hba *phba, int num_to_alloc)
 			if ((phba->sli3_options & LPFC_SLI3_BG_ENABLED) &&
 			    (((unsigned long)(lpfc_ncmd->data) &
 			    (unsigned long)(SLI4_PAGE_SIZE - 1)) != 0)) {
-				lpfc_printf_log(phba, KERN_ERR, LOG_FCP,
+				lpfc_printf_log(phba, KERN_ERR,
+						LOG_TRACE_EVENT,
 						"3369 Memory alignment err: "
 						"addr=%lx\n",
 						(unsigned long)lpfc_ncmd->data);
@@ -4210,7 +4214,7 @@ lpfc_new_io_buf(struct lpfc_hba *phba, int num_to_alloc)
 			dma_pool_free(phba->lpfc_sg_dma_buf_pool,
 				      lpfc_ncmd->data, lpfc_ncmd->dma_handle);
 			kfree(lpfc_ncmd);
-			lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"6121 Failed to allocate IOTAG for"
 					" XRI:0x%x\n", lxri);
 			lpfc_sli4_free_xri(phba, lxri);
@@ -4261,7 +4265,7 @@ lpfc_get_wwpn(struct lpfc_hba *phba)
 	lpfc_read_nv(phba, mboxq);
 	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
 	if (rc != MBX_SUCCESS) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"6019 Mailbox failed , mbxCmd x%x "
 				"READ_NV, mbxStatus x%x\n",
 				bf_get(lpfc_mqe_command, &mboxq->u.mqe),
@@ -4321,7 +4325,8 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 
 	for (i = 0; i < lpfc_no_hba_reset_cnt; i++) {
 		if (wwn == lpfc_no_hba_reset[i]) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+			lpfc_printf_log(phba, KERN_ERR,
+					LOG_TRACE_EVENT,
 					"6020 Setting use_no_reset port=%llx\n",
 					wwn);
 			use_no_reset_hba = true;
@@ -4766,7 +4771,7 @@ lpfc_sli4_parse_latt_fault(struct lpfc_hba *phba,
 	case LPFC_ASYNC_LINK_FAULT_LR_LRR:
 		break;
 	default:
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0398 Unknown link fault code: x%x\n",
 				bf_get(lpfc_acqe_link_fault, acqe_link));
 		break;
@@ -4802,7 +4807,7 @@ lpfc_sli4_parse_latt_type(struct lpfc_hba *phba,
 		att_type = LPFC_ATT_LINK_UP;
 		break;
 	default:
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0399 Invalid link attention type: x%x\n",
 				bf_get(lpfc_acqe_link_status, acqe_link));
 		att_type = LPFC_ATT_RESERVED;
@@ -4974,19 +4979,19 @@ lpfc_sli4_async_link_evt(struct lpfc_hba *phba,
 	phba->fcoe_eventtag = acqe_link->event_tag;
 	pmb = (LPFC_MBOXQ_t *)mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!pmb) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0395 The mboxq allocation failed\n");
 		return;
 	}
 	mp = kmalloc(sizeof(struct lpfc_dmabuf), GFP_KERNEL);
 	if (!mp) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0396 The lpfc_dmabuf allocation failed\n");
 		goto out_free_pmb;
 	}
 	mp->virt = lpfc_mbuf_alloc(phba, 0, &mp->phys);
 	if (!mp->virt) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0397 The mbuf allocation failed\n");
 		goto out_free_dmabuf;
 	}
@@ -5187,7 +5192,7 @@ lpfc_update_trunk_link_status(struct lpfc_hba *phba,
 		phba->trunk_link.link3.fault = port_fault & 0x8 ? err : 0;
 	}
 
-	lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+	lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 			"2910 Async FC Trunking Event - Speed:%d\n"
 			"\tLogical speed:%d "
 			"port0: %s port1: %s port2: %s port3: %s\n",
@@ -5197,7 +5202,7 @@ lpfc_update_trunk_link_status(struct lpfc_hba *phba,
 			trunk_link_status(2), trunk_link_status(3));
 
 	if (port_fault)
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"3202 trunk error:0x%x (%s) seen on port0:%s "
 				/*
 				 * SLI-4: We have only 0xA error codes
@@ -5231,7 +5236,7 @@ lpfc_sli4_async_fc_evt(struct lpfc_hba *phba, struct lpfc_acqe_fc_la *acqe_fc)
 
 	if (bf_get(lpfc_trailer_type, acqe_fc) !=
 	    LPFC_FC_LA_EVENT_TYPE_FC_LINK) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2895 Non FC link Event detected.(%d)\n",
 				bf_get(lpfc_trailer_type, acqe_fc));
 		return;
@@ -5279,19 +5284,19 @@ lpfc_sli4_async_fc_evt(struct lpfc_hba *phba, struct lpfc_acqe_fc_la *acqe_fc)
 			phba->sli4_hba.link_state.fault);
 	pmb = (LPFC_MBOXQ_t *)mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!pmb) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2897 The mboxq allocation failed\n");
 		return;
 	}
 	mp = kmalloc(sizeof(struct lpfc_dmabuf), GFP_KERNEL);
 	if (!mp) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2898 The lpfc_dmabuf allocation failed\n");
 		goto out_free_pmb;
 	}
 	mp->virt = lpfc_mbuf_alloc(phba, 0, &mp->phys);
 	if (!mp->virt) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2899 The mbuf allocation failed\n");
 		goto out_free_dmabuf;
 	}
@@ -5458,7 +5463,7 @@ lpfc_sli4_async_sli_evt(struct lpfc_hba *phba, struct lpfc_acqe_sli *acqe_sli)
 					&misconfigured->theEvent);
 			break;
 		default:
-			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"3296 "
 					"LPFC_SLI_EVENT_TYPE_MISCONFIGURED "
 					"event: Invalid link %d",
@@ -5510,7 +5515,8 @@ lpfc_sli4_async_sli_evt(struct lpfc_hba *phba, struct lpfc_acqe_sli *acqe_sli)
 		rc = lpfc_sli4_read_config(phba);
 		if (rc) {
 			phba->lmt = 0;
-			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+			lpfc_printf_log(phba, KERN_ERR,
+					LOG_TRACE_EVENT,
 					"3194 Unable to retrieve supported "
 					"speeds, rc = 0x%x\n", rc);
 		}
@@ -5662,8 +5668,7 @@ lpfc_sli4_async_fip_evt(struct lpfc_hba *phba,
 	case LPFC_FIP_EVENT_TYPE_NEW_FCF:
 	case LPFC_FIP_EVENT_TYPE_FCF_PARAM_MOD:
 		if (event_type == LPFC_FIP_EVENT_TYPE_NEW_FCF)
-			lpfc_printf_log(phba, KERN_ERR, LOG_FIP |
-					LOG_DISCOVERY,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"2546 New FCF event, evt_tag:x%x, "
 					"index:x%x\n",
 					acqe_fip->event_tag,
@@ -5716,23 +5721,24 @@ lpfc_sli4_async_fip_evt(struct lpfc_hba *phba,
 		rc = lpfc_sli4_fcf_scan_read_fcf_rec(phba,
 						     LPFC_FCOE_FCF_GET_FIRST);
 		if (rc)
-			lpfc_printf_log(phba, KERN_ERR, LOG_FIP | LOG_DISCOVERY,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"2547 Issue FCF scan read FCF mailbox "
 					"command failed (x%x)\n", rc);
 		break;
 
 	case LPFC_FIP_EVENT_TYPE_FCF_TABLE_FULL:
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-			"2548 FCF Table full count 0x%x tag 0x%x\n",
-			bf_get(lpfc_acqe_fip_fcf_count, acqe_fip),
-			acqe_fip->event_tag);
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
+				"2548 FCF Table full count 0x%x tag 0x%x\n",
+				bf_get(lpfc_acqe_fip_fcf_count, acqe_fip),
+				acqe_fip->event_tag);
 		break;
 
 	case LPFC_FIP_EVENT_TYPE_FCF_DEAD:
 		phba->fcoe_cvl_eventtag = acqe_fip->event_tag;
-		lpfc_printf_log(phba, KERN_ERR, LOG_FIP | LOG_DISCOVERY,
-			"2549 FCF (x%x) disconnected from network, "
-			"tag:x%x\n", acqe_fip->index, acqe_fip->event_tag);
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
+				"2549 FCF (x%x) disconnected from network, "
+				 "tag:x%x\n", acqe_fip->index,
+				 acqe_fip->event_tag);
 		/*
 		 * If we are in the middle of FCF failover process, clear
 		 * the corresponding FCF bit in the roundrobin bitmap.
@@ -5769,7 +5775,7 @@ lpfc_sli4_async_fip_evt(struct lpfc_hba *phba,
 		rc = lpfc_sli4_redisc_fcf_table(phba);
 		if (rc) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_FIP |
-					LOG_DISCOVERY,
+					LOG_TRACE_EVENT,
 					"2772 Issue FCF rediscover mailbox "
 					"command failed, fail through to FCF "
 					"dead event\n");
@@ -5793,7 +5799,8 @@ lpfc_sli4_async_fip_evt(struct lpfc_hba *phba,
 		break;
 	case LPFC_FIP_EVENT_TYPE_CVL:
 		phba->fcoe_cvl_eventtag = acqe_fip->event_tag;
-		lpfc_printf_log(phba, KERN_ERR, LOG_FIP | LOG_DISCOVERY,
+		lpfc_printf_log(phba, KERN_ERR,
+				LOG_TRACE_EVENT,
 			"2718 Clear Virtual Link Received for VPI 0x%x"
 			" tag 0x%x\n", acqe_fip->index, acqe_fip->event_tag);
 
@@ -5860,7 +5867,7 @@ lpfc_sli4_async_fip_evt(struct lpfc_hba *phba,
 			rc = lpfc_sli4_redisc_fcf_table(phba);
 			if (rc) {
 				lpfc_printf_log(phba, KERN_ERR, LOG_FIP |
-						LOG_DISCOVERY,
+						LOG_TRACE_EVENT,
 						"2774 Issue FCF rediscover "
 						"mailbox command failed, "
 						"through to CVL event\n");
@@ -5881,9 +5888,9 @@ lpfc_sli4_async_fip_evt(struct lpfc_hba *phba,
 		}
 		break;
 	default:
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-			"0288 Unknown FCoE event type 0x%x event tag "
-			"0x%x\n", event_type, acqe_fip->event_tag);
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
+				"0288 Unknown FCoE event type 0x%x event tag "
+				"0x%x\n", event_type, acqe_fip->event_tag);
 		break;
 	}
 }
@@ -5900,7 +5907,7 @@ lpfc_sli4_async_dcbx_evt(struct lpfc_hba *phba,
 			 struct lpfc_acqe_dcbx *acqe_dcbx)
 {
 	phba->fc_eventTag = acqe_dcbx->event_tag;
-	lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+	lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 			"0290 The SLI4 DCBX asynchronous event is not "
 			"handled yet\n");
 }
@@ -5977,7 +5984,8 @@ void lpfc_sli4_async_event_proc(struct lpfc_hba *phba)
 			lpfc_sli4_async_sli_evt(phba, &cq_event->cqe.acqe_sli);
 			break;
 		default:
-			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+			lpfc_printf_log(phba, KERN_ERR,
+					LOG_TRACE_EVENT,
 					"1804 Invalid asynchronous event code: "
 					"x%x\n", bf_get(lpfc_trailer_code,
 					&cq_event->cqe.mcqe_cmpl));
@@ -6013,7 +6021,7 @@ void lpfc_sli4_fcf_redisc_event_proc(struct lpfc_hba *phba)
 			"2777 Start post-quiescent FCF table scan\n");
 	rc = lpfc_sli4_fcf_scan_read_fcf_rec(phba, LPFC_FCOE_FCF_GET_FIRST);
 	if (rc)
-		lpfc_printf_log(phba, KERN_ERR, LOG_FIP | LOG_DISCOVERY,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2747 Issue FCF scan read FCF mailbox "
 				"command failed 0x%x\n", rc);
 }
@@ -6084,7 +6092,7 @@ static void lpfc_log_intr_mode(struct lpfc_hba *phba, uint32_t intr_mode)
 				"0480 Enabled MSI-X interrupt mode.\n");
 		break;
 	default:
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0482 Illegal interrupt mode.\n");
 		break;
 	}
@@ -6132,7 +6140,7 @@ lpfc_enable_pci_dev(struct lpfc_hba *phba)
 out_disable_device:
 	pci_disable_device(pdev);
 out_error:
-	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+	lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 			"1401 Failed to enable pci device\n");
 	return -ENODEV;
 }
@@ -6233,7 +6241,7 @@ lpfc_sli_probe_sriov_nr_virtfn(struct lpfc_hba *phba, int nr_vfn)
 
 	max_nr_vfn = lpfc_sli_sriov_nr_virtfn_get(phba);
 	if (nr_vfn > max_nr_vfn) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"3057 Requested vfs (%d) greater than "
 				"supported vfs (%d)", nr_vfn, max_nr_vfn);
 		return -EINVAL;
@@ -6272,6 +6280,9 @@ lpfc_setup_driver_resource_phase1(struct lpfc_hba *phba)
 	 * Driver resources common to all SLI revisions
 	 */
 	atomic_set(&phba->fast_event_count, 0);
+	atomic_set(&phba->dbg_log_idx, 0);
+	atomic_set(&phba->dbg_log_cnt, 0);
+	atomic_set(&phba->dbg_log_dmping, 0);
 	spin_lock_init(&phba->hbalock);
 
 	/* Initialize ndlp management spinlock */
@@ -6699,7 +6710,8 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 		lpfc_read_nv(phba, mboxq);
 		rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
 		if (rc != MBX_SUCCESS) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+			lpfc_printf_log(phba, KERN_ERR,
+					LOG_TRACE_EVENT,
 					"6016 Mailbox failed , mbxCmd x%x "
 					"READ_NV, mbxStatus x%x\n",
 					bf_get(lpfc_mqe_command, &mboxq->u.mqe),
@@ -6728,11 +6740,13 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 
 				phba->nvmet_support = 1; /* a match */
 
-				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				lpfc_printf_log(phba, KERN_ERR,
+						LOG_TRACE_EVENT,
 						"6017 NVME Target %016llx\n",
 						wwn);
 #else
-				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				lpfc_printf_log(phba, KERN_ERR,
+						LOG_TRACE_EVENT,
 						"6021 Can't enable NVME Target."
 						" NVME_TARGET_FC infrastructure"
 						" is not in kernel\n");
@@ -6792,9 +6806,9 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 				&phba->sli4_hba.sli_intf);
 		if (phba->sli4_hba.extents_in_use &&
 		    phba->sli4_hba.rpi_hdrs_in_use) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"2999 Unsupported SLI4 Parameters "
-				"Extents and RPI headers enabled.\n");
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
+					"2999 Unsupported SLI4 Parameters "
+					"Extents and RPI headers enabled.\n");
 			if (if_type == LPFC_SLI_INTF_IF_TYPE_0 &&
 			    if_fam ==  LPFC_SLI_INTF_FAMILY_BE2) {
 				mempool_free(mboxq, phba->mbox_mem_pool);
@@ -6954,13 +6968,13 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	/* Allocate and initialize active sgl array */
 	rc = lpfc_init_active_sgl_array(phba);
 	if (rc) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"1430 Failed to initialize sgl list.\n");
 		goto out_destroy_cq_event_pool;
 	}
 	rc = lpfc_sli4_init_rpi_hdrs(phba);
 	if (rc) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"1432 Failed to initialize rpi headers.\n");
 		goto out_free_active_sgl;
 	}
@@ -6970,7 +6984,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	phba->fcf.fcf_rr_bmask = kcalloc(longs, sizeof(unsigned long),
 					 GFP_KERNEL);
 	if (!phba->fcf.fcf_rr_bmask) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2759 Failed allocate memory for FCF round "
 				"robin failover bmask\n");
 		rc = -ENOMEM;
@@ -6981,7 +6995,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 					    sizeof(struct lpfc_hba_eq_hdl),
 					    GFP_KERNEL);
 	if (!phba->sli4_hba.hba_eq_hdl) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2572 Failed allocate memory for "
 				"fast-path per-EQ handle array\n");
 		rc = -ENOMEM;
@@ -6992,7 +7006,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 					sizeof(struct lpfc_vector_map_info),
 					GFP_KERNEL);
 	if (!phba->sli4_hba.cpu_map) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"3327 Failed allocate memory for msi-x "
 				"interrupt vector mapping\n");
 		rc = -ENOMEM;
@@ -7001,7 +7015,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 
 	phba->sli4_hba.eq_info = alloc_percpu(struct lpfc_eq_intr_info);
 	if (!phba->sli4_hba.eq_info) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"3321 Failed allocation for per_cpu stats\n");
 		rc = -ENOMEM;
 		goto out_free_hba_cpu_map;
@@ -7011,7 +7025,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 					   sizeof(*phba->sli4_hba.idle_stat),
 					   GFP_KERNEL);
 	if (!phba->sli4_hba.idle_stat) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"3390 Failed allocation for idle_stat\n");
 		rc = -ENOMEM;
 		goto out_free_hba_eq_info;
@@ -7020,7 +7034,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	phba->sli4_hba.c_stat = alloc_percpu(struct lpfc_hdwq_stat);
 	if (!phba->sli4_hba.c_stat) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"3332 Failed allocating per cpu hdwq stats\n");
 		rc = -ENOMEM;
 		goto out_free_hba_idle_stat;
@@ -7168,7 +7182,7 @@ lpfc_init_api_table_setup(struct lpfc_hba *phba, uint8_t dev_grp)
 		phba->lpfc_stop_port = lpfc_stop_port_s4;
 		break;
 	default:
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"1431 Invalid HBA PCI-device group: 0x%x\n",
 				dev_grp);
 		return -ENODEV;
@@ -7463,7 +7477,7 @@ lpfc_sli4_init_rpi_hdrs(struct lpfc_hba *phba)
 
 	rpi_hdr = lpfc_sli4_create_rpi_hdr(phba);
 	if (!rpi_hdr) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0391 Error during rpi post operation\n");
 		lpfc_sli4_remove_rpis(phba);
 		rc = -ENODEV;
@@ -7775,7 +7789,7 @@ lpfc_setup_bg(struct lpfc_hba *phba, struct Scsi_Host *shost)
 		if (phba->cfg_prot_mask && phba->cfg_prot_guard) {
 			if ((old_mask != phba->cfg_prot_mask) ||
 				(old_guard != phba->cfg_prot_guard))
-				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"1475 Registering BlockGuard with the "
 					"SCSI layer: mask %d  guard %d\n",
 					phba->cfg_prot_mask,
@@ -7784,7 +7798,7 @@ lpfc_setup_bg(struct lpfc_hba *phba, struct Scsi_Host *shost)
 			scsi_host_set_prot(shost, phba->cfg_prot_mask);
 			scsi_host_set_guard(shost, phba->cfg_prot_guard);
 		} else
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"1479 Not Registering BlockGuard with the SCSI "
 				"layer, Bad protection parameters: %d %d\n",
 				old_mask, old_guard);
@@ -8015,7 +8029,7 @@ lpfc_sli4_post_status_check(struct lpfc_hba *phba)
 	 * other register reads as the data may not be valid.  Just exit.
 	 */
 	if (port_error) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 			"1408 Port Failed POST - portsmphr=0x%x, "
 			"perr=x%x, sfi=x%x, nip=x%x, ipc=x%x, scr1=x%x, "
 			"scr2=x%x, hscratch=x%x, pstatus=x%x\n",
@@ -8064,7 +8078,8 @@ lpfc_sli4_post_status_check(struct lpfc_hba *phba)
 				readl(phba->sli4_hba.u.if_type0.UERRHIregaddr);
 			if ((~phba->sli4_hba.ue_mask_lo & uerrlo_reg.word0) ||
 			    (~phba->sli4_hba.ue_mask_hi & uerrhi_reg.word0)) {
-				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				lpfc_printf_log(phba, KERN_ERR,
+						LOG_TRACE_EVENT,
 						"1422 Unrecoverable Error "
 						"Detected during POST "
 						"uerr_lo_reg=0x%x, "
@@ -8091,7 +8106,7 @@ lpfc_sli4_post_status_check(struct lpfc_hba *phba)
 				phba->work_status[1] =
 					readl(phba->sli4_hba.u.if_type2.
 					      ERR2regaddr);
-				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"2888 Unrecoverable port error "
 					"following POST: port status reg "
 					"0x%x, port_smphr reg 0x%x, "
@@ -8485,7 +8500,7 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 
 	pmb = (LPFC_MBOXQ_t *) mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!pmb) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2011 Unable to allocate memory for issuing "
 				"SLI_CONFIG_SPECIAL mailbox command\n");
 		return -ENOMEM;
@@ -8495,11 +8510,11 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 
 	rc = lpfc_sli_issue_mbox(phba, pmb, MBX_POLL);
 	if (rc != MBX_SUCCESS) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-			"2012 Mailbox failed , mbxCmd x%x "
-			"READ_CONFIG, mbxStatus x%x\n",
-			bf_get(lpfc_mqe_command, &pmb->u.mqe),
-			bf_get(lpfc_mqe_status, &pmb->u.mqe));
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
+				"2012 Mailbox failed , mbxCmd x%x "
+				"READ_CONFIG, mbxStatus x%x\n",
+				bf_get(lpfc_mqe_command, &pmb->u.mqe),
+				bf_get(lpfc_mqe_status, &pmb->u.mqe));
 		rc = -EIO;
 	} else {
 		rd_config = &pmb->u.mqe.un.rd_config;
@@ -8609,7 +8624,7 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 		/* Check to see if there is enough for NVME */
 		if ((phba->cfg_irq_chann > qmin) ||
 		    (phba->cfg_hdw_queue > qmin)) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"2005 Reducing Queues: "
 					"WQ %d CQ %d EQ %d: min %d: "
 					"IRQ %d HDWQ %d\n",
@@ -8675,7 +8690,8 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 					LPFC_USER_LINK_SPEED_AUTO;
 				break;
 			default:
-				lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+				lpfc_printf_log(phba, KERN_ERR,
+						LOG_TRACE_EVENT,
 						"0047 Unrecognized link "
 						"speed : %d\n",
 						forced_link_speed);
@@ -8712,7 +8728,7 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 	shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
 	shdr_add_status = bf_get(lpfc_mbox_hdr_add_status, &shdr->response);
 	if (rc2 || shdr_status || shdr_add_status) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"3026 Mailbox failed , mbxCmd x%x "
 				"GET_FUNCTION_CONFIG, mbxStatus x%x\n",
 				bf_get(lpfc_mqe_command, &pmb->u.mqe),
@@ -8749,7 +8765,7 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 				"vf_number:%d\n", phba->sli4_hba.iov.pf_number,
 				phba->sli4_hba.iov.vf_number);
 	else
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"3028 GET_FUNCTION_CONFIG: failed to find "
 				"Resource Descriptor:x%x\n",
 				LPFC_RSRC_DESC_TYPE_FCFCOE);
@@ -8786,7 +8802,7 @@ lpfc_setup_endian_order(struct lpfc_hba *phba)
 		mboxq = (LPFC_MBOXQ_t *) mempool_alloc(phba->mbox_mem_pool,
 						       GFP_KERNEL);
 		if (!mboxq) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"0492 Unable to allocate memory for "
 					"issuing SLI_CONFIG_SPECIAL mailbox "
 					"command\n");
@@ -8801,7 +8817,7 @@ lpfc_setup_endian_order(struct lpfc_hba *phba)
 		memcpy(&mboxq->u.mqe, &endian_mb_data, sizeof(endian_mb_data));
 		rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
 		if (rc != MBX_SUCCESS) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"0493 SLI_CONFIG_SPECIAL mailbox "
 					"failed with status x%x\n",
 					rc);
@@ -8881,8 +8897,9 @@ lpfc_alloc_io_wq_cq(struct lpfc_hba *phba, int idx)
 					      phba->sli4_hba.cq_esize,
 					      phba->sli4_hba.cq_ecount, cpu);
 	if (!qdesc) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-			"0499 Failed allocate fast-path IO CQ (%d)\n", idx);
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
+				"0499 Failed allocate fast-path IO CQ (%d)\n",
+				idx);
 		return 1;
 	}
 	qdesc->qe_valid = 1;
@@ -8904,7 +8921,7 @@ lpfc_alloc_io_wq_cq(struct lpfc_hba *phba, int idx)
 					      phba->sli4_hba.wq_ecount, cpu);
 
 	if (!qdesc) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0503 Failed allocate fast-path IO WQ (%d)\n",
 				idx);
 		return 1;
@@ -8960,7 +8977,7 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 			phba->cfg_hdw_queue, sizeof(struct lpfc_sli4_hdw_queue),
 			GFP_KERNEL);
 		if (!phba->sli4_hba.hdwq) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"6427 Failed allocate memory for "
 					"fast-path Hardware Queue array\n");
 			goto out_error;
@@ -8992,7 +9009,7 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 					sizeof(struct lpfc_queue *),
 					GFP_KERNEL);
 			if (!phba->sli4_hba.nvmet_cqset) {
-				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"3121 Fail allocate memory for "
 					"fast-path CQ set array\n");
 				goto out_error;
@@ -9002,7 +9019,7 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 					sizeof(struct lpfc_queue *),
 					GFP_KERNEL);
 			if (!phba->sli4_hba.nvmet_mrq_hdr) {
-				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"3122 Fail allocate memory for "
 					"fast-path RQ set hdr array\n");
 				goto out_error;
@@ -9012,7 +9029,7 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 					sizeof(struct lpfc_queue *),
 					GFP_KERNEL);
 			if (!phba->sli4_hba.nvmet_mrq_data) {
-				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"3124 Fail allocate memory for "
 					"fast-path RQ set data array\n");
 				goto out_error;
@@ -9040,7 +9057,7 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 					      phba->sli4_hba.eq_esize,
 					      phba->sli4_hba.eq_ecount, cpu);
 		if (!qdesc) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"0497 Failed allocate EQ (%d)\n",
 					cpup->hdwq);
 			goto out_error;
@@ -9094,7 +9111,7 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 						      phba->sli4_hba.cq_ecount,
 						      cpu);
 			if (!qdesc) {
-				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 						"3142 Failed allocate NVME "
 						"CQ Set (%d)\n", idx);
 				goto out_error;
@@ -9116,7 +9133,7 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 				      phba->sli4_hba.cq_esize,
 				      phba->sli4_hba.cq_ecount, cpu);
 	if (!qdesc) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0500 Failed allocate slow-path mailbox CQ\n");
 		goto out_error;
 	}
@@ -9128,7 +9145,7 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 				      phba->sli4_hba.cq_esize,
 				      phba->sli4_hba.cq_ecount, cpu);
 	if (!qdesc) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0501 Failed allocate slow-path ELS CQ\n");
 		goto out_error;
 	}
@@ -9147,7 +9164,7 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 				      phba->sli4_hba.mq_esize,
 				      phba->sli4_hba.mq_ecount, cpu);
 	if (!qdesc) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0505 Failed allocate slow-path MQ\n");
 		goto out_error;
 	}
@@ -9163,7 +9180,7 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 				      phba->sli4_hba.wq_esize,
 				      phba->sli4_hba.wq_ecount, cpu);
 	if (!qdesc) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0504 Failed allocate slow-path ELS WQ\n");
 		goto out_error;
 	}
@@ -9177,7 +9194,7 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 					      phba->sli4_hba.cq_esize,
 					      phba->sli4_hba.cq_ecount, cpu);
 		if (!qdesc) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"6079 Failed allocate NVME LS CQ\n");
 			goto out_error;
 		}
@@ -9190,7 +9207,7 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 					      phba->sli4_hba.wq_esize,
 					      phba->sli4_hba.wq_ecount, cpu);
 		if (!qdesc) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"6080 Failed allocate NVME LS WQ\n");
 			goto out_error;
 		}
@@ -9208,7 +9225,7 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 				      phba->sli4_hba.rq_esize,
 				      phba->sli4_hba.rq_ecount, cpu);
 	if (!qdesc) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0506 Failed allocate receive HRQ\n");
 		goto out_error;
 	}
@@ -9219,7 +9236,7 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 				      phba->sli4_hba.rq_esize,
 				      phba->sli4_hba.rq_ecount, cpu);
 	if (!qdesc) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0507 Failed allocate receive DRQ\n");
 		goto out_error;
 	}
@@ -9237,7 +9254,7 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 						      LPFC_NVMET_RQE_DEF_COUNT,
 						      cpu);
 			if (!qdesc) {
-				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 						"3146 Failed allocate "
 						"receive HRQ\n");
 				goto out_error;
@@ -9250,7 +9267,7 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 						   GFP_KERNEL,
 						   cpu_to_node(cpu));
 			if (qdesc->rqbp == NULL) {
-				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 						"6131 Failed allocate "
 						"Header RQBP\n");
 				goto out_error;
@@ -9266,7 +9283,7 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 						      LPFC_NVMET_RQE_DEF_COUNT,
 						      cpu);
 			if (!qdesc) {
-				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 						"3156 Failed allocate "
 						"receive DRQ\n");
 				goto out_error;
@@ -9457,7 +9474,7 @@ lpfc_create_wq_cq(struct lpfc_hba *phba, struct lpfc_queue *eq,
 	int rc;
 
 	if (!eq || !cq || !wq) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 			"6085 Fast-path %s (%d) not allocated\n",
 			((eq) ? ((cq) ? "WQ" : "CQ") : "EQ"), qidx);
 		return -ENOMEM;
@@ -9467,9 +9484,9 @@ lpfc_create_wq_cq(struct lpfc_hba *phba, struct lpfc_queue *eq,
 	rc = lpfc_cq_create(phba, cq, eq,
 			(qtype == LPFC_MBOX) ? LPFC_MCQ : LPFC_WCQ, qtype);
 	if (rc) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-			"6086 Failed setup of CQ (%d), rc = 0x%x\n",
-			qidx, (uint32_t)rc);
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
+				"6086 Failed setup of CQ (%d), rc = 0x%x\n",
+				qidx, (uint32_t)rc);
 		return rc;
 	}
 
@@ -9485,7 +9502,7 @@ lpfc_create_wq_cq(struct lpfc_hba *phba, struct lpfc_queue *eq,
 		/* create the wq */
 		rc = lpfc_wq_create(phba, wq, cq, qtype);
 		if (rc) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"4618 Fail setup fastpath WQ (%d), rc = 0x%x\n",
 				qidx, (uint32_t)rc);
 			/* no need to tear down cq - caller will do so */
@@ -9503,9 +9520,9 @@ lpfc_create_wq_cq(struct lpfc_hba *phba, struct lpfc_queue *eq,
 	} else {
 		rc = lpfc_mq_create(phba, wq, cq, LPFC_MBOX);
 		if (rc) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"0539 Failed setup of slow-path MQ: "
-				"rc = 0x%x\n", rc);
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
+					"0539 Failed setup of slow-path MQ: "
+					"rc = 0x%x\n", rc);
 			/* no need to tear down cq - caller will do so */
 			return rc;
 		}
@@ -9578,7 +9595,7 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 	/* Check for dual-ULP support */
 	mboxq = (LPFC_MBOXQ_t *)mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!mboxq) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"3249 Unable to allocate memory for "
 				"QUERY_FW_CFG mailbox command\n");
 		return -ENOMEM;
@@ -9596,7 +9613,7 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 	shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
 	shdr_add_status = bf_get(lpfc_mbox_hdr_add_status, &shdr->response);
 	if (shdr_status || shdr_add_status || rc) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"3250 QUERY_FW_CFG mailbox failed with status "
 				"x%x add_status x%x, mbx status x%x\n",
 				shdr_status, shdr_add_status, rc);
@@ -9627,7 +9644,7 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 
 	/* Set up HBA event queue */
 	if (!qp) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"3147 Fast-path EQs not allocated\n");
 		rc = -ENOMEM;
 		goto out_error;
@@ -9651,7 +9668,7 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 			rc = lpfc_eq_create(phba, qp[cpup->hdwq].hba_eq,
 					    phba->cfg_fcp_imax);
 			if (rc) {
-				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 						"0523 Failed setup of fast-path"
 						" EQ (%d), rc = 0x%x\n",
 						cpup->eq, (uint32_t)rc);
@@ -9683,7 +9700,7 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 				       qidx,
 				       LPFC_IO);
 		if (rc) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"0535 Failed to setup fastpath "
 					"IO WQ/CQ (%d), rc = 0x%x\n",
 					qidx, (uint32_t)rc);
@@ -9698,7 +9715,7 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 	/* Set up slow-path MBOX CQ/MQ */
 
 	if (!phba->sli4_hba.mbx_cq || !phba->sli4_hba.mbx_wq) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0528 %s not allocated\n",
 				phba->sli4_hba.mbx_cq ?
 				"Mailbox WQ" : "Mailbox CQ");
@@ -9711,14 +9728,14 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 			       phba->sli4_hba.mbx_wq,
 			       NULL, 0, LPFC_MBOX);
 	if (rc) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 			"0529 Failed setup of mailbox WQ/CQ: rc = 0x%x\n",
 			(uint32_t)rc);
 		goto out_destroy;
 	}
 	if (phba->nvmet_support) {
 		if (!phba->sli4_hba.nvmet_cqset) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"3165 Fast-path NVME CQ Set "
 					"array not allocated\n");
 			rc = -ENOMEM;
@@ -9730,7 +9747,7 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 					qp,
 					LPFC_WCQ, LPFC_NVMET);
 			if (rc) {
-				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 						"3164 Failed setup of NVME CQ "
 						"Set, rc = 0x%x\n",
 						(uint32_t)rc);
@@ -9742,7 +9759,7 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 					    qp[0].hba_eq,
 					    LPFC_WCQ, LPFC_NVMET);
 			if (rc) {
-				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 						"6089 Failed setup NVMET CQ: "
 						"rc = 0x%x\n", (uint32_t)rc);
 				goto out_destroy;
@@ -9759,7 +9776,7 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 
 	/* Set up slow-path ELS WQ/CQ */
 	if (!phba->sli4_hba.els_cq || !phba->sli4_hba.els_wq) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0530 ELS %s not allocated\n",
 				phba->sli4_hba.els_cq ? "WQ" : "CQ");
 		rc = -ENOMEM;
@@ -9770,7 +9787,7 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 			       phba->sli4_hba.els_wq,
 			       NULL, 0, LPFC_ELS);
 	if (rc) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0525 Failed setup of ELS WQ/CQ: rc = 0x%x\n",
 				(uint32_t)rc);
 		goto out_destroy;
@@ -9783,7 +9800,7 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
 		/* Set up NVME LS Complete Queue */
 		if (!phba->sli4_hba.nvmels_cq || !phba->sli4_hba.nvmels_wq) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"6091 LS %s not allocated\n",
 					phba->sli4_hba.nvmels_cq ? "WQ" : "CQ");
 			rc = -ENOMEM;
@@ -9794,7 +9811,7 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 				       phba->sli4_hba.nvmels_wq,
 				       NULL, 0, LPFC_NVME_LS);
 		if (rc) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"0526 Failed setup of NVVME LS WQ/CQ: "
 					"rc = 0x%x\n", (uint32_t)rc);
 			goto out_destroy;
@@ -9814,7 +9831,7 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 		if ((!phba->sli4_hba.nvmet_cqset) ||
 		    (!phba->sli4_hba.nvmet_mrq_hdr) ||
 		    (!phba->sli4_hba.nvmet_mrq_data)) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"6130 MRQ CQ Queues not "
 					"allocated\n");
 			rc = -ENOMEM;
@@ -9827,7 +9844,7 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 					     phba->sli4_hba.nvmet_cqset,
 					     LPFC_NVMET);
 			if (rc) {
-				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 						"6098 Failed setup of NVMET "
 						"MRQ: rc = 0x%x\n",
 						(uint32_t)rc);
@@ -9841,7 +9858,7 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 					    phba->sli4_hba.nvmet_cqset[0],
 					    LPFC_NVMET);
 			if (rc) {
-				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 						"6057 Failed setup of NVMET "
 						"Receive Queue: rc = 0x%x\n",
 						(uint32_t)rc);
@@ -9860,7 +9877,7 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 	}
 
 	if (!phba->sli4_hba.hdr_rq || !phba->sli4_hba.dat_rq) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0540 Receive Queue not allocated\n");
 		rc = -ENOMEM;
 		goto out_destroy;
@@ -9869,7 +9886,7 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 	rc = lpfc_rq_create(phba, phba->sli4_hba.hdr_rq, phba->sli4_hba.dat_rq,
 			    phba->sli4_hba.els_cq, LPFC_USOL);
 	if (rc) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0541 Failed setup of Receive Queue: "
 				"rc = 0x%x\n", (uint32_t)rc);
 		goto out_destroy;
@@ -9897,7 +9914,7 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 		phba->sli4_hba.cq_lookup = kcalloc((phba->sli4_hba.cq_max + 1),
 			sizeof(struct lpfc_queue *), GFP_KERNEL);
 		if (!phba->sli4_hba.cq_lookup) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"0549 Failed setup of CQ Lookup table: "
 					"size 0x%x\n", phba->sli4_hba.cq_max);
 			rc = -ENOMEM;
@@ -10197,7 +10214,7 @@ lpfc_pci_function_reset(struct lpfc_hba *phba)
 		mboxq = (LPFC_MBOXQ_t *) mempool_alloc(phba->mbox_mem_pool,
 						       GFP_KERNEL);
 		if (!mboxq) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"0494 Unable to allocate memory for "
 					"issuing SLI_FUNCTION_RESET mailbox "
 					"command\n");
@@ -10217,7 +10234,7 @@ lpfc_pci_function_reset(struct lpfc_hba *phba)
 		if (rc != MBX_TIMEOUT)
 			mempool_free(mboxq, phba->mbox_mem_pool);
 		if (shdr_status || shdr_add_status || rc) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"0495 SLI_FUNCTION_RESET mailbox "
 					"failed with status x%x add_status x%x,"
 					" mbx status x%x\n",
@@ -10249,7 +10266,7 @@ wait:
 				phba->sli4_hba.u.if_type2.ERR1regaddr);
 			phba->work_status[1] = readl(
 				phba->sli4_hba.u.if_type2.ERR2regaddr);
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"2890 Port not ready, port status reg "
 					"0x%x error 1=0x%x, error 2=0x%x\n",
 					reg_data.word0,
@@ -10291,7 +10308,7 @@ wait:
 out:
 	/* Catch the not-ready port failure after a port reset. */
 	if (rc) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"3317 HBA not functional: IP Reset Failed "
 				"try: echo fw_reset > board_mode\n");
 		rc = -ENODEV;
@@ -10341,7 +10358,7 @@ lpfc_sli4_pci_mem_setup(struct lpfc_hba *phba)
 	/* There is no SLI3 failback for SLI4 devices. */
 	if (bf_get(lpfc_sli_intf_valid, &phba->sli4_hba.sli_intf) !=
 	    LPFC_SLI_INTF_VALID) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2894 SLI_INTF reg contents invalid "
 				"sli_intf reg 0x%x\n",
 				phba->sli4_hba.sli_intf.word0);
@@ -10616,7 +10633,7 @@ lpfc_sli_enable_msix(struct lpfc_hba *phba)
 
 	if (!pmb) {
 		rc = -ENOMEM;
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0474 Unable to allocate memory for issuing "
 				"MBOX_CONFIG_MSI command\n");
 		goto mem_fail_out;
@@ -11597,7 +11614,7 @@ lpfc_sli4_enable_msix(struct lpfc_hba *phba)
 	}
 
 	if (vectors != phba->cfg_irq_chann) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"3238 Reducing IO channels to match number of "
 				"MSI-X vectors, requested %d got %d\n",
 				phba->cfg_irq_chann, vectors);
@@ -11870,17 +11887,17 @@ lpfc_sli4_xri_exchange_busy_wait(struct lpfc_hba *phba)
 	while (!els_xri_cmpl || !io_xri_cmpl || !nvmet_xri_cmpl) {
 		if (wait_time > LPFC_XRI_EXCH_BUSY_WAIT_TMO) {
 			if (!nvmet_xri_cmpl)
-				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 						"6424 NVMET XRI exchange busy "
 						"wait time: %d seconds.\n",
 						wait_time/1000);
 			if (!io_xri_cmpl)
-				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 						"6100 IO XRI exchange busy "
 						"wait time: %d seconds.\n",
 						wait_time/1000);
 			if (!els_xri_cmpl)
-				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 						"2878 ELS XRI exchange busy "
 						"wait time: %d seconds.\n",
 						wait_time/1000);
@@ -12374,14 +12391,14 @@ lpfc_pci_probe_one_s3(struct pci_dev *pdev, const struct pci_device_id *pid)
 		/* Configure and enable interrupt */
 		intr_mode = lpfc_sli_enable_intr(phba, cfg_mode);
 		if (intr_mode == LPFC_INTR_ERROR) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"0431 Failed to enable interrupt.\n");
 			error = -ENODEV;
 			goto out_free_sysfs_attr;
 		}
 		/* SLI-3 HBA setup */
 		if (lpfc_sli_hba_setup(phba)) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"1477 Failed to set up hba\n");
 			error = -ENODEV;
 			goto out_remove_device;
@@ -12639,7 +12656,7 @@ lpfc_pci_resume_one_s3(struct pci_dev *pdev)
 	/* Configure and enable interrupt */
 	intr_mode = lpfc_sli_enable_intr(phba, phba->intr_mode);
 	if (intr_mode == LPFC_INTR_ERROR) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0430 PM resume Failed to enable interrupt\n");
 		return -EIO;
 	} else
@@ -12665,7 +12682,7 @@ lpfc_pci_resume_one_s3(struct pci_dev *pdev)
 static void
 lpfc_sli_prep_dev_for_recover(struct lpfc_hba *phba)
 {
-	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+	lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 			"2723 PCI channel I/O abort preparing for recovery\n");
 
 	/*
@@ -12686,7 +12703,7 @@ lpfc_sli_prep_dev_for_recover(struct lpfc_hba *phba)
 static void
 lpfc_sli_prep_dev_for_reset(struct lpfc_hba *phba)
 {
-	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+	lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 			"2710 PCI channel disable preparing for reset\n");
 
 	/* Block any management I/Os to the device */
@@ -12717,7 +12734,7 @@ lpfc_sli_prep_dev_for_reset(struct lpfc_hba *phba)
 static void
 lpfc_sli_prep_dev_for_perm_failure(struct lpfc_hba *phba)
 {
-	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+	lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 			"2711 PCI channel permanent disable for failure\n");
 	/* Block all SCSI devices' I/Os on the host */
 	lpfc_scsi_dev_block(phba);
@@ -12768,7 +12785,7 @@ lpfc_io_error_detected_s3(struct pci_dev *pdev, pci_channel_state_t state)
 		return PCI_ERS_RESULT_DISCONNECT;
 	default:
 		/* Unknown state, prepare and request slot reset */
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0472 Unknown PCI error state: x%x\n", state);
 		lpfc_sli_prep_dev_for_reset(phba);
 		return PCI_ERS_RESULT_NEED_RESET;
@@ -12826,7 +12843,7 @@ lpfc_io_slot_reset_s3(struct pci_dev *pdev)
 	/* Configure and enable interrupt */
 	intr_mode = lpfc_sli_enable_intr(phba, phba->intr_mode);
 	if (intr_mode == LPFC_INTR_ERROR) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0427 Cannot re-enable interrupt after "
 				"slot reset.\n");
 		return PCI_ERS_RESULT_DISCONNECT;
@@ -12929,7 +12946,7 @@ lpfc_log_write_firmware_error(struct lpfc_hba *phba, uint32_t offset,
 	     magic_number != MAGIC_NUMBER_G6) ||
 	    (phba->pcidev->device == PCI_DEVICE_ID_LANCER_G7_FC &&
 	     magic_number != MAGIC_NUMBER_G7)) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"3030 This firmware version is not supported on"
 				" this HBA model. Device:%x Magic:%x Type:%x "
 				"ID:%x Size %d %zd\n",
@@ -12937,7 +12954,7 @@ lpfc_log_write_firmware_error(struct lpfc_hba *phba, uint32_t offset,
 				fsize, fw->size);
 		rc = -EINVAL;
 	} else if (offset == ADD_STATUS_FW_DOWNLOAD_HW_DISABLED) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"3021 Firmware downloads have been prohibited "
 				"by a system configuration setting on "
 				"Device:%x Magic:%x Type:%x ID:%x Size %d "
@@ -12946,7 +12963,7 @@ lpfc_log_write_firmware_error(struct lpfc_hba *phba, uint32_t offset,
 				fsize, fw->size);
 		rc = -EACCES;
 	} else {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"3022 FW Download failed. Add Status x%x "
 				"Device:%x Magic:%x Type:%x ID:%x Size %d "
 				"%zd\n",
@@ -12991,7 +13008,7 @@ lpfc_write_firmware(const struct firmware *fw, void *context)
 	INIT_LIST_HEAD(&dma_buffer_list);
 	lpfc_decode_firmware_rev(phba, fwrev, 1);
 	if (strncmp(fwrev, image->revision, strnlen(image->revision, 16))) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"3023 Updating Firmware, Current Version:%s "
 				"New Version:%s\n",
 				fwrev, image->revision);
@@ -13041,7 +13058,7 @@ lpfc_write_firmware(const struct firmware *fw, void *context)
 		}
 		rc = offset;
 	} else
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"3029 Skipped Firmware update, Current "
 				"Version:%s New Version:%s\n",
 				fwrev, image->revision);
@@ -13056,10 +13073,10 @@ release_out:
 	release_firmware(fw);
 out:
 	if (rc < 0)
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"3062 Firmware update error, status %d.\n", rc);
 	else
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"3024 Firmware update success: size %d.\n", rc);
 }
 
@@ -13188,7 +13205,7 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 	/* Configure and enable interrupt */
 	intr_mode = lpfc_sli4_enable_intr(phba, cfg_mode);
 	if (intr_mode == LPFC_INTR_ERROR) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0426 Failed to enable interrupt.\n");
 		error = -ENODEV;
 		goto out_unset_driver_resource;
@@ -13223,7 +13240,7 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 
 	/* Set up SLI-4 HBA */
 	if (lpfc_sli4_hba_setup(phba)) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"1421 Failed to set up hba\n");
 		error = -ENODEV;
 		goto out_free_sysfs_attr;
@@ -13248,7 +13265,7 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 			 */
 			error = lpfc_nvme_create_localport(vport);
 			if (error) {
-				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 						"6004 NVME registration "
 						"failed, error x%x\n",
 						error);
@@ -13482,7 +13499,7 @@ lpfc_pci_resume_one_s4(struct pci_dev *pdev)
 	/* Configure and enable interrupt */
 	intr_mode = lpfc_sli4_enable_intr(phba, phba->intr_mode);
 	if (intr_mode == LPFC_INTR_ERROR) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0294 PM resume Failed to enable interrupt\n");
 		return -EIO;
 	} else
@@ -13508,7 +13525,7 @@ lpfc_pci_resume_one_s4(struct pci_dev *pdev)
 static void
 lpfc_sli4_prep_dev_for_recover(struct lpfc_hba *phba)
 {
-	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+	lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 			"2828 PCI channel I/O abort preparing for recovery\n");
 	/*
 	 * There may be errored I/Os through HBA, abort all I/Os on txcmplq
@@ -13528,7 +13545,7 @@ lpfc_sli4_prep_dev_for_recover(struct lpfc_hba *phba)
 static void
 lpfc_sli4_prep_dev_for_reset(struct lpfc_hba *phba)
 {
-	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+	lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 			"2826 PCI channel disable preparing for reset\n");
 
 	/* Block any management I/Os to the device */
@@ -13560,7 +13577,7 @@ lpfc_sli4_prep_dev_for_reset(struct lpfc_hba *phba)
 static void
 lpfc_sli4_prep_dev_for_perm_failure(struct lpfc_hba *phba)
 {
-	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+	lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 			"2827 PCI channel permanent disable for failure\n");
 
 	/* Block all SCSI devices' I/Os on the host */
@@ -13610,7 +13627,7 @@ lpfc_io_error_detected_s4(struct pci_dev *pdev, pci_channel_state_t state)
 		return PCI_ERS_RESULT_DISCONNECT;
 	default:
 		/* Unknown state, prepare and request slot reset */
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2825 Unknown PCI error state: x%x\n", state);
 		lpfc_sli4_prep_dev_for_reset(phba);
 		return PCI_ERS_RESULT_NEED_RESET;
@@ -13668,7 +13685,7 @@ lpfc_io_slot_reset_s4(struct pci_dev *pdev)
 	/* Configure and enable interrupt */
 	intr_mode = lpfc_sli4_enable_intr(phba, phba->intr_mode);
 	if (intr_mode == LPFC_INTR_ERROR) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2824 Cannot re-enable interrupt after "
 				"slot reset.\n");
 		return PCI_ERS_RESULT_DISCONNECT;
@@ -13773,7 +13790,7 @@ lpfc_pci_remove_one(struct pci_dev *pdev)
 		lpfc_pci_remove_one_s4(pdev);
 		break;
 	default:
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"1424 Invalid PCI device group: 0x%x\n",
 				phba->pci_dev_grp);
 		break;
@@ -13810,7 +13827,7 @@ lpfc_pci_suspend_one(struct pci_dev *pdev, pm_message_t msg)
 		rc = lpfc_pci_suspend_one_s4(pdev, msg);
 		break;
 	default:
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"1425 Invalid PCI device group: 0x%x\n",
 				phba->pci_dev_grp);
 		break;
@@ -13846,7 +13863,7 @@ lpfc_pci_resume_one(struct pci_dev *pdev)
 		rc = lpfc_pci_resume_one_s4(pdev);
 		break;
 	default:
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"1426 Invalid PCI device group: 0x%x\n",
 				phba->pci_dev_grp);
 		break;
@@ -13884,7 +13901,7 @@ lpfc_io_error_detected(struct pci_dev *pdev, pci_channel_state_t state)
 		rc = lpfc_io_error_detected_s4(pdev, state);
 		break;
 	default:
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"1427 Invalid PCI device group: 0x%x\n",
 				phba->pci_dev_grp);
 		break;
@@ -13921,7 +13938,7 @@ lpfc_io_slot_reset(struct pci_dev *pdev)
 		rc = lpfc_io_slot_reset_s4(pdev);
 		break;
 	default:
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"1428 Invalid PCI device group: 0x%x\n",
 				phba->pci_dev_grp);
 		break;
@@ -13953,7 +13970,7 @@ lpfc_io_resume(struct pci_dev *pdev)
 		lpfc_io_resume_s4(pdev);
 		break;
 	default:
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"1429 Invalid PCI device group: 0x%x\n",
 				phba->pci_dev_grp);
 		break;
@@ -14107,6 +14124,86 @@ cpuhp_failure:
 	fc_release_transport(lpfc_vport_transport_template);
 
 	return error;
+}
+
+void lpfc_dmp_dbg(struct lpfc_hba *phba)
+{
+	unsigned int start_idx;
+	unsigned int dbg_cnt;
+	unsigned int temp_idx;
+	int i;
+	int j = 0;
+	unsigned long rem_nsec;
+
+	if (phba->cfg_log_verbose)
+		return;
+
+	if (atomic_cmpxchg(&phba->dbg_log_dmping, 0, 1) != 0)
+		return;
+
+	start_idx = (unsigned int)atomic_read(&phba->dbg_log_idx) % DBG_LOG_SZ;
+	dbg_cnt = (unsigned int)atomic_read(&phba->dbg_log_cnt);
+	temp_idx = start_idx;
+	if (dbg_cnt >= DBG_LOG_SZ) {
+		dbg_cnt = DBG_LOG_SZ;
+		temp_idx -= 1;
+	} else {
+		if ((start_idx + dbg_cnt) > (DBG_LOG_SZ - 1)) {
+			temp_idx = (start_idx + dbg_cnt) % DBG_LOG_SZ;
+		} else {
+			if ((start_idx - dbg_cnt) < 0) {
+				start_idx = DBG_LOG_SZ - (dbg_cnt - start_idx);
+				temp_idx = 0;
+			} else {
+				start_idx -= dbg_cnt;
+			}
+		}
+	}
+	dev_info(&phba->pcidev->dev, "start %d end %d cnt %d\n",
+		 start_idx, temp_idx, dbg_cnt);
+
+	for (i = 0; i < dbg_cnt; i++) {
+		if ((start_idx + i) < DBG_LOG_SZ)
+			temp_idx = (start_idx + i) % (DBG_LOG_SZ - 1);
+		else
+			temp_idx = j++;
+		rem_nsec = do_div(phba->dbg_log[temp_idx].t_ns, NSEC_PER_SEC);
+		dev_info(&phba->pcidev->dev, "%d: [%5lu.%06lu] %s",
+			 temp_idx,
+			 (unsigned long)phba->dbg_log[temp_idx].t_ns,
+			 rem_nsec / 1000,
+			 phba->dbg_log[temp_idx].log);
+	}
+	atomic_set(&phba->dbg_log_cnt, 0);
+	atomic_set(&phba->dbg_log_dmping, 0);
+}
+
+void lpfc_dbg_print(struct lpfc_hba *phba, const char *fmt, ...)
+{
+	unsigned int idx;
+	va_list args;
+	int dbg_dmping = atomic_read(&phba->dbg_log_dmping);
+	struct va_format vaf;
+
+
+	va_start(args, fmt);
+	if (unlikely(dbg_dmping)) {
+		vaf.fmt = fmt;
+		vaf.va = &args;
+		dev_info(&phba->pcidev->dev, "%pV", &vaf);
+		va_end(args);
+		return;
+	}
+	idx = (unsigned int)atomic_fetch_add(1, &phba->dbg_log_idx) %
+		DBG_LOG_SZ;
+
+	atomic_inc(&phba->dbg_log_cnt);
+
+	vscnprintf(phba->dbg_log[idx].log,
+		   sizeof(phba->dbg_log[idx].log), fmt, args);
+	va_end(args);
+
+	phba->dbg_log[idx].t_ns = local_clock();
 }
 
 /**
