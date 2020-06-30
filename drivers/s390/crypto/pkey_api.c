@@ -1603,8 +1603,8 @@ static ssize_t pkey_ccacipher_aes_attr_read(enum pkey_key_size keybits,
 		if (rc == 0)
 			break;
 	}
-		if (rc)
-			return rc;
+	if (rc)
+		return rc;
 
 	if (is_xts) {
 		keysize = CCACIPHERTOKENSIZE;
