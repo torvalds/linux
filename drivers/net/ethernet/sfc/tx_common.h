@@ -38,5 +38,5 @@ int efx_tx_map_data(struct efx_tx_queue *tx_queue, struct sk_buff *skb,
 		    unsigned int segment_count);
 
 unsigned int efx_tx_max_skb_descs(struct efx_nic *efx);
-
+int efx_tx_tso_fallback(struct efx_tx_queue *tx_queue, struct sk_buff *skb);
 #endif

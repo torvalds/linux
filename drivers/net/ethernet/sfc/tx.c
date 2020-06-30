@@ -269,34 +269,6 @@ static int efx_enqueue_skb_pio(struct efx_tx_queue *tx_queue,
 #endif /* EFX_USE_PIO */
 
 /*
- * Fallback to software TSO.
- *
- * This is used if we are unable to send a GSO packet through hardware TSO.
- * This should only ever happen due to per-queue restrictions - unsupported
- * packets should first be filtered by the feature flags.
- *
- * Returns 0 on success, error code otherwise.
- */
-static int efx_tx_tso_fallback(struct efx_tx_queue *tx_queue,
-			       struct sk_buff *skb)
-{
-	struct sk_buff *segments, *next;
-
-	segments = skb_gso_segment(skb, 0);
-	if (IS_ERR(segments))
-		return PTR_ERR(segments);
-
-	dev_consume_skb_any(skb);
-
-	skb_list_walk_safe(segments, skb, next) {
-		skb_mark_not_on_list(skb);
-		efx_enqueue_skb(tx_queue, skb);
-	}
-
-	return 0;
-}
-
-/*
  * Add a socket buffer to a TX queue
  *
  * This maps all fragments of a socket buffer for DMA and adds them to
