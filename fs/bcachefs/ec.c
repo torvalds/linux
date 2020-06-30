@@ -638,6 +638,7 @@ void bch2_stripes_heap_update(struct bch_fs *c,
 
 static int ec_stripe_delete(struct bch_fs *c, size_t idx)
 {
+	//pr_info("deleting stripe %zu", idx);
 	return bch2_btree_delete_range(c, BTREE_ID_EC,
 				       POS(0, idx),
 				       POS(0, idx + 1),
@@ -756,6 +757,8 @@ static int ec_stripe_update_ptrs(struct bch_fs *c,
 	bkey_on_stack_init(&sk);
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
 
+	/* XXX this doesn't support the reflink btree */
+
 	iter = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS,
 				   bkey_start_pos(pos),
 				   BTREE_ITER_INTENT);
@@ -856,7 +859,10 @@ static void ec_stripe_create(struct ec_stripe_new *s)
 			goto err_put_writes;
 		}
 
-	ret = ec_stripe_bkey_insert(c, &s->stripe.key);
+	ret = s->existing_stripe
+		? bch2_btree_insert(c, BTREE_ID_EC, &s->stripe.key.k_i,
+				    NULL, NULL, BTREE_INSERT_NOFAIL)
+		: ec_stripe_bkey_insert(c, &s->stripe.key);
 	if (ret) {
 		bch_err(c, "error creating stripe: error creating stripe key");
 		goto err_put_writes;
@@ -864,12 +870,19 @@ static void ec_stripe_create(struct ec_stripe_new *s)
 
 	for_each_keylist_key(&s->keys, k) {
 		ret = ec_stripe_update_ptrs(c, &s->stripe, &k->k);
-		if (ret)
+		if (ret) {
+			bch_err(c, "error creating stripe: error updating pointers");
 			break;
+		}
 	}
 
 	spin_lock(&c->ec_stripes_heap_lock);
 	m = genradix_ptr(&c->stripes[0], s->stripe.key.k.p.offset);
+#if 0
+	pr_info("created a %s stripe %llu",
+		s->existing_stripe ? "existing" : "new",
+		s->stripe.key.k.p.offset);
+#endif
 	BUG_ON(m->on_heap);
 	bch2_stripes_heap_insert(c, m, s->stripe.key.k.p.offset);
 	spin_unlock(&c->ec_stripes_heap_lock);
@@ -975,6 +988,8 @@ void bch2_ec_add_backpointer(struct bch_fs *c, struct write_point *wp,
 	if (!ob)
 		return;
 
+	//pr_info("adding backpointer at %llu:%llu", pos.inode, pos.offset);
+
 	ec = ob->ec;
 	mutex_lock(&ec->lock);
 
@@ -1031,6 +1046,11 @@ static unsigned pick_blocksize(struct bch_fs *c,
 		best = cur;
 
 	return best.size;
+}
+
+static bool may_create_new_stripe(struct bch_fs *c)
+{
+	return false;
 }
 
 static void ec_stripe_key_init(struct bch_fs *c,
@@ -1245,6 +1265,59 @@ err:
 	return ret;
 }
 
+/* XXX: doesn't obey target: */
+static s64 get_existing_stripe(struct bch_fs *c,
+			       unsigned target,
+			       unsigned algo,
+			       unsigned redundancy)
+{
+	ec_stripes_heap *h = &c->ec_stripes_heap;
+	struct stripe *m;
+	size_t heap_idx;
+	u64 stripe_idx;
+
+	if (may_create_new_stripe(c))
+		return -1;
+
+	spin_lock(&c->ec_stripes_heap_lock);
+	for (heap_idx = 0; heap_idx < h->used; heap_idx++) {
+		if (!h->data[heap_idx].blocks_nonempty)
+			continue;
+
+		stripe_idx = h->data[heap_idx].idx;
+		m = genradix_ptr(&c->stripes[0], stripe_idx);
+
+		if (m->algorithm	== algo &&
+		    m->nr_redundant	== redundancy &&
+		    m->blocks_nonempty	< m->nr_blocks - m->nr_redundant) {
+			bch2_stripes_heap_del(c, m, stripe_idx);
+			spin_unlock(&c->ec_stripes_heap_lock);
+			return stripe_idx;
+		}
+	}
+
+	spin_unlock(&c->ec_stripes_heap_lock);
+	return -1;
+}
+
+static int get_stripe_key(struct bch_fs *c, u64 idx, struct ec_stripe_buf *stripe)
+{
+	struct btree_trans trans;
+	struct btree_iter *iter;
+	struct bkey_s_c k;
+	int ret;
+
+	bch2_trans_init(&trans, c, 0, 0);
+	iter = bch2_trans_get_iter(&trans, BTREE_ID_EC, POS(0, idx), BTREE_ITER_SLOTS);
+	k = bch2_btree_iter_peek_slot(iter);
+	ret = bkey_err(k);
+	if (!ret)
+		bkey_reassemble(&stripe->key.k_i, k);
+	bch2_trans_exit(&trans);
+
+	return ret;
+}
+
 struct ec_stripe_head *bch2_ec_stripe_head_get(struct bch_fs *c,
 					       unsigned target,
 					       unsigned algo,
@@ -1254,6 +1327,7 @@ struct ec_stripe_head *bch2_ec_stripe_head_get(struct bch_fs *c,
 	struct ec_stripe_head *h;
 	struct open_bucket *ob;
 	unsigned i, data_idx = 0;
+	s64 idx;
 
 	closure_init_stack(&cl);
 
@@ -1267,6 +1341,24 @@ struct ec_stripe_head *bch2_ec_stripe_head_get(struct bch_fs *c,
 	}
 
 	if (!h->s->allocated) {
+		if (!h->s->existing_stripe &&
+		    (idx = get_existing_stripe(c, target, algo, redundancy)) >= 0) {
+			//pr_info("got existing stripe %llu", idx);
+
+			h->s->existing_stripe = true;
+			h->s->existing_stripe_idx = idx;
+			if (get_stripe_key(c, idx, &h->s->stripe)) {
+				/* btree error */
+				BUG();
+			}
+
+			for (i = 0; i < h->s->stripe.key.v.nr_blocks; i++)
+				if (stripe_blockcount_get(&h->s->stripe.key.v, i)) {
+					__set_bit(i, h->s->blocks_allocated);
+					ec_block_io(c, &h->s->stripe, READ, i, &cl);
+				}
+		}
+
 		if (new_stripe_alloc_buckets(c, h)) {
 			bch2_ec_stripe_head_put(c, h);
 			h = NULL;
@@ -1286,6 +1378,7 @@ struct ec_stripe_head *bch2_ec_stripe_head_get(struct bch_fs *c,
 		open_bucket_for_each(c, &h->s->parity, ob, i)
 			h->s->stripe.key.v.ptrs[h->s->nr_data + i] = ob->ptr;
 
+		//pr_info("new stripe, blocks_allocated %lx", h->s->blocks_allocated[0]);
 		h->s->allocated = true;
 	}
 out:

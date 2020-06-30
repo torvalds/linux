@@ -97,6 +97,9 @@ struct ec_stripe_new {
 	u8			nr_parity;
 	bool			allocated;
 	bool			pending;
+	bool			existing_stripe;
+	u64			existing_stripe_idx;
+
 	unsigned long		blocks_allocated[BITS_TO_LONGS(EC_STRIPE_MAX)];
 
 	struct open_buckets	blocks;
@@ -124,9 +127,6 @@ struct ec_stripe_head {
 
 	struct dev_stripe_state	block_stripe;
 	struct dev_stripe_state	parity_stripe;
-
-	struct open_buckets	blocks;
-	struct open_buckets	parity;
 
 	struct ec_stripe_new	*s;
 };
