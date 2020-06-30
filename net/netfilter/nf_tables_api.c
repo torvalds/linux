@@ -2153,6 +2153,22 @@ err:
 	return err;
 }
 
+static struct nft_chain *nft_chain_lookup_byid(const struct net *net,
+					       const struct nlattr *nla)
+{
+	u32 id = ntohl(nla_get_be32(nla));
+	struct nft_trans *trans;
+
+	list_for_each_entry(trans, &net->nft.commit_list, list) {
+		struct nft_chain *chain = trans->ctx.chain;
+
+		if (trans->msg_type == NFT_MSG_NEWCHAIN &&
+		    id == nft_trans_chain_id(trans))
+			return chain;
+	}
+	return ERR_PTR(-ENOENT);
+}
+
 static int nf_tables_newchain(struct net *net, struct sock *nlsk,
 			      struct sk_buff *skb, const struct nlmsghdr *nlh,
 			      const struct nlattr * const nla[],
@@ -2633,6 +2649,7 @@ static const struct nla_policy nft_rule_policy[NFTA_RULE_MAX + 1] = {
 				    .len = NFT_USERDATA_MAXLEN },
 	[NFTA_RULE_ID]		= { .type = NLA_U32 },
 	[NFTA_RULE_POSITION_ID]	= { .type = NLA_U32 },
+	[NFTA_RULE_CHAIN_ID]	= { .type = NLA_U32 },
 };
 
 static int nf_tables_fill_rule_info(struct sk_buff *skb, struct net *net,
@@ -3039,10 +3056,21 @@ static int nf_tables_newrule(struct net *net, struct sock *nlsk,
 		return PTR_ERR(table);
 	}
 
-	chain = nft_chain_lookup(net, table, nla[NFTA_RULE_CHAIN], genmask);
-	if (IS_ERR(chain)) {
-		NL_SET_BAD_ATTR(extack, nla[NFTA_RULE_CHAIN]);
-		return PTR_ERR(chain);
+	if (nla[NFTA_RULE_CHAIN]) {
+		chain = nft_chain_lookup(net, table, nla[NFTA_RULE_CHAIN],
+					 genmask);
+		if (IS_ERR(chain)) {
+			NL_SET_BAD_ATTR(extack, nla[NFTA_RULE_CHAIN]);
+			return PTR_ERR(chain);
+		}
+	} else if (nla[NFTA_RULE_CHAIN_ID]) {
+		chain = nft_chain_lookup_byid(net, nla[NFTA_RULE_CHAIN_ID]);
+		if (IS_ERR(chain)) {
+			NL_SET_BAD_ATTR(extack, nla[NFTA_RULE_CHAIN_ID]);
+			return PTR_ERR(chain);
+		}
+	} else {
+		return -EINVAL;
 	}
 
 	if (nla[NFTA_RULE_HANDLE]) {
