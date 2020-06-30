@@ -1036,7 +1036,7 @@ struct dwc2_hregs_backup {
  * @fifo_mem:			Total internal RAM for FIFOs (bytes)
  * @fifo_map:		Each bit intend for concrete fifo. If that bit is set,
  *			then that fifo is used
- * @gadget:		Represents a usb slave device
+ * @gadget:		Represents a usb gadget device
  * @connected:		Used in slave mode. True if device connected with host
  * @eps_in:		The IN endpoints being supplied to the gadget framework
  * @eps_out:		The OUT endpoints being supplied to the gadget framework

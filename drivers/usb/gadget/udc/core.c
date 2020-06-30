@@ -85,7 +85,7 @@ EXPORT_SYMBOL_GPL(usb_ep_set_maxpacket_limit);
  * for interrupt transfers as well as bulk, but it likely couldn't be used
  * for iso transfers or for endpoint 14.  some endpoints are fully
  * configurable, with more generic names like "ep-a".  (remember that for
- * USB, "in" means "towards the USB master".)
+ * USB, "in" means "towards the USB host".)
  *
  * This routine must be called in process context.
  *
