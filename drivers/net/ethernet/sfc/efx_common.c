@@ -383,6 +383,30 @@ static void efx_stop_datapath(struct efx_nic *efx)
  *
  **************************************************************************/
 
+/* Equivalent to efx_link_set_advertising with all-zeroes, except does not
+ * force the Autoneg bit on.
+ */
+void efx_link_clear_advertising(struct efx_nic *efx)
+{
+	bitmap_zero(efx->link_advertising, __ETHTOOL_LINK_MODE_MASK_NBITS);
+	efx->wanted_fc &= ~(EFX_FC_TX | EFX_FC_RX);
+}
+
+void efx_link_set_wanted_fc(struct efx_nic *efx, u8 wanted_fc)
+{
+	efx->wanted_fc = wanted_fc;
+	if (efx->link_advertising[0]) {
+		if (wanted_fc & EFX_FC_RX)
+			efx->link_advertising[0] |= (ADVERTISED_Pause |
+						     ADVERTISED_Asym_Pause);
+		else
+			efx->link_advertising[0] &= ~(ADVERTISED_Pause |
+						      ADVERTISED_Asym_Pause);
+		if (wanted_fc & EFX_FC_TX)
+			efx->link_advertising[0] ^= ADVERTISED_Asym_Pause;
+	}
+}
+
 static void efx_start_port(struct efx_nic *efx)
 {
 	netif_dbg(efx, ifup, efx->net_dev, "start port\n");
@@ -929,6 +953,8 @@ int efx_init_struct(struct efx_nic *efx,
 	INIT_WORK(&efx->mac_work, efx_mac_work);
 	init_waitqueue_head(&efx->flush_wq);
 
+	efx->mem_bar = UINT_MAX;
+
 	rc = efx_init_channels(efx);
 	if (rc)
 		goto fail;
@@ -972,7 +998,9 @@ int efx_init_io(struct efx_nic *efx, int bar, dma_addr_t dma_mask,
 	struct pci_dev *pci_dev = efx->pci_dev;
 	int rc;
 
-	netif_dbg(efx, probe, efx->net_dev, "initialising I/O\n");
+	efx->mem_bar = UINT_MAX;
+
+	netif_dbg(efx, probe, efx->net_dev, "initialising I/O bar=%d\n", bar);
 
 	rc = pci_enable_device(pci_dev);
 	if (rc) {
@@ -1014,21 +1042,21 @@ int efx_init_io(struct efx_nic *efx, int bar, dma_addr_t dma_mask,
 	rc = pci_request_region(pci_dev, bar, "sfc");
 	if (rc) {
 		netif_err(efx, probe, efx->net_dev,
-			  "request for memory BAR failed\n");
+			  "request for memory BAR[%d] failed\n", bar);
 		rc = -EIO;
 		goto fail3;
 	}
-
+	efx->mem_bar = bar;
 	efx->membase = ioremap(efx->membase_phys, mem_map_size);
 	if (!efx->membase) {
 		netif_err(efx, probe, efx->net_dev,
-			  "could not map memory BAR at %llx+%x\n",
+			  "could not map memory BAR[%d] at %llx+%x\n", bar,
 			  (unsigned long long)efx->membase_phys, mem_map_size);
 		rc = -ENOMEM;
 		goto fail4;
 	}
 	netif_dbg(efx, probe, efx->net_dev,
-		  "memory BAR at %llx+%x (virtual %p)\n",
+		  "memory BAR[%d] at %llx+%x (virtual %p)\n", bar,
 		  (unsigned long long)efx->membase_phys, mem_map_size,
 		  efx->membase);
 
@@ -1044,7 +1072,7 @@ fail1:
 	return rc;
 }
 
-void efx_fini_io(struct efx_nic *efx, int bar)
+void efx_fini_io(struct efx_nic *efx)
 {
 	netif_dbg(efx, drv, efx->net_dev, "shutting down I/O\n");
 
@@ -1054,8 +1082,9 @@ void efx_fini_io(struct efx_nic *efx, int bar)
 	}
 
 	if (efx->membase_phys) {
-		pci_release_region(efx->pci_dev, bar);
+		pci_release_region(efx->pci_dev, efx->mem_bar);
 		efx->membase_phys = 0;
+		efx->mem_bar = UINT_MAX;
 	}
 
 	/* Don't disable bus-mastering if VFs are assigned */
@@ -1101,3 +1130,94 @@ void efx_fini_mcdi_logging(struct efx_nic *efx)
 	device_remove_file(&efx->pci_dev->dev, &dev_attr_mcdi_logging);
 }
 #endif
+
+/* A PCI error affecting this device was detected.
+ * At this point MMIO and DMA may be disabled.
+ * Stop the software path and request a slot reset.
+ */
+static pci_ers_result_t efx_io_error_detected(struct pci_dev *pdev,
+					      enum pci_channel_state state)
+{
+	pci_ers_result_t status = PCI_ERS_RESULT_RECOVERED;
+	struct efx_nic *efx = pci_get_drvdata(pdev);
+
+	if (state == pci_channel_io_perm_failure)
+		return PCI_ERS_RESULT_DISCONNECT;
+
+	rtnl_lock();
+
+	if (efx->state != STATE_DISABLED) {
+		efx->state = STATE_RECOVERY;
+		efx->reset_pending = 0;
+
+		efx_device_detach_sync(efx);
+
+		efx_stop_all(efx);
+		efx_disable_interrupts(efx);
+
+		status = PCI_ERS_RESULT_NEED_RESET;
+	} else {
+		/* If the interface is disabled we don't want to do anything
+		 * with it.
+		 */
+		status = PCI_ERS_RESULT_RECOVERED;
+	}
+
+	rtnl_unlock();
+
+	pci_disable_device(pdev);
+
+	return status;
+}
+
+/* Fake a successful reset, which will be performed later in efx_io_resume. */
+static pci_ers_result_t efx_io_slot_reset(struct pci_dev *pdev)
+{
+	struct efx_nic *efx = pci_get_drvdata(pdev);
+	pci_ers_result_t status = PCI_ERS_RESULT_RECOVERED;
+
+	if (pci_enable_device(pdev)) {
+		netif_err(efx, hw, efx->net_dev,
+			  "Cannot re-enable PCI device after reset.\n");
+		status =  PCI_ERS_RESULT_DISCONNECT;
+	}
+
+	return status;
+}
+
+/* Perform the actual reset and resume I/O operations. */
+static void efx_io_resume(struct pci_dev *pdev)
+{
+	struct efx_nic *efx = pci_get_drvdata(pdev);
+	int rc;
+
+	rtnl_lock();
+
+	if (efx->state == STATE_DISABLED)
+		goto out;
+
+	rc = efx_reset(efx, RESET_TYPE_ALL);
+	if (rc) {
+		netif_err(efx, hw, efx->net_dev,
+			  "efx_reset failed after PCI error (%d)\n", rc);
+	} else {
+		efx->state = STATE_READY;
+		netif_dbg(efx, hw, efx->net_dev,
+			  "Done resetting and resuming IO after PCI error.\n");
+	}
+
+out:
+	rtnl_unlock();
+}
+
+/* For simplicity and reliability, we always require a slot reset and try to
+ * reset the hardware when a pci error affecting the device is detected.
+ * We leave both the link_reset and mmio_enabled callback unimplemented:
+ * with our request for slot reset the mmio_enabled callback will never be
+ * called, and the link_reset callback is not used by AER or EEH mechanisms.
+ */
+const struct pci_error_handlers efx_err_handlers = {
+	.error_detected = efx_io_error_detected,
+	.slot_reset	= efx_io_slot_reset,
+	.resume		= efx_io_resume,
+};

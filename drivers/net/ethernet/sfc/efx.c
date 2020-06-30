@@ -133,30 +133,6 @@ static int efx_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **xdpfs,
  *
  **************************************************************************/
 
-/* Equivalent to efx_link_set_advertising with all-zeroes, except does not
- * force the Autoneg bit on.
- */
-void efx_link_clear_advertising(struct efx_nic *efx)
-{
-	bitmap_zero(efx->link_advertising, __ETHTOOL_LINK_MODE_MASK_NBITS);
-	efx->wanted_fc &= ~(EFX_FC_TX | EFX_FC_RX);
-}
-
-void efx_link_set_wanted_fc(struct efx_nic *efx, u8 wanted_fc)
-{
-	efx->wanted_fc = wanted_fc;
-	if (efx->link_advertising[0]) {
-		if (wanted_fc & EFX_FC_RX)
-			efx->link_advertising[0] |= (ADVERTISED_Pause |
-						     ADVERTISED_Asym_Pause);
-		else
-			efx->link_advertising[0] &= ~(ADVERTISED_Pause |
-						      ADVERTISED_Asym_Pause);
-		if (wanted_fc & EFX_FC_TX)
-			efx->link_advertising[0] ^= ADVERTISED_Asym_Pause;
-	}
-}
-
 static void efx_fini_port(struct efx_nic *efx);
 
 static int efx_probe_port(struct efx_nic *efx)
@@ -1098,7 +1074,7 @@ static void efx_pci_remove(struct pci_dev *pci_dev)
 
 	efx_pci_remove_main(efx);
 
-	efx_fini_io(efx, efx->type->mem_bar(efx));
+	efx_fini_io(efx);
 	netif_dbg(efx, drv, efx->net_dev, "shutdown successful\n");
 
 	efx_fini_struct(efx);
@@ -1366,7 +1342,7 @@ static int efx_pci_probe(struct pci_dev *pci_dev,
 	return 0;
 
  fail3:
-	efx_fini_io(efx, efx->type->mem_bar(efx));
+	efx_fini_io(efx);
  fail2:
 	efx_fini_struct(efx);
  fail1:
@@ -1512,97 +1488,6 @@ static const struct dev_pm_ops efx_pm_ops = {
 	.thaw		= efx_pm_thaw,
 	.poweroff	= efx_pm_poweroff,
 	.restore	= efx_pm_resume,
-};
-
-/* A PCI error affecting this device was detected.
- * At this point MMIO and DMA may be disabled.
- * Stop the software path and request a slot reset.
- */
-static pci_ers_result_t efx_io_error_detected(struct pci_dev *pdev,
-					      enum pci_channel_state state)
-{
-	pci_ers_result_t status = PCI_ERS_RESULT_RECOVERED;
-	struct efx_nic *efx = pci_get_drvdata(pdev);
-
-	if (state == pci_channel_io_perm_failure)
-		return PCI_ERS_RESULT_DISCONNECT;
-
-	rtnl_lock();
-
-	if (efx->state != STATE_DISABLED) {
-		efx->state = STATE_RECOVERY;
-		efx->reset_pending = 0;
-
-		efx_device_detach_sync(efx);
-
-		efx_stop_all(efx);
-		efx_disable_interrupts(efx);
-
-		status = PCI_ERS_RESULT_NEED_RESET;
-	} else {
-		/* If the interface is disabled we don't want to do anything
-		 * with it.
-		 */
-		status = PCI_ERS_RESULT_RECOVERED;
-	}
-
-	rtnl_unlock();
-
-	pci_disable_device(pdev);
-
-	return status;
-}
-
-/* Fake a successful reset, which will be performed later in efx_io_resume. */
-static pci_ers_result_t efx_io_slot_reset(struct pci_dev *pdev)
-{
-	struct efx_nic *efx = pci_get_drvdata(pdev);
-	pci_ers_result_t status = PCI_ERS_RESULT_RECOVERED;
-
-	if (pci_enable_device(pdev)) {
-		netif_err(efx, hw, efx->net_dev,
-			  "Cannot re-enable PCI device after reset.\n");
-		status =  PCI_ERS_RESULT_DISCONNECT;
-	}
-
-	return status;
-}
-
-/* Perform the actual reset and resume I/O operations. */
-static void efx_io_resume(struct pci_dev *pdev)
-{
-	struct efx_nic *efx = pci_get_drvdata(pdev);
-	int rc;
-
-	rtnl_lock();
-
-	if (efx->state == STATE_DISABLED)
-		goto out;
-
-	rc = efx_reset(efx, RESET_TYPE_ALL);
-	if (rc) {
-		netif_err(efx, hw, efx->net_dev,
-			  "efx_reset failed after PCI error (%d)\n", rc);
-	} else {
-		efx->state = STATE_READY;
-		netif_dbg(efx, hw, efx->net_dev,
-			  "Done resetting and resuming IO after PCI error.\n");
-	}
-
-out:
-	rtnl_unlock();
-}
-
-/* For simplicity and reliability, we always require a slot reset and try to
- * reset the hardware when a pci error affecting the device is detected.
- * We leave both the link_reset and mmio_enabled callback unimplemented:
- * with our request for slot reset the mmio_enabled callback will never be
- * called, and the link_reset callback is not used by AER or EEH mechanisms.
- */
-static const struct pci_error_handlers efx_err_handlers = {
-	.error_detected = efx_io_error_detected,
-	.slot_reset	= efx_io_slot_reset,
-	.resume		= efx_io_resume,
 };
 
 static struct pci_driver efx_pci_driver = {

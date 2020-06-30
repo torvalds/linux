@@ -13,10 +13,13 @@
 
 int efx_init_io(struct efx_nic *efx, int bar, dma_addr_t dma_mask,
 		unsigned int mem_map_size);
-void efx_fini_io(struct efx_nic *efx, int bar);
+void efx_fini_io(struct efx_nic *efx);
 int efx_init_struct(struct efx_nic *efx, struct pci_dev *pci_dev,
 		    struct net_device *net_dev);
 void efx_fini_struct(struct efx_nic *efx);
+
+void efx_link_clear_advertising(struct efx_nic *efx);
+void efx_link_set_wanted_fc(struct efx_nic *efx, u8);
 
 void efx_start_all(struct efx_nic *efx);
 void efx_stop_all(struct efx_nic *efx);
@@ -70,4 +73,5 @@ void efx_link_status_changed(struct efx_nic *efx);
 unsigned int efx_xdp_max_mtu(struct efx_nic *efx);
 int efx_change_mtu(struct net_device *net_dev, int new_mtu);
 
+extern const struct pci_error_handlers efx_err_handlers;
 #endif
