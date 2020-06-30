@@ -873,6 +873,7 @@ static inline struct sii9234 *bridge_to_sii9234(struct drm_bridge *bridge)
 }
 
 static enum drm_mode_status sii9234_mode_valid(struct drm_bridge *bridge,
+					 const struct drm_display_info *info,
 					 const struct drm_display_mode *mode)
 {
 	if (mode->clock > MHL1_MAX_CLK)

@@ -506,7 +506,8 @@ static enum drm_mode_status mode_valid_path(struct drm_connector *connector,
 	}
 
 	bridge = drm_bridge_chain_get_first_bridge(encoder);
-	ret = drm_bridge_chain_mode_valid(bridge, mode);
+	ret = drm_bridge_chain_mode_valid(bridge, &connector->display_info,
+					  mode);
 	if (ret != MODE_OK) {
 		DRM_DEBUG_ATOMIC("[BRIDGE] mode_valid() failed\n");
 		return ret;

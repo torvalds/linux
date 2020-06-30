@@ -305,11 +305,6 @@ static inline struct drm_mm_node *rb_hole_addr_to_node(struct rb_node *rb)
 	return rb_entry_safe(rb, struct drm_mm_node, rb_hole_addr);
 }
 
-static inline u64 rb_hole_size(struct rb_node *rb)
-{
-	return rb_entry(rb, struct drm_mm_node, rb_hole_size)->hole_size;
-}
-
 static struct drm_mm_node *best_hole(struct drm_mm *mm, u64 size)
 {
 	struct rb_node *rb = mm->holes_size.rb_root.rb_node;
@@ -330,13 +325,21 @@ static struct drm_mm_node *best_hole(struct drm_mm *mm, u64 size)
 	return best;
 }
 
-static struct drm_mm_node *find_hole(struct drm_mm *mm, u64 addr)
+static bool usable_hole_addr(struct rb_node *rb, u64 size)
+{
+	return rb && rb_hole_addr_to_node(rb)->subtree_max_hole >= size;
+}
+
+static struct drm_mm_node *find_hole_addr(struct drm_mm *mm, u64 addr, u64 size)
 {
 	struct rb_node *rb = mm->holes_addr.rb_node;
 	struct drm_mm_node *node = NULL;
 
 	while (rb) {
 		u64 hole_start;
+
+		if (!usable_hole_addr(rb, size))
+			break;
 
 		node = rb_hole_addr_to_node(rb);
 		hole_start = __drm_mm_hole_node_start(node);
@@ -363,10 +366,10 @@ first_hole(struct drm_mm *mm,
 		return best_hole(mm, size);
 
 	case DRM_MM_INSERT_LOW:
-		return find_hole(mm, start);
+		return find_hole_addr(mm, start, size);
 
 	case DRM_MM_INSERT_HIGH:
-		return find_hole(mm, end);
+		return find_hole_addr(mm, end, size);
 
 	case DRM_MM_INSERT_EVICT:
 		return list_first_entry_or_null(&mm->hole_stack,
@@ -376,82 +379,39 @@ first_hole(struct drm_mm *mm,
 }
 
 /**
- * next_hole_high_addr - returns next hole for a DRM_MM_INSERT_HIGH mode request
- * @entry: previously selected drm_mm_node
- * @size: size of the a hole needed for the request
+ * DECLARE_NEXT_HOLE_ADDR - macro to declare next hole functions
+ * @name: name of function to declare
+ * @first: first rb member to traverse (either rb_left or rb_right).
+ * @last: last rb member to traverse (either rb_right or rb_left).
  *
- * This function will verify whether left subtree of @entry has hole big enough
- * to fit the requtested size. If so, it will return previous node of @entry or
- * else it will return parent node of @entry
- *
- * It will also skip the complete left subtree if subtree_max_hole of that
- * subtree is same as the subtree_max_hole of the @entry.
- *
- * Returns:
- * previous node of @entry if left subtree of @entry can serve the request or
- * else return parent of @entry
+ * This macro declares a function to return the next hole of the addr rb tree.
+ * While traversing the tree we take the searched size into account and only
+ * visit branches with potential big enough holes.
  */
-static struct drm_mm_node *
-next_hole_high_addr(struct drm_mm_node *entry, u64 size)
-{
-	struct rb_node *rb_node, *left_rb_node, *parent_rb_node;
-	struct drm_mm_node *left_node;
 
-	if (!entry)
-		return NULL;
-
-	rb_node = &entry->rb_hole_addr;
-	if (rb_node->rb_left) {
-		left_rb_node = rb_node->rb_left;
-		parent_rb_node = rb_parent(rb_node);
-		left_node = rb_entry(left_rb_node,
-				     struct drm_mm_node, rb_hole_addr);
-		if (left_node->subtree_max_hole < size &&
-		    parent_rb_node && parent_rb_node->rb_left != rb_node)
-			return rb_hole_addr_to_node(parent_rb_node);
-	}
-
-	return rb_hole_addr_to_node(rb_prev(rb_node));
+#define DECLARE_NEXT_HOLE_ADDR(name, first, last)			\
+static struct drm_mm_node *name(struct drm_mm_node *entry, u64 size)	\
+{									\
+	struct rb_node *parent, *node = &entry->rb_hole_addr;		\
+									\
+	if (!entry || RB_EMPTY_NODE(node))				\
+		return NULL;						\
+									\
+	if (usable_hole_addr(node->first, size)) {			\
+		node = node->first;					\
+		while (usable_hole_addr(node->last, size))		\
+			node = node->last;				\
+		return rb_hole_addr_to_node(node);			\
+	}								\
+									\
+	while ((parent = rb_parent(node)) && node == parent->first)	\
+		node = parent;						\
+									\
+	return rb_hole_addr_to_node(parent);				\
 }
 
-/**
- * next_hole_low_addr - returns next hole for a DRM_MM_INSERT_LOW mode request
- * @entry: previously selected drm_mm_node
- * @size: size of the a hole needed for the request
- *
- * This function will verify whether right subtree of @entry has hole big enough
- * to fit the requtested size. If so, it will return next node of @entry or
- * else it will return parent node of @entry
- *
- * It will also skip the complete right subtree if subtree_max_hole of that
- * subtree is same as the subtree_max_hole of the @entry.
- *
- * Returns:
- * next node of @entry if right subtree of @entry can serve the request or
- * else return parent of @entry
- */
-static struct drm_mm_node *
-next_hole_low_addr(struct drm_mm_node *entry, u64 size)
-{
-	struct rb_node *rb_node, *right_rb_node, *parent_rb_node;
-	struct drm_mm_node *right_node;
-
-	if (!entry)
-		return NULL;
-
-	rb_node = &entry->rb_hole_addr;
-	if (rb_node->rb_right) {
-		right_rb_node = rb_node->rb_right;
-		parent_rb_node = rb_parent(rb_node);
-		right_node = rb_entry(right_rb_node,
-				      struct drm_mm_node, rb_hole_addr);
-		if (right_node->subtree_max_hole < size &&
-		    parent_rb_node && parent_rb_node->rb_right != rb_node)
-			return rb_hole_addr_to_node(parent_rb_node);
-	}
-
-	return rb_hole_addr_to_node(rb_next(rb_node));
-}
+DECLARE_NEXT_HOLE_ADDR(next_hole_high_addr, rb_left, rb_right)
+DECLARE_NEXT_HOLE_ADDR(next_hole_low_addr, rb_right, rb_left)
 
 static struct drm_mm_node *
 next_hole(struct drm_mm *mm,
@@ -502,7 +462,7 @@ int drm_mm_reserve_node(struct drm_mm *mm, struct drm_mm_node *node)
 		return -ENOSPC;
 
 	/* Find the relevant hole to add our node to */
-	hole = find_hole(mm, node->start);
+	hole = find_hole_addr(mm, node->start, 0);
 	if (!hole)
 		return -ENOSPC;
 

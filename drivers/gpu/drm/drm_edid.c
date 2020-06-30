@@ -5360,7 +5360,7 @@ void drm_set_preferred_mode(struct drm_connector *connector,
 }
 EXPORT_SYMBOL(drm_set_preferred_mode);
 
-static bool is_hdmi2_sink(struct drm_connector *connector)
+static bool is_hdmi2_sink(const struct drm_connector *connector)
 {
 	/*
 	 * FIXME: sil-sii8620 doesn't have a connector around when
@@ -5445,7 +5445,7 @@ drm_hdmi_infoframe_set_hdr_metadata(struct hdmi_drm_infoframe *frame,
 }
 EXPORT_SYMBOL(drm_hdmi_infoframe_set_hdr_metadata);
 
-static u8 drm_mode_hdmi_vic(struct drm_connector *connector,
+static u8 drm_mode_hdmi_vic(const struct drm_connector *connector,
 			    const struct drm_display_mode *mode)
 {
 	bool has_hdmi_infoframe = connector ?
@@ -5461,7 +5461,7 @@ static u8 drm_mode_hdmi_vic(struct drm_connector *connector,
 	return drm_match_hdmi_mode(mode);
 }
 
-static u8 drm_mode_cea_vic(struct drm_connector *connector,
+static u8 drm_mode_cea_vic(const struct drm_connector *connector,
 			   const struct drm_display_mode *mode)
 {
 	u8 vic;
@@ -5499,7 +5499,7 @@ static u8 drm_mode_cea_vic(struct drm_connector *connector,
  */
 int
 drm_hdmi_avi_infoframe_from_display_mode(struct hdmi_avi_infoframe *frame,
-					 struct drm_connector *connector,
+					 const struct drm_connector *connector,
 					 const struct drm_display_mode *mode)
 {
 	enum hdmi_picture_aspect picture_aspect;
@@ -5646,7 +5646,7 @@ EXPORT_SYMBOL(drm_hdmi_avi_infoframe_colorspace);
  */
 void
 drm_hdmi_avi_infoframe_quant_range(struct hdmi_avi_infoframe *frame,
-				   struct drm_connector *connector,
+				   const struct drm_connector *connector,
 				   const struct drm_display_mode *mode,
 				   enum hdmi_quantization_range rgb_quant_range)
 {
@@ -5750,7 +5750,7 @@ s3d_structure_from_display_mode(const struct drm_display_mode *mode)
  */
 int
 drm_hdmi_vendor_infoframe_from_display_mode(struct hdmi_vendor_infoframe *frame,
-					    struct drm_connector *connector,
+					    const struct drm_connector *connector,
 					    const struct drm_display_mode *mode)
 {
 	/*

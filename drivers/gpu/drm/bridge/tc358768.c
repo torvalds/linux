@@ -529,6 +529,7 @@ static int tc358768_bridge_attach(struct drm_bridge *bridge,
 
 static enum drm_mode_status
 tc358768_bridge_mode_valid(struct drm_bridge *bridge,
+			   const struct drm_display_info *info,
 			   const struct drm_display_mode *mode)
 {
 	struct tc358768_priv *priv = bridge_to_tc358768(bridge);

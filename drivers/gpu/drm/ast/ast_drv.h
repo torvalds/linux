@@ -52,7 +52,6 @@
 
 #define PCI_CHIP_AST2000 0x2000
 #define PCI_CHIP_AST2100 0x2010
-#define PCI_CHIP_AST1180 0x1180
 
 
 enum ast_chip {
@@ -64,7 +63,6 @@ enum ast_chip {
 	AST2300,
 	AST2400,
 	AST2500,
-	AST1180,
 };
 
 enum ast_tx_chip {
@@ -137,6 +135,11 @@ struct ast_private {
 	u8 *dp501_fw_addr;
 	const struct firmware *dp501_fw;	/* dp501 fw */
 };
+
+static inline struct ast_private *to_ast_private(struct drm_device *dev)
+{
+	return dev->dev_private;
+}
 
 int ast_driver_load(struct drm_device *dev, unsigned long flags);
 void ast_driver_unload(struct drm_device *dev);

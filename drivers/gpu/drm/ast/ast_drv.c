@@ -59,7 +59,6 @@ static struct drm_driver driver;
 static const struct pci_device_id pciidlist[] = {
 	AST_VGA_DEVICE(PCI_CHIP_AST2000, NULL),
 	AST_VGA_DEVICE(PCI_CHIP_AST2100, NULL),
-	/*	AST_VGA_DEVICE(PCI_CHIP_AST1180, NULL), - don't bind to 1180 for now */
 	{0, 0, 0},
 };
 
@@ -189,9 +188,6 @@ static int ast_pm_freeze(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct drm_device *ddev = pci_get_drvdata(pdev);
-
-	if (!ddev || !ddev->dev_private)
-		return -ENODEV;
 	return ast_drm_freeze(ddev);
 }
 
