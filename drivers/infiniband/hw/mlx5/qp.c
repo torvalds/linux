@@ -2668,6 +2668,10 @@ static int process_create_flags(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 	if (qp_type == IB_QPT_RAW_PACKET && attr->rwq_ind_tbl)
 		return (create_flags) ? -EINVAL : 0;
 
+	process_create_flag(dev, &create_flags, IB_QP_CREATE_NETIF_QP,
+			    mlx5_get_flow_namespace(dev->mdev,
+						    MLX5_FLOW_NAMESPACE_BYPASS),
+			    qp);
 	process_create_flag(dev, &create_flags,
 			    IB_QP_CREATE_INTEGRITY_EN,
 			    MLX5_CAP_GEN(mdev, sho), qp);
