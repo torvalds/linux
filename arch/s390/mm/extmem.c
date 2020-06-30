@@ -401,8 +401,7 @@ __segment_load (char *name, int do_nonshared, unsigned long *addr, unsigned long
  * -EIO     : could not perform query or load diagnose
  * -ENOENT  : no such segment
  * -EOPNOTSUPP: multi-part segment cannot be used with linux
- * -ENOSPC  : segment cannot be used (overlaps with storage)
- * -EBUSY   : segment can temporarily not be used (overlaps with dcss)
+ * -EBUSY   : segment cannot be used (overlaps with dcss or storage)
  * -ERANGE  : segment cannot be used (exceeds kernel mapping range)
  * -EPERM   : segment is currently loaded with incompatible permissions
  * -ENOMEM  : out of memory
@@ -626,10 +625,6 @@ void segment_warning(int rc, char *seg_name)
 	case -EOPNOTSUPP:
 		pr_err("DCSS %s has multiple page ranges and cannot be "
 		       "loaded or queried\n", seg_name);
-		break;
-	case -ENOSPC:
-		pr_err("DCSS %s overlaps with used storage and cannot "
-		       "be loaded\n", seg_name);
 		break;
 	case -EBUSY:
 		pr_err("%s needs used memory resources and cannot be "
