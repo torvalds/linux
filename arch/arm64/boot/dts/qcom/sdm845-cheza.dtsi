@@ -634,7 +634,7 @@ ap_ts_i2c: &i2c14 {
 };
 
 &mss_pil {
-	iommus = <&apps_smmu 0x780 0x1>,
+	iommus = <&apps_smmu 0x781 0x0>,
 		 <&apps_smmu 0x724 0x3>;
 };
 
