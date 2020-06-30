@@ -1031,6 +1031,7 @@ int rockchip_drm_crtc_send_mcu_cmd(struct drm_device *drm_dev,
 
 	return 0;
 }
+EXPORT_SYMBOL(rockchip_drm_crtc_send_mcu_cmd);
 
 /*
  * Attach a (component) device to the shared drm dma mapping from master drm
