@@ -280,6 +280,8 @@ enum aux_ch {
 	AUX_CH_E, /* ICL+ */
 	AUX_CH_F,
 	AUX_CH_G,
+	AUX_CH_H,
+	AUX_CH_I,
 };
 
 #define aux_ch_name(a) ((a) + 'A')
