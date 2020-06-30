@@ -2652,6 +2652,12 @@ enum aux_ch intel_bios_port_aux_ch(struct drm_i915_private *dev_priv,
 	case DP_AUX_G:
 		aux_ch = AUX_CH_G;
 		break;
+	case DP_AUX_H:
+		aux_ch = AUX_CH_H;
+		break;
+	case DP_AUX_I:
+		aux_ch = AUX_CH_I;
+		break;
 	default:
 		MISSING_CASE(info->alternate_aux_channel);
 		aux_ch = AUX_CH_A;

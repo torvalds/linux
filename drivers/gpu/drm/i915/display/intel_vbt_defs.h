@@ -334,6 +334,8 @@ enum vbt_gmbus_ddi {
 #define DP_AUX_E 0x50
 #define DP_AUX_F 0x60
 #define DP_AUX_G 0x70
+#define DP_AUX_H 0x80
+#define DP_AUX_I 0x90
 
 #define VBT_DP_MAX_LINK_RATE_HBR3	0
 #define VBT_DP_MAX_LINK_RATE_HBR2	1
