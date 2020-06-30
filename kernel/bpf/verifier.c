@@ -4864,7 +4864,9 @@ static int check_helper_call(struct bpf_verifier_env *env, int func_id, int insn
 	if (err)
 		return err;
 
-	if (func_id == BPF_FUNC_get_stack && !env->prog->has_callchain_buf) {
+	if ((func_id == BPF_FUNC_get_stack ||
+	     func_id == BPF_FUNC_get_task_stack) &&
+	    !env->prog->has_callchain_buf) {
 		const char *err_str;
 
 #ifdef CONFIG_PERF_EVENTS
