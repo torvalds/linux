@@ -128,13 +128,27 @@ DEFINE_TORTURE_RANDOM_PERCPU(scf_torture_rand);
 static void scf_torture_stats_print(void)
 {
 	int cpu;
+	int i;
 	long long invoked_count = 0;
 	bool isdone = READ_ONCE(scfdone);
+	struct scf_statistics scfs = {};
 
 	for_each_possible_cpu(cpu)
 		invoked_count += data_race(per_cpu(scf_invoked_count, cpu));
-	pr_alert("%s scf_invoked_count %s: %lld ",
-		 SCFTORT_FLAG, isdone ? "VER" : "ver", invoked_count);
+	for (i = 0; i < nthreads; i++) {
+		scfs.n_single += scf_stats_p[i].n_single;
+		scfs.n_single_ofl += scf_stats_p[i].n_single_ofl;
+		scfs.n_single_wait += scf_stats_p[i].n_single_wait;
+		scfs.n_single_wait_ofl += scf_stats_p[i].n_single_wait_ofl;
+		scfs.n_many += scf_stats_p[i].n_many;
+		scfs.n_many_wait += scf_stats_p[i].n_many_wait;
+		scfs.n_all += scf_stats_p[i].n_all;
+		scfs.n_all_wait += scf_stats_p[i].n_all_wait;
+	}
+	pr_alert("%s scf_invoked_count %s: %lld single: %lld/%lld single_ofl: %lld/%lld many: %lld/%lld all: %lld/%lld ",
+		 SCFTORT_FLAG, isdone ? "VER" : "ver", invoked_count,
+		 scfs.n_single, scfs.n_single_wait, scfs.n_single_ofl, scfs.n_single_wait_ofl,
+		 scfs.n_many, scfs.n_many_wait, scfs.n_all, scfs.n_all_wait);
 	torture_onoff_stats();
 	pr_cont("\n");
 }
@@ -357,11 +371,11 @@ static void scf_torture_cleanup(void)
 			torture_stop_kthread("scftorture_invoker", scf_stats_p[i].task);
 	else
 		goto end;
-	kfree(scf_stats_p);
-	scf_stats_p = NULL;
 	smp_call_function(scf_cleanup_handler, NULL, 0);
 	torture_stop_kthread(scf_torture_stats, scf_torture_stats_task);
 	scf_torture_stats_print();  // -After- the stats thread is stopped!
+	kfree(scf_stats_p);  // -After- the last stats print has completed!
+	scf_stats_p = NULL;
 
 	if (atomic_read(&n_errs))
 		scftorture_print_module_parms("End of test: FAILURE");
