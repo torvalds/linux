@@ -921,11 +921,6 @@ static inline void nft_set_elem_update_expr(const struct nft_set_ext *ext,
 	     (expr) != (last); \
 	     (expr) = nft_expr_next(expr))
 
-enum nft_chain_flags {
-	NFT_BASE_CHAIN			= 0x1,
-	NFT_CHAIN_HW_OFFLOAD		= 0x2,
-};
-
 #define NFT_CHAIN_POLICY_UNSET		U8_MAX
 
 /**
@@ -1036,7 +1031,7 @@ static inline struct nft_base_chain *nft_base_chain(const struct nft_chain *chai
 
 static inline bool nft_is_base_chain(const struct nft_chain *chain)
 {
-	return chain->flags & NFT_BASE_CHAIN;
+	return chain->flags & NFT_CHAIN_BASE;
 }
 
 int __nft_release_basechain(struct nft_ctx *ctx);

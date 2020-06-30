@@ -184,6 +184,11 @@ enum nft_table_attributes {
 };
 #define NFTA_TABLE_MAX		(__NFTA_TABLE_MAX - 1)
 
+enum nft_chain_flags {
+	NFT_CHAIN_BASE		= (1 << 0),
+	NFT_CHAIN_HW_OFFLOAD	= (1 << 1),
+};
+
 /**
  * enum nft_chain_attributes - nf_tables chain netlink attributes
  *
