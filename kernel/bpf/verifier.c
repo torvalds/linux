@@ -399,8 +399,7 @@ static bool reg_type_not_null(enum bpf_reg_type type)
 	return type == PTR_TO_SOCKET ||
 		type == PTR_TO_TCP_SOCK ||
 		type == PTR_TO_MAP_VALUE ||
-		type == PTR_TO_SOCK_COMMON ||
-	        type == PTR_TO_BTF_ID;
+		type == PTR_TO_SOCK_COMMON;
 }
 
 static bool reg_type_may_be_null(enum bpf_reg_type type)
