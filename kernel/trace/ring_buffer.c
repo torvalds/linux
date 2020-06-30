@@ -2596,8 +2596,8 @@ rb_move_tail(struct ring_buffer_per_cpu *cpu_buffer,
 	return NULL;
 }
 
-/* Slow path, do not inline */
-static noinline struct ring_buffer_event *
+/* Slow path */
+static struct ring_buffer_event *
 rb_add_time_stamp(struct ring_buffer_event *event, u64 delta, bool abs)
 {
 	if (abs)
@@ -2628,7 +2628,7 @@ static inline bool sched_clock_stable(void)
 }
 #endif
 
-static noinline void
+static void
 rb_check_timestamp(struct ring_buffer_per_cpu *cpu_buffer,
 		   struct rb_event_info *info)
 {
@@ -2646,6 +2646,21 @@ rb_check_timestamp(struct ring_buffer_per_cpu *cpu_buffer,
 		  "please switch to the trace global clock:\n"
 		  "  echo global > /sys/kernel/debug/tracing/trace_clock\n"
 		  "or add trace_clock=global to the kernel command line\n");
+}
+
+static void rb_add_timestamp(struct ring_buffer_per_cpu *cpu_buffer,
+				      struct ring_buffer_event **event,
+				      struct rb_event_info *info,
+				      u64 *delta,
+				      unsigned int *length)
+{
+	bool abs = info->add_timestamp &
+		(RB_ADD_STAMP_FORCE | RB_ADD_STAMP_ABSOLUTE);
+
+	rb_check_timestamp(cpu_buffer, info);
+	*event = rb_add_time_stamp(*event, info->delta, abs);
+	*length -= RB_LEN_TIME_EXTEND;
+	*delta = 0;
 }
 
 /**
@@ -2671,15 +2686,8 @@ rb_update_event(struct ring_buffer_per_cpu *cpu_buffer,
 	 * If we need to add a timestamp, then we
 	 * add it to the start of the reserved space.
 	 */
-	if (unlikely(info->add_timestamp)) {
-		bool abs = info->add_timestamp &
-			(RB_ADD_STAMP_FORCE | RB_ADD_STAMP_ABSOLUTE);
-
-		rb_check_timestamp(cpu_buffer, info);
-		event = rb_add_time_stamp(event, abs ? info->delta : delta, abs);
-		length -= RB_LEN_TIME_EXTEND;
-		delta = 0;
-	}
+	if (unlikely(info->add_timestamp))
+		rb_add_timestamp(cpu_buffer, &event, info, &delta, &length);
 
 	event->time_delta = delta;
 	length -= RB_EVNT_HDR_SIZE;
