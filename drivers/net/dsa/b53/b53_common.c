@@ -1254,16 +1254,8 @@ void b53_phylink_mac_config(struct dsa_switch *ds, int port,
 {
 	struct b53_device *dev = ds->priv;
 
-	if (mode == MLO_AN_PHY)
+	if (mode == MLO_AN_PHY || mode == MLO_AN_FIXED)
 		return;
-
-	if (mode == MLO_AN_FIXED) {
-		b53_force_port_config(dev, port, state->speed,
-				      state->duplex,
-				      !!(state->pause & MLO_PAUSE_TX),
-				      !!(state->pause & MLO_PAUSE_RX));
-		return;
-	}
 
 	if ((phy_interface_mode_is_8023z(state->interface) ||
 	     state->interface == PHY_INTERFACE_MODE_SGMII) &&
@@ -1314,6 +1306,8 @@ void b53_phylink_mac_link_up(struct dsa_switch *ds, int port,
 		return;
 
 	if (mode == MLO_AN_FIXED) {
+		b53_force_port_config(dev, port, speed, duplex,
+				      tx_pause, rx_pause);
 		b53_force_link(dev, port, true);
 		return;
 	}
