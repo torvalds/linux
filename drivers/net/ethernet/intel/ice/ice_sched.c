@@ -238,7 +238,7 @@ ice_sched_remove_elems(struct ice_hw *hw, struct ice_sched_node *parent,
 	enum ice_status status;
 	u16 buf_size;
 
-	buf_size = sizeof(*buf) + sizeof(u32) * (num_nodes - 1);
+	buf_size = struct_size(buf, teid, num_nodes);
 	buf = devm_kzalloc(ice_hw_to_dev(hw), buf_size, GFP_KERNEL);
 	if (!buf)
 		return ICE_ERR_NO_MEMORY;
@@ -825,7 +825,7 @@ ice_sched_add_elems(struct ice_port_info *pi, struct ice_sched_node *tc_node,
 	size_t buf_size;
 	u32 teid;
 
-	buf_size = struct_size(buf, generic, num_nodes - 1);
+	buf_size = struct_size(buf, generic, num_nodes);
 	buf = devm_kzalloc(ice_hw_to_dev(hw), buf_size, GFP_KERNEL);
 	if (!buf)
 		return ICE_ERR_NO_MEMORY;

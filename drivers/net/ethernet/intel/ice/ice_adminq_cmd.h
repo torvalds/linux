@@ -267,7 +267,7 @@ struct ice_aqc_alloc_free_res_elem {
 #define ICE_AQC_RES_TYPE_VSI_PRUNE_LIST_M	\
 				(0xF << ICE_AQC_RES_TYPE_VSI_PRUNE_LIST_S)
 	__le16 num_elems;
-	struct ice_aqc_res_elem elem[1];
+	struct ice_aqc_res_elem elem[];
 };
 
 /* Add VSI (indirect 0x0210)
@@ -561,8 +561,8 @@ struct ice_sw_rule_lkup_rx_tx {
 	 * lookup-type
 	 */
 	__le16 hdr_len;
-	u8 hdr[1];
-} __packed;
+	u8 hdr[];
+};
 
 /* Add/Update/Remove large action command/response entry
  * "index" is returned as part of a response to a successful Add command, and
@@ -571,7 +571,6 @@ struct ice_sw_rule_lkup_rx_tx {
 struct ice_sw_rule_lg_act {
 	__le16 index; /* Index in large action table */
 	__le16 size;
-	__le32 act[1]; /* array of size for actions */
 	/* Max number of large actions */
 #define ICE_MAX_LG_ACT	4
 	/* Bit 0:1 - Action type */
@@ -622,6 +621,7 @@ struct ice_sw_rule_lg_act {
 #define ICE_LG_ACT_STAT_COUNT		0x7
 #define ICE_LG_ACT_STAT_COUNT_S		3
 #define ICE_LG_ACT_STAT_COUNT_M		(0x7F << ICE_LG_ACT_STAT_COUNT_S)
+	__le32 act[]; /* array of size for actions */
 };
 
 /* Add/Update/Remove VSI list command/response entry
@@ -631,7 +631,7 @@ struct ice_sw_rule_lg_act {
 struct ice_sw_rule_vsi_list {
 	__le16 index; /* Index of VSI/Prune list */
 	__le16 number_vsi;
-	__le16 vsi[1]; /* Array of number_vsi VSI numbers */
+	__le16 vsi[]; /* Array of number_vsi VSI numbers */
 };
 
 /* Query VSI list command/response entry */
@@ -738,7 +738,7 @@ struct ice_aqc_txsched_topo_grp_info_hdr {
 
 struct ice_aqc_add_elem {
 	struct ice_aqc_txsched_topo_grp_info_hdr hdr;
-	struct ice_aqc_txsched_elem_data generic[1];
+	struct ice_aqc_txsched_elem_data generic[];
 };
 
 struct ice_aqc_get_topo_elem {
@@ -749,7 +749,7 @@ struct ice_aqc_get_topo_elem {
 
 struct ice_aqc_delete_elem {
 	struct ice_aqc_txsched_topo_grp_info_hdr hdr;
-	__le32 teid[1];
+	__le32 teid[];
 };
 
 /* Query Port ETS (indirect 0x040E)
@@ -1510,7 +1510,7 @@ struct ice_aqc_add_tx_qgrp {
 	__le32 parent_teid;
 	u8 num_txqs;
 	u8 rsvd[3];
-	struct ice_aqc_add_txqs_perq txqs[1];
+	struct ice_aqc_add_txqs_perq txqs[];
 };
 
 /* Disable Tx LAN Queues (indirect 0x0C31) */
@@ -1548,14 +1548,13 @@ struct ice_aqc_dis_txq_item {
 	u8 num_qs;
 	u8 rsvd;
 	/* The length of the q_id array varies according to num_qs */
-	__le16 q_id[1];
-	/* This only applies from F8 onward */
 #define ICE_AQC_Q_DIS_BUF_ELEM_TYPE_S		15
 #define ICE_AQC_Q_DIS_BUF_ELEM_TYPE_LAN_Q	\
 			(0 << ICE_AQC_Q_DIS_BUF_ELEM_TYPE_S)
 #define ICE_AQC_Q_DIS_BUF_ELEM_TYPE_RDMA_QSET	\
 			(1 << ICE_AQC_Q_DIS_BUF_ELEM_TYPE_S)
-};
+	__le16 q_id[];
+} __packed;
 
 /* Configure Firmware Logging Command (indirect 0xFF09)
  * Logging Information Read Response (indirect 0xFF10)
@@ -1679,7 +1678,7 @@ struct ice_aqc_get_pkg_info {
 /* Get Package Info List response buffer format (0x0C43) */
 struct ice_aqc_get_pkg_info_resp {
 	__le32 count;
-	struct ice_aqc_get_pkg_info pkg_info[1];
+	struct ice_aqc_get_pkg_info pkg_info[];
 };
 
 /* Lan Queue Overflow Event (direct, 0x1001) */

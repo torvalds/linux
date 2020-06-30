@@ -1121,8 +1121,7 @@ static enum ice_status ice_get_pkg_info(struct ice_hw *hw)
 	u16 size;
 	u32 i;
 
-	size = sizeof(*pkg_info) + (sizeof(pkg_info->pkg_info[0]) *
-				    (ICE_PKG_CNT - 1));
+	size = struct_size(pkg_info, pkg_info, ICE_PKG_CNT);
 	pkg_info = kzalloc(size, GFP_KERNEL);
 	if (!pkg_info)
 		return ICE_ERR_NO_MEMORY;
@@ -1180,7 +1179,7 @@ static enum ice_status ice_verify_pkg(struct ice_pkg_hdr *pkg, u32 len)
 	u32 seg_count;
 	u32 i;
 
-	if (len < sizeof(*pkg))
+	if (len < struct_size(pkg, seg_offset, 1))
 		return ICE_ERR_BUF_TOO_SHORT;
 
 	if (pkg->pkg_format_ver.major != ICE_PKG_FMT_VER_MAJ ||
@@ -1195,7 +1194,7 @@ static enum ice_status ice_verify_pkg(struct ice_pkg_hdr *pkg, u32 len)
 		return ICE_ERR_CFG;
 
 	/* make sure segment array fits in package length */
-	if (len < sizeof(*pkg) + ((seg_count - 1) * sizeof(pkg->seg_offset)))
+	if (len < struct_size(pkg, seg_offset, seg_count))
 		return ICE_ERR_BUF_TOO_SHORT;
 
 	/* all segments must fit within length */
@@ -1300,7 +1299,7 @@ ice_chk_pkg_compat(struct ice_hw *hw, struct ice_pkg_hdr *ospkg,
 	}
 
 	/* Check if FW is compatible with the OS package */
-	size = struct_size(pkg, pkg_info, ICE_PKG_CNT - 1);
+	size = struct_size(pkg, pkg_info, ICE_PKG_CNT);
 	pkg = kzalloc(size, GFP_KERNEL);
 	if (!pkg)
 		return ICE_ERR_NO_MEMORY;
@@ -1764,13 +1763,13 @@ ice_create_tunnel(struct ice_hw *hw, enum ice_tunnel_type type, u16 port)
 		goto ice_create_tunnel_err;
 
 	sect_rx = ice_pkg_buf_alloc_section(bld, ICE_SID_RXPARSER_BOOST_TCAM,
-					    sizeof(*sect_rx));
+					    struct_size(sect_rx, tcam, 1));
 	if (!sect_rx)
 		goto ice_create_tunnel_err;
 	sect_rx->count = cpu_to_le16(1);
 
 	sect_tx = ice_pkg_buf_alloc_section(bld, ICE_SID_TXPARSER_BOOST_TCAM,
-					    sizeof(*sect_tx));
+					    struct_size(sect_tx, tcam, 1));
 	if (!sect_tx)
 		goto ice_create_tunnel_err;
 	sect_tx->count = cpu_to_le16(1);
@@ -1847,7 +1846,7 @@ enum ice_status ice_destroy_tunnel(struct ice_hw *hw, u16 port, bool all)
 	}
 
 	/* size of section - there is at least one entry */
-	size = struct_size(sect_rx, tcam, count - 1);
+	size = struct_size(sect_rx, tcam, count);
 
 	bld = ice_pkg_buf_alloc(hw);
 	if (!bld) {
@@ -3324,10 +3323,10 @@ ice_prof_bld_es(struct ice_hw *hw, enum ice_block blk,
 			u32 id;
 
 			id = ice_sect_id(blk, ICE_VEC_TBL);
-			p = (struct ice_pkg_es *)
-				ice_pkg_buf_alloc_section(bld, id, sizeof(*p) +
-							  vec_size -
-							  sizeof(p->es[0]));
+			p = ice_pkg_buf_alloc_section(bld, id,
+						      struct_size(p, es, 1) +
+						      vec_size -
+						      sizeof(p->es[0]));
 
 			if (!p)
 				return ICE_ERR_MAX_LIMIT;
@@ -3360,8 +3359,8 @@ ice_prof_bld_tcam(struct ice_hw *hw, enum ice_block blk,
 			u32 id;
 
 			id = ice_sect_id(blk, ICE_PROF_TCAM);
-			p = (struct ice_prof_id_section *)
-				ice_pkg_buf_alloc_section(bld, id, sizeof(*p));
+			p = ice_pkg_buf_alloc_section(bld, id,
+						      struct_size(p, entry, 1));
 
 			if (!p)
 				return ICE_ERR_MAX_LIMIT;
@@ -3396,8 +3395,8 @@ ice_prof_bld_xlt1(enum ice_block blk, struct ice_buf_build *bld,
 			u32 id;
 
 			id = ice_sect_id(blk, ICE_XLT1);
-			p = (struct ice_xlt1_section *)
-				ice_pkg_buf_alloc_section(bld, id, sizeof(*p));
+			p = ice_pkg_buf_alloc_section(bld, id,
+						      struct_size(p, value, 1));
 
 			if (!p)
 				return ICE_ERR_MAX_LIMIT;
@@ -3431,8 +3430,8 @@ ice_prof_bld_xlt2(enum ice_block blk, struct ice_buf_build *bld,
 		case ICE_VSI_MOVE:
 		case ICE_VSIG_REM:
 			id = ice_sect_id(blk, ICE_XLT2);
-			p = (struct ice_xlt2_section *)
-				ice_pkg_buf_alloc_section(bld, id, sizeof(*p));
+			p = ice_pkg_buf_alloc_section(bld, id,
+						      struct_size(p, value, 1));
 
 			if (!p)
 				return ICE_ERR_MAX_LIMIT;

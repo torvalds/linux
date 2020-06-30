@@ -29,25 +29,17 @@ static const u8 dummy_eth_header[DUMMY_ETH_HDR_LEN] = { 0x2, 0, 0, 0, 0, 0,
 							0x81, 0, 0, 0};
 
 #define ICE_SW_RULE_RX_TX_ETH_HDR_SIZE \
-	(sizeof(struct ice_aqc_sw_rules_elem) - \
-	 sizeof(((struct ice_aqc_sw_rules_elem *)0)->pdata) + \
-	 sizeof(struct ice_sw_rule_lkup_rx_tx) + DUMMY_ETH_HDR_LEN - 1)
+	(offsetof(struct ice_aqc_sw_rules_elem, pdata.lkup_tx_rx.hdr) + \
+	 (DUMMY_ETH_HDR_LEN * \
+	  sizeof(((struct ice_sw_rule_lkup_rx_tx *)0)->hdr[0])))
 #define ICE_SW_RULE_RX_TX_NO_HDR_SIZE \
-	(sizeof(struct ice_aqc_sw_rules_elem) - \
-	 sizeof(((struct ice_aqc_sw_rules_elem *)0)->pdata) + \
-	 sizeof(struct ice_sw_rule_lkup_rx_tx) - 1)
+	(offsetof(struct ice_aqc_sw_rules_elem, pdata.lkup_tx_rx.hdr))
 #define ICE_SW_RULE_LG_ACT_SIZE(n) \
-	(sizeof(struct ice_aqc_sw_rules_elem) - \
-	 sizeof(((struct ice_aqc_sw_rules_elem *)0)->pdata) + \
-	 sizeof(struct ice_sw_rule_lg_act) - \
-	 sizeof(((struct ice_sw_rule_lg_act *)0)->act) + \
-	 ((n) * sizeof(((struct ice_sw_rule_lg_act *)0)->act)))
+	(offsetof(struct ice_aqc_sw_rules_elem, pdata.lg_act.act) + \
+	 ((n) * sizeof(((struct ice_sw_rule_lg_act *)0)->act[0])))
 #define ICE_SW_RULE_VSI_LIST_SIZE(n) \
-	(sizeof(struct ice_aqc_sw_rules_elem) - \
-	 sizeof(((struct ice_aqc_sw_rules_elem *)0)->pdata) + \
-	 sizeof(struct ice_sw_rule_vsi_list) - \
-	 sizeof(((struct ice_sw_rule_vsi_list *)0)->vsi) + \
-	 ((n) * sizeof(((struct ice_sw_rule_vsi_list *)0)->vsi)))
+	(offsetof(struct ice_aqc_sw_rules_elem, pdata.vsi_list.vsi) + \
+	 ((n) * sizeof(((struct ice_sw_rule_vsi_list *)0)->vsi[0])))
 
 /**
  * ice_init_def_sw_recp - initialize the recipe book keeping tables
@@ -449,7 +441,7 @@ ice_aq_alloc_free_vsi_list(struct ice_hw *hw, u16 *vsi_list_id,
 	enum ice_status status;
 	u16 buf_len;
 
-	buf_len = sizeof(*sw_buf);
+	buf_len = struct_size(sw_buf, elem, 1);
 	sw_buf = devm_kzalloc(ice_hw_to_dev(hw), buf_len, GFP_KERNEL);
 	if (!sw_buf)
 		return ICE_ERR_NO_MEMORY;
@@ -856,8 +848,7 @@ ice_add_marker_act(struct ice_hw *hw, struct ice_fltr_mgmt_list_entry *m_ent,
 		m_ent->fltr_info.fwd_id.hw_vsi_id;
 
 	act = ICE_LG_ACT_VSI_FORWARDING | ICE_LG_ACT_VALID_BIT;
-	act |= (id << ICE_LG_ACT_VSI_LIST_ID_S) &
-		ICE_LG_ACT_VSI_LIST_ID_M;
+	act |= (id << ICE_LG_ACT_VSI_LIST_ID_S) & ICE_LG_ACT_VSI_LIST_ID_M;
 	if (m_ent->vsi_count > 1)
 		act |= ICE_LG_ACT_VSI_LIST;
 	lg_act->pdata.lg_act.act[0] = cpu_to_le32(act);
@@ -2037,7 +2028,8 @@ ice_cfg_dflt_vsi(struct ice_hw *hw, u16 vsi_handle, bool set, u8 direction)
 	hw_vsi_id = ice_get_hw_vsi_num(hw, vsi_handle);
 
 	s_rule_size = set ? ICE_SW_RULE_RX_TX_ETH_HDR_SIZE :
-			    ICE_SW_RULE_RX_TX_NO_HDR_SIZE;
+		ICE_SW_RULE_RX_TX_NO_HDR_SIZE;
+
 	s_rule = devm_kzalloc(ice_hw_to_dev(hw), s_rule_size, GFP_KERNEL);
 	if (!s_rule)
 		return ICE_ERR_NO_MEMORY;
@@ -2691,7 +2683,7 @@ ice_alloc_res_cntr(struct ice_hw *hw, u8 type, u8 alloc_shared, u16 num_items,
 	u16 buf_len;
 
 	/* Allocate resource */
-	buf_len = sizeof(*buf);
+	buf_len = struct_size(buf, elem, 1);
 	buf = kzalloc(buf_len, GFP_KERNEL);
 	if (!buf)
 		return ICE_ERR_NO_MEMORY;
@@ -2729,7 +2721,7 @@ ice_free_res_cntr(struct ice_hw *hw, u8 type, u8 alloc_shared, u16 num_items,
 	u16 buf_len;
 
 	/* Free resource */
-	buf_len = sizeof(*buf);
+	buf_len = struct_size(buf, elem, 1);
 	buf = kzalloc(buf_len, GFP_KERNEL);
 	if (!buf)
 		return ICE_ERR_NO_MEMORY;
