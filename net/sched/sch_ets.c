@@ -415,7 +415,7 @@ static struct ets_class *ets_classify(struct sk_buff *skb, struct Qdisc *sch,
 	return &q->classes[band];
 }
 
-static int ets_qdisc_enqueue(struct sk_buff *skb, struct Qdisc *sch,
+static int ets_qdisc_enqueue(struct sk_buff *skb, struct Qdisc *sch, spinlock_t *root_lock,
 			     struct sk_buff **to_free)
 {
 	unsigned int len = qdisc_pkt_len(skb);
@@ -433,7 +433,7 @@ static int ets_qdisc_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 	}
 
 	first = !cl->qdisc->q.qlen;
-	err = qdisc_enqueue(skb, cl->qdisc, to_free);
+	err = qdisc_enqueue(skb, cl->qdisc, root_lock, to_free);
 	if (unlikely(err != NET_XMIT_SUCCESS)) {
 		if (net_xmit_drop_count(err)) {
 			cl->qstats.drops++;

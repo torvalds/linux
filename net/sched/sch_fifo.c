@@ -16,7 +16,7 @@
 
 /* 1 band FIFO pseudo-"scheduler" */
 
-static int bfifo_enqueue(struct sk_buff *skb, struct Qdisc *sch,
+static int bfifo_enqueue(struct sk_buff *skb, struct Qdisc *sch, spinlock_t *root_lock,
 			 struct sk_buff **to_free)
 {
 	if (likely(sch->qstats.backlog + qdisc_pkt_len(skb) <= sch->limit))
@@ -25,7 +25,7 @@ static int bfifo_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 	return qdisc_drop(skb, sch, to_free);
 }
 
-static int pfifo_enqueue(struct sk_buff *skb, struct Qdisc *sch,
+static int pfifo_enqueue(struct sk_buff *skb, struct Qdisc *sch, spinlock_t *root_lock,
 			 struct sk_buff **to_free)
 {
 	if (likely(sch->q.qlen < sch->limit))
@@ -34,7 +34,7 @@ static int pfifo_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 	return qdisc_drop(skb, sch, to_free);
 }
 
-static int pfifo_tail_enqueue(struct sk_buff *skb, struct Qdisc *sch,
+static int pfifo_tail_enqueue(struct sk_buff *skb, struct Qdisc *sch, spinlock_t *root_lock,
 			      struct sk_buff **to_free)
 {
 	unsigned int prev_backlog;

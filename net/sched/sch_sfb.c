@@ -276,7 +276,7 @@ static bool sfb_classify(struct sk_buff *skb, struct tcf_proto *fl,
 	return false;
 }
 
-static int sfb_enqueue(struct sk_buff *skb, struct Qdisc *sch,
+static int sfb_enqueue(struct sk_buff *skb, struct Qdisc *sch, spinlock_t *root_lock,
 		       struct sk_buff **to_free)
 {
 
@@ -399,7 +399,7 @@ static int sfb_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 	}
 
 enqueue:
-	ret = qdisc_enqueue(skb, child, to_free);
+	ret = qdisc_enqueue(skb, child, root_lock, to_free);
 	if (likely(ret == NET_XMIT_SUCCESS)) {
 		qdisc_qstats_backlog_inc(sch, skb);
 		sch->q.qlen++;

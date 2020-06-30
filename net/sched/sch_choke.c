@@ -210,7 +210,7 @@ static bool choke_match_random(const struct choke_sched_data *q,
 	return choke_match_flow(oskb, nskb);
 }
 
-static int choke_enqueue(struct sk_buff *skb, struct Qdisc *sch,
+static int choke_enqueue(struct sk_buff *skb, struct Qdisc *sch, spinlock_t *root_lock,
 			 struct sk_buff **to_free)
 {
 	struct choke_sched_data *q = qdisc_priv(sch);

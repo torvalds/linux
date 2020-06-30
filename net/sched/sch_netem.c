@@ -431,7 +431,7 @@ static struct sk_buff *netem_segment(struct sk_buff *skb, struct Qdisc *sch,
  * 	NET_XMIT_DROP: queue length didn't change.
  *      NET_XMIT_SUCCESS: one skb was queued.
  */
-static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch,
+static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch, spinlock_t *root_lock,
 			 struct sk_buff **to_free)
 {
 	struct netem_sched_data *q = qdisc_priv(sch);
@@ -480,7 +480,7 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 		u32 dupsave = q->duplicate; /* prevent duplicating a dup... */
 
 		q->duplicate = 0;
-		rootq->enqueue(skb2, rootq, to_free);
+		rootq->enqueue(skb2, rootq, root_lock, to_free);
 		q->duplicate = dupsave;
 		rc_drop = NET_XMIT_SUCCESS;
 	}
@@ -604,7 +604,7 @@ finish_segs:
 			skb_mark_not_on_list(segs);
 			qdisc_skb_cb(segs)->pkt_len = segs->len;
 			last_len = segs->len;
-			rc = qdisc_enqueue(segs, sch, to_free);
+			rc = qdisc_enqueue(segs, sch, root_lock, to_free);
 			if (rc != NET_XMIT_SUCCESS) {
 				if (net_xmit_drop_count(rc))
 					qdisc_qstats_drop(sch);
@@ -720,7 +720,7 @@ deliver:
 				struct sk_buff *to_free = NULL;
 				int err;
 
-				err = qdisc_enqueue(skb, q->qdisc, &to_free);
+				err = qdisc_enqueue(skb, q->qdisc, NULL, &to_free);
 				kfree_skb_list(to_free);
 				if (err != NET_XMIT_SUCCESS &&
 				    net_xmit_drop_count(err)) {

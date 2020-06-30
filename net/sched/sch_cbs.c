@@ -77,7 +77,7 @@ struct cbs_sched_data {
 	s64 sendslope; /* in bytes/s */
 	s64 idleslope; /* in bytes/s */
 	struct qdisc_watchdog watchdog;
-	int (*enqueue)(struct sk_buff *skb, struct Qdisc *sch,
+	int (*enqueue)(struct sk_buff *skb, struct Qdisc *sch, spinlock_t *root_lock,
 		       struct sk_buff **to_free);
 	struct sk_buff *(*dequeue)(struct Qdisc *sch);
 	struct Qdisc *qdisc;
@@ -85,13 +85,13 @@ struct cbs_sched_data {
 };
 
 static int cbs_child_enqueue(struct sk_buff *skb, struct Qdisc *sch,
-			     struct Qdisc *child,
+			     struct Qdisc *child, spinlock_t *root_lock,
 			     struct sk_buff **to_free)
 {
 	unsigned int len = qdisc_pkt_len(skb);
 	int err;
 
-	err = child->ops->enqueue(skb, child, to_free);
+	err = child->ops->enqueue(skb, child, root_lock, to_free);
 	if (err != NET_XMIT_SUCCESS)
 		return err;
 
@@ -101,16 +101,16 @@ static int cbs_child_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 	return NET_XMIT_SUCCESS;
 }
 
-static int cbs_enqueue_offload(struct sk_buff *skb, struct Qdisc *sch,
+static int cbs_enqueue_offload(struct sk_buff *skb, struct Qdisc *sch, spinlock_t *root_lock,
 			       struct sk_buff **to_free)
 {
 	struct cbs_sched_data *q = qdisc_priv(sch);
 	struct Qdisc *qdisc = q->qdisc;
 
-	return cbs_child_enqueue(skb, sch, qdisc, to_free);
+	return cbs_child_enqueue(skb, sch, qdisc, root_lock, to_free);
 }
 
-static int cbs_enqueue_soft(struct sk_buff *skb, struct Qdisc *sch,
+static int cbs_enqueue_soft(struct sk_buff *skb, struct Qdisc *sch, spinlock_t *root_lock,
 			    struct sk_buff **to_free)
 {
 	struct cbs_sched_data *q = qdisc_priv(sch);
@@ -124,15 +124,15 @@ static int cbs_enqueue_soft(struct sk_buff *skb, struct Qdisc *sch,
 		q->last = ktime_get_ns();
 	}
 
-	return cbs_child_enqueue(skb, sch, qdisc, to_free);
+	return cbs_child_enqueue(skb, sch, qdisc, root_lock, to_free);
 }
 
-static int cbs_enqueue(struct sk_buff *skb, struct Qdisc *sch,
+static int cbs_enqueue(struct sk_buff *skb, struct Qdisc *sch, spinlock_t *root_lock,
 		       struct sk_buff **to_free)
 {
 	struct cbs_sched_data *q = qdisc_priv(sch);
 
-	return q->enqueue(skb, sch, to_free);
+	return q->enqueue(skb, sch, root_lock, to_free);
 }
 
 /* timediff is in ns, slope is in bytes/s */

@@ -65,7 +65,7 @@ static u16 calc_new_low_prio(const struct skbprio_sched_data *q)
 	return SKBPRIO_MAX_PRIORITY - 1;
 }
 
-static int skbprio_enqueue(struct sk_buff *skb, struct Qdisc *sch,
+static int skbprio_enqueue(struct sk_buff *skb, struct Qdisc *sch, spinlock_t *root_lock,
 			  struct sk_buff **to_free)
 {
 	const unsigned int max_priority = SKBPRIO_MAX_PRIORITY - 1;

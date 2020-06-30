@@ -82,7 +82,7 @@ bool pie_drop_early(struct Qdisc *sch, struct pie_params *params,
 }
 EXPORT_SYMBOL_GPL(pie_drop_early);
 
-static int pie_qdisc_enqueue(struct sk_buff *skb, struct Qdisc *sch,
+static int pie_qdisc_enqueue(struct sk_buff *skb, struct Qdisc *sch, spinlock_t *root_lock,
 			     struct sk_buff **to_free)
 {
 	struct pie_sched_data *q = qdisc_priv(sch);

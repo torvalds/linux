@@ -84,7 +84,7 @@ struct plug_sched_data {
 	u32 pkts_to_release;
 };
 
-static int plug_enqueue(struct sk_buff *skb, struct Qdisc *sch,
+static int plug_enqueue(struct sk_buff *skb, struct Qdisc *sch, spinlock_t *root_lock,
 			struct sk_buff **to_free)
 {
 	struct plug_sched_data *q = qdisc_priv(sch);

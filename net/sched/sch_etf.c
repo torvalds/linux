@@ -160,7 +160,7 @@ static void report_sock_error(struct sk_buff *skb, u32 err, u8 code)
 }
 
 static int etf_enqueue_timesortedlist(struct sk_buff *nskb, struct Qdisc *sch,
-				      struct sk_buff **to_free)
+				      spinlock_t *root_lock, struct sk_buff **to_free)
 {
 	struct etf_sched_data *q = qdisc_priv(sch);
 	struct rb_node **p = &q->head.rb_root.rb_node, *parent = NULL;

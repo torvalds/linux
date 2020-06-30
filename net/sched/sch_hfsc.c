@@ -1528,8 +1528,8 @@ hfsc_dump_qdisc(struct Qdisc *sch, struct sk_buff *skb)
 	return -1;
 }
 
-static int
-hfsc_enqueue(struct sk_buff *skb, struct Qdisc *sch, struct sk_buff **to_free)
+static int hfsc_enqueue(struct sk_buff *skb, struct Qdisc *sch, spinlock_t *root_lock,
+			struct sk_buff **to_free)
 {
 	unsigned int len = qdisc_pkt_len(skb);
 	struct hfsc_class *cl;
@@ -1545,7 +1545,7 @@ hfsc_enqueue(struct sk_buff *skb, struct Qdisc *sch, struct sk_buff **to_free)
 	}
 
 	first = !cl->qdisc->q.qlen;
-	err = qdisc_enqueue(skb, cl->qdisc, to_free);
+	err = qdisc_enqueue(skb, cl->qdisc, root_lock, to_free);
 	if (unlikely(err != NET_XMIT_SUCCESS)) {
 		if (net_xmit_drop_count(err)) {
 			cl->qstats.drops++;

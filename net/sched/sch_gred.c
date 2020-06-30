@@ -161,7 +161,7 @@ static bool gred_per_vq_red_flags_used(struct gred_sched *table)
 	return false;
 }
 
-static int gred_enqueue(struct sk_buff *skb, struct Qdisc *sch,
+static int gred_enqueue(struct sk_buff *skb, struct Qdisc *sch, spinlock_t *root_lock,
 			struct sk_buff **to_free)
 {
 	struct gred_sched_data *q = NULL;

@@ -13,7 +13,7 @@
 #include <linux/skbuff.h>
 #include <net/pkt_sched.h>
 
-static int blackhole_enqueue(struct sk_buff *skb, struct Qdisc *sch,
+static int blackhole_enqueue(struct sk_buff *skb, struct Qdisc *sch, spinlock_t *root_lock,
 			     struct sk_buff **to_free)
 {
 	qdisc_drop(skb, sch, to_free);

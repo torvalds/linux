@@ -181,7 +181,7 @@ static unsigned int fq_codel_drop(struct Qdisc *sch, unsigned int max_packets,
 	return idx;
 }
 
-static int fq_codel_enqueue(struct sk_buff *skb, struct Qdisc *sch,
+static int fq_codel_enqueue(struct sk_buff *skb, struct Qdisc *sch, spinlock_t *root_lock,
 			    struct sk_buff **to_free)
 {
 	struct fq_codel_sched_data *q = qdisc_priv(sch);
