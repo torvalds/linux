@@ -806,7 +806,9 @@ static int imx219_enum_mbus_code(struct v4l2_subdev *sd,
 	if (code->index >= (ARRAY_SIZE(codes) / 4))
 		return -EINVAL;
 
+	mutex_lock(&imx219->mutex);
 	code->code = imx219_get_format_code(imx219, codes[code->index * 4]);
+	mutex_unlock(&imx219->mutex);
 
 	return 0;
 }
@@ -816,11 +818,15 @@ static int imx219_enum_frame_size(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct imx219 *imx219 = to_imx219(sd);
+	u32 code;
 
 	if (fse->index >= ARRAY_SIZE(supported_modes))
 		return -EINVAL;
 
-	if (fse->code != imx219_get_format_code(imx219, fse->code))
+	mutex_lock(&imx219->mutex);
+	code = imx219_get_format_code(imx219, fse->code);
+	mutex_unlock(&imx219->mutex);
+	if (fse->code != code)
 		return -EINVAL;
 
 	fse->min_width = supported_modes[fse->index].width;
