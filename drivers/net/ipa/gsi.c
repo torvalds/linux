@@ -336,6 +336,7 @@ static int evt_ring_command(struct gsi *gsi, u32 evt_ring_id,
 {
 	struct gsi_evt_ring *evt_ring = &gsi->evt_ring[evt_ring_id];
 	struct completion *completion = &evt_ring->completion;
+	struct device *dev = gsi->dev;
 	u32 val;
 
 	val = u32_encode_bits(evt_ring_id, EV_CHID_FMASK);
@@ -344,8 +345,8 @@ static int evt_ring_command(struct gsi *gsi, u32 evt_ring_id,
 	if (gsi_command(gsi, GSI_EV_CH_CMD_OFFSET, val, completion))
 		return 0;	/* Success! */
 
-	dev_err(gsi->dev, "GSI command %u to event ring %u timed out "
-		"(state is %u)\n", opcode, evt_ring_id, evt_ring->state);
+	dev_err(dev, "GSI command %u for event ring %u timed out, state %u\n",
+		opcode, evt_ring_id, evt_ring->state);
 
 	return -ETIMEDOUT;
 }
@@ -431,6 +432,7 @@ gsi_channel_command(struct gsi_channel *channel, enum gsi_ch_cmd_opcode opcode)
 	struct completion *completion = &channel->completion;
 	u32 channel_id = gsi_channel_id(channel);
 	struct gsi *gsi = channel->gsi;
+	struct device *dev = gsi->dev;
 	u32 val;
 
 	val = u32_encode_bits(channel_id, CH_CHID_FMASK);
@@ -439,8 +441,7 @@ gsi_channel_command(struct gsi_channel *channel, enum gsi_ch_cmd_opcode opcode)
 	if (gsi_command(gsi, GSI_CH_CMD_OFFSET, val, completion))
 		return 0;	/* Success! */
 
-	dev_err(gsi->dev,
-		"GSI command %u to channel %u timed out (state is %u)\n",
+	dev_err(dev, "GSI command %u for channel %u timed out, state %u\n",
 		opcode, channel_id, gsi_channel_state(channel));
 
 	return -ETIMEDOUT;
@@ -1154,8 +1155,8 @@ static irqreturn_t gsi_isr(int irq, void *dev_id)
 				break;
 			default:
 				dev_err(gsi->dev,
-					"%s: unrecognized type 0x%08x\n",
-					__func__, gsi_intr);
+					"unrecognized interrupt type 0x%08x\n",
+					gsi_intr);
 				break;
 			}
 		} while (intr_mask);
@@ -1259,7 +1260,7 @@ static int gsi_ring_alloc(struct gsi *gsi, struct gsi_ring *ring, u32 count)
 	if (ring->virt && addr % size) {
 		dma_free_coherent(dev, size, ring->virt, ring->addr);
 		dev_err(dev, "unable to alloc 0x%zx-aligned ring buffer\n",
-				size);
+			size);
 		return -EINVAL;	/* Not a good error value, but distinct */
 	} else if (!ring->virt) {
 		return -ENOMEM;
@@ -1650,12 +1651,13 @@ static void gsi_channel_teardown(struct gsi *gsi)
 /* Setup function for GSI.  GSI firmware must be loaded and initialized */
 int gsi_setup(struct gsi *gsi, bool legacy)
 {
+	struct device *dev = gsi->dev;
 	u32 val;
 
 	/* Here is where we first touch the GSI hardware */
 	val = ioread32(gsi->virt + GSI_GSI_STATUS_OFFSET);
 	if (!(val & ENABLED_FMASK)) {
-		dev_err(gsi->dev, "GSI has not been enabled\n");
+		dev_err(dev, "GSI has not been enabled\n");
 		return -EIO;
 	}
 
@@ -1663,24 +1665,24 @@ int gsi_setup(struct gsi *gsi, bool legacy)
 
 	gsi->channel_count = u32_get_bits(val, NUM_CH_PER_EE_FMASK);
 	if (!gsi->channel_count) {
-		dev_err(gsi->dev, "GSI reports zero channels supported\n");
+		dev_err(dev, "GSI reports zero channels supported\n");
 		return -EINVAL;
 	}
 	if (gsi->channel_count > GSI_CHANNEL_COUNT_MAX) {
-		dev_warn(gsi->dev,
-			"limiting to %u channels (hardware supports %u)\n",
+		dev_warn(dev,
+			 "limiting to %u channels; hardware supports %u\n",
 			 GSI_CHANNEL_COUNT_MAX, gsi->channel_count);
 		gsi->channel_count = GSI_CHANNEL_COUNT_MAX;
 	}
 
 	gsi->evt_ring_count = u32_get_bits(val, NUM_EV_PER_EE_FMASK);
 	if (!gsi->evt_ring_count) {
-		dev_err(gsi->dev, "GSI reports zero event rings supported\n");
+		dev_err(dev, "GSI reports zero event rings supported\n");
 		return -EINVAL;
 	}
 	if (gsi->evt_ring_count > GSI_EVT_RING_COUNT_MAX) {
-		dev_warn(gsi->dev,
-			"limiting to %u event rings (hardware supports %u)\n",
+		dev_warn(dev,
+			 "limiting to %u event rings; hardware supports %u\n",
 			 GSI_EVT_RING_COUNT_MAX, gsi->evt_ring_count);
 		gsi->evt_ring_count = GSI_EVT_RING_COUNT_MAX;
 	}
@@ -1766,19 +1768,19 @@ static bool gsi_channel_data_valid(struct gsi *gsi,
 
 	/* Make sure channel ids are in the range driver supports */
 	if (channel_id >= GSI_CHANNEL_COUNT_MAX) {
-		dev_err(dev, "bad channel id %u (must be less than %u)\n",
+		dev_err(dev, "bad channel id %u; must be less than %u\n",
 			channel_id, GSI_CHANNEL_COUNT_MAX);
 		return false;
 	}
 
 	if (data->ee_id != GSI_EE_AP && data->ee_id != GSI_EE_MODEM) {
-		dev_err(dev, "bad EE id %u (AP or modem)\n", data->ee_id);
+		dev_err(dev, "bad EE id %u; not AP or modem\n", data->ee_id);
 		return false;
 	}
 
 	if (!data->channel.tlv_count ||
 	    data->channel.tlv_count > GSI_TLV_MAX) {
-		dev_err(dev, "channel %u bad tlv_count %u (must be 1..%u)\n",
+		dev_err(dev, "channel %u bad tlv_count %u; must be 1..%u\n",
 			channel_id, data->channel.tlv_count, GSI_TLV_MAX);
 		return false;
 	}
@@ -1796,13 +1798,13 @@ static bool gsi_channel_data_valid(struct gsi *gsi,
 	}
 
 	if (!is_power_of_2(data->channel.tre_count)) {
-		dev_err(dev, "channel %u bad tre_count %u (not power of 2)\n",
+		dev_err(dev, "channel %u bad tre_count %u; not power of 2\n",
 			channel_id, data->channel.tre_count);
 		return false;
 	}
 
 	if (!is_power_of_2(data->channel.event_count)) {
-		dev_err(dev, "channel %u bad event_count %u (not power of 2)\n",
+		dev_err(dev, "channel %u bad event_count %u; not power of 2\n",
 			channel_id, data->channel.event_count);
 		return false;
 	}
@@ -1956,6 +1958,7 @@ int gsi_init(struct gsi *gsi, struct platform_device *pdev, bool prefetch,
 	     u32 count, const struct ipa_gsi_endpoint_data *data,
 	     bool modem_alloc)
 {
+	struct device *dev = &pdev->dev;
 	struct resource *res;
 	resource_size_t size;
 	unsigned int irq;
@@ -1963,7 +1966,7 @@ int gsi_init(struct gsi *gsi, struct platform_device *pdev, bool prefetch,
 
 	gsi_validate_build();
 
-	gsi->dev = &pdev->dev;
+	gsi->dev = dev;
 
 	/* The GSI layer performs NAPI on all endpoints.  NAPI requires a
 	 * network device structure, but the GSI layer does not have one,
@@ -1974,43 +1977,41 @@ int gsi_init(struct gsi *gsi, struct platform_device *pdev, bool prefetch,
 	/* Get the GSI IRQ and request for it to wake the system */
 	ret = platform_get_irq_byname(pdev, "gsi");
 	if (ret <= 0) {
-		dev_err(gsi->dev,
-			"DT error %d getting \"gsi\" IRQ property\n", ret);
+		dev_err(dev, "DT error %d getting \"gsi\" IRQ property\n", ret);
 		return ret ? : -EINVAL;
 	}
 	irq = ret;
 
 	ret = request_irq(irq, gsi_isr, 0, "gsi", gsi);
 	if (ret) {
-		dev_err(gsi->dev, "error %d requesting \"gsi\" IRQ\n", ret);
+		dev_err(dev, "error %d requesting \"gsi\" IRQ\n", ret);
 		return ret;
 	}
 	gsi->irq = irq;
 
 	ret = enable_irq_wake(gsi->irq);
 	if (ret)
-		dev_warn(gsi->dev, "error %d enabling gsi wake irq\n", ret);
+		dev_warn(dev, "error %d enabling gsi wake irq\n", ret);
 	gsi->irq_wake_enabled = !ret;
 
 	/* Get GSI memory range and map it */
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "gsi");
 	if (!res) {
-		dev_err(gsi->dev,
-			"DT error getting \"gsi\" memory property\n");
+		dev_err(dev, "DT error getting \"gsi\" memory property\n");
 		ret = -ENODEV;
 		goto err_disable_irq_wake;
 	}
 
 	size = resource_size(res);
 	if (res->start > U32_MAX || size > U32_MAX - res->start) {
-		dev_err(gsi->dev, "DT memory resource \"gsi\" out of range\n");
+		dev_err(dev, "DT memory resource \"gsi\" out of range\n");
 		ret = -EINVAL;
 		goto err_disable_irq_wake;
 	}
 
 	gsi->virt = ioremap(res->start, size);
 	if (!gsi->virt) {
-		dev_err(gsi->dev, "unable to remap \"gsi\" memory\n");
+		dev_err(dev, "unable to remap \"gsi\" memory\n");
 		ret = -ENOMEM;
 		goto err_disable_irq_wake;
 	}
