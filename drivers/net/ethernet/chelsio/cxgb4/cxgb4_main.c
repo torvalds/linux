@@ -435,8 +435,8 @@ static int set_rxmode(struct net_device *dev, int mtu, bool sleep_ok)
 	__dev_uc_sync(dev, cxgb4_mac_sync, cxgb4_mac_unsync);
 	__dev_mc_sync(dev, cxgb4_mac_sync, cxgb4_mac_unsync);
 
-	return t4_set_rxmode(adapter, adapter->mbox, pi->viid, mtu,
-			     (dev->flags & IFF_PROMISC) ? 1 : 0,
+	return t4_set_rxmode(adapter, adapter->mbox, pi->viid, pi->viid_mirror,
+			     mtu, (dev->flags & IFF_PROMISC) ? 1 : 0,
 			     (dev->flags & IFF_ALLMULTI) ? 1 : 0, 1, -1,
 			     sleep_ok);
 }
@@ -503,15 +503,16 @@ set_hash:
  */
 static int link_start(struct net_device *dev)
 {
-	int ret;
 	struct port_info *pi = netdev_priv(dev);
-	unsigned int mb = pi->adapter->pf;
+	unsigned int mb = pi->adapter->mbox;
+	int ret;
 
 	/*
 	 * We do not set address filters and promiscuity here, the stack does
 	 * that step explicitly.
 	 */
-	ret = t4_set_rxmode(pi->adapter, mb, pi->viid, dev->mtu, -1, -1, -1,
+	ret = t4_set_rxmode(pi->adapter, mb, pi->viid, pi->viid_mirror,
+			    dev->mtu, -1, -1, -1,
 			    !!(dev->features & NETIF_F_HW_VLAN_CTAG_RX), true);
 	if (ret == 0)
 		ret = cxgb4_update_mac_filt(pi, pi->viid, &pi->xact_addr_filt,
@@ -1270,15 +1271,15 @@ int cxgb4_set_rspq_intr_params(struct sge_rspq *q,
 
 static int cxgb_set_features(struct net_device *dev, netdev_features_t features)
 {
-	const struct port_info *pi = netdev_priv(dev);
 	netdev_features_t changed = dev->features ^ features;
+	const struct port_info *pi = netdev_priv(dev);
 	int err;
 
 	if (!(changed & NETIF_F_HW_VLAN_CTAG_RX))
 		return 0;
 
-	err = t4_set_rxmode(pi->adapter, pi->adapter->pf, pi->viid, -1,
-			    -1, -1, -1,
+	err = t4_set_rxmode(pi->adapter, pi->adapter->mbox, pi->viid,
+			    pi->viid_mirror, -1, -1, -1, -1,
 			    !!(features & NETIF_F_HW_VLAN_CTAG_RX), true);
 	if (unlikely(err))
 		dev->features = features ^ NETIF_F_HW_VLAN_CTAG_RX;
@@ -1441,6 +1442,74 @@ static void cxgb4_port_mirror_free_queues(struct net_device *dev)
 	s->mirror_rxq[pi->port_id] = NULL;
 }
 
+static int cxgb4_port_mirror_start(struct net_device *dev)
+{
+	struct port_info *pi = netdev2pinfo(dev);
+	struct adapter *adap = netdev2adap(dev);
+	int ret, idx = -1;
+
+	if (!pi->vi_mirror_count)
+		return 0;
+
+	/* Mirror VIs can be created dynamically after stack had
+	 * already setup Rx modes like MTU, promisc, allmulti, etc.
+	 * on main VI. So, parse what the stack had setup on the
+	 * main VI and update the same on the mirror VI.
+	 */
+	ret = t4_set_rxmode(adap, adap->mbox, pi->viid, pi->viid_mirror,
+			    dev->mtu, (dev->flags & IFF_PROMISC) ? 1 : 0,
+			    (dev->flags & IFF_ALLMULTI) ? 1 : 0, 1,
+			    !!(dev->features & NETIF_F_HW_VLAN_CTAG_RX), true);
+	if (ret) {
+		dev_err(adap->pdev_dev,
+			"Failed start up Rx mode for Mirror VI 0x%x, ret: %d\n",
+			pi->viid_mirror, ret);
+		return ret;
+	}
+
+	/* Enable replication bit for the device's MAC address
+	 * in MPS TCAM, so that the packets for the main VI are
+	 * replicated to mirror VI.
+	 */
+	ret = cxgb4_update_mac_filt(pi, pi->viid_mirror, &idx,
+				    dev->dev_addr, true, NULL);
+	if (ret) {
+		dev_err(adap->pdev_dev,
+			"Failed updating MAC filter for Mirror VI 0x%x, ret: %d\n",
+			pi->viid_mirror, ret);
+		return ret;
+	}
+
+	/* Enabling a Virtual Interface can result in an interrupt
+	 * during the processing of the VI Enable command and, in some
+	 * paths, result in an attempt to issue another command in the
+	 * interrupt context. Thus, we disable interrupts during the
+	 * course of the VI Enable command ...
+	 */
+	local_bh_disable();
+	ret = t4_enable_vi_params(adap, adap->mbox, pi->viid_mirror, true, true,
+				  false);
+	local_bh_enable();
+	if (ret)
+		dev_err(adap->pdev_dev,
+			"Failed starting Mirror VI 0x%x, ret: %d\n",
+			pi->viid_mirror, ret);
+
+	return ret;
+}
+
+static void cxgb4_port_mirror_stop(struct net_device *dev)
+{
+	struct port_info *pi = netdev2pinfo(dev);
+	struct adapter *adap = netdev2adap(dev);
+
+	if (!pi->vi_mirror_count)
+		return;
+
+	t4_enable_vi_params(adap, adap->mbox, pi->viid_mirror, false, false,
+			    false);
+}
+
 int cxgb4_port_mirror_alloc(struct net_device *dev)
 {
 	struct port_info *pi = netdev2pinfo(dev);
@@ -1467,10 +1536,17 @@ int cxgb4_port_mirror_alloc(struct net_device *dev)
 		ret = cxgb4_port_mirror_alloc_queues(dev);
 		if (ret)
 			goto out_free_vi;
+
+		ret = cxgb4_port_mirror_start(dev);
+		if (ret)
+			goto out_free_queues;
 	}
 
 	mutex_unlock(&pi->vi_mirror_mutex);
 	return 0;
+
+out_free_queues:
+	cxgb4_port_mirror_free_queues(dev);
 
 out_free_vi:
 	pi->vi_mirror_count = 0;
@@ -1496,6 +1572,7 @@ void cxgb4_port_mirror_free(struct net_device *dev)
 		goto out_unlock;
 	}
 
+	cxgb4_port_mirror_stop(dev);
 	cxgb4_port_mirror_free_queues(dev);
 
 	pi->vi_mirror_count = 0;
@@ -2786,11 +2863,18 @@ int cxgb_open(struct net_device *dev)
 		err = cxgb4_port_mirror_alloc_queues(dev);
 		if (err)
 			goto out_unlock;
+
+		err = cxgb4_port_mirror_start(dev);
+		if (err)
+			goto out_free_queues;
 		mutex_unlock(&pi->vi_mirror_mutex);
 	}
 
 	netif_tx_start_all_queues(dev);
 	return 0;
+
+out_free_queues:
+	cxgb4_port_mirror_free_queues(dev);
 
 out_unlock:
 	mutex_unlock(&pi->vi_mirror_mutex);
@@ -2816,6 +2900,7 @@ int cxgb_close(struct net_device *dev)
 
 	if (pi->nmirrorqsets) {
 		mutex_lock(&pi->vi_mirror_mutex);
+		cxgb4_port_mirror_stop(dev);
 		cxgb4_port_mirror_free_queues(dev);
 		mutex_unlock(&pi->vi_mirror_mutex);
 	}
@@ -3086,11 +3171,11 @@ static void cxgb_set_rxmode(struct net_device *dev)
 
 static int cxgb_change_mtu(struct net_device *dev, int new_mtu)
 {
-	int ret;
 	struct port_info *pi = netdev_priv(dev);
+	int ret;
 
-	ret = t4_set_rxmode(pi->adapter, pi->adapter->pf, pi->viid, new_mtu, -1,
-			    -1, -1, -1, true);
+	ret = t4_set_rxmode(pi->adapter, pi->adapter->mbox, pi->viid,
+			    pi->viid_mirror, new_mtu, -1, -1, -1, -1, true);
 	if (!ret)
 		dev->mtu = new_mtu;
 	return ret;

@@ -7711,6 +7711,7 @@ int t4_free_vi(struct adapter *adap, unsigned int mbox, unsigned int pf,
  *	@adap: the adapter
  *	@mbox: mailbox to use for the FW command
  *	@viid: the VI id
+ *	@viid_mirror: the mirror VI id
  *	@mtu: the new MTU or -1
  *	@promisc: 1 to enable promiscuous mode, 0 to disable it, -1 no change
  *	@all_multi: 1 to enable all-multi mode, 0 to disable it, -1 no change
@@ -7721,10 +7722,11 @@ int t4_free_vi(struct adapter *adap, unsigned int mbox, unsigned int pf,
  *	Sets Rx properties of a virtual interface.
  */
 int t4_set_rxmode(struct adapter *adap, unsigned int mbox, unsigned int viid,
-		  int mtu, int promisc, int all_multi, int bcast, int vlanex,
-		  bool sleep_ok)
+		  unsigned int viid_mirror, int mtu, int promisc, int all_multi,
+		  int bcast, int vlanex, bool sleep_ok)
 {
-	struct fw_vi_rxmode_cmd c;
+	struct fw_vi_rxmode_cmd c, c_mirror;
+	int ret;
 
 	/* convert to FW values */
 	if (mtu < 0)
@@ -7749,7 +7751,24 @@ int t4_set_rxmode(struct adapter *adap, unsigned int mbox, unsigned int viid,
 			    FW_VI_RXMODE_CMD_ALLMULTIEN_V(all_multi) |
 			    FW_VI_RXMODE_CMD_BROADCASTEN_V(bcast) |
 			    FW_VI_RXMODE_CMD_VLANEXEN_V(vlanex));
-	return t4_wr_mbox_meat(adap, mbox, &c, sizeof(c), NULL, sleep_ok);
+
+	if (viid_mirror) {
+		memcpy(&c_mirror, &c, sizeof(c_mirror));
+		c_mirror.op_to_viid =
+			cpu_to_be32(FW_CMD_OP_V(FW_VI_RXMODE_CMD) |
+				    FW_CMD_REQUEST_F | FW_CMD_WRITE_F |
+				    FW_VI_RXMODE_CMD_VIID_V(viid_mirror));
+	}
+
+	ret = t4_wr_mbox_meat(adap, mbox, &c, sizeof(c), NULL, sleep_ok);
+	if (ret)
+		return ret;
+
+	if (viid_mirror)
+		ret = t4_wr_mbox_meat(adap, mbox, &c_mirror, sizeof(c_mirror),
+				      NULL, sleep_ok);
+
+	return ret;
 }
 
 /**
