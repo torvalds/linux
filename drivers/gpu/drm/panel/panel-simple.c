@@ -681,7 +681,7 @@ static const struct panel_desc armadeus_st0700_adapt = {
 		.height = 86,
 	},
 	.bus_format = MEDIA_BUS_FMT_RGB666_1X18,
-	.bus_flags = DRM_BUS_FLAG_DE_HIGH | DRM_BUS_FLAG_PIXDATA_POSEDGE,
+	.bus_flags = DRM_BUS_FLAG_DE_HIGH | DRM_BUS_FLAG_PIXDATA_SAMPLE_NEGEDGE,
 };
 
 static const struct drm_display_mode auo_b101aw03_mode = {
@@ -1339,7 +1339,7 @@ static const struct panel_desc cdtech_s070pws19hp_fc21 = {
 		.height = 86,
 	},
 	.bus_format = MEDIA_BUS_FMT_RGB666_1X18,
-	.bus_flags = DRM_BUS_FLAG_DE_HIGH | DRM_BUS_FLAG_PIXDATA_POSEDGE,
+	.bus_flags = DRM_BUS_FLAG_DE_HIGH | DRM_BUS_FLAG_PIXDATA_SAMPLE_NEGEDGE,
 	.connector_type = DRM_MODE_CONNECTOR_DPI,
 };
 
@@ -1366,7 +1366,7 @@ static const struct panel_desc cdtech_s070swv29hg_dc44 = {
 		.height = 86,
 	},
 	.bus_format = MEDIA_BUS_FMT_RGB666_1X18,
-	.bus_flags = DRM_BUS_FLAG_DE_HIGH | DRM_BUS_FLAG_PIXDATA_POSEDGE,
+	.bus_flags = DRM_BUS_FLAG_DE_HIGH | DRM_BUS_FLAG_PIXDATA_SAMPLE_NEGEDGE,
 	.connector_type = DRM_MODE_CONNECTOR_DPI,
 };
 
@@ -1577,7 +1577,7 @@ static const struct panel_desc edt_et035012dm6 = {
 		.height = 52,
 	},
 	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
-	.bus_flags = DRM_BUS_FLAG_DE_LOW | DRM_BUS_FLAG_PIXDATA_NEGEDGE,
+	.bus_flags = DRM_BUS_FLAG_DE_LOW | DRM_BUS_FLAG_PIXDATA_SAMPLE_POSEDGE,
 };
 
 static const struct drm_display_mode edt_etm043080dh6gp_mode = {
@@ -1720,7 +1720,7 @@ static const struct panel_desc evervision_vgg804821 = {
 		.height = 64,
 	},
 	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
-	.bus_flags = DRM_BUS_FLAG_DE_HIGH | DRM_BUS_FLAG_PIXDATA_NEGEDGE,
+	.bus_flags = DRM_BUS_FLAG_DE_HIGH | DRM_BUS_FLAG_PIXDATA_SAMPLE_POSEDGE,
 };
 
 static const struct drm_display_mode foxlink_fl500wvr00_a0t_mode = {
@@ -1768,7 +1768,7 @@ static const struct panel_desc frida_frd350h54004 = {
 		.height = 64,
 	},
 	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
-	.bus_flags = DRM_BUS_FLAG_DE_HIGH | DRM_BUS_FLAG_PIXDATA_POSEDGE,
+	.bus_flags = DRM_BUS_FLAG_DE_HIGH | DRM_BUS_FLAG_PIXDATA_SAMPLE_NEGEDGE,
 	.connector_type = DRM_MODE_CONNECTOR_DPI,
 };
 
@@ -1839,7 +1839,7 @@ static const struct panel_desc giantplus_gpm940b0 = {
 		.height = 45,
 	},
 	.bus_format = MEDIA_BUS_FMT_RGB888_3X8,
-	.bus_flags = DRM_BUS_FLAG_DE_HIGH | DRM_BUS_FLAG_PIXDATA_NEGEDGE,
+	.bus_flags = DRM_BUS_FLAG_DE_HIGH | DRM_BUS_FLAG_PIXDATA_SAMPLE_POSEDGE,
 };
 
 static const struct display_timing hannstar_hsd070pww1_timing = {
@@ -2885,7 +2885,7 @@ static const struct panel_desc ortustech_com37h3m = {
 		.height = 75,	/* 74.88mm */
 	},
 	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
-	.bus_flags = DRM_BUS_FLAG_DE_HIGH | DRM_BUS_FLAG_PIXDATA_POSEDGE |
+	.bus_flags = DRM_BUS_FLAG_DE_HIGH | DRM_BUS_FLAG_PIXDATA_SAMPLE_NEGEDGE |
 		     DRM_BUS_FLAG_SYNC_DRIVE_POSEDGE,
 };
 
@@ -3184,7 +3184,7 @@ static const struct panel_desc sharp_lq070y3dg3b = {
 		.height = 91,	/* 91.4mm */
 	},
 	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
-	.bus_flags = DRM_BUS_FLAG_DE_HIGH | DRM_BUS_FLAG_PIXDATA_POSEDGE |
+	.bus_flags = DRM_BUS_FLAG_DE_HIGH | DRM_BUS_FLAG_PIXDATA_SAMPLE_NEGEDGE |
 		     DRM_BUS_FLAG_SYNC_DRIVE_POSEDGE,
 };
 
@@ -3287,7 +3287,7 @@ static const struct panel_desc sharp_ls020b1dd01d = {
 	},
 	.bus_format = MEDIA_BUS_FMT_RGB565_1X16,
 	.bus_flags = DRM_BUS_FLAG_DE_HIGH
-		   | DRM_BUS_FLAG_PIXDATA_NEGEDGE
+		   | DRM_BUS_FLAG_PIXDATA_SAMPLE_POSEDGE
 		   | DRM_BUS_FLAG_SHARP_SIGNALS,
 };
 
@@ -3386,7 +3386,7 @@ static const struct panel_desc tfc_s9700rtwv43tr_01b = {
 		.height = 90,
 	},
 	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
-	.bus_flags = DRM_BUS_FLAG_DE_HIGH | DRM_BUS_FLAG_PIXDATA_POSEDGE,
+	.bus_flags = DRM_BUS_FLAG_DE_HIGH | DRM_BUS_FLAG_PIXDATA_SAMPLE_NEGEDGE,
 };
 
 static const struct display_timing tianma_tm070jdhg30_timing = {
@@ -3475,7 +3475,7 @@ static const struct panel_desc ti_nspire_cx_lcd_panel = {
 		.height = 49,
 	},
 	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
-	.bus_flags = DRM_BUS_FLAG_PIXDATA_NEGEDGE,
+	.bus_flags = DRM_BUS_FLAG_PIXDATA_SAMPLE_POSEDGE,
 };
 
 static const struct drm_display_mode ti_nspire_classic_lcd_mode[] = {
@@ -3504,7 +3504,7 @@ static const struct panel_desc ti_nspire_classic_lcd_panel = {
 	},
 	/* This is the grayscale bus format */
 	.bus_format = MEDIA_BUS_FMT_Y8_1X8,
-	.bus_flags = DRM_BUS_FLAG_PIXDATA_POSEDGE,
+	.bus_flags = DRM_BUS_FLAG_PIXDATA_SAMPLE_NEGEDGE,
 };
 
 static const struct drm_display_mode toshiba_lt089ac29000_mode = {
@@ -3633,7 +3633,7 @@ static const struct panel_desc vl050_8048nt_c01 = {
 		.height = 76,
 	},
 	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
-	.bus_flags = DRM_BUS_FLAG_DE_HIGH | DRM_BUS_FLAG_PIXDATA_POSEDGE,
+	.bus_flags = DRM_BUS_FLAG_DE_HIGH | DRM_BUS_FLAG_PIXDATA_SAMPLE_NEGEDGE,
 };
 
 static const struct drm_display_mode winstar_wf35ltiacd_mode = {
