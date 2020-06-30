@@ -3,17 +3,17 @@
  * Copyright (C) 2002 Roman Zippel <zippel@linux-m68k.org>
  */
 
-#include <QTextBrowser>
-#include <QTreeWidget>
-#include <QMainWindow>
-#include <QHeaderView>
-#include <qsettings.h>
-#include <QPushButton>
-#include <QSettings>
-#include <QLineEdit>
-#include <QSplitter>
 #include <QCheckBox>
 #include <QDialog>
+#include <QHeaderView>
+#include <QLineEdit>
+#include <QMainWindow>
+#include <QPushButton>
+#include <QSettings>
+#include <QSplitter>
+#include <QTextBrowser>
+#include <QTreeWidget>
+
 #include "expr.h"
 
 class ConfigView;
