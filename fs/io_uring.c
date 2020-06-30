@@ -1902,9 +1902,7 @@ static void io_iopoll_queue(struct list_head *again)
 	do {
 		req = list_first_entry(again, struct io_kiocb, list);
 		list_del(&req->list);
-
-		/* should have ->mm unless io_uring is dying, kill reqs then */
-		if (unlikely(!current->mm) || !io_rw_reissue(req, -EAGAIN))
+		if (!io_rw_reissue(req, -EAGAIN))
 			io_complete_rw_common(&req->rw.kiocb, -EAGAIN, NULL);
 	} while (!list_empty(again));
 }
