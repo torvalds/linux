@@ -34,7 +34,7 @@ Throughout the kernel is hundreds of static event points that
 can be enabled via the tracefs file system to see what is
 going on in certain parts of the kernel.
 
-See events.txt for more information.
+See events.rst for more information.
 
 
 Implementation Details
@@ -376,11 +376,11 @@ of ftrace. Here is a list of some of the key files:
 
   kprobe_events:
 
-	Enable dynamic trace points. See kprobetrace.txt.
+	Enable dynamic trace points. See kprobetrace.rst.
 
   kprobe_profile:
 
-	Dynamic trace points stats. See kprobetrace.txt.
+	Dynamic trace points stats. See kprobetrace.rst.
 
   max_graph_depth:
 
@@ -568,7 +568,7 @@ of ftrace. Here is a list of some of the key files:
   uprobe_events:
 
 	Add dynamic tracepoints in programs.
-	See uprobetracer.txt
+	See uprobetracer.rst
 
   uprobe_profile:
 
@@ -589,19 +589,19 @@ of ftrace. Here is a list of some of the key files:
 	files at various levels that can enable the tracepoints
 	when a "1" is written to them.
 
-	See events.txt for more information.
+	See events.rst for more information.
 
   set_event:
 
 	By echoing in the event into this file, will enable that event.
 
-	See events.txt for more information.
+	See events.rst for more information.
 
   available_events:
 
 	A list of events that can be enabled in tracing.
 
-	See events.txt for more information.
+	See events.rst for more information.
 
   timestamp_mode:
 
