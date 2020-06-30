@@ -255,10 +255,8 @@ static noinline void do_no_context(struct pt_regs *regs)
 
 	/* Are we prepared to handle this kernel fault?  */
 	fixup = s390_search_extables(regs->psw.addr);
-	if (fixup) {
-		regs->psw.addr = extable_fixup(fixup);
+	if (fixup && ex_handle(fixup, regs))
 		return;
-	}
 
 	/*
 	 * Oops. The kernel tried to access some bad page. We'll have to

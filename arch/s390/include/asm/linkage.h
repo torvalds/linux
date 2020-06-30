@@ -14,9 +14,10 @@
 
 #define __EX_TABLE(_section, _fault, _target)				\
 	stringify_in_c(.section	_section,"a";)				\
-	stringify_in_c(.align	4;)					\
+	stringify_in_c(.align	8;)					\
 	stringify_in_c(.long	(_fault) - .;)				\
 	stringify_in_c(.long	(_target) - .;)				\
+	stringify_in_c(.quad	0;)					\
 	stringify_in_c(.previous)
 
 #define EX_TABLE(_fault, _target)					\
