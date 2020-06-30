@@ -553,6 +553,7 @@ static int pcf2127_probe(struct device *dev, struct regmap *regmap,
 static const struct of_device_id pcf2127_of_match[] = {
 	{ .compatible = "nxp,pcf2127" },
 	{ .compatible = "nxp,pcf2129" },
+	{ .compatible = "nxp,pca2129" },
 	{}
 };
 MODULE_DEVICE_TABLE(of, pcf2127_of_match);
@@ -664,6 +665,7 @@ static int pcf2127_i2c_probe(struct i2c_client *client,
 static const struct i2c_device_id pcf2127_i2c_id[] = {
 	{ "pcf2127", 1 },
 	{ "pcf2129", 0 },
+	{ "pca2129", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, pcf2127_i2c_id);
@@ -729,6 +731,7 @@ static int pcf2127_spi_probe(struct spi_device *spi)
 static const struct spi_device_id pcf2127_spi_id[] = {
 	{ "pcf2127", 1 },
 	{ "pcf2129", 0 },
+	{ "pca2129", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, pcf2127_spi_id);
