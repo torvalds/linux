@@ -309,6 +309,10 @@
 			      <0xffb80000 0x1000>;
 			reg-names = "nand_data", "denali_reg";
 			interrupts = <0 97 4>;
+			clocks = <&clkmgr AGILEX_NAND_CLK>,
+				 <&clkmgr AGILEX_NAND_X_CLK>,
+				 <&clkmgr AGILEX_NAND_ECC_CLK>;
+			clock-names = "nand", "nand_x", "ecc";
 			resets = <&rst NAND_RESET>, <&rst NAND_OCP_RESET>;
 			status = "disabled";
 		};
