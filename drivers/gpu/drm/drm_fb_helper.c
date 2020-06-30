@@ -448,8 +448,7 @@ retry:
 		}
 	}
 
-	if (!dev->mode_config.loader_protect)
-		ret = drm_atomic_commit(state);
+	ret = drm_atomic_commit(state);
 
 out_state:
 	if (ret == -EDEADLK)

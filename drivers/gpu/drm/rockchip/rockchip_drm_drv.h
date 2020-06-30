@@ -169,6 +169,12 @@ struct rockchip_drm_private {
 	u8 dmc_support;
 	struct list_head psr_list;
 	struct mutex psr_list_lock;
+
+	/**
+	 * @loader_protect
+	 * ignore restore_fbdev_mode_atomic when in logo on state
+	 */
+	bool loader_protect;
 };
 
 #ifndef MODULE

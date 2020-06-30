@@ -226,7 +226,7 @@ static void rockchip_drm_output_poll_changed(struct drm_device *dev)
 	struct rockchip_drm_private *private = dev->dev_private;
 	struct drm_fb_helper *fb_helper = private->fbdev_helper;
 
-	if (fb_helper)
+	if (fb_helper && !private->loader_protect)
 		drm_fb_helper_hotplug_event(fb_helper);
 }
 
