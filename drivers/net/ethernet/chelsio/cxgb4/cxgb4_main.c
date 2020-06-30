@@ -822,6 +822,31 @@ static void adap_config_hpfilter(struct adapter *adapter)
 			"HP filter region isn't supported by FW\n");
 }
 
+static int cxgb4_config_rss(const struct port_info *pi, u16 *rss,
+			    u16 rss_size, u16 viid)
+{
+	struct adapter *adap = pi->adapter;
+	int ret;
+
+	ret = t4_config_rss_range(adap, adap->mbox, viid, 0, rss_size, rss,
+				  rss_size);
+	if (ret)
+		return ret;
+
+	/* If Tunnel All Lookup isn't specified in the global RSS
+	 * Configuration, then we need to specify a default Ingress
+	 * Queue for any ingress packets which aren't hashed.  We'll
+	 * use our first ingress queue ...
+	 */
+	return t4_config_vi_rss(adap, adap->mbox, viid,
+				FW_RSS_VI_CONFIG_CMD_IP6FOURTUPEN_F |
+				FW_RSS_VI_CONFIG_CMD_IP6TWOTUPEN_F |
+				FW_RSS_VI_CONFIG_CMD_IP4FOURTUPEN_F |
+				FW_RSS_VI_CONFIG_CMD_IP4TWOTUPEN_F |
+				FW_RSS_VI_CONFIG_CMD_UDPEN_F,
+				rss[0]);
+}
+
 /**
  *	cxgb4_write_rss - write the RSS table for a given port
  *	@pi: the port
@@ -833,10 +858,10 @@ static void adap_config_hpfilter(struct adapter *adapter)
  */
 int cxgb4_write_rss(const struct port_info *pi, const u16 *queues)
 {
-	u16 *rss;
-	int i, err;
 	struct adapter *adapter = pi->adapter;
 	const struct sge_eth_rxq *rxq;
+	int i, err;
+	u16 *rss;
 
 	rxq = &adapter->sge.ethrxq[pi->first_qset];
 	rss = kmalloc_array(pi->rss_size, sizeof(u16), GFP_KERNEL);
@@ -847,21 +872,7 @@ int cxgb4_write_rss(const struct port_info *pi, const u16 *queues)
 	for (i = 0; i < pi->rss_size; i++, queues++)
 		rss[i] = rxq[*queues].rspq.abs_id;
 
-	err = t4_config_rss_range(adapter, adapter->pf, pi->viid, 0,
-				  pi->rss_size, rss, pi->rss_size);
-	/* If Tunnel All Lookup isn't specified in the global RSS
-	 * Configuration, then we need to specify a default Ingress
-	 * Queue for any ingress packets which aren't hashed.  We'll
-	 * use our first ingress queue ...
-	 */
-	if (!err)
-		err = t4_config_vi_rss(adapter, adapter->mbox, pi->viid,
-				       FW_RSS_VI_CONFIG_CMD_IP6FOURTUPEN_F |
-				       FW_RSS_VI_CONFIG_CMD_IP6TWOTUPEN_F |
-				       FW_RSS_VI_CONFIG_CMD_IP4FOURTUPEN_F |
-				       FW_RSS_VI_CONFIG_CMD_IP4TWOTUPEN_F |
-				       FW_RSS_VI_CONFIG_CMD_UDPEN_F,
-				       rss[0]);
+	err = cxgb4_config_rss(pi, rss, pi->rss_size, pi->viid);
 	kfree(rss);
 	return err;
 }
@@ -1285,6 +1296,151 @@ static int setup_debugfs(struct adapter *adap)
 	return 0;
 }
 
+static void cxgb4_port_mirror_free_rxq(struct adapter *adap,
+				       struct sge_eth_rxq *mirror_rxq)
+{
+	if ((adap->flags & CXGB4_FULL_INIT_DONE) &&
+	    !(adap->flags & CXGB4_SHUTTING_DOWN))
+		cxgb4_quiesce_rx(&mirror_rxq->rspq);
+
+	if (adap->flags & CXGB4_USING_MSIX) {
+		cxgb4_clear_msix_aff(mirror_rxq->msix->vec,
+				     mirror_rxq->msix->aff_mask);
+		free_irq(mirror_rxq->msix->vec, &mirror_rxq->rspq);
+		cxgb4_free_msix_idx_in_bmap(adap, mirror_rxq->msix->idx);
+	}
+
+	free_rspq_fl(adap, &mirror_rxq->rspq, &mirror_rxq->fl);
+}
+
+static int cxgb4_port_mirror_alloc_queues(struct net_device *dev)
+{
+	struct port_info *pi = netdev2pinfo(dev);
+	struct adapter *adap = netdev2adap(dev);
+	struct sge_eth_rxq *mirror_rxq;
+	struct sge *s = &adap->sge;
+	int ret = 0, msix = 0;
+	u16 i, rxqid;
+	u16 *rss;
+
+	if (!pi->vi_mirror_count)
+		return 0;
+
+	if (s->mirror_rxq[pi->port_id])
+		return 0;
+
+	mirror_rxq = kcalloc(pi->nmirrorqsets, sizeof(*mirror_rxq), GFP_KERNEL);
+	if (!mirror_rxq)
+		return -ENOMEM;
+
+	s->mirror_rxq[pi->port_id] = mirror_rxq;
+
+	if (!(adap->flags & CXGB4_USING_MSIX))
+		msix = -((int)adap->sge.intrq.abs_id + 1);
+
+	for (i = 0, rxqid = 0; i < pi->nmirrorqsets; i++, rxqid++) {
+		mirror_rxq = &s->mirror_rxq[pi->port_id][i];
+
+		/* Allocate Mirror Rxqs */
+		if (msix >= 0) {
+			msix = cxgb4_get_msix_idx_from_bmap(adap);
+			if (msix < 0) {
+				ret = msix;
+				goto out_free_queues;
+			}
+
+			mirror_rxq->msix = &adap->msix_info[msix];
+			snprintf(mirror_rxq->msix->desc,
+				 sizeof(mirror_rxq->msix->desc),
+				 "%s-mirrorrxq%d", dev->name, i);
+		}
+
+		init_rspq(adap, &mirror_rxq->rspq,
+			  CXGB4_MIRROR_RXQ_DEFAULT_INTR_USEC,
+			  CXGB4_MIRROR_RXQ_DEFAULT_PKT_CNT,
+			  CXGB4_MIRROR_RXQ_DEFAULT_DESC_NUM,
+			  CXGB4_MIRROR_RXQ_DEFAULT_DESC_SIZE);
+
+		mirror_rxq->fl.size = CXGB4_MIRROR_FLQ_DEFAULT_DESC_NUM;
+
+		ret = t4_sge_alloc_rxq(adap, &mirror_rxq->rspq, false,
+				       dev, msix, &mirror_rxq->fl,
+				       t4_ethrx_handler, NULL, 0);
+		if (ret)
+			goto out_free_msix_idx;
+
+		/* Setup MSI-X vectors for Mirror Rxqs */
+		if (adap->flags & CXGB4_USING_MSIX) {
+			ret = request_irq(mirror_rxq->msix->vec,
+					  t4_sge_intr_msix, 0,
+					  mirror_rxq->msix->desc,
+					  &mirror_rxq->rspq);
+			if (ret)
+				goto out_free_rxq;
+
+			cxgb4_set_msix_aff(adap, mirror_rxq->msix->vec,
+					   &mirror_rxq->msix->aff_mask, i);
+		}
+
+		/* Start NAPI for Mirror Rxqs */
+		cxgb4_enable_rx(adap, &mirror_rxq->rspq);
+	}
+
+	/* Setup RSS for Mirror Rxqs */
+	rss = kcalloc(pi->rss_size, sizeof(u16), GFP_KERNEL);
+	if (!rss) {
+		ret = -ENOMEM;
+		goto out_free_queues;
+	}
+
+	mirror_rxq = &s->mirror_rxq[pi->port_id][0];
+	for (i = 0; i < pi->rss_size; i++)
+		rss[i] = mirror_rxq[i % pi->nmirrorqsets].rspq.abs_id;
+
+	ret = cxgb4_config_rss(pi, rss, pi->rss_size, pi->viid_mirror);
+	kfree(rss);
+	if (ret)
+		goto out_free_queues;
+
+	return 0;
+
+out_free_rxq:
+	free_rspq_fl(adap, &mirror_rxq->rspq, &mirror_rxq->fl);
+
+out_free_msix_idx:
+	cxgb4_free_msix_idx_in_bmap(adap, mirror_rxq->msix->idx);
+
+out_free_queues:
+	while (rxqid-- > 0)
+		cxgb4_port_mirror_free_rxq(adap,
+					   &s->mirror_rxq[pi->port_id][rxqid]);
+
+	kfree(s->mirror_rxq[pi->port_id]);
+	s->mirror_rxq[pi->port_id] = NULL;
+	return ret;
+}
+
+static void cxgb4_port_mirror_free_queues(struct net_device *dev)
+{
+	struct port_info *pi = netdev2pinfo(dev);
+	struct adapter *adap = netdev2adap(dev);
+	struct sge *s = &adap->sge;
+	u16 i;
+
+	if (!pi->vi_mirror_count)
+		return;
+
+	if (!s->mirror_rxq[pi->port_id])
+		return;
+
+	for (i = 0; i < pi->nmirrorqsets; i++)
+		cxgb4_port_mirror_free_rxq(adap,
+					   &s->mirror_rxq[pi->port_id][i]);
+
+	kfree(s->mirror_rxq[pi->port_id]);
+	s->mirror_rxq[pi->port_id] = NULL;
+}
+
 int cxgb4_port_mirror_alloc(struct net_device *dev)
 {
 	struct port_info *pi = netdev2pinfo(dev);
@@ -1307,6 +1463,20 @@ int cxgb4_port_mirror_alloc(struct net_device *dev)
 
 	pi->vi_mirror_count = 1;
 
+	if (adap->flags & CXGB4_FULL_INIT_DONE) {
+		ret = cxgb4_port_mirror_alloc_queues(dev);
+		if (ret)
+			goto out_free_vi;
+	}
+
+	mutex_unlock(&pi->vi_mirror_mutex);
+	return 0;
+
+out_free_vi:
+	pi->vi_mirror_count = 0;
+	t4_free_vi(adap, adap->mbox, adap->pf, 0, pi->viid_mirror);
+	pi->viid_mirror = 0;
+
 out_unlock:
 	mutex_unlock(&pi->vi_mirror_mutex);
 	return ret;
@@ -1325,6 +1495,8 @@ void cxgb4_port_mirror_free(struct net_device *dev)
 		pi->vi_mirror_count--;
 		goto out_unlock;
 	}
+
+	cxgb4_port_mirror_free_queues(dev);
 
 	pi->vi_mirror_count = 0;
 	t4_free_vi(adap, adap->mbox, adap->pf, 0, pi->viid_mirror);
@@ -2606,8 +2778,22 @@ int cxgb_open(struct net_device *dev)
 		return err;
 
 	err = link_start(dev);
-	if (!err)
-		netif_tx_start_all_queues(dev);
+	if (err)
+		return err;
+
+	if (pi->nmirrorqsets) {
+		mutex_lock(&pi->vi_mirror_mutex);
+		err = cxgb4_port_mirror_alloc_queues(dev);
+		if (err)
+			goto out_unlock;
+		mutex_unlock(&pi->vi_mirror_mutex);
+	}
+
+	netif_tx_start_all_queues(dev);
+	return 0;
+
+out_unlock:
+	mutex_unlock(&pi->vi_mirror_mutex);
 	return err;
 }
 
@@ -2625,7 +2811,16 @@ int cxgb_close(struct net_device *dev)
 	cxgb4_dcb_reset(dev);
 	dcb_tx_queue_prio_enable(dev, false);
 #endif
-	return ret;
+	if (ret)
+		return ret;
+
+	if (pi->nmirrorqsets) {
+		mutex_lock(&pi->vi_mirror_mutex);
+		cxgb4_port_mirror_free_queues(dev);
+		mutex_unlock(&pi->vi_mirror_mutex);
+	}
+
+	return 0;
 }
 
 int cxgb4_create_server_filter(const struct net_device *dev, unsigned int stid,
