@@ -16,6 +16,7 @@
 #include "hinic_hw_dev.h"
 #include "hinic_tx.h"
 #include "hinic_rx.h"
+#include "hinic_sriov.h"
 
 #define HINIC_DRV_NAME          "hinic"
 
@@ -23,6 +24,7 @@ enum hinic_flags {
 	HINIC_LINK_UP = BIT(0),
 	HINIC_INTF_UP = BIT(1),
 	HINIC_RSS_ENABLE = BIT(2),
+	HINIC_LINK_DOWN = BIT(3),
 };
 
 struct hinic_rx_mode_work {
@@ -67,6 +69,8 @@ struct hinic_dev {
 
 	struct hinic_txq                *txqs;
 	struct hinic_rxq                *rxqs;
+	u16				sq_depth;
+	u16				rq_depth;
 
 	struct hinic_txq_stats          tx_stats;
 	struct hinic_rxq_stats          rx_stats;
@@ -78,6 +82,7 @@ struct hinic_dev {
 	struct hinic_rss_type		rss_type;
 	u8				*rss_hkey_user;
 	s32				*rss_indir_user;
+	struct hinic_sriov_info sriov_info;
 };
 
 #endif

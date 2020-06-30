@@ -929,7 +929,23 @@ struct drm_mode_config {
 	const struct drm_mode_config_helper_funcs *helper_private;
 };
 
-void drm_mode_config_init(struct drm_device *dev);
+int __must_check drmm_mode_config_init(struct drm_device *dev);
+
+/**
+ * drm_mode_config_init - DRM mode_configuration structure initialization
+ * @dev: DRM device
+ *
+ * This is the unmanaged version of drmm_mode_config_init() for drivers which
+ * still explicitly call drm_mode_config_cleanup().
+ *
+ * FIXME: This function is deprecated and drivers should be converted over to
+ * drmm_mode_config_init().
+ */
+static inline int drm_mode_config_init(struct drm_device *dev)
+{
+	return drmm_mode_config_init(dev);
+}
+
 void drm_mode_config_reset(struct drm_device *dev);
 void drm_mode_config_cleanup(struct drm_device *dev);
 

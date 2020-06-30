@@ -197,8 +197,99 @@ pp_power_profile_mode
 .. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_pm.c
    :doc: pp_power_profile_mode
 
-busy_percent
-~~~~~~~~~~~~
+*_busy_percent
+~~~~~~~~~~~~~~
 
 .. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_pm.c
-   :doc: busy_percent
+   :doc: gpu_busy_percent
+
+.. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_pm.c
+   :doc: mem_busy_percent
+
+GPU Product Information
+=======================
+
+Information about the GPU can be obtained on certain cards
+via sysfs
+
+product_name
+------------
+
+.. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_device.c
+   :doc: product_name
+
+product_number
+--------------
+
+.. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_device.c
+   :doc: product_name
+
+serial_number
+-------------
+
+.. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_device.c
+   :doc: serial_number
+
+unique_id
+---------
+
+.. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_pm.c
+   :doc: unique_id
+
+GPU Memory Usage Information
+============================
+
+Various memory accounting can be accessed via sysfs
+
+mem_info_vram_total
+-------------------
+
+.. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_vram_mgr.c
+   :doc: mem_info_vram_total
+
+mem_info_vram_used
+------------------
+
+.. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_vram_mgr.c
+   :doc: mem_info_vram_used
+
+mem_info_vis_vram_total
+-----------------------
+
+.. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_vram_mgr.c
+   :doc: mem_info_vis_vram_total
+
+mem_info_vis_vram_used
+----------------------
+
+.. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_vram_mgr.c
+   :doc: mem_info_vis_vram_used
+
+mem_info_gtt_total
+------------------
+
+.. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_gtt_mgr.c
+   :doc: mem_info_gtt_total
+
+mem_info_gtt_used
+-----------------
+
+.. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_gtt_mgr.c
+   :doc: mem_info_gtt_used
+
+PCIe Accounting Information
+===========================
+
+pcie_bw
+-------
+
+.. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_pm.c
+   :doc: pcie_bw
+
+pcie_replay_count
+-----------------
+
+.. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_device.c
+   :doc: pcie_replay_count
+
+

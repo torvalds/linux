@@ -10,7 +10,7 @@
 
 
 #include <linux/mutex.h>
-#include <linux/buffer_head.h>
+#include <linux/bio.h>
 #include <linux/slab.h>
 #include <linux/zlib.h>
 #include <linux/vmalloc.h>
@@ -50,21 +50,35 @@ static void zlib_free(void *strm)
 
 
 static int zlib_uncompress(struct squashfs_sb_info *msblk, void *strm,
-	struct buffer_head **bh, int b, int offset, int length,
+	struct bio *bio, int offset, int length,
 	struct squashfs_page_actor *output)
 {
-	int zlib_err, zlib_init = 0, k = 0;
+	struct bvec_iter_all iter_all = {};
+	struct bio_vec *bvec = bvec_init_iter_all(&iter_all);
+	int zlib_init = 0, error = 0;
 	z_stream *stream = strm;
 
 	stream->avail_out = PAGE_SIZE;
 	stream->next_out = squashfs_first_page(output);
 	stream->avail_in = 0;
 
-	do {
-		if (stream->avail_in == 0 && k < b) {
-			int avail = min(length, msblk->devblksize - offset);
+	for (;;) {
+		int zlib_err;
+
+		if (stream->avail_in == 0) {
+			const void *data;
+			int avail;
+
+			if (!bio_next_segment(bio, &iter_all)) {
+				/* Z_STREAM_END must be reached. */
+				error = -EIO;
+				break;
+			}
+
+			avail = min(length, ((int)bvec->bv_len) - offset);
+			data = page_address(bvec->bv_page) + bvec->bv_offset;
 			length -= avail;
-			stream->next_in = bh[k]->b_data + offset;
+			stream->next_in = data + offset;
 			stream->avail_in = avail;
 			offset = 0;
 		}
@@ -78,37 +92,28 @@ static int zlib_uncompress(struct squashfs_sb_info *msblk, void *strm,
 		if (!zlib_init) {
 			zlib_err = zlib_inflateInit(stream);
 			if (zlib_err != Z_OK) {
-				squashfs_finish_page(output);
-				goto out;
+				error = -EIO;
+				break;
 			}
 			zlib_init = 1;
 		}
 
 		zlib_err = zlib_inflate(stream, Z_SYNC_FLUSH);
-
-		if (stream->avail_in == 0 && k < b)
-			put_bh(bh[k++]);
-	} while (zlib_err == Z_OK);
+		if (zlib_err == Z_STREAM_END)
+			break;
+		if (zlib_err != Z_OK) {
+			error = -EIO;
+			break;
+		}
+	}
 
 	squashfs_finish_page(output);
 
-	if (zlib_err != Z_STREAM_END)
-		goto out;
+	if (!error)
+		if (zlib_inflateEnd(stream) != Z_OK)
+			error = -EIO;
 
-	zlib_err = zlib_inflateEnd(stream);
-	if (zlib_err != Z_OK)
-		goto out;
-
-	if (k < b)
-		goto out;
-
-	return stream->total_out;
-
-out:
-	for (; k < b; k++)
-		put_bh(bh[k]);
-
-	return -EIO;
+	return error ? error : stream->total_out;
 }
 
 const struct squashfs_decompressor squashfs_zlib_comp_ops = {

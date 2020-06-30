@@ -756,6 +756,9 @@ void enetc_get_si_caps(struct enetc_si *si)
 
 	if (val & ENETC_SIPCAPR0_QBV)
 		si->hw_features |= ENETC_SI_F_QBV;
+
+	if (val & ENETC_SIPCAPR0_PSFP)
+		si->hw_features |= ENETC_SI_F_PSFP;
 }
 
 static int enetc_dma_alloc_bdr(struct enetc_bdr *r, size_t bd_size)
@@ -1518,6 +1521,8 @@ int enetc_setup_tc(struct net_device *ndev, enum tc_setup_type type,
 		return enetc_setup_tc_cbs(ndev, type_data);
 	case TC_SETUP_QDISC_ETF:
 		return enetc_setup_tc_txtime(ndev, type_data);
+	case TC_SETUP_BLOCK:
+		return enetc_setup_tc_psfp(ndev, type_data);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -1567,15 +1572,68 @@ static int enetc_set_rss(struct net_device *ndev, int en)
 	return 0;
 }
 
+static int enetc_set_psfp(struct net_device *ndev, int en)
+{
+	struct enetc_ndev_priv *priv = netdev_priv(ndev);
+	int err;
+
+	if (en) {
+		err = enetc_psfp_enable(priv);
+		if (err)
+			return err;
+
+		priv->active_offloads |= ENETC_F_QCI;
+		return 0;
+	}
+
+	err = enetc_psfp_disable(priv);
+	if (err)
+		return err;
+
+	priv->active_offloads &= ~ENETC_F_QCI;
+
+	return 0;
+}
+
+static void enetc_enable_rxvlan(struct net_device *ndev, bool en)
+{
+	struct enetc_ndev_priv *priv = netdev_priv(ndev);
+	int i;
+
+	for (i = 0; i < priv->num_rx_rings; i++)
+		enetc_bdr_enable_rxvlan(&priv->si->hw, i, en);
+}
+
+static void enetc_enable_txvlan(struct net_device *ndev, bool en)
+{
+	struct enetc_ndev_priv *priv = netdev_priv(ndev);
+	int i;
+
+	for (i = 0; i < priv->num_tx_rings; i++)
+		enetc_bdr_enable_txvlan(&priv->si->hw, i, en);
+}
+
 int enetc_set_features(struct net_device *ndev,
 		       netdev_features_t features)
 {
 	netdev_features_t changed = ndev->features ^ features;
+	int err = 0;
 
 	if (changed & NETIF_F_RXHASH)
 		enetc_set_rss(ndev, !!(features & NETIF_F_RXHASH));
 
-	return 0;
+	if (changed & NETIF_F_HW_VLAN_CTAG_RX)
+		enetc_enable_rxvlan(ndev,
+				    !!(features & NETIF_F_HW_VLAN_CTAG_RX));
+
+	if (changed & NETIF_F_HW_VLAN_CTAG_TX)
+		enetc_enable_txvlan(ndev,
+				    !!(features & NETIF_F_HW_VLAN_CTAG_TX));
+
+	if (changed & NETIF_F_HW_TC)
+		err = enetc_set_psfp(ndev, !!(features & NETIF_F_HW_TC));
+
+	return err;
 }
 
 #ifdef CONFIG_FSL_ENETC_PTP_CLOCK

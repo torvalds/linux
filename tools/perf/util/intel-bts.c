@@ -432,7 +432,7 @@ static int intel_bts_process_buffer(struct intel_bts_queue *btsq,
 					    le64_to_cpu(branch->from),
 					    le64_to_cpu(branch->to),
 					    btsq->intel_pt_insn.length,
-					    buffer->buffer_nr + 1);
+					    buffer->buffer_nr + 1, true, 0, 0);
 		if (filter && !(filter & btsq->sample_flags))
 			continue;
 		err = intel_bts_synth_branch_sample(btsq, branch);
@@ -728,6 +728,15 @@ static void intel_bts_free(struct perf_session *session)
 	free(bts);
 }
 
+static bool intel_bts_evsel_is_auxtrace(struct perf_session *session,
+					struct evsel *evsel)
+{
+	struct intel_bts *bts = container_of(session->auxtrace, struct intel_bts,
+					     auxtrace);
+
+	return evsel->core.attr.type == bts->pmu_type;
+}
+
 struct intel_bts_synth {
 	struct perf_tool dummy_tool;
 	struct perf_session *session;
@@ -816,10 +825,10 @@ static int intel_bts_synth_events(struct intel_bts *bts,
 		bts->branches_id = id;
 		/*
 		 * We only use sample types from PERF_SAMPLE_MASK so we can use
-		 * __perf_evsel__sample_size() here.
+		 * __evsel__sample_size() here.
 		 */
 		bts->branches_event_size = sizeof(struct perf_record_sample) +
-				__perf_evsel__sample_size(attr.sample_type);
+					   __evsel__sample_size(attr.sample_type);
 	}
 
 	return 0;
@@ -883,6 +892,7 @@ int intel_bts_process_auxtrace_info(union perf_event *event,
 	bts->auxtrace.flush_events = intel_bts_flush;
 	bts->auxtrace.free_events = intel_bts_free_events;
 	bts->auxtrace.free = intel_bts_free;
+	bts->auxtrace.evsel_is_auxtrace = intel_bts_evsel_is_auxtrace;
 	session->auxtrace = &bts->auxtrace;
 
 	intel_bts_print_info(&auxtrace_info->priv[0], INTEL_BTS_PMU_TYPE,

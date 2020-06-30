@@ -260,8 +260,7 @@ static int cxgb4vf_set_addr_hash(struct port_info *pi)
  *	@tcam_idx: TCAM index of existing filter for old value of MAC address,
  *		   or -1
  *	@addr: the new MAC address value
- *	@persist: whether a new MAC allocation should be persistent
- *	@add_smt: if true also add the address to the HW SMT
+ *	@persistent: whether a new MAC allocation should be persistent
  *
  *	Modifies an MPS filter and sets it to the new MAC address if
  *	@tcam_idx >= 0, or adds the MAC address to a new filter if
@@ -2480,7 +2479,7 @@ static int setup_debugfs(struct adapter *adapter)
 	for (i = 0; i < ARRAY_SIZE(debugfs_files); i++)
 		debugfs_create_file(debugfs_files[i].name,
 				    debugfs_files[i].mode,
-				    adapter->debugfs_root, (void *)adapter,
+				    adapter->debugfs_root, adapter,
 				    debugfs_files[i].fops);
 
 	return 0;

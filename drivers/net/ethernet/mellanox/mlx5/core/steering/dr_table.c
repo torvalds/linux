@@ -14,7 +14,7 @@ int mlx5dr_table_set_miss_action(struct mlx5dr_table *tbl,
 	if (action && action->action_type != DR_ACTION_TYP_FT)
 		return -EOPNOTSUPP;
 
-	mutex_lock(&tbl->dmn->mutex);
+	mlx5dr_domain_lock(tbl->dmn);
 
 	if (!list_empty(&tbl->matcher_list))
 		last_matcher = list_last_entry(&tbl->matcher_list,
@@ -78,7 +78,7 @@ int mlx5dr_table_set_miss_action(struct mlx5dr_table *tbl,
 		refcount_inc(&action->refcount);
 
 out:
-	mutex_unlock(&tbl->dmn->mutex);
+	mlx5dr_domain_unlock(tbl->dmn);
 	return ret;
 }
 
@@ -95,7 +95,7 @@ static void dr_table_uninit_fdb(struct mlx5dr_table *tbl)
 
 static void dr_table_uninit(struct mlx5dr_table *tbl)
 {
-	mutex_lock(&tbl->dmn->mutex);
+	mlx5dr_domain_lock(tbl->dmn);
 
 	switch (tbl->dmn->type) {
 	case MLX5DR_DOMAIN_TYPE_NIC_RX:
@@ -112,7 +112,7 @@ static void dr_table_uninit(struct mlx5dr_table *tbl)
 		break;
 	}
 
-	mutex_unlock(&tbl->dmn->mutex);
+	mlx5dr_domain_unlock(tbl->dmn);
 }
 
 static int dr_table_init_nic(struct mlx5dr_domain *dmn,
@@ -177,7 +177,7 @@ static int dr_table_init(struct mlx5dr_table *tbl)
 
 	INIT_LIST_HEAD(&tbl->matcher_list);
 
-	mutex_lock(&tbl->dmn->mutex);
+	mlx5dr_domain_lock(tbl->dmn);
 
 	switch (tbl->dmn->type) {
 	case MLX5DR_DOMAIN_TYPE_NIC_RX:
@@ -201,7 +201,7 @@ static int dr_table_init(struct mlx5dr_table *tbl)
 		break;
 	}
 
-	mutex_unlock(&tbl->dmn->mutex);
+	mlx5dr_domain_unlock(tbl->dmn);
 
 	return ret;
 }

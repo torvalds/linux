@@ -23,7 +23,6 @@
 #include "hardware.h"
 #include "cm.h"
 #include "common.h"
-#include "lm.h"
 
 /* Regmap to the AP system controller */
 static struct regmap *ap_syscon_map;
@@ -174,10 +173,7 @@ static const struct of_device_id ap_syscon_match[] = {
 
 static void __init ap_init_of(void)
 {
-	u32 sc_dec;
 	struct device_node *syscon;
-	int ret;
-	int i;
 
 	of_platform_default_populate(NULL, ap_auxdata_lookup, NULL);
 
@@ -188,33 +184,6 @@ static void __init ap_init_of(void)
 	if (IS_ERR(ap_syscon_map)) {
 		pr_crit("could not find Integrator/AP system controller\n");
 		return;
-	}
-
-	ret = regmap_read(ap_syscon_map,
-			  INTEGRATOR_SC_DEC_OFFSET,
-			  &sc_dec);
-	if (ret) {
-		pr_crit("could not read from Integrator/AP syscon\n");
-		return;
-	}
-
-	for (i = 0; i < 4; i++) {
-		struct lm_device *lmdev;
-
-		if ((sc_dec & (16 << i)) == 0)
-			continue;
-
-		lmdev = kzalloc(sizeof(struct lm_device), GFP_KERNEL);
-		if (!lmdev)
-			continue;
-
-		lmdev->resource.start = 0xc0000000 + 0x10000000 * i;
-		lmdev->resource.end = lmdev->resource.start + 0x0fffffff;
-		lmdev->resource.flags = IORESOURCE_MEM;
-		lmdev->irq = irq_of_parse_and_map(syscon, i);
-		lmdev->id = i;
-
-		lm_device_register(lmdev);
 	}
 }
 

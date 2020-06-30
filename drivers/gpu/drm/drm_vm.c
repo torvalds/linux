@@ -37,6 +37,7 @@
 #include <linux/pci.h>
 #include <linux/seq_file.h>
 #include <linux/vmalloc.h>
+#include <linux/pgtable.h>
 
 #if defined(__ia64__)
 #include <linux/efi.h>
@@ -44,7 +45,6 @@
 #endif
 #include <linux/mem_encrypt.h>
 
-#include <asm/pgtable.h>
 
 #include <drm/drm_agpsupport.h>
 #include <drm/drm_device.h>
@@ -595,8 +595,8 @@ static int drm_mmap_locked(struct file *filp, struct vm_area_struct *vma)
 			vma->vm_ops = &drm_vm_ops;
 			break;
 		}
+		fallthrough;	/* to _DRM_FRAME_BUFFER... */
 #endif
-		/* fall through - to _DRM_FRAME_BUFFER... */
 	case _DRM_FRAME_BUFFER:
 	case _DRM_REGISTERS:
 		offset = drm_core_get_reg_ofs(dev);
@@ -621,7 +621,7 @@ static int drm_mmap_locked(struct file *filp, struct vm_area_struct *vma)
 		    vma->vm_end - vma->vm_start, vma->vm_page_prot))
 			return -EAGAIN;
 		vma->vm_page_prot = drm_dma_prot(map->type, vma);
-		/* fall through - to _DRM_SHM */
+		fallthrough;	/* to _DRM_SHM */
 	case _DRM_SHM:
 		vma->vm_ops = &drm_vm_shm_ops;
 		vma->vm_private_data = (void *)map;

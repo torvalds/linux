@@ -177,6 +177,7 @@ static const struct regmap_config max77620_regmap_config = {
 	.rd_table = &max77620_readable_table,
 	.wr_table = &max77620_writable_table,
 	.volatile_table = &max77620_volatile_table,
+	.use_single_write = true,
 };
 
 static const struct regmap_config max20024_regmap_config = {

@@ -3541,7 +3541,7 @@ struct lpfc_mbx_set_feature {
 #define lpfc_mbx_set_feature_UER_SHIFT  0
 #define lpfc_mbx_set_feature_UER_MASK   0x00000001
 #define lpfc_mbx_set_feature_UER_WORD   word6
-#define lpfc_mbx_set_feature_mds_SHIFT  0
+#define lpfc_mbx_set_feature_mds_SHIFT  2
 #define lpfc_mbx_set_feature_mds_MASK   0x00000001
 #define lpfc_mbx_set_feature_mds_WORD   word6
 #define lpfc_mbx_set_feature_mds_deep_loopbk_SHIFT  1

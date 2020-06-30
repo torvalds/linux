@@ -22,6 +22,8 @@
 #include <linux/iio/triggered_buffer.h>
 #include <linux/iio/sysfs.h>
 
+#include <asm/unaligned.h>
+
 /* Commands */
 #define ADS124S08_CMD_NOP	0x00
 #define ADS124S08_CMD_WAKEUP	0x02
@@ -188,7 +190,6 @@ static int ads124s_read(struct iio_dev *indio_dev, unsigned int chan)
 {
 	struct ads124s_private *priv = iio_priv(indio_dev);
 	int ret;
-	u32 tmp;
 	struct spi_transfer t[] = {
 		{
 			.tx_buf = &priv->data[0],
@@ -208,9 +209,7 @@ static int ads124s_read(struct iio_dev *indio_dev, unsigned int chan)
 	if (ret < 0)
 		return ret;
 
-	tmp = priv->data[2] << 16 | priv->data[3] << 8 | priv->data[4];
-
-	return tmp;
+	return get_unaligned_be24(&priv->data[2]);
 }
 
 static int ads124s_read_raw(struct iio_dev *indio_dev,

@@ -328,7 +328,7 @@ static ssize_t copy_event_to_user(struct fsnotify_group *group,
 	ret = -EFAULT;
 	/*
 	 * Sanity check copy size in case get_one_event() and
-	 * fill_event_metadata() event_len sizes ever get out of sync.
+	 * event_len sizes ever get out of sync.
 	 */
 	if (WARN_ON_ONCE(metadata.event_len > count))
 		goto out_close_fd;
@@ -487,8 +487,10 @@ static ssize_t fanotify_write(struct file *file, const char __user *buf, size_t 
 
 	group = file->private_data;
 
-	if (count > sizeof(response))
-		count = sizeof(response);
+	if (count < sizeof(response))
+		return -EINVAL;
+
+	count = sizeof(response);
 
 	pr_debug("%s: group=%p count=%zu\n", __func__, group, count);
 

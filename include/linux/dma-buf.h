@@ -329,13 +329,20 @@ struct dma_buf {
 
 /**
  * struct dma_buf_attach_ops - importer operations for an attachment
- * @move_notify: [optional] notification that the DMA-buf is moving
  *
  * Attachment operations implemented by the importer.
  */
 struct dma_buf_attach_ops {
 	/**
-	 * @move_notify
+	 * @allow_peer2peer:
+	 *
+	 * If this is set to true the importer must be able to handle peer
+	 * resources without struct pages.
+	 */
+	bool allow_peer2peer;
+
+	/**
+	 * @move_notify: [optional] notification that the DMA-buf is moving
 	 *
 	 * If this callback is provided the framework can avoid pinning the
 	 * backing store while mappings exists.
@@ -362,6 +369,7 @@ struct dma_buf_attach_ops {
  * @node: list of dma_buf_attachment, protected by dma_resv lock of the dmabuf.
  * @sgt: cached mapping.
  * @dir: direction of cached mapping.
+ * @peer2peer: true if the importer can handle peer resources without pages.
  * @priv: exporter specific attachment data.
  * @importer_ops: importer operations for this attachment, if provided
  * dma_buf_map/unmap_attachment() must be called with the dma_resv lock held.
@@ -382,6 +390,7 @@ struct dma_buf_attachment {
 	struct list_head node;
 	struct sg_table *sgt;
 	enum dma_data_direction dir;
+	bool peer2peer;
 	const struct dma_buf_attach_ops *importer_ops;
 	void *importer_priv;
 	void *priv;

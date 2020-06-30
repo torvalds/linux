@@ -18,7 +18,7 @@ static rx_handler_result_t hsr_handle_frame(struct sk_buff **pskb)
 {
 	struct sk_buff *skb = *pskb;
 	struct hsr_port *port;
-	u16 protocol;
+	__be16 protocol;
 
 	if (!skb_mac_header_was_set(skb)) {
 		WARN_ONCE(1, "%s: skb invalid", __func__);

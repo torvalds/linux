@@ -2331,7 +2331,7 @@ static void qed_ll2_register_cb_ops(struct qed_dev *cdev,
 	cdev->ll2->cb_cookie = cookie;
 }
 
-struct qed_ll2_cbs ll2_cbs = {
+static struct qed_ll2_cbs ll2_cbs = {
 	.rx_comp_cb = &qed_ll2b_complete_rx_packet,
 	.rx_release_cb = &qed_ll2b_release_rx_packet,
 	.tx_comp_cb = &qed_ll2b_complete_tx_packet,

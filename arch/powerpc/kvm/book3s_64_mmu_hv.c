@@ -281,11 +281,10 @@ static long kvmppc_virtmode_do_h_enter(struct kvm *kvm, unsigned long flags,
 {
 	long ret;
 
-	/* Protect linux PTE lookup from page table destruction */
-	rcu_read_lock_sched();	/* this disables preemption too */
+	preempt_disable();
 	ret = kvmppc_do_h_enter(kvm, flags, pte_index, pteh, ptel,
 				kvm->mm->pgd, false, pte_idx_ret);
-	rcu_read_unlock_sched();
+	preempt_enable();
 	if (ret == H_TOO_HARD) {
 		/* this can't happen */
 		pr_err("KVM: Oops, kvmppc_h_enter returned too hard!\n");
@@ -413,7 +412,7 @@ static int instruction_is_store(unsigned int instr)
 	return (instr & mask) != 0;
 }
 
-int kvmppc_hv_emulate_mmio(struct kvm_run *run, struct kvm_vcpu *vcpu,
+int kvmppc_hv_emulate_mmio(struct kvm_vcpu *vcpu,
 			   unsigned long gpa, gva_t ea, int is_store)
 {
 	u32 last_inst;
@@ -473,10 +472,10 @@ int kvmppc_hv_emulate_mmio(struct kvm_run *run, struct kvm_vcpu *vcpu,
 
 	vcpu->arch.paddr_accessed = gpa;
 	vcpu->arch.vaddr_accessed = ea;
-	return kvmppc_emulate_mmio(run, vcpu);
+	return kvmppc_emulate_mmio(vcpu);
 }
 
-int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
+int kvmppc_book3s_hv_page_fault(struct kvm_vcpu *vcpu,
 				unsigned long ea, unsigned long dsisr)
 {
 	struct kvm *kvm = vcpu->kvm;
@@ -499,7 +498,7 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	pte_t pte, *ptep;
 
 	if (kvm_is_radix(kvm))
-		return kvmppc_book3s_radix_page_fault(run, vcpu, ea, dsisr);
+		return kvmppc_book3s_radix_page_fault(vcpu, ea, dsisr);
 
 	/*
 	 * Real-mode code has already searched the HPT and found the
@@ -519,7 +518,7 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			gpa_base = r & HPTE_R_RPN & ~(psize - 1);
 			gfn_base = gpa_base >> PAGE_SHIFT;
 			gpa = gpa_base | (ea & (psize - 1));
-			return kvmppc_hv_emulate_mmio(run, vcpu, gpa, ea,
+			return kvmppc_hv_emulate_mmio(vcpu, gpa, ea,
 						dsisr & DSISR_ISSTORE);
 		}
 	}
@@ -555,7 +554,7 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 
 	/* No memslot means it's an emulated MMIO region */
 	if (!memslot || (memslot->flags & KVM_MEMSLOT_INVALID))
-		return kvmppc_hv_emulate_mmio(run, vcpu, gpa, ea,
+		return kvmppc_hv_emulate_mmio(vcpu, gpa, ea,
 					      dsisr & DSISR_ISSTORE);
 
 	/*
@@ -582,7 +581,7 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	 * We always ask for write permission since the common case
 	 * is that the page is writable.
 	 */
-	if (__get_user_pages_fast(hva, 1, 1, &page) == 1) {
+	if (get_user_page_fast_only(hva, FOLL_WRITE, &page)) {
 		write_ok = true;
 	} else {
 		/* Call KVM generic code to do the slow-path check */
@@ -602,12 +601,12 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	 * Read the PTE from the process' radix tree and use that
 	 * so we get the shift and attribute bits.
 	 */
-	local_irq_disable();
-	ptep = __find_linux_pte(vcpu->arch.pgdir, hva, NULL, &shift);
+	spin_lock(&kvm->mmu_lock);
+	ptep = find_kvm_host_pte(kvm, mmu_seq, hva, &shift);
 	pte = __pte(0);
 	if (ptep)
-		pte = *ptep;
-	local_irq_enable();
+		pte = READ_ONCE(*ptep);
+	spin_unlock(&kvm->mmu_lock);
 	/*
 	 * If the PTE disappeared temporarily due to a THP
 	 * collapse, just return and let the guest try again.

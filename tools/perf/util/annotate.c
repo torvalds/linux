@@ -41,7 +41,6 @@
 #include <linux/bitops.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <bpf/libbpf.h>
 #include <subcmd/parse-options.h>
 #include <subcmd/run-command.h>
 
@@ -1191,7 +1190,7 @@ static struct disasm_line *disasm_line__new(struct annotate_args *args)
 	struct disasm_line *dl = NULL;
 	int nr = 1;
 
-	if (perf_evsel__is_group_event(args->evsel))
+	if (evsel__is_group_event(args->evsel))
 		nr = args->evsel->core.nr_members;
 
 	dl = zalloc(disasm_line_size(nr));
@@ -1437,7 +1436,7 @@ annotation_line__print(struct annotation_line *al, struct symbol *sym, u64 start
 		if (queue)
 			return -1;
 
-		if (perf_evsel__is_group_event(evsel))
+		if (evsel__is_group_event(evsel))
 			width *= evsel->core.nr_members;
 
 		if (!*al->line)
@@ -1821,6 +1820,24 @@ static int symbol__disassemble_bpf(struct symbol *sym __maybe_unused,
 }
 #endif // defined(HAVE_LIBBFD_SUPPORT) && defined(HAVE_LIBBPF_SUPPORT)
 
+static int
+symbol__disassemble_bpf_image(struct symbol *sym,
+			      struct annotate_args *args)
+{
+	struct annotation *notes = symbol__annotation(sym);
+	struct disasm_line *dl;
+
+	args->offset = -1;
+	args->line = strdup("to be implemented");
+	args->line_nr = 0;
+	dl = disasm_line__new(args);
+	if (dl)
+		annotation_line__add(&dl->al, &notes->src->source);
+
+	free(args->line);
+	return 0;
+}
+
 /*
  * Possibly create a new version of line with tabs expanded. Returns the
  * existing or new line, storage is updated if a new line is allocated. If
@@ -1920,6 +1937,8 @@ static int symbol__disassemble(struct symbol *sym, struct annotate_args *args)
 
 	if (dso->binary_type == DSO_BINARY_TYPE__BPF_PROG_INFO) {
 		return symbol__disassemble_bpf(sym, args);
+	} else if (dso->binary_type == DSO_BINARY_TYPE__BPF_IMAGE) {
+		return symbol__disassemble_bpf_image(sym, args);
 	} else if (dso__is_kcore(dso)) {
 		kce.kcore_filename = symfs_filename;
 		kce.addr = map__rip_2objdump(map, sym->start);
@@ -2136,7 +2155,7 @@ int symbol__annotate(struct map_symbol *ms, struct evsel *evsel,
 		.evsel		= evsel,
 		.options	= options,
 	};
-	struct perf_env *env = perf_evsel__env(evsel);
+	struct perf_env *env = evsel__env(evsel);
 	const char *arch_name = perf_env__arch(env);
 	struct arch *arch;
 	int err;
@@ -2324,7 +2343,7 @@ int symbol__annotate_printf(struct map_symbol *ms, struct evsel *evsel,
 	struct dso *dso = map->dso;
 	char *filename;
 	const char *d_filename;
-	const char *evsel_name = perf_evsel__name(evsel);
+	const char *evsel_name = evsel__name(evsel);
 	struct annotation *notes = symbol__annotation(sym);
 	struct sym_hist *h = annotation__histogram(notes, evsel->idx);
 	struct annotation_line *pos, *queue = NULL;
@@ -2348,9 +2367,9 @@ int symbol__annotate_printf(struct map_symbol *ms, struct evsel *evsel,
 
 	len = symbol__size(sym);
 
-	if (perf_evsel__is_group_event(evsel)) {
+	if (evsel__is_group_event(evsel)) {
 		width *= evsel->core.nr_members;
-		perf_evsel__group_desc(evsel, buf, sizeof(buf));
+		evsel__group_desc(evsel, buf, sizeof(buf));
 		evsel_name = buf;
 	}
 
@@ -2485,7 +2504,7 @@ static int symbol__annotate_fprintf2(struct symbol *sym, FILE *fp,
 int map_symbol__annotation_dump(struct map_symbol *ms, struct evsel *evsel,
 				struct annotation_options *opts)
 {
-	const char *ev_name = perf_evsel__name(evsel);
+	const char *ev_name = evsel__name(evsel);
 	char buf[1024];
 	char *filename;
 	int err = -1;
@@ -2498,8 +2517,8 @@ int map_symbol__annotation_dump(struct map_symbol *ms, struct evsel *evsel,
 	if (fp == NULL)
 		goto out_free_filename;
 
-	if (perf_evsel__is_group_event(evsel)) {
-		perf_evsel__group_desc(evsel, buf, sizeof(buf));
+	if (evsel__is_group_event(evsel)) {
+		evsel__group_desc(evsel, buf, sizeof(buf));
 		ev_name = buf;
 	}
 
@@ -3044,7 +3063,7 @@ int symbol__annotate2(struct map_symbol *ms, struct evsel *evsel,
 	if (notes->offsets == NULL)
 		return ENOMEM;
 
-	if (perf_evsel__is_group_event(evsel))
+	if (evsel__is_group_event(evsel))
 		nr_pcnt = evsel->core.nr_members;
 
 	err = symbol__annotate(ms, evsel, options, parch);

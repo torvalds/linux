@@ -269,17 +269,7 @@ static int rproc_rsc_table_show(struct seq_file *seq, void *p)
 	return 0;
 }
 
-static int rproc_rsc_table_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, rproc_rsc_table_show, inode->i_private);
-}
-
-static const struct file_operations rproc_rsc_table_ops = {
-	.open		= rproc_rsc_table_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(rproc_rsc_table);
 
 /* Expose carveout content via debugfs */
 static int rproc_carveouts_show(struct seq_file *seq, void *p)
@@ -299,17 +289,7 @@ static int rproc_carveouts_show(struct seq_file *seq, void *p)
 	return 0;
 }
 
-static int rproc_carveouts_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, rproc_carveouts_show, inode->i_private);
-}
-
-static const struct file_operations rproc_carveouts_ops = {
-	.open		= rproc_carveouts_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(rproc_carveouts);
 
 void rproc_remove_trace_file(struct dentry *tfile)
 {
@@ -354,9 +334,9 @@ void rproc_create_debug_dir(struct rproc *rproc)
 	debugfs_create_file("crash", 0200, rproc->dbg_dir,
 			    rproc, &rproc_crash_ops);
 	debugfs_create_file("resource_table", 0400, rproc->dbg_dir,
-			    rproc, &rproc_rsc_table_ops);
+			    rproc, &rproc_rsc_table_fops);
 	debugfs_create_file("carveout_memories", 0400, rproc->dbg_dir,
-			    rproc, &rproc_carveouts_ops);
+			    rproc, &rproc_carveouts_fops);
 }
 
 void __init rproc_init_debugfs(void)

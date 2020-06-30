@@ -1839,6 +1839,10 @@ static int __init init_hw_perf_events(void)
 		err = amd_pmu_init();
 		x86_pmu.name = "HYGON";
 		break;
+	case X86_VENDOR_ZHAOXIN:
+	case X86_VENDOR_CENTAUR:
+		err = zhaoxin_pmu_init();
+		break;
 	default:
 		err = -ENOTSUPP;
 	}
@@ -2162,11 +2166,6 @@ static int x86_pmu_event_init(struct perf_event *event)
 	return err;
 }
 
-static void refresh_pce(void *ignored)
-{
-	load_mm_cr4_irqsoff(this_cpu_read(cpu_tlbstate.loaded_mm));
-}
-
 static void x86_pmu_event_mapped(struct perf_event *event, struct mm_struct *mm)
 {
 	if (!(event->hw.flags & PERF_X86_EVENT_RDPMC_ALLOWED))
@@ -2179,13 +2178,13 @@ static void x86_pmu_event_mapped(struct perf_event *event, struct mm_struct *mm)
 	 * userspace with CR4.PCE clear while another task is still
 	 * doing on_each_cpu_mask() to propagate CR4.PCE.
 	 *
-	 * For now, this can't happen because all callers hold mmap_sem
+	 * For now, this can't happen because all callers hold mmap_lock
 	 * for write.  If this changes, we'll need a different solution.
 	 */
-	lockdep_assert_held_write(&mm->mmap_sem);
+	mmap_assert_write_locked(mm);
 
 	if (atomic_inc_return(&mm->context.perf_rdpmc_allowed) == 1)
-		on_each_cpu_mask(mm_cpumask(mm), refresh_pce, NULL, 1);
+		on_each_cpu_mask(mm_cpumask(mm), cr4_update_pce, NULL, 1);
 }
 
 static void x86_pmu_event_unmapped(struct perf_event *event, struct mm_struct *mm)
@@ -2195,7 +2194,7 @@ static void x86_pmu_event_unmapped(struct perf_event *event, struct mm_struct *m
 		return;
 
 	if (atomic_dec_and_test(&mm->context.perf_rdpmc_allowed))
-		on_each_cpu_mask(mm_cpumask(mm), refresh_pce, NULL, 1);
+		on_each_cpu_mask(mm_cpumask(mm), cr4_update_pce, NULL, 1);
 }
 
 static int x86_pmu_event_idx(struct perf_event *event)
@@ -2253,7 +2252,7 @@ static ssize_t set_attr_rdpmc(struct device *cdev,
 		else if (x86_pmu.attr_rdpmc == 2)
 			static_branch_dec(&rdpmc_always_available_key);
 
-		on_each_cpu(refresh_pce, NULL, 1);
+		on_each_cpu(cr4_update_pce, NULL, 1);
 		x86_pmu.attr_rdpmc = val;
 	}
 

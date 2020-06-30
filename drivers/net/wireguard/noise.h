@@ -15,18 +15,14 @@
 #include <linux/mutex.h>
 #include <linux/kref.h>
 
-union noise_counter {
-	struct {
-		u64 counter;
-		unsigned long backtrack[COUNTER_BITS_TOTAL / BITS_PER_LONG];
-		spinlock_t lock;
-	} receive;
-	atomic64_t counter;
+struct noise_replay_counter {
+	u64 counter;
+	spinlock_t lock;
+	unsigned long backtrack[COUNTER_BITS_TOTAL / BITS_PER_LONG];
 };
 
 struct noise_symmetric_key {
 	u8 key[NOISE_SYMMETRIC_KEY_LEN];
-	union noise_counter counter;
 	u64 birthdate;
 	bool is_valid;
 };
@@ -34,7 +30,9 @@ struct noise_symmetric_key {
 struct noise_keypair {
 	struct index_hashtable_entry entry;
 	struct noise_symmetric_key sending;
+	atomic64_t sending_counter;
 	struct noise_symmetric_key receiving;
+	struct noise_replay_counter receiving_counter;
 	__le32 remote_index;
 	bool i_am_the_initiator;
 	struct kref refcount;

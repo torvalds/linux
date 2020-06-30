@@ -18,8 +18,7 @@ int main(void)
 	DEFINE(TASK_ACTIVE_MM,    offsetof(struct task_struct, active_mm));
 
 	/* offsets into the thread struct */
-	DEFINE(THREAD_KSP,        offsetof(struct thread_struct, ksp));
-	DEFINE(THREAD_SR,         offsetof(struct thread_struct, sr));
+	DEFINE(THREAD_KSP,        offsetof(struct thread_struct, sp));
 	DEFINE(THREAD_FESR,       offsetof(struct thread_struct, user_fp.fesr));
 	DEFINE(THREAD_FCR,        offsetof(struct thread_struct, user_fp.fcr));
 	DEFINE(THREAD_FPREG,      offsetof(struct thread_struct, user_fp.vr));

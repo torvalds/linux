@@ -11,7 +11,7 @@ course not limited to GPU use cases.
 The three main components of this are: (1) dma-buf, representing a
 sg_table and exposed to userspace as a file descriptor to allow passing
 between devices, (2) fence, which provides a mechanism to signal when
-one device as finished access, and (3) reservation, which manages the
+one device has finished access, and (3) reservation, which manages the
 shared or exclusive fence(s) associated with the buffer.
 
 Shared DMA Buffers
@@ -31,7 +31,7 @@ The exporter
  - implements and manages operations in :c:type:`struct dma_buf_ops
    <dma_buf_ops>` for the buffer,
  - allows other users to share the buffer by using dma_buf sharing APIs,
- - manages the details of buffer allocation, wrapped int a :c:type:`struct
+ - manages the details of buffer allocation, wrapped in a :c:type:`struct
    dma_buf <dma_buf>`,
  - decides about the actual backing storage where this allocation happens,
  - and takes care of any migration of scatterlist - for all (shared) users of

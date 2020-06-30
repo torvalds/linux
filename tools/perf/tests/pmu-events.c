@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
+#include "math.h"
 #include "parse-events.h"
 #include "pmu.h"
 #include "tests.h"
@@ -8,6 +9,9 @@
 #include <linux/zalloc.h>
 #include "debug.h"
 #include "../pmu-events/pmu-events.h"
+#include "util/evlist.h"
+#include "util/expr.h"
+#include "util/parse-events.h"
 
 struct perf_pmu_test_event {
 	struct pmu_event event;
@@ -144,7 +148,7 @@ static struct pmu_events_map *__test_pmu_get_events_map(void)
 }
 
 /* Verify generated events from pmu-events.c is as expected */
-static int __test_pmu_event_table(void)
+static int test_pmu_event_table(void)
 {
 	struct pmu_events_map *map = __test_pmu_get_events_map();
 	struct pmu_event *table;
@@ -347,13 +351,10 @@ static int __test__pmu_event_aliases(char *pmu_name, int *count)
 	return res;
 }
 
-int test__pmu_events(struct test *test __maybe_unused,
-		     int subtest __maybe_unused)
+
+static int test_aliases(void)
 {
 	struct perf_pmu *pmu = NULL;
-
-	if (__test_pmu_event_table())
-		return -1;
 
 	while ((pmu = perf_pmu__scan(pmu)) != NULL) {
 		int count = 0;
@@ -376,4 +377,164 @@ int test__pmu_events(struct test *test __maybe_unused,
 	}
 
 	return 0;
+}
+
+static bool is_number(const char *str)
+{
+	char *end_ptr;
+	double v;
+
+	errno = 0;
+	v = strtod(str, &end_ptr);
+	(void)v; // We're not interested in this value, only if it is valid
+	return errno == 0 && end_ptr != str;
+}
+
+static int check_parse_id(const char *id, bool same_cpu, struct pmu_event *pe)
+{
+	struct parse_events_error error;
+	struct evlist *evlist;
+	int ret;
+
+	/* Numbers are always valid. */
+	if (is_number(id))
+		return 0;
+
+	evlist = evlist__new();
+	memset(&error, 0, sizeof(error));
+	ret = parse_events(evlist, id, &error);
+	if (ret && same_cpu) {
+		pr_warning("Parse event failed metric '%s' id '%s' expr '%s'\n",
+			pe->metric_name, id, pe->metric_expr);
+		pr_warning("Error string '%s' help '%s'\n", error.str,
+			error.help);
+	} else if (ret) {
+		pr_debug3("Parse event failed, but for an event that may not be supported by this CPU.\nid '%s' metric '%s' expr '%s'\n",
+			  id, pe->metric_name, pe->metric_expr);
+		ret = 0;
+	}
+	evlist__delete(evlist);
+	free(error.str);
+	free(error.help);
+	free(error.first_str);
+	free(error.first_help);
+	return ret;
+}
+
+static void expr_failure(const char *msg,
+			 const struct pmu_events_map *map,
+			 const struct pmu_event *pe)
+{
+	pr_debug("%s for map %s %s %s\n",
+		msg, map->cpuid, map->version, map->type);
+	pr_debug("On metric %s\n", pe->metric_name);
+	pr_debug("On expression %s\n", pe->metric_expr);
+}
+
+static int test_parsing(void)
+{
+	struct pmu_events_map *cpus_map = perf_pmu__find_map(NULL);
+	struct pmu_events_map *map;
+	struct pmu_event *pe;
+	int i, j, k;
+	int ret = 0;
+	struct expr_parse_ctx ctx;
+	double result;
+
+	i = 0;
+	for (;;) {
+		map = &pmu_events_map[i++];
+		if (!map->table)
+			break;
+		j = 0;
+		for (;;) {
+			struct hashmap_entry *cur;
+			size_t bkt;
+
+			pe = &map->table[j++];
+			if (!pe->name && !pe->metric_group && !pe->metric_name)
+				break;
+			if (!pe->metric_expr)
+				continue;
+			expr__ctx_init(&ctx);
+			if (expr__find_other(pe->metric_expr, NULL, &ctx, 0)
+				  < 0) {
+				expr_failure("Parse other failed", map, pe);
+				ret++;
+				continue;
+			}
+
+			/*
+			 * Add all ids with a made up value. The value may
+			 * trigger divide by zero when subtracted and so try to
+			 * make them unique.
+			 */
+			k = 1;
+			hashmap__for_each_entry((&ctx.ids), cur, bkt)
+				expr__add_id(&ctx, strdup(cur->key), k++);
+
+			hashmap__for_each_entry((&ctx.ids), cur, bkt) {
+				if (check_parse_id(cur->key, map == cpus_map,
+						   pe))
+					ret++;
+			}
+
+			if (expr__parse(&result, &ctx, pe->metric_expr, 0)) {
+				expr_failure("Parse failed", map, pe);
+				ret++;
+			}
+			expr__ctx_clear(&ctx);
+		}
+	}
+	/* TODO: fail when not ok */
+	return ret == 0 ? TEST_OK : TEST_SKIP;
+}
+
+static const struct {
+	int (*func)(void);
+	const char *desc;
+} pmu_events_testcase_table[] = {
+	{
+		.func = test_pmu_event_table,
+		.desc = "PMU event table sanity",
+	},
+	{
+		.func = test_aliases,
+		.desc = "PMU event map aliases",
+	},
+	{
+		.func = test_parsing,
+		.desc = "Parsing of PMU event table metrics",
+	},
+};
+
+const char *test__pmu_events_subtest_get_desc(int subtest)
+{
+	if (subtest < 0 ||
+	    subtest >= (int)ARRAY_SIZE(pmu_events_testcase_table))
+		return NULL;
+	return pmu_events_testcase_table[subtest].desc;
+}
+
+const char *test__pmu_events_subtest_skip_reason(int subtest)
+{
+	if (subtest < 0 ||
+	    subtest >= (int)ARRAY_SIZE(pmu_events_testcase_table))
+		return NULL;
+	if (pmu_events_testcase_table[subtest].func != test_parsing)
+		return NULL;
+	return "some metrics failed";
+}
+
+int test__pmu_events_subtest_get_nr(void)
+{
+	return (int)ARRAY_SIZE(pmu_events_testcase_table);
+}
+
+int test__pmu_events(struct test *test __maybe_unused, int subtest)
+{
+	if (subtest < 0 ||
+	    subtest >= (int)ARRAY_SIZE(pmu_events_testcase_table))
+		return TEST_FAIL;
+	return pmu_events_testcase_table[subtest].func();
 }

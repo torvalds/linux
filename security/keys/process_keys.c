@@ -609,7 +609,7 @@ bool lookup_user_key_possessed(const struct key *key,
  * returned key reference.
  */
 key_ref_t lookup_user_key(key_serial_t id, unsigned long lflags,
-			  key_perm_t perm)
+			  enum key_need_perm need_perm)
 {
 	struct keyring_search_context ctx = {
 		.match_data.cmp		= lookup_user_key_possessed,
@@ -773,35 +773,33 @@ try_again:
 
 	/* unlink does not use the nominated key in any way, so can skip all
 	 * the permission checks as it is only concerned with the keyring */
-	if (lflags & KEY_LOOKUP_FOR_UNLINK) {
-		ret = 0;
-		goto error;
-	}
-
-	if (!(lflags & KEY_LOOKUP_PARTIAL)) {
-		ret = wait_for_key_construction(key, true);
-		switch (ret) {
-		case -ERESTARTSYS:
-			goto invalid_key;
-		default:
-			if (perm)
+	if (need_perm != KEY_NEED_UNLINK) {
+		if (!(lflags & KEY_LOOKUP_PARTIAL)) {
+			ret = wait_for_key_construction(key, true);
+			switch (ret) {
+			case -ERESTARTSYS:
 				goto invalid_key;
-		case 0:
-			break;
+			default:
+				if (need_perm != KEY_AUTHTOKEN_OVERRIDE &&
+				    need_perm != KEY_DEFER_PERM_CHECK)
+					goto invalid_key;
+			case 0:
+				break;
+			}
+		} else if (need_perm != KEY_DEFER_PERM_CHECK) {
+			ret = key_validate(key);
+			if (ret < 0)
+				goto invalid_key;
 		}
-	} else if (perm) {
-		ret = key_validate(key);
-		if (ret < 0)
+
+		ret = -EIO;
+		if (!(lflags & KEY_LOOKUP_PARTIAL) &&
+		    key_read_state(key) == KEY_IS_UNINSTANTIATED)
 			goto invalid_key;
 	}
-
-	ret = -EIO;
-	if (!(lflags & KEY_LOOKUP_PARTIAL) &&
-	    key_read_state(key) == KEY_IS_UNINSTANTIATED)
-		goto invalid_key;
 
 	/* check the permissions */
-	ret = key_task_permission(key_ref, ctx.cred, perm);
+	ret = key_task_permission(key_ref, ctx.cred, need_perm);
 	if (ret < 0)
 		goto invalid_key;
 

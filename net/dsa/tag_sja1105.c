@@ -69,12 +69,25 @@ static inline bool sja1105_is_meta_frame(const struct sk_buff *skb)
 	return true;
 }
 
+static bool sja1105_can_use_vlan_as_tags(const struct sk_buff *skb)
+{
+	struct vlan_ethhdr *hdr = vlan_eth_hdr(skb);
+
+	if (hdr->h_vlan_proto == htons(ETH_P_SJA1105))
+		return true;
+
+	if (hdr->h_vlan_proto != htons(ETH_P_8021Q))
+		return false;
+
+	return vid_is_dsa_8021q(ntohs(hdr->h_vlan_TCI) & VLAN_VID_MASK);
+}
+
 /* This is the first time the tagger sees the frame on RX.
  * Figure out if we can decode it.
  */
 static bool sja1105_filter(const struct sk_buff *skb, struct net_device *dev)
 {
-	if (!dsa_port_is_vlan_filtering(dev->dsa_ptr))
+	if (sja1105_can_use_vlan_as_tags(skb))
 		return true;
 	if (sja1105_is_link_local(skb))
 		return true;
@@ -96,6 +109,11 @@ static struct sk_buff *sja1105_defer_xmit(struct sja1105_port *sp,
 	return NULL;
 }
 
+static u16 sja1105_xmit_tpid(struct sja1105_port *sp)
+{
+	return sp->xmit_tpid;
+}
+
 static struct sk_buff *sja1105_xmit(struct sk_buff *skb,
 				    struct net_device *netdev)
 {
@@ -111,15 +129,7 @@ static struct sk_buff *sja1105_xmit(struct sk_buff *skb,
 	if (unlikely(sja1105_is_link_local(skb)))
 		return sja1105_defer_xmit(dp->priv, skb);
 
-	/* If we are under a vlan_filtering bridge, IP termination on
-	 * switch ports based on 802.1Q tags is simply too brittle to
-	 * be passable. So just defer to the dsa_slave_notag_xmit
-	 * implementation.
-	 */
-	if (dsa_port_is_vlan_filtering(dp))
-		return skb;
-
-	return dsa_8021q_xmit(skb, netdev, ETH_P_SJA1105,
+	return dsa_8021q_xmit(skb, netdev, sja1105_xmit_tpid(dp->priv),
 			     ((pcp << VLAN_PRIO_SHIFT) | tx_vid));
 }
 
@@ -244,6 +254,20 @@ static struct sk_buff
 	return skb;
 }
 
+static void sja1105_decode_subvlan(struct sk_buff *skb, u16 subvlan)
+{
+	struct dsa_port *dp = dsa_slave_to_port(skb->dev);
+	struct sja1105_port *sp = dp->priv;
+	u16 vid = sp->subvlan_map[subvlan];
+	u16 vlan_tci;
+
+	if (vid == VLAN_N_VID)
+		return;
+
+	vlan_tci = (skb->priority << VLAN_PRIO_SHIFT) | vid;
+	__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlan_tci);
+}
+
 static struct sk_buff *sja1105_rcv(struct sk_buff *skb,
 				   struct net_device *netdev,
 				   struct packet_type *pt)
@@ -253,12 +277,13 @@ static struct sk_buff *sja1105_rcv(struct sk_buff *skb,
 	struct ethhdr *hdr;
 	u16 tpid, vid, tci;
 	bool is_link_local;
+	u16 subvlan = 0;
 	bool is_tagged;
 	bool is_meta;
 
 	hdr = eth_hdr(skb);
 	tpid = ntohs(hdr->h_proto);
-	is_tagged = (tpid == ETH_P_SJA1105);
+	is_tagged = (tpid == ETH_P_SJA1105 || tpid == ETH_P_8021Q);
 	is_link_local = sja1105_is_link_local(skb);
 	is_meta = sja1105_is_meta_frame(skb);
 
@@ -276,6 +301,7 @@ static struct sk_buff *sja1105_rcv(struct sk_buff *skb,
 		source_port = dsa_8021q_rx_source_port(vid);
 		switch_id = dsa_8021q_rx_switch_id(vid);
 		skb->priority = (tci & VLAN_PRIO_MASK) >> VLAN_PRIO_SHIFT;
+		subvlan = dsa_8021q_rx_subvlan(vid);
 	} else if (is_link_local) {
 		/* Management traffic path. Switch embeds the switch ID and
 		 * port ID into bytes of the destination MAC, courtesy of
@@ -300,11 +326,14 @@ static struct sk_buff *sja1105_rcv(struct sk_buff *skb,
 		return NULL;
 	}
 
+	if (subvlan)
+		sja1105_decode_subvlan(skb, subvlan);
+
 	return sja1105_rcv_meta_state_machine(skb, &meta, is_link_local,
 					      is_meta);
 }
 
-static struct dsa_device_ops sja1105_netdev_ops = {
+static const struct dsa_device_ops sja1105_netdev_ops = {
 	.name = "sja1105",
 	.proto = DSA_TAG_PROTO_SJA1105,
 	.xmit = sja1105_xmit,

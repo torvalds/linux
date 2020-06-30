@@ -2,11 +2,11 @@
 /* Copyright (C) 2018 Microchip Technology Inc. */
 
 #include <linux/netdevice.h>
-#include "lan743x_main.h"
-#include "lan743x_ethtool.h"
 #include <linux/net_tstamp.h>
 #include <linux/pci.h>
 #include <linux/phy.h>
+#include "lan743x_main.h"
+#include "lan743x_ethtool.h"
 
 /* eeprom */
 #define LAN743X_EEPROM_MAGIC		    (0x74A5)

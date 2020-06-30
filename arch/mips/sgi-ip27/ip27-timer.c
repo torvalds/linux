@@ -19,21 +19,11 @@
 #include <linux/platform_device.h>
 
 #include <asm/time.h>
-#include <asm/pgtable.h>
 #include <asm/sgialib.h>
-#include <asm/sn/ioc3.h>
 #include <asm/sn/klconfig.h>
 #include <asm/sn/arch.h>
 #include <asm/sn/addrs.h>
 #include <asm/sn/agent.h>
-
-#include "ip27-common.h"
-
-#define TICK_SIZE (tick_nsec / 1000)
-
-/* Includes for ioc3_init().  */
-#include <asm/sn/types.h>
-#include <asm/pci/bridge.h>
 
 #include "ip27-common.h"
 

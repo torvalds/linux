@@ -13,6 +13,7 @@
  */
 
 #include <linux/linkage.h>
+#include <linux/pgtable.h>
 #include <asm/asm-offsets.h>
 #include <asm/asmmacro.h>
 #include <asm/processor.h>
@@ -22,7 +23,6 @@
 #include <asm/unistd.h>
 #include <asm/ptrace.h>
 #include <asm/current.h>
-#include <asm/pgtable.h>
 #include <asm/page.h>
 #include <asm/signal.h>
 #include <asm/tlbflush.h>
@@ -959,14 +959,14 @@ ENDPROC(unrecoverable_exception)
  * of the proper size instead.
  *
  * This algorithm simply backs out the register changes started by the user
- * excpetion handler, makes it appear that we have started a window underflow
+ * exception handler, makes it appear that we have started a window underflow
  * by rotating the window back and then setting the old window base (OWB) in
  * the 'ps' register with the rolled back window base. The 'movsp' instruction
  * will be re-executed and this time since the next window frames is in the
  * active AR registers it won't cause an exception.
  *
  * If the WindowUnderflow code gets a TLB miss the page will get mapped
- * the the partial windeowUnderflow will be handeled in the double exception
+ * the partial WindowUnderflow will be handled in the double exception
  * handler.
  *
  * Entry condition:

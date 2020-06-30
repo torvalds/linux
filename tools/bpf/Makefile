@@ -3,7 +3,6 @@ include ../scripts/Makefile.include
 
 prefix ?= /usr/local
 
-CC = gcc
 LEX = flex
 YACC = bison
 MAKE = make
@@ -64,12 +63,12 @@ $(OUTPUT)%.lex.c: $(srctree)/tools/bpf/%.l
 	$(QUIET_FLEX)$(LEX) -o $@ $<
 
 $(OUTPUT)%.o: $(srctree)/tools/bpf/%.c
-	$(QUIET_CC)$(COMPILE.c) -o $@ $<
+	$(QUIET_CC)$(CC) $(CFLAGS) -c -o $@ $<
 
 $(OUTPUT)%.yacc.o: $(OUTPUT)%.yacc.c
-	$(QUIET_CC)$(COMPILE.c) -o $@ $<
+	$(QUIET_CC)$(CC) $(CFLAGS) -c -o $@ $<
 $(OUTPUT)%.lex.o: $(OUTPUT)%.lex.c
-	$(QUIET_CC)$(COMPILE.c) -o $@ $<
+	$(QUIET_CC)$(CC) $(CFLAGS) -c -o $@ $<
 
 PROGS = $(OUTPUT)bpf_jit_disasm $(OUTPUT)bpf_dbg $(OUTPUT)bpf_asm
 

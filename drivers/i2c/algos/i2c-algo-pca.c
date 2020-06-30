@@ -542,7 +542,7 @@ int i2c_pca_add_numbered_bus(struct i2c_adapter *adap)
 EXPORT_SYMBOL(i2c_pca_add_numbered_bus);
 
 MODULE_AUTHOR("Ian Campbell <icampbell@arcom.com>, "
-	"Wolfram Sang <w.sang@pengutronix.de>");
+	"Wolfram Sang <kernel@pengutronix.de>");
 MODULE_DESCRIPTION("I2C-Bus PCA9564/PCA9665 algorithm");
 MODULE_LICENSE("GPL");
 

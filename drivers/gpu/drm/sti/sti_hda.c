@@ -367,16 +367,16 @@ static struct drm_info_list hda_debugfs_files[] = {
 	{ "hda", hda_dbg_show, 0, NULL },
 };
 
-static int hda_debugfs_init(struct sti_hda *hda, struct drm_minor *minor)
+static void hda_debugfs_init(struct sti_hda *hda, struct drm_minor *minor)
 {
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(hda_debugfs_files); i++)
 		hda_debugfs_files[i].data = hda;
 
-	return drm_debugfs_create_files(hda_debugfs_files,
-					ARRAY_SIZE(hda_debugfs_files),
-					minor->debugfs_root, minor);
+	drm_debugfs_create_files(hda_debugfs_files,
+				 ARRAY_SIZE(hda_debugfs_files),
+				 minor->debugfs_root, minor);
 }
 
 /**
@@ -643,10 +643,7 @@ static int sti_hda_late_register(struct drm_connector *connector)
 		= to_sti_hda_connector(connector);
 	struct sti_hda *hda = hda_connector->hda;
 
-	if (hda_debugfs_init(hda, hda->drm_dev->primary)) {
-		DRM_ERROR("HDA debugfs setup failed\n");
-		return -EINVAL;
-	}
+	hda_debugfs_init(hda, hda->drm_dev->primary);
 
 	return 0;
 }

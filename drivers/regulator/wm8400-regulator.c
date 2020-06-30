@@ -13,7 +13,7 @@
 #include <linux/regulator/driver.h>
 #include <linux/mfd/wm8400-private.h>
 
-static const struct regulator_linear_range wm8400_ldo_ranges[] = {
+static const struct linear_range wm8400_ldo_ranges[] = {
 	REGULATOR_LINEAR_RANGE(900000, 0, 14, 50000),
 	REGULATOR_LINEAR_RANGE(1700000, 15, 31, 100000),
 };

@@ -393,6 +393,12 @@ KERNELOFFSET
 The kernel randomization offset. Used to compute the page offset. If
 KASLR is disabled, this value is zero.
 
+KERNELPACMASK
+-------------
+
+The mask to extract the Pointer Authentication Code from a kernel virtual
+address.
+
 arm
 ===
 

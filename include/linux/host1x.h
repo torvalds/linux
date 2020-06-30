@@ -17,8 +17,11 @@ enum host1x_class {
 	HOST1X_CLASS_GR3D = 0x60,
 };
 
+struct host1x;
 struct host1x_client;
 struct iommu_group;
+
+u64 host1x_get_dma_mask(struct host1x *host1x);
 
 /**
  * struct host1x_client_ops - host1x client operations
@@ -45,6 +48,9 @@ struct host1x_client_ops {
  * @channel: host1x channel associated with this client
  * @syncpts: array of syncpoints requested for this client
  * @num_syncpts: number of syncpoints requested for this client
+ * @parent: pointer to parent structure
+ * @usecount: reference count for this structure
+ * @lock: mutex for mutually exclusive concurrency
  */
 struct host1x_client {
 	struct list_head list;

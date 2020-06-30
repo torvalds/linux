@@ -2999,6 +2999,7 @@ static u32 mlxsw_sp_nexthop_group_hash_obj(const void *data, u32 len, u32 seed)
 		for (i = 0; i < nh_grp->count; i++) {
 			nh = &nh_grp->nexthops[i];
 			val ^= jhash(&nh->ifindex, sizeof(nh->ifindex), seed);
+			val ^= jhash(&nh->gw_addr, sizeof(nh->gw_addr), seed);
 		}
 		return jhash(&val, sizeof(val), seed);
 	default:
@@ -3012,11 +3013,14 @@ mlxsw_sp_nexthop6_group_hash(struct mlxsw_sp_fib6_entry *fib6_entry, u32 seed)
 {
 	unsigned int val = fib6_entry->nrt6;
 	struct mlxsw_sp_rt6 *mlxsw_sp_rt6;
-	struct net_device *dev;
 
 	list_for_each_entry(mlxsw_sp_rt6, &fib6_entry->rt6_list, list) {
-		dev = mlxsw_sp_rt6->rt->fib6_nh->fib_nh_dev;
+		struct fib6_nh *fib6_nh = mlxsw_sp_rt6->rt->fib6_nh;
+		struct net_device *dev = fib6_nh->fib_nh_dev;
+		struct in6_addr *gw = &fib6_nh->fib_nh_gw6;
+
 		val ^= jhash(&dev->ifindex, sizeof(dev->ifindex), seed);
+		val ^= jhash(gw, sizeof(*gw), seed);
 	}
 
 	return jhash(&val, sizeof(val), seed);
@@ -4999,9 +5003,11 @@ static bool mlxsw_sp_fib6_rt_should_ignore(const struct fib6_info *rt)
 {
 	/* Packets with link-local destination IP arriving to the router
 	 * are trapped to the CPU, so no need to program specific routes
-	 * for them.
+	 * for them. Only allow prefix routes (usually one fe80::/64) so
+	 * that packets are trapped for the right reason.
 	 */
-	if (ipv6_addr_type(&rt->fib6_dst.addr) & IPV6_ADDR_LINKLOCAL)
+	if ((ipv6_addr_type(&rt->fib6_dst.addr) & IPV6_ADDR_LINKLOCAL) &&
+	    (rt->fib6_flags & (RTF_LOCAL | RTF_ANYCAST)))
 		return true;
 
 	/* Multicast routes aren't supported, so ignore them. Neighbour
@@ -7568,7 +7574,7 @@ static struct mlxsw_sp_fid *
 mlxsw_sp_rif_vlan_fid_get(struct mlxsw_sp_rif *rif,
 			  struct netlink_ext_ack *extack)
 {
-	struct net_device *br_dev = rif->dev;
+	struct net_device *br_dev;
 	u16 vid;
 	int err;
 

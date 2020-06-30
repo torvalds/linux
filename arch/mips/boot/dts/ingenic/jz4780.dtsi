@@ -58,9 +58,9 @@
 
 		#clock-cells = <1>;
 
-		clocks = <&cgu JZ4780_CLK_RTCLK
-			  &cgu JZ4780_CLK_EXCLK
-			  &cgu JZ4780_CLK_PCLK>;
+		clocks = <&cgu JZ4780_CLK_RTCLK>,
+			 <&cgu JZ4780_CLK_EXCLK>,
+			 <&cgu JZ4780_CLK_PCLK>;
 		clock-names = "rtc", "ext", "pclk";
 
 		interrupt-controller;
@@ -75,6 +75,30 @@
 
 			clocks = <&tcu TCU_CLK_WDT>;
 			clock-names = "wdt";
+		};
+
+		pwm: pwm@40 {
+			compatible = "ingenic,jz4780-pwm", "ingenic,jz4740-pwm";
+			reg = <0x40 0x80>;
+
+			#pwm-cells = <3>;
+
+			clocks = <&tcu TCU_CLK_TIMER0>, <&tcu TCU_CLK_TIMER1>,
+				 <&tcu TCU_CLK_TIMER2>, <&tcu TCU_CLK_TIMER3>,
+				 <&tcu TCU_CLK_TIMER4>, <&tcu TCU_CLK_TIMER5>,
+				 <&tcu TCU_CLK_TIMER6>, <&tcu TCU_CLK_TIMER7>;
+			clock-names = "timer0", "timer1", "timer2", "timer3",
+				      "timer4", "timer5", "timer6", "timer7";
+		};
+
+		ost: timer@e0 {
+			compatible = "ingenic,jz4780-ost", "ingenic,jz4770-ost";
+			reg = <0xe0 0x20>;
+
+			clocks = <&tcu TCU_CLK_OST>;
+			clock-names = "ost";
+
+			interrupts = <15>;
 		};
 	};
 
@@ -196,8 +220,7 @@
 		gpio-miso = <&gpe 14 0>;
 		gpio-sck = <&gpe 15 0>;
 		gpio-mosi = <&gpe 17 0>;
-		cs-gpios = <&gpe 16 0
-			    &gpe 18 0>;
+		cs-gpios = <&gpe 16 0>, <&gpe 18 0>;
 
 		spidev@0 {
 			compatible = "spidev";
@@ -358,26 +381,40 @@
 	};
 
 	nemc: nemc@13410000 {
-		compatible = "ingenic,jz4780-nemc";
+		compatible = "ingenic,jz4780-nemc", "simple-mfd";
 		reg = <0x13410000 0x10000>;
 		#address-cells = <2>;
 		#size-cells = <1>;
-		ranges = <1 0 0x1b000000 0x1000000
-			  2 0 0x1a000000 0x1000000
-			  3 0 0x19000000 0x1000000
-			  4 0 0x18000000 0x1000000
-			  5 0 0x17000000 0x1000000
-			  6 0 0x16000000 0x1000000>;
+		ranges = <0 0 0x13410000 0x10000>,
+			 <1 0 0x1b000000 0x1000000>,
+			 <2 0 0x1a000000 0x1000000>,
+			 <3 0 0x19000000 0x1000000>,
+			 <4 0 0x18000000 0x1000000>,
+			 <5 0 0x17000000 0x1000000>,
+			 <6 0 0x16000000 0x1000000>;
 
 		clocks = <&cgu JZ4780_CLK_NEMC>;
 
 		status = "disabled";
+
+		efuse: efuse@d0 {
+			reg = <0 0xd0 0x30>;
+			compatible = "ingenic,jz4780-efuse";
+
+			clocks = <&cgu JZ4780_CLK_AHB2>;
+
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			eth0_addr: eth-mac-addr@0x22 {
+				reg = <0x22 0x6>;
+			};
+		};
 	};
 
 	dma: dma@13420000 {
 		compatible = "ingenic,jz4780-dma";
-		reg = <0x13420000 0x400
-		       0x13421000 0x40>;
+		reg = <0x13420000 0x400>, <0x13421000 0x40>;
 		#dma-cells = <2>;
 
 		interrupt-parent = <&intc>;

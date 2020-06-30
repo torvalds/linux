@@ -52,12 +52,12 @@ properties:
       - const: allwinner,sun4i-a10-dram-gates-clk
 
       - items:
-        - const: allwinner,sun5i-a13-dram-gates-clk
-        - const: allwinner,sun4i-a10-gates-clk
+          - const: allwinner,sun5i-a13-dram-gates-clk
+          - const: allwinner,sun4i-a10-gates-clk
 
       - items:
-        - const: allwinner,sun8i-h3-apb0-gates-clk
-        - const: allwinner,sun4i-a10-gates-clk
+          - const: allwinner,sun8i-h3-apb0-gates-clk
+          - const: allwinner,sun4i-a10-gates-clk
 
   reg:
     maxItems: 1

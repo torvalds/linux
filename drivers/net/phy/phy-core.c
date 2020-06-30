@@ -428,9 +428,8 @@ int __phy_read_mmd(struct phy_device *phydev, int devad, u32 regnum)
 	if (phydev->drv && phydev->drv->read_mmd) {
 		val = phydev->drv->read_mmd(phydev, devad, regnum);
 	} else if (phydev->is_c45) {
-		u32 addr = MII_ADDR_C45 | (devad << 16) | (regnum & 0xffff);
-
-		val = __mdiobus_read(phydev->mdio.bus, phydev->mdio.addr, addr);
+		val = __mdiobus_c45_read(phydev->mdio.bus, phydev->mdio.addr,
+					 devad, regnum);
 	} else {
 		struct mii_bus *bus = phydev->mdio.bus;
 		int phy_addr = phydev->mdio.addr;
@@ -485,10 +484,8 @@ int __phy_write_mmd(struct phy_device *phydev, int devad, u32 regnum, u16 val)
 	if (phydev->drv && phydev->drv->write_mmd) {
 		ret = phydev->drv->write_mmd(phydev, devad, regnum, val);
 	} else if (phydev->is_c45) {
-		u32 addr = MII_ADDR_C45 | (devad << 16) | (regnum & 0xffff);
-
-		ret = __mdiobus_write(phydev->mdio.bus, phydev->mdio.addr,
-				      addr, val);
+		ret = __mdiobus_c45_write(phydev->mdio.bus, phydev->mdio.addr,
+					  devad, regnum, val);
 	} else {
 		struct mii_bus *bus = phydev->mdio.bus;
 		int phy_addr = phydev->mdio.addr;

@@ -23,7 +23,8 @@ struct target_backend_ops {
 	char inquiry_rev[4];
 	struct module *owner;
 
-	u8 transport_flags;
+	u8 transport_flags_default;
+	u8 transport_flags_changeable;
 
 	int (*attach_hba)(struct se_hba *, u32);
 	void (*detach_hba)(struct se_hba *);
@@ -94,6 +95,7 @@ int	transport_set_vpd_ident(struct t10_vpd *, unsigned char *);
 
 extern struct configfs_attribute *sbc_attrib_attrs[];
 extern struct configfs_attribute *passthrough_attrib_attrs[];
+extern struct configfs_attribute *passthrough_pr_attrib_attrs[];
 
 /* core helpers also used by command snooping in pscsi */
 void	*transport_kmap_data_sg(struct se_cmd *);

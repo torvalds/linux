@@ -1144,7 +1144,7 @@ static ssize_t viafb_dvp0_proc_write(struct file *file,
 		if (value != NULL) {
 			if (kstrtou8(value, 0, &reg_val) < 0)
 				return -EINVAL;
-			DEBUG_MSG(KERN_INFO "DVP0:reg_val[%l]=:%x\n", i,
+			DEBUG_MSG(KERN_INFO "DVP0:reg_val[%lu]=:%x\n", i,
 				  reg_val);
 			switch (i) {
 			case 0:

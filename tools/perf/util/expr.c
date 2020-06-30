@@ -3,38 +3,92 @@
 #include <assert.h>
 #include "expr.h"
 #include "expr-bison.h"
-#define YY_EXTRA_TYPE int
 #include "expr-flex.h"
+#include <linux/kernel.h>
 
 #ifdef PARSER_DEBUG
 extern int expr_debug;
 #endif
 
-/* Caller must make sure id is allocated */
-void expr__add_id(struct parse_ctx *ctx, const char *name, double val)
+static size_t key_hash(const void *key, void *ctx __maybe_unused)
 {
-	int idx;
+	const char *str = (const char *)key;
+	size_t hash = 0;
 
-	assert(ctx->num_ids < MAX_PARSE_ID);
-	idx = ctx->num_ids++;
-	ctx->ids[idx].name = name;
-	ctx->ids[idx].val = val;
+	while (*str != '\0') {
+		hash *= 31;
+		hash += *str;
+		str++;
+	}
+	return hash;
 }
 
-void expr__ctx_init(struct parse_ctx *ctx)
+static bool key_equal(const void *key1, const void *key2,
+		    void *ctx __maybe_unused)
 {
-	ctx->num_ids = 0;
+	return !strcmp((const char *)key1, (const char *)key2);
+}
+
+/* Caller must make sure id is allocated */
+int expr__add_id(struct expr_parse_ctx *ctx, const char *name, double val)
+{
+	double *val_ptr = NULL, *old_val = NULL;
+	char *old_key = NULL;
+	int ret;
+
+	if (val != 0.0) {
+		val_ptr = malloc(sizeof(double));
+		if (!val_ptr)
+			return -ENOMEM;
+		*val_ptr = val;
+	}
+	ret = hashmap__set(&ctx->ids, name, val_ptr,
+			   (const void **)&old_key, (void **)&old_val);
+	free(old_key);
+	free(old_val);
+	return ret;
+}
+
+int expr__get_id(struct expr_parse_ctx *ctx, const char *id, double *val_ptr)
+{
+	double *data;
+
+	if (!hashmap__find(&ctx->ids, id, (void **)&data))
+		return -1;
+	*val_ptr = (data == NULL) ?  0.0 : *data;
+	return 0;
+}
+
+void expr__ctx_init(struct expr_parse_ctx *ctx)
+{
+	hashmap__init(&ctx->ids, key_hash, key_equal, NULL);
+}
+
+void expr__ctx_clear(struct expr_parse_ctx *ctx)
+{
+	struct hashmap_entry *cur;
+	size_t bkt;
+
+	hashmap__for_each_entry((&ctx->ids), cur, bkt) {
+		free((char *)cur->key);
+		free(cur->value);
+	}
+	hashmap__clear(&ctx->ids);
 }
 
 static int
-__expr__parse(double *val, struct parse_ctx *ctx, const char *expr,
-	      int start)
+__expr__parse(double *val, struct expr_parse_ctx *ctx, const char *expr,
+	      int start, int runtime)
 {
+	struct expr_scanner_ctx scanner_ctx = {
+		.start_token = start,
+		.runtime = runtime,
+	};
 	YY_BUFFER_STATE buffer;
 	void *scanner;
 	int ret;
 
-	ret = expr_lex_init_extra(start, &scanner);
+	ret = expr_lex_init_extra(&scanner_ctx, &scanner);
 	if (ret)
 		return ret;
 
@@ -42,6 +96,7 @@ __expr__parse(double *val, struct parse_ctx *ctx, const char *expr,
 
 #ifdef PARSER_DEBUG
 	expr_debug = 1;
+	expr_set_debug(1, scanner);
 #endif
 
 	ret = expr_parse(val, ctx, scanner);
@@ -52,61 +107,25 @@ __expr__parse(double *val, struct parse_ctx *ctx, const char *expr,
 	return ret;
 }
 
-int expr__parse(double *final_val, struct parse_ctx *ctx, const char *expr)
+int expr__parse(double *final_val, struct expr_parse_ctx *ctx,
+		const char *expr, int runtime)
 {
-	return __expr__parse(final_val, ctx, expr, EXPR_PARSE) ? -1 : 0;
+	return __expr__parse(final_val, ctx, expr, EXPR_PARSE, runtime) ? -1 : 0;
 }
 
-static bool
-already_seen(const char *val, const char *one, const char **other,
-	     int num_other)
+int expr__find_other(const char *expr, const char *one,
+		     struct expr_parse_ctx *ctx, int runtime)
 {
-	int i;
+	double *old_val = NULL;
+	char *old_key = NULL;
+	int ret = __expr__parse(NULL, ctx, expr, EXPR_OTHER, runtime);
 
-	if (one && !strcasecmp(one, val))
-		return true;
-	for (i = 0; i < num_other; i++)
-		if (!strcasecmp(other[i], val))
-			return true;
-	return false;
-}
-
-int expr__find_other(const char *expr, const char *one, const char ***other,
-		     int *num_other)
-{
-	int err, i = 0, j = 0;
-	struct parse_ctx ctx;
-
-	expr__ctx_init(&ctx);
-	err = __expr__parse(NULL, &ctx, expr, EXPR_OTHER);
-	if (err)
-		return -1;
-
-	*other = malloc((ctx.num_ids + 1) * sizeof(char *));
-	if (!*other)
-		return -ENOMEM;
-
-	for (i = 0, j = 0; i < ctx.num_ids; i++) {
-		const char *str = ctx.ids[i].name;
-
-		if (already_seen(str, one, *other, j))
-			continue;
-
-		str = strdup(str);
-		if (!str)
-			goto out;
-		(*other)[j++] = str;
-	}
-	(*other)[j] = NULL;
-
-out:
-	if (i != ctx.num_ids) {
-		while (--j)
-			free((char *) (*other)[i]);
-		free(*other);
-		err = -1;
+	if (one) {
+		hashmap__delete(&ctx->ids, one,
+				(const void **)&old_key, (void **)&old_val);
+		free(old_key);
+		free(old_val);
 	}
 
-	*num_other = j;
-	return err;
+	return ret;
 }

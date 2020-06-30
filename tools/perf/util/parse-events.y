@@ -26,7 +26,7 @@ do { \
 		YYABORT; \
 } while (0)
 
-static struct list_head* alloc_list()
+static struct list_head* alloc_list(void)
 {
 	struct list_head *list;
 
@@ -44,7 +44,7 @@ static void free_list_evsel(struct list_head* list_evsel)
 
 	list_for_each_entry_safe(evsel, tmp, list_evsel, core.node) {
 		list_del_init(&evsel->core.node);
-		perf_evsel__delete(evsel);
+		evsel__delete(evsel);
 	}
 	free(list_evsel);
 }
@@ -326,6 +326,7 @@ PE_NAME opt_pmu_config
 	}
 	parse_events_terms__delete($2);
 	parse_events_terms__delete(orig_terms);
+	free(pattern);
 	free($1);
 	$$ = list;
 #undef CLEANUP_YYABORT
@@ -348,7 +349,7 @@ PE_PMU_EVENT_PRE '-' PE_PMU_EVENT_SUF sep_dc
 	struct list_head *list;
 	char pmu_name[128];
 
-	snprintf(&pmu_name, 128, "%s-%s", $1, $3);
+	snprintf(pmu_name, sizeof(pmu_name), "%s-%s", $1, $3);
 	free($1);
 	free($3);
 	if (parse_events_multi_pmu_add(_parse_state, pmu_name, &list) < 0)
@@ -706,6 +707,15 @@ event_term
 }
 
 event_term:
+PE_RAW
+{
+	struct parse_events_term *term;
+
+	ABORT_ON(parse_events_term__num(&term, PARSE_EVENTS__TERM_TYPE_CONFIG,
+					NULL, $1, false, &@1, NULL));
+	$$ = term;
+}
+|
 PE_NAME '=' PE_NAME
 {
 	struct parse_events_term *term;

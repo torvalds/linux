@@ -187,6 +187,7 @@ static inline void sk_msg_xfer(struct sk_msg *dst, struct sk_msg *src,
 	dst->sg.data[which] = src->sg.data[which];
 	dst->sg.data[which].length  = size;
 	dst->sg.size		   += size;
+	src->sg.size		   -= size;
 	src->sg.data[which].length -= size;
 	src->sg.data[which].offset += size;
 }
@@ -436,4 +437,12 @@ static inline void psock_progs_drop(struct sk_psock_progs *progs)
 	psock_set_prog(&progs->skb_verdict, NULL);
 }
 
+int sk_psock_tls_strp_read(struct sk_psock *psock, struct sk_buff *skb);
+
+static inline bool sk_psock_strp_enabled(struct sk_psock *psock)
+{
+	if (!psock)
+		return false;
+	return psock->parser.enabled;
+}
 #endif /* _LINUX_SKMSG_H */

@@ -8,7 +8,7 @@
 #ifndef __ASM_KERNEL_PGTABLE_H
 #define __ASM_KERNEL_PGTABLE_H
 
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <asm/sparsemem.h>
 
 /*

@@ -58,6 +58,7 @@ struct bundle_priv {
 
 	DECLARE_BITMAP(uobj_finalize, UVERBS_API_ATTR_BKEY_LEN);
 	DECLARE_BITMAP(spec_finalize, UVERBS_API_ATTR_BKEY_LEN);
+	DECLARE_BITMAP(uobj_hw_obj_valid, UVERBS_API_ATTR_BKEY_LEN);
 
 	/*
 	 * Must be last. bundle ends in a flex array which overlaps
@@ -136,7 +137,7 @@ EXPORT_SYMBOL(_uverbs_alloc);
 static bool uverbs_is_attr_cleared(const struct ib_uverbs_attr *uattr,
 				   u16 len)
 {
-	if (uattr->len > sizeof(((struct ib_uverbs_attr *)0)->data))
+	if (uattr->len > sizeof_field(struct ib_uverbs_attr, data))
 		return ib_is_buffer_cleared(u64_to_user_ptr(uattr->data) + len,
 					    uattr->len - len);
 
@@ -230,7 +231,8 @@ static void uverbs_free_idrs_array(const struct uverbs_api_attr *attr_uapi,
 
 	for (i = 0; i != attr->len; i++)
 		uverbs_finalize_object(attr->uobjects[i],
-				       spec->u2.objs_arr.access, commit, attrs);
+				       spec->u2.objs_arr.access, false, commit,
+				       attrs);
 }
 
 static int uverbs_process_attr(struct bundle_priv *pbundle,
@@ -502,7 +504,9 @@ static void bundle_destroy(struct bundle_priv *pbundle, bool commit)
 
 		uverbs_finalize_object(
 			attr->obj_attr.uobject,
-			attr->obj_attr.attr_elm->spec.u.obj.access, commit,
+			attr->obj_attr.attr_elm->spec.u.obj.access,
+			test_bit(i, pbundle->uobj_hw_obj_valid),
+			commit,
 			&pbundle->bundle);
 	}
 
@@ -590,6 +594,8 @@ static int ib_uverbs_cmd_verbs(struct ib_uverbs_file *ufile,
 	       sizeof(pbundle->bundle.attr_present));
 	memset(pbundle->uobj_finalize, 0, sizeof(pbundle->uobj_finalize));
 	memset(pbundle->spec_finalize, 0, sizeof(pbundle->spec_finalize));
+	memset(pbundle->uobj_hw_obj_valid, 0,
+	       sizeof(pbundle->uobj_hw_obj_valid));
 
 	ret = ib_uverbs_run_method(pbundle, hdr->num_attrs);
 	bundle_destroy(pbundle, ret == 0);
@@ -784,3 +790,15 @@ int uverbs_copy_to_struct_or_zero(const struct uverbs_attr_bundle *bundle,
 	}
 	return uverbs_copy_to(bundle, idx, from, size);
 }
+
+/* Once called an abort will call through to the type's destroy_hw() */
+void uverbs_finalize_uobj_create(const struct uverbs_attr_bundle *bundle,
+				 u16 idx)
+{
+	struct bundle_priv *pbundle =
+		container_of(bundle, struct bundle_priv, bundle);
+
+	__set_bit(uapi_bkey_attr(uapi_key_attr(idx)),
+		  pbundle->uobj_hw_obj_valid);
+}
+EXPORT_SYMBOL(uverbs_finalize_uobj_create);

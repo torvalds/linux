@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 // Copyright (c) 2020 Intel Corporation
 
 /*
@@ -16,7 +16,6 @@
 #include "../../codecs/hdac_hdmi.h"
 #include "hda_dsp_common.h"
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC)
 static struct snd_soc_jack hdmi[MAX_HDMI_NUM];
 
 struct hdmi_pcm {
@@ -28,7 +27,7 @@ struct hdmi_pcm {
 int sof_sdw_hdmi_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct mc_private *ctx = snd_soc_card_get_drvdata(rtd->card);
-	struct snd_soc_dai *dai = rtd->codec_dai;
+	struct snd_soc_dai *dai = asoc_rtd_to_codec(rtd, 0);
 	struct hdmi_pcm *pcm;
 
 	pcm = devm_kzalloc(rtd->card->dev, sizeof(*pcm), GFP_KERNEL);
@@ -89,9 +88,3 @@ int sof_sdw_hdmi_card_late_probe(struct snd_soc_card *card)
 
 	return hdac_hdmi_jack_port_init(component, &card->dapm);
 }
-#else
-int hdmi_card_late_probe(struct snd_soc_card *card)
-{
-	return 0;
-}
-#endif

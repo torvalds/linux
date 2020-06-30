@@ -124,6 +124,19 @@ Description:
 		authentication is performed (e.g: 802.1x). 'link_mode' attribute
 		will also reflect the dormant state.
 
+What:		/sys/class/net/<iface>/testing
+Date:		April 2002
+KernelVersion:	5.8
+Contact:	netdev@vger.kernel.org
+Description:
+		Indicates whether the interface is under test. Possible
+		values are:
+		0: interface is not being tested
+		1: interface is being tested
+
+		When an interface is under test, it cannot be expected
+		to pass packets as normal.
+
 What:		/sys/clas/net/<iface>/duplex
 Date:		October 2009
 KernelVersion:	2.6.33

@@ -909,6 +909,8 @@ static irqreturn_t imx_uart_int(int irq, void *dev_id)
 		usr2 &= ~USR2_ORE;
 
 	if (usr1 & (USR1_RRDY | USR1_AGTIM)) {
+		imx_uart_writel(sport, USR1_AGTIM, USR1);
+
 		__imx_uart_rxint(irq, dev_id);
 		ret = IRQ_HANDLED;
 	}
@@ -2252,6 +2254,8 @@ static int imx_uart_probe(struct platform_device *pdev)
 		return PTR_ERR(base);
 
 	rxirq = platform_get_irq(pdev, 0);
+	if (rxirq < 0)
+		return rxirq;
 	txirq = platform_get_irq_optional(pdev, 1);
 	rtsirq = platform_get_irq_optional(pdev, 2);
 
@@ -2302,7 +2306,11 @@ static int imx_uart_probe(struct platform_device *pdev)
 	sport->ucr4 = readl(sport->port.membase + UCR4);
 	sport->ufcr = readl(sport->port.membase + UFCR);
 
-	uart_get_rs485_mode(&pdev->dev, &sport->port.rs485);
+	ret = uart_get_rs485_mode(&sport->port);
+	if (ret) {
+		clk_disable_unprepare(sport->clk_ipg);
+		return ret;
+	}
 
 	if (sport->port.rs485.flags & SER_RS485_ENABLED &&
 	    (!sport->have_rtscts && !sport->have_rtsgpio))
@@ -2397,6 +2405,9 @@ static int imx_uart_probe(struct platform_device *pdev)
 			return ret;
 		}
 	}
+
+	/* We need to initialize lock even for non-registered console */
+	spin_lock_init(&sport->port.lock);
 
 	imx_uart_ports[sport->port.line] = sport;
 

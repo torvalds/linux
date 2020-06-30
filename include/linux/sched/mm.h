@@ -49,9 +49,11 @@ static inline void mmdrop(struct mm_struct *mm)
 		__mmdrop(mm);
 }
 
+void mmdrop(struct mm_struct *mm);
+
 /*
  * This has to be called after a get_task_mm()/mmget_not_zero()
- * followed by taking the mmap_sem for writing before modifying the
+ * followed by taking the mmap_lock for writing before modifying the
  * vmas or anything the coredump pretends not to change from under it.
  *
  * It also has to be called when mmgrab() is used in the context of
@@ -59,14 +61,14 @@ static inline void mmdrop(struct mm_struct *mm)
  * the context of the process to run down_write() on that pinned mm.
  *
  * NOTE: find_extend_vma() called from GUP context is the only place
- * that can modify the "mm" (notably the vm_start/end) under mmap_sem
+ * that can modify the "mm" (notably the vm_start/end) under mmap_lock
  * for reading and outside the context of the process, so it is also
- * the only case that holds the mmap_sem for reading that must call
- * this function. Generally if the mmap_sem is hold for reading
+ * the only case that holds the mmap_lock for reading that must call
+ * this function. Generally if the mmap_lock is hold for reading
  * there's no need of this check after get_task_mm()/mmget_not_zero().
  *
  * This function can be obsoleted and the check can be removed, after
- * the coredump code will hold the mmap_sem for writing before
+ * the coredump code will hold the mmap_lock for writing before
  * invoking the ->core_dump methods.
  */
 static inline bool mmget_still_valid(struct mm_struct *mm)

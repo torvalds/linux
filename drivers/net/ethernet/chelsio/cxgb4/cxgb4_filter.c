@@ -165,6 +165,9 @@ static void set_nat_params(struct adapter *adap, struct filter_entry *f,
 			   unsigned int tid, bool dip, bool sip, bool dp,
 			   bool sp)
 {
+	u8 *nat_lp = (u8 *)&f->fs.nat_lport;
+	u8 *nat_fp = (u8 *)&f->fs.nat_fport;
+
 	if (dip) {
 		if (f->fs.type) {
 			set_tcb_field(adap, f, tid, TCB_SND_UNA_RAW_W,
@@ -236,8 +239,9 @@ static void set_nat_params(struct adapter *adap, struct filter_entry *f,
 	}
 
 	set_tcb_field(adap, f, tid, TCB_PDU_HDR_LEN_W, WORD_MASK,
-		      (dp ? f->fs.nat_lport : 0) |
-		      (sp ? f->fs.nat_fport << 16 : 0), 1);
+		      (dp ? (nat_lp[1] | nat_lp[0] << 8) : 0) |
+		      (sp ? (nat_fp[1] << 16 | nat_fp[0] << 24) : 0),
+		      1);
 }
 
 /* Validate filter spec against configuration done on the card. */
@@ -909,6 +913,9 @@ int set_filter_wr(struct adapter *adapter, int fidx)
 	fwr->fpm = htons(f->fs.mask.fport);
 
 	if (adapter->params.filter2_wr_support) {
+		u8 *nat_lp = (u8 *)&f->fs.nat_lport;
+		u8 *nat_fp = (u8 *)&f->fs.nat_fport;
+
 		fwr->natmode_to_ulp_type =
 			FW_FILTER2_WR_ULP_TYPE_V(f->fs.nat_mode ?
 						 ULP_MODE_TCPDDP :
@@ -916,8 +923,8 @@ int set_filter_wr(struct adapter *adapter, int fidx)
 			FW_FILTER2_WR_NATMODE_V(f->fs.nat_mode);
 		memcpy(fwr->newlip, f->fs.nat_lip, sizeof(fwr->newlip));
 		memcpy(fwr->newfip, f->fs.nat_fip, sizeof(fwr->newfip));
-		fwr->newlport = htons(f->fs.nat_lport);
-		fwr->newfport = htons(f->fs.nat_fport);
+		fwr->newlport = htons(nat_lp[1] | nat_lp[0] << 8);
+		fwr->newfport = htons(nat_fp[1] | nat_fp[0] << 8);
 	}
 
 	/* Mark the filter as "pending" and ship off the Filter Work Request.
@@ -1105,16 +1112,16 @@ static bool is_addr_all_mask(u8 *ipmask, int family)
 		struct in_addr *addr;
 
 		addr = (struct in_addr *)ipmask;
-		if (addr->s_addr == 0xffffffff)
+		if (ntohl(addr->s_addr) == 0xffffffff)
 			return true;
 	} else if (family == AF_INET6) {
 		struct in6_addr *addr6;
 
 		addr6 = (struct in6_addr *)ipmask;
-		if (addr6->s6_addr32[0] == 0xffffffff &&
-		    addr6->s6_addr32[1] == 0xffffffff &&
-		    addr6->s6_addr32[2] == 0xffffffff &&
-		    addr6->s6_addr32[3] == 0xffffffff)
+		if (ntohl(addr6->s6_addr32[0]) == 0xffffffff &&
+		    ntohl(addr6->s6_addr32[1]) == 0xffffffff &&
+		    ntohl(addr6->s6_addr32[2]) == 0xffffffff &&
+		    ntohl(addr6->s6_addr32[3]) == 0xffffffff)
 			return true;
 	}
 	return false;

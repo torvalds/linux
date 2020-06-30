@@ -59,18 +59,6 @@ int __cvmx_helper_npi_probe(int interface)
 		 && !OCTEON_IS_MODEL(OCTEON_CN52XX_PASS1_X))
 		/* The packet engines didn't exist before pass 2 */
 		return 4;
-#if 0
-	/*
-	 * Technically CN30XX, CN31XX, and CN50XX contain packet
-	 * engines, but nobody ever uses them. Since this is the case,
-	 * we disable them here.
-	 */
-	else if (OCTEON_IS_MODEL(OCTEON_CN31XX)
-		 || OCTEON_IS_MODEL(OCTEON_CN50XX))
-		return 2;
-	else if (OCTEON_IS_MODEL(OCTEON_CN30XX))
-		return 1;
-#endif
 #endif
 	return 0;
 }

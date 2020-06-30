@@ -708,14 +708,23 @@ struct fwnode_handle *device_get_next_child_node(struct device *dev,
 						 struct fwnode_handle *child)
 {
 	struct acpi_device *adev = ACPI_COMPANION(dev);
-	struct fwnode_handle *fwnode = NULL;
+	struct fwnode_handle *fwnode = NULL, *next;
 
 	if (dev->of_node)
 		fwnode = &dev->of_node->fwnode;
 	else if (adev)
 		fwnode = acpi_fwnode_handle(adev);
 
-	return fwnode_get_next_child_node(fwnode, child);
+	/* Try to find a child in primary fwnode */
+	next = fwnode_get_next_child_node(fwnode, child);
+	if (next)
+		return next;
+
+	/* When no more children in primary, continue with secondary */
+	if (!IS_ERR_OR_NULL(fwnode->secondary))
+		next = fwnode_get_next_child_node(fwnode->secondary, child);
+
+	return next;
 }
 EXPORT_SYMBOL_GPL(device_get_next_child_node);
 

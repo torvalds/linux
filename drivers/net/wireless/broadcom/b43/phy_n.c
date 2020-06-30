@@ -5507,7 +5507,7 @@ static int b43_nphy_cal_tx_iq_lo(struct b43_wldev *dev,
 			core = (cmd & 0x3000) >> 12;
 			type = (cmd & 0x0F00) >> 8;
 
-			if (phy6or5x && updated[core] == 0) {
+			if (phy6or5x && !updated[core]) {
 				b43_nphy_update_tx_cal_ladder(dev, core);
 				updated[core] = true;
 			}

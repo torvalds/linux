@@ -125,13 +125,11 @@ int hsr_get_max_mtu(struct hsr_priv *hsr)
 static int hsr_dev_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct hsr_priv *hsr;
-	struct hsr_port *master;
 
 	hsr = netdev_priv(dev);
-	master = hsr_port_get_hsr(hsr, HSR_PT_MASTER);
 
 	if (new_mtu > hsr_get_max_mtu(hsr)) {
-		netdev_info(master->dev, "A HSR master's MTU cannot be greater than the smallest MTU of its slaves minus the HSR Tag length (%d octets).\n",
+		netdev_info(dev, "A HSR master's MTU cannot be greater than the smallest MTU of its slaves minus the HSR Tag length (%d octets).\n",
 			    HSR_HLEN);
 		return -EINVAL;
 	}
@@ -341,7 +339,7 @@ static void hsr_announce(struct timer_list *t)
 	rcu_read_unlock();
 }
 
-static void hsr_del_ports(struct hsr_priv *hsr)
+void hsr_del_ports(struct hsr_priv *hsr)
 {
 	struct hsr_port *port;
 
@@ -358,31 +356,12 @@ static void hsr_del_ports(struct hsr_priv *hsr)
 		hsr_del_port(port);
 }
 
-/* This has to be called after all the readers are gone.
- * Otherwise we would have to check the return value of
- * hsr_port_get_hsr().
- */
-static void hsr_dev_destroy(struct net_device *hsr_dev)
-{
-	struct hsr_priv *hsr = netdev_priv(hsr_dev);
-
-	hsr_debugfs_term(hsr);
-	hsr_del_ports(hsr);
-
-	del_timer_sync(&hsr->prune_timer);
-	del_timer_sync(&hsr->announce_timer);
-
-	hsr_del_self_node(hsr);
-	hsr_del_nodes(&hsr->node_db);
-}
-
 static const struct net_device_ops hsr_device_ops = {
 	.ndo_change_mtu = hsr_dev_change_mtu,
 	.ndo_open = hsr_dev_open,
 	.ndo_stop = hsr_dev_close,
 	.ndo_start_xmit = hsr_dev_xmit,
 	.ndo_fix_features = hsr_fix_features,
-	.ndo_uninit = hsr_dev_destroy,
 };
 
 static struct device_type hsr_type = {

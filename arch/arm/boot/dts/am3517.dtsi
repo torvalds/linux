@@ -169,5 +169,25 @@
 	status = "disabled";
 };
 
-/include/ "am35xx-clocks.dtsi"
-/include/ "omap36xx-am35xx-omap3430es2plus-clocks.dtsi"
+#include "am35xx-clocks.dtsi"
+#include "omap36xx-am35xx-omap3430es2plus-clocks.dtsi"
+
+/* Preferred always-on timer for clocksource */
+&timer1_target {
+	ti,no-reset-on-init;
+	ti,no-idle;
+	timer@0 {
+		assigned-clocks = <&gpt1_fck>;
+		assigned-clock-parents = <&sys_ck>;
+	};
+};
+
+/* Preferred timer for clockevent */
+&timer2_target {
+	ti,no-reset-on-init;
+	ti,no-idle;
+	timer@0 {
+		assigned-clocks = <&gpt2_fck>;
+		assigned-clock-parents = <&sys_ck>;
+	};
+};

@@ -295,6 +295,15 @@
 		VDDIO-supply = <&reg_3p3v>;
 	};
 
+	magn@1c {
+		compatible = "st,lsm9ds1-magn";
+		reg = <0x1c>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_mag>;
+		interrupt-parent = <&gpio5>;
+		interrupts = <9 IRQ_TYPE_EDGE_RISING>;
+	};
+
 	tca8418: keypad@34 {
 		compatible = "ti,tca8418";
 		pinctrl-names = "default";
@@ -388,6 +397,16 @@
 				regulator-always-on;
 			};
 		};
+	};
+
+	imu@6a {
+		compatible = "st,lsm9ds1-imu";
+		reg = <0x6a>;
+		st,drdy-int-pin = <1>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_imu>;
+		interrupt-parent = <&gpio5>;
+		interrupts = <6 IRQ_TYPE_LEVEL_HIGH>;
 	};
 };
 
@@ -609,10 +628,22 @@
 		>;
 	};
 
+	pinctrl_imu: imugrp {
+		fsl,pins = <
+			MX6QDL_PAD_DISP0_DAT12__GPIO5_IO06	0x1b0b0
+		>;
+	};
+
 	pinctrl_keypad: keypadgrp {
 		fsl,pins = <
 			MX6QDL_PAD_DISP0_DAT17__GPIO5_IO11	0x0001b0b0 /* KEYPAD_IRQ# */
 			MX6QDL_PAD_DISP0_DAT9__GPIO4_IO30	0x0001b0b0 /* KEYPAD_LED_EN */
+		>;
+	};
+
+	pinctrl_mag: maggrp {
+		fsl,pins = <
+			MX6QDL_PAD_DISP0_DAT15__GPIO5_IO09	0x1b0b0
 		>;
 	};
 

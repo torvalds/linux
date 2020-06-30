@@ -10,9 +10,9 @@
 #include <linux/memblock.h>
 #include <linux/dmi.h>
 #include <linux/cpumask.h>
+#include <linux/pgtable.h>
 #include <asm/segment.h>
 #include <asm/desc.h>
-#include <asm/pgtable.h>
 #include <asm/cacheflush.h>
 #include <asm/realmode.h>
 

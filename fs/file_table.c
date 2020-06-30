@@ -80,14 +80,14 @@ EXPORT_SYMBOL_GPL(get_max_files);
  */
 #if defined(CONFIG_SYSCTL) && defined(CONFIG_PROC_FS)
 int proc_nr_files(struct ctl_table *table, int write,
-                     void __user *buffer, size_t *lenp, loff_t *ppos)
+                     void *buffer, size_t *lenp, loff_t *ppos)
 {
 	files_stat.nr_files = get_nr_files();
 	return proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
 }
 #else
 int proc_nr_files(struct ctl_table *table, int write,
-                     void __user *buffer, size_t *lenp, loff_t *ppos)
+                     void *buffer, size_t *lenp, loff_t *ppos)
 {
 	return -ENOSYS;
 }
@@ -198,6 +198,7 @@ static struct file *alloc_file(const struct path *path, int flags,
 	file->f_inode = path->dentry->d_inode;
 	file->f_mapping = path->dentry->d_inode->i_mapping;
 	file->f_wb_err = filemap_sample_wb_err(file->f_mapping);
+	file->f_sb_err = file_sample_sb_err(file);
 	if ((file->f_mode & FMODE_READ) &&
 	     likely(fop->read || fop->read_iter))
 		file->f_mode |= FMODE_CAN_READ;
@@ -229,7 +230,7 @@ struct file *alloc_file_pseudo(struct inode *inode, struct vfsmount *mnt,
 		d_set_d_op(path.dentry, &anon_ops);
 	path.mnt = mntget(mnt);
 	d_instantiate(path.dentry, inode);
-	file = alloc_file(&path, flags, fops);
+	file = alloc_file(&path, flags | FMODE_NONOTIFY, fops);
 	if (IS_ERR(file)) {
 		ihold(inode);
 		path_put(&path);

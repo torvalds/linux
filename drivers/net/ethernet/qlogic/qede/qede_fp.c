@@ -1066,6 +1066,7 @@ static bool qede_rx_xdp(struct qede_dev *edev,
 	xdp_set_data_meta_invalid(&xdp);
 	xdp.data_end = xdp.data + *len;
 	xdp.rxq = &rxq->xdp_rxq;
+	xdp.frame_sz = rxq->rx_buf_seg_size; /* PAGE_SIZE when XDP enabled */
 
 	/* Queues always have a full reset currently, so for the time
 	 * being until there's atomic program replace just mark read

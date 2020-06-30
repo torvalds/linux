@@ -10,7 +10,7 @@
 #include <linux/phy.h>
 #include <dt-bindings/net/mscc-phy-vsc8531.h>
 
-#include <crypto/skcipher.h>
+#include <crypto/aes.h>
 
 #include <net/macsec.h>
 
@@ -316,6 +316,8 @@ static void vsc8584_macsec_mac_init(struct phy_device *phydev,
 /* Must be called with mdio_lock taken */
 static int __vsc8584_macsec_init(struct phy_device *phydev)
 {
+	struct vsc8531_private *priv = phydev->priv;
+	enum macsec_bank proc_bank;
 	u32 val;
 
 	vsc8584_macsec_block_init(phydev, MACSEC_INGR);
@@ -351,12 +353,14 @@ static int __vsc8584_macsec_init(struct phy_device *phydev)
 	val |= MSCC_FCBUF_ENA_CFG_TX_ENA | MSCC_FCBUF_ENA_CFG_RX_ENA;
 	vsc8584_macsec_phy_write(phydev, FC_BUFFER, MSCC_FCBUF_ENA_CFG, val);
 
-	val = vsc8584_macsec_phy_read(phydev, IP_1588,
-				      MSCC_PROC_0_IP_1588_TOP_CFG_STAT_MODE_CTL);
-	val &= ~MSCC_PROC_0_IP_1588_TOP_CFG_STAT_MODE_CTL_PROTOCOL_MODE_M;
-	val |= MSCC_PROC_0_IP_1588_TOP_CFG_STAT_MODE_CTL_PROTOCOL_MODE(4);
-	vsc8584_macsec_phy_write(phydev, IP_1588,
-				 MSCC_PROC_0_IP_1588_TOP_CFG_STAT_MODE_CTL, val);
+	proc_bank = (priv->addr < 2) ? PROC_0 : PROC_2;
+
+	val = vsc8584_macsec_phy_read(phydev, proc_bank,
+				      MSCC_PROC_IP_1588_TOP_CFG_STAT_MODE_CTL);
+	val &= ~MSCC_PROC_IP_1588_TOP_CFG_STAT_MODE_CTL_PROTOCOL_MODE_M;
+	val |= MSCC_PROC_IP_1588_TOP_CFG_STAT_MODE_CTL_PROTOCOL_MODE(4);
+	vsc8584_macsec_phy_write(phydev, proc_bank,
+				 MSCC_PROC_IP_1588_TOP_CFG_STAT_MODE_CTL, val);
 
 	return 0;
 }
@@ -496,39 +500,17 @@ static u32 vsc8584_macsec_flow_context_id(struct macsec_flow *flow)
 static int vsc8584_macsec_derive_key(const u8 key[MACSEC_KEYID_LEN],
 				     u16 key_len, u8 hkey[16])
 {
-	struct crypto_skcipher *tfm = crypto_alloc_skcipher("ecb(aes)", 0, 0);
-	struct skcipher_request *req = NULL;
-	struct scatterlist src, dst;
-	DECLARE_CRYPTO_WAIT(wait);
-	u32 input[4] = {0};
+	const u8 input[AES_BLOCK_SIZE] = {0};
+	struct crypto_aes_ctx ctx;
 	int ret;
 
-	if (IS_ERR(tfm))
-		return PTR_ERR(tfm);
+	ret = aes_expandkey(&ctx, key, key_len);
+	if (ret)
+		return ret;
 
-	req = skcipher_request_alloc(tfm, GFP_KERNEL);
-	if (!req) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	skcipher_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG |
-				      CRYPTO_TFM_REQ_MAY_SLEEP, crypto_req_done,
-				      &wait);
-	ret = crypto_skcipher_setkey(tfm, key, key_len);
-	if (ret < 0)
-		goto out;
-
-	sg_init_one(&src, input, 16);
-	sg_init_one(&dst, hkey, 16);
-	skcipher_request_set_crypt(req, &src, &dst, 16, NULL);
-
-	ret = crypto_wait_req(crypto_skcipher_encrypt(req), &wait);
-
-out:
-	skcipher_request_free(req);
-	crypto_free_skcipher(tfm);
-	return ret;
+	aes_encrypt(&ctx, hkey, input);
+	memzero_explicit(&ctx, sizeof(ctx));
+	return 0;
 }
 
 static int vsc8584_macsec_transformation(struct phy_device *phydev,

@@ -62,6 +62,20 @@ core507d_ntfy_init(struct nouveau_bo *bo, u32 offset)
 	nouveau_bo_wr32(bo, offset / 4, 0x00000000);
 }
 
+int
+core507d_caps_init(struct nouveau_drm *drm, struct nv50_disp *disp)
+{
+	u32 *push = evo_wait(&disp->core->chan, 2);
+
+	if (push) {
+		evo_mthd(push, 0x008c, 1);
+		evo_data(push, 0x0);
+		evo_kick(push, &disp->core->chan);
+	}
+
+	return 0;
+}
+
 void
 core507d_init(struct nv50_core *core)
 {
@@ -77,6 +91,7 @@ static const struct nv50_core_func
 core507d = {
 	.init = core507d_init,
 	.ntfy_init = core507d_ntfy_init,
+	.caps_init = core507d_caps_init,
 	.ntfy_wait_done = core507d_ntfy_wait_done,
 	.update = core507d_update,
 	.head = &head507d,

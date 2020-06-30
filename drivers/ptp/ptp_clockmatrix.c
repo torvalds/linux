@@ -10,6 +10,7 @@
 #include <linux/module.h>
 #include <linux/ptp_clock_kernel.h>
 #include <linux/delay.h>
+#include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/timekeeping.h>
 
@@ -23,6 +24,16 @@ MODULE_VERSION("1.0");
 MODULE_LICENSE("GPL");
 
 #define SETTIME_CORRECTION (0)
+
+static long set_write_phase_ready(struct ptp_clock_info *ptp)
+{
+	struct idtcm_channel *channel =
+		container_of(ptp, struct idtcm_channel, caps);
+
+	channel->write_phase_ready = 1;
+
+	return 0;
+}
 
 static int char_array_to_timespec(u8 *buf,
 				  u8 count,
@@ -780,7 +791,7 @@ static int idtcm_load_firmware(struct idtcm *idtcm,
 
 			/* Page size 128, last 4 bytes of page skipped */
 			if (((loaddr > 0x7b) && (loaddr <= 0x7f))
-			     || ((loaddr > 0xfb) && (loaddr <= 0xff)))
+			     || loaddr > 0xfb)
 				continue;
 
 			err = idtcm_write(idtcm, regaddr, 0, &val, sizeof(val));
@@ -870,6 +881,64 @@ static int idtcm_set_pll_mode(struct idtcm_channel *channel,
 }
 
 /* PTP Hardware Clock interface */
+
+/**
+ * @brief Maximum absolute value for write phase offset in picoseconds
+ *
+ * Destination signed register is 32-bit register in resolution of 50ps
+ *
+ * 0x7fffffff * 50 =  2147483647 * 50 = 107374182350
+ */
+static int _idtcm_adjphase(struct idtcm_channel *channel, s32 delta_ns)
+{
+	struct idtcm *idtcm = channel->idtcm;
+
+	int err;
+	u8 i;
+	u8 buf[4] = {0};
+	s32 phase_50ps;
+	s64 offset_ps;
+
+	if (channel->pll_mode != PLL_MODE_WRITE_PHASE) {
+
+		err = idtcm_set_pll_mode(channel, PLL_MODE_WRITE_PHASE);
+
+		if (err)
+			return err;
+
+		channel->write_phase_ready = 0;
+
+		ptp_schedule_worker(channel->ptp_clock,
+				    msecs_to_jiffies(WR_PHASE_SETUP_MS));
+	}
+
+	if (!channel->write_phase_ready)
+		delta_ns = 0;
+
+	offset_ps = (s64)delta_ns * 1000;
+
+	/*
+	 * Check for 32-bit signed max * 50:
+	 *
+	 * 0x7fffffff * 50 =  2147483647 * 50 = 107374182350
+	 */
+	if (offset_ps > MAX_ABS_WRITE_PHASE_PICOSECONDS)
+		offset_ps = MAX_ABS_WRITE_PHASE_PICOSECONDS;
+	else if (offset_ps < -MAX_ABS_WRITE_PHASE_PICOSECONDS)
+		offset_ps = -MAX_ABS_WRITE_PHASE_PICOSECONDS;
+
+	phase_50ps = DIV_ROUND_CLOSEST(div64_s64(offset_ps, 50), 1);
+
+	for (i = 0; i < 4; i++) {
+		buf[i] = phase_50ps & 0xff;
+		phase_50ps >>= 8;
+	}
+
+	err = idtcm_write(idtcm, channel->dpll_phase, DPLL_WR_PHASE,
+			  buf, sizeof(buf));
+
+	return err;
+}
 
 static int idtcm_adjfreq(struct ptp_clock_info *ptp, s32 ppb)
 {
@@ -977,6 +1046,24 @@ static int idtcm_adjtime(struct ptp_clock_info *ptp, s64 delta)
 	return err;
 }
 
+static int idtcm_adjphase(struct ptp_clock_info *ptp, s32 delta)
+{
+	struct idtcm_channel *channel =
+		container_of(ptp, struct idtcm_channel, caps);
+
+	struct idtcm *idtcm = channel->idtcm;
+
+	int err;
+
+	mutex_lock(&idtcm->reg_lock);
+
+	err = _idtcm_adjphase(channel, delta);
+
+	mutex_unlock(&idtcm->reg_lock);
+
+	return err;
+}
+
 static int idtcm_enable(struct ptp_clock_info *ptp,
 			struct ptp_clock_request *rq, int on)
 {
@@ -1055,12 +1142,15 @@ static const struct ptp_clock_info idtcm_caps = {
 	.owner		= THIS_MODULE,
 	.max_adj	= 244000,
 	.n_per_out	= 1,
+	.adjphase	= &idtcm_adjphase,
 	.adjfreq	= &idtcm_adjfreq,
 	.adjtime	= &idtcm_adjtime,
 	.gettime64	= &idtcm_gettime,
 	.settime64	= &idtcm_settime,
 	.enable		= &idtcm_enable,
+	.do_aux_work	= &set_write_phase_ready,
 };
+
 
 static int idtcm_enable_channel(struct idtcm *idtcm, u32 index)
 {
@@ -1145,6 +1235,8 @@ static int idtcm_enable_channel(struct idtcm *idtcm, u32 index)
 
 	if (!channel->ptp_clock)
 		return -ENOTSUPP;
+
+	channel->write_phase_ready = 0;
 
 	dev_info(&idtcm->client->dev, "PLL%d registered as ptp%d\n",
 		 index, channel->ptp_clock->index);

@@ -1143,7 +1143,6 @@
 
 		target-module@32000 {			/* 0x48032000, ap 5 3e.0 */
 			compatible = "ti,sysc-omap4-timer", "ti,sysc";
-			ti,hwmods = "timer2";
 			reg = <0x32000 0x4>,
 			      <0x32010 0x4>;
 			reg-names = "rev", "sysc";
@@ -1163,15 +1162,14 @@
 			timer2: timer@0 {
 				compatible = "ti,omap5430-timer";
 				reg = <0x0 0x80>;
-				clocks = <&l4per_clkctrl DRA7_L4PER_TIMER2_CLKCTRL 24>;
-				clock-names = "fck";
+				clocks = <&l4per_clkctrl DRA7_L4PER_TIMER2_CLKCTRL 24>, <&timer_sys_clk_div>;
+				clock-names = "fck", "timer_sys_ck";
 				interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
 			};
 		};
 
 		target-module@34000 {			/* 0x48034000, ap 7 46.0 */
 			compatible = "ti,sysc-omap4-timer", "ti,sysc";
-			ti,hwmods = "timer3";
 			reg = <0x34000 0x4>,
 			      <0x34010 0x4>;
 			reg-names = "rev", "sysc";
@@ -1191,15 +1189,14 @@
 			timer3: timer@0 {
 				compatible = "ti,omap5430-timer";
 				reg = <0x0 0x80>;
-				clocks = <&l4per_clkctrl DRA7_L4PER_TIMER3_CLKCTRL 24>;
-				clock-names = "fck";
+				clocks = <&l4per_clkctrl DRA7_L4PER_TIMER3_CLKCTRL 24>, <&timer_sys_clk_div>;
+				clock-names = "fck", "timer_sys_ck";
 				interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
 			};
 		};
 
 		target-module@36000 {			/* 0x48036000, ap 9 4e.0 */
 			compatible = "ti,sysc-omap4-timer", "ti,sysc";
-			ti,hwmods = "timer4";
 			reg = <0x36000 0x4>,
 			      <0x36010 0x4>;
 			reg-names = "rev", "sysc";
@@ -1219,8 +1216,8 @@
 			timer4: timer@0 {
 				compatible = "ti,omap5430-timer";
 				reg = <0x0 0x80>;
-				clocks = <&l4per_clkctrl DRA7_L4PER_TIMER4_CLKCTRL 24>;
-				clock-names = "fck";
+				clocks = <&l4per_clkctrl DRA7_L4PER_TIMER4_CLKCTRL 24>, <&timer_sys_clk_div>;
+				clock-names = "fck", "timer_sys_ck";
 				interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
 			};
 		};
@@ -1246,8 +1243,8 @@
 			timer9: timer@0 {
 				compatible = "ti,omap5430-timer";
 				reg = <0x0 0x80>;
-				clocks = <&l4per_clkctrl DRA7_L4PER_TIMER9_CLKCTRL 24>;
-				clock-names = "fck";
+				clocks = <&l4per_clkctrl DRA7_L4PER_TIMER9_CLKCTRL 24>, <&timer_sys_clk_div>;
+				clock-names = "fck", "timer_sys_ck";
 				interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>;
 			};
 		};
@@ -1853,8 +1850,8 @@
 			timer10: timer@0 {
 				compatible = "ti,omap5430-timer";
 				reg = <0x0 0x80>;
-				clocks = <&l4per_clkctrl DRA7_L4PER_TIMER10_CLKCTRL 24>;
-				clock-names = "fck";
+				clocks = <&l4per_clkctrl DRA7_L4PER_TIMER10_CLKCTRL 24>, <&timer_sys_clk_div>;
+				clock-names = "fck", "timer_sys_ck";
 				interrupts = <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>;
 			};
 		};
@@ -1880,8 +1877,8 @@
 			timer11: timer@0 {
 				compatible = "ti,omap5430-timer";
 				reg = <0x0 0x80>;
-				clocks = <&l4per_clkctrl DRA7_L4PER_TIMER11_CLKCTRL 24>;
-				clock-names = "fck";
+				clocks = <&l4per_clkctrl DRA7_L4PER_TIMER11_CLKCTRL 24>, <&timer_sys_clk_div>;
+				clock-names = "fck", "timer_sys_ck";
 				interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
 			};
 		};
@@ -3363,8 +3360,8 @@
 			timer5: timer@0 {
 				compatible = "ti,omap5430-timer";
 				reg = <0x0 0x80>;
-				clocks = <&ipu_clkctrl DRA7_IPU_TIMER5_CLKCTRL 24>;
-				clock-names = "fck";
+				clocks = <&ipu_clkctrl DRA7_IPU_TIMER5_CLKCTRL 24>, <&timer_sys_clk_div>;
+				clock-names = "fck", "timer_sys_ck";
 				interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
 			};
 		};
@@ -3390,8 +3387,8 @@
 			timer6: timer@0 {
 				compatible = "ti,omap5430-timer";
 				reg = <0x0 0x80>;
-				clocks = <&ipu_clkctrl DRA7_IPU_TIMER6_CLKCTRL 24>;
-				clock-names = "fck";
+				clocks = <&ipu_clkctrl DRA7_IPU_TIMER6_CLKCTRL 24>, <&timer_sys_clk_div>;
+				clock-names = "fck", "timer_sys_ck";
 				interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
 			};
 		};
@@ -3417,8 +3414,8 @@
 			timer7: timer@0 {
 				compatible = "ti,omap5430-timer";
 				reg = <0x0 0x80>;
-				clocks = <&ipu_clkctrl DRA7_IPU_TIMER7_CLKCTRL 24>;
-				clock-names = "fck";
+				clocks = <&ipu_clkctrl DRA7_IPU_TIMER7_CLKCTRL 24>, <&timer_sys_clk_div>;
+				clock-names = "fck", "timer_sys_ck";
 				interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
 			};
 		};
@@ -3444,8 +3441,8 @@
 			timer8: timer@0 {
 				compatible = "ti,omap5430-timer";
 				reg = <0x0 0x80>;
-				clocks = <&ipu_clkctrl DRA7_IPU_TIMER8_CLKCTRL 24>;
-				clock-names = "fck";
+				clocks = <&ipu_clkctrl DRA7_IPU_TIMER8_CLKCTRL 24>, <&timer_sys_clk_div>;
+				clock-names = "fck", "timer_sys_ck";
 				interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>;
 			};
 		};
@@ -3471,8 +3468,8 @@
 			timer13: timer@0 {
 				compatible = "ti,omap5430-timer";
 				reg = <0x0 0x80>;
-				clocks = <&l4per3_clkctrl DRA7_L4PER3_TIMER13_CLKCTRL 24>;
-				clock-names = "fck";
+				clocks = <&l4per3_clkctrl DRA7_L4PER3_TIMER13_CLKCTRL 24>, <&timer_sys_clk_div>;
+				clock-names = "fck", "timer_sys_ck";
 				interrupts = <GIC_SPI 339 IRQ_TYPE_LEVEL_HIGH>;
 				ti,timer-pwm;
 			};
@@ -3499,8 +3496,8 @@
 			timer14: timer@0 {
 				compatible = "ti,omap5430-timer";
 				reg = <0x0 0x80>;
-				clocks = <&l4per3_clkctrl DRA7_L4PER3_TIMER14_CLKCTRL 24>;
-				clock-names = "fck";
+				clocks = <&l4per3_clkctrl DRA7_L4PER3_TIMER14_CLKCTRL 24>, <&timer_sys_clk_div>;
+				clock-names = "fck", "timer_sys_ck";
 				interrupts = <GIC_SPI 340 IRQ_TYPE_LEVEL_HIGH>;
 				ti,timer-pwm;
 			};
@@ -3527,8 +3524,8 @@
 			timer15: timer@0 {
 				compatible = "ti,omap5430-timer";
 				reg = <0x0 0x80>;
-				clocks = <&l4per3_clkctrl DRA7_L4PER3_TIMER15_CLKCTRL 24>;
-				clock-names = "fck";
+				clocks = <&l4per3_clkctrl DRA7_L4PER3_TIMER15_CLKCTRL 24>, <&timer_sys_clk_div>;
+				clock-names = "fck", "timer_sys_ck";
 				interrupts = <GIC_SPI 341 IRQ_TYPE_LEVEL_HIGH>;
 				ti,timer-pwm;
 			};
@@ -3555,8 +3552,8 @@
 			timer16: timer@0 {
 				compatible = "ti,omap5430-timer";
 				reg = <0x0 0x80>;
-				clocks = <&l4per3_clkctrl DRA7_L4PER3_TIMER16_CLKCTRL 24>;
-				clock-names = "fck";
+				clocks = <&l4per3_clkctrl DRA7_L4PER3_TIMER16_CLKCTRL 24>, <&timer_sys_clk_div>;
+				clock-names = "fck", "timer_sys_ck";
 				interrupts = <GIC_SPI 342 IRQ_TYPE_LEVEL_HIGH>;
 				ti,timer-pwm;
 			};
@@ -4295,7 +4292,6 @@
 
 		target-module@4000 {			/* 0x4ae04000, ap 15 40.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "counter_32k";
 			reg = <0x4000 0x4>,
 			      <0x4010 0x4>;
 			reg-names = "rev", "sysc";
@@ -4430,9 +4426,8 @@
 			};
 		};
 
-		target-module@8000 {			/* 0x4ae18000, ap 9 30.0 */
+		timer1_target: target-module@8000 {	/* 0x4ae18000, ap 9 30.0 */
 			compatible = "ti,sysc-omap4-timer", "ti,sysc";
-			ti,hwmods = "timer1";
 			reg = <0x8000 0x4>,
 			      <0x8010 0x4>;
 			reg-names = "rev", "sysc";

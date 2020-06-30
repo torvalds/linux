@@ -10,7 +10,6 @@
 
 #include "gt/intel_context.h"
 #include "gt/intel_engine_pm.h"
-#include "gt/intel_engine_pool.h"
 #include "i915_vma.h"
 
 struct drm_i915_gem_object;

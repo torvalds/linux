@@ -388,6 +388,19 @@ int ionic_set_vf_config(struct ionic *ionic, int vf, u8 attr, u8 *data)
 }
 
 /* LIF commands */
+void ionic_dev_cmd_queue_identify(struct ionic_dev *idev,
+				  u16 lif_type, u8 qtype, u8 qver)
+{
+	union ionic_dev_cmd cmd = {
+		.q_identify.opcode = IONIC_CMD_Q_IDENTIFY,
+		.q_identify.lif_type = lif_type,
+		.q_identify.type = qtype,
+		.q_identify.ver = qver,
+	};
+
+	ionic_dev_cmd_go(idev, &cmd);
+}
+
 void ionic_dev_cmd_lif_identify(struct ionic_dev *idev, u8 type, u8 ver)
 {
 	union ionic_dev_cmd cmd = {
@@ -431,6 +444,7 @@ void ionic_dev_cmd_adminq_init(struct ionic_dev *idev, struct ionic_qcq *qcq,
 		.q_init.opcode = IONIC_CMD_Q_INIT,
 		.q_init.lif_index = cpu_to_le16(lif_index),
 		.q_init.type = q->type,
+		.q_init.ver = qcq->q.lif->qtype_info[q->type].version,
 		.q_init.index = cpu_to_le32(q->index),
 		.q_init.flags = cpu_to_le16(IONIC_QINIT_F_IRQ |
 					    IONIC_QINIT_F_ENA),

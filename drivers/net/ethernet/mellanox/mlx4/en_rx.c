@@ -683,6 +683,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 	rcu_read_lock();
 	xdp_prog = rcu_dereference(ring->xdp_prog);
 	xdp.rxq = &ring->xdp_rxq;
+	xdp.frame_sz = priv->frag_info[0].frag_stride;
 	doorbell_pending = 0;
 
 	/* We assume a 1:1 mapping between CQEs and Rx descriptors, so Rx
@@ -946,7 +947,7 @@ int mlx4_en_poll_rx_cq(struct napi_struct *napi, int budget)
 		xdp_tx_cq = priv->tx_cq[TX_XDP][cq->ring];
 		if (xdp_tx_cq->xdp_busy) {
 			clean_complete = mlx4_en_process_tx_cq(dev, xdp_tx_cq,
-							       budget);
+							       budget) < budget;
 			xdp_tx_cq->xdp_busy = !clean_complete;
 		}
 	}

@@ -159,6 +159,7 @@ static void ehci_wait_for_companions(struct pci_dev *pdev, struct usb_hcd *hcd,
  * usb_hcd_pci_probe - initialize PCI-based HCDs
  * @dev: USB Host Controller being probed
  * @id: pci hotplug id connecting controller to HCD framework
+ * @driver: USB HC driver handle
  * Context: !in_interrupt()
  *
  * Allocates basic PCI resources for this USB host controller, and
@@ -169,9 +170,9 @@ static void ehci_wait_for_companions(struct pci_dev *pdev, struct usb_hcd *hcd,
  *
  * Return: 0 if successful.
  */
-int usb_hcd_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
+int usb_hcd_pci_probe(struct pci_dev *dev, const struct pci_device_id *id,
+		      const struct hc_driver *driver)
 {
-	struct hc_driver	*driver;
 	struct usb_hcd		*hcd;
 	int			retval;
 	int			hcd_irq = 0;
@@ -181,7 +182,7 @@ int usb_hcd_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	if (!id)
 		return -EINVAL;
-	driver = (struct hc_driver *)id->driver_data;
+
 	if (!driver)
 		return -EINVAL;
 

@@ -665,23 +665,23 @@ static int svc_rdma_xdr_decode_req(struct xdr_buf *rq_arg,
 	return hdr_len;
 
 out_short:
-	trace_svcrdma_decode_short(rq_arg->len);
+	trace_svcrdma_decode_short_err(rq_arg->len);
 	return -EINVAL;
 
 out_version:
-	trace_svcrdma_decode_badvers(rdma_argp);
+	trace_svcrdma_decode_badvers_err(rdma_argp);
 	return -EPROTONOSUPPORT;
 
 out_drop:
-	trace_svcrdma_decode_drop(rdma_argp);
+	trace_svcrdma_decode_drop_err(rdma_argp);
 	return 0;
 
 out_proc:
-	trace_svcrdma_decode_badproc(rdma_argp);
+	trace_svcrdma_decode_badproc_err(rdma_argp);
 	return -EINVAL;
 
 out_inval:
-	trace_svcrdma_decode_parse(rdma_argp);
+	trace_svcrdma_decode_parse_err(rdma_argp);
 	return -EINVAL;
 }
 
@@ -878,12 +878,9 @@ int svc_rdma_recvfrom(struct svc_rqst *rqstp)
 		goto out_drop;
 	rqstp->rq_xprt_hlen = ret;
 
-	if (svc_rdma_is_backchannel_reply(xprt, p)) {
-		ret = svc_rdma_handle_bc_reply(xprt->xpt_bc_xprt, p,
-					       &rqstp->rq_arg);
-		svc_rdma_recv_ctxt_put(rdma_xprt, ctxt);
-		return ret;
-	}
+	if (svc_rdma_is_backchannel_reply(xprt, p))
+		goto out_backchannel;
+
 	svc_rdma_get_inv_rkey(rdma_xprt, ctxt);
 
 	p += rpcrdma_fixed_maxsz;
@@ -913,6 +910,8 @@ out_postfail:
 	svc_rdma_recv_ctxt_put(rdma_xprt, ctxt);
 	return ret;
 
+out_backchannel:
+	svc_rdma_handle_bc_reply(rqstp, ctxt);
 out_drop:
 	svc_rdma_recv_ctxt_put(rdma_xprt, ctxt);
 	return 0;

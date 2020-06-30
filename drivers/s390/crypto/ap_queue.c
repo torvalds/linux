@@ -568,11 +568,10 @@ static void ap_queue_device_release(struct device *dev)
 {
 	struct ap_queue *aq = to_ap_queue(dev);
 
-	if (!list_empty(&aq->list)) {
-		spin_lock_bh(&ap_list_lock);
-		list_del_init(&aq->list);
-		spin_unlock_bh(&ap_list_lock);
-	}
+	spin_lock_bh(&ap_queues_lock);
+	hash_del(&aq->hnode);
+	spin_unlock_bh(&ap_queues_lock);
+
 	kfree(aq);
 }
 
@@ -590,7 +589,6 @@ struct ap_queue *ap_queue_create(ap_qid_t qid, int device_type)
 	aq->state = AP_STATE_UNBOUND;
 	aq->interrupt = AP_INTR_DISABLED;
 	spin_lock_init(&aq->lock);
-	INIT_LIST_HEAD(&aq->list);
 	INIT_LIST_HEAD(&aq->pendingq);
 	INIT_LIST_HEAD(&aq->requestq);
 	timer_setup(&aq->timeout, ap_request_timeout, 0);

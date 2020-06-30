@@ -13,6 +13,8 @@
 #define LSAVE_A1	28
 #define LSAVE_A2	32
 #define LSAVE_A3	36
+#define LSAVE_A4	40
+#define LSAVE_A5	44
 
 #define KSPTOUSP
 #define USPTOKSP
@@ -63,7 +65,6 @@
 .endm
 
 .macro	RESTORE_ALL
-	psrclr  ie
 	ldw	tls, (sp, 0)
 	ldw	lr, (sp, 4)
 	ldw	a0, (sp, 8)
@@ -285,8 +286,8 @@
 	 */
 	mfcr	r6, cr<30, 15> /* Get MSA0 */
 2:
-	lsri	r6, 28
-	lsli	r6, 28
+	lsri	r6, 29
+	lsli	r6, 29
 	addi	r6, 0x1ce
 	mtcr	r6, cr<30, 15> /* Set MSA0 */
 
@@ -300,10 +301,5 @@
 
 	jmpi	3f /* jump to va */
 3:
-.endm
-
-.macro ANDI_R3 rx, imm
-	lsri	\rx, 3
-	andi	\rx, (\imm >> 3)
 .endm
 #endif /* __ASM_CSKY_ENTRY_H */

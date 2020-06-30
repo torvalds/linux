@@ -292,7 +292,7 @@
 #define DP_DSC_PEAK_THROUGHPUT              0x06B
 # define DP_DSC_THROUGHPUT_MODE_0_MASK      (0xf << 0)
 # define DP_DSC_THROUGHPUT_MODE_0_SHIFT     0
-# define DP_DSC_THROUGHPUT_MODE_0_UPSUPPORTED 0
+# define DP_DSC_THROUGHPUT_MODE_0_UNSUPPORTED 0
 # define DP_DSC_THROUGHPUT_MODE_0_340       (1 << 0)
 # define DP_DSC_THROUGHPUT_MODE_0_400       (2 << 0)
 # define DP_DSC_THROUGHPUT_MODE_0_450       (3 << 0)
@@ -310,7 +310,7 @@
 # define DP_DSC_THROUGHPUT_MODE_0_170       (15 << 0) /* 1.4a */
 # define DP_DSC_THROUGHPUT_MODE_1_MASK      (0xf << 4)
 # define DP_DSC_THROUGHPUT_MODE_1_SHIFT     4
-# define DP_DSC_THROUGHPUT_MODE_1_UPSUPPORTED 0
+# define DP_DSC_THROUGHPUT_MODE_1_UNSUPPORTED 0
 # define DP_DSC_THROUGHPUT_MODE_1_340       (1 << 4)
 # define DP_DSC_THROUGHPUT_MODE_1_400       (2 << 4)
 # define DP_DSC_THROUGHPUT_MODE_1_450       (3 << 4)
@@ -701,7 +701,16 @@
 # define DP_TEST_CRC_SUPPORTED		    (1 << 5)
 # define DP_TEST_COUNT_MASK		    0xf
 
-#define DP_TEST_PHY_PATTERN                 0x248
+#define DP_PHY_TEST_PATTERN                 0x248
+# define DP_PHY_TEST_PATTERN_SEL_MASK       0x7
+# define DP_PHY_TEST_PATTERN_NONE           0x0
+# define DP_PHY_TEST_PATTERN_D10_2          0x1
+# define DP_PHY_TEST_PATTERN_ERROR_COUNT    0x2
+# define DP_PHY_TEST_PATTERN_PRBS7          0x3
+# define DP_PHY_TEST_PATTERN_80BIT_CUSTOM   0x4
+# define DP_PHY_TEST_PATTERN_CP2520         0x5
+
+#define DP_TEST_HBR2_SCRAMBLER_RESET        0x24A
 #define DP_TEST_80BIT_CUSTOM_PATTERN_7_0    0x250
 #define	DP_TEST_80BIT_CUSTOM_PATTERN_15_8   0x251
 #define	DP_TEST_80BIT_CUSTOM_PATTERN_23_16  0x252
@@ -1209,6 +1218,139 @@ struct dp_sdp {
 #define EDP_VSC_PSR_UPDATE_RFB		(1<<1)
 #define EDP_VSC_PSR_CRC_VALUES_VALID	(1<<2)
 
+/**
+ * enum dp_pixelformat - drm DP Pixel encoding formats
+ *
+ * This enum is used to indicate DP VSC SDP Pixel encoding formats.
+ * It is based on DP 1.4 spec [Table 2-117: VSC SDP Payload for DB16 through
+ * DB18]
+ *
+ * @DP_PIXELFORMAT_RGB: RGB pixel encoding format
+ * @DP_PIXELFORMAT_YUV444: YCbCr 4:4:4 pixel encoding format
+ * @DP_PIXELFORMAT_YUV422: YCbCr 4:2:2 pixel encoding format
+ * @DP_PIXELFORMAT_YUV420: YCbCr 4:2:0 pixel encoding format
+ * @DP_PIXELFORMAT_Y_ONLY: Y Only pixel encoding format
+ * @DP_PIXELFORMAT_RAW: RAW pixel encoding format
+ * @DP_PIXELFORMAT_RESERVED: Reserved pixel encoding format
+ */
+enum dp_pixelformat {
+	DP_PIXELFORMAT_RGB = 0,
+	DP_PIXELFORMAT_YUV444 = 0x1,
+	DP_PIXELFORMAT_YUV422 = 0x2,
+	DP_PIXELFORMAT_YUV420 = 0x3,
+	DP_PIXELFORMAT_Y_ONLY = 0x4,
+	DP_PIXELFORMAT_RAW = 0x5,
+	DP_PIXELFORMAT_RESERVED = 0x6,
+};
+
+/**
+ * enum dp_colorimetry - drm DP Colorimetry formats
+ *
+ * This enum is used to indicate DP VSC SDP Colorimetry formats.
+ * It is based on DP 1.4 spec [Table 2-117: VSC SDP Payload for DB16 through
+ * DB18] and a name of enum member follows DRM_MODE_COLORIMETRY definition.
+ *
+ * @DP_COLORIMETRY_DEFAULT: sRGB (IEC 61966-2-1) or
+ *                          ITU-R BT.601 colorimetry format
+ * @DP_COLORIMETRY_RGB_WIDE_FIXED: RGB wide gamut fixed point colorimetry format
+ * @DP_COLORIMETRY_BT709_YCC: ITU-R BT.709 colorimetry format
+ * @DP_COLORIMETRY_RGB_WIDE_FLOAT: RGB wide gamut floating point
+ *                                 (scRGB (IEC 61966-2-2)) colorimetry format
+ * @DP_COLORIMETRY_XVYCC_601: xvYCC601 colorimetry format
+ * @DP_COLORIMETRY_OPRGB: OpRGB colorimetry format
+ * @DP_COLORIMETRY_XVYCC_709: xvYCC709 colorimetry format
+ * @DP_COLORIMETRY_DCI_P3_RGB: DCI-P3 (SMPTE RP 431-2) colorimetry format
+ * @DP_COLORIMETRY_SYCC_601: sYCC601 colorimetry format
+ * @DP_COLORIMETRY_RGB_CUSTOM: RGB Custom Color Profile colorimetry format
+ * @DP_COLORIMETRY_OPYCC_601: opYCC601 colorimetry format
+ * @DP_COLORIMETRY_BT2020_RGB: ITU-R BT.2020 R' G' B' colorimetry format
+ * @DP_COLORIMETRY_BT2020_CYCC: ITU-R BT.2020 Y'c C'bc C'rc colorimetry format
+ * @DP_COLORIMETRY_BT2020_YCC: ITU-R BT.2020 Y' C'b C'r colorimetry format
+ */
+enum dp_colorimetry {
+	DP_COLORIMETRY_DEFAULT = 0,
+	DP_COLORIMETRY_RGB_WIDE_FIXED = 0x1,
+	DP_COLORIMETRY_BT709_YCC = 0x1,
+	DP_COLORIMETRY_RGB_WIDE_FLOAT = 0x2,
+	DP_COLORIMETRY_XVYCC_601 = 0x2,
+	DP_COLORIMETRY_OPRGB = 0x3,
+	DP_COLORIMETRY_XVYCC_709 = 0x3,
+	DP_COLORIMETRY_DCI_P3_RGB = 0x4,
+	DP_COLORIMETRY_SYCC_601 = 0x4,
+	DP_COLORIMETRY_RGB_CUSTOM = 0x5,
+	DP_COLORIMETRY_OPYCC_601 = 0x5,
+	DP_COLORIMETRY_BT2020_RGB = 0x6,
+	DP_COLORIMETRY_BT2020_CYCC = 0x6,
+	DP_COLORIMETRY_BT2020_YCC = 0x7,
+};
+
+/**
+ * enum dp_dynamic_range - drm DP Dynamic Range
+ *
+ * This enum is used to indicate DP VSC SDP Dynamic Range.
+ * It is based on DP 1.4 spec [Table 2-117: VSC SDP Payload for DB16 through
+ * DB18]
+ *
+ * @DP_DYNAMIC_RANGE_VESA: VESA range
+ * @DP_DYNAMIC_RANGE_CTA: CTA range
+ */
+enum dp_dynamic_range {
+	DP_DYNAMIC_RANGE_VESA = 0,
+	DP_DYNAMIC_RANGE_CTA = 1,
+};
+
+/**
+ * enum dp_content_type - drm DP Content Type
+ *
+ * This enum is used to indicate DP VSC SDP Content Types.
+ * It is based on DP 1.4 spec [Table 2-117: VSC SDP Payload for DB16 through
+ * DB18]
+ * CTA-861-G defines content types and expected processing by a sink device
+ *
+ * @DP_CONTENT_TYPE_NOT_DEFINED: Not defined type
+ * @DP_CONTENT_TYPE_GRAPHICS: Graphics type
+ * @DP_CONTENT_TYPE_PHOTO: Photo type
+ * @DP_CONTENT_TYPE_VIDEO: Video type
+ * @DP_CONTENT_TYPE_GAME: Game type
+ */
+enum dp_content_type {
+	DP_CONTENT_TYPE_NOT_DEFINED = 0x00,
+	DP_CONTENT_TYPE_GRAPHICS = 0x01,
+	DP_CONTENT_TYPE_PHOTO = 0x02,
+	DP_CONTENT_TYPE_VIDEO = 0x03,
+	DP_CONTENT_TYPE_GAME = 0x04,
+};
+
+/**
+ * struct drm_dp_vsc_sdp - drm DP VSC SDP
+ *
+ * This structure represents a DP VSC SDP of drm
+ * It is based on DP 1.4 spec [Table 2-116: VSC SDP Header Bytes] and
+ * [Table 2-117: VSC SDP Payload for DB16 through DB18]
+ *
+ * @sdp_type: secondary-data packet type
+ * @revision: revision number
+ * @length: number of valid data bytes
+ * @pixelformat: pixel encoding format
+ * @colorimetry: colorimetry format
+ * @bpc: bit per color
+ * @dynamic_range: dynamic range information
+ * @content_type: CTA-861-G defines content types and expected processing by a sink device
+ */
+struct drm_dp_vsc_sdp {
+	unsigned char sdp_type;
+	unsigned char revision;
+	unsigned char length;
+	enum dp_pixelformat pixelformat;
+	enum dp_colorimetry colorimetry;
+	int bpc;
+	enum dp_dynamic_range dynamic_range;
+	enum dp_content_type content_type;
+};
+
+void drm_dp_vsc_sdp_log(const char *level, struct device *dev,
+			const struct drm_dp_vsc_sdp *vsc);
+
 int drm_dp_psr_setup_time(const u8 psr_cap[EDP_PSR_RECEIVER_CAP_SIZE]);
 
 static inline int
@@ -1548,6 +1690,13 @@ enum drm_dp_quirk {
 	 * capabilities advertised.
 	 */
 	DP_QUIRK_FORCE_DPCD_BACKLIGHT,
+	/**
+	 * @DP_DPCD_QUIRK_CAN_DO_MAX_LINK_RATE_3_24_GBPS:
+	 *
+	 * The device supports a link rate of 3.24 Gbps (multiplier 0xc) despite
+	 * the DP_MAX_LINK_RATE register reporting a lower max multiplier.
+	 */
+	DP_DPCD_QUIRK_CAN_DO_MAX_LINK_RATE_3_24_GBPS,
 };
 
 /**
@@ -1598,4 +1747,26 @@ static inline void drm_dp_cec_unset_edid(struct drm_dp_aux *aux)
 
 #endif
 
+/**
+ * struct drm_dp_phy_test_params - DP Phy Compliance parameters
+ * @link_rate: Requested Link rate from DPCD 0x219
+ * @num_lanes: Number of lanes requested by sing through DPCD 0x220
+ * @phy_pattern: DP Phy test pattern from DPCD 0x248
+ * @hb2_reset: DP HBR2_COMPLIANCE_SCRAMBLER_RESET from DCPD 0x24A and 0x24B
+ * @custom80: DP Test_80BIT_CUSTOM_PATTERN from DPCDs 0x250 through 0x259
+ * @enhanced_frame_cap: flag for enhanced frame capability.
+ */
+struct drm_dp_phy_test_params {
+	int link_rate;
+	u8 num_lanes;
+	u8 phy_pattern;
+	u8 hbr2_reset[2];
+	u8 custom80[10];
+	bool enhanced_frame_cap;
+};
+
+int drm_dp_get_phy_test_pattern(struct drm_dp_aux *aux,
+				struct drm_dp_phy_test_params *data);
+int drm_dp_set_phy_test_pattern(struct drm_dp_aux *aux,
+				struct drm_dp_phy_test_params *data, u8 dp_rev);
 #endif /* _DRM_DP_HELPER_H_ */

@@ -24,6 +24,9 @@
 
 #include "power_helpers.h"
 #include "dc/inc/hw/dmcu.h"
+#include "dc/inc/hw/abm.h"
+#include "dc.h"
+#include "core_types.h"
 
 #define DIV_ROUNDUP(a, b) (((a)+((b)/2))/(b))
 
@@ -237,7 +240,7 @@ static void fill_backlight_transform_table(struct dmcu_iram_parameters params,
 }
 
 static void fill_backlight_transform_table_v_2_2(struct dmcu_iram_parameters params,
-		struct iram_table_v_2_2 *table)
+		struct iram_table_v_2_2 *table, bool big_endian)
 {
 	unsigned int i;
 	unsigned int num_entries = NUM_BL_CURVE_SEGS;
@@ -261,10 +264,12 @@ static void fill_backlight_transform_table_v_2_2(struct dmcu_iram_parameters par
 		lut_index = (params.backlight_lut_array_size - 1) * i / (num_entries - 1);
 		ASSERT(lut_index < params.backlight_lut_array_size);
 
-		table->backlight_thresholds[i] =
-			cpu_to_be16(DIV_ROUNDUP((i * 65536), num_entries));
-		table->backlight_offsets[i] =
-			cpu_to_be16(params.backlight_lut_array[lut_index]);
+		table->backlight_thresholds[i] = (big_endian) ?
+			cpu_to_be16(DIV_ROUNDUP((i * 65536), num_entries)) :
+			cpu_to_le16(DIV_ROUNDUP((i * 65536), num_entries));
+		table->backlight_offsets[i] = (big_endian) ?
+			cpu_to_be16(params.backlight_lut_array[lut_index]) :
+			cpu_to_le16(params.backlight_lut_array[lut_index]);
 	}
 }
 
@@ -584,18 +589,18 @@ void fill_iram_v_2_2(struct iram_table_v_2_2 *ram_table, struct dmcu_iram_parame
 	ram_table->crgb_slope[7]  = cpu_to_be16(0x1910);
 
 	fill_backlight_transform_table_v_2_2(
-			params, ram_table);
+			params, ram_table, true);
 }
 
-void fill_iram_v_2_3(struct iram_table_v_2_2 *ram_table, struct dmcu_iram_parameters params)
+void fill_iram_v_2_3(struct iram_table_v_2_2 *ram_table, struct dmcu_iram_parameters params, bool big_endian)
 {
 	unsigned int i, j;
 	unsigned int set = params.set;
 
 	ram_table->flags = 0x0;
-
-	ram_table->min_abm_backlight =
-			cpu_to_be16(params.min_abm_backlight);
+	ram_table->min_abm_backlight = (big_endian) ?
+		cpu_to_be16(params.min_abm_backlight) :
+		cpu_to_le16(params.min_abm_backlight);
 
 	for (i = 0; i < NUM_AGGR_LEVEL; i++) {
 		ram_table->hybrid_factor[i] = abm_settings[set][i].brightness_gain;
@@ -619,33 +624,51 @@ void fill_iram_v_2_3(struct iram_table_v_2_2 *ram_table, struct dmcu_iram_parame
 	ram_table->iir_curve[4] = 0x65;
 
 	//Gamma 2.2
-	ram_table->crgb_thresh[0] = cpu_to_be16(0x127c);
-	ram_table->crgb_thresh[1] = cpu_to_be16(0x151b);
-	ram_table->crgb_thresh[2] = cpu_to_be16(0x17d5);
-	ram_table->crgb_thresh[3] = cpu_to_be16(0x1a56);
-	ram_table->crgb_thresh[4] = cpu_to_be16(0x1c83);
-	ram_table->crgb_thresh[5] = cpu_to_be16(0x1e72);
-	ram_table->crgb_thresh[6] = cpu_to_be16(0x20f0);
-	ram_table->crgb_thresh[7] = cpu_to_be16(0x232b);
-	ram_table->crgb_offset[0] = cpu_to_be16(0x2999);
-	ram_table->crgb_offset[1] = cpu_to_be16(0x3999);
-	ram_table->crgb_offset[2] = cpu_to_be16(0x4666);
-	ram_table->crgb_offset[3] = cpu_to_be16(0x5999);
-	ram_table->crgb_offset[4] = cpu_to_be16(0x6333);
-	ram_table->crgb_offset[5] = cpu_to_be16(0x7800);
-	ram_table->crgb_offset[6] = cpu_to_be16(0x8c00);
-	ram_table->crgb_offset[7] = cpu_to_be16(0xa000);
-	ram_table->crgb_slope[0]  = cpu_to_be16(0x3609);
-	ram_table->crgb_slope[1]  = cpu_to_be16(0x2dfa);
-	ram_table->crgb_slope[2]  = cpu_to_be16(0x27ea);
-	ram_table->crgb_slope[3]  = cpu_to_be16(0x235d);
-	ram_table->crgb_slope[4]  = cpu_to_be16(0x2042);
-	ram_table->crgb_slope[5]  = cpu_to_be16(0x1dc3);
-	ram_table->crgb_slope[6]  = cpu_to_be16(0x1b1a);
-	ram_table->crgb_slope[7]  = cpu_to_be16(0x1910);
+	ram_table->crgb_thresh[0] = (big_endian) ? cpu_to_be16(0x127c) : cpu_to_le16(0x127c);
+	ram_table->crgb_thresh[1] = (big_endian) ? cpu_to_be16(0x151b) : cpu_to_le16(0x151b);
+	ram_table->crgb_thresh[2] = (big_endian) ? cpu_to_be16(0x17d5) : cpu_to_le16(0x17d5);
+	ram_table->crgb_thresh[3] = (big_endian) ? cpu_to_be16(0x1a56) : cpu_to_le16(0x1a56);
+	ram_table->crgb_thresh[4] = (big_endian) ? cpu_to_be16(0x1c83) : cpu_to_le16(0x1c83);
+	ram_table->crgb_thresh[5] = (big_endian) ? cpu_to_be16(0x1e72) : cpu_to_le16(0x1e72);
+	ram_table->crgb_thresh[6] = (big_endian) ? cpu_to_be16(0x20f0) : cpu_to_le16(0x20f0);
+	ram_table->crgb_thresh[7] = (big_endian) ? cpu_to_be16(0x232b) : cpu_to_le16(0x232b);
+	ram_table->crgb_offset[0] = (big_endian) ? cpu_to_be16(0x2999) : cpu_to_le16(0x2999);
+	ram_table->crgb_offset[1] = (big_endian) ? cpu_to_be16(0x3999) : cpu_to_le16(0x3999);
+	ram_table->crgb_offset[2] = (big_endian) ? cpu_to_be16(0x4666) : cpu_to_le16(0x4666);
+	ram_table->crgb_offset[3] = (big_endian) ? cpu_to_be16(0x5999) : cpu_to_le16(0x5999);
+	ram_table->crgb_offset[4] = (big_endian) ? cpu_to_be16(0x6333) : cpu_to_le16(0x6333);
+	ram_table->crgb_offset[5] = (big_endian) ? cpu_to_be16(0x7800) : cpu_to_le16(0x7800);
+	ram_table->crgb_offset[6] = (big_endian) ? cpu_to_be16(0x8c00) : cpu_to_le16(0x8c00);
+	ram_table->crgb_offset[7] = (big_endian) ? cpu_to_be16(0xa000) : cpu_to_le16(0xa000);
+	ram_table->crgb_slope[0]  = (big_endian) ? cpu_to_be16(0x3609) : cpu_to_le16(0x3609);
+	ram_table->crgb_slope[1]  = (big_endian) ? cpu_to_be16(0x2dfa) : cpu_to_le16(0x2dfa);
+	ram_table->crgb_slope[2]  = (big_endian) ? cpu_to_be16(0x27ea) : cpu_to_le16(0x27ea);
+	ram_table->crgb_slope[3]  = (big_endian) ? cpu_to_be16(0x235d) : cpu_to_le16(0x235d);
+	ram_table->crgb_slope[4]  = (big_endian) ? cpu_to_be16(0x2042) : cpu_to_le16(0x2042);
+	ram_table->crgb_slope[5]  = (big_endian) ? cpu_to_be16(0x1dc3) : cpu_to_le16(0x1dc3);
+	ram_table->crgb_slope[6]  = (big_endian) ? cpu_to_be16(0x1b1a) : cpu_to_le16(0x1b1a);
+	ram_table->crgb_slope[7]  = (big_endian) ? cpu_to_be16(0x1910) : cpu_to_le16(0x1910);
 
 	fill_backlight_transform_table_v_2_2(
-			params, ram_table);
+			params, ram_table, big_endian);
+}
+
+bool dmub_init_abm_config(struct abm *abm,
+	struct dmcu_iram_parameters params)
+{
+	unsigned char ram_table[IRAM_SIZE];
+	bool result = false;
+
+	if (abm == NULL)
+		return false;
+
+	memset(&ram_table, 0, sizeof(ram_table));
+
+	fill_iram_v_2_3((struct iram_table_v_2_2 *)ram_table, params, false);
+	result = abm->funcs->init_abm_config(
+		abm, (char *)(&ram_table), IRAM_RESERVE_AREA_START_V2_2);
+
+	return result;
 }
 
 bool dmcu_load_iram(struct dmcu *dmcu,
@@ -657,17 +680,17 @@ bool dmcu_load_iram(struct dmcu *dmcu,
 	if (dmcu == NULL)
 		return false;
 
-	if (!dmcu->funcs->is_dmcu_initialized(dmcu))
+	if (dmcu && !dmcu->funcs->is_dmcu_initialized(dmcu))
 		return true;
 
 	memset(&ram_table, 0, sizeof(ram_table));
 
 	if (dmcu->dmcu_version.abm_version == 0x24) {
-		fill_iram_v_2_3((struct iram_table_v_2_2 *)ram_table, params);
-		result = dmcu->funcs->load_iram(
-				dmcu, 0, (char *)(&ram_table), IRAM_RESERVE_AREA_START_V2_2);
+		fill_iram_v_2_3((struct iram_table_v_2_2 *)ram_table, params, true);
+			result = dmcu->funcs->load_iram(
+					dmcu, 0, (char *)(&ram_table), IRAM_RESERVE_AREA_START_V2_2);
 	} else if (dmcu->dmcu_version.abm_version == 0x23) {
-		fill_iram_v_2_3((struct iram_table_v_2_2 *)ram_table, params);
+		fill_iram_v_2_3((struct iram_table_v_2_2 *)ram_table, params, true);
 
 		result = dmcu->funcs->load_iram(
 				dmcu, 0, (char *)(&ram_table), IRAM_RESERVE_AREA_START_V2_2);

@@ -25,7 +25,6 @@
 #include <asm/sigcontext.h>
 #include <asm/ucontext.h>
 #include <linux/uaccess.h>
-#include <asm/pgtable.h>
 #include <asm/unistd.h>
 #include <asm/cacheflush.h>
 #include <asm/syscalls.h>
@@ -350,8 +349,8 @@ static long restore_sigcontext(struct task_struct *tsk, sigset_t *set, int sig,
 	err |= __get_user(regs->link, &sc->gp_regs[PT_LNK]);
 	err |= __get_user(regs->xer, &sc->gp_regs[PT_XER]);
 	err |= __get_user(regs->ccr, &sc->gp_regs[PT_CCR]);
-	/* skip SOFTE */
-	regs->trap = 0;
+	/* Don't allow userspace to set SOFTE */
+	set_trap_norestart(regs);
 	err |= __get_user(regs->dar, &sc->gp_regs[PT_DAR]);
 	err |= __get_user(regs->dsisr, &sc->gp_regs[PT_DSISR]);
 	err |= __get_user(regs->result, &sc->gp_regs[PT_RESULT]);
@@ -472,10 +471,8 @@ static long restore_tm_sigcontexts(struct task_struct *tsk,
 			  &sc->gp_regs[PT_XER]);
 	err |= __get_user(tsk->thread.ckpt_regs.ccr,
 			  &sc->gp_regs[PT_CCR]);
-
-	/* Don't allow userspace to set the trap value */
-	regs->trap = 0;
-
+	/* Don't allow userspace to set SOFTE */
+	set_trap_norestart(regs);
 	/* These regs are not checkpointed; they can go in 'regs'. */
 	err |= __get_user(regs->dar, &sc->gp_regs[PT_DAR]);
 	err |= __get_user(regs->dsisr, &sc->gp_regs[PT_DSISR]);

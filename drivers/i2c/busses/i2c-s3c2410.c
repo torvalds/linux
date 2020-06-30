@@ -435,8 +435,7 @@ static int i2c_s3c_irq_nextbyte(struct s3c24xx_i2c *i2c, unsigned long iicstat)
 		 * fall through to the write state, as we will need to
 		 * send a byte as well
 		 */
-		/* Fall through */
-
+		fallthrough;
 	case STATE_WRITE:
 		/*
 		 * we are writing data to the device... check for the
@@ -1267,5 +1266,5 @@ static void __exit i2c_adap_s3c_exit(void)
 module_exit(i2c_adap_s3c_exit);
 
 MODULE_DESCRIPTION("S3C24XX I2C Bus driver");
-MODULE_AUTHOR("Ben Dooks, <ben@simtec.co.uk>");
+MODULE_AUTHOR("Ben Dooks <ben@simtec.co.uk>");
 MODULE_LICENSE("GPL");

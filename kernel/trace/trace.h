@@ -61,6 +61,9 @@ enum trace_type {
 #undef __field_desc
 #define __field_desc(type, container, item)
 
+#undef __field_packed
+#define __field_packed(type, container, item)
+
 #undef __array
 #define __array(type, item, size)	type	item[size];
 
@@ -1661,6 +1664,7 @@ extern struct list_head ftrace_events;
 
 extern const struct file_operations event_trigger_fops;
 extern const struct file_operations event_hist_fops;
+extern const struct file_operations event_hist_debug_fops;
 extern const struct file_operations event_inject_fops;
 
 #ifdef CONFIG_HIST_TRIGGERS

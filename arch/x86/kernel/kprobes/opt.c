@@ -16,11 +16,11 @@
 #include <linux/kallsyms.h>
 #include <linux/ftrace.h>
 #include <linux/frame.h>
+#include <linux/pgtable.h>
 
 #include <asm/text-patching.h>
 #include <asm/cacheflush.h>
 #include <asm/desc.h>
-#include <asm/pgtable.h>
 #include <linux/uaccess.h>
 #include <asm/alternative.h>
 #include <asm/insn.h>
@@ -56,7 +56,7 @@ found:
 	 * overwritten by jump destination address. In this case, original
 	 * bytes must be recovered from op->optinsn.copied_insn buffer.
 	 */
-	if (probe_kernel_read(buf, (void *)addr,
+	if (copy_from_kernel_nofault(buf, (void *)addr,
 		MAX_INSN_SIZE * sizeof(kprobe_opcode_t)))
 		return 0UL;
 
@@ -286,9 +286,7 @@ static int can_optimize(unsigned long paddr)
 	 * stack handling and registers setup.
 	 */
 	if (((paddr >= (unsigned long)__entry_text_start) &&
-	     (paddr <  (unsigned long)__entry_text_end)) ||
-	    ((paddr >= (unsigned long)__irqentry_text_start) &&
-	     (paddr <  (unsigned long)__irqentry_text_end)))
+	     (paddr <  (unsigned long)__entry_text_end)))
 		return 0;
 
 	/* Check there is enough space for a relative jump. */

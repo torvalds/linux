@@ -4,7 +4,7 @@
  *
  * Copyright 2018 Qtechnology A/S
  *
- * Ricardo Ribalda <ricardo.ribalda@gmail.com>
+ * Ricardo Ribalda <ribalda@kernel.org>
  */
 #include <linux/clk.h>
 #include <linux/delay.h>
@@ -1120,5 +1120,5 @@ static struct i2c_driver imx214_i2c_driver = {
 module_i2c_driver(imx214_i2c_driver);
 
 MODULE_DESCRIPTION("Sony IMX214 Camera driver");
-MODULE_AUTHOR("Ricardo Ribalda <ricardo.ribalda@gmail.com>");
+MODULE_AUTHOR("Ricardo Ribalda <ribalda@kernel.org>");
 MODULE_LICENSE("GPL v2");
