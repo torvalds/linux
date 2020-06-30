@@ -653,6 +653,7 @@ static int evict_process_queues_nocpsch(struct device_queue_manager *dqm,
 	pr_info_ratelimited("Evicting PASID 0x%x queues\n",
 			    pdd->process->pasid);
 
+	pdd->last_evict_timestamp = get_jiffies_64();
 	/* Mark all queues as evicted. Deactivate all active queues on
 	 * the qpd.
 	 */
@@ -714,6 +715,7 @@ static int evict_process_queues_cpsch(struct device_queue_manager *dqm,
 		q->properties.is_active = false;
 		decrement_queue_count(dqm, q->properties.type);
 	}
+	pdd->last_evict_timestamp = get_jiffies_64();
 	retval = execute_queues_cpsch(dqm,
 				qpd->is_debug ?
 				KFD_UNMAP_QUEUES_FILTER_ALL_QUEUES :
@@ -732,6 +734,7 @@ static int restore_process_queues_nocpsch(struct device_queue_manager *dqm,
 	struct mqd_manager *mqd_mgr;
 	struct kfd_process_device *pdd;
 	uint64_t pd_base;
+	uint64_t eviction_duration;
 	int retval, ret = 0;
 
 	pdd = qpd_to_pdd(qpd);
@@ -799,6 +802,8 @@ static int restore_process_queues_nocpsch(struct device_queue_manager *dqm,
 			ret = retval;
 	}
 	qpd->evicted = 0;
+	eviction_duration = get_jiffies_64() - pdd->last_evict_timestamp;
+	atomic64_add(eviction_duration, &pdd->evict_duration_counter);
 out:
 	if (mm)
 		mmput(mm);
@@ -812,6 +817,7 @@ static int restore_process_queues_cpsch(struct device_queue_manager *dqm,
 	struct queue *q;
 	struct kfd_process_device *pdd;
 	uint64_t pd_base;
+	uint64_t eviction_duration;
 	int retval = 0;
 
 	pdd = qpd_to_pdd(qpd);
@@ -845,6 +851,8 @@ static int restore_process_queues_cpsch(struct device_queue_manager *dqm,
 	retval = execute_queues_cpsch(dqm,
 				KFD_UNMAP_QUEUES_FILTER_DYNAMIC_QUEUES, 0);
 	qpd->evicted = 0;
+	eviction_duration = get_jiffies_64() - pdd->last_evict_timestamp;
+	atomic64_add(eviction_duration, &pdd->evict_duration_counter);
 out:
 	dqm_unlock(dqm);
 	return retval;
