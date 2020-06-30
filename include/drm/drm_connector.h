@@ -320,43 +320,97 @@ struct drm_monitor_range_info {
  * opposite edge of the driving edge. Transmitters and receivers may however
  * need to take other signal timings into account to convert between driving
  * and sample edges.
- *
- * @DRM_BUS_FLAG_DE_LOW:		The Data Enable signal is active low
- * @DRM_BUS_FLAG_DE_HIGH:		The Data Enable signal is active high
- * @DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE:	Data is driven on the rising edge of
- *					the pixel clock
- * @DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE:	Data is driven on the falling edge of
- *					the pixel clock
- * @DRM_BUS_FLAG_PIXDATA_SAMPLE_POSEDGE: Data is sampled on the rising edge of
- *					the pixel clock
- * @DRM_BUS_FLAG_PIXDATA_SAMPLE_NEGEDGE: Data is sampled on the falling edge of
- *					the pixel clock
- * @DRM_BUS_FLAG_DATA_MSB_TO_LSB:	Data is transmitted MSB to LSB on the bus
- * @DRM_BUS_FLAG_DATA_LSB_TO_MSB:	Data is transmitted LSB to MSB on the bus
- * @DRM_BUS_FLAG_SYNC_DRIVE_POSEDGE:	Sync signals are driven on the rising
- *					edge of the pixel clock
- * @DRM_BUS_FLAG_SYNC_DRIVE_NEGEDGE:	Sync signals are driven on the falling
- *					edge of the pixel clock
- * @DRM_BUS_FLAG_SYNC_SAMPLE_POSEDGE:	Sync signals are sampled on the rising
- *					edge of the pixel clock
- * @DRM_BUS_FLAG_SYNC_SAMPLE_NEGEDGE:	Sync signals are sampled on the falling
- *					edge of the pixel clock
- * @DRM_BUS_FLAG_SHARP_SIGNALS:		Set if the Sharp-specific signals
- *					(SPL, CLS, PS, REV) must be used
  */
 enum drm_bus_flags {
+	/**
+	 * @DRM_BUS_FLAG_DE_LOW:
+	 *
+	 * The Data Enable signal is active low
+	 */
 	DRM_BUS_FLAG_DE_LOW = BIT(0),
+
+	/**
+	 * @DRM_BUS_FLAG_DE_HIGH:
+	 *
+	 * The Data Enable signal is active high
+	 */
 	DRM_BUS_FLAG_DE_HIGH = BIT(1),
+
+	/**
+	 * @DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE:
+	 *
+	 * Data is driven on the rising edge of the pixel clock
+	 */
 	DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE = BIT(2),
+
+	/**
+	 * @DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE:
+	 *
+	 * Data is driven on the falling edge of the pixel clock
+	 */
 	DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE = BIT(3),
+
+	/**
+	 * @DRM_BUS_FLAG_PIXDATA_SAMPLE_POSEDGE:
+	 *
+	 * Data is sampled on the rising edge of the pixel clock
+	 */
 	DRM_BUS_FLAG_PIXDATA_SAMPLE_POSEDGE = DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE,
+
+	/**
+	 * @DRM_BUS_FLAG_PIXDATA_SAMPLE_NEGEDGE:
+	 *
+	 * Data is sampled on the falling edge of the pixel clock
+	 */
 	DRM_BUS_FLAG_PIXDATA_SAMPLE_NEGEDGE = DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE,
+
+	/**
+	 * @DRM_BUS_FLAG_DATA_MSB_TO_LSB:
+	 *
+	 * Data is transmitted MSB to LSB on the bus
+	 */
 	DRM_BUS_FLAG_DATA_MSB_TO_LSB = BIT(4),
+
+	/**
+	 * @DRM_BUS_FLAG_DATA_LSB_TO_MSB:
+	 *
+	 * Data is transmitted LSB to MSB on the bus
+	 */
 	DRM_BUS_FLAG_DATA_LSB_TO_MSB = BIT(5),
+
+	/**
+	 * @DRM_BUS_FLAG_SYNC_DRIVE_POSEDGE:
+	 *
+	 * Sync signals are driven on the rising edge of the pixel clock
+	 */
 	DRM_BUS_FLAG_SYNC_DRIVE_POSEDGE = BIT(6),
+
+	/**
+	 * @DRM_BUS_FLAG_SYNC_DRIVE_NEGEDGE:
+	 *
+	 * Sync signals are driven on the falling edge of the pixel clock
+	 */
 	DRM_BUS_FLAG_SYNC_DRIVE_NEGEDGE = BIT(7),
+
+	/**
+	 * @DRM_BUS_FLAG_SYNC_SAMPLE_POSEDGE:
+	 *
+	 * Sync signals are sampled on the rising edge of the pixel clock
+	 */
 	DRM_BUS_FLAG_SYNC_SAMPLE_POSEDGE = DRM_BUS_FLAG_SYNC_DRIVE_NEGEDGE,
+
+	/**
+	 * @DRM_BUS_FLAG_SYNC_SAMPLE_NEGEDGE:
+	 *
+	 * Sync signals are sampled on the falling edge of the pixel clock
+	 */
 	DRM_BUS_FLAG_SYNC_SAMPLE_NEGEDGE = DRM_BUS_FLAG_SYNC_DRIVE_POSEDGE,
+
+	/**
+	 * @DRM_BUS_FLAG_SHARP_SIGNALS:
+	 *
+	 *  Set if the Sharp-specific signals (SPL, CLS, PS, REV) must be used
+	 */
 	DRM_BUS_FLAG_SHARP_SIGNALS = BIT(8),
 };
 
