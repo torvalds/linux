@@ -1368,7 +1368,7 @@ static unsigned int usb3_bw_to_mbps(u32 bw, u8 scale)
 {
 	unsigned long uframes;
 
-	uframes = bw * 512 << scale;
+	uframes = bw * 512UL << scale;
 	return DIV_ROUND_CLOSEST(uframes * 8000, 1000 * 1000);
 }
 
@@ -1378,7 +1378,7 @@ static u32 mbps_to_usb3_bw(unsigned int mbps, u8 scale)
 
 	/* 1 uframe is 1/8 ms (125 us) -> 1 / 8000 s */
 	uframes = ((unsigned long)mbps * 1000 *  1000) / 8000;
-	return DIV_ROUND_UP(uframes, 512 << scale);
+	return DIV_ROUND_UP(uframes, 512UL << scale);
 }
 
 static int usb4_usb3_port_read_allocated_bandwidth(struct tb_port *port,
