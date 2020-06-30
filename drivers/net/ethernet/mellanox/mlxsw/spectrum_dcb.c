@@ -110,8 +110,8 @@ static int mlxsw_sp_port_pg_destroy(struct mlxsw_sp_port *mlxsw_sp_port,
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(pbmc), pbmc_pl);
 }
 
-static int mlxsw_sp_port_headroom_set(struct mlxsw_sp_port *mlxsw_sp_port,
-				      struct ieee_ets *ets)
+static int mlxsw_sp_port_headroom_ets_set(struct mlxsw_sp_port *mlxsw_sp_port,
+					  struct ieee_ets *ets)
 {
 	bool pause_en = mlxsw_sp_port_is_pause_en(mlxsw_sp_port);
 	struct ieee_ets *my_ets = mlxsw_sp_port->dcb.ets;
@@ -180,7 +180,7 @@ static int __mlxsw_sp_dcbnl_ieee_setets(struct mlxsw_sp_port *mlxsw_sp_port,
 	}
 
 	/* Ingress configuration. */
-	err = mlxsw_sp_port_headroom_set(mlxsw_sp_port, ets);
+	err = mlxsw_sp_port_headroom_ets_set(mlxsw_sp_port, ets);
 	if (err)
 		goto err_port_headroom_set;
 
