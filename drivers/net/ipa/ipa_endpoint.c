@@ -686,7 +686,7 @@ void ipa_endpoint_modem_hol_block_clear_all(struct ipa *ipa)
 	for (i = 0; i < IPA_ENDPOINT_MAX; i++) {
 		struct ipa_endpoint *endpoint = &ipa->endpoint[i];
 
-		if (endpoint->ee_id != GSI_EE_MODEM)
+		if (endpoint->toward_ipa || endpoint->ee_id != GSI_EE_MODEM)
 			continue;
 
 		(void)ipa_endpoint_init_hol_block_timer(endpoint, 0);
