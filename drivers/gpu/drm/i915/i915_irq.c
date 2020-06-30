@@ -3089,21 +3089,24 @@ static void ibx_hpd_irq_setup(struct drm_i915_private *dev_priv)
 	ibx_hpd_detection_setup(dev_priv);
 }
 
-static void icp_hpd_detection_setup(struct drm_i915_private *dev_priv,
-				    u32 ddi_hotplug_enable_mask,
-				    u32 tc_hotplug_enable_mask)
+static void icp_ddi_hpd_detection_setup(struct drm_i915_private *dev_priv,
+					u32 enable_mask)
 {
 	u32 hotplug;
 
 	hotplug = I915_READ(SHOTPLUG_CTL_DDI);
-	hotplug |= ddi_hotplug_enable_mask;
+	hotplug |= enable_mask;
 	I915_WRITE(SHOTPLUG_CTL_DDI, hotplug);
+}
 
-	if (tc_hotplug_enable_mask) {
-		hotplug = I915_READ(SHOTPLUG_CTL_TC);
-		hotplug |= tc_hotplug_enable_mask;
-		I915_WRITE(SHOTPLUG_CTL_TC, hotplug);
-	}
+static void icp_tc_hpd_detection_setup(struct drm_i915_private *dev_priv,
+				       u32 enable_mask)
+{
+	u32 hotplug;
+
+	hotplug = I915_READ(SHOTPLUG_CTL_TC);
+	hotplug |= enable_mask;
+	I915_WRITE(SHOTPLUG_CTL_TC, hotplug);
 }
 
 static void icp_hpd_irq_setup(struct drm_i915_private *dev_priv,
@@ -3120,7 +3123,9 @@ static void icp_hpd_irq_setup(struct drm_i915_private *dev_priv,
 
 	ibx_display_interrupt_update(dev_priv, hotplug_irqs, enabled_irqs);
 
-	icp_hpd_detection_setup(dev_priv, ddi_enable_mask, tc_enable_mask);
+	icp_ddi_hpd_detection_setup(dev_priv, ddi_enable_mask);
+	if (tc_enable_mask)
+		icp_tc_hpd_detection_setup(dev_priv, tc_enable_mask);
 }
 
 /*
@@ -3538,17 +3543,18 @@ static void icp_irq_postinstall(struct drm_i915_private *dev_priv)
 	gen3_assert_iir_is_zero(&dev_priv->uncore, SDEIIR);
 	I915_WRITE(SDEIMR, ~mask);
 
-	if (HAS_PCH_TGP(dev_priv))
-		icp_hpd_detection_setup(dev_priv, TGP_DDI_HPD_ENABLE_MASK,
-					TGP_TC_HPD_ENABLE_MASK);
-	else if (HAS_PCH_JSP(dev_priv))
-		icp_hpd_detection_setup(dev_priv, TGP_DDI_HPD_ENABLE_MASK, 0);
-	else if (HAS_PCH_MCC(dev_priv))
-		icp_hpd_detection_setup(dev_priv, ICP_DDI_HPD_ENABLE_MASK,
-					ICP_TC_HPD_ENABLE(PORT_TC1));
-	else
-		icp_hpd_detection_setup(dev_priv, ICP_DDI_HPD_ENABLE_MASK,
-					ICP_TC_HPD_ENABLE_MASK);
+	if (HAS_PCH_TGP(dev_priv)) {
+		icp_ddi_hpd_detection_setup(dev_priv, TGP_DDI_HPD_ENABLE_MASK);
+		icp_tc_hpd_detection_setup(dev_priv, TGP_TC_HPD_ENABLE_MASK);
+	} else if (HAS_PCH_JSP(dev_priv)) {
+		icp_ddi_hpd_detection_setup(dev_priv, TGP_DDI_HPD_ENABLE_MASK);
+	} else if (HAS_PCH_MCC(dev_priv)) {
+		icp_ddi_hpd_detection_setup(dev_priv, ICP_DDI_HPD_ENABLE_MASK);
+		icp_tc_hpd_detection_setup(dev_priv, ICP_TC_HPD_ENABLE(PORT_TC1));
+	} else {
+		icp_ddi_hpd_detection_setup(dev_priv, ICP_DDI_HPD_ENABLE_MASK);
+		icp_tc_hpd_detection_setup(dev_priv, ICP_TC_HPD_ENABLE_MASK);
+	}
 }
 
 static void gen11_irq_postinstall(struct drm_i915_private *dev_priv)
