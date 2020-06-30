@@ -11,10 +11,8 @@
  * ----------------------------------------------------------------------
  * |             Level            |   Last Value Used  |     Holes	|
  * ----------------------------------------------------------------------
- * | Module Init and Probe        |       0x0193       | 0x0146         |
- * |                              |                    | 0x015b-0x0160	|
- * |                              |                    | 0x016e		|
- * | Mailbox commands             |       0x1206       | 0x11a2-0x11ff	|
+ * | Module Init and Probe        |       0x0199       |                |
+ * | Mailbox commands             |       0x1206       | 0x11a5-0x11ff	|
  * | Device Discovery             |       0x2134       | 0x210e-0x2116  |
  * |				  | 		       | 0x211a         |
  * |                              |                    | 0x211c-0x2128  |
@@ -26,11 +24,7 @@
  * |                              |                    | 0x3036,0x3038  |
  * |                              |                    | 0x303a		|
  * | DPC Thread                   |       0x4023       | 0x4002,0x4013  |
- * | Async Events                 |       0x5090       | 0x502b-0x502f  |
- * |				  | 		       | 0x5047         |
- * |                              |                    | 0x5084,0x5075	|
- * |                              |                    | 0x503d,0x5044  |
- * |                              |                    | 0x505f		|
+ * | Async Events                 |       0x509c       |                |
  * | Timer Routines               |       0x6012       |                |
  * | User Space Interactions      |       0x70e3       | 0x7018,0x702e  |
  * |				  |		       | 0x7020,0x7024  |
@@ -2661,7 +2655,6 @@ ql_dump_regs(uint level, scsi_qla_host_t *vha, uint id)
 		ql_dbg(level, vha, id,
 		    "mbox[%d] %#04x\n", i, rd_reg_word(mbx_reg));
 }
-
 
 void
 ql_dump_buffer(uint level, scsi_qla_host_t *vha, uint id, const void *buf,

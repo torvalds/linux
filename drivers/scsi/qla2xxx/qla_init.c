@@ -3749,7 +3749,7 @@ enable_82xx_npiv:
 		}
 
 		/* Enable PUREX PASSTHRU */
-		if (ql2xrdpenable)
+		if (ql2xrdpenable || ha->flags.scm_supported_f)
 			qla25xx_set_els_cmds_supported(vha);
 	} else
 		goto failed;
@@ -3962,7 +3962,7 @@ qla24xx_update_fw_options(scsi_qla_host_t *vha)
 			ha->fw_options[2] &= ~BIT_8;
 	}
 
-	if (ql2xrdpenable)
+	if (ql2xrdpenable || ha->flags.scm_supported_f)
 		ha->fw_options[1] |= ADD_FO1_ENABLE_PUREX_IOCB;
 
 	/* Enable Async 8130/8131 events -- transceiver insertion/removal */
@@ -8517,6 +8517,11 @@ qla81xx_nvram_config(scsi_qla_host_t *vha)
 		 */
 		memcpy(icb->node_name, icb->port_name, WWN_SIZE);
 		icb->node_name[0] &= 0xF0;
+	}
+
+	if (IS_QLA28XX(ha) || IS_QLA27XX(ha)) {
+		if ((nv->enhanced_features & BIT_7) == 0)
+			ha->flags.scm_supported_a = 1;
 	}
 
 	/* Set host adapter parameters. */

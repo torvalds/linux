@@ -1055,6 +1055,7 @@ static inline bool qla2xxx_is_valid_mbs(unsigned int mbs)
 #define MBA_LIP_F8		0x8016	/* Received a LIP F8. */
 #define MBA_LOOP_INIT_ERR	0x8017	/* Loop Initialization Error. */
 #define MBA_FABRIC_AUTH_REQ	0x801b	/* Fabric Authentication Required. */
+#define MBA_CONGN_NOTI_RECV	0x801e	/* Congestion Notification Received */
 #define MBA_SCSI_COMPLETION	0x8020	/* SCSI Command Complete. */
 #define MBA_CTIO_COMPLETION	0x8021	/* CTIO Complete. */
 #define MBA_IP_COMPLETION	0x8022	/* IP Transmit Command Complete. */
@@ -1509,6 +1510,25 @@ typedef struct {
 
 	uint8_t  reserved_3[26];
 } init_cb_t;
+
+/* Special Features Control Block */
+struct init_sf_cb {
+	uint8_t	format;
+	uint8_t	reserved0;
+	/*
+	 * BIT 15-14 = Reserved
+	 * BIT_13 = SAN Congestion Management (1 - Enabled, 0 - Disabled)
+	 * BIT_12 = Remote Write Optimization (1 - Enabled, 0 - Disabled)
+	 * BIT 11-0 = Reserved
+	 */
+	uint16_t flags;
+	uint8_t	reserved1[32];
+	uint16_t discard_OHRB_timeout_value;
+	uint16_t remote_write_opt_queue_num;
+	uint8_t	reserved2[40];
+	uint8_t scm_related_parameter[16];
+	uint8_t reserved3[32];
+};
 
 /*
  * Get Link Status mailbox command return buffer.
@@ -2183,6 +2203,8 @@ typedef struct {
 	struct dsd64 rsp_dsd;
 } ms_iocb_entry_t;
 
+#define SCM_EDC_ACC_RECEIVED		BIT_6
+#define SCM_RDF_ACC_RECEIVED		BIT_7
 
 /*
  * ISP queue - Mailbox Command entry structure definition.
@@ -3852,6 +3874,12 @@ struct qla_hw_data {
 		uint32_t        n2n_bigger:1;
 		uint32_t	secure_adapter:1;
 		uint32_t	secure_fw:1;
+				/* Supported by Adapter */
+		uint32_t	scm_supported_a:1;
+				/* Supported by Firmware */
+		uint32_t	scm_supported_f:1;
+				/* Enabled in Driver */
+		uint32_t	scm_enabled:1;
 	} flags;
 
 	uint16_t max_exchg;
@@ -4169,6 +4197,13 @@ struct qla_hw_data {
 	int		init_cb_size;
 	dma_addr_t	ex_init_cb_dma;
 	struct ex_init_cb_81xx *ex_init_cb;
+	dma_addr_t	sf_init_cb_dma;
+	struct init_sf_cb *sf_init_cb;
+
+	void		*scm_fpin_els_buff;
+	uint64_t	scm_fpin_els_buff_size;
+	bool		scm_fpin_valid;
+	bool		scm_fpin_payload_size;
 
 	void		*async_pd;
 	dma_addr_t	async_pd_dma;
@@ -4231,6 +4266,12 @@ struct qla_hw_data {
 #define FW_ATTR_H_NVME		BIT_10
 #define FW_ATTR_H_NVME_UPDATED  BIT_14
 
+	/* About firmware SCM support */
+#define FW_ATTR_EXT0_SCM_SUPPORTED	BIT_12
+	/* Brocade fabric attached */
+#define FW_ATTR_EXT0_SCM_BROCADE	0x00001000
+	/* Cisco fabric attached */
+#define FW_ATTR_EXT0_SCM_CISCO		0x00002000
 	uint16_t	fw_attributes_ext[2];
 	uint32_t	fw_memory_size;
 	uint32_t	fw_transfer_size;
@@ -4541,6 +4582,13 @@ struct purex_item {
 	} iocb;
 };
 
+#define SCM_FLAG_RDF_REJECT		0x00
+#define SCM_FLAG_RDF_COMPLETED		0x01
+
+#define QLA_CON_PRIMITIVE_RECEIVED	0x1
+#define QLA_CONGESTION_ARB_WARNING	0x1
+#define QLA_CONGESTION_ARB_ALARM	0X2
+
 /*
  * Qlogic scsi host structure
  */
@@ -4749,6 +4797,7 @@ typedef struct scsi_qla_host {
 	__le16 dport_data[4];
 	struct list_head gpnid_list;
 	struct fab_scan scan;
+	uint8_t	scm_fabric_connection_flags;
 
 	unsigned int irq_offset;
 } scsi_qla_host_t;

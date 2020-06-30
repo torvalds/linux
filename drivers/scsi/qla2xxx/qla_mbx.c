@@ -1125,6 +1125,16 @@ qla2x00_get_fw_version(scsi_qla_host_t *vha)
 			    (ha->flags.secure_fw) ? "Supported" :
 			    "Not Supported");
 		}
+
+		if (ha->flags.scm_supported_a &&
+		    (ha->fw_attributes_ext[0] & FW_ATTR_EXT0_SCM_SUPPORTED)) {
+			ha->flags.scm_supported_f = 1;
+			memset(ha->sf_init_cb, 0, sizeof(struct init_sf_cb));
+			ha->sf_init_cb->flags |= BIT_13;
+		}
+		ql_log(ql_log_info, vha, 0x11a3, "SCM in FW: %s\n",
+		       (ha->flags.scm_supported_f) ? "Supported" :
+		       "Not Supported");
 	}
 
 failed:
@@ -1634,8 +1644,11 @@ qla2x00_get_adapter_id(scsi_qla_host_t *vha, uint16_t *id, uint8_t *al_pa,
 		mcp->in_mb |= MBX_13|MBX_12|MBX_11|MBX_10;
 	if (IS_FWI2_CAPABLE(vha->hw))
 		mcp->in_mb |= MBX_19|MBX_18|MBX_17|MBX_16;
-	if (IS_QLA27XX(vha->hw) || IS_QLA28XX(vha->hw))
+	if (IS_QLA27XX(vha->hw) || IS_QLA28XX(vha->hw)) {
 		mcp->in_mb |= MBX_15;
+		mcp->out_mb |= MBX_7|MBX_21|MBX_22|MBX_23;
+	}
+
 	mcp->tov = MBX_TOV_SECONDS;
 	mcp->flags = 0;
 	rval = qla2x00_mailbox_command(vha, mcp);
@@ -1688,8 +1701,22 @@ qla2x00_get_adapter_id(scsi_qla_host_t *vha, uint16_t *id, uint8_t *al_pa,
 			}
 		}
 
-		if (IS_QLA27XX(vha->hw) || IS_QLA28XX(vha->hw))
+		if (IS_QLA27XX(vha->hw) || IS_QLA28XX(vha->hw)) {
 			vha->bbcr = mcp->mb[15];
+			if (mcp->mb[7] & SCM_EDC_ACC_RECEIVED) {
+				ql_log(ql_log_info, vha, 0x11a4,
+				       "SCM: EDC ELS completed, flags 0x%x\n",
+				       mcp->mb[21]);
+			}
+			if (mcp->mb[7] & SCM_RDF_ACC_RECEIVED) {
+				vha->hw->flags.scm_enabled = 1;
+				vha->scm_fabric_connection_flags |=
+				    SCM_FLAG_RDF_COMPLETED;
+				ql_log(ql_log_info, vha, 0x11a5,
+				       "SCM: RDF ELS completed, flags 0x%x\n",
+				       mcp->mb[23]);
+			}
+		}
 	}
 
 	return rval;
@@ -1802,6 +1829,17 @@ qla2x00_init_firmware(scsi_qla_host_t *vha, uint16_t size)
 		mcp->mb[14] = sizeof(*ha->ex_init_cb);
 		mcp->out_mb |= MBX_14|MBX_13|MBX_12|MBX_11|MBX_10;
 	}
+
+	if (ha->flags.scm_supported_f) {
+		mcp->mb[1] |= BIT_1;
+		mcp->mb[16] = MSW(ha->sf_init_cb_dma);
+		mcp->mb[17] = LSW(ha->sf_init_cb_dma);
+		mcp->mb[18] = MSW(MSD(ha->sf_init_cb_dma));
+		mcp->mb[19] = LSW(MSD(ha->sf_init_cb_dma));
+		mcp->mb[15] = sizeof(*ha->sf_init_cb);
+		mcp->out_mb |= MBX_19|MBX_18|MBX_17|MBX_16|MBX_15;
+	}
+
 	/* 1 and 2 should normally be captured. */
 	mcp->in_mb = MBX_2|MBX_1|MBX_0;
 	if (IS_QLA83XX(ha) || IS_QLA27XX(ha) || IS_QLA28XX(ha))

@@ -4218,6 +4218,16 @@ qla2x00_mem_alloc(struct qla_hw_data *ha, uint16_t req_len, uint16_t rsp_len,
 		    "ex_init_cb=%p.\n", ha->ex_init_cb);
 	}
 
+	/* Get consistent memory allocated for Special Features-CB. */
+	if (IS_QLA27XX(ha) || IS_QLA28XX(ha)) {
+		ha->sf_init_cb = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL,
+						&ha->sf_init_cb_dma);
+		if (!ha->sf_init_cb)
+			goto fail_sf_init_cb;
+		ql_dbg_pci(ql_dbg_init, ha->pdev, 0x0199,
+			   "sf_init_cb=%p.\n", ha->sf_init_cb);
+	}
+
 	INIT_LIST_HEAD(&ha->gbl_dsd_list);
 
 	/* Get consistent memory allocated for Async Port-Database. */
@@ -4271,6 +4281,8 @@ fail_sfp_data:
 fail_loop_id_map:
 	dma_pool_free(ha->s_dma_pool, ha->async_pd, ha->async_pd_dma);
 fail_async_pd:
+	dma_pool_free(ha->s_dma_pool, ha->sf_init_cb, ha->sf_init_cb_dma);
+fail_sf_init_cb:
 	dma_pool_free(ha->s_dma_pool, ha->ex_init_cb, ha->ex_init_cb_dma);
 fail_ex_init_cb:
 	kfree(ha->npiv_info);
@@ -4693,6 +4705,10 @@ qla2x00_mem_free(struct qla_hw_data *ha)
 	ha->ms_iocb = NULL;
 	ha->ms_iocb_dma = 0;
 
+	if (ha->sf_init_cb)
+		dma_pool_free(ha->s_dma_pool,
+			      ha->sf_init_cb, ha->sf_init_cb_dma);
+
 	if (ha->ex_init_cb)
 		dma_pool_free(ha->s_dma_pool,
 			ha->ex_init_cb, ha->ex_init_cb_dma);
@@ -4780,6 +4796,8 @@ qla2x00_mem_free(struct qla_hw_data *ha)
 	kfree(ha->swl);
 	ha->swl = NULL;
 	kfree(ha->loop_id_map);
+	ha->sf_init_cb = NULL;
+	ha->sf_init_cb_dma = 0;
 	ha->loop_id_map = NULL;
 }
 

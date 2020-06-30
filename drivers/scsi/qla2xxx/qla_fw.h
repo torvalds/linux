@@ -723,6 +723,8 @@ struct ct_entry_24xx {
 	struct dsd64 dsd[2];
 };
 
+#define PURX_ELS_HEADER_SIZE	0x18
+
 /*
  * ISP queue - PUREX IOCB entry structure definition
  */
@@ -2020,7 +2022,9 @@ struct nvram_81xx {
 	 * BIT 0    = Extended BB credits for LR
 	 * BIT 1    = Virtual Fabric Enable
 	 * BIT 2-5  = Distance Support if BIT 0 is on
-	 * BIT 6-15 = Unused
+	 * BIT 6    = Prefer FCP
+	 * BIT 7    = SCM Disabled if BIT is set (1)
+	 * BIT 8-15 = Unused
 	 */
 	uint16_t enhanced_features;
 
