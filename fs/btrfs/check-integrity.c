@@ -233,7 +233,6 @@ struct btrfsic_stack_frame {
 struct btrfsic_state {
 	u32 print_mask;
 	int include_extent_data;
-	int csum_size;
 	struct list_head all_blocks_list;
 	struct btrfsic_block_hashtable block_hashtable;
 	struct btrfsic_block_link_hashtable block_link_hashtable;
@@ -659,8 +658,6 @@ static int btrfsic_process_superblock(struct btrfsic_state *state,
 		kfree(selected_super);
 		return -1;
 	}
-
-	state->csum_size = state->fs_info->csum_size;
 
 	for (pass = 0; pass < 3; pass++) {
 		int num_copies;
@@ -1723,7 +1720,7 @@ static noinline_for_stack int btrfsic_test_for_metadata(
 		crypto_shash_update(shash, data, sublen);
 	}
 	crypto_shash_final(shash, csum);
-	if (memcmp(csum, h->csum, state->csum_size))
+	if (memcmp(csum, h->csum, fs_info->csum_size))
 		return 1;
 
 	return 0; /* is metadata */
@@ -2797,7 +2794,6 @@ int btrfsic_mount(struct btrfs_fs_info *fs_info,
 	state->fs_info = fs_info;
 	state->print_mask = print_mask;
 	state->include_extent_data = including_extent_data;
-	state->csum_size = 0;
 	state->metablock_size = fs_info->nodesize;
 	state->datablock_size = fs_info->sectorsize;
 	INIT_LIST_HEAD(&state->all_blocks_list);
