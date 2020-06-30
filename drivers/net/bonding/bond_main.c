@@ -434,6 +434,9 @@ static bool bond_ipsec_offload_ok(struct sk_buff *skb, struct xfrm_state *xs)
 	struct slave *curr_active = rtnl_dereference(bond->curr_active_slave);
 	struct net_device *slave_dev = curr_active->dev;
 
+	if (BOND_MODE(bond) != BOND_MODE_ACTIVEBACKUP)
+		return true;
+
 	if (!(slave_dev->xfrmdev_ops
 	      && slave_dev->xfrmdev_ops->xdo_dev_offload_ok)) {
 		slave_warn(bond_dev, slave_dev, "%s: no slave xdo_dev_offload_ok\n", __func__);
@@ -1217,11 +1220,6 @@ static netdev_features_t bond_fix_features(struct net_device *dev,
 
 #define BOND_ENC_FEATURES	(NETIF_F_HW_CSUM | NETIF_F_SG | \
 				 NETIF_F_RXCSUM | NETIF_F_ALL_TSO)
-
-#ifdef CONFIG_XFRM_OFFLOAD
-#define BOND_XFRM_FEATURES	(NETIF_F_HW_ESP | NETIF_F_HW_ESP_TX_CSUM | \
-				 NETIF_F_GSO_ESP)
-#endif /* CONFIG_XFRM_OFFLOAD */
 
 #define BOND_MPLS_FEATURES	(NETIF_F_HW_CSUM | NETIF_F_SG | \
 				 NETIF_F_ALL_TSO)
@@ -4654,8 +4652,7 @@ void bond_setup(struct net_device *bond_dev)
 
 #ifdef CONFIG_XFRM_OFFLOAD
 	/* set up xfrm device ops (only supported in active-backup right now) */
-	if (BOND_MODE(bond) == BOND_MODE_ACTIVEBACKUP)
-		bond_dev->xfrmdev_ops = &bond_xfrmdev_ops;
+	bond_dev->xfrmdev_ops = &bond_xfrmdev_ops;
 	bond->xs = NULL;
 #endif /* CONFIG_XFRM_OFFLOAD */
 
@@ -4678,11 +4675,15 @@ void bond_setup(struct net_device *bond_dev)
 
 	bond_dev->hw_features |= NETIF_F_GSO_ENCAP_ALL | NETIF_F_GSO_UDP_L4;
 #ifdef CONFIG_XFRM_OFFLOAD
-	if (BOND_MODE(bond) == BOND_MODE_ACTIVEBACKUP)
-		bond_dev->hw_features |= BOND_XFRM_FEATURES;
+	bond_dev->hw_features |= BOND_XFRM_FEATURES;
 #endif /* CONFIG_XFRM_OFFLOAD */
 	bond_dev->features |= bond_dev->hw_features;
 	bond_dev->features |= NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_STAG_TX;
+#ifdef CONFIG_XFRM_OFFLOAD
+	/* Disable XFRM features if this isn't an active-backup config */
+	if (BOND_MODE(bond) != BOND_MODE_ACTIVEBACKUP)
+		bond_dev->features &= ~BOND_XFRM_FEATURES;
+#endif /* CONFIG_XFRM_OFFLOAD */
 }
 
 /* Destroy a bonding device.
