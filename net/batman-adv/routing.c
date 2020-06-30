@@ -449,7 +449,7 @@ free_skb:
  * @skb: packet to check
  * @hdr_size: size of header to pull
  *
- * Check for short header and bad addresses in given packet.
+ * Checks for short header and bad addresses in the given packet.
  *
  * Return: negative value when check fails and 0 otherwise. The negative value
  * depends on the reason: -ENODATA for bad header, -EBADR for broadcast
@@ -1113,7 +1113,7 @@ free_skb:
  * @recv_if: interface that the skb is received on
  *
  * This function does one of the three following things: 1) Forward fragment, if
- * the assembled packet will exceed our MTU; 2) Buffer fragment, if we till
+ * the assembled packet will exceed our MTU; 2) Buffer fragment, if we still
  * lack further fragments; 3) Merge fragments, if we have all needed parts.
  *
  * Return: NET_RX_DROP if the skb is not consumed, NET_RX_SUCCESS otherwise.

@@ -69,7 +69,7 @@ enum batadv_tt_client_flags {
 
 	/**
 	 * @BATADV_TT_CLIENT_TEMP: this global client has been detected to be
-	 * part of the network but no nnode has already announced it
+	 * part of the network but no node has already announced it
 	 */
 	BATADV_TT_CLIENT_TEMP	 = (1 << 11),
 };
@@ -131,7 +131,7 @@ enum batadv_gw_modes {
 	/** @BATADV_GW_MODE_CLIENT: send DHCP requests to gw servers */
 	BATADV_GW_MODE_CLIENT,
 
-	/** @BATADV_GW_MODE_SERVER: announce itself as gatway server */
+	/** @BATADV_GW_MODE_SERVER: announce itself as gateway server */
 	BATADV_GW_MODE_SERVER,
 };
 
@@ -427,7 +427,8 @@ enum batadv_nl_attrs {
 
 	/**
 	 * @BATADV_ATTR_HOP_PENALTY: defines the penalty which will be applied
-	 *  to an originator message's tq-field on every hop.
+	 *  to an originator message's tq-field on every hop and/or per
+	 *  hard interface
 	 */
 	BATADV_ATTR_HOP_PENALTY,
 
