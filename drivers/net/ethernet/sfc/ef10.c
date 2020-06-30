@@ -554,8 +554,6 @@ static int efx_ef10_probe(struct efx_nic *efx)
 
 	efx->rss_context.context_id = EFX_MCDI_RSS_CONTEXT_INVALID;
 
-	efx->vport_id = EVB_PORT_ID_ASSIGNED;
-
 	/* In case we're recovering from a crash (kexec), we want to
 	 * cancel any outstanding request by the previous user of this
 	 * function.  We send a special message using the least

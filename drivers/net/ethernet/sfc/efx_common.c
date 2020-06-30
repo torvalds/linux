@@ -1018,6 +1018,7 @@ int efx_init_struct(struct efx_nic *efx,
 		efx->type->rx_ts_offset - efx->type->rx_prefix_size;
 	INIT_LIST_HEAD(&efx->rss_context.list);
 	mutex_init(&efx->rss_lock);
+	efx->vport_id = EVB_PORT_ID_ASSIGNED;
 	spin_lock_init(&efx->stats_lock);
 	efx->vi_stride = EFX_DEFAULT_VI_STRIDE;
 	efx->num_mac_stats = MC_CMD_MAC_NSTATS;
