@@ -96,8 +96,6 @@ static void reuseport_array_free(struct bpf_map *map)
 	struct sock *sk;
 	u32 i;
 
-	synchronize_rcu();
-
 	/*
 	 * ops->map_*_elem() will not be able to access this
 	 * array now. Hence, this function only races with
