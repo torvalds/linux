@@ -481,6 +481,13 @@ static inline int unrecoverable_excp(struct pt_regs *regs)
 #endif
 }
 
+static void xmon_touch_watchdogs(void)
+{
+	touch_softlockup_watchdog_sync();
+	rcu_cpu_stall_reset();
+	touch_nmi_watchdog();
+}
+
 static int xmon_core(struct pt_regs *regs, int fromipi)
 {
 	int cmd = 0;
@@ -718,7 +725,7 @@ static int xmon_core(struct pt_regs *regs, int fromipi)
 	else
 		insert_cpu_bpts();
 
-	touch_nmi_watchdog();
+	xmon_touch_watchdogs();
 	local_irq_restore(flags);
 
 	return cmd != 'X' && cmd != EOF;
