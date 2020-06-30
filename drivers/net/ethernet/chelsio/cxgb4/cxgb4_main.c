@@ -1285,6 +1285,55 @@ static int setup_debugfs(struct adapter *adap)
 	return 0;
 }
 
+int cxgb4_port_mirror_alloc(struct net_device *dev)
+{
+	struct port_info *pi = netdev2pinfo(dev);
+	struct adapter *adap = netdev2adap(dev);
+	int ret = 0;
+
+	if (!pi->nmirrorqsets)
+		return -EOPNOTSUPP;
+
+	mutex_lock(&pi->vi_mirror_mutex);
+	if (pi->viid_mirror) {
+		pi->vi_mirror_count++;
+		goto out_unlock;
+	}
+
+	ret = t4_init_port_mirror(pi, adap->mbox, pi->port_id, adap->pf, 0,
+				  &pi->viid_mirror);
+	if (ret)
+		goto out_unlock;
+
+	pi->vi_mirror_count = 1;
+
+out_unlock:
+	mutex_unlock(&pi->vi_mirror_mutex);
+	return ret;
+}
+
+void cxgb4_port_mirror_free(struct net_device *dev)
+{
+	struct port_info *pi = netdev2pinfo(dev);
+	struct adapter *adap = netdev2adap(dev);
+
+	mutex_lock(&pi->vi_mirror_mutex);
+	if (!pi->viid_mirror)
+		goto out_unlock;
+
+	if (pi->vi_mirror_count > 1) {
+		pi->vi_mirror_count--;
+		goto out_unlock;
+	}
+
+	pi->vi_mirror_count = 0;
+	t4_free_vi(adap, adap->mbox, adap->pf, 0, pi->viid_mirror);
+	pi->viid_mirror = 0;
+
+out_unlock:
+	mutex_unlock(&pi->vi_mirror_mutex);
+}
+
 /*
  * upper-layer driver support
  */
@@ -5504,6 +5553,19 @@ static int cfg_queues(struct adapter *adap)
 		avail_qsets -= s->eoqsets;
 	}
 
+	/* Mirror queues must follow same scheme as normal Ethernet
+	 * Queues, when there are enough queues available. Otherwise,
+	 * allocate at least 1 queue per port. If even 1 queue is not
+	 * available, then disable mirror queues support.
+	 */
+	if (avail_qsets >= s->max_ethqsets)
+		s->mirrorqsets = s->max_ethqsets;
+	else if (avail_qsets >= adap->params.nports)
+		s->mirrorqsets = adap->params.nports;
+	else
+		s->mirrorqsets = 0;
+	avail_qsets -= s->mirrorqsets;
+
 	for (i = 0; i < ARRAY_SIZE(s->ethrxq); i++) {
 		struct sge_eth_rxq *r = &s->ethrxq[i];
 
@@ -5617,8 +5679,8 @@ void cxgb4_free_msix_idx_in_bmap(struct adapter *adap,
 
 static int enable_msix(struct adapter *adap)
 {
-	u32 eth_need, uld_need = 0, ethofld_need = 0;
-	u32 ethqsets = 0, ofldqsets = 0, eoqsets = 0;
+	u32 eth_need, uld_need = 0, ethofld_need = 0, mirror_need = 0;
+	u32 ethqsets = 0, ofldqsets = 0, eoqsets = 0, mirrorqsets = 0;
 	u8 num_uld = 0, nchan = adap->params.nports;
 	u32 i, want, need, num_vec;
 	struct sge *s = &adap->sge;
@@ -5647,6 +5709,12 @@ static int enable_msix(struct adapter *adap)
 		want += s->eoqsets;
 		ethofld_need = eth_need;
 		need += ethofld_need;
+	}
+
+	if (s->mirrorqsets) {
+		want += s->mirrorqsets;
+		mirror_need = nchan;
+		need += mirror_need;
 	}
 
 	want += EXTRA_VECS;
@@ -5682,8 +5750,10 @@ static int enable_msix(struct adapter *adap)
 		adap->params.ethofld = 0;
 		s->ofldqsets = 0;
 		s->eoqsets = 0;
+		s->mirrorqsets = 0;
 		uld_need = 0;
 		ethofld_need = 0;
+		mirror_need = 0;
 	}
 
 	num_vec = allocated;
@@ -5697,6 +5767,8 @@ static int enable_msix(struct adapter *adap)
 			ofldqsets = nchan;
 		if (is_ethofld(adap))
 			eoqsets = ethofld_need;
+		if (s->mirrorqsets)
+			mirrorqsets = mirror_need;
 
 		num_vec -= need;
 		while (num_vec) {
@@ -5728,12 +5800,25 @@ static int enable_msix(struct adapter *adap)
 				num_vec -= uld_need;
 			}
 		}
+
+		if (s->mirrorqsets) {
+			while (num_vec) {
+				if (num_vec < mirror_need ||
+				    mirrorqsets > s->mirrorqsets)
+					break;
+
+				mirrorqsets++;
+				num_vec -= mirror_need;
+			}
+		}
 	} else {
 		ethqsets = s->max_ethqsets;
 		if (is_uld(adap))
 			ofldqsets = s->ofldqsets;
 		if (is_ethofld(adap))
 			eoqsets = s->eoqsets;
+		if (s->mirrorqsets)
+			mirrorqsets = s->mirrorqsets;
 	}
 
 	if (ethqsets < s->max_ethqsets) {
@@ -5749,6 +5834,15 @@ static int enable_msix(struct adapter *adap)
 	if (is_ethofld(adap))
 		s->eoqsets = eoqsets;
 
+	if (s->mirrorqsets) {
+		s->mirrorqsets = mirrorqsets;
+		for_each_port(adap, i) {
+			pi = adap2pinfo(adap, i);
+			pi->nmirrorqsets = s->mirrorqsets / nchan;
+			mutex_init(&pi->vi_mirror_mutex);
+		}
+	}
+
 	/* map for msix */
 	ret = alloc_msix_info(adap, allocated);
 	if (ret)
@@ -5760,8 +5854,9 @@ static int enable_msix(struct adapter *adap)
 	}
 
 	dev_info(adap->pdev_dev,
-		 "%d MSI-X vectors allocated, nic %d eoqsets %d per uld %d\n",
-		 allocated, s->max_ethqsets, s->eoqsets, s->nqs_per_uld);
+		 "%d MSI-X vectors allocated, nic %d eoqsets %d per uld %d mirrorqsets %d\n",
+		 allocated, s->max_ethqsets, s->eoqsets, s->nqs_per_uld,
+		 s->mirrorqsets);
 
 	kfree(entries);
 	return 0;

@@ -9711,6 +9711,22 @@ int t4_port_init(struct adapter *adap, int mbox, int pf, int vf)
 	return 0;
 }
 
+int t4_init_port_mirror(struct port_info *pi, u8 mbox, u8 port, u8 pf, u8 vf,
+			u16 *mirror_viid)
+{
+	int ret;
+
+	ret = t4_alloc_vi(pi->adapter, mbox, port, pf, vf, 1, NULL, NULL,
+			  NULL, NULL);
+	if (ret < 0)
+		return ret;
+
+	if (mirror_viid)
+		*mirror_viid = ret;
+
+	return 0;
+}
+
 /**
  *	t4_read_cimq_cfg - read CIM queue configuration
  *	@adap: the adapter

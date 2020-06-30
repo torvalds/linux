@@ -679,6 +679,12 @@ struct port_info {
 	u8 rx_cchan;
 
 	bool tc_block_shared;
+
+	/* Mirror VI information */
+	u16 viid_mirror;
+	u16 nmirrorqsets;
+	u32 vi_mirror_count;
+	struct mutex vi_mirror_mutex; /* Sync access to Mirror VI info */
 };
 
 struct dentry;
@@ -960,6 +966,7 @@ struct sge {
 	u16 ofldqsets;              /* # of active ofld queue sets */
 	u16 nqs_per_uld;	    /* # of Rx queues per ULD */
 	u16 eoqsets;                /* # of ETHOFLD queues */
+	u16 mirrorqsets;            /* # of Mirror queues */
 
 	u16 timer_val[SGE_NTIMERS];
 	u8 counter_val[SGE_NCOUNTERS];
@@ -1857,6 +1864,8 @@ int t4_init_rss_mode(struct adapter *adap, int mbox);
 int t4_init_portinfo(struct port_info *pi, int mbox,
 		     int port, int pf, int vf, u8 mac[]);
 int t4_port_init(struct adapter *adap, int mbox, int pf, int vf);
+int t4_init_port_mirror(struct port_info *pi, u8 mbox, u8 port, u8 pf, u8 vf,
+			u16 *mirror_viid);
 void t4_fatal_err(struct adapter *adapter);
 unsigned int t4_chip_rss_size(struct adapter *adapter);
 int t4_config_rss_range(struct adapter *adapter, int mbox, unsigned int viid,
@@ -2141,6 +2150,8 @@ int cxgb_open(struct net_device *dev);
 int cxgb_close(struct net_device *dev);
 void cxgb4_enable_rx(struct adapter *adap, struct sge_rspq *q);
 void cxgb4_quiesce_rx(struct sge_rspq *q);
+int cxgb4_port_mirror_alloc(struct net_device *dev);
+void cxgb4_port_mirror_free(struct net_device *dev);
 #ifdef CONFIG_CHELSIO_TLS_DEVICE
 int cxgb4_set_ktls_feature(struct adapter *adap, bool enable);
 #endif
