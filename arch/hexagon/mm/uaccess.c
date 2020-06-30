@@ -11,7 +11,7 @@
  */
 #include <linux/types.h>
 #include <linux/uaccess.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 
 /*
  * For clear_user(), exploit previously defined copy_to_user function

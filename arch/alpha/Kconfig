@@ -83,7 +83,7 @@ menu "System setup"
 choice
 	prompt "Alpha system type"
 	default ALPHA_GENERIC
-	---help---
+	help
 	  This is the system type of your hardware.  A "generic" kernel will
 	  run on any supported Alpha system. However, if you configure a
 	  kernel for your specific system, it will be faster and smaller.
@@ -480,7 +480,7 @@ config VGA_HOSE
 config ALPHA_QEMU
 	bool "Run under QEMU emulation"
 	depends on !ALPHA_GENERIC
-	---help---
+	help
 	  Assume the presence of special features supported by QEMU PALcode
 	  that reduce the overhead of system emulation.
 
@@ -495,7 +495,7 @@ config ALPHA_SRM
 	bool "Use SRM as bootloader" if ALPHA_CABRIOLET || ALPHA_AVANTI_CH || ALPHA_EB64P || ALPHA_PC164 || ALPHA_TAKARA || ALPHA_EB164 || ALPHA_ALCOR || ALPHA_MIATA || ALPHA_LX164 || ALPHA_SX164 || ALPHA_NAUTILUS || ALPHA_NONAME
 	depends on TTY
 	default y if ALPHA_JENSEN || ALPHA_MIKASA || ALPHA_SABLE || ALPHA_LYNX || ALPHA_NORITAKE || ALPHA_DP264 || ALPHA_RAWHIDE || ALPHA_EIGER || ALPHA_WILDFIRE || ALPHA_TITAN || ALPHA_SHARK || ALPHA_MARVEL
-	---help---
+	help
 	  There are two different types of booting firmware on Alphas: SRM,
 	  which is command line driven, and ARC, which uses menus and arrow
 	  keys. Details about the Linux/Alpha booting process are contained in
@@ -521,7 +521,7 @@ config ARCH_MAY_HAVE_PC_FDC
 config SMP
 	bool "Symmetric multi-processing support"
 	depends on ALPHA_SABLE || ALPHA_LYNX || ALPHA_RAWHIDE || ALPHA_DP264 || ALPHA_WILDFIRE || ALPHA_TITAN || ALPHA_GENERIC || ALPHA_SHARK || ALPHA_MARVEL
-	---help---
+	help
 	  This enables support for systems with more than one CPU. If you have
 	  a system with only one CPU, say N. If you have a system with more
 	  than one CPU, say Y.
@@ -545,7 +545,7 @@ config NR_CPUS
 	default "4" if !ALPHA_GENERIC && !ALPHA_MARVEL
 	help
 	  MARVEL support can handle a maximum of 32 CPUs, all the others
-          with working support have a maximum of 4 CPUs.
+	  with working support have a maximum of 4 CPUs.
 
 config ARCH_DISCONTIGMEM_ENABLE
 	bool "Discontiguous Memory Support"
@@ -569,7 +569,7 @@ config ALPHA_WTINT
 	default n if ALPHA_EV5 || ALPHA_EV56 || (ALPHA_EV4 && !ALPHA_LCA)
 	default n if !ALPHA_SRM && !ALPHA_GENERIC
 	default y if SMP
-	---help---
+	help
 	  The Wait for Interrupt (WTINT) PALcall attempts to place the CPU
 	  to sleep until the next interrupt.  This may reduce the power
 	  consumed, and the heat produced by the computer.  However, it has
@@ -595,7 +595,7 @@ config NODES_SHIFT
 # LARGE_VMALLOC is racy, if you *really* need it then fix it first
 config ALPHA_LARGE_VMALLOC
 	bool
-	---help---
+	help
 	  Process creation and other aspects of virtual memory management can
 	  be streamlined if we restrict the kernel to one PGD for all vmalloc
 	  allocations.  This equates to about 8GB.
@@ -614,7 +614,7 @@ config VERBOSE_MCHECK_ON
 	int "Verbose Printing Mode (0=off, 1=on, 2=all)"
 	depends on VERBOSE_MCHECK
 	default 1
-	---help---
+	help
 	  This option allows the default printing mode to be set, and then
 	  possibly overridden by a boot command argument.
 
@@ -633,7 +633,7 @@ choice
 	default HZ_128 if ALPHA_QEMU
 	default HZ_1200 if ALPHA_RAWHIDE
 	default HZ_1024
-	---help---
+	help
 	  The frequency at which timer interrupts occur.  A high frequency
 	  minimizes latency, whereas a low frequency minimizes overhead of
 	  process accounting.  The later effect is especially significant
@@ -657,7 +657,7 @@ choice
 endchoice
 
 config HZ
-	int 
+	int
 	default 32 if HZ_32
 	default 64 if HZ_64
 	default 128 if HZ_128
@@ -668,7 +668,7 @@ config HZ
 config SRM_ENV
 	tristate "SRM environment through procfs"
 	depends on PROC_FS
-	---help---
+	help
 	  If you enable this option, a subdirectory inside /proc called
 	  /proc/srm_environment will give you access to the all important
 	  SRM environment variables (those which have a name) and also

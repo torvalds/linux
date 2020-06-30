@@ -7,60 +7,151 @@
  * Copyright 2011 Intel Corporation; author Matt Fleming
  */
 
+#include <stdarg.h>
+
+#include <linux/ctype.h>
 #include <linux/efi.h>
+#include <linux/kernel.h>
+#include <linux/printk.h> /* For CONSOLE_LOGLEVEL_* */
 #include <asm/efi.h>
+#include <asm/setup.h>
 
 #include "efistub.h"
 
-static bool __efistub_global efi_nochunk;
-static bool __efistub_global efi_nokaslr;
-static bool __efistub_global efi_noinitrd;
-static bool __efistub_global efi_quiet;
-static bool __efistub_global efi_novamap;
-static bool __efistub_global efi_nosoftreserve;
-static bool __efistub_global efi_disable_pci_dma =
-					IS_ENABLED(CONFIG_EFI_DISABLE_PCI_DMA);
+bool efi_nochunk;
+bool efi_nokaslr;
+bool efi_noinitrd;
+int efi_loglevel = CONSOLE_LOGLEVEL_DEFAULT;
+bool efi_novamap;
 
-bool __pure nochunk(void)
-{
-	return efi_nochunk;
-}
-bool __pure nokaslr(void)
-{
-	return efi_nokaslr;
-}
-bool __pure noinitrd(void)
-{
-	return efi_noinitrd;
-}
-bool __pure is_quiet(void)
-{
-	return efi_quiet;
-}
-bool __pure novamap(void)
-{
-	return efi_novamap;
-}
+static bool efi_nosoftreserve;
+static bool efi_disable_pci_dma = IS_ENABLED(CONFIG_EFI_DISABLE_PCI_DMA);
+
 bool __pure __efi_soft_reserve_enabled(void)
 {
 	return !efi_nosoftreserve;
 }
 
-void efi_printk(char *str)
+void efi_char16_puts(efi_char16_t *str)
 {
-	char *s8;
+	efi_call_proto(efi_table_attr(efi_system_table, con_out),
+		       output_string, str);
+}
 
-	for (s8 = str; *s8; s8++) {
-		efi_char16_t ch[2] = { 0 };
+static
+u32 utf8_to_utf32(const u8 **s8)
+{
+	u32 c32;
+	u8 c0, cx;
+	size_t clen, i;
 
-		ch[0] = *s8;
-		if (*s8 == '\n') {
-			efi_char16_t nl[2] = { '\r', 0 };
-			efi_char16_printk(nl);
-		}
-
-		efi_char16_printk(ch);
+	c0 = cx = *(*s8)++;
+	/*
+	 * The position of the most-significant 0 bit gives us the length of
+	 * a multi-octet encoding.
+	 */
+	for (clen = 0; cx & 0x80; ++clen)
+		cx <<= 1;
+	/*
+	 * If the 0 bit is in position 8, this is a valid single-octet
+	 * encoding. If the 0 bit is in position 7 or positions 1-3, the
+	 * encoding is invalid.
+	 * In either case, we just return the first octet.
+	 */
+	if (clen < 2 || clen > 4)
+		return c0;
+	/* Get the bits from the first octet. */
+	c32 = cx >> clen--;
+	for (i = 0; i < clen; ++i) {
+		/* Trailing octets must have 10 in most significant bits. */
+		cx = (*s8)[i] ^ 0x80;
+		if (cx & 0xc0)
+			return c0;
+		c32 = (c32 << 6) | cx;
 	}
+	/*
+	 * Check for validity:
+	 * - The character must be in the Unicode range.
+	 * - It must not be a surrogate.
+	 * - It must be encoded using the correct number of octets.
+	 */
+	if (c32 > 0x10ffff ||
+	    (c32 & 0xf800) == 0xd800 ||
+	    clen != (c32 >= 0x80) + (c32 >= 0x800) + (c32 >= 0x10000))
+		return c0;
+	*s8 += clen;
+	return c32;
+}
+
+void efi_puts(const char *str)
+{
+	efi_char16_t buf[128];
+	size_t pos = 0, lim = ARRAY_SIZE(buf);
+	const u8 *s8 = (const u8 *)str;
+	u32 c32;
+
+	while (*s8) {
+		if (*s8 == '\n')
+			buf[pos++] = L'\r';
+		c32 = utf8_to_utf32(&s8);
+		if (c32 < 0x10000) {
+			/* Characters in plane 0 use a single word. */
+			buf[pos++] = c32;
+		} else {
+			/*
+			 * Characters in other planes encode into a surrogate
+			 * pair.
+			 */
+			buf[pos++] = (0xd800 - (0x10000 >> 10)) + (c32 >> 10);
+			buf[pos++] = 0xdc00 + (c32 & 0x3ff);
+		}
+		if (*s8 == '\0' || pos >= lim - 2) {
+			buf[pos] = L'\0';
+			efi_char16_puts(buf);
+			pos = 0;
+		}
+	}
+}
+
+int efi_printk(const char *fmt, ...)
+{
+	char printf_buf[256];
+	va_list args;
+	int printed;
+	int loglevel = printk_get_level(fmt);
+
+	switch (loglevel) {
+	case '0' ... '9':
+		loglevel -= '0';
+		break;
+	default:
+		/*
+		 * Use loglevel -1 for cases where we just want to print to
+		 * the screen.
+		 */
+		loglevel = -1;
+		break;
+	}
+
+	if (loglevel >= efi_loglevel)
+		return 0;
+
+	if (loglevel >= 0)
+		efi_puts("EFI stub: ");
+
+	fmt = printk_skip_level(fmt);
+
+	va_start(args, fmt);
+	printed = vsnprintf(printf_buf, sizeof(printf_buf), fmt, args);
+	va_end(args);
+
+	efi_puts(printf_buf);
+	if (printed >= sizeof(printf_buf)) {
+		efi_puts("[Message truncated]\n");
+		return -1;
+	}
+
+	return printed;
 }
 
 /*
@@ -91,7 +182,7 @@ efi_status_t efi_parse_options(char const *cmdline)
 		if (!strcmp(param, "nokaslr")) {
 			efi_nokaslr = true;
 		} else if (!strcmp(param, "quiet")) {
-			efi_quiet = true;
+			efi_loglevel = CONSOLE_LOGLEVEL_QUIET;
 		} else if (!strcmp(param, "noinitrd")) {
 			efi_noinitrd = true;
 		} else if (!strcmp(param, "efi") && val) {
@@ -105,6 +196,11 @@ efi_status_t efi_parse_options(char const *cmdline)
 				efi_disable_pci_dma = true;
 			if (parse_option_str(val, "no_disable_early_pci_dma"))
 				efi_disable_pci_dma = false;
+			if (parse_option_str(val, "debug"))
+				efi_loglevel = CONSOLE_LOGLEVEL_DEBUG;
+		} else if (!strcmp(param, "video") &&
+			   val && strstarts(val, "efifb:")) {
+			efi_parse_option_graphics(val + strlen("efifb:"));
 		}
 	}
 	efi_bs_call(free_pool, buf);
@@ -112,97 +208,79 @@ efi_status_t efi_parse_options(char const *cmdline)
 }
 
 /*
- * Get the number of UTF-8 bytes corresponding to an UTF-16 character.
- * This overestimates for surrogates, but that is okay.
- */
-static int efi_utf8_bytes(u16 c)
-{
-	return 1 + (c >= 0x80) + (c >= 0x800);
-}
-
-/*
- * Convert an UTF-16 string, not necessarily null terminated, to UTF-8.
- */
-static u8 *efi_utf16_to_utf8(u8 *dst, const u16 *src, int n)
-{
-	unsigned int c;
-
-	while (n--) {
-		c = *src++;
-		if (n && c >= 0xd800 && c <= 0xdbff &&
-		    *src >= 0xdc00 && *src <= 0xdfff) {
-			c = 0x10000 + ((c & 0x3ff) << 10) + (*src & 0x3ff);
-			src++;
-			n--;
-		}
-		if (c >= 0xd800 && c <= 0xdfff)
-			c = 0xfffd; /* Unmatched surrogate */
-		if (c < 0x80) {
-			*dst++ = c;
-			continue;
-		}
-		if (c < 0x800) {
-			*dst++ = 0xc0 + (c >> 6);
-			goto t1;
-		}
-		if (c < 0x10000) {
-			*dst++ = 0xe0 + (c >> 12);
-			goto t2;
-		}
-		*dst++ = 0xf0 + (c >> 18);
-		*dst++ = 0x80 + ((c >> 12) & 0x3f);
-	t2:
-		*dst++ = 0x80 + ((c >> 6) & 0x3f);
-	t1:
-		*dst++ = 0x80 + (c & 0x3f);
-	}
-
-	return dst;
-}
-
-/*
  * Convert the unicode UEFI command line to ASCII to pass to kernel.
  * Size of memory allocated return in *cmd_line_len.
  * Returns NULL on error.
  */
-char *efi_convert_cmdline(efi_loaded_image_t *image,
-			  int *cmd_line_len, unsigned long max_addr)
+char *efi_convert_cmdline(efi_loaded_image_t *image, int *cmd_line_len)
 {
 	const u16 *s2;
-	u8 *s1 = NULL;
 	unsigned long cmdline_addr = 0;
-	int load_options_chars = efi_table_attr(image, load_options_size) / 2;
+	int options_chars = efi_table_attr(image, load_options_size) / 2;
 	const u16 *options = efi_table_attr(image, load_options);
-	int options_bytes = 0;  /* UTF-8 bytes */
-	int options_chars = 0;  /* UTF-16 chars */
+	int options_bytes = 0, safe_options_bytes = 0;  /* UTF-8 bytes */
+	bool in_quote = false;
 	efi_status_t status;
-	u16 zero = 0;
 
 	if (options) {
 		s2 = options;
-		while (*s2 && *s2 != '\n'
-		       && options_chars < load_options_chars) {
-			options_bytes += efi_utf8_bytes(*s2++);
-			options_chars++;
-		}
-	}
+		while (options_bytes < COMMAND_LINE_SIZE && options_chars--) {
+			u16 c = *s2++;
 
-	if (!options_chars) {
-		/* No command line options, so return empty string*/
-		options = &zero;
+			if (c < 0x80) {
+				if (c == L'\0' || c == L'\n')
+					break;
+				if (c == L'"')
+					in_quote = !in_quote;
+				else if (!in_quote && isspace((char)c))
+					safe_options_bytes = options_bytes;
+
+				options_bytes++;
+				continue;
+			}
+
+			/*
+			 * Get the number of UTF-8 bytes corresponding to a
+			 * UTF-16 character.
+			 * The first part handles everything in the BMP.
+			 */
+			options_bytes += 2 + (c >= 0x800);
+			/*
+			 * Add one more byte for valid surrogate pairs. Invalid
+			 * surrogates will be replaced with 0xfffd and take up
+			 * only 3 bytes.
+			 */
+			if ((c & 0xfc00) == 0xd800) {
+				/*
+				 * If the very last word is a high surrogate,
+				 * we must ignore it since we can't access the
+				 * low surrogate.
+				 */
+				if (!options_chars) {
+					options_bytes -= 3;
+				} else if ((*s2 & 0xfc00) == 0xdc00) {
+					options_bytes++;
+					options_chars--;
+					s2++;
+				}
+			}
+		}
+		if (options_bytes >= COMMAND_LINE_SIZE) {
+			options_bytes = safe_options_bytes;
+			efi_err("Command line is too long: truncated to %d bytes\n",
+				options_bytes);
+		}
 	}
 
 	options_bytes++;	/* NUL termination */
 
-	status = efi_allocate_pages(options_bytes, &cmdline_addr, max_addr);
+	status = efi_bs_call(allocate_pool, EFI_LOADER_DATA, options_bytes,
+			     (void **)&cmdline_addr);
 	if (status != EFI_SUCCESS)
 		return NULL;
 
-	s1 = (u8 *)cmdline_addr;
-	s2 = (const u16 *)options;
-
-	s1 = efi_utf16_to_utf8(s1, s2, options_chars);
-	*s1 = '\0';
+	snprintf((char *)cmdline_addr, options_bytes, "%.*ls",
+		 options_bytes - 1, options);
 
 	*cmd_line_len = options_bytes;
 	return (char *)cmdline_addr;
@@ -285,8 +363,8 @@ fail:
 
 void *get_efi_config_table(efi_guid_t guid)
 {
-	unsigned long tables = efi_table_attr(efi_system_table(), tables);
-	int nr_tables = efi_table_attr(efi_system_table(), nr_tables);
+	unsigned long tables = efi_table_attr(efi_system_table, tables);
+	int nr_tables = efi_table_attr(efi_system_table, nr_tables);
 	int i;
 
 	for (i = 0; i < nr_tables; i++) {
@@ -299,12 +377,6 @@ void *get_efi_config_table(efi_guid_t guid)
 					  : sizeof(efi_config_table_32_t);
 	}
 	return NULL;
-}
-
-void efi_char16_printk(efi_char16_t *str)
-{
-	efi_call_proto(efi_table_attr(efi_system_table(), con_out),
-		       output_string, str);
 }
 
 /*
@@ -348,6 +420,7 @@ static const struct {
  *		%EFI_OUT_OF_RESOURCES if memory allocation failed
  *		%EFI_LOAD_ERROR in all other cases
  */
+static
 efi_status_t efi_load_initrd_dev_path(unsigned long *load_addr,
 				      unsigned long *load_size,
 				      unsigned long max)
@@ -359,9 +432,6 @@ efi_status_t efi_load_initrd_dev_path(unsigned long *load_addr,
 	unsigned long initrd_size;
 	efi_handle_t handle;
 	efi_status_t status;
-
-	if (!load_addr || !load_size)
-		return EFI_INVALID_PARAMETER;
 
 	dp = (efi_device_path_protocol_t *)&initrd_dev_path;
 	status = efi_bs_call(locate_device_path, &lf2_proto_guid, &dp, &handle);
@@ -391,4 +461,81 @@ efi_status_t efi_load_initrd_dev_path(unsigned long *load_addr,
 	*load_addr = initrd_addr;
 	*load_size = initrd_size;
 	return EFI_SUCCESS;
+}
+
+static
+efi_status_t efi_load_initrd_cmdline(efi_loaded_image_t *image,
+				     unsigned long *load_addr,
+				     unsigned long *load_size,
+				     unsigned long soft_limit,
+				     unsigned long hard_limit)
+{
+	if (!IS_ENABLED(CONFIG_EFI_GENERIC_STUB_INITRD_CMDLINE_LOADER) ||
+	    (IS_ENABLED(CONFIG_X86) && (!efi_is_native() || image == NULL))) {
+		*load_addr = *load_size = 0;
+		return EFI_SUCCESS;
+	}
+
+	return handle_cmdline_files(image, L"initrd=", sizeof(L"initrd=") - 2,
+				    soft_limit, hard_limit,
+				    load_addr, load_size);
+}
+
+efi_status_t efi_load_initrd(efi_loaded_image_t *image,
+			     unsigned long *load_addr,
+			     unsigned long *load_size,
+			     unsigned long soft_limit,
+			     unsigned long hard_limit)
+{
+	efi_status_t status;
+
+	if (!load_addr || !load_size)
+		return EFI_INVALID_PARAMETER;
+
+	status = efi_load_initrd_dev_path(load_addr, load_size, hard_limit);
+	if (status == EFI_SUCCESS) {
+		efi_info("Loaded initrd from LINUX_EFI_INITRD_MEDIA_GUID device path\n");
+	} else if (status == EFI_NOT_FOUND) {
+		status = efi_load_initrd_cmdline(image, load_addr, load_size,
+						 soft_limit, hard_limit);
+		if (status == EFI_SUCCESS && *load_size > 0)
+			efi_info("Loaded initrd from command line option\n");
+	}
+
+	return status;
+}
+
+efi_status_t efi_wait_for_key(unsigned long usec, efi_input_key_t *key)
+{
+	efi_event_t events[2], timer;
+	unsigned long index;
+	efi_simple_text_input_protocol_t *con_in;
+	efi_status_t status;
+
+	con_in = efi_table_attr(efi_system_table, con_in);
+	if (!con_in)
+		return EFI_UNSUPPORTED;
+	efi_set_event_at(events, 0, efi_table_attr(con_in, wait_for_key));
+
+	status = efi_bs_call(create_event, EFI_EVT_TIMER, 0, NULL, NULL, &timer);
+	if (status != EFI_SUCCESS)
+		return status;
+
+	status = efi_bs_call(set_timer, timer, EfiTimerRelative,
+			     EFI_100NSEC_PER_USEC * usec);
+	if (status != EFI_SUCCESS)
+		return status;
+	efi_set_event_at(events, 1, timer);
+
+	status = efi_bs_call(wait_for_event, 2, events, &index);
+	if (status == EFI_SUCCESS) {
+		if (index == 0)
+			status = efi_call_proto(con_in, read_keystroke, key);
+		else
+			status = EFI_TIMEOUT;
+	}
+
+	efi_bs_call(close_event, timer);
+
+	return status;
 }

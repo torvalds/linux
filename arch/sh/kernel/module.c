@@ -46,15 +46,6 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 			+ ELF32_R_SYM(rel[i].r_info);
 		relocation = sym->st_value + rel[i].r_addend;
 
-#ifdef CONFIG_SUPERH64
-		/* For text addresses, bit2 of the st_other field indicates
-		 * whether the symbol is SHmedia (1) or SHcompact (0).  If
-		 * SHmedia, the LSB of the symbol needs to be asserted
-		 * for the CPU to be in SHmedia mode when it starts executing
-		 * the branch target. */
-		relocation |= !!(sym->st_other & 4);
-#endif
-
 		switch (ELF32_R_TYPE(rel[i].r_info)) {
 		case R_SH_NONE:
 			break;

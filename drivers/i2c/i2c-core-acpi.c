@@ -468,15 +468,11 @@ struct notifier_block i2c_acpi_notifier = {
 struct i2c_client *i2c_acpi_new_device(struct device *dev, int index,
 				       struct i2c_board_info *info)
 {
+	struct acpi_device *adev = ACPI_COMPANION(dev);
 	struct i2c_acpi_lookup lookup;
 	struct i2c_adapter *adapter;
-	struct acpi_device *adev;
 	LIST_HEAD(resource_list);
 	int ret;
-
-	adev = ACPI_COMPANION(dev);
-	if (!adev)
-		return ERR_PTR(-EINVAL);
 
 	memset(&lookup, 0, sizeof(lookup));
 	lookup.info = info;

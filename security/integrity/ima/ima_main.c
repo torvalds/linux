@@ -394,6 +394,58 @@ int ima_file_mmap(struct file *file, unsigned long prot)
 }
 
 /**
+ * ima_file_mprotect - based on policy, limit mprotect change
+ * @prot: contains the protection that will be applied by the kernel.
+ *
+ * Files can be mmap'ed read/write and later changed to execute to circumvent
+ * IMA's mmap appraisal policy rules.  Due to locking issues (mmap semaphore
+ * would be taken before i_mutex), files can not be measured or appraised at
+ * this point.  Eliminate this integrity gap by denying the mprotect
+ * PROT_EXECUTE change, if an mmap appraise policy rule exists.
+ *
+ * On mprotect change success, return 0.  On failure, return -EACESS.
+ */
+int ima_file_mprotect(struct vm_area_struct *vma, unsigned long prot)
+{
+	struct ima_template_desc *template;
+	struct file *file = vma->vm_file;
+	char filename[NAME_MAX];
+	char *pathbuf = NULL;
+	const char *pathname = NULL;
+	struct inode *inode;
+	int result = 0;
+	int action;
+	u32 secid;
+	int pcr;
+
+	/* Is mprotect making an mmap'ed file executable? */
+	if (!(ima_policy_flag & IMA_APPRAISE) || !vma->vm_file ||
+	    !(prot & PROT_EXEC) || (vma->vm_flags & VM_EXEC))
+		return 0;
+
+	security_task_getsecid(current, &secid);
+	inode = file_inode(vma->vm_file);
+	action = ima_get_action(inode, current_cred(), secid, MAY_EXEC,
+				MMAP_CHECK, &pcr, &template, 0);
+
+	/* Is the mmap'ed file in policy? */
+	if (!(action & (IMA_MEASURE | IMA_APPRAISE_SUBMASK)))
+		return 0;
+
+	if (action & IMA_APPRAISE_SUBMASK)
+		result = -EPERM;
+
+	file = vma->vm_file;
+	pathname = ima_d_path(&file->f_path, &pathbuf, filename);
+	integrity_audit_msg(AUDIT_INTEGRITY_DATA, inode, pathname,
+			    "collect_data", "failed-mprotect", result, 0);
+	if (pathbuf)
+		__putname(pathbuf);
+
+	return result;
+}
+
+/**
  * ima_bprm_check - based on policy, collect/store measurement.
  * @bprm: contains the linux_binprm structure
  *
@@ -791,6 +843,9 @@ static int __init init_ima(void)
 		hash_setup(CONFIG_IMA_DEFAULT_HASH);
 		error = ima_init();
 	}
+
+	if (error)
+		return error;
 
 	error = register_blocking_lsm_notifier(&ima_lsm_policy_notifier);
 	if (error)

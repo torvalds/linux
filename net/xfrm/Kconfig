@@ -22,7 +22,7 @@ if INET
 config XFRM_USER
 	tristate "Transformation user configuration interface"
 	select XFRM_ALGO
-	---help---
+	help
 	  Support for Transformation(XFRM) user configuration interface
 	  like IPsec used by native Linux tools.
 
@@ -31,7 +31,7 @@ config XFRM_USER
 config XFRM_INTERFACE
 	tristate "Transformation virtual interface"
 	depends on XFRM && IPV6
-	---help---
+	help
 	  This provides a virtual interface to route IPsec traffic.
 
 	  If unsure, say N.
@@ -39,7 +39,7 @@ config XFRM_INTERFACE
 config XFRM_SUB_POLICY
 	bool "Transformation sub policy support"
 	depends on XFRM
-	---help---
+	help
 	  Support sub policy for developers. By using sub policy with main
 	  one, two policies can be applied to the same packet at once.
 	  Policy which lives shorter time in kernel should be a sub.
@@ -49,7 +49,7 @@ config XFRM_SUB_POLICY
 config XFRM_MIGRATE
 	bool "Transformation migrate database"
 	depends on XFRM
-	---help---
+	help
 	  A feature to update locator(s) of a given IPsec security
 	  association dynamically.  This feature is required, for
 	  instance, in a Mobile IPv6 environment with IPsec configuration
@@ -60,7 +60,7 @@ config XFRM_MIGRATE
 config XFRM_STATISTICS
 	bool "Transformation statistics"
 	depends on XFRM && PROC_FS
-	---help---
+	help
 	  This statistics is not a SNMP/MIB specification but shows
 	  statistics about transformation error (or almost error) factor
 	  at packet processing for developer.
@@ -76,7 +76,7 @@ config XFRM_IPCOMP
 config NET_KEY
 	tristate "PF_KEY sockets"
 	select XFRM_ALGO
-	---help---
+	help
 	  PF_KEYv2 socket family, compatible to KAME ones.
 	  They are required if you are going to use IPsec tools ported
 	  from KAME.
@@ -87,7 +87,7 @@ config NET_KEY_MIGRATE
 	bool "PF_KEY MIGRATE"
 	depends on NET_KEY
 	select XFRM_MIGRATE
-	---help---
+	help
 	  Add a PF_KEY MIGRATE message to PF_KEYv2 socket family.
 	  The PF_KEY MIGRATE message is used to dynamically update
 	  locator(s) of a given IPsec security association.
@@ -98,5 +98,8 @@ config NET_KEY_MIGRATE
 	  <draft-sugimoto-mip6-pfkey-migrate>.
 
 	  If unsure, say N.
+
+config XFRM_ESPINTCP
+	bool
 
 endif # INET

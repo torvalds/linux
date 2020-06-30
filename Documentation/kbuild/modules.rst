@@ -528,18 +528,6 @@ build.
 		will then do the expected and compile both modules with
 		full knowledge of symbols from either module.
 
-	Use an extra Module.symvers file
-		When an external module is built, a Module.symvers file
-		is generated containing all exported symbols which are
-		not defined in the kernel. To get access to symbols
-		from bar.ko, copy the Module.symvers file from the
-		compilation of bar.ko to the directory where foo.ko is
-		built. During the module build, kbuild will read the
-		Module.symvers file in the directory of the external
-		module, and when the build is finished, a new
-		Module.symvers file is created containing the sum of
-		all symbols defined and not part of the kernel.
-
 	Use "make" variable KBUILD_EXTRA_SYMBOLS
 		If it is impractical to add a top-level kbuild file,
 		you can assign a space separated list

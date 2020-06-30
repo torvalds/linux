@@ -149,7 +149,7 @@ static int axg_tdm_iface_startup(struct snd_pcm_substream *substream,
 	}
 
 	/* Apply component wide rate symmetry */
-	if (dai->component->active) {
+	if (snd_soc_component_active(dai->component)) {
 		ret = snd_pcm_hw_constraint_single(substream->runtime,
 						   SNDRV_PCM_HW_PARAM_RATE,
 						   iface->rate);

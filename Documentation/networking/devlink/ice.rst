@@ -61,14 +61,25 @@ The ``ice`` driver reports the following versions
       - running
       - ICE OS Default Package
       - The name of the DDP package that is active in the device. The DDP
-        package is loaded by the driver during initialization. Each varation
-        of DDP package shall have a unique name.
+        package is loaded by the driver during initialization. Each
+        variation of the DDP package has a unique name.
     * - ``fw.app``
       - running
       - 1.3.1.0
       - The version of the DDP package that is active in the device. Note
         that both the name (as reported by ``fw.app.name``) and version are
         required to uniquely identify the package.
+    * - ``fw.netlist``
+      - running
+      - 1.1.2000-6.7.0
+      - The version of the netlist module. This module defines the device's
+        Ethernet capabilities and default settings, and is used by the
+        management firmware as part of managing link and device
+        connectivity.
+    * - ``fw.netlist.build``
+      - running
+      - 0xee16ced7
+      - The first 4 bytes of the hash of the netlist module contents.
 
 Regions
 =======

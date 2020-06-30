@@ -108,6 +108,8 @@ typedef unsigned int (*amdtp_stream_process_ctx_payloads_t)(
 						const struct pkt_desc *desc,
 						unsigned int packets,
 						struct snd_pcm_substream *pcm);
+
+struct amdtp_domain;
 struct amdtp_stream {
 	struct fw_unit *unit;
 	enum cip_flags flags;
@@ -136,9 +138,7 @@ struct amdtp_stream {
 		struct {
 			// To calculate CIP data blocks and tstamp.
 			unsigned int transfer_delay;
-			unsigned int data_block_state;
-			unsigned int last_syt_offset;
-			unsigned int syt_offset_state;
+			unsigned int seq_index;
 
 			// To generate CIP header.
 			unsigned int fdf;
@@ -180,6 +180,7 @@ struct amdtp_stream {
 	int channel;
 	int speed;
 	struct list_head list;
+	struct amdtp_domain *domain;
 };
 
 int amdtp_stream_init(struct amdtp_stream *s, struct fw_unit *unit,
@@ -273,6 +274,11 @@ static inline bool amdtp_stream_wait_callback(struct amdtp_stream *s,
 				  msecs_to_jiffies(timeout)) > 0;
 }
 
+struct seq_desc {
+	unsigned int syt_offset;
+	unsigned int data_blocks;
+};
+
 struct amdtp_domain {
 	struct list_head streams;
 
@@ -280,6 +286,14 @@ struct amdtp_domain {
 	unsigned int events_per_buffer;
 
 	struct amdtp_stream *irq_target;
+
+	struct seq_desc *seq_descs;
+	unsigned int seq_size;
+	unsigned int seq_tail;
+
+	unsigned int data_block_state;
+	unsigned int syt_offset_state;
+	unsigned int last_syt_offset;
 };
 
 int amdtp_domain_init(struct amdtp_domain *d);

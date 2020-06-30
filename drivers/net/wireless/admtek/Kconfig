@@ -2,7 +2,7 @@
 config WLAN_VENDOR_ADMTEK
 	bool "ADMtek devices"
 	default y
-	---help---
+	help
 	  If you have a wireless card belonging to this class, say Y.
 
 	  Note that the answer to this question doesn't directly affect the
@@ -17,7 +17,7 @@ config ADM8211
 	depends on MAC80211 && PCI
 	select CRC32
 	select EEPROM_93CX6
-	---help---
+	help
 	  This driver is for ADM8211A, ADM8211B, and ADM8211C based cards.
 	  These are PCI/mini-PCI/Cardbus 802.11b chips found in cards such as:
 

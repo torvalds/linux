@@ -6,7 +6,7 @@
 menuconfig MELLANOX_PLATFORM
 	bool "Platform support for Mellanox hardware"
 	depends on X86 || ARM || ARM64 || COMPILE_TEST
-	---help---
+	help
 	  Say Y here to get to see options for platform support for
 	  Mellanox systems. This option alone does not add any kernel code.
 
@@ -19,7 +19,7 @@ config MLXREG_HOTPLUG
 	depends on REGMAP
 	depends on HWMON
 	depends on I2C
-	---help---
+	help
 	  This driver handles hot-plug events for the power suppliers, power
 	  cables and fans on the wide range Mellanox IB and Ethernet systems.
 

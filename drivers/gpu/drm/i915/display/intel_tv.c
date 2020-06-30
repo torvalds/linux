@@ -914,7 +914,8 @@ intel_tv_get_hw_state(struct intel_encoder *encoder, enum pipe *pipe)
 }
 
 static void
-intel_enable_tv(struct intel_encoder *encoder,
+intel_enable_tv(struct intel_atomic_state *state,
+		struct intel_encoder *encoder,
 		const struct intel_crtc_state *pipe_config,
 		const struct drm_connector_state *conn_state)
 {
@@ -930,7 +931,8 @@ intel_enable_tv(struct intel_encoder *encoder,
 }
 
 static void
-intel_disable_tv(struct intel_encoder *encoder,
+intel_disable_tv(struct intel_atomic_state *state,
+		 struct intel_encoder *encoder,
 		 const struct intel_crtc_state *old_crtc_state,
 		 const struct drm_connector_state *old_conn_state)
 {
@@ -1414,7 +1416,8 @@ static void set_color_conversion(struct drm_i915_private *dev_priv,
 		       (color_conversion->bv << 16) | color_conversion->av);
 }
 
-static void intel_tv_pre_enable(struct intel_encoder *encoder,
+static void intel_tv_pre_enable(struct intel_atomic_state *state,
+				struct intel_encoder *encoder,
 				const struct intel_crtc_state *pipe_config,
 				const struct drm_connector_state *conn_state)
 {
@@ -1698,13 +1701,13 @@ intel_tv_detect(struct drm_connector *connector,
 		struct drm_modeset_acquire_ctx *ctx,
 		bool force)
 {
+	struct drm_i915_private *i915 = to_i915(connector->dev);
 	struct intel_tv *intel_tv = intel_attached_tv(to_intel_connector(connector));
 	enum drm_connector_status status;
 	int type;
 
-	DRM_DEBUG_KMS("[CONNECTOR:%d:%s] force=%d\n",
-		      connector->base.id, connector->name,
-		      force);
+	drm_dbg_kms(&i915->drm, "[CONNECTOR:%d:%s] force=%d\n",
+		    connector->base.id, connector->name, force);
 
 	if (force) {
 		struct intel_load_detect_pipe tmp;

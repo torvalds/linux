@@ -27,6 +27,11 @@
 #include <linux/syscalls.h>
 #include <linux/uaccess.h>
 
+#ifdef CONFIG_XEN_PV
+#include <xen/xen-ops.h>
+#include <xen/events.h>
+#endif
+
 #include <asm/desc.h>
 #include <asm/traps.h>
 #include <asm/vdso.h>
@@ -35,20 +40,66 @@
 #include <asm/nospec-branch.h>
 #include <asm/io_bitmap.h>
 #include <asm/syscall.h>
+#include <asm/irq_stack.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/syscalls.h>
 
 #ifdef CONFIG_CONTEXT_TRACKING
-/* Called on entry from user mode with IRQs off. */
-__visible inline void enter_from_user_mode(void)
+/**
+ * enter_from_user_mode - Establish state when coming from user mode
+ *
+ * Syscall entry disables interrupts, but user mode is traced as interrupts
+ * enabled. Also with NO_HZ_FULL RCU might be idle.
+ *
+ * 1) Tell lockdep that interrupts are disabled
+ * 2) Invoke context tracking if enabled to reactivate RCU
+ * 3) Trace interrupts off state
+ */
+static noinstr void enter_from_user_mode(void)
 {
-	CT_WARN_ON(ct_state() != CONTEXT_USER);
+	enum ctx_state state = ct_state();
+
+	lockdep_hardirqs_off(CALLER_ADDR0);
 	user_exit_irqoff();
+
+	instrumentation_begin();
+	CT_WARN_ON(state != CONTEXT_USER);
+	trace_hardirqs_off_finish();
+	instrumentation_end();
 }
 #else
-static inline void enter_from_user_mode(void) {}
+static __always_inline void enter_from_user_mode(void)
+{
+	lockdep_hardirqs_off(CALLER_ADDR0);
+	instrumentation_begin();
+	trace_hardirqs_off_finish();
+	instrumentation_end();
+}
 #endif
+
+/**
+ * exit_to_user_mode - Fixup state when exiting to user mode
+ *
+ * Syscall exit enables interrupts, but the kernel state is interrupts
+ * disabled when this is invoked. Also tell RCU about it.
+ *
+ * 1) Trace interrupts on state
+ * 2) Invoke context tracking if enabled to adjust RCU state
+ * 3) Clear CPU buffers if CPU is affected by MDS and the migitation is on.
+ * 4) Tell lockdep that interrupts are enabled
+ */
+static __always_inline void exit_to_user_mode(void)
+{
+	instrumentation_begin();
+	trace_hardirqs_on_prepare();
+	lockdep_hardirqs_on_prepare(CALLER_ADDR0);
+	instrumentation_end();
+
+	user_enter_irqoff();
+	mds_user_clear_cpu_buffers();
+	lockdep_hardirqs_on(CALLER_ADDR0);
+}
 
 static void do_audit_syscall_entry(struct pt_regs *regs, u32 arch)
 {
@@ -179,8 +230,7 @@ static void exit_to_usermode_loop(struct pt_regs *regs, u32 cached_flags)
 	}
 }
 
-/* Called with IRQs disabled. */
-__visible inline void prepare_exit_to_usermode(struct pt_regs *regs)
+static void __prepare_exit_to_usermode(struct pt_regs *regs)
 {
 	struct thread_info *ti = current_thread_info();
 	u32 cached_flags;
@@ -219,10 +269,14 @@ __visible inline void prepare_exit_to_usermode(struct pt_regs *regs)
 	 */
 	ti->status &= ~(TS_COMPAT|TS_I386_REGS_POKED);
 #endif
+}
 
-	user_enter_irqoff();
-
-	mds_user_clear_cpu_buffers();
+__visible noinstr void prepare_exit_to_usermode(struct pt_regs *regs)
+{
+	instrumentation_begin();
+	__prepare_exit_to_usermode(regs);
+	instrumentation_end();
+	exit_to_user_mode();
 }
 
 #define SYSCALL_EXIT_WORK_FLAGS				\
@@ -251,11 +305,7 @@ static void syscall_slow_exit_work(struct pt_regs *regs, u32 cached_flags)
 		tracehook_report_syscall_exit(regs, step);
 }
 
-/*
- * Called with IRQs on and fully valid regs.  Returns with IRQs off in a
- * state such that we can immediately switch to user mode.
- */
-__visible inline void syscall_return_slowpath(struct pt_regs *regs)
+static void __syscall_return_slowpath(struct pt_regs *regs)
 {
 	struct thread_info *ti = current_thread_info();
 	u32 cached_flags = READ_ONCE(ti->flags);
@@ -276,15 +326,29 @@ __visible inline void syscall_return_slowpath(struct pt_regs *regs)
 		syscall_slow_exit_work(regs, cached_flags);
 
 	local_irq_disable();
-	prepare_exit_to_usermode(regs);
+	__prepare_exit_to_usermode(regs);
+}
+
+/*
+ * Called with IRQs on and fully valid regs.  Returns with IRQs off in a
+ * state such that we can immediately switch to user mode.
+ */
+__visible noinstr void syscall_return_slowpath(struct pt_regs *regs)
+{
+	instrumentation_begin();
+	__syscall_return_slowpath(regs);
+	instrumentation_end();
+	exit_to_user_mode();
 }
 
 #ifdef CONFIG_X86_64
-__visible void do_syscall_64(unsigned long nr, struct pt_regs *regs)
+__visible noinstr void do_syscall_64(unsigned long nr, struct pt_regs *regs)
 {
 	struct thread_info *ti;
 
 	enter_from_user_mode();
+	instrumentation_begin();
+
 	local_irq_enable();
 	ti = current_thread_info();
 	if (READ_ONCE(ti->flags) & _TIF_WORK_SYSCALL_ENTRY)
@@ -301,8 +365,10 @@ __visible void do_syscall_64(unsigned long nr, struct pt_regs *regs)
 		regs->ax = x32_sys_call_table[nr](regs);
 #endif
 	}
+	__syscall_return_slowpath(regs);
 
-	syscall_return_slowpath(regs);
+	instrumentation_end();
+	exit_to_user_mode();
 }
 #endif
 
@@ -313,7 +379,7 @@ __visible void do_syscall_64(unsigned long nr, struct pt_regs *regs)
  * extremely hot in workloads that use it, and it's usually called from
  * do_fast_syscall_32, so forcibly inline it to improve performance.
  */
-static __always_inline void do_syscall_32_irqs_on(struct pt_regs *regs)
+static void do_syscall_32_irqs_on(struct pt_regs *regs)
 {
 	struct thread_info *ti = current_thread_info();
 	unsigned int nr = (unsigned int)regs->orig_ax;
@@ -337,27 +403,62 @@ static __always_inline void do_syscall_32_irqs_on(struct pt_regs *regs)
 		regs->ax = ia32_sys_call_table[nr](regs);
 	}
 
-	syscall_return_slowpath(regs);
+	__syscall_return_slowpath(regs);
 }
 
 /* Handles int $0x80 */
-__visible void do_int80_syscall_32(struct pt_regs *regs)
+__visible noinstr void do_int80_syscall_32(struct pt_regs *regs)
 {
 	enter_from_user_mode();
+	instrumentation_begin();
+
 	local_irq_enable();
 	do_syscall_32_irqs_on(regs);
+
+	instrumentation_end();
+	exit_to_user_mode();
+}
+
+static bool __do_fast_syscall_32(struct pt_regs *regs)
+{
+	int res;
+
+	/* Fetch EBP from where the vDSO stashed it. */
+	if (IS_ENABLED(CONFIG_X86_64)) {
+		/*
+		 * Micro-optimization: the pointer we're following is
+		 * explicitly 32 bits, so it can't be out of range.
+		 */
+		res = __get_user(*(u32 *)&regs->bp,
+			 (u32 __user __force *)(unsigned long)(u32)regs->sp);
+	} else {
+		res = get_user(*(u32 *)&regs->bp,
+		       (u32 __user __force *)(unsigned long)(u32)regs->sp);
+	}
+
+	if (res) {
+		/* User code screwed up. */
+		regs->ax = -EFAULT;
+		local_irq_disable();
+		__prepare_exit_to_usermode(regs);
+		return false;
+	}
+
+	/* Now this is just like a normal syscall. */
+	do_syscall_32_irqs_on(regs);
+	return true;
 }
 
 /* Returns 0 to return using IRET or 1 to return using SYSEXIT/SYSRETL. */
-__visible long do_fast_syscall_32(struct pt_regs *regs)
+__visible noinstr long do_fast_syscall_32(struct pt_regs *regs)
 {
 	/*
 	 * Called using the internal vDSO SYSENTER/SYSCALL32 calling
 	 * convention.  Adjust regs so it looks like we entered using int80.
 	 */
-
 	unsigned long landing_pad = (unsigned long)current->mm->context.vdso +
-		vdso_image_32.sym_int80_landing_pad;
+					vdso_image_32.sym_int80_landing_pad;
+	bool success;
 
 	/*
 	 * SYSENTER loses EIP, and even SYSCALL32 needs us to skip forward
@@ -367,33 +468,17 @@ __visible long do_fast_syscall_32(struct pt_regs *regs)
 	regs->ip = landing_pad;
 
 	enter_from_user_mode();
+	instrumentation_begin();
 
 	local_irq_enable();
+	success = __do_fast_syscall_32(regs);
 
-	/* Fetch EBP from where the vDSO stashed it. */
-	if (
-#ifdef CONFIG_X86_64
-		/*
-		 * Micro-optimization: the pointer we're following is explicitly
-		 * 32 bits, so it can't be out of range.
-		 */
-		__get_user(*(u32 *)&regs->bp,
-			    (u32 __user __force *)(unsigned long)(u32)regs->sp)
-#else
-		get_user(*(u32 *)&regs->bp,
-			 (u32 __user __force *)(unsigned long)(u32)regs->sp)
-#endif
-		) {
+	instrumentation_end();
+	exit_to_user_mode();
 
-		/* User code screwed up. */
-		local_irq_disable();
-		regs->ax = -EFAULT;
-		prepare_exit_to_usermode(regs);
-		return 0;	/* Keep it simple: use IRET. */
-	}
-
-	/* Now this is just like a normal syscall. */
-	do_syscall_32_irqs_on(regs);
+	/* If it failed, keep it simple: use IRET. */
+	if (!success)
+		return 0;
 
 #ifdef CONFIG_X86_64
 	/*
@@ -431,3 +516,266 @@ SYSCALL_DEFINE0(ni_syscall)
 {
 	return -ENOSYS;
 }
+
+/**
+ * idtentry_enter_cond_rcu - Handle state tracking on idtentry with conditional
+ *			     RCU handling
+ * @regs:	Pointer to pt_regs of interrupted context
+ *
+ * Invokes:
+ *  - lockdep irqflag state tracking as low level ASM entry disabled
+ *    interrupts.
+ *
+ *  - Context tracking if the exception hit user mode.
+ *
+ *  - The hardirq tracer to keep the state consistent as low level ASM
+ *    entry disabled interrupts.
+ *
+ * For kernel mode entries RCU handling is done conditional. If RCU is
+ * watching then the only RCU requirement is to check whether the tick has
+ * to be restarted. If RCU is not watching then rcu_irq_enter() has to be
+ * invoked on entry and rcu_irq_exit() on exit.
+ *
+ * Avoiding the rcu_irq_enter/exit() calls is an optimization but also
+ * solves the problem of kernel mode pagefaults which can schedule, which
+ * is not possible after invoking rcu_irq_enter() without undoing it.
+ *
+ * For user mode entries enter_from_user_mode() must be invoked to
+ * establish the proper context for NOHZ_FULL. Otherwise scheduling on exit
+ * would not be possible.
+ *
+ * Returns: True if RCU has been adjusted on a kernel entry
+ *	    False otherwise
+ *
+ * The return value must be fed into the rcu_exit argument of
+ * idtentry_exit_cond_rcu().
+ */
+bool noinstr idtentry_enter_cond_rcu(struct pt_regs *regs)
+{
+	if (user_mode(regs)) {
+		enter_from_user_mode();
+		return false;
+	}
+
+	/*
+	 * If this entry hit the idle task invoke rcu_irq_enter() whether
+	 * RCU is watching or not.
+	 *
+	 * Interupts can nest when the first interrupt invokes softirq
+	 * processing on return which enables interrupts.
+	 *
+	 * Scheduler ticks in the idle task can mark quiescent state and
+	 * terminate a grace period, if and only if the timer interrupt is
+	 * not nested into another interrupt.
+	 *
+	 * Checking for __rcu_is_watching() here would prevent the nesting
+	 * interrupt to invoke rcu_irq_enter(). If that nested interrupt is
+	 * the tick then rcu_flavor_sched_clock_irq() would wrongfully
+	 * assume that it is the first interupt and eventually claim
+	 * quiescient state and end grace periods prematurely.
+	 *
+	 * Unconditionally invoke rcu_irq_enter() so RCU state stays
+	 * consistent.
+	 *
+	 * TINY_RCU does not support EQS, so let the compiler eliminate
+	 * this part when enabled.
+	 */
+	if (!IS_ENABLED(CONFIG_TINY_RCU) && is_idle_task(current)) {
+		/*
+		 * If RCU is not watching then the same careful
+		 * sequence vs. lockdep and tracing is required
+		 * as in enter_from_user_mode().
+		 */
+		lockdep_hardirqs_off(CALLER_ADDR0);
+		rcu_irq_enter();
+		instrumentation_begin();
+		trace_hardirqs_off_finish();
+		instrumentation_end();
+
+		return true;
+	}
+
+	/*
+	 * If RCU is watching then RCU only wants to check whether it needs
+	 * to restart the tick in NOHZ mode. rcu_irq_enter_check_tick()
+	 * already contains a warning when RCU is not watching, so no point
+	 * in having another one here.
+	 */
+	instrumentation_begin();
+	rcu_irq_enter_check_tick();
+	/* Use the combo lockdep/tracing function */
+	trace_hardirqs_off();
+	instrumentation_end();
+
+	return false;
+}
+
+static void idtentry_exit_cond_resched(struct pt_regs *regs, bool may_sched)
+{
+	if (may_sched && !preempt_count()) {
+		/* Sanity check RCU and thread stack */
+		rcu_irq_exit_check_preempt();
+		if (IS_ENABLED(CONFIG_DEBUG_ENTRY))
+			WARN_ON_ONCE(!on_thread_stack());
+		if (need_resched())
+			preempt_schedule_irq();
+	}
+	/* Covers both tracing and lockdep */
+	trace_hardirqs_on();
+}
+
+/**
+ * idtentry_exit_cond_rcu - Handle return from exception with conditional RCU
+ *			    handling
+ * @regs:	Pointer to pt_regs (exception entry regs)
+ * @rcu_exit:	Invoke rcu_irq_exit() if true
+ *
+ * Depending on the return target (kernel/user) this runs the necessary
+ * preemption and work checks if possible and reguired and returns to
+ * the caller with interrupts disabled and no further work pending.
+ *
+ * This is the last action before returning to the low level ASM code which
+ * just needs to return to the appropriate context.
+ *
+ * Counterpart to idtentry_enter_cond_rcu(). The return value of the entry
+ * function must be fed into the @rcu_exit argument.
+ */
+void noinstr idtentry_exit_cond_rcu(struct pt_regs *regs, bool rcu_exit)
+{
+	lockdep_assert_irqs_disabled();
+
+	/* Check whether this returns to user mode */
+	if (user_mode(regs)) {
+		prepare_exit_to_usermode(regs);
+	} else if (regs->flags & X86_EFLAGS_IF) {
+		/*
+		 * If RCU was not watching on entry this needs to be done
+		 * carefully and needs the same ordering of lockdep/tracing
+		 * and RCU as the return to user mode path.
+		 */
+		if (rcu_exit) {
+			instrumentation_begin();
+			/* Tell the tracer that IRET will enable interrupts */
+			trace_hardirqs_on_prepare();
+			lockdep_hardirqs_on_prepare(CALLER_ADDR0);
+			instrumentation_end();
+			rcu_irq_exit();
+			lockdep_hardirqs_on(CALLER_ADDR0);
+			return;
+		}
+
+		instrumentation_begin();
+		idtentry_exit_cond_resched(regs, IS_ENABLED(CONFIG_PREEMPTION));
+		instrumentation_end();
+	} else {
+		/*
+		 * IRQ flags state is correct already. Just tell RCU if it
+		 * was not watching on entry.
+		 */
+		if (rcu_exit)
+			rcu_irq_exit();
+	}
+}
+
+/**
+ * idtentry_enter_user - Handle state tracking on idtentry from user mode
+ * @regs:	Pointer to pt_regs of interrupted context
+ *
+ * Invokes enter_from_user_mode() to establish the proper context for
+ * NOHZ_FULL. Otherwise scheduling on exit would not be possible.
+ */
+void noinstr idtentry_enter_user(struct pt_regs *regs)
+{
+	enter_from_user_mode();
+}
+
+/**
+ * idtentry_exit_user - Handle return from exception to user mode
+ * @regs:	Pointer to pt_regs (exception entry regs)
+ *
+ * Runs the necessary preemption and work checks and returns to the caller
+ * with interrupts disabled and no further work pending.
+ *
+ * This is the last action before returning to the low level ASM code which
+ * just needs to return to the appropriate context.
+ *
+ * Counterpart to idtentry_enter_user().
+ */
+void noinstr idtentry_exit_user(struct pt_regs *regs)
+{
+	lockdep_assert_irqs_disabled();
+
+	prepare_exit_to_usermode(regs);
+}
+
+#ifdef CONFIG_XEN_PV
+#ifndef CONFIG_PREEMPTION
+/*
+ * Some hypercalls issued by the toolstack can take many 10s of
+ * seconds. Allow tasks running hypercalls via the privcmd driver to
+ * be voluntarily preempted even if full kernel preemption is
+ * disabled.
+ *
+ * Such preemptible hypercalls are bracketed by
+ * xen_preemptible_hcall_begin() and xen_preemptible_hcall_end()
+ * calls.
+ */
+DEFINE_PER_CPU(bool, xen_in_preemptible_hcall);
+EXPORT_SYMBOL_GPL(xen_in_preemptible_hcall);
+
+/*
+ * In case of scheduling the flag must be cleared and restored after
+ * returning from schedule as the task might move to a different CPU.
+ */
+static __always_inline bool get_and_clear_inhcall(void)
+{
+	bool inhcall = __this_cpu_read(xen_in_preemptible_hcall);
+
+	__this_cpu_write(xen_in_preemptible_hcall, false);
+	return inhcall;
+}
+
+static __always_inline void restore_inhcall(bool inhcall)
+{
+	__this_cpu_write(xen_in_preemptible_hcall, inhcall);
+}
+#else
+static __always_inline bool get_and_clear_inhcall(void) { return false; }
+static __always_inline void restore_inhcall(bool inhcall) { }
+#endif
+
+static void __xen_pv_evtchn_do_upcall(void)
+{
+	irq_enter_rcu();
+	inc_irq_stat(irq_hv_callback_count);
+
+	xen_hvm_evtchn_do_upcall();
+
+	irq_exit_rcu();
+}
+
+__visible noinstr void xen_pv_evtchn_do_upcall(struct pt_regs *regs)
+{
+	struct pt_regs *old_regs;
+	bool inhcall, rcu_exit;
+
+	rcu_exit = idtentry_enter_cond_rcu(regs);
+	old_regs = set_irq_regs(regs);
+
+	instrumentation_begin();
+	run_on_irqstack_cond(__xen_pv_evtchn_do_upcall, NULL, regs);
+	instrumentation_begin();
+
+	set_irq_regs(old_regs);
+
+	inhcall = get_and_clear_inhcall();
+	if (inhcall && !WARN_ON_ONCE(rcu_exit)) {
+		instrumentation_begin();
+		idtentry_exit_cond_resched(regs, true);
+		instrumentation_end();
+		restore_inhcall(inhcall);
+	} else {
+		idtentry_exit_cond_rcu(regs, rcu_exit);
+	}
+}
+#endif /* CONFIG_XEN_PV */

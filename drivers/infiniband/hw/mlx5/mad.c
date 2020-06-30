@@ -30,7 +30,6 @@
  * SOFTWARE.
  */
 
-#include <linux/mlx5/cmd.h>
 #include <linux/mlx5/vport.h>
 #include <rdma/ib_mad.h>
 #include <rdma/ib_smi.h>
@@ -188,8 +187,8 @@ static int process_pma_cmd(struct mlx5_ib_dev *dev, u8 port_num,
 			goto done;
 		}
 
-		err = mlx5_core_query_vport_counter(mdev, 0, 0,
-						    mdev_port_num, out_cnt, sz);
+		err = mlx5_core_query_vport_counter(mdev, 0, 0, mdev_port_num,
+						    out_cnt);
 		if (!err)
 			pma_cnt_ext_assign(pma_cnt_ext, out_cnt);
 	} else {

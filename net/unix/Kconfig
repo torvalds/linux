@@ -5,7 +5,7 @@
 
 config UNIX
 	tristate "Unix domain sockets"
-	---help---
+	help
 	  If you say Y here, you will include support for Unix domain sockets;
 	  sockets are the standard Unix mechanism for establishing and
 	  accessing network connections.  Many commonly used programs such as
@@ -29,6 +29,6 @@ config UNIX_DIAG
 	tristate "UNIX: socket monitoring interface"
 	depends on UNIX
 	default n
-	---help---
+	help
 	  Support for UNIX socket monitoring interface used by the ss tool.
 	  If unsure, say Y.

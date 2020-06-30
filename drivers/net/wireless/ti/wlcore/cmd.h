@@ -458,6 +458,7 @@ enum wl1271_cmd_key_type {
 	KEY_TKIP = 2,
 	KEY_AES  = 3,
 	KEY_GEM  = 4,
+	KEY_IGTK  = 5,
 };
 
 struct wl1271_cmd_set_keys {

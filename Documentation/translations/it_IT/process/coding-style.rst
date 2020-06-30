@@ -313,7 +313,7 @@ che conta gli utenti attivi, dovreste chiamarla ``count_active_users()`` o
 qualcosa di simile, **non** dovreste chiamarla ``cntusr()``.
 
 Codificare il tipo di funzione nel suo nome (quella cosa chiamata notazione
-ungherese) fa male al cervello - il compilatore conosce comunque il tipo e
+ungherese) è stupido - il compilatore conosce comunque il tipo e
 può verificarli, e inoltre confonde i programmatori.  Non c'è da
 sorprendersi che MicroSoft faccia programmi bacati.
 
@@ -825,8 +825,8 @@ linguaggio assembler.
 
 Agli sviluppatori del kernel piace essere visti come dotti. Tenete un occhio
 di riguardo per l'ortografia e farete una belle figura. In inglese, evitate
-l'uso di parole mozzate come ``dont``: usate ``do not`` oppure ``don't``.
-Scrivete messaggi concisi, chiari, e inequivocabili.
+l'uso incorretto di abbreviazioni come ``dont``: usate ``do not`` oppure
+``don't``.  Scrivete messaggi concisi, chiari, e inequivocabili.
 
 I messaggi del kernel non devono terminare con un punto fermo.
 

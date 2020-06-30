@@ -65,7 +65,6 @@ config SPARC64
 	select HAVE_KRETPROBES
 	select HAVE_KPROBES
 	select MMU_GATHER_RCU_TABLE_FREE if SMP
-	select HAVE_MEMBLOCK_NODE_MAP
 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_FTRACE_MCOUNT_RECORD
@@ -160,7 +159,7 @@ menu "Processor type and features"
 
 config SMP
 	bool "Symmetric multi-processing support"
-	---help---
+	help
 	  This enables support for systems with more than one CPU. If you have
 	  a system with only one CPU, say N. If you have a system with more
 	  than one CPU, say Y.
@@ -287,15 +286,6 @@ config NODES_SHIFT
 	  Specify the maximum number of NUMA Nodes available on the target
 	  system.  Increases memory reserved to accommodate various tables.
 
-# Some NUMA nodes have memory ranges that span
-# other nodes.  Even though a pfn is valid and
-# between a node's start and end pfns, it may not
-# reside on that node.  See memmap_init_zone()
-# for details.
-config NODES_SPAN_OTHER_NODES
-	def_bool y
-	depends on NEED_MULTIPLE_NODES
-
 config ARCH_SPARSEMEM_ENABLE
 	def_bool y if SPARC64
 	select SPARSEMEM_VMEMMAP_ENABLE
@@ -376,7 +366,7 @@ config SERIAL_CONSOLE
 	bool
 	depends on SPARC32
 	default y
-	---help---
+	help
 	  If you say Y here, it will be possible to use a serial port as the
 	  system console (the system console is the device which receives all
 	  kernel messages and warnings and which allows logins in single user
@@ -403,7 +393,7 @@ config SPARC_LEON
 	select USB_EHCI_BIG_ENDIAN_DESC
 	select USB_UHCI_BIG_ENDIAN_MMIO
 	select USB_UHCI_BIG_ENDIAN_DESC
-	---help---
+	help
 	  If you say Y here if you are running on a SPARC-LEON processor.
 	  The LEON processor is a synthesizable VHDL model of the
 	  SPARC-v8 standard. LEON is  part of the GRLIB collection of
@@ -417,7 +407,7 @@ menu "U-Boot options"
 config UBOOT_LOAD_ADDR
 	hex "uImage Load Address"
 	default 0x40004000
-	---help---
+	help
 	 U-Boot kernel load address, the address in physical address space
 	 where u-boot will place the Linux kernel before booting it.
 	 This address is normally the base address of main memory + 0x4000.
@@ -425,7 +415,7 @@ config UBOOT_LOAD_ADDR
 config UBOOT_FLASH_ADDR
 	hex "uImage.o Load Address"
 	default 0x00080000
-	---help---
+	help
 	 Optional setting only affecting the uImage.o ELF-image used to
 	 download the uImage file to the target using a ELF-loader other than
 	 U-Boot. It may for example be used to download an uImage to FLASH with
@@ -434,7 +424,7 @@ config UBOOT_FLASH_ADDR
 config UBOOT_ENTRY_ADDR
 	hex "uImage Entry Address"
 	default 0xf0004000
-	---help---
+	help
 	 Do not change this unless you know what you're doing. This is
 	 hardcoded by the SPARC32 and LEON port.
 

@@ -1155,7 +1155,7 @@ extern void nfs_sb_deactive(struct super_block *sb);
 
 #define NFSD42_INTERSSC_MOUNTOPS "vers=4.2,addr=%s,sec=sys"
 
-/**
+/*
  * Support one copy source server for now.
  */
 static __be32
@@ -1245,10 +1245,9 @@ nfsd4_interssc_disconnect(struct vfsmount *ss_mnt)
 	mntput(ss_mnt);
 }
 
-/**
- * nfsd4_setup_inter_ssc
- *
+/*
  * Verify COPY destination stateid.
+ *
  * Connect to the source server with NFSv4.1.
  * Create the source struct file for nfsd_copy_range.
  * Called with COPY cstate:
@@ -2301,6 +2300,8 @@ nfsd4_proc_compound(struct svc_rqst *rqstp)
 		goto encode_op;
 	}
 	check_if_stalefh_allowed(args);
+
+	rqstp->rq_lease_breaker = (void **)&cstate->clp;
 
 	trace_nfsd_compound(rqstp, args->opcnt);
 	while (!status && resp->opcnt < args->opcnt) {

@@ -21,7 +21,13 @@
 
 static struct xfrm6_tunnel __rcu *tunnel6_handlers __read_mostly;
 static struct xfrm6_tunnel __rcu *tunnel46_handlers __read_mostly;
+static struct xfrm6_tunnel __rcu *tunnelmpls6_handlers __read_mostly;
 static DEFINE_MUTEX(tunnel6_mutex);
+
+static inline int xfrm6_tunnel_mpls_supported(void)
+{
+	return IS_ENABLED(CONFIG_MPLS);
+}
 
 int xfrm6_tunnel_register(struct xfrm6_tunnel *handler, unsigned short family)
 {
@@ -32,8 +38,21 @@ int xfrm6_tunnel_register(struct xfrm6_tunnel *handler, unsigned short family)
 
 	mutex_lock(&tunnel6_mutex);
 
-	for (pprev = (family == AF_INET6) ? &tunnel6_handlers : &tunnel46_handlers;
-	     (t = rcu_dereference_protected(*pprev,
+	switch (family) {
+	case AF_INET6:
+		pprev = &tunnel6_handlers;
+		break;
+	case AF_INET:
+		pprev = &tunnel46_handlers;
+		break;
+	case AF_MPLS:
+		pprev = &tunnelmpls6_handlers;
+		break;
+	default:
+		goto err;
+	}
+
+	for (; (t = rcu_dereference_protected(*pprev,
 			lockdep_is_held(&tunnel6_mutex))) != NULL;
 	     pprev = &t->next) {
 		if (t->priority > priority)
@@ -62,8 +81,21 @@ int xfrm6_tunnel_deregister(struct xfrm6_tunnel *handler, unsigned short family)
 
 	mutex_lock(&tunnel6_mutex);
 
-	for (pprev = (family == AF_INET6) ? &tunnel6_handlers : &tunnel46_handlers;
-	     (t = rcu_dereference_protected(*pprev,
+	switch (family) {
+	case AF_INET6:
+		pprev = &tunnel6_handlers;
+		break;
+	case AF_INET:
+		pprev = &tunnel46_handlers;
+		break;
+	case AF_MPLS:
+		pprev = &tunnelmpls6_handlers;
+		break;
+	default:
+		goto err;
+	}
+
+	for (; (t = rcu_dereference_protected(*pprev,
 			lockdep_is_held(&tunnel6_mutex))) != NULL;
 	     pprev = &t->next) {
 		if (t == handler) {
@@ -73,6 +105,7 @@ int xfrm6_tunnel_deregister(struct xfrm6_tunnel *handler, unsigned short family)
 		}
 	}
 
+err:
 	mutex_unlock(&tunnel6_mutex);
 
 	synchronize_net();
@@ -85,6 +118,24 @@ EXPORT_SYMBOL(xfrm6_tunnel_deregister);
 	for (handler = rcu_dereference(head);		\
 	     handler != NULL;				\
 	     handler = rcu_dereference(handler->next))	\
+
+static int tunnelmpls6_rcv(struct sk_buff *skb)
+{
+	struct xfrm6_tunnel *handler;
+
+	if (!pskb_may_pull(skb, sizeof(struct ipv6hdr)))
+		goto drop;
+
+	for_each_tunnel_rcu(tunnelmpls6_handlers, handler)
+		if (!handler->handler(skb))
+			return 0;
+
+	icmpv6_send(skb, ICMPV6_DEST_UNREACH, ICMPV6_PORT_UNREACH, 0);
+
+drop:
+	kfree_skb(skb);
+	return 0;
+}
 
 static int tunnel6_rcv(struct sk_buff *skb)
 {
@@ -146,6 +197,18 @@ static int tunnel46_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	return -ENOENT;
 }
 
+static int tunnelmpls6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
+			   u8 type, u8 code, int offset, __be32 info)
+{
+	struct xfrm6_tunnel *handler;
+
+	for_each_tunnel_rcu(tunnelmpls6_handlers, handler)
+		if (!handler->err_handler(skb, opt, type, code, offset, info))
+			return 0;
+
+	return -ENOENT;
+}
+
 static const struct inet6_protocol tunnel6_protocol = {
 	.handler	= tunnel6_rcv,
 	.err_handler	= tunnel6_err,
@@ -155,6 +218,12 @@ static const struct inet6_protocol tunnel6_protocol = {
 static const struct inet6_protocol tunnel46_protocol = {
 	.handler	= tunnel46_rcv,
 	.err_handler	= tunnel46_err,
+	.flags          = INET6_PROTO_NOPOLICY|INET6_PROTO_FINAL,
+};
+
+static const struct inet6_protocol tunnelmpls6_protocol = {
+	.handler	= tunnelmpls6_rcv,
+	.err_handler	= tunnelmpls6_err,
 	.flags          = INET6_PROTO_NOPOLICY|INET6_PROTO_FINAL,
 };
 
@@ -169,6 +238,13 @@ static int __init tunnel6_init(void)
 		inet6_del_protocol(&tunnel6_protocol, IPPROTO_IPV6);
 		return -EAGAIN;
 	}
+	if (xfrm6_tunnel_mpls_supported() &&
+	    inet6_add_protocol(&tunnelmpls6_protocol, IPPROTO_MPLS)) {
+		pr_err("%s: can't add protocol\n", __func__);
+		inet6_del_protocol(&tunnel6_protocol, IPPROTO_IPV6);
+		inet6_del_protocol(&tunnel46_protocol, IPPROTO_IPIP);
+		return -EAGAIN;
+	}
 	return 0;
 }
 
@@ -177,6 +253,9 @@ static void __exit tunnel6_fini(void)
 	if (inet6_del_protocol(&tunnel46_protocol, IPPROTO_IPIP))
 		pr_err("%s: can't remove protocol\n", __func__);
 	if (inet6_del_protocol(&tunnel6_protocol, IPPROTO_IPV6))
+		pr_err("%s: can't remove protocol\n", __func__);
+	if (xfrm6_tunnel_mpls_supported() &&
+	    inet6_del_protocol(&tunnelmpls6_protocol, IPPROTO_MPLS))
 		pr_err("%s: can't remove protocol\n", __func__);
 }
 

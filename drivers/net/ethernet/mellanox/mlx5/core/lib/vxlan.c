@@ -60,24 +60,22 @@ static inline u8 mlx5_vxlan_max_udp_ports(struct mlx5_core_dev *mdev)
 
 static int mlx5_vxlan_core_add_port_cmd(struct mlx5_core_dev *mdev, u16 port)
 {
-	u32 in[MLX5_ST_SZ_DW(add_vxlan_udp_dport_in)]   = {0};
-	u32 out[MLX5_ST_SZ_DW(add_vxlan_udp_dport_out)] = {0};
+	u32 in[MLX5_ST_SZ_DW(add_vxlan_udp_dport_in)] = {};
 
 	MLX5_SET(add_vxlan_udp_dport_in, in, opcode,
 		 MLX5_CMD_OP_ADD_VXLAN_UDP_DPORT);
 	MLX5_SET(add_vxlan_udp_dport_in, in, vxlan_udp_port, port);
-	return mlx5_cmd_exec(mdev, in, sizeof(in), out, sizeof(out));
+	return mlx5_cmd_exec_in(mdev, add_vxlan_udp_dport, in);
 }
 
 static int mlx5_vxlan_core_del_port_cmd(struct mlx5_core_dev *mdev, u16 port)
 {
-	u32 in[MLX5_ST_SZ_DW(delete_vxlan_udp_dport_in)]   = {0};
-	u32 out[MLX5_ST_SZ_DW(delete_vxlan_udp_dport_out)] = {0};
+	u32 in[MLX5_ST_SZ_DW(delete_vxlan_udp_dport_in)] = {};
 
 	MLX5_SET(delete_vxlan_udp_dport_in, in, opcode,
 		 MLX5_CMD_OP_DELETE_VXLAN_UDP_DPORT);
 	MLX5_SET(delete_vxlan_udp_dport_in, in, vxlan_udp_port, port);
-	return mlx5_cmd_exec(mdev, in, sizeof(in), out, sizeof(out));
+	return mlx5_cmd_exec_in(mdev, delete_vxlan_udp_dport, in);
 }
 
 static struct mlx5_vxlan_port*

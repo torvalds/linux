@@ -65,7 +65,7 @@ static const struct sdio_device_id if_sdio_ids[] = {
 	{ SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL,
 			SDIO_DEVICE_ID_MARVELL_LIBERTAS) },
 	{ SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL,
-			SDIO_DEVICE_ID_MARVELL_8688WLAN) },
+			SDIO_DEVICE_ID_MARVELL_8688_WLAN) },
 	{ /* end: all zeroes */				},
 };
 

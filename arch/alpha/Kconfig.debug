@@ -9,7 +9,7 @@ config ALPHA_LEGACY_START_ADDRESS
 	bool "Legacy kernel start address"
 	depends on ALPHA_GENERIC
 	default n
-	---help---
+	help
 	  The 2.4 kernel changed the kernel start address from 0x310000
 	  to 0x810000 to make room for the Wildfire's larger SRM console.
 	  Recent consoles on Titan and Marvel machines also require the

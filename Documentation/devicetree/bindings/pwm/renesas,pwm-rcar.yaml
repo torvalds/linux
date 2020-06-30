@@ -27,6 +27,7 @@ properties:
           - renesas,pwm-r8a7794   # R-Car E2
           - renesas,pwm-r8a7795   # R-Car H3
           - renesas,pwm-r8a7796   # R-Car M3-W
+          - renesas,pwm-r8a77961  # R-Car M3-W+
           - renesas,pwm-r8a77965  # R-Car M3-N
           - renesas,pwm-r8a77970  # R-Car V3M
           - renesas,pwm-r8a77980  # R-Car V3H
@@ -68,7 +69,7 @@ examples:
 
     pwm0: pwm@e6e30000 {
         compatible = "renesas,pwm-r8a7743", "renesas,pwm-rcar";
-        reg = <0 0xe6e30000 0 0x8>;
+        reg = <0xe6e30000 0x8>;
         clocks = <&cpg CPG_MOD 523>;
         power-domains = <&sysc R8A7743_PD_ALWAYS_ON>;
         resets = <&cpg 523>;

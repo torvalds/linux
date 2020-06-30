@@ -439,7 +439,7 @@ failed:
 }
 
 /*
- * dm_report_EIO() is a macro instead of a function to make pr_debug()
+ * dm_report_EIO() is a macro instead of a function to make pr_debug_ratelimited()
  * report the function name and line number of the function from which
  * it has been invoked.
  */
@@ -447,43 +447,25 @@ failed:
 do {									\
 	struct mapped_device *md = dm_table_get_md((m)->ti->table);	\
 									\
-	pr_debug("%s: returning EIO; QIFNP = %d; SQIFNP = %d; DNFS = %d\n", \
-		 dm_device_name(md),					\
-		 test_bit(MPATHF_QUEUE_IF_NO_PATH, &(m)->flags),	\
-		 test_bit(MPATHF_SAVED_QUEUE_IF_NO_PATH, &(m)->flags),	\
-		 dm_noflush_suspending((m)->ti));			\
+	DMDEBUG_LIMIT("%s: returning EIO; QIFNP = %d; SQIFNP = %d; DNFS = %d", \
+		      dm_device_name(md),				\
+		      test_bit(MPATHF_QUEUE_IF_NO_PATH, &(m)->flags),	\
+		      test_bit(MPATHF_SAVED_QUEUE_IF_NO_PATH, &(m)->flags), \
+		      dm_noflush_suspending((m)->ti));			\
 } while (0)
 
 /*
  * Check whether bios must be queued in the device-mapper core rather
  * than here in the target.
- *
- * If MPATHF_QUEUE_IF_NO_PATH and MPATHF_SAVED_QUEUE_IF_NO_PATH hold
- * the same value then we are not between multipath_presuspend()
- * and multipath_resume() calls and we have no need to check
- * for the DMF_NOFLUSH_SUSPENDING flag.
  */
-static bool __must_push_back(struct multipath *m, unsigned long flags)
+static bool __must_push_back(struct multipath *m)
 {
-	return ((test_bit(MPATHF_QUEUE_IF_NO_PATH, &flags) !=
-		 test_bit(MPATHF_SAVED_QUEUE_IF_NO_PATH, &flags)) &&
-		dm_noflush_suspending(m->ti));
+	return dm_noflush_suspending(m->ti);
 }
 
-/*
- * Following functions use READ_ONCE to get atomic access to
- * all m->flags to avoid taking spinlock
- */
 static bool must_push_back_rq(struct multipath *m)
 {
-	unsigned long flags = READ_ONCE(m->flags);
-	return test_bit(MPATHF_QUEUE_IF_NO_PATH, &flags) || __must_push_back(m, flags);
-}
-
-static bool must_push_back_bio(struct multipath *m)
-{
-	unsigned long flags = READ_ONCE(m->flags);
-	return __must_push_back(m, flags);
+	return test_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags) || __must_push_back(m);
 }
 
 /*
@@ -567,7 +549,8 @@ static void multipath_release_clone(struct request *clone,
 		if (pgpath && pgpath->pg->ps.type->end_io)
 			pgpath->pg->ps.type->end_io(&pgpath->pg->ps,
 						    &pgpath->path,
-						    mpio->nr_bytes);
+						    mpio->nr_bytes,
+						    clone->io_start_time_ns);
 	}
 
 	blk_put_request(clone);
@@ -619,7 +602,7 @@ static int __multipath_map_bio(struct multipath *m, struct bio *bio,
 		return DM_MAPIO_SUBMITTED;
 
 	if (!pgpath) {
-		if (must_push_back_bio(m))
+		if (__must_push_back(m))
 			return DM_MAPIO_REQUEUE;
 		dm_report_EIO(m);
 		return DM_MAPIO_KILL;
@@ -709,15 +692,38 @@ static void process_queued_bios(struct work_struct *work)
  * If we run out of usable paths, should we queue I/O or error it?
  */
 static int queue_if_no_path(struct multipath *m, bool queue_if_no_path,
-			    bool save_old_value)
+			    bool save_old_value, const char *caller)
 {
 	unsigned long flags;
+	bool queue_if_no_path_bit, saved_queue_if_no_path_bit;
+	const char *dm_dev_name = dm_device_name(dm_table_get_md(m->ti->table));
+
+	DMDEBUG("%s: %s caller=%s queue_if_no_path=%d save_old_value=%d",
+		dm_dev_name, __func__, caller, queue_if_no_path, save_old_value);
 
 	spin_lock_irqsave(&m->lock, flags);
-	assign_bit(MPATHF_SAVED_QUEUE_IF_NO_PATH, &m->flags,
-		   (save_old_value && test_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags)) ||
-		   (!save_old_value && queue_if_no_path));
+
+	queue_if_no_path_bit = test_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags);
+	saved_queue_if_no_path_bit = test_bit(MPATHF_SAVED_QUEUE_IF_NO_PATH, &m->flags);
+
+	if (save_old_value) {
+		if (unlikely(!queue_if_no_path_bit && saved_queue_if_no_path_bit)) {
+			DMERR("%s: QIFNP disabled but saved as enabled, saving again loses state, not saving!",
+			      dm_dev_name);
+		} else
+			assign_bit(MPATHF_SAVED_QUEUE_IF_NO_PATH, &m->flags, queue_if_no_path_bit);
+	} else if (!queue_if_no_path && saved_queue_if_no_path_bit) {
+		/* due to "fail_if_no_path" message, need to honor it. */
+		clear_bit(MPATHF_SAVED_QUEUE_IF_NO_PATH, &m->flags);
+	}
 	assign_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags, queue_if_no_path);
+
+	DMDEBUG("%s: after %s changes; QIFNP = %d; SQIFNP = %d; DNFS = %d",
+		dm_dev_name, __func__,
+		test_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags),
+		test_bit(MPATHF_SAVED_QUEUE_IF_NO_PATH, &m->flags),
+		dm_noflush_suspending(m->ti));
+
 	spin_unlock_irqrestore(&m->lock, flags);
 
 	if (!queue_if_no_path) {
@@ -738,7 +744,7 @@ static void queue_if_no_path_timeout_work(struct timer_list *t)
 	struct mapped_device *md = dm_table_get_md(m->ti->table);
 
 	DMWARN("queue_if_no_path timeout on %s, failing queued IO", dm_device_name(md));
-	queue_if_no_path(m, false, false);
+	queue_if_no_path(m, false, false, __func__);
 }
 
 /*
@@ -1078,7 +1084,7 @@ static int parse_features(struct dm_arg_set *as, struct multipath *m)
 		argc--;
 
 		if (!strcasecmp(arg_name, "queue_if_no_path")) {
-			r = queue_if_no_path(m, true, false);
+			r = queue_if_no_path(m, true, false, __func__);
 			continue;
 		}
 
@@ -1279,7 +1285,9 @@ static int fail_path(struct pgpath *pgpath)
 	if (!pgpath->is_active)
 		goto out;
 
-	DMWARN("Failing path %s.", pgpath->path.dev->name);
+	DMWARN("%s: Failing path %s.",
+	       dm_device_name(dm_table_get_md(m->ti->table)),
+	       pgpath->path.dev->name);
 
 	pgpath->pg->ps.type->fail_path(&pgpath->pg->ps, &pgpath->path);
 	pgpath->is_active = false;
@@ -1318,7 +1326,9 @@ static int reinstate_path(struct pgpath *pgpath)
 	if (pgpath->is_active)
 		goto out;
 
-	DMWARN("Reinstating path %s.", pgpath->path.dev->name);
+	DMWARN("%s: Reinstating path %s.",
+	       dm_device_name(dm_table_get_md(m->ti->table)),
+	       pgpath->path.dev->name);
 
 	r = pgpath->pg->ps.type->reinstate_path(&pgpath->pg->ps, &pgpath->path);
 	if (r)
@@ -1617,7 +1627,8 @@ static int multipath_end_io(struct dm_target *ti, struct request *clone,
 		struct path_selector *ps = &pgpath->pg->ps;
 
 		if (ps->type->end_io)
-			ps->type->end_io(ps, &pgpath->path, mpio->nr_bytes);
+			ps->type->end_io(ps, &pgpath->path, mpio->nr_bytes,
+					 clone->io_start_time_ns);
 	}
 
 	return r;
@@ -1640,7 +1651,7 @@ static int multipath_end_io_bio(struct dm_target *ti, struct bio *clone,
 
 	if (atomic_read(&m->nr_valid_paths) == 0 &&
 	    !test_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags)) {
-		if (must_push_back_bio(m)) {
+		if (__must_push_back(m)) {
 			r = DM_ENDIO_REQUEUE;
 		} else {
 			dm_report_EIO(m);
@@ -1661,23 +1672,27 @@ done:
 		struct path_selector *ps = &pgpath->pg->ps;
 
 		if (ps->type->end_io)
-			ps->type->end_io(ps, &pgpath->path, mpio->nr_bytes);
+			ps->type->end_io(ps, &pgpath->path, mpio->nr_bytes,
+					 dm_start_time_ns_from_clone(clone));
 	}
 
 	return r;
 }
 
 /*
- * Suspend can't complete until all the I/O is processed so if
- * the last path fails we must error any remaining I/O.
- * Note that if the freeze_bdev fails while suspending, the
- * queue_if_no_path state is lost - userspace should reset it.
+ * Suspend with flush can't complete until all the I/O is processed
+ * so if the last path fails we must error any remaining I/O.
+ * - Note that if the freeze_bdev fails while suspending, the
+ *   queue_if_no_path state is lost - userspace should reset it.
+ * Otherwise, during noflush suspend, queue_if_no_path will not change.
  */
 static void multipath_presuspend(struct dm_target *ti)
 {
 	struct multipath *m = ti->private;
 
-	queue_if_no_path(m, false, true);
+	/* FIXME: bio-based shouldn't need to always disable queue_if_no_path */
+	if (m->queue_mode == DM_TYPE_BIO_BASED || !dm_noflush_suspending(m->ti))
+		queue_if_no_path(m, false, true, __func__);
 }
 
 static void multipath_postsuspend(struct dm_target *ti)
@@ -1698,8 +1713,16 @@ static void multipath_resume(struct dm_target *ti)
 	unsigned long flags;
 
 	spin_lock_irqsave(&m->lock, flags);
-	assign_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags,
-		   test_bit(MPATHF_SAVED_QUEUE_IF_NO_PATH, &m->flags));
+	if (test_bit(MPATHF_SAVED_QUEUE_IF_NO_PATH, &m->flags)) {
+		set_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags);
+		clear_bit(MPATHF_SAVED_QUEUE_IF_NO_PATH, &m->flags);
+	}
+
+	DMDEBUG("%s: %s finished; QIFNP = %d; SQIFNP = %d",
+		dm_device_name(dm_table_get_md(m->ti->table)), __func__,
+		test_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags),
+		test_bit(MPATHF_SAVED_QUEUE_IF_NO_PATH, &m->flags));
+
 	spin_unlock_irqrestore(&m->lock, flags);
 }
 
@@ -1859,13 +1882,13 @@ static int multipath_message(struct dm_target *ti, unsigned argc, char **argv,
 
 	if (argc == 1) {
 		if (!strcasecmp(argv[0], "queue_if_no_path")) {
-			r = queue_if_no_path(m, true, false);
+			r = queue_if_no_path(m, true, false, __func__);
 			spin_lock_irqsave(&m->lock, flags);
 			enable_nopath_timeout(m);
 			spin_unlock_irqrestore(&m->lock, flags);
 			goto out;
 		} else if (!strcasecmp(argv[0], "fail_if_no_path")) {
-			r = queue_if_no_path(m, false, false);
+			r = queue_if_no_path(m, false, false, __func__);
 			disable_nopath_timeout(m);
 			goto out;
 		}
@@ -1918,7 +1941,7 @@ static int multipath_prepare_ioctl(struct dm_target *ti,
 	int r;
 
 	current_pgpath = READ_ONCE(m->current_pgpath);
-	if (!current_pgpath)
+	if (!current_pgpath || !test_bit(MPATHF_QUEUE_IO, &m->flags))
 		current_pgpath = choose_pgpath(m, 0);
 
 	if (current_pgpath) {

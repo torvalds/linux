@@ -36,22 +36,22 @@ properties:
   pins-are-numbered: true
   hwlocks: true
 
+  interrupts:
+    maxItems: 1
+
   st,syscfg:
-    allOf:
-      - $ref: "/schemas/types.yaml#/definitions/phandle-array"
     description: Should be phandle/offset/mask
       - Phandle to the syscon node which includes IRQ mux selection.
       - The offset of the IRQ mux selection register.
       - The field mask of IRQ mux, needed if different of 0xf.
+    $ref: "/schemas/types.yaml#/definitions/phandle-array"
 
   st,package:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - enum: [1, 2, 4, 8]
     description:
      Indicates the SOC package used.
      More details in include/dt-bindings/pinctrl/stm32-pinfunc.h
-
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [1, 2, 4, 8]
 
 patternProperties:
   '^gpio@[0-9a-f]*$':
@@ -78,33 +78,30 @@ patternProperties:
         maximum: 16
 
       st,bank-name:
-        allOf:
-          - $ref: "/schemas/types.yaml#/definitions/string"
-          - enum:
-            - GPIOA
-            - GPIOB
-            - GPIOC
-            - GPIOD
-            - GPIOE
-            - GPIOF
-            - GPIOG
-            - GPIOH
-            - GPIOI
-            - GPIOJ
-            - GPIOK
-            - GPIOZ
         description:
           Should be a name string for this bank as specified in the datasheet.
+        $ref: "/schemas/types.yaml#/definitions/string"
+        enum:
+          - GPIOA
+          - GPIOB
+          - GPIOC
+          - GPIOD
+          - GPIOE
+          - GPIOF
+          - GPIOG
+          - GPIOH
+          - GPIOI
+          - GPIOJ
+          - GPIOK
+          - GPIOZ
 
       st,bank-ioport:
-        allOf:
-          - $ref: "/schemas/types.yaml#/definitions/uint32"
-          - minimum: 0
-          - maximum: 11
-
         description:
           Should correspond to the EXTI IOport selection (EXTI line used
           to select GPIOs as interrupts).
+        $ref: "/schemas/types.yaml#/definitions/uint32"
+        minimum: 0
+        maximum: 11
 
     required:
       - gpio-controller
@@ -125,8 +122,7 @@ patternProperties:
           configuration, pullups, drive, output high/low and output speed.
         properties:
           pinmux:
-            allOf:
-              - $ref: "/schemas/types.yaml#/definitions/uint32-array"
+            $ref: "/schemas/types.yaml#/definitions/uint32-array"
             description: |
               Integer array, represents gpio pin number and mux setting.
               Supported pin number and mux varies for different SoCs, and are
@@ -180,9 +176,8 @@ patternProperties:
               1: Medium speed
               2: Fast speed
               3: High speed
-            allOf:
-              - $ref: /schemas/types.yaml#/definitions/uint32
-              - enum: [0, 1, 2, 3]
+            $ref: /schemas/types.yaml#/definitions/uint32
+            enum: [0, 1, 2, 3]
 
         required:
           - pinmux

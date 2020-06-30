@@ -36,6 +36,11 @@ description: |
          0x1: 1/2 full FIFO
          0x2: 3/4 full FIFO
          0x3: full FIFO
+       -bit 2: DMA direct mode
+         0x0: FIFO mode with threshold selectable with bit 0-1
+         0x1: Direct mode: each DMA request immediately initiates a transfer
+              from/to the memory, FIFO is bypassed.
+
 
 maintainers:
   - Amelie Delaunay <amelie.delaunay@st.com>

@@ -33,6 +33,7 @@
 #include <linux/etherdevice.h>
 #include <linux/crc32.h>
 #include <linux/vmalloc.h>
+#include <linux/crash_dump.h>
 #include <linux/qed/qed_iov_if.h>
 #include "qed_cxt.h"
 #include "qed_hsi.h"
@@ -606,6 +607,9 @@ int qed_iov_hw_info(struct qed_hwfn *p_hwfn)
 	struct qed_dev *cdev = p_hwfn->cdev;
 	int pos;
 	int rc;
+
+	if (is_kdump_kernel())
+		return 0;
 
 	if (IS_VF(p_hwfn->cdev))
 		return 0;

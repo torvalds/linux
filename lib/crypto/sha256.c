@@ -206,7 +206,7 @@ static void sha256_transform(u32 *state, const u8 *input)
 	memzero_explicit(W, 64 * sizeof(u32));
 }
 
-int sha256_update(struct sha256_state *sctx, const u8 *data, unsigned int len)
+void sha256_update(struct sha256_state *sctx, const u8 *data, unsigned int len)
 {
 	unsigned int partial, done;
 	const u8 *src;
@@ -232,18 +232,16 @@ int sha256_update(struct sha256_state *sctx, const u8 *data, unsigned int len)
 		partial = 0;
 	}
 	memcpy(sctx->buf + partial, src, len - done);
-
-	return 0;
 }
 EXPORT_SYMBOL(sha256_update);
 
-int sha224_update(struct sha256_state *sctx, const u8 *data, unsigned int len)
+void sha224_update(struct sha256_state *sctx, const u8 *data, unsigned int len)
 {
-	return sha256_update(sctx, data, len);
+	sha256_update(sctx, data, len);
 }
 EXPORT_SYMBOL(sha224_update);
 
-static int __sha256_final(struct sha256_state *sctx, u8 *out, int digest_words)
+static void __sha256_final(struct sha256_state *sctx, u8 *out, int digest_words)
 {
 	__be32 *dst = (__be32 *)out;
 	__be64 bits;
@@ -268,19 +266,17 @@ static int __sha256_final(struct sha256_state *sctx, u8 *out, int digest_words)
 
 	/* Zeroize sensitive information. */
 	memset(sctx, 0, sizeof(*sctx));
-
-	return 0;
 }
 
-int sha256_final(struct sha256_state *sctx, u8 *out)
+void sha256_final(struct sha256_state *sctx, u8 *out)
 {
-	return __sha256_final(sctx, out, 8);
+	__sha256_final(sctx, out, 8);
 }
 EXPORT_SYMBOL(sha256_final);
 
-int sha224_final(struct sha256_state *sctx, u8 *out)
+void sha224_final(struct sha256_state *sctx, u8 *out)
 {
-	return __sha256_final(sctx, out, 7);
+	__sha256_final(sctx, out, 7);
 }
 EXPORT_SYMBOL(sha224_final);
 

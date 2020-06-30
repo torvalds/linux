@@ -97,6 +97,7 @@ int __ipoib_vlan_add(struct ipoib_dev_priv *ppriv, struct ipoib_dev_priv *priv,
 {
 	struct net_device *ndev = priv->dev;
 	int result;
+	struct rdma_netdev *rn = netdev_priv(ndev);
 
 	ASSERT_RTNL();
 
@@ -116,6 +117,8 @@ int __ipoib_vlan_add(struct ipoib_dev_priv *ppriv, struct ipoib_dev_priv *priv,
 		result = -EINVAL;
 		goto out_early;
 	}
+
+	rn->mtu = priv->mcast_mtu;
 
 	priv->parent = ppriv->dev;
 	priv->pkey = pkey;

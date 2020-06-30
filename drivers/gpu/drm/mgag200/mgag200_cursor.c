@@ -260,7 +260,7 @@ int mgag200_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 			    uint32_t handle, uint32_t width, uint32_t height)
 {
 	struct drm_device *dev = crtc->dev;
-	struct mga_device *mdev = (struct mga_device *)dev->dev_private;
+	struct mga_device *mdev = to_mga_device(dev);
 	struct drm_gem_object *obj;
 	struct drm_gem_vram_object *gbo = NULL;
 	int ret;
@@ -307,7 +307,7 @@ err_drm_gem_object_put_unlocked:
 
 int mgag200_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 {
-	struct mga_device *mdev = (struct mga_device *)crtc->dev->dev_private;
+	struct mga_device *mdev = to_mga_device(crtc->dev);
 
 	/* Our origin is at (64,64) */
 	x += 64;

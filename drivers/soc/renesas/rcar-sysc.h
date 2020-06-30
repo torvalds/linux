@@ -49,6 +49,7 @@ struct rcar_sysc_info {
 	u32 extmask_val;	/* SYSCEXTMASK register mask value */
 };
 
+extern const struct rcar_sysc_info r8a7742_sysc_info;
 extern const struct rcar_sysc_info r8a7743_sysc_info;
 extern const struct rcar_sysc_info r8a7745_sysc_info;
 extern const struct rcar_sysc_info r8a77470_sysc_info;

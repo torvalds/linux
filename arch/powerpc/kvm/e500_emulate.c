@@ -83,16 +83,16 @@ static int kvmppc_e500_emul_msgsnd(struct kvm_vcpu *vcpu, int rb)
 }
 #endif
 
-static int kvmppc_e500_emul_ehpriv(struct kvm_run *run, struct kvm_vcpu *vcpu,
+static int kvmppc_e500_emul_ehpriv(struct kvm_vcpu *vcpu,
 				   unsigned int inst, int *advance)
 {
 	int emulated = EMULATE_DONE;
 
 	switch (get_oc(inst)) {
 	case EHPRIV_OC_DEBUG:
-		run->exit_reason = KVM_EXIT_DEBUG;
-		run->debug.arch.address = vcpu->arch.regs.nip;
-		run->debug.arch.status = 0;
+		vcpu->run->exit_reason = KVM_EXIT_DEBUG;
+		vcpu->run->debug.arch.address = vcpu->arch.regs.nip;
+		vcpu->run->debug.arch.status = 0;
 		kvmppc_account_exit(vcpu, DEBUG_EXITS);
 		emulated = EMULATE_EXIT_USER;
 		*advance = 0;
@@ -125,7 +125,7 @@ static int kvmppc_e500_emul_mftmr(struct kvm_vcpu *vcpu, unsigned int inst,
 	return EMULATE_FAIL;
 }
 
-int kvmppc_core_emulate_op_e500(struct kvm_run *run, struct kvm_vcpu *vcpu,
+int kvmppc_core_emulate_op_e500(struct kvm_vcpu *vcpu,
 				unsigned int inst, int *advance)
 {
 	int emulated = EMULATE_DONE;
@@ -182,8 +182,7 @@ int kvmppc_core_emulate_op_e500(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			break;
 
 		case XOP_EHPRIV:
-			emulated = kvmppc_e500_emul_ehpriv(run, vcpu, inst,
-							   advance);
+			emulated = kvmppc_e500_emul_ehpriv(vcpu, inst, advance);
 			break;
 
 		default:
@@ -197,7 +196,7 @@ int kvmppc_core_emulate_op_e500(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	}
 
 	if (emulated == EMULATE_FAIL)
-		emulated = kvmppc_booke_emulate_op(run, vcpu, inst, advance);
+		emulated = kvmppc_booke_emulate_op(vcpu, inst, advance);
 
 	return emulated;
 }

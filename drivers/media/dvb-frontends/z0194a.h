@@ -3,7 +3,7 @@
 *
 * Copyright (C) 2008 Igor M. Liplianin (liplianin@me.by)
 *
-* see Documentation/media/dvb-drivers/dvb-usb.rst for more information
+* see Documentation/driver-api/media/drivers/dvb-usb.rst for more information
 */
 
 #ifndef Z0194A

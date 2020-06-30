@@ -140,7 +140,12 @@
 		pinctrl-0 = <&i2c_gpio_1_default>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		/* TODO: this should be used by the ALPS HSCDTD008A compass sensor */
+		magnetometer@c {
+			compatible = "alps,hscdtd008a";
+			reg = <0x0c>;
+			avdd-supply = <&ab8500_ldo_aux1_reg>;
+			dvdd-supply = <&ab8500_ldo_aux8_reg>;
+		};
 	};
 
 	soc {
@@ -362,7 +367,28 @@
 			pinctrl-0 = <&i2c3_c_2_default>;
 			pinctrl-1 = <&i2c3_c_2_sleep>;
 
-			/* TODO: this should be used by the Cypress TMA140 touchscreen */
+			/* Cypress CY8CTMA140 touchscreen */
+			touchscreen@20 {
+				compatible = "cypress,cy8ctma140";
+				clock-frequency = <400000>;
+				reg = <0x20>;
+
+				touchscreen-size-x = <480>;
+				touchscreen-size-y = <800>;
+				touchscreen-max-pressure = <255>;
+
+				/* GPIO218 for IRQ */
+				interrupt-parent = <&gpio6>;
+				interrupts = <26 IRQ_TYPE_EDGE_FALLING>;
+
+				/* VDD is "digital supply" nominally 1.71-3.6V */
+				vdd-supply = <&ab8500_ldo_aux2_reg>;
+				/* VCPIN is "analog supply", 2.7-3.6 V */
+				vcpin-supply = <&ab8500_ldo_aux2_reg>;
+
+				pinctrl-names = "default";
+				pinctrl-0 = <&tma140_skomer_default>;
+			};
 		};
 
 		mcde@a0350000 {
@@ -554,6 +580,15 @@
 			skomer_cfg1 {
 				pins = "GPIO195_AG28";	/* MOT_EN */
 				ste,config = <&gpio_out_lo>;
+			};
+		};
+	};
+	/* Interrupt line for the Cypress TMA140 touchscreen */
+	touchscreen {
+		tma140_skomer_default: tma140_skomer {
+			skomer_cfg1 {
+				pins = "GPIO218_AH11";
+				ste,config = <&gpio_in_nopull>;
 			};
 		};
 	};

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause) */
+/* SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause) */
 /*
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -26,6 +26,9 @@ struct snd_sof_pdata {
 	const char *platform;
 
 	struct device *dev;
+
+	/* indicate how many first bytes shouldn't be loaded into DSP memory. */
+	size_t fw_offset;
 
 	/*
 	 * notification callback used if the hardware initialization

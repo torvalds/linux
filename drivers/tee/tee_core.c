@@ -6,17 +6,32 @@
 #define pr_fmt(fmt) "%s: " fmt, __func__
 
 #include <linux/cdev.h>
+#include <linux/cred.h>
 #include <linux/fs.h>
 #include <linux/idr.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/tee_drv.h>
 #include <linux/uaccess.h>
+#include <crypto/hash.h>
+#include <crypto/sha.h>
 #include "tee_private.h"
 
 #define TEE_NUM_DEVICES	32
 
 #define TEE_IOCTL_PARAM_SIZE(x) (sizeof(struct tee_param) * (x))
+
+#define TEE_UUID_NS_NAME_SIZE	128
+
+/*
+ * TEE Client UUID name space identifier (UUIDv4)
+ *
+ * Value here is random UUID that is allocated as name space identifier for
+ * forming Client UUID's for TEE environment using UUIDv5 scheme.
+ */
+static const uuid_t tee_client_uuid_ns = UUID_INIT(0x58ac9ca0, 0x2086, 0x4683,
+						   0xa1, 0xb8, 0xec, 0x4b,
+						   0xc0, 0x8e, 0x01, 0xb6);
 
 /*
  * Unprivileged devices in the lower half range and privileged devices in
@@ -109,6 +124,143 @@ static int tee_release(struct inode *inode, struct file *filp)
 	teedev_close_context(filp->private_data);
 	return 0;
 }
+
+/**
+ * uuid_v5() - Calculate UUIDv5
+ * @uuid: Resulting UUID
+ * @ns: Name space ID for UUIDv5 function
+ * @name: Name for UUIDv5 function
+ * @size: Size of name
+ *
+ * UUIDv5 is specific in RFC 4122.
+ *
+ * This implements section (for SHA-1):
+ * 4.3.  Algorithm for Creating a Name-Based UUID
+ */
+static int uuid_v5(uuid_t *uuid, const uuid_t *ns, const void *name,
+		   size_t size)
+{
+	unsigned char hash[SHA1_DIGEST_SIZE];
+	struct crypto_shash *shash = NULL;
+	struct shash_desc *desc = NULL;
+	int rc;
+
+	shash = crypto_alloc_shash("sha1", 0, 0);
+	if (IS_ERR(shash)) {
+		rc = PTR_ERR(shash);
+		pr_err("shash(sha1) allocation failed\n");
+		return rc;
+	}
+
+	desc = kzalloc(sizeof(*desc) + crypto_shash_descsize(shash),
+		       GFP_KERNEL);
+	if (!desc) {
+		rc = -ENOMEM;
+		goto out_free_shash;
+	}
+
+	desc->tfm = shash;
+
+	rc = crypto_shash_init(desc);
+	if (rc < 0)
+		goto out_free_desc;
+
+	rc = crypto_shash_update(desc, (const u8 *)ns, sizeof(*ns));
+	if (rc < 0)
+		goto out_free_desc;
+
+	rc = crypto_shash_update(desc, (const u8 *)name, size);
+	if (rc < 0)
+		goto out_free_desc;
+
+	rc = crypto_shash_final(desc, hash);
+	if (rc < 0)
+		goto out_free_desc;
+
+	memcpy(uuid->b, hash, UUID_SIZE);
+
+	/* Tag for version 5 */
+	uuid->b[6] = (hash[6] & 0x0F) | 0x50;
+	uuid->b[8] = (hash[8] & 0x3F) | 0x80;
+
+out_free_desc:
+	kfree(desc);
+
+out_free_shash:
+	crypto_free_shash(shash);
+	return rc;
+}
+
+int tee_session_calc_client_uuid(uuid_t *uuid, u32 connection_method,
+				 const u8 connection_data[TEE_IOCTL_UUID_LEN])
+{
+	gid_t ns_grp = (gid_t)-1;
+	kgid_t grp = INVALID_GID;
+	char *name = NULL;
+	int name_len;
+	int rc;
+
+	if (connection_method == TEE_IOCTL_LOGIN_PUBLIC) {
+		/* Nil UUID to be passed to TEE environment */
+		uuid_copy(uuid, &uuid_null);
+		return 0;
+	}
+
+	/*
+	 * In Linux environment client UUID is based on UUIDv5.
+	 *
+	 * Determine client UUID with following semantics for 'name':
+	 *
+	 * For TEEC_LOGIN_USER:
+	 * uid=<uid>
+	 *
+	 * For TEEC_LOGIN_GROUP:
+	 * gid=<gid>
+	 *
+	 */
+
+	name = kzalloc(TEE_UUID_NS_NAME_SIZE, GFP_KERNEL);
+	if (!name)
+		return -ENOMEM;
+
+	switch (connection_method) {
+	case TEE_IOCTL_LOGIN_USER:
+		name_len = snprintf(name, TEE_UUID_NS_NAME_SIZE, "uid=%x",
+				    current_euid().val);
+		if (name_len >= TEE_UUID_NS_NAME_SIZE) {
+			rc = -E2BIG;
+			goto out_free_name;
+		}
+		break;
+
+	case TEE_IOCTL_LOGIN_GROUP:
+		memcpy(&ns_grp, connection_data, sizeof(gid_t));
+		grp = make_kgid(current_user_ns(), ns_grp);
+		if (!gid_valid(grp) || !in_egroup_p(grp)) {
+			rc = -EPERM;
+			goto out_free_name;
+		}
+
+		name_len = snprintf(name, TEE_UUID_NS_NAME_SIZE, "gid=%x",
+				    grp.val);
+		if (name_len >= TEE_UUID_NS_NAME_SIZE) {
+			rc = -E2BIG;
+			goto out_free_name;
+		}
+		break;
+
+	default:
+		rc = -EINVAL;
+		goto out_free_name;
+	}
+
+	rc = uuid_v5(uuid, &tee_client_uuid_ns, name, name_len);
+out_free_name:
+	kfree(name);
+
+	return rc;
+}
+EXPORT_SYMBOL_GPL(tee_session_calc_client_uuid);
 
 static int tee_ioctl_version(struct tee_context *ctx,
 			     struct tee_ioctl_version_data __user *uvers)
@@ -331,6 +483,13 @@ static int tee_ioctl_open_session(struct tee_context *ctx,
 		rc = params_from_user(ctx, params, arg.num_params, uparams);
 		if (rc)
 			goto out;
+	}
+
+	if (arg.clnt_login >= TEE_IOCTL_LOGIN_REE_KERNEL_MIN &&
+	    arg.clnt_login <= TEE_IOCTL_LOGIN_REE_KERNEL_MAX) {
+		pr_debug("login method not allowed for user-space client\n");
+		rc = -EPERM;
+		goto out;
 	}
 
 	rc = ctx->teedev->desc->ops->open_session(ctx, &arg, params);

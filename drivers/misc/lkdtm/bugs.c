@@ -208,7 +208,7 @@ void lkdtm_OVERFLOW_UNSIGNED(void)
 	ignored = value;
 }
 
-/* Intentially using old-style flex array definition of 1 byte. */
+/* Intentionally using old-style flex array definition of 1 byte. */
 struct array_bounds_flex_array {
 	int one;
 	int two;

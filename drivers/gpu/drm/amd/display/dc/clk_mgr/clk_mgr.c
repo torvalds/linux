@@ -90,7 +90,7 @@ void clk_mgr_exit_optimized_pwr_state(const struct dc *dc, struct clk_mgr *clk_m
 		dc->hwss.exit_optimized_pwr_state(dc, dc->current_state);
 
 	if (edp_link) {
-		clk_mgr->psr_allow_active_cache = edp_link->psr_allow_active;
+		clk_mgr->psr_allow_active_cache = edp_link->psr_settings.psr_allow_active;
 		dc_link_set_psr_allow_active(edp_link, false, false);
 	}
 

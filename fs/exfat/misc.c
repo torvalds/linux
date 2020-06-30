@@ -32,7 +32,7 @@ void __exfat_fs_error(struct super_block *sb, int report, const char *fmt, ...)
 		va_start(args, fmt);
 		vaf.fmt = fmt;
 		vaf.va = &args;
-		exfat_msg(sb, KERN_ERR, "error, %pV\n", &vaf);
+		exfat_err(sb, "error, %pV", &vaf);
 		va_end(args);
 	}
 
@@ -41,7 +41,7 @@ void __exfat_fs_error(struct super_block *sb, int report, const char *fmt, ...)
 			sb->s_id);
 	} else if (opts->errors == EXFAT_ERRORS_RO && !sb_rdonly(sb)) {
 		sb->s_flags |= SB_RDONLY;
-		exfat_msg(sb, KERN_ERR, "Filesystem has been set read-only");
+		exfat_err(sb, "Filesystem has been set read-only");
 	}
 }
 
@@ -75,7 +75,7 @@ static void exfat_adjust_tz(struct timespec64 *ts, u8 tz_off)
 
 /* Convert a EXFAT time/date pair to a UNIX date (seconds since 1 1 70). */
 void exfat_get_entry_time(struct exfat_sb_info *sbi, struct timespec64 *ts,
-		u8 tz, __le16 time, __le16 date, u8 time_ms)
+		u8 tz, __le16 time, __le16 date, u8 time_cs)
 {
 	u16 t = le16_to_cpu(time);
 	u16 d = le16_to_cpu(date);
@@ -84,10 +84,10 @@ void exfat_get_entry_time(struct exfat_sb_info *sbi, struct timespec64 *ts,
 			      t >> 11, (t >> 5) & 0x003F, (t & 0x001F) << 1);
 
 
-	/* time_ms field represent 0 ~ 199(1990 ms) */
-	if (time_ms) {
-		ts->tv_sec += time_ms / 100;
-		ts->tv_nsec = (time_ms % 100) * 10 * NSEC_PER_MSEC;
+	/* time_cs field represent 0 ~ 199cs(1990 ms) */
+	if (time_cs) {
+		ts->tv_sec += time_cs / 100;
+		ts->tv_nsec = (time_cs % 100) * 10 * NSEC_PER_MSEC;
 	} else
 		ts->tv_nsec = 0;
 
@@ -101,7 +101,7 @@ void exfat_get_entry_time(struct exfat_sb_info *sbi, struct timespec64 *ts,
 
 /* Convert linear UNIX date to a EXFAT time/date pair. */
 void exfat_set_entry_time(struct exfat_sb_info *sbi, struct timespec64 *ts,
-		u8 *tz, __le16 *time, __le16 *date, u8 *time_ms)
+		u8 *tz, __le16 *time, __le16 *date, u8 *time_cs)
 {
 	struct tm tm;
 	u16 t, d;
@@ -113,9 +113,9 @@ void exfat_set_entry_time(struct exfat_sb_info *sbi, struct timespec64 *ts,
 	*time = cpu_to_le16(t);
 	*date = cpu_to_le16(d);
 
-	/* time_ms field represent 0 ~ 199(1990 ms) */
-	if (time_ms)
-		*time_ms = (tm.tm_sec & 1) * 100 +
+	/* time_cs field represent 0 ~ 199cs(1990 ms) */
+	if (time_cs)
+		*time_cs = (tm.tm_sec & 1) * 100 +
 			ts->tv_nsec / (10 * NSEC_PER_MSEC);
 
 	/*
@@ -136,17 +136,29 @@ void exfat_truncate_atime(struct timespec64 *ts)
 	ts->tv_nsec = 0;
 }
 
-unsigned short exfat_calc_chksum_2byte(void *data, int len,
-		unsigned short chksum, int type)
+u16 exfat_calc_chksum16(void *data, int len, u16 chksum, int type)
 {
 	int i;
-	unsigned char *c = (unsigned char *)data;
+	u8 *c = (u8 *)data;
 
 	for (i = 0; i < len; i++, c++) {
-		if (((i == 2) || (i == 3)) && (type == CS_DIR_ENTRY))
+		if (unlikely(type == CS_DIR_ENTRY && (i == 2 || i == 3)))
 			continue;
-		chksum = (((chksum & 1) << 15) | ((chksum & 0xFFFE) >> 1)) +
-			(unsigned short)*c;
+		chksum = ((chksum << 15) | (chksum >> 1)) + *c;
+	}
+	return chksum;
+}
+
+u32 exfat_calc_chksum32(void *data, int len, u32 chksum, int type)
+{
+	int i;
+	u8 *c = (u8 *)data;
+
+	for (i = 0; i < len; i++, c++) {
+		if (unlikely(type == CS_BOOT_SECTOR &&
+			     (i == 106 || i == 107 || i == 112)))
+			continue;
+		chksum = ((chksum << 31) | (chksum >> 1)) + *c;
 	}
 	return chksum;
 }

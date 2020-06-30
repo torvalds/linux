@@ -299,6 +299,20 @@ static void nfp_repr_clean(struct nfp_repr *repr)
 	nfp_port_free(repr->port);
 }
 
+static struct lock_class_key nfp_repr_netdev_xmit_lock_key;
+
+static void nfp_repr_set_lockdep_class_one(struct net_device *dev,
+					   struct netdev_queue *txq,
+					   void *_unused)
+{
+	lockdep_set_class(&txq->_xmit_lock, &nfp_repr_netdev_xmit_lock_key);
+}
+
+static void nfp_repr_set_lockdep_class(struct net_device *dev)
+{
+	netdev_for_each_tx_queue(dev, nfp_repr_set_lockdep_class_one, NULL);
+}
+
 int nfp_repr_init(struct nfp_app *app, struct net_device *netdev,
 		  u32 cmsg_port_id, struct nfp_port *port,
 		  struct net_device *pf_netdev)
@@ -307,6 +321,8 @@ int nfp_repr_init(struct nfp_app *app, struct net_device *netdev,
 	struct nfp_net *nn = netdev_priv(pf_netdev);
 	u32 repr_cap = nn->tlv_caps.repr_cap;
 	int err;
+
+	nfp_repr_set_lockdep_class(netdev);
 
 	repr->port = port;
 	repr->dst = metadata_dst_alloc(0, METADATA_HW_PORT_MUX, GFP_KERNEL);

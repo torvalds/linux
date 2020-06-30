@@ -2,7 +2,7 @@
 config NFC_NXP_NCI
 	tristate "NXP-NCI NFC driver"
 	depends on NFC_NCI
-	---help---
+	help
 	  Generic core driver for NXP NCI chips such as the NPC100 (PN547),
 	  NPC300 (PN548) or PN7150 families.
 	  This is a driver based on the NCI NFC kernel layers and
@@ -15,7 +15,7 @@ config NFC_NXP_NCI
 config NFC_NXP_NCI_I2C
 	tristate "NXP-NCI I2C support"
 	depends on NFC_NXP_NCI && I2C
-	---help---
+	help
 	  This module adds support for an I2C interface to the NXP NCI
 	  chips.
 	  Select this if your platform is using the I2C bus.

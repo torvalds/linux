@@ -1,0 +1,182 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/timer/renesas,cmt.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Renesas Compare Match Timer (CMT)
+
+maintainers:
+  - Geert Uytterhoeven <geert+renesas@glider.be>
+  - Laurent Pinchart <laurent.pinchart+renesas@ideasonboard.com>
+
+description:
+  The CMT is a multi-channel 16/32/48-bit timer/counter with configurable clock
+  inputs and programmable compare match.
+
+  Channels share hardware resources but their counter and compare match values
+  are independent. A particular CMT instance can implement only a subset of the
+  channels supported by the CMT model. Channel indices represent the hardware
+  position of the channel in the CMT and don't match the channel numbers in the
+  datasheets.
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - renesas,r8a7740-cmt0      # 32-bit CMT0 on R-Mobile A1
+              - renesas,r8a7740-cmt1      # 48-bit CMT1 on R-Mobile A1
+              - renesas,r8a7740-cmt2      # 32-bit CMT2 on R-Mobile A1
+              - renesas,r8a7740-cmt3      # 32-bit CMT3 on R-Mobile A1
+              - renesas,r8a7740-cmt4      # 32-bit CMT4 on R-Mobile A1
+              - renesas,sh73a0-cmt0       # 32-bit CMT0 on SH-Mobile AG5
+              - renesas,sh73a0-cmt1       # 48-bit CMT1 on SH-Mobile AG5
+              - renesas,sh73a0-cmt2       # 32-bit CMT2 on SH-Mobile AG5
+              - renesas,sh73a0-cmt3       # 32-bit CMT3 on SH-Mobile AG5
+              - renesas,sh73a0-cmt4       # 32-bit CMT4 on SH-Mobile AG5
+
+      - items:
+          - enum:
+              - renesas,r8a73a4-cmt0      # 32-bit CMT0 on R-Mobile APE6
+              - renesas,r8a7743-cmt0      # 32-bit CMT0 on RZ/G1M
+              - renesas,r8a7744-cmt0      # 32-bit CMT0 on RZ/G1N
+              - renesas,r8a7745-cmt0      # 32-bit CMT0 on RZ/G1E
+              - renesas,r8a77470-cmt0     # 32-bit CMT0 on RZ/G1C
+              - renesas,r8a7790-cmt0      # 32-bit CMT0 on R-Car H2
+              - renesas,r8a7791-cmt0      # 32-bit CMT0 on R-Car M2-W
+              - renesas,r8a7792-cmt0      # 32-bit CMT0 on R-Car V2H
+              - renesas,r8a7793-cmt0      # 32-bit CMT0 on R-Car M2-N
+              - renesas,r8a7794-cmt0      # 32-bit CMT0 on R-Car E2
+          - const: renesas,rcar-gen2-cmt0 # 32-bit CMT0 on R-Mobile APE6, R-Car Gen2 and RZ/G1
+
+      - items:
+          - enum:
+              - renesas,r8a73a4-cmt1      # 48-bit CMT1 on R-Mobile APE6
+              - renesas,r8a7743-cmt1      # 48-bit CMT1 on RZ/G1M
+              - renesas,r8a7744-cmt1      # 48-bit CMT1 on RZ/G1N
+              - renesas,r8a7745-cmt1      # 48-bit CMT1 on RZ/G1E
+              - renesas,r8a77470-cmt1     # 48-bit CMT1 on RZ/G1C
+              - renesas,r8a7790-cmt1      # 48-bit CMT1 on R-Car H2
+              - renesas,r8a7791-cmt1      # 48-bit CMT1 on R-Car M2-W
+              - renesas,r8a7792-cmt1      # 48-bit CMT1 on R-Car V2H
+              - renesas,r8a7793-cmt1      # 48-bit CMT1 on R-Car M2-N
+              - renesas,r8a7794-cmt1      # 48-bit CMT1 on R-Car E2
+          - const: renesas,rcar-gen2-cmt1 # 48-bit CMT1 on R-Mobile APE6, R-Car Gen2 and RZ/G1
+
+      - items:
+          - enum:
+              - renesas,r8a774a1-cmt0     # 32-bit CMT0 on RZ/G2M
+              - renesas,r8a774b1-cmt0     # 32-bit CMT0 on RZ/G2N
+              - renesas,r8a774c0-cmt0     # 32-bit CMT0 on RZ/G2E
+              - renesas,r8a7795-cmt0      # 32-bit CMT0 on R-Car H3
+              - renesas,r8a7796-cmt0      # 32-bit CMT0 on R-Car M3-W
+              - renesas,r8a77965-cmt0     # 32-bit CMT0 on R-Car M3-N
+              - renesas,r8a77970-cmt0     # 32-bit CMT0 on R-Car V3M
+              - renesas,r8a77980-cmt0     # 32-bit CMT0 on R-Car V3H
+              - renesas,r8a77990-cmt0     # 32-bit CMT0 on R-Car E3
+              - renesas,r8a77995-cmt0     # 32-bit CMT0 on R-Car D3
+          - const: renesas,rcar-gen3-cmt0 # 32-bit CMT0 on R-Car Gen3 and RZ/G2
+
+      - items:
+          - enum:
+              - renesas,r8a774a1-cmt1     # 48-bit CMT on RZ/G2M
+              - renesas,r8a774b1-cmt1     # 48-bit CMT on RZ/G2N
+              - renesas,r8a774c0-cmt1     # 48-bit CMT on RZ/G2E
+              - renesas,r8a7795-cmt1      # 48-bit CMT on R-Car H3
+              - renesas,r8a7796-cmt1      # 48-bit CMT on R-Car M3-W
+              - renesas,r8a77965-cmt1     # 48-bit CMT on R-Car M3-N
+              - renesas,r8a77970-cmt1     # 48-bit CMT on R-Car V3M
+              - renesas,r8a77980-cmt1     # 48-bit CMT on R-Car V3H
+              - renesas,r8a77990-cmt1     # 48-bit CMT on R-Car E3
+              - renesas,r8a77995-cmt1     # 48-bit CMT on R-Car D3
+          - const: renesas,rcar-gen3-cmt1 # 48-bit CMT on R-Car Gen3 and RZ/G2
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    minItems: 1
+    maxItems: 8
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    const: fck
+
+  power-domains:
+    maxItems: 1
+
+  resets:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
+  - power-domains
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - renesas,rcar-gen2-cmt0
+              - renesas,rcar-gen3-cmt0
+    then:
+      properties:
+        interrupts:
+          minItems: 2
+          maxItems: 2
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - renesas,rcar-gen2-cmt1
+              - renesas,rcar-gen3-cmt1
+    then:
+      properties:
+        interrupts:
+          minItems: 8
+          maxItems: 8
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/r8a7790-cpg-mssr.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/power/r8a7790-sysc.h>
+    cmt0: timer@ffca0000 {
+            compatible = "renesas,r8a7790-cmt0", "renesas,rcar-gen2-cmt0";
+            reg = <0xffca0000 0x1004>;
+            interrupts = <GIC_SPI 142 IRQ_TYPE_LEVEL_HIGH>,
+                         <GIC_SPI 143 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&cpg CPG_MOD 124>;
+            clock-names = "fck";
+            power-domains = <&sysc R8A7790_PD_ALWAYS_ON>;
+            resets = <&cpg 124>;
+    };
+
+    cmt1: timer@e6130000 {
+            compatible = "renesas,r8a7790-cmt1", "renesas,rcar-gen2-cmt1";
+            reg = <0xe6130000 0x1004>;
+            interrupts = <GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>,
+                         <GIC_SPI 121 IRQ_TYPE_LEVEL_HIGH>,
+                         <GIC_SPI 122 IRQ_TYPE_LEVEL_HIGH>,
+                         <GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>,
+                         <GIC_SPI 124 IRQ_TYPE_LEVEL_HIGH>,
+                         <GIC_SPI 125 IRQ_TYPE_LEVEL_HIGH>,
+                         <GIC_SPI 126 IRQ_TYPE_LEVEL_HIGH>,
+                         <GIC_SPI 127 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&cpg CPG_MOD 329>;
+            clock-names = "fck";
+            power-domains = <&sysc R8A7790_PD_ALWAYS_ON>;
+            resets = <&cpg 329>;
+    };

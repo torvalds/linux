@@ -19,6 +19,7 @@ power-domains.
 		    "qcom,sc7180-aoss-qmp"
 		    "qcom,sdm845-aoss-qmp"
 		    "qcom,sm8150-aoss-qmp"
+		    "qcom,sm8250-aoss-qmp"
 
 - reg:
 	Usage: required

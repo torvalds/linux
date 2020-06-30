@@ -27,9 +27,8 @@ differences are:
 3. Raw Gadget provides a way to select a UDC device/driver to bind to,
    while GadgetFS currently binds to the first available UDC.
 
-4. Raw Gadget uses predictable endpoint names (handles) across different
-   UDCs (as long as UDCs have enough endpoints of each required transfer
-   type).
+4. Raw Gadget explicitly exposes information about endpoints addresses and
+   capabilities allowing a user to write UDC-agnostic gadgets.
 
 5. Raw Gadget has ioctl-based interface instead of a filesystem-based one.
 
@@ -50,12 +49,36 @@ The typical usage of Raw Gadget looks like:
    Raw Gadget and react to those depending on what kind of USB device
    needs to be emulated.
 
+Note, that some UDC drivers have fixed addresses assigned to endpoints, and
+therefore arbitrary endpoint addresses can't be used in the descriptors.
+Nevertheles, Raw Gadget provides a UDC-agnostic way to write USB gadgets.
+Once a USB_RAW_EVENT_CONNECT event is received via USB_RAW_IOCTL_EVENT_FETCH,
+the USB_RAW_IOCTL_EPS_INFO ioctl can be used to find out information about
+endpoints that the UDC driver has. Based on that information, the user must
+chose UDC endpoints that will be used for the gadget being emulated, and
+properly assign addresses in endpoint descriptors.
+
+You can find usage examples (along with a test suite) here:
+
+https://github.com/xairy/raw-gadget
+
+Internal details
+~~~~~~~~~~~~~~~~
+
+Currently every endpoint read/write ioctl submits a USB request and waits until
+its completion. This is the desired mode for coverage-guided fuzzing (as we'd
+like all USB request processing happen during the lifetime of a syscall),
+and must be kept in the implementation. (This might be slow for real world
+applications, thus the O_NONBLOCK improvement suggestion below.)
+
 Potential future improvements
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-- Implement ioctl's for setting/clearing halt status on endpoints.
-
-- Reporting more events (suspend, resume, etc.) through
-  USB_RAW_IOCTL_EVENT_FETCH.
+- Report more events (suspend, resume, etc.) through USB_RAW_IOCTL_EVENT_FETCH.
 
 - Support O_NONBLOCK I/O.
+
+- Support USB 3 features (accept SS endpoint companion descriptor when
+  enabling endpoints; allow providing stream_id for bulk transfers).
+
+- Support ISO transfer features (expose frame_number for completed requests).

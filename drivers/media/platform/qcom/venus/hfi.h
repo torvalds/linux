@@ -102,6 +102,7 @@ struct hfi_inst_ops {
 			 u32 hfi_flags, u64 timestamp_us);
 	void (*event_notify)(struct venus_inst *inst, u32 event,
 			     struct hfi_event_data *data);
+	void (*flush_done)(struct venus_inst *inst);
 };
 
 struct hfi_ops {
@@ -161,7 +162,7 @@ int hfi_session_continue(struct venus_inst *inst);
 int hfi_session_abort(struct venus_inst *inst);
 int hfi_session_load_res(struct venus_inst *inst);
 int hfi_session_unload_res(struct venus_inst *inst);
-int hfi_session_flush(struct venus_inst *inst, u32 type);
+int hfi_session_flush(struct venus_inst *inst, u32 type, bool block);
 int hfi_session_set_buffers(struct venus_inst *inst,
 			    struct hfi_buffer_desc *bd);
 int hfi_session_unset_buffers(struct venus_inst *inst,

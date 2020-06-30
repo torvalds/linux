@@ -189,7 +189,7 @@ static void handle_overflow(struct overflow_data *data, void *lhs,
 	ubsan_epilogue();
 }
 
-void __ubsan_handle_add_overflow(struct overflow_data *data,
+void __ubsan_handle_add_overflow(void *data,
 				void *lhs, void *rhs)
 {
 
@@ -197,23 +197,23 @@ void __ubsan_handle_add_overflow(struct overflow_data *data,
 }
 EXPORT_SYMBOL(__ubsan_handle_add_overflow);
 
-void __ubsan_handle_sub_overflow(struct overflow_data *data,
+void __ubsan_handle_sub_overflow(void *data,
 				void *lhs, void *rhs)
 {
 	handle_overflow(data, lhs, rhs, '-');
 }
 EXPORT_SYMBOL(__ubsan_handle_sub_overflow);
 
-void __ubsan_handle_mul_overflow(struct overflow_data *data,
+void __ubsan_handle_mul_overflow(void *data,
 				void *lhs, void *rhs)
 {
 	handle_overflow(data, lhs, rhs, '*');
 }
 EXPORT_SYMBOL(__ubsan_handle_mul_overflow);
 
-void __ubsan_handle_negate_overflow(struct overflow_data *data,
-				void *old_val)
+void __ubsan_handle_negate_overflow(void *_data, void *old_val)
 {
+	struct overflow_data *data = _data;
 	char old_val_str[VALUE_LENGTH];
 
 	if (suppress_report(&data->location))
@@ -231,9 +231,9 @@ void __ubsan_handle_negate_overflow(struct overflow_data *data,
 EXPORT_SYMBOL(__ubsan_handle_negate_overflow);
 
 
-void __ubsan_handle_divrem_overflow(struct overflow_data *data,
-				void *lhs, void *rhs)
+void __ubsan_handle_divrem_overflow(void *_data, void *lhs, void *rhs)
 {
+	struct overflow_data *data = _data;
 	char rhs_val_str[VALUE_LENGTH];
 
 	if (suppress_report(&data->location))
@@ -326,10 +326,9 @@ void __ubsan_handle_type_mismatch(struct type_mismatch_data *data,
 }
 EXPORT_SYMBOL(__ubsan_handle_type_mismatch);
 
-void __ubsan_handle_type_mismatch_v1(struct type_mismatch_data_v1 *data,
-				void *ptr)
+void __ubsan_handle_type_mismatch_v1(void *_data, void *ptr)
 {
-
+	struct type_mismatch_data_v1 *data = _data;
 	struct type_mismatch_data_common common_data = {
 		.location = &data->location,
 		.type = data->type,
@@ -341,8 +340,9 @@ void __ubsan_handle_type_mismatch_v1(struct type_mismatch_data_v1 *data,
 }
 EXPORT_SYMBOL(__ubsan_handle_type_mismatch_v1);
 
-void __ubsan_handle_out_of_bounds(struct out_of_bounds_data *data, void *index)
+void __ubsan_handle_out_of_bounds(void *_data, void *index)
 {
+	struct out_of_bounds_data *data = _data;
 	char index_str[VALUE_LENGTH];
 
 	if (suppress_report(&data->location))
@@ -357,9 +357,9 @@ void __ubsan_handle_out_of_bounds(struct out_of_bounds_data *data, void *index)
 }
 EXPORT_SYMBOL(__ubsan_handle_out_of_bounds);
 
-void __ubsan_handle_shift_out_of_bounds(struct shift_out_of_bounds_data *data,
-					void *lhs, void *rhs)
+void __ubsan_handle_shift_out_of_bounds(void *_data, void *lhs, void *rhs)
 {
+	struct shift_out_of_bounds_data *data = _data;
 	struct type_descriptor *rhs_type = data->rhs_type;
 	struct type_descriptor *lhs_type = data->lhs_type;
 	char rhs_str[VALUE_LENGTH];
@@ -399,8 +399,9 @@ out:
 EXPORT_SYMBOL(__ubsan_handle_shift_out_of_bounds);
 
 
-void __ubsan_handle_builtin_unreachable(struct unreachable_data *data)
+void __ubsan_handle_builtin_unreachable(void *_data)
 {
+	struct unreachable_data *data = _data;
 	ubsan_prologue(&data->location, "unreachable");
 	pr_err("calling __builtin_unreachable()\n");
 	ubsan_epilogue();
@@ -408,9 +409,9 @@ void __ubsan_handle_builtin_unreachable(struct unreachable_data *data)
 }
 EXPORT_SYMBOL(__ubsan_handle_builtin_unreachable);
 
-void __ubsan_handle_load_invalid_value(struct invalid_value_data *data,
-				void *val)
+void __ubsan_handle_load_invalid_value(void *_data, void *val)
 {
+	struct invalid_value_data *data = _data;
 	char val_str[VALUE_LENGTH];
 
 	if (suppress_report(&data->location))

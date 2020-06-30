@@ -15,12 +15,23 @@
 #include "hsr_framereg.h"
 #include "hsr_slave.h"
 
+static bool hsr_slave_empty(struct hsr_priv *hsr)
+{
+	struct hsr_port *port;
+
+	hsr_for_each_port(hsr, port)
+		if (port->type != HSR_PT_MASTER)
+			return false;
+	return true;
+}
+
 static int hsr_netdev_notify(struct notifier_block *nb, unsigned long event,
 			     void *ptr)
 {
-	struct net_device *dev;
 	struct hsr_port *port, *master;
+	struct net_device *dev;
 	struct hsr_priv *hsr;
+	LIST_HEAD(list_kill);
 	int mtu_max;
 	int res;
 
@@ -85,8 +96,15 @@ static int hsr_netdev_notify(struct notifier_block *nb, unsigned long event,
 		master->dev->mtu = mtu_max;
 		break;
 	case NETDEV_UNREGISTER:
-		if (!is_hsr_master(dev))
+		if (!is_hsr_master(dev)) {
+			master = hsr_port_get_hsr(port->hsr, HSR_PT_MASTER);
 			hsr_del_port(port);
+			if (hsr_slave_empty(master->hsr)) {
+				unregister_netdevice_queue(master->dev,
+							   &list_kill);
+				unregister_netdevice_many(&list_kill);
+			}
+		}
 		break;
 	case NETDEV_PRE_TYPE_CHANGE:
 		/* HSR works only on Ethernet devices. Refuse slave to change

@@ -6,7 +6,7 @@ config ATH10K
 	select CRC32
 	select WANT_DEV_COREDUMP
 	select ATH10K_CE
-	---help---
+	help
 	  This module adds support for wireless adapters based on
 	  Atheros IEEE 802.11ac family of chipsets.
 
@@ -18,42 +18,41 @@ config ATH10K_CE
 config ATH10K_PCI
 	tristate "Atheros ath10k PCI support"
 	depends on ATH10K && PCI
-	---help---
+	help
 	  This module adds support for PCIE bus
 
 config ATH10K_AHB
 	bool "Atheros ath10k AHB support"
 	depends on ATH10K_PCI && OF && RESET_CONTROLLER
-	---help---
+	help
 	  This module adds support for AHB bus
 
 config ATH10K_SDIO
-	tristate "Atheros ath10k SDIO support (EXPERIMENTAL)"
+	tristate "Atheros ath10k SDIO support"
 	depends on ATH10K && MMC
-	---help---
-	  This module adds experimental support for SDIO/MMC bus. Currently
-	  work in progress and will not fully work.
+	help
+	  This module adds support for SDIO/MMC bus.
 
 config ATH10K_USB
 	tristate "Atheros ath10k USB support (EXPERIMENTAL)"
 	depends on ATH10K && USB
-	---help---
+	help
 	  This module adds experimental support for USB bus. Currently
 	  work in progress and will not fully work.
 
 config ATH10K_SNOC
-	tristate "Qualcomm ath10k SNOC support (EXPERIMENTAL)"
+	tristate "Qualcomm ath10k SNOC support"
 	depends on ATH10K
 	depends on ARCH_QCOM || COMPILE_TEST
 	select QCOM_QMI_HELPERS
-	---help---
+	help
 	  This module adds support for integrated WCN3990 chip connected
 	  to system NOC(SNOC).
 
 config ATH10K_DEBUG
 	bool "Atheros ath10k debugging"
 	depends on ATH10K
-	---help---
+	help
 	  Enables debug support
 
 	  If unsure, say Y to make it easier to debug problems.
@@ -61,7 +60,7 @@ config ATH10K_DEBUG
 config ATH10K_DEBUGFS
 	bool "Atheros ath10k debugfs support"
 	depends on ATH10K && DEBUG_FS
-	---help---
+	help
 	  Enabled debugfs support
 
 	  If unsure, say Y to make it easier to debug problems.
@@ -71,20 +70,20 @@ config ATH10K_SPECTRAL
 	depends on ATH10K_DEBUGFS
 	select RELAY
 	default n
-	---help---
+	help
 	  Say Y to enable access to the FFT/spectral data via debugfs.
 
 config ATH10K_TRACING
 	bool "Atheros ath10k tracing support"
 	depends on ATH10K
 	depends on EVENT_TRACING
-	---help---
+	help
 	  Select this to ath10k use tracing infrastructure.
 
 config ATH10K_DFS_CERTIFIED
 	bool "Atheros DFS support for certified platforms"
 	depends on ATH10K && CFG80211_CERTIFICATION_ONUS
 	default n
-	---help---
+	help
 	This option enables DFS support for initiating radiation on
 	ath10k.

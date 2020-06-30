@@ -948,6 +948,13 @@ fail:
 
 #endif /* CONFIG_SFC_MTD */
 
+static unsigned int siena_check_caps(const struct efx_nic *efx,
+				     u8 flag, u32 offset)
+{
+	/* Siena did not support MC_CMD_GET_CAPABILITIES */
+	return 0;
+}
+
 /**************************************************************************
  *
  * Revision-dependent attributes used by efx.c and nic.c
@@ -1086,4 +1093,5 @@ const struct efx_nic_type siena_a0_nic_type = {
 			     1 << HWTSTAMP_FILTER_PTP_V1_L4_EVENT |
 			     1 << HWTSTAMP_FILTER_PTP_V2_L4_EVENT),
 	.rx_hash_key_size = 16,
+	.check_caps = siena_check_caps,
 };

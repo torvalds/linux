@@ -6,7 +6,7 @@
 menuconfig TIPC
 	tristate "The TIPC Protocol"
 	depends on INET
-	---help---
+	help
 	  The Transparent Inter Process Communication (TIPC) protocol is
 	  specially designed for intra cluster communication. This protocol
 	  originates from Ericsson where it has been used in carrier grade
@@ -55,6 +55,6 @@ config TIPC_DIAG
 	tristate "TIPC: socket monitoring interface"
 	depends on TIPC
 	default y
-	---help---
+	help
 	Support for TIPC socket monitoring interface used by ss tool.
 	If unsure, say Y.

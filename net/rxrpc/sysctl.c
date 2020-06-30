@@ -21,7 +21,7 @@ static const unsigned long max_jiffies = MAX_JIFFY_OFFSET;
 /*
  * RxRPC operating parameters.
  *
- * See Documentation/networking/rxrpc.txt and the variable definitions for more
+ * See Documentation/networking/rxrpc.rst and the variable definitions for more
  * information on the individual parameters.
  */
 static struct ctl_table rxrpc_sysctl_table[] = {
@@ -65,15 +65,6 @@ static struct ctl_table rxrpc_sysctl_table[] = {
 	{
 		.procname	= "idle_conn_fast_expiry",
 		.data		= &rxrpc_conn_idle_client_fast_expiry,
-		.maxlen		= sizeof(unsigned long),
-		.mode		= 0644,
-		.proc_handler	= proc_doulongvec_ms_jiffies_minmax,
-		.extra1		= (void *)&one_jiffy,
-		.extra2		= (void *)&max_jiffies,
-	},
-	{
-		.procname	= "resend_timeout",
-		.data		= &rxrpc_resend_timeout,
 		.maxlen		= sizeof(unsigned long),
 		.mode		= 0644,
 		.proc_handler	= proc_doulongvec_ms_jiffies_minmax,

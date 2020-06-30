@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config VIDEO_TEGRA
+	tristate "NVIDIA Tegra VI driver"
+	depends on TEGRA_HOST1X
+	depends on VIDEO_V4L2
+	select MEDIA_CONTROLLER
+	select VIDEOBUF2_DMA_CONTIG
+	help
+	  Choose this option if you have an NVIDIA Tegra SoC.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called tegra-video.

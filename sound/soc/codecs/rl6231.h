@@ -18,6 +18,7 @@
 
 struct rl6231_pll_code {
 	bool m_bp; /* Indicates bypass m code or not. */
+	bool k_bp; /* Indicates bypass k code or not. */
 	int m_code;
 	int n_code;
 	int k_code;

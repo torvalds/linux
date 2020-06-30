@@ -9,29 +9,15 @@
 #define WFX_QUEUE_H
 
 #include <linux/skbuff.h>
-
-#include "hif_api_cmd.h"
-
-#define WFX_MAX_STA_IN_AP_MODE    14
-#define WFX_LINK_ID_NO_ASSOC      15
-#define WFX_LINK_ID_AFTER_DTIM    (WFX_LINK_ID_NO_ASSOC + 1)
-#define WFX_LINK_ID_UAPSD         (WFX_LINK_ID_NO_ASSOC + 2)
-#define WFX_LINK_ID_MAX           (WFX_LINK_ID_NO_ASSOC + 3)
+#include <linux/atomic.h>
 
 struct wfx_dev;
 struct wfx_vif;
 
 struct wfx_queue {
-	struct sk_buff_head	queue;
-	int			tx_locked_cnt;
-	int			link_map_cache[WFX_LINK_ID_MAX];
-	u8			queue_id;
-};
-
-struct wfx_queue_stats {
-	int			link_map_cache[WFX_LINK_ID_MAX];
-	struct sk_buff_head	pending;
-	wait_queue_head_t	wait_link_id_empty;
+	struct sk_buff_head	normal;
+	struct sk_buff_head	cab; // Content After (DTIM) Beacon
+	atomic_t		pending_frames;
 };
 
 void wfx_tx_lock(struct wfx_dev *wdev);
@@ -40,22 +26,18 @@ void wfx_tx_flush(struct wfx_dev *wdev);
 void wfx_tx_lock_flush(struct wfx_dev *wdev);
 
 void wfx_tx_queues_init(struct wfx_dev *wdev);
-void wfx_tx_queues_deinit(struct wfx_dev *wdev);
-void wfx_tx_queues_lock(struct wfx_dev *wdev);
-void wfx_tx_queues_unlock(struct wfx_dev *wdev);
-void wfx_tx_queues_clear(struct wfx_dev *wdev);
-bool wfx_tx_queues_is_empty(struct wfx_dev *wdev);
-void wfx_tx_queues_wait_empty_vif(struct wfx_vif *wvif);
+void wfx_tx_queues_check_empty(struct wfx_dev *wdev);
+bool wfx_tx_queues_has_cab(struct wfx_vif *wvif);
+void wfx_tx_queues_put(struct wfx_dev *wdev, struct sk_buff *skb);
 struct hif_msg *wfx_tx_queues_get(struct wfx_dev *wdev);
-struct hif_msg *wfx_tx_queues_get_after_dtim(struct wfx_vif *wvif);
 
-void wfx_tx_queue_put(struct wfx_dev *wdev, struct wfx_queue *queue,
-		      struct sk_buff *skb);
-int wfx_tx_queue_get_num_queued(struct wfx_queue *queue, u32 link_id_map);
+bool wfx_tx_queue_empty(struct wfx_dev *wdev, struct wfx_queue *queue,
+			int vif_id);
+void wfx_tx_queue_drop(struct wfx_dev *wdev, struct wfx_queue *queue,
+		       int vif_id, struct sk_buff_head *dropped);
 
 struct sk_buff *wfx_pending_get(struct wfx_dev *wdev, u32 packet_id);
-int wfx_pending_remove(struct wfx_dev *wdev, struct sk_buff *skb);
-int wfx_pending_requeue(struct wfx_dev *wdev, struct sk_buff *skb);
+void wfx_pending_drop(struct wfx_dev *wdev, struct sk_buff_head *dropped);
 unsigned int wfx_pending_get_pkt_us_delay(struct wfx_dev *wdev,
 					  struct sk_buff *skb);
 void wfx_pending_dump_old_frames(struct wfx_dev *wdev, unsigned int limit_ms);

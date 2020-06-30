@@ -69,7 +69,13 @@ struct intel_context {
 #define CONTEXT_NOPREEMPT		7
 
 	u32 *lrc_reg_state;
-	u64 lrc_desc;
+	union {
+		struct {
+			u32 lrca;
+			u32 ccid;
+		};
+		u64 desc;
+	} lrc;
 	u32 tag; /* cookie passed to HW to track this context on submission */
 
 	/* Time on GPU as tracked by the hw. */
@@ -96,6 +102,8 @@ struct intel_context {
 
 	/** sseu: Control eu/slice partitioning */
 	struct intel_sseu sseu;
+
+	u8 wa_bb_page; /* if set, page num reserved for context workarounds */
 };
 
 #endif /* __INTEL_CONTEXT_TYPES__ */

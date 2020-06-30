@@ -103,8 +103,7 @@ properties:
        type: object
        description: CPSW2G NUSS external ports
 
-       allOf:
-         - $ref: ethernet-controller.yaml#
+       $ref: ethernet-controller.yaml#
 
        properties:
          reg:
@@ -139,10 +138,16 @@ properties:
 patternProperties:
   "^mdio@[0-9a-f]+$":
     type: object
-    allOf:
-      - $ref: "ti,davinci-mdio.yaml#"
+    $ref: "ti,davinci-mdio.yaml#"
+
     description:
       CPSW MDIO bus.
+
+  "^cpts@[0-9a-f]+":
+    type: object
+    $ref: "ti,k3-am654-cpts.yaml#"
+    description:
+      CPSW Common Platform Time Sync (CPTS) module.
 
 required:
   - compatible
@@ -164,38 +169,44 @@ examples:
     #include <dt-bindings/pinctrl/k3.h>
     #include <dt-bindings/soc/ti,sci_pm_domain.h>
     #include <dt-bindings/net/ti-dp83867.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
 
-    mcu_cpsw: ethernet@46000000 {
-        compatible = "ti,am654-cpsw-nuss";
+    bus {
         #address-cells = <2>;
         #size-cells = <2>;
-        reg = <0x0 0x46000000 0x0 0x200000>;
-        reg-names = "cpsw_nuss";
-        ranges = <0x0 0x0 0x46000000 0x0 0x200000>;
-        dma-coherent;
-        clocks = <&k3_clks 5 10>;
-        clock-names = "fck";
-        power-domains = <&k3_pds 5 TI_SCI_PD_EXCLUSIVE>;
-        pinctrl-names = "default";
-        pinctrl-0 = <&mcu_cpsw_pins_default &mcu_mdio_pins_default>;
 
-        dmas = <&mcu_udmap 0xf000>,
-               <&mcu_udmap 0xf001>,
-               <&mcu_udmap 0xf002>,
-               <&mcu_udmap 0xf003>,
-               <&mcu_udmap 0xf004>,
-               <&mcu_udmap 0xf005>,
-               <&mcu_udmap 0xf006>,
-               <&mcu_udmap 0xf007>,
-               <&mcu_udmap 0x7000>;
-        dma-names = "tx0", "tx1", "tx2", "tx3", "tx4", "tx5", "tx6", "tx7",
-                    "rx";
+        mcu_cpsw: ethernet@46000000 {
+            compatible = "ti,am654-cpsw-nuss";
+            #address-cells = <2>;
+            #size-cells = <2>;
+            reg = <0x0 0x46000000 0x0 0x200000>;
+            reg-names = "cpsw_nuss";
+            ranges = <0x0 0x0 0x0 0x46000000 0x0 0x200000>;
+            dma-coherent;
+            clocks = <&k3_clks 5 10>;
+            clock-names = "fck";
+            power-domains = <&k3_pds 5 TI_SCI_PD_EXCLUSIVE>;
+            pinctrl-names = "default";
+            pinctrl-0 = <&mcu_cpsw_pins_default &mcu_mdio_pins_default>;
 
-        ethernet-ports {
-              #address-cells = <1>;
-              #size-cells = <0>;
+            dmas = <&mcu_udmap 0xf000>,
+                   <&mcu_udmap 0xf001>,
+                   <&mcu_udmap 0xf002>,
+                   <&mcu_udmap 0xf003>,
+                   <&mcu_udmap 0xf004>,
+                   <&mcu_udmap 0xf005>,
+                   <&mcu_udmap 0xf006>,
+                   <&mcu_udmap 0xf007>,
+                   <&mcu_udmap 0x7000>;
+            dma-names = "tx0", "tx1", "tx2", "tx3", "tx4", "tx5", "tx6", "tx7",
+                        "rx";
 
-              cpsw_port1: port@1 {
+            ethernet-ports {
+                #address-cells = <1>;
+                #size-cells = <0>;
+
+                cpsw_port1: port@1 {
                     reg = <1>;
                     ti,mac-only;
                     label = "port1";
@@ -204,22 +215,34 @@ examples:
 
                     phy-mode = "rgmii-rxid";
                     phy-handle = <&phy0>;
-              };
-        };
+                };
+            };
 
-        davinci_mdio: mdio@f00 {
-              compatible = "ti,cpsw-mdio","ti,davinci_mdio";
-              reg = <0x0 0xf00 0x0 0x100>;
-              #address-cells = <1>;
-              #size-cells = <0>;
-              clocks = <&k3_clks 5 10>;
-              clock-names = "fck";
-              bus_freq = <1000000>;
+            davinci_mdio: mdio@f00 {
+                compatible = "ti,cpsw-mdio","ti,davinci_mdio";
+                reg = <0x0 0xf00 0x0 0x100>;
+                #address-cells = <1>;
+                #size-cells = <0>;
+                clocks = <&k3_clks 5 10>;
+                clock-names = "fck";
+                bus_freq = <1000000>;
 
-              phy0: ethernet-phy@0 {
+                phy0: ethernet-phy@0 {
                     reg = <0>;
                     ti,rx-internal-delay = <DP83867_RGMIIDCTL_2_00_NS>;
                     ti,fifo-depth = <DP83867_PHYCR_FIFO_DEPTH_4_B_NIB>;
-              };
+                };
+            };
+        };
+
+        cpts@3d000 {
+             compatible = "ti,am65-cpts";
+             reg = <0x0 0x3d000 0x0 0x400>;
+             clocks = <&k3_clks 18 2>;
+             clock-names = "cpts";
+             interrupts-extended = <&gic500 GIC_SPI 858 IRQ_TYPE_LEVEL_HIGH>;
+             interrupt-names = "cpts";
+             ti,cpts-ext-ts-inputs = <4>;
+             ti,cpts-periodic-outputs = <2>;
         };
     };
