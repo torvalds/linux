@@ -5050,6 +5050,7 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 	encoder->port = port;
 	encoder->cloneable = 0;
 	encoder->pipe_mask = ~0;
+	encoder->hpd_pin = intel_hpd_pin_default(dev_priv, port);
 
 	if (INTEL_GEN(dev_priv) >= 11)
 		dig_port->saved_port_bits =
