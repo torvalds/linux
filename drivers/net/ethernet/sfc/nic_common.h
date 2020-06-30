@@ -163,7 +163,8 @@ static inline void efx_nic_init_tx(struct efx_tx_queue *tx_queue)
 }
 static inline void efx_nic_remove_tx(struct efx_tx_queue *tx_queue)
 {
-	tx_queue->efx->type->tx_remove(tx_queue);
+	if (tx_queue->efx->type->tx_remove)
+		tx_queue->efx->type->tx_remove(tx_queue);
 }
 static inline void efx_nic_push_buffers(struct efx_tx_queue *tx_queue)
 {
