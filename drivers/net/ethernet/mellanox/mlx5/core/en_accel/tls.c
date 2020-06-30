@@ -232,8 +232,10 @@ int mlx5e_tls_init(struct mlx5e_priv *priv)
 		return -ENOMEM;
 
 	tls->rx_wq = create_singlethread_workqueue("mlx5e_tls_rx");
-	if (!tls->rx_wq)
+	if (!tls->rx_wq) {
+		kfree(tls);
 		return -ENOMEM;
+	}
 
 	priv->tls = tls;
 	return 0;
