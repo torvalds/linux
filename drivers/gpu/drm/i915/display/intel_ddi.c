@@ -4975,6 +4975,57 @@ static bool hti_uses_phy(struct drm_i915_private *i915, enum phy phy)
 		 i915->hti_state & HDPORT_PHY_USED_HDMI(phy));
 }
 
+static enum hpd_pin tgl_hpd_pin(struct drm_i915_private *dev_priv,
+				enum port port)
+{
+	if (port >= PORT_D)
+		return HPD_PORT_TC1 + port - PORT_D;
+	else
+		return HPD_PORT_A + port - PORT_A;
+}
+
+static enum hpd_pin rkl_hpd_pin(struct drm_i915_private *dev_priv,
+				enum port port)
+{
+	if (HAS_PCH_TGP(dev_priv))
+		return tgl_hpd_pin(dev_priv, port);
+
+	if (port >= PORT_D)
+		return HPD_PORT_C + port - PORT_D;
+	else
+		return HPD_PORT_A + port - PORT_A;
+}
+
+static enum hpd_pin icl_hpd_pin(struct drm_i915_private *dev_priv,
+				enum port port)
+{
+	if (port >= PORT_C)
+		return HPD_PORT_TC1 + port - PORT_C;
+	else
+		return HPD_PORT_A + port - PORT_A;
+}
+
+static enum hpd_pin ehl_hpd_pin(struct drm_i915_private *dev_priv,
+				enum port port)
+{
+	if (port == PORT_D)
+		return HPD_PORT_A;
+
+	if (HAS_PCH_MCC(dev_priv))
+		return icl_hpd_pin(dev_priv, port);
+
+	return HPD_PORT_A + port - PORT_A;
+}
+
+static enum hpd_pin cnl_hpd_pin(struct drm_i915_private *dev_priv,
+				enum port port)
+{
+	if (port == PORT_F)
+		return HPD_PORT_E;
+
+	return HPD_PORT_A + port - PORT_A;
+}
+
 void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 {
 	struct intel_digital_port *dig_port;
@@ -5050,7 +5101,19 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 	encoder->port = port;
 	encoder->cloneable = 0;
 	encoder->pipe_mask = ~0;
-	encoder->hpd_pin = intel_hpd_pin_default(dev_priv, port);
+
+	if (IS_ROCKETLAKE(dev_priv))
+		encoder->hpd_pin = rkl_hpd_pin(dev_priv, port);
+	else if (INTEL_GEN(dev_priv) >= 12)
+		encoder->hpd_pin = tgl_hpd_pin(dev_priv, port);
+	else if (IS_ELKHARTLAKE(dev_priv))
+		encoder->hpd_pin = ehl_hpd_pin(dev_priv, port);
+	else if (IS_GEN(dev_priv, 11))
+		encoder->hpd_pin = icl_hpd_pin(dev_priv, port);
+	else if (IS_GEN(dev_priv, 10))
+		encoder->hpd_pin = cnl_hpd_pin(dev_priv, port);
+	else
+		encoder->hpd_pin = intel_hpd_pin_default(dev_priv, port);
 
 	if (INTEL_GEN(dev_priv) >= 11)
 		dig_port->saved_port_bits =
