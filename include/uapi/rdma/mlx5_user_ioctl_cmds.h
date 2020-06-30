@@ -290,4 +290,14 @@ enum mlx5_ib_create_flow_action_create_packet_reformat_attrs {
 	MLX5_IB_ATTR_CREATE_PACKET_REFORMAT_DATA_BUF,
 };
 
+enum mlx5_ib_query_pd_attrs {
+	MLX5_IB_ATTR_QUERY_PD_HANDLE = (1U << UVERBS_ID_NS_SHIFT),
+	MLX5_IB_ATTR_QUERY_PD_RESP_PDN,
+};
+
+enum mlx5_ib_pd_methods {
+	MLX5_IB_METHOD_PD_QUERY = (1U << UVERBS_ID_NS_SHIFT),
+
+};
+
 #endif
