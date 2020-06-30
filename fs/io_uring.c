@@ -4608,7 +4608,6 @@ static void io_async_task_func(struct callback_head *cb)
 	struct io_kiocb *req = container_of(cb, struct io_kiocb, task_work);
 	struct async_poll *apoll = req->apoll;
 	struct io_ring_ctx *ctx = req->ctx;
-	bool canceled = false;
 
 	trace_io_uring_task_run(req->ctx, req->opcode, req->user_data);
 
@@ -4618,15 +4617,8 @@ static void io_async_task_func(struct callback_head *cb)
 	}
 
 	/* If req is still hashed, it cannot have been canceled. Don't check. */
-	if (hash_hashed(&req->hash_node)) {
+	if (hash_hashed(&req->hash_node))
 		hash_del(&req->hash_node);
-	} else {
-		canceled = READ_ONCE(apoll->poll.canceled);
-		if (canceled) {
-			io_cqring_fill_event(req, -ECANCELED);
-			io_commit_cqring(ctx);
-		}
-	}
 
 	spin_unlock_irq(&ctx->completion_lock);
 
@@ -4635,21 +4627,10 @@ static void io_async_task_func(struct callback_head *cb)
 		memcpy(&req->work, &apoll->work, sizeof(req->work));
 	kfree(apoll);
 
-	if (!canceled) {
-		__set_current_state(TASK_RUNNING);
-		if (io_sq_thread_acquire_mm(ctx, req)) {
-			io_cqring_add_event(req, -EFAULT, 0);
-			goto end_req;
-		}
-		mutex_lock(&ctx->uring_lock);
-		__io_queue_sqe(req, NULL, NULL);
-		mutex_unlock(&ctx->uring_lock);
-	} else {
-		io_cqring_ev_posted(ctx);
-end_req:
-		req_set_fail_links(req);
-		io_double_put_req(req);
-	}
+	if (!READ_ONCE(apoll->poll.canceled))
+		__io_req_task_submit(req);
+	else
+		__io_req_task_cancel(req, -ECANCELED);
 }
 
 static int io_async_wake(struct wait_queue_entry *wait, unsigned mode, int sync,
