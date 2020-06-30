@@ -35,6 +35,7 @@
 #include <scsi/scsi_transport_fc.h>
 #include <scsi/fc/fc_fs.h>
 #include <linux/aer.h>
+#include <linux/crash_dump.h>
 #ifdef CONFIG_X86
 #include <asm/set_memory.h>
 #endif
@@ -13702,6 +13703,7 @@ lpfc_sli4_sp_handle_eqe(struct lpfc_hba *phba, struct lpfc_eqe *eqe,
 {
 	struct lpfc_queue *cq = NULL, *childq;
 	uint16_t cqid;
+	int ret = 0;
 
 	/* Get the reference to the corresponding CQ */
 	cqid = bf_get_le32(lpfc_eqe_resource_id, eqe);
@@ -13723,7 +13725,12 @@ lpfc_sli4_sp_handle_eqe(struct lpfc_hba *phba, struct lpfc_eqe *eqe,
 	/* Save EQ associated with this CQ */
 	cq->assoc_qp = speq;
 
-	if (!queue_work_on(cq->chann, phba->wq, &cq->spwork))
+	if (is_kdump_kernel())
+		ret = queue_work(phba->wq, &cq->spwork);
+	else
+		ret = queue_work_on(cq->chann, phba->wq, &cq->spwork);
+
+	if (!ret)
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 				"0390 Cannot schedule soft IRQ "
 				"for CQ eqcqid=%d, cqid=%d on CPU %d\n",
@@ -13836,6 +13843,7 @@ __lpfc_sli4_sp_process_cq(struct lpfc_queue *cq)
 	struct lpfc_hba *phba = cq->phba;
 	unsigned long delay;
 	bool workposted = false;
+	int ret = 0;
 
 	/* Process and rearm the CQ */
 	switch (cq->type) {
@@ -13862,8 +13870,13 @@ __lpfc_sli4_sp_process_cq(struct lpfc_queue *cq)
 	}
 
 	if (delay) {
-		if (!queue_delayed_work_on(cq->chann, phba->wq,
-					   &cq->sched_spwork, delay))
+		if (is_kdump_kernel())
+			ret = queue_delayed_work(phba->wq, &cq->sched_spwork,
+						delay);
+		else
+			ret = queue_delayed_work_on(cq->chann, phba->wq,
+						&cq->sched_spwork, delay);
+		if (!ret)
 			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 				"0394 Cannot schedule soft IRQ "
 				"for cqid=%d on CPU %d\n",
@@ -14215,6 +14228,7 @@ lpfc_sli4_hba_handle_eqe(struct lpfc_hba *phba, struct lpfc_queue *eq,
 	struct lpfc_queue *cq = NULL;
 	uint32_t qidx = eq->hdwq;
 	uint16_t cqid, id;
+	int ret = 0;
 
 	if (unlikely(bf_get_le32(lpfc_eqe_major_code, eqe) != 0)) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
@@ -14274,7 +14288,11 @@ work_cq:
 	else
 		cq->isr_timestamp = 0;
 #endif
-	if (!queue_work_on(cq->chann, phba->wq, &cq->irqwork))
+	if (is_kdump_kernel())
+		ret = queue_work(phba->wq, &cq->irqwork);
+	else
+		ret = queue_work_on(cq->chann, phba->wq, &cq->irqwork);
+	if (!ret)
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 				"0363 Cannot schedule soft IRQ "
 				"for CQ eqcqid=%d, cqid=%d on CPU %d\n",
@@ -14302,14 +14320,20 @@ __lpfc_sli4_hba_process_cq(struct lpfc_queue *cq)
 	struct lpfc_hba *phba = cq->phba;
 	unsigned long delay;
 	bool workposted = false;
+	int ret = 0;
 
 	/* process and rearm the CQ */
 	workposted |= __lpfc_sli4_process_cq(phba, cq, lpfc_sli4_fp_handle_cqe,
 					     &delay);
 
 	if (delay) {
-		if (!queue_delayed_work_on(cq->chann, phba->wq,
-					   &cq->sched_irqwork, delay))
+		if (is_kdump_kernel())
+			ret = queue_delayed_work(phba->wq, &cq->sched_irqwork,
+						delay);
+		else
+			ret = queue_delayed_work_on(cq->chann, phba->wq,
+						&cq->sched_irqwork, delay);
+		if (!ret)
 			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 				"0367 Cannot schedule soft IRQ "
 				"for cqid=%d on CPU %d\n",
