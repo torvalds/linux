@@ -650,6 +650,9 @@ struct lpfc_register {
 #define lpfc_sliport_status_oti_SHIFT	29
 #define lpfc_sliport_status_oti_MASK	0x1
 #define lpfc_sliport_status_oti_WORD	word0
+#define lpfc_sliport_status_dip_SHIFT	25
+#define lpfc_sliport_status_dip_MASK	0x1
+#define lpfc_sliport_status_dip_WORD	word0
 #define lpfc_sliport_status_rn_SHIFT	24
 #define lpfc_sliport_status_rn_MASK	0x1
 #define lpfc_sliport_status_rn_WORD	word0

@@ -7300,6 +7300,26 @@ lpfc_post_rq_buffer(struct lpfc_hba *phba, struct lpfc_queue *hrq,
 	return 1;
 }
 
+static void lpfc_sli4_dip(struct lpfc_hba *phba)
+{
+	uint32_t if_type;
+
+	if_type = bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf);
+	if (if_type == LPFC_SLI_INTF_IF_TYPE_2 ||
+	    if_type == LPFC_SLI_INTF_IF_TYPE_6) {
+		struct lpfc_register reg_data;
+
+		if (lpfc_readl(phba->sli4_hba.u.if_type2.STATUSregaddr,
+			       &reg_data.word0))
+			return;
+
+		if (bf_get(lpfc_sliport_status_dip, &reg_data))
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"2904 Firmware Dump Image Present"
+					" on Adapter");
+	}
+}
+
 /**
  * lpfc_sli4_hba_setup - SLI4 device initialization PCI function
  * @phba: Pointer to HBA context object.
@@ -7337,6 +7357,8 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 		phba->sli.sli_flag |= LPFC_SLI_ACTIVE;
 		spin_unlock_irq(&phba->hbalock);
 	}
+
+	lpfc_sli4_dip(phba);
 
 	/*
 	 * Allocate a single mailbox container for initializing the
