@@ -77,15 +77,12 @@ config HW_RANDOM_ATMEL
 config HW_RANDOM_BA431
 	tristate "Silex Insight BA431 Random Number Generator support"
 	depends on HAS_IOMEM
-	default HW_RANDOM
 	help
 	  This driver provides kernel-side support for the Random Number
 	  Generator hardware based on Silex Insight BA431 IP.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ba431-rng.
-
-	  If unsure, say Y.
 
 config HW_RANDOM_BCM2835
 	tristate "Broadcom BCM2835/BCM63xx Random Number Generator support"
