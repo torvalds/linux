@@ -1113,6 +1113,9 @@ int tcp_md5_do_add(struct sock *sk, const union tcp_md5_addr *addr,
 	if (key) {
 		/* Pre-existing entry - just update that one. */
 		memcpy(key->key, newkey, newkeylen);
+
+		smp_wmb(); /* pairs with smp_rmb() in tcp_md5_hash_key() */
+
 		key->keylen = newkeylen;
 		return 0;
 	}
