@@ -168,7 +168,6 @@ struct vop_plane_state {
 	struct drm_plane_state base;
 	int format;
 	int zpos;
-	unsigned int logo_ymirror;
 	struct drm_rect src;
 	struct drm_rect dest;
 	dma_addr_t yrgb_mst;
@@ -1617,8 +1616,7 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 
 	offset = (src->x1 >> 16) * fb->format->bpp[0] / 8;
 	vop_plane_state->offset = offset + fb->offsets[0];
-	if (state->rotation & DRM_MODE_REFLECT_Y ||
-	    (rockchip_fb_is_logo(fb) && vop_plane_state->logo_ymirror))
+	if (state->rotation & DRM_MODE_REFLECT_Y)
 		offset += ((src->y2 >> 16) - 1) * fb->pitches[0];
 	else
 		offset += (src->y1 >> 16) * fb->pitches[0];
@@ -2060,11 +2058,6 @@ static int vop_atomic_plane_set_property(struct drm_plane *plane,
 		plane_state->zpos = val;
 		return 0;
 	}
-	if (property == private->logo_ymirror_prop) {
-		WARN_ON(!rockchip_fb_is_logo(state->fb));
-		plane_state->logo_ymirror = val;
-		return 0;
-	}
 
 	if (property == private->eotf_prop) {
 		plane_state->eotf = val;
@@ -2108,11 +2101,6 @@ static int vop_atomic_plane_get_property(struct drm_plane *plane,
 
 	if (property == win->vop->plane_zpos_prop) {
 		*val = plane_state->zpos;
-		return 0;
-	}
-
-	if (property == private->logo_ymirror_prop) {
-		*val = plane_state->logo_ymirror;
 		return 0;
 	}
 
@@ -4019,8 +4007,6 @@ static int vop_plane_init(struct vop *vop, struct vop_win *win,
 	drm_object_attach_property(&win->base.base,
 				   vop->plane_zpos_prop, win->win_id);
 
-	if (VOP_WIN_SUPPORT(vop, win, ymirror))
-		drm_object_attach_property(&win->base.base, private->logo_ymirror_prop, 0);
 	if (win->phy->scl)
 		feature |= BIT(ROCKCHIP_DRM_PLANE_FEATURE_SCALE);
 	if (VOP_WIN_SUPPORT(vop, win, src_alpha_ctl) ||

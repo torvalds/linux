@@ -80,7 +80,6 @@ struct rockchip_drm_mode_set {
 	int bottom_margin;
 
 	bool mode_changed;
-	bool ymirror;
 	int ratio;
 };
 
@@ -385,9 +384,6 @@ of_parse_display_resource(struct drm_device *drm_dev, struct device_node *route)
 
 	if (!of_property_read_u32(route, "video,aspect_ratio", &val))
 		set->picture_aspect_ratio = val;
-
-	if (!of_property_read_u32(route, "logo,ymirror", &val))
-		set->ymirror = val;
 
 	if (!of_property_read_u32(route, "overscan,left_margin", &val))
 		set->left_margin = val;
@@ -697,7 +693,6 @@ static int update_state(struct drm_device *drm_dev,
 			struct rockchip_drm_mode_set *set,
 			unsigned int *plane_mask)
 {
-	struct rockchip_drm_private *priv = drm_dev->dev_private;
 	struct drm_crtc *crtc = set->crtc;
 	struct drm_connector *connector = set->connector;
 	struct drm_display_mode *mode = set->mode;
@@ -769,18 +764,6 @@ static int update_state(struct drm_device *drm_dev,
 	drm_atomic_set_fb_for_plane(primary_state, set->fb);
 	drm_framebuffer_put(set->fb);
 	ret = drm_atomic_set_crtc_for_plane(primary_state, crtc);
-
-	if (set->ymirror) {
-		/*
-		 * TODO:
-		 * some vop maybe not support ymirror, but force use it now.
-		 */
-		ret = drm_atomic_set_property(state,
-					      &primary_state->plane->base,
-					      priv->logo_ymirror_prop, true);
-		if (ret)
-			DRM_ERROR("Failed to initial logo_ymirror_prop\n");
-	}
 
 	return ret;
 }
@@ -1279,12 +1262,6 @@ static int rockchip_drm_create_properties(struct drm_device *dev)
 	if (!prop)
 		return -ENOMEM;
 	private->alpha_scale_prop = prop;
-
-	prop = drm_property_create_range(dev, DRM_MODE_PROP_ATOMIC,
-					 "LOGO_YMIRROR", 0, 1);
-	if (!prop)
-		return -ENOMEM;
-	private->logo_ymirror_prop = prop;
 
 	prop = drm_property_create_range(dev, DRM_MODE_PROP_ATOMIC,
 					 "ASYNC_COMMIT", 0, 1);
