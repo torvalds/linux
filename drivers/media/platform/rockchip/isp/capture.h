@@ -157,6 +157,7 @@ struct stream_config {
 		u32 cb_offs_cnt_init;
 		u32 cr_offs_cnt_init;
 		u32 y_base_ad_shd;
+		u32 length;
 	} mi;
 	struct {
 		u32 ctrl;

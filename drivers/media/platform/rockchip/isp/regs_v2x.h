@@ -2132,4 +2132,16 @@ static inline void raw_rd_ctrl(void __iomem *base, u32 val)
 	writel(val, base + CSI2RX_RAW_RD_CTRL);
 }
 
+static inline void mi_raw_length(struct rkisp_stream *stream)
+{
+	bool is_direct = true;
+
+	if (stream->config->mi.length == MI_RAW0_RD_LENGTH ||
+	    stream->config->mi.length == MI_RAW1_RD_LENGTH ||
+	    stream->config->mi.length == MI_RAW2_RD_LENGTH)
+		is_direct = false;
+	rkisp_write(stream->ispdev, stream->config->mi.length,
+		    stream->out_fmt.plane_fmt[0].bytesperline, is_direct);
+}
+
 #endif /* _RKISP_REGS_V2X_H */

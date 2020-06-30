@@ -657,6 +657,7 @@ static struct stream_config rkisp2_dmatx0_stream_config = {
 		.y_size_init = MI_RAW0_WR_SIZE,
 		.y_base_ad_init = MI_RAW0_WR_BASE,
 		.y_base_ad_shd = MI_RAW0_WR_BASE_SHD,
+		.length = MI_RAW0_WR_LENGTH,
 	},
 	.dma = {
 		.ctrl = CSI2RX_RAW0_WR_CTRL,
@@ -673,6 +674,7 @@ static struct stream_config rkisp2_dmatx1_stream_config = {
 		.y_size_init = MI_RAW1_WR_SIZE,
 		.y_base_ad_init = MI_RAW1_WR_BASE,
 		.y_base_ad_shd = MI_RAW1_WR_BASE_SHD,
+		.length = MI_RAW1_WR_LENGTH,
 	},
 	.dma = {
 		.ctrl = CSI2RX_RAW1_WR_CTRL,
@@ -689,6 +691,7 @@ static struct stream_config rkisp2_dmatx2_stream_config = {
 		.y_size_init = MI_RAW2_WR_SIZE,
 		.y_base_ad_init = MI_RAW2_WR_BASE,
 		.y_base_ad_shd = MI_RAW2_WR_BASE_SHD,
+		.length = MI_RAW2_WR_LENGTH,
 	},
 	.dma = {
 		.ctrl = CSI2RX_RAW2_WR_CTRL,
@@ -705,6 +708,7 @@ static struct stream_config rkisp2_dmatx3_stream_config = {
 		.y_size_init = MI_RAW3_WR_SIZE,
 		.y_base_ad_init = MI_RAW3_WR_BASE,
 		.y_base_ad_shd = MI_RAW3_WR_BASE_SHD,
+		.length = MI_RAW3_WR_LENGTH,
 	},
 	.dma = {
 		.ctrl = CSI2RX_RAW3_WR_CTRL,
@@ -1058,7 +1062,7 @@ static int dmatx3_config_mi(struct rkisp_stream *stream)
 	mi_frame_end(stream);
 	mi_frame_end_int_enable(stream);
 	mi_wr_ctrl2(base, SW_RAW3_WR_AUTOUPD);
-
+	mi_raw_length(stream);
 	v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
 		 "rawwr3 %dx%d ctrl:0x%x\n",
 		 stream->out_fmt.width,
@@ -1105,6 +1109,7 @@ static int dmatx2_config_mi(struct rkisp_stream *stream)
 		mi_frame_end(stream);
 		mi_frame_end_int_enable(stream);
 		mi_wr_ctrl2(base, SW_RAW2_WR_AUTOUPD);
+		mi_raw_length(stream);
 		stream->u.dmatx.is_config = true;
 	}
 	return 0;
@@ -1148,6 +1153,7 @@ static int dmatx1_config_mi(struct rkisp_stream *stream)
 		mi_frame_end(stream);
 		mi_frame_end_int_enable(stream);
 		mi_wr_ctrl2(base, SW_RAW1_WR_AUTOUPD);
+		mi_raw_length(stream);
 		stream->u.dmatx.is_config = true;
 	}
 	return 0;
@@ -1196,6 +1202,7 @@ static int dmatx0_config_mi(struct rkisp_stream *stream)
 		mi_frame_end(dmatx);
 		mi_frame_end_int_enable(dmatx);
 		mi_wr_ctrl2(base, SW_RAW0_WR_AUTOUPD);
+		mi_raw_length(stream);
 		dmatx->u.dmatx.is_config = true;
 	} else {
 		dmatx0_set_pic_size(base,
@@ -1900,8 +1907,15 @@ int hdr_config_dmatx(struct rkisp_device *dev)
 	    dev->hdr.op_mode == HDR_RDBK_FRAME3)
 		dmatx2_config_mi(&dev->cap_dev.stream[RKISP_STREAM_DMATX2]);
 
-	if (IS_HDR_RDBK(dev->hdr.op_mode))
+	if (IS_HDR_RDBK(dev->hdr.op_mode) && !dev->dmarx_dev.trigger) {
 		raw_rd_ctrl(dev->base_addr, dev->csi_dev.memory << 2);
+		mi_raw_length(&dev->dmarx_dev.stream[RKISP_STREAM_RAWRD2]);
+		if (dev->hdr.op_mode == HDR_RDBK_FRAME3)
+			mi_raw_length(&dev->dmarx_dev.stream[RKISP_STREAM_RAWRD1]);
+		if (dev->hdr.op_mode == HDR_RDBK_FRAME3 ||
+		    dev->hdr.op_mode == HDR_RDBK_FRAME2)
+			mi_raw_length(&dev->dmarx_dev.stream[RKISP_STREAM_RAWRD0]);
+	}
 	return 0;
 }
 
@@ -2547,10 +2561,9 @@ static int rkisp_set_fmt(struct rkisp_stream *stream,
 		    stream->id != RKISP_STREAM_MP &&
 		    stream->id != RKISP_STREAM_SP)
 			/* compact mode need bytesperline 4byte align */
-			bytesperline = ALIGN(width * fmt->bpp[i] / 8, 4);
+			bytesperline = ALIGN(width * fmt->bpp[i] / 8, 256);
 		else
 			bytesperline = width * DIV_ROUND_UP(fmt->bpp[i], 8);
-
 		/* stride is only available for sp stream and y plane */
 		if (stream->id != RKISP_STREAM_SP || i != 0 ||
 		    plane_fmt->bytesperline < bytesperline)
