@@ -587,17 +587,10 @@ static void bcm_sf2_sw_mac_config(struct dsa_switch *ds, int port,
 	reg = reg_readl(priv, REG_RGMII_CNTRL_P(port));
 	reg &= ~ID_MODE_DIS;
 	reg &= ~(PORT_MODE_MASK << PORT_MODE_SHIFT);
-	reg &= ~(RX_PAUSE_EN | TX_PAUSE_EN);
 
 	reg |= port_mode;
 	if (id_mode_dis)
 		reg |= ID_MODE_DIS;
-
-	if (state->pause & MLO_PAUSE_TXRX_MASK) {
-		if (state->pause & MLO_PAUSE_TX)
-			reg |= TX_PAUSE_EN;
-		reg |= RX_PAUSE_EN;
-	}
 
 	reg_writel(priv, reg, REG_RGMII_CNTRL_P(port));
 }
@@ -661,6 +654,21 @@ static void bcm_sf2_sw_mac_link_up(struct dsa_switch *ds, int port,
 			offset = CORE_STS_OVERRIDE_GMIIP_PORT(port);
 		else
 			offset = CORE_STS_OVERRIDE_GMIIP2_PORT(port);
+
+		if (interface == PHY_INTERFACE_MODE_RGMII ||
+		    interface == PHY_INTERFACE_MODE_RGMII_TXID ||
+		    interface == PHY_INTERFACE_MODE_MII ||
+		    interface == PHY_INTERFACE_MODE_REVMII) {
+			reg = reg_readl(priv, REG_RGMII_CNTRL_P(port));
+			reg &= ~(RX_PAUSE_EN | TX_PAUSE_EN);
+
+			if (tx_pause)
+				reg |= TX_PAUSE_EN;
+			if (rx_pause)
+				reg |= RX_PAUSE_EN;
+
+			reg_writel(priv, reg, REG_RGMII_CNTRL_P(port));
+		}
 
 		reg = SW_OVERRIDE | LINK_STS;
 		switch (speed) {
