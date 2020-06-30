@@ -1656,6 +1656,8 @@ static enum port dvo_port_to_port(struct drm_i915_private *dev_priv,
 		[PORT_E] = { DVO_PORT_HDMIE, DVO_PORT_DPE, DVO_PORT_CRT },
 		[PORT_F] = { DVO_PORT_HDMIF, DVO_PORT_DPF, -1 },
 		[PORT_G] = { DVO_PORT_HDMIG, DVO_PORT_DPG, -1 },
+		[PORT_H] = { DVO_PORT_HDMIH, DVO_PORT_DPH, -1 },
+		[PORT_I] = { DVO_PORT_HDMII, DVO_PORT_DPI, -1 },
 	};
 	/*
 	 * Bspec lists the ports as A, B, C, D - however internally in our
