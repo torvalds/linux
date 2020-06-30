@@ -162,6 +162,76 @@ static void efx_mac_work(struct work_struct *data)
 	mutex_unlock(&efx->mac_lock);
 }
 
+int efx_set_mac_address(struct net_device *net_dev, void *data)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+	struct sockaddr *addr = data;
+	u8 *new_addr = addr->sa_data;
+	u8 old_addr[6];
+	int rc;
+
+	if (!is_valid_ether_addr(new_addr)) {
+		netif_err(efx, drv, efx->net_dev,
+			  "invalid ethernet MAC address requested: %pM\n",
+			  new_addr);
+		return -EADDRNOTAVAIL;
+	}
+
+	/* save old address */
+	ether_addr_copy(old_addr, net_dev->dev_addr);
+	ether_addr_copy(net_dev->dev_addr, new_addr);
+	if (efx->type->set_mac_address) {
+		rc = efx->type->set_mac_address(efx);
+		if (rc) {
+			ether_addr_copy(net_dev->dev_addr, old_addr);
+			return rc;
+		}
+	}
+
+	/* Reconfigure the MAC */
+	mutex_lock(&efx->mac_lock);
+	efx_mac_reconfigure(efx);
+	mutex_unlock(&efx->mac_lock);
+
+	return 0;
+}
+
+/* Context: netif_addr_lock held, BHs disabled. */
+void efx_set_rx_mode(struct net_device *net_dev)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+
+	if (efx->port_enabled)
+		queue_work(efx->workqueue, &efx->mac_work);
+	/* Otherwise efx_start_port() will do this */
+}
+
+int efx_set_features(struct net_device *net_dev, netdev_features_t data)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+	int rc;
+
+	/* If disabling RX n-tuple filtering, clear existing filters */
+	if (net_dev->features & ~data & NETIF_F_NTUPLE) {
+		rc = efx->type->filter_clear_rx(efx, EFX_FILTER_PRI_MANUAL);
+		if (rc)
+			return rc;
+	}
+
+	/* If Rx VLAN filter is changed, update filters via mac_reconfigure.
+	 * If rx-fcs is changed, mac_reconfigure updates that too.
+	 */
+	if ((net_dev->features ^ data) & (NETIF_F_HW_VLAN_CTAG_FILTER |
+					  NETIF_F_RXFCS)) {
+		/* efx_set_rx_mode() will schedule MAC work to update filters
+		 * when a new features are finally set in net_dev.
+		 */
+		efx_set_rx_mode(net_dev);
+	}
+
+	return 0;
+}
+
 /* This ensures that the kernel is kept informed (via
  * netif_carrier_on/off) of the link status, and also maintains the
  * link status's stop on the port's TX queue.
@@ -650,6 +720,18 @@ void efx_reset_down(struct efx_nic *efx, enum reset_type method)
 	efx->type->fini(efx);
 }
 
+/* Context: netif_tx_lock held, BHs disabled. */
+void efx_watchdog(struct net_device *net_dev, unsigned int txqueue)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+
+	netif_err(efx, tx_err, efx->net_dev,
+		  "TX stuck with port_enabled=%d: resetting channels\n",
+		  efx->port_enabled);
+
+	efx_schedule_reset(efx, RESET_TYPE_TX_WATCHDOG);
+}
+
 /* This function will always ensure that the locks acquired in
  * efx_reset_down() are released. A failure return code indicates
  * that we were unable to reinitialise the hardware, and the
@@ -936,6 +1018,7 @@ int efx_init_struct(struct efx_nic *efx,
 		efx->type->rx_ts_offset - efx->type->rx_prefix_size;
 	INIT_LIST_HEAD(&efx->rss_context.list);
 	mutex_init(&efx->rss_lock);
+	efx->vport_id = EVB_PORT_ID_ASSIGNED;
 	spin_lock_init(&efx->stats_lock);
 	efx->vi_stride = EFX_DEFAULT_VI_STRIDE;
 	efx->num_mac_stats = MC_CMD_MAC_NSTATS;
@@ -952,6 +1035,9 @@ int efx_init_struct(struct efx_nic *efx,
 	efx->mdio.dev = net_dev;
 	INIT_WORK(&efx->mac_work, efx_mac_work);
 	init_waitqueue_head(&efx->flush_wq);
+
+	efx->rxq_entries = EFX_DEFAULT_DMAQ_SIZE;
+	efx->txq_entries = EFX_DEFAULT_DMAQ_SIZE;
 
 	efx->mem_bar = UINT_MAX;
 
@@ -1221,3 +1307,23 @@ const struct pci_error_handlers efx_err_handlers = {
 	.slot_reset	= efx_io_slot_reset,
 	.resume		= efx_io_resume,
 };
+
+int efx_get_phys_port_id(struct net_device *net_dev,
+			 struct netdev_phys_item_id *ppid)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+
+	if (efx->type->get_phys_port_id)
+		return efx->type->get_phys_port_id(efx, ppid);
+	else
+		return -EOPNOTSUPP;
+}
+
+int efx_get_phys_port_name(struct net_device *net_dev, char *name, size_t len)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+
+	if (snprintf(name, len, "p%u", efx->port_num) >= len)
+		return -EINVAL;
+	return 0;
+}

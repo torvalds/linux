@@ -57,6 +57,15 @@ void efx_init_rx_buffer(struct efx_rx_queue *rx_queue,
 			unsigned int page_offset,
 			u16 flags);
 void efx_unmap_rx_buffer(struct efx_nic *efx, struct efx_rx_buffer *rx_buf);
+
+static inline void efx_sync_rx_buffer(struct efx_nic *efx,
+				      struct efx_rx_buffer *rx_buf,
+				      unsigned int len)
+{
+	dma_sync_single_for_cpu(&efx->pci_dev->dev, rx_buf->dma_addr, len,
+				DMA_FROM_DEVICE);
+}
+
 void efx_free_rx_buffers(struct efx_rx_queue *rx_queue,
 			 struct efx_rx_buffer *rx_buf,
 			 unsigned int num_bufs);

@@ -566,6 +566,9 @@ int efx_init_channels(struct efx_nic *efx)
 	efx->interrupt_mode = min(efx->type->min_interrupt_mode,
 				  interrupt_mode);
 
+	efx->max_channels = EFX_MAX_CHANNELS;
+	efx->max_tx_channels = EFX_MAX_CHANNELS;
+
 	return 0;
 }
 

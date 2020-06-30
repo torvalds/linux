@@ -110,6 +110,9 @@ static inline bool efx_nic_may_tx_pio(struct efx_tx_queue *tx_queue)
 	       efx_nic_tx_is_empty(partner);
 }
 
+int efx_enqueue_skb_tso(struct efx_tx_queue *tx_queue, struct sk_buff *skb,
+			bool *data_mapped);
+
 /* Decide whether to push a TX descriptor to the NIC vs merely writing
  * the doorbell.  This can reduce latency when we are adding a single
  * descriptor to an empty queue, but is otherwise pointless.  Further,
@@ -160,7 +163,8 @@ static inline void efx_nic_init_tx(struct efx_tx_queue *tx_queue)
 }
 static inline void efx_nic_remove_tx(struct efx_tx_queue *tx_queue)
 {
-	tx_queue->efx->type->tx_remove(tx_queue);
+	if (tx_queue->efx->type->tx_remove)
+		tx_queue->efx->type->tx_remove(tx_queue);
 }
 static inline void efx_nic_push_buffers(struct efx_tx_queue *tx_queue)
 {
@@ -259,6 +263,8 @@ void efx_nic_free_buffer(struct efx_nic *efx, struct efx_buffer *buffer);
 
 size_t efx_nic_get_regs_len(struct efx_nic *efx);
 void efx_nic_get_regs(struct efx_nic *efx, void *buf);
+
+#define EFX_MC_STATS_GENERATION_INVALID ((__force __le64)(-1))
 
 size_t efx_nic_describe_stats(const struct efx_hw_stat_desc *desc, size_t count,
 			      const unsigned long *mask, u8 *names);

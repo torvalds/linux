@@ -40,14 +40,6 @@
 #define EFX_RX_MAX_FRAGS DIV_ROUND_UP(EFX_MAX_FRAME_LEN(EFX_MAX_MTU), \
 				      EFX_RX_USR_BUF_SIZE)
 
-static inline void efx_sync_rx_buffer(struct efx_nic *efx,
-				      struct efx_rx_buffer *rx_buf,
-				      unsigned int len)
-{
-	dma_sync_single_for_cpu(&efx->pci_dev->dev, rx_buf->dma_addr, len,
-				DMA_FROM_DEVICE);
-}
-
 static void efx_rx_packet__check_len(struct efx_rx_queue *rx_queue,
 				     struct efx_rx_buffer *rx_buf,
 				     int len)

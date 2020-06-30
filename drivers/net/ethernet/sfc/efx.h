@@ -36,13 +36,6 @@ static inline void efx_rx_flush_packet(struct efx_channel *channel)
 		__efx_rx_packet(channel);
 }
 
-#define EFX_MAX_DMAQ_SIZE 4096UL
-#define EFX_DEFAULT_DMAQ_SIZE 1024UL
-#define EFX_MIN_DMAQ_SIZE 512UL
-
-#define EFX_MAX_EVQ_SIZE 16384UL
-#define EFX_MIN_EVQ_SIZE 512UL
-
 /* Maximum number of TCP segments we support for soft-TSO */
 #define EFX_TSO_MAX_SEGS	100
 
@@ -166,10 +159,6 @@ int efx_init_irq_moderation(struct efx_nic *efx, unsigned int tx_usecs,
 void efx_get_irq_moderation(struct efx_nic *efx, unsigned int *tx_usecs,
 			    unsigned int *rx_usecs, bool *rx_adaptive);
 
-/* Dummy PHY ops for PHY drivers */
-int efx_port_dummy_op_int(struct efx_nic *efx);
-void efx_port_dummy_op_void(struct efx_nic *efx);
-
 /* Update the generic software stats in the passed stats array */
 void efx_update_sw_stats(struct efx_nic *efx, u64 *stats);
 
@@ -195,21 +184,6 @@ static inline unsigned int efx_vf_size(struct efx_nic *efx)
 	return 1 << efx->vi_scale;
 }
 #endif
-
-static inline void efx_schedule_channel(struct efx_channel *channel)
-{
-	netif_vdbg(channel->efx, intr, channel->efx->net_dev,
-		   "channel %d scheduling NAPI poll on CPU%d\n",
-		   channel->channel, raw_smp_processor_id());
-
-	napi_schedule(&channel->napi_str);
-}
-
-static inline void efx_schedule_channel_irq(struct efx_channel *channel)
-{
-	channel->event_test_cpu = raw_smp_processor_id();
-	efx_schedule_channel(channel);
-}
 
 static inline void efx_device_detach_sync(struct efx_nic *efx)
 {

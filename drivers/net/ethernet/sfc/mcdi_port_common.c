@@ -10,6 +10,7 @@
 
 #include "mcdi_port_common.h"
 #include "efx_common.h"
+#include "nic.h"
 
 int efx_mcdi_get_phy_cfg(struct efx_nic *efx, struct efx_mcdi_phy_data *cfg)
 {
@@ -475,6 +476,24 @@ int efx_mcdi_phy_test_alive(struct efx_nic *efx)
 	return 0;
 }
 
+int efx_mcdi_port_reconfigure(struct efx_nic *efx)
+{
+	struct efx_mcdi_phy_data *phy_cfg = efx->phy_data;
+	u32 caps = (efx->link_advertising[0] ?
+		    ethtool_linkset_to_mcdi_cap(efx->link_advertising) :
+		    phy_cfg->forced_cap);
+
+	caps |= ethtool_fec_caps_to_mcdi(efx->fec_config);
+
+	return efx_mcdi_set_link(efx, caps, efx_get_mcdi_phy_flags(efx),
+				 efx->loopback_mode, 0);
+}
+
+static unsigned int efx_calc_mac_mtu(struct efx_nic *efx)
+{
+	return EFX_MAX_FRAME_LEN(efx->net_dev->mtu);
+}
+
 int efx_mcdi_set_mac(struct efx_nic *efx)
 {
 	u32 fcntl;
@@ -486,8 +505,7 @@ int efx_mcdi_set_mac(struct efx_nic *efx)
 	ether_addr_copy(MCDI_PTR(cmdbytes, SET_MAC_IN_ADDR),
 			efx->net_dev->dev_addr);
 
-	MCDI_SET_DWORD(cmdbytes, SET_MAC_IN_MTU,
-		       EFX_MAX_FRAME_LEN(efx->net_dev->mtu));
+	MCDI_SET_DWORD(cmdbytes, SET_MAC_IN_MTU, efx_calc_mac_mtu(efx));
 	MCDI_SET_DWORD(cmdbytes, SET_MAC_IN_DRAIN, 0);
 
 	/* Set simple MAC filter for Siena */
@@ -518,6 +536,125 @@ int efx_mcdi_set_mac(struct efx_nic *efx)
 
 	return efx_mcdi_rpc(efx, MC_CMD_SET_MAC, cmdbytes, sizeof(cmdbytes),
 			    NULL, 0, NULL);
+}
+
+int efx_mcdi_set_mtu(struct efx_nic *efx)
+{
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_SET_MAC_EXT_IN_LEN);
+
+	BUILD_BUG_ON(MC_CMD_SET_MAC_OUT_LEN != 0);
+
+	MCDI_SET_DWORD(inbuf, SET_MAC_EXT_IN_MTU, efx_calc_mac_mtu(efx));
+
+	MCDI_POPULATE_DWORD_1(inbuf, SET_MAC_EXT_IN_CONTROL,
+			      SET_MAC_EXT_IN_CFG_MTU, 1);
+
+	return efx_mcdi_rpc(efx, MC_CMD_SET_MAC, inbuf, sizeof(inbuf),
+			    NULL, 0, NULL);
+}
+
+enum efx_stats_action {
+	EFX_STATS_ENABLE,
+	EFX_STATS_DISABLE,
+	EFX_STATS_PULL,
+};
+
+static int efx_mcdi_mac_stats(struct efx_nic *efx,
+			      enum efx_stats_action action, int clear)
+{
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_MAC_STATS_IN_LEN);
+	int rc;
+	int change = action == EFX_STATS_PULL ? 0 : 1;
+	int enable = action == EFX_STATS_ENABLE ? 1 : 0;
+	int period = action == EFX_STATS_ENABLE ? 1000 : 0;
+	dma_addr_t dma_addr = efx->stats_buffer.dma_addr;
+	u32 dma_len = action != EFX_STATS_DISABLE ?
+		efx->num_mac_stats * sizeof(u64) : 0;
+
+	BUILD_BUG_ON(MC_CMD_MAC_STATS_OUT_DMA_LEN != 0);
+
+	MCDI_SET_QWORD(inbuf, MAC_STATS_IN_DMA_ADDR, dma_addr);
+	MCDI_POPULATE_DWORD_7(inbuf, MAC_STATS_IN_CMD,
+			      MAC_STATS_IN_DMA, !!enable,
+			      MAC_STATS_IN_CLEAR, clear,
+			      MAC_STATS_IN_PERIODIC_CHANGE, change,
+			      MAC_STATS_IN_PERIODIC_ENABLE, enable,
+			      MAC_STATS_IN_PERIODIC_CLEAR, 0,
+			      MAC_STATS_IN_PERIODIC_NOEVENT, 1,
+			      MAC_STATS_IN_PERIOD_MS, period);
+	MCDI_SET_DWORD(inbuf, MAC_STATS_IN_DMA_LEN, dma_len);
+
+	if (efx_nic_rev(efx) >= EFX_REV_HUNT_A0)
+		MCDI_SET_DWORD(inbuf, MAC_STATS_IN_PORT_ID, efx->vport_id);
+
+	rc = efx_mcdi_rpc_quiet(efx, MC_CMD_MAC_STATS, inbuf, sizeof(inbuf),
+				NULL, 0, NULL);
+	/* Expect ENOENT if DMA queues have not been set up */
+	if (rc && (rc != -ENOENT || atomic_read(&efx->active_queues)))
+		efx_mcdi_display_error(efx, MC_CMD_MAC_STATS, sizeof(inbuf),
+				       NULL, 0, rc);
+	return rc;
+}
+
+void efx_mcdi_mac_start_stats(struct efx_nic *efx)
+{
+	__le64 *dma_stats = efx->stats_buffer.addr;
+
+	dma_stats[efx->num_mac_stats - 1] = EFX_MC_STATS_GENERATION_INVALID;
+
+	efx_mcdi_mac_stats(efx, EFX_STATS_ENABLE, 0);
+}
+
+void efx_mcdi_mac_stop_stats(struct efx_nic *efx)
+{
+	efx_mcdi_mac_stats(efx, EFX_STATS_DISABLE, 0);
+}
+
+#define EFX_MAC_STATS_WAIT_US 100
+#define EFX_MAC_STATS_WAIT_ATTEMPTS 10
+
+void efx_mcdi_mac_pull_stats(struct efx_nic *efx)
+{
+	__le64 *dma_stats = efx->stats_buffer.addr;
+	int attempts = EFX_MAC_STATS_WAIT_ATTEMPTS;
+
+	dma_stats[efx->num_mac_stats - 1] = EFX_MC_STATS_GENERATION_INVALID;
+	efx_mcdi_mac_stats(efx, EFX_STATS_PULL, 0);
+
+	while (dma_stats[efx->num_mac_stats - 1] ==
+				EFX_MC_STATS_GENERATION_INVALID &&
+			attempts-- != 0)
+		udelay(EFX_MAC_STATS_WAIT_US);
+}
+
+int efx_mcdi_mac_init_stats(struct efx_nic *efx)
+{
+	int rc;
+
+	if (!efx->num_mac_stats)
+		return 0;
+
+	/* Allocate buffer for stats */
+	rc = efx_nic_alloc_buffer(efx, &efx->stats_buffer,
+				  efx->num_mac_stats * sizeof(u64), GFP_KERNEL);
+	if (rc) {
+		netif_warn(efx, probe, efx->net_dev,
+			   "failed to allocate DMA buffer: %d\n", rc);
+		return rc;
+	}
+
+	netif_dbg(efx, probe, efx->net_dev,
+		  "stats buffer at %llx (virt %p phys %llx)\n",
+		  (u64) efx->stats_buffer.dma_addr,
+		  efx->stats_buffer.addr,
+		  (u64) virt_to_phys(efx->stats_buffer.addr));
+
+	return 0;
+}
+
+void efx_mcdi_mac_fini_stats(struct efx_nic *efx)
+{
+	efx_nic_free_buffer(efx, &efx->stats_buffer);
 }
 
 /* Get physical port number (EF10 only; on Siena it is same as PF number) */

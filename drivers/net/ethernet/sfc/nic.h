@@ -306,9 +306,6 @@ extern const struct efx_nic_type efx_hunt_a0_vf_nic_type;
 
 int falcon_probe_board(struct efx_nic *efx, u16 revision_info);
 
-int efx_enqueue_skb_tso(struct efx_tx_queue *tx_queue, struct sk_buff *skb,
-			bool *data_mapped);
-
 /* Falcon/Siena queue operations */
 int efx_farch_tx_probe(struct efx_tx_queue *tx_queue);
 void efx_farch_tx_init(struct efx_tx_queue *tx_queue);
