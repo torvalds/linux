@@ -156,6 +156,10 @@ static const speed_t ch341_min_rates[] = {
 	CH341_MIN_RATE(3),
 };
 
+/* Supported range is 46 to 3000000 bps. */
+#define CH341_MIN_BPS	DIV_ROUND_UP(CH341_CLKRATE, CH341_CLK_DIV(0, 0) * 256)
+#define CH341_MAX_BPS	(CH341_CLKRATE / (CH341_CLK_DIV(3, 0) * 2))
+
 /*
  * The device line speed is given by the following equation:
  *
@@ -177,7 +181,7 @@ static int ch341_get_divisor(struct ch341_private *priv)
 	 * Clamp to supported range, this makes the (ps < 0) and (div < 2)
 	 * sanity checks below redundant.
 	 */
-	speed = clamp(speed, 46U, 3000000U);
+	speed = clamp_val(speed, CH341_MIN_BPS, CH341_MAX_BPS);
 
 	/*
 	 * Start with highest possible base clock (fact = 1) that will give a
