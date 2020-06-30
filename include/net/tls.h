@@ -637,7 +637,7 @@ tls_offload_rx_resync_async_request_start(struct sock *sk, __be32 seq, u16 len)
 	struct tls_offload_context_rx *rx_ctx = tls_offload_ctx_rx(tls_ctx);
 
 	atomic64_set(&rx_ctx->resync_async->req, ((u64)ntohl(seq) << 32) |
-		     (len << 16) | RESYNC_REQ | RESYNC_REQ_ASYNC);
+		     ((u64)len << 16) | RESYNC_REQ | RESYNC_REQ_ASYNC);
 	rx_ctx->resync_async->loglen = 0;
 }
 
