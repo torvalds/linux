@@ -2494,9 +2494,8 @@ struct ib_device_ops {
 	int (*dealloc_mw)(struct ib_mw *mw);
 	int (*attach_mcast)(struct ib_qp *qp, union ib_gid *gid, u16 lid);
 	int (*detach_mcast)(struct ib_qp *qp, union ib_gid *gid, u16 lid);
-	struct ib_xrcd *(*alloc_xrcd)(struct ib_device *device,
-				      struct ib_udata *udata);
-	int (*dealloc_xrcd)(struct ib_xrcd *xrcd, struct ib_udata *udata);
+	int (*alloc_xrcd)(struct ib_xrcd *xrcd, struct ib_udata *udata);
+	void (*dealloc_xrcd)(struct ib_xrcd *xrcd, struct ib_udata *udata);
 	struct ib_flow *(*create_flow)(struct ib_qp *qp,
 				       struct ib_flow_attr *flow_attr,
 				       int domain, struct ib_udata *udata);
@@ -2655,6 +2654,7 @@ struct ib_device_ops {
 	DECLARE_RDMA_OBJ_SIZE(ib_pd);
 	DECLARE_RDMA_OBJ_SIZE(ib_srq);
 	DECLARE_RDMA_OBJ_SIZE(ib_ucontext);
+	DECLARE_RDMA_OBJ_SIZE(ib_xrcd);
 };
 
 struct ib_core_device {

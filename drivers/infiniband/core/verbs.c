@@ -2293,20 +2293,28 @@ struct ib_xrcd *ib_alloc_xrcd_user(struct ib_device *device,
 				   struct inode *inode, struct ib_udata *udata)
 {
 	struct ib_xrcd *xrcd;
+	int ret;
 
 	if (!device->ops.alloc_xrcd)
 		return ERR_PTR(-EOPNOTSUPP);
 
-	xrcd = device->ops.alloc_xrcd(device, udata);
-	if (!IS_ERR(xrcd)) {
-		xrcd->device = device;
-		xrcd->inode = inode;
-		atomic_set(&xrcd->usecnt, 0);
-		init_rwsem(&xrcd->tgt_qps_rwsem);
-		xa_init(&xrcd->tgt_qps);
-	}
+	xrcd = rdma_zalloc_drv_obj(device, ib_xrcd);
+	if (!xrcd)
+		return ERR_PTR(-ENOMEM);
 
+	xrcd->device = device;
+	xrcd->inode = inode;
+	atomic_set(&xrcd->usecnt, 0);
+	init_rwsem(&xrcd->tgt_qps_rwsem);
+	xa_init(&xrcd->tgt_qps);
+
+	ret = device->ops.alloc_xrcd(xrcd, udata);
+	if (ret)
+		goto err;
 	return xrcd;
+err:
+	kfree(xrcd);
+	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL(ib_alloc_xrcd_user);
 
@@ -2321,7 +2329,9 @@ int ib_dealloc_xrcd_user(struct ib_xrcd *xrcd, struct ib_udata *udata)
 		return -EBUSY;
 
 	WARN_ON(!xa_empty(&xrcd->tgt_qps));
-	return xrcd->device->ops.dealloc_xrcd(xrcd, udata);
+	xrcd->device->ops.dealloc_xrcd(xrcd, udata);
+	kfree(xrcd);
+	return 0;
 }
 EXPORT_SYMBOL(ib_dealloc_xrcd_user);
 

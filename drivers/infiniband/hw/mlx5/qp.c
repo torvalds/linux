@@ -4700,41 +4700,23 @@ out:
 	return err;
 }
 
-struct ib_xrcd *mlx5_ib_alloc_xrcd(struct ib_device *ibdev,
-				   struct ib_udata *udata)
+int mlx5_ib_alloc_xrcd(struct ib_xrcd *ibxrcd, struct ib_udata *udata)
 {
-	struct mlx5_ib_dev *dev = to_mdev(ibdev);
-	struct mlx5_ib_xrcd *xrcd;
-	int err;
+	struct mlx5_ib_dev *dev = to_mdev(ibxrcd->device);
+	struct mlx5_ib_xrcd *xrcd = to_mxrcd(ibxrcd);
 
 	if (!MLX5_CAP_GEN(dev->mdev, xrc))
-		return ERR_PTR(-ENOSYS);
+		return -EOPNOTSUPP;
 
-	xrcd = kmalloc(sizeof(*xrcd), GFP_KERNEL);
-	if (!xrcd)
-		return ERR_PTR(-ENOMEM);
-
-	err = mlx5_cmd_xrcd_alloc(dev->mdev, &xrcd->xrcdn, 0);
-	if (err) {
-		kfree(xrcd);
-		return ERR_PTR(-ENOMEM);
-	}
-
-	return &xrcd->ibxrcd;
+	return mlx5_cmd_xrcd_alloc(dev->mdev, &xrcd->xrcdn, 0);
 }
 
-int mlx5_ib_dealloc_xrcd(struct ib_xrcd *xrcd, struct ib_udata *udata)
+void mlx5_ib_dealloc_xrcd(struct ib_xrcd *xrcd, struct ib_udata *udata)
 {
 	struct mlx5_ib_dev *dev = to_mdev(xrcd->device);
 	u32 xrcdn = to_mxrcd(xrcd)->xrcdn;
-	int err;
 
-	err = mlx5_cmd_xrcd_dealloc(dev->mdev, xrcdn, 0);
-	if (err)
-		mlx5_ib_warn(dev, "failed to dealloc xrcdn 0x%x\n", xrcdn);
-
-	kfree(xrcd);
-	return 0;
+	mlx5_cmd_xrcd_dealloc(dev->mdev, xrcdn, 0);
 }
 
 static void mlx5_ib_wq_event(struct mlx5_core_qp *core_qp, int type)
