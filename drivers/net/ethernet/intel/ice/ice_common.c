@@ -440,30 +440,24 @@ static void ice_cleanup_fltr_mgmt_struct(struct ice_hw *hw)
 	devm_kfree(ice_hw_to_dev(hw), sw);
 }
 
-#define ICE_FW_LOG_DESC_SIZE(n)	(sizeof(struct ice_aqc_fw_logging_data) + \
-	(((n) - 1) * sizeof(((struct ice_aqc_fw_logging_data *)0)->entry)))
-#define ICE_FW_LOG_DESC_SIZE_MAX	\
-	ICE_FW_LOG_DESC_SIZE(ICE_AQC_FW_LOG_ID_MAX)
-
 /**
  * ice_get_fw_log_cfg - get FW logging configuration
  * @hw: pointer to the HW struct
  */
 static enum ice_status ice_get_fw_log_cfg(struct ice_hw *hw)
 {
-	struct ice_aqc_fw_logging_data *config;
 	struct ice_aq_desc desc;
 	enum ice_status status;
+	__le16 *config;
 	u16 size;
 
-	size = ICE_FW_LOG_DESC_SIZE_MAX;
+	size = sizeof(*config) * ICE_AQC_FW_LOG_ID_MAX;
 	config = devm_kzalloc(ice_hw_to_dev(hw), size, GFP_KERNEL);
 	if (!config)
 		return ICE_ERR_NO_MEMORY;
 
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_fw_logging_info);
 
-	desc.flags |= cpu_to_le16(ICE_AQ_FLAG_BUF);
 	desc.flags |= cpu_to_le16(ICE_AQ_FLAG_RD);
 
 	status = ice_aq_send_cmd(hw, &desc, config, size, NULL);
@@ -474,7 +468,7 @@ static enum ice_status ice_get_fw_log_cfg(struct ice_hw *hw)
 		for (i = 0; i < ICE_AQC_FW_LOG_ID_MAX; i++) {
 			u16 v, m, flgs;
 
-			v = le16_to_cpu(config->entry[i]);
+			v = le16_to_cpu(config[i]);
 			m = (v & ICE_AQC_FW_LOG_ID_M) >> ICE_AQC_FW_LOG_ID_S;
 			flgs = (v & ICE_AQC_FW_LOG_EN_M) >> ICE_AQC_FW_LOG_EN_S;
 
@@ -526,11 +520,11 @@ static enum ice_status ice_get_fw_log_cfg(struct ice_hw *hw)
  */
 static enum ice_status ice_cfg_fw_log(struct ice_hw *hw, bool enable)
 {
-	struct ice_aqc_fw_logging_data *data = NULL;
 	struct ice_aqc_fw_logging *cmd;
 	enum ice_status status = 0;
 	u16 i, chgs = 0, len = 0;
 	struct ice_aq_desc desc;
+	__le16 *data = NULL;
 	u8 actv_evnts = 0;
 	void *buf = NULL;
 
@@ -571,8 +565,9 @@ static enum ice_status ice_cfg_fw_log(struct ice_hw *hw, bool enable)
 				continue;
 
 			if (!data) {
-				data = devm_kzalloc(ice_hw_to_dev(hw),
-						    ICE_FW_LOG_DESC_SIZE_MAX,
+				data = devm_kcalloc(ice_hw_to_dev(hw),
+						    sizeof(*data),
+						    ICE_AQC_FW_LOG_ID_MAX,
 						    GFP_KERNEL);
 				if (!data)
 					return ICE_ERR_NO_MEMORY;
@@ -580,7 +575,7 @@ static enum ice_status ice_cfg_fw_log(struct ice_hw *hw, bool enable)
 
 			val = i << ICE_AQC_FW_LOG_ID_S;
 			val |= hw->fw_log.evnts[i].cfg << ICE_AQC_FW_LOG_EN_S;
-			data->entry[chgs++] = cpu_to_le16(val);
+			data[chgs++] = cpu_to_le16(val);
 		}
 
 		/* Only enable FW logging if at least one module is specified.
@@ -599,7 +594,7 @@ static enum ice_status ice_cfg_fw_log(struct ice_hw *hw, bool enable)
 				cmd->log_ctrl |= ICE_AQC_FW_LOG_UART_EN;
 
 			buf = data;
-			len = ICE_FW_LOG_DESC_SIZE(chgs);
+			len = sizeof(*data) * chgs;
 			desc.flags |= cpu_to_le16(ICE_AQ_FLAG_RD);
 		}
 	}
@@ -629,7 +624,7 @@ static enum ice_status ice_cfg_fw_log(struct ice_hw *hw, bool enable)
 				continue;
 			}
 
-			v = le16_to_cpu(data->entry[i]);
+			v = le16_to_cpu(data[i]);
 			m = (v & ICE_AQC_FW_LOG_ID_M) >> ICE_AQC_FW_LOG_ID_S;
 			hw->fw_log.evnts[m].cur = hw->fw_log.evnts[m].cfg;
 		}
@@ -3690,14 +3685,14 @@ ice_stat_update32(struct ice_hw *hw, u32 reg, bool prev_stat_loaded,
  */
 enum ice_status
 ice_sched_query_elem(struct ice_hw *hw, u32 node_teid,
-		     struct ice_aqc_get_elem *buf)
+		     struct ice_aqc_txsched_elem_data *buf)
 {
 	u16 buf_size, num_elem_ret = 0;
 	enum ice_status status;
 
 	buf_size = sizeof(*buf);
 	memset(buf, 0, buf_size);
-	buf->generic[0].node_teid = cpu_to_le32(node_teid);
+	buf->node_teid = cpu_to_le32(node_teid);
 	status = ice_aq_query_sched_elems(hw, 1, buf, buf_size, &num_elem_ret,
 					  NULL);
 	if (status || num_elem_ret != 1)

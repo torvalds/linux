@@ -87,7 +87,7 @@ enum ice_status ice_init_def_sw_recp(struct ice_hw *hw)
  * @num_elems: pointer to number of elements
  * @cd: pointer to command details structure or NULL
  *
- * Get switch configuration (0x0200) to be placed in 'buff'.
+ * Get switch configuration (0x0200) to be placed in buf.
  * This admin command returns information such as initial VSI/port number
  * and switch ID it belongs to.
  *
@@ -104,13 +104,13 @@ enum ice_status ice_init_def_sw_recp(struct ice_hw *hw)
  * parsing the response buffer.
  */
 static enum ice_status
-ice_aq_get_sw_cfg(struct ice_hw *hw, struct ice_aqc_get_sw_cfg_resp *buf,
+ice_aq_get_sw_cfg(struct ice_hw *hw, struct ice_aqc_get_sw_cfg_resp_elem *buf,
 		  u16 buf_size, u16 *req_desc, u16 *num_elems,
 		  struct ice_sq_cd *cd)
 {
 	struct ice_aqc_get_sw_cfg *cmd;
-	enum ice_status status;
 	struct ice_aq_desc desc;
+	enum ice_status status;
 
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_get_sw_cfg);
 	cmd = &desc.params.get_sw_conf;
@@ -550,7 +550,7 @@ ice_init_port_info(struct ice_port_info *pi, u16 vsi_port_num, u8 type,
  */
 enum ice_status ice_get_initial_sw_cfg(struct ice_hw *hw)
 {
-	struct ice_aqc_get_sw_cfg_resp *rbuf;
+	struct ice_aqc_get_sw_cfg_resp_elem *rbuf;
 	enum ice_status status;
 	u16 req_desc = 0;
 	u16 num_elems;
@@ -568,19 +568,19 @@ enum ice_status ice_get_initial_sw_cfg(struct ice_hw *hw)
 	 * writing a non-zero value in req_desc
 	 */
 	do {
+		struct ice_aqc_get_sw_cfg_resp_elem *ele;
+
 		status = ice_aq_get_sw_cfg(hw, rbuf, ICE_SW_CFG_MAX_BUF_LEN,
 					   &req_desc, &num_elems, NULL);
 
 		if (status)
 			break;
 
-		for (i = 0; i < num_elems; i++) {
-			struct ice_aqc_get_sw_cfg_resp_elem *ele;
+		for (i = 0, ele = rbuf; i < num_elems; i++, ele++) {
 			u16 pf_vf_num, swid, vsi_port_num;
 			bool is_vf = false;
 			u8 res_type;
 
-			ele = rbuf[i].elements;
 			vsi_port_num = le16_to_cpu(ele->vsi_port_num) &
 				ICE_AQC_GET_SW_CONF_RESP_VSI_PORT_NUM_M;
 

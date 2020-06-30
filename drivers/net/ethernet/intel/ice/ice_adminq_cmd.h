@@ -215,13 +215,6 @@ struct ice_aqc_get_sw_cfg_resp_elem {
 #define ICE_AQC_GET_SW_CONF_RESP_IS_VF		BIT(15)
 };
 
-/* The response buffer is as follows. Note that the length of the
- * elements array varies with the length of the command response.
- */
-struct ice_aqc_get_sw_cfg_resp {
-	struct ice_aqc_get_sw_cfg_resp_elem elements[1];
-};
-
 /* These resource type defines are used for all switch resource
  * commands where a resource type is required, such as:
  * Get Resource Allocation command (indirect 0x0204)
@@ -695,14 +688,6 @@ struct ice_aqc_sched_elem_cmd {
 	__le32 addr_low;
 };
 
-/* This is the buffer for:
- * Suspend Nodes (indirect 0x0409)
- * Resume Nodes (indirect 0x040A)
- */
-struct ice_aqc_suspend_resume_elem {
-	__le32 teid[1];
-};
-
 struct ice_aqc_elem_info_bw {
 	__le16 bw_profile_idx;
 	__le16 bw_alloc;
@@ -753,14 +738,6 @@ struct ice_aqc_txsched_topo_grp_info_hdr {
 
 struct ice_aqc_add_elem {
 	struct ice_aqc_txsched_topo_grp_info_hdr hdr;
-	struct ice_aqc_txsched_elem_data generic[1];
-};
-
-struct ice_aqc_conf_elem {
-	struct ice_aqc_txsched_elem_data generic[1];
-};
-
-struct ice_aqc_get_elem {
 	struct ice_aqc_txsched_elem_data generic[1];
 };
 
@@ -833,10 +810,6 @@ struct ice_aqc_rl_profile_elem {
 	__le16 rl_multiply;
 	__le16 wake_up_calc;
 	__le16 rl_encode;
-};
-
-struct ice_aqc_rl_profile_generic_elem {
-	struct ice_aqc_rl_profile_elem generic[1];
 };
 
 /* Query Scheduler Resource Allocation (indirect 0x0412)
@@ -1584,10 +1557,6 @@ struct ice_aqc_dis_txq_item {
 			(1 << ICE_AQC_Q_DIS_BUF_ELEM_TYPE_S)
 };
 
-struct ice_aqc_dis_txq {
-	struct ice_aqc_dis_txq_item qgrps[1];
-};
-
 /* Configure Firmware Logging Command (indirect 0xFF09)
  * Logging Information Read Response (indirect 0xFF10)
  * Note: The 0xFF10 command has no input parameters.
@@ -1636,12 +1605,7 @@ enum ice_aqc_fw_logging_mod {
 	ICE_AQC_FW_LOG_ID_MAX,
 };
 
-/* This is the buffer for both of the logging commands.
- * The entry array size depends on the datalen parameter in the descriptor.
- * There will be a total of datalen / 2 entries.
- */
-struct ice_aqc_fw_logging_data {
-	__le16 entry[1];
+/* Defines for both above FW logging command/response buffers */
 #define ICE_AQC_FW_LOG_ID_S		0
 #define ICE_AQC_FW_LOG_ID_M		(0xFFF << ICE_AQC_FW_LOG_ID_S)
 
@@ -1654,7 +1618,6 @@ struct ice_aqc_fw_logging_data {
 #define ICE_AQC_FW_LOG_INIT_EN		BIT(13)	/* Used by command */
 #define ICE_AQC_FW_LOG_FLOW_EN		BIT(14)	/* Used by command */
 #define ICE_AQC_FW_LOG_ERR_EN		BIT(15)	/* Used by command */
-};
 
 /* Get/Clear FW Log (indirect 0xFF11) */
 struct ice_aqc_get_clear_fw_log {
