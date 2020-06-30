@@ -1559,7 +1559,7 @@ struct iio_dev *iio_device_alloc(struct device *parent, int sizeof_priv)
 		return NULL;
 	}
 	dev_set_name(&dev->dev, "iio:device%d", dev->id);
-	INIT_LIST_HEAD(&dev->buffer_list);
+	INIT_LIST_HEAD(&iio_dev_opaque->buffer_list);
 
 	return dev;
 }

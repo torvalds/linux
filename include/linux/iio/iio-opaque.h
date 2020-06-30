@@ -6,6 +6,7 @@
 /**
  * struct iio_dev_opaque - industrial I/O device opaque information
  * @indio_dev:			public industrial I/O device information
+ * @buffer_list:		list of all buffers currently attached
  * @channel_attr_list:		keep track of automatically created channel
  *				attributes
  * @chan_attr_group:		group for all attrs in base directory
@@ -16,6 +17,7 @@
  */
 struct iio_dev_opaque {
 	struct iio_dev			indio_dev;
+	struct list_head		buffer_list;
 	struct list_head		channel_attr_list;
 	struct attribute_group		chan_attr_group;
 #if defined(CONFIG_DEBUG_FS)
