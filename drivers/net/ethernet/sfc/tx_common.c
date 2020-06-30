@@ -311,6 +311,20 @@ struct efx_tx_buffer *efx_tx_map_chunk(struct efx_tx_queue *tx_queue,
 	return buffer;
 }
 
+int efx_tx_tso_header_length(struct sk_buff *skb)
+{
+	size_t header_len;
+
+	if (skb->encapsulation)
+		header_len = skb_inner_transport_header(skb) -
+				skb->data +
+				(inner_tcp_hdr(skb)->doff << 2u);
+	else
+		header_len = skb_transport_header(skb) - skb->data +
+				(tcp_hdr(skb)->doff << 2u);
+	return header_len;
+}
+
 /* Map all data from an SKB for DMA and create descriptors on the queue. */
 int efx_tx_map_data(struct efx_tx_queue *tx_queue, struct sk_buff *skb,
 		    unsigned int segment_count)
@@ -339,8 +353,7 @@ int efx_tx_map_data(struct efx_tx_queue *tx_queue, struct sk_buff *skb,
 		/* For TSO we need to put the header in to a separate
 		 * descriptor. Map this separately if necessary.
 		 */
-		size_t header_len = skb_transport_header(skb) - skb->data +
-				(tcp_hdr(skb)->doff << 2u);
+		size_t header_len = efx_tx_tso_header_length(skb);
 
 		if (header_len != len) {
 			tx_queue->tso_long_headers++;

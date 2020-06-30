@@ -34,6 +34,7 @@ void efx_enqueue_unwind(struct efx_tx_queue *tx_queue,
 
 struct efx_tx_buffer *efx_tx_map_chunk(struct efx_tx_queue *tx_queue,
 				       dma_addr_t dma_addr, size_t len);
+int efx_tx_tso_header_length(struct sk_buff *skb);
 int efx_tx_map_data(struct efx_tx_queue *tx_queue, struct sk_buff *skb,
 		    unsigned int segment_count);
 
