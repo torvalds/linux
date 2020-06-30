@@ -125,6 +125,7 @@ struct dpaa2_eth_swa {
 	union {
 		struct {
 			struct sk_buff *skb;
+			int sgt_size;
 		} single;
 		struct {
 			struct sk_buff *skb;
@@ -282,9 +283,11 @@ struct dpaa2_eth_drv_stats {
 	__u64	tx_conf_bytes;
 	__u64	tx_sg_frames;
 	__u64	tx_sg_bytes;
-	__u64	tx_reallocs;
 	__u64	rx_sg_frames;
 	__u64	rx_sg_bytes;
+	/* Linear skbs sent as a S/G FD due to insufficient headroom */
+	__u64	tx_converted_sg_frames;
+	__u64	tx_converted_sg_bytes;
 	/* Enqueues retried due to portal busy */
 	__u64	tx_portal_busy;
 };
@@ -395,6 +398,12 @@ struct dpaa2_eth_cls_rule {
 	u8 in_use;
 };
 
+#define DPAA2_ETH_SGT_CACHE_SIZE	256
+struct dpaa2_eth_sgt_cache {
+	void *buf[DPAA2_ETH_SGT_CACHE_SIZE];
+	u16 count;
+};
+
 /* Driver private data */
 struct dpaa2_eth_priv {
 	struct net_device *net_dev;
@@ -409,6 +418,7 @@ struct dpaa2_eth_priv {
 
 	u8 num_channels;
 	struct dpaa2_eth_channel *channel[DPAA2_ETH_MAX_DPCONS];
+	struct dpaa2_eth_sgt_cache __percpu *sgt_cache;
 
 	struct dpni_attr dpni_attrs;
 	u16 dpni_ver_major;
