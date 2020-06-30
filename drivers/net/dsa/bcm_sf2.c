@@ -558,15 +558,10 @@ static void bcm_sf2_sw_mac_config(struct dsa_switch *ds, int port,
 {
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
 	u32 id_mode_dis = 0, port_mode;
-	u32 reg, offset;
+	u32 reg;
 
 	if (port == core_readl(priv, CORE_IMP0_PRT_ID))
 		return;
-
-	if (priv->type == BCM7445_DEVICE_ID)
-		offset = CORE_STS_OVERRIDE_GMIIP_PORT(port);
-	else
-		offset = CORE_STS_OVERRIDE_GMIIP2_PORT(port);
 
 	switch (state->interface) {
 	case PHY_INTERFACE_MODE_RGMII:
@@ -582,8 +577,8 @@ static void bcm_sf2_sw_mac_config(struct dsa_switch *ds, int port,
 		port_mode = EXT_REVMII;
 		break;
 	default:
-		/* all other PHYs: internal and MoCA */
-		goto force_link;
+		/* Nothing required for all other PHYs: internal and MoCA */
+		return;
 	}
 
 	/* Clear id_mode_dis bit, and the existing port mode, let
@@ -605,23 +600,6 @@ static void bcm_sf2_sw_mac_config(struct dsa_switch *ds, int port,
 	}
 
 	reg_writel(priv, reg, REG_RGMII_CNTRL_P(port));
-
-force_link:
-	/* Force link settings detected from the PHY */
-	reg = SW_OVERRIDE;
-	switch (state->speed) {
-	case SPEED_1000:
-		reg |= SPDSTS_1000 << SPEED_SHIFT;
-		break;
-	case SPEED_100:
-		reg |= SPDSTS_100 << SPEED_SHIFT;
-		break;
-	}
-
-	if (state->duplex == DUPLEX_FULL)
-		reg |= DUPLX_MODE;
-
-	core_writel(priv, reg, offset);
 }
 
 static void bcm_sf2_sw_mac_link_set(struct dsa_switch *ds, int port,
@@ -684,8 +662,19 @@ static void bcm_sf2_sw_mac_link_up(struct dsa_switch *ds, int port,
 		else
 			offset = CORE_STS_OVERRIDE_GMIIP2_PORT(port);
 
-		reg = core_readl(priv, offset);
-		reg |= LINK_STS;
+		reg = SW_OVERRIDE | LINK_STS;
+		switch (speed) {
+		case SPEED_1000:
+			reg |= SPDSTS_1000 << SPEED_SHIFT;
+			break;
+		case SPEED_100:
+			reg |= SPDSTS_100 << SPEED_SHIFT;
+			break;
+		}
+
+		if (duplex == DUPLEX_FULL)
+			reg |= DUPLX_MODE;
+
 		core_writel(priv, reg, offset);
 	}
 
