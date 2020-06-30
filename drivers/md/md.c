@@ -2193,6 +2193,24 @@ retry:
 	sb->sb_csum = calc_sb_1_csum(sb);
 }
 
+static sector_t super_1_choose_bm_space(sector_t dev_size)
+{
+	sector_t bm_space;
+
+	/* if the device is bigger than 8Gig, save 64k for bitmap
+	 * usage, if bigger than 200Gig, save 128k
+	 */
+	if (dev_size < 64*2)
+		bm_space = 0;
+	else if (dev_size - 64*2 >= 200*1024*1024*2)
+		bm_space = 128*2;
+	else if (dev_size - 4*2 > 8*1024*1024*2)
+		bm_space = 64*2;
+	else
+		bm_space = 4*2;
+	return bm_space;
+}
+
 static unsigned long long
 super_1_rdev_size_change(struct md_rdev *rdev, sector_t num_sectors)
 {
@@ -2213,13 +2231,22 @@ super_1_rdev_size_change(struct md_rdev *rdev, sector_t num_sectors)
 		return 0;
 	} else {
 		/* minor version 0; superblock after data */
-		sector_t sb_start;
-		sb_start = (i_size_read(rdev->bdev->bd_inode) >> 9) - 8*2;
+		sector_t sb_start, bm_space;
+		sector_t dev_size = i_size_read(rdev->bdev->bd_inode) >> 9;
+
+		/* 8K is for superblock */
+		sb_start = dev_size - 8*2;
 		sb_start &= ~(sector_t)(4*2 - 1);
-		max_sectors = rdev->sectors + sb_start - rdev->sb_start;
+
+		bm_space = super_1_choose_bm_space(dev_size);
+
+		/* Space that can be used to store date needs to decrease
+		 * superblock bitmap space and bad block space(4K)
+		 */
+		max_sectors = sb_start - bm_space - 4*2;
+
 		if (!num_sectors || num_sectors > max_sectors)
 			num_sectors = max_sectors;
-		rdev->sb_start = sb_start;
 	}
 	sb = page_address(rdev->sb_page);
 	sb->data_size = cpu_to_le64(num_sectors);
