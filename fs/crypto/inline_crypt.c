@@ -88,6 +88,19 @@ int fscrypt_select_encryption_impl(struct fscrypt_info *ci,
 		return 0;
 
 	/*
+	 * When a page contains multiple logically contiguous filesystem blocks,
+	 * some filesystem code only calls fscrypt_mergeable_bio() for the first
+	 * block in the page. This is fine for most of fscrypt's IV generation
+	 * strategies, where contiguous blocks imply contiguous IVs. But it
+	 * doesn't work with IV_INO_LBLK_32. For now, simply exclude
+	 * IV_INO_LBLK_32 with blocksize != PAGE_SIZE from inline encryption.
+	 */
+	if ((fscrypt_policy_flags(&ci->ci_policy) &
+	     FSCRYPT_POLICY_FLAG_IV_INO_LBLK_32) &&
+	    sb->s_blocksize != PAGE_SIZE)
+		return 0;
+
+	/*
 	 * blk-crypto must support the crypto configuration we'll use for the
 	 * inode on all devices in the sb
 	 */
@@ -397,7 +410,6 @@ EXPORT_SYMBOL_GPL(fscrypt_mergeable_bio_bh);
 bool fscrypt_dio_supported(struct kiocb *iocb, struct iov_iter *iter)
 {
 	const struct inode *inode = file_inode(iocb->ki_filp);
-	const struct fscrypt_info *ci = inode->i_crypt_info;
 	const unsigned int blocksize = i_blocksize(inode);
 
 	/* If the file is unencrypted, no veto from us. */
@@ -415,15 +427,6 @@ bool fscrypt_dio_supported(struct kiocb *iocb, struct iov_iter *iter)
 	if (!IS_ALIGNED(iocb->ki_pos | iov_iter_alignment(iter), blocksize))
 		return false;
 
-	/*
-	 * With IV_INO_LBLK_32 and sub-page blocks, the DUN can wrap around in
-	 * the middle of a page.  This isn't handled by the direct I/O code yet.
-	 */
-	if (blocksize != PAGE_SIZE &&
-	    (fscrypt_policy_flags(&ci->ci_policy) &
-	     FSCRYPT_POLICY_FLAG_IV_INO_LBLK_32))
-		return false;
-
 	return true;
 }
 EXPORT_SYMBOL_GPL(fscrypt_dio_supported);
@@ -437,8 +440,6 @@ EXPORT_SYMBOL_GPL(fscrypt_dio_supported);
  * For direct I/O: limit the number of pages that will be submitted in the bio
  * targeting @pos, in order to avoid crossing a data unit number (DUN)
  * discontinuity.  This is only needed for certain IV generation methods.
- *
- * This assumes block_size == PAGE_SIZE; see fscrypt_dio_supported().
  *
  * Return: the actual number of pages that can be submitted
  */
@@ -457,6 +458,10 @@ int fscrypt_limit_dio_pages(const struct inode *inode, loff_t pos, int nr_pages)
 	      FSCRYPT_POLICY_FLAG_IV_INO_LBLK_32))
 		return nr_pages;
 
+	/*
+	 * fscrypt_select_encryption_impl() ensures that block_size == PAGE_SIZE
+	 * when using FSCRYPT_POLICY_FLAG_IV_INO_LBLK_32.
+	 */
 	if (WARN_ON_ONCE(i_blocksize(inode) != PAGE_SIZE))
 		return 1;
 

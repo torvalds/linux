@@ -74,7 +74,8 @@ static int fscrypt_zeroout_range_inline_crypt(const struct inode *inode,
 		len -= blocks_this_page;
 		lblk += blocks_this_page;
 		pblk += blocks_this_page;
-		if (num_pages == BIO_MAX_PAGES || !len) {
+		if (num_pages == BIO_MAX_PAGES || !len ||
+		    !fscrypt_mergeable_bio(bio, inode, lblk)) {
 			err = submit_bio_wait(bio);
 			if (err)
 				goto out;
