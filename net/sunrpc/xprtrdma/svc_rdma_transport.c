@@ -271,7 +271,6 @@ static int rdma_cma_handler(struct rdma_cm_id *cma_id,
 	switch (event->event) {
 	case RDMA_CM_EVENT_ESTABLISHED:
 		/* Accept complete */
-		svc_xprt_get(xprt);
 		dprintk("svcrdma: Connection completed on DTO xprt=%p, "
 			"cm_id=%p\n", xprt, cma_id);
 		clear_bit(RDMAXPRT_CONN_PENDING, &rdma->sc_flags);
@@ -282,7 +281,6 @@ static int rdma_cma_handler(struct rdma_cm_id *cma_id,
 			xprt, cma_id);
 		set_bit(XPT_CLOSE, &xprt->xpt_flags);
 		svc_xprt_enqueue(xprt);
-		svc_xprt_put(xprt);
 		break;
 	case RDMA_CM_EVENT_DEVICE_REMOVAL:
 		dprintk("svcrdma: Device removal cma_id=%p, xprt = %p, "
@@ -290,7 +288,6 @@ static int rdma_cma_handler(struct rdma_cm_id *cma_id,
 			rdma_event_msg(event->event), event->event);
 		set_bit(XPT_CLOSE, &xprt->xpt_flags);
 		svc_xprt_enqueue(xprt);
-		svc_xprt_put(xprt);
 		break;
 	default:
 		dprintk("svcrdma: Unexpected event on DTO endpoint %p, "
@@ -539,24 +536,11 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	return NULL;
 }
 
-/*
- * When connected, an svc_xprt has at least two references:
- *
- * - A reference held by the cm_id between the ESTABLISHED and
- *   DISCONNECTED events. If the remote peer disconnected first, this
- *   reference could be gone.
- *
- * - A reference held by the svc_recv code that called this function
- *   as part of close processing.
- *
- * At a minimum one references should still be held.
- */
 static void svc_rdma_detach(struct svc_xprt *xprt)
 {
 	struct svcxprt_rdma *rdma =
 		container_of(xprt, struct svcxprt_rdma, sc_xprt);
 
-	/* Disconnect and flush posted WQE */
 	rdma_disconnect(rdma->sc_cm_id);
 }
 
@@ -566,6 +550,7 @@ static void __svc_rdma_free(struct work_struct *work)
 		container_of(work, struct svcxprt_rdma, sc_work);
 	struct svc_xprt *xprt = &rdma->sc_xprt;
 
+	/* This blocks until the Completion Queues are empty */
 	if (rdma->sc_qp && !IS_ERR(rdma->sc_qp))
 		ib_drain_qp(rdma->sc_qp);
 

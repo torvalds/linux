@@ -257,7 +257,6 @@ static int __svc_rdma_post_recv(struct svcxprt_rdma *rdma,
 {
 	int ret;
 
-	svc_xprt_get(&rdma->sc_xprt);
 	trace_svcrdma_post_recv(ctxt);
 	ret = ib_post_recv(rdma->sc_qp, &ctxt->rc_recv_wr, NULL);
 	if (ret)
@@ -267,7 +266,6 @@ static int __svc_rdma_post_recv(struct svcxprt_rdma *rdma,
 err_post:
 	trace_svcrdma_rq_post_err(rdma, ret);
 	svc_rdma_recv_ctxt_put(rdma, ctxt);
-	svc_xprt_put(&rdma->sc_xprt);
 	return ret;
 }
 
@@ -344,15 +342,13 @@ static void svc_rdma_wc_receive(struct ib_cq *cq, struct ib_wc *wc)
 	spin_unlock(&rdma->sc_rq_dto_lock);
 	if (!test_bit(RDMAXPRT_CONN_PENDING, &rdma->sc_flags))
 		svc_xprt_enqueue(&rdma->sc_xprt);
-	goto out;
+	return;
 
 flushed:
 post_err:
 	svc_rdma_recv_ctxt_put(rdma, ctxt);
 	set_bit(XPT_CLOSE, &rdma->sc_xprt.xpt_flags);
 	svc_xprt_enqueue(&rdma->sc_xprt);
-out:
-	svc_xprt_put(&rdma->sc_xprt);
 }
 
 /**

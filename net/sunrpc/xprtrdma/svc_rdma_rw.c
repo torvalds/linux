@@ -164,7 +164,6 @@ static void svc_rdma_cc_init(struct svcxprt_rdma *rdma,
 {
 	svc_rdma_cc_cid_init(rdma, &cc->cc_cid);
 	cc->cc_rdma = rdma;
-	svc_xprt_get(&rdma->sc_xprt);
 
 	INIT_LIST_HEAD(&cc->cc_rwctxts);
 	cc->cc_sqecount = 0;
@@ -184,7 +183,6 @@ static void svc_rdma_cc_release(struct svc_rdma_chunk_ctxt *cc,
 				    ctxt->rw_nents, dir);
 		svc_rdma_put_rw_ctxt(rdma, ctxt);
 	}
-	svc_xprt_put(&rdma->sc_xprt);
 }
 
 /* State for sending a Write or Reply chunk.
