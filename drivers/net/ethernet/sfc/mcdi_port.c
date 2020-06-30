@@ -176,19 +176,6 @@ fail:
 	return rc;
 }
 
-int efx_mcdi_port_reconfigure(struct efx_nic *efx)
-{
-	struct efx_mcdi_phy_data *phy_cfg = efx->phy_data;
-	u32 caps = (efx->link_advertising[0] ?
-		    ethtool_linkset_to_mcdi_cap(efx->link_advertising) :
-		    phy_cfg->forced_cap);
-
-	caps |= ethtool_fec_caps_to_mcdi(efx->fec_config);
-
-	return efx_mcdi_set_link(efx, caps, efx_get_mcdi_phy_flags(efx),
-				 efx->loopback_mode, 0);
-}
-
 static void efx_mcdi_phy_remove(struct efx_nic *efx)
 {
 	struct efx_mcdi_phy_data *phy_data = efx->phy_data;

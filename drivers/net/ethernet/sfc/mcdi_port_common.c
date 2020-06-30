@@ -476,6 +476,24 @@ int efx_mcdi_phy_test_alive(struct efx_nic *efx)
 	return 0;
 }
 
+int efx_mcdi_port_reconfigure(struct efx_nic *efx)
+{
+	struct efx_mcdi_phy_data *phy_cfg = efx->phy_data;
+	u32 caps = (efx->link_advertising[0] ?
+		    ethtool_linkset_to_mcdi_cap(efx->link_advertising) :
+		    phy_cfg->forced_cap);
+
+	caps |= ethtool_fec_caps_to_mcdi(efx->fec_config);
+
+	return efx_mcdi_set_link(efx, caps, efx_get_mcdi_phy_flags(efx),
+				 efx->loopback_mode, 0);
+}
+
+static unsigned int efx_calc_mac_mtu(struct efx_nic *efx)
+{
+	return EFX_MAX_FRAME_LEN(efx->net_dev->mtu);
+}
+
 int efx_mcdi_set_mac(struct efx_nic *efx)
 {
 	u32 fcntl;
@@ -487,8 +505,7 @@ int efx_mcdi_set_mac(struct efx_nic *efx)
 	ether_addr_copy(MCDI_PTR(cmdbytes, SET_MAC_IN_ADDR),
 			efx->net_dev->dev_addr);
 
-	MCDI_SET_DWORD(cmdbytes, SET_MAC_IN_MTU,
-		       EFX_MAX_FRAME_LEN(efx->net_dev->mtu));
+	MCDI_SET_DWORD(cmdbytes, SET_MAC_IN_MTU, efx_calc_mac_mtu(efx));
 	MCDI_SET_DWORD(cmdbytes, SET_MAC_IN_DRAIN, 0);
 
 	/* Set simple MAC filter for Siena */
@@ -518,6 +535,21 @@ int efx_mcdi_set_mac(struct efx_nic *efx)
 	MCDI_SET_DWORD(cmdbytes, SET_MAC_IN_FCNTL, fcntl);
 
 	return efx_mcdi_rpc(efx, MC_CMD_SET_MAC, cmdbytes, sizeof(cmdbytes),
+			    NULL, 0, NULL);
+}
+
+int efx_mcdi_set_mtu(struct efx_nic *efx)
+{
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_SET_MAC_EXT_IN_LEN);
+
+	BUILD_BUG_ON(MC_CMD_SET_MAC_OUT_LEN != 0);
+
+	MCDI_SET_DWORD(inbuf, SET_MAC_EXT_IN_MTU, efx_calc_mac_mtu(efx));
+
+	MCDI_POPULATE_DWORD_1(inbuf, SET_MAC_EXT_IN_CONTROL,
+			      SET_MAC_EXT_IN_CFG_MTU, 1);
+
+	return efx_mcdi_rpc(efx, MC_CMD_SET_MAC, inbuf, sizeof(inbuf),
 			    NULL, 0, NULL);
 }
 
