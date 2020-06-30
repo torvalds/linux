@@ -1455,18 +1455,22 @@ ConfigMainWindow::ConfigMainWindow(void)
 	addToolBar(toolBar);
 
 	backAction = new QAction(QPixmap(xpm_back), "Back", this);
-	  connect(backAction, SIGNAL(triggered(bool)), SLOT(goBack()));
-	  backAction->setEnabled(false);
+	connect(backAction, SIGNAL(triggered(bool)), SLOT(goBack()));
+
 	QAction *quitAction = new QAction("&Quit", this);
 	quitAction->setShortcut(Qt::CTRL + Qt::Key_Q);
-	  connect(quitAction, SIGNAL(triggered(bool)), SLOT(close()));
+	connect(quitAction, SIGNAL(triggered(bool)), SLOT(close()));
+
 	QAction *loadAction = new QAction(QPixmap(xpm_load), "&Load", this);
 	loadAction->setShortcut(Qt::CTRL + Qt::Key_L);
-	  connect(loadAction, SIGNAL(triggered(bool)), SLOT(loadConfig()));
+	connect(loadAction, SIGNAL(triggered(bool)), SLOT(loadConfig()));
+
 	saveAction = new QAction(QPixmap(xpm_save), "&Save", this);
 	saveAction->setShortcut(Qt::CTRL + Qt::Key_S);
-	  connect(saveAction, SIGNAL(triggered(bool)), SLOT(saveConfig()));
+	connect(saveAction, SIGNAL(triggered(bool)), SLOT(saveConfig()));
+
 	conf_set_changed_callback(conf_changed);
+
 	// Set saveAction's initial state
 	conf_changed();
 	configname = xstrdup(conf_get_configname());
@@ -1667,21 +1671,11 @@ void ConfigMainWindow::searchConfig(void)
 void ConfigMainWindow::changeItens(struct menu *menu)
 {
 	configList->setRootMenu(menu);
-
-	if (configList->rootEntry->parent == &rootmenu)
-		backAction->setEnabled(false);
-	else
-		backAction->setEnabled(true);
 }
 
 void ConfigMainWindow::changeMenu(struct menu *menu)
 {
 	menuList->setRootMenu(menu);
-
-	if (menuList->rootEntry->parent == &rootmenu)
-		backAction->setEnabled(false);
-	else
-		backAction->setEnabled(true);
 }
 
 void ConfigMainWindow::setMenuLink(struct menu *menu)
@@ -1748,25 +1742,11 @@ void ConfigMainWindow::listFocusChanged(void)
 
 void ConfigMainWindow::goBack(void)
 {
-	ConfigItem* item, *oldSelection;
-
-	configList->setParentMenu();
+qInfo() << __FUNCTION__;
 	if (configList->rootEntry == &rootmenu)
-		backAction->setEnabled(false);
-
-	if (menuList->selectedItems().count() == 0)
 		return;
 
-	item = (ConfigItem*)menuList->selectedItems().first();
-	oldSelection = item;
-	while (item) {
-		if (item->menu == configList->rootEntry) {
-			oldSelection->setSelected(false);
-			item->setSelected(true);
-			break;
-		}
-		item = (ConfigItem*)item->parent();
-	}
+	configList->setParentMenu();
 }
 
 void ConfigMainWindow::showSingleView(void)
@@ -1777,6 +1757,8 @@ void ConfigMainWindow::showSingleView(void)
 	splitViewAction->setChecked(false);
 	fullViewAction->setEnabled(true);
 	fullViewAction->setChecked(false);
+
+	backAction->setEnabled(true);
 
 	menuView->hide();
 	menuList->setRootMenu(0);
@@ -1796,6 +1778,8 @@ void ConfigMainWindow::showSplitView(void)
 	splitViewAction->setChecked(true);
 	fullViewAction->setEnabled(true);
 	fullViewAction->setChecked(false);
+
+	backAction->setEnabled(false);
 
 	configList->mode = menuMode;
 	if (configList->rootEntry == &rootmenu)
@@ -1819,6 +1803,8 @@ void ConfigMainWindow::showFullView(void)
 	splitViewAction->setChecked(false);
 	fullViewAction->setEnabled(false);
 	fullViewAction->setChecked(true);
+
+	backAction->setEnabled(false);
 
 	menuView->hide();
 	menuList->setRootMenu(0);
