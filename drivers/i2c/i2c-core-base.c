@@ -319,11 +319,9 @@ static int i2c_device_probe(struct device *dev)
 	if (!client)
 		return 0;
 
-	driver = to_i2c_driver(dev->driver);
-
 	client->irq = client->init_irq;
 
-	if (!client->irq && !driver->disable_i2c_core_irq_mapping) {
+	if (!client->irq) {
 		int irq = -ENOENT;
 
 		if (client->flags & I2C_CLIENT_HOST_NOTIFY) {
@@ -348,6 +346,8 @@ static int i2c_device_probe(struct device *dev)
 
 		client->irq = irq;
 	}
+
+	driver = to_i2c_driver(dev->driver);
 
 	/*
 	 * An I2C ID table is not mandatory, if and only if, a suitable OF
