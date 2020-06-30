@@ -10,6 +10,7 @@
 
 #include <linux/slab.h>
 #include "efx.h"
+#include "mcdi_port.h"
 #include "mcdi.h"
 #include "mcdi_pcol.h"
 #include "nic.h"

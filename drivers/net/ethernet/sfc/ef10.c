@@ -10,6 +10,7 @@
 #include "io.h"
 #include "mcdi.h"
 #include "mcdi_pcol.h"
+#include "mcdi_port.h"
 #include "mcdi_port_common.h"
 #include "mcdi_functions.h"
 #include "nic.h"
