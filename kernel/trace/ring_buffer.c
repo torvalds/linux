@@ -416,6 +416,8 @@ struct rb_irq_work {
 struct rb_event_info {
 	u64			ts;
 	u64			delta;
+	u64			before;
+	u64			after;
 	unsigned long		length;
 	struct buffer_page	*tail_page;
 	int			add_timestamp;
@@ -2619,6 +2621,33 @@ rb_add_time_stamp(struct ring_buffer_event *event, u64 delta, bool abs)
 static inline bool rb_event_is_commit(struct ring_buffer_per_cpu *cpu_buffer,
 				     struct ring_buffer_event *event);
 
+#ifndef CONFIG_HAVE_UNSTABLE_SCHED_CLOCK
+static inline bool sched_clock_stable(void)
+{
+	return true;
+}
+#endif
+
+static noinline void
+rb_check_timestamp(struct ring_buffer_per_cpu *cpu_buffer,
+		   struct rb_event_info *info)
+{
+	u64 write_stamp;
+
+	WARN_ONCE(info->delta > (1ULL << 59),
+		  KERN_WARNING "Delta way too big! %llu ts=%llu before=%llu after=%llu write stamp=%llu\n%s",
+		  (unsigned long long)info->delta,
+		  (unsigned long long)info->ts,
+		  (unsigned long long)info->before,
+		  (unsigned long long)info->after,
+		  (unsigned long long)(rb_time_read(&cpu_buffer->write_stamp, &write_stamp) ? write_stamp : 0),
+		  sched_clock_stable() ? "" :
+		  "If you just came from a suspend/resume,\n"
+		  "please switch to the trace global clock:\n"
+		  "  echo global > /sys/kernel/debug/tracing/trace_clock\n"
+		  "or add trace_clock=global to the kernel command line\n");
+}
+
 /**
  * rb_update_event - update event type and data
  * @cpu_buffer: The per cpu buffer of the @event
@@ -2646,6 +2675,7 @@ rb_update_event(struct ring_buffer_per_cpu *cpu_buffer,
 		bool abs = info->add_timestamp &
 			(RB_ADD_STAMP_FORCE | RB_ADD_STAMP_ABSOLUTE);
 
+		rb_check_timestamp(cpu_buffer, info);
 		event = rb_add_time_stamp(event, abs ? info->delta : delta, abs);
 		length -= RB_LEN_TIME_EXTEND;
 		delta = 0;
@@ -2691,13 +2721,6 @@ static unsigned rb_calculate_event_length(unsigned length)
 
 	return length;
 }
-
-#ifndef CONFIG_HAVE_UNSTABLE_SCHED_CLOCK
-static inline bool sched_clock_stable(void)
-{
-	return true;
-}
-#endif
 
 static __always_inline bool
 rb_event_is_commit(struct ring_buffer_per_cpu *cpu_buffer,
@@ -3092,24 +3115,6 @@ int ring_buffer_unlock_commit(struct trace_buffer *buffer,
 }
 EXPORT_SYMBOL_GPL(ring_buffer_unlock_commit);
 
-static noinline void
-rb_check_timestamp(struct ring_buffer_per_cpu *cpu_buffer,
-		   struct rb_event_info *info)
-{
-	u64 write_stamp;
-
-	WARN_ONCE(info->delta > (1ULL << 59),
-		  KERN_WARNING "Delta way too big! %llu ts=%llu write stamp = %llu\n%s",
-		  (unsigned long long)info->delta,
-		  (unsigned long long)info->ts,
-		  (unsigned long long)(rb_time_read(&cpu_buffer->write_stamp, &write_stamp) ? write_stamp : 0),
-		  sched_clock_stable() ? "" :
-		  "If you just came from a suspend/resume,\n"
-		  "please switch to the trace global clock:\n"
-		  "  echo global > /sys/kernel/debug/tracing/trace_clock\n"
-		  "or add trace_clock=global to the kernel command line\n");
-}
-
 static struct ring_buffer_event *
 __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
 		  struct rb_event_info *info)
@@ -3117,7 +3122,6 @@ __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
 	struct ring_buffer_event *event;
 	struct buffer_page *tail_page;
 	unsigned long tail, write, w;
-	u64 before, after;
 	bool a_ok;
 	bool b_ok;
 
@@ -3126,39 +3130,30 @@ __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
 
  /*A*/	w = local_read(&tail_page->write) & RB_WRITE_MASK;
 	barrier();
-	b_ok = rb_time_read(&cpu_buffer->before_stamp, &before);
-	a_ok = rb_time_read(&cpu_buffer->write_stamp, &after);
+	b_ok = rb_time_read(&cpu_buffer->before_stamp, &info->before);
+	a_ok = rb_time_read(&cpu_buffer->write_stamp, &info->after);
 	barrier();
 	info->ts = rb_time_stamp(cpu_buffer->buffer);
 
-	if (ring_buffer_time_stamp_abs(cpu_buffer->buffer)) {
+	if ((info->add_timestamp & RB_ADD_STAMP_ABSOLUTE)) {
 		info->delta = info->ts;
-		info->add_timestamp = RB_ADD_STAMP_ABSOLUTE;
 	} else {
-		info->delta = info->ts - after;
-	}
-
-	if (likely(a_ok && b_ok)) {
-		if (unlikely(test_time_stamp(info->delta))) {
-			rb_check_timestamp(cpu_buffer, info);
-			info->add_timestamp |= RB_ADD_STAMP_EXTEND;
+		/*
+		 * If interrupting an event time update, we may need an
+		 * absolute timestamp.
+		 * Don't bother if this is the start of a new page (w == 0).
+		 */
+		if (unlikely(!a_ok || !b_ok || (info->before != info->after && w))) {
+			info->add_timestamp |= RB_ADD_STAMP_FORCE | RB_ADD_STAMP_EXTEND;
+			info->length += RB_LEN_TIME_EXTEND;
+		} else {
+			info->delta = info->ts - info->after;
+			if (unlikely(test_time_stamp(info->delta))) {
+				info->add_timestamp |= RB_ADD_STAMP_EXTEND;
+				info->length += RB_LEN_TIME_EXTEND;
+			}
 		}
 	}
-
-	/*
-	 * If interrupting an event time update, we may need an absolute timestamp.
-	 * Don't bother if this is the start of a new page (w == 0).
-	 */
-	if (unlikely(!a_ok || !b_ok || (before != after && w)))
-		info->add_timestamp |= RB_ADD_STAMP_FORCE | RB_ADD_STAMP_EXTEND;
-
-	/*
-	 * If the time delta since the last event is too big to
-	 * hold in the time field of the event, then we append a
-	 * TIME EXTEND event ahead of the data event.
-	 */
-	if (unlikely(info->add_timestamp))
-		info->length += RB_LEN_TIME_EXTEND;
 
  /*B*/	rb_time_set(&cpu_buffer->before_stamp, info->ts);
 
@@ -3173,10 +3168,11 @@ __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
 	if (unlikely(write > BUF_PAGE_SIZE)) {
 		if (tail != w) {
 			/* before and after may now different, fix it up*/
-			b_ok = rb_time_read(&cpu_buffer->before_stamp, &before);
-			a_ok = rb_time_read(&cpu_buffer->write_stamp, &after);
-			if (a_ok && b_ok && before != after)
-				(void)rb_time_cmpxchg(&cpu_buffer->before_stamp, before, after);
+			b_ok = rb_time_read(&cpu_buffer->before_stamp, &info->before);
+			a_ok = rb_time_read(&cpu_buffer->write_stamp, &info->after);
+			if (a_ok && b_ok && info->before != info->after)
+				(void)rb_time_cmpxchg(&cpu_buffer->before_stamp,
+						      info->before, info->after);
 		}
 		return rb_move_tail(cpu_buffer, tail, info);
 	}
@@ -3193,7 +3189,7 @@ __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
 		if (likely(!(info->add_timestamp &
 			     (RB_ADD_STAMP_FORCE | RB_ADD_STAMP_ABSOLUTE))))
 			/* This did not interrupt any time update */
-			info->delta = info->ts - after;
+			info->delta = info->ts - info->after;
 		else
 			/* Just use full timestamp for inerrupting event */
 			info->delta = info->ts;
@@ -3201,31 +3197,33 @@ __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
 		if (unlikely(info->ts != save_before)) {
 			/* SLOW PATH - Interrupted between C and E */
 
-			a_ok = rb_time_read(&cpu_buffer->write_stamp, &after);
+			a_ok = rb_time_read(&cpu_buffer->write_stamp, &info->after);
 			RB_WARN_ON(cpu_buffer, !a_ok);
 
 			/* Write stamp must only go forward */
-			if (save_before > after) {
+			if (save_before > info->after) {
 				/*
 				 * We do not care about the result, only that
 				 * it gets updated atomically.
 				 */
-				(void)rb_time_cmpxchg(&cpu_buffer->write_stamp, after, save_before);
+				(void)rb_time_cmpxchg(&cpu_buffer->write_stamp,
+						      info->after, save_before);
 			}
 		}
 	} else {
 		u64 ts;
 		/* SLOW PATH - Interrupted between A and C */
-		a_ok = rb_time_read(&cpu_buffer->write_stamp, &after);
+		a_ok = rb_time_read(&cpu_buffer->write_stamp, &info->after);
 		/* Was interrupted before here, write_stamp must be valid */
 		RB_WARN_ON(cpu_buffer, !a_ok);
 		ts = rb_time_stamp(cpu_buffer->buffer);
 		barrier();
  /*E*/		if (write == (local_read(&tail_page->write) & RB_WRITE_MASK) &&
-		    after < ts) {
+		    info->after < ts) {
 			/* Nothing came after this event between C and E */
-			info->delta = ts - after;
-			(void)rb_time_cmpxchg(&cpu_buffer->write_stamp, after, info->ts);
+			info->delta = ts - info->after;
+			(void)rb_time_cmpxchg(&cpu_buffer->write_stamp,
+					      info->after, info->ts);
 			info->ts = ts;
 		} else {
 			/*
@@ -3277,6 +3275,7 @@ rb_reserve_next_event(struct trace_buffer *buffer,
 	struct ring_buffer_event *event;
 	struct rb_event_info info;
 	int nr_loops = 0;
+	int add_ts_default;
 
 	rb_start_commit(cpu_buffer);
 	/* The commit page can not change after this */
@@ -3297,8 +3296,16 @@ rb_reserve_next_event(struct trace_buffer *buffer,
 #endif
 
 	info.length = rb_calculate_event_length(length);
+
+	if (ring_buffer_time_stamp_abs(cpu_buffer->buffer)) {
+		add_ts_default = RB_ADD_STAMP_ABSOLUTE;
+		info.length += RB_LEN_TIME_EXTEND;
+	} else {
+		add_ts_default = RB_ADD_STAMP_NONE;
+	}
+
  again:
-	info.add_timestamp = RB_ADD_STAMP_NONE;
+	info.add_timestamp = add_ts_default;
 	info.delta = 0;
 
 	/*
@@ -3316,7 +3323,7 @@ rb_reserve_next_event(struct trace_buffer *buffer,
 	event = __rb_reserve_next(cpu_buffer, &info);
 
 	if (unlikely(PTR_ERR(event) == -EAGAIN)) {
-		if (info.add_timestamp)
+		if (info.add_timestamp & (RB_ADD_STAMP_FORCE | RB_ADD_STAMP_EXTEND))
 			info.length -= RB_LEN_TIME_EXTEND;
 		goto again;
 	}
