@@ -1137,6 +1137,7 @@ static int iio_device_add_info_mask_type(struct iio_dev *indio_dev,
 					 enum iio_shared_by shared_by,
 					 const long *infomask)
 {
+	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
 	int i, ret, attrcount = 0;
 
 	for_each_set_bit(i, infomask, sizeof(*infomask)*8) {
@@ -1149,7 +1150,7 @@ static int iio_device_add_info_mask_type(struct iio_dev *indio_dev,
 					     i,
 					     shared_by,
 					     &indio_dev->dev,
-					     &indio_dev->channel_attr_list);
+					     &iio_dev_opaque->channel_attr_list);
 		if ((ret == -EBUSY) && (shared_by != IIO_SEPARATE))
 			continue;
 		else if (ret < 0)
@@ -1165,6 +1166,7 @@ static int iio_device_add_info_mask_type_avail(struct iio_dev *indio_dev,
 					       enum iio_shared_by shared_by,
 					       const long *infomask)
 {
+	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
 	int i, ret, attrcount = 0;
 	char *avail_postfix;
 
@@ -1184,7 +1186,7 @@ static int iio_device_add_info_mask_type_avail(struct iio_dev *indio_dev,
 					     i,
 					     shared_by,
 					     &indio_dev->dev,
-					     &indio_dev->channel_attr_list);
+					     &iio_dev_opaque->channel_attr_list);
 		kfree(avail_postfix);
 		if ((ret == -EBUSY) && (shared_by != IIO_SEPARATE))
 			continue;
@@ -1199,6 +1201,7 @@ static int iio_device_add_info_mask_type_avail(struct iio_dev *indio_dev,
 static int iio_device_add_channel_sysfs(struct iio_dev *indio_dev,
 					struct iio_chan_spec const *chan)
 {
+	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
 	int ret, attrcount = 0;
 	const struct iio_chan_spec_ext_info *ext_info;
 
@@ -1274,7 +1277,7 @@ static int iio_device_add_channel_sysfs(struct iio_dev *indio_dev,
 					i,
 					ext_info->shared,
 					&indio_dev->dev,
-					&indio_dev->channel_attr_list);
+					&iio_dev_opaque->channel_attr_list);
 			i++;
 			if (ret == -EBUSY && ext_info->shared)
 				continue;
@@ -1409,6 +1412,7 @@ static DEVICE_ATTR(current_timestamp_clock, S_IRUGO | S_IWUSR,
 
 static int iio_device_register_sysfs(struct iio_dev *indio_dev)
 {
+	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
 	int i, ret = 0, attrcount, attrn, attrcount_orig = 0;
 	struct iio_dev_attr *p;
 	struct attribute **attr, *clk = NULL;
@@ -1448,47 +1452,49 @@ static int iio_device_register_sysfs(struct iio_dev *indio_dev)
 	if (clk)
 		attrcount++;
 
-	indio_dev->chan_attr_group.attrs = kcalloc(attrcount + 1,
-						   sizeof(indio_dev->chan_attr_group.attrs[0]),
-						   GFP_KERNEL);
-	if (indio_dev->chan_attr_group.attrs == NULL) {
+	iio_dev_opaque->chan_attr_group.attrs =
+		kcalloc(attrcount + 1,
+			sizeof(iio_dev_opaque->chan_attr_group.attrs[0]),
+			GFP_KERNEL);
+	if (iio_dev_opaque->chan_attr_group.attrs == NULL) {
 		ret = -ENOMEM;
 		goto error_clear_attrs;
 	}
 	/* Copy across original attributes */
 	if (indio_dev->info->attrs)
-		memcpy(indio_dev->chan_attr_group.attrs,
+		memcpy(iio_dev_opaque->chan_attr_group.attrs,
 		       indio_dev->info->attrs->attrs,
-		       sizeof(indio_dev->chan_attr_group.attrs[0])
+		       sizeof(iio_dev_opaque->chan_attr_group.attrs[0])
 		       *attrcount_orig);
 	attrn = attrcount_orig;
 	/* Add all elements from the list. */
-	list_for_each_entry(p, &indio_dev->channel_attr_list, l)
-		indio_dev->chan_attr_group.attrs[attrn++] = &p->dev_attr.attr;
+	list_for_each_entry(p, &iio_dev_opaque->channel_attr_list, l)
+		iio_dev_opaque->chan_attr_group.attrs[attrn++] = &p->dev_attr.attr;
 	if (indio_dev->name)
-		indio_dev->chan_attr_group.attrs[attrn++] = &dev_attr_name.attr;
+		iio_dev_opaque->chan_attr_group.attrs[attrn++] = &dev_attr_name.attr;
 	if (indio_dev->label)
-		indio_dev->chan_attr_group.attrs[attrn++] = &dev_attr_label.attr;
+		iio_dev_opaque->chan_attr_group.attrs[attrn++] = &dev_attr_label.attr;
 	if (clk)
-		indio_dev->chan_attr_group.attrs[attrn++] = clk;
+		iio_dev_opaque->chan_attr_group.attrs[attrn++] = clk;
 
 	indio_dev->groups[indio_dev->groupcounter++] =
-		&indio_dev->chan_attr_group;
+		&iio_dev_opaque->chan_attr_group;
 
 	return 0;
 
 error_clear_attrs:
-	iio_free_chan_devattr_list(&indio_dev->channel_attr_list);
+	iio_free_chan_devattr_list(&iio_dev_opaque->channel_attr_list);
 
 	return ret;
 }
 
 static void iio_device_unregister_sysfs(struct iio_dev *indio_dev)
 {
+	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
 
-	iio_free_chan_devattr_list(&indio_dev->channel_attr_list);
-	kfree(indio_dev->chan_attr_group.attrs);
-	indio_dev->chan_attr_group.attrs = NULL;
+	iio_free_chan_devattr_list(&iio_dev_opaque->channel_attr_list);
+	kfree(iio_dev_opaque->chan_attr_group.attrs);
+	iio_dev_opaque->chan_attr_group.attrs = NULL;
 }
 
 static void iio_dev_release(struct device *device)
@@ -1543,7 +1549,7 @@ struct iio_dev *iio_device_alloc(struct device *parent, int sizeof_priv)
 	dev_set_drvdata(&dev->dev, (void *)dev);
 	mutex_init(&dev->mlock);
 	mutex_init(&dev->info_exist_lock);
-	INIT_LIST_HEAD(&dev->channel_attr_list);
+	INIT_LIST_HEAD(&iio_dev_opaque->channel_attr_list);
 
 	dev->id = ida_simple_get(&iio_ida, 0, 0, GFP_KERNEL);
 	if (dev->id < 0) {
