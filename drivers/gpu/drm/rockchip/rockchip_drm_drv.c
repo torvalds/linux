@@ -365,10 +365,10 @@ static void rockchip_attach_connector_property(struct drm_device *drm)
 
 	drm_connector_list_iter_begin(drm, &conn_iter);
 	drm_for_each_connector_iter(connector, &conn_iter) {
-		ROCKCHIP_PROP_ATTACH(conf->tv_brightness_property, 100);
-		ROCKCHIP_PROP_ATTACH(conf->tv_contrast_property, 100);
-		ROCKCHIP_PROP_ATTACH(conf->tv_saturation_property, 100);
-		ROCKCHIP_PROP_ATTACH(conf->tv_hue_property, 100);
+		ROCKCHIP_PROP_ATTACH(conf->tv_brightness_property, 50);
+		ROCKCHIP_PROP_ATTACH(conf->tv_contrast_property, 50);
+		ROCKCHIP_PROP_ATTACH(conf->tv_saturation_property, 50);
+		ROCKCHIP_PROP_ATTACH(conf->tv_hue_property, 50);
 	}
 	drm_connector_list_iter_end(&conn_iter);
 #undef ROCKCHIP_PROP_ATTACH
@@ -393,33 +393,23 @@ static void rockchip_drm_set_property_default(struct drm_device *drm)
 	}
 	state->acquire_ctx = conf->acquire_ctx;
 
-#define CONNECTOR_SET_PROP(prop, val) \
-	do { \
-		ret = drm_atomic_set_property(state, NULL, &connector->base, \
-					      prop, \
-					      val); \
-		if (ret) \
-			DRM_ERROR("Connector[%d]: Failed to initial %s\n", \
-				  connector->base.id, #prop); \
-	} while (0)
-
 	drm_connector_list_iter_begin(drm, &conn_iter);
 	drm_for_each_connector_iter(connector, &conn_iter) {
 		struct drm_connector_state *connector_state;
 
 		connector_state = drm_atomic_get_connector_state(state,
 								 connector);
-		if (IS_ERR(connector_state))
-			DRM_ERROR("Connector[%d]: Failed to get state\n",
-				  connector->base.id);
+		if (IS_ERR(connector_state)) {
+			DRM_ERROR("Connector[%d]: Failed to get state\n", connector->base.id);
+			continue;
+		}
 
-		CONNECTOR_SET_PROP(conf->tv_brightness_property, 50);
-		CONNECTOR_SET_PROP(conf->tv_contrast_property, 50);
-		CONNECTOR_SET_PROP(conf->tv_saturation_property, 50);
-		CONNECTOR_SET_PROP(conf->tv_hue_property, 50);
+		connector_state->tv.brightness = 50;
+		connector_state->tv.contrast = 50;
+		connector_state->tv.saturation = 50;
+		connector_state->tv.hue = 50;
 	}
 	drm_connector_list_iter_end(&conn_iter);
-#undef CONNECTOR_SET_PROP
 
 	ret = drm_atomic_commit(state);
 	WARN_ON(ret == -EDEADLK);
