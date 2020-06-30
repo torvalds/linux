@@ -582,11 +582,51 @@ static int fsl_asrc_dai_startup(struct snd_pcm_substream *substream,
 			SNDRV_PCM_HW_PARAM_RATE, &fsl_asrc_rate_constraints);
 }
 
+/* Select proper clock source for internal ratio mode */
+static void fsl_asrc_select_clk(struct fsl_asrc_priv *asrc_priv,
+				struct fsl_asrc_pair *pair,
+				int in_rate,
+				int out_rate)
+{
+	struct fsl_asrc_pair_priv *pair_priv = pair->private;
+	struct asrc_config *config = pair_priv->config;
+	int rate[2], select_clk[2]; /* Array size 2 means IN and OUT */
+	int clk_rate, clk_index;
+	int i = 0, j = 0;
+
+	rate[IN] = in_rate;
+	rate[OUT] = out_rate;
+
+	/* Select proper clock source for internal ratio mode */
+	for (j = 0; j < 2; j++) {
+		for (i = 0; i < ASRC_CLK_MAP_LEN; i++) {
+			clk_index = asrc_priv->clk_map[j][i];
+			clk_rate = clk_get_rate(asrc_priv->asrck_clk[clk_index]);
+			/* Only match a perfect clock source with no remainder */
+			if (clk_rate != 0 && (clk_rate / rate[j]) <= 1024 &&
+			    (clk_rate % rate[j]) == 0)
+				break;
+		}
+
+		select_clk[j] = i;
+	}
+
+	/* Switch to ideal ratio mode if there is no proper clock source */
+	if (select_clk[IN] == ASRC_CLK_MAP_LEN || select_clk[OUT] == ASRC_CLK_MAP_LEN) {
+		select_clk[IN] = INCLK_NONE;
+		select_clk[OUT] = OUTCLK_ASRCK1_CLK;
+	}
+
+	config->inclk = select_clk[IN];
+	config->outclk = select_clk[OUT];
+}
+
 static int fsl_asrc_dai_hw_params(struct snd_pcm_substream *substream,
 				  struct snd_pcm_hw_params *params,
 				  struct snd_soc_dai *dai)
 {
 	struct fsl_asrc *asrc = snd_soc_dai_get_drvdata(dai);
+	struct fsl_asrc_priv *asrc_priv = asrc->private;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct fsl_asrc_pair *pair = runtime->private_data;
 	struct fsl_asrc_pair_priv *pair_priv = pair->private;
@@ -605,8 +645,6 @@ static int fsl_asrc_dai_hw_params(struct snd_pcm_substream *substream,
 
 	config.pair = pair->index;
 	config.channel_num = channels;
-	config.inclk = INCLK_NONE;
-	config.outclk = OUTCLK_ASRCK1_CLK;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		config.input_format   = params_format(params);
@@ -619,6 +657,10 @@ static int fsl_asrc_dai_hw_params(struct snd_pcm_substream *substream,
 		config.input_sample_rate  = asrc->asrc_rate;
 		config.output_sample_rate = rate;
 	}
+
+	fsl_asrc_select_clk(asrc_priv, pair,
+			    config.input_sample_rate,
+			    config.output_sample_rate);
 
 	ret = fsl_asrc_config_pair(pair, false);
 	if (ret) {
