@@ -263,6 +263,8 @@ void efx_nic_free_buffer(struct efx_nic *efx, struct efx_buffer *buffer);
 size_t efx_nic_get_regs_len(struct efx_nic *efx);
 void efx_nic_get_regs(struct efx_nic *efx, void *buf);
 
+#define EFX_MC_STATS_GENERATION_INVALID ((__force __le64)(-1))
+
 size_t efx_nic_describe_stats(const struct efx_hw_stat_desc *desc, size_t count,
 			      const unsigned long *mask, u8 *names);
 int efx_nic_copy_stats(struct efx_nic *efx, __le64 *dest);

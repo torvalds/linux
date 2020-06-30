@@ -20,7 +20,6 @@
 #include "farch_regs.h"
 #include "io.h"
 #include "workarounds.h"
-#include "mcdi_port_common.h"
 #include "mcdi_pcol.h"
 
 /**************************************************************************
