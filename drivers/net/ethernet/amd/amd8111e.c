@@ -1581,7 +1581,7 @@ static void amd8111e_tx_timeout(struct net_device *dev, unsigned int txqueue)
 		netif_wake_queue(dev);
 }
 
-static int amd8111e_suspend(struct device *dev_d)
+static int __maybe_unused amd8111e_suspend(struct device *dev_d)
 {
 	struct net_device *dev = dev_get_drvdata(dev_d);
 	struct amd8111e_priv *lp = netdev_priv(dev);
@@ -1620,7 +1620,7 @@ static int amd8111e_suspend(struct device *dev_d)
 	return 0;
 }
 
-static int amd8111e_resume(struct device *dev_d)
+static int __maybe_unused amd8111e_resume(struct device *dev_d)
 {
 	struct net_device *dev = dev_get_drvdata(dev_d);
 	struct amd8111e_priv *lp = netdev_priv(dev);
