@@ -709,6 +709,9 @@ struct lpfc_hba {
 	struct workqueue_struct *wq;
 	struct delayed_work     eq_delay_work;
 
+#define LPFC_IDLE_STAT_DELAY 1000
+	struct delayed_work	idle_stat_delay_work;
+
 	struct lpfc_sli sli;
 	uint8_t pci_dev_grp;	/* lpfc PCI dev group: 0x0, 0x1, 0x2,... */
 	uint32_t sli_rev;		/* SLI2, SLI3, or SLI4 */

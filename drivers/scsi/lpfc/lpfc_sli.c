@@ -7300,6 +7300,47 @@ lpfc_post_rq_buffer(struct lpfc_hba *phba, struct lpfc_queue *hrq,
 	return 1;
 }
 
+/**
+ * lpfc_init_idle_stat_hb - Initialize idle_stat tracking
+ *
+ * This routine initializes the per-cq idle_stat to dynamically dictate
+ * polling decisions.
+ *
+ * Return codes:
+ *   None
+ **/
+static void lpfc_init_idle_stat_hb(struct lpfc_hba *phba)
+{
+	int i;
+	struct lpfc_sli4_hdw_queue *hdwq;
+	struct lpfc_queue *cq;
+	struct lpfc_idle_stat *idle_stat;
+	u64 wall;
+
+	for_each_present_cpu(i) {
+		hdwq = &phba->sli4_hba.hdwq[phba->sli4_hba.cpu_map[i].hdwq];
+		cq = hdwq->io_cq;
+
+		/* Skip if we've already handled this cq's primary CPU */
+		if (cq->chann != i)
+			continue;
+
+		idle_stat = &phba->sli4_hba.idle_stat[i];
+
+		idle_stat->prev_idle = get_cpu_idle_time(i, &wall, 1);
+		idle_stat->prev_wall = wall;
+
+		if (phba->nvmet_support)
+			cq->poll_mode = LPFC_QUEUE_WORK;
+		else
+			cq->poll_mode = LPFC_IRQ_POLL;
+	}
+
+	if (!phba->nvmet_support)
+		schedule_delayed_work(&phba->idle_stat_delay_work,
+				      msecs_to_jiffies(LPFC_IDLE_STAT_DELAY));
+}
+
 static void lpfc_sli4_dip(struct lpfc_hba *phba)
 {
 	uint32_t if_type;
@@ -7876,6 +7917,9 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 	if (phba->cfg_auto_imax)
 		queue_delayed_work(phba->wq, &phba->eq_delay_work,
 				   msecs_to_jiffies(LPFC_EQ_DELAY_MSECS));
+
+	/* start per phba idle_stat_delay heartbeat */
+	lpfc_init_idle_stat_hb(phba);
 
 	/* Start error attention (ERATT) polling timer */
 	mod_timer(&phba->eratt_poll,
@@ -13754,7 +13798,7 @@ lpfc_sli4_sp_handle_eqe(struct lpfc_hba *phba, struct lpfc_eqe *eqe,
 
 	if (!ret)
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-				"0390 Cannot schedule soft IRQ "
+				"0390 Cannot schedule queue work "
 				"for CQ eqcqid=%d, cqid=%d on CPU %d\n",
 				cqid, cq->queue_id, raw_smp_processor_id());
 }
@@ -13765,6 +13809,7 @@ lpfc_sli4_sp_handle_eqe(struct lpfc_hba *phba, struct lpfc_eqe *eqe,
  * @cq: Pointer to CQ to be processed
  * @handler: Routine to process each cqe
  * @delay: Pointer to usdelay to set in case of rescheduling of the handler
+ * @poll_mode: Polling mode we were called from
  *
  * This routine processes completion queue entries in a CQ. While a valid
  * queue element is found, the handler is called. During processing checks
@@ -13782,7 +13827,8 @@ lpfc_sli4_sp_handle_eqe(struct lpfc_hba *phba, struct lpfc_eqe *eqe,
 static bool
 __lpfc_sli4_process_cq(struct lpfc_hba *phba, struct lpfc_queue *cq,
 	bool (*handler)(struct lpfc_hba *, struct lpfc_queue *,
-			struct lpfc_cqe *), unsigned long *delay)
+			struct lpfc_cqe *), unsigned long *delay,
+			enum lpfc_poll_mode poll_mode)
 {
 	struct lpfc_cqe *cqe;
 	bool workposted = false;
@@ -13822,6 +13868,10 @@ __lpfc_sli4_process_cq(struct lpfc_hba *phba, struct lpfc_queue *cq,
 		*delay = 1;
 		arm = false;
 	}
+
+	/* Note: complete the irq_poll softirq before rearming CQ */
+	if (poll_mode == LPFC_IRQ_POLL)
+		irq_poll_complete(&cq->iop);
 
 	/* Track the max number of CQEs processed in 1 EQ */
 	if (count > cq->CQ_max_cqe)
@@ -13872,17 +13922,17 @@ __lpfc_sli4_sp_process_cq(struct lpfc_queue *cq)
 	case LPFC_MCQ:
 		workposted |= __lpfc_sli4_process_cq(phba, cq,
 						lpfc_sli4_sp_handle_mcqe,
-						&delay);
+						&delay, LPFC_QUEUE_WORK);
 		break;
 	case LPFC_WCQ:
 		if (cq->subtype == LPFC_IO)
 			workposted |= __lpfc_sli4_process_cq(phba, cq,
 						lpfc_sli4_fp_handle_cqe,
-						&delay);
+						&delay, LPFC_QUEUE_WORK);
 		else
 			workposted |= __lpfc_sli4_process_cq(phba, cq,
 						lpfc_sli4_sp_handle_cqe,
-						&delay);
+						&delay, LPFC_QUEUE_WORK);
 		break;
 	default:
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
@@ -13900,7 +13950,7 @@ __lpfc_sli4_sp_process_cq(struct lpfc_queue *cq)
 						&cq->sched_spwork, delay);
 		if (!ret)
 			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-				"0394 Cannot schedule soft IRQ "
+				"0394 Cannot schedule queue work "
 				"for cqid=%d on CPU %d\n",
 				cq->queue_id, cq->chann);
 	}
@@ -14232,6 +14282,44 @@ lpfc_sli4_fp_handle_cqe(struct lpfc_hba *phba, struct lpfc_queue *cq,
 }
 
 /**
+ * lpfc_sli4_sched_cq_work - Schedules cq work
+ * @phba: Pointer to HBA context object.
+ * @cq: Pointer to CQ
+ * @cqid: CQ ID
+ *
+ * This routine checks the poll mode of the CQ corresponding to
+ * cq->chann, then either schedules a softirq or queue_work to complete
+ * cq work.
+ *
+ * queue_work path is taken if in NVMET mode, or if poll_mode is in
+ * LPFC_QUEUE_WORK mode.  Otherwise, softirq path is taken.
+ *
+ **/
+static void lpfc_sli4_sched_cq_work(struct lpfc_hba *phba,
+				    struct lpfc_queue *cq, uint16_t cqid)
+{
+	int ret = 0;
+
+	switch (cq->poll_mode) {
+	case LPFC_IRQ_POLL:
+		irq_poll_sched(&cq->iop);
+		break;
+	case LPFC_QUEUE_WORK:
+	default:
+		if (is_kdump_kernel())
+			ret = queue_work(phba->wq, &cq->irqwork);
+		else
+			ret = queue_work_on(cq->chann, phba->wq, &cq->irqwork);
+		if (!ret)
+			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+					"0383 Cannot schedule queue work "
+					"for CQ eqcqid=%d, cqid=%d on CPU %d\n",
+					cqid, cq->queue_id,
+					raw_smp_processor_id());
+	}
+}
+
+/**
  * lpfc_sli4_hba_handle_eqe - Process a fast-path event queue entry
  * @phba: Pointer to HBA context object.
  * @eqe: Pointer to fast-path event queue entry.
@@ -14250,7 +14338,6 @@ lpfc_sli4_hba_handle_eqe(struct lpfc_hba *phba, struct lpfc_queue *eq,
 	struct lpfc_queue *cq = NULL;
 	uint32_t qidx = eq->hdwq;
 	uint16_t cqid, id;
-	int ret = 0;
 
 	if (unlikely(bf_get_le32(lpfc_eqe_major_code, eqe) != 0)) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
@@ -14310,20 +14397,13 @@ work_cq:
 	else
 		cq->isr_timestamp = 0;
 #endif
-	if (is_kdump_kernel())
-		ret = queue_work(phba->wq, &cq->irqwork);
-	else
-		ret = queue_work_on(cq->chann, phba->wq, &cq->irqwork);
-	if (!ret)
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-				"0363 Cannot schedule soft IRQ "
-				"for CQ eqcqid=%d, cqid=%d on CPU %d\n",
-				cqid, cq->queue_id, raw_smp_processor_id());
+	lpfc_sli4_sched_cq_work(phba, cq, cqid);
 }
 
 /**
  * __lpfc_sli4_hba_process_cq - Process a fast-path event queue entry
  * @cq: Pointer to CQ to be processed
+ * @poll_mode: Enum lpfc_poll_state to determine poll mode
  *
  * This routine calls the cq processing routine with the handler for
  * fast path CQEs.
@@ -14337,7 +14417,8 @@ work_cq:
  * the delay indicates when to reschedule it.
  **/
 static void
-__lpfc_sli4_hba_process_cq(struct lpfc_queue *cq)
+__lpfc_sli4_hba_process_cq(struct lpfc_queue *cq,
+			   enum lpfc_poll_mode poll_mode)
 {
 	struct lpfc_hba *phba = cq->phba;
 	unsigned long delay;
@@ -14346,7 +14427,7 @@ __lpfc_sli4_hba_process_cq(struct lpfc_queue *cq)
 
 	/* process and rearm the CQ */
 	workposted |= __lpfc_sli4_process_cq(phba, cq, lpfc_sli4_fp_handle_cqe,
-					     &delay);
+					     &delay, poll_mode);
 
 	if (delay) {
 		if (is_kdump_kernel())
@@ -14357,9 +14438,9 @@ __lpfc_sli4_hba_process_cq(struct lpfc_queue *cq)
 						&cq->sched_irqwork, delay);
 		if (!ret)
 			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-				"0367 Cannot schedule soft IRQ "
-				"for cqid=%d on CPU %d\n",
-				cq->queue_id, cq->chann);
+					"0367 Cannot schedule queue work "
+					"for cqid=%d on CPU %d\n",
+					cq->queue_id, cq->chann);
 	}
 
 	/* wake up worker thread if there are works to be done */
@@ -14379,7 +14460,7 @@ lpfc_sli4_hba_process_cq(struct work_struct *work)
 {
 	struct lpfc_queue *cq = container_of(work, struct lpfc_queue, irqwork);
 
-	__lpfc_sli4_hba_process_cq(cq);
+	__lpfc_sli4_hba_process_cq(cq, LPFC_QUEUE_WORK);
 }
 
 /**
@@ -14394,7 +14475,7 @@ lpfc_sli4_dly_hba_process_cq(struct work_struct *work)
 	struct lpfc_queue *cq = container_of(to_delayed_work(work),
 					struct lpfc_queue, sched_irqwork);
 
-	__lpfc_sli4_hba_process_cq(cq);
+	__lpfc_sli4_hba_process_cq(cq, LPFC_QUEUE_WORK);
 }
 
 /**
@@ -15069,6 +15150,15 @@ out:
 	return status;
 }
 
+static int lpfc_cq_poll_hdler(struct irq_poll *iop, int budget)
+{
+	struct lpfc_queue *cq = container_of(iop, struct lpfc_queue, iop);
+
+	 __lpfc_sli4_hba_process_cq(cq, LPFC_IRQ_POLL);
+
+	return 1;
+}
+
 /**
  * lpfc_cq_create - Create a Completion Queue on the HBA
  * @phba: HBA structure that indicates port to create a queue on.
@@ -15208,6 +15298,8 @@ lpfc_cq_create(struct lpfc_hba *phba, struct lpfc_queue *cq,
 
 	if (cq->queue_id > phba->sli4_hba.cq_max)
 		phba->sli4_hba.cq_max = cq->queue_id;
+
+	irq_poll_init(&cq->iop, LPFC_IRQ_POLL_WEIGHT, lpfc_cq_poll_hdler);
 out:
 	mempool_free(mbox, phba->mbox_mem_pool);
 	return status;

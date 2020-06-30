@@ -1224,6 +1224,75 @@ lpfc_hb_mbox_cmpl(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmboxq)
 	return;
 }
 
+/**
+ * lpfc_idle_stat_delay_work - idle_stat tracking
+ *
+ * This routine tracks per-cq idle_stat and determines polling decisions.
+ *
+ * Return codes:
+ *   None
+ **/
+static void
+lpfc_idle_stat_delay_work(struct work_struct *work)
+{
+	struct lpfc_hba *phba = container_of(to_delayed_work(work),
+					     struct lpfc_hba,
+					     idle_stat_delay_work);
+	struct lpfc_queue *cq;
+	struct lpfc_sli4_hdw_queue *hdwq;
+	struct lpfc_idle_stat *idle_stat;
+	u32 i, idle_percent;
+	u64 wall, wall_idle, diff_wall, diff_idle, busy_time;
+
+	if (phba->pport->load_flag & FC_UNLOADING)
+		return;
+
+	if (phba->link_state == LPFC_HBA_ERROR ||
+	    phba->pport->fc_flag & FC_OFFLINE_MODE)
+		goto requeue;
+
+	for_each_present_cpu(i) {
+		hdwq = &phba->sli4_hba.hdwq[phba->sli4_hba.cpu_map[i].hdwq];
+		cq = hdwq->io_cq;
+
+		/* Skip if we've already handled this cq's primary CPU */
+		if (cq->chann != i)
+			continue;
+
+		idle_stat = &phba->sli4_hba.idle_stat[i];
+
+		/* get_cpu_idle_time returns values as running counters. Thus,
+		 * to know the amount for this period, the prior counter values
+		 * need to be subtracted from the current counter values.
+		 * From there, the idle time stat can be calculated as a
+		 * percentage of 100 - the sum of the other consumption times.
+		 */
+		wall_idle = get_cpu_idle_time(i, &wall, 1);
+		diff_idle = wall_idle - idle_stat->prev_idle;
+		diff_wall = wall - idle_stat->prev_wall;
+
+		if (diff_wall <= diff_idle)
+			busy_time = 0;
+		else
+			busy_time = diff_wall - diff_idle;
+
+		idle_percent = div64_u64(100 * busy_time, diff_wall);
+		idle_percent = 100 - idle_percent;
+
+		if (idle_percent < 15)
+			cq->poll_mode = LPFC_QUEUE_WORK;
+		else
+			cq->poll_mode = LPFC_IRQ_POLL;
+
+		idle_stat->prev_idle = wall_idle;
+		idle_stat->prev_wall = wall;
+	}
+
+requeue:
+	schedule_delayed_work(&phba->idle_stat_delay_work,
+			      msecs_to_jiffies(LPFC_IDLE_STAT_DELAY));
+}
+
 static void
 lpfc_hb_eq_delay_work(struct work_struct *work)
 {
@@ -2924,6 +2993,7 @@ lpfc_stop_hba_timers(struct lpfc_hba *phba)
 	if (phba->pport)
 		lpfc_stop_vport_timers(phba->pport);
 	cancel_delayed_work_sync(&phba->eq_delay_work);
+	cancel_delayed_work_sync(&phba->idle_stat_delay_work);
 	del_timer_sync(&phba->sli.mbox_tmo);
 	del_timer_sync(&phba->fabric_block_timer);
 	del_timer_sync(&phba->eratt_poll);
@@ -6255,6 +6325,9 @@ lpfc_setup_driver_resource_phase1(struct lpfc_hba *phba)
 
 	INIT_DELAYED_WORK(&phba->eq_delay_work, lpfc_hb_eq_delay_work);
 
+	INIT_DELAYED_WORK(&phba->idle_stat_delay_work,
+			  lpfc_idle_stat_delay_work);
+
 	return 0;
 }
 
@@ -6934,13 +7007,23 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 		goto out_free_hba_cpu_map;
 	}
 
+	phba->sli4_hba.idle_stat = kcalloc(phba->sli4_hba.num_possible_cpu,
+					   sizeof(*phba->sli4_hba.idle_stat),
+					   GFP_KERNEL);
+	if (!phba->sli4_hba.idle_stat) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"3390 Failed allocation for idle_stat\n");
+		rc = -ENOMEM;
+		goto out_free_hba_eq_info;
+	}
+
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	phba->sli4_hba.c_stat = alloc_percpu(struct lpfc_hdwq_stat);
 	if (!phba->sli4_hba.c_stat) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"3332 Failed allocating per cpu hdwq stats\n");
 		rc = -ENOMEM;
-		goto out_free_hba_eq_info;
+		goto out_free_hba_idle_stat;
 	}
 #endif
 
@@ -6964,9 +7047,11 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	return 0;
 
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+out_free_hba_idle_stat:
+	kfree(phba->sli4_hba.idle_stat);
+#endif
 out_free_hba_eq_info:
 	free_percpu(phba->sli4_hba.eq_info);
-#endif
 out_free_hba_cpu_map:
 	kfree(phba->sli4_hba.cpu_map);
 out_free_hba_eq_hdl:
@@ -7008,6 +7093,7 @@ lpfc_sli4_driver_resource_unset(struct lpfc_hba *phba)
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	free_percpu(phba->sli4_hba.c_stat);
 #endif
+	kfree(phba->sli4_hba.idle_stat);
 
 	/* Free memory allocated for msi-x interrupt vector to CPU mapping */
 	kfree(phba->sli4_hba.cpu_map);
