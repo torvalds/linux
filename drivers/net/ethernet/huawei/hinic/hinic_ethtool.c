@@ -749,12 +749,9 @@ static int __set_hw_coal_param(struct hinic_dev *nic_dev,
 static int __hinic_set_coalesce(struct net_device *netdev,
 				struct ethtool_coalesce *coal, u16 queue)
 {
-	struct hinic_intr_coal_info *ori_rx_intr_coal = NULL;
-	struct hinic_intr_coal_info *ori_tx_intr_coal = NULL;
 	struct hinic_dev *nic_dev = netdev_priv(netdev);
 	struct hinic_intr_coal_info rx_intr_coal = {0};
 	struct hinic_intr_coal_info tx_intr_coal = {0};
-	char obj_str[OBJ_STR_MAX_LEN] = {0};
 	bool set_rx_coal = false;
 	bool set_tx_coal = false;
 	int err;
@@ -777,21 +774,6 @@ static int __hinic_set_coalesce(struct net_device *netdev,
 		tx_intr_coal.pending_limt = (u8)(coal->tx_max_coalesced_frames /
 		COALESCE_PENDING_LIMIT_UNIT);
 		set_tx_coal = true;
-	}
-
-	if (queue == COALESCE_ALL_QUEUE) {
-		ori_rx_intr_coal = &nic_dev->rx_intr_coalesce[0];
-		ori_tx_intr_coal = &nic_dev->tx_intr_coalesce[0];
-		err = snprintf(obj_str, OBJ_STR_MAX_LEN, "for netdev");
-	} else {
-		ori_rx_intr_coal = &nic_dev->rx_intr_coalesce[queue];
-		ori_tx_intr_coal = &nic_dev->tx_intr_coalesce[queue];
-		err = snprintf(obj_str, OBJ_STR_MAX_LEN, "for queue %d", queue);
-	}
-	if (err <= 0 || err >= OBJ_STR_MAX_LEN) {
-		netif_err(nic_dev, drv, netdev, "Failed to snprintf string, function return(%d) and dest_len(%d)\n",
-			  err, OBJ_STR_MAX_LEN);
-		return -EFAULT;
 	}
 
 	/* setting coalesce timer or pending limit to zero will disable

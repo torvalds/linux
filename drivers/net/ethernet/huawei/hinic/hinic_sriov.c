@@ -1060,9 +1060,7 @@ static int hinic_init_vf_infos(struct hinic_func_to_io *nic_io, u16 vf_id)
 static void hinic_clear_vf_infos(struct hinic_dev *nic_dev, u16 vf_id)
 {
 	struct vf_data_storage *vf_infos;
-	u16 func_id;
 
-	func_id = hinic_glb_pf_vf_offset(nic_dev->hwdev->hwif) + vf_id;
 	vf_infos = nic_dev->hwdev->func_to_io.vf_infos + HW_VF_ID_TO_OS(vf_id);
 	if (vf_infos->pf_set_mac)
 		hinic_port_del_mac(nic_dev, vf_infos->vf_mac_addr, 0);
