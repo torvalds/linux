@@ -280,8 +280,14 @@ static struct nft_trans *nft_trans_chain_add(struct nft_ctx *ctx, int msg_type)
 	if (trans == NULL)
 		return ERR_PTR(-ENOMEM);
 
-	if (msg_type == NFT_MSG_NEWCHAIN)
+	if (msg_type == NFT_MSG_NEWCHAIN) {
 		nft_activate_next(ctx->net, ctx->chain);
+
+		if (ctx->nla[NFTA_CHAIN_ID]) {
+			nft_trans_chain_id(trans) =
+				ntohl(nla_get_be32(ctx->nla[NFTA_CHAIN_ID]));
+		}
+	}
 
 	list_add_tail(&trans->list, &ctx->net->nft.commit_list);
 	return trans;
@@ -1274,6 +1280,7 @@ static const struct nla_policy nft_chain_policy[NFTA_CHAIN_MAX + 1] = {
 				    .len = NFT_MODULE_AUTOLOAD_LIMIT },
 	[NFTA_CHAIN_COUNTERS]	= { .type = NLA_NESTED },
 	[NFTA_CHAIN_FLAGS]	= { .type = NLA_U32 },
+	[NFTA_CHAIN_ID]		= { .type = NLA_U32 },
 };
 
 static const struct nla_policy nft_hook_policy[NFTA_HOOK_MAX + 1] = {
@@ -2154,9 +2161,9 @@ static int nf_tables_newchain(struct net *net, struct sock *nlsk,
 	const struct nfgenmsg *nfmsg = nlmsg_data(nlh);
 	u8 genmask = nft_genmask_next(net);
 	int family = nfmsg->nfgen_family;
+	struct nft_chain *chain = NULL;
 	const struct nlattr *attr;
 	struct nft_table *table;
-	struct nft_chain *chain;
 	u8 policy = NF_ACCEPT;
 	struct nft_ctx ctx;
 	u64 handle = 0;
@@ -2181,7 +2188,7 @@ static int nf_tables_newchain(struct net *net, struct sock *nlsk,
 			return PTR_ERR(chain);
 		}
 		attr = nla[NFTA_CHAIN_HANDLE];
-	} else {
+	} else if (nla[NFTA_CHAIN_NAME]) {
 		chain = nft_chain_lookup(net, table, attr, genmask);
 		if (IS_ERR(chain)) {
 			if (PTR_ERR(chain) != -ENOENT) {
@@ -2190,6 +2197,8 @@ static int nf_tables_newchain(struct net *net, struct sock *nlsk,
 			}
 			chain = NULL;
 		}
+	} else if (!nla[NFTA_CHAIN_ID]) {
+		return -EINVAL;
 	}
 
 	if (nla[NFTA_CHAIN_POLICY]) {
