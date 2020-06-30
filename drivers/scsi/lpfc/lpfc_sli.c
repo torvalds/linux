@@ -13947,9 +13947,9 @@ lpfc_sli4_fp_handle_fcp_wcqe(struct lpfc_hba *phba, struct lpfc_queue *cq,
 		     IOERR_NO_RESOURCES))
 			phba->lpfc_rampdown_queue_depth(phba);
 
-		/* Log the error status */
+		/* Log the cmpl status */
 		lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
-				"0373 FCP CQE error: status=x%x: "
+				"0373 FCP CQE cmpl: status=x%x: "
 				"CQE: %08x %08x %08x %08x\n",
 				bf_get(lpfc_wcqe_c_status, wcqe),
 				wcqe->word0, wcqe->total_data_placed,
