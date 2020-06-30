@@ -790,6 +790,7 @@ int uverbs_copy_to_struct_or_zero(const struct uverbs_attr_bundle *bundle,
 	}
 	return uverbs_copy_to(bundle, idx, from, size);
 }
+EXPORT_SYMBOL(uverbs_copy_to_struct_or_zero);
 
 /* Once called an abort will call through to the type's destroy_hw() */
 void uverbs_finalize_uobj_create(const struct uverbs_attr_bundle *bundle,

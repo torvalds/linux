@@ -1990,6 +1990,29 @@ out_ctx:
 	return err;
 }
 
+static int mlx5_ib_query_ucontext(struct ib_ucontext *ibcontext,
+				  struct uverbs_attr_bundle *attrs)
+{
+	struct mlx5_ib_alloc_ucontext_resp uctx_resp = {};
+	int ret;
+
+	ret = set_ucontext_resp(ibcontext, &uctx_resp);
+	if (ret)
+		return ret;
+
+	uctx_resp.response_length =
+		min_t(size_t,
+		      uverbs_attr_get_len(attrs,
+				MLX5_IB_ATTR_QUERY_CONTEXT_RESP_UCTX),
+		      sizeof(uctx_resp));
+
+	ret = uverbs_copy_to_struct_or_zero(attrs,
+					MLX5_IB_ATTR_QUERY_CONTEXT_RESP_UCTX,
+					&uctx_resp,
+					sizeof(uctx_resp));
+	return ret;
+}
+
 static void mlx5_ib_dealloc_ucontext(struct ib_ucontext *ibcontext)
 {
 	struct mlx5_ib_ucontext *context = to_mucontext(ibcontext);
@@ -6364,6 +6387,16 @@ ADD_UVERBS_ATTRIBUTES_SIMPLE(
 	UVERBS_ATTR_FLAGS_IN(MLX5_IB_ATTR_CREATE_FLOW_ACTION_FLAGS,
 			     enum mlx5_ib_uapi_flow_action_flags));
 
+ADD_UVERBS_ATTRIBUTES_SIMPLE(
+	mlx5_ib_query_context,
+	UVERBS_OBJECT_DEVICE,
+	UVERBS_METHOD_QUERY_CONTEXT,
+	UVERBS_ATTR_PTR_OUT(
+		MLX5_IB_ATTR_QUERY_CONTEXT_RESP_UCTX,
+		UVERBS_ATTR_STRUCT(struct mlx5_ib_alloc_ucontext_resp,
+				   dump_fill_mkey),
+		UA_MANDATORY));
+
 static const struct uapi_definition mlx5_ib_defs[] = {
 	UAPI_DEF_CHAIN(mlx5_ib_devx_defs),
 	UAPI_DEF_CHAIN(mlx5_ib_flow_defs),
@@ -6372,6 +6405,7 @@ static const struct uapi_definition mlx5_ib_defs[] = {
 	UAPI_DEF_CHAIN_OBJ_TREE(UVERBS_OBJECT_FLOW_ACTION,
 				&mlx5_ib_flow_action),
 	UAPI_DEF_CHAIN_OBJ_TREE(UVERBS_OBJECT_DM, &mlx5_ib_dm),
+	UAPI_DEF_CHAIN_OBJ_TREE(UVERBS_OBJECT_DEVICE, &mlx5_ib_query_context),
 	UAPI_DEF_CHAIN_OBJ_TREE_NAMED(MLX5_IB_OBJECT_VAR,
 				UAPI_DEF_IS_OBJ_SUPPORTED(var_is_supported)),
 	UAPI_DEF_CHAIN_OBJ_TREE_NAMED(MLX5_IB_OBJECT_UAR),
@@ -6605,6 +6639,7 @@ static const struct ib_device_ops mlx5_ib_dev_ops = {
 	.query_pkey = mlx5_ib_query_pkey,
 	.query_qp = mlx5_ib_query_qp,
 	.query_srq = mlx5_ib_query_srq,
+	.query_ucontext = mlx5_ib_query_ucontext,
 	.read_counters = mlx5_ib_read_counters,
 	.reg_user_mr = mlx5_ib_reg_user_mr,
 	.req_notify_cq = mlx5_ib_arm_cq,
