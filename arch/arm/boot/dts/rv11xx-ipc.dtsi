@@ -50,6 +50,10 @@
 	cpu-supply = <&vdd_arm>;
 };
 
+&cpu_tsadc {
+	status = "okay";
+};
+
 &display_subsystem {
 	status = "okay";
 };
@@ -78,6 +82,10 @@
 
 &npu {
 	npu-supply = <&vdd_npu>;
+	status = "okay";
+};
+
+&npu_tsadc {
 	status = "okay";
 };
 
