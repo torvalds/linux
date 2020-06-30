@@ -522,6 +522,8 @@ struct iio_buffer_setup_ops {
  * @flags:		[INTERN] file ops related flags including busy flag.
  * @debugfs_dentry:	[INTERN] device specific debugfs dentry.
  * @cached_reg_addr:	[INTERN] cached register address for debugfs reads.
+ * @priv:		[DRIVER] reference to driver's private information
+ *			**MUST** be accessed **ONLY** via iio_priv() helper
  */
 struct iio_dev {
 	int				id;
@@ -571,6 +573,7 @@ struct iio_dev {
 	char				read_buf[20];
 	unsigned int			read_buf_len;
 #endif
+	void				*priv;
 };
 
 const struct iio_chan_spec
@@ -698,9 +701,10 @@ static inline void *iio_device_get_drvdata(const struct iio_dev *indio_dev)
 #define IIO_ALIGN L1_CACHE_BYTES
 struct iio_dev *iio_device_alloc(struct device *parent, int sizeof_priv);
 
+/* The information at the returned address is guaranteed to be cacheline aligned */
 static inline void *iio_priv(const struct iio_dev *indio_dev)
 {
-	return (char *)indio_dev + ALIGN(sizeof(struct iio_dev), IIO_ALIGN);
+	return indio_dev->priv;
 }
 
 static inline struct iio_dev *iio_priv_to_dev(void *priv)
