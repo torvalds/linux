@@ -93,6 +93,7 @@ config GKI_HIDDEN_MEDIA_CONFIGS
 	select CEC_CORE
 	select CEC_NOTIFIER
 	select CEC_PIN
+	select VIDEOBUF2_DMA_CONTIG
 	help
 	  Dummy config option used to enable hidden media configs.
 	  These are normally selected implicitly when a module
