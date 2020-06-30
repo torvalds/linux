@@ -137,9 +137,8 @@ static inline int btrfs_ordered_sum_size(struct btrfs_fs_info *fs_info,
 					 unsigned long bytes)
 {
 	int num_sectors = (int)DIV_ROUND_UP(bytes, fs_info->sectorsize);
-	const u32 csum_size = fs_info->csum_size;
 
-	return sizeof(struct btrfs_ordered_sum) + num_sectors * csum_size;
+	return sizeof(struct btrfs_ordered_sum) + num_sectors * fs_info->csum_size;
 }
 
 static inline void

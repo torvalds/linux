@@ -454,7 +454,6 @@ static int csum_dirty_buffer(struct btrfs_fs_info *fs_info, struct page *page)
 	u64 start = page_offset(page);
 	u64 found_start;
 	u8 result[BTRFS_CSUM_SIZE];
-	const u32 csum_size = fs_info->csum_size;
 	struct extent_buffer *eb;
 	int ret;
 
@@ -491,7 +490,7 @@ static int csum_dirty_buffer(struct btrfs_fs_info *fs_info, struct page *page)
 		WARN_ON(IS_ENABLED(CONFIG_BTRFS_DEBUG));
 		return ret;
 	}
-	write_extent_buffer(eb, result, 0, csum_size);
+	write_extent_buffer(eb, result, 0, fs_info->csum_size);
 
 	return 0;
 }

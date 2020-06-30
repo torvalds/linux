@@ -540,7 +540,6 @@ blk_status_t btrfs_csum_one_bio(struct btrfs_inode *inode, struct bio *bio,
 	int i;
 	u64 offset;
 	unsigned nofs_flag;
-	const u32 csum_size = fs_info->csum_size;
 
 	nofs_flag = memalloc_nofs_save();
 	sums = kvzalloc(btrfs_ordered_sum_size(fs_info, bio->bi_iter.bi_size),
@@ -608,7 +607,7 @@ blk_status_t btrfs_csum_one_bio(struct btrfs_inode *inode, struct bio *bio,
 					    fs_info->sectorsize,
 					    sums->sums + index);
 			kunmap_atomic(data);
-			index += csum_size;
+			index += fs_info->csum_size;
 			offset += fs_info->sectorsize;
 			this_sum_bytes += fs_info->sectorsize;
 			total_bytes += fs_info->sectorsize;
