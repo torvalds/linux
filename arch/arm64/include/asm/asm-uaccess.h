@@ -2,7 +2,7 @@
 #ifndef __ASM_ASM_UACCESS_H
 #define __ASM_ASM_UACCESS_H
 
-#include <asm/alternative.h>
+#include <asm/alternative-macros.h>
 #include <asm/kernel-pgtable.h>
 #include <asm/mmu.h>
 #include <asm/sysreg.h>

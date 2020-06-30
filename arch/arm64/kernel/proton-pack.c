@@ -24,6 +24,7 @@
 #include <linux/prctl.h>
 #include <linux/sched/task_stack.h>
 
+#include <asm/insn.h>
 #include <asm/spectre.h>
 #include <asm/traps.h>
 
