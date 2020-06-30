@@ -29,34 +29,6 @@ static void SUBFLOW_REQ_INC_STATS(struct request_sock *req,
 	MPTCP_INC_STATS(sock_net(req_to_sk(req)), field);
 }
 
-static int subflow_rebuild_header(struct sock *sk)
-{
-	struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(sk);
-	int local_id;
-
-	if (subflow->request_join && !subflow->local_nonce) {
-		struct mptcp_sock *msk = (struct mptcp_sock *)subflow->conn;
-
-		pr_debug("subflow=%p", sk);
-
-		do {
-			get_random_bytes(&subflow->local_nonce, sizeof(u32));
-		} while (!subflow->local_nonce);
-
-		if (subflow->local_id)
-			goto out;
-
-		local_id = mptcp_pm_get_local_id(msk, (struct sock_common *)sk);
-		if (local_id < 0)
-			return -EINVAL;
-
-		subflow->local_id = local_id;
-	}
-
-out:
-	return subflow->icsk_af_ops->rebuild_header(sk);
-}
-
 static void subflow_req_destructor(struct request_sock *req)
 {
 	struct mptcp_subflow_request_sock *subflow_req = mptcp_subflow_rsk(req);
@@ -984,7 +956,9 @@ int __mptcp_subflow_connect(struct sock *sk, int ifindex,
 	struct mptcp_sock *msk = mptcp_sk(sk);
 	struct mptcp_subflow_context *subflow;
 	struct sockaddr_storage addr;
+	int local_id = loc->id;
 	struct socket *sf;
+	struct sock *ssk;
 	u32 remote_token;
 	int addrlen;
 	int err;
@@ -996,7 +970,20 @@ int __mptcp_subflow_connect(struct sock *sk, int ifindex,
 	if (err)
 		return err;
 
-	subflow = mptcp_subflow_ctx(sf->sk);
+	ssk = sf->sk;
+	subflow = mptcp_subflow_ctx(ssk);
+	do {
+		get_random_bytes(&subflow->local_nonce, sizeof(u32));
+	} while (!subflow->local_nonce);
+
+	if (!local_id) {
+		err = mptcp_pm_get_local_id(msk, (struct sock_common *)ssk);
+		if (err < 0)
+			goto failed;
+
+		local_id = err;
+	}
+
 	subflow->remote_key = msk->remote_key;
 	subflow->local_key = msk->local_key;
 	subflow->token = msk->token;
@@ -1007,15 +994,16 @@ int __mptcp_subflow_connect(struct sock *sk, int ifindex,
 	if (loc->family == AF_INET6)
 		addrlen = sizeof(struct sockaddr_in6);
 #endif
-	sf->sk->sk_bound_dev_if = ifindex;
+	ssk->sk_bound_dev_if = ifindex;
 	err = kernel_bind(sf, (struct sockaddr *)&addr, addrlen);
 	if (err)
 		goto failed;
 
 	mptcp_crypto_key_sha(subflow->remote_key, &remote_token, NULL);
-	pr_debug("msk=%p remote_token=%u", msk, remote_token);
+	pr_debug("msk=%p remote_token=%u local_id=%d", msk, remote_token,
+		 local_id);
 	subflow->remote_token = remote_token;
-	subflow->local_id = loc->id;
+	subflow->local_id = local_id;
 	subflow->request_join = 1;
 	subflow->request_bkup = 1;
 	mptcp_info2sockaddr(remote, &addr);
@@ -1288,7 +1276,6 @@ void __init mptcp_subflow_init(void)
 	subflow_specific.conn_request = subflow_v4_conn_request;
 	subflow_specific.syn_recv_sock = subflow_syn_recv_sock;
 	subflow_specific.sk_rx_dst_set = subflow_finish_connect;
-	subflow_specific.rebuild_header = subflow_rebuild_header;
 
 #if IS_ENABLED(CONFIG_MPTCP_IPV6)
 	subflow_request_sock_ipv6_ops = tcp_request_sock_ipv6_ops;
@@ -1298,7 +1285,6 @@ void __init mptcp_subflow_init(void)
 	subflow_v6_specific.conn_request = subflow_v6_conn_request;
 	subflow_v6_specific.syn_recv_sock = subflow_syn_recv_sock;
 	subflow_v6_specific.sk_rx_dst_set = subflow_finish_connect;
-	subflow_v6_specific.rebuild_header = subflow_rebuild_header;
 
 	subflow_v6m_specific = subflow_v6_specific;
 	subflow_v6m_specific.queue_xmit = ipv4_specific.queue_xmit;
