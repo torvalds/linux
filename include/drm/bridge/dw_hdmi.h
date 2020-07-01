@@ -179,6 +179,7 @@ struct dw_hdmi_plat_data {
 
 	/* Vendor Property support */
 	const struct dw_hdmi_property_ops *property_ops;
+	struct drm_connector *connector;
 };
 
 struct dw_hdmi *dw_hdmi_probe(struct platform_device *pdev,
@@ -187,7 +188,7 @@ void dw_hdmi_remove(struct dw_hdmi *hdmi);
 void dw_hdmi_unbind(struct dw_hdmi *hdmi);
 struct dw_hdmi *dw_hdmi_bind(struct platform_device *pdev,
 			     struct drm_encoder *encoder,
-			     const struct dw_hdmi_plat_data *plat_data);
+			     struct dw_hdmi_plat_data *plat_data);
 void dw_hdmi_suspend(struct device *dev, struct dw_hdmi *hdmi);
 void dw_hdmi_resume(struct device *dev, struct dw_hdmi *hdmi);
 

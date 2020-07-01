@@ -2940,7 +2940,6 @@ static int dw_hdmi_bridge_attach(struct drm_bridge *bridge)
 	connector->interlace_allowed = 1;
 	connector->polled = DRM_CONNECTOR_POLL_HPD;
 
-	connector->port = hdmi->dev->of_node;
 	drm_connector_helper_add(connector, &dw_hdmi_connector_helper_funcs);
 
 	drm_connector_init(bridge->dev, connector, &dw_hdmi_connector_funcs,
@@ -3982,7 +3981,7 @@ EXPORT_SYMBOL_GPL(dw_hdmi_remove);
  */
 struct dw_hdmi *dw_hdmi_bind(struct platform_device *pdev,
 			     struct drm_encoder *encoder,
-			     const struct dw_hdmi_plat_data *plat_data)
+			     struct dw_hdmi_plat_data *plat_data)
 {
 	struct dw_hdmi *hdmi;
 	int ret;
@@ -3997,6 +3996,7 @@ struct dw_hdmi *dw_hdmi_bind(struct platform_device *pdev,
 		DRM_ERROR("Failed to initialize bridge with drm\n");
 		return ERR_PTR(ret);
 	}
+	plat_data->connector = &hdmi->connector;
 
 	return hdmi;
 }
