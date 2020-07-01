@@ -13,9 +13,9 @@
  * struct hl_eqe_work - This structure is used to schedule work of EQ
  *                      entry and armcp_reset event
  *
- * @eq_work          - workqueue object to run when EQ entry is received
- * @hdev             - pointer to device structure
- * @eq_entry         - copy of the EQ entry
+ * @eq_work:          workqueue object to run when EQ entry is received
+ * @hdev:             pointer to device structure
+ * @eq_entry:         copy of the EQ entry
  */
 struct hl_eqe_work {
 	struct work_struct	eq_work;
@@ -23,7 +23,7 @@ struct hl_eqe_work {
 	struct hl_eq_entry	eq_entry;
 };
 
-/*
+/**
  * hl_cq_inc_ptr - increment ci or pi of cq
  *
  * @ptr: the current ci or pi value of the completion queue
@@ -39,7 +39,7 @@ inline u32 hl_cq_inc_ptr(u32 ptr)
 	return ptr;
 }
 
-/*
+/**
  * hl_eq_inc_ptr - increment ci of eq
  *
  * @ptr: the current ci value of the event queue
@@ -66,7 +66,7 @@ static void irq_handle_eqe(struct work_struct *work)
 	kfree(eqe_work);
 }
 
-/*
+/**
  * hl_irq_handler_cq - irq handler for completion queue
  *
  * @irq: irq number
@@ -142,7 +142,7 @@ irqreturn_t hl_irq_handler_cq(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-/*
+/**
  * hl_irq_handler_eq - irq handler for event queue
  *
  * @irq: irq number
@@ -206,7 +206,7 @@ skip_irq:
 	return IRQ_HANDLED;
 }
 
-/*
+/**
  * hl_cq_init - main initialization function for an cq object
  *
  * @hdev: pointer to device structure
@@ -238,7 +238,7 @@ int hl_cq_init(struct hl_device *hdev, struct hl_cq *q, u32 hw_queue_id)
 	return 0;
 }
 
-/*
+/**
  * hl_cq_fini - destroy completion queue
  *
  * @hdev: pointer to device structure
@@ -269,7 +269,7 @@ void hl_cq_reset(struct hl_device *hdev, struct hl_cq *q)
 	memset((void *) (uintptr_t) q->kernel_address, 0, HL_CQ_SIZE_IN_BYTES);
 }
 
-/*
+/**
  * hl_eq_init - main initialization function for an event queue object
  *
  * @hdev: pointer to device structure
@@ -297,7 +297,7 @@ int hl_eq_init(struct hl_device *hdev, struct hl_eq *q)
 	return 0;
 }
 
-/*
+/**
  * hl_eq_fini - destroy event queue
  *
  * @hdev: pointer to device structure
