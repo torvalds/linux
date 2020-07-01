@@ -789,14 +789,14 @@ static int __eb_add_lut(struct i915_execbuffer *eb,
 		if (err == 0) { /* And nor has this handle */
 			struct drm_i915_gem_object *obj = vma->obj;
 
-			i915_gem_object_lock(obj);
+			spin_lock(&obj->lut_lock);
 			if (idr_find(&eb->file->object_idr, handle) == obj) {
 				list_add(&lut->obj_link, &obj->lut_list);
 			} else {
 				radix_tree_delete(&ctx->handles_vma, handle);
 				err = -ENOENT;
 			}
-			i915_gem_object_unlock(obj);
+			spin_unlock(&obj->lut_lock);
 		}
 		mutex_unlock(&ctx->mutex);
 	}
