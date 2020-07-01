@@ -33,6 +33,8 @@
 
 #include <drm/bridge/analogix_dp.h>
 
+#include "../bridge/analogix/analogix_dp_core.h"
+
 #include "rockchip_drm_drv.h"
 #include "rockchip_drm_psr.h"
 #include "rockchip_drm_vop.h"
@@ -79,6 +81,7 @@ struct rockchip_dp_device {
 
 	struct analogix_dp_device *adp;
 	struct analogix_dp_plat_data plat_data;
+	struct rockchip_drm_sub_dev sub_dev;
 };
 
 static int analogix_dp_psr_set(struct drm_encoder *encoder, bool enabled)
@@ -444,6 +447,10 @@ static int rockchip_dp_bind(struct device *dev, struct device *master,
 		goto err_unreg_psr;
 	}
 
+	dp->sub_dev.connector = &dp->adp->connector;
+	dp->sub_dev.of_node = dev->of_node;
+	rockchip_drm_register_sub_dev(&dp->sub_dev);
+
 	return 0;
 err_unreg_psr:
 	rockchip_drm_psr_unregister(&dp->encoder);
@@ -457,6 +464,7 @@ static void rockchip_dp_unbind(struct device *dev, struct device *master,
 {
 	struct rockchip_dp_device *dp = dev_get_drvdata(dev);
 
+	rockchip_drm_unregister_sub_dev(&dp->sub_dev);
 	analogix_dp_unbind(dp->adp);
 	rockchip_drm_psr_unregister(&dp->encoder);
 	dp->encoder.funcs->destroy(&dp->encoder);

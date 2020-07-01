@@ -22,6 +22,7 @@
 #include <video/of_display_timing.h>
 #include <video/videomode.h>
 
+#include "../rockchip_drm_drv.h"
 #include "rk618_dither.h"
 
 enum {
@@ -41,6 +42,7 @@ struct rk618_lvds {
 	struct rk618 *parent;
 	bool dual_channel;
 	u32 format;
+	struct rockchip_drm_sub_dev sub_dev;
 };
 
 static inline struct rk618_lvds *bridge_to_lvds(struct drm_bridge *b)
@@ -190,11 +192,23 @@ static int rk618_lvds_bridge_attach(struct drm_bridge *bridge)
 		return ret;
 	}
 
+	lvds->sub_dev.connector = &lvds->connector;
+	lvds->sub_dev.of_node = lvds->dev->of_node;
+	rockchip_drm_register_sub_dev(&lvds->sub_dev);
+
 	return 0;
+}
+
+static void rk618_lvds_bridge_detach(struct drm_bridge *bridge)
+{
+	struct rk618_lvds *lvds = bridge_to_lvds(bridge);
+
+	rockchip_drm_unregister_sub_dev(&lvds->sub_dev);
 }
 
 static const struct drm_bridge_funcs rk618_lvds_bridge_funcs = {
 	.attach = rk618_lvds_bridge_attach,
+	.detach = rk618_lvds_bridge_detach,
 	.mode_set = rk618_lvds_bridge_mode_set,
 	.enable = rk618_lvds_bridge_enable,
 	.disable = rk618_lvds_bridge_disable,

@@ -28,6 +28,8 @@
 
 #include <sound/hdmi-codec.h>
 
+#include "../rockchip_drm_drv.h"
+
 #define RK618_HDMI_BASE			0x0400
 
 #define DDC_SEGMENT_ADDR		0x30
@@ -436,6 +438,7 @@ struct rk618_hdmi {
 #ifdef CONFIG_SWITCH
 	struct switch_dev switchdev;
 #endif
+	struct rockchip_drm_sub_dev sub_dev;
 };
 
 enum {
@@ -1092,6 +1095,10 @@ static int rk618_hdmi_bridge_attach(struct drm_bridge *bridge)
 				 &rk618_hdmi_connector_helper_funcs);
 	drm_connector_attach_encoder(connector, bridge->encoder);
 
+	hdmi->sub_dev.connector = &hdmi->connector;
+	hdmi->sub_dev.of_node = hdmi->dev->of_node;
+	rockchip_drm_register_sub_dev(&hdmi->sub_dev);
+
 	endpoint = of_graph_get_endpoint_by_regs(dev->of_node, 1, -1);
 	if (endpoint && of_device_is_available(endpoint)) {
 		struct device_node *remote;
@@ -1116,8 +1123,16 @@ static int rk618_hdmi_bridge_attach(struct drm_bridge *bridge)
 	return 0;
 }
 
+static void rk618_hdmi_bridge_detach(struct drm_bridge *bridge)
+{
+	struct rk618_hdmi *hdmi = bridge_to_hdmi(bridge);
+
+	rockchip_drm_unregister_sub_dev(&hdmi->sub_dev);
+}
+
 static const struct drm_bridge_funcs rk618_hdmi_bridge_funcs = {
 	.attach = rk618_hdmi_bridge_attach,
+	.detach = rk618_hdmi_bridge_detach,
 	.mode_set = rk618_hdmi_bridge_mode_set,
 	.enable = rk618_hdmi_bridge_enable,
 	.disable = rk618_hdmi_bridge_disable,

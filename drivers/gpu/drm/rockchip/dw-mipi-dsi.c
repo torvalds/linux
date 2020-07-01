@@ -278,6 +278,7 @@ struct dw_mipi_dsi {
 	unsigned long mode_flags;
 
 	const struct dw_mipi_dsi_plat_data *pdata;
+	struct rockchip_drm_sub_dev sub_dev;
 };
 
 static inline struct dw_mipi_dsi *host_to_dsi(struct mipi_dsi_host *host)
@@ -1527,7 +1528,9 @@ static int dw_mipi_dsi_bind(struct device *dev, struct device *master,
 			DRM_DEV_ERROR(dev, "Failed to attach panel: %d\n", ret);
 			goto connector_cleanup;
 		}
-
+		dsi->sub_dev.connector = &dsi->connector;
+		dsi->sub_dev.of_node = dev->of_node;
+		rockchip_drm_register_sub_dev(&dsi->sub_dev);
 	} else {
 		dsi->bridge->driver_private = &dsi->host;
 		dsi->bridge->encoder = encoder;
@@ -1558,6 +1561,8 @@ static void dw_mipi_dsi_unbind(struct device *dev, struct device *master,
 {
 	struct dw_mipi_dsi *dsi = dev_get_drvdata(dev);
 
+	if (dsi->sub_dev.connector)
+		rockchip_drm_unregister_sub_dev(&dsi->sub_dev);
 	pm_runtime_disable(dsi->dev);
 	if (dsi->slave)
 		pm_runtime_disable(dsi->slave->dev);

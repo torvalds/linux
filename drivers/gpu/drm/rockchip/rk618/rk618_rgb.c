@@ -22,6 +22,7 @@
 
 #include <video/videomode.h>
 
+#include "../rockchip_drm_drv.h"
 #include "rk618_dither.h"
 
 struct rk618_rgb {
@@ -34,6 +35,7 @@ struct rk618_rgb {
 	struct clk *clock;
 	struct rk618 *parent;
 	u32 id;
+	struct rockchip_drm_sub_dev sub_dev;
 };
 
 static inline struct rk618_rgb *bridge_to_rgb(struct drm_bridge *b)
@@ -184,6 +186,10 @@ static int rk618_rgb_bridge_attach(struct drm_bridge *bridge)
 					 &rk618_rgb_connector_helper_funcs);
 		drm_connector_attach_encoder(connector, bridge->encoder);
 		drm_panel_attach(rgb->panel, connector);
+
+		rgb->sub_dev.connector = &rgb->connector;
+		rgb->sub_dev.of_node = rgb->dev->of_node;
+		rockchip_drm_register_sub_dev(&rgb->sub_dev);
 	} else {
 		ret = drm_bridge_attach(bridge->encoder, rgb->bridge, bridge);
 		if (ret) {
@@ -195,8 +201,16 @@ static int rk618_rgb_bridge_attach(struct drm_bridge *bridge)
 	return 0;
 }
 
+static void rk618_rgb_bridge_detach(struct drm_bridge *bridge)
+{
+	struct rk618_rgb *rgb = bridge_to_rgb(bridge);
+
+	rockchip_drm_unregister_sub_dev(&rgb->sub_dev);
+}
+
 static const struct drm_bridge_funcs rk618_rgb_bridge_funcs = {
 	.attach = rk618_rgb_bridge_attach,
+	.detach = rk618_rgb_bridge_detach,
 	.enable = rk618_rgb_bridge_enable,
 	.disable = rk618_rgb_bridge_disable,
 };

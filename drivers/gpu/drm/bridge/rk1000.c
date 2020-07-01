@@ -20,6 +20,8 @@
 #include <drm/drm_of.h>
 #include <drm/drmP.h>
 
+#include "../rockchip/rockchip_drm_drv.h"
+
 #define TVE_POWCR 0x03
 #define TVE_OFF 0X07
 #define TVE_ON 0x03
@@ -45,6 +47,7 @@ struct rk1000_tve {
 	struct regmap *ctlmap;
 	struct regmap *tvemap;
 	u32 preferred_mode;
+	struct rockchip_drm_sub_dev sub_dev;
 };
 
 enum {
@@ -314,7 +317,18 @@ static int rk1000_bridge_attach(struct drm_bridge *bridge)
 	if (ret)
 		dev_err(rk1000->dev, "rk1000 attach failed ret:%d", ret);
 
+	rk1000->sub_dev.connector = &rk1000->connector;
+	rk1000->sub_dev.of_node = rk1000->dev->of_node;
+	rockchip_drm_register_sub_dev(&rk1000->sub_dev);
+
 	return ret;
+}
+
+static void rk1000_bridge_detach(struct drm_bridge *bridge)
+{
+	struct rk1000_tve *rk1000 = bridge_to_rk1000(bridge);
+
+	rockchip_drm_unregister_sub_dev(&rk1000->sub_dev);
 }
 
 static struct drm_bridge_funcs rk1000_bridge_funcs = {
@@ -322,6 +336,7 @@ static struct drm_bridge_funcs rk1000_bridge_funcs = {
 	.disable = rk1000_bridge_disable,
 	.mode_set = rk1000_bridge_mode_set,
 	.attach = rk1000_bridge_attach,
+	.detach = rk1000_bridge_detach,
 };
 
 static int rk1000_probe(struct i2c_client *client,

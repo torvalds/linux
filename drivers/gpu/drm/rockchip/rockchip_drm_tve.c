@@ -539,6 +539,9 @@ static int rockchip_tve_bind(struct device *dev, struct device *master,
 		dev_dbg(tve->dev, "failed to attach connector and encoder\n");
 		goto err_free_connector;
 	}
+	tve->sub_dev.connector = &tve->connector;
+	tve->sub_dev.of_node = tve->dev->of_node;
+	rockchip_drm_register_sub_dev(&tve->sub_dev);
 
 	pm_runtime_enable(dev);
 	dev_dbg(tve->dev, "%s tv encoder probe ok\n", match->compatible);
@@ -557,6 +560,7 @@ static void rockchip_tve_unbind(struct device *dev, struct device *master,
 {
 	struct rockchip_tve *tve = dev_get_drvdata(dev);
 
+	rockchip_drm_unregister_sub_dev(&tve->sub_dev);
 	rockchip_tve_encoder_disable(&tve->encoder);
 
 	drm_connector_cleanup(&tve->connector);

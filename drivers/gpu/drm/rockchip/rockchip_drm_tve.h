@@ -159,6 +159,7 @@ struct rockchip_tve {
 	u32 dac1level;
 	u32 preferred_mode;
 	struct mutex suspend_lock;	/* mutex for tve resume operation*/
+	struct rockchip_drm_sub_dev sub_dev;
 };
 
 #endif /* _ROCKCHIP_DRM_TVE_ */
