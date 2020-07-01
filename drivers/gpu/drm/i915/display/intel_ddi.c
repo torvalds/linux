@@ -1184,16 +1184,15 @@ static void intel_prepare_hdmi_ddi_buffers(struct intel_encoder *encoder,
 static void intel_wait_ddi_buf_idle(struct drm_i915_private *dev_priv,
 				    enum port port)
 {
-	i915_reg_t reg = DDI_BUF_CTL(port);
-	int i;
-
-	for (i = 0; i < 16; i++) {
-		udelay(1);
-		if (intel_de_read(dev_priv, reg) & DDI_BUF_IS_IDLE)
-			return;
+	if (IS_BROXTON(dev_priv)) {
+		udelay(16);
+		return;
 	}
-	drm_err(&dev_priv->drm, "Timeout waiting for DDI BUF %c idle bit\n",
-		port_name(port));
+
+	if (wait_for_us((intel_de_read(dev_priv, DDI_BUF_CTL(port)) &
+			 DDI_BUF_IS_IDLE), 8))
+		drm_err(&dev_priv->drm, "Timeout waiting for DDI BUF %c to get idle\n",
+			port_name(port));
 }
 
 static u32 hsw_pll_to_ddi_pll_sel(const struct intel_shared_dpll *pll)
