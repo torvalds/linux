@@ -2960,7 +2960,7 @@ static ssize_t amdgpu_hwmon_show_sclk(struct device *dev,
 	if (r)
 		return r;
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", sclk * 10 * 1000);
+	return snprintf(buf, PAGE_SIZE, "%u\n", sclk * 10 * 1000);
 }
 
 static ssize_t amdgpu_hwmon_show_sclk_label(struct device *dev,
@@ -2997,7 +2997,7 @@ static ssize_t amdgpu_hwmon_show_mclk(struct device *dev,
 	if (r)
 		return r;
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", mclk * 10 * 1000);
+	return snprintf(buf, PAGE_SIZE, "%u\n", mclk * 10 * 1000);
 }
 
 static ssize_t amdgpu_hwmon_show_mclk_label(struct device *dev,
