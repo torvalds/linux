@@ -188,15 +188,14 @@ static int upload_firmware(struct wfx_dev *wdev, const u8 *data, size_t len)
 	while (offs < len) {
 		start = ktime_get();
 		for (;;) {
-			ret = sram_reg_read(wdev, WFX_DCA_GET, &bytes_done);
-			if (ret < 0)
-				return ret;
 			now = ktime_get();
-			if (offs +
-			    DNLD_BLOCK_SIZE - bytes_done < DNLD_FIFO_SIZE)
+			if (offs + DNLD_BLOCK_SIZE - bytes_done < DNLD_FIFO_SIZE)
 				break;
 			if (ktime_after(now, ktime_add_ms(start, DCA_TIMEOUT)))
 				return -ETIMEDOUT;
+			ret = sram_reg_read(wdev, WFX_DCA_GET, &bytes_done);
+			if (ret < 0)
+				return ret;
 		}
 		if (ktime_compare(now, start))
 			dev_dbg(wdev->dev, "answer after %lldus\n",
