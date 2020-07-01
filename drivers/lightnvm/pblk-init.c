@@ -63,7 +63,7 @@ static blk_qc_t pblk_make_rq(struct request_queue *q, struct bio *bio)
 	 * constraint. Writes can be of arbitrary size.
 	 */
 	if (bio_data_dir(bio) == READ) {
-		blk_queue_split(q, &bio);
+		blk_queue_split(&bio);
 		pblk_submit_read(pblk, bio);
 	} else {
 		/* Prevent deadlock in the case of a modest LUN configuration
@@ -71,7 +71,7 @@ static blk_qc_t pblk_make_rq(struct request_queue *q, struct bio *bio)
 		 * leaves at least 256KB available for user I/O.
 		 */
 		if (pblk_get_secs(bio) > pblk_rl_max_io(&pblk->rl))
-			blk_queue_split(q, &bio);
+			blk_queue_split(&bio);
 
 		pblk_write_to_cache(pblk, bio, PBLK_IOTYPE_USER);
 	}

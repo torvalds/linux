@@ -283,20 +283,20 @@ split:
 
 /**
  * __blk_queue_split - split a bio and submit the second half
- * @q:       [in] request queue pointer
  * @bio:     [in, out] bio to be split
  * @nr_segs: [out] number of segments in the first bio
  *
  * Split a bio into two bios, chain the two bios, submit the second half and
  * store a pointer to the first half in *@bio. If the second bio is still too
  * big it will be split by a recursive call to this function. Since this
- * function may allocate a new bio from @q->bio_split, it is the responsibility
- * of the caller to ensure that @q is only released after processing of the
+ * function may allocate a new bio from @bio->bi_disk->queue->bio_split, it is
+ * the responsibility of the caller to ensure that
+ * @bio->bi_disk->queue->bio_split is only released after processing of the
  * split bio has finished.
  */
-void __blk_queue_split(struct request_queue *q, struct bio **bio,
-		unsigned int *nr_segs)
+void __blk_queue_split(struct bio **bio, unsigned int *nr_segs)
 {
+	struct request_queue *q = (*bio)->bi_disk->queue;
 	struct bio *split = NULL;
 
 	switch (bio_op(*bio)) {
@@ -345,20 +345,19 @@ void __blk_queue_split(struct request_queue *q, struct bio **bio,
 
 /**
  * blk_queue_split - split a bio and submit the second half
- * @q:   [in] request queue pointer
  * @bio: [in, out] bio to be split
  *
  * Split a bio into two bios, chains the two bios, submit the second half and
  * store a pointer to the first half in *@bio. Since this function may allocate
- * a new bio from @q->bio_split, it is the responsibility of the caller to
- * ensure that @q is only released after processing of the split bio has
- * finished.
+ * a new bio from @bio->bi_disk->queue->bio_split, it is the responsibility of
+ * the caller to ensure that @bio->bi_disk->queue->bio_split is only released
+ * after processing of the split bio has finished.
  */
-void blk_queue_split(struct request_queue *q, struct bio **bio)
+void blk_queue_split(struct bio **bio)
 {
 	unsigned int nr_segs;
 
-	__blk_queue_split(q, bio, &nr_segs);
+	__blk_queue_split(bio, &nr_segs);
 }
 EXPORT_SYMBOL(blk_queue_split);
 

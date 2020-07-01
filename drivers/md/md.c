@@ -475,7 +475,7 @@ static blk_qc_t md_make_request(struct request_queue *q, struct bio *bio)
 		return BLK_QC_T_NONE;
 	}
 
-	blk_queue_split(q, &bio);
+	blk_queue_split(&bio);
 
 	if (mddev == NULL || mddev->pers == NULL) {
 		bio_io_error(bio);

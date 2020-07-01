@@ -2166,7 +2166,7 @@ blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 	blk_status_t ret;
 
 	blk_queue_bounce(q, &bio);
-	__blk_queue_split(q, &bio, &nr_segs);
+	__blk_queue_split(&bio, &nr_segs);
 
 	if (!bio_integrity_prep(bio))
 		goto queue_exit;

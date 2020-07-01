@@ -123,7 +123,7 @@ static blk_qc_t rsxx_make_request(struct request_queue *q, struct bio *bio)
 	struct rsxx_bio_meta *bio_meta;
 	blk_status_t st = BLK_STS_IOERR;
 
-	blk_queue_split(q, &bio);
+	blk_queue_split(&bio);
 
 	might_sleep();
 
