@@ -494,6 +494,9 @@ static int fan53555_voltages_setup_tcs(struct fan53555_device_info *di)
 	di->vsel_step = 6250;
 	di->n_voltages = FAN53555_NVOLTAGES_127;
 
+	di->en_reg = di->vol_reg;
+	di->sleep_en_reg = di->sleep_reg;
+
 	return 0;
 }
 
