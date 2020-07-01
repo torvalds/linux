@@ -1018,13 +1018,12 @@ static int msdc_auto_cmd_done(struct msdc_host *host, int events,
 	return cmd->error;
 }
 
-/**
+/*
  * msdc_recheck_sdio_irq - recheck whether the SDIO irq is lost
  *
  * Host controller may lost interrupt in some special case.
  * Add SDIO irq recheck mechanism to make sure all interrupts
  * can be processed immediately
- *
  */
 static void msdc_recheck_sdio_irq(struct msdc_host *host)
 {
