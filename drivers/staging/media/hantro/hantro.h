@@ -212,9 +212,6 @@ struct hantro_dev {
  * @ctrl_handler:	Control handler used to register controls.
  * @jpeg_quality:	User-specified JPEG compression quality.
  *
- * @buf_finish:		Buffer finish. This depends on encoder or decoder
- *			context, and it's called right before
- *			calling v4l2_m2m_job_finish.
  * @codec_ops:		Set of operations related to codec mode.
  * @postproc:		Post-processing context.
  * @jpeg_enc:		JPEG-encoding context.
@@ -236,10 +233,6 @@ struct hantro_ctx {
 
 	struct v4l2_ctrl_handler ctrl_handler;
 	int jpeg_quality;
-
-	int (*buf_finish)(struct hantro_ctx *ctx,
-			  struct vb2_buffer *buf,
-			  unsigned int bytesused);
 
 	const struct hantro_codec_ops *codec_ops;
 	struct hantro_postproc_ctx postproc;

@@ -56,37 +56,12 @@ dma_addr_t hantro_get_ref(struct hantro_ctx *ctx, u64 ts)
 	return hantro_get_dec_buf_addr(ctx, buf);
 }
 
-static int
-hantro_enc_buf_finish(struct hantro_ctx *ctx, struct vb2_buffer *buf,
-		      unsigned int bytesused)
-{
-	size_t avail_size;
-
-	avail_size = vb2_plane_size(buf, 0) - ctx->vpu_dst_fmt->header_size;
-	if (bytesused > avail_size)
-		return -EINVAL;
-	/*
-	 * The bounce buffer is only for the JPEG encoder.
-	 * TODO: Rework the JPEG encoder to eliminate the need
-	 * for a bounce buffer.
-	 */
-	if (ctx->jpeg_enc.bounce_buffer.cpu) {
-		memcpy(vb2_plane_vaddr(buf, 0) +
-		       ctx->vpu_dst_fmt->header_size,
-		       ctx->jpeg_enc.bounce_buffer.cpu, bytesused);
-	}
-	buf->planes[0].bytesused =
-		ctx->vpu_dst_fmt->header_size + bytesused;
-	return 0;
-}
-
 static void hantro_job_finish(struct hantro_dev *vpu,
 			      struct hantro_ctx *ctx,
 			      unsigned int bytesused,
 			      enum vb2_buffer_state result)
 {
 	struct vb2_v4l2_buffer *src, *dst;
-	int ret;
 
 	pm_runtime_mark_last_busy(vpu->dev);
 	pm_runtime_put_autosuspend(vpu->dev);
@@ -103,12 +78,6 @@ static void hantro_job_finish(struct hantro_dev *vpu,
 	src->sequence = ctx->sequence_out++;
 	dst->sequence = ctx->sequence_cap++;
 
-	if (ctx->buf_finish) {
-		ret = ctx->buf_finish(ctx, &dst->vb2_buf, bytesused);
-		if (ret)
-			result = VB2_BUF_STATE_ERROR;
-	}
-
 	v4l2_m2m_buf_done_and_job_finish(ctx->dev->m2m_dev, ctx->fh.m2m_ctx,
 					 result);
 }
@@ -124,8 +93,11 @@ void hantro_irq_done(struct hantro_dev *vpu, unsigned int bytesused,
 	 * the timeout expired. The watchdog is running,
 	 * and will take care of finishing the job.
 	 */
-	if (cancel_delayed_work(&vpu->watchdog_work))
+	if (cancel_delayed_work(&vpu->watchdog_work)) {
+		if (result == VB2_BUF_STATE_DONE && ctx->codec_ops->done)
+			ctx->codec_ops->done(ctx);
 		hantro_job_finish(vpu, ctx, bytesused, result);
+	}
 }
 
 void hantro_watchdog(struct work_struct *work)
@@ -414,7 +386,6 @@ static int hantro_open(struct file *filp)
 	ctx->dev = vpu;
 	if (func->id == MEDIA_ENT_F_PROC_VIDEO_ENCODER) {
 		allowed_codecs = vpu->variant->codec & HANTRO_ENCODERS;
-		ctx->buf_finish = hantro_enc_buf_finish;
 		ctx->is_encoder = true;
 	} else if (func->id == MEDIA_ENT_F_PROC_VIDEO_DECODER) {
 		allowed_codecs = vpu->variant->codec & HANTRO_DECODERS;
