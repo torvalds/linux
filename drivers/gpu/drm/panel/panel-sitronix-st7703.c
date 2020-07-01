@@ -84,8 +84,6 @@ static inline struct st7703 *panel_to_st7703(struct drm_panel *panel)
 static int jh057n_init_sequence(struct st7703 *ctx)
 {
 	struct mipi_dsi_device *dsi = to_mipi_dsi_device(ctx->dev);
-	struct device *dev = ctx->dev;
-	int ret;
 
 	/*
 	 * Init sequence was supplied by the panel vendor. Most of the commands
@@ -136,20 +134,7 @@ static int jh057n_init_sequence(struct st7703 *ctx)
 			      0x18, 0x00, 0x09, 0x0E, 0x29, 0x2D, 0x3C, 0x41,
 			      0x37, 0x07, 0x0B, 0x0D, 0x10, 0x11, 0x0F, 0x10,
 			      0x11, 0x18);
-	msleep(20);
 
-	ret = mipi_dsi_dcs_exit_sleep_mode(dsi);
-	if (ret < 0) {
-		DRM_DEV_ERROR(dev, "Failed to exit sleep mode: %d\n", ret);
-		return ret;
-	}
-	/* Panel is operational 120 msec after reset */
-	msleep(60);
-	ret = mipi_dsi_dcs_set_display_on(dsi);
-	if (ret)
-		return ret;
-
-	DRM_DEV_DEBUG_DRIVER(dev, "Panel init sequence done\n");
 	return 0;
 }
 
@@ -180,6 +165,7 @@ struct st7703_panel_desc jh057n00900_panel_desc = {
 static int st7703_enable(struct drm_panel *panel)
 {
 	struct st7703 *ctx = panel_to_st7703(panel);
+	struct mipi_dsi_device *dsi = to_mipi_dsi_device(ctx->dev);
 	int ret;
 
 	ret = ctx->desc->init_sequence(ctx);
@@ -188,6 +174,23 @@ static int st7703_enable(struct drm_panel *panel)
 			      ret);
 		return ret;
 	}
+
+	msleep(20);
+
+	ret = mipi_dsi_dcs_exit_sleep_mode(dsi);
+	if (ret < 0) {
+		DRM_DEV_ERROR(ctx->dev, "Failed to exit sleep mode: %d\n", ret);
+		return ret;
+	}
+
+	/* Panel is operational 120 msec after reset */
+	msleep(60);
+
+	ret = mipi_dsi_dcs_set_display_on(dsi);
+	if (ret)
+		return ret;
+
+	DRM_DEV_DEBUG_DRIVER(ctx->dev, "Panel init sequence done\n");
 
 	return 0;
 }
