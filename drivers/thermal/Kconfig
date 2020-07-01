@@ -190,16 +190,6 @@ config CPU_IDLE_THERMAL
 	  idle cycle.
 endif
 
-config CLOCK_THERMAL
-	bool "Generic clock cooling support"
-	depends on COMMON_CLK
-	depends on PM_OPP
-	help
-	  This entry implements the generic clock cooling mechanism through
-	  frequency clipping. Typically used to cool off co-processors. The
-	  device that is configured to use this cooling mechanism will be
-	  controlled to reduce clock frequency whenever temperature is high.
-
 config DEVFREQ_THERMAL
 	bool "Generic device cooling support"
 	depends on PM_DEVFREQ
