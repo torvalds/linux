@@ -632,17 +632,18 @@ static int audit_policy(struct aa_label *label, const char *op,
 }
 
 /**
- * policy_view_capable - check if viewing policy in at @ns is allowed
- * ns: namespace being viewed by current task (may be NULL)
+ * aa_policy_view_capable - check if viewing policy in at @ns is allowed
+ * label: label that is trying to view policy in ns
+ * ns: namespace being viewed by @label (may be NULL if @label's ns)
  * Returns: true if viewing policy is allowed
  *
  * If @ns is NULL then the namespace being viewed is assumed to be the
  * tasks current namespace.
  */
-bool policy_view_capable(struct aa_ns *ns)
+bool aa_policy_view_capable(struct aa_label *label, struct aa_ns *ns)
 {
 	struct user_namespace *user_ns = current_user_ns();
-	struct aa_ns *view_ns = aa_get_current_ns();
+	struct aa_ns *view_ns = labels_view(label);
 	bool root_in_user_ns = uid_eq(current_euid(), make_kuid(user_ns, 0)) ||
 			       in_egroup_p(make_kgid(user_ns, 0));
 	bool response = false;
@@ -654,12 +655,11 @@ bool policy_view_capable(struct aa_ns *ns)
 	     (unprivileged_userns_apparmor_policy != 0 &&
 	      user_ns->level == view_ns->level)))
 		response = true;
-	aa_put_ns(view_ns);
 
 	return response;
 }
 
-bool policy_admin_capable(struct aa_ns *ns)
+bool aa_policy_admin_capable(struct aa_label *label, struct aa_ns *ns)
 {
 	struct user_namespace *user_ns = current_user_ns();
 	bool capable = ns_capable(user_ns, CAP_MAC_ADMIN);
@@ -667,7 +667,32 @@ bool policy_admin_capable(struct aa_ns *ns)
 	AA_DEBUG("cap_mac_admin? %d\n", capable);
 	AA_DEBUG("policy locked? %d\n", aa_g_lock_policy);
 
-	return policy_view_capable(ns) && capable && !aa_g_lock_policy;
+	return aa_policy_view_capable(label, ns) && capable &&
+		!aa_g_lock_policy;
+}
+
+bool aa_current_policy_view_capable(struct aa_ns *ns)
+{
+	struct aa_label *label;
+	bool res;
+
+	label = __begin_current_label_crit_section();
+	res = aa_policy_view_capable(label, ns);
+	__end_current_label_crit_section(label);
+
+	return res;
+}
+
+bool aa_current_policy_admin_capable(struct aa_ns *ns)
+{
+	struct aa_label *label;
+	bool res;
+
+	label = __begin_current_label_crit_section();
+	res = aa_policy_admin_capable(label, ns);
+	__end_current_label_crit_section(label);
+
+	return res;
 }
 
 /**
@@ -693,7 +718,7 @@ int aa_may_manage_policy(struct aa_label *label, struct aa_ns *ns, u32 mask)
 		return audit_policy(label, op, NULL, NULL, "policy_locked",
 				    -EACCES);
 
-	if (!policy_admin_capable(ns))
+	if (!aa_policy_admin_capable(label, ns))
 		return audit_policy(label, op, NULL, NULL, "not policy admin",
 				    -EACCES);
 

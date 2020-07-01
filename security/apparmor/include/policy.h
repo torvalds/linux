@@ -301,9 +301,11 @@ static inline int AUDIT_MODE(struct aa_profile *profile)
 	return profile->audit;
 }
 
-bool policy_view_capable(struct aa_ns *ns);
-bool policy_admin_capable(struct aa_ns *ns);
+bool aa_policy_view_capable(struct aa_label *label, struct aa_ns *ns);
+bool aa_policy_admin_capable(struct aa_label *label, struct aa_ns *ns);
 int aa_may_manage_policy(struct aa_label *label, struct aa_ns *ns,
 			 u32 mask);
+bool aa_current_policy_view_capable(struct aa_ns *ns);
+bool aa_current_policy_admin_capable(struct aa_ns *ns);
 
 #endif /* __AA_POLICY_H */

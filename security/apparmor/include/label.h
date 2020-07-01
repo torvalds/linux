@@ -148,6 +148,7 @@ do {							\
 #define __label_make_stale(X) ((X)->flags |= FLAG_STALE)
 #define labels_ns(X) (vec_ns(&((X)->vec[0]), (X)->size))
 #define labels_set(X) (&labels_ns(X)->labels)
+#define labels_view(X) labels_ns(X)
 #define labels_profile(X) ((X)->vec[(X)->size - 1])
 
 
