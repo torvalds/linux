@@ -240,8 +240,11 @@ static void scf_handler(void *scfc_in)
 	unsigned long r = torture_random(this_cpu_ptr(&scf_torture_rand));
 	struct scf_check *scfcp = scfc_in;
 
-	if (likely(scfcp) && WARN_ON_ONCE(unlikely(!READ_ONCE(scfcp->scfc_in))))
-		atomic_inc(&n_mb_in_errs);
+	if (likely(scfcp)) {
+		WRITE_ONCE(scfcp->scfc_out, false); // For multiple receivers.
+		if (WARN_ON_ONCE(unlikely(!READ_ONCE(scfcp->scfc_in))))
+			atomic_inc(&n_mb_in_errs);
+	}
 	this_cpu_inc(scf_invoked_count);
 	if (longwait <= 0) {
 		if (!(r & 0xffc0))
@@ -325,11 +328,28 @@ static void scftorture_invoke_one(struct scf_statistics *scfp, struct torture_ra
 		}
 		break;
 	case SCF_PRIM_MANY:
+		if (scfsp->scfs_wait) {
+			scfcp = kmalloc(sizeof(*scfcp), GFP_ATOMIC);
+			if (WARN_ON_ONCE(!scfcp))
+				atomic_inc(&n_alloc_errs);
+		}
 		if (scfsp->scfs_wait)
 			scfp->n_many_wait++;
 		else
 			scfp->n_many++;
-		smp_call_function_many(cpu_online_mask, scf_handler, NULL, scfsp->scfs_wait);
+		if (scfcp) {
+			scfcp->scfc_cpu = -1;
+			scfcp->scfc_wait = true;
+			scfcp->scfc_out = false;
+			scfcp->scfc_in = true;
+		}
+		smp_call_function_many(cpu_online_mask, scf_handler, scfcp, scfsp->scfs_wait);
+		if (scfcp) {
+			if (WARN_ON_ONCE(!scfcp->scfc_out))
+				atomic_inc(&n_mb_out_errs);  // Leak rather than trash!
+			else
+				kfree(scfcp);
+		}
 		break;
 	case SCF_PRIM_ALL:
 		if (scfsp->scfs_wait)
