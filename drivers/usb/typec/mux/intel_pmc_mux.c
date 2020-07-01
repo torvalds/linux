@@ -19,6 +19,10 @@
 
 #define PMC_USBC_CMD		0xa7
 
+/* Response status bits */
+#define PMC_USB_RESP_STATUS_FAILURE	BIT(0)
+#define PMC_USB_RESP_STATUS_FATAL	BIT(1)
+
 /* "Usage" OOB Message field values */
 enum {
 	PMC_USB_CONNECT,
@@ -130,8 +134,8 @@ static int pmc_usb_command(struct pmc_usb_port *port, u8 *msg, u32 len)
 	 */
 	intel_scu_ipc_dev_command(port->pmc->ipc, PMC_USBC_CMD, 0, msg, len,
 				  response, sizeof(response));
-	if (response[2]) {
-		if (response[2] & BIT(1))
+	if (response[2] & PMC_USB_RESP_STATUS_FAILURE) {
+		if (response[2] & PMC_USB_RESP_STATUS_FATAL)
 			return -EIO;
 		return -EBUSY;
 	}
