@@ -2036,10 +2036,10 @@ static void __iscsi_unbind_session(struct work_struct *work)
 	spin_unlock_irqrestore(&session->lock, flags);
 	mutex_unlock(&ihost->mutex);
 
+	scsi_remove_target(&session->dev);
+
 	if (session->ida_used)
 		ida_simple_remove(&iscsi_sess_ida, target_id);
-
-	scsi_remove_target(&session->dev);
 
 unbind_session_exit:
 	iscsi_session_event(session, ISCSI_KEVENT_UNBIND_SESSION);
