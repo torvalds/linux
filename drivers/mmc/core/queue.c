@@ -203,7 +203,7 @@ static unsigned int mmc_get_max_segments(struct mmc_host *host)
 
 /**
  * mmc_init_request() - initialize the MMC-specific per-request data
- * @q: the request queue
+ * @mq: the request queue
  * @req: the request
  * @gfp: memory allocation policy
  */
