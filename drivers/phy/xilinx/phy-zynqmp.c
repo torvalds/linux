@@ -815,8 +815,7 @@ static struct phy *xpsgtr_xlate(struct device *dev,
  * Power Management
  */
 
-#ifdef CONFIG_PM
-static int xpsgtr_suspend(struct device *dev)
+static int __maybe_unused xpsgtr_suspend(struct device *dev)
 {
 	struct xpsgtr_dev *gtr_dev = dev_get_drvdata(dev);
 
@@ -827,7 +826,7 @@ static int xpsgtr_suspend(struct device *dev)
 	return 0;
 }
 
-static int xpsgtr_resume(struct device *dev)
+static int __maybe_unused xpsgtr_resume(struct device *dev)
 {
 	struct xpsgtr_dev *gtr_dev = dev_get_drvdata(dev);
 	unsigned int icm_cfg0, icm_cfg1;
@@ -854,7 +853,6 @@ static int xpsgtr_resume(struct device *dev)
 
 	return 0;
 }
-#endif /* CONFIG_PM */
 
 static const struct dev_pm_ops xpsgtr_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(xpsgtr_suspend, xpsgtr_resume)
