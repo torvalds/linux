@@ -257,5 +257,15 @@ do {									\
 })
 #endif
 
+/*
+ * pmem_wmb() ensures that all stores for which the modification
+ * are written to persistent storage by preceding instructions have
+ * updated persistent storage before any data  access or data transfer
+ * caused by subsequent instructions is initiated.
+ */
+#ifndef pmem_wmb
+#define pmem_wmb()	wmb()
+#endif
+
 #endif /* !__ASSEMBLY__ */
 #endif /* __ASM_GENERIC_BARRIER_H */
