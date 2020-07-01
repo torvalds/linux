@@ -144,7 +144,7 @@ static void cqhci_dumpregs(struct cqhci_host *cq_host)
 		CQHCI_DUMP(": ===========================================\n");
 }
 
-/**
+/*
  * The allocated descriptor table for task, link & transfer descritors
  * looks like:
  * |----------|
