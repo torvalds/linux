@@ -82,6 +82,8 @@ my %default = (
     "IGNORE_UNUSED"		=> 0,
 );
 
+my $test_log_start = 0;
+
 my $ktest_config = "ktest.conf";
 my $version;
 my $have_version = 0;
@@ -1492,8 +1494,21 @@ sub dodie {
 
     if ($email_on_error) {
 	my $name = get_test_name;
+	my $log_file;
+
+	if (defined($opt{"LOG_FILE"})) {
+	    $log_file = "$tmpdir/log";
+	    open (L, "$opt{LOG_FILE}") or die "Can't open $opt{LOG_FILE} to read)";
+	    open (O, "> $tmpdir/log") or die "Can't open $tmpdir/log\n";
+	    seek(L, $test_log_start, 0);
+	    while (<L>) {
+		print O;
+	    }
+	    close O;
+	    close L;
+	}
         send_email("KTEST: critical failure for test $i [$name]",
-                "Your test started at $script_start_time has failed with:\n@_\n");
+                "Your test started at $script_start_time has failed with:\n@_\n", $log_file);
     }
 
     if ($monitor_cnt) {
@@ -4185,7 +4200,7 @@ sub find_mailer {
 }
 
 sub do_send_mail {
-    my ($subject, $message) = @_;
+    my ($subject, $message, $file) = @_;
 
     if (!defined($mail_path)) {
 	# find the mailer
@@ -4195,16 +4210,30 @@ sub do_send_mail {
 	}
     }
 
+    my $header_file = "$tmpdir/header";
+    open (HEAD, ">$header_file") or die "Can not create $header_file\n";
+    print HEAD "To: $mailto\n";
+    print HEAD "Subject: $subject\n\n";
+    print HEAD "$message\n";
+    close HEAD;
+
     if (!defined($mail_command)) {
 	if ($mailer eq "mail" || $mailer eq "mailx") {
-	    $mail_command = "\$MAIL_PATH/\$MAILER -s \'\$SUBJECT\' \$MAILTO <<< \'\$MESSAGE\'";
+	    $mail_command = "cat \$HEADER_FILE \$BODY_FILE | \$MAIL_PATH/\$MAILER -s \'\$SUBJECT\' \$MAILTO";
 	} elsif ($mailer eq "sendmail" ) {
-	    $mail_command =  "echo \'Subject: \$SUBJECT\n\n\$MESSAGE\' | \$MAIL_PATH/\$MAILER -t \$MAILTO";
+	    $mail_command =  "cat \$HEADER_FILE \$BODY_FILE | \$MAIL_PATH/\$MAILER -t \$MAILTO";
 	} else {
 	    die "\nYour mailer: $mailer is not supported.\n";
 	}
     }
 
+    if (defined($file)) {
+	$mail_command =~ s/\$BODY_FILE/$file/g;
+    } else {
+	$mail_command =~ s/\$BODY_FILE//g;
+    }
+
+    $mail_command =~ s/\$HEADER_FILE/$header_file/g;
     $mail_command =~ s/\$MAILER/$mailer/g;
     $mail_command =~ s/\$MAIL_PATH/$mail_path/g;
     $mail_command =~ s/\$MAILTO/$mailto/g;
@@ -4352,6 +4381,11 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
     }
 
     doprint "\n\n";
+
+    if (defined($opt{"LOG_FILE"})) {
+	$test_log_start = tell(LOG);
+    }
+
     doprint "RUNNING TEST $i of $opt{NUM_TESTS}$name with option $test_type $run_type$installme\n\n";
 
     if (defined($pre_test)) {
