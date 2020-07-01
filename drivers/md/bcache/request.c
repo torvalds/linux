@@ -1158,7 +1158,7 @@ static void quit_max_writeback_rate(struct cache_set *c,
 
 /* Cached devices - read & write stuff */
 
-blk_qc_t cached_dev_make_request(struct request_queue *q, struct bio *bio)
+blk_qc_t cached_dev_submit_bio(struct bio *bio)
 {
 	struct search *s;
 	struct bcache_device *d = bio->bi_disk->private_data;
@@ -1291,7 +1291,7 @@ static void flash_dev_nodata(struct closure *cl)
 	continue_at(cl, search_free, NULL);
 }
 
-blk_qc_t flash_dev_make_request(struct request_queue *q, struct bio *bio)
+blk_qc_t flash_dev_submit_bio(struct bio *bio)
 {
 	struct search *s;
 	struct closure *cl;

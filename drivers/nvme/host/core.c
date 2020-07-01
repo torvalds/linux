@@ -2178,6 +2178,7 @@ static void nvme_ns_head_release(struct gendisk *disk, fmode_t mode)
 
 const struct block_device_operations nvme_ns_head_ops = {
 	.owner		= THIS_MODULE,
+	.submit_bio	= nvme_ns_head_submit_bio,
 	.open		= nvme_ns_head_open,
 	.release	= nvme_ns_head_release,
 	.ioctl		= nvme_ioctl,

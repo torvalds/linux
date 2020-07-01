@@ -586,6 +586,7 @@ void nvme_mpath_stop(struct nvme_ctrl *ctrl);
 bool nvme_mpath_clear_current_path(struct nvme_ns *ns);
 void nvme_mpath_clear_ctrl_paths(struct nvme_ctrl *ctrl);
 struct nvme_ns *nvme_find_path(struct nvme_ns_head *head);
+blk_qc_t nvme_ns_head_submit_bio(struct bio *bio);
 
 static inline void nvme_mpath_check_last_path(struct nvme_ns *ns)
 {

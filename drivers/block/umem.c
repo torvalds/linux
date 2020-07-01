@@ -519,7 +519,7 @@ static int mm_check_plugged(struct cardinfo *card)
 	return !!blk_check_plugged(mm_unplug, card, sizeof(struct blk_plug_cb));
 }
 
-static blk_qc_t mm_make_request(struct request_queue *q, struct bio *bio)
+static blk_qc_t mm_submit_bio(struct bio *bio)
 {
 	struct cardinfo *card = bio->bi_disk->private_data;
 
@@ -779,6 +779,7 @@ static int mm_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 
 static const struct block_device_operations mm_fops = {
 	.owner		= THIS_MODULE,
+	.submit_bio	= mm_submit_bio,
 	.getgeo		= mm_getgeo,
 	.revalidate_disk = mm_revalidate,
 };
@@ -886,7 +887,7 @@ static int mm_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	card->biotail = &card->bio;
 	spin_lock_init(&card->lock);
 
-	card->queue = blk_alloc_queue(mm_make_request, NUMA_NO_NODE);
+	card->queue = blk_alloc_queue(NUMA_NO_NODE);
 	if (!card->queue)
 		goto failed_alloc;
 

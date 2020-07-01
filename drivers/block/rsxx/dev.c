@@ -50,6 +50,8 @@ struct rsxx_bio_meta {
 
 static struct kmem_cache *bio_meta_pool;
 
+static blk_qc_t rsxx_submit_bio(struct bio *bio);
+
 /*----------------- Block Device Operations -----------------*/
 static int rsxx_blkdev_ioctl(struct block_device *bdev,
 				 fmode_t mode,
@@ -92,6 +94,7 @@ static int rsxx_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 
 static const struct block_device_operations rsxx_fops = {
 	.owner		= THIS_MODULE,
+	.submit_bio	= rsxx_submit_bio,
 	.getgeo		= rsxx_getgeo,
 	.ioctl		= rsxx_blkdev_ioctl,
 };
@@ -117,7 +120,7 @@ static void bio_dma_done_cb(struct rsxx_cardinfo *card,
 	}
 }
 
-static blk_qc_t rsxx_make_request(struct request_queue *q, struct bio *bio)
+static blk_qc_t rsxx_submit_bio(struct bio *bio)
 {
 	struct rsxx_cardinfo *card = bio->bi_disk->private_data;
 	struct rsxx_bio_meta *bio_meta;
@@ -233,7 +236,7 @@ int rsxx_setup_dev(struct rsxx_cardinfo *card)
 		return -ENOMEM;
 	}
 
-	card->queue = blk_alloc_queue(rsxx_make_request, NUMA_NO_NODE);
+	card->queue = blk_alloc_queue(NUMA_NO_NODE);
 	if (!card->queue) {
 		dev_err(CARD_TO_DEV(card), "Failed queue alloc\n");
 		unregister_blkdev(card->major, DRIVER_NAME);

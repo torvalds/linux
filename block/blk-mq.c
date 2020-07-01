@@ -2136,8 +2136,7 @@ static void blk_add_rq_to_plug(struct blk_plug *plug, struct request *rq)
 }
 
 /**
- * blk_mq_make_request - Create and send a request to block device.
- * @q: Request queue pointer.
+ * blk_mq_submit_bio - Create and send a request to block device.
  * @bio: Bio pointer.
  *
  * Builds up a request structure from @q and @bio and send to the device. The
@@ -2151,8 +2150,9 @@ static void blk_add_rq_to_plug(struct blk_plug *plug, struct request *rq)
  *
  * Returns: Request queue cookie.
  */
-blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
+blk_qc_t blk_mq_submit_bio(struct bio *bio)
 {
+	struct request_queue *q = bio->bi_disk->queue;
 	const int is_sync = op_is_sync(bio->bi_opf);
 	const int is_flush_fua = op_is_flush(bio->bi_opf);
 	struct blk_mq_alloc_data data = {
@@ -2277,7 +2277,7 @@ queue_exit:
 	blk_queue_exit(q);
 	return BLK_QC_T_NONE;
 }
-EXPORT_SYMBOL_GPL(blk_mq_make_request); /* only for request based dm */
+EXPORT_SYMBOL_GPL(blk_mq_submit_bio); /* only for request based dm */
 
 void blk_mq_free_rqs(struct blk_mq_tag_set *set, struct blk_mq_tags *tags,
 		     unsigned int hctx_idx)
@@ -3017,7 +3017,7 @@ struct request_queue *blk_mq_init_queue_data(struct blk_mq_tag_set *set,
 {
 	struct request_queue *uninit_q, *q;
 
-	uninit_q = __blk_alloc_queue(set->numa_node);
+	uninit_q = blk_alloc_queue(set->numa_node);
 	if (!uninit_q)
 		return ERR_PTR(-ENOMEM);
 	uninit_q->queuedata = queuedata;

@@ -47,9 +47,9 @@ static struct pblk_global_caches pblk_caches = {
 
 struct bio_set pblk_bio_set;
 
-static blk_qc_t pblk_make_rq(struct request_queue *q, struct bio *bio)
+static blk_qc_t pblk_submit_bio(struct bio *bio)
 {
-	struct pblk *pblk = q->queuedata;
+	struct pblk *pblk = bio->bi_disk->queue->queuedata;
 
 	if (bio_op(bio) == REQ_OP_DISCARD) {
 		pblk_discard(pblk, bio);
@@ -78,6 +78,12 @@ static blk_qc_t pblk_make_rq(struct request_queue *q, struct bio *bio)
 
 	return BLK_QC_T_NONE;
 }
+
+static const struct block_device_operations pblk_bops = {
+	.owner		= THIS_MODULE,
+	.submit_bio	= pblk_submit_bio,
+};
+
 
 static size_t pblk_trans_map_size(struct pblk *pblk)
 {
@@ -1280,7 +1286,7 @@ static struct nvm_tgt_type tt_pblk = {
 	.name		= "pblk",
 	.version	= {1, 0, 0},
 
-	.make_rq	= pblk_make_rq,
+	.bops		= &pblk_bops,
 	.capacity	= pblk_capacity,
 
 	.init		= pblk_init,

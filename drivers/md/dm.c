@@ -1770,7 +1770,7 @@ static blk_qc_t dm_process_bio(struct mapped_device *md,
 	}
 
 	/*
-	 * If in ->make_request_fn we need to use blk_queue_split(), otherwise
+	 * If in ->queue_bio we need to use blk_queue_split(), otherwise
 	 * queue_limits for abnormal requests (e.g. discard, writesame, etc)
 	 * won't be imposed.
 	 */
@@ -1787,7 +1787,7 @@ static blk_qc_t dm_process_bio(struct mapped_device *md,
 		return __split_and_process_bio(md, map, bio);
 }
 
-static blk_qc_t dm_make_request(struct request_queue *q, struct bio *bio)
+static blk_qc_t dm_submit_bio(struct bio *bio)
 {
 	struct mapped_device *md = bio->bi_disk->private_data;
 	blk_qc_t ret = BLK_QC_T_NONE;
@@ -1798,12 +1798,12 @@ static blk_qc_t dm_make_request(struct request_queue *q, struct bio *bio)
 		/*
 		 * We are called with a live reference on q_usage_counter, but
 		 * that one will be released as soon as we return.  Grab an
-		 * extra one as blk_mq_make_request expects to be able to
-		 * consume a reference (which lives until the request is freed
-		 * in case a request is allocated).
+		 * extra one as blk_mq_submit_bio expects to be able to consume
+		 * a reference (which lives until the request is freed in case a
+		 * request is allocated).
 		 */
-		percpu_ref_get(&q->q_usage_counter);
-		return blk_mq_make_request(q, bio);
+		percpu_ref_get(&bio->bi_disk->queue->q_usage_counter);
+		return blk_mq_submit_bio(bio);
 	}
 
 	map = dm_get_live_table(md, &srcu_idx);
@@ -1988,11 +1988,11 @@ static struct mapped_device *alloc_dev(int minor)
 	spin_lock_init(&md->uevent_lock);
 
 	/*
-	 * default to bio-based required ->make_request_fn until DM
-	 * table is loaded and md->type established. If request-based
-	 * table is loaded: blk-mq will override accordingly.
+	 * default to bio-based until DM table is loaded and md->type
+	 * established. If request-based table is loaded: blk-mq will
+	 * override accordingly.
 	 */
-	md->queue = blk_alloc_queue(dm_make_request, numa_node_id);
+	md->queue = blk_alloc_queue(numa_node_id);
 	if (!md->queue)
 		goto bad;
 
@@ -3232,6 +3232,7 @@ static const struct pr_ops dm_pr_ops = {
 };
 
 static const struct block_device_operations dm_blk_dops = {
+	.submit_bio = dm_submit_bio,
 	.open = dm_blk_open,
 	.release = dm_blk_close,
 	.ioctl = dm_blk_ioctl,

@@ -596,6 +596,6 @@ static inline void blk_mq_cleanup_rq(struct request *rq)
 		rq->q->mq_ops->cleanup_rq(rq);
 }
 
-blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio);
+blk_qc_t blk_mq_submit_bio(struct bio *bio);
 
 #endif
