@@ -98,6 +98,7 @@ my $final_post_ktest;
 my $pre_ktest;
 my $post_ktest;
 my $pre_test;
+my $pre_test_die;
 my $post_test;
 my $pre_build;
 my $post_build;
@@ -273,6 +274,7 @@ my %option_map = (
     "PRE_KTEST"			=> \$pre_ktest,
     "POST_KTEST"		=> \$post_ktest,
     "PRE_TEST"			=> \$pre_test,
+    "PRE_TEST_DIE"		=> \$pre_test_die,
     "POST_TEST"			=> \$post_test,
     "BUILD_TYPE"		=> \$build_type,
     "BUILD_OPTIONS"		=> \$build_options,
@@ -4347,7 +4349,11 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
     doprint "RUNNING TEST $i of $opt{NUM_TESTS}$name with option $test_type $run_type$installme\n\n";
 
     if (defined($pre_test)) {
-	run_command $pre_test;
+	my $ret = run_command $pre_test;
+	if (!$ret && defined($pre_test_die) &&
+	    $pre_test_die) {
+	    dodie "failed to pre_test\n";
+	}
     }
 
     unlink $dmesg;
