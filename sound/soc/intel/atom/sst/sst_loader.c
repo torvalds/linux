@@ -49,6 +49,7 @@ void memcpy32_fromio(void *dst, const void __iomem *src, int count)
 
 /**
  * intel_sst_reset_dsp_mrfld - Resetting SST DSP
+ * @sst_drv_ctx: intel_sst_drv context pointer
  *
  * This resets DSP in case of MRFLD platfroms
  */
@@ -77,6 +78,7 @@ int intel_sst_reset_dsp_mrfld(struct intel_sst_drv *sst_drv_ctx)
 
 /**
  * sst_start_merrifield - Start the SST DSP processor
+ * @sst_drv_ctx: intel_sst_drv context pointer
  *
  * This starts the DSP in MERRIFIELD platfroms
  */
@@ -387,6 +389,8 @@ void sst_post_download_mrfld(struct intel_sst_drv *ctx)
 
 /**
  * sst_load_fw - function to load FW into DSP
+ * @sst_drv_ctx: intel_sst_drv context pointer
+ *
  * Transfers the FW to DSP using dma/memcpy
  */
 int sst_load_fw(struct intel_sst_drv *sst_drv_ctx)
