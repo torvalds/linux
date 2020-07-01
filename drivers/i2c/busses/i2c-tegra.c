@@ -145,8 +145,8 @@ enum msg_end_type {
  * @has_continue_xfer_support: Continue transfer supports.
  * @has_per_pkt_xfer_complete_irq: Has enable/disable capability for transfer
  *		complete interrupt per packet basis.
- * @has_single_clk_source: The i2c controller has single clock source. Tegra30
- *		and earlier Socs has two clock sources i.e. div-clk and
+ * @has_single_clk_source: The I2C controller has single clock source. Tegra30
+ *		and earlier SoCs have two clock sources i.e. div-clk and
  *		fast-clk.
  * @has_config_load_reg: Has the config load register to load the new
  *		configuration.
@@ -154,8 +154,19 @@ enum msg_end_type {
  * @clk_divisor_std_fast_mode: Clock divisor in standard/fast mode. It is
  *		applicable if there is no fast clock source i.e. single clock
  *		source.
+ * @clk_divisor_fast_plus_mode: Clock divisor in fast mode plus. It is
+ *		applicable if there is no fast clock source (i.e. single
+ *		clock source).
+ * @has_multi_master_mode: The I2C controller supports running in single-master
+ *		or multi-master mode.
+ * @has_slcg_override_reg: The I2C controller supports a register that
+ *		overrides the second level clock gating.
+ * @has_mst_fifo: The I2C controller contains the new MST FIFO interface that
+ *		provides additional features and allows for longer messages to
+ *		be transferred in one go.
+ * @quirks: i2c adapter quirks for limiting write/read transfer size and not
+ *		allowing 0 length transfers.
  */
-
 struct tegra_i2c_hw_feature {
 	bool has_continue_xfer_support;
 	bool has_per_pkt_xfer_complete_irq;
@@ -167,25 +178,31 @@ struct tegra_i2c_hw_feature {
 	bool has_multi_master_mode;
 	bool has_slcg_override_reg;
 	bool has_mst_fifo;
+	const struct i2c_adapter_quirks *quirks;
 };
 
 /**
- * struct tegra_i2c_dev	- per device i2c context
+ * struct tegra_i2c_dev - per device I2C context
  * @dev: device reference for power management
- * @hw: Tegra i2c hw feature.
- * @adapter: core i2c layer adapter information
- * @div_clk: clock reference for div clock of i2c controller.
- * @fast_clk: clock reference for fast clock of i2c controller.
+ * @hw: Tegra I2C HW feature
+ * @adapter: core I2C layer adapter information
+ * @div_clk: clock reference for div clock of I2C controller
+ * @fast_clk: clock reference for fast clock of I2C controller
+ * @rst: reset control for the I2C controller
  * @base: ioremapped registers cookie
- * @cont_id: i2c controller id, used for for packet header
- * @irq: irq number of transfer complete interrupt
- * @is_dvc: identifies the DVC i2c controller, has a different register layout
+ * @cont_id: I2C controller ID, used for packet header
+ * @irq: IRQ number of transfer complete interrupt
+ * @irq_disabled: used to track whether or not the interrupt is enabled
+ * @is_dvc: identifies the DVC I2C controller, has a different register layout
  * @msg_complete: transfer completion notifier
  * @msg_err: error code for completed message
  * @msg_buf: pointer to current message data
  * @msg_buf_remaining: size of unsent data in the message buffer
  * @msg_read: identifies read transfers
- * @bus_clk_rate: current i2c bus clock rate
+ * @bus_clk_rate: current I2C bus clock rate
+ * @clk_divisor_non_hs_mode: clock divider for non-high-speed modes
+ * @is_multimaster_mode: track if I2C controller is in multi-master mode
+ * @xfer_lock: lock to serialize transfer submission and processing
  */
 struct tegra_i2c_dev {
 	struct device *dev;
@@ -833,6 +850,10 @@ static const struct i2c_adapter_quirks tegra_i2c_quirks = {
 	.max_write_len = 4096 - 12,
 };
 
+static const struct i2c_adapter_quirks tegra194_i2c_quirks = {
+	.flags = I2C_AQ_NO_ZERO_LEN,
+};
+
 static const struct tegra_i2c_hw_feature tegra20_i2c_hw = {
 	.has_continue_xfer_support = false,
 	.has_per_pkt_xfer_complete_irq = false,
@@ -844,6 +865,7 @@ static const struct tegra_i2c_hw_feature tegra20_i2c_hw = {
 	.has_multi_master_mode = false,
 	.has_slcg_override_reg = false,
 	.has_mst_fifo = false,
+	.quirks = &tegra_i2c_quirks,
 };
 
 static const struct tegra_i2c_hw_feature tegra30_i2c_hw = {
@@ -857,6 +879,7 @@ static const struct tegra_i2c_hw_feature tegra30_i2c_hw = {
 	.has_multi_master_mode = false,
 	.has_slcg_override_reg = false,
 	.has_mst_fifo = false,
+	.quirks = &tegra_i2c_quirks,
 };
 
 static const struct tegra_i2c_hw_feature tegra114_i2c_hw = {
@@ -870,6 +893,7 @@ static const struct tegra_i2c_hw_feature tegra114_i2c_hw = {
 	.has_multi_master_mode = false,
 	.has_slcg_override_reg = false,
 	.has_mst_fifo = false,
+	.quirks = &tegra_i2c_quirks,
 };
 
 static const struct tegra_i2c_hw_feature tegra124_i2c_hw = {
@@ -883,6 +907,7 @@ static const struct tegra_i2c_hw_feature tegra124_i2c_hw = {
 	.has_multi_master_mode = false,
 	.has_slcg_override_reg = true,
 	.has_mst_fifo = false,
+	.quirks = &tegra_i2c_quirks,
 };
 
 static const struct tegra_i2c_hw_feature tegra210_i2c_hw = {
@@ -896,6 +921,7 @@ static const struct tegra_i2c_hw_feature tegra210_i2c_hw = {
 	.has_multi_master_mode = true,
 	.has_slcg_override_reg = true,
 	.has_mst_fifo = false,
+	.quirks = &tegra_i2c_quirks,
 };
 
 static const struct tegra_i2c_hw_feature tegra194_i2c_hw = {
@@ -909,6 +935,7 @@ static const struct tegra_i2c_hw_feature tegra194_i2c_hw = {
 	.has_multi_master_mode = true,
 	.has_slcg_override_reg = true,
 	.has_mst_fifo = true,
+	.quirks = &tegra194_i2c_quirks,
 };
 
 /* Match table for of_platform binding */
@@ -960,7 +987,6 @@ static int tegra_i2c_probe(struct platform_device *pdev)
 	i2c_dev->base = base;
 	i2c_dev->div_clk = div_clk;
 	i2c_dev->adapter.algo = &tegra_i2c_algo;
-	i2c_dev->adapter.quirks = &tegra_i2c_quirks;
 	i2c_dev->irq = irq;
 	i2c_dev->cont_id = pdev->id;
 	i2c_dev->dev = &pdev->dev;
@@ -976,6 +1002,7 @@ static int tegra_i2c_probe(struct platform_device *pdev)
 	i2c_dev->hw = of_device_get_match_data(&pdev->dev);
 	i2c_dev->is_dvc = of_device_is_compatible(pdev->dev.of_node,
 						  "nvidia,tegra20-i2c-dvc");
+	i2c_dev->adapter.quirks = i2c_dev->hw->quirks;
 	init_completion(&i2c_dev->msg_complete);
 	spin_lock_init(&i2c_dev->xfer_lock);
 
