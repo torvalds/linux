@@ -407,7 +407,7 @@ static int wpa_set_encryption(struct net_device *dev, struct ieee_param *param,
 			return -ENOMEM;
 		pwep->KeyLength = wep_key_len;
 		pwep->Length = wep_key_len +
-			FIELD_OFFSET(struct NDIS_802_11_WEP, KeyMaterial);
+			offsetof(struct NDIS_802_11_WEP, KeyMaterial);
 		if (wep_key_len == 13) {
 			padapter->securitypriv.PrivacyAlgrthm = _WEP104_;
 			padapter->securitypriv.XGrpPrivacy = _WEP104_;
@@ -1555,7 +1555,7 @@ static int r8711_wx_set_enc(struct net_device *dev,
 	if (erq->length > 0) {
 		wep.KeyLength = erq->length <= 5 ? 5 : 13;
 		wep.Length = wep.KeyLength +
-			     FIELD_OFFSET(struct NDIS_802_11_WEP, KeyMaterial);
+			     offsetof(struct NDIS_802_11_WEP, KeyMaterial);
 	} else {
 		wep.KeyLength = 0;
 		if (keyindex_provided == 1) { /* set key_id only, no given

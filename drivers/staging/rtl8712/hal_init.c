@@ -133,7 +133,7 @@ static u8 chk_fwhdr(struct fw_hdr *pfwhdr, u32 ulfilelength)
 	if (pfwhdr->fw_priv_sz != sizeof(struct fw_priv))
 		return _FAIL;
 	/* check fw_sz & image_fw_sz */
-	fwhdrsz = FIELD_OFFSET(struct fw_hdr, fwpriv) + pfwhdr->fw_priv_sz;
+	fwhdrsz = offsetof(struct fw_hdr, fwpriv) + pfwhdr->fw_priv_sz;
 	fw_sz =  fwhdrsz + pfwhdr->img_IMEM_size + pfwhdr->img_SRAM_size +
 		 pfwhdr->dmem_size;
 	if (fw_sz != ulfilelength)
@@ -173,7 +173,7 @@ static u8 rtl8712_dl_fw(struct _adapter *adapter)
 		txdesc = (struct tx_desc *)(tmpchar + FWBUFF_ALIGN_SZ -
 			    ((addr_t)(tmpchar) & (FWBUFF_ALIGN_SZ - 1)));
 		payload = (u8 *)(txdesc) + txdscp_sz;
-		ptr = (u8 *)mappedfw + FIELD_OFFSET(struct fw_hdr, fwpriv) +
+		ptr = (u8 *)mappedfw + offsetof(struct fw_hdr, fwpriv) +
 		      fwhdr.fw_priv_sz;
 		/* Download FirmWare */
 		/* 1. determine IMEM code size and Load IMEM Code Section */

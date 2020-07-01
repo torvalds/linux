@@ -21,7 +21,6 @@
 
 #define SIZE_T __kernel_size_t
 #define sint signed int
-#define FIELD_OFFSET(s, field)	((addr_t)&((s *)(0))->field)
 
 /* Should we extend this to be host_addr_t and target_addr_t for case:
  *	host : x86_64
