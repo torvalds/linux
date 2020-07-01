@@ -911,6 +911,12 @@ sub process_expression {
 	}
     }
 
+    if ($val =~ s/^\s*NOT\s+(.*)//) {
+	my $express = $1;
+	my $ret = process_expression($name, $express);
+	return !$ret;
+    }
+
     if ($val =~ /^\s*0\s*$/) {
 	return 0;
     } elsif ($val =~ /^\s*\d+\s*$/) {
