@@ -1360,7 +1360,6 @@ cxgbit_pass_accept_req(struct cxgbit_device *cdev, struct sk_buff *skb)
 	cxgbit_sock_reset_wr_list(csk);
 	spin_lock_init(&csk->lock);
 	init_waitqueue_head(&csk->waitq);
-	init_waitqueue_head(&csk->ack_waitq);
 	csk->lock_owner = false;
 
 	if (cxgbit_alloc_csk_skb(csk)) {
@@ -1887,7 +1886,6 @@ static void cxgbit_fw4_ack(struct cxgbit_sock *csk, struct sk_buff *skb)
 		if (csk->snd_una != snd_una) {
 			csk->snd_una = snd_una;
 			dst_confirm(csk->dst);
-			wake_up(&csk->ack_waitq);
 		}
 	}
 
