@@ -496,3 +496,57 @@ int amdgpu_mes_resume(struct amdgpu_device *adev)
 	mutex_unlock(&adev->mes.mutex);
 	return 0;
 }
+
+static int amdgpu_mes_queue_init_mqd(struct amdgpu_device *adev,
+				     struct amdgpu_mes_queue *q,
+				     struct amdgpu_mes_queue_properties *p)
+{
+	struct amdgpu_mqd *mqd_mgr = &adev->mqds[p->queue_type];
+	u32 mqd_size = mqd_mgr->mqd_size;
+	struct amdgpu_mqd_prop mqd_prop = {0};
+	int r;
+
+	r = amdgpu_bo_create_kernel(adev, mqd_size, PAGE_SIZE,
+				    AMDGPU_GEM_DOMAIN_GTT,
+				    &q->mqd_obj,
+				    &q->mqd_gpu_addr, &q->mqd_cpu_ptr);
+	if (r) {
+		dev_warn(adev->dev, "failed to create queue mqd bo (%d)", r);
+		return r;
+	}
+	memset(q->mqd_cpu_ptr, 0, mqd_size);
+
+	mqd_prop.mqd_gpu_addr = q->mqd_gpu_addr;
+	mqd_prop.hqd_base_gpu_addr = p->hqd_base_gpu_addr;
+	mqd_prop.rptr_gpu_addr = p->rptr_gpu_addr;
+	mqd_prop.wptr_gpu_addr = p->wptr_gpu_addr;
+	mqd_prop.queue_size = p->queue_size;
+	mqd_prop.use_doorbell = true;
+	mqd_prop.doorbell_index = p->doorbell_off;
+	mqd_prop.eop_gpu_addr = p->eop_gpu_addr;
+	mqd_prop.hqd_pipe_priority = p->hqd_pipe_priority;
+	mqd_prop.hqd_queue_priority = p->hqd_queue_priority;
+	mqd_prop.hqd_active = false;
+
+	r = amdgpu_bo_reserve(q->mqd_obj, false);
+	if (unlikely(r != 0))
+		goto clean_up;
+
+	mqd_mgr->init_mqd(adev, q->mqd_cpu_ptr, &mqd_prop);
+
+	amdgpu_bo_unreserve(q->mqd_obj);
+	return 0;
+
+clean_up:
+	amdgpu_bo_free_kernel(&q->mqd_obj,
+			      &q->mqd_gpu_addr,
+			      &q->mqd_cpu_ptr);
+	return r;
+}
+
+static void amdgpu_mes_queue_free_mqd(struct amdgpu_mes_queue *q)
+{
+	amdgpu_bo_free_kernel(&q->mqd_obj,
+			      &q->mqd_gpu_addr,
+			      &q->mqd_cpu_ptr);
+}
