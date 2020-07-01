@@ -1012,10 +1012,6 @@ void __init smp_prepare_boot_cpu(void)
 	smp_cpu_set_polarization(0, POLARIZATION_UNKNOWN);
 }
 
-void __init smp_cpus_done(unsigned int max_cpus)
-{
-}
-
 void __init smp_setup_processor_id(void)
 {
 	pcpu_devices[0].address = stap();
