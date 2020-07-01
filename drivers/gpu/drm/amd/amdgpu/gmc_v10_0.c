@@ -86,7 +86,7 @@ gmc_v10_0_vm_fault_interrupt_state(struct amdgpu_device *adev,
 		/* MM HUB */
 		hub = &adev->vmhub[AMDGPU_MMHUB_0];
 		for (i = 0; i < 16; i++) {
-			reg = hub->vm_context0_cntl + i;
+			reg = hub->vm_context0_cntl + hub->ctx_distance * i;
 			tmp = RREG32(reg);
 			tmp &= ~bits[AMDGPU_MMHUB_0];
 			WREG32(reg, tmp);
@@ -95,7 +95,7 @@ gmc_v10_0_vm_fault_interrupt_state(struct amdgpu_device *adev,
 		/* GFX HUB */
 		hub = &adev->vmhub[AMDGPU_GFXHUB_0];
 		for (i = 0; i < 16; i++) {
-			reg = hub->vm_context0_cntl + i;
+			reg = hub->vm_context0_cntl + hub->ctx_distance * i;
 			tmp = RREG32(reg);
 			tmp &= ~bits[AMDGPU_GFXHUB_0];
 			WREG32(reg, tmp);
@@ -105,7 +105,7 @@ gmc_v10_0_vm_fault_interrupt_state(struct amdgpu_device *adev,
 		/* MM HUB */
 		hub = &adev->vmhub[AMDGPU_MMHUB_0];
 		for (i = 0; i < 16; i++) {
-			reg = hub->vm_context0_cntl + i;
+			reg = hub->vm_context0_cntl + hub->ctx_distance * i;
 			tmp = RREG32(reg);
 			tmp |= bits[AMDGPU_MMHUB_0];
 			WREG32(reg, tmp);
@@ -114,7 +114,7 @@ gmc_v10_0_vm_fault_interrupt_state(struct amdgpu_device *adev,
 		/* GFX HUB */
 		hub = &adev->vmhub[AMDGPU_GFXHUB_0];
 		for (i = 0; i < 16; i++) {
-			reg = hub->vm_context0_cntl + i;
+			reg = hub->vm_context0_cntl + hub->ctx_distance * i;
 			tmp = RREG32(reg);
 			tmp |= bits[AMDGPU_GFXHUB_0];
 			WREG32(reg, tmp);
@@ -283,7 +283,8 @@ static void gmc_v10_0_flush_vm_hub(struct amdgpu_device *adev, uint32_t vmid,
 	if (use_semaphore) {
 		for (i = 0; i < adev->usec_timeout; i++) {
 			/* a read return value of 1 means semaphore acuqire */
-			tmp = RREG32_NO_KIQ(hub->vm_inv_eng0_sem + eng);
+			tmp = RREG32_NO_KIQ(hub->vm_inv_eng0_sem +
+					    hub->eng_distance * eng);
 			if (tmp & 0x1)
 				break;
 			udelay(1);
@@ -293,18 +294,19 @@ static void gmc_v10_0_flush_vm_hub(struct amdgpu_device *adev, uint32_t vmid,
 			DRM_ERROR("Timeout waiting for sem acquire in VM flush!\n");
 	}
 
-	WREG32_NO_KIQ(hub->vm_inv_eng0_req + eng, inv_req);
+	WREG32_NO_KIQ(hub->vm_inv_eng0_req + hub->eng_distance * eng, inv_req);
 
 	/*
 	 * Issue a dummy read to wait for the ACK register to be cleared
 	 * to avoid a false ACK due to the new fast GRBM interface.
 	 */
 	if (vmhub == AMDGPU_GFXHUB_0)
-		RREG32_NO_KIQ(hub->vm_inv_eng0_req + eng);
+		RREG32_NO_KIQ(hub->vm_inv_eng0_req + hub->eng_distance * eng);
 
 	/* Wait for ACK with a delay.*/
 	for (i = 0; i < adev->usec_timeout; i++) {
-		tmp = RREG32_NO_KIQ(hub->vm_inv_eng0_ack + eng);
+		tmp = RREG32_NO_KIQ(hub->vm_inv_eng0_ack +
+				    hub->eng_distance * eng);
 		tmp &= 1 << vmid;
 		if (tmp)
 			break;
@@ -318,7 +320,8 @@ static void gmc_v10_0_flush_vm_hub(struct amdgpu_device *adev, uint32_t vmid,
 		 * add semaphore release after invalidation,
 		 * write with 0 means semaphore release
 		 */
-		WREG32_NO_KIQ(hub->vm_inv_eng0_sem + eng, 0);
+		WREG32_NO_KIQ(hub->vm_inv_eng0_sem +
+			      hub->eng_distance * eng, 0);
 
 	spin_unlock(&adev->gmc.invalidate_lock);
 
@@ -358,8 +361,8 @@ static void gmc_v10_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 		struct amdgpu_vmhub *hub = &adev->vmhub[vmhub];
 		const unsigned eng = 17;
 		u32 inv_req = gmc_v10_0_get_invalidate_req(vmid, flush_type);
-		u32 req = hub->vm_inv_eng0_req + eng;
-		u32 ack = hub->vm_inv_eng0_ack + eng;
+		u32 req = hub->vm_inv_eng0_req + hub->eng_distance * eng;
+		u32 ack = hub->vm_inv_eng0_ack + hub->eng_distance * eng;
 
 		amdgpu_virt_kiq_reg_write_reg_wait(adev, req, ack, inv_req,
 				1 << vmid);
@@ -502,16 +505,21 @@ static uint64_t gmc_v10_0_emit_flush_gpu_tlb(struct amdgpu_ring *ring,
 	if (use_semaphore)
 		/* a read return value of 1 means semaphore acuqire */
 		amdgpu_ring_emit_reg_wait(ring,
-					  hub->vm_inv_eng0_sem + eng, 0x1, 0x1);
+					  hub->vm_inv_eng0_sem +
+					  hub->eng_distance * eng, 0x1, 0x1);
 
-	amdgpu_ring_emit_wreg(ring, hub->ctx0_ptb_addr_lo32 + (2 * vmid),
+	amdgpu_ring_emit_wreg(ring, hub->ctx0_ptb_addr_lo32 +
+			      (hub->ctx_addr_distance * vmid),
 			      lower_32_bits(pd_addr));
 
-	amdgpu_ring_emit_wreg(ring, hub->ctx0_ptb_addr_hi32 + (2 * vmid),
+	amdgpu_ring_emit_wreg(ring, hub->ctx0_ptb_addr_hi32 +
+			      (hub->ctx_addr_distance * vmid),
 			      upper_32_bits(pd_addr));
 
-	amdgpu_ring_emit_reg_write_reg_wait(ring, hub->vm_inv_eng0_req + eng,
-					    hub->vm_inv_eng0_ack + eng,
+	amdgpu_ring_emit_reg_write_reg_wait(ring, hub->vm_inv_eng0_req +
+					    hub->eng_distance * eng,
+					    hub->vm_inv_eng0_ack +
+					    hub->eng_distance * eng,
 					    req, 1 << vmid);
 
 	/* TODO: It needs to continue working on debugging with semaphore for GFXHUB as well. */
@@ -520,7 +528,8 @@ static uint64_t gmc_v10_0_emit_flush_gpu_tlb(struct amdgpu_ring *ring,
 		 * add semaphore release after invalidation,
 		 * write with 0 means semaphore release
 		 */
-		amdgpu_ring_emit_wreg(ring, hub->vm_inv_eng0_sem + eng, 0);
+		amdgpu_ring_emit_wreg(ring, hub->vm_inv_eng0_sem +
+				      hub->eng_distance * eng, 0);
 
 	return pd_addr;
 }
