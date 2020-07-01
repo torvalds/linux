@@ -8,6 +8,12 @@
 #include <linux/slab.h>
 #include "ar-internal.h"
 
+static struct rxrpc_bundle rxrpc_service_dummy_bundle = {
+	.usage		= ATOMIC_INIT(1),
+	.debug_id	= UINT_MAX,
+	.channel_lock	= __SPIN_LOCK_UNLOCKED(&rxrpc_service_dummy_bundle.channel_lock),
+};
+
 /*
  * Find a service connection under RCU conditions.
  *
@@ -127,6 +133,7 @@ struct rxrpc_connection *rxrpc_prealloc_service_connection(struct rxrpc_net *rxn
 		 */
 		conn->state = RXRPC_CONN_SERVICE_PREALLOC;
 		atomic_set(&conn->usage, 2);
+		conn->bundle = rxrpc_get_bundle(&rxrpc_service_dummy_bundle);
 
 		atomic_inc(&rxnet->nr_conns);
 		write_lock(&rxnet->conn_lock);

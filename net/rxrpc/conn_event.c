@@ -157,12 +157,12 @@ static void rxrpc_abort_calls(struct rxrpc_connection *conn,
 
 	_enter("{%d},%x", conn->debug_id, conn->abort_code);
 
-	spin_lock(&conn->channel_lock);
+	spin_lock(&conn->bundle->channel_lock);
 
 	for (i = 0; i < RXRPC_MAXCALLS; i++) {
 		call = rcu_dereference_protected(
 			conn->channels[i].call,
-			lockdep_is_held(&conn->channel_lock));
+			lockdep_is_held(&conn->bundle->channel_lock));
 		if (call) {
 			if (compl == RXRPC_CALL_LOCALLY_ABORTED)
 				trace_rxrpc_abort(call->debug_id,
@@ -179,7 +179,7 @@ static void rxrpc_abort_calls(struct rxrpc_connection *conn,
 		}
 	}
 
-	spin_unlock(&conn->channel_lock);
+	spin_unlock(&conn->bundle->channel_lock);
 	_leave("");
 }
 
@@ -210,6 +210,7 @@ static int rxrpc_abort_connection(struct rxrpc_connection *conn,
 	conn->error = error;
 	conn->abort_code = abort_code;
 	conn->state = RXRPC_CONN_LOCALLY_ABORTED;
+	set_bit(RXRPC_CONN_DONT_REUSE, &conn->flags);
 	spin_unlock_bh(&conn->state_lock);
 
 	msg.msg_name	= &conn->params.peer->srx.transport;
@@ -319,6 +320,7 @@ static int rxrpc_process_event(struct rxrpc_connection *conn,
 		conn->error = -ECONNABORTED;
 		conn->abort_code = abort_code;
 		conn->state = RXRPC_CONN_REMOTELY_ABORTED;
+		set_bit(RXRPC_CONN_DONT_REUSE, &conn->flags);
 		rxrpc_abort_calls(conn, RXRPC_CALL_REMOTELY_ABORTED, sp->hdr.serial);
 		return -ECONNABORTED;
 
@@ -339,7 +341,7 @@ static int rxrpc_process_event(struct rxrpc_connection *conn,
 		if (ret < 0)
 			return ret;
 
-		spin_lock(&conn->channel_lock);
+		spin_lock(&conn->bundle->channel_lock);
 		spin_lock(&conn->state_lock);
 
 		if (conn->state == RXRPC_CONN_SERVICE_CHALLENGING) {
@@ -349,12 +351,12 @@ static int rxrpc_process_event(struct rxrpc_connection *conn,
 				rxrpc_call_is_secure(
 					rcu_dereference_protected(
 						conn->channels[loop].call,
-						lockdep_is_held(&conn->channel_lock)));
+						lockdep_is_held(&conn->bundle->channel_lock)));
 		} else {
 			spin_unlock(&conn->state_lock);
 		}
 
-		spin_unlock(&conn->channel_lock);
+		spin_unlock(&conn->bundle->channel_lock);
 		return 0;
 
 	default:
