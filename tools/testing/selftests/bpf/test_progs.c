@@ -367,6 +367,7 @@ enum ARG_KEYS {
 	ARG_VERIFIER_STATS = 's',
 	ARG_VERBOSE = 'v',
 	ARG_GET_TEST_CNT = 'c',
+	ARG_LIST_TEST_NAMES = 'l',
 };
 
 static const struct argp_option opts[] = {
@@ -382,6 +383,8 @@ static const struct argp_option opts[] = {
 	  "Verbose output (use -vv or -vvv for progressively verbose output)" },
 	{ "count", ARG_GET_TEST_CNT, NULL, 0,
 	  "Get number of selected top-level tests " },
+	{ "list", ARG_LIST_TEST_NAMES, NULL, 0,
+	  "List test names that would run (without running them) " },
 	{},
 };
 
@@ -516,6 +519,9 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 		break;
 	case ARG_GET_TEST_CNT:
 		env->get_test_cnt = true;
+		break;
+	case ARG_LIST_TEST_NAMES:
+		env->list_test_names = true;
 		break;
 	case ARGP_KEY_ARG:
 		argp_usage(state);
@@ -665,6 +671,12 @@ int main(int argc, char **argv)
 			continue;
 		}
 
+		if (env.list_test_names) {
+			fprintf(env.stdout, "%s\n", test->test_name);
+			env.succ_cnt++;
+			continue;
+		}
+
 		test->run_test();
 		/* ensure last sub-test is finalized properly */
 		if (test->subtest_name)
@@ -693,6 +705,9 @@ int main(int argc, char **argv)
 		printf("%d\n", env.succ_cnt);
 		goto out;
 	}
+
+	if (env.list_test_names)
+		goto out;
 
 	fprintf(stdout, "Summary: %d/%d PASSED, %d SKIPPED, %d FAILED\n",
 		env.succ_cnt, env.sub_succ_cnt, env.skip_cnt, env.fail_cnt);
