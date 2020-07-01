@@ -1882,7 +1882,7 @@ unsigned int rtw_restructure_ht_ie(struct adapter *padapter, u8 *in_ie, u8 *out_
 
 		memset(&ht_cap, 0, sizeof(struct ieee80211_ht_cap));
 
-		ht_cap.cap_info = cpu_to_le16(IEEE80211_HT_CAP_SUP_WIDTH |
+		ht_cap.cap_info = cpu_to_le16(IEEE80211_HT_CAP_SUP_WIDTH_20_40 |
 					      IEEE80211_HT_CAP_SGI_20 |
 					      IEEE80211_HT_CAP_SGI_40 |
 					      IEEE80211_HT_CAP_TX_STBC |
@@ -1900,9 +1900,9 @@ unsigned int rtw_restructure_ht_ie(struct adapter *padapter, u8 *in_ie, u8 *out_
 		ht_cap.ampdu_params_info = max_rx_ampdu_factor & 0x03;
 
 		if (padapter->securitypriv.dot11PrivacyAlgrthm == _AES_)
-			ht_cap.ampdu_params_info |= IEEE80211_HT_CAP_AMPDU_DENSITY & (0x07 << 2);
+			ht_cap.ampdu_params_info |= IEEE80211_HT_AMPDU_PARM_DENSITY & (0x07 << 2);
 		else
-			ht_cap.ampdu_params_info |= IEEE80211_HT_CAP_AMPDU_DENSITY & 0x00;
+			ht_cap.ampdu_params_info |= IEEE80211_HT_AMPDU_PARM_DENSITY & 0x00;
 
 		rtw_set_ie(out_ie + out_len, _HT_CAPABILITY_IE_,
 			   sizeof(struct ieee80211_ht_cap),

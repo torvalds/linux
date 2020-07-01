@@ -129,7 +129,7 @@ static char *translate_scan(struct adapter *padapter,
 		pht_capie = (struct ieee80211_ht_cap *)(p + 2);
 		memcpy(&mcs_rate, pht_capie->mcs.rx_mask, 2);
 		bw_40MHz = !!(le16_to_cpu(pht_capie->cap_info) &
-			      IEEE80211_HT_CAP_SUP_WIDTH);
+			      IEEE80211_HT_CAP_SUP_WIDTH_20_40);
 		short_GI = !!(le16_to_cpu(pht_capie->cap_info) &
 			      (IEEE80211_HT_CAP_SGI_20 |
 			       IEEE80211_HT_CAP_SGI_40));
