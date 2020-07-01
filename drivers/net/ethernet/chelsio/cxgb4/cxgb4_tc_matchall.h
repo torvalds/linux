@@ -21,6 +21,7 @@ struct cxgb4_matchall_ingress_entry {
 	enum cxgb4_matchall_state state; /* Current MATCHALL offload state */
 	u32 tid; /* Index to hardware filter entry */
 	struct ch_filter_specification fs; /* Filter entry */
+	u16 viid_mirror; /* Identifier for allocated Mirror VI */
 	u64 bytes; /* # of bytes hitting the filter */
 	u64 packets; /* # of packets hitting the filter */
 	u64 last_used; /* Last updated jiffies time */

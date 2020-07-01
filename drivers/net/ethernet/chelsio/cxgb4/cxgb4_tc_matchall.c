@@ -188,6 +188,49 @@ static void cxgb4_matchall_free_tc(struct net_device *dev)
 	tc_port_matchall->egress.state = CXGB4_MATCHALL_STATE_DISABLED;
 }
 
+static int cxgb4_matchall_mirror_alloc(struct net_device *dev,
+				       struct tc_cls_matchall_offload *cls)
+{
+	struct netlink_ext_ack *extack = cls->common.extack;
+	struct cxgb4_tc_port_matchall *tc_port_matchall;
+	struct port_info *pi = netdev2pinfo(dev);
+	struct adapter *adap = netdev2adap(dev);
+	struct flow_action_entry *act;
+	int ret;
+	u32 i;
+
+	tc_port_matchall = &adap->tc_matchall->port_matchall[pi->port_id];
+	flow_action_for_each(i, act, &cls->rule->action) {
+		if (act->id == FLOW_ACTION_MIRRED) {
+			ret = cxgb4_port_mirror_alloc(dev);
+			if (ret) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "Couldn't allocate mirror");
+				return ret;
+			}
+
+			tc_port_matchall->ingress.viid_mirror = pi->viid_mirror;
+			break;
+		}
+	}
+
+	return 0;
+}
+
+static void cxgb4_matchall_mirror_free(struct net_device *dev)
+{
+	struct cxgb4_tc_port_matchall *tc_port_matchall;
+	struct port_info *pi = netdev2pinfo(dev);
+	struct adapter *adap = netdev2adap(dev);
+
+	tc_port_matchall = &adap->tc_matchall->port_matchall[pi->port_id];
+	if (!tc_port_matchall->ingress.viid_mirror)
+		return;
+
+	cxgb4_port_mirror_free(dev);
+	tc_port_matchall->ingress.viid_mirror = 0;
+}
+
 static int cxgb4_matchall_alloc_filter(struct net_device *dev,
 				       struct tc_cls_matchall_offload *cls)
 {
@@ -211,6 +254,10 @@ static int cxgb4_matchall_alloc_filter(struct net_device *dev,
 		return -ENOMEM;
 	}
 
+	ret = cxgb4_matchall_mirror_alloc(dev, cls);
+	if (ret)
+		return ret;
+
 	tc_port_matchall = &adap->tc_matchall->port_matchall[pi->port_id];
 	fs = &tc_port_matchall->ingress.fs;
 	memset(fs, 0, sizeof(*fs));
@@ -229,11 +276,15 @@ static int cxgb4_matchall_alloc_filter(struct net_device *dev,
 
 	ret = cxgb4_set_filter(dev, fidx, fs);
 	if (ret)
-		return ret;
+		goto out_free;
 
 	tc_port_matchall->ingress.tid = fidx;
 	tc_port_matchall->ingress.state = CXGB4_MATCHALL_STATE_ENABLED;
 	return 0;
+
+out_free:
+	cxgb4_matchall_mirror_free(dev);
+	return ret;
 }
 
 static int cxgb4_matchall_free_filter(struct net_device *dev)
@@ -249,6 +300,8 @@ static int cxgb4_matchall_free_filter(struct net_device *dev)
 			       &tc_port_matchall->ingress.fs);
 	if (ret)
 		return ret;
+
+	cxgb4_matchall_mirror_free(dev);
 
 	tc_port_matchall->ingress.packets = 0;
 	tc_port_matchall->ingress.bytes = 0;
@@ -279,7 +332,7 @@ int cxgb4_tc_matchall_replace(struct net_device *dev,
 
 		ret = cxgb4_validate_flow_actions(dev,
 						  &cls_matchall->rule->action,
-						  extack);
+						  extack, 1);
 		if (ret)
 			return ret;
 

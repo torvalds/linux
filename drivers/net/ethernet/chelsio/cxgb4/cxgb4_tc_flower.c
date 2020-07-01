@@ -372,6 +372,7 @@ void cxgb4_process_flow_actions(struct net_device *in,
 		case FLOW_ACTION_DROP:
 			fs->action = FILTER_DROP;
 			break;
+		case FLOW_ACTION_MIRRED:
 		case FLOW_ACTION_REDIRECT: {
 			struct net_device *out = act->dev;
 			struct port_info *pi = netdev_priv(out);
@@ -529,7 +530,8 @@ static bool valid_pedit_action(struct net_device *dev,
 
 int cxgb4_validate_flow_actions(struct net_device *dev,
 				struct flow_action *actions,
-				struct netlink_ext_ack *extack)
+				struct netlink_ext_ack *extack,
+				u8 matchall_filter)
 {
 	struct flow_action_entry *act;
 	bool act_redir = false;
@@ -546,11 +548,19 @@ int cxgb4_validate_flow_actions(struct net_device *dev,
 		case FLOW_ACTION_DROP:
 			/* Do nothing */
 			break;
+		case FLOW_ACTION_MIRRED:
 		case FLOW_ACTION_REDIRECT: {
 			struct adapter *adap = netdev2adap(dev);
 			struct net_device *n_dev, *target_dev;
-			unsigned int i;
 			bool found = false;
+			unsigned int i;
+
+			if (act->id == FLOW_ACTION_MIRRED &&
+			    !matchall_filter) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "Egress mirror action is only supported for tc-matchall");
+				return -EOPNOTSUPP;
+			}
 
 			target_dev = act->dev;
 			for_each_port(adap, i) {
@@ -689,7 +699,7 @@ int cxgb4_flow_rule_replace(struct net_device *dev, struct flow_rule *rule,
 	u8 inet_family;
 	int fidx, ret;
 
-	if (cxgb4_validate_flow_actions(dev, &rule->action, extack))
+	if (cxgb4_validate_flow_actions(dev, &rule->action, extack, 0))
 		return -EOPNOTSUPP;
 
 	if (cxgb4_validate_flow_match(dev, rule))
