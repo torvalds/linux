@@ -1221,7 +1221,6 @@ static int analogix_dp_bridge_attach(struct drm_bridge *bridge)
 	if (!dp->plat_data->skip_connector) {
 		connector = &dp->connector;
 		connector->polled = DRM_CONNECTOR_POLL_HPD;
-		connector->port = dp->dev->of_node;
 
 		ret = drm_connector_init(dp->drm_dev, connector,
 					 &analogix_dp_connector_funcs,
