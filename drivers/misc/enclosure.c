@@ -391,7 +391,7 @@ EXPORT_SYMBOL_GPL(enclosure_add_device);
 /**
  * enclosure_remove_device - remove a device from an enclosure
  * @edev:	the enclosure device
- * @num:	the number of the component to remove
+ * @dev:	device to remove/put
  *
  * Returns zero on success or an error.
  *
