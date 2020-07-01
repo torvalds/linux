@@ -376,7 +376,7 @@ static void bpf_trace_copy_string(char *buf, void *unsafe_ptr, char fmt_ptype,
 
 /*
  * Only limited trace_printk() conversion specifiers allowed:
- * %d %i %u %x %ld %li %lu %lx %lld %lli %llu %llx %p %pks %pus %s
+ * %d %i %u %x %ld %li %lu %lx %lld %lli %llu %llx %p %pB %pks %pus %s
  */
 BPF_CALL_5(bpf_trace_printk, char *, fmt, u32, fmt_size, u64, arg1,
 	   u64, arg2, u64, arg3)
@@ -418,6 +418,11 @@ BPF_CALL_5(bpf_trace_printk, char *, fmt, u32, fmt_size, u64, arg1,
 				fmt_ptype = fmt[i + 1];
 				i += 2;
 				goto fmt_str;
+			}
+
+			if (fmt[i + 1] == 'B') {
+				i++;
+				goto fmt_next;
 			}
 
 			/* disallow any further format extensions */
@@ -636,7 +641,8 @@ BPF_CALL_5(bpf_seq_printf, struct seq_file *, m, char *, fmt, u32, fmt_size,
 		if (fmt[i] == 'p') {
 			if (fmt[i + 1] == 0 ||
 			    fmt[i + 1] == 'K' ||
-			    fmt[i + 1] == 'x') {
+			    fmt[i + 1] == 'x' ||
+			    fmt[i + 1] == 'B') {
 				/* just kernel pointers */
 				params[fmt_cnt] = args[fmt_cnt];
 				fmt_cnt++;
@@ -1137,6 +1143,8 @@ bpf_tracing_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return &bpf_ringbuf_query_proto;
 	case BPF_FUNC_jiffies64:
 		return &bpf_jiffies64_proto;
+	case BPF_FUNC_get_task_stack:
+		return &bpf_get_task_stack_proto;
 	default:
 		return NULL;
 	}
