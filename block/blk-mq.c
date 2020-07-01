@@ -1387,30 +1387,28 @@ bool blk_mq_dispatch_rq_list(struct blk_mq_hw_ctx *hctx, struct list_head *list,
 		if (nr_budgets)
 			nr_budgets--;
 		ret = q->mq_ops->queue_rq(hctx, &bd);
-		if (ret == BLK_STS_RESOURCE || ret == BLK_STS_DEV_RESOURCE) {
-			blk_mq_handle_dev_resource(rq, list);
+		switch (ret) {
+		case BLK_STS_OK:
+			queued++;
 			break;
-		} else if (ret == BLK_STS_ZONE_RESOURCE) {
+		case BLK_STS_RESOURCE:
+		case BLK_STS_DEV_RESOURCE:
+			blk_mq_handle_dev_resource(rq, list);
+			goto out;
+		case BLK_STS_ZONE_RESOURCE:
 			/*
 			 * Move the request to zone_list and keep going through
 			 * the dispatch list to find more requests the drive can
 			 * accept.
 			 */
 			blk_mq_handle_zone_resource(rq, &zone_list);
-			if (list_empty(list))
-				break;
-			continue;
-		}
-
-		if (unlikely(ret != BLK_STS_OK)) {
+			break;
+		default:
 			errors++;
 			blk_mq_end_request(rq, BLK_STS_IOERR);
-			continue;
 		}
-
-		queued++;
 	} while (!list_empty(list));
-
+out:
 	if (!list_empty(&zone_list))
 		list_splice_tail_init(&zone_list, list);
 
