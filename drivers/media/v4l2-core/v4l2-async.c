@@ -77,6 +77,7 @@ static bool match_fwnode(struct v4l2_async_notifier *notifier,
 	struct fwnode_handle *dev_fwnode;
 	bool asd_fwnode_is_ep;
 	bool sd_fwnode_is_ep;
+	struct device *dev;
 
 	/*
 	 * Both the subdev and the async subdev can provide either an endpoint
@@ -114,7 +115,28 @@ static bool match_fwnode(struct v4l2_async_notifier *notifier,
 
 	fwnode_handle_put(dev_fwnode);
 
-	return dev_fwnode == other_fwnode;
+	if (dev_fwnode != other_fwnode)
+		return false;
+
+	/*
+	 * We have a heterogeneous match. Retrieve the struct device of the side
+	 * that matched on a device fwnode to print its driver name.
+	 */
+	if (sd_fwnode_is_ep)
+		dev = notifier->v4l2_dev ? notifier->v4l2_dev->dev
+		    : notifier->sd->dev;
+	else
+		dev = sd->dev;
+
+	if (dev && dev->driver) {
+		if (sd_fwnode_is_ep)
+			dev_warn(dev, "Driver %s uses device fwnode, incorrect match may occur\n",
+				 dev->driver->name);
+		dev_notice(dev, "Consider updating driver %s to match on endpoints\n",
+			   dev->driver->name);
+	}
+
+	return true;
 }
 
 static bool match_custom(struct v4l2_async_notifier *notifier,
