@@ -217,20 +217,24 @@ static int wfx_get_ps_timeout(struct wfx_vif *wvif, bool *enable_ps)
 		// are differents.
 		if (enable_ps)
 			*enable_ps = true;
-		if (wvif->bss_not_support_ps_poll)
+		if (wvif->wdev->force_ps_timeout > -1)
+			return wvif->wdev->force_ps_timeout;
+		else if (wvif->bss_not_support_ps_poll)
 			return 30;
 		else
 			return 0;
 	}
 	if (enable_ps)
 		*enable_ps = wvif->vif->bss_conf.ps;
-	if (wvif->vif->bss_conf.assoc && wvif->vif->bss_conf.ps)
+	if (wvif->wdev->force_ps_timeout > -1)
+		return wvif->wdev->force_ps_timeout;
+	else if (wvif->vif->bss_conf.assoc && wvif->vif->bss_conf.ps)
 		return conf->dynamic_ps_timeout;
 	else
 		return -1;
 }
 
-static int wfx_update_pm(struct wfx_vif *wvif)
+int wfx_update_pm(struct wfx_vif *wvif)
 {
 	int ps_timeout;
 	bool ps;

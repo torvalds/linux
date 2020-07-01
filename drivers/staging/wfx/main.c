@@ -352,6 +352,7 @@ struct wfx_dev *wfx_init_common(struct device *dev,
 	skb_queue_head_init(&wdev->tx_pending);
 	init_waitqueue_head(&wdev->tx_dequeue);
 	wfx_init_hif_cmd(&wdev->hif_cmd);
+	wdev->force_ps_timeout = -1;
 
 	if (devm_add_action_or_reset(dev, wfx_free_common, wdev))
 		return NULL;

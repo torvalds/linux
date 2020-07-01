@@ -66,6 +66,7 @@ void wfx_cooling_timeout_work(struct work_struct *work);
 void wfx_suspend_hot_dev(struct wfx_dev *wdev, enum sta_notify_cmd cmd);
 void wfx_suspend_resume_mc(struct wfx_vif *wvif, enum sta_notify_cmd cmd);
 void wfx_event_report_rssi(struct wfx_vif *wvif, u8 raw_rcpi_rssi);
+int wfx_update_pm(struct wfx_vif *wvif);
 
 // Other Helpers
 void wfx_reset(struct wfx_vif *wvif);
