@@ -1392,7 +1392,8 @@ static void sdhci_arasan_unregister_sdclk(struct device *dev)
  * - For Keem Bay, it is required to clear this bit. Its default value is 1'b1.
  *   Keem Bay does not support 64-bit access.
  *
- * @host		The sdhci_host
+ * @host:		The sdhci_host
+ * @value:		The value to write
  */
 static void sdhci_arasan_update_support64b(struct sdhci_host *host, u32 value)
 {
