@@ -117,9 +117,20 @@ static struct scf_selector scf_sel_array[SCF_NPRIMS];
 static int scf_sel_array_len;
 static unsigned long scf_sel_totweight;
 
+// Communicate between caller and handler.
+struct scf_check {
+	bool scfc_in;
+	bool scfc_out;
+	int scfc_cpu; // -1 for not _single().
+	bool scfc_wait;
+};
+
 // Use to wait for all threads to start.
 static atomic_t n_started;
 static atomic_t n_errs;
+static atomic_t n_mb_in_errs;
+static atomic_t n_mb_out_errs;
+static atomic_t n_alloc_errs;
 static bool scfdone;
 
 DEFINE_TORTURE_RANDOM_PERCPU(scf_torture_rand);
@@ -222,24 +233,27 @@ static struct scf_selector *scf_sel_rand(struct torture_random_state *trsp)
 // Update statistics and occasionally burn up mass quantities of CPU time,
 // if told to do so via scftorture.longwait.  Otherwise, occasionally burn
 // a little bit.
-static void scf_handler(void *unused)
+static void scf_handler(void *scfc_in)
 {
 	int i;
 	int j;
 	unsigned long r = torture_random(this_cpu_ptr(&scf_torture_rand));
+	struct scf_check *scfcp = scfc_in;
 
+	if (likely(scfcp) && WARN_ON_ONCE(unlikely(!READ_ONCE(scfcp->scfc_in))))
+		atomic_inc(&n_mb_in_errs);
 	this_cpu_inc(scf_invoked_count);
 	if (longwait <= 0) {
 		if (!(r & 0xffc0))
 			udelay(r & 0x3f);
-		return;
+		goto out;
 	}
 	if (r & 0xfff)
-		return;
+		goto out;
 	r = (r >> 12);
 	if (longwait <= 0) {
 		udelay((r & 0xff) + 1);
-		return;
+		goto out;
 	}
 	r = r % longwait + 1;
 	for (i = 0; i < r; i++) {
@@ -248,14 +262,24 @@ static void scf_handler(void *unused)
 			cpu_relax();
 		}
 	}
+out:
+	if (unlikely(!scfcp))
+		return;
+	if (scfcp->scfc_wait)
+		WRITE_ONCE(scfcp->scfc_out, true);
+	else
+		kfree(scfcp);
 }
 
 // As above, but check for correct CPU.
-static void scf_handler_1(void *me)
+static void scf_handler_1(void *scfc_in)
 {
-	if (WARN_ON_ONCE(smp_processor_id() != (uintptr_t)me))
+	struct scf_check *scfcp = scfc_in;
+
+	if (likely(scfcp) && WARN_ONCE(smp_processor_id() != scfcp->scfc_cpu, "%s: Wanted CPU %d got CPU %d\n", __func__, scfcp->scfc_cpu, smp_processor_id())) {
 		atomic_inc(&n_errs);
-	scf_handler(NULL);
+	}
+	scf_handler(scfcp);
 }
 
 // Randomly do an smp_call_function*() invocation.
@@ -263,6 +287,7 @@ static void scftorture_invoke_one(struct scf_statistics *scfp, struct torture_ra
 {
 	uintptr_t cpu;
 	int ret;
+	struct scf_check *scfcp = NULL;
 	struct scf_selector *scfsp = scf_sel_rand(trsp);
 
 	if (use_cpus_read_lock)
@@ -271,17 +296,32 @@ static void scftorture_invoke_one(struct scf_statistics *scfp, struct torture_ra
 		preempt_disable();
 	switch (scfsp->scfs_prim) {
 	case SCF_PRIM_SINGLE:
+		scfcp = kmalloc(sizeof(*scfcp), GFP_ATOMIC);
+		if (WARN_ON_ONCE(!scfcp))
+			atomic_inc(&n_alloc_errs);
 		cpu = torture_random(trsp) % nr_cpu_ids;
 		if (scfsp->scfs_wait)
 			scfp->n_single_wait++;
 		else
 			scfp->n_single++;
-		ret = smp_call_function_single(cpu, scf_handler_1, (void *)cpu, scfsp->scfs_wait);
+		if (scfcp) {
+			scfcp->scfc_cpu = cpu;
+			scfcp->scfc_wait = scfsp->scfs_wait;
+			scfcp->scfc_out = false;
+			scfcp->scfc_in = true;
+		}
+		ret = smp_call_function_single(cpu, scf_handler_1, (void *)scfcp, scfsp->scfs_wait);
 		if (ret) {
 			if (scfsp->scfs_wait)
 				scfp->n_single_wait_ofl++;
 			else
 				scfp->n_single_ofl++;
+			kfree(scfcp);
+		} else if (scfcp && scfsp->scfs_wait) {
+			if (WARN_ON_ONCE(!scfcp->scfc_out))
+				atomic_inc(&n_mb_out_errs); // Leak rather than trash!
+			else
+				kfree(scfcp);
 		}
 		break;
 	case SCF_PRIM_MANY:
