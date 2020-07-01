@@ -279,6 +279,7 @@ intel_encoder_hotplug(struct intel_encoder *encoder,
 
 	drm_WARN_ON(dev, !mutex_is_locked(&dev->mode_config.mutex));
 	old_status = connector->base.status;
+	old_epoch_counter = connector->base.epoch_counter;
 
 	connector->base.status =
 		drm_helper_probe_detect(&connector->base, NULL, false);
@@ -287,11 +288,12 @@ intel_encoder_hotplug(struct intel_encoder *encoder,
 		ret = true;
 
 	if (ret) {
-		DRM_DEBUG_KMS("[CONNECTOR:%d:%s] status updated from %s to %s(epoch counter %llu)\n",
+		DRM_DEBUG_KMS("[CONNECTOR:%d:%s] status updated from %s to %s (epoch counter %llu->%llu)\n",
 			      connector->base.base.id,
 			      connector->base.name,
 			      drm_get_connector_status_name(old_status),
 			      drm_get_connector_status_name(connector->base.status),
+			      old_epoch_counter,
 			      connector->base.epoch_counter);
 		return INTEL_HOTPLUG_CHANGED;
 	}
