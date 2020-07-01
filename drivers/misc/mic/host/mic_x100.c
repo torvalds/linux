@@ -121,6 +121,7 @@ static void mic_x100_disable_interrupts(struct mic_device *mdev)
 /**
  * mic_x100_send_sbox_intr - Send an MIC_X100_SBOX interrupt to MIC.
  * @mdev: pointer to mic_device instance
+ * @doorbell: doorbell number
  */
 static void mic_x100_send_sbox_intr(struct mic_device *mdev,
 				    int doorbell)
@@ -142,6 +143,7 @@ static void mic_x100_send_sbox_intr(struct mic_device *mdev,
 /**
  * mic_x100_send_rdmasr_intr - Send an RDMASR interrupt to MIC.
  * @mdev: pointer to mic_device instance
+ * @doorbell: doorbell number
  */
 static void mic_x100_send_rdmasr_intr(struct mic_device *mdev,
 				      int doorbell)
@@ -503,6 +505,8 @@ static u32 mic_x100_get_postcode(struct mic_device *mdev)
 /**
  * mic_x100_smpt_set - Update an SMPT entry with a DMA address.
  * @mdev: pointer to mic_device instance
+ * @dma_addr: DMA address to use
+ * @index: entry to write to
  *
  * RETURNS: none.
  */
