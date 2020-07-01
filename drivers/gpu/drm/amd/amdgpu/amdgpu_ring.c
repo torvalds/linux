@@ -458,3 +458,51 @@ int amdgpu_ring_test_helper(struct amdgpu_ring *ring)
 	ring->sched.ready = !r;
 	return r;
 }
+
+static void amdgpu_ring_to_mqd_prop(struct amdgpu_ring *ring,
+				    struct amdgpu_mqd_prop *prop)
+{
+	struct amdgpu_device *adev = ring->adev;
+
+	memset(prop, 0, sizeof(*prop));
+
+	prop->mqd_gpu_addr = ring->mqd_gpu_addr;
+	prop->hqd_base_gpu_addr = ring->gpu_addr;
+	prop->rptr_gpu_addr = ring->rptr_gpu_addr;
+	prop->wptr_gpu_addr = ring->wptr_gpu_addr;
+	prop->queue_size = ring->ring_size;
+	prop->eop_gpu_addr = ring->eop_gpu_addr;
+	prop->use_doorbell = ring->use_doorbell;
+	prop->doorbell_index = ring->doorbell_index;
+
+	/* map_queues packet doesn't need activate the queue,
+	 * so only kiq need set this field.
+	 */
+	prop->hqd_active = ring->funcs->type == AMDGPU_RING_TYPE_KIQ;
+
+	if (ring->funcs->type == AMDGPU_RING_TYPE_COMPUTE) {
+		if (amdgpu_gfx_is_high_priority_compute_queue(adev, ring)) {
+			prop->hqd_pipe_priority = AMDGPU_GFX_PIPE_PRIO_HIGH;
+			prop->hqd_queue_priority =
+				AMDGPU_GFX_QUEUE_PRIORITY_MAXIMUM;
+		}
+	}
+}
+
+int amdgpu_ring_init_mqd(struct amdgpu_ring *ring)
+{
+	struct amdgpu_device *adev = ring->adev;
+	struct amdgpu_mqd *mqd_mgr;
+	struct amdgpu_mqd_prop prop;
+
+	amdgpu_ring_to_mqd_prop(ring, &prop);
+
+	ring->wptr = 0;
+
+	if (ring->funcs->type == AMDGPU_RING_TYPE_KIQ)
+		mqd_mgr = &adev->mqds[AMDGPU_HW_IP_COMPUTE];
+	else
+		mqd_mgr = &adev->mqds[ring->funcs->type];
+
+	return mqd_mgr->init_mqd(adev, ring->mqd_ptr, &prop);
+}

@@ -369,6 +369,8 @@ int amdgpu_ring_test_helper(struct amdgpu_ring *ring);
 void amdgpu_debugfs_ring_init(struct amdgpu_device *adev,
 			      struct amdgpu_ring *ring);
 
+int amdgpu_ring_init_mqd(struct amdgpu_ring *ring);
+
 static inline u32 amdgpu_ib_get_value(struct amdgpu_ib *ib, int idx)
 {
 	return ib->ptr[idx];
