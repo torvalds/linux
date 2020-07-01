@@ -225,7 +225,6 @@ static void wfx_tx_manage_pm(struct wfx_vif *wvif, struct ieee80211_hdr *hdr,
 		sta_priv = (struct wfx_sta_priv *)&sta->drv_priv;
 		spin_lock_bh(&sta_priv->lock);
 		sta_priv->buffered[tid]++;
-		ieee80211_sta_set_buffered(sta, tid, true);
 		spin_unlock_bh(&sta_priv->lock);
 	}
 }
@@ -471,8 +470,6 @@ static void wfx_tx_update_sta(struct wfx_vif *wvif, struct ieee80211_hdr *hdr)
 		spin_lock_bh(&sta_priv->lock);
 		WARN(!sta_priv->buffered[tid], "inconsistent notification");
 		sta_priv->buffered[tid]--;
-		if (!sta_priv->buffered[tid])
-			ieee80211_sta_set_buffered(sta, tid, false);
 		spin_unlock_bh(&sta_priv->lock);
 	} else {
 		dev_dbg(wvif->wdev->dev, "%s: sta does not exist anymore\n",
