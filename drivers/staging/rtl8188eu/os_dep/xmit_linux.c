@@ -14,8 +14,7 @@
 #include <xmit_osdep.h>
 #include <osdep_intf.h>
 
-int rtw_os_xmit_resource_alloc(struct adapter *padapter,
-			       struct xmit_buf *pxmitbuf, u32 alloc_sz)
+int rtw_os_xmit_resource_alloc(struct xmit_buf *pxmitbuf, u32 alloc_sz)
 {
 	int i;
 
