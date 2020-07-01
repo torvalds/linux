@@ -219,10 +219,10 @@ static int wfx_get_ps_timeout(struct wfx_vif *wvif, bool *enable_ps)
 			*enable_ps = true;
 		if (wvif->wdev->force_ps_timeout > -1)
 			return wvif->wdev->force_ps_timeout;
-		else if (wvif->bss_not_support_ps_poll)
-			return 30;
-		else
+		else if (wfx_api_older_than(wvif->wdev, 3, 2))
 			return 0;
+		else
+			return 30;
 	}
 	if (enable_ps)
 		*enable_ps = wvif->vif->bss_conf.ps;
@@ -253,14 +253,6 @@ int wfx_update_pm(struct wfx_vif *wvif)
 		dev_warn(wvif->wdev->dev,
 			 "timeout while waiting of set_pm_mode_complete\n");
 	return hif_set_pm(wvif, ps, ps_timeout);
-}
-
-static void wfx_update_pm_work(struct work_struct *work)
-{
-	struct wfx_vif *wvif = container_of(work, struct wfx_vif,
-					    update_pm_work);
-
-	wfx_update_pm(wvif);
 }
 
 int wfx_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
@@ -372,7 +364,6 @@ void wfx_reset(struct wfx_vif *wvif)
 		hif_set_block_ack_policy(wvif, 0xFF, 0xFF);
 	wfx_tx_unlock(wdev);
 	wvif->join_in_progress = false;
-	wvif->bss_not_support_ps_poll = false;
 	cancel_delayed_work_sync(&wvif->beacon_loss_work);
 	wvif =  NULL;
 	while ((wvif = wvif_iterate(wdev, wvif)) != NULL)
@@ -790,7 +781,6 @@ int wfx_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 	init_completion(&wvif->set_pm_mode_complete);
 	complete(&wvif->set_pm_mode_complete);
-	INIT_WORK(&wvif->update_pm_work, wfx_update_pm_work);
 	INIT_WORK(&wvif->tx_policy_upload_work, wfx_tx_policy_upload_work);
 
 	mutex_init(&wvif->scan_lock);
