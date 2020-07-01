@@ -526,6 +526,10 @@ static void kobil_set_termios(struct tty_struct *tty,
 		  0,
 		  KOBIL_TIMEOUT
 		);
+	if (result) {
+		dev_err(&port->dev, "failed to update line settings: %d\n",
+				result);
+	}
 }
 
 static int kobil_ioctl(struct tty_struct *tty,
