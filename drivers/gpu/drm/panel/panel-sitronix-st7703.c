@@ -13,6 +13,7 @@
 #include <linux/media-bus-format.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/regulator/consumer.h>
 
 #include <video/display_timing.h>
@@ -56,6 +57,15 @@ struct st7703 {
 	bool prepared;
 
 	struct dentry *debugfs;
+	const struct st7703_panel_desc *desc;
+};
+
+struct st7703_panel_desc {
+	const struct drm_display_mode *mode;
+	unsigned int lanes;
+	unsigned long mode_flags;
+	enum mipi_dsi_pixel_format format;
+	int (*init_sequence)(struct st7703 *ctx);
 };
 
 static inline struct st7703 *panel_to_st7703(struct drm_panel *panel)
@@ -148,7 +158,7 @@ static int st7703_enable(struct drm_panel *panel)
 	struct st7703 *ctx = panel_to_st7703(panel);
 	int ret;
 
-	ret = jh057n_init_sequence(ctx);
+	ret = ctx->desc->init_sequence(ctx);
 	if (ret < 0) {
 		DRM_DEV_ERROR(ctx->dev, "Panel init sequence failed: %d\n",
 			      ret);
@@ -216,7 +226,7 @@ disable_vcc:
 	return ret;
 }
 
-static const struct drm_display_mode default_mode = {
+static const struct drm_display_mode jh057n00900_mode = {
 	.hdisplay    = 720,
 	.hsync_start = 720 + 90,
 	.hsync_end   = 720 + 90 + 20,
@@ -231,17 +241,26 @@ static const struct drm_display_mode default_mode = {
 	.height_mm   = 130,
 };
 
+struct st7703_panel_desc jh057n00900_panel_desc = {
+	.mode = &jh057n00900_mode,
+	.lanes = 4,
+	.mode_flags = MIPI_DSI_MODE_VIDEO |
+		MIPI_DSI_MODE_VIDEO_BURST | MIPI_DSI_MODE_VIDEO_SYNC_PULSE,
+	.format = MIPI_DSI_FMT_RGB888,
+	.init_sequence = jh057n_init_sequence,
+};
+
 static int st7703_get_modes(struct drm_panel *panel,
 			    struct drm_connector *connector)
 {
 	struct st7703 *ctx = panel_to_st7703(panel);
 	struct drm_display_mode *mode;
 
-	mode = drm_mode_duplicate(connector->dev, &default_mode);
+	mode = drm_mode_duplicate(connector->dev, ctx->desc->mode);
 	if (!mode) {
 		DRM_DEV_ERROR(ctx->dev, "Failed to add mode %ux%u@%u\n",
-			      default_mode.hdisplay, default_mode.vdisplay,
-			      drm_mode_vrefresh(&default_mode));
+			      ctx->desc->mode->hdisplay, ctx->desc->mode->vdisplay,
+			      drm_mode_vrefresh(ctx->desc->mode));
 		return -ENOMEM;
 	}
 
@@ -316,11 +335,11 @@ static int st7703_probe(struct mipi_dsi_device *dsi)
 	mipi_dsi_set_drvdata(dsi, ctx);
 
 	ctx->dev = dev;
+	ctx->desc = of_device_get_match_data(dev);
 
-	dsi->lanes = 4;
-	dsi->format = MIPI_DSI_FMT_RGB888;
-	dsi->mode_flags = MIPI_DSI_MODE_VIDEO |
-		MIPI_DSI_MODE_VIDEO_BURST | MIPI_DSI_MODE_VIDEO_SYNC_PULSE;
+	dsi->mode_flags = ctx->desc->mode_flags;
+	dsi->format = ctx->desc->format;
+	dsi->lanes = ctx->desc->lanes;
 
 	ctx->vcc = devm_regulator_get(dev, "vcc");
 	if (IS_ERR(ctx->vcc)) {
@@ -360,8 +379,8 @@ static int st7703_probe(struct mipi_dsi_device *dsi)
 	}
 
 	DRM_DEV_INFO(dev, "%ux%u@%u %ubpp dsi %udl - ready\n",
-		     default_mode.hdisplay, default_mode.vdisplay,
-		     drm_mode_vrefresh(&default_mode),
+		     ctx->desc->mode->hdisplay, ctx->desc->mode->vdisplay,
+		     drm_mode_vrefresh(ctx->desc->mode),
 		     mipi_dsi_pixel_format_to_bpp(dsi->format), dsi->lanes);
 
 	st7703_debugfs_init(ctx);
@@ -404,7 +423,7 @@ static int st7703_remove(struct mipi_dsi_device *dsi)
 }
 
 static const struct of_device_id st7703_of_match[] = {
-	{ .compatible = "rocktech,jh057n00900" },
+	{ .compatible = "rocktech,jh057n00900", .data = &jh057n00900_panel_desc },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, st7703_of_match);
