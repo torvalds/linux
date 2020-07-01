@@ -569,6 +569,8 @@ static int genwqe_stop(struct genwqe_dev *cd)
 
 /**
  * genwqe_recover_card() - Try to recover the card if it is possible
+ * @cd: GenWQE device information
+ * @fatal_err: Indicate whether to attempt soft reset
  *
  * If fatal_err is set no register access is possible anymore. It is
  * likely that genwqe_start fails in that situation. Proper error
