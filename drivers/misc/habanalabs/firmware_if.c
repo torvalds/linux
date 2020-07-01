@@ -15,7 +15,10 @@
 
 /**
  * hl_fw_load_fw_to_device() - Load F/W code to device's memory.
+ *
  * @hdev: pointer to hl_device structure.
+ * @fw_name: the firmware image name
+ * @dst: IO memory mapped address space to copy firmware to
  *
  * Copy fw code from firmware file to device memory.
  *
