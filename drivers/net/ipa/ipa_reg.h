@@ -190,24 +190,23 @@ static inline u32 ipa_reg_bcr_val(enum ipa_version version)
 	return 0x00000000;
 }
 
-
 #define IPA_REG_LOCAL_PKT_PROC_CNTXT_BASE_OFFSET	0x000001e8
 
 #define IPA_REG_AGGR_FORCE_CLOSE_OFFSET			0x000001ec
 /* ipa->available defines the valid bits in the AGGR_FORCE_CLOSE register */
 
+/* The internal inactivity timer clock is used for the aggregation timer */
+#define TIMER_FREQUENCY	32000	/* 32 KHz inactivity timer clock */
+
 #define IPA_REG_COUNTER_CFG_OFFSET			0x000001f0
 #define AGGR_GRANULARITY			GENMASK(8, 4)
-/* Compute the value to use in the AGGR_GRANULARITY field representing
- * the given number of microseconds (up to 1 millisecond).
- *	x = (32 * usec) / 1000 - 1
+/* Compute the value to use in the AGGR_GRANULARITY field representing the
+ * given number of microseconds.  The value is one less than the number of
+ * timer ticks in the requested period.  Zero not a valid granularity value.
  */
-static inline u32 ipa_aggr_granularity_val(u32 microseconds)
+static inline u32 ipa_aggr_granularity_val(u32 usec)
 {
-	/* assert(microseconds >= 16); (?) */
-	/* assert(microseconds <= 1015); */
-
-	return DIV_ROUND_CLOSEST(32 * microseconds, 1000) - 1;
+	return DIV_ROUND_CLOSEST(usec * TIMER_FREQUENCY, USEC_PER_SEC) - 1;
 }
 
 #define IPA_REG_TX_CFG_OFFSET				0x000001fc
