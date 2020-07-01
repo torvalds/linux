@@ -289,7 +289,7 @@ static void scf_handler_1(void *scfc_in)
 static void scftorture_invoke_one(struct scf_statistics *scfp, struct torture_random_state *trsp)
 {
 	uintptr_t cpu;
-	int ret;
+	int ret = 0;
 	struct scf_check *scfcp = NULL;
 	struct scf_selector *scfsp = scf_sel_rand(trsp);
 
@@ -322,11 +322,7 @@ static void scftorture_invoke_one(struct scf_statistics *scfp, struct torture_ra
 			else
 				scfp->n_single_ofl++;
 			kfree(scfcp);
-		} else if (scfcp && scfsp->scfs_wait) {
-			if (WARN_ON_ONCE(!scfcp->scfc_out))
-				atomic_inc(&n_mb_out_errs); // Leak rather than trash!
-			else
-				kfree(scfcp);
+			scfcp = NULL;
 		}
 		break;
 	case SCF_PRIM_MANY:
@@ -341,12 +337,6 @@ static void scftorture_invoke_one(struct scf_statistics *scfp, struct torture_ra
 			scfcp->scfc_in = true;
 		}
 		smp_call_function_many(cpu_online_mask, scf_handler, scfcp, scfsp->scfs_wait);
-		if (scfcp) {
-			if (WARN_ON_ONCE(!scfcp->scfc_out))
-				atomic_inc(&n_mb_out_errs);  // Leak rather than trash!
-			else
-				kfree(scfcp);
-		}
 		break;
 	case SCF_PRIM_ALL:
 		if (scfsp->scfs_wait)
@@ -360,13 +350,13 @@ static void scftorture_invoke_one(struct scf_statistics *scfp, struct torture_ra
 			scfcp->scfc_in = true;
 		}
 		smp_call_function(scf_handler, scfcp, scfsp->scfs_wait);
-		if (scfcp) {
-			if (WARN_ON_ONCE(!scfcp->scfc_out))
-				atomic_inc(&n_mb_out_errs);  // Leak rather than trash!
-			else
-				kfree(scfcp);
-		}
 		break;
+	}
+	if (scfcp && scfsp->scfs_wait) {
+		if (WARN_ON_ONCE(!scfcp->scfc_out))
+			atomic_inc(&n_mb_out_errs); // Leak rather than trash!
+		else
+			kfree(scfcp);
 	}
 	if (use_cpus_read_lock)
 		cpus_read_unlock();
