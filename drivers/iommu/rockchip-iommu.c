@@ -73,6 +73,8 @@
 #define SPAGE_ORDER 12
 #define SPAGE_SIZE (1 << SPAGE_ORDER)
 
+#define DISABLE_FETCH_DTE_TIME_LIMIT BIT(31)
+
  /*
   * Support mapping any size that fits in one page table:
   *   4 KiB to 4 MiB
@@ -131,6 +133,7 @@ struct rk_iommu {
 	bool reset_disabled;
 	bool skip_read;      /* rk3126/rk3128 can't read vop iommu registers */
 	bool dlr_disable; /* avoid access iommu when runtime ops called */
+	bool fetch_dte_time_limit; /* if have fetch dte time limit */
 	struct iommu_device iommu;
 	struct list_head node; /* entry in rk_iommu_domain.iommus */
 	struct iommu_domain *domain; /* domain to which iommu is attached */
@@ -1230,6 +1233,7 @@ static int rk_iommu_enable(struct rk_iommu *iommu)
 	struct rk_iommu_domain *rk_domain = to_rk_domain(domain);
 	int ret, i;
 	u32 dt_v2;
+	u32 auto_gate;
 
 	ret = clk_bulk_enable(iommu->num_clocks, iommu->clocks);
 	if (ret)
@@ -1254,6 +1258,12 @@ static int rk_iommu_enable(struct rk_iommu *iommu)
 		}
 		rk_iommu_base_command(iommu->bases[i], RK_MMU_CMD_ZAP_CACHE);
 		rk_iommu_write(iommu->bases[i], RK_MMU_INT_MASK, RK_MMU_IRQ_MASK);
+
+		if (iommu->fetch_dte_time_limit) {
+			auto_gate = rk_iommu_read(iommu->bases[i], RK_MMU_AUTO_GATING);
+			auto_gate |= DISABLE_FETCH_DTE_TIME_LIMIT;
+			rk_iommu_write(iommu->bases[i], RK_MMU_AUTO_GATING, auto_gate);
+		}
 	}
 
 	ret = rk_iommu_enable_paging(iommu);
@@ -1622,6 +1632,10 @@ static int rk_iommu_probe(struct platform_device *pdev)
 					"rockchip,skip-mmu-read");
 	iommu->dlr_disable = device_property_read_bool(dev,
 					"rockchip,disable-device-link-resume");
+
+	if (of_machine_is_compatible("rockchip,rv1126") ||
+	    of_machine_is_compatible("rockchip,rv1109"))
+		iommu->fetch_dte_time_limit = true;
 
 	iommu->num_clocks = ARRAY_SIZE(rk_iommu_clocks);
 
