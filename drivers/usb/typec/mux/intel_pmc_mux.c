@@ -10,6 +10,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
+#include <linux/usb/pd.h>
 #include <linux/usb/role.h>
 #include <linux/usb/typec_mux.h>
 #include <linux/usb/typec_dp.h>
@@ -231,6 +232,43 @@ pmc_usb_mux_tbt(struct pmc_usb_port *port, struct typec_mux_state *state)
 	return pmc_usb_command(port, (void *)&req, sizeof(req));
 }
 
+static int
+pmc_usb_mux_usb4(struct pmc_usb_port *port, struct typec_mux_state *state)
+{
+	struct enter_usb_data *data = state->data;
+	struct altmode_req req = { };
+	u8 cable_speed;
+
+	req.usage = PMC_USB_ALT_MODE;
+	req.usage |= port->usb3_port << PMC_USB_MSG_USB3_PORT_SHIFT;
+	req.mode_type = PMC_USB_MODE_TYPE_TBT << PMC_USB_MODE_TYPE_SHIFT;
+
+	/* USB4 Mode */
+	req.mode_data = PMC_USB_ALTMODE_FORCE_LSR;
+
+	if (data->active_link_training)
+		req.mode_data |= PMC_USB_ALTMODE_ACTIVE_LINK;
+
+	req.mode_data |= (port->orientation - 1) << PMC_USB_ALTMODE_ORI_SHIFT;
+	req.mode_data |= (port->role - 1) << PMC_USB_ALTMODE_UFP_SHIFT;
+
+	switch ((data->eudo & EUDO_CABLE_TYPE_MASK) >> EUDO_CABLE_TYPE_SHIFT) {
+	case EUDO_CABLE_TYPE_PASSIVE:
+		break;
+	case EUDO_CABLE_TYPE_OPTICAL:
+		req.mode_data |= PMC_USB_ALTMODE_CABLE_TYPE;
+		fallthrough;
+	default:
+		req.mode_data |= PMC_USB_ALTMODE_ACTIVE_CABLE;
+		break;
+	}
+
+	cable_speed = (data->eudo & EUDO_CABLE_SPEED_MASK) >> EUDO_CABLE_SPEED_SHIFT;
+	req.mode_data |= PMC_USB_ALTMODE_CABLE_SPD(cable_speed);
+
+	return pmc_usb_command(port, (void *)&req, sizeof(req));
+}
+
 static int pmc_usb_mux_safe_state(struct pmc_usb_port *port)
 {
 	u8 msg;
@@ -272,17 +310,28 @@ pmc_usb_mux_set(struct typec_mux *mux, struct typec_mux_state *state)
 {
 	struct pmc_usb_port *port = typec_mux_get_drvdata(mux);
 
-	if (!state->alt)
-		return 0;
-
 	if (state->mode == TYPEC_STATE_SAFE)
 		return pmc_usb_mux_safe_state(port);
+	if (state->mode == TYPEC_STATE_USB)
+		return pmc_usb_connect(port);
 
-	switch (state->alt->svid) {
-	case USB_TYPEC_TBT_SID:
-		return pmc_usb_mux_tbt(port, state);
-	case USB_TYPEC_DP_SID:
-		return pmc_usb_mux_dp(port, state);
+	if (state->alt) {
+		switch (state->alt->svid) {
+		case USB_TYPEC_TBT_SID:
+			return pmc_usb_mux_tbt(port, state);
+		case USB_TYPEC_DP_SID:
+			return pmc_usb_mux_dp(port, state);
+		}
+	} else {
+		switch (state->mode) {
+		case TYPEC_MODE_USB2:
+			/* REVISIT: Try with usb3_port set to 0? */
+			break;
+		case TYPEC_MODE_USB3:
+			return pmc_usb_connect(port);
+		case TYPEC_MODE_USB4:
+			return pmc_usb_mux_usb4(port, state);
+		}
 	}
 
 	return -EOPNOTSUPP;
