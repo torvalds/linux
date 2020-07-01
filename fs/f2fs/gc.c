@@ -849,8 +849,10 @@ static int move_data_block(struct inode *inode, block_t bidx,
 
 	mpage = f2fs_grab_cache_page(META_MAPPING(fio.sbi),
 					fio.old_blkaddr, false);
-	if (!mpage)
+	if (!mpage) {
+		err = -ENOMEM;
 		goto up_out;
+	}
 
 	fio.encrypted_page = mpage;
 
