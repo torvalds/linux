@@ -6037,31 +6037,22 @@ do_none:
 	return status;
 }
 
-static int be_suspend(struct pci_dev *pdev, pm_message_t state)
+static int __maybe_unused be_suspend(struct device *dev_d)
 {
-	struct be_adapter *adapter = pci_get_drvdata(pdev);
+	struct be_adapter *adapter = dev_get_drvdata(dev_d);
 
 	be_intr_set(adapter, false);
 	be_cancel_err_detection(adapter);
 
 	be_cleanup(adapter);
 
-	pci_save_state(pdev);
-	pci_disable_device(pdev);
-	pci_set_power_state(pdev, pci_choose_state(pdev, state));
 	return 0;
 }
 
-static int be_pci_resume(struct pci_dev *pdev)
+static int __maybe_unused be_pci_resume(struct device *dev_d)
 {
-	struct be_adapter *adapter = pci_get_drvdata(pdev);
+	struct be_adapter *adapter = dev_get_drvdata(dev_d);
 	int status = 0;
-
-	status = pci_enable_device(pdev);
-	if (status)
-		return status;
-
-	pci_restore_state(pdev);
 
 	status = be_resume(adapter);
 	if (status)
@@ -6234,13 +6225,14 @@ static const struct pci_error_handlers be_eeh_handlers = {
 	.resume = be_eeh_resume,
 };
 
+static SIMPLE_DEV_PM_OPS(be_pci_pm_ops, be_suspend, be_pci_resume);
+
 static struct pci_driver be_driver = {
 	.name = DRV_NAME,
 	.id_table = be_dev_ids,
 	.probe = be_probe,
 	.remove = be_remove,
-	.suspend = be_suspend,
-	.resume = be_pci_resume,
+	.driver.pm = &be_pci_pm_ops,
 	.shutdown = be_shutdown,
 	.sriov_configure = be_pci_sriov_configure,
 	.err_handler = &be_eeh_handlers

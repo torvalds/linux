@@ -405,27 +405,8 @@ static void liquidio_pcie_resume(struct pci_dev *pdev __attribute__((unused)))
 	/* Nothing to be done here. */
 }
 
-#ifdef CONFIG_PM
-/**
- * \brief called when suspending
- * @param pdev Pointer to PCI device
- * @param state state to suspend to
- */
-static int liquidio_suspend(struct pci_dev *pdev __attribute__((unused)),
-			    pm_message_t state __attribute__((unused)))
-{
-	return 0;
-}
-
-/**
- * \brief called when resuming
- * @param pdev Pointer to PCI device
- */
-static int liquidio_resume(struct pci_dev *pdev __attribute__((unused)))
-{
-	return 0;
-}
-#endif
+#define liquidio_suspend NULL
+#define liquidio_resume NULL
 
 /* For PCI-E Advanced Error Recovery (AER) Interface */
 static const struct pci_error_handlers liquidio_err_handler = {
@@ -451,17 +432,15 @@ static const struct pci_device_id liquidio_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, liquidio_pci_tbl);
 
+static SIMPLE_DEV_PM_OPS(liquidio_pm_ops, liquidio_suspend, liquidio_resume);
+
 static struct pci_driver liquidio_pci_driver = {
 	.name		= "LiquidIO",
 	.id_table	= liquidio_pci_tbl,
 	.probe		= liquidio_probe,
 	.remove		= liquidio_remove,
 	.err_handler	= &liquidio_err_handler,    /* For AER */
-
-#ifdef CONFIG_PM
-	.suspend	= liquidio_suspend,
-	.resume		= liquidio_resume,
-#endif
+	.driver.pm	= &liquidio_pm_ops,
 #ifdef CONFIG_PCI_IOV
 	.sriov_configure = liquidio_enable_sriov,
 #endif

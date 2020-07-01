@@ -4420,13 +4420,12 @@ static void ena_shutdown(struct pci_dev *pdev)
 	__ena_shutoff(pdev, true);
 }
 
-#ifdef CONFIG_PM
 /* ena_suspend - PM suspend callback
- * @pdev: PCI device information struct
- * @state:power state
+ * @dev_d: Device information struct
  */
-static int ena_suspend(struct pci_dev *pdev,  pm_message_t state)
+static int __maybe_unused ena_suspend(struct device *dev_d)
 {
+	struct pci_dev *pdev = to_pci_dev(dev_d);
 	struct ena_adapter *adapter = pci_get_drvdata(pdev);
 
 	u64_stats_update_begin(&adapter->syncp);
@@ -4445,12 +4444,11 @@ static int ena_suspend(struct pci_dev *pdev,  pm_message_t state)
 }
 
 /* ena_resume - PM resume callback
- * @pdev: PCI device information struct
- *
+ * @dev_d: Device information struct
  */
-static int ena_resume(struct pci_dev *pdev)
+static int __maybe_unused ena_resume(struct device *dev_d)
 {
-	struct ena_adapter *adapter = pci_get_drvdata(pdev);
+	struct ena_adapter *adapter = dev_get_drvdata(dev_d);
 	int rc;
 
 	u64_stats_update_begin(&adapter->syncp);
@@ -4462,7 +4460,8 @@ static int ena_resume(struct pci_dev *pdev)
 	rtnl_unlock();
 	return rc;
 }
-#endif
+
+static SIMPLE_DEV_PM_OPS(ena_pm_ops, ena_suspend, ena_resume);
 
 static struct pci_driver ena_pci_driver = {
 	.name		= DRV_MODULE_NAME,
@@ -4470,10 +4469,7 @@ static struct pci_driver ena_pci_driver = {
 	.probe		= ena_probe,
 	.remove		= ena_remove,
 	.shutdown	= ena_shutdown,
-#ifdef CONFIG_PM
-	.suspend    = ena_suspend,
-	.resume     = ena_resume,
-#endif
+	.driver.pm	= &ena_pm_ops,
 	.sriov_configure = pci_sriov_configure_simple,
 };
 
