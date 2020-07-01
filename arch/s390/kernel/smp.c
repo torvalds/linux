@@ -1141,6 +1141,7 @@ static int smp_cpu_online(unsigned int cpu)
 
 	return sysfs_create_group(&s->kobj, &cpu_online_attr_group);
 }
+
 static int smp_cpu_pre_down(unsigned int cpu)
 {
 	struct device *s = &per_cpu(cpu_device, cpu)->dev;
