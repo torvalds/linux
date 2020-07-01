@@ -377,6 +377,7 @@ enum scmi_notification_events {
 	SCMI_EVENT_PERFORMANCE_LEVEL_CHANGED = 0x1,
 	SCMI_EVENT_SENSOR_TRIP_POINT_EVENT = 0x0,
 	SCMI_EVENT_RESET_ISSUED = 0x0,
+	SCMI_EVENT_BASE_ERROR_EVENT = 0x0,
 };
 
 struct scmi_power_state_changed_report {
@@ -413,6 +414,14 @@ struct scmi_reset_issued_report {
 	u32 agent_id;
 	u32 domain_id;
 	u32 reset_state;
+};
+
+struct scmi_base_error_report {
+	u64 timestamp;
+	u32 agent_id;
+	bool fatal;
+	u16 cmd_count;
+	u64 reports[0];
 };
 
 #endif /* _LINUX_SCMI_PROTOCOL_H */
