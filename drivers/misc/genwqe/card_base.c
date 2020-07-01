@@ -1043,12 +1043,10 @@ static int genwqe_health_thread_running(struct genwqe_dev *cd)
 
 static int genwqe_health_check_stop(struct genwqe_dev *cd)
 {
-	int rc;
-
 	if (!genwqe_health_thread_running(cd))
 		return -EIO;
 
-	rc = kthread_stop(cd->health_thread);
+	kthread_stop(cd->health_thread);
 	cd->health_thread = NULL;
 	return 0;
 }
