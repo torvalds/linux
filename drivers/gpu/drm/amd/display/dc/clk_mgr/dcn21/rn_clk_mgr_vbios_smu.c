@@ -52,7 +52,8 @@
 #define VBIOSSMC_MSG_GetFclkFrequency             0xB
 #define VBIOSSMC_MSG_SetDisplayCount              0xC
 #define VBIOSSMC_MSG_EnableTmdp48MHzRefclkPwrDown 0xD
-#define VBIOSSMC_MSG_UpdatePmeRestore			  0xE
+#define VBIOSSMC_MSG_UpdatePmeRestore             0xE
+#define VBIOSSMC_MSG_IsPeriodicRetrainingDisabled 0xF
 
 #define VBIOSSMC_Status_BUSY                      0x0
 #define VBIOSSMC_Result_OK                        0x1
@@ -100,7 +101,7 @@ int rn_vbios_smu_send_msg_with_param(struct clk_mgr_internal *clk_mgr, unsigned 
 
 	result = rn_smu_wait_for_response(clk_mgr, 10, 1000);
 
-	ASSERT(result == VBIOSSMC_Result_OK);
+	ASSERT(result == VBIOSSMC_Result_OK || result == VBIOSSMC_Result_UnknownCmd);
 
 	/* Actual dispclk set is returned in the parameter register */
 	return REG_READ(MP1_SMN_C2PMSG_83);
@@ -230,5 +231,13 @@ void rn_vbios_smu_enable_pme_wa(struct clk_mgr_internal *clk_mgr)
 	rn_vbios_smu_send_msg_with_param(
 			clk_mgr,
 			VBIOSSMC_MSG_UpdatePmeRestore,
+			0);
+}
+
+int rn_vbios_smu_is_periodic_retraining_disabled(struct clk_mgr_internal *clk_mgr)
+{
+	return rn_vbios_smu_send_msg_with_param(
+			clk_mgr,
+			VBIOSSMC_MSG_IsPeriodicRetrainingDisabled,
 			0);
 }

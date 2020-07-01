@@ -634,6 +634,42 @@ static struct wm_table lpddr4_wm_table = {
 	}
 };
 
+static struct wm_table lpddr4_wm_table_with_disabled_ppt = {
+	.entries = {
+		{
+			.wm_inst = WM_A,
+			.wm_type = WM_TYPE_PSTATE_CHG,
+			.pstate_latency_us = 11.65333,
+			.sr_exit_time_us = 8.32,
+			.sr_enter_plus_exit_time_us = 9.38,
+			.valid = true,
+		},
+		{
+			.wm_inst = WM_B,
+			.wm_type = WM_TYPE_PSTATE_CHG,
+			.pstate_latency_us = 11.65333,
+			.sr_exit_time_us = 9.82,
+			.sr_enter_plus_exit_time_us = 11.196,
+			.valid = true,
+		},
+		{
+			.wm_inst = WM_C,
+			.wm_type = WM_TYPE_PSTATE_CHG,
+			.pstate_latency_us = 11.65333,
+			.sr_exit_time_us = 9.89,
+			.sr_enter_plus_exit_time_us = 11.24,
+			.valid = true,
+		},
+		{
+			.wm_inst = WM_D,
+			.wm_type = WM_TYPE_PSTATE_CHG,
+			.pstate_latency_us = 11.65333,
+			.sr_exit_time_us = 9.748,
+			.sr_enter_plus_exit_time_us = 11.102,
+			.valid = true,
+		},
+	}
+};
 
 static unsigned int find_dcfclk_for_voltage(struct dpm_clocks *clock_table, unsigned int voltage)
 {
@@ -738,6 +774,7 @@ void rn_clk_mgr_construct(
 		struct clk_log_info log_info = {0};
 
 		clk_mgr->smu_ver = rn_vbios_smu_get_smu_version(clk_mgr);
+		clk_mgr->periodic_retraining_disabled = rn_vbios_smu_is_periodic_retraining_disabled(clk_mgr);
 
 		/* SMU Version 55.51.0 and up no longer have an issue
 		 * that needs to limit minimum dispclk */
@@ -752,7 +789,11 @@ void rn_clk_mgr_construct(
 			clk_mgr->base.dentist_vco_freq_khz = 3600000;
 
 		if (ctx->dc_bios->integrated_info->memory_type == LpDdr4MemType) {
-			rn_bw_params.wm_table = lpddr4_wm_table;
+			if (clk_mgr->periodic_retraining_disabled) {
+				rn_bw_params.wm_table = lpddr4_wm_table_with_disabled_ppt;
+			} else {
+				rn_bw_params.wm_table = lpddr4_wm_table;
+			}
 		} else {
 			rn_bw_params.wm_table = ddr4_wm_table;
 		}

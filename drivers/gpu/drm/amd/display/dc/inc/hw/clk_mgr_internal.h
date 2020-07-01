@@ -270,6 +270,7 @@ struct clk_mgr_internal {
 
 	enum dm_pp_clocks_state max_clks_state;
 	enum dm_pp_clocks_state cur_min_clks_state;
+	bool periodic_retraining_disabled;
 
 	unsigned int cur_phyclk_req_table[MAX_PIPES * 2];
 #ifdef CONFIG_DRM_AMD_DC_DCN3_0
