@@ -1689,6 +1689,29 @@ static struct io_kiocb *io_req_find_next(struct io_kiocb *req)
 	return __io_req_find_next(req);
 }
 
+static int io_req_task_work_add(struct io_kiocb *req, struct callback_head *cb)
+{
+	struct task_struct *tsk = req->task;
+	struct io_ring_ctx *ctx = req->ctx;
+	int ret, notify = TWA_RESUME;
+
+	/*
+	 * SQPOLL kernel thread doesn't need notification, just a wakeup.
+	 * If we're not using an eventfd, then TWA_RESUME is always fine,
+	 * as we won't have dependencies between request completions for
+	 * other kernel wait conditions.
+	 */
+	if (ctx->flags & IORING_SETUP_SQPOLL)
+		notify = 0;
+	else if (ctx->cq_ev_fd)
+		notify = TWA_SIGNAL;
+
+	ret = task_work_add(tsk, cb, notify);
+	if (!ret)
+		wake_up_process(tsk);
+	return ret;
+}
+
 static void __io_req_task_cancel(struct io_kiocb *req, int error)
 {
 	struct io_ring_ctx *ctx = req->ctx;
@@ -1732,18 +1755,19 @@ static void io_req_task_submit(struct callback_head *cb)
 
 static void io_req_task_queue(struct io_kiocb *req)
 {
-	struct task_struct *tsk = req->task;
 	int ret;
 
 	init_task_work(&req->task_work, io_req_task_submit);
 
-	ret = task_work_add(tsk, &req->task_work, true);
+	ret = io_req_task_work_add(req, &req->task_work);
 	if (unlikely(ret)) {
+		struct task_struct *tsk;
+
 		init_task_work(&req->task_work, io_req_task_cancel);
 		tsk = io_wq_get_task(req->ctx->io_wq);
-		task_work_add(tsk, &req->task_work, true);
+		task_work_add(tsk, &req->task_work, 0);
+		wake_up_process(tsk);
 	}
-	wake_up_process(tsk);
 }
 
 static void io_queue_next(struct io_kiocb *req)
@@ -2197,19 +2221,15 @@ static void io_rw_resubmit(struct callback_head *cb)
 static bool io_rw_reissue(struct io_kiocb *req, long res)
 {
 #ifdef CONFIG_BLOCK
-	struct task_struct *tsk;
 	int ret;
 
 	if ((res != -EAGAIN && res != -EOPNOTSUPP) || io_wq_current_is_worker())
 		return false;
 
-	tsk = req->task;
 	init_task_work(&req->task_work, io_rw_resubmit);
-	ret = task_work_add(tsk, &req->task_work, true);
-	if (!ret) {
-		wake_up_process(tsk);
+	ret = io_req_task_work_add(req, &req->task_work);
+	if (!ret)
 		return true;
-	}
 #endif
 	return false;
 }
@@ -2909,7 +2929,6 @@ static int io_async_buf_func(struct wait_queue_entry *wait, unsigned mode,
 	struct io_kiocb *req = wait->private;
 	struct io_async_rw *rw = &req->io->rw;
 	struct wait_page_key *key = arg;
-	struct task_struct *tsk;
 	int ret;
 
 	wpq = container_of(wait, struct wait_page_queue, wait);
@@ -2923,15 +2942,16 @@ static int io_async_buf_func(struct wait_queue_entry *wait, unsigned mode,
 	init_task_work(&rw->task_work, io_async_buf_retry);
 	/* submit ref gets dropped, acquire a new one */
 	refcount_inc(&req->refs);
-	tsk = req->task;
-	ret = task_work_add(tsk, &rw->task_work, true);
+	ret = io_req_task_work_add(req, &rw->task_work);
 	if (unlikely(ret)) {
+		struct task_struct *tsk;
+
 		/* queue just for cancelation */
 		init_task_work(&rw->task_work, io_async_buf_cancel);
 		tsk = io_wq_get_task(req->ctx->io_wq);
-		task_work_add(tsk, &rw->task_work, true);
+		task_work_add(tsk, &rw->task_work, 0);
+		wake_up_process(tsk);
 	}
-	wake_up_process(tsk);
 	return 1;
 }
 
@@ -4424,33 +4444,9 @@ struct io_poll_table {
 	int error;
 };
 
-static int io_req_task_work_add(struct io_kiocb *req, struct callback_head *cb)
-{
-	struct task_struct *tsk = req->task;
-	struct io_ring_ctx *ctx = req->ctx;
-	int ret, notify = TWA_RESUME;
-
-	/*
-	 * SQPOLL kernel thread doesn't need notification, just a wakeup.
-	 * If we're not using an eventfd, then TWA_RESUME is always fine,
-	 * as we won't have dependencies between request completions for
-	 * other kernel wait conditions.
-	 */
-	if (ctx->flags & IORING_SETUP_SQPOLL)
-		notify = 0;
-	else if (ctx->cq_ev_fd)
-		notify = TWA_SIGNAL;
-
-	ret = task_work_add(tsk, cb, notify);
-	if (!ret)
-		wake_up_process(tsk);
-	return ret;
-}
-
 static int __io_async_wake(struct io_kiocb *req, struct io_poll_iocb *poll,
 			   __poll_t mask, task_work_func_t func)
 {
-	struct task_struct *tsk;
 	int ret;
 
 	/* for instances that support it check for an event match first: */
@@ -4461,7 +4457,6 @@ static int __io_async_wake(struct io_kiocb *req, struct io_poll_iocb *poll,
 
 	list_del_init(&poll->wait.entry);
 
-	tsk = req->task;
 	req->result = mask;
 	init_task_work(&req->task_work, func);
 	/*
@@ -4472,6 +4467,8 @@ static int __io_async_wake(struct io_kiocb *req, struct io_poll_iocb *poll,
 	 */
 	ret = io_req_task_work_add(req, &req->task_work);
 	if (unlikely(ret)) {
+		struct task_struct *tsk;
+
 		WRITE_ONCE(poll->canceled, true);
 		tsk = io_wq_get_task(req->ctx->io_wq);
 		task_work_add(tsk, &req->task_work, 0);
