@@ -176,6 +176,7 @@ static int dw_mci_exynos_runtime_resume(struct device *dev)
 #ifdef CONFIG_PM_SLEEP
 /**
  * dw_mci_exynos_suspend_noirq - Exynos-specific suspend code
+ * @dev: Device to suspend (this device)
  *
  * This ensures that device will be in runtime active state in
  * dw_mci_exynos_resume_noirq after calling pm_runtime_force_resume()
@@ -188,6 +189,7 @@ static int dw_mci_exynos_suspend_noirq(struct device *dev)
 
 /**
  * dw_mci_exynos_resume_noirq - Exynos-specific resume code
+ * @dev: Device to resume (this device)
  *
  * On exynos5420 there is a silicon errata that will sometimes leave the
  * WAKEUP_INT bit in the CLKSEL register asserted.  This bit is 1 to indicate
