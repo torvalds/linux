@@ -1623,7 +1623,6 @@ static DEFINE_MUTEX(rx_queue_mutex);
 static DEFINE_MUTEX(conn_mutex);
 
 static LIST_HEAD(sesslist);
-static LIST_HEAD(sessdestroylist);
 static DEFINE_SPINLOCK(sesslock);
 static LIST_HEAD(connlist);
 static LIST_HEAD(connlist_err);
@@ -2203,7 +2202,8 @@ void iscsi_remove_session(struct iscsi_cls_session *session)
 	ISCSI_DBG_TRANS_SESSION(session, "Removing session\n");
 
 	spin_lock_irqsave(&sesslock, flags);
-	list_del(&session->sess_list);
+	if (!list_empty(&session->sess_list))
+		list_del(&session->sess_list);
 	spin_unlock_irqrestore(&sesslock, flags);
 
 	flush_work(&session->block_work);
@@ -3678,7 +3678,7 @@ iscsi_if_recv_msg(struct sk_buff *skb, struct nlmsghdr *nlh, uint32_t *group)
 
 			/* Prevent this session from being found again */
 			spin_lock_irqsave(&sesslock, flags);
-			list_move(&session->sess_list, &sessdestroylist);
+			list_del_init(&session->sess_list);
 			spin_unlock_irqrestore(&sesslock, flags);
 
 			queue_work(iscsi_destroy_workq, &session->destroy_work);
