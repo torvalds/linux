@@ -142,14 +142,18 @@ struct sk_buff *wfx_pending_get(struct wfx_vif *wvif, u32 packet_id)
 {
 	struct wfx_queue *queue;
 	struct hif_req_tx *req;
+	struct hif_msg *hif;
 	struct sk_buff *skb;
 
 	spin_lock_bh(&wvif->wdev->tx_pending.lock);
 	skb_queue_walk(&wvif->wdev->tx_pending, skb) {
-		req = wfx_skb_txreq(skb);
+		hif = (struct hif_msg *)skb->data;
+		req = (struct hif_req_tx *)hif->body;
 		if (req->packet_id == packet_id) {
 			spin_unlock_bh(&wvif->wdev->tx_pending.lock);
 			queue = &wvif->tx_queue[skb_get_queue_mapping(skb)];
+			WARN(hif->interface != wvif->id, "sent frame %08x on vif %d, but get reply on vif %d",
+			     req->packet_id, hif->interface, wvif->id);
 			WARN_ON(skb_get_queue_mapping(skb) > 3);
 			WARN_ON(!atomic_read(&queue->pending_frames));
 			atomic_dec(&queue->pending_frames);
