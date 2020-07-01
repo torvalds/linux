@@ -766,6 +766,10 @@ static void dmirror_mkentry(struct dmirror *dmirror, struct hmm_range *range,
 		*perm |= HMM_DMIRROR_PROT_WRITE;
 	else
 		*perm |= HMM_DMIRROR_PROT_READ;
+	if (hmm_pfn_to_map_order(entry) + PAGE_SHIFT == PMD_SHIFT)
+		*perm |= HMM_DMIRROR_PROT_PMD;
+	else if (hmm_pfn_to_map_order(entry) + PAGE_SHIFT == PUD_SHIFT)
+		*perm |= HMM_DMIRROR_PROT_PUD;
 }
 
 static bool dmirror_snapshot_invalidate(struct mmu_interval_notifier *mni,
