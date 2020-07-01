@@ -13,6 +13,24 @@
 #include "bh.h"
 #include "sta.h"
 
+static void wfx_rx_handle_ba(struct wfx_vif *wvif, struct ieee80211_mgmt *mgmt)
+{
+	int params, tid;
+
+	switch (mgmt->u.action.u.addba_req.action_code) {
+	case WLAN_ACTION_ADDBA_REQ:
+		params = le16_to_cpu(mgmt->u.action.u.addba_req.capab);
+		tid = (params & IEEE80211_ADDBA_PARAM_TID_MASK) >> 2;
+		ieee80211_start_rx_ba_session_offl(wvif->vif, mgmt->sa, tid);
+		break;
+	case WLAN_ACTION_DELBA:
+		params = le16_to_cpu(mgmt->u.action.u.delba.params);
+		tid = (params &  IEEE80211_DELBA_PARAM_TID_MASK) >> 12;
+		ieee80211_stop_rx_ba_session_offl(wvif->vif, mgmt->sa, tid);
+		break;
+	}
+}
+
 void wfx_rx_cb(struct wfx_vif *wvif,
 	       const struct hif_ind_rx *arg, struct sk_buff *skb)
 {
@@ -53,15 +71,18 @@ void wfx_rx_cb(struct wfx_vif *wvif,
 	hdr->antenna = 0;
 
 	if (arg->rx_flags.encryp)
-		hdr->flag |= RX_FLAG_DECRYPTED | RX_FLAG_PN_VALIDATED;
+		hdr->flag |= RX_FLAG_DECRYPTED;
 
-	/* Filter block ACK negotiation: fully controlled by firmware */
+	// Block ack negociation is offloaded by the firmware. However,
+	// re-ordering must be done by the mac80211.
 	if (ieee80211_is_action(frame->frame_control) &&
-	    arg->rx_flags.match_uc_addr &&
-	    mgmt->u.action.category == WLAN_CATEGORY_BACK)
+	    mgmt->u.action.category == WLAN_CATEGORY_BACK &&
+	    skb->len > IEEE80211_MIN_ACTION_SIZE) {
+		wfx_rx_handle_ba(wvif, mgmt);
 		goto drop;
-	ieee80211_rx_irqsafe(wvif->wdev->hw, skb);
+	}
 
+	ieee80211_rx_irqsafe(wvif->wdev->hw, skb);
 	return;
 
 drop:
