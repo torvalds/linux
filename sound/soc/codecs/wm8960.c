@@ -612,7 +612,7 @@ static const int bclk_divs[] = {
  *	triplet, we relax the bclk such that bclk is chosen as the
  *	closest available frequency greater than expected bclk.
  *
- * @wm8960_priv: wm8960 codec private data
+ * @wm8960: codec private data
  * @mclk: MCLK used to derive sysclk
  * @sysclk_idx: sysclk_divs index for found sysclk
  * @dac_idx: dac_divs index for found lrclk
