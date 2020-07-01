@@ -24,7 +24,7 @@
 /* Debugfs parent dir */
 static struct dentry *mic_dbg;
 
-/**
+/*
  * mic_intr_show - Send interrupts to host.
  */
 static int mic_intr_show(struct seq_file *s, void *unused)
@@ -46,7 +46,7 @@ static int mic_intr_show(struct seq_file *s, void *unused)
 
 DEFINE_SHOW_ATTRIBUTE(mic_intr);
 
-/**
+/*
  * mic_create_card_debug_dir - Initialize MIC debugfs entries.
  */
 void __init mic_create_card_debug_dir(struct mic_driver *mdrv)
@@ -60,7 +60,7 @@ void __init mic_create_card_debug_dir(struct mic_driver *mdrv)
 			    &mic_intr_fops);
 }
 
-/**
+/*
  * mic_delete_card_debug_dir - Uninitialize MIC debugfs entries.
  */
 void mic_delete_card_debug_dir(struct mic_driver *mdrv)
@@ -68,7 +68,7 @@ void mic_delete_card_debug_dir(struct mic_driver *mdrv)
 	debugfs_remove_recursive(mdrv->dbg_dir);
 }
 
-/**
+/*
  * mic_init_card_debugfs - Initialize global debugfs entry.
  */
 void __init mic_init_card_debugfs(void)
@@ -76,7 +76,7 @@ void __init mic_init_card_debugfs(void)
 	mic_dbg = debugfs_create_dir(KBUILD_MODNAME, NULL);
 }
 
-/**
+/*
  * mic_exit_card_debugfs - Uninitialize global debugfs entry
  */
 void mic_exit_card_debugfs(void)
