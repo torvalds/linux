@@ -2966,7 +2966,7 @@ int btrfs_verify_data_csum(struct btrfs_io_bio *io_bio, u64 phy_offset,
 		return 0;
 	}
 
-	phy_offset >>= inode->i_sb->s_blocksize_bits;
+	phy_offset >>= root->fs_info->sectorsize_bits;
 	return check_data_csum(inode, io_bio, phy_offset, page, offset);
 }
 
@@ -7824,7 +7824,7 @@ static inline blk_status_t btrfs_submit_dio_bio(struct bio *bio,
 		u64 csum_offset;
 
 		csum_offset = file_offset - dip->logical_offset;
-		csum_offset >>= inode->i_sb->s_blocksize_bits;
+		csum_offset >>= fs_info->sectorsize_bits;
 		csum_offset *= btrfs_super_csum_size(fs_info->super_copy);
 		btrfs_io_bio(bio)->csum = dip->csums + csum_offset;
 	}
@@ -7853,7 +7853,7 @@ static struct btrfs_dio_private *btrfs_create_dio_private(struct bio *dio_bio,
 		const u16 csum_size = btrfs_super_csum_size(fs_info->super_copy);
 		size_t nblocks;
 
-		nblocks = dio_bio->bi_iter.bi_size >> inode->i_sb->s_blocksize_bits;
+		nblocks = dio_bio->bi_iter.bi_size >> fs_info->sectorsize_bits;
 		dip_size += csum_size * nblocks;
 	}
 

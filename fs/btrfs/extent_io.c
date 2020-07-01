@@ -2656,7 +2656,7 @@ blk_status_t btrfs_submit_read_repair(struct inode *inode,
 	struct extent_io_tree *tree = &BTRFS_I(inode)->io_tree;
 	struct extent_io_tree *failure_tree = &BTRFS_I(inode)->io_failure_tree;
 	struct btrfs_io_bio *failed_io_bio = btrfs_io_bio(failed_bio);
-	const int icsum = phy_offset >> inode->i_sb->s_blocksize_bits;
+	const int icsum = phy_offset >> fs_info->sectorsize_bits;
 	bool need_validation;
 	struct bio *repair_bio;
 	struct btrfs_io_bio *repair_io_bio;

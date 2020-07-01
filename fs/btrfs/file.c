@@ -1799,8 +1799,7 @@ again:
 
 		if (num_sectors > dirty_sectors) {
 			/* release everything except the sectors we dirtied */
-			release_bytes -= dirty_sectors <<
-						fs_info->sb->s_blocksize_bits;
+			release_bytes -= dirty_sectors << fs_info->sectorsize_bits;
 			if (only_release_metadata) {
 				btrfs_delalloc_release_metadata(BTRFS_I(inode),
 							release_bytes, true);
