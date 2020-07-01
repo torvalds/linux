@@ -369,7 +369,7 @@ blk_status_t btrfs_lookup_bio_sums(struct inode *inode, struct bio *bio,
 		 * a single leaf so it will also fit inside a u32
 		 */
 		diff = disk_bytenr - item_start_offset;
-		diff = diff / fs_info->sectorsize;
+		diff = diff >> fs_info->sectorsize_bits;
 		diff = diff * csum_size;
 		count = min_t(int, nblocks, (item_last_offset - disk_bytenr) >>
 					    inode->i_sb->s_blocksize_bits);

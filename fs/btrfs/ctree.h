@@ -935,6 +935,8 @@ struct btrfs_fs_info {
 	/* Cached block sizes */
 	u32 nodesize;
 	u32 sectorsize;
+	/* ilog2 of sectorsize, use to avoid 64bit division */
+	u32 sectorsize_bits;
 	u32 stripesize;
 
 	/* Block groups and devices containing active swapfiles. */

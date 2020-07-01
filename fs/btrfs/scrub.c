@@ -2300,7 +2300,7 @@ static inline void __scrub_mark_bitmap(struct scrub_parity *sparity,
 	u64 offset;
 	u64 nsectors64;
 	u32 nsectors;
-	int sectorsize = sparity->sctx->fs_info->sectorsize;
+	u32 sectorsize_bits = sparity->sctx->fs_info->sectorsize_bits;
 
 	if (len >= sparity->stripe_len) {
 		bitmap_set(bitmap, 0, sparity->nsectors);
@@ -2309,8 +2309,8 @@ static inline void __scrub_mark_bitmap(struct scrub_parity *sparity,
 
 	start -= sparity->logic_start;
 	start = div64_u64_rem(start, sparity->stripe_len, &offset);
-	offset = div_u64(offset, sectorsize);
-	nsectors64 = div_u64(len, sectorsize);
+	offset = offset >> sectorsize_bits;
+	nsectors64 = len >> sectorsize_bits;
 
 	ASSERT(nsectors64 < UINT_MAX);
 	nsectors = (u32)nsectors64;
@@ -2386,10 +2386,10 @@ static int scrub_find_csum(struct scrub_ctx *sctx, u64 logical, u8 *csum)
 	if (!sum)
 		return 0;
 
-	index = div_u64(logical - sum->bytenr, sctx->fs_info->sectorsize);
+	index = (logical - sum->bytenr) >> sctx->fs_info->sectorsize_bits;
 	ASSERT(index < UINT_MAX);
 
-	num_sectors = sum->len / sctx->fs_info->sectorsize;
+	num_sectors = sum->len >> sctx->fs_info->sectorsize_bits;
 	memcpy(csum, sum->sums + index * sctx->csum_size, sctx->csum_size);
 	if (index == num_sectors - 1) {
 		list_del(&sum->list);
@@ -2776,7 +2776,7 @@ static noinline_for_stack int scrub_raid56_parity(struct scrub_ctx *sctx,
 	int extent_mirror_num;
 	int stop_loop = 0;
 
-	nsectors = div_u64(map->stripe_len, fs_info->sectorsize);
+	nsectors = map->stripe_len >> fs_info->sectorsize_bits;
 	bitmap_len = scrub_calc_parity_bitmap_len(nsectors);
 	sparity = kzalloc(sizeof(struct scrub_parity) + 2 * bitmap_len,
 			  GFP_NOFS);
