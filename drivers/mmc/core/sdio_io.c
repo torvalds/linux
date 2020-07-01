@@ -709,6 +709,7 @@ EXPORT_SYMBOL_GPL(sdio_get_host_pm_caps);
 /**
  *	sdio_set_host_pm_flags - set wanted host power management capabilities
  *	@func: SDIO function attached to host
+ *	@flags: Power Management flags to set
  *
  *	Set a capability bitmask corresponding to wanted host controller
  *	power management features for the upcoming suspend state.
