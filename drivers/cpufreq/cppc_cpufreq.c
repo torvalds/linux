@@ -115,7 +115,7 @@ static unsigned int cppc_cpufreq_perf_to_khz(struct cppc_cpudata *cpu,
 		if (!max_khz)
 			max_khz = cppc_get_dmi_max_khz();
 		mul = max_khz;
-		div = cpu->perf_caps.highest_perf;
+		div = caps->highest_perf;
 	}
 	return (u64)perf * mul / div;
 }
@@ -138,7 +138,7 @@ static unsigned int cppc_cpufreq_khz_to_perf(struct cppc_cpudata *cpu,
 	} else {
 		if (!max_khz)
 			max_khz = cppc_get_dmi_max_khz();
-		mul = cpu->perf_caps.highest_perf;
+		mul = caps->highest_perf;
 		div = max_khz;
 	}
 
