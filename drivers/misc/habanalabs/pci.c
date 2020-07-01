@@ -15,7 +15,7 @@
 /**
  * hl_pci_bars_map() - Map PCI BARs.
  * @hdev: Pointer to hl_device structure.
- * @bar_name: Array of BAR names.
+ * @name: Array of BAR names.
  * @is_wc: Array with flag per BAR whether a write-combined mapping is needed.
  *
  * Request PCI regions and map them to kernel virtual addresses.
@@ -61,7 +61,7 @@ err:
 	return rc;
 }
 
-/*
+/**
  * hl_pci_bars_unmap() - Unmap PCI BARS.
  * @hdev: Pointer to hl_device structure.
  *
@@ -80,9 +80,11 @@ static void hl_pci_bars_unmap(struct hl_device *hdev)
 	pci_release_regions(pdev);
 }
 
-/*
+/**
  * hl_pci_elbi_write() - Write through the ELBI interface.
  * @hdev: Pointer to hl_device structure.
+ * @addr: Address to write to
+ * @data: Data to write
  *
  * Return: 0 on success, negative value for failure.
  */
@@ -140,6 +142,8 @@ static int hl_pci_elbi_write(struct hl_device *hdev, u64 addr, u32 data)
 /**
  * hl_pci_iatu_write() - iatu write routine.
  * @hdev: Pointer to hl_device structure.
+ * @addr: Address to write to
+ * @data: Data to write
  *
  * Return: 0 on success, negative value for failure.
  */
@@ -161,7 +165,7 @@ int hl_pci_iatu_write(struct hl_device *hdev, u32 addr, u32 data)
 	return 0;
 }
 
-/*
+/**
  * hl_pci_reset_link_through_bridge() - Reset PCI link.
  * @hdev: Pointer to hl_device structure.
  */
