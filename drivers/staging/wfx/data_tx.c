@@ -533,25 +533,29 @@ static void wfx_tx_fill_rates(struct wfx_dev *wdev,
 		dev_dbg(wdev->dev, "%d more retries than expected\n", tx_count);
 }
 
-void wfx_tx_confirm_cb(struct wfx_vif *wvif, const struct hif_cnf_tx *arg)
+void wfx_tx_confirm_cb(struct wfx_dev *wdev, const struct hif_cnf_tx *arg)
 {
 	struct ieee80211_tx_info *tx_info;
 	const struct wfx_tx_priv *tx_priv;
+	struct wfx_vif *wvif;
 	struct sk_buff *skb;
 
-	skb = wfx_pending_get(wvif, arg->packet_id);
+	skb = wfx_pending_get(wdev, arg->packet_id);
 	if (!skb) {
-		dev_warn(wvif->wdev->dev, "received unknown packet_id (%#.8x) from chip\n",
+		dev_warn(wdev->dev, "received unknown packet_id (%#.8x) from chip\n",
 			 arg->packet_id);
 		return;
 	}
+	wvif = wdev_to_wvif(wdev, ((struct hif_msg *)skb->data)->interface);
+	WARN_ON(!wvif);
+	if (!wvif)
+		return;
 	tx_info = IEEE80211_SKB_CB(skb);
 	tx_priv = wfx_skb_tx_priv(skb);
-	_trace_tx_stats(arg, skb,
-			wfx_pending_get_pkt_us_delay(wvif->wdev, skb));
+	_trace_tx_stats(arg, skb, wfx_pending_get_pkt_us_delay(wdev, skb));
 
 	// You can touch to tx_priv, but don't touch to tx_info->status.
-	wfx_tx_fill_rates(wvif->wdev, tx_info, arg);
+	wfx_tx_fill_rates(wdev, tx_info, arg);
 	if (tx_priv->has_sta)
 		wfx_tx_update_sta(wvif, wfx_skb_hdr80211(skb));
 	skb_trim(skb, skb->len - wfx_tx_get_icv_len(tx_priv->hw_key));

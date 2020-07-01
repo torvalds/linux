@@ -138,30 +138,32 @@ void wfx_pending_drop(struct wfx_dev *wdev, struct sk_buff_head *dropped)
 	}
 }
 
-struct sk_buff *wfx_pending_get(struct wfx_vif *wvif, u32 packet_id)
+struct sk_buff *wfx_pending_get(struct wfx_dev *wdev, u32 packet_id)
 {
 	struct wfx_queue *queue;
 	struct hif_req_tx *req;
+	struct wfx_vif *wvif;
 	struct hif_msg *hif;
 	struct sk_buff *skb;
 
-	spin_lock_bh(&wvif->wdev->tx_pending.lock);
-	skb_queue_walk(&wvif->wdev->tx_pending, skb) {
+	spin_lock_bh(&wdev->tx_pending.lock);
+	skb_queue_walk(&wdev->tx_pending, skb) {
 		hif = (struct hif_msg *)skb->data;
 		req = (struct hif_req_tx *)hif->body;
-		if (req->packet_id == packet_id) {
-			spin_unlock_bh(&wvif->wdev->tx_pending.lock);
+		if (req->packet_id != packet_id)
+			continue;
+		spin_unlock_bh(&wdev->tx_pending.lock);
+		wvif = wdev_to_wvif(wdev, hif->interface);
+		if (wvif) {
 			queue = &wvif->tx_queue[skb_get_queue_mapping(skb)];
-			WARN(hif->interface != wvif->id, "sent frame %08x on vif %d, but get reply on vif %d",
-			     req->packet_id, hif->interface, wvif->id);
 			WARN_ON(skb_get_queue_mapping(skb) > 3);
 			WARN_ON(!atomic_read(&queue->pending_frames));
 			atomic_dec(&queue->pending_frames);
-			skb_unlink(skb, &wvif->wdev->tx_pending);
-			return skb;
 		}
+		skb_unlink(skb, &wdev->tx_pending);
+		return skb;
 	}
-	spin_unlock_bh(&wvif->wdev->tx_pending.lock);
+	spin_unlock_bh(&wdev->tx_pending.lock);
 	WARN(1, "cannot find packet in pending queue");
 	return NULL;
 }

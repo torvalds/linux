@@ -35,7 +35,7 @@ bool wfx_tx_queue_empty(struct wfx_vif *wvif, struct wfx_queue *queue);
 void wfx_tx_queue_drop(struct wfx_vif *wvif, struct wfx_queue *queue,
 		       struct sk_buff_head *dropped);
 
-struct sk_buff *wfx_pending_get(struct wfx_vif *wvif, u32 packet_id);
+struct sk_buff *wfx_pending_get(struct wfx_dev *wdev, u32 packet_id);
 void wfx_pending_drop(struct wfx_dev *wdev, struct sk_buff_head *dropped);
 unsigned int wfx_pending_get_pkt_us_delay(struct wfx_dev *wdev,
 					  struct sk_buff *skb);
