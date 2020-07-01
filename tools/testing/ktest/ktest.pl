@@ -509,9 +509,7 @@ EOF
 
 sub _logit {
     if (defined($opt{"LOG_FILE"})) {
-	open(OUT, ">> $opt{LOG_FILE}") or die "Can't write to $opt{LOG_FILE}";
-	print OUT @_;
-	close(OUT);
+	print LOG @_;
     }
 }
 
@@ -1780,8 +1778,6 @@ sub run_command {
 	(fail "unable to exec $command" and return 0);
 
     if (defined($opt{"LOG_FILE"})) {
-	open(LOG, ">>$opt{LOG_FILE}") or
-	    dodie "failed to write to log";
 	$dolog = 1;
     }
 
@@ -1829,7 +1825,6 @@ sub run_command {
     }
 
     close(CMD);
-    close(LOG) if ($dolog);
     close(RD)  if ($dord);
 
     $end_time = time;
@@ -4091,8 +4086,11 @@ if ($#new_configs >= 0) {
     }
 }
 
-if ($opt{"CLEAR_LOG"} && defined($opt{"LOG_FILE"})) {
-    unlink $opt{"LOG_FILE"};
+if (defined($opt{"LOG_FILE"})) {
+    if ($opt{"CLEAR_LOG"}) {
+	unlink $opt{"LOG_FILE"};
+    }
+    open(LOG, ">> $opt{LOG_FILE}") or die "Can't write to $opt{LOG_FILE}";
 }
 
 doprint "\n\nSTARTING AUTOMATED TESTS\n\n";
@@ -4453,14 +4451,16 @@ if ($opt{"POWEROFF_ON_SUCCESS"}) {
 }
 
 
-if (defined($opt{"LOG_FILE"})) {
-    print "\n See $opt{LOG_FILE} for the record of results.\n";
-}
-
 doprint "\n    $successes of $opt{NUM_TESTS} tests were successful\n\n";
 
 if ($email_when_finished) {
     send_email("KTEST: Your test has finished!",
             "$successes of $opt{NUM_TESTS} tests started at $script_start_time were successful!");
 }
+
+if (defined($opt{"LOG_FILE"})) {
+    print "\n See $opt{LOG_FILE} for the record of results.\n\n";
+    close LOG;
+}
+
 exit 0;
