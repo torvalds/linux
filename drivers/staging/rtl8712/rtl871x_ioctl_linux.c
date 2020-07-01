@@ -1411,7 +1411,7 @@ static int r8711_wx_get_rate(struct net_device *dev,
 		pht_capie = (struct rtl_ieee80211_ht_cap *)(p + 2);
 		memcpy(&mcs_rate, pht_capie->supp_mcs_set, 2);
 		bw_40MHz = (le16_to_cpu(pht_capie->cap_info) &
-			    IEEE80211_HT_CAP_SUP_WIDTH) ? 1 : 0;
+			    IEEE80211_HT_CAP_SUP_WIDTH_20_40) ? 1 : 0;
 		short_GI = (le16_to_cpu(pht_capie->cap_info) &
 			    (IEEE80211_HT_CAP_SGI_20 |
 			    IEEE80211_HT_CAP_SGI_40)) ? 1 : 0;
