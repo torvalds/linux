@@ -83,9 +83,6 @@ struct igc_mac_info {
 	enum igc_mac_type type;
 
 	u32 collision_delta;
-	u32 ledctl_default;
-	u32 ledctl_mode1;
-	u32 ledctl_mode2;
 	u32 mc_filter_type;
 	u32 tx_packet_delta;
 	u32 txcw;
