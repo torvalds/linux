@@ -88,26 +88,6 @@ struct wb_completion {
 	struct wb_completion cmpl = WB_COMPLETION_INIT(bdi)
 
 /*
- * For cgroup writeback, multiple wb's may map to the same blkcg.  Those
- * wb's can operate mostly independently but should share the congested
- * state.  To facilitate such sharing, the congested state is tracked using
- * the following struct which is created on demand, indexed by blkcg ID on
- * its bdi, and refcounted.
- */
-struct bdi_writeback_congested {
-	unsigned long state;		/* WB_[a]sync_congested flags */
-	refcount_t refcnt;		/* nr of attached wb's and blkg */
-
-#ifdef CONFIG_CGROUP_WRITEBACK
-	struct backing_dev_info *__bdi;	/* the associated bdi, set to NULL
-					 * on bdi unregistration. For memcg-wb
-					 * internal use only! */
-	int blkcg_id;			/* ID of the associated blkcg */
-	struct rb_node rb_node;		/* on bdi->cgwb_congestion_tree */
-#endif
-};
-
-/*
  * Each wb (bdi_writeback) can perform writeback operations, is measured
  * and throttled, independently.  Without cgroup writeback, each bdi
  * (bdi_writeback) is served by its embedded bdi->wb.
@@ -140,7 +120,7 @@ struct bdi_writeback {
 
 	struct percpu_counter stat[NR_WB_STAT_ITEMS];
 
-	struct bdi_writeback_congested *congested;
+	unsigned long congested;	/* WB_[a]sync_congested flags */
 
 	unsigned long bw_time_stamp;	/* last time write bw is updated */
 	unsigned long dirtied_stamp;
@@ -208,11 +188,8 @@ struct backing_dev_info {
 	struct list_head wb_list; /* list of all wbs */
 #ifdef CONFIG_CGROUP_WRITEBACK
 	struct radix_tree_root cgwb_tree; /* radix tree of active cgroup wbs */
-	struct rb_root cgwb_congested_tree; /* their congested states */
 	struct mutex cgwb_release_mutex;  /* protect shutdown of wb structs */
 	struct rw_semaphore wb_switch_rwsem; /* no cgwb switch while syncing */
-#else
-	struct bdi_writeback_congested *wb_congested;
 #endif
 	wait_queue_head_t wb_waitq;
 

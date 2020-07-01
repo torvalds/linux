@@ -1834,7 +1834,7 @@ static int dm_any_congested(void *congested_data, int bdi_bits)
 			 * top-level queue for congestion.
 			 */
 			struct backing_dev_info *bdi = md->queue->backing_dev_info;
-			r = bdi->wb.congested->state & bdi_bits;
+			r = bdi->wb.congested & bdi_bits;
 		} else {
 			map = dm_get_live_table_fast(md);
 			if (map)

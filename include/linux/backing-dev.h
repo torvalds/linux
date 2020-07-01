@@ -173,7 +173,7 @@ static inline int wb_congested(struct bdi_writeback *wb, int cong_bits)
 
 	if (bdi->congested_fn)
 		return bdi->congested_fn(bdi->congested_data, cong_bits);
-	return wb->congested->state & cong_bits;
+	return wb->congested & cong_bits;
 }
 
 long congestion_wait(int sync, long timeout);
@@ -224,9 +224,6 @@ static inline int bdi_sched_wait(void *word)
 
 #ifdef CONFIG_CGROUP_WRITEBACK
 
-struct bdi_writeback_congested *
-wb_congested_get_create(struct backing_dev_info *bdi, int blkcg_id, gfp_t gfp);
-void wb_congested_put(struct bdi_writeback_congested *congested);
 struct bdi_writeback *wb_get_lookup(struct backing_dev_info *bdi,
 				    struct cgroup_subsys_state *memcg_css);
 struct bdi_writeback *wb_get_create(struct backing_dev_info *bdi,
@@ -402,19 +399,6 @@ static inline void unlocked_inode_to_wb_end(struct inode *inode,
 static inline bool inode_cgwb_enabled(struct inode *inode)
 {
 	return false;
-}
-
-static inline struct bdi_writeback_congested *
-wb_congested_get_create(struct backing_dev_info *bdi, int blkcg_id, gfp_t gfp)
-{
-	refcount_inc(&bdi->wb_congested->refcnt);
-	return bdi->wb_congested;
-}
-
-static inline void wb_congested_put(struct bdi_writeback_congested *congested)
-{
-	if (refcount_dec_and_test(&congested->refcnt))
-		kfree(congested);
 }
 
 static inline struct bdi_writeback *wb_find_current(struct backing_dev_info *bdi)

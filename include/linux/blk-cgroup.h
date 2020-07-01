@@ -109,12 +109,6 @@ struct blkcg_gq {
 	struct hlist_node		blkcg_node;
 	struct blkcg			*blkcg;
 
-	/*
-	 * Each blkg gets congested separately and the congestion state is
-	 * propagated to the matching bdi_writeback_congested.
-	 */
-	struct bdi_writeback_congested	*wb_congested;
-
 	/* all non-root blkcg_gq's are guaranteed to have access to parent */
 	struct blkcg_gq			*parent;
 
