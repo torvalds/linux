@@ -733,8 +733,8 @@ static struct console pti_console = {
  * pti_port_activate()- Used to start/initialize any items upon
  * first opening of tty_port().
  *
- * @port- The tty port number of the PTI device.
- * @tty-  The tty struct associated with this device.
+ * @port: The tty port number of the PTI device.
+ * @tty:  The tty struct associated with this device.
  *
  * Returns:
  *	always returns 0
@@ -754,7 +754,7 @@ static int pti_port_activate(struct tty_port *port, struct tty_struct *tty)
  * pti_port_shutdown()- Used to stop/shutdown any items upon the
  * last tty port close.
  *
- * @port- The tty port number of the PTI device.
+ * @port: The tty port number of the PTI device.
  *
  * Notes: The primary purpose of the PTI tty port 0 is to hook
  * the syslog daemon to it; thus this port will be open for a
@@ -780,8 +780,8 @@ static const struct tty_port_operations tty_port_ops = {
  * pti_pci_probe()- Used to detect pti on the pci bus and set
  *		    things up in the driver.
  *
- * @pdev- pci_dev struct values for pti.
- * @ent-  pci_device_id struct for pti driver.
+ * @pdev: pci_dev struct values for pti.
+ * @ent:  pci_device_id struct for pti driver.
  *
  * Returns:
  *	0 for success
