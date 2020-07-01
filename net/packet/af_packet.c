@@ -4293,7 +4293,7 @@ static int packet_set_ring(struct sock *sk, union tpacket_req_u *req_u,
 	struct packet_ring_buffer *rb;
 	struct sk_buff_head *rb_queue;
 	__be16 num;
-	int err = -EINVAL;
+	int err;
 	/* Added to avoid minimal code churn */
 	struct tpacket_req *req = &req_u->req;
 
