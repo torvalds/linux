@@ -2642,8 +2642,7 @@ rb_check_timestamp(struct ring_buffer_per_cpu *cpu_buffer,
 {
 	u64 write_stamp;
 
-	WARN_ONCE(info->delta > (1ULL << 59),
-		  KERN_WARNING "Delta way too big! %llu ts=%llu before=%llu after=%llu write stamp=%llu\n%s",
+	WARN_ONCE(1, "Delta way too big! %llu ts=%llu before=%llu after=%llu write stamp=%llu\n%s",
 		  (unsigned long long)info->delta,
 		  (unsigned long long)info->ts,
 		  (unsigned long long)info->before,
@@ -2665,7 +2664,26 @@ static void rb_add_timestamp(struct ring_buffer_per_cpu *cpu_buffer,
 	bool abs = info->add_timestamp &
 		(RB_ADD_STAMP_FORCE | RB_ADD_STAMP_ABSOLUTE);
 
-	rb_check_timestamp(cpu_buffer, info);
+	if (unlikely(info->delta > (1ULL << 59))) {
+		/* did the clock go backwards */
+		if (info->before == info->after && info->before > info->ts) {
+			/* not interrupted */
+			static int once;
+
+			/*
+			 * This is possible with a recalibrating of the TSC.
+			 * Do not produce a call stack, but just report it.
+			 */
+			if (!once) {
+				once++;
+				pr_warn("Ring buffer clock went backwards: %llu -> %llu\n",
+					info->before, info->ts);
+			}
+		} else
+			rb_check_timestamp(cpu_buffer, info);
+		if (!abs)
+			info->delta = 0;
+	}
 	*event = rb_add_time_stamp(*event, info->delta, abs);
 	*length -= RB_LEN_TIME_EXTEND;
 	*delta = 0;
