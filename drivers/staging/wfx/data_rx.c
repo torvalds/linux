@@ -73,12 +73,6 @@ void wfx_rx_cb(struct wfx_vif *wvif,
 
 	memset(hdr, 0, sizeof(*hdr));
 
-	// FIXME: Why do we drop these frames?
-	if (!arg->rcpi_rssi &&
-	    (ieee80211_is_probe_resp(frame->frame_control) ||
-	     ieee80211_is_beacon(frame->frame_control)))
-		goto drop;
-
 	if (arg->status == HIF_STATUS_RX_FAIL_MIC)
 		hdr->flag |= RX_FLAG_MMIC_ERROR;
 	else if (arg->status)
@@ -102,6 +96,10 @@ void wfx_rx_cb(struct wfx_vif *wvif,
 		hdr->rate_idx = arg->rxed_rate;
 	}
 
+	if (!arg->rcpi_rssi) {
+		hdr->flag |= RX_FLAG_NO_SIGNAL_VAL;
+		dev_info(wvif->wdev->dev, "received frame without RSSI data\n");
+	}
 	hdr->signal = arg->rcpi_rssi / 2 - 110;
 	hdr->antenna = 0;
 
