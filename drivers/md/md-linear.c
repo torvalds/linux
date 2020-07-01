@@ -267,7 +267,7 @@ static bool linear_make_request(struct mddev *mddev, struct bio *bio)
 		struct bio *split = bio_split(bio, end_sector - bio_sector,
 					      GFP_NOIO, &mddev->bio_set);
 		bio_chain(split, bio);
-		generic_make_request(bio);
+		submit_bio_noacct(bio);
 		bio = split;
 	}
 
@@ -286,7 +286,7 @@ static bool linear_make_request(struct mddev *mddev, struct bio *bio)
 					      bio_sector);
 		mddev_check_writesame(mddev, bio);
 		mddev_check_write_zeroes(mddev, bio);
-		generic_make_request(bio);
+		submit_bio_noacct(bio);
 	}
 	return true;
 

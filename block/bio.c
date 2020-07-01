@@ -358,7 +358,7 @@ static void bio_alloc_rescue(struct work_struct *work)
 		if (!bio)
 			break;
 
-		generic_make_request(bio);
+		submit_bio_noacct(bio);
 	}
 }
 
@@ -416,19 +416,19 @@ static void punt_bios_to_rescuer(struct bio_set *bs)
  *   submit the previously allocated bio for IO before attempting to allocate
  *   a new one. Failure to do so can cause deadlocks under memory pressure.
  *
- *   Note that when running under generic_make_request() (i.e. any block
+ *   Note that when running under submit_bio_noacct() (i.e. any block
  *   driver), bios are not submitted until after you return - see the code in
- *   generic_make_request() that converts recursion into iteration, to prevent
+ *   submit_bio_noacct() that converts recursion into iteration, to prevent
  *   stack overflows.
  *
  *   This would normally mean allocating multiple bios under
- *   generic_make_request() would be susceptible to deadlocks, but we have
+ *   submit_bio_noacct() would be susceptible to deadlocks, but we have
  *   deadlock avoidance code that resubmits any blocked bios from a rescuer
  *   thread.
  *
  *   However, we do not guarantee forward progress for allocations from other
  *   mempools. Doing multiple allocations from the same mempool under
- *   generic_make_request() should be avoided - instead, use bio_set's front_pad
+ *   submit_bio_noacct() should be avoided - instead, use bio_set's front_pad
  *   for per bio allocations.
  *
  *   RETURNS:
@@ -457,14 +457,14 @@ struct bio *bio_alloc_bioset(gfp_t gfp_mask, unsigned int nr_iovecs,
 				 nr_iovecs > 0))
 			return NULL;
 		/*
-		 * generic_make_request() converts recursion to iteration; this
+		 * submit_bio_noacct() converts recursion to iteration; this
 		 * means if we're running beneath it, any bios we allocate and
 		 * submit will not be submitted (and thus freed) until after we
 		 * return.
 		 *
 		 * This exposes us to a potential deadlock if we allocate
 		 * multiple bios from the same bio_set() while running
-		 * underneath generic_make_request(). If we were to allocate
+		 * underneath submit_bio_noacct(). If we were to allocate
 		 * multiple bios (say a stacking block driver that was splitting
 		 * bios), we would deadlock if we exhausted the mempool's
 		 * reserve.

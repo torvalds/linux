@@ -834,7 +834,7 @@ static void flush_bio_list(struct r1conf *conf, struct bio *bio)
 			/* Just ignore it */
 			bio_endio(bio);
 		else
-			generic_make_request(bio);
+			submit_bio_noacct(bio);
 		bio = next;
 		cond_resched();
 	}
@@ -1312,7 +1312,7 @@ static void raid1_read_request(struct mddev *mddev, struct bio *bio,
 		struct bio *split = bio_split(bio, max_sectors,
 					      gfp, &conf->bio_split);
 		bio_chain(split, bio);
-		generic_make_request(bio);
+		submit_bio_noacct(bio);
 		bio = split;
 		r1_bio->master_bio = bio;
 		r1_bio->sectors = max_sectors;
@@ -1338,7 +1338,7 @@ static void raid1_read_request(struct mddev *mddev, struct bio *bio,
 	        trace_block_bio_remap(read_bio->bi_disk->queue, read_bio,
 				disk_devt(mddev->gendisk), r1_bio->sector);
 
-	generic_make_request(read_bio);
+	submit_bio_noacct(read_bio);
 }
 
 static void raid1_write_request(struct mddev *mddev, struct bio *bio,
@@ -1483,7 +1483,7 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio,
 		struct bio *split = bio_split(bio, max_sectors,
 					      GFP_NOIO, &conf->bio_split);
 		bio_chain(split, bio);
-		generic_make_request(bio);
+		submit_bio_noacct(bio);
 		bio = split;
 		r1_bio->master_bio = bio;
 		r1_bio->sectors = max_sectors;
@@ -2240,7 +2240,7 @@ static void sync_request_write(struct mddev *mddev, struct r1bio *r1_bio)
 		atomic_inc(&r1_bio->remaining);
 		md_sync_acct(conf->mirrors[i].rdev->bdev, bio_sectors(wbio));
 
-		generic_make_request(wbio);
+		submit_bio_noacct(wbio);
 	}
 
 	put_sync_write_buf(r1_bio, 1);
@@ -2926,7 +2926,7 @@ static sector_t raid1_sync_request(struct mddev *mddev, sector_t sector_nr,
 				md_sync_acct_bio(bio, nr_sectors);
 				if (read_targets == 1)
 					bio->bi_opf &= ~MD_FAILFAST;
-				generic_make_request(bio);
+				submit_bio_noacct(bio);
 			}
 		}
 	} else {
@@ -2935,7 +2935,7 @@ static sector_t raid1_sync_request(struct mddev *mddev, sector_t sector_nr,
 		md_sync_acct_bio(bio, nr_sectors);
 		if (read_targets == 1)
 			bio->bi_opf &= ~MD_FAILFAST;
-		generic_make_request(bio);
+		submit_bio_noacct(bio);
 	}
 	return nr_sectors;
 }

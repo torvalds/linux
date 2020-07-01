@@ -1576,12 +1576,12 @@ void drbd_set_my_capacity(struct drbd_device *device, sector_t size);
 /*
  * used to submit our private bio
  */
-static inline void drbd_generic_make_request(struct drbd_device *device,
+static inline void drbd_submit_bio_noacct(struct drbd_device *device,
 					     int fault_type, struct bio *bio)
 {
 	__release(local);
 	if (!bio->bi_disk) {
-		drbd_err(device, "drbd_generic_make_request: bio->bi_disk == NULL\n");
+		drbd_err(device, "drbd_submit_bio_noacct: bio->bi_disk == NULL\n");
 		bio->bi_status = BLK_STS_IOERR;
 		bio_endio(bio);
 		return;
@@ -1590,7 +1590,7 @@ static inline void drbd_generic_make_request(struct drbd_device *device,
 	if (drbd_insert_fault(device, fault_type))
 		bio_io_error(bio);
 	else
-		generic_make_request(bio);
+		submit_bio_noacct(bio);
 }
 
 void drbd_bump_write_ordering(struct drbd_resource *resource, struct drbd_backing_dev *bdev,

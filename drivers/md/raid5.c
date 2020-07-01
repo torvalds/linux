@@ -873,7 +873,7 @@ static void dispatch_bio_list(struct bio_list *tmp)
 	struct bio *bio;
 
 	while ((bio = bio_list_pop(tmp)))
-		generic_make_request(bio);
+		submit_bio_noacct(bio);
 }
 
 static int cmp_stripe(void *priv, struct list_head *a, struct list_head *b)
@@ -1151,7 +1151,7 @@ again:
 			if (should_defer && op_is_write(op))
 				bio_list_add(&pending_bios, bi);
 			else
-				generic_make_request(bi);
+				submit_bio_noacct(bi);
 		}
 		if (rrdev) {
 			if (s->syncing || s->expanding || s->expanded
@@ -1201,7 +1201,7 @@ again:
 			if (should_defer && op_is_write(op))
 				bio_list_add(&pending_bios, rbi);
 			else
-				generic_make_request(rbi);
+				submit_bio_noacct(rbi);
 		}
 		if (!rdev && !rrdev) {
 			if (op_is_write(op))
@@ -5289,7 +5289,7 @@ static int raid5_read_one_chunk(struct mddev *mddev, struct bio *raid_bio)
 			trace_block_bio_remap(align_bi->bi_disk->queue,
 					      align_bi, disk_devt(mddev->gendisk),
 					      raid_bio->bi_iter.bi_sector);
-		generic_make_request(align_bi);
+		submit_bio_noacct(align_bi);
 		return 1;
 	} else {
 		rcu_read_unlock();
@@ -5309,7 +5309,7 @@ static struct bio *chunk_aligned_read(struct mddev *mddev, struct bio *raid_bio)
 		struct r5conf *conf = mddev->private;
 		split = bio_split(raid_bio, sectors, GFP_NOIO, &conf->bio_split);
 		bio_chain(split, raid_bio);
-		generic_make_request(raid_bio);
+		submit_bio_noacct(raid_bio);
 		raid_bio = split;
 	}
 

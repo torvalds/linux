@@ -1238,7 +1238,7 @@ static int writecache_flush_thread(void *data)
 					   bio_end_sector(bio));
 			wc_unlock(wc);
 			bio_set_dev(bio, wc->dev->bdev);
-			generic_make_request(bio);
+			submit_bio_noacct(bio);
 		} else {
 			writecache_flush(wc);
 			wc_unlock(wc);

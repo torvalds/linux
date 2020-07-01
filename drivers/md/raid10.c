@@ -917,7 +917,7 @@ static void flush_pending_writes(struct r10conf *conf)
 				/* Just ignore it */
 				bio_endio(bio);
 			else
-				generic_make_request(bio);
+				submit_bio_noacct(bio);
 			bio = next;
 		}
 		blk_finish_plug(&plug);
@@ -1102,7 +1102,7 @@ static void raid10_unplug(struct blk_plug_cb *cb, bool from_schedule)
 			/* Just ignore it */
 			bio_endio(bio);
 		else
-			generic_make_request(bio);
+			submit_bio_noacct(bio);
 		bio = next;
 	}
 	kfree(plug);
@@ -1194,7 +1194,7 @@ static void raid10_read_request(struct mddev *mddev, struct bio *bio,
 					      gfp, &conf->bio_split);
 		bio_chain(split, bio);
 		allow_barrier(conf);
-		generic_make_request(bio);
+		submit_bio_noacct(bio);
 		wait_barrier(conf);
 		bio = split;
 		r10_bio->master_bio = bio;
@@ -1221,7 +1221,7 @@ static void raid10_read_request(struct mddev *mddev, struct bio *bio,
 	        trace_block_bio_remap(read_bio->bi_disk->queue,
 	                              read_bio, disk_devt(mddev->gendisk),
 	                              r10_bio->sector);
-	generic_make_request(read_bio);
+	submit_bio_noacct(read_bio);
 	return;
 }
 
@@ -1479,7 +1479,7 @@ retry_write:
 					      GFP_NOIO, &conf->bio_split);
 		bio_chain(split, bio);
 		allow_barrier(conf);
-		generic_make_request(bio);
+		submit_bio_noacct(bio);
 		wait_barrier(conf);
 		bio = split;
 		r10_bio->master_bio = bio;
@@ -2099,7 +2099,7 @@ static void sync_request_write(struct mddev *mddev, struct r10bio *r10_bio)
 			tbio->bi_opf |= MD_FAILFAST;
 		tbio->bi_iter.bi_sector += conf->mirrors[d].rdev->data_offset;
 		bio_set_dev(tbio, conf->mirrors[d].rdev->bdev);
-		generic_make_request(tbio);
+		submit_bio_noacct(tbio);
 	}
 
 	/* Now write out to any replacement devices
@@ -2118,7 +2118,7 @@ static void sync_request_write(struct mddev *mddev, struct r10bio *r10_bio)
 		atomic_inc(&r10_bio->remaining);
 		md_sync_acct(conf->mirrors[d].replacement->bdev,
 			     bio_sectors(tbio));
-		generic_make_request(tbio);
+		submit_bio_noacct(tbio);
 	}
 
 done:
@@ -2241,7 +2241,7 @@ static void recovery_request_write(struct mddev *mddev, struct r10bio *r10_bio)
 	wbio = r10_bio->devs[1].bio;
 	wbio2 = r10_bio->devs[1].repl_bio;
 	/* Need to test wbio2->bi_end_io before we call
-	 * generic_make_request as if the former is NULL,
+	 * submit_bio_noacct as if the former is NULL,
 	 * the latter is free to free wbio2.
 	 */
 	if (wbio2 && !wbio2->bi_end_io)
@@ -2249,13 +2249,13 @@ static void recovery_request_write(struct mddev *mddev, struct r10bio *r10_bio)
 	if (wbio->bi_end_io) {
 		atomic_inc(&conf->mirrors[d].rdev->nr_pending);
 		md_sync_acct(conf->mirrors[d].rdev->bdev, bio_sectors(wbio));
-		generic_make_request(wbio);
+		submit_bio_noacct(wbio);
 	}
 	if (wbio2) {
 		atomic_inc(&conf->mirrors[d].replacement->nr_pending);
 		md_sync_acct(conf->mirrors[d].replacement->bdev,
 			     bio_sectors(wbio2));
-		generic_make_request(wbio2);
+		submit_bio_noacct(wbio2);
 	}
 }
 
@@ -2889,7 +2889,7 @@ static void raid10_set_cluster_sync_high(struct r10conf *conf)
  * a number of r10_bio structures, one for each out-of-sync device.
  * As we setup these structures, we collect all bio's together into a list
  * which we then process collectively to add pages, and then process again
- * to pass to generic_make_request.
+ * to pass to submit_bio_noacct.
  *
  * The r10_bio structures are linked using a borrowed master_bio pointer.
  * This link is counted in ->remaining.  When the r10_bio that points to NULL
@@ -3496,7 +3496,7 @@ static sector_t raid10_sync_request(struct mddev *mddev, sector_t sector_nr,
 		if (bio->bi_end_io == end_sync_read) {
 			md_sync_acct_bio(bio, nr_sectors);
 			bio->bi_status = 0;
-			generic_make_request(bio);
+			submit_bio_noacct(bio);
 		}
 	}
 
@@ -4654,7 +4654,7 @@ read_more:
 	md_sync_acct_bio(read_bio, r10_bio->sectors);
 	atomic_inc(&r10_bio->remaining);
 	read_bio->bi_next = NULL;
-	generic_make_request(read_bio);
+	submit_bio_noacct(read_bio);
 	sectors_done += nr_sectors;
 	if (sector_nr <= last)
 		goto read_more;
@@ -4717,7 +4717,7 @@ static void reshape_request_write(struct mddev *mddev, struct r10bio *r10_bio)
 		md_sync_acct_bio(b, r10_bio->sectors);
 		atomic_inc(&r10_bio->remaining);
 		b->bi_next = NULL;
-		generic_make_request(b);
+		submit_bio_noacct(b);
 	}
 	end_reshape_request(r10_bio);
 }

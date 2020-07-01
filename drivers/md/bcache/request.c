@@ -1115,7 +1115,7 @@ static void detached_dev_do_request(struct bcache_device *d, struct bio *bio)
 	    !blk_queue_discard(bdev_get_queue(dc->bdev)))
 		bio->bi_end_io(bio);
 	else
-		generic_make_request(bio);
+		submit_bio_noacct(bio);
 }
 
 static void quit_max_writeback_rate(struct cache_set *c,
@@ -1197,7 +1197,7 @@ blk_qc_t cached_dev_submit_bio(struct bio *bio)
 		if (!bio->bi_iter.bi_size) {
 			/*
 			 * can't call bch_journal_meta from under
-			 * generic_make_request
+			 * submit_bio_noacct
 			 */
 			continue_at_nobarrier(&s->cl,
 					      cached_dev_nodata,
@@ -1311,8 +1311,7 @@ blk_qc_t flash_dev_submit_bio(struct bio *bio)
 
 	if (!bio->bi_iter.bi_size) {
 		/*
-		 * can't call bch_journal_meta from under
-		 * generic_make_request
+		 * can't call bch_journal_meta from under submit_bio_noacct
 		 */
 		continue_at_nobarrier(&s->cl,
 				      flash_dev_nodata,

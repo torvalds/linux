@@ -1164,7 +1164,7 @@ drbd_submit_req_private_bio(struct drbd_request *req)
 		else if (bio_op(bio) == REQ_OP_DISCARD)
 			drbd_process_discard_or_zeroes_req(req, EE_TRIM);
 		else
-			generic_make_request(bio);
+			submit_bio_noacct(bio);
 		put_ldev(device);
 	} else
 		bio_io_error(bio);

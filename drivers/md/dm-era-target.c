@@ -1265,7 +1265,7 @@ static void process_deferred_bios(struct era *era)
 			bio_io_error(bio);
 	else
 		while ((bio = bio_list_pop(&marked_bios)))
-			generic_make_request(bio);
+			submit_bio_noacct(bio);
 }
 
 static void process_rpc_calls(struct era *era)

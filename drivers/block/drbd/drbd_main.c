@@ -2325,7 +2325,7 @@ static void do_retry(struct work_struct *ws)
 		 * workqueues instead.
 		 */
 
-		/* We are not just doing generic_make_request(),
+		/* We are not just doing submit_bio_noacct(),
 		 * as we want to keep the start_time information. */
 		inc_ap_bio(device);
 		__drbd_make_request(device, bio, start_jif);

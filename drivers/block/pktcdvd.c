@@ -913,7 +913,7 @@ static void pkt_iosched_process_queue(struct pktcdvd_device *pd)
 		}
 
 		atomic_inc(&pd->cdrw.pending_bios);
-		generic_make_request(bio);
+		submit_bio_noacct(bio);
 	}
 }
 

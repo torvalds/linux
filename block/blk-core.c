@@ -956,8 +956,7 @@ static inline blk_status_t blk_check_zone_append(struct request_queue *q,
 	return BLK_STS_OK;
 }
 
-static noinline_for_stack bool
-generic_make_request_checks(struct bio *bio)
+static noinline_for_stack bool submit_bio_checks(struct bio *bio)
 {
 	struct request_queue *q = bio->bi_disk->queue;
 	blk_status_t status = BLK_STS_IOERR;
@@ -985,9 +984,8 @@ generic_make_request_checks(struct bio *bio)
 	}
 
 	/*
-	 * Filter flush bio's early so that make_request based
-	 * drivers without flush support don't have to worry
-	 * about them.
+	 * Filter flush bio's early so that bio based drivers without flush
+	 * support don't have to worry about them.
 	 */
 	if (op_is_flush(bio->bi_opf) &&
 	    !test_bit(QUEUE_FLAG_WC, &q->queue_flags)) {
@@ -1072,7 +1070,7 @@ end_io:
 	return false;
 }
 
-static blk_qc_t do_make_request(struct bio *bio)
+static blk_qc_t __submit_bio(struct bio *bio)
 {
 	struct gendisk *disk = bio->bi_disk;
 	blk_qc_t ret = BLK_QC_T_NONE;
@@ -1087,7 +1085,7 @@ static blk_qc_t do_make_request(struct bio *bio)
 }
 
 /**
- * generic_make_request - re-submit a bio to the block device layer for I/O
+ * submit_bio_noacct - re-submit a bio to the block device layer for I/O
  * @bio:  The bio describing the location in memory and on the device.
  *
  * This is a version of submit_bio() that shall only be used for I/O that is
@@ -1095,7 +1093,7 @@ static blk_qc_t do_make_request(struct bio *bio)
  * systems and other upper level users of the block layer should use
  * submit_bio() instead.
  */
-blk_qc_t generic_make_request(struct bio *bio)
+blk_qc_t submit_bio_noacct(struct bio *bio)
 {
 	/*
 	 * bio_list_on_stack[0] contains bios submitted by the current
@@ -1106,7 +1104,7 @@ blk_qc_t generic_make_request(struct bio *bio)
 	struct bio_list bio_list_on_stack[2];
 	blk_qc_t ret = BLK_QC_T_NONE;
 
-	if (!generic_make_request_checks(bio))
+	if (!submit_bio_checks(bio))
 		goto out;
 
 	/*
@@ -1114,7 +1112,7 @@ blk_qc_t generic_make_request(struct bio *bio)
 	 * stack usage with stacked devices could be a problem.  So use
 	 * current->bio_list to keep a list of requests submited by a
 	 * ->submit_bio method.  current->bio_list is also used as a
-	 * flag to say if generic_make_request is currently active in this
+	 * flag to say if submit_bio_noacct is currently active in this
 	 * task or not.  If it is NULL, then no make_request is active.  If
 	 * it is non-NULL, then a make_request is active, and new requests
 	 * should be added at the tail
@@ -1132,7 +1130,7 @@ blk_qc_t generic_make_request(struct bio *bio)
 	 * we assign bio_list to a pointer to the bio_list_on_stack,
 	 * thus initialising the bio_list of new bios to be
 	 * added.  ->submit_bio() may indeed add some more bios
-	 * through a recursive call to generic_make_request.  If it
+	 * through a recursive call to submit_bio_noacct.  If it
 	 * did, we find a non-NULL value in bio_list and re-enter the loop
 	 * from the top.  In this case we really did just take the bio
 	 * of the top of the list (no pretending) and so remove it from
@@ -1150,7 +1148,7 @@ blk_qc_t generic_make_request(struct bio *bio)
 			/* Create a fresh bio_list for all subordinate requests */
 			bio_list_on_stack[1] = bio_list_on_stack[0];
 			bio_list_init(&bio_list_on_stack[0]);
-			ret = do_make_request(bio);
+			ret = __submit_bio(bio);
 
 			/* sort new bios into those for a lower level
 			 * and those for the same level
@@ -1174,13 +1172,13 @@ blk_qc_t generic_make_request(struct bio *bio)
 out:
 	return ret;
 }
-EXPORT_SYMBOL(generic_make_request);
+EXPORT_SYMBOL(submit_bio_noacct);
 
 /**
  * direct_make_request - hand a buffer directly to its device driver for I/O
  * @bio:  The bio describing the location in memory and on the device.
  *
- * This function behaves like generic_make_request(), but does not protect
+ * This function behaves like submit_bio_noacct(), but does not protect
  * against recursion.  Must only be used if the called driver is known
  * to be blk-mq based.
  */
@@ -1192,7 +1190,7 @@ blk_qc_t direct_make_request(struct bio *bio)
 		bio_io_error(bio);
 		return BLK_QC_T_NONE;
 	}
-	if (!generic_make_request_checks(bio))
+	if (!submit_bio_checks(bio))
 		return BLK_QC_T_NONE;
 	if (unlikely(bio_queue_enter(bio)))
 		return BLK_QC_T_NONE;
@@ -1263,13 +1261,13 @@ blk_qc_t submit_bio(struct bio *bio)
 		blk_qc_t ret;
 
 		psi_memstall_enter(&pflags);
-		ret = generic_make_request(bio);
+		ret = submit_bio_noacct(bio);
 		psi_memstall_leave(&pflags);
 
 		return ret;
 	}
 
-	return generic_make_request(bio);
+	return submit_bio_noacct(bio);
 }
 EXPORT_SYMBOL(submit_bio);
 

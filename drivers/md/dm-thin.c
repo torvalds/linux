@@ -758,7 +758,7 @@ static void issue(struct thin_c *tc, struct bio *bio)
 	struct pool *pool = tc->pool;
 
 	if (!bio_triggers_commit(tc, bio)) {
-		generic_make_request(bio);
+		submit_bio_noacct(bio);
 		return;
 	}
 
@@ -2394,7 +2394,7 @@ static void process_deferred_bios(struct pool *pool)
 		if (bio->bi_opf & REQ_PREFLUSH)
 			bio_endio(bio);
 		else
-			generic_make_request(bio);
+			submit_bio_noacct(bio);
 	}
 }
 

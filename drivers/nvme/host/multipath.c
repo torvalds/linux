@@ -351,7 +351,7 @@ static void nvme_requeue_work(struct work_struct *work)
 		 * path.
 		 */
 		bio->bi_disk = head->disk;
-		generic_make_request(bio);
+		submit_bio_noacct(bio);
 	}
 }
 

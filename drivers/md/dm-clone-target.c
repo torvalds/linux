@@ -330,7 +330,7 @@ static void submit_bios(struct bio_list *bios)
 	blk_start_plug(&plug);
 
 	while ((bio = bio_list_pop(bios)))
-		generic_make_request(bio);
+		submit_bio_noacct(bio);
 
 	blk_finish_plug(&plug);
 }
@@ -346,7 +346,7 @@ static void submit_bios(struct bio_list *bios)
 static void issue_bio(struct clone *clone, struct bio *bio)
 {
 	if (!bio_triggers_commit(clone, bio)) {
-		generic_make_request(bio);
+		submit_bio_noacct(bio);
 		return;
 	}
 
@@ -473,7 +473,7 @@ static void complete_discard_bio(struct clone *clone, struct bio *bio, bool succ
 		bio_region_range(clone, bio, &rs, &nr_regions);
 		trim_bio(bio, region_to_sector(clone, rs),
 			 nr_regions << clone->region_shift);
-		generic_make_request(bio);
+		submit_bio_noacct(bio);
 	} else
 		bio_endio(bio);
 }
@@ -865,7 +865,7 @@ static void hydration_overwrite(struct dm_clone_region_hydration *hd, struct bio
 	bio->bi_private = hd;
 
 	atomic_inc(&hd->clone->hydrations_in_flight);
-	generic_make_request(bio);
+	submit_bio_noacct(bio);
 }
 
 /*
@@ -1281,7 +1281,7 @@ static void process_deferred_flush_bios(struct clone *clone)
 			 */
 			bio_endio(bio);
 		} else {
-			generic_make_request(bio);
+			submit_bio_noacct(bio);
 		}
 	}
 }

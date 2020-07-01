@@ -681,7 +681,7 @@ static int verity_map(struct dm_target *ti, struct bio *bio)
 
 	verity_submit_prefetch(v, io);
 
-	generic_make_request(bio);
+	submit_bio_noacct(bio);
 
 	return DM_MAPIO_SUBMITTED;
 }
