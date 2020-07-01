@@ -898,7 +898,6 @@ static struct pci_driver pti_pci_driver = {
 };
 
 /**
- *
  * pti_init()- Overall entry/init call to the pti driver.
  *             It starts the registration process with the kernel.
  *
