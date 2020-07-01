@@ -348,7 +348,6 @@ enum {
 
 	/* Deprecated options */
 	Opt_recovery,
-	Opt_subvolrootid,
 
 	/* Debugging options */
 	Opt_check_integrity,
@@ -420,7 +419,6 @@ static const match_table_t tokens = {
 
 	/* Deprecated options */
 	{Opt_recovery, "recovery"},
-	{Opt_subvolrootid, "subvolrootid=%d"},
 
 	/* Debugging options */
 	{Opt_check_integrity, "check_int"},
@@ -534,7 +532,6 @@ int btrfs_parse_options(struct btrfs_fs_info *info, char *options,
 		case Opt_subvol:
 		case Opt_subvol_empty:
 		case Opt_subvolid:
-		case Opt_subvolrootid:
 		case Opt_device:
 			/*
 			 * These are parsed by btrfs_parse_subvol_options or
@@ -1080,9 +1077,6 @@ static int btrfs_parse_subvol_options(const char *options, char **subvol_name,
 				subvolid = BTRFS_FS_TREE_OBJECTID;
 
 			*subvol_objectid = subvolid;
-			break;
-		case Opt_subvolrootid:
-			pr_warn("BTRFS: 'subvolrootid' mount option is deprecated and has no effect\n");
 			break;
 		default:
 			break;
