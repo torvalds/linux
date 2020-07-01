@@ -378,6 +378,8 @@ void scmi_protocol_unregister(int protocol_id);
 /* SCMI Notification API - Custom Event Reports */
 enum scmi_notification_events {
 	SCMI_EVENT_POWER_STATE_CHANGED = 0x0,
+	SCMI_EVENT_PERFORMANCE_LIMITS_CHANGED = 0x0,
+	SCMI_EVENT_PERFORMANCE_LEVEL_CHANGED = 0x1,
 };
 
 struct scmi_power_state_changed_report {
@@ -385,6 +387,21 @@ struct scmi_power_state_changed_report {
 	u32 agent_id;
 	u32 domain_id;
 	u32 power_state;
+};
+
+struct scmi_perf_limits_report {
+	u64 timestamp;
+	u32 agent_id;
+	u32 domain_id;
+	u32 range_max;
+	u32 range_min;
+};
+
+struct scmi_perf_level_report {
+	u64 timestamp;
+	u32 agent_id;
+	u32 domain_id;
+	u32 performance_level;
 };
 
 #endif /* _LINUX_SCMI_PROTOCOL_H */
