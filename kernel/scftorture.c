@@ -132,6 +132,7 @@ static atomic_t n_mb_in_errs;
 static atomic_t n_mb_out_errs;
 static atomic_t n_alloc_errs;
 static bool scfdone;
+static char *bangstr = "";
 
 DEFINE_TORTURE_RANDOM_PERCPU(scf_torture_rand);
 
@@ -156,12 +157,17 @@ static void scf_torture_stats_print(void)
 		scfs.n_all += scf_stats_p[i].n_all;
 		scfs.n_all_wait += scf_stats_p[i].n_all_wait;
 	}
-	pr_alert("%s scf_invoked_count %s: %lld single: %lld/%lld single_ofl: %lld/%lld many: %lld/%lld all: %lld/%lld ",
-		 SCFTORT_FLAG, isdone ? "VER" : "ver", invoked_count,
+	if (atomic_read(&n_errs) || atomic_read(&n_mb_in_errs) ||
+	    atomic_read(&n_mb_out_errs) || atomic_read(&n_alloc_errs))
+		bangstr = "!!! ";
+	pr_alert("%s %sscf_invoked_count %s: %lld single: %lld/%lld single_ofl: %lld/%lld many: %lld/%lld all: %lld/%lld ",
+		 SCFTORT_FLAG, bangstr, isdone ? "VER" : "ver", invoked_count,
 		 scfs.n_single, scfs.n_single_wait, scfs.n_single_ofl, scfs.n_single_wait_ofl,
 		 scfs.n_many, scfs.n_many_wait, scfs.n_all, scfs.n_all_wait);
 	torture_onoff_stats();
-	pr_cont("\n");
+	pr_cont("ste: %d stnmie: %d stnmoe: %d staf: %d\n", atomic_read(&n_errs),
+		atomic_read(&n_mb_in_errs), atomic_read(&n_mb_out_errs),
+		atomic_read(&n_alloc_errs));
 }
 
 // Periodically prints torture statistics, if periodic statistics printing
@@ -431,7 +437,7 @@ static void scf_torture_cleanup(void)
 	kfree(scf_stats_p);  // -After- the last stats print has completed!
 	scf_stats_p = NULL;
 
-	if (atomic_read(&n_errs))
+	if (atomic_read(&n_errs) || atomic_read(&n_mb_in_errs) || atomic_read(&n_mb_out_errs))
 		scftorture_print_module_parms("End of test: FAILURE");
 	else if (torture_onoff_failures())
 		scftorture_print_module_parms("End of test: LOCK_HOTPLUG");
