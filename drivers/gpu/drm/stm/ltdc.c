@@ -503,15 +503,7 @@ static bool ltdc_crtc_mode_fixup(struct drm_crtc *crtc,
 				 struct drm_display_mode *adjusted_mode)
 {
 	struct ltdc_device *ldev = crtc_to_ltdc(crtc);
-	struct drm_device *ddev = crtc->dev;
 	int rate = mode->clock * 1000;
-	bool runtime_active;
-	int ret;
-
-	runtime_active = pm_runtime_active(ddev->dev);
-
-	if (runtime_active)
-		pm_runtime_put_sync(ddev->dev);
 
 	if (clk_set_rate(ldev->pixel_clk, rate) < 0) {
 		DRM_ERROR("Cannot set rate (%dHz) for pixel clk\n", rate);
@@ -519,14 +511,6 @@ static bool ltdc_crtc_mode_fixup(struct drm_crtc *crtc,
 	}
 
 	adjusted_mode->clock = clk_get_rate(ldev->pixel_clk) / 1000;
-
-	if (runtime_active) {
-		ret = pm_runtime_get_sync(ddev->dev);
-		if (ret) {
-			DRM_ERROR("Failed to fixup mode, cannot get sync\n");
-			return false;
-		}
-	}
 
 	DRM_DEBUG_DRIVER("requested clock %dkHz, adjusted clock %dkHz\n",
 			 mode->clock, adjusted_mode->clock);
