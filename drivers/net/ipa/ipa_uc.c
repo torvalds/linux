@@ -35,12 +35,6 @@
  */
 /* Supports hardware interface version 0x2000 */
 
-/* Offset relative to the base of the IPA shared address space of the
- * shared region used for communication with the microcontroller.  The
- * region is 128 bytes in size, but only the first 40 bytes are used.
- */
-#define IPA_MEM_UC_OFFSET	0x0000
-
 /* Delay to allow a the microcontroller to save state when crashing */
 #define IPA_SEND_DELAY		100	/* microseconds */
 
@@ -60,6 +54,10 @@
  * @hw_state:		state of hardware (including error type information)
  * @warning_counter:	counter of non-fatal hardware errors
  * @interface_version:	hardware-reported interface version
+ *
+ * A shared memory area at the base of IPA resident memory is used for
+ * communication with the microcontroller.  The region is 128 bytes in
+ * size, but only the first 40 bytes (structured this way) are used.
  */
 struct ipa_uc_mem_area {
 	u8 command;		/* enum ipa_uc_command */
