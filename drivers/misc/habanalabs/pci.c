@@ -317,7 +317,6 @@ int hl_pci_init_iatu(struct hl_device *hdev, u64 sram_base_address,
 /**
  * hl_pci_set_dma_mask() - Set DMA masks for the device.
  * @hdev: Pointer to hl_device structure.
- * @dma_mask: number of bits for the requested dma mask.
  *
  * This function sets the DMA masks (regular and consistent) for a specified
  * value. If it doesn't succeed, it tries to set it to a fall-back value
