@@ -49,6 +49,7 @@ static DEFINE_MUTEX(wfs_lock);
 static LIST_HEAD(deferred_sync);
 static unsigned int defer_sync_state_count = 1;
 static unsigned int defer_fw_devlink_count;
+static LIST_HEAD(deferred_fw_devlink);
 static DEFINE_MUTEX(defer_fw_devlink_lock);
 
 #ifdef CONFIG_SRCU
@@ -1193,6 +1194,12 @@ static void fw_devlink_link_device(struct device *dev)
 		fw_ret = fwnode_call_int_op(dev->fwnode, add_links, dev);
 	} else {
 		fw_ret = -ENODEV;
+		/*
+		 * defer_hook is not used to add device to deferred_sync list
+		 * until device is bound. Since deferred fw devlink also blocks
+		 * probing, same list hook can be used for deferred_fw_devlink.
+		 */
+		list_add_tail(&dev->links.defer_hook, &deferred_fw_devlink);
 	}
 
 	if (fw_ret == -ENODEV)
@@ -1261,6 +1268,9 @@ void fw_devlink_pause(void)
  */
 void fw_devlink_resume(void)
 {
+	struct device *dev, *tmp;
+	LIST_HEAD(probe_list);
+
 	mutex_lock(&defer_fw_devlink_lock);
 	if (!defer_fw_devlink_count) {
 		WARN(true, "Unmatched fw_devlink pause/resume!");
@@ -1272,8 +1282,19 @@ void fw_devlink_resume(void)
 		goto out;
 
 	device_link_add_missing_supplier_links();
+	list_splice_tail_init(&deferred_fw_devlink, &probe_list);
 out:
 	mutex_unlock(&defer_fw_devlink_lock);
+
+	/*
+	 * bus_probe_device() can cause new devices to get added and they'll
+	 * try to grab defer_fw_devlink_lock. So, this needs to be done outside
+	 * the defer_fw_devlink_lock.
+	 */
+	list_for_each_entry_safe(dev, tmp, &probe_list, links.defer_hook) {
+		list_del_init(&dev->links.defer_hook);
+		bus_probe_device(dev);
+	}
 }
 /* Device links support end. */
 
