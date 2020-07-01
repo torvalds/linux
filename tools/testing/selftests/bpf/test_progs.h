@@ -66,6 +66,8 @@ struct test_env {
 	enum verbosity verbosity;
 
 	bool jit_enabled;
+	bool get_test_cnt;
+	bool list_test_names;
 
 	struct prog_test_def *test;
 	FILE *stdout;
