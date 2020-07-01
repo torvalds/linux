@@ -12,6 +12,7 @@
 #include "wfx.h"
 #include "sta.h"
 #include "data_tx.h"
+#include "traces.h"
 
 void wfx_tx_lock(struct wfx_dev *wdev)
 {
@@ -256,6 +257,7 @@ static struct sk_buff *wfx_tx_queues_get_skb(struct wfx_dev *wdev)
 			WARN_ON(queues[i] !=
 				&wvif->tx_queue[skb_get_queue_mapping(skb)]);
 			atomic_inc(&queues[i]->pending_frames);
+			trace_queues_stats(wdev, queues[i]);
 			return skb;
 		}
 		// No more multicast to sent
@@ -267,6 +269,7 @@ static struct sk_buff *wfx_tx_queues_get_skb(struct wfx_dev *wdev)
 		skb = skb_dequeue(&queues[i]->normal);
 		if (skb) {
 			atomic_inc(&queues[i]->pending_frames);
+			trace_queues_stats(wdev, queues[i]);
 			return skb;
 		}
 	}

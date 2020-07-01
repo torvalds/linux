@@ -439,6 +439,57 @@ TRACE_EVENT(tx_stats,
 );
 #define _trace_tx_stats(tx_cnf, skb, delay) trace_tx_stats(tx_cnf, skb, delay)
 
+TRACE_EVENT(queues_stats,
+	TP_PROTO(struct wfx_dev *wdev, const struct wfx_queue *elected_queue),
+	TP_ARGS(wdev, elected_queue),
+	TP_STRUCT__entry(
+		__field(int, vif_id)
+		__field(int, queue_id)
+		__array(int, hw, IEEE80211_NUM_ACS * 2)
+		__array(int, drv, IEEE80211_NUM_ACS * 2)
+		__array(int, cab, IEEE80211_NUM_ACS * 2)
+	),
+	TP_fast_assign(
+		const struct wfx_queue *queue;
+		struct wfx_vif *wvif;
+		int i, j;
+
+		for (j = 0; j < IEEE80211_NUM_ACS * 2; j++) {
+			__entry->hw[j] = -1;
+			__entry->drv[j] = -1;
+			__entry->cab[j] = -1;
+		}
+		__entry->vif_id = -1;
+		__entry->queue_id = -1;
+		wvif = NULL;
+		while ((wvif = wvif_iterate(wdev, wvif)) != NULL) {
+			for (i = 0; i < IEEE80211_NUM_ACS; i++) {
+				j = wvif->id * IEEE80211_NUM_ACS + i;
+				WARN_ON(j >= IEEE80211_NUM_ACS * 2);
+				queue = &wvif->tx_queue[i];
+				__entry->hw[j] = atomic_read(&queue->pending_frames);
+				__entry->drv[j] = skb_queue_len(&queue->normal);
+				__entry->cab[j] = skb_queue_len(&queue->cab);
+				if (queue == elected_queue) {
+					__entry->vif_id = wvif->id;
+					__entry->queue_id = i;
+				}
+			}
+		}
+	),
+	TP_printk("got skb from %d/%d, pend. hw/norm/cab: [ %d/%d/%d %d/%d/%d %d/%d/%d %d/%d/%d ] [ %d/%d/%d %d/%d/%d %d/%d/%d %d/%d/%d ]",
+		__entry->vif_id, __entry->queue_id,
+		__entry->hw[0], __entry->drv[0], __entry->cab[0],
+		__entry->hw[1], __entry->drv[1], __entry->cab[1],
+		__entry->hw[2], __entry->drv[2], __entry->cab[2],
+		__entry->hw[3], __entry->drv[3], __entry->cab[3],
+		__entry->hw[4], __entry->drv[4], __entry->cab[4],
+		__entry->hw[5], __entry->drv[5], __entry->cab[5],
+		__entry->hw[6], __entry->drv[6], __entry->cab[6],
+		__entry->hw[7], __entry->drv[7], __entry->cab[7]
+	)
+);
+
 #endif
 
 /* This part must be outside protection */
