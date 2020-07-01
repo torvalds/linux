@@ -375,4 +375,16 @@ typedef int (*scmi_prot_init_fn_t)(struct scmi_handle *);
 int scmi_protocol_register(int protocol_id, scmi_prot_init_fn_t fn);
 void scmi_protocol_unregister(int protocol_id);
 
+/* SCMI Notification API - Custom Event Reports */
+enum scmi_notification_events {
+	SCMI_EVENT_POWER_STATE_CHANGED = 0x0,
+};
+
+struct scmi_power_state_changed_report {
+	u64 timestamp;
+	u32 agent_id;
+	u32 domain_id;
+	u32 power_state;
+};
+
 #endif /* _LINUX_SCMI_PROTOCOL_H */
