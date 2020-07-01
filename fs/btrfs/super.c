@@ -347,7 +347,6 @@ enum {
 	Opt_nologreplay,
 
 	/* Deprecated options */
-	Opt_alloc_start,
 	Opt_recovery,
 	Opt_subvolrootid,
 
@@ -420,7 +419,6 @@ static const match_table_t tokens = {
 	{Opt_usebackuproot, "usebackuproot"},
 
 	/* Deprecated options */
-	{Opt_alloc_start, "alloc_start=%s"},
 	{Opt_recovery, "recovery"},
 	{Opt_subvolrootid, "subvolrootid=%d"},
 
@@ -719,10 +717,6 @@ int btrfs_parse_options(struct btrfs_fs_info *info, char *options,
 				ret = -ENOMEM;
 				goto out;
 			}
-			break;
-		case Opt_alloc_start:
-			btrfs_info(info,
-				"option alloc_start is obsolete, ignored");
 			break;
 		case Opt_acl:
 #ifdef CONFIG_BTRFS_FS_POSIX_ACL
