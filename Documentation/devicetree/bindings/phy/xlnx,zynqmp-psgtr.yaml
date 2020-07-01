@@ -94,8 +94,8 @@ examples:
   - |
     phy: phy@fd400000 {
         compatible = "xlnx,zynqmp-psgtr-v1.1";
-        reg = <0x0 0xfd400000 0x0 0x40000>,
-              <0x0 0xfd3d0000 0x0 0x1000>;
+        reg = <0xfd400000 0x40000>,
+              <0xfd3d0000 0x1000>;
         reg-names = "serdes", "siou";
         clocks = <&refclks 3>, <&refclks 2>, <&refclks 0>;
         clock-names = "ref1", "ref2", "ref3";
