@@ -3942,8 +3942,7 @@ static int goya_debugfs_read32(struct hl_device *hdev, u64 addr, u32 *val)
 		*val = readl(hdev->pcie_bar[SRAM_CFG_BAR_ID] +
 				(addr - SRAM_BASE_ADDR));
 
-	} else if ((addr >= DRAM_PHYS_BASE) &&
-			(addr < DRAM_PHYS_BASE + hdev->asic_prop.dram_size)) {
+	} else if (addr < DRAM_PHYS_BASE + hdev->asic_prop.dram_size) {
 
 		u64 bar_base_addr = DRAM_PHYS_BASE +
 				(addr & ~(prop->dram_pci_bar_size - 0x1ull));
@@ -3999,8 +3998,7 @@ static int goya_debugfs_write32(struct hl_device *hdev, u64 addr, u32 val)
 		writel(val, hdev->pcie_bar[SRAM_CFG_BAR_ID] +
 					(addr - SRAM_BASE_ADDR));
 
-	} else if ((addr >= DRAM_PHYS_BASE) &&
-			(addr < DRAM_PHYS_BASE + hdev->asic_prop.dram_size)) {
+	} else if (addr < DRAM_PHYS_BASE + hdev->asic_prop.dram_size) {
 
 		u64 bar_base_addr = DRAM_PHYS_BASE +
 				(addr & ~(prop->dram_pci_bar_size - 0x1ull));
@@ -4044,9 +4042,8 @@ static int goya_debugfs_read64(struct hl_device *hdev, u64 addr, u64 *val)
 		*val = readq(hdev->pcie_bar[SRAM_CFG_BAR_ID] +
 				(addr - SRAM_BASE_ADDR));
 
-	} else if ((addr >= DRAM_PHYS_BASE) &&
-		   (addr <=
-		    DRAM_PHYS_BASE + hdev->asic_prop.dram_size - sizeof(u64))) {
+	} else if (addr <=
+		   DRAM_PHYS_BASE + hdev->asic_prop.dram_size - sizeof(u64)) {
 
 		u64 bar_base_addr = DRAM_PHYS_BASE +
 				(addr & ~(prop->dram_pci_bar_size - 0x1ull));
@@ -4088,9 +4085,8 @@ static int goya_debugfs_write64(struct hl_device *hdev, u64 addr, u64 val)
 		writeq(val, hdev->pcie_bar[SRAM_CFG_BAR_ID] +
 					(addr - SRAM_BASE_ADDR));
 
-	} else if ((addr >= DRAM_PHYS_BASE) &&
-		   (addr <=
-		    DRAM_PHYS_BASE + hdev->asic_prop.dram_size - sizeof(u64))) {
+	} else if (addr <=
+		   DRAM_PHYS_BASE + hdev->asic_prop.dram_size - sizeof(u64)) {
 
 		u64 bar_base_addr = DRAM_PHYS_BASE +
 				(addr & ~(prop->dram_pci_bar_size - 0x1ull));
