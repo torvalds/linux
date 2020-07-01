@@ -530,7 +530,7 @@ static void ipa_endpoint_init_hdr_metadata_mask(struct ipa_endpoint *endpoint)
 	offset = IPA_REG_ENDP_INIT_HDR_METADATA_MASK_N_OFFSET(endpoint_id);
 
 	/* Note that HDR_ENDIANNESS indicates big endian header fields */
-	if (!endpoint->toward_ipa && endpoint->data->qmap)
+	if (endpoint->data->qmap)
 		val = cpu_to_be32(IPA_ENDPOINT_QMAP_METADATA_MASK);
 
 	iowrite32(val, endpoint->ipa->reg_virt + offset);
@@ -541,7 +541,7 @@ static void ipa_endpoint_init_mode(struct ipa_endpoint *endpoint)
 	u32 offset = IPA_REG_ENDP_INIT_MODE_N_OFFSET(endpoint->endpoint_id);
 	u32 val;
 
-	if (endpoint->toward_ipa && endpoint->data->dma_mode) {
+	if (endpoint->data->dma_mode) {
 		enum ipa_endpoint_name name = endpoint->data->dma_endpoint;
 		u32 dma_endpoint_id;
 
@@ -552,7 +552,7 @@ static void ipa_endpoint_init_mode(struct ipa_endpoint *endpoint)
 	} else {
 		val = u32_encode_bits(IPA_BASIC, MODE_FMASK);
 	}
-	/* Other bitfields unspecified (and 0) */
+	/* All other bits unspecified (and 0) */
 
 	iowrite32(val, endpoint->ipa->reg_virt + offset);
 }
@@ -674,7 +674,7 @@ ipa_endpoint_init_hol_block_enable(struct ipa_endpoint *endpoint, bool enable)
 	u32 offset;
 	u32 val;
 
-	val = u32_encode_bits(enable ? 1 : 0, HOL_BLOCK_EN_FMASK);
+	val = enable ? HOL_BLOCK_EN_FMASK : 0;
 	offset = IPA_REG_ENDP_INIT_HOL_BLOCK_EN_N_OFFSET(endpoint_id);
 	iowrite32(val, endpoint->ipa->reg_virt + offset);
 }
@@ -686,7 +686,7 @@ void ipa_endpoint_modem_hol_block_clear_all(struct ipa *ipa)
 	for (i = 0; i < IPA_ENDPOINT_MAX; i++) {
 		struct ipa_endpoint *endpoint = &ipa->endpoint[i];
 
-		if (endpoint->ee_id != GSI_EE_MODEM)
+		if (endpoint->toward_ipa || endpoint->ee_id != GSI_EE_MODEM)
 			continue;
 
 		(void)ipa_endpoint_init_hol_block_timer(endpoint, 0);
@@ -1300,16 +1300,16 @@ static void ipa_endpoint_program(struct ipa_endpoint *endpoint)
 		ipa_endpoint_init_aggr(endpoint);
 		ipa_endpoint_init_deaggr(endpoint);
 		ipa_endpoint_init_seq(endpoint);
+		ipa_endpoint_init_mode(endpoint);
 	} else {
 		if (endpoint->ipa->version == IPA_VERSION_3_5_1)
 			(void)ipa_endpoint_program_suspend(endpoint, false);
 		ipa_endpoint_init_hdr_ext(endpoint);
 		ipa_endpoint_init_aggr(endpoint);
+		ipa_endpoint_init_hdr_metadata_mask(endpoint);
 	}
 	ipa_endpoint_init_cfg(endpoint);
 	ipa_endpoint_init_hdr(endpoint);
-	ipa_endpoint_init_hdr_metadata_mask(endpoint);
-	ipa_endpoint_init_mode(endpoint);
 	ipa_endpoint_status(endpoint);
 }
 
