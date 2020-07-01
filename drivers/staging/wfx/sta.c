@@ -430,7 +430,6 @@ int wfx_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
 	struct wfx_sta_priv *sta_priv = (struct wfx_sta_priv *)&sta->drv_priv;
 
-	spin_lock_init(&sta_priv->lock);
 	sta_priv->vif_id = wvif->id;
 
 	// In station mode, the firmware interprets new link-id as a TDLS peer.
@@ -450,14 +449,7 @@ int wfx_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 {
 	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
 	struct wfx_sta_priv *sta_priv = (struct wfx_sta_priv *)&sta->drv_priv;
-	int i;
 
-	for (i = 0; i < ARRAY_SIZE(sta_priv->buffered); i++)
-		if (sta_priv->buffered[i])
-			// Not an error if paired with trace in
-			// wfx_tx_update_sta()
-			dev_dbg(wvif->wdev->dev, "release station while %d pending frame on queue %d",
-				sta_priv->buffered[i], i);
 	// See note in wfx_sta_add()
 	if (!sta_priv->link_id)
 		return 0;

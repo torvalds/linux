@@ -16,9 +16,6 @@ struct wfx_vif;
 struct wfx_sta_priv {
 	int link_id;
 	int vif_id;
-	int buffered[IEEE80211_NUM_TIDS];
-	// Ensure atomicity of "buffered" and calls to ieee80211_sta_set_buffered()
-	spinlock_t lock;
 };
 
 // mac80211 interface

@@ -36,7 +36,6 @@ struct tx_policy_cache {
 struct wfx_tx_priv {
 	ktime_t xmit_timestamp;
 	struct ieee80211_key_conf *hw_key;
-	bool has_sta;
 } __packed;
 
 void wfx_tx_policy_init(struct wfx_vif *wvif);

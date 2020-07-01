@@ -213,22 +213,6 @@ static bool ieee80211_is_action_back(struct ieee80211_hdr *hdr)
 	return true;
 }
 
-static void wfx_tx_manage_pm(struct wfx_vif *wvif, struct ieee80211_hdr *hdr,
-			     struct wfx_tx_priv *tx_priv,
-			     struct ieee80211_sta *sta)
-{
-	struct wfx_sta_priv *sta_priv;
-	int tid = ieee80211_get_tid(hdr);
-
-	if (sta) {
-		tx_priv->has_sta = true;
-		sta_priv = (struct wfx_sta_priv *)&sta->drv_priv;
-		spin_lock_bh(&sta_priv->lock);
-		sta_priv->buffered[tid]++;
-		spin_unlock_bh(&sta_priv->lock);
-	}
-}
-
 static u8 wfx_tx_get_link_id(struct wfx_vif *wvif, struct ieee80211_sta *sta,
 			     struct ieee80211_hdr *hdr)
 {
@@ -406,7 +390,6 @@ static int wfx_tx_inner(struct wfx_vif *wvif, struct ieee80211_sta *sta,
 	req->tx_flags.retry_policy_index = wfx_tx_get_rate_id(wvif, tx_info);
 
 	// Auxiliary operations
-	wfx_tx_manage_pm(wvif, hdr, tx_priv, sta);
 	wfx_tx_queues_put(wvif, skb);
 	if (tx_info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM)
 		schedule_work(&wvif->update_tim_work);
@@ -447,35 +430,6 @@ void wfx_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 
 drop:
 	ieee80211_tx_status_irqsafe(wdev->hw, skb);
-}
-
-static struct ieee80211_hdr *wfx_skb_hdr80211(struct sk_buff *skb)
-{
-	struct hif_msg *hif = (struct hif_msg *)skb->data;
-	struct hif_req_tx *req = (struct hif_req_tx *)hif->body;
-
-	return (struct ieee80211_hdr *)(req->frame + req->data_flags.fc_offset);
-}
-
-static void wfx_tx_update_sta(struct wfx_vif *wvif, struct ieee80211_hdr *hdr)
-{
-	int tid = ieee80211_get_tid(hdr);
-	struct wfx_sta_priv *sta_priv;
-	struct ieee80211_sta *sta;
-
-	rcu_read_lock(); // protect sta
-	sta = ieee80211_find_sta(wvif->vif, hdr->addr1);
-	if (sta) {
-		sta_priv = (struct wfx_sta_priv *)&sta->drv_priv;
-		spin_lock_bh(&sta_priv->lock);
-		WARN(!sta_priv->buffered[tid], "inconsistent notification");
-		sta_priv->buffered[tid]--;
-		spin_unlock_bh(&sta_priv->lock);
-	} else {
-		dev_dbg(wvif->wdev->dev, "%s: sta does not exist anymore\n",
-			__func__);
-	}
-	rcu_read_unlock();
 }
 
 static void wfx_skb_dtor(struct wfx_vif *wvif, struct sk_buff *skb)
@@ -553,8 +507,6 @@ void wfx_tx_confirm_cb(struct wfx_dev *wdev, const struct hif_cnf_tx *arg)
 
 	// You can touch to tx_priv, but don't touch to tx_info->status.
 	wfx_tx_fill_rates(wdev, tx_info, arg);
-	if (tx_priv->has_sta)
-		wfx_tx_update_sta(wvif, wfx_skb_hdr80211(skb));
 	skb_trim(skb, skb->len - wfx_tx_get_icv_len(tx_priv->hw_key));
 
 	// From now, you can touch to tx_info->status, but do not touch to
@@ -634,8 +586,6 @@ void wfx_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	while ((skb = skb_dequeue(&dropped)) != NULL) {
 		hif = (struct hif_msg *)skb->data;
 		wvif = wdev_to_wvif(wdev, hif->interface);
-		if (wfx_skb_tx_priv(skb)->has_sta)
-			wfx_tx_update_sta(wvif, wfx_skb_hdr80211(skb));
 		ieee80211_tx_info_clear_status(IEEE80211_SKB_CB(skb));
 		wfx_skb_dtor(wvif, skb);
 	}
