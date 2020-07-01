@@ -4441,6 +4441,10 @@ if ($opt{"POWEROFF_ON_SUCCESS"}) {
 }
 
 
+if (defined($opt{"LOG_FILE"})) {
+    print "\n See $opt{LOG_FILE} for the record of results.\n";
+}
+
 doprint "\n    $successes of $opt{NUM_TESTS} tests were successful\n\n";
 
 if ($email_when_finished) {
