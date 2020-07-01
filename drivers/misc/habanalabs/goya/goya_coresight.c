@@ -640,7 +640,6 @@ static int goya_config_spmu(struct hl_device *hdev,
 int goya_debug_coresight(struct hl_device *hdev, void *data)
 {
 	struct hl_debug_params *params = data;
-	u32 val;
 	int rc = 0;
 
 	switch (params->op) {
@@ -672,7 +671,7 @@ int goya_debug_coresight(struct hl_device *hdev, void *data)
 	}
 
 	/* Perform read from the device to flush all configuration */
-	val = RREG32(mmPCIE_DBI_DEVICE_ID_VENDOR_ID_REG);
+	RREG32(mmPCIE_DBI_DEVICE_ID_VENDOR_ID_REG);
 
 	return rc;
 }
