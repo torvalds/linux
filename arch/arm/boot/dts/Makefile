@@ -544,6 +544,7 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6q-pico-pi.dtb \
 	imx6q-pistachio.dtb \
 	imx6q-prti6q.dtb \
+	imx6q-prtwd2.dtb \
 	imx6q-rex-pro.dtb \
 	imx6q-sabreauto.dtb \
 	imx6q-sabrelite.dtb \
