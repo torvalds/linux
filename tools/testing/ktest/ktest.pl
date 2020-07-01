@@ -11,6 +11,7 @@ use File::Path qw(mkpath);
 use File::Copy qw(cp);
 use FileHandle;
 use FindBin;
+use IO::Handle;
 
 my $VERSION = "0.2";
 
@@ -4091,6 +4092,7 @@ if (defined($opt{"LOG_FILE"})) {
 	unlink $opt{"LOG_FILE"};
     }
     open(LOG, ">> $opt{LOG_FILE}") or die "Can't write to $opt{LOG_FILE}";
+    LOG->autoflush(1);
 }
 
 doprint "\n\nSTARTING AUTOMATED TESTS\n\n";
