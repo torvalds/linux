@@ -6772,7 +6772,7 @@ static const struct hl_asic_funcs gaudi_funcs = {
 /**
  * gaudi_set_asic_funcs - set GAUDI function pointers
  *
- * @*hdev: pointer to hl_device structure
+ * @hdev: pointer to hl_device structure
  *
  */
 void gaudi_set_asic_funcs(struct hl_device *hdev)
