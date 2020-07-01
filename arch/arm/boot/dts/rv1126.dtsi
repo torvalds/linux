@@ -1350,6 +1350,11 @@
 		#thermal-sensor-cells = <1>;
 		nvmem-cells = <&cpu_tsadc_trim_l>, <&cpu_tsadc_trim_h>, <&tsadc_trim_base>;
 		nvmem-cell-names = "trim_l", "trim_h", "trim_base";
+		rockchip,hw-tshut-mode = <0>; /* tshut mode 0:CRU 1:GPIO */
+		rockchip,hw-tshut-polarity = <0>; /* tshut polarity 0:LOW 1:HIGH */
+		pinctrl-names = "gpio", "otpout";
+		pinctrl-0 = <&tsadcm0_pins>;
+		pinctrl-1 = <&tsadc_shutorg>;
 		status = "disabled";
 	};
 
@@ -1370,6 +1375,11 @@
 		#thermal-sensor-cells = <1>;
 		nvmem-cells = <&npu_tsadc_trim_l>, <&npu_tsadc_trim_h>, <&tsadc_trim_base>;
 		nvmem-cell-names = "trim_l", "trim_h", "trim_base";
+		rockchip,hw-tshut-mode = <0>; /* tshut mode 0:CRU 1:GPIO */
+		rockchip,hw-tshut-polarity = <0>; /* tshut polarity 0:LOW 1:HIGH */
+		pinctrl-names = "gpio", "otpout";
+		pinctrl-0 = <&tsadcm0_pins>;
+		pinctrl-1 = <&tsadc_shutorg>;
 		status = "disabled";
 	};
 
