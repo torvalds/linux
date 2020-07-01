@@ -227,6 +227,7 @@ my $dirname = $FindBin::Bin;
 my $mailto;
 my $mailer;
 my $mail_path;
+my $mail_max_size;
 my $mail_command;
 my $email_on_error;
 my $email_when_finished;
@@ -263,6 +264,7 @@ my %option_map = (
     "MAILTO"			=> \$mailto,
     "MAILER"			=> \$mailer,
     "MAIL_PATH"			=> \$mail_path,
+    "MAIL_MAX_SIZE"		=> \$mail_max_size,
     "MAIL_COMMAND"		=> \$mail_command,
     "EMAIL_ON_ERROR"		=> \$email_on_error,
     "EMAIL_WHEN_FINISHED"	=> \$email_when_finished,
@@ -1497,10 +1499,18 @@ sub dodie {
 	my $log_file;
 
 	if (defined($opt{"LOG_FILE"})) {
+	    my $size = 0;
+	    if (defined($mail_max_size)) {
+		my $log_size = tell LOG;
+		$log_size -= $test_log_start;
+		if ($log_size > $mail_max_size) {
+		    $size = $log_size - $mail_max_size;
+		}
+	    }
 	    $log_file = "$tmpdir/log";
 	    open (L, "$opt{LOG_FILE}") or die "Can't open $opt{LOG_FILE} to read)";
 	    open (O, "> $tmpdir/log") or die "Can't open $tmpdir/log\n";
-	    seek(L, $test_log_start, 0);
+	    seek(L, $test_log_start + $size, 0);
 	    while (<L>) {
 		print O;
 	    }
