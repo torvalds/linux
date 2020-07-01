@@ -631,6 +631,22 @@ static int audit_policy(struct aa_label *label, const char *op,
 	return error;
 }
 
+/* don't call out to other LSMs in the stack for apparmor policy admin
+ * permissions
+ */
+static int policy_ns_capable(struct aa_label *label,
+			     struct user_namespace *userns, int cap)
+{
+	int err;
+
+	/* check for MAC_ADMIN cap in cred */
+	err = cap_capable(current_cred(), userns, cap, CAP_OPT_NONE);
+	if (!err)
+		err = aa_capable(label, cap, CAP_OPT_NONE);
+
+	return err;
+}
+
 /**
  * aa_policy_view_capable - check if viewing policy in at @ns is allowed
  * label: label that is trying to view policy in ns
@@ -662,7 +678,7 @@ bool aa_policy_view_capable(struct aa_label *label, struct aa_ns *ns)
 bool aa_policy_admin_capable(struct aa_label *label, struct aa_ns *ns)
 {
 	struct user_namespace *user_ns = current_user_ns();
-	bool capable = ns_capable(user_ns, CAP_MAC_ADMIN);
+	bool capable = policy_ns_capable(label, user_ns, CAP_MAC_ADMIN);
 
 	AA_DEBUG("cap_mac_admin? %d\n", capable);
 	AA_DEBUG("policy locked? %d\n", aa_g_lock_policy);
