@@ -33,8 +33,6 @@ enum wb_congested_state {
 	WB_sync_congested,	/* The sync queue is getting full */
 };
 
-typedef int (congested_fn)(void *, int);
-
 enum wb_stat_item {
 	WB_RECLAIMABLE,
 	WB_WRITEBACK,
@@ -170,8 +168,6 @@ struct backing_dev_info {
 	struct list_head bdi_list;
 	unsigned long ra_pages;	/* max readahead in PAGE_SIZE units */
 	unsigned long io_pages;	/* max allowed IO size */
-	congested_fn *congested_fn; /* Function pointer if device is md/dm */
-	void *congested_data;	/* Pointer to aux data for congested func */
 
 	struct kref refcnt;	/* Reference counter for the structure */
 	unsigned int capabilities; /* Device capabilities */

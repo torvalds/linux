@@ -786,36 +786,6 @@ static int read_balance(struct r1conf *conf, struct r1bio *r1_bio, int *max_sect
 	return best_disk;
 }
 
-static int raid1_congested(struct mddev *mddev, int bits)
-{
-	struct r1conf *conf = mddev->private;
-	int i, ret = 0;
-
-	if ((bits & (1 << WB_async_congested)) &&
-	    conf->pending_count >= max_queued_requests)
-		return 1;
-
-	rcu_read_lock();
-	for (i = 0; i < conf->raid_disks * 2; i++) {
-		struct md_rdev *rdev = rcu_dereference(conf->mirrors[i].rdev);
-		if (rdev && !test_bit(Faulty, &rdev->flags)) {
-			struct request_queue *q = bdev_get_queue(rdev->bdev);
-
-			BUG_ON(!q);
-
-			/* Note the '|| 1' - when read_balance prefers
-			 * non-congested targets, it can be removed
-			 */
-			if ((bits & (1 << WB_async_congested)) || 1)
-				ret |= bdi_congested(q->backing_dev_info, bits);
-			else
-				ret &= bdi_congested(q->backing_dev_info, bits);
-		}
-	}
-	rcu_read_unlock();
-	return ret;
-}
-
 static void flush_bio_list(struct r1conf *conf, struct bio *bio)
 {
 	/* flush any pending bitmap writes to disk before proceeding w/ I/O */
@@ -3396,7 +3366,6 @@ static struct md_personality raid1_personality =
 	.check_reshape	= raid1_reshape,
 	.quiesce	= raid1_quiesce,
 	.takeover	= raid1_takeover,
-	.congested	= raid1_congested,
 };
 
 static int __init raid_init(void)

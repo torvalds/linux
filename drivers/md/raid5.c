@@ -5099,28 +5099,6 @@ static void activate_bit_delay(struct r5conf *conf,
 	}
 }
 
-static int raid5_congested(struct mddev *mddev, int bits)
-{
-	struct r5conf *conf = mddev->private;
-
-	/* No difference between reads and writes.  Just check
-	 * how busy the stripe_cache is
-	 */
-
-	if (test_bit(R5_INACTIVE_BLOCKED, &conf->cache_state))
-		return 1;
-
-	/* Also checks whether there is pressure on r5cache log space */
-	if (test_bit(R5C_LOG_TIGHT, &conf->cache_state))
-		return 1;
-	if (conf->quiesce)
-		return 1;
-	if (atomic_read(&conf->empty_inactive_list_nr))
-		return 1;
-
-	return 0;
-}
-
 static int in_chunk_boundary(struct mddev *mddev, struct bio *bio)
 {
 	struct r5conf *conf = mddev->private;
@@ -8427,7 +8405,6 @@ static struct md_personality raid6_personality =
 	.finish_reshape = raid5_finish_reshape,
 	.quiesce	= raid5_quiesce,
 	.takeover	= raid6_takeover,
-	.congested	= raid5_congested,
 	.change_consistency_policy = raid5_change_consistency_policy,
 };
 static struct md_personality raid5_personality =
@@ -8452,7 +8429,6 @@ static struct md_personality raid5_personality =
 	.finish_reshape = raid5_finish_reshape,
 	.quiesce	= raid5_quiesce,
 	.takeover	= raid5_takeover,
-	.congested	= raid5_congested,
 	.change_consistency_policy = raid5_change_consistency_policy,
 };
 
@@ -8478,7 +8454,6 @@ static struct md_personality raid4_personality =
 	.finish_reshape = raid5_finish_reshape,
 	.quiesce	= raid5_quiesce,
 	.takeover	= raid4_takeover,
-	.congested	= raid5_congested,
 	.change_consistency_policy = raid5_change_consistency_policy,
 };
 

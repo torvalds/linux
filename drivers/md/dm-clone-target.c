@@ -68,7 +68,6 @@ struct hash_table_bucket;
 
 struct clone {
 	struct dm_target *ti;
-	struct dm_target_callbacks callbacks;
 
 	struct dm_dev *metadata_dev;
 	struct dm_dev *dest_dev;
@@ -1518,18 +1517,6 @@ error:
 	DMEMIT("Error");
 }
 
-static int clone_is_congested(struct dm_target_callbacks *cb, int bdi_bits)
-{
-	struct request_queue *dest_q, *source_q;
-	struct clone *clone = container_of(cb, struct clone, callbacks);
-
-	source_q = bdev_get_queue(clone->source_dev->bdev);
-	dest_q = bdev_get_queue(clone->dest_dev->bdev);
-
-	return (bdi_congested(dest_q->backing_dev_info, bdi_bits) |
-		bdi_congested(source_q->backing_dev_info, bdi_bits));
-}
-
 static sector_t get_dev_size(struct dm_dev *dev)
 {
 	return i_size_read(dev->bdev->bd_inode) >> SECTOR_SHIFT;
@@ -1930,8 +1917,6 @@ static int clone_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto out_with_mempool;
 
 	mutex_init(&clone->commit_lock);
-	clone->callbacks.congested_fn = clone_is_congested;
-	dm_table_add_target_callbacks(ti->table, &clone->callbacks);
 
 	/* Enable flushes */
 	ti->num_flush_bios = 1;

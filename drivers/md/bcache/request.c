@@ -1228,36 +1228,8 @@ static int cached_dev_ioctl(struct bcache_device *d, fmode_t mode,
 	return __blkdev_driver_ioctl(dc->bdev, mode, cmd, arg);
 }
 
-static int cached_dev_congested(void *data, int bits)
-{
-	struct bcache_device *d = data;
-	struct cached_dev *dc = container_of(d, struct cached_dev, disk);
-	struct request_queue *q = bdev_get_queue(dc->bdev);
-	int ret = 0;
-
-	if (bdi_congested(q->backing_dev_info, bits))
-		return 1;
-
-	if (cached_dev_get(dc)) {
-		unsigned int i;
-		struct cache *ca;
-
-		for_each_cache(ca, d->c, i) {
-			q = bdev_get_queue(ca->bdev);
-			ret |= bdi_congested(q->backing_dev_info, bits);
-		}
-
-		cached_dev_put(dc);
-	}
-
-	return ret;
-}
-
 void bch_cached_dev_request_init(struct cached_dev *dc)
 {
-	struct gendisk *g = dc->disk.disk;
-
-	g->queue->backing_dev_info->congested_fn = cached_dev_congested;
 	dc->disk.cache_miss			= cached_dev_cache_miss;
 	dc->disk.ioctl				= cached_dev_ioctl;
 }
@@ -1341,27 +1313,8 @@ static int flash_dev_ioctl(struct bcache_device *d, fmode_t mode,
 	return -ENOTTY;
 }
 
-static int flash_dev_congested(void *data, int bits)
-{
-	struct bcache_device *d = data;
-	struct request_queue *q;
-	struct cache *ca;
-	unsigned int i;
-	int ret = 0;
-
-	for_each_cache(ca, d->c, i) {
-		q = bdev_get_queue(ca->bdev);
-		ret |= bdi_congested(q->backing_dev_info, bits);
-	}
-
-	return ret;
-}
-
 void bch_flash_dev_request_init(struct bcache_device *d)
 {
-	struct gendisk *g = d->disk;
-
-	g->queue->backing_dev_info->congested_fn = flash_dev_congested;
 	d->cache_miss				= flash_dev_cache_miss;
 	d->ioctl				= flash_dev_ioctl;
 }

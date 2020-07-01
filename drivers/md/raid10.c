@@ -848,31 +848,6 @@ static struct md_rdev *read_balance(struct r10conf *conf,
 	return rdev;
 }
 
-static int raid10_congested(struct mddev *mddev, int bits)
-{
-	struct r10conf *conf = mddev->private;
-	int i, ret = 0;
-
-	if ((bits & (1 << WB_async_congested)) &&
-	    conf->pending_count >= max_queued_requests)
-		return 1;
-
-	rcu_read_lock();
-	for (i = 0;
-	     (i < conf->geo.raid_disks || i < conf->prev.raid_disks)
-		     && ret == 0;
-	     i++) {
-		struct md_rdev *rdev = rcu_dereference(conf->mirrors[i].rdev);
-		if (rdev && !test_bit(Faulty, &rdev->flags)) {
-			struct request_queue *q = bdev_get_queue(rdev->bdev);
-
-			ret |= bdi_congested(q->backing_dev_info, bits);
-		}
-	}
-	rcu_read_unlock();
-	return ret;
-}
-
 static void flush_pending_writes(struct r10conf *conf)
 {
 	/* Any writes that have been queued but are awaiting
@@ -4929,7 +4904,6 @@ static struct md_personality raid10_personality =
 	.start_reshape	= raid10_start_reshape,
 	.finish_reshape	= raid10_finish_reshape,
 	.update_reshape_pos = raid10_update_reshape_pos,
-	.congested	= raid10_congested,
 };
 
 static int __init raid_init(void)

@@ -326,7 +326,6 @@ struct pool_c {
 	struct pool *pool;
 	struct dm_dev *data_dev;
 	struct dm_dev *metadata_dev;
-	struct dm_target_callbacks callbacks;
 
 	dm_block_t low_water_blocks;
 	struct pool_features requested_pf; /* Features requested during table load */
@@ -2796,18 +2795,6 @@ static int thin_bio_map(struct dm_target *ti, struct bio *bio)
 	}
 }
 
-static int pool_is_congested(struct dm_target_callbacks *cb, int bdi_bits)
-{
-	struct pool_c *pt = container_of(cb, struct pool_c, callbacks);
-	struct request_queue *q;
-
-	if (get_pool_mode(pt->pool) == PM_OUT_OF_DATA_SPACE)
-		return 1;
-
-	q = bdev_get_queue(pt->data_dev->bdev);
-	return bdi_congested(q->backing_dev_info, bdi_bits);
-}
-
 static void requeue_bios(struct pool *pool)
 {
 	struct thin_c *tc;
@@ -3419,9 +3406,6 @@ static int pool_ctr(struct dm_target *ti, unsigned argc, char **argv)
 
 	dm_pool_register_pre_commit_callback(pool->pmd,
 					     metadata_pre_commit_callback, pool);
-
-	pt->callbacks.congested_fn = pool_is_congested;
-	dm_table_add_target_callbacks(ti->table, &pt->callbacks);
 
 	mutex_unlock(&dm_thin_pool_table.mutex);
 

@@ -1821,31 +1821,6 @@ static blk_qc_t dm_submit_bio(struct bio *bio)
 	return ret;
 }
 
-static int dm_any_congested(void *congested_data, int bdi_bits)
-{
-	int r = bdi_bits;
-	struct mapped_device *md = congested_data;
-	struct dm_table *map;
-
-	if (!test_bit(DMF_BLOCK_IO_FOR_SUSPEND, &md->flags)) {
-		if (dm_request_based(md)) {
-			/*
-			 * With request-based DM we only need to check the
-			 * top-level queue for congestion.
-			 */
-			struct backing_dev_info *bdi = md->queue->backing_dev_info;
-			r = bdi->wb.congested & bdi_bits;
-		} else {
-			map = dm_get_live_table_fast(md);
-			if (map)
-				r = dm_table_any_congested(map, bdi_bits);
-			dm_put_live_table_fast(md);
-		}
-	}
-
-	return r;
-}
-
 /*-----------------------------------------------------------------
  * An IDR is used to keep track of allocated minor numbers.
  *---------------------------------------------------------------*/
@@ -2284,12 +2259,6 @@ struct queue_limits *dm_get_queue_limits(struct mapped_device *md)
 }
 EXPORT_SYMBOL_GPL(dm_get_queue_limits);
 
-static void dm_init_congested_fn(struct mapped_device *md)
-{
-	md->queue->backing_dev_info->congested_data = md;
-	md->queue->backing_dev_info->congested_fn = dm_any_congested;
-}
-
 /*
  * Setup the DM device's queue based on md's type
  */
@@ -2306,12 +2275,10 @@ int dm_setup_md_queue(struct mapped_device *md, struct dm_table *t)
 			DMERR("Cannot initialize queue for request-based dm-mq mapped device");
 			return r;
 		}
-		dm_init_congested_fn(md);
 		break;
 	case DM_TYPE_BIO_BASED:
 	case DM_TYPE_DAX_BIO_BASED:
 	case DM_TYPE_NVME_BIO_BASED:
-		dm_init_congested_fn(md);
 		break;
 	case DM_TYPE_NONE:
 		WARN_ON_ONCE(true);

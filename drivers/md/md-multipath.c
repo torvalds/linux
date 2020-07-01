@@ -151,28 +151,6 @@ static void multipath_status(struct seq_file *seq, struct mddev *mddev)
 	seq_putc(seq, ']');
 }
 
-static int multipath_congested(struct mddev *mddev, int bits)
-{
-	struct mpconf *conf = mddev->private;
-	int i, ret = 0;
-
-	rcu_read_lock();
-	for (i = 0; i < mddev->raid_disks ; i++) {
-		struct md_rdev *rdev = rcu_dereference(conf->multipaths[i].rdev);
-		if (rdev && !test_bit(Faulty, &rdev->flags)) {
-			struct request_queue *q = bdev_get_queue(rdev->bdev);
-
-			ret |= bdi_congested(q->backing_dev_info, bits);
-			/* Just like multipath_map, we just check the
-			 * first available device
-			 */
-			break;
-		}
-	}
-	rcu_read_unlock();
-	return ret;
-}
-
 /*
  * Careful, this can execute in IRQ contexts as well!
  */
@@ -478,7 +456,6 @@ static struct md_personality multipath_personality =
 	.hot_add_disk	= multipath_add_disk,
 	.hot_remove_disk= multipath_remove_disk,
 	.size		= multipath_size,
-	.congested	= multipath_congested,
 };
 
 static int __init multipath_init (void)

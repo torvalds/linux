@@ -549,26 +549,6 @@ void mddev_resume(struct mddev *mddev)
 }
 EXPORT_SYMBOL_GPL(mddev_resume);
 
-int mddev_congested(struct mddev *mddev, int bits)
-{
-	struct md_personality *pers = mddev->pers;
-	int ret = 0;
-
-	rcu_read_lock();
-	if (mddev->suspended)
-		ret = 1;
-	else if (pers && pers->congested)
-		ret = pers->congested(mddev, bits);
-	rcu_read_unlock();
-	return ret;
-}
-EXPORT_SYMBOL_GPL(mddev_congested);
-static int md_congested(void *data, int bits)
-{
-	struct mddev *mddev = data;
-	return mddev_congested(mddev, bits);
-}
-
 /*
  * Generic flush handling for md
  */
@@ -5965,8 +5945,6 @@ int md_run(struct mddev *mddev)
 			blk_queue_flag_set(QUEUE_FLAG_NONROT, mddev->queue);
 		else
 			blk_queue_flag_clear(QUEUE_FLAG_NONROT, mddev->queue);
-		mddev->queue->backing_dev_info->congested_data = mddev;
-		mddev->queue->backing_dev_info->congested_fn = md_congested;
 	}
 	if (pers->sync_request) {
 		if (mddev->kobj.sd &&
@@ -6351,7 +6329,6 @@ static int do_md_stop(struct mddev *mddev, int mode,
 
 		__md_stop_writes(mddev);
 		__md_stop(mddev);
-		mddev->queue->backing_dev_info->congested_fn = NULL;
 
 		/* tell userspace to handle 'inactive' */
 		sysfs_notify_dirent_safe(mddev->sysfs_state);

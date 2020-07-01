@@ -169,10 +169,6 @@ static inline struct backing_dev_info *inode_to_bdi(struct inode *inode)
 
 static inline int wb_congested(struct bdi_writeback *wb, int cong_bits)
 {
-	struct backing_dev_info *bdi = wb->bdi;
-
-	if (bdi->congested_fn)
-		return bdi->congested_fn(bdi->congested_data, cong_bits);
 	return wb->congested & cong_bits;
 }
 
