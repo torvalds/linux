@@ -19,6 +19,7 @@ Regulator nodes are identified by their compatible:
 	Usage: required
 	Value type: <string>
 	Definition: must be one of:
+		    "qcom,rpm-mp5496-regulators"
 		    "qcom,rpm-pm8841-regulators"
 		    "qcom,rpm-pm8916-regulators"
 		    "qcom,rpm-pm8941-regulators"
