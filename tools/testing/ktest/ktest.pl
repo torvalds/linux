@@ -3188,6 +3188,8 @@ sub config_bisect_end {
     doprint "***************************************\n\n";
 }
 
+my $pass = 1;
+
 sub run_config_bisect {
     my ($good, $bad, $last_result) = @_;
     my $reset = "";
@@ -3210,11 +3212,15 @@ sub run_config_bisect {
 
     $ret = run_config_bisect_test $config_bisect_type;
     if ($ret) {
-        doprint "NEW GOOD CONFIG\n";
+        doprint "NEW GOOD CONFIG ($pass)\n";
+	system("cp $output_config $tmpdir/good_config.tmp.$pass");
+	$pass++;
 	# Return 3 for good config
 	return 3;
     } else {
-        doprint "NEW BAD CONFIG\n";
+        doprint "NEW BAD CONFIG ($pass)\n";
+	system("cp $output_config $tmpdir/bad_config.tmp.$pass");
+	$pass++;
 	# Return 4 for bad config
 	return 4;
     }
