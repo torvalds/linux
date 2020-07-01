@@ -1195,6 +1195,21 @@ static void intel_wait_ddi_buf_idle(struct drm_i915_private *dev_priv,
 			port_name(port));
 }
 
+static void intel_wait_ddi_buf_active(struct drm_i915_private *dev_priv,
+				      enum port port)
+{
+	/* Wait > 518 usecs for DDI_BUF_CTL to be non idle */
+	if (INTEL_GEN(dev_priv) < 10 && !IS_GEMINILAKE(dev_priv)) {
+		usleep_range(518, 1000);
+		return;
+	}
+
+	if (wait_for_us(!(intel_de_read(dev_priv, DDI_BUF_CTL(port)) &
+			  DDI_BUF_IS_IDLE), 500))
+		drm_err(&dev_priv->drm, "Timeout waiting for DDI BUF %c to get active\n",
+			port_name(port));
+}
+
 static u32 hsw_pll_to_ddi_pll_sel(const struct intel_shared_dpll *pll)
 {
 	switch (pll->info->id) {
@@ -4017,7 +4032,7 @@ static void intel_ddi_prepare_link_retrain(struct intel_dp *intel_dp)
 	intel_de_write(dev_priv, DDI_BUF_CTL(port), intel_dp->DP);
 	intel_de_posting_read(dev_priv, DDI_BUF_CTL(port));
 
-	udelay(600);
+	intel_wait_ddi_buf_active(dev_priv, port);
 }
 
 static void intel_ddi_set_link_train(struct intel_dp *intel_dp,
