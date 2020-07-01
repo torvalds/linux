@@ -35,6 +35,11 @@ struct scmi_event {
  * @set_notify_enabled: Enable/disable the required evt_id/src_id notifications
  *			using the proper custom protocol commands.
  *			Return 0 on Success
+ * @fill_custom_report: fills a custom event report from the provided
+ *			event message payld identifying the event
+ *			specific src_id.
+ *			Return NULL on failure otherwise @report now fully
+ *			populated
  *
  * Context: Helpers described in &struct scmi_event_ops are called only in
  *	    process context.
@@ -42,6 +47,9 @@ struct scmi_event {
 struct scmi_event_ops {
 	int (*set_notify_enabled)(const struct scmi_handle *handle,
 				  u8 evt_id, u32 src_id, bool enabled);
+	void *(*fill_custom_report)(const struct scmi_handle *handle,
+				    u8 evt_id, u64 timestamp, const void *payld,
+				    size_t payld_sz, void *report, u32 *src_id);
 };
 
 int scmi_notification_init(struct scmi_handle *handle);
@@ -52,5 +60,7 @@ int scmi_register_protocol_events(const struct scmi_handle *handle,
 				  const struct scmi_event_ops *ops,
 				  const struct scmi_event *evt, int num_events,
 				  int num_sources);
+int scmi_notify(const struct scmi_handle *handle, u8 proto_id, u8 evt_id,
+		const void *buf, size_t len, u64 ts);
 
 #endif /* _SCMI_NOTIFY_H */
