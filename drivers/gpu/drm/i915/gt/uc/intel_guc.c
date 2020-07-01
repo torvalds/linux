@@ -733,19 +733,28 @@ int intel_guc_allocate_and_map_vma(struct intel_guc *guc, u32 size,
  */
 void intel_guc_load_status(struct intel_guc *guc, struct drm_printer *p)
 {
+	struct intel_uc *uc = container_of(guc, struct intel_uc, guc);
 	struct intel_gt *gt = guc_to_gt(guc);
 	struct intel_uncore *uncore = gt->uncore;
 	intel_wakeref_t wakeref;
 
-	if (!intel_guc_is_supported(guc)) {
-		drm_printf(p, "GuC not supported\n");
-		return;
-	}
+	drm_printf(p, "[guc] supported:%s wanted:%s used:%s\n",
+		   yesno(intel_uc_supports_guc(uc)),
+		   yesno(intel_uc_wants_guc(uc)),
+		   yesno(intel_uc_uses_guc(uc)));
+	drm_printf(p, "[huc] supported:%s wanted:%s used:%s\n",
+		   yesno(intel_uc_supports_huc(uc)),
+		   yesno(intel_uc_wants_huc(uc)),
+		   yesno(intel_uc_uses_huc(uc)));
+	drm_printf(p, "[submission] supported:%s wanted:%s used:%s\n",
+		   yesno(intel_uc_supports_guc_submission(uc)),
+		   yesno(intel_uc_wants_guc_submission(uc)),
+		   yesno(intel_uc_uses_guc_submission(uc)));
 
-	if (!intel_guc_is_wanted(guc)) {
-		drm_printf(p, "GuC disabled\n");
+	if (!intel_guc_is_supported(guc) || !intel_guc_is_wanted(guc))
 		return;
-	}
+
+	drm_puts(p, "\n");
 
 	intel_uc_fw_dump(&guc->fw, p);
 
