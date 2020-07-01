@@ -713,7 +713,7 @@ int scif_connect(scif_epd_t epd, struct scif_port_id *dst)
 }
 EXPORT_SYMBOL_GPL(scif_connect);
 
-/**
+/*
  * scif_accept() - Accept a connection request from the remote node
  *
  * The function accepts a connection request from the remote node.  Successful
