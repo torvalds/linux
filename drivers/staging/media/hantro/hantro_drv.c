@@ -58,7 +58,6 @@ dma_addr_t hantro_get_ref(struct hantro_ctx *ctx, u64 ts)
 
 static void hantro_job_finish(struct hantro_dev *vpu,
 			      struct hantro_ctx *ctx,
-			      unsigned int bytesused,
 			      enum vb2_buffer_state result)
 {
 	struct vb2_v4l2_buffer *src, *dst;
@@ -82,7 +81,7 @@ static void hantro_job_finish(struct hantro_dev *vpu,
 					 result);
 }
 
-void hantro_irq_done(struct hantro_dev *vpu, unsigned int bytesused,
+void hantro_irq_done(struct hantro_dev *vpu,
 		     enum vb2_buffer_state result)
 {
 	struct hantro_ctx *ctx =
@@ -96,7 +95,7 @@ void hantro_irq_done(struct hantro_dev *vpu, unsigned int bytesused,
 	if (cancel_delayed_work(&vpu->watchdog_work)) {
 		if (result == VB2_BUF_STATE_DONE && ctx->codec_ops->done)
 			ctx->codec_ops->done(ctx);
-		hantro_job_finish(vpu, ctx, bytesused, result);
+		hantro_job_finish(vpu, ctx, result);
 	}
 }
 
@@ -111,7 +110,7 @@ void hantro_watchdog(struct work_struct *work)
 	if (ctx) {
 		vpu_err("frame processing timed out!\n");
 		ctx->codec_ops->reset(ctx);
-		hantro_job_finish(vpu, ctx, 0, VB2_BUF_STATE_ERROR);
+		hantro_job_finish(vpu, ctx, VB2_BUF_STATE_ERROR);
 	}
 }
 
@@ -164,7 +163,7 @@ static void device_run(void *priv)
 	return;
 
 err_cancel_job:
-	hantro_job_finish(ctx->dev, ctx, 0, VB2_BUF_STATE_ERROR);
+	hantro_job_finish(ctx->dev, ctx, VB2_BUF_STATE_ERROR);
 }
 
 static struct v4l2_m2m_ops vpu_m2m_ops = {
