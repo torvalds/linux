@@ -2121,6 +2121,7 @@ static void tnr_work_event(struct rkispp_device *dev,
 		/* tnr read buf from isp */
 		vdev->tnr.cur_rd = vdev->tnr.nxt_rd;
 		vdev->tnr.nxt_rd = buf_rd;
+		/* first buf for 3to1 using twice */
 		if (!is_3to1 ||
 		    (readl(base + RKISPP_TNR_CTRL) & SW_TNR_1ST_FRM))
 			vdev->tnr.cur_rd = vdev->tnr.nxt_rd;
@@ -2181,6 +2182,9 @@ static void tnr_work_event(struct rkispp_device *dev,
 
 			val = buf->dma[GROUP_BUF_GAIN];
 			writel(val, base + RKISPP_TNR_GAIN_NXT_Y_BASE);
+
+			if (readl(base + RKISPP_TNR_CTRL) & SW_TNR_1ST_FRM)
+				vdev->tnr.cur_rd = NULL;
 		}
 		is_start = true;
 	}
