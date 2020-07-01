@@ -2112,24 +2112,24 @@ fail:
 	return err;
 }
 
-static struct virtio_device_id id_table[] = {
+static const struct virtio_device_id id_table[] = {
 	{ VIRTIO_ID_CONSOLE, VIRTIO_DEV_ANY_ID },
 	{ 0 },
 };
 
-static unsigned int features[] = {
+static const unsigned int features[] = {
 	VIRTIO_CONSOLE_F_SIZE,
 	VIRTIO_CONSOLE_F_MULTIPORT,
 };
 
-static struct virtio_device_id rproc_serial_id_table[] = {
+static const struct virtio_device_id rproc_serial_id_table[] = {
 #if IS_ENABLED(CONFIG_REMOTEPROC)
 	{ VIRTIO_ID_RPROC_SERIAL, VIRTIO_DEV_ANY_ID },
 #endif
 	{ 0 },
 };
 
-static unsigned int rproc_serial_features[] = {
+static const unsigned int rproc_serial_features[] = {
 };
 
 #ifdef CONFIG_PM_SLEEP
