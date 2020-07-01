@@ -1211,7 +1211,11 @@ static void __exit serial8250_exit(void)
 #endif
 }
 
+#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
+rootfs_initcall(serial8250_init);
+#else
 module_init(serial8250_init);
+#endif
 module_exit(serial8250_exit);
 
 MODULE_LICENSE("GPL");
