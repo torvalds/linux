@@ -3999,12 +3999,11 @@ static void vxge_print_parm(struct vxgedev *vdev, u64 vpath_mask)
 	}
 }
 
-#ifdef CONFIG_PM
 /**
  * vxge_pm_suspend - vxge power management suspend entry point
  *
  */
-static int vxge_pm_suspend(struct pci_dev *pdev, pm_message_t state)
+static int __maybe_unused vxge_pm_suspend(struct device *dev_d)
 {
 	return -ENOSYS;
 }
@@ -4012,12 +4011,10 @@ static int vxge_pm_suspend(struct pci_dev *pdev, pm_message_t state)
  * vxge_pm_resume - vxge power management resume entry point
  *
  */
-static int vxge_pm_resume(struct pci_dev *pdev)
+static int __maybe_unused vxge_pm_resume(struct device *dev_d)
 {
 	return -ENOSYS;
 }
-
-#endif
 
 /**
  * vxge_io_error_detected - called when PCI error is detected
@@ -4796,15 +4793,14 @@ static const struct pci_error_handlers vxge_err_handler = {
 	.resume = vxge_io_resume,
 };
 
+static SIMPLE_DEV_PM_OPS(vxge_pm_ops, vxge_pm_suspend, vxge_pm_resume);
+
 static struct pci_driver vxge_driver = {
 	.name = VXGE_DRIVER_NAME,
 	.id_table = vxge_id_table,
 	.probe = vxge_probe,
 	.remove = vxge_remove,
-#ifdef CONFIG_PM
-	.suspend = vxge_pm_suspend,
-	.resume = vxge_pm_resume,
-#endif
+	.driver.pm = &vxge_pm_ops,
 	.err_handler = &vxge_err_handler,
 };
 
