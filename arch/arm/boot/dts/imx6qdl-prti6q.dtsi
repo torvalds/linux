@@ -1,0 +1,163 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+/*
+ * Copyright (c) 2014 Protonic Holland
+ */
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+
+/ {
+	chosen {
+		stdout-path = &uart4;
+	};
+
+	reg_3v3: regulator-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "3v3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
+	reg_usb_h1_vbus: regulator-h1-vbus {
+		compatible = "regulator-fixed";
+		regulator-name = "h1-vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+	};
+
+	reg_usb_otg_vbus: regulator-otg-vbus {
+		compatible = "regulator-fixed";
+		regulator-name = "otg-vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&gpio3 22 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+};
+
+&can1 {
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&i2c1 {
+	clock-frequency = <100000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c1>;
+	status = "okay";
+};
+
+&i2c3 {
+	clock-frequency = <100000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c3>;
+	status = "okay";
+
+	temperature-sensor@70 {
+		compatible = "ti,tmp103";
+		reg = <0x70>;
+	};
+};
+
+&uart4 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart4>;
+	status = "okay";
+};
+
+&usbh1 {
+	vbus-supply = <&reg_usb_h1_vbus>;
+	phy_type = "utmi";
+	dr_mode = "host";
+	status = "okay";
+};
+
+&usbotg {
+	vbus-supply = <&reg_usb_otg_vbus>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usbotg>;
+	phy_type = "utmi";
+	dr_mode = "host";
+	disable-over-current;
+	status = "okay";
+};
+
+&usdhc1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usdhc1>;
+	cd-gpios = <&gpio1 1 GPIO_ACTIVE_LOW>;
+	status = "okay";
+};
+
+&usdhc3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usdhc3>;
+	bus-width = <8>;
+	non-removable;
+	status = "okay";
+};
+
+&iomuxc {
+	pinctrl_can1: can1grp {
+		fsl,pins = <
+			MX6QDL_PAD_KEY_ROW2__FLEXCAN1_RX	0x1b008
+			MX6QDL_PAD_KEY_COL2__FLEXCAN1_TX	0x1b008
+		>;
+	};
+
+	pinctrl_i2c1: i2c1grp {
+		fsl,pins = <
+			MX6QDL_PAD_CSI0_DAT8__I2C1_SDA		0x4001f8b1
+			MX6QDL_PAD_CSI0_DAT9__I2C1_SCL		0x4001f8b1
+		>;
+	};
+
+	pinctrl_i2c3: i2c3grp {
+		fsl,pins = <
+			MX6QDL_PAD_GPIO_5__I2C3_SCL		0x4001b8b1
+			MX6QDL_PAD_GPIO_6__I2C3_SDA		0x4001b8b1
+		>;
+	};
+
+	pinctrl_uart4: uart4grp {
+		fsl,pins = <
+			MX6QDL_PAD_KEY_COL0__UART4_TX_DATA	0x1b0b1
+			MX6QDL_PAD_KEY_ROW0__UART4_RX_DATA	0x1b0b1
+		>;
+	};
+
+	pinctrl_usdhc1: usdhc1grp {
+		fsl,pins = <
+			MX6QDL_PAD_SD1_CMD__SD1_CMD		0x170f9
+			MX6QDL_PAD_SD1_CLK__SD1_CLK		0x100f9
+			MX6QDL_PAD_SD1_DAT0__SD1_DATA0		0x170f9
+			MX6QDL_PAD_SD1_DAT1__SD1_DATA1		0x170f9
+			MX6QDL_PAD_SD1_DAT2__SD1_DATA2		0x170f9
+			MX6QDL_PAD_SD1_DAT3__SD1_DATA3		0x170f9
+			MX6QDL_PAD_GPIO_1__GPIO1_IO01		0x1b0b0
+		>;
+	};
+
+	pinctrl_usdhc3: usdhc3grp {
+		fsl,pins = <
+			MX6QDL_PAD_SD3_CMD__SD3_CMD		0x17099
+			MX6QDL_PAD_SD3_CLK__SD3_CLK		0x10099
+			MX6QDL_PAD_SD3_DAT0__SD3_DATA0		0x17099
+			MX6QDL_PAD_SD3_DAT1__SD3_DATA1		0x17099
+			MX6QDL_PAD_SD3_DAT2__SD3_DATA2		0x17099
+			MX6QDL_PAD_SD3_DAT3__SD3_DATA3		0x17099
+			MX6QDL_PAD_SD3_DAT4__SD3_DATA4		0x17099
+			MX6QDL_PAD_SD3_DAT5__SD3_DATA5		0x17099
+			MX6QDL_PAD_SD3_DAT6__SD3_DATA6		0x17099
+			MX6QDL_PAD_SD3_DAT7__SD3_DATA7		0x17099
+			MX6QDL_PAD_SD3_RST__SD3_RESET		0x1b0b1
+		>;
+	};
+
+	pinctrl_usbotg: usbotggrp {
+		fsl,pins = <
+			MX6QDL_PAD_EIM_D21__USB_OTG_OC	0x1b0b0
+			MX6QDL_PAD_EIM_D22__GPIO3_IO22	0x1b0b0
+		>;
+	};
+};
