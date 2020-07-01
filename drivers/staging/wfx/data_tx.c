@@ -408,7 +408,7 @@ static int wfx_tx_inner(struct wfx_vif *wvif, struct ieee80211_sta *sta,
 
 	// Auxiliary operations
 	wfx_tx_manage_pm(wvif, hdr, tx_priv, sta);
-	wfx_tx_queues_put(wvif->wdev, skb);
+	wfx_tx_queues_put(wvif, skb);
 	if (tx_info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM)
 		schedule_work(&wvif->update_tim_work);
 	wfx_bh_request_tx(wvif->wdev);
@@ -539,7 +539,7 @@ void wfx_tx_confirm_cb(struct wfx_vif *wvif, const struct hif_cnf_tx *arg)
 	const struct wfx_tx_priv *tx_priv;
 	struct sk_buff *skb;
 
-	skb = wfx_pending_get(wvif->wdev, arg->packet_id);
+	skb = wfx_pending_get(wvif, arg->packet_id);
 	if (!skb) {
 		dev_warn(wvif->wdev->dev, "received unknown packet_id (%#.8x) from chip\n",
 			 arg->packet_id);
@@ -582,34 +582,50 @@ void wfx_tx_confirm_cb(struct wfx_vif *wvif, const struct hif_cnf_tx *arg)
 	wfx_skb_dtor(wvif, skb);
 }
 
+static void wfx_flush_vif(struct wfx_vif *wvif, u32 queues,
+			  struct sk_buff_head *dropped)
+{
+	struct wfx_queue *queue;
+	int i;
+
+	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
+		if (!(BIT(i) & queues))
+			continue;
+		queue = &wvif->tx_queue[i];
+		if (dropped)
+			wfx_tx_queue_drop(wvif, queue, dropped);
+	}
+	if (wvif->wdev->chip_frozen)
+		return;
+	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
+		if (!(BIT(i) & queues))
+			continue;
+		queue = &wvif->tx_queue[i];
+		if (wait_event_timeout(wvif->wdev->tx_dequeue,
+				       wfx_tx_queue_empty(wvif, queue),
+				       msecs_to_jiffies(1000)) <= 0)
+			dev_warn(wvif->wdev->dev,
+				 "frames queued while flushing tx queues?");
+	}
+}
+
 void wfx_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	       u32 queues, bool drop)
 {
 	struct wfx_dev *wdev = hw->priv;
 	struct sk_buff_head dropped;
-	struct wfx_queue *queue;
 	struct wfx_vif *wvif;
 	struct hif_msg *hif;
 	struct sk_buff *skb;
-	int vif_id = -1;
-	int i;
 
-	if (vif)
-		vif_id = ((struct wfx_vif *)vif->drv_priv)->id;
 	skb_queue_head_init(&dropped);
-	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
-		if (!(BIT(i) & queues))
-			continue;
-		queue = &wdev->tx_queue[i];
-		if (drop)
-			wfx_tx_queue_drop(wdev, queue, vif_id, &dropped);
-		if (wdev->chip_frozen)
-			continue;
-		if (wait_event_timeout(wdev->tx_dequeue,
-				       wfx_tx_queue_empty(wdev, queue, vif_id),
-				       msecs_to_jiffies(1000)) <= 0)
-			dev_warn(wdev->dev,
-				 "frames queued while flushing tx queues?");
+	if (vif) {
+		wvif = (struct wfx_vif *)vif->drv_priv;
+		wfx_flush_vif(wvif, queues, drop ? &dropped : NULL);
+	} else {
+		wvif = NULL;
+		while ((wvif = wvif_iterate(wdev, wvif)) != NULL)
+			wfx_flush_vif(wvif, queues, drop ? &dropped : NULL);
 	}
 	wfx_tx_flush(wdev);
 	if (wdev->chip_frozen)
@@ -623,4 +639,3 @@ void wfx_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		wfx_skb_dtor(wvif, skb);
 	}
 }
-

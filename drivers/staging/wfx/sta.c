@@ -805,6 +805,7 @@ int wfx_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 	hif_set_macaddr(wvif, vif->addr);
 
+	wfx_tx_queues_init(wvif);
 	wfx_tx_policy_init(wvif);
 	wvif = NULL;
 	while ((wvif = wvif_iterate(wdev, wvif)) != NULL) {
@@ -823,6 +824,7 @@ void wfx_remove_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
 
 	wait_for_completion_timeout(&wvif->set_pm_mode_complete, msecs_to_jiffies(300));
+	wfx_tx_queues_check_empty(wvif);
 
 	mutex_lock(&wdev->conf_mutex);
 	WARN(wvif->link_id_map != 1, "corrupted state");
@@ -855,5 +857,5 @@ void wfx_stop(struct ieee80211_hw *hw)
 {
 	struct wfx_dev *wdev = hw->priv;
 
-	wfx_tx_queues_check_empty(wdev);
+	WARN_ON(!skb_queue_empty_lockless(&wdev->tx_pending));
 }
