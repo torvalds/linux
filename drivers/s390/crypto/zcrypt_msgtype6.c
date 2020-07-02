@@ -1027,7 +1027,9 @@ static long zcrypt_msgtype6_modexpo(struct zcrypt_queue *zq,
 	if (rc)
 		goto out_free;
 	init_completion(&resp_type.work);
-	ap_queue_message(zq->queue, &ap_msg);
+	rc = ap_queue_message(zq->queue, &ap_msg);
+	if (rc)
+		goto out_free;
 	rc = wait_for_completion_interruptible(&resp_type.work);
 	if (rc == 0) {
 		rc = ap_msg.rc;
@@ -1071,7 +1073,9 @@ static long zcrypt_msgtype6_modexpo_crt(struct zcrypt_queue *zq,
 	if (rc)
 		goto out_free;
 	init_completion(&resp_type.work);
-	ap_queue_message(zq->queue, &ap_msg);
+	rc = ap_queue_message(zq->queue, &ap_msg);
+	if (rc)
+		goto out_free;
 	rc = wait_for_completion_interruptible(&resp_type.work);
 	if (rc == 0) {
 		rc = ap_msg.rc;
@@ -1130,7 +1134,9 @@ static long zcrypt_msgtype6_send_cprb(bool userspace, struct zcrypt_queue *zq,
 	struct response_type *rtype = (struct response_type *)(ap_msg->private);
 
 	init_completion(&rtype->work);
-	ap_queue_message(zq->queue, ap_msg);
+	rc = ap_queue_message(zq->queue, ap_msg);
+	if (rc)
+		goto out;
 	rc = wait_for_completion_interruptible(&rtype->work);
 	if (rc == 0) {
 		rc = ap_msg->rc;
@@ -1139,7 +1145,7 @@ static long zcrypt_msgtype6_send_cprb(bool userspace, struct zcrypt_queue *zq,
 	} else
 		/* Signal pending. */
 		ap_cancel_message(zq->queue, ap_msg);
-
+out:
 	return rc;
 }
 
@@ -1232,7 +1238,9 @@ static long zcrypt_msgtype6_send_ep11_cprb(bool userspace, struct zcrypt_queue *
 	}
 
 	init_completion(&rtype->work);
-	ap_queue_message(zq->queue, ap_msg);
+	rc = ap_queue_message(zq->queue, ap_msg);
+	if (rc)
+		goto out;
 	rc = wait_for_completion_interruptible(&rtype->work);
 	if (rc == 0) {
 		rc = ap_msg->rc;
@@ -1241,7 +1249,7 @@ static long zcrypt_msgtype6_send_ep11_cprb(bool userspace, struct zcrypt_queue *
 	} else
 		/* Signal pending. */
 		ap_cancel_message(zq->queue, ap_msg);
-
+out:
 	return rc;
 }
 
@@ -1293,7 +1301,9 @@ static long zcrypt_msgtype6_rng(struct zcrypt_queue *zq,
 	msg->cprbx.domain = AP_QID_QUEUE(zq->queue->qid);
 
 	init_completion(&rtype->work);
-	ap_queue_message(zq->queue, ap_msg);
+	rc = ap_queue_message(zq->queue, ap_msg);
+	if (rc)
+		goto out;
 	rc = wait_for_completion_interruptible(&rtype->work);
 	if (rc == 0) {
 		rc = ap_msg->rc;
@@ -1302,7 +1312,7 @@ static long zcrypt_msgtype6_rng(struct zcrypt_queue *zq,
 	} else
 		/* Signal pending. */
 		ap_cancel_message(zq->queue, ap_msg);
-
+out:
 	return rc;
 }
 

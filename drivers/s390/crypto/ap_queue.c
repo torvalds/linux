@@ -195,7 +195,7 @@ static enum ap_sm_wait ap_sm_read(struct ap_queue *aq)
 		aq->sm_state = AP_SM_STATE_IDLE;
 		return AP_SM_WAIT_NONE;
 	default:
-		aq->sm_state = AP_SM_STATE_BORKED;
+		aq->dev_state = AP_DEV_STATE_ERROR;
 		return AP_SM_WAIT_NONE;
 	}
 }
@@ -245,7 +245,7 @@ static enum ap_sm_wait ap_sm_write(struct ap_queue *aq)
 		ap_msg->receive(aq, ap_msg, NULL);
 		return AP_SM_WAIT_AGAIN;
 	default:
-		aq->sm_state = AP_SM_STATE_BORKED;
+		aq->dev_state = AP_DEV_STATE_ERROR;
 		return AP_SM_WAIT_NONE;
 	}
 }
@@ -284,7 +284,7 @@ static enum ap_sm_wait ap_sm_reset(struct ap_queue *aq)
 	case AP_RESPONSE_DECONFIGURED:
 	case AP_RESPONSE_CHECKSTOPPED:
 	default:
-		aq->sm_state = AP_SM_STATE_BORKED;
+		aq->dev_state = AP_DEV_STATE_ERROR;
 		return AP_SM_WAIT_NONE;
 	}
 }
@@ -323,7 +323,7 @@ static enum ap_sm_wait ap_sm_reset_wait(struct ap_queue *aq)
 	case AP_RESPONSE_DECONFIGURED:
 	case AP_RESPONSE_CHECKSTOPPED:
 	default:
-		aq->sm_state = AP_SM_STATE_BORKED;
+		aq->dev_state = AP_DEV_STATE_ERROR;
 		return AP_SM_WAIT_NONE;
 	}
 }
@@ -360,7 +360,7 @@ static enum ap_sm_wait ap_sm_setirq_wait(struct ap_queue *aq)
 	case AP_RESPONSE_NO_PENDING_REPLY:
 		return AP_SM_WAIT_TIMEOUT;
 	default:
-		aq->sm_state = AP_SM_STATE_BORKED;
+		aq->dev_state = AP_DEV_STATE_ERROR;
 		return AP_SM_WAIT_NONE;
 	}
 }
@@ -393,23 +393,14 @@ static ap_func_t *ap_jumptable[NR_AP_SM_STATES][NR_AP_SM_EVENTS] = {
 		[AP_SM_EVENT_POLL] = ap_sm_read,
 		[AP_SM_EVENT_TIMEOUT] = ap_sm_reset,
 	},
-	[AP_SM_STATE_REMOVE] = {
-		[AP_SM_EVENT_POLL] = ap_sm_nop,
-		[AP_SM_EVENT_TIMEOUT] = ap_sm_nop,
-	},
-	[AP_SM_STATE_UNBOUND] = {
-		[AP_SM_EVENT_POLL] = ap_sm_nop,
-		[AP_SM_EVENT_TIMEOUT] = ap_sm_nop,
-	},
-	[AP_SM_STATE_BORKED] = {
-		[AP_SM_EVENT_POLL] = ap_sm_nop,
-		[AP_SM_EVENT_TIMEOUT] = ap_sm_nop,
-	},
 };
 
 enum ap_sm_wait ap_sm_event(struct ap_queue *aq, enum ap_sm_event event)
 {
-	return ap_jumptable[aq->sm_state][event](aq);
+	if (aq->dev_state > AP_DEV_STATE_UNINITIATED)
+		return ap_jumptable[aq->sm_state][event](aq);
+	else
+		return AP_SM_WAIT_NONE;
 }
 
 enum ap_sm_wait ap_sm_event_loop(struct ap_queue *aq, enum ap_sm_event event)
@@ -429,12 +420,20 @@ static ssize_t request_count_show(struct device *dev,
 				  char *buf)
 {
 	struct ap_queue *aq = to_ap_queue(dev);
+	bool valid = false;
 	u64 req_cnt;
 
 	spin_lock_bh(&aq->lock);
-	req_cnt = aq->total_request_count;
+	if (aq->dev_state > AP_DEV_STATE_UNINITIATED) {
+		req_cnt = aq->total_request_count;
+		valid = true;
+	}
 	spin_unlock_bh(&aq->lock);
-	return scnprintf(buf, PAGE_SIZE, "%llu\n", req_cnt);
+
+	if (valid)
+		return scnprintf(buf, PAGE_SIZE, "%llu\n", req_cnt);
+	else
+		return scnprintf(buf, PAGE_SIZE, "-\n");
 }
 
 static ssize_t request_count_store(struct device *dev,
@@ -459,7 +458,8 @@ static ssize_t requestq_count_show(struct device *dev,
 	unsigned int reqq_cnt = 0;
 
 	spin_lock_bh(&aq->lock);
-	reqq_cnt = aq->requestq_count;
+	if (aq->dev_state > AP_DEV_STATE_UNINITIATED)
+		reqq_cnt = aq->requestq_count;
 	spin_unlock_bh(&aq->lock);
 	return scnprintf(buf, PAGE_SIZE, "%d\n", reqq_cnt);
 }
@@ -473,7 +473,8 @@ static ssize_t pendingq_count_show(struct device *dev,
 	unsigned int penq_cnt = 0;
 
 	spin_lock_bh(&aq->lock);
-	penq_cnt = aq->pendingq_count;
+	if (aq->dev_state > AP_DEV_STATE_UNINITIATED)
+		penq_cnt = aq->pendingq_count;
 	spin_unlock_bh(&aq->lock);
 	return scnprintf(buf, PAGE_SIZE, "%d\n", penq_cnt);
 }
@@ -542,12 +543,79 @@ static ssize_t interrupt_show(struct device *dev,
 
 static DEVICE_ATTR_RO(interrupt);
 
+#ifdef CONFIG_ZCRYPT_DEBUG
+static ssize_t states_show(struct device *dev,
+			   struct device_attribute *attr, char *buf)
+{
+	struct ap_queue *aq = to_ap_queue(dev);
+	int rc = 0;
+
+	spin_lock_bh(&aq->lock);
+	/* queue device state */
+	switch (aq->dev_state) {
+	case AP_DEV_STATE_UNINITIATED:
+		rc = scnprintf(buf, PAGE_SIZE, "UNINITIATED\n");
+		break;
+	case AP_DEV_STATE_OPERATING:
+		rc = scnprintf(buf, PAGE_SIZE, "OPERATING");
+		break;
+	case AP_DEV_STATE_SHUTDOWN:
+		rc = scnprintf(buf, PAGE_SIZE, "SHUTDOWN");
+		break;
+	case AP_DEV_STATE_ERROR:
+		rc = scnprintf(buf, PAGE_SIZE, "ERROR");
+		break;
+	default:
+		rc = scnprintf(buf, PAGE_SIZE, "UNKNOWN");
+	}
+	/* state machine state */
+	if (aq->dev_state) {
+		switch (aq->sm_state) {
+		case AP_SM_STATE_RESET_START:
+			rc += scnprintf(buf + rc, PAGE_SIZE - rc,
+					" [RESET_START]\n");
+			break;
+		case AP_SM_STATE_RESET_WAIT:
+			rc += scnprintf(buf + rc, PAGE_SIZE - rc,
+					" [RESET_WAIT]\n");
+			break;
+		case AP_SM_STATE_SETIRQ_WAIT:
+			rc += scnprintf(buf + rc, PAGE_SIZE - rc,
+					" [SETIRQ_WAIT]\n");
+			break;
+		case AP_SM_STATE_IDLE:
+			rc += scnprintf(buf + rc, PAGE_SIZE - rc,
+					" [IDLE]\n");
+			break;
+		case AP_SM_STATE_WORKING:
+			rc += scnprintf(buf + rc, PAGE_SIZE - rc,
+					" [WORKING]\n");
+			break;
+		case AP_SM_STATE_QUEUE_FULL:
+			rc += scnprintf(buf + rc, PAGE_SIZE - rc,
+					" [FULL]\n");
+			break;
+		default:
+			rc += scnprintf(buf + rc, PAGE_SIZE - rc,
+					" [UNKNOWN]\n");
+		}
+	}
+	spin_unlock_bh(&aq->lock);
+
+	return rc;
+}
+static DEVICE_ATTR_RO(states);
+#endif
+
 static struct attribute *ap_queue_dev_attrs[] = {
 	&dev_attr_request_count.attr,
 	&dev_attr_requestq_count.attr,
 	&dev_attr_pendingq_count.attr,
 	&dev_attr_reset.attr,
 	&dev_attr_interrupt.attr,
+#ifdef CONFIG_ZCRYPT_DEBUG
+	&dev_attr_states.attr,
+#endif
 	NULL
 };
 
@@ -587,7 +655,6 @@ struct ap_queue *ap_queue_create(ap_qid_t qid, int device_type)
 	aq->ap_dev.device.type = &ap_queue_type;
 	aq->ap_dev.device_type = device_type;
 	aq->qid = qid;
-	aq->sm_state = AP_SM_STATE_UNBOUND;
 	aq->interrupt = AP_INTR_DISABLED;
 	spin_lock_init(&aq->lock);
 	INIT_LIST_HEAD(&aq->pendingq);
@@ -612,22 +679,30 @@ EXPORT_SYMBOL(ap_queue_init_reply);
  * @aq: The AP device to queue the message to
  * @ap_msg: The message that is to be added
  */
-void ap_queue_message(struct ap_queue *aq, struct ap_message *ap_msg)
+int ap_queue_message(struct ap_queue *aq, struct ap_message *ap_msg)
 {
-	/* For asynchronous message handling a valid receive-callback
-	 * is required.
-	 */
+	int rc = 0;
+
+	/* msg needs to have a valid receive-callback */
 	BUG_ON(!ap_msg->receive);
 
 	spin_lock_bh(&aq->lock);
-	/* Queue the message. */
-	list_add_tail(&ap_msg->list, &aq->requestq);
-	aq->requestq_count++;
-	aq->total_request_count++;
-	atomic64_inc(&aq->card->total_request_count);
+
+	/* only allow to queue new messages if device state is ok */
+	if (aq->dev_state == AP_DEV_STATE_OPERATING) {
+		list_add_tail(&ap_msg->list, &aq->requestq);
+		aq->requestq_count++;
+		aq->total_request_count++;
+		atomic64_inc(&aq->card->total_request_count);
+	} else
+		rc = -ENODEV;
+
 	/* Send/receive as many request from the queue as possible. */
 	ap_wait(ap_sm_event_loop(aq, AP_SM_EVENT_POLL));
+
 	spin_unlock_bh(&aq->lock);
+
+	return rc;
 }
 EXPORT_SYMBOL(ap_queue_message);
 
@@ -698,8 +773,8 @@ void ap_queue_prepare_remove(struct ap_queue *aq)
 	spin_lock_bh(&aq->lock);
 	/* flush queue */
 	__ap_flush_queue(aq);
-	/* set REMOVE state to prevent new messages are queued in */
-	aq->sm_state = AP_SM_STATE_REMOVE;
+	/* move queue device state to SHUTDOWN in progress */
+	aq->dev_state = AP_DEV_STATE_SHUTDOWN;
 	spin_unlock_bh(&aq->lock);
 	del_timer_sync(&aq->timeout);
 }
@@ -707,21 +782,21 @@ void ap_queue_prepare_remove(struct ap_queue *aq)
 void ap_queue_remove(struct ap_queue *aq)
 {
 	/*
-	 * all messages have been flushed and the state is
-	 * AP_SM_STATE_REMOVE. Now reset with zero which also
-	 * clears the irq registration and move the state
-	 * to AP_SM_STATE_UNBOUND to signal that this queue
-	 * is not used by any driver currently.
+	 * all messages have been flushed and the device state
+	 * is SHUTDOWN. Now reset with zero which also clears
+	 * the irq registration and move the device state
+	 * to the initial value AP_DEV_STATE_UNINITIATED.
 	 */
 	spin_lock_bh(&aq->lock);
 	ap_zapq(aq->qid);
-	aq->sm_state = AP_SM_STATE_UNBOUND;
+	aq->dev_state = AP_DEV_STATE_UNINITIATED;
 	spin_unlock_bh(&aq->lock);
 }
 
 void ap_queue_init_state(struct ap_queue *aq)
 {
 	spin_lock_bh(&aq->lock);
+	aq->dev_state = AP_DEV_STATE_OPERATING;
 	aq->sm_state = AP_SM_STATE_RESET_START;
 	ap_wait(ap_sm_event(aq, AP_SM_EVENT_POLL));
 	spin_unlock_bh(&aq->lock);

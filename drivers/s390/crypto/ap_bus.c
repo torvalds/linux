@@ -1380,7 +1380,7 @@ static void _ap_scan_bus_adapter(int id)
 		if (dev) {
 			if (!broken) {
 				spin_lock_bh(&aq->lock);
-				broken = aq->sm_state == AP_SM_STATE_BORKED;
+				broken = aq->dev_state == AP_DEV_STATE_ERROR;
 				spin_unlock_bh(&aq->lock);
 			}
 			if (broken) {

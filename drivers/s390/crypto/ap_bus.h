@@ -86,15 +86,12 @@ static inline int ap_test_bit(unsigned int *ptr, unsigned int nr)
  * AP queue state machine states
  */
 enum ap_sm_state {
-	AP_SM_STATE_RESET_START,
+	AP_SM_STATE_RESET_START = 0,
 	AP_SM_STATE_RESET_WAIT,
 	AP_SM_STATE_SETIRQ_WAIT,
 	AP_SM_STATE_IDLE,
 	AP_SM_STATE_WORKING,
 	AP_SM_STATE_QUEUE_FULL,
-	AP_SM_STATE_REMOVE,	/* about to be removed from driver */
-	AP_SM_STATE_UNBOUND,	/* momentary not bound to a driver */
-	AP_SM_STATE_BORKED,	/* broken */
 	NR_AP_SM_STATES
 };
 
@@ -116,6 +113,17 @@ enum ap_sm_wait {
 	AP_SM_WAIT_INTERRUPT,	/* wait for thin interrupt (if available) */
 	AP_SM_WAIT_NONE,	/* no wait */
 	NR_AP_SM_WAIT
+};
+
+/*
+ * AP queue device states
+ */
+enum ap_dev_state {
+	AP_DEV_STATE_UNINITIATED = 0,	/* fresh and virgin, not touched */
+	AP_DEV_STATE_OPERATING,		/* queue dev is working normal */
+	AP_DEV_STATE_SHUTDOWN,		/* remove/unbind/shutdown in progress */
+	AP_DEV_STATE_ERROR,		/* device is in error state */
+	NR_AP_DEV_STATES
 };
 
 struct ap_device;
@@ -169,10 +177,10 @@ struct ap_queue {
 	struct ap_card *card;		/* Ptr to assoc. AP card. */
 	spinlock_t lock;		/* Per device lock. */
 	void *private;			/* ap driver private pointer. */
+	enum ap_dev_state dev_state;	/* queue device state */
 	ap_qid_t qid;			/* AP queue id. */
 	int interrupt;			/* indicate if interrupts are enabled */
 	int queue_count;		/* # messages currently on AP queue. */
-	enum ap_sm_state sm_state;	/* ap queue state machine state */
 	int pendingq_count;		/* # requests on pendingq list. */
 	int requestq_count;		/* # requests on requestq list. */
 	u64 total_request_count;	/* # requests ever for this AP device.*/
@@ -181,6 +189,7 @@ struct ap_queue {
 	struct list_head pendingq;	/* List of message sent to AP queue. */
 	struct list_head requestq;	/* List of message yet to be sent. */
 	struct ap_message *reply;	/* Per device reply message. */
+	enum ap_sm_state sm_state;	/* ap queue state machine state */
 };
 
 #define to_ap_queue(x) container_of((x), struct ap_queue, ap_dev.device)
@@ -234,7 +243,7 @@ int ap_recv(ap_qid_t, unsigned long long *, void *, size_t);
 enum ap_sm_wait ap_sm_event(struct ap_queue *aq, enum ap_sm_event event);
 enum ap_sm_wait ap_sm_event_loop(struct ap_queue *aq, enum ap_sm_event event);
 
-void ap_queue_message(struct ap_queue *aq, struct ap_message *ap_msg);
+int ap_queue_message(struct ap_queue *aq, struct ap_message *ap_msg);
 void ap_cancel_message(struct ap_queue *aq, struct ap_message *ap_msg);
 void ap_flush_queue(struct ap_queue *aq);
 

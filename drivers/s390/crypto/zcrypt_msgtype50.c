@@ -471,7 +471,9 @@ static long zcrypt_cex2a_modexpo(struct zcrypt_queue *zq,
 	if (rc)
 		goto out_free;
 	init_completion(&work);
-	ap_queue_message(zq->queue, &ap_msg);
+	rc = ap_queue_message(zq->queue, &ap_msg);
+	if (rc)
+		goto out_free;
 	rc = wait_for_completion_interruptible(&work);
 	if (rc == 0) {
 		rc = ap_msg.rc;
@@ -515,7 +517,9 @@ static long zcrypt_cex2a_modexpo_crt(struct zcrypt_queue *zq,
 	if (rc)
 		goto out_free;
 	init_completion(&work);
-	ap_queue_message(zq->queue, &ap_msg);
+	rc = ap_queue_message(zq->queue, &ap_msg);
+	if (rc)
+		goto out_free;
 	rc = wait_for_completion_interruptible(&work);
 	if (rc == 0) {
 		rc = ap_msg.rc;
