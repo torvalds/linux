@@ -132,6 +132,7 @@ static int iscsi_get_pr_transport_id(
 	unsigned char *buf)
 {
 	u32 off = 4, padding = 0;
+	int isid_len;
 	u16 len = 0;
 
 	spin_lock_irq(&se_nacl->nacl_sess_lock);
@@ -184,11 +185,11 @@ static int iscsi_get_pr_transport_id(
 		buf[off++] = 0x2c; /* ASCII Character: "," */
 		buf[off++] = 0x30; /* ASCII Character: "0" */
 		buf[off++] = 0x78; /* ASCII Character: "x" */
+		len += 5;
 
-		memcpy(buf + off, pr_reg->pr_reg_isid, 12);
-		off += 12;
-
-		len += 17;
+		isid_len = sprintf(buf + off, "%s", pr_reg->pr_reg_isid);
+		off += isid_len;
+		len += isid_len;
 	}
 	buf[off] = '\0';
 	len += 1;
@@ -234,7 +235,7 @@ static int iscsi_get_pr_transport_id_len(
 	 */
 	if (pr_reg->isid_present_at_reg) {
 		len += 5; /* For ",i,0x" ASCII separator */
-		len += 12; /* For iSCSI Initiator Session ID */
+		len += strlen(pr_reg->pr_reg_isid);
 		*format_code = 1;
 	} else
 		*format_code = 0;
@@ -318,6 +319,16 @@ static char *iscsi_parse_pr_out_transport_id(
 		 * iscsi_target.c:lio_sess_get_initiator_sid()
 		 */
 		for (i = 0; i < 12; i++) {
+			/*
+			 * The first ISCSI INITIATOR SESSION ID field byte
+			 * containing an ASCII null character terminates the
+			 * ISCSI INITIATOR SESSION ID field without regard for
+			 * the specified length of the iSCSI TransportID or the
+			 * contents of the ADDITIONAL LENGTH field.
+			 */
+			if (*p == '\0')
+				break;
+
 			if (isdigit(*p)) {
 				p++;
 				continue;
