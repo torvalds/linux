@@ -1110,10 +1110,6 @@ int ast_mode_init(struct drm_device *dev)
 	return 0;
 }
 
-void ast_mode_fini(struct drm_device *dev)
-{
-}
-
 static int get_clock(void *i2c_priv)
 {
 	struct ast_i2c_chan *i2c = i2c_priv;

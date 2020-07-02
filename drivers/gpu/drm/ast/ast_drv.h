@@ -287,7 +287,6 @@ struct ast_crtc_state {
 #define to_ast_crtc_state(state) container_of(state, struct ast_crtc_state, base)
 
 extern int ast_mode_init(struct drm_device *dev);
-extern void ast_mode_fini(struct drm_device *dev);
 
 #define AST_MM_ALIGN_SHIFT 4
 #define AST_MM_ALIGN_MASK ((1 << AST_MM_ALIGN_SHIFT) - 1)
