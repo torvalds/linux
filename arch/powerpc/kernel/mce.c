@@ -385,6 +385,7 @@ void machine_check_print_event_info(struct machine_check_event *evt,
 	static const char *mc_user_types[] = {
 		"Indeterminate",
 		"tlbie(l) invalid",
+		"scv invalid",
 	};
 	static const char *mc_ra_types[] = {
 		"Indeterminate",
