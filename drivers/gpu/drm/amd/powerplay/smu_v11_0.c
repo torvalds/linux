@@ -1091,10 +1091,6 @@ int smu_v11_0_enable_thermal_alert(struct smu_context *smu)
 	struct amdgpu_device *adev = smu->adev;
 
 	if (smu->smu_table.thermal_controller_type) {
-		ret = smu_set_thermal_range(smu, smu->thermal_range);
-		if (ret)
-			return ret;
-
 		ret = amdgpu_irq_get(adev, &smu->irq_source, 0);
 		if (ret)
 			return ret;
@@ -1349,6 +1345,8 @@ static int smu_v11_0_set_irq_state(struct amdgpu_device *adev,
 				   unsigned tyep,
 				   enum amdgpu_interrupt_state state)
 {
+	struct smu_context *smu = &adev->smu;
+	uint32_t low, high;
 	uint32_t val = 0;
 
 	switch (state) {
@@ -1369,9 +1367,19 @@ static int smu_v11_0_set_irq_state(struct amdgpu_device *adev,
 		break;
 	case AMDGPU_IRQ_STATE_ENABLE:
 		/* For THM irqs */
+		low = max(SMU_THERMAL_MINIMUM_ALERT_TEMP,
+				smu->thermal_range.min / SMU_TEMPERATURE_UNITS_PER_CENTIGRADES);
+		high = min(SMU_THERMAL_MAXIMUM_ALERT_TEMP,
+				smu->thermal_range.software_shutdown_temp);
+
 		val = RREG32_SOC15(THM, 0, mmTHM_THERMAL_INT_CTRL);
+		val = REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, MAX_IH_CREDIT, 5);
+		val = REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, THERM_IH_HW_ENA, 1);
 		val = REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, THERM_INTH_MASK, 0);
 		val = REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, THERM_INTL_MASK, 0);
+		val = REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, DIG_THERM_INTH, (high & 0xff));
+		val = REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, DIG_THERM_INTL, (low & 0xff));
+		val = val & (~THM_THERMAL_INT_CTRL__THERM_TRIGGER_MASK_MASK);
 		WREG32_SOC15(THM, 0, mmTHM_THERMAL_INT_CTRL, val);
 
 		val = (1 << THM_THERMAL_INT_ENA__THERM_INTH_CLR__SHIFT);
