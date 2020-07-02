@@ -1108,9 +1108,6 @@ int ast_mode_init(struct drm_device *dev)
 
 void ast_mode_fini(struct drm_device *dev)
 {
-	struct ast_private *ast = to_ast_private(dev);
-
-	ast_cursor_fini(ast);
 }
 
 static int get_clock(void *i2c_priv)
