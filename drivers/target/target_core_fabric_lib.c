@@ -234,7 +234,7 @@ static int iscsi_get_pr_transport_id_len(
 	 */
 	if (pr_reg->isid_present_at_reg) {
 		len += 5; /* For ",i,0x" ASCII separator */
-		len += 7; /* For iSCSI Initiator Session ID + Null terminator */
+		len += 12; /* For iSCSI Initiator Session ID */
 		*format_code = 1;
 	} else
 		*format_code = 0;
