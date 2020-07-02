@@ -144,6 +144,7 @@
 };
 
 &vopb {
+	support-multi-area;
 	status = "okay";
 };
 
@@ -152,6 +153,7 @@
 };
 
 &vopl {
+	support-multi-area;
 	status = "okay";
 };
 
