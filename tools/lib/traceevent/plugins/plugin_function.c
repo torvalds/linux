@@ -222,6 +222,44 @@ trace_stack_handler(struct trace_seq *s, struct tep_record *record,
 	return 0;
 }
 
+static int
+trace_raw_data_handler(struct trace_seq *s, struct tep_record *record,
+		    struct tep_event *event, void *context)
+{
+	struct tep_format_field *field;
+	unsigned long long id;
+	int long_size;
+	void *data = record->data;
+
+	if (tep_get_field_val(s, event, "id", record, &id, 1))
+		return trace_seq_putc(s, '!');
+
+	trace_seq_printf(s, "# %llx", id);
+
+	field = tep_find_any_field(event, "buf");
+	if (!field) {
+		trace_seq_printf(s, "<CANT FIND FIELD %s>", "buf");
+		return 0;
+	}
+
+	long_size = tep_get_long_size(event->tep);
+
+	for (data += field->offset; data < record->data + record->size;
+	     data += long_size) {
+		int size = sizeof(long);
+		int left = (record->data + record->size) - data;
+		int i;
+
+		if (size > left)
+			size = left;
+
+		for (i = 0; i < size; i++)
+			trace_seq_printf(s, " %02x", *(unsigned char *)(data + i));
+	}
+
+	return 0;
+}
+
 int TEP_PLUGIN_LOADER(struct tep_handle *tep)
 {
 	tep_register_event_handler(tep, -1, "ftrace", "function",
@@ -229,6 +267,9 @@ int TEP_PLUGIN_LOADER(struct tep_handle *tep)
 
 	tep_register_event_handler(tep, -1, "ftrace", "kernel_stack",
 				      trace_stack_handler, NULL);
+
+	tep_register_event_handler(tep, -1, "ftrace", "raw_data",
+				      trace_raw_data_handler, NULL);
 
 	tep_plugin_add_options("ftrace", plugin_options);
 
