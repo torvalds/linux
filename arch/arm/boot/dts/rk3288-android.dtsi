@@ -359,6 +359,14 @@
 	status = "okay";
 };
 
+&vopb {
+	support-multi-area;
+};
+
+&vopl {
+	support-multi-area;
+};
+
 &video_phy {
 	status = "okay";
 };
