@@ -1862,11 +1862,8 @@ static void __raid_recover_end_io(struct btrfs_raid_bio *rbio)
 			}
 
 			/* make sure our ps and qs are in order */
-			if (faila > failb) {
-				int tmp = failb;
-				failb = faila;
-				faila = tmp;
-			}
+			if (faila > failb)
+				swap(faila, failb);
 
 			/* if the q stripe is failed, do a pstripe reconstruction
 			 * from the xors.
