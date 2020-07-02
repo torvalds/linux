@@ -3,7 +3,7 @@
 
 time_start=$(date +%s)
 
-optstring="S:R:d:e:l:r:h4cm:"
+optstring="S:R:d:e:l:r:h4cm:f:t"
 ret=0
 sin=""
 sout=""
@@ -21,6 +21,8 @@ testmode=""
 sndbuf=0
 rcvbuf=0
 options_log=true
+do_tcp=0
+filesize=0
 
 if [ $tc_loss -eq 100 ];then
 	tc_loss=1%
@@ -40,9 +42,11 @@ usage() {
 	echo -e "\t-e: ethtool features to disable, e.g.: \"-e tso -e gso\" (default: randomly disable any of tso/gso/gro)"
 	echo -e "\t-4: IPv4 only: disable IPv6 tests (default: test both IPv4 and IPv6)"
 	echo -e "\t-c: capture packets for each test using tcpdump (default: no capture)"
+	echo -e "\t-f: size of file to transfer in bytes (default random)"
 	echo -e "\t-S: set sndbuf value (default: use kernel default)"
 	echo -e "\t-R: set rcvbuf value (default: use kernel default)"
 	echo -e "\t-m: test mode (poll, sendfile; default: poll)"
+	echo -e "\t-t: also run tests with TCP (use twice to non-fallback tcp)"
 }
 
 while getopts "$optstring" option;do
@@ -93,6 +97,12 @@ while getopts "$optstring" option;do
 		;;
 	"m")
 		testmode="$OPTARG"
+		;;
+	"f")
+		filesize="$OPTARG"
+		;;
+	"t")
+		do_tcp=$((do_tcp+1))
 		;;
 	"?")
 		usage $0
@@ -449,20 +459,25 @@ make_file()
 {
 	local name=$1
 	local who=$2
+	local SIZE=$filesize
+	local ksize
+	local rem
 
-	local SIZE TSIZE
-	SIZE=$((RANDOM % (1024 * 8)))
-	TSIZE=$((SIZE * 1024))
+	if [ $SIZE -eq 0 ]; then
+		local MAXSIZE=$((1024 * 1024 * 8))
+		local MINSIZE=$((1024 * 256))
 
-	dd if=/dev/urandom of="$name" bs=1024 count=$SIZE 2> /dev/null
+		SIZE=$(((RANDOM * RANDOM + MINSIZE) % MAXSIZE))
+	fi
 
-	SIZE=$((RANDOM % 1024))
-	SIZE=$((SIZE + 128))
-	TSIZE=$((TSIZE + SIZE))
-	dd if=/dev/urandom conv=notrunc of="$name" bs=1 count=$SIZE 2> /dev/null
+	ksize=$((SIZE / 1024))
+	rem=$((SIZE - (ksize * 1024)))
+
+	dd if=/dev/urandom of="$name" bs=1024 count=$ksize 2> /dev/null
+	dd if=/dev/urandom conv=notrunc of="$name" bs=1 count=$rem 2> /dev/null
 	echo -e "\nMPTCP_TEST_FILE_END_MARKER" >> "$name"
 
-	echo "Created $name (size $TSIZE) containing data sent by $who"
+	echo "Created $name (size $(du -b "$name")) containing data sent by $who"
 }
 
 run_tests_lo()
@@ -497,9 +512,11 @@ run_tests_lo()
 		return 1
 	fi
 
-	# don't bother testing fallback tcp except for loopback case.
-	if [ ${listener_ns} != ${connector_ns} ]; then
-		return 0
+	if [ $do_tcp -eq 0 ]; then
+		# don't bother testing fallback tcp except for loopback case.
+		if [ ${listener_ns} != ${connector_ns} ]; then
+			return 0
+		fi
 	fi
 
 	do_transfer ${listener_ns} ${connector_ns} MPTCP TCP ${connect_addr} ${local_addr}
@@ -514,6 +531,15 @@ run_tests_lo()
 	if [ $lret -ne 0 ]; then
 		ret=$lret
 		return 1
+	fi
+
+	if [ $do_tcp -gt 1 ] ;then
+		do_transfer ${listener_ns} ${connector_ns} TCP TCP ${connect_addr} ${local_addr}
+		lret=$?
+		if [ $lret -ne 0 ]; then
+			ret=$lret
+			return 1
+		fi
 	fi
 
 	return 0
