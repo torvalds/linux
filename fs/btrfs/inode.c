@@ -2815,6 +2815,9 @@ static int check_data_csum(struct inode *inode, struct btrfs_io_bio *io_bio,
 zeroit:
 	btrfs_print_data_csum_error(BTRFS_I(inode), start, csum, csum_expected,
 				    io_bio->mirror_num);
+	if (io_bio->device)
+		btrfs_dev_stat_inc_and_print(io_bio->device,
+					     BTRFS_DEV_STAT_CORRUPTION_ERRS);
 	memset(kaddr + pgoff, 1, len);
 	flush_dcache_page(page);
 	kunmap_atomic(kaddr);
