@@ -807,7 +807,7 @@ static void pll_factors(struct snd_soc_component *component,
 	pll_div->k = K;
 }
 
-/**
+/*
  * Please note that changing the PLL input frequency may require
  * resynchronisation with the AC97 controller.
  */

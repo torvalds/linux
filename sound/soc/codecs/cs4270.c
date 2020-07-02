@@ -499,7 +499,7 @@ static struct snd_soc_dai_driver cs4270_dai = {
 
 /**
  * cs4270_probe - ASoC probe function
- * @pdev: platform device
+ * @component: ASoC component
  *
  * This function is called when ASoC has all the pieces it needs to
  * instantiate a sound driver.
@@ -540,7 +540,7 @@ static int cs4270_probe(struct snd_soc_component *component)
 
 /**
  * cs4270_remove - ASoC remove function
- * @pdev: platform device
+ * @component: ASoC component
  *
  * This function is the counterpart to cs4270_probe().
  */

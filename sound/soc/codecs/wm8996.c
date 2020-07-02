@@ -2224,6 +2224,9 @@ static void wm8996_free_gpio(struct wm8996_priv *wm8996)
 
 /**
  * wm8996_detect - Enable default WM8996 jack detection
+ * @component: ASoC component
+ * @jack: jack pointer
+ * @polarity_cb: polarity callback
  *
  * The WM8996 has advanced accessory detection support for headsets.
  * This function provides a default implementation which integrates
