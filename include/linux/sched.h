@@ -154,24 +154,24 @@ struct task_group;
  *
  *   for (;;) {
  *	set_current_state(TASK_UNINTERRUPTIBLE);
- *	if (!need_sleep)
- *		break;
+ *	if (CONDITION)
+ *	   break;
  *
  *	schedule();
  *   }
  *   __set_current_state(TASK_RUNNING);
  *
  * If the caller does not need such serialisation (because, for instance, the
- * condition test and condition change and wakeup are under the same lock) then
+ * CONDITION test and condition change and wakeup are under the same lock) then
  * use __set_current_state().
  *
  * The above is typically ordered against the wakeup, which does:
  *
- *   need_sleep = false;
+ *   CONDITION = 1;
  *   wake_up_state(p, TASK_UNINTERRUPTIBLE);
  *
- * where wake_up_state() executes a full memory barrier before accessing the
- * task state.
+ * where wake_up_state()/try_to_wake_up() executes a full memory barrier before
+ * accessing p->state.
  *
  * Wakeup will do: if (@state & p->state) p->state = TASK_RUNNING, that is,
  * once it observes the TASK_UNINTERRUPTIBLE store the waking CPU can issue a

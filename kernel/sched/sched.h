@@ -1203,6 +1203,16 @@ struct rq_flags {
 #endif
 };
 
+/*
+ * Lockdep annotation that avoids accidental unlocks; it's like a
+ * sticky/continuous lockdep_assert_held().
+ *
+ * This avoids code that has access to 'struct rq *rq' (basically everything in
+ * the scheduler) from accidentally unlocking the rq if they do not also have a
+ * copy of the (on-stack) 'struct rq_flags rf'.
+ *
+ * Also see Documentation/locking/lockdep-design.rst.
+ */
 static inline void rq_pin_lock(struct rq *rq, struct rq_flags *rf)
 {
 	rf->cookie = lockdep_pin_lock(&rq->lock);
