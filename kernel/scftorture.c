@@ -357,6 +357,10 @@ static void scftorture_invoke_one(struct scf_statistics *scfp, struct torture_ra
 		}
 		smp_call_function(scf_handler, scfcp, scfsp->scfs_wait);
 		break;
+	default:
+		WARN_ON_ONCE(1);
+		if (scfcp)
+			scfcp->scfc_out = true;
 	}
 	if (scfcp && scfsp->scfs_wait) {
 		if (WARN_ON_ONCE(!scfcp->scfc_out))
