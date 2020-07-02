@@ -78,6 +78,7 @@ static const struct ehci_driver_overrides ehci_omap_overrides __initconst = {
 
 /**
  * ehci_hcd_omap_probe - initialize TI-based HCDs
+ * @pdev: Pointer to this platform device's information
  *
  * Allocates basic resources for this USB host controller, and
  * then invokes the start() method for the HCD associated with it
