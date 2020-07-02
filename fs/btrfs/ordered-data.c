@@ -868,7 +868,7 @@ int btrfs_find_ordered_sum(struct btrfs_inode *inode, u64 offset,
 	struct btrfs_ordered_inode_tree *tree = &inode->ordered_tree;
 	unsigned long num_sectors;
 	unsigned long i;
-	const u16 csum_size = fs_info->csum_size;
+	const u32 csum_size = fs_info->csum_size;
 	int index = 0;
 
 	ordered = btrfs_lookup_ordered_extent(inode, offset);

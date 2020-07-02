@@ -2906,7 +2906,7 @@ static int check_data_csum(struct inode *inode, struct btrfs_io_bio *io_bio,
 	SHASH_DESC_ON_STACK(shash, fs_info->csum_shash);
 	char *kaddr;
 	u32 len = fs_info->sectorsize;
-	const u16 csum_size = fs_info->csum_size;
+	const u32 csum_size = fs_info->csum_size;
 	u8 *csum_expected;
 	u8 csum[BTRFS_CSUM_SIZE];
 
@@ -7850,11 +7850,10 @@ static struct btrfs_dio_private *btrfs_create_dio_private(struct bio *dio_bio,
 	dip_size = sizeof(*dip);
 	if (!write && csum) {
 		struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
-		const u16 csum_size = fs_info->csum_size;
 		size_t nblocks;
 
 		nblocks = dio_bio->bi_iter.bi_size >> fs_info->sectorsize_bits;
-		dip_size += csum_size * nblocks;
+		dip_size += fs_info->csum_size * nblocks;
 	}
 
 	dip = kzalloc(dip_size, GFP_NOFS);
