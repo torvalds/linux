@@ -711,10 +711,15 @@ static int fill_stat_counter_mode(struct sk_buff *msg,
 	if (nla_put_u32(msg, RDMA_NLDEV_ATTR_STAT_MODE, m->mode))
 		return -EMSGSIZE;
 
-	if (m->mode == RDMA_COUNTER_MODE_AUTO)
+	if (m->mode == RDMA_COUNTER_MODE_AUTO) {
 		if ((m->mask & RDMA_COUNTER_MASK_QP_TYPE) &&
 		    nla_put_u8(msg, RDMA_NLDEV_ATTR_RES_TYPE, m->param.qp_type))
 			return -EMSGSIZE;
+
+		if ((m->mask & RDMA_COUNTER_MASK_PID) &&
+		    fill_res_name_pid(msg, &counter->res))
+			return -EMSGSIZE;
+	}
 
 	return 0;
 }
@@ -855,7 +860,6 @@ static int fill_res_counter_entry(struct sk_buff *msg, bool has_cap_net_admin,
 
 	if (nla_put_u32(msg, RDMA_NLDEV_ATTR_PORT_INDEX, counter->port) ||
 	    nla_put_u32(msg, RDMA_NLDEV_ATTR_STAT_COUNTER_ID, counter->id) ||
-	    fill_res_name_pid(msg, &counter->res) ||
 	    fill_stat_counter_mode(msg, counter) ||
 	    fill_stat_counter_qps(msg, counter) ||
 	    fill_stat_counter_hwcounters(msg, counter))

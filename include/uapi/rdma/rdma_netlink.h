@@ -569,5 +569,6 @@ enum rdma_nl_counter_mode {
  */
 enum rdma_nl_counter_mask {
 	RDMA_COUNTER_MASK_QP_TYPE = 1,
+	RDMA_COUNTER_MASK_PID = 1 << 1,
 };
 #endif /* _UAPI_RDMA_NETLINK_H */
