@@ -1276,6 +1276,12 @@ static int rockchip_drm_create_properties(struct drm_device *dev)
 		return -ENOMEM;
 	private->async_commit_prop = prop;
 
+	prop = drm_property_create_range(dev, DRM_MODE_PROP_ATOMIC,
+					 "SHARE_ID", 0, UINT_MAX);
+	if (!prop)
+		return -ENOMEM;
+	private->share_id_prop = prop;
+
 	return drm_mode_create_tv_properties(dev, 0, NULL);
 }
 

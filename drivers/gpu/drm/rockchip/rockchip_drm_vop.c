@@ -229,6 +229,7 @@ struct vop {
 	bool is_iommu_enabled;
 	bool is_iommu_needed;
 	bool is_enabled;
+	bool support_multi_area;
 
 	u32 version;
 
@@ -2129,6 +2130,18 @@ static int vop_atomic_plane_get_property(struct drm_plane *plane,
 		return 0;
 	}
 
+	if (property == private->share_id_prop) {
+		int i;
+		struct drm_mode_object *obj = &plane->base;
+
+		for (i = 0; i < obj->properties->count; i++) {
+			if (obj->properties->properties[i] == property) {
+				*val = obj->properties->values[i];
+				return 0;
+			}
+		}
+	}
+
 	DRM_ERROR("failed to get vop plane property id:%d, name:%s\n",
 		   property->base.id, property->name);
 
@@ -3996,9 +4009,8 @@ static int vop_plane_init(struct vop *vop, struct vop_win *win,
 	if (win->parent)
 		share = &win->parent->base;
 
-	ret = drm_share_plane_init(vop->drm_dev, &win->base, share,
-				   possible_crtcs, &vop_plane_funcs,
-				   win->data_formats, win->nformats, win->type);
+	ret = drm_universal_plane_init(vop->drm_dev, &win->base, possible_crtcs, &vop_plane_funcs,
+				       win->data_formats, win->nformats, NULL, win->type, NULL);
 	if (ret) {
 		DRM_ERROR("failed to initialize plane %d\n", ret);
 		return ret;
@@ -4031,6 +4043,13 @@ static int vop_plane_init(struct vop *vop, struct vop_win *win,
 				   private->blend_mode_prop, 0);
 	drm_object_attach_property(&win->base.base,
 				   private->async_commit_prop, 0);
+
+	if (win->parent)
+		drm_object_attach_property(&win->base.base, private->share_id_prop,
+					   win->parent->base.base.id);
+	else
+		drm_object_attach_property(&win->base.base, private->share_id_prop,
+					   win->base.base.id);
 
 	return 0;
 }
@@ -4317,6 +4336,9 @@ static int vop_win_init(struct vop *vop)
 
 		num_wins++;
 
+		if (!vop->support_multi_area)
+			continue;
+
 		for (j = 0; j < win_data->area_size; j++) {
 			struct vop_win *vop_area = &vop->win[num_wins];
 			const struct vop_win_phy *area = win_data->area[j];
@@ -4453,6 +4475,7 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 	vop->num_wins = num_wins;
 	vop->version = vop_data->version;
 	dev_set_drvdata(dev, vop);
+	vop->support_multi_area = of_property_read_bool(dev->of_node, "support-multi-area");
 
 	ret = vop_win_init(vop);
 	if (ret)
