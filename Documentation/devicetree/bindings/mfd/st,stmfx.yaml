@@ -93,7 +93,7 @@ required:
 examples:
   - |
     #include <dt-bindings/interrupt-controller/arm-gic.h>
-    i2c@0 {
+    i2c {
       #address-cells = <1>;
       #size-cells = <0>;
       stmfx@42 {
