@@ -7179,7 +7179,7 @@ static int __maybe_unused pcidev_resume(struct device *dev_d)
 	return 0;
 }
 
-static int pcidev_suspend(struct device *dev_d)
+static int __maybe_unused pcidev_suspend(struct device *dev_d)
 {
 	int i;
 	struct platform_info *info = dev_get_drvdata(dev_d);
