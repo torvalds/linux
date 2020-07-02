@@ -696,6 +696,13 @@ struct drm_get_cap {
  */
 #define DRM_CLIENT_CAP_WRITEBACK_CONNECTORS	5
 
+/*
+ * DRM_CLIENT_CAP_SHARE_PLANES
+ *
+ * this is only used to compatibility with old hwc code.
+ */
+#define DRM_CLIENT_CAP_SHARE_PLANES	6
+
 /** DRM_IOCTL_SET_CLIENT_CAP ioctl argument type */
 struct drm_set_client_cap {
 	__u64 capability;
