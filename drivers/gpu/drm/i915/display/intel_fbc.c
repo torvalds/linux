@@ -695,8 +695,12 @@ static void intel_fbc_update_state_cache(struct intel_crtc *crtc,
 	cache->plane.pixel_blend_mode = plane_state->hw.pixel_blend_mode;
 
 	cache->fb.format = fb->format;
-	cache->fb.stride = fb->pitches[0];
 	cache->fb.modifier = fb->modifier;
+
+	/* FIXME is this correct? */
+	cache->fb.stride = plane_state->color_plane[0].stride;
+	if (drm_rotation_90_or_270(plane_state->hw.rotation))
+		cache->fb.stride *= fb->format->cpp[0];
 
 	/* FBC1 compression interval: arbitrary choice of 1 second */
 	cache->interval = drm_mode_vrefresh(&crtc_state->hw.adjusted_mode);
@@ -797,6 +801,11 @@ static bool intel_fbc_can_activate(struct intel_crtc *crtc)
 		return false;
 	}
 
+	if (!pixel_format_is_valid(dev_priv, cache->fb.format->format)) {
+		fbc->no_fbc_reason = "pixel format is invalid";
+		return false;
+	}
+
 	if (!rotation_is_valid(dev_priv, cache->fb.format->format,
 			       cache->plane.rotation)) {
 		fbc->no_fbc_reason = "rotation unsupported";
@@ -810,11 +819,6 @@ static bool intel_fbc_can_activate(struct intel_crtc *crtc)
 
 	if (!stride_is_valid(dev_priv, cache->fb.modifier, cache->fb.stride)) {
 		fbc->no_fbc_reason = "framebuffer stride not supported";
-		return false;
-	}
-
-	if (!pixel_format_is_valid(dev_priv, cache->fb.format->format)) {
-		fbc->no_fbc_reason = "pixel format is invalid";
 		return false;
 	}
 
