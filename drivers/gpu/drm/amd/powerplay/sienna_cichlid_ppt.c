@@ -1818,37 +1818,6 @@ static bool sienna_cichlid_is_mode1_reset_supported(struct smu_context *smu)
 	return val != 0x0;
 }
 
-static int sienna_cichlid_set_thermal_range(struct smu_context *smu,
-				       struct smu_temperature_range range)
-{
-	struct amdgpu_device *adev = smu->adev;
-	int low = SMU_THERMAL_MINIMUM_ALERT_TEMP;
-	int high = SMU_THERMAL_MAXIMUM_ALERT_TEMP;
-	uint32_t val;
-	struct smu_table_context *table_context = &smu->smu_table;
-	struct smu_11_0_7_powerplay_table *powerplay_table = table_context->power_play_table;
-
-	low = max(SMU_THERMAL_MINIMUM_ALERT_TEMP,
-			range.min / SMU_TEMPERATURE_UNITS_PER_CENTIGRADES);
-	high = min((uint16_t)SMU_THERMAL_MAXIMUM_ALERT_TEMP, powerplay_table->software_shutdown_temp);
-
-	if (low > high)
-		return -EINVAL;
-
-	val = RREG32_SOC15(THM, 0, mmTHM_THERMAL_INT_CTRL);
-	val = REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, MAX_IH_CREDIT, 5);
-	val = REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, THERM_IH_HW_ENA, 1);
-	val = REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, THERM_INTH_MASK, 0);
-	val = REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, THERM_INTL_MASK, 0);
-	val = REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, DIG_THERM_INTH, (high & 0xff));
-	val = REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, DIG_THERM_INTL, (low & 0xff));
-	val = val & (~THM_THERMAL_INT_CTRL__THERM_TRIGGER_MASK_MASK);
-
-	WREG32_SOC15(THM, 0, mmTHM_THERMAL_INT_CTRL, val);
-
-	return 0;
-}
-
 static void sienna_cichlid_dump_pptable(struct smu_context *smu)
 {
 	struct smu_table_context *table_context = &smu->smu_table;
@@ -2587,7 +2556,6 @@ static const struct pptable_funcs sienna_cichlid_ppt_funcs = {
 	.mode1_reset = smu_v11_0_mode1_reset,
 	.get_dpm_ultimate_freq = sienna_cichlid_get_dpm_ultimate_freq,
 	.set_soft_freq_limited_range = smu_v11_0_set_soft_freq_limited_range,
-	.set_thermal_range = sienna_cichlid_set_thermal_range,
 };
 
 void sienna_cichlid_set_ppt_funcs(struct smu_context *smu)

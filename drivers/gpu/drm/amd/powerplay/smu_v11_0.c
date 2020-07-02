@@ -1087,20 +1087,10 @@ int smu_v11_0_set_power_limit(struct smu_context *smu, uint32_t n)
 
 int smu_v11_0_enable_thermal_alert(struct smu_context *smu)
 {
-	int ret = 0;
-	struct amdgpu_device *adev = smu->adev;
+	if (smu->smu_table.thermal_controller_type)
+		return amdgpu_irq_get(smu->adev, &smu->irq_source, 0);
 
-	if (smu->smu_table.thermal_controller_type) {
-		ret = amdgpu_irq_get(adev, &smu->irq_source, 0);
-		if (ret)
-			return ret;
-
-		ret = smu_set_thermal_fan_table(smu);
-		if (ret)
-			return ret;
-	}
-
-	return ret;
+	return 0;
 }
 
 int smu_v11_0_disable_thermal_alert(struct smu_context *smu)

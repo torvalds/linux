@@ -480,7 +480,6 @@ struct pptable_funcs {
 	int (*set_cpu_power_state)(struct smu_context *smu);
 	bool (*is_dpm_running)(struct smu_context *smu);
 	int (*tables_init)(struct smu_context *smu, struct smu_table *tables);
-	int (*set_thermal_fan_table)(struct smu_context *smu);
 	int (*get_fan_speed_percent)(struct smu_context *smu, uint32_t *speed);
 	int (*get_fan_speed_rpm)(struct smu_context *smu, uint32_t *speed);
 	int (*set_watermarks_table)(struct smu_context *smu, void *watermarks,
@@ -572,7 +571,6 @@ struct pptable_funcs {
 	int (*disable_umc_cdr_12gbps_workaround)(struct smu_context *smu);
 	int (*set_power_source)(struct smu_context *smu, enum smu_power_src_type power_src);
 	void (*log_thermal_throttling_event)(struct smu_context *smu);
-	int (*set_thermal_range)(struct smu_context *smu, struct smu_temperature_range range);
 };
 
 typedef enum {
