@@ -286,7 +286,7 @@
 			#size-cells = <0>;
 
 			fsi_occ0: occ {
-				compatible = "ibm,p9-occ";
+				compatible = "ibm,p10-occ";
 			};
 		};
 
@@ -398,7 +398,7 @@
 			#size-cells = <0>;
 
 			fsi_occ1: occ {
-				compatible = "ibm,p9-occ";
+				compatible = "ibm,p10-occ";
 			};
 		};
 
@@ -508,7 +508,7 @@
 			#size-cells = <0>;
 
 			fsi_occ2: occ {
-				compatible = "ibm,p9-occ";
+				compatible = "ibm,p10-occ";
 			};
 		};
 
