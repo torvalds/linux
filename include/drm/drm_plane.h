@@ -536,9 +536,6 @@ struct drm_plane {
 	/** @dev: DRM device this plane belongs to */
 	struct drm_device *dev;
 
-	/* @parent: this plane share some resources with parent plane */
-	struct drm_plane *parent;
-
 	/**
 	 * @head:
 	 *
@@ -699,13 +696,6 @@ int drm_plane_init(struct drm_device *dev,
 		   const struct drm_plane_funcs *funcs,
 		   const uint32_t *formats, unsigned int format_count,
 		   bool is_primary);
-int drm_share_plane_init(struct drm_device *dev, struct drm_plane *plane,
-			 struct drm_plane *parent,
-			 unsigned long possible_crtcs,
-			 const struct drm_plane_funcs *funcs,
-			 const uint32_t *formats,
-			 unsigned int format_count,
-			 enum drm_plane_type type);
 void drm_plane_cleanup(struct drm_plane *plane);
 
 /**

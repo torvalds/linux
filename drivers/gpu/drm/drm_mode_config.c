@@ -225,17 +225,7 @@ static int drm_mode_create_standard_properties(struct drm_device *dev)
 	if (!prop)
 		return -ENOMEM;
 	dev->mode_config.plane_type_property = prop;
-	prop = drm_property_create_range(dev, DRM_MODE_PROP_IMMUTABLE,
-					 "SHARE_ID", 0, UINT_MAX);
-	if (!prop)
-		return -ENOMEM;
 
-	dev->mode_config.prop_share_id = prop;
-	prop = drm_property_create_range(dev, DRM_MODE_PROP_IMMUTABLE,
-					 "SHARE_FLAGS", 0, UINT_MAX);
-	if (!prop)
-		return -ENOMEM;
-	dev->mode_config.prop_share_flags = prop;
 	prop = drm_property_create_range(dev, DRM_MODE_PROP_ATOMIC,
 			"SRC_X", 0, UINT_MAX);
 	if (!prop)
