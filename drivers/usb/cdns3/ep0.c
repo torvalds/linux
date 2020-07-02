@@ -29,6 +29,7 @@ static struct usb_endpoint_descriptor cdns3_gadget_ep0_desc = {
  * @length: data length
  * @erdy: set it to 1 when ERDY packet should be sent -
  *        exit from flow control state
+ * @zlp: add zero length packet
  */
 static void cdns3_ep0_run_transfer(struct cdns3_device *priv_dev,
 				   dma_addr_t dma_addr,
@@ -696,7 +697,6 @@ static int cdns3_gadget_ep0_set_halt(struct usb_ep *ep, int value)
  * @ep: pointer to endpoint zero object
  * @request: pointer to request object
  * @gfp_flags: gfp flags
- * @zlp: add zero length packet
  *
  * Returns 0 on success, error code elsewhere
  */
