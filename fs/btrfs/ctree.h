@@ -1062,6 +1062,7 @@ struct btrfs_root {
 	struct list_head log_ctxs[2];
 	atomic_t log_writers;
 	atomic_t log_commit[2];
+	/* Used only for log trees of subvolumes, not for the log root tree */
 	atomic_t log_batch;
 	int log_transid;
 	/* No matter the commit succeeds or not*/
