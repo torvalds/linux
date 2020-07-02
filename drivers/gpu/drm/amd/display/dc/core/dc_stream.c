@@ -244,6 +244,25 @@ struct dc_stream_status *dc_stream_get_status(
 	return dc_stream_get_status_from_state(dc->current_state, stream);
 }
 
+#ifndef TRIM_FSFT
+/**
+ * dc_optimize_timing() - dc to optimize timing
+ */
+bool dc_optimize_timing(
+	struct dc_crtc_timing *timing,
+	unsigned int max_input_rate_in_khz)
+{
+	//optimization is expected to assing a value to these:
+	//timing->pix_clk_100hz
+	//timing->v_front_porch
+	//timing->v_total
+	//timing->fast_transport_output_rate_100hz;
+	timing->fast_transport_output_rate_100hz = timing->pix_clk_100hz;
+
+	return true;
+}
+#endif
+
 
 /**
  * dc_stream_set_cursor_attributes() - Update cursor attributes and set cursor surface address
