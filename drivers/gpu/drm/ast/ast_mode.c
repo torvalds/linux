@@ -683,7 +683,7 @@ ast_cursor_plane_helper_atomic_disable(struct drm_plane *plane,
 {
 	struct ast_private *ast = to_ast_private(plane->dev);
 
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xcb, 0xfc, 0x00);
+	ast_cursor_hide(ast);
 }
 
 static const struct drm_plane_helper_funcs ast_cursor_plane_helper_funcs = {

@@ -321,5 +321,6 @@ int ast_cursor_blit(struct ast_private *ast, struct drm_framebuffer *fb);
 void ast_cursor_page_flip(struct ast_private *ast);
 int ast_cursor_show(struct ast_private *ast, int x, int y,
 		    unsigned int offset_x, unsigned int offset_y);
+void ast_cursor_hide(struct ast_private *ast);
 
 #endif

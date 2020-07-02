@@ -284,3 +284,8 @@ int ast_cursor_show(struct ast_private *ast, int x, int y,
 
 	return 0;
 }
+
+void ast_cursor_hide(struct ast_private *ast)
+{
+	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xcb, 0xfc, 0x00);
+}
