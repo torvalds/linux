@@ -341,6 +341,44 @@ fail:
 			       outbuf, outlen, rc);
 }
 
+int efx_fini_dmaq(struct efx_nic *efx)
+{
+	struct efx_tx_queue *tx_queue;
+	struct efx_rx_queue *rx_queue;
+	struct efx_channel *channel;
+	int pending;
+
+	/* If the MC has just rebooted, the TX/RX queues will have already been
+	 * torn down, but efx->active_queues needs to be set to zero.
+	 */
+	if (efx->must_realloc_vis) {
+		atomic_set(&efx->active_queues, 0);
+		return 0;
+	}
+
+	/* Do not attempt to write to the NIC during EEH recovery */
+	if (efx->state != STATE_RECOVERY) {
+		efx_for_each_channel(channel, efx) {
+			efx_for_each_channel_rx_queue(rx_queue, channel)
+				efx_mcdi_rx_fini(rx_queue);
+			efx_for_each_channel_tx_queue(tx_queue, channel)
+				efx_mcdi_tx_fini(tx_queue);
+		}
+
+		wait_event_timeout(efx->flush_wq,
+				   atomic_read(&efx->active_queues) == 0,
+				   msecs_to_jiffies(EFX_MAX_FLUSH_TIME));
+		pending = atomic_read(&efx->active_queues);
+		if (pending) {
+			netif_err(efx, hw, efx->net_dev, "failed to flush %d queues\n",
+				  pending);
+			return -ETIMEDOUT;
+		}
+	}
+
+	return 0;
+}
+
 int efx_mcdi_window_mode_to_stride(struct efx_nic *efx, u8 vi_window_mode)
 {
 	switch (vi_window_mode) {
