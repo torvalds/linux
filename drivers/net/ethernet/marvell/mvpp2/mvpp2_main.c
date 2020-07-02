@@ -907,28 +907,27 @@ static int mvpp2_swf_bm_pool_init_shared(struct mvpp2_port *port)
 /* Initialize pools for swf, percpu buffers variant */
 static int mvpp2_swf_bm_pool_init_percpu(struct mvpp2_port *port)
 {
-	struct mvpp2_bm_pool *p;
+	struct mvpp2_bm_pool *bm_pool;
 	int i;
 
 	for (i = 0; i < port->nrxqs; i++) {
-		p = mvpp2_bm_pool_use_percpu(port, MVPP2_BM_SHORT, i,
-					     mvpp2_pools[MVPP2_BM_SHORT].pkt_size);
-		if (!p)
+		bm_pool = mvpp2_bm_pool_use_percpu(port, MVPP2_BM_SHORT, i,
+						   mvpp2_pools[MVPP2_BM_SHORT].pkt_size);
+		if (!bm_pool)
 			return -ENOMEM;
 
-		port->priv->bm_pools[i].port_map |= BIT(port->id);
-		mvpp2_rxq_short_pool_set(port, i, port->priv->bm_pools[i].id);
+		bm_pool->port_map |= BIT(port->id);
+		mvpp2_rxq_short_pool_set(port, i, bm_pool->id);
 	}
 
 	for (i = 0; i < port->nrxqs; i++) {
-		p = mvpp2_bm_pool_use_percpu(port, MVPP2_BM_LONG, i + port->nrxqs,
-					     mvpp2_pools[MVPP2_BM_LONG].pkt_size);
-		if (!p)
+		bm_pool = mvpp2_bm_pool_use_percpu(port, MVPP2_BM_LONG, i + port->nrxqs,
+						   mvpp2_pools[MVPP2_BM_LONG].pkt_size);
+		if (!bm_pool)
 			return -ENOMEM;
 
-		port->priv->bm_pools[i + port->nrxqs].port_map |= BIT(port->id);
-		mvpp2_rxq_long_pool_set(port, i,
-					port->priv->bm_pools[i + port->nrxqs].id);
+		bm_pool->port_map |= BIT(port->id);
+		mvpp2_rxq_long_pool_set(port, i, bm_pool->id);
 	}
 
 	port->pool_long = NULL;
