@@ -1467,7 +1467,7 @@ static void macb_hresp_error_task(unsigned long data)
 {
 	struct macb *bp = (struct macb *)data;
 	struct net_device *dev = bp->dev;
-	struct macb_queue *queue = bp->queues;
+	struct macb_queue *queue;
 	unsigned int q;
 	u32 ctrl;
 
