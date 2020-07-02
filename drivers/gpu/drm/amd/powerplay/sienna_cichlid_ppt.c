@@ -1645,13 +1645,22 @@ static int sienna_cichlid_get_uclk_dpm_states(struct smu_context *smu, uint32_t 
 static int sienna_cichlid_get_thermal_temperature_range(struct smu_context *smu,
 						struct smu_temperature_range *range)
 {
-	struct smu_table_context *table_context = &smu->smu_table;
-	struct smu_11_0_7_powerplay_table *powerplay_table = table_context->power_play_table;
+	PPTable_t *pptable = smu->smu_table.driver_pptable;
 
-	if (!range || !powerplay_table)
+	if (!range)
 		return -EINVAL;
 
-	range->max = powerplay_table->software_shutdown_temp *
+	range->max = pptable->TemperatureLimit[TEMP_EDGE] *
+		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	range->edge_emergency_max = (pptable->TemperatureLimit[TEMP_EDGE] + CTF_OFFSET_EDGE) *
+		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	range->hotspot_crit_max = pptable->TemperatureLimit[TEMP_HOTSPOT] *
+		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	range->hotspot_emergency_max = (pptable->TemperatureLimit[TEMP_HOTSPOT] + CTF_OFFSET_HOTSPOT) *
+		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	range->mem_crit_max = pptable->TemperatureLimit[TEMP_MEM] *
+		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	range->mem_emergency_max = (pptable->TemperatureLimit[TEMP_MEM] + CTF_OFFSET_MEM)*
 		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
 
 	return 0;
