@@ -43,4 +43,5 @@ void mlx5_core_res_put(struct mlx5_core_rsc_common *res);
 
 int mlx5_core_xrcd_alloc(struct mlx5_ib_dev *dev, u32 *xrcdn);
 int mlx5_core_xrcd_dealloc(struct mlx5_ib_dev *dev, u32 xrcdn);
+int mlx5_ib_qp_set_counter(struct ib_qp *qp, struct rdma_counter *counter);
 #endif /* _MLX5_IB_QP_H */

@@ -38,6 +38,7 @@
 #include <linux/mlx5/fs.h>
 #include "mlx5_ib.h"
 #include "ib_rep.h"
+#include "counters.h"
 #include "cmd.h"
 #include "qp.h"
 #include "wr.h"

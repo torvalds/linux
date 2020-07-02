@@ -1488,9 +1488,6 @@ int bfregn_to_uar_index(struct mlx5_ib_dev *dev,
 			struct mlx5_bfreg_info *bfregi, u32 bfregn,
 			bool dyn_bfreg);
 
-int mlx5_ib_qp_set_counter(struct ib_qp *qp, struct rdma_counter *counter);
-u16 mlx5_ib_get_counters_id(struct mlx5_ib_dev *dev, u8 port_num);
-
 static inline bool mlx5_ib_can_use_umr(struct mlx5_ib_dev *dev,
 				       bool do_modify_atomic, int access_flags)
 {

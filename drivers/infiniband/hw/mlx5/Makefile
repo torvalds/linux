@@ -4,6 +4,7 @@ obj-$(CONFIG_MLX5_INFINIBAND) += mlx5_ib.o
 mlx5_ib-y := ah.o \
 	     cmd.o \
 	     cong.o \
+	     counters.o \
 	     cq.o \
 	     doorbell.o \
 	     gsi.o \
