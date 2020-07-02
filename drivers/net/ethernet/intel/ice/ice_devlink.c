@@ -397,10 +397,58 @@ static int ice_devlink_nvm_snapshot(struct devlink *devlink,
 	return 0;
 }
 
+/**
+ * ice_devlink_devcaps_snapshot - Capture snapshot of device capabilities
+ * @devlink: the devlink instance
+ * @extack: extended ACK response structure
+ * @data: on exit points to snapshot data buffer
+ *
+ * This function is called in response to the DEVLINK_CMD_REGION_TRIGGER for
+ * the device-caps devlink region. It captures a snapshot of the device
+ * capabilities reported by firmware.
+ *
+ * @returns zero on success, and updates the data pointer. Returns a non-zero
+ * error code on failure.
+ */
+static int
+ice_devlink_devcaps_snapshot(struct devlink *devlink,
+			     struct netlink_ext_ack *extack, u8 **data)
+{
+	struct ice_pf *pf = devlink_priv(devlink);
+	struct device *dev = ice_pf_to_dev(pf);
+	struct ice_hw *hw = &pf->hw;
+	enum ice_status status;
+	void *devcaps;
+
+	devcaps = vzalloc(ICE_AQ_MAX_BUF_LEN);
+	if (!devcaps)
+		return -ENOMEM;
+
+	status = ice_aq_list_caps(hw, devcaps, ICE_AQ_MAX_BUF_LEN, NULL,
+				  ice_aqc_opc_list_dev_caps, NULL);
+	if (status) {
+		dev_dbg(dev, "ice_aq_list_caps: failed to read device capabilities, err %d aq_err %d\n",
+			status, hw->adminq.sq_last_status);
+		NL_SET_ERR_MSG_MOD(extack, "Failed to read device capabilities");
+		vfree(devcaps);
+		return -EIO;
+	}
+
+	*data = (u8 *)devcaps;
+
+	return 0;
+}
+
 static const struct devlink_region_ops ice_nvm_region_ops = {
 	.name = "nvm-flash",
 	.destructor = vfree,
 	.snapshot = ice_devlink_nvm_snapshot,
+};
+
+static const struct devlink_region_ops ice_devcaps_region_ops = {
+	.name = "device-caps",
+	.destructor = vfree,
+	.snapshot = ice_devlink_devcaps_snapshot,
 };
 
 /**
@@ -424,6 +472,15 @@ void ice_devlink_init_regions(struct ice_pf *pf)
 			PTR_ERR(pf->nvm_region));
 		pf->nvm_region = NULL;
 	}
+
+	pf->devcaps_region = devlink_region_create(devlink,
+						   &ice_devcaps_region_ops, 10,
+						   ICE_AQ_MAX_BUF_LEN);
+	if (IS_ERR(pf->devcaps_region)) {
+		dev_err(dev, "failed to create device-caps devlink region, err %ld\n",
+			PTR_ERR(pf->devcaps_region));
+		pf->devcaps_region = NULL;
+	}
 }
 
 /**
@@ -436,4 +493,6 @@ void ice_devlink_destroy_regions(struct ice_pf *pf)
 {
 	if (pf->nvm_region)
 		devlink_region_destroy(pf->nvm_region);
+	if (pf->devcaps_region)
+		devlink_region_destroy(pf->devcaps_region);
 }

@@ -206,12 +206,14 @@ static int ice_qp_ena(struct ice_vsi *vsi, u16 q_idx)
 	struct ice_aqc_add_tx_qgrp *qg_buf;
 	struct ice_ring *tx_ring, *rx_ring;
 	struct ice_q_vector *q_vector;
+	u16 size;
 	int err;
 
 	if (q_idx >= vsi->num_rxq || q_idx >= vsi->num_txq)
 		return -EINVAL;
 
-	qg_buf = kzalloc(sizeof(*qg_buf), GFP_KERNEL);
+	size = struct_size(qg_buf, txqs, 1);
+	qg_buf = kzalloc(size, GFP_KERNEL);
 	if (!qg_buf)
 		return -ENOMEM;
 
@@ -228,7 +230,7 @@ static int ice_qp_ena(struct ice_vsi *vsi, u16 q_idx)
 	if (ice_is_xdp_ena_vsi(vsi)) {
 		struct ice_ring *xdp_ring = vsi->xdp_rings[q_idx];
 
-		memset(qg_buf, 0, sizeof(*qg_buf));
+		memset(qg_buf, 0, size);
 		qg_buf->num_txqs = 1;
 		err = ice_vsi_cfg_txq(vsi, xdp_ring, qg_buf);
 		if (err)
