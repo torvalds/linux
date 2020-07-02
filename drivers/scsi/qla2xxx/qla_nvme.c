@@ -139,11 +139,12 @@ static void qla_nvme_release_fcp_cmd_kref(struct kref *kref)
 	sp->priv = NULL;
 	if (priv->comp_status == QLA_SUCCESS) {
 		fd->rcv_rsplen = le16_to_cpu(nvme->u.nvme.rsp_pyld_len);
+		fd->status = NVME_SC_SUCCESS;
 	} else {
 		fd->rcv_rsplen = 0;
 		fd->transferred_length = 0;
+		fd->status = NVME_SC_INTERNAL;
 	}
-	fd->status = 0;
 	spin_unlock_irqrestore(&priv->cmd_lock, flags);
 
 	fd->done(fd);

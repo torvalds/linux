@@ -96,7 +96,8 @@ static void ionic_link_status_check(struct ionic_lif *lif)
 	u16 link_status;
 	bool link_up;
 
-	if (!test_bit(IONIC_LIF_F_LINK_CHECK_REQUESTED, lif->state))
+	if (!test_bit(IONIC_LIF_F_LINK_CHECK_REQUESTED, lif->state) ||
+	    test_bit(IONIC_LIF_F_QUEUE_RESET, lif->state))
 		return;
 
 	link_status = le16_to_cpu(lif->info->status.link_status);
@@ -1245,6 +1246,7 @@ static int ionic_init_nic_features(struct ionic_lif *lif)
 
 	netdev->hw_features |= netdev->hw_enc_features;
 	netdev->features |= netdev->hw_features;
+	netdev->vlan_features |= netdev->features & ~NETIF_F_VLAN_FEATURES;
 
 	netdev->priv_flags |= IFF_UNICAST_FLT |
 			      IFF_LIVE_ADDR_CHANGE;
@@ -1692,15 +1694,15 @@ static void ionic_stop_queues(struct ionic_lif *lif)
 	if (!test_and_clear_bit(IONIC_LIF_F_UP, lif->state))
 		return;
 
-	ionic_txrx_disable(lif);
 	netif_tx_disable(lif->netdev);
+	ionic_txrx_disable(lif);
 }
 
 int ionic_stop(struct net_device *netdev)
 {
 	struct ionic_lif *lif = netdev_priv(netdev);
 
-	if (!netif_device_present(netdev))
+	if (test_bit(IONIC_LIF_F_FW_RESET, lif->state))
 		return 0;
 
 	ionic_stop_queues(lif);
@@ -1983,18 +1985,19 @@ int ionic_reset_queues(struct ionic_lif *lif)
 	bool running;
 	int err = 0;
 
-	/* Put off the next watchdog timeout */
-	netif_trans_update(lif->netdev);
-
 	err = ionic_wait_for_bit(lif, IONIC_LIF_F_QUEUE_RESET);
 	if (err)
 		return err;
 
 	running = netif_running(lif->netdev);
-	if (running)
+	if (running) {
+		netif_device_detach(lif->netdev);
 		err = ionic_stop(lif->netdev);
-	if (!err && running)
+	}
+	if (!err && running) {
 		ionic_open(lif->netdev);
+		netif_device_attach(lif->netdev);
+	}
 
 	clear_bit(IONIC_LIF_F_QUEUE_RESET, lif->state);
 
