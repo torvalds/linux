@@ -88,6 +88,7 @@ uvc_video_encode_bulk(struct usb_request *req, struct uvc_video *video,
 		video->fid ^= UVC_STREAM_FID;
 
 		video->payload_size = 0;
+		req->zero = 1;
 	}
 
 	if (video->payload_size == video->max_payload_size ||
