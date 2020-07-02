@@ -563,6 +563,20 @@ static ssize_t interrupt_show(struct device *dev,
 
 static DEVICE_ATTR_RO(interrupt);
 
+static ssize_t config_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
+{
+	struct ap_queue *aq = to_ap_queue(dev);
+	int rc;
+
+	spin_lock_bh(&aq->lock);
+	rc = scnprintf(buf, PAGE_SIZE, "%d\n", aq->config ? 1 : 0);
+	spin_unlock_bh(&aq->lock);
+	return rc;
+}
+
+static DEVICE_ATTR_RO(config);
+
 #ifdef CONFIG_ZCRYPT_DEBUG
 static ssize_t states_show(struct device *dev,
 			   struct device_attribute *attr, char *buf)
@@ -676,6 +690,7 @@ static struct attribute *ap_queue_dev_attrs[] = {
 	&dev_attr_pendingq_count.attr,
 	&dev_attr_reset.attr,
 	&dev_attr_interrupt.attr,
+	&dev_attr_config.attr,
 #ifdef CONFIG_ZCRYPT_DEBUG
 	&dev_attr_states.attr,
 	&dev_attr_last_err_rc.attr,

@@ -166,6 +166,7 @@ struct ap_card {
 	unsigned int functions;		/* AP device function bitfield. */
 	int queue_depth;		/* AP queue depth.*/
 	int id;				/* AP card number. */
+	bool config;			/* configured state */
 	atomic64_t total_request_count;	/* # requests ever for this AP device.*/
 };
 
@@ -178,6 +179,7 @@ struct ap_queue {
 	spinlock_t lock;		/* Per device lock. */
 	void *private;			/* ap driver private pointer. */
 	enum ap_dev_state dev_state;	/* queue device state */
+	bool config;			/* configured state */
 	ap_qid_t qid;			/* AP queue id. */
 	int interrupt;			/* indicate if interrupts are enabled */
 	int queue_count;		/* # messages currently on AP queue. */

@@ -307,7 +307,7 @@ EXPORT_SYMBOL(ap_test_config_ctrl_domain);
  * false otherwise.
  */
 static bool ap_queue_info(ap_qid_t qid, int *q_type,
-			  unsigned int *q_fac, int *q_depth)
+			  unsigned int *q_fac, int *q_depth, bool *q_decfg)
 {
 	struct ap_queue_status status;
 	unsigned long info = 0;
@@ -322,6 +322,9 @@ static bool ap_queue_info(ap_qid_t qid, int *q_type,
 	switch (status.response_code) {
 	case AP_RESPONSE_NORMAL:
 	case AP_RESPONSE_RESET_IN_PROGRESS:
+	case AP_RESPONSE_DECONFIGURED:
+	case AP_RESPONSE_CHECKSTOPPED:
+	case AP_RESPONSE_BUSY:
 		/*
 		 * According to the architecture in all these cases the
 		 * info should be filled. All bits 0 is not possible as
@@ -332,6 +335,7 @@ static bool ap_queue_info(ap_qid_t qid, int *q_type,
 		*q_type = (int)((info >> 24) & 0xff);
 		*q_fac = (unsigned int)(info >> 32);
 		*q_depth = (int)(info & 0xff);
+		*q_decfg = status.response_code == AP_RESPONSE_DECONFIGURED;
 		switch (*q_type) {
 			/* For CEX2 and CEX3 the available functions
 			 * are not reflected by the facilities bits.
@@ -1290,154 +1294,278 @@ static int __match_queue_device_with_queue_id(struct device *dev, const void *da
 
 /*
  * Helper function for ap_scan_bus().
- * Does the scan bus job for the given adapter id.
+ * Remove card device and associated queue devices.
  */
-static void _ap_scan_bus_adapter(int id)
+static inline void ap_scan_rm_card_dev_and_queue_devs(struct ap_card *ac)
 {
-	bool broken;
+	bus_for_each_dev(&ap_bus_type, NULL,
+			 (void *)(long) ac->id,
+			 __ap_queue_devices_with_id_unregister);
+	device_unregister(&ac->ap_dev.device);
+}
+
+/*
+ * Helper function for ap_scan_bus().
+ * Does the scan bus job for all the domains within
+ * a valid adapter given by an ap_card ptr.
+ */
+static inline void ap_scan_domains(struct ap_card *ac)
+{
+	bool decfg;
 	ap_qid_t qid;
 	unsigned int func;
-	struct ap_card *ac;
 	struct device *dev;
 	struct ap_queue *aq;
-	int rc, dom, depth, type, comp_type;
-
-	/* check if there is a card device registered with this id */
-	dev = bus_find_device(&ap_bus_type, NULL,
-			      (void *)(long) id,
-			      __match_card_device_with_id);
-	ac = dev ? to_ap_card(dev) : NULL;
-	if (!ap_test_config_card_id(id)) {
-		if (dev) {
-			/* Card device has been removed from configuration */
-			bus_for_each_dev(&ap_bus_type, NULL,
-					 (void *)(long) id,
-					 __ap_queue_devices_with_id_unregister);
-			device_unregister(dev);
-			put_device(dev);
-		}
-		return;
-	}
+	int rc, dom, depth, type;
 
 	/*
-	 * This card id is enabled in the configuration. If we already have
-	 * a card device with this id, check if type and functions are still
-	 * the very same. Also verify that at least one queue is available.
+	 * Go through the configuration for the domains and compare them
+	 * to the existing queue devices. Also take care of the config
+	 * and error state for the queue devices.
 	 */
-	if (ac) {
-		/* find the first valid queue */
-		for (dom = 0; dom < AP_DOMAINS; dom++) {
-			qid = AP_MKQID(id, dom);
-			if (ap_queue_info(qid, &type, &func, &depth))
-				break;
-		}
-		broken = false;
-		if (dom >= AP_DOMAINS) {
-			/* no accessible queue on this card */
-			broken = true;
-		} else if (ac->raw_hwtype != type) {
-			/* card type has changed */
-			AP_DBF_INFO("card=%02x type changed.\n", id);
-			broken = true;
-		} else if (ac->functions != func) {
-			/* card functions have changed */
-			AP_DBF_INFO("card=%02x functions changed.\n", id);
-			broken = true;
-		}
-		if (broken) {
-			/* unregister card device and associated queues */
-			bus_for_each_dev(&ap_bus_type, NULL,
-					 (void *)(long) id,
-					 __ap_queue_devices_with_id_unregister);
-			device_unregister(dev);
-			put_device(dev);
-			/* go back if there is no valid queue on this card */
-			if (dom >= AP_DOMAINS)
-				return;
-			ac = NULL;
-		}
-	}
 
-	/*
-	 * Go through all possible queue ids. Check and maybe create or release
-	 * queue devices for this card. If there exists no card device yet,
-	 * create a card device also.
-	 */
-	for (dom = 0; dom < AP_DOMAINS; dom++) {
-		qid = AP_MKQID(id, dom);
+	for (dom = 0; dom <= ap_max_domain_id; dom++) {
+		qid = AP_MKQID(ac->id, dom);
 		dev = bus_find_device(&ap_bus_type, NULL,
 				      (void *)(long) qid,
 				      __match_queue_device_with_qid);
 		aq = dev ? to_ap_queue(dev) : NULL;
 		if (!ap_test_config_usage_domain(dom)) {
 			if (dev) {
-				/* Queue device exists but has been
-				 * removed from configuration.
-				 */
+				AP_DBF_INFO("%s(%d,%d) not in config any more, rm queue device\n",
+					    __func__, ac->id, dom);
 				device_unregister(dev);
 				put_device(dev);
 			}
 			continue;
 		}
-		/* try to fetch infos about this queue */
-		broken = !ap_queue_info(qid, &type, &func, &depth);
-		if (dev) {
-			if (!broken) {
-				spin_lock_bh(&aq->lock);
-				broken = aq->dev_state == AP_DEV_STATE_ERROR;
-				spin_unlock_bh(&aq->lock);
-			}
-			if (broken) {
-				/* Remove broken device */
-				AP_DBF_DBG("removing broken queue=%02x.%04x\n",
-					   id, dom);
+		/* domain is valid, get info from this APQN */
+		if (!ap_queue_info(qid, &type, &func, &depth, &decfg)) {
+			if (aq) {
+				AP_DBF_INFO(
+					"%s(%d,%d) ap_queue_info() not successful, rm queue device\n",
+					__func__, ac->id, dom);
 				device_unregister(dev);
+				put_device(dev);
 			}
-			put_device(dev);
 			continue;
 		}
-		if (broken)
-			continue;
-		/* a new queue device is needed, check out comp type */
-		comp_type = ap_get_compatible_type(qid, type, func);
-		if (!comp_type)
-			continue;
-		/* maybe a card device needs to be created first */
-		if (!ac) {
-			ac = ap_card_create(id, depth, type, comp_type, func);
-			if (!ac)
+		/* if no queue device exists, create a new one */
+		if (!aq) {
+			aq = ap_queue_create(qid, ac->ap_dev.device_type);
+			if (!aq) {
+				AP_DBF_WARN("%s(%d,%d) ap_queue_create() failed\n",
+					    __func__, ac->id, dom);
 				continue;
-			ac->ap_dev.device.bus = &ap_bus_type;
-			ac->ap_dev.device.parent = ap_root_device;
-			dev_set_name(&ac->ap_dev.device, "card%02x", id);
-			/* Register card device with AP bus */
-			rc = device_register(&ac->ap_dev.device);
-			if (rc) {
-				put_device(&ac->ap_dev.device);
-				ac = NULL;
-				break;
 			}
-			/* get it and thus adjust reference counter */
-			get_device(&ac->ap_dev.device);
+			aq->card = ac;
+			aq->config = !decfg;
+			dev = &aq->ap_dev.device;
+			dev->bus = &ap_bus_type;
+			dev->parent = &ac->ap_dev.device;
+			dev_set_name(dev, "%02x.%04x", ac->id, dom);
+			/* register queue device */
+			rc = device_register(dev);
+			if (rc) {
+				AP_DBF_WARN("%s(%d,%d) device_register() failed\n",
+					    __func__, ac->id, dom);
+				goto put_dev_and_continue;
+			}
+			if (decfg)
+				AP_DBF_INFO("%s(%d,%d) new (decfg) queue device created\n",
+					    __func__, ac->id, dom);
+			else
+				AP_DBF_INFO("%s(%d,%d) new queue device created\n",
+					    __func__, ac->id, dom);
+			goto put_dev_and_continue;
 		}
-		/* now create the new queue device */
-		aq = ap_queue_create(qid, comp_type);
-		if (!aq)
-			continue;
-		aq->card = ac;
-		aq->ap_dev.device.bus = &ap_bus_type;
-		aq->ap_dev.device.parent = &ac->ap_dev.device;
-		dev_set_name(&aq->ap_dev.device, "%02x.%04x", id, dom);
-		/* Register queue device */
-		rc = device_register(&aq->ap_dev.device);
-		if (rc) {
-			put_device(&aq->ap_dev.device);
-			continue;
+		/* Check config state on the already existing queue device */
+		spin_lock_bh(&aq->lock);
+		if (decfg && aq->config) {
+			/* config off this queue device */
+			aq->config = false;
+			if (aq->dev_state > AP_DEV_STATE_UNINITIATED) {
+				aq->dev_state = AP_DEV_STATE_ERROR;
+				aq->last_err_rc = AP_RESPONSE_DECONFIGURED;
+			}
+			spin_unlock_bh(&aq->lock);
+			AP_DBF_INFO("%s(%d,%d) queue device config off\n",
+				    __func__, ac->id, dom);
+			/* 'receive' pending messages with -EAGAIN */
+			ap_flush_queue(aq);
+			goto put_dev_and_continue;
 		}
-	} /* end domain loop */
+		if (!decfg && !aq->config) {
+			/* config on this queue device */
+			aq->config = true;
+			if (aq->dev_state > AP_DEV_STATE_UNINITIATED) {
+				aq->dev_state = AP_DEV_STATE_OPERATING;
+				aq->sm_state = AP_SM_STATE_RESET_START;
+			}
+			spin_unlock_bh(&aq->lock);
+			AP_DBF_INFO("%s(%d,%d) queue device config on\n",
+				    __func__, ac->id, dom);
+			goto put_dev_and_continue;
+		}
+		/* handle other error states */
+		if (!decfg && aq->dev_state == AP_DEV_STATE_ERROR) {
+			spin_unlock_bh(&aq->lock);
+			/* 'receive' pending messages with -EAGAIN */
+			ap_flush_queue(aq);
+			/* re-init (with reset) the queue device */
+			ap_queue_init_state(aq);
+			AP_DBF_INFO("%s(%d,%d) queue device reinit enforced\n",
+				    __func__, ac->id, dom);
+			goto put_dev_and_continue;
+		}
+		spin_unlock_bh(&aq->lock);
+put_dev_and_continue:
+		put_device(dev);
+	}
+}
 
-	if (ac)
-		put_device(&ac->ap_dev.device);
+/*
+ * Helper function for ap_scan_bus().
+ * Does the scan bus job for the given adapter id.
+ */
+static inline void ap_scan_adapter(int ap)
+{
+	bool decfg;
+	ap_qid_t qid;
+	unsigned int func;
+	struct device *dev;
+	struct ap_card *ac;
+	int rc, dom, depth, type, comp_type;
+
+	/* Is there currently a card device for this adapter ? */
+	dev = bus_find_device(&ap_bus_type, NULL,
+			      (void *)(long) ap,
+			      __match_card_device_with_id);
+	ac = dev ? to_ap_card(dev) : NULL;
+
+	/* Adapter not in configuration ? */
+	if (!ap_test_config_card_id(ap)) {
+		if (ac) {
+			AP_DBF_INFO("%s(%d) ap not in config any more, rm card and queue devices\n",
+				    __func__, ap);
+			ap_scan_rm_card_dev_and_queue_devs(ac);
+			put_device(dev);
+		}
+		return;
+	}
+
+	/*
+	 * Adapter ap is valid in the current configuration. So do some checks:
+	 * If no card device exists, build one. If a card device exists, check
+	 * for type and functions changed. For all this we need to find a valid
+	 * APQN first.
+	 */
+
+	for (dom = 0; dom <= ap_max_domain_id; dom++)
+		if (ap_test_config_usage_domain(dom)) {
+			qid = AP_MKQID(ap, dom);
+			if (ap_queue_info(qid, &type, &func, &depth, &decfg))
+				break;
+		}
+	if (dom > ap_max_domain_id) {
+		/* Could not find a valid APQN for this adapter */
+		if (ac) {
+			AP_DBF_INFO(
+				"%s(%d) no type info (no APQN found), rm card and queue devices\n",
+				__func__, ap);
+			ap_scan_rm_card_dev_and_queue_devs(ac);
+			put_device(dev);
+		} else {
+			AP_DBF_DBG("%s(%d) no type info (no APQN found), ignored\n",
+				   __func__, ap);
+		}
+		return;
+	}
+	if (!type) {
+		/* No apdater type info available, an unusable adapter */
+		if (ac) {
+			AP_DBF_INFO("%s(%d) no valid type (0) info, rm card and queue devices\n",
+				    __func__, ap);
+			ap_scan_rm_card_dev_and_queue_devs(ac);
+			put_device(dev);
+		} else {
+			AP_DBF_DBG("%s(%d) no valid type (0) info, ignored\n",
+				   __func__, ap);
+		}
+		return;
+	}
+
+	if (ac) {
+		/* Check APQN against existing card device for changes */
+		if (ac->raw_hwtype != type) {
+			AP_DBF_INFO("%s(%d) hwtype %d changed, rm card and queue devices\n",
+				    __func__, ap, type);
+			ap_scan_rm_card_dev_and_queue_devs(ac);
+			put_device(dev);
+			ac = NULL;
+		} else if (ac->functions != func) {
+			AP_DBF_INFO("%s(%d) functions 0x%08x changed, rm card and queue devices\n",
+				    __func__, ap, type);
+			ap_scan_rm_card_dev_and_queue_devs(ac);
+			put_device(dev);
+			ac = NULL;
+		} else {
+			if (decfg && ac->config) {
+				ac->config = false;
+				AP_DBF_INFO("%s(%d) card device config off\n",
+					    __func__, ap);
+
+			}
+			if (!decfg && !ac->config) {
+				ac->config = true;
+				AP_DBF_INFO("%s(%d) card device config on\n",
+					    __func__, ap);
+			}
+		}
+	}
+
+	if (!ac) {
+		/* Build a new card device */
+		comp_type = ap_get_compatible_type(qid, type, func);
+		if (!comp_type) {
+			AP_DBF_WARN("%s(%d) type %d, can't get compatibility type\n",
+				    __func__, ap, type);
+			return;
+		}
+		ac = ap_card_create(ap, depth, type, comp_type, func);
+		if (!ac) {
+			AP_DBF_WARN("%s(%d) ap_card_create() failed\n",
+				    __func__, ap);
+			return;
+		}
+		ac->config = !decfg;
+		dev = &ac->ap_dev.device;
+		dev->bus = &ap_bus_type;
+		dev->parent = ap_root_device;
+		dev_set_name(dev, "card%02x", ap);
+		/* Register the new card device with AP bus */
+		rc = device_register(dev);
+		if (rc) {
+			AP_DBF_WARN("%s(%d) device_register() failed\n",
+				    __func__, ap);
+			put_device(dev);
+			return;
+		}
+		/* get it and thus adjust reference counter */
+		get_device(dev);
+		if (decfg)
+			AP_DBF_INFO("%s(%d) new (decfg) card device type=%d func=0x%08x created\n",
+				    __func__, ap, type, func);
+		else
+			AP_DBF_INFO("%s(%d) new card device type=%d func=0x%08x created\n",
+				    __func__, ap, type, func);
+	}
+
+	/* Verify the domains and the queue devices for this card */
+	ap_scan_domains(ac);
+
+	/* release the card device */
+	put_device(&ac->ap_dev.device);
 }
 
 /**
@@ -1446,7 +1574,7 @@ static void _ap_scan_bus_adapter(int id)
  */
 static void ap_scan_bus(struct work_struct *unused)
 {
-	int id;
+	int ap;
 
 	ap_fetch_qci_info(ap_qci_info);
 	ap_select_domain();
@@ -1454,8 +1582,8 @@ static void ap_scan_bus(struct work_struct *unused)
 	AP_DBF_DBG("%s running\n", __func__);
 
 	/* loop over all possible adapters */
-	for (id = 0; id < AP_DEVICES; id++)
-		_ap_scan_bus_adapter(id);
+	for (ap = 0; ap <= ap_max_adapter_id; ap++)
+		ap_scan_adapter(ap);
 
 	/* check if there is at least one queue available with default domain */
 	if (ap_domain_index >= 0) {

@@ -139,6 +139,16 @@ static ssize_t modalias_show(struct device *dev,
 
 static DEVICE_ATTR_RO(modalias);
 
+static ssize_t config_show(struct device *dev,
+			   struct device_attribute *attr, char *buf)
+{
+	struct ap_card *ac = to_ap_card(dev);
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", ac->config ? 1 : 0);
+}
+
+static DEVICE_ATTR_RO(config);
+
 static struct attribute *ap_card_dev_attrs[] = {
 	&dev_attr_hwtype.attr,
 	&dev_attr_raw_hwtype.attr,
@@ -148,6 +158,7 @@ static struct attribute *ap_card_dev_attrs[] = {
 	&dev_attr_requestq_count.attr,
 	&dev_attr_pendingq_count.attr,
 	&dev_attr_modalias.attr,
+	&dev_attr_config.attr,
 	NULL
 };
 
