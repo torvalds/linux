@@ -664,7 +664,6 @@ ast_cursor_plane_helper_atomic_update(struct drm_plane *plane,
 	struct drm_framebuffer *fb = state->fb;
 	struct ast_private *ast = plane->dev->dev_private;
 	unsigned int offset_x, offset_y;
-	u8 jreg;
 
 	offset_x = AST_MAX_HWC_WIDTH - fb->width;
 	offset_y = AST_MAX_HWC_WIDTH - fb->height;
@@ -676,11 +675,6 @@ ast_cursor_plane_helper_atomic_update(struct drm_plane *plane,
 
 	ast_cursor_show(ast, state->crtc_x, state->crtc_y,
 			offset_x, offset_y);
-
-	jreg = 0x2;
-	/* enable ARGB cursor */
-	jreg |= 1;
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xcb, 0xfc, jreg);
 }
 
 static void
