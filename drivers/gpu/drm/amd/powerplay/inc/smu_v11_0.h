@@ -66,6 +66,10 @@
 #define WORKLOAD_MAP(profile, workload) \
 	[profile] = {1, (workload)}
 
+#define CTF_OFFSET_EDGE			5
+#define CTF_OFFSET_HOTSPOT		5
+#define CTF_OFFSET_MEM			5
+
 static const struct smu_temperature_range smu11_thermal_policy[] =
 {
 	{-273150,  99000, 99000, -273150, 99000, 99000, -273150, 99000, 99000},

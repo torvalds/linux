@@ -56,10 +56,6 @@
 
 #define to_amdgpu_device(x) (container_of(x, struct amdgpu_device, pm.smu_i2c))
 
-#define CTF_OFFSET_EDGE			5
-#define CTF_OFFSET_HOTSPOT		5
-#define CTF_OFFSET_HBM			5
-
 #define MSG_MAP(msg, index, valid_in_vf) \
 	[SMU_MSG_##msg] = {1, (index), (valid_in_vf)}
 #define ARCTURUS_FEA_MAP(smu_feature, arcturus_feature) \
@@ -1048,7 +1044,7 @@ static int arcturus_get_thermal_temperature_range(struct smu_context *smu,
 		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
 	range->mem_crit_max = pptable->TmemLimit *
 		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
-	range->mem_emergency_max = (pptable->TmemLimit + CTF_OFFSET_HBM)*
+	range->mem_emergency_max = (pptable->TmemLimit + CTF_OFFSET_MEM)*
 		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
 
 	return 0;
