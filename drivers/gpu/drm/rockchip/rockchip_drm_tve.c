@@ -522,7 +522,6 @@ static int rockchip_tve_bind(struct device *dev, struct device *master,
 	drm_encoder_helper_add(encoder, &rockchip_tve_encoder_helper_funcs);
 
 	connector = &tve->connector;
-	connector->port = dev->of_node;
 	connector->interlace_allowed = 1;
 	ret = drm_connector_init(drm_dev, connector,
 				 &rockchip_tve_connector_funcs,

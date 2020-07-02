@@ -804,12 +804,9 @@ static void rk618_dsi_bridge_mode_set(struct drm_bridge *bridge,
 static int rk618_dsi_bridge_attach(struct drm_bridge *bridge)
 {
 	struct rk618_dsi *dsi = bridge_to_dsi(bridge);
-	struct device *dev = dsi->dev;
 	struct drm_connector *connector = &dsi->connector;
 	struct drm_device *drm = bridge->dev;
 	int ret;
-
-	connector->port = dev->of_node;
 
 	ret = drm_connector_init(drm, connector, &rk618_dsi_connector_funcs,
 				 DRM_MODE_CONNECTOR_DSI);

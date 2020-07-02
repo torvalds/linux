@@ -1487,7 +1487,6 @@ static int dw_mipi_dsi_bind(struct device *dev, struct device *master,
 		return ret;
 	}
 
-	encoder->port = dev->of_node;
 	encoder->possible_crtcs = drm_of_find_possible_crtcs(drm,
 							     dev->of_node);
 	/*
@@ -1528,7 +1527,7 @@ static int dw_mipi_dsi_bind(struct device *dev, struct device *master,
 			DRM_DEV_ERROR(dev, "Failed to attach panel: %d\n", ret);
 			goto connector_cleanup;
 		}
-		connector->port = dev->of_node;
+
 	} else {
 		dsi->bridge->driver_private = &dsi->host;
 		dsi->bridge->encoder = encoder;

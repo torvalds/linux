@@ -170,12 +170,9 @@ static void rk618_lvds_bridge_mode_set(struct drm_bridge *bridge,
 static int rk618_lvds_bridge_attach(struct drm_bridge *bridge)
 {
 	struct rk618_lvds *lvds = bridge_to_lvds(bridge);
-	struct device *dev = lvds->dev;
 	struct drm_connector *connector = &lvds->connector;
 	struct drm_device *drm = bridge->dev;
 	int ret;
-
-	connector->port = dev->of_node;
 
 	ret = drm_connector_init(drm, connector, &rk618_lvds_connector_funcs,
 				 DRM_MODE_CONNECTOR_LVDS);

@@ -299,8 +299,6 @@ static int rk1000_bridge_attach(struct drm_bridge *bridge)
 	}
 
 	rk1000->encoder = bridge->encoder;
-	rk1000->connector.port = rk1000->dev->of_node;
-
 	drm_connector_helper_add(&rk1000->connector,
 				 &rk1000_connector_helper_funcs);
 

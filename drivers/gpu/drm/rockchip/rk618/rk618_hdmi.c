@@ -1080,7 +1080,6 @@ static int rk618_hdmi_bridge_attach(struct drm_bridge *bridge)
 	int ret;
 
 	connector->polled = DRM_CONNECTOR_POLL_HPD;
-	connector->port = dev->of_node;
 
 	ret = drm_connector_init(drm, connector, &rk618_hdmi_connector_funcs,
 				 DRM_MODE_CONNECTOR_HDMIA);
