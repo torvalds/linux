@@ -13,6 +13,7 @@
 #include <crypto/sm3.h>
 #include <crypto/sm4.h>
 #include <crypto/internal/hash.h>
+#include <crypto/internal/skcipher.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
@@ -29,6 +30,8 @@ struct rk_crypto_soc_data {
 	int				clks_num;
 	int				rsts_num;
 	unsigned int			hw_info_size;
+	bool				use_soft_aes192;
+
 	int (*hw_init)(struct device *dev, void *hw_info);
 	void (*hw_deinit)(struct device *dev, void *hw_info);
 };
@@ -101,6 +104,9 @@ struct rk_cipher_ctx {
 	unsigned int			keylen;
 	u32				mode;
 	u8				iv[AES_BLOCK_SIZE];
+
+	/* for fallback */
+	struct crypto_skcipher		*fallback_tfm;
 };
 
 enum alg_type {

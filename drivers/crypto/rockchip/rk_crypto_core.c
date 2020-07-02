@@ -24,6 +24,7 @@
 #include "rk_crypto_v2.h"
 
 #define RK_CRYPTO_V1_SOC_DATA_INIT(names) {\
+	.use_soft_aes192 = false,\
 	.valid_algs_name = (names),\
 	.valid_algs_num = ARRAY_SIZE(names),\
 	.total_algs = crypto_v1_algs,\
@@ -37,7 +38,8 @@
 	.hw_info_size = sizeof(struct rk_hw_crypto_v1_info),\
 }
 
-#define RK_CRYPTO_V2_SOC_DATA_INIT(names) {\
+#define RK_CRYPTO_V2_SOC_DATA_INIT(names, soft_aes_192) {\
+	.use_soft_aes192 = soft_aes_192,\
 	.valid_algs_name = (names),\
 	.valid_algs_num = ARRAY_SIZE(names),\
 	.total_algs = crypto_v2_algs,\
@@ -286,11 +288,14 @@ static int rk_crypto_register(struct rk_crypto_info *crypto_info)
 	unsigned int i, k;
 	char **algs_name;
 	struct rk_crypto_tmp *tmp_algs;
+	struct rk_crypto_soc_data *soc_data;
 	int err = 0;
 
-	algs_name = crypto_info->soc_data->valid_algs_name;
+	soc_data = crypto_info->soc_data;
 
-	for (i = 0; i < crypto_info->soc_data->valid_algs_num; i++, algs_name++) {
+	algs_name = soc_data->valid_algs_name;
+
+	for (i = 0; i < soc_data->valid_algs_num; i++, algs_name++) {
 		tmp_algs = rk_crypto_find_algs(crypto_info, *algs_name);
 		if (!tmp_algs) {
 			CRYPTO_TRACE("%s not matched!!!\n", *algs_name);
@@ -301,12 +306,18 @@ static int rk_crypto_register(struct rk_crypto_info *crypto_info)
 
 		tmp_algs->dev = crypto_info;
 
-		if (tmp_algs->type == ALG_TYPE_CIPHER)
+		if (tmp_algs->type == ALG_TYPE_CIPHER) {
+			if (tmp_algs->algo == CIPHER_ALGO_AES &&
+			    tmp_algs->mode != CIPHER_MODE_XTS &&
+			    soc_data->use_soft_aes192)
+				tmp_algs->alg.crypto.cra_flags |= CRYPTO_ALG_NEED_FALLBACK;
+
 			err = crypto_register_alg(&tmp_algs->alg.crypto);
-		else if (tmp_algs->type == ALG_TYPE_HASH || tmp_algs->type == ALG_TYPE_HMAC)
+		} else if (tmp_algs->type == ALG_TYPE_HASH || tmp_algs->type == ALG_TYPE_HMAC) {
 			err = crypto_register_ahash(&tmp_algs->alg.hash);
-		else
+		} else {
 			continue;
+		}
 
 		if (err)
 			goto err_cipher_algs;
@@ -316,7 +327,8 @@ static int rk_crypto_register(struct rk_crypto_info *crypto_info)
 	return 0;
 
 err_cipher_algs:
-	algs_name = crypto_info->soc_data->valid_algs_name;
+	algs_name = soc_data->valid_algs_name;
+
 	for (k = 0; k < i; k++, algs_name++) {
 		tmp_algs = rk_crypto_find_algs(crypto_info, *algs_name);
 		if (tmp_algs->type == ALG_TYPE_CIPHER)
@@ -400,6 +412,7 @@ static char *px30_algs_name[] = {
 
 static char *rv1126_algs_name[] = {
 	"ecb(sm4)", "cbc(sm4)", "xts(sm4)",
+	"ecb(aes)", "cbc(aes)", "xts(aes)",
 	"ecb(des)", "cbc(des)",
 	"ecb(des3_ede)", "cbc(des3_ede)",
 	"sha1", "sha256", "sha512", "md5", "sm3",
@@ -407,10 +420,10 @@ static char *rv1126_algs_name[] = {
 };
 
 static const struct rk_crypto_soc_data px30_soc_data =
-	RK_CRYPTO_V2_SOC_DATA_INIT(px30_algs_name);
+	RK_CRYPTO_V2_SOC_DATA_INIT(px30_algs_name, false);
 
 static const struct rk_crypto_soc_data rv1126_soc_data =
-	RK_CRYPTO_V2_SOC_DATA_INIT(rv1126_algs_name);
+	RK_CRYPTO_V2_SOC_DATA_INIT(rv1126_algs_name, true);
 
 static const char * const crypto_v1_clks[] = {
 	"hclk",
