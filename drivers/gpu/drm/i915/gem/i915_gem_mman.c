@@ -448,7 +448,7 @@ void __i915_gem_object_release_mmap_gtt(struct drm_i915_gem_object *obj)
  * mapping will then trigger a page fault on the next user access, allowing
  * fixup by vm_fault_gtt().
  */
-static void i915_gem_object_release_mmap_gtt(struct drm_i915_gem_object *obj)
+void i915_gem_object_release_mmap_gtt(struct drm_i915_gem_object *obj)
 {
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 	intel_wakeref_t wakeref;
