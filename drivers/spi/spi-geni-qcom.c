@@ -619,6 +619,8 @@ static int spi_geni_probe(struct platform_device *pdev)
 	init_completion(&mas->cancel_done);
 	init_completion(&mas->abort_done);
 	spin_lock_init(&mas->lock);
+	pm_runtime_use_autosuspend(&pdev->dev);
+	pm_runtime_set_autosuspend_delay(&pdev->dev, 250);
 	pm_runtime_enable(dev);
 
 	ret = spi_geni_init(mas);
