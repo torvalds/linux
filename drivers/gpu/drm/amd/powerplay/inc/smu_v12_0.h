@@ -73,9 +73,6 @@ int smu_v12_0_set_default_dpm_tables(struct smu_context *smu);
 int smu_v12_0_get_enabled_mask(struct smu_context *smu,
 				      uint32_t *feature_mask, uint32_t num);
 
-int smu_v12_0_get_dpm_ultimate_freq(struct smu_context *smu, enum smu_clk_type clk_type,
-						 uint32_t *min, uint32_t *max);
-
 int smu_v12_0_mode2_reset(struct smu_context *smu);
 
 int smu_v12_0_set_soft_freq_limited_range(struct smu_context *smu, enum smu_clk_type clk_type,
