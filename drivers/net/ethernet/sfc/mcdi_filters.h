@@ -155,6 +155,8 @@ int efx_mcdi_vf_rx_push_rss_config(struct efx_nic *efx, bool user,
 				   __attribute__ ((unused)),
 				   const u8 *key
 				   __attribute__ ((unused)));
+int efx_mcdi_push_default_indir_table(struct efx_nic *efx,
+				      unsigned int rss_spread);
 int efx_mcdi_rx_pull_rss_config(struct efx_nic *efx);
 int efx_mcdi_rx_pull_rss_context_config(struct efx_nic *efx,
 					struct efx_rss_context *ctx);

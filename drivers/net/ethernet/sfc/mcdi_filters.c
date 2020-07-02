@@ -2276,3 +2276,24 @@ int efx_mcdi_vf_rx_push_rss_config(struct efx_nic *efx, bool user,
 		return 0;
 	return efx_mcdi_filter_rx_push_shared_rss_config(efx, NULL);
 }
+
+int efx_mcdi_push_default_indir_table(struct efx_nic *efx,
+				      unsigned int rss_spread)
+{
+	int rc = 0;
+
+	if (efx->rss_spread == rss_spread)
+		return 0;
+
+	efx->rss_spread = rss_spread;
+	if (!efx->filter_state)
+		return 0;
+
+	efx_mcdi_rx_free_indir_table(efx);
+	if (rss_spread > 1) {
+		efx_set_default_rx_indir_table(efx, &efx->rss_context);
+		rc = efx->type->rx_push_rss_config(efx, false,
+				   efx->rss_context.rx_indir_table, NULL);
+	}
+	return rc;
+}
