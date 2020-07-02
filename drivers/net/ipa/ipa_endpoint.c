@@ -323,13 +323,73 @@ ipa_endpoint_program_delay(struct ipa_endpoint *endpoint, bool enable)
 		(void)ipa_endpoint_init_ctrl(endpoint, enable);
 }
 
-/* Returns previous suspend state (true means it was enabled) */
+static bool ipa_endpoint_aggr_active(struct ipa_endpoint *endpoint)
+{
+	u32 mask = BIT(endpoint->endpoint_id);
+	struct ipa *ipa = endpoint->ipa;
+	u32 offset;
+	u32 val;
+
+	/* assert(mask & ipa->available); */
+	offset = ipa_reg_state_aggr_active_offset(ipa->version);
+	val = ioread32(ipa->reg_virt + offset);
+
+	return !!(val & mask);
+}
+
+static void ipa_endpoint_force_close(struct ipa_endpoint *endpoint)
+{
+	u32 mask = BIT(endpoint->endpoint_id);
+	struct ipa *ipa = endpoint->ipa;
+
+	/* assert(mask & ipa->available); */
+	iowrite32(mask, ipa->reg_virt + IPA_REG_AGGR_FORCE_CLOSE_OFFSET);
+}
+
+/**
+ * ipa_endpoint_suspend_aggr() - Emulate suspend interrupt
+ * @endpoint_id:	Endpoint on which to emulate a suspend
+ *
+ *  Emulate suspend IPA interrupt to unsuspend an endpoint suspended
+ *  with an open aggregation frame.  This is to work around a hardware
+ *  issue in IPA version 3.5.1 where the suspend interrupt will not be
+ *  generated when it should be.
+ */
+static void ipa_endpoint_suspend_aggr(struct ipa_endpoint *endpoint)
+{
+	struct ipa *ipa = endpoint->ipa;
+
+	if (!endpoint->data->aggregation)
+		return;
+
+	/* Nothing to do if the endpoint doesn't have aggregation open */
+	if (!ipa_endpoint_aggr_active(endpoint))
+		return;
+
+	/* Force close aggregation */
+	ipa_endpoint_force_close(endpoint);
+
+	ipa_interrupt_simulate_suspend(ipa->interrupt);
+}
+
+/* Returns previous suspend state (true means suspend was enabled) */
 static bool
 ipa_endpoint_program_suspend(struct ipa_endpoint *endpoint, bool enable)
 {
+	bool suspended;
+
 	/* assert(!endpoint->toward_ipa); */
 
-	return ipa_endpoint_init_ctrl(endpoint, enable);
+	suspended = ipa_endpoint_init_ctrl(endpoint, enable);
+
+	/* A client suspended with an open aggregation frame will not
+	 * generate a SUSPEND IPA interrupt.  If enabling suspend, have
+	 * ipa_endpoint_suspend_aggr() handle this.
+	 */
+	if (enable && !suspended)
+		ipa_endpoint_suspend_aggr(endpoint);
+
+	return suspended;
 }
 
 /* Enable or disable delay or suspend mode on all modem endpoints */
@@ -1144,29 +1204,6 @@ void ipa_endpoint_default_route_clear(struct ipa *ipa)
 	ipa_endpoint_default_route_set(ipa, 0);
 }
 
-static bool ipa_endpoint_aggr_active(struct ipa_endpoint *endpoint)
-{
-	u32 mask = BIT(endpoint->endpoint_id);
-	struct ipa *ipa = endpoint->ipa;
-	u32 offset;
-	u32 val;
-
-	/* assert(mask & ipa->available); */
-	offset = ipa_reg_state_aggr_active_offset(ipa->version);
-	val = ioread32(ipa->reg_virt + offset);
-
-	return !!(val & mask);
-}
-
-static void ipa_endpoint_force_close(struct ipa_endpoint *endpoint)
-{
-	u32 mask = BIT(endpoint->endpoint_id);
-	struct ipa *ipa = endpoint->ipa;
-
-	/* assert(mask & ipa->available); */
-	iowrite32(mask, ipa->reg_virt + IPA_REG_AGGR_FORCE_CLOSE_OFFSET);
-}
-
 /**
  * ipa_endpoint_reset_rx_aggr() - Reset RX endpoint with aggregation active
  * @endpoint:	Endpoint to be reset
@@ -1366,34 +1403,6 @@ void ipa_endpoint_disable_one(struct ipa_endpoint *endpoint)
 			endpoint->endpoint_id);
 }
 
-/**
- * ipa_endpoint_suspend_aggr() - Emulate suspend interrupt
- * @endpoint_id:	Endpoint on which to emulate a suspend
- *
- *  Emulate suspend IPA interrupt to unsuspend an endpoint suspended
- *  with an open aggregation frame.  This is to work around a hardware
- *  issue in IPA version 3.5.1 where the suspend interrupt will not be
- *  generated when it should be.
- */
-static void ipa_endpoint_suspend_aggr(struct ipa_endpoint *endpoint)
-{
-	struct ipa *ipa = endpoint->ipa;
-
-	/* assert(ipa->version == IPA_VERSION_3_5_1); */
-
-	if (!endpoint->data->aggregation)
-		return;
-
-	/* Nothing to do if the endpoint doesn't have aggregation open */
-	if (!ipa_endpoint_aggr_active(endpoint))
-		return;
-
-	/* Force close aggregation */
-	ipa_endpoint_force_close(endpoint);
-
-	ipa_interrupt_simulate_suspend(ipa->interrupt);
-}
-
 void ipa_endpoint_suspend_one(struct ipa_endpoint *endpoint)
 {
 	struct device *dev = &endpoint->ipa->pdev->dev;
@@ -1409,16 +1418,8 @@ void ipa_endpoint_suspend_one(struct ipa_endpoint *endpoint)
 
 	/* IPA v3.5.1 doesn't use channel stop for suspend */
 	stop_channel = endpoint->ipa->version != IPA_VERSION_3_5_1;
-	if (!endpoint->toward_ipa && !stop_channel) {
-		/* Due to a hardware bug, a client suspended with an open
-		 * aggregation frame will not generate a SUSPEND IPA
-		 * interrupt.  We work around this by force-closing the
-		 * aggregation frame, then simulating the arrival of such
-		 * an interrupt.
-		 */
+	if (!endpoint->toward_ipa && !stop_channel)
 		(void)ipa_endpoint_program_suspend(endpoint, true);
-		ipa_endpoint_suspend_aggr(endpoint);
-	}
 
 	ret = gsi_channel_suspend(gsi, endpoint->channel_id, stop_channel);
 	if (ret)
