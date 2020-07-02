@@ -84,7 +84,7 @@ void ast_cursor_fini(struct ast_private *ast)
 	}
 }
 
-static u32 copy_cursor_image(u8 *src, u8 *dst, int width, int height)
+static void update_cursor_image(u8 __iomem *dst, const u8 *src, int width, int height)
 {
 	union {
 		u32 ul;
@@ -96,7 +96,8 @@ static u32 copy_cursor_image(u8 *src, u8 *dst, int width, int height)
 	} data16;
 	u32 csum = 0;
 	s32 alpha_dst_delta, last_alpha_dst_delta;
-	u8 *srcxor, *dstxor;
+	u8 __iomem *dstxor;
+	const u8 *srcxor;
 	int i, j;
 	u32 per_pixel_copy, two_pixel_copy;
 
@@ -137,16 +138,6 @@ static u32 copy_cursor_image(u8 *src, u8 *dst, int width, int height)
 		}
 		dstxor += last_alpha_dst_delta;
 	}
-	return csum;
-}
-
-static int ast_cursor_update(void *dst, void *src, unsigned int width,
-			     unsigned int height)
-{
-	u32 csum;
-
-	/* do data transfer to cursor cache */
-	csum = copy_cursor_image(src, dst, width, height);
 
 	/* write checksum + signature */
 	dst += AST_HWC_SIZE;
@@ -155,8 +146,6 @@ static int ast_cursor_update(void *dst, void *src, unsigned int width,
 	writel(height, dst + AST_HWC_SIGNATURE_SizeY);
 	writel(0, dst + AST_HWC_SIGNATURE_HOTSPOTX);
 	writel(0, dst + AST_HWC_SIGNATURE_HOTSPOTY);
-
-	return 0;
 }
 
 int ast_cursor_blit(struct ast_private *ast, struct drm_framebuffer *fb)
@@ -188,9 +177,8 @@ int ast_cursor_blit(struct ast_private *ast, struct drm_framebuffer *fb)
 		goto err_drm_gem_vram_vunmap_src;
 	}
 
-	ret = ast_cursor_update(dst, src, fb->width, fb->height);
-	if (ret)
-		goto err_drm_gem_vram_vunmap_dst;
+	/* do data transfer to cursor BO */
+	update_cursor_image(dst, src, fb->width, fb->height);
 
 	/*
 	 * Always unmap buffers here. Destination buffers are
@@ -203,8 +191,6 @@ int ast_cursor_blit(struct ast_private *ast, struct drm_framebuffer *fb)
 
 	return 0;
 
-err_drm_gem_vram_vunmap_dst:
-	drm_gem_vram_vunmap(ast->cursor.gbo[ast->cursor.next_index], dst);
 err_drm_gem_vram_vunmap_src:
 	drm_gem_vram_vunmap(gbo, src);
 err_drm_gem_vram_unpin:
