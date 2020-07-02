@@ -623,7 +623,7 @@ static int snd_emu10k1_ecard_init(struct snd_emu10k1 *emu)
 static int snd_emu10k1_cardbus_init(struct snd_emu10k1 *emu)
 {
 	unsigned long special_port;
-	unsigned int value;
+	__always_unused unsigned int value;
 
 	/* Special initialisation routine
 	 * before the rest of the IO-Ports become active.
@@ -653,7 +653,7 @@ static int snd_emu1010_load_firmware_entry(struct snd_emu10k1 *emu,
 	int n, i;
 	int reg;
 	int value;
-	unsigned int write_post;
+	__always_unused unsigned int write_post;
 	unsigned long flags;
 
 	if (!fw_entry)
