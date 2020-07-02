@@ -991,6 +991,33 @@ static int smu_sw_fini(void *handle)
 	return 0;
 }
 
+static int smu_get_thermal_temperature_range(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+	struct smu_temperature_range *range =
+				&smu->thermal_range;
+	int ret = 0;
+
+	if (!smu->ppt_funcs->get_thermal_temperature_range)
+		return 0;
+
+	ret = smu->ppt_funcs->get_thermal_temperature_range(smu, range);
+	if (ret)
+		return ret;
+
+	adev->pm.dpm.thermal.min_temp = range->min;
+	adev->pm.dpm.thermal.max_temp = range->max;
+	adev->pm.dpm.thermal.max_edge_emergency_temp = range->edge_emergency_max;
+	adev->pm.dpm.thermal.min_hotspot_temp = range->hotspot_min;
+	adev->pm.dpm.thermal.max_hotspot_crit_temp = range->hotspot_crit_max;
+	adev->pm.dpm.thermal.max_hotspot_emergency_temp = range->hotspot_emergency_max;
+	adev->pm.dpm.thermal.min_mem_temp = range->mem_min;
+	adev->pm.dpm.thermal.max_mem_crit_temp = range->mem_crit_max;
+	adev->pm.dpm.thermal.max_mem_emergency_temp = range->mem_emergency_max;
+
+	return ret;
+}
+
 static int smu_smc_hw_setup(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
@@ -1092,6 +1119,12 @@ static int smu_smc_hw_setup(struct smu_context *smu)
 	ret = smu_update_pcie_parameters(smu, pcie_gen, pcie_width);
 	if (ret) {
 		dev_err(adev->dev, "Attempt to override pcie params failed!\n");
+		return ret;
+	}
+
+	ret = smu_get_thermal_temperature_range(smu);
+	if (ret) {
+		dev_err(adev->dev, "Failed to get thermal temperature ranges!\n");
 		return ret;
 	}
 

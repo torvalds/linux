@@ -1653,6 +1653,8 @@ static int sienna_cichlid_get_thermal_temperature_range(struct smu_context *smu,
 	if (!range)
 		return -EINVAL;
 
+	memcpy(range, &smu11_thermal_policy[0], sizeof(struct smu_temperature_range));
+
 	range->max = pptable->TemperatureLimit[TEMP_EDGE] *
 		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
 	range->edge_emergency_max = (pptable->TemperatureLimit[TEMP_EDGE] + CTF_OFFSET_EDGE) *

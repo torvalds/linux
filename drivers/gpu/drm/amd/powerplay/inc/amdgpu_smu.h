@@ -146,7 +146,6 @@ struct smu_power_state {
 	struct smu_state_pcie_block                   pcie;
 	struct smu_state_display_block                display;
 	struct smu_state_memroy_block                 memory;
-	struct smu_temperature_range                  temperatures;
 	struct smu_state_software_algorithm_block     software;
 	struct smu_uvd_clocks                         uvd_clocks;
 	struct smu_hw_power_state                     hardware;
@@ -386,6 +385,7 @@ struct smu_context
 	struct smu_feature		smu_feature;
 	struct amd_pp_display_configuration  *display_config;
 	struct smu_baco_context		smu_baco;
+	struct smu_temperature_range	thermal_range;
 	void *od_settings;
 #if defined(CONFIG_DEBUG_FS)
 	struct dentry                   *debugfs_sclk;

@@ -1088,17 +1088,10 @@ int smu_v11_0_set_power_limit(struct smu_context *smu, uint32_t n)
 int smu_v11_0_enable_thermal_alert(struct smu_context *smu)
 {
 	int ret = 0;
-	struct smu_temperature_range range;
 	struct amdgpu_device *adev = smu->adev;
 
-	memcpy(&range, &smu11_thermal_policy[0], sizeof(struct smu_temperature_range));
-
-	ret = smu_get_thermal_temperature_range(smu, &range);
-	if (ret)
-		return ret;
-
 	if (smu->smu_table.thermal_controller_type) {
-		ret = smu_set_thermal_range(smu, range);
+		ret = smu_set_thermal_range(smu, smu->thermal_range);
 		if (ret)
 			return ret;
 
@@ -1110,16 +1103,6 @@ int smu_v11_0_enable_thermal_alert(struct smu_context *smu)
 		if (ret)
 			return ret;
 	}
-
-	adev->pm.dpm.thermal.min_temp = range.min;
-	adev->pm.dpm.thermal.max_temp = range.max;
-	adev->pm.dpm.thermal.max_edge_emergency_temp = range.edge_emergency_max;
-	adev->pm.dpm.thermal.min_hotspot_temp = range.hotspot_min;
-	adev->pm.dpm.thermal.max_hotspot_crit_temp = range.hotspot_crit_max;
-	adev->pm.dpm.thermal.max_hotspot_emergency_temp = range.hotspot_emergency_max;
-	adev->pm.dpm.thermal.min_mem_temp = range.mem_min;
-	adev->pm.dpm.thermal.max_mem_crit_temp = range.mem_crit_max;
-	adev->pm.dpm.thermal.max_mem_emergency_temp = range.mem_emergency_max;
 
 	return ret;
 }
