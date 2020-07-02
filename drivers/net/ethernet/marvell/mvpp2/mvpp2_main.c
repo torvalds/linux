@@ -36,6 +36,7 @@
 #include <net/ip.h>
 #include <net/ipv6.h>
 #include <net/tso.h>
+#include <linux/bpf_trace.h>
 
 #include "mvpp2.h"
 #include "mvpp2_prs.h"
@@ -105,6 +106,7 @@ mvpp2_create_page_pool(struct device *dev, int num, int len)
 		.nid = NUMA_NO_NODE,
 		.dev = dev,
 		.dma_dir = DMA_FROM_DEVICE,
+		.offset = MVPP2_SKB_HEADROOM,
 		.max_len = len,
 	};
 
@@ -2462,7 +2464,7 @@ static int mvpp2_rxq_init(struct mvpp2_port *port,
 	put_cpu();
 
 	/* Set Offset */
-	mvpp2_rxq_offset_set(port, rxq->id, NET_SKB_PAD);
+	mvpp2_rxq_offset_set(port, rxq->id, MVPP2_SKB_HEADROOM);
 
 	/* Set coalescing pkts and time */
 	mvpp2_rx_pkts_coal_set(port, rxq);
@@ -3037,15 +3039,68 @@ static u32 mvpp2_skb_tx_csum(struct mvpp2_port *port, struct sk_buff *skb)
 	return MVPP2_TXD_L4_CSUM_NOT | MVPP2_TXD_IP_CSUM_DISABLE;
 }
 
+static int
+mvpp2_run_xdp(struct mvpp2_port *port, struct mvpp2_rx_queue *rxq,
+	      struct bpf_prog *prog, struct xdp_buff *xdp,
+	      struct page_pool *pp)
+{
+	unsigned int len, sync, err;
+	struct page *page;
+	u32 ret, act;
+
+	len = xdp->data_end - xdp->data_hard_start - MVPP2_SKB_HEADROOM;
+	act = bpf_prog_run_xdp(prog, xdp);
+
+	/* Due xdp_adjust_tail: DMA sync for_device cover max len CPU touch */
+	sync = xdp->data_end - xdp->data_hard_start - MVPP2_SKB_HEADROOM;
+	sync = max(sync, len);
+
+	switch (act) {
+	case XDP_PASS:
+		ret = MVPP2_XDP_PASS;
+		break;
+	case XDP_REDIRECT:
+		err = xdp_do_redirect(port->dev, xdp, prog);
+		if (unlikely(err)) {
+			ret = MVPP2_XDP_DROPPED;
+			page = virt_to_head_page(xdp->data);
+			page_pool_put_page(pp, page, sync, true);
+		} else {
+			ret = MVPP2_XDP_REDIR;
+		}
+		break;
+	default:
+		bpf_warn_invalid_xdp_action(act);
+		fallthrough;
+	case XDP_ABORTED:
+		trace_xdp_exception(port->dev, prog, act);
+		fallthrough;
+	case XDP_DROP:
+		page = virt_to_head_page(xdp->data);
+		page_pool_put_page(pp, page, sync, true);
+		ret = MVPP2_XDP_DROPPED;
+		break;
+	}
+
+	return ret;
+}
+
 /* Main rx processing */
 static int mvpp2_rx(struct mvpp2_port *port, struct napi_struct *napi,
 		    int rx_todo, struct mvpp2_rx_queue *rxq)
 {
 	struct net_device *dev = port->dev;
+	struct bpf_prog *xdp_prog;
+	struct xdp_buff xdp;
 	int rx_received;
 	int rx_done = 0;
+	u32 xdp_ret = 0;
 	u32 rcvd_pkts = 0;
 	u32 rcvd_bytes = 0;
+
+	rcu_read_lock();
+
+	xdp_prog = READ_ONCE(port->xdp_prog);
 
 	/* Get number of received packets and clamp the to-do */
 	rx_received = mvpp2_rxq_received(port, rxq->id);
@@ -3061,7 +3116,7 @@ static int mvpp2_rx(struct mvpp2_port *port, struct napi_struct *napi,
 		dma_addr_t dma_addr;
 		phys_addr_t phys_addr;
 		u32 rx_status;
-		int pool, rx_bytes, err;
+		int pool, rx_bytes, err, ret;
 		void *data;
 
 		rx_done++;
@@ -3097,6 +3152,33 @@ static int mvpp2_rx(struct mvpp2_port *port, struct napi_struct *napi,
 		else
 			frag_size = bm_pool->frag_size;
 
+		if (xdp_prog) {
+			xdp.data_hard_start = data;
+			xdp.data = data + MVPP2_MH_SIZE + MVPP2_SKB_HEADROOM;
+			xdp.data_end = xdp.data + rx_bytes;
+			xdp.frame_sz = PAGE_SIZE;
+
+			if (bm_pool->pkt_size == MVPP2_BM_SHORT_PKT_SIZE)
+				xdp.rxq = &rxq->xdp_rxq_short;
+			else
+				xdp.rxq = &rxq->xdp_rxq_long;
+
+			xdp_set_data_meta_invalid(&xdp);
+
+			ret = mvpp2_run_xdp(port, rxq, xdp_prog, &xdp, pp);
+
+			if (ret) {
+				xdp_ret |= ret;
+				err = mvpp2_rx_refill(port, bm_pool, pp, pool);
+				if (err) {
+					netdev_err(port->dev, "failed to refill BM pools\n");
+					goto err_drop_frame;
+				}
+
+				continue;
+			}
+		}
+
 		skb = build_skb(data, frag_size);
 		if (!skb) {
 			netdev_warn(port->dev, "skb build failed\n");
@@ -3119,7 +3201,7 @@ static int mvpp2_rx(struct mvpp2_port *port, struct napi_struct *napi,
 		rcvd_pkts++;
 		rcvd_bytes += rx_bytes;
 
-		skb_reserve(skb, MVPP2_MH_SIZE + NET_SKB_PAD);
+		skb_reserve(skb, MVPP2_MH_SIZE + MVPP2_SKB_HEADROOM);
 		skb_put(skb, rx_bytes);
 		skb->protocol = eth_type_trans(skb, dev);
 		mvpp2_rx_csum(port, rx_status, skb);
@@ -3133,6 +3215,8 @@ err_drop_frame:
 		/* Return the buffer to the pool */
 		mvpp2_bm_pool_put(port, pool, dma_addr, phys_addr);
 	}
+
+	rcu_read_unlock();
 
 	if (rcvd_pkts) {
 		struct mvpp2_pcpu_stats *stats = this_cpu_ptr(port->stats);
@@ -3609,12 +3693,16 @@ static void mvpp2_start_dev(struct mvpp2_port *port)
 	}
 
 	netif_tx_start_all_queues(port->dev);
+
+	clear_bit(0, &port->state);
 }
 
 /* Set hw internals when stopping port */
 static void mvpp2_stop_dev(struct mvpp2_port *port)
 {
 	int i;
+
+	set_bit(0, &port->state);
 
 	/* Disable interrupts on all threads */
 	mvpp2_interrupts_disable(port);
@@ -4022,6 +4110,10 @@ static int mvpp2_change_mtu(struct net_device *dev, int mtu)
 	}
 
 	if (MVPP2_RX_PKT_SIZE(mtu) > MVPP2_BM_LONG_PKT_SIZE) {
+		if (port->xdp_prog) {
+			netdev_err(dev, "Jumbo frames are not supported with XDP\n");
+			return -EINVAL;
+		}
 		if (priv->percpu_pools) {
 			netdev_warn(dev, "mtu %d too high, switching to shared buffers", mtu);
 			mvpp2_bm_switch_buffers(priv, false);
@@ -4158,6 +4250,72 @@ static int mvpp2_set_features(struct net_device *dev,
 	}
 
 	return 0;
+}
+
+static int mvpp2_xdp_setup(struct mvpp2_port *port, struct netdev_bpf *bpf)
+{
+	struct bpf_prog *prog = bpf->prog, *old_prog;
+	bool running = netif_running(port->dev);
+	bool reset = !prog != !port->xdp_prog;
+
+	if (port->dev->mtu > ETH_DATA_LEN) {
+		NL_SET_ERR_MSG_MOD(bpf->extack, "XDP is not supported with jumbo frames enabled");
+		return -EOPNOTSUPP;
+	}
+
+	if (!port->priv->percpu_pools) {
+		NL_SET_ERR_MSG_MOD(bpf->extack, "Per CPU Pools required for XDP");
+		return -EOPNOTSUPP;
+	}
+
+	/* device is up and bpf is added/removed, must setup the RX queues */
+	if (running && reset) {
+		mvpp2_stop_dev(port);
+		mvpp2_cleanup_rxqs(port);
+		mvpp2_cleanup_txqs(port);
+	}
+
+	old_prog = xchg(&port->xdp_prog, prog);
+	if (old_prog)
+		bpf_prog_put(old_prog);
+
+	/* bpf is just replaced, RXQ and MTU are already setup */
+	if (!reset)
+		return 0;
+
+	/* device was up, restore the link */
+	if (running) {
+		int ret = mvpp2_setup_rxqs(port);
+
+		if (ret) {
+			netdev_err(port->dev, "mvpp2_setup_rxqs failed\n");
+			return ret;
+		}
+		ret = mvpp2_setup_txqs(port);
+		if (ret) {
+			netdev_err(port->dev, "mvpp2_setup_txqs failed\n");
+			return ret;
+		}
+
+		mvpp2_start_dev(port);
+	}
+
+	return 0;
+}
+
+static int mvpp2_xdp(struct net_device *dev, struct netdev_bpf *xdp)
+{
+	struct mvpp2_port *port = netdev_priv(dev);
+
+	switch (xdp->command) {
+	case XDP_SETUP_PROG:
+		return mvpp2_xdp_setup(port, xdp);
+	case XDP_QUERY_PROG:
+		xdp->prog_id = port->xdp_prog ? port->xdp_prog->aux->id : 0;
+		return 0;
+	default:
+		return -EINVAL;
+	}
 }
 
 /* Ethtool methods */
@@ -4510,6 +4668,7 @@ static const struct net_device_ops mvpp2_netdev_ops = {
 	.ndo_vlan_rx_add_vid	= mvpp2_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= mvpp2_vlan_rx_kill_vid,
 	.ndo_set_features	= mvpp2_set_features,
+	.ndo_bpf		= mvpp2_xdp,
 };
 
 static const struct ethtool_ops mvpp2_eth_tool_ops = {
