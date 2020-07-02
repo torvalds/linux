@@ -244,7 +244,6 @@ static void end_compressed_bio_read(struct bio *bio)
 	 * Record the correct mirror_num in cb->orig_bio so that
 	 * read-repair can work properly.
 	 */
-	ASSERT(btrfs_io_bio(cb->orig_bio));
 	btrfs_io_bio(cb->orig_bio)->mirror_num = mirror;
 	cb->mirror_num = mirror;
 
