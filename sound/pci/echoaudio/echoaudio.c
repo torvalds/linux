@@ -1955,7 +1955,8 @@ static int snd_echo_probe(struct pci_dev *pci,
 	struct snd_card *card;
 	struct echoaudio *chip;
 	char *dsp;
-	int i, err;
+	__maybe_unused int i;
+	int err;
 
 	if (dev >= SNDRV_CARDS)
 		return -ENODEV;
