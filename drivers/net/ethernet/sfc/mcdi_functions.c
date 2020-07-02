@@ -267,20 +267,22 @@ int efx_mcdi_rx_probe(struct efx_rx_queue *rx_queue)
 
 void efx_mcdi_rx_init(struct efx_rx_queue *rx_queue)
 {
-	MCDI_DECLARE_BUF(inbuf,
-			 MC_CMD_INIT_RXQ_IN_LEN(EFX_MAX_DMAQ_SIZE * 8 /
-						EFX_BUF_SIZE));
 	struct efx_channel *channel = efx_rx_queue_channel(rx_queue);
 	size_t entries = rx_queue->rxd.buf.len / EFX_BUF_SIZE;
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_INIT_RXQ_V4_IN_LEN);
 	struct efx_nic *efx = rx_queue->efx;
+	unsigned int buffer_size;
 	dma_addr_t dma_addr;
-	size_t inlen;
 	int rc;
 	int i;
 	BUILD_BUG_ON(MC_CMD_INIT_RXQ_OUT_LEN != 0);
 
 	rx_queue->scatter_n = 0;
 	rx_queue->scatter_len = 0;
+	if (efx->type->revision == EFX_REV_EF100)
+		buffer_size = efx->rx_page_buf_step;
+	else
+		buffer_size = 0;
 
 	MCDI_SET_DWORD(inbuf, INIT_RXQ_IN_SIZE, rx_queue->ptr_mask + 1);
 	MCDI_SET_DWORD(inbuf, INIT_RXQ_IN_TARGET_EVQ, channel->channel);
@@ -292,6 +294,7 @@ void efx_mcdi_rx_init(struct efx_rx_queue *rx_queue)
 			      INIT_RXQ_IN_FLAG_TIMESTAMP, 1);
 	MCDI_SET_DWORD(inbuf, INIT_RXQ_IN_OWNER_ID, 0);
 	MCDI_SET_DWORD(inbuf, INIT_RXQ_IN_PORT_ID, efx->vport_id);
+	MCDI_SET_DWORD(inbuf, INIT_RXQ_V4_IN_BUFFER_SIZE_BYTES, buffer_size);
 
 	dma_addr = rx_queue->rxd.buf.dma_addr;
 
@@ -303,9 +306,7 @@ void efx_mcdi_rx_init(struct efx_rx_queue *rx_queue)
 		dma_addr += EFX_BUF_SIZE;
 	}
 
-	inlen = MC_CMD_INIT_RXQ_IN_LEN(entries);
-
-	rc = efx_mcdi_rpc(efx, MC_CMD_INIT_RXQ, inbuf, inlen,
+	rc = efx_mcdi_rpc(efx, MC_CMD_INIT_RXQ, inbuf, sizeof(inbuf),
 			  NULL, 0, NULL);
 	if (rc)
 		netdev_WARN(efx->net_dev, "failed to initialise RXQ %d\n",
