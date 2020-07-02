@@ -3080,6 +3080,7 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 	fs_info->nodesize = nodesize;
 	fs_info->sectorsize = sectorsize;
 	fs_info->sectorsize_bits = ilog2(sectorsize);
+	fs_info->csum_size = btrfs_super_csum_size(disk_super);
 	fs_info->stripesize = stripesize;
 
 	/*
