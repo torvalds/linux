@@ -957,67 +957,6 @@ int usb_otg_start(struct platform_device *pdev)
 	return 0;
 }
 
-/* Char driver interface to control some OTG input */
-
-/*
- * Handle some ioctl command, such as get otg
- * status and set host suspend
- */
-static long fsl_otg_ioctl(struct file *file, unsigned int cmd,
-			  unsigned long arg)
-{
-	u32 retval = 0;
-
-	switch (cmd) {
-	case GET_OTG_STATUS:
-		retval = fsl_otg_dev->host_working;
-		break;
-
-	case SET_A_SUSPEND_REQ:
-		fsl_otg_dev->fsm.a_suspend_req_inf = arg;
-		break;
-
-	case SET_A_BUS_DROP:
-		fsl_otg_dev->fsm.a_bus_drop = arg;
-		break;
-
-	case SET_A_BUS_REQ:
-		fsl_otg_dev->fsm.a_bus_req = arg;
-		break;
-
-	case SET_B_BUS_REQ:
-		fsl_otg_dev->fsm.b_bus_req = arg;
-		break;
-
-	default:
-		break;
-	}
-
-	otg_statemachine(&fsl_otg_dev->fsm);
-
-	return retval;
-}
-
-static int fsl_otg_open(struct inode *inode, struct file *file)
-{
-	return 0;
-}
-
-static int fsl_otg_release(struct inode *inode, struct file *file)
-{
-	return 0;
-}
-
-static const struct file_operations otg_fops = {
-	.owner = THIS_MODULE,
-	.llseek = NULL,
-	.read = NULL,
-	.write = NULL,
-	.unlocked_ioctl = fsl_otg_ioctl,
-	.open = fsl_otg_open,
-	.release = fsl_otg_release,
-};
-
 static int fsl_otg_probe(struct platform_device *pdev)
 {
 	int ret;
@@ -1039,12 +978,6 @@ static int fsl_otg_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = register_chrdev(FSL_OTG_MAJOR, FSL_OTG_NAME, &otg_fops);
-	if (ret) {
-		dev_err(&pdev->dev, "unable to register FSL OTG device\n");
-		return ret;
-	}
-
 	return ret;
 }
 
@@ -1060,8 +993,6 @@ static int fsl_otg_remove(struct platform_device *pdev)
 	fsl_otg_uninit_timers();
 	kfree(fsl_otg_dev->phy.otg);
 	kfree(fsl_otg_dev);
-
-	unregister_chrdev(FSL_OTG_MAJOR, FSL_OTG_NAME);
 
 	if (pdata->exit)
 		pdata->exit(pdev);
