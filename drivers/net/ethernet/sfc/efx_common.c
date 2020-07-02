@@ -1017,6 +1017,7 @@ int efx_init_struct(struct efx_nic *efx,
 	efx->rx_packet_ts_offset =
 		efx->type->rx_ts_offset - efx->type->rx_prefix_size;
 	INIT_LIST_HEAD(&efx->rss_context.list);
+	efx->rss_context.context_id = EFX_MCDI_RSS_CONTEXT_INVALID;
 	mutex_init(&efx->rss_lock);
 	efx->vport_id = EVB_PORT_ID_ASSIGNED;
 	spin_lock_init(&efx->stats_lock);
