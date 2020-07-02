@@ -557,12 +557,6 @@ int efx_init_channels(struct efx_nic *efx)
 	}
 
 	/* Higher numbered interrupt modes are less capable! */
-	if (WARN_ON_ONCE(efx->type->max_interrupt_mode >
-			 efx->type->min_interrupt_mode)) {
-		return -EIO;
-	}
-	efx->interrupt_mode = max(efx->type->max_interrupt_mode,
-				  interrupt_mode);
 	efx->interrupt_mode = min(efx->type->min_interrupt_mode,
 				  interrupt_mode);
 
