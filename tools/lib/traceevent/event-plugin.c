@@ -39,6 +39,12 @@ struct tep_plugin_list {
 	void			*handle;
 };
 
+struct tep_plugins_dir {
+	struct tep_plugins_dir		*next;
+	char				*path;
+	enum tep_plugin_load_priority	prio;
+};
+
 static void lower_case(char *str)
 {
 	if (!str)
@@ -544,6 +550,7 @@ void tep_load_plugins_hook(struct tep_handle *tep, const char *suffix,
 					       void *data),
 			   void *data)
 {
+	struct tep_plugins_dir *dir = NULL;
 	char *home;
 	char *path;
 	char *envdir;
@@ -551,6 +558,15 @@ void tep_load_plugins_hook(struct tep_handle *tep, const char *suffix,
 
 	if (tep && tep->flags & TEP_DISABLE_PLUGINS)
 		return;
+
+	if (tep)
+		dir = tep->plugins_dir;
+	while (dir) {
+		if (dir->prio == TEP_PLUGIN_FIRST)
+			load_plugins_dir(tep, suffix, dir->path,
+					 load_plugin, data);
+		dir = dir->next;
+	}
 
 	/*
 	 * If a system plugin directory was defined,
@@ -586,6 +602,15 @@ void tep_load_plugins_hook(struct tep_handle *tep, const char *suffix,
 
 	load_plugins_dir(tep, suffix, path, load_plugin, data);
 
+	if (tep)
+		dir = tep->plugins_dir;
+	while (dir) {
+		if (dir->prio == TEP_PLUGIN_LAST)
+			load_plugins_dir(tep, suffix, dir->path,
+					 load_plugin, data);
+		dir = dir->next;
+	}
+
 	free(path);
 }
 
@@ -596,6 +621,51 @@ tep_load_plugins(struct tep_handle *tep)
 
 	tep_load_plugins_hook(tep, ".so", load_plugin, &list);
 	return list;
+}
+
+/**
+ * tep_add_plugin_path - Add a new plugin directory.
+ * @tep: Trace event handler.
+ * @path: Path to a directory. All files with extension .so in that
+ *	  directory will be loaded as plugins.
+ *@prio: Load priority of the plugins in that directory.
+ *
+ * Returns -1 in case of an error, 0 otherwise.
+ */
+int tep_add_plugin_path(struct tep_handle *tep, char *path,
+			enum tep_plugin_load_priority prio)
+{
+	struct tep_plugins_dir *dir;
+
+	if (!tep || !path)
+		return -1;
+
+	dir = calloc(1, sizeof(*dir));
+	if (!dir)
+		return -1;
+
+	dir->path = strdup(path);
+	dir->prio = prio;
+	dir->next = tep->plugins_dir;
+	tep->plugins_dir = dir;
+
+	return 0;
+}
+
+void tep_free_plugin_paths(struct tep_handle *tep)
+{
+	struct tep_plugins_dir *dir;
+
+	if (!tep)
+		return;
+
+	dir = tep->plugins_dir;
+	while (dir) {
+		tep->plugins_dir = tep->plugins_dir->next;
+		free(dir->path);
+		free(dir);
+		dir = tep->plugins_dir;
+	}
 }
 
 void
