@@ -743,26 +743,26 @@ static int renoir_set_performance_level(struct smu_context *smu,
 
 	switch (level) {
 	case AMD_DPM_FORCED_LEVEL_HIGH:
-		ret = smu_force_dpm_limit_value(smu, true);
+		ret = renoir_force_dpm_limit_value(smu, true);
 		break;
 	case AMD_DPM_FORCED_LEVEL_LOW:
-		ret = smu_force_dpm_limit_value(smu, false);
+		ret = renoir_force_dpm_limit_value(smu, false);
 		break;
 	case AMD_DPM_FORCED_LEVEL_AUTO:
 	case AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD:
-		ret = smu_unforce_dpm_levels(smu);
+		ret = renoir_unforce_dpm_levels(smu);
 		break;
 	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK:
 	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK:
-		ret = smu_get_profiling_clk_mask(smu, level,
-						 &sclk_mask,
-						 &mclk_mask,
-						 &soc_mask);
+		ret = renoir_get_profiling_clk_mask(smu, level,
+						    &sclk_mask,
+						    &mclk_mask,
+						    &soc_mask);
 		if (ret)
 			return ret;
-		smu_force_clk_levels(smu, SMU_SCLK, 1 << sclk_mask, false);
-		smu_force_clk_levels(smu, SMU_MCLK, 1 << mclk_mask, false);
-		smu_force_clk_levels(smu, SMU_SOCCLK, 1 << soc_mask, false);
+		renoir_force_clk_levels(smu, SMU_SCLK, 1 << sclk_mask);
+		renoir_force_clk_levels(smu, SMU_MCLK, 1 << mclk_mask);
+		renoir_force_clk_levels(smu, SMU_SOCCLK, 1 << soc_mask);
 		break;
 	case AMD_DPM_FORCED_LEVEL_PROFILE_PEAK:
 		ret = renoir_set_peak_clock_by_device(smu);
@@ -942,8 +942,6 @@ static const struct pptable_funcs renoir_ppt_funcs = {
 	.get_current_power_state = renoir_get_current_power_state,
 	.dpm_set_vcn_enable = renoir_dpm_set_vcn_enable,
 	.dpm_set_jpeg_enable = renoir_dpm_set_jpeg_enable,
-	.force_dpm_limit_value = renoir_force_dpm_limit_value,
-	.unforce_dpm_levels = renoir_unforce_dpm_levels,
 	.get_workload_type = renoir_get_workload_type,
 	.get_profiling_clk_mask = renoir_get_profiling_clk_mask,
 	.force_clk_levels = renoir_force_clk_levels,
