@@ -178,7 +178,6 @@ static int check_compressed_csum(struct btrfs_inode *inode, struct bio *bio,
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	SHASH_DESC_ON_STACK(shash, fs_info->csum_shash);
 	const u16 csum_size = btrfs_super_csum_size(fs_info->super_copy);
-	int ret;
 	struct page *page;
 	unsigned long i;
 	char *kaddr;
@@ -205,15 +204,11 @@ static int check_compressed_csum(struct btrfs_inode *inode, struct bio *bio,
 				btrfs_dev_stat_inc_and_print(
 					btrfs_io_bio(bio)->device,
 					BTRFS_DEV_STAT_CORRUPTION_ERRS);
-			ret = -EIO;
-			goto fail;
+			return -EIO;
 		}
 		cb_sum += csum_size;
-
 	}
-	ret = 0;
-fail:
-	return ret;
+	return 0;
 }
 
 /* when we finish reading compressed pages from the disk, we
