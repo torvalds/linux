@@ -429,6 +429,11 @@ int rmnet_add_bridge(struct net_device *rmnet_dev,
 		return -EINVAL;
 	}
 
+	if (port->rmnet_mode != RMNET_EPMODE_VND) {
+		NL_SET_ERR_MSG_MOD(extack, "more than one bridge dev attached");
+		return -EINVAL;
+	}
+
 	if (rmnet_is_real_dev_registered(slave_dev)) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "slave cannot be another rmnet dev");
