@@ -314,4 +314,13 @@ bool ast_dp501_read_edid(struct drm_device *dev, u8 *ediddata);
 u8 ast_get_dp501_max_clk(struct drm_device *dev);
 void ast_init_3rdtx(struct drm_device *dev);
 void ast_release_firmware(struct drm_device *dev);
+
+/* ast_cursor.c */
+int ast_cursor_init(struct drm_device *dev);
+void ast_cursor_fini(struct drm_device *dev);
+int ast_cursor_update(void *dst, void *src, unsigned int width,
+		      unsigned int height);
+void ast_cursor_set_base(struct ast_private *ast, u64 address);
+int ast_cursor_move(struct drm_crtc *crtc, int x, int y);
+
 #endif
