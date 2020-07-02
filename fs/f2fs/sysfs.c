@@ -350,16 +350,20 @@ out:
 		return -EINVAL;
 
 	if (!strcmp(a->attr.name, "gc_urgent")) {
-		if (t >= 1) {
-			sbi->gc_mode = GC_URGENT;
+		if (t == 0) {
+			sbi->gc_mode = GC_NORMAL;
+		} else if (t == 1) {
+			sbi->gc_mode = GC_URGENT_HIGH;
 			if (sbi->gc_thread) {
 				sbi->gc_thread->gc_wake = 1;
 				wake_up_interruptible_all(
 					&sbi->gc_thread->gc_wait_queue_head);
 				wake_up_discard_thread(sbi, true);
 			}
+		} else if (t == 2) {
+			sbi->gc_mode = GC_URGENT_LOW;
 		} else {
-			sbi->gc_mode = GC_NORMAL;
+			return -EINVAL;
 		}
 		return count;
 	}
