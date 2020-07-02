@@ -336,6 +336,16 @@ config REGULATOR_FAN53555
 	  input voltage supply of 2.5V to 5.5V. The output voltage is
 	  programmed through an I2C interface.
 
+config REGULATOR_FAN53880
+	tristate "Fairchild FAN53880 Regulator"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This driver supports Fairchild (ON Semiconductor) FAN53880
+	  regulator. The regulator is a programmable power management IC
+	  (PMIC), it is controlled by I2C and provides one BUCK, one BOOST
+	  and four LDO outputs.
+
 config REGULATOR_GPIO
 	tristate "GPIO regulator support"
 	depends on GPIOLIB || COMPILE_TEST
