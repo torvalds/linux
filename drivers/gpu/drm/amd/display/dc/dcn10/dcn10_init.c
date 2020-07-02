@@ -75,6 +75,7 @@ static const struct hw_sequencer_funcs dcn10_funcs = {
 	.calc_vupdate_position = dcn10_calc_vupdate_position,
 	.set_backlight_level = dce110_set_backlight_level,
 	.set_abm_immediate_disable = dce110_set_abm_immediate_disable,
+	.set_pipe = dce110_set_pipe,
 };
 
 static const struct hwseq_private_funcs dcn10_private_funcs = {

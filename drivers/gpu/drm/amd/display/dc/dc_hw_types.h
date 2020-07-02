@@ -62,6 +62,9 @@ enum dc_plane_addr_type {
 	PLN_ADDR_TYPE_GRAPHICS = 0,
 	PLN_ADDR_TYPE_GRPH_STEREO,
 	PLN_ADDR_TYPE_VIDEO_PROGRESSIVE,
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	PLN_ADDR_TYPE_RGBEA
+#endif
 };
 
 struct dc_plane_address {
@@ -84,6 +87,16 @@ struct dc_plane_address {
 			PHYSICAL_ADDRESS_LOC right_meta_addr;
 			union large_integer right_dcc_const_color;
 
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+			PHYSICAL_ADDRESS_LOC left_alpha_addr;
+			PHYSICAL_ADDRESS_LOC left_alpha_meta_addr;
+			union large_integer left_alpha_dcc_const_color;
+
+			PHYSICAL_ADDRESS_LOC right_alpha_addr;
+			PHYSICAL_ADDRESS_LOC right_alpha_meta_addr;
+			union large_integer right_alpha_dcc_const_color;
+#endif
+
 		} grph_stereo;
 
 		/*video  progressive*/
@@ -96,6 +109,18 @@ struct dc_plane_address {
 			PHYSICAL_ADDRESS_LOC chroma_meta_addr;
 			union large_integer chroma_dcc_const_color;
 		} video_progressive;
+
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+		struct {
+			PHYSICAL_ADDRESS_LOC addr;
+			PHYSICAL_ADDRESS_LOC meta_addr;
+			union large_integer dcc_const_color;
+
+			PHYSICAL_ADDRESS_LOC alpha_addr;
+			PHYSICAL_ADDRESS_LOC alpha_meta_addr;
+			union large_integer alpha_dcc_const_color;
+		} rgbea;
+#endif
 	};
 
 	union large_integer page_table_base;
@@ -131,9 +156,15 @@ struct dc_plane_dcc_param {
 
 	int meta_pitch;
 	bool independent_64b_blks;
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	uint8_t dcc_ind_blk;
+#endif
 
 	int meta_pitch_c;
 	bool independent_64b_blks_c;
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	uint8_t dcc_ind_blk_c;
+#endif
 };
 
 /*Displayable pixel format in fb*/
@@ -169,6 +200,10 @@ enum surface_pixel_format {
 	SURFACE_PIXEL_FORMAT_GRPH_BGR101111_FIX,
 	SURFACE_PIXEL_FORMAT_GRPH_RGB111110_FLOAT,
 	SURFACE_PIXEL_FORMAT_GRPH_BGR101111_FLOAT,
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	SURFACE_PIXEL_FORMAT_GRPH_RGBE,
+	SURFACE_PIXEL_FORMAT_GRPH_RGBE_ALPHA,
+#endif
 	SURFACE_PIXEL_FORMAT_VIDEO_BEGIN,
 	SURFACE_PIXEL_FORMAT_VIDEO_420_YCbCr =
 		SURFACE_PIXEL_FORMAT_VIDEO_BEGIN,
@@ -355,6 +390,7 @@ union dc_tiling_info {
 		bool meta_linear;
 		bool rb_aligned;
 		bool pipe_aligned;
+		unsigned int num_pkrs;
 	} gfx9;
 };
 
@@ -813,6 +849,42 @@ enum dwb_stereo_type {
 	DWB_STEREO_TYPE_FRAME_SEQUENTIAL = 3,	/* Frame sequential */
 };
 
+#ifdef CONFIG_DRM_AMD_DC_DCN3_0
+
+enum dwb_out_format {
+	DWB_OUT_FORMAT_32BPP_ARGB = 0,
+	DWB_OUT_FORMAT_32BPP_RGBA = 1,
+	DWB_OUT_FORMAT_64BPP_ARGB = 2,
+	DWB_OUT_FORMAT_64BPP_RGBA = 3
+};
+
+enum dwb_out_denorm {
+	DWB_OUT_DENORM_10BPC = 0,
+	DWB_OUT_DENORM_8BPC = 1,
+	DWB_OUT_DENORM_BYPASS = 2
+};
+
+enum cm_gamut_remap_select {
+	CM_GAMUT_REMAP_MODE_BYPASS = 0,
+	CM_GAMUT_REMAP_MODE_RAMA_COEFF,
+	CM_GAMUT_REMAP_MODE_RAMB_COEFF,
+	CM_GAMUT_REMAP_MODE_RESERVED
+};
+
+enum cm_gamut_coef_format {
+	CM_GAMUT_REMAP_COEF_FORMAT_S2_13 = 0,
+	CM_GAMUT_REMAP_COEF_FORMAT_S3_12 = 1
+};
+
+struct mcif_warmup_params {
+	union large_integer	start_address;
+	unsigned int		address_increment;
+	unsigned int		region_size;
+	unsigned int		p_vmid;
+};
+
+#endif
+
 #define MCIF_BUF_COUNT	4
 
 struct mcif_buf_params {
@@ -822,6 +894,9 @@ struct mcif_buf_params {
 	unsigned int		chroma_pitch;
 	unsigned int		warmup_pitch;
 	unsigned int		swlock;
+#ifdef CONFIG_DRM_AMD_DC_DCN3_0
+	unsigned int		p_vmid;
+#endif
 };
 
 

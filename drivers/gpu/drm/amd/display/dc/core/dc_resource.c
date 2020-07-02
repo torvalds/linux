@@ -52,6 +52,9 @@
 #include "dcn20/dcn20_resource.h"
 #include "dcn21/dcn21_resource.h"
 #endif
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+#include "../dcn30/dcn30_resource.h"
+#endif
 
 #define DC_LOGGER_INIT(logger)
 
@@ -107,6 +110,10 @@ enum dce_version resource_parse_asic_id(struct hw_asic_id asic_id)
 
 	case FAMILY_NV:
 		dc_version = DCN_VERSION_2_0;
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+		if (ASICREV_IS_SIENNA_CICHLID_P(asic_id.hw_internal_rev))
+			dc_version = DCN_VERSION_3_0;
+#endif
 		break;
 	default:
 		dc_version = DCE_VERSION_UNKNOWN;
@@ -166,6 +173,11 @@ struct resource_pool *dc_create_resource_pool(struct dc  *dc,
 		break;
 	case DCN_VERSION_2_1:
 		res_pool = dcn21_create_resource_pool(init_data, dc);
+		break;
+#endif
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	case DCN_VERSION_3_0:
+		res_pool = dcn30_create_resource_pool(init_data, dc);
 		break;
 #endif
 
@@ -282,6 +294,16 @@ bool resource_construct(
 		}
 	}
 
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	for (i = 0; i < caps->num_mpc_3dlut; i++) {
+		pool->mpc_lut[i] = dc_create_3dlut_func();
+		if (pool->mpc_lut[i] == NULL)
+			DC_ERR("DC: failed to create MPC 3dlut!\n");
+		pool->mpc_shaper[i] = dc_create_transfer_func();
+		if (pool->mpc_shaper[i] == NULL)
+			DC_ERR("DC: failed to create MPC shaper!\n");
+	}
+#endif
 	dc->caps.dynamic_audio = false;
 	if (pool->audio_count < pool->stream_enc_count) {
 		dc->caps.dynamic_audio = true;
@@ -375,6 +397,10 @@ bool resource_are_streams_timing_synchronizable(
 
 	if (stream1->timing.v_addressable
 				!= stream2->timing.v_addressable)
+		return false;
+
+	if (stream1->timing.v_front_porch
+				!= stream2->timing.v_front_porch)
 		return false;
 
 	if (stream1->timing.pix_clk_100hz
@@ -2049,8 +2075,16 @@ enum dc_status resource_map_pool_resources(
 	}
 
 	/* Add ABM to the resource if on EDP */
-	if (pipe_ctx->stream && dc_is_embedded_signal(pipe_ctx->stream->signal))
+	if (pipe_ctx->stream && dc_is_embedded_signal(pipe_ctx->stream->signal)) {
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+		if (pool->abm)
+			pipe_ctx->stream_res.abm = pool->abm;
+		else
+			pipe_ctx->stream_res.abm = pool->multiple_abms[pipe_ctx->stream_res.tg->inst];
+#else
 		pipe_ctx->stream_res.abm = pool->abm;
+#endif
+	}
 
 	for (i = 0; i < context->stream_count; i++)
 		if (context->streams[i] == stream) {
@@ -2867,6 +2901,10 @@ unsigned int resource_pixel_format_to_bpp(enum surface_pixel_format format)
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB2101010:
 	case SURFACE_PIXEL_FORMAT_GRPH_ABGR2101010:
 	case SURFACE_PIXEL_FORMAT_GRPH_ABGR2101010_XR_BIAS:
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	case SURFACE_PIXEL_FORMAT_GRPH_RGBE:
+	case SURFACE_PIXEL_FORMAT_GRPH_RGBE_ALPHA:
+#endif
 		return 32;
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616:
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616F:

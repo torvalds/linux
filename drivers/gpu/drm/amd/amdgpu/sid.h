@@ -1646,9 +1646,10 @@
 /*
  * PM4
  */
-#define PACKET0(reg, n)	((RADEON_PACKET_TYPE0 << 30) |			\
-			 (((reg) >> 2) & 0xFFFF) |			\
-			 ((n) & 0x3FFF) << 16)
+#define PACKET_TYPE0    0
+#define PACKET0(reg, n) ((PACKET_TYPE0 << 30) |				\
+                         ((reg) & 0xFFFF) |				\
+                         ((n) & 0x3FFF) << 16)
 #define CP_PACKET2			0x80000000
 #define		PACKET2_PAD_SHIFT		0
 #define		PACKET2_PAD_MASK		(0x3fffffff << 0)
@@ -2340,11 +2341,6 @@
 #       define NI_INPUT_GAMMA_XVYCC_222                3
 #       define NI_OVL_INPUT_GAMMA_MODE(x)              (((x) & 0x3) << 4)
 
-#define IH_RB_WPTR__RB_OVERFLOW_MASK	0x1
-#define IH_RB_CNTL__WPTR_OVERFLOW_CLEAR_MASK 0x80000000
-#define SRBM_STATUS__IH_BUSY_MASK	0x20000
-#define SRBM_SOFT_RESET__SOFT_RESET_IH_MASK	0x400
-
 #define	BLACKOUT_MODE_MASK			0x00000007
 #define	VGA_RENDER_CONTROL			0xC0
 #define R_000300_VGA_RENDER_CONTROL             0xC0
@@ -2431,18 +2427,6 @@
 #define MC_SEQ_MISC0__MT__HBM    0x60000000
 #define MC_SEQ_MISC0__MT__DDR3   0xB0000000
 
-#define SRBM_STATUS__MCB_BUSY_MASK 0x200
-#define SRBM_STATUS__MCB_BUSY__SHIFT 0x9
-#define SRBM_STATUS__MCB_NON_DISPLAY_BUSY_MASK 0x400
-#define SRBM_STATUS__MCB_NON_DISPLAY_BUSY__SHIFT 0xa
-#define SRBM_STATUS__MCC_BUSY_MASK 0x800
-#define SRBM_STATUS__MCC_BUSY__SHIFT 0xb
-#define SRBM_STATUS__MCD_BUSY_MASK 0x1000
-#define SRBM_STATUS__MCD_BUSY__SHIFT 0xc
-#define SRBM_STATUS__VMC_BUSY_MASK 0x100
-#define SRBM_STATUS__VMC_BUSY__SHIFT 0x8
-
-
 #define GRBM_STATUS__GUI_ACTIVE_MASK 0x80000000
 #define CP_INT_CNTL_RING__TIME_STAMP_INT_ENABLE_MASK 0x4000000
 #define CP_INT_CNTL_RING0__PRIV_REG_INT_ENABLE_MASK 0x800000
@@ -2467,8 +2451,6 @@
 
 #define PCIE_BUS_CLK    10000
 #define TCLK            (PCIE_BUS_CLK / 10)
-#define CC_DRM_ID_STRAPS__ATI_REV_ID_MASK		0xf0000000
-#define CC_DRM_ID_STRAPS__ATI_REV_ID__SHIFT 0x1c
 #define	PCIE_PORT_INDEX					0xe
 #define	PCIE_PORT_DATA					0xf
 #define EVERGREEN_PIF_PHY0_INDEX                        0x8

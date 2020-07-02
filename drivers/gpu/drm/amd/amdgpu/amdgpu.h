@@ -186,8 +186,10 @@ extern int amdgpu_noretry;
 extern int amdgpu_force_asic_type;
 #ifdef CONFIG_HSA_AMD
 extern int sched_policy;
+extern bool debug_evictions;
 #else
 static const int sched_policy = KFD_SCHED_POLICY_HWS;
+static const bool debug_evictions; /* = false */
 #endif
 
 extern int amdgpu_tmz;
@@ -652,10 +654,6 @@ struct amdgpu_fw_vram_usage {
 	u64 size;
 	struct amdgpu_bo *reserved_bo;
 	void *va;
-
-	/* GDDR6 training support flag.
-	*/
-	bool mem_train_support;
 };
 
 /*
@@ -990,9 +988,12 @@ struct amdgpu_device {
 	/* Chip product information */
 	char				product_number[16];
 	char				product_name[32];
-	char				serial[16];
+	char				serial[20];
 
 	struct amdgpu_autodump		autodump;
+
+	atomic_t			throttling_logging_enabled;
+	struct ratelimit_state		throttling_logging_rs;
 };
 
 static inline struct amdgpu_device *amdgpu_ttm_adev(struct ttm_bo_device *bdev)

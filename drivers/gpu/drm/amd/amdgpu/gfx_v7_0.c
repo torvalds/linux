@@ -3039,7 +3039,7 @@ static void gfx_v7_0_mqd_init(struct amdgpu_device *adev,
 	mqd->cp_hqd_active = 1;
 }
 
-int gfx_v7_0_mqd_commit(struct amdgpu_device *adev, struct cik_mqd *mqd)
+static int gfx_v7_0_mqd_commit(struct amdgpu_device *adev, struct cik_mqd *mqd)
 {
 	uint32_t tmp;
 	uint32_t mqd_reg;
@@ -5209,7 +5209,7 @@ static void gfx_v7_0_get_cu_info(struct amdgpu_device *adev)
 	cu_info->lds_size = 64;
 }
 
-const struct amdgpu_ip_block_version gfx_v7_0_ip_block =
+static const struct amdgpu_ip_block_version gfx_v7_0_ip_block =
 {
 	.type = AMD_IP_BLOCK_TYPE_GFX,
 	.major = 7,

@@ -94,6 +94,10 @@
 
 #define FIRMWARE_RENOIR_DMUB "amdgpu/renoir_dmcub.bin"
 MODULE_FIRMWARE(FIRMWARE_RENOIR_DMUB);
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+#define FIRMWARE_SIENNA_CICHLID_DMUB "amdgpu/sienna_cichlid_dmcub.bin"
+MODULE_FIRMWARE(FIRMWARE_SIENNA_CICHLID_DMUB);
+#endif
 
 #define FIRMWARE_RAVEN_DMCU		"amdgpu/raven_dmcu.bin"
 MODULE_FIRMWARE(FIRMWARE_RAVEN_DMCU);
@@ -696,7 +700,7 @@ static void amdgpu_dm_audio_fini(struct amdgpu_device *adev)
 	adev->mode_info.audio.enabled = false;
 }
 
-void amdgpu_dm_audio_eld_notify(struct amdgpu_device *adev, int pin)
+static  void amdgpu_dm_audio_eld_notify(struct amdgpu_device *adev, int pin)
 {
 	struct drm_audio_component *acomp = adev->dm.audio_component;
 
@@ -1070,6 +1074,9 @@ static int load_dmcu_fw(struct amdgpu_device *adev)
 	case CHIP_NAVI10:
 	case CHIP_NAVI14:
 	case CHIP_RENOIR:
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	case CHIP_SIENNA_CICHLID:
+#endif
 		return 0;
 	case CHIP_NAVI12:
 		fw_name_dmcu = FIRMWARE_NAVI12_DMCU;
@@ -1166,6 +1173,12 @@ static int dm_dmub_sw_init(struct amdgpu_device *adev)
 		dmub_asic = DMUB_ASIC_DCN21;
 		fw_name_dmub = FIRMWARE_RENOIR_DMUB;
 		break;
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	case CHIP_SIENNA_CICHLID:
+		dmub_asic = DMUB_ASIC_DCN30;
+		fw_name_dmub = FIRMWARE_SIENNA_CICHLID_DMUB;
+		break;
+#endif
 
 	default:
 		/* ASIC doesn't support DMUB. */
@@ -1228,10 +1241,10 @@ static int dm_dmub_sw_init(struct amdgpu_device *adev)
 					PSP_HEADER_BYTES - PSP_FOOTER_BYTES;
 	region_params.bss_data_size = le32_to_cpu(hdr->bss_data_bytes);
 	region_params.vbios_size = adev->bios_size;
-	region_params.fw_bss_data =
+	region_params.fw_bss_data = region_params.bss_data_size ?
 		adev->dm.dmub_fw->data +
 		le32_to_cpu(hdr->header.ucode_array_offset_bytes) +
-		le32_to_cpu(hdr->inst_const_bytes);
+		le32_to_cpu(hdr->inst_const_bytes) : NULL;
 	region_params.fw_inst_const =
 		adev->dm.dmub_fw->data +
 		le32_to_cpu(hdr->header.ucode_array_offset_bytes) +
@@ -1305,15 +1318,11 @@ static int dm_sw_fini(void *handle)
 		adev->dm.dmub_srv = NULL;
 	}
 
-	if (adev->dm.dmub_fw) {
-		release_firmware(adev->dm.dmub_fw);
-		adev->dm.dmub_fw = NULL;
-	}
+	release_firmware(adev->dm.dmub_fw);
+	adev->dm.dmub_fw = NULL;
 
-	if(adev->dm.fw_dmcu) {
-		release_firmware(adev->dm.fw_dmcu);
-		adev->dm.fw_dmcu = NULL;
-	}
+	release_firmware(adev->dm.fw_dmcu);
+	adev->dm.fw_dmcu = NULL;
 
 	return 0;
 }
@@ -1573,7 +1582,7 @@ static void dm_gpureset_toggle_interrupts(struct amdgpu_device *adev,
 
 }
 
-enum dc_status amdgpu_dm_commit_zero_streams(struct dc *dc)
+static enum dc_status amdgpu_dm_commit_zero_streams(struct dc *dc)
 {
 	struct dc_state *context = NULL;
 	enum dc_status res = DC_ERROR_UNEXPECTED;
@@ -2693,7 +2702,7 @@ static int dm_atomic_get_state(struct drm_atomic_state *state,
 	return 0;
 }
 
-struct dm_atomic_state *
+static struct dm_atomic_state *
 dm_atomic_get_new_state(struct drm_atomic_state *state)
 {
 	struct drm_device *dev = state->dev;
@@ -2711,7 +2720,7 @@ dm_atomic_get_new_state(struct drm_atomic_state *state)
 	return NULL;
 }
 
-struct dm_atomic_state *
+static struct dm_atomic_state *
 dm_atomic_get_old_state(struct drm_atomic_state *state)
 {
 	struct drm_device *dev = state->dev;
@@ -3205,6 +3214,9 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 	case CHIP_NAVI10:
 	case CHIP_NAVI14:
 	case CHIP_RENOIR:
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	case CHIP_SIENNA_CICHLID:
+#endif
 		if (dcn10_register_irq_handlers(dm->adev)) {
 			DRM_ERROR("DM: Failed to initialize IRQ\n");
 			goto fail;
@@ -3359,6 +3371,9 @@ static int dm_early_init(void *handle)
 #endif
 	case CHIP_NAVI10:
 	case CHIP_NAVI12:
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	case CHIP_SIENNA_CICHLID:
+#endif
 		adev->mode_info.num_crtc = 6;
 		adev->mode_info.num_hpd = 6;
 		adev->mode_info.num_dig = 6;
@@ -3679,6 +3694,9 @@ fill_plane_buffer_attributes(struct amdgpu_device *adev,
 	    adev->asic_type == CHIP_NAVI10 ||
 	    adev->asic_type == CHIP_NAVI14 ||
 	    adev->asic_type == CHIP_NAVI12 ||
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+		adev->asic_type == CHIP_SIENNA_CICHLID ||
+#endif
 	    adev->asic_type == CHIP_RENOIR ||
 	    adev->asic_type == CHIP_RAVEN) {
 		/* Fill GFX9 params */
@@ -3698,6 +3716,11 @@ fill_plane_buffer_attributes(struct amdgpu_device *adev,
 			AMDGPU_TILING_GET(tiling_flags, SWIZZLE_MODE);
 		tiling_info->gfx9.shaderEnable = 1;
 
+#ifdef CONFIG_DRM_AMD_DC_DCN3_0
+		if (adev->asic_type == CHIP_SIENNA_CICHLID)
+			tiling_info->gfx9.num_pkrs = adev->gfx.config.gb_addr_config_fields.num_pkrs;
+
+#endif
 		ret = fill_plane_dcc_attributes(adev, afb, format, rotation,
 						plane_size, tiling_info,
 						tiling_flags, dcc, address,
@@ -4546,10 +4569,8 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 				stream->use_vsc_sdp_for_colorimetry =
 					aconnector->dc_sink->is_vsc_sdp_colorimetry_supported;
 			} else {
-				if (stream->link->dpcd_caps.dpcd_rev.raw >= 0x14 &&
-					stream->link->dpcd_caps.dprx_feature.bits.VSC_SDP_COLORIMETRY_SUPPORTED) {
+				if (stream->link->dpcd_caps.dprx_feature.bits.VSC_SDP_COLORIMETRY_SUPPORTED)
 					stream->use_vsc_sdp_for_colorimetry = true;
-				}
 			}
 			mod_build_vsc_infopacket(stream, &stream->vsc_infopacket);
 		}
@@ -5024,7 +5045,8 @@ create_validate_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 	struct drm_connector *connector = &aconnector->base;
 	struct amdgpu_device *adev = connector->dev->dev_private;
 	struct dc_stream_state *stream;
-	int requested_bpc = connector->state ? connector->state->max_requested_bpc : 8;
+	const struct drm_connector_state *drm_state = dm_state ? &dm_state->base : NULL;
+	int requested_bpc = drm_state ? drm_state->max_requested_bpc : 8;
 	enum dc_status dc_result = DC_OK;
 
 	do {
@@ -5039,11 +5061,12 @@ create_validate_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 		dc_result = dc_validate_stream(adev->dm.dc, stream);
 
 		if (dc_result != DC_OK) {
-			DRM_DEBUG_KMS("Mode %dx%d (clk %d) failed DC validation with error %d\n",
+			DRM_DEBUG_KMS("Mode %dx%d (clk %d) failed DC validation with error %d (%s)\n",
 				      drm_mode->hdisplay,
 				      drm_mode->vdisplay,
 				      drm_mode->clock,
-				      dc_result);
+				      dc_result,
+				      dc_status_to_str(dc_result));
 
 			dc_stream_release(stream);
 			stream = NULL;
@@ -5424,7 +5447,7 @@ static int dm_encoder_helper_atomic_check(struct drm_encoder *encoder,
 									   mst_mgr,
 									   mst_port,
 									   dm_new_connector_state->pbn,
-									   0);
+									   dm_mst_get_pbn_divider(aconnector->dc_link));
 	if (dm_new_connector_state->vcpi_slots < 0) {
 		DRM_DEBUG_ATOMIC("failed finding vcpi slots: %d\n", (int)dm_new_connector_state->vcpi_slots);
 		return dm_new_connector_state->vcpi_slots;
@@ -5536,7 +5559,7 @@ dm_drm_plane_duplicate_state(struct drm_plane *plane)
 	return &dm_plane_state->base;
 }
 
-void dm_drm_plane_destroy_state(struct drm_plane *plane,
+static void dm_drm_plane_destroy_state(struct drm_plane *plane,
 				struct drm_plane_state *state)
 {
 	struct dm_plane_state *dm_plane_state = to_dm_plane_state(state);
@@ -5665,6 +5688,17 @@ static void dm_plane_helper_cleanup_fb(struct drm_plane *plane,
 	amdgpu_bo_unref(&rbo);
 }
 
+static int dm_plane_helper_check_state(struct drm_plane_state *state,
+				       struct drm_crtc_state *new_crtc_state)
+{
+	int max_downscale = 0;
+	int max_upscale = INT_MAX;
+
+	/* TODO: These should be checked against DC plane caps */
+	return drm_atomic_helper_check_plane_state(
+		state, new_crtc_state, max_downscale, max_upscale, true, true);
+}
+
 static int dm_plane_atomic_check(struct drm_plane *plane,
 				 struct drm_plane_state *state)
 {
@@ -5672,12 +5706,22 @@ static int dm_plane_atomic_check(struct drm_plane *plane,
 	struct dc *dc = adev->dm.dc;
 	struct dm_plane_state *dm_plane_state;
 	struct dc_scaling_info scaling_info;
+	struct drm_crtc_state *new_crtc_state;
 	int ret;
 
 	dm_plane_state = to_dm_plane_state(state);
 
 	if (!dm_plane_state->dc_state)
 		return 0;
+
+	new_crtc_state =
+		drm_atomic_get_new_crtc_state(state->state, state->crtc);
+	if (!new_crtc_state)
+		return -EINVAL;
+
+	ret = dm_plane_helper_check_state(state, new_crtc_state);
+	if (ret)
+		return ret;
 
 	ret = fill_dc_scaling_info(state, &scaling_info);
 	if (ret)
@@ -8195,6 +8239,10 @@ static int dm_update_plane_state(struct dc *dc,
 		if (!needs_reset)
 			return 0;
 
+		ret = dm_plane_helper_check_state(new_plane_state, new_crtc_state);
+		if (ret)
+			return ret;
+
 		WARN_ON(dm_new_plane_state->dc_state);
 
 		dc_new_plane_state = dc_create_plane_state(dc);
@@ -8477,7 +8525,7 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 	struct drm_plane_state *old_plane_state, *new_plane_state;
 	enum surface_update_type update_type = UPDATE_TYPE_FAST;
 	enum surface_update_type overall_update_type = UPDATE_TYPE_FAST;
-
+	enum dc_status status;
 	int ret, i;
 
 	/*
@@ -8689,8 +8737,10 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 		ret = drm_dp_mst_atomic_check(state);
 		if (ret)
 			goto fail;
-
-		if (dc_validate_global_state(dc, dm_state->context, false) != DC_OK) {
+		status = dc_validate_global_state(dc, dm_state->context, false);
+		if (status != DC_OK) {
+			DC_LOG_WARNING("DC global validation failure: %s (%d)",
+				       dc_status_to_str(status), status);
 			ret = -EINVAL;
 			goto fail;
 		}

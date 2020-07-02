@@ -562,6 +562,42 @@ struct atom_firmware_info_v3_3
   uint32_t reserved2[2];
 };
 
+struct atom_firmware_info_v3_4 {
+	struct atom_common_table_header table_header;
+	uint32_t firmware_revision;
+	uint32_t bootup_sclk_in10khz;
+	uint32_t bootup_mclk_in10khz;
+	uint32_t firmware_capability;             // enum atombios_firmware_capability
+	uint32_t main_call_parser_entry;          /* direct address of main parser call in VBIOS binary. */
+	uint32_t bios_scratch_reg_startaddr;      // 1st bios scratch register dword address
+	uint16_t bootup_vddc_mv;
+	uint16_t bootup_vddci_mv;
+	uint16_t bootup_mvddc_mv;
+	uint16_t bootup_vddgfx_mv;
+	uint8_t  mem_module_id;
+	uint8_t  coolingsolution_id;              /*0: Air cooling; 1: Liquid cooling ... */
+	uint8_t  reserved1[2];
+	uint32_t mc_baseaddr_high;
+	uint32_t mc_baseaddr_low;
+	uint8_t  board_i2c_feature_id;            // enum of atom_board_i2c_feature_id_def
+	uint8_t  board_i2c_feature_gpio_id;       // i2c id find in gpio_lut data table gpio_id
+	uint8_t  board_i2c_feature_slave_addr;
+	uint8_t  reserved3;
+	uint16_t bootup_mvddq_mv;
+	uint16_t bootup_mvpp_mv;
+	uint32_t zfbstartaddrin16mb;
+	uint32_t pplib_pptable_id;                // if pplib_pptable_id!=0, pplib get powerplay table inside driver instead of from VBIOS
+	uint32_t mvdd_ratio;                      // mvdd_raio = (real mvdd in power rail)*1000/(mvdd_output_from_svi2)
+	uint16_t hw_bootup_vddgfx_mv;             // hw default vddgfx voltage level decide by board strap
+	uint16_t hw_bootup_vddc_mv;               // hw default vddc voltage level decide by board strap
+	uint16_t hw_bootup_mvddc_mv;              // hw default mvddc voltage level decide by board strap
+	uint16_t hw_bootup_vddci_mv;              // hw default vddci voltage level decide by board strap
+	uint32_t maco_pwrlimit_mw;                // bomaco mode power limit in unit of m-watt
+	uint32_t usb_pwrlimit_mw;                 // power limit when USB is enable in unit of m-watt
+	uint32_t fw_reserved_size_in_kb;          // VBIOS reserved extra fw size in unit of kb.
+	uint32_t reserved[5];
+};
+
 /* 
   ***************************************************************************
     Data Table lcd_info  structure
@@ -1980,6 +2016,129 @@ struct atom_smc_dpm_info_v4_7
   uint32_t     BoardReserved[5];
 };
 
+struct smudpm_i2c_controller_config_v3
+{
+  uint8_t   Enabled;
+  uint8_t   Speed;
+  uint8_t   SlaveAddress;
+  uint8_t   ControllerPort;
+  uint8_t   ControllerName;
+  uint8_t   ThermalThrotter;
+  uint8_t   I2cProtocol;
+  uint8_t   PaddingConfig;
+};
+
+struct atom_smc_dpm_info_v4_9
+{
+  struct   atom_common_table_header  table_header;
+
+  //SECTION: Gaming Clocks
+  //uint32_t     GamingClk[6];
+
+  // SECTION: I2C Control
+  struct smudpm_i2c_controller_config_v3  I2cControllers[16];     
+
+  uint8_t      GpioScl;  // GPIO Number for SCL Line, used only for CKSVII2C1
+  uint8_t      GpioSda;  // GPIO Number for SDA Line, used only for CKSVII2C1
+  uint8_t      FchUsbPdSlaveAddr; //For requesting USB PD controller S-states via FCH I2C when entering PME turn off
+  uint8_t      I2cSpare;
+
+  // SECTION: SVI2 Board Parameters
+  uint8_t      VddGfxVrMapping;   // Use VR_MAPPING* bitfields
+  uint8_t      VddSocVrMapping;   // Use VR_MAPPING* bitfields
+  uint8_t      VddMem0VrMapping;  // Use VR_MAPPING* bitfields
+  uint8_t      VddMem1VrMapping;  // Use VR_MAPPING* bitfields
+
+  uint8_t      GfxUlvPhaseSheddingMask; // set this to 1 to set PSI0/1 to 1 in ULV mode
+  uint8_t      SocUlvPhaseSheddingMask; // set this to 1 to set PSI0/1 to 1 in ULV mode
+  uint8_t      VddciUlvPhaseSheddingMask; // set this to 1 to set PSI0/1 to 1 in ULV mode
+  uint8_t      MvddUlvPhaseSheddingMask; // set this to 1 to set PSI0/1 to 1 in ULV mode
+
+  // SECTION: Telemetry Settings
+  uint16_t     GfxMaxCurrent;   // in Amps
+  uint8_t      GfxOffset;       // in Amps
+  uint8_t      Padding_TelemetryGfx;
+
+  uint16_t     SocMaxCurrent;   // in Amps
+  uint8_t      SocOffset;       // in Amps
+  uint8_t      Padding_TelemetrySoc;
+
+  uint16_t     Mem0MaxCurrent;   // in Amps
+  uint8_t      Mem0Offset;       // in Amps
+  uint8_t      Padding_TelemetryMem0;
+  
+  uint16_t     Mem1MaxCurrent;   // in Amps
+  uint8_t      Mem1Offset;       // in Amps
+  uint8_t      Padding_TelemetryMem1;
+
+  uint32_t     MvddRatio; // This is used for MVDD  Svi2 Div Ratio workaround. It has 16 fractional bits (Q16.16)
+  
+  // SECTION: GPIO Settings
+  uint8_t      AcDcGpio;        // GPIO pin configured for AC/DC switching
+  uint8_t      AcDcPolarity;    // GPIO polarity for AC/DC switching
+  uint8_t      VR0HotGpio;      // GPIO pin configured for VR0 HOT event
+  uint8_t      VR0HotPolarity;  // GPIO polarity for VR0 HOT event
+
+  uint8_t      VR1HotGpio;      // GPIO pin configured for VR1 HOT event 
+  uint8_t      VR1HotPolarity;  // GPIO polarity for VR1 HOT event 
+  uint8_t      GthrGpio;        // GPIO pin configured for GTHR Event
+  uint8_t      GthrPolarity;    // replace GPIO polarity for GTHR
+
+  // LED Display Settings
+  uint8_t      LedPin0;         // GPIO number for LedPin[0]
+  uint8_t      LedPin1;         // GPIO number for LedPin[1]
+  uint8_t      LedPin2;         // GPIO number for LedPin[2]
+  uint8_t      LedEnableMask;
+
+  uint8_t      LedPcie;        // GPIO number for PCIE results
+  uint8_t      LedError;       // GPIO number for Error Cases
+  uint8_t      LedSpare1[2];
+
+  // SECTION: Clock Spread Spectrum
+  
+  // GFXCLK PLL Spread Spectrum
+  uint8_t      PllGfxclkSpreadEnabled;   // on or off
+  uint8_t      PllGfxclkSpreadPercent;   // Q4.4
+  uint16_t     PllGfxclkSpreadFreq;      // kHz
+
+  // GFXCLK DFLL Spread Spectrum
+  uint8_t      DfllGfxclkSpreadEnabled;   // on or off
+  uint8_t      DfllGfxclkSpreadPercent;   // Q4.4
+  uint16_t     DfllGfxclkSpreadFreq;      // kHz
+  
+  // UCLK Spread Spectrum
+  uint8_t      UclkSpreadEnabled;   // on or off
+  uint8_t      UclkSpreadPercent;   // Q4.4
+  uint16_t     UclkSpreadFreq;      // kHz
+
+  // FCLK Spread Spectrum
+  uint8_t      FclkSpreadEnabled;   // on or off
+  uint8_t      FclkSpreadPercent;   // Q4.4
+  uint16_t     FclkSpreadFreq;      // kHz
+  
+  // Section: Memory Config
+  uint32_t     MemoryChannelEnabled; // For DRAM use only, Max 32 channels enabled bit mask. 
+  
+  uint8_t      DramBitWidth; // For DRAM use only.  See Dram Bit width type defines
+  uint8_t      PaddingMem1[3];
+
+  // Section: Total Board Power
+  uint16_t     TotalBoardPower;     //Only needed for TCP Estimated case, where TCP = TGP+Total Board Power
+  uint16_t     BoardPowerPadding; 
+  
+  // SECTION: XGMI Training
+  uint8_t      XgmiLinkSpeed   [4];
+  uint8_t      XgmiLinkWidth   [4];
+
+  uint16_t     XgmiFclkFreq    [4];
+  uint16_t     XgmiSocVoltage  [4];
+
+  // SECTION: Board Reserved
+
+  uint32_t     BoardReserved[16];
+
+};
+
 /* 
   ***************************************************************************
     Data Table asic_profiling_info  structure
@@ -2311,6 +2470,130 @@ struct atom_vram_info_header_v2_4 {
   uint8_t  umcip_max_ver;
   uint8_t  mc_phy_tile_num;                              // indicate the MCD tile number which use in DramDataRemapTbl and usMcAdjustPerTileTblOffset
   struct   atom_vram_module_v10  vram_module[16];        // just for allocation, real number of blocks is in ucNumOfVRAMModule;
+};
+
+struct atom_vram_module_v11 {
+	// Design Specific Values
+	uint32_t  memory_size;                   // Total memory size in unit of MB for CONFIG_MEMSIZE zeros
+	uint32_t  channel_enable;                // bit vector, each bit indicate specific channel enable or not
+	uint16_t  mem_voltage;                   // mem_voltage
+	uint16_t  vram_module_size;              // Size of atom_vram_module_v9
+	uint8_t   ext_memory_id;                 // Current memory module ID
+	uint8_t   memory_type;                   // enum of atom_dgpu_vram_type
+	uint8_t   channel_num;                   // Number of mem. channels supported in this module
+	uint8_t   channel_width;                 // CHANNEL_16BIT/CHANNEL_32BIT/CHANNEL_64BIT
+	uint8_t   density;                       // _8Mx32, _16Mx32, _16Mx16, _32Mx16
+	uint8_t   tunningset_id;                 // MC phy registers set per.
+	uint16_t  reserved[4];                   // reserved
+	uint8_t   vender_rev_id;                 // [7:4] Revision, [3:0] Vendor code
+	uint8_t   refreshrate;			 // [1:0]=RefreshFactor (00=8ms, 01=16ms, 10=32ms,11=64ms)
+	uint8_t   vram_flags;			 // bit0= bankgroup enable
+	uint8_t   vram_rsd2;			 // reserved
+	uint16_t  gddr6_mr10;                    // gddr6 mode register10 value
+	uint16_t  gddr6_mr0;                     // gddr6 mode register0 value
+	uint16_t  gddr6_mr1;                     // gddr6 mode register1 value
+	uint16_t  gddr6_mr2;                     // gddr6 mode register2 value
+	uint16_t  gddr6_mr4;                     // gddr6 mode register4 value
+	uint16_t  gddr6_mr7;                     // gddr6 mode register7 value
+	uint16_t  gddr6_mr8;                     // gddr6 mode register8 value
+	char    dram_pnstring[40];               // part number end with '0'.
+};
+
+struct atom_gddr6_ac_timing_v2_5 {
+	uint32_t  u32umc_id_access;
+	uint8_t  RL;
+	uint8_t  WL;
+	uint8_t  tRAS;
+	uint8_t  tRC;
+
+	uint16_t  tREFI;
+	uint8_t  tRFC;
+	uint8_t  tRFCpb;
+
+	uint8_t  tRREFD;
+	uint8_t  tRCDRD;
+	uint8_t  tRCDWR;
+	uint8_t  tRP;
+
+	uint8_t  tRRDS;
+	uint8_t  tRRDL;
+	uint8_t  tWR;
+	uint8_t  tWTRS;
+
+	uint8_t  tWTRL;
+	uint8_t  tFAW;
+	uint8_t  tCCDS;
+	uint8_t  tCCDL;
+
+	uint8_t  tCRCRL;
+	uint8_t  tCRCWL;
+	uint8_t  tCKE;
+	uint8_t  tCKSRE;
+
+	uint8_t  tCKSRX;
+	uint8_t  tRTPS;
+	uint8_t  tRTPL;
+	uint8_t  tMRD;
+
+	uint8_t  tMOD;
+	uint8_t  tXS;
+	uint8_t  tXHP;
+	uint8_t  tXSMRS;
+
+	uint32_t  tXSH;
+
+	uint8_t  tPD;
+	uint8_t  tXP;
+	uint8_t  tCPDED;
+	uint8_t  tACTPDE;
+
+	uint8_t  tPREPDE;
+	uint8_t  tREFPDE;
+	uint8_t  tMRSPDEN;
+	uint8_t  tRDSRE;
+
+	uint8_t  tWRSRE;
+	uint8_t  tPPD;
+	uint8_t  tCCDMW;
+	uint8_t  tWTRTR;
+
+	uint8_t  tLTLTR;
+	uint8_t  tREFTR;
+	uint8_t  VNDR;
+	uint8_t  reserved[9];
+};
+
+struct atom_gddr6_bit_byte_remap {
+	uint32_t dphy_byteremap;    //mmUMC_DPHY_ByteRemap
+	uint32_t dphy_bitremap0;    //mmUMC_DPHY_BitRemap0
+	uint32_t dphy_bitremap1;    //mmUMC_DPHY_BitRemap1
+	uint32_t dphy_bitremap2;    //mmUMC_DPHY_BitRemap2
+	uint32_t aphy_bitremap0;    //mmUMC_APHY_BitRemap0
+	uint32_t aphy_bitremap1;    //mmUMC_APHY_BitRemap1
+	uint32_t phy_dram;          //mmUMC_PHY_DRAM
+};
+
+struct atom_gddr6_dram_data_remap {
+	uint32_t table_size;
+	uint8_t phyintf_ck_inverted[8];     //UMC_PHY_PHYINTF_CNTL.INV_CK
+	struct atom_gddr6_bit_byte_remap bit_byte_remap[16];
+};
+
+struct atom_vram_info_header_v2_5 {
+	struct   atom_common_table_header table_header;
+	uint16_t mem_adjust_tbloffset;                         // offset of atom_umc_init_reg_block structure for memory vendor specific UMC adjust settings
+	uint16_t gddr6_ac_timing_offset;                     // offset of atom_gddr6_ac_timing_v2_5 structure for memory clock specific UMC settings
+	uint16_t mc_adjust_pertile_tbloffset;                  // offset of atom_umc_init_reg_block structure for Per Byte Offset Preset Settings
+	uint16_t mc_phyinit_tbloffset;                         // offset of atom_umc_init_reg_block structure for MC phy init set
+	uint16_t dram_data_remap_tbloffset;                    // offset of atom_gddr6_dram_data_remap array to indicate DRAM data lane to GPU mapping
+	uint16_t reserved;                                     // offset of reserved
+	uint16_t post_ucode_init_offset;                       // offset of atom_umc_init_reg_block structure for MC phy init after MC uCode complete umc init
+	uint16_t strobe_mode_patch_tbloffset;                  // offset of atom_umc_init_reg_block structure for Strobe Mode memory clock specific UMC settings
+	uint8_t  vram_module_num;                              // indicate number of VRAM module
+	uint8_t  umcip_min_ver;
+	uint8_t  umcip_max_ver;
+	uint8_t  mc_phy_tile_num;                              // indicate the MCD tile number which use in DramDataRemapTbl and usMcAdjustPerTileTblOffset
+	struct   atom_vram_module_v11  vram_module[16];        // just for allocation, real number of blocks is in ucNumOfVRAMModule;
 };
 
 /* 

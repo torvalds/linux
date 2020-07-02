@@ -167,7 +167,8 @@ bool edp_receiver_ready_T9(struct dc_link *link)
 		} while (++tries < 50);
 	}
 
-	if (link->local_sink->edid_caps.panel_patch.extra_delay_backlight_off > 0)
+	if (link->local_sink &&
+			link->local_sink->edid_caps.panel_patch.extra_delay_backlight_off > 0)
 		udelay(link->local_sink->edid_caps.panel_patch.extra_delay_backlight_off * 1000);
 
 	return result;
@@ -201,7 +202,8 @@ bool edp_receiver_ready_T7(struct dc_link *link)
 		} while (time_taken_in_ns < 50 * 1000000); //MAx T7 is 50ms
 	}
 
-	if (link->local_sink->edid_caps.panel_patch.extra_t7_ms > 0)
+	if (link->local_sink &&
+			link->local_sink->edid_caps.panel_patch.extra_t7_ms > 0)
 		udelay(link->local_sink->edid_caps.panel_patch.extra_t7_ms * 1000);
 
 	return result;
@@ -281,7 +283,7 @@ void dp_set_hw_lane_settings(
 {
 	struct link_encoder *encoder = link->link_enc;
 
-	if (!link->is_lttpr_mode_transparent && !is_immediate_downstream(link, offset))
+	if (link->lttpr_non_transparent_mode && !is_immediate_downstream(link, offset))
 		return;
 
 	/* call Encoder to set lane settings */

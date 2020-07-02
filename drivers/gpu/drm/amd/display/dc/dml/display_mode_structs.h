@@ -82,6 +82,7 @@ struct _vcs_dpi_soc_bounding_box_st {
 	double pct_ideal_dram_sdp_bw_after_urgent_pixel_only; // PercentOfIdealDRAMFabricAndSDPPortBWReceivedAfterUrgLatencyPixelDataOnly
 	double pct_ideal_dram_sdp_bw_after_urgent_pixel_and_vm;
 	double pct_ideal_dram_sdp_bw_after_urgent_vm_only;
+	double pct_ideal_sdp_bw_after_urgent;
 	double max_avg_sdp_bw_use_normal_percent;
 	double max_avg_dram_bw_use_normal_percent;
 	unsigned int max_request_size_bytes;
@@ -123,8 +124,12 @@ struct _vcs_dpi_soc_bounding_box_st {
 
 struct _vcs_dpi_ip_params_st {
 	bool use_min_dcfclk;
+#ifdef CONFIG_DRM_AMD_DC_DCN3_0
+	bool clamp_min_dcfclk;
+#endif
 	bool gpuvm_enable;
 	bool hostvm_enable;
+	bool dsc422_native_support;
 	unsigned int gpuvm_max_page_table_levels;
 	unsigned int hostvm_max_page_table_levels;
 	unsigned int hostvm_cached_page_table_levels;
@@ -143,6 +148,7 @@ struct _vcs_dpi_ip_params_st {
 	unsigned char pte_enable;
 	unsigned int pte_chunk_size_kbytes;
 	unsigned int meta_chunk_size_kbytes;
+	unsigned int min_meta_chunk_size_bytes;
 	unsigned int writeback_chunk_size_kbytes;
 	unsigned int line_buffer_size_bits;
 	unsigned int max_line_buffer_lines;
@@ -158,6 +164,7 @@ struct _vcs_dpi_ip_params_st {
 	double writeback_max_vscl_ratio;
 	double writeback_min_hscl_ratio;
 	double writeback_min_vscl_ratio;
+	double maximum_dsc_bits_per_component;
 	unsigned int writeback_max_hscl_taps;
 	unsigned int writeback_max_vscl_taps;
 	unsigned int writeback_line_buffer_luma_buffer_size;
@@ -219,11 +226,14 @@ struct _vcs_dpi_display_xfc_params_st {
 
 struct _vcs_dpi_display_pipe_source_params_st {
 	int source_format;
+	double dcc_fraction_of_zs_req_luma;
+	double dcc_fraction_of_zs_req_chroma;
 	unsigned char dcc;
 	unsigned int dcc_rate;
 	unsigned int dcc_rate_chroma;
 	unsigned char dcc_use_global;
 	unsigned char vm;
+	bool unbounded_req_mode;
 	bool gpuvm;    // gpuvm enabled
 	bool hostvm;    // hostvm enabled
 	bool gpuvm_levels_force_en;
@@ -324,6 +334,8 @@ struct _vcs_dpi_display_pipe_dest_params_st {
 	unsigned int vblank_end;
 	unsigned int htotal;
 	unsigned int vtotal;
+	unsigned int refresh_rate;
+	unsigned int vfront_porch;
 	unsigned int vactive;
 	unsigned int hactive;
 	unsigned int vstartup_start;
@@ -333,6 +345,7 @@ struct _vcs_dpi_display_pipe_dest_params_st {
 	unsigned char interlaced;
 	double pixel_rate_mhz;
 	unsigned char synchronized_vblank_all_planes;
+	unsigned char synchronize_timing_if_single_refresh_rate;
 	unsigned char otg_inst;
 	unsigned int odm_combine;
 	unsigned char use_maximum_vstartup;
@@ -469,6 +482,7 @@ struct _vcs_dpi_display_dlg_regs_st {
 	unsigned int refcyc_per_vm_req_vblank;
 	unsigned int refcyc_per_vm_req_flip;
 	unsigned int refcyc_per_vm_dmdata;
+	unsigned int dmdata_dl_delta;
 };
 
 struct _vcs_dpi_display_ttu_regs_st {

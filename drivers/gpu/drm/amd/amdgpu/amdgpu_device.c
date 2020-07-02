@@ -80,6 +80,7 @@ MODULE_FIRMWARE("amdgpu/renoir_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/navi10_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/navi14_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/navi12_gpu_info.bin");
+MODULE_FIRMWARE("amdgpu/sienna_cichlid_gpu_info.bin");
 
 #define AMDGPU_RESUME_MS		2000
 
@@ -112,6 +113,7 @@ const char *amdgpu_asic_name[] = {
 	"NAVI10",
 	"NAVI14",
 	"NAVI12",
+	"SIENNA_CICHLID",
 	"LAST",
 };
 
@@ -907,6 +909,11 @@ int amdgpu_device_resize_fb_bar(struct amdgpu_device *adev)
 	if (amdgpu_sriov_vf(adev))
 		return 0;
 
+	/* skip if the bios has already enabled large BAR */
+	if (adev->gmc.real_vram_size &&
+	    (pci_resource_len(adev->pdev, 0) >= adev->gmc.real_vram_size))
+		return 0;
+
 	/* Check if the root BUS has 64bit memory resources */
 	root = adev->pdev->bus;
 	while (root->parent)
@@ -1157,6 +1164,16 @@ static int amdgpu_device_check_arguments(struct amdgpu_device *adev)
 	    (amdgpu_vm_fragment_size > 9 || amdgpu_vm_fragment_size < 4)) {
 		dev_warn(adev->dev, "valid range is between 4 and 9\n");
 		amdgpu_vm_fragment_size = -1;
+	}
+
+	if (amdgpu_sched_hw_submission < 2) {
+		dev_warn(adev->dev, "sched hw submission jobs (%d) must be at least 2\n",
+			 amdgpu_sched_hw_submission);
+		amdgpu_sched_hw_submission = 2;
+	} else if (!is_power_of_2(amdgpu_sched_hw_submission)) {
+		dev_warn(adev->dev, "sched hw submission jobs (%d) must be a power of 2\n",
+			 amdgpu_sched_hw_submission);
+		amdgpu_sched_hw_submission = roundup_pow_of_two(amdgpu_sched_hw_submission);
 	}
 
 	amdgpu_device_check_smu_prv_buffer_size(adev);
@@ -1527,22 +1544,25 @@ static void amdgpu_device_enable_virtual_display(struct amdgpu_device *adev)
 static int amdgpu_device_parse_gpu_info_fw(struct amdgpu_device *adev)
 {
 	const char *chip_name;
-	char fw_name[30];
+	char fw_name[40];
 	int err;
 	const struct gpu_info_firmware_header_v1_0 *hdr;
 
 	adev->firmware.gpu_info_fw = NULL;
 
+	if (adev->discovery_bin) {
+		amdgpu_discovery_get_gfx_info(adev);
+
+		/*
+		 * FIXME: The bounding box is still needed by Navi12, so
+		 * temporarily read it from gpu_info firmware. Should be droped
+		 * when DAL no longer needs it.
+		 */
+		if (adev->asic_type != CHIP_NAVI12)
+			return 0;
+	}
+
 	switch (adev->asic_type) {
-	case CHIP_TOPAZ:
-	case CHIP_TONGA:
-	case CHIP_FIJI:
-	case CHIP_POLARIS10:
-	case CHIP_POLARIS11:
-	case CHIP_POLARIS12:
-	case CHIP_VEGAM:
-	case CHIP_CARRIZO:
-	case CHIP_STONEY:
 #ifdef CONFIG_DRM_AMDGPU_SI
 	case CHIP_VERDE:
 	case CHIP_TAHITI:
@@ -1557,6 +1577,15 @@ static int amdgpu_device_parse_gpu_info_fw(struct amdgpu_device *adev)
 	case CHIP_KABINI:
 	case CHIP_MULLINS:
 #endif
+	case CHIP_TOPAZ:
+	case CHIP_TONGA:
+	case CHIP_FIJI:
+	case CHIP_POLARIS10:
+	case CHIP_POLARIS11:
+	case CHIP_POLARIS12:
+	case CHIP_VEGAM:
+	case CHIP_CARRIZO:
+	case CHIP_STONEY:
 	case CHIP_VEGA20:
 	default:
 		return 0;
@@ -1589,6 +1618,9 @@ static int amdgpu_device_parse_gpu_info_fw(struct amdgpu_device *adev)
 	case CHIP_NAVI12:
 		chip_name = "navi12";
 		break;
+	case CHIP_SIENNA_CICHLID:
+		chip_name = "sienna_cichlid";
+		break;
 	}
 
 	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_gpu_info.bin", chip_name);
@@ -1617,10 +1649,11 @@ static int amdgpu_device_parse_gpu_info_fw(struct amdgpu_device *adev)
 			(const struct gpu_info_firmware_v1_0 *)(adev->firmware.gpu_info_fw->data +
 								le32_to_cpu(hdr->header.ucode_array_offset_bytes));
 
-		if (amdgpu_discovery && adev->asic_type >= CHIP_NAVI10) {
-			amdgpu_discovery_get_gfx_info(adev);
+		/*
+		 * Should be droped when DAL no longer needs it.
+		 */
+		if (adev->asic_type == CHIP_NAVI12)
 			goto parse_soc_bounding_box;
-		}
 
 		adev->gfx.config.max_shader_engines = le32_to_cpu(gpu_info_fw->gc_num_se);
 		adev->gfx.config.max_cu_per_sh = le32_to_cpu(gpu_info_fw->gc_num_cu_per_sh);
@@ -1653,7 +1686,7 @@ static int amdgpu_device_parse_gpu_info_fw(struct amdgpu_device *adev)
 parse_soc_bounding_box:
 		/*
 		 * soc bounding box info is not integrated in disocovery table,
-		 * we always need to parse it from gpu info firmware.
+		 * we always need to parse it from gpu info firmware if needed.
 		 */
 		if (hdr->version_minor == 2) {
 			const struct gpu_info_firmware_v1_2 *gpu_info_fw =
@@ -1690,24 +1723,6 @@ static int amdgpu_device_ip_early_init(struct amdgpu_device *adev)
 	amdgpu_device_enable_virtual_display(adev);
 
 	switch (adev->asic_type) {
-	case CHIP_TOPAZ:
-	case CHIP_TONGA:
-	case CHIP_FIJI:
-	case CHIP_POLARIS10:
-	case CHIP_POLARIS11:
-	case CHIP_POLARIS12:
-	case CHIP_VEGAM:
-	case CHIP_CARRIZO:
-	case CHIP_STONEY:
-		if (adev->asic_type == CHIP_CARRIZO || adev->asic_type == CHIP_STONEY)
-			adev->family = AMDGPU_FAMILY_CZ;
-		else
-			adev->family = AMDGPU_FAMILY_VI;
-
-		r = vi_set_ip_blocks(adev);
-		if (r)
-			return r;
-		break;
 #ifdef CONFIG_DRM_AMDGPU_SI
 	case CHIP_VERDE:
 	case CHIP_TAHITI:
@@ -1726,24 +1741,41 @@ static int amdgpu_device_ip_early_init(struct amdgpu_device *adev)
 	case CHIP_KAVERI:
 	case CHIP_KABINI:
 	case CHIP_MULLINS:
-		if ((adev->asic_type == CHIP_BONAIRE) || (adev->asic_type == CHIP_HAWAII))
-			adev->family = AMDGPU_FAMILY_CI;
-		else
+		if (adev->flags & AMD_IS_APU)
 			adev->family = AMDGPU_FAMILY_KV;
+		else
+			adev->family = AMDGPU_FAMILY_CI;
 
 		r = cik_set_ip_blocks(adev);
 		if (r)
 			return r;
 		break;
 #endif
+	case CHIP_TOPAZ:
+	case CHIP_TONGA:
+	case CHIP_FIJI:
+	case CHIP_POLARIS10:
+	case CHIP_POLARIS11:
+	case CHIP_POLARIS12:
+	case CHIP_VEGAM:
+	case CHIP_CARRIZO:
+	case CHIP_STONEY:
+		if (adev->flags & AMD_IS_APU)
+			adev->family = AMDGPU_FAMILY_CZ;
+		else
+			adev->family = AMDGPU_FAMILY_VI;
+
+		r = vi_set_ip_blocks(adev);
+		if (r)
+			return r;
+		break;
 	case CHIP_VEGA10:
 	case CHIP_VEGA12:
 	case CHIP_VEGA20:
 	case CHIP_RAVEN:
 	case CHIP_ARCTURUS:
 	case CHIP_RENOIR:
-		if (adev->asic_type == CHIP_RAVEN ||
-		    adev->asic_type == CHIP_RENOIR)
+		if (adev->flags & AMD_IS_APU)
 			adev->family = AMDGPU_FAMILY_RV;
 		else
 			adev->family = AMDGPU_FAMILY_AI;
@@ -1755,6 +1787,7 @@ static int amdgpu_device_ip_early_init(struct amdgpu_device *adev)
 	case  CHIP_NAVI10:
 	case  CHIP_NAVI14:
 	case  CHIP_NAVI12:
+	case  CHIP_SIENNA_CICHLID:
 		adev->family = AMDGPU_FAMILY_NV;
 
 		r = nv_set_ip_blocks(adev);
@@ -2308,6 +2341,9 @@ static int amdgpu_device_ip_fini(struct amdgpu_device *adev)
 {
 	int i, r;
 
+	if (amdgpu_sriov_vf(adev) && adev->virt.ras_init_done)
+		amdgpu_virt_release_ras_err_handler_data(adev);
+
 	amdgpu_ras_pre_fini(adev);
 
 	if (adev->gmc.xgmi.num_physical_nodes > 1)
@@ -2779,6 +2815,9 @@ bool amdgpu_device_asic_has_dc_support(enum amd_asic_type asic_type)
 	case CHIP_NAVI12:
 	case CHIP_RENOIR:
 #endif
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	case CHIP_SIENNA_CICHLID:
+#endif
 		return amdgpu_dc != 0;
 #endif
 	default:
@@ -3035,6 +3074,17 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 
 	adev->gfx.gfx_off_req_count = 1;
 	adev->pm.ac_power = power_supply_is_system_supplied() > 0;
+
+	atomic_set(&adev->throttling_logging_enabled, 1);
+	/*
+	 * If throttling continues, logging will be performed every minute
+	 * to avoid log flooding. "-1" is subtracted since the thermal
+	 * throttling interrupt comes every second. Thus, the total logging
+	 * interval is 59 seconds(retelimited printk interval) + 1(waiting
+	 * for throttling interrupt) = 60 seconds.
+	 */
+	ratelimit_state_init(&adev->throttling_logging_rs, (60 - 1) * HZ, 1);
+	ratelimit_set_flags(&adev->throttling_logging_rs, RATELIMIT_MSG_ON_RELEASE);
 
 	/* Registers mapping */
 	/* TODO: block userspace mapping of io register */
@@ -3330,10 +3380,8 @@ void amdgpu_device_fini(struct amdgpu_device *adev)
 		amdgpu_pm_sysfs_fini(adev);
 	amdgpu_fbdev_fini(adev);
 	r = amdgpu_device_ip_fini(adev);
-	if (adev->firmware.gpu_info_fw) {
-		release_firmware(adev->firmware.gpu_info_fw);
-		adev->firmware.gpu_info_fw = NULL;
-	}
+	release_firmware(adev->firmware.gpu_info_fw);
+	adev->firmware.gpu_info_fw = NULL;
 	adev->accel_working = false;
 	/* free i2c buses */
 	if (!amdgpu_device_has_dc_support(adev))
@@ -3365,7 +3413,7 @@ void amdgpu_device_fini(struct amdgpu_device *adev)
 	sysfs_remove_files(&adev->dev->kobj, amdgpu_dev_attributes);
 	if (IS_ENABLED(CONFIG_PERF_EVENTS))
 		amdgpu_pmu_fini(adev);
-	if (amdgpu_discovery && adev->asic_type >= CHIP_NAVI10)
+	if (adev->discovery_bin)
 		amdgpu_discovery_fini(adev);
 }
 
@@ -3377,7 +3425,6 @@ void amdgpu_device_fini(struct amdgpu_device *adev)
  * amdgpu_device_suspend - initiate device suspend
  *
  * @dev: drm dev pointer
- * @suspend: suspend state
  * @fbcon : notify the fbdev of suspend
  *
  * Puts the hw in the suspend state (all asics).
@@ -3474,7 +3521,6 @@ int amdgpu_device_suspend(struct drm_device *dev, bool fbcon)
  * amdgpu_device_resume - initiate device resume
  *
  * @dev: drm dev pointer
- * @resume: resume state
  * @fbcon : notify the fbdev of resume
  *
  * Bring the hw back to operating state (all asics).

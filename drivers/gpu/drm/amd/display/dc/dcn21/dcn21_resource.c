@@ -88,7 +88,6 @@
 #include "dce/dmub_psr.h"
 #include "dce/dmub_abm.h"
 
-#define SOC_BOUNDING_BOX_VALID false
 #define DC_LOGGER_INIT(logger)
 
 
@@ -878,7 +877,6 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.scl_reset_length10 = true,
 		.sanity_checks = true,
 		.disable_48mhz_pwrdwn = false,
-		.nv12_iflip_vm_wa = true,
 		.usbc_combo_phy_reset_wa = true
 };
 
@@ -1908,6 +1906,8 @@ static bool dcn21_resource_construct(
 			BREAK_TO_DEBUGGER();
 			goto create_fail;
 		}
+
+		dc->debug.dmub_command_table = false;
 	}
 
 	if (dc->config.disable_dmcu) {

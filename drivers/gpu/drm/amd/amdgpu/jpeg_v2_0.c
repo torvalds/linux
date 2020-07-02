@@ -26,6 +26,7 @@
 #include "amdgpu_pm.h"
 #include "soc15.h"
 #include "soc15d.h"
+#include "jpeg_v2_0.h"
 
 #include "vcn/vcn_2_0_0_offset.h"
 #include "vcn/vcn_2_0_0_sh_mask.h"
@@ -229,9 +230,9 @@ static int jpeg_v2_0_disable_power_gating(struct amdgpu_device *adev)
 		data = 1 << UVD_PGFSM_CONFIG__UVDJ_PWR_CONFIG__SHIFT;
 		WREG32(SOC15_REG_OFFSET(JPEG, 0, mmUVD_PGFSM_CONFIG), data);
 
-		SOC15_WAIT_ON_RREG(JPEG, 0,
+		r = SOC15_WAIT_ON_RREG(JPEG, 0,
 			mmUVD_PGFSM_STATUS, UVD_PGFSM_STATUS_UVDJ_PWR_ON,
-			UVD_PGFSM_STATUS__UVDJ_PWR_STATUS_MASK, r);
+			UVD_PGFSM_STATUS__UVDJ_PWR_STATUS_MASK);
 
 		if (r) {
 			DRM_ERROR("amdgpu: JPEG disable power gating failed\n");
@@ -260,9 +261,9 @@ static int jpeg_v2_0_enable_power_gating(struct amdgpu_device* adev)
 		data = 2 << UVD_PGFSM_CONFIG__UVDJ_PWR_CONFIG__SHIFT;
 		WREG32(SOC15_REG_OFFSET(JPEG, 0, mmUVD_PGFSM_CONFIG), data);
 
-		SOC15_WAIT_ON_RREG(JPEG, 0, mmUVD_PGFSM_STATUS,
+		r = SOC15_WAIT_ON_RREG(JPEG, 0, mmUVD_PGFSM_STATUS,
 			(2 << UVD_PGFSM_STATUS__UVDJ_PWR_STATUS__SHIFT),
-			UVD_PGFSM_STATUS__UVDJ_PWR_STATUS_MASK, r);
+			UVD_PGFSM_STATUS__UVDJ_PWR_STATUS_MASK);
 
 		if (r) {
 			DRM_ERROR("amdgpu: JPEG enable power gating failed\n");
@@ -676,10 +677,10 @@ static bool jpeg_v2_0_is_idle(void *handle)
 static int jpeg_v2_0_wait_for_idle(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	int ret = 0;
+	int ret;
 
-	SOC15_WAIT_ON_RREG(JPEG, 0, mmUVD_JRBC_STATUS, UVD_JRBC_STATUS__RB_JOB_DONE_MASK,
-		UVD_JRBC_STATUS__RB_JOB_DONE_MASK, ret);
+	ret = SOC15_WAIT_ON_RREG(JPEG, 0, mmUVD_JRBC_STATUS, UVD_JRBC_STATUS__RB_JOB_DONE_MASK,
+		UVD_JRBC_STATUS__RB_JOB_DONE_MASK);
 
 	return ret;
 }

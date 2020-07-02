@@ -29,6 +29,15 @@
 #include "smu_v12_0.h"
 #include "renoir_ppt.h"
 
+/*
+ * DO NOT use these for err/warn/info/debug messages.
+ * Use dev_err, dev_warn, dev_info and dev_dbg instead.
+ * They are more MGPU friendly.
+ */
+#undef pr_err
+#undef pr_warn
+#undef pr_info
+#undef pr_debug
 
 #define CLK_MAP(clk, index) \
 	[SMU_##clk] = {1, (index)}
@@ -175,7 +184,7 @@ static int renoir_get_metrics_table(struct smu_context *smu,
 		ret = smu_update_table(smu, SMU_TABLE_SMU_METRICS, 0,
 				(void *)smu_table->metrics_table, false);
 		if (ret) {
-			pr_info("Failed to export SMU metrics table!\n");
+			dev_info(smu->adev->dev, "Failed to export SMU metrics table!\n");
 			mutex_unlock(&smu->metrics_lock);
 			return ret;
 		}
@@ -340,7 +349,7 @@ static enum amd_pm_state_type renoir_get_current_power_state(struct smu_context 
 	return pm_type;
 }
 
-static int renoir_dpm_set_uvd_enable(struct smu_context *smu, bool enable)
+static int renoir_dpm_set_vcn_enable(struct smu_context *smu, bool enable)
 {
 	struct smu_power_context *smu_power = &smu->smu_power;
 	struct smu_power_gate *power_gate = &smu_power->power_gate;
@@ -508,7 +517,7 @@ static int renoir_get_current_activity_percent(struct smu_context *smu,
 		*value = metrics.AverageGfxActivity / 100;
 		break;
 	default:
-		pr_err("Invalid sensor for retrieving clock activity\n");
+		dev_err(smu->adev->dev, "Invalid sensor for retrieving clock activity\n");
 		return -EINVAL;
 	}
 
@@ -620,7 +629,7 @@ static int renoir_force_clk_levels(struct smu_context *smu,
 	case SMU_GFXCLK:
 	case SMU_SCLK:
 		if (soft_min_level > 2 || soft_max_level > 2) {
-			pr_info("Currently sclk only support 3 levels on APU\n");
+			dev_info(smu->adev->dev, "Currently sclk only support 3 levels on APU\n");
 			return -EINVAL;
 		}
 
@@ -674,7 +683,7 @@ static int renoir_set_power_profile_mode(struct smu_context *smu, long *input, u
 	uint32_t profile_mode = input[size];
 
 	if (profile_mode > PP_SMC_POWER_PROFILE_CUSTOM) {
-		pr_err("Invalid power profile mode %d\n", smu->power_profile_mode);
+		dev_err(smu->adev->dev, "Invalid power profile mode %d\n", smu->power_profile_mode);
 		return -EINVAL;
 	}
 
@@ -685,7 +694,7 @@ static int renoir_set_power_profile_mode(struct smu_context *smu, long *input, u
 		 * TODO: If some case need switch to powersave/default power mode
 		 * then can consider enter WORKLOAD_COMPUTE/WORKLOAD_CUSTOM for power saving.
 		 */
-		pr_err_once("Unsupported power profile mode %d on RENOIR\n",smu->power_profile_mode);
+		dev_err_once(smu->adev->dev, "Unsupported power profile mode %d on RENOIR\n",smu->power_profile_mode);
 		return -EINVAL;
 	}
 
@@ -693,7 +702,7 @@ static int renoir_set_power_profile_mode(struct smu_context *smu, long *input, u
 				    1 << workload_type,
 				    NULL);
 	if (ret) {
-		pr_err_once("Fail to set workload type %d\n", workload_type);
+		dev_err_once(smu->adev->dev, "Fail to set workload type %d\n", workload_type);
 		return ret;
 	}
 
@@ -826,7 +835,7 @@ static int renoir_set_watermarks_table(
 	if (!(smu->watermarks_bitmap & WATERMARKS_LOADED)) {
 		ret = smu_write_watermarks_table(smu);
 		if (ret) {
-			pr_err("Failed to update WMTABLE!");
+			dev_err(smu->adev->dev, "Failed to update WMTABLE!");
 			return ret;
 		}
 		smu->watermarks_bitmap |= WATERMARKS_LOADED;
@@ -920,7 +929,7 @@ static const struct pptable_funcs renoir_ppt_funcs = {
 	.get_dpm_clk_limited = renoir_get_dpm_clk_limited,
 	.print_clk_levels = renoir_print_clk_levels,
 	.get_current_power_state = renoir_get_current_power_state,
-	.dpm_set_uvd_enable = renoir_dpm_set_uvd_enable,
+	.dpm_set_vcn_enable = renoir_dpm_set_vcn_enable,
 	.dpm_set_jpeg_enable = renoir_dpm_set_jpeg_enable,
 	.get_current_clk_freq_by_table = renoir_get_current_clk_freq_by_table,
 	.force_dpm_limit_value = renoir_force_dpm_limit_value,
@@ -937,14 +946,12 @@ static const struct pptable_funcs renoir_ppt_funcs = {
 	.check_fw_status = smu_v12_0_check_fw_status,
 	.check_fw_version = smu_v12_0_check_fw_version,
 	.powergate_sdma = smu_v12_0_powergate_sdma,
-	.powergate_vcn = smu_v12_0_powergate_vcn,
-	.powergate_jpeg = smu_v12_0_powergate_jpeg,
 	.send_smc_msg_with_param = smu_v12_0_send_msg_with_param,
 	.set_gfx_cgpg = smu_v12_0_set_gfx_cgpg,
 	.gfx_off_control = smu_v12_0_gfx_off_control,
 	.init_smc_tables = smu_v12_0_init_smc_tables,
 	.fini_smc_tables = smu_v12_0_fini_smc_tables,
-	.populate_smc_tables = smu_v12_0_populate_smc_tables,
+	.set_default_dpm_table = smu_v12_0_set_default_dpm_tables,
 	.get_enabled_mask = smu_v12_0_get_enabled_mask,
 	.get_current_clk_freq = smu_v12_0_get_current_clk_freq,
 	.get_dpm_ultimate_freq = smu_v12_0_get_dpm_ultimate_freq,

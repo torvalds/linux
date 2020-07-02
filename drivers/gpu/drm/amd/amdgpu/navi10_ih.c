@@ -34,6 +34,9 @@
 
 #define MAX_REARM_RETRY 10
 
+#define mmIH_CHICKEN_Sienna_Cichlid                 0x018d
+#define mmIH_CHICKEN_Sienna_Cichlid_BASE_IDX        0
+
 static void navi10_ih_set_interrupt_funcs(struct amdgpu_device *adev);
 
 /**
@@ -265,10 +268,20 @@ static int navi10_ih_irq_init(struct amdgpu_device *adev)
 
 	if (unlikely(adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT)) {
 		if (ih->use_bus_addr) {
-			ih_chicken = RREG32_SOC15(OSSSYS, 0, mmIH_CHICKEN);
-			ih_chicken = REG_SET_FIELD(ih_chicken,
-					IH_CHICKEN, MC_SPACE_GPA_ENABLE, 1);
-			WREG32_SOC15(OSSSYS, 0, mmIH_CHICKEN, ih_chicken);
+			switch (adev->asic_type) {
+			case CHIP_SIENNA_CICHLID:
+				ih_chicken = RREG32_SOC15(OSSSYS, 0, mmIH_CHICKEN_Sienna_Cichlid);
+				ih_chicken = REG_SET_FIELD(ih_chicken,
+						IH_CHICKEN, MC_SPACE_GPA_ENABLE, 1);
+				WREG32_SOC15(OSSSYS, 0, mmIH_CHICKEN_Sienna_Cichlid, ih_chicken);
+				break;
+			default:
+				ih_chicken = RREG32_SOC15(OSSSYS, 0, mmIH_CHICKEN);
+				ih_chicken = REG_SET_FIELD(ih_chicken,
+						IH_CHICKEN, MC_SPACE_GPA_ENABLE, 1);
+				WREG32_SOC15(OSSSYS, 0, mmIH_CHICKEN, ih_chicken);
+				break;
+			}
 		}
 	}
 

@@ -41,9 +41,11 @@
 #include "si_dma.h"
 #include "dce_v6_0.h"
 #include "si.h"
+#include "uvd_v3_1.h"
 #include "dce_virtual.h"
 #include "gca/gfx_6_0_d.h"
 #include "oss/oss_1_0_d.h"
+#include "oss/oss_1_0_sh_mask.h"
 #include "gmc/gmc_6_0_d.h"
 #include "dce/dce_6_0_d.h"
 #include "uvd/uvd_4_0_d.h"
@@ -973,6 +975,28 @@ static void si_smc_wreg(struct amdgpu_device *adev, u32 reg, u32 v)
 	spin_unlock_irqrestore(&adev->smc_idx_lock, flags);
 }
 
+static u32 si_uvd_ctx_rreg(struct amdgpu_device *adev, u32 reg)
+{
+	unsigned long flags;
+	u32 r;
+
+	spin_lock_irqsave(&adev->uvd_ctx_idx_lock, flags);
+	WREG32(mmUVD_CTX_INDEX, ((reg) & 0x1ff));
+	r = RREG32(mmUVD_CTX_DATA);
+	spin_unlock_irqrestore(&adev->uvd_ctx_idx_lock, flags);
+	return r;
+}
+
+static void si_uvd_ctx_wreg(struct amdgpu_device *adev, u32 reg, u32 v)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&adev->uvd_ctx_idx_lock, flags);
+	WREG32(mmUVD_CTX_INDEX, ((reg) & 0x1ff));
+	WREG32(mmUVD_CTX_DATA, (v));
+	spin_unlock_irqrestore(&adev->uvd_ctx_idx_lock, flags);
+}
+
 static struct amdgpu_allowed_register_entry si_allowed_read_registers[] = {
 	{GRBM_STATUS},
 	{mmGRBM_STATUS2},
@@ -1443,8 +1467,8 @@ static int si_common_early_init(void *handle)
 	adev->pcie_wreg = &si_pcie_wreg;
 	adev->pciep_rreg = &si_pciep_rreg;
 	adev->pciep_wreg = &si_pciep_wreg;
-	adev->uvd_ctx_rreg = NULL;
-	adev->uvd_ctx_wreg = NULL;
+	adev->uvd_ctx_rreg = si_uvd_ctx_rreg;
+	adev->uvd_ctx_wreg = si_uvd_ctx_wreg;
 	adev->didt_rreg = NULL;
 	adev->didt_wreg = NULL;
 
@@ -2173,7 +2197,7 @@ int si_set_ip_blocks(struct amdgpu_device *adev)
 			amdgpu_device_ip_block_add(adev, &dce_virtual_ip_block);
 		else
 			amdgpu_device_ip_block_add(adev, &dce_v6_0_ip_block);
-		/* amdgpu_device_ip_block_add(adev, &uvd_v3_1_ip_block); */
+		amdgpu_device_ip_block_add(adev, &uvd_v3_1_ip_block);
 		/* amdgpu_device_ip_block_add(adev, &vce_v1_0_ip_block); */
 		break;
 	case CHIP_OLAND:
@@ -2187,8 +2211,7 @@ int si_set_ip_blocks(struct amdgpu_device *adev)
 			amdgpu_device_ip_block_add(adev, &dce_virtual_ip_block);
 		else
 			amdgpu_device_ip_block_add(adev, &dce_v6_4_ip_block);
-
-		/* amdgpu_device_ip_block_add(adev, &uvd_v3_1_ip_block); */
+		amdgpu_device_ip_block_add(adev, &uvd_v3_1_ip_block);
 		/* amdgpu_device_ip_block_add(adev, &vce_v1_0_ip_block); */
 		break;
 	case CHIP_HAINAN:

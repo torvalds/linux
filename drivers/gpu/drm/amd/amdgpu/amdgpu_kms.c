@@ -167,18 +167,33 @@ int amdgpu_driver_load_kms(struct drm_device *dev, unsigned long flags)
 	}
 
 	if (amdgpu_device_supports_boco(dev) &&
-	    (amdgpu_runtime_pm != 0)) /* enable runpm by default for boco */
+	    (amdgpu_runtime_pm != 0)) { /* enable runpm by default for boco */
 		adev->runpm = true;
-	else if (amdgpu_device_supports_baco(dev) &&
-		 (amdgpu_runtime_pm != 0) &&
-		 (adev->asic_type >= CHIP_TOPAZ) &&
-		 (adev->asic_type != CHIP_VEGA10) &&
-		 (adev->asic_type != CHIP_VEGA20) &&
-		 (adev->asic_type != CHIP_ARCTURUS)) /* enable runpm on VI+ */
-		adev->runpm = true;
-	else if (amdgpu_device_supports_baco(dev) &&
-		 (amdgpu_runtime_pm > 0))  /* enable runpm if runpm=1 on CI */
-		adev->runpm = true;
+	} else if (amdgpu_device_supports_baco(dev) &&
+		   (amdgpu_runtime_pm != 0)) {
+		switch (adev->asic_type) {
+#ifdef CONFIG_DRM_AMDGPU_CIK
+		case CHIP_BONAIRE:
+		case CHIP_HAWAII:
+#endif
+		case CHIP_VEGA20:
+		case CHIP_ARCTURUS:
+		case CHIP_SIENNA_CICHLID:
+			/* enable runpm if runpm=1 */
+			if (amdgpu_runtime_pm > 0)
+				adev->runpm = true;
+			break;
+		case CHIP_VEGA10:
+			/* turn runpm on if noretry=0 */
+			if (!amdgpu_noretry)
+				adev->runpm = true;
+			break;
+		default:
+			/* enable runpm on VI+ */
+			adev->runpm = true;
+			break;
+		}
+	}
 
 	/* Call ACPI methods: require modeset init
 	 * but failure is not fatal
@@ -991,7 +1006,7 @@ int amdgpu_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 
 	r = pm_runtime_get_sync(dev->dev);
 	if (r < 0)
-		return r;
+		goto pm_put;
 
 	fpriv = kzalloc(sizeof(*fpriv), GFP_KERNEL);
 	if (unlikely(!fpriv)) {
@@ -1042,6 +1057,7 @@ error_pasid:
 
 out_suspend:
 	pm_runtime_mark_last_busy(dev->dev);
+pm_put:
 	pm_runtime_put_autosuspend(dev->dev);
 
 	return r;
@@ -1340,8 +1356,7 @@ static int amdgpu_debugfs_firmware_info(struct seq_file *m, void *data)
 		   fw_info.feature, fw_info.ver);
 
 	/* MEC2 */
-	if (adev->asic_type == CHIP_KAVERI ||
-	    (adev->asic_type > CHIP_TOPAZ && adev->asic_type != CHIP_STONEY)) {
+	if (adev->gfx.mec2_fw) {
 		query_fw.index = 1;
 		ret = amdgpu_firmware_info(&fw_info, &query_fw, adev);
 		if (ret)

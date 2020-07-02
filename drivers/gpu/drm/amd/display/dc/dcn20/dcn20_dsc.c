@@ -717,22 +717,5 @@ static void dsc_write_to_registers(struct display_stream_compressor *dsc, const 
 		RANGE_MAX_QP14, reg_vals->pps.rc_range_params[14].range_max_qp,
 		RANGE_BPG_OFFSET14, reg_vals->pps.rc_range_params[14].range_bpg_offset);
 
-	if (IS_FPGA_MAXIMUS_DC(dsc20->base.ctx->dce_environment)) {
-		/* It's safe to do this as long as debug bus is not being used in DAL Diag environment.
-		 *
-		 * This is because DSCC_PPS_CONFIG4.INITIAL_DEC_DELAY is a read-only register field (because it's a decoder
-		 * value not required by DSC encoder). However, since decoding fails when this value is missing from PPS, it's
-		 * required to communicate this value to the PPS header. When testing on FPGA, the values for PPS header are
-		 * being read from Diag register dump. The register below is used in place of a scratch register to make
-		 * 'initial_dec_delay' available.
-		 */
-
-		temp_int = reg_vals->pps.initial_dec_delay;
-		REG_SET_4(DSCC_TEST_DEBUG_BUS_ROTATE, 0,
-			DSCC_TEST_DEBUG_BUS0_ROTATE, temp_int & 0x1f,
-			DSCC_TEST_DEBUG_BUS1_ROTATE, temp_int >> 5 & 0x1f,
-			DSCC_TEST_DEBUG_BUS2_ROTATE, temp_int >> 10 & 0x1f,
-			DSCC_TEST_DEBUG_BUS3_ROTATE, temp_int >> 15 & 0x1);
-	}
 }
 

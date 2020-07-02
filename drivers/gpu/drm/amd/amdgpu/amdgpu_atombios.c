@@ -2022,11 +2022,6 @@ int amdgpu_atombios_init(struct amdgpu_device *adev)
 	if (adev->is_atom_fw) {
 		amdgpu_atomfirmware_scratch_regs_init(adev);
 		amdgpu_atomfirmware_allocate_fb_scratch(adev);
-		ret = amdgpu_atomfirmware_get_mem_train_info(adev);
-		if (ret) {
-			DRM_ERROR("Failed to get mem train fb location.\n");
-			return ret;
-		}
 	} else {
 		amdgpu_atombios_scratch_regs_init(adev);
 		amdgpu_atombios_allocate_fb_scratch(adev);

@@ -46,6 +46,7 @@ extern const struct kfd2kgd_calls gfx_v8_kfd2kgd;
 extern const struct kfd2kgd_calls gfx_v9_kfd2kgd;
 extern const struct kfd2kgd_calls arcturus_kfd2kgd;
 extern const struct kfd2kgd_calls gfx_v10_kfd2kgd;
+extern const struct kfd2kgd_calls gfx_v10_3_kfd2kgd;
 
 static const struct kfd2kgd_calls *kfd2kgd_funcs[] = {
 #ifdef KFD_SUPPORT_IOMMU_V2
@@ -72,6 +73,7 @@ static const struct kfd2kgd_calls *kfd2kgd_funcs[] = {
 	[CHIP_NAVI10] = &gfx_v10_kfd2kgd,
 	[CHIP_NAVI12] = &gfx_v10_kfd2kgd,
 	[CHIP_NAVI14] = &gfx_v10_kfd2kgd,
+	[CHIP_SIENNA_CICHLID] = &gfx_v10_3_kfd2kgd,
 };
 
 #ifdef KFD_SUPPORT_IOMMU_V2
@@ -458,6 +460,24 @@ static const struct kfd_device_info navi14_device_info = {
 	.num_sdma_queues_per_engine = 8,
 };
 
+static const struct kfd_device_info sienna_cichlid_device_info = {
+	.asic_family = CHIP_SIENNA_CICHLID,
+	.asic_name = "sienna_cichlid",
+	.max_pasid_bits = 16,
+	.max_no_of_hqd  = 24,
+	.doorbell_size  = 8,
+	.ih_ring_entry_size = 8 * sizeof(uint32_t),
+	.event_interrupt_class = &event_interrupt_class_v9,
+	.num_of_watch_points = 4,
+	.mqd_size_aligned = MQD_SIZE_ALIGNED,
+	.needs_iommu_device = false,
+	.supports_cwsr = true,
+	.needs_pci_atomics = false,
+	.num_sdma_engines = 4,
+	.num_xgmi_sdma_engines = 0,
+	.num_sdma_queues_per_engine = 8,
+};
+
 /* For each entry, [0] is regular and [1] is virtualisation device. */
 static const struct kfd_device_info *kfd_supported_devices[][2] = {
 #ifdef KFD_SUPPORT_IOMMU_V2
@@ -480,6 +500,7 @@ static const struct kfd_device_info *kfd_supported_devices[][2] = {
 	[CHIP_NAVI10] = {&navi10_device_info, NULL},
 	[CHIP_NAVI12] = {&navi12_device_info, &navi12_device_info},
 	[CHIP_NAVI14] = {&navi14_device_info, NULL},
+	[CHIP_SIENNA_CICHLID] = {&sienna_cichlid_device_info, &sienna_cichlid_device_info},
 };
 
 static int kfd_gtt_sa_init(struct kfd_dev *kfd, unsigned int buf_size,
@@ -559,6 +580,10 @@ static void kfd_cwsr_init(struct kfd_dev *kfd)
 			BUILD_BUG_ON(sizeof(cwsr_trap_gfx9_hex) > PAGE_SIZE);
 			kfd->cwsr_isa = cwsr_trap_gfx9_hex;
 			kfd->cwsr_isa_size = sizeof(cwsr_trap_gfx9_hex);
+		} else if (kfd->device_info->asic_family < CHIP_SIENNA_CICHLID) {
+			BUILD_BUG_ON(sizeof(cwsr_trap_nv1x_hex) > PAGE_SIZE);
+			kfd->cwsr_isa = cwsr_trap_nv1x_hex;
+			kfd->cwsr_isa_size = sizeof(cwsr_trap_nv1x_hex);
 		} else {
 			BUILD_BUG_ON(sizeof(cwsr_trap_gfx10_hex) > PAGE_SIZE);
 			kfd->cwsr_isa = cwsr_trap_gfx10_hex;
@@ -910,6 +935,7 @@ int kgd2kfd_quiesce_mm(struct mm_struct *mm)
 	if (!p)
 		return -ESRCH;
 
+	WARN(debug_evictions, "Evicting pid %d", p->lead_thread->pid);
 	r = kfd_process_evict_queues(p);
 
 	kfd_unref_process(p);
@@ -977,6 +1003,8 @@ int kgd2kfd_schedule_evict_and_restore_process(struct mm_struct *mm,
 	/* During process initialization eviction_work.dwork is initialized
 	 * to kfd_evict_bo_worker
 	 */
+	WARN(debug_evictions, "Scheduling eviction of pid %d in %ld jiffies",
+	     p->lead_thread->pid, delay_jiffies);
 	schedule_delayed_work(&p->eviction_work, delay_jiffies);
 out:
 	kfd_unref_process(p);

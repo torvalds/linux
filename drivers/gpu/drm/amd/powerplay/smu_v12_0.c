@@ -35,6 +35,16 @@
 #include "asic_reg/smuio/smuio_12_0_0_offset.h"
 #include "asic_reg/smuio/smuio_12_0_0_sh_mask.h"
 
+/*
+ * DO NOT use these for err/warn/info/debug messages.
+ * Use dev_err, dev_warn, dev_info and dev_dbg instead.
+ * They are more MGPU friendly.
+ */
+#undef pr_err
+#undef pr_warn
+#undef pr_info
+#undef pr_debug
+
 // because some SMU12 based ASICs use older ip offset tables
 // we should undefine this register from the smuio12 header
 // to prevent confusion down the road
@@ -92,7 +102,7 @@ smu_v12_0_send_msg_with_param(struct smu_context *smu,
 	mutex_lock(&smu->message_lock);
 	ret = smu_v12_0_wait_for_response(smu);
 	if (ret) {
-		pr_err("Msg issuing pre-check failed and "
+		dev_err(adev->dev, "Msg issuing pre-check failed and "
 		       "SMU may be not in the right state!\n");
 		goto out;
 	}
@@ -105,14 +115,14 @@ smu_v12_0_send_msg_with_param(struct smu_context *smu,
 
 	ret = smu_v12_0_wait_for_response(smu);
 	if (ret) {
-		pr_err("Failed to send message 0x%x, response 0x%x param 0x%x\n",
+		dev_err(adev->dev, "Failed to send message 0x%x, response 0x%x param 0x%x\n",
 		       index, ret, param);
 		goto out;
 	}
 	if (read_arg) {
 		ret = smu_v12_0_read_arg(smu, read_arg);
 		if (ret) {
-			pr_err("Failed to read message arg 0x%x, response 0x%x param 0x%x\n",
+			dev_err(adev->dev, "Failed to read message arg 0x%x, response 0x%x param 0x%x\n",
 			       index, ret, param);
 			goto out;
 		}
@@ -161,11 +171,11 @@ int smu_v12_0_check_fw_version(struct smu_context *smu)
 	 * of halt driver loading.
 	 */
 	if (if_version != smu->smc_driver_if_version) {
-		pr_info("smu driver if version = 0x%08x, smu fw if version = 0x%08x, "
+		dev_info(smu->adev->dev, "smu driver if version = 0x%08x, smu fw if version = 0x%08x, "
 			"smu fw version = 0x%08x (%d.%d.%d)\n",
 			smu->smc_driver_if_version, if_version,
 			smu_version, smu_major, smu_minor, smu_debug);
-		pr_warn("SMU driver if version not matched\n");
+		dev_warn(smu->adev->dev, "SMU driver if version not matched\n");
 	}
 
 	return ret;
@@ -180,28 +190,6 @@ int smu_v12_0_powergate_sdma(struct smu_context *smu, bool gate)
 		return smu_send_smc_msg(smu, SMU_MSG_PowerDownSdma, NULL);
 	else
 		return smu_send_smc_msg(smu, SMU_MSG_PowerUpSdma, NULL);
-}
-
-int smu_v12_0_powergate_vcn(struct smu_context *smu, bool gate)
-{
-	if (!smu->is_apu)
-		return 0;
-
-	if (gate)
-		return smu_send_smc_msg(smu, SMU_MSG_PowerDownVcn, NULL);
-	else
-		return smu_send_smc_msg(smu, SMU_MSG_PowerUpVcn, NULL);
-}
-
-int smu_v12_0_powergate_jpeg(struct smu_context *smu, bool gate)
-{
-	if (!smu->is_apu)
-		return 0;
-
-	if (gate)
-		return smu_send_smc_msg_with_param(smu, SMU_MSG_PowerDownJpeg, 0, NULL);
-	else
-		return smu_send_smc_msg_with_param(smu, SMU_MSG_PowerUpJpeg, 0, NULL);
 }
 
 int smu_v12_0_set_gfx_cgpg(struct smu_context *smu, bool enable)
@@ -233,12 +221,8 @@ int smu_v12_0_read_sensor(struct smu_context *smu,
 		ret = smu_get_current_clk_freq(smu, SMU_GFXCLK, (uint32_t *)data);
 		*size = 4;
 		break;
-	case AMDGPU_PP_SENSOR_MIN_FAN_RPM:
-		*(uint32_t *)data = 0;
-		*size = 4;
-		break;
 	default:
-		ret = smu_common_read_sensor(smu, sensor, data, size);
+		ret = -EOPNOTSUPP;
 		break;
 	}
 
@@ -331,7 +315,7 @@ int smu_v12_0_fini_smc_tables(struct smu_context *smu)
 	return 0;
 }
 
-int smu_v12_0_populate_smc_tables(struct smu_context *smu)
+int smu_v12_0_set_default_dpm_tables(struct smu_context *smu)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
 
@@ -400,7 +384,7 @@ int smu_v12_0_get_dpm_ultimate_freq(struct smu_context *smu, enum smu_clk_type c
 		case SMU_SCLK:
 			ret = smu_send_smc_msg(smu, SMU_MSG_GetMaxGfxclkFrequency, max);
 			if (ret) {
-				pr_err("Attempt to get max GX frequency from SMC Failed !\n");
+				dev_err(smu->adev->dev, "Attempt to get max GX frequency from SMC Failed !\n");
 				goto failed;
 			}
 			break;
@@ -428,7 +412,7 @@ int smu_v12_0_get_dpm_ultimate_freq(struct smu_context *smu, enum smu_clk_type c
 		case SMU_SCLK:
 			ret = smu_send_smc_msg(smu, SMU_MSG_GetMinGfxclkFrequency, min);
 			if (ret) {
-				pr_err("Attempt to get min GX frequency from SMC Failed !\n");
+				dev_err(smu->adev->dev, "Attempt to get min GX frequency from SMC Failed !\n");
 				goto failed;
 			}
 			break;

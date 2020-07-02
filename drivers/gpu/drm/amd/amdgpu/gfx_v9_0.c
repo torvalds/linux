@@ -722,7 +722,7 @@ static const u32 GFX_RLC_SRM_INDEX_CNTL_DATA_OFFSETS[] =
 	mmRLC_SRM_INDEX_CNTL_DATA_7 - mmRLC_SRM_INDEX_CNTL_DATA_0,
 };
 
-void gfx_v9_0_rlcg_wreg(struct amdgpu_device *adev, u32 offset, u32 v)
+static void gfx_v9_0_rlcg_wreg(struct amdgpu_device *adev, u32 offset, u32 v)
 {
 	static void *scratch_reg0;
 	static void *scratch_reg1;
@@ -1890,7 +1890,7 @@ static int gfx_v9_0_rlc_init(struct amdgpu_device *adev)
 			return r;
 	}
 
-	if (adev->asic_type == CHIP_RAVEN || adev->asic_type == CHIP_RENOIR) {
+	if (adev->flags & AMD_IS_APU) {
 		/* TODO: double check the cp_table_size for RV */
 		adev->gfx.rlc.cp_table_size = ALIGN(96 * 5 * 4, 2048) + (64 * 1024); /* JT + GDS */
 		r = amdgpu_gfx_rlc_init_cpt(adev);
@@ -1960,7 +1960,7 @@ static int gfx_v9_0_mec_init(struct amdgpu_device *adev)
 	fw_data = (const __le32 *)
 		(adev->gfx.mec_fw->data +
 		 le32_to_cpu(mec_hdr->header.ucode_array_offset_bytes));
-	fw_size = le32_to_cpu(mec_hdr->header.ucode_size_bytes) / 4;
+	fw_size = le32_to_cpu(mec_hdr->header.ucode_size_bytes);
 
 	r = amdgpu_bo_create_reserved(adev, mec_hdr->header.ucode_size_bytes,
 				      PAGE_SIZE, AMDGPU_GEM_DOMAIN_GTT,
@@ -2384,7 +2384,7 @@ static int gfx_v9_0_sw_fini(void *handle)
 
 	gfx_v9_0_mec_fini(adev);
 	amdgpu_bo_unref(&adev->gfx.rlc.clear_state_obj);
-	if (adev->asic_type == CHIP_RAVEN || adev->asic_type == CHIP_RENOIR) {
+	if (adev->flags & AMD_IS_APU) {
 		amdgpu_bo_free_kernel(&adev->gfx.rlc.cp_table_obj,
 				&adev->gfx.rlc.cp_table_gpu_addr,
 				(void **)&adev->gfx.rlc.cp_table_ptr);
@@ -2856,8 +2856,8 @@ static void gfx_v9_0_init_gfx_power_gating(struct amdgpu_device *adev)
 		/* program GRBM_REG_SAVE_GFX_IDLE_THRESHOLD to 0x55f0 */
 		data |= (0x55f0 << RLC_AUTO_PG_CTRL__GRBM_REG_SAVE_GFX_IDLE_THRESHOLD__SHIFT);
 		WREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_AUTO_PG_CTRL), data);
-
-		pwr_10_0_gfxip_control_over_cgpg(adev, true);
+		if (adev->asic_type != CHIP_RENOIR)
+			pwr_10_0_gfxip_control_over_cgpg(adev, true);
 	}
 }
 

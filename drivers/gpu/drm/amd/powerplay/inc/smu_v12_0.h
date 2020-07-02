@@ -72,7 +72,7 @@ int smu_v12_0_init_smc_tables(struct smu_context *smu);
 
 int smu_v12_0_fini_smc_tables(struct smu_context *smu);
 
-int smu_v12_0_populate_smc_tables(struct smu_context *smu);
+int smu_v12_0_set_default_dpm_tables(struct smu_context *smu);
 
 int smu_v12_0_get_enabled_mask(struct smu_context *smu,
 				      uint32_t *feature_mask, uint32_t num);

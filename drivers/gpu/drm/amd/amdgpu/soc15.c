@@ -415,7 +415,8 @@ static int soc15_read_register(struct amdgpu_device *adev, u32 se_num,
 	*value = 0;
 	for (i = 0; i < ARRAY_SIZE(soc15_allowed_read_registers); i++) {
 		en = &soc15_allowed_read_registers[i];
-		if (reg_offset != (adev->reg_offset[en->hwip][en->inst][en->seg]
+		if (adev->reg_offset[en->hwip][en->inst] &&
+			reg_offset != (adev->reg_offset[en->hwip][en->inst][en->seg]
 					+ en->reg_offset))
 			continue;
 
@@ -670,13 +671,24 @@ static uint32_t soc15_get_rev_id(struct amdgpu_device *adev)
 
 int soc15_set_ip_blocks(struct amdgpu_device *adev)
 {
+	int r;
+
 	/* Set IP register base before any HW register access */
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
 	case CHIP_VEGA12:
 	case CHIP_RAVEN:
-	case CHIP_RENOIR:
 		vega10_reg_base_init(adev);
+		break;
+	case CHIP_RENOIR:
+		if (amdgpu_discovery) {
+			r = amdgpu_discovery_reg_base_init(adev);
+			if (r) {
+				DRM_WARN("failed to init reg base from ip discovery table, "
+					 "fallback to legacy init method\n");
+				vega10_reg_base_init(adev);
+			}
+		}
 		break;
 	case CHIP_VEGA20:
 		vega20_reg_base_init(adev);
