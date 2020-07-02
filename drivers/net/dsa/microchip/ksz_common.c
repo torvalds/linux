@@ -144,25 +144,8 @@ void ksz_mac_link_down(struct dsa_switch *ds, int port, unsigned int mode,
 	/* Read all MIB counters when the link is going down. */
 	p->read = true;
 	schedule_delayed_work(&dev->mib_read, 0);
-
-	mutex_lock(&dev->dev_mutex);
-	dev->live_ports &= ~(1 << port);
-	mutex_unlock(&dev->dev_mutex);
 }
 EXPORT_SYMBOL_GPL(ksz_mac_link_down);
-
-void ksz_mac_link_up(struct dsa_switch *ds, int port, unsigned int mode,
-		     phy_interface_t interface, struct phy_device *phydev,
-		     int speed, int duplex, bool tx_pause, bool rx_pause)
-{
-	struct ksz_device *dev = ds->priv;
-
-	/* Remember which port is connected and active. */
-	mutex_lock(&dev->dev_mutex);
-	dev->live_ports |= (1 << port) & dev->on_ports;
-	mutex_unlock(&dev->dev_mutex);
-}
-EXPORT_SYMBOL_GPL(ksz_mac_link_up);
 
 int ksz_sset_count(struct dsa_switch *ds, int port, int sset)
 {
@@ -376,22 +359,6 @@ int ksz_enable_port(struct dsa_switch *ds, int port, struct phy_device *phy)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ksz_enable_port);
-
-void ksz_disable_port(struct dsa_switch *ds, int port)
-{
-	struct ksz_device *dev = ds->priv;
-
-	if (!dsa_is_user_port(ds, port))
-		return;
-
-	dev->on_ports &= ~(1 << port);
-	dev->live_ports &= ~(1 << port);
-
-	/* port_stp_state_set() will be called after to disable the port so
-	 * there is no need to do anything.
-	 */
-}
-EXPORT_SYMBOL_GPL(ksz_disable_port);
 
 struct ksz_device *ksz_switch_alloc(struct device *base, void *priv)
 {
