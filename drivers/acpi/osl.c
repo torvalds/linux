@@ -390,31 +390,32 @@ static void acpi_os_map_cleanup_deferred(struct work_struct *work)
 }
 
 /* Must be called with mutex_lock(&acpi_ioremap_lock) */
-static bool acpi_os_drop_map_ref(struct acpi_ioremap *map, bool defer)
+static void acpi_os_drop_map_ref(struct acpi_ioremap *map)
 {
 	if (--map->track.refcount)
-		return true;
+		return;
 
 	list_del_rcu(&map->list);
 
-	if (defer) {
-		INIT_RCU_WORK(&map->track.rwork, acpi_os_map_cleanup_deferred);
-		queue_rcu_work(system_wq, &map->track.rwork);
-	}
-	return defer;
+	INIT_RCU_WORK(&map->track.rwork, acpi_os_map_cleanup_deferred);
+	queue_rcu_work(system_wq, &map->track.rwork);
 }
 
-static void acpi_os_map_cleanup(struct acpi_ioremap *map)
-{
-	if (!map)
-		return;
-
-	synchronize_rcu_expedited();
-	acpi_os_map_remove(map);
-}
-
-static void __ref __acpi_os_unmap_iomem(void __iomem *virt, acpi_size size,
-					bool defer)
+/**
+ * acpi_os_unmap_iomem - Drop a memory mapping reference.
+ * @virt: Start of the address range to drop a reference to.
+ * @size: Size of the address range to drop a reference to.
+ *
+ * Look up the given virtual address range in the list of existing ACPI memory
+ * mappings, drop a reference to it and if there are no more active references
+ * to it, queue it up for later removal.
+ *
+ * During early init (when acpi_permanent_mmap has not been set yet) this
+ * routine simply calls __acpi_unmap_table() to get the job done.  Since
+ * __acpi_unmap_table() is an __init function, the __ref annotation is needed
+ * here.
+ */
+void __ref acpi_os_unmap_iomem(void __iomem *virt, acpi_size size)
 {
 	struct acpi_ioremap *map;
 
@@ -431,31 +432,9 @@ static void __ref __acpi_os_unmap_iomem(void __iomem *virt, acpi_size size,
 		WARN(true, PREFIX "%s: bad address %p\n", __func__, virt);
 		return;
 	}
-	if (acpi_os_drop_map_ref(map, defer))
-		map = NULL;
+	acpi_os_drop_map_ref(map);
 
 	mutex_unlock(&acpi_ioremap_lock);
-
-	acpi_os_map_cleanup(map);
-}
-
-/**
- * acpi_os_unmap_iomem - Drop a memory mapping reference.
- * @virt: Start of the address range to drop a reference to.
- * @size: Size of the address range to drop a reference to.
- *
- * Look up the given virtual address range in the list of existing ACPI memory
- * mappings, drop a reference to it and unmap it if there are no more active
- * references to it.
- *
- * During early init (when acpi_permanent_mmap has not been set yet) this
- * routine simply calls __acpi_unmap_table() to get the job done.  Since
- * __acpi_unmap_table() is an __init function, the __ref annotation is needed
- * here.
- */
-void __ref acpi_os_unmap_iomem(void __iomem *virt, acpi_size size)
-{
-	__acpi_os_unmap_iomem(virt, size, false);
 }
 EXPORT_SYMBOL_GPL(acpi_os_unmap_iomem);
 
@@ -463,17 +442,10 @@ EXPORT_SYMBOL_GPL(acpi_os_unmap_iomem);
  * acpi_os_unmap_memory - Drop a memory mapping reference.
  * @virt: Start of the address range to drop a reference to.
  * @size: Size of the address range to drop a reference to.
- *
- * Look up the given virtual address range in the list of existing ACPI memory
- * mappings, drop a reference to it and if there are no more active references
- * to it, queue it up for later removal.
- *
- * During early init (when acpi_permanent_mmap has not been set yet) this
- * routine behaves like acpi_os_unmap_iomem().
  */
 void __ref acpi_os_unmap_memory(void *virt, acpi_size size)
 {
-	__acpi_os_unmap_iomem((void __iomem *)virt, size, true);
+	acpi_os_unmap_iomem((void __iomem *)virt, size);
 }
 EXPORT_SYMBOL_GPL(acpi_os_unmap_memory);
 
@@ -518,7 +490,7 @@ void acpi_os_unmap_generic_address(struct acpi_generic_address *gas)
 		mutex_unlock(&acpi_ioremap_lock);
 		return;
 	}
-	acpi_os_drop_map_ref(map, true);
+	acpi_os_drop_map_ref(map);
 
 	mutex_unlock(&acpi_ioremap_lock);
 }
