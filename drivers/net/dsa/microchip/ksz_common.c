@@ -135,26 +135,34 @@ int ksz_phy_write16(struct dsa_switch *ds, int addr, int reg, u16 val)
 }
 EXPORT_SYMBOL_GPL(ksz_phy_write16);
 
-void ksz_adjust_link(struct dsa_switch *ds, int port,
-		     struct phy_device *phydev)
+void ksz_mac_link_down(struct dsa_switch *ds, int port, unsigned int mode,
+		       phy_interface_t interface)
 {
 	struct ksz_device *dev = ds->priv;
 	struct ksz_port *p = &dev->ports[port];
 
 	/* Read all MIB counters when the link is going down. */
-	if (!phydev->link) {
-		p->read = true;
-		schedule_delayed_work(&dev->mib_read, 0);
-	}
+	p->read = true;
+	schedule_delayed_work(&dev->mib_read, 0);
+
 	mutex_lock(&dev->dev_mutex);
-	if (!phydev->link)
-		dev->live_ports &= ~(1 << port);
-	else
-		/* Remember which port is connected and active. */
-		dev->live_ports |= (1 << port) & dev->on_ports;
+	dev->live_ports &= ~(1 << port);
 	mutex_unlock(&dev->dev_mutex);
 }
-EXPORT_SYMBOL_GPL(ksz_adjust_link);
+EXPORT_SYMBOL_GPL(ksz_mac_link_down);
+
+void ksz_mac_link_up(struct dsa_switch *ds, int port, unsigned int mode,
+		     phy_interface_t interface, struct phy_device *phydev,
+		     int speed, int duplex, bool tx_pause, bool rx_pause)
+{
+	struct ksz_device *dev = ds->priv;
+
+	/* Remember which port is connected and active. */
+	mutex_lock(&dev->dev_mutex);
+	dev->live_ports |= (1 << port) & dev->on_ports;
+	mutex_unlock(&dev->dev_mutex);
+}
+EXPORT_SYMBOL_GPL(ksz_mac_link_up);
 
 int ksz_sset_count(struct dsa_switch *ds, int port, int sset)
 {
