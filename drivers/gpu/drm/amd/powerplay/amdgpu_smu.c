@@ -1764,8 +1764,7 @@ int smu_set_display_count(struct smu_context *smu, uint32_t count)
 
 int smu_force_clk_levels(struct smu_context *smu,
 			 enum smu_clk_type clk_type,
-			 uint32_t mask,
-			 bool lock_needed)
+			 uint32_t mask)
 {
 	struct smu_dpm_context *smu_dpm_ctx = &(smu->smu_dpm);
 	int ret = 0;
@@ -1778,14 +1777,12 @@ int smu_force_clk_levels(struct smu_context *smu,
 		return -EINVAL;
 	}
 
-	if (lock_needed)
-		mutex_lock(&smu->mutex);
+	mutex_lock(&smu->mutex);
 
 	if (smu->ppt_funcs && smu->ppt_funcs->force_clk_levels)
 		ret = smu->ppt_funcs->force_clk_levels(smu, clk_type, mask);
 
-	if (lock_needed)
-		mutex_unlock(&smu->mutex);
+	mutex_unlock(&smu->mutex);
 
 	return ret;
 }
