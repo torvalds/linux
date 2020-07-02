@@ -661,21 +661,21 @@ ast_cursor_plane_helper_atomic_update(struct drm_plane *plane,
 				      struct drm_plane_state *old_state)
 {
 	struct drm_plane_state *state = plane->state;
-	struct drm_crtc *crtc = state->crtc;
 	struct drm_framebuffer *fb = state->fb;
-	struct ast_private *ast = to_ast_private(plane->dev);
-	struct ast_crtc *ast_crtc = to_ast_crtc(crtc);
+	struct ast_private *ast = plane->dev->dev_private;
+	unsigned int offset_x, offset_y;
 	u8 jreg;
 
-	ast_crtc->offset_x = AST_MAX_HWC_WIDTH - fb->width;
-	ast_crtc->offset_y = AST_MAX_HWC_WIDTH - fb->height;
+	offset_x = AST_MAX_HWC_WIDTH - fb->width;
+	offset_y = AST_MAX_HWC_WIDTH - fb->height;
 
 	if (state->fb != old_state->fb) {
 		/* A new cursor image was installed. */
 		ast_cursor_page_flip(ast);
 	}
 
-	ast_cursor_move(crtc, state->crtc_x, state->crtc_y);
+	ast_cursor_show(ast, state->crtc_x, state->crtc_y,
+			offset_x, offset_y);
 
 	jreg = 0x2;
 	/* enable ARGB cursor */

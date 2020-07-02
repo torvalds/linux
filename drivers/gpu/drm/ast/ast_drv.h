@@ -239,7 +239,6 @@ struct ast_connector {
 
 struct ast_crtc {
 	struct drm_crtc base;
-	u8 offset_x, offset_y;
 };
 
 #define to_ast_crtc(x) container_of(x, struct ast_crtc, base)
@@ -320,6 +319,7 @@ int ast_cursor_init(struct ast_private *ast);
 void ast_cursor_fini(struct ast_private *ast);
 int ast_cursor_blit(struct ast_private *ast, struct drm_framebuffer *fb);
 void ast_cursor_page_flip(struct ast_private *ast);
-int ast_cursor_move(struct drm_crtc *crtc, int x, int y);
+int ast_cursor_show(struct ast_private *ast, int x, int y,
+		    unsigned int offset_x, unsigned int offset_y);
 
 #endif

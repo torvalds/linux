@@ -227,12 +227,27 @@ void ast_cursor_page_flip(struct ast_private *ast)
 	ast->cursor.next_index %= ARRAY_SIZE(ast->cursor.gbo);
 }
 
-int ast_cursor_move(struct drm_crtc *crtc, int x, int y)
+static void ast_cursor_set_location(struct ast_private *ast, u16 x, u16 y,
+				    u8 x_offset, u8 y_offset)
 {
-	struct ast_crtc *ast_crtc = to_ast_crtc(crtc);
-	struct ast_private *ast = to_ast_private(crtc->dev);
+	u8 x0 = (x & 0x00ff);
+	u8 x1 = (x & 0x0f00) >> 8;
+	u8 y0 = (y & 0x00ff);
+	u8 y1 = (y & 0x0700) >> 8;
+
+	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xc2, x_offset);
+	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xc3, y_offset);
+	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xc4, x0);
+	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xc5, x1);
+	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xc6, y0);
+	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xc7, y1);
+}
+
+int ast_cursor_show(struct ast_private *ast, int x, int y,
+		    unsigned int offset_x, unsigned int offset_y)
+{
 	struct drm_gem_vram_object *gbo;
-	int x_offset, y_offset;
+	u8 x_offset, y_offset;
 	u8 *dst, *sig;
 	u8 jreg;
 
@@ -245,23 +260,20 @@ int ast_cursor_move(struct drm_crtc *crtc, int x, int y)
 	writel(x, sig + AST_HWC_SIGNATURE_X);
 	writel(y, sig + AST_HWC_SIGNATURE_Y);
 
-	x_offset = ast_crtc->offset_x;
-	y_offset = ast_crtc->offset_y;
 	if (x < 0) {
-		x_offset = (-x) + ast_crtc->offset_x;
+		x_offset = (-x) + offset_x;
 		x = 0;
+	} else {
+		x_offset = offset_x;
+	}
+	if (y < 0) {
+		y_offset = (-y) + offset_y;
+		y = 0;
+	} else {
+		y_offset = offset_y;
 	}
 
-	if (y < 0) {
-		y_offset = (-y) + ast_crtc->offset_y;
-		y = 0;
-	}
-	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xc2, x_offset);
-	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xc3, y_offset);
-	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xc4, (x & 0xff));
-	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xc5, ((x >> 8) & 0x0f));
-	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xc6, (y & 0xff));
-	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xc7, ((y >> 8) & 0x07));
+	ast_cursor_set_location(ast, x, y, x_offset, y_offset);
 
 	/* dummy write to fire HWC */
 	jreg = 0x02 |
