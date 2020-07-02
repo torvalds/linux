@@ -134,6 +134,7 @@ PLUGINS += plugin_kvm.so
 PLUGINS += plugin_mac80211.so
 PLUGINS += plugin_sched_switch.so
 PLUGINS += plugin_function.so
+PLUGINS += plugin_futex.so
 PLUGINS += plugin_xen.so
 PLUGINS += plugin_scsi.so
 PLUGINS += plugin_cfg80211.so
