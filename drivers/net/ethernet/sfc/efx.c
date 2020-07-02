@@ -169,10 +169,6 @@ static int efx_init_port(struct efx_nic *efx)
 
 	efx->port_initialized = true;
 
-	/* Reconfigure the MAC before creating dma queues (required for
-	 * Falcon/A1 where RX_INGR_EN/TX_DRAIN_EN isn't supported) */
-	efx_mac_reconfigure(efx);
-
 	/* Ensure the PHY advertises the correct flow control settings */
 	rc = efx->phy_op->reconfigure(efx);
 	if (rc && rc != -EPERM)

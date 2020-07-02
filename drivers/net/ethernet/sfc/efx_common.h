@@ -95,7 +95,7 @@ static inline void efx_init_mcdi_logging(struct efx_nic *efx) {}
 static inline void efx_fini_mcdi_logging(struct efx_nic *efx) {}
 #endif
 
-void efx_mac_reconfigure(struct efx_nic *efx);
+void efx_mac_reconfigure(struct efx_nic *efx, bool mtu_only);
 int efx_set_mac_address(struct net_device *net_dev, void *data);
 void efx_set_rx_mode(struct net_device *net_dev);
 int efx_set_features(struct net_device *net_dev, netdev_features_t data);

@@ -633,7 +633,7 @@ static size_t siena_update_nic_stats(struct efx_nic *efx, u64 *full_stats,
 	return SIENA_STAT_COUNT;
 }
 
-static int siena_mac_reconfigure(struct efx_nic *efx)
+static int siena_mac_reconfigure(struct efx_nic *efx, bool mtu_only __always_unused)
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_SET_MCAST_HASH_IN_LEN);
 	int rc;
