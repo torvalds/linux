@@ -2133,25 +2133,6 @@ static u64 find_middle(struct rb_root *root)
 #endif
 
 /*
- * Takes the number of bytes to be csumm'ed and figures out how many leaves it
- * would require to store the csums for that many bytes.
- */
-u64 btrfs_csum_bytes_to_leaves(struct btrfs_fs_info *fs_info, u64 csum_bytes)
-{
-	u64 csum_size;
-	u64 num_csums_per_leaf;
-	u64 num_csums;
-
-	csum_size = BTRFS_MAX_ITEM_SIZE(fs_info);
-	num_csums_per_leaf = div64_u64(csum_size,
-			(u64)btrfs_super_csum_size(fs_info->super_copy));
-	num_csums = csum_bytes >> fs_info->sectorsize_bits;
-	num_csums += num_csums_per_leaf - 1;
-	num_csums = div64_u64(num_csums, num_csums_per_leaf);
-	return num_csums;
-}
-
-/*
  * this starts processing the delayed reference count updates and
  * extent insertions we have queued up so far.  count can be
  * 0, which means to process everything in the tree at the start
