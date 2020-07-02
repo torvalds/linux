@@ -2037,16 +2037,15 @@ static struct ehci_qh *qh_append_tds(struct oxu_hcd *oxu,
 static int submit_async(struct oxu_hcd	*oxu, struct urb *urb,
 			struct list_head *qtd_list, gfp_t mem_flags)
 {
-	struct ehci_qtd	*qtd;
-	int epnum;
+	int epnum = urb->ep->desc.bEndpointAddress;
 	unsigned long flags;
 	struct ehci_qh *qh = NULL;
 	int rc = 0;
+#ifdef OXU_URB_TRACE
+	struct ehci_qtd	*qtd;
 
 	qtd = list_entry(qtd_list->next, struct ehci_qtd, qtd_list);
-	epnum = urb->ep->desc.bEndpointAddress;
 
-#ifdef OXU_URB_TRACE
 	oxu_dbg(oxu, "%s %s urb %p ep%d%s len %d, qtd %p [qh %p]\n",
 		__func__, urb->dev->devpath, urb,
 		epnum & 0x0f, (epnum & USB_DIR_IN) ? "in" : "out",
