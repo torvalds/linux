@@ -518,12 +518,9 @@ void acpi_os_unmap_generic_address(struct acpi_generic_address *gas)
 		mutex_unlock(&acpi_ioremap_lock);
 		return;
 	}
-	if (acpi_os_drop_map_ref(map, false))
-		map = NULL;
+	acpi_os_drop_map_ref(map, true);
 
 	mutex_unlock(&acpi_ioremap_lock);
-
-	acpi_os_map_cleanup(map);
 }
 EXPORT_SYMBOL(acpi_os_unmap_generic_address);
 
