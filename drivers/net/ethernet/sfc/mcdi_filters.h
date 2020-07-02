@@ -93,6 +93,7 @@ struct efx_mcdi_filter_table {
 };
 
 int efx_mcdi_filter_table_probe(struct efx_nic *efx, bool multicast_chaining);
+void efx_mcdi_filter_table_down(struct efx_nic *efx);
 void efx_mcdi_filter_table_remove(struct efx_nic *efx);
 void efx_mcdi_filter_table_restore(struct efx_nic *efx);
 
