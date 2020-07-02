@@ -18,7 +18,7 @@ struct tb_quirk {
 	void (*hook)(struct tb_switch *sw);
 };
 
-const static struct tb_quirk tb_quirks[] = {
+static const struct tb_quirk tb_quirks[] = {
 	/* Dell WD19TB supports self-authentication on unplug */
 	{ 0x00d4, 0xb070, quirk_force_power_link },
 };
