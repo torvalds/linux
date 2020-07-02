@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/**
+/*
  * dwc3-of-simple.c - OF glue layer for simple integrations
  *
  * Copyright (c) 2015 Texas Instruments Incorporated - http://www.ti.com
