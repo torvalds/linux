@@ -1467,7 +1467,7 @@ static void macb_hresp_error_task(unsigned long data)
 {
 	struct macb *bp = (struct macb *)data;
 	struct net_device *dev = bp->dev;
-	struct macb_queue *queue = bp->queues;
+	struct macb_queue *queue;
 	unsigned int q;
 	u32 ctrl;
 
@@ -1933,7 +1933,7 @@ static netdev_tx_t macb_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	unsigned long flags;
 	unsigned int desc_cnt, nr_frags, frag_size, f;
 	unsigned int hdrlen;
-	bool is_lso, is_udp = 0;
+	bool is_lso;
 	netdev_tx_t ret = NETDEV_TX_OK;
 
 	if (macb_clear_csum(skb)) {
@@ -1949,10 +1949,8 @@ static netdev_tx_t macb_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	is_lso = (skb_shinfo(skb)->gso_size != 0);
 
 	if (is_lso) {
-		is_udp = !!(ip_hdr(skb)->protocol == IPPROTO_UDP);
-
 		/* length of headers */
-		if (is_udp)
+		if (ip_hdr(skb)->protocol == IPPROTO_UDP)
 			/* only queue eth + ip headers separately for UDP */
 			hdrlen = skb_transport_offset(skb);
 		else
@@ -3482,8 +3480,6 @@ static void macb_probe_queues(void __iomem *mem,
 			      unsigned int *queue_mask,
 			      unsigned int *num_queues)
 {
-	unsigned int hw_q;
-
 	*queue_mask = 0x1;
 	*num_queues = 1;
 
@@ -3497,13 +3493,8 @@ static void macb_probe_queues(void __iomem *mem,
 		return;
 
 	/* bit 0 is never set but queue 0 always exists */
-	*queue_mask = readl_relaxed(mem + GEM_DCFG6) & 0xff;
-
-	*queue_mask |= 0x1;
-
-	for (hw_q = 1; hw_q < MACB_MAX_QUEUES; ++hw_q)
-		if (*queue_mask & (1 << hw_q))
-			(*num_queues)++;
+	*queue_mask |= readl_relaxed(mem + GEM_DCFG6) & 0xff;
+	*num_queues = hweight32(*queue_mask);
 }
 
 static int macb_clk_init(struct platform_device *pdev, struct clk **pclk,
