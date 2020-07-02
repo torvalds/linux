@@ -486,6 +486,12 @@ static void rxrpc_maybe_add_conn(struct rxrpc_bundle *bundle, gfp_t gfp)
 	if (!usable)
 		goto alloc_conn;
 
+	if (!bundle->avail_chans &&
+	    !bundle->try_upgrade &&
+	    !list_empty(&bundle->waiting_calls) &&
+	    usable < ARRAY_SIZE(bundle->conns))
+		goto alloc_conn;
+
 	spin_unlock(&bundle->channel_lock);
 	_leave("");
 	return;
