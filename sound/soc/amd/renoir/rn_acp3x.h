@@ -55,6 +55,8 @@
 
 #define MAX_BUFFER (CAPTURE_MAX_PERIOD_SIZE * CAPTURE_MAX_NUM_PERIODS)
 #define MIN_BUFFER MAX_BUFFER
+#define	ACP_DMIC_AUTO   -1
+
 struct pdm_dev_data {
 	u32 pdm_irq;
 	void __iomem *acp_base;
