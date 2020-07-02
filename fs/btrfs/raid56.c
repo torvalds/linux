@@ -1083,7 +1083,6 @@ static int rbio_add_io_page(struct btrfs_raid_bio *rbio,
 			    unsigned long bio_max_len)
 {
 	struct bio *last = bio_list->tail;
-	u64 last_end = 0;
 	int ret;
 	struct bio *bio;
 	struct btrfs_bio_stripe *stripe;
@@ -1098,15 +1097,14 @@ static int rbio_add_io_page(struct btrfs_raid_bio *rbio,
 
 	/* see if we can add this page onto our existing bio */
 	if (last) {
-		last_end = (u64)last->bi_iter.bi_sector << 9;
+		u64 last_end = (u64)last->bi_iter.bi_sector << 9;
 		last_end += last->bi_iter.bi_size;
 
 		/*
 		 * we can't merge these if they are from different
 		 * devices or if they are not contiguous
 		 */
-		if (last_end == disk_start && stripe->dev->bdev &&
-		    !last->bi_status &&
+		if (last_end == disk_start && !last->bi_status &&
 		    last->bi_disk == stripe->dev->bdev->bd_disk &&
 		    last->bi_partno == stripe->dev->bdev->bd_partno) {
 			ret = bio_add_page(last, page, PAGE_SIZE, 0);
