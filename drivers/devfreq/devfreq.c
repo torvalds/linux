@@ -49,6 +49,11 @@ static LIST_HEAD(devfreq_governor_list);
 static LIST_HEAD(devfreq_list);
 static DEFINE_MUTEX(devfreq_list_lock);
 
+static const char timer_name[][DEVFREQ_NAME_LEN] = {
+	[DEVFREQ_TIMER_DEFERRABLE] = { "deferrable" },
+	[DEVFREQ_TIMER_DELAYED] = { "delayed" },
+};
+
 /**
  * find_device_devfreq() - find devfreq struct using device pointer
  * @dev:	device pointer used to lookup device devfreq.
@@ -454,7 +459,17 @@ void devfreq_monitor_start(struct devfreq *devfreq)
 	if (devfreq->governor->interrupt_driven)
 		return;
 
-	INIT_DEFERRABLE_WORK(&devfreq->work, devfreq_monitor);
+	switch (devfreq->profile->timer) {
+	case DEVFREQ_TIMER_DEFERRABLE:
+		INIT_DEFERRABLE_WORK(&devfreq->work, devfreq_monitor);
+		break;
+	case DEVFREQ_TIMER_DELAYED:
+		INIT_DELAYED_WORK(&devfreq->work, devfreq_monitor);
+		break;
+	default:
+		return;
+	}
+
 	if (devfreq->profile->polling_ms)
 		queue_delayed_work(devfreq_wq, &devfreq->work,
 			msecs_to_jiffies(devfreq->profile->polling_ms));
@@ -770,6 +785,11 @@ struct devfreq *devfreq_add_device(struct device *dev,
 	devfreq->last_status.current_frequency = profile->initial_freq;
 	devfreq->data = data;
 	devfreq->nb.notifier_call = devfreq_notifier_call;
+
+	if (devfreq->profile->timer < 0
+		|| devfreq->profile->timer >= DEVFREQ_TIMER_NUM) {
+		goto err_out;
+	}
 
 	if (!devfreq->profile->max_state && !devfreq->profile->freq_table) {
 		mutex_unlock(&devfreq->lock);
@@ -1625,6 +1645,69 @@ static ssize_t trans_stat_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(trans_stat);
 
+static ssize_t timer_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
+{
+	struct devfreq *df = to_devfreq(dev);
+
+	if (!df->profile)
+		return -EINVAL;
+
+	return sprintf(buf, "%s\n", timer_name[df->profile->timer]);
+}
+
+static ssize_t timer_store(struct device *dev, struct device_attribute *attr,
+			      const char *buf, size_t count)
+{
+	struct devfreq *df = to_devfreq(dev);
+	char str_timer[DEVFREQ_NAME_LEN + 1];
+	int timer = -1;
+	int ret = 0, i;
+
+	if (!df->governor || !df->profile)
+		return -EINVAL;
+
+	ret = sscanf(buf, "%16s", str_timer);
+	if (ret != 1)
+		return -EINVAL;
+
+	for (i = 0; i < DEVFREQ_TIMER_NUM; i++) {
+		if (!strncmp(timer_name[i], str_timer, DEVFREQ_NAME_LEN)) {
+			timer = i;
+			break;
+		}
+	}
+
+	if (timer < 0) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (df->profile->timer == timer) {
+		ret = 0;
+		goto out;
+	}
+
+	mutex_lock(&df->lock);
+	df->profile->timer = timer;
+	mutex_unlock(&df->lock);
+
+	ret = df->governor->event_handler(df, DEVFREQ_GOV_STOP, NULL);
+	if (ret) {
+		dev_warn(dev, "%s: Governor %s not stopped(%d)\n",
+			 __func__, df->governor->name, ret);
+		goto out;
+	}
+
+	ret = df->governor->event_handler(df, DEVFREQ_GOV_START, NULL);
+	if (ret)
+		dev_warn(dev, "%s: Governor %s not started(%d)\n",
+			 __func__, df->governor->name, ret);
+out:
+	return ret ? ret : count;
+}
+static DEVICE_ATTR_RW(timer);
+
 static struct attribute *devfreq_attrs[] = {
 	&dev_attr_name.attr,
 	&dev_attr_governor.attr,
@@ -1636,6 +1719,7 @@ static struct attribute *devfreq_attrs[] = {
 	&dev_attr_min_freq.attr,
 	&dev_attr_max_freq.attr,
 	&dev_attr_trans_stat.attr,
+	&dev_attr_timer.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(devfreq);
