@@ -37,6 +37,7 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_gem_vram_helper.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_probe_helper.h>
@@ -1069,14 +1070,48 @@ static int ast_connector_init(struct drm_device *dev)
 	return 0;
 }
 
-int ast_mode_init(struct drm_device *dev)
+/*
+ * Mode config
+ */
+
+static const struct drm_mode_config_funcs ast_mode_config_funcs = {
+	.fb_create = drm_gem_fb_create,
+	.mode_valid = drm_vram_helper_mode_valid,
+	.atomic_check = drm_atomic_helper_check,
+	.atomic_commit = drm_atomic_helper_commit,
+};
+
+int ast_mode_config_init(struct ast_private *ast)
 {
-	struct ast_private *ast = to_ast_private(dev);
+	struct drm_device *dev = ast->dev;
 	int ret;
 
 	ret = ast_cursor_init(ast);
 	if (ret)
 		return ret;
+
+	ret = drmm_mode_config_init(dev);
+	if (ret)
+		return ret;
+
+	dev->mode_config.funcs = &ast_mode_config_funcs;
+	dev->mode_config.min_width = 0;
+	dev->mode_config.min_height = 0;
+	dev->mode_config.preferred_depth = 24;
+	dev->mode_config.prefer_shadow = 1;
+	dev->mode_config.fb_base = pci_resource_start(ast->dev->pdev, 0);
+
+	if (ast->chip == AST2100 ||
+	    ast->chip == AST2200 ||
+	    ast->chip == AST2300 ||
+	    ast->chip == AST2400 ||
+	    ast->chip == AST2500) {
+		dev->mode_config.max_width = 1920;
+		dev->mode_config.max_height = 2048;
+	} else {
+		dev->mode_config.max_width = 1600;
+		dev->mode_config.max_height = 1200;
+	}
 
 	memset(&ast->primary_plane, 0, sizeof(ast->primary_plane));
 	ret = drm_universal_plane_init(dev, &ast->primary_plane, 0x01,
@@ -1106,6 +1141,8 @@ int ast_mode_init(struct drm_device *dev)
 	ast_crtc_init(dev);
 	ast_encoder_init(dev);
 	ast_connector_init(dev);
+
+	drm_mode_config_reset(dev);
 
 	return 0;
 }
