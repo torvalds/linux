@@ -1349,7 +1349,6 @@ static int find_bio_stripe(struct btrfs_raid_bio *rbio,
 			   struct bio *bio)
 {
 	u64 physical = bio->bi_iter.bi_sector;
-	u64 stripe_start;
 	int i;
 	struct btrfs_bio_stripe *stripe;
 
@@ -1357,9 +1356,7 @@ static int find_bio_stripe(struct btrfs_raid_bio *rbio,
 
 	for (i = 0; i < rbio->bbio->num_stripes; i++) {
 		stripe = &rbio->bbio->stripes[i];
-		stripe_start = stripe->physical;
-		if (physical >= stripe_start &&
-		    physical < stripe_start + rbio->stripe_len &&
+		if (in_range(physical, stripe->physical, rbio->stripe_len) &&
 		    stripe->dev->bdev &&
 		    bio->bi_disk == stripe->dev->bdev->bd_disk &&
 		    bio->bi_partno == stripe->dev->bdev->bd_partno) {
@@ -1377,18 +1374,14 @@ static int find_bio_stripe(struct btrfs_raid_bio *rbio,
 static int find_logical_bio_stripe(struct btrfs_raid_bio *rbio,
 				   struct bio *bio)
 {
-	u64 logical = bio->bi_iter.bi_sector;
-	u64 stripe_start;
+	u64 logical = (u64)bio->bi_iter.bi_sector << 9;
 	int i;
 
-	logical <<= 9;
-
 	for (i = 0; i < rbio->nr_data; i++) {
-		stripe_start = rbio->bbio->raid_map[i];
-		if (logical >= stripe_start &&
-		    logical < stripe_start + rbio->stripe_len) {
+		u64 stripe_start = rbio->bbio->raid_map[i];
+
+		if (in_range(logical, stripe_start, rbio->stripe_len))
 			return i;
-		}
 	}
 	return -1;
 }
