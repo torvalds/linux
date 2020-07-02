@@ -1764,9 +1764,12 @@ failed:
 	return ret;
 }
 
-int smu_v11_0_set_soft_freq_limited_range(struct smu_context *smu, enum smu_clk_type clk_type,
-			    uint32_t min, uint32_t max)
+int smu_v11_0_set_soft_freq_limited_range(struct smu_context *smu,
+					  enum smu_clk_type clk_type,
+					  uint32_t min,
+					  uint32_t max)
 {
+	struct amdgpu_device *adev = smu->adev;
 	int ret = 0, clk_id = 0;
 	uint32_t param;
 
@@ -1774,12 +1777,16 @@ int smu_v11_0_set_soft_freq_limited_range(struct smu_context *smu, enum smu_clk_
 	if (clk_id < 0)
 		return clk_id;
 
+	if (clk_type == SMU_GFXCLK &&
+	    adev->asic_type == CHIP_SIENNA_CICHLID)
+		amdgpu_gfx_off_ctrl(adev, false);
+
 	if (max > 0) {
 		param = (uint32_t)((clk_id << 16) | (max & 0xffff));
 		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetSoftMaxByFreq,
 						  param, NULL);
 		if (ret)
-			return ret;
+			goto out;
 	}
 
 	if (min > 0) {
@@ -1787,8 +1794,13 @@ int smu_v11_0_set_soft_freq_limited_range(struct smu_context *smu, enum smu_clk_
 		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetSoftMinByFreq,
 						  param, NULL);
 		if (ret)
-			return ret;
+			goto out;
 	}
+
+out:
+	if (clk_type == SMU_GFXCLK &&
+	    adev->asic_type == CHIP_SIENNA_CICHLID)
+		amdgpu_gfx_off_ctrl(adev, true);
 
 	return ret;
 }
