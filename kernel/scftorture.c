@@ -134,7 +134,7 @@ static atomic_t n_alloc_errs;
 static bool scfdone;
 static char *bangstr = "";
 
-DEFINE_TORTURE_RANDOM_PERCPU(scf_torture_rand);
+static DEFINE_TORTURE_RANDOM_PERCPU(scf_torture_rand);
 
 // Print torture statistics.  Caller must ensure serialization.
 static void scf_torture_stats_print(void)
