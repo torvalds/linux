@@ -101,6 +101,13 @@ xchk_rtbitmap(
 {
 	int			error;
 
+	/* Is the size of the rtbitmap correct? */
+	if (sc->mp->m_rbmip->i_d.di_size !=
+	    XFS_FSB_TO_B(sc->mp, sc->mp->m_sb.sb_rbmblocks)) {
+		xchk_ino_set_corrupt(sc, sc->mp->m_rbmip->i_ino);
+		return 0;
+	}
+
 	/* Invoke the fork scrubber. */
 	error = xchk_metadata_inode_forks(sc);
 	if (error || (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT))
