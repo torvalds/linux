@@ -7471,6 +7471,16 @@ static void i85x_init_clock_gating(struct drm_i915_private *dev_priv)
 
 	I915_WRITE(MEM_MODE,
 		   _MASKED_BIT_ENABLE(MEM_DISPLAY_TRICKLE_FEED_DISABLE));
+
+	/*
+	 * Have FBC ignore 3D activity since we use software
+	 * render tracking, and otherwise a pure 3D workload
+	 * (even if it just renders a single frame and then does
+	 * abosultely nothing) would not allow FBC to recompress
+	 * until a 2D blit occurs.
+	 */
+	I915_WRITE(SCPD0,
+		   _MASKED_BIT_ENABLE(SCPD_FBC_IGNORE_3D));
 }
 
 static void i830_init_clock_gating(struct drm_i915_private *dev_priv)

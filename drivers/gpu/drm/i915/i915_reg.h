@@ -2827,6 +2827,7 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define VLV_GU_CTL0	_MMIO(VLV_DISPLAY_BASE + 0x2030)
 #define VLV_GU_CTL1	_MMIO(VLV_DISPLAY_BASE + 0x2034)
 #define SCPD0		_MMIO(0x209c) /* 915+ only */
+#define  SCPD_FBC_IGNORE_3D			(1 << 6)
 #define  CSTATE_RENDER_CLOCK_GATE_DISABLE	(1 << 5)
 #define GEN2_IER	_MMIO(0x20a0)
 #define GEN2_IIR	_MMIO(0x20a4)
