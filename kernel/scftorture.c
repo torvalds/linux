@@ -381,11 +381,14 @@ static void scftorture_invoke_one(struct scf_statistics *scfp, struct torture_ra
 // smp_call_function() family of functions.
 static int scftorture_invoker(void *arg)
 {
+	int cpu;
 	DEFINE_TORTURE_RANDOM(rand);
 	struct scf_statistics *scfp = (struct scf_statistics *)arg;
+	bool was_offline = false;
 
 	VERBOSE_SCFTORTOUT("scftorture_invoker %d: task started", scfp->cpu);
-	set_cpus_allowed_ptr(current, cpumask_of(scfp->cpu % nr_cpu_ids));
+	cpu = scfp->cpu % nr_cpu_ids;
+	set_cpus_allowed_ptr(current, cpumask_of(cpu));
 	set_user_nice(current, MAX_NICE);
 	if (holdoff)
 		schedule_timeout_interruptible(holdoff * HZ);
@@ -408,6 +411,14 @@ static int scftorture_invoker(void *arg)
 
 	do {
 		scftorture_invoke_one(scfp, &rand);
+		while (cpu_is_offline(cpu) && !torture_must_stop()) {
+			schedule_timeout_interruptible(HZ / 5);
+			was_offline = true;
+		}
+		if (was_offline) {
+			set_cpus_allowed_ptr(current, cpumask_of(cpu));
+			was_offline = false;
+		}
 	} while (!torture_must_stop());
 
 	VERBOSE_SCFTORTOUT("scftorture_invoker %d ended", scfp->cpu);
