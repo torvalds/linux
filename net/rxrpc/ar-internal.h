@@ -493,6 +493,7 @@ enum rxrpc_call_flag {
 	RXRPC_CALL_RX_HEARD,		/* The peer responded at least once to this call */
 	RXRPC_CALL_RX_UNDERRUN,		/* Got data underrun */
 	RXRPC_CALL_DISCONNECTED,	/* The call has been disconnected */
+	RXRPC_CALL_KERNEL,		/* The call was made by the kernel */
 };
 
 /*
@@ -727,6 +728,7 @@ struct rxrpc_call_params {
 		u32		normal;		/* Max time since last call packet (msec) */
 	} timeouts;
 	u8			nr_timeouts;	/* Number of timeouts specified */
+	bool			kernel;		/* T if kernel is making the call */
 	enum rxrpc_interruptibility interruptibility; /* How is interruptible is the call? */
 };
 
