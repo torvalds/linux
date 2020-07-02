@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright (c) 2019, Mellanox Technologies inc.  All rights reserved.
+ * Copyright (c) 2019-2020, Mellanox Technologies Ltd. All rights reserved.
  */
 
 #include <uapi/rdma/rdma_netlink.h>
@@ -8,6 +8,7 @@
 #include <rdma/ib_umem_odp.h>
 #include <rdma/restrack.h>
 #include "mlx5_ib.h"
+#include "restrack.h"
 
 #define MAX_DUMP_SIZE 1024
 
@@ -77,8 +78,7 @@ out:
 	return err;
 }
 
-int mlx5_ib_fill_stat_mr_entry(struct sk_buff *msg,
-			       struct ib_mr *ibmr)
+static int fill_stat_mr_entry(struct sk_buff *msg, struct ib_mr *ibmr)
 {
 	struct mlx5_ib_mr *mr = to_mmr(ibmr);
 	struct nlattr *table_attr;
@@ -112,7 +112,7 @@ err:
 	return -EMSGSIZE;
 }
 
-int mlx5_ib_fill_res_mr_entry_raw(struct sk_buff *msg, struct ib_mr *ibmr)
+static int fill_res_mr_entry_raw(struct sk_buff *msg, struct ib_mr *ibmr)
 {
 	struct mlx5_ib_mr *mr = to_mmr(ibmr);
 
@@ -120,8 +120,7 @@ int mlx5_ib_fill_res_mr_entry_raw(struct sk_buff *msg, struct ib_mr *ibmr)
 			    mlx5_mkey_to_idx(mr->mmkey.key));
 }
 
-int mlx5_ib_fill_res_mr_entry(struct sk_buff *msg,
-			      struct ib_mr *ibmr)
+static int fill_res_mr_entry(struct sk_buff *msg, struct ib_mr *ibmr)
 {
 	struct mlx5_ib_mr *mr = to_mmr(ibmr);
 	struct nlattr *table_attr;
@@ -149,7 +148,7 @@ err:
 	return -EMSGSIZE;
 }
 
-int mlx5_ib_fill_res_cq_entry_raw(struct sk_buff *msg, struct ib_cq *ibcq)
+static int fill_res_cq_entry_raw(struct sk_buff *msg, struct ib_cq *ibcq)
 {
 	struct mlx5_ib_dev *dev = to_mdev(ibcq->device);
 	struct mlx5_ib_cq *cq = to_mcq(ibcq);
@@ -157,10 +156,24 @@ int mlx5_ib_fill_res_cq_entry_raw(struct sk_buff *msg, struct ib_cq *ibcq)
 	return fill_res_raw(msg, dev, MLX5_SGMT_TYPE_PRM_QUERY_CQ, cq->mcq.cqn);
 }
 
-int mlx5_ib_fill_res_qp_entry_raw(struct sk_buff *msg, struct ib_qp *ibqp)
+static int fill_res_qp_entry_raw(struct sk_buff *msg, struct ib_qp *ibqp)
 {
 	struct mlx5_ib_dev *dev = to_mdev(ibqp->device);
 
 	return fill_res_raw(msg, dev, MLX5_SGMT_TYPE_PRM_QUERY_QP,
 			    ibqp->qp_num);
+}
+
+static const struct ib_device_ops restrack_ops = {
+	.fill_res_cq_entry_raw = fill_res_cq_entry_raw,
+	.fill_res_mr_entry = fill_res_mr_entry,
+	.fill_res_mr_entry_raw = fill_res_mr_entry_raw,
+	.fill_res_qp_entry_raw = fill_res_qp_entry_raw,
+	.fill_stat_mr_entry = fill_stat_mr_entry,
+};
+
+int mlx5_ib_restrack_init(struct mlx5_ib_dev *dev)
+{
+	ib_set_device_ops(&dev->ib_dev, &restrack_ops);
+	return 0;
 }
