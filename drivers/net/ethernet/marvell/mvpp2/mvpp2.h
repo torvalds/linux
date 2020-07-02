@@ -1082,9 +1082,20 @@ struct mvpp2_rx_desc {
 	};
 };
 
+enum mvpp2_tx_buf_type {
+	MVPP2_TYPE_SKB,
+	MVPP2_TYPE_XDP_TX,
+	MVPP2_TYPE_XDP_NDO,
+};
+
 struct mvpp2_txq_pcpu_buf {
+	enum mvpp2_tx_buf_type type;
+
 	/* Transmitted SKB */
-	struct sk_buff *skb;
+	union {
+		struct xdp_frame *xdpf;
+		struct sk_buff *skb;
+	};
 
 	/* Physical address of transmitted buffer */
 	dma_addr_t dma;
