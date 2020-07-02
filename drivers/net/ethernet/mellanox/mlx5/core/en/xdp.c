@@ -205,6 +205,7 @@ static void mlx5e_xdp_mpwqe_session_start(struct mlx5e_xdpsq *sq)
 
 	*session = (struct mlx5e_tx_mpwqe) {
 		.wqe = wqe,
+		.bytes_count = 0,
 		.ds_count = MLX5E_TX_WQE_EMPTY_DS_COUNT,
 		.pkt_count = 0,
 		.inline_on = mlx5e_xdp_get_inline_state(sq, session->inline_on),

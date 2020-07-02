@@ -221,6 +221,7 @@ enum mlx5e_priv_flag {
 	MLX5E_PFLAG_RX_STRIDING_RQ,
 	MLX5E_PFLAG_RX_NO_CSUM_COMPLETE,
 	MLX5E_PFLAG_XDP_TX_MPWQE,
+	MLX5E_PFLAG_SKB_TX_MPWQE,
 	MLX5E_NUM_PFLAGS, /* Keep last */
 };
 
@@ -305,6 +306,7 @@ struct mlx5e_sq_dma {
 
 enum {
 	MLX5E_SQ_STATE_ENABLED,
+	MLX5E_SQ_STATE_MPWQE,
 	MLX5E_SQ_STATE_RECOVERING,
 	MLX5E_SQ_STATE_IPSEC,
 	MLX5E_SQ_STATE_AM,
@@ -316,6 +318,7 @@ enum {
 struct mlx5e_tx_mpwqe {
 	/* Current MPWQE session */
 	struct mlx5e_tx_wqe *wqe;
+	u32 bytes_count;
 	u8 ds_count;
 	u8 pkt_count;
 	u8 inline_on;
@@ -334,6 +337,7 @@ struct mlx5e_txqsq {
 	u16                        pc ____cacheline_aligned_in_smp;
 	u16                        skb_fifo_pc;
 	u32                        dma_fifo_pc;
+	struct mlx5e_tx_mpwqe      mpwqe;
 
 	struct mlx5e_cq            cq;
 

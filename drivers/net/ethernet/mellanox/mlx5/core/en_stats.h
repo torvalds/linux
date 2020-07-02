@@ -120,6 +120,8 @@ struct mlx5e_sw_stats {
 	u64 tx_tso_inner_bytes;
 	u64 tx_added_vlan_packets;
 	u64 tx_nop;
+	u64 tx_mpwqe_blks;
+	u64 tx_mpwqe_pkts;
 	u64 rx_lro_packets;
 	u64 rx_lro_bytes;
 	u64 rx_ecn_mark;
@@ -348,6 +350,8 @@ struct mlx5e_sq_stats {
 	u64 csum_partial_inner;
 	u64 added_vlan_packets;
 	u64 nop;
+	u64 mpwqe_blks;
+	u64 mpwqe_pkts;
 #ifdef CONFIG_MLX5_EN_TLS
 	u64 tls_encrypted_packets;
 	u64 tls_encrypted_bytes;

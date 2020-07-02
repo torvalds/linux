@@ -270,6 +270,8 @@ bool mlx5e_tls_handle_tx_skb(struct net_device *netdev, struct mlx5e_txqsq *sq,
 	if (!datalen)
 		return true;
 
+	mlx5e_tx_mpwqe_ensure_complete(sq);
+
 	tls_ctx = tls_get_ctx(skb->sk);
 	if (WARN_ON_ONCE(tls_ctx->netdev != netdev))
 		goto err_out;

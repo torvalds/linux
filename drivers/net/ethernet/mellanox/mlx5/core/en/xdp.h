@@ -147,6 +147,7 @@ mlx5e_xdp_mpwqe_add_dseg(struct mlx5e_xdpsq *sq,
 	u32 dma_len = xdptxd->len;
 
 	session->pkt_count++;
+	session->bytes_count += dma_len;
 
 	if (session->inline_on && dma_len <= MLX5E_XDP_INLINE_WQE_SZ_THRSD) {
 		struct mlx5_wqe_inline_seg *inline_dseg =

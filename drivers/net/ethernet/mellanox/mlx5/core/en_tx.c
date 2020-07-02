@@ -428,6 +428,166 @@ err_drop:
 	dev_kfree_skb_any(skb);
 }
 
+static bool mlx5e_tx_skb_supports_mpwqe(struct sk_buff *skb, struct mlx5e_tx_attr *attr)
+{
+	return !skb_is_nonlinear(skb) && !skb_vlan_tag_present(skb) && !attr->ihs;
+}
+
+static bool mlx5e_tx_mpwqe_same_eseg(struct mlx5e_txqsq *sq, struct mlx5_wqe_eth_seg *eseg)
+{
+	struct mlx5e_tx_mpwqe *session = &sq->mpwqe;
+
+	/* Assumes the session is already running and has at least one packet. */
+	return !memcmp(&session->wqe->eth, eseg, MLX5E_ACCEL_ESEG_LEN);
+}
+
+static void mlx5e_tx_mpwqe_session_start(struct mlx5e_txqsq *sq,
+					 struct mlx5_wqe_eth_seg *eseg)
+{
+	struct mlx5e_tx_mpwqe *session = &sq->mpwqe;
+	struct mlx5e_tx_wqe *wqe;
+	u16 pi;
+
+	pi = mlx5e_txqsq_get_next_pi(sq, MLX5E_TX_MPW_MAX_WQEBBS);
+	wqe = MLX5E_TX_FETCH_WQE(sq, pi);
+	prefetchw(wqe->data);
+
+	*session = (struct mlx5e_tx_mpwqe) {
+		.wqe = wqe,
+		.bytes_count = 0,
+		.ds_count = MLX5E_TX_WQE_EMPTY_DS_COUNT,
+		.pkt_count = 0,
+		.inline_on = 0,
+	};
+
+	memcpy(&session->wqe->eth, eseg, MLX5E_ACCEL_ESEG_LEN);
+
+	sq->stats->mpwqe_blks++;
+}
+
+static bool mlx5e_tx_mpwqe_session_is_active(struct mlx5e_txqsq *sq)
+{
+	return sq->mpwqe.wqe;
+}
+
+static void mlx5e_tx_mpwqe_add_dseg(struct mlx5e_txqsq *sq, struct mlx5e_xmit_data *txd)
+{
+	struct mlx5e_tx_mpwqe *session = &sq->mpwqe;
+	struct mlx5_wqe_data_seg *dseg;
+
+	dseg = (struct mlx5_wqe_data_seg *)session->wqe + session->ds_count;
+
+	session->pkt_count++;
+	session->bytes_count += txd->len;
+
+	dseg->addr = cpu_to_be64(txd->dma_addr);
+	dseg->byte_count = cpu_to_be32(txd->len);
+	dseg->lkey = sq->mkey_be;
+	session->ds_count++;
+
+	sq->stats->mpwqe_pkts++;
+}
+
+static struct mlx5_wqe_ctrl_seg *mlx5e_tx_mpwqe_session_complete(struct mlx5e_txqsq *sq)
+{
+	struct mlx5e_tx_mpwqe *session = &sq->mpwqe;
+	u8 ds_count = session->ds_count;
+	struct mlx5_wqe_ctrl_seg *cseg;
+	struct mlx5e_tx_wqe_info *wi;
+	u16 pi;
+
+	cseg = &session->wqe->ctrl;
+	cseg->opmod_idx_opcode = cpu_to_be32((sq->pc << 8) | MLX5_OPCODE_ENHANCED_MPSW);
+	cseg->qpn_ds = cpu_to_be32((sq->sqn << 8) | ds_count);
+
+	pi = mlx5_wq_cyc_ctr2ix(&sq->wq, sq->pc);
+	wi = &sq->db.wqe_info[pi];
+	*wi = (struct mlx5e_tx_wqe_info) {
+		.skb = NULL,
+		.num_bytes = session->bytes_count,
+		.num_wqebbs = DIV_ROUND_UP(ds_count, MLX5_SEND_WQEBB_NUM_DS),
+		.num_dma = session->pkt_count,
+		.num_fifo_pkts = session->pkt_count,
+	};
+
+	sq->pc += wi->num_wqebbs;
+
+	session->wqe = NULL;
+
+	mlx5e_tx_check_stop(sq);
+
+	return cseg;
+}
+
+static void
+mlx5e_sq_xmit_mpwqe(struct mlx5e_txqsq *sq, struct sk_buff *skb,
+		    struct mlx5_wqe_eth_seg *eseg, bool xmit_more)
+{
+	struct mlx5_wqe_ctrl_seg *cseg;
+	struct mlx5e_xmit_data txd;
+
+	if (!mlx5e_tx_mpwqe_session_is_active(sq)) {
+		mlx5e_tx_mpwqe_session_start(sq, eseg);
+	} else if (!mlx5e_tx_mpwqe_same_eseg(sq, eseg)) {
+		mlx5e_tx_mpwqe_session_complete(sq);
+		mlx5e_tx_mpwqe_session_start(sq, eseg);
+	}
+
+	sq->stats->xmit_more += xmit_more;
+
+	txd.data = skb->data;
+	txd.len = skb->len;
+
+	txd.dma_addr = dma_map_single(sq->pdev, txd.data, txd.len, DMA_TO_DEVICE);
+	if (unlikely(dma_mapping_error(sq->pdev, txd.dma_addr)))
+		goto err_unmap;
+	mlx5e_dma_push(sq, txd.dma_addr, txd.len, MLX5E_DMA_MAP_SINGLE);
+
+	mlx5e_skb_fifo_push(sq, skb);
+
+	mlx5e_tx_mpwqe_add_dseg(sq, &txd);
+
+	mlx5e_tx_skb_update_hwts_flags(skb);
+
+	if (unlikely(mlx5e_tx_mpwqe_is_full(&sq->mpwqe))) {
+		/* Might stop the queue and affect the retval of __netdev_tx_sent_queue. */
+		cseg = mlx5e_tx_mpwqe_session_complete(sq);
+
+		if (__netdev_tx_sent_queue(sq->txq, txd.len, xmit_more))
+			mlx5e_notify_hw(&sq->wq, sq->pc, sq->uar_map, cseg);
+	} else if (__netdev_tx_sent_queue(sq->txq, txd.len, xmit_more)) {
+		/* Might stop the queue, but we were asked to ring the doorbell anyway. */
+		cseg = mlx5e_tx_mpwqe_session_complete(sq);
+
+		mlx5e_notify_hw(&sq->wq, sq->pc, sq->uar_map, cseg);
+	}
+
+	return;
+
+err_unmap:
+	mlx5e_dma_unmap_wqe_err(sq, 1);
+	sq->stats->dropped++;
+	dev_kfree_skb_any(skb);
+}
+
+void mlx5e_tx_mpwqe_ensure_complete(struct mlx5e_txqsq *sq)
+{
+	/* Unlikely in non-MPWQE workloads; not important in MPWQE workloads. */
+	if (unlikely(mlx5e_tx_mpwqe_session_is_active(sq)))
+		mlx5e_tx_mpwqe_session_complete(sq);
+}
+
+static bool mlx5e_txwqe_build_eseg(struct mlx5e_priv *priv, struct mlx5e_txqsq *sq,
+				   struct sk_buff *skb, struct mlx5_wqe_eth_seg *eseg)
+{
+	if (unlikely(!mlx5e_accel_tx_eseg(priv, sq, skb, eseg)))
+		return false;
+
+	mlx5e_txwqe_build_eseg_csum(sq, skb, eseg);
+
+	return true;
+}
+
 netdev_tx_t mlx5e_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
@@ -442,21 +602,35 @@ netdev_tx_t mlx5e_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* May send SKBs and WQEs. */
 	if (unlikely(!mlx5e_accel_tx_begin(dev, sq, skb, &accel)))
-		goto out;
+		return NETDEV_TX_OK;
 
 	mlx5e_sq_xmit_prepare(sq, skb, &accel, &attr);
+
+	if (test_bit(MLX5E_SQ_STATE_MPWQE, &sq->state)) {
+		if (mlx5e_tx_skb_supports_mpwqe(skb, &attr)) {
+			struct mlx5_wqe_eth_seg eseg = {};
+
+			if (unlikely(!mlx5e_txwqe_build_eseg(priv, sq, skb, &eseg)))
+				return NETDEV_TX_OK;
+
+			mlx5e_sq_xmit_mpwqe(sq, skb, &eseg, netdev_xmit_more());
+			return NETDEV_TX_OK;
+		}
+
+		mlx5e_tx_mpwqe_ensure_complete(sq);
+	}
+
 	mlx5e_sq_calc_wqe_attr(skb, &attr, &wqe_attr);
 	pi = mlx5e_txqsq_get_next_pi(sq, wqe_attr.num_wqebbs);
 	wqe = MLX5E_TX_FETCH_WQE(sq, pi);
 
 	/* May update the WQE, but may not post other WQEs. */
-	if (unlikely(!mlx5e_accel_tx_finish(priv, sq, skb, wqe, &accel)))
-		goto out;
+	mlx5e_accel_tx_finish(sq, wqe, &accel);
+	if (unlikely(!mlx5e_txwqe_build_eseg(priv, sq, skb, &wqe->eth)))
+		return NETDEV_TX_OK;
 
-	mlx5e_txwqe_build_eseg_csum(sq, skb, &wqe->eth);
 	mlx5e_sq_xmit_wqe(sq, skb, &attr, &wqe_attr, wqe, pi, netdev_xmit_more());
 
-out:
 	return NETDEV_TX_OK;
 }
 
