@@ -408,16 +408,8 @@ void i915_gem_driver_unregister__shrinker(struct drm_i915_private *i915)
 void i915_gem_shrinker_taints_mutex(struct drm_i915_private *i915,
 				    struct mutex *mutex)
 {
-	bool unlock = false;
-
 	if (!IS_ENABLED(CONFIG_LOCKDEP))
 		return;
-
-	if (!lockdep_is_held_type(&i915->drm.struct_mutex, -1)) {
-		mutex_acquire(&i915->drm.struct_mutex.dep_map,
-			      I915_MM_NORMAL, 0, _RET_IP_);
-		unlock = true;
-	}
 
 	fs_reclaim_acquire(GFP_KERNEL);
 
@@ -425,9 +417,6 @@ void i915_gem_shrinker_taints_mutex(struct drm_i915_private *i915,
 	mutex_release(&mutex->dep_map, _RET_IP_);
 
 	fs_reclaim_release(GFP_KERNEL);
-
-	if (unlock)
-		mutex_release(&i915->drm.struct_mutex.dep_map, _RET_IP_);
 }
 
 #define obj_to_i915(obj__) to_i915((obj__)->base.dev)
