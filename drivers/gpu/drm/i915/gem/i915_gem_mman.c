@@ -507,19 +507,6 @@ void i915_gem_object_release_mmap_offset(struct drm_i915_gem_object *obj)
 	spin_unlock(&obj->mmo.lock);
 }
 
-/**
- * i915_gem_object_release_mmap - remove physical page mappings
- * @obj: obj in question
- *
- * Preserve the reservation of the mmapping with the DRM core code, but
- * relinquish ownership of the pages back to the system.
- */
-void i915_gem_object_release_mmap(struct drm_i915_gem_object *obj)
-{
-	i915_gem_object_release_mmap_gtt(obj);
-	i915_gem_object_release_mmap_offset(obj);
-}
-
 static struct i915_mmap_offset *
 lookup_mmo(struct drm_i915_gem_object *obj,
 	   enum i915_mmap_type mmap_type)
