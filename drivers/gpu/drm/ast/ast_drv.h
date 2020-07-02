@@ -316,8 +316,8 @@ void ast_init_3rdtx(struct drm_device *dev);
 void ast_release_firmware(struct drm_device *dev);
 
 /* ast_cursor.c */
-int ast_cursor_init(struct drm_device *dev);
-void ast_cursor_fini(struct drm_device *dev);
+int ast_cursor_init(struct ast_private *ast);
+void ast_cursor_fini(struct ast_private *ast);
 int ast_cursor_update(void *dst, void *src, unsigned int width,
 		      unsigned int height);
 void ast_cursor_set_base(struct ast_private *ast, u64 address);

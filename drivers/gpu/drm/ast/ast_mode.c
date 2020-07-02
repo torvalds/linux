@@ -1149,7 +1149,7 @@ int ast_mode_init(struct drm_device *dev)
 	drm_plane_helper_add(&ast->cursor_plane,
 			     &ast_cursor_plane_helper_funcs);
 
-	ast_cursor_init(dev);
+	ast_cursor_init(ast);
 	ast_crtc_init(dev);
 	ast_encoder_init(dev);
 	ast_connector_init(dev);
@@ -1159,7 +1159,9 @@ int ast_mode_init(struct drm_device *dev)
 
 void ast_mode_fini(struct drm_device *dev)
 {
-	ast_cursor_fini(dev);
+	struct ast_private *ast = to_ast_private(dev);
+
+	ast_cursor_fini(ast);
 }
 
 static int get_clock(void *i2c_priv)

@@ -34,9 +34,9 @@
 /*
  * Allocate cursor BOs and pins them at the end of VRAM.
  */
-int ast_cursor_init(struct drm_device *dev)
+int ast_cursor_init(struct ast_private *ast)
 {
-	struct ast_private *ast = to_ast_private(dev);
+	struct drm_device *dev = ast->dev;
 	size_t size, i;
 	struct drm_gem_vram_object *gbo;
 	int ret;
@@ -72,9 +72,8 @@ err_drm_gem_vram_put:
 	return ret;
 }
 
-void ast_cursor_fini(struct drm_device *dev)
+void ast_cursor_fini(struct ast_private *ast)
 {
-	struct ast_private *ast = to_ast_private(dev);
 	size_t i;
 	struct drm_gem_vram_object *gbo;
 
