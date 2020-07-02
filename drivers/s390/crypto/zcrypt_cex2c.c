@@ -266,8 +266,7 @@ static int zcrypt_cex2c_card_probe(struct ap_device *ap_dev)
 	case AP_DEVICE_TYPE_CEX2C:
 		zc->user_space_type = ZCRYPT_CEX2C;
 		zc->type_string = "CEX2C";
-		memcpy(zc->speed_rating, CEX2C_SPEED_IDX,
-		       sizeof(CEX2C_SPEED_IDX));
+		zc->speed_rating = CEX2C_SPEED_IDX;
 		zc->min_mod_size = CEX2C_MIN_MOD_SIZE;
 		zc->max_mod_size = CEX2C_MAX_MOD_SIZE;
 		zc->max_exp_bit_length = CEX2C_MAX_MOD_SIZE;
@@ -275,8 +274,7 @@ static int zcrypt_cex2c_card_probe(struct ap_device *ap_dev)
 	case AP_DEVICE_TYPE_CEX3C:
 		zc->user_space_type = ZCRYPT_CEX3C;
 		zc->type_string = "CEX3C";
-		memcpy(zc->speed_rating, CEX3C_SPEED_IDX,
-		       sizeof(CEX3C_SPEED_IDX));
+		zc->speed_rating = CEX3C_SPEED_IDX;
 		zc->min_mod_size = CEX3C_MIN_MOD_SIZE;
 		zc->max_mod_size = CEX3C_MAX_MOD_SIZE;
 		zc->max_exp_bit_length = CEX3C_MAX_MOD_SIZE;

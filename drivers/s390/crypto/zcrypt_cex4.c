@@ -409,31 +409,31 @@ static int zcrypt_cex4_card_probe(struct ap_device *ap_dev)
 	 * Normalized speed ratings per crypto adapter
 	 * MEX_1k, MEX_2k, MEX_4k, CRT_1k, CRT_2k, CRT_4k, RNG, SECKEY
 	 */
-	static const int CEX4A_SPEED_IDX[] = {
+	static const int CEX4A_SPEED_IDX[NUM_OPS] = {
 		 14,  19, 249, 42, 228, 1458, 0, 0};
-	static const int CEX5A_SPEED_IDX[] = {
+	static const int CEX5A_SPEED_IDX[NUM_OPS] = {
 		  8,   9,  20, 18,  66,	 458, 0, 0};
-	static const int CEX6A_SPEED_IDX[] = {
+	static const int CEX6A_SPEED_IDX[NUM_OPS] = {
 		  6,   9,  20, 17,  65,	 438, 0, 0};
-	static const int CEX7A_SPEED_IDX[] = {
+	static const int CEX7A_SPEED_IDX[NUM_OPS] = {
 		  6,   8,  17, 15,  54,	 362, 0, 0};
 
-	static const int CEX4C_SPEED_IDX[] = {
+	static const int CEX4C_SPEED_IDX[NUM_OPS] = {
 		 59,  69, 308, 83, 278, 2204, 209, 40};
 	static const int CEX5C_SPEED_IDX[] = {
 		 24,  31,  50, 37,  90,	 479,  27, 10};
-	static const int CEX6C_SPEED_IDX[] = {
+	static const int CEX6C_SPEED_IDX[NUM_OPS] = {
 		 16,  20,  32, 27,  77,	 455,  24,  9};
-	static const int CEX7C_SPEED_IDX[] = {
+	static const int CEX7C_SPEED_IDX[NUM_OPS] = {
 		 14,  16,  26, 23,  64,	 376,  23,  8};
 
-	static const int CEX4P_SPEED_IDX[] = {
+	static const int CEX4P_SPEED_IDX[NUM_OPS] = {
 		  0,   0,   0,	 0,   0,   0,	0,  50};
-	static const int CEX5P_SPEED_IDX[] = {
+	static const int CEX5P_SPEED_IDX[NUM_OPS] = {
 		  0,   0,   0,	 0,   0,   0,	0,  10};
-	static const int CEX6P_SPEED_IDX[] = {
+	static const int CEX6P_SPEED_IDX[NUM_OPS] = {
 		  0,   0,   0,	 0,   0,   0,	0,   9};
-	static const int CEX7P_SPEED_IDX[] = {
+	static const int CEX7P_SPEED_IDX[NUM_OPS] = {
 		  0,   0,   0,	 0,   0,   0,	0,   8};
 
 	struct ap_card *ac = to_ap_card(&ap_dev->device);
@@ -449,26 +449,22 @@ static int zcrypt_cex4_card_probe(struct ap_device *ap_dev)
 		if (ac->ap_dev.device_type == AP_DEVICE_TYPE_CEX4) {
 			zc->type_string = "CEX4A";
 			zc->user_space_type = ZCRYPT_CEX4;
-			memcpy(zc->speed_rating, CEX4A_SPEED_IDX,
-			       sizeof(CEX4A_SPEED_IDX));
+			zc->speed_rating = CEX4A_SPEED_IDX;
 		} else if (ac->ap_dev.device_type == AP_DEVICE_TYPE_CEX5) {
 			zc->type_string = "CEX5A";
 			zc->user_space_type = ZCRYPT_CEX5;
-			memcpy(zc->speed_rating, CEX5A_SPEED_IDX,
-			       sizeof(CEX5A_SPEED_IDX));
+			zc->speed_rating = CEX5A_SPEED_IDX;
 		} else if (ac->ap_dev.device_type == AP_DEVICE_TYPE_CEX6) {
 			zc->type_string = "CEX6A";
 			zc->user_space_type = ZCRYPT_CEX6;
-			memcpy(zc->speed_rating, CEX6A_SPEED_IDX,
-			       sizeof(CEX6A_SPEED_IDX));
+			zc->speed_rating = CEX6A_SPEED_IDX;
 		} else {
 			zc->type_string = "CEX7A";
 			/* wrong user space type, just for compatibility
 			 * with the ZCRYPT_STATUS_MASK ioctl.
 			 */
 			zc->user_space_type = ZCRYPT_CEX6;
-			memcpy(zc->speed_rating, CEX7A_SPEED_IDX,
-			       sizeof(CEX7A_SPEED_IDX));
+			zc->speed_rating = CEX7A_SPEED_IDX;
 		}
 		zc->min_mod_size = CEX4A_MIN_MOD_SIZE;
 		if (ap_test_bit(&ac->functions, AP_FUNC_MEX4K) &&
@@ -488,32 +484,28 @@ static int zcrypt_cex4_card_probe(struct ap_device *ap_dev)
 			 * just keep it for cca compatibility
 			 */
 			zc->user_space_type = ZCRYPT_CEX3C;
-			memcpy(zc->speed_rating, CEX4C_SPEED_IDX,
-			       sizeof(CEX4C_SPEED_IDX));
+			zc->speed_rating = CEX4C_SPEED_IDX;
 		} else if (ac->ap_dev.device_type == AP_DEVICE_TYPE_CEX5) {
 			zc->type_string = "CEX5C";
 			/* wrong user space type, must be CEX5
 			 * just keep it for cca compatibility
 			 */
 			zc->user_space_type = ZCRYPT_CEX3C;
-			memcpy(zc->speed_rating, CEX5C_SPEED_IDX,
-			       sizeof(CEX5C_SPEED_IDX));
+			zc->speed_rating = CEX5C_SPEED_IDX;
 		} else if (ac->ap_dev.device_type == AP_DEVICE_TYPE_CEX6) {
 			zc->type_string = "CEX6C";
 			/* wrong user space type, must be CEX6
 			 * just keep it for cca compatibility
 			 */
 			zc->user_space_type = ZCRYPT_CEX3C;
-			memcpy(zc->speed_rating, CEX6C_SPEED_IDX,
-			       sizeof(CEX6C_SPEED_IDX));
+			zc->speed_rating = CEX6C_SPEED_IDX;
 		} else {
 			zc->type_string = "CEX7C";
 			/* wrong user space type, must be CEX7
 			 * just keep it for cca compatibility
 			 */
 			zc->user_space_type = ZCRYPT_CEX3C;
-			memcpy(zc->speed_rating, CEX7C_SPEED_IDX,
-			       sizeof(CEX7C_SPEED_IDX));
+			zc->speed_rating = CEX7C_SPEED_IDX;
 		}
 		zc->min_mod_size = CEX4C_MIN_MOD_SIZE;
 		zc->max_mod_size = CEX4C_MAX_MOD_SIZE;
@@ -522,26 +514,22 @@ static int zcrypt_cex4_card_probe(struct ap_device *ap_dev)
 		if (ac->ap_dev.device_type == AP_DEVICE_TYPE_CEX4) {
 			zc->type_string = "CEX4P";
 			zc->user_space_type = ZCRYPT_CEX4;
-			memcpy(zc->speed_rating, CEX4P_SPEED_IDX,
-			       sizeof(CEX4P_SPEED_IDX));
+			zc->speed_rating = CEX4P_SPEED_IDX;
 		} else if (ac->ap_dev.device_type == AP_DEVICE_TYPE_CEX5) {
 			zc->type_string = "CEX5P";
 			zc->user_space_type = ZCRYPT_CEX5;
-			memcpy(zc->speed_rating, CEX5P_SPEED_IDX,
-			       sizeof(CEX5P_SPEED_IDX));
+			zc->speed_rating = CEX5P_SPEED_IDX;
 		} else if (ac->ap_dev.device_type == AP_DEVICE_TYPE_CEX6) {
 			zc->type_string = "CEX6P";
 			zc->user_space_type = ZCRYPT_CEX6;
-			memcpy(zc->speed_rating, CEX6P_SPEED_IDX,
-			       sizeof(CEX6P_SPEED_IDX));
+			zc->speed_rating = CEX6P_SPEED_IDX;
 		} else {
 			zc->type_string = "CEX7P";
 			/* wrong user space type, just for compatibility
 			 * with the ZCRYPT_STATUS_MASK ioctl.
 			 */
 			zc->user_space_type = ZCRYPT_CEX6;
-			memcpy(zc->speed_rating, CEX7P_SPEED_IDX,
-			       sizeof(CEX7P_SPEED_IDX));
+			zc->speed_rating = CEX7P_SPEED_IDX;
 		}
 		zc->min_mod_size = CEX4C_MIN_MOD_SIZE;
 		zc->max_mod_size = CEX4C_MAX_MOD_SIZE;
