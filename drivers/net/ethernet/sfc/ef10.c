@@ -600,6 +600,7 @@ static int efx_ef10_probe(struct efx_nic *efx)
 	 * However, until we use TX option descriptors we need two TX queues
 	 * per channel.
 	 */
+	efx->tx_queues_per_channel = 2;
 	efx->max_vis = efx_ef10_mem_map_size(efx) / efx->vi_stride;
 	if (!efx->max_vis) {
 		netif_err(efx, drv, efx->net_dev, "error determining max VIs\n");
@@ -607,7 +608,7 @@ static int efx_ef10_probe(struct efx_nic *efx)
 		goto fail5;
 	}
 	efx->max_channels = min_t(unsigned int, EFX_MAX_CHANNELS,
-				  efx->max_vis / EFX_TXQ_TYPES);
+				  efx->max_vis / efx->tx_queues_per_channel);
 	efx->max_tx_channels = efx->max_channels;
 	if (WARN_ON(efx->max_channels == 0)) {
 		rc = -EIO;
@@ -1120,17 +1121,17 @@ static int efx_ef10_alloc_vis(struct efx_nic *efx,
  */
 static int efx_ef10_dimension_resources(struct efx_nic *efx)
 {
+	unsigned int min_vis = max_t(unsigned int, efx->tx_queues_per_channel,
+				     efx_separate_tx_channels ? 2 : 1);
+	unsigned int channel_vis, pio_write_vi_base, max_vis;
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 	unsigned int uc_mem_map_size, wc_mem_map_size;
-	unsigned int min_vis = max(EFX_TXQ_TYPES,
-				   efx_separate_tx_channels ? 2 : 1);
-	unsigned int channel_vis, pio_write_vi_base, max_vis;
 	void __iomem *membase;
 	int rc;
 
 	channel_vis = max(efx->n_channels,
 			  ((efx->n_tx_channels + efx->n_extra_tx_channels) *
-			   EFX_TXQ_TYPES) +
+			   efx->tx_queues_per_channel) +
 			   efx->n_xdp_channels * efx->xdp_tx_per_channel);
 	if (efx->max_vis && efx->max_vis < channel_vis) {
 		netif_dbg(efx, drv, efx->net_dev,
@@ -1219,7 +1220,7 @@ static int efx_ef10_dimension_resources(struct efx_nic *efx)
 		 */
 		efx->max_channels = nic_data->n_allocated_vis;
 		efx->max_tx_channels =
-			nic_data->n_allocated_vis / EFX_TXQ_TYPES;
+			nic_data->n_allocated_vis / efx->tx_queues_per_channel;
 
 		efx_mcdi_free_vis(efx);
 		return -EAGAIN;

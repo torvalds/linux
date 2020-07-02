@@ -569,6 +569,10 @@ int efx_setup_tc(struct net_device *net_dev, enum tc_setup_type type,
 	if (type != TC_SETUP_QDISC_MQPRIO)
 		return -EOPNOTSUPP;
 
+	/* Only Siena supported highpri queues */
+	if (efx_nic_rev(efx) > EFX_REV_SIENA_A0)
+		return -EOPNOTSUPP;
+
 	num_tc = mqprio->num_tc;
 
 	if (num_tc > EFX_MAX_TX_TC)
@@ -585,10 +589,10 @@ int efx_setup_tc(struct net_device *net_dev, enum tc_setup_type type,
 	}
 
 	if (num_tc > net_dev->num_tc) {
+		efx->tx_queues_per_channel = 4;
 		/* Initialise high-priority queues as necessary */
 		efx_for_each_channel(channel, efx) {
-			efx_for_each_possible_channel_tx_queue(tx_queue,
-							       channel) {
+			efx_for_each_channel_tx_queue(tx_queue, channel) {
 				if (!(tx_queue->queue & EFX_TXQ_TYPE_HIGHPRI))
 					continue;
 				if (!tx_queue->buffer) {

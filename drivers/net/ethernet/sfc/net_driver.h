@@ -867,6 +867,7 @@ struct efx_async_filter_insertion {
  * @n_rx_channels: Number of channels used for RX (= number of RX queues)
  * @n_tx_channels: Number of channels used for TX
  * @n_extra_tx_channels: Number of extra channels with TX queues
+ * @tx_queues_per_channel: number of TX queues probed on each channel
  * @n_xdp_channels: Number of channels used for XDP TX
  * @xdp_channel_offset: Offset of zeroth channel used for XPD TX.
  * @xdp_tx_per_channel: Max number of TX queues on an XDP TX channel.
@@ -1031,6 +1032,7 @@ struct efx_nic {
 	unsigned tx_channel_offset;
 	unsigned n_tx_channels;
 	unsigned n_extra_tx_channels;
+	unsigned int tx_queues_per_channel;
 	unsigned int n_xdp_channels;
 	unsigned int xdp_channel_offset;
 	unsigned int xdp_tx_per_channel;
@@ -1529,7 +1531,7 @@ static inline struct efx_tx_queue *
 efx_get_tx_queue(struct efx_nic *efx, unsigned index, unsigned type)
 {
 	EFX_WARN_ON_ONCE_PARANOID(index >= efx->n_tx_channels ||
-				  type >= EFX_TXQ_TYPES);
+				  type >= efx->tx_queues_per_channel);
 	return &efx->channel[efx->tx_channel_offset + index]->tx_queue[type];
 }
 
@@ -1551,18 +1553,18 @@ static inline bool efx_channel_has_tx_queues(struct efx_channel *channel)
 	return true;
 }
 
+static inline unsigned int efx_channel_num_tx_queues(struct efx_channel *channel)
+{
+	if (efx_channel_is_xdp_tx(channel))
+		return channel->efx->xdp_tx_per_channel;
+	return channel->efx->tx_queues_per_channel;
+}
+
 static inline struct efx_tx_queue *
 efx_channel_get_tx_queue(struct efx_channel *channel, unsigned type)
 {
-	EFX_WARN_ON_ONCE_PARANOID(!efx_channel_has_tx_queues(channel) ||
-				  type >= EFX_TXQ_TYPES);
+	EFX_WARN_ON_ONCE_PARANOID(type >= efx_channel_num_tx_queues(channel));
 	return &channel->tx_queue[type];
-}
-
-static inline bool efx_tx_queue_used(struct efx_tx_queue *tx_queue)
-{
-	return !(tx_queue->efx->net_dev->num_tc < 2 &&
-		 tx_queue->queue & EFX_TXQ_TYPE_HIGHPRI);
 }
 
 /* Iterate over all TX queues belonging to a channel */
@@ -1571,18 +1573,8 @@ static inline bool efx_tx_queue_used(struct efx_tx_queue *tx_queue)
 		;							\
 	else								\
 		for (_tx_queue = (_channel)->tx_queue;			\
-		     _tx_queue < (_channel)->tx_queue + EFX_TXQ_TYPES && \
-			     (efx_tx_queue_used(_tx_queue) ||            \
-			      efx_channel_is_xdp_tx(_channel));		\
-		     _tx_queue++)
-
-/* Iterate over all possible TX queues belonging to a channel */
-#define efx_for_each_possible_channel_tx_queue(_tx_queue, _channel)	\
-	if (!efx_channel_has_tx_queues(_channel))			\
-		;							\
-	else								\
-		for (_tx_queue = (_channel)->tx_queue;			\
-		     _tx_queue < (_channel)->tx_queue + EFX_TXQ_TYPES;	\
+		     _tx_queue < (_channel)->tx_queue +			\
+				 efx_channel_num_tx_queues(_channel);		\
 		     _tx_queue++)
 
 static inline bool efx_channel_has_rx_queue(struct efx_channel *channel)
