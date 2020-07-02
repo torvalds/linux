@@ -282,7 +282,7 @@ static int cdns3_idle_init(struct cdns3 *cdns)
 
 /**
  * cdns3_hw_role_switch - switch roles based on HW state
- * @cdns3: controller
+ * @cdns: controller
  */
 int cdns3_hw_role_switch(struct cdns3 *cdns)
 {
@@ -320,7 +320,7 @@ exit:
 /**
  * cdsn3_role_get - get current role of controller.
  *
- * @dev: Pointer to device structure
+ * @sw: pointer to USB role switch structure
  *
  * Returns role
  */
@@ -334,8 +334,8 @@ static enum usb_role cdns3_role_get(struct usb_role_switch *sw)
 /**
  * cdns3_role_set - set current role of controller.
  *
- * @dev: pointer to device object
- * @role - the previous role
+ * @sw: pointer to USB role switch structure
+ * @role: the previous role
  * Handles below events:
  * - Role switch for dual-role devices
  * - USB_ROLE_GADGET <--> USB_ROLE_NONE for peripheral-only devices
