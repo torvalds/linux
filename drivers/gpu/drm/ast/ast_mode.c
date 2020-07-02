@@ -660,14 +660,11 @@ static void
 ast_cursor_plane_helper_atomic_update(struct drm_plane *plane,
 				      struct drm_plane_state *old_state)
 {
-	struct drm_device *dev = plane->dev;
 	struct drm_plane_state *state = plane->state;
 	struct drm_crtc *crtc = state->crtc;
 	struct drm_framebuffer *fb = state->fb;
 	struct ast_private *ast = to_ast_private(plane->dev);
 	struct ast_crtc *ast_crtc = to_ast_crtc(crtc);
-	struct drm_gem_vram_object *gbo;
-	s64 off;
 	u8 jreg;
 
 	ast_crtc->offset_x = AST_MAX_HWC_WIDTH - fb->width;
@@ -675,14 +672,7 @@ ast_cursor_plane_helper_atomic_update(struct drm_plane *plane,
 
 	if (state->fb != old_state->fb) {
 		/* A new cursor image was installed. */
-		gbo = ast->cursor.gbo[ast->cursor.next_index];
-		off = drm_gem_vram_offset(gbo);
-		if (drm_WARN_ON_ONCE(dev, off < 0))
-			return; /* Bug: we didn't pin cursor HW BO to VRAM. */
-		ast_cursor_set_base(ast, off);
-
-		++ast->cursor.next_index;
-		ast->cursor.next_index %= ARRAY_SIZE(ast->cursor.gbo);
+		ast_cursor_page_flip(ast);
 	}
 
 	ast_cursor_move(crtc, state->crtc_x, state->crtc_y);

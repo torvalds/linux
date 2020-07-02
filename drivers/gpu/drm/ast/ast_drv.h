@@ -319,7 +319,7 @@ void ast_release_firmware(struct drm_device *dev);
 int ast_cursor_init(struct ast_private *ast);
 void ast_cursor_fini(struct ast_private *ast);
 int ast_cursor_blit(struct ast_private *ast, struct drm_framebuffer *fb);
-void ast_cursor_set_base(struct ast_private *ast, u64 address);
+void ast_cursor_page_flip(struct ast_private *ast);
 int ast_cursor_move(struct drm_crtc *crtc, int x, int y);
 
 #endif

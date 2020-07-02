@@ -198,7 +198,7 @@ err_drm_gem_vram_unpin:
 	return ret;
 }
 
-void ast_cursor_set_base(struct ast_private *ast, u64 address)
+static void ast_cursor_set_base(struct ast_private *ast, u64 address)
 {
 	u8 addr0 = (address >> 3) & 0xff;
 	u8 addr1 = (address >> 11) & 0xff;
@@ -207,6 +207,24 @@ void ast_cursor_set_base(struct ast_private *ast, u64 address)
 	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xc8, addr0);
 	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xc9, addr1);
 	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xca, addr2);
+}
+
+void ast_cursor_page_flip(struct ast_private *ast)
+{
+	struct drm_device *dev = ast->dev;
+	struct drm_gem_vram_object *gbo;
+	s64 off;
+
+	gbo = ast->cursor.gbo[ast->cursor.next_index];
+
+	off = drm_gem_vram_offset(gbo);
+	if (drm_WARN_ON_ONCE(dev, off < 0))
+		return; /* Bug: we didn't pin the cursor HW BO to VRAM. */
+
+	ast_cursor_set_base(ast, off);
+
+	++ast->cursor.next_index;
+	ast->cursor.next_index %= ARRAY_SIZE(ast->cursor.gbo);
 }
 
 int ast_cursor_move(struct drm_crtc *crtc, int x, int y)
