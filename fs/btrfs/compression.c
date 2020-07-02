@@ -172,8 +172,7 @@ static inline int compressed_bio_size(struct btrfs_fs_info *fs_info,
 		(DIV_ROUND_UP(disk_size, fs_info->sectorsize)) * csum_size;
 }
 
-static int check_compressed_csum(struct btrfs_inode *inode,
-				 struct compressed_bio *cb,
+static int check_compressed_csum(struct btrfs_inode *inode, struct bio *bio,
 				 u64 disk_start)
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
@@ -184,6 +183,7 @@ static int check_compressed_csum(struct btrfs_inode *inode,
 	unsigned long i;
 	char *kaddr;
 	u8 csum[BTRFS_CSUM_SIZE];
+	struct compressed_bio *cb = bio->bi_private;
 	u8 *cb_sum = cb->sums;
 
 	if (inode->flags & BTRFS_INODE_NODATASUM)
@@ -201,6 +201,10 @@ static int check_compressed_csum(struct btrfs_inode *inode,
 		if (memcmp(&csum, cb_sum, csum_size)) {
 			btrfs_print_data_csum_error(inode, disk_start,
 					csum, cb_sum, cb->mirror_num);
+			if (btrfs_io_bio(bio)->device)
+				btrfs_dev_stat_inc_and_print(
+					btrfs_io_bio(bio)->device,
+					BTRFS_DEV_STAT_CORRUPTION_ERRS);
 			ret = -EIO;
 			goto fail;
 		}
@@ -255,7 +259,7 @@ static void end_compressed_bio_read(struct bio *bio)
 		goto csum_failed;
 
 	inode = cb->inode;
-	ret = check_compressed_csum(BTRFS_I(inode), cb,
+	ret = check_compressed_csum(BTRFS_I(inode), bio,
 				    (u64)bio->bi_iter.bi_sector << 9);
 	if (ret)
 		goto csum_failed;
