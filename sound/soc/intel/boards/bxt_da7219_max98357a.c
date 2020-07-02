@@ -677,7 +677,7 @@ static int bxt_card_late_probe(struct snd_soc_card *card)
 		break;
 	default:
 		dev_err(card->dev, "Invalid speaker amplifier %d\n", ctx->spkamp);
-		break;
+		return -EINVAL;
 	}
 
 	err = snd_soc_dapm_new_controls(&card->dapm, widgets, num_widgets);
