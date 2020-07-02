@@ -34,6 +34,12 @@ struct drm_device;
 struct drm_connector;
 struct iommu_domain;
 
+struct rockchip_drm_sub_dev {
+	struct list_head list;
+	struct drm_connector *connector;
+	struct device_node *of_node;
+};
+
 /*
  * Rockchip drm private crtc funcs.
  * @loader_protect: protect loader logo crtc's power
@@ -189,6 +195,11 @@ int rockchip_register_crtc_funcs(struct drm_crtc *crtc,
 				 const struct rockchip_crtc_funcs *crtc_funcs);
 void rockchip_unregister_crtc_funcs(struct drm_crtc *crtc);
 int rockchip_drm_wait_vact_end(struct drm_crtc *crtc, unsigned int mstimeout);
+
+void rockchip_drm_register_sub_dev(struct rockchip_drm_sub_dev *sub_dev);
+void rockchip_drm_unregister_sub_dev(struct rockchip_drm_sub_dev *sub_dev);
+struct rockchip_drm_sub_dev *rockchip_drm_get_sub_dev(struct device_node *node);
+
 #if IS_ENABLED(CONFIG_DRM_ROCKCHIP)
 int rockchip_drm_crtc_send_mcu_cmd(struct drm_device *drm_dev,
 				   struct device_node *np_crtc,

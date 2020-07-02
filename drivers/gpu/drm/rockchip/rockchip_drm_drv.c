@@ -84,8 +84,38 @@ struct rockchip_drm_mode_set {
 };
 
 #ifndef MODULE
-static struct drm_crtc *find_crtc_by_node(struct drm_device *drm_dev,
-					  struct device_node *node)
+static DEFINE_MUTEX(rockchip_drm_sub_dev_lock);
+static LIST_HEAD(rockchip_drm_sub_dev_list);
+
+void rockchip_drm_register_sub_dev(struct rockchip_drm_sub_dev *sub_dev)
+{
+	mutex_lock(&rockchip_drm_sub_dev_lock);
+	list_add_tail(&sub_dev->list, &rockchip_drm_sub_dev_list);
+	mutex_unlock(&rockchip_drm_sub_dev_lock);
+}
+
+void rockchip_drm_unregister_sub_dev(struct rockchip_drm_sub_dev *sub_dev)
+{
+	mutex_lock(&rockchip_drm_sub_dev_lock);
+	list_del(&sub_dev->list);
+	mutex_unlock(&rockchip_drm_sub_dev_lock);
+}
+
+struct rockchip_drm_sub_dev *rockchip_drm_get_sub_dev(struct device_node *node)
+{
+	struct rockchip_drm_sub_dev *sub_dev = NULL;
+
+	mutex_lock(&rockchip_drm_sub_dev_lock);
+	list_for_each_entry(sub_dev, &rockchip_drm_sub_dev_list, list) {
+		if (sub_dev->of_node == node)
+			break;
+	}
+	mutex_unlock(&rockchip_drm_sub_dev_lock);
+
+	return sub_dev;
+}
+
+static struct drm_crtc *find_crtc_by_node(struct drm_device *drm_dev, struct device_node *node)
 {
 	struct device_node *np_crtc;
 	struct drm_crtc *crtc;
@@ -106,55 +136,37 @@ static struct drm_connector *find_connector_by_node(struct drm_device *drm_dev,
 						    struct device_node *node)
 {
 	struct device_node *np_connector;
-	struct drm_connector *connector;
-	struct drm_connector_list_iter conn_iter;
+	struct rockchip_drm_sub_dev *sub_dev;
 
 	np_connector = of_graph_get_remote_port_parent(node);
 	if (!np_connector || !of_device_is_available(np_connector))
 		return NULL;
 
-	drm_connector_list_iter_begin(drm_dev, &conn_iter);
-	drm_for_each_connector_iter(connector, &conn_iter) {
-		if (connector->port == np_connector) {
-			drm_connector_list_iter_end(&conn_iter);
-			return connector;
-		}
-	}
-	drm_connector_list_iter_end(&conn_iter);
+	sub_dev = rockchip_drm_get_sub_dev(np_connector);
+	if (!sub_dev)
+		return NULL;
 
-	return NULL;
+	return sub_dev->connector;
 }
 
-static
-struct drm_connector *find_connector_by_bridge(struct drm_device *drm_dev,
-					       struct device_node *node)
+static struct drm_connector *find_connector_by_bridge(struct drm_device *drm_dev,
+						      struct device_node *node)
 {
 	struct device_node *np_encoder, *np_connector = NULL;
-	struct drm_encoder *encoder;
 	struct drm_connector *connector = NULL;
 	struct device_node *port, *endpoint;
-	bool encoder_bridge = false;
-	bool found_connector = false;
-	struct drm_connector_list_iter conn_iter;
+	struct rockchip_drm_sub_dev *sub_dev;
 
 	np_encoder = of_graph_get_remote_port_parent(node);
 	if (!np_encoder || !of_device_is_available(np_encoder))
 		goto err_put_encoder;
-	drm_for_each_encoder(encoder, drm_dev) {
-		if (encoder->port == np_encoder && encoder->bridge) {
-			encoder_bridge = true;
-			break;
-		}
-	}
-	if (!encoder_bridge) {
-		dev_err(drm_dev->dev, "can't found encoder bridge!\n");
-		goto err_put_encoder;
-	}
+
 	port = of_graph_get_port_by_id(np_encoder, 1);
 	if (!port) {
 		dev_err(drm_dev->dev, "can't found port point!\n");
 		goto err_put_encoder;
 	}
+
 	for_each_child_of_node(port, endpoint) {
 		np_connector = of_graph_get_remote_port_parent(endpoint);
 		if (!np_connector) {
@@ -175,17 +187,10 @@ struct drm_connector *find_connector_by_bridge(struct drm_device *drm_dev,
 		goto err_put_port;
 	}
 
-	drm_connector_list_iter_begin(drm_dev, &conn_iter);
-	drm_for_each_connector_iter(connector, &conn_iter) {
-		if (connector->port == np_connector) {
-			found_connector = true;
-			break;
-		}
-	}
-	drm_connector_list_iter_end(&conn_iter);
-
-	if (!found_connector)
-		connector = NULL;
+	sub_dev = rockchip_drm_get_sub_dev(np_connector);
+	if (!sub_dev)
+		goto err_put_port;
+	connector = sub_dev->connector;
 
 	of_node_put(np_connector);
 err_put_port:
