@@ -1073,6 +1073,10 @@ int ast_mode_init(struct drm_device *dev)
 	struct ast_private *ast = to_ast_private(dev);
 	int ret;
 
+	ret = ast_cursor_init(ast);
+	if (ret)
+		return ret;
+
 	memset(&ast->primary_plane, 0, sizeof(ast->primary_plane));
 	ret = drm_universal_plane_init(dev, &ast->primary_plane, 0x01,
 				       &ast_primary_plane_funcs,
@@ -1098,7 +1102,6 @@ int ast_mode_init(struct drm_device *dev)
 	drm_plane_helper_add(&ast->cursor_plane,
 			     &ast_cursor_plane_helper_funcs);
 
-	ast_cursor_init(ast);
 	ast_crtc_init(dev);
 	ast_encoder_init(dev);
 	ast_connector_init(dev);
