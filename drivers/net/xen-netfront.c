@@ -856,7 +856,7 @@ static u32 xennet_run_xdp(struct netfront_queue *queue, struct page *pdata,
 {
 	struct xdp_frame *xdpf;
 	u32 len = rx->status;
-	u32 act = XDP_PASS;
+	u32 act;
 	int err;
 
 	xdp->data_hard_start = page_address(pdata);
