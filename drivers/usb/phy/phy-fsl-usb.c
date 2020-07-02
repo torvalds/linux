@@ -957,98 +957,6 @@ int usb_otg_start(struct platform_device *pdev)
 	return 0;
 }
 
-/*
- * state file in sysfs
- */
-static ssize_t show_fsl_usb2_otg_state(struct device *dev,
-				   struct device_attribute *attr, char *buf)
-{
-	struct otg_fsm *fsm = &fsl_otg_dev->fsm;
-	char *next = buf;
-	unsigned size = PAGE_SIZE;
-	int t;
-
-	mutex_lock(&fsm->lock);
-
-	/* basic driver infomation */
-	t = scnprintf(next, size,
-			DRIVER_DESC "\n" "fsl_usb2_otg version: %s\n\n",
-			DRIVER_VERSION);
-	size -= t;
-	next += t;
-
-	/* Registers */
-	t = scnprintf(next, size,
-			"OTGSC:   0x%08x\n"
-			"PORTSC:  0x%08x\n"
-			"USBMODE: 0x%08x\n"
-			"USBCMD:  0x%08x\n"
-			"USBSTS:  0x%08x\n"
-			"USBINTR: 0x%08x\n",
-			fsl_readl(&usb_dr_regs->otgsc),
-			fsl_readl(&usb_dr_regs->portsc),
-			fsl_readl(&usb_dr_regs->usbmode),
-			fsl_readl(&usb_dr_regs->usbcmd),
-			fsl_readl(&usb_dr_regs->usbsts),
-			fsl_readl(&usb_dr_regs->usbintr));
-	size -= t;
-	next += t;
-
-	/* State */
-	t = scnprintf(next, size,
-		      "OTG state: %s\n\n",
-		      usb_otg_state_string(fsl_otg_dev->phy.otg->state));
-	size -= t;
-	next += t;
-
-	/* State Machine Variables */
-	t = scnprintf(next, size,
-			"a_bus_req: %d\n"
-			"b_bus_req: %d\n"
-			"a_bus_resume: %d\n"
-			"a_bus_suspend: %d\n"
-			"a_conn: %d\n"
-			"a_sess_vld: %d\n"
-			"a_srp_det: %d\n"
-			"a_vbus_vld: %d\n"
-			"b_bus_resume: %d\n"
-			"b_bus_suspend: %d\n"
-			"b_conn: %d\n"
-			"b_se0_srp: %d\n"
-			"b_ssend_srp: %d\n"
-			"b_sess_vld: %d\n"
-			"id: %d\n",
-			fsm->a_bus_req,
-			fsm->b_bus_req,
-			fsm->a_bus_resume,
-			fsm->a_bus_suspend,
-			fsm->a_conn,
-			fsm->a_sess_vld,
-			fsm->a_srp_det,
-			fsm->a_vbus_vld,
-			fsm->b_bus_resume,
-			fsm->b_bus_suspend,
-			fsm->b_conn,
-			fsm->b_se0_srp,
-			fsm->b_ssend_srp,
-			fsm->b_sess_vld,
-			fsm->id);
-	size -= t;
-	next += t;
-
-	mutex_unlock(&fsm->lock);
-
-	return PAGE_SIZE - size;
-}
-
-static DEVICE_ATTR(fsl_usb2_otg_state, S_IRUGO, show_fsl_usb2_otg_state, NULL);
-
-static struct attribute *fsl_otg_attrs[] = {
-	&dev_attr_fsl_usb2_otg_state.attr,
-	NULL,
-};
-ATTRIBUTE_GROUPS(fsl_otg);
-
 /* Char driver interface to control some OTG input */
 
 /*
@@ -1167,7 +1075,6 @@ struct platform_driver fsl_otg_driver = {
 	.driver = {
 		.name = driver_name,
 		.owner = THIS_MODULE,
-		.dev_groups = fsl_otg_groups,
 	},
 };
 
