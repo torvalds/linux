@@ -1088,6 +1088,15 @@ static int rkisp_plat_probe(struct platform_device *pdev)
 		sizeof(isp_dev->media_dev.model));
 	isp_dev->media_dev.dev = &pdev->dev;
 	isp_dev->media_dev.ops = &rkisp_media_ops;
+
+	if (!is_iommu_enable(dev)) {
+		ret = of_reserved_mem_device_init(dev);
+		if (ret) {
+			dev_err(dev, "No reserved memory region\n");
+			return ret;
+		}
+	}
+
 	v4l2_dev = &isp_dev->v4l2_dev;
 	v4l2_dev->mdev = &isp_dev->media_dev;
 	strlcpy(v4l2_dev->name, DRIVER_NAME, sizeof(v4l2_dev->name));
@@ -1113,13 +1122,6 @@ static int rkisp_plat_probe(struct platform_device *pdev)
 	ret = rkisp_register_platform_subdevs(isp_dev);
 	if (ret < 0)
 		goto err_unreg_media_dev;
-
-	if (!is_iommu_enable(dev)) {
-		ret = of_reserved_mem_device_init(dev);
-		if (ret)
-			v4l2_warn(v4l2_dev,
-				  "No reserved memory region assign to isp\n");
-	}
 
 	pm_runtime_enable(&pdev->dev);
 
