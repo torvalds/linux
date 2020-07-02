@@ -1650,5 +1650,6 @@ static void __exit exit_ext2_fs(void)
 MODULE_AUTHOR("Remy Card and others");
 MODULE_DESCRIPTION("Second Extended Filesystem");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(ANDROID_GKI_VFS_EXPORT_ONLY);
 module_init(init_ext2_fs)
 module_exit(exit_ext2_fs)

@@ -2453,5 +2453,6 @@ static void __exit ns_cleanup_module(void)
 module_exit(ns_cleanup_module);
 
 MODULE_LICENSE ("GPL");
+MODULE_IMPORT_NS(VFS_internal_I_am_really_a_filesystem_and_am_NOT_a_driver);
 MODULE_AUTHOR ("Artem B. Bityuckiy");
 MODULE_DESCRIPTION ("The NAND flash simulator");

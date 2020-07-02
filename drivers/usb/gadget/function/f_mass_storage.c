@@ -3446,6 +3446,7 @@ static struct usb_function *fsg_alloc(struct usb_function_instance *fi)
 
 DECLARE_USB_FUNCTION_INIT(mass_storage, fsg_alloc_inst, fsg_alloc);
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(VFS_internal_I_am_really_a_filesystem_and_am_NOT_a_driver);
 MODULE_AUTHOR("Michal Nazarewicz");
 
 /************************* Module parameters *************************/

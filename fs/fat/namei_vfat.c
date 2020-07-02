@@ -1077,6 +1077,7 @@ static void __exit exit_vfat_fs(void)
 }
 
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(ANDROID_GKI_VFS_EXPORT_ONLY);
 MODULE_DESCRIPTION("VFAT filesystem support");
 MODULE_AUTHOR("Gordon Chaffee");
 

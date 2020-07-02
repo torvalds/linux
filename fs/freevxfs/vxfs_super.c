@@ -52,6 +52,7 @@
 MODULE_AUTHOR("Christoph Hellwig, Krzysztof Blaszkowski");
 MODULE_DESCRIPTION("Veritas Filesystem (VxFS) driver");
 MODULE_LICENSE("Dual BSD/GPL");
+MODULE_IMPORT_NS(ANDROID_GKI_VFS_EXPORT_ONLY);
 
 static struct kmem_cache *vxfs_inode_cachep;
 

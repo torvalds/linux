@@ -492,3 +492,4 @@ static void __exit exit_adfs_fs(void)
 module_init(init_adfs_fs)
 module_exit(exit_adfs_fs)
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(ANDROID_GKI_VFS_EXPORT_ONLY);

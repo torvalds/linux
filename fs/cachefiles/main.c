@@ -28,6 +28,7 @@ MODULE_PARM_DESC(cachefiles_debug, "CacheFiles debugging mask");
 MODULE_DESCRIPTION("Mounted-filesystem based cache");
 MODULE_AUTHOR("Red Hat, Inc.");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(ANDROID_GKI_VFS_EXPORT_ONLY);
 
 struct kmem_cache *cachefiles_object_jar;
 

@@ -1380,7 +1380,7 @@ ssize_t __blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
 				     end_io, submit_io, flags);
 }
 
-EXPORT_SYMBOL(__blockdev_direct_IO);
+EXPORT_SYMBOL_NS(__blockdev_direct_IO, ANDROID_GKI_VFS_EXPORT_ONLY);
 
 static __init int dio_init(void)
 {

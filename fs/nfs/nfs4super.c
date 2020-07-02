@@ -309,6 +309,7 @@ static void __exit exit_nfs_v4(void)
 }
 
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(ANDROID_GKI_VFS_EXPORT_ONLY);
 
 module_init(init_nfs_v4);
 module_exit(exit_nfs_v4);

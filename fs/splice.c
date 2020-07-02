@@ -326,7 +326,7 @@ ssize_t generic_file_splice_read(struct file *in, loff_t *ppos,
 
 	return ret;
 }
-EXPORT_SYMBOL(generic_file_splice_read);
+EXPORT_SYMBOL_NS(generic_file_splice_read, ANDROID_GKI_VFS_EXPORT_ONLY);
 
 const struct pipe_buf_operations default_pipe_buf_ops = {
 	.release	= generic_pipe_buf_release,
@@ -722,7 +722,7 @@ done:
 	return ret;
 }
 
-EXPORT_SYMBOL(iter_file_splice_write);
+EXPORT_SYMBOL_NS(iter_file_splice_write, ANDROID_GKI_VFS_EXPORT_ONLY);
 
 /**
  * generic_splice_sendpage - splice data from a pipe to a socket
