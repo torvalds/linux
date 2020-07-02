@@ -1324,11 +1324,7 @@ write_data:
 	atomic_set(&rbio->stripes_pending, bio_list_size(&bio_list));
 	BUG_ON(atomic_read(&rbio->stripes_pending) == 0);
 
-	while (1) {
-		bio = bio_list_pop(&bio_list);
-		if (!bio)
-			break;
-
+	while ((bio = bio_list_pop(&bio_list))) {
 		bio->bi_private = rbio;
 		bio->bi_end_io = raid_write_end_io;
 		bio->bi_opf = REQ_OP_WRITE;
@@ -1566,11 +1562,7 @@ static int raid56_rmw_stripe(struct btrfs_raid_bio *rbio)
 	 * not to touch it after that
 	 */
 	atomic_set(&rbio->stripes_pending, bios_to_read);
-	while (1) {
-		bio = bio_list_pop(&bio_list);
-		if (!bio)
-			break;
-
+	while ((bio = bio_list_pop(&bio_list))) {
 		bio->bi_private = rbio;
 		bio->bi_end_io = raid_rmw_end_io;
 		bio->bi_opf = REQ_OP_READ;
@@ -2112,11 +2104,7 @@ static int __raid56_parity_recover(struct btrfs_raid_bio *rbio)
 	 * not to touch it after that
 	 */
 	atomic_set(&rbio->stripes_pending, bios_to_read);
-	while (1) {
-		bio = bio_list_pop(&bio_list);
-		if (!bio)
-			break;
-
+	while ((bio = bio_list_pop(&bio_list))) {
 		bio->bi_private = rbio;
 		bio->bi_end_io = raid_recover_end_io;
 		bio->bi_opf = REQ_OP_READ;
@@ -2481,11 +2469,7 @@ submit_write:
 
 	atomic_set(&rbio->stripes_pending, nr_data);
 
-	while (1) {
-		bio = bio_list_pop(&bio_list);
-		if (!bio)
-			break;
-
+	while ((bio = bio_list_pop(&bio_list))) {
 		bio->bi_private = rbio;
 		bio->bi_end_io = raid_write_end_io;
 		bio->bi_opf = REQ_OP_WRITE;
@@ -2663,11 +2647,7 @@ static void raid56_parity_scrub_stripe(struct btrfs_raid_bio *rbio)
 	 * not to touch it after that
 	 */
 	atomic_set(&rbio->stripes_pending, bios_to_read);
-	while (1) {
-		bio = bio_list_pop(&bio_list);
-		if (!bio)
-			break;
-
+	while ((bio = bio_list_pop(&bio_list))) {
 		bio->bi_private = rbio;
 		bio->bi_end_io = raid56_parity_scrub_end_io;
 		bio->bi_opf = REQ_OP_READ;
