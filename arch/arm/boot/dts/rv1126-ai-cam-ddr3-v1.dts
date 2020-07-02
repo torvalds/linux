@@ -54,7 +54,7 @@
 		clock-names = "xvclk";
 		power-domains = <&power RV1126_PD_VI>;
 		pinctrl-names = "rockchip,camera_default";
-		pinctrl-0 = <&mipi_csi_clk0>;
+		pinctrl-0 = <&mipicsi_clk0>;
 		pwren-gpios= <&gpio2 RK_PD2 GPIO_ACTIVE_HIGH>;
 		pwdn-gpios = <&gpio1 RK_PD4 GPIO_ACTIVE_HIGH>;
 		reset-gpios = <&gpio1 RK_PD5 GPIO_ACTIVE_HIGH>;

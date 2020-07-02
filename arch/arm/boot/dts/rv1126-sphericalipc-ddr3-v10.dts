@@ -376,7 +376,7 @@
 		clock-names = "xvclk";
 		power-domains = <&power RV1126_PD_VI>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&mipi_csi_clk0>;
+		pinctrl-0 = <&mipicsi_clk0>;
 		avdd-supply = <&vcc_avdd>;
 		dovdd-supply = <&vcc_dovdd>;
 		dvdd-supply = <&vcc_dvdd>;
