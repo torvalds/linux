@@ -1521,13 +1521,16 @@ core_scsi3_decode_spec_i_port(
 		kfree(tidh_new);
 		return TCM_INSUFFICIENT_REGISTRATION_RESOURCES;
 	}
+
+	if (core_scsi3_lunacl_depend_item(local_pr_reg->pr_reg_deve)) {
+		kfree(tidh_new);
+		kref_put(&local_pr_reg->pr_reg_deve->pr_kref,
+			 target_pr_kref_release);
+		kmem_cache_free(t10_pr_reg_cache, local_pr_reg);
+		return TCM_INSUFFICIENT_REGISTRATION_RESOURCES;
+	}
+
 	tidh_new->dest_pr_reg = local_pr_reg;
-	/*
-	 * The local I_T nexus does not hold any configfs dependances,
-	 * so we set tidh_new->dest_se_deve to NULL to prevent the
-	 * configfs_undepend_item() calls in the tid_dest_list loops below.
-	 */
-	tidh_new->dest_se_deve = NULL;
 	list_add_tail(&tidh_new->dest_list, &tid_dest_list);
 
 	if (cmd->data_length < 28) {
@@ -1816,12 +1819,9 @@ core_scsi3_decode_spec_i_port(
 			dest_node_acl->initiatorname, i_buf, (dest_se_deve) ?
 			dest_se_deve->mapped_lun : 0);
 
-		if (!dest_se_deve) {
-			kref_put(&local_pr_reg->pr_reg_deve->pr_kref,
-				 target_pr_kref_release);
+		if (dest_pr_reg == local_pr_reg)
 			continue;
-		}
-		core_scsi3_lunacl_undepend_item(dest_se_deve);
+
 		core_scsi3_nodeacl_undepend_item(dest_node_acl);
 		core_scsi3_tpg_undepend_item(dest_tpg);
 	}
@@ -1835,10 +1835,15 @@ out:
 	 * including *dest_pr_reg and the configfs dependances..
 	 */
 	list_for_each_entry_safe(tidh, tidh_tmp, &tid_dest_list, dest_list) {
+		bool is_local = false;
+
 		dest_tpg = tidh->dest_tpg;
 		dest_node_acl = tidh->dest_node_acl;
 		dest_se_deve = tidh->dest_se_deve;
 		dest_pr_reg = tidh->dest_pr_reg;
+
+		if (dest_pr_reg == local_pr_reg)
+			is_local = true;
 
 		list_del(&tidh->dest_list);
 		kfree(tidh);
@@ -1855,13 +1860,11 @@ out:
 		}
 
 		kmem_cache_free(t10_pr_reg_cache, dest_pr_reg);
-
-		if (!dest_se_deve) {
-			kref_put(&local_pr_reg->pr_reg_deve->pr_kref,
-				 target_pr_kref_release);
-			continue;
-		}
 		core_scsi3_lunacl_undepend_item(dest_se_deve);
+
+		if (is_local)
+			continue;
+
 		core_scsi3_nodeacl_undepend_item(dest_node_acl);
 		core_scsi3_tpg_undepend_item(dest_tpg);
 	}
