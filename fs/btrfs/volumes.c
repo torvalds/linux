@@ -5522,6 +5522,9 @@ static struct btrfs_bio *alloc_btrfs_bio(int total_stripes, int real_stripes)
 	atomic_set(&bbio->error, 0);
 	refcount_set(&bbio->refs, 1);
 
+	bbio->tgtdev_map = (int *)(bbio->stripes + total_stripes);
+	bbio->raid_map = (u64 *)(bbio->tgtdev_map + real_stripes);
+
 	return bbio;
 }
 
@@ -6144,19 +6147,19 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info,
 		ret = -ENOMEM;
 		goto out;
 	}
-	if (dev_replace_is_ongoing && dev_replace->tgtdev != NULL)
-		bbio->tgtdev_map = (int *)(bbio->stripes + num_alloc_stripes);
+
+	for (i = 0; i < num_stripes; i++) {
+		bbio->stripes[i].physical = map->stripes[stripe_index].physical +
+			stripe_offset + stripe_nr * map->stripe_len;
+		bbio->stripes[i].dev = map->stripes[stripe_index].dev;
+		stripe_index++;
+	}
 
 	/* build raid_map */
 	if (map->type & BTRFS_BLOCK_GROUP_RAID56_MASK && need_raid_map &&
 	    (need_full_stripe(op) || mirror_num > 1)) {
 		u64 tmp;
 		unsigned rot;
-
-		bbio->raid_map = (u64 *)((void *)bbio->stripes +
-				 sizeof(struct btrfs_bio_stripe) *
-				 num_alloc_stripes +
-				 sizeof(int) * tgtdev_indexes);
 
 		/* Work out the disk rotation on this stripe-set */
 		div_u64_rem(stripe_nr, num_stripes, &rot);
@@ -6171,24 +6174,12 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info,
 		if (map->type & BTRFS_BLOCK_GROUP_RAID6)
 			bbio->raid_map[(i+rot+1) % num_stripes] =
 				RAID6_Q_STRIPE;
-	}
 
-
-	for (i = 0; i < num_stripes; i++) {
-		bbio->stripes[i].physical =
-			map->stripes[stripe_index].physical +
-			stripe_offset +
-			stripe_nr * map->stripe_len;
-		bbio->stripes[i].dev =
-			map->stripes[stripe_index].dev;
-		stripe_index++;
+		sort_parity_stripes(bbio, num_stripes);
 	}
 
 	if (need_full_stripe(op))
 		max_errors = btrfs_chunk_max_errors(map);
-
-	if (bbio->raid_map)
-		sort_parity_stripes(bbio, num_stripes);
 
 	if (dev_replace_is_ongoing && dev_replace->tgtdev != NULL &&
 	    need_full_stripe(op)) {
