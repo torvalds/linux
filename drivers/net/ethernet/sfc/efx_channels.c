@@ -856,6 +856,7 @@ int efx_set_channels(struct efx_nic *efx)
 	struct efx_channel *channel;
 	struct efx_tx_queue *tx_queue;
 	int xdp_queue_number;
+	int rc;
 
 	efx->tx_channel_offset =
 		efx_separate_tx_channels ?
@@ -894,7 +895,11 @@ int efx_set_channels(struct efx_nic *efx)
 			}
 		}
 	}
-	return 0;
+
+	rc = netif_set_real_num_tx_queues(efx->net_dev, efx->n_tx_channels);
+	if (rc)
+		return rc;
+	return netif_set_real_num_rx_queues(efx->net_dev, efx->n_rx_channels);
 }
 
 bool efx_default_channel_want_txqs(struct efx_channel *channel)

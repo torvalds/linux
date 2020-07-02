@@ -336,9 +336,6 @@ static int efx_probe_nic(struct efx_nic *efx)
 				    sizeof(efx->rss_context.rx_hash_key));
 	efx_set_default_rx_indir_table(efx, &efx->rss_context);
 
-	netif_set_real_num_tx_queues(efx->net_dev, efx->n_tx_channels);
-	netif_set_real_num_rx_queues(efx->net_dev, efx->n_rx_channels);
-
 	/* Initialise the interrupt moderation settings */
 	efx->irq_mod_step_us = DIV_ROUND_UP(efx->timer_quantum_ns, 1000);
 	efx_init_irq_moderation(efx, tx_irq_mod_usec, rx_irq_mod_usec, true,
