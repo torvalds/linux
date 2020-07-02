@@ -3497,9 +3497,7 @@ static void macb_probe_queues(void __iomem *mem,
 		return;
 
 	/* bit 0 is never set but queue 0 always exists */
-	*queue_mask = readl_relaxed(mem + GEM_DCFG6) & 0xff;
-
-	*queue_mask |= 0x1;
+	*queue_mask |= readl_relaxed(mem + GEM_DCFG6) & 0xff;
 
 	for (hw_q = 1; hw_q < MACB_MAX_QUEUES; ++hw_q)
 		if (*queue_mask & (1 << hw_q))
