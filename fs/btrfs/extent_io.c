@@ -2122,12 +2122,11 @@ out:
 	return ret;
 }
 
-int get_state_failrec(struct extent_io_tree *tree, u64 start,
-		      struct io_failure_record **failrec)
+struct io_failure_record *get_state_failrec(struct extent_io_tree *tree, u64 start)
 {
 	struct rb_node *node;
 	struct extent_state *state;
-	int ret = 0;
+	struct io_failure_record *failrec;
 
 	spin_lock(&tree->lock);
 	/*
@@ -2136,18 +2135,19 @@ int get_state_failrec(struct extent_io_tree *tree, u64 start,
 	 */
 	node = tree_search(tree, start);
 	if (!node) {
-		ret = -ENOENT;
+		failrec = ERR_PTR(-ENOENT);
 		goto out;
 	}
 	state = rb_entry(node, struct extent_state, rb_node);
 	if (state->start != start) {
-		ret = -ENOENT;
+		failrec = ERR_PTR(-ENOENT);
 		goto out;
 	}
-	*failrec = state->failrec;
+
+	failrec = state->failrec;
 out:
 	spin_unlock(&tree->lock);
-	return ret;
+	return failrec;
 }
 
 /*
@@ -2377,8 +2377,8 @@ int clean_io_failure(struct btrfs_fs_info *fs_info,
 	if (!ret)
 		return 0;
 
-	ret = get_state_failrec(failure_tree, start, &failrec);
-	if (ret)
+	failrec = get_state_failrec(failure_tree, start);
+	if (IS_ERR(failrec))
 		return 0;
 
 	BUG_ON(!failrec->this_mirror);
@@ -2462,8 +2462,8 @@ int btrfs_get_io_failure_record(struct inode *inode, u64 start, u64 end,
 	int ret;
 	u64 logical;
 
-	ret = get_state_failrec(failure_tree, start, &failrec);
-	if (ret) {
+	failrec = get_state_failrec(failure_tree, start);
+	if (IS_ERR(failrec)) {
 		failrec = kzalloc(sizeof(*failrec), GFP_NOFS);
 		if (!failrec)
 			return -ENOMEM;
