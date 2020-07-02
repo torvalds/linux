@@ -217,6 +217,7 @@ static const struct intel_device_info i85x_info = {
 static const struct intel_device_info i865g_info = {
 	I845_FEATURES,
 	PLATFORM(INTEL_I865G),
+	.display.has_fbc = 1,
 };
 
 #define GEN3_FEATURES \
