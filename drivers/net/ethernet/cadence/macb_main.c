@@ -1933,7 +1933,7 @@ static netdev_tx_t macb_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	unsigned long flags;
 	unsigned int desc_cnt, nr_frags, frag_size, f;
 	unsigned int hdrlen;
-	bool is_lso, is_udp = 0;
+	bool is_lso;
 	netdev_tx_t ret = NETDEV_TX_OK;
 
 	if (macb_clear_csum(skb)) {
@@ -1949,10 +1949,8 @@ static netdev_tx_t macb_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	is_lso = (skb_shinfo(skb)->gso_size != 0);
 
 	if (is_lso) {
-		is_udp = !!(ip_hdr(skb)->protocol == IPPROTO_UDP);
-
 		/* length of headers */
-		if (is_udp)
+		if (ip_hdr(skb)->protocol == IPPROTO_UDP)
 			/* only queue eth + ip headers separately for UDP */
 			hdrlen = skb_transport_offset(skb);
 		else
