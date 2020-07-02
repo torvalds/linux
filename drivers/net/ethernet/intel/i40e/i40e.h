@@ -543,6 +543,28 @@ struct i40e_pf {
 #define I40E_FLAG_DISABLE_FW_LLDP		BIT(24)
 #define I40E_FLAG_RS_FEC			BIT(25)
 #define I40E_FLAG_BASE_R_FEC			BIT(26)
+/* TOTAL_PORT_SHUTDOWN
+ * Allows to physically disable the link on the NIC's port.
+ * If enabled, (after link down request from the OS)
+ * no link, traffic or led activity is possible on that port.
+ *
+ * If I40E_FLAG_TOTAL_PORT_SHUTDOWN_ENABLED is set, the
+ * I40E_FLAG_LINK_DOWN_ON_CLOSE_ENABLED must be explicitly forced to true
+ * and cannot be disabled by system admin at that time.
+ * The functionalities are exclusive in terms of configuration, but they also
+ * have similar behavior (allowing to disable physical link of the port),
+ * with following differences:
+ * - LINK_DOWN_ON_CLOSE_ENABLED is configurable at host OS run-time and is
+ *   supported by whole family of 7xx Intel Ethernet Controllers
+ * - TOTAL_PORT_SHUTDOWN may be enabled only before OS loads (in BIOS)
+ *   only if motherboard's BIOS and NIC's FW has support of it
+ * - when LINK_DOWN_ON_CLOSE_ENABLED is used, the link is being brought down
+ *   by sending phy_type=0 to NIC's FW
+ * - when TOTAL_PORT_SHUTDOWN is used, phy_type is not altered, instead
+ *   the link is being brought down by clearing bit (I40E_AQ_PHY_ENABLE_LINK)
+ *   in abilities field of i40e_aq_set_phy_config structure
+ */
+#define I40E_FLAG_TOTAL_PORT_SHUTDOWN_ENABLED	BIT(27)
 
 	struct i40e_client_instance *cinst;
 	bool stat_offsets_loaded;

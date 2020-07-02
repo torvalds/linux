@@ -853,7 +853,7 @@ void fm10k_clear_macvlan_queue(struct fm10k_intfc *interface,
 			/* Don't free requests for other interfaces */
 			if (r->mac.glort != glort)
 				break;
-			/* fall through */
+			fallthrough;
 		case FM10K_VLAN_REQUEST:
 			if (vlans) {
 				list_del(&r->list);

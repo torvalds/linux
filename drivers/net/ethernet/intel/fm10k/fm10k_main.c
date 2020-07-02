@@ -856,7 +856,7 @@ static void fm10k_tx_csum(struct fm10k_ring *tx_ring,
 	case IPPROTO_GRE:
 		if (skb->encapsulation)
 			break;
-		/* fall through */
+		fallthrough;
 	default:
 		if (unlikely(net_ratelimit())) {
 			dev_warn(tx_ring->dev,
@@ -1554,7 +1554,7 @@ static bool fm10k_set_rss_queues(struct fm10k_intfc *interface)
  * important, starting with the "most" number of features turned on at once,
  * and ending with the smallest set of features.  This way large combinations
  * can be allocated if they're turned on, and smaller combinations are the
- * fallthrough conditions.
+ * fall through conditions.
  *
  **/
 static void fm10k_set_num_queues(struct fm10k_intfc *interface)

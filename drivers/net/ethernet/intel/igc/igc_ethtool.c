@@ -1015,37 +1015,29 @@ static int igc_ethtool_get_rss_hash_opts(struct igc_adapter *adapter,
 	switch (cmd->flow_type) {
 	case TCP_V4_FLOW:
 		cmd->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
-		/* Fall through */
+		fallthrough;
 	case UDP_V4_FLOW:
 		if (adapter->flags & IGC_FLAG_RSS_FIELD_IPV4_UDP)
 			cmd->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
-		/* Fall through */
+		fallthrough;
 	case SCTP_V4_FLOW:
-		/* Fall through */
 	case AH_ESP_V4_FLOW:
-		/* Fall through */
 	case AH_V4_FLOW:
-		/* Fall through */
 	case ESP_V4_FLOW:
-		/* Fall through */
 	case IPV4_FLOW:
 		cmd->data |= RXH_IP_SRC | RXH_IP_DST;
 		break;
 	case TCP_V6_FLOW:
 		cmd->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
-		/* Fall through */
+		fallthrough;
 	case UDP_V6_FLOW:
 		if (adapter->flags & IGC_FLAG_RSS_FIELD_IPV6_UDP)
 			cmd->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
-		/* Fall through */
+		fallthrough;
 	case SCTP_V6_FLOW:
-		/* Fall through */
 	case AH_ESP_V6_FLOW:
-		/* Fall through */
 	case AH_V6_FLOW:
-		/* Fall through */
 	case ESP_V6_FLOW:
-		/* Fall through */
 	case IPV6_FLOW:
 		cmd->data |= RXH_IP_SRC | RXH_IP_DST;
 		break;

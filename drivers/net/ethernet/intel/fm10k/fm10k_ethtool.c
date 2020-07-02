@@ -692,12 +692,12 @@ static int fm10k_get_rss_hash_opts(struct fm10k_intfc *interface,
 	case TCP_V4_FLOW:
 	case TCP_V6_FLOW:
 		cmd->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
-		/* fall through */
+		fallthrough;
 	case UDP_V4_FLOW:
 		if (test_bit(FM10K_FLAG_RSS_FIELD_IPV4_UDP,
 			     interface->flags))
 			cmd->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
-		/* fall through */
+		fallthrough;
 	case SCTP_V4_FLOW:
 	case SCTP_V6_FLOW:
 	case AH_ESP_V4_FLOW:

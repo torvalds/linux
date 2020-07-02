@@ -314,7 +314,7 @@ int ixgbevf_get_reta_locked(struct ixgbe_hw *hw, u32 *reta, int num_rx_queues)
 	case ixgbe_mbox_api_12:
 		if (hw->mac.type < ixgbe_mac_X550_vf)
 			break;
-		/* fall through */
+		fallthrough;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -382,7 +382,7 @@ int ixgbevf_get_rss_key_locked(struct ixgbe_hw *hw, u8 *rss_key)
 	case ixgbe_mbox_api_12:
 		if (hw->mac.type < ixgbe_mac_X550_vf)
 			break;
-		/* fall through */
+		fallthrough;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -540,7 +540,7 @@ static s32 ixgbevf_update_xcast_mode(struct ixgbe_hw *hw, int xcast_mode)
 		/* promisc introduced in 1.3 version */
 		if (xcast_mode == IXGBEVF_XCAST_MODE_PROMISC)
 			return -EOPNOTSUPP;
-		/* Fall threw */
+		fallthrough;
 	case ixgbe_mbox_api_14:
 	case ixgbe_mbox_api_13:
 		break;

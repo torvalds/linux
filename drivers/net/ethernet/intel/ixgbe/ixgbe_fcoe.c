@@ -444,7 +444,7 @@ int ixgbe_fcoe_ddp(struct ixgbe_adapter *adapter,
 		ddp->err = (__force u32)ddp_err;
 		ddp->sgl = NULL;
 		ddp->sgc = 0;
-		/* fall through */
+		fallthrough;
 	/* if DDP length is present pass it through to ULD */
 	case cpu_to_le32(IXGBE_RXDADV_STAT_FCSTAT_NODDP):
 		/* update length of DDPed data */
