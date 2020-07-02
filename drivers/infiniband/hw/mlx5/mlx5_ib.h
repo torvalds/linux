@@ -1353,20 +1353,6 @@ extern const struct uapi_definition mlx5_ib_flow_defs[];
 extern const struct uapi_definition mlx5_ib_qos_defs[];
 extern const struct uapi_definition mlx5_ib_std_types_defs[];
 
-
-#if IS_ENABLED(CONFIG_INFINIBAND_USER_ACCESS)
-int mlx5_ib_devx_create(struct mlx5_ib_dev *dev, bool is_user);
-void mlx5_ib_devx_destroy(struct mlx5_ib_dev *dev, u16 uid);
-void mlx5_ib_devx_init_event_table(struct mlx5_ib_dev *dev);
-void mlx5_ib_devx_cleanup_event_table(struct mlx5_ib_dev *dev);
-#else
-static inline int
-mlx5_ib_devx_create(struct mlx5_ib_dev *dev,
-			   bool is_user) { return -EOPNOTSUPP; }
-static inline void mlx5_ib_devx_destroy(struct mlx5_ib_dev *dev, u16 uid) {}
-static inline void mlx5_ib_devx_init_event_table(struct mlx5_ib_dev *dev) {}
-static inline void mlx5_ib_devx_cleanup_event_table(struct mlx5_ib_dev *dev) {}
-#endif
 static inline void init_query_mad(struct ib_smp *mad)
 {
 	mad->base_version  = 1;
