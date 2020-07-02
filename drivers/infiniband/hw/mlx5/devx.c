@@ -14,6 +14,7 @@
 #include <linux/mlx5/driver.h>
 #include <linux/mlx5/fs.h>
 #include "mlx5_ib.h"
+#include "devx.h"
 #include "qp.h"
 #include <linux/xarray.h>
 
@@ -89,22 +90,6 @@ struct devx_async_event_file {
 	u8 is_destroyed:1;
 };
 
-#define MLX5_MAX_DESTROY_INBOX_SIZE_DW MLX5_ST_SZ_DW(delete_fte_in)
-struct devx_obj {
-	struct mlx5_ib_dev	*ib_dev;
-	u64			obj_id;
-	u32			dinlen; /* destroy inbox length */
-	u32			dinbox[MLX5_MAX_DESTROY_INBOX_SIZE_DW];
-	u32			flags;
-	union {
-		struct mlx5_ib_devx_mr	devx_mr;
-		struct mlx5_core_dct	core_dct;
-		struct mlx5_core_cq	core_cq;
-		u32			flow_counter_bulk_size;
-	};
-	struct list_head event_sub; /* holds devx_event_subscription entries */
-};
-
 struct devx_umem {
 	struct mlx5_core_dev		*mdev;
 	struct ib_umem			*umem;
@@ -169,48 +154,6 @@ void mlx5_ib_devx_destroy(struct mlx5_ib_dev *dev, u16 uid)
 	MLX5_SET(destroy_uctx_in, in, uid, uid);
 
 	mlx5_cmd_exec(dev->mdev, in, sizeof(in), out, sizeof(out));
-}
-
-bool mlx5_ib_devx_is_flow_dest(void *obj, int *dest_id, int *dest_type)
-{
-	struct devx_obj *devx_obj = obj;
-	u16 opcode = MLX5_GET(general_obj_in_cmd_hdr, devx_obj->dinbox, opcode);
-
-	switch (opcode) {
-	case MLX5_CMD_OP_DESTROY_TIR:
-		*dest_type = MLX5_FLOW_DESTINATION_TYPE_TIR;
-		*dest_id = MLX5_GET(general_obj_in_cmd_hdr, devx_obj->dinbox,
-				    obj_id);
-		return true;
-
-	case MLX5_CMD_OP_DESTROY_FLOW_TABLE:
-		*dest_type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
-		*dest_id = MLX5_GET(destroy_flow_table_in, devx_obj->dinbox,
-				    table_id);
-		return true;
-	default:
-		return false;
-	}
-}
-
-bool mlx5_ib_devx_is_flow_counter(void *obj, u32 offset, u32 *counter_id)
-{
-	struct devx_obj *devx_obj = obj;
-	u16 opcode = MLX5_GET(general_obj_in_cmd_hdr, devx_obj->dinbox, opcode);
-
-	if (opcode == MLX5_CMD_OP_DEALLOC_FLOW_COUNTER) {
-
-		if (offset && offset >= devx_obj->flow_counter_bulk_size)
-			return false;
-
-		*counter_id = MLX5_GET(dealloc_flow_counter_in,
-				       devx_obj->dinbox,
-				       flow_counter_id);
-		*counter_id += offset;
-		return true;
-	}
-
-	return false;
 }
 
 static bool is_legacy_unaffiliated_event_num(u16 event_num)

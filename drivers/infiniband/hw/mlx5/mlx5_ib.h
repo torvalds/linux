@@ -805,7 +805,7 @@ struct mlx5_ib_delay_drop {
 
 enum mlx5_ib_stages {
 	MLX5_IB_STAGE_INIT,
-	MLX5_IB_STAGE_FLOW_DB,
+	MLX5_IB_STAGE_FS,
 	MLX5_IB_STAGE_CAPS,
 	MLX5_IB_STAGE_NON_DEFAULT_CB,
 	MLX5_IB_STAGE_ROCE,
@@ -1359,14 +1359,6 @@ int mlx5_ib_devx_create(struct mlx5_ib_dev *dev, bool is_user);
 void mlx5_ib_devx_destroy(struct mlx5_ib_dev *dev, u16 uid);
 void mlx5_ib_devx_init_event_table(struct mlx5_ib_dev *dev);
 void mlx5_ib_devx_cleanup_event_table(struct mlx5_ib_dev *dev);
-struct mlx5_ib_flow_handler *mlx5_ib_raw_fs_rule_add(
-	struct mlx5_ib_dev *dev, struct mlx5_ib_flow_matcher *fs_matcher,
-	struct mlx5_flow_context *flow_context,
-	struct mlx5_flow_act *flow_act, u32 counter_id,
-	void *cmd_in, int inlen, int dest_id, int dest_type);
-bool mlx5_ib_devx_is_flow_dest(void *obj, int *dest_id, int *dest_type);
-bool mlx5_ib_devx_is_flow_counter(void *obj, u32 offset, u32 *counter_id);
-void mlx5_ib_destroy_flow_action_raw(struct mlx5_ib_flow_action *maction);
 #else
 static inline int
 mlx5_ib_devx_create(struct mlx5_ib_dev *dev,
@@ -1374,16 +1366,6 @@ mlx5_ib_devx_create(struct mlx5_ib_dev *dev,
 static inline void mlx5_ib_devx_destroy(struct mlx5_ib_dev *dev, u16 uid) {}
 static inline void mlx5_ib_devx_init_event_table(struct mlx5_ib_dev *dev) {}
 static inline void mlx5_ib_devx_cleanup_event_table(struct mlx5_ib_dev *dev) {}
-static inline bool mlx5_ib_devx_is_flow_dest(void *obj, int *dest_id,
-					     int *dest_type)
-{
-	return false;
-}
-static inline void
-mlx5_ib_destroy_flow_action_raw(struct mlx5_ib_flow_action *maction)
-{
-	return;
-};
 #endif
 static inline void init_query_mad(struct ib_smp *mad)
 {
