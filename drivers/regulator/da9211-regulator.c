@@ -17,16 +17,13 @@
 #include <linux/gpio/consumer.h>
 #include <linux/regulator/of_regulator.h>
 #include <linux/regulator/da9211.h>
+#include <dt-bindings/regulator/dlg,da9211-regulator.h>
 #include "da9211-regulator.h"
 
 /* DEVICE IDs */
 #define DA9211_DEVICE_ID	0x22
 #define DA9213_DEVICE_ID	0x23
 #define DA9215_DEVICE_ID	0x24
-
-#define DA9211_BUCK_MODE_SLEEP	1
-#define DA9211_BUCK_MODE_SYNC	2
-#define DA9211_BUCK_MODE_AUTO	3
 
 /* DA9211 REGULATOR IDs */
 #define DA9211_ID_BUCKA	0
