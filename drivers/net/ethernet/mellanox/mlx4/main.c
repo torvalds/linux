@@ -4370,7 +4370,7 @@ static const struct pci_error_handlers mlx4_err_handler = {
 	.resume		= mlx4_pci_resume,
 };
 
-static int mlx4_suspend(struct device *dev_d)
+static int __maybe_unused mlx4_suspend(struct device *dev_d)
 {
 	struct pci_dev *pdev = to_pci_dev(dev_d);
 	struct mlx4_dev_persistent *persist = pci_get_drvdata(pdev);
@@ -4385,7 +4385,7 @@ static int mlx4_suspend(struct device *dev_d)
 	return 0;
 }
 
-static int mlx4_resume(struct device *dev_d)
+static int __maybe_unused mlx4_resume(struct device *dev_d)
 {
 	struct pci_dev *pdev = to_pci_dev(dev_d);
 	struct mlx4_dev_persistent *persist = pci_get_drvdata(pdev);
