@@ -125,3 +125,7 @@
 &video_phy {
 	status = "okay";
 };
+
+&vopb {
+	support-multi-area;
+};
