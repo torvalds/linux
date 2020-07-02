@@ -39,6 +39,7 @@ int ast_cursor_init(struct ast_private *ast)
 	struct drm_device *dev = ast->dev;
 	size_t size, i;
 	struct drm_gem_vram_object *gbo;
+	void __iomem *vaddr;
 	int ret;
 
 	size = roundup(AST_HWC_SIZE + AST_HWC_SIGNATURE_SIZE, PAGE_SIZE);
@@ -55,8 +56,16 @@ int ast_cursor_init(struct ast_private *ast)
 			drm_gem_vram_put(gbo);
 			goto err_drm_gem_vram_put;
 		}
+		vaddr = drm_gem_vram_vmap(gbo);
+		if (IS_ERR(vaddr)) {
+			ret = PTR_ERR(vaddr);
+			drm_gem_vram_unpin(gbo);
+			drm_gem_vram_put(gbo);
+			goto err_drm_gem_vram_put;
+		}
 
 		ast->cursor.gbo[i] = gbo;
+		ast->cursor.vaddr[i] = vaddr;
 	}
 
 	return 0;
@@ -65,9 +74,11 @@ err_drm_gem_vram_put:
 	while (i) {
 		--i;
 		gbo = ast->cursor.gbo[i];
+		drm_gem_vram_vunmap(gbo, ast->cursor.vaddr[i]);
 		drm_gem_vram_unpin(gbo);
 		drm_gem_vram_put(gbo);
 		ast->cursor.gbo[i] = NULL;
+		ast->cursor.vaddr[i] = NULL;
 	}
 	return ret;
 }
@@ -79,6 +90,7 @@ void ast_cursor_fini(struct ast_private *ast)
 
 	for (i = 0; i < ARRAY_SIZE(ast->cursor.gbo); ++i) {
 		gbo = ast->cursor.gbo[i];
+		drm_gem_vram_vunmap(gbo, ast->cursor.vaddr[i]);
 		drm_gem_vram_unpin(gbo);
 		drm_gem_vram_put(gbo);
 	}
@@ -154,7 +166,7 @@ int ast_cursor_blit(struct ast_private *ast, struct drm_framebuffer *fb)
 	struct drm_gem_vram_object *gbo;
 	int ret;
 	void *src;
-	void *dst;
+	void __iomem *dst;
 
 	if (drm_WARN_ON_ONCE(dev, fb->width > AST_MAX_HWC_WIDTH) ||
 	    drm_WARN_ON_ONCE(dev, fb->height > AST_MAX_HWC_HEIGHT))
@@ -171,28 +183,16 @@ int ast_cursor_blit(struct ast_private *ast, struct drm_framebuffer *fb)
 		goto err_drm_gem_vram_unpin;
 	}
 
-	dst = drm_gem_vram_vmap(ast->cursor.gbo[ast->cursor.next_index]);
-	if (IS_ERR(dst)) {
-		ret = PTR_ERR(dst);
-		goto err_drm_gem_vram_vunmap_src;
-	}
+	dst = ast->cursor.vaddr[ast->cursor.next_index];
 
 	/* do data transfer to cursor BO */
 	update_cursor_image(dst, src, fb->width, fb->height);
 
-	/*
-	 * Always unmap buffers here. Destination buffers are
-	 * perma-pinned while the driver is active. We're only
-	 * changing ref-counters here.
-	 */
-	drm_gem_vram_vunmap(ast->cursor.gbo[ast->cursor.next_index], dst);
 	drm_gem_vram_vunmap(gbo, src);
 	drm_gem_vram_unpin(gbo);
 
 	return 0;
 
-err_drm_gem_vram_vunmap_src:
-	drm_gem_vram_vunmap(gbo, src);
 err_drm_gem_vram_unpin:
 	drm_gem_vram_unpin(gbo);
 	return ret;
@@ -243,18 +243,14 @@ static void ast_cursor_set_location(struct ast_private *ast, u16 x, u16 y,
 	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xc7, y1);
 }
 
-int ast_cursor_show(struct ast_private *ast, int x, int y,
-		    unsigned int offset_x, unsigned int offset_y)
+void ast_cursor_show(struct ast_private *ast, int x, int y,
+		     unsigned int offset_x, unsigned int offset_y)
 {
-	struct drm_gem_vram_object *gbo;
 	u8 x_offset, y_offset;
-	u8 *dst, *sig;
+	u8 __iomem *dst, __iomem *sig;
 	u8 jreg;
 
-	gbo = ast->cursor.gbo[ast->cursor.next_index];
-	dst = drm_gem_vram_vmap(gbo);
-	if (IS_ERR(dst))
-		return PTR_ERR(dst);
+	dst = ast->cursor.vaddr[ast->cursor.next_index];
 
 	sig = dst + AST_HWC_SIZE;
 	writel(x, sig + AST_HWC_SIGNATURE_X);
@@ -279,10 +275,6 @@ int ast_cursor_show(struct ast_private *ast, int x, int y,
 	jreg = 0x02 |
 	       0x01; /* enable ARGB4444 cursor */
 	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xcb, 0xfc, jreg);
-
-	drm_gem_vram_vunmap(gbo, dst);
-
-	return 0;
 }
 
 void ast_cursor_hide(struct ast_private *ast)

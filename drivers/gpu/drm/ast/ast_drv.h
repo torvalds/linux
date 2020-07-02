@@ -116,6 +116,7 @@ struct ast_private {
 
 	struct {
 		struct drm_gem_vram_object *gbo[AST_DEFAULT_HWC_NUM];
+		void __iomem *vaddr[AST_DEFAULT_HWC_NUM];
 		unsigned int next_index;
 	} cursor;
 
@@ -319,8 +320,8 @@ int ast_cursor_init(struct ast_private *ast);
 void ast_cursor_fini(struct ast_private *ast);
 int ast_cursor_blit(struct ast_private *ast, struct drm_framebuffer *fb);
 void ast_cursor_page_flip(struct ast_private *ast);
-int ast_cursor_show(struct ast_private *ast, int x, int y,
-		    unsigned int offset_x, unsigned int offset_y);
+void ast_cursor_show(struct ast_private *ast, int x, int y,
+		     unsigned int offset_x, unsigned int offset_y);
 void ast_cursor_hide(struct ast_private *ast);
 
 #endif
