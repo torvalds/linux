@@ -474,6 +474,10 @@ static int wm8974_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		iface |= 0x0008;
 		break;
 	case SND_SOC_DAIFMT_DSP_A:
+		if ((fmt & SND_SOC_DAIFMT_INV_MASK) == SND_SOC_DAIFMT_IB_IF ||
+		    (fmt & SND_SOC_DAIFMT_INV_MASK) == SND_SOC_DAIFMT_NB_IF) {
+			return -EINVAL;
+		}
 		iface |= 0x00018;
 		break;
 	default:
