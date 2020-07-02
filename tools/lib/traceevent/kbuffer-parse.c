@@ -547,6 +547,34 @@ int kbuffer_load_subbuffer(struct kbuffer *kbuf, void *subbuffer)
 }
 
 /**
+ * kbuffer_subbuf_timestamp - read the timestamp from a sub buffer
+ * @kbuf:      The kbuffer to load
+ * @subbuf:    The subbuffer to read from.
+ *
+ * Return the timestamp from a subbuffer.
+ */
+unsigned long long kbuffer_subbuf_timestamp(struct kbuffer *kbuf, void *subbuf)
+{
+	return kbuf->read_8(subbuf);
+}
+
+/**
+ * kbuffer_ptr_delta - read the delta field from a record
+ * @kbuf:      The kbuffer to load
+ * @ptr:       The record in the buffe.
+ *
+ * Return the timestamp delta from a record
+ */
+unsigned int kbuffer_ptr_delta(struct kbuffer *kbuf, void *ptr)
+{
+	unsigned int type_len_ts;
+
+	type_len_ts = read_4(kbuf, ptr);
+	return ts4host(kbuf, type_len_ts);
+}
+
+
+/**
  * kbuffer_read_event - read the next event in the kbuffer subbuffer
  * @kbuf:	The kbuffer to read from
  * @ts:		The address to store the timestamp of the event (may be NULL to ignore)

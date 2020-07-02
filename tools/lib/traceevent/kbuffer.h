@@ -49,6 +49,8 @@ int kbuffer_load_subbuffer(struct kbuffer *kbuf, void *subbuffer);
 void *kbuffer_read_event(struct kbuffer *kbuf, unsigned long long *ts);
 void *kbuffer_next_event(struct kbuffer *kbuf, unsigned long long *ts);
 unsigned long long kbuffer_timestamp(struct kbuffer *kbuf);
+unsigned long long kbuffer_subbuf_timestamp(struct kbuffer *kbuf, void *subbuf);
+unsigned int kbuffer_ptr_delta(struct kbuffer *kbuf, void *ptr);
 
 void *kbuffer_translate_data(int swap, void *data, unsigned int *size);
 
