@@ -1138,7 +1138,8 @@ static void btree_node_read_work(struct work_struct *work)
 			bio->bi_status = BLK_STS_REMOVED;
 		}
 start:
-		bch2_dev_io_err_on(bio->bi_status, ca, "btree read");
+		bch2_dev_io_err_on(bio->bi_status, ca, "btree read: %s",
+				   blk_status_to_str(bio->bi_status));
 		if (rb->have_ioref)
 			percpu_ref_put(&ca->io_ref);
 		rb->have_ioref = false;
@@ -1423,8 +1424,8 @@ static void btree_node_write_endio(struct bio *bio)
 	if (wbio->have_ioref)
 		bch2_latency_acct(ca, wbio->submit_time, WRITE);
 
-	if (bio->bi_status == BLK_STS_REMOVED ||
-	    bch2_dev_io_err_on(bio->bi_status, ca, "btree write") ||
+	if (bch2_dev_io_err_on(bio->bi_status, ca, "btree write: %s",
+			       blk_status_to_str(bio->bi_status)) ||
 	    bch2_meta_write_fault("btree")) {
 		spin_lock_irqsave(&c->btree_write_error_lock, flags);
 		bch2_dev_list_add_dev(&orig->failed, wbio->dev);

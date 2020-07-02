@@ -624,7 +624,8 @@ static void bch2_write_endio(struct bio *bio)
 	struct bch_fs *c		= wbio->c;
 	struct bch_dev *ca		= bch_dev_bkey_exists(c, wbio->dev);
 
-	if (bch2_dev_io_err_on(bio->bi_status, ca, "data write"))
+	if (bch2_dev_io_err_on(bio->bi_status, ca, "data write: %s",
+			       blk_status_to_str(bio->bi_status)))
 		set_bit(wbio->dev, op->failed.d);
 
 	if (wbio->have_ioref) {
@@ -1913,7 +1914,8 @@ static void bch2_read_endio(struct bio *bio)
 	if (!rbio->split)
 		rbio->bio.bi_end_io = rbio->end_io;
 
-	if (bch2_dev_io_err_on(bio->bi_status, ca, "data read")) {
+	if (bch2_dev_io_err_on(bio->bi_status, ca, "data read; %s",
+			       blk_status_to_str(bio->bi_status))) {
 		bch2_rbio_error(rbio, READ_RETRY_AVOID, bio->bi_status);
 		return;
 	}
