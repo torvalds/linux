@@ -50,12 +50,20 @@ struct tep_plugin_option plugin_options[] =
 		.set = 1,
 	},
 	{
+		.name = "offset",
+		.plugin_alias = "ftrace",
+		.description =
+		"Show function names as well as their offsets",
+		.set = 0,
+	},
+	{
 		.name = NULL,
 	}
 };
 
 static struct tep_plugin_option *ftrace_parent = &plugin_options[0];
 static struct tep_plugin_option *ftrace_indent = &plugin_options[1];
+static struct tep_plugin_option *ftrace_offset = &plugin_options[2];
 
 static void add_child(struct func_stack *stack, const char *child, int pos)
 {
@@ -123,6 +131,18 @@ static int add_and_get_index(const char *parent, const char *child, int cpu)
 	return 0;
 }
 
+static void show_function(struct trace_seq *s, struct tep_handle *tep,
+			  const char *func, unsigned long long function)
+{
+	unsigned long long offset;
+
+	trace_seq_printf(s, "%s", func);
+	if (ftrace_offset->set) {
+		offset = tep_find_function_address(tep, function);
+		trace_seq_printf(s, "+0x%x ", (int)(function - offset));
+	}
+}
+
 static int function_handler(struct trace_seq *s, struct tep_record *record,
 			    struct tep_event *event, void *context)
 {
@@ -149,14 +169,14 @@ static int function_handler(struct trace_seq *s, struct tep_record *record,
 	trace_seq_printf(s, "%*s", index*3, "");
 
 	if (func)
-		trace_seq_printf(s, "%s", func);
+		show_function(s, tep, func, function);
 	else
 		trace_seq_printf(s, "0x%llx", function);
 
 	if (ftrace_parent->set) {
 		trace_seq_printf(s, " <-- ");
 		if (parent)
-			trace_seq_printf(s, "%s", parent);
+			show_function(s, tep, parent, pfunction);
 		else
 			trace_seq_printf(s, "0x%llx", pfunction);
 	}
