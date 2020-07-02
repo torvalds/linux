@@ -49,7 +49,7 @@ static int qcom_usb_vbus_regulator_probe(struct platform_device *pdev)
 	}
 
 	regmap = dev_get_regmap(dev->parent, NULL);
-	if (regmap) {
+	if (!regmap) {
 		dev_err(dev, "Failed to get regmap\n");
 		return -ENOENT;
 	}
