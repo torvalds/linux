@@ -238,11 +238,6 @@ struct ast_connector {
 	struct ast_i2c_chan *i2c;
 };
 
-struct ast_crtc {
-	struct drm_crtc base;
-};
-
-#define to_ast_crtc(x) container_of(x, struct ast_crtc, base)
 #define to_ast_connector(x) container_of(x, struct ast_connector, base)
 
 struct ast_vbios_stdtable {
