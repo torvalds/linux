@@ -882,11 +882,10 @@ static int dwc2_gadget_fill_isoc_desc(struct dwc2_hsotg_ep *hs_ep,
 	struct dwc2_dma_desc *desc;
 	struct dwc2_hsotg *hsotg = hs_ep->parent;
 	u32 index;
-	u32 maxsize = 0;
 	u32 mask = 0;
 	u8 pid = 0;
 
-	maxsize = dwc2_gadget_get_desc_params(hs_ep, &mask);
+	dwc2_gadget_get_desc_params(hs_ep, &mask);
 
 	index = hs_ep->next_desc;
 	desc = &hs_ep->desc_list[index];
