@@ -119,6 +119,7 @@ struct smu_temperature_range {
 	int mem_min;
 	int mem_crit_max;
 	int mem_emergency_max;
+	int software_shutdown_temp;
 };
 
 struct smu_state_validation_block {

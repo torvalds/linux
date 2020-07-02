@@ -1029,6 +1029,9 @@ static int arcturus_force_clk_levels(struct smu_context *smu,
 static int arcturus_get_thermal_temperature_range(struct smu_context *smu,
 						struct smu_temperature_range *range)
 {
+	struct smu_table_context *table_context = &smu->smu_table;
+	struct smu_11_0_powerplay_table *powerplay_table =
+				table_context->power_play_table;
 	PPTable_t *pptable = smu->smu_table.driver_pptable;
 
 	if (!range)
@@ -1046,6 +1049,7 @@ static int arcturus_get_thermal_temperature_range(struct smu_context *smu,
 		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
 	range->mem_emergency_max = (pptable->TmemLimit + CTF_OFFSET_MEM)*
 		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	range->software_shutdown_temp = powerplay_table->software_shutdown_temp;
 
 	return 0;
 }
