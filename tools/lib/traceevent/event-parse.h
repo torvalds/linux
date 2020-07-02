@@ -272,9 +272,12 @@ struct tep_print_arg {
 	};
 };
 
+struct tep_print_parse;
+
 struct tep_print_fmt {
 	char			*format;
 	struct tep_print_arg	*args;
+	struct tep_print_parse	*print_cache;
 };
 
 struct tep_event {

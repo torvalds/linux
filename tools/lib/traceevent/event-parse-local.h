@@ -85,6 +85,23 @@ struct tep_handle {
 	struct tep_plugins_dir *plugins_dir;
 };
 
+enum tep_print_parse_type {
+	PRINT_FMT_STING,
+	PRINT_FMT_ARG_DIGIT,
+	PRINT_FMT_ARG_POINTER,
+	PRINT_FMT_ARG_STRING,
+};
+
+struct tep_print_parse {
+	struct tep_print_parse	*next;
+
+	char				*format;
+	int				ls;
+	enum tep_print_parse_type	type;
+	struct tep_print_arg		*arg;
+	struct tep_print_arg		*len_as_arg;
+};
+
 void tep_free_event(struct tep_event *event);
 void tep_free_format_field(struct tep_format_field *field);
 void tep_free_plugin_paths(struct tep_handle *tep);
