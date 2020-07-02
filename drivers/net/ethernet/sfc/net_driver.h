@@ -189,6 +189,8 @@ struct efx_tx_buffer {
  *
  * @efx: The associated Efx NIC
  * @queue: DMA queue number
+ * @label: Label for TX completion events.
+ *	Is our index within @channel->tx_queue array.
  * @tso_version: Version of TSO in use for this queue.
  * @channel: The associated channel
  * @core_txq: The networking core TX queue structure
@@ -250,7 +252,8 @@ struct efx_tx_buffer {
 struct efx_tx_queue {
 	/* Members which don't change on the fast path */
 	struct efx_nic *efx ____cacheline_aligned_in_smp;
-	unsigned queue;
+	unsigned int queue;
+	unsigned int label;
 	unsigned int tso_version;
 	struct efx_channel *channel;
 	struct netdev_queue *core_txq;

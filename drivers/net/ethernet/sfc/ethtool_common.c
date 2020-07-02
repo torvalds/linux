@@ -287,8 +287,7 @@ static void efx_fill_test(unsigned int test_index, u8 *strings, u64 *data,
 }
 
 #define EFX_CHANNEL_NAME(_channel) "chan%d", _channel->channel
-#define EFX_TX_QUEUE_NAME(_tx_queue) "txq%d", _tx_queue->queue
-#define EFX_RX_QUEUE_NAME(_rx_queue) "rxq%d", _rx_queue->queue
+#define EFX_TX_QUEUE_NAME(_tx_queue) "txq%d", _tx_queue->label
 #define EFX_LOOPBACK_NAME(_mode, _counter)			\
 	"loopback.%s." _counter, STRING_TABLE_LOOKUP(_mode, efx_loopback_mode)
 
@@ -316,11 +315,11 @@ static int efx_fill_loopback_test(struct efx_nic *efx,
 
 	efx_for_each_channel_tx_queue(tx_queue, channel) {
 		efx_fill_test(test_index++, strings, data,
-			      &lb_tests->tx_sent[tx_queue->queue],
+			      &lb_tests->tx_sent[tx_queue->label],
 			      EFX_TX_QUEUE_NAME(tx_queue),
 			      EFX_LOOPBACK_NAME(mode, "tx_sent"));
 		efx_fill_test(test_index++, strings, data,
-			      &lb_tests->tx_done[tx_queue->queue],
+			      &lb_tests->tx_done[tx_queue->label],
 			      EFX_TX_QUEUE_NAME(tx_queue),
 			      EFX_LOOPBACK_NAME(mode, "tx_done"));
 	}

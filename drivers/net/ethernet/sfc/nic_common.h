@@ -90,7 +90,7 @@ static inline bool efx_nic_tx_is_empty(struct efx_tx_queue *tx_queue)
 /* XXX is this a thing on EF100? */
 static inline struct efx_tx_queue *efx_tx_queue_partner(struct efx_tx_queue *tx_queue)
 {
-	if (tx_queue->queue & EFX_TXQ_TYPE_OFFLOAD)
+	if (tx_queue->label & EFX_TXQ_TYPE_OFFLOAD)
 		return tx_queue - EFX_TXQ_TYPE_OFFLOAD;
 	else
 		return tx_queue + EFX_TXQ_TYPE_OFFLOAD;

@@ -524,7 +524,8 @@ efx_alloc_channel(struct efx_nic *efx, int i, struct efx_channel *old_channel)
 	for (j = 0; j < EFX_TXQ_TYPES; j++) {
 		tx_queue = &channel->tx_queue[j];
 		tx_queue->efx = efx;
-		tx_queue->queue = i * EFX_TXQ_TYPES + j;
+		tx_queue->queue = -1;
+		tx_queue->label = j;
 		tx_queue->channel = channel;
 	}
 
@@ -853,8 +854,9 @@ rollback:
 
 int efx_set_channels(struct efx_nic *efx)
 {
-	struct efx_channel *channel;
 	struct efx_tx_queue *tx_queue;
+	struct efx_channel *channel;
+	unsigned int next_queue = 0;
 	int xdp_queue_number;
 	int rc;
 
@@ -884,14 +886,30 @@ int efx_set_channels(struct efx_nic *efx)
 		else
 			channel->rx_queue.core_index = -1;
 
-		efx_for_each_channel_tx_queue(tx_queue, channel) {
-			tx_queue->queue -= (efx->tx_channel_offset *
-					    EFX_TXQ_TYPES);
-
-			if (efx_channel_is_xdp_tx(channel) &&
-			    xdp_queue_number < efx->xdp_tx_queue_count) {
-				efx->xdp_tx_queues[xdp_queue_number] = tx_queue;
-				xdp_queue_number++;
+		if (channel->channel >= efx->tx_channel_offset) {
+			if (efx_channel_is_xdp_tx(channel)) {
+				efx_for_each_channel_tx_queue(tx_queue, channel) {
+					tx_queue->queue = next_queue++;
+					netif_dbg(efx, drv, efx->net_dev, "Channel %u TXQ %u is XDP %u, HW %u\n",
+						  channel->channel, tx_queue->label,
+						  xdp_queue_number, tx_queue->queue);
+					/* We may have a few left-over XDP TX
+					 * queues owing to xdp_tx_queue_count
+					 * not dividing evenly by EFX_TXQ_TYPES.
+					 * We still allocate and probe those
+					 * TXQs, but never use them.
+					 */
+					if (xdp_queue_number < efx->xdp_tx_queue_count)
+						efx->xdp_tx_queues[xdp_queue_number] = tx_queue;
+					xdp_queue_number++;
+				}
+			} else {
+				efx_for_each_channel_tx_queue(tx_queue, channel) {
+					tx_queue->queue = next_queue++;
+					netif_dbg(efx, drv, efx->net_dev, "Channel %u TXQ %u is HW %u\n",
+						  channel->channel, tx_queue->label,
+						  tx_queue->queue);
+				}
 			}
 		}
 	}
