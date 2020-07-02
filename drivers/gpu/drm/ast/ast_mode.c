@@ -611,56 +611,21 @@ static int
 ast_cursor_plane_helper_prepare_fb(struct drm_plane *plane,
 				   struct drm_plane_state *new_state)
 {
-	struct drm_device *dev = plane->dev;
 	struct drm_framebuffer *fb = new_state->fb;
 	struct drm_crtc *crtc = new_state->crtc;
-	struct drm_gem_vram_object *gbo;
 	struct ast_private *ast;
 	int ret;
-	void *src, *dst;
 
 	if (!crtc || !fb)
 		return 0;
 
-	if (drm_WARN_ON_ONCE(dev, fb->width > AST_MAX_HWC_WIDTH) ||
-	    drm_WARN_ON_ONCE(dev, fb->height > AST_MAX_HWC_HEIGHT))
-		return -EINVAL; /* BUG: didn't test in atomic_check() */
+	ast = to_ast_private(plane->dev);
 
-	ast = to_ast_private(dev);
-
-	gbo = drm_gem_vram_of_gem(fb->obj[0]);
-	src = drm_gem_vram_vmap(gbo);
-	if (IS_ERR(src)) {
-		ret = PTR_ERR(src);
-		goto err_drm_gem_vram_unpin;
-	}
-
-	dst = drm_gem_vram_vmap(ast->cursor.gbo[ast->cursor.next_index]);
-	if (IS_ERR(dst)) {
-		ret = PTR_ERR(dst);
-		goto err_drm_gem_vram_vunmap_src;
-	}
-
-	ret = ast_cursor_update(dst, src, fb->width, fb->height);
+	ret = ast_cursor_blit(ast, fb);
 	if (ret)
-		goto err_drm_gem_vram_vunmap_dst;
-
-	/* Always unmap buffers here. Destination buffers are
-	 * perma-pinned while the driver is active. We're only
-	 * changing ref-counters here.
-	 */
-	drm_gem_vram_vunmap(ast->cursor.gbo[ast->cursor.next_index], dst);
-	drm_gem_vram_vunmap(gbo, src);
+		return ret;
 
 	return 0;
-
-err_drm_gem_vram_vunmap_dst:
-	drm_gem_vram_vunmap(ast->cursor.gbo[ast->cursor.next_index], dst);
-err_drm_gem_vram_vunmap_src:
-	drm_gem_vram_vunmap(gbo, src);
-err_drm_gem_vram_unpin:
-	drm_gem_vram_unpin(gbo);
-	return ret;
 }
 
 static int ast_cursor_plane_helper_atomic_check(struct drm_plane *plane,

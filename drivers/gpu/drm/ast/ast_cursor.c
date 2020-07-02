@@ -140,8 +140,8 @@ static u32 copy_cursor_image(u8 *src, u8 *dst, int width, int height)
 	return csum;
 }
 
-int ast_cursor_update(void *dst, void *src, unsigned int width,
-		      unsigned int height)
+static int ast_cursor_update(void *dst, void *src, unsigned int width,
+			     unsigned int height)
 {
 	u32 csum;
 
@@ -157,6 +157,59 @@ int ast_cursor_update(void *dst, void *src, unsigned int width,
 	writel(0, dst + AST_HWC_SIGNATURE_HOTSPOTY);
 
 	return 0;
+}
+
+int ast_cursor_blit(struct ast_private *ast, struct drm_framebuffer *fb)
+{
+	struct drm_device *dev = ast->dev;
+	struct drm_gem_vram_object *gbo;
+	int ret;
+	void *src;
+	void *dst;
+
+	if (drm_WARN_ON_ONCE(dev, fb->width > AST_MAX_HWC_WIDTH) ||
+	    drm_WARN_ON_ONCE(dev, fb->height > AST_MAX_HWC_HEIGHT))
+		return -EINVAL;
+
+	gbo = drm_gem_vram_of_gem(fb->obj[0]);
+
+	ret = drm_gem_vram_pin(gbo, 0);
+	if (ret)
+		return ret;
+	src = drm_gem_vram_vmap(gbo);
+	if (IS_ERR(src)) {
+		ret = PTR_ERR(src);
+		goto err_drm_gem_vram_unpin;
+	}
+
+	dst = drm_gem_vram_vmap(ast->cursor.gbo[ast->cursor.next_index]);
+	if (IS_ERR(dst)) {
+		ret = PTR_ERR(dst);
+		goto err_drm_gem_vram_vunmap_src;
+	}
+
+	ret = ast_cursor_update(dst, src, fb->width, fb->height);
+	if (ret)
+		goto err_drm_gem_vram_vunmap_dst;
+
+	/*
+	 * Always unmap buffers here. Destination buffers are
+	 * perma-pinned while the driver is active. We're only
+	 * changing ref-counters here.
+	 */
+	drm_gem_vram_vunmap(ast->cursor.gbo[ast->cursor.next_index], dst);
+	drm_gem_vram_vunmap(gbo, src);
+	drm_gem_vram_unpin(gbo);
+
+	return 0;
+
+err_drm_gem_vram_vunmap_dst:
+	drm_gem_vram_vunmap(ast->cursor.gbo[ast->cursor.next_index], dst);
+err_drm_gem_vram_vunmap_src:
+	drm_gem_vram_vunmap(gbo, src);
+err_drm_gem_vram_unpin:
+	drm_gem_vram_unpin(gbo);
+	return ret;
 }
 
 void ast_cursor_set_base(struct ast_private *ast, u64 address)
