@@ -5430,7 +5430,7 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 		else
 			return SCSI_MLQUEUE_HOST_BUSY;
 	}
-	__set_bit(k, sqp->in_use_bm);
+	set_bit(k, sqp->in_use_bm);
 	atomic_inc(&devip->num_in_q);
 	sqcp = &sqp->qc_arr[k];
 	sqcp->a_cmnd = cmnd;
@@ -5439,10 +5439,13 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 	spin_unlock_irqrestore(&sqp->qc_lock, iflags);
 	if (unlikely(sdebug_every_nth && sdebug_any_injecting_opt))
 		setup_inject(sqp, sqcp);
-	if (sd_dp == NULL) {
+	if (!sd_dp) {
 		sd_dp = kzalloc(sizeof(*sd_dp), GFP_ATOMIC);
-		if (sd_dp == NULL)
+		if (!sd_dp) {
+			atomic_dec(&devip->num_in_q);
+			clear_bit(k, sqp->in_use_bm);
 			return SCSI_MLQUEUE_HOST_BUSY;
+		}
 		new_sd_dp = true;
 	} else {
 		new_sd_dp = false;
