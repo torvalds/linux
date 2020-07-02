@@ -43,25 +43,25 @@ examples:
     #include <dt-bindings/clock/jz4780-cgu.h>
 
     cpus {
-	#address-cells = <1>;
-	#size-cells = <0>;
+        #address-cells = <1>;
+        #size-cells = <0>;
 
-	cpu0: cpu@0 {
-		device_type = "cpu";
-		compatible = "ingenic,xburst-fpu1.0-mxu1.1";
-		reg = <0>;
+        cpu0: cpu@0 {
+                device_type = "cpu";
+                compatible = "ingenic,xburst-fpu1.0-mxu1.1";
+                reg = <0>;
 
-		clocks = <&cgu JZ4780_CLK_CPU>;
-		clock-names = "cpu";
-	};
+                clocks = <&cgu JZ4780_CLK_CPU>;
+                clock-names = "cpu";
+        };
 
-	cpu1: cpu@1 {
-		device_type = "cpu";
-		compatible = "ingenic,xburst-fpu1.0-mxu1.1";
-		reg = <1>;
+        cpu1: cpu@1 {
+                device_type = "cpu";
+                compatible = "ingenic,xburst-fpu1.0-mxu1.1";
+                reg = <1>;
 
-		clocks = <&cgu JZ4780_CLK_CORE1>;
-		clock-names = "cpu";
-	};
+                clocks = <&cgu JZ4780_CLK_CORE1>;
+                clock-names = "cpu";
+        };
     };
 ...
