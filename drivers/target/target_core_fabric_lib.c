@@ -265,9 +265,7 @@ static char *iscsi_parse_pr_out_transport_id(
 	char **port_nexus_ptr)
 {
 	char *p;
-	u32 tid_len, padding;
 	int i;
-	u16 add_len;
 	u8 format_code = (buf[0] & 0xc0);
 	/*
 	 * Check for FORMAT CODE 00b or 01b from spc4r17, section 7.5.4.6:
@@ -293,23 +291,11 @@ static char *iscsi_parse_pr_out_transport_id(
 	 */
 	if (out_tid_len) {
 		/* The shift works thanks to integer promotion rules */
-		add_len = get_unaligned_be16(&buf[2]);
-
-		tid_len = strlen(&buf[4]);
-		tid_len += 4; /* Add four bytes for iSCSI Transport ID header */
-		tid_len += 1; /* Add one byte for NULL terminator */
-		padding = ((-tid_len) & 3);
-		if (padding != 0)
-			tid_len += padding;
-
-		if ((add_len + 4) != tid_len) {
-			pr_debug("LIO-Target Extracted add_len: %hu "
-				"does not match calculated tid_len: %u,"
-				" using tid_len instead\n", add_len+4, tid_len);
-			*out_tid_len = tid_len;
-		} else
-			*out_tid_len = (add_len + 4);
+		*out_tid_len = get_unaligned_be16(&buf[2]);
+		/* Add four bytes for iSCSI Transport ID header */
+		*out_tid_len += 4;
 	}
+
 	/*
 	 * Check for ',i,0x' separator between iSCSI Name and iSCSI Initiator
 	 * Session ID as defined in Table 390 - iSCSI initiator port TransportID
