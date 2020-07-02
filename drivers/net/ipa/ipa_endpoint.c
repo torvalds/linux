@@ -318,7 +318,9 @@ ipa_endpoint_program_delay(struct ipa_endpoint *endpoint, bool enable)
 {
 	/* assert(endpoint->toward_ipa); */
 
-	(void)ipa_endpoint_init_ctrl(endpoint, enable);
+	/* Delay mode doesn't work properly for IPA v4.2 */
+	if (endpoint->ipa->version != IPA_VERSION_4_2)
+		(void)ipa_endpoint_init_ctrl(endpoint, enable);
 }
 
 /* Returns previous suspend state (true means it was enabled) */
@@ -1294,8 +1296,7 @@ static void ipa_endpoint_reset(struct ipa_endpoint *endpoint)
 static void ipa_endpoint_program(struct ipa_endpoint *endpoint)
 {
 	if (endpoint->toward_ipa) {
-		if (endpoint->ipa->version != IPA_VERSION_4_2)
-			ipa_endpoint_program_delay(endpoint, false);
+		ipa_endpoint_program_delay(endpoint, false);
 		ipa_endpoint_init_hdr_ext(endpoint);
 		ipa_endpoint_init_aggr(endpoint);
 		ipa_endpoint_init_deaggr(endpoint);
