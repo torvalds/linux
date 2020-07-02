@@ -588,6 +588,9 @@ static void ipa_endpoint_init_hdr_metadata_mask(struct ipa_endpoint *endpoint)
 	u32 val = 0;
 	u32 offset;
 
+	if (endpoint->toward_ipa)
+		return;		/* Register not valid for TX endpoints */
+
 	offset = IPA_REG_ENDP_INIT_HDR_METADATA_MASK_N_OFFSET(endpoint_id);
 
 	/* Note that HDR_ENDIANNESS indicates big endian header fields */
@@ -601,6 +604,9 @@ static void ipa_endpoint_init_mode(struct ipa_endpoint *endpoint)
 {
 	u32 offset = IPA_REG_ENDP_INIT_MODE_N_OFFSET(endpoint->endpoint_id);
 	u32 val;
+
+	if (!endpoint->toward_ipa)
+		return;		/* Register not valid for RX endpoints */
 
 	if (endpoint->data->dma_mode) {
 		enum ipa_endpoint_name name = endpoint->data->dma_endpoint;
@@ -760,6 +766,9 @@ static void ipa_endpoint_init_deaggr(struct ipa_endpoint *endpoint)
 	u32 offset = IPA_REG_ENDP_INIT_DEAGGR_N_OFFSET(endpoint->endpoint_id);
 	u32 val = 0;
 
+	if (!endpoint->toward_ipa)
+		return;		/* Register not valid for RX endpoints */
+
 	/* DEAGGR_HDR_LEN is 0 */
 	/* PACKET_OFFSET_VALID is 0 */
 	/* PACKET_OFFSET_LOCATION is ignored (not valid) */
@@ -773,6 +782,9 @@ static void ipa_endpoint_init_seq(struct ipa_endpoint *endpoint)
 	u32 offset = IPA_REG_ENDP_INIT_SEQ_N_OFFSET(endpoint->endpoint_id);
 	u32 seq_type = endpoint->seq_type;
 	u32 val = 0;
+
+	if (!endpoint->toward_ipa)
+		return;		/* Register not valid for RX endpoints */
 
 	/* Sequencer type is made up of four nibbles */
 	val |= u32_encode_bits(seq_type & 0xf, HPS_SEQ_TYPE_FMASK);
@@ -1330,21 +1342,18 @@ static void ipa_endpoint_reset(struct ipa_endpoint *endpoint)
 
 static void ipa_endpoint_program(struct ipa_endpoint *endpoint)
 {
-	if (endpoint->toward_ipa) {
+	if (endpoint->toward_ipa)
 		ipa_endpoint_program_delay(endpoint, false);
-		ipa_endpoint_init_hdr_ext(endpoint);
-		ipa_endpoint_init_aggr(endpoint);
-		ipa_endpoint_init_deaggr(endpoint);
-		ipa_endpoint_init_seq(endpoint);
-		ipa_endpoint_init_mode(endpoint);
-	} else {
+	else
 		(void)ipa_endpoint_program_suspend(endpoint, false);
-		ipa_endpoint_init_hdr_ext(endpoint);
-		ipa_endpoint_init_aggr(endpoint);
-		ipa_endpoint_init_hdr_metadata_mask(endpoint);
-	}
 	ipa_endpoint_init_cfg(endpoint);
 	ipa_endpoint_init_hdr(endpoint);
+	ipa_endpoint_init_hdr_ext(endpoint);
+	ipa_endpoint_init_hdr_metadata_mask(endpoint);
+	ipa_endpoint_init_mode(endpoint);
+	ipa_endpoint_init_aggr(endpoint);
+	ipa_endpoint_init_deaggr(endpoint);
+	ipa_endpoint_init_seq(endpoint);
 	ipa_endpoint_status(endpoint);
 }
 
