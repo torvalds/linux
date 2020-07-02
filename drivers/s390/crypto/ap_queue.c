@@ -196,6 +196,10 @@ static enum ap_sm_wait ap_sm_read(struct ap_queue *aq)
 		return AP_SM_WAIT_NONE;
 	default:
 		aq->dev_state = AP_DEV_STATE_ERROR;
+		aq->last_err_rc = status.response_code;
+		AP_DBF_WARN("%s RC 0x%02hhx on 0x%02x.%04x -> AP_DEV_STATE_ERROR\n",
+			    __func__, status.response_code,
+			    AP_QID_CARD(aq->qid), AP_QID_QUEUE(aq->qid));
 		return AP_SM_WAIT_NONE;
 	}
 }
@@ -246,6 +250,10 @@ static enum ap_sm_wait ap_sm_write(struct ap_queue *aq)
 		return AP_SM_WAIT_AGAIN;
 	default:
 		aq->dev_state = AP_DEV_STATE_ERROR;
+		aq->last_err_rc = status.response_code;
+		AP_DBF_WARN("%s RC 0x%02hhx on 0x%02x.%04x -> AP_DEV_STATE_ERROR\n",
+			    __func__, status.response_code,
+			    AP_QID_CARD(aq->qid), AP_QID_QUEUE(aq->qid));
 		return AP_SM_WAIT_NONE;
 	}
 }
@@ -285,6 +293,10 @@ static enum ap_sm_wait ap_sm_reset(struct ap_queue *aq)
 	case AP_RESPONSE_CHECKSTOPPED:
 	default:
 		aq->dev_state = AP_DEV_STATE_ERROR;
+		aq->last_err_rc = status.response_code;
+		AP_DBF_WARN("%s RC 0x%02hhx on 0x%02x.%04x -> AP_DEV_STATE_ERROR\n",
+			    __func__, status.response_code,
+			    AP_QID_CARD(aq->qid), AP_QID_QUEUE(aq->qid));
 		return AP_SM_WAIT_NONE;
 	}
 }
@@ -324,6 +336,10 @@ static enum ap_sm_wait ap_sm_reset_wait(struct ap_queue *aq)
 	case AP_RESPONSE_CHECKSTOPPED:
 	default:
 		aq->dev_state = AP_DEV_STATE_ERROR;
+		aq->last_err_rc = status.response_code;
+		AP_DBF_WARN("%s RC 0x%02hhx on 0x%02x.%04x -> AP_DEV_STATE_ERROR\n",
+			    __func__, status.response_code,
+			    AP_QID_CARD(aq->qid), AP_QID_QUEUE(aq->qid));
 		return AP_SM_WAIT_NONE;
 	}
 }
@@ -361,6 +377,10 @@ static enum ap_sm_wait ap_sm_setirq_wait(struct ap_queue *aq)
 		return AP_SM_WAIT_TIMEOUT;
 	default:
 		aq->dev_state = AP_DEV_STATE_ERROR;
+		aq->last_err_rc = status.response_code;
+		AP_DBF_WARN("%s RC 0x%02hhx on 0x%02x.%04x -> AP_DEV_STATE_ERROR\n",
+			    __func__, status.response_code,
+			    AP_QID_CARD(aq->qid), AP_QID_QUEUE(aq->qid));
 		return AP_SM_WAIT_NONE;
 	}
 }
@@ -605,6 +625,49 @@ static ssize_t states_show(struct device *dev,
 	return rc;
 }
 static DEVICE_ATTR_RO(states);
+
+static ssize_t last_err_rc_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct ap_queue *aq = to_ap_queue(dev);
+	int rc;
+
+	spin_lock_bh(&aq->lock);
+	rc = aq->last_err_rc;
+	spin_unlock_bh(&aq->lock);
+
+	switch (rc) {
+	case AP_RESPONSE_NORMAL:
+		return scnprintf(buf, PAGE_SIZE, "NORMAL\n");
+	case AP_RESPONSE_Q_NOT_AVAIL:
+		return scnprintf(buf, PAGE_SIZE, "Q_NOT_AVAIL\n");
+	case AP_RESPONSE_RESET_IN_PROGRESS:
+		return scnprintf(buf, PAGE_SIZE, "RESET_IN_PROGRESS\n");
+	case AP_RESPONSE_DECONFIGURED:
+		return scnprintf(buf, PAGE_SIZE, "DECONFIGURED\n");
+	case AP_RESPONSE_CHECKSTOPPED:
+		return scnprintf(buf, PAGE_SIZE, "CHECKSTOPPED\n");
+	case AP_RESPONSE_BUSY:
+		return scnprintf(buf, PAGE_SIZE, "BUSY\n");
+	case AP_RESPONSE_INVALID_ADDRESS:
+		return scnprintf(buf, PAGE_SIZE, "INVALID_ADDRESS\n");
+	case AP_RESPONSE_OTHERWISE_CHANGED:
+		return scnprintf(buf, PAGE_SIZE, "OTHERWISE_CHANGED\n");
+	case AP_RESPONSE_Q_FULL:
+		return scnprintf(buf, PAGE_SIZE, "Q_FULL/NO_PENDING_REPLY\n");
+	case AP_RESPONSE_INDEX_TOO_BIG:
+		return scnprintf(buf, PAGE_SIZE, "INDEX_TOO_BIG\n");
+	case AP_RESPONSE_NO_FIRST_PART:
+		return scnprintf(buf, PAGE_SIZE, "NO_FIRST_PART\n");
+	case AP_RESPONSE_MESSAGE_TOO_BIG:
+		return scnprintf(buf, PAGE_SIZE, "MESSAGE_TOO_BIG\n");
+	case AP_RESPONSE_REQ_FAC_NOT_INST:
+		return scnprintf(buf, PAGE_SIZE, "REQ_FAC_NOT_INST\n");
+	default:
+		return scnprintf(buf, PAGE_SIZE, "response code %d\n", rc);
+	}
+}
+static DEVICE_ATTR_RO(last_err_rc);
 #endif
 
 static struct attribute *ap_queue_dev_attrs[] = {
@@ -615,6 +678,7 @@ static struct attribute *ap_queue_dev_attrs[] = {
 	&dev_attr_interrupt.attr,
 #ifdef CONFIG_ZCRYPT_DEBUG
 	&dev_attr_states.attr,
+	&dev_attr_last_err_rc.attr,
 #endif
 	NULL
 };

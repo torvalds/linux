@@ -190,6 +190,7 @@ struct ap_queue {
 	struct list_head requestq;	/* List of message yet to be sent. */
 	struct ap_message *reply;	/* Per device reply message. */
 	enum ap_sm_state sm_state;	/* ap queue state machine state */
+	int last_err_rc;		/* last error state response code */
 };
 
 #define to_ap_queue(x) container_of((x), struct ap_queue, ap_dev.device)
