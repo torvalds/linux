@@ -298,7 +298,11 @@ struct efx_tx_buffer *efx_tx_map_chunk(struct efx_tx_queue *tx_queue,
 	/* Map the fragment taking account of NIC-dependent DMA limits. */
 	do {
 		buffer = efx_tx_queue_get_insert_buffer(tx_queue);
-		dma_len = nic_type->tx_limit_len(tx_queue, dma_addr, len);
+
+		if (nic_type->tx_limit_len)
+			dma_len = nic_type->tx_limit_len(tx_queue, dma_addr, len);
+		else
+			dma_len = len;
 
 		buffer->len = dma_len;
 		buffer->dma_addr = dma_addr;
