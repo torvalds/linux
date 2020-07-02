@@ -1621,6 +1621,35 @@ fail:
 	return rc;
 }
 
+/* This function finds types using the new NVRAM_PARTITIONS mcdi. */
+static int efx_new_mcdi_nvram_types(struct efx_nic *efx, u32 *number,
+				    u32 *nvram_types)
+{
+	efx_dword_t *outbuf = kzalloc(MC_CMD_NVRAM_PARTITIONS_OUT_LENMAX_MCDI2,
+				      GFP_KERNEL);
+	size_t outlen;
+	int rc;
+
+	if (!outbuf)
+		return -ENOMEM;
+
+	BUILD_BUG_ON(MC_CMD_NVRAM_PARTITIONS_IN_LEN != 0);
+
+	rc = efx_mcdi_rpc(efx, MC_CMD_NVRAM_PARTITIONS, NULL, 0,
+			  outbuf, MC_CMD_NVRAM_PARTITIONS_OUT_LENMAX_MCDI2, &outlen);
+	if (rc)
+		goto fail;
+
+	*number = MCDI_DWORD(outbuf, NVRAM_PARTITIONS_OUT_NUM_PARTITIONS);
+
+	memcpy(nvram_types, MCDI_PTR(outbuf, NVRAM_PARTITIONS_OUT_TYPE_ID),
+	       *number * sizeof(u32));
+
+fail:
+	kfree(outbuf);
+	return rc;
+}
+
 int efx_mcdi_nvram_info(struct efx_nic *efx, unsigned int type,
 			size_t *size_out, size_t *erase_size_out,
 			bool *protected_out)
@@ -1672,6 +1701,39 @@ static int efx_mcdi_nvram_test(struct efx_nic *efx, unsigned int type)
 	default:
 		return -EIO;
 	}
+}
+
+/* This function tests nvram partitions using the new mcdi partition lookup scheme */
+int efx_new_mcdi_nvram_test_all(struct efx_nic *efx)
+{
+	u32 *nvram_types = kzalloc(MC_CMD_NVRAM_PARTITIONS_OUT_LENMAX_MCDI2,
+				   GFP_KERNEL);
+	unsigned int number;
+	int rc, i;
+
+	if (!nvram_types)
+		return -ENOMEM;
+
+	rc = efx_new_mcdi_nvram_types(efx, &number, nvram_types);
+	if (rc)
+		goto fail;
+
+	/* Require at least one check */
+	rc = -EAGAIN;
+
+	for (i = 0; i < number; i++) {
+		if (nvram_types[i] == NVRAM_PARTITION_TYPE_PARTITION_MAP ||
+		    nvram_types[i] == NVRAM_PARTITION_TYPE_DYNAMIC_CONFIG)
+			continue;
+
+		rc = efx_mcdi_nvram_test(efx, nvram_types[i]);
+		if (rc)
+			goto fail;
+	}
+
+fail:
+	kfree(nvram_types);
+	return rc;
 }
 
 int efx_mcdi_nvram_test_all(struct efx_nic *efx)
