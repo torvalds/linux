@@ -47,15 +47,23 @@ static int rmnet_unregister_real_device(struct net_device *real_dev)
 	return 0;
 }
 
-static int rmnet_register_real_device(struct net_device *real_dev)
+static int rmnet_register_real_device(struct net_device *real_dev,
+				      struct netlink_ext_ack *extack)
 {
 	struct rmnet_port *port;
 	int rc, entry;
 
 	ASSERT_RTNL();
 
-	if (rmnet_is_real_dev_registered(real_dev))
+	if (rmnet_is_real_dev_registered(real_dev)) {
+		port = rmnet_get_port_rtnl(real_dev);
+		if (port->rmnet_mode != RMNET_EPMODE_VND) {
+			NL_SET_ERR_MSG_MOD(extack, "bridge device already exists");
+			return -EINVAL;
+		}
+
 		return 0;
+	}
 
 	port = kzalloc(sizeof(*port), GFP_KERNEL);
 	if (!port)
@@ -133,7 +141,7 @@ static int rmnet_newlink(struct net *src_net, struct net_device *dev,
 
 	mux_id = nla_get_u16(data[IFLA_RMNET_MUX_ID]);
 
-	err = rmnet_register_real_device(real_dev);
+	err = rmnet_register_real_device(real_dev, extack);
 	if (err)
 		goto err0;
 
@@ -421,11 +429,6 @@ int rmnet_add_bridge(struct net_device *rmnet_dev,
 		return -EINVAL;
 	}
 
-	if (port->rmnet_mode != RMNET_EPMODE_VND) {
-		NL_SET_ERR_MSG_MOD(extack, "bridge device already exists");
-		return -EINVAL;
-	}
-
 	if (rmnet_is_real_dev_registered(slave_dev)) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "slave cannot be another rmnet dev");
@@ -433,7 +436,7 @@ int rmnet_add_bridge(struct net_device *rmnet_dev,
 		return -EBUSY;
 	}
 
-	err = rmnet_register_real_device(slave_dev);
+	err = rmnet_register_real_device(slave_dev, extack);
 	if (err)
 		return -EBUSY;
 
