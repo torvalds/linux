@@ -38,6 +38,29 @@
 static bool is_support_iommu = true;
 static struct drm_driver rockchip_drm_driver;
 
+struct rockchip_drm_mode_set {
+	struct list_head head;
+	struct drm_framebuffer *fb;
+	struct drm_connector *connector;
+	struct drm_crtc *crtc;
+	struct drm_display_mode *mode;
+	int hdisplay;
+	int vdisplay;
+	int vrefresh;
+	int flags;
+	int picture_aspect_ratio;
+	int crtc_hsync_end;
+	int crtc_vsync_end;
+
+	int left_margin;
+	int right_margin;
+	int top_margin;
+	int bottom_margin;
+
+	bool mode_changed;
+	int ratio;
+};
+
 /**
  * rockchip_drm_of_find_possible_crtcs - find the possible CRTCs for an active
  * encoder port
@@ -74,6 +97,40 @@ uint32_t rockchip_drm_of_find_possible_crtcs(struct drm_device *dev,
 	return possible_crtcs;
 }
 EXPORT_SYMBOL(rockchip_drm_of_find_possible_crtcs);
+
+static DEFINE_MUTEX(rockchip_drm_sub_dev_lock);
+static LIST_HEAD(rockchip_drm_sub_dev_list);
+
+void rockchip_drm_register_sub_dev(struct rockchip_drm_sub_dev *sub_dev)
+{
+	mutex_lock(&rockchip_drm_sub_dev_lock);
+	list_add_tail(&sub_dev->list, &rockchip_drm_sub_dev_list);
+	mutex_unlock(&rockchip_drm_sub_dev_lock);
+}
+EXPORT_SYMBOL(rockchip_drm_register_sub_dev);
+
+void rockchip_drm_unregister_sub_dev(struct rockchip_drm_sub_dev *sub_dev)
+{
+	mutex_lock(&rockchip_drm_sub_dev_lock);
+	list_del(&sub_dev->list);
+	mutex_unlock(&rockchip_drm_sub_dev_lock);
+}
+EXPORT_SYMBOL(rockchip_drm_unregister_sub_dev);
+
+struct rockchip_drm_sub_dev *rockchip_drm_get_sub_dev(struct device_node *node)
+{
+	struct rockchip_drm_sub_dev *sub_dev = NULL;
+
+	mutex_lock(&rockchip_drm_sub_dev_lock);
+	list_for_each_entry(sub_dev, &rockchip_drm_sub_dev_list, list) {
+		if (sub_dev->of_node == node)
+			break;
+	}
+	mutex_unlock(&rockchip_drm_sub_dev_lock);
+
+	return sub_dev;
+}
+EXPORT_SYMBOL(rockchip_drm_get_sub_dev);
 
 int rockchip_register_crtc_funcs(struct drm_crtc *crtc,
 				 const struct rockchip_crtc_funcs *crtc_funcs)
