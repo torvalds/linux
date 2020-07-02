@@ -57,6 +57,7 @@ static u8 dp_get_lane_status(const u8 link_status[DP_LINK_STATUS_SIZE],
 	int i = DP_LANE0_1_STATUS + (lane >> 1);
 	int s = (lane & 1) * 4;
 	u8 l = dp_link_status(link_status, i);
+
 	return (l >> s) & 0xf;
 }
 

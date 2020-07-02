@@ -259,6 +259,7 @@ static u8 drm_dp_msg_data_crc4(const uint8_t *data, u8 number_of_bytes)
 static inline u8 drm_dp_calc_sb_hdr_size(struct drm_dp_sideband_msg_hdr *hdr)
 {
 	u8 size = 3;
+
 	size += (hdr->lct / 2);
 	return size;
 }
@@ -269,6 +270,7 @@ static void drm_dp_encode_sideband_msg_hdr(struct drm_dp_sideband_msg_hdr *hdr,
 	int idx = 0;
 	int i;
 	u8 crc4;
+
 	buf[idx++] = ((hdr->lct & 0xf) << 4) | (hdr->lcr & 0xf);
 	for (i = 0; i < (hdr->lct / 2); i++)
 		buf[idx++] = hdr->rad[i];
@@ -289,6 +291,7 @@ static bool drm_dp_decode_sideband_msg_hdr(struct drm_dp_sideband_msg_hdr *hdr,
 	u8 len;
 	int i;
 	u8 idx;
+
 	if (buf[0] == 0)
 		return false;
 	len = 3;
@@ -326,6 +329,7 @@ drm_dp_encode_sideband_req(const struct drm_dp_sideband_msg_req_body *req,
 	int idx = 0;
 	int i;
 	u8 *buf = raw->msg;
+
 	buf[idx++] = req->req_type & 0x7f;
 
 	switch (req->req_type) {
@@ -673,6 +677,7 @@ drm_dp_mst_dump_sideband_msg_tx(struct drm_printer *p,
 static void drm_dp_crc_sideband_chunk_req(u8 *msg, u8 len)
 {
 	u8 crc4;
+
 	crc4 = drm_dp_msg_data_crc4(msg, len);
 	msg[len] = crc4;
 }
@@ -747,6 +752,7 @@ static bool drm_dp_sideband_parse_link_address(struct drm_dp_sideband_msg_rx *ra
 {
 	int idx = 1;
 	int i;
+
 	memcpy(repmsg->u.link_addr.guid, &raw->msg[idx], 16);
 	idx += 16;
 	repmsg->u.link_addr.nports = raw->msg[idx] & 0xf;
@@ -798,6 +804,7 @@ static bool drm_dp_sideband_parse_remote_dpcd_read(struct drm_dp_sideband_msg_rx
 						   struct drm_dp_sideband_msg_reply_body *repmsg)
 {
 	int idx = 1;
+
 	repmsg->u.remote_dpcd_read_ack.port_number = raw->msg[idx] & 0xf;
 	idx++;
 	if (idx > raw->curlen)
@@ -818,6 +825,7 @@ static bool drm_dp_sideband_parse_remote_dpcd_write(struct drm_dp_sideband_msg_r
 						      struct drm_dp_sideband_msg_reply_body *repmsg)
 {
 	int idx = 1;
+
 	repmsg->u.remote_dpcd_write_ack.port_number = raw->msg[idx] & 0xf;
 	idx++;
 	if (idx > raw->curlen)
@@ -851,6 +859,7 @@ static bool drm_dp_sideband_parse_enum_path_resources_ack(struct drm_dp_sideband
 							  struct drm_dp_sideband_msg_reply_body *repmsg)
 {
 	int idx = 1;
+
 	repmsg->u.path_resources.port_number = (raw->msg[idx] >> 4) & 0xf;
 	repmsg->u.path_resources.fec_capable = raw->msg[idx] & 0x1;
 	idx++;
@@ -874,6 +883,7 @@ static bool drm_dp_sideband_parse_allocate_payload_ack(struct drm_dp_sideband_ms
 							  struct drm_dp_sideband_msg_reply_body *repmsg)
 {
 	int idx = 1;
+
 	repmsg->u.allocate_payload.port_number = (raw->msg[idx] >> 4) & 0xf;
 	idx++;
 	if (idx > raw->curlen)
@@ -896,6 +906,7 @@ static bool drm_dp_sideband_parse_query_payload_ack(struct drm_dp_sideband_msg_r
 						    struct drm_dp_sideband_msg_reply_body *repmsg)
 {
 	int idx = 1;
+
 	repmsg->u.query_payload.port_number = (raw->msg[idx] >> 4) & 0xf;
 	idx++;
 	if (idx > raw->curlen)
@@ -1082,6 +1093,7 @@ static void build_allocate_payload(struct drm_dp_sideband_msg_tx *msg,
 				   u8 *sdp_stream_sink)
 {
 	struct drm_dp_sideband_msg_req_body req;
+
 	memset(&req, 0, sizeof(req));
 	req.req_type = DP_ALLOCATE_PAYLOAD;
 	req.u.allocate_payload.port_number = port_num;
@@ -1142,6 +1154,7 @@ static void drm_dp_mst_put_payload_id(struct drm_dp_mst_topology_mgr *mgr,
 				      int vcpi)
 {
 	int i;
+
 	if (vcpi == 0)
 		return;
 
@@ -1940,6 +1953,7 @@ static u8 drm_dp_calculate_rad(struct drm_dp_mst_port *port,
 	int parent_lct = port->parent->lct;
 	int shift = 4;
 	int idx = (parent_lct - 1) / 2;
+
 	if (parent_lct > 1) {
 		memcpy(rad, port->parent->rad, idx + 1);
 		shift = (parent_lct % 2) ? 4 : 0;
@@ -2118,10 +2132,12 @@ static void build_mst_prop_path(const struct drm_dp_mst_branch *mstb,
 {
 	int i;
 	char temp[8];
+
 	snprintf(proppath, proppath_size, "mst:%d", mstb->mgr->conn_base_id);
 	for (i = 0; i < (mstb->lct - 1); i++) {
 		int shift = (i % 2) ? 0 : 4;
 		int port_num = (mstb->rad[i / 2] >> shift) & 0xf;
+
 		snprintf(temp, sizeof(temp), "-%d", port_num);
 		strlcat(proppath, temp, proppath_size);
 	}
@@ -3158,6 +3174,7 @@ static int drm_dp_create_payload_step2(struct drm_dp_mst_topology_mgr *mgr,
 				       struct drm_dp_payload *payload)
 {
 	int ret;
+
 	ret = drm_dp_payload_send_msg(mgr, port, id, port->vcpi.pbn);
 	if (ret < 0)
 		return ret;
@@ -3314,6 +3331,7 @@ int drm_dp_update_payload_part2(struct drm_dp_mst_topology_mgr *mgr)
 	struct drm_dp_mst_port *port;
 	int i;
 	int ret = 0;
+
 	mutex_lock(&mgr->payload_lock);
 	for (i = 0; i < mgr->max_payloads; i++) {
 
@@ -3779,6 +3797,7 @@ static int drm_dp_mst_handle_down_rep(struct drm_dp_mst_topology_mgr *mgr)
 	/* Were we actually expecting a response, and from this mstb? */
 	if (!txmsg || txmsg->dst != mstb) {
 		struct drm_dp_sideband_msg_hdr *hdr;
+
 		hdr = &msg->initial_hdr;
 		DRM_DEBUG_KMS("Got MST reply with no msg %p %d %d %02x %02x\n",
 			      mstb, hdr->seqno, hdr->lct, hdr->rad[0],
@@ -4326,6 +4345,7 @@ EXPORT_SYMBOL(drm_dp_mst_allocate_vcpi);
 int drm_dp_mst_get_vcpi_slots(struct drm_dp_mst_topology_mgr *mgr, struct drm_dp_mst_port *port)
 {
 	int slots = 0;
+
 	port = drm_dp_mst_topology_get_port_validated(mgr, port);
 	if (!port)
 		return slots;

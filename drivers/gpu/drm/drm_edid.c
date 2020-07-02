@@ -1672,6 +1672,7 @@ bool drm_edid_block_valid(u8 *raw_edid, int block, bool print_bad_edid,
 
 	if (block == 0) {
 		int score = drm_edid_header_is_valid(raw_edid);
+
 		if (score == 8) {
 			if (edid_corrupt)
 				*edid_corrupt = false;
@@ -2223,6 +2224,7 @@ struct drm_display_mode *drm_mode_find_dmt(struct drm_device *dev,
 
 	for (i = 0; i < ARRAY_SIZE(drm_dmt_modes); i++) {
 		const struct drm_display_mode *ptr = &drm_dmt_modes[i];
+
 		if (hsize != ptr->hdisplay)
 			continue;
 		if (vsize != ptr->vdisplay)
@@ -2294,6 +2296,7 @@ drm_for_each_detailed_block(u8 *raw_edid, detailed_cb *cb, void *closure)
 
 	for (i = 1; i <= raw_edid[0x7e]; i++) {
 		u8 *ext = raw_edid + (i * EDID_LENGTH);
+
 		switch (*ext) {
 		case CEA_EXT:
 			cea_for_each_detailed_block(ext, cb, closure);
@@ -2325,6 +2328,7 @@ drm_monitor_supports_rb(struct edid *edid)
 {
 	if (edid->revision >= 4) {
 		bool ret = false;
+
 		drm_for_each_detailed_block((u8 *)edid, is_rb, &ret);
 		return ret;
 	}
@@ -2349,6 +2353,7 @@ static int
 drm_gtf2_hbreak(struct edid *edid)
 {
 	u8 *r = NULL;
+
 	drm_for_each_detailed_block((u8 *)edid, find_gtf2, &r);
 	return r ? (r[12] * 2) : 0;
 }
@@ -2357,6 +2362,7 @@ static int
 drm_gtf2_2c(struct edid *edid)
 {
 	u8 *r = NULL;
+
 	drm_for_each_detailed_block((u8 *)edid, find_gtf2, &r);
 	return r ? r[13] : 0;
 }
@@ -2365,6 +2371,7 @@ static int
 drm_gtf2_m(struct edid *edid)
 {
 	u8 *r = NULL;
+
 	drm_for_each_detailed_block((u8 *)edid, find_gtf2, &r);
 	return r ? (r[15] << 8) + r[14] : 0;
 }
@@ -2373,6 +2380,7 @@ static int
 drm_gtf2_k(struct edid *edid)
 {
 	u8 *r = NULL;
+
 	drm_for_each_detailed_block((u8 *)edid, find_gtf2, &r);
 	return r ? r[16] : 0;
 }
@@ -2381,6 +2389,7 @@ static int
 drm_gtf2_2j(struct edid *edid)
 {
 	u8 *r = NULL;
+
 	drm_for_each_detailed_block((u8 *)edid, find_gtf2, &r);
 	return r ? r[17] : 0;
 }
@@ -2832,6 +2841,7 @@ drm_gtf_modes_for_range(struct drm_connector *connector, struct edid *edid,
 
 	for (i = 0; i < ARRAY_SIZE(extra_modes); i++) {
 		const struct minimode *m = &extra_modes[i];
+
 		newmode = drm_gtf_mode(dev, m->w, m->h, m->r, 0, 0);
 		if (!newmode)
 			return modes;
@@ -2861,6 +2871,7 @@ drm_cvt_modes_for_range(struct drm_connector *connector, struct edid *edid,
 
 	for (i = 0; i < ARRAY_SIZE(extra_modes); i++) {
 		const struct minimode *m = &extra_modes[i];
+
 		newmode = drm_cvt_mode(dev, m->w, m->h, m->r, rb, 0, 0);
 		if (!newmode)
 			return modes;
@@ -2996,6 +3007,7 @@ add_established_modes(struct drm_connector *connector, struct edid *edid)
 	for (i = 0; i <= EDID_EST_TIMINGS; i++) {
 		if (est_bits & (1<<i)) {
 			struct drm_display_mode *newmode;
+
 			newmode = drm_mode_duplicate(dev, &edid_est_modes[i]);
 			if (newmode) {
 				drm_mode_probed_add(connector, newmode);
@@ -3084,6 +3096,7 @@ static int drm_cvt_modes(struct drm_connector *connector,
 
 	for (i = 0; i < 4; i++) {
 		int uninitialized_var(width), height;
+
 		cvt = &(timing->data.other_data.data.cvt[i]);
 
 		if (!memcmp(cvt->code, empty, 3))
@@ -3726,6 +3739,7 @@ do_cea_modes(struct drm_connector *connector, const u8 *db, u8 len)
 
 	for (i = 0; i < len; i++) {
 		struct drm_display_mode *mode;
+
 		mode = drm_display_mode_from_vic_index(connector, db, len, i);
 		if (mode) {
 			/*
@@ -4567,6 +4581,7 @@ int drm_edid_to_sad(struct edid *edid, struct cea_sad **sads)
 
 		if (cea_db_tag(db) == AUDIO_BLOCK) {
 			int j;
+
 			dbl = cea_db_payload_len(db);
 
 			count = dbl / 3; /* SAD is 3B */
@@ -5170,6 +5185,7 @@ static struct drm_display_mode *drm_mode_displayid_detailed(struct drm_device *d
 	unsigned vsync_width = (timings->vsw[0] | timings->vsw[1] << 8) + 1;
 	bool hsync_positive = (timings->hsync[1] >> 7) & 0x1;
 	bool vsync_positive = (timings->vsync[1] >> 7) & 0x1;
+
 	mode = drm_mode_create(dev);
 	if (!mode)
 		return NULL;
@@ -5351,6 +5367,7 @@ int drm_add_modes_noedid(struct drm_connector *connector,
 
 	for (i = 0; i < count; i++) {
 		const struct drm_display_mode *ptr = &drm_dmt_modes[i];
+
 		if (hdisplay && vdisplay) {
 			/*
 			 * Only when two are valid, they will be used to check

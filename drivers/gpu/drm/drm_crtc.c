@@ -656,6 +656,7 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 							   fb->modifier);
 			if (ret) {
 				struct drm_format_name_buf format_name;
+
 				DRM_DEBUG_KMS("Invalid pixel format %s, modifier 0x%llx\n",
 					      drm_get_format_name(fb->format->format,
 								  &format_name),

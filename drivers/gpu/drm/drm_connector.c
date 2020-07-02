@@ -2409,6 +2409,7 @@ static void drm_tile_group_free(struct kref *kref)
 {
 	struct drm_tile_group *tg = container_of(kref, struct drm_tile_group, refcount);
 	struct drm_device *dev = tg->dev;
+
 	mutex_lock(&dev->mode_config.idr_mutex);
 	idr_remove(&dev->mode_config.tile_idr, tg->id);
 	mutex_unlock(&dev->mode_config.idr_mutex);
@@ -2444,6 +2445,7 @@ struct drm_tile_group *drm_mode_get_tile_group(struct drm_device *dev,
 {
 	struct drm_tile_group *tg;
 	int id;
+
 	mutex_lock(&dev->mode_config.idr_mutex);
 	idr_for_each_entry(&dev->mode_config.tile_idr, tg, id) {
 		if (!memcmp(tg->group_data, topology, 8)) {
