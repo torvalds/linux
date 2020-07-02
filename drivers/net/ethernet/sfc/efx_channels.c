@@ -23,10 +23,7 @@
  * 1 => MSI
  * 2 => legacy
  */
-static unsigned int interrupt_mode;
-module_param(interrupt_mode, uint, 0444);
-MODULE_PARM_DESC(interrupt_mode,
-		 "Interrupt mode (0=>MSIX 1=>MSI 2=>legacy)");
+unsigned int efx_interrupt_mode = EFX_INT_MODE_MSIX;
 
 /* This is the requested number of CPUs to use for Receive-Side Scaling (RSS),
  * i.e. the number of CPUs among which we may distribute simultaneous
@@ -558,7 +555,7 @@ int efx_init_channels(struct efx_nic *efx)
 
 	/* Higher numbered interrupt modes are less capable! */
 	efx->interrupt_mode = min(efx->type->min_interrupt_mode,
-				  interrupt_mode);
+				  efx_interrupt_mode);
 
 	efx->max_channels = EFX_MAX_CHANNELS;
 	efx->max_tx_channels = EFX_MAX_CHANNELS;
