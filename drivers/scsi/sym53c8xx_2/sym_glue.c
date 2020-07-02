@@ -1743,7 +1743,7 @@ static void sym2_remove(struct pci_dev *pdev)
  * @state: current state of the PCI slot
  */
 static pci_ers_result_t sym2_io_error_detected(struct pci_dev *pdev,
-                                         enum pci_channel_state state)
+                                         pci_channel_state_t state)
 {
 	/* If slot is permanently frozen, turn everything off */
 	if (state == pci_channel_io_perm_failure) {

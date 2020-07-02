@@ -4678,7 +4678,7 @@ static void ql_eeh_close(struct net_device *ndev)
  * a PCI bus error is detected.
  */
 static pci_ers_result_t qlge_io_error_detected(struct pci_dev *pdev,
-					       enum pci_channel_state state)
+					       pci_channel_state_t state)
 {
 	struct net_device *ndev = pci_get_drvdata(pdev);
 	struct ql_adapter *qdev = netdev_priv(ndev);

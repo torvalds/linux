@@ -625,7 +625,7 @@ static int rsxx_eeh_fifo_flush_poll(struct rsxx_cardinfo *card)
 }
 
 static pci_ers_result_t rsxx_error_detected(struct pci_dev *dev,
-					    enum pci_channel_state error)
+					    pci_channel_state_t error)
 {
 	int st;
 

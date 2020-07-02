@@ -82,7 +82,7 @@ static int ixgb_vlan_rx_kill_vid(struct net_device *netdev,
 static void ixgb_restore_vlan(struct ixgb_adapter *adapter);
 
 static pci_ers_result_t ixgb_io_error_detected (struct pci_dev *pdev,
-                             enum pci_channel_state state);
+                             pci_channel_state_t state);
 static pci_ers_result_t ixgb_io_slot_reset (struct pci_dev *pdev);
 static void ixgb_io_resume (struct pci_dev *pdev);
 
@@ -2194,7 +2194,7 @@ ixgb_restore_vlan(struct ixgb_adapter *adapter)
  * a PCI bus error is detected.
  */
 static pci_ers_result_t ixgb_io_error_detected(struct pci_dev *pdev,
-                                               enum pci_channel_state state)
+                                               pci_channel_state_t state)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct ixgb_adapter *adapter = netdev_priv(netdev);

@@ -3586,7 +3586,7 @@ static void ice_remove(struct pci_dev *pdev)
  * is in progress.  Allows the driver to gracefully prepare/handle PCI errors.
  */
 static pci_ers_result_t
-ice_pci_err_detected(struct pci_dev *pdev, enum pci_channel_state err)
+ice_pci_err_detected(struct pci_dev *pdev, pci_channel_state_t err)
 {
 	struct ice_pf *pf = pci_get_drvdata(pdev);
 
