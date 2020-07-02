@@ -270,8 +270,6 @@ int smu_v11_0_set_hard_freq_limited_range(struct smu_context *smu,
 					  uint32_t min,
 					  uint32_t max);
 
-int smu_v11_0_override_pcie_parameters(struct smu_context *smu);
-
 int smu_v11_0_set_performance_level(struct smu_context *smu,
 				    enum amd_dpm_forced_level level);
 

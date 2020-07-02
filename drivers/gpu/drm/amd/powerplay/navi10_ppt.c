@@ -2435,7 +2435,6 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.baco_exit = smu_v11_0_baco_exit,
 	.get_dpm_ultimate_freq = smu_v11_0_get_dpm_ultimate_freq,
 	.set_soft_freq_limited_range = smu_v11_0_set_soft_freq_limited_range,
-	.override_pcie_parameters = smu_v11_0_override_pcie_parameters,
 	.set_default_od_settings = navi10_set_default_od_settings,
 	.od_edit_dpm_table = navi10_od_edit_dpm_table,
 	.run_btc = navi10_run_btc,

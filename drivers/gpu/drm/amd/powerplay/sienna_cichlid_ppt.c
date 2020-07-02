@@ -2575,7 +2575,6 @@ static const struct pptable_funcs sienna_cichlid_ppt_funcs = {
 	.mode1_reset = smu_v11_0_mode1_reset,
 	.get_dpm_ultimate_freq = sienna_cichlid_get_dpm_ultimate_freq,
 	.set_soft_freq_limited_range = smu_v11_0_set_soft_freq_limited_range,
-	.override_pcie_parameters = smu_v11_0_override_pcie_parameters,
 	.set_thermal_range = sienna_cichlid_set_thermal_range,
 };
 

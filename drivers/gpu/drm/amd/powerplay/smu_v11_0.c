@@ -35,7 +35,6 @@
 #include "smu_v11_0.h"
 #include "soc15_common.h"
 #include "atom.h"
-#include "amd_pcie.h"
 #include "amdgpu_ras.h"
 
 #include "asic_reg/thm/thm_11_0_2_offset.h"
@@ -1838,47 +1837,6 @@ int smu_v11_0_set_hard_freq_limited_range(struct smu_context *smu,
 	}
 
 	return ret;
-}
-
-int smu_v11_0_override_pcie_parameters(struct smu_context *smu)
-{
-	struct amdgpu_device *adev = smu->adev;
-	uint32_t pcie_gen = 0, pcie_width = 0;
-	int ret;
-
-	if (adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN4)
-		pcie_gen = 3;
-	else if (adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN3)
-		pcie_gen = 2;
-	else if (adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN2)
-		pcie_gen = 1;
-	else if (adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN1)
-		pcie_gen = 0;
-
-	/* Bit 31:16: LCLK DPM level. 0 is DPM0, and 1 is DPM1
-	 * Bit 15:8:  PCIE GEN, 0 to 3 corresponds to GEN1 to GEN4
-	 * Bit 7:0:   PCIE lane width, 1 to 7 corresponds is x1 to x32
-	 */
-	if (adev->pm.pcie_mlw_mask & CAIL_PCIE_LINK_WIDTH_SUPPORT_X16)
-		pcie_width = 6;
-	else if (adev->pm.pcie_mlw_mask & CAIL_PCIE_LINK_WIDTH_SUPPORT_X12)
-		pcie_width = 5;
-	else if (adev->pm.pcie_mlw_mask & CAIL_PCIE_LINK_WIDTH_SUPPORT_X8)
-		pcie_width = 4;
-	else if (adev->pm.pcie_mlw_mask & CAIL_PCIE_LINK_WIDTH_SUPPORT_X4)
-		pcie_width = 3;
-	else if (adev->pm.pcie_mlw_mask & CAIL_PCIE_LINK_WIDTH_SUPPORT_X2)
-		pcie_width = 2;
-	else if (adev->pm.pcie_mlw_mask & CAIL_PCIE_LINK_WIDTH_SUPPORT_X1)
-		pcie_width = 1;
-
-	ret = smu_update_pcie_parameters(smu, pcie_gen, pcie_width);
-
-	if (ret)
-		dev_err(adev->dev, "[%s] Attempt to override pcie params failed!\n", __func__);
-
-	return ret;
-
 }
 
 int smu_v11_0_set_performance_level(struct smu_context *smu,
