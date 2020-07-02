@@ -259,9 +259,6 @@ mlx5_eswitch_set_rule_source_port(struct mlx5_eswitch *esw,
 			 mlx5_eswitch_get_vport_metadata_mask());
 
 		spec->match_criteria_enable |= MLX5_MATCH_MISC_PARAMETERS_2;
-		misc = MLX5_ADDR_OF(fte_match_param, spec->match_criteria, misc_parameters);
-		if (memchr_inv(misc, 0, MLX5_ST_SZ_BYTES(fte_match_set_misc)))
-			spec->match_criteria_enable |= MLX5_MATCH_MISC_PARAMETERS;
 	} else {
 		misc = MLX5_ADDR_OF(fte_match_param, spec->match_value, misc_parameters);
 		MLX5_SET(fte_match_set_misc, misc, source_port, attr->in_rep->vport);
@@ -380,6 +377,9 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 		flow_act.modify_hdr = attr->modify_hdr;
 
 	if (split) {
+		if (MLX5_CAP_ESW_FLOWTABLE(esw->dev, flow_source) &&
+		    attr->in_rep->vport == MLX5_VPORT_UPLINK)
+			spec->flow_context.flow_source = MLX5_FLOW_CONTEXT_FLOW_SOURCE_UPLINK;
 		fdb = esw_vport_tbl_get(esw, attr);
 	} else {
 		if (attr->chain || attr->prio)
