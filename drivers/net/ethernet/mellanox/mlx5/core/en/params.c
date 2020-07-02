@@ -173,7 +173,7 @@ struct mlx5e_lro_param mlx5e_get_lro_param(struct mlx5e_params *params)
 
 	lro_param = (struct mlx5e_lro_param) {
 		.enabled = params->lro_en,
-		.timeout = params->lro_timeout,
+		.timeout = params->packet_merge_timeout,
 	};
 
 	return lro_param;
