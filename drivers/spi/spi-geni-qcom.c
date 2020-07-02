@@ -201,6 +201,9 @@ static int geni_spi_set_clock_and_bw(struct spi_geni_master *mas,
 	struct geni_se *se = &mas->se;
 	int ret;
 
+	if (clk_hz == mas->cur_speed_hz)
+		return 0;
+
 	ret = get_spi_clk_cfg(clk_hz, mas, &idx, &div);
 	if (ret) {
 		dev_err(mas->dev, "Err setting clk to %lu: %d\n", clk_hz, ret);
@@ -339,11 +342,9 @@ static void setup_fifo_xfer(struct spi_transfer *xfer,
 	}
 
 	/* Speed and bits per word can be overridden per transfer */
-	if (xfer->speed_hz != mas->cur_speed_hz) {
-		ret = geni_spi_set_clock_and_bw(mas, xfer->speed_hz);
-		if (ret)
-			return;
-	}
+	ret = geni_spi_set_clock_and_bw(mas, xfer->speed_hz);
+	if (ret)
+		return;
 
 	mas->tx_rem_bytes = 0;
 	mas->rx_rem_bytes = 0;
