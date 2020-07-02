@@ -6569,6 +6569,18 @@ static void mlx5_ib_stage_flow_db_cleanup(struct mlx5_ib_dev *dev)
 	kfree(dev->flow_db);
 }
 
+static int mlx5_ib_enable_driver(struct ib_device *dev)
+{
+	struct mlx5_ib_dev *mdev = to_mdev(dev);
+	int ret;
+
+	ret = mlx5_ib_test_wc(mdev);
+	mlx5_ib_dbg(mdev, "Write-Combining %s",
+		    mdev->wc_support ? "supported" : "not supported");
+
+	return ret;
+}
+
 static const struct ib_device_ops mlx5_ib_dev_ops = {
 	.owner = THIS_MODULE,
 	.driver_id = RDMA_DRIVER_MLX5,
@@ -7090,18 +7102,6 @@ static void mlx5_ib_stage_devx_cleanup(struct mlx5_ib_dev *dev)
 		mlx5_ib_devx_cleanup_event_table(dev);
 		mlx5_ib_devx_destroy(dev, dev->devx_whitelist_uid);
 	}
-}
-
-int mlx5_ib_enable_driver(struct ib_device *dev)
-{
-	struct mlx5_ib_dev *mdev = to_mdev(dev);
-	int ret;
-
-	ret = mlx5_ib_test_wc(mdev);
-	mlx5_ib_dbg(mdev, "Write-Combining %s",
-		    mdev->wc_support ? "supported" : "not supported");
-
-	return ret;
 }
 
 void __mlx5_ib_remove(struct mlx5_ib_dev *dev,

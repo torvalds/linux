@@ -1542,7 +1542,6 @@ static inline bool mlx5_ib_can_use_umr(struct mlx5_ib_dev *dev,
 	return true;
 }
 
-int mlx5_ib_enable_driver(struct ib_device *dev);
 int mlx5_ib_test_wc(struct mlx5_ib_dev *dev);
 
 static inline bool mlx5_ib_lag_should_assign_affinity(struct mlx5_ib_dev *dev)
