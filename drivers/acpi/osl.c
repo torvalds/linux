@@ -377,16 +377,14 @@ void *__ref acpi_os_map_memory(acpi_physical_address phys, acpi_size size)
 }
 EXPORT_SYMBOL_GPL(acpi_os_map_memory);
 
-static void acpi_os_map_remove(struct acpi_ioremap *map)
+static void acpi_os_map_remove(struct work_struct *work)
 {
+	struct acpi_ioremap *map = container_of(to_rcu_work(work),
+						struct acpi_ioremap,
+						track.rwork);
+
 	acpi_unmap(map->phys, map->virt);
 	kfree(map);
-}
-
-static void acpi_os_map_cleanup_deferred(struct work_struct *work)
-{
-	acpi_os_map_remove(container_of(to_rcu_work(work), struct acpi_ioremap,
-					track.rwork));
 }
 
 /* Must be called with mutex_lock(&acpi_ioremap_lock) */
@@ -397,7 +395,7 @@ static void acpi_os_drop_map_ref(struct acpi_ioremap *map)
 
 	list_del_rcu(&map->list);
 
-	INIT_RCU_WORK(&map->track.rwork, acpi_os_map_cleanup_deferred);
+	INIT_RCU_WORK(&map->track.rwork, acpi_os_map_remove);
 	queue_rcu_work(system_wq, &map->track.rwork);
 }
 
