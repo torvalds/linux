@@ -3113,7 +3113,7 @@ static int airo_thread(void *data) {
 				}
 				break;
 			}
-			current->state = TASK_RUNNING;
+			__set_current_state(TASK_RUNNING);
 			remove_wait_queue(&ai->thr_wait, &wait);
 			locked = 1;
 		}
