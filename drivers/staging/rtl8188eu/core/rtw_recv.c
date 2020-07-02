@@ -702,10 +702,9 @@ exit:
 	return ret;
 }
 
-static int ap2sta_data_frame(
-	struct adapter *adapter,
-	struct recv_frame *precv_frame,
-	struct sta_info **psta)
+static int ap2sta_data_frame(struct adapter *adapter,
+			     struct recv_frame *precv_frame,
+			     struct sta_info **psta)
 {
 	u8 *ptr = precv_frame->pkt->data;
 	struct rx_pkt_attrib *pattrib = &precv_frame->attrib;
