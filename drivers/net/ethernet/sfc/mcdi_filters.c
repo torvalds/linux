@@ -1459,7 +1459,7 @@ not_restored:
 		table->must_restore_filters = false;
 }
 
-void efx_mcdi_filter_table_remove(struct efx_nic *efx)
+void efx_mcdi_filter_table_down(struct efx_nic *efx)
 {
 	struct efx_mcdi_filter_table *table = efx->filter_state;
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_FILTER_OP_EXT_IN_LEN);
@@ -1467,20 +1467,10 @@ void efx_mcdi_filter_table_remove(struct efx_nic *efx)
 	unsigned int filter_idx;
 	int rc;
 
-	efx_mcdi_filter_cleanup_vlans(efx);
-	efx->filter_state = NULL;
-	/*
-	 * If we were called without locking, then it's not safe to free
-	 * the table as others might be using it.  So we just WARN, leak
-	 * the memory, and potentially get an inconsistent filter table
-	 * state.
-	 * This should never actually happen.
-	 */
-	if (!efx_rwsem_assert_write_locked(&efx->filter_sem))
-		return;
-
 	if (!table)
 		return;
+
+	efx_mcdi_filter_cleanup_vlans(efx);
 
 	for (filter_idx = 0; filter_idx < EFX_MCDI_FILTER_TBL_ROWS; filter_idx++) {
 		spec = efx_mcdi_filter_entry_spec(table, filter_idx);
@@ -1501,6 +1491,27 @@ void efx_mcdi_filter_table_remove(struct efx_nic *efx)
 				   __func__, filter_idx);
 		kfree(spec);
 	}
+}
+
+void efx_mcdi_filter_table_remove(struct efx_nic *efx)
+{
+	struct efx_mcdi_filter_table *table = efx->filter_state;
+
+	efx_mcdi_filter_table_down(efx);
+
+	efx->filter_state = NULL;
+	/*
+	 * If we were called without locking, then it's not safe to free
+	 * the table as others might be using it.  So we just WARN, leak
+	 * the memory, and potentially get an inconsistent filter table
+	 * state.
+	 * This should never actually happen.
+	 */
+	if (!efx_rwsem_assert_write_locked(&efx->filter_sem))
+		return;
+
+	if (!table)
+		return;
 
 	vfree(table->entry);
 	kfree(table);
@@ -2264,4 +2275,25 @@ int efx_mcdi_vf_rx_push_rss_config(struct efx_nic *efx, bool user,
 	if (efx->rss_context.context_id != EFX_MCDI_RSS_CONTEXT_INVALID)
 		return 0;
 	return efx_mcdi_filter_rx_push_shared_rss_config(efx, NULL);
+}
+
+int efx_mcdi_push_default_indir_table(struct efx_nic *efx,
+				      unsigned int rss_spread)
+{
+	int rc = 0;
+
+	if (efx->rss_spread == rss_spread)
+		return 0;
+
+	efx->rss_spread = rss_spread;
+	if (!efx->filter_state)
+		return 0;
+
+	efx_mcdi_rx_free_indir_table(efx);
+	if (rss_spread > 1) {
+		efx_set_default_rx_indir_table(efx, &efx->rss_context);
+		rc = efx->type->rx_push_rss_config(efx, false,
+				   efx->rss_context.rx_indir_table, NULL);
+	}
+	return rc;
 }

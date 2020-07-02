@@ -279,6 +279,7 @@ static int siena_probe_nic(struct efx_nic *efx)
 	efx->max_channels = EFX_MAX_CHANNELS;
 	efx->max_vis = EFX_MAX_CHANNELS;
 	efx->max_tx_channels = EFX_MAX_CHANNELS;
+	efx->tx_queues_per_channel = 4;
 
 	efx_reado(efx, &reg, FR_AZ_CS_DEBUG);
 	efx->port_num = EFX_OWORD_FIELD(reg, FRF_CZ_CS_PORT_NUM) - 1;
@@ -633,7 +634,7 @@ static size_t siena_update_nic_stats(struct efx_nic *efx, u64 *full_stats,
 	return SIENA_STAT_COUNT;
 }
 
-static int siena_mac_reconfigure(struct efx_nic *efx)
+static int siena_mac_reconfigure(struct efx_nic *efx, bool mtu_only __always_unused)
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_SET_MCAST_HASH_IN_LEN);
 	int rc;
@@ -1085,7 +1086,6 @@ const struct efx_nic_type siena_a0_nic_type = {
 	.can_rx_scatter = true,
 	.option_descriptors = false,
 	.min_interrupt_mode = EFX_INT_MODE_LEGACY,
-	.max_interrupt_mode = EFX_INT_MODE_MSIX,
 	.timer_period_max = 1 << FRF_CZ_TC_TIMER_VAL_WIDTH,
 	.offload_features = (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
 			     NETIF_F_RXHASH | NETIF_F_NTUPLE),

@@ -139,11 +139,11 @@ void efx_destroy_reset_workqueue(void)
 /* We assume that efx->type->reconfigure_mac will always try to sync RX
  * filters and therefore needs to read-lock the filter table against freeing
  */
-void efx_mac_reconfigure(struct efx_nic *efx)
+void efx_mac_reconfigure(struct efx_nic *efx, bool mtu_only)
 {
 	if (efx->type->reconfigure_mac) {
 		down_read(&efx->filter_sem);
-		efx->type->reconfigure_mac(efx);
+		efx->type->reconfigure_mac(efx, mtu_only);
 		up_read(&efx->filter_sem);
 	}
 }
@@ -158,7 +158,7 @@ static void efx_mac_work(struct work_struct *data)
 
 	mutex_lock(&efx->mac_lock);
 	if (efx->port_enabled)
-		efx_mac_reconfigure(efx);
+		efx_mac_reconfigure(efx, false);
 	mutex_unlock(&efx->mac_lock);
 }
 
@@ -190,7 +190,7 @@ int efx_set_mac_address(struct net_device *net_dev, void *data)
 
 	/* Reconfigure the MAC */
 	mutex_lock(&efx->mac_lock);
-	efx_mac_reconfigure(efx);
+	efx_mac_reconfigure(efx, false);
 	mutex_unlock(&efx->mac_lock);
 
 	return 0;
@@ -304,7 +304,7 @@ int efx_change_mtu(struct net_device *net_dev, int new_mtu)
 
 	mutex_lock(&efx->mac_lock);
 	net_dev->mtu = new_mtu;
-	efx_mac_reconfigure(efx);
+	efx_mac_reconfigure(efx, true);
 	mutex_unlock(&efx->mac_lock);
 
 	efx_start_all(efx);
@@ -486,7 +486,7 @@ static void efx_start_port(struct efx_nic *efx)
 	efx->port_enabled = true;
 
 	/* Ensure MAC ingress/egress is enabled */
-	efx_mac_reconfigure(efx);
+	efx_mac_reconfigure(efx, false);
 
 	mutex_unlock(&efx->mac_lock);
 }
@@ -1017,6 +1017,7 @@ int efx_init_struct(struct efx_nic *efx,
 	efx->rx_packet_ts_offset =
 		efx->type->rx_ts_offset - efx->type->rx_prefix_size;
 	INIT_LIST_HEAD(&efx->rss_context.list);
+	efx->rss_context.context_id = EFX_MCDI_RSS_CONTEXT_INVALID;
 	mutex_init(&efx->rss_lock);
 	efx->vport_id = EVB_PORT_ID_ASSIGNED;
 	spin_lock_init(&efx->stats_lock);
@@ -1036,6 +1037,7 @@ int efx_init_struct(struct efx_nic *efx,
 	INIT_WORK(&efx->mac_work, efx_mac_work);
 	init_waitqueue_head(&efx->flush_wq);
 
+	efx->tx_queues_per_channel = 1;
 	efx->rxq_entries = EFX_DEFAULT_DMAQ_SIZE;
 	efx->txq_entries = EFX_DEFAULT_DMAQ_SIZE;
 

@@ -552,8 +552,6 @@ static int efx_ef10_probe(struct efx_nic *efx)
 	}
 	nic_data->warm_boot_count = rc;
 
-	efx->rss_context.context_id = EFX_MCDI_RSS_CONTEXT_INVALID;
-
 	/* In case we're recovering from a crash (kexec), we want to
 	 * cancel any outstanding request by the previous user of this
 	 * function.  We send a special message using the least
@@ -600,6 +598,7 @@ static int efx_ef10_probe(struct efx_nic *efx)
 	 * However, until we use TX option descriptors we need two TX queues
 	 * per channel.
 	 */
+	efx->tx_queues_per_channel = 2;
 	efx->max_vis = efx_ef10_mem_map_size(efx) / efx->vi_stride;
 	if (!efx->max_vis) {
 		netif_err(efx, drv, efx->net_dev, "error determining max VIs\n");
@@ -607,7 +606,7 @@ static int efx_ef10_probe(struct efx_nic *efx)
 		goto fail5;
 	}
 	efx->max_channels = min_t(unsigned int, EFX_MAX_CHANNELS,
-				  efx->max_vis / EFX_TXQ_TYPES);
+				  efx->max_vis / efx->tx_queues_per_channel);
 	efx->max_tx_channels = efx->max_channels;
 	if (WARN_ON(efx->max_channels == 0)) {
 		rc = -EIO;
@@ -1120,17 +1119,17 @@ static int efx_ef10_alloc_vis(struct efx_nic *efx,
  */
 static int efx_ef10_dimension_resources(struct efx_nic *efx)
 {
+	unsigned int min_vis = max_t(unsigned int, efx->tx_queues_per_channel,
+				     efx_separate_tx_channels ? 2 : 1);
+	unsigned int channel_vis, pio_write_vi_base, max_vis;
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 	unsigned int uc_mem_map_size, wc_mem_map_size;
-	unsigned int min_vis = max(EFX_TXQ_TYPES,
-				   efx_separate_tx_channels ? 2 : 1);
-	unsigned int channel_vis, pio_write_vi_base, max_vis;
 	void __iomem *membase;
 	int rc;
 
 	channel_vis = max(efx->n_channels,
 			  ((efx->n_tx_channels + efx->n_extra_tx_channels) *
-			   EFX_TXQ_TYPES) +
+			   efx->tx_queues_per_channel) +
 			   efx->n_xdp_channels * efx->xdp_tx_per_channel);
 	if (efx->max_vis && efx->max_vis < channel_vis) {
 		netif_dbg(efx, drv, efx->net_dev,
@@ -1219,7 +1218,7 @@ static int efx_ef10_dimension_resources(struct efx_nic *efx)
 		 */
 		efx->max_channels = nic_data->n_allocated_vis;
 		efx->max_tx_channels =
-			nic_data->n_allocated_vis / EFX_TXQ_TYPES;
+			nic_data->n_allocated_vis / efx->tx_queues_per_channel;
 
 		efx_mcdi_free_vis(efx);
 		return -EAGAIN;
@@ -2243,7 +2242,7 @@ static u32 efx_ef10_tso_versions(struct efx_nic *efx)
 
 static void efx_ef10_tx_init(struct efx_tx_queue *tx_queue)
 {
-	bool csum_offload = tx_queue->queue & EFX_TXQ_TYPE_OFFLOAD;
+	bool csum_offload = tx_queue->label & EFX_TXQ_TYPE_OFFLOAD;
 	struct efx_channel *channel = tx_queue->channel;
 	struct efx_nic *efx = tx_queue->efx;
 	struct efx_ef10_nic_data *nic_data;
@@ -3116,44 +3115,6 @@ fail:
 	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
 }
 
-static int efx_ef10_fini_dmaq(struct efx_nic *efx)
-{
-	struct efx_tx_queue *tx_queue;
-	struct efx_rx_queue *rx_queue;
-	struct efx_channel *channel;
-	int pending;
-
-	/* If the MC has just rebooted, the TX/RX queues will have already been
-	 * torn down, but efx->active_queues needs to be set to zero.
-	 */
-	if (efx->must_realloc_vis) {
-		atomic_set(&efx->active_queues, 0);
-		return 0;
-	}
-
-	/* Do not attempt to write to the NIC during EEH recovery */
-	if (efx->state != STATE_RECOVERY) {
-		efx_for_each_channel(channel, efx) {
-			efx_for_each_channel_rx_queue(rx_queue, channel)
-				efx_mcdi_rx_fini(rx_queue);
-			efx_for_each_channel_tx_queue(tx_queue, channel)
-				efx_mcdi_tx_fini(tx_queue);
-		}
-
-		wait_event_timeout(efx->flush_wq,
-				   atomic_read(&efx->active_queues) == 0,
-				   msecs_to_jiffies(EFX_MAX_FLUSH_TIME));
-		pending = atomic_read(&efx->active_queues);
-		if (pending) {
-			netif_err(efx, hw, efx->net_dev, "failed to flush %d queues\n",
-				  pending);
-			return -ETIMEDOUT;
-		}
-	}
-
-	return 0;
-}
-
 static void efx_ef10_prepare_flr(struct efx_nic *efx)
 {
 	atomic_set(&efx->active_queues, 0);
@@ -3306,18 +3267,15 @@ static int efx_ef10_set_mac_address(struct efx_nic *efx)
 	return rc;
 }
 
-static int efx_ef10_mac_reconfigure(struct efx_nic *efx)
+static int efx_ef10_mac_reconfigure(struct efx_nic *efx, bool mtu_only)
 {
+	WARN_ON(!mutex_is_locked(&efx->mac_lock));
+
 	efx_mcdi_filter_sync_rx_mode(efx);
 
+	if (mtu_only && efx_has_cap(efx, SET_MAC_ENHANCED))
+		return efx_mcdi_set_mtu(efx);
 	return efx_mcdi_set_mac(efx);
-}
-
-static int efx_ef10_mac_reconfigure_vf(struct efx_nic *efx)
-{
-	efx_mcdi_filter_sync_rx_mode(efx);
-
-	return 0;
 }
 
 static int efx_ef10_start_bist(struct efx_nic *efx, u32 bist_type)
@@ -4028,7 +3986,7 @@ const struct efx_nic_type efx_hunt_a0_vf_nic_type = {
 	.reset = efx_ef10_reset,
 	.probe_port = efx_mcdi_port_probe,
 	.remove_port = efx_mcdi_port_remove,
-	.fini_dmaq = efx_ef10_fini_dmaq,
+	.fini_dmaq = efx_fini_dmaq,
 	.prepare_flr = efx_ef10_prepare_flr,
 	.finish_flr = efx_port_dummy_op_void,
 	.describe_stats = efx_ef10_describe_stats,
@@ -4038,7 +3996,7 @@ const struct efx_nic_type efx_hunt_a0_vf_nic_type = {
 	.stop_stats = efx_port_dummy_op_void,
 	.set_id_led = efx_mcdi_set_id_led,
 	.push_irq_moderation = efx_ef10_push_irq_moderation,
-	.reconfigure_mac = efx_ef10_mac_reconfigure_vf,
+	.reconfigure_mac = efx_ef10_mac_reconfigure,
 	.check_mac_fault = efx_mcdi_mac_check_fault,
 	.reconfigure_port = efx_mcdi_port_reconfigure,
 	.get_wol = efx_ef10_get_wol_vf,
@@ -4111,7 +4069,6 @@ const struct efx_nic_type efx_hunt_a0_vf_nic_type = {
 	.can_rx_scatter = true,
 	.always_rx_scatter = true,
 	.min_interrupt_mode = EFX_INT_MODE_MSIX,
-	.max_interrupt_mode = EFX_INT_MODE_MSIX,
 	.timer_period_max = 1 << ERF_DD_EVQ_IND_TIMER_VAL_WIDTH,
 	.offload_features = EF10_OFFLOAD_FEATURES,
 	.mcdi_max_ver = 2,
@@ -4137,7 +4094,7 @@ const struct efx_nic_type efx_hunt_a0_nic_type = {
 	.reset = efx_ef10_reset,
 	.probe_port = efx_mcdi_port_probe,
 	.remove_port = efx_mcdi_port_remove,
-	.fini_dmaq = efx_ef10_fini_dmaq,
+	.fini_dmaq = efx_fini_dmaq,
 	.prepare_flr = efx_ef10_prepare_flr,
 	.finish_flr = efx_port_dummy_op_void,
 	.describe_stats = efx_ef10_describe_stats,
@@ -4248,7 +4205,6 @@ const struct efx_nic_type efx_hunt_a0_nic_type = {
 	.always_rx_scatter = true,
 	.option_descriptors = true,
 	.min_interrupt_mode = EFX_INT_MODE_LEGACY,
-	.max_interrupt_mode = EFX_INT_MODE_MSIX,
 	.timer_period_max = 1 << ERF_DD_EVQ_IND_TIMER_VAL_WIDTH,
 	.offload_features = EF10_OFFLOAD_FEATURES,
 	.mcdi_max_ver = 2,

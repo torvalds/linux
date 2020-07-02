@@ -551,8 +551,8 @@ void efx_init_tx_queue_core_txq(struct efx_tx_queue *tx_queue)
 	/* Must be inverse of queue lookup in efx_hard_start_xmit() */
 	tx_queue->core_txq =
 		netdev_get_tx_queue(efx->net_dev,
-				    tx_queue->queue / EFX_TXQ_TYPES +
-				    ((tx_queue->queue & EFX_TXQ_TYPE_HIGHPRI) ?
+				    tx_queue->channel->channel +
+				    ((tx_queue->label & EFX_TXQ_TYPE_HIGHPRI) ?
 				     efx->n_tx_channels : 0));
 }
 
@@ -561,12 +561,13 @@ int efx_setup_tc(struct net_device *net_dev, enum tc_setup_type type,
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	struct tc_mqprio_qopt *mqprio = type_data;
-	struct efx_channel *channel;
-	struct efx_tx_queue *tx_queue;
 	unsigned tc, num_tc;
-	int rc;
 
 	if (type != TC_SETUP_QDISC_MQPRIO)
+		return -EOPNOTSUPP;
+
+	/* Only Siena supported highpri queues */
+	if (efx_nic_rev(efx) > EFX_REV_SIENA_A0)
 		return -EOPNOTSUPP;
 
 	num_tc = mqprio->num_tc;
@@ -584,40 +585,9 @@ int efx_setup_tc(struct net_device *net_dev, enum tc_setup_type type,
 		net_dev->tc_to_txq[tc].count = efx->n_tx_channels;
 	}
 
-	if (num_tc > net_dev->num_tc) {
-		/* Initialise high-priority queues as necessary */
-		efx_for_each_channel(channel, efx) {
-			efx_for_each_possible_channel_tx_queue(tx_queue,
-							       channel) {
-				if (!(tx_queue->queue & EFX_TXQ_TYPE_HIGHPRI))
-					continue;
-				if (!tx_queue->buffer) {
-					rc = efx_probe_tx_queue(tx_queue);
-					if (rc)
-						return rc;
-				}
-				if (!tx_queue->initialised)
-					efx_init_tx_queue(tx_queue);
-				efx_init_tx_queue_core_txq(tx_queue);
-			}
-		}
-	} else {
-		/* Reduce number of classes before number of queues */
-		net_dev->num_tc = num_tc;
-	}
-
-	rc = netif_set_real_num_tx_queues(net_dev,
-					  max_t(int, num_tc, 1) *
-					  efx->n_tx_channels);
-	if (rc)
-		return rc;
-
-	/* Do not destroy high-priority queues when they become
-	 * unused.  We would have to flush them first, and it is
-	 * fairly difficult to flush a subset of TX queues.  Leave
-	 * it to efx_fini_channels().
-	 */
-
 	net_dev->num_tc = num_tc;
-	return 0;
+
+	return netif_set_real_num_tx_queues(net_dev,
+					    max_t(int, num_tc, 1) *
+					    efx->n_tx_channels);
 }

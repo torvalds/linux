@@ -64,6 +64,13 @@ void efx_get_udp_tunnel_type_name(u16 type, char *buf, size_t buflen)
  *
  *************************************************************************/
 
+module_param_named(interrupt_mode, efx_interrupt_mode, uint, 0444);
+MODULE_PARM_DESC(interrupt_mode,
+		 "Interrupt mode (0=>MSIX 1=>MSI 2=>legacy)");
+
+module_param(rss_cpus, uint, 0444);
+MODULE_PARM_DESC(rss_cpus, "Number of CPUs to use for Receive-Side Scaling");
+
 /*
  * Use separate channels for TX and RX events
  *
@@ -168,10 +175,6 @@ static int efx_init_port(struct efx_nic *efx)
 		goto fail1;
 
 	efx->port_initialized = true;
-
-	/* Reconfigure the MAC before creating dma queues (required for
-	 * Falcon/A1 where RX_INGR_EN/TX_DRAIN_EN isn't supported) */
-	efx_mac_reconfigure(efx);
 
 	/* Ensure the PHY advertises the correct flow control settings */
 	rc = efx->phy_op->reconfigure(efx);
@@ -332,9 +335,6 @@ static int efx_probe_nic(struct efx_nic *efx)
 		netdev_rss_key_fill(efx->rss_context.rx_hash_key,
 				    sizeof(efx->rss_context.rx_hash_key));
 	efx_set_default_rx_indir_table(efx, &efx->rss_context);
-
-	netif_set_real_num_tx_queues(efx->net_dev, efx->n_tx_channels);
-	netif_set_real_num_rx_queues(efx->net_dev, efx->n_rx_channels);
 
 	/* Initialise the interrupt moderation settings */
 	efx->irq_mod_step_us = DIV_ROUND_UP(efx->timer_quantum_ns, 1000);
