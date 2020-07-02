@@ -221,6 +221,8 @@ static int efx_ethtool_get_ts_info(struct net_device *net_dev,
 	return 0;
 }
 
+const char *efx_driver_name = KBUILD_MODNAME;
+
 const struct ethtool_ops efx_ethtool_ops = {
 	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
 				     ETHTOOL_COALESCE_USECS_IRQ |

@@ -11,6 +11,8 @@
 #ifndef EFX_ETHTOOL_COMMON_H
 #define EFX_ETHTOOL_COMMON_H
 
+extern const char *efx_driver_name;
+
 void efx_ethtool_get_drvinfo(struct net_device *net_dev,
 			     struct ethtool_drvinfo *info);
 u32 efx_ethtool_get_msglevel(struct net_device *net_dev);
