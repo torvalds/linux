@@ -470,6 +470,11 @@ static blk_qc_t md_submit_bio(struct bio *bio)
 	struct mddev *mddev = bio->bi_disk->private_data;
 	unsigned int sectors;
 
+	if (mddev == NULL || mddev->pers == NULL) {
+		bio_io_error(bio);
+		return BLK_QC_T_NONE;
+	}
+
 	if (unlikely(test_bit(MD_BROKEN, &mddev->flags)) && (rw == WRITE)) {
 		bio_io_error(bio);
 		return BLK_QC_T_NONE;
@@ -477,10 +482,6 @@ static blk_qc_t md_submit_bio(struct bio *bio)
 
 	blk_queue_split(&bio);
 
-	if (mddev == NULL || mddev->pers == NULL) {
-		bio_io_error(bio);
-		return BLK_QC_T_NONE;
-	}
 	if (mddev->ro == 1 && unlikely(rw == WRITE)) {
 		if (bio_sectors(bio) != 0)
 			bio->bi_status = BLK_STS_IOERR;
