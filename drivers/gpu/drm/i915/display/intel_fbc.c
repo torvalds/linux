@@ -187,8 +187,30 @@ static bool g4x_fbc_is_active(struct drm_i915_private *dev_priv)
 	return intel_de_read(dev_priv, DPFC_CONTROL) & DPFC_CTL_EN;
 }
 
+static void i8xx_fbc_recompress(struct drm_i915_private *dev_priv)
+{
+	struct intel_fbc_reg_params *params = &dev_priv->fbc.params;
+	enum i9xx_plane_id i9xx_plane = params->crtc.i9xx_plane;
+
+	spin_lock_irq(&dev_priv->uncore.lock);
+	intel_de_write_fw(dev_priv, DSPADDR(i9xx_plane),
+			  intel_de_read_fw(dev_priv, DSPADDR(i9xx_plane)));
+	spin_unlock_irq(&dev_priv->uncore.lock);
+}
+
+static void i965_fbc_recompress(struct drm_i915_private *dev_priv)
+{
+	struct intel_fbc_reg_params *params = &dev_priv->fbc.params;
+	enum i9xx_plane_id i9xx_plane = params->crtc.i9xx_plane;
+
+	spin_lock_irq(&dev_priv->uncore.lock);
+	intel_de_write_fw(dev_priv, DSPSURF(i9xx_plane),
+			  intel_de_read_fw(dev_priv, DSPSURF(i9xx_plane)));
+	spin_unlock_irq(&dev_priv->uncore.lock);
+}
+
 /* This function forces a CFB recompression through the nuke operation. */
-static void intel_fbc_recompress(struct drm_i915_private *dev_priv)
+static void snb_fbc_recompress(struct drm_i915_private *dev_priv)
 {
 	struct intel_fbc *fbc = &dev_priv->fbc;
 
@@ -196,6 +218,16 @@ static void intel_fbc_recompress(struct drm_i915_private *dev_priv)
 
 	intel_de_write(dev_priv, MSG_FBC_REND_STATE, FBC_REND_NUKE);
 	intel_de_posting_read(dev_priv, MSG_FBC_REND_STATE);
+}
+
+static void intel_fbc_recompress(struct drm_i915_private *dev_priv)
+{
+	if (INTEL_GEN(dev_priv) >= 6)
+		snb_fbc_recompress(dev_priv);
+	else if (INTEL_GEN(dev_priv) >= 4)
+		i965_fbc_recompress(dev_priv);
+	else
+		i8xx_fbc_recompress(dev_priv);
 }
 
 static void ilk_fbc_activate(struct drm_i915_private *dev_priv)
