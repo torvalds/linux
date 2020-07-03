@@ -538,7 +538,6 @@ enum {
 	REQ_F_POLLED_BIT,
 	REQ_F_BUFFER_SELECTED_BIT,
 	REQ_F_NO_FILE_TABLE_BIT,
-	REQ_F_QUEUE_TIMEOUT_BIT,
 	REQ_F_WORK_INITIALIZED_BIT,
 	REQ_F_TASK_PINNED_BIT,
 
@@ -586,8 +585,6 @@ enum {
 	REQ_F_BUFFER_SELECTED	= BIT(REQ_F_BUFFER_SELECTED_BIT),
 	/* doesn't need file table for this request */
 	REQ_F_NO_FILE_TABLE	= BIT(REQ_F_NO_FILE_TABLE_BIT),
-	/* needs to queue linked timeout */
-	REQ_F_QUEUE_TIMEOUT	= BIT(REQ_F_QUEUE_TIMEOUT_BIT),
 	/* io_wq_work is initialized */
 	REQ_F_WORK_INITIALIZED	= BIT(REQ_F_WORK_INITIALIZED_BIT),
 	/* req->task is refcounted */
@@ -1842,7 +1839,7 @@ static void io_put_req(struct io_kiocb *req)
 
 static struct io_wq_work *io_steal_work(struct io_kiocb *req)
 {
-	struct io_kiocb *timeout, *nxt = NULL;
+	struct io_kiocb *nxt;
 
 	/*
 	 * A ref is owned by io-wq in which context we're. So, if that's the
@@ -1853,13 +1850,7 @@ static struct io_wq_work *io_steal_work(struct io_kiocb *req)
 		return NULL;
 
 	nxt = io_req_find_next(req);
-	if (!nxt)
-		return NULL;
-
-	timeout = io_prep_linked_timeout(nxt);
-	if (timeout)
-		nxt->flags |= REQ_F_QUEUE_TIMEOUT;
-	return &nxt->work;
+	return nxt ? &nxt->work : NULL;
 }
 
 /*
@@ -5702,24 +5693,15 @@ static int io_issue_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 	return 0;
 }
 
-static void io_arm_async_linked_timeout(struct io_kiocb *req)
-{
-	struct io_kiocb *link;
-
-	/* link head's timeout is queued in io_queue_async_work() */
-	if (!(req->flags & REQ_F_QUEUE_TIMEOUT))
-		return;
-
-	link = list_first_entry(&req->link_list, struct io_kiocb, link_list);
-	io_queue_linked_timeout(link);
-}
-
 static struct io_wq_work *io_wq_submit_work(struct io_wq_work *work)
 {
 	struct io_kiocb *req = container_of(work, struct io_kiocb, work);
+	struct io_kiocb *timeout;
 	int ret = 0;
 
-	io_arm_async_linked_timeout(req);
+	timeout = io_prep_linked_timeout(req);
+	if (timeout)
+		io_queue_linked_timeout(timeout);
 
 	/* if NO_CANCEL is set, we must still run the work */
 	if ((work->flags & (IO_WQ_WORK_CANCEL|IO_WQ_WORK_NO_CANCEL)) ==
@@ -5893,8 +5875,7 @@ static struct io_kiocb *io_prep_linked_timeout(struct io_kiocb *req)
 
 	if (!(req->flags & REQ_F_LINK_HEAD))
 		return NULL;
-	/* for polled retry, if flag is set, we already went through here */
-	if (req->flags & REQ_F_POLLED)
+	if (req->flags & REQ_F_LINK_TIMEOUT)
 		return NULL;
 
 	nxt = list_first_entry_or_null(&req->link_list, struct io_kiocb,
