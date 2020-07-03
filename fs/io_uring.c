@@ -1416,7 +1416,7 @@ static void io_submit_flush_completions(struct io_comp_state *cs)
 
 		req = list_first_entry(&cs->list, struct io_kiocb, list);
 		list_del(&req->list);
-		io_cqring_fill_event(req, req->result);
+		__io_cqring_fill_event(req, req->result, req->cflags);
 		if (!(req->flags & REQ_F_LINK_HEAD)) {
 			req->flags |= REQ_F_COMP_LOCKED;
 			io_put_req(req);
@@ -1441,6 +1441,7 @@ static void __io_req_complete(struct io_kiocb *req, long res, unsigned cflags,
 		io_put_req(req);
 	} else {
 		req->result = res;
+		req->cflags = cflags;
 		list_add_tail(&req->list, &cs->list);
 		if (++cs->nr >= 32)
 			io_submit_flush_completions(cs);
