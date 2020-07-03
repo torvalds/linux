@@ -348,27 +348,36 @@ static __always_inline void wrlbr_info(unsigned int idx, u64 val)
 	wrmsrl(x86_pmu.lbr_info + idx, val);
 }
 
-static __always_inline u64 rdlbr_from(unsigned int idx)
+static __always_inline u64 rdlbr_from(unsigned int idx, struct lbr_entry *lbr)
 {
 	u64 val;
+
+	if (lbr)
+		return lbr->from;
 
 	rdmsrl(x86_pmu.lbr_from + idx, val);
 
 	return lbr_from_signext_quirk_rd(val);
 }
 
-static __always_inline u64 rdlbr_to(unsigned int idx)
+static __always_inline u64 rdlbr_to(unsigned int idx, struct lbr_entry *lbr)
 {
 	u64 val;
+
+	if (lbr)
+		return lbr->to;
 
 	rdmsrl(x86_pmu.lbr_to + idx, val);
 
 	return val;
 }
 
-static __always_inline u64 rdlbr_info(unsigned int idx)
+static __always_inline u64 rdlbr_info(unsigned int idx, struct lbr_entry *lbr)
 {
 	u64 val;
+
+	if (lbr)
+		return lbr->info;
 
 	rdmsrl(x86_pmu.lbr_info + idx, val);
 
@@ -387,16 +396,16 @@ wrlbr_all(struct lbr_entry *lbr, unsigned int idx, bool need_info)
 static inline bool
 rdlbr_all(struct lbr_entry *lbr, unsigned int idx, bool need_info)
 {
-	u64 from = rdlbr_from(idx);
+	u64 from = rdlbr_from(idx, NULL);
 
 	/* Don't read invalid entry */
 	if (!from)
 		return false;
 
 	lbr->from = from;
-	lbr->to = rdlbr_to(idx);
+	lbr->to = rdlbr_to(idx, NULL);
 	if (need_info)
-		lbr->info = rdlbr_info(idx);
+		lbr->info = rdlbr_info(idx, NULL);
 
 	return true;
 }
@@ -432,7 +441,7 @@ void intel_pmu_lbr_restore(void *ctx)
 
 static __always_inline bool lbr_is_reset_in_cstate(void *ctx)
 {
-	return !rdlbr_from(((struct x86_perf_task_context *)ctx)->tos);
+	return !rdlbr_from(((struct x86_perf_task_context *)ctx)->tos, NULL);
 }
 
 static void __intel_pmu_lbr_restore(void *ctx)
@@ -709,8 +718,8 @@ void intel_pmu_lbr_read_64(struct cpu_hw_events *cpuc)
 		u16 cycles = 0;
 		int lbr_flags = lbr_desc[lbr_format];
 
-		from = rdlbr_from(lbr_idx);
-		to   = rdlbr_to(lbr_idx);
+		from = rdlbr_from(lbr_idx, NULL);
+		to   = rdlbr_to(lbr_idx, NULL);
 
 		/*
 		 * Read LBR call stack entries
@@ -722,7 +731,7 @@ void intel_pmu_lbr_read_64(struct cpu_hw_events *cpuc)
 		if (lbr_format == LBR_FORMAT_INFO && need_info) {
 			u64 info;
 
-			info = rdlbr_info(lbr_idx);
+			info = rdlbr_info(lbr_idx, NULL);
 			mis = !!(info & LBR_INFO_MISPRED);
 			pred = !mis;
 			in_tx = !!(info & LBR_INFO_IN_TX);
@@ -775,6 +784,42 @@ void intel_pmu_lbr_read_64(struct cpu_hw_events *cpuc)
 	}
 	cpuc->lbr_stack.nr = out;
 	cpuc->lbr_stack.hw_idx = tos;
+}
+
+static void intel_pmu_store_lbr(struct cpu_hw_events *cpuc,
+				struct lbr_entry *entries)
+{
+	struct perf_branch_entry *e;
+	struct lbr_entry *lbr;
+	u64 from, to, info;
+	int i;
+
+	for (i = 0; i < x86_pmu.lbr_nr; i++) {
+		lbr = entries ? &entries[i] : NULL;
+		e = &cpuc->lbr_entries[i];
+
+		from = rdlbr_from(i, lbr);
+		/*
+		 * Read LBR entries until invalid entry (0s) is detected.
+		 */
+		if (!from)
+			break;
+
+		to = rdlbr_to(i, lbr);
+		info = rdlbr_info(i, lbr);
+
+		e->from		= from;
+		e->to		= to;
+		e->mispred	= !!(info & LBR_INFO_MISPRED);
+		e->predicted	= !(info & LBR_INFO_MISPRED);
+		e->in_tx	= !!(info & LBR_INFO_IN_TX);
+		e->abort	= !!(info & LBR_INFO_ABORT);
+		e->cycles	= info & LBR_INFO_CYCLES;
+		e->type		= 0;
+		e->reserved	= 0;
+	}
+
+	cpuc->lbr_stack.nr = i;
 }
 
 void intel_pmu_lbr_read(void)
@@ -1215,9 +1260,6 @@ intel_pmu_lbr_filter(struct cpu_hw_events *cpuc)
 void intel_pmu_store_pebs_lbrs(struct lbr_entry *lbr)
 {
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
-	int i;
-
-	cpuc->lbr_stack.nr = x86_pmu.lbr_nr;
 
 	/* Cannot get TOS for large PEBS */
 	if (cpuc->n_pebs == cpuc->n_large_pebs)
@@ -1225,19 +1267,7 @@ void intel_pmu_store_pebs_lbrs(struct lbr_entry *lbr)
 	else
 		cpuc->lbr_stack.hw_idx = intel_pmu_lbr_tos();
 
-	for (i = 0; i < x86_pmu.lbr_nr; i++) {
-		u64 info = lbr[i].info;
-		struct perf_branch_entry *e = &cpuc->lbr_entries[i];
-
-		e->from		= lbr[i].from;
-		e->to		= lbr[i].to;
-		e->mispred	= !!(info & LBR_INFO_MISPRED);
-		e->predicted	= !(info & LBR_INFO_MISPRED);
-		e->in_tx	= !!(info & LBR_INFO_IN_TX);
-		e->abort	= !!(info & LBR_INFO_ABORT);
-		e->cycles	= info & LBR_INFO_CYCLES;
-		e->reserved	= 0;
-	}
+	intel_pmu_store_lbr(cpuc, lbr);
 	intel_pmu_lbr_filter(cpuc);
 }
 
