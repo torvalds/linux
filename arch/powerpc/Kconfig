@@ -833,12 +833,15 @@ config FORCE_MAX_ZONEORDER
 	  this in mind when choosing a value for this option.
 
 config PPC_SUBPAGE_PROT
-	bool "Support setting protections for 4k subpages"
+	bool "Support setting protections for 4k subpages (subpage_prot syscall)"
+	default n
 	depends on PPC_BOOK3S_64 && PPC_64K_PAGES
 	help
-	  This option adds support for a system call to allow user programs
+	  This option adds support for system call to allow user programs
 	  to set access permissions (read/write, readonly, or no access)
 	  on the 4k subpages of each 64k page.
+
+	  If unsure, say N here.
 
 config PPC_COPRO_BASE
 	bool
