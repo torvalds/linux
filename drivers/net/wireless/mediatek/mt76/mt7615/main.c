@@ -915,17 +915,26 @@ static int
 mt7615_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	       struct ieee80211_scan_request *req)
 {
+	struct mt7615_dev *dev = mt7615_hw_dev(hw);
 	struct mt76_phy *mphy = hw->priv;
+	int err;
 
-	return mt7615_mcu_hw_scan(mphy->priv, vif, req);
+	mt7615_mutex_acquire(dev);
+	err = mt7615_mcu_hw_scan(mphy->priv, vif, req);
+	mt7615_mutex_release(dev);
+
+	return err;
 }
 
 static void
 mt7615_cancel_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
+	struct mt7615_dev *dev = mt7615_hw_dev(hw);
 	struct mt76_phy *mphy = hw->priv;
 
+	mt7615_mutex_acquire(dev);
 	mt7615_mcu_cancel_hw_scan(mphy->priv, vif);
+	mt7615_mutex_release(dev);
 }
 
 static int
@@ -933,22 +942,35 @@ mt7615_start_sched_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			struct cfg80211_sched_scan_request *req,
 			struct ieee80211_scan_ies *ies)
 {
+	struct mt7615_dev *dev = mt7615_hw_dev(hw);
 	struct mt76_phy *mphy = hw->priv;
 	int err;
 
+	mt7615_mutex_acquire(dev);
+
 	err = mt7615_mcu_sched_scan_req(mphy->priv, vif, req);
 	if (err < 0)
-		return err;
+		goto out;
 
-	return mt7615_mcu_sched_scan_enable(mphy->priv, vif, true);
+	err = mt7615_mcu_sched_scan_enable(mphy->priv, vif, true);
+out:
+	mt7615_mutex_release(dev);
+
+	return err;
 }
 
 static int
 mt7615_stop_sched_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
+	struct mt7615_dev *dev = mt7615_hw_dev(hw);
 	struct mt76_phy *mphy = hw->priv;
+	int err;
 
-	return mt7615_mcu_sched_scan_enable(mphy->priv, vif, false);
+	mt7615_mutex_acquire(dev);
+	err = mt7615_mcu_sched_scan_enable(mphy->priv, vif, false);
+	mt7615_mutex_release(dev);
+
+	return err;
 }
 
 static int mt7615_remain_on_channel(struct ieee80211_hw *hw,
@@ -1074,7 +1096,11 @@ static void mt7615_set_rekey_data(struct ieee80211_hw *hw,
 				  struct ieee80211_vif *vif,
 				  struct cfg80211_gtk_rekey_data *data)
 {
+	struct mt7615_dev *dev = mt7615_hw_dev(hw);
+
+	mt7615_mutex_acquire(dev);
 	mt7615_mcu_update_gtk_rekey(hw, vif, data);
+	mt7615_mutex_release(dev);
 }
 #endif /* CONFIG_PM */
 
