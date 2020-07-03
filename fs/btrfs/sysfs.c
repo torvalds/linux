@@ -937,7 +937,11 @@ void btrfs_sysfs_remove_fsid(struct btrfs_fs_devices *fs_devs)
 
 void btrfs_sysfs_remove_mounted(struct btrfs_fs_info *fs_info)
 {
+	struct kobject *fsid_kobj = &fs_info->fs_devices->fsid_kobj;
+
 	btrfs_reset_fs_info_ptr(fs_info);
+
+	sysfs_remove_link(fsid_kobj, "bdi");
 
 	if (fs_info->space_info_kobj) {
 		sysfs_remove_files(fs_info->space_info_kobj, allocation_attrs);
@@ -958,8 +962,8 @@ void btrfs_sysfs_remove_mounted(struct btrfs_fs_info *fs_info)
 	}
 #endif
 	addrm_unknown_feature_attrs(fs_info, false);
-	sysfs_remove_group(&fs_info->fs_devices->fsid_kobj, &btrfs_feature_attr_group);
-	sysfs_remove_files(&fs_info->fs_devices->fsid_kobj, btrfs_attrs);
+	sysfs_remove_group(fsid_kobj, &btrfs_feature_attr_group);
+	sysfs_remove_files(fsid_kobj, btrfs_attrs);
 	btrfs_sysfs_remove_devices_dir(fs_info->fs_devices, NULL);
 }
 
@@ -1436,6 +1440,10 @@ int btrfs_sysfs_add_mounted(struct btrfs_fs_info *fs_info)
 #endif
 
 	error = addrm_unknown_feature_attrs(fs_info, true);
+	if (error)
+		goto failure;
+
+	error = sysfs_create_link(fsid_kobj, &fs_info->sb->s_bdi->dev->kobj, "bdi");
 	if (error)
 		goto failure;
 
