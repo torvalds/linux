@@ -285,7 +285,9 @@ mt7615_regd_notifier(struct wiphy *wiphy,
 	if (!(chandef->chan->flags & IEEE80211_CHAN_RADAR))
 		return;
 
+	mt7615_mutex_acquire(dev);
 	mt7615_dfs_init_radar_detector(phy);
+	mt7615_mutex_release(dev);
 }
 
 static void
