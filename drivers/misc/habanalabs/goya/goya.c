@@ -5028,14 +5028,14 @@ int goya_armcp_info_get(struct hl_device *hdev)
 	return 0;
 }
 
-static void goya_enable_clock_gating(struct hl_device *hdev)
+static void goya_set_clock_gating(struct hl_device *hdev)
 {
-
+	/* clock gating not supported in Goya */
 }
 
 static void goya_disable_clock_gating(struct hl_device *hdev)
 {
-
+	/* clock gating not supported in Goya */
 }
 
 static bool goya_is_device_idle(struct hl_device *hdev, u32 *mask,
@@ -5259,7 +5259,7 @@ static const struct hl_asic_funcs goya_funcs = {
 	.mmu_invalidate_cache = goya_mmu_invalidate_cache,
 	.mmu_invalidate_cache_range = goya_mmu_invalidate_cache_range,
 	.send_heartbeat = goya_send_heartbeat,
-	.enable_clock_gating = goya_enable_clock_gating,
+	.set_clock_gating = goya_set_clock_gating,
 	.disable_clock_gating = goya_disable_clock_gating,
 	.debug_coresight = goya_debug_coresight,
 	.is_device_idle = goya_is_device_idle,

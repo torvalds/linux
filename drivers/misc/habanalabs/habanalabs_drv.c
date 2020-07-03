@@ -232,7 +232,7 @@ static void set_driver_behavior_per_device(struct hl_device *hdev)
 	hdev->fw_loading = 1;
 	hdev->cpu_queues_enable = 1;
 	hdev->heartbeat = 1;
-	hdev->clock_gating = 1;
+	hdev->clock_gating_mask = ULONG_MAX;
 
 	hdev->reset_pcilink = 0;
 	hdev->axi_drain = 0;
