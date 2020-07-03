@@ -220,7 +220,7 @@ static struct gpio_desc *gpio_led_get_gpiod(struct device *dev, int idx,
 	 * device, this will hit the board file, if any and get
 	 * the GPIO from there.
 	 */
-	gpiod = devm_gpiod_get_index(dev, NULL, idx, flags);
+	gpiod = devm_gpiod_get_index(dev, NULL, idx, GPIOD_OUT_LOW);
 	if (!IS_ERR(gpiod)) {
 		gpiod_set_consumer_name(gpiod, template->name);
 		return gpiod;
