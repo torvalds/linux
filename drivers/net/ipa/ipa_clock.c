@@ -256,6 +256,12 @@ void ipa_clock_put(struct ipa *ipa)
 	mutex_unlock(&clock->mutex);
 }
 
+/* Return the current IPA core clock rate */
+u32 ipa_clock_rate(struct ipa *ipa)
+{
+	return ipa->clock ? (u32)clk_get_rate(ipa->clock->core) : 0;
+}
+
 /* Initialize IPA clocking */
 struct ipa_clock *ipa_clock_init(struct device *dev)
 {
