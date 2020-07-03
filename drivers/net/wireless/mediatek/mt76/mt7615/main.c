@@ -871,9 +871,11 @@ void mt7615_roc_work(struct work_struct *work)
 	if (!test_and_clear_bit(MT76_STATE_ROC, &phy->mt76->state))
 		return;
 
+	mt7615_mutex_acquire(phy->dev);
 	ieee80211_iterate_active_interfaces(phy->mt76->hw,
 					    IEEE80211_IFACE_ITER_RESUME_ALL,
 					    mt7615_roc_iter, phy);
+	mt7615_mutex_release(phy->dev);
 	ieee80211_remain_on_channel_expired(phy->mt76->hw);
 }
 
@@ -991,20 +993,24 @@ static int mt7615_remain_on_channel(struct ieee80211_hw *hw,
 	if (test_and_set_bit(MT76_STATE_ROC, &phy->mt76->state))
 		return 0;
 
+	mt7615_mutex_acquire(phy->dev);
+
 	err = mt7615_mcu_set_roc(phy, vif, chan, duration);
 	if (err < 0) {
 		clear_bit(MT76_STATE_ROC, &phy->mt76->state);
-		return err;
+		goto out;
 	}
 
 	if (!wait_event_timeout(phy->roc_wait, phy->roc_grant, HZ)) {
 		mt7615_mcu_set_roc(phy, vif, NULL, 0);
 		clear_bit(MT76_STATE_ROC, &phy->mt76->state);
-
-		return -ETIMEDOUT;
+		err = -ETIMEDOUT;
 	}
 
-	return 0;
+out:
+	mt7615_mutex_release(phy->dev);
+
+	return err;
 }
 
 static int mt7615_cancel_remain_on_channel(struct ieee80211_hw *hw,
@@ -1018,7 +1024,9 @@ static int mt7615_cancel_remain_on_channel(struct ieee80211_hw *hw,
 	del_timer_sync(&phy->roc_timer);
 	cancel_work_sync(&phy->roc_work);
 
+	mt7615_mutex_acquire(phy->dev);
 	mt7615_mcu_set_roc(phy, vif, NULL, 0);
+	mt7615_mutex_release(phy->dev);
 
 	return 0;
 }
