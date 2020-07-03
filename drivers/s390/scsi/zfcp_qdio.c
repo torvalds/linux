@@ -246,7 +246,7 @@ int zfcp_qdio_sbal_get(struct zfcp_qdio *qdio)
 }
 
 /**
- * zfcp_qdio_send - set PCI flag in first SBALE and send req to QDIO
+ * zfcp_qdio_send - send req to QDIO
  * @qdio: pointer to struct zfcp_qdio
  * @q_req: pointer to struct zfcp_qdio_req
  * Returns: 0 on success, error otherwise
