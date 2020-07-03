@@ -19,6 +19,7 @@ int build_obj_refs_table(struct obj_refs_table *table, enum bpf_obj_type type)
 	return -ENOTSUP;
 }
 void delete_obj_refs_table(struct obj_refs_table *table) {}
+void emit_obj_refs_plain(struct obj_refs_table *table, __u32 id, const char *prefix) {}
 
 #else /* BPFTOOL_WITHOUT_SKELETONS */
 
