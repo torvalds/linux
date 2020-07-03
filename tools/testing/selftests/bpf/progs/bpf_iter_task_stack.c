@@ -7,7 +7,7 @@
 char _license[] SEC("license") = "GPL";
 
 #define MAX_STACK_TRACE_DEPTH   64
-unsigned long entries[MAX_STACK_TRACE_DEPTH];
+unsigned long entries[MAX_STACK_TRACE_DEPTH] = {};
 #define SIZE_OF_ULONG (sizeof(unsigned long))
 
 SEC("iter/task")
