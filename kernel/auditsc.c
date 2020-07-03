@@ -1891,6 +1891,20 @@ __audit_reusename(const __user char *uptr)
 	return NULL;
 }
 
+inline void _audit_getcwd(struct audit_context *context)
+{
+	if (!context->pwd.dentry)
+		get_fs_pwd(current->fs, &context->pwd);
+}
+
+void __audit_getcwd(void)
+{
+	struct audit_context *context = audit_context();
+
+	if (context->in_syscall)
+		_audit_getcwd(context);
+}
+
 /**
  * __audit_getname - add a name to the list
  * @name: name to add
@@ -1915,8 +1929,7 @@ void __audit_getname(struct filename *name)
 	name->aname = n;
 	name->refcnt++;
 
-	if (!context->pwd.dentry)
-		get_fs_pwd(current->fs, &context->pwd);
+	_audit_getcwd(context);
 }
 
 static inline int audit_copy_fcaps(struct audit_names *name,
