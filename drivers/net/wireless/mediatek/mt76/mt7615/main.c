@@ -664,8 +664,10 @@ static void mt7615_sta_rate_tbl_update(struct ieee80211_hw *hw,
 			break;
 	}
 	msta->n_rates = i;
-	mt7615_mac_set_rates(phy, msta, NULL, msta->rates);
-	msta->rate_probe = false;
+	if (!test_bit(MT76_STATE_PM, &phy->mt76->state)) {
+		mt7615_mac_set_rates(phy, msta, NULL, msta->rates);
+		msta->rate_probe = false;
+	}
 	spin_unlock_bh(&dev->mt76.lock);
 }
 
