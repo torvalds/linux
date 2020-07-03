@@ -597,8 +597,8 @@ struct dword3 {
 };
 
 union dword4 {
-	__le32 dst_lo;		/* NON-SHA	*/
-	__le32 sha_len_lo;	/* SHA		*/
+	u32 dst_lo;		/* NON-SHA	*/
+	u32 sha_len_lo;		/* SHA		*/
 };
 
 union dword5 {
@@ -608,7 +608,7 @@ union dword5 {
 		unsigned int  rsvd1:13;
 		unsigned int  fixed:1;
 	} fields;
-	__le32 sha_len_hi;
+	u32 sha_len_hi;
 };
 
 struct dword7 {
@@ -619,12 +619,12 @@ struct dword7 {
 
 struct ccp5_desc {
 	struct dword0 dw0;
-	__le32 length;
-	__le32 src_lo;
+	u32 length;
+	u32 src_lo;
 	struct dword3 dw3;
 	union dword4 dw4;
 	union dword5 dw5;
-	__le32 key_lo;
+	u32 key_lo;
 	struct dword7 dw7;
 };
 

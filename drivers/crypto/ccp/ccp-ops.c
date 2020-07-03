@@ -632,13 +632,12 @@ ccp_run_aes_gcm_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 	struct ccp_data src, dst;
 	struct ccp_data aad;
 	struct ccp_op op;
-
-	unsigned long long *final;
 	unsigned int dm_offset;
 	unsigned int authsize;
 	unsigned int jobid;
 	unsigned int ilen;
 	bool in_place = true; /* Default value */
+	__be64 *final;
 	int ret;
 
 	struct scatterlist *p_inp, sg_inp[2];
@@ -840,7 +839,7 @@ ccp_run_aes_gcm_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 				   DMA_BIDIRECTIONAL);
 	if (ret)
 		goto e_dst;
-	final = (unsigned long long *) final_wa.address;
+	final = (__be64 *)final_wa.address;
 	final[0] = cpu_to_be64(aes->aad_len * 8);
 	final[1] = cpu_to_be64(ilen * 8);
 
