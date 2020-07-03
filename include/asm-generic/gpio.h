@@ -8,7 +8,6 @@
 #ifdef CONFIG_GPIOLIB
 
 #include <linux/compiler.h>
-#include <linux/gpio/driver.h>
 #include <linux/gpio/consumer.h>
 
 /*
