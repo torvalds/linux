@@ -754,6 +754,9 @@ static netdev_tx_t xennet_start_xmit(struct sk_buff *skb, struct net_device *dev
 	/* First request has the packet length. */
 	first_tx->size = skb->len;
 
+	/* timestamp packet in software */
+	skb_tx_timestamp(skb);
+
 	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(&queue->tx, notify);
 	if (notify)
 		notify_remote_via_irq(queue->tx_irq);
@@ -2411,6 +2414,7 @@ static const struct ethtool_ops xennet_ethtool_ops =
 	.get_sset_count = xennet_get_sset_count,
 	.get_ethtool_stats = xennet_get_ethtool_stats,
 	.get_strings = xennet_get_strings,
+	.get_ts_info = ethtool_op_get_ts_info,
 };
 
 #ifdef CONFIG_SYSFS
