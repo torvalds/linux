@@ -27,7 +27,7 @@ data storage and retrieval routines.  Its operations are represented by
 fscache_operation structs, though these are usually embedded into some other
 structure.
 
-This facility is available to and expected to be be used by the cache backends,
+This facility is available to and expected to be used by the cache backends,
 and FS-Cache will create operations and pass them off to the appropriate cache
 backend for completion.
 
