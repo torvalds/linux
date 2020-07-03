@@ -74,6 +74,7 @@ static void mt7615_stop(struct ieee80211_hw *hw)
 	del_timer_sync(&phy->roc_timer);
 	cancel_work_sync(&phy->roc_work);
 
+	cancel_delayed_work_sync(&dev->pm.ps_work);
 	cancel_work_sync(&dev->pm.wake_work);
 
 	mt7615_mutex_acquire(dev);
@@ -1002,6 +1003,8 @@ static int mt7615_suspend(struct ieee80211_hw *hw,
 	struct mt7615_phy *phy = mt7615_hw_phy(hw);
 	bool ext_phy = phy != &dev->phy;
 	int err = 0;
+
+	cancel_delayed_work_sync(&dev->pm.ps_work);
 
 	mt7615_mutex_acquire(dev);
 

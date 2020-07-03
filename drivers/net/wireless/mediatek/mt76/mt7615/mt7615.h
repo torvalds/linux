@@ -19,6 +19,7 @@
 #define MT7615_WTBL_STA			(MT7615_WTBL_RESERVED - \
 					 MT7615_MAX_INTERFACES)
 
+#define MT7615_PM_TIMEOUT		(HZ / 12)
 #define MT7615_WATCHDOG_TIME		(HZ / 10)
 #define MT7615_HW_SCAN_TIMEOUT		(HZ / 10)
 #define MT7615_RESET_TIMEOUT		(30 * HZ)
@@ -299,9 +300,12 @@ struct mt7615_dev {
 #endif
 
 	struct {
+		bool enable;
+
 		struct work_struct wake_work;
 		struct completion wake_cmpl;
 
+		struct delayed_work ps_work;
 		unsigned long last_activity;
 	} pm;
 };
@@ -435,6 +439,8 @@ void mt7615_mac_set_rates(struct mt7615_phy *phy, struct mt7615_sta *sta,
 			  struct ieee80211_tx_rate *rates);
 void mt7615_pm_wake_work(struct work_struct *work);
 int mt7615_pm_wake(struct mt7615_dev *dev);
+void mt7615_pm_power_save_sched(struct mt7615_dev *dev);
+void mt7615_pm_power_save_work(struct work_struct *work);
 int mt7615_mcu_del_wtbl_all(struct mt7615_dev *dev);
 int mt7615_mcu_set_chan_info(struct mt7615_phy *phy, int cmd);
 int mt7615_mcu_set_wmm(struct mt7615_dev *dev, u8 queue,
@@ -499,7 +505,7 @@ static inline void mt7615_mutex_acquire(struct mt7615_dev *dev)
 static inline void mt7615_mutex_release(struct mt7615_dev *dev)
 	__releases(&dev->mt76.mutex)
 {
-	dev->pm.last_activity = jiffies;
+	mt7615_pm_power_save_sched(dev);
 	mutex_unlock(&dev->mt76.mutex);
 }
 
