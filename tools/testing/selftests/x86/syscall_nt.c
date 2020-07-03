@@ -81,5 +81,16 @@ int main(void)
 	printf("[RUN]\tSet NT|AC|TF and issue a syscall\n");
 	do_it(X86_EFLAGS_NT | X86_EFLAGS_AC | X86_EFLAGS_TF);
 
+	/*
+	 * Now try DF.  This is evil and it's plausible that we will crash
+	 * glibc, but glibc would have to do something rather surprising
+	 * for this to happen.
+	 */
+	printf("[RUN]\tSet DF and issue a syscall\n");
+	do_it(X86_EFLAGS_DF);
+
+	printf("[RUN]\tSet TF|DF and issue a syscall\n");
+	do_it(X86_EFLAGS_TF | X86_EFLAGS_DF);
+
 	return nerrs == 0 ? 0 : 1;
 }
