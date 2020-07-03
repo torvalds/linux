@@ -548,6 +548,10 @@ pointer will not change over the lifetime of the file struct, and nor will the
 contents of the cred struct pointed to, barring the exceptions listed above
 (see the Task Credentials section).
 
+To avoid "confused deputy" privilege escalation attacks, access control checks
+during subsequent operations on an opened file should use these credentials
+instead of "current"'s credentials, as the file may have been passed to a more
+privileged process.
 
 Overriding the VFS's Use of Credentials
 =======================================
