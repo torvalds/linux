@@ -5,12 +5,12 @@
  * TMP513:
  * Thermal/Power Management with Triple Remote and
  * Local Temperature Sensor and Current Shunt Monitor
- * Datasheet: http://www.ti.com/lit/gpn/tmp513
+ * Datasheet: https://www.ti.com/lit/gpn/tmp513
  *
  * TMP512:
  * Thermal/Power Management with Dual Remote
  *	and Local Temperature Sensor and Current Shunt Monitor
- * Datasheet: http://www.ti.com/lit/gpn/tmp512
+ * Datasheet: https://www.ti.com/lit/gpn/tmp512
  *
  * Copyright (C) 2019 Eric Tremblay <etremblay@distech-controls.com>
  *
