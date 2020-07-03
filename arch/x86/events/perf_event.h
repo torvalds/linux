@@ -772,6 +772,11 @@ struct x86_perf_task_context {
 	struct lbr_entry lbr[MAX_LBR_ENTRIES];
 };
 
+struct x86_perf_task_context_arch_lbr {
+	struct x86_perf_task_context_opt opt;
+	struct lbr_entry entries[];
+};
+
 #define x86_add_quirk(func_)						\
 do {									\
 	static struct x86_pmu_quirk __quirk __initdata = {		\
@@ -822,6 +827,9 @@ extern struct x86_pmu x86_pmu __read_mostly;
 
 static __always_inline struct x86_perf_task_context_opt *task_context_opt(void *ctx)
 {
+	if (static_cpu_has(X86_FEATURE_ARCH_LBR))
+		return &((struct x86_perf_task_context_arch_lbr *)ctx)->opt;
+
 	return &((struct x86_perf_task_context *)ctx)->opt;
 }
 
@@ -1140,6 +1148,8 @@ void intel_pmu_lbr_init_hsw(void);
 void intel_pmu_lbr_init_skl(void);
 
 void intel_pmu_lbr_init_knl(void);
+
+void intel_pmu_arch_lbr_init(void);
 
 void intel_pmu_pebs_data_source_nhm(void);
 

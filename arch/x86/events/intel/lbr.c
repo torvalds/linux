@@ -172,6 +172,14 @@ enum {
 
 static void intel_pmu_lbr_filter(struct cpu_hw_events *cpuc);
 
+static __always_inline bool is_lbr_call_stack_bit_set(u64 config)
+{
+	if (static_cpu_has(X86_FEATURE_ARCH_LBR))
+		return !!(config & ARCH_LBR_CALL_STACK);
+
+	return !!(config & LBR_CALL_STACK);
+}
+
 /*
  * We only support LBR implementations that have FREEZE_LBRS_ON_PMI
  * otherwise it becomes near impossible to get a reliable stack.
@@ -195,26 +203,39 @@ static void __intel_pmu_lbr_enable(bool pmi)
 	 */
 	if (cpuc->lbr_sel)
 		lbr_select = cpuc->lbr_sel->config & x86_pmu.lbr_sel_mask;
-	if (!pmi && cpuc->lbr_sel)
+	if (!static_cpu_has(X86_FEATURE_ARCH_LBR) && !pmi && cpuc->lbr_sel)
 		wrmsrl(MSR_LBR_SELECT, lbr_select);
 
 	rdmsrl(MSR_IA32_DEBUGCTLMSR, debugctl);
 	orig_debugctl = debugctl;
-	debugctl |= DEBUGCTLMSR_LBR;
+
+	if (!static_cpu_has(X86_FEATURE_ARCH_LBR))
+		debugctl |= DEBUGCTLMSR_LBR;
 	/*
 	 * LBR callstack does not work well with FREEZE_LBRS_ON_PMI.
 	 * If FREEZE_LBRS_ON_PMI is set, PMI near call/return instructions
 	 * may cause superfluous increase/decrease of LBR_TOS.
 	 */
-	if (!(lbr_select & LBR_CALL_STACK))
+	if (is_lbr_call_stack_bit_set(lbr_select))
+		debugctl &= ~DEBUGCTLMSR_FREEZE_LBRS_ON_PMI;
+	else
 		debugctl |= DEBUGCTLMSR_FREEZE_LBRS_ON_PMI;
+
 	if (orig_debugctl != debugctl)
 		wrmsrl(MSR_IA32_DEBUGCTLMSR, debugctl);
+
+	if (static_cpu_has(X86_FEATURE_ARCH_LBR))
+		wrmsrl(MSR_ARCH_LBR_CTL, lbr_select | ARCH_LBR_CTL_LBREN);
 }
 
 static void __intel_pmu_lbr_disable(void)
 {
 	u64 debugctl;
+
+	if (static_cpu_has(X86_FEATURE_ARCH_LBR)) {
+		wrmsrl(MSR_ARCH_LBR_CTL, 0);
+		return;
+	}
 
 	rdmsrl(MSR_IA32_DEBUGCTLMSR, debugctl);
 	debugctl &= ~(DEBUGCTLMSR_LBR | DEBUGCTLMSR_FREEZE_LBRS_ON_PMI);
@@ -239,6 +260,12 @@ void intel_pmu_lbr_reset_64(void)
 		if (x86_pmu.intel_cap.lbr_format == LBR_FORMAT_INFO)
 			wrmsrl(x86_pmu.lbr_info + i, 0);
 	}
+}
+
+static void intel_pmu_arch_lbr_reset(void)
+{
+	/* Write to ARCH_LBR_DEPTH MSR, all LBR entries are reset to 0 */
+	wrmsrl(MSR_ARCH_LBR_DEPTH, x86_pmu.lbr_nr);
 }
 
 void intel_pmu_lbr_reset(void)
@@ -439,8 +466,28 @@ void intel_pmu_lbr_restore(void *ctx)
 		wrmsrl(MSR_LBR_SELECT, task_ctx->lbr_sel);
 }
 
+static void intel_pmu_arch_lbr_restore(void *ctx)
+{
+	struct x86_perf_task_context_arch_lbr *task_ctx = ctx;
+	struct lbr_entry *entries = task_ctx->entries;
+	int i;
+
+	/* Fast reset the LBRs before restore if the call stack is not full. */
+	if (!entries[x86_pmu.lbr_nr - 1].from)
+		intel_pmu_arch_lbr_reset();
+
+	for (i = 0; i < x86_pmu.lbr_nr; i++) {
+		if (!entries[i].from)
+			break;
+		wrlbr_all(&entries[i], i, true);
+	}
+}
+
 static __always_inline bool lbr_is_reset_in_cstate(void *ctx)
 {
+	if (static_cpu_has(X86_FEATURE_ARCH_LBR))
+		return x86_pmu.lbr_deep_c_reset && !rdlbr_from(0, NULL);
+
 	return !rdlbr_from(((struct x86_perf_task_context *)ctx)->tos, NULL);
 }
 
@@ -492,6 +539,22 @@ void intel_pmu_lbr_save(void *ctx)
 
 	if (cpuc->lbr_select)
 		rdmsrl(MSR_LBR_SELECT, task_ctx->lbr_sel);
+}
+
+static void intel_pmu_arch_lbr_save(void *ctx)
+{
+	struct x86_perf_task_context_arch_lbr *task_ctx = ctx;
+	struct lbr_entry *entries = task_ctx->entries;
+	int i;
+
+	for (i = 0; i < x86_pmu.lbr_nr; i++) {
+		if (!rdlbr_all(&entries[i], i, true))
+			break;
+	}
+
+	/* LBR call stack is not full. Reset is required in restore. */
+	if (i < x86_pmu.lbr_nr)
+		entries[x86_pmu.lbr_nr - 1].from = 0;
 }
 
 static void __intel_pmu_lbr_save(void *ctx)
@@ -786,6 +849,39 @@ void intel_pmu_lbr_read_64(struct cpu_hw_events *cpuc)
 	cpuc->lbr_stack.hw_idx = tos;
 }
 
+static __always_inline int get_lbr_br_type(u64 info)
+{
+	if (!static_cpu_has(X86_FEATURE_ARCH_LBR) || !x86_pmu.lbr_br_type)
+		return 0;
+
+	return (info & LBR_INFO_BR_TYPE) >> LBR_INFO_BR_TYPE_OFFSET;
+}
+
+static __always_inline bool get_lbr_mispred(u64 info)
+{
+	if (static_cpu_has(X86_FEATURE_ARCH_LBR) && !x86_pmu.lbr_mispred)
+		return 0;
+
+	return !!(info & LBR_INFO_MISPRED);
+}
+
+static __always_inline bool get_lbr_predicted(u64 info)
+{
+	if (static_cpu_has(X86_FEATURE_ARCH_LBR) && !x86_pmu.lbr_mispred)
+		return 0;
+
+	return !(info & LBR_INFO_MISPRED);
+}
+
+static __always_inline bool get_lbr_cycles(u64 info)
+{
+	if (static_cpu_has(X86_FEATURE_ARCH_LBR) &&
+	    !(x86_pmu.lbr_timed_lbr && info & LBR_INFO_CYC_CNT_VALID))
+		return 0;
+
+	return info & LBR_INFO_CYCLES;
+}
+
 static void intel_pmu_store_lbr(struct cpu_hw_events *cpuc,
 				struct lbr_entry *entries)
 {
@@ -810,16 +906,21 @@ static void intel_pmu_store_lbr(struct cpu_hw_events *cpuc,
 
 		e->from		= from;
 		e->to		= to;
-		e->mispred	= !!(info & LBR_INFO_MISPRED);
-		e->predicted	= !(info & LBR_INFO_MISPRED);
+		e->mispred	= get_lbr_mispred(info);
+		e->predicted	= get_lbr_predicted(info);
 		e->in_tx	= !!(info & LBR_INFO_IN_TX);
 		e->abort	= !!(info & LBR_INFO_ABORT);
-		e->cycles	= info & LBR_INFO_CYCLES;
-		e->type		= 0;
+		e->cycles	= get_lbr_cycles(info);
+		e->type		= get_lbr_br_type(info);
 		e->reserved	= 0;
 	}
 
 	cpuc->lbr_stack.nr = i;
+}
+
+static void intel_pmu_arch_lbr_read(struct cpu_hw_events *cpuc)
+{
+	intel_pmu_store_lbr(cpuc, NULL);
 }
 
 void intel_pmu_lbr_read(void)
@@ -1197,6 +1298,27 @@ common_branch_type(int type)
 	return PERF_BR_UNKNOWN;
 }
 
+enum {
+	ARCH_LBR_BR_TYPE_JCC			= 0,
+	ARCH_LBR_BR_TYPE_NEAR_IND_JMP		= 1,
+	ARCH_LBR_BR_TYPE_NEAR_REL_JMP		= 2,
+	ARCH_LBR_BR_TYPE_NEAR_IND_CALL		= 3,
+	ARCH_LBR_BR_TYPE_NEAR_REL_CALL		= 4,
+	ARCH_LBR_BR_TYPE_NEAR_RET		= 5,
+	ARCH_LBR_BR_TYPE_KNOWN_MAX		= ARCH_LBR_BR_TYPE_NEAR_RET,
+
+	ARCH_LBR_BR_TYPE_MAP_MAX		= 16,
+};
+
+static const int arch_lbr_br_type_map[ARCH_LBR_BR_TYPE_MAP_MAX] = {
+	[ARCH_LBR_BR_TYPE_JCC]			= X86_BR_JCC,
+	[ARCH_LBR_BR_TYPE_NEAR_IND_JMP]		= X86_BR_IND_JMP,
+	[ARCH_LBR_BR_TYPE_NEAR_REL_JMP]		= X86_BR_JMP,
+	[ARCH_LBR_BR_TYPE_NEAR_IND_CALL]	= X86_BR_IND_CALL,
+	[ARCH_LBR_BR_TYPE_NEAR_REL_CALL]	= X86_BR_CALL,
+	[ARCH_LBR_BR_TYPE_NEAR_RET]		= X86_BR_RET,
+};
+
 /*
  * implement actual branch filter based on user demand.
  * Hardware may not exactly satisfy that request, thus
@@ -1209,7 +1331,7 @@ intel_pmu_lbr_filter(struct cpu_hw_events *cpuc)
 {
 	u64 from, to;
 	int br_sel = cpuc->br_sel;
-	int i, j, type;
+	int i, j, type, to_plm;
 	bool compress = false;
 
 	/* if sampling all branches, then nothing to filter */
@@ -1221,8 +1343,19 @@ intel_pmu_lbr_filter(struct cpu_hw_events *cpuc)
 
 		from = cpuc->lbr_entries[i].from;
 		to = cpuc->lbr_entries[i].to;
+		type = cpuc->lbr_entries[i].type;
 
-		type = branch_type(from, to, cpuc->lbr_entries[i].abort);
+		/*
+		 * Parse the branch type recorded in LBR_x_INFO MSR.
+		 * Doesn't support OTHER_BRANCH decoding for now.
+		 * OTHER_BRANCH branch type still rely on software decoding.
+		 */
+		if (static_cpu_has(X86_FEATURE_ARCH_LBR) &&
+		    type <= ARCH_LBR_BR_TYPE_KNOWN_MAX) {
+			to_plm = kernel_ip(to) ? X86_BR_KERNEL : X86_BR_USER;
+			type = arch_lbr_br_type_map[type] | to_plm;
+		} else
+			type = branch_type(from, to, cpuc->lbr_entries[i].abort);
 		if (type != X86_BR_NONE && (br_sel & X86_BR_ANYTX)) {
 			if (cpuc->lbr_entries[i].in_tx)
 				type |= X86_BR_IN_TX;
@@ -1261,8 +1394,9 @@ void intel_pmu_store_pebs_lbrs(struct lbr_entry *lbr)
 {
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 
-	/* Cannot get TOS for large PEBS */
-	if (cpuc->n_pebs == cpuc->n_large_pebs)
+	/* Cannot get TOS for large PEBS and Arch LBR */
+	if (static_cpu_has(X86_FEATURE_ARCH_LBR) ||
+	    (cpuc->n_pebs == cpuc->n_large_pebs))
 		cpuc->lbr_stack.hw_idx = -1ULL;
 	else
 		cpuc->lbr_stack.hw_idx = intel_pmu_lbr_tos();
@@ -1322,6 +1456,26 @@ static const int hsw_lbr_sel_map[PERF_SAMPLE_BRANCH_MAX_SHIFT] = {
 						| LBR_RETURN | LBR_CALL_STACK,
 	[PERF_SAMPLE_BRANCH_IND_JUMP_SHIFT]	= LBR_IND_JMP,
 	[PERF_SAMPLE_BRANCH_CALL_SHIFT]		= LBR_REL_CALL,
+};
+
+static int arch_lbr_ctl_map[PERF_SAMPLE_BRANCH_MAX_SHIFT] = {
+	[PERF_SAMPLE_BRANCH_ANY_SHIFT]		= ARCH_LBR_ANY,
+	[PERF_SAMPLE_BRANCH_USER_SHIFT]		= ARCH_LBR_USER,
+	[PERF_SAMPLE_BRANCH_KERNEL_SHIFT]	= ARCH_LBR_KERNEL,
+	[PERF_SAMPLE_BRANCH_HV_SHIFT]		= LBR_IGN,
+	[PERF_SAMPLE_BRANCH_ANY_RETURN_SHIFT]	= ARCH_LBR_RETURN |
+						  ARCH_LBR_OTHER_BRANCH,
+	[PERF_SAMPLE_BRANCH_ANY_CALL_SHIFT]     = ARCH_LBR_REL_CALL |
+						  ARCH_LBR_IND_CALL |
+						  ARCH_LBR_OTHER_BRANCH,
+	[PERF_SAMPLE_BRANCH_IND_CALL_SHIFT]     = ARCH_LBR_IND_CALL,
+	[PERF_SAMPLE_BRANCH_COND_SHIFT]         = ARCH_LBR_JCC,
+	[PERF_SAMPLE_BRANCH_CALL_STACK_SHIFT]   = ARCH_LBR_REL_CALL |
+						  ARCH_LBR_IND_CALL |
+						  ARCH_LBR_RETURN |
+						  ARCH_LBR_CALL_STACK,
+	[PERF_SAMPLE_BRANCH_IND_JUMP_SHIFT]	= ARCH_LBR_IND_JMP,
+	[PERF_SAMPLE_BRANCH_CALL_SHIFT]		= ARCH_LBR_REL_CALL,
 };
 
 /* core */
@@ -1469,6 +1623,81 @@ void intel_pmu_lbr_init_knl(void)
 	/* Knights Landing does have MISPREDICT bit */
 	if (x86_pmu.intel_cap.lbr_format == LBR_FORMAT_LIP)
 		x86_pmu.intel_cap.lbr_format = LBR_FORMAT_EIP_FLAGS;
+}
+
+void __init intel_pmu_arch_lbr_init(void)
+{
+	union cpuid28_eax eax;
+	union cpuid28_ebx ebx;
+	union cpuid28_ecx ecx;
+	unsigned int unused_edx;
+	u64 lbr_nr;
+
+	/* Arch LBR Capabilities */
+	cpuid(28, &eax.full, &ebx.full, &ecx.full, &unused_edx);
+
+	lbr_nr = fls(eax.split.lbr_depth_mask) * 8;
+	if (!lbr_nr)
+		goto clear_arch_lbr;
+
+	/* Apply the max depth of Arch LBR */
+	if (wrmsrl_safe(MSR_ARCH_LBR_DEPTH, lbr_nr))
+		goto clear_arch_lbr;
+
+	x86_pmu.lbr_depth_mask = eax.split.lbr_depth_mask;
+	x86_pmu.lbr_deep_c_reset = eax.split.lbr_deep_c_reset;
+	x86_pmu.lbr_lip = eax.split.lbr_lip;
+	x86_pmu.lbr_cpl = ebx.split.lbr_cpl;
+	x86_pmu.lbr_filter = ebx.split.lbr_filter;
+	x86_pmu.lbr_call_stack = ebx.split.lbr_call_stack;
+	x86_pmu.lbr_mispred = ecx.split.lbr_mispred;
+	x86_pmu.lbr_timed_lbr = ecx.split.lbr_timed_lbr;
+	x86_pmu.lbr_br_type = ecx.split.lbr_br_type;
+	x86_pmu.lbr_nr = lbr_nr;
+
+	x86_get_pmu()->task_ctx_size = sizeof(struct x86_perf_task_context_arch_lbr) +
+				       lbr_nr * sizeof(struct lbr_entry);
+
+	x86_pmu.lbr_from = MSR_ARCH_LBR_FROM_0;
+	x86_pmu.lbr_to = MSR_ARCH_LBR_TO_0;
+	x86_pmu.lbr_info = MSR_ARCH_LBR_INFO_0;
+
+	/* LBR callstack requires both CPL and Branch Filtering support */
+	if (!x86_pmu.lbr_cpl ||
+	    !x86_pmu.lbr_filter ||
+	    !x86_pmu.lbr_call_stack)
+		arch_lbr_ctl_map[PERF_SAMPLE_BRANCH_CALL_STACK_SHIFT] = LBR_NOT_SUPP;
+
+	if (!x86_pmu.lbr_cpl) {
+		arch_lbr_ctl_map[PERF_SAMPLE_BRANCH_USER_SHIFT] = LBR_NOT_SUPP;
+		arch_lbr_ctl_map[PERF_SAMPLE_BRANCH_KERNEL_SHIFT] = LBR_NOT_SUPP;
+	} else if (!x86_pmu.lbr_filter) {
+		arch_lbr_ctl_map[PERF_SAMPLE_BRANCH_ANY_SHIFT] = LBR_NOT_SUPP;
+		arch_lbr_ctl_map[PERF_SAMPLE_BRANCH_ANY_RETURN_SHIFT] = LBR_NOT_SUPP;
+		arch_lbr_ctl_map[PERF_SAMPLE_BRANCH_ANY_CALL_SHIFT] = LBR_NOT_SUPP;
+		arch_lbr_ctl_map[PERF_SAMPLE_BRANCH_IND_CALL_SHIFT] = LBR_NOT_SUPP;
+		arch_lbr_ctl_map[PERF_SAMPLE_BRANCH_COND_SHIFT] = LBR_NOT_SUPP;
+		arch_lbr_ctl_map[PERF_SAMPLE_BRANCH_IND_JUMP_SHIFT] = LBR_NOT_SUPP;
+		arch_lbr_ctl_map[PERF_SAMPLE_BRANCH_CALL_SHIFT] = LBR_NOT_SUPP;
+	}
+
+	x86_pmu.lbr_ctl_mask = ARCH_LBR_CTL_MASK;
+	x86_pmu.lbr_ctl_map  = arch_lbr_ctl_map;
+
+	if (!x86_pmu.lbr_cpl && !x86_pmu.lbr_filter)
+		x86_pmu.lbr_ctl_map = NULL;
+
+	x86_pmu.lbr_reset = intel_pmu_arch_lbr_reset;
+	x86_pmu.lbr_read = intel_pmu_arch_lbr_read;
+	x86_pmu.lbr_save = intel_pmu_arch_lbr_save;
+	x86_pmu.lbr_restore = intel_pmu_arch_lbr_restore;
+
+	pr_cont("Architectural LBR, ");
+
+	return;
+
+clear_arch_lbr:
+	clear_cpu_cap(&boot_cpu_data, X86_FEATURE_ARCH_LBR);
 }
 
 /**
