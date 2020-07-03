@@ -647,7 +647,7 @@ static int reprime_dtd(struct ci_hdrc *ci, struct ci_hw_ep *hwep,
 /**
  * _hardware_dequeue: handles a request at hardware level
  * @gadget: gadget
- * @hwep:   endpoint
+ * @hwreq:  request
  *
  * This function returns an error code
  */
@@ -1326,7 +1326,7 @@ __acquires(ci->lock)
 /******************************************************************************
  * ENDPT block
  *****************************************************************************/
-/**
+/*
  * ep_enable: configure endpoint, making it usable
  *
  * Check usb_ep_enable() at "usb_gadget.h" for details
@@ -1394,7 +1394,7 @@ static int ep_enable(struct usb_ep *ep,
 	return retval;
 }
 
-/**
+/*
  * ep_disable: endpoint is no longer usable
  *
  * Check usb_ep_disable() at "usb_gadget.h" for details
@@ -1434,7 +1434,7 @@ static int ep_disable(struct usb_ep *ep)
 	return retval;
 }
 
-/**
+/*
  * ep_alloc_request: allocate a request object to use with this endpoint
  *
  * Check usb_ep_alloc_request() at "usb_gadget.h" for details
@@ -1455,7 +1455,7 @@ static struct usb_request *ep_alloc_request(struct usb_ep *ep, gfp_t gfp_flags)
 	return (hwreq == NULL) ? NULL : &hwreq->req;
 }
 
-/**
+/*
  * ep_free_request: frees a request object
  *
  * Check usb_ep_free_request() at "usb_gadget.h" for details
@@ -1488,7 +1488,7 @@ static void ep_free_request(struct usb_ep *ep, struct usb_request *req)
 	spin_unlock_irqrestore(hwep->lock, flags);
 }
 
-/**
+/*
  * ep_queue: queues (submits) an I/O request to an endpoint
  *
  * Check usb_ep_queue()* at usb_gadget.h" for details
@@ -1513,7 +1513,7 @@ static int ep_queue(struct usb_ep *ep, struct usb_request *req,
 	return retval;
 }
 
-/**
+/*
  * ep_dequeue: dequeues (cancels, unlinks) an I/O request from an endpoint
  *
  * Check usb_ep_dequeue() at "usb_gadget.h" for details
@@ -1557,7 +1557,7 @@ static int ep_dequeue(struct usb_ep *ep, struct usb_request *req)
 	return 0;
 }
 
-/**
+/*
  * ep_set_halt: sets the endpoint halt feature
  *
  * Check usb_ep_set_halt() at "usb_gadget.h" for details
@@ -1567,7 +1567,7 @@ static int ep_set_halt(struct usb_ep *ep, int value)
 	return _ep_set_halt(ep, value, true);
 }
 
-/**
+/*
  * ep_set_wedge: sets the halt feature and ignores clear requests
  *
  * Check usb_ep_set_wedge() at "usb_gadget.h" for details
@@ -1587,7 +1587,7 @@ static int ep_set_wedge(struct usb_ep *ep)
 	return usb_ep_set_halt(ep);
 }
 
-/**
+/*
  * ep_fifo_flush: flushes contents of a fifo
  *
  * Check usb_ep_fifo_flush() at "usb_gadget.h" for details
@@ -1613,7 +1613,7 @@ static void ep_fifo_flush(struct usb_ep *ep)
 	spin_unlock_irqrestore(hwep->lock, flags);
 }
 
-/**
+/*
  * Endpoint-specific part of the API to the USB controller hardware
  * Check "usb_gadget.h" for details
  */
@@ -1632,7 +1632,7 @@ static const struct usb_ep_ops usb_ep_ops = {
 /******************************************************************************
  * GADGET block
  *****************************************************************************/
-/**
+/*
  * ci_hdrc_gadget_connect: caller makes sure gadget driver is binded
  */
 static void ci_hdrc_gadget_connect(struct usb_gadget *_gadget, int is_active)
@@ -1782,7 +1782,7 @@ static struct usb_ep *ci_udc_match_ep(struct usb_gadget *gadget,
 	return NULL;
 }
 
-/**
+/*
  * Device operations part of the API to the USB controller hardware,
  * which don't involve endpoints (or i/o)
  * Check  "usb_gadget.h" for details
@@ -1934,7 +1934,7 @@ static void ci_udc_stop_for_otg_fsm(struct ci_hdrc *ci)
 	mutex_unlock(&ci->fsm.lock);
 }
 
-/**
+/*
  * ci_udc_stop: unregister a gadget driver
  */
 static int ci_udc_stop(struct usb_gadget *gadget)
@@ -1965,7 +1965,7 @@ static int ci_udc_stop(struct usb_gadget *gadget)
 /******************************************************************************
  * BUS block
  *****************************************************************************/
-/**
+/*
  * udc_irq: ci interrupt handler
  *
  * This function returns IRQ_HANDLED if the IRQ has been handled
@@ -2096,7 +2096,7 @@ free_qh_pool:
 	return retval;
 }
 
-/**
+/*
  * ci_hdrc_gadget_destroy: parent remove must call this to remove UDC
  *
  * No interrupts active, the IRQ has been released
@@ -2146,7 +2146,7 @@ static void udc_id_switch_for_host(struct ci_hdrc *ci)
 
 /**
  * ci_hdrc_gadget_init - initialize device related bits
- * ci: the controller
+ * @ci: the controller
  *
  * This function initializes the gadget, if the device is "device capable".
  */
