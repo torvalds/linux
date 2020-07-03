@@ -140,6 +140,8 @@ __mt7663u_mac_set_rates(struct mt7615_dev *dev,
 
 	mt76_wr(dev, addr + 27 * 4, w27);
 
+	sta->rate_probe = sta->rateset[rate->rateset].probe_rate.idx != -1;
+
 	mt76_set(dev, MT_LPON_T0CR, MT_LPON_T0CR_MODE); /* TSF read */
 	val = mt76_rr(dev, MT_LPON_UTTR0);
 	sta->rate_set_tsf = (val & ~BIT(0)) | rate->rateset;
@@ -196,17 +198,21 @@ __mt7663u_mac_set_key(struct mt7615_dev *dev,
 void mt7663u_wtbl_work(struct work_struct *work)
 {
 	struct mt7615_wtbl_desc *wd, *wd_next;
+	struct list_head wd_list;
 	struct mt7615_dev *dev;
 
 	dev = (struct mt7615_dev *)container_of(work, struct mt7615_dev,
 						wtbl_work);
 
-	mt7615_mutex_acquire(dev);
+	INIT_LIST_HEAD(&wd_list);
+	spin_lock_bh(&dev->mt76.lock);
+	list_splice_init(&dev->wd_head, &wd_list);
+	spin_unlock_bh(&dev->mt76.lock);
 
-	list_for_each_entry_safe(wd, wd_next, &dev->wd_head, node) {
-		spin_lock_bh(&dev->mt76.lock);
+	list_for_each_entry_safe(wd, wd_next, &wd_list, node) {
 		list_del(&wd->node);
-		spin_unlock_bh(&dev->mt76.lock);
+
+		mt7615_mutex_acquire(dev);
 
 		switch (wd->type) {
 		case MT7615_WTBL_RATE_DESC:
@@ -216,10 +222,11 @@ void mt7663u_wtbl_work(struct work_struct *work)
 			__mt7663u_mac_set_key(dev, wd);
 			break;
 		}
+
+		mt7615_mutex_release(dev);
+
 		kfree(wd);
 	}
-
-	mt7615_mutex_release(dev);
 }
 
 static void
@@ -236,17 +243,16 @@ mt7663u_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 		       struct ieee80211_sta *sta,
 		       struct mt76_tx_info *tx_info)
 {
+	struct mt7615_sta *msta = container_of(wcid, struct mt7615_sta, wcid);
 	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx_info->skb);
 
-	if (info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE) {
-		struct mt7615_sta *msta;
-
-		msta = container_of(wcid, struct mt7615_sta, wcid);
+	if ((info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE) &&
+	    !msta->rate_probe) {
+		/* request to configure sampling rate */
 		spin_lock_bh(&dev->mt76.lock);
 		mt7615_mac_set_rates(&dev->phy, msta, &info->control.rates[0],
 				     msta->rates);
-		msta->rate_probe = true;
 		spin_unlock_bh(&dev->mt76.lock);
 	}
 	mt7663u_mac_write_txwi(dev, wcid, qid, sta, tx_info->skb);

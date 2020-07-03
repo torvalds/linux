@@ -917,6 +917,9 @@ mt7615_mac_queue_rate_update(struct mt7615_phy *phy, struct mt7615_sta *sta,
 	struct mt7615_dev *dev = phy->dev;
 	struct mt7615_wtbl_desc *wd;
 
+	if (work_pending(&dev->wtbl_work))
+		return -EBUSY;
+
 	wd = kzalloc(sizeof(*wd), GFP_ATOMIC);
 	if (!wd)
 		return -ENOMEM;
@@ -1023,6 +1026,7 @@ void mt7615_mac_set_rates(struct mt7615_phy *phy, struct mt7615_sta *sta,
 
 	sta->rate_count = 2 * MT7615_RATE_RETRY * n_rates;
 	sta->wcid.tx_info |= MT_WCID_TX_INFO_SET;
+	sta->rate_probe = !!probe_rate;
 }
 EXPORT_SYMBOL_GPL(mt7615_mac_set_rates);
 
@@ -1231,7 +1235,6 @@ static bool mt7615_fill_txs(struct mt7615_dev *dev, struct mt7615_sta *sta,
 				phy = dev->mt76.phy2->priv;
 
 			mt7615_mac_set_rates(phy, sta, NULL, sta->rates);
-			sta->rate_probe = false;
 		}
 		spin_unlock_bh(&dev->mt76.lock);
 	} else {
