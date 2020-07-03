@@ -789,7 +789,7 @@ static int imx7d_charger_primary_detection(struct imx_usbmisc_data *data)
 	return 0;
 }
 
-/**
+/*
  * Whole charger detection process:
  * 1. OPMODE override to be non-driving
  * 2. Data contact check
