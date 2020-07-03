@@ -36,6 +36,7 @@
 #include <net/ip.h>
 #include <net/ipv6.h>
 #include <net/tso.h>
+#include <linux/bpf_trace.h>
 
 #include "mvpp2.h"
 #include "mvpp2_prs.h"
@@ -93,6 +94,24 @@ static u32 mvpp2_read_relaxed(struct mvpp2 *priv, u32 offset)
 static inline u32 mvpp2_cpu_to_thread(struct mvpp2 *priv, int cpu)
 {
 	return cpu % priv->nthreads;
+}
+
+static struct page_pool *
+mvpp2_create_page_pool(struct device *dev, int num, int len,
+		       enum dma_data_direction dma_dir)
+{
+	struct page_pool_params pp_params = {
+		/* internal DMA mapping in page_pool */
+		.flags = PP_FLAG_DMA_MAP | PP_FLAG_DMA_SYNC_DEV,
+		.pool_size = num,
+		.nid = NUMA_NO_NODE,
+		.dev = dev,
+		.dma_dir = dma_dir,
+		.offset = MVPP2_SKB_HEADROOM,
+		.max_len = len,
+	};
+
+	return page_pool_create(&pp_params);
 }
 
 /* These accessors should be used to access:
@@ -281,12 +300,17 @@ static void mvpp2_txq_inc_get(struct mvpp2_txq_pcpu *txq_pcpu)
 
 static void mvpp2_txq_inc_put(struct mvpp2_port *port,
 			      struct mvpp2_txq_pcpu *txq_pcpu,
-			      struct sk_buff *skb,
-			      struct mvpp2_tx_desc *tx_desc)
+			      void *data,
+			      struct mvpp2_tx_desc *tx_desc,
+			      enum mvpp2_tx_buf_type buf_type)
 {
 	struct mvpp2_txq_pcpu_buf *tx_buf =
 		txq_pcpu->buffs + txq_pcpu->txq_put_index;
-	tx_buf->skb = skb;
+	tx_buf->type = buf_type;
+	if (buf_type == MVPP2_TYPE_SKB)
+		tx_buf->skb = data;
+	else
+		tx_buf->xdpf = data;
 	tx_buf->size = mvpp2_txdesc_size_get(port, tx_desc);
 	tx_buf->dma = mvpp2_txdesc_dma_addr_get(port, tx_desc) +
 		mvpp2_txdesc_offset_get(port, tx_desc);
@@ -327,17 +351,25 @@ static inline int mvpp2_txq_phys(int port, int txq)
 	return (MVPP2_MAX_TCONT + port) * MVPP2_MAX_TXQ + txq;
 }
 
-static void *mvpp2_frag_alloc(const struct mvpp2_bm_pool *pool)
+/* Returns a struct page if page_pool is set, otherwise a buffer */
+static void *mvpp2_frag_alloc(const struct mvpp2_bm_pool *pool,
+			      struct page_pool *page_pool)
 {
+	if (page_pool)
+		return page_pool_dev_alloc_pages(page_pool);
+
 	if (likely(pool->frag_size <= PAGE_SIZE))
 		return netdev_alloc_frag(pool->frag_size);
-	else
-		return kmalloc(pool->frag_size, GFP_ATOMIC);
+
+	return kmalloc(pool->frag_size, GFP_ATOMIC);
 }
 
-static void mvpp2_frag_free(const struct mvpp2_bm_pool *pool, void *data)
+static void mvpp2_frag_free(const struct mvpp2_bm_pool *pool,
+			    struct page_pool *page_pool, void *data)
 {
-	if (likely(pool->frag_size <= PAGE_SIZE))
+	if (page_pool)
+		page_pool_put_full_page(page_pool, virt_to_head_page(data), false);
+	else if (likely(pool->frag_size <= PAGE_SIZE))
 		skb_free_frag(data);
 	else
 		kfree(data);
@@ -442,6 +474,7 @@ static void mvpp2_bm_bufs_get_addrs(struct device *dev, struct mvpp2 *priv,
 static void mvpp2_bm_bufs_free(struct device *dev, struct mvpp2 *priv,
 			       struct mvpp2_bm_pool *bm_pool, int buf_num)
 {
+	struct page_pool *pp = NULL;
 	int i;
 
 	if (buf_num > bm_pool->buf_num) {
@@ -449,6 +482,9 @@ static void mvpp2_bm_bufs_free(struct device *dev, struct mvpp2 *priv,
 		     bm_pool->id, buf_num);
 		buf_num = bm_pool->buf_num;
 	}
+
+	if (priv->percpu_pools)
+		pp = priv->page_pool[bm_pool->id];
 
 	for (i = 0; i < buf_num; i++) {
 		dma_addr_t buf_dma_addr;
@@ -458,14 +494,15 @@ static void mvpp2_bm_bufs_free(struct device *dev, struct mvpp2 *priv,
 		mvpp2_bm_bufs_get_addrs(dev, priv, bm_pool,
 					&buf_dma_addr, &buf_phys_addr);
 
-		dma_unmap_single(dev, buf_dma_addr,
-				 bm_pool->buf_size, DMA_FROM_DEVICE);
+		if (!pp)
+			dma_unmap_single(dev, buf_dma_addr,
+					 bm_pool->buf_size, DMA_FROM_DEVICE);
 
 		data = (void *)phys_to_virt(buf_phys_addr);
 		if (!data)
 			break;
 
-		mvpp2_frag_free(bm_pool, data);
+		mvpp2_frag_free(bm_pool, pp, data);
 	}
 
 	/* Update BM driver with number of buffers removed from pool */
@@ -511,6 +548,9 @@ static int mvpp2_bm_pool_destroy(struct device *dev, struct mvpp2 *priv,
 	val |= MVPP2_BM_STOP_MASK;
 	mvpp2_write(priv, MVPP2_BM_POOL_CTRL_REG(bm_pool->id), val);
 
+	if (priv->percpu_pools)
+		page_pool_destroy(priv->page_pool[bm_pool->id]);
+
 	dma_free_coherent(dev, bm_pool->size_bytes,
 			  bm_pool->virt_addr,
 			  bm_pool->dma_addr);
@@ -546,10 +586,33 @@ err_unroll_pools:
 
 static int mvpp2_bm_init(struct device *dev, struct mvpp2 *priv)
 {
+	enum dma_data_direction dma_dir = DMA_FROM_DEVICE;
 	int i, err, poolnum = MVPP2_BM_POOLS_NUM;
+	struct mvpp2_port *port;
 
-	if (priv->percpu_pools)
+	if (priv->percpu_pools) {
+		for (i = 0; i < priv->port_count; i++) {
+			port = priv->port_list[i];
+			if (port->xdp_prog) {
+				dma_dir = DMA_BIDIRECTIONAL;
+				break;
+			}
+		}
+
 		poolnum = mvpp2_get_nrxqs(priv) * 2;
+		for (i = 0; i < poolnum; i++) {
+			/* the pool in use */
+			int pn = i / (poolnum / 2);
+
+			priv->page_pool[i] =
+				mvpp2_create_page_pool(dev,
+						       mvpp2_pools[pn].buf_num,
+						       mvpp2_pools[pn].pkt_size,
+						       dma_dir);
+			if (IS_ERR(priv->page_pool[i]))
+				return PTR_ERR(priv->page_pool[i]);
+		}
+	}
 
 	dev_info(dev, "using %d %s buffers\n", poolnum,
 		 priv->percpu_pools ? "per-cpu" : "shared");
@@ -632,23 +695,31 @@ static void mvpp2_rxq_short_pool_set(struct mvpp2_port *port,
 
 static void *mvpp2_buf_alloc(struct mvpp2_port *port,
 			     struct mvpp2_bm_pool *bm_pool,
+			     struct page_pool *page_pool,
 			     dma_addr_t *buf_dma_addr,
 			     phys_addr_t *buf_phys_addr,
 			     gfp_t gfp_mask)
 {
 	dma_addr_t dma_addr;
+	struct page *page;
 	void *data;
 
-	data = mvpp2_frag_alloc(bm_pool);
+	data = mvpp2_frag_alloc(bm_pool, page_pool);
 	if (!data)
 		return NULL;
 
-	dma_addr = dma_map_single(port->dev->dev.parent, data,
-				  MVPP2_RX_BUF_SIZE(bm_pool->pkt_size),
-				  DMA_FROM_DEVICE);
-	if (unlikely(dma_mapping_error(port->dev->dev.parent, dma_addr))) {
-		mvpp2_frag_free(bm_pool, data);
-		return NULL;
+	if (page_pool) {
+		page = (struct page *)data;
+		dma_addr = page_pool_get_dma_addr(page);
+		data = page_to_virt(page);
+	} else {
+		dma_addr = dma_map_single(port->dev->dev.parent, data,
+					  MVPP2_RX_BUF_SIZE(bm_pool->pkt_size),
+					  DMA_FROM_DEVICE);
+		if (unlikely(dma_mapping_error(port->dev->dev.parent, dma_addr))) {
+			mvpp2_frag_free(bm_pool, NULL, data);
+			return NULL;
+		}
 	}
 	*buf_dma_addr = dma_addr;
 	*buf_phys_addr = virt_to_phys(data);
@@ -706,6 +777,7 @@ static int mvpp2_bm_bufs_add(struct mvpp2_port *port,
 	int i, buf_size, total_size;
 	dma_addr_t dma_addr;
 	phys_addr_t phys_addr;
+	struct page_pool *pp = NULL;
 	void *buf;
 
 	if (port->priv->percpu_pools &&
@@ -726,8 +798,10 @@ static int mvpp2_bm_bufs_add(struct mvpp2_port *port,
 		return 0;
 	}
 
+	if (port->priv->percpu_pools)
+		pp = port->priv->page_pool[bm_pool->id];
 	for (i = 0; i < buf_num; i++) {
-		buf = mvpp2_buf_alloc(port, bm_pool, &dma_addr,
+		buf = mvpp2_buf_alloc(port, bm_pool, pp, &dma_addr,
 				      &phys_addr, GFP_KERNEL);
 		if (!buf)
 			break;
@@ -907,28 +981,27 @@ static int mvpp2_swf_bm_pool_init_shared(struct mvpp2_port *port)
 /* Initialize pools for swf, percpu buffers variant */
 static int mvpp2_swf_bm_pool_init_percpu(struct mvpp2_port *port)
 {
-	struct mvpp2_bm_pool *p;
+	struct mvpp2_bm_pool *bm_pool;
 	int i;
 
 	for (i = 0; i < port->nrxqs; i++) {
-		p = mvpp2_bm_pool_use_percpu(port, MVPP2_BM_SHORT, i,
-					     mvpp2_pools[MVPP2_BM_SHORT].pkt_size);
-		if (!p)
+		bm_pool = mvpp2_bm_pool_use_percpu(port, MVPP2_BM_SHORT, i,
+						   mvpp2_pools[MVPP2_BM_SHORT].pkt_size);
+		if (!bm_pool)
 			return -ENOMEM;
 
-		port->priv->bm_pools[i].port_map |= BIT(port->id);
-		mvpp2_rxq_short_pool_set(port, i, port->priv->bm_pools[i].id);
+		bm_pool->port_map |= BIT(port->id);
+		mvpp2_rxq_short_pool_set(port, i, bm_pool->id);
 	}
 
 	for (i = 0; i < port->nrxqs; i++) {
-		p = mvpp2_bm_pool_use_percpu(port, MVPP2_BM_LONG, i + port->nrxqs,
-					     mvpp2_pools[MVPP2_BM_LONG].pkt_size);
-		if (!p)
+		bm_pool = mvpp2_bm_pool_use_percpu(port, MVPP2_BM_LONG, i + port->nrxqs,
+						   mvpp2_pools[MVPP2_BM_LONG].pkt_size);
+		if (!bm_pool)
 			return -ENOMEM;
 
-		port->priv->bm_pools[i + port->nrxqs].port_map |= BIT(port->id);
-		mvpp2_rxq_long_pool_set(port, i,
-					port->priv->bm_pools[i + port->nrxqs].id);
+		bm_pool->port_map |= BIT(port->id);
+		mvpp2_rxq_long_pool_set(port, i, bm_pool->id);
 	}
 
 	port->pool_long = NULL;
@@ -1412,6 +1485,16 @@ static void mvpp2_port_loopback_set(struct mvpp2_port *port,
 	writel(val, port->base + MVPP2_GMAC_CTRL_1_REG);
 }
 
+enum {
+	ETHTOOL_XDP_REDIRECT,
+	ETHTOOL_XDP_PASS,
+	ETHTOOL_XDP_DROP,
+	ETHTOOL_XDP_TX,
+	ETHTOOL_XDP_TX_ERR,
+	ETHTOOL_XDP_XMIT,
+	ETHTOOL_XDP_XMIT_ERR,
+};
+
 struct mvpp2_ethtool_counter {
 	unsigned int offset;
 	const char string[ETH_GSTRING_LEN];
@@ -1504,10 +1587,21 @@ static const struct mvpp2_ethtool_counter mvpp2_ethtool_rxq_regs[] = {
 	{ MVPP2_RX_PKTS_BM_DROP_CTR, "rxq_%d_packets_bm_drops" },
 };
 
+static const struct mvpp2_ethtool_counter mvpp2_ethtool_xdp[] = {
+	{ ETHTOOL_XDP_REDIRECT, "rx_xdp_redirect", },
+	{ ETHTOOL_XDP_PASS, "rx_xdp_pass", },
+	{ ETHTOOL_XDP_DROP, "rx_xdp_drop", },
+	{ ETHTOOL_XDP_TX, "rx_xdp_tx", },
+	{ ETHTOOL_XDP_TX_ERR, "rx_xdp_tx_errors", },
+	{ ETHTOOL_XDP_XMIT, "tx_xdp_xmit", },
+	{ ETHTOOL_XDP_XMIT_ERR, "tx_xdp_xmit_errors", },
+};
+
 #define MVPP2_N_ETHTOOL_STATS(ntxqs, nrxqs)	(ARRAY_SIZE(mvpp2_ethtool_mib_regs) + \
 						 ARRAY_SIZE(mvpp2_ethtool_port_regs) + \
 						 (ARRAY_SIZE(mvpp2_ethtool_txq_regs) * (ntxqs)) + \
-						 (ARRAY_SIZE(mvpp2_ethtool_rxq_regs) * (nrxqs)))
+						 (ARRAY_SIZE(mvpp2_ethtool_rxq_regs) * (nrxqs)) + \
+						 ARRAY_SIZE(mvpp2_ethtool_xdp))
 
 static void mvpp2_ethtool_get_strings(struct net_device *netdev, u32 sset,
 				      u8 *data)
@@ -1546,10 +1640,57 @@ static void mvpp2_ethtool_get_strings(struct net_device *netdev, u32 sset,
 			data += ETH_GSTRING_LEN;
 		}
 	}
+
+	for (i = 0; i < ARRAY_SIZE(mvpp2_ethtool_xdp); i++) {
+		strscpy(data, mvpp2_ethtool_xdp[i].string,
+			ETH_GSTRING_LEN);
+		data += ETH_GSTRING_LEN;
+	}
+}
+
+static void
+mvpp2_get_xdp_stats(struct mvpp2_port *port, struct mvpp2_pcpu_stats *xdp_stats)
+{
+	unsigned int start;
+	unsigned int cpu;
+
+	/* Gather XDP Statistics */
+	for_each_possible_cpu(cpu) {
+		struct mvpp2_pcpu_stats *cpu_stats;
+		u64	xdp_redirect;
+		u64	xdp_pass;
+		u64	xdp_drop;
+		u64	xdp_xmit;
+		u64	xdp_xmit_err;
+		u64	xdp_tx;
+		u64	xdp_tx_err;
+
+		cpu_stats = per_cpu_ptr(port->stats, cpu);
+		do {
+			start = u64_stats_fetch_begin_irq(&cpu_stats->syncp);
+			xdp_redirect = cpu_stats->xdp_redirect;
+			xdp_pass   = cpu_stats->xdp_pass;
+			xdp_drop = cpu_stats->xdp_drop;
+			xdp_xmit   = cpu_stats->xdp_xmit;
+			xdp_xmit_err   = cpu_stats->xdp_xmit_err;
+			xdp_tx   = cpu_stats->xdp_tx;
+			xdp_tx_err   = cpu_stats->xdp_tx_err;
+		} while (u64_stats_fetch_retry_irq(&cpu_stats->syncp, start));
+
+		xdp_stats->xdp_redirect += xdp_redirect;
+		xdp_stats->xdp_pass   += xdp_pass;
+		xdp_stats->xdp_drop += xdp_drop;
+		xdp_stats->xdp_xmit   += xdp_xmit;
+		xdp_stats->xdp_xmit_err   += xdp_xmit_err;
+		xdp_stats->xdp_tx   += xdp_tx;
+		xdp_stats->xdp_tx_err   += xdp_tx_err;
+	}
 }
 
 static void mvpp2_read_stats(struct mvpp2_port *port)
 {
+	struct mvpp2_pcpu_stats xdp_stats = {};
+	const struct mvpp2_ethtool_counter *s;
 	u64 *pstats;
 	int i, q;
 
@@ -1577,6 +1718,37 @@ static void mvpp2_read_stats(struct mvpp2_port *port)
 			*pstats++ += mvpp2_read_index(port->priv,
 						      port->first_rxq + q,
 						      mvpp2_ethtool_rxq_regs[i].offset);
+
+	/* Gather XDP Statistics */
+	mvpp2_get_xdp_stats(port, &xdp_stats);
+
+	for (i = 0, s = mvpp2_ethtool_xdp;
+		 s < mvpp2_ethtool_xdp + ARRAY_SIZE(mvpp2_ethtool_xdp);
+	     s++, i++) {
+		switch (s->offset) {
+		case ETHTOOL_XDP_REDIRECT:
+			*pstats++ = xdp_stats.xdp_redirect;
+			break;
+		case ETHTOOL_XDP_PASS:
+			*pstats++ = xdp_stats.xdp_pass;
+			break;
+		case ETHTOOL_XDP_DROP:
+			*pstats++ = xdp_stats.xdp_drop;
+			break;
+		case ETHTOOL_XDP_TX:
+			*pstats++ = xdp_stats.xdp_tx;
+			break;
+		case ETHTOOL_XDP_TX_ERR:
+			*pstats++ = xdp_stats.xdp_tx_err;
+			break;
+		case ETHTOOL_XDP_XMIT:
+			*pstats++ = xdp_stats.xdp_xmit;
+			break;
+		case ETHTOOL_XDP_XMIT_ERR:
+			*pstats++ = xdp_stats.xdp_xmit_err;
+			break;
+		}
+	}
 }
 
 static void mvpp2_gather_hw_statistics(struct work_struct *work)
@@ -2262,11 +2434,15 @@ static void mvpp2_txq_bufs_free(struct mvpp2_port *port,
 		struct mvpp2_txq_pcpu_buf *tx_buf =
 			txq_pcpu->buffs + txq_pcpu->txq_get_index;
 
-		if (!IS_TSO_HEADER(txq_pcpu, tx_buf->dma))
+		if (!IS_TSO_HEADER(txq_pcpu, tx_buf->dma) &&
+		    tx_buf->type != MVPP2_TYPE_XDP_TX)
 			dma_unmap_single(port->dev->dev.parent, tx_buf->dma,
 					 tx_buf->size, DMA_TO_DEVICE);
-		if (tx_buf->skb)
+		if (tx_buf->type == MVPP2_TYPE_SKB && tx_buf->skb)
 			dev_kfree_skb_any(tx_buf->skb);
+		else if (tx_buf->type == MVPP2_TYPE_XDP_TX ||
+			 tx_buf->type == MVPP2_TYPE_XDP_NDO)
+			xdp_return_frame(tx_buf->xdpf);
 
 		mvpp2_txq_inc_get(txq_pcpu);
 	}
@@ -2375,10 +2551,11 @@ static int mvpp2_aggr_txq_init(struct platform_device *pdev,
 /* Create a specified Rx queue */
 static int mvpp2_rxq_init(struct mvpp2_port *port,
 			  struct mvpp2_rx_queue *rxq)
-
 {
+	struct mvpp2 *priv = port->priv;
 	unsigned int thread;
 	u32 rxq_dma;
+	int err;
 
 	rxq->size = port->rx_ring_size;
 
@@ -2407,7 +2584,7 @@ static int mvpp2_rxq_init(struct mvpp2_port *port,
 	put_cpu();
 
 	/* Set Offset */
-	mvpp2_rxq_offset_set(port, rxq->id, NET_SKB_PAD);
+	mvpp2_rxq_offset_set(port, rxq->id, MVPP2_SKB_HEADROOM);
 
 	/* Set coalescing pkts and time */
 	mvpp2_rx_pkts_coal_set(port, rxq);
@@ -2416,7 +2593,43 @@ static int mvpp2_rxq_init(struct mvpp2_port *port,
 	/* Add number of descriptors ready for receiving packets */
 	mvpp2_rxq_status_update(port, rxq->id, 0, rxq->size);
 
+	if (priv->percpu_pools) {
+		err = xdp_rxq_info_reg(&rxq->xdp_rxq_short, port->dev, rxq->id);
+		if (err < 0)
+			goto err_free_dma;
+
+		err = xdp_rxq_info_reg(&rxq->xdp_rxq_long, port->dev, rxq->id);
+		if (err < 0)
+			goto err_unregister_rxq_short;
+
+		/* Every RXQ has a pool for short and another for long packets */
+		err = xdp_rxq_info_reg_mem_model(&rxq->xdp_rxq_short,
+						 MEM_TYPE_PAGE_POOL,
+						 priv->page_pool[rxq->logic_rxq]);
+		if (err < 0)
+			goto err_unregister_rxq_long;
+
+		err = xdp_rxq_info_reg_mem_model(&rxq->xdp_rxq_long,
+						 MEM_TYPE_PAGE_POOL,
+						 priv->page_pool[rxq->logic_rxq +
+								 port->nrxqs]);
+		if (err < 0)
+			goto err_unregister_mem_rxq_short;
+	}
+
 	return 0;
+
+err_unregister_mem_rxq_short:
+	xdp_rxq_info_unreg_mem_model(&rxq->xdp_rxq_short);
+err_unregister_rxq_long:
+	xdp_rxq_info_unreg(&rxq->xdp_rxq_long);
+err_unregister_rxq_short:
+	xdp_rxq_info_unreg(&rxq->xdp_rxq_short);
+err_free_dma:
+	dma_free_coherent(port->dev->dev.parent,
+			  rxq->size * MVPP2_DESC_ALIGNED_SIZE,
+			  rxq->descs, rxq->descs_dma);
+	return err;
 }
 
 /* Push packets received by the RXQ to BM pool */
@@ -2449,6 +2662,12 @@ static void mvpp2_rxq_deinit(struct mvpp2_port *port,
 			     struct mvpp2_rx_queue *rxq)
 {
 	unsigned int thread;
+
+	if (xdp_rxq_info_is_reg(&rxq->xdp_rxq_short))
+		xdp_rxq_info_unreg(&rxq->xdp_rxq_short);
+
+	if (xdp_rxq_info_is_reg(&rxq->xdp_rxq_long))
+		xdp_rxq_info_unreg(&rxq->xdp_rxq_long);
 
 	mvpp2_rxq_drop_pkts(port, rxq);
 
@@ -2711,7 +2930,7 @@ err_cleanup:
 static int mvpp2_setup_txqs(struct mvpp2_port *port)
 {
 	struct mvpp2_tx_queue *txq;
-	int queue, err, cpu;
+	int queue, err;
 
 	for (queue = 0; queue < port->ntxqs; queue++) {
 		txq = port->txqs[queue];
@@ -2720,8 +2939,8 @@ static int mvpp2_setup_txqs(struct mvpp2_port *port)
 			goto err_cleanup;
 
 		/* Assign this queue to a CPU */
-		cpu = queue % num_present_cpus();
-		netif_set_xps_queue(port->dev, cpumask_of(cpu), queue);
+		if (queue < num_possible_cpus())
+			netif_set_xps_queue(port->dev, cpumask_of(queue), queue);
 	}
 
 	if (port->has_tx_irqs) {
@@ -2891,14 +3110,15 @@ static void mvpp2_rx_csum(struct mvpp2_port *port, u32 status,
 
 /* Allocate a new skb and add it to BM pool */
 static int mvpp2_rx_refill(struct mvpp2_port *port,
-			   struct mvpp2_bm_pool *bm_pool, int pool)
+			   struct mvpp2_bm_pool *bm_pool,
+			   struct page_pool *page_pool, int pool)
 {
 	dma_addr_t dma_addr;
 	phys_addr_t phys_addr;
 	void *buf;
 
-	buf = mvpp2_buf_alloc(port, bm_pool, &dma_addr, &phys_addr,
-			      GFP_ATOMIC);
+	buf = mvpp2_buf_alloc(port, bm_pool, page_pool,
+			      &dma_addr, &phys_addr, GFP_ATOMIC);
 	if (!buf)
 		return -ENOMEM;
 
@@ -2939,15 +3159,251 @@ static u32 mvpp2_skb_tx_csum(struct mvpp2_port *port, struct sk_buff *skb)
 	return MVPP2_TXD_L4_CSUM_NOT | MVPP2_TXD_IP_CSUM_DISABLE;
 }
 
+static void mvpp2_xdp_finish_tx(struct mvpp2_port *port, u16 txq_id, int nxmit, int nxmit_byte)
+{
+	unsigned int thread = mvpp2_cpu_to_thread(port->priv, smp_processor_id());
+	struct mvpp2_tx_queue *aggr_txq;
+	struct mvpp2_txq_pcpu *txq_pcpu;
+	struct mvpp2_tx_queue *txq;
+	struct netdev_queue *nq;
+
+	txq = port->txqs[txq_id];
+	txq_pcpu = per_cpu_ptr(txq->pcpu, thread);
+	nq = netdev_get_tx_queue(port->dev, txq_id);
+	aggr_txq = &port->priv->aggr_txqs[thread];
+
+	txq_pcpu->reserved_num -= nxmit;
+	txq_pcpu->count += nxmit;
+	aggr_txq->count += nxmit;
+
+	/* Enable transmit */
+	wmb();
+	mvpp2_aggr_txq_pend_desc_add(port, nxmit);
+
+	if (txq_pcpu->count >= txq_pcpu->stop_threshold)
+		netif_tx_stop_queue(nq);
+
+	/* Finalize TX processing */
+	if (!port->has_tx_irqs && txq_pcpu->count >= txq->done_pkts_coal)
+		mvpp2_txq_done(port, txq, txq_pcpu);
+}
+
+static int
+mvpp2_xdp_submit_frame(struct mvpp2_port *port, u16 txq_id,
+		       struct xdp_frame *xdpf, bool dma_map)
+{
+	unsigned int thread = mvpp2_cpu_to_thread(port->priv, smp_processor_id());
+	u32 tx_cmd = MVPP2_TXD_L4_CSUM_NOT | MVPP2_TXD_IP_CSUM_DISABLE |
+		     MVPP2_TXD_F_DESC | MVPP2_TXD_L_DESC;
+	enum mvpp2_tx_buf_type buf_type;
+	struct mvpp2_txq_pcpu *txq_pcpu;
+	struct mvpp2_tx_queue *aggr_txq;
+	struct mvpp2_tx_desc *tx_desc;
+	struct mvpp2_tx_queue *txq;
+	int ret = MVPP2_XDP_TX;
+	dma_addr_t dma_addr;
+
+	txq = port->txqs[txq_id];
+	txq_pcpu = per_cpu_ptr(txq->pcpu, thread);
+	aggr_txq = &port->priv->aggr_txqs[thread];
+
+	/* Check number of available descriptors */
+	if (mvpp2_aggr_desc_num_check(port, aggr_txq, 1) ||
+	    mvpp2_txq_reserved_desc_num_proc(port, txq, txq_pcpu, 1)) {
+		ret = MVPP2_XDP_DROPPED;
+		goto out;
+	}
+
+	/* Get a descriptor for the first part of the packet */
+	tx_desc = mvpp2_txq_next_desc_get(aggr_txq);
+	mvpp2_txdesc_txq_set(port, tx_desc, txq->id);
+	mvpp2_txdesc_size_set(port, tx_desc, xdpf->len);
+
+	if (dma_map) {
+		/* XDP_REDIRECT or AF_XDP */
+		dma_addr = dma_map_single(port->dev->dev.parent, xdpf->data,
+					  xdpf->len, DMA_TO_DEVICE);
+
+		if (unlikely(dma_mapping_error(port->dev->dev.parent, dma_addr))) {
+			mvpp2_txq_desc_put(txq);
+			ret = MVPP2_XDP_DROPPED;
+			goto out;
+		}
+
+		buf_type = MVPP2_TYPE_XDP_NDO;
+	} else {
+		/* XDP_TX */
+		struct page *page = virt_to_page(xdpf->data);
+
+		dma_addr = page_pool_get_dma_addr(page) +
+			   sizeof(*xdpf) + xdpf->headroom;
+		dma_sync_single_for_device(port->dev->dev.parent, dma_addr,
+					   xdpf->len, DMA_BIDIRECTIONAL);
+
+		buf_type = MVPP2_TYPE_XDP_TX;
+	}
+
+	mvpp2_txdesc_dma_addr_set(port, tx_desc, dma_addr);
+
+	mvpp2_txdesc_cmd_set(port, tx_desc, tx_cmd);
+	mvpp2_txq_inc_put(port, txq_pcpu, xdpf, tx_desc, buf_type);
+
+out:
+	return ret;
+}
+
+static int
+mvpp2_xdp_xmit_back(struct mvpp2_port *port, struct xdp_buff *xdp)
+{
+	struct mvpp2_pcpu_stats *stats = this_cpu_ptr(port->stats);
+	struct xdp_frame *xdpf;
+	u16 txq_id;
+	int ret;
+
+	xdpf = xdp_convert_buff_to_frame(xdp);
+	if (unlikely(!xdpf))
+		return MVPP2_XDP_DROPPED;
+
+	/* The first of the TX queues are used for XPS,
+	 * the second half for XDP_TX
+	 */
+	txq_id = mvpp2_cpu_to_thread(port->priv, smp_processor_id()) + (port->ntxqs / 2);
+
+	ret = mvpp2_xdp_submit_frame(port, txq_id, xdpf, false);
+	if (ret == MVPP2_XDP_TX) {
+		u64_stats_update_begin(&stats->syncp);
+		stats->tx_bytes += xdpf->len;
+		stats->tx_packets++;
+		stats->xdp_tx++;
+		u64_stats_update_end(&stats->syncp);
+
+		mvpp2_xdp_finish_tx(port, txq_id, 1, xdpf->len);
+	} else {
+		u64_stats_update_begin(&stats->syncp);
+		stats->xdp_tx_err++;
+		u64_stats_update_end(&stats->syncp);
+	}
+
+	return ret;
+}
+
+static int
+mvpp2_xdp_xmit(struct net_device *dev, int num_frame,
+	       struct xdp_frame **frames, u32 flags)
+{
+	struct mvpp2_port *port = netdev_priv(dev);
+	int i, nxmit_byte = 0, nxmit = num_frame;
+	struct mvpp2_pcpu_stats *stats;
+	u16 txq_id;
+	u32 ret;
+
+	if (unlikely(test_bit(0, &port->state)))
+		return -ENETDOWN;
+
+	if (unlikely(flags & ~XDP_XMIT_FLAGS_MASK))
+		return -EINVAL;
+
+	/* The first of the TX queues are used for XPS,
+	 * the second half for XDP_TX
+	 */
+	txq_id = mvpp2_cpu_to_thread(port->priv, smp_processor_id()) + (port->ntxqs / 2);
+
+	for (i = 0; i < num_frame; i++) {
+		ret = mvpp2_xdp_submit_frame(port, txq_id, frames[i], true);
+		if (ret == MVPP2_XDP_TX) {
+			nxmit_byte += frames[i]->len;
+		} else {
+			xdp_return_frame_rx_napi(frames[i]);
+			nxmit--;
+		}
+	}
+
+	if (likely(nxmit > 0))
+		mvpp2_xdp_finish_tx(port, txq_id, nxmit, nxmit_byte);
+
+	stats = this_cpu_ptr(port->stats);
+	u64_stats_update_begin(&stats->syncp);
+	stats->tx_bytes += nxmit_byte;
+	stats->tx_packets += nxmit;
+	stats->xdp_xmit += nxmit;
+	stats->xdp_xmit_err += num_frame - nxmit;
+	u64_stats_update_end(&stats->syncp);
+
+	return nxmit;
+}
+
+static int
+mvpp2_run_xdp(struct mvpp2_port *port, struct mvpp2_rx_queue *rxq,
+	      struct bpf_prog *prog, struct xdp_buff *xdp,
+	      struct page_pool *pp, struct mvpp2_pcpu_stats *stats)
+{
+	unsigned int len, sync, err;
+	struct page *page;
+	u32 ret, act;
+
+	len = xdp->data_end - xdp->data_hard_start - MVPP2_SKB_HEADROOM;
+	act = bpf_prog_run_xdp(prog, xdp);
+
+	/* Due xdp_adjust_tail: DMA sync for_device cover max len CPU touch */
+	sync = xdp->data_end - xdp->data_hard_start - MVPP2_SKB_HEADROOM;
+	sync = max(sync, len);
+
+	switch (act) {
+	case XDP_PASS:
+		stats->xdp_pass++;
+		ret = MVPP2_XDP_PASS;
+		break;
+	case XDP_REDIRECT:
+		err = xdp_do_redirect(port->dev, xdp, prog);
+		if (unlikely(err)) {
+			ret = MVPP2_XDP_DROPPED;
+			page = virt_to_head_page(xdp->data);
+			page_pool_put_page(pp, page, sync, true);
+		} else {
+			ret = MVPP2_XDP_REDIR;
+			stats->xdp_redirect++;
+		}
+		break;
+	case XDP_TX:
+		ret = mvpp2_xdp_xmit_back(port, xdp);
+		if (ret != MVPP2_XDP_TX) {
+			page = virt_to_head_page(xdp->data);
+			page_pool_put_page(pp, page, sync, true);
+		}
+		break;
+	default:
+		bpf_warn_invalid_xdp_action(act);
+		fallthrough;
+	case XDP_ABORTED:
+		trace_xdp_exception(port->dev, prog, act);
+		fallthrough;
+	case XDP_DROP:
+		page = virt_to_head_page(xdp->data);
+		page_pool_put_page(pp, page, sync, true);
+		ret = MVPP2_XDP_DROPPED;
+		stats->xdp_drop++;
+		break;
+	}
+
+	return ret;
+}
+
 /* Main rx processing */
 static int mvpp2_rx(struct mvpp2_port *port, struct napi_struct *napi,
 		    int rx_todo, struct mvpp2_rx_queue *rxq)
 {
 	struct net_device *dev = port->dev;
+	struct mvpp2_pcpu_stats ps = {};
+	enum dma_data_direction dma_dir;
+	struct bpf_prog *xdp_prog;
+	struct xdp_buff xdp;
 	int rx_received;
 	int rx_done = 0;
-	u32 rcvd_pkts = 0;
-	u32 rcvd_bytes = 0;
+	u32 xdp_ret = 0;
+
+	rcu_read_lock();
+
+	xdp_prog = READ_ONCE(port->xdp_prog);
 
 	/* Get number of received packets and clamp the to-do */
 	rx_received = mvpp2_rxq_received(port, rxq->id);
@@ -2957,12 +3413,13 @@ static int mvpp2_rx(struct mvpp2_port *port, struct napi_struct *napi,
 	while (rx_done < rx_todo) {
 		struct mvpp2_rx_desc *rx_desc = mvpp2_rxq_next_desc_get(rxq);
 		struct mvpp2_bm_pool *bm_pool;
+		struct page_pool *pp = NULL;
 		struct sk_buff *skb;
 		unsigned int frag_size;
 		dma_addr_t dma_addr;
 		phys_addr_t phys_addr;
 		u32 rx_status;
-		int pool, rx_bytes, err;
+		int pool, rx_bytes, err, ret;
 		void *data;
 
 		rx_done++;
@@ -2985,9 +3442,18 @@ static int mvpp2_rx(struct mvpp2_port *port, struct napi_struct *napi,
 		if (rx_status & MVPP2_RXD_ERR_SUMMARY)
 			goto err_drop_frame;
 
+		if (port->priv->percpu_pools) {
+			pp = port->priv->page_pool[pool];
+			dma_dir = page_pool_get_dma_dir(pp);
+		} else {
+			dma_dir = DMA_FROM_DEVICE;
+		}
+
 		dma_sync_single_for_cpu(dev->dev.parent, dma_addr,
 					rx_bytes + MVPP2_MH_SIZE,
-					DMA_FROM_DEVICE);
+					dma_dir);
+
+		/* Prefetch header */
 		prefetch(data);
 
 		if (bm_pool->frag_size > PAGE_SIZE)
@@ -2995,26 +3461,58 @@ static int mvpp2_rx(struct mvpp2_port *port, struct napi_struct *napi,
 		else
 			frag_size = bm_pool->frag_size;
 
+		if (xdp_prog) {
+			xdp.data_hard_start = data;
+			xdp.data = data + MVPP2_MH_SIZE + MVPP2_SKB_HEADROOM;
+			xdp.data_end = xdp.data + rx_bytes;
+			xdp.frame_sz = PAGE_SIZE;
+
+			if (bm_pool->pkt_size == MVPP2_BM_SHORT_PKT_SIZE)
+				xdp.rxq = &rxq->xdp_rxq_short;
+			else
+				xdp.rxq = &rxq->xdp_rxq_long;
+
+			xdp_set_data_meta_invalid(&xdp);
+
+			ret = mvpp2_run_xdp(port, rxq, xdp_prog, &xdp, pp, &ps);
+
+			if (ret) {
+				xdp_ret |= ret;
+				err = mvpp2_rx_refill(port, bm_pool, pp, pool);
+				if (err) {
+					netdev_err(port->dev, "failed to refill BM pools\n");
+					goto err_drop_frame;
+				}
+
+				ps.rx_packets++;
+				ps.rx_bytes += rx_bytes;
+				continue;
+			}
+		}
+
 		skb = build_skb(data, frag_size);
 		if (!skb) {
 			netdev_warn(port->dev, "skb build failed\n");
 			goto err_drop_frame;
 		}
 
-		err = mvpp2_rx_refill(port, bm_pool, pool);
+		err = mvpp2_rx_refill(port, bm_pool, pp, pool);
 		if (err) {
 			netdev_err(port->dev, "failed to refill BM pools\n");
 			goto err_drop_frame;
 		}
 
-		dma_unmap_single_attrs(dev->dev.parent, dma_addr,
-				       bm_pool->buf_size, DMA_FROM_DEVICE,
-				       DMA_ATTR_SKIP_CPU_SYNC);
+		if (pp)
+			page_pool_release_page(pp, virt_to_page(data));
+		else
+			dma_unmap_single_attrs(dev->dev.parent, dma_addr,
+					       bm_pool->buf_size, DMA_FROM_DEVICE,
+					       DMA_ATTR_SKIP_CPU_SYNC);
 
-		rcvd_pkts++;
-		rcvd_bytes += rx_bytes;
+		ps.rx_packets++;
+		ps.rx_bytes += rx_bytes;
 
-		skb_reserve(skb, MVPP2_MH_SIZE + NET_SKB_PAD);
+		skb_reserve(skb, MVPP2_MH_SIZE + MVPP2_SKB_HEADROOM);
 		skb_put(skb, rx_bytes);
 		skb->protocol = eth_type_trans(skb, dev);
 		mvpp2_rx_csum(port, rx_status, skb);
@@ -3029,12 +3527,21 @@ err_drop_frame:
 		mvpp2_bm_pool_put(port, pool, dma_addr, phys_addr);
 	}
 
-	if (rcvd_pkts) {
+	rcu_read_unlock();
+
+	if (xdp_ret & MVPP2_XDP_REDIR)
+		xdp_do_flush_map();
+
+	if (ps.rx_packets) {
 		struct mvpp2_pcpu_stats *stats = this_cpu_ptr(port->stats);
 
 		u64_stats_update_begin(&stats->syncp);
-		stats->rx_packets += rcvd_pkts;
-		stats->rx_bytes   += rcvd_bytes;
+		stats->rx_packets += ps.rx_packets;
+		stats->rx_bytes   += ps.rx_bytes;
+		/* xdp */
+		stats->xdp_redirect += ps.xdp_redirect;
+		stats->xdp_pass += ps.xdp_pass;
+		stats->xdp_drop += ps.xdp_drop;
 		u64_stats_update_end(&stats->syncp);
 	}
 
@@ -3095,11 +3602,11 @@ static int mvpp2_tx_frag_process(struct mvpp2_port *port, struct sk_buff *skb,
 			/* Last descriptor */
 			mvpp2_txdesc_cmd_set(port, tx_desc,
 					     MVPP2_TXD_L_DESC);
-			mvpp2_txq_inc_put(port, txq_pcpu, skb, tx_desc);
+			mvpp2_txq_inc_put(port, txq_pcpu, skb, tx_desc, MVPP2_TYPE_SKB);
 		} else {
 			/* Descriptor in the middle: Not First, Not Last */
 			mvpp2_txdesc_cmd_set(port, tx_desc, 0);
-			mvpp2_txq_inc_put(port, txq_pcpu, NULL, tx_desc);
+			mvpp2_txq_inc_put(port, txq_pcpu, NULL, tx_desc, MVPP2_TYPE_SKB);
 		}
 	}
 
@@ -3137,7 +3644,7 @@ static inline void mvpp2_tso_put_hdr(struct sk_buff *skb,
 	mvpp2_txdesc_cmd_set(port, tx_desc, mvpp2_skb_tx_csum(port, skb) |
 					    MVPP2_TXD_F_DESC |
 					    MVPP2_TXD_PADDING_DISABLE);
-	mvpp2_txq_inc_put(port, txq_pcpu, NULL, tx_desc);
+	mvpp2_txq_inc_put(port, txq_pcpu, NULL, tx_desc, MVPP2_TYPE_SKB);
 }
 
 static inline int mvpp2_tso_put_data(struct sk_buff *skb,
@@ -3166,14 +3673,14 @@ static inline int mvpp2_tso_put_data(struct sk_buff *skb,
 	if (!left) {
 		mvpp2_txdesc_cmd_set(port, tx_desc, MVPP2_TXD_L_DESC);
 		if (last) {
-			mvpp2_txq_inc_put(port, txq_pcpu, skb, tx_desc);
+			mvpp2_txq_inc_put(port, txq_pcpu, skb, tx_desc, MVPP2_TYPE_SKB);
 			return 0;
 		}
 	} else {
 		mvpp2_txdesc_cmd_set(port, tx_desc, 0);
 	}
 
-	mvpp2_txq_inc_put(port, txq_pcpu, NULL, tx_desc);
+	mvpp2_txq_inc_put(port, txq_pcpu, NULL, tx_desc, MVPP2_TYPE_SKB);
 	return 0;
 }
 
@@ -3286,12 +3793,12 @@ static netdev_tx_t mvpp2_tx(struct sk_buff *skb, struct net_device *dev)
 		/* First and Last descriptor */
 		tx_cmd |= MVPP2_TXD_F_DESC | MVPP2_TXD_L_DESC;
 		mvpp2_txdesc_cmd_set(port, tx_desc, tx_cmd);
-		mvpp2_txq_inc_put(port, txq_pcpu, skb, tx_desc);
+		mvpp2_txq_inc_put(port, txq_pcpu, skb, tx_desc, MVPP2_TYPE_SKB);
 	} else {
 		/* First but not Last */
 		tx_cmd |= MVPP2_TXD_F_DESC | MVPP2_TXD_PADDING_DISABLE;
 		mvpp2_txdesc_cmd_set(port, tx_desc, tx_cmd);
-		mvpp2_txq_inc_put(port, txq_pcpu, NULL, tx_desc);
+		mvpp2_txq_inc_put(port, txq_pcpu, NULL, tx_desc, MVPP2_TYPE_SKB);
 
 		/* Continue with other skb fragments */
 		if (mvpp2_tx_frag_process(port, skb, aggr_txq, txq)) {
@@ -3504,12 +4011,16 @@ static void mvpp2_start_dev(struct mvpp2_port *port)
 	}
 
 	netif_tx_start_all_queues(port->dev);
+
+	clear_bit(0, &port->state);
 }
 
 /* Set hw internals when stopping port */
 static void mvpp2_stop_dev(struct mvpp2_port *port)
 {
 	int i;
+
+	set_bit(0, &port->state);
 
 	/* Disable interrupts on all threads */
 	mvpp2_interrupts_disable(port);
@@ -3917,6 +4428,10 @@ static int mvpp2_change_mtu(struct net_device *dev, int mtu)
 	}
 
 	if (MVPP2_RX_PKT_SIZE(mtu) > MVPP2_BM_LONG_PKT_SIZE) {
+		if (port->xdp_prog) {
+			netdev_err(dev, "Jumbo frames are not supported with XDP\n");
+			return -EINVAL;
+		}
 		if (priv->percpu_pools) {
 			netdev_warn(dev, "mtu %d too high, switching to shared buffers", mtu);
 			mvpp2_bm_switch_buffers(priv, false);
@@ -3958,6 +4473,33 @@ static int mvpp2_change_mtu(struct net_device *dev, int mtu)
 		mvpp2_egress_enable(port);
 		mvpp2_ingress_enable(port);
 	}
+
+	return err;
+}
+
+static int mvpp2_check_pagepool_dma(struct mvpp2_port *port)
+{
+	enum dma_data_direction dma_dir = DMA_FROM_DEVICE;
+	struct mvpp2 *priv = port->priv;
+	int err = -1, i;
+
+	if (!priv->percpu_pools)
+		return err;
+
+	if (!priv->page_pool)
+		return -ENOMEM;
+
+	for (i = 0; i < priv->port_count; i++) {
+		port = priv->port_list[i];
+		if (port->xdp_prog) {
+			dma_dir = DMA_BIDIRECTIONAL;
+			break;
+		}
+	}
+
+	/* All pools are equal in terms of DMA direction */
+	if (priv->page_pool[0]->p.dma_dir != dma_dir)
+		err = mvpp2_bm_switch_buffers(priv, true);
 
 	return err;
 }
@@ -4053,6 +4595,64 @@ static int mvpp2_set_features(struct net_device *dev,
 	}
 
 	return 0;
+}
+
+static int mvpp2_xdp_setup(struct mvpp2_port *port, struct netdev_bpf *bpf)
+{
+	struct bpf_prog *prog = bpf->prog, *old_prog;
+	bool running = netif_running(port->dev);
+	bool reset = !prog != !port->xdp_prog;
+
+	if (port->dev->mtu > ETH_DATA_LEN) {
+		NL_SET_ERR_MSG_MOD(bpf->extack, "XDP is not supported with jumbo frames enabled");
+		return -EOPNOTSUPP;
+	}
+
+	if (!port->priv->percpu_pools) {
+		NL_SET_ERR_MSG_MOD(bpf->extack, "Per CPU Pools required for XDP");
+		return -EOPNOTSUPP;
+	}
+
+	if (port->ntxqs < num_possible_cpus() * 2) {
+		NL_SET_ERR_MSG_MOD(bpf->extack, "XDP_TX needs two TX queues per CPU");
+		return -EOPNOTSUPP;
+	}
+
+	/* device is up and bpf is added/removed, must setup the RX queues */
+	if (running && reset)
+		mvpp2_stop(port->dev);
+
+	old_prog = xchg(&port->xdp_prog, prog);
+	if (old_prog)
+		bpf_prog_put(old_prog);
+
+	/* bpf is just replaced, RXQ and MTU are already setup */
+	if (!reset)
+		return 0;
+
+	/* device was up, restore the link */
+	if (running)
+		mvpp2_open(port->dev);
+
+	/* Check Page Pool DMA Direction */
+	mvpp2_check_pagepool_dma(port);
+
+	return 0;
+}
+
+static int mvpp2_xdp(struct net_device *dev, struct netdev_bpf *xdp)
+{
+	struct mvpp2_port *port = netdev_priv(dev);
+
+	switch (xdp->command) {
+	case XDP_SETUP_PROG:
+		return mvpp2_xdp_setup(port, xdp);
+	case XDP_QUERY_PROG:
+		xdp->prog_id = port->xdp_prog ? port->xdp_prog->aux->id : 0;
+		return 0;
+	default:
+		return -EINVAL;
+	}
 }
 
 /* Ethtool methods */
@@ -4405,6 +5005,8 @@ static const struct net_device_ops mvpp2_netdev_ops = {
 	.ndo_vlan_rx_add_vid	= mvpp2_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= mvpp2_vlan_rx_kill_vid,
 	.ndo_set_features	= mvpp2_set_features,
+	.ndo_bpf		= mvpp2_xdp,
+	.ndo_xdp_xmit		= mvpp2_xdp_xmit,
 };
 
 static const struct ethtool_ops mvpp2_eth_tool_ops = {
