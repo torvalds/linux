@@ -3647,6 +3647,22 @@ static struct net_device_stats *bcmgenet_get_stats(struct net_device *dev)
 	return &dev->stats;
 }
 
+static int bcmgenet_change_carrier(struct net_device *dev, bool new_carrier)
+{
+	struct bcmgenet_priv *priv = netdev_priv(dev);
+
+	if (!dev->phydev || !phy_is_pseudo_fixed_link(dev->phydev) ||
+	    priv->phy_interface != PHY_INTERFACE_MODE_MOCA)
+		return -EOPNOTSUPP;
+
+	if (new_carrier)
+		netif_carrier_on(dev);
+	else
+		netif_carrier_off(dev);
+
+	return 0;
+}
+
 static const struct net_device_ops bcmgenet_netdev_ops = {
 	.ndo_open		= bcmgenet_open,
 	.ndo_stop		= bcmgenet_close,
@@ -3660,6 +3676,7 @@ static const struct net_device_ops bcmgenet_netdev_ops = {
 	.ndo_poll_controller	= bcmgenet_poll_controller,
 #endif
 	.ndo_get_stats		= bcmgenet_get_stats,
+	.ndo_change_carrier	= bcmgenet_change_carrier,
 };
 
 /* Array of GENET hardware parameters/characteristics */
