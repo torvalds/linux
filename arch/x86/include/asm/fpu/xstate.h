@@ -36,6 +36,27 @@
 #define XFEATURE_MASK_SUPERVISOR_SUPPORTED (0)
 
 /*
+ * A supervisor state component may not always contain valuable information,
+ * and its size may be huge. Saving/restoring such supervisor state components
+ * at each context switch can cause high CPU and space overhead, which should
+ * be avoided. Such supervisor state components should only be saved/restored
+ * on demand. The on-demand dynamic supervisor features are set in this mask.
+ *
+ * Unlike the existing supported supervisor features, a dynamic supervisor
+ * feature does not allocate a buffer in task->fpu, and the corresponding
+ * supervisor state component cannot be saved/restored at each context switch.
+ *
+ * To support a dynamic supervisor feature, a developer should follow the
+ * dos and don'ts as below:
+ * - Do dynamically allocate a buffer for the supervisor state component.
+ * - Do manually invoke the XSAVES/XRSTORS instruction to save/restore the
+ *   state component to/from the buffer.
+ * - Don't set the bit corresponding to the dynamic supervisor feature in
+ *   IA32_XSS at run time, since it has been set at boot time.
+ */
+#define XFEATURE_MASK_DYNAMIC (XFEATURE_MASK_LBR)
+
+/*
  * Unsupported supervisor features. When a supervisor feature in this mask is
  * supported in the future, move it to the supported supervisor feature mask.
  */
@@ -43,6 +64,7 @@
 
 /* All supervisor states including supported and unsupported states. */
 #define XFEATURE_MASK_SUPERVISOR_ALL (XFEATURE_MASK_SUPERVISOR_SUPPORTED | \
+				      XFEATURE_MASK_DYNAMIC | \
 				      XFEATURE_MASK_SUPERVISOR_UNSUPPORTED)
 
 #ifdef CONFIG_X86_64
@@ -61,6 +83,14 @@ static inline u64 xfeatures_mask_supervisor(void)
 static inline u64 xfeatures_mask_user(void)
 {
 	return xfeatures_mask_all & XFEATURE_MASK_USER_SUPPORTED;
+}
+
+static inline u64 xfeatures_mask_dynamic(void)
+{
+	if (!boot_cpu_has(X86_FEATURE_ARCH_LBR))
+		return XFEATURE_MASK_DYNAMIC & ~XFEATURE_MASK_LBR;
+
+	return XFEATURE_MASK_DYNAMIC;
 }
 
 extern u64 xstate_fx_sw_bytes[USER_XSTATE_FX_SW_WORDS];
