@@ -91,7 +91,7 @@ void set_timer_ms(struct timer_list *t, unsigned long timeout)
 		return;
 	}
 
-	timeout = msecs_to_jiffies_timeout(timeout);
+	timeout = msecs_to_jiffies(timeout);
 
 	/*
 	 * Paranoia to make sure the compiler computes the timeout before

@@ -21,7 +21,10 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+#include <linux/time.h>
+
 #include "intel_atomic.h"
+#include "intel_bw.h"
 #include "intel_cdclk.h"
 #include "intel_display_types.h"
 #include "intel_sideband.h"
@@ -2094,6 +2097,7 @@ static int intel_compute_min_cdclk(struct intel_cdclk_state *cdclk_state)
 {
 	struct intel_atomic_state *state = cdclk_state->base.state;
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	struct intel_bw_state *bw_state = NULL;
 	struct intel_crtc *crtc;
 	struct intel_crtc_state *crtc_state;
 	int min_cdclk, i;
@@ -2106,6 +2110,10 @@ static int intel_compute_min_cdclk(struct intel_cdclk_state *cdclk_state)
 		if (min_cdclk < 0)
 			return min_cdclk;
 
+		bw_state = intel_atomic_get_bw_state(state);
+		if (IS_ERR(bw_state))
+			return PTR_ERR(bw_state);
+
 		if (cdclk_state->min_cdclk[i] == min_cdclk)
 			continue;
 
@@ -2117,8 +2125,14 @@ static int intel_compute_min_cdclk(struct intel_cdclk_state *cdclk_state)
 	}
 
 	min_cdclk = cdclk_state->force_min_cdclk;
-	for_each_pipe(dev_priv, pipe)
+	for_each_pipe(dev_priv, pipe) {
 		min_cdclk = max(cdclk_state->min_cdclk[pipe], min_cdclk);
+
+		if (!bw_state)
+			continue;
+
+		min_cdclk = max(bw_state->min_cdclk, min_cdclk);
+	}
 
 	return min_cdclk;
 }
@@ -2700,29 +2714,59 @@ static int vlv_hrawclk(struct drm_i915_private *dev_priv)
 				      CCK_DISPLAY_REF_CLOCK_CONTROL);
 }
 
-static int g4x_hrawclk(struct drm_i915_private *dev_priv)
+static int i9xx_hrawclk(struct drm_i915_private *dev_priv)
 {
 	u32 clkcfg;
 
-	/* hrawclock is 1/4 the FSB frequency */
-	clkcfg = intel_de_read(dev_priv, CLKCFG);
-	switch (clkcfg & CLKCFG_FSB_MASK) {
-	case CLKCFG_FSB_400:
-		return 100000;
-	case CLKCFG_FSB_533:
-		return 133333;
-	case CLKCFG_FSB_667:
-		return 166667;
-	case CLKCFG_FSB_800:
-		return 200000;
-	case CLKCFG_FSB_1067:
-	case CLKCFG_FSB_1067_ALT:
-		return 266667;
-	case CLKCFG_FSB_1333:
-	case CLKCFG_FSB_1333_ALT:
-		return 333333;
-	default:
-		return 133333;
+	/*
+	 * hrawclock is 1/4 the FSB frequency
+	 *
+	 * Note that this only reads the state of the FSB
+	 * straps, not the actual FSB frequency. Some BIOSen
+	 * let you configure each independently. Ideally we'd
+	 * read out the actual FSB frequency but sadly we
+	 * don't know which registers have that information,
+	 * and all the relevant docs have gone to bit heaven :(
+	 */
+	clkcfg = intel_de_read(dev_priv, CLKCFG) & CLKCFG_FSB_MASK;
+
+	if (IS_MOBILE(dev_priv)) {
+		switch (clkcfg) {
+		case CLKCFG_FSB_400:
+			return 100000;
+		case CLKCFG_FSB_533:
+			return 133333;
+		case CLKCFG_FSB_667:
+			return 166667;
+		case CLKCFG_FSB_800:
+			return 200000;
+		case CLKCFG_FSB_1067:
+			return 266667;
+		case CLKCFG_FSB_1333:
+			return 333333;
+		default:
+			MISSING_CASE(clkcfg);
+			return 133333;
+		}
+	} else {
+		switch (clkcfg) {
+		case CLKCFG_FSB_400_ALT:
+			return 100000;
+		case CLKCFG_FSB_533:
+			return 133333;
+		case CLKCFG_FSB_667:
+			return 166667;
+		case CLKCFG_FSB_800:
+			return 200000;
+		case CLKCFG_FSB_1067_ALT:
+			return 266667;
+		case CLKCFG_FSB_1333_ALT:
+			return 333333;
+		case CLKCFG_FSB_1600_ALT:
+			return 400000;
+		default:
+			return 133333;
+		}
 	}
 }
 
@@ -2743,8 +2787,8 @@ u32 intel_read_rawclk(struct drm_i915_private *dev_priv)
 		freq = pch_rawclk(dev_priv);
 	else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		freq = vlv_hrawclk(dev_priv);
-	else if (IS_G4X(dev_priv) || IS_PINEVIEW(dev_priv))
-		freq = g4x_hrawclk(dev_priv);
+	else if (INTEL_GEN(dev_priv) >= 3)
+		freq = i9xx_hrawclk(dev_priv);
 	else
 		/* no rawclk on other platforms, or no need to know it */
 		return 0;
@@ -2760,25 +2804,30 @@ void intel_init_cdclk_hooks(struct drm_i915_private *dev_priv)
 {
 	if (INTEL_GEN(dev_priv) >= 12) {
 		dev_priv->display.set_cdclk = bxt_set_cdclk;
+		dev_priv->display.bw_calc_min_cdclk = skl_bw_calc_min_cdclk;
 		dev_priv->display.modeset_calc_cdclk = bxt_modeset_calc_cdclk;
 		dev_priv->display.calc_voltage_level = tgl_calc_voltage_level;
 		dev_priv->cdclk.table = icl_cdclk_table;
 	} else if (IS_ELKHARTLAKE(dev_priv)) {
 		dev_priv->display.set_cdclk = bxt_set_cdclk;
+		dev_priv->display.bw_calc_min_cdclk = skl_bw_calc_min_cdclk;
 		dev_priv->display.modeset_calc_cdclk = bxt_modeset_calc_cdclk;
 		dev_priv->display.calc_voltage_level = ehl_calc_voltage_level;
 		dev_priv->cdclk.table = icl_cdclk_table;
 	} else if (INTEL_GEN(dev_priv) >= 11) {
 		dev_priv->display.set_cdclk = bxt_set_cdclk;
+		dev_priv->display.bw_calc_min_cdclk = skl_bw_calc_min_cdclk;
 		dev_priv->display.modeset_calc_cdclk = bxt_modeset_calc_cdclk;
 		dev_priv->display.calc_voltage_level = icl_calc_voltage_level;
 		dev_priv->cdclk.table = icl_cdclk_table;
 	} else if (IS_CANNONLAKE(dev_priv)) {
+		dev_priv->display.bw_calc_min_cdclk = skl_bw_calc_min_cdclk;
 		dev_priv->display.set_cdclk = bxt_set_cdclk;
 		dev_priv->display.modeset_calc_cdclk = bxt_modeset_calc_cdclk;
 		dev_priv->display.calc_voltage_level = cnl_calc_voltage_level;
 		dev_priv->cdclk.table = cnl_cdclk_table;
 	} else if (IS_GEN9_LP(dev_priv)) {
+		dev_priv->display.bw_calc_min_cdclk = skl_bw_calc_min_cdclk;
 		dev_priv->display.set_cdclk = bxt_set_cdclk;
 		dev_priv->display.modeset_calc_cdclk = bxt_modeset_calc_cdclk;
 		dev_priv->display.calc_voltage_level = bxt_calc_voltage_level;
@@ -2787,18 +2836,23 @@ void intel_init_cdclk_hooks(struct drm_i915_private *dev_priv)
 		else
 			dev_priv->cdclk.table = bxt_cdclk_table;
 	} else if (IS_GEN9_BC(dev_priv)) {
+		dev_priv->display.bw_calc_min_cdclk = skl_bw_calc_min_cdclk;
 		dev_priv->display.set_cdclk = skl_set_cdclk;
 		dev_priv->display.modeset_calc_cdclk = skl_modeset_calc_cdclk;
 	} else if (IS_BROADWELL(dev_priv)) {
+		dev_priv->display.bw_calc_min_cdclk = intel_bw_calc_min_cdclk;
 		dev_priv->display.set_cdclk = bdw_set_cdclk;
 		dev_priv->display.modeset_calc_cdclk = bdw_modeset_calc_cdclk;
 	} else if (IS_CHERRYVIEW(dev_priv)) {
+		dev_priv->display.bw_calc_min_cdclk = intel_bw_calc_min_cdclk;
 		dev_priv->display.set_cdclk = chv_set_cdclk;
 		dev_priv->display.modeset_calc_cdclk = vlv_modeset_calc_cdclk;
 	} else if (IS_VALLEYVIEW(dev_priv)) {
+		dev_priv->display.bw_calc_min_cdclk = intel_bw_calc_min_cdclk;
 		dev_priv->display.set_cdclk = vlv_set_cdclk;
 		dev_priv->display.modeset_calc_cdclk = vlv_modeset_calc_cdclk;
 	} else {
+		dev_priv->display.bw_calc_min_cdclk = intel_bw_calc_min_cdclk;
 		dev_priv->display.modeset_calc_cdclk = fixed_modeset_calc_cdclk;
 	}
 

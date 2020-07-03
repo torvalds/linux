@@ -89,6 +89,15 @@ enum hpd_pin intel_hpd_pin_default(struct drm_i915_private *dev_priv,
 {
 	enum phy phy = intel_port_to_phy(dev_priv, port);
 
+	/*
+	 * RKL + TGP PCH is a special case; we effectively choose the hpd_pin
+	 * based on the DDI rather than the PHY (i.e., the last two outputs
+	 * shold be HPD_PORT_{D,E} rather than {C,D}.  Note that this differs
+	 * from the behavior of both TGL+TGP and RKL+CMP.
+	 */
+	if (IS_ROCKETLAKE(dev_priv) && HAS_PCH_TGP(dev_priv))
+		return HPD_PORT_A + port - PORT_A;
+
 	switch (phy) {
 	case PHY_F:
 		return IS_CNL_WITH_PORT_F(dev_priv) ? HPD_PORT_E : HPD_PORT_F;

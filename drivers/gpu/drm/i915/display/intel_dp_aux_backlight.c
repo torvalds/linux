@@ -348,7 +348,7 @@ int intel_dp_aux_init_backlight_funcs(struct intel_connector *intel_connector)
 	struct intel_dp *intel_dp = enc_to_intel_dp(intel_connector->encoder);
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 
-	if (i915_modparams.enable_dpcd_backlight == 0 ||
+	if (i915->params.enable_dpcd_backlight == 0 ||
 	    !intel_dp_aux_display_control_capable(intel_connector))
 		return -ENODEV;
 
@@ -358,7 +358,7 @@ int intel_dp_aux_init_backlight_funcs(struct intel_connector *intel_connector)
 	 */
 	if (i915->vbt.backlight.type !=
 	    INTEL_BACKLIGHT_VESA_EDP_AUX_INTERFACE &&
-	    i915_modparams.enable_dpcd_backlight != 1 &&
+	    i915->params.enable_dpcd_backlight != 1 &&
 	    !drm_dp_has_quirk(&intel_dp->desc, intel_dp->edid_quirks,
 			      DP_QUIRK_FORCE_DPCD_BACKLIGHT)) {
 		drm_info(&i915->drm,

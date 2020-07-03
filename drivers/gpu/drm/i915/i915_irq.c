@@ -777,7 +777,7 @@ static int __intel_get_crtc_scanline(struct intel_crtc *crtc)
 	vblank = &crtc->base.dev->vblank[drm_crtc_index(&crtc->base)];
 	mode = &vblank->hwmode;
 
-	if (mode->private_flags & I915_MODE_FLAG_GET_SCANLINE_FROM_TIMESTAMP)
+	if (crtc->mode_flags & I915_MODE_FLAG_GET_SCANLINE_FROM_TIMESTAMP)
 		return __intel_get_crtc_scanline_from_timestamp(crtc);
 
 	vtotal = mode->crtc_vtotal;
@@ -836,7 +836,7 @@ static bool i915_get_crtc_scanoutpos(struct drm_crtc *_crtc,
 	unsigned long irqflags;
 	bool use_scanline_counter = INTEL_GEN(dev_priv) >= 5 ||
 		IS_G4X(dev_priv) || IS_GEN(dev_priv, 2) ||
-		mode->private_flags & I915_MODE_FLAG_USE_SCANLINE_COUNTER;
+		crtc->mode_flags & I915_MODE_FLAG_USE_SCANLINE_COUNTER;
 
 	if (drm_WARN_ON(&dev_priv->drm, !mode->crtc_clock)) {
 		drm_dbg(&dev_priv->drm,
@@ -2097,67 +2097,68 @@ static void ivb_display_irq_handler(struct drm_i915_private *dev_priv,
  */
 static irqreturn_t ilk_irq_handler(int irq, void *arg)
 {
-	struct drm_i915_private *dev_priv = arg;
+	struct drm_i915_private *i915 = arg;
+	void __iomem * const regs = i915->uncore.regs;
 	u32 de_iir, gt_iir, de_ier, sde_ier = 0;
 	irqreturn_t ret = IRQ_NONE;
 
-	if (!intel_irqs_enabled(dev_priv))
+	if (unlikely(!intel_irqs_enabled(i915)))
 		return IRQ_NONE;
 
 	/* IRQs are synced during runtime_suspend, we don't require a wakeref */
-	disable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
+	disable_rpm_wakeref_asserts(&i915->runtime_pm);
 
 	/* disable master interrupt before clearing iir  */
-	de_ier = I915_READ(DEIER);
-	I915_WRITE(DEIER, de_ier & ~DE_MASTER_IRQ_CONTROL);
+	de_ier = raw_reg_read(regs, DEIER);
+	raw_reg_write(regs, DEIER, de_ier & ~DE_MASTER_IRQ_CONTROL);
 
 	/* Disable south interrupts. We'll only write to SDEIIR once, so further
 	 * interrupts will will be stored on its back queue, and then we'll be
 	 * able to process them after we restore SDEIER (as soon as we restore
 	 * it, we'll get an interrupt if SDEIIR still has something to process
 	 * due to its back queue). */
-	if (!HAS_PCH_NOP(dev_priv)) {
-		sde_ier = I915_READ(SDEIER);
-		I915_WRITE(SDEIER, 0);
+	if (!HAS_PCH_NOP(i915)) {
+		sde_ier = raw_reg_read(regs, SDEIER);
+		raw_reg_write(regs, SDEIER, 0);
 	}
 
 	/* Find, clear, then process each source of interrupt */
 
-	gt_iir = I915_READ(GTIIR);
+	gt_iir = raw_reg_read(regs, GTIIR);
 	if (gt_iir) {
-		I915_WRITE(GTIIR, gt_iir);
-		ret = IRQ_HANDLED;
-		if (INTEL_GEN(dev_priv) >= 6)
-			gen6_gt_irq_handler(&dev_priv->gt, gt_iir);
+		raw_reg_write(regs, GTIIR, gt_iir);
+		if (INTEL_GEN(i915) >= 6)
+			gen6_gt_irq_handler(&i915->gt, gt_iir);
 		else
-			gen5_gt_irq_handler(&dev_priv->gt, gt_iir);
+			gen5_gt_irq_handler(&i915->gt, gt_iir);
+		ret = IRQ_HANDLED;
 	}
 
-	de_iir = I915_READ(DEIIR);
+	de_iir = raw_reg_read(regs, DEIIR);
 	if (de_iir) {
-		I915_WRITE(DEIIR, de_iir);
-		ret = IRQ_HANDLED;
-		if (INTEL_GEN(dev_priv) >= 7)
-			ivb_display_irq_handler(dev_priv, de_iir);
+		raw_reg_write(regs, DEIIR, de_iir);
+		if (INTEL_GEN(i915) >= 7)
+			ivb_display_irq_handler(i915, de_iir);
 		else
-			ilk_display_irq_handler(dev_priv, de_iir);
+			ilk_display_irq_handler(i915, de_iir);
+		ret = IRQ_HANDLED;
 	}
 
-	if (INTEL_GEN(dev_priv) >= 6) {
-		u32 pm_iir = I915_READ(GEN6_PMIIR);
+	if (INTEL_GEN(i915) >= 6) {
+		u32 pm_iir = raw_reg_read(regs, GEN6_PMIIR);
 		if (pm_iir) {
-			I915_WRITE(GEN6_PMIIR, pm_iir);
+			raw_reg_write(regs, GEN6_PMIIR, pm_iir);
+			gen6_rps_irq_handler(&i915->gt.rps, pm_iir);
 			ret = IRQ_HANDLED;
-			gen6_rps_irq_handler(&dev_priv->gt.rps, pm_iir);
 		}
 	}
 
-	I915_WRITE(DEIER, de_ier);
-	if (!HAS_PCH_NOP(dev_priv))
-		I915_WRITE(SDEIER, sde_ier);
+	raw_reg_write(regs, DEIER, de_ier);
+	if (sde_ier)
+		raw_reg_write(regs, SDEIER, sde_ier);
 
 	/* IRQs are synced during runtime_suspend, we don't require a wakeref */
-	enable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
+	enable_rpm_wakeref_asserts(&i915->runtime_pm);
 
 	return ret;
 }
@@ -2254,7 +2255,9 @@ static u32 gen8_de_port_aux_mask(struct drm_i915_private *dev_priv)
 
 static u32 gen8_de_pipe_fault_mask(struct drm_i915_private *dev_priv)
 {
-	if (INTEL_GEN(dev_priv) >= 11)
+	if (IS_ROCKETLAKE(dev_priv))
+		return RKL_DE_PIPE_IRQ_FAULT_ERRORS;
+	else if (INTEL_GEN(dev_priv) >= 11)
 		return GEN11_DE_PIPE_IRQ_FAULT_ERRORS;
 	else if (INTEL_GEN(dev_priv) >= 9)
 		return GEN9_DE_PIPE_IRQ_FAULT_ERRORS;
@@ -2869,13 +2872,15 @@ static void gen11_display_irq_reset(struct drm_i915_private *dev_priv)
 {
 	struct intel_uncore *uncore = &dev_priv->uncore;
 	enum pipe pipe;
+	u32 trans_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) |
+		BIT(TRANSCODER_C) | BIT(TRANSCODER_D);
 
 	intel_uncore_write(uncore, GEN11_DISPLAY_INT_CTL, 0);
 
 	if (INTEL_GEN(dev_priv) >= 12) {
 		enum transcoder trans;
 
-		for (trans = TRANSCODER_A; trans <= TRANSCODER_D; trans++) {
+		for_each_cpu_transcoder_masked(dev_priv, trans, trans_mask) {
 			enum intel_display_power_domain domain;
 
 			domain = POWER_DOMAIN_TRANSCODER(trans);
@@ -2902,8 +2907,8 @@ static void gen11_display_irq_reset(struct drm_i915_private *dev_priv)
 	if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
 		GEN3_IRQ_RESET(uncore, SDE);
 
-	/* Wa_14010685332:icl */
-	if (INTEL_PCH_TYPE(dev_priv) == PCH_ICP) {
+	/* Wa_14010685332:icl,jsl,ehl,tgl,rkl */
+	if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP) {
 		intel_uncore_rmw(uncore, SOUTH_CHICKEN1,
 				 SBCLK_RUN_REFCLK_DIS, SBCLK_RUN_REFCLK_DIS);
 		intel_uncore_rmw(uncore, SOUTH_CHICKEN1,
@@ -3396,6 +3401,8 @@ static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 	u32 de_port_masked = gen8_de_port_aux_mask(dev_priv);
 	u32 de_port_enables;
 	u32 de_misc_masked = GEN8_DE_EDP_PSR;
+	u32 trans_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) |
+		BIT(TRANSCODER_C) | BIT(TRANSCODER_D);
 	enum pipe pipe;
 
 	if (INTEL_GEN(dev_priv) <= 10)
@@ -3416,7 +3423,7 @@ static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 	if (INTEL_GEN(dev_priv) >= 12) {
 		enum transcoder trans;
 
-		for (trans = TRANSCODER_A; trans <= TRANSCODER_D; trans++) {
+		for_each_cpu_transcoder_masked(dev_priv, trans, trans_mask) {
 			enum intel_display_power_domain domain;
 
 			domain = POWER_DOMAIN_TRANSCODER(trans);

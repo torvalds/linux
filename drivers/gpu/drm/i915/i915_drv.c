@@ -501,6 +501,8 @@ static void i915_driver_late_release(struct drm_i915_private *dev_priv)
 
 	cpu_latency_qos_remove_request(&dev_priv->sb_qos);
 	mutex_destroy(&dev_priv->sb_lock);
+
+	i915_params_free(&dev_priv->params);
 }
 
 /**
@@ -915,6 +917,9 @@ i915_driver_create(struct pci_dev *pdev, const struct pci_device_id *ent)
 	i915->drm.pdev = pdev;
 	pci_set_drvdata(pdev, i915);
 
+	/* Device parameters start as a copy of module parameters. */
+	i915_params_copy(&i915->params, &i915_modparams);
+
 	/* Setup the write-once "constant" device info */
 	device_info = mkwrite_device_info(i915);
 	memcpy(device_info, match_info, sizeof(*device_info));
@@ -948,7 +953,7 @@ int i915_driver_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return PTR_ERR(i915);
 
 	/* Disable nuclear pageflip by default on pre-ILK */
-	if (!i915_modparams.nuclear_pageflip && match_info->gen < 5)
+	if (!i915->params.nuclear_pageflip && match_info->gen < 5)
 		i915->drm.driver_features &= ~DRIVER_ATOMIC;
 
 	/*
@@ -958,7 +963,7 @@ int i915_driver_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
 	if (IS_ENABLED(CONFIG_DRM_I915_UNSTABLE_FAKE_LMEM)) {
 		if (INTEL_GEN(i915) >= 9 && i915_selftest.live < 0 &&
-		    i915_modparams.fake_lmem_start) {
+		    i915->params.fake_lmem_start) {
 			mkwrite_device_info(i915)->memory_regions =
 				REGION_SMEM | REGION_LMEM | REGION_STOLEN;
 			mkwrite_device_info(i915)->is_dgfx = true;

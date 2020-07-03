@@ -181,11 +181,25 @@ static void cnl_combo_phys_uninit(struct drm_i915_private *dev_priv)
 	intel_de_write(dev_priv, CHICKEN_MISC_2, val);
 }
 
+static bool has_phy_misc(struct drm_i915_private *i915, enum phy phy)
+{
+	/*
+	 * Some platforms only expect PHY_MISC to be programmed for PHY-A and
+	 * PHY-B and may not even have instances of the register for the
+	 * other combo PHY's.
+	 */
+	if (IS_ELKHARTLAKE(i915) ||
+	    IS_ROCKETLAKE(i915))
+		return phy < PHY_C;
+
+	return true;
+}
+
 static bool icl_combo_phy_enabled(struct drm_i915_private *dev_priv,
 				  enum phy phy)
 {
 	/* The PHY C added by EHL has no PHY_MISC register */
-	if (IS_ELKHARTLAKE(dev_priv) && phy == PHY_C)
+	if (!has_phy_misc(dev_priv, phy))
 		return intel_de_read(dev_priv, ICL_PORT_COMP_DW0(phy)) & COMP_INIT;
 	else
 		return !(intel_de_read(dev_priv, ICL_PHY_MISC(phy)) &
@@ -220,6 +234,27 @@ static bool ehl_vbt_ddi_d_present(struct drm_i915_private *i915)
 	return false;
 }
 
+static bool phy_is_master(struct drm_i915_private *dev_priv, enum phy phy)
+{
+	/*
+	 * Certain PHYs are connected to compensation resistors and act
+	 * as masters to other PHYs.
+	 *
+	 * ICL,TGL:
+	 *   A(master) -> B(slave), C(slave)
+	 * RKL:
+	 *   A(master) -> B(slave)
+	 *   C(master) -> D(slave)
+	 *
+	 * We must set the IREFGEN bit for any PHY acting as a master
+	 * to another PHY.
+	 */
+	if (IS_ROCKETLAKE(dev_priv) && phy == PHY_C)
+		return true;
+
+	return phy == PHY_A;
+}
+
 static bool icl_combo_phy_verify_state(struct drm_i915_private *dev_priv,
 				       enum phy phy)
 {
@@ -231,7 +266,7 @@ static bool icl_combo_phy_verify_state(struct drm_i915_private *dev_priv,
 
 	ret = cnl_verify_procmon_ref_values(dev_priv, phy);
 
-	if (phy == PHY_A) {
+	if (phy_is_master(dev_priv, phy)) {
 		ret &= check_phy_reg(dev_priv, phy, ICL_PORT_COMP_DW8(phy),
 				     IREFGEN, IREFGEN);
 
@@ -317,12 +352,7 @@ static void icl_combo_phys_init(struct drm_i915_private *dev_priv)
 			continue;
 		}
 
-		/*
-		 * Although EHL adds a combo PHY C, there's no PHY_MISC
-		 * register for it and no need to program the
-		 * DE_IO_COMP_PWR_DOWN setting on PHY C.
-		 */
-		if (IS_ELKHARTLAKE(dev_priv) && phy == PHY_C)
+		if (!has_phy_misc(dev_priv, phy))
 			goto skip_phy_misc;
 
 		/*
@@ -347,7 +377,7 @@ static void icl_combo_phys_init(struct drm_i915_private *dev_priv)
 skip_phy_misc:
 		cnl_set_procmon_ref_values(dev_priv, phy);
 
-		if (phy == PHY_A) {
+		if (phy_is_master(dev_priv, phy)) {
 			val = intel_de_read(dev_priv, ICL_PORT_COMP_DW8(phy));
 			val |= IREFGEN;
 			intel_de_write(dev_priv, ICL_PORT_COMP_DW8(phy), val);
@@ -376,12 +406,7 @@ static void icl_combo_phys_uninit(struct drm_i915_private *dev_priv)
 				 "Combo PHY %c HW state changed unexpectedly\n",
 				 phy_name(phy));
 
-		/*
-		 * Although EHL adds a combo PHY C, there's no PHY_MISC
-		 * register for it and no need to program the
-		 * DE_IO_COMP_PWR_DOWN setting on PHY C.
-		 */
-		if (IS_ELKHARTLAKE(dev_priv) && phy == PHY_C)
+		if (!has_phy_misc(dev_priv, phy))
 			goto skip_phy_misc;
 
 		val = intel_de_read(dev_priv, ICL_PHY_MISC(phy));

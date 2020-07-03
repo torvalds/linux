@@ -78,6 +78,8 @@ gt-y += \
 	gt/debugfs_engines.o \
 	gt/debugfs_gt.o \
 	gt/debugfs_gt_pm.o \
+	gt/gen2_engine_cs.o \
+	gt/gen6_engine_cs.o \
 	gt/gen6_ppgtt.o \
 	gt/gen7_renderclear.o \
 	gt/gen8_ppgtt.o \

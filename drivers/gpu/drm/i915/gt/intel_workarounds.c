@@ -205,6 +205,18 @@ wa_masked_dis(struct i915_wa_list *wal, i915_reg_t reg, u32 val)
 #define WA_SET_FIELD_MASKED(addr, mask, value) \
 	wa_write_masked_or(wal, (addr), 0, _MASKED_FIELD((mask), (value)))
 
+static void gen6_ctx_workarounds_init(struct intel_engine_cs *engine,
+				      struct i915_wa_list *wal)
+{
+	WA_SET_BIT_MASKED(INSTPM, INSTPM_FORCE_ORDERING);
+}
+
+static void gen7_ctx_workarounds_init(struct intel_engine_cs *engine,
+				      struct i915_wa_list *wal)
+{
+	WA_SET_BIT_MASKED(INSTPM, INSTPM_FORCE_ORDERING);
+}
+
 static void gen8_ctx_workarounds_init(struct intel_engine_cs *engine,
 				      struct i915_wa_list *wal)
 {
@@ -355,7 +367,10 @@ static void gen9_ctx_workarounds_init(struct intel_engine_cs *engine,
 			  HDC_FORCE_NON_COHERENT);
 
 	/* WaDisableSamplerPowerBypassForSOPingPong:skl,bxt,kbl,cfl */
-	if (IS_SKYLAKE(i915) || IS_KABYLAKE(i915) || IS_COFFEELAKE(i915))
+	if (IS_SKYLAKE(i915) ||
+	    IS_KABYLAKE(i915) ||
+	    IS_COFFEELAKE(i915) ||
+	    IS_COMETLAKE(i915))
 		WA_SET_BIT_MASKED(HALF_SLICE_CHICKEN3,
 				  GEN8_SAMPLER_POWER_BYPASS_DIS);
 
@@ -600,11 +615,14 @@ static void tgl_ctx_workarounds_init(struct intel_engine_cs *engine,
 	 * Wa_1604555607:gen12 and Wa_1608008084:gen12
 	 * FF_MODE2 register will return the wrong value when read. The default
 	 * value for this register is zero for all fields and there are no bit
-	 * masks. So instead of doing a RMW we should just write the TDS timer
-	 * value for Wa_1604555607.
+	 * masks. So instead of doing a RMW we should just write the GS Timer
+	 * and TDS timer values for Wa_1604555607 and Wa_16011163337.
 	 */
-	wa_add(wal, FF_MODE2, FF_MODE2_TDS_TIMER_MASK,
-	       FF_MODE2_TDS_TIMER_128, 0);
+	wa_add(wal,
+	       FF_MODE2,
+	       FF_MODE2_GS_TIMER_MASK | FF_MODE2_TDS_TIMER_MASK,
+	       FF_MODE2_GS_TIMER_224  | FF_MODE2_TDS_TIMER_128,
+	       0);
 
 	/* WaDisableGPGPUMidThreadPreemption:tgl */
 	WA_SET_FIELD_MASKED(GEN8_CS_CHICKEN1,
@@ -630,7 +648,7 @@ __intel_engine_init_ctx_wa(struct intel_engine_cs *engine,
 		icl_ctx_workarounds_init(engine, wal);
 	else if (IS_CANNONLAKE(i915))
 		cnl_ctx_workarounds_init(engine, wal);
-	else if (IS_COFFEELAKE(i915))
+	else if (IS_COFFEELAKE(i915) || IS_COMETLAKE(i915))
 		cfl_ctx_workarounds_init(engine, wal);
 	else if (IS_GEMINILAKE(i915))
 		glk_ctx_workarounds_init(engine, wal);
@@ -644,6 +662,10 @@ __intel_engine_init_ctx_wa(struct intel_engine_cs *engine,
 		chv_ctx_workarounds_init(engine, wal);
 	else if (IS_BROADWELL(i915))
 		bdw_ctx_workarounds_init(engine, wal);
+	else if (IS_GEN(i915, 7))
+		gen7_ctx_workarounds_init(engine, wal);
+	else if (IS_GEN(i915, 6))
+		gen6_ctx_workarounds_init(engine, wal);
 	else if (INTEL_GEN(i915) < 8)
 		return;
 	else
@@ -917,7 +939,7 @@ static void
 gen9_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 {
 	/* WaDisableKillLogic:bxt,skl,kbl */
-	if (!IS_COFFEELAKE(i915))
+	if (!IS_COFFEELAKE(i915) && !IS_COMETLAKE(i915))
 		wa_write_or(wal,
 			    GAM_ECOCHK,
 			    ECOCHK_DIS_TLB);
@@ -1180,7 +1202,7 @@ gt_init_workarounds(struct drm_i915_private *i915, struct i915_wa_list *wal)
 		icl_gt_workarounds_init(i915, wal);
 	else if (IS_CANNONLAKE(i915))
 		cnl_gt_workarounds_init(i915, wal);
-	else if (IS_COFFEELAKE(i915))
+	else if (IS_COFFEELAKE(i915) || IS_COMETLAKE(i915))
 		cfl_gt_workarounds_init(i915, wal);
 	else if (IS_GEMINILAKE(i915))
 		glk_gt_workarounds_init(i915, wal);
@@ -1428,6 +1450,18 @@ static void cfl_whitelist_build(struct intel_engine_cs *engine)
 			  RING_FORCE_TO_NONPRIV_RANGE_4);
 }
 
+static void cml_whitelist_build(struct intel_engine_cs *engine)
+{
+	struct i915_wa_list *w = &engine->whitelist;
+
+	if (engine->class != RENDER_CLASS)
+		whitelist_reg_ext(w,
+				  RING_CTX_TIMESTAMP(engine->mmio_base),
+				  RING_FORCE_TO_NONPRIV_ACCESS_RD);
+
+	cfl_whitelist_build(engine);
+}
+
 static void cnl_whitelist_build(struct intel_engine_cs *engine)
 {
 	struct i915_wa_list *w = &engine->whitelist;
@@ -1478,9 +1512,15 @@ static void icl_whitelist_build(struct intel_engine_cs *engine)
 		/* hucStatus2RegOffset */
 		whitelist_reg_ext(w, _MMIO(0x23B0 + engine->mmio_base),
 				  RING_FORCE_TO_NONPRIV_ACCESS_RD);
+		whitelist_reg_ext(w,
+				  RING_CTX_TIMESTAMP(engine->mmio_base),
+				  RING_FORCE_TO_NONPRIV_ACCESS_RD);
 		break;
 
 	default:
+		whitelist_reg_ext(w,
+				  RING_CTX_TIMESTAMP(engine->mmio_base),
+				  RING_FORCE_TO_NONPRIV_ACCESS_RD);
 		break;
 	}
 }
@@ -1512,6 +1552,9 @@ static void tgl_whitelist_build(struct intel_engine_cs *engine)
 		whitelist_reg(w, HIZ_CHICKEN);
 		break;
 	default:
+		whitelist_reg_ext(w,
+				  RING_CTX_TIMESTAMP(engine->mmio_base),
+				  RING_FORCE_TO_NONPRIV_ACCESS_RD);
 		break;
 	}
 }
@@ -1529,6 +1572,8 @@ void intel_engine_init_whitelist(struct intel_engine_cs *engine)
 		icl_whitelist_build(engine);
 	else if (IS_CANNONLAKE(i915))
 		cnl_whitelist_build(engine);
+	else if (IS_COMETLAKE(i915))
+		cml_whitelist_build(engine);
 	else if (IS_COFFEELAKE(i915))
 		cfl_whitelist_build(engine);
 	else if (IS_GEMINILAKE(i915))
@@ -1725,6 +1770,12 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 		wa_write_or(wal,
 			    GEN7_FF_THREAD_MODE,
 			    GEN12_FF_TESSELATION_DOP_GATE_DISABLE);
+
+		/* Wa_22010271021:ehl */
+		if (IS_ELKHARTLAKE(i915))
+			wa_masked_en(wal,
+				     GEN9_CS_DEBUG_MODE1,
+				     FF_DOP_CLOCK_GATE_DISABLE);
 	}
 
 	if (IS_GEN_RANGE(i915, 9, 12)) {
@@ -1734,7 +1785,10 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 			     GEN9_FFSC_PERCTX_PREEMPT_CTRL);
 	}
 
-	if (IS_SKYLAKE(i915) || IS_KABYLAKE(i915) || IS_COFFEELAKE(i915)) {
+	if (IS_SKYLAKE(i915) ||
+	    IS_KABYLAKE(i915) ||
+	    IS_COFFEELAKE(i915) ||
+	    IS_COMETLAKE(i915)) {
 		/* WaEnableGapsTsvCreditFix:skl,kbl,cfl */
 		wa_write_or(wal,
 			    GEN8_GARBCNTL,
@@ -1818,6 +1872,21 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 		       0, _MASKED_BIT_ENABLE(VS_TIMER_DISPATCH),
 		       /* XXX bit doesn't stick on Broadwater */
 		       IS_I965G(i915) ? 0 : VS_TIMER_DISPATCH);
+
+	if (IS_GEN(i915, 4))
+		/*
+		 * Disable CONSTANT_BUFFER before it is loaded from the context
+		 * image. For as it is loaded, it is executed and the stored
+		 * address may no longer be valid, leading to a GPU hang.
+		 *
+		 * This imposes the requirement that userspace reload their
+		 * CONSTANT_BUFFER on every batch, fortunately a requirement
+		 * they are already accustomed to from before contexts were
+		 * enabled.
+		 */
+		wa_add(wal, ECOSKPD,
+		       0, _MASKED_BIT_ENABLE(ECO_CONSTANT_BUFFER_SR_DISABLE),
+		       0 /* XXX bit doesn't stick on Broadwater */);
 }
 
 static void
@@ -1932,7 +2001,7 @@ wa_list_srm(struct i915_request *rq,
 	    const struct i915_wa_list *wal,
 	    struct i915_vma *vma)
 {
-	struct drm_i915_private *i915 = rq->i915;
+	struct drm_i915_private *i915 = rq->engine->i915;
 	unsigned int i, count = 0;
 	const struct i915_wa *wa;
 	u32 srm, *cs;
@@ -2021,7 +2090,7 @@ static int engine_wa_list_verify(struct intel_context *ce,
 
 	err = 0;
 	for (i = 0, wa = wal->list; i < wal->count; i++, wa++) {
-		if (mcr_range(rq->i915, i915_mmio_reg_offset(wa->reg)))
+		if (mcr_range(rq->engine->i915, i915_mmio_reg_offset(wa->reg)))
 			continue;
 
 		if (!wa_verify(wa, results[i], wal->name, from))

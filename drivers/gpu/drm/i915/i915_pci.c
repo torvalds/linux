@@ -536,6 +536,7 @@ static const struct intel_device_info vlv_info = {
 	.display.has_ddi = 1, \
 	.has_fpga_dbg = 1, \
 	.display.has_psr = 1, \
+	.display.has_psr_hw_tracking = 1, \
 	.display.has_dp_mst = 1, \
 	.has_rc6p = 0 /* RC6p removed-by HSW */, \
 	HSW_PIPE_OFFSETS, \
@@ -690,6 +691,7 @@ static const struct intel_device_info skl_gt4_info = {
 	.display.has_fbc = 1, \
 	.display.has_hdcp = 1, \
 	.display.has_psr = 1, \
+	.display.has_psr_hw_tracking = 1, \
 	.has_runtime_pm = 1, \
 	.display.has_csr = 1, \
 	.has_rc6 = 1, \
@@ -766,6 +768,20 @@ static const struct intel_device_info cfl_gt3_info = {
 		BIT(RCS0) | BIT(VCS0) | BIT(BCS0) | BIT(VECS0) | BIT(VCS1),
 };
 
+#define CML_PLATFORM \
+	GEN9_FEATURES, \
+	PLATFORM(INTEL_COMETLAKE)
+
+static const struct intel_device_info cml_gt1_info = {
+	CML_PLATFORM,
+	.gt = 1,
+};
+
+static const struct intel_device_info cml_gt2_info = {
+	CML_PLATFORM,
+	.gt = 2,
+};
+
 #define GEN10_FEATURES \
 	GEN9_FEATURES, \
 	GEN(10), \
@@ -788,6 +804,7 @@ static const struct intel_device_info cnl_info = {
 #define GEN11_FEATURES \
 	GEN10_FEATURES, \
 	GEN11_DEFAULT_PAGE_SIZES, \
+	.abox_mask = BIT(0), \
 	.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) | \
 		BIT(TRANSCODER_C) | BIT(TRANSCODER_EDP) | \
 		BIT(TRANSCODER_DSI_0) | BIT(TRANSCODER_DSI_1), \
@@ -831,6 +848,7 @@ static const struct intel_device_info ehl_info = {
 #define GEN12_FEATURES \
 	GEN11_FEATURES, \
 	GEN(12), \
+	.abox_mask = GENMASK(2, 1), \
 	.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C) | BIT(PIPE_D), \
 	.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) | \
 		BIT(TRANSCODER_C) | BIT(TRANSCODER_D) | \
@@ -861,6 +879,19 @@ static const struct intel_device_info tgl_info = {
 	.display.has_modular_fia = 1,
 	.engine_mask =
 		BIT(RCS0) | BIT(BCS0) | BIT(VECS0) | BIT(VCS0) | BIT(VCS2),
+};
+
+static const struct intel_device_info rkl_info = {
+	GEN12_FEATURES,
+	PLATFORM(INTEL_ROCKETLAKE),
+	.abox_mask = BIT(0),
+	.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C),
+	.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) |
+		BIT(TRANSCODER_C),
+	.require_force_probe = 1,
+	.display.has_psr_hw_tracking = 0,
+	.engine_mask =
+		BIT(RCS0) | BIT(BCS0) | BIT(VECS0) | BIT(VCS0),
 };
 
 #define GEN12_DGFX_FEATURES \
@@ -933,14 +964,15 @@ static const struct pci_device_id pciidlist[] = {
 	INTEL_WHL_U_GT2_IDS(&cfl_gt2_info),
 	INTEL_AML_CFL_GT2_IDS(&cfl_gt2_info),
 	INTEL_WHL_U_GT3_IDS(&cfl_gt3_info),
-	INTEL_CML_GT1_IDS(&cfl_gt1_info),
-	INTEL_CML_GT2_IDS(&cfl_gt2_info),
-	INTEL_CML_U_GT1_IDS(&cfl_gt1_info),
-	INTEL_CML_U_GT2_IDS(&cfl_gt2_info),
+	INTEL_CML_GT1_IDS(&cml_gt1_info),
+	INTEL_CML_GT2_IDS(&cml_gt2_info),
+	INTEL_CML_U_GT1_IDS(&cml_gt1_info),
+	INTEL_CML_U_GT2_IDS(&cml_gt2_info),
 	INTEL_CNL_IDS(&cnl_info),
 	INTEL_ICL_11_IDS(&icl_info),
 	INTEL_EHL_IDS(&ehl_info),
 	INTEL_TGL_12_IDS(&tgl_info),
+	INTEL_RKL_IDS(&rkl_info),
 	{0, 0, 0}
 };
 MODULE_DEVICE_TABLE(pci, pciidlist);

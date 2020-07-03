@@ -446,6 +446,9 @@ static int queue_prio(const struct intel_engine_execlists *execlists)
 	 * we have to flip the index value to become priority.
 	 */
 	p = to_priolist(rb);
+	if (!I915_USER_PRIORITY_SHIFT)
+		return p->priority;
+
 	return ((p->priority + 1) << I915_USER_PRIORITY_SHIFT) - ffs(p->used);
 }
 
@@ -1377,6 +1380,8 @@ __execlists_schedule_in(struct i915_request *rq)
 	ce->lrc.ccid |= engine->execlists.ccid;
 
 	__intel_gt_pm_get(engine->gt);
+	if (engine->fw_domain && !atomic_fetch_inc(&engine->fw_active))
+		intel_uncore_forcewake_get(engine->uncore, engine->fw_domain);
 	execlists_context_status_change(rq, INTEL_CONTEXT_SCHEDULE_IN);
 	intel_engine_context_in(engine);
 
@@ -1409,8 +1414,8 @@ static void kick_siblings(struct i915_request *rq, struct intel_context *ce)
 	struct virtual_engine *ve = container_of(ce, typeof(*ve), context);
 	struct i915_request *next = READ_ONCE(ve->request);
 
-	if (next && next->execution_mask & ~rq->execution_mask)
-		tasklet_schedule(&ve->base.execlists.tasklet);
+	if (next == rq || (next && next->execution_mask & ~rq->execution_mask))
+		tasklet_hi_schedule(&ve->base.execlists.tasklet);
 }
 
 static inline void
@@ -1445,6 +1450,8 @@ __execlists_schedule_out(struct i915_request *rq,
 	intel_context_update_runtime(ce);
 	intel_engine_context_out(engine);
 	execlists_context_status_change(rq, INTEL_CONTEXT_SCHEDULE_OUT);
+	if (engine->fw_domain && !atomic_dec_return(&engine->fw_active))
+		intel_uncore_forcewake_put(engine->uncore, engine->fw_domain);
 	intel_gt_pm_put_async(engine->gt);
 
 	/*
@@ -1636,9 +1643,9 @@ assert_pending_valid(const struct intel_engine_execlists *execlists,
 		ccid = ce->lrc.ccid;
 
 		/*
-		 * Sentinels are supposed to be lonely so they flush the
-		 * current exection off the HW. Check that they are the
-		 * only request in the pending submission.
+		 * Sentinels are supposed to be the last request so they flush
+		 * the current execution off the HW. Check that they are the only
+		 * request in the pending submission.
 		 */
 		if (sentinel) {
 			GEM_TRACE_ERR("%s: context:%llx after sentinel in pending[%zd]\n",
@@ -1647,15 +1654,7 @@ assert_pending_valid(const struct intel_engine_execlists *execlists,
 				      port - execlists->pending);
 			return false;
 		}
-
 		sentinel = i915_request_has_sentinel(rq);
-		if (sentinel && port != execlists->pending) {
-			GEM_TRACE_ERR("%s: sentinel context:%llx not in prime position[%zd]\n",
-				      engine->name,
-				      ce->timeline->fence_context,
-				      port - execlists->pending);
-			return false;
-		}
 
 		/* Hold tightly onto the lock to prevent concurrent retires! */
 		if (!spin_trylock_irqsave(&rq->lock, flags))
@@ -1967,7 +1966,7 @@ static int
 switch_prio(struct intel_engine_cs *engine, const struct i915_request *rq)
 {
 	if (list_is_last(&rq->sched.link, &engine->active.requests))
-		return INT_MIN;
+		return engine->execlists.queue_priority_hint;
 
 	return rq_prio(list_next_entry(rq, sched.link));
 }
@@ -2445,6 +2444,7 @@ done:
 		set_preempt_timeout(engine, *active);
 		execlists_submit_ports(engine);
 	} else {
+		start_timeslice(engine, execlists->queue_priority_hint);
 skip_submit:
 		ring_set_paused(engine, 0);
 	}
@@ -3170,13 +3170,6 @@ static void __submit_queue_imm(struct intel_engine_cs *engine)
 	if (reset_in_progress(execlists))
 		return; /* defer until we restart the engine following reset */
 
-	/* Hopefully we clear execlists->pending[] to let us through */
-	if (READ_ONCE(execlists->pending[0]) &&
-	    tasklet_trylock(&execlists->tasklet)) {
-		process_csb(engine);
-		tasklet_unlock(&execlists->tasklet);
-	}
-
 	__execlists_submission_tasklet(engine);
 }
 
@@ -3199,10 +3192,24 @@ static bool ancestor_on_hold(const struct intel_engine_cs *engine,
 	return !list_empty(&engine->active.hold) && hold_request(rq);
 }
 
+static void flush_csb(struct intel_engine_cs *engine)
+{
+	struct intel_engine_execlists *el = &engine->execlists;
+
+	if (READ_ONCE(el->pending[0]) && tasklet_trylock(&el->tasklet)) {
+		if (!reset_in_progress(el))
+			process_csb(engine);
+		tasklet_unlock(&el->tasklet);
+	}
+}
+
 static void execlists_submit_request(struct i915_request *request)
 {
 	struct intel_engine_cs *engine = request->engine;
 	unsigned long flags;
+
+	/* Hopefully we clear execlists->pending[] to let us through */
+	flush_csb(engine);
 
 	/* Will be called from irq-context when using foreign fences. */
 	spin_lock_irqsave(&engine->active.lock, flags);
@@ -3536,7 +3543,7 @@ static int emit_pdps(struct i915_request *rq)
 	int err, i;
 	u32 *cs;
 
-	GEM_BUG_ON(intel_vgpu_active(rq->i915));
+	GEM_BUG_ON(intel_vgpu_active(rq->engine->i915));
 
 	/*
 	 * Beware ye of the dragons, this sequence is magic!
@@ -4515,11 +4522,11 @@ static int gen8_emit_flush_render(struct i915_request *request,
 		 * On GEN9: before VF_CACHE_INVALIDATE we need to emit a NULL
 		 * pipe control.
 		 */
-		if (IS_GEN(request->i915, 9))
+		if (IS_GEN(request->engine->i915, 9))
 			vf_flush_wa = true;
 
 		/* WaForGAMHang:kbl */
-		if (IS_KBL_REVID(request->i915, 0, KBL_REVID_B0))
+		if (IS_KBL_REVID(request->engine->i915, 0, KBL_REVID_B0))
 			dc_flush_wa = true;
 	}
 
@@ -5598,7 +5605,7 @@ static void virtual_submit_request(struct i915_request *rq)
 		GEM_BUG_ON(!list_empty(virtual_queue(ve)));
 		list_move_tail(&rq->sched.link, virtual_queue(ve));
 
-		tasklet_schedule(&ve->base.execlists.tasklet);
+		tasklet_hi_schedule(&ve->base.execlists.tasklet);
 	}
 
 	spin_unlock_irqrestore(&ve->base.active.lock, flags);

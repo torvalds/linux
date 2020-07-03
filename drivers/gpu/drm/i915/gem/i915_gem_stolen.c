@@ -566,6 +566,7 @@ i915_gem_object_release_stolen(struct drm_i915_gem_object *obj)
 }
 
 static const struct drm_i915_gem_object_ops i915_gem_object_stolen_ops = {
+	.name = "i915_gem_object_stolen",
 	.get_pages = i915_gem_object_get_pages_stolen,
 	.put_pages = i915_gem_object_put_pages_stolen,
 	.release = i915_gem_object_release_stolen,

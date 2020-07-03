@@ -479,16 +479,6 @@ struct intel_atomic_state {
 
 	bool dpll_set, modeset;
 
-	/*
-	 * Does this transaction change the pipes that are active?  This mask
-	 * tracks which CRTC's have changed their active state at the end of
-	 * the transaction (not counting the temporary disable during modesets).
-	 * This mask should only be non-zero when intel_state->modeset is true,
-	 * but the converse is not necessarily true; simply changing a mode may
-	 * not flip the final active status of any CRTC's
-	 */
-	u8 active_pipe_changes;
-
 	u8 active_pipes;
 
 	struct intel_shared_dpll_state shared_dpll[I915_NUM_PLLS];
@@ -505,9 +495,6 @@ struct intel_atomic_state {
 	 * active_pipes
 	 */
 	bool global_state_changed;
-
-	/* Number of enabled DBuf slices */
-	u8 enabled_dbuf_slices_mask;
 
 	struct i915_sw_fence commit_ready;
 
@@ -643,8 +630,7 @@ struct intel_crtc_scaler_state {
 	int scaler_id;
 };
 
-/* drm_mode->private_flags */
-#define I915_MODE_FLAG_INHERITED (1<<0)
+/* {crtc,crtc_state}->mode_flags */
 /* Flag to get scanline using frame time stamps */
 #define I915_MODE_FLAG_GET_SCANLINE_FROM_TIMESTAMP (1<<1)
 /* Flag to use the scanline counter instead of the pixel counter */
@@ -841,6 +827,7 @@ struct intel_crtc_state {
 	bool update_wm_pre, update_wm_post; /* watermarks are updated */
 	bool fifo_changed; /* FIFO split is changed */
 	bool preload_luts;
+	bool inherited; /* state inherited from BIOS? */
 
 	/* Pipe source size (ie. panel fitter input size)
 	 * All planes will be positioned inside this space,
@@ -955,6 +942,9 @@ struct intel_crtc_state {
 
 	/* Used by SDVO (and if we ever fix it, HDMI). */
 	unsigned pixel_multiplier;
+
+	/* I915_MODE_FLAG_* */
+	u8 mode_flags;
 
 	u8 lane_count;
 
@@ -1080,6 +1070,9 @@ struct intel_crtc_state {
 
 	/* Only valid on TGL+ */
 	enum transcoder mst_master_transcoder;
+
+	/* For DSB related info */
+	struct intel_dsb *dsb;
 };
 
 enum intel_pipe_crc_source {
@@ -1118,6 +1111,10 @@ struct intel_crtc {
 	 */
 	bool active;
 	u8 plane_ids_mask;
+
+	/* I915_MODE_FLAG_* */
+	u8 mode_flags;
+
 	unsigned long long enabled_power_domains;
 	struct intel_overlay *overlay;
 
@@ -1148,9 +1145,6 @@ struct intel_crtc {
 
 	/* scalers available on this crtc */
 	int num_scalers;
-
-	/* per pipe DSB related info */
-	struct intel_dsb dsb;
 
 #ifdef CONFIG_DEBUG_FS
 	struct intel_pipe_crc pipe_crc;
@@ -1372,6 +1366,9 @@ struct intel_dp {
 	void (*set_link_train)(struct intel_dp *intel_dp, u8 dp_train_pat);
 	void (*set_idle_link_train)(struct intel_dp *intel_dp);
 	void (*set_signal_levels)(struct intel_dp *intel_dp);
+
+	u8 (*preemph_max)(struct intel_dp *intel_dp);
+	u8 (*voltage_max)(struct intel_dp *intel_dp);
 
 	/* Displayport compliance testing */
 	struct intel_dp_compliance compliance;

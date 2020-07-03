@@ -12,6 +12,7 @@
 #include "intel_gt.h"
 #include "intel_gt_requests.h"
 #include "intel_ring.h"
+#include "selftest_engine_heartbeat.h"
 
 #include "../selftests/i915_random.h"
 #include "../i915_selftest.h"
@@ -426,12 +427,12 @@ static int emit_ggtt_store_dw(struct i915_request *rq, u32 addr, u32 value)
 	if (IS_ERR(cs))
 		return PTR_ERR(cs);
 
-	if (INTEL_GEN(rq->i915) >= 8) {
+	if (INTEL_GEN(rq->engine->i915) >= 8) {
 		*cs++ = MI_STORE_DWORD_IMM_GEN4 | MI_USE_GGTT;
 		*cs++ = addr;
 		*cs++ = 0;
 		*cs++ = value;
-	} else if (INTEL_GEN(rq->i915) >= 4) {
+	} else if (INTEL_GEN(rq->engine->i915) >= 4) {
 		*cs++ = MI_STORE_DWORD_IMM_GEN4 | MI_USE_GGTT;
 		*cs++ = 0;
 		*cs++ = addr;
@@ -751,22 +752,6 @@ out_free:
 	return err;
 }
 
-static void engine_heartbeat_disable(struct intel_engine_cs *engine)
-{
-	engine->props.heartbeat_interval_ms = 0;
-
-	intel_engine_pm_get(engine);
-	intel_engine_park_heartbeat(engine);
-}
-
-static void engine_heartbeat_enable(struct intel_engine_cs *engine)
-{
-	intel_engine_pm_put(engine);
-
-	engine->props.heartbeat_interval_ms =
-		engine->defaults.heartbeat_interval_ms;
-}
-
 static int live_hwsp_rollover_kernel(void *arg)
 {
 	struct intel_gt *gt = arg;
@@ -785,7 +770,7 @@ static int live_hwsp_rollover_kernel(void *arg)
 		struct i915_request *rq[3] = {};
 		int i;
 
-		engine_heartbeat_disable(engine);
+		st_engine_heartbeat_disable(engine);
 		if (intel_gt_wait_for_idle(gt, HZ / 2)) {
 			err = -EIO;
 			goto out;
@@ -836,7 +821,7 @@ static int live_hwsp_rollover_kernel(void *arg)
 out:
 		for (i = 0; i < ARRAY_SIZE(rq); i++)
 			i915_request_put(rq[i]);
-		engine_heartbeat_enable(engine);
+		st_engine_heartbeat_enable(engine);
 		if (err)
 			break;
 	}

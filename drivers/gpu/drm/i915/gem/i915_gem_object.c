@@ -53,7 +53,7 @@ void i915_gem_object_init(struct drm_i915_gem_object *obj,
 			  const struct drm_i915_gem_object_ops *ops,
 			  struct lock_class_key *key)
 {
-	__mutex_init(&obj->mm.lock, "obj->mm.lock", key);
+	__mutex_init(&obj->mm.lock, ops->name ?: "obj->mm.lock", key);
 
 	spin_lock_init(&obj->vma.lock);
 	INIT_LIST_HEAD(&obj->vma.list);
@@ -61,6 +61,7 @@ void i915_gem_object_init(struct drm_i915_gem_object *obj,
 	INIT_LIST_HEAD(&obj->mm.link);
 
 	INIT_LIST_HEAD(&obj->lut_list);
+	spin_lock_init(&obj->lut_lock);
 
 	spin_lock_init(&obj->mmo.lock);
 	obj->mmo.offsets = RB_ROOT;
@@ -72,6 +73,10 @@ void i915_gem_object_init(struct drm_i915_gem_object *obj,
 	obj->mm.madv = I915_MADV_WILLNEED;
 	INIT_RADIX_TREE(&obj->mm.get_page.radix, GFP_KERNEL | __GFP_NOWARN);
 	mutex_init(&obj->mm.get_page.lock);
+
+	if (IS_ENABLED(CONFIG_LOCKDEP) && i915_gem_object_is_shrinkable(obj))
+		i915_gem_shrinker_taints_mutex(to_i915(obj->base.dev),
+					       &obj->mm.lock);
 }
 
 /**
@@ -100,21 +105,29 @@ void i915_gem_close_object(struct drm_gem_object *gem, struct drm_file *file)
 {
 	struct drm_i915_gem_object *obj = to_intel_bo(gem);
 	struct drm_i915_file_private *fpriv = file->driver_priv;
+	struct i915_lut_handle bookmark = {};
 	struct i915_mmap_offset *mmo, *mn;
 	struct i915_lut_handle *lut, *ln;
 	LIST_HEAD(close);
 
-	i915_gem_object_lock(obj);
+	spin_lock(&obj->lut_lock);
 	list_for_each_entry_safe(lut, ln, &obj->lut_list, obj_link) {
 		struct i915_gem_context *ctx = lut->ctx;
 
-		if (ctx->file_priv != fpriv)
-			continue;
+		if (ctx && ctx->file_priv == fpriv) {
+			i915_gem_context_get(ctx);
+			list_move(&lut->obj_link, &close);
+		}
 
-		i915_gem_context_get(ctx);
-		list_move(&lut->obj_link, &close);
+		/* Break long locks, and carefully continue on from this spot */
+		if (&ln->obj_link != &obj->lut_list) {
+			list_add_tail(&bookmark.obj_link, &ln->obj_link);
+			if (cond_resched_lock(&obj->lut_lock))
+				list_safe_reset_next(&bookmark, ln, obj_link);
+			__list_del_entry(&bookmark.obj_link);
+		}
 	}
-	i915_gem_object_unlock(obj);
+	spin_unlock(&obj->lut_lock);
 
 	spin_lock(&obj->mmo.lock);
 	rbtree_postorder_for_each_entry_safe(mmo, mn, &obj->mmo.offsets, offset)

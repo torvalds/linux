@@ -132,7 +132,7 @@ static const u32 *__live_rc6_ctx(struct intel_context *ce)
 	}
 
 	cmd = MI_STORE_REGISTER_MEM | MI_USE_GGTT;
-	if (INTEL_GEN(rq->i915) >= 8)
+	if (INTEL_GEN(rq->engine->i915) >= 8)
 		cmd++;
 
 	*cs++ = cmd;
@@ -197,10 +197,10 @@ int live_rc6_ctx_wa(void *arg)
 		int pass;
 
 		for (pass = 0; pass < 2; pass++) {
+			struct i915_gpu_error *error = &gt->i915->gpu_error;
 			struct intel_context *ce;
 			unsigned int resets =
-				i915_reset_engine_count(&gt->i915->gpu_error,
-							engine);
+				i915_reset_engine_count(error, engine);
 			const u32 *res;
 
 			/* Use a sacrifical context */
@@ -230,8 +230,7 @@ int live_rc6_ctx_wa(void *arg)
 				 engine->name, READ_ONCE(*res));
 
 			if (resets !=
-			    i915_reset_engine_count(&gt->i915->gpu_error,
-						    engine)) {
+			    i915_reset_engine_count(error, engine)) {
 				pr_err("%s: GPU reset required\n",
 				       engine->name);
 				add_taint_for_CI(TAINT_WARN);

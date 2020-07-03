@@ -216,12 +216,12 @@ static vm_fault_t i915_error_to_vmf_fault(int err)
 	case -ENXIO: /* unable to access backing store (on device) */
 		return VM_FAULT_SIGBUS;
 
-	case -ENOSPC: /* shmemfs allocation failure */
 	case -ENOMEM: /* our allocation failure */
 		return VM_FAULT_OOM;
 
 	case 0:
 	case -EAGAIN:
+	case -ENOSPC: /* transient failure to evict? */
 	case -ERESTARTSYS:
 	case -EINTR:
 	case -EBUSY:

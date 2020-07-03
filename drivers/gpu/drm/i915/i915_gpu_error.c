@@ -1698,7 +1698,7 @@ static void capture_gen(struct i915_gpu_coredump *error)
 	error->reset_count = i915_reset_count(&i915->gpu_error);
 	error->suspend_count = i915->suspend_count;
 
-	i915_params_copy(&error->params, &i915_modparams);
+	i915_params_copy(&error->params, &i915->params);
 	memcpy(&error->device_info,
 	       INTEL_INFO(i915),
 	       sizeof(error->device_info));
@@ -1713,7 +1713,7 @@ i915_gpu_coredump_alloc(struct drm_i915_private *i915, gfp_t gfp)
 {
 	struct i915_gpu_coredump *error;
 
-	if (!i915_modparams.error_capture)
+	if (!i915->params.error_capture)
 		return NULL;
 
 	error = kzalloc(sizeof(*error), gfp);

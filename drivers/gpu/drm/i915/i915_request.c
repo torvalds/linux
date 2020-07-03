@@ -42,7 +42,6 @@
 #include "intel_pm.h"
 
 struct execute_cb {
-	struct list_head link;
 	struct irq_work work;
 	struct i915_sw_fence *fence;
 	void (*hook)(struct i915_request *rq, struct dma_fence *signal);
@@ -57,7 +56,7 @@ static struct i915_global_request {
 
 static const char *i915_fence_get_driver_name(struct dma_fence *fence)
 {
-	return dev_name(to_request(fence)->i915->drm.dev);
+	return dev_name(to_request(fence)->engine->i915->drm.dev);
 }
 
 static const char *i915_fence_get_timeline_name(struct dma_fence *fence)
@@ -189,14 +188,15 @@ static void irq_execute_cb_hook(struct irq_work *wrk)
 
 static void __notify_execute_cb(struct i915_request *rq)
 {
-	struct execute_cb *cb;
+	struct execute_cb *cb, *cn;
 
 	lockdep_assert_held(&rq->lock);
 
-	if (list_empty(&rq->execute_cb))
+	GEM_BUG_ON(!i915_request_is_active(rq));
+	if (llist_empty(&rq->execute_cb))
 		return;
 
-	list_for_each_entry(cb, &rq->execute_cb, link)
+	llist_for_each_entry_safe(cb, cn, rq->execute_cb.first, work.llnode)
 		irq_work_queue(&cb->work);
 
 	/*
@@ -209,7 +209,7 @@ static void __notify_execute_cb(struct i915_request *rq)
 	 * preempt-to-idle cycle on the target engine, all the while the
 	 * master execute_cb may refire.
 	 */
-	INIT_LIST_HEAD(&rq->execute_cb);
+	init_llist_head(&rq->execute_cb);
 }
 
 static inline void
@@ -327,7 +327,7 @@ bool i915_request_retire(struct i915_request *rq)
 		set_bit(I915_FENCE_FLAG_ACTIVE, &rq->fence.flags);
 		__notify_execute_cb(rq);
 	}
-	GEM_BUG_ON(!list_empty(&rq->execute_cb));
+	GEM_BUG_ON(!llist_empty(&rq->execute_cb));
 	spin_unlock_irq(&rq->lock);
 
 	remove_from_client(rq);
@@ -355,6 +355,12 @@ void i915_request_retire_upto(struct i915_request *rq)
 	do {
 		tmp = list_first_entry(&tl->requests, typeof(*tmp), link);
 	} while (i915_request_retire(tmp) && tmp != rq);
+}
+
+static void __llist_add(struct llist_node *node, struct llist_head *head)
+{
+	node->next = head->first;
+	head->first = node;
 }
 
 static struct i915_request * const *
@@ -442,7 +448,7 @@ __await_execution(struct i915_request *rq,
 		i915_sw_fence_complete(cb->fence);
 		kmem_cache_free(global.slab_execute_cbs, cb);
 	} else {
-		list_add_tail(&cb->link, &signal->execute_cb);
+		__llist_add(&cb->work.llnode, &signal->execute_cb);
 	}
 	spin_unlock_irq(&signal->lock);
 
@@ -560,14 +566,14 @@ xfer:	/* We may be recursing from the signal callback of another i915 fence */
 	if (!test_and_set_bit(I915_FENCE_FLAG_ACTIVE, &request->fence.flags)) {
 		list_move_tail(&request->sched.link, &engine->active.requests);
 		clear_bit(I915_FENCE_FLAG_PQUEUE, &request->fence.flags);
+		__notify_execute_cb(request);
 	}
+	GEM_BUG_ON(!llist_empty(&request->execute_cb));
 
 	if (test_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT, &request->fence.flags) &&
 	    !test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &request->fence.flags) &&
 	    !i915_request_enable_breadcrumb(request))
 		intel_engine_signal_breadcrumbs(engine);
-
-	__notify_execute_cb(request);
 
 	spin_unlock(&request->lock);
 
@@ -751,7 +757,7 @@ static void __i915_request_ctor(void *arg)
 	rq->file_priv = NULL;
 	rq->capture_list = NULL;
 
-	INIT_LIST_HEAD(&rq->execute_cb);
+	init_llist_head(&rq->execute_cb);
 }
 
 struct i915_request *
@@ -806,7 +812,6 @@ __i915_request_create(struct intel_context *ce, gfp_t gfp)
 		}
 	}
 
-	rq->i915 = ce->engine->i915;
 	rq->context = ce;
 	rq->engine = ce->engine;
 	rq->ring = ce->ring;
@@ -841,7 +846,7 @@ __i915_request_create(struct intel_context *ce, gfp_t gfp)
 	rq->batch = NULL;
 	GEM_BUG_ON(rq->file_priv);
 	GEM_BUG_ON(rq->capture_list);
-	GEM_BUG_ON(!list_empty(&rq->execute_cb));
+	GEM_BUG_ON(!llist_empty(&rq->execute_cb));
 
 	/*
 	 * Reserve space in the ring buffer for all the commands required to
@@ -1005,12 +1010,12 @@ __emit_semaphore_wait(struct i915_request *to,
 		      struct i915_request *from,
 		      u32 seqno)
 {
-	const int has_token = INTEL_GEN(to->i915) >= 12;
+	const int has_token = INTEL_GEN(to->engine->i915) >= 12;
 	u32 hwsp_offset;
 	int len, err;
 	u32 *cs;
 
-	GEM_BUG_ON(INTEL_GEN(to->i915) < 8);
+	GEM_BUG_ON(INTEL_GEN(to->engine->i915) < 8);
 	GEM_BUG_ON(i915_request_has_initial_breadcrumb(to));
 
 	/* We need to pin the signaler's HWSP until we are finished reading. */
@@ -1205,7 +1210,7 @@ __i915_request_await_external(struct i915_request *rq, struct dma_fence *fence)
 {
 	mark_external(rq);
 	return i915_sw_fence_await_dma_fence(&rq->submit, fence,
-					     i915_fence_context_timeout(rq->i915,
+					     i915_fence_context_timeout(rq->engine->i915,
 									fence->context),
 					     I915_FENCE_GFP);
 }
@@ -1776,7 +1781,8 @@ long i915_request_wait(struct i915_request *rq,
 	 * (bad for battery).
 	 */
 	if (flags & I915_WAIT_PRIORITY) {
-		if (!i915_request_started(rq) && INTEL_GEN(rq->i915) >= 6)
+		if (!i915_request_started(rq) &&
+		    INTEL_GEN(rq->engine->i915) >= 6)
 			intel_rps_boost(rq);
 	}
 

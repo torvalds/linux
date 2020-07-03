@@ -24,16 +24,21 @@
 
 #include <linux/prime_numbers.h>
 #include <linux/pm_qos.h>
+#include <linux/sort.h>
 
 #include "gem/i915_gem_pm.h"
 #include "gem/selftests/mock_context.h"
 
+#include "gt/intel_engine_heartbeat.h"
 #include "gt/intel_engine_pm.h"
 #include "gt/intel_engine_user.h"
 #include "gt/intel_gt.h"
+#include "gt/intel_gt_requests.h"
+#include "gt/selftest_engine_heartbeat.h"
 
 #include "i915_random.h"
 #include "i915_selftest.h"
+#include "igt_flush_test.h"
 #include "igt_live_test.h"
 #include "igt_spinner.h"
 #include "lib_sw_fence.h"
@@ -1524,6 +1529,808 @@ struct perf_series {
 	struct intel_context *ce[];
 };
 
+static int cmp_u32(const void *A, const void *B)
+{
+	const u32 *a = A, *b = B;
+
+	return *a - *b;
+}
+
+static u32 trifilter(u32 *a)
+{
+	u64 sum;
+
+#define TF_COUNT 5
+	sort(a, TF_COUNT, sizeof(*a), cmp_u32, NULL);
+
+	sum = mul_u32_u32(a[2], 2);
+	sum += a[1];
+	sum += a[3];
+
+	GEM_BUG_ON(sum > U32_MAX);
+	return sum;
+#define TF_BIAS 2
+}
+
+static u64 cycles_to_ns(struct intel_engine_cs *engine, u32 cycles)
+{
+	u64 ns = i915_cs_timestamp_ticks_to_ns(engine->i915, cycles);
+
+	return DIV_ROUND_CLOSEST(ns, 1 << TF_BIAS);
+}
+
+static u32 *emit_timestamp_store(u32 *cs, struct intel_context *ce, u32 offset)
+{
+	*cs++ = MI_STORE_REGISTER_MEM_GEN8 | MI_USE_GGTT;
+	*cs++ = i915_mmio_reg_offset(RING_TIMESTAMP((ce->engine->mmio_base)));
+	*cs++ = offset;
+	*cs++ = 0;
+
+	return cs;
+}
+
+static u32 *emit_store_dw(u32 *cs, u32 offset, u32 value)
+{
+	*cs++ = MI_STORE_DWORD_IMM_GEN4 | MI_USE_GGTT;
+	*cs++ = offset;
+	*cs++ = 0;
+	*cs++ = value;
+
+	return cs;
+}
+
+static u32 *emit_semaphore_poll(u32 *cs, u32 mode, u32 value, u32 offset)
+{
+	*cs++ = MI_SEMAPHORE_WAIT |
+		MI_SEMAPHORE_GLOBAL_GTT |
+		MI_SEMAPHORE_POLL |
+		mode;
+	*cs++ = value;
+	*cs++ = offset;
+	*cs++ = 0;
+
+	return cs;
+}
+
+static u32 *emit_semaphore_poll_until(u32 *cs, u32 offset, u32 value)
+{
+	return emit_semaphore_poll(cs, MI_SEMAPHORE_SAD_EQ_SDD, value, offset);
+}
+
+static void semaphore_set(u32 *sema, u32 value)
+{
+	WRITE_ONCE(*sema, value);
+	wmb(); /* flush the update to the cache, and beyond */
+}
+
+static u32 *hwsp_scratch(const struct intel_context *ce)
+{
+	return memset32(ce->engine->status_page.addr + 1000, 0, 21);
+}
+
+static u32 hwsp_offset(const struct intel_context *ce, u32 *dw)
+{
+	return (i915_ggtt_offset(ce->engine->status_page.vma) +
+		offset_in_page(dw));
+}
+
+static int measure_semaphore_response(struct intel_context *ce)
+{
+	u32 *sema = hwsp_scratch(ce);
+	const u32 offset = hwsp_offset(ce, sema);
+	u32 elapsed[TF_COUNT], cycles;
+	struct i915_request *rq;
+	u32 *cs;
+	int err;
+	int i;
+
+	/*
+	 * Measure how many cycles it takes for the HW to detect the change
+	 * in a semaphore value.
+	 *
+	 *    A: read CS_TIMESTAMP from CPU
+	 *    poke semaphore
+	 *    B: read CS_TIMESTAMP on GPU
+	 *
+	 * Semaphore latency: B - A
+	 */
+
+	semaphore_set(sema, -1);
+
+	rq = i915_request_create(ce);
+	if (IS_ERR(rq))
+		return PTR_ERR(rq);
+
+	cs = intel_ring_begin(rq, 4 + 12 * ARRAY_SIZE(elapsed));
+	if (IS_ERR(cs)) {
+		i915_request_add(rq);
+		err = PTR_ERR(cs);
+		goto err;
+	}
+
+	cs = emit_store_dw(cs, offset, 0);
+	for (i = 1; i <= ARRAY_SIZE(elapsed); i++) {
+		cs = emit_semaphore_poll_until(cs, offset, i);
+		cs = emit_timestamp_store(cs, ce, offset + i * sizeof(u32));
+		cs = emit_store_dw(cs, offset, 0);
+	}
+
+	intel_ring_advance(rq, cs);
+	i915_request_add(rq);
+
+	if (wait_for(READ_ONCE(*sema) == 0, 50)) {
+		err = -EIO;
+		goto err;
+	}
+
+	for (i = 1; i <= ARRAY_SIZE(elapsed); i++) {
+		preempt_disable();
+		cycles = ENGINE_READ_FW(ce->engine, RING_TIMESTAMP);
+		semaphore_set(sema, i);
+		preempt_enable();
+
+		if (wait_for(READ_ONCE(*sema) == 0, 50)) {
+			err = -EIO;
+			goto err;
+		}
+
+		elapsed[i - 1] = sema[i] - cycles;
+	}
+
+	cycles = trifilter(elapsed);
+	pr_info("%s: semaphore response %d cycles, %lluns\n",
+		ce->engine->name, cycles >> TF_BIAS,
+		cycles_to_ns(ce->engine, cycles));
+
+	return intel_gt_wait_for_idle(ce->engine->gt, HZ);
+
+err:
+	intel_gt_set_wedged(ce->engine->gt);
+	return err;
+}
+
+static int measure_idle_dispatch(struct intel_context *ce)
+{
+	u32 *sema = hwsp_scratch(ce);
+	const u32 offset = hwsp_offset(ce, sema);
+	u32 elapsed[TF_COUNT], cycles;
+	u32 *cs;
+	int err;
+	int i;
+
+	/*
+	 * Measure how long it takes for us to submit a request while the
+	 * engine is idle, but is resting in our context.
+	 *
+	 *    A: read CS_TIMESTAMP from CPU
+	 *    submit request
+	 *    B: read CS_TIMESTAMP on GPU
+	 *
+	 * Submission latency: B - A
+	 */
+
+	for (i = 0; i < ARRAY_SIZE(elapsed); i++) {
+		struct i915_request *rq;
+
+		err = intel_gt_wait_for_idle(ce->engine->gt, HZ / 2);
+		if (err)
+			return err;
+
+		rq = i915_request_create(ce);
+		if (IS_ERR(rq)) {
+			err = PTR_ERR(rq);
+			goto err;
+		}
+
+		cs = intel_ring_begin(rq, 4);
+		if (IS_ERR(cs)) {
+			i915_request_add(rq);
+			err = PTR_ERR(cs);
+			goto err;
+		}
+
+		cs = emit_timestamp_store(cs, ce, offset + i * sizeof(u32));
+
+		intel_ring_advance(rq, cs);
+
+		preempt_disable();
+		local_bh_disable();
+		elapsed[i] = ENGINE_READ_FW(ce->engine, RING_TIMESTAMP);
+		i915_request_add(rq);
+		local_bh_enable();
+		preempt_enable();
+	}
+
+	err = intel_gt_wait_for_idle(ce->engine->gt, HZ / 2);
+	if (err)
+		goto err;
+
+	for (i = 0; i < ARRAY_SIZE(elapsed); i++)
+		elapsed[i] = sema[i] - elapsed[i];
+
+	cycles = trifilter(elapsed);
+	pr_info("%s: idle dispatch latency %d cycles, %lluns\n",
+		ce->engine->name, cycles >> TF_BIAS,
+		cycles_to_ns(ce->engine, cycles));
+
+	return intel_gt_wait_for_idle(ce->engine->gt, HZ);
+
+err:
+	intel_gt_set_wedged(ce->engine->gt);
+	return err;
+}
+
+static int measure_busy_dispatch(struct intel_context *ce)
+{
+	u32 *sema = hwsp_scratch(ce);
+	const u32 offset = hwsp_offset(ce, sema);
+	u32 elapsed[TF_COUNT + 1], cycles;
+	u32 *cs;
+	int err;
+	int i;
+
+	/*
+	 * Measure how long it takes for us to submit a request while the
+	 * engine is busy, polling on a semaphore in our context. With
+	 * direct submission, this will include the cost of a lite restore.
+	 *
+	 *    A: read CS_TIMESTAMP from CPU
+	 *    submit request
+	 *    B: read CS_TIMESTAMP on GPU
+	 *
+	 * Submission latency: B - A
+	 */
+
+	for (i = 1; i <= ARRAY_SIZE(elapsed); i++) {
+		struct i915_request *rq;
+
+		rq = i915_request_create(ce);
+		if (IS_ERR(rq)) {
+			err = PTR_ERR(rq);
+			goto err;
+		}
+
+		cs = intel_ring_begin(rq, 12);
+		if (IS_ERR(cs)) {
+			i915_request_add(rq);
+			err = PTR_ERR(cs);
+			goto err;
+		}
+
+		cs = emit_store_dw(cs, offset + i * sizeof(u32), -1);
+		cs = emit_semaphore_poll_until(cs, offset, i);
+		cs = emit_timestamp_store(cs, ce, offset + i * sizeof(u32));
+
+		intel_ring_advance(rq, cs);
+
+		if (i > 1 && wait_for(READ_ONCE(sema[i - 1]), 500)) {
+			err = -EIO;
+			goto err;
+		}
+
+		preempt_disable();
+		local_bh_disable();
+		elapsed[i - 1] = ENGINE_READ_FW(ce->engine, RING_TIMESTAMP);
+		i915_request_add(rq);
+		local_bh_enable();
+		semaphore_set(sema, i - 1);
+		preempt_enable();
+	}
+
+	wait_for(READ_ONCE(sema[i - 1]), 500);
+	semaphore_set(sema, i - 1);
+
+	for (i = 1; i <= TF_COUNT; i++) {
+		GEM_BUG_ON(sema[i] == -1);
+		elapsed[i - 1] = sema[i] - elapsed[i];
+	}
+
+	cycles = trifilter(elapsed);
+	pr_info("%s: busy dispatch latency %d cycles, %lluns\n",
+		ce->engine->name, cycles >> TF_BIAS,
+		cycles_to_ns(ce->engine, cycles));
+
+	return intel_gt_wait_for_idle(ce->engine->gt, HZ);
+
+err:
+	intel_gt_set_wedged(ce->engine->gt);
+	return err;
+}
+
+static int plug(struct intel_engine_cs *engine, u32 *sema, u32 mode, int value)
+{
+	const u32 offset =
+		i915_ggtt_offset(engine->status_page.vma) +
+		offset_in_page(sema);
+	struct i915_request *rq;
+	u32 *cs;
+
+	rq = i915_request_create(engine->kernel_context);
+	if (IS_ERR(rq))
+		return PTR_ERR(rq);
+
+	cs = intel_ring_begin(rq, 4);
+	if (IS_ERR(cs)) {
+		i915_request_add(rq);
+		return PTR_ERR(cs);
+	}
+
+	cs = emit_semaphore_poll(cs, mode, value, offset);
+
+	intel_ring_advance(rq, cs);
+	i915_request_add(rq);
+
+	return 0;
+}
+
+static int measure_inter_request(struct intel_context *ce)
+{
+	u32 *sema = hwsp_scratch(ce);
+	const u32 offset = hwsp_offset(ce, sema);
+	u32 elapsed[TF_COUNT + 1], cycles;
+	struct i915_sw_fence *submit;
+	int i, err;
+
+	/*
+	 * Measure how long it takes to advance from one request into the
+	 * next. Between each request we flush the GPU caches to memory,
+	 * update the breadcrumbs, and then invalidate those caches.
+	 * We queue up all the requests to be submitted in one batch so
+	 * it should be one set of contiguous measurements.
+	 *
+	 *    A: read CS_TIMESTAMP on GPU
+	 *    advance request
+	 *    B: read CS_TIMESTAMP on GPU
+	 *
+	 * Request latency: B - A
+	 */
+
+	err = plug(ce->engine, sema, MI_SEMAPHORE_SAD_NEQ_SDD, 0);
+	if (err)
+		return err;
+
+	submit = heap_fence_create(GFP_KERNEL);
+	if (!submit) {
+		semaphore_set(sema, 1);
+		return -ENOMEM;
+	}
+
+	intel_engine_flush_submission(ce->engine);
+	for (i = 1; i <= ARRAY_SIZE(elapsed); i++) {
+		struct i915_request *rq;
+		u32 *cs;
+
+		rq = i915_request_create(ce);
+		if (IS_ERR(rq)) {
+			err = PTR_ERR(rq);
+			goto err_submit;
+		}
+
+		err = i915_sw_fence_await_sw_fence_gfp(&rq->submit,
+						       submit,
+						       GFP_KERNEL);
+		if (err < 0) {
+			i915_request_add(rq);
+			goto err_submit;
+		}
+
+		cs = intel_ring_begin(rq, 4);
+		if (IS_ERR(cs)) {
+			i915_request_add(rq);
+			err = PTR_ERR(cs);
+			goto err_submit;
+		}
+
+		cs = emit_timestamp_store(cs, ce, offset + i * sizeof(u32));
+
+		intel_ring_advance(rq, cs);
+		i915_request_add(rq);
+	}
+	local_bh_disable();
+	i915_sw_fence_commit(submit);
+	local_bh_enable();
+	intel_engine_flush_submission(ce->engine);
+	heap_fence_put(submit);
+
+	semaphore_set(sema, 1);
+	err = intel_gt_wait_for_idle(ce->engine->gt, HZ / 2);
+	if (err)
+		goto err;
+
+	for (i = 1; i <= TF_COUNT; i++)
+		elapsed[i - 1] = sema[i + 1] - sema[i];
+
+	cycles = trifilter(elapsed);
+	pr_info("%s: inter-request latency %d cycles, %lluns\n",
+		ce->engine->name, cycles >> TF_BIAS,
+		cycles_to_ns(ce->engine, cycles));
+
+	return intel_gt_wait_for_idle(ce->engine->gt, HZ);
+
+err_submit:
+	i915_sw_fence_commit(submit);
+	heap_fence_put(submit);
+	semaphore_set(sema, 1);
+err:
+	intel_gt_set_wedged(ce->engine->gt);
+	return err;
+}
+
+static int measure_context_switch(struct intel_context *ce)
+{
+	u32 *sema = hwsp_scratch(ce);
+	const u32 offset = hwsp_offset(ce, sema);
+	struct i915_request *fence = NULL;
+	u32 elapsed[TF_COUNT + 1], cycles;
+	int i, j, err;
+	u32 *cs;
+
+	/*
+	 * Measure how long it takes to advance from one request in one
+	 * context to a request in another context. This allows us to
+	 * measure how long the context save/restore take, along with all
+	 * the inter-context setup we require.
+	 *
+	 *    A: read CS_TIMESTAMP on GPU
+	 *    switch context
+	 *    B: read CS_TIMESTAMP on GPU
+	 *
+	 * Context switch latency: B - A
+	 */
+
+	err = plug(ce->engine, sema, MI_SEMAPHORE_SAD_NEQ_SDD, 0);
+	if (err)
+		return err;
+
+	for (i = 1; i <= ARRAY_SIZE(elapsed); i++) {
+		struct intel_context *arr[] = {
+			ce, ce->engine->kernel_context
+		};
+		u32 addr = offset + ARRAY_SIZE(arr) * i * sizeof(u32);
+
+		for (j = 0; j < ARRAY_SIZE(arr); j++) {
+			struct i915_request *rq;
+
+			rq = i915_request_create(arr[j]);
+			if (IS_ERR(rq)) {
+				err = PTR_ERR(rq);
+				goto err_fence;
+			}
+
+			if (fence) {
+				err = i915_request_await_dma_fence(rq,
+								   &fence->fence);
+				if (err) {
+					i915_request_add(rq);
+					goto err_fence;
+				}
+			}
+
+			cs = intel_ring_begin(rq, 4);
+			if (IS_ERR(cs)) {
+				i915_request_add(rq);
+				err = PTR_ERR(cs);
+				goto err_fence;
+			}
+
+			cs = emit_timestamp_store(cs, ce, addr);
+			addr += sizeof(u32);
+
+			intel_ring_advance(rq, cs);
+
+			i915_request_put(fence);
+			fence = i915_request_get(rq);
+
+			i915_request_add(rq);
+		}
+	}
+	i915_request_put(fence);
+	intel_engine_flush_submission(ce->engine);
+
+	semaphore_set(sema, 1);
+	err = intel_gt_wait_for_idle(ce->engine->gt, HZ / 2);
+	if (err)
+		goto err;
+
+	for (i = 1; i <= TF_COUNT; i++)
+		elapsed[i - 1] = sema[2 * i + 2] - sema[2 * i + 1];
+
+	cycles = trifilter(elapsed);
+	pr_info("%s: context switch latency %d cycles, %lluns\n",
+		ce->engine->name, cycles >> TF_BIAS,
+		cycles_to_ns(ce->engine, cycles));
+
+	return intel_gt_wait_for_idle(ce->engine->gt, HZ);
+
+err_fence:
+	i915_request_put(fence);
+	semaphore_set(sema, 1);
+err:
+	intel_gt_set_wedged(ce->engine->gt);
+	return err;
+}
+
+static int measure_preemption(struct intel_context *ce)
+{
+	u32 *sema = hwsp_scratch(ce);
+	const u32 offset = hwsp_offset(ce, sema);
+	u32 elapsed[TF_COUNT], cycles;
+	u32 *cs;
+	int err;
+	int i;
+
+	/*
+	 * We measure two latencies while triggering preemption. The first
+	 * latency is how long it takes for us to submit a preempting request.
+	 * The second latency is how it takes for us to return from the
+	 * preemption back to the original context.
+	 *
+	 *    A: read CS_TIMESTAMP from CPU
+	 *    submit preemption
+	 *    B: read CS_TIMESTAMP on GPU (in preempting context)
+	 *    context switch
+	 *    C: read CS_TIMESTAMP on GPU (in original context)
+	 *
+	 * Preemption dispatch latency: B - A
+	 * Preemption switch latency: C - B
+	 */
+
+	if (!intel_engine_has_preemption(ce->engine))
+		return 0;
+
+	for (i = 1; i <= ARRAY_SIZE(elapsed); i++) {
+		u32 addr = offset + 2 * i * sizeof(u32);
+		struct i915_request *rq;
+
+		rq = i915_request_create(ce);
+		if (IS_ERR(rq)) {
+			err = PTR_ERR(rq);
+			goto err;
+		}
+
+		cs = intel_ring_begin(rq, 12);
+		if (IS_ERR(cs)) {
+			i915_request_add(rq);
+			err = PTR_ERR(cs);
+			goto err;
+		}
+
+		cs = emit_store_dw(cs, addr, -1);
+		cs = emit_semaphore_poll_until(cs, offset, i);
+		cs = emit_timestamp_store(cs, ce, addr + sizeof(u32));
+
+		intel_ring_advance(rq, cs);
+		i915_request_add(rq);
+
+		if (wait_for(READ_ONCE(sema[2 * i]) == -1, 500)) {
+			err = -EIO;
+			goto err;
+		}
+
+		rq = i915_request_create(ce->engine->kernel_context);
+		if (IS_ERR(rq)) {
+			err = PTR_ERR(rq);
+			goto err;
+		}
+
+		cs = intel_ring_begin(rq, 8);
+		if (IS_ERR(cs)) {
+			i915_request_add(rq);
+			err = PTR_ERR(cs);
+			goto err;
+		}
+
+		cs = emit_timestamp_store(cs, ce, addr);
+		cs = emit_store_dw(cs, offset, i);
+
+		intel_ring_advance(rq, cs);
+		rq->sched.attr.priority = I915_PRIORITY_BARRIER;
+
+		elapsed[i - 1] = ENGINE_READ_FW(ce->engine, RING_TIMESTAMP);
+		i915_request_add(rq);
+	}
+
+	if (wait_for(READ_ONCE(sema[2 * i - 2]) != -1, 500)) {
+		err = -EIO;
+		goto err;
+	}
+
+	for (i = 1; i <= TF_COUNT; i++)
+		elapsed[i - 1] = sema[2 * i + 0] - elapsed[i - 1];
+
+	cycles = trifilter(elapsed);
+	pr_info("%s: preemption dispatch latency %d cycles, %lluns\n",
+		ce->engine->name, cycles >> TF_BIAS,
+		cycles_to_ns(ce->engine, cycles));
+
+	for (i = 1; i <= TF_COUNT; i++)
+		elapsed[i - 1] = sema[2 * i + 1] - sema[2 * i + 0];
+
+	cycles = trifilter(elapsed);
+	pr_info("%s: preemption switch latency %d cycles, %lluns\n",
+		ce->engine->name, cycles >> TF_BIAS,
+		cycles_to_ns(ce->engine, cycles));
+
+	return intel_gt_wait_for_idle(ce->engine->gt, HZ);
+
+err:
+	intel_gt_set_wedged(ce->engine->gt);
+	return err;
+}
+
+struct signal_cb {
+	struct dma_fence_cb base;
+	bool seen;
+};
+
+static void signal_cb(struct dma_fence *fence, struct dma_fence_cb *cb)
+{
+	struct signal_cb *s = container_of(cb, typeof(*s), base);
+
+	smp_store_mb(s->seen, true); /* be safe, be strong */
+}
+
+static int measure_completion(struct intel_context *ce)
+{
+	u32 *sema = hwsp_scratch(ce);
+	const u32 offset = hwsp_offset(ce, sema);
+	u32 elapsed[TF_COUNT], cycles;
+	u32 *cs;
+	int err;
+	int i;
+
+	/*
+	 * Measure how long it takes for the signal (interrupt) to be
+	 * sent from the GPU to be processed by the CPU.
+	 *
+	 *    A: read CS_TIMESTAMP on GPU
+	 *    signal
+	 *    B: read CS_TIMESTAMP from CPU
+	 *
+	 * Completion latency: B - A
+	 */
+
+	for (i = 1; i <= ARRAY_SIZE(elapsed); i++) {
+		struct signal_cb cb = { .seen = false };
+		struct i915_request *rq;
+
+		rq = i915_request_create(ce);
+		if (IS_ERR(rq)) {
+			err = PTR_ERR(rq);
+			goto err;
+		}
+
+		cs = intel_ring_begin(rq, 12);
+		if (IS_ERR(cs)) {
+			i915_request_add(rq);
+			err = PTR_ERR(cs);
+			goto err;
+		}
+
+		cs = emit_store_dw(cs, offset + i * sizeof(u32), -1);
+		cs = emit_semaphore_poll_until(cs, offset, i);
+		cs = emit_timestamp_store(cs, ce, offset + i * sizeof(u32));
+
+		intel_ring_advance(rq, cs);
+
+		dma_fence_add_callback(&rq->fence, &cb.base, signal_cb);
+
+		local_bh_disable();
+		i915_request_add(rq);
+		local_bh_enable();
+
+		if (wait_for(READ_ONCE(sema[i]) == -1, 50)) {
+			err = -EIO;
+			goto err;
+		}
+
+		preempt_disable();
+		semaphore_set(sema, i);
+		while (!READ_ONCE(cb.seen))
+			cpu_relax();
+
+		elapsed[i - 1] = ENGINE_READ_FW(ce->engine, RING_TIMESTAMP);
+		preempt_enable();
+	}
+
+	err = intel_gt_wait_for_idle(ce->engine->gt, HZ / 2);
+	if (err)
+		goto err;
+
+	for (i = 0; i < ARRAY_SIZE(elapsed); i++) {
+		GEM_BUG_ON(sema[i + 1] == -1);
+		elapsed[i] = elapsed[i] - sema[i + 1];
+	}
+
+	cycles = trifilter(elapsed);
+	pr_info("%s: completion latency %d cycles, %lluns\n",
+		ce->engine->name, cycles >> TF_BIAS,
+		cycles_to_ns(ce->engine, cycles));
+
+	return intel_gt_wait_for_idle(ce->engine->gt, HZ);
+
+err:
+	intel_gt_set_wedged(ce->engine->gt);
+	return err;
+}
+
+static void rps_pin(struct intel_gt *gt)
+{
+	/* Pin the frequency to max */
+	atomic_inc(&gt->rps.num_waiters);
+	intel_uncore_forcewake_get(gt->uncore, FORCEWAKE_ALL);
+
+	mutex_lock(&gt->rps.lock);
+	intel_rps_set(&gt->rps, gt->rps.max_freq);
+	mutex_unlock(&gt->rps.lock);
+}
+
+static void rps_unpin(struct intel_gt *gt)
+{
+	intel_uncore_forcewake_put(gt->uncore, FORCEWAKE_ALL);
+	atomic_dec(&gt->rps.num_waiters);
+}
+
+static int perf_request_latency(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+	struct intel_engine_cs *engine;
+	struct pm_qos_request qos;
+	int err = 0;
+
+	if (INTEL_GEN(i915) < 8) /* per-engine CS timestamp, semaphores */
+		return 0;
+
+	cpu_latency_qos_add_request(&qos, 0); /* disable cstates */
+
+	for_each_uabi_engine(engine, i915) {
+		struct intel_context *ce;
+
+		ce = intel_context_create(engine);
+		if (IS_ERR(ce))
+			goto out;
+
+		err = intel_context_pin(ce);
+		if (err) {
+			intel_context_put(ce);
+			goto out;
+		}
+
+		st_engine_heartbeat_disable(engine);
+		rps_pin(engine->gt);
+
+		if (err == 0)
+			err = measure_semaphore_response(ce);
+		if (err == 0)
+			err = measure_idle_dispatch(ce);
+		if (err == 0)
+			err = measure_busy_dispatch(ce);
+		if (err == 0)
+			err = measure_inter_request(ce);
+		if (err == 0)
+			err = measure_context_switch(ce);
+		if (err == 0)
+			err = measure_preemption(ce);
+		if (err == 0)
+			err = measure_completion(ce);
+
+		rps_unpin(engine->gt);
+		st_engine_heartbeat_enable(engine);
+
+		intel_context_unpin(ce);
+		intel_context_put(ce);
+		if (err)
+			goto out;
+	}
+
+out:
+	if (igt_flush_test(i915))
+		err = -EIO;
+
+	cpu_latency_qos_remove_request(&qos);
+	return err;
+}
+
 static int s_sync0(void *arg)
 {
 	struct perf_series *ps = arg;
@@ -1685,9 +2492,11 @@ static int perf_series_engines(void *arg)
 			intel_engine_pm_get(p->engine);
 
 			if (intel_engine_supports_stats(p->engine))
-				p->busy = intel_engine_get_busy_time(p->engine) + 1;
+				p->busy = intel_engine_get_busy_time(p->engine,
+								     &p->time) + 1;
+			else
+				p->time = ktime_get();
 			p->runtime = -intel_context_get_total_runtime_ns(ce);
-			p->time = ktime_get();
 		}
 
 		err = (*fn)(ps);
@@ -1698,13 +2507,15 @@ static int perf_series_engines(void *arg)
 			struct perf_stats *p = &stats[idx];
 			struct intel_context *ce = ps->ce[idx];
 			int integer, decimal;
-			u64 busy, dt;
+			u64 busy, dt, now;
 
-			p->time = ktime_sub(ktime_get(), p->time);
-			if (p->busy) {
-				p->busy = ktime_sub(intel_engine_get_busy_time(p->engine),
+			if (p->busy)
+				p->busy = ktime_sub(intel_engine_get_busy_time(p->engine,
+									       &now),
 						    p->busy - 1);
-			}
+			else
+				now = ktime_get();
+			p->time = ktime_sub(now, p->time);
 
 			err = switch_to_kernel_sync(ce, err);
 			p->runtime += intel_context_get_total_runtime_ns(ce);
@@ -1764,13 +2575,14 @@ static int p_sync0(void *arg)
 		return err;
 	}
 
-	busy = false;
 	if (intel_engine_supports_stats(engine)) {
-		p->busy = intel_engine_get_busy_time(engine);
+		p->busy = intel_engine_get_busy_time(engine, &p->time);
 		busy = true;
+	} else {
+		p->time = ktime_get();
+		busy = false;
 	}
 
-	p->time = ktime_get();
 	count = 0;
 	do {
 		struct i915_request *rq;
@@ -1793,11 +2605,15 @@ static int p_sync0(void *arg)
 
 		count++;
 	} while (!__igt_timeout(end_time, NULL));
-	p->time = ktime_sub(ktime_get(), p->time);
 
 	if (busy) {
-		p->busy = ktime_sub(intel_engine_get_busy_time(engine),
+		ktime_t now;
+
+		p->busy = ktime_sub(intel_engine_get_busy_time(engine, &now),
 				    p->busy);
+		p->time = ktime_sub(now, p->time);
+	} else {
+		p->time = ktime_sub(ktime_get(), p->time);
 	}
 
 	err = switch_to_kernel_sync(ce, err);
@@ -1830,13 +2646,14 @@ static int p_sync1(void *arg)
 		return err;
 	}
 
-	busy = false;
 	if (intel_engine_supports_stats(engine)) {
-		p->busy = intel_engine_get_busy_time(engine);
+		p->busy = intel_engine_get_busy_time(engine, &p->time);
 		busy = true;
+	} else {
+		p->time = ktime_get();
+		busy = false;
 	}
 
-	p->time = ktime_get();
 	count = 0;
 	do {
 		struct i915_request *rq;
@@ -1861,11 +2678,15 @@ static int p_sync1(void *arg)
 		count++;
 	} while (!__igt_timeout(end_time, NULL));
 	i915_request_put(prev);
-	p->time = ktime_sub(ktime_get(), p->time);
 
 	if (busy) {
-		p->busy = ktime_sub(intel_engine_get_busy_time(engine),
+		ktime_t now;
+
+		p->busy = ktime_sub(intel_engine_get_busy_time(engine, &now),
 				    p->busy);
+		p->time = ktime_sub(now, p->time);
+	} else {
+		p->time = ktime_sub(ktime_get(), p->time);
 	}
 
 	err = switch_to_kernel_sync(ce, err);
@@ -1897,14 +2718,15 @@ static int p_many(void *arg)
 		return err;
 	}
 
-	busy = false;
 	if (intel_engine_supports_stats(engine)) {
-		p->busy = intel_engine_get_busy_time(engine);
+		p->busy = intel_engine_get_busy_time(engine, &p->time);
 		busy = true;
+	} else {
+		p->time = ktime_get();
+		busy = false;
 	}
 
 	count = 0;
-	p->time = ktime_get();
 	do {
 		struct i915_request *rq;
 
@@ -1917,11 +2739,15 @@ static int p_many(void *arg)
 		i915_request_add(rq);
 		count++;
 	} while (!__igt_timeout(end_time, NULL));
-	p->time = ktime_sub(ktime_get(), p->time);
 
 	if (busy) {
-		p->busy = ktime_sub(intel_engine_get_busy_time(engine),
+		ktime_t now;
+
+		p->busy = ktime_sub(intel_engine_get_busy_time(engine, &now),
 				    p->busy);
+		p->time = ktime_sub(now, p->time);
+	} else {
+		p->time = ktime_sub(ktime_get(), p->time);
 	}
 
 	err = switch_to_kernel_sync(ce, err);
@@ -2042,6 +2868,7 @@ static int perf_parallel_engines(void *arg)
 int i915_request_perf_selftests(struct drm_i915_private *i915)
 {
 	static const struct i915_subtest tests[] = {
+		SUBTEST(perf_request_latency),
 		SUBTEST(perf_series_engines),
 		SUBTEST(perf_parallel_engines),
 	};

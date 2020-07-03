@@ -64,36 +64,49 @@ intel_pch_type(const struct drm_i915_private *dev_priv, unsigned short id)
 	case INTEL_PCH_SPT_LP_DEVICE_ID_TYPE:
 		drm_dbg_kms(&dev_priv->drm, "Found SunrisePoint LP PCH\n");
 		drm_WARN_ON(&dev_priv->drm,
-			    !IS_SKYLAKE(dev_priv) && !IS_KABYLAKE(dev_priv) &&
-			    !IS_COFFEELAKE(dev_priv));
+			    !IS_SKYLAKE(dev_priv) &&
+			    !IS_KABYLAKE(dev_priv) &&
+			    !IS_COFFEELAKE(dev_priv) &&
+			    !IS_COMETLAKE(dev_priv));
 		return PCH_SPT;
 	case INTEL_PCH_KBP_DEVICE_ID_TYPE:
 		drm_dbg_kms(&dev_priv->drm, "Found Kaby Lake PCH (KBP)\n");
 		drm_WARN_ON(&dev_priv->drm,
-			    !IS_SKYLAKE(dev_priv) && !IS_KABYLAKE(dev_priv) &&
-			    !IS_COFFEELAKE(dev_priv));
+			    !IS_SKYLAKE(dev_priv) &&
+			    !IS_KABYLAKE(dev_priv) &&
+			    !IS_COFFEELAKE(dev_priv) &&
+			    !IS_COMETLAKE(dev_priv));
 		/* KBP is SPT compatible */
 		return PCH_SPT;
 	case INTEL_PCH_CNP_DEVICE_ID_TYPE:
 		drm_dbg_kms(&dev_priv->drm, "Found Cannon Lake PCH (CNP)\n");
-		drm_WARN_ON(&dev_priv->drm, !IS_CANNONLAKE(dev_priv) &&
-			    !IS_COFFEELAKE(dev_priv));
+		drm_WARN_ON(&dev_priv->drm,
+			    !IS_CANNONLAKE(dev_priv) &&
+			    !IS_COFFEELAKE(dev_priv) &&
+			    !IS_COMETLAKE(dev_priv));
 		return PCH_CNP;
 	case INTEL_PCH_CNP_LP_DEVICE_ID_TYPE:
 		drm_dbg_kms(&dev_priv->drm,
 			    "Found Cannon Lake LP PCH (CNP-LP)\n");
-		drm_WARN_ON(&dev_priv->drm, !IS_CANNONLAKE(dev_priv) &&
-			    !IS_COFFEELAKE(dev_priv));
+		drm_WARN_ON(&dev_priv->drm,
+			    !IS_CANNONLAKE(dev_priv) &&
+			    !IS_COFFEELAKE(dev_priv) &&
+			    !IS_COMETLAKE(dev_priv));
 		return PCH_CNP;
 	case INTEL_PCH_CMP_DEVICE_ID_TYPE:
 	case INTEL_PCH_CMP2_DEVICE_ID_TYPE:
 		drm_dbg_kms(&dev_priv->drm, "Found Comet Lake PCH (CMP)\n");
-		drm_WARN_ON(&dev_priv->drm, !IS_COFFEELAKE(dev_priv));
+		drm_WARN_ON(&dev_priv->drm,
+			    !IS_COFFEELAKE(dev_priv) &&
+			    !IS_COMETLAKE(dev_priv) &&
+			    !IS_ROCKETLAKE(dev_priv));
 		/* CometPoint is CNP Compatible */
 		return PCH_CNP;
 	case INTEL_PCH_CMP_V_DEVICE_ID_TYPE:
 		drm_dbg_kms(&dev_priv->drm, "Found Comet Lake V PCH (CMP-V)\n");
-		drm_WARN_ON(&dev_priv->drm, !IS_COFFEELAKE(dev_priv));
+		drm_WARN_ON(&dev_priv->drm,
+			    !IS_COFFEELAKE(dev_priv) &&
+			    !IS_COMETLAKE(dev_priv));
 		/* Comet Lake V PCH is based on KBP, which is SPT compatible */
 		return PCH_SPT;
 	case INTEL_PCH_ICP_DEVICE_ID_TYPE:
@@ -107,7 +120,8 @@ intel_pch_type(const struct drm_i915_private *dev_priv, unsigned short id)
 	case INTEL_PCH_TGP_DEVICE_ID_TYPE:
 	case INTEL_PCH_TGP2_DEVICE_ID_TYPE:
 		drm_dbg_kms(&dev_priv->drm, "Found Tiger Lake LP PCH\n");
-		drm_WARN_ON(&dev_priv->drm, !IS_TIGERLAKE(dev_priv));
+		drm_WARN_ON(&dev_priv->drm, !IS_TIGERLAKE(dev_priv) &&
+			    !IS_ROCKETLAKE(dev_priv));
 		return PCH_TGP;
 	case INTEL_PCH_JSP_DEVICE_ID_TYPE:
 	case INTEL_PCH_JSP2_DEVICE_ID_TYPE:
@@ -141,13 +155,15 @@ intel_virt_detect_pch(const struct drm_i915_private *dev_priv)
 	 * make an educated guess as to which PCH is really there.
 	 */
 
-	if (IS_TIGERLAKE(dev_priv))
+	if (IS_TIGERLAKE(dev_priv) || IS_ROCKETLAKE(dev_priv))
 		id = INTEL_PCH_TGP_DEVICE_ID_TYPE;
 	else if (IS_ELKHARTLAKE(dev_priv))
 		id = INTEL_PCH_MCC_DEVICE_ID_TYPE;
 	else if (IS_ICELAKE(dev_priv))
 		id = INTEL_PCH_ICP_DEVICE_ID_TYPE;
-	else if (IS_CANNONLAKE(dev_priv) || IS_COFFEELAKE(dev_priv))
+	else if (IS_CANNONLAKE(dev_priv) ||
+		 IS_COFFEELAKE(dev_priv) ||
+		 IS_COMETLAKE(dev_priv))
 		id = INTEL_PCH_CNP_DEVICE_ID_TYPE;
 	else if (IS_KABYLAKE(dev_priv) || IS_SKYLAKE(dev_priv))
 		id = INTEL_PCH_SPT_DEVICE_ID_TYPE;

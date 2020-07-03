@@ -616,6 +616,11 @@ void intel_gt_driver_unregister(struct intel_gt *gt)
 void intel_gt_driver_release(struct intel_gt *gt)
 {
 	struct i915_address_space *vm;
+	intel_wakeref_t wakeref;
+
+	/* Scrub all HW state upon release */
+	with_intel_runtime_pm(gt->uncore->rpm, wakeref)
+		__intel_gt_reset(gt, ALL_ENGINES);
 
 	vm = fetch_and_zero(&gt->vm);
 	if (vm) /* FIXME being called twice on error paths :( */

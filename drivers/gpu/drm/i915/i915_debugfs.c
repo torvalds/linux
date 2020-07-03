@@ -64,7 +64,7 @@ static int i915_capabilities(struct seq_file *m, void *data)
 	intel_driver_caps_print(&i915->caps, &p);
 
 	kernel_param_lock(THIS_MODULE);
-	i915_params_dump(&i915_modparams, &p);
+	i915_params_dump(&i915->params, &p);
 	kernel_param_unlock(THIS_MODULE);
 
 	return 0;
@@ -230,7 +230,7 @@ static int per_file_stats(int id, void *ptr, void *data)
 	struct file_stats *stats = data;
 	struct i915_vma *vma;
 
-	if (!kref_get_unless_zero(&obj->base.refcount))
+	if (IS_ERR_OR_NULL(obj) || !kref_get_unless_zero(&obj->base.refcount))
 		return 0;
 
 	stats->count++;

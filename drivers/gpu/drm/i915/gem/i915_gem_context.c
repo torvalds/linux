@@ -112,8 +112,7 @@ static void lut_close(struct i915_gem_context *ctx)
 		if (!kref_get_unless_zero(&obj->base.refcount))
 			continue;
 
-		rcu_read_unlock();
-		i915_gem_object_lock(obj);
+		spin_lock(&obj->lut_lock);
 		list_for_each_entry(lut, &obj->lut_list, obj_link) {
 			if (lut->ctx != ctx)
 				continue;
@@ -124,8 +123,7 @@ static void lut_close(struct i915_gem_context *ctx)
 			list_del(&lut->obj_link);
 			break;
 		}
-		i915_gem_object_unlock(obj);
-		rcu_read_lock();
+		spin_unlock(&obj->lut_lock);
 
 		if (&lut->obj_link != &obj->lut_list) {
 			i915_lut_handle_free(lut);
@@ -650,7 +648,7 @@ static void context_close(struct i915_gem_context *ctx)
 	 * context close.
 	 */
 	if (!i915_gem_context_is_persistent(ctx) ||
-	    !i915_modparams.enable_hangcheck)
+	    !ctx->i915->params.enable_hangcheck)
 		kill_context(ctx);
 
 	i915_gem_context_put(ctx);
@@ -667,7 +665,7 @@ static int __context_set_persistence(struct i915_gem_context *ctx, bool state)
 		 * reset] are allowed to survive past termination. We require
 		 * hangcheck to ensure that the persistent requests are healthy.
 		 */
-		if (!i915_modparams.enable_hangcheck)
+		if (!ctx->i915->params.enable_hangcheck)
 			return -EINVAL;
 
 		i915_gem_context_set_persistence(ctx);

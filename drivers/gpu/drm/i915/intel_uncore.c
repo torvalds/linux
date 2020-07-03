@@ -709,7 +709,7 @@ static void __intel_uncore_forcewake_put(struct intel_uncore *uncore,
 			continue;
 		}
 
-		fw_domain_arm_timer(domain);
+		uncore->funcs.force_wake_put(uncore, domain->mask);
 	}
 }
 
@@ -1185,7 +1185,7 @@ __unclaimed_reg_debug(struct intel_uncore *uncore,
 		     read ? "read from" : "write to",
 		     i915_mmio_reg_offset(reg)))
 		/* Only report the first N failures */
-		i915_modparams.mmio_debug--;
+		uncore->i915->params.mmio_debug--;
 }
 
 static inline void
@@ -1194,7 +1194,7 @@ unclaimed_reg_debug(struct intel_uncore *uncore,
 		    const bool read,
 		    const bool before)
 {
-	if (likely(!i915_modparams.mmio_debug))
+	if (likely(!uncore->i915->params.mmio_debug))
 		return;
 
 	/* interrupts are disabled and re-enabled around uncore->lock usage */
@@ -2093,12 +2093,12 @@ intel_uncore_arm_unclaimed_mmio_detection(struct intel_uncore *uncore)
 		goto out;
 
 	if (unlikely(check_for_unclaimed_mmio(uncore))) {
-		if (!i915_modparams.mmio_debug) {
+		if (!uncore->i915->params.mmio_debug) {
 			drm_dbg(&uncore->i915->drm,
 				"Unclaimed register detected, "
 				"enabling oneshot unclaimed register reporting. "
 				"Please use i915.mmio_debug=N for more information.\n");
-			i915_modparams.mmio_debug++;
+			uncore->i915->params.mmio_debug++;
 		}
 		uncore->debug->unclaimed_mmio_check--;
 		ret = true;

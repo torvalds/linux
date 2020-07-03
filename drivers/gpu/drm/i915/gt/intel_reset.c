@@ -638,7 +638,7 @@ int __intel_gt_reset(struct intel_gt *gt, intel_engine_mask_t engine_mask)
 
 bool intel_has_gpu_reset(const struct intel_gt *gt)
 {
-	if (!i915_modparams.reset)
+	if (!gt->i915->params.reset)
 		return NULL;
 
 	return intel_get_gpu_reset(gt);
@@ -646,7 +646,7 @@ bool intel_has_gpu_reset(const struct intel_gt *gt)
 
 bool intel_has_reset_engine(const struct intel_gt *gt)
 {
-	if (i915_modparams.reset < 2)
+	if (gt->i915->params.reset < 2)
 		return false;
 
 	return INTEL_INFO(gt->i915)->has_reset_engine;
@@ -1038,7 +1038,7 @@ void intel_gt_reset(struct intel_gt *gt,
 	awake = reset_prepare(gt);
 
 	if (!intel_has_gpu_reset(gt)) {
-		if (i915_modparams.reset)
+		if (gt->i915->params.reset)
 			drm_err(&gt->i915->drm, "GPU reset not supported\n");
 		else
 			drm_dbg(&gt->i915->drm, "GPU reset disabled\n");

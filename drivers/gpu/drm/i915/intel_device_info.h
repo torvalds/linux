@@ -73,6 +73,7 @@ enum intel_platform {
 	INTEL_KABYLAKE,
 	INTEL_GEMINILAKE,
 	INTEL_COFFEELAKE,
+	INTEL_COMETLAKE,
 	/* gen10 */
 	INTEL_CANNONLAKE,
 	/* gen11 */
@@ -80,6 +81,7 @@ enum intel_platform {
 	INTEL_ELKHARTLAKE,
 	/* gen12 */
 	INTEL_TIGERLAKE,
+	INTEL_ROCKETLAKE,
 	INTEL_MAX_PLATFORMS
 };
 
@@ -146,6 +148,7 @@ enum intel_ppgtt_type {
 	func(has_modular_fia); \
 	func(has_overlay); \
 	func(has_psr); \
+	func(has_psr_hw_tracking); \
 	func(overlay_needs_physical); \
 	func(supports_tv);
 
@@ -171,6 +174,8 @@ struct intel_device_info {
 
 	u8 pipe_mask;
 	u8 cpu_transcoder_mask;
+
+	u8 abox_mask;
 
 #define DEFINE_FLAG(name) u8 name:1
 	DEV_INFO_FOR_EACH_FLAG(DEFINE_FLAG);

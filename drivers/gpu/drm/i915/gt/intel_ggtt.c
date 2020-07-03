@@ -108,13 +108,32 @@ static bool needs_idle_maps(struct drm_i915_private *i915)
 
 void i915_ggtt_suspend(struct i915_ggtt *ggtt)
 {
-	struct i915_vma *vma;
+	struct i915_vma *vma, *vn;
+	int open;
 
-	list_for_each_entry(vma, &ggtt->vm.bound_list, vm_link)
+	mutex_lock(&ggtt->vm.mutex);
+
+	/* Skip rewriting PTE on VMA unbind. */
+	open = atomic_xchg(&ggtt->vm.open, 0);
+
+	list_for_each_entry_safe(vma, vn, &ggtt->vm.bound_list, vm_link) {
+		GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
 		i915_vma_wait_for_bind(vma);
+
+		if (i915_vma_is_pinned(vma))
+			continue;
+
+		if (!i915_vma_is_bound(vma, I915_VMA_GLOBAL_BIND)) {
+			__i915_vma_evict(vma);
+			drm_mm_remove_node(&vma->node);
+		}
+	}
 
 	ggtt->vm.clear_range(&ggtt->vm, 0, ggtt->vm.total);
 	ggtt->invalidate(ggtt);
+	atomic_set(&ggtt->vm.open, open);
+
+	mutex_unlock(&ggtt->vm.mutex);
 
 	intel_gt_check_and_clear_faults(ggtt->vm.gt);
 }
@@ -424,21 +443,16 @@ static int ggtt_bind_vma(struct i915_vma *vma,
 	struct drm_i915_gem_object *obj = vma->obj;
 	u32 pte_flags;
 
+	if (i915_vma_is_bound(vma, ~flags & I915_VMA_BIND_MASK))
+		return 0;
+
 	/* Applicable to VLV (gen8+ do not support RO in the GGTT) */
 	pte_flags = 0;
 	if (i915_gem_object_is_readonly(obj))
 		pte_flags |= PTE_READ_ONLY;
 
 	vma->vm->insert_entries(vma->vm, vma, cache_level, pte_flags);
-
 	vma->page_sizes.gtt = I915_GTT_PAGE_SIZE;
-
-	/*
-	 * Without aliasing PPGTT there's no difference between
-	 * GLOBAL/LOCAL_BIND, it's all the same ptes. Hence unconditionally
-	 * upgrade to both bound if we bind either to avoid double-binding.
-	 */
-	atomic_or(I915_VMA_GLOBAL_BIND | I915_VMA_LOCAL_BIND, &vma->flags);
 
 	return 0;
 }
@@ -1166,6 +1180,11 @@ void i915_ggtt_disable_guc(struct i915_ggtt *ggtt)
 	ggtt->invalidate(ggtt);
 }
 
+static unsigned int clear_bind(struct i915_vma *vma)
+{
+	return atomic_fetch_and(~I915_VMA_BIND_MASK, &vma->flags);
+}
+
 void i915_ggtt_resume(struct i915_ggtt *ggtt)
 {
 	struct i915_vma *vma;
@@ -1183,14 +1202,11 @@ void i915_ggtt_resume(struct i915_ggtt *ggtt)
 	/* clflush objects bound into the GGTT and rebind them. */
 	list_for_each_entry(vma, &ggtt->vm.bound_list, vm_link) {
 		struct drm_i915_gem_object *obj = vma->obj;
+		unsigned int was_bound = clear_bind(vma);
 
-		if (!i915_vma_is_bound(vma, I915_VMA_GLOBAL_BIND))
-			continue;
-
-		clear_bit(I915_VMA_GLOBAL_BIND_BIT, __i915_vma_flags(vma));
 		WARN_ON(i915_vma_bind(vma,
 				      obj ? obj->cache_level : 0,
-				      PIN_GLOBAL, NULL));
+				      was_bound, NULL));
 		if (obj) { /* only used during resume => exclusive access */
 			flush |= fetch_and_zero(&obj->write_domain);
 			obj->read_domains |= I915_GEM_DOMAIN_GTT;

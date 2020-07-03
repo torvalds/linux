@@ -57,10 +57,12 @@ static const char * const platform_names[] = {
 	PLATFORM_NAME(KABYLAKE),
 	PLATFORM_NAME(GEMINILAKE),
 	PLATFORM_NAME(COFFEELAKE),
+	PLATFORM_NAME(COMETLAKE),
 	PLATFORM_NAME(CANNONLAKE),
 	PLATFORM_NAME(ICELAKE),
 	PLATFORM_NAME(ELKHARTLAKE),
 	PLATFORM_NAME(TIGERLAKE),
+	PLATFORM_NAME(ROCKETLAKE),
 };
 #undef PLATFORM_NAME
 
@@ -933,7 +935,10 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 
 	BUILD_BUG_ON(BITS_PER_TYPE(intel_engine_mask_t) < I915_NUM_ENGINES);
 
-	if (INTEL_GEN(dev_priv) >= 11)
+	if (IS_ROCKETLAKE(dev_priv))
+		for_each_pipe(dev_priv, pipe)
+			runtime->num_sprites[pipe] = 4;
+	else if (INTEL_GEN(dev_priv) >= 11)
 		for_each_pipe(dev_priv, pipe)
 			runtime->num_sprites[pipe] = 6;
 	else if (IS_GEN(dev_priv, 10) || IS_GEMINILAKE(dev_priv))

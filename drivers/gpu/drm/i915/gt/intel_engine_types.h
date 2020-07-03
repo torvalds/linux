@@ -24,6 +24,7 @@
 #include "i915_selftest.h"
 #include "intel_sseu.h"
 #include "intel_timeline_types.h"
+#include "intel_uncore.h"
 #include "intel_wakeref.h"
 #include "intel_workarounds_types.h"
 
@@ -313,6 +314,16 @@ struct intel_engine_cs {
 	u32 context_size;
 	u32 mmio_base;
 
+	/*
+	 * Some w/a require forcewake to be held (which prevents RC6) while
+	 * a particular engine is active. If so, we set fw_domain to which
+	 * domains need to be held for the duration of request activity,
+	 * and 0 if none. We try to limit the duration of the hold as much
+	 * as possible.
+	 */
+	enum forcewake_domains fw_domain;
+	atomic_t fw_active;
+
 	unsigned long context_tag;
 
 	struct rb_node uabi_node;
@@ -337,6 +348,7 @@ struct intel_engine_cs {
 	struct {
 		struct delayed_work work;
 		struct i915_request *systole;
+		unsigned long blocked;
 	} heartbeat;
 
 	unsigned long serial;
