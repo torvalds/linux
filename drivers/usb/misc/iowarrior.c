@@ -9,7 +9,7 @@
 
  *  usb-skeleton.c by Greg Kroah-Hartman  <greg@kroah.com>
  *  brlvger.c by Stephane Dalton  <sdalton@videotron.ca>
- *           and St�hane Doyon   <s.doyon@videotron.ca>
+ *           and Stephane Doyon   <s.doyon@videotron.ca>
  *
  *  Released under the GPLv2.
  */
