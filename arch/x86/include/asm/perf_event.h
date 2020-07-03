@@ -282,12 +282,8 @@ struct pebs_xmm {
 	u64 xmm[16*2];	/* two entries for each register */
 };
 
-struct pebs_lbr_entry {
+struct lbr_entry {
 	u64 from, to, info;
-};
-
-struct pebs_lbr {
-	struct pebs_lbr_entry lbr[0]; /* Variable length */
 };
 
 /*

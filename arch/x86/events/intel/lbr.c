@@ -372,11 +372,11 @@ void intel_pmu_lbr_restore(void *ctx)
 	mask = x86_pmu.lbr_nr - 1;
 	for (i = 0; i < task_ctx->valid_lbrs; i++) {
 		lbr_idx = (tos - i) & mask;
-		wrlbr_from(lbr_idx, task_ctx->lbr_from[i]);
-		wrlbr_to  (lbr_idx, task_ctx->lbr_to[i]);
+		wrlbr_from(lbr_idx, task_ctx->lbr[i].from);
+		wrlbr_to(lbr_idx, task_ctx->lbr[i].to);
 
 		if (x86_pmu.intel_cap.lbr_format == LBR_FORMAT_INFO)
-			wrmsrl(MSR_LBR_INFO_0 + lbr_idx, task_ctx->lbr_info[i]);
+			wrmsrl(MSR_LBR_INFO_0 + lbr_idx, task_ctx->lbr[i].info);
 	}
 
 	for (; i < x86_pmu.lbr_nr; i++) {
@@ -440,10 +440,10 @@ void intel_pmu_lbr_save(void *ctx)
 		from = rdlbr_from(lbr_idx);
 		if (!from)
 			break;
-		task_ctx->lbr_from[i] = from;
-		task_ctx->lbr_to[i]   = rdlbr_to(lbr_idx);
+		task_ctx->lbr[i].from = from;
+		task_ctx->lbr[i].to = rdlbr_to(lbr_idx);
 		if (x86_pmu.intel_cap.lbr_format == LBR_FORMAT_INFO)
-			rdmsrl(MSR_LBR_INFO_0 + lbr_idx, task_ctx->lbr_info[i]);
+			rdmsrl(MSR_LBR_INFO_0 + lbr_idx, task_ctx->lbr[i].info);
 	}
 	task_ctx->valid_lbrs = i;
 	task_ctx->tos = tos;
@@ -1179,7 +1179,7 @@ intel_pmu_lbr_filter(struct cpu_hw_events *cpuc)
 	}
 }
 
-void intel_pmu_store_pebs_lbrs(struct pebs_lbr *lbr)
+void intel_pmu_store_pebs_lbrs(struct lbr_entry *lbr)
 {
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 	int i;
@@ -1193,11 +1193,11 @@ void intel_pmu_store_pebs_lbrs(struct pebs_lbr *lbr)
 		cpuc->lbr_stack.hw_idx = intel_pmu_lbr_tos();
 
 	for (i = 0; i < x86_pmu.lbr_nr; i++) {
-		u64 info = lbr->lbr[i].info;
+		u64 info = lbr[i].info;
 		struct perf_branch_entry *e = &cpuc->lbr_entries[i];
 
-		e->from		= lbr->lbr[i].from;
-		e->to		= lbr->lbr[i].to;
+		e->from		= lbr[i].from;
+		e->to		= lbr[i].to;
 		e->mispred	= !!(info & LBR_INFO_MISPRED);
 		e->predicted	= !(info & LBR_INFO_MISPRED);
 		e->in_tx	= !!(info & LBR_INFO_IN_TX);

@@ -765,13 +765,11 @@ struct x86_perf_task_context_opt {
 };
 
 struct x86_perf_task_context {
-	u64 lbr_from[MAX_LBR_ENTRIES];
-	u64 lbr_to[MAX_LBR_ENTRIES];
-	u64 lbr_info[MAX_LBR_ENTRIES];
 	u64 lbr_sel;
 	int tos;
 	int valid_lbrs;
 	struct x86_perf_task_context_opt opt;
+	struct lbr_entry lbr[MAX_LBR_ENTRIES];
 };
 
 #define x86_add_quirk(func_)						\
@@ -1092,7 +1090,7 @@ void intel_pmu_pebs_sched_task(struct perf_event_context *ctx, bool sched_in);
 
 void intel_pmu_auto_reload_read(struct perf_event *event);
 
-void intel_pmu_store_pebs_lbrs(struct pebs_lbr *lbr);
+void intel_pmu_store_pebs_lbrs(struct lbr_entry *lbr);
 
 void intel_ds_init(void);
 
