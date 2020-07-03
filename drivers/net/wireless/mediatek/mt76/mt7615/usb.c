@@ -201,12 +201,13 @@ void mt7663u_wtbl_work(struct work_struct *work)
 	dev = (struct mt7615_dev *)container_of(work, struct mt7615_dev,
 						wtbl_work);
 
+	mt7615_mutex_acquire(dev);
+
 	list_for_each_entry_safe(wd, wd_next, &dev->wd_head, node) {
 		spin_lock_bh(&dev->mt76.lock);
 		list_del(&wd->node);
 		spin_unlock_bh(&dev->mt76.lock);
 
-		mutex_lock(&dev->mt76.mutex);
 		switch (wd->type) {
 		case MT7615_WTBL_RATE_DESC:
 			__mt7663u_mac_set_rates(dev, wd);
@@ -215,10 +216,10 @@ void mt7663u_wtbl_work(struct work_struct *work)
 			__mt7663u_mac_set_key(dev, wd);
 			break;
 		}
-		mutex_unlock(&dev->mt76.mutex);
-
 		kfree(wd);
 	}
+
+	mt7615_mutex_release(dev);
 }
 
 static void
@@ -257,9 +258,9 @@ static bool mt7663u_tx_status_data(struct mt76_dev *mdev, u8 *update)
 {
 	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
 
-	mutex_lock(&dev->mt76.mutex);
+	mt7615_mutex_acquire(dev);
 	mt7615_mac_sta_poll(dev);
-	mutex_unlock(&dev->mt76.mutex);
+	mt7615_mutex_release(dev);
 
 	return 0;
 }

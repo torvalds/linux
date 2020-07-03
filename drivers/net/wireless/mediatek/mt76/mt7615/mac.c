@@ -1530,7 +1530,7 @@ void mt7615_mac_set_scs(struct mt7615_phy *phy, bool enable)
 	bool ext_phy = phy != &dev->phy;
 	u32 reg, mask;
 
-	mutex_lock(&dev->mt76.mutex);
+	mt7615_mutex_acquire(dev);
 
 	if (phy->scs_en == enable)
 		goto out;
@@ -1557,7 +1557,7 @@ void mt7615_mac_set_scs(struct mt7615_phy *phy, bool enable)
 	phy->scs_en = enable;
 
 out:
-	mutex_unlock(&dev->mt76.mutex);
+	mt7615_mutex_release(dev);
 }
 
 void mt7615_mac_enable_nf(struct mt7615_dev *dev, bool ext_phy)
@@ -1859,7 +1859,7 @@ void mt7615_mac_work(struct work_struct *work)
 						mac_work.work);
 	mdev = &phy->dev->mt76;
 
-	mutex_lock(&mdev->mutex);
+	mt7615_mutex_acquire(phy->dev);
 
 	mt76_update_survey(mdev);
 	if (++phy->mac_work_count == 5) {
@@ -1869,7 +1869,7 @@ void mt7615_mac_work(struct work_struct *work)
 		mt7615_mac_scs_check(phy);
 	}
 
-	mutex_unlock(&mdev->mutex);
+	mt7615_mutex_release(phy->dev);
 
 	mt76_tx_status_check(mdev, NULL, false);
 	ieee80211_queue_delayed_work(phy->mt76->hw, &phy->mac_work,
@@ -1973,7 +1973,7 @@ void mt7615_mac_reset_work(struct work_struct *work)
 	napi_disable(&dev->mt76.napi[1]);
 	napi_disable(&dev->mt76.tx_napi);
 
-	mutex_lock(&dev->mt76.mutex);
+	mt7615_mutex_acquire(dev);
 
 	mt76_wr(dev, MT_MCU_INT_EVENT, MT_MCU_INT_EVENT_PDMA_STOPPED);
 
@@ -2006,9 +2006,9 @@ void mt7615_mac_reset_work(struct work_struct *work)
 	mt76_wr(dev, MT_MCU_INT_EVENT, MT_MCU_INT_EVENT_RESET_DONE);
 	mt7615_wait_reset_state(dev, MT_MCU_CMD_NORMAL_STATE);
 
-	mutex_unlock(&dev->mt76.mutex);
-
 	mt7615_update_beacons(dev);
+
+	mt7615_mutex_release(dev);
 
 	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->phy.mac_work,
 				     MT7615_WATCHDOG_TIME);

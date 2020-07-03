@@ -301,6 +301,8 @@ struct mt7615_dev {
 	struct {
 		struct work_struct wake_work;
 		struct completion wake_cmpl;
+
+		unsigned long last_activity;
 	} pm;
 };
 
@@ -485,6 +487,20 @@ static inline u16 mt7615_wtbl_size(struct mt7615_dev *dev)
 		return MT7663_WTBL_SIZE;
 	else
 		return MT7615_WTBL_SIZE;
+}
+
+static inline void mt7615_mutex_acquire(struct mt7615_dev *dev)
+	 __acquires(&dev->mt76.mutex)
+{
+	mutex_lock(&dev->mt76.mutex);
+	mt7615_pm_wake(dev);
+}
+
+static inline void mt7615_mutex_release(struct mt7615_dev *dev)
+	__releases(&dev->mt76.mutex)
+{
+	dev->pm.last_activity = jiffies;
+	mutex_unlock(&dev->mt76.mutex);
 }
 
 static inline u8 mt7615_lmac_mapping(struct mt7615_dev *dev, u8 ac)

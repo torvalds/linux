@@ -1910,6 +1910,7 @@ int mt7615_driver_own(struct mt7615_dev *dev)
 
 out:
 	mt7622_trigger_hif_int(dev, false);
+	dev->pm.last_activity = jiffies;
 
 	return err;
 }
