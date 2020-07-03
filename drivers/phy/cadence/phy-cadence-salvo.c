@@ -88,7 +88,7 @@
 #define TB_ADDR_TX_RCVDETSC_CTRL	        0x4124
 
 /* TB_ADDR_TX_RCVDETSC_CTRL */
-#define RXDET_IN_P3_32KHZ			BIT(1)
+#define RXDET_IN_P3_32KHZ			BIT(0)
 
 struct cdns_reg_pairs {
 	u16 val;
