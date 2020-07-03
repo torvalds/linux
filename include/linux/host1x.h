@@ -48,6 +48,9 @@ struct host1x_client_ops {
  * @channel: host1x channel associated with this client
  * @syncpts: array of syncpoints requested for this client
  * @num_syncpts: number of syncpoints requested for this client
+ * @parent: pointer to parent structure
+ * @usecount: reference count for this structure
+ * @lock: mutex for mutually exclusive concurrency
  */
 struct host1x_client {
 	struct list_head list;

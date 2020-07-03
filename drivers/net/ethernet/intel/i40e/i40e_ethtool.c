@@ -2072,6 +2072,9 @@ static int i40e_set_ringparam(struct net_device *netdev,
 			err = i40e_setup_rx_descriptors(&rx_rings[i]);
 			if (err)
 				goto rx_unwind;
+			err = i40e_alloc_rx_bi(&rx_rings[i]);
+			if (err)
+				goto rx_unwind;
 
 			/* now allocate the Rx buffers to make sure the OS
 			 * has enough memory, any failure here means abort

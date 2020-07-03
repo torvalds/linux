@@ -228,7 +228,7 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 	else
 		i2c_parse_fw_timings(&pdev->dev, t, false);
 
-	i2c_dw_acpi_adjust_bus_speed(&pdev->dev);
+	i2c_dw_adjust_bus_speed(dev);
 
 	if (pdev->dev.of_node)
 		dw_i2c_of_configure(pdev);

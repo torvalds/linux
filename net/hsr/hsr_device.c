@@ -339,7 +339,7 @@ static void hsr_announce(struct timer_list *t)
 	rcu_read_unlock();
 }
 
-static void hsr_del_ports(struct hsr_priv *hsr)
+void hsr_del_ports(struct hsr_priv *hsr)
 {
 	struct hsr_port *port;
 
@@ -356,31 +356,12 @@ static void hsr_del_ports(struct hsr_priv *hsr)
 		hsr_del_port(port);
 }
 
-/* This has to be called after all the readers are gone.
- * Otherwise we would have to check the return value of
- * hsr_port_get_hsr().
- */
-static void hsr_dev_destroy(struct net_device *hsr_dev)
-{
-	struct hsr_priv *hsr = netdev_priv(hsr_dev);
-
-	hsr_debugfs_term(hsr);
-	hsr_del_ports(hsr);
-
-	del_timer_sync(&hsr->prune_timer);
-	del_timer_sync(&hsr->announce_timer);
-
-	hsr_del_self_node(hsr);
-	hsr_del_nodes(&hsr->node_db);
-}
-
 static const struct net_device_ops hsr_device_ops = {
 	.ndo_change_mtu = hsr_dev_change_mtu,
 	.ndo_open = hsr_dev_open,
 	.ndo_stop = hsr_dev_close,
 	.ndo_start_xmit = hsr_dev_xmit,
 	.ndo_fix_features = hsr_fix_features,
-	.ndo_uninit = hsr_dev_destroy,
 };
 
 static struct device_type hsr_type = {

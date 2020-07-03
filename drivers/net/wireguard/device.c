@@ -45,17 +45,18 @@ static int wg_open(struct net_device *dev)
 	if (dev_v6)
 		dev_v6->cnf.addr_gen_mode = IN6_ADDR_GEN_MODE_NONE;
 
+	mutex_lock(&wg->device_update_lock);
 	ret = wg_socket_init(wg, wg->incoming_port);
 	if (ret < 0)
-		return ret;
-	mutex_lock(&wg->device_update_lock);
+		goto out;
 	list_for_each_entry(peer, &wg->peer_list, peer_list) {
 		wg_packet_send_staged_packets(peer);
 		if (peer->persistent_keepalive_interval)
 			wg_packet_send_keepalive(peer);
 	}
+out:
 	mutex_unlock(&wg->device_update_lock);
-	return 0;
+	return ret;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -225,6 +226,7 @@ static void wg_destruct(struct net_device *dev)
 	list_del(&wg->device_list);
 	rtnl_unlock();
 	mutex_lock(&wg->device_update_lock);
+	rcu_assign_pointer(wg->creating_net, NULL);
 	wg->incoming_port = 0;
 	wg_socket_reinit(wg, NULL, NULL);
 	/* The final references are cleared in the below calls to destroy_workqueue. */
@@ -240,13 +242,11 @@ static void wg_destruct(struct net_device *dev)
 	skb_queue_purge(&wg->incoming_handshakes);
 	free_percpu(dev->tstats);
 	free_percpu(wg->incoming_handshakes_worker);
-	if (wg->have_creating_net_ref)
-		put_net(wg->creating_net);
 	kvfree(wg->index_hashtable);
 	kvfree(wg->peer_hashtable);
 	mutex_unlock(&wg->device_update_lock);
 
-	pr_debug("%s: Interface deleted\n", dev->name);
+	pr_debug("%s: Interface destroyed\n", dev->name);
 	free_netdev(dev);
 }
 
@@ -292,7 +292,7 @@ static int wg_newlink(struct net *src_net, struct net_device *dev,
 	struct wg_device *wg = netdev_priv(dev);
 	int ret = -ENOMEM;
 
-	wg->creating_net = src_net;
+	rcu_assign_pointer(wg->creating_net, src_net);
 	init_rwsem(&wg->static_identity.lock);
 	mutex_init(&wg->socket_update_lock);
 	mutex_init(&wg->device_update_lock);
@@ -393,30 +393,26 @@ static struct rtnl_link_ops link_ops __read_mostly = {
 	.newlink		= wg_newlink,
 };
 
-static int wg_netdevice_notification(struct notifier_block *nb,
-				     unsigned long action, void *data)
+static void wg_netns_pre_exit(struct net *net)
 {
-	struct net_device *dev = ((struct netdev_notifier_info *)data)->dev;
-	struct wg_device *wg = netdev_priv(dev);
+	struct wg_device *wg;
 
-	ASSERT_RTNL();
-
-	if (action != NETDEV_REGISTER || dev->netdev_ops != &netdev_ops)
-		return 0;
-
-	if (dev_net(dev) == wg->creating_net && wg->have_creating_net_ref) {
-		put_net(wg->creating_net);
-		wg->have_creating_net_ref = false;
-	} else if (dev_net(dev) != wg->creating_net &&
-		   !wg->have_creating_net_ref) {
-		wg->have_creating_net_ref = true;
-		get_net(wg->creating_net);
+	rtnl_lock();
+	list_for_each_entry(wg, &device_list, device_list) {
+		if (rcu_access_pointer(wg->creating_net) == net) {
+			pr_debug("%s: Creating namespace exiting\n", wg->dev->name);
+			netif_carrier_off(wg->dev);
+			mutex_lock(&wg->device_update_lock);
+			rcu_assign_pointer(wg->creating_net, NULL);
+			wg_socket_reinit(wg, NULL, NULL);
+			mutex_unlock(&wg->device_update_lock);
+		}
 	}
-	return 0;
+	rtnl_unlock();
 }
 
-static struct notifier_block netdevice_notifier = {
-	.notifier_call = wg_netdevice_notification
+static struct pernet_operations pernet_ops = {
+	.pre_exit = wg_netns_pre_exit
 };
 
 int __init wg_device_init(void)
@@ -429,18 +425,18 @@ int __init wg_device_init(void)
 		return ret;
 #endif
 
-	ret = register_netdevice_notifier(&netdevice_notifier);
+	ret = register_pernet_device(&pernet_ops);
 	if (ret)
 		goto error_pm;
 
 	ret = rtnl_link_register(&link_ops);
 	if (ret)
-		goto error_netdevice;
+		goto error_pernet;
 
 	return 0;
 
-error_netdevice:
-	unregister_netdevice_notifier(&netdevice_notifier);
+error_pernet:
+	unregister_pernet_device(&pernet_ops);
 error_pm:
 #ifdef CONFIG_PM_SLEEP
 	unregister_pm_notifier(&pm_notifier);
@@ -451,7 +447,7 @@ error_pm:
 void wg_device_uninit(void)
 {
 	rtnl_link_unregister(&link_ops);
-	unregister_netdevice_notifier(&netdevice_notifier);
+	unregister_pernet_device(&pernet_ops);
 #ifdef CONFIG_PM_SLEEP
 	unregister_pm_notifier(&pm_notifier);
 #endif
