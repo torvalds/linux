@@ -780,7 +780,7 @@ same part of the hist_data->fields[] array as normal values::
 Moving on to the sched_switch trigger hist_debug output, in addition
 to the unused wakeup_lat variable, we see a new section displaying
 variable references.  Variable references are displayed in a separate
-section because in addition to to being logically separate from
+section because in addition to being logically separate from
 variables and values, they actually live in a separate hist_data
 array, var_refs[].
 
@@ -863,7 +863,7 @@ event.
 The onmatch() action below basically says that whenever we have a
 sched_switch event, if we have a matching sched_waking event, in this
 case if we have a pid in the sched_waking histogram that matches the
-the next_pid field on this sched_switch event, we retrieve the
+next_pid field on this sched_switch event, we retrieve the
 variables specified in the wakeup_latency() trace action, and use
 them to generate a new wakeup_latency event into the trace stream.
 
