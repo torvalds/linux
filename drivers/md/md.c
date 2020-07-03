@@ -463,12 +463,33 @@ check_suspended:
 }
 EXPORT_SYMBOL(md_handle_request);
 
+struct md_io {
+	struct mddev *mddev;
+	bio_end_io_t *orig_bi_end_io;
+	void *orig_bi_private;
+	unsigned long start_time;
+};
+
+static void md_end_io(struct bio *bio)
+{
+	struct md_io *md_io = bio->bi_private;
+	struct mddev *mddev = md_io->mddev;
+
+	disk_end_io_acct(mddev->gendisk, bio_op(bio), md_io->start_time);
+
+	bio->bi_end_io = md_io->orig_bi_end_io;
+	bio->bi_private = md_io->orig_bi_private;
+
+	mempool_free(md_io, &mddev->md_io_pool);
+
+	if (bio->bi_end_io)
+		bio->bi_end_io(bio);
+}
+
 static blk_qc_t md_submit_bio(struct bio *bio)
 {
 	const int rw = bio_data_dir(bio);
-	const int sgrp = op_stat_group(bio_op(bio));
 	struct mddev *mddev = bio->bi_disk->private_data;
-	unsigned int sectors;
 
 	if (mddev == NULL || mddev->pers == NULL) {
 		bio_io_error(bio);
@@ -489,20 +510,26 @@ static blk_qc_t md_submit_bio(struct bio *bio)
 		return BLK_QC_T_NONE;
 	}
 
-	/*
-	 * save the sectors now since our bio can
-	 * go away inside make_request
-	 */
-	sectors = bio_sectors(bio);
+	if (bio->bi_end_io != md_end_io) {
+		struct md_io *md_io;
+
+		md_io = mempool_alloc(&mddev->md_io_pool, GFP_NOIO);
+		md_io->mddev = mddev;
+		md_io->orig_bi_end_io = bio->bi_end_io;
+		md_io->orig_bi_private = bio->bi_private;
+
+		bio->bi_end_io = md_end_io;
+		bio->bi_private = md_io;
+
+		md_io->start_time = disk_start_io_acct(mddev->gendisk,
+						       bio_sectors(bio),
+						       bio_op(bio));
+	}
+
 	/* bio could be mergeable after passing to underlayer */
 	bio->bi_opf &= ~REQ_NOMERGE;
 
 	md_handle_request(mddev, bio);
-
-	part_stat_lock();
-	part_stat_inc(&mddev->gendisk->part0, ios[sgrp]);
-	part_stat_add(&mddev->gendisk->part0, sectors[sgrp], sectors);
-	part_stat_unlock();
 
 	return BLK_QC_T_NONE;
 }
@@ -5546,6 +5573,7 @@ static void md_free(struct kobject *ko)
 
 	bioset_exit(&mddev->bio_set);
 	bioset_exit(&mddev->sync_set);
+	mempool_exit(&mddev->md_io_pool);
 	kfree(mddev);
 }
 
@@ -5640,6 +5668,11 @@ static int md_alloc(dev_t dev, char *name)
 		 * Creating /dev/mdNNN via "newarray", so adjust hold_active.
 		 */
 		mddev->hold_active = UNTIL_STOP;
+
+	error = mempool_init_kmalloc_pool(&mddev->md_io_pool, BIO_POOL_SIZE,
+					  sizeof(struct md_io));
+	if (error)
+		goto abort;
 
 	error = -ENOMEM;
 	mddev->queue = blk_alloc_queue(NUMA_NO_NODE);
