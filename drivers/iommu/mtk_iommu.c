@@ -555,11 +555,13 @@ static int mtk_iommu_hw_init(const struct mtk_iommu_data *data)
 		return ret;
 	}
 
-	if (data->plat_data->m4u_plat == M4U_MT8173)
+	if (data->plat_data->m4u_plat == M4U_MT8173) {
 		regval = F_MMU_PREFETCH_RT_REPLACE_MOD |
 			 F_MMU_TF_PROT_TO_PROGRAM_ADDR_MT8173;
-	else
-		regval = F_MMU_TF_PROT_TO_PROGRAM_ADDR;
+	} else {
+		regval = readl_relaxed(data->base + REG_MMU_CTRL_REG);
+		regval |= F_MMU_TF_PROT_TO_PROGRAM_ADDR;
+	}
 	writel_relaxed(regval, data->base + REG_MMU_CTRL_REG);
 
 	regval = F_L2_MULIT_HIT_EN |
