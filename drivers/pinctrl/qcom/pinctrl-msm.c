@@ -233,6 +233,10 @@ static int msm_config_reg(struct msm_pinctrl *pctrl,
 		*bit = g->pull_bit;
 		*mask = 3;
 		break;
+	case PIN_CONFIG_DRIVE_OPEN_DRAIN:
+		*bit = g->od_bit;
+		*mask = 1;
+		break;
 	case PIN_CONFIG_DRIVE_STRENGTH:
 		*bit = g->drv_bit;
 		*mask = 7;
@@ -310,6 +314,12 @@ static int msm_config_group_get(struct pinctrl_dev *pctldev,
 		if (!arg)
 			return -EINVAL;
 		break;
+	case PIN_CONFIG_DRIVE_OPEN_DRAIN:
+		/* Pin is not open-drain */
+		if (!arg)
+			return -EINVAL;
+		arg = 1;
+		break;
 	case PIN_CONFIG_DRIVE_STRENGTH:
 		arg = msm_regval_to_drive(arg);
 		break;
@@ -381,6 +391,9 @@ static int msm_config_group_set(struct pinctrl_dev *pctldev,
 				arg = MSM_PULL_UP_NO_KEEPER;
 			else
 				arg = MSM_PULL_UP;
+			break;
+		case PIN_CONFIG_DRIVE_OPEN_DRAIN:
+			arg = 1;
 			break;
 		case PIN_CONFIG_DRIVE_STRENGTH:
 			/* Check for invalid values */
