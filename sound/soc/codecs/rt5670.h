@@ -1992,7 +1992,7 @@ struct rt5670_priv {
 
 	int jd_mode;
 	bool in2_diff;
-	bool dev_gpio;
+	bool gpio1_is_irq;
 	bool gpio1_is_ext_spk_en;
 
 	bool dmic_en;

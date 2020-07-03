@@ -30,7 +30,7 @@
 #include "rt5670.h"
 #include "rt5670-dsp.h"
 
-#define RT5670_DEV_GPIO			BIT(0)
+#define RT5670_GPIO1_IS_IRQ			BIT(0)
 #define RT5670_IN2_DIFF			BIT(1)
 #define RT5670_DMIC_EN			BIT(2)
 #define RT5670_DMIC1_IN2P		BIT(3)
@@ -2833,7 +2833,7 @@ static const struct dmi_system_id dmi_platform_intel_quirks[] = {
 		},
 		.driver_data = (unsigned long *)(RT5670_DMIC_EN |
 						 RT5670_DMIC1_IN2P |
-						 RT5670_DEV_GPIO |
+						 RT5670_GPIO1_IS_IRQ |
 						 RT5670_JD_MODE1),
 	},
 	{
@@ -2845,7 +2845,7 @@ static const struct dmi_system_id dmi_platform_intel_quirks[] = {
 		},
 		.driver_data = (unsigned long *)(RT5670_DMIC_EN |
 						 RT5670_DMIC1_IN2P |
-						 RT5670_DEV_GPIO |
+						 RT5670_GPIO1_IS_IRQ |
 						 RT5670_JD_MODE1),
 	},
 	{
@@ -2857,7 +2857,7 @@ static const struct dmi_system_id dmi_platform_intel_quirks[] = {
 		},
 		.driver_data = (unsigned long *)(RT5670_DMIC_EN |
 						 RT5670_DMIC2_INR |
-						 RT5670_DEV_GPIO |
+						 RT5670_GPIO1_IS_IRQ |
 						 RT5670_JD_MODE1),
 	},
 	{
@@ -2869,7 +2869,7 @@ static const struct dmi_system_id dmi_platform_intel_quirks[] = {
 		},
 		.driver_data = (unsigned long *)(RT5670_DMIC_EN |
 						 RT5670_DMIC1_IN2P |
-						 RT5670_DEV_GPIO |
+						 RT5670_GPIO1_IS_IRQ |
 						 RT5670_JD_MODE1),
 	},
 	{
@@ -2881,7 +2881,7 @@ static const struct dmi_system_id dmi_platform_intel_quirks[] = {
 		},
 		.driver_data = (unsigned long *)(RT5670_DMIC_EN |
 						 RT5670_DMIC1_IN2P |
-						 RT5670_DEV_GPIO |
+						 RT5670_GPIO1_IS_IRQ |
 						 RT5670_JD_MODE1),
 	},
 	{
@@ -2905,7 +2905,7 @@ static const struct dmi_system_id dmi_platform_intel_quirks[] = {
 		},
 		.driver_data = (unsigned long *)(RT5670_DMIC_EN |
 						 RT5670_DMIC2_INR |
-						 RT5670_DEV_GPIO |
+						 RT5670_GPIO1_IS_IRQ |
 						 RT5670_JD_MODE3),
 	},
 	{
@@ -2917,7 +2917,7 @@ static const struct dmi_system_id dmi_platform_intel_quirks[] = {
 		},
 		.driver_data = (unsigned long *)(RT5670_DMIC_EN |
 						 RT5670_DMIC2_INR |
-						 RT5670_DEV_GPIO |
+						 RT5670_GPIO1_IS_IRQ |
 						 RT5670_JD_MODE3),
 	},
 	{}
@@ -2945,9 +2945,9 @@ static int rt5670_i2c_probe(struct i2c_client *i2c,
 		rt5670_quirk = quirk_override;
 	}
 
-	if (rt5670_quirk & RT5670_DEV_GPIO) {
-		rt5670->dev_gpio = true;
-		dev_info(&i2c->dev, "quirk dev_gpio\n");
+	if (rt5670_quirk & RT5670_GPIO1_IS_IRQ) {
+		rt5670->gpio1_is_irq = true;
+		dev_info(&i2c->dev, "quirk GPIO1 is IRQ\n");
 	}
 	if (rt5670_quirk & RT5670_GPIO1_IS_EXT_SPK_EN) {
 		rt5670->gpio1_is_ext_spk_en = true;
@@ -3040,7 +3040,7 @@ static int rt5670_i2c_probe(struct i2c_client *i2c,
 		regmap_update_bits(rt5670->regmap, RT5670_IN2,
 					RT5670_IN_DF2, RT5670_IN_DF2);
 
-	if (rt5670->dev_gpio) {
+	if (rt5670->gpio1_is_irq) {
 		/* for push button */
 		regmap_write(rt5670->regmap, RT5670_IL_CMD, 0x0000);
 		regmap_write(rt5670->regmap, RT5670_IL_CMD2, 0x0010);
