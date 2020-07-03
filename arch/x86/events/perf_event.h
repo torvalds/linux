@@ -695,6 +695,8 @@ struct x86_pmu {
 
 	void		(*lbr_reset)(void);
 	void		(*lbr_read)(struct cpu_hw_events *cpuc);
+	void		(*lbr_save)(void *ctx);
+	void		(*lbr_restore)(void *ctx);
 
 	/*
 	 * Intel PT/LBR/BTS are exclusive
@@ -1089,6 +1091,10 @@ void intel_pmu_lbr_read(void);
 void intel_pmu_lbr_read_32(struct cpu_hw_events *cpuc);
 
 void intel_pmu_lbr_read_64(struct cpu_hw_events *cpuc);
+
+void intel_pmu_lbr_save(void *ctx);
+
+void intel_pmu_lbr_restore(void *ctx);
 
 void intel_pmu_lbr_init_core(void);
 
