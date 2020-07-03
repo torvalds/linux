@@ -694,6 +694,7 @@ struct x86_pmu {
 	bool		lbr_pt_coexist;		   /* (LBR|BTS) may coexist with PT */
 
 	void		(*lbr_reset)(void);
+	void		(*lbr_read)(struct cpu_hw_events *cpuc);
 
 	/*
 	 * Intel PT/LBR/BTS are exclusive
@@ -1084,6 +1085,10 @@ void intel_pmu_lbr_enable_all(bool pmi);
 void intel_pmu_lbr_disable_all(void);
 
 void intel_pmu_lbr_read(void);
+
+void intel_pmu_lbr_read_32(struct cpu_hw_events *cpuc);
+
+void intel_pmu_lbr_read_64(struct cpu_hw_events *cpuc);
 
 void intel_pmu_lbr_init_core(void);
 
