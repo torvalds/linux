@@ -238,6 +238,7 @@ static int hw_ep_set_halt(struct ci_hdrc *ci, int num, int dir, int value)
 
 /**
  * hw_is_port_high_speed: test if port is high speed
+ * @ci: the controller
  *
  * This function returns true if high speed port
  */
@@ -264,6 +265,7 @@ static int hw_test_and_clear_complete(struct ci_hdrc *ci, int n)
 /**
  * hw_test_and_clear_intr_active: test & clear active interrupts (execute
  *                                without interruption)
+ * @ci: the controller
  *
  * This function returns active interrutps
  */
@@ -278,6 +280,7 @@ static u32 hw_test_and_clear_intr_active(struct ci_hdrc *ci)
 /**
  * hw_test_and_clear_setup_guard: test & clear setup guard (execute without
  *                                interruption)
+ * @ci: the controller
  *
  * This function returns guard value
  */
@@ -289,6 +292,7 @@ static int hw_test_and_clear_setup_guard(struct ci_hdrc *ci)
 /**
  * hw_test_and_set_setup_guard: test & set setup guard (execute without
  *                              interruption)
+ * @ci: the controller
  *
  * This function returns guard value
  */
@@ -314,6 +318,7 @@ static void hw_usb_set_address(struct ci_hdrc *ci, u8 value)
 /**
  * hw_usb_reset: restart device after a bus reset (execute without
  *               interruption)
+ * @ci: the controller
  *
  * This function returns an error code
  */
@@ -621,7 +626,6 @@ done:
 
 /**
  * free_pending_td: remove a pending request for the endpoint
- * @ci: the controller
  * @hwep: endpoint
  */
 static void free_pending_td(struct ci_hw_ep *hwep)
@@ -646,7 +650,7 @@ static int reprime_dtd(struct ci_hdrc *ci, struct ci_hw_ep *hwep,
 
 /**
  * _hardware_dequeue: handles a request at hardware level
- * @gadget: gadget
+ * @hwep: endpoint
  * @hwreq:  request
  *
  * This function returns an error code
