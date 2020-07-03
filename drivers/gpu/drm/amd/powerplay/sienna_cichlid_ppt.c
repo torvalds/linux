@@ -602,7 +602,6 @@ static int sienna_cichlid_set_default_dpm_table(struct smu_context *smu)
 	PPTable_t *driver_ppt = smu->smu_table.driver_pptable;
 	struct smu_11_0_dpm_table *dpm_table;
 	int ret = 0;
-	int i;
 
 	/* socclk dpm table setup */
 	dpm_table = &dpm_context->dpm_tables.soc_table;
@@ -818,12 +817,6 @@ static int sienna_cichlid_set_default_dpm_table(struct smu_context *smu)
 		dpm_table->dpm_levels[0].enabled = true;
 		dpm_table->min = dpm_table->dpm_levels[0].value;
 		dpm_table->max = dpm_table->dpm_levels[0].value;
-	}
-
-	/* lclk dpm table setup */
-	for (i = 0; i < MAX_PCIE_CONF; i++) {
-		dpm_context->dpm_tables.pcie_table.pcie_gen[i] = driver_ppt->PcieGenSpeed[i];
-		dpm_context->dpm_tables.pcie_table.pcie_lane[i] = driver_ppt->PcieLaneCount[i];
 	}
 
 	return 0;
@@ -1723,12 +1716,16 @@ static int sienna_cichlid_update_pcie_parameters(struct smu_context *smu,
 					 uint32_t pcie_gen_cap,
 					 uint32_t pcie_width_cap)
 {
+	struct smu_11_0_dpm_context *dpm_context = smu->smu_dpm.dpm_context;
 	PPTable_t *pptable = smu->smu_table.driver_pptable;
-	int ret, i;
 	uint32_t smu_pcie_arg;
+	int ret, i;
 
-	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
-	struct smu_11_0_dpm_context *dpm_context = smu_dpm->dpm_context;
+	/* lclk dpm table setup */
+	for (i = 0; i < MAX_PCIE_CONF; i++) {
+		dpm_context->dpm_tables.pcie_table.pcie_gen[i] = pptable->PcieGenSpeed[i];
+		dpm_context->dpm_tables.pcie_table.pcie_lane[i] = pptable->PcieLaneCount[i];
+	}
 
 	for (i = 0; i < NUM_LINK_LEVELS; i++) {
 		smu_pcie_arg = (i << 16) |
