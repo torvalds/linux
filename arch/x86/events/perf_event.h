@@ -247,7 +247,7 @@ struct cpu_hw_events {
 	struct perf_branch_entry	lbr_entries[MAX_LBR_ENTRIES];
 	struct er_account		*lbr_sel;
 	u64				br_sel;
-	struct x86_perf_task_context	*last_task_ctx;
+	void				*last_task_ctx;
 	int				last_log_id;
 	int				lbr_select;
 
@@ -799,6 +799,11 @@ static struct perf_pmu_events_ht_attr event_attr_##v = {		\
 
 struct pmu *x86_get_pmu(void);
 extern struct x86_pmu x86_pmu __read_mostly;
+
+static __always_inline struct x86_perf_task_context_opt *task_context_opt(void *ctx)
+{
+	return &((struct x86_perf_task_context *)ctx)->opt;
+}
 
 static inline bool x86_pmu_has_lbr_callstack(void)
 {
