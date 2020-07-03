@@ -159,7 +159,6 @@ struct rk3x_i2c_calced_timings {
 
 enum rk3x_i2c_state {
 	STATE_IDLE,
-	STATE_START,
 	STATE_READ,
 	STATE_WRITE,
 	STATE_STOP
@@ -232,6 +231,9 @@ struct rk3x_i2c {
 	struct notifier_block i2c_restart_nb;
 };
 
+static int rk3x_i2c_fill_transmit_buf(struct rk3x_i2c *i2c, bool sended);
+static void rk3x_i2c_prepare_read(struct rk3x_i2c *i2c);
+
 static inline void i2c_writel(struct rk3x_i2c *i2c, u32 value,
 			      unsigned int offset)
 {
@@ -267,8 +269,18 @@ static inline void rk3x_i2c_disable(struct rk3x_i2c *i2c)
 static void rk3x_i2c_start(struct rk3x_i2c *i2c)
 {
 	u32 val = i2c_readl(i2c, REG_CON) & REG_CON_TUNING_MASK;
+	int length = 0;
 
-	i2c_writel(i2c, REG_INT_START, REG_IEN);
+	/* enable appropriate interrupts */
+	if (i2c->mode == REG_CON_MOD_TX) {
+		i2c_writel(i2c, REG_INT_MBTF | REG_INT_NAKRCV, REG_IEN);
+		i2c->state = STATE_WRITE;
+		length = rk3x_i2c_fill_transmit_buf(i2c, false);
+	} else {
+		/* in any other case, we are going to be reading. */
+		i2c_writel(i2c, REG_INT_MBRF | REG_INT_NAKRCV, REG_IEN);
+		i2c->state = STATE_READ;
+	}
 
 	/* enable adapter with correct mode, send START condition */
 	val |= REG_CON_EN | REG_CON_MOD(i2c->mode) | REG_CON_START;
@@ -278,6 +290,12 @@ static void rk3x_i2c_start(struct rk3x_i2c *i2c)
 		val |= REG_CON_ACTACK;
 
 	i2c_writel(i2c, val, REG_CON);
+
+	/* enable transition */
+	if (i2c->mode == REG_CON_MOD_TX)
+		i2c_writel(i2c, length, REG_MTXCNT);
+	else
+		rk3x_i2c_prepare_read(i2c);
 }
 
 /**
@@ -301,6 +319,7 @@ static void rk3x_i2c_stop(struct rk3x_i2c *i2c, int error)
 
 		ctrl = i2c_readl(i2c, REG_CON);
 		ctrl |= REG_CON_STOP;
+		ctrl &= ~REG_CON_START;
 		i2c_writel(i2c, ctrl, REG_CON);
 	} else {
 		/* Signal rk3x_i2c_xfer to start the next message. */
@@ -354,7 +373,7 @@ static void rk3x_i2c_prepare_read(struct rk3x_i2c *i2c)
 /**
  * Fill the transmit buffer with data from i2c->msg
  */
-static void rk3x_i2c_fill_transmit_buf(struct rk3x_i2c *i2c)
+static int rk3x_i2c_fill_transmit_buf(struct rk3x_i2c *i2c, bool sendend)
 {
 	unsigned int i, j;
 	u32 cnt = 0;
@@ -382,39 +401,14 @@ static void rk3x_i2c_fill_transmit_buf(struct rk3x_i2c *i2c)
 			break;
 	}
 
-	i2c_writel(i2c, cnt, REG_MTXCNT);
+	if (sendend)
+		i2c_writel(i2c, cnt, REG_MTXCNT);
+
+	return cnt;
 }
 
 
 /* IRQ handlers for individual states */
-
-static void rk3x_i2c_handle_start(struct rk3x_i2c *i2c, unsigned int ipd)
-{
-	if (!(ipd & REG_INT_START)) {
-		rk3x_i2c_stop(i2c, -EIO);
-		dev_warn(i2c->dev, "unexpected irq in START: 0x%x\n", ipd);
-		rk3x_i2c_clean_ipd(i2c);
-		return;
-	}
-
-	/* ack interrupt */
-	i2c_writel(i2c, REG_INT_START, REG_IPD);
-
-	/* disable start bit */
-	i2c_writel(i2c, i2c_readl(i2c, REG_CON) & ~REG_CON_START, REG_CON);
-
-	/* enable appropriate interrupts and transition */
-	if (i2c->mode == REG_CON_MOD_TX) {
-		i2c_writel(i2c, REG_INT_MBTF | REG_INT_NAKRCV, REG_IEN);
-		i2c->state = STATE_WRITE;
-		rk3x_i2c_fill_transmit_buf(i2c);
-	} else {
-		/* in any other case, we are going to be reading. */
-		i2c_writel(i2c, REG_INT_MBRF | REG_INT_NAKRCV, REG_IEN);
-		i2c->state = STATE_READ;
-		rk3x_i2c_prepare_read(i2c);
-	}
-}
 
 static void rk3x_i2c_handle_write(struct rk3x_i2c *i2c, unsigned int ipd)
 {
@@ -432,7 +426,7 @@ static void rk3x_i2c_handle_write(struct rk3x_i2c *i2c, unsigned int ipd)
 	if (i2c->processed == i2c->msg->len)
 		rk3x_i2c_stop(i2c, i2c->error);
 	else
-		rk3x_i2c_fill_transmit_buf(i2c);
+		rk3x_i2c_fill_transmit_buf(i2c, true);
 }
 
 static void rk3x_i2c_handle_read(struct rk3x_i2c *i2c, unsigned int ipd)
@@ -537,9 +531,6 @@ static irqreturn_t rk3x_i2c_irq(int irqno, void *dev_id)
 		goto out;
 
 	switch (i2c->state) {
-	case STATE_START:
-		rk3x_i2c_handle_start(i2c, ipd);
-		break;
 	case STATE_WRITE:
 		rk3x_i2c_handle_write(i2c, ipd);
 		break;
@@ -1059,7 +1050,6 @@ static int rk3x_i2c_setup(struct rk3x_i2c *i2c, struct i2c_msg *msgs, int num)
 
 	i2c->addr = msgs[0].addr;
 	i2c->busy = true;
-	i2c->state = STATE_START;
 	i2c->processed = 0;
 	i2c->error = 0;
 
