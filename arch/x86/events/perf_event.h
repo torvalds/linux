@@ -690,7 +690,7 @@ struct x86_pmu {
 	 * Intel LBR
 	 */
 	unsigned int	lbr_tos, lbr_from, lbr_to,
-			lbr_nr;			   /* LBR base regs and size */
+			lbr_info, lbr_nr;	   /* LBR base regs and size */
 	union {
 		u64	lbr_sel_mask;		   /* LBR_SELECT valid bits */
 		u64	lbr_ctl_mask;		   /* LBR_CTL valid bits */
