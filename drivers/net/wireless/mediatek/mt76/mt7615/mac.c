@@ -1747,9 +1747,9 @@ mt7615_phy_update_channel(struct mt76_phy *mphy, int idx)
 	state->noise = -(phy->noise >> 4);
 }
 
-void mt7615_update_channel(struct mt76_dev *mdev)
+static void __mt7615_update_channel(struct mt7615_dev *dev)
 {
-	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
+	struct mt76_dev *mdev = &dev->mt76;
 
 	mt7615_phy_update_channel(&mdev->phy, 0);
 	if (mdev->phy2)
@@ -1758,7 +1758,31 @@ void mt7615_update_channel(struct mt76_dev *mdev)
 	/* reset obss airtime */
 	mt76_set(dev, MT_WF_RMAC_MIB_TIME0, MT_WF_RMAC_MIB_RXTIME_CLR);
 }
+
+void mt7615_update_channel(struct mt76_dev *mdev)
+{
+	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
+
+	if (mt7615_pm_wake(dev))
+		return;
+
+	__mt7615_update_channel(dev);
+	mt7615_pm_power_save_sched(dev);
+}
 EXPORT_SYMBOL_GPL(mt7615_update_channel);
+
+static void mt7615_update_survey(struct mt7615_dev *dev)
+{
+	struct mt76_dev *mdev = &dev->mt76;
+	ktime_t cur_time;
+
+	__mt7615_update_channel(dev);
+	cur_time = ktime_get_boottime();
+
+	mt76_update_survey_active_time(&mdev->phy, cur_time);
+	if (mdev->phy2)
+		mt76_update_survey_active_time(mdev->phy2, cur_time);
+}
 
 static void
 mt7615_mac_update_mib_stats(struct mt7615_phy *phy)
@@ -1889,7 +1913,7 @@ void mt7615_mac_work(struct work_struct *work)
 
 	mt7615_mutex_acquire(phy->dev);
 
-	mt76_update_survey(mdev);
+	mt7615_update_survey(phy->dev);
 	if (++phy->mac_work_count == 5) {
 		phy->mac_work_count = 0;
 

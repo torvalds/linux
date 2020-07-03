@@ -560,8 +560,7 @@ mt76_channel_state(struct mt76_phy *phy, struct ieee80211_channel *c)
 	return &msband->chan[idx];
 }
 
-static void
-mt76_update_survey_active_time(struct mt76_phy *phy, ktime_t time)
+void mt76_update_survey_active_time(struct mt76_phy *phy, ktime_t time)
 {
 	struct mt76_channel_state *state = phy->chan_state;
 
@@ -569,6 +568,7 @@ mt76_update_survey_active_time(struct mt76_phy *phy, ktime_t time)
 						  phy->survey_time));
 	phy->survey_time = time;
 }
+EXPORT_SYMBOL_GPL(mt76_update_survey_active_time);
 
 void mt76_update_survey(struct mt76_dev *dev)
 {
