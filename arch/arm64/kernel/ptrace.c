@@ -1033,6 +1033,35 @@ static int pac_generic_keys_set(struct task_struct *target,
 #endif /* CONFIG_CHECKPOINT_RESTORE */
 #endif /* CONFIG_ARM64_PTR_AUTH */
 
+#ifdef CONFIG_ARM64_TAGGED_ADDR_ABI
+static int tagged_addr_ctrl_get(struct task_struct *target,
+				const struct user_regset *regset,
+				struct membuf to)
+{
+	long ctrl = get_tagged_addr_ctrl(target);
+
+	if (IS_ERR_VALUE(ctrl))
+		return ctrl;
+
+	return membuf_write(&to, &ctrl, sizeof(ctrl));
+}
+
+static int tagged_addr_ctrl_set(struct task_struct *target, const struct
+				user_regset *regset, unsigned int pos,
+				unsigned int count, const void *kbuf, const
+				void __user *ubuf)
+{
+	int ret;
+	long ctrl;
+
+	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &ctrl, 0, -1);
+	if (ret)
+		return ret;
+
+	return set_tagged_addr_ctrl(target, ctrl);
+}
+#endif
+
 enum aarch64_regset {
 	REGSET_GPR,
 	REGSET_FPR,
@@ -1051,6 +1080,9 @@ enum aarch64_regset {
 	REGSET_PACA_KEYS,
 	REGSET_PACG_KEYS,
 #endif
+#endif
+#ifdef CONFIG_ARM64_TAGGED_ADDR_ABI
+	REGSET_TAGGED_ADDR_CTRL,
 #endif
 };
 
@@ -1148,6 +1180,16 @@ static const struct user_regset aarch64_regsets[] = {
 		.set = pac_generic_keys_set,
 	},
 #endif
+#endif
+#ifdef CONFIG_ARM64_TAGGED_ADDR_ABI
+	[REGSET_TAGGED_ADDR_CTRL] = {
+		.core_note_type = NT_ARM_TAGGED_ADDR_CTRL,
+		.n = 1,
+		.size = sizeof(long),
+		.align = sizeof(long),
+		.regset_get = tagged_addr_ctrl_get,
+		.set = tagged_addr_ctrl_set,
+	},
 #endif
 };
 
