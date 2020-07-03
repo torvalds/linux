@@ -10,8 +10,11 @@
  *
  *v0.1.0:
  *1. First version;
+ *
+ *v0.1.1:
+ *1. support lvds interface
  */
 
-#define RKISP_DRIVER_VERSION KERNEL_VERSION(0, 1, 0x0)
+#define RKISP_DRIVER_VERSION KERNEL_VERSION(0, 1, 0x1)
 
 #endif
