@@ -409,9 +409,8 @@
 			ranges = <0x0 0x39000 0x1000>;
 		};
 
-		target-module@3e000 {			/* 0x44e3e000, ap 34 60.0 */
+		rtc_target: target-module@3e000 {	/* 0x44e3e000, ap 34 60.0 */
 			compatible = "ti,sysc-omap4-simple", "ti,sysc";
-			ti,hwmods = "rtc";
 			reg = <0x3e074 0x4>,
 			      <0x3e078 0x4>;
 			reg-names = "rev", "sysc";
