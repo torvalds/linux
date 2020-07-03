@@ -110,6 +110,7 @@ static void xhci_debugfs_free_regset(struct xhci_regset *regset)
 	kfree(regset);
 }
 
+__printf(6, 7)
 static void xhci_debugfs_regset(struct xhci_hcd *xhci, u32 base,
 				const struct debugfs_reg32 *regs,
 				size_t nregs, struct dentry *parent,
