@@ -299,11 +299,12 @@ static void pd_vma_clear_pages(struct i915_vma *vma)
 	vma->pages = NULL;
 }
 
-static int pd_vma_bind(struct i915_vma *vma,
+static int pd_vma_bind(struct i915_address_space *vm,
+		       struct i915_vma *vma,
 		       enum i915_cache_level cache_level,
 		       u32 unused)
 {
-	struct i915_ggtt *ggtt = i915_vm_to_ggtt(vma->vm);
+	struct i915_ggtt *ggtt = i915_vm_to_ggtt(vm);
 	struct gen6_ppgtt *ppgtt = vma->private;
 	u32 ggtt_offset = i915_ggtt_offset(vma) / I915_GTT_PAGE_SIZE;
 
@@ -314,7 +315,7 @@ static int pd_vma_bind(struct i915_vma *vma,
 	return 0;
 }
 
-static void pd_vma_unbind(struct i915_vma *vma)
+static void pd_vma_unbind(struct i915_address_space *vm, struct i915_vma *vma)
 {
 	struct gen6_ppgtt *ppgtt = vma->private;
 	struct i915_page_directory * const pd = ppgtt->base.pd;
