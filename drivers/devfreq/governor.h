@@ -35,10 +35,21 @@
 #define DEVFREQ_GOV_FLAG_IMMUTABLE			BIT(0)
 #define DEVFREQ_GOV_FLAG_IRQ_DRIVEN			BIT(1)
 
+/*
+ * Definition of governor attribute flags except for common sysfs attributes
+ * - DEVFREQ_GOV_ATTR_POLLING_INTERVAL
+ *   : Indicate polling_interal sysfs attribute
+ * - DEVFREQ_GOV_ATTR_TIMER
+ *   : Indicate timer sysfs attribute
+ */
+#define DEVFREQ_GOV_ATTR_POLLING_INTERVAL		BIT(0)
+#define DEVFREQ_GOV_ATTR_TIMER				BIT(1)
+
 /**
  * struct devfreq_governor - Devfreq policy governor
  * @node:		list node - contains registered devfreq governors
  * @name:		Governor's name
+ * @attrs:		Governor's sysfs attribute flags
  * @flags:		Governor's feature flags
  * @get_target_freq:	Returns desired operating frequency for the device.
  *			Basically, get_target_freq will run
@@ -57,6 +68,7 @@ struct devfreq_governor {
 	struct list_head node;
 
 	const char name[DEVFREQ_NAME_LEN];
+	const u64 attrs;
 	const u64 flags;
 	int (*get_target_freq)(struct devfreq *this, unsigned long *freq);
 	int (*event_handler)(struct devfreq *devfreq,
