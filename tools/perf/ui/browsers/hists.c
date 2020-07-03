@@ -3603,6 +3603,23 @@ static int __perf_evlist__tui_browse_hists(struct evlist *evlist,
 				    hbt, warn_lost_event);
 }
 
+static bool perf_evlist__single_entry(struct evlist *evlist)
+{
+	int nr_entries = evlist->core.nr_entries;
+
+	if (nr_entries == 1)
+	       return true;
+
+	if (nr_entries == 2) {
+		struct evsel *last = evlist__last(evlist);
+
+		if (evsel__is_dummy_event(last))
+			return true;
+	}
+
+	return false;
+}
+
 int perf_evlist__tui_browse_hists(struct evlist *evlist, const char *help,
 				  struct hist_browser_timer *hbt,
 				  float min_pcnt,
@@ -3613,7 +3630,7 @@ int perf_evlist__tui_browse_hists(struct evlist *evlist, const char *help,
 	int nr_entries = evlist->core.nr_entries;
 
 single_entry:
-	if (nr_entries == 1) {
+	if (perf_evlist__single_entry(evlist)) {
 		struct evsel *first = evlist__first(evlist);
 
 		return perf_evsel__hists_browse(first, nr_entries, help,
