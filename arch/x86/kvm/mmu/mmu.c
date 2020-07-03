@@ -4120,15 +4120,15 @@ static int direct_page_fault(struct kvm_vcpu *vcpu, gpa_t gpa, u32 error_code,
 	if (page_fault_handle_page_track(vcpu, error_code, gfn))
 		return RET_PF_EMULATE;
 
+	if (fast_page_fault(vcpu, gpa, error_code))
+		return RET_PF_RETRY;
+
 	r = mmu_topup_memory_caches(vcpu);
 	if (r)
 		return r;
 
 	if (lpage_disallowed)
 		max_level = PG_LEVEL_4K;
-
-	if (fast_page_fault(vcpu, gpa, error_code))
-		return RET_PF_RETRY;
 
 	mmu_seq = vcpu->kvm->mmu_notifier_seq;
 	smp_rmb();
