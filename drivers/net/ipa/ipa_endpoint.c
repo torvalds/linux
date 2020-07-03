@@ -21,6 +21,7 @@
 #include "ipa_modem.h"
 #include "ipa_table.h"
 #include "ipa_gsi.h"
+#include "ipa_clock.h"
 
 #define atomic_dec_not_zero(v)	atomic_add_unless((v), -1, 0)
 
@@ -675,63 +676,70 @@ static void ipa_endpoint_init_aggr(struct ipa_endpoint *endpoint)
 	iowrite32(val, endpoint->ipa->reg_virt + offset);
 }
 
-/* A return value of 0 indicates an error */
+/* The head-of-line blocking timer is defined as a tick count, where each
+ * tick represents 128 cycles of the IPA core clock.  Return the value
+ * that should be written to that register that represents the timeout
+ * period provided.
+ */
 static u32 ipa_reg_init_hol_block_timer_val(struct ipa *ipa, u32 microseconds)
 {
+	u32 width;
 	u32 scale;
-	u32 base;
+	u64 ticks;
+	u64 rate;
+	u32 high;
 	u32 val;
 
 	if (!microseconds)
-		return 0;	/* invalid delay */
+		return 0;	/* Nothing to compute if timer period is 0 */
 
-	/* Timer is represented in units of clock ticks. */
-	if (ipa->version < IPA_VERSION_4_2)
-		return microseconds;	/* XXX Needs to be computed */
+	/* Use 64 bit arithmetic to avoid overflow... */
+	rate = ipa_clock_rate(ipa);
+	ticks = DIV_ROUND_CLOSEST(microseconds * rate, 128 * USEC_PER_SEC);
+	/* ...but we still need to fit into a 32-bit register */
+	WARN_ON(ticks > U32_MAX);
 
-	/* IPA v4.2 represents the tick count as base * scale */
-	scale = 1;			/* XXX Needs to be computed */
-	if (scale > field_max(SCALE_FMASK))
-		return 0;		/* scale too big */
+	/* IPA v3.5.1 just records the tick count */
+	if (ipa->version == IPA_VERSION_3_5_1)
+		return (u32)ticks;
 
-	base = DIV_ROUND_CLOSEST(microseconds, scale);
-	if (base > field_max(BASE_VALUE_FMASK))
-		return 0;		/* microseconds too big */
+	/* For IPA v4.2, the tick count is represented by base and
+	 * scale fields within the 32-bit timer register, where:
+	 *     ticks = base << scale;
+	 * The best precision is achieved when the base value is as
+	 * large as possible.  Find the highest set bit in the tick
+	 * count, and extract the number of bits in the base field
+	 * such that that high bit is included.
+	 */
+	high = fls(ticks);		/* 1..32 */
+	width = HWEIGHT32(BASE_VALUE_FMASK);
+	scale = high > width ? high - width : 0;
+	if (scale) {
+		/* If we're scaling, round up to get a closer result */
+		ticks += 1 << (scale - 1);
+		/* High bit was set, so rounding might have affected it */
+		if (fls(ticks) != high)
+			scale++;
+	}
 
 	val = u32_encode_bits(scale, SCALE_FMASK);
-	val |= u32_encode_bits(base, BASE_VALUE_FMASK);
+	val |= u32_encode_bits(ticks >> scale, BASE_VALUE_FMASK);
 
 	return val;
 }
 
-static int ipa_endpoint_init_hol_block_timer(struct ipa_endpoint *endpoint,
-					     u32 microseconds)
+/* If microseconds is 0, timeout is immediate */
+static void ipa_endpoint_init_hol_block_timer(struct ipa_endpoint *endpoint,
+					      u32 microseconds)
 {
 	u32 endpoint_id = endpoint->endpoint_id;
 	struct ipa *ipa = endpoint->ipa;
 	u32 offset;
 	u32 val;
 
-	/* XXX We'll fix this when the register definition is clear */
-	if (microseconds) {
-		struct device *dev = &ipa->pdev->dev;
-
-		dev_err(dev, "endpoint %u non-zero HOLB period (ignoring)\n",
-			endpoint_id);
-		microseconds = 0;
-	}
-
-	if (microseconds) {
-		val = ipa_reg_init_hol_block_timer_val(ipa, microseconds);
-		if (!val)
-			return -EINVAL;
-	} else {
-		val = 0;	/* timeout is immediate */
-	}
 	offset = IPA_REG_ENDP_INIT_HOL_BLOCK_TIMER_N_OFFSET(endpoint_id);
+	val = ipa_reg_init_hol_block_timer_val(ipa, microseconds);
 	iowrite32(val, ipa->reg_virt + offset);
-
-	return 0;
 }
 
 static void
@@ -756,7 +764,7 @@ void ipa_endpoint_modem_hol_block_clear_all(struct ipa *ipa)
 		if (endpoint->toward_ipa || endpoint->ee_id != GSI_EE_MODEM)
 			continue;
 
-		(void)ipa_endpoint_init_hol_block_timer(endpoint, 0);
+		ipa_endpoint_init_hol_block_timer(endpoint, 0);
 		ipa_endpoint_init_hol_block_enable(endpoint, true);
 	}
 }
