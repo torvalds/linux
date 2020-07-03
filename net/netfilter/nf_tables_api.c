@@ -5953,7 +5953,7 @@ static int nf_tables_dump_obj(struct sk_buff *skb, struct netlink_callback *cb)
 				goto cont;
 
 			if (reset) {
-				char *buf = kasprintf(GFP_KERNEL,
+				char *buf = kasprintf(GFP_ATOMIC,
 						      "%s:%llu;?:0",
 						      table->name,
 						      table->handle);
@@ -5962,7 +5962,7 @@ static int nf_tables_dump_obj(struct sk_buff *skb, struct netlink_callback *cb)
 						family,
 						obj->handle,
 						AUDIT_NFT_OP_OBJ_RESET,
-						GFP_KERNEL);
+						GFP_ATOMIC);
 				kfree(buf);
 			}
 
@@ -6084,7 +6084,7 @@ static int nf_tables_getobj(struct net *net, struct sock *nlsk,
 				family,
 				obj->handle,
 				AUDIT_NFT_OP_OBJ_RESET,
-				GFP_KERNEL);
+				GFP_ATOMIC);
 		kfree(buf);
 	}
 
@@ -6172,7 +6172,7 @@ void nft_obj_notify(struct net *net, const struct nft_table *table,
 			event == NFT_MSG_NEWOBJ ?
 				AUDIT_NFT_OP_OBJ_REGISTER :
 				AUDIT_NFT_OP_OBJ_UNREGISTER,
-			GFP_KERNEL);
+			gfp);
 	kfree(buf);
 
 	if (!report &&
