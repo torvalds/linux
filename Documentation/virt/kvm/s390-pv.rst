@@ -78,7 +78,7 @@ Register Save Area.
 Only GR values needed to emulate an instruction will be copied into this
 save area and the real register numbers will be hidden.
 
-The Interception Parameters state description field still contains the
+The Interception Parameters state description field still contains
 the bytes of the instruction text, but with pre-set register values
 instead of the actual ones. I.e. each instruction always uses the same
 instruction text, in order not to leak guest instruction text.
