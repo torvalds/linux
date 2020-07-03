@@ -24,7 +24,6 @@
 #include <linux/slab.h>
 #include <linux/usb/ulpi.h>
 #include <linux/pm_runtime.h>
-#include <linux/gpio.h>
 #include <linux/clk.h>
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
