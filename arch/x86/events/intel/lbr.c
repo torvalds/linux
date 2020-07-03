@@ -332,18 +332,18 @@ static u64 lbr_from_signext_quirk_rd(u64 val)
 	return val;
 }
 
-static inline void wrlbr_from(unsigned int idx, u64 val)
+static __always_inline void wrlbr_from(unsigned int idx, u64 val)
 {
 	val = lbr_from_signext_quirk_wr(val);
 	wrmsrl(x86_pmu.lbr_from + idx, val);
 }
 
-static inline void wrlbr_to(unsigned int idx, u64 val)
+static __always_inline void wrlbr_to(unsigned int idx, u64 val)
 {
 	wrmsrl(x86_pmu.lbr_to + idx, val);
 }
 
-static inline u64 rdlbr_from(unsigned int idx)
+static __always_inline u64 rdlbr_from(unsigned int idx)
 {
 	u64 val;
 
@@ -352,7 +352,7 @@ static inline u64 rdlbr_from(unsigned int idx)
 	return lbr_from_signext_quirk_rd(val);
 }
 
-static inline u64 rdlbr_to(unsigned int idx)
+static __always_inline u64 rdlbr_to(unsigned int idx)
 {
 	u64 val;
 
