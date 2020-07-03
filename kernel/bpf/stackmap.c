@@ -351,6 +351,7 @@ static void stack_map_get_build_id_offset(struct bpf_stack_build_id *id_offs,
 static struct perf_callchain_entry *
 get_callchain_entry_for_task(struct task_struct *task, u32 init_nr)
 {
+#ifdef CONFIG_STACKTRACE
 	struct perf_callchain_entry *entry;
 	int rctx;
 
@@ -380,6 +381,9 @@ get_callchain_entry_for_task(struct task_struct *task, u32 init_nr)
 	put_callchain_entry(rctx);
 
 	return entry;
+#else /* CONFIG_STACKTRACE */
+	return NULL;
+#endif
 }
 
 BPF_CALL_3(bpf_get_stackid, struct pt_regs *, regs, struct bpf_map *, map,
