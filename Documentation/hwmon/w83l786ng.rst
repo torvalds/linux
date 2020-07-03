@@ -36,7 +36,7 @@ Temperatures are measured in degrees Celsius and measurement resolution is 1
 degC for temp1 and temp2.
 
 Fan rotation speeds are reported in RPM (rotations per minute). Fan readings
-readings can be divided by a programmable divider (1, 2, 4, 8, 16, 32, 64
+can be divided by a programmable divider (1, 2, 4, 8, 16, 32, 64
 or 128 for fan 1/2) to give the readings more range or accuracy.
 
 Voltage sensors (also known as IN sensors) report their values in millivolts.
