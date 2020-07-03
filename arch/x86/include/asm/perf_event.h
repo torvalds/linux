@@ -282,10 +282,6 @@ struct pebs_xmm {
 	u64 xmm[16*2];	/* two entries for each register */
 };
 
-struct lbr_entry {
-	u64 from, to, info;
-};
-
 /*
  * IBS cpuid feature detection
  */

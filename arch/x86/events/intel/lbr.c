@@ -483,6 +483,17 @@ static void intel_pmu_arch_lbr_restore(void *ctx)
 	}
 }
 
+/*
+ * Restore the Architecture LBR state from the xsave area in the perf
+ * context data for the task via the XRSTORS instruction.
+ */
+static void intel_pmu_arch_lbr_xrstors(void *ctx)
+{
+	struct x86_perf_task_context_arch_lbr_xsave *task_ctx = ctx;
+
+	copy_kernel_to_dynamic_supervisor(&task_ctx->xsave, XFEATURE_MASK_LBR);
+}
+
 static __always_inline bool lbr_is_reset_in_cstate(void *ctx)
 {
 	if (static_cpu_has(X86_FEATURE_ARCH_LBR))
@@ -555,6 +566,17 @@ static void intel_pmu_arch_lbr_save(void *ctx)
 	/* LBR call stack is not full. Reset is required in restore. */
 	if (i < x86_pmu.lbr_nr)
 		entries[x86_pmu.lbr_nr - 1].from = 0;
+}
+
+/*
+ * Save the Architecture LBR state to the xsave area in the perf
+ * context data for the task via the XSAVES instruction.
+ */
+static void intel_pmu_arch_lbr_xsaves(void *ctx)
+{
+	struct x86_perf_task_context_arch_lbr_xsave *task_ctx = ctx;
+
+	copy_dynamic_supervisor_to_kernel(&task_ctx->xsave, XFEATURE_MASK_LBR);
 }
 
 static void __intel_pmu_lbr_save(void *ctx)
@@ -1639,12 +1661,40 @@ void intel_pmu_lbr_init_knl(void)
 		x86_pmu.intel_cap.lbr_format = LBR_FORMAT_EIP_FLAGS;
 }
 
+/*
+ * LBR state size is variable based on the max number of registers.
+ * This calculates the expected state size, which should match
+ * what the hardware enumerates for the size of XFEATURE_LBR.
+ */
+static inline unsigned int get_lbr_state_size(void)
+{
+	return sizeof(struct arch_lbr_state) +
+	       x86_pmu.lbr_nr * sizeof(struct lbr_entry);
+}
+
+static bool is_arch_lbr_xsave_available(void)
+{
+	if (!boot_cpu_has(X86_FEATURE_XSAVES))
+		return false;
+
+	/*
+	 * Check the LBR state with the corresponding software structure.
+	 * Disable LBR XSAVES support if the size doesn't match.
+	 */
+	if (WARN_ON(xfeature_size(XFEATURE_LBR) != get_lbr_state_size()))
+		return false;
+
+	return true;
+}
+
 void __init intel_pmu_arch_lbr_init(void)
 {
+	struct pmu *pmu = x86_get_pmu();
 	union cpuid28_eax eax;
 	union cpuid28_ebx ebx;
 	union cpuid28_ecx ecx;
 	unsigned int unused_edx;
+	bool arch_lbr_xsave;
 	size_t size;
 	u64 lbr_nr;
 
@@ -1670,9 +1720,22 @@ void __init intel_pmu_arch_lbr_init(void)
 	x86_pmu.lbr_br_type = ecx.split.lbr_br_type;
 	x86_pmu.lbr_nr = lbr_nr;
 
-	size = sizeof(struct x86_perf_task_context_arch_lbr) +
-	       lbr_nr * sizeof(struct lbr_entry);
-	x86_get_pmu()->task_ctx_cache = create_lbr_kmem_cache(size, 0);
+
+	arch_lbr_xsave = is_arch_lbr_xsave_available();
+	if (arch_lbr_xsave) {
+		size = sizeof(struct x86_perf_task_context_arch_lbr_xsave) +
+		       get_lbr_state_size();
+		pmu->task_ctx_cache = create_lbr_kmem_cache(size,
+							    XSAVE_ALIGNMENT);
+	}
+
+	if (!pmu->task_ctx_cache) {
+		arch_lbr_xsave = false;
+
+		size = sizeof(struct x86_perf_task_context_arch_lbr) +
+		       lbr_nr * sizeof(struct lbr_entry);
+		pmu->task_ctx_cache = create_lbr_kmem_cache(size, 0);
+	}
 
 	x86_pmu.lbr_from = MSR_ARCH_LBR_FROM_0;
 	x86_pmu.lbr_to = MSR_ARCH_LBR_TO_0;
@@ -1705,8 +1768,14 @@ void __init intel_pmu_arch_lbr_init(void)
 
 	x86_pmu.lbr_reset = intel_pmu_arch_lbr_reset;
 	x86_pmu.lbr_read = intel_pmu_arch_lbr_read;
-	x86_pmu.lbr_save = intel_pmu_arch_lbr_save;
-	x86_pmu.lbr_restore = intel_pmu_arch_lbr_restore;
+	if (arch_lbr_xsave) {
+		x86_pmu.lbr_save = intel_pmu_arch_lbr_xsaves;
+		x86_pmu.lbr_restore = intel_pmu_arch_lbr_xrstors;
+		pr_cont("XSAVE ");
+	} else {
+		x86_pmu.lbr_save = intel_pmu_arch_lbr_save;
+		x86_pmu.lbr_restore = intel_pmu_arch_lbr_restore;
+	}
 
 	pr_cont("Architectural LBR, ");
 
