@@ -124,7 +124,21 @@ static void el0_svc_common(struct pt_regs *regs, int scno, int sc_nr,
 	user_exit();
 
 	if (has_syscall_work(flags)) {
-		/* set default errno for user-issued syscall(-1) */
+		/*
+		 * The de-facto standard way to skip a system call using ptrace
+		 * is to set the system call to -1 (NO_SYSCALL) and set x0 to a
+		 * suitable error code for consumption by userspace. However,
+		 * this cannot be distinguished from a user-issued syscall(-1)
+		 * and so we must set x0 to -ENOSYS here in case the tracer doesn't
+		 * issue the skip and we fall into trace_exit with x0 preserved.
+		 *
+		 * This is slightly odd because it also means that if a tracer
+		 * sets the system call number to -1 but does not initialise x0,
+		 * then x0 will be preserved for all system calls apart from a
+		 * user-issued syscall(-1). However, requesting a skip and not
+		 * setting the return value is unlikely to do anything sensible
+		 * anyway.
+		 */
 		if (scno == NO_SYSCALL)
 			regs->regs[0] = -ENOSYS;
 		scno = syscall_trace_enter(regs);
