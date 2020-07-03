@@ -302,6 +302,12 @@ struct mt7615_dev {
 	struct {
 		bool enable;
 
+		spinlock_t txq_lock;
+		struct {
+			struct mt7615_sta *msta;
+			struct sk_buff *skb;
+		} tx_q[IEEE80211_NUM_ACS];
+
 		struct work_struct wake_work;
 		struct completion wake_cmpl;
 

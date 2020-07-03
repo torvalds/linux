@@ -1836,6 +1836,7 @@ void mt7615_pm_wake_work(struct work_struct *work)
 {
 	struct mt7615_dev *dev;
 	struct mt76_phy *mphy;
+	int i;
 
 	dev = (struct mt7615_dev *)container_of(work, struct mt7615_dev,
 						pm.wake_work);
@@ -1846,8 +1847,28 @@ void mt7615_pm_wake_work(struct work_struct *work)
 		goto out;
 	}
 
+	spin_lock_bh(&dev->pm.txq_lock);
+	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
+		struct mt7615_sta *msta = dev->pm.tx_q[i].msta;
+		struct mt76_wcid *wcid = msta ? &msta->wcid : NULL;
+		struct ieee80211_sta *sta = NULL;
+
+		if (!dev->pm.tx_q[i].skb)
+			continue;
+
+		if (msta && wcid->sta)
+			sta = container_of((void *)msta, struct ieee80211_sta,
+					   drv_priv);
+
+		mt76_tx(mphy, sta, wcid, dev->pm.tx_q[i].skb);
+		dev->pm.tx_q[i].skb = NULL;
+	}
+	spin_unlock_bh(&dev->pm.txq_lock);
+
 	tasklet_schedule(&dev->mt76.tx_tasklet);
+
 out:
+	ieee80211_wake_queues(mphy->hw);
 	complete_all(&dev->pm.wake_cmpl);
 }
 
@@ -1871,8 +1892,10 @@ int mt7615_pm_wake(struct mt7615_dev *dev)
 	if (queue_work(dev->mt76.wq, &dev->pm.wake_work))
 		reinit_completion(&dev->pm.wake_cmpl);
 
-	if (!wait_for_completion_timeout(&dev->pm.wake_cmpl, 3 * HZ))
+	if (!wait_for_completion_timeout(&dev->pm.wake_cmpl, 3 * HZ)) {
+		ieee80211_wake_queues(mphy->hw);
 		return -ETIMEDOUT;
+	}
 
 	return 0;
 }
