@@ -494,7 +494,7 @@ Appendix B.  ARMv8-A FP/SIMD programmer's model
 Note: This section is for information only and not intended to be complete or
 to replace any architectural specification.
 
-Refer to [4] for for more information.
+Refer to [4] for more information.
 
 ARMv8-A defines the following floating-point / SIMD register state:
 
