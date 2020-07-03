@@ -75,7 +75,6 @@
 
 #define GAUDI_PLDM_RESET_WAIT_MSEC	1000		/* 1s */
 #define GAUDI_PLDM_HRESET_TIMEOUT_MSEC	20000		/* 20s */
-#define GAUDI_PLDM_SRESET_TIMEOUT_MSEC	14000		/* 14s */
 #define GAUDI_PLDM_TEST_QUEUE_WAIT_USEC	1000000		/* 1s */
 #define GAUDI_PLDM_MMU_TIMEOUT_USEC	(MMU_CONFIG_TIMEOUT_USEC * 100)
 #define GAUDI_PLDM_QMAN0_TIMEOUT_USEC	(HL_DEVICE_TIMEOUT_USEC * 30)
@@ -2587,16 +2586,14 @@ static void gaudi_halt_engines(struct hl_device *hdev, bool hard_reset)
 		cpu_timeout_ms = GAUDI_CPU_RESET_WAIT_MSEC;
 	}
 
-	if (hard_reset) {
-		/*
-		 * I don't know what is the state of the CPU so make sure it is
-		 * stopped in any means necessary
-		 */
-		WREG32(mmPSOC_GLOBAL_CONF_KMD_MSG_TO_CPU, KMD_MSG_GOTO_WFE);
-		WREG32(mmGIC_DISTRIBUTOR__5_GICD_SETSPI_NSR,
-				GAUDI_EVENT_HALT_MACHINE);
-		msleep(cpu_timeout_ms);
-	}
+	/*
+	 * I don't know what is the state of the CPU so make sure it is
+	 * stopped in any means necessary
+	 */
+	WREG32(mmPSOC_GLOBAL_CONF_KMD_MSG_TO_CPU, KMD_MSG_GOTO_WFE);
+	WREG32(mmGIC_DISTRIBUTOR__5_GICD_SETSPI_NSR,
+			GAUDI_EVENT_HALT_MACHINE);
+	msleep(cpu_timeout_ms);
 
 	gaudi_stop_mme_qmans(hdev);
 	gaudi_stop_tpc_qmans(hdev);
@@ -2621,10 +2618,7 @@ static void gaudi_halt_engines(struct hl_device *hdev, bool hard_reset)
 
 	gaudi_disable_timestamp(hdev);
 
-	if (hard_reset)
-		gaudi_disable_msi(hdev);
-	else
-		gaudi_sync_irqs(hdev);
+	gaudi_disable_msi(hdev);
 }
 
 static int gaudi_mmu_init(struct hl_device *hdev)
@@ -2969,46 +2963,37 @@ static void gaudi_hw_fini(struct hl_device *hdev, bool hard_reset)
 	struct gaudi_device *gaudi = hdev->asic_specific;
 	u32 status, reset_timeout_ms, boot_strap = 0;
 
-	if (hdev->pldm) {
-		if (hard_reset)
-			reset_timeout_ms = GAUDI_PLDM_HRESET_TIMEOUT_MSEC;
-		else
-			reset_timeout_ms = GAUDI_PLDM_SRESET_TIMEOUT_MSEC;
-	} else {
+	if (!hard_reset) {
+		dev_err(hdev->dev, "GAUDI doesn't support soft-reset\n");
+		return;
+	}
+
+	if (hdev->pldm)
+		reset_timeout_ms = GAUDI_PLDM_HRESET_TIMEOUT_MSEC;
+	else
 		reset_timeout_ms = GAUDI_RESET_TIMEOUT_MSEC;
-	}
 
-	if (hard_reset) {
-		/* Tell ASIC not to re-initialize PCIe */
-		WREG32(mmPREBOOT_PCIE_EN, LKD_HARD_RESET_MAGIC);
+	/* Tell ASIC not to re-initialize PCIe */
+	WREG32(mmPREBOOT_PCIE_EN, LKD_HARD_RESET_MAGIC);
 
-		boot_strap = RREG32(mmPSOC_GLOBAL_CONF_BOOT_STRAP_PINS);
-		/* H/W bug WA:
-		 * rdata[31:0] = strap_read_val;
-		 * wdata[31:0] = rdata[30:21],1'b0,rdata[20:0]
-		 */
-		boot_strap = (((boot_strap & 0x7FE00000) << 1) |
-				(boot_strap & 0x001FFFFF));
-		WREG32(mmPSOC_GLOBAL_CONF_BOOT_STRAP_PINS, boot_strap & ~0x2);
+	boot_strap = RREG32(mmPSOC_GLOBAL_CONF_BOOT_STRAP_PINS);
 
-		/* Restart BTL/BLR upon hard-reset */
-		WREG32(mmPSOC_GLOBAL_CONF_BOOT_SEQ_RE_START, 1);
+	/* H/W bug WA:
+	 * rdata[31:0] = strap_read_val;
+	 * wdata[31:0] = rdata[30:21],1'b0,rdata[20:0]
+	 */
+	boot_strap = (((boot_strap & 0x7FE00000) << 1) |
+			(boot_strap & 0x001FFFFF));
+	WREG32(mmPSOC_GLOBAL_CONF_BOOT_STRAP_PINS, boot_strap & ~0x2);
 
-		WREG32(mmPSOC_GLOBAL_CONF_SW_ALL_RST,
-				1 << PSOC_GLOBAL_CONF_SW_ALL_RST_IND_SHIFT);
-		dev_info(hdev->dev,
-			"Issued HARD reset command, going to wait %dms\n",
-			reset_timeout_ms);
-	} else {
-		/* Don't restart BTL/BLR upon soft-reset */
-		WREG32(mmPSOC_GLOBAL_CONF_BOOT_SEQ_RE_START, 0);
+	/* Restart BTL/BLR upon hard-reset */
+	WREG32(mmPSOC_GLOBAL_CONF_BOOT_SEQ_RE_START, 1);
 
-		WREG32(mmPSOC_GLOBAL_CONF_SOFT_RST,
-				1 << PSOC_GLOBAL_CONF_SOFT_RST_IND_SHIFT);
-		dev_info(hdev->dev,
-			"Issued SOFT reset command, going to wait %dms\n",
-			reset_timeout_ms);
-	}
+	WREG32(mmPSOC_GLOBAL_CONF_SW_ALL_RST,
+			1 << PSOC_GLOBAL_CONF_SW_ALL_RST_IND_SHIFT);
+	dev_info(hdev->dev,
+		"Issued HARD reset command, going to wait %dms\n",
+		reset_timeout_ms);
 
 	/*
 	 * After hard reset, we can't poll the BTM_FSM register because the PSOC
@@ -3021,18 +3006,6 @@ static void gaudi_hw_fini(struct hl_device *hdev, bool hard_reset)
 		dev_err(hdev->dev,
 			"Timeout while waiting for device to reset 0x%x\n",
 			status);
-
-	if (!hard_reset) {
-		gaudi->hw_cap_initialized &= ~(HW_CAP_PCI_DMA | HW_CAP_MME |
-						HW_CAP_TPC_MASK |
-						HW_CAP_HBM_DMA);
-
-		WREG32(mmGIC_DISTRIBUTOR__5_GICD_SETSPI_NSR,
-				GAUDI_EVENT_SOFT_RESET);
-		return;
-	}
-
-	/* We continue here only for hard-reset */
 
 	WREG32(mmPSOC_GLOBAL_CONF_BOOT_STRAP_PINS, boot_strap);
 
