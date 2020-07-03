@@ -66,7 +66,6 @@ struct sink_info {
  * filt_state: multiframe read back mode to filt irq event
  * tx_first: flags for dmatx first Y_STATE irq
  * memory: compact or big/little endian byte order for tx/rx
- * is_first: flags of first frame read back
  * is_isp_end: flags of isp frame end
  */
 struct rkisp_csi_device {
@@ -81,7 +80,6 @@ struct rkisp_csi_device {
 	u8 filt_state[CSI_F_MAX];
 	u8 tx_first[HDR_DMA_MAX];
 	u8 memory;
-	bool is_first;
 	bool is_isp_end;
 };
 

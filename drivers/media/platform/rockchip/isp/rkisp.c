@@ -967,6 +967,8 @@ static int rkisp_isp_stop(struct rkisp_device *dev)
 	}
 	dev->isp_state = ISP_STOP;
 
+	if (dev->isp_ver == ISP_V20)
+		kfifo_reset(&dev->csi_dev.rdbk_kfifo);
 	if (dev->emd_vc <= CIF_ISP_ADD_DATA_VC_MAX) {
 		for (i = 0; i < RKISP_EMDDATA_FIFO_MAX; i++)
 			kfifo_free(&dev->emd_data_fifo[i].mipi_kfifo);
