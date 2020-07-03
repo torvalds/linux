@@ -739,8 +739,8 @@ Compression implementation
 
 - In order to eliminate write amplification during overwrite, F2FS only
   support compression on write-once file, data can be compressed only when
-  all logical blocks in file are valid and cluster compress ratio is lower
-  than specified threshold.
+  all logical blocks in cluster contain valid data and compress ratio of
+  cluster data is lower than specified threshold.
 
 - To enable compression on regular inode, there are three ways:
 
