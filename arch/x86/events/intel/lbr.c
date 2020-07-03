@@ -355,33 +355,37 @@ void intel_pmu_lbr_restore(void *ctx)
 		wrmsrl(MSR_LBR_SELECT, task_ctx->lbr_sel);
 }
 
+static __always_inline bool
+lbr_is_reset_in_cstate(struct x86_perf_task_context *task_ctx)
+{
+	return !rdlbr_from(task_ctx->tos);
+}
+
 static void __intel_pmu_lbr_restore(struct x86_perf_task_context *task_ctx)
 {
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
-	u64 tos;
 
-	if (task_ctx->lbr_callstack_users == 0 ||
-	    task_ctx->lbr_stack_state == LBR_NONE) {
+	if (task_ctx->opt.lbr_callstack_users == 0 ||
+	    task_ctx->opt.lbr_stack_state == LBR_NONE) {
 		intel_pmu_lbr_reset();
 		return;
 	}
 
-	tos = task_ctx->tos;
 	/*
 	 * Does not restore the LBR registers, if
 	 * - No one else touched them, and
-	 * - Did not enter C6
+	 * - Was not cleared in Cstate
 	 */
 	if ((task_ctx == cpuc->last_task_ctx) &&
-	    (task_ctx->log_id == cpuc->last_log_id) &&
-	    rdlbr_from(tos)) {
-		task_ctx->lbr_stack_state = LBR_NONE;
+	    (task_ctx->opt.log_id == cpuc->last_log_id) &&
+	    !lbr_is_reset_in_cstate(task_ctx)) {
+		task_ctx->opt.lbr_stack_state = LBR_NONE;
 		return;
 	}
 
 	x86_pmu.lbr_restore(task_ctx);
 
-	task_ctx->lbr_stack_state = LBR_NONE;
+	task_ctx->opt.lbr_stack_state = LBR_NONE;
 }
 
 void intel_pmu_lbr_save(void *ctx)
@@ -415,17 +419,17 @@ static void __intel_pmu_lbr_save(struct x86_perf_task_context *task_ctx)
 {
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 
-	if (task_ctx->lbr_callstack_users == 0) {
-		task_ctx->lbr_stack_state = LBR_NONE;
+	if (task_ctx->opt.lbr_callstack_users == 0) {
+		task_ctx->opt.lbr_stack_state = LBR_NONE;
 		return;
 	}
 
 	x86_pmu.lbr_save(task_ctx);
 
-	task_ctx->lbr_stack_state = LBR_VALID;
+	task_ctx->opt.lbr_stack_state = LBR_VALID;
 
 	cpuc->last_task_ctx = task_ctx;
-	cpuc->last_log_id = ++task_ctx->log_id;
+	cpuc->last_log_id = ++task_ctx->opt.log_id;
 }
 
 void intel_pmu_lbr_swap_task_ctx(struct perf_event_context *prev,
@@ -447,8 +451,8 @@ void intel_pmu_lbr_swap_task_ctx(struct perf_event_context *prev,
 	if (!prev_ctx_data || !next_ctx_data)
 		return;
 
-	swap(prev_ctx_data->lbr_callstack_users,
-	     next_ctx_data->lbr_callstack_users);
+	swap(prev_ctx_data->opt.lbr_callstack_users,
+	     next_ctx_data->opt.lbr_callstack_users);
 }
 
 void intel_pmu_lbr_sched_task(struct perf_event_context *ctx, bool sched_in)
@@ -503,7 +507,7 @@ void intel_pmu_lbr_add(struct perf_event *event)
 
 	if (branch_user_callstack(cpuc->br_sel) && event->ctx->task_ctx_data) {
 		task_ctx = event->ctx->task_ctx_data;
-		task_ctx->lbr_callstack_users++;
+		task_ctx->opt.lbr_callstack_users++;
 	}
 
 	/*
@@ -543,7 +547,7 @@ void intel_pmu_lbr_del(struct perf_event *event)
 	if (branch_user_callstack(cpuc->br_sel) &&
 	    event->ctx->task_ctx_data) {
 		task_ctx = event->ctx->task_ctx_data;
-		task_ctx->lbr_callstack_users--;
+		task_ctx->opt.lbr_callstack_users--;
 	}
 
 	if (event->hw.flags & PERF_X86_EVENT_LBR_SELECT)
