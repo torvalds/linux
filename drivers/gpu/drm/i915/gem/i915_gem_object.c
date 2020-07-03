@@ -143,14 +143,14 @@ void i915_gem_close_object(struct drm_gem_object *gem, struct drm_file *file)
 		 * vma, in the same fd namespace, by virtue of flink/open.
 		 */
 
-		mutex_lock(&ctx->mutex);
+		mutex_lock(&ctx->lut_mutex);
 		vma = radix_tree_delete(&ctx->handles_vma, lut->handle);
 		if (vma) {
 			GEM_BUG_ON(vma->obj != obj);
 			GEM_BUG_ON(!atomic_read(&vma->open_count));
 			i915_vma_close(vma);
 		}
-		mutex_unlock(&ctx->mutex);
+		mutex_unlock(&ctx->lut_mutex);
 
 		i915_gem_context_put(lut->ctx);
 		i915_lut_handle_free(lut);

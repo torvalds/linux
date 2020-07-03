@@ -782,10 +782,15 @@ static int __eb_add_lut(struct i915_execbuffer *eb,
 
 	/* Check that the context hasn't been closed in the meantime */
 	err = -EINTR;
-	if (!mutex_lock_interruptible(&ctx->mutex)) {
-		err = -ENOENT;
-		if (likely(!i915_gem_context_is_closed(ctx)))
+	if (!mutex_lock_interruptible(&ctx->lut_mutex)) {
+		struct i915_address_space *vm = rcu_access_pointer(ctx->vm);
+
+		if (unlikely(vm && vma->vm != vm))
+			err = -EAGAIN; /* user racing with ctx set-vm */
+		else if (likely(!i915_gem_context_is_closed(ctx)))
 			err = radix_tree_insert(&ctx->handles_vma, handle, vma);
+		else
+			err = -ENOENT;
 		if (err == 0) { /* And nor has this handle */
 			struct drm_i915_gem_object *obj = vma->obj;
 
@@ -798,7 +803,7 @@ static int __eb_add_lut(struct i915_execbuffer *eb,
 			}
 			spin_unlock(&obj->lut_lock);
 		}
-		mutex_unlock(&ctx->mutex);
+		mutex_unlock(&ctx->lut_mutex);
 	}
 	if (unlikely(err))
 		goto err;
@@ -814,6 +819,8 @@ err:
 
 static struct i915_vma *eb_lookup_vma(struct i915_execbuffer *eb, u32 handle)
 {
+	struct i915_address_space *vm = eb->context->vm;
+
 	do {
 		struct drm_i915_gem_object *obj;
 		struct i915_vma *vma;
@@ -821,7 +828,7 @@ static struct i915_vma *eb_lookup_vma(struct i915_execbuffer *eb, u32 handle)
 
 		rcu_read_lock();
 		vma = radix_tree_lookup(&eb->gem_context->handles_vma, handle);
-		if (likely(vma))
+		if (likely(vma && vma->vm == vm))
 			vma = i915_vma_tryget(vma);
 		rcu_read_unlock();
 		if (likely(vma))
@@ -831,7 +838,7 @@ static struct i915_vma *eb_lookup_vma(struct i915_execbuffer *eb, u32 handle)
 		if (unlikely(!obj))
 			return ERR_PTR(-ENOENT);
 
-		vma = i915_vma_instance(obj, eb->context->vm, NULL);
+		vma = i915_vma_instance(obj, vm, NULL);
 		if (IS_ERR(vma)) {
 			i915_gem_object_put(obj);
 			return vma;

@@ -23,6 +23,8 @@ mock_context(struct drm_i915_private *i915,
 	INIT_LIST_HEAD(&ctx->link);
 	ctx->i915 = i915;
 
+	mutex_init(&ctx->mutex);
+
 	spin_lock_init(&ctx->stale.lock);
 	INIT_LIST_HEAD(&ctx->stale.engines);
 
@@ -35,7 +37,7 @@ mock_context(struct drm_i915_private *i915,
 	RCU_INIT_POINTER(ctx->engines, e);
 
 	INIT_RADIX_TREE(&ctx->handles_vma, GFP_KERNEL);
-	mutex_init(&ctx->mutex);
+	mutex_init(&ctx->lut_mutex);
 
 	if (name) {
 		struct i915_ppgtt *ppgtt;
