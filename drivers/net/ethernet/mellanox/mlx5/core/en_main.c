@@ -4367,8 +4367,6 @@ static void mlx5e_tx_timeout_work(struct work_struct *work)
 {
 	struct mlx5e_priv *priv = container_of(work, struct mlx5e_priv,
 					       tx_timeout_work);
-	bool report_failed = false;
-	int err;
 	int i;
 
 	rtnl_lock();
@@ -4386,17 +4384,9 @@ static void mlx5e_tx_timeout_work(struct work_struct *work)
 			continue;
 
 		if (mlx5e_reporter_tx_timeout(sq))
-			report_failed = true;
+		/* break if tried to reopened channels */
+			break;
 	}
-
-	if (!report_failed)
-		goto unlock;
-
-	err = mlx5e_safe_reopen_channels(priv);
-	if (err)
-		netdev_err(priv->netdev,
-			   "mlx5e_safe_reopen_channels failed recovering from a tx_timeout, err(%d).\n",
-			   err);
 
 unlock:
 	mutex_unlock(&priv->state_lock);
