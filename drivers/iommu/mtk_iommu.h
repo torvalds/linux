@@ -18,7 +18,10 @@
 #include <soc/mediatek/smi.h>
 
 struct mtk_iommu_suspend_reg {
-	u32				standard_axi_mode;
+	union {
+		u32			standard_axi_mode;/* v1 */
+		u32			misc_ctrl;/* v2 */
+	};
 	u32				dcm_dis;
 	u32				ctrl_reg;
 	u32				int_control0;
