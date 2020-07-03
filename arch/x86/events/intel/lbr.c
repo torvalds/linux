@@ -1672,7 +1672,6 @@ void __init intel_pmu_arch_lbr_init(void)
 
 	size = sizeof(struct x86_perf_task_context_arch_lbr) +
 	       lbr_nr * sizeof(struct lbr_entry);
-	x86_get_pmu()->task_ctx_size = size;
 	x86_get_pmu()->task_ctx_cache = create_lbr_kmem_cache(size, 0);
 
 	x86_pmu.lbr_from = MSR_ARCH_LBR_FROM_0;

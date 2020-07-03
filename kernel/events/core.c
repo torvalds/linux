@@ -1243,15 +1243,13 @@ static void *alloc_task_ctx_data(struct pmu *pmu)
 	if (pmu->task_ctx_cache)
 		return kmem_cache_zalloc(pmu->task_ctx_cache, GFP_KERNEL);
 
-	return kzalloc(pmu->task_ctx_size, GFP_KERNEL);
+	return NULL;
 }
 
 static void free_task_ctx_data(struct pmu *pmu, void *task_ctx_data)
 {
 	if (pmu->task_ctx_cache && task_ctx_data)
 		kmem_cache_free(pmu->task_ctx_cache, task_ctx_data);
-	else
-		kfree(task_ctx_data);
 }
 
 static void free_ctx(struct rcu_head *head)
