@@ -106,6 +106,9 @@ int copy_xstate_to_user(void __user *ubuf, struct xregs_state *xsave, unsigned i
 int copy_kernel_to_xstate(struct xregs_state *xsave, const void *kbuf);
 int copy_user_to_xstate(struct xregs_state *xsave, const void __user *ubuf);
 void copy_supervisor_to_kernel(struct xregs_state *xsave);
+void copy_dynamic_supervisor_to_kernel(struct xregs_state *xstate, u64 mask);
+void copy_kernel_to_dynamic_supervisor(struct xregs_state *xstate, u64 mask);
+
 
 /* Validate an xstate header supplied by userspace (ptrace or sigreturn) */
 int validate_user_xstate_header(const struct xstate_header *hdr);
