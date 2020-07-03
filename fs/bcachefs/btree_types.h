@@ -409,6 +409,7 @@ enum btree_flags {
 	BTREE_NODE_dying,
 	BTREE_NODE_fake,
 	BTREE_NODE_old_extent_overwrite,
+	BTREE_NODE_need_rewrite,
 };
 
 BTREE_FLAG(read_in_flight);
@@ -423,6 +424,7 @@ BTREE_FLAG(just_written);
 BTREE_FLAG(dying);
 BTREE_FLAG(fake);
 BTREE_FLAG(old_extent_overwrite);
+BTREE_FLAG(need_rewrite);
 
 static inline struct btree_write *btree_current_write(struct btree *b)
 {

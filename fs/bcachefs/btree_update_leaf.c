@@ -270,17 +270,8 @@ btree_key_can_insert(struct btree_trans *trans,
 	struct bch_fs *c = trans->c;
 	struct btree *b = iter_l(iter)->b;
 
-	if (unlikely(btree_node_fake(b)))
-		return BTREE_INSERT_BTREE_NODE_FULL;
-
-	/*
-	 * old bch2_extent_sort_fix_overlapping() algorithm won't work with new
-	 * style extent updates:
-	 */
-	if (unlikely(btree_node_old_extent_overwrite(b)))
-		return BTREE_INSERT_BTREE_NODE_FULL;
-
-	if (unlikely(u64s > bch_btree_keys_u64s_remaining(c, b)))
+	if (unlikely(btree_node_need_rewrite(b)) ||
+	    unlikely(u64s > bch_btree_keys_u64s_remaining(c, b)))
 		return BTREE_INSERT_BTREE_NODE_FULL;
 
 	return BTREE_INSERT_OK;

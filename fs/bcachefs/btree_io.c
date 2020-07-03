@@ -917,6 +917,7 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct btree *b, bool have_retry
 	struct sort_iter *iter;
 	struct btree_node *sorted;
 	struct bkey_packed *k;
+	struct bch_extent_ptr *ptr;
 	struct bset *i;
 	bool used_mempool, blacklisted;
 	unsigned u64s;
@@ -971,8 +972,10 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct btree *b, bool have_retry
 			bset_encrypt(c, i, b->written << 9);
 
 			if (btree_node_is_extents(b) &&
-			    !BTREE_NODE_NEW_EXTENT_OVERWRITE(b->data))
+			    !BTREE_NODE_NEW_EXTENT_OVERWRITE(b->data)) {
 				set_btree_node_old_extent_overwrite(b);
+				set_btree_node_need_rewrite(b);
+			}
 
 			sectors = vstruct_sectors(b->data, c->block_bits);
 		} else {
@@ -1098,6 +1101,13 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct btree *b, bool have_retry
 	set_needs_whiteout(btree_bset_first(b), true);
 
 	btree_node_reset_sib_u64s(b);
+
+	bkey_for_each_ptr(bch2_bkey_ptrs(bkey_i_to_s(&b->key)), ptr) {
+		struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
+
+		if (ca->mi.state != BCH_MEMBER_STATE_RW)
+			set_btree_node_need_rewrite(b);
+	}
 out:
 	mempool_free(iter, &c->fill_iter);
 	return retry_read;

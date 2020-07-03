@@ -290,8 +290,10 @@ static struct btree *bch2_btree_node_alloc(struct btree_update *as, unsigned lev
 		SET_BTREE_NODE_NEW_EXTENT_OVERWRITE(b->data, true);
 
 	if (btree_node_is_extents(b) &&
-	    !BTREE_NODE_NEW_EXTENT_OVERWRITE(b->data))
+	    !BTREE_NODE_NEW_EXTENT_OVERWRITE(b->data)) {
 		set_btree_node_old_extent_overwrite(b);
+		set_btree_node_need_rewrite(b);
+	}
 
 	bch2_btree_build_aux_trees(b);
 
@@ -1943,6 +1945,7 @@ void bch2_btree_root_alloc(struct bch_fs *c, enum btree_id id)
 	bch2_btree_cache_cannibalize_unlock(c);
 
 	set_btree_node_fake(b);
+	set_btree_node_need_rewrite(b);
 	b->c.level	= 0;
 	b->c.btree_id	= id;
 
