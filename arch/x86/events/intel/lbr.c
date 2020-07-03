@@ -8,17 +8,6 @@
 
 #include "../perf_event.h"
 
-enum {
-	LBR_FORMAT_32		= 0x00,
-	LBR_FORMAT_LIP		= 0x01,
-	LBR_FORMAT_EIP		= 0x02,
-	LBR_FORMAT_EIP_FLAGS	= 0x03,
-	LBR_FORMAT_EIP_FLAGS2	= 0x04,
-	LBR_FORMAT_INFO		= 0x05,
-	LBR_FORMAT_TIME		= 0x06,
-	LBR_FORMAT_MAX_KNOWN    = LBR_FORMAT_TIME,
-};
-
 static const enum {
 	LBR_EIP_FLAGS		= 1,
 	LBR_TSX			= 2,
@@ -194,7 +183,7 @@ static void __intel_pmu_lbr_disable(void)
 	wrmsrl(MSR_IA32_DEBUGCTLMSR, debugctl);
 }
 
-static void intel_pmu_lbr_reset_32(void)
+void intel_pmu_lbr_reset_32(void)
 {
 	int i;
 
@@ -202,7 +191,7 @@ static void intel_pmu_lbr_reset_32(void)
 		wrmsrl(x86_pmu.lbr_from + i, 0);
 }
 
-static void intel_pmu_lbr_reset_64(void)
+void intel_pmu_lbr_reset_64(void)
 {
 	int i;
 
@@ -221,10 +210,7 @@ void intel_pmu_lbr_reset(void)
 	if (!x86_pmu.lbr_nr)
 		return;
 
-	if (x86_pmu.intel_cap.lbr_format == LBR_FORMAT_32)
-		intel_pmu_lbr_reset_32();
-	else
-		intel_pmu_lbr_reset_64();
+	x86_pmu.lbr_reset();
 
 	cpuc->last_task_ctx = NULL;
 	cpuc->last_log_id = 0;
