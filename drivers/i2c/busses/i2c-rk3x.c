@@ -92,6 +92,7 @@ enum {
 
 #define REG_CON1_AUTO_STOP BIT(0)
 #define REG_CON1_TRANSFER_AUTO_STOP BIT(1)
+#define REG_CON1_NACK_AUTO_STOP BIT(2)
 
 /* Constants */
 #define WAIT_TIMEOUT      1000 /* ms */
@@ -290,6 +291,9 @@ static bool rk3x_i2c_auto_stop(struct rk3x_i2c *i2c)
 	if (!i2c->autostop_supported)
 		return false;
 
+	if (!(i2c->msg->flags & I2C_M_IGNORE_NAK))
+		con1 = REG_CON1_NACK_AUTO_STOP | REG_CON1_AUTO_STOP;
+
 	if (!i2c->is_last_msg)
 		goto out;
 
@@ -302,11 +306,15 @@ static bool rk3x_i2c_auto_stop(struct rk3x_i2c *i2c)
 
 	con1 |= REG_CON1_TRANSFER_AUTO_STOP | REG_CON1_AUTO_STOP;
 	i2c_writel(i2c, con1, REG_CON1);
-	i2c_writel(i2c, REG_INT_STOP | REG_INT_NAKRCV, REG_IEN);
+	if (con1 & REG_CON1_NACK_AUTO_STOP)
+		i2c_writel(i2c, REG_INT_STOP, REG_IEN);
+	else
+		i2c_writel(i2c, REG_INT_STOP | REG_INT_NAKRCV, REG_IEN);
 
 	return true;
 
 out:
+	i2c_writel(i2c, con1, REG_CON1);
 	return false;
 }
 
@@ -595,8 +603,13 @@ static irqreturn_t rk3x_i2c_irq(int irqno, void *dev_id)
 		ipd &= ~REG_INT_NAKRCV;
 
 		if (!(i2c->msg->flags & I2C_M_IGNORE_NAK)) {
-			rk3x_i2c_stop(i2c, -ENXIO);
-			goto out;
+			if (i2c->autostop_supported) {
+				i2c->error = -ENXIO;
+				i2c->state = STATE_STOP;
+			} else {
+				rk3x_i2c_stop(i2c, -ENXIO);
+				goto out;
+			}
 		}
 	}
 
