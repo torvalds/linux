@@ -821,8 +821,7 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 		rs->dma_rx.ch = NULL;
 	}
 
-	if (rs->dma_tx.ch && rs->dma_rx.ch &&
-	    !spi_controller_is_slave(master)) {
+	if (rs->dma_tx.ch && rs->dma_rx.ch) {
 		dma_get_slave_caps(rs->dma_rx.ch, &(rs->dma_caps));
 		rs->dma_tx.addr = (dma_addr_t)(mem->start + ROCKCHIP_SPI_TXDR);
 		rs->dma_rx.addr = (dma_addr_t)(mem->start + ROCKCHIP_SPI_RXDR);
