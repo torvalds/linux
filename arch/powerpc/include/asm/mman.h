@@ -13,10 +13,6 @@
 #include <linux/pkeys.h>
 #include <asm/cpu_has_feature.h>
 
-/*
- * This file is included by linux/mman.h, so we can't use cacl_vm_prot_bits()
- * here.  How important is the optimization?
- */
 static inline unsigned long arch_calc_vm_prot_bits(unsigned long prot,
 		unsigned long pkey)
 {
