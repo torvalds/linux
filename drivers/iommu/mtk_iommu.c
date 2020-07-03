@@ -42,6 +42,9 @@
 #define F_INVLD_EN1				BIT(1)
 
 #define REG_MMU_MISC_CTRL			0x048
+#define F_MMU_IN_ORDER_WR_EN_MASK		(BIT(1) | BIT(17))
+#define F_MMU_STANDARD_AXI_MODE_MASK		(BIT(3) | BIT(19))
+
 #define REG_MMU_DCM_DIS				0x050
 
 #define REG_MMU_CTRL_REG			0x110
@@ -105,6 +108,7 @@
 #define HAS_BCLK			BIT(1)
 #define HAS_VLD_PA_RNG			BIT(2)
 #define RESET_AXI			BIT(3)
+#define OUT_ORDER_WR_EN			BIT(4)
 
 #define MTK_IOMMU_HAS_FLAG(pdata, _x) \
 		((((pdata)->flags) & (_x)) == (_x))
@@ -585,8 +589,14 @@ static int mtk_iommu_hw_init(const struct mtk_iommu_data *data)
 
 	if (MTK_IOMMU_HAS_FLAG(data->plat_data, RESET_AXI)) {
 		/* The register is called STANDARD_AXI_MODE in this case */
-		writel_relaxed(0, data->base + REG_MMU_MISC_CTRL);
+		regval = 0;
+	} else {
+		regval = readl_relaxed(data->base + REG_MMU_MISC_CTRL);
+		regval &= ~F_MMU_STANDARD_AXI_MODE_MASK;
+		if (MTK_IOMMU_HAS_FLAG(data->plat_data, OUT_ORDER_WR_EN))
+			regval &= ~F_MMU_IN_ORDER_WR_EN_MASK;
 	}
+	writel_relaxed(regval, data->base + REG_MMU_MISC_CTRL);
 
 	if (devm_request_irq(data->dev, data->irq, mtk_iommu_isr, 0,
 			     dev_name(data->dev), (void *)data)) {
