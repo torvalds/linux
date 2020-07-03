@@ -1365,7 +1365,7 @@ as well as blocking ".." if it would jump outside the starting point.
 resolution of "..". Magic-links are also blocked.
 
 ``LOOKUP_IN_ROOT`` resolves all path components as though the starting point
-were the filesystem root. ``nd_jump_root()`` brings the resolution back to to
+were the filesystem root. ``nd_jump_root()`` brings the resolution back to
 the starting point, and ".." at the starting point will act as a no-op. As with
 ``LOOKUP_BENEATH``, ``rename_lock`` and ``mount_lock`` are used to detect
 attacks against ".." resolution. Magic-links are also blocked.
