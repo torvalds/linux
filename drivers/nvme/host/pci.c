@@ -501,9 +501,6 @@ static inline bool nvme_pci_use_sgls(struct nvme_dev *dev, struct request *req)
 	int nseg = blk_rq_nr_phys_segments(req);
 	unsigned int avg_seg_size;
 
-	if (nseg == 0)
-		return false;
-
 	avg_seg_size = DIV_ROUND_UP(blk_rq_payload_bytes(req), nseg);
 
 	if (!(dev->ctrl.sgls & ((1 << 0) | (1 << 1))))
