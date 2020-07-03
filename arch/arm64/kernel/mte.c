@@ -124,9 +124,10 @@ void mte_suspend_exit(void)
 	update_gcr_el1_excl(current->thread.gcr_user_incl);
 }
 
-long set_mte_ctrl(unsigned long arg)
+long set_mte_ctrl(struct task_struct *task, unsigned long arg)
 {
 	u64 tcf0;
+	u64 gcr_incl = (arg & PR_MTE_TAG_MASK) >> PR_MTE_TAG_SHIFT;
 
 	if (!system_supports_mte())
 		return 0;
@@ -145,22 +146,27 @@ long set_mte_ctrl(unsigned long arg)
 		return -EINVAL;
 	}
 
-	set_sctlr_el1_tcf0(tcf0);
-	set_gcr_el1_excl((arg & PR_MTE_TAG_MASK) >> PR_MTE_TAG_SHIFT);
+	if (task != current) {
+		task->thread.sctlr_tcf0 = tcf0;
+		task->thread.gcr_user_incl = gcr_incl;
+	} else {
+		set_sctlr_el1_tcf0(tcf0);
+		set_gcr_el1_excl(gcr_incl);
+	}
 
 	return 0;
 }
 
-long get_mte_ctrl(void)
+long get_mte_ctrl(struct task_struct *task)
 {
 	unsigned long ret;
 
 	if (!system_supports_mte())
 		return 0;
 
-	ret = current->thread.gcr_user_incl << PR_MTE_TAG_SHIFT;
+	ret = task->thread.gcr_user_incl << PR_MTE_TAG_SHIFT;
 
-	switch (current->thread.sctlr_tcf0) {
+	switch (task->thread.sctlr_tcf0) {
 	case SCTLR_EL1_TCF0_NONE:
 		return PR_MTE_TCF_NONE;
 	case SCTLR_EL1_TCF0_SYNC:
