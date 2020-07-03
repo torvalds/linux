@@ -265,11 +265,9 @@ def bubble_up_suite_errors(test_suite_list: List[TestSuite]) -> TestStatus:
 	return bubble_up_errors(lambda x: x.status, test_suite_list)
 
 def parse_test_result(lines: List[str]) -> TestResult:
-	if not lines:
-		return TestResult(TestStatus.NO_TESTS, [], lines)
 	consume_non_diagnositic(lines)
-	if not parse_tap_header(lines):
-		return None
+	if not lines or not parse_tap_header(lines):
+		return TestResult(TestStatus.NO_TESTS, [], lines)
 	test_suites = []
 	test_suite = parse_test_suite(lines)
 	while test_suite:
@@ -282,6 +280,8 @@ def parse_run_tests(kernel_output) -> TestResult:
 	failed_tests = 0
 	crashed_tests = 0
 	test_result = parse_test_result(list(isolate_kunit_output(kernel_output)))
+	if test_result.status == TestStatus.NO_TESTS:
+		print_with_timestamp(red('[ERROR] ') + 'no kunit output detected')
 	for test_suite in test_result.suites:
 		if test_suite.status == TestStatus.SUCCESS:
 			print_suite_divider(green('[PASSED] ') + test_suite.name)
