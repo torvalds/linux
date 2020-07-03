@@ -253,13 +253,17 @@ static int cht_codec_fixup(struct snd_soc_pcm_runtime *rtd,
 	params_set_format(params, SNDRV_PCM_FORMAT_S24_LE);
 
 	/*
-	 * Default mode for SSP configuration is TDM 4 slot. One board/design,
-	 * the Lenovo Miix 2 10 uses not 1 but 2 codecs connected to SSP2. The
-	 * second piggy-backed, output-only codec is inside the keyboard-dock
-	 * (which has extra speakers). Unlike the main rt5672 codec, we cannot
-	 * configure this codec, it is hard coded to use 2 channel 24 bit I2S.
-	 * Since we only support 2 channels anyways, there is no need for TDM
-	 * on any cht-bsw-rt5672 designs. So we simply use I2S 2ch everywhere.
+	 * The default mode for the cpu-dai is TDM 4 slot. The default mode
+	 * for the codec-dai is I2S. So we need to either set the cpu-dai to
+	 * I2S mode to match the codec-dai, or set the codec-dai to TDM 4 slot
+	 * (or program both to yet another mode).
+	 * One board, the Lenovo Miix 2 10, uses not 1 but 2 codecs connected
+	 * to SSP2. The second piggy-backed, output-only codec is inside the
+	 * keyboard-dock (which has extra speakers). Unlike the main rt5672
+	 * codec, we cannot configure this codec, it is hard coded to use
+	 * 2 channel 24 bit I2S. For this to work we must use I2S mode on this
+	 * board. Since we only support 2 channels anyways, there is no need
+	 * for TDM on any cht-bsw-rt5672 designs. So we use I2S 2ch everywhere.
 	 */
 	ret = snd_soc_dai_set_fmt(asoc_rtd_to_cpu(rtd, 0),
 				  SND_SOC_DAIFMT_I2S     |
