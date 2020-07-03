@@ -60,6 +60,8 @@ int mt7663u_mcu_init(struct mt7615_dev *dev)
 
 	dev->mt76.mcu_ops = &mt7663u_mcu_ops,
 
+	/* usb does not support runtime-pm */
+	clear_bit(MT76_STATE_PM, &dev->mphy.state);
 	mt76_set(dev, MT_UDMA_TX_QSEL, MT_FW_DL_EN);
 
 	if (test_and_clear_bit(MT76_STATE_POWER_OFF, &dev->mphy.state)) {
