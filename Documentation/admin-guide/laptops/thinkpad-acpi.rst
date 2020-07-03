@@ -50,6 +50,7 @@ detailed description):
 	- WAN enable and disable
 	- UWB enable and disable
 	- LCD Shadow (PrivacyGuard) enable and disable
+	- Lap mode sensor
 
 A compatibility table by model and feature is maintained on the web
 site, http://ibm-acpi.sf.net/. I appreciate any success or failure
@@ -1431,6 +1432,20 @@ The available commands are::
 The first command ensures the best viewing angle and the latter one turns
 on the feature, restricting the viewing angles.
 
+
+DYTC Lapmode sensor
+------------------
+
+sysfs: dytc_lapmode
+
+Newer thinkpads and mobile workstations have the ability to determine if
+the device is in deskmode or lapmode. This feature is used by user space
+to decide if WWAN transmission can be increased to maximum power and is
+also useful for understanding the different thermal modes available as
+they differ between desk and lap mode.
+
+The property is read-only. If the platform doesn't have support the sysfs
+class is not created.
 
 EXPERIMENTAL: UWB
 -----------------
