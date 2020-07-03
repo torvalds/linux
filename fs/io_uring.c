@@ -5937,22 +5937,21 @@ punt:
 		goto exit;
 	}
 
+	if (unlikely(ret)) {
 err:
+		/* un-prep timeout, so it'll be killed as any other linked */
+		req->flags &= ~REQ_F_LINK_TIMEOUT;
+		req_set_fail_links(req);
+		io_put_req(req);
+		io_req_complete(req, ret);
+		goto exit;
+	}
+
 	/* drop submission reference */
 	nxt = io_put_req_find_next(req);
+	if (linked_timeout)
+		io_queue_linked_timeout(linked_timeout);
 
-	if (linked_timeout) {
-		if (!ret)
-			io_queue_linked_timeout(linked_timeout);
-		else
-			io_put_req(linked_timeout);
-	}
-
-	/* and drop final reference, if we failed */
-	if (ret) {
-		req_set_fail_links(req);
-		io_req_complete(req, ret);
-	}
 	if (nxt) {
 		req = nxt;
 
