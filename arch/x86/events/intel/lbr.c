@@ -1531,9 +1531,17 @@ void __init intel_pmu_lbr_init_snb(void)
 	 */
 }
 
+static inline struct kmem_cache *
+create_lbr_kmem_cache(size_t size, size_t align)
+{
+	return kmem_cache_create("x86_lbr", size, align, 0, NULL);
+}
+
 /* haswell */
 void intel_pmu_lbr_init_hsw(void)
 {
+	size_t size = sizeof(struct x86_perf_task_context);
+
 	x86_pmu.lbr_nr	 = 16;
 	x86_pmu.lbr_tos	 = MSR_LBR_TOS;
 	x86_pmu.lbr_from = MSR_LBR_NHM_FROM;
@@ -1542,6 +1550,8 @@ void intel_pmu_lbr_init_hsw(void)
 	x86_pmu.lbr_sel_mask = LBR_SEL_MASK;
 	x86_pmu.lbr_sel_map  = hsw_lbr_sel_map;
 
+	x86_get_pmu()->task_ctx_cache = create_lbr_kmem_cache(size, 0);
+
 	if (lbr_from_signext_quirk_needed())
 		static_branch_enable(&lbr_from_quirk_key);
 }
@@ -1549,6 +1559,8 @@ void intel_pmu_lbr_init_hsw(void)
 /* skylake */
 __init void intel_pmu_lbr_init_skl(void)
 {
+	size_t size = sizeof(struct x86_perf_task_context);
+
 	x86_pmu.lbr_nr	 = 32;
 	x86_pmu.lbr_tos	 = MSR_LBR_TOS;
 	x86_pmu.lbr_from = MSR_LBR_NHM_FROM;
@@ -1557,6 +1569,8 @@ __init void intel_pmu_lbr_init_skl(void)
 
 	x86_pmu.lbr_sel_mask = LBR_SEL_MASK;
 	x86_pmu.lbr_sel_map  = hsw_lbr_sel_map;
+
+	x86_get_pmu()->task_ctx_cache = create_lbr_kmem_cache(size, 0);
 
 	/*
 	 * SW branch filter usage:
@@ -1631,6 +1645,7 @@ void __init intel_pmu_arch_lbr_init(void)
 	union cpuid28_ebx ebx;
 	union cpuid28_ecx ecx;
 	unsigned int unused_edx;
+	size_t size;
 	u64 lbr_nr;
 
 	/* Arch LBR Capabilities */
@@ -1655,8 +1670,10 @@ void __init intel_pmu_arch_lbr_init(void)
 	x86_pmu.lbr_br_type = ecx.split.lbr_br_type;
 	x86_pmu.lbr_nr = lbr_nr;
 
-	x86_get_pmu()->task_ctx_size = sizeof(struct x86_perf_task_context_arch_lbr) +
-				       lbr_nr * sizeof(struct lbr_entry);
+	size = sizeof(struct x86_perf_task_context_arch_lbr) +
+	       lbr_nr * sizeof(struct lbr_entry);
+	x86_get_pmu()->task_ctx_size = size;
+	x86_get_pmu()->task_ctx_cache = create_lbr_kmem_cache(size, 0);
 
 	x86_pmu.lbr_from = MSR_ARCH_LBR_FROM_0;
 	x86_pmu.lbr_to = MSR_ARCH_LBR_TO_0;
