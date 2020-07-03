@@ -209,7 +209,7 @@ the PCI device by calling pci_enable_device(). This will:
    OS BUG: we don't check resource allocations before enabling those
    resources. The sequence would make more sense if we called
    pci_request_resources() before calling pci_enable_device().
-   Currently, the device drivers can't detect the bug when when two
+   Currently, the device drivers can't detect the bug when two
    devices have been allocated the same range. This is not a common
    problem and unlikely to get fixed soon.
 
