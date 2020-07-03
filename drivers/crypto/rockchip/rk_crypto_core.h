@@ -145,6 +145,9 @@ enum rk_cipher_algo {
 enum rk_cipher_mode {
 	CIPHER_MODE_ECB,
 	CIPHER_MODE_CBC,
+	CIPHER_MODE_CFB,
+	CIPHER_MODE_OFB,
+	CIPHER_MODE_CTR,
 	CIPHER_MODE_XTS,
 };
 

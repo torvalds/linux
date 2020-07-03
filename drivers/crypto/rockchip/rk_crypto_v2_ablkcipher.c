@@ -29,6 +29,9 @@ static const u32 cipher_algo2bc[] = {
 static const u32 cipher_mode2bc[] = {
 	[CIPHER_MODE_ECB] = CRYPTO_BC_ECB,
 	[CIPHER_MODE_CBC] = CRYPTO_BC_CBC,
+	[CIPHER_MODE_CFB] = CRYPTO_BC_CFB,
+	[CIPHER_MODE_OFB] = CRYPTO_BC_OFB,
+	[CIPHER_MODE_CTR] = CRYPTO_BC_CTR,
 	[CIPHER_MODE_XTS] = CRYPTO_BC_XTS,
 };
 
@@ -160,6 +163,18 @@ static bool is_use_fallback(struct rk_cipher_ctx *ctx)
 	return ctx->keylen == AES_KEYSIZE_192 && ctx->fallback_tfm;
 }
 
+static bool is_no_multi_blocksize(struct rk_crypto_info *dev)
+{
+	struct ablkcipher_request *req =
+		ablkcipher_request_cast(dev->async_req);
+	struct crypto_ablkcipher *cipher = crypto_ablkcipher_reqtfm(req);
+	struct rk_crypto_tmp *algt = rk_cipher_get_algt(cipher);
+
+	return (algt->mode == CIPHER_MODE_CFB ||
+			algt->mode == CIPHER_MODE_OFB ||
+			algt->mode == CIPHER_MODE_CTR) ? true : false;
+}
+
 static void rk_crypto_complete(struct crypto_async_request *base, int err)
 {
 	if (base->complete)
@@ -169,7 +184,8 @@ static void rk_crypto_complete(struct crypto_async_request *base, int err)
 static int rk_handle_req(struct rk_crypto_info *dev,
 			 struct ablkcipher_request *req)
 {
-	if (!IS_ALIGNED(req->nbytes, dev->align_size))
+	if (!IS_ALIGNED(req->nbytes, dev->align_size) &&
+	    !is_no_multi_blocksize(dev))
 		return -EINVAL;
 	else
 		return dev->enqueue(dev, &req->base);
@@ -354,13 +370,21 @@ static void crypto_dma_start(struct rk_crypto_info *dev)
 {
 	struct rk_hw_crypto_v2_info *hw_info =
 			(struct rk_hw_crypto_v2_info *)dev->hw_info;
+	u32 calc_len = dev->count;
 
 	memset(hw_info->desc, 0x00, sizeof(*hw_info->desc));
 
+	/*
+	 *	the data length is not aligned will use addr_vir to calculate,
+	 *	so crypto v2 could round up date date length to align_size
+	 */
+	if (is_no_multi_blocksize(dev))
+		calc_len = round_up(calc_len, dev->align_size);
+
 	hw_info->desc->src_addr = dev->addr_in;
-	hw_info->desc->src_len  = dev->count;
+	hw_info->desc->src_len  = calc_len;
 	hw_info->desc->dst_addr = dev->addr_out;
-	hw_info->desc->dst_len  = dev->count;
+	hw_info->desc->dst_len  = calc_len;
 	hw_info->desc->next_addr = 0;
 	hw_info->desc->dma_ctrl = 0x00000201;
 	hw_info->desc->user_define = 0x7;
@@ -497,7 +521,7 @@ static int rk_ablk_cra_init(struct crypto_tfm *tfm)
 	CRYPTO_TRACE();
 
 	ctx->dev = algt->dev;
-	ctx->dev->align_size = crypto_tfm_alg_alignmask(tfm) + 1;
+	ctx->dev->align_size = crypto_tfm_alg_blocksize(tfm);
 	ctx->dev->start = rk_ablk_start;
 	ctx->dev->update = rk_ablk_rx;
 	ctx->dev->complete = rk_crypto_complete;
@@ -575,6 +599,15 @@ struct rk_crypto_tmp rk_v2_cbc_sm4_alg =
 struct rk_crypto_tmp rk_v2_xts_sm4_alg =
 	RK_CIPHER_ALGO_XTS_INIT(SM4, xts(sm4), xts-sm4-rk);
 
+struct rk_crypto_tmp rk_v2_cfb_sm4_alg =
+	RK_CIPHER_ALGO_INIT(SM4, CFB, cfb(sm4), cfb-sm4-rk);
+
+struct rk_crypto_tmp rk_v2_ofb_sm4_alg =
+	RK_CIPHER_ALGO_INIT(SM4, OFB, ofb(sm4), ofb-sm4-rk);
+
+struct rk_crypto_tmp rk_v2_ctr_sm4_alg =
+	RK_CIPHER_ALGO_INIT(SM4, CTR, ctr(sm4), ctr-sm4-rk);
+
 struct rk_crypto_tmp rk_v2_ecb_aes_alg =
 	RK_CIPHER_ALGO_INIT(AES, ECB, ecb(aes), ecb-aes-rk);
 
@@ -584,15 +617,36 @@ struct rk_crypto_tmp rk_v2_cbc_aes_alg =
 struct rk_crypto_tmp rk_v2_xts_aes_alg =
 	RK_CIPHER_ALGO_XTS_INIT(AES, xts(aes), xts-aes-rk);
 
+struct rk_crypto_tmp rk_v2_cfb_aes_alg =
+	RK_CIPHER_ALGO_INIT(AES, CFB, cfb(aes), cfb-aes-rk);
+
+struct rk_crypto_tmp rk_v2_ofb_aes_alg =
+	RK_CIPHER_ALGO_INIT(AES, OFB, ofb(aes), ofb-aes-rk);
+
+struct rk_crypto_tmp rk_v2_ctr_aes_alg =
+	RK_CIPHER_ALGO_INIT(AES, CTR, ctr(aes), ctr-aes-rk);
+
 struct rk_crypto_tmp rk_v2_ecb_des_alg =
 	RK_CIPHER_ALGO_INIT(DES, ECB, ecb(des), ecb-des-rk);
 
 struct rk_crypto_tmp rk_v2_cbc_des_alg =
 	RK_CIPHER_ALGO_INIT(DES, CBC, cbc(des), cbc-des-rk);
 
+struct rk_crypto_tmp rk_v2_cfb_des_alg =
+	RK_CIPHER_ALGO_INIT(DES, CFB, cfb(des), cfb-des-rk);
+
+struct rk_crypto_tmp rk_v2_ofb_des_alg =
+	RK_CIPHER_ALGO_INIT(DES, OFB, ofb(des), ofb-des-rk);
+
 struct rk_crypto_tmp rk_v2_ecb_des3_ede_alg =
 	RK_CIPHER_ALGO_INIT(DES3_EDE, ECB, ecb(des3_ede), ecb-des3_ede-rk);
 
 struct rk_crypto_tmp rk_v2_cbc_des3_ede_alg =
 	RK_CIPHER_ALGO_INIT(DES3_EDE, CBC, cbc(des3_ede), cbc-des3_ede-rk);
+
+struct rk_crypto_tmp rk_v2_cfb_des3_ede_alg =
+	RK_CIPHER_ALGO_INIT(DES3_EDE, CFB, cfb(des3_ede), cfb-des3_ede-rk);
+
+struct rk_crypto_tmp rk_v2_ofb_des3_ede_alg =
+	RK_CIPHER_ALGO_INIT(DES3_EDE, OFB, ofb(des3_ede), ofb-des3_ede-rk);
 

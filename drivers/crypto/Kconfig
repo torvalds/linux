@@ -648,6 +648,8 @@ config CRYPTO_DEV_ROCKCHIP
 	select CRYPTO_ECB
 	select CRYPTO_CBC
 	select CRYPTO_XTS
+	select CRYPTO_CFB
+	select CRYPTO_CTR
 	select CRYPTO_DES
 	select CRYPTO_MD5
 	select CRYPTO_SHA1

@@ -379,16 +379,26 @@ static struct rk_crypto_tmp *crypto_v2_algs[] = {
 	&rk_v2_ecb_sm4_alg,		/* ecb(sm4) */
 	&rk_v2_cbc_sm4_alg,		/* cbc(sm4) */
 	&rk_v2_xts_sm4_alg,		/* xts(sm4) */
+	&rk_v2_cfb_sm4_alg,		/* cfb(sm4) */
+	&rk_v2_ofb_sm4_alg,		/* ofb(sm4) */
+	&rk_v2_ctr_sm4_alg,		/* ctr(sm4) */
 
 	&rk_v2_ecb_aes_alg,		/* ecb(aes) */
 	&rk_v2_cbc_aes_alg,		/* cbc(aes) */
 	&rk_v2_xts_aes_alg,		/* xts(aes) */
+	&rk_v2_cfb_aes_alg,		/* cfb(aes) */
+	&rk_v2_ofb_aes_alg,		/* ofb(aes) */
+	&rk_v2_ctr_aes_alg,		/* ctr(aes) */
 
 	&rk_v2_ecb_des_alg,		/* ecb(des) */
 	&rk_v2_cbc_des_alg,		/* cbc(des) */
+	&rk_v2_cfb_des_alg,		/* cfb(des) */
+	&rk_v2_ofb_des_alg,		/* ofb(des) */
 
 	&rk_v2_ecb_des3_ede_alg,	/* ecb(des3_ede) */
 	&rk_v2_cbc_des3_ede_alg,	/* cbc(des3_ede) */
+	&rk_v2_cfb_des3_ede_alg,	/* cfb(des3_ede) */
+	&rk_v2_ofb_des3_ede_alg,	/* ofb(des3_ede) */
 
 	&rk_v2_ahash_sha1,		/* sha1 */
 	&rk_v2_ahash_sha256,		/* sha256 */
@@ -411,10 +421,10 @@ static char *px30_algs_name[] = {
 };
 
 static char *rv1126_algs_name[] = {
-	"ecb(sm4)", "cbc(sm4)", "xts(sm4)",
-	"ecb(aes)", "cbc(aes)", "xts(aes)",
-	"ecb(des)", "cbc(des)",
-	"ecb(des3_ede)", "cbc(des3_ede)",
+	"ecb(sm4)", "cbc(sm4)", "cfb(sm4)", "ofb(sm4)", "ctr(sm4)", "xts(sm4)",
+	"ecb(aes)", "cbc(aes)", "cfb(aes)", "ctr(aes)", "xts(aes)",
+	"ecb(des)", "cbc(des)", "cfb(des)", "ofb(des)",
+	"ecb(des3_ede)", "cbc(des3_ede)", "cfb(des3_ede)", "ofb(des3_ede)",
 	"sha1", "sha256", "sha512", "md5", "sm3",
 	"hmac(sha1)", "hmac(sha256)", "hmac(sha512)", "hmac(md5)", "hmac(sm3)",
 };
