@@ -3865,6 +3865,12 @@ static int gaudi_validate_cb(struct hl_device *hdev,
 			rc = -EPERM;
 			break;
 
+		case PACKET_WREG_BULK:
+			dev_err(hdev->dev,
+				"User not allowed to use WREG_BULK\n");
+			rc = -EPERM;
+			break;
+
 		case PACKET_LOAD_AND_EXE:
 			rc = gaudi_validate_load_and_exe_pkt(hdev, parser,
 				(struct packet_load_and_exe *) user_pkt);
@@ -3880,7 +3886,6 @@ static int gaudi_validate_cb(struct hl_device *hdev,
 			break;
 
 		case PACKET_WREG_32:
-		case PACKET_WREG_BULK:
 		case PACKET_MSG_LONG:
 		case PACKET_MSG_SHORT:
 		case PACKET_REPEAT:
