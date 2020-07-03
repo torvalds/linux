@@ -4765,7 +4765,9 @@ static __init int iscsi_transport_init(void)
 		goto release_nls;
 	}
 
-	iscsi_destroy_workq = create_singlethread_workqueue("iscsi_destroy");
+	iscsi_destroy_workq = alloc_workqueue("%s",
+			WQ_SYSFS | __WQ_LEGACY | WQ_MEM_RECLAIM | WQ_UNBOUND,
+			1, "iscsi_destroy");
 	if (!iscsi_destroy_workq) {
 		err = -ENOMEM;
 		goto destroy_wq;
