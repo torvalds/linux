@@ -253,6 +253,7 @@ struct cpu_hw_events {
 	void				*last_task_ctx;
 	int				last_log_id;
 	int				lbr_select;
+	void				*lbr_xsave;
 
 	/*
 	 * Intel host/guest exclude bits
@@ -1066,6 +1067,8 @@ void release_ds_buffers(void);
 
 void reserve_ds_buffers(void);
 
+void release_lbr_buffers(void);
+
 extern struct event_constraint bts_constraint;
 extern struct event_constraint vlbr_constraint;
 
@@ -1204,6 +1207,10 @@ static inline void reserve_ds_buffers(void)
 }
 
 static inline void release_ds_buffers(void)
+{
+}
+
+static inline void release_lbr_buffers(void)
 {
 }
 
