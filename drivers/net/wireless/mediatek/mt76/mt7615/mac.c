@@ -1913,7 +1913,7 @@ void mt7615_pm_power_save_sched(struct mt7615_dev *dev)
 	dev->pm.last_activity = jiffies;
 	if (!test_bit(MT76_STATE_PM, &mphy->state))
 		queue_delayed_work(dev->mt76.wq, &dev->pm.ps_work,
-				   MT7615_PM_TIMEOUT);
+				   dev->pm.idle_timeout);
 }
 EXPORT_SYMBOL_GPL(mt7615_pm_power_save_sched);
 
@@ -1926,7 +1926,7 @@ void mt7615_pm_power_save_work(struct work_struct *work)
 
 	if (mt7615_firmware_own(dev))
 		queue_delayed_work(dev->mt76.wq, &dev->pm.ps_work,
-				   MT7615_PM_TIMEOUT);
+				   dev->pm.idle_timeout);
 }
 
 static void

@@ -313,6 +313,7 @@ struct mt7615_dev {
 
 		struct delayed_work ps_work;
 		unsigned long last_activity;
+		unsigned long idle_timeout;
 	} pm;
 };
 

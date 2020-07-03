@@ -75,6 +75,29 @@ mt7615_pm_get(void *data, u64 *val)
 DEFINE_DEBUGFS_ATTRIBUTE(fops_pm, mt7615_pm_get, mt7615_pm_set, "%lld\n");
 
 static int
+mt7615_pm_idle_timeout_set(void *data, u64 val)
+{
+	struct mt7615_dev *dev = data;
+
+	dev->pm.idle_timeout = msecs_to_jiffies(val);
+
+	return 0;
+}
+
+static int
+mt7615_pm_idle_timeout_get(void *data, u64 *val)
+{
+	struct mt7615_dev *dev = data;
+
+	*val = jiffies_to_msecs(dev->pm.idle_timeout);
+
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(fops_pm_idle_timeout, mt7615_pm_idle_timeout_get,
+			 mt7615_pm_idle_timeout_set, "%lld\n");
+
+static int
 mt7615_dbdc_set(void *data, u64 val)
 {
 	struct mt7615_dev *dev = data;
@@ -375,6 +398,8 @@ int mt7615_init_debugfs(struct mt7615_dev *dev)
 	debugfs_create_file("dbdc", 0600, dir, dev, &fops_dbdc);
 	debugfs_create_file("fw_debug", 0600, dir, dev, &fops_fw_debug);
 	debugfs_create_file("runtime-pm", 0600, dir, dev, &fops_pm);
+	debugfs_create_file("idle-timeout", 0600, dir, dev,
+			    &fops_pm_idle_timeout);
 	debugfs_create_devm_seqfile(dev->mt76.dev, "radio", dir,
 				    mt7615_radio_read);
 	debugfs_create_u32("dfs_hw_pattern", 0400, dir, &dev->hw_pattern);
