@@ -1889,28 +1889,36 @@ static void mt7622_trigger_hif_int(struct mt7615_dev *dev, bool en)
 
 int mt7615_driver_own(struct mt7615_dev *dev)
 {
+	struct mt76_phy *mphy = &dev->mt76.phy;
 	struct mt76_dev *mdev = &dev->mt76;
+	int err = 0;
 	u32 addr;
+
+	mt7622_trigger_hif_int(dev, true);
 
 	addr = is_mt7663(mdev) ? MT_PCIE_DOORBELL_PUSH : MT_CFG_LPCR_HOST;
 	mt76_wr(dev, addr, MT_CFG_LPCR_HOST_DRV_OWN);
 
-	mt7622_trigger_hif_int(dev, true);
-
 	addr = is_mt7663(mdev) ? MT_CONN_HIF_ON_LPCTL : MT_CFG_LPCR_HOST;
 	if (!mt76_poll_msec(dev, addr, MT_CFG_LPCR_HOST_FW_OWN, 0, 3000)) {
 		dev_err(dev->mt76.dev, "Timeout for driver own\n");
-		return -EIO;
+		err = -EIO;
+		goto out;
 	}
 
+	clear_bit(MT76_STATE_PM, &mphy->state);
+
+out:
 	mt7622_trigger_hif_int(dev, false);
 
-	return 0;
+	return err;
 }
 EXPORT_SYMBOL_GPL(mt7615_driver_own);
 
 int mt7615_firmware_own(struct mt7615_dev *dev)
 {
+	struct mt76_phy *mphy = &dev->mt76.phy;
+	int err = 0;
 	u32 addr;
 
 	addr = is_mt7663(&dev->mt76) ? MT_CONN_HIF_ON_LPCTL : MT_CFG_LPCR_HOST;
@@ -1922,11 +1930,16 @@ int mt7615_firmware_own(struct mt7615_dev *dev)
 	    !mt76_poll_msec(dev, addr, MT_CFG_LPCR_HOST_FW_OWN,
 			    MT_CFG_LPCR_HOST_FW_OWN, 300)) {
 		dev_err(dev->mt76.dev, "Timeout for firmware own\n");
-		return -EIO;
+		err = -EIO;
+		goto out;
 	}
+
+	set_bit(MT76_STATE_PM, &mphy->state);
+
+out:
 	mt7622_trigger_hif_int(dev, false);
 
-	return 0;
+	return err;
 }
 EXPORT_SYMBOL_GPL(mt7615_firmware_own);
 

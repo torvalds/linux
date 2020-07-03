@@ -4,6 +4,7 @@
 #ifndef __MT7615_H
 #define __MT7615_H
 
+#include <linux/completion.h>
 #include <linux/interrupt.h>
 #include <linux/ktime.h>
 #include <linux/regmap.h>
@@ -296,6 +297,11 @@ struct mt7615_dev {
 		s8 last_wb_rssi;
 	} test;
 #endif
+
+	struct {
+		struct work_struct wake_work;
+		struct completion wake_cmpl;
+	} pm;
 };
 
 enum tx_pkt_queue_idx {
@@ -425,6 +431,8 @@ bool mt7615_wait_for_mcu_init(struct mt7615_dev *dev);
 void mt7615_mac_set_rates(struct mt7615_phy *phy, struct mt7615_sta *sta,
 			  struct ieee80211_tx_rate *probe_rate,
 			  struct ieee80211_tx_rate *rates);
+void mt7615_pm_wake_work(struct work_struct *work);
+int mt7615_pm_wake(struct mt7615_dev *dev);
 int mt7615_mcu_del_wtbl_all(struct mt7615_dev *dev);
 int mt7615_mcu_set_chan_info(struct mt7615_phy *phy, int cmd);
 int mt7615_mcu_set_wmm(struct mt7615_dev *dev, u8 queue,

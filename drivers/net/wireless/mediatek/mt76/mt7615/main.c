@@ -74,6 +74,8 @@ static void mt7615_stop(struct ieee80211_hw *hw)
 	del_timer_sync(&phy->roc_timer);
 	cancel_work_sync(&phy->roc_work);
 
+	cancel_work_sync(&dev->pm.wake_work);
+
 	mutex_lock(&dev->mt76.mutex);
 
 	mt76_testmode_reset(&dev->mt76, true);

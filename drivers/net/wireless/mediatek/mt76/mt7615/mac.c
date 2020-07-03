@@ -1808,6 +1808,48 @@ mt7615_mac_update_mib_stats(struct mt7615_phy *phy)
 	}
 }
 
+void mt7615_pm_wake_work(struct work_struct *work)
+{
+	struct mt7615_dev *dev;
+	struct mt76_phy *mphy;
+
+	dev = (struct mt7615_dev *)container_of(work, struct mt7615_dev,
+						pm.wake_work);
+	mphy = dev->phy.mt76;
+
+	if (mt7615_driver_own(dev))
+		dev_err(mphy->dev->dev, "failed to wake device\n");
+
+	complete_all(&dev->pm.wake_cmpl);
+}
+
+int mt7615_pm_wake(struct mt7615_dev *dev)
+{
+	struct mt76_phy *mphy = dev->phy.mt76;
+
+	if (!mt7615_firmware_offload(dev))
+		return 0;
+
+	if (!mt76_is_mmio(mphy->dev))
+		return 0;
+
+	if (!test_bit(MT76_STATE_PM, &mphy->state))
+		return 0;
+
+	if (test_bit(MT76_HW_SCANNING, &mphy->state) ||
+	    test_bit(MT76_HW_SCHED_SCANNING, &mphy->state))
+		return 0;
+
+	if (queue_work(dev->mt76.wq, &dev->pm.wake_work))
+		reinit_completion(&dev->pm.wake_cmpl);
+
+	if (!wait_for_completion_timeout(&dev->pm.wake_cmpl, 3 * HZ))
+		return -ETIMEDOUT;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mt7615_pm_wake);
+
 void mt7615_mac_work(struct work_struct *work)
 {
 	struct mt7615_phy *phy;
