@@ -6,11 +6,16 @@ static int
 mt7615_radar_pattern_set(void *data, u64 val)
 {
 	struct mt7615_dev *dev = data;
+	int err;
 
 	if (!mt7615_wait_for_mcu_init(dev))
 		return 0;
 
-	return mt7615_mcu_rdd_send_pattern(dev);
+	mt7615_mutex_acquire(dev);
+	err = mt7615_mcu_rdd_send_pattern(dev);
+	mt7615_mutex_release(dev);
+
+	return err;
 }
 
 DEFINE_DEBUGFS_ATTRIBUTE(fops_radar_pattern, NULL,
@@ -84,7 +89,10 @@ mt7615_fw_debug_set(void *data, u64 val)
 		return 0;
 
 	dev->fw_debug = val;
+
+	mt7615_mutex_acquire(dev);
 	mt7615_mcu_fw_log_2_host(dev, dev->fw_debug ? 2 : 0);
+	mt7615_mutex_release(dev);
 
 	return 0;
 }
@@ -111,12 +119,16 @@ mt7615_reset_test_set(void *data, u64 val)
 	if (!mt7615_wait_for_mcu_init(dev))
 		return 0;
 
+	mt7615_mutex_acquire(dev);
+
 	skb = alloc_skb(1, GFP_KERNEL);
 	if (!skb)
 		return -ENOMEM;
 
 	skb_put(skb, 1);
 	mt76_tx_queue_skb_raw(dev, 0, skb, 0);
+
+	mt7615_mutex_release(dev);
 
 	return 0;
 }
@@ -167,8 +179,12 @@ mt7615_ampdu_stat_read(struct seq_file *file, void *data)
 {
 	struct mt7615_dev *dev = file->private;
 
+	mt7615_mutex_acquire(dev);
+
 	mt7615_ampdu_stat_read_phy(&dev->phy, file);
 	mt7615_ampdu_stat_read_phy(mt7615_ext_phy(dev), file);
+
+	mt7615_mutex_release(dev);
 
 	return 0;
 }
@@ -221,7 +237,10 @@ static int mt7615_read_temperature(struct seq_file *s, void *data)
 		return 0;
 
 	/* cpu */
+	mt7615_mutex_acquire(dev);
 	temp = mt7615_mcu_get_temperature(dev, 0);
+	mt7615_mutex_release(dev);
+
 	seq_printf(s, "Temperature: %d\n", temp);
 
 	return 0;
@@ -232,6 +251,8 @@ mt7615_queues_acq(struct seq_file *s, void *data)
 {
 	struct mt7615_dev *dev = dev_get_drvdata(s->private);
 	int i;
+
+	mt7615_mutex_acquire(dev);
 
 	for (i = 0; i < 16; i++) {
 		int j, wmm_idx = i % MT7615_MAX_WMM_SETS;
@@ -252,6 +273,8 @@ mt7615_queues_acq(struct seq_file *s, void *data)
 		}
 		seq_printf(s, "AC%d%d: queued=%d\n", wmm_idx, acs, qlen);
 	}
+
+	mt7615_mutex_release(dev);
 
 	return 0;
 }
