@@ -470,7 +470,7 @@ likely be willing to assist in submitting ECRs.
 
 Linux Code
 ----------
-Individual items specific to Linux on ARM, contained in the the Linux
+Individual items specific to Linux on ARM, contained in the Linux
 source code, are in the list that follows:
 
 ACPI_OS_NAME
