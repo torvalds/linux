@@ -24,6 +24,7 @@ properties:
         # Xingbangda XBD599 5.99" 720x1440 TFT LCD panel
       - xingbangda,xbd599
 
+  port: true
   reg:
     maxItems: 1
     description: DSI virtual channel
