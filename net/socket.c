@@ -2080,6 +2080,17 @@ SYSCALL_DEFINE4(recv, int, fd, void __user *, ubuf, size_t, size,
 	return __sys_recvfrom(fd, ubuf, size, flags, NULL, NULL);
 }
 
+static bool sock_use_custom_sol_socket(const struct socket *sock)
+{
+	const struct sock *sk = sock->sk;
+
+	/* Use sock->ops->setsockopt() for MPTCP */
+	return IS_ENABLED(CONFIG_MPTCP) &&
+	       sk->sk_protocol == IPPROTO_MPTCP &&
+	       sk->sk_type == SOCK_STREAM &&
+	       (sk->sk_family == AF_INET || sk->sk_family == AF_INET6);
+}
+
 /*
  *	Set a socket option. Because we don't know the option lengths we have
  *	to pass the user mode parameter for the protocols to sort out.
@@ -2118,7 +2129,7 @@ static int __sys_setsockopt(int fd, int level, int optname,
 			optval = (char __user __force *)kernel_optval;
 		}
 
-		if (level == SOL_SOCKET)
+		if (level == SOL_SOCKET && !sock_use_custom_sol_socket(sock))
 			err =
 			    sock_setsockopt(sock, level, optname, optval,
 					    optlen);

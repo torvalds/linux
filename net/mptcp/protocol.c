@@ -1609,6 +1609,9 @@ static int mptcp_setsockopt(struct sock *sk, int level, int optname,
 
 	pr_debug("msk=%p", msk);
 
+	if (level == SOL_SOCKET)
+		return sock_setsockopt(sk->sk_socket, level, optname, optval, optlen);
+
 	/* @@ the meaning of setsockopt() when the socket is connected and
 	 * there are multiple subflows is not yet defined. It is up to the
 	 * MPTCP-level socket to configure the subflows until the subflow
