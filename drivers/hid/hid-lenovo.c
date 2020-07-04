@@ -29,6 +29,7 @@
 #include <linux/hid.h>
 #include <linux/input.h>
 #include <linux/leds.h>
+#include <linux/workqueue.h>
 
 #include "hid-ids.h"
 
@@ -38,6 +39,8 @@ struct lenovo_drvdata {
 	struct mutex led_report_mutex;
 	struct led_classdev led_mute;
 	struct led_classdev led_micmute;
+	struct work_struct fn_lock_sync_work;
+	struct hid_device *hdev;
 	int press_to_select;
 	int dragging;
 	int release_to_select;
@@ -76,6 +79,15 @@ static void lenovo_led_set_tp10ubkbd(struct hid_device *hdev, u8 led_code,
 		hid_err(hdev, "Set LED output report error: %d\n", ret);
 
 	mutex_unlock(&data->led_report_mutex);
+}
+
+static void lenovo_tp10ubkbd_sync_fn_lock(struct work_struct *work)
+{
+	struct lenovo_drvdata *data =
+		container_of(work, struct lenovo_drvdata, fn_lock_sync_work);
+
+	lenovo_led_set_tp10ubkbd(data->hdev, TP10UBKBD_FN_LOCK_LED,
+				 data->fn_lock);
 }
 
 static const __u8 lenovo_pro_dock_need_fixup_collection[] = {
@@ -344,6 +356,9 @@ static ssize_t attr_fn_lock_store(struct device *dev,
 	case USB_DEVICE_ID_LENOVO_CBTKBD:
 		lenovo_features_set_cptkbd(hdev);
 		break;
+	case USB_DEVICE_ID_LENOVO_TP10UBKBD:
+		lenovo_led_set_tp10ubkbd(hdev, TP10UBKBD_FN_LOCK_LED, value);
+		break;
 	}
 
 	return count;
@@ -420,6 +435,24 @@ static int lenovo_raw_event(struct hid_device *hdev,
 	return 0;
 }
 
+static int lenovo_event_tp10ubkbd(struct hid_device *hdev,
+		struct hid_field *field, struct hid_usage *usage, __s32 value)
+{
+	struct lenovo_drvdata *data = hid_get_drvdata(hdev);
+
+	if (usage->type == EV_KEY && usage->code == KEY_FN_ESC && value == 1) {
+		/*
+		 * The user has toggled the Fn-lock state. Toggle our own
+		 * cached value of it and sync our value to the keyboard to
+		 * ensure things are in sync (the sycning should be a no-op).
+		 */
+		data->fn_lock = !data->fn_lock;
+		schedule_work(&data->fn_lock_sync_work);
+	}
+
+	return 0;
+}
+
 static int lenovo_event_cptkbd(struct hid_device *hdev,
 		struct hid_field *field, struct hid_usage *usage, __s32 value)
 {
@@ -462,6 +495,8 @@ static int lenovo_event(struct hid_device *hdev, struct hid_field *field,
 	case USB_DEVICE_ID_LENOVO_CUSBKBD:
 	case USB_DEVICE_ID_LENOVO_CBTKBD:
 		return lenovo_event_cptkbd(hdev, field, usage, value);
+	case USB_DEVICE_ID_LENOVO_TP10UBKBD:
+		return lenovo_event_tp10ubkbd(hdev, field, usage, value);
 	default:
 		return 0;
 	}
@@ -899,9 +934,19 @@ static int lenovo_probe_cptkbd(struct hid_device *hdev)
 	return 0;
 }
 
+static struct attribute *lenovo_attributes_tp10ubkbd[] = {
+	&dev_attr_fn_lock.attr,
+	NULL
+};
+
+static const struct attribute_group lenovo_attr_group_tp10ubkbd = {
+	.attrs = lenovo_attributes_tp10ubkbd,
+};
+
 static int lenovo_probe_tp10ubkbd(struct hid_device *hdev)
 {
 	struct lenovo_drvdata *data;
+	int ret;
 
 	/* All the custom action happens on the USBMOUSE device for USB */
 	if (hdev->type != HID_TYPE_USBMOUSE)
@@ -912,10 +957,32 @@ static int lenovo_probe_tp10ubkbd(struct hid_device *hdev)
 		return -ENOMEM;
 
 	mutex_init(&data->led_report_mutex);
+	INIT_WORK(&data->fn_lock_sync_work, lenovo_tp10ubkbd_sync_fn_lock);
+	data->hdev = hdev;
 
 	hid_set_drvdata(hdev, data);
 
-	return lenovo_register_leds(hdev);
+	/*
+	 * The Thinkpad 10 ultrabook USB kbd dock's Fn-lock defaults to on.
+	 * We cannot read the state, only set it, so we force it to on here
+	 * (which should be a no-op) to make sure that our state matches the
+	 * keyboard's FN-lock state. This is the same as what Windows does.
+	 */
+	data->fn_lock = true;
+	lenovo_led_set_tp10ubkbd(hdev, TP10UBKBD_FN_LOCK_LED, data->fn_lock);
+
+	ret = sysfs_create_group(&hdev->dev.kobj, &lenovo_attr_group_tp10ubkbd);
+	if (ret)
+		return ret;
+
+	ret = lenovo_register_leds(hdev);
+	if (ret)
+		goto err;
+
+	return 0;
+err:
+	sysfs_remove_group(&hdev->dev.kobj, &lenovo_attr_group_tp10ubkbd);
+	return ret;
 }
 
 static int lenovo_probe(struct hid_device *hdev,
@@ -993,6 +1060,9 @@ static void lenovo_remove_tp10ubkbd(struct hid_device *hdev)
 
 	led_classdev_unregister(&data->led_micmute);
 	led_classdev_unregister(&data->led_mute);
+
+	sysfs_remove_group(&hdev->dev.kobj, &lenovo_attr_group_tp10ubkbd);
+	cancel_work_sync(&data->fn_lock_sync_work);
 }
 
 static void lenovo_remove(struct hid_device *hdev)
