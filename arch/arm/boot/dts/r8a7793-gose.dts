@@ -334,7 +334,6 @@
 		composite-in@20 {
 			compatible = "adi,adv7180cp";
 			reg = <0x20>;
-			remote = <&vin1>;
 
 			ports {
 				#address-cells = <1>;
