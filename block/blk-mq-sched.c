@@ -96,7 +96,6 @@ static bool blk_mq_dispatch_hctx_list(struct list_head *rq_list)
 	struct request *rq;
 	LIST_HEAD(hctx_list);
 	unsigned int count = 0;
-	bool ret;
 
 	list_for_each_entry(rq, rq_list, queuelist) {
 		if (rq->mq_hctx != hctx) {
@@ -108,8 +107,7 @@ static bool blk_mq_dispatch_hctx_list(struct list_head *rq_list)
 	list_splice_tail_init(rq_list, &hctx_list);
 
 dispatch:
-	ret = blk_mq_dispatch_rq_list(hctx, &hctx_list, count);
-	return ret;
+	return blk_mq_dispatch_rq_list(hctx, &hctx_list, count);
 }
 
 #define BLK_MQ_BUDGET_DELAY	3		/* ms units */
