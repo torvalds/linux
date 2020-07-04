@@ -335,7 +335,7 @@ So this must work:
 	$ cat einj.txt >error-inj
 
 The first callback is called when this file is read and it should show the
-the current error injection state::
+current error injection state::
 
 	int (*error_inj_show)(struct cec_adapter *adap, struct seq_file *sf);
 
