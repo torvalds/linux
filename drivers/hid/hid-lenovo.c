@@ -249,23 +249,23 @@ static void lenovo_features_set_cptkbd(struct hid_device *hdev)
 		hid_err(hdev, "Sensitivity setting failed: %d\n", ret);
 }
 
-static ssize_t attr_fn_lock_show_cptkbd(struct device *dev,
+static ssize_t attr_fn_lock_show(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
 	struct hid_device *hdev = to_hid_device(dev);
-	struct lenovo_drvdata *cptkbd_data = hid_get_drvdata(hdev);
+	struct lenovo_drvdata *data = hid_get_drvdata(hdev);
 
-	return snprintf(buf, PAGE_SIZE, "%u\n", cptkbd_data->fn_lock);
+	return snprintf(buf, PAGE_SIZE, "%u\n", data->fn_lock);
 }
 
-static ssize_t attr_fn_lock_store_cptkbd(struct device *dev,
+static ssize_t attr_fn_lock_store(struct device *dev,
 		struct device_attribute *attr,
 		const char *buf,
 		size_t count)
 {
 	struct hid_device *hdev = to_hid_device(dev);
-	struct lenovo_drvdata *cptkbd_data = hid_get_drvdata(hdev);
+	struct lenovo_drvdata *data = hid_get_drvdata(hdev);
 	int value;
 
 	if (kstrtoint(buf, 10, &value))
@@ -273,8 +273,14 @@ static ssize_t attr_fn_lock_store_cptkbd(struct device *dev,
 	if (value < 0 || value > 1)
 		return -EINVAL;
 
-	cptkbd_data->fn_lock = !!value;
-	lenovo_features_set_cptkbd(hdev);
+	data->fn_lock = !!value;
+
+	switch (hdev->product) {
+	case USB_DEVICE_ID_LENOVO_CUSBKBD:
+	case USB_DEVICE_ID_LENOVO_CBTKBD:
+		lenovo_features_set_cptkbd(hdev);
+		break;
+	}
 
 	return count;
 }
@@ -309,10 +315,10 @@ static ssize_t attr_sensitivity_store_cptkbd(struct device *dev,
 }
 
 
-static struct device_attribute dev_attr_fn_lock_cptkbd =
+static struct device_attribute dev_attr_fn_lock =
 	__ATTR(fn_lock, S_IWUSR | S_IRUGO,
-			attr_fn_lock_show_cptkbd,
-			attr_fn_lock_store_cptkbd);
+			attr_fn_lock_show,
+			attr_fn_lock_store);
 
 static struct device_attribute dev_attr_sensitivity_cptkbd =
 	__ATTR(sensitivity, S_IWUSR | S_IRUGO,
@@ -321,7 +327,7 @@ static struct device_attribute dev_attr_sensitivity_cptkbd =
 
 
 static struct attribute *lenovo_attributes_cptkbd[] = {
-	&dev_attr_fn_lock_cptkbd.attr,
+	&dev_attr_fn_lock.attr,
 	&dev_attr_sensitivity_cptkbd.attr,
 	NULL
 };
