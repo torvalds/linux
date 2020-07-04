@@ -2285,6 +2285,9 @@ static int nf_tables_newchain(struct net *net, struct sock *nlsk,
 	else if (chain)
 		flags = chain->flags;
 
+	if (flags & ~NFT_CHAIN_FLAGS)
+		return -EOPNOTSUPP;
+
 	nft_ctx_init(&ctx, net, skb, nlh, family, table, chain, nla);
 
 	if (chain != NULL) {

@@ -189,6 +189,9 @@ enum nft_chain_flags {
 	NFT_CHAIN_HW_OFFLOAD	= (1 << 1),
 	NFT_CHAIN_BINDING	= (1 << 2),
 };
+#define NFT_CHAIN_FLAGS		(NFT_CHAIN_BASE		| \
+				 NFT_CHAIN_HW_OFFLOAD	| \
+				 NFT_CHAIN_BINDING)
 
 /**
  * enum nft_chain_attributes - nf_tables chain netlink attributes
