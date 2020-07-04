@@ -569,7 +569,8 @@ int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
 				"Device reports FIT image is corrupted\n");
 		else
 			dev_err(hdev->dev,
-				"Device failed to load, %d\n", status);
+				"Failed to load firmware to device, %d\n",
+				status);
 
 		rc = -EIO;
 		goto out;
