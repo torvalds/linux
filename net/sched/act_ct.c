@@ -925,6 +925,8 @@ static int tcf_ct_act(struct sk_buff *skb, const struct tc_action *a,
 	force = p->ct_action & TCA_CT_ACT_FORCE;
 	tmpl = p->tmpl;
 
+	tcf_lastuse_update(&c->tcf_tm);
+
 	if (clear) {
 		ct = nf_ct_get(skb, &ctinfo);
 		if (ct) {
