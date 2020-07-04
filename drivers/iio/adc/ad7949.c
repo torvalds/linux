@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2018 CMC NV
  *
- * http://www.analog.com/media/en/technical-documentation/data-sheets/AD7949.pdf
+ * https://www.analog.com/media/en/technical-documentation/data-sheets/AD7949.pdf
  */
 
 #include <linux/delay.h>

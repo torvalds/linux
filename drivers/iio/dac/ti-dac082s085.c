@@ -4,12 +4,12 @@
  *
  * Copyright (C) 2017 KUNBUS GmbH
  *
- * http://www.ti.com/lit/ds/symlink/dac082s085.pdf
- * http://www.ti.com/lit/ds/symlink/dac102s085.pdf
- * http://www.ti.com/lit/ds/symlink/dac122s085.pdf
- * http://www.ti.com/lit/ds/symlink/dac084s085.pdf
- * http://www.ti.com/lit/ds/symlink/dac104s085.pdf
- * http://www.ti.com/lit/ds/symlink/dac124s085.pdf
+ * https://www.ti.com/lit/ds/symlink/dac082s085.pdf
+ * https://www.ti.com/lit/ds/symlink/dac102s085.pdf
+ * https://www.ti.com/lit/ds/symlink/dac122s085.pdf
+ * https://www.ti.com/lit/ds/symlink/dac084s085.pdf
+ * https://www.ti.com/lit/ds/symlink/dac104s085.pdf
+ * https://www.ti.com/lit/ds/symlink/dac124s085.pdf
  */
 
 #include <linux/iio/iio.h>

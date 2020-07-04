@@ -7,9 +7,9 @@
  * Copyright (c) 2016, 2017 Andreas Klinger <ak@it-klinger.de>
  *
  * For details about the device see:
- * http://www.robot-electronics.co.uk/htm/srf08tech.html
- * http://www.robot-electronics.co.uk/htm/srf10tech.htm
- * http://www.robot-electronics.co.uk/htm/srf02tech.htm
+ * https://www.robot-electronics.co.uk/htm/srf08tech.html
+ * https://www.robot-electronics.co.uk/htm/srf10tech.htm
+ * https://www.robot-electronics.co.uk/htm/srf02tech.htm
  */
 
 #include <linux/err.h>

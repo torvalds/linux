@@ -4,7 +4,7 @@
  * Copyright 2016 Rockwell Collins
  *
  * Datasheet:
- * http://datasheets.maximintegrated.com/en/ds/MAX5481-MAX5484.pdf
+ * https://datasheets.maximintegrated.com/en/ds/MAX5481-MAX5484.pdf
  */
 
 #include <linux/acpi.h>

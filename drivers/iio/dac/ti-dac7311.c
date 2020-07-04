@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2018 CMC NV
  *
- * http://www.ti.com/lit/ds/symlink/dac7311.pdf
+ * https://www.ti.com/lit/ds/symlink/dac7311.pdf
  */
 
 #include <linux/iio/iio.h>

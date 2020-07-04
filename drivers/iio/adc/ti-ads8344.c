@@ -4,7 +4,7 @@
  *
  * Author: Gregory CLEMENT <gregory.clement@bootlin.com>
  *
- * Datasheet: http://www.ti.com/lit/ds/symlink/ads8344.pdf
+ * Datasheet: https://www.ti.com/lit/ds/symlink/ads8344.pdf
  */
 
 #include <linux/delay.h>

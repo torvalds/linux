@@ -7,7 +7,7 @@
  *
  * 7-bit I2C slave address: 0x13
  *
- * Link to data sheet: http://www.onsemi.com/pub/Collateral/LV0104CS-D.PDF
+ * Link to data sheet: https://www.onsemi.com/pub/Collateral/LV0104CS-D.PDF
  */
 
 #include <linux/kernel.h>

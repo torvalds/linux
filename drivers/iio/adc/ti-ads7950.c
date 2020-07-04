@@ -9,7 +9,7 @@
  * Copyright 2012 CS Systemes d'Information
  *
  * And also on hwmon/ads79xx.c
- * Copyright (C) 2013 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2013 Texas Instruments Incorporated - https://www.ti.com/
  *	Nishanth Menon
  */
 

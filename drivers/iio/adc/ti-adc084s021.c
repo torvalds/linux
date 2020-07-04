@@ -4,7 +4,7 @@
  *
  * Driver for Texas Instruments' ADC084S021 ADC chip.
  * Datasheets can be found here:
- * http://www.ti.com/lit/ds/symlink/adc084s021.pdf
+ * https://www.ti.com/lit/ds/symlink/adc084s021.pdf
  */
 
 #include <linux/err.h>

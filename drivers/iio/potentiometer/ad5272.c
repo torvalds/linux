@@ -3,7 +3,7 @@
  * Analog Devices AD5272 digital potentiometer driver
  * Copyright (C) 2018 Phil Reid <preid@electromag.com.au>
  *
- * Datasheet: http://www.analog.com/media/en/technical-documentation/data-sheets/AD5272_5274.pdf
+ * Datasheet: https://www.analog.com/media/en/technical-documentation/data-sheets/AD5272_5274.pdf
  *
  * DEVID	#Wipers	#Positions	Resistor Opts (kOhm)	i2c address
  * ad5272	1	1024		20, 50, 100		01011xx

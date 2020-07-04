@@ -5,8 +5,8 @@
  * Copyright (C) 2017 Phil Reid
  *
  * Datasheets can be found here:
- * http://www.ti.com/lit/gpn/tlc3541
- * http://www.ti.com/lit/gpn/tlc4541
+ * https://www.ti.com/lit/gpn/tlc3541
+ * https://www.ti.com/lit/gpn/tlc4541
  *
  * The tlc4541 requires 24 clock cycles to start a transfer.
  * Conversion then takes 2.94us to complete before data is ready

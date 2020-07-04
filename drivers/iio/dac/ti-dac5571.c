@@ -4,15 +4,15 @@
  *
  * Copyright (C) 2018 Prevas A/S
  *
- * http://www.ti.com/lit/ds/symlink/dac5571.pdf
- * http://www.ti.com/lit/ds/symlink/dac6571.pdf
- * http://www.ti.com/lit/ds/symlink/dac7571.pdf
- * http://www.ti.com/lit/ds/symlink/dac5574.pdf
- * http://www.ti.com/lit/ds/symlink/dac6574.pdf
- * http://www.ti.com/lit/ds/symlink/dac7574.pdf
- * http://www.ti.com/lit/ds/symlink/dac5573.pdf
- * http://www.ti.com/lit/ds/symlink/dac6573.pdf
- * http://www.ti.com/lit/ds/symlink/dac7573.pdf
+ * https://www.ti.com/lit/ds/symlink/dac5571.pdf
+ * https://www.ti.com/lit/ds/symlink/dac6571.pdf
+ * https://www.ti.com/lit/ds/symlink/dac7571.pdf
+ * https://www.ti.com/lit/ds/symlink/dac5574.pdf
+ * https://www.ti.com/lit/ds/symlink/dac6574.pdf
+ * https://www.ti.com/lit/ds/symlink/dac7574.pdf
+ * https://www.ti.com/lit/ds/symlink/dac5573.pdf
+ * https://www.ti.com/lit/ds/symlink/dac6573.pdf
+ * https://www.ti.com/lit/ds/symlink/dac7573.pdf
  */
 
 #include <linux/iio/iio.h>

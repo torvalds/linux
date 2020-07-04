@@ -5,7 +5,7 @@
  * Copyright (c) 2016 Slawomir Stepien
  * Based on: Peter Rosin's code from mcp4531.c
  *
- * Datasheet: http://ww1.microchip.com/downloads/en/DeviceDoc/22060b.pdf
+ * Datasheet: https://ww1.microchip.com/downloads/en/DeviceDoc/22060b.pdf
  *
  * DEVID	#Wipers	#Positions	Resistor Opts (kOhm)
  * mcp4131	1	129		5, 10, 50, 100

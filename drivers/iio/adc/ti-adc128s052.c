@@ -4,9 +4,9 @@
  *
  * Driver for Texas Instruments' ADC128S052, ADC122S021 and ADC124S021 ADC chip.
  * Datasheets can be found here:
- * http://www.ti.com/lit/ds/symlink/adc128s052.pdf
- * http://www.ti.com/lit/ds/symlink/adc122s021.pdf
- * http://www.ti.com/lit/ds/symlink/adc124s021.pdf
+ * https://www.ti.com/lit/ds/symlink/adc128s052.pdf
+ * https://www.ti.com/lit/ds/symlink/adc122s021.pdf
+ * https://www.ti.com/lit/ds/symlink/adc124s021.pdf
  */
 
 #include <linux/acpi.h>

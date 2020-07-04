@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2017 Eva Rachel Retuya <eraretuya@gmail.com>
  *
- * Datasheet: http://www.analog.com/media/en/technical-documentation/data-sheets/ADXL345.pdf
+ * Datasheet: https://www.analog.com/media/en/technical-documentation/data-sheets/ADXL345.pdf
  */
 
 #include <linux/module.h>

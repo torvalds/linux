@@ -2,7 +2,7 @@
 /**
  * opt3001.c - Texas Instruments OPT3001 Light Sensor
  *
- * Copyright (C) 2014 Texas Instruments Incorporated - http://www.ti.com
+ * Copyright (C) 2014 Texas Instruments Incorporated - https://www.ti.com
  *
  * Author: Andreas Dannenberg <dannenberg@ti.com>
  * Based on previous work from: Felipe Balbi <balbi@ti.com>

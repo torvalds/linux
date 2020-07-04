@@ -6,8 +6,8 @@
  * Author: Angelo Compagnucci <angelo.compagnucci@gmail.com>
  *
  * Datasheet: http://ww1.microchip.com/downloads/en/devicedoc/22088b.pdf
- *            http://ww1.microchip.com/downloads/en/DeviceDoc/22226a.pdf
- *            http://ww1.microchip.com/downloads/en/DeviceDoc/22072b.pdf
+ *            https://ww1.microchip.com/downloads/en/DeviceDoc/22226a.pdf
+ *            https://ww1.microchip.com/downloads/en/DeviceDoc/22072b.pdf
  *
  * This driver exports the value of analog input voltage to sysfs, the
  * voltage unit is nV.

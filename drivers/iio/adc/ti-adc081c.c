@@ -6,9 +6,9 @@
  * Copyright (C) 2016 Intel
  *
  * Datasheets:
- *	http://www.ti.com/lit/ds/symlink/adc081c021.pdf
- *	http://www.ti.com/lit/ds/symlink/adc101c021.pdf
- *	http://www.ti.com/lit/ds/symlink/adc121c021.pdf
+ *	https://www.ti.com/lit/ds/symlink/adc081c021.pdf
+ *	https://www.ti.com/lit/ds/symlink/adc101c021.pdf
+ *	https://www.ti.com/lit/ds/symlink/adc121c021.pdf
  *
  * The devices have a very similar interface and differ mostly in the number of
  * bits handled. For the 8-bit and 10-bit models the least-significant 4 or 2

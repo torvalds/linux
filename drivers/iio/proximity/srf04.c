@@ -5,7 +5,7 @@
  * Copyright (c) 2017 Andreas Klinger <ak@it-klinger.de>
  *
  * For details about the device see:
- * http://www.robot-electronics.co.uk/htm/srf04tech.htm
+ * https://www.robot-electronics.co.uk/htm/srf04tech.htm
  *
  * the measurement cycle as timing diagram looks like:
  *

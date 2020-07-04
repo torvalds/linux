@@ -27,13 +27,13 @@
  * MCP3553
  *
  * Datasheet can be found here:
- * http://ww1.microchip.com/downloads/en/DeviceDoc/21293C.pdf  mcp3001
- * http://ww1.microchip.com/downloads/en/DeviceDoc/21294E.pdf  mcp3002
- * http://ww1.microchip.com/downloads/en/DeviceDoc/21295d.pdf  mcp3004/08
+ * https://ww1.microchip.com/downloads/en/DeviceDoc/21293C.pdf  mcp3001
+ * https://ww1.microchip.com/downloads/en/DeviceDoc/21294E.pdf  mcp3002
+ * https://ww1.microchip.com/downloads/en/DeviceDoc/21295d.pdf  mcp3004/08
  * http://ww1.microchip.com/downloads/en/DeviceDoc/21290D.pdf  mcp3201
  * http://ww1.microchip.com/downloads/en/DeviceDoc/21034D.pdf  mcp3202
  * http://ww1.microchip.com/downloads/en/DeviceDoc/21298c.pdf  mcp3204/08
- * http://ww1.microchip.com/downloads/en/DeviceDoc/21700E.pdf  mcp3301
+ * https://ww1.microchip.com/downloads/en/DeviceDoc/21700E.pdf  mcp3301
  * http://ww1.microchip.com/downloads/en/DeviceDoc/21950D.pdf  mcp3550/1/3
  */
 

@@ -273,7 +273,7 @@ static int ina2xx_read_raw(struct iio_dev *indio_dev,
  * Available averaging rates for ina226. The indices correspond with
  * the bit values expected by the chip (according to the ina226 datasheet,
  * table 3 AVG bit settings, found at
- * http://www.ti.com/lit/ds/symlink/ina226.pdf.
+ * https://www.ti.com/lit/ds/symlink/ina226.pdf.
  */
 static const int ina226_avg_tab[] = { 1, 4, 16, 64, 128, 256, 512, 1024 };
 

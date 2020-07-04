@@ -5,7 +5,7 @@
  * conversion of analog signals like battery temperature,
  * battery type, battery level etc.
  *
- * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2011 Texas Instruments Incorporated - https://www.ti.com/
  * J Keerthy <j-keerthy@ti.com>
  *
  * Based on twl4030-madc.c
