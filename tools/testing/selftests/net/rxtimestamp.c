@@ -68,44 +68,44 @@ static struct socket_type socket_types[] = {
 static struct test_case test_cases[] = {
 	{ {}, {} },
 	{
-		{ so_timestamp: 1 },
-		{ tstamp: true }
+		{ .so_timestamp = 1 },
+		{ .tstamp = true }
 	},
 	{
-		{ so_timestampns: 1 },
-		{ tstampns: true }
+		{ .so_timestampns = 1 },
+		{ .tstampns = true }
 	},
 	{
-		{ so_timestamp: 1, so_timestampns: 1 },
-		{ tstampns: true }
+		{ .so_timestamp = 1, .so_timestampns = 1 },
+		{ .tstampns = true }
 	},
 	{
-		{ so_timestamping: SOF_TIMESTAMPING_RX_SOFTWARE },
+		{ .so_timestamping = SOF_TIMESTAMPING_RX_SOFTWARE },
 		{}
 	},
 	{
 		/* Loopback device does not support hw timestamps. */
-		{ so_timestamping: SOF_TIMESTAMPING_RX_HARDWARE },
+		{ .so_timestamping = SOF_TIMESTAMPING_RX_HARDWARE },
 		{}
 	},
 	{
-		{ so_timestamping: SOF_TIMESTAMPING_SOFTWARE },
-		warn_on_fail : true
+		{ .so_timestamping = SOF_TIMESTAMPING_SOFTWARE },
+		.warn_on_fail = true
 	},
 	{
-		{ so_timestamping: SOF_TIMESTAMPING_RX_SOFTWARE
+		{ .so_timestamping = SOF_TIMESTAMPING_RX_SOFTWARE
 			| SOF_TIMESTAMPING_RX_HARDWARE },
 		{}
 	},
 	{
-		{ so_timestamping: SOF_TIMESTAMPING_SOFTWARE
+		{ .so_timestamping = SOF_TIMESTAMPING_SOFTWARE
 			| SOF_TIMESTAMPING_RX_SOFTWARE },
-		{ swtstamp: true }
+		{ .swtstamp = true }
 	},
 	{
-		{ so_timestamp: 1, so_timestamping: SOF_TIMESTAMPING_SOFTWARE
+		{ .so_timestamp = 1, .so_timestamping = SOF_TIMESTAMPING_SOFTWARE
 			| SOF_TIMESTAMPING_RX_SOFTWARE },
-		{ tstamp: true, swtstamp: true }
+		{ .tstamp = true, .swtstamp = true }
 	},
 };
 
