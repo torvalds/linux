@@ -1601,6 +1601,37 @@ static void mptcp_destroy(struct sock *sk)
 	sk_sockets_allocated_dec(sk);
 }
 
+static int mptcp_setsockopt_sol_socket(struct mptcp_sock *msk, int optname,
+				       char __user *optval, unsigned int optlen)
+{
+	struct sock *sk = (struct sock *)msk;
+	struct socket *ssock;
+	int ret;
+
+	switch (optname) {
+	case SO_REUSEPORT:
+	case SO_REUSEADDR:
+		lock_sock(sk);
+		ssock = __mptcp_nmpc_socket(msk);
+		if (!ssock) {
+			release_sock(sk);
+			return -EINVAL;
+		}
+
+		ret = sock_setsockopt(ssock, SOL_SOCKET, optname, optval, optlen);
+		if (ret == 0) {
+			if (optname == SO_REUSEPORT)
+				sk->sk_reuseport = ssock->sk->sk_reuseport;
+			else if (optname == SO_REUSEADDR)
+				sk->sk_reuse = ssock->sk->sk_reuse;
+		}
+		release_sock(sk);
+		return ret;
+	}
+
+	return sock_setsockopt(sk->sk_socket, SOL_SOCKET, optname, optval, optlen);
+}
+
 static int mptcp_setsockopt(struct sock *sk, int level, int optname,
 			    char __user *optval, unsigned int optlen)
 {
@@ -1610,7 +1641,7 @@ static int mptcp_setsockopt(struct sock *sk, int level, int optname,
 	pr_debug("msk=%p", msk);
 
 	if (level == SOL_SOCKET)
-		return sock_setsockopt(sk->sk_socket, level, optname, optval, optlen);
+		return mptcp_setsockopt_sol_socket(msk, optname, optval, optlen);
 
 	/* @@ the meaning of setsockopt() when the socket is connected and
 	 * there are multiple subflows is not yet defined. It is up to the
