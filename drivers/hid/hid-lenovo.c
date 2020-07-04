@@ -33,7 +33,9 @@
 #include "hid-ids.h"
 
 struct lenovo_drvdata {
+	u8 led_report[3]; /* Must be first for proper alignment */
 	int led_state;
+	struct mutex led_report_mutex;
 	struct led_classdev led_mute;
 	struct led_classdev led_micmute;
 	int press_to_select;
@@ -47,6 +49,34 @@ struct lenovo_drvdata {
 };
 
 #define map_key_clear(c) hid_map_usage_clear(hi, usage, bit, max, EV_KEY, (c))
+
+#define TP10UBKBD_LED_OUTPUT_REPORT	9
+
+#define TP10UBKBD_FN_LOCK_LED		0x54
+#define TP10UBKBD_MUTE_LED		0x64
+#define TP10UBKBD_MICMUTE_LED		0x74
+
+#define TP10UBKBD_LED_OFF		1
+#define TP10UBKBD_LED_ON		2
+
+static void lenovo_led_set_tp10ubkbd(struct hid_device *hdev, u8 led_code,
+				     enum led_brightness value)
+{
+	struct lenovo_drvdata *data = hid_get_drvdata(hdev);
+	int ret;
+
+	mutex_lock(&data->led_report_mutex);
+
+	data->led_report[0] = TP10UBKBD_LED_OUTPUT_REPORT;
+	data->led_report[1] = led_code;
+	data->led_report[2] = value ? TP10UBKBD_LED_ON : TP10UBKBD_LED_OFF;
+	ret = hid_hw_raw_request(hdev, data->led_report[0], data->led_report, 3,
+				 HID_OUTPUT_REPORT, HID_REQ_SET_REPORT);
+	if (ret)
+		hid_err(hdev, "Set LED output report error: %d\n", ret);
+
+	mutex_unlock(&data->led_report_mutex);
+}
 
 static const __u8 lenovo_pro_dock_need_fixup_collection[] = {
 	0x05, 0x88,		/* Usage Page (Vendor Usage Page 0x88)	*/
@@ -175,6 +205,37 @@ static int lenovo_input_mapping_scrollpoint(struct hid_device *hdev,
 	return 0;
 }
 
+static int lenovo_input_mapping_tp10_ultrabook_kbd(struct hid_device *hdev,
+		struct hid_input *hi, struct hid_field *field,
+		struct hid_usage *usage, unsigned long **bit, int *max)
+{
+	/*
+	 * The ThinkPad 10 Ultrabook Keyboard uses 0x000c0001 usage for
+	 * a bunch of keys which have no standard consumer page code.
+	 */
+	if (usage->hid == 0x000c0001) {
+		switch (usage->usage_index) {
+		case 8: /* Fn-Esc: Fn-lock toggle */
+			map_key_clear(KEY_FN_ESC);
+			return 1;
+		case 9: /* Fn-F4: Mic mute */
+			map_key_clear(KEY_MICMUTE);
+			return 1;
+		case 10: /* Fn-F7: Control panel */
+			map_key_clear(KEY_CONFIG);
+			return 1;
+		case 11: /* Fn-F8: Search (magnifier glass) */
+			map_key_clear(KEY_SEARCH);
+			return 1;
+		case 12: /* Fn-F10: Open My computer (6 boxes) */
+			map_key_clear(KEY_FILE);
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
 static int lenovo_input_mapping(struct hid_device *hdev,
 		struct hid_input *hi, struct hid_field *field,
 		struct hid_usage *usage, unsigned long **bit, int *max)
@@ -195,6 +256,9 @@ static int lenovo_input_mapping(struct hid_device *hdev,
 	case USB_DEVICE_ID_LENOVO_SCROLLPOINT_OPTICAL:
 		return lenovo_input_mapping_scrollpoint(hdev, hi, field,
 							usage, bit, max);
+	case USB_DEVICE_ID_LENOVO_TP10UBKBD:
+		return lenovo_input_mapping_tp10_ultrabook_kbd(hdev, hi, field,
+							       usage, bit, max);
 	default:
 		return 0;
 	}
@@ -677,6 +741,7 @@ static void lenovo_led_brightness_set(struct led_classdev *led_cdev,
 	struct device *dev = led_cdev->dev->parent;
 	struct hid_device *hdev = to_hid_device(dev);
 	struct lenovo_drvdata *data_pointer = hid_get_drvdata(hdev);
+	u8 tp10ubkbd_led[] = { TP10UBKBD_MUTE_LED, TP10UBKBD_MICMUTE_LED };
 	int led_nr = 0;
 
 	if (led_cdev == &data_pointer->led_micmute)
@@ -690,6 +755,9 @@ static void lenovo_led_brightness_set(struct led_classdev *led_cdev,
 	switch (hdev->product) {
 	case USB_DEVICE_ID_LENOVO_TPKBD:
 		lenovo_led_set_tpkbd(hdev);
+		break;
+	case USB_DEVICE_ID_LENOVO_TP10UBKBD:
+		lenovo_led_set_tp10ubkbd(hdev, tp10ubkbd_led[led_nr], value);
 		break;
 	}
 }
@@ -831,6 +899,25 @@ static int lenovo_probe_cptkbd(struct hid_device *hdev)
 	return 0;
 }
 
+static int lenovo_probe_tp10ubkbd(struct hid_device *hdev)
+{
+	struct lenovo_drvdata *data;
+
+	/* All the custom action happens on the USBMOUSE device for USB */
+	if (hdev->type != HID_TYPE_USBMOUSE)
+		return 0;
+
+	data = devm_kzalloc(&hdev->dev, sizeof(*data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	mutex_init(&data->led_report_mutex);
+
+	hid_set_drvdata(hdev, data);
+
+	return lenovo_register_leds(hdev);
+}
+
 static int lenovo_probe(struct hid_device *hdev,
 		const struct hid_device_id *id)
 {
@@ -855,6 +942,9 @@ static int lenovo_probe(struct hid_device *hdev,
 	case USB_DEVICE_ID_LENOVO_CUSBKBD:
 	case USB_DEVICE_ID_LENOVO_CBTKBD:
 		ret = lenovo_probe_cptkbd(hdev);
+		break;
+	case USB_DEVICE_ID_LENOVO_TP10UBKBD:
+		ret = lenovo_probe_tp10ubkbd(hdev);
 		break;
 	default:
 		ret = 0;
@@ -894,6 +984,17 @@ static void lenovo_remove_cptkbd(struct hid_device *hdev)
 			&lenovo_attr_group_cptkbd);
 }
 
+static void lenovo_remove_tp10ubkbd(struct hid_device *hdev)
+{
+	struct lenovo_drvdata *data = hid_get_drvdata(hdev);
+
+	if (data == NULL)
+		return;
+
+	led_classdev_unregister(&data->led_micmute);
+	led_classdev_unregister(&data->led_mute);
+}
+
 static void lenovo_remove(struct hid_device *hdev)
 {
 	switch (hdev->product) {
@@ -903,6 +1004,9 @@ static void lenovo_remove(struct hid_device *hdev)
 	case USB_DEVICE_ID_LENOVO_CUSBKBD:
 	case USB_DEVICE_ID_LENOVO_CBTKBD:
 		lenovo_remove_cptkbd(hdev);
+		break;
+	case USB_DEVICE_ID_LENOVO_TP10UBKBD:
+		lenovo_remove_tp10ubkbd(hdev);
 		break;
 	}
 
@@ -940,6 +1044,7 @@ static const struct hid_device_id lenovo_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_IBM, USB_DEVICE_ID_IBM_SCROLLPOINT_800DPI_OPTICAL) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_IBM, USB_DEVICE_ID_IBM_SCROLLPOINT_800DPI_OPTICAL_PRO) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LENOVO, USB_DEVICE_ID_LENOVO_SCROLLPOINT_OPTICAL) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LENOVO, USB_DEVICE_ID_LENOVO_TP10UBKBD) },
 	{ }
 };
 
