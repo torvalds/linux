@@ -245,6 +245,13 @@ static int lenovo_input_mapping_tp10_ultrabook_kbd(struct hid_device *hdev,
 		}
 	}
 
+	/*
+	 * The Ultrabook Keyboard sends a spurious F23 key-press when resuming
+	 * from suspend and it does not actually have a F23 key, ignore it.
+	 */
+	if (usage->hid == 0x00070072)
+		return -1;
+
 	return 0;
 }
 
