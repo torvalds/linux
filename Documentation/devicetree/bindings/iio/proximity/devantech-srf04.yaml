@@ -17,9 +17,9 @@ description: |
     until it is received once again
 
   Specifications about the devices can be found at:
-  http://www.robot-electronics.co.uk/htm/srf04tech.htm
+  https://www.robot-electronics.co.uk/htm/srf04tech.htm
 
-  http://www.maxbotix.com/documents/LV-MaxSonar-EZ_Datasheet.pdf
+  https://www.maxbotix.com/documents/LV-MaxSonar-EZ_Datasheet.pdf
 
 properties:
   compatible:
