@@ -276,6 +276,13 @@ static const struct pci_device_id bnx2x_pci_tbl[] = {
 
 MODULE_DEVICE_TABLE(pci, bnx2x_pci_tbl);
 
+const u32 dmae_reg_go_c[] = {
+	DMAE_REG_GO_C0, DMAE_REG_GO_C1, DMAE_REG_GO_C2, DMAE_REG_GO_C3,
+	DMAE_REG_GO_C4, DMAE_REG_GO_C5, DMAE_REG_GO_C6, DMAE_REG_GO_C7,
+	DMAE_REG_GO_C8, DMAE_REG_GO_C9, DMAE_REG_GO_C10, DMAE_REG_GO_C11,
+	DMAE_REG_GO_C12, DMAE_REG_GO_C13, DMAE_REG_GO_C14, DMAE_REG_GO_C15
+};
+
 /* Global resources for unloading a previously loaded device */
 #define BNX2X_PREV_WAIT_NEEDED 1
 static DEFINE_SEMAPHORE(bnx2x_prev_sem);
