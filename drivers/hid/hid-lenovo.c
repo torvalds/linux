@@ -638,7 +638,18 @@ static const struct attribute_group lenovo_attr_group_tpkbd = {
 	.attrs = lenovo_attributes_tpkbd,
 };
 
-static enum led_brightness lenovo_led_brightness_get_tpkbd(
+static void lenovo_led_set_tpkbd(struct hid_device *hdev)
+{
+	struct lenovo_drvdata *data_pointer = hid_get_drvdata(hdev);
+	struct hid_report *report;
+
+	report = hdev->report_enum[HID_OUTPUT_REPORT].report_id_hash[3];
+	report->field[0]->value[0] = (data_pointer->led_state >> 0) & 1;
+	report->field[0]->value[1] = (data_pointer->led_state >> 1) & 1;
+	hid_hw_request(hdev, report, HID_REQ_SET_REPORT);
+}
+
+static enum led_brightness lenovo_led_brightness_get(
 			struct led_classdev *led_cdev)
 {
 	struct device *dev = led_cdev->dev->parent;
@@ -654,13 +665,12 @@ static enum led_brightness lenovo_led_brightness_get_tpkbd(
 				: LED_OFF;
 }
 
-static void lenovo_led_brightness_set_tpkbd(struct led_classdev *led_cdev,
+static void lenovo_led_brightness_set(struct led_classdev *led_cdev,
 			enum led_brightness value)
 {
 	struct device *dev = led_cdev->dev->parent;
 	struct hid_device *hdev = to_hid_device(dev);
 	struct lenovo_drvdata *data_pointer = hid_get_drvdata(hdev);
-	struct hid_report *report;
 	int led_nr = 0;
 
 	if (led_cdev == &data_pointer->led_micmute)
@@ -671,20 +681,54 @@ static void lenovo_led_brightness_set_tpkbd(struct led_classdev *led_cdev,
 	else
 		data_pointer->led_state |= 1 << led_nr;
 
-	report = hdev->report_enum[HID_OUTPUT_REPORT].report_id_hash[3];
-	report->field[0]->value[0] = (data_pointer->led_state >> 0) & 1;
-	report->field[0]->value[1] = (data_pointer->led_state >> 1) & 1;
-	hid_hw_request(hdev, report, HID_REQ_SET_REPORT);
+	switch (hdev->product) {
+	case USB_DEVICE_ID_LENOVO_TPKBD:
+		lenovo_led_set_tpkbd(hdev);
+		break;
+	}
+}
+
+static int lenovo_register_leds(struct hid_device *hdev)
+{
+	struct lenovo_drvdata *data = hid_get_drvdata(hdev);
+	size_t name_sz = strlen(dev_name(&hdev->dev)) + 16;
+	char *name_mute, *name_micm;
+	int ret;
+
+	name_mute = devm_kzalloc(&hdev->dev, name_sz, GFP_KERNEL);
+	name_micm = devm_kzalloc(&hdev->dev, name_sz, GFP_KERNEL);
+	if (name_mute == NULL || name_micm == NULL) {
+		hid_err(hdev, "Could not allocate memory for led data\n");
+		return -ENOMEM;
+	}
+	snprintf(name_mute, name_sz, "%s:amber:mute", dev_name(&hdev->dev));
+	snprintf(name_micm, name_sz, "%s:amber:micmute", dev_name(&hdev->dev));
+
+	data->led_mute.name = name_mute;
+	data->led_mute.brightness_get = lenovo_led_brightness_get;
+	data->led_mute.brightness_set = lenovo_led_brightness_set;
+	data->led_mute.dev = &hdev->dev;
+	ret = led_classdev_register(&hdev->dev, &data->led_mute);
+	if (ret < 0)
+		return ret;
+
+	data->led_micmute.name = name_micm;
+	data->led_micmute.brightness_get = lenovo_led_brightness_get;
+	data->led_micmute.brightness_set = lenovo_led_brightness_set;
+	data->led_micmute.dev = &hdev->dev;
+	ret = led_classdev_register(&hdev->dev, &data->led_micmute);
+	if (ret < 0) {
+		led_classdev_unregister(&data->led_mute);
+		return ret;
+	}
+
+	return 0;
 }
 
 static int lenovo_probe_tpkbd(struct hid_device *hdev)
 {
-	struct device *dev = &hdev->dev;
 	struct lenovo_drvdata *data_pointer;
-	size_t name_sz = strlen(dev_name(dev)) + 16;
-	char *name_mute, *name_micmute;
-	int i;
-	int ret;
+	int i, ret;
 
 	/*
 	 * Only register extra settings against subdevice where input_mapping
@@ -720,37 +764,11 @@ static int lenovo_probe_tpkbd(struct hid_device *hdev)
 	data_pointer->sensitivity = 0xa0;
 	data_pointer->press_speed = 0x38;
 
-	name_mute = devm_kzalloc(&hdev->dev, name_sz, GFP_KERNEL);
-	name_micmute = devm_kzalloc(&hdev->dev, name_sz, GFP_KERNEL);
-	if (name_mute == NULL || name_micmute == NULL) {
-		hid_err(hdev, "Could not allocate memory for led data\n");
-		ret = -ENOMEM;
-		goto err;
-	}
-	snprintf(name_mute, name_sz, "%s:amber:mute", dev_name(dev));
-	snprintf(name_micmute, name_sz, "%s:amber:micmute", dev_name(dev));
-
 	hid_set_drvdata(hdev, data_pointer);
 
-	data_pointer->led_mute.name = name_mute;
-	data_pointer->led_mute.brightness_get = lenovo_led_brightness_get_tpkbd;
-	data_pointer->led_mute.brightness_set = lenovo_led_brightness_set_tpkbd;
-	data_pointer->led_mute.dev = dev;
-	ret = led_classdev_register(dev, &data_pointer->led_mute);
-	if (ret < 0)
+	ret = lenovo_register_leds(hdev);
+	if (ret)
 		goto err;
-
-	data_pointer->led_micmute.name = name_micmute;
-	data_pointer->led_micmute.brightness_get =
-		lenovo_led_brightness_get_tpkbd;
-	data_pointer->led_micmute.brightness_set =
-		lenovo_led_brightness_set_tpkbd;
-	data_pointer->led_micmute.dev = dev;
-	ret = led_classdev_register(dev, &data_pointer->led_micmute);
-	if (ret < 0) {
-		led_classdev_unregister(&data_pointer->led_mute);
-		goto err;
-	}
 
 	lenovo_features_set_tpkbd(hdev);
 
