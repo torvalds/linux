@@ -67,15 +67,13 @@ MODULE_FIRMWARE("rtlwifi/rtl8712u.bin");
 
 static u32 rtl871x_open_fw(struct _adapter *adapter, const u8 **mappedfw)
 {
-	const struct firmware **raw = &adapter->fw;
-
 	if (adapter->fw->size > 200000) {
 		dev_err(&adapter->pnetdev->dev, "r8172u: Badfw->size of %d\n",
 			(int)adapter->fw->size);
 		return 0;
 	}
-	*mappedfw = (*raw)->data;
-	return (*raw)->size;
+	*mappedfw = adapter->fw->data;
+	return adapter->fw->size;
 }
 
 static void fill_fwpriv(struct _adapter *adapter, struct fw_priv *fwpriv)
