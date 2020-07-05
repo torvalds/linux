@@ -68,8 +68,8 @@ MODULE_FIRMWARE("rtlwifi/rtl8712u.bin");
 static u32 rtl871x_open_fw(struct _adapter *adapter, const u8 **mappedfw)
 {
 	if (adapter->fw->size > 200000) {
-		dev_err(&adapter->pnetdev->dev, "r8172u: Badfw->size of %d\n",
-			(int)adapter->fw->size);
+		dev_err(&adapter->pnetdev->dev, "r8712u: Bad fw->size of %zu\n",
+			adapter->fw->size);
 		return 0;
 	}
 	*mappedfw = adapter->fw->data;
