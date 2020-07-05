@@ -272,7 +272,7 @@ int rtl8366_init_vlan(struct realtek_smi *smi)
 			/* For the CPU port, make all ports members of this
 			 * VLAN.
 			 */
-			mask = GENMASK(smi->num_ports - 1, 0);
+			mask = GENMASK((int)smi->num_ports - 1, 0);
 		else
 			/* For all other ports, enable itself plus the
 			 * CPU port.
