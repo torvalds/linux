@@ -99,12 +99,12 @@ static void fill_fwpriv(struct _adapter *adapter, struct fw_priv *fwpriv)
 	default:
 		fwpriv->rf_config = RTL8712_RFC_1T2R;
 	}
-	fwpriv->mp_mode = (regpriv->mp_mode == 1) ? 1 : 0;
+	fwpriv->mp_mode = (regpriv->mp_mode == 1);
 	/* 0:off 1:on 2:auto */
 	fwpriv->vcs_type = regpriv->vrtl_carrier_sense;
 	fwpriv->vcs_mode = regpriv->vcs_type; /* 1:RTS/CTS 2:CTS to self */
 	/* default enable turbo_mode */
-	fwpriv->turbo_mode = ((regpriv->wifi_test == 1) ? 0 : 1);
+	fwpriv->turbo_mode = (regpriv->wifi_test != 1);
 	fwpriv->low_power_mode = regpriv->low_power;
 }
 
