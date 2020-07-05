@@ -27,7 +27,7 @@
 #include "usb_osintf.h"
 
 #define FWBUFF_ALIGN_SZ 512
-#define MAX_DUMP_FWSZ	49152 /*default = 49152 (48k)*/
+#define MAX_DUMP_FWSZ (48 * 1024)
 
 static void rtl871x_load_fw_cb(const struct firmware *firmware, void *context)
 {
