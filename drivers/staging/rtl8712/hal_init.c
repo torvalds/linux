@@ -343,7 +343,7 @@ uint rtl8712_hal_init(struct _adapter *padapter)
 	/* Fix the RX FIFO issue(USB error) */
 	r8712_write8(padapter, 0x1025fe5C, r8712_read8(padapter, 0x1025fe5C)
 		     | BIT(7));
-	for (i = 0; i < 6; i++)
+	for (i = 0; i < ETH_ALEN; i++)
 		padapter->eeprompriv.mac_addr[i] = r8712_read8(padapter,
 							       MACID + i);
 	return _SUCCESS;
