@@ -2578,27 +2578,16 @@ static void gaudi_disable_timestamp(struct hl_device *hdev)
 
 static void gaudi_halt_engines(struct hl_device *hdev, bool hard_reset)
 {
-	u32 wait_timeout_ms, cpu_timeout_ms;
+	u32 wait_timeout_ms;
 
 	dev_info(hdev->dev,
 		"Halting compute engines and disabling interrupts\n");
 
-	if (hdev->pldm) {
+	if (hdev->pldm)
 		wait_timeout_ms = GAUDI_PLDM_RESET_WAIT_MSEC;
-		cpu_timeout_ms = GAUDI_PLDM_RESET_WAIT_MSEC;
-	} else {
+	else
 		wait_timeout_ms = GAUDI_RESET_WAIT_MSEC;
-		cpu_timeout_ms = GAUDI_CPU_RESET_WAIT_MSEC;
-	}
 
-	/*
-	 * I don't know what is the state of the CPU so make sure it is
-	 * stopped in any means necessary
-	 */
-	WREG32(mmPSOC_GLOBAL_CONF_KMD_MSG_TO_CPU, KMD_MSG_GOTO_WFE);
-	WREG32(mmGIC_DISTRIBUTOR__5_GICD_SETSPI_NSR,
-			GAUDI_EVENT_HALT_MACHINE);
-	msleep(cpu_timeout_ms);
 
 	gaudi_stop_mme_qmans(hdev);
 	gaudi_stop_tpc_qmans(hdev);
@@ -2966,17 +2955,34 @@ disable_queues:
 static void gaudi_hw_fini(struct hl_device *hdev, bool hard_reset)
 {
 	struct gaudi_device *gaudi = hdev->asic_specific;
-	u32 status, reset_timeout_ms, boot_strap = 0;
+	u32 status, reset_timeout_ms, cpu_timeout_ms, boot_strap = 0;
 
 	if (!hard_reset) {
 		dev_err(hdev->dev, "GAUDI doesn't support soft-reset\n");
 		return;
 	}
 
-	if (hdev->pldm)
+	if (hdev->pldm) {
 		reset_timeout_ms = GAUDI_PLDM_HRESET_TIMEOUT_MSEC;
-	else
+		cpu_timeout_ms = GAUDI_PLDM_RESET_WAIT_MSEC;
+	} else {
 		reset_timeout_ms = GAUDI_RESET_TIMEOUT_MSEC;
+		cpu_timeout_ms = GAUDI_CPU_RESET_WAIT_MSEC;
+	}
+
+	/* Set device to handle FLR by H/W as we will put the device CPU to
+	 * halt mode
+	 */
+	WREG32(mmPCIE_AUX_FLR_CTRL, (PCIE_AUX_FLR_CTRL_HW_CTRL_MASK |
+					PCIE_AUX_FLR_CTRL_INT_MASK_MASK));
+
+	/* I don't know what is the state of the CPU so make sure it is
+	 * stopped in any means necessary
+	 */
+	WREG32(mmPSOC_GLOBAL_CONF_KMD_MSG_TO_CPU, KMD_MSG_GOTO_WFE);
+	WREG32(mmGIC_DISTRIBUTOR__5_GICD_SETSPI_NSR, GAUDI_EVENT_HALT_MACHINE);
+
+	msleep(cpu_timeout_ms);
 
 	/* Tell ASIC not to re-initialize PCIe */
 	WREG32(mmPREBOOT_PCIE_EN, LKD_HARD_RESET_MAGIC);

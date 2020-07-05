@@ -292,6 +292,7 @@
 
 #define mmPCIE_DBI_DEVICE_ID_VENDOR_ID_REG                           0xC02000
 
+#define mmPCIE_AUX_FLR_CTRL                                          0xC07394
 #define mmPCIE_AUX_DBI                                               0xC07490
 
 #endif /* ASIC_REG_GAUDI_REGS_H_ */

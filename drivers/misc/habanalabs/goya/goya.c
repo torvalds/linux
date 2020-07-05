@@ -2240,29 +2240,15 @@ static void goya_disable_timestamp(struct hl_device *hdev)
 
 static void goya_halt_engines(struct hl_device *hdev, bool hard_reset)
 {
-	u32 wait_timeout_ms, cpu_timeout_ms;
+	u32 wait_timeout_ms;
 
 	dev_info(hdev->dev,
 		"Halting compute engines and disabling interrupts\n");
 
-	if (hdev->pldm) {
+	if (hdev->pldm)
 		wait_timeout_ms = GOYA_PLDM_RESET_WAIT_MSEC;
-		cpu_timeout_ms = GOYA_PLDM_RESET_WAIT_MSEC;
-	} else {
+	else
 		wait_timeout_ms = GOYA_RESET_WAIT_MSEC;
-		cpu_timeout_ms = GOYA_CPU_RESET_WAIT_MSEC;
-	}
-
-	if (hard_reset) {
-		/*
-		 * I don't know what is the state of the CPU so make sure it is
-		 * stopped in any means necessary
-		 */
-		WREG32(mmPSOC_GLOBAL_CONF_UBOOT_MAGIC, KMD_MSG_GOTO_WFE);
-		WREG32(mmGIC_DISTRIBUTOR__5_GICD_SETSPI_NSR,
-			GOYA_ASYNC_EVENT_ID_HALT_MACHINE);
-		msleep(cpu_timeout_ms);
-	}
 
 	goya_stop_external_queues(hdev);
 	goya_stop_internal_queues(hdev);
@@ -2567,14 +2553,26 @@ disable_queues:
 static void goya_hw_fini(struct hl_device *hdev, bool hard_reset)
 {
 	struct goya_device *goya = hdev->asic_specific;
-	u32 reset_timeout_ms, status;
+	u32 reset_timeout_ms, cpu_timeout_ms, status;
 
-	if (hdev->pldm)
+	if (hdev->pldm) {
 		reset_timeout_ms = GOYA_PLDM_RESET_TIMEOUT_MSEC;
-	else
+		cpu_timeout_ms = GOYA_PLDM_RESET_WAIT_MSEC;
+	} else {
 		reset_timeout_ms = GOYA_RESET_TIMEOUT_MSEC;
+		cpu_timeout_ms = GOYA_CPU_RESET_WAIT_MSEC;
+	}
 
 	if (hard_reset) {
+		/* I don't know what is the state of the CPU so make sure it is
+		 * stopped in any means necessary
+		 */
+		WREG32(mmPSOC_GLOBAL_CONF_UBOOT_MAGIC, KMD_MSG_GOTO_WFE);
+		WREG32(mmGIC_DISTRIBUTOR__5_GICD_SETSPI_NSR,
+			GOYA_ASYNC_EVENT_ID_HALT_MACHINE);
+
+		msleep(cpu_timeout_ms);
+
 		goya_set_ddr_bar_base(hdev, DRAM_PHYS_BASE);
 		goya_disable_clk_rlx(hdev);
 		goya_set_pll_refclk(hdev);
