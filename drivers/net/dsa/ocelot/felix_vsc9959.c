@@ -815,7 +815,7 @@ static void vsc9959_pcs_init_sgmii(struct phy_device *pcs,
 		phy_write(pcs, ENETC_PCS_LINK_TIMER2,
 			  ENETC_PCS_LINK_TIMER2_VAL);
 
-		phy_write(pcs, MII_BMCR, BMCR_ANRESTART | BMCR_ANENABLE);
+		phy_set_bits(pcs, MII_BMCR, BMCR_ANENABLE);
 	} else {
 		int speed;
 
@@ -845,10 +845,7 @@ static void vsc9959_pcs_init_sgmii(struct phy_device *pcs,
 			  ENETC_PCS_IF_MODE_SGMII_EN |
 			  ENETC_PCS_IF_MODE_SGMII_SPEED(speed));
 
-		/* Yes, not a mistake: speed is given by IF_MODE. */
-		phy_write(pcs, MII_BMCR, BMCR_RESET |
-					 BMCR_SPEED1000 |
-					 BMCR_FULLDPLX);
+		phy_clear_bits(pcs, MII_BMCR, BMCR_ANENABLE);
 	}
 }
 
@@ -882,9 +879,7 @@ static void vsc9959_pcs_init_2500basex(struct phy_device *pcs,
 		  ENETC_PCS_IF_MODE_SGMII_EN |
 		  ENETC_PCS_IF_MODE_SGMII_SPEED(ENETC_PCS_SPEED_2500));
 
-	phy_write(pcs, MII_BMCR, BMCR_SPEED1000 |
-				 BMCR_FULLDPLX |
-				 BMCR_RESET);
+	phy_clear_bits(pcs, MII_BMCR, BMCR_ANENABLE);
 }
 
 static void vsc9959_pcs_init_usxgmii(struct phy_device *pcs,
