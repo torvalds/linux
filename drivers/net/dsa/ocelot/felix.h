@@ -28,10 +28,13 @@ struct felix_info {
 	int				imdio_pci_bar;
 	int	(*mdio_bus_alloc)(struct ocelot *ocelot);
 	void	(*mdio_bus_free)(struct ocelot *ocelot);
-	void	(*pcs_init)(struct ocelot *ocelot, int port,
-			    unsigned int link_an_mode,
-			    const struct phylink_link_state *state);
-	void	(*pcs_an_restart)(struct ocelot *ocelot, int port);
+	void	(*pcs_config)(struct ocelot *ocelot, int port,
+			      unsigned int link_an_mode,
+			      const struct phylink_link_state *state);
+	void	(*pcs_link_up)(struct ocelot *ocelot, int port,
+			       unsigned int link_an_mode,
+			       phy_interface_t interface,
+			       int speed, int duplex);
 	void	(*pcs_link_state)(struct ocelot *ocelot, int port,
 				  struct phylink_link_state *state);
 	int	(*prevalidate_phy_mode)(struct ocelot *ocelot, int port,

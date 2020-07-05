@@ -194,13 +194,15 @@ static void felix_phylink_validate(struct dsa_switch *ds, int port,
 		return;
 	}
 
-	/* No half-duplex. */
 	phylink_set_port_modes(mask);
 	phylink_set(mask, Autoneg);
 	phylink_set(mask, Pause);
 	phylink_set(mask, Asym_Pause);
+	phylink_set(mask, 10baseT_Half);
 	phylink_set(mask, 10baseT_Full);
+	phylink_set(mask, 100baseT_Half);
 	phylink_set(mask, 100baseT_Full);
+	phylink_set(mask, 1000baseT_Half);
 	phylink_set(mask, 1000baseT_Full);
 
 	if (state->interface == PHY_INTERFACE_MODE_INTERNAL ||
@@ -233,50 +235,10 @@ static void felix_phylink_mac_config(struct dsa_switch *ds, int port,
 				     const struct phylink_link_state *state)
 {
 	struct ocelot *ocelot = ds->priv;
-	struct ocelot_port *ocelot_port = ocelot->ports[port];
-	struct felix *felix = ocelot_to_felix(ocelot);
-	u32 mac_fc_cfg;
-
-	/* Take port out of reset by clearing the MAC_TX_RST, MAC_RX_RST and
-	 * PORT_RST bits in CLOCK_CFG
-	 */
-	ocelot_port_writel(ocelot_port, DEV_CLOCK_CFG_LINK_SPEED(state->speed),
-			   DEV_CLOCK_CFG);
-
-	/* Flow control. Link speed is only used here to evaluate the time
-	 * specification in incoming pause frames.
-	 */
-	mac_fc_cfg = SYS_MAC_FC_CFG_FC_LINK_SPEED(state->speed);
-
-	/* handle Rx pause in all cases, with 2500base-X this is used for rate
-	 * adaptation.
-	 */
-	mac_fc_cfg |= SYS_MAC_FC_CFG_RX_FC_ENA;
-
-	if (state->pause & MLO_PAUSE_TX)
-		mac_fc_cfg |= SYS_MAC_FC_CFG_TX_FC_ENA |
-			      SYS_MAC_FC_CFG_PAUSE_VAL_CFG(0xffff) |
-			      SYS_MAC_FC_CFG_FC_LATENCY_CFG(0x7) |
-			      SYS_MAC_FC_CFG_ZERO_PAUSE_ENA;
-	ocelot_write_rix(ocelot, mac_fc_cfg, SYS_MAC_FC_CFG, port);
-
-	ocelot_write_rix(ocelot, 0, ANA_POL_FLOWC, port);
-
-	if (felix->info->pcs_init)
-		felix->info->pcs_init(ocelot, port, link_an_mode, state);
-
-	if (felix->info->port_sched_speed_set)
-		felix->info->port_sched_speed_set(ocelot, port,
-						  state->speed);
-}
-
-static void felix_phylink_mac_an_restart(struct dsa_switch *ds, int port)
-{
-	struct ocelot *ocelot = ds->priv;
 	struct felix *felix = ocelot_to_felix(ocelot);
 
-	if (felix->info->pcs_an_restart)
-		felix->info->pcs_an_restart(ocelot, port);
+	if (felix->info->pcs_config)
+		felix->info->pcs_config(ocelot, port, link_an_mode, state);
 }
 
 static void felix_phylink_mac_link_down(struct dsa_switch *ds, int port,
@@ -300,8 +262,58 @@ static void felix_phylink_mac_link_up(struct dsa_switch *ds, int port,
 {
 	struct ocelot *ocelot = ds->priv;
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
+	struct felix *felix = ocelot_to_felix(ocelot);
+	u32 mac_fc_cfg;
 
-	/* Enable MAC module */
+	/* Take port out of reset by clearing the MAC_TX_RST, MAC_RX_RST and
+	 * PORT_RST bits in DEV_CLOCK_CFG. Note that the way this system is
+	 * integrated is that the MAC speed is fixed and it's the PCS who is
+	 * performing the rate adaptation, so we have to write "1000Mbps" into
+	 * the LINK_SPEED field of DEV_CLOCK_CFG (which is also its default
+	 * value).
+	 */
+	ocelot_port_writel(ocelot_port,
+			   DEV_CLOCK_CFG_LINK_SPEED(OCELOT_SPEED_1000),
+			   DEV_CLOCK_CFG);
+
+	switch (speed) {
+	case SPEED_10:
+		mac_fc_cfg = SYS_MAC_FC_CFG_FC_LINK_SPEED(3);
+		break;
+	case SPEED_100:
+		mac_fc_cfg = SYS_MAC_FC_CFG_FC_LINK_SPEED(2);
+		break;
+	case SPEED_1000:
+	case SPEED_2500:
+		mac_fc_cfg = SYS_MAC_FC_CFG_FC_LINK_SPEED(1);
+		break;
+	default:
+		dev_err(ocelot->dev, "Unsupported speed on port %d: %d\n",
+			port, speed);
+		return;
+	}
+
+	/* handle Rx pause in all cases, with 2500base-X this is used for rate
+	 * adaptation.
+	 */
+	mac_fc_cfg |= SYS_MAC_FC_CFG_RX_FC_ENA;
+
+	if (tx_pause)
+		mac_fc_cfg |= SYS_MAC_FC_CFG_TX_FC_ENA |
+			      SYS_MAC_FC_CFG_PAUSE_VAL_CFG(0xffff) |
+			      SYS_MAC_FC_CFG_FC_LATENCY_CFG(0x7) |
+			      SYS_MAC_FC_CFG_ZERO_PAUSE_ENA;
+
+	/* Flow control. Link speed is only used here to evaluate the time
+	 * specification in incoming pause frames.
+	 */
+	ocelot_write_rix(ocelot, mac_fc_cfg, SYS_MAC_FC_CFG, port);
+
+	ocelot_write_rix(ocelot, 0, ANA_POL_FLOWC, port);
+
+	/* Undo the effects of felix_phylink_mac_link_down:
+	 * enable MAC module
+	 */
 	ocelot_port_writel(ocelot_port, DEV_MAC_ENA_CFG_RX_ENA |
 			   DEV_MAC_ENA_CFG_TX_ENA, DEV_MAC_ENA_CFG);
 
@@ -318,6 +330,13 @@ static void felix_phylink_mac_link_up(struct dsa_switch *ds, int port,
 			 QSYS_SWITCH_PORT_MODE_SCH_NEXT_CFG(1) |
 			 QSYS_SWITCH_PORT_MODE_PORT_ENA,
 			 QSYS_SWITCH_PORT_MODE, port);
+
+	if (felix->info->pcs_link_up)
+		felix->info->pcs_link_up(ocelot, port, link_an_mode, interface,
+					 speed, duplex);
+
+	if (felix->info->port_sched_speed_set)
+		felix->info->port_sched_speed_set(ocelot, port, speed);
 }
 
 static void felix_port_qos_map_init(struct ocelot *ocelot, int port)
@@ -784,7 +803,6 @@ static const struct dsa_switch_ops felix_switch_ops = {
 	.phylink_validate	= felix_phylink_validate,
 	.phylink_mac_link_state	= felix_phylink_mac_pcs_get_state,
 	.phylink_mac_config	= felix_phylink_mac_config,
-	.phylink_mac_an_restart	= felix_phylink_mac_an_restart,
 	.phylink_mac_link_down	= felix_phylink_mac_link_down,
 	.phylink_mac_link_up	= felix_phylink_mac_link_up,
 	.port_enable		= felix_port_enable,
