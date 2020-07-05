@@ -1942,6 +1942,26 @@ FIXTURE_TEARDOWN(TRACE_syscall)
 	teardown_trace_fixture(_metadata, self->tracer);
 }
 
+TEST(negative_ENOSYS)
+{
+	/*
+	 * There should be no difference between an "internal" skip
+	 * and userspace asking for syscall "-1".
+	 */
+	errno = 0;
+	EXPECT_EQ(-1, syscall(-1));
+	EXPECT_EQ(errno, ENOSYS);
+	/* And no difference for "still not valid but not -1". */
+	errno = 0;
+	EXPECT_EQ(-1, syscall(-101));
+	EXPECT_EQ(errno, ENOSYS);
+}
+
+TEST_F(TRACE_syscall, negative_ENOSYS)
+{
+	negative_ENOSYS(_metadata);
+}
+
 TEST_F(TRACE_syscall, syscall_allowed)
 {
 	/* getppid works as expected (no changes). */
