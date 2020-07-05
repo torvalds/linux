@@ -108,7 +108,7 @@ static int show_link_close_json(int fd, struct bpf_link_info *info)
 		if (err)
 			return err;
 
-		if (prog_info.type < ARRAY_SIZE(prog_type_name))
+		if (prog_info.type < prog_type_name_size)
 			jsonw_string_field(json_wtr, "prog_type",
 					   prog_type_name[prog_info.type]);
 		else
@@ -143,6 +143,9 @@ static int show_link_close_json(int fd, struct bpf_link_info *info)
 		}
 		jsonw_end_array(json_wtr);
 	}
+
+	emit_obj_refs_json(&refs_table, info->id, json_wtr);
+
 	jsonw_end_object(json_wtr);
 
 	return 0;
@@ -184,7 +187,7 @@ static int show_link_close_plain(int fd, struct bpf_link_info *info)
 		if (err)
 			return err;
 
-		if (prog_info.type < ARRAY_SIZE(prog_type_name))
+		if (prog_info.type < prog_type_name_size)
 			printf("\n\tprog_type %s  ",
 			       prog_type_name[prog_info.type]);
 		else
@@ -212,6 +215,7 @@ static int show_link_close_plain(int fd, struct bpf_link_info *info)
 				printf("\n\tpinned %s", obj->path);
 		}
 	}
+	emit_obj_refs_plain(&refs_table, info->id, "\n\tpids ");
 
 	printf("\n");
 
@@ -257,6 +261,7 @@ static int do_show(int argc, char **argv)
 
 	if (show_pinned)
 		build_pinned_obj_table(&link_table, BPF_OBJ_LINK);
+	build_obj_refs_table(&refs_table, BPF_OBJ_LINK);
 
 	if (argc == 2) {
 		fd = link_parse_fd(&argc, &argv);
@@ -295,6 +300,8 @@ static int do_show(int argc, char **argv)
 	}
 	if (json_output)
 		jsonw_end_array(json_wtr);
+
+	delete_obj_refs_table(&refs_table);
 
 	return errno == ENOENT ? 0 : -1;
 }

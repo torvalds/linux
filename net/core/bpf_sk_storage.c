@@ -11,8 +11,6 @@
 #include <uapi/linux/sock_diag.h>
 #include <uapi/linux/btf.h>
 
-static atomic_t cache_idx;
-
 #define SK_STORAGE_CREATE_FLAG_MASK					\
 	(BPF_F_NO_PREALLOC | BPF_F_CLONE)
 
@@ -80,6 +78,9 @@ struct bpf_sk_storage_elem {
 #define SELEM(_SDATA) container_of((_SDATA), struct bpf_sk_storage_elem, sdata)
 #define SDATA(_SELEM) (&(_SELEM)->sdata)
 #define BPF_SK_STORAGE_CACHE_SIZE	16
+
+static DEFINE_SPINLOCK(cache_idx_lock);
+static u64 cache_idx_usage_counts[BPF_SK_STORAGE_CACHE_SIZE];
 
 struct bpf_sk_storage {
 	struct bpf_sk_storage_data __rcu *cache[BPF_SK_STORAGE_CACHE_SIZE];
@@ -512,6 +513,37 @@ static int sk_storage_delete(struct sock *sk, struct bpf_map *map)
 	return 0;
 }
 
+static u16 cache_idx_get(void)
+{
+	u64 min_usage = U64_MAX;
+	u16 i, res = 0;
+
+	spin_lock(&cache_idx_lock);
+
+	for (i = 0; i < BPF_SK_STORAGE_CACHE_SIZE; i++) {
+		if (cache_idx_usage_counts[i] < min_usage) {
+			min_usage = cache_idx_usage_counts[i];
+			res = i;
+
+			/* Found a free cache_idx */
+			if (!min_usage)
+				break;
+		}
+	}
+	cache_idx_usage_counts[res]++;
+
+	spin_unlock(&cache_idx_lock);
+
+	return res;
+}
+
+static void cache_idx_free(u16 idx)
+{
+	spin_lock(&cache_idx_lock);
+	cache_idx_usage_counts[idx]--;
+	spin_unlock(&cache_idx_lock);
+}
+
 /* Called by __sk_destruct() & bpf_sk_storage_clone() */
 void bpf_sk_storage_free(struct sock *sk)
 {
@@ -559,6 +591,8 @@ static void bpf_sk_storage_map_free(struct bpf_map *map)
 	unsigned int i;
 
 	smap = (struct bpf_sk_storage_map *)map;
+
+	cache_idx_free(smap->cache_idx);
 
 	/* Note that this map might be concurrently cloned from
 	 * bpf_sk_storage_clone. Wait for any existing bpf_sk_storage_clone
@@ -673,8 +707,7 @@ static struct bpf_map *bpf_sk_storage_map_alloc(union bpf_attr *attr)
 	}
 
 	smap->elem_size = sizeof(struct bpf_sk_storage_elem) + attr->value_size;
-	smap->cache_idx = (unsigned int)atomic_inc_return(&cache_idx) %
-		BPF_SK_STORAGE_CACHE_SIZE;
+	smap->cache_idx = cache_idx_get();
 
 	return &smap->map;
 }
@@ -886,6 +919,7 @@ BPF_CALL_2(bpf_sk_storage_delete, struct bpf_map *, map, struct sock *, sk)
 	return -ENOENT;
 }
 
+static int sk_storage_map_btf_id;
 const struct bpf_map_ops sk_storage_map_ops = {
 	.map_alloc_check = bpf_sk_storage_map_alloc_check,
 	.map_alloc = bpf_sk_storage_map_alloc,
@@ -895,6 +929,8 @@ const struct bpf_map_ops sk_storage_map_ops = {
 	.map_update_elem = bpf_fd_sk_storage_update_elem,
 	.map_delete_elem = bpf_fd_sk_storage_delete_elem,
 	.map_check_btf = bpf_sk_storage_map_check_btf,
+	.map_btf_name = "bpf_sk_storage_map",
+	.map_btf_id = &sk_storage_map_btf_id,
 };
 
 const struct bpf_func_proto bpf_sk_storage_get_proto = {

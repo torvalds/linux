@@ -386,13 +386,6 @@ static void array_map_free(struct bpf_map *map)
 {
 	struct bpf_array *array = container_of(map, struct bpf_array, map);
 
-	/* at this point bpf_prog->aux->refcnt == 0 and this map->refcnt == 0,
-	 * so the programs (can be more than one that used this map) were
-	 * disconnected from events. Wait for outstanding programs to complete
-	 * and free the array
-	 */
-	synchronize_rcu();
-
 	if (array->map.map_type == BPF_MAP_TYPE_PERCPU_ARRAY)
 		bpf_array_free_percpu(array);
 
@@ -494,6 +487,7 @@ static int array_map_mmap(struct bpf_map *map, struct vm_area_struct *vma)
 				   vma->vm_pgoff + pgoff);
 }
 
+static int array_map_btf_id;
 const struct bpf_map_ops array_map_ops = {
 	.map_alloc_check = array_map_alloc_check,
 	.map_alloc = array_map_alloc,
@@ -510,8 +504,11 @@ const struct bpf_map_ops array_map_ops = {
 	.map_check_btf = array_map_check_btf,
 	.map_lookup_batch = generic_map_lookup_batch,
 	.map_update_batch = generic_map_update_batch,
+	.map_btf_name = "bpf_array",
+	.map_btf_id = &array_map_btf_id,
 };
 
+static int percpu_array_map_btf_id;
 const struct bpf_map_ops percpu_array_map_ops = {
 	.map_alloc_check = array_map_alloc_check,
 	.map_alloc = array_map_alloc,
@@ -522,6 +519,8 @@ const struct bpf_map_ops percpu_array_map_ops = {
 	.map_delete_elem = array_map_delete_elem,
 	.map_seq_show_elem = percpu_array_map_seq_show_elem,
 	.map_check_btf = array_map_check_btf,
+	.map_btf_name = "bpf_array",
+	.map_btf_id = &percpu_array_map_btf_id,
 };
 
 static int fd_array_map_alloc_check(union bpf_attr *attr)
@@ -539,8 +538,6 @@ static void fd_array_map_free(struct bpf_map *map)
 {
 	struct bpf_array *array = container_of(map, struct bpf_array, map);
 	int i;
-
-	synchronize_rcu();
 
 	/* make sure it's empty */
 	for (i = 0; i < array->map.max_entries; i++)
@@ -868,6 +865,7 @@ static void prog_array_map_free(struct bpf_map *map)
 	fd_array_map_free(map);
 }
 
+static int prog_array_map_btf_id;
 const struct bpf_map_ops prog_array_map_ops = {
 	.map_alloc_check = fd_array_map_alloc_check,
 	.map_alloc = prog_array_map_alloc,
@@ -883,6 +881,8 @@ const struct bpf_map_ops prog_array_map_ops = {
 	.map_fd_sys_lookup_elem = prog_fd_array_sys_lookup_elem,
 	.map_release_uref = prog_array_map_clear,
 	.map_seq_show_elem = prog_array_map_seq_show_elem,
+	.map_btf_name = "bpf_array",
+	.map_btf_id = &prog_array_map_btf_id,
 };
 
 static struct bpf_event_entry *bpf_event_entry_gen(struct file *perf_file,
@@ -961,6 +961,7 @@ static void perf_event_fd_array_release(struct bpf_map *map,
 	rcu_read_unlock();
 }
 
+static int perf_event_array_map_btf_id;
 const struct bpf_map_ops perf_event_array_map_ops = {
 	.map_alloc_check = fd_array_map_alloc_check,
 	.map_alloc = array_map_alloc,
@@ -972,6 +973,8 @@ const struct bpf_map_ops perf_event_array_map_ops = {
 	.map_fd_put_ptr = perf_event_fd_array_put_ptr,
 	.map_release = perf_event_fd_array_release,
 	.map_check_btf = map_check_no_btf,
+	.map_btf_name = "bpf_array",
+	.map_btf_id = &perf_event_array_map_btf_id,
 };
 
 #ifdef CONFIG_CGROUPS
@@ -994,6 +997,7 @@ static void cgroup_fd_array_free(struct bpf_map *map)
 	fd_array_map_free(map);
 }
 
+static int cgroup_array_map_btf_id;
 const struct bpf_map_ops cgroup_array_map_ops = {
 	.map_alloc_check = fd_array_map_alloc_check,
 	.map_alloc = array_map_alloc,
@@ -1004,6 +1008,8 @@ const struct bpf_map_ops cgroup_array_map_ops = {
 	.map_fd_get_ptr = cgroup_fd_array_get_ptr,
 	.map_fd_put_ptr = cgroup_fd_array_put_ptr,
 	.map_check_btf = map_check_no_btf,
+	.map_btf_name = "bpf_array",
+	.map_btf_id = &cgroup_array_map_btf_id,
 };
 #endif
 
@@ -1077,6 +1083,7 @@ static u32 array_of_map_gen_lookup(struct bpf_map *map,
 	return insn - insn_buf;
 }
 
+static int array_of_maps_map_btf_id;
 const struct bpf_map_ops array_of_maps_map_ops = {
 	.map_alloc_check = fd_array_map_alloc_check,
 	.map_alloc = array_of_map_alloc,
@@ -1089,4 +1096,6 @@ const struct bpf_map_ops array_of_maps_map_ops = {
 	.map_fd_sys_lookup_elem = bpf_map_fd_sys_lookup_elem,
 	.map_gen_lookup = array_of_map_gen_lookup,
 	.map_check_btf = map_check_no_btf,
+	.map_btf_name = "bpf_array",
+	.map_btf_id = &array_of_maps_map_btf_id,
 };

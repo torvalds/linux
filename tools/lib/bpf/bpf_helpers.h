@@ -75,5 +75,6 @@ enum libbpf_tristate {
 };
 
 #define __kconfig __attribute__((section(".kconfig")))
+#define __ksym __attribute__((section(".ksyms")))
 
 #endif

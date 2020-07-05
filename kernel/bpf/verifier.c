@@ -1351,6 +1351,19 @@ static void mark_reg_not_init(struct bpf_verifier_env *env,
 	__mark_reg_not_init(env, regs + regno);
 }
 
+static void mark_btf_ld_reg(struct bpf_verifier_env *env,
+			    struct bpf_reg_state *regs, u32 regno,
+			    enum bpf_reg_type reg_type, u32 btf_id)
+{
+	if (reg_type == SCALAR_VALUE) {
+		mark_reg_unknown(env, regs, regno);
+		return;
+	}
+	mark_reg_known_zero(env, regs, regno);
+	regs[regno].type = PTR_TO_BTF_ID;
+	regs[regno].btf_id = btf_id;
+}
+
 #define DEF_NOT_SUBREG	(0)
 static void init_reg_state(struct bpf_verifier_env *env,
 			   struct bpf_func_state *state)
@@ -3182,18 +3195,67 @@ static int check_ptr_to_btf_access(struct bpf_verifier_env *env,
 	if (ret < 0)
 		return ret;
 
-	if (atype == BPF_READ && value_regno >= 0) {
-		if (ret == SCALAR_VALUE) {
-			mark_reg_unknown(env, regs, value_regno);
-			return 0;
-		}
-		mark_reg_known_zero(env, regs, value_regno);
-		regs[value_regno].type = PTR_TO_BTF_ID;
-		regs[value_regno].btf_id = btf_id;
-	}
+	if (atype == BPF_READ && value_regno >= 0)
+		mark_btf_ld_reg(env, regs, value_regno, ret, btf_id);
 
 	return 0;
 }
+
+static int check_ptr_to_map_access(struct bpf_verifier_env *env,
+				   struct bpf_reg_state *regs,
+				   int regno, int off, int size,
+				   enum bpf_access_type atype,
+				   int value_regno)
+{
+	struct bpf_reg_state *reg = regs + regno;
+	struct bpf_map *map = reg->map_ptr;
+	const struct btf_type *t;
+	const char *tname;
+	u32 btf_id;
+	int ret;
+
+	if (!btf_vmlinux) {
+		verbose(env, "map_ptr access not supported without CONFIG_DEBUG_INFO_BTF\n");
+		return -ENOTSUPP;
+	}
+
+	if (!map->ops->map_btf_id || !*map->ops->map_btf_id) {
+		verbose(env, "map_ptr access not supported for map type %d\n",
+			map->map_type);
+		return -ENOTSUPP;
+	}
+
+	t = btf_type_by_id(btf_vmlinux, *map->ops->map_btf_id);
+	tname = btf_name_by_offset(btf_vmlinux, t->name_off);
+
+	if (!env->allow_ptr_to_map_access) {
+		verbose(env,
+			"%s access is allowed only to CAP_PERFMON and CAP_SYS_ADMIN\n",
+			tname);
+		return -EPERM;
+	}
+
+	if (off < 0) {
+		verbose(env, "R%d is %s invalid negative access: off=%d\n",
+			regno, tname, off);
+		return -EACCES;
+	}
+
+	if (atype != BPF_READ) {
+		verbose(env, "only read from %s is supported\n", tname);
+		return -EACCES;
+	}
+
+	ret = btf_struct_access(&env->log, t, off, size, atype, &btf_id);
+	if (ret < 0)
+		return ret;
+
+	if (value_regno >= 0)
+		mark_btf_ld_reg(env, regs, value_regno, ret, btf_id);
+
+	return 0;
+}
+
 
 /* check whether memory at (regno + off) is accessible for t = (read | write)
  * if t==write, value_regno is a register which value is stored into memory
@@ -3362,6 +3424,9 @@ static int check_mem_access(struct bpf_verifier_env *env, int insn_idx, u32 regn
 			mark_reg_unknown(env, regs, value_regno);
 	} else if (reg->type == PTR_TO_BTF_ID) {
 		err = check_ptr_to_btf_access(env, regs, regno, off, size, t,
+					      value_regno);
+	} else if (reg->type == CONST_PTR_TO_MAP) {
+		err = check_ptr_to_map_access(env, regs, regno, off, size, t,
 					      value_regno);
 	} else {
 		verbose(env, "R%d invalid mem access '%s'\n", regno,
@@ -3735,12 +3800,14 @@ static int int_ptr_type_to_size(enum bpf_arg_type type)
 	return -EINVAL;
 }
 
-static int check_func_arg(struct bpf_verifier_env *env, u32 regno,
-			  enum bpf_arg_type arg_type,
-			  struct bpf_call_arg_meta *meta)
+static int check_func_arg(struct bpf_verifier_env *env, u32 arg,
+			  struct bpf_call_arg_meta *meta,
+			  const struct bpf_func_proto *fn)
 {
+	u32 regno = BPF_REG_1 + arg;
 	struct bpf_reg_state *regs = cur_regs(env), *reg = &regs[regno];
 	enum bpf_reg_type expected_type, type = reg->type;
+	enum bpf_arg_type arg_type = fn->arg_type[arg];
 	int err = 0;
 
 	if (arg_type == ARG_DONTCARE)
@@ -3820,9 +3887,16 @@ static int check_func_arg(struct bpf_verifier_env *env, u32 regno,
 		expected_type = PTR_TO_BTF_ID;
 		if (type != expected_type)
 			goto err_type;
-		if (reg->btf_id != meta->btf_id) {
-			verbose(env, "Helper has type %s got %s in R%d\n",
-				kernel_type_name(meta->btf_id),
+		if (!fn->check_btf_id) {
+			if (reg->btf_id != meta->btf_id) {
+				verbose(env, "Helper has type %s got %s in R%d\n",
+					kernel_type_name(meta->btf_id),
+					kernel_type_name(reg->btf_id), regno);
+
+				return -EACCES;
+			}
+		} else if (!fn->check_btf_id(reg->btf_id, arg)) {
+			verbose(env, "Helper does not support %s in R%d\n",
 				kernel_type_name(reg->btf_id), regno);
 
 			return -EACCES;
@@ -4644,10 +4718,12 @@ static int check_helper_call(struct bpf_verifier_env *env, int func_id, int insn
 	meta.func_id = func_id;
 	/* check args */
 	for (i = 0; i < 5; i++) {
-		err = btf_resolve_helper_id(&env->log, fn, i);
-		if (err > 0)
-			meta.btf_id = err;
-		err = check_func_arg(env, BPF_REG_1 + i, fn->arg_type[i], &meta);
+		if (!fn->check_btf_id) {
+			err = btf_resolve_helper_id(&env->log, fn, i);
+			if (err > 0)
+				meta.btf_id = err;
+		}
+		err = check_func_arg(env, i, &meta, fn);
 		if (err)
 			return err;
 	}
@@ -4750,6 +4826,18 @@ static int check_helper_call(struct bpf_verifier_env *env, int func_id, int insn
 		regs[BPF_REG_0].type = PTR_TO_MEM_OR_NULL;
 		regs[BPF_REG_0].id = ++env->id_gen;
 		regs[BPF_REG_0].mem_size = meta.mem_size;
+	} else if (fn->ret_type == RET_PTR_TO_BTF_ID_OR_NULL) {
+		int ret_btf_id;
+
+		mark_reg_known_zero(env, regs, BPF_REG_0);
+		regs[BPF_REG_0].type = PTR_TO_BTF_ID_OR_NULL;
+		ret_btf_id = *fn->ret_btf_id;
+		if (ret_btf_id == 0) {
+			verbose(env, "invalid return type %d of func %s#%d\n",
+				fn->ret_type, func_id_name(func_id), func_id);
+			return -EINVAL;
+		}
+		regs[BPF_REG_0].btf_id = ret_btf_id;
 	} else {
 		verbose(env, "unknown return type %d of func %s#%d\n",
 			fn->ret_type, func_id_name(func_id), func_id);
@@ -4776,7 +4864,9 @@ static int check_helper_call(struct bpf_verifier_env *env, int func_id, int insn
 	if (err)
 		return err;
 
-	if (func_id == BPF_FUNC_get_stack && !env->prog->has_callchain_buf) {
+	if ((func_id == BPF_FUNC_get_stack ||
+	     func_id == BPF_FUNC_get_task_stack) &&
+	    !env->prog->has_callchain_buf) {
 		const char *err_str;
 
 #ifdef CONFIG_PERF_EVENTS
@@ -5031,6 +5121,11 @@ static int adjust_ptr_min_max_vals(struct bpf_verifier_env *env,
 
 	if (BPF_CLASS(insn->code) != BPF_ALU64) {
 		/* 32-bit ALU ops on pointers produce (meaningless) scalars */
+		if (opcode == BPF_SUB && env->allow_ptr_leaks) {
+			__mark_reg_unknown(env, dst_reg);
+			return 0;
+		}
+
 		verbose(env,
 			"R%d 32-bit pointer arithmetic prohibited\n",
 			dst);
@@ -10946,6 +11041,7 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr,
 		env->strict_alignment = false;
 
 	env->allow_ptr_leaks = bpf_allow_ptr_leaks();
+	env->allow_ptr_to_map_access = bpf_allow_ptr_to_map_access();
 	env->bypass_spec_v1 = bpf_bypass_spec_v1();
 	env->bypass_spec_v4 = bpf_bypass_spec_v4();
 	env->bpf_capable = bpf_capable();

@@ -270,3 +270,22 @@ LIBBPF_0.0.9 {
 		ring_buffer__new;
 		ring_buffer__poll;
 } LIBBPF_0.0.8;
+
+LIBBPF_0.1.0 {
+	global:
+		bpf_map__ifindex;
+		bpf_map__key_size;
+		bpf_map__map_flags;
+		bpf_map__max_entries;
+		bpf_map__numa_node;
+		bpf_map__set_key_size;
+		bpf_map__set_map_flags;
+		bpf_map__set_max_entries;
+		bpf_map__set_numa_node;
+		bpf_map__set_type;
+		bpf_map__set_value_size;
+		bpf_map__type;
+		bpf_map__value_size;
+		bpf_program__autoload;
+		bpf_program__set_autoload;
+} LIBBPF_0.0.9;

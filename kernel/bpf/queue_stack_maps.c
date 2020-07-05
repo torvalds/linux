@@ -101,13 +101,6 @@ static void queue_stack_map_free(struct bpf_map *map)
 {
 	struct bpf_queue_stack *qs = bpf_queue_stack(map);
 
-	/* at this point bpf_prog->aux->refcnt == 0 and this map->refcnt == 0,
-	 * so the programs (can be more than one that used this map) were
-	 * disconnected from events. Wait for outstanding critical sections in
-	 * these programs to complete
-	 */
-	synchronize_rcu();
-
 	bpf_map_area_free(qs);
 }
 
@@ -262,6 +255,7 @@ static int queue_stack_map_get_next_key(struct bpf_map *map, void *key,
 	return -EINVAL;
 }
 
+static int queue_map_btf_id;
 const struct bpf_map_ops queue_map_ops = {
 	.map_alloc_check = queue_stack_map_alloc_check,
 	.map_alloc = queue_stack_map_alloc,
@@ -273,8 +267,11 @@ const struct bpf_map_ops queue_map_ops = {
 	.map_pop_elem = queue_map_pop_elem,
 	.map_peek_elem = queue_map_peek_elem,
 	.map_get_next_key = queue_stack_map_get_next_key,
+	.map_btf_name = "bpf_queue_stack",
+	.map_btf_id = &queue_map_btf_id,
 };
 
+static int stack_map_btf_id;
 const struct bpf_map_ops stack_map_ops = {
 	.map_alloc_check = queue_stack_map_alloc_check,
 	.map_alloc = queue_stack_map_alloc,
@@ -286,4 +283,6 @@ const struct bpf_map_ops stack_map_ops = {
 	.map_pop_elem = stack_map_pop_elem,
 	.map_peek_elem = stack_map_peek_elem,
 	.map_get_next_key = queue_stack_map_get_next_key,
+	.map_btf_name = "bpf_queue_stack",
+	.map_btf_id = &stack_map_btf_id,
 };

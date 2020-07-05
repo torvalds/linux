@@ -2826,9 +2826,14 @@ EXPORT_SYMBOL(udp_prot);
 static struct sock *udp_get_first(struct seq_file *seq, int start)
 {
 	struct sock *sk;
-	struct udp_seq_afinfo *afinfo = PDE_DATA(file_inode(seq->file));
+	struct udp_seq_afinfo *afinfo;
 	struct udp_iter_state *state = seq->private;
 	struct net *net = seq_file_net(seq);
+
+	if (state->bpf_seq_afinfo)
+		afinfo = state->bpf_seq_afinfo;
+	else
+		afinfo = PDE_DATA(file_inode(seq->file));
 
 	for (state->bucket = start; state->bucket <= afinfo->udp_table->mask;
 	     ++state->bucket) {
@@ -2841,7 +2846,8 @@ static struct sock *udp_get_first(struct seq_file *seq, int start)
 		sk_for_each(sk, &hslot->head) {
 			if (!net_eq(sock_net(sk), net))
 				continue;
-			if (sk->sk_family == afinfo->family)
+			if (afinfo->family == AF_UNSPEC ||
+			    sk->sk_family == afinfo->family)
 				goto found;
 		}
 		spin_unlock_bh(&hslot->lock);
@@ -2853,13 +2859,20 @@ found:
 
 static struct sock *udp_get_next(struct seq_file *seq, struct sock *sk)
 {
-	struct udp_seq_afinfo *afinfo = PDE_DATA(file_inode(seq->file));
+	struct udp_seq_afinfo *afinfo;
 	struct udp_iter_state *state = seq->private;
 	struct net *net = seq_file_net(seq);
 
+	if (state->bpf_seq_afinfo)
+		afinfo = state->bpf_seq_afinfo;
+	else
+		afinfo = PDE_DATA(file_inode(seq->file));
+
 	do {
 		sk = sk_next(sk);
-	} while (sk && (!net_eq(sock_net(sk), net) || sk->sk_family != afinfo->family));
+	} while (sk && (!net_eq(sock_net(sk), net) ||
+			(afinfo->family != AF_UNSPEC &&
+			 sk->sk_family != afinfo->family)));
 
 	if (!sk) {
 		if (state->bucket <= afinfo->udp_table->mask)
@@ -2904,8 +2917,13 @@ EXPORT_SYMBOL(udp_seq_next);
 
 void udp_seq_stop(struct seq_file *seq, void *v)
 {
-	struct udp_seq_afinfo *afinfo = PDE_DATA(file_inode(seq->file));
+	struct udp_seq_afinfo *afinfo;
 	struct udp_iter_state *state = seq->private;
+
+	if (state->bpf_seq_afinfo)
+		afinfo = state->bpf_seq_afinfo;
+	else
+		afinfo = PDE_DATA(file_inode(seq->file));
 
 	if (state->bucket <= afinfo->udp_table->mask)
 		spin_unlock_bh(&afinfo->udp_table->hash[state->bucket].lock);
@@ -2949,6 +2967,67 @@ int udp4_seq_show(struct seq_file *seq, void *v)
 	seq_pad(seq, '\n');
 	return 0;
 }
+
+#ifdef CONFIG_BPF_SYSCALL
+struct bpf_iter__udp {
+	__bpf_md_ptr(struct bpf_iter_meta *, meta);
+	__bpf_md_ptr(struct udp_sock *, udp_sk);
+	uid_t uid __aligned(8);
+	int bucket __aligned(8);
+};
+
+static int udp_prog_seq_show(struct bpf_prog *prog, struct bpf_iter_meta *meta,
+			     struct udp_sock *udp_sk, uid_t uid, int bucket)
+{
+	struct bpf_iter__udp ctx;
+
+	meta->seq_num--;  /* skip SEQ_START_TOKEN */
+	ctx.meta = meta;
+	ctx.udp_sk = udp_sk;
+	ctx.uid = uid;
+	ctx.bucket = bucket;
+	return bpf_iter_run_prog(prog, &ctx);
+}
+
+static int bpf_iter_udp_seq_show(struct seq_file *seq, void *v)
+{
+	struct udp_iter_state *state = seq->private;
+	struct bpf_iter_meta meta;
+	struct bpf_prog *prog;
+	struct sock *sk = v;
+	uid_t uid;
+
+	if (v == SEQ_START_TOKEN)
+		return 0;
+
+	uid = from_kuid_munged(seq_user_ns(seq), sock_i_uid(sk));
+	meta.seq = seq;
+	prog = bpf_iter_get_info(&meta, false);
+	return udp_prog_seq_show(prog, &meta, v, uid, state->bucket);
+}
+
+static void bpf_iter_udp_seq_stop(struct seq_file *seq, void *v)
+{
+	struct bpf_iter_meta meta;
+	struct bpf_prog *prog;
+
+	if (!v) {
+		meta.seq = seq;
+		prog = bpf_iter_get_info(&meta, true);
+		if (prog)
+			(void)udp_prog_seq_show(prog, &meta, v, 0, 0);
+	}
+
+	udp_seq_stop(seq, v);
+}
+
+static const struct seq_operations bpf_iter_udp_seq_ops = {
+	.start		= udp_seq_start,
+	.next		= udp_seq_next,
+	.stop		= bpf_iter_udp_seq_stop,
+	.show		= bpf_iter_udp_seq_show,
+};
+#endif
 
 const struct seq_operations udp_seq_ops = {
 	.start		= udp_seq_start,
@@ -3067,6 +3146,57 @@ static struct pernet_operations __net_initdata udp_sysctl_ops = {
 	.init	= udp_sysctl_init,
 };
 
+#if defined(CONFIG_BPF_SYSCALL) && defined(CONFIG_PROC_FS)
+DEFINE_BPF_ITER_FUNC(udp, struct bpf_iter_meta *meta,
+		     struct udp_sock *udp_sk, uid_t uid, int bucket)
+
+static int bpf_iter_init_udp(void *priv_data)
+{
+	struct udp_iter_state *st = priv_data;
+	struct udp_seq_afinfo *afinfo;
+	int ret;
+
+	afinfo = kmalloc(sizeof(*afinfo), GFP_USER | __GFP_NOWARN);
+	if (!afinfo)
+		return -ENOMEM;
+
+	afinfo->family = AF_UNSPEC;
+	afinfo->udp_table = &udp_table;
+	st->bpf_seq_afinfo = afinfo;
+	ret = bpf_iter_init_seq_net(priv_data);
+	if (ret)
+		kfree(afinfo);
+	return ret;
+}
+
+static void bpf_iter_fini_udp(void *priv_data)
+{
+	struct udp_iter_state *st = priv_data;
+
+	kfree(st->bpf_seq_afinfo);
+	bpf_iter_fini_seq_net(priv_data);
+}
+
+static const struct bpf_iter_reg udp_reg_info = {
+	.target			= "udp",
+	.seq_ops		= &bpf_iter_udp_seq_ops,
+	.init_seq_private	= bpf_iter_init_udp,
+	.fini_seq_private	= bpf_iter_fini_udp,
+	.seq_priv_size		= sizeof(struct udp_iter_state),
+	.ctx_arg_info_size	= 1,
+	.ctx_arg_info		= {
+		{ offsetof(struct bpf_iter__udp, udp_sk),
+		  PTR_TO_BTF_ID_OR_NULL },
+	},
+};
+
+static void __init bpf_iter_register(void)
+{
+	if (bpf_iter_reg_target(&udp_reg_info))
+		pr_warn("Warning: could not register bpf iterator udp\n");
+}
+#endif
+
 void __init udp_init(void)
 {
 	unsigned long limit;
@@ -3092,4 +3222,8 @@ void __init udp_init(void)
 
 	if (register_pernet_subsys(&udp_sysctl_ops))
 		panic("UDP: failed to init sysctl parameters.\n");
+
+#if defined(CONFIG_BPF_SYSCALL) && defined(CONFIG_PROC_FS)
+	bpf_iter_register();
+#endif
 }

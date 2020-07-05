@@ -5,7 +5,12 @@
 #include "bpf_iter_netlink.skel.h"
 #include "bpf_iter_bpf_map.skel.h"
 #include "bpf_iter_task.skel.h"
+#include "bpf_iter_task_stack.skel.h"
 #include "bpf_iter_task_file.skel.h"
+#include "bpf_iter_tcp4.skel.h"
+#include "bpf_iter_tcp6.skel.h"
+#include "bpf_iter_udp4.skel.h"
+#include "bpf_iter_udp6.skel.h"
 #include "bpf_iter_test_kern1.skel.h"
 #include "bpf_iter_test_kern2.skel.h"
 #include "bpf_iter_test_kern3.skel.h"
@@ -106,6 +111,20 @@ static void test_task(void)
 	bpf_iter_task__destroy(skel);
 }
 
+static void test_task_stack(void)
+{
+	struct bpf_iter_task_stack *skel;
+
+	skel = bpf_iter_task_stack__open_and_load();
+	if (CHECK(!skel, "bpf_iter_task_stack__open_and_load",
+		  "skeleton open_and_load failed\n"))
+		return;
+
+	do_dummy_read(skel->progs.dump_task_stack);
+
+	bpf_iter_task_stack__destroy(skel);
+}
+
 static void test_task_file(void)
 {
 	struct bpf_iter_task_file *skel;
@@ -118,6 +137,62 @@ static void test_task_file(void)
 	do_dummy_read(skel->progs.dump_task_file);
 
 	bpf_iter_task_file__destroy(skel);
+}
+
+static void test_tcp4(void)
+{
+	struct bpf_iter_tcp4 *skel;
+
+	skel = bpf_iter_tcp4__open_and_load();
+	if (CHECK(!skel, "bpf_iter_tcp4__open_and_load",
+		  "skeleton open_and_load failed\n"))
+		return;
+
+	do_dummy_read(skel->progs.dump_tcp4);
+
+	bpf_iter_tcp4__destroy(skel);
+}
+
+static void test_tcp6(void)
+{
+	struct bpf_iter_tcp6 *skel;
+
+	skel = bpf_iter_tcp6__open_and_load();
+	if (CHECK(!skel, "bpf_iter_tcp6__open_and_load",
+		  "skeleton open_and_load failed\n"))
+		return;
+
+	do_dummy_read(skel->progs.dump_tcp6);
+
+	bpf_iter_tcp6__destroy(skel);
+}
+
+static void test_udp4(void)
+{
+	struct bpf_iter_udp4 *skel;
+
+	skel = bpf_iter_udp4__open_and_load();
+	if (CHECK(!skel, "bpf_iter_udp4__open_and_load",
+		  "skeleton open_and_load failed\n"))
+		return;
+
+	do_dummy_read(skel->progs.dump_udp4);
+
+	bpf_iter_udp4__destroy(skel);
+}
+
+static void test_udp6(void)
+{
+	struct bpf_iter_udp6 *skel;
+
+	skel = bpf_iter_udp6__open_and_load();
+	if (CHECK(!skel, "bpf_iter_udp6__open_and_load",
+		  "skeleton open_and_load failed\n"))
+		return;
+
+	do_dummy_read(skel->progs.dump_udp6);
+
+	bpf_iter_udp6__destroy(skel);
 }
 
 /* The expected string is less than 16 bytes */
@@ -392,8 +467,18 @@ void test_bpf_iter(void)
 		test_bpf_map();
 	if (test__start_subtest("task"))
 		test_task();
+	if (test__start_subtest("task_stack"))
+		test_task_stack();
 	if (test__start_subtest("task_file"))
 		test_task_file();
+	if (test__start_subtest("tcp4"))
+		test_tcp4();
+	if (test__start_subtest("tcp6"))
+		test_tcp6();
+	if (test__start_subtest("udp4"))
+		test_udp4();
+	if (test__start_subtest("udp6"))
+		test_udp6();
 	if (test__start_subtest("anon"))
 		test_anon_iter(false);
 	if (test__start_subtest("anon-read-one-char"))

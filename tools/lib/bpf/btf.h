@@ -168,6 +168,11 @@ static inline bool btf_kflag(const struct btf_type *t)
 	return BTF_INFO_KFLAG(t->info);
 }
 
+static inline bool btf_is_void(const struct btf_type *t)
+{
+	return btf_kind(t) == BTF_KIND_UNKN;
+}
+
 static inline bool btf_is_int(const struct btf_type *t)
 {
 	return btf_kind(t) == BTF_KIND_INT;

@@ -200,6 +200,8 @@ LIBBPF_API void bpf_program__set_ifindex(struct bpf_program *prog,
 LIBBPF_API const char *bpf_program__name(const struct bpf_program *prog);
 LIBBPF_API const char *bpf_program__title(const struct bpf_program *prog,
 					  bool needs_copy);
+LIBBPF_API bool bpf_program__autoload(const struct bpf_program *prog);
+LIBBPF_API int bpf_program__set_autoload(struct bpf_program *prog, bool autoload);
 
 /* returns program size in bytes */
 LIBBPF_API size_t bpf_program__size(const struct bpf_program *prog);
@@ -418,11 +420,38 @@ bpf_map__next(const struct bpf_map *map, const struct bpf_object *obj);
 LIBBPF_API struct bpf_map *
 bpf_map__prev(const struct bpf_map *map, const struct bpf_object *obj);
 
+/* get/set map FD */
 LIBBPF_API int bpf_map__fd(const struct bpf_map *map);
+LIBBPF_API int bpf_map__reuse_fd(struct bpf_map *map, int fd);
+/* get map definition */
 LIBBPF_API const struct bpf_map_def *bpf_map__def(const struct bpf_map *map);
+/* get map name */
 LIBBPF_API const char *bpf_map__name(const struct bpf_map *map);
+/* get/set map type */
+LIBBPF_API enum bpf_map_type bpf_map__type(const struct bpf_map *map);
+LIBBPF_API int bpf_map__set_type(struct bpf_map *map, enum bpf_map_type type);
+/* get/set map size (max_entries) */
+LIBBPF_API __u32 bpf_map__max_entries(const struct bpf_map *map);
+LIBBPF_API int bpf_map__set_max_entries(struct bpf_map *map, __u32 max_entries);
+LIBBPF_API int bpf_map__resize(struct bpf_map *map, __u32 max_entries);
+/* get/set map flags */
+LIBBPF_API __u32 bpf_map__map_flags(const struct bpf_map *map);
+LIBBPF_API int bpf_map__set_map_flags(struct bpf_map *map, __u32 flags);
+/* get/set map NUMA node */
+LIBBPF_API __u32 bpf_map__numa_node(const struct bpf_map *map);
+LIBBPF_API int bpf_map__set_numa_node(struct bpf_map *map, __u32 numa_node);
+/* get/set map key size */
+LIBBPF_API __u32 bpf_map__key_size(const struct bpf_map *map);
+LIBBPF_API int bpf_map__set_key_size(struct bpf_map *map, __u32 size);
+/* get/set map value size */
+LIBBPF_API __u32 bpf_map__value_size(const struct bpf_map *map);
+LIBBPF_API int bpf_map__set_value_size(struct bpf_map *map, __u32 size);
+/* get map key/value BTF type IDs */
 LIBBPF_API __u32 bpf_map__btf_key_type_id(const struct bpf_map *map);
 LIBBPF_API __u32 bpf_map__btf_value_type_id(const struct bpf_map *map);
+/* get/set map if_index */
+LIBBPF_API __u32 bpf_map__ifindex(const struct bpf_map *map);
+LIBBPF_API int bpf_map__set_ifindex(struct bpf_map *map, __u32 ifindex);
 
 typedef void (*bpf_map_clear_priv_t)(struct bpf_map *, void *);
 LIBBPF_API int bpf_map__set_priv(struct bpf_map *map, void *priv,
@@ -430,11 +459,8 @@ LIBBPF_API int bpf_map__set_priv(struct bpf_map *map, void *priv,
 LIBBPF_API void *bpf_map__priv(const struct bpf_map *map);
 LIBBPF_API int bpf_map__set_initial_value(struct bpf_map *map,
 					  const void *data, size_t size);
-LIBBPF_API int bpf_map__reuse_fd(struct bpf_map *map, int fd);
-LIBBPF_API int bpf_map__resize(struct bpf_map *map, __u32 max_entries);
 LIBBPF_API bool bpf_map__is_offload_neutral(const struct bpf_map *map);
 LIBBPF_API bool bpf_map__is_internal(const struct bpf_map *map);
-LIBBPF_API void bpf_map__set_ifindex(struct bpf_map *map, __u32 ifindex);
 LIBBPF_API int bpf_map__set_pin_path(struct bpf_map *map, const char *path);
 LIBBPF_API const char *bpf_map__get_pin_path(const struct bpf_map *map);
 LIBBPF_API bool bpf_map__is_pinned(const struct bpf_map *map);

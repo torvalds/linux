@@ -749,6 +749,7 @@ static int dev_map_hash_update_elem(struct bpf_map *map, void *key, void *value,
 					 map, key, value, map_flags);
 }
 
+static int dev_map_btf_id;
 const struct bpf_map_ops dev_map_ops = {
 	.map_alloc = dev_map_alloc,
 	.map_free = dev_map_free,
@@ -757,8 +758,11 @@ const struct bpf_map_ops dev_map_ops = {
 	.map_update_elem = dev_map_update_elem,
 	.map_delete_elem = dev_map_delete_elem,
 	.map_check_btf = map_check_no_btf,
+	.map_btf_name = "bpf_dtab",
+	.map_btf_id = &dev_map_btf_id,
 };
 
+static int dev_map_hash_map_btf_id;
 const struct bpf_map_ops dev_map_hash_ops = {
 	.map_alloc = dev_map_alloc,
 	.map_free = dev_map_free,
@@ -767,6 +771,8 @@ const struct bpf_map_ops dev_map_hash_ops = {
 	.map_update_elem = dev_map_hash_update_elem,
 	.map_delete_elem = dev_map_hash_delete_elem,
 	.map_check_btf = map_check_no_btf,
+	.map_btf_name = "bpf_dtab",
+	.map_btf_id = &dev_map_hash_map_btf_id,
 };
 
 static void dev_map_hash_remove_netdev(struct bpf_dtab *dtab,

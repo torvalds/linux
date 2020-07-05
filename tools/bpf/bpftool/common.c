@@ -29,6 +29,42 @@
 #define BPF_FS_MAGIC		0xcafe4a11
 #endif
 
+const char * const attach_type_name[__MAX_BPF_ATTACH_TYPE] = {
+	[BPF_CGROUP_INET_INGRESS]	= "ingress",
+	[BPF_CGROUP_INET_EGRESS]	= "egress",
+	[BPF_CGROUP_INET_SOCK_CREATE]	= "sock_create",
+	[BPF_CGROUP_SOCK_OPS]		= "sock_ops",
+	[BPF_CGROUP_DEVICE]		= "device",
+	[BPF_CGROUP_INET4_BIND]		= "bind4",
+	[BPF_CGROUP_INET6_BIND]		= "bind6",
+	[BPF_CGROUP_INET4_CONNECT]	= "connect4",
+	[BPF_CGROUP_INET6_CONNECT]	= "connect6",
+	[BPF_CGROUP_INET4_POST_BIND]	= "post_bind4",
+	[BPF_CGROUP_INET6_POST_BIND]	= "post_bind6",
+	[BPF_CGROUP_INET4_GETPEERNAME]	= "getpeername4",
+	[BPF_CGROUP_INET6_GETPEERNAME]	= "getpeername6",
+	[BPF_CGROUP_INET4_GETSOCKNAME]	= "getsockname4",
+	[BPF_CGROUP_INET6_GETSOCKNAME]	= "getsockname6",
+	[BPF_CGROUP_UDP4_SENDMSG]	= "sendmsg4",
+	[BPF_CGROUP_UDP6_SENDMSG]	= "sendmsg6",
+	[BPF_CGROUP_SYSCTL]		= "sysctl",
+	[BPF_CGROUP_UDP4_RECVMSG]	= "recvmsg4",
+	[BPF_CGROUP_UDP6_RECVMSG]	= "recvmsg6",
+	[BPF_CGROUP_GETSOCKOPT]		= "getsockopt",
+	[BPF_CGROUP_SETSOCKOPT]		= "setsockopt",
+
+	[BPF_SK_SKB_STREAM_PARSER]	= "sk_skb_stream_parser",
+	[BPF_SK_SKB_STREAM_VERDICT]	= "sk_skb_stream_verdict",
+	[BPF_SK_MSG_VERDICT]		= "sk_msg_verdict",
+	[BPF_LIRC_MODE2]		= "lirc_mode2",
+	[BPF_FLOW_DISSECTOR]		= "flow_dissector",
+	[BPF_TRACE_RAW_TP]		= "raw_tp",
+	[BPF_TRACE_FENTRY]		= "fentry",
+	[BPF_TRACE_FEXIT]		= "fexit",
+	[BPF_MODIFY_RETURN]		= "mod_ret",
+	[BPF_LSM_MAC]			= "lsm_mac",
+};
+
 void p_err(const char *fmt, ...)
 {
 	va_list ap;
@@ -580,4 +616,312 @@ print_all_levels(__maybe_unused enum libbpf_print_level level,
 		 const char *format, va_list args)
 {
 	return vfprintf(stderr, format, args);
+}
+
+static int prog_fd_by_nametag(void *nametag, int **fds, bool tag)
+{
+	unsigned int id = 0;
+	int fd, nb_fds = 0;
+	void *tmp;
+	int err;
+
+	while (true) {
+		struct bpf_prog_info info = {};
+		__u32 len = sizeof(info);
+
+		err = bpf_prog_get_next_id(id, &id);
+		if (err) {
+			if (errno != ENOENT) {
+				p_err("%s", strerror(errno));
+				goto err_close_fds;
+			}
+			return nb_fds;
+		}
+
+		fd = bpf_prog_get_fd_by_id(id);
+		if (fd < 0) {
+			p_err("can't get prog by id (%u): %s",
+			      id, strerror(errno));
+			goto err_close_fds;
+		}
+
+		err = bpf_obj_get_info_by_fd(fd, &info, &len);
+		if (err) {
+			p_err("can't get prog info (%u): %s",
+			      id, strerror(errno));
+			goto err_close_fd;
+		}
+
+		if ((tag && memcmp(nametag, info.tag, BPF_TAG_SIZE)) ||
+		    (!tag && strncmp(nametag, info.name, BPF_OBJ_NAME_LEN))) {
+			close(fd);
+			continue;
+		}
+
+		if (nb_fds > 0) {
+			tmp = realloc(*fds, (nb_fds + 1) * sizeof(int));
+			if (!tmp) {
+				p_err("failed to realloc");
+				goto err_close_fd;
+			}
+			*fds = tmp;
+		}
+		(*fds)[nb_fds++] = fd;
+	}
+
+err_close_fd:
+	close(fd);
+err_close_fds:
+	while (--nb_fds >= 0)
+		close((*fds)[nb_fds]);
+	return -1;
+}
+
+int prog_parse_fds(int *argc, char ***argv, int **fds)
+{
+	if (is_prefix(**argv, "id")) {
+		unsigned int id;
+		char *endptr;
+
+		NEXT_ARGP();
+
+		id = strtoul(**argv, &endptr, 0);
+		if (*endptr) {
+			p_err("can't parse %s as ID", **argv);
+			return -1;
+		}
+		NEXT_ARGP();
+
+		(*fds)[0] = bpf_prog_get_fd_by_id(id);
+		if ((*fds)[0] < 0) {
+			p_err("get by id (%u): %s", id, strerror(errno));
+			return -1;
+		}
+		return 1;
+	} else if (is_prefix(**argv, "tag")) {
+		unsigned char tag[BPF_TAG_SIZE];
+
+		NEXT_ARGP();
+
+		if (sscanf(**argv, BPF_TAG_FMT, tag, tag + 1, tag + 2,
+			   tag + 3, tag + 4, tag + 5, tag + 6, tag + 7)
+		    != BPF_TAG_SIZE) {
+			p_err("can't parse tag");
+			return -1;
+		}
+		NEXT_ARGP();
+
+		return prog_fd_by_nametag(tag, fds, true);
+	} else if (is_prefix(**argv, "name")) {
+		char *name;
+
+		NEXT_ARGP();
+
+		name = **argv;
+		if (strlen(name) > BPF_OBJ_NAME_LEN - 1) {
+			p_err("can't parse name");
+			return -1;
+		}
+		NEXT_ARGP();
+
+		return prog_fd_by_nametag(name, fds, false);
+	} else if (is_prefix(**argv, "pinned")) {
+		char *path;
+
+		NEXT_ARGP();
+
+		path = **argv;
+		NEXT_ARGP();
+
+		(*fds)[0] = open_obj_pinned_any(path, BPF_OBJ_PROG);
+		if ((*fds)[0] < 0)
+			return -1;
+		return 1;
+	}
+
+	p_err("expected 'id', 'tag', 'name' or 'pinned', got: '%s'?", **argv);
+	return -1;
+}
+
+int prog_parse_fd(int *argc, char ***argv)
+{
+	int *fds = NULL;
+	int nb_fds, fd;
+
+	fds = malloc(sizeof(int));
+	if (!fds) {
+		p_err("mem alloc failed");
+		return -1;
+	}
+	nb_fds = prog_parse_fds(argc, argv, &fds);
+	if (nb_fds != 1) {
+		if (nb_fds > 1) {
+			p_err("several programs match this handle");
+			while (nb_fds--)
+				close(fds[nb_fds]);
+		}
+		fd = -1;
+		goto exit_free;
+	}
+
+	fd = fds[0];
+exit_free:
+	free(fds);
+	return fd;
+}
+
+static int map_fd_by_name(char *name, int **fds)
+{
+	unsigned int id = 0;
+	int fd, nb_fds = 0;
+	void *tmp;
+	int err;
+
+	while (true) {
+		struct bpf_map_info info = {};
+		__u32 len = sizeof(info);
+
+		err = bpf_map_get_next_id(id, &id);
+		if (err) {
+			if (errno != ENOENT) {
+				p_err("%s", strerror(errno));
+				goto err_close_fds;
+			}
+			return nb_fds;
+		}
+
+		fd = bpf_map_get_fd_by_id(id);
+		if (fd < 0) {
+			p_err("can't get map by id (%u): %s",
+			      id, strerror(errno));
+			goto err_close_fds;
+		}
+
+		err = bpf_obj_get_info_by_fd(fd, &info, &len);
+		if (err) {
+			p_err("can't get map info (%u): %s",
+			      id, strerror(errno));
+			goto err_close_fd;
+		}
+
+		if (strncmp(name, info.name, BPF_OBJ_NAME_LEN)) {
+			close(fd);
+			continue;
+		}
+
+		if (nb_fds > 0) {
+			tmp = realloc(*fds, (nb_fds + 1) * sizeof(int));
+			if (!tmp) {
+				p_err("failed to realloc");
+				goto err_close_fd;
+			}
+			*fds = tmp;
+		}
+		(*fds)[nb_fds++] = fd;
+	}
+
+err_close_fd:
+	close(fd);
+err_close_fds:
+	while (--nb_fds >= 0)
+		close((*fds)[nb_fds]);
+	return -1;
+}
+
+int map_parse_fds(int *argc, char ***argv, int **fds)
+{
+	if (is_prefix(**argv, "id")) {
+		unsigned int id;
+		char *endptr;
+
+		NEXT_ARGP();
+
+		id = strtoul(**argv, &endptr, 0);
+		if (*endptr) {
+			p_err("can't parse %s as ID", **argv);
+			return -1;
+		}
+		NEXT_ARGP();
+
+		(*fds)[0] = bpf_map_get_fd_by_id(id);
+		if ((*fds)[0] < 0) {
+			p_err("get map by id (%u): %s", id, strerror(errno));
+			return -1;
+		}
+		return 1;
+	} else if (is_prefix(**argv, "name")) {
+		char *name;
+
+		NEXT_ARGP();
+
+		name = **argv;
+		if (strlen(name) > BPF_OBJ_NAME_LEN - 1) {
+			p_err("can't parse name");
+			return -1;
+		}
+		NEXT_ARGP();
+
+		return map_fd_by_name(name, fds);
+	} else if (is_prefix(**argv, "pinned")) {
+		char *path;
+
+		NEXT_ARGP();
+
+		path = **argv;
+		NEXT_ARGP();
+
+		(*fds)[0] = open_obj_pinned_any(path, BPF_OBJ_MAP);
+		if ((*fds)[0] < 0)
+			return -1;
+		return 1;
+	}
+
+	p_err("expected 'id', 'name' or 'pinned', got: '%s'?", **argv);
+	return -1;
+}
+
+int map_parse_fd(int *argc, char ***argv)
+{
+	int *fds = NULL;
+	int nb_fds, fd;
+
+	fds = malloc(sizeof(int));
+	if (!fds) {
+		p_err("mem alloc failed");
+		return -1;
+	}
+	nb_fds = map_parse_fds(argc, argv, &fds);
+	if (nb_fds != 1) {
+		if (nb_fds > 1) {
+			p_err("several maps match this handle");
+			while (nb_fds--)
+				close(fds[nb_fds]);
+		}
+		fd = -1;
+		goto exit_free;
+	}
+
+	fd = fds[0];
+exit_free:
+	free(fds);
+	return fd;
+}
+
+int map_parse_fd_and_info(int *argc, char ***argv, void *info, __u32 *info_len)
+{
+	int err;
+	int fd;
+
+	fd = map_parse_fd(argc, argv);
+	if (fd < 0)
+		return -1;
+
+	err = bpf_obj_get_info_by_fd(fd, info, info_len);
+	if (err) {
+		p_err("can't get map info: %s", strerror(errno));
+		close(fd);
+		return err;
+	}
+
+	return fd;
 }

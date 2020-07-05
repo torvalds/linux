@@ -1,34 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) 2020 Facebook */
-/* "undefine" structs in vmlinux.h, because we "override" them below */
-#define bpf_iter_meta bpf_iter_meta___not_used
-#define bpf_iter__ipv6_route bpf_iter__ipv6_route___not_used
-#include "vmlinux.h"
-#undef bpf_iter_meta
-#undef bpf_iter__ipv6_route
+#include "bpf_iter.h"
+#include "bpf_tracing_net.h"
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
-
-struct bpf_iter_meta {
-	struct seq_file *seq;
-	__u64 session_id;
-	__u64 seq_num;
-} __attribute__((preserve_access_index));
-
-struct bpf_iter__ipv6_route {
-	struct bpf_iter_meta *meta;
-	struct fib6_info *rt;
-} __attribute__((preserve_access_index));
 
 char _license[] SEC("license") = "GPL";
 
 extern bool CONFIG_IPV6_SUBTREES __kconfig __weak;
-
-#define RTF_GATEWAY		0x0002
-#define IFNAMSIZ		16
-#define fib_nh_gw_family	nh_common.nhc_gw_family
-#define fib_nh_gw6		nh_common.nhc_gw.ipv6
-#define fib_nh_dev		nh_common.nhc_dev
 
 SEC("iter/ipv6_route")
 int dump_ipv6_route(struct bpf_iter__ipv6_route *ctx)

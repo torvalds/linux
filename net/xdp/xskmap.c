@@ -254,6 +254,7 @@ void xsk_map_try_sock_delete(struct xsk_map *map, struct xdp_sock *xs,
 	spin_unlock_bh(&map->lock);
 }
 
+static int xsk_map_btf_id;
 const struct bpf_map_ops xsk_map_ops = {
 	.map_alloc = xsk_map_alloc,
 	.map_free = xsk_map_free,
@@ -264,4 +265,6 @@ const struct bpf_map_ops xsk_map_ops = {
 	.map_update_elem = xsk_map_update_elem,
 	.map_delete_elem = xsk_map_delete_elem,
 	.map_check_btf = map_check_no_btf,
+	.map_btf_name = "xsk_map",
+	.map_btf_id = &xsk_map_btf_id,
 };
