@@ -21,6 +21,9 @@ config MDIO_BUS
 
 if MDIO_BUS
 
+config MDIO_DEVRES
+	tristate
+
 config MDIO_ASPEED
 	tristate "ASPEED MDIO bus controller"
 	depends on ARCH_ASPEED || COMPILE_TEST
@@ -252,6 +255,7 @@ menuconfig PHYLIB
 	tristate "PHY Device support and infrastructure"
 	depends on NETDEVICES
 	select MDIO_DEVICE
+	select MDIO_DEVRES
 	help
 	  Ethernet controllers are usually attached to PHY
 	  devices.  This option provides infrastructure for
