@@ -1959,11 +1959,13 @@ void tpg_gen_text(const struct tpg_data *tpg, u8 *basep[TPG_MAX_PLANES][2],
 	unsigned step = V4L2_FIELD_HAS_T_OR_B(tpg->field) ? 2 : 1;
 	unsigned div = step;
 	unsigned first = 0;
-	unsigned len = strlen(text);
+	unsigned len;
 	unsigned p;
 
-	if (font8x16 == NULL || basep == NULL)
+	if (font8x16 == NULL || basep == NULL || text == NULL)
 		return;
+
+	len = strlen(text);
 
 	/* Checks if it is possible to show string */
 	if (y + 16 >= tpg->compose.height || x + 8 >= tpg->compose.width)
@@ -2005,6 +2007,30 @@ void tpg_gen_text(const struct tpg_data *tpg, u8 *basep[TPG_MAX_PLANES][2],
 	}
 }
 EXPORT_SYMBOL_GPL(tpg_gen_text);
+
+const char *tpg_g_color_order(const struct tpg_data *tpg)
+{
+	switch (tpg->pattern) {
+	case TPG_PAT_75_COLORBAR:
+	case TPG_PAT_100_COLORBAR:
+	case TPG_PAT_CSC_COLORBAR:
+	case TPG_PAT_100_HCOLORBAR:
+		return "White, yellow, cyan, green, magenta, red, blue, black";
+	case TPG_PAT_BLACK:
+		return "Black";
+	case TPG_PAT_WHITE:
+		return "White";
+	case TPG_PAT_RED:
+		return "Red";
+	case TPG_PAT_GREEN:
+		return "Green";
+	case TPG_PAT_BLUE:
+		return "Blue";
+	default:
+		return NULL;
+	}
+}
+EXPORT_SYMBOL_GPL(tpg_g_color_order);
 
 void tpg_update_mv_step(struct tpg_data *tpg)
 {
