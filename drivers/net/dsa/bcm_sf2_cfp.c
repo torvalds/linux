@@ -128,12 +128,12 @@ static inline unsigned int bcm_sf2_get_num_udf_slices(const u8 *layout)
 	return count;
 }
 
-static inline u32 udf_upper_bits(unsigned int num_udf)
+static inline u32 udf_upper_bits(int num_udf)
 {
 	return GENMASK(num_udf - 1, 0) >> (UDFS_PER_SLICE - 1);
 }
 
-static inline u32 udf_lower_bits(unsigned int num_udf)
+static inline u32 udf_lower_bits(int num_udf)
 {
 	return (u8)GENMASK(num_udf - 1, 0);
 }
