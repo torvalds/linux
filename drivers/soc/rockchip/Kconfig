@@ -71,7 +71,7 @@ config ROCKCHIP_PM_DOMAINS
           If unsure, say N.
 
 config ROCKCHIP_PVTM
-	bool "Rockchip PVTM support"
+	tristate "Rockchip PVTM support"
 	help
 	  Say y here to enable pvtm support.
 	  The Process-Voltage-Temperature Monitor (PVTM) is used to monitor
