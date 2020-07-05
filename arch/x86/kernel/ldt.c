@@ -559,16 +559,7 @@ static bool allow_16bit_segments(void)
 	 * is worthwhile, disallow 16-bit segments under Xen PV.
 	 */
 	if (xen_pv_domain()) {
-		static DEFINE_MUTEX(xen_warning);
-		static bool warned;
-
-		mutex_lock(&xen_warning);
-		if (!warned) {
-			pr_info("Warning: 16-bit segments do not work correctly in a Xen PV guest\n");
-			warned = true;
-		}
-		mutex_unlock(&xen_warning);
-
+		pr_info_once("Warning: 16-bit segments do not work correctly in a Xen PV guest\n");
 		return false;
 	}
 #endif
