@@ -870,6 +870,12 @@ static __always_inline void exc_debug_kernel(struct pt_regs *regs,
 	trace_hardirqs_off_finish();
 
 	/*
+	 * If something gets miswired and we end up here for a user mode
+	 * #DB, we will malfunction.
+	 */
+	WARN_ON_ONCE(user_mode(regs));
+
+	/*
 	 * Catch SYSENTER with TF set and clear DR_STEP. If this hit a
 	 * watchpoint at the same time then that will still be handled.
 	 */
@@ -887,6 +893,12 @@ static __always_inline void exc_debug_kernel(struct pt_regs *regs,
 static __always_inline void exc_debug_user(struct pt_regs *regs,
 					   unsigned long dr6)
 {
+	/*
+	 * If something gets miswired and we end up here for a kernel mode
+	 * #DB, we will malfunction.
+	 */
+	WARN_ON_ONCE(!user_mode(regs));
+
 	idtentry_enter_user(regs);
 	instrumentation_begin();
 
@@ -917,7 +929,7 @@ DEFINE_IDTENTRY_DEBUG_USER(exc_debug)
 }
 #else
 /* 32 bit does not have separate entry points. */
-DEFINE_IDTENTRY_DEBUG(exc_debug)
+DEFINE_IDTENTRY_RAW(exc_debug)
 {
 	unsigned long dr6, dr7;
 
