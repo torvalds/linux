@@ -31,7 +31,6 @@ struct felix_info {
 	void	(*pcs_init)(struct ocelot *ocelot, int port,
 			    unsigned int link_an_mode,
 			    const struct phylink_link_state *state);
-	void	(*pcs_an_restart)(struct ocelot *ocelot, int port);
 	void	(*pcs_link_state)(struct ocelot *ocelot, int port,
 				  struct phylink_link_state *state);
 	int	(*prevalidate_phy_mode)(struct ocelot *ocelot, int port,
