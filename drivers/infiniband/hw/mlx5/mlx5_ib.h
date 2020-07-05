@@ -1051,11 +1051,6 @@ static inline struct mlx5_ib_rwq *to_mibrwq(struct mlx5_core_qp *core_qp)
 	return container_of(core_qp, struct mlx5_ib_rwq, core_qp);
 }
 
-static inline struct mlx5_ib_mr *to_mibmr(struct mlx5_core_mkey *mmkey)
-{
-	return container_of(mmkey, struct mlx5_ib_mr, mmkey);
-}
-
 static inline struct mlx5_ib_pd *to_mpd(struct ib_pd *ibpd)
 {
 	return container_of(ibpd, struct mlx5_ib_pd, ibpd);
