@@ -111,7 +111,7 @@ static void rxe_init_device_param(struct rxe_dev *rxe)
 }
 
 /* initialize port attributes */
-static int rxe_init_port_param(struct rxe_port *port)
+static void rxe_init_port_param(struct rxe_port *port)
 {
 	port->attr.state		= IB_PORT_DOWN;
 	port->attr.max_mtu		= IB_MTU_4096;
@@ -134,8 +134,6 @@ static int rxe_init_port_param(struct rxe_port *port)
 	port->attr.phys_state		= RXE_PORT_PHYS_STATE;
 	port->mtu_cap			= ib_mtu_enum_to_int(IB_MTU_256);
 	port->subnet_prefix		= cpu_to_be64(RXE_PORT_SUBNET_PREFIX);
-
-	return 0;
 }
 
 /* initialize port state, note IB convention that HCA ports are always
