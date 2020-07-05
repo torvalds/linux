@@ -119,7 +119,7 @@ irqreturn_t hl_irq_handler_cq(int irq, void *arg)
 
 		if ((shadow_index_valid) && (!hdev->disabled)) {
 			job = queue->shadow_queue[hl_pi_2_offset(shadow_index)];
-			queue_work(hdev->cq_wq, &job->finish_work);
+			queue_work(hdev->cq_wq[cq->cq_idx], &job->finish_work);
 		}
 
 		atomic_inc(&queue->ci);

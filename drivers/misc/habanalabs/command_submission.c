@@ -487,10 +487,12 @@ static void cs_rollback(struct hl_device *hdev, struct hl_cs *cs)
 
 void hl_cs_rollback_all(struct hl_device *hdev)
 {
+	int i;
 	struct hl_cs *cs, *tmp;
 
 	/* flush all completions */
-	flush_workqueue(hdev->cq_wq);
+	for (i = 0 ; i < hdev->asic_prop.completion_queues_count ; i++)
+		flush_workqueue(hdev->cq_wq[i]);
 
 	/* Make sure we don't have leftovers in the H/W queues mirror list */
 	list_for_each_entry_safe(cs, tmp, &hdev->hw_queues_mirror_list,

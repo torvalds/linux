@@ -249,7 +249,8 @@ static void device_cdev_sysfs_del(struct hl_device *hdev)
  */
 static int device_early_init(struct hl_device *hdev)
 {
-	int rc;
+	int i, rc;
+	char workq_name[32];
 
 	switch (hdev->asic_type) {
 	case ASIC_GOYA:
@@ -274,11 +275,24 @@ static int device_early_init(struct hl_device *hdev)
 	if (rc)
 		goto early_fini;
 
-	hdev->cq_wq = alloc_workqueue("hl-free-jobs", WQ_UNBOUND, 0);
-	if (hdev->cq_wq == NULL) {
-		dev_err(hdev->dev, "Failed to allocate CQ workqueue\n");
-		rc = -ENOMEM;
-		goto asid_fini;
+	if (hdev->asic_prop.completion_queues_count) {
+		hdev->cq_wq = kcalloc(hdev->asic_prop.completion_queues_count,
+				sizeof(*hdev->cq_wq),
+				GFP_ATOMIC);
+		if (!hdev->cq_wq) {
+			rc = -ENOMEM;
+			goto asid_fini;
+		}
+	}
+
+	for (i = 0 ; i < hdev->asic_prop.completion_queues_count ; i++) {
+		snprintf(workq_name, 32, "hl-free-jobs-%u", i);
+		hdev->cq_wq[i] = create_singlethread_workqueue(workq_name);
+		if (hdev->cq_wq == NULL) {
+			dev_err(hdev->dev, "Failed to allocate CQ workqueue\n");
+			rc = -ENOMEM;
+			goto free_cq_wq;
+		}
 	}
 
 	hdev->eq_wq = alloc_workqueue("hl-events", WQ_UNBOUND, 0);
@@ -321,7 +335,10 @@ free_chip_info:
 free_eq_wq:
 	destroy_workqueue(hdev->eq_wq);
 free_cq_wq:
-	destroy_workqueue(hdev->cq_wq);
+	for (i = 0 ; i < hdev->asic_prop.completion_queues_count ; i++)
+		if (hdev->cq_wq[i])
+			destroy_workqueue(hdev->cq_wq[i]);
+	kfree(hdev->cq_wq);
 asid_fini:
 	hl_asid_fini(hdev);
 early_fini:
@@ -339,6 +356,8 @@ early_fini:
  */
 static void device_early_fini(struct hl_device *hdev)
 {
+	int i;
+
 	mutex_destroy(&hdev->mmu_cache_lock);
 	mutex_destroy(&hdev->debug_lock);
 	mutex_destroy(&hdev->send_cpu_message_lock);
@@ -351,7 +370,10 @@ static void device_early_fini(struct hl_device *hdev)
 	kfree(hdev->hl_chip_info);
 
 	destroy_workqueue(hdev->eq_wq);
-	destroy_workqueue(hdev->cq_wq);
+
+	for (i = 0 ; i < hdev->asic_prop.completion_queues_count ; i++)
+		destroy_workqueue(hdev->cq_wq[i]);
+	kfree(hdev->cq_wq);
 
 	hl_asid_fini(hdev);
 
@@ -1181,6 +1203,7 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 				"failed to initialize completion queue\n");
 			goto cq_fini;
 		}
+		hdev->completion_queue[i].cq_idx = i;
 	}
 
 	/*

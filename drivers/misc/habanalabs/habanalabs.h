@@ -479,6 +479,7 @@ struct hl_hw_queue {
  * @hdev: pointer to the device structure
  * @kernel_address: holds the queue's kernel virtual address
  * @bus_address: holds the queue's DMA address
+ * @cq_idx: completion queue index in array
  * @hw_queue_id: the id of the matching H/W queue
  * @ci: ci inside the queue
  * @pi: pi inside the queue
@@ -488,6 +489,7 @@ struct hl_cq {
 	struct hl_device	*hdev;
 	u64			kernel_address;
 	dma_addr_t		bus_address;
+	u32			cq_idx;
 	u32			hw_queue_id;
 	u32			ci;
 	u32			pi;
@@ -1396,7 +1398,8 @@ struct hl_device_idle_busy_ts {
  * @asic_name: ASIC specific nmae.
  * @asic_type: ASIC specific type.
  * @completion_queue: array of hl_cq.
- * @cq_wq: work queue of completion queues for executing work in process context
+ * @cq_wq: work queues of completion queues for executing work in process
+ *         context.
  * @eq_wq: work queue of event queue for executing work in process context.
  * @kernel_ctx: Kernel driver context structure.
  * @kernel_queues: array of hl_hw_queue.
@@ -1492,7 +1495,7 @@ struct hl_device {
 	char				asic_name[16];
 	enum hl_asic_type		asic_type;
 	struct hl_cq			*completion_queue;
-	struct workqueue_struct		*cq_wq;
+	struct workqueue_struct		**cq_wq;
 	struct workqueue_struct		*eq_wq;
 	struct hl_ctx			*kernel_ctx;
 	struct hl_hw_queue		*kernel_queues;
