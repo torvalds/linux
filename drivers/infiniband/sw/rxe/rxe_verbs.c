@@ -901,30 +901,16 @@ static struct ib_mr *rxe_get_dma_mr(struct ib_pd *ibpd, int access)
 	struct rxe_dev *rxe = to_rdev(ibpd->device);
 	struct rxe_pd *pd = to_rpd(ibpd);
 	struct rxe_mem *mr;
-	int err;
 
 	mr = rxe_alloc(&rxe->mr_pool);
-	if (!mr) {
-		err = -ENOMEM;
-		goto err1;
-	}
+	if (!mr)
+		return ERR_PTR(-ENOMEM);
 
 	rxe_add_index(mr);
-
 	rxe_add_ref(pd);
-
-	err = rxe_mem_init_dma(pd, access, mr);
-	if (err)
-		goto err2;
+	rxe_mem_init_dma(pd, access, mr);
 
 	return &mr->ibmr;
-
-err2:
-	rxe_drop_ref(pd);
-	rxe_drop_index(mr);
-	rxe_drop_ref(mr);
-err1:
-	return ERR_PTR(err);
 }
 
 static struct ib_mr *rxe_reg_user_mr(struct ib_pd *ibpd,

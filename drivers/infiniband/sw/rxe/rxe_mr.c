@@ -144,8 +144,8 @@ err1:
 	return -ENOMEM;
 }
 
-int rxe_mem_init_dma(struct rxe_pd *pd,
-		     int access, struct rxe_mem *mem)
+void rxe_mem_init_dma(struct rxe_pd *pd,
+		      int access, struct rxe_mem *mem)
 {
 	rxe_mem_init(access, mem);
 
@@ -153,8 +153,6 @@ int rxe_mem_init_dma(struct rxe_pd *pd,
 	mem->access		= access;
 	mem->state		= RXE_MEM_STATE_VALID;
 	mem->type		= RXE_MEM_TYPE_DMA;
-
-	return 0;
 }
 
 int rxe_mem_init_user(struct rxe_pd *pd, u64 start,
