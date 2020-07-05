@@ -1751,7 +1751,7 @@ static int mv88e6xxx_policy_insert(struct mv88e6xxx_chip *chip, int port,
 	}
 
 	if ((fs->flow_type & FLOW_EXT) && fs->m_ext.vlan_tci) {
-		if (fs->m_ext.vlan_tci != 0xffff)
+		if (fs->m_ext.vlan_tci != htons(0xffff))
 			return -EOPNOTSUPP;
 		vid = be16_to_cpu(fs->h_ext.vlan_tci) & VLAN_VID_MASK;
 	}

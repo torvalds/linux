@@ -167,7 +167,7 @@ struct mv88e6xxx_irq {
 	u16 masked;
 	struct irq_chip chip;
 	struct irq_domain *domain;
-	unsigned int nirqs;
+	int nirqs;
 };
 
 /* state flags for mv88e6xxx_port_hwtstamp::state */
@@ -654,7 +654,7 @@ static inline unsigned int mv88e6xxx_num_ports(struct mv88e6xxx_chip *chip)
 
 static inline u16 mv88e6xxx_port_mask(struct mv88e6xxx_chip *chip)
 {
-	return GENMASK(mv88e6xxx_num_ports(chip) - 1, 0);
+	return GENMASK((s32)mv88e6xxx_num_ports(chip) - 1, 0);
 }
 
 static inline unsigned int mv88e6xxx_num_gpio(struct mv88e6xxx_chip *chip)
