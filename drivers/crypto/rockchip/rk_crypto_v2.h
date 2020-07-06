@@ -42,6 +42,12 @@ extern struct rk_crypto_tmp rk_v2_ahash_sha512;
 extern struct rk_crypto_tmp rk_v2_ahash_md5;
 extern struct rk_crypto_tmp rk_v2_ahash_sm3;
 
+extern struct rk_crypto_tmp rk_v2_ahash_hmac_md5;
+extern struct rk_crypto_tmp rk_v2_ahash_hmac_sha1;
+extern struct rk_crypto_tmp rk_v2_ahash_hmac_sha256;
+extern struct rk_crypto_tmp rk_v2_ahash_hmac_sha512;
+extern struct rk_crypto_tmp rk_v2_ahash_hmac_sm3;
+
 int rk_hw_crypto_v2_init(struct device *dev, void *hw_info);
 void rk_hw_crypto_v2_deinit(struct device *dev, void *hw_info);
 #endif

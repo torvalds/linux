@@ -69,6 +69,14 @@ static const u32 hash_algo2bc[] = {
 	[HASH_ALGO_SM3]    = CRYPTO_SM3,
 };
 
+const char *hash_algo2name[] = {
+	[HASH_ALGO_MD5]    = "md5",
+	[HASH_ALGO_SHA1]   = "sha1",
+	[HASH_ALGO_SHA256] = "sha256",
+	[HASH_ALGO_SHA512] = "sha512",
+	[HASH_ALGO_SM3]    = "sm3",
+};
+
 static void word2byte(u32 word, u8 *ch, u32 endian)
 {
 	/* 0: Big-Endian 1: Little-Endian */
@@ -90,6 +98,20 @@ static void word2byte(u32 word, u8 *ch, u32 endian)
 	}
 }
 
+static u32 byte2word(const u8 *ch, u32 endian)
+{
+	u32 w = 0;
+
+	/* 0: Big-Endian 1: Little-Endian */
+	if (endian == BIG_ENDIAN)
+		w = (*ch << 24) + (*(ch + 1) << 16) +
+		    (*(ch + 2) << 8) + *(ch + 3);
+	else if (endian == LITTLE_ENDIAN)
+		w = (*(ch + 3) << 24) + (*(ch + 2) << 16) +
+		    (*(ch + 1) << 8) + *ch;
+
+	return w;
+}
 
 static struct rk_crypto_tmp *rk_ahash_get_algt(struct crypto_ahash *tfm)
 {
@@ -179,6 +201,19 @@ static inline void clear_hash_out_reg(struct rk_crypto_info *dev)
 	/*clear out register*/
 	for (i = 0; i < 16; i++)
 		CRYPTO_WRITE(dev, CRYPTO_HASH_DOUT_0 + 4 * i, 0);
+}
+
+static void write_key_reg(struct rk_crypto_info *dev, const u8 *key,
+			  u32 key_len)
+{
+	u32 i;
+	u32 chn_base_addr;
+
+	chn_base_addr = CRYPTO_CH0_KEY_0;
+
+	for (i = 0; i < key_len / 4; i++, chn_base_addr += 4)
+		CRYPTO_WRITE(dev, chn_base_addr,
+			     byte2word(key + i * 4, BIG_ENDIAN));
 }
 
 static int rk_ahash_init(struct ahash_request *req)
@@ -281,14 +316,106 @@ static int rk_ahash_export(struct ahash_request *req, void *out)
 static int rk_ahash_digest(struct ahash_request *req)
 {
 	struct rk_ahash_ctx *tctx = crypto_tfm_ctx(req->base.tfm);
+	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
+	struct rk_crypto_tmp *algt = rk_ahash_get_algt(tfm);
 	struct rk_crypto_info *dev = tctx->dev;
 
 	CRYPTO_TRACE("calc data %u bytes.", req->nbytes);
 
 	if (!req->nbytes)
-		return zero_message_process(req);
+		return IS_TYPE_HMAC(algt->type) ?
+		       crypto_ahash_digest(req) :
+		       zero_message_process(req);
 	else
 		return dev->enqueue(dev, &req->base);
+}
+
+static int rk_ahash_calc_digest(const char *alg_name, const u8 *key, u32 keylen,
+				u8 *digest, u32 digest_len)
+{
+	struct crypto_ahash *ahash_tfm;
+	struct ahash_request *req;
+	struct crypto_wait wait;
+	struct scatterlist sg;
+	int ret;
+
+	CRYPTO_TRACE();
+
+	ahash_tfm = crypto_alloc_ahash(alg_name, 0, CRYPTO_ALG_NEED_FALLBACK);
+	if (IS_ERR(ahash_tfm))
+		return PTR_ERR(ahash_tfm);
+
+	req = ahash_request_alloc(ahash_tfm, GFP_KERNEL);
+	if (!req) {
+		crypto_free_ahash(ahash_tfm);
+		return -ENOMEM;
+	}
+
+	init_completion(&wait.completion);
+
+	crypto_ahash_clear_flags(ahash_tfm, ~0);
+
+	sg_init_one(&sg, key, keylen);
+	ahash_request_set_crypt(req, &sg, digest, keylen);
+
+	ret = crypto_wait_req(crypto_ahash_digest(req), &wait);
+	if (ret) {
+		CRYPTO_MSG("digest failed, ret = %d", ret);
+		goto exit;
+	}
+
+exit:
+	ahash_request_free(req);
+	crypto_free_ahash(ahash_tfm);
+
+	return ret;
+}
+
+static int rk_ahash_hmac_setkey(struct crypto_ahash *tfm, const u8 *key,
+				 unsigned int keylen)
+{
+	unsigned int blocksize = crypto_tfm_alg_blocksize(crypto_ahash_tfm(tfm));
+	unsigned int digestsize = crypto_ahash_digestsize(tfm);
+	struct rk_crypto_tmp *algt = rk_ahash_get_algt(tfm);
+	struct rk_ahash_ctx *ctx = crypto_ahash_ctx(tfm);
+	const char *alg_name;
+	int ret;
+
+	CRYPTO_MSG();
+
+	crypto_ahash_clear_flags(ctx->fallback_tfm, ~0);
+	ret = crypto_ahash_setkey(ctx->fallback_tfm, key, keylen);
+	if (ret) {
+		CRYPTO_MSG("setkey failed, ret = %d\n", ret);
+		goto exit;
+	}
+
+	memset(ctx->authkey, 0, sizeof(ctx->authkey));
+
+	if (keylen <= blocksize) {
+		memcpy(ctx->authkey, key, keylen);
+		goto exit;
+	}
+
+	if (algt->algo >= ARRAY_SIZE(hash_algo2name)) {
+		CRYPTO_MSG("hash algo %d invalid\n", algt->algo);
+		return -EINVAL;
+	}
+
+	alg_name = hash_algo2name[algt->algo];
+
+	CRYPTO_TRACE("calc key digest %s", alg_name);
+
+	ret = rk_ahash_calc_digest(alg_name, key, keylen, ctx->authkey, digestsize);
+	if (ret) {
+		CRYPTO_MSG("rk_ahash_calc_digest error ret = %d\n", ret);
+		goto exit;
+	}
+
+exit:
+	if (ret)
+		crypto_ahash_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	return ret;
 }
 
 static void rk_ahash_dma_start(struct rk_crypto_info *dev)
@@ -334,6 +461,7 @@ static int rk_ahash_start(struct rk_crypto_info *dev)
 	struct ahash_request *req = ahash_request_cast(dev->async_req);
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
 	struct rk_crypto_tmp *algt = rk_ahash_get_algt(tfm);
+	struct rk_ahash_ctx *ctx = crypto_ahash_ctx(tfm);
 	u32 reg_ctrl = 0;
 
 	CRYPTO_TRACE();
@@ -354,6 +482,13 @@ static int rk_ahash_start(struct rk_crypto_info *dev)
 	clear_hash_out_reg(dev);
 
 	reg_ctrl |= CRYPTO_HW_PAD_ENABLE;
+
+	if (IS_TYPE_HMAC(algt->type)) {
+		CRYPTO_TRACE("this is hmac");
+		reg_ctrl |= CRYPTO_HMAC_ENABLE;
+		write_key_reg(dev, ctx->authkey, sizeof(ctx->authkey));
+	}
+
 	CRYPTO_WRITE(dev, CRYPTO_HASH_CTL, reg_ctrl | CRYPTO_WRITE_MASK_ALL);
 
 	CRYPTO_WRITE(dev, CRYPTO_FIFO_CTL, 0x00030003);
@@ -489,4 +624,10 @@ struct rk_crypto_tmp rk_v2_ahash_sha1 = RK_HASH_ALGO_INIT(SHA1, sha1);
 struct rk_crypto_tmp rk_v2_ahash_sha256 = RK_HASH_ALGO_INIT(SHA256, sha256);
 struct rk_crypto_tmp rk_v2_ahash_sha512 = RK_HASH_ALGO_INIT(SHA512, sha512);
 struct rk_crypto_tmp rk_v2_ahash_sm3 = RK_HASH_ALGO_INIT(SM3, sm3);
+
+struct rk_crypto_tmp rk_v2_ahash_hmac_md5 = RK_HMAC_ALGO_INIT(MD5, md5);
+struct rk_crypto_tmp rk_v2_ahash_hmac_sha1 = RK_HMAC_ALGO_INIT(SHA1, sha1);
+struct rk_crypto_tmp rk_v2_ahash_hmac_sha256 = RK_HMAC_ALGO_INIT(SHA256, sha256);
+struct rk_crypto_tmp rk_v2_ahash_hmac_sha512 = RK_HMAC_ALGO_INIT(SHA512, sha512);
+struct rk_crypto_tmp rk_v2_ahash_hmac_sm3 = RK_HMAC_ALGO_INIT(SM3, sm3);
 

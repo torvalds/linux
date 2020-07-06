@@ -82,6 +82,8 @@ struct rk_crypto_info {
 /* the private variable of hash */
 struct rk_ahash_ctx {
 	struct rk_crypto_info		*dev;
+	u8				authkey[SHA512_BLOCK_SIZE];
+
 	/* for fallback */
 	struct crypto_ahash		*fallback_tfm;
 };
@@ -103,6 +105,7 @@ struct rk_cipher_ctx {
 
 enum alg_type {
 	ALG_TYPE_HASH,
+	ALG_TYPE_HMAC,
 	ALG_TYPE_CIPHER,
 };
 
@@ -237,6 +240,41 @@ enum rk_cipher_mode {
 		} \
 	} \
 }
+
+#define RK_HMAC_ALGO_INIT(hash_algo, algo_name) {\
+	.name = "hmac(" #algo_name ")",\
+	.type = ALG_TYPE_HMAC,\
+	.algo = HASH_ALGO_##hash_algo,\
+	.alg.hash = {\
+		.init = rk_ahash_init,\
+		.update = rk_ahash_update,\
+		.final = rk_ahash_final,\
+		.finup = rk_ahash_finup,\
+		.export = rk_ahash_export,\
+		.import = rk_ahash_import,\
+		.digest = rk_ahash_digest,\
+		.setkey = rk_ahash_hmac_setkey,\
+		.halg = {\
+			.digestsize = hash_algo##_DIGEST_SIZE,\
+			.statesize = sizeof(struct algo_name##_state),\
+			.base = {\
+				.cra_name = "hmac(" #algo_name ")",\
+				.cra_driver_name = "hmac-" #algo_name "-rk",\
+				.cra_priority = RK_CRYPTO_PRIORITY,\
+				.cra_flags = CRYPTO_ALG_ASYNC |\
+						 CRYPTO_ALG_NEED_FALLBACK,\
+				.cra_blocksize = hash_algo##_BLOCK_SIZE,\
+				.cra_ctxsize = sizeof(struct rk_ahash_ctx),\
+				.cra_alignmask = 3,\
+				.cra_init = rk_cra_hash_init,\
+				.cra_exit = rk_cra_hash_exit,\
+				.cra_module = THIS_MODULE,\
+			} \
+		} \
+	} \
+}
+
+#define IS_TYPE_HMAC(type) ((type) == ALG_TYPE_HMAC)
 
 #define CRYPTO_READ(dev, offset)		  \
 		readl_relaxed(((dev)->reg + (offset)))

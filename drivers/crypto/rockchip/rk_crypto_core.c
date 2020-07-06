@@ -303,7 +303,7 @@ static int rk_crypto_register(struct rk_crypto_info *crypto_info)
 
 		if (tmp_algs->type == ALG_TYPE_CIPHER)
 			err = crypto_register_alg(&tmp_algs->alg.crypto);
-		else if (tmp_algs->type == ALG_TYPE_HASH)
+		else if (tmp_algs->type == ALG_TYPE_HASH || tmp_algs->type == ALG_TYPE_HMAC)
 			err = crypto_register_ahash(&tmp_algs->alg.hash);
 		else
 			continue;
@@ -321,7 +321,7 @@ err_cipher_algs:
 		tmp_algs = rk_crypto_find_algs(crypto_info, *algs_name);
 		if (tmp_algs->type == ALG_TYPE_CIPHER)
 			crypto_unregister_alg(&tmp_algs->alg.crypto);
-		else if (tmp_algs->type == ALG_TYPE_HASH)
+		else if (tmp_algs->type == ALG_TYPE_HASH || tmp_algs->type == ALG_TYPE_HMAC)
 			crypto_unregister_ahash(&tmp_algs->alg.hash);
 	}
 	return err;
@@ -339,7 +339,7 @@ static void rk_crypto_unregister(struct rk_crypto_info *crypto_info)
 		tmp_algs = rk_crypto_find_algs(crypto_info, *algs_name);
 		if (tmp_algs->type == ALG_TYPE_CIPHER)
 			crypto_unregister_alg(&tmp_algs->alg.crypto);
-		else if (tmp_algs->type == ALG_TYPE_HASH)
+		else if (tmp_algs->type == ALG_TYPE_HASH || tmp_algs->type == ALG_TYPE_HMAC)
 			crypto_unregister_ahash(&tmp_algs->alg.hash);
 	}
 }
@@ -383,6 +383,12 @@ static struct rk_crypto_tmp *crypto_v2_algs[] = {
 	&rk_v2_ahash_sha512,		/* sha512 */
 	&rk_v2_ahash_md5,		/* md5 */
 	&rk_v2_ahash_sm3,		/* sm3 */
+
+	&rk_v2_ahash_hmac_sha1,		/* hmac(sha1) */
+	&rk_v2_ahash_hmac_sha256,	/* hmac(sha256) */
+	&rk_v2_ahash_hmac_sha512,	/* hmac(sha512) */
+	&rk_v2_ahash_hmac_md5,		/* hmac(md5) */
+	&rk_v2_ahash_hmac_sm3,		/* hmac(sm3) */
 };
 
 static char *px30_algs_name[] = {
@@ -397,6 +403,7 @@ static char *rv1126_algs_name[] = {
 	"ecb(des)", "cbc(des)",
 	"ecb(des3_ede)", "cbc(des3_ede)",
 	"sha1", "sha256", "sha512", "md5", "sm3",
+	"hmac(sha1)", "hmac(sha256)", "hmac(sha512)", "hmac(md5)", "hmac(sm3)",
 };
 
 static const struct rk_crypto_soc_data px30_soc_data =
