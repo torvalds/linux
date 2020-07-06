@@ -2112,7 +2112,7 @@ static void cal_ctx_v4l2_cleanup(struct cal_ctx *ctx)
 
 struct cal_v4l2_async_subdev {
 	struct v4l2_async_subdev asd;
-	struct cal_ctx *ctx;
+	struct cal_camerarx *phy;
 };
 
 static inline struct cal_v4l2_async_subdev *
@@ -2125,16 +2125,16 @@ static int cal_async_notifier_bound(struct v4l2_async_notifier *notifier,
 				    struct v4l2_subdev *subdev,
 				    struct v4l2_async_subdev *asd)
 {
-	struct cal_ctx *ctx = to_cal_asd(asd)->ctx;
+	struct cal_camerarx *phy = to_cal_asd(asd)->phy;
 
-	if (ctx->phy->sensor) {
-		ctx_info(ctx, "Rejecting subdev %s (Already set!!)",
+	if (phy->sensor) {
+		phy_info(phy, "Rejecting subdev %s (Already set!!)",
 			 subdev->name);
 		return 0;
 	}
 
-	ctx->phy->sensor = subdev;
-	ctx_dbg(1, ctx, "Using sensor %s for capture\n", subdev->name);
+	phy->sensor = subdev;
+	phy_dbg(1, phy, "Using sensor %s for capture\n", subdev->name);
 
 	return 0;
 }
@@ -2174,27 +2174,27 @@ static int cal_async_notifier_register(struct cal_dev *cal)
 	v4l2_async_notifier_init(&cal->notifier);
 	cal->notifier.ops = &cal_async_notifier_ops;
 
-	for (i = 0; i < ARRAY_SIZE(cal->ctx); ++i) {
-		struct cal_ctx *ctx = cal->ctx[i];
+	for (i = 0; i < ARRAY_SIZE(cal->phy); ++i) {
+		struct cal_camerarx *phy = cal->phy[i];
 		struct cal_v4l2_async_subdev *casd;
 		struct v4l2_async_subdev *asd;
 		struct fwnode_handle *fwnode;
 
-		if (!ctx)
+		if (!phy || !phy->sensor_node)
 			continue;
 
-		fwnode = of_fwnode_handle(ctx->phy->sensor_node);
+		fwnode = of_fwnode_handle(phy->sensor_node);
 		asd = v4l2_async_notifier_add_fwnode_subdev(&cal->notifier,
 							    fwnode,
 							    sizeof(*asd));
 		if (IS_ERR(asd)) {
-			ctx_err(ctx, "Failed to add subdev to notifier\n");
+			phy_err(phy, "Failed to add subdev to notifier\n");
 			ret = PTR_ERR(asd);
 			goto error;
 		}
 
 		casd = to_cal_asd(asd);
-		casd->ctx = ctx;
+		casd->phy = phy;
 	}
 
 	ret = v4l2_async_notifier_register(&cal->v4l2_dev, &cal->notifier);
