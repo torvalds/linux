@@ -1871,6 +1871,7 @@ static const struct video_device cal_videodev = {
 
 static int cal_complete_ctx(struct cal_ctx *ctx)
 {
+	struct v4l2_ctrl_handler *hdl = &ctx->ctrl_handler;
 	struct video_device *vfd;
 	struct vb2_queue *q;
 	int ret;
@@ -1904,6 +1905,17 @@ static int cal_complete_ctx(struct cal_ctx *ctx)
 	vfd->v4l2_dev = &ctx->v4l2_dev;
 	vfd->queue = q;
 
+	/* Initialize the control handler. */
+	v4l2_ctrl_handler_init(hdl, 11);
+	v4l2_ctrl_add_handler(hdl, ctx->phy->sensor->ctrl_handler, NULL, true);
+	if (hdl->error) {
+		ctx_err(ctx, "Failed to init ctrl handler\n");
+		ret = hdl->error;
+		goto error;
+	}
+
+	vfd->ctrl_handler = hdl;
+
 	/*
 	 * Provide a mutex to v4l2 core. It will be used to protect
 	 * all fops and v4l2 ioctls.
@@ -1913,12 +1925,16 @@ static int cal_complete_ctx(struct cal_ctx *ctx)
 
 	ret = video_register_device(vfd, VFL_TYPE_VIDEO, video_nr);
 	if (ret < 0)
-		return ret;
+		goto error;
 
 	ctx_info(ctx, "V4L2 device registered as %s\n",
 		 video_device_node_name(vfd));
 
 	return 0;
+
+error:
+	v4l2_ctrl_handler_free(hdl);
+	return ret;
 }
 
 static int cal_async_bound(struct v4l2_async_notifier *notifier,
@@ -2100,7 +2116,6 @@ cleanup_exit:
 static struct cal_ctx *cal_ctx_create(struct cal_dev *cal, int inst)
 {
 	struct cal_ctx *ctx;
-	struct v4l2_ctrl_handler *hdl;
 	int ret;
 
 	ctx = devm_kzalloc(&cal->pdev->dev, sizeof(*ctx), GFP_KERNEL);
@@ -2114,15 +2129,7 @@ static struct cal_ctx *cal_ctx_create(struct cal_dev *cal, int inst)
 		 "%s-%03d", CAL_MODULE_NAME, inst);
 	ret = v4l2_device_register(&cal->pdev->dev, &ctx->v4l2_dev);
 	if (ret)
-		goto err_exit;
-
-	hdl = &ctx->ctrl_handler;
-	ret = v4l2_ctrl_handler_init(hdl, 11);
-	if (ret) {
-		ctx_err(ctx, "Failed to init ctrl handler\n");
-		goto unreg_dev;
-	}
-	ctx->v4l2_dev.ctrl_handler = hdl;
+		return NULL;
 
 	/* Make sure Camera Core H/W register area is available */
 	ctx->phy = cal->phy[inst];
@@ -2134,15 +2141,12 @@ static struct cal_ctx *cal_ctx_create(struct cal_dev *cal, int inst)
 	ret = of_cal_create_instance(ctx, inst);
 	if (ret) {
 		ret = -EINVAL;
-		goto free_hdl;
+		goto unreg_dev;
 	}
 	return ctx;
 
-free_hdl:
-	v4l2_ctrl_handler_free(hdl);
 unreg_dev:
 	v4l2_device_unregister(&ctx->v4l2_dev);
-err_exit:
 	return NULL;
 }
 
