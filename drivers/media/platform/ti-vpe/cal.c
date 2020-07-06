@@ -1868,7 +1868,7 @@ static int cal_complete_ctx(struct cal_ctx *ctx)
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	q->lock = &ctx->mutex;
 	q->min_buffers_needed = 3;
-	q->dev = ctx->v4l2_dev.dev;
+	q->dev = &ctx->cal->pdev->dev;
 
 	ret = vb2_queue_init(q);
 	if (ret)
