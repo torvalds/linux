@@ -2037,11 +2037,10 @@ static int of_cal_create_instance(struct cal_ctx *ctx, int inst)
 		goto cleanup_exit;
 	}
 
-	v4l2_fwnode_endpoint_parse(of_fwnode_handle(ep_node), endpoint);
-
-	if (endpoint->bus_type != V4L2_MBUS_CSI2_DPHY) {
-		ctx_err(ctx, "Port:%d sub-device %pOFn is not a CSI2 device\n",
-			inst, sensor_node);
+	endpoint->bus_type = V4L2_MBUS_CSI2_DPHY;
+	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(ep_node), endpoint);
+	if (ret < 0) {
+		ctx_err(ctx, "Failed to parse endpoint\n");
 		goto cleanup_exit;
 	}
 
