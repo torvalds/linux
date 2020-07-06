@@ -95,7 +95,7 @@ qed_sp_fcoe_func_start(struct qed_hwfn *p_hwfn,
 	struct qed_cxt_info cxt_info;
 	u32 dummy_cid;
 	int rc = 0;
-	u16 tmp;
+	__le16 tmp;
 	u8 i;
 
 	/* Get SPQ entry */
@@ -162,17 +162,13 @@ qed_sp_fcoe_func_start(struct qed_hwfn *p_hwfn,
 	tmp = cpu_to_le16(fcoe_pf_params->cmdq_num_entries);
 	p_data->q_params.cmdq_num_entries = tmp;
 
-	tmp = fcoe_pf_params->num_cqs;
-	p_data->q_params.num_queues = (u8)tmp;
+	p_data->q_params.num_queues = fcoe_pf_params->num_cqs;
 
-	tmp = (u16)p_hwfn->hw_info.resc_start[QED_CMDQS_CQS];
-	p_data->q_params.queue_relative_offset = (u8)tmp;
+	tmp = (__force __le16)p_hwfn->hw_info.resc_start[QED_CMDQS_CQS];
+	p_data->q_params.queue_relative_offset = (__force u8)tmp;
 
 	for (i = 0; i < fcoe_pf_params->num_cqs; i++) {
-		u16 igu_sb_id;
-
-		igu_sb_id = qed_get_igu_sb_id(p_hwfn, i);
-		tmp = cpu_to_le16(igu_sb_id);
+		tmp = cpu_to_le16(qed_get_igu_sb_id(p_hwfn, i));
 		p_data->q_params.cq_cmdq_sb_num_arr[i] = tmp;
 	}
 
@@ -185,21 +181,21 @@ qed_sp_fcoe_func_start(struct qed_hwfn *p_hwfn,
 		       fcoe_pf_params->bdq_pbl_base_addr[BDQ_ID_RQ]);
 	p_data->q_params.bdq_pbl_num_entries[BDQ_ID_RQ] =
 	    fcoe_pf_params->bdq_pbl_num_entries[BDQ_ID_RQ];
-	tmp = fcoe_pf_params->bdq_xoff_threshold[BDQ_ID_RQ];
-	p_data->q_params.bdq_xoff_threshold[BDQ_ID_RQ] = cpu_to_le16(tmp);
-	tmp = fcoe_pf_params->bdq_xon_threshold[BDQ_ID_RQ];
-	p_data->q_params.bdq_xon_threshold[BDQ_ID_RQ] = cpu_to_le16(tmp);
+	tmp = cpu_to_le16(fcoe_pf_params->bdq_xoff_threshold[BDQ_ID_RQ]);
+	p_data->q_params.bdq_xoff_threshold[BDQ_ID_RQ] = tmp;
+	tmp = cpu_to_le16(fcoe_pf_params->bdq_xon_threshold[BDQ_ID_RQ]);
+	p_data->q_params.bdq_xon_threshold[BDQ_ID_RQ] = tmp;
 
 	DMA_REGPAIR_LE(p_data->q_params.bdq_pbl_base_address[BDQ_ID_IMM_DATA],
 		       fcoe_pf_params->bdq_pbl_base_addr[BDQ_ID_IMM_DATA]);
 	p_data->q_params.bdq_pbl_num_entries[BDQ_ID_IMM_DATA] =
 	    fcoe_pf_params->bdq_pbl_num_entries[BDQ_ID_IMM_DATA];
-	tmp = fcoe_pf_params->bdq_xoff_threshold[BDQ_ID_IMM_DATA];
-	p_data->q_params.bdq_xoff_threshold[BDQ_ID_IMM_DATA] = cpu_to_le16(tmp);
-	tmp = fcoe_pf_params->bdq_xon_threshold[BDQ_ID_IMM_DATA];
-	p_data->q_params.bdq_xon_threshold[BDQ_ID_IMM_DATA] = cpu_to_le16(tmp);
-	tmp = fcoe_pf_params->rq_buffer_size;
-	p_data->q_params.rq_buffer_size = cpu_to_le16(tmp);
+	tmp = cpu_to_le16(fcoe_pf_params->bdq_xoff_threshold[BDQ_ID_IMM_DATA]);
+	p_data->q_params.bdq_xoff_threshold[BDQ_ID_IMM_DATA] = tmp;
+	tmp = cpu_to_le16(fcoe_pf_params->bdq_xon_threshold[BDQ_ID_IMM_DATA]);
+	p_data->q_params.bdq_xon_threshold[BDQ_ID_IMM_DATA] = tmp;
+	tmp = cpu_to_le16(fcoe_pf_params->rq_buffer_size);
+	p_data->q_params.rq_buffer_size = tmp;
 
 	if (fcoe_pf_params->is_target) {
 		SET_FIELD(p_data->q_params.q_validity,
@@ -233,7 +229,8 @@ qed_sp_fcoe_conn_offload(struct qed_hwfn *p_hwfn,
 	struct fcoe_conn_offload_ramrod_data *p_data;
 	struct qed_spq_entry *p_ent = NULL;
 	struct qed_sp_init_data init_data;
-	u16 physical_q0, tmp;
+	u16 physical_q0;
+	__le16 tmp;
 	int rc;
 
 	/* Get SPQ entry */
@@ -254,7 +251,7 @@ qed_sp_fcoe_conn_offload(struct qed_hwfn *p_hwfn,
 
 	/* Transmission PQ is the first of the PF */
 	physical_q0 = qed_get_cm_pq_idx(p_hwfn, PQ_FLAGS_OFLD);
-	p_conn->physical_q0 = cpu_to_le16(physical_q0);
+	p_conn->physical_q0 = physical_q0;
 	p_data->physical_q0 = cpu_to_le16(physical_q0);
 
 	p_data->conn_id = cpu_to_le16(p_conn->conn_id);
@@ -553,8 +550,8 @@ int qed_fcoe_alloc(struct qed_hwfn *p_hwfn)
 void qed_fcoe_setup(struct qed_hwfn *p_hwfn)
 {
 	struct e4_fcoe_task_context *p_task_ctx = NULL;
+	u32 i, lc;
 	int rc;
-	u32 i;
 
 	spin_lock_init(&p_hwfn->p_fcoe_info->lock);
 	for (i = 0; i < p_hwfn->pf_params.fcoe_pf_params.num_tasks; i++) {
@@ -565,10 +562,15 @@ void qed_fcoe_setup(struct qed_hwfn *p_hwfn)
 			continue;
 
 		memset(p_task_ctx, 0, sizeof(struct e4_fcoe_task_context));
-		SET_FIELD(p_task_ctx->timer_context.logical_client_0,
-			  TIMERS_CONTEXT_VALIDLC0, 1);
-		SET_FIELD(p_task_ctx->timer_context.logical_client_1,
-			  TIMERS_CONTEXT_VALIDLC1, 1);
+
+		lc = 0;
+		SET_FIELD(lc, TIMERS_CONTEXT_VALIDLC0, 1);
+		p_task_ctx->timer_context.logical_client_0 = cpu_to_le32(lc);
+
+		lc = 0;
+		SET_FIELD(lc, TIMERS_CONTEXT_VALIDLC1, 1);
+		p_task_ctx->timer_context.logical_client_1 = cpu_to_le32(lc);
+
 		SET_FIELD(p_task_ctx->tstorm_ag_context.flags0,
 			  E4_TSTORM_FCOE_TASK_AG_CTX_CONNECTION_TYPE, 1);
 	}

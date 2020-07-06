@@ -1798,6 +1798,7 @@ qed_ll2_prepare_tx_packet_set_bd(struct qed_hwfn *p_hwfn,
 	enum core_roce_flavor_type roce_flavor;
 	enum core_tx_dest tx_dest;
 	u16 bd_data = 0, frag_idx;
+	u16 bitfield1;
 
 	roce_flavor = (pkt->qed_roce_flavor == QED_LL2_ROCE) ? CORE_ROCE
 							     : CORE_RROCE;
@@ -1829,9 +1830,11 @@ qed_ll2_prepare_tx_packet_set_bd(struct qed_hwfn *p_hwfn,
 			pkt->remove_stag = true;
 	}
 
-	SET_FIELD(start_bd->bitfield1, CORE_TX_BD_L4_HDR_OFFSET_W,
-		  cpu_to_le16(pkt->l4_hdr_offset_w));
-	SET_FIELD(start_bd->bitfield1, CORE_TX_BD_TX_DST, tx_dest);
+	bitfield1 = le16_to_cpu(start_bd->bitfield1);
+	SET_FIELD(bitfield1, CORE_TX_BD_L4_HDR_OFFSET_W, pkt->l4_hdr_offset_w);
+	SET_FIELD(bitfield1, CORE_TX_BD_TX_DST, tx_dest);
+	start_bd->bitfield1 = cpu_to_le16(bitfield1);
+
 	bd_data |= pkt->bd_flags;
 	SET_FIELD(bd_data, CORE_TX_BD_DATA_START_BD, 0x1);
 	SET_FIELD(bd_data, CORE_TX_BD_DATA_NBDS, pkt->num_of_bds);

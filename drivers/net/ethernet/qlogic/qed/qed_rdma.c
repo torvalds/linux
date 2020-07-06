@@ -1106,7 +1106,7 @@ static int qed_rdma_create_cq(void *rdma_cxt,
 	p_ramrod->pbl_num_pages = cpu_to_le16(params->pbl_num_pages);
 	p_ramrod->cnq_id = (u8)RESC_START(p_hwfn, QED_RDMA_CNQ_RAM) +
 			   params->cnq_id;
-	p_ramrod->int_timeout = params->int_timeout;
+	p_ramrod->int_timeout = cpu_to_le16(params->int_timeout);
 
 	/* toggle the bit for every resize or create cq for a given icid */
 	toggle_bit = qed_rdma_toggle_bit_create_resize_cq(p_hwfn, *icid);
@@ -1206,7 +1206,7 @@ err:	dma_free_coherent(&p_hwfn->cdev->pdev->dev,
 	return rc;
 }
 
-void qed_rdma_set_fw_mac(u16 *p_fw_mac, u8 *p_qed_mac)
+void qed_rdma_set_fw_mac(__le16 *p_fw_mac, const u8 *p_qed_mac)
 {
 	p_fw_mac[0] = cpu_to_le16((p_qed_mac[0] << 8) + p_qed_mac[1]);
 	p_fw_mac[1] = cpu_to_le16((p_qed_mac[2] << 8) + p_qed_mac[3]);
@@ -1495,6 +1495,7 @@ qed_rdma_register_tid(void *rdma_cxt,
 	struct qed_spq_entry *p_ent;
 	enum rdma_tid_type tid_type;
 	u8 fw_return_code;
+	u16 flags = 0;
 	int rc;
 
 	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "itid = %08x\n", params->itid);
@@ -1514,54 +1515,46 @@ qed_rdma_register_tid(void *rdma_cxt,
 	if (p_hwfn->p_rdma_info->last_tid < params->itid)
 		p_hwfn->p_rdma_info->last_tid = params->itid;
 
-	p_ramrod = &p_ent->ramrod.rdma_register_tid;
-
-	p_ramrod->flags = 0;
-	SET_FIELD(p_ramrod->flags,
-		  RDMA_REGISTER_TID_RAMROD_DATA_TWO_LEVEL_PBL,
+	SET_FIELD(flags, RDMA_REGISTER_TID_RAMROD_DATA_TWO_LEVEL_PBL,
 		  params->pbl_two_level);
 
-	SET_FIELD(p_ramrod->flags,
-		  RDMA_REGISTER_TID_RAMROD_DATA_ZERO_BASED, params->zbva);
+	SET_FIELD(flags, RDMA_REGISTER_TID_RAMROD_DATA_ZERO_BASED,
+		  params->zbva);
 
-	SET_FIELD(p_ramrod->flags,
-		  RDMA_REGISTER_TID_RAMROD_DATA_PHY_MR, params->phy_mr);
+	SET_FIELD(flags, RDMA_REGISTER_TID_RAMROD_DATA_PHY_MR, params->phy_mr);
 
 	/* Don't initialize D/C field, as it may override other bits. */
 	if (!(params->tid_type == QED_RDMA_TID_FMR) && !(params->dma_mr))
-		SET_FIELD(p_ramrod->flags,
-			  RDMA_REGISTER_TID_RAMROD_DATA_PAGE_SIZE_LOG,
+		SET_FIELD(flags, RDMA_REGISTER_TID_RAMROD_DATA_PAGE_SIZE_LOG,
 			  params->page_size_log - 12);
 
-	SET_FIELD(p_ramrod->flags,
-		  RDMA_REGISTER_TID_RAMROD_DATA_REMOTE_READ,
+	SET_FIELD(flags, RDMA_REGISTER_TID_RAMROD_DATA_REMOTE_READ,
 		  params->remote_read);
 
-	SET_FIELD(p_ramrod->flags,
-		  RDMA_REGISTER_TID_RAMROD_DATA_REMOTE_WRITE,
+	SET_FIELD(flags, RDMA_REGISTER_TID_RAMROD_DATA_REMOTE_WRITE,
 		  params->remote_write);
 
-	SET_FIELD(p_ramrod->flags,
-		  RDMA_REGISTER_TID_RAMROD_DATA_REMOTE_ATOMIC,
+	SET_FIELD(flags, RDMA_REGISTER_TID_RAMROD_DATA_REMOTE_ATOMIC,
 		  params->remote_atomic);
 
-	SET_FIELD(p_ramrod->flags,
-		  RDMA_REGISTER_TID_RAMROD_DATA_LOCAL_WRITE,
+	SET_FIELD(flags, RDMA_REGISTER_TID_RAMROD_DATA_LOCAL_WRITE,
 		  params->local_write);
 
-	SET_FIELD(p_ramrod->flags,
-		  RDMA_REGISTER_TID_RAMROD_DATA_LOCAL_READ, params->local_read);
+	SET_FIELD(flags, RDMA_REGISTER_TID_RAMROD_DATA_LOCAL_READ,
+		  params->local_read);
 
-	SET_FIELD(p_ramrod->flags,
-		  RDMA_REGISTER_TID_RAMROD_DATA_ENABLE_MW_BIND,
+	SET_FIELD(flags, RDMA_REGISTER_TID_RAMROD_DATA_ENABLE_MW_BIND,
 		  params->mw_bind);
+
+	p_ramrod = &p_ent->ramrod.rdma_register_tid;
+	p_ramrod->flags = cpu_to_le16(flags);
 
 	SET_FIELD(p_ramrod->flags1,
 		  RDMA_REGISTER_TID_RAMROD_DATA_PBL_PAGE_SIZE_LOG,
 		  params->pbl_page_size_log - 12);
 
-	SET_FIELD(p_ramrod->flags2,
-		  RDMA_REGISTER_TID_RAMROD_DATA_DMA_MR, params->dma_mr);
+	SET_FIELD(p_ramrod->flags2, RDMA_REGISTER_TID_RAMROD_DATA_DMA_MR,
+		  params->dma_mr);
 
 	switch (params->tid_type) {
 	case QED_RDMA_TID_REGISTERED_MR:
@@ -1579,8 +1572,9 @@ qed_rdma_register_tid(void *rdma_cxt,
 		qed_sp_destroy_request(p_hwfn, p_ent);
 		return rc;
 	}
-	SET_FIELD(p_ramrod->flags1,
-		  RDMA_REGISTER_TID_RAMROD_DATA_TID_TYPE, tid_type);
+
+	SET_FIELD(p_ramrod->flags1, RDMA_REGISTER_TID_RAMROD_DATA_TID_TYPE,
+		  tid_type);
 
 	p_ramrod->itid = cpu_to_le32(params->itid);
 	p_ramrod->key = params->key;

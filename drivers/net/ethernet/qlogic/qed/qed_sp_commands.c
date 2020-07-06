@@ -300,6 +300,7 @@ int qed_sp_pf_start(struct qed_hwfn *p_hwfn,
 		    struct qed_tunnel_info *p_tunn,
 		    bool allow_npar_tx_switch)
 {
+	struct outer_tag_config_struct *outer_tag_config;
 	struct pf_start_ramrod_data *p_ramrod = NULL;
 	u16 sb = qed_int_get_sp_sb_id(p_hwfn);
 	u8 sb_index = p_hwfn->p_eq->eq_sb_index;
@@ -336,29 +337,30 @@ int qed_sp_pf_start(struct qed_hwfn *p_hwfn,
 	else
 		p_ramrod->mf_mode = MF_NPAR;
 
-	p_ramrod->outer_tag_config.outer_tag.tci =
-				cpu_to_le16(p_hwfn->hw_info.ovlan);
+	outer_tag_config = &p_ramrod->outer_tag_config;
+	outer_tag_config->outer_tag.tci = cpu_to_le16(p_hwfn->hw_info.ovlan);
+
 	if (test_bit(QED_MF_8021Q_TAGGING, &p_hwfn->cdev->mf_bits)) {
-		p_ramrod->outer_tag_config.outer_tag.tpid = ETH_P_8021Q;
+		outer_tag_config->outer_tag.tpid = cpu_to_le16(ETH_P_8021Q);
 	} else if (test_bit(QED_MF_8021AD_TAGGING, &p_hwfn->cdev->mf_bits)) {
-		p_ramrod->outer_tag_config.outer_tag.tpid = ETH_P_8021AD;
-		p_ramrod->outer_tag_config.enable_stag_pri_change = 1;
+		outer_tag_config->outer_tag.tpid = cpu_to_le16(ETH_P_8021AD);
+		outer_tag_config->enable_stag_pri_change = 1;
 	}
 
-	p_ramrod->outer_tag_config.pri_map_valid = 1;
+	outer_tag_config->pri_map_valid = 1;
 	for (i = 0; i < QED_MAX_PFC_PRIORITIES; i++)
-		p_ramrod->outer_tag_config.inner_to_outer_pri_map[i] = i;
+		outer_tag_config->inner_to_outer_pri_map[i] = i;
 
 	/* enable_stag_pri_change should be set if port is in BD mode or,
 	 * UFP with Host Control mode.
 	 */
 	if (test_bit(QED_MF_UFP_SPECIFIC, &p_hwfn->cdev->mf_bits)) {
 		if (p_hwfn->ufp_info.pri_type == QED_UFP_PRI_OS)
-			p_ramrod->outer_tag_config.enable_stag_pri_change = 1;
+			outer_tag_config->enable_stag_pri_change = 1;
 		else
-			p_ramrod->outer_tag_config.enable_stag_pri_change = 0;
+			outer_tag_config->enable_stag_pri_change = 0;
 
-		p_ramrod->outer_tag_config.outer_tag.tci |=
+		outer_tag_config->outer_tag.tci |=
 		    cpu_to_le16(((u16)p_hwfn->ufp_info.tc << 13));
 	}
 
@@ -406,7 +408,7 @@ int qed_sp_pf_start(struct qed_hwfn *p_hwfn,
 
 	DP_VERBOSE(p_hwfn, QED_MSG_SPQ,
 		   "Setting event_ring_sb [id %04x index %02x], outer_tag.tci [%d]\n",
-		   sb, sb_index, p_ramrod->outer_tag_config.outer_tag.tci);
+		   sb, sb_index, outer_tag_config->outer_tag.tci);
 
 	rc = qed_spq_post(p_hwfn, p_ent, NULL);
 

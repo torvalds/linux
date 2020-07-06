@@ -26,10 +26,6 @@ struct qed_iscsi_info {
 	iscsi_event_cb_t event_cb;
 };
 
-#ifdef CONFIG_QED_LL2
-extern const struct qed_ll2_ops qed_ll2_ops_pass;
-#endif
-
 #if IS_ENABLED(CONFIG_QED_ISCSI)
 int qed_iscsi_alloc(struct qed_hwfn *p_hwfn);
 

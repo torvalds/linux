@@ -28,12 +28,12 @@ struct qede_ptp {
 };
 
 /**
- * qede_ptp_adjfreq
- * @ptp: the ptp clock structure
- * @ppb: parts per billion adjustment from base
+ * qede_ptp_adjfreq() - Adjust the frequency of the PTP cycle counter.
  *
- * Adjust the frequency of the ptp cycle counter by the
- * indicated ppb from the base frequency.
+ * @info: The PTP clock info structure.
+ * @ppb: Parts per billion adjustment from base.
+ *
+ * Return: Zero on success, negative errno otherwise.
  */
 static int qede_ptp_adjfreq(struct ptp_clock_info *info, s32 ppb)
 {

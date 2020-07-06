@@ -116,6 +116,8 @@ struct qed_ll2_info {
 	struct qed_ll2_cbs cbs;
 };
 
+extern const struct qed_ll2_ops qed_ll2_ops_pass;
+
 /**
  * @brief qed_ll2_acquire_connection - allocate resources,
  *        starts rx & tx (if relevant) queues pair. Provides

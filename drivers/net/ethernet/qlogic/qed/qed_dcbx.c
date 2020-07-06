@@ -547,7 +547,8 @@ qed_dcbx_get_ets_data(struct qed_hwfn *p_hwfn,
 		      struct dcbx_ets_feature *p_ets,
 		      struct qed_dcbx_params *p_params)
 {
-	u32 bw_map[2], tsa_map[2], pri_map;
+	__be32 bw_map[2], tsa_map[2];
+	u32 pri_map;
 	int i;
 
 	p_params->ets_willing = QED_MFW_GET_FIELD(p_ets->flags,
@@ -573,11 +574,10 @@ qed_dcbx_get_ets_data(struct qed_hwfn *p_hwfn,
 	/* 8 bit tsa and bw data corresponding to each of the 8 TC's are
 	 * encoded in a type u32 array of size 2.
 	 */
-	bw_map[0] = be32_to_cpu(p_ets->tc_bw_tbl[0]);
-	bw_map[1] = be32_to_cpu(p_ets->tc_bw_tbl[1]);
-	tsa_map[0] = be32_to_cpu(p_ets->tc_tsa_tbl[0]);
-	tsa_map[1] = be32_to_cpu(p_ets->tc_tsa_tbl[1]);
+	cpu_to_be32_array(bw_map, p_ets->tc_bw_tbl, 2);
+	cpu_to_be32_array(tsa_map, p_ets->tc_tsa_tbl, 2);
 	pri_map = p_ets->pri_tc_tbl[0];
+
 	for (i = 0; i < QED_MAX_PFC_PRIORITIES; i++) {
 		p_params->ets_tc_bw_tbl[i] = ((u8 *)bw_map)[i];
 		p_params->ets_tc_tsa_tbl[i] = ((u8 *)tsa_map)[i];
@@ -1054,7 +1054,7 @@ qed_dcbx_set_ets_data(struct qed_hwfn *p_hwfn,
 		      struct dcbx_ets_feature *p_ets,
 		      struct qed_dcbx_params *p_params)
 {
-	u8 *bw_map, *tsa_map;
+	__be32 bw_map[2], tsa_map[2];
 	u32 val;
 	int i;
 
@@ -1076,22 +1076,21 @@ qed_dcbx_set_ets_data(struct qed_hwfn *p_hwfn,
 	p_ets->flags &= ~DCBX_ETS_MAX_TCS_MASK;
 	p_ets->flags |= (u32)p_params->max_ets_tc << DCBX_ETS_MAX_TCS_SHIFT;
 
-	bw_map = (u8 *)&p_ets->tc_bw_tbl[0];
-	tsa_map = (u8 *)&p_ets->tc_tsa_tbl[0];
 	p_ets->pri_tc_tbl[0] = 0;
+
 	for (i = 0; i < QED_MAX_PFC_PRIORITIES; i++) {
-		bw_map[i] = p_params->ets_tc_bw_tbl[i];
-		tsa_map[i] = p_params->ets_tc_tsa_tbl[i];
+		((u8 *)bw_map)[i] = p_params->ets_tc_bw_tbl[i];
+		((u8 *)tsa_map)[i] = p_params->ets_tc_tsa_tbl[i];
+
 		/* Copy the priority value to the corresponding 4 bits in the
 		 * traffic class table.
 		 */
 		val = (((u32)p_params->ets_pri_tc_tbl[i]) << ((7 - i) * 4));
 		p_ets->pri_tc_tbl[0] |= val;
 	}
-	for (i = 0; i < 2; i++) {
-		p_ets->tc_bw_tbl[i] = cpu_to_be32(p_ets->tc_bw_tbl[i]);
-		p_ets->tc_tsa_tbl[i] = cpu_to_be32(p_ets->tc_tsa_tbl[i]);
-	}
+
+	be32_to_cpu_array(p_ets->tc_bw_tbl, bw_map, 2);
+	be32_to_cpu_array(p_ets->tc_tsa_tbl, tsa_map, 2);
 }
 
 static void

@@ -2793,34 +2793,34 @@ struct fw_overlay_buf_hdr {
 
 /* init array header: raw */
 struct init_array_raw_hdr {
-	u32 data;
-#define INIT_ARRAY_RAW_HDR_TYPE_MASK	0xF
-#define INIT_ARRAY_RAW_HDR_TYPE_SHIFT	0
-#define INIT_ARRAY_RAW_HDR_PARAMS_MASK	0xFFFFFFF
-#define INIT_ARRAY_RAW_HDR_PARAMS_SHIFT	4
+	__le32						data;
+#define INIT_ARRAY_RAW_HDR_TYPE_MASK			0xF
+#define INIT_ARRAY_RAW_HDR_TYPE_SHIFT			0
+#define INIT_ARRAY_RAW_HDR_PARAMS_MASK			0xFFFFFFF
+#define INIT_ARRAY_RAW_HDR_PARAMS_SHIFT			4
 };
 
 /* init array header: standard */
 struct init_array_standard_hdr {
-	u32 data;
-#define INIT_ARRAY_STANDARD_HDR_TYPE_MASK	0xF
-#define INIT_ARRAY_STANDARD_HDR_TYPE_SHIFT	0
-#define INIT_ARRAY_STANDARD_HDR_SIZE_MASK	0xFFFFFFF
-#define INIT_ARRAY_STANDARD_HDR_SIZE_SHIFT	4
+	__le32						data;
+#define INIT_ARRAY_STANDARD_HDR_TYPE_MASK		0xF
+#define INIT_ARRAY_STANDARD_HDR_TYPE_SHIFT		0
+#define INIT_ARRAY_STANDARD_HDR_SIZE_MASK		0xFFFFFFF
+#define INIT_ARRAY_STANDARD_HDR_SIZE_SHIFT		4
 };
 
 /* init array header: zipped */
 struct init_array_zipped_hdr {
-	u32 data;
-#define INIT_ARRAY_ZIPPED_HDR_TYPE_MASK		0xF
-#define INIT_ARRAY_ZIPPED_HDR_TYPE_SHIFT	0
-#define INIT_ARRAY_ZIPPED_HDR_ZIPPED_SIZE_MASK	0xFFFFFFF
-#define INIT_ARRAY_ZIPPED_HDR_ZIPPED_SIZE_SHIFT	4
+	__le32						data;
+#define INIT_ARRAY_ZIPPED_HDR_TYPE_MASK			0xF
+#define INIT_ARRAY_ZIPPED_HDR_TYPE_SHIFT		0
+#define INIT_ARRAY_ZIPPED_HDR_ZIPPED_SIZE_MASK		0xFFFFFFF
+#define INIT_ARRAY_ZIPPED_HDR_ZIPPED_SIZE_SHIFT		4
 };
 
 /* init array header: pattern */
 struct init_array_pattern_hdr {
-	u32 data;
+	__le32						data;
 #define INIT_ARRAY_PATTERN_HDR_TYPE_MASK		0xF
 #define INIT_ARRAY_PATTERN_HDR_TYPE_SHIFT		0
 #define INIT_ARRAY_PATTERN_HDR_PATTERN_SIZE_MASK	0xF
@@ -2831,10 +2831,10 @@ struct init_array_pattern_hdr {
 
 /* init array header union */
 union init_array_hdr {
-	struct init_array_raw_hdr raw;
-	struct init_array_standard_hdr standard;
-	struct init_array_zipped_hdr zipped;
-	struct init_array_pattern_hdr pattern;
+	struct init_array_raw_hdr			raw;
+	struct init_array_standard_hdr			standard;
+	struct init_array_zipped_hdr			zipped;
+	struct init_array_pattern_hdr			pattern;
 };
 
 /* init array types */
@@ -2847,54 +2847,54 @@ enum init_array_types {
 
 /* init operation: callback */
 struct init_callback_op {
-	u32 op_data;
-#define INIT_CALLBACK_OP_OP_MASK	0xF
-#define INIT_CALLBACK_OP_OP_SHIFT	0
-#define INIT_CALLBACK_OP_RESERVED_MASK	0xFFFFFFF
-#define INIT_CALLBACK_OP_RESERVED_SHIFT	4
-	u16 callback_id;
-	u16 block_id;
+	__le32						op_data;
+#define INIT_CALLBACK_OP_OP_MASK			0xF
+#define INIT_CALLBACK_OP_OP_SHIFT			0
+#define INIT_CALLBACK_OP_RESERVED_MASK			0xFFFFFFF
+#define INIT_CALLBACK_OP_RESERVED_SHIFT			4
+	__le16						callback_id;
+	__le16						block_id;
 };
 
 /* init operation: delay */
 struct init_delay_op {
-	u32 op_data;
-#define INIT_DELAY_OP_OP_MASK		0xF
-#define INIT_DELAY_OP_OP_SHIFT		0
-#define INIT_DELAY_OP_RESERVED_MASK	0xFFFFFFF
-#define INIT_DELAY_OP_RESERVED_SHIFT	4
-	u32 delay;
+	__le32						op_data;
+#define INIT_DELAY_OP_OP_MASK				0xF
+#define INIT_DELAY_OP_OP_SHIFT				0
+#define INIT_DELAY_OP_RESERVED_MASK			0xFFFFFFF
+#define INIT_DELAY_OP_RESERVED_SHIFT			4
+	__le32						delay;
 };
 
 /* init operation: if_mode */
 struct init_if_mode_op {
-	u32 op_data;
-#define INIT_IF_MODE_OP_OP_MASK			0xF
-#define INIT_IF_MODE_OP_OP_SHIFT		0
-#define INIT_IF_MODE_OP_RESERVED1_MASK		0xFFF
-#define INIT_IF_MODE_OP_RESERVED1_SHIFT		4
-#define INIT_IF_MODE_OP_CMD_OFFSET_MASK		0xFFFF
-#define INIT_IF_MODE_OP_CMD_OFFSET_SHIFT	16
-	u16 reserved2;
-	u16 modes_buf_offset;
+	__le32						op_data;
+#define INIT_IF_MODE_OP_OP_MASK				0xF
+#define INIT_IF_MODE_OP_OP_SHIFT			0
+#define INIT_IF_MODE_OP_RESERVED1_MASK			0xFFF
+#define INIT_IF_MODE_OP_RESERVED1_SHIFT			4
+#define INIT_IF_MODE_OP_CMD_OFFSET_MASK			0xFFFF
+#define INIT_IF_MODE_OP_CMD_OFFSET_SHIFT		16
+	__le16						reserved2;
+	__le16						modes_buf_offset;
 };
 
 /* init operation: if_phase */
 struct init_if_phase_op {
-	u32 op_data;
-#define INIT_IF_PHASE_OP_OP_MASK		0xF
-#define INIT_IF_PHASE_OP_OP_SHIFT		0
-#define INIT_IF_PHASE_OP_RESERVED1_MASK		0xFFF
-#define INIT_IF_PHASE_OP_RESERVED1_SHIFT	4
-#define INIT_IF_PHASE_OP_CMD_OFFSET_MASK	0xFFFF
-#define INIT_IF_PHASE_OP_CMD_OFFSET_SHIFT	16
-	u32 phase_data;
-#define INIT_IF_PHASE_OP_PHASE_MASK		0xFF
-#define INIT_IF_PHASE_OP_PHASE_SHIFT		0
-#define INIT_IF_PHASE_OP_RESERVED2_MASK		0xFF
-#define INIT_IF_PHASE_OP_RESERVED2_SHIFT	8
-#define INIT_IF_PHASE_OP_PHASE_ID_MASK		0xFFFF
-#define INIT_IF_PHASE_OP_PHASE_ID_SHIFT		16
+	__le32						op_data;
+#define INIT_IF_PHASE_OP_OP_MASK			0xF
+#define INIT_IF_PHASE_OP_OP_SHIFT			0
+#define INIT_IF_PHASE_OP_RESERVED1_MASK			0xFFF
+#define INIT_IF_PHASE_OP_RESERVED1_SHIFT		4
+#define INIT_IF_PHASE_OP_CMD_OFFSET_MASK		0xFFFF
+#define INIT_IF_PHASE_OP_CMD_OFFSET_SHIFT		16
+	__le32						phase_data;
+#define INIT_IF_PHASE_OP_PHASE_MASK			0xFF
+#define INIT_IF_PHASE_OP_PHASE_SHIFT			0
+#define INIT_IF_PHASE_OP_RESERVED2_MASK			0xFF
+#define INIT_IF_PHASE_OP_RESERVED2_SHIFT		8
+#define INIT_IF_PHASE_OP_PHASE_ID_MASK			0xFFFF
+#define INIT_IF_PHASE_OP_PHASE_ID_SHIFT			16
 };
 
 /* init mode operators */
@@ -2907,67 +2907,67 @@ enum init_mode_ops {
 
 /* init operation: raw */
 struct init_raw_op {
-	u32 op_data;
-#define INIT_RAW_OP_OP_MASK		0xF
-#define INIT_RAW_OP_OP_SHIFT		0
-#define INIT_RAW_OP_PARAM1_MASK		0xFFFFFFF
-#define INIT_RAW_OP_PARAM1_SHIFT	4
-	u32 param2;
+	__le32						op_data;
+#define INIT_RAW_OP_OP_MASK				0xF
+#define INIT_RAW_OP_OP_SHIFT				0
+#define INIT_RAW_OP_PARAM1_MASK				0xFFFFFFF
+#define INIT_RAW_OP_PARAM1_SHIFT			4
+	__le32						param2;
 };
 
 /* init array params */
 struct init_op_array_params {
-	u16 size;
-	u16 offset;
+	__le16						size;
+	__le16						offset;
 };
 
 /* Write init operation arguments */
 union init_write_args {
-	u32 inline_val;
-	u32 zeros_count;
-	u32 array_offset;
-	struct init_op_array_params runtime;
+	__le32						inline_val;
+	__le32						zeros_count;
+	__le32						array_offset;
+	struct init_op_array_params			runtime;
 };
 
 /* init operation: write */
 struct init_write_op {
-	u32 data;
-#define INIT_WRITE_OP_OP_MASK		0xF
-#define INIT_WRITE_OP_OP_SHIFT		0
-#define INIT_WRITE_OP_SOURCE_MASK	0x7
-#define INIT_WRITE_OP_SOURCE_SHIFT	4
-#define INIT_WRITE_OP_RESERVED_MASK	0x1
-#define INIT_WRITE_OP_RESERVED_SHIFT	7
-#define INIT_WRITE_OP_WIDE_BUS_MASK	0x1
-#define INIT_WRITE_OP_WIDE_BUS_SHIFT	8
-#define INIT_WRITE_OP_ADDRESS_MASK	0x7FFFFF
-#define INIT_WRITE_OP_ADDRESS_SHIFT	9
-	union init_write_args args;
+	__le32						data;
+#define INIT_WRITE_OP_OP_MASK				0xF
+#define INIT_WRITE_OP_OP_SHIFT				0
+#define INIT_WRITE_OP_SOURCE_MASK			0x7
+#define INIT_WRITE_OP_SOURCE_SHIFT			4
+#define INIT_WRITE_OP_RESERVED_MASK			0x1
+#define INIT_WRITE_OP_RESERVED_SHIFT			7
+#define INIT_WRITE_OP_WIDE_BUS_MASK			0x1
+#define INIT_WRITE_OP_WIDE_BUS_SHIFT			8
+#define INIT_WRITE_OP_ADDRESS_MASK			0x7FFFFF
+#define INIT_WRITE_OP_ADDRESS_SHIFT			9
+	union init_write_args				args;
 };
 
 /* init operation: read */
 struct init_read_op {
-	u32 op_data;
-#define INIT_READ_OP_OP_MASK		0xF
-#define INIT_READ_OP_OP_SHIFT		0
-#define INIT_READ_OP_POLL_TYPE_MASK	0xF
-#define INIT_READ_OP_POLL_TYPE_SHIFT	4
-#define INIT_READ_OP_RESERVED_MASK	0x1
-#define INIT_READ_OP_RESERVED_SHIFT	8
-#define INIT_READ_OP_ADDRESS_MASK	0x7FFFFF
-#define INIT_READ_OP_ADDRESS_SHIFT	9
-	u32 expected_val;
+	__le32						op_data;
+#define INIT_READ_OP_OP_MASK				0xF
+#define INIT_READ_OP_OP_SHIFT				0
+#define INIT_READ_OP_POLL_TYPE_MASK			0xF
+#define INIT_READ_OP_POLL_TYPE_SHIFT			4
+#define INIT_READ_OP_RESERVED_MASK			0x1
+#define INIT_READ_OP_RESERVED_SHIFT			8
+#define INIT_READ_OP_ADDRESS_MASK			0x7FFFFF
+#define INIT_READ_OP_ADDRESS_SHIFT			9
+	__le32						expected_val;
 };
 
 /* Init operations union */
 union init_op {
-	struct init_raw_op raw;
-	struct init_write_op write;
-	struct init_read_op read;
-	struct init_if_mode_op if_mode;
-	struct init_if_phase_op if_phase;
-	struct init_callback_op callback;
-	struct init_delay_op delay;
+	struct init_raw_op				raw;
+	struct init_write_op				write;
+	struct init_read_op				read;
+	struct init_if_mode_op				if_mode;
+	struct init_if_phase_op				if_phase;
+	struct init_callback_op				callback;
+	struct init_delay_op				delay;
 };
 
 /* Init command operation types */
@@ -4390,79 +4390,6 @@ void qed_fw_overlay_mem_free(struct qed_hwfn *p_hwfn,
 #define USTORM_ROCE_CQE_STATS_OFFSET(roce_pf_id)	\
 	(IRO[66].base + ((roce_pf_id) * IRO[66].m1))
 #define USTORM_ROCE_CQE_STATS_SIZE			(IRO[66].size)
-
-/* IRO Array */
-static const u32 iro_arr[] = {
-	0x00000000, 0x00000000, 0x00080000,
-	0x00003288, 0x00000088, 0x00880000,
-	0x000058e8, 0x00000020, 0x00200000,
-	0x00000b00, 0x00000008, 0x00040000,
-	0x00000a80, 0x00000008, 0x00040000,
-	0x00000000, 0x00000008, 0x00020000,
-	0x00000080, 0x00000008, 0x00040000,
-	0x00000084, 0x00000008, 0x00020000,
-	0x00005718, 0x00000004, 0x00040000,
-	0x00004dd0, 0x00000000, 0x00780000,
-	0x00003e40, 0x00000000, 0x00780000,
-	0x00004480, 0x00000000, 0x00780000,
-	0x00003210, 0x00000000, 0x00780000,
-	0x00003b50, 0x00000000, 0x00780000,
-	0x00007f58, 0x00000000, 0x00780000,
-	0x00005f58, 0x00000000, 0x00080000,
-	0x00007100, 0x00000000, 0x00080000,
-	0x0000aea0, 0x00000000, 0x00080000,
-	0x00004398, 0x00000000, 0x00080000,
-	0x0000a5a0, 0x00000000, 0x00080000,
-	0x0000bde8, 0x00000000, 0x00080000,
-	0x00000020, 0x00000004, 0x00040000,
-	0x000056c8, 0x00000010, 0x00100000,
-	0x0000c210, 0x00000030, 0x00300000,
-	0x0000b088, 0x00000038, 0x00380000,
-	0x00003d20, 0x00000080, 0x00400000,
-	0x0000bf60, 0x00000000, 0x00040000,
-	0x00004560, 0x00040080, 0x00040000,
-	0x000001f8, 0x00000004, 0x00040000,
-	0x00003d60, 0x00000080, 0x00200000,
-	0x00008960, 0x00000040, 0x00300000,
-	0x0000e840, 0x00000060, 0x00600000,
-	0x00004618, 0x00000080, 0x00380000,
-	0x00010738, 0x000000c0, 0x00c00000,
-	0x000001f8, 0x00000002, 0x00020000,
-	0x0000a2a0, 0x00000000, 0x01080000,
-	0x0000a3a8, 0x00000008, 0x00080000,
-	0x000001c0, 0x00000008, 0x00080000,
-	0x000001f8, 0x00000008, 0x00080000,
-	0x00000ac0, 0x00000008, 0x00080000,
-	0x00002578, 0x00000008, 0x00080000,
-	0x000024f8, 0x00000008, 0x00080000,
-	0x00000280, 0x00000008, 0x00080000,
-	0x00000680, 0x00080018, 0x00080000,
-	0x00000b78, 0x00080018, 0x00020000,
-	0x0000c640, 0x00000050, 0x003c0000,
-	0x00012038, 0x00000018, 0x00100000,
-	0x00011b00, 0x00000040, 0x00180000,
-	0x000095d0, 0x00000050, 0x00200000,
-	0x00008b10, 0x00000040, 0x00280000,
-	0x00011640, 0x00000018, 0x00100000,
-	0x0000c828, 0x00000048, 0x00380000,
-	0x00011710, 0x00000020, 0x00200000,
-	0x00004650, 0x00000080, 0x00100000,
-	0x00003618, 0x00000010, 0x00100000,
-	0x0000a968, 0x00000008, 0x00010000,
-	0x000097a0, 0x00000008, 0x00010000,
-	0x00011990, 0x00000008, 0x00010000,
-	0x0000f018, 0x00000008, 0x00010000,
-	0x00012628, 0x00000008, 0x00010000,
-	0x00011da8, 0x00000008, 0x00010000,
-	0x0000aa78, 0x00000030, 0x00100000,
-	0x0000d768, 0x00000028, 0x00280000,
-	0x00009a58, 0x00000018, 0x00180000,
-	0x00009bd8, 0x00000008, 0x00080000,
-	0x00013a18, 0x00000008, 0x00080000,
-	0x000126e8, 0x00000018, 0x00180000,
-	0x0000e608, 0x00500288, 0x00100000,
-	0x00012970, 0x00000138, 0x00280000,
-};
 
 /* Runtime array offsets */
 #define DORQ_REG_PF_MAX_ICID_0_RT_OFFSET				0

@@ -1962,8 +1962,7 @@ static u32 qed_nvm_flash_image_access_crc(struct qed_dev *cdev,
 					  u32 *crc)
 {
 	u8 *buf = NULL;
-	int rc, j;
-	u32 val;
+	int rc;
 
 	/* Allocate a buffer for holding the nvram image */
 	buf = kzalloc(nvm_image->length, GFP_KERNEL);
@@ -1981,15 +1980,14 @@ static u32 qed_nvm_flash_image_access_crc(struct qed_dev *cdev,
 	/* Convert the buffer into big-endian format (excluding the
 	 * closing 4 bytes of CRC).
 	 */
-	for (j = 0; j < nvm_image->length - 4; j += 4) {
-		val = cpu_to_be32(*(u32 *)&buf[j]);
-		*(u32 *)&buf[j] = val;
-	}
+	cpu_to_be32_array((__force __be32 *)buf, (const u32 *)buf,
+			  DIV_ROUND_UP(nvm_image->length - 4, 4));
 
 	/* Calc CRC for the "actual" image buffer, i.e. not including
 	 * the last 4 CRC bytes.
 	 */
-	*crc = (~cpu_to_be32(crc32(0xffffffff, buf, nvm_image->length - 4)));
+	*crc = ~crc32(~0U, buf, nvm_image->length - 4);
+	*crc = (__force u32)cpu_to_be32p(crc);
 
 out:
 	kfree(buf);
@@ -2451,7 +2449,7 @@ void qed_schedule_recovery_handler(struct qed_hwfn *p_hwfn)
 		ops->schedule_recovery_handler(cookie);
 }
 
-static char *qed_hw_err_type_descr[] = {
+static const char * const qed_hw_err_type_descr[] = {
 	[QED_HW_ERR_FAN_FAIL]		= "Fan Failure",
 	[QED_HW_ERR_MFW_RESP_FAIL]	= "MFW Response Failure",
 	[QED_HW_ERR_HW_ATTN]		= "HW Attention",
@@ -2466,7 +2464,7 @@ void qed_hw_error_occurred(struct qed_hwfn *p_hwfn,
 {
 	struct qed_common_cb_ops *ops = p_hwfn->cdev->protocol_ops.common;
 	void *cookie = p_hwfn->cdev->ops_cookie;
-	char *err_str;
+	const char *err_str;
 
 	if (err_type > QED_HW_ERR_LAST)
 		err_type = QED_HW_ERR_LAST;

@@ -201,7 +201,7 @@ qed_bmap_release_id(struct qed_hwfn *p_hwfn, struct qed_bmap *bmap, u32 id_num);
 int
 qed_bmap_test_id(struct qed_hwfn *p_hwfn, struct qed_bmap *bmap, u32 id_num);
 
-void qed_rdma_set_fw_mac(u16 *p_fw_mac, u8 *p_qed_mac);
+void qed_rdma_set_fw_mac(__le16 *p_fw_mac, const u8 *p_qed_mac);
 
 bool qed_rdma_allocated_qps(struct qed_hwfn *p_hwfn);
 #endif

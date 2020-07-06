@@ -117,10 +117,9 @@ struct qed_iscsi_conn {
 	u8 abortive_dsconnect;
 };
 
-static int
-qed_iscsi_async_event(struct qed_hwfn *p_hwfn,
-		      u8 fw_event_code,
-		      u16 echo, union event_ring_data *data, u8 fw_return_code)
+static int qed_iscsi_async_event(struct qed_hwfn *p_hwfn, u8 fw_event_code,
+				 __le16 echo, union event_ring_data *data,
+				 u8 fw_return_code)
 {
 	if (p_hwfn->p_iscsi_info->event_cb) {
 		struct qed_iscsi_info *p_iscsi = p_hwfn->p_iscsi_info;
@@ -271,6 +270,7 @@ static int qed_sp_iscsi_conn_offload(struct qed_hwfn *p_hwfn,
 	dma_addr_t xhq_pbl_addr;
 	dma_addr_t uhq_pbl_addr;
 	u16 physical_q;
+	__le16 tmp;
 	int rc = 0;
 	u32 dval;
 	u16 wval;
@@ -294,12 +294,12 @@ static int qed_sp_iscsi_conn_offload(struct qed_hwfn *p_hwfn,
 
 	/* Transmission PQ is the first of the PF */
 	physical_q = qed_get_cm_pq_idx(p_hwfn, PQ_FLAGS_OFLD);
-	p_conn->physical_q0 = cpu_to_le16(physical_q);
+	p_conn->physical_q0 = physical_q;
 	p_ramrod->iscsi.physical_q0 = cpu_to_le16(physical_q);
 
 	/* iSCSI Pure-ACK PQ */
 	physical_q = qed_get_cm_pq_idx(p_hwfn, PQ_FLAGS_ACK);
-	p_conn->physical_q1 = cpu_to_le16(physical_q);
+	p_conn->physical_q1 = physical_q;
 	p_ramrod->iscsi.physical_q1 = cpu_to_le16(physical_q);
 
 	p_ramrod->conn_id = cpu_to_le16(p_conn->conn_id);
@@ -325,14 +325,20 @@ static int qed_sp_iscsi_conn_offload(struct qed_hwfn *p_hwfn,
 		p_tcp = &p_ramrod->tcp;
 
 		p = (u16 *)p_conn->local_mac;
-		p_tcp->local_mac_addr_hi = swab16(get_unaligned(p));
-		p_tcp->local_mac_addr_mid = swab16(get_unaligned(p + 1));
-		p_tcp->local_mac_addr_lo = swab16(get_unaligned(p + 2));
+		tmp = cpu_to_le16(get_unaligned_be16(p));
+		p_tcp->local_mac_addr_hi = tmp;
+		tmp = cpu_to_le16(get_unaligned_be16(p + 1));
+		p_tcp->local_mac_addr_mid = tmp;
+		tmp = cpu_to_le16(get_unaligned_be16(p + 2));
+		p_tcp->local_mac_addr_lo = tmp;
 
 		p = (u16 *)p_conn->remote_mac;
-		p_tcp->remote_mac_addr_hi = swab16(get_unaligned(p));
-		p_tcp->remote_mac_addr_mid = swab16(get_unaligned(p + 1));
-		p_tcp->remote_mac_addr_lo = swab16(get_unaligned(p + 2));
+		tmp = cpu_to_le16(get_unaligned_be16(p));
+		p_tcp->remote_mac_addr_hi = tmp;
+		tmp = cpu_to_le16(get_unaligned_be16(p + 1));
+		p_tcp->remote_mac_addr_mid = tmp;
+		tmp = cpu_to_le16(get_unaligned_be16(p + 2));
+		p_tcp->remote_mac_addr_lo = tmp;
 
 		p_tcp->vlan_id = cpu_to_le16(p_conn->vlan_id);
 
@@ -391,14 +397,20 @@ static int qed_sp_iscsi_conn_offload(struct qed_hwfn *p_hwfn,
 		    &((struct iscsi_spe_conn_offload_option2 *)p_ramrod)->tcp;
 
 		p = (u16 *)p_conn->local_mac;
-		p_tcp2->local_mac_addr_hi = swab16(get_unaligned(p));
-		p_tcp2->local_mac_addr_mid = swab16(get_unaligned(p + 1));
-		p_tcp2->local_mac_addr_lo = swab16(get_unaligned(p + 2));
+		tmp = cpu_to_le16(get_unaligned_be16(p));
+		p_tcp2->local_mac_addr_hi = tmp;
+		tmp = cpu_to_le16(get_unaligned_be16(p + 1));
+		p_tcp2->local_mac_addr_mid = tmp;
+		tmp = cpu_to_le16(get_unaligned_be16(p + 2));
+		p_tcp2->local_mac_addr_lo = tmp;
 
 		p = (u16 *)p_conn->remote_mac;
-		p_tcp2->remote_mac_addr_hi = swab16(get_unaligned(p));
-		p_tcp2->remote_mac_addr_mid = swab16(get_unaligned(p + 1));
-		p_tcp2->remote_mac_addr_lo = swab16(get_unaligned(p + 2));
+		tmp = cpu_to_le16(get_unaligned_be16(p));
+		p_tcp2->remote_mac_addr_hi = tmp;
+		tmp = cpu_to_le16(get_unaligned_be16(p + 1));
+		p_tcp2->remote_mac_addr_mid = tmp;
+		tmp = cpu_to_le16(get_unaligned_be16(p + 2));
+		p_tcp2->remote_mac_addr_lo = tmp;
 
 		p_tcp2->vlan_id = cpu_to_le16(p_conn->vlan_id);
 		p_tcp2->flags = cpu_to_le16(p_conn->tcp_flags);
