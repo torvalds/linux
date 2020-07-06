@@ -14161,12 +14161,10 @@ void lpfc_dmp_dbg(struct lpfc_hba *phba)
 		if ((start_idx + dbg_cnt) > (DBG_LOG_SZ - 1)) {
 			temp_idx = (start_idx + dbg_cnt) % DBG_LOG_SZ;
 		} else {
-			if ((start_idx - dbg_cnt) < 0) {
+			if (start_idx < dbg_cnt)
 				start_idx = DBG_LOG_SZ - (dbg_cnt - start_idx);
-				temp_idx = 0;
-			} else {
+			else
 				start_idx -= dbg_cnt;
-			}
 		}
 	}
 	dev_info(&phba->pcidev->dev, "start %d end %d cnt %d\n",
@@ -14174,7 +14172,7 @@ void lpfc_dmp_dbg(struct lpfc_hba *phba)
 
 	for (i = 0; i < dbg_cnt; i++) {
 		if ((start_idx + i) < DBG_LOG_SZ)
-			temp_idx = (start_idx + i) % (DBG_LOG_SZ - 1);
+			temp_idx = (start_idx + i) % DBG_LOG_SZ;
 		else
 			temp_idx = j++;
 		rem_nsec = do_div(phba->dbg_log[temp_idx].t_ns, NSEC_PER_SEC);
