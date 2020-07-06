@@ -2104,11 +2104,10 @@ int ib_dereg_mr_user(struct ib_mr *mr, struct ib_udata *udata)
 EXPORT_SYMBOL(ib_dereg_mr_user);
 
 /**
- * ib_alloc_mr_user() - Allocates a memory region
+ * ib_alloc_mr() - Allocates a memory region
  * @pd:            protection domain associated with the region
  * @mr_type:       memory region type
  * @max_num_sg:    maximum sg entries available for registration.
- * @udata:	   user data or null for kernel objects
  *
  * Notes:
  * Memory registeration page/sg lists must not exceed max_num_sg.
@@ -2116,8 +2115,8 @@ EXPORT_SYMBOL(ib_dereg_mr_user);
  * max_num_sg * used_page_size.
  *
  */
-struct ib_mr *ib_alloc_mr_user(struct ib_pd *pd, enum ib_mr_type mr_type,
-			       u32 max_num_sg, struct ib_udata *udata)
+struct ib_mr *ib_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
+			  u32 max_num_sg)
 {
 	struct ib_mr *mr;
 
@@ -2132,7 +2131,7 @@ struct ib_mr *ib_alloc_mr_user(struct ib_pd *pd, enum ib_mr_type mr_type,
 		goto out;
 	}
 
-	mr = pd->device->ops.alloc_mr(pd, mr_type, max_num_sg, udata);
+	mr = pd->device->ops.alloc_mr(pd, mr_type, max_num_sg, NULL);
 	if (IS_ERR(mr))
 		goto out;
 
@@ -2151,7 +2150,7 @@ out:
 	trace_mr_alloc(pd, mr_type, max_num_sg, mr);
 	return mr;
 }
-EXPORT_SYMBOL(ib_alloc_mr_user);
+EXPORT_SYMBOL(ib_alloc_mr);
 
 /**
  * ib_alloc_mr_integrity() - Allocates an integrity memory region

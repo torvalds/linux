@@ -4269,14 +4269,8 @@ static inline int ib_dereg_mr(struct ib_mr *mr)
 	return ib_dereg_mr_user(mr, NULL);
 }
 
-struct ib_mr *ib_alloc_mr_user(struct ib_pd *pd, enum ib_mr_type mr_type,
-			       u32 max_num_sg, struct ib_udata *udata);
-
-static inline struct ib_mr *ib_alloc_mr(struct ib_pd *pd,
-					enum ib_mr_type mr_type, u32 max_num_sg)
-{
-	return ib_alloc_mr_user(pd, mr_type, max_num_sg, NULL);
-}
+struct ib_mr *ib_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
+			  u32 max_num_sg);
 
 struct ib_mr *ib_alloc_mr_integrity(struct ib_pd *pd,
 				    u32 max_num_data_sg,
