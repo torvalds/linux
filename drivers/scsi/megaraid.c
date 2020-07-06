@@ -3571,7 +3571,6 @@ mega_is_bios_enabled(adapter_t *adapter)
 {
 	unsigned char	raw_mbox[sizeof(struct mbox_out)];
 	mbox_t	*mbox;
-	int	ret;
 
 	mbox = (mbox_t *)raw_mbox;
 
@@ -3584,8 +3583,7 @@ mega_is_bios_enabled(adapter_t *adapter)
 	raw_mbox[0] = IS_BIOS_ENABLED;
 	raw_mbox[2] = GET_BIOS;
 
-
-	ret = issue_scb_block(adapter, raw_mbox);
+	issue_scb_block(adapter, raw_mbox);
 
 	return *(char *)adapter->mega_buffer;
 }
