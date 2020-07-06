@@ -240,17 +240,17 @@ struct cal_csi2_phy {
 		unsigned int lsb;
 		unsigned int msb;
 	} fields[F_MAX_FIELDS];
-	const unsigned int num_lanes;
+	unsigned int num_lanes;
 };
 
 struct cal_data {
-	const unsigned int num_csi2_phy;
-	struct cal_csi2_phy *csi2_phy_core;
+	unsigned int num_csi2_phy;
+	const struct cal_csi2_phy *csi2_phy_core;
 
-	const unsigned int flags;
+	unsigned int flags;
 };
 
-static struct cal_csi2_phy dra72x_cal_csi_phy[] = {
+static const struct cal_csi2_phy dra72x_cal_csi_phy[] = {
 	{
 		.fields = {
 			[F_CTRLCLKEN] = { 10, 10 },
@@ -282,7 +282,7 @@ static const struct cal_data dra72x_es1_cal_data = {
 	.flags = DRA72_CAL_PRE_ES2_LDO_DISABLE,
 };
 
-static struct cal_csi2_phy dra76x_cal_csi_phy[] = {
+static const struct cal_csi2_phy dra76x_cal_csi_phy[] = {
 	{
 		.fields = {
 			[F_CTRLCLKEN] = { 8, 8 },
@@ -308,7 +308,7 @@ static const struct cal_data dra76x_cal_data = {
 	.num_csi2_phy = ARRAY_SIZE(dra76x_cal_csi_phy),
 };
 
-static struct cal_csi2_phy am654_cal_csi_phy[] = {
+static const struct cal_csi2_phy am654_cal_csi_phy[] = {
 	{
 		.fields = {
 			[F_CTRLCLKEN] = { 15, 15 },
