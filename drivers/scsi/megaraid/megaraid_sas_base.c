@@ -202,10 +202,6 @@ static bool support_pci_lane_margining;
 static spinlock_t poll_aen_lock;
 
 extern struct dentry *megasas_debugfs_root;
-extern void megasas_init_debugfs(void);
-extern void megasas_exit_debugfs(void);
-extern void megasas_setup_debugfs(struct megasas_instance *instance);
-extern void megasas_destroy_debugfs(struct megasas_instance *instance);
 
 void
 megasas_complete_cmd(struct megasas_instance *instance, struct megasas_cmd *cmd,
