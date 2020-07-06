@@ -707,8 +707,7 @@ static int nv_common_early_init(void *handle)
 		adev->pg_flags = AMD_PG_SUPPORT_VCN |
 			AMD_PG_SUPPORT_VCN_DPG |
 			AMD_PG_SUPPORT_JPEG |
-			AMD_PG_SUPPORT_ATHUB |
-			AMD_PG_SUPPORT_MMHUB;
+			AMD_PG_SUPPORT_ATHUB;
 		/* guest vm gets 0xffffffff when reading RCC_DEV0_EPF0_STRAP0,
 		 * as a consequence, the rev_id and external_rev_id are wrong.
 		 * workaround it by hardcoding rev_id to 0 (default value).
@@ -731,7 +730,8 @@ static int nv_common_early_init(void *handle)
 		adev->pg_flags = AMD_PG_SUPPORT_VCN |
 			AMD_PG_SUPPORT_VCN_DPG |
 			AMD_PG_SUPPORT_JPEG |
-			AMD_PG_SUPPORT_ATHUB;
+			AMD_PG_SUPPORT_ATHUB |
+			AMD_PG_SUPPORT_MMHUB;
 		adev->external_rev_id = adev->rev_id + 0x28;
 		break;
 	default:
