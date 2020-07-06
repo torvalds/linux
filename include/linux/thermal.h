@@ -37,18 +37,6 @@ struct thermal_cooling_device;
 struct thermal_instance;
 struct thermal_attr;
 
-enum thermal_device_mode {
-	THERMAL_DEVICE_DISABLED = 0,
-	THERMAL_DEVICE_ENABLED,
-};
-
-enum thermal_trip_type {
-	THERMAL_TRIP_ACTIVE = 0,
-	THERMAL_TRIP_PASSIVE,
-	THERMAL_TRIP_HOT,
-	THERMAL_TRIP_CRITICAL,
-};
-
 enum thermal_trend {
 	THERMAL_TREND_STABLE, /* temperature is stable */
 	THERMAL_TREND_RAISING, /* temperature is raising */
@@ -301,11 +289,6 @@ struct thermal_zone_params {
 	 * 		Used by thermal zone drivers (default 0).
 	 */
 	int offset;
-};
-
-struct thermal_genl_event {
-	u32 orig;
-	enum events event;
 };
 
 /**
