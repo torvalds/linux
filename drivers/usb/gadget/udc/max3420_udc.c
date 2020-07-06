@@ -623,7 +623,6 @@ static void max3420_set_clear_feature(struct max3420_udc *udc)
 static void max3420_handle_setup(struct max3420_udc *udc)
 {
 	struct usb_ctrlrequest setup;
-	u8 addr;
 
 	spi_rd_buf(udc, MAX3420_REG_SUDFIFO, (void *)&setup, 8);
 
@@ -647,7 +646,7 @@ static void max3420_handle_setup(struct max3420_udc *udc)
 				USB_TYPE_STANDARD | USB_RECIP_DEVICE)) {
 			break;
 		}
-		addr = spi_rd8_ack(udc, MAX3420_REG_FNADDR, 1);
+		spi_rd8_ack(udc, MAX3420_REG_FNADDR, 1);
 		dev_dbg(udc->dev, "Assigned Address=%d\n", udc->setup.wValue);
 		return;
 	case USB_REQ_CLEAR_FEATURE:
