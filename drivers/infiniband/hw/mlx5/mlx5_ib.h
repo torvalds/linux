@@ -730,8 +730,8 @@ struct mlx5_ib_port_resources {
 
 struct mlx5_ib_resources {
 	struct ib_cq	*c0;
-	struct ib_xrcd	*x0;
-	struct ib_xrcd	*x1;
+	u32 xrcdn0;
+	u32 xrcdn1;
 	struct ib_pd	*p0;
 	struct ib_srq	*s0;
 	struct ib_srq	*s1;

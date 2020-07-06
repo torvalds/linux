@@ -5003,6 +5003,9 @@ static int create_dev_resources(struct mlx5_ib_resources *devr)
 	dev = container_of(devr, struct mlx5_ib_dev, devr);
 	ibdev = &dev->ib_dev;
 
+	if (!MLX5_CAP_GEN(dev->mdev, xrc))
+		return -EOPNOTSUPP;
+
 	mutex_init(&devr->mutex);
 
 	devr->p0 = rdma_zalloc_drv_obj(ibdev, ib_pd);
@@ -5030,34 +5033,19 @@ static int create_dev_resources(struct mlx5_ib_resources *devr)
 	if (ret)
 		goto err_create_cq;
 
-	devr->x0 = mlx5_ib_alloc_xrcd(&dev->ib_dev, NULL);
-	if (IS_ERR(devr->x0)) {
-		ret = PTR_ERR(devr->x0);
+	ret = mlx5_cmd_xrcd_alloc(dev->mdev, &devr->xrcdn0, 0);
+	if (ret)
 		goto error2;
-	}
-	devr->x0->device = &dev->ib_dev;
-	devr->x0->inode = NULL;
-	atomic_set(&devr->x0->usecnt, 0);
-	mutex_init(&devr->x0->tgt_qp_mutex);
-	INIT_LIST_HEAD(&devr->x0->tgt_qp_list);
 
-	devr->x1 = mlx5_ib_alloc_xrcd(&dev->ib_dev, NULL);
-	if (IS_ERR(devr->x1)) {
-		ret = PTR_ERR(devr->x1);
+	ret = mlx5_cmd_xrcd_alloc(dev->mdev, &devr->xrcdn1, 0);
+	if (ret)
 		goto error3;
-	}
-	devr->x1->device = &dev->ib_dev;
-	devr->x1->inode = NULL;
-	atomic_set(&devr->x1->usecnt, 0);
-	mutex_init(&devr->x1->tgt_qp_mutex);
-	INIT_LIST_HEAD(&devr->x1->tgt_qp_list);
 
 	memset(&attr, 0, sizeof(attr));
 	attr.attr.max_sge = 1;
 	attr.attr.max_wr = 1;
 	attr.srq_type = IB_SRQT_XRC;
 	attr.ext.cq = devr->c0;
-	attr.ext.xrc.xrcd = devr->x0;
 
 	devr->s0 = rdma_zalloc_drv_obj(ibdev, ib_srq);
 	if (!devr->s0) {
@@ -5068,13 +5056,11 @@ static int create_dev_resources(struct mlx5_ib_resources *devr)
 	devr->s0->device	= &dev->ib_dev;
 	devr->s0->pd		= devr->p0;
 	devr->s0->srq_type      = IB_SRQT_XRC;
-	devr->s0->ext.xrc.xrcd	= devr->x0;
 	devr->s0->ext.cq	= devr->c0;
 	ret = mlx5_ib_create_srq(devr->s0, &attr, NULL);
 	if (ret)
 		goto err_create;
 
-	atomic_inc(&devr->s0->ext.xrc.xrcd->usecnt);
 	atomic_inc(&devr->s0->ext.cq->usecnt);
 	atomic_inc(&devr->p0->usecnt);
 	atomic_set(&devr->s0->usecnt, 0);
@@ -5116,9 +5102,9 @@ error5:
 err_create:
 	kfree(devr->s0);
 error4:
-	mlx5_ib_dealloc_xrcd(devr->x1, NULL);
+	mlx5_cmd_xrcd_dealloc(dev->mdev, devr->xrcdn1, 0);
 error3:
-	mlx5_ib_dealloc_xrcd(devr->x0, NULL);
+	mlx5_cmd_xrcd_dealloc(dev->mdev, devr->xrcdn0, 0);
 error2:
 	mlx5_ib_destroy_cq(devr->c0, NULL);
 err_create_cq:
@@ -5132,14 +5118,17 @@ error0:
 
 static void destroy_dev_resources(struct mlx5_ib_resources *devr)
 {
+	struct mlx5_ib_dev *dev;
 	int port;
+
+	dev = container_of(devr, struct mlx5_ib_dev, devr);
 
 	mlx5_ib_destroy_srq(devr->s1, NULL);
 	kfree(devr->s1);
 	mlx5_ib_destroy_srq(devr->s0, NULL);
 	kfree(devr->s0);
-	mlx5_ib_dealloc_xrcd(devr->x0, NULL);
-	mlx5_ib_dealloc_xrcd(devr->x1, NULL);
+	mlx5_cmd_xrcd_dealloc(dev->mdev, devr->xrcdn1, 0);
+	mlx5_cmd_xrcd_dealloc(dev->mdev, devr->xrcdn0, 0);
 	mlx5_ib_destroy_cq(devr->c0, NULL);
 	kfree(devr->c0);
 	mlx5_ib_dealloc_pd(devr->p0, NULL);

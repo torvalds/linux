@@ -2035,15 +2035,15 @@ static int create_user_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 	switch (init_attr->qp_type) {
 	case IB_QPT_XRC_INI:
 		MLX5_SET(qpc, qpc, cqn_rcv, to_mcq(devr->c0)->mcq.cqn);
-		MLX5_SET(qpc, qpc, xrcd, to_mxrcd(devr->x1)->xrcdn);
+		MLX5_SET(qpc, qpc, xrcd, devr->xrcdn1);
 		MLX5_SET(qpc, qpc, srqn_rmpn_xrqn, to_msrq(devr->s0)->msrq.srqn);
 		break;
 	default:
 		if (init_attr->srq) {
-			MLX5_SET(qpc, qpc, xrcd, to_mxrcd(devr->x0)->xrcdn);
+			MLX5_SET(qpc, qpc, xrcd, devr->xrcdn0);
 			MLX5_SET(qpc, qpc, srqn_rmpn_xrqn, to_msrq(init_attr->srq)->msrq.srqn);
 		} else {
-			MLX5_SET(qpc, qpc, xrcd, to_mxrcd(devr->x1)->xrcdn);
+			MLX5_SET(qpc, qpc, xrcd, devr->xrcdn1);
 			MLX5_SET(qpc, qpc, srqn_rmpn_xrqn, to_msrq(devr->s1)->msrq.srqn);
 		}
 	}
@@ -2183,11 +2183,11 @@ static int create_kernel_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 		MLX5_SET(qpc, qpc, no_sq, 1);
 
 	if (attr->srq) {
-		MLX5_SET(qpc, qpc, xrcd, to_mxrcd(devr->x0)->xrcdn);
+		MLX5_SET(qpc, qpc, xrcd, devr->xrcdn0);
 		MLX5_SET(qpc, qpc, srqn_rmpn_xrqn,
 			 to_msrq(attr->srq)->msrq.srqn);
 	} else {
-		MLX5_SET(qpc, qpc, xrcd, to_mxrcd(devr->x1)->xrcdn);
+		MLX5_SET(qpc, qpc, xrcd, devr->xrcdn1);
 		MLX5_SET(qpc, qpc, srqn_rmpn_xrqn,
 			 to_msrq(devr->s1)->msrq.srqn);
 	}
