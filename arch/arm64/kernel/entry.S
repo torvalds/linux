@@ -167,6 +167,17 @@ alternative_cb_end
 	stp	x28, x29, [sp, #16 * 14]
 
 	.if	\el == 0
+	.if	\regsize == 32
+	// If we're returning from a 32-bit task on a system affected by
+	// 1418040 then re-enable userspace access to the virtual counter.
+#ifdef CONFIG_ARM64_ERRATUM_1418040
+alternative_if ARM64_WORKAROUND_1418040
+	mrs	x0, cntkctl_el1
+	orr	x0, x0, #2	// ARCH_TIMER_USR_VCT_ACCESS_EN
+	msr	cntkctl_el1, x0
+alternative_else_nop_endif
+#endif
+	.endif
 	clear_gp_regs
 	mrs	x21, sp_el0
 	ldr_this_cpu	tsk, __entry_task, x20
@@ -320,6 +331,14 @@ alternative_else_nop_endif
 	tst	x22, #PSR_MODE32_BIT		// native task?
 	b.eq	3f
 
+#ifdef CONFIG_ARM64_ERRATUM_1418040
+alternative_if ARM64_WORKAROUND_1418040
+	mrs	x0, cntkctl_el1
+	bic	x0, x0, #2			// ARCH_TIMER_USR_VCT_ACCESS_EN
+	msr	cntkctl_el1, x0
+alternative_else_nop_endif
+#endif
+
 #ifdef CONFIG_ARM64_ERRATUM_845719
 alternative_if ARM64_WORKAROUND_845719
 #ifdef CONFIG_PID_IN_CONTEXTIDR
@@ -331,21 +350,6 @@ alternative_if ARM64_WORKAROUND_845719
 alternative_else_nop_endif
 #endif
 3:
-#ifdef CONFIG_ARM64_ERRATUM_1418040
-alternative_if_not ARM64_WORKAROUND_1418040
-	b	4f
-alternative_else_nop_endif
-	/*
-	 * if (x22.mode32 == cntkctl_el1.el0vcten)
-	 *     cntkctl_el1.el0vcten = ~cntkctl_el1.el0vcten
-	 */
-	mrs	x1, cntkctl_el1
-	eon	x0, x1, x22, lsr #3
-	tbz	x0, #1, 4f
-	eor	x1, x1, #2	// ARCH_TIMER_USR_VCT_ACCESS_EN
-	msr	cntkctl_el1, x1
-4:
-#endif
 	scs_save tsk, x0
 
 	/* No kernel C function calls after this as user keys are set. */
