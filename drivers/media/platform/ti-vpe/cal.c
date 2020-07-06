@@ -1856,7 +1856,7 @@ static const struct vb2_ops cal_video_qops = {
 };
 
 /* ------------------------------------------------------------------
- *	Initialization and module stuff
+ *	V4L2 Initialization and Registration
  * ------------------------------------------------------------------
  */
 
@@ -1870,11 +1870,36 @@ static const struct video_device cal_videodev = {
 			  V4L2_CAP_READWRITE,
 };
 
-static int cal_complete_ctx(struct cal_ctx *ctx)
+static int cal_ctx_v4l2_register(struct cal_ctx *ctx)
 {
 	struct v4l2_ctrl_handler *hdl = &ctx->ctrl_handler;
-	struct video_device *vfd;
-	struct vb2_queue *q;
+	struct video_device *vfd = &ctx->vdev;
+	int ret;
+
+	ret = v4l2_ctrl_add_handler(hdl, ctx->phy->sensor->ctrl_handler, NULL,
+				    true);
+	if (ret < 0) {
+		ctx_err(ctx, "Failed to add sensor ctrl handler\n");
+		return ret;
+	}
+
+	ret = video_register_device(vfd, VFL_TYPE_VIDEO, video_nr);
+	if (ret < 0) {
+		ctx_err(ctx, "Failed to register video device\n");
+		return ret;
+	}
+
+	ctx_info(ctx, "V4L2 device registered as %s\n",
+		 video_device_node_name(vfd));
+
+	return 0;
+}
+
+static int cal_ctx_v4l2_init(struct cal_ctx *ctx)
+{
+	struct v4l2_ctrl_handler *hdl = &ctx->ctrl_handler;
+	struct video_device *vfd = &ctx->vdev;
+	struct vb2_queue *q = &ctx->vb_vidq;
 	int ret;
 
 	/* initialize locks */
@@ -1882,7 +1907,6 @@ static int cal_complete_ctx(struct cal_ctx *ctx)
 	mutex_init(&ctx->mutex);
 
 	/* initialize queue */
-	q = &ctx->vb_vidq;
 	q->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	q->io_modes = VB2_MMAP | VB2_DMABUF | VB2_READ;
 	q->drv_priv = ctx;
@@ -1901,18 +1925,15 @@ static int cal_complete_ctx(struct cal_ctx *ctx)
 	/* init video dma queues */
 	INIT_LIST_HEAD(&ctx->vidq.active);
 
-	vfd = &ctx->vdev;
 	*vfd = cal_videodev;
 	vfd->v4l2_dev = &ctx->cal->v4l2_dev;
 	vfd->queue = q;
 
 	/* Initialize the control handler. */
-	v4l2_ctrl_handler_init(hdl, 11);
-	v4l2_ctrl_add_handler(hdl, ctx->phy->sensor->ctrl_handler, NULL, true);
-	if (hdl->error) {
+	ret = v4l2_ctrl_handler_init(hdl, 11);
+	if (ret < 0) {
 		ctx_err(ctx, "Failed to init ctrl handler\n");
-		ret = hdl->error;
-		goto error;
+		return ret;
 	}
 
 	vfd->ctrl_handler = hdl;
@@ -1924,19 +1945,13 @@ static int cal_complete_ctx(struct cal_ctx *ctx)
 	vfd->lock = &ctx->mutex;
 	video_set_drvdata(vfd, ctx);
 
-	ret = video_register_device(vfd, VFL_TYPE_VIDEO, video_nr);
-	if (ret < 0)
-		goto error;
-
-	ctx_info(ctx, "V4L2 device registered as %s\n",
-		 video_device_node_name(vfd));
-
 	return 0;
-
-error:
-	v4l2_ctrl_handler_free(hdl);
-	return ret;
 }
+
+/* ------------------------------------------------------------------
+ *	Initialization and module stuff
+ * ------------------------------------------------------------------
+ */
 
 static int cal_async_bound(struct v4l2_async_notifier *notifier,
 			   struct v4l2_subdev *subdev,
@@ -1992,7 +2007,7 @@ static int cal_async_bound(struct v4l2_async_notifier *notifier,
 		return -EINVAL;
 	}
 
-	cal_complete_ctx(ctx);
+	cal_ctx_v4l2_register(ctx);
 
 	return 0;
 }
@@ -2123,15 +2138,14 @@ static struct cal_ctx *cal_ctx_create(struct cal_dev *cal, int inst)
 	if (!ctx)
 		return NULL;
 
-	/* save the cal_dev * for future ref */
 	ctx->cal = cal;
-
-	/* Make sure Camera Core H/W register area is available */
 	ctx->phy = cal->phy[inst];
-
-	/* Store the instance id */
 	ctx->index = inst;
 	ctx->cport = inst;
+
+	ret = cal_ctx_v4l2_init(ctx);
+	if (ret)
+		return NULL;
 
 	ret = of_cal_create_instance(ctx, inst);
 	if (ret)
