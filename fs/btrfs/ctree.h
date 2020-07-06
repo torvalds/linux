@@ -1279,18 +1279,18 @@ static inline u32 BTRFS_MAX_XATTR_SIZE(const struct btrfs_fs_info *info)
 					 BTRFS_MOUNT_##opt)
 
 #define btrfs_set_and_info(fs_info, opt, fmt, args...)			\
-{									\
+do {									\
 	if (!btrfs_test_opt(fs_info, opt))				\
 		btrfs_info(fs_info, fmt, ##args);			\
 	btrfs_set_opt(fs_info->mount_opt, opt);				\
-}
+} while (0)
 
 #define btrfs_clear_and_info(fs_info, opt, fmt, args...)		\
-{									\
+do {									\
 	if (btrfs_test_opt(fs_info, opt))				\
 		btrfs_info(fs_info, fmt, ##args);			\
 	btrfs_clear_opt(fs_info->mount_opt, opt);			\
-}
+} while (0)
 
 /*
  * Requests for changes that need to be done during transaction commit.
