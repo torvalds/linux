@@ -488,7 +488,7 @@ static int cal_camerarx_regmap_init(struct cal_dev *dev)
 {
 	struct reg_field *field;
 	struct cal_csi2_phy *phy;
-	int i, j;
+	unsigned int i, j;
 
 	if (!dev->data)
 		return -EINVAL;
@@ -901,7 +901,7 @@ static void csi2_wait_for_phy(struct cal_ctx *ctx)
 
 static void csi2_phy_deinit(struct cal_ctx *ctx)
 {
-	int i;
+	unsigned int i;
 
 	csi2_cio_power(ctx, false);
 
@@ -1212,7 +1212,7 @@ static irqreturn_t cal_irq(int irq_cal, void *data)
 
 	status = reg_read(dev, CAL_HL_IRQSTATUS(0));
 	if (status) {
-		int i;
+		unsigned int i;
 
 		reg_write(dev, CAL_HL_IRQSTATUS(0), status);
 
@@ -1225,7 +1225,7 @@ static irqreturn_t cal_irq(int irq_cal, void *data)
 							CAL_CSI2_COMPLEXIO_IRQSTATUS(i));
 
 				dev_err_ratelimited(&dev->pdev->dev,
-						    "CIO%d error: %#08x\n", i, cio_stat);
+						    "CIO%u error: %#08x\n", i, cio_stat);
 
 				reg_write(dev, CAL_CSI2_COMPLEXIO_IRQSTATUS(i),
 					  cio_stat);
@@ -1236,7 +1236,7 @@ static irqreturn_t cal_irq(int irq_cal, void *data)
 	/* Check which DMA just finished */
 	status = reg_read(dev, CAL_HL_IRQSTATUS(1));
 	if (status) {
-		int i;
+		unsigned int i;
 
 		/* Clear Interrupt status */
 		reg_write(dev, CAL_HL_IRQSTATUS(1), status);
@@ -1259,7 +1259,7 @@ static irqreturn_t cal_irq(int irq_cal, void *data)
 	/* Check which DMA just started */
 	status = reg_read(dev, CAL_HL_IRQSTATUS(2));
 	if (status) {
-		int i;
+		unsigned int i;
 
 		/* Clear Interrupt status */
 		reg_write(dev, CAL_HL_IRQSTATUS(2), status);
@@ -1917,8 +1917,8 @@ static int cal_async_bound(struct v4l2_async_notifier *notifier,
 {
 	struct cal_ctx *ctx = notifier_to_ctx(notifier);
 	struct v4l2_subdev_mbus_code_enum mbus_code;
+	unsigned int i, j, k;
 	int ret = 0;
-	int i, j, k;
 
 	if (ctx->sensor) {
 		ctx_info(ctx, "Rejecting subdev %s (Already set!!)",
@@ -1942,7 +1942,7 @@ static int cal_async_bound(struct v4l2_async_notifier *notifier,
 			continue;
 
 		ctx_dbg(2, ctx,
-			"subdev %s: code: %04x idx: %d\n",
+			"subdev %s: code: %04x idx: %u\n",
 			subdev->name, mbus_code.code, j);
 
 		for (k = 0; k < ARRAY_SIZE(cal_formats); k++) {
@@ -1951,7 +1951,7 @@ static int cal_async_bound(struct v4l2_async_notifier *notifier,
 			if (mbus_code.code == fmt->code) {
 				ctx->active_fmt[i] = fmt;
 				ctx_dbg(2, ctx,
-					"matched fourcc: %s: code: %04x idx: %d\n",
+					"matched fourcc: %s: code: %04x idx: %u\n",
 					fourcc_to_str(fmt->fourcc),
 					fmt->code, i);
 				ctx->num_active_fmt = ++i;
@@ -2269,9 +2269,9 @@ static int cal_probe(struct platform_device *pdev)
 	struct device_node *parent = pdev->dev.of_node;
 	struct regmap *syscon_camerrx;
 	u32 syscon_camerrx_offset;
+	unsigned int i;
 	int ret;
 	int irq;
-	int i;
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
@@ -2407,7 +2407,7 @@ static int cal_remove(struct platform_device *pdev)
 {
 	struct cal_dev *dev = platform_get_drvdata(pdev);
 	struct cal_ctx *ctx;
-	int i;
+	unsigned int i;
 
 	cal_dbg(1, dev, "Removing %s\n", CAL_MODULE_NAME);
 
