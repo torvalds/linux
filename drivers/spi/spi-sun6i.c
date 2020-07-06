@@ -119,14 +119,6 @@ static inline u32 sun6i_spi_get_tx_fifo_count(struct sun6i_spi *sspi)
 	return FIELD_GET(SUN6I_FIFO_STA_TF_CNT_MASK, reg);
 }
 
-static inline void sun6i_spi_enable_interrupt(struct sun6i_spi *sspi, u32 mask)
-{
-	u32 reg = sun6i_spi_read(sspi, SUN6I_INT_CTL_REG);
-
-	reg |= mask;
-	sun6i_spi_write(sspi, SUN6I_INT_CTL_REG, reg);
-}
-
 static inline void sun6i_spi_disable_interrupt(struct sun6i_spi *sspi, u32 mask)
 {
 	u32 reg = sun6i_spi_read(sspi, SUN6I_INT_CTL_REG);
@@ -310,11 +302,12 @@ static int sun6i_spi_transfer_one(struct spi_master *master,
 	sun6i_spi_fill_fifo(sspi);
 
 	/* Enable the interrupts */
-	sun6i_spi_write(sspi, SUN6I_INT_CTL_REG, SUN6I_INT_CTL_TC);
-	sun6i_spi_enable_interrupt(sspi, SUN6I_INT_CTL_TC |
-					 SUN6I_INT_CTL_RF_RDY);
+	reg = SUN6I_INT_CTL_TC | SUN6I_INT_CTL_RF_RDY;
+
 	if (tx_len > sspi->fifo_depth)
-		sun6i_spi_enable_interrupt(sspi, SUN6I_INT_CTL_TF_ERQ);
+		reg |= SUN6I_INT_CTL_TF_ERQ;
+
+	sun6i_spi_write(sspi, SUN6I_INT_CTL_REG, reg);
 
 	/* Start the transfer */
 	reg = sun6i_spi_read(sspi, SUN6I_TFR_CTL_REG);
