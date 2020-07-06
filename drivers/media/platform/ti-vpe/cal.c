@@ -995,17 +995,14 @@ static int cal_camerarx_init_regmap(struct cal_dev *cal)
 {
 	struct device_node *np = cal->pdev->dev.of_node;
 	struct regmap *syscon;
-	u32 syscon_offset;
-	int ret;
+	unsigned int offset;
 
-	syscon = syscon_regmap_lookup_by_phandle(np, "ti,camerrx-control");
-	ret = of_property_read_u32_index(np, "ti,camerrx-control", 1,
-					 &syscon_offset);
-	if (IS_ERR(syscon))
-		ret = PTR_ERR(syscon);
-	if (ret) {
+	syscon = syscon_regmap_lookup_by_phandle_args(np, "ti,camerrx-control",
+						      1, &offset);
+	if (IS_ERR(syscon)) {
 		dev_warn(&cal->pdev->dev,
-			 "failed to get ti,camerrx-control: %d\n", ret);
+			 "failed to get ti,camerrx-control: %ld\n",
+			 PTR_ERR(syscon));
 
 		/*
 		 * Backward DTS compatibility.
@@ -1021,11 +1018,11 @@ static int cal_camerarx_init_regmap(struct cal_dev *cal)
 		/* In this case the base already point to the direct
 		 * CM register so no need for an offset
 		 */
-		syscon_offset = 0;
+		offset = 0;
 	}
 
 	cal->syscon_camerrx = syscon;
-	cal->syscon_camerrx_offset = syscon_offset;
+	cal->syscon_camerrx_offset = offset;
 
 	return 0;
 }
