@@ -239,7 +239,7 @@ struct cal_csi2_phy {
 	struct {
 		unsigned int lsb;
 		unsigned int msb;
-	} base_fields[F_MAX_FIELDS];
+	} fields[F_MAX_FIELDS];
 	const int num_lanes;
 };
 
@@ -252,7 +252,7 @@ struct cal_data {
 
 static struct cal_csi2_phy dra72x_cal_csi_phy[] = {
 	{
-		.base_fields = {
+		.fields = {
 			[F_CTRLCLKEN] = { 10, 10 },
 			[F_CAMMODE] = { 11, 12 },
 			[F_LANEENABLE] = { 13, 16 },
@@ -261,7 +261,7 @@ static struct cal_csi2_phy dra72x_cal_csi_phy[] = {
 		.num_lanes = 4,
 	},
 	{
-		.base_fields = {
+		.fields = {
 			[F_CTRLCLKEN] = { 0, 0 },
 			[F_CAMMODE] = { 1, 2 },
 			[F_LANEENABLE] = { 3, 4 },
@@ -284,7 +284,7 @@ static const struct cal_data dra72x_es1_cal_data = {
 
 static struct cal_csi2_phy dra76x_cal_csi_phy[] = {
 	{
-		.base_fields = {
+		.fields = {
 			[F_CTRLCLKEN] = { 8, 8 },
 			[F_CAMMODE] = { 9, 10 },
 			[F_CSI_MODE] = { 11, 11 },
@@ -293,7 +293,7 @@ static struct cal_csi2_phy dra76x_cal_csi_phy[] = {
 		.num_lanes = 5,
 	},
 	{
-		.base_fields = {
+		.fields = {
 			[F_CTRLCLKEN] = { 0, 0 },
 			[F_CAMMODE] = { 1, 2 },
 			[F_CSI_MODE] = { 3, 3 },
@@ -310,7 +310,7 @@ static const struct cal_data dra76x_cal_data = {
 
 static struct cal_csi2_phy am654_cal_csi_phy[] = {
 	{
-		.base_fields = {
+		.fields = {
 			[F_CTRLCLKEN] = { 15, 15 },
 			[F_CAMMODE] = { 24, 25 },
 			[F_LANEENABLE] = { 0, 4 },
@@ -493,8 +493,8 @@ static int cal_camerarx_regmap_init(struct cal_dev *dev, struct cc_data *cc,
 	for (i = 0; i < F_MAX_FIELDS; i++) {
 		struct reg_field field = {
 			.reg = dev->syscon_camerrx_offset,
-			.lsb = phy->base_fields[i].lsb,
-			.msb = phy->base_fields[i].msb,
+			.lsb = phy->fields[i].lsb,
+			.msb = phy->fields[i].msb,
 		};
 
 		/*
