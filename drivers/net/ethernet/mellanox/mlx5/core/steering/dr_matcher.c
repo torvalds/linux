@@ -395,7 +395,7 @@ static int dr_matcher_set_ste_builders(struct mlx5dr_matcher *matcher,
 	/* Check that all mask fields were consumed */
 	for (i = 0; i < sizeof(struct mlx5dr_match_param); i++) {
 		if (((u8 *)&mask)[i] != 0) {
-			mlx5dr_err(dmn, "Mask contains unsupported parameters\n");
+			mlx5dr_dbg(dmn, "Mask contains unsupported parameters\n");
 			return -EOPNOTSUPP;
 		}
 	}
