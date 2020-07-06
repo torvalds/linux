@@ -714,7 +714,8 @@ void bch2_mark_alloc_bucket(struct bch_fs *c, struct bch_dev *ca,
 	preempt_enable();
 }
 
-static int bch2_mark_alloc(struct bch_fs *c, struct bkey_s_c k,
+static int bch2_mark_alloc(struct bch_fs *c,
+			   struct bkey_s_c old, struct bkey_s_c new,
 			   struct bch_fs_usage *fs_usage,
 			   u64 journal_seq, unsigned flags)
 {
@@ -722,7 +723,11 @@ static int bch2_mark_alloc(struct bch_fs *c, struct bkey_s_c k,
 	struct bkey_alloc_unpacked u;
 	struct bch_dev *ca;
 	struct bucket *g;
-	struct bucket_mark old, m;
+	struct bucket_mark old_m, m;
+
+	/* We don't do anything for deletions - do we?: */
+	if (new.k->type != KEY_TYPE_alloc)
+		return 0;
 
 	/*
 	 * alloc btree is read in by bch2_alloc_read, not gc:
@@ -731,15 +736,15 @@ static int bch2_mark_alloc(struct bch_fs *c, struct bkey_s_c k,
 	    !(flags & BTREE_TRIGGER_BUCKET_INVALIDATE))
 		return 0;
 
-	ca = bch_dev_bkey_exists(c, k.k->p.inode);
+	ca = bch_dev_bkey_exists(c, new.k->p.inode);
 
-	if (k.k->p.offset >= ca->mi.nbuckets)
+	if (new.k->p.offset >= ca->mi.nbuckets)
 		return 0;
 
-	g = __bucket(ca, k.k->p.offset, gc);
-	u = bch2_alloc_unpack(k);
+	g = __bucket(ca, new.k->p.offset, gc);
+	u = bch2_alloc_unpack(new);
 
-	old = bucket_cmpxchg(g, m, ({
+	old_m = bucket_cmpxchg(g, m, ({
 		m.gen			= u.gen;
 		m.data_type		= u.data_type;
 		m.dirty_sectors		= u.dirty_sectors;
@@ -752,7 +757,7 @@ static int bch2_mark_alloc(struct bch_fs *c, struct bkey_s_c k,
 	}));
 
 	if (!(flags & BTREE_TRIGGER_ALLOC_READ))
-		bch2_dev_usage_update(c, ca, fs_usage, old, m, gc);
+		bch2_dev_usage_update(c, ca, fs_usage, old_m, m, gc);
 
 	g->io_time[READ]	= u.read_time;
 	g->io_time[WRITE]	= u.write_time;
@@ -765,11 +770,11 @@ static int bch2_mark_alloc(struct bch_fs *c, struct bkey_s_c k,
 	 */
 
 	if ((flags & BTREE_TRIGGER_BUCKET_INVALIDATE) &&
-	    old.cached_sectors) {
+	    old_m.cached_sectors) {
 		update_cached_sectors(c, fs_usage, ca->dev_idx,
-				      -old.cached_sectors);
-		trace_invalidate(ca, bucket_to_sector(ca, k.k->p.offset),
-				 old.cached_sectors);
+				      -old_m.cached_sectors);
+		trace_invalidate(ca, bucket_to_sector(ca, new.k->p.offset),
+				 old_m.cached_sectors);
 	}
 
 	return 0;
@@ -882,9 +887,9 @@ static void bucket_set_stripe(struct bch_fs *c,
 			      const struct bch_stripe *v,
 			      struct bch_fs_usage *fs_usage,
 			      u64 journal_seq,
-			      unsigned flags)
+			      unsigned flags,
+			      bool enabled)
 {
-	bool enabled = !(flags & BTREE_TRIGGER_OVERWRITE);
 	bool gc = flags & BTREE_TRIGGER_GC;
 	unsigned i;
 
@@ -1104,12 +1109,14 @@ static int bch2_mark_stripe_ptr(struct bch_fs *c,
 	return 0;
 }
 
-static int bch2_mark_extent(struct bch_fs *c, struct bkey_s_c k,
+static int bch2_mark_extent(struct bch_fs *c,
+			    struct bkey_s_c old, struct bkey_s_c new,
 			    unsigned offset, s64 sectors,
 			    enum bch_data_type data_type,
 			    struct bch_fs_usage *fs_usage,
 			    unsigned journal_seq, unsigned flags)
 {
+	struct bkey_s_c k = flags & BTREE_TRIGGER_INSERT ? new : old;
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 	const union bch_extent_entry *entry;
 	struct extent_ptr_decoded p;
@@ -1178,71 +1185,87 @@ static int bch2_mark_extent(struct bch_fs *c, struct bkey_s_c k,
 	return 0;
 }
 
-static int bch2_mark_stripe(struct bch_fs *c, struct bkey_s_c k,
+static int bch2_mark_stripe(struct bch_fs *c,
+			    struct bkey_s_c old, struct bkey_s_c new,
 			    struct bch_fs_usage *fs_usage,
 			    u64 journal_seq, unsigned flags)
 {
 	bool gc = flags & BTREE_TRIGGER_GC;
-	struct bkey_s_c_stripe s = bkey_s_c_to_stripe(k);
-	size_t idx = s.k->p.offset;
+	size_t idx = new.k->p.offset;
+	const struct bch_stripe *old_s = old.k->type == KEY_TYPE_stripe
+		? bkey_s_c_to_stripe(old).v : NULL;
+	const struct bch_stripe *new_s = new.k->type == KEY_TYPE_stripe
+		? bkey_s_c_to_stripe(new).v : NULL;
 	struct stripe *m = genradix_ptr(&c->stripes[gc], idx);
 	unsigned i;
 
-	spin_lock(&c->ec_stripes_heap_lock);
-
-	if (!m || ((flags & BTREE_TRIGGER_OVERWRITE) && !m->alive)) {
-		spin_unlock(&c->ec_stripes_heap_lock);
+	if (!m || (old_s && !m->alive)) {
 		bch_err_ratelimited(c, "error marking nonexistent stripe %zu",
 				    idx);
 		return -1;
 	}
 
-	if (!(flags & BTREE_TRIGGER_OVERWRITE)) {
-		m->sectors	= le16_to_cpu(s.v->sectors);
-		m->algorithm	= s.v->algorithm;
-		m->nr_blocks	= s.v->nr_blocks;
-		m->nr_redundant	= s.v->nr_redundant;
+	if (!new_s) {
+		/* Deleting: */
+		bucket_set_stripe(c, old_s, fs_usage,
+				  journal_seq, flags, false);
 
-		bch2_bkey_to_replicas(&m->r.e, k);
+		if (!gc) {
+			spin_lock(&c->ec_stripes_heap_lock);
+			bch2_stripes_heap_del(c, m, idx);
+			spin_unlock(&c->ec_stripes_heap_lock);
+		}
 
-		/*
-		 * XXX: account for stripes somehow here
-		 */
-#if 0
-		update_replicas(c, fs_usage, &m->r.e, stripe_sectors);
-#endif
+		memset(m, 0, sizeof(*m));
+	} else {
+		BUG_ON(old_s && new_s->nr_blocks != old_s->nr_blocks);
+		BUG_ON(old_s && new_s->nr_redundant != old_s->nr_redundant);
+
+		if (!old_s)
+			bucket_set_stripe(c, new_s, fs_usage,
+					  journal_seq, flags, true);
+
+		m->sectors	= le16_to_cpu(new_s->sectors);
+		m->algorithm	= new_s->algorithm;
+		m->nr_blocks	= new_s->nr_blocks;
+		m->nr_redundant	= new_s->nr_redundant;
+
+		bch2_bkey_to_replicas(&m->r.e, new);
 
 		/* gc recalculates these fields: */
 		if (!(flags & BTREE_TRIGGER_GC)) {
-			for (i = 0; i < s.v->nr_blocks; i++) {
+			m->blocks_nonempty = 0;
+
+			for (i = 0; i < new_s->nr_blocks; i++) {
 				m->block_sectors[i] =
-					stripe_blockcount_get(s.v, i);
+					stripe_blockcount_get(new_s, i);
 				m->blocks_nonempty += !!m->block_sectors[i];
 			}
 		}
 
-		if (!gc)
+		if (!gc) {
+			spin_lock(&c->ec_stripes_heap_lock);
 			bch2_stripes_heap_update(c, m, idx);
+			spin_unlock(&c->ec_stripes_heap_lock);
+		}
+
 		m->alive	= true;
-	} else {
-		if (!gc)
-			bch2_stripes_heap_del(c, m, idx);
-		memset(m, 0, sizeof(*m));
 	}
 
-	spin_unlock(&c->ec_stripes_heap_lock);
-
-	bucket_set_stripe(c, s.v, fs_usage, 0, flags);
 	return 0;
 }
 
 static int bch2_mark_key_locked(struct bch_fs *c,
-		   struct bkey_s_c k,
+		   struct bkey_s_c old,
+		   struct bkey_s_c new,
 		   unsigned offset, s64 sectors,
 		   struct bch_fs_usage *fs_usage,
 		   u64 journal_seq, unsigned flags)
 {
+	struct bkey_s_c k = flags & BTREE_TRIGGER_INSERT ? new : old;
 	int ret = 0;
+
+	BUG_ON(!(flags & (BTREE_TRIGGER_INSERT|BTREE_TRIGGER_OVERWRITE)));
 
 	preempt_disable();
 
@@ -1252,7 +1275,7 @@ static int bch2_mark_key_locked(struct bch_fs *c,
 
 	switch (k.k->type) {
 	case KEY_TYPE_alloc:
-		ret = bch2_mark_alloc(c, k, fs_usage, journal_seq, flags);
+		ret = bch2_mark_alloc(c, old, new, fs_usage, journal_seq, flags);
 		break;
 	case KEY_TYPE_btree_ptr:
 	case KEY_TYPE_btree_ptr_v2:
@@ -1260,16 +1283,16 @@ static int bch2_mark_key_locked(struct bch_fs *c,
 			?  c->opts.btree_node_size
 			: -c->opts.btree_node_size;
 
-		ret = bch2_mark_extent(c, k, offset, sectors, BCH_DATA_BTREE,
-				fs_usage, journal_seq, flags);
+		ret = bch2_mark_extent(c, old, new, offset, sectors,
+				BCH_DATA_BTREE, fs_usage, journal_seq, flags);
 		break;
 	case KEY_TYPE_extent:
 	case KEY_TYPE_reflink_v:
-		ret = bch2_mark_extent(c, k, offset, sectors, BCH_DATA_USER,
-				fs_usage, journal_seq, flags);
+		ret = bch2_mark_extent(c, old, new, offset, sectors,
+				BCH_DATA_USER, fs_usage, journal_seq, flags);
 		break;
 	case KEY_TYPE_stripe:
-		ret = bch2_mark_stripe(c, k, fs_usage, journal_seq, flags);
+		ret = bch2_mark_stripe(c, old, new, fs_usage, journal_seq, flags);
 		break;
 	case KEY_TYPE_inode:
 		if (!(flags & BTREE_TRIGGER_OVERWRITE))
@@ -1295,82 +1318,38 @@ static int bch2_mark_key_locked(struct bch_fs *c,
 	return ret;
 }
 
-int bch2_mark_key(struct bch_fs *c, struct bkey_s_c k,
+int bch2_mark_key(struct bch_fs *c, struct bkey_s_c new,
 		  unsigned offset, s64 sectors,
 		  struct bch_fs_usage *fs_usage,
 		  u64 journal_seq, unsigned flags)
 {
+	struct bkey deleted;
+	struct bkey_s_c old = (struct bkey_s_c) { &deleted, NULL };
 	int ret;
 
+	bkey_init(&deleted);
+
 	percpu_down_read(&c->mark_lock);
-	ret = bch2_mark_key_locked(c, k, offset, sectors,
-				   fs_usage, journal_seq, flags);
+	ret = bch2_mark_key_locked(c, old, new, offset, sectors,
+				   fs_usage, journal_seq,
+				   BTREE_TRIGGER_INSERT|flags);
 	percpu_up_read(&c->mark_lock);
 
 	return ret;
 }
 
-static int bch2_mark_overwrite(struct btree_trans *trans,
-			       struct btree_iter *iter,
-			       struct bkey_s_c old,
-			       struct bkey_i *new,
-			       struct bch_fs_usage *fs_usage,
-			       unsigned flags,
-			       bool is_extents)
-{
-	struct bch_fs		*c = trans->c;
-	unsigned		offset = 0;
-	s64			sectors = -((s64) old.k->size);
-
-	flags |= BTREE_TRIGGER_OVERWRITE;
-
-	if (is_extents
-	    ? bkey_cmp(new->k.p, bkey_start_pos(old.k)) <= 0
-	    : bkey_cmp(new->k.p, old.k->p))
-		return 0;
-
-	if (is_extents) {
-		switch (bch2_extent_overlap(&new->k, old.k)) {
-		case BCH_EXTENT_OVERLAP_ALL:
-			offset = 0;
-			sectors = -((s64) old.k->size);
-			break;
-		case BCH_EXTENT_OVERLAP_BACK:
-			offset = bkey_start_offset(&new->k) -
-				bkey_start_offset(old.k);
-			sectors = bkey_start_offset(&new->k) -
-				old.k->p.offset;
-			break;
-		case BCH_EXTENT_OVERLAP_FRONT:
-			offset = 0;
-			sectors = bkey_start_offset(old.k) -
-				new->k.p.offset;
-			break;
-		case BCH_EXTENT_OVERLAP_MIDDLE:
-			offset = bkey_start_offset(&new->k) -
-				bkey_start_offset(old.k);
-			sectors = -((s64) new->k.size);
-			flags |= BTREE_TRIGGER_OVERWRITE_SPLIT;
-			break;
-		}
-
-		BUG_ON(sectors >= 0);
-	}
-
-	return bch2_mark_key_locked(c, old, offset, sectors, fs_usage,
-				    trans->journal_res.seq, flags) ?: 1;
-}
-
 int bch2_mark_update(struct btree_trans *trans,
 		     struct btree_iter *iter,
-		     struct bkey_i *insert,
+		     struct bkey_i *new,
 		     struct bch_fs_usage *fs_usage,
 		     unsigned flags)
 {
 	struct bch_fs		*c = trans->c;
 	struct btree		*b = iter_l(iter)->b;
 	struct btree_node_iter	node_iter = iter_l(iter)->iter;
-	struct bkey_packed	*_k;
+	struct bkey_packed	*_old;
+	struct bkey_s_c		old;
+	struct bkey		unpacked;
 	int ret = 0;
 
 	if (unlikely(flags & BTREE_TRIGGER_NORUN))
@@ -1379,31 +1358,87 @@ int bch2_mark_update(struct btree_trans *trans,
 	if (!btree_node_type_needs_gc(iter->btree_id))
 		return 0;
 
-	bch2_mark_key_locked(c, bkey_i_to_s_c(insert),
-		0, insert->k.size,
-		fs_usage, trans->journal_res.seq,
-		BTREE_TRIGGER_INSERT|flags);
+	bkey_init(&unpacked);
+	old = (struct bkey_s_c) { &unpacked, NULL };
 
-	/*
-	 * For non extents, we only mark the new key, not the key being
-	 * overwritten - unless we're actually deleting:
-	 */
-	if ((iter->btree_id == BTREE_ID_ALLOC ||
-	     iter->btree_id == BTREE_ID_EC) &&
-	    !bkey_deleted(&insert->k))
-		return 0;
+	if (!btree_node_type_is_extents(iter->btree_id)) {
+		if (btree_iter_type(iter) != BTREE_ITER_CACHED) {
+			_old = bch2_btree_node_iter_peek(&node_iter, b);
+			if (_old)
+				old = bkey_disassemble(b, _old, &unpacked);
+		} else {
+			struct bkey_cached *ck = (void *) iter->l[0].b;
 
-	while ((_k = bch2_btree_node_iter_peek(&node_iter, b))) {
-		struct bkey		unpacked;
-		struct bkey_s_c		k = bkey_disassemble(b, _k, &unpacked);
+			if (ck->valid)
+				old = bkey_i_to_s_c(ck->k);
+		}
 
-		ret = bch2_mark_overwrite(trans, iter, k, insert,
-					  fs_usage, flags,
-					  btree_node_type_is_extents(iter->btree_id));
-		if (ret <= 0)
-			break;
+		if (old.k->type == new->k.type) {
+			bch2_mark_key_locked(c, old, bkey_i_to_s_c(new), 0, 0,
+				fs_usage, trans->journal_res.seq,
+				BTREE_TRIGGER_INSERT|BTREE_TRIGGER_OVERWRITE|flags);
 
-		bch2_btree_node_iter_advance(&node_iter, b);
+		} else {
+			bch2_mark_key_locked(c, old, bkey_i_to_s_c(new), 0, 0,
+				fs_usage, trans->journal_res.seq,
+				BTREE_TRIGGER_INSERT|flags);
+			bch2_mark_key_locked(c, old, bkey_i_to_s_c(new), 0, 0,
+				fs_usage, trans->journal_res.seq,
+				BTREE_TRIGGER_OVERWRITE|flags);
+		}
+	} else {
+		BUG_ON(btree_iter_type(iter) == BTREE_ITER_CACHED);
+		bch2_mark_key_locked(c, old, bkey_i_to_s_c(new),
+			0, new->k.size,
+			fs_usage, trans->journal_res.seq,
+			BTREE_TRIGGER_INSERT|flags);
+
+		while ((_old = bch2_btree_node_iter_peek(&node_iter, b))) {
+			unsigned offset = 0;
+			s64 sectors;
+
+			old = bkey_disassemble(b, _old, &unpacked);
+			sectors = -((s64) old.k->size);
+
+			flags |= BTREE_TRIGGER_OVERWRITE;
+
+			if (bkey_cmp(new->k.p, bkey_start_pos(old.k)) <= 0)
+				return 0;
+
+			switch (bch2_extent_overlap(&new->k, old.k)) {
+			case BCH_EXTENT_OVERLAP_ALL:
+				offset = 0;
+				sectors = -((s64) old.k->size);
+				break;
+			case BCH_EXTENT_OVERLAP_BACK:
+				offset = bkey_start_offset(&new->k) -
+					bkey_start_offset(old.k);
+				sectors = bkey_start_offset(&new->k) -
+					old.k->p.offset;
+				break;
+			case BCH_EXTENT_OVERLAP_FRONT:
+				offset = 0;
+				sectors = bkey_start_offset(old.k) -
+					new->k.p.offset;
+				break;
+			case BCH_EXTENT_OVERLAP_MIDDLE:
+				offset = bkey_start_offset(&new->k) -
+					bkey_start_offset(old.k);
+				sectors = -((s64) new->k.size);
+				flags |= BTREE_TRIGGER_OVERWRITE_SPLIT;
+				break;
+			}
+
+			BUG_ON(sectors >= 0);
+
+			ret = bch2_mark_key_locked(c, old, bkey_i_to_s_c(new),
+					offset, sectors, fs_usage,
+					trans->journal_res.seq, flags) ?: 1;
+			if (ret <= 0)
+				break;
+
+			bch2_btree_node_iter_advance(&node_iter, b);
+		}
 	}
 
 	return ret;
@@ -1458,8 +1493,10 @@ void bch2_trans_fs_usage_apply(struct btree_trans *trans,
 		} else {
 			struct bkey_cached *ck = (void *) i->iter->l[0].b;
 
-			bch2_bkey_val_to_text(&PBUF(buf), c, bkey_i_to_s_c(ck->k));
-			pr_err("%s", buf);
+			if (ck->valid) {
+				bch2_bkey_val_to_text(&PBUF(buf), c, bkey_i_to_s_c(ck->k));
+				pr_err("%s", buf);
+			}
 		}
 	}
 }

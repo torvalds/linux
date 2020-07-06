@@ -259,8 +259,8 @@ void bch2_mark_metadata_bucket(struct bch_fs *, struct bch_dev *,
 			       size_t, enum bch_data_type, unsigned,
 			       struct gc_pos, unsigned);
 
-int bch2_mark_key(struct bch_fs *, struct bkey_s_c, unsigned, s64,
-		  struct bch_fs_usage *, u64, unsigned);
+int bch2_mark_key(struct bch_fs *, struct bkey_s_c, unsigned,
+		  s64, struct bch_fs_usage *, u64, unsigned);
 int bch2_fs_usage_apply(struct bch_fs *, struct bch_fs_usage_online *,
 			struct disk_reservation *, unsigned);
 
