@@ -42,29 +42,25 @@ static int qed_roce_async_event(struct qed_hwfn *p_hwfn, u8 fw_event_code,
 				u8 fw_return_code)
 {
 	struct qed_rdma_events events = p_hwfn->p_rdma_info->events;
+	union rdma_eqe_data *rdata = &data->rdma_data;
 
 	if (fw_event_code == ROCE_ASYNC_EVENT_DESTROY_QP_DONE) {
-		u16 icid =
-		    (u16)le32_to_cpu(data->rdma_data.rdma_destroy_qp_data.cid);
+		u16 icid = (u16)le32_to_cpu(rdata->rdma_destroy_qp_data.cid);
 
 		/* icid release in this async event can occur only if the icid
 		 * was offloaded to the FW. In case it wasn't offloaded this is
 		 * handled in qed_roce_sp_destroy_qp.
 		 */
 		qed_roce_free_real_icid(p_hwfn, icid);
+	} else if (fw_event_code == ROCE_ASYNC_EVENT_SRQ_EMPTY ||
+		   fw_event_code == ROCE_ASYNC_EVENT_SRQ_LIMIT) {
+		u16 srq_id = (u16)rdata->async_handle.lo;
+
+		events.affiliated_event(events.context, fw_event_code,
+					&srq_id);
 	} else {
-		if (fw_event_code == ROCE_ASYNC_EVENT_SRQ_EMPTY ||
-		    fw_event_code == ROCE_ASYNC_EVENT_SRQ_LIMIT) {
-			u16 srq_id = (u16)data->rdma_data.async_handle.lo;
-
-			events.affiliated_event(events.context, fw_event_code,
-						&srq_id);
-		} else {
-			union rdma_eqe_data rdata = data->rdma_data;
-
-			events.affiliated_event(events.context, fw_event_code,
-						(void *)&rdata.async_handle);
-		}
+		events.affiliated_event(events.context, fw_event_code,
+					(void *)&rdata->async_handle);
 	}
 
 	return 0;

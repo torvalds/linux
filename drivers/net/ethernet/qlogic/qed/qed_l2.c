@@ -342,6 +342,7 @@ int qed_sp_eth_vport_start(struct qed_hwfn *p_hwfn,
 			   struct qed_sp_vport_start_params *p_params)
 {
 	struct vport_start_ramrod_data *p_ramrod = NULL;
+	struct eth_vport_tpa_param *tpa_param;
 	struct qed_spq_entry *p_ent =  NULL;
 	struct qed_sp_init_data init_data;
 	u8 abs_vport_id = 0;
@@ -378,21 +379,21 @@ int qed_sp_eth_vport_start(struct qed_hwfn *p_hwfn,
 	p_ramrod->rx_mode.state = cpu_to_le16(rx_mode);
 
 	/* TPA related fields */
-	memset(&p_ramrod->tpa_param, 0, sizeof(struct eth_vport_tpa_param));
+	tpa_param = &p_ramrod->tpa_param;
+	memset(tpa_param, 0, sizeof(*tpa_param));
 
-	p_ramrod->tpa_param.max_buff_num = p_params->max_buffers_per_cqe;
+	tpa_param->max_buff_num = p_params->max_buffers_per_cqe;
 
 	switch (p_params->tpa_mode) {
 	case QED_TPA_MODE_GRO:
-		p_ramrod->tpa_param.tpa_max_aggs_num = ETH_TPA_MAX_AGGS_NUM;
-		p_ramrod->tpa_param.tpa_max_size = (u16)-1;
-		p_ramrod->tpa_param.tpa_min_size_to_cont = p_params->mtu / 2;
-		p_ramrod->tpa_param.tpa_min_size_to_start = p_params->mtu / 2;
-		p_ramrod->tpa_param.tpa_ipv4_en_flg = 1;
-		p_ramrod->tpa_param.tpa_ipv6_en_flg = 1;
-		p_ramrod->tpa_param.tpa_pkt_split_flg = 1;
-		p_ramrod->tpa_param.tpa_gro_consistent_flg = 1;
-		break;
+		tpa_param->tpa_max_aggs_num = ETH_TPA_MAX_AGGS_NUM;
+		tpa_param->tpa_max_size = (u16)-1;
+		tpa_param->tpa_min_size_to_cont = p_params->mtu / 2;
+		tpa_param->tpa_min_size_to_start = p_params->mtu / 2;
+		tpa_param->tpa_ipv4_en_flg = 1;
+		tpa_param->tpa_ipv6_en_flg = 1;
+		tpa_param->tpa_pkt_split_flg = 1;
+		tpa_param->tpa_gro_consistent_flg = 1;
 	default:
 		break;
 	}
@@ -601,33 +602,33 @@ qed_sp_update_accept_mode(struct qed_hwfn *p_hwfn,
 static void
 qed_sp_vport_update_sge_tpa(struct qed_hwfn *p_hwfn,
 			    struct vport_update_ramrod_data *p_ramrod,
-			    struct qed_sge_tpa_params *p_params)
+			    const struct qed_sge_tpa_params *param)
 {
-	struct eth_vport_tpa_param *p_tpa;
+	struct eth_vport_tpa_param *tpa;
 
-	if (!p_params) {
+	if (!param) {
 		p_ramrod->common.update_tpa_param_flg = 0;
 		p_ramrod->common.update_tpa_en_flg = 0;
 		p_ramrod->common.update_tpa_param_flg = 0;
 		return;
 	}
 
-	p_ramrod->common.update_tpa_en_flg = p_params->update_tpa_en_flg;
-	p_tpa = &p_ramrod->tpa_param;
-	p_tpa->tpa_ipv4_en_flg = p_params->tpa_ipv4_en_flg;
-	p_tpa->tpa_ipv6_en_flg = p_params->tpa_ipv6_en_flg;
-	p_tpa->tpa_ipv4_tunn_en_flg = p_params->tpa_ipv4_tunn_en_flg;
-	p_tpa->tpa_ipv6_tunn_en_flg = p_params->tpa_ipv6_tunn_en_flg;
+	p_ramrod->common.update_tpa_en_flg = param->update_tpa_en_flg;
+	tpa = &p_ramrod->tpa_param;
+	tpa->tpa_ipv4_en_flg = param->tpa_ipv4_en_flg;
+	tpa->tpa_ipv6_en_flg = param->tpa_ipv6_en_flg;
+	tpa->tpa_ipv4_tunn_en_flg = param->tpa_ipv4_tunn_en_flg;
+	tpa->tpa_ipv6_tunn_en_flg = param->tpa_ipv6_tunn_en_flg;
 
-	p_ramrod->common.update_tpa_param_flg = p_params->update_tpa_param_flg;
-	p_tpa->max_buff_num = p_params->max_buffers_per_cqe;
-	p_tpa->tpa_pkt_split_flg = p_params->tpa_pkt_split_flg;
-	p_tpa->tpa_hdr_data_split_flg = p_params->tpa_hdr_data_split_flg;
-	p_tpa->tpa_gro_consistent_flg = p_params->tpa_gro_consistent_flg;
-	p_tpa->tpa_max_aggs_num = p_params->tpa_max_aggs_num;
-	p_tpa->tpa_max_size = p_params->tpa_max_size;
-	p_tpa->tpa_min_size_to_start = p_params->tpa_min_size_to_start;
-	p_tpa->tpa_min_size_to_cont = p_params->tpa_min_size_to_cont;
+	p_ramrod->common.update_tpa_param_flg = param->update_tpa_param_flg;
+	tpa->max_buff_num = param->max_buffers_per_cqe;
+	tpa->tpa_pkt_split_flg = param->tpa_pkt_split_flg;
+	tpa->tpa_hdr_data_split_flg = param->tpa_hdr_data_split_flg;
+	tpa->tpa_gro_consistent_flg = param->tpa_gro_consistent_flg;
+	tpa->tpa_max_aggs_num = param->tpa_max_aggs_num;
+	tpa->tpa_max_size = param->tpa_max_size;
+	tpa->tpa_min_size_to_start = param->tpa_min_size_to_start;
+	tpa->tpa_min_size_to_cont = param->tpa_min_size_to_cont;
 }
 
 static void

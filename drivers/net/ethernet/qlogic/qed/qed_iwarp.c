@@ -808,6 +808,7 @@ static int
 qed_iwarp_mpa_offload(struct qed_hwfn *p_hwfn, struct qed_iwarp_ep *ep)
 {
 	struct iwarp_mpa_offload_ramrod_data *p_mpa_ramrod;
+	struct mpa_outgoing_params *common;
 	struct qed_iwarp_info *iwarp_info;
 	struct qed_sp_init_data init_data;
 	dma_addr_t async_output_phys;
@@ -840,16 +841,17 @@ qed_iwarp_mpa_offload(struct qed_hwfn *p_hwfn, struct qed_iwarp_ep *ep)
 		return rc;
 
 	p_mpa_ramrod = &p_ent->ramrod.iwarp_mpa_offload;
+	common = &p_mpa_ramrod->common;
+
 	out_pdata_phys = ep->ep_buffer_phys +
 			 offsetof(struct qed_iwarp_ep_memory, out_pdata);
-	DMA_REGPAIR_LE(p_mpa_ramrod->common.outgoing_ulp_buffer.addr,
-		       out_pdata_phys);
-	p_mpa_ramrod->common.outgoing_ulp_buffer.len =
-	    ep->cm_info.private_data_len;
-	p_mpa_ramrod->common.crc_needed = p_hwfn->p_rdma_info->iwarp.crc_needed;
+	DMA_REGPAIR_LE(common->outgoing_ulp_buffer.addr, out_pdata_phys);
 
-	p_mpa_ramrod->common.out_rq.ord = ep->cm_info.ord;
-	p_mpa_ramrod->common.out_rq.ird = ep->cm_info.ird;
+	common->outgoing_ulp_buffer.len = ep->cm_info.private_data_len;
+	common->crc_needed = p_hwfn->p_rdma_info->iwarp.crc_needed;
+
+	common->out_rq.ord = ep->cm_info.ord;
+	common->out_rq.ird = ep->cm_info.ird;
 
 	p_mpa_ramrod->tcp_cid = p_hwfn->hw_info.opaque_fid << 16 | ep->tcp_cid;
 
@@ -873,7 +875,7 @@ qed_iwarp_mpa_offload(struct qed_hwfn *p_hwfn, struct qed_iwarp_ep *ep)
 		p_mpa_ramrod->stats_counter_id =
 		    RESC_START(p_hwfn, QED_RDMA_STATS_QUEUE) + qp->stats_queue;
 	} else {
-		p_mpa_ramrod->common.reject = 1;
+		common->reject = 1;
 	}
 
 	iwarp_info = &p_hwfn->p_rdma_info->iwarp;

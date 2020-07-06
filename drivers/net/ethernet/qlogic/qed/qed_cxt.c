@@ -2170,6 +2170,7 @@ qed_cxt_dynamic_ilt_alloc(struct qed_hwfn *p_hwfn,
 			  enum qed_cxt_elem_type elem_type, u32 iid)
 {
 	u32 reg_offset, shadow_line, elem_size, hw_p_size, elems_per_p, line;
+	struct tdif_task_context *tdif_context;
 	struct qed_ilt_client_cfg *p_cli;
 	struct qed_ilt_cli_blk *p_blk;
 	struct qed_ptt *p_ptt;
@@ -2252,7 +2253,9 @@ qed_cxt_dynamic_ilt_alloc(struct qed_hwfn *p_hwfn,
 
 		for (elem_i = 0; elem_i < elems_per_p; elem_i++) {
 			elem = (union type1_task_context *)elem_start;
-			SET_FIELD(elem->roce_ctx.tdif_context.flags1,
+			tdif_context = &elem->roce_ctx.tdif_context;
+
+			SET_FIELD(tdif_context->flags1,
 				  TDIF_TASK_CONTEXT_REF_TAG_MASK, 0xf);
 			elem_start += TYPE1_TASK_CXT_SIZE(p_hwfn);
 		}
