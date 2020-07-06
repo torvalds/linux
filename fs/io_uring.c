@@ -2015,6 +2015,10 @@ static int io_do_iopoll(struct io_ring_ctx *ctx, unsigned int *nr_events,
 		if (ret < 0)
 			break;
 
+		/* iopoll may have completed current req */
+		if (READ_ONCE(req->iopoll_completed))
+			list_move_tail(&req->list, &done);
+
 		if (ret && spin)
 			spin = false;
 		ret = 0;
