@@ -409,6 +409,7 @@ struct cal_ctx {
 	struct vb2_queue	vb_vidq;
 	unsigned int		seq_count;
 	unsigned int		csi2_port;
+	unsigned int		cport;
 	unsigned int		virtual_channel;
 
 	/* Pointer pointing to current v4l2_buffer */
@@ -971,7 +972,7 @@ static void csi2_ctx_config(struct cal_ctx *ctx)
 	u32 val;
 
 	val = reg_read(ctx->dev, CAL_CSI2_CTX0(ctx->csi2_port));
-	set_field(&val, ctx->csi2_port, CAL_CSI2_CTX_CPORT_MASK);
+	set_field(&val, ctx->cport, CAL_CSI2_CTX_CPORT_MASK);
 	/*
 	 * DT type: MIPI CSI-2 Specs
 	 *   0x1: All - DT filter is disabled
@@ -1036,7 +1037,7 @@ static void pix_proc_config(struct cal_ctx *ctx)
 	set_field(&val, CAL_PIX_PROC_DPCMD_BYPASS, CAL_PIX_PROC_DPCMD_MASK);
 	set_field(&val, CAL_PIX_PROC_DPCME_BYPASS, CAL_PIX_PROC_DPCME_MASK);
 	set_field(&val, pack, CAL_PIX_PROC_PACK_MASK);
-	set_field(&val, ctx->csi2_port, CAL_PIX_PROC_CPORT_MASK);
+	set_field(&val, ctx->cport, CAL_PIX_PROC_CPORT_MASK);
 	set_field(&val, 1, CAL_PIX_PROC_EN_MASK);
 	reg_write(ctx->dev, CAL_PIX_PROC(ctx->csi2_port), val);
 	ctx_dbg(3, ctx, "CAL_PIX_PROC(%d) = 0x%08x\n", ctx->csi2_port,
@@ -1049,7 +1050,7 @@ static void cal_wr_dma_config(struct cal_ctx *ctx,
 	u32 val;
 
 	val = reg_read(ctx->dev, CAL_WR_DMA_CTRL(ctx->csi2_port));
-	set_field(&val, ctx->csi2_port, CAL_WR_DMA_CTRL_CPORT_MASK);
+	set_field(&val, ctx->cport, CAL_WR_DMA_CTRL_CPORT_MASK);
 	set_field(&val, height, CAL_WR_DMA_CTRL_YSIZE_MASK);
 	set_field(&val, CAL_WR_DMA_CTRL_DTAG_PIX_DAT,
 		  CAL_WR_DMA_CTRL_DTAG_MASK);
@@ -2221,6 +2222,7 @@ static struct cal_ctx *cal_create_instance(struct cal_dev *dev, int inst)
 
 	/* Store the instance id */
 	ctx->csi2_port = inst + 1;
+	ctx->cport = inst + 1;
 
 	ret = of_cal_create_instance(ctx, inst);
 	if (ret) {
