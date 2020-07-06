@@ -234,7 +234,10 @@ enum cal_camerarx_field {
 
 struct cal_csi2_phy {
 	struct regmap_field *fields[F_MAX_FIELDS];
-	struct reg_field base_fields[F_MAX_FIELDS];
+	struct {
+		unsigned int lsb;
+		unsigned int msb;
+	} base_fields[F_MAX_FIELDS];
 	const int num_lanes;
 };
 
@@ -248,19 +251,19 @@ struct cal_data {
 static struct cal_csi2_phy dra72x_cal_csi_phy[] = {
 	{
 		.base_fields = {
-			[F_CTRLCLKEN] = REG_FIELD(0, 10, 10),
-			[F_CAMMODE] = REG_FIELD(0, 11, 12),
-			[F_LANEENABLE] = REG_FIELD(0, 13, 16),
-			[F_CSI_MODE] = REG_FIELD(0, 17, 17),
+			[F_CTRLCLKEN] = { 10, 10 },
+			[F_CAMMODE] = { 11, 12 },
+			[F_LANEENABLE] = { 13, 16 },
+			[F_CSI_MODE] = { 17, 17 },
 		},
 		.num_lanes = 4,
 	},
 	{
 		.base_fields = {
-			[F_CTRLCLKEN] = REG_FIELD(0, 0, 0),
-			[F_CAMMODE] = REG_FIELD(0, 1, 2),
-			[F_LANEENABLE] = REG_FIELD(0, 3, 4),
-			[F_CSI_MODE] = REG_FIELD(0, 5, 5),
+			[F_CTRLCLKEN] = { 0, 0 },
+			[F_CAMMODE] = { 1, 2 },
+			[F_LANEENABLE] = { 3, 4 },
+			[F_CSI_MODE] = { 5, 5 },
 		},
 		.num_lanes = 2,
 	},
@@ -280,19 +283,19 @@ static const struct cal_data dra72x_es1_cal_data = {
 static struct cal_csi2_phy dra76x_cal_csi_phy[] = {
 	{
 		.base_fields = {
-			[F_CTRLCLKEN] = REG_FIELD(0, 8, 8),
-			[F_CAMMODE] = REG_FIELD(0, 9, 10),
-			[F_CSI_MODE] = REG_FIELD(0, 11, 11),
-			[F_LANEENABLE] = REG_FIELD(0, 27, 31),
+			[F_CTRLCLKEN] = { 8, 8 },
+			[F_CAMMODE] = { 9, 10 },
+			[F_CSI_MODE] = { 11, 11 },
+			[F_LANEENABLE] = { 27, 31 },
 		},
 		.num_lanes = 5,
 	},
 	{
 		.base_fields = {
-			[F_CTRLCLKEN] = REG_FIELD(0, 0, 0),
-			[F_CAMMODE] = REG_FIELD(0, 1, 2),
-			[F_CSI_MODE] = REG_FIELD(0, 3, 3),
-			[F_LANEENABLE] = REG_FIELD(0, 24, 26),
+			[F_CTRLCLKEN] = { 0, 0 },
+			[F_CAMMODE] = { 1, 2 },
+			[F_CSI_MODE] = { 3, 3 },
+			[F_LANEENABLE] = { 24, 26 },
 		},
 		.num_lanes = 3,
 	},
@@ -306,9 +309,9 @@ static const struct cal_data dra76x_cal_data = {
 static struct cal_csi2_phy am654_cal_csi_phy[] = {
 	{
 		.base_fields = {
-			[F_CTRLCLKEN] = REG_FIELD(0, 15, 15),
-			[F_CAMMODE] = REG_FIELD(0, 24, 25),
-			[F_LANEENABLE] = REG_FIELD(0, 0, 4),
+			[F_CTRLCLKEN] = { 15, 15 },
+			[F_CAMMODE] = { 24, 25 },
+			[F_LANEENABLE] = { 0, 4 },
 		},
 		.num_lanes = 5,
 	},
@@ -476,7 +479,6 @@ static u32 cal_data_get_num_csi2_phy(struct cal_dev *dev)
 
 static int cal_camerarx_regmap_init(struct cal_dev *dev)
 {
-	struct reg_field *field;
 	struct cal_csi2_phy *phy;
 	unsigned int i, j;
 
@@ -486,16 +488,20 @@ static int cal_camerarx_regmap_init(struct cal_dev *dev)
 	for (i = 0; i < cal_data_get_num_csi2_phy(dev); i++) {
 		phy = &dev->data->csi2_phy_core[i];
 		for (j = 0; j < F_MAX_FIELDS; j++) {
-			field = &phy->base_fields[j];
+			struct reg_field field = {
+				.reg = dev->syscon_camerrx_offset,
+				.lsb = phy->base_fields[j].lsb,
+				.msb = phy->base_fields[j].msb,
+			};
+
 			/*
 			 * Here we update the reg offset with the
 			 * value found in DT
 			 */
-			field->reg = dev->syscon_camerrx_offset;
 			phy->fields[j] =
 				devm_regmap_field_alloc(&dev->pdev->dev,
 							dev->syscon_camerrx,
-							*field);
+							field);
 			if (IS_ERR(phy->fields[j])) {
 				cal_err(dev, "Unable to allocate regmap fields\n");
 				return PTR_ERR(phy->fields[j]);
