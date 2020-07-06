@@ -29,6 +29,7 @@
 #include "smu_v12_0.h"
 #include "soc15_common.h"
 #include "atom.h"
+#include "smu_cmn.h"
 
 #include "asic_reg/mp/mp_12_0_0_offset.h"
 #include "asic_reg/mp/mp_12_0_0_sh_mask.h"
@@ -95,7 +96,9 @@ smu_v12_0_send_msg_with_param(struct smu_context *smu,
 	struct amdgpu_device *adev = smu->adev;
 	int ret = 0, index = 0;
 
-	index = smu_msg_get_index(smu, msg);
+	index = smu_cmn_to_asic_specific_index(smu,
+					       CMN2ASIC_MAPPING_MSG,
+					       msg);
 	if (index < 0)
 		return index;
 

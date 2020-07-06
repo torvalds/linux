@@ -34,6 +34,7 @@
 #include "sienna_cichlid_ppt.h"
 #include "renoir_ppt.h"
 #include "amd_pcie.h"
+#include "smu_cmn.h"
 
 /*
  * DO NOT use these for err/warn/info/debug messages.
@@ -94,7 +95,9 @@ size_t smu_sys_get_pp_feature_mask(struct smu_context *smu, char *buf)
 			feature_mask[1], feature_mask[0]);
 
 	for (i = 0; i < SMU_FEATURE_COUNT; i++) {
-		feature_index = smu_feature_get_index(smu, i);
+		feature_index = smu_cmn_to_asic_specific_index(smu,
+							       CMN2ASIC_MAPPING_FEATURE,
+							       i);
 		if (feature_index < 0)
 			continue;
 		sort_feature[feature_index] = i;
@@ -405,7 +408,9 @@ int smu_update_table(struct smu_context *smu, enum smu_table_id table_index, int
 	struct smu_table_context *smu_table = &smu->smu_table;
 	struct amdgpu_device *adev = smu->adev;
 	struct smu_table *table = &smu_table->driver_table;
-	int table_id = smu_table_get_index(smu, table_index);
+	int table_id = smu_cmn_to_asic_specific_index(smu,
+						      CMN2ASIC_MAPPING_TABLE,
+						      table_index);
 	uint32_t table_size;
 	int ret = 0;
 	if (!table_data || table_id >= SMU_TABLE_COUNT || table_id < 0)
@@ -546,7 +551,9 @@ int smu_feature_is_enabled(struct smu_context *smu, enum smu_feature_mask mask)
 
 	if (smu->is_apu)
 		return 1;
-	feature_id = smu_feature_get_index(smu, mask);
+	feature_id = smu_cmn_to_asic_specific_index(smu,
+						    CMN2ASIC_MAPPING_FEATURE,
+						    mask);
 	if (feature_id < 0)
 		return 0;
 
@@ -565,7 +572,9 @@ int smu_feature_set_enabled(struct smu_context *smu, enum smu_feature_mask mask,
 	struct smu_feature *feature = &smu->smu_feature;
 	int feature_id;
 
-	feature_id = smu_feature_get_index(smu, mask);
+	feature_id = smu_cmn_to_asic_specific_index(smu,
+						    CMN2ASIC_MAPPING_FEATURE,
+						    mask);
 	if (feature_id < 0)
 		return -EINVAL;
 
@@ -582,7 +591,9 @@ int smu_feature_is_supported(struct smu_context *smu, enum smu_feature_mask mask
 	int feature_id;
 	int ret = 0;
 
-	feature_id = smu_feature_get_index(smu, mask);
+	feature_id = smu_cmn_to_asic_specific_index(smu,
+						    CMN2ASIC_MAPPING_FEATURE,
+						    mask);
 	if (feature_id < 0)
 		return 0;
 
@@ -1314,7 +1325,9 @@ static int smu_disable_dpms(struct smu_context *smu)
 	 */
 	if (use_baco && smu_feature_is_enabled(smu, SMU_FEATURE_BACO_BIT)) {
 		features_to_disable = U64_MAX &
-			~(1ULL << smu_feature_get_index(smu, SMU_FEATURE_BACO_BIT));
+			~(1ULL << smu_cmn_to_asic_specific_index(smu,
+							CMN2ASIC_MAPPING_FEATURE,
+							SMU_FEATURE_BACO_BIT));
 		ret = smu_feature_update_enable_state(smu,
 						      features_to_disable,
 						      0);
@@ -1882,7 +1895,9 @@ int smu_set_mp1_state(struct smu_context *smu,
 	}
 
 	/* some asics may not support those messages */
-	if (smu_msg_get_index(smu, msg) < 0) {
+	if (smu_cmn_to_asic_specific_index(smu,
+					   CMN2ASIC_MAPPING_MSG,
+					   msg) < 0) {
 		mutex_unlock(&smu->mutex);
 		return 0;
 	}

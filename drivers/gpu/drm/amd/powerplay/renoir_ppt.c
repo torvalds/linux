@@ -28,6 +28,7 @@
 #include "smu12_driver_if.h"
 #include "smu_v12_0.h"
 #include "renoir_ppt.h"
+#include "smu_cmn.h"
 
 /*
  * DO NOT use these for err/warn/info/debug messages.
@@ -39,83 +40,71 @@
 #undef pr_info
 #undef pr_debug
 
-#define CLK_MAP(clk, index) \
-	[SMU_##clk] = {1, (index)}
-
-#define MSG_MAP(msg, index) \
-	[SMU_MSG_##msg] = {1, (index)}
-
-#define TAB_MAP_VALID(tab) \
-	[SMU_TABLE_##tab] = {1, TABLE_##tab}
-
-#define TAB_MAP_INVALID(tab) \
-	[SMU_TABLE_##tab] = {0, TABLE_##tab}
-
-static struct smu_12_0_cmn2aisc_mapping renoir_message_map[SMU_MSG_MAX_COUNT] = {
-	MSG_MAP(TestMessage,                    PPSMC_MSG_TestMessage),
-	MSG_MAP(GetSmuVersion,                  PPSMC_MSG_GetSmuVersion),
-	MSG_MAP(GetDriverIfVersion,             PPSMC_MSG_GetDriverIfVersion),
-	MSG_MAP(PowerUpGfx,                     PPSMC_MSG_PowerUpGfx),
-	MSG_MAP(AllowGfxOff,                    PPSMC_MSG_EnableGfxOff),
-	MSG_MAP(DisallowGfxOff,                 PPSMC_MSG_DisableGfxOff),
-	MSG_MAP(PowerDownIspByTile,             PPSMC_MSG_PowerDownIspByTile),
-	MSG_MAP(PowerUpIspByTile,               PPSMC_MSG_PowerUpIspByTile),
-	MSG_MAP(PowerDownVcn,                   PPSMC_MSG_PowerDownVcn),
-	MSG_MAP(PowerUpVcn,                     PPSMC_MSG_PowerUpVcn),
-	MSG_MAP(PowerDownSdma,                  PPSMC_MSG_PowerDownSdma),
-	MSG_MAP(PowerUpSdma,                    PPSMC_MSG_PowerUpSdma),
-	MSG_MAP(SetHardMinIspclkByFreq,         PPSMC_MSG_SetHardMinIspclkByFreq),
-	MSG_MAP(SetHardMinVcn,                  PPSMC_MSG_SetHardMinVcn),
-	MSG_MAP(Spare1,                         PPSMC_MSG_spare1),
-	MSG_MAP(Spare2,                         PPSMC_MSG_spare2),
-	MSG_MAP(SetAllowFclkSwitch,             PPSMC_MSG_SetAllowFclkSwitch),
-	MSG_MAP(SetMinVideoGfxclkFreq,          PPSMC_MSG_SetMinVideoGfxclkFreq),
-	MSG_MAP(ActiveProcessNotify,            PPSMC_MSG_ActiveProcessNotify),
-	MSG_MAP(SetCustomPolicy,                PPSMC_MSG_SetCustomPolicy),
-	MSG_MAP(SetVideoFps,                    PPSMC_MSG_SetVideoFps),
-	MSG_MAP(NumOfDisplays,                  PPSMC_MSG_SetDisplayCount),
-	MSG_MAP(QueryPowerLimit,                PPSMC_MSG_QueryPowerLimit),
-	MSG_MAP(SetDriverDramAddrHigh,          PPSMC_MSG_SetDriverDramAddrHigh),
-	MSG_MAP(SetDriverDramAddrLow,           PPSMC_MSG_SetDriverDramAddrLow),
-	MSG_MAP(TransferTableSmu2Dram,          PPSMC_MSG_TransferTableSmu2Dram),
-	MSG_MAP(TransferTableDram2Smu,          PPSMC_MSG_TransferTableDram2Smu),
-	MSG_MAP(GfxDeviceDriverReset,           PPSMC_MSG_GfxDeviceDriverReset),
-	MSG_MAP(SetGfxclkOverdriveByFreqVid,    PPSMC_MSG_SetGfxclkOverdriveByFreqVid),
-	MSG_MAP(SetHardMinDcfclkByFreq,         PPSMC_MSG_SetHardMinDcfclkByFreq),
-	MSG_MAP(SetHardMinSocclkByFreq,         PPSMC_MSG_SetHardMinSocclkByFreq),
-	MSG_MAP(ControlIgpuATS,                 PPSMC_MSG_ControlIgpuATS),
-	MSG_MAP(SetMinVideoFclkFreq,            PPSMC_MSG_SetMinVideoFclkFreq),
-	MSG_MAP(SetMinDeepSleepDcfclk,          PPSMC_MSG_SetMinDeepSleepDcfclk),
-	MSG_MAP(ForcePowerDownGfx,              PPSMC_MSG_ForcePowerDownGfx),
-	MSG_MAP(SetPhyclkVoltageByFreq,         PPSMC_MSG_SetPhyclkVoltageByFreq),
-	MSG_MAP(SetDppclkVoltageByFreq,         PPSMC_MSG_SetDppclkVoltageByFreq),
-	MSG_MAP(SetSoftMinVcn,                  PPSMC_MSG_SetSoftMinVcn),
-	MSG_MAP(EnablePostCode,                 PPSMC_MSG_EnablePostCode),
-	MSG_MAP(GetGfxclkFrequency,             PPSMC_MSG_GetGfxclkFrequency),
-	MSG_MAP(GetFclkFrequency,               PPSMC_MSG_GetFclkFrequency),
-	MSG_MAP(GetMinGfxclkFrequency,          PPSMC_MSG_GetMinGfxclkFrequency),
-	MSG_MAP(GetMaxGfxclkFrequency,          PPSMC_MSG_GetMaxGfxclkFrequency),
-	MSG_MAP(SoftReset,                      PPSMC_MSG_SoftReset),
-	MSG_MAP(SetGfxCGPG,                     PPSMC_MSG_SetGfxCGPG),
-	MSG_MAP(SetSoftMaxGfxClk,               PPSMC_MSG_SetSoftMaxGfxClk),
-	MSG_MAP(SetHardMinGfxClk,               PPSMC_MSG_SetHardMinGfxClk),
-	MSG_MAP(SetSoftMaxSocclkByFreq,         PPSMC_MSG_SetSoftMaxSocclkByFreq),
-	MSG_MAP(SetSoftMaxFclkByFreq,           PPSMC_MSG_SetSoftMaxFclkByFreq),
-	MSG_MAP(SetSoftMaxVcn,                  PPSMC_MSG_SetSoftMaxVcn),
-	MSG_MAP(PowerGateMmHub,                 PPSMC_MSG_PowerGateMmHub),
-	MSG_MAP(UpdatePmeRestore,               PPSMC_MSG_UpdatePmeRestore),
-	MSG_MAP(GpuChangeState,                 PPSMC_MSG_GpuChangeState),
-	MSG_MAP(SetPowerLimitPercentage,        PPSMC_MSG_SetPowerLimitPercentage),
-	MSG_MAP(ForceGfxContentSave,            PPSMC_MSG_ForceGfxContentSave),
-	MSG_MAP(EnableTmdp48MHzRefclkPwrDown,   PPSMC_MSG_EnableTmdp48MHzRefclkPwrDown),
-	MSG_MAP(PowerDownJpeg,                  PPSMC_MSG_PowerDownJpeg),
-	MSG_MAP(PowerUpJpeg,                    PPSMC_MSG_PowerUpJpeg),
-	MSG_MAP(PowerGateAtHub,                 PPSMC_MSG_PowerGateAtHub),
-	MSG_MAP(SetSoftMinJpeg,                 PPSMC_MSG_SetSoftMinJpeg),
-	MSG_MAP(SetHardMinFclkByFreq,           PPSMC_MSG_SetHardMinFclkByFreq),
+static struct cmn2asic_msg_mapping renoir_message_map[SMU_MSG_MAX_COUNT] = {
+	MSG_MAP(TestMessage,                    PPSMC_MSG_TestMessage,                  1),
+	MSG_MAP(GetSmuVersion,                  PPSMC_MSG_GetSmuVersion,                1),
+	MSG_MAP(GetDriverIfVersion,             PPSMC_MSG_GetDriverIfVersion,           1),
+	MSG_MAP(PowerUpGfx,                     PPSMC_MSG_PowerUpGfx,                   1),
+	MSG_MAP(AllowGfxOff,                    PPSMC_MSG_EnableGfxOff,                 1),
+	MSG_MAP(DisallowGfxOff,                 PPSMC_MSG_DisableGfxOff,                1),
+	MSG_MAP(PowerDownIspByTile,             PPSMC_MSG_PowerDownIspByTile,           1),
+	MSG_MAP(PowerUpIspByTile,               PPSMC_MSG_PowerUpIspByTile,             1),
+	MSG_MAP(PowerDownVcn,                   PPSMC_MSG_PowerDownVcn,                 1),
+	MSG_MAP(PowerUpVcn,                     PPSMC_MSG_PowerUpVcn,                   1),
+	MSG_MAP(PowerDownSdma,                  PPSMC_MSG_PowerDownSdma,                1),
+	MSG_MAP(PowerUpSdma,                    PPSMC_MSG_PowerUpSdma,                  1),
+	MSG_MAP(SetHardMinIspclkByFreq,         PPSMC_MSG_SetHardMinIspclkByFreq,       1),
+	MSG_MAP(SetHardMinVcn,                  PPSMC_MSG_SetHardMinVcn,                1),
+	MSG_MAP(Spare1,                         PPSMC_MSG_spare1,                       1),
+	MSG_MAP(Spare2,                         PPSMC_MSG_spare2,                       1),
+	MSG_MAP(SetAllowFclkSwitch,             PPSMC_MSG_SetAllowFclkSwitch,           1),
+	MSG_MAP(SetMinVideoGfxclkFreq,          PPSMC_MSG_SetMinVideoGfxclkFreq,        1),
+	MSG_MAP(ActiveProcessNotify,            PPSMC_MSG_ActiveProcessNotify,          1),
+	MSG_MAP(SetCustomPolicy,                PPSMC_MSG_SetCustomPolicy,              1),
+	MSG_MAP(SetVideoFps,                    PPSMC_MSG_SetVideoFps,                  1),
+	MSG_MAP(NumOfDisplays,                  PPSMC_MSG_SetDisplayCount,              1),
+	MSG_MAP(QueryPowerLimit,                PPSMC_MSG_QueryPowerLimit,              1),
+	MSG_MAP(SetDriverDramAddrHigh,          PPSMC_MSG_SetDriverDramAddrHigh,        1),
+	MSG_MAP(SetDriverDramAddrLow,           PPSMC_MSG_SetDriverDramAddrLow,         1),
+	MSG_MAP(TransferTableSmu2Dram,          PPSMC_MSG_TransferTableSmu2Dram,        1),
+	MSG_MAP(TransferTableDram2Smu,          PPSMC_MSG_TransferTableDram2Smu,        1),
+	MSG_MAP(GfxDeviceDriverReset,           PPSMC_MSG_GfxDeviceDriverReset,         1),
+	MSG_MAP(SetGfxclkOverdriveByFreqVid,    PPSMC_MSG_SetGfxclkOverdriveByFreqVid,  1),
+	MSG_MAP(SetHardMinDcfclkByFreq,         PPSMC_MSG_SetHardMinDcfclkByFreq,       1),
+	MSG_MAP(SetHardMinSocclkByFreq,         PPSMC_MSG_SetHardMinSocclkByFreq,       1),
+	MSG_MAP(ControlIgpuATS,                 PPSMC_MSG_ControlIgpuATS,               1),
+	MSG_MAP(SetMinVideoFclkFreq,            PPSMC_MSG_SetMinVideoFclkFreq,          1),
+	MSG_MAP(SetMinDeepSleepDcfclk,          PPSMC_MSG_SetMinDeepSleepDcfclk,        1),
+	MSG_MAP(ForcePowerDownGfx,              PPSMC_MSG_ForcePowerDownGfx,            1),
+	MSG_MAP(SetPhyclkVoltageByFreq,         PPSMC_MSG_SetPhyclkVoltageByFreq,       1),
+	MSG_MAP(SetDppclkVoltageByFreq,         PPSMC_MSG_SetDppclkVoltageByFreq,       1),
+	MSG_MAP(SetSoftMinVcn,                  PPSMC_MSG_SetSoftMinVcn,                1),
+	MSG_MAP(EnablePostCode,                 PPSMC_MSG_EnablePostCode,               1),
+	MSG_MAP(GetGfxclkFrequency,             PPSMC_MSG_GetGfxclkFrequency,           1),
+	MSG_MAP(GetFclkFrequency,               PPSMC_MSG_GetFclkFrequency,             1),
+	MSG_MAP(GetMinGfxclkFrequency,          PPSMC_MSG_GetMinGfxclkFrequency,        1),
+	MSG_MAP(GetMaxGfxclkFrequency,          PPSMC_MSG_GetMaxGfxclkFrequency,        1),
+	MSG_MAP(SoftReset,                      PPSMC_MSG_SoftReset,                    1),
+	MSG_MAP(SetGfxCGPG,                     PPSMC_MSG_SetGfxCGPG,                   1),
+	MSG_MAP(SetSoftMaxGfxClk,               PPSMC_MSG_SetSoftMaxGfxClk,             1),
+	MSG_MAP(SetHardMinGfxClk,               PPSMC_MSG_SetHardMinGfxClk,             1),
+	MSG_MAP(SetSoftMaxSocclkByFreq,         PPSMC_MSG_SetSoftMaxSocclkByFreq,       1),
+	MSG_MAP(SetSoftMaxFclkByFreq,           PPSMC_MSG_SetSoftMaxFclkByFreq,         1),
+	MSG_MAP(SetSoftMaxVcn,                  PPSMC_MSG_SetSoftMaxVcn,                1),
+	MSG_MAP(PowerGateMmHub,                 PPSMC_MSG_PowerGateMmHub,               1),
+	MSG_MAP(UpdatePmeRestore,               PPSMC_MSG_UpdatePmeRestore,             1),
+	MSG_MAP(GpuChangeState,                 PPSMC_MSG_GpuChangeState,               1),
+	MSG_MAP(SetPowerLimitPercentage,        PPSMC_MSG_SetPowerLimitPercentage,      1),
+	MSG_MAP(ForceGfxContentSave,            PPSMC_MSG_ForceGfxContentSave,          1),
+	MSG_MAP(EnableTmdp48MHzRefclkPwrDown,   PPSMC_MSG_EnableTmdp48MHzRefclkPwrDown, 1),
+	MSG_MAP(PowerDownJpeg,                  PPSMC_MSG_PowerDownJpeg,                1),
+	MSG_MAP(PowerUpJpeg,                    PPSMC_MSG_PowerUpJpeg,                  1),
+	MSG_MAP(PowerGateAtHub,                 PPSMC_MSG_PowerGateAtHub,               1),
+	MSG_MAP(SetSoftMinJpeg,                 PPSMC_MSG_SetSoftMinJpeg,               1),
+	MSG_MAP(SetHardMinFclkByFreq,           PPSMC_MSG_SetHardMinFclkByFreq,         1),
 };
 
-static struct smu_12_0_cmn2aisc_mapping renoir_clk_map[SMU_CLK_COUNT] = {
+static struct cmn2asic_mapping renoir_clk_map[SMU_CLK_COUNT] = {
 	CLK_MAP(GFXCLK, CLOCK_GFXCLK),
 	CLK_MAP(SCLK,	CLOCK_GFXCLK),
 	CLK_MAP(SOCCLK, CLOCK_SOCCLK),
@@ -123,15 +112,24 @@ static struct smu_12_0_cmn2aisc_mapping renoir_clk_map[SMU_CLK_COUNT] = {
 	CLK_MAP(MCLK, CLOCK_FCLK),
 };
 
-static struct smu_12_0_cmn2aisc_mapping renoir_table_map[SMU_TABLE_COUNT] = {
+static struct cmn2asic_mapping renoir_table_map[SMU_TABLE_COUNT] = {
 	TAB_MAP_VALID(WATERMARKS),
 	TAB_MAP_INVALID(CUSTOM_DPM),
 	TAB_MAP_VALID(DPMCLOCKS),
 	TAB_MAP_VALID(SMU_METRICS),
 };
 
+static struct cmn2asic_mapping renoir_workload_map[PP_SMC_POWER_PROFILE_COUNT] = {
+	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_FULLSCREEN3D,		WORKLOAD_PPLIB_FULL_SCREEN_3D_BIT),
+	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_VIDEO,		WORKLOAD_PPLIB_VIDEO_BIT),
+	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_VR,			WORKLOAD_PPLIB_VR_BIT),
+	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_COMPUTE,		WORKLOAD_PPLIB_COMPUTE_BIT),
+	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_CUSTOM,		WORKLOAD_PPLIB_CUSTOM_BIT),
+};
+
 static int renoir_get_smu_msg_index(struct smu_context *smc, uint32_t index)
 {
+#if 0
 	struct smu_12_0_cmn2aisc_mapping mapping;
 
 	if (index >= SMU_MSG_MAX_COUNT)
@@ -142,10 +140,13 @@ static int renoir_get_smu_msg_index(struct smu_context *smc, uint32_t index)
 		return -EINVAL;
 
 	return mapping.map_to;
+#endif
+	return 0;
 }
 
 static int renoir_get_smu_clk_index(struct smu_context *smc, uint32_t index)
 {
+#if 0
 	struct smu_12_0_cmn2aisc_mapping mapping;
 
 	if (index >= SMU_CLK_COUNT)
@@ -157,10 +158,13 @@ static int renoir_get_smu_clk_index(struct smu_context *smc, uint32_t index)
 	}
 
 	return mapping.map_to;
+#endif
+	return 0;
 }
 
 static int renoir_get_smu_table_index(struct smu_context *smc, uint32_t index)
 {
+#if 0
 	struct smu_12_0_cmn2aisc_mapping mapping;
 
 	if (index >= SMU_TABLE_COUNT)
@@ -171,6 +175,8 @@ static int renoir_get_smu_table_index(struct smu_context *smc, uint32_t index)
 		return -EINVAL;
 
 	return mapping.map_to;
+#endif
+	return 0;
 }
 
 static int renoir_get_metrics_table(struct smu_context *smu,
@@ -563,7 +569,9 @@ static int renoir_get_current_clk_freq_by_table(struct smu_context *smu,
 	if (ret)
 		return ret;
 
-	clk_id = smu_clk_get_index(smu, clk_type);
+	clk_id = smu_cmn_to_asic_specific_index(smu,
+						CMN2ASIC_MAPPING_CLK,
+						clk_type);
 	if (clk_id < 0)
 		return clk_id;
 
@@ -820,7 +828,9 @@ static int renoir_set_power_profile_mode(struct smu_context *smu, long *input, u
 	}
 
 	/* conv PP_SMC_POWER_PROFILE* to WORKLOAD_PPLIB_*_BIT */
-	workload_type = smu_workload_get_type(smu, profile_mode);
+	workload_type = smu_cmn_to_asic_specific_index(smu,
+						       CMN2ASIC_MAPPING_WORKLOAD,
+						       profile_mode);
 	if (workload_type < 0) {
 		/*
 		 * TODO: If some case need switch to powersave/default power mode
@@ -998,7 +1008,9 @@ static int renoir_get_power_profile_mode(struct smu_context *smu,
 		 * Conv PP_SMC_POWER_PROFILE* to WORKLOAD_PPLIB_*_BIT
 		 * Not all profile modes are supported on arcturus.
 		 */
-		workload_type = smu_workload_get_type(smu, i);
+		workload_type = smu_cmn_to_asic_specific_index(smu,
+							       CMN2ASIC_MAPPING_WORKLOAD,
+							       i);
 		if (workload_type < 0)
 			continue;
 
@@ -1102,6 +1114,10 @@ static const struct pptable_funcs renoir_ppt_funcs = {
 void renoir_set_ppt_funcs(struct smu_context *smu)
 {
 	smu->ppt_funcs = &renoir_ppt_funcs;
+	smu->message_map = renoir_message_map;
+	smu->clock_map = renoir_clk_map;
+	smu->table_map = renoir_table_map;
+	smu->workload_map = renoir_workload_map;
 	smu->smc_driver_if_version = SMU12_DRIVER_IF_VERSION;
 	smu->is_apu = true;
 }

@@ -52,21 +52,6 @@
 #define MAX_DPM_LEVELS 16
 #define MAX_PCIE_CONF 2
 
-#define CLK_MAP(clk, index) \
-	[SMU_##clk] = {1, (index)}
-
-#define FEA_MAP(fea) \
-	[SMU_FEATURE_##fea##_BIT] = {1, FEATURE_##fea##_BIT}
-
-#define TAB_MAP(tab) \
-	[SMU_TABLE_##tab] = {1, TABLE_##tab}
-
-#define PWR_MAP(tab) \
-	[SMU_POWER_SOURCE_##tab] = {1, POWER_SOURCE_##tab}
-
-#define WORKLOAD_MAP(profile, workload) \
-	[profile] = {1, (workload)}
-
 #define CTF_OFFSET_EDGE			5
 #define CTF_OFFSET_HOTSPOT		5
 #define CTF_OFFSET_MEM			5

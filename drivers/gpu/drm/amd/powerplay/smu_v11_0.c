@@ -37,6 +37,7 @@
 #include "soc15_common.h"
 #include "atom.h"
 #include "amdgpu_ras.h"
+#include "smu_cmn.h"
 
 #include "asic_reg/thm/thm_11_0_2_offset.h"
 #include "asic_reg/thm/thm_11_0_2_sh_mask.h"
@@ -111,7 +112,9 @@ smu_v11_0_send_msg_with_param(struct smu_context *smu,
 	struct amdgpu_device *adev = smu->adev;
 	int ret = 0, index = 0;
 
-	index = smu_msg_get_index(smu, msg);
+	index = smu_cmn_to_asic_specific_index(smu,
+					       CMN2ASIC_MAPPING_MSG,
+					       msg);
 	if (index < 0)
 		return index == -EACCES ? 0 : index;
 
@@ -947,11 +950,13 @@ smu_v11_0_get_max_sustainable_clock(struct smu_context *smu, uint32_t *clock,
 	int ret = 0;
 	int clk_id;
 
-	if ((smu_msg_get_index(smu, SMU_MSG_GetDcModeMaxDpmFreq) < 0) ||
-	    (smu_msg_get_index(smu, SMU_MSG_GetMaxDpmFreq) < 0))
+	if ((smu_cmn_to_asic_specific_index(smu, CMN2ASIC_MAPPING_MSG, SMU_MSG_GetDcModeMaxDpmFreq) < 0) ||
+	    (smu_cmn_to_asic_specific_index(smu, CMN2ASIC_MAPPING_MSG, SMU_MSG_GetMaxDpmFreq) < 0))
 		return 0;
 
-	clk_id = smu_clk_get_index(smu, clock_select);
+	clk_id = smu_cmn_to_asic_specific_index(smu,
+						CMN2ASIC_MAPPING_CLK,
+						clock_select);
 	if (clk_id < 0)
 		return -EINVAL;
 
@@ -1062,7 +1067,8 @@ int smu_v11_0_get_current_power_limit(struct smu_context *smu,
 	if (!smu_feature_is_enabled(smu, SMU_FEATURE_PPT_BIT))
 		return -EINVAL;
 
-	power_src = smu_power_get_index(smu,
+	power_src = smu_cmn_to_asic_specific_index(smu,
+					CMN2ASIC_MAPPING_PWR,
 					smu->adev->pm.ac_power ?
 					SMU_POWER_SOURCE_AC :
 					SMU_POWER_SOURCE_DC);
@@ -1729,7 +1735,9 @@ int smu_v11_0_get_dpm_ultimate_freq(struct smu_context *smu, enum smu_clk_type c
 		return 0;
 	}
 
-	clk_id = smu_clk_get_index(smu, clk_type);
+	clk_id = smu_cmn_to_asic_specific_index(smu,
+						CMN2ASIC_MAPPING_CLK,
+						clk_type);
 	if (clk_id < 0) {
 		ret = -EINVAL;
 		goto failed;
@@ -1761,7 +1769,9 @@ int smu_v11_0_set_soft_freq_limited_range(struct smu_context *smu,
 	int ret = 0, clk_id = 0;
 	uint32_t param;
 
-	clk_id = smu_clk_get_index(smu, clk_type);
+	clk_id = smu_cmn_to_asic_specific_index(smu,
+						CMN2ASIC_MAPPING_CLK,
+						clk_type);
 	if (clk_id < 0)
 		return clk_id;
 
@@ -1805,7 +1815,9 @@ int smu_v11_0_set_hard_freq_limited_range(struct smu_context *smu,
 	if (!smu_clk_dpm_is_enabled(smu, clk_type))
 		return 0;
 
-	clk_id = smu_clk_get_index(smu, clk_type);
+	clk_id = smu_cmn_to_asic_specific_index(smu,
+						CMN2ASIC_MAPPING_CLK,
+						clk_type);
 	if (clk_id < 0)
 		return clk_id;
 
@@ -1934,7 +1946,9 @@ int smu_v11_0_set_power_source(struct smu_context *smu,
 {
 	int pwr_source;
 
-	pwr_source = smu_power_get_index(smu, (uint32_t)power_src);
+	pwr_source = smu_cmn_to_asic_specific_index(smu,
+						    CMN2ASIC_MAPPING_PWR,
+						    (uint32_t)power_src);
 	if (pwr_source < 0)
 		return -EINVAL;
 
@@ -1958,7 +1972,9 @@ int smu_v11_0_get_dpm_freq_by_index(struct smu_context *smu,
 	if (!smu_clk_dpm_is_enabled(smu, clk_type))
 		return 0;
 
-	clk_id = smu_clk_get_index(smu, clk_type);
+	clk_id = smu_cmn_to_asic_specific_index(smu,
+						CMN2ASIC_MAPPING_CLK,
+						clk_type);
 	if (clk_id < 0)
 		return clk_id;
 

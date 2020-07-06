@@ -44,6 +44,7 @@
 #include <linux/i2c.h>
 #include <linux/pci.h>
 #include "amdgpu_ras.h"
+#include "smu_cmn.h"
 
 /*
  * DO NOT use these for err/warn/info/debug messages.
@@ -57,8 +58,6 @@
 
 #define to_amdgpu_device(x) (container_of(x, struct amdgpu_device, pm.smu_i2c))
 
-#define MSG_MAP(msg, index, valid_in_vf) \
-	[SMU_MSG_##msg] = {1, (index), (valid_in_vf)}
 #define ARCTURUS_FEA_MAP(smu_feature, arcturus_feature) \
 	[smu_feature] = {1, (arcturus_feature)}
 
@@ -79,7 +78,7 @@
 /* possible frequency drift (1Mhz) */
 #define EPSILON				1
 
-static struct smu_11_0_msg_mapping arcturus_message_map[SMU_MSG_MAX_COUNT] = {
+static const struct cmn2asic_msg_mapping arcturus_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(TestMessage,			     PPSMC_MSG_TestMessage,			0),
 	MSG_MAP(GetSmuVersion,			     PPSMC_MSG_GetSmuVersion,			1),
 	MSG_MAP(GetDriverIfVersion,		     PPSMC_MSG_GetDriverIfVersion,		1),
@@ -142,7 +141,7 @@ static struct smu_11_0_msg_mapping arcturus_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(ReadSerialNumBottom32,		     PPSMC_MSG_ReadSerialNumBottom32,		1),
 };
 
-static struct smu_11_0_cmn2aisc_mapping arcturus_clk_map[SMU_CLK_COUNT] = {
+static const struct cmn2asic_mapping arcturus_clk_map[SMU_CLK_COUNT] = {
 	CLK_MAP(GFXCLK, PPCLK_GFXCLK),
 	CLK_MAP(SCLK,	PPCLK_GFXCLK),
 	CLK_MAP(SOCCLK, PPCLK_SOCCLK),
@@ -153,7 +152,7 @@ static struct smu_11_0_cmn2aisc_mapping arcturus_clk_map[SMU_CLK_COUNT] = {
 	CLK_MAP(VCLK, PPCLK_VCLK),
 };
 
-static struct smu_11_0_cmn2aisc_mapping arcturus_feature_mask_map[SMU_FEATURE_COUNT] = {
+static const struct cmn2asic_mapping arcturus_feature_mask_map[SMU_FEATURE_COUNT] = {
 	FEA_MAP(DPM_PREFETCHER),
 	FEA_MAP(DPM_GFXCLK),
 	FEA_MAP(DPM_UCLK),
@@ -182,7 +181,7 @@ static struct smu_11_0_cmn2aisc_mapping arcturus_feature_mask_map[SMU_FEATURE_CO
 	FEA_MAP(TEMP_DEPENDENT_VMIN),
 };
 
-static struct smu_11_0_cmn2aisc_mapping arcturus_table_map[SMU_TABLE_COUNT] = {
+static const struct cmn2asic_mapping arcturus_table_map[SMU_TABLE_COUNT] = {
 	TAB_MAP(PPTABLE),
 	TAB_MAP(AVFS),
 	TAB_MAP(AVFS_PSM_DEBUG),
@@ -195,12 +194,12 @@ static struct smu_11_0_cmn2aisc_mapping arcturus_table_map[SMU_TABLE_COUNT] = {
 	TAB_MAP(ACTIVITY_MONITOR_COEFF),
 };
 
-static struct smu_11_0_cmn2aisc_mapping arcturus_pwr_src_map[SMU_POWER_SOURCE_COUNT] = {
+static const struct cmn2asic_mapping arcturus_pwr_src_map[SMU_POWER_SOURCE_COUNT] = {
 	PWR_MAP(AC),
 	PWR_MAP(DC),
 };
 
-static struct smu_11_0_cmn2aisc_mapping arcturus_workload_map[PP_SMC_POWER_PROFILE_COUNT] = {
+static const struct cmn2asic_mapping arcturus_workload_map[PP_SMC_POWER_PROFILE_COUNT] = {
 	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT,	WORKLOAD_PPLIB_DEFAULT_BIT),
 	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_POWERSAVING,		WORKLOAD_PPLIB_POWER_SAVING_BIT),
 	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_VIDEO,		WORKLOAD_PPLIB_VIDEO_BIT),
@@ -210,6 +209,7 @@ static struct smu_11_0_cmn2aisc_mapping arcturus_workload_map[PP_SMC_POWER_PROFI
 
 static int arcturus_get_smu_msg_index(struct smu_context *smc, uint32_t index)
 {
+#if 0
 	struct smu_11_0_msg_mapping mapping;
 
 	if (index >= SMU_MSG_MAX_COUNT)
@@ -223,10 +223,13 @@ static int arcturus_get_smu_msg_index(struct smu_context *smc, uint32_t index)
 		return -EACCES;
 
 	return mapping.map_to;
+#endif
+	return 0;
 }
 
 static int arcturus_get_smu_clk_index(struct smu_context *smc, uint32_t index)
 {
+#if 0
 	struct smu_11_0_cmn2aisc_mapping mapping;
 
 	if (index >= SMU_CLK_COUNT)
@@ -239,10 +242,13 @@ static int arcturus_get_smu_clk_index(struct smu_context *smc, uint32_t index)
 	}
 
 	return mapping.map_to;
+#endif
+	return 0;
 }
 
 static int arcturus_get_smu_feature_index(struct smu_context *smc, uint32_t index)
 {
+#if 0
 	struct smu_11_0_cmn2aisc_mapping mapping;
 
 	if (index >= SMU_FEATURE_COUNT)
@@ -254,10 +260,13 @@ static int arcturus_get_smu_feature_index(struct smu_context *smc, uint32_t inde
 	}
 
 	return mapping.map_to;
+#endif
+	return 0;
 }
 
 static int arcturus_get_smu_table_index(struct smu_context *smc, uint32_t index)
 {
+#if 0
 	struct smu_11_0_cmn2aisc_mapping mapping;
 
 	if (index >= SMU_TABLE_COUNT)
@@ -270,10 +279,13 @@ static int arcturus_get_smu_table_index(struct smu_context *smc, uint32_t index)
 	}
 
 	return mapping.map_to;
+#endif
+	return 0;
 }
 
 static int arcturus_get_pwr_src_index(struct smu_context *smc, uint32_t index)
 {
+#if 0
 	struct smu_11_0_cmn2aisc_mapping mapping;
 
 	if (index >= SMU_POWER_SOURCE_COUNT)
@@ -286,10 +298,13 @@ static int arcturus_get_pwr_src_index(struct smu_context *smc, uint32_t index)
 	}
 
 	return mapping.map_to;
+#endif
+	return 0;
 }
 
 static int arcturus_get_workload_type(struct smu_context *smu, enum PP_SMC_POWER_PROFILE profile)
 {
+#if 0
 	struct smu_11_0_cmn2aisc_mapping mapping;
 
 	if (profile > PP_SMC_POWER_PROFILE_CUSTOM)
@@ -300,6 +315,8 @@ static int arcturus_get_workload_type(struct smu_context *smu, enum PP_SMC_POWER
 		return -EINVAL;
 
 	return mapping.map_to;
+#endif
+	return 0;
 }
 
 static int arcturus_tables_init(struct smu_context *smu, struct smu_table *tables)
@@ -731,7 +748,9 @@ static int arcturus_get_current_clk_freq_by_table(struct smu_context *smu,
 	if (!value)
 		return -EINVAL;
 
-	clk_id = smu_clk_get_index(smu, clk_type);
+	clk_id = smu_cmn_to_asic_specific_index(smu,
+						CMN2ASIC_MAPPING_CLK,
+						clk_type);
 	if (clk_id < 0)
 		return -EINVAL;
 
@@ -1301,7 +1320,9 @@ static int arcturus_get_power_profile_mode(struct smu_context *smu,
 		 * Conv PP_SMC_POWER_PROFILE* to WORKLOAD_PPLIB_*_BIT
 		 * Not all profile modes are supported on arcturus.
 		 */
-		workload_type = smu_workload_get_type(smu, i);
+		workload_type = smu_cmn_to_asic_specific_index(smu,
+							       CMN2ASIC_MAPPING_WORKLOAD,
+							       i);
 		if (workload_type < 0)
 			continue;
 
@@ -1425,7 +1446,9 @@ static int arcturus_set_power_profile_mode(struct smu_context *smu,
 	 * Conv PP_SMC_POWER_PROFILE* to WORKLOAD_PPLIB_*_BIT
 	 * Not all profile modes are supported on arcturus.
 	 */
-	workload_type = smu_workload_get_type(smu, profile_mode);
+	workload_type = smu_cmn_to_asic_specific_index(smu,
+						       CMN2ASIC_MAPPING_WORKLOAD,
+						       profile_mode);
 	if (workload_type < 0) {
 		dev_err(smu->adev->dev, "Unsupported power profile mode %d on arcturus\n", profile_mode);
 		return -EINVAL;
@@ -2412,4 +2435,10 @@ static const struct pptable_funcs arcturus_ppt_funcs = {
 void arcturus_set_ppt_funcs(struct smu_context *smu)
 {
 	smu->ppt_funcs = &arcturus_ppt_funcs;
+	smu->message_map = arcturus_message_map;
+	smu->clock_map = arcturus_clk_map;
+	smu->feature_map = arcturus_feature_mask_map;
+	smu->table_map = arcturus_table_map;
+	smu->pwr_src_map = arcturus_pwr_src_map;
+	smu->workload_map = arcturus_workload_map;
 }

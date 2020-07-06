@@ -366,6 +366,17 @@ struct smu_umd_pstate_table {
 	struct pstates_clk_freq		dclk_pstate;
 };
 
+struct cmn2asic_msg_mapping {
+	int	valid_mapping;
+	int	map_to;
+	int	valid_in_vf;
+};
+
+struct cmn2asic_mapping {
+	int	valid_mapping;
+	int	map_to;
+};
+
 #define WORKLOAD_POLICY_MAX 7
 struct smu_context
 {
@@ -373,6 +384,12 @@ struct smu_context
 	struct amdgpu_irq_src		irq_source;
 
 	const struct pptable_funcs	*ppt_funcs;
+	const struct cmn2asic_msg_mapping	*message_map;
+	const struct cmn2asic_mapping	*clock_map;
+	const struct cmn2asic_mapping	*feature_map;
+	const struct cmn2asic_mapping	*table_map;
+	const struct cmn2asic_mapping	*pwr_src_map;
+	const struct cmn2asic_mapping	*workload_map;
 	struct mutex			mutex;
 	struct mutex			sensor_lock;
 	struct mutex			metrics_lock;
@@ -603,6 +620,39 @@ typedef enum {
 	METRICS_THROTTLER_STATUS,
 	METRICS_CURR_FANSPEED,
 } MetricsMember_t;
+
+enum smu_cmn2asic_mapping_type {
+	CMN2ASIC_MAPPING_MSG,
+	CMN2ASIC_MAPPING_CLK,
+	CMN2ASIC_MAPPING_FEATURE,
+	CMN2ASIC_MAPPING_TABLE,
+	CMN2ASIC_MAPPING_PWR,
+	CMN2ASIC_MAPPING_WORKLOAD,
+};
+
+#define MSG_MAP(msg, index, valid_in_vf) \
+	[SMU_MSG_##msg] = {1, (index), (valid_in_vf)}
+
+#define CLK_MAP(clk, index) \
+	[SMU_##clk] = {1, (index)}
+
+#define FEA_MAP(fea) \
+	[SMU_FEATURE_##fea##_BIT] = {1, FEATURE_##fea##_BIT}
+
+#define TAB_MAP(tab) \
+	[SMU_TABLE_##tab] = {1, TABLE_##tab}
+
+#define TAB_MAP_VALID(tab) \
+	[SMU_TABLE_##tab] = {1, TABLE_##tab}
+
+#define TAB_MAP_INVALID(tab) \
+	[SMU_TABLE_##tab] = {0, TABLE_##tab}
+
+#define PWR_MAP(tab) \
+	[SMU_POWER_SOURCE_##tab] = {1, POWER_SOURCE_##tab}
+
+#define WORKLOAD_MAP(profile, workload) \
+	[profile] = {1, (workload)}
 
 int smu_load_microcode(struct smu_context *smu);
 
