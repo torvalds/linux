@@ -326,9 +326,6 @@ struct cal_dev {
 	struct platform_device	*pdev;
 	struct v4l2_device	v4l2_dev;
 
-	/* Controller flags for special cases */
-	unsigned int		flags;
-
 	const struct cal_data	*data;
 
 	/* Control Module handle */
@@ -2249,8 +2246,6 @@ static int cal_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	dev->flags = dev->data->flags;
-
 	/* set pseudo v4l2 device name so we can use v4l2_printk */
 	strscpy(dev->v4l2_dev.name, CAL_MODULE_NAME,
 		sizeof(dev->v4l2_dev.name));
@@ -2402,7 +2397,7 @@ static int cal_runtime_resume(struct device *dev)
 {
 	struct cal_dev *caldev = dev_get_drvdata(dev);
 
-	if (caldev->flags & DRA72_CAL_PRE_ES2_LDO_DISABLE) {
+	if (caldev->data->flags & DRA72_CAL_PRE_ES2_LDO_DISABLE) {
 		/*
 		 * Apply errata on both port everytime we (re-)enable
 		 * the clock
