@@ -10,6 +10,8 @@
 #include <dt-bindings/clock/r8a774b1-cpg-mssr.h>
 #include <dt-bindings/power/r8a774b1-sysc.h>
 
+#define CPG_AUDIO_CLK_I		R8A774B1_CLK_S0D4
+
 / {
 	compatible = "renesas,r8a774b1";
 	#address-cells = <2>;
