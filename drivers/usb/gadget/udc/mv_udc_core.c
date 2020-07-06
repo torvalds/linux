@@ -53,7 +53,6 @@
 static DECLARE_COMPLETION(release_done);
 
 static const char driver_name[] = "mv_udc";
-static const char driver_desc[] = DRIVER_DESC;
 
 static void nuke(struct mv_ep *ep, int status);
 static void stop_activity(struct mv_udc *udc, struct usb_gadget_driver *driver);
