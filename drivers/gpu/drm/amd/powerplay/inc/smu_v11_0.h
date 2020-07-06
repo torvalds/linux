@@ -62,17 +62,6 @@ static const struct smu_temperature_range smu11_thermal_policy[] =
 	{ 120000, 120000, 120000, 120000, 120000, 120000, 120000, 120000, 120000},
 };
 
-struct smu_11_0_msg_mapping {
-	int	valid_mapping;
-	int	map_to;
-	int	valid_in_vf;
-};
-
-struct smu_11_0_cmn2aisc_mapping {
-	int	valid_mapping;
-	int	map_to;
-};
-
 struct smu_11_0_max_sustainable_clocks {
 	uint32_t display_clock;
 	uint32_t phy_clock;

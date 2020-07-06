@@ -452,12 +452,6 @@ struct i2c_adapter;
 
 struct pptable_funcs {
 	int (*alloc_dpm_context)(struct smu_context *smu);
-	int (*get_smu_msg_index)(struct smu_context *smu, uint32_t index);
-	int (*get_smu_clk_index)(struct smu_context *smu, uint32_t index);
-	int (*get_smu_feature_index)(struct smu_context *smu, uint32_t index);
-	int (*get_smu_table_index)(struct smu_context *smu, uint32_t index);
-	int (*get_smu_power_index)(struct smu_context *smu, uint32_t index);
-	int (*get_workload_type)(struct smu_context *smu, enum PP_SMC_POWER_PROFILE profile);
 	int (*run_btc)(struct smu_context *smu);
 	int (*get_allowed_feature_mask)(struct smu_context *smu, uint32_t *feature_mask, uint32_t num);
 	enum amd_pm_state_type (*get_current_power_state)(struct smu_context *smu);

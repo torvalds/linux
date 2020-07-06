@@ -208,114 +208,6 @@ static struct cmn2asic_mapping sienna_cichlid_workload_map[PP_SMC_POWER_PROFILE_
 	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_CUSTOM,		WORKLOAD_PPLIB_CUSTOM_BIT),
 };
 
-static int sienna_cichlid_get_smu_msg_index(struct smu_context *smc, uint32_t index)
-{
-#if 0
-	struct smu_11_0_cmn2aisc_mapping mapping;
-
-	if (index >= SMU_MSG_MAX_COUNT)
-		return -EINVAL;
-
-	mapping = sienna_cichlid_message_map[index];
-	if (!(mapping.valid_mapping)) {
-		return -EINVAL;
-	}
-
-	return mapping.map_to;
-#endif
-	return 0;
-}
-
-static int sienna_cichlid_get_smu_clk_index(struct smu_context *smc, uint32_t index)
-{
-#if 0
-	struct smu_11_0_cmn2aisc_mapping mapping;
-
-	if (index >= SMU_CLK_COUNT)
-		return -EINVAL;
-
-	mapping = sienna_cichlid_clk_map[index];
-	if (!(mapping.valid_mapping)) {
-		return -EINVAL;
-	}
-
-	return mapping.map_to;
-#endif
-	return 0;
-}
-
-static int sienna_cichlid_get_smu_feature_index(struct smu_context *smc, uint32_t index)
-{
-#if 0
-	struct smu_11_0_cmn2aisc_mapping mapping;
-
-	if (index >= SMU_FEATURE_COUNT)
-		return -EINVAL;
-
-	mapping = sienna_cichlid_feature_mask_map[index];
-	if (!(mapping.valid_mapping)) {
-		return -EINVAL;
-	}
-
-	return mapping.map_to;
-#endif
-	return 0;
-}
-
-static int sienna_cichlid_get_smu_table_index(struct smu_context *smc, uint32_t index)
-{
-#if 0
-	struct smu_11_0_cmn2aisc_mapping mapping;
-
-	if (index >= SMU_TABLE_COUNT)
-		return -EINVAL;
-
-	mapping = sienna_cichlid_table_map[index];
-	if (!(mapping.valid_mapping)) {
-		return -EINVAL;
-	}
-
-	return mapping.map_to;
-#endif
-	return 0;
-}
-
-static int sienna_cichlid_get_pwr_src_index(struct smu_context *smc, uint32_t index)
-{
-#if 0
-	struct smu_11_0_cmn2aisc_mapping mapping;
-
-	if (index >= SMU_POWER_SOURCE_COUNT)
-		return -EINVAL;
-
-	mapping = sienna_cichlid_pwr_src_map[index];
-	if (!(mapping.valid_mapping)) {
-		return -EINVAL;
-	}
-
-	return mapping.map_to;
-#endif
-	return 0;
-}
-
-static int sienna_cichlid_get_workload_type(struct smu_context *smu, enum PP_SMC_POWER_PROFILE profile)
-{
-#if 0
-	struct smu_11_0_cmn2aisc_mapping mapping;
-
-	if (profile > PP_SMC_POWER_PROFILE_CUSTOM)
-		return -EINVAL;
-
-	mapping = sienna_cichlid_workload_map[profile];
-	if (!(mapping.valid_mapping)) {
-		return -EINVAL;
-	}
-
-	return mapping.map_to;
-#endif
-	return 0;
-}
-
 static int
 sienna_cichlid_get_allowed_feature_mask(struct smu_context *smu,
 				  uint32_t *feature_mask, uint32_t num)
@@ -2516,12 +2408,6 @@ static void sienna_cichlid_dump_pptable(struct smu_context *smu)
 static const struct pptable_funcs sienna_cichlid_ppt_funcs = {
 	.tables_init = sienna_cichlid_tables_init,
 	.alloc_dpm_context = sienna_cichlid_allocate_dpm_context,
-	.get_smu_msg_index = sienna_cichlid_get_smu_msg_index,
-	.get_smu_clk_index = sienna_cichlid_get_smu_clk_index,
-	.get_smu_feature_index = sienna_cichlid_get_smu_feature_index,
-	.get_smu_table_index = sienna_cichlid_get_smu_table_index,
-	.get_smu_power_index = sienna_cichlid_get_pwr_src_index,
-	.get_workload_type = sienna_cichlid_get_workload_type,
 	.get_allowed_feature_mask = sienna_cichlid_get_allowed_feature_mask,
 	.set_default_dpm_table = sienna_cichlid_set_default_dpm_table,
 	.dpm_set_vcn_enable = sienna_cichlid_dpm_set_vcn_enable,

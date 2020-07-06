@@ -227,118 +227,6 @@ static struct cmn2asic_mapping navi10_workload_map[PP_SMC_POWER_PROFILE_COUNT] =
 	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_CUSTOM,		WORKLOAD_PPLIB_CUSTOM_BIT),
 };
 
-static int navi10_get_smu_msg_index(struct smu_context *smc, uint32_t index)
-{
-#if 0
-	struct smu_11_0_msg_mapping mapping;
-
-	if (index >= SMU_MSG_MAX_COUNT)
-		return -EINVAL;
-
-	mapping = navi10_message_map[index];
-	if (!(mapping.valid_mapping)) {
-		return -EINVAL;
-	}
-
-	if (amdgpu_sriov_vf(smc->adev) && !mapping.valid_in_vf)
-		return -EACCES;
-
-	return mapping.map_to;
-#endif
-	return 0;
-}
-
-static int navi10_get_smu_clk_index(struct smu_context *smc, uint32_t index)
-{
-#if 0
-	struct smu_11_0_cmn2aisc_mapping mapping;
-
-	if (index >= SMU_CLK_COUNT)
-		return -EINVAL;
-
-	mapping = navi10_clk_map[index];
-	if (!(mapping.valid_mapping)) {
-		return -EINVAL;
-	}
-
-	return mapping.map_to;
-#endif
-	return 0;
-}
-
-static int navi10_get_smu_feature_index(struct smu_context *smc, uint32_t index)
-{
-#if 0
-	struct smu_11_0_cmn2aisc_mapping mapping;
-
-	if (index >= SMU_FEATURE_COUNT)
-		return -EINVAL;
-
-	mapping = navi10_feature_mask_map[index];
-	if (!(mapping.valid_mapping)) {
-		return -EINVAL;
-	}
-
-	return mapping.map_to;
-#endif
-	return 0;
-}
-
-static int navi10_get_smu_table_index(struct smu_context *smc, uint32_t index)
-{
-#if 0
-	struct smu_11_0_cmn2aisc_mapping mapping;
-
-	if (index >= SMU_TABLE_COUNT)
-		return -EINVAL;
-
-	mapping = navi10_table_map[index];
-	if (!(mapping.valid_mapping)) {
-		return -EINVAL;
-	}
-
-	return mapping.map_to;
-#endif
-	return 0;
-}
-
-static int navi10_get_pwr_src_index(struct smu_context *smc, uint32_t index)
-{
-#if 0
-	struct smu_11_0_cmn2aisc_mapping mapping;
-
-	if (index >= SMU_POWER_SOURCE_COUNT)
-		return -EINVAL;
-
-	mapping = navi10_pwr_src_map[index];
-	if (!(mapping.valid_mapping)) {
-		return -EINVAL;
-	}
-
-	return mapping.map_to;
-#endif
-	return 0;
-}
-
-
-static int navi10_get_workload_type(struct smu_context *smu, enum PP_SMC_POWER_PROFILE profile)
-{
-#if 0
-	struct smu_11_0_cmn2aisc_mapping mapping;
-
-	if (profile > PP_SMC_POWER_PROFILE_CUSTOM)
-		return -EINVAL;
-
-	mapping = navi10_workload_map[profile];
-	if (!(mapping.valid_mapping)) {
-		return -EINVAL;
-	}
-
-	return mapping.map_to;
-#endif
-	return 0;
-}
-
 static bool is_asic_secure(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
@@ -2368,12 +2256,6 @@ static int navi10_disable_umc_cdr_12gbps_workaround(struct smu_context *smu)
 static const struct pptable_funcs navi10_ppt_funcs = {
 	.tables_init = navi10_tables_init,
 	.alloc_dpm_context = navi10_allocate_dpm_context,
-	.get_smu_msg_index = navi10_get_smu_msg_index,
-	.get_smu_clk_index = navi10_get_smu_clk_index,
-	.get_smu_feature_index = navi10_get_smu_feature_index,
-	.get_smu_table_index = navi10_get_smu_table_index,
-	.get_smu_power_index = navi10_get_pwr_src_index,
-	.get_workload_type = navi10_get_workload_type,
 	.get_allowed_feature_mask = navi10_get_allowed_feature_mask,
 	.set_default_dpm_table = navi10_set_default_dpm_table,
 	.dpm_set_vcn_enable = navi10_dpm_set_vcn_enable,

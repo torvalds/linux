@@ -207,118 +207,6 @@ static const struct cmn2asic_mapping arcturus_workload_map[PP_SMC_POWER_PROFILE_
 	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_CUSTOM,		WORKLOAD_PPLIB_CUSTOM_BIT),
 };
 
-static int arcturus_get_smu_msg_index(struct smu_context *smc, uint32_t index)
-{
-#if 0
-	struct smu_11_0_msg_mapping mapping;
-
-	if (index >= SMU_MSG_MAX_COUNT)
-		return -EINVAL;
-
-	mapping = arcturus_message_map[index];
-	if (!(mapping.valid_mapping))
-		return -EINVAL;
-
-	if (amdgpu_sriov_vf(smc->adev) && !mapping.valid_in_vf)
-		return -EACCES;
-
-	return mapping.map_to;
-#endif
-	return 0;
-}
-
-static int arcturus_get_smu_clk_index(struct smu_context *smc, uint32_t index)
-{
-#if 0
-	struct smu_11_0_cmn2aisc_mapping mapping;
-
-	if (index >= SMU_CLK_COUNT)
-		return -EINVAL;
-
-	mapping = arcturus_clk_map[index];
-	if (!(mapping.valid_mapping)) {
-		dev_warn(smc->adev->dev, "Unsupported SMU clk: %d\n", index);
-		return -EINVAL;
-	}
-
-	return mapping.map_to;
-#endif
-	return 0;
-}
-
-static int arcturus_get_smu_feature_index(struct smu_context *smc, uint32_t index)
-{
-#if 0
-	struct smu_11_0_cmn2aisc_mapping mapping;
-
-	if (index >= SMU_FEATURE_COUNT)
-		return -EINVAL;
-
-	mapping = arcturus_feature_mask_map[index];
-	if (!(mapping.valid_mapping)) {
-		return -EINVAL;
-	}
-
-	return mapping.map_to;
-#endif
-	return 0;
-}
-
-static int arcturus_get_smu_table_index(struct smu_context *smc, uint32_t index)
-{
-#if 0
-	struct smu_11_0_cmn2aisc_mapping mapping;
-
-	if (index >= SMU_TABLE_COUNT)
-		return -EINVAL;
-
-	mapping = arcturus_table_map[index];
-	if (!(mapping.valid_mapping)) {
-		dev_warn(smc->adev->dev, "Unsupported SMU table: %d\n", index);
-		return -EINVAL;
-	}
-
-	return mapping.map_to;
-#endif
-	return 0;
-}
-
-static int arcturus_get_pwr_src_index(struct smu_context *smc, uint32_t index)
-{
-#if 0
-	struct smu_11_0_cmn2aisc_mapping mapping;
-
-	if (index >= SMU_POWER_SOURCE_COUNT)
-		return -EINVAL;
-
-	mapping = arcturus_pwr_src_map[index];
-	if (!(mapping.valid_mapping)) {
-		dev_warn(smc->adev->dev, "Unsupported SMU power source: %d\n", index);
-		return -EINVAL;
-	}
-
-	return mapping.map_to;
-#endif
-	return 0;
-}
-
-static int arcturus_get_workload_type(struct smu_context *smu, enum PP_SMC_POWER_PROFILE profile)
-{
-#if 0
-	struct smu_11_0_cmn2aisc_mapping mapping;
-
-	if (profile > PP_SMC_POWER_PROFILE_CUSTOM)
-		return -EINVAL;
-
-	mapping = arcturus_workload_map[profile];
-	if (!(mapping.valid_mapping))
-		return -EINVAL;
-
-	return mapping.map_to;
-#endif
-	return 0;
-}
-
 static int arcturus_tables_init(struct smu_context *smu, struct smu_table *tables)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
@@ -2349,13 +2237,6 @@ static void arcturus_log_thermal_throttling_event(struct smu_context *smu)
 }
 
 static const struct pptable_funcs arcturus_ppt_funcs = {
-	/* translate smu index into arcturus specific index */
-	.get_smu_msg_index = arcturus_get_smu_msg_index,
-	.get_smu_clk_index = arcturus_get_smu_clk_index,
-	.get_smu_feature_index = arcturus_get_smu_feature_index,
-	.get_smu_table_index = arcturus_get_smu_table_index,
-	.get_smu_power_index= arcturus_get_pwr_src_index,
-	.get_workload_type = arcturus_get_workload_type,
 	/* internal structurs allocations */
 	.tables_init = arcturus_tables_init,
 	.alloc_dpm_context = arcturus_allocate_dpm_context,

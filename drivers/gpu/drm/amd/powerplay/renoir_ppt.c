@@ -127,58 +127,6 @@ static struct cmn2asic_mapping renoir_workload_map[PP_SMC_POWER_PROFILE_COUNT] =
 	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_CUSTOM,		WORKLOAD_PPLIB_CUSTOM_BIT),
 };
 
-static int renoir_get_smu_msg_index(struct smu_context *smc, uint32_t index)
-{
-#if 0
-	struct smu_12_0_cmn2aisc_mapping mapping;
-
-	if (index >= SMU_MSG_MAX_COUNT)
-		return -EINVAL;
-
-	mapping = renoir_message_map[index];
-	if (!(mapping.valid_mapping))
-		return -EINVAL;
-
-	return mapping.map_to;
-#endif
-	return 0;
-}
-
-static int renoir_get_smu_clk_index(struct smu_context *smc, uint32_t index)
-{
-#if 0
-	struct smu_12_0_cmn2aisc_mapping mapping;
-
-	if (index >= SMU_CLK_COUNT)
-		return -EINVAL;
-
-	mapping = renoir_clk_map[index];
-	if (!(mapping.valid_mapping)) {
-		return -EINVAL;
-	}
-
-	return mapping.map_to;
-#endif
-	return 0;
-}
-
-static int renoir_get_smu_table_index(struct smu_context *smc, uint32_t index)
-{
-#if 0
-	struct smu_12_0_cmn2aisc_mapping mapping;
-
-	if (index >= SMU_TABLE_COUNT)
-		return -EINVAL;
-
-	mapping = renoir_table_map[index];
-	if (!(mapping.valid_mapping))
-		return -EINVAL;
-
-	return mapping.map_to;
-#endif
-	return 0;
-}
-
 static int renoir_get_metrics_table(struct smu_context *smu,
 				    SmuMetrics_t *metrics_table)
 {
@@ -684,35 +632,6 @@ static int renoir_get_current_activity_percent(struct smu_context *smu,
 	return 0;
 }
 
-static int renoir_get_workload_type(struct smu_context *smu, uint32_t profile)
-{
-
-	uint32_t  pplib_workload = 0;
-
-	switch (profile) {
-	case PP_SMC_POWER_PROFILE_FULLSCREEN3D:
-		pplib_workload = WORKLOAD_PPLIB_FULL_SCREEN_3D_BIT;
-		break;
-	case PP_SMC_POWER_PROFILE_CUSTOM:
-		pplib_workload = WORKLOAD_PPLIB_COUNT;
-		break;
-	case PP_SMC_POWER_PROFILE_VIDEO:
-		pplib_workload = WORKLOAD_PPLIB_VIDEO_BIT;
-		break;
-	case PP_SMC_POWER_PROFILE_VR:
-		pplib_workload = WORKLOAD_PPLIB_VR_BIT;
-		break;
-	case PP_SMC_POWER_PROFILE_COMPUTE:
-		pplib_workload = WORKLOAD_PPLIB_COMPUTE_BIT;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return pplib_workload;
-}
-
-
 /**
  * This interface get dpm clock table for dc
  */
@@ -1076,16 +995,12 @@ static bool renoir_is_dpm_running(struct smu_context *smu)
 }
 
 static const struct pptable_funcs renoir_ppt_funcs = {
-	.get_smu_msg_index = renoir_get_smu_msg_index,
-	.get_smu_clk_index = renoir_get_smu_clk_index,
-	.get_smu_table_index = renoir_get_smu_table_index,
 	.tables_init = renoir_tables_init,
 	.set_power_state = NULL,
 	.print_clk_levels = renoir_print_clk_levels,
 	.get_current_power_state = renoir_get_current_power_state,
 	.dpm_set_vcn_enable = renoir_dpm_set_vcn_enable,
 	.dpm_set_jpeg_enable = renoir_dpm_set_jpeg_enable,
-	.get_workload_type = renoir_get_workload_type,
 	.force_clk_levels = renoir_force_clk_levels,
 	.set_power_profile_mode = renoir_set_power_profile_mode,
 	.set_performance_level = renoir_set_performance_level,

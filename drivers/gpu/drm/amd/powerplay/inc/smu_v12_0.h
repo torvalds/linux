@@ -31,12 +31,6 @@
 #define MP1_Public			0x03b00000
 #define MP1_SRAM			0x03c00004
 
-
-struct smu_12_0_cmn2aisc_mapping {
-	int	valid_mapping;
-	int	map_to;
-};
-
 int smu_v12_0_send_msg_without_waiting(struct smu_context *smu,
 					      uint16_t msg);
 
