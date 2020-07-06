@@ -215,16 +215,6 @@ enum cal_camerarx_field {
 	F_MAX_FIELDS,
 };
 
-struct cc_data {
-	void __iomem		*base;
-	struct resource		*res;
-	struct platform_device	*pdev;
-
-	struct {
-		struct regmap_field *fields[F_MAX_FIELDS];
-	} phy;
-};
-
 struct cal_csi2_phy {
 	struct {
 		unsigned int lsb;
@@ -315,9 +305,26 @@ static const struct cal_data am654_cal_data = {
 };
 
 /*
- * there is one cal_dev structure in the driver, it is shared by
- * all instances.
+ * The Camera Adaptation Layer (CAL) module is paired with one or more complex
+ * I/O PHYs (CAMERARX). It contains multiple instances of CSI-2, processing and
+ * DMA contexts.
+ *
+ * The cal_dev structure represents the whole subsystem, including the CAL and
+ * the CAMERARX instances. The cal_camerarx structure represents one CAMERARX
+ * instance. The cal_ctx structure represents the combination of one CSI-2
+ * context, one processing context and one DMA context.
  */
+
+struct cal_camerarx {
+	void __iomem		*base;
+	struct resource		*res;
+	struct platform_device	*pdev;
+
+	struct {
+		struct regmap_field *fields[F_MAX_FIELDS];
+	} phy;
+};
+
 struct cal_dev {
 	struct clk		*fclk;
 	int			irq;
@@ -333,7 +340,7 @@ struct cal_dev {
 	u32			syscon_camerrx_offset;
 
 	/* Camera Core Module handle */
-	struct cc_data		*cc[CAL_NUM_CSI2_PORTS];
+	struct cal_camerarx	*cc[CAL_NUM_CSI2_PORTS];
 
 	struct cal_ctx		*ctx[CAL_NUM_CONTEXT];
 };
@@ -350,7 +357,7 @@ struct cal_ctx {
 	struct v4l2_fwnode_endpoint	endpoint;
 
 	struct cal_dev		*dev;
-	struct cc_data		*cc;
+	struct cal_camerarx	*cc;
 
 	/* v4l2_ioctl mutex */
 	struct mutex		mutex;
@@ -457,7 +464,8 @@ static u32 cal_data_get_num_csi2_phy(struct cal_dev *dev)
 	return dev->data->num_csi2_phy;
 }
 
-static int cal_camerarx_regmap_init(struct cal_dev *dev, struct cc_data *cc,
+static int cal_camerarx_regmap_init(struct cal_dev *dev,
+				    struct cal_camerarx *cc,
 				    unsigned int idx)
 {
 	const struct cal_csi2_phy *phy;
@@ -528,7 +536,7 @@ static struct regmap *cal_get_camerarx_regmap(struct cal_dev *dev)
 static void camerarx_phy_enable(struct cal_ctx *ctx)
 {
 	u32 phy_id = ctx->csi2_port;
-	struct cc_data *cc = ctx->dev->cc[phy_id];
+	struct cal_camerarx *cc = ctx->dev->cc[phy_id];
 	u32 max_lanes;
 
 	regmap_field_write(cc->phy.fields[F_CAMMODE], 0);
@@ -544,7 +552,7 @@ static void camerarx_phy_enable(struct cal_ctx *ctx)
 static void camerarx_phy_disable(struct cal_ctx *ctx)
 {
 	u32 phy_id = ctx->csi2_port;
-	struct cc_data *cc = ctx->dev->cc[phy_id];
+	struct cal_camerarx *cc = ctx->dev->cc[phy_id];
 
 	regmap_field_write(cc->phy.fields[F_CTRLCLKEN], 0);
 }
@@ -552,10 +560,10 @@ static void camerarx_phy_disable(struct cal_ctx *ctx)
 /*
  * Camera Instance access block
  */
-static struct cc_data *cc_create(struct cal_dev *dev, unsigned int core)
+static struct cal_camerarx *cc_create(struct cal_dev *dev, unsigned int core)
 {
 	struct platform_device *pdev = dev->pdev;
-	struct cc_data *cc;
+	struct cal_camerarx *cc;
 	int ret;
 
 	cc = devm_kzalloc(&pdev->dev, sizeof(*cc), GFP_KERNEL);
