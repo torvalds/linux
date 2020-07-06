@@ -293,6 +293,7 @@ struct cal_dev {
 	struct cal_ctx		*ctx[CAL_NUM_CONTEXT];
 
 	struct v4l2_device	v4l2_dev;
+	struct v4l2_async_notifier notifier;
 };
 
 /*
@@ -301,7 +302,6 @@ struct cal_dev {
 struct cal_ctx {
 	struct v4l2_ctrl_handler ctrl_handler;
 	struct video_device	vdev;
-	struct v4l2_async_notifier notifier;
 
 	struct cal_dev		*cal;
 	struct cal_camerarx	*phy;
@@ -336,11 +336,6 @@ struct cal_ctx {
 
 	bool dma_act;
 };
-
-static inline struct cal_ctx *notifier_to_ctx(struct v4l2_async_notifier *n)
-{
-	return container_of(n, struct cal_ctx, notifier);
-}
 
 /* ------------------------------------------------------------------
  *	Platform Data
@@ -2126,9 +2121,9 @@ to_cal_asd(struct v4l2_async_subdev *asd)
 	return container_of(asd, struct cal_v4l2_async_subdev, asd);
 }
 
-static int cal_async_bound(struct v4l2_async_notifier *notifier,
-			   struct v4l2_subdev *subdev,
-			   struct v4l2_async_subdev *asd)
+static int cal_async_notifier_bound(struct v4l2_async_notifier *notifier,
+				    struct v4l2_subdev *subdev,
+				    struct v4l2_async_subdev *asd)
 {
 	struct cal_ctx *ctx = to_cal_asd(asd)->ctx;
 
@@ -2141,52 +2136,84 @@ static int cal_async_bound(struct v4l2_async_notifier *notifier,
 	ctx->phy->sensor = subdev;
 	ctx_dbg(1, ctx, "Using sensor %s for capture\n", subdev->name);
 
-	return cal_ctx_v4l2_init_formats(ctx);
-}
-
-static int cal_async_complete(struct v4l2_async_notifier *notifier)
-{
-	struct cal_ctx *ctx = notifier_to_ctx(notifier);
-
-	cal_ctx_v4l2_register(ctx);
 	return 0;
 }
 
-static const struct v4l2_async_notifier_operations cal_async_ops = {
-	.bound = cal_async_bound,
-	.complete = cal_async_complete,
-};
-
-static int of_cal_create_instance(struct cal_ctx *ctx, int inst)
+static int cal_async_notifier_complete(struct v4l2_async_notifier *notifier)
 {
-	struct cal_v4l2_async_subdev *casd;
-	struct v4l2_async_subdev *asd;
-	struct fwnode_handle *fwnode;
+	struct cal_dev *cal = container_of(notifier, struct cal_dev, notifier);
+	unsigned int i;
 	int ret;
 
-	v4l2_async_notifier_init(&ctx->notifier);
-	ctx->notifier.ops = &cal_async_ops;
+	for (i = 0; i < ARRAY_SIZE(cal->ctx); ++i) {
+		struct cal_ctx *ctx = cal->ctx[i];
 
-	fwnode = of_fwnode_handle(ctx->phy->sensor_node);
-	asd = v4l2_async_notifier_add_fwnode_subdev(&ctx->notifier, fwnode,
-						    sizeof(*asd));
-	if (IS_ERR(asd)) {
-		ctx_err(ctx, "Failed to add subdev to notifier\n");
-		return PTR_ERR(asd);
-	}
+		if (!ctx)
+			continue;
 
-	casd = to_cal_asd(asd);
-	casd->ctx = ctx;
+		ret = cal_ctx_v4l2_init_formats(ctx);
+		if (ret)
+			continue;
 
-	ret = v4l2_async_notifier_register(&ctx->cal->v4l2_dev,
-					   &ctx->notifier);
-	if (ret) {
-		ctx_err(ctx, "Error registering async notifier\n");
-		v4l2_async_notifier_cleanup(&ctx->notifier);
-		return ret;
+		cal_ctx_v4l2_register(ctx);
 	}
 
 	return 0;
+}
+
+static const struct v4l2_async_notifier_operations cal_async_notifier_ops = {
+	.bound = cal_async_notifier_bound,
+	.complete = cal_async_notifier_complete,
+};
+
+static int cal_async_notifier_register(struct cal_dev *cal)
+{
+	unsigned int i;
+	int ret;
+
+	v4l2_async_notifier_init(&cal->notifier);
+	cal->notifier.ops = &cal_async_notifier_ops;
+
+	for (i = 0; i < ARRAY_SIZE(cal->ctx); ++i) {
+		struct cal_ctx *ctx = cal->ctx[i];
+		struct cal_v4l2_async_subdev *casd;
+		struct v4l2_async_subdev *asd;
+		struct fwnode_handle *fwnode;
+
+		if (!ctx)
+			continue;
+
+		fwnode = of_fwnode_handle(ctx->phy->sensor_node);
+		asd = v4l2_async_notifier_add_fwnode_subdev(&cal->notifier,
+							    fwnode,
+							    sizeof(*asd));
+		if (IS_ERR(asd)) {
+			ctx_err(ctx, "Failed to add subdev to notifier\n");
+			ret = PTR_ERR(asd);
+			goto error;
+		}
+
+		casd = to_cal_asd(asd);
+		casd->ctx = ctx;
+	}
+
+	ret = v4l2_async_notifier_register(&cal->v4l2_dev, &cal->notifier);
+	if (ret) {
+		cal_err(cal, "Error registering async notifier\n");
+		goto error;
+	}
+
+	return 0;
+
+error:
+	v4l2_async_notifier_cleanup(&cal->notifier);
+	return ret;
+}
+
+static void cal_async_notifier_unregister(struct cal_dev *cal)
+{
+	v4l2_async_notifier_unregister(&cal->notifier);
+	v4l2_async_notifier_cleanup(&cal->notifier);
 }
 
 /* ------------------------------------------------------------------
@@ -2209,10 +2236,6 @@ static struct cal_ctx *cal_ctx_create(struct cal_dev *cal, int inst)
 	ctx->cport = inst;
 
 	ret = cal_ctx_v4l2_init(ctx);
-	if (ret)
-		return NULL;
-
-	ret = of_cal_create_instance(ctx, inst);
 	if (ret)
 		return NULL;
 
@@ -2356,6 +2379,11 @@ static int cal_probe(struct platform_device *pdev)
 	cal_get_hwinfo(cal);
 	pm_runtime_put_sync(&pdev->dev);
 
+	/* Register the async notifier. */
+	ret = cal_async_notifier_register(cal);
+	if (ret)
+		goto error_pm_runtime;
+
 	return 0;
 
 error_pm_runtime:
@@ -2366,11 +2394,8 @@ error_pm_runtime:
 error_context:
 	for (i = 0; i < ARRAY_SIZE(cal->ctx); i++) {
 		ctx = cal->ctx[i];
-		if (ctx) {
-			v4l2_async_notifier_unregister(&ctx->notifier);
-			v4l2_async_notifier_cleanup(&ctx->notifier);
+		if (ctx)
 			cal_ctx_v4l2_cleanup(ctx);
-		}
 	}
 
 	v4l2_device_unregister(&cal->v4l2_dev);
@@ -2392,6 +2417,8 @@ static int cal_remove(struct platform_device *pdev)
 
 	pm_runtime_get_sync(&pdev->dev);
 
+	cal_async_notifier_unregister(cal);
+
 	for (i = 0; i < ARRAY_SIZE(cal->ctx); i++) {
 		ctx = cal->ctx[i];
 		if (ctx) {
@@ -2399,8 +2426,6 @@ static int cal_remove(struct platform_device *pdev)
 				video_device_node_name(&ctx->vdev));
 			cal_ctx_v4l2_unregister(ctx);
 			cal_camerarx_disable(ctx->phy);
-			v4l2_async_notifier_unregister(&ctx->notifier);
-			v4l2_async_notifier_cleanup(&ctx->notifier);
 			cal_ctx_v4l2_cleanup(ctx);
 		}
 	}
