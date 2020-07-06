@@ -429,12 +429,22 @@ int amdgpu_ttm_copy_mem_to_mem(struct amdgpu_device *adev,
 	}
 
 	src_offset = src->offset;
-	src_mm = amdgpu_find_mm_node(src->mem, &src_offset);
-	src_node_size = (src_mm->size << PAGE_SHIFT) - src_offset;
+	if (src->mem->mm_node) {
+		src_mm = amdgpu_find_mm_node(src->mem, &src_offset);
+		src_node_size = (src_mm->size << PAGE_SHIFT) - src_offset;
+	} else {
+		src_mm = NULL;
+		src_node_size = ULLONG_MAX;
+	}
 
 	dst_offset = dst->offset;
-	dst_mm = amdgpu_find_mm_node(dst->mem, &dst_offset);
-	dst_node_size = (dst_mm->size << PAGE_SHIFT) - dst_offset;
+	if (dst->mem->mm_node) {
+		dst_mm = amdgpu_find_mm_node(dst->mem, &dst_offset);
+		dst_node_size = (dst_mm->size << PAGE_SHIFT) - dst_offset;
+	} else {
+		dst_mm = NULL;
+		dst_node_size = ULLONG_MAX;
+	}
 
 	mutex_lock(&adev->mman.gtt_window_lock);
 
