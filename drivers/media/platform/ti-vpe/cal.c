@@ -481,19 +481,13 @@ static void cal_quickdump_regs(struct cal_dev *cal)
  * ------------------------------------------------------------------
  */
 
-static u32 cal_camerarx_max_lanes(struct cal_camerarx *phy)
-{
-	return phy->cal->data->camerarx[phy->instance].num_lanes;
-}
-
 static void cal_camerarx_enable(struct cal_camerarx *phy)
 {
-	u32 max_lanes;
+	u32 num_lanes = phy->cal->data->camerarx[phy->instance].num_lanes;
 
 	regmap_field_write(phy->fields[F_CAMMODE], 0);
 	/* Always enable all lanes at the phy control level */
-	max_lanes = (1 << cal_camerarx_max_lanes(phy)) - 1;
-	regmap_field_write(phy->fields[F_LANEENABLE], max_lanes);
+	regmap_field_write(phy->fields[F_LANEENABLE], (1 << num_lanes) - 1);
 	/* F_CSI_MODE is not present on every architecture */
 	if (phy->fields[F_CSI_MODE])
 		regmap_field_write(phy->fields[F_CSI_MODE], 1);
