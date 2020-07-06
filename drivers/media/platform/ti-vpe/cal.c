@@ -215,13 +215,6 @@ struct cal_dmaqueue {
 	int			ini_jiffies;
 };
 
-struct cc_data {
-	void __iomem		*base;
-	struct resource		*res;
-
-	struct platform_device *pdev;
-};
-
 /* CTRL_CORE_CAMERRX_CONTROL register field id */
 enum cal_camerarx_field {
 	F_CTRLCLKEN,
@@ -232,8 +225,17 @@ enum cal_camerarx_field {
 	F_MAX_FIELDS,
 };
 
+struct cc_data {
+	void __iomem		*base;
+	struct resource		*res;
+	struct platform_device	*pdev;
+
+	struct {
+		struct regmap_field *fields[F_MAX_FIELDS];
+	} phy;
+};
+
 struct cal_csi2_phy {
-	struct regmap_field *fields[F_MAX_FIELDS];
 	struct {
 		unsigned int lsb;
 		unsigned int msb;
@@ -477,37 +479,37 @@ static u32 cal_data_get_num_csi2_phy(struct cal_dev *dev)
 	return dev->data->num_csi2_phy;
 }
 
-static int cal_camerarx_regmap_init(struct cal_dev *dev)
+static int cal_camerarx_regmap_init(struct cal_dev *dev, struct cc_data *cc,
+				    unsigned int idx)
 {
-	struct cal_csi2_phy *phy;
-	unsigned int i, j;
+	const struct cal_csi2_phy *phy;
+	unsigned int i;
 
 	if (!dev->data)
 		return -EINVAL;
 
-	for (i = 0; i < cal_data_get_num_csi2_phy(dev); i++) {
-		phy = &dev->data->csi2_phy_core[i];
-		for (j = 0; j < F_MAX_FIELDS; j++) {
-			struct reg_field field = {
-				.reg = dev->syscon_camerrx_offset,
-				.lsb = phy->base_fields[j].lsb,
-				.msb = phy->base_fields[j].msb,
-			};
+	phy = &dev->data->csi2_phy_core[idx];
 
-			/*
-			 * Here we update the reg offset with the
-			 * value found in DT
-			 */
-			phy->fields[j] =
-				devm_regmap_field_alloc(&dev->pdev->dev,
-							dev->syscon_camerrx,
-							field);
-			if (IS_ERR(phy->fields[j])) {
-				cal_err(dev, "Unable to allocate regmap fields\n");
-				return PTR_ERR(phy->fields[j]);
-			}
+	for (i = 0; i < F_MAX_FIELDS; i++) {
+		struct reg_field field = {
+			.reg = dev->syscon_camerrx_offset,
+			.lsb = phy->base_fields[i].lsb,
+			.msb = phy->base_fields[i].msb,
+		};
+
+		/*
+		 * Here we update the reg offset with the
+		 * value found in DT
+		 */
+		cc->phy.fields[i] = devm_regmap_field_alloc(&dev->pdev->dev,
+							    dev->syscon_camerrx,
+							    field);
+		if (IS_ERR(cc->phy.fields[i])) {
+			cal_err(dev, "Unable to allocate regmap fields\n");
+			return PTR_ERR(cc->phy.fields[i]);
 		}
 	}
+
 	return 0;
 }
 
@@ -554,28 +556,26 @@ static struct regmap *cal_get_camerarx_regmap(struct cal_dev *dev)
  */
 static void camerarx_phy_enable(struct cal_ctx *ctx)
 {
-	struct cal_csi2_phy *phy;
 	u32 phy_id = ctx->csi2_port;
+	struct cc_data *cc = ctx->dev->cc[phy_id];
 	u32 max_lanes;
 
-	phy = &ctx->dev->data->csi2_phy_core[phy_id];
-	regmap_field_write(phy->fields[F_CAMMODE], 0);
+	regmap_field_write(cc->phy.fields[F_CAMMODE], 0);
 	/* Always enable all lanes at the phy control level */
 	max_lanes = (1 << cal_data_get_phy_max_lanes(ctx)) - 1;
-	regmap_field_write(phy->fields[F_LANEENABLE], max_lanes);
+	regmap_field_write(cc->phy.fields[F_LANEENABLE], max_lanes);
 	/* F_CSI_MODE is not present on every architecture */
-	if (phy->fields[F_CSI_MODE])
-		regmap_field_write(phy->fields[F_CSI_MODE], 1);
-	regmap_field_write(phy->fields[F_CTRLCLKEN], 1);
+	if (cc->phy.fields[F_CSI_MODE])
+		regmap_field_write(cc->phy.fields[F_CSI_MODE], 1);
+	regmap_field_write(cc->phy.fields[F_CTRLCLKEN], 1);
 }
 
 static void camerarx_phy_disable(struct cal_ctx *ctx)
 {
-	struct cal_csi2_phy *phy;
 	u32 phy_id = ctx->csi2_port;
+	struct cc_data *cc = ctx->dev->cc[phy_id];
 
-	phy = &ctx->dev->data->csi2_phy_core[phy_id];
-	regmap_field_write(phy->fields[F_CTRLCLKEN], 0);
+	regmap_field_write(cc->phy.fields[F_CTRLCLKEN], 0);
 }
 
 /*
@@ -585,6 +585,7 @@ static struct cc_data *cc_create(struct cal_dev *dev, unsigned int core)
 {
 	struct platform_device *pdev = dev->pdev;
 	struct cc_data *cc;
+	int ret;
 
 	cc = devm_kzalloc(&pdev->dev, sizeof(*cc), GFP_KERNEL);
 	if (!cc)
@@ -603,6 +604,10 @@ static struct cc_data *cc_create(struct cal_dev *dev, unsigned int core)
 
 	cal_dbg(1, dev, "ioresource %s at %pa - %pa\n",
 		cc->res->name, &cc->res->start, &cc->res->end);
+
+	ret = cal_camerarx_regmap_init(dev, cc, core);
+	if (ret)
+		return ERR_PTR(ret);
 
 	return cc;
 }
@@ -2322,9 +2327,6 @@ static int cal_probe(struct platform_device *pdev)
 
 	dev->syscon_camerrx = syscon_camerrx;
 	dev->syscon_camerrx_offset = syscon_camerrx_offset;
-	ret = cal_camerarx_regmap_init(dev);
-	if (ret)
-		return ret;
 
 	dev->res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 						"cal_top");
