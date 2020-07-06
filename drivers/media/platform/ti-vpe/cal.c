@@ -1206,19 +1206,19 @@ static irqreturn_t cal_irq(int irq_cal, void *data)
 	struct cal_dev *dev = (struct cal_dev *)data;
 	struct cal_ctx *ctx;
 	struct cal_dmaqueue *dma_q;
-	u32 irqst0, irqst1, irqst2;
+	u32 status;
 
-	irqst0 = reg_read(dev, CAL_HL_IRQSTATUS(0));
-	if (irqst0) {
+	status = reg_read(dev, CAL_HL_IRQSTATUS(0));
+	if (status) {
 		int i;
 
-		reg_write(dev, CAL_HL_IRQSTATUS(0), irqst0);
+		reg_write(dev, CAL_HL_IRQSTATUS(0), status);
 
-		if (irqst1 & CAL_HL_IRQ_OCPO_ERR_MASK)
+		if (status & CAL_HL_IRQ_OCPO_ERR_MASK)
 			dev_err_ratelimited(&dev->pdev->dev, "OCPO ERROR\n");
 
 		for (i = 0; i < 2; ++i) {
-			if (irqst1 & CAL_HL_IRQ_CIO_MASK(i)) {
+			if (status & CAL_HL_IRQ_CIO_MASK(i)) {
 				u32 cio_stat = reg_read(dev,
 							CAL_CSI2_COMPLEXIO_IRQSTATUS(i));
 
@@ -1232,15 +1232,15 @@ static irqreturn_t cal_irq(int irq_cal, void *data)
 	}
 
 	/* Check which DMA just finished */
-	irqst1 = reg_read(dev, CAL_HL_IRQSTATUS(1));
-	if (irqst1) {
+	status = reg_read(dev, CAL_HL_IRQSTATUS(1));
+	if (status) {
 		int i;
 
 		/* Clear Interrupt status */
-		reg_write(dev, CAL_HL_IRQSTATUS(1), irqst1);
+		reg_write(dev, CAL_HL_IRQSTATUS(1), status);
 
 		for (i = 0; i < 2; ++i) {
-			if (isportirqset(irqst1,  i)) {
+			if (isportirqset(status, i)) {
 				ctx = dev->ctx[i];
 
 				spin_lock(&ctx->slock);
@@ -1255,15 +1255,15 @@ static irqreturn_t cal_irq(int irq_cal, void *data)
 	}
 
 	/* Check which DMA just started */
-	irqst2 = reg_read(dev, CAL_HL_IRQSTATUS(2));
-	if (irqst2) {
+	status = reg_read(dev, CAL_HL_IRQSTATUS(2));
+	if (status) {
 		int i;
 
 		/* Clear Interrupt status */
-		reg_write(dev, CAL_HL_IRQSTATUS(2), irqst2);
+		reg_write(dev, CAL_HL_IRQSTATUS(2), status);
 
 		for (i = 0; i < 2; ++i) {
-			if (isportirqset(irqst2, i)) {
+			if (isportirqset(status, i)) {
 				ctx = dev->ctx[i];
 				dma_q = &ctx->vidq;
 
