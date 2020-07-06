@@ -1948,39 +1948,6 @@ static const struct video_device cal_videodev = {
 			  V4L2_CAP_READWRITE,
 };
 
-static int cal_ctx_v4l2_register(struct cal_ctx *ctx)
-{
-	struct v4l2_ctrl_handler *hdl = &ctx->ctrl_handler;
-	struct video_device *vfd = &ctx->vdev;
-	int ret;
-
-	ret = v4l2_ctrl_add_handler(hdl, ctx->phy->sensor->ctrl_handler, NULL,
-				    true);
-	if (ret < 0) {
-		ctx_err(ctx, "Failed to add sensor ctrl handler\n");
-		return ret;
-	}
-
-	ret = video_register_device(vfd, VFL_TYPE_VIDEO, video_nr);
-	if (ret < 0) {
-		ctx_err(ctx, "Failed to register video device\n");
-		return ret;
-	}
-
-	ctx_info(ctx, "V4L2 device registered as %s\n",
-		 video_device_node_name(vfd));
-
-	return 0;
-}
-
-static void cal_ctx_v4l2_unregister(struct cal_ctx *ctx)
-{
-	ctx_dbg(1, ctx, "unregistering %s\n",
-		video_device_node_name(&ctx->vdev));
-
-	video_unregister_device(&ctx->vdev);
-}
-
 static int cal_ctx_v4l2_init_formats(struct cal_ctx *ctx)
 {
 	struct v4l2_subdev_mbus_code_enum mbus_code;
@@ -2045,6 +2012,43 @@ static int cal_ctx_v4l2_init_formats(struct cal_ctx *ctx)
 	ctx->m_fmt = mbus_fmt;
 
 	return 0;
+}
+
+static int cal_ctx_v4l2_register(struct cal_ctx *ctx)
+{
+	struct v4l2_ctrl_handler *hdl = &ctx->ctrl_handler;
+	struct video_device *vfd = &ctx->vdev;
+	int ret;
+
+	ret = cal_ctx_v4l2_init_formats(ctx);
+	if (ret)
+		return ret;
+
+	ret = v4l2_ctrl_add_handler(hdl, ctx->phy->sensor->ctrl_handler, NULL,
+				    true);
+	if (ret < 0) {
+		ctx_err(ctx, "Failed to add sensor ctrl handler\n");
+		return ret;
+	}
+
+	ret = video_register_device(vfd, VFL_TYPE_VIDEO, video_nr);
+	if (ret < 0) {
+		ctx_err(ctx, "Failed to register video device\n");
+		return ret;
+	}
+
+	ctx_info(ctx, "V4L2 device registered as %s\n",
+		 video_device_node_name(vfd));
+
+	return 0;
+}
+
+static void cal_ctx_v4l2_unregister(struct cal_ctx *ctx)
+{
+	ctx_dbg(1, ctx, "unregistering %s\n",
+		video_device_node_name(&ctx->vdev));
+
+	video_unregister_device(&ctx->vdev);
 }
 
 static int cal_ctx_v4l2_init(struct cal_ctx *ctx)
@@ -2147,19 +2151,10 @@ static int cal_async_notifier_complete(struct v4l2_async_notifier *notifier)
 {
 	struct cal_dev *cal = container_of(notifier, struct cal_dev, notifier);
 	unsigned int i;
-	int ret;
 
 	for (i = 0; i < ARRAY_SIZE(cal->ctx); ++i) {
-		struct cal_ctx *ctx = cal->ctx[i];
-
-		if (!ctx)
-			continue;
-
-		ret = cal_ctx_v4l2_init_formats(ctx);
-		if (ret)
-			continue;
-
-		cal_ctx_v4l2_register(ctx);
+		if (cal->ctx[i])
+			cal_ctx_v4l2_register(cal->ctx[i]);
 	}
 
 	return 0;
