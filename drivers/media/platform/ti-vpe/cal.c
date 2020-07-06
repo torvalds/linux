@@ -39,12 +39,10 @@
 #define MAX_WIDTH_BYTES (8192 * 8)
 #define MAX_HEIGHT_LINES 16383
 
-#define CAL_VERSION "0.1.0"
-
 MODULE_DESCRIPTION("TI CAL driver");
 MODULE_AUTHOR("Benoit Parrot, <bparrot@ti.com>");
 MODULE_LICENSE("GPL v2");
-MODULE_VERSION(CAL_VERSION);
+MODULE_VERSION("0.1.0");
 
 static unsigned video_nr = -1;
 module_param(video_nr, uint, 0644);
