@@ -112,7 +112,8 @@ trip_point_temp_store(struct device *dev, struct device_attribute *attr,
 {
 	struct thermal_zone_device *tz = to_thermal_zone(dev);
 	int trip, ret;
-	int temperature;
+	int temperature, hyst = 0;
+	enum thermal_trip_type type;
 
 	if (!tz->ops->set_trip_temp)
 		return -EPERM;
@@ -126,6 +127,18 @@ trip_point_temp_store(struct device *dev, struct device_attribute *attr,
 	ret = tz->ops->set_trip_temp(tz, trip, temperature);
 	if (ret)
 		return ret;
+
+	if (tz->ops->get_trip_hyst) {
+		ret = tz->ops->get_trip_hyst(tz, trip, &hyst);
+		if (ret)
+			return ret;
+	}
+
+	ret = tz->ops->get_trip_type(tz, trip, &type);
+	if (ret)
+		return ret;
+
+	thermal_notify_tz_trip_change(tz->id, trip, type, temperature, hyst);
 
 	thermal_zone_device_update(tz, THERMAL_EVENT_UNSPECIFIED);
 
