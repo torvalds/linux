@@ -616,8 +616,8 @@ static struct cc_data *cc_create(struct cal_dev *dev, unsigned int core)
  */
 static void cal_get_hwinfo(struct cal_dev *dev)
 {
-	u32 revision = 0;
-	u32 hwinfo = 0;
+	u32 revision;
+	u32 hwinfo;
 
 	revision = reg_read(dev, CAL_HL_REVISION);
 	cal_dbg(3, dev, "CAL_HL_REVISION = 0x%08x (expecting 0x40000200)\n",
@@ -1302,7 +1302,7 @@ static int cal_enum_fmt_vid_cap(struct file *file, void  *priv,
 				struct v4l2_fmtdesc *f)
 {
 	struct cal_ctx *ctx = video_drvdata(file);
-	const struct cal_fmt *fmt = NULL;
+	const struct cal_fmt *fmt;
 
 	if (f->index >= ctx->num_active_fmt)
 		return -EINVAL;
@@ -1655,7 +1655,7 @@ static void cal_buffer_queue(struct vb2_buffer *vb)
 	struct cal_buffer *buf = container_of(vb, struct cal_buffer,
 					      vb.vb2_buf);
 	struct cal_dmaqueue *vidq = &ctx->vidq;
-	unsigned long flags = 0;
+	unsigned long flags;
 
 	/* recheck locking */
 	spin_lock_irqsave(&ctx->slock, flags);
@@ -1668,7 +1668,7 @@ static int cal_start_streaming(struct vb2_queue *vq, unsigned int count)
 	struct cal_ctx *ctx = vb2_get_drv_priv(vq);
 	struct cal_dmaqueue *dma_q = &ctx->vidq;
 	struct cal_buffer *buf, *tmp;
-	unsigned long addr = 0;
+	unsigned long addr;
 	unsigned long flags;
 	int ret;
 
@@ -2008,7 +2008,7 @@ static struct device_node *
 of_get_next_port(const struct device_node *parent,
 		 struct device_node *prev)
 {
-	struct device_node *port = NULL;
+	struct device_node *port;
 
 	if (!parent)
 		return NULL;
@@ -2052,7 +2052,7 @@ static struct device_node *
 of_get_next_endpoint(const struct device_node *parent,
 		     struct device_node *prev)
 {
-	struct device_node *ep = NULL;
+	struct device_node *ep;
 
 	if (!parent)
 		return NULL;
@@ -2266,8 +2266,8 @@ static int cal_probe(struct platform_device *pdev)
 	struct cal_dev *dev;
 	struct cal_ctx *ctx;
 	struct device_node *parent = pdev->dev.of_node;
-	struct regmap *syscon_camerrx = NULL;
-	u32 syscon_camerrx_offset = 0;
+	struct regmap *syscon_camerrx;
+	u32 syscon_camerrx_offset;
 	int ret;
 	int irq;
 	int i;
