@@ -658,7 +658,12 @@ static int __init vti_init(void)
 	msg = "ipip tunnel";
 	err = xfrm4_tunnel_register(&vti_ipip_handler, AF_INET);
 	if (err < 0)
-		goto xfrm_tunnel_failed;
+		goto xfrm_tunnel_ipip_failed;
+#if IS_ENABLED(CONFIG_IPV6)
+	err = xfrm4_tunnel_register(&vti_ipip_handler, AF_INET6);
+	if (err < 0)
+		goto xfrm_tunnel_ipip6_failed;
+#endif
 #endif
 
 	msg = "netlink interface";
@@ -670,8 +675,12 @@ static int __init vti_init(void)
 
 rtnl_link_failed:
 #if IS_ENABLED(CONFIG_INET_XFRM_TUNNEL)
+#if IS_ENABLED(CONFIG_IPV6)
+	xfrm4_tunnel_deregister(&vti_ipip_handler, AF_INET6);
+xfrm_tunnel_ipip6_failed:
+#endif
 	xfrm4_tunnel_deregister(&vti_ipip_handler, AF_INET);
-xfrm_tunnel_failed:
+xfrm_tunnel_ipip_failed:
 #endif
 	xfrm4_protocol_deregister(&vti_ipcomp4_protocol, IPPROTO_COMP);
 xfrm_proto_comp_failed:
@@ -689,6 +698,9 @@ static void __exit vti_fini(void)
 {
 	rtnl_link_unregister(&vti_link_ops);
 #if IS_ENABLED(CONFIG_INET_XFRM_TUNNEL)
+#if IS_ENABLED(CONFIG_IPV6)
+	xfrm4_tunnel_deregister(&vti_ipip_handler, AF_INET6);
+#endif
 	xfrm4_tunnel_deregister(&vti_ipip_handler, AF_INET);
 #endif
 	xfrm4_protocol_deregister(&vti_ipcomp4_protocol, IPPROTO_COMP);
