@@ -2069,8 +2069,13 @@ static void io_iopoll_reap_events(struct io_ring_ctx *ctx)
 		/*
 		 * Ensure we allow local-to-the-cpu processing to take place,
 		 * in this case we need to ensure that we reap all events.
+		 * Also let task_work, etc. to progress by releasing the mutex
 		 */
-		cond_resched();
+		if (need_resched()) {
+			mutex_unlock(&ctx->uring_lock);
+			cond_resched();
+			mutex_lock(&ctx->uring_lock);
+		}
 	}
 	mutex_unlock(&ctx->uring_lock);
 }
