@@ -2288,17 +2288,24 @@ int ib_detach_mcast(struct ib_qp *qp, union ib_gid *gid, u16 lid)
 }
 EXPORT_SYMBOL(ib_detach_mcast);
 
-struct ib_xrcd *__ib_alloc_xrcd(struct ib_device *device, const char *caller)
+/**
+ * ib_alloc_xrcd_user - Allocates an XRC domain.
+ * @device: The device on which to allocate the XRC domain.
+ * @inode: inode to connect XRCD
+ * @udata: Valid user data or NULL for kernel object
+ */
+struct ib_xrcd *ib_alloc_xrcd_user(struct ib_device *device,
+				   struct inode *inode, struct ib_udata *udata)
 {
 	struct ib_xrcd *xrcd;
 
 	if (!device->ops.alloc_xrcd)
 		return ERR_PTR(-EOPNOTSUPP);
 
-	xrcd = device->ops.alloc_xrcd(device, NULL);
+	xrcd = device->ops.alloc_xrcd(device, udata);
 	if (!IS_ERR(xrcd)) {
 		xrcd->device = device;
-		xrcd->inode = NULL;
+		xrcd->inode = inode;
 		atomic_set(&xrcd->usecnt, 0);
 		mutex_init(&xrcd->tgt_qp_mutex);
 		INIT_LIST_HEAD(&xrcd->tgt_qp_list);
@@ -2306,9 +2313,14 @@ struct ib_xrcd *__ib_alloc_xrcd(struct ib_device *device, const char *caller)
 
 	return xrcd;
 }
-EXPORT_SYMBOL(__ib_alloc_xrcd);
+EXPORT_SYMBOL(ib_alloc_xrcd_user);
 
-int ib_dealloc_xrcd(struct ib_xrcd *xrcd, struct ib_udata *udata)
+/**
+ * ib_dealloc_xrcd_user - Deallocates an XRC domain.
+ * @xrcd: The XRC domain to deallocate.
+ * @udata: Valid user data or NULL for kernel object
+ */
+int ib_dealloc_xrcd_user(struct ib_xrcd *xrcd, struct ib_udata *udata)
 {
 	struct ib_qp *qp;
 	int ret;
@@ -2326,7 +2338,7 @@ int ib_dealloc_xrcd(struct ib_xrcd *xrcd, struct ib_udata *udata)
 
 	return xrcd->device->ops.dealloc_xrcd(xrcd, udata);
 }
-EXPORT_SYMBOL(ib_dealloc_xrcd);
+EXPORT_SYMBOL(ib_dealloc_xrcd_user);
 
 /**
  * ib_create_wq - Creates a WQ associated with the specified protection

@@ -4321,21 +4321,9 @@ int ib_attach_mcast(struct ib_qp *qp, union ib_gid *gid, u16 lid);
  */
 int ib_detach_mcast(struct ib_qp *qp, union ib_gid *gid, u16 lid);
 
-/**
- * ib_alloc_xrcd - Allocates an XRC domain.
- * @device: The device on which to allocate the XRC domain.
- * @caller: Module name for kernel consumers
- */
-struct ib_xrcd *__ib_alloc_xrcd(struct ib_device *device, const char *caller);
-#define ib_alloc_xrcd(device) \
-	__ib_alloc_xrcd((device), KBUILD_MODNAME)
-
-/**
- * ib_dealloc_xrcd - Deallocates an XRC domain.
- * @xrcd: The XRC domain to deallocate.
- * @udata: Valid user data or NULL for kernel object
- */
-int ib_dealloc_xrcd(struct ib_xrcd *xrcd, struct ib_udata *udata);
+struct ib_xrcd *ib_alloc_xrcd_user(struct ib_device *device,
+				   struct inode *inode, struct ib_udata *udata);
+int ib_dealloc_xrcd_user(struct ib_xrcd *xrcd, struct ib_udata *udata);
 
 static inline int ib_check_mr_access(int flags)
 {

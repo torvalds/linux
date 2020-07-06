@@ -614,17 +614,11 @@ static int ib_uverbs_open_xrcd(struct uverbs_attr_bundle *attrs)
 	}
 
 	if (!xrcd) {
-		xrcd = ib_dev->ops.alloc_xrcd(ib_dev, &attrs->driver_udata);
+		xrcd = ib_alloc_xrcd_user(ib_dev, inode, &attrs->driver_udata);
 		if (IS_ERR(xrcd)) {
 			ret = PTR_ERR(xrcd);
 			goto err;
 		}
-
-		xrcd->inode   = inode;
-		xrcd->device  = ib_dev;
-		atomic_set(&xrcd->usecnt, 0);
-		mutex_init(&xrcd->tgt_qp_mutex);
-		INIT_LIST_HEAD(&xrcd->tgt_qp_list);
 		new_xrcd = 1;
 	}
 
@@ -663,7 +657,7 @@ err_copy:
 	}
 
 err_dealloc_xrcd:
-	ib_dealloc_xrcd(xrcd, uverbs_get_cleared_udata(attrs));
+	ib_dealloc_xrcd_user(xrcd, uverbs_get_cleared_udata(attrs));
 
 err:
 	uobj_alloc_abort(&obj->uobject, attrs);
@@ -701,7 +695,7 @@ int ib_uverbs_dealloc_xrcd(struct ib_uobject *uobject, struct ib_xrcd *xrcd,
 	if (inode && !atomic_dec_and_test(&xrcd->usecnt))
 		return 0;
 
-	ret = ib_dealloc_xrcd(xrcd, &attrs->driver_udata);
+	ret = ib_dealloc_xrcd_user(xrcd, &attrs->driver_udata);
 
 	if (ib_is_destroy_retryable(ret, why, uobject)) {
 		atomic_inc(&xrcd->usecnt);
