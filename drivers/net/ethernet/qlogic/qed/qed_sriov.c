@@ -823,16 +823,17 @@ static int qed_iov_enable_vf_access(struct qed_hwfn *p_hwfn,
 }
 
 /**
- * @brief qed_iov_config_perm_table - configure the permission
- *      zone table.
- *      In E4, queue zone permission table size is 320x9. There
- *      are 320 VF queues for single engine device (256 for dual
- *      engine device), and each entry has the following format:
- *      {Valid, VF[7:0]}
- * @param p_hwfn
- * @param p_ptt
- * @param vf
- * @param enable
+ * qed_iov_config_perm_table() - Configure the permission zone table.
+ *
+ * @p_hwfn: HW device data.
+ * @p_ptt: PTT window for writing the registers.
+ * @vf: VF info data.
+ * @enable: The actual permision for this VF.
+ *
+ * In E4, queue zone permission table size is 320x9. There
+ * are 320 VF queues for single engine device (256 for dual
+ * engine device), and each entry has the following format:
+ * {Valid, VF[7:0]}
  */
 static void qed_iov_config_perm_table(struct qed_hwfn *p_hwfn,
 				      struct qed_ptt *p_ptt,

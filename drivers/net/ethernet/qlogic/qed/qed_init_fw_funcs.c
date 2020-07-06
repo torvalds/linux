@@ -996,14 +996,17 @@ bool qed_send_qm_stop_cmd(struct qed_hwfn *p_hwfn,
 	} while (0)
 
 /**
- * @brief qed_dmae_to_grc - is an internal function - writes from host to
- * wide-bus registers (split registers are not supported yet)
+ * qed_dmae_to_grc() - Internal function for writing from host to
+ * wide-bus registers (split registers are not supported yet).
  *
- * @param p_hwfn - HW device data
- * @param p_ptt - ptt window used for writing the registers.
- * @param p_data - pointer to source data.
- * @param addr - Destination register address.
- * @param len_in_dwords - data length in DWARDS (u32)
+ * @p_hwfn: HW device data.
+ * @p_ptt: PTT window used for writing the registers.
+ * @p_data: Pointer to source data.
+ * @addr: Destination register address.
+ * @len_in_dwords: Data length in dwords (u32).
+ *
+ * Return: Length of the written data in dwords (u32) or -1 on invalid
+ *         input.
  */
 static int qed_dmae_to_grc(struct qed_hwfn *p_hwfn,
 			   struct qed_ptt *p_ptt,

@@ -816,11 +816,12 @@ static inline u16 qed_attn_update_idx(struct qed_hwfn *p_hwfn,
 }
 
 /**
- *  @brief qed_int_assertion - handles asserted attention bits
+ * qed_int_assertion() - Handle asserted attention bits.
  *
- *  @param p_hwfn
- *  @param asserted_bits newly asserted bits
- *  @return int
+ * @p_hwfn: HW device data.
+ * @asserted_bits: Newly asserted bits.
+ *
+ * Return: Zero value.
  */
 static int qed_int_assertion(struct qed_hwfn *p_hwfn, u16 asserted_bits)
 {
@@ -880,16 +881,17 @@ static void qed_int_attn_print(struct qed_hwfn *p_hwfn,
 }
 
 /**
- * @brief qed_int_deassertion_aeu_bit - handles the effects of a single
- * cause of the attention
+ * qed_int_deassertion_aeu_bit() - Handles the effects of a single
+ * cause of the attention.
  *
- * @param p_hwfn
- * @param p_aeu - descriptor of an AEU bit which caused the attention
- * @param aeu_en_reg - register offset of the AEU enable reg. which configured
- *  this bit to this group.
- * @param bit_index - index of this bit in the aeu_en_reg
+ * @p_hwfn: HW device data.
+ * @p_aeu: Descriptor of an AEU bit which caused the attention.
+ * @aeu_en_reg: Register offset of the AEU enable reg. which configured
+ *              this bit to this group.
+ * @p_bit_name: AEU bit description for logging purposes.
+ * @bitmask: Index of this bit in the aeu_en_reg.
  *
- * @return int
+ * Return: Zero on success, negative errno otherwise.
  */
 static int
 qed_int_deassertion_aeu_bit(struct qed_hwfn *p_hwfn,
@@ -938,12 +940,12 @@ out:
 }
 
 /**
- * @brief qed_int_deassertion_parity - handle a single parity AEU source
+ * qed_int_deassertion_parity() - Handle a single parity AEU source.
  *
- * @param p_hwfn
- * @param p_aeu - descriptor of an AEU bit which caused the parity
- * @param aeu_en_reg - address of the AEU enable register
- * @param bit_index
+ * @p_hwfn: HW device data.
+ * @p_aeu: Descriptor of an AEU bit which caused the parity.
+ * @aeu_en_reg: Address of the AEU enable register.
+ * @bit_index: Index (0-31) of an AEU bit.
  */
 static void qed_int_deassertion_parity(struct qed_hwfn *p_hwfn,
 				       struct aeu_invert_reg_bit *p_aeu,
@@ -976,12 +978,13 @@ static void qed_int_deassertion_parity(struct qed_hwfn *p_hwfn,
 }
 
 /**
- * @brief - handles deassertion of previously asserted attentions.
+ * qed_int_deassertion() - Handle deassertion of previously asserted
+ * attentions.
  *
- * @param p_hwfn
- * @param deasserted_bits - newly deasserted bits
- * @return int
+ * @p_hwfn: HW device data.
+ * @deasserted_bits: newly deasserted bits.
  *
+ * Return: Zero value.
  */
 static int qed_int_deassertion(struct qed_hwfn  *p_hwfn,
 			       u16 deasserted_bits)
@@ -2241,9 +2244,9 @@ int qed_int_igu_read_cam(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 }
 
 /**
- * @brief Initialize igu runtime registers
+ * qed_int_igu_init_rt() - Initialize IGU runtime registers.
  *
- * @param p_hwfn
+ * @p_hwfn: HW device data.
  */
 void qed_int_igu_init_rt(struct qed_hwfn *p_hwfn)
 {
