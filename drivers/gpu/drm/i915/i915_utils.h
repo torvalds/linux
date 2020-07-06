@@ -436,7 +436,8 @@ static inline const char *enableddisabled(bool v)
 	return v ? "enabled" : "disabled";
 }
 
-static inline void add_taint_for_CI(unsigned int taint)
+void add_taint_for_CI(struct drm_i915_private *i915, unsigned int taint);
+static inline void __add_taint_for_CI(unsigned int taint)
 {
 	/*
 	 * The system is "ok", just about surviving for the user, but

@@ -233,7 +233,7 @@ int live_rc6_ctx_wa(void *arg)
 			    i915_reset_engine_count(error, engine)) {
 				pr_err("%s: GPU reset required\n",
 				       engine->name);
-				add_taint_for_CI(TAINT_WARN);
+				add_taint_for_CI(gt->i915, TAINT_WARN);
 				err = -EIO;
 				goto out;
 			}

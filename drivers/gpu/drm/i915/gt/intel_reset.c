@@ -930,7 +930,7 @@ static bool __intel_gt_unset_wedged(struct intel_gt *gt)
 		 * Warn CI about the unrecoverable wedged condition.
 		 * Time for a reboot.
 		 */
-		add_taint_for_CI(TAINT_WARN);
+		add_taint_for_CI(gt->i915, TAINT_WARN);
 		return false;
 	}
 
@@ -1097,7 +1097,7 @@ taint:
 	 * rather than continue on into oblivion. For everyone else,
 	 * the system should still plod along, but they have been warned!
 	 */
-	add_taint_for_CI(TAINT_WARN);
+	add_taint_for_CI(gt->i915, TAINT_WARN);
 error:
 	__intel_gt_set_wedged(gt);
 	goto finish;
@@ -1362,7 +1362,7 @@ void intel_gt_set_wedged_on_init(struct intel_gt *gt)
 	set_bit(I915_WEDGED_ON_INIT, &gt->reset.flags);
 
 	/* Wedged on init is non-recoverable */
-	add_taint_for_CI(TAINT_WARN);
+	add_taint_for_CI(gt->i915, TAINT_WARN);
 }
 
 void intel_gt_set_wedged_on_fini(struct intel_gt *gt)

@@ -142,7 +142,7 @@ fw_domain_wait_ack_clear(const struct intel_uncore_forcewake_domain *d)
 	if (wait_ack_clear(d, FORCEWAKE_KERNEL)) {
 		DRM_ERROR("%s: timed out waiting for forcewake ack to clear.\n",
 			  intel_uncore_forcewake_domain_to_str(d->id));
-		add_taint_for_CI(TAINT_WARN); /* CI now unreliable */
+		add_taint_for_CI(d->uncore->i915, TAINT_WARN); /* CI now unreliable */
 	}
 }
 
@@ -219,7 +219,7 @@ fw_domain_wait_ack_set(const struct intel_uncore_forcewake_domain *d)
 	if (wait_ack_set(d, FORCEWAKE_KERNEL)) {
 		DRM_ERROR("%s: timed out waiting for forcewake ack request.\n",
 			  intel_uncore_forcewake_domain_to_str(d->id));
-		add_taint_for_CI(TAINT_WARN); /* CI now unreliable */
+		add_taint_for_CI(d->uncore->i915, TAINT_WARN); /* CI now unreliable */
 	}
 }
 

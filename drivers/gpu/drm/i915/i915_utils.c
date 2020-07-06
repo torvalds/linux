@@ -49,6 +49,13 @@ __i915_printk(struct drm_i915_private *dev_priv, const char *level,
 	}
 }
 
+void add_taint_for_CI(struct drm_i915_private *i915, unsigned int taint)
+{
+	__i915_printk(i915, KERN_NOTICE, "CI tainted:%#x by %pS\n",
+		      taint, (void *)_RET_IP_);
+	__add_taint_for_CI(taint);
+}
+
 #if IS_ENABLED(CONFIG_DRM_I915_DEBUG)
 static unsigned int i915_probe_fail_count;
 
