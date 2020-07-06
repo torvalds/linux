@@ -991,6 +991,45 @@ static struct regmap *cal_get_camerarx_regmap(struct cal_dev *cal)
 	return regmap;
 }
 
+static int cal_camerarx_init_regmap(struct cal_dev *cal)
+{
+	struct device_node *np = cal->pdev->dev.of_node;
+	struct regmap *syscon;
+	u32 syscon_offset;
+	int ret;
+
+	syscon = syscon_regmap_lookup_by_phandle(np, "ti,camerrx-control");
+	ret = of_property_read_u32_index(np, "ti,camerrx-control", 1,
+					 &syscon_offset);
+	if (IS_ERR(syscon))
+		ret = PTR_ERR(syscon);
+	if (ret) {
+		dev_warn(&cal->pdev->dev,
+			 "failed to get ti,camerrx-control: %d\n", ret);
+
+		/*
+		 * Backward DTS compatibility.
+		 * If syscon entry is not present then check if the
+		 * camerrx_control resource is present.
+		 */
+		syscon = cal_get_camerarx_regmap(cal);
+		if (IS_ERR(syscon)) {
+			dev_err(&cal->pdev->dev,
+				"failed to get camerrx_control regmap\n");
+			return PTR_ERR(syscon);
+		}
+		/* In this case the base already point to the direct
+		 * CM register so no need for an offset
+		 */
+		syscon_offset = 0;
+	}
+
+	cal->syscon_camerrx = syscon;
+	cal->syscon_camerrx_offset = syscon_offset;
+
+	return 0;
+}
+
 /* ------------------------------------------------------------------
  *	Context Management
  * ------------------------------------------------------------------
@@ -2270,9 +2309,6 @@ static int cal_probe(struct platform_device *pdev)
 {
 	struct cal_dev *cal;
 	struct cal_ctx *ctx;
-	struct device_node *parent = pdev->dev.of_node;
-	struct regmap *syscon_camerrx;
-	u32 syscon_camerrx_offset;
 	unsigned int i;
 	int ret;
 	int irq;
@@ -2296,34 +2332,9 @@ static int cal_probe(struct platform_device *pdev)
 		return PTR_ERR(cal->fclk);
 	}
 
-	syscon_camerrx = syscon_regmap_lookup_by_phandle(parent,
-							 "ti,camerrx-control");
-	ret = of_property_read_u32_index(parent, "ti,camerrx-control", 1,
-					 &syscon_camerrx_offset);
-	if (IS_ERR(syscon_camerrx))
-		ret = PTR_ERR(syscon_camerrx);
-	if (ret) {
-		dev_warn(&pdev->dev, "failed to get ti,camerrx-control: %d\n",
-			 ret);
-
-		/*
-		 * Backward DTS compatibility.
-		 * If syscon entry is not present then check if the
-		 * camerrx_control resource is present.
-		 */
-		syscon_camerrx = cal_get_camerarx_regmap(cal);
-		if (IS_ERR(syscon_camerrx)) {
-			dev_err(&pdev->dev, "failed to get camerrx_control regmap\n");
-			return PTR_ERR(syscon_camerrx);
-		}
-		/* In this case the base already point to the direct
-		 * CM register so no need for an offset
-		 */
-		syscon_camerrx_offset = 0;
-	}
-
-	cal->syscon_camerrx = syscon_camerrx;
-	cal->syscon_camerrx_offset = syscon_camerrx_offset;
+	ret = cal_camerarx_init_regmap(cal);
+	if (ret < 0)
+		return ret;
 
 	cal->res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 						"cal_top");
