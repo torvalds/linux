@@ -2342,21 +2342,36 @@ static const struct of_device_id cal_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, cal_of_match);
 
-/*
- * Get Revision and HW info
- */
+/* Get hardware revision and info. */
+
+#define CAL_HL_HWINFO_VALUE		0xa3c90469
+
 static void cal_get_hwinfo(struct cal_dev *cal)
 {
 	u32 revision;
 	u32 hwinfo;
 
 	revision = reg_read(cal, CAL_HL_REVISION);
-	cal_dbg(3, cal, "CAL_HL_REVISION = 0x%08x (expecting 0x40000200)\n",
-		revision);
+	switch (FIELD_GET(CAL_HL_REVISION_SCHEME_MASK, revision)) {
+	case CAL_HL_REVISION_SCHEME_H08:
+		cal_dbg(3, cal, "CAL HW revision %lu.%lu.%lu (0x%08x)\n",
+			FIELD_GET(CAL_HL_REVISION_MAJOR_MASK, revision),
+			FIELD_GET(CAL_HL_REVISION_MINOR_MASK, revision),
+			FIELD_GET(CAL_HL_REVISION_RTL_MASK, revision),
+			revision);
+		break;
+
+	case CAL_HL_REVISION_SCHEME_LEGACY:
+	default:
+		cal_info(cal, "Unexpected CAL HW revision 0x%08x\n",
+			 revision);
+		break;
+	}
 
 	hwinfo = reg_read(cal, CAL_HL_HWINFO);
-	cal_dbg(3, cal, "CAL_HL_HWINFO = 0x%08x (expecting 0xA3C90469)\n",
-		hwinfo);
+	if (hwinfo != CAL_HL_HWINFO_VALUE)
+		cal_info(cal, "CAL_HL_HWINFO = 0x%08x, expected 0x%08x\n",
+			 hwinfo, CAL_HL_HWINFO_VALUE);
 }
 
 static int cal_probe(struct platform_device *pdev)
