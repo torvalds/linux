@@ -21,8 +21,8 @@
 /*
  * Information for this driver was pulled from the following datasheets.
  *
- *  http://www.nxp.com/documents/data_sheet/PCF85063A.pdf
- *  http://www.nxp.com/documents/data_sheet/PCF85063TP.pdf
+ *  https://www.nxp.com/documents/data_sheet/PCF85063A.pdf
+ *  https://www.nxp.com/documents/data_sheet/PCF85063TP.pdf
  *
  *  PCF85063A -- Rev. 6 — 18 November 2015
  *  PCF85063TP -- Rev. 4 — 6 May 2015

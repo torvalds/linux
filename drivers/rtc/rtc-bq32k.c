@@ -6,7 +6,7 @@
  * Copyright (C) 2014 Pavel Machek <pavel@denx.de>
  *
  * You can get hardware description at
- * http://www.ti.com/lit/ds/symlink/bq32000.pdf
+ * https://www.ti.com/lit/ds/symlink/bq32000.pdf
  */
 
 #include <linux/module.h>
