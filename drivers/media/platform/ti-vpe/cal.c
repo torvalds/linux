@@ -324,10 +324,7 @@ struct cal_camerarx {
 	void __iomem		*base;
 	struct resource		*res;
 	struct platform_device	*pdev;
-
-	struct {
-		struct regmap_field *fields[F_MAX_FIELDS];
-	} phy;
+	struct regmap_field	*fields[F_MAX_FIELDS];
 };
 
 struct cal_dev {
@@ -491,12 +488,12 @@ static int cal_camerarx_regmap_init(struct cal_dev *cal,
 		 * Here we update the reg offset with the
 		 * value found in DT
 		 */
-		phy->phy.fields[i] = devm_regmap_field_alloc(&cal->pdev->dev,
-							     cal->syscon_camerrx,
-							     field);
-		if (IS_ERR(phy->phy.fields[i])) {
+		phy->fields[i] = devm_regmap_field_alloc(&cal->pdev->dev,
+							 cal->syscon_camerrx,
+							 field);
+		if (IS_ERR(phy->fields[i])) {
 			cal_err(cal, "Unable to allocate regmap fields\n");
-			return PTR_ERR(phy->phy.fields[i]);
+			return PTR_ERR(phy->fields[i]);
 		}
 	}
 
@@ -543,14 +540,14 @@ static void camerarx_phy_enable(struct cal_ctx *ctx)
 	struct cal_camerarx *phy = ctx->cal->phy[phy_id];
 	u32 max_lanes;
 
-	regmap_field_write(phy->phy.fields[F_CAMMODE], 0);
+	regmap_field_write(phy->fields[F_CAMMODE], 0);
 	/* Always enable all lanes at the phy control level */
 	max_lanes = (1 << cal_data_get_phy_max_lanes(ctx)) - 1;
-	regmap_field_write(phy->phy.fields[F_LANEENABLE], max_lanes);
+	regmap_field_write(phy->fields[F_LANEENABLE], max_lanes);
 	/* F_CSI_MODE is not present on every architecture */
-	if (phy->phy.fields[F_CSI_MODE])
-		regmap_field_write(phy->phy.fields[F_CSI_MODE], 1);
-	regmap_field_write(phy->phy.fields[F_CTRLCLKEN], 1);
+	if (phy->fields[F_CSI_MODE])
+		regmap_field_write(phy->fields[F_CSI_MODE], 1);
+	regmap_field_write(phy->fields[F_CTRLCLKEN], 1);
 }
 
 static void camerarx_phy_disable(struct cal_ctx *ctx)
@@ -558,7 +555,7 @@ static void camerarx_phy_disable(struct cal_ctx *ctx)
 	u32 phy_id = ctx->csi2_port;
 	struct cal_camerarx *phy = ctx->cal->phy[phy_id];
 
-	regmap_field_write(phy->phy.fields[F_CTRLCLKEN], 0);
+	regmap_field_write(phy->fields[F_CTRLCLKEN], 0);
 }
 
 /*
