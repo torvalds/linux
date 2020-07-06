@@ -1895,6 +1895,11 @@ static int cal_ctx_v4l2_register(struct cal_ctx *ctx)
 	return 0;
 }
 
+static void cal_ctx_v4l2_unregister(struct cal_ctx *ctx)
+{
+	video_unregister_device(&ctx->vdev);
+}
+
 static int cal_ctx_v4l2_init(struct cal_ctx *ctx)
 {
 	struct v4l2_ctrl_handler *hdl = &ctx->ctrl_handler;
@@ -1946,6 +1951,11 @@ static int cal_ctx_v4l2_init(struct cal_ctx *ctx)
 	video_set_drvdata(vfd, ctx);
 
 	return 0;
+}
+
+static void cal_ctx_v4l2_cleanup(struct cal_ctx *ctx)
+{
+	v4l2_ctrl_handler_free(&ctx->ctrl_handler);
 }
 
 /* ------------------------------------------------------------------
@@ -2286,7 +2296,7 @@ error_pm_runtime:
 		if (ctx) {
 			v4l2_async_notifier_unregister(&ctx->notifier);
 			v4l2_async_notifier_cleanup(&ctx->notifier);
-			v4l2_ctrl_handler_free(&ctx->ctrl_handler);
+			cal_ctx_v4l2_cleanup(ctx);
 		}
 	}
 
@@ -2313,8 +2323,8 @@ static int cal_remove(struct platform_device *pdev)
 			cal_camerarx_disable(ctx->phy);
 			v4l2_async_notifier_unregister(&ctx->notifier);
 			v4l2_async_notifier_cleanup(&ctx->notifier);
-			v4l2_ctrl_handler_free(&ctx->ctrl_handler);
-			video_unregister_device(&ctx->vdev);
+			cal_ctx_v4l2_cleanup(ctx);
+			cal_ctx_v4l2_unregister(ctx);
 		}
 	}
 
