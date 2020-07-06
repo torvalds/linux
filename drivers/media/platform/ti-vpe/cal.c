@@ -494,11 +494,6 @@ static void cal_quickdump_regs(struct cal_dev *cal)
 	}
 }
 
-static u32 cal_data_get_num_csi2_phy(struct cal_dev *cal)
-{
-	return cal->data->num_csi2_phy;
-}
-
 /* ------------------------------------------------------------------
  *	CAMERARX Management
  * ------------------------------------------------------------------
@@ -2328,7 +2323,7 @@ static int cal_probe(struct platform_device *pdev)
 	if (IS_ERR(cal->phy[0]))
 		return PTR_ERR(cal->phy[0]);
 
-	if (cal_data_get_num_csi2_phy(cal) > 1) {
+	if (cal->data->num_csi2_phy > 1) {
 		cal->phy[1] = cal_camerarx_create(cal, 1);
 		if (IS_ERR(cal->phy[1]))
 			return PTR_ERR(cal->phy[1]);
@@ -2340,7 +2335,7 @@ static int cal_probe(struct platform_device *pdev)
 	cal->ctx[1] = NULL;
 
 	cal->ctx[0] = cal_create_instance(cal, 0);
-	if (cal_data_get_num_csi2_phy(cal) > 1)
+	if (cal->data->num_csi2_phy > 1)
 		cal->ctx[1] = cal_create_instance(cal, 1);
 	if (!cal->ctx[0] && !cal->ctx[1]) {
 		cal_err(cal, "Neither port is configured, no point in staying up\n");
