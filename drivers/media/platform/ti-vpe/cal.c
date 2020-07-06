@@ -1290,7 +1290,7 @@ static int cal_querycap(struct file *file, void *priv,
 	strscpy(cap->card, CAL_MODULE_NAME, sizeof(cap->card));
 
 	snprintf(cap->bus_info, sizeof(cap->bus_info),
-		 "platform:%s", ctx->v4l2_dev.name);
+		 "platform:%s", dev_name(&ctx->cal->pdev->dev));
 	return 0;
 }
 
