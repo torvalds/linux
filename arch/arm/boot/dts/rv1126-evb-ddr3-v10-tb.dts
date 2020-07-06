@@ -51,7 +51,7 @@
 			no-map;
 		};
 
-		idma_descriptor: mmc_idma@500000 {
+		mmc_idmac: mmc@500000 {
 			reg = <0x00500000 0x00100000>;
 		};
 
@@ -66,6 +66,14 @@
 		rkisp_thunderboot: rkisp@10000000 {
 			reg = <0x10000000 (144 * 0x00100000)>;
 		};
+	};
+
+	thunder-boot-mmc {
+		compatible = "rockchip,thunder-boot-mmc";
+		reg = <0xffc50000 0x4000>;
+		memory-region-src = <&ramdisk_c>;
+		memory-region-dst = <&ramdisk_r>;
+		memory-region-idmac = <&mmc_idmac>;
 	};
 
 	thunder-boot-rkisp {
@@ -86,14 +94,6 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&mipicsi_clk0>;
 		status = "okay";
-	};
-
-	rockchip_tb {
-		compatible = "rockchip,thunder-boot-mmc";
-		reg = <0xffc50000 0x4000>;
-		memory-region-src = <&ramdisk_c>;
-		memory-region-dst = <&ramdisk_r>;
-		memory-region-idmac = <&idma_descriptor>;
 	};
 };
 
