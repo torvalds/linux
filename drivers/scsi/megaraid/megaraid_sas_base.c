@@ -427,14 +427,14 @@ megasas_decode_evt(struct megasas_instance *instance)
 			evt_detail->description);
 }
 
-/**
-*	The following functions are defined for xscale
-*	(deviceid : 1064R, PERC5) controllers
-*/
+/*
+ * The following functions are defined for xscale
+ * (deviceid : 1064R, PERC5) controllers
+ */
 
 /**
  * megasas_enable_intr_xscale -	Enables interrupts
- * @regs:			MFI register set
+ * @instance:	Adapter soft state
  */
 static inline void
 megasas_enable_intr_xscale(struct megasas_instance *instance)
@@ -450,7 +450,7 @@ megasas_enable_intr_xscale(struct megasas_instance *instance)
 
 /**
  * megasas_disable_intr_xscale -Disables interrupt
- * @regs:			MFI register set
+ * @instance:	Adapter soft state
  */
 static inline void
 megasas_disable_intr_xscale(struct megasas_instance *instance)
@@ -466,7 +466,7 @@ megasas_disable_intr_xscale(struct megasas_instance *instance)
 
 /**
  * megasas_read_fw_status_reg_xscale - returns the current FW status value
- * @regs:			MFI register set
+ * @instance:	Adapter soft state
  */
 static u32
 megasas_read_fw_status_reg_xscale(struct megasas_instance *instance)
@@ -475,7 +475,7 @@ megasas_read_fw_status_reg_xscale(struct megasas_instance *instance)
 }
 /**
  * megasas_clear_interrupt_xscale -	Check & clear interrupt
- * @regs:				MFI register set
+ * @instance:	Adapter soft state
  */
 static int
 megasas_clear_intr_xscale(struct megasas_instance *instance)
@@ -509,9 +509,10 @@ megasas_clear_intr_xscale(struct megasas_instance *instance)
 
 /**
  * megasas_fire_cmd_xscale -	Sends command to the FW
- * @frame_phys_addr :		Physical address of cmd
- * @frame_count :		Number of frames for the command
- * @regs :			MFI register set
+ * @instance:		Adapter soft state
+ * @frame_phys_addr :	Physical address of cmd
+ * @frame_count :	Number of frames for the command
+ * @regs :		MFI register set
  */
 static inline void
 megasas_fire_cmd_xscale(struct megasas_instance *instance,
@@ -529,7 +530,8 @@ megasas_fire_cmd_xscale(struct megasas_instance *instance,
 
 /**
  * megasas_adp_reset_xscale -  For controller reset
- * @regs:                              MFI register set
+ * @instance:	Adapter soft state
+ * @regs:	MFI register set
  */
 static int
 megasas_adp_reset_xscale(struct megasas_instance *instance,
@@ -570,7 +572,8 @@ megasas_adp_reset_xscale(struct megasas_instance *instance,
 
 /**
  * megasas_check_reset_xscale -	For controller reset check
- * @regs:				MFI register set
+ * @instance:	Adapter soft state
+ * @regs:	MFI register set
  */
 static int
 megasas_check_reset_xscale(struct megasas_instance *instance,
@@ -599,19 +602,19 @@ static struct megasas_instance_template megasas_instance_template_xscale = {
 	.issue_dcmd = megasas_issue_dcmd,
 };
 
-/**
-*	This is the end of set of functions & definitions specific
-*	to xscale (deviceid : 1064R, PERC5) controllers
-*/
+/*
+ * This is the end of set of functions & definitions specific
+ * to xscale (deviceid : 1064R, PERC5) controllers
+ */
 
-/**
-*	The following functions are defined for ppc (deviceid : 0x60)
-*	controllers
-*/
+/*
+ * The following functions are defined for ppc (deviceid : 0x60)
+ * controllers
+ */
 
 /**
  * megasas_enable_intr_ppc -	Enables interrupts
- * @regs:			MFI register set
+ * @instance:	Adapter soft state
  */
 static inline void
 megasas_enable_intr_ppc(struct megasas_instance *instance)
@@ -629,7 +632,7 @@ megasas_enable_intr_ppc(struct megasas_instance *instance)
 
 /**
  * megasas_disable_intr_ppc -	Disable interrupt
- * @regs:			MFI register set
+ * @instance:	Adapter soft state
  */
 static inline void
 megasas_disable_intr_ppc(struct megasas_instance *instance)
@@ -645,7 +648,7 @@ megasas_disable_intr_ppc(struct megasas_instance *instance)
 
 /**
  * megasas_read_fw_status_reg_ppc - returns the current FW status value
- * @regs:			MFI register set
+ * @instance:	Adapter soft state
  */
 static u32
 megasas_read_fw_status_reg_ppc(struct megasas_instance *instance)
@@ -655,7 +658,7 @@ megasas_read_fw_status_reg_ppc(struct megasas_instance *instance)
 
 /**
  * megasas_clear_interrupt_ppc -	Check & clear interrupt
- * @regs:				MFI register set
+ * @instance:	Adapter soft state
  */
 static int
 megasas_clear_intr_ppc(struct megasas_instance *instance)
@@ -688,9 +691,10 @@ megasas_clear_intr_ppc(struct megasas_instance *instance)
 
 /**
  * megasas_fire_cmd_ppc -	Sends command to the FW
- * @frame_phys_addr :		Physical address of cmd
- * @frame_count :		Number of frames for the command
- * @regs :			MFI register set
+ * @instance:		Adapter soft state
+ * @frame_phys_addr:	Physical address of cmd
+ * @frame_count:	Number of frames for the command
+ * @regs:		MFI register set
  */
 static inline void
 megasas_fire_cmd_ppc(struct megasas_instance *instance,
@@ -708,7 +712,8 @@ megasas_fire_cmd_ppc(struct megasas_instance *instance,
 
 /**
  * megasas_check_reset_ppc -	For controller reset check
- * @regs:				MFI register set
+ * @instance:	Adapter soft state
+ * @regs:	MFI register set
  */
 static int
 megasas_check_reset_ppc(struct megasas_instance *instance,
@@ -738,7 +743,7 @@ static struct megasas_instance_template megasas_instance_template_ppc = {
 
 /**
  * megasas_enable_intr_skinny -	Enables interrupts
- * @regs:			MFI register set
+ * @instance:	Adapter soft state
  */
 static inline void
 megasas_enable_intr_skinny(struct megasas_instance *instance)
@@ -756,7 +761,7 @@ megasas_enable_intr_skinny(struct megasas_instance *instance)
 
 /**
  * megasas_disable_intr_skinny -	Disables interrupt
- * @regs:			MFI register set
+ * @instance:	Adapter soft state
  */
 static inline void
 megasas_disable_intr_skinny(struct megasas_instance *instance)
@@ -772,7 +777,7 @@ megasas_disable_intr_skinny(struct megasas_instance *instance)
 
 /**
  * megasas_read_fw_status_reg_skinny - returns the current FW status value
- * @regs:			MFI register set
+ * @instance:	Adapter soft state
  */
 static u32
 megasas_read_fw_status_reg_skinny(struct megasas_instance *instance)
@@ -782,7 +787,7 @@ megasas_read_fw_status_reg_skinny(struct megasas_instance *instance)
 
 /**
  * megasas_clear_interrupt_skinny -	Check & clear interrupt
- * @regs:				MFI register set
+ * @instance:	Adapter soft state
  */
 static int
 megasas_clear_intr_skinny(struct megasas_instance *instance)
@@ -825,9 +830,10 @@ megasas_clear_intr_skinny(struct megasas_instance *instance)
 
 /**
  * megasas_fire_cmd_skinny -	Sends command to the FW
- * @frame_phys_addr :		Physical address of cmd
- * @frame_count :		Number of frames for the command
- * @regs :			MFI register set
+ * @instance:		Adapter soft state
+ * @frame_phys_addr:	Physical address of cmd
+ * @frame_count:	Number of frames for the command
+ * @regs:		MFI register set
  */
 static inline void
 megasas_fire_cmd_skinny(struct megasas_instance *instance,
@@ -847,7 +853,8 @@ megasas_fire_cmd_skinny(struct megasas_instance *instance,
 
 /**
  * megasas_check_reset_skinny -	For controller reset check
- * @regs:				MFI register set
+ * @instance:	Adapter soft state
+ * @regs:	MFI register set
  */
 static int
 megasas_check_reset_skinny(struct megasas_instance *instance,
@@ -876,14 +883,14 @@ static struct megasas_instance_template megasas_instance_template_skinny = {
 };
 
 
-/**
-*	The following functions are defined for gen2 (deviceid : 0x78 0x79)
-*	controllers
-*/
+/*
+ * The following functions are defined for gen2 (deviceid : 0x78 0x79)
+ * controllers
+ */
 
 /**
  * megasas_enable_intr_gen2 -  Enables interrupts
- * @regs:                      MFI register set
+ * @instance:	Adapter soft state
  */
 static inline void
 megasas_enable_intr_gen2(struct megasas_instance *instance)
@@ -902,7 +909,7 @@ megasas_enable_intr_gen2(struct megasas_instance *instance)
 
 /**
  * megasas_disable_intr_gen2 - Disables interrupt
- * @regs:                      MFI register set
+ * @instance:	Adapter soft state
  */
 static inline void
 megasas_disable_intr_gen2(struct megasas_instance *instance)
@@ -918,7 +925,7 @@ megasas_disable_intr_gen2(struct megasas_instance *instance)
 
 /**
  * megasas_read_fw_status_reg_gen2 - returns the current FW status value
- * @regs:                      MFI register set
+ * @instance:	Adapter soft state
  */
 static u32
 megasas_read_fw_status_reg_gen2(struct megasas_instance *instance)
@@ -928,7 +935,7 @@ megasas_read_fw_status_reg_gen2(struct megasas_instance *instance)
 
 /**
  * megasas_clear_interrupt_gen2 -      Check & clear interrupt
- * @regs:                              MFI register set
+ * @instance:	Adapter soft state
  */
 static int
 megasas_clear_intr_gen2(struct megasas_instance *instance)
@@ -961,11 +968,13 @@ megasas_clear_intr_gen2(struct megasas_instance *instance)
 
 	return mfiStatus;
 }
+
 /**
  * megasas_fire_cmd_gen2 -     Sends command to the FW
- * @frame_phys_addr :          Physical address of cmd
- * @frame_count :              Number of frames for the command
- * @regs :                     MFI register set
+ * @instance:		Adapter soft state
+ * @frame_phys_addr:	Physical address of cmd
+ * @frame_count:	Number of frames for the command
+ * @regs:		MFI register set
  */
 static inline void
 megasas_fire_cmd_gen2(struct megasas_instance *instance,
@@ -983,7 +992,8 @@ megasas_fire_cmd_gen2(struct megasas_instance *instance,
 
 /**
  * megasas_adp_reset_gen2 -	For controller reset
- * @regs:				MFI register set
+ * @instance:	Adapter soft state
+ * @reg_set:	MFI register set
  */
 static int
 megasas_adp_reset_gen2(struct megasas_instance *instance,
@@ -1043,7 +1053,8 @@ megasas_adp_reset_gen2(struct megasas_instance *instance,
 
 /**
  * megasas_check_reset_gen2 -	For controller reset check
- * @regs:				MFI register set
+ * @instance:	Adapter soft state
+ * @regs:	MFI register set
  */
 static int
 megasas_check_reset_gen2(struct megasas_instance *instance,
@@ -1071,10 +1082,10 @@ static struct megasas_instance_template megasas_instance_template_gen2 = {
 	.issue_dcmd = megasas_issue_dcmd,
 };
 
-/**
-*	This is the end of set of functions & definitions
-*       specific to gen2 (deviceid : 0x78, 0x79) controllers
-*/
+/*
+ * This is the end of set of functions & definitions
+ * specific to gen2 (deviceid : 0x78, 0x79) controllers
+ */
 
 /*
  * Template added for TB (Fusion)
@@ -1609,7 +1620,7 @@ megasas_build_ldio(struct megasas_instance *instance, struct scsi_cmnd *scp,
 /**
  * megasas_cmd_type -		Checks if the cmd is for logical drive/sysPD
  *				and whether it's RW or non RW
- * @scmd:			SCSI command
+ * @cmd:			SCSI command
  *
  */
 inline int megasas_cmd_type(struct scsi_cmnd *cmd)
@@ -1749,8 +1760,8 @@ out_return_cmd:
 
 /**
  * megasas_queue_command -	Queue entry point
+ * @shost:			adapter SCSI host
  * @scmd:			SCSI command to be queued
- * @done:			Callback entry point
  */
 static int
 megasas_queue_command(struct Scsi_Host *shost, struct scsi_cmnd *scmd)
@@ -2916,11 +2927,7 @@ megasas_dump(void *buf, int sz, int format)
 
 /**
  * megasas_dump_reg_set -	This function will print hexdump of register set
- * @buf:			Buffer to be dumped
- * @sz:				Size in bytes
- * @format:			Different formats of dumping e.g. format=n will
- *				cause only 'n' 32 bit words to be dumped in a
- *				single line.
+ * @reg_set:	Register set to be dumped
  */
 inline void
 megasas_dump_reg_set(void __iomem *reg_set)
@@ -2997,6 +3004,7 @@ megasas_dump_sys_regs(void __iomem *reg_set, char *buf)
 
 /**
  * megasas_reset_bus_host -	Bus & host reset handler entry point
+ * @scmd:			Mid-layer SCSI command
  */
 static int megasas_reset_bus_host(struct scsi_cmnd *scmd)
 {
@@ -3777,7 +3785,7 @@ megasas_issue_pending_cmds_again(struct megasas_instance *instance)
 	megasas_register_aen(instance, seq_num, class_locale.word);
 }
 
-/**
+/*
  * Move the internal reset pending commands to a deferred queue.
  *
  * We move the commands pending at internal reset time to a
@@ -3785,7 +3793,7 @@ megasas_issue_pending_cmds_again(struct megasas_instance *instance)
  * completion of the internal reset sequence. if the internal reset
  * did not complete in time, the kernel reset handler would flush
  * these commands.
- **/
+ */
 static void
 megasas_internal_reset_defer_cmds(struct megasas_instance *instance)
 {
@@ -3963,8 +3971,11 @@ megasas_deplete_reply_queue(struct megasas_instance *instance,
 	tasklet_schedule(&instance->isr_tasklet);
 	return IRQ_HANDLED;
 }
+
 /**
  * megasas_isr - isr entry point
+ * @irq:	IRQ number
+ * @devp:	IRQ context address
  */
 static irqreturn_t megasas_isr(int irq, void *devp)
 {
@@ -3986,6 +3997,7 @@ static irqreturn_t megasas_isr(int irq, void *devp)
 /**
  * megasas_transition_to_ready -	Move the FW to READY state
  * @instance:				Adapter soft state
+ * @ocr:				Adapter reset state
  *
  * During the initialization, FW passes can potentially be in any one of
  * several possible states. If the FW in operational, waiting-for-handshake
@@ -4743,7 +4755,7 @@ megasas_get_ld_list(struct megasas_instance *instance)
 /**
  * megasas_ld_list_query -	Returns FW's ld_list structure
  * @instance:				Adapter soft state
- * @ld_list:				ld_list structure
+ * @query_type:				ld_list structure type
  *
  * Issues an internal command (DCMD) to get the FW's controller PD
  * list structure.  This information is mainly used to find out SYSTEM
@@ -5653,7 +5665,6 @@ megasas_destroy_irqs(struct megasas_instance *instance) {
 /**
  * megasas_setup_jbod_map -	setup jbod map for FP seq_number.
  * @instance:				Adapter soft state
- * @is_probe:				Driver probe check
  *
  * Return 0 on success.
  */
@@ -6494,7 +6505,7 @@ dcmd_failed:
  * megasas_register_aen -	Registers for asynchronous event notification
  * @instance:			Adapter soft state
  * @seq_num:			The starting sequence number
- * @class_locale:		Class of the event
+ * @class_locale_word:		Class of the event
  *
  * This function subscribes for AEN for events beyond the @seq_num. It requests
  * to be notified if and only if the event is of type @class_locale
@@ -7014,8 +7025,9 @@ static inline void megasas_free_ctrl_mem(struct megasas_instance *instance)
  * megasas_alloc_ctrl_dma_buffers -	Allocate consistent DMA buffers during
  *					driver load time
  *
- * @instance-				Adapter soft instance
- * @return-				O for SUCCESS
+ * @instance:				Adapter soft instance
+ *
+ * @return:				O for SUCCESS
  */
 static inline
 int megasas_alloc_ctrl_dma_buffers(struct megasas_instance *instance)
@@ -7931,7 +7943,7 @@ skip_firing_dcmds:
 
 /**
  * megasas_shutdown -	Shutdown entry point
- * @device:		Generic device structure
+ * @pdev:		Generic device structure
  */
 static void megasas_shutdown(struct pci_dev *pdev)
 {
@@ -7956,8 +7968,10 @@ skip_firing_dcmds:
 		pci_free_irq_vectors(instance->pdev);
 }
 
-/**
+/*
  * megasas_mgmt_open -	char node "open" entry point
+ * @inode:	char node inode
+ * @filep:	char node file
  */
 static int megasas_mgmt_open(struct inode *inode, struct file *filep)
 {
@@ -7970,8 +7984,11 @@ static int megasas_mgmt_open(struct inode *inode, struct file *filep)
 	return 0;
 }
 
-/**
+/*
  * megasas_mgmt_fasync -	Async notifier registration from applications
+ * @fd:		char node file descriptor number
+ * @filep:	char node file
+ * @mode:	notifier on/off
  *
  * This function adds the calling process to a driver global queue. When an
  * event occurs, SIGIO will be sent to all processes in this queue.
@@ -7997,9 +8014,11 @@ static int megasas_mgmt_fasync(int fd, struct file *filep, int mode)
 	return rc;
 }
 
-/**
+/*
  * megasas_mgmt_poll -  char node "poll" entry point
- * */
+ * @filep:	char node file
+ * @wait:	Events to poll for
+ */
 static __poll_t megasas_mgmt_poll(struct file *file, poll_table *wait)
 {
 	__poll_t mask;
@@ -8057,7 +8076,8 @@ static int megasas_set_crash_dump_params_ioctl(struct megasas_cmd *cmd)
 /**
  * megasas_mgmt_fw_ioctl -	Issues management ioctls to FW
  * @instance:			Adapter soft state
- * @argp:			User's ioctl packet
+ * @user_ioc:			User's ioctl packet
+ * @ioc:			ioctl packet
  */
 static int
 megasas_mgmt_fw_ioctl(struct megasas_instance *instance,
@@ -8397,6 +8417,9 @@ static int megasas_mgmt_ioctl_aen(struct file *file, unsigned long arg)
 
 /**
  * megasas_mgmt_ioctl -	char node ioctl entry point
+ * @file:	char device file pointer
+ * @cmd:	ioctl command
+ * @arg:	ioctl command arguments address
  */
 static long
 megasas_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
