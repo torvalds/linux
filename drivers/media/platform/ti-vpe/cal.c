@@ -1205,7 +1205,7 @@ static inline void cal_process_buffer_complete(struct cal_ctx *ctx)
 
 static irqreturn_t cal_irq(int irq_cal, void *data)
 {
-	struct cal_dev *dev = (struct cal_dev *)data;
+	struct cal_dev *dev = data;
 	struct cal_ctx *ctx;
 	struct cal_dmaqueue *dma_q;
 	u32 status;
@@ -2404,8 +2404,7 @@ runtime_disable:
 
 static int cal_remove(struct platform_device *pdev)
 {
-	struct cal_dev *dev =
-		(struct cal_dev *)platform_get_drvdata(pdev);
+	struct cal_dev *dev = platform_get_drvdata(pdev);
 	struct cal_ctx *ctx;
 	int i;
 
