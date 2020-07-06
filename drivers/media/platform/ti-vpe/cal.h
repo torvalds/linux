@@ -241,12 +241,17 @@ static inline void cal_set_field(u32 *valp, u32 field, u32 mask)
 
 void cal_quickdump_regs(struct cal_dev *cal);
 
+void cal_camerarx_disable(struct cal_camerarx *phy);
 int cal_camerarx_start(struct cal_camerarx *phy, const struct cal_fmt *fmt);
 void cal_camerarx_stop(struct cal_camerarx *phy);
 void cal_camerarx_enable_irqs(struct cal_camerarx *phy);
 void cal_camerarx_disable_irqs(struct cal_camerarx *phy);
 void cal_camerarx_ppi_enable(struct cal_camerarx *phy);
 void cal_camerarx_ppi_disable(struct cal_camerarx *phy);
+void cal_camerarx_i913_errata(struct cal_camerarx *phy);
+struct cal_camerarx *cal_camerarx_create(struct cal_dev *cal,
+					 unsigned int instance);
+void cal_camerarx_destroy(struct cal_camerarx *phy);
 
 void cal_ctx_csi2_config(struct cal_ctx *ctx);
 void cal_ctx_pix_proc_config(struct cal_ctx *ctx);
