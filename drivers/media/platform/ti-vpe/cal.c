@@ -234,7 +234,7 @@ enum cal_camerarx_field {
 
 struct cal_csi2_phy {
 	struct regmap_field *fields[F_MAX_FIELDS];
-	struct reg_field *base_fields;
+	struct reg_field base_fields[F_MAX_FIELDS];
 	const int num_lanes;
 };
 
@@ -245,27 +245,23 @@ struct cal_data {
 	const unsigned int flags;
 };
 
-static struct reg_field dra72x_ctrl_core_csi0_reg_fields[F_MAX_FIELDS] = {
-	[F_CTRLCLKEN] = REG_FIELD(0, 10, 10),
-	[F_CAMMODE] = REG_FIELD(0, 11, 12),
-	[F_LANEENABLE] = REG_FIELD(0, 13, 16),
-	[F_CSI_MODE] = REG_FIELD(0, 17, 17),
-};
-
-static struct reg_field dra72x_ctrl_core_csi1_reg_fields[F_MAX_FIELDS] = {
-	[F_CTRLCLKEN] = REG_FIELD(0, 0, 0),
-	[F_CAMMODE] = REG_FIELD(0, 1, 2),
-	[F_LANEENABLE] = REG_FIELD(0, 3, 4),
-	[F_CSI_MODE] = REG_FIELD(0, 5, 5),
-};
-
 static struct cal_csi2_phy dra72x_cal_csi_phy[] = {
 	{
-		.base_fields = dra72x_ctrl_core_csi0_reg_fields,
+		.base_fields = {
+			[F_CTRLCLKEN] = REG_FIELD(0, 10, 10),
+			[F_CAMMODE] = REG_FIELD(0, 11, 12),
+			[F_LANEENABLE] = REG_FIELD(0, 13, 16),
+			[F_CSI_MODE] = REG_FIELD(0, 17, 17),
+		},
 		.num_lanes = 4,
 	},
 	{
-		.base_fields = dra72x_ctrl_core_csi1_reg_fields,
+		.base_fields = {
+			[F_CTRLCLKEN] = REG_FIELD(0, 0, 0),
+			[F_CAMMODE] = REG_FIELD(0, 1, 2),
+			[F_LANEENABLE] = REG_FIELD(0, 3, 4),
+			[F_CSI_MODE] = REG_FIELD(0, 5, 5),
+		},
 		.num_lanes = 2,
 	},
 };
@@ -281,27 +277,23 @@ static const struct cal_data dra72x_es1_cal_data = {
 	.flags = DRA72_CAL_PRE_ES2_LDO_DISABLE,
 };
 
-static struct reg_field dra76x_ctrl_core_csi0_reg_fields[F_MAX_FIELDS] = {
-	[F_CTRLCLKEN] = REG_FIELD(0, 8, 8),
-	[F_CAMMODE] = REG_FIELD(0, 9, 10),
-	[F_CSI_MODE] = REG_FIELD(0, 11, 11),
-	[F_LANEENABLE] = REG_FIELD(0, 27, 31),
-};
-
-static struct reg_field dra76x_ctrl_core_csi1_reg_fields[F_MAX_FIELDS] = {
-	[F_CTRLCLKEN] = REG_FIELD(0, 0, 0),
-	[F_CAMMODE] = REG_FIELD(0, 1, 2),
-	[F_CSI_MODE] = REG_FIELD(0, 3, 3),
-	[F_LANEENABLE] = REG_FIELD(0, 24, 26),
-};
-
 static struct cal_csi2_phy dra76x_cal_csi_phy[] = {
 	{
-		.base_fields = dra76x_ctrl_core_csi0_reg_fields,
+		.base_fields = {
+			[F_CTRLCLKEN] = REG_FIELD(0, 8, 8),
+			[F_CAMMODE] = REG_FIELD(0, 9, 10),
+			[F_CSI_MODE] = REG_FIELD(0, 11, 11),
+			[F_LANEENABLE] = REG_FIELD(0, 27, 31),
+		},
 		.num_lanes = 5,
 	},
 	{
-		.base_fields = dra76x_ctrl_core_csi1_reg_fields,
+		.base_fields = {
+			[F_CTRLCLKEN] = REG_FIELD(0, 0, 0),
+			[F_CAMMODE] = REG_FIELD(0, 1, 2),
+			[F_CSI_MODE] = REG_FIELD(0, 3, 3),
+			[F_LANEENABLE] = REG_FIELD(0, 24, 26),
+		},
 		.num_lanes = 3,
 	},
 };
@@ -311,15 +303,13 @@ static const struct cal_data dra76x_cal_data = {
 	.num_csi2_phy = ARRAY_SIZE(dra76x_cal_csi_phy),
 };
 
-static struct reg_field am654_ctrl_core_csi0_reg_fields[F_MAX_FIELDS] = {
-	[F_CTRLCLKEN] = REG_FIELD(0, 15, 15),
-	[F_CAMMODE] = REG_FIELD(0, 24, 25),
-	[F_LANEENABLE] = REG_FIELD(0, 0, 4),
-};
-
 static struct cal_csi2_phy am654_cal_csi_phy[] = {
 	{
-		.base_fields = am654_ctrl_core_csi0_reg_fields,
+		.base_fields = {
+			[F_CTRLCLKEN] = REG_FIELD(0, 15, 15),
+			[F_CAMMODE] = REG_FIELD(0, 24, 25),
+			[F_LANEENABLE] = REG_FIELD(0, 0, 4),
+		},
 		.num_lanes = 5,
 	},
 };
