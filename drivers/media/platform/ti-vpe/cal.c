@@ -53,10 +53,6 @@ static unsigned debug;
 module_param(debug, uint, 0644);
 MODULE_PARM_DESC(debug, "activates debug info");
 
-/* timeperframe: min/max and default */
-static const struct v4l2_fract
-	tpf_default = {.numerator = 1001,	.denominator = 30000};
-
 #define cal_dbg(level, caldev, fmt, arg...)	\
 		v4l2_dbg(level, debug, &caldev->v4l2_dev, fmt, ##arg)
 #define cal_info(caldev, fmt, arg...)	\
@@ -71,7 +67,6 @@ static const struct v4l2_fract
 #define ctx_err(ctx, fmt, arg...)	\
 		v4l2_err(&ctx->v4l2_dev, fmt, ##arg)
 
-#define CAL_NUM_INPUT 1
 #define CAL_NUM_CONTEXT 2
 
 #define reg_read(dev, offset) ioread32(dev->base + offset)
@@ -204,15 +199,10 @@ struct cal_buffer {
 	/* common v4l buffer stuff -- must be first */
 	struct vb2_v4l2_buffer	vb;
 	struct list_head	list;
-	const struct cal_fmt	*fmt;
 };
 
 struct cal_dmaqueue {
 	struct list_head	active;
-
-	/* Counters to control fps rate */
-	int			frame;
-	int			ini_jiffies;
 };
 
 /* CTRL_CORE_CAMERRX_CONTROL register field id */
@@ -362,7 +352,6 @@ struct cal_ctx {
 	struct v4l2_subdev	*sensor;
 	struct v4l2_fwnode_endpoint	endpoint;
 
-	struct v4l2_fh		fh;
 	struct cal_dev		*dev;
 	struct cc_data		*cc;
 
@@ -371,13 +360,7 @@ struct cal_ctx {
 	/* v4l2 buffers lock */
 	spinlock_t		slock;
 
-	/* Several counters */
-	unsigned long		jiffies;
-
 	struct cal_dmaqueue	vidq;
-
-	/* Input Number */
-	int			input;
 
 	/* video capture */
 	const struct cal_fmt	*fmt;
@@ -390,11 +373,9 @@ struct cal_ctx {
 	const struct cal_fmt	*active_fmt[ARRAY_SIZE(cal_formats)];
 	unsigned int		num_active_fmt;
 
-	struct v4l2_fract	timeperframe;
 	unsigned int		sequence;
 	unsigned int		external_rate;
 	struct vb2_queue	vb_vidq;
-	unsigned int		seq_count;
 	unsigned int		csi2_port;
 	unsigned int		cport;
 	unsigned int		virtual_channel;
@@ -1538,7 +1519,7 @@ static int cal_enum_framesizes(struct file *file, void *fh,
 static int cal_enum_input(struct file *file, void *priv,
 			  struct v4l2_input *inp)
 {
-	if (inp->index >= CAL_NUM_INPUT)
+	if (inp->index > 0)
 		return -EINVAL;
 
 	inp->type = V4L2_INPUT_TYPE_CAMERA;
@@ -1548,21 +1529,13 @@ static int cal_enum_input(struct file *file, void *priv,
 
 static int cal_g_input(struct file *file, void *priv, unsigned int *i)
 {
-	struct cal_ctx *ctx = video_drvdata(file);
-
-	*i = ctx->input;
+	*i = 0;
 	return 0;
 }
 
 static int cal_s_input(struct file *file, void *priv, unsigned int i)
 {
-	struct cal_ctx *ctx = video_drvdata(file);
-
-	if (i >= CAL_NUM_INPUT)
-		return -EINVAL;
-
-	ctx->input = i;
-	return 0;
+	return i > 0 ? -EINVAL : 0;
 }
 
 /* timeperframe is arbitrary and continuous */
@@ -1856,7 +1829,6 @@ static int cal_complete_ctx(struct cal_ctx *ctx)
 	struct vb2_queue *q;
 	int ret;
 
-	ctx->timeperframe = tpf_default;
 	ctx->external_rate = 192000000;
 
 	/* initialize locks */
