@@ -279,7 +279,6 @@ struct cal_dev {
 	void __iomem		*base;
 	struct resource		*res;
 	struct platform_device	*pdev;
-	struct v4l2_device	v4l2_dev;
 
 	const struct cal_data	*data;
 
@@ -2287,10 +2286,6 @@ static int cal_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Could not get feature data based on compatible version\n");
 		return -ENODEV;
 	}
-
-	/* set pseudo v4l2 device name so we can use v4l2_printk */
-	strscpy(cal->v4l2_dev.name, CAL_MODULE_NAME,
-		sizeof(cal->v4l2_dev.name));
 
 	/* save pdev pointer */
 	cal->pdev = pdev;
