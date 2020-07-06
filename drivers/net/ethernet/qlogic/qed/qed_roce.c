@@ -37,10 +37,9 @@
 
 static void qed_roce_free_real_icid(struct qed_hwfn *p_hwfn, u16 icid);
 
-static int
-qed_roce_async_event(struct qed_hwfn *p_hwfn,
-		     u8 fw_event_code,
-		     u16 echo, union event_ring_data *data, u8 fw_return_code)
+static int qed_roce_async_event(struct qed_hwfn *p_hwfn, u8 fw_event_code,
+				u16 echo, union event_ring_data *data,
+				u8 fw_return_code)
 {
 	struct qed_rdma_events events = p_hwfn->p_rdma_info->events;
 

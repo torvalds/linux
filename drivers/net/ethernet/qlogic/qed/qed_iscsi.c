@@ -117,10 +117,9 @@ struct qed_iscsi_conn {
 	u8 abortive_dsconnect;
 };
 
-static int
-qed_iscsi_async_event(struct qed_hwfn *p_hwfn,
-		      u8 fw_event_code,
-		      u16 echo, union event_ring_data *data, u8 fw_return_code)
+static int qed_iscsi_async_event(struct qed_hwfn *p_hwfn, u8 fw_event_code,
+				 u16 echo, union event_ring_data *data,
+				 u8 fw_return_code)
 {
 	if (p_hwfn->p_iscsi_info->event_cb) {
 		struct qed_iscsi_info *p_iscsi = p_hwfn->p_iscsi_info;

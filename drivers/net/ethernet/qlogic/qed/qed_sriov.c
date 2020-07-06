@@ -4037,9 +4037,7 @@ static void qed_sriov_vfpf_malicious(struct qed_hwfn *p_hwfn,
 	}
 }
 
-static int qed_sriov_eqe_event(struct qed_hwfn *p_hwfn,
-			       u8 opcode,
-			       __le16 echo,
+static int qed_sriov_eqe_event(struct qed_hwfn *p_hwfn, u8 opcode, u16 echo,
 			       union event_ring_data *data, u8 fw_return_code)
 {
 	switch (opcode) {

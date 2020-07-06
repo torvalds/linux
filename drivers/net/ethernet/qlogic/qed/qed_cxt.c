@@ -73,8 +73,8 @@ union type1_task_context {
 };
 
 struct src_ent {
-	u8 opaque[56];
-	u64 next;
+	u8				opaque[56];
+	u64				next;
 };
 
 #define CDUT_SEG_ALIGNMET		3 /* in 4k chunks */

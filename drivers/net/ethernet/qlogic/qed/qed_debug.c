@@ -1122,9 +1122,8 @@ static u32 qed_dump_fw_ver_param(struct qed_hwfn *p_hwfn,
 				     dump, "fw-version", fw_ver_str);
 	offset += qed_dump_str_param(dump_buf + offset,
 				     dump, "fw-image", fw_img_str);
-	offset += qed_dump_num_param(dump_buf + offset,
-				     dump,
-				     "fw-timestamp", fw_info.ver.timestamp);
+	offset += qed_dump_num_param(dump_buf + offset, dump, "fw-timestamp",
+				     fw_info.ver.timestamp);
 
 	return offset;
 }

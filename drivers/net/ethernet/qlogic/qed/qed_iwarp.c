@@ -59,9 +59,8 @@ struct mpa_v2_hdr {
 #define QED_IWARP_DEF_KA_TIMEOUT	(1200000)	/* 20 min */
 #define QED_IWARP_DEF_KA_INTERVAL	(1000)		/* 1 sec */
 
-static int qed_iwarp_async_event(struct qed_hwfn *p_hwfn,
-				 u8 fw_event_code, u16 echo,
-				 union event_ring_data *data,
+static int qed_iwarp_async_event(struct qed_hwfn *p_hwfn, u8 fw_event_code,
+				 u16 echo, union event_ring_data *data,
 				 u8 fw_return_code);
 
 /* Override devinfo with iWARP specific values */
@@ -3008,9 +3007,8 @@ qed_iwarp_check_ep_ok(struct qed_hwfn *p_hwfn, struct qed_iwarp_ep *ep)
 	return true;
 }
 
-static int qed_iwarp_async_event(struct qed_hwfn *p_hwfn,
-				 u8 fw_event_code, u16 echo,
-				 union event_ring_data *data,
+static int qed_iwarp_async_event(struct qed_hwfn *p_hwfn, u8 fw_event_code,
+				 u16 echo, union event_ring_data *data,
 				 u8 fw_return_code)
 {
 	struct qed_rdma_events events = p_hwfn->p_rdma_info->events;

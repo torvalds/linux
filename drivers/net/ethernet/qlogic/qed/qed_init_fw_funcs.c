@@ -156,23 +156,26 @@ static u16 task_region_offsets[1][NUM_OF_CONNECTION_TYPES_E4] = {
 		  cmd ## _ ## field, \
 		  value)
 
-#define QM_INIT_TX_PQ_MAP(p_hwfn, map, chip, pq_id, vp_pq_id, rl_valid, rl_id, \
-			  ext_voq, wrr) \
-	do { \
-		typeof(map) __map; \
-		memset(&__map, 0, sizeof(__map)); \
-		SET_FIELD(__map.reg, QM_RF_PQ_MAP_ ## chip ## _PQ_VALID, 1); \
-		SET_FIELD(__map.reg, QM_RF_PQ_MAP_ ## chip ## _RL_VALID, \
-			  rl_valid ? 1 : 0);\
-		SET_FIELD(__map.reg, QM_RF_PQ_MAP_ ## chip ## _VP_PQ_ID, \
-			  vp_pq_id); \
-		SET_FIELD(__map.reg, QM_RF_PQ_MAP_ ## chip ## _RL_ID, rl_id); \
-		SET_FIELD(__map.reg, QM_RF_PQ_MAP_ ## chip ## _VOQ, ext_voq); \
-		SET_FIELD(__map.reg, \
-			  QM_RF_PQ_MAP_ ## chip ## _WRR_WEIGHT_GROUP, wrr); \
-		STORE_RT_REG(p_hwfn, QM_REG_TXPQMAP_RT_OFFSET + (pq_id), \
-			     *((u32 *)&__map)); \
-		(map) = __map; \
+#define QM_INIT_TX_PQ_MAP(p_hwfn, map, chip, pq_id, vp_pq_id, rl_valid,	      \
+			  rl_id, ext_voq, wrr)				      \
+	do {								      \
+		typeof(map) __map;					      \
+									      \
+		memset(&__map, 0, sizeof(__map));			      \
+									      \
+		SET_FIELD(__map.reg, QM_RF_PQ_MAP_##chip##_PQ_VALID, 1);      \
+		SET_FIELD(__map.reg, QM_RF_PQ_MAP_##chip##_RL_VALID,	      \
+			  !!(rl_valid));				      \
+		SET_FIELD(__map.reg, QM_RF_PQ_MAP_##chip##_VP_PQ_ID,	      \
+			  (vp_pq_id));					      \
+		SET_FIELD(__map.reg, QM_RF_PQ_MAP_##chip##_RL_ID, (rl_id));   \
+		SET_FIELD(__map.reg, QM_RF_PQ_MAP_##chip##_VOQ, (ext_voq));   \
+		SET_FIELD(__map.reg, QM_RF_PQ_MAP_##chip##_WRR_WEIGHT_GROUP,  \
+			  (wrr));					      \
+									      \
+		STORE_RT_REG((p_hwfn), QM_REG_TXPQMAP_RT_OFFSET + (pq_id),    \
+			     *((u32 *)&__map));				      \
+		(map) = __map;						      \
 	} while (0)
 
 #define WRITE_PQ_INFO_TO_RAM	1
@@ -1008,8 +1011,7 @@ bool qed_send_qm_stop_cmd(struct qed_hwfn *p_hwfn,
  * Return: Length of the written data in dwords (u32) or -1 on invalid
  *         input.
  */
-static int qed_dmae_to_grc(struct qed_hwfn *p_hwfn,
-			   struct qed_ptt *p_ptt,
+static int qed_dmae_to_grc(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 			   u32 *p_data, u32 addr, u32 len_in_dwords)
 {
 	struct qed_dmae_params params = {};
