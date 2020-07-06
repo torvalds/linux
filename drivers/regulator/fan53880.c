@@ -45,6 +45,7 @@ static const struct regulator_ops fan53880_ops = {
 		.of_match =	   of_match_ptr("LDO"#_num),		\
 		.regulators_node = of_match_ptr("regulators"),		\
 		.type =		   REGULATOR_VOLTAGE,			\
+		.owner =	   THIS_MODULE,				\
 		.linear_ranges =   (struct linear_range[]) {		\
 		      REGULATOR_LINEAR_RANGE(_default, 0x0, 0x0, 0),	\
 		      REGULATOR_LINEAR_RANGE(800000, 0xf, 0x73, 25000),	\
@@ -69,6 +70,7 @@ static const struct regulator_desc fan53880_regulators[] = {
 		.of_match =	   of_match_ptr("BUCK"),
 		.regulators_node = of_match_ptr("regulators"),
 		.type =		   REGULATOR_VOLTAGE,
+		.owner =	   THIS_MODULE,
 		.linear_ranges =   (struct linear_range[]) {
 		      REGULATOR_LINEAR_RANGE(1100000, 0x0, 0x0, 0),
 		      REGULATOR_LINEAR_RANGE(600000, 0x1f, 0xf7, 12500),
@@ -87,6 +89,7 @@ static const struct regulator_desc fan53880_regulators[] = {
 		.of_match =	   of_match_ptr("BOOST"),
 		.regulators_node = of_match_ptr("regulators"),
 		.type =		   REGULATOR_VOLTAGE,
+		.owner =	   THIS_MODULE,
 		.linear_ranges =   (struct linear_range[]) {
 		      REGULATOR_LINEAR_RANGE(5000000, 0x0, 0x0, 0),
 		      REGULATOR_LINEAR_RANGE(3000000, 0x4, 0x70, 25000),
