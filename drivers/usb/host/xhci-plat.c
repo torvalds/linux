@@ -454,12 +454,14 @@ static const struct dev_pm_ops xhci_plat_pm_ops = {
 			   NULL)
 };
 
+#ifdef CONFIG_ACPI
 static const struct acpi_device_id usb_xhci_acpi_match[] = {
 	/* XHCI-compliant USB Controller */
 	{ "PNP0D10", },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, usb_xhci_acpi_match);
+#endif
 
 static struct platform_driver usb_xhci_driver = {
 	.probe	= xhci_plat_probe,
