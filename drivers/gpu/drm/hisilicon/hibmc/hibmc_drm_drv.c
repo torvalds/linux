@@ -307,8 +307,6 @@ static int hibmc_load(struct drm_device *dev)
 	/* reset all the states of crtc/plane/encoder/connector */
 	drm_mode_config_reset(dev);
 
-	drm_fbdev_generic_setup(dev, dev->mode_config.preferred_depth);
-
 	return 0;
 
 err:
@@ -355,6 +353,9 @@ static int hibmc_pci_probe(struct pci_dev *pdev,
 			  ret);
 		goto err_unload;
 	}
+
+	drm_fbdev_generic_setup(dev, dev->mode_config.preferred_depth);
+
 	return 0;
 
 err_unload:
