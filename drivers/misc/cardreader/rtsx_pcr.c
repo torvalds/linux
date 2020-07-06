@@ -23,6 +23,7 @@
 
 #include "rtsx_pcr.h"
 #include "rts5261.h"
+#include "rts5228.h"
 
 static bool msi_en = true;
 module_param(msi_en, bool, S_IRUGO | S_IWUSR);
@@ -50,6 +51,7 @@ static const struct pci_device_id rtsx_pci_ids[] = {
 	{ PCI_DEVICE(0x10EC, 0x525A), PCI_CLASS_OTHERS << 16, 0xFF0000 },
 	{ PCI_DEVICE(0x10EC, 0x5260), PCI_CLASS_OTHERS << 16, 0xFF0000 },
 	{ PCI_DEVICE(0x10EC, 0x5261), PCI_CLASS_OTHERS << 16, 0xFF0000 },
+	{ PCI_DEVICE(0x10EC, 0x5228), PCI_CLASS_OTHERS << 16, 0xFF0000 },
 	{ 0, }
 };
 
@@ -206,16 +208,10 @@ int __rtsx_pci_write_phy_register(struct rtsx_pcr *pcr, u8 addr, u16 val)
 	int err, i, finished = 0;
 	u8 tmp;
 
-	rtsx_pci_init_cmd(pcr);
-
-	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, PHYDATA0, 0xFF, (u8)val);
-	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, PHYDATA1, 0xFF, (u8)(val >> 8));
-	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, PHYADDR, 0xFF, addr);
-	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, PHYRWCTL, 0xFF, 0x81);
-
-	err = rtsx_pci_send_cmd(pcr, 100);
-	if (err < 0)
-		return err;
+	rtsx_pci_write_register(pcr, PHYDATA0, 0xFF, (u8)val);
+	rtsx_pci_write_register(pcr, PHYDATA1, 0xFF, (u8)(val >> 8));
+	rtsx_pci_write_register(pcr, PHYADDR, 0xFF, addr);
+	rtsx_pci_write_register(pcr, PHYRWCTL, 0xFF, 0x81);
 
 	for (i = 0; i < 100000; i++) {
 		err = rtsx_pci_read_register(pcr, PHYRWCTL, &tmp);
@@ -247,16 +243,10 @@ int __rtsx_pci_read_phy_register(struct rtsx_pcr *pcr, u8 addr, u16 *val)
 {
 	int err, i, finished = 0;
 	u16 data;
-	u8 *ptr, tmp;
+	u8 tmp, val1, val2;
 
-	rtsx_pci_init_cmd(pcr);
-
-	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, PHYADDR, 0xFF, addr);
-	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, PHYRWCTL, 0xFF, 0x80);
-
-	err = rtsx_pci_send_cmd(pcr, 100);
-	if (err < 0)
-		return err;
+	rtsx_pci_write_register(pcr, PHYADDR, 0xFF, addr);
+	rtsx_pci_write_register(pcr, PHYRWCTL, 0xFF, 0x80);
 
 	for (i = 0; i < 100000; i++) {
 		err = rtsx_pci_read_register(pcr, PHYRWCTL, &tmp);
@@ -272,17 +262,9 @@ int __rtsx_pci_read_phy_register(struct rtsx_pcr *pcr, u8 addr, u16 *val)
 	if (!finished)
 		return -ETIMEDOUT;
 
-	rtsx_pci_init_cmd(pcr);
-
-	rtsx_pci_add_cmd(pcr, READ_REG_CMD, PHYDATA0, 0, 0);
-	rtsx_pci_add_cmd(pcr, READ_REG_CMD, PHYDATA1, 0, 0);
-
-	err = rtsx_pci_send_cmd(pcr, 100);
-	if (err < 0)
-		return err;
-
-	ptr = rtsx_pci_get_cmd_data(pcr);
-	data = ((u16)ptr[1] << 8) | ptr[0];
+	rtsx_pci_read_register(pcr, PHYDATA0, &val1);
+	rtsx_pci_read_register(pcr, PHYDATA1, &val2);
+	data = val1 | (val2 << 8);
 
 	if (val)
 		*val = data;
@@ -417,7 +399,7 @@ static void rtsx_pci_add_sg_tbl(struct rtsx_pcr *pcr,
 	if (end)
 		option |= RTSX_SG_END;
 
-	if (PCI_PID(pcr) == PID_5261) {
+	if ((PCI_PID(pcr) == PID_5261) || (PCI_PID(pcr) == PID_5228)) {
 		if (len > 0xFFFF)
 			val = ((u64)addr << 32) | (((u64)len & 0xFFFF) << 16)
 				| (((u64)len >> 16) << 6) | option;
@@ -722,6 +704,9 @@ int rtsx_pci_switch_clock(struct rtsx_pcr *pcr, unsigned int card_clock,
 
 	if (PCI_PID(pcr) == PID_5261)
 		return rts5261_pci_switch_clock(pcr, card_clock,
+				ssc_depth, initial_mode, double_clk, vpclk);
+	if (PCI_PID(pcr) == PID_5228)
+		return rts5228_pci_switch_clock(pcr, card_clock,
 				ssc_depth, initial_mode, double_clk, vpclk);
 
 	if (initial_mode) {
@@ -1202,6 +1187,36 @@ void rtsx_pci_clear_ocpstat(struct rtsx_pcr *pcr)
 	}
 }
 
+void rtsx_pci_enable_oobs_polling(struct rtsx_pcr *pcr)
+{
+	u16 val;
+
+	if ((PCI_PID(pcr) != PID_525A) && (PCI_PID(pcr) != PID_5260)) {
+		rtsx_pci_read_phy_register(pcr, 0x01, &val);
+		val |= 1<<9;
+		rtsx_pci_write_phy_register(pcr, 0x01, val);
+	}
+	rtsx_pci_write_register(pcr, REG_CFG_OOBS_OFF_TIMER, 0xFF, 0x32);
+	rtsx_pci_write_register(pcr, REG_CFG_OOBS_ON_TIMER, 0xFF, 0x05);
+	rtsx_pci_write_register(pcr, REG_CFG_VCM_ON_TIMER, 0xFF, 0x83);
+	rtsx_pci_write_register(pcr, REG_CFG_OOBS_POLLING, 0xFF, 0xDE);
+
+}
+
+void rtsx_pci_disable_oobs_polling(struct rtsx_pcr *pcr)
+{
+	u16 val;
+
+	if ((PCI_PID(pcr) != PID_525A) && (PCI_PID(pcr) != PID_5260)) {
+		rtsx_pci_read_phy_register(pcr, 0x01, &val);
+		val &= ~(1<<9);
+		rtsx_pci_write_phy_register(pcr, 0x01, val);
+	}
+	rtsx_pci_write_register(pcr, REG_CFG_VCM_ON_TIMER, 0xFF, 0x03);
+	rtsx_pci_write_register(pcr, REG_CFG_OOBS_POLLING, 0xFF, 0x00);
+
+}
+
 int rtsx_sd_power_off_card3v3(struct rtsx_pcr *pcr)
 {
 	rtsx_pci_write_register(pcr, CARD_CLK_EN, SD_CLK_EN |
@@ -1232,6 +1247,10 @@ int rtsx_ms_power_off_card3v3(struct rtsx_pcr *pcr)
 static int rtsx_pci_init_hw(struct rtsx_pcr *pcr)
 {
 	int err;
+
+	if (PCI_PID(pcr) == PID_5228)
+		rtsx_pci_write_register(pcr, RTS5228_LDO1_CFG1, RTS5228_LDO1_SR_TIME_MASK,
+				RTS5228_LDO1_SR_0_5);
 
 	pcr->pcie_cap = pci_find_capability(pcr->pci, PCI_CAP_ID_EXP);
 	rtsx_pci_writel(pcr, RTSX_HCBAR, pcr->host_cmds_addr);
@@ -1280,6 +1299,9 @@ static int rtsx_pci_init_hw(struct rtsx_pcr *pcr)
 	if (PCI_PID(pcr) == PID_5261)
 		rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, SSC_CTL2, 0xFF,
 			RTS5261_SSC_DEPTH_2M);
+	else if (PCI_PID(pcr) == PID_5228)
+		rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, SSC_CTL2, 0xFF,
+			RTS5228_SSC_DEPTH_2M);
 	else
 		rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, SSC_CTL2, 0xFF, 0x12);
 
@@ -1314,6 +1336,7 @@ static int rtsx_pci_init_hw(struct rtsx_pcr *pcr)
 	case PID_525A:
 	case PID_5260:
 	case PID_5261:
+	case PID_5228:
 		rtsx_pci_write_register(pcr, PM_CLK_FORCE_CTL, 1, 1);
 		break;
 	default:
@@ -1400,6 +1423,10 @@ static int rtsx_pci_init_chip(struct rtsx_pcr *pcr)
 
 	case 0x5261:
 		rts5261_init_params(pcr);
+		break;
+
+	case 0x5228:
+		rts5228_init_params(pcr);
 		break;
 	}
 
