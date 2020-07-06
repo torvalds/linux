@@ -513,19 +513,12 @@ static int cal_camerarx_regmap_init(struct cal_dev *dev, struct cc_data *cc,
 	return 0;
 }
 
-static const struct regmap_config cal_regmap_config = {
-	.reg_bits = 32,
-	.val_bits = 32,
-	.reg_stride = 4,
-};
-
 static struct regmap *cal_get_camerarx_regmap(struct cal_dev *dev)
 {
 	struct platform_device *pdev = dev->pdev;
+	struct regmap_config config = { };
 	struct regmap *regmap;
 	void __iomem *base;
-	u32 reg_io_width;
-	struct regmap_config r_config = cal_regmap_config;
 	struct resource *res;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
@@ -539,12 +532,12 @@ static struct regmap *cal_get_camerarx_regmap(struct cal_dev *dev)
 	cal_dbg(1, dev, "ioresource %s at %pa - %pa\n",
 		res->name, &res->start, &res->end);
 
-	reg_io_width = 4;
-	r_config.reg_stride = reg_io_width;
-	r_config.val_bits = reg_io_width * 8;
-	r_config.max_register = resource_size(res) - reg_io_width;
+	config.reg_bits = 32;
+	config.reg_stride = 4;
+	config.val_bits = 32;
+	config.max_register = resource_size(res) - 4;
 
-	regmap = regmap_init_mmio(NULL, base, &r_config);
+	regmap = regmap_init_mmio(NULL, base, &config);
 	if (IS_ERR(regmap))
 		pr_err("regmap init failed\n");
 
