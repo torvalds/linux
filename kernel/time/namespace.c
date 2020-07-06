@@ -280,7 +280,7 @@ static void timens_put(struct ns_common *ns)
 	put_time_ns(to_time_ns(ns));
 }
 
-static void timens_commit(struct task_struct *tsk, struct time_namespace *ns)
+void timens_commit(struct task_struct *tsk, struct time_namespace *ns)
 {
 	timens_set_vvar_page(tsk, ns);
 	vdso_join_timens(tsk, ns);
@@ -297,9 +297,6 @@ static int timens_install(struct nsset *nsset, struct ns_common *new)
 	if (!ns_capable(ns->user_ns, CAP_SYS_ADMIN) ||
 	    !ns_capable(nsset->cred->user_ns, CAP_SYS_ADMIN))
 		return -EPERM;
-
-
-	timens_commit(current, ns);
 
 	get_time_ns(ns);
 	put_time_ns(nsproxy->time_ns);
