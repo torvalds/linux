@@ -101,18 +101,6 @@ static inline bool hctx_may_queue(struct blk_mq_hw_ctx *hctx,
 	return atomic_read(&hctx->nr_active) < depth;
 }
 
-/*
- * This helper should only be used for flush request to share tag
- * with the request cloned from, and both the two requests can't be
- * in flight at the same time. The caller has to make sure the tag
- * can't be freed.
- */
-static inline void blk_mq_tag_set_rq(struct blk_mq_hw_ctx *hctx,
-		unsigned int tag, struct request *rq)
-{
-	hctx->tags->rqs[tag] = rq;
-}
-
 static inline bool blk_mq_tag_is_reserved(struct blk_mq_tags *tags,
 					  unsigned int tag)
 {
