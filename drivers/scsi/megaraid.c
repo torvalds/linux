@@ -517,7 +517,6 @@ mega_get_ldrv_num(adapter_t *adapter, struct scsi_cmnd *cmd, int channel)
 static scb_t *
 mega_build_cmd(adapter_t *adapter, struct scsi_cmnd *cmd, int *busy)
 {
-	mega_ext_passthru	*epthru;
 	mega_passthru	*pthru;
 	scb_t	*scb;
 	mbox_t	*mbox;
@@ -905,7 +904,7 @@ mega_build_cmd(adapter_t *adapter, struct scsi_cmnd *cmd, int *busy)
 
 		if( adapter->support_ext_cdb ) {
 
-			epthru = mega_prepare_extpassthru(adapter, scb, cmd,
+			mega_prepare_extpassthru(adapter, scb, cmd,
 					channel, target);
 
 			mbox->m_out.cmd = MEGA_MBOXCMD_EXTPTHRU;
