@@ -33,6 +33,7 @@ const char * const attach_type_name[__MAX_BPF_ATTACH_TYPE] = {
 	[BPF_CGROUP_INET_INGRESS]	= "ingress",
 	[BPF_CGROUP_INET_EGRESS]	= "egress",
 	[BPF_CGROUP_INET_SOCK_CREATE]	= "sock_create",
+	[BPF_CGROUP_INET_SOCK_RELEASE]	= "sock_release",
 	[BPF_CGROUP_SOCK_OPS]		= "sock_ops",
 	[BPF_CGROUP_DEVICE]		= "device",
 	[BPF_CGROUP_INET4_BIND]		= "bind4",
