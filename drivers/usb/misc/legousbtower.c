@@ -271,7 +271,7 @@ static struct usb_driver tower_driver = {
 };
 
 
-/**
+/*
  *	lego_usb_tower_debug_data
  */
 static inline void lego_usb_tower_debug_data(struct device *dev,
