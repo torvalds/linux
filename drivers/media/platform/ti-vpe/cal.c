@@ -2348,24 +2348,15 @@ static int cal_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, cal);
 
-	cal->phy[0] = cal_camerarx_create(cal, 0);
-	if (IS_ERR(cal->phy[0]))
-		return PTR_ERR(cal->phy[0]);
-
-	if (cal->data->num_csi2_phy > 1) {
-		cal->phy[1] = cal_camerarx_create(cal, 1);
-		if (IS_ERR(cal->phy[1]))
-			return PTR_ERR(cal->phy[1]);
-	} else {
-		cal->phy[1] = NULL;
+	for (i = 0; i < cal->data->num_csi2_phy; ++i) {
+		cal->phy[i] = cal_camerarx_create(cal, i);
+		if (IS_ERR(cal->phy[i]))
+			return PTR_ERR(cal->phy[i]);
 	}
 
-	cal->ctx[0] = NULL;
-	cal->ctx[1] = NULL;
+	for (i = 0; i < cal->data->num_csi2_phy; ++i)
+		cal->ctx[i] = cal_create_instance(cal, i);
 
-	cal->ctx[0] = cal_create_instance(cal, 0);
-	if (cal->data->num_csi2_phy > 1)
-		cal->ctx[1] = cal_create_instance(cal, 1);
 	if (!cal->ctx[0] && !cal->ctx[1]) {
 		cal_err(cal, "Neither port is configured, no point in staying up\n");
 		return -ENODEV;
