@@ -564,8 +564,6 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 		     struct ttm_operation_ctx *ctx);
 
 void ttm_bo_mem_put(struct ttm_buffer_object *bo, struct ttm_mem_reg *mem);
-void ttm_bo_mem_put_locked(struct ttm_buffer_object *bo,
-			   struct ttm_mem_reg *mem);
 
 int ttm_bo_device_release(struct ttm_bo_device *bdev);
 
