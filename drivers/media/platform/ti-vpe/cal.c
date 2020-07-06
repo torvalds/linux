@@ -2014,125 +2014,26 @@ static const struct v4l2_async_notifier_operations cal_async_ops = {
 	.complete = cal_async_complete,
 };
 
-static struct device_node *
-of_get_next_port(const struct device_node *parent,
-		 struct device_node *prev)
-{
-	struct device_node *port;
-
-	if (!parent)
-		return NULL;
-
-	if (!prev) {
-		struct device_node *ports;
-		/*
-		 * It's the first call, we have to find a port subnode
-		 * within this node or within an optional 'ports' node.
-		 */
-		ports = of_get_child_by_name(parent, "ports");
-		if (ports)
-			parent = ports;
-
-		port = of_get_child_by_name(parent, "port");
-
-		/* release the 'ports' node */
-		of_node_put(ports);
-	} else {
-		struct device_node *ports;
-
-		ports = of_get_parent(prev);
-		if (!ports)
-			return NULL;
-
-		do {
-			port = of_get_next_child(ports, prev);
-			if (!port) {
-				of_node_put(ports);
-				return NULL;
-			}
-			prev = port;
-		} while (!of_node_name_eq(port, "port"));
-		of_node_put(ports);
-	}
-
-	return port;
-}
-
-static struct device_node *
-of_get_next_endpoint(const struct device_node *parent,
-		     struct device_node *prev)
-{
-	struct device_node *ep;
-
-	if (!parent)
-		return NULL;
-
-	do {
-		ep = of_get_next_child(parent, prev);
-		if (!ep)
-			return NULL;
-		prev = ep;
-	} while (!of_node_name_eq(ep, "endpoint"));
-
-	return ep;
-}
-
 static int of_cal_create_instance(struct cal_ctx *ctx, int inst)
 {
 	struct platform_device *pdev = ctx->cal->pdev;
-	struct device_node *ep_node, *port, *sensor_node, *parent;
+	struct device_node *ep_node, *sensor_node;
 	struct v4l2_fwnode_endpoint *endpoint;
 	struct v4l2_async_subdev *asd;
-	u32 regval = 0;
-	int ret, index, lane;
-	bool found_port = false;
-
-	parent = pdev->dev.of_node;
+	int ret = -EINVAL, lane;
 
 	endpoint = &ctx->phy->endpoint;
 
-	ep_node = NULL;
-	port = NULL;
-	sensor_node = NULL;
-	ret = -EINVAL;
-
-	ctx_dbg(3, ctx, "Scanning Port node for csi2 port: %d\n", inst);
-	for (index = 0; index < CAL_NUM_CSI2_PORTS; index++) {
-		port = of_get_next_port(parent, port);
-		if (!port) {
-			ctx_dbg(1, ctx, "No port node found for csi2 port:%d\n",
-				index);
-			goto cleanup_exit;
-		}
-
-		/* Match the slice number with <REG> */
-		of_property_read_u32(port, "reg", &regval);
-		ctx_dbg(3, ctx, "port:%d inst:%d <reg>:%d\n",
-			index, inst, regval);
-		if ((regval == inst) && (index == inst)) {
-			found_port = true;
-			break;
-		}
-	}
-
-	if (!found_port) {
-		ctx_dbg(1, ctx, "No port node matches csi2 port:%d\n",
-			inst);
-		goto cleanup_exit;
-	}
-
-	ctx_dbg(3, ctx, "Scanning sub-device for csi2 port: %d\n",
-		inst);
-
-	ep_node = of_get_next_endpoint(port, ep_node);
+	ctx_dbg(3, ctx, "Getting endpoint for port@%d\n", inst);
+	ep_node = of_graph_get_endpoint_by_regs(pdev->dev.of_node, inst, 0);
 	if (!ep_node) {
-		ctx_dbg(3, ctx, "can't get next endpoint\n");
-		goto cleanup_exit;
+		ctx_dbg(3, ctx, "Can't get endpoint\n");
+		return -EINVAL;
 	}
 
 	sensor_node = of_graph_get_remote_port_parent(ep_node);
 	if (!sensor_node) {
-		ctx_dbg(3, ctx, "can't get remote parent\n");
+		ctx_dbg(3, ctx, "Can't get remote parent\n");
 		goto cleanup_exit;
 	}
 
@@ -2193,7 +2094,6 @@ static int of_cal_create_instance(struct cal_ctx *ctx, int inst)
 cleanup_exit:
 	of_node_put(sensor_node);
 	of_node_put(ep_node);
-	of_node_put(port);
 
 	return ret;
 }
