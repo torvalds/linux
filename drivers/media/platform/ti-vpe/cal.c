@@ -2204,7 +2204,7 @@ cleanup_exit:
 	return ret;
 }
 
-static struct cal_ctx *cal_create_instance(struct cal_dev *cal, int inst)
+static struct cal_ctx *cal_ctx_create(struct cal_dev *cal, int inst)
 {
 	struct cal_ctx *ctx;
 	struct v4l2_ctrl_handler *hdl;
@@ -2348,7 +2348,7 @@ static int cal_probe(struct platform_device *pdev)
 
 	/* Create contexts. */
 	for (i = 0; i < cal->data->num_csi2_phy; ++i)
-		cal->ctx[i] = cal_create_instance(cal, i);
+		cal->ctx[i] = cal_ctx_create(cal, i);
 
 	if (!cal->ctx[0] && !cal->ctx[1]) {
 		cal_err(cal, "Neither port is configured, no point in staying up\n");
