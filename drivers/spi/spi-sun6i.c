@@ -7,6 +7,7 @@
  * Maxime Ripard <maxime.ripard@free-electrons.com>
  */
 
+#include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/device.h>
@@ -60,8 +61,7 @@
 #define SUN6I_FIFO_STA_REG		0x1c
 #define SUN6I_FIFO_STA_RF_CNT_MASK		0x7f
 #define SUN6I_FIFO_STA_RF_CNT_BITS		0
-#define SUN6I_FIFO_STA_TF_CNT_MASK		0x7f
-#define SUN6I_FIFO_STA_TF_CNT_BITS		16
+#define SUN6I_FIFO_STA_TF_CNT_MASK		GENMASK(23, 16)
 
 #define SUN6I_CLK_CTL_REG		0x24
 #define SUN6I_CLK_CTL_CDR2_MASK			0xff
@@ -110,9 +110,7 @@ static inline u32 sun6i_spi_get_tx_fifo_count(struct sun6i_spi *sspi)
 {
 	u32 reg = sun6i_spi_read(sspi, SUN6I_FIFO_STA_REG);
 
-	reg >>= SUN6I_FIFO_STA_TF_CNT_BITS;
-
-	return reg & SUN6I_FIFO_STA_TF_CNT_MASK;
+	return FIELD_GET(SUN6I_FIFO_STA_TF_CNT_MASK, reg);
 }
 
 static inline void sun6i_spi_enable_interrupt(struct sun6i_spi *sspi, u32 mask)
