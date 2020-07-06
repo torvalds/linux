@@ -144,6 +144,7 @@
 		regulator-name = "vcc18_lcd_n";
 		gpio = <&gpio3 RK_PA7 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
+		regulator-boot-on;
 	};
 
 	vcc5v0_sys: vccsys {
@@ -1244,6 +1245,10 @@
 		| RKPM_GPIO_WKUP_EN
 		)
 	>;
+};
+
+&route_dsi {
+	status = "okay";
 };
 
 &saradc {
