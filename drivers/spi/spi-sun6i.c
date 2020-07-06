@@ -291,9 +291,11 @@ static int sun6i_spi_transfer_one(struct spi_master *master,
 	div_cdr2 = DIV_ROUND_UP(div_cdr1, 2);
 	if (div_cdr2 <= (SUN6I_CLK_CTL_CDR2_MASK + 1)) {
 		reg = SUN6I_CLK_CTL_CDR2(div_cdr2 - 1) | SUN6I_CLK_CTL_DRS;
+		tfr->effective_speed_hz = mclk_rate / (2 * div_cdr2);
 	} else {
 		div = min(SUN6I_CLK_CTL_CDR1_MASK, order_base_2(div_cdr1));
 		reg = SUN6I_CLK_CTL_CDR1(div);
+		tfr->effective_speed_hz = mclk_rate / (1 << div);
 	}
 
 	sun6i_spi_write(sspi, SUN6I_CLK_CTL_REG, reg);
