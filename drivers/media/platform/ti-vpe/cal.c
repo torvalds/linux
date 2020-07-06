@@ -960,20 +960,36 @@ static struct cal_camerarx *cal_camerarx_create(struct cal_dev *cal,
 	return phy;
 }
 
-static struct regmap *cal_get_camerarx_regmap(struct cal_dev *cal)
+static int cal_camerarx_init_regmap(struct cal_dev *cal)
 {
-	struct platform_device *pdev = cal->pdev;
+	struct device_node *np = cal->pdev->dev.of_node;
 	struct regmap_config config = { };
-	struct regmap *regmap;
-	void __iomem *base;
+	struct regmap *syscon;
 	struct resource *res;
+	unsigned int offset;
+	void __iomem *base;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+	syscon = syscon_regmap_lookup_by_phandle_args(np, "ti,camerrx-control",
+						      1, &offset);
+	if (!IS_ERR(syscon)) {
+		cal->syscon_camerrx = syscon;
+		cal->syscon_camerrx_offset = offset;
+		return 0;
+	}
+
+	dev_warn(&cal->pdev->dev, "failed to get ti,camerrx-control: %ld\n",
+		 PTR_ERR(syscon));
+
+	/*
+	 * Backward DTS compatibility. If syscon entry is not present then
+	 * check if the camerrx_control resource is present.
+	 */
+	res = platform_get_resource_byname(cal->pdev, IORESOURCE_MEM,
 					   "camerrx_control");
-	base = devm_ioremap_resource(&pdev->dev, res);
+	base = devm_ioremap_resource(&cal->pdev->dev, res);
 	if (IS_ERR(base)) {
-		cal_err(cal, "failed to ioremap\n");
-		return ERR_CAST(base);
+		cal_err(cal, "failed to ioremap camerrx_control\n");
+		return PTR_ERR(base);
 	}
 
 	cal_dbg(1, cal, "ioresource %s at %pa - %pa\n",
@@ -984,45 +1000,18 @@ static struct regmap *cal_get_camerarx_regmap(struct cal_dev *cal)
 	config.val_bits = 32;
 	config.max_register = resource_size(res) - 4;
 
-	regmap = regmap_init_mmio(NULL, base, &config);
-	if (IS_ERR(regmap))
-		pr_err("regmap init failed\n");
-
-	return regmap;
-}
-
-static int cal_camerarx_init_regmap(struct cal_dev *cal)
-{
-	struct device_node *np = cal->pdev->dev.of_node;
-	struct regmap *syscon;
-	unsigned int offset;
-
-	syscon = syscon_regmap_lookup_by_phandle_args(np, "ti,camerrx-control",
-						      1, &offset);
+	syscon = regmap_init_mmio(NULL, base, &config);
 	if (IS_ERR(syscon)) {
-		dev_warn(&cal->pdev->dev,
-			 "failed to get ti,camerrx-control: %ld\n",
-			 PTR_ERR(syscon));
-
-		/*
-		 * Backward DTS compatibility.
-		 * If syscon entry is not present then check if the
-		 * camerrx_control resource is present.
-		 */
-		syscon = cal_get_camerarx_regmap(cal);
-		if (IS_ERR(syscon)) {
-			dev_err(&cal->pdev->dev,
-				"failed to get camerrx_control regmap\n");
-			return PTR_ERR(syscon);
-		}
-		/* In this case the base already point to the direct
-		 * CM register so no need for an offset
-		 */
-		offset = 0;
+		pr_err("regmap init failed\n");
+		return PTR_ERR(syscon);
 	}
 
+	/*
+	 * In this case the base already point to the direct CM register so no
+	 * need for an offset.
+	 */
 	cal->syscon_camerrx = syscon;
-	cal->syscon_camerrx_offset = offset;
+	cal->syscon_camerrx_offset = 0;
 
 	return 0;
 }
