@@ -62,11 +62,11 @@ MODULE_PARM_DESC(debug, "activates debug info");
 	dev_err(&(cal)->pdev->dev, fmt, ##arg)
 
 #define ctx_dbg(level, ctx, fmt, arg...)	\
-	cal_dbg(level, (ctx)->cal, "ctx%u: " fmt, (ctx)->csi2_port, ##arg)
+	cal_dbg(level, (ctx)->cal, "ctx%u: " fmt, (ctx)->index, ##arg)
 #define ctx_info(ctx, fmt, arg...)	\
-	cal_info((ctx)->cal, "ctx%u: " fmt, (ctx)->csi2_port, ##arg)
+	cal_info((ctx)->cal, "ctx%u: " fmt, (ctx)->index, ##arg)
 #define ctx_err(ctx, fmt, arg...)	\
-	cal_err((ctx)->cal, "ctx%u: " fmt, (ctx)->csi2_port, ##arg)
+	cal_err((ctx)->cal, "ctx%u: " fmt, (ctx)->index, ##arg)
 
 #define phy_dbg(level, phy, fmt, arg...)	\
 	cal_dbg(level, (phy)->cal, "phy%u: " fmt, (phy)->instance, ##arg)
@@ -325,7 +325,7 @@ struct cal_ctx {
 
 	unsigned int		sequence;
 	struct vb2_queue	vb_vidq;
-	unsigned int		csi2_port;
+	unsigned int		index;
 	unsigned int		cport;
 	unsigned int		virtual_channel;
 
@@ -1001,7 +1001,7 @@ static void cal_ctx_csi2_config(struct cal_ctx *ctx)
 {
 	u32 val;
 
-	val = reg_read(ctx->cal, CAL_CSI2_CTX0(ctx->csi2_port));
+	val = reg_read(ctx->cal, CAL_CSI2_CTX0(ctx->index));
 	set_field(&val, ctx->cport, CAL_CSI2_CTX_CPORT_MASK);
 	/*
 	 * DT type: MIPI CSI-2 Specs
@@ -1018,9 +1018,9 @@ static void cal_ctx_csi2_config(struct cal_ctx *ctx)
 	set_field(&val, CAL_CSI2_CTX_ATT_PIX, CAL_CSI2_CTX_ATT_MASK);
 	set_field(&val, CAL_CSI2_CTX_PACK_MODE_LINE,
 		  CAL_CSI2_CTX_PACK_MODE_MASK);
-	reg_write(ctx->cal, CAL_CSI2_CTX0(ctx->csi2_port), val);
-	ctx_dbg(3, ctx, "CAL_CSI2_CTX0(%d) = 0x%08x\n", ctx->csi2_port,
-		reg_read(ctx->cal, CAL_CSI2_CTX0(ctx->csi2_port)));
+	reg_write(ctx->cal, CAL_CSI2_CTX0(ctx->index), val);
+	ctx_dbg(3, ctx, "CAL_CSI2_CTX0(%d) = 0x%08x\n", ctx->index,
+		reg_read(ctx->cal, CAL_CSI2_CTX0(ctx->index)));
 }
 
 static void cal_ctx_pix_proc_config(struct cal_ctx *ctx)
@@ -1062,16 +1062,16 @@ static void cal_ctx_pix_proc_config(struct cal_ctx *ctx)
 		break;
 	}
 
-	val = reg_read(ctx->cal, CAL_PIX_PROC(ctx->csi2_port));
+	val = reg_read(ctx->cal, CAL_PIX_PROC(ctx->index));
 	set_field(&val, extract, CAL_PIX_PROC_EXTRACT_MASK);
 	set_field(&val, CAL_PIX_PROC_DPCMD_BYPASS, CAL_PIX_PROC_DPCMD_MASK);
 	set_field(&val, CAL_PIX_PROC_DPCME_BYPASS, CAL_PIX_PROC_DPCME_MASK);
 	set_field(&val, pack, CAL_PIX_PROC_PACK_MASK);
 	set_field(&val, ctx->cport, CAL_PIX_PROC_CPORT_MASK);
 	set_field(&val, 1, CAL_PIX_PROC_EN_MASK);
-	reg_write(ctx->cal, CAL_PIX_PROC(ctx->csi2_port), val);
-	ctx_dbg(3, ctx, "CAL_PIX_PROC(%d) = 0x%08x\n", ctx->csi2_port,
-		reg_read(ctx->cal, CAL_PIX_PROC(ctx->csi2_port)));
+	reg_write(ctx->cal, CAL_PIX_PROC(ctx->index), val);
+	ctx_dbg(3, ctx, "CAL_PIX_PROC(%d) = 0x%08x\n", ctx->index,
+		reg_read(ctx->cal, CAL_PIX_PROC(ctx->index)));
 }
 
 static void cal_ctx_wr_dma_config(struct cal_ctx *ctx,
@@ -1079,7 +1079,7 @@ static void cal_ctx_wr_dma_config(struct cal_ctx *ctx,
 {
 	u32 val;
 
-	val = reg_read(ctx->cal, CAL_WR_DMA_CTRL(ctx->csi2_port));
+	val = reg_read(ctx->cal, CAL_WR_DMA_CTRL(ctx->index));
 	set_field(&val, ctx->cport, CAL_WR_DMA_CTRL_CPORT_MASK);
 	set_field(&val, height, CAL_WR_DMA_CTRL_YSIZE_MASK);
 	set_field(&val, CAL_WR_DMA_CTRL_DTAG_PIX_DAT,
@@ -1089,22 +1089,22 @@ static void cal_ctx_wr_dma_config(struct cal_ctx *ctx,
 	set_field(&val, CAL_WR_DMA_CTRL_PATTERN_LINEAR,
 		  CAL_WR_DMA_CTRL_PATTERN_MASK);
 	set_field(&val, 1, CAL_WR_DMA_CTRL_STALL_RD_MASK);
-	reg_write(ctx->cal, CAL_WR_DMA_CTRL(ctx->csi2_port), val);
-	ctx_dbg(3, ctx, "CAL_WR_DMA_CTRL(%d) = 0x%08x\n", ctx->csi2_port,
-		reg_read(ctx->cal, CAL_WR_DMA_CTRL(ctx->csi2_port)));
+	reg_write(ctx->cal, CAL_WR_DMA_CTRL(ctx->index), val);
+	ctx_dbg(3, ctx, "CAL_WR_DMA_CTRL(%d) = 0x%08x\n", ctx->index,
+		reg_read(ctx->cal, CAL_WR_DMA_CTRL(ctx->index)));
 
 	/*
 	 * width/16 not sure but giving it a whirl.
 	 * zero does not work right
 	 */
 	reg_write_field(ctx->cal,
-			CAL_WR_DMA_OFST(ctx->csi2_port),
+			CAL_WR_DMA_OFST(ctx->index),
 			(width / 16),
 			CAL_WR_DMA_OFST_MASK);
-	ctx_dbg(3, ctx, "CAL_WR_DMA_OFST(%d) = 0x%08x\n", ctx->csi2_port,
-		reg_read(ctx->cal, CAL_WR_DMA_OFST(ctx->csi2_port)));
+	ctx_dbg(3, ctx, "CAL_WR_DMA_OFST(%d) = 0x%08x\n", ctx->index,
+		reg_read(ctx->cal, CAL_WR_DMA_OFST(ctx->index)));
 
-	val = reg_read(ctx->cal, CAL_WR_DMA_XSIZE(ctx->csi2_port));
+	val = reg_read(ctx->cal, CAL_WR_DMA_XSIZE(ctx->index));
 	/* 64 bit word means no skipping */
 	set_field(&val, 0, CAL_WR_DMA_XSIZE_XSKIP_MASK);
 	/*
@@ -1113,9 +1113,9 @@ static void cal_ctx_wr_dma_config(struct cal_ctx *ctx,
 	 * is detected automagically
 	 */
 	set_field(&val, (width / 8), CAL_WR_DMA_XSIZE_MASK);
-	reg_write(ctx->cal, CAL_WR_DMA_XSIZE(ctx->csi2_port), val);
-	ctx_dbg(3, ctx, "CAL_WR_DMA_XSIZE(%d) = 0x%08x\n", ctx->csi2_port,
-		reg_read(ctx->cal, CAL_WR_DMA_XSIZE(ctx->csi2_port)));
+	reg_write(ctx->cal, CAL_WR_DMA_XSIZE(ctx->index), val);
+	ctx_dbg(3, ctx, "CAL_WR_DMA_XSIZE(%d) = 0x%08x\n", ctx->index,
+		reg_read(ctx->cal, CAL_WR_DMA_XSIZE(ctx->index)));
 
 	val = reg_read(ctx->cal, CAL_CTRL);
 	set_field(&val, CAL_CTRL_BURSTSIZE_BURST128, CAL_CTRL_BURSTSIZE_MASK);
@@ -1130,7 +1130,7 @@ static void cal_ctx_wr_dma_config(struct cal_ctx *ctx,
 
 static void cal_ctx_wr_dma_addr(struct cal_ctx *ctx, unsigned int dmaaddr)
 {
-	reg_write(ctx->cal, CAL_WR_DMA_ADDR(ctx->csi2_port), dmaaddr);
+	reg_write(ctx->cal, CAL_WR_DMA_ADDR(ctx->index), dmaaddr);
 }
 
 /* ------------------------------------------------------------------
@@ -2211,7 +2211,7 @@ static struct cal_ctx *cal_create_instance(struct cal_dev *cal, int inst)
 	ctx->phy = cal->phy[inst];
 
 	/* Store the instance id */
-	ctx->csi2_port = inst;
+	ctx->index = inst;
 	ctx->cport = inst;
 
 	ret = of_cal_create_instance(ctx, inst);
