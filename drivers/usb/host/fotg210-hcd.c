@@ -5557,7 +5557,7 @@ static void fotg210_init(struct fotg210_hcd *fotg210)
 	iowrite32(value, &fotg210->regs->otgcsr);
 }
 
-/**
+/*
  * fotg210_hcd_probe - initialize faraday FOTG210 HCDs
  *
  * Allocates basic resources for this USB host controller, and
@@ -5656,7 +5656,7 @@ fail_create_hcd:
 	return retval;
 }
 
-/**
+/*
  * fotg210_hcd_remove - shutdown processing for EHCI HCDs
  * @dev: USB Host Controller being removed
  *
