@@ -157,9 +157,7 @@ static int sth_stm_link(struct stm_data *stm_data, unsigned int master,
 {
 	struct sth_device *sth = container_of(stm_data, struct sth_device, stm);
 
-	intel_th_set_output(to_intel_th_device(sth->dev), master);
-
-	return 0;
+	return intel_th_set_output(to_intel_th_device(sth->dev), master);
 }
 
 static int intel_th_sw_init(struct sth_device *sth)
