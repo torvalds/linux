@@ -71,6 +71,13 @@ MODULE_PARM_DESC(debug, "activates debug info");
 #define ctx_err(ctx, fmt, arg...)	\
 	cal_err((ctx)->cal, "ctx%u: " fmt, (ctx)->csi2_port, ##arg)
 
+#define phy_dbg(level, phy, fmt, arg...)	\
+	cal_dbg(level, (phy)->cal, "phy%u: " fmt, (phy)->instance, ##arg)
+#define phy_info(phy, fmt, arg...)	\
+	cal_info((phy)->cal, "phy%u: " fmt, (phy)->instance, ##arg)
+#define phy_err(phy, fmt, arg...)	\
+	cal_err((phy)->cal, "phy%u: " fmt, (phy)->instance, ##arg)
+
 #define CAL_NUM_CONTEXT 2
 
 #define reg_read(dev, offset) ioread32(dev->base + offset)
