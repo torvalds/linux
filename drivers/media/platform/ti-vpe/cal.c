@@ -1986,6 +1986,72 @@ static void cal_ctx_v4l2_unregister(struct cal_ctx *ctx)
 	video_unregister_device(&ctx->vdev);
 }
 
+static int cal_ctx_v4l2_init_formats(struct cal_ctx *ctx)
+{
+	struct v4l2_subdev_mbus_code_enum mbus_code;
+	struct v4l2_mbus_framefmt mbus_fmt;
+	const struct cal_fmt *fmt;
+	unsigned int i, j, k;
+	int ret = 0;
+
+	/* Enumerate sub device formats and enable all matching local formats */
+	ctx->num_active_fmt = 0;
+	for (j = 0, i = 0; ret != -EINVAL; ++j) {
+
+		memset(&mbus_code, 0, sizeof(mbus_code));
+		mbus_code.index = j;
+		mbus_code.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+		ret = v4l2_subdev_call(ctx->phy->sensor, pad, enum_mbus_code,
+				       NULL, &mbus_code);
+		if (ret)
+			continue;
+
+		ctx_dbg(2, ctx,
+			"subdev %s: code: %04x idx: %u\n",
+			ctx->phy->sensor->name, mbus_code.code, j);
+
+		for (k = 0; k < ARRAY_SIZE(cal_formats); k++) {
+			const struct cal_fmt *fmt = &cal_formats[k];
+
+			if (mbus_code.code == fmt->code) {
+				ctx->active_fmt[i] = fmt;
+				ctx_dbg(2, ctx,
+					"matched fourcc: %s: code: %04x idx: %u\n",
+					fourcc_to_str(fmt->fourcc),
+					fmt->code, i);
+				ctx->num_active_fmt = ++i;
+			}
+		}
+	}
+
+	if (i == 0) {
+		ctx_err(ctx, "No suitable format reported by subdev %s\n",
+			ctx->phy->sensor->name);
+		return -EINVAL;
+	}
+
+	ret = __subdev_get_format(ctx, &mbus_fmt);
+	if (ret)
+		return ret;
+
+	fmt = find_format_by_code(ctx, mbus_fmt.code);
+	if (!fmt) {
+		ctx_dbg(3, ctx, "mbus code format (0x%08x) not found.\n",
+			mbus_fmt.code);
+		return -EINVAL;
+	}
+
+	/* Save current subdev format */
+	v4l2_fill_pix_format(&ctx->v_fmt.fmt.pix, &mbus_fmt);
+	ctx->v_fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	ctx->v_fmt.fmt.pix.pixelformat  = fmt->fourcc;
+	cal_calc_format_size(ctx, fmt, &ctx->v_fmt);
+	ctx->fmt = fmt;
+	ctx->m_fmt = mbus_fmt;
+
+	return 0;
+}
+
 static int cal_ctx_v4l2_init(struct cal_ctx *ctx)
 {
 	struct v4l2_ctrl_handler *hdl = &ctx->ctrl_handler;
@@ -2054,9 +2120,6 @@ static int cal_async_bound(struct v4l2_async_notifier *notifier,
 			   struct v4l2_async_subdev *asd)
 {
 	struct cal_ctx *ctx = notifier_to_ctx(notifier);
-	struct v4l2_subdev_mbus_code_enum mbus_code;
-	unsigned int i, j, k;
-	int ret = 0;
 
 	if (ctx->phy->sensor) {
 		ctx_info(ctx, "Rejecting subdev %s (Already set!!)",
@@ -2067,73 +2130,14 @@ static int cal_async_bound(struct v4l2_async_notifier *notifier,
 	ctx->phy->sensor = subdev;
 	ctx_dbg(1, ctx, "Using sensor %s for capture\n", subdev->name);
 
-	/* Enumerate sub device formats and enable all matching local formats */
-	ctx->num_active_fmt = 0;
-	for (j = 0, i = 0; ret != -EINVAL; ++j) {
-
-		memset(&mbus_code, 0, sizeof(mbus_code));
-		mbus_code.index = j;
-		mbus_code.which = V4L2_SUBDEV_FORMAT_ACTIVE;
-		ret = v4l2_subdev_call(subdev, pad, enum_mbus_code,
-				       NULL, &mbus_code);
-		if (ret)
-			continue;
-
-		ctx_dbg(2, ctx,
-			"subdev %s: code: %04x idx: %u\n",
-			subdev->name, mbus_code.code, j);
-
-		for (k = 0; k < ARRAY_SIZE(cal_formats); k++) {
-			const struct cal_fmt *fmt = &cal_formats[k];
-
-			if (mbus_code.code == fmt->code) {
-				ctx->active_fmt[i] = fmt;
-				ctx_dbg(2, ctx,
-					"matched fourcc: %s: code: %04x idx: %u\n",
-					fourcc_to_str(fmt->fourcc),
-					fmt->code, i);
-				ctx->num_active_fmt = ++i;
-			}
-		}
-	}
-
-	if (i == 0) {
-		ctx_err(ctx, "No suitable format reported by subdev %s\n",
-			subdev->name);
-		return -EINVAL;
-	}
-
-	cal_ctx_v4l2_register(ctx);
-
-	return 0;
+	return cal_ctx_v4l2_init_formats(ctx);
 }
 
 static int cal_async_complete(struct v4l2_async_notifier *notifier)
 {
 	struct cal_ctx *ctx = notifier_to_ctx(notifier);
-	const struct cal_fmt *fmt;
-	struct v4l2_mbus_framefmt mbus_fmt;
-	int ret;
 
-	ret = __subdev_get_format(ctx, &mbus_fmt);
-	if (ret)
-		return ret;
-
-	fmt = find_format_by_code(ctx, mbus_fmt.code);
-	if (!fmt) {
-		ctx_dbg(3, ctx, "mbus code format (0x%08x) not found.\n",
-			mbus_fmt.code);
-		return -EINVAL;
-	}
-
-	/* Save current subdev format */
-	v4l2_fill_pix_format(&ctx->v_fmt.fmt.pix, &mbus_fmt);
-	ctx->v_fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	ctx->v_fmt.fmt.pix.pixelformat  = fmt->fourcc;
-	cal_calc_format_size(ctx, fmt, &ctx->v_fmt);
-	ctx->fmt = fmt;
-	ctx->m_fmt = mbus_fmt;
-
+	cal_ctx_v4l2_register(ctx);
 	return 0;
 }
 
