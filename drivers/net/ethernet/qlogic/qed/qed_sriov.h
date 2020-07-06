@@ -246,6 +246,8 @@ enum qed_iov_wq_flag {
 	QED_IOV_WQ_VF_FORCE_LINK_QUERY_FLAG,
 };
 
+extern const struct qed_iov_hv_ops qed_iov_ops_pass;
+
 #ifdef CONFIG_QED_SRIOV
 /**
  * @brief Check if given VF ID @vfid is valid

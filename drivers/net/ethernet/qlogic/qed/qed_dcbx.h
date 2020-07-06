@@ -81,6 +81,8 @@ struct qed_dcbx_mib_meta_data {
 	u32 addr;
 };
 
+extern const struct qed_eth_dcbnl_ops qed_dcbnl_ops_pass;
+
 #ifdef CONFIG_DCB
 int qed_dcbx_get_config_params(struct qed_hwfn *, struct qed_dcbx_set *);
 

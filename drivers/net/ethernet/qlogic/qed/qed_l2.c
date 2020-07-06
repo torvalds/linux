@@ -24,6 +24,7 @@
 #include "qed.h"
 #include <linux/qed/qed_chain.h>
 #include "qed_cxt.h"
+#include "qed_dcbx.h"
 #include "qed_dev_api.h"
 #include <linux/qed/qed_eth_if.h>
 #include "qed_hsi.h"
@@ -31,6 +32,7 @@
 #include "qed_int.h"
 #include "qed_l2.h"
 #include "qed_mcp.h"
+#include "qed_ptp.h"
 #include "qed_reg_addr.h"
 #include "qed_sp.h"
 #include "qed_sriov.h"
@@ -2873,16 +2875,6 @@ static int qed_req_bulletin_update_mac(struct qed_dev *cdev, u8 *mac)
 
 	return 0;
 }
-
-#ifdef CONFIG_QED_SRIOV
-extern const struct qed_iov_hv_ops qed_iov_ops_pass;
-#endif
-
-#ifdef CONFIG_DCB
-extern const struct qed_eth_dcbnl_ops qed_dcbnl_ops_pass;
-#endif
-
-extern const struct qed_eth_ptp_ops qed_ptp_ops_pass;
 
 static const struct qed_eth_ops qed_eth_ops_pass = {
 	.common = &qed_common_ops_pass,

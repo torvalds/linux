@@ -45,9 +45,4 @@ static inline void qed_get_protocol_stats_fcoe(struct qed_dev *cdev,
 }
 #endif /* CONFIG_QED_FCOE */
 
-#ifdef CONFIG_QED_LL2
-extern const struct qed_common_ops qed_common_ops_pass;
-extern const struct qed_ll2_ops qed_ll2_ops_pass;
-#endif
-
 #endif /* _QED_FCOE_H */

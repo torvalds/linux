@@ -2451,7 +2451,7 @@ void qed_schedule_recovery_handler(struct qed_hwfn *p_hwfn)
 		ops->schedule_recovery_handler(cookie);
 }
 
-static char *qed_hw_err_type_descr[] = {
+static const char * const qed_hw_err_type_descr[] = {
 	[QED_HW_ERR_FAN_FAIL]		= "Fan Failure",
 	[QED_HW_ERR_MFW_RESP_FAIL]	= "MFW Response Failure",
 	[QED_HW_ERR_HW_ATTN]		= "HW Attention",
@@ -2466,7 +2466,7 @@ void qed_hw_error_occurred(struct qed_hwfn *p_hwfn,
 {
 	struct qed_common_cb_ops *ops = p_hwfn->cdev->protocol_ops.common;
 	void *cookie = p_hwfn->cdev->ops_cookie;
-	char *err_str;
+	const char *err_str;
 
 	if (err_type > QED_HW_ERR_LAST)
 		err_type = QED_HW_ERR_LAST;
