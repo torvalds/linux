@@ -595,7 +595,6 @@ static inline bool btree_iter_is_extents(struct btree_iter *iter)
 
 enum btree_trigger_flags {
 	__BTREE_TRIGGER_NORUN,		/* Don't run triggers at all */
-	__BTREE_TRIGGER_NOOVERWRITES,	/* Don't run triggers on overwrites */
 
 	__BTREE_TRIGGER_INSERT,
 	__BTREE_TRIGGER_OVERWRITE,
@@ -608,7 +607,6 @@ enum btree_trigger_flags {
 };
 
 #define BTREE_TRIGGER_NORUN		(1U << __BTREE_TRIGGER_NORUN)
-#define BTREE_TRIGGER_NOOVERWRITES	(1U << __BTREE_TRIGGER_NOOVERWRITES)
 
 #define BTREE_TRIGGER_INSERT		(1U << __BTREE_TRIGGER_INSERT)
 #define BTREE_TRIGGER_OVERWRITE		(1U << __BTREE_TRIGGER_OVERWRITE)

@@ -264,9 +264,6 @@ int bch2_mark_key(struct bch_fs *, struct bkey_s_c, unsigned, s64,
 int bch2_fs_usage_apply(struct bch_fs *, struct bch_fs_usage_online *,
 			struct disk_reservation *, unsigned);
 
-int bch2_mark_overwrite(struct btree_trans *, struct btree_iter *,
-			struct bkey_s_c, struct bkey_i *,
-			struct bch_fs_usage *, unsigned, bool);
 int bch2_mark_update(struct btree_trans *, struct btree_iter *,
 		     struct bkey_i *, struct bch_fs_usage *, unsigned);
 

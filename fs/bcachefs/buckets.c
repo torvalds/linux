@@ -1310,7 +1310,7 @@ int bch2_mark_key(struct bch_fs *c, struct bkey_s_c k,
 	return ret;
 }
 
-inline int bch2_mark_overwrite(struct btree_trans *trans,
+static int bch2_mark_overwrite(struct btree_trans *trans,
 			       struct btree_iter *iter,
 			       struct bkey_s_c old,
 			       struct bkey_i *new,
@@ -1383,9 +1383,6 @@ int bch2_mark_update(struct btree_trans *trans,
 		0, insert->k.size,
 		fs_usage, trans->journal_res.seq,
 		BTREE_TRIGGER_INSERT|flags);
-
-	if (unlikely(flags & BTREE_TRIGGER_NOOVERWRITES))
-		return 0;
 
 	/*
 	 * For non extents, we only mark the new key, not the key being
@@ -1829,9 +1826,6 @@ int bch2_trans_mark_update(struct btree_trans *trans,
 			0, insert->k.size, BTREE_TRIGGER_INSERT);
 	if (ret)
 		return ret;
-
-	if (unlikely(flags & BTREE_TRIGGER_NOOVERWRITES))
-		return 0;
 
 	if (btree_iter_type(iter) == BTREE_ITER_CACHED) {
 		struct bkey_cached *ck = (void *) iter->l[0].b;
