@@ -150,15 +150,16 @@ static inline void sun6i_spi_drain_fifo(struct sun6i_spi *sspi)
 	}
 }
 
-static inline void sun6i_spi_fill_fifo(struct sun6i_spi *sspi, int len)
+static inline void sun6i_spi_fill_fifo(struct sun6i_spi *sspi)
 {
 	u32 cnt;
+	int len;
 	u8 byte;
 
 	/* See how much data we can fit */
 	cnt = sspi->fifo_depth - sun6i_spi_get_tx_fifo_count(sspi);
 
-	len = min3(len, (int)cnt, sspi->len);
+	len = min((int)cnt, sspi->len);
 
 	while (len--) {
 		byte = sspi->tx_buf ? *sspi->tx_buf++ : 0;
@@ -306,7 +307,7 @@ static int sun6i_spi_transfer_one(struct spi_master *master,
 	sun6i_spi_write(sspi, SUN6I_BURST_CTL_CNT_REG, tx_len);
 
 	/* Fill the TX FIFO */
-	sun6i_spi_fill_fifo(sspi, sspi->fifo_depth);
+	sun6i_spi_fill_fifo(sspi);
 
 	/* Enable the interrupts */
 	sun6i_spi_write(sspi, SUN6I_INT_CTL_REG, SUN6I_INT_CTL_TC);
@@ -360,7 +361,7 @@ static irqreturn_t sun6i_spi_handler(int irq, void *dev_id)
 
 	/* Transmit FIFO 3/4 empty */
 	if (status & SUN6I_INT_CTL_TF_ERQ) {
-		sun6i_spi_fill_fifo(sspi, SUN6I_FIFO_DEPTH);
+		sun6i_spi_fill_fifo(sspi);
 
 		if (!sspi->len)
 			/* nothing left to transmit */
