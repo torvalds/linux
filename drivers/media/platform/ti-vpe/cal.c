@@ -1893,8 +1893,8 @@ static int cal_complete_ctx(struct cal_ctx *ctx)
 	if (ret < 0)
 		return ret;
 
-	v4l2_info(&ctx->v4l2_dev, "V4L2 device registered as %s\n",
-		  video_device_node_name(vfd));
+	ctx_info(ctx, "V4L2 device registered as %s\n",
+		 video_device_node_name(vfd));
 
 	return 0;
 }
