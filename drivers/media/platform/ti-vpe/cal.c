@@ -53,19 +53,23 @@ static unsigned debug;
 module_param(debug, uint, 0644);
 MODULE_PARM_DESC(debug, "activates debug info");
 
-#define cal_dbg(level, cal, fmt, arg...)	\
-		v4l2_dbg(level, debug, &cal->v4l2_dev, fmt, ##arg)
+#define cal_dbg(level, cal, fmt, arg...)				\
+	do {								\
+		if (debug >= (level))					\
+			dev_printk(KERN_DEBUG, &(cal)->pdev->dev,	\
+				   fmt,	##arg);				\
+	} while (0)
 #define cal_info(cal, fmt, arg...)	\
-		v4l2_info(&cal->v4l2_dev, fmt, ##arg)
+	dev_info(&(cal)->pdev->dev, fmt, ##arg)
 #define cal_err(cal, fmt, arg...)	\
-		v4l2_err(&cal->v4l2_dev, fmt, ##arg)
+	dev_err(&(cal)->pdev->dev, fmt, ##arg)
 
 #define ctx_dbg(level, ctx, fmt, arg...)	\
-		v4l2_dbg(level, debug, &ctx->v4l2_dev, fmt, ##arg)
+	cal_dbg(level, (ctx)->cal, "ctx%u: " fmt, (ctx)->csi2_port, ##arg)
 #define ctx_info(ctx, fmt, arg...)	\
-		v4l2_info(&ctx->v4l2_dev, fmt, ##arg)
+	cal_info((ctx)->cal, "ctx%u: " fmt, (ctx)->csi2_port, ##arg)
 #define ctx_err(ctx, fmt, arg...)	\
-		v4l2_err(&ctx->v4l2_dev, fmt, ##arg)
+	cal_err((ctx)->cal, "ctx%u: " fmt, (ctx)->csi2_port, ##arg)
 
 #define CAL_NUM_CONTEXT 2
 
