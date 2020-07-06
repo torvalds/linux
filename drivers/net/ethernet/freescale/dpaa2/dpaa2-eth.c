@@ -1261,7 +1261,7 @@ static void dpaa2_eth_sgt_cache_drain(struct dpaa2_eth_priv *priv)
 	u16 count;
 	int k, i;
 
-	for_each_online_cpu(k) {
+	for_each_possible_cpu(k) {
 		sgt_cache = per_cpu_ptr(priv->sgt_cache, k);
 		count = sgt_cache->count;
 
