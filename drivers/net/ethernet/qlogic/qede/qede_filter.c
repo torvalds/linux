@@ -1764,8 +1764,8 @@ qede_flow_parse_ports(struct qede_dev *edev, struct flow_rule *rule,
 		struct flow_match_ports match;
 
 		flow_rule_match_ports(rule, &match);
-		if ((match.key->src && match.mask->src != U16_MAX) ||
-		    (match.key->dst && match.mask->dst != U16_MAX)) {
+		if ((match.key->src && match.mask->src != htons(U16_MAX)) ||
+		    (match.key->dst && match.mask->dst != htons(U16_MAX))) {
 			DP_NOTICE(edev, "Do not support ports masks\n");
 			return -EINVAL;
 		}
@@ -1817,8 +1817,8 @@ qede_flow_parse_v4_common(struct qede_dev *edev, struct flow_rule *rule,
 		struct flow_match_ipv4_addrs match;
 
 		flow_rule_match_ipv4_addrs(rule, &match);
-		if ((match.key->src && match.mask->src != U32_MAX) ||
-		    (match.key->dst && match.mask->dst != U32_MAX)) {
+		if ((match.key->src && match.mask->src != htonl(U32_MAX)) ||
+		    (match.key->dst && match.mask->dst != htonl(U32_MAX))) {
 			DP_NOTICE(edev, "Do not support ipv4 prefix/masks\n");
 			return -EINVAL;
 		}
