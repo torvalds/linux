@@ -6,6 +6,7 @@
  * Benoit Parrot, <bparrot@ti.com>
  */
 
+#include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
@@ -75,13 +76,6 @@ static const struct v4l2_fract
 
 #define reg_read(dev, offset) ioread32(dev->base + offset)
 #define reg_write(dev, offset, val) iowrite32(val, dev->base + offset)
-
-#define reg_read_field(dev, offset, mask) get_field(reg_read(dev, offset), \
-						    mask)
-#define reg_write_field(dev, offset, field, mask) { \
-	u32 val = reg_read(dev, offset); \
-	set_field(&val, field, mask); \
-	reg_write(dev, offset, val); }
 
 /* ------------------------------------------------------------------
  *	Basic structures
@@ -418,6 +412,21 @@ struct cal_ctx {
 	bool dma_act;
 };
 
+static inline u32 reg_read_field(struct cal_dev *dev, u32 offset, u32 mask)
+{
+	return FIELD_GET(mask, reg_read(dev, offset));
+}
+
+static inline void reg_write_field(struct cal_dev *dev, u32 offset, u32 value,
+				   u32 mask)
+{
+	u32 val = reg_read(dev, offset);
+
+	val &= ~mask;
+	val |= FIELD_PREP(mask, value);
+	reg_write(dev, offset, val);
+}
+
 static const struct cal_fmt *find_format_by_pix(struct cal_ctx *ctx,
 						u32 pixelformat)
 {
@@ -451,11 +460,6 @@ static const struct cal_fmt *find_format_by_code(struct cal_ctx *ctx,
 static inline struct cal_ctx *notifier_to_ctx(struct v4l2_async_notifier *n)
 {
 	return container_of(n, struct cal_ctx, notifier);
-}
-
-static inline int get_field(u32 value, u32 mask)
-{
-	return (value & mask) >> __ffs(mask);
 }
 
 static inline void set_field(u32 *valp, u32 field, u32 mask)
