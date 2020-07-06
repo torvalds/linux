@@ -42,10 +42,10 @@
 #define CAL_HL_HWINFO			0x0004
 #define CAL_HL_SYSCONFIG		0x0010
 #define CAL_HL_IRQ_EOI			0x001c
-#define CAL_HL_IRQSTATUS_RAW(m)		(0x20U + ((m-1) * 0x10U))
-#define CAL_HL_IRQSTATUS(m)		(0x24U + ((m-1) * 0x10U))
-#define CAL_HL_IRQENABLE_SET(m)		(0x28U + ((m-1) * 0x10U))
-#define CAL_HL_IRQENABLE_CLR(m)		(0x2cU + ((m-1) * 0x10U))
+#define CAL_HL_IRQSTATUS_RAW(m)		(0x20U + (m) * 0x10U)
+#define CAL_HL_IRQSTATUS(m)		(0x24U + (m) * 0x10U)
+#define CAL_HL_IRQENABLE_SET(m)		(0x28U + (m) * 0x10U)
+#define CAL_HL_IRQENABLE_CLR(m)		(0x2cU + (m) * 0x10U)
 #define CAL_PIX_PROC(m)			(0xc0U + (m) * 0x4U)
 #define CAL_CTRL			0x100
 #define CAL_CTRL1			0x104

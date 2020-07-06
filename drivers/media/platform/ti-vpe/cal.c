@@ -695,22 +695,22 @@ static void enable_irqs(struct cal_ctx *ctx)
 		CAL_CSI2_COMPLEXIO_IRQ_ECC_NO_CORRECTION_MASK;
 
 	/* Enable CIO error irqs */
-	reg_write(ctx->dev, CAL_HL_IRQENABLE_SET(1),
+	reg_write(ctx->dev, CAL_HL_IRQENABLE_SET(0),
 		  CAL_HL_IRQ_CIO_MASK(ctx->csi2_port));
 	reg_write(ctx->dev, CAL_CSI2_COMPLEXIO_IRQENABLE(ctx->csi2_port),
 		  cio_err_mask);
 
 	/* Always enable OCPO error */
-	reg_write(ctx->dev, CAL_HL_IRQENABLE_SET(1), CAL_HL_IRQ_OCPO_ERR_MASK);
+	reg_write(ctx->dev, CAL_HL_IRQENABLE_SET(0), CAL_HL_IRQ_OCPO_ERR_MASK);
 
 	/* Enable IRQ_WDMA_END 0/1 */
 	val = 0;
 	set_field(&val, 1, CAL_HL_IRQ_MASK(ctx->csi2_port));
-	reg_write(ctx->dev, CAL_HL_IRQENABLE_SET(2), val);
+	reg_write(ctx->dev, CAL_HL_IRQENABLE_SET(1), val);
 	/* Enable IRQ_WDMA_START 0/1 */
 	val = 0;
 	set_field(&val, 1, CAL_HL_IRQ_MASK(ctx->csi2_port));
-	reg_write(ctx->dev, CAL_HL_IRQENABLE_SET(3), val);
+	reg_write(ctx->dev, CAL_HL_IRQENABLE_SET(2), val);
 	/* Todo: Add VC_IRQ and CSI2_COMPLEXIO_IRQ handling */
 	reg_write(ctx->dev, CAL_CSI2_VC_IRQENABLE(0), 0xFF000000);
 }
@@ -720,7 +720,7 @@ static void disable_irqs(struct cal_ctx *ctx)
 	u32 val;
 
 	/* Disable CIO error irqs */
-	reg_write(ctx->dev, CAL_HL_IRQENABLE_CLR(1),
+	reg_write(ctx->dev, CAL_HL_IRQENABLE_CLR(0),
 		  CAL_HL_IRQ_CIO_MASK(ctx->csi2_port));
 	reg_write(ctx->dev, CAL_CSI2_COMPLEXIO_IRQENABLE(ctx->csi2_port),
 		  0);
@@ -728,11 +728,11 @@ static void disable_irqs(struct cal_ctx *ctx)
 	/* Disable IRQ_WDMA_END 0/1 */
 	val = 0;
 	set_field(&val, 1, CAL_HL_IRQ_MASK(ctx->csi2_port));
-	reg_write(ctx->dev, CAL_HL_IRQENABLE_CLR(2), val);
+	reg_write(ctx->dev, CAL_HL_IRQENABLE_CLR(1), val);
 	/* Disable IRQ_WDMA_START 0/1 */
 	val = 0;
 	set_field(&val, 1, CAL_HL_IRQ_MASK(ctx->csi2_port));
-	reg_write(ctx->dev, CAL_HL_IRQENABLE_CLR(3), val);
+	reg_write(ctx->dev, CAL_HL_IRQENABLE_CLR(2), val);
 	/* Todo: Add VC_IRQ and CSI2_COMPLEXIO_IRQ handling */
 	reg_write(ctx->dev, CAL_CSI2_VC_IRQENABLE(0), 0);
 }
@@ -1206,13 +1206,13 @@ static irqreturn_t cal_irq(int irq_cal, void *data)
 	struct cal_dev *dev = (struct cal_dev *)data;
 	struct cal_ctx *ctx;
 	struct cal_dmaqueue *dma_q;
-	u32 irqst1, irqst2, irqst3;
+	u32 irqst0, irqst1, irqst2;
 
-	irqst1 = reg_read(dev, CAL_HL_IRQSTATUS(1));
-	if (irqst1) {
+	irqst0 = reg_read(dev, CAL_HL_IRQSTATUS(0));
+	if (irqst0) {
 		int i;
 
-		reg_write(dev, CAL_HL_IRQSTATUS(1), irqst1);
+		reg_write(dev, CAL_HL_IRQSTATUS(0), irqst0);
 
 		if (irqst1 & CAL_HL_IRQ_OCPO_ERR_MASK)
 			dev_err_ratelimited(&dev->pdev->dev, "OCPO ERROR\n");
@@ -1232,15 +1232,15 @@ static irqreturn_t cal_irq(int irq_cal, void *data)
 	}
 
 	/* Check which DMA just finished */
-	irqst2 = reg_read(dev, CAL_HL_IRQSTATUS(2));
-	if (irqst2) {
+	irqst1 = reg_read(dev, CAL_HL_IRQSTATUS(1));
+	if (irqst1) {
 		int i;
 
 		/* Clear Interrupt status */
-		reg_write(dev, CAL_HL_IRQSTATUS(2), irqst2);
+		reg_write(dev, CAL_HL_IRQSTATUS(1), irqst1);
 
 		for (i = 0; i < 2; ++i) {
-			if (isportirqset(irqst2, i)) {
+			if (isportirqset(irqst1,  i)) {
 				ctx = dev->ctx[i];
 
 				spin_lock(&ctx->slock);
@@ -1255,15 +1255,15 @@ static irqreturn_t cal_irq(int irq_cal, void *data)
 	}
 
 	/* Check which DMA just started */
-	irqst3 = reg_read(dev, CAL_HL_IRQSTATUS(3));
-	if (irqst3) {
+	irqst2 = reg_read(dev, CAL_HL_IRQSTATUS(2));
+	if (irqst2) {
 		int i;
 
 		/* Clear Interrupt status */
-		reg_write(dev, CAL_HL_IRQSTATUS(3), irqst3);
+		reg_write(dev, CAL_HL_IRQSTATUS(2), irqst2);
 
 		for (i = 0; i < 2; ++i) {
-			if (isportirqset(irqst3, i)) {
+			if (isportirqset(irqst2, i)) {
 				ctx = dev->ctx[i];
 				dma_q = &ctx->vidq;
 
