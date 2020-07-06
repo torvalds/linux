@@ -2214,6 +2214,88 @@ static void cal_async_notifier_unregister(struct cal_dev *cal)
 }
 
 /* ------------------------------------------------------------------
+ *	Media and V4L2 device handling
+ * ------------------------------------------------------------------
+ */
+
+/*
+ * Register user-facing devices. To be called at the end of the probe function
+ * when all resources are initialized and ready.
+ */
+static int cal_media_register(struct cal_dev *cal)
+{
+	int ret;
+
+	/*
+	 * Register the async notifier. This may trigger registration of the
+	 * V4L2 video devices if all subdevs are ready.
+	 */
+	ret = cal_async_notifier_register(cal);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+/*
+ * Unregister the user-facing devices, but don't free memory yet. To be called
+ * at the beginning of the remove function, to disallow access from userspace.
+ */
+static void cal_media_unregister(struct cal_dev *cal)
+{
+	unsigned int i;
+
+	/* Unregister all the V4L2 video devices. */
+	for (i = 0; i < ARRAY_SIZE(cal->ctx); i++) {
+		if (cal->ctx[i])
+			cal_ctx_v4l2_unregister(cal->ctx[i]);
+	}
+
+	cal_async_notifier_unregister(cal);
+}
+
+/*
+ * Initialize the in-kernel objects. To be called at the beginning of the probe
+ * function, before the V4L2 device is used by the driver.
+ */
+static int cal_media_init(struct cal_dev *cal)
+{
+	int ret;
+
+	/*
+	 * Initialize the V4L2 device (despite the function name, this performs
+	 * initialization, not registration).
+	 */
+	ret = v4l2_device_register(&cal->pdev->dev, &cal->v4l2_dev);
+	if (ret) {
+		cal_err(cal, "Failed to register V4L2 device\n");
+		return ret;
+	}
+
+	vb2_dma_contig_set_max_seg_size(&cal->pdev->dev, DMA_BIT_MASK(32));
+
+	return 0;
+}
+
+/*
+ * Cleanup the in-kernel objects, freeing memory. To be called at the very end
+ * of the remove sequence, when nothing (including userspace) can access the
+ * objects anymore.
+ */
+static void cal_media_cleanup(struct cal_dev *cal)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(cal->ctx); i++) {
+		if (cal->ctx[i])
+			cal_ctx_v4l2_cleanup(cal->ctx[i]);
+	}
+
+	v4l2_device_unregister(&cal->v4l2_dev);
+	vb2_dma_contig_clear_max_seg_size(&cal->pdev->dev);
+}
+
+/* ------------------------------------------------------------------
  *	Initialization and module stuff
  * ------------------------------------------------------------------
  */
@@ -2345,12 +2427,10 @@ static int cal_probe(struct platform_device *pdev)
 		goto error_camerarx;
 	}
 
-	/* Register the V4L2 device. */
-	ret = v4l2_device_register(&pdev->dev, &cal->v4l2_dev);
-	if (ret) {
-		cal_err(cal, "Failed to register V4L2 device\n");
+	/* Initialize the media device. */
+	ret = cal_media_init(cal);
+	if (ret < 0)
 		goto error_camerarx;
-	}
 
 	/* Create contexts. */
 	for (i = 0; i < cal->data->num_csi2_phy; ++i) {
@@ -2365,8 +2445,6 @@ static int cal_probe(struct platform_device *pdev)
 		}
 	}
 
-	vb2_dma_contig_set_max_seg_size(&pdev->dev, DMA_BIT_MASK(32));
-
 	/* Read the revision and hardware info to verify hardware access. */
 	pm_runtime_enable(&pdev->dev);
 	ret = pm_runtime_get_sync(&pdev->dev);
@@ -2376,16 +2454,14 @@ static int cal_probe(struct platform_device *pdev)
 	cal_get_hwinfo(cal);
 	pm_runtime_put_sync(&pdev->dev);
 
-	/* Register the async notifier. */
-	ret = cal_async_notifier_register(cal);
+	/* Register the media device. */
+	ret = cal_media_register(cal);
 	if (ret)
 		goto error_pm_runtime;
 
 	return 0;
 
 error_pm_runtime:
-	vb2_dma_contig_clear_max_seg_size(&pdev->dev);
-
 	pm_runtime_disable(&pdev->dev);
 
 error_context:
@@ -2395,7 +2471,7 @@ error_context:
 			cal_ctx_v4l2_cleanup(ctx);
 	}
 
-	v4l2_device_unregister(&cal->v4l2_dev);
+	cal_media_cleanup(cal);
 
 error_camerarx:
 	for (i = 0; i < ARRAY_SIZE(cal->phy); i++)
@@ -2413,32 +2489,20 @@ static int cal_remove(struct platform_device *pdev)
 
 	pm_runtime_get_sync(&pdev->dev);
 
-	cal_async_notifier_unregister(cal);
-
-	for (i = 0; i < ARRAY_SIZE(cal->ctx); i++) {
-		if (cal->ctx[i])
-			cal_ctx_v4l2_unregister(cal->ctx[i]);
-	}
+	cal_media_unregister(cal);
 
 	for (i = 0; i < ARRAY_SIZE(cal->phy); i++) {
 		if (cal->phy[i])
 			cal_camerarx_disable(cal->phy[i]);
 	}
 
-	for (i = 0; i < ARRAY_SIZE(cal->ctx); i++) {
-		if (cal->ctx[i])
-			cal_ctx_v4l2_cleanup(cal->ctx[i]);
-	}
-
-	v4l2_device_unregister(&cal->v4l2_dev);
+	cal_media_cleanup(cal);
 
 	for (i = 0; i < ARRAY_SIZE(cal->phy); i++)
 		cal_camerarx_destroy(cal->phy[i]);
 
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-
-	vb2_dma_contig_clear_max_seg_size(&pdev->dev);
 
 	return 0;
 }
