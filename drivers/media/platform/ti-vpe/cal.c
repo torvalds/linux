@@ -325,7 +325,7 @@ struct cal_ctx {
 	struct v4l2_mbus_framefmt	m_fmt;
 
 	/* Current subdev enumerated format */
-	const struct cal_fmt	*active_fmt[ARRAY_SIZE(cal_formats)];
+	const struct cal_fmt	**active_fmt;
 	unsigned int		num_active_fmt;
 
 	unsigned int		sequence;
@@ -1957,7 +1957,13 @@ static int cal_ctx_v4l2_init_formats(struct cal_ctx *ctx)
 	int ret = 0;
 
 	/* Enumerate sub device formats and enable all matching local formats */
+	ctx->active_fmt = devm_kcalloc(ctx->cal->dev, ARRAY_SIZE(cal_formats),
+				       sizeof(*ctx->active_fmt), GFP_KERNEL);
+	if (!ctx->active_fmt)
+		return -ENOMEM;
+
 	ctx->num_active_fmt = 0;
+
 	for (j = 0, i = 0; ret != -EINVAL; ++j) {
 
 		memset(&mbus_code, 0, sizeof(mbus_code));
