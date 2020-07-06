@@ -2975,13 +2975,12 @@ megadev_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 	void		*data = NULL;	/* data to be transferred */
 	dma_addr_t	data_dma_hndl;	/* dma handle for data xfer area */
 	megacmd_t	mc;
-	megastat_t	__user *ustats;
-	int		num_ldrv;
+#if MEGA_HAVE_STATS
+	megastat_t	__user *ustats = NULL;
+	int		num_ldrv = 0;
+#endif
 	u32		uxferaddr = 0;
 	struct pci_dev	*pdev;
-
-	ustats = NULL; /* avoid compilation warnings */
-	num_ldrv = 0;
 
 	/*
 	 * Make sure only USCSICMD are issued through this interface.
