@@ -58,14 +58,18 @@ static inline u32 intel_gt_scratch_offset(const struct intel_gt *gt,
 	return i915_ggtt_offset(gt->scratch) + field;
 }
 
-static inline bool intel_gt_is_wedged(const struct intel_gt *gt)
+static inline bool intel_gt_has_unrecoverable_error(const struct intel_gt *gt)
 {
-	return __intel_reset_failed(&gt->reset);
+	return test_bit(I915_WEDGED_ON_INIT, &gt->reset.flags) ||
+	       test_bit(I915_WEDGED_ON_FINI, &gt->reset.flags);
 }
 
-static inline bool intel_gt_has_init_error(const struct intel_gt *gt)
+static inline bool intel_gt_is_wedged(const struct intel_gt *gt)
 {
-	return test_bit(I915_WEDGED_ON_INIT, &gt->reset.flags);
+	GEM_BUG_ON(intel_gt_has_unrecoverable_error(gt) &&
+		   !test_bit(I915_WEDGED, &gt->reset.flags));
+
+	return unlikely(test_bit(I915_WEDGED, &gt->reset.flags));
 }
 
 #endif /* __INTEL_GT_H__ */

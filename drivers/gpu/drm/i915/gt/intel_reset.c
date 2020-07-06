@@ -880,7 +880,7 @@ static bool __intel_gt_unset_wedged(struct intel_gt *gt)
 		return true;
 
 	/* Never fully initialised, recovery impossible */
-	if (test_bit(I915_WEDGED_ON_INIT, &gt->reset.flags))
+	if (intel_gt_has_unrecoverable_error(gt))
 		return false;
 
 	GT_TRACE(gt, "start\n");
@@ -1342,7 +1342,7 @@ int intel_gt_terminally_wedged(struct intel_gt *gt)
 	if (!intel_gt_is_wedged(gt))
 		return 0;
 
-	if (intel_gt_has_init_error(gt))
+	if (intel_gt_has_unrecoverable_error(gt))
 		return -EIO;
 
 	/* Reset still in progress? Maybe we will recover? */
@@ -1360,6 +1360,15 @@ void intel_gt_set_wedged_on_init(struct intel_gt *gt)
 		     I915_WEDGED_ON_INIT);
 	intel_gt_set_wedged(gt);
 	set_bit(I915_WEDGED_ON_INIT, &gt->reset.flags);
+
+	/* Wedged on init is non-recoverable */
+	add_taint_for_CI(TAINT_WARN);
+}
+
+void intel_gt_set_wedged_on_fini(struct intel_gt *gt)
+{
+	intel_gt_set_wedged(gt);
+	set_bit(I915_WEDGED_ON_FINI, &gt->reset.flags);
 }
 
 void intel_gt_init_reset(struct intel_gt *gt)

@@ -510,7 +510,7 @@ static int __engines_verify_workarounds(struct intel_gt *gt)
 
 static void __intel_gt_disable(struct intel_gt *gt)
 {
-	intel_gt_set_wedged_on_init(gt);
+	intel_gt_set_wedged_on_fini(gt);
 
 	intel_gt_suspend_prepare(gt);
 	intel_gt_suspend_late(gt);

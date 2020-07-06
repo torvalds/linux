@@ -188,7 +188,7 @@ int intel_gt_resume(struct intel_gt *gt)
 	enum intel_engine_id id;
 	int err;
 
-	err = intel_gt_has_init_error(gt);
+	err = intel_gt_has_unrecoverable_error(gt);
 	if (err)
 		return err;
 
