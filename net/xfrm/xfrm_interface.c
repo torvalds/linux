@@ -842,6 +842,20 @@ static struct xfrm4_protocol xfrmi_ipcomp4_protocol __read_mostly = {
 	.priority	=	10,
 };
 
+#if IS_ENABLED(CONFIG_INET_XFRM_TUNNEL)
+static int xfrmi4_rcv_tunnel(struct sk_buff *skb)
+{
+	return xfrm4_rcv_spi(skb, IPPROTO_IPIP, ip_hdr(skb)->saddr);
+}
+
+static struct xfrm_tunnel xfrmi_ipip_handler __read_mostly = {
+	.handler	=	xfrmi4_rcv_tunnel,
+	.cb_handler	=	xfrmi_rcv_cb,
+	.err_handler	=	xfrmi4_err,
+	.priority	=	-1,
+};
+#endif
+
 static int __init xfrmi4_init(void)
 {
 	int err;
@@ -855,9 +869,23 @@ static int __init xfrmi4_init(void)
 	err = xfrm4_protocol_register(&xfrmi_ipcomp4_protocol, IPPROTO_COMP);
 	if (err < 0)
 		goto xfrm_proto_comp_failed;
+#if IS_ENABLED(CONFIG_INET_XFRM_TUNNEL)
+	err = xfrm4_tunnel_register(&xfrmi_ipip_handler, AF_INET);
+	if (err < 0)
+		goto xfrm_tunnel_ipip_failed;
+	err = xfrm4_tunnel_register(&xfrmi_ipip_handler, AF_INET6);
+	if (err < 0)
+		goto xfrm_tunnel_ipip6_failed;
+#endif
 
 	return 0;
 
+#if IS_ENABLED(CONFIG_INET_XFRM_TUNNEL)
+xfrm_tunnel_ipip6_failed:
+	xfrm4_tunnel_deregister(&xfrmi_ipip_handler, AF_INET);
+xfrm_tunnel_ipip_failed:
+	xfrm4_protocol_deregister(&xfrmi_ipcomp4_protocol, IPPROTO_COMP);
+#endif
 xfrm_proto_comp_failed:
 	xfrm4_protocol_deregister(&xfrmi_ah4_protocol, IPPROTO_AH);
 xfrm_proto_ah_failed:
@@ -868,6 +896,10 @@ xfrm_proto_esp_failed:
 
 static void xfrmi4_fini(void)
 {
+#if IS_ENABLED(CONFIG_INET_XFRM_TUNNEL)
+	xfrm4_tunnel_deregister(&xfrmi_ipip_handler, AF_INET6);
+	xfrm4_tunnel_deregister(&xfrmi_ipip_handler, AF_INET);
+#endif
 	xfrm4_protocol_deregister(&xfrmi_ipcomp4_protocol, IPPROTO_COMP);
 	xfrm4_protocol_deregister(&xfrmi_ah4_protocol, IPPROTO_AH);
 	xfrm4_protocol_deregister(&xfrmi_esp4_protocol, IPPROTO_ESP);
