@@ -90,6 +90,8 @@ void		nfsd_destroy(struct net *net);
 
 bool		i_am_nfsd(void);
 
+int get_nfsdfs(struct net *);
+
 struct nfsdfs_client {
 	struct kref cl_ref;
 	void (*cl_release)(struct kref *kref);
@@ -99,6 +101,7 @@ struct nfsdfs_client *get_nfsdfs_client(struct inode *);
 struct dentry *nfsd_client_mkdir(struct nfsd_net *nn,
 		struct nfsdfs_client *ncl, u32 id, const struct tree_descr *);
 void nfsd_client_rmdir(struct dentry *dentry);
+
 
 #if defined(CONFIG_NFSD_V2_ACL) || defined(CONFIG_NFSD_V3_ACL)
 #ifdef CONFIG_NFSD_V2_ACL
