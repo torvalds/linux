@@ -380,32 +380,32 @@ static int ad5592r_read_raw(struct iio_dev *iio_dev,
 
 	switch (m) {
 	case IIO_CHAN_INFO_RAW:
-		mutex_lock(&st->lock);
-
 		if (!chan->output) {
+			mutex_lock(&st->lock);
 			ret = st->ops->read_adc(st, chan->channel, &read_val);
+			mutex_unlock(&st->lock);
 			if (ret)
-				goto unlock;
+				return ret;
 
 			if ((read_val >> 12 & 0x7) != (chan->channel & 0x7)) {
 				dev_err(st->dev, "Error while reading channel %u\n",
 						chan->channel);
-				ret = -EIO;
-				goto unlock;
+				return -EIO;
 			}
 
 			read_val &= GENMASK(11, 0);
 
 		} else {
+			mutex_lock(&st->lock);
 			read_val = st->cached_dac[chan->channel];
+			mutex_unlock(&st->lock);
 		}
 
 		dev_dbg(st->dev, "Channel %u read: 0x%04hX\n",
 				chan->channel, read_val);
 
 		*val = (int) read_val;
-		ret = IIO_VAL_INT;
-		break;
+		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
 		*val = ad5592r_get_vref(st);
 
@@ -425,11 +425,13 @@ static int ad5592r_read_raw(struct iio_dev *iio_dev,
 			mult = !!(st->cached_gp_ctrl &
 				AD5592R_REG_CTRL_ADC_RANGE);
 
+		mutex_unlock(&st->lock);
+
 		*val *= ++mult;
 
 		*val2 = chan->scan_type.realbits;
-		ret = IIO_VAL_FRACTIONAL_LOG2;
-		break;
+
+		return IIO_VAL_FRACTIONAL_LOG2;
 	case IIO_CHAN_INFO_OFFSET:
 		ret = ad5592r_get_vref(st);
 
@@ -439,15 +441,13 @@ static int ad5592r_read_raw(struct iio_dev *iio_dev,
 			*val = (-34365 * 25) / ret;
 		else
 			*val = (-75365 * 25) / ret;
-		ret =  IIO_VAL_INT;
-		break;
+
+		mutex_unlock(&st->lock);
+
+		return IIO_VAL_INT;
 	default:
 		return -EINVAL;
 	}
-
-unlock:
-	mutex_unlock(&st->lock);
-	return ret;
 }
 
 static int ad5592r_write_raw_get_fmt(struct iio_dev *indio_dev,
