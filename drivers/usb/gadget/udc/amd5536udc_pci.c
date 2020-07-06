@@ -49,7 +49,6 @@
 static struct udc *udc;
 
 /* description */
-static const char mod_desc[] = UDC_MOD_DESCRIPTION;
 static const char name[] = "amd5536udc-pci";
 
 /* Reset all pci context */
