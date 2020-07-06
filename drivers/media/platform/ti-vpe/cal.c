@@ -89,7 +89,7 @@ struct cal_fmt {
 	u8	bpp;
 };
 
-static struct cal_fmt cal_formats[] = {
+static const struct cal_fmt cal_formats[] = {
 	{
 		.fourcc		= V4L2_PIX_FMT_YUYV,
 		.code		= MEDIA_BUS_FMT_YUYV8_2X8,
@@ -392,7 +392,7 @@ struct cal_ctx {
 	struct v4l2_mbus_framefmt	m_fmt;
 
 	/* Current subdev enumerated format */
-	struct cal_fmt		*active_fmt[ARRAY_SIZE(cal_formats)];
+	const struct cal_fmt	*active_fmt[ARRAY_SIZE(cal_formats)];
 	int			num_active_fmt;
 
 	struct v4l2_fract	timeperframe;
@@ -1932,7 +1932,6 @@ static int cal_async_bound(struct v4l2_async_notifier *notifier,
 	/* Enumerate sub device formats and enable all matching local formats */
 	ctx->num_active_fmt = 0;
 	for (j = 0, i = 0; ret != -EINVAL; ++j) {
-		struct cal_fmt *fmt;
 
 		memset(&mbus_code, 0, sizeof(mbus_code));
 		mbus_code.index = j;
@@ -1947,7 +1946,7 @@ static int cal_async_bound(struct v4l2_async_notifier *notifier,
 			subdev->name, mbus_code.code, j);
 
 		for (k = 0; k < ARRAY_SIZE(cal_formats); k++) {
-			fmt = &cal_formats[k];
+			const struct cal_fmt *fmt = &cal_formats[k];
 
 			if (mbus_code.code == fmt->code) {
 				ctx->active_fmt[i] = fmt;
