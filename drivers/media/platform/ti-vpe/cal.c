@@ -481,6 +481,54 @@ static void cal_quickdump_regs(struct cal_dev *cal)
  * ------------------------------------------------------------------
  */
 
+static int cal_camerarx_get_external_info(struct cal_camerarx *phy)
+{
+	struct v4l2_ctrl *ctrl;
+
+	if (!phy->sensor)
+		return -ENODEV;
+
+	ctrl = v4l2_ctrl_find(phy->sensor->ctrl_handler, V4L2_CID_PIXEL_RATE);
+	if (!ctrl) {
+		phy_err(phy, "no pixel rate control in subdev: %s\n",
+			phy->sensor->name);
+		return -EPIPE;
+	}
+
+	phy->external_rate = v4l2_ctrl_g_ctrl_int64(ctrl);
+	phy_dbg(3, phy, "sensor Pixel Rate: %u\n", phy->external_rate);
+
+	return 0;
+}
+
+static void cal_camerarx_lane_config(struct cal_camerarx *phy)
+{
+	u32 val = reg_read(phy->cal, CAL_CSI2_COMPLEXIO_CFG(phy->instance));
+	u32 lane_mask = CAL_CSI2_COMPLEXIO_CFG_CLOCK_POSITION_MASK;
+	u32 polarity_mask = CAL_CSI2_COMPLEXIO_CFG_CLOCK_POL_MASK;
+	struct v4l2_fwnode_bus_mipi_csi2 *mipi_csi2 =
+		&phy->endpoint.bus.mipi_csi2;
+	int lane;
+
+	set_field(&val, mipi_csi2->clock_lane + 1, lane_mask);
+	set_field(&val, mipi_csi2->lane_polarities[0], polarity_mask);
+	for (lane = 0; lane < mipi_csi2->num_data_lanes; lane++) {
+		/*
+		 * Every lane are one nibble apart starting with the
+		 * clock followed by the data lanes so shift masks by 4.
+		 */
+		lane_mask <<= 4;
+		polarity_mask <<= 4;
+		set_field(&val, mipi_csi2->data_lanes[lane] + 1, lane_mask);
+		set_field(&val, mipi_csi2->lane_polarities[lane + 1],
+			  polarity_mask);
+	}
+
+	reg_write(phy->cal, CAL_CSI2_COMPLEXIO_CFG(phy->instance), val);
+	phy_dbg(3, phy, "CAL_CSI2_COMPLEXIO_CFG(%d) = 0x%08x\n",
+		phy->instance, val);
+}
+
 static void cal_camerarx_enable(struct cal_camerarx *phy)
 {
 	u32 num_lanes = phy->cal->data->camerarx[phy->instance].num_lanes;
@@ -497,6 +545,244 @@ static void cal_camerarx_enable(struct cal_camerarx *phy)
 static void cal_camerarx_disable(struct cal_camerarx *phy)
 {
 	regmap_field_write(phy->fields[F_CTRLCLKEN], 0);
+}
+
+/*
+ * TCLK values are OK at their reset values
+ */
+#define TCLK_TERM	0
+#define TCLK_MISS	1
+#define TCLK_SETTLE	14
+
+static void cal_camerarx_config(struct cal_camerarx *phy,
+				const struct cal_fmt *fmt)
+{
+	unsigned int reg0, reg1;
+	unsigned int ths_term, ths_settle;
+	unsigned int csi2_ddrclk_khz;
+	struct v4l2_fwnode_bus_mipi_csi2 *mipi_csi2 =
+			&phy->endpoint.bus.mipi_csi2;
+	u32 num_lanes = mipi_csi2->num_data_lanes;
+
+	/* DPHY timing configuration */
+	/* CSI-2 is DDR and we only count used lanes. */
+	csi2_ddrclk_khz = phy->external_rate / 1000
+		/ (2 * num_lanes) * fmt->bpp;
+	phy_dbg(1, phy, "csi2_ddrclk_khz: %d\n", csi2_ddrclk_khz);
+
+	/* THS_TERM: Programmed value = floor(20 ns/DDRClk period) */
+	ths_term = 20 * csi2_ddrclk_khz / 1000000;
+	phy_dbg(1, phy, "ths_term: %d (0x%02x)\n", ths_term, ths_term);
+
+	/* THS_SETTLE: Programmed value = floor(105 ns/DDRClk period) + 4 */
+	ths_settle = (105 * csi2_ddrclk_khz / 1000000) + 4;
+	phy_dbg(1, phy, "ths_settle: %d (0x%02x)\n", ths_settle, ths_settle);
+
+	reg0 = reg_read(phy, CAL_CSI2_PHY_REG0);
+	set_field(&reg0, CAL_CSI2_PHY_REG0_HSCLOCKCONFIG_DISABLE,
+		  CAL_CSI2_PHY_REG0_HSCLOCKCONFIG_MASK);
+	set_field(&reg0, ths_term, CAL_CSI2_PHY_REG0_THS_TERM_MASK);
+	set_field(&reg0, ths_settle, CAL_CSI2_PHY_REG0_THS_SETTLE_MASK);
+
+	phy_dbg(1, phy, "CSI2_%d_REG0 = 0x%08x\n", phy->instance, reg0);
+	reg_write(phy, CAL_CSI2_PHY_REG0, reg0);
+
+	reg1 = reg_read(phy, CAL_CSI2_PHY_REG1);
+	set_field(&reg1, TCLK_TERM, CAL_CSI2_PHY_REG1_TCLK_TERM_MASK);
+	set_field(&reg1, 0xb8, CAL_CSI2_PHY_REG1_DPHY_HS_SYNC_PATTERN_MASK);
+	set_field(&reg1, TCLK_MISS, CAL_CSI2_PHY_REG1_CTRLCLK_DIV_FACTOR_MASK);
+	set_field(&reg1, TCLK_SETTLE, CAL_CSI2_PHY_REG1_TCLK_SETTLE_MASK);
+
+	phy_dbg(1, phy, "CSI2_%d_REG1 = 0x%08x\n", phy->instance, reg1);
+	reg_write(phy, CAL_CSI2_PHY_REG1, reg1);
+}
+
+static void cal_camerarx_power(struct cal_camerarx *phy, bool enable)
+{
+	u32 target_state;
+	unsigned int i;
+
+	target_state = enable ? CAL_CSI2_COMPLEXIO_CFG_PWR_CMD_STATE_ON :
+		       CAL_CSI2_COMPLEXIO_CFG_PWR_CMD_STATE_OFF;
+
+	reg_write_field(phy->cal, CAL_CSI2_COMPLEXIO_CFG(phy->instance),
+			target_state, CAL_CSI2_COMPLEXIO_CFG_PWR_CMD_MASK);
+
+	for (i = 0; i < 10; i++) {
+		u32 current_state;
+
+		current_state = reg_read_field(phy->cal,
+					       CAL_CSI2_COMPLEXIO_CFG(phy->instance),
+					       CAL_CSI2_COMPLEXIO_CFG_PWR_STATUS_MASK);
+
+		if (current_state == target_state)
+			break;
+
+		usleep_range(1000, 1100);
+	}
+
+	if (i == 10)
+		phy_err(phy, "Failed to power %s complexio\n",
+			enable ? "up" : "down");
+}
+
+static void cal_camerarx_wait_reset(struct cal_camerarx *phy)
+{
+	unsigned long timeout;
+
+	timeout = jiffies + msecs_to_jiffies(750);
+	while (time_before(jiffies, timeout)) {
+		if (reg_read_field(phy->cal,
+				   CAL_CSI2_COMPLEXIO_CFG(phy->instance),
+				   CAL_CSI2_COMPLEXIO_CFG_RESET_DONE_MASK) ==
+		    CAL_CSI2_COMPLEXIO_CFG_RESET_DONE_RESETCOMPLETED)
+			break;
+		usleep_range(500, 5000);
+	}
+
+	if (reg_read_field(phy->cal, CAL_CSI2_COMPLEXIO_CFG(phy->instance),
+			   CAL_CSI2_COMPLEXIO_CFG_RESET_DONE_MASK) !=
+			   CAL_CSI2_COMPLEXIO_CFG_RESET_DONE_RESETCOMPLETED)
+		phy_err(phy, "Timeout waiting for Complex IO reset done\n");
+}
+
+static void cal_camerarx_wait_stop_state(struct cal_camerarx *phy)
+{
+	unsigned long timeout;
+
+	timeout = jiffies + msecs_to_jiffies(750);
+	while (time_before(jiffies, timeout)) {
+		if (reg_read_field(phy->cal,
+				   CAL_CSI2_TIMING(phy->instance),
+				   CAL_CSI2_TIMING_FORCE_RX_MODE_IO1_MASK) == 0)
+			break;
+		usleep_range(500, 5000);
+	}
+
+	if (reg_read_field(phy->cal, CAL_CSI2_TIMING(phy->instance),
+			   CAL_CSI2_TIMING_FORCE_RX_MODE_IO1_MASK) != 0)
+		phy_err(phy, "Timeout waiting for stop state\n");
+}
+
+static void cal_camerarx_wait_ready(struct cal_camerarx *phy)
+{
+	/* Steps
+	 *  2. Wait for completion of reset
+	 *          Note if the external sensor is not sending byte clock,
+	 *          the reset will timeout
+	 *  4.Force FORCERXMODE
+	 *      G. Wait for all enabled lane to reach stop state
+	 *      H. Disable pull down using pad control
+	 */
+
+	/* 2. Wait for reset completion */
+	cal_camerarx_wait_reset(phy);
+
+	/* 4. G. Wait for all enabled lane to reach stop state */
+	cal_camerarx_wait_stop_state(phy);
+
+	phy_dbg(1, phy, "CSI2_%d_REG1 = 0x%08x (Bit(31,28) should be set!)\n",
+		phy->instance, reg_read(phy, CAL_CSI2_PHY_REG1));
+}
+
+static void cal_camerarx_init(struct cal_camerarx *phy,
+			      const struct cal_fmt *fmt)
+{
+	u32 val;
+	u32 sscounter;
+
+	/* Steps
+	 *  1. Configure D-PHY mode and enable required lanes
+	 *  2. Reset complex IO - Wait for completion of reset
+	 *          Note if the external sensor is not sending byte clock,
+	 *          the reset will timeout
+	 *  3 Program Stop States
+	 *      A. Program THS_TERM, THS_SETTLE, etc... Timings parameters
+	 *              in terms of DDR clock periods
+	 *      B. Enable stop state transition timeouts
+	 *  4.Force FORCERXMODE
+	 *      D. Enable pull down using pad control
+	 *      E. Power up PHY
+	 *      F. Wait for power up completion
+	 *      G. Wait for all enabled lane to reach stop state
+	 *      H. Disable pull down using pad control
+	 */
+
+	/* 1. Configure D-PHY mode and enable required lanes */
+	cal_camerarx_enable(phy);
+
+	/* 2. Reset complex IO - Do not wait for reset completion */
+	reg_write_field(phy->cal, CAL_CSI2_COMPLEXIO_CFG(phy->instance),
+			CAL_CSI2_COMPLEXIO_CFG_RESET_CTRL_OPERATIONAL,
+			CAL_CSI2_COMPLEXIO_CFG_RESET_CTRL_MASK);
+	phy_dbg(3, phy, "CAL_CSI2_COMPLEXIO_CFG(%d) = 0x%08x De-assert Complex IO Reset\n",
+		phy->instance,
+		reg_read(phy->cal, CAL_CSI2_COMPLEXIO_CFG(phy->instance)));
+
+	/* Dummy read to allow SCP reset to complete */
+	reg_read(phy, CAL_CSI2_PHY_REG0);
+
+	/* 3.A. Program Phy Timing Parameters */
+	cal_camerarx_config(phy, fmt);
+
+	/* 3.B. Program Stop States */
+	/*
+	 * The stop-state-counter is based on fclk cycles, and we always use
+	 * the x16 and x4 settings, so stop-state-timeout =
+	 * fclk-cycle * 16 * 4 * counter.
+	 *
+	 * Stop-state-timeout must be more than 100us as per CSI2 spec, so we
+	 * calculate a timeout that's 100us (rounding up).
+	 */
+	sscounter = DIV_ROUND_UP(clk_get_rate(phy->cal->fclk), 10000 *  16 * 4);
+
+	val = reg_read(phy->cal, CAL_CSI2_TIMING(phy->instance));
+	set_field(&val, 1, CAL_CSI2_TIMING_STOP_STATE_X16_IO1_MASK);
+	set_field(&val, 1, CAL_CSI2_TIMING_STOP_STATE_X4_IO1_MASK);
+	set_field(&val, sscounter, CAL_CSI2_TIMING_STOP_STATE_COUNTER_IO1_MASK);
+	reg_write(phy->cal, CAL_CSI2_TIMING(phy->instance), val);
+	phy_dbg(3, phy, "CAL_CSI2_TIMING(%d) = 0x%08x Stop States\n",
+		phy->instance,
+		reg_read(phy->cal, CAL_CSI2_TIMING(phy->instance)));
+
+	/* 4. Force FORCERXMODE */
+	reg_write_field(phy->cal, CAL_CSI2_TIMING(phy->instance),
+			1, CAL_CSI2_TIMING_FORCE_RX_MODE_IO1_MASK);
+	phy_dbg(3, phy, "CAL_CSI2_TIMING(%d) = 0x%08x Force RXMODE\n",
+		phy->instance,
+		reg_read(phy->cal, CAL_CSI2_TIMING(phy->instance)));
+
+	/* E. Power up the PHY using the complex IO */
+	cal_camerarx_power(phy, true);
+}
+
+static void cal_camerarx_deinit(struct cal_camerarx *phy)
+{
+	unsigned int i;
+
+	cal_camerarx_power(phy, false);
+
+	/* Assert Comple IO Reset */
+	reg_write_field(phy->cal, CAL_CSI2_COMPLEXIO_CFG(phy->instance),
+			CAL_CSI2_COMPLEXIO_CFG_RESET_CTRL,
+			CAL_CSI2_COMPLEXIO_CFG_RESET_CTRL_MASK);
+
+	/* Wait for power down completion */
+	for (i = 0; i < 10; i++) {
+		if (reg_read_field(phy->cal,
+				   CAL_CSI2_COMPLEXIO_CFG(phy->instance),
+				   CAL_CSI2_COMPLEXIO_CFG_RESET_DONE_MASK) ==
+		    CAL_CSI2_COMPLEXIO_CFG_RESET_DONE_RESETONGOING)
+			break;
+		usleep_range(1000, 1100);
+	}
+	phy_dbg(3, phy, "CAL_CSI2_COMPLEXIO_CFG(%d) = 0x%08x Complex IO in Reset (%d) %s\n",
+		phy->instance,
+		reg_read(phy->cal, CAL_CSI2_COMPLEXIO_CFG(phy->instance)), i,
+		(i >= 10) ? "(timeout)" : "");
+
+	/* Disable the phy */
+	cal_camerarx_disable(phy);
 }
 
 /*
@@ -584,272 +870,6 @@ static void cal_camerarx_disable_irqs(struct cal_camerarx *phy)
 	reg_write(phy->cal, CAL_CSI2_VC_IRQENABLE(0), 0);
 }
 
-static void cal_camerarx_power(struct cal_camerarx *phy, bool enable)
-{
-	u32 target_state;
-	unsigned int i;
-
-	target_state = enable ? CAL_CSI2_COMPLEXIO_CFG_PWR_CMD_STATE_ON :
-		       CAL_CSI2_COMPLEXIO_CFG_PWR_CMD_STATE_OFF;
-
-	reg_write_field(phy->cal, CAL_CSI2_COMPLEXIO_CFG(phy->instance),
-			target_state, CAL_CSI2_COMPLEXIO_CFG_PWR_CMD_MASK);
-
-	for (i = 0; i < 10; i++) {
-		u32 current_state;
-
-		current_state = reg_read_field(phy->cal,
-					       CAL_CSI2_COMPLEXIO_CFG(phy->instance),
-					       CAL_CSI2_COMPLEXIO_CFG_PWR_STATUS_MASK);
-
-		if (current_state == target_state)
-			break;
-
-		usleep_range(1000, 1100);
-	}
-
-	if (i == 10)
-		phy_err(phy, "Failed to power %s complexio\n",
-			enable ? "up" : "down");
-}
-
-/*
- * TCLK values are OK at their reset values
- */
-#define TCLK_TERM	0
-#define TCLK_MISS	1
-#define TCLK_SETTLE	14
-
-static void cal_camerarx_config(struct cal_camerarx *phy,
-				const struct cal_fmt *fmt)
-{
-	unsigned int reg0, reg1;
-	unsigned int ths_term, ths_settle;
-	unsigned int csi2_ddrclk_khz;
-	struct v4l2_fwnode_bus_mipi_csi2 *mipi_csi2 =
-			&phy->endpoint.bus.mipi_csi2;
-	u32 num_lanes = mipi_csi2->num_data_lanes;
-
-	/* DPHY timing configuration */
-	/* CSI-2 is DDR and we only count used lanes. */
-	csi2_ddrclk_khz = phy->external_rate / 1000
-		/ (2 * num_lanes) * fmt->bpp;
-	phy_dbg(1, phy, "csi2_ddrclk_khz: %d\n", csi2_ddrclk_khz);
-
-	/* THS_TERM: Programmed value = floor(20 ns/DDRClk period) */
-	ths_term = 20 * csi2_ddrclk_khz / 1000000;
-	phy_dbg(1, phy, "ths_term: %d (0x%02x)\n", ths_term, ths_term);
-
-	/* THS_SETTLE: Programmed value = floor(105 ns/DDRClk period) + 4 */
-	ths_settle = (105 * csi2_ddrclk_khz / 1000000) + 4;
-	phy_dbg(1, phy, "ths_settle: %d (0x%02x)\n", ths_settle, ths_settle);
-
-	reg0 = reg_read(phy, CAL_CSI2_PHY_REG0);
-	set_field(&reg0, CAL_CSI2_PHY_REG0_HSCLOCKCONFIG_DISABLE,
-		  CAL_CSI2_PHY_REG0_HSCLOCKCONFIG_MASK);
-	set_field(&reg0, ths_term, CAL_CSI2_PHY_REG0_THS_TERM_MASK);
-	set_field(&reg0, ths_settle, CAL_CSI2_PHY_REG0_THS_SETTLE_MASK);
-
-	phy_dbg(1, phy, "CSI2_%d_REG0 = 0x%08x\n", phy->instance, reg0);
-	reg_write(phy, CAL_CSI2_PHY_REG0, reg0);
-
-	reg1 = reg_read(phy, CAL_CSI2_PHY_REG1);
-	set_field(&reg1, TCLK_TERM, CAL_CSI2_PHY_REG1_TCLK_TERM_MASK);
-	set_field(&reg1, 0xb8, CAL_CSI2_PHY_REG1_DPHY_HS_SYNC_PATTERN_MASK);
-	set_field(&reg1, TCLK_MISS, CAL_CSI2_PHY_REG1_CTRLCLK_DIV_FACTOR_MASK);
-	set_field(&reg1, TCLK_SETTLE, CAL_CSI2_PHY_REG1_TCLK_SETTLE_MASK);
-
-	phy_dbg(1, phy, "CSI2_%d_REG1 = 0x%08x\n", phy->instance, reg1);
-	reg_write(phy, CAL_CSI2_PHY_REG1, reg1);
-}
-
-static void cal_camerarx_init(struct cal_camerarx *phy,
-			      const struct cal_fmt *fmt)
-{
-	u32 val;
-	u32 sscounter;
-
-	/* Steps
-	 *  1. Configure D-PHY mode and enable required lanes
-	 *  2. Reset complex IO - Wait for completion of reset
-	 *          Note if the external sensor is not sending byte clock,
-	 *          the reset will timeout
-	 *  3 Program Stop States
-	 *      A. Program THS_TERM, THS_SETTLE, etc... Timings parameters
-	 *              in terms of DDR clock periods
-	 *      B. Enable stop state transition timeouts
-	 *  4.Force FORCERXMODE
-	 *      D. Enable pull down using pad control
-	 *      E. Power up PHY
-	 *      F. Wait for power up completion
-	 *      G. Wait for all enabled lane to reach stop state
-	 *      H. Disable pull down using pad control
-	 */
-
-	/* 1. Configure D-PHY mode and enable required lanes */
-	cal_camerarx_enable(phy);
-
-	/* 2. Reset complex IO - Do not wait for reset completion */
-	reg_write_field(phy->cal, CAL_CSI2_COMPLEXIO_CFG(phy->instance),
-			CAL_CSI2_COMPLEXIO_CFG_RESET_CTRL_OPERATIONAL,
-			CAL_CSI2_COMPLEXIO_CFG_RESET_CTRL_MASK);
-	phy_dbg(3, phy, "CAL_CSI2_COMPLEXIO_CFG(%d) = 0x%08x De-assert Complex IO Reset\n",
-		phy->instance,
-		reg_read(phy->cal, CAL_CSI2_COMPLEXIO_CFG(phy->instance)));
-
-	/* Dummy read to allow SCP reset to complete */
-	reg_read(phy, CAL_CSI2_PHY_REG0);
-
-	/* 3.A. Program Phy Timing Parameters */
-	cal_camerarx_config(phy, fmt);
-
-	/* 3.B. Program Stop States */
-	/*
-	 * The stop-state-counter is based on fclk cycles, and we always use
-	 * the x16 and x4 settings, so stop-state-timeout =
-	 * fclk-cycle * 16 * 4 * counter.
-	 *
-	 * Stop-state-timeout must be more than 100us as per CSI2 spec, so we
-	 * calculate a timeout that's 100us (rounding up).
-	 */
-	sscounter = DIV_ROUND_UP(clk_get_rate(phy->cal->fclk), 10000 *  16 * 4);
-
-	val = reg_read(phy->cal, CAL_CSI2_TIMING(phy->instance));
-	set_field(&val, 1, CAL_CSI2_TIMING_STOP_STATE_X16_IO1_MASK);
-	set_field(&val, 1, CAL_CSI2_TIMING_STOP_STATE_X4_IO1_MASK);
-	set_field(&val, sscounter, CAL_CSI2_TIMING_STOP_STATE_COUNTER_IO1_MASK);
-	reg_write(phy->cal, CAL_CSI2_TIMING(phy->instance), val);
-	phy_dbg(3, phy, "CAL_CSI2_TIMING(%d) = 0x%08x Stop States\n",
-		phy->instance,
-		reg_read(phy->cal, CAL_CSI2_TIMING(phy->instance)));
-
-	/* 4. Force FORCERXMODE */
-	reg_write_field(phy->cal, CAL_CSI2_TIMING(phy->instance),
-			1, CAL_CSI2_TIMING_FORCE_RX_MODE_IO1_MASK);
-	phy_dbg(3, phy, "CAL_CSI2_TIMING(%d) = 0x%08x Force RXMODE\n",
-		phy->instance,
-		reg_read(phy->cal, CAL_CSI2_TIMING(phy->instance)));
-
-	/* E. Power up the PHY using the complex IO */
-	cal_camerarx_power(phy, true);
-}
-
-static void cal_camerarx_wait_reset(struct cal_camerarx *phy)
-{
-	unsigned long timeout;
-
-	timeout = jiffies + msecs_to_jiffies(750);
-	while (time_before(jiffies, timeout)) {
-		if (reg_read_field(phy->cal,
-				   CAL_CSI2_COMPLEXIO_CFG(phy->instance),
-				   CAL_CSI2_COMPLEXIO_CFG_RESET_DONE_MASK) ==
-		    CAL_CSI2_COMPLEXIO_CFG_RESET_DONE_RESETCOMPLETED)
-			break;
-		usleep_range(500, 5000);
-	}
-
-	if (reg_read_field(phy->cal, CAL_CSI2_COMPLEXIO_CFG(phy->instance),
-			   CAL_CSI2_COMPLEXIO_CFG_RESET_DONE_MASK) !=
-			   CAL_CSI2_COMPLEXIO_CFG_RESET_DONE_RESETCOMPLETED)
-		phy_err(phy, "Timeout waiting for Complex IO reset done\n");
-}
-
-static void cal_camerarx_wait_stop_state(struct cal_camerarx *phy)
-{
-	unsigned long timeout;
-
-	timeout = jiffies + msecs_to_jiffies(750);
-	while (time_before(jiffies, timeout)) {
-		if (reg_read_field(phy->cal,
-				   CAL_CSI2_TIMING(phy->instance),
-				   CAL_CSI2_TIMING_FORCE_RX_MODE_IO1_MASK) == 0)
-			break;
-		usleep_range(500, 5000);
-	}
-
-	if (reg_read_field(phy->cal, CAL_CSI2_TIMING(phy->instance),
-			   CAL_CSI2_TIMING_FORCE_RX_MODE_IO1_MASK) != 0)
-		phy_err(phy, "Timeout waiting for stop state\n");
-}
-
-static void cal_camerarx_wait_ready(struct cal_camerarx *phy)
-{
-	/* Steps
-	 *  2. Wait for completion of reset
-	 *          Note if the external sensor is not sending byte clock,
-	 *          the reset will timeout
-	 *  4.Force FORCERXMODE
-	 *      G. Wait for all enabled lane to reach stop state
-	 *      H. Disable pull down using pad control
-	 */
-
-	/* 2. Wait for reset completion */
-	cal_camerarx_wait_reset(phy);
-
-	/* 4. G. Wait for all enabled lane to reach stop state */
-	cal_camerarx_wait_stop_state(phy);
-
-	phy_dbg(1, phy, "CSI2_%d_REG1 = 0x%08x (Bit(31,28) should be set!)\n",
-		phy->instance, reg_read(phy, CAL_CSI2_PHY_REG1));
-}
-
-static void cal_camerarx_deinit(struct cal_camerarx *phy)
-{
-	unsigned int i;
-
-	cal_camerarx_power(phy, false);
-
-	/* Assert Comple IO Reset */
-	reg_write_field(phy->cal, CAL_CSI2_COMPLEXIO_CFG(phy->instance),
-			CAL_CSI2_COMPLEXIO_CFG_RESET_CTRL,
-			CAL_CSI2_COMPLEXIO_CFG_RESET_CTRL_MASK);
-
-	/* Wait for power down completion */
-	for (i = 0; i < 10; i++) {
-		if (reg_read_field(phy->cal,
-				   CAL_CSI2_COMPLEXIO_CFG(phy->instance),
-				   CAL_CSI2_COMPLEXIO_CFG_RESET_DONE_MASK) ==
-		    CAL_CSI2_COMPLEXIO_CFG_RESET_DONE_RESETONGOING)
-			break;
-		usleep_range(1000, 1100);
-	}
-	phy_dbg(3, phy, "CAL_CSI2_COMPLEXIO_CFG(%d) = 0x%08x Complex IO in Reset (%d) %s\n",
-		phy->instance,
-		reg_read(phy->cal, CAL_CSI2_COMPLEXIO_CFG(phy->instance)), i,
-		(i >= 10) ? "(timeout)" : "");
-
-	/* Disable the phy */
-	cal_camerarx_disable(phy);
-}
-
-static void cal_camerarx_lane_config(struct cal_camerarx *phy)
-{
-	u32 val = reg_read(phy->cal, CAL_CSI2_COMPLEXIO_CFG(phy->instance));
-	u32 lane_mask = CAL_CSI2_COMPLEXIO_CFG_CLOCK_POSITION_MASK;
-	u32 polarity_mask = CAL_CSI2_COMPLEXIO_CFG_CLOCK_POL_MASK;
-	struct v4l2_fwnode_bus_mipi_csi2 *mipi_csi2 =
-		&phy->endpoint.bus.mipi_csi2;
-	int lane;
-
-	set_field(&val, mipi_csi2->clock_lane + 1, lane_mask);
-	set_field(&val, mipi_csi2->lane_polarities[0], polarity_mask);
-	for (lane = 0; lane < mipi_csi2->num_data_lanes; lane++) {
-		/*
-		 * Every lane are one nibble apart starting with the
-		 * clock followed by the data lanes so shift masks by 4.
-		 */
-		lane_mask <<= 4;
-		polarity_mask <<= 4;
-		set_field(&val, mipi_csi2->data_lanes[lane] + 1, lane_mask);
-		set_field(&val, mipi_csi2->lane_polarities[lane + 1],
-			  polarity_mask);
-	}
-
-	reg_write(phy->cal, CAL_CSI2_COMPLEXIO_CFG(phy->instance), val);
-	phy_dbg(3, phy, "CAL_CSI2_COMPLEXIO_CFG(%d) = 0x%08x\n",
-		phy->instance, val);
-}
-
 static void cal_camerarx_ppi_enable(struct cal_camerarx *phy)
 {
 	reg_write(phy->cal, CAL_CSI2_PPI_CTRL(phy->instance), BIT(3));
@@ -861,26 +881,6 @@ static void cal_camerarx_ppi_disable(struct cal_camerarx *phy)
 {
 	reg_write_field(phy->cal, CAL_CSI2_PPI_CTRL(phy->instance),
 			0, CAL_CSI2_PPI_CTRL_IF_EN_MASK);
-}
-
-static int cal_camerarx_get_external_info(struct cal_camerarx *phy)
-{
-	struct v4l2_ctrl *ctrl;
-
-	if (!phy->sensor)
-		return -ENODEV;
-
-	ctrl = v4l2_ctrl_find(phy->sensor->ctrl_handler, V4L2_CID_PIXEL_RATE);
-	if (!ctrl) {
-		phy_err(phy, "no pixel rate control in subdev: %s\n",
-			phy->sensor->name);
-		return -EPIPE;
-	}
-
-	phy->external_rate = v4l2_ctrl_g_ctrl_int64(ctrl);
-	phy_dbg(3, phy, "sensor Pixel Rate: %u\n", phy->external_rate);
-
-	return 0;
 }
 
 static int cal_camerarx_regmap_init(struct cal_dev *cal,
