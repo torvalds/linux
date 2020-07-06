@@ -154,22 +154,10 @@ dml_get_pipe_attr_func(refcyc_per_meta_chunk_vblank_c_in_us, mode_lib->vba.TimeP
 dml_get_pipe_attr_func(refcyc_per_meta_chunk_flip_l_in_us, mode_lib->vba.TimePerMetaChunkFlip);
 dml_get_pipe_attr_func(refcyc_per_meta_chunk_flip_c_in_us, mode_lib->vba.TimePerChromaMetaChunkFlip);
 
+dml_get_pipe_attr_func(vstartup, mode_lib->vba.VStartup);
 dml_get_pipe_attr_func(vupdate_offset, mode_lib->vba.VUpdateOffsetPix);
 dml_get_pipe_attr_func(vupdate_width, mode_lib->vba.VUpdateWidthPix);
 dml_get_pipe_attr_func(vready_offset, mode_lib->vba.VReadyOffsetPix);
-
-unsigned int get_vstartup_calculated(
-		struct display_mode_lib *mode_lib,
-		const display_e2e_pipe_params_st *pipes,
-		unsigned int num_pipes,
-		unsigned int which_pipe)
-{
-	unsigned int which_plane;
-
-	recalculate_params(mode_lib, pipes, num_pipes);
-	which_plane = mode_lib->vba.pipe_plane[which_pipe];
-	return mode_lib->vba.VStartup[which_plane];
-}
 
 double get_total_immediate_flip_bytes(
 		struct display_mode_lib *mode_lib,
