@@ -2133,18 +2133,19 @@ struct ib_mr *ib_alloc_mr_user(struct ib_pd *pd, enum ib_mr_type mr_type,
 	}
 
 	mr = pd->device->ops.alloc_mr(pd, mr_type, max_num_sg, udata);
-	if (!IS_ERR(mr)) {
-		mr->device  = pd->device;
-		mr->pd      = pd;
-		mr->dm      = NULL;
-		mr->uobject = NULL;
-		atomic_inc(&pd->usecnt);
-		mr->need_inval = false;
-		mr->res.type = RDMA_RESTRACK_MR;
-		rdma_restrack_kadd(&mr->res);
-		mr->type = mr_type;
-		mr->sig_attrs = NULL;
-	}
+	if (IS_ERR(mr))
+		goto out;
+
+	mr->device = pd->device;
+	mr->pd = pd;
+	mr->dm = NULL;
+	mr->uobject = NULL;
+	atomic_inc(&pd->usecnt);
+	mr->need_inval = false;
+	mr->res.type = RDMA_RESTRACK_MR;
+	rdma_restrack_kadd(&mr->res);
+	mr->type = mr_type;
+	mr->sig_attrs = NULL;
 
 out:
 	trace_mr_alloc(pd, mr_type, max_num_sg, mr);
