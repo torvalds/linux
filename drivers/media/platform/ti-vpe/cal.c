@@ -2408,6 +2408,15 @@ static int cal_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	/* Read the revision and hardware info to verify hardware access. */
+	pm_runtime_enable(&pdev->dev);
+	ret = pm_runtime_get_sync(&pdev->dev);
+	if (ret)
+		goto error_pm_runtime;
+
+	cal_get_hwinfo(cal);
+	pm_runtime_put_sync(&pdev->dev);
+
 	/* Create CAMERARX PHYs. */
 	for (i = 0; i < cal->data->num_csi2_phy; ++i) {
 		cal->phy[i] = cal_camerarx_create(cal, i);
@@ -2445,24 +2454,12 @@ static int cal_probe(struct platform_device *pdev)
 		}
 	}
 
-	/* Read the revision and hardware info to verify hardware access. */
-	pm_runtime_enable(&pdev->dev);
-	ret = pm_runtime_get_sync(&pdev->dev);
-	if (ret)
-		goto error_pm_runtime;
-
-	cal_get_hwinfo(cal);
-	pm_runtime_put_sync(&pdev->dev);
-
 	/* Register the media device. */
 	ret = cal_media_register(cal);
 	if (ret)
-		goto error_pm_runtime;
+		goto error_context;
 
 	return 0;
-
-error_pm_runtime:
-	pm_runtime_disable(&pdev->dev);
 
 error_context:
 	for (i = 0; i < ARRAY_SIZE(cal->ctx); i++) {
@@ -2476,6 +2473,9 @@ error_context:
 error_camerarx:
 	for (i = 0; i < ARRAY_SIZE(cal->phy); i++)
 		cal_camerarx_destroy(cal->phy[i]);
+
+error_pm_runtime:
+	pm_runtime_disable(&pdev->dev);
 
 	return ret;
 }
