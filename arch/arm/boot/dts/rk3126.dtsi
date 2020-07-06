@@ -47,3 +47,7 @@
 &cru {
 	compatible = "rockchip,rk3126-cru";
 };
+
+&optee {
+	status = "okay";
+};
