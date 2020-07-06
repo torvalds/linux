@@ -240,11 +240,11 @@ struct cal_csi2_phy {
 		unsigned int lsb;
 		unsigned int msb;
 	} fields[F_MAX_FIELDS];
-	const int num_lanes;
+	const unsigned int num_lanes;
 };
 
 struct cal_data {
-	const int num_csi2_phy;
+	const unsigned int num_csi2_phy;
 	struct cal_csi2_phy *csi2_phy_core;
 
 	const unsigned int flags;
@@ -388,7 +388,7 @@ struct cal_ctx {
 
 	/* Current subdev enumerated format */
 	const struct cal_fmt	*active_fmt[ARRAY_SIZE(cal_formats)];
-	int			num_active_fmt;
+	unsigned int		num_active_fmt;
 
 	struct v4l2_fract	timeperframe;
 	unsigned int		sequence;
