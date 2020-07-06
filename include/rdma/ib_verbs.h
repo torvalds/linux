@@ -1567,9 +1567,8 @@ struct ib_xrcd {
 	struct ib_device       *device;
 	atomic_t		usecnt; /* count all exposed resources */
 	struct inode	       *inode;
-
-	struct mutex		tgt_qp_mutex;
-	struct list_head	tgt_qp_list;
+	struct rw_semaphore	tgt_qps_rwsem;
+	struct xarray		tgt_qps;
 };
 
 struct ib_ah {

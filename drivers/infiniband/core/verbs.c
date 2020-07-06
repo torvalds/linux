@@ -1090,13 +1090,6 @@ static void __ib_shared_qp_event_handler(struct ib_event *event, void *context)
 	spin_unlock_irqrestore(&qp->device->qp_open_list_lock, flags);
 }
 
-static void __ib_insert_xrcd_qp(struct ib_xrcd *xrcd, struct ib_qp *qp)
-{
-	mutex_lock(&xrcd->tgt_qp_mutex);
-	list_add(&qp->xrcd_list, &xrcd->tgt_qp_list);
-	mutex_unlock(&xrcd->tgt_qp_mutex);
-}
-
 static struct ib_qp *__ib_open_qp(struct ib_qp *real_qp,
 				  void (*event_handler)(struct ib_event *, void *),
 				  void *qp_context)
@@ -1139,16 +1132,15 @@ struct ib_qp *ib_open_qp(struct ib_xrcd *xrcd,
 	if (qp_open_attr->qp_type != IB_QPT_XRC_TGT)
 		return ERR_PTR(-EINVAL);
 
-	qp = ERR_PTR(-EINVAL);
-	mutex_lock(&xrcd->tgt_qp_mutex);
-	list_for_each_entry(real_qp, &xrcd->tgt_qp_list, xrcd_list) {
-		if (real_qp->qp_num == qp_open_attr->qp_num) {
-			qp = __ib_open_qp(real_qp, qp_open_attr->event_handler,
-					  qp_open_attr->qp_context);
-			break;
-		}
+	down_read(&xrcd->tgt_qps_rwsem);
+	real_qp = xa_load(&xrcd->tgt_qps, qp_open_attr->qp_num);
+	if (!real_qp) {
+		up_read(&xrcd->tgt_qps_rwsem);
+		return ERR_PTR(-EINVAL);
 	}
-	mutex_unlock(&xrcd->tgt_qp_mutex);
+	qp = __ib_open_qp(real_qp, qp_open_attr->event_handler,
+			  qp_open_attr->qp_context);
+	up_read(&xrcd->tgt_qps_rwsem);
 	return qp;
 }
 EXPORT_SYMBOL(ib_open_qp);
@@ -1157,6 +1149,7 @@ static struct ib_qp *create_xrc_qp_user(struct ib_qp *qp,
 					struct ib_qp_init_attr *qp_init_attr)
 {
 	struct ib_qp *real_qp = qp;
+	int err;
 
 	qp->event_handler = __ib_shared_qp_event_handler;
 	qp->qp_context = qp;
@@ -1172,7 +1165,12 @@ static struct ib_qp *create_xrc_qp_user(struct ib_qp *qp,
 	if (IS_ERR(qp))
 		return qp;
 
-	__ib_insert_xrcd_qp(qp_init_attr->xrcd, real_qp);
+	err = xa_err(xa_store(&qp_init_attr->xrcd->tgt_qps, real_qp->qp_num,
+			      real_qp, GFP_KERNEL));
+	if (err) {
+		ib_close_qp(qp);
+		return ERR_PTR(err);
+	}
 	return qp;
 }
 
@@ -1887,21 +1885,18 @@ static int __ib_destroy_shared_qp(struct ib_qp *qp)
 
 	real_qp = qp->real_qp;
 	xrcd = real_qp->xrcd;
-
-	mutex_lock(&xrcd->tgt_qp_mutex);
+	down_write(&xrcd->tgt_qps_rwsem);
 	ib_close_qp(qp);
 	if (atomic_read(&real_qp->usecnt) == 0)
-		list_del(&real_qp->xrcd_list);
+		xa_erase(&xrcd->tgt_qps, real_qp->qp_num);
 	else
 		real_qp = NULL;
-	mutex_unlock(&xrcd->tgt_qp_mutex);
+	up_write(&xrcd->tgt_qps_rwsem);
 
 	if (real_qp) {
 		ret = ib_destroy_qp(real_qp);
 		if (!ret)
 			atomic_dec(&xrcd->usecnt);
-		else
-			__ib_insert_xrcd_qp(xrcd, real_qp);
 	}
 
 	return 0;
@@ -2307,8 +2302,8 @@ struct ib_xrcd *ib_alloc_xrcd_user(struct ib_device *device,
 		xrcd->device = device;
 		xrcd->inode = inode;
 		atomic_set(&xrcd->usecnt, 0);
-		mutex_init(&xrcd->tgt_qp_mutex);
-		INIT_LIST_HEAD(&xrcd->tgt_qp_list);
+		init_rwsem(&xrcd->tgt_qps_rwsem);
+		xa_init(&xrcd->tgt_qps);
 	}
 
 	return xrcd;
@@ -2322,20 +2317,10 @@ EXPORT_SYMBOL(ib_alloc_xrcd_user);
  */
 int ib_dealloc_xrcd_user(struct ib_xrcd *xrcd, struct ib_udata *udata)
 {
-	struct ib_qp *qp;
-	int ret;
-
 	if (atomic_read(&xrcd->usecnt))
 		return -EBUSY;
 
-	while (!list_empty(&xrcd->tgt_qp_list)) {
-		qp = list_entry(xrcd->tgt_qp_list.next, struct ib_qp, xrcd_list);
-		ret = ib_destroy_qp(qp);
-		if (ret)
-			return ret;
-	}
-	mutex_destroy(&xrcd->tgt_qp_mutex);
-
+	WARN_ON(!xa_empty(&xrcd->tgt_qps));
 	return xrcd->device->ops.dealloc_xrcd(xrcd, udata);
 }
 EXPORT_SYMBOL(ib_dealloc_xrcd_user);
