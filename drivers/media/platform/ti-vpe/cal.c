@@ -1007,7 +1007,12 @@ static struct regmap *cal_get_camerarx_regmap(struct cal_dev *cal)
 	return regmap;
 }
 
-static void csi2_ctx_config(struct cal_ctx *ctx)
+/* ------------------------------------------------------------------
+ *	Context Management
+ * ------------------------------------------------------------------
+ */
+
+static void cal_ctx_csi2_config(struct cal_ctx *ctx)
 {
 	u32 val;
 
@@ -1033,7 +1038,7 @@ static void csi2_ctx_config(struct cal_ctx *ctx)
 		reg_read(ctx->cal, CAL_CSI2_CTX0(ctx->csi2_port)));
 }
 
-static void pix_proc_config(struct cal_ctx *ctx)
+static void cal_ctx_pix_proc_config(struct cal_ctx *ctx)
 {
 	u32 val, extract, pack;
 
@@ -1084,8 +1089,8 @@ static void pix_proc_config(struct cal_ctx *ctx)
 		reg_read(ctx->cal, CAL_PIX_PROC(ctx->csi2_port)));
 }
 
-static void cal_wr_dma_config(struct cal_ctx *ctx,
-			      unsigned int width, unsigned int height)
+static void cal_ctx_wr_dma_config(struct cal_ctx *ctx,
+				  unsigned int width, unsigned int height)
 {
 	u32 val;
 
@@ -1138,7 +1143,7 @@ static void cal_wr_dma_config(struct cal_ctx *ctx,
 	ctx_dbg(3, ctx, "CAL_CTRL = 0x%08x\n", reg_read(ctx->cal, CAL_CTRL));
 }
 
-static void cal_wr_dma_addr(struct cal_ctx *ctx, unsigned int dmaaddr)
+static void cal_ctx_wr_dma_addr(struct cal_ctx *ctx, unsigned int dmaaddr)
 {
 	reg_write(ctx->cal, CAL_WR_DMA_ADDR(ctx->csi2_port), dmaaddr);
 }
@@ -1154,7 +1159,7 @@ static inline void cal_schedule_next_buffer(struct cal_ctx *ctx)
 	list_del(&buf->list);
 
 	addr = vb2_dma_contig_plane_dma_addr(&buf->vb.vb2_buf, 0);
-	cal_wr_dma_addr(ctx, addr);
+	cal_ctx_wr_dma_addr(ctx, addr);
 }
 
 static inline void cal_process_buffer_complete(struct cal_ctx *ctx)
@@ -1662,10 +1667,10 @@ static int cal_start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	pm_runtime_get_sync(&ctx->cal->pdev->dev);
 
-	csi2_ctx_config(ctx);
-	pix_proc_config(ctx);
-	cal_wr_dma_config(ctx, ctx->v_fmt.fmt.pix.bytesperline,
-			  ctx->v_fmt.fmt.pix.height);
+	cal_ctx_csi2_config(ctx);
+	cal_ctx_pix_proc_config(ctx);
+	cal_ctx_wr_dma_config(ctx, ctx->v_fmt.fmt.pix.bytesperline,
+			      ctx->v_fmt.fmt.pix.height);
 	cal_camerarx_lane_config(ctx->phy);
 
 	cal_camerarx_enable_irqs(ctx->phy);
@@ -1680,7 +1685,7 @@ static int cal_start_streaming(struct vb2_queue *vq, unsigned int count)
 	}
 
 	cal_camerarx_wait_ready(ctx->phy);
-	cal_wr_dma_addr(ctx, addr);
+	cal_ctx_wr_dma_addr(ctx, addr);
 	cal_camerarx_ppi_enable(ctx->phy);
 
 	if (debug >= 4)
