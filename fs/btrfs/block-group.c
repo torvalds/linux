@@ -118,12 +118,12 @@ u64 btrfs_get_alloc_profile(struct btrfs_fs_info *fs_info, u64 orig_flags)
 
 void btrfs_get_block_group(struct btrfs_block_group *cache)
 {
-	atomic_inc(&cache->count);
+	refcount_inc(&cache->refs);
 }
 
 void btrfs_put_block_group(struct btrfs_block_group *cache)
 {
-	if (atomic_dec_and_test(&cache->count)) {
+	if (refcount_dec_and_test(&cache->refs)) {
 		WARN_ON(cache->pinned > 0);
 		WARN_ON(cache->reserved > 0);
 
@@ -1805,7 +1805,7 @@ static struct btrfs_block_group *btrfs_create_block_group_cache(
 
 	cache->discard_index = BTRFS_DISCARD_INDEX_UNUSED;
 
-	atomic_set(&cache->count, 1);
+	refcount_set(&cache->refs, 1);
 	spin_lock_init(&cache->lock);
 	init_rwsem(&cache->data_rwsem);
 	INIT_LIST_HEAD(&cache->list);
@@ -3380,7 +3380,7 @@ int btrfs_free_block_groups(struct btrfs_fs_info *info)
 		ASSERT(list_empty(&block_group->dirty_list));
 		ASSERT(list_empty(&block_group->io_list));
 		ASSERT(list_empty(&block_group->bg_list));
-		ASSERT(atomic_read(&block_group->count) == 1);
+		ASSERT(refcount_read(&block_group->refs) == 1);
 		btrfs_put_block_group(block_group);
 
 		spin_lock(&info->block_group_cache_lock);
