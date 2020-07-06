@@ -11,6 +11,8 @@
 #ifndef __TI_CAL_H__
 #define __TI_CAL_H__
 
+#include <linux/bitfield.h>
+#include <linux/io.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
@@ -202,6 +204,40 @@ extern int cal_video_nr;
 	cal_info((phy)->cal, "phy%u: " fmt, (phy)->instance, ##arg)
 #define phy_err(phy, fmt, arg...)					\
 	cal_err((phy)->cal, "phy%u: " fmt, (phy)->instance, ##arg)
+
+static inline u32 cal_read(struct cal_dev *cal, u32 offset)
+{
+	return ioread32(cal->base + offset);
+}
+
+static inline void cal_write(struct cal_dev *cal, u32 offset, u32 val)
+{
+	iowrite32(val, cal->base + offset);
+}
+
+static inline u32 cal_read_field(struct cal_dev *cal, u32 offset, u32 mask)
+{
+	return FIELD_GET(mask, cal_read(cal, offset));
+}
+
+static inline void cal_write_field(struct cal_dev *cal, u32 offset, u32 value,
+				   u32 mask)
+{
+	u32 val = cal_read(cal, offset);
+
+	val &= ~mask;
+	val |= FIELD_PREP(mask, value);
+	cal_write(cal, offset, val);
+}
+
+static inline void cal_set_field(u32 *valp, u32 field, u32 mask)
+{
+	u32 val = *valp;
+
+	val &= ~mask;
+	val |= (field << __ffs(mask)) & mask;
+	*valp = val;
+}
 
 void cal_quickdump_regs(struct cal_dev *cal);
 

@@ -9,7 +9,6 @@
  *	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
  */
 
-#include <linux/bitfield.h>
 #include <linux/delay.h>
 #include <linux/ioctl.h>
 #include <linux/pm_runtime.h>
