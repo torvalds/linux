@@ -938,8 +938,9 @@ out:
  *
  * Return: 0 on success, -errno on failure
  */
-int hv_read_config_block(struct pci_dev *pdev, void *buf, unsigned int len,
-			 unsigned int block_id, unsigned int *bytes_returned)
+static int hv_read_config_block(struct pci_dev *pdev, void *buf,
+				unsigned int len, unsigned int block_id,
+				unsigned int *bytes_returned)
 {
 	struct hv_pcibus_device *hbus =
 		container_of(pdev->bus->sysdata, struct hv_pcibus_device,
@@ -1018,8 +1019,8 @@ static void hv_pci_write_config_compl(void *context, struct pci_response *resp,
  *
  * Return: 0 on success, -errno on failure
  */
-int hv_write_config_block(struct pci_dev *pdev, void *buf, unsigned int len,
-			  unsigned int block_id)
+static int hv_write_config_block(struct pci_dev *pdev, void *buf,
+				unsigned int len, unsigned int block_id)
 {
 	struct hv_pcibus_device *hbus =
 		container_of(pdev->bus->sysdata, struct hv_pcibus_device,
@@ -1087,9 +1088,9 @@ int hv_write_config_block(struct pci_dev *pdev, void *buf, unsigned int len,
  *
  * Return: 0 on success, -errno on failure
  */
-int hv_register_block_invalidate(struct pci_dev *pdev, void *context,
-				 void (*block_invalidate)(void *context,
-							  u64 block_mask))
+static int hv_register_block_invalidate(struct pci_dev *pdev, void *context,
+					void (*block_invalidate)(void *context,
+								 u64 block_mask))
 {
 	struct hv_pcibus_device *hbus =
 		container_of(pdev->bus->sysdata, struct hv_pcibus_device,
