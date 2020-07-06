@@ -506,13 +506,13 @@ Link extended states:
                                                         power required from cable or module
 
   ``ETHTOOL_LINK_EXT_STATE_OVERHEAT``                   The module is overheated
-  =================================================     ============================================
+  ================================================      ============================================
 
 Link extended substates:
 
   Autoneg substates:
 
-  ==============================================================    ================================
+  ===============================================================   ================================
   ``ETHTOOL_LINK_EXT_SUBSTATE_AN_NO_PARTNER_DETECTED``              Peer side is down
 
   ``ETHTOOL_LINK_EXT_SUBSTATE_AN_ACK_NOT_RECEIVED``                 Ack not received from peer side
@@ -527,11 +527,11 @@ Link extended substates:
                                                                     in both sides are mismatched
 
   ``ETHTOOL_LINK_EXT_SUBSTATE_AN_NO_HCD``                           No Highest Common Denominator
-  ==============================================================    ================================
+  ===============================================================   ================================
 
   Link training substates:
 
-  ==========================================================================    ====================
+  ===========================================================================   ====================
   ``ETHTOOL_LINK_EXT_SUBSTATE_LT_KR_FRAME_LOCK_NOT_ACQUIRED``                    Frames were not
                                                                                  recognized, the
                                                                                  lock failed
@@ -547,11 +547,11 @@ Link extended substates:
 
   ``ETHTOOL_LINK_EXT_SUBSTATE_LT_REMOTE_FAULT``                                  Remote side is not
                                                                                  ready yet
-  ==========================================================================    ====================
+  ===========================================================================   ====================
 
   Link logical mismatch substates:
 
-  ===============================================================    ===============================
+  ================================================================   ===============================
   ``ETHTOOL_LINK_EXT_SUBSTATE_LLM_PCS_DID_NOT_ACQUIRE_BLOCK_LOCK``   Physical coding sublayer was
                                                                      not locked in first phase -
                                                                      block lock
@@ -568,7 +568,7 @@ Link extended substates:
 
   ``ETHTOOL_LINK_EXT_SUBSTATE_LLM_RS_FEC_IS_NOT_LOCKED``             RS forward error correction is
                                                                      not locked
-  ===============================================================    ===============================
+  ================================================================   ===============================
 
   Bad signal integrity substates:
 
@@ -585,11 +585,11 @@ Link extended substates:
 
   Cable issue substates:
 
-  ==================================================    ============================================
+  ===================================================   ============================================
   ``ETHTOOL_LINK_EXT_SUBSTATE_CI_UNSUPPORTED_CABLE``    Unsupported cable
 
   ``ETHTOOL_LINK_EXT_SUBSTATE_CI_CABLE_TEST_FAILURE``   Cable test failure
-  ==================================================    ============================================
+  ===================================================   ============================================
 
 DEBUG_GET
 =========
