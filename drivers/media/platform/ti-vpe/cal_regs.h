@@ -34,8 +34,6 @@
  */
 #define DRA72_CAL_PRE_ES2_LDO_DISABLE BIT(0)
 
-#define CAL_NUM_CSI2_PORTS		2
-
 /* CAL register offsets */
 
 #define CAL_HL_REVISION			0x0000

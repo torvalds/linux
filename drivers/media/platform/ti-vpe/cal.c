@@ -75,10 +75,11 @@ MODULE_PARM_DESC(debug, "activates debug info");
 #define phy_err(phy, fmt, arg...)	\
 	cal_err((phy)->cal, "phy%u: " fmt, (phy)->instance, ##arg)
 
-#define CAL_NUM_CONTEXT 2
+#define CAL_NUM_CONTEXT			2
+#define CAL_NUM_CSI2_PORTS		2
 
-#define MAX_WIDTH_BYTES (8192 * 8)
-#define MAX_HEIGHT_LINES 16383
+#define MAX_WIDTH_BYTES			(8192 * 8)
+#define MAX_HEIGHT_LINES		16383
 
 /* ------------------------------------------------------------------
  *	Format Handling
