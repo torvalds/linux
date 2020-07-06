@@ -2074,7 +2074,8 @@ static int of_cal_create_instance(struct cal_ctx *ctx, int inst)
 	struct v4l2_fwnode_endpoint *endpoint;
 	struct v4l2_async_subdev *asd;
 	u32 regval = 0;
-	int ret, index, found_port = 0, lane;
+	int ret, index, lane;
+	bool found_port = false;
 
 	parent = pdev->dev.of_node;
 
@@ -2099,7 +2100,7 @@ static int of_cal_create_instance(struct cal_ctx *ctx, int inst)
 		ctx_dbg(3, ctx, "port:%d inst:%d <reg>:%d\n",
 			index, inst, regval);
 		if ((regval == inst) && (index == inst)) {
-			found_port = 1;
+			found_port = true;
 			break;
 		}
 	}
