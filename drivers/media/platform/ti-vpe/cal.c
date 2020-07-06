@@ -472,7 +472,7 @@ static inline void set_field(u32 *valp, u32 field, u32 mask)
 static u32 cal_data_get_phy_max_lanes(struct cal_ctx *ctx)
 {
 	struct cal_dev *dev = ctx->dev;
-	u32 phy_id = ctx->csi2_port - 1;
+	u32 phy_id = ctx->csi2_port;
 
 	return dev->data->csi2_phy_core[phy_id].num_lanes;
 }
@@ -557,7 +557,7 @@ static struct regmap *cal_get_camerarx_regmap(struct cal_dev *dev)
 static void camerarx_phy_enable(struct cal_ctx *ctx)
 {
 	struct cal_csi2_phy *phy;
-	u32 phy_id = ctx->csi2_port - 1;
+	u32 phy_id = ctx->csi2_port;
 	u32 max_lanes;
 
 	phy = &ctx->dev->data->csi2_phy_core[phy_id];
@@ -574,7 +574,7 @@ static void camerarx_phy_enable(struct cal_ctx *ctx)
 static void camerarx_phy_disable(struct cal_ctx *ctx)
 {
 	struct cal_csi2_phy *phy;
-	u32 phy_id = ctx->csi2_port - 1;
+	u32 phy_id = ctx->csi2_port;
 
 	phy = &ctx->dev->data->csi2_phy_core[phy_id];
 	regmap_field_write(phy->fields[F_CTRLCLKEN], 0);
@@ -712,7 +712,7 @@ static void enable_irqs(struct cal_ctx *ctx)
 	set_field(&val, 1, CAL_HL_IRQ_MASK(ctx->csi2_port));
 	reg_write(ctx->dev, CAL_HL_IRQENABLE_SET(3), val);
 	/* Todo: Add VC_IRQ and CSI2_COMPLEXIO_IRQ handling */
-	reg_write(ctx->dev, CAL_CSI2_VC_IRQENABLE(1), 0xFF000000);
+	reg_write(ctx->dev, CAL_CSI2_VC_IRQENABLE(0), 0xFF000000);
 }
 
 static void disable_irqs(struct cal_ctx *ctx)
@@ -734,7 +734,7 @@ static void disable_irqs(struct cal_ctx *ctx)
 	set_field(&val, 1, CAL_HL_IRQ_MASK(ctx->csi2_port));
 	reg_write(ctx->dev, CAL_HL_IRQENABLE_CLR(3), val);
 	/* Todo: Add VC_IRQ and CSI2_COMPLEXIO_IRQ handling */
-	reg_write(ctx->dev, CAL_CSI2_VC_IRQENABLE(1), 0);
+	reg_write(ctx->dev, CAL_CSI2_VC_IRQENABLE(0), 0);
 }
 
 static void csi2_cio_power(struct cal_ctx *ctx, bool enable)
@@ -894,7 +894,7 @@ static void csi2_wait_for_phy(struct cal_ctx *ctx)
 	csi2_wait_stop_state(ctx);
 
 	ctx_dbg(1, ctx, "CSI2_%d_REG1 = 0x%08x (Bit(31,28) should be set!)\n",
-		(ctx->csi2_port - 1), reg_read(ctx->cc, CAL_CSI2_PHY_REG1));
+		ctx->csi2_port, reg_read(ctx->cc, CAL_CSI2_PHY_REG1));
 }
 
 static void csi2_phy_deinit(struct cal_ctx *ctx)
@@ -1139,7 +1139,7 @@ static void csi2_phy_config(struct cal_ctx *ctx)
 	set_field(&reg0, ths_term, CAL_CSI2_PHY_REG0_THS_TERM_MASK);
 	set_field(&reg0, ths_settle, CAL_CSI2_PHY_REG0_THS_SETTLE_MASK);
 
-	ctx_dbg(1, ctx, "CSI2_%d_REG0 = 0x%08x\n", (ctx->csi2_port - 1), reg0);
+	ctx_dbg(1, ctx, "CSI2_%d_REG0 = 0x%08x\n", ctx->csi2_port, reg0);
 	reg_write(ctx->cc, CAL_CSI2_PHY_REG0, reg0);
 
 	reg1 = reg_read(ctx->cc, CAL_CSI2_PHY_REG1);
@@ -1148,7 +1148,7 @@ static void csi2_phy_config(struct cal_ctx *ctx)
 	set_field(&reg1, TCLK_MISS, CAL_CSI2_PHY_REG1_CTRLCLK_DIV_FACTOR_MASK);
 	set_field(&reg1, TCLK_SETTLE, CAL_CSI2_PHY_REG1_TCLK_SETTLE_MASK);
 
-	ctx_dbg(1, ctx, "CSI2_%d_REG1 = 0x%08x\n", (ctx->csi2_port - 1), reg1);
+	ctx_dbg(1, ctx, "CSI2_%d_REG1 = 0x%08x\n", ctx->csi2_port, reg1);
 	reg_write(ctx->cc, CAL_CSI2_PHY_REG1, reg1);
 }
 
@@ -1217,7 +1217,7 @@ static irqreturn_t cal_irq(int irq_cal, void *data)
 		if (irqst1 & CAL_HL_IRQ_OCPO_ERR_MASK)
 			dev_err_ratelimited(&dev->pdev->dev, "OCPO ERROR\n");
 
-		for (i = 1; i <= 2; ++i) {
+		for (i = 0; i < 2; ++i) {
 			if (irqst1 & CAL_HL_IRQ_CIO_MASK(i)) {
 				u32 cio_stat = reg_read(dev,
 							CAL_CSI2_COMPLEXIO_IRQSTATUS(i));
@@ -1239,9 +1239,9 @@ static irqreturn_t cal_irq(int irq_cal, void *data)
 		/* Clear Interrupt status */
 		reg_write(dev, CAL_HL_IRQSTATUS(2), irqst2);
 
-		for (i = 1; i <= 2; ++i) {
+		for (i = 0; i < 2; ++i) {
 			if (isportirqset(irqst2, i)) {
-				ctx = dev->ctx[i - 1];
+				ctx = dev->ctx[i];
 
 				spin_lock(&ctx->slock);
 				ctx->dma_act = false;
@@ -1262,9 +1262,9 @@ static irqreturn_t cal_irq(int irq_cal, void *data)
 		/* Clear Interrupt status */
 		reg_write(dev, CAL_HL_IRQSTATUS(3), irqst3);
 
-		for (i = 1; i <= 2; ++i) {
+		for (i = 0; i < 2; ++i) {
 			if (isportirqset(irqst3, i)) {
-				ctx = dev->ctx[i - 1];
+				ctx = dev->ctx[i];
 				dma_q = &ctx->vidq;
 
 				spin_lock(&ctx->slock);
@@ -2221,8 +2221,8 @@ static struct cal_ctx *cal_create_instance(struct cal_dev *dev, int inst)
 	ctx->cc = dev->cc[inst];
 
 	/* Store the instance id */
-	ctx->csi2_port = inst + 1;
-	ctx->cport = inst + 1;
+	ctx->csi2_port = inst;
+	ctx->cport = inst;
 
 	ret = of_cal_create_instance(ctx, inst);
 	if (ret) {
