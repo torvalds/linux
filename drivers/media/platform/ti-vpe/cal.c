@@ -1976,6 +1976,9 @@ static int cal_ctx_v4l2_register(struct cal_ctx *ctx)
 
 static void cal_ctx_v4l2_unregister(struct cal_ctx *ctx)
 {
+	ctx_dbg(1, ctx, "unregistering %s\n",
+		video_device_node_name(&ctx->vdev));
+
 	video_unregister_device(&ctx->vdev);
 }
 
@@ -2408,7 +2411,6 @@ error_camerarx:
 static int cal_remove(struct platform_device *pdev)
 {
 	struct cal_dev *cal = platform_get_drvdata(pdev);
-	struct cal_ctx *ctx;
 	unsigned int i;
 
 	cal_dbg(1, cal, "Removing %s\n", CAL_MODULE_NAME);
@@ -2418,14 +2420,18 @@ static int cal_remove(struct platform_device *pdev)
 	cal_async_notifier_unregister(cal);
 
 	for (i = 0; i < ARRAY_SIZE(cal->ctx); i++) {
-		ctx = cal->ctx[i];
-		if (ctx) {
-			ctx_dbg(1, ctx, "unregistering %s\n",
-				video_device_node_name(&ctx->vdev));
-			cal_ctx_v4l2_unregister(ctx);
-			cal_camerarx_disable(ctx->phy);
-			cal_ctx_v4l2_cleanup(ctx);
-		}
+		if (cal->ctx[i])
+			cal_ctx_v4l2_unregister(cal->ctx[i]);
+	}
+
+	for (i = 0; i < ARRAY_SIZE(cal->phy); i++) {
+		if (cal->phy[i])
+			cal_camerarx_disable(cal->phy[i]);
+	}
+
+	for (i = 0; i < ARRAY_SIZE(cal->ctx); i++) {
+		if (cal->ctx[i])
+			cal_ctx_v4l2_cleanup(cal->ctx[i]);
 	}
 
 	v4l2_device_unregister(&cal->v4l2_dev);
