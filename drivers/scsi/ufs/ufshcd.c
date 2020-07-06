@@ -2240,7 +2240,7 @@ static void ufshcd_disable_intr(struct ufs_hba *hba, u32 intrs)
  * @cmd_dir: requests data direction
  */
 static void ufshcd_prepare_req_desc_hdr(struct ufshcd_lrb *lrbp,
-			u32 *upiu_flags, enum dma_data_direction cmd_dir)
+			u8 *upiu_flags, enum dma_data_direction cmd_dir)
 {
 	struct utp_transfer_req_desc *req_desc = lrbp->utr_descriptor_ptr;
 	u32 data_direction;
@@ -2286,7 +2286,7 @@ static void ufshcd_prepare_req_desc_hdr(struct ufshcd_lrb *lrbp,
  * @upiu_flags: flags
  */
 static
-void ufshcd_prepare_utp_scsi_cmd_upiu(struct ufshcd_lrb *lrbp, u32 upiu_flags)
+void ufshcd_prepare_utp_scsi_cmd_upiu(struct ufshcd_lrb *lrbp, u8 upiu_flags)
 {
 	struct scsi_cmnd *cmd = lrbp->cmd;
 	struct utp_upiu_req *ucd_req_ptr = lrbp->ucd_req_ptr;
@@ -2319,7 +2319,7 @@ void ufshcd_prepare_utp_scsi_cmd_upiu(struct ufshcd_lrb *lrbp, u32 upiu_flags)
  * @upiu_flags: flags
  */
 static void ufshcd_prepare_utp_query_req_upiu(struct ufs_hba *hba,
-				struct ufshcd_lrb *lrbp, u32 upiu_flags)
+				struct ufshcd_lrb *lrbp, u8 upiu_flags)
 {
 	struct utp_upiu_req *ucd_req_ptr = lrbp->ucd_req_ptr;
 	struct ufs_query *query = &hba->dev_cmd.query;
@@ -2375,7 +2375,7 @@ static inline void ufshcd_prepare_utp_nop_upiu(struct ufshcd_lrb *lrbp)
  */
 static int ufshcd_comp_devman_upiu(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 {
-	u32 upiu_flags;
+	u8 upiu_flags;
 	int ret = 0;
 
 	if ((hba->ufs_version == UFSHCI_VERSION_10) ||
@@ -2403,7 +2403,7 @@ static int ufshcd_comp_devman_upiu(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
  */
 static int ufshcd_comp_scsi_upiu(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 {
-	u32 upiu_flags;
+	u8 upiu_flags;
 	int ret = 0;
 
 	if ((hba->ufs_version == UFSHCI_VERSION_10) ||
@@ -6121,7 +6121,7 @@ static int ufshcd_issue_devman_upiu_cmd(struct ufs_hba *hba,
 	int tag;
 	struct completion wait;
 	unsigned long flags;
-	u32 upiu_flags;
+	u8 upiu_flags;
 
 	down_read(&hba->clk_scaling_lock);
 
