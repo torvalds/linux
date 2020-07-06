@@ -932,7 +932,7 @@ static struct cal_camerarx *cal_camerarx_create(struct cal_dev *cal,
 	struct cal_camerarx *phy;
 	int ret;
 
-	phy = devm_kzalloc(&pdev->dev, sizeof(*phy), GFP_KERNEL);
+	phy = kzalloc(sizeof(*phy), GFP_KERNEL);
 	if (!phy)
 		return ERR_PTR(-ENOMEM);
 
@@ -947,7 +947,8 @@ static struct cal_camerarx *cal_camerarx_create(struct cal_dev *cal,
 	phy->base = devm_ioremap_resource(&pdev->dev, phy->res);
 	if (IS_ERR(phy->base)) {
 		cal_err(cal, "failed to ioremap\n");
-		return ERR_CAST(phy->base);
+		ret = PTR_ERR(phy->base);
+		goto error;
 	}
 
 	cal_dbg(1, cal, "ioresource %s at %pa - %pa\n",
@@ -955,9 +956,21 @@ static struct cal_camerarx *cal_camerarx_create(struct cal_dev *cal,
 
 	ret = cal_camerarx_regmap_init(cal, phy);
 	if (ret)
-		return ERR_PTR(ret);
+		goto error;
 
 	return phy;
+
+error:
+	kfree(phy);
+	return ERR_PTR(ret);
+}
+
+static void cal_camerarx_destroy(struct cal_camerarx *phy)
+{
+	if (!phy)
+		return;
+
+	kfree(phy);
 }
 
 static int cal_camerarx_init_regmap(struct cal_dev *cal)
@@ -2253,15 +2266,18 @@ static int cal_probe(struct platform_device *pdev)
 	/* Create CAMERARX PHYs. */
 	for (i = 0; i < cal->data->num_csi2_phy; ++i) {
 		cal->phy[i] = cal_camerarx_create(cal, i);
-		if (IS_ERR(cal->phy[i]))
-			return PTR_ERR(cal->phy[i]);
+		if (IS_ERR(cal->phy[i])) {
+			ret = PTR_ERR(cal->phy[i]);
+			cal->phy[i] = NULL;
+			goto error_camerarx;
+		}
 	}
 
 	/* Register the V4L2 device. */
 	ret = v4l2_device_register(&pdev->dev, &cal->v4l2_dev);
 	if (ret) {
 		cal_err(cal, "Failed to register V4L2 device\n");
-		return ret;
+		goto error_camerarx;
 	}
 
 	/* Create contexts. */
@@ -2302,6 +2318,11 @@ error_pm_runtime:
 
 error_v4l2:
 	v4l2_device_unregister(&cal->v4l2_dev);
+
+error_camerarx:
+	for (i = 0; i < ARRAY_SIZE(cal->phy); i++)
+		cal_camerarx_destroy(cal->phy[i]);
+
 	return ret;
 }
 
@@ -2329,6 +2350,9 @@ static int cal_remove(struct platform_device *pdev)
 	}
 
 	v4l2_device_unregister(&cal->v4l2_dev);
+
+	for (i = 0; i < ARRAY_SIZE(cal->phy); i++)
+		cal_camerarx_destroy(cal->phy[i]);
 
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
