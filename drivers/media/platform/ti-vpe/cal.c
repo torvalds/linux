@@ -2115,11 +2115,22 @@ static void cal_ctx_v4l2_cleanup(struct cal_ctx *ctx)
  * ------------------------------------------------------------------
  */
 
+struct cal_v4l2_async_subdev {
+	struct v4l2_async_subdev asd;
+	struct cal_ctx *ctx;
+};
+
+static inline struct cal_v4l2_async_subdev *
+to_cal_asd(struct v4l2_async_subdev *asd)
+{
+	return container_of(asd, struct cal_v4l2_async_subdev, asd);
+}
+
 static int cal_async_bound(struct v4l2_async_notifier *notifier,
 			   struct v4l2_subdev *subdev,
 			   struct v4l2_async_subdev *asd)
 {
-	struct cal_ctx *ctx = notifier_to_ctx(notifier);
+	struct cal_ctx *ctx = to_cal_asd(asd)->ctx;
 
 	if (ctx->phy->sensor) {
 		ctx_info(ctx, "Rejecting subdev %s (Already set!!)",
@@ -2148,6 +2159,7 @@ static const struct v4l2_async_notifier_operations cal_async_ops = {
 
 static int of_cal_create_instance(struct cal_ctx *ctx, int inst)
 {
+	struct cal_v4l2_async_subdev *casd;
 	struct v4l2_async_subdev *asd;
 	struct fwnode_handle *fwnode;
 	int ret;
@@ -2162,6 +2174,9 @@ static int of_cal_create_instance(struct cal_ctx *ctx, int inst)
 		ctx_err(ctx, "Failed to add subdev to notifier\n");
 		return PTR_ERR(asd);
 	}
+
+	casd = to_cal_asd(asd);
+	casd->ctx = ctx;
 
 	ret = v4l2_async_notifier_register(&ctx->cal->v4l2_dev,
 					   &ctx->notifier);
