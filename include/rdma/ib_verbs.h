@@ -2478,7 +2478,7 @@ struct ib_device_ops {
 			     struct ib_pd *pd, struct ib_udata *udata);
 	int (*dereg_mr)(struct ib_mr *mr, struct ib_udata *udata);
 	struct ib_mr *(*alloc_mr)(struct ib_pd *pd, enum ib_mr_type mr_type,
-				  u32 max_num_sg, struct ib_udata *udata);
+				  u32 max_num_sg);
 	struct ib_mr *(*alloc_mr_integrity)(struct ib_pd *pd,
 					    u32 max_num_data_sg,
 					    u32 max_num_meta_sg);

@@ -1210,7 +1210,7 @@ int mlx5_ib_rereg_user_mr(struct ib_mr *ib_mr, int flags, u64 start,
 			  struct ib_pd *pd, struct ib_udata *udata);
 int mlx5_ib_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata);
 struct ib_mr *mlx5_ib_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
-			       u32 max_num_sg, struct ib_udata *udata);
+			       u32 max_num_sg);
 struct ib_mr *mlx5_ib_alloc_mr_integrity(struct ib_pd *pd,
 					 u32 max_num_sg,
 					 u32 max_num_meta_sg);

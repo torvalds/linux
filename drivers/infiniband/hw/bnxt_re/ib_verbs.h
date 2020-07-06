@@ -201,7 +201,7 @@ struct ib_mr *bnxt_re_get_dma_mr(struct ib_pd *pd, int mr_access_flags);
 int bnxt_re_map_mr_sg(struct ib_mr *ib_mr, struct scatterlist *sg, int sg_nents,
 		      unsigned int *sg_offset);
 struct ib_mr *bnxt_re_alloc_mr(struct ib_pd *ib_pd, enum ib_mr_type mr_type,
-			       u32 max_num_sg, struct ib_udata *udata);
+			       u32 max_num_sg);
 int bnxt_re_dereg_mr(struct ib_mr *mr, struct ib_udata *udata);
 struct ib_mw *bnxt_re_alloc_mw(struct ib_pd *ib_pd, enum ib_mw_type type,
 			       struct ib_udata *udata);

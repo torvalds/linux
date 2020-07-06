@@ -1543,10 +1543,9 @@ static int i40iw_hw_alloc_stag(struct i40iw_device *iwdev, struct i40iw_mr *iwmr
  * @pd: ibpd pointer
  * @mr_type: memory for stag registrion
  * @max_num_sg: man number of pages
- * @udata: user data or NULL for kernel objects
  */
 static struct ib_mr *i40iw_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
-				    u32 max_num_sg, struct ib_udata *udata)
+				    u32 max_num_sg)
 {
 	struct i40iw_pd *iwpd = to_iwpd(pd);
 	struct i40iw_device *iwdev = to_iwdev(pd->device);

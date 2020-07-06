@@ -2131,7 +2131,7 @@ struct ib_mr *ib_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
 		goto out;
 	}
 
-	mr = pd->device->ops.alloc_mr(pd, mr_type, max_num_sg, NULL);
+	mr = pd->device->ops.alloc_mr(pd, mr_type, max_num_sg);
 	if (IS_ERR(mr))
 		goto out;
 

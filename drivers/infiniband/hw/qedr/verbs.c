@@ -3003,7 +3003,7 @@ err0:
 }
 
 struct ib_mr *qedr_alloc_mr(struct ib_pd *ibpd, enum ib_mr_type mr_type,
-			    u32 max_num_sg, struct ib_udata *udata)
+			    u32 max_num_sg)
 {
 	struct qedr_mr *mr;
 
