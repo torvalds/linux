@@ -290,13 +290,14 @@ struct cal_dev {
 	struct cal_camerarx	*phy[CAL_NUM_CSI2_PORTS];
 
 	struct cal_ctx		*ctx[CAL_NUM_CONTEXT];
+
+	struct v4l2_device	v4l2_dev;
 };
 
 /*
  * There is one cal_ctx structure for each camera core context.
  */
 struct cal_ctx {
-	struct v4l2_device	v4l2_dev;
 	struct v4l2_ctrl_handler ctrl_handler;
 	struct video_device	vdev;
 	struct v4l2_async_notifier notifier;
@@ -1902,7 +1903,7 @@ static int cal_complete_ctx(struct cal_ctx *ctx)
 
 	vfd = &ctx->vdev;
 	*vfd = cal_videodev;
-	vfd->v4l2_dev = &ctx->v4l2_dev;
+	vfd->v4l2_dev = &ctx->cal->v4l2_dev;
 	vfd->queue = q;
 
 	/* Initialize the control handler. */
@@ -2091,7 +2092,7 @@ static int of_cal_create_instance(struct cal_ctx *ctx, int inst)
 	}
 
 	ctx->notifier.ops = &cal_async_ops;
-	ret = v4l2_async_notifier_register(&ctx->v4l2_dev,
+	ret = v4l2_async_notifier_register(&ctx->cal->v4l2_dev,
 					   &ctx->notifier);
 	if (ret) {
 		ctx_err(ctx, "Error registering async notifier\n");
@@ -2125,12 +2126,6 @@ static struct cal_ctx *cal_ctx_create(struct cal_dev *cal, int inst)
 	/* save the cal_dev * for future ref */
 	ctx->cal = cal;
 
-	snprintf(ctx->v4l2_dev.name, sizeof(ctx->v4l2_dev.name),
-		 "%s-%03d", CAL_MODULE_NAME, inst);
-	ret = v4l2_device_register(&cal->pdev->dev, &ctx->v4l2_dev);
-	if (ret)
-		return NULL;
-
 	/* Make sure Camera Core H/W register area is available */
 	ctx->phy = cal->phy[inst];
 
@@ -2139,15 +2134,10 @@ static struct cal_ctx *cal_ctx_create(struct cal_dev *cal, int inst)
 	ctx->cport = inst;
 
 	ret = of_cal_create_instance(ctx, inst);
-	if (ret) {
-		ret = -EINVAL;
-		goto unreg_dev;
-	}
-	return ctx;
+	if (ret)
+		return NULL;
 
-unreg_dev:
-	v4l2_device_unregister(&ctx->v4l2_dev);
-	return NULL;
+	return ctx;
 }
 
 static const struct of_device_id cal_of_match[] = {
@@ -2243,13 +2233,21 @@ static int cal_probe(struct platform_device *pdev)
 			return PTR_ERR(cal->phy[i]);
 	}
 
+	/* Register the V4L2 device. */
+	ret = v4l2_device_register(&pdev->dev, &cal->v4l2_dev);
+	if (ret) {
+		cal_err(cal, "Failed to register V4L2 device\n");
+		return ret;
+	}
+
 	/* Create contexts. */
 	for (i = 0; i < cal->data->num_csi2_phy; ++i)
 		cal->ctx[i] = cal_ctx_create(cal, i);
 
 	if (!cal->ctx[0] && !cal->ctx[1]) {
 		cal_err(cal, "Neither port is configured, no point in staying up\n");
-		return -ENODEV;
+		ret = -ENODEV;
+		goto error_v4l2;
 	}
 
 	vb2_dma_contig_set_max_seg_size(&pdev->dev, DMA_BIT_MASK(32));
@@ -2258,14 +2256,14 @@ static int cal_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 	ret = pm_runtime_get_sync(&pdev->dev);
 	if (ret)
-		goto runtime_disable;
+		goto error_pm_runtime;
 
 	cal_get_hwinfo(cal);
 	pm_runtime_put_sync(&pdev->dev);
 
 	return 0;
 
-runtime_disable:
+error_pm_runtime:
 	vb2_dma_contig_clear_max_seg_size(&pdev->dev);
 
 	pm_runtime_disable(&pdev->dev);
@@ -2275,10 +2273,11 @@ runtime_disable:
 			v4l2_async_notifier_unregister(&ctx->notifier);
 			v4l2_async_notifier_cleanup(&ctx->notifier);
 			v4l2_ctrl_handler_free(&ctx->ctrl_handler);
-			v4l2_device_unregister(&ctx->v4l2_dev);
 		}
 	}
 
+error_v4l2:
+	v4l2_device_unregister(&cal->v4l2_dev);
 	return ret;
 }
 
@@ -2301,10 +2300,11 @@ static int cal_remove(struct platform_device *pdev)
 			v4l2_async_notifier_unregister(&ctx->notifier);
 			v4l2_async_notifier_cleanup(&ctx->notifier);
 			v4l2_ctrl_handler_free(&ctx->ctrl_handler);
-			v4l2_device_unregister(&ctx->v4l2_dev);
 			video_unregister_device(&ctx->vdev);
 		}
 	}
+
+	v4l2_device_unregister(&cal->v4l2_dev);
 
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
