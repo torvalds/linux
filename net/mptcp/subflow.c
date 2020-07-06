@@ -873,7 +873,7 @@ static void subflow_data_ready(struct sock *sk)
 	struct mptcp_sock *msk;
 
 	msk = mptcp_sk(parent);
-	if (inet_sk_state_load(sk) == TCP_LISTEN) {
+	if ((1 << inet_sk_state_load(sk)) & (TCPF_LISTEN | TCPF_CLOSE)) {
 		set_bit(MPTCP_DATA_READY, &msk->flags);
 		parent->sk_data_ready(parent);
 		return;
