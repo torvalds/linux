@@ -1265,11 +1265,6 @@ static inline void cal_process_buffer_complete(struct cal_ctx *ctx)
 	ctx->cur_frm = ctx->next_frm;
 }
 
-#define isvcirqset(irq, vc, ff) (irq & \
-	(CAL_CSI2_VC_IRQENABLE_ ##ff ##_IRQ_##vc ##_MASK))
-
-#define isportirqset(irq, port) (irq & CAL_HL_IRQ_MASK(port))
-
 static irqreturn_t cal_irq(int irq_cal, void *data)
 {
 	struct cal_dev *cal = data;
@@ -1309,7 +1304,7 @@ static irqreturn_t cal_irq(int irq_cal, void *data)
 		reg_write(cal, CAL_HL_IRQSTATUS(1), status);
 
 		for (i = 0; i < ARRAY_SIZE(cal->ctx); ++i) {
-			if (isportirqset(status, i)) {
+			if (status & CAL_HL_IRQ_MASK(i)) {
 				ctx = cal->ctx[i];
 
 				spin_lock(&ctx->slock);
@@ -1332,7 +1327,7 @@ static irqreturn_t cal_irq(int irq_cal, void *data)
 		reg_write(cal, CAL_HL_IRQSTATUS(2), status);
 
 		for (i = 0; i < ARRAY_SIZE(cal->ctx); ++i) {
-			if (isportirqset(status, i)) {
+			if (status & CAL_HL_IRQ_MASK(i)) {
 				ctx = cal->ctx[i];
 				dma_q = &ctx->vidq;
 
