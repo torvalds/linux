@@ -3559,16 +3559,14 @@ void amdgpu_dpm_enable_uvd(struct amdgpu_device *adev, bool enable)
 	int ret = 0;
 
 	if (adev->family == AMDGPU_FAMILY_SI) {
+		mutex_lock(&adev->pm.mutex);
 		if (enable) {
-			mutex_lock(&adev->pm.mutex);
 			adev->pm.dpm.uvd_active = true;
 			adev->pm.dpm.state = POWER_STATE_TYPE_INTERNAL_UVD;
-			mutex_unlock(&adev->pm.mutex);
 		} else {
-			mutex_lock(&adev->pm.mutex);
 			adev->pm.dpm.uvd_active = false;
-			mutex_unlock(&adev->pm.mutex);
 		}
+		mutex_unlock(&adev->pm.mutex);
 
 		amdgpu_pm_compute_clocks(adev);
 	} else {
@@ -3596,17 +3594,15 @@ void amdgpu_dpm_enable_vce(struct amdgpu_device *adev, bool enable)
 	int ret = 0;
 
 	if (adev->family == AMDGPU_FAMILY_SI) {
+		mutex_lock(&adev->pm.mutex);
 		if (enable) {
-			mutex_lock(&adev->pm.mutex);
 			adev->pm.dpm.vce_active = true;
 			/* XXX select vce level based on ring/task */
 			adev->pm.dpm.vce_level = AMD_VCE_LEVEL_AC_ALL;
-			mutex_unlock(&adev->pm.mutex);
 		} else {
-			mutex_lock(&adev->pm.mutex);
 			adev->pm.dpm.vce_active = false;
-			mutex_unlock(&adev->pm.mutex);
 		}
+		mutex_unlock(&adev->pm.mutex);
 
 		amdgpu_pm_compute_clocks(adev);
 	} else {
