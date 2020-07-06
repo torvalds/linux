@@ -2309,9 +2309,10 @@ static int cal_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	/* save pdev pointer */
 	cal->pdev = pdev;
+	platform_set_drvdata(pdev, cal);
 
+	/* Acquire resources: clocks, CAMERARX regmap, I/O memory and IRQ. */
 	cal->fclk = devm_clk_get(&pdev->dev, "fck");
 	if (IS_ERR(cal->fclk)) {
 		dev_err(&pdev->dev, "cannot get CAL fclk\n");
@@ -2338,14 +2339,14 @@ static int cal_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	platform_set_drvdata(pdev, cal);
-
+	/* Create CAMERARX PHYs. */
 	for (i = 0; i < cal->data->num_csi2_phy; ++i) {
 		cal->phy[i] = cal_camerarx_create(cal, i);
 		if (IS_ERR(cal->phy[i]))
 			return PTR_ERR(cal->phy[i]);
 	}
 
+	/* Create contexts. */
 	for (i = 0; i < cal->data->num_csi2_phy; ++i)
 		cal->ctx[i] = cal_create_instance(cal, i);
 
@@ -2356,15 +2357,13 @@ static int cal_probe(struct platform_device *pdev)
 
 	vb2_dma_contig_set_max_seg_size(&pdev->dev, DMA_BIT_MASK(32));
 
+	/* Read the revision and hardware info to verify hardware access. */
 	pm_runtime_enable(&pdev->dev);
-
 	ret = pm_runtime_get_sync(&pdev->dev);
 	if (ret)
 		goto runtime_disable;
 
-	/* Just check we can actually access the module */
 	cal_get_hwinfo(cal);
-
 	pm_runtime_put_sync(&pdev->dev);
 
 	return 0;
