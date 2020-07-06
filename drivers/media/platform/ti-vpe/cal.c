@@ -325,6 +325,9 @@ struct cal_camerarx {
 	struct resource		*res;
 	struct platform_device	*pdev;
 	struct regmap_field	*fields[F_MAX_FIELDS];
+
+	struct cal_dev		*cal;
+	unsigned int		instance;
 };
 
 struct cal_dev {
@@ -466,8 +469,7 @@ static u32 cal_data_get_num_csi2_phy(struct cal_dev *cal)
 }
 
 static int cal_camerarx_regmap_init(struct cal_dev *cal,
-				    struct cal_camerarx *phy,
-				    unsigned int idx)
+				    struct cal_camerarx *phy)
 {
 	const struct cal_camerarx_data *phy_data;
 	unsigned int i;
@@ -475,7 +477,7 @@ static int cal_camerarx_regmap_init(struct cal_dev *cal,
 	if (!cal->data)
 		return -EINVAL;
 
-	phy_data = &cal->data->camerarx[idx];
+	phy_data = &cal->data->camerarx[phy->instance];
 
 	for (i = 0; i < F_MAX_FIELDS; i++) {
 		struct reg_field field = {
@@ -561,7 +563,8 @@ static void camerarx_phy_disable(struct cal_ctx *ctx)
 /*
  * Camera Instance access block
  */
-static struct cal_camerarx *cc_create(struct cal_dev *cal, unsigned int core)
+static struct cal_camerarx *cc_create(struct cal_dev *cal,
+				      unsigned int instance)
 {
 	struct platform_device *pdev = cal->pdev;
 	struct cal_camerarx *phy;
@@ -571,8 +574,11 @@ static struct cal_camerarx *cc_create(struct cal_dev *cal, unsigned int core)
 	if (!phy)
 		return ERR_PTR(-ENOMEM);
 
+	phy->cal = cal;
+	phy->instance = instance;
+
 	phy->res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-						(core == 0) ?
+						(instance == 0) ?
 						"cal_rx_core0" :
 						"cal_rx_core1");
 	phy->base = devm_ioremap_resource(&pdev->dev, phy->res);
@@ -584,7 +590,7 @@ static struct cal_camerarx *cc_create(struct cal_dev *cal, unsigned int core)
 	cal_dbg(1, cal, "ioresource %s at %pa - %pa\n",
 		phy->res->name, &phy->res->start, &phy->res->end);
 
-	ret = cal_camerarx_regmap_init(cal, phy, core);
+	ret = cal_camerarx_regmap_init(cal, phy);
 	if (ret)
 		return ERR_PTR(ret);
 
