@@ -190,7 +190,7 @@ static int sun6i_spi_transfer_one(struct spi_master *master,
 	unsigned int mclk_rate, div, div_cdr1, div_cdr2, timeout;
 	unsigned int start, end, tx_time;
 	unsigned int trig_level;
-	unsigned int tx_len = 0;
+	unsigned int tx_len = 0, rx_len = 0;
 	int ret = 0;
 	u32 reg;
 
@@ -245,10 +245,12 @@ static int sun6i_spi_transfer_one(struct spi_master *master,
 	 * If it's a TX only transfer, we don't want to fill the RX
 	 * FIFO with bogus data
 	 */
-	if (sspi->rx_buf)
+	if (sspi->rx_buf) {
 		reg &= ~SUN6I_TFR_CTL_DHB;
-	else
+		rx_len = tfr->len;
+	} else {
 		reg |= SUN6I_TFR_CTL_DHB;
+	}
 
 	/* We want to control the chip select manually */
 	reg |= SUN6I_TFR_CTL_CS_MANUAL;
@@ -302,8 +304,10 @@ static int sun6i_spi_transfer_one(struct spi_master *master,
 	sun6i_spi_fill_fifo(sspi);
 
 	/* Enable the interrupts */
-	reg = SUN6I_INT_CTL_TC | SUN6I_INT_CTL_RF_RDY;
+	reg = SUN6I_INT_CTL_TC;
 
+	if (rx_len > sspi->fifo_depth)
+		reg |= SUN6I_INT_CTL_RF_RDY;
 	if (tx_len > sspi->fifo_depth)
 		reg |= SUN6I_INT_CTL_TF_ERQ;
 
