@@ -28,7 +28,8 @@
 
 #define ROCKCHIP_MAX_FB_BUFFER	3
 #define ROCKCHIP_MAX_CONNECTOR	2
-#define ROCKCHIP_MAX_CRTC	2
+#define ROCKCHIP_MAX_CRTC	4
+#define ROCKCHIP_MAX_LAYER	16
 
 struct drm_device;
 struct drm_connector;

@@ -292,6 +292,26 @@ struct vop_scl_regs {
 	struct vop_reg scale_cbcr_y;
 };
 
+struct vop_afbc {
+	struct vop_reg enable;
+	struct vop_reg win_sel;
+	struct vop_reg format;
+	struct vop_reg rotate;
+	struct vop_reg block_split_en;
+	struct vop_reg pic_vir_width;
+	struct vop_reg tile_num;
+	struct vop_reg pic_offset;
+	struct vop_reg pic_size;
+	struct vop_reg dsp_offset;
+	struct vop_reg hdr_ptr;
+	struct vop_reg half_block_en;
+	struct vop_reg xmirror;
+	struct vop_reg ymirror;
+	struct vop_reg rotate_270;
+	struct vop_reg rotate_90;
+	struct vop_reg rstn;
+};
+
 struct vop_csc_table {
 	const uint32_t *y2r_bt601;
 	const uint32_t *y2r_bt601_12_235;
@@ -411,6 +431,115 @@ struct vop_win_phy {
 	struct vop_reg key_en;
 };
 
+struct vop2_scl_regs {
+	struct vop_reg scale_yrgb_x;
+	struct vop_reg scale_yrgb_y;
+	struct vop_reg scale_cbcr_x;
+	struct vop_reg scale_cbcr_y;
+	struct vop_reg yrgb_hor_scl_mode;
+	struct vop_reg yrgb_hscl_filter_mode;
+	struct vop_reg yrgb_ver_scl_mode;
+	struct vop_reg yrgb_vscl_filter_mode;
+	struct vop_reg cbcr_ver_scl_mode;
+	struct vop_reg cbcr_hscl_filter_mode;
+	struct vop_reg cbcr_hor_scl_mode;
+	struct vop_reg cbcr_vscl_filter_mode;
+	struct vop_reg vsd_cbcr_gt2;
+	struct vop_reg vsd_cbcr_gt4;
+	struct vop_reg vsd_yrgb_gt2;
+	struct vop_reg vsd_yrgb_gt4;
+	struct vop_reg bic_coe_sel;
+};
+
+struct vop2_win_regs {
+	const struct vop2_scl_regs *scl;
+	const struct vop_afbc *afbc;
+
+	struct vop_reg gate;
+	struct vop_reg enable;
+	struct vop_reg format;
+	struct vop_reg csc_mode;
+	struct vop_reg xmirror;
+	struct vop_reg ymirror;
+	struct vop_reg rb_swap;
+	struct vop_reg act_info;
+	struct vop_reg dsp_info;
+	struct vop_reg dsp_st;
+	struct vop_reg yrgb_mst;
+	struct vop_reg uv_mst;
+	struct vop_reg yrgb_vir;
+	struct vop_reg uv_vir;
+	struct vop_reg lb_mode;
+	struct vop_reg y2r_en;
+	struct vop_reg r2y_en;
+	struct vop_reg channel;
+	struct vop_reg dst_alpha_ctl;
+	struct vop_reg src_alpha_ctl;
+	struct vop_reg alpha_mode;
+	struct vop_reg alpha_en;
+	struct vop_reg global_alpha_val;
+	struct vop_reg key_color;
+	struct vop_reg key_en;
+};
+
+struct vop2_video_port_regs {
+	struct vop_reg cfg_done;
+	struct vop_reg overlay_mode;
+	struct vop_reg port_mux;
+	struct vop_reg out_mode;
+	struct vop_reg standby;
+	struct vop_reg dsp_interlace;
+	struct vop_reg pre_scan_htiming;
+	struct vop_reg htotal_pw;
+	struct vop_reg hact_st_end;
+	struct vop_reg vtotal_pw;
+	struct vop_reg vact_st_end;
+	struct vop_reg vact_st_end_f1;
+	struct vop_reg vs_st_end_f1;
+	struct vop_reg hpost_st_end;
+	struct vop_reg vpost_st_end;
+	struct vop_reg vpost_st_end_f1;
+	struct vop_reg post_scl_factor;
+	struct vop_reg post_scl_ctrl;
+	struct vop_reg dither_down_sel;
+	struct vop_reg dither_down_mode;
+	struct vop_reg dither_down_en;
+	struct vop_reg pre_dither_down_en;
+	struct vop_reg dither_up_en;
+	struct vop_reg bg_dly;
+
+	struct vop_reg core_dclk_div;
+	struct vop_reg p2i_en;
+	struct vop_reg mipi_dual_en;
+	struct vop_reg mipi_dual_channel_swap;
+
+	struct vop_reg hdr_lut_update_en;
+	struct vop_reg hdr_lut_mode;
+	struct vop_reg hdr_lut_mst;
+	struct vop_reg sdr2hdr_eotf_en;
+	struct vop_reg sdr2hdr_r2r_en;
+	struct vop_reg sdr2hdr_r2r_mode;
+	struct vop_reg sdr2hdr_oetf_en;
+	struct vop_reg sdr2hdr_bypass_en;
+	struct vop_reg sdr2hdr_gating_en;
+	struct vop_reg hdr2sdr_en;
+	struct vop_reg hdr2sdr_src_min;
+	struct vop_reg hdr2sdr_src_max;
+	struct vop_reg hdr2sdr_normfaceetf;
+	struct vop_reg hdr2sdr_dst_min;
+	struct vop_reg hdr2sdr_dst_max;
+	struct vop_reg hdr2sdr_normfacgamma;
+	struct vop_reg hdr2sdr_eetf_oetf_y0_offset;
+	struct vop_reg hdr2sdr_sat_y0_offset;
+	struct vop_reg sdr2hdr_eotf_oetf_y0_offset;
+	struct vop_reg sdr2hdr_oetf_dx_pow1_offset;
+	struct vop_reg sdr2hdr_oetf_xn1_offset;
+	struct vop_reg hdr_src_color_ctrl;
+	struct vop_reg hdr_dst_color_ctrl;
+	struct vop_reg hdr_src_alpha_ctrl;
+	struct vop_reg hdr_dst_alpha_ctrl;
+};
+
 struct vop_win_data {
 	uint32_t base;
 	enum drm_plane_type type;
@@ -419,6 +548,81 @@ struct vop_win_data {
 	const struct vop_csc *csc;
 	unsigned int area_size;
 	u64 feature;
+};
+
+struct vop2_win_data {
+	const char *name;
+	uint8_t phys_id;
+
+	uint32_t base;
+	enum drm_plane_type type;
+
+	uint32_t nformats;
+	const uint32_t *formats;
+	const unsigned int supported_rotations;
+
+	const struct vop2_win_regs *regs;
+	const struct vop2_win_regs **area;
+	unsigned int area_size;
+
+	/*
+	 * vertical/horizontal scale up/down filter mode
+	 */
+	const u8 hsu_filter_mode;
+	const u8 hsd_filter_mode;
+	const u8 vsu_filter_mode;
+	const u8 vsd_filter_mode;
+	/**
+	 * @layer_sel_id: defined by register OVERLAY_LAYER_SEL of VOP2
+	 */
+	int layer_sel_id;
+	uint64_t feature;
+
+	unsigned int max_upscale_factor;
+	unsigned int max_downscale_factor;
+};
+
+struct vop2_video_port_data {
+	char id;
+	uint32_t feature;
+	uint64_t soc_id;
+	const u8 pre_scan_max_dly[4];
+	const struct vop_intr *intr;
+	const struct vop_hdr_table *hdr_table;
+	const struct vop2_video_port_regs *regs;
+};
+
+struct vop2_layer_regs {
+	struct vop_reg layer_sel;
+};
+
+/**
+ * struct vop2_layer_data - The logic graphic layer in vop2
+ *
+ * The zorder:
+ *   LAYERn
+ *   LAYERn-1
+ *     .
+ *     .
+ *     .
+ *   LAYER5
+ *   LAYER4
+ *   LAYER3
+ *   LAYER2
+ *   LAYER1
+ *   LAYER0
+ *
+ * Each layer can select a unused window as input than feed to
+ * mixer for overlay.
+ *
+ * The pipeline in vop2:
+ *
+ * win-->layer-->mixer-->vp--->connector(RGB/LVDS/HDMI/MIPI)
+ *
+ */
+struct vop2_layer_data {
+	char id;
+	const struct vop2_layer_regs *regs;
 };
 
 struct vop_grf_ctrl {
@@ -433,6 +637,8 @@ struct vop_grf_ctrl {
 #define WIN_FEATURE_SDR2HDR		BIT(1)
 #define WIN_FEATURE_PRE_OVERLAY		BIT(2)
 #define WIN_FEATURE_AFBDC		BIT(3)
+#define WIN_FEATURE_CLUSTER_MAIN	BIT(4)
+#define WIN_FEATURE_CLUSTER_SUB		BIT(5)
 
 struct vop_rect {
 	int width;
@@ -453,6 +659,106 @@ struct vop_data {
 	struct vop_rect max_input;
 	struct vop_rect max_output;
 	u64 feature;
+};
+
+struct vop2_ctrl {
+	struct vop_reg cfg_done_en;
+	struct vop_reg ovl_cfg_done_port;
+	struct vop_reg ovl_port_mux_cfg_done_imd;
+	struct vop_reg if_ctrl_cfg_done_imd;
+	struct vop_reg version;
+	struct vop_reg standby;
+	struct vop_reg dma_stop;
+	struct vop_reg axi_outstanding_max_num;
+	struct vop_reg axi_max_outstanding_en;
+	struct vop_reg hdmi_dclk_out_en;
+	struct vop_reg rgb_en;
+	struct vop_reg hdmi0_en;
+	struct vop_reg hdmi1_en;
+	struct vop_reg dp0_en;
+	struct vop_reg dp1_en;
+	struct vop_reg edp0_en;
+	struct vop_reg edp1_en;
+	struct vop_reg mipi0_en;
+	struct vop_reg mipi1_en;
+	struct vop_reg lvds0_en;
+	struct vop_reg lvds1_en;
+	struct vop_reg bt656_en;
+	struct vop_reg bt1120_en;
+	struct vop_reg dclk_pol;
+	struct vop_reg pin_pol;
+	struct vop_reg rgb_dclk_pol;
+	struct vop_reg rgb_pin_pol;
+	struct vop_reg lvds_dclk_pol;
+	struct vop_reg lvds_pin_pol;
+	struct vop_reg hdmi_dclk_pol;
+	struct vop_reg hdmi_pin_pol;
+	struct vop_reg edp_dclk_pol;
+	struct vop_reg edp_pin_pol;
+	struct vop_reg mipi_dclk_pol;
+	struct vop_reg mipi_pin_pol;
+	struct vop_reg dp_dclk_pol;
+	struct vop_reg dp_pin_pol;
+
+	struct vop_reg win_vp_id[8];
+
+	/* connector mux */
+	struct vop_reg rgb_mux;
+	struct vop_reg hdmi0_mux;
+	struct vop_reg hdmi1_mux;
+	struct vop_reg dp0_mux;
+	struct vop_reg dp1_mux;
+	struct vop_reg edp0_mux;
+	struct vop_reg edp1_mux;
+	struct vop_reg mipi0_mux;
+	struct vop_reg mipi1_mux;
+	struct vop_reg lvds0_mux;
+	struct vop_reg lvds1_mux;
+
+	struct vop_reg lvds_dual_en;
+	struct vop_reg lvds_dual_mode;
+	struct vop_reg lvds_dual_channel_swap;
+
+	struct vop_reg cluster0_src_color_ctrl;
+	struct vop_reg cluster0_dst_color_ctrl;
+	struct vop_reg cluster0_src_alpha_ctrl;
+	struct vop_reg cluster0_dst_alpha_ctrl;
+	struct vop_reg src_color_ctrl;
+	struct vop_reg dst_color_ctrl;
+	struct vop_reg src_alpha_ctrl;
+	struct vop_reg dst_alpha_ctrl;
+
+	struct vop_reg bt1120_yc_swap;
+
+	struct vop_reg reg_done_frm;
+	struct vop_reg cfg_done;
+};
+
+/**
+ * VOP2 data structe
+ *
+ * @version: VOP IP version
+ * @win_size: hardware win number
+ */
+struct vop2_data {
+	uint32_t version;
+	uint32_t feature;
+	uint8_t nr_vps;
+	uint8_t nr_mixers;
+	uint8_t nr_layers;
+	uint8_t nr_axi_intr;
+	const struct vop_intr *axi_intr;
+	const struct vop2_ctrl *ctrl;
+	const struct vop2_win_data *win;
+	const struct vop2_video_port_data *vp;
+	const struct vop2_layer_data *layer;
+	const struct vop_csc_table *csc_table;
+	const struct vop_hdr_table *hdr_table;
+	const struct vop_grf_ctrl *grf_ctrl;
+	struct vop_rect max_input;
+	struct vop_rect max_output;
+
+	unsigned int win_size;
 };
 
 #define CVBS_PAL_VDISPLAY		288
@@ -559,6 +865,7 @@ enum factor_mode {
 	ALPHA_SRC,
 	ALPHA_SRC_INVERSE,
 	ALPHA_SRC_GLOBAL,
+	ALPHA_DST_GLOBAL,
 };
 
 enum scale_mode {
@@ -584,6 +891,18 @@ enum sacle_up_mode {
 enum scale_down_mode {
 	SCALE_DOWN_BIL = 0x0,
 	SCALE_DOWN_AVG = 0x1
+};
+
+enum vop2_scale_up_mode {
+	VOP2_SCALE_UP_NRST_NBOR,
+	VOP2_SCALE_UP_BIL,
+	VOP2_SCALE_UP_BIC,
+};
+
+enum vop2_scale_down_mode {
+	VOP2_SCALE_DOWN_NRST_NBOR,
+	VOP2_SCALE_DOWN_BIL,
+	VOP2_SCALE_DOWN_AVG,
 };
 
 enum dither_down_mode {
@@ -688,4 +1007,5 @@ static inline int interpolate(int x1, int y1, int x2, int y2, int x)
 }
 
 extern const struct component_ops vop_component_ops;
+extern const struct component_ops vop2_component_ops;
 #endif /* _ROCKCHIP_DRM_VOP_H */
