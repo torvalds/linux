@@ -155,7 +155,7 @@ struct qed_consq {
 };
 
 typedef int (*qed_spq_async_comp_cb)(struct qed_hwfn *p_hwfn, u8 opcode,
-				     u16 echo, union event_ring_data *data,
+				     __le16 echo, union event_ring_data *data,
 				     u8 fw_return_code);
 
 int

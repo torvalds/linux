@@ -341,9 +341,9 @@ int qed_sp_pf_start(struct qed_hwfn *p_hwfn,
 	outer_tag_config->outer_tag.tci = cpu_to_le16(p_hwfn->hw_info.ovlan);
 
 	if (test_bit(QED_MF_8021Q_TAGGING, &p_hwfn->cdev->mf_bits)) {
-		outer_tag_config->outer_tag.tpid = ETH_P_8021Q;
+		outer_tag_config->outer_tag.tpid = cpu_to_le16(ETH_P_8021Q);
 	} else if (test_bit(QED_MF_8021AD_TAGGING, &p_hwfn->cdev->mf_bits)) {
-		outer_tag_config->outer_tag.tpid = ETH_P_8021AD;
+		outer_tag_config->outer_tag.tpid = cpu_to_le16(ETH_P_8021AD);
 		outer_tag_config->enable_stag_pri_change = 1;
 	}
 

@@ -345,8 +345,8 @@ int qed_sp_eth_vport_start(struct qed_hwfn *p_hwfn,
 	struct eth_vport_tpa_param *tpa_param;
 	struct qed_spq_entry *p_ent =  NULL;
 	struct qed_sp_init_data init_data;
+	u16 min_size, rx_mode = 0;
 	u8 abs_vport_id = 0;
-	u16 rx_mode = 0;
 	int rc;
 
 	rc = qed_fw_vport(p_hwfn, p_params->vport_id, &abs_vport_id);
@@ -386,10 +386,12 @@ int qed_sp_eth_vport_start(struct qed_hwfn *p_hwfn,
 
 	switch (p_params->tpa_mode) {
 	case QED_TPA_MODE_GRO:
+		min_size = p_params->mtu / 2;
+
 		tpa_param->tpa_max_aggs_num = ETH_TPA_MAX_AGGS_NUM;
-		tpa_param->tpa_max_size = (u16)-1;
-		tpa_param->tpa_min_size_to_cont = p_params->mtu / 2;
-		tpa_param->tpa_min_size_to_start = p_params->mtu / 2;
+		tpa_param->tpa_max_size = cpu_to_le16(U16_MAX);
+		tpa_param->tpa_min_size_to_cont = cpu_to_le16(min_size);
+		tpa_param->tpa_min_size_to_start = cpu_to_le16(min_size);
 		tpa_param->tpa_ipv4_en_flg = 1;
 		tpa_param->tpa_ipv6_en_flg = 1;
 		tpa_param->tpa_pkt_split_flg = 1;
@@ -626,9 +628,9 @@ qed_sp_vport_update_sge_tpa(struct qed_hwfn *p_hwfn,
 	tpa->tpa_hdr_data_split_flg = param->tpa_hdr_data_split_flg;
 	tpa->tpa_gro_consistent_flg = param->tpa_gro_consistent_flg;
 	tpa->tpa_max_aggs_num = param->tpa_max_aggs_num;
-	tpa->tpa_max_size = param->tpa_max_size;
-	tpa->tpa_min_size_to_start = param->tpa_min_size_to_start;
-	tpa->tpa_min_size_to_cont = param->tpa_min_size_to_cont;
+	tpa->tpa_max_size = cpu_to_le16(param->tpa_max_size);
+	tpa->tpa_min_size_to_start = cpu_to_le16(param->tpa_min_size_to_start);
+	tpa->tpa_min_size_to_cont = cpu_to_le16(param->tpa_min_size_to_cont);
 }
 
 static void
@@ -2090,7 +2092,8 @@ int qed_get_rxq_coalesce(struct qed_hwfn *p_hwfn,
 		return rc;
 	}
 
-	timer_res = GET_FIELD(sb_entry.params, CAU_SB_ENTRY_TIMER_RES0);
+	timer_res = GET_FIELD(le32_to_cpu(sb_entry.params),
+			      CAU_SB_ENTRY_TIMER_RES0);
 
 	address = BAR0_MAP_REG_USDM_RAM +
 		  USTORM_ETH_QUEUE_ZONE_OFFSET(p_cid->abs.queue_id);
@@ -2123,7 +2126,8 @@ int qed_get_txq_coalesce(struct qed_hwfn *p_hwfn,
 		return rc;
 	}
 
-	timer_res = GET_FIELD(sb_entry.params, CAU_SB_ENTRY_TIMER_RES1);
+	timer_res = GET_FIELD(le32_to_cpu(sb_entry.params),
+			      CAU_SB_ENTRY_TIMER_RES1);
 
 	address = BAR0_MAP_REG_XSDM_RAM +
 		  XSTORM_ETH_QUEUE_ZONE_OFFSET(p_cid->abs.queue_id);

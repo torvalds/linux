@@ -73,8 +73,8 @@ union type1_task_context {
 };
 
 struct src_ent {
-	u8				opaque[56];
-	u64				next;
+	__u8				opaque[56];
+	__be64				next;
 };
 
 #define CDUT_SEG_ALIGNMET		3 /* in 4k chunks */
@@ -2177,6 +2177,7 @@ qed_cxt_dynamic_ilt_alloc(struct qed_hwfn *p_hwfn,
 	dma_addr_t p_phys;
 	u64 ilt_hw_entry;
 	void *p_virt;
+	u32 flags1;
 	int rc = 0;
 
 	switch (elem_type) {
@@ -2255,8 +2256,10 @@ qed_cxt_dynamic_ilt_alloc(struct qed_hwfn *p_hwfn,
 			elem = (union type1_task_context *)elem_start;
 			tdif_context = &elem->roce_ctx.tdif_context;
 
-			SET_FIELD(tdif_context->flags1,
-				  TDIF_TASK_CONTEXT_REF_TAG_MASK, 0xf);
+			flags1 = le32_to_cpu(tdif_context->flags1);
+			SET_FIELD(flags1, TDIF_TASK_CONTEXT_REF_TAG_MASK, 0xf);
+			tdif_context->flags1 = cpu_to_le32(flags1);
+
 			elem_start += TYPE1_TASK_CXT_SIZE(p_hwfn);
 		}
 	}
