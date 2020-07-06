@@ -326,7 +326,6 @@ struct cal_ctx {
 	struct vb2_queue	vb_vidq;
 	unsigned int		index;
 	unsigned int		cport;
-	unsigned int		virtual_channel;
 
 	/* Pointer pointing to current v4l2_buffer */
 	struct cal_buffer	*cur_frm;
@@ -1036,8 +1035,7 @@ static void cal_ctx_csi2_config(struct cal_ctx *ctx)
 	 *  0x1E: YUV422 2 pixels = 4 bytes
 	 */
 	set_field(&val, 0x1, CAL_CSI2_CTX_DT_MASK);
-	/* Virtual Channel from the CSI2 sensor usually 0! */
-	set_field(&val, ctx->virtual_channel, CAL_CSI2_CTX_VC_MASK);
+	set_field(&val, 0, CAL_CSI2_CTX_VC_MASK);
 	set_field(&val, ctx->v_fmt.fmt.pix.height, CAL_CSI2_CTX_LINES_MASK);
 	set_field(&val, CAL_CSI2_CTX_ATT_PIX, CAL_CSI2_CTX_ATT_MASK);
 	set_field(&val, CAL_CSI2_CTX_PACK_MODE_LINE,
@@ -2146,11 +2144,7 @@ static int of_cal_create_instance(struct cal_ctx *ctx, int inst)
 		goto cleanup_exit;
 	}
 
-	/* Store Virtual Channel number */
-	ctx->virtual_channel = endpoint->base.id;
-
 	ctx_dbg(3, ctx, "Port:%d v4l2-endpoint: CSI2\n", inst);
-	ctx_dbg(3, ctx, "Virtual Channel=%d\n", ctx->virtual_channel);
 	ctx_dbg(3, ctx, "flags=0x%08x\n", endpoint->bus.mipi_csi2.flags);
 	ctx_dbg(3, ctx, "clock_lane=%d\n", endpoint->bus.mipi_csi2.clock_lane);
 	ctx_dbg(3, ctx, "num_data_lanes=%d\n",
