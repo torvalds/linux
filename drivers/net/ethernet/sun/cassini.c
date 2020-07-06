@@ -5172,10 +5172,9 @@ static void cas_remove_one(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
-#ifdef CONFIG_PM
-static int cas_suspend(struct pci_dev *pdev, pm_message_t state)
+static int __maybe_unused cas_suspend(struct device *dev_d)
 {
-	struct net_device *dev = pci_get_drvdata(pdev);
+	struct net_device *dev = dev_get_drvdata(dev_d);
 	struct cas *cp = netdev_priv(dev);
 	unsigned long flags;
 
@@ -5204,9 +5203,9 @@ static int cas_suspend(struct pci_dev *pdev, pm_message_t state)
 	return 0;
 }
 
-static int cas_resume(struct pci_dev *pdev)
+static int cas_resume(struct device *dev_d)
 {
-	struct net_device *dev = pci_get_drvdata(pdev);
+	struct net_device *dev = dev_get_drvdata(dev_d);
 	struct cas *cp = netdev_priv(dev);
 
 	netdev_info(dev, "resuming\n");
@@ -5227,17 +5226,15 @@ static int cas_resume(struct pci_dev *pdev)
 	mutex_unlock(&cp->pm_mutex);
 	return 0;
 }
-#endif /* CONFIG_PM */
+
+static SIMPLE_DEV_PM_OPS(cas_pm_ops, cas_suspend, cas_resume);
 
 static struct pci_driver cas_driver = {
 	.name		= DRV_MODULE_NAME,
 	.id_table	= cas_pci_tbl,
 	.probe		= cas_init_one,
 	.remove		= cas_remove_one,
-#ifdef CONFIG_PM
-	.suspend	= cas_suspend,
-	.resume		= cas_resume
-#endif
+	.driver.pm	= &cas_pm_ops,
 };
 
 static int __init cas_init(void)
