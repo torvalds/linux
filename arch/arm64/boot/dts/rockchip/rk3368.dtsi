@@ -449,6 +449,13 @@
 				     <&cpu_b2>, <&cpu_b3>;
 	};
 
+	firmware {
+		optee: optee {
+			compatible = "linaro,optee-tz";
+			method = "smc";
+		};
+	};
+
 	psci {
 		compatible = "arm,psci-0.2";
 		method = "smc";
