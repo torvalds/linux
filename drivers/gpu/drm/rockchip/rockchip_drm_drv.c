@@ -83,7 +83,6 @@ struct rockchip_drm_mode_set {
 	int ratio;
 };
 
-#ifndef MODULE
 static DEFINE_MUTEX(rockchip_drm_sub_dev_lock);
 static LIST_HEAD(rockchip_drm_sub_dev_list);
 
@@ -93,6 +92,7 @@ void rockchip_drm_register_sub_dev(struct rockchip_drm_sub_dev *sub_dev)
 	list_add_tail(&sub_dev->list, &rockchip_drm_sub_dev_list);
 	mutex_unlock(&rockchip_drm_sub_dev_lock);
 }
+EXPORT_SYMBOL(rockchip_drm_register_sub_dev);
 
 void rockchip_drm_unregister_sub_dev(struct rockchip_drm_sub_dev *sub_dev)
 {
@@ -100,6 +100,7 @@ void rockchip_drm_unregister_sub_dev(struct rockchip_drm_sub_dev *sub_dev)
 	list_del(&sub_dev->list);
 	mutex_unlock(&rockchip_drm_sub_dev_lock);
 }
+EXPORT_SYMBOL(rockchip_drm_unregister_sub_dev);
 
 struct rockchip_drm_sub_dev *rockchip_drm_get_sub_dev(struct device_node *node)
 {
@@ -114,7 +115,27 @@ struct rockchip_drm_sub_dev *rockchip_drm_get_sub_dev(struct device_node *node)
 
 	return sub_dev;
 }
+EXPORT_SYMBOL(rockchip_drm_get_sub_dev);
 
+int rockchip_drm_get_sub_dev_type(void)
+{
+	int connector_type = DRM_MODE_CONNECTOR_Unknown;
+	struct rockchip_drm_sub_dev *sub_dev = NULL;
+
+	mutex_lock(&rockchip_drm_sub_dev_lock);
+	list_for_each_entry(sub_dev, &rockchip_drm_sub_dev_list, list) {
+		if (sub_dev->connector->encoder) {
+			connector_type = sub_dev->connector->connector_type;
+			break;
+		}
+	}
+	mutex_unlock(&rockchip_drm_sub_dev_lock);
+
+	return connector_type;
+}
+EXPORT_SYMBOL(rockchip_drm_get_sub_dev_type);
+
+#ifndef MODULE
 static struct drm_crtc *find_crtc_by_node(struct drm_device *drm_dev, struct device_node *node)
 {
 	struct device_node *np_crtc;
