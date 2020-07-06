@@ -1314,7 +1314,7 @@ static irqreturn_t cal_irq(int irq_cal, void *data)
 		/* Clear Interrupt status */
 		reg_write(cal, CAL_HL_IRQSTATUS(1), status);
 
-		for (i = 0; i < 2; ++i) {
+		for (i = 0; i < ARRAY_SIZE(cal->ctx); ++i) {
 			if (isportirqset(status, i)) {
 				ctx = cal->ctx[i];
 
@@ -1337,7 +1337,7 @@ static irqreturn_t cal_irq(int irq_cal, void *data)
 		/* Clear Interrupt status */
 		reg_write(cal, CAL_HL_IRQSTATUS(2), status);
 
-		for (i = 0; i < 2; ++i) {
+		for (i = 0; i < ARRAY_SIZE(cal->ctx); ++i) {
 			if (isportirqset(status, i)) {
 				ctx = cal->ctx[i];
 				dma_q = &ctx->vidq;
@@ -2345,7 +2345,7 @@ error_pm_runtime:
 	pm_runtime_disable(&pdev->dev);
 
 error_context:
-	for (i = 0; i < CAL_NUM_CONTEXT; i++) {
+	for (i = 0; i < ARRAY_SIZE(cal->ctx); i++) {
 		ctx = cal->ctx[i];
 		if (ctx) {
 			v4l2_async_notifier_unregister(&ctx->notifier);
@@ -2373,7 +2373,7 @@ static int cal_remove(struct platform_device *pdev)
 
 	pm_runtime_get_sync(&pdev->dev);
 
-	for (i = 0; i < CAL_NUM_CONTEXT; i++) {
+	for (i = 0; i < ARRAY_SIZE(cal->ctx); i++) {
 		ctx = cal->ctx[i];
 		if (ctx) {
 			ctx_dbg(1, ctx, "unregistering %s\n",
