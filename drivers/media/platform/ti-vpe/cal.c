@@ -2320,11 +2320,11 @@ static int cal_remove(struct platform_device *pdev)
 		if (ctx) {
 			ctx_dbg(1, ctx, "unregistering %s\n",
 				video_device_node_name(&ctx->vdev));
+			cal_ctx_v4l2_unregister(ctx);
 			cal_camerarx_disable(ctx->phy);
 			v4l2_async_notifier_unregister(&ctx->notifier);
 			v4l2_async_notifier_cleanup(&ctx->notifier);
 			cal_ctx_v4l2_cleanup(ctx);
-			cal_ctx_v4l2_unregister(ctx);
 		}
 	}
 
