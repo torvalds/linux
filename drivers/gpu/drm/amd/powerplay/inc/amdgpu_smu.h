@@ -679,10 +679,6 @@ bool smu_mode1_reset_is_support(struct smu_context *smu);
 int smu_mode1_reset(struct smu_context *smu);
 int smu_mode2_reset(struct smu_context *smu);
 
-extern int smu_get_atom_data_table(struct smu_context *smu, uint32_t table,
-				   uint16_t *size, uint8_t *frev, uint8_t *crev,
-				   uint8_t **addr);
-
 extern const struct amd_ip_funcs smu_ip_funcs;
 
 extern const struct amdgpu_ip_block_version smu_v11_0_ip_block;

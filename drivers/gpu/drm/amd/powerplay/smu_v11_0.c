@@ -32,6 +32,7 @@
 #include "smu_internal.h"
 #include "atomfirmware.h"
 #include "amdgpu_atomfirmware.h"
+#include "amdgpu_atombios.h"
 #include "smu_v11_0.h"
 #include "soc15_common.h"
 #include "atom.h"
@@ -416,7 +417,7 @@ int smu_v11_0_setup_pptable(struct smu_context *smu)
 		index = get_index_into_master_table(atom_master_list_of_data_tables_v2_1,
 						    powerplayinfo);
 
-		ret = smu_get_atom_data_table(smu, index, &atom_table_size, &frev, &crev,
+		ret = amdgpu_atombios_get_data_table(adev, index, &atom_table_size, &frev, &crev,
 					      (uint8_t **)&table);
 		if (ret)
 			return ret;
@@ -631,7 +632,7 @@ int smu_v11_0_get_vbios_bootup_values(struct smu_context *smu)
 	index = get_index_into_master_table(atom_master_list_of_data_tables_v2_1,
 					    firmwareinfo);
 
-	ret = smu_get_atom_data_table(smu, index, &size, &frev, &crev,
+	ret = amdgpu_atombios_get_data_table(smu->adev, index, &size, &frev, &crev,
 				      (uint8_t **)&header);
 	if (ret)
 		return ret;

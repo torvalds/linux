@@ -27,6 +27,7 @@
 #include "smu_internal.h"
 #include "atomfirmware.h"
 #include "amdgpu_atomfirmware.h"
+#include "amdgpu_atombios.h"
 #include "smu_v11_0.h"
 #include "smu11_driver_if_arcturus.h"
 #include "soc15_common.h"
@@ -488,7 +489,7 @@ static int arcturus_append_powerplay_table(struct smu_context *smu)
 	index = get_index_into_master_table(atom_master_list_of_data_tables_v2_1,
 					   smc_dpm_info);
 
-	ret = smu_get_atom_data_table(smu, index, NULL, NULL, NULL,
+	ret = amdgpu_atombios_get_data_table(smu->adev, index, NULL, NULL, NULL,
 				      (uint8_t **)&smc_dpm_table);
 	if (ret)
 		return ret;
