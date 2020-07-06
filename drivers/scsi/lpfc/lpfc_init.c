@@ -11522,9 +11522,9 @@ lpfc_sli4_enable_msix(struct lpfc_hba *phba)
 	char *name;
 	const struct cpumask *aff_mask = NULL;
 	unsigned int cpu = 0, cpu_cnt = 0, cpu_select = nr_cpu_ids;
+	struct lpfc_vector_map_info *cpup;
 	struct lpfc_hba_eq_hdl *eqhdl;
 	const struct cpumask *maskp;
-	bool first;
 	unsigned int flags = PCI_IRQ_MSIX;
 
 	/* Set up MSI-X multi-message vectors */
@@ -11597,18 +11597,28 @@ lpfc_sli4_enable_msix(struct lpfc_hba *phba)
 		} else {
 			maskp = pci_irq_get_affinity(phba->pcidev, index);
 
-			first = true;
 			/* Loop through all CPUs associated with vector index */
 			for_each_cpu_and(cpu, maskp, cpu_present_mask) {
+				cpup = &phba->sli4_hba.cpu_map[cpu];
+
 				/* If this is the first CPU thats assigned to
 				 * this vector, set LPFC_CPU_FIRST_IRQ.
+				 *
+				 * With certain platforms its possible that irq
+				 * vectors are affinitized to all the cpu's.
+				 * This can result in each cpu_map.eq to be set
+				 * to the last vector, resulting in overwrite
+				 * of all the previous cpu_map.eq.  Ensure that
+				 * each vector receives a place in cpu_map.
+				 * Later call to lpfc_cpu_affinity_check will
+				 * ensure we are nicely balanced out.
 				 */
+				if (cpup->eq != LPFC_VECTOR_MAP_EMPTY)
+					continue;
 				lpfc_assign_eq_map_info(phba, index,
-							first ?
-							LPFC_CPU_FIRST_IRQ : 0,
+							LPFC_CPU_FIRST_IRQ,
 							cpu);
-				if (first)
-					first = false;
+				break;
 			}
 		}
 	}
