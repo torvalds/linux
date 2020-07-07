@@ -586,16 +586,16 @@ static int sec_debugfs_atomic64_set(void *data, u64 val)
 DEFINE_DEBUGFS_ATTRIBUTE(sec_atomic64_ops, sec_debugfs_atomic64_get,
 			 sec_debugfs_atomic64_set, "%lld\n");
 
-static int sec_core_debug_init(struct sec_dev *sec)
+static int sec_core_debug_init(struct hisi_qm *qm)
 {
-	struct hisi_qm *qm = &sec->qm;
+	struct sec_dev *sec = container_of(qm, struct sec_dev, qm);
 	struct device *dev = &qm->pdev->dev;
 	struct sec_dfx *dfx = &sec->debug.dfx;
 	struct debugfs_regset32 *regset;
 	struct dentry *tmp_d;
 	int i;
 
-	tmp_d = debugfs_create_dir("sec_dfx", sec->qm.debug.debug_root);
+	tmp_d = debugfs_create_dir("sec_dfx", qm->debug.debug_root);
 
 	regset = devm_kzalloc(dev, sizeof(*regset), GFP_KERNEL);
 	if (!regset)
@@ -618,44 +618,44 @@ static int sec_core_debug_init(struct sec_dev *sec)
 	return 0;
 }
 
-static int sec_debug_init(struct sec_dev *sec)
+static int sec_debug_init(struct hisi_qm *qm)
 {
+	struct sec_dev *sec = container_of(qm, struct sec_dev, qm);
 	int i;
 
-	for (i = SEC_CURRENT_QM; i < SEC_DEBUG_FILE_NUM; i++) {
-		spin_lock_init(&sec->debug.files[i].lock);
-		sec->debug.files[i].index = i;
-		sec->debug.files[i].qm = &sec->qm;
+	if (qm->pdev->device == SEC_PF_PCI_DEVICE_ID) {
+		for (i = SEC_CURRENT_QM; i < SEC_DEBUG_FILE_NUM; i++) {
+			spin_lock_init(&sec->debug.files[i].lock);
+			sec->debug.files[i].index = i;
+			sec->debug.files[i].qm = qm;
 
-		debugfs_create_file(sec_dbg_file_name[i], 0600,
-				    sec->qm.debug.debug_root,
-				    sec->debug.files + i,
-				    &sec_dbg_fops);
+			debugfs_create_file(sec_dbg_file_name[i], 0600,
+						  qm->debug.debug_root,
+						  sec->debug.files + i,
+						  &sec_dbg_fops);
+		}
 	}
 
-	return sec_core_debug_init(sec);
+	return sec_core_debug_init(qm);
 }
 
-static int sec_debugfs_init(struct sec_dev *sec)
+static int sec_debugfs_init(struct hisi_qm *qm)
 {
-	struct hisi_qm *qm = &sec->qm;
 	struct device *dev = &qm->pdev->dev;
 	int ret;
 
 	qm->debug.debug_root = debugfs_create_dir(dev_name(dev),
 						  sec_debugfs_root);
-
 	qm->debug.sqe_mask_offset = SEC_SQE_MASK_OFFSET;
 	qm->debug.sqe_mask_len = SEC_SQE_MASK_LEN;
 	ret = hisi_qm_debug_init(qm);
 	if (ret)
 		goto failed_to_create;
 
-	if (qm->pdev->device == SEC_PF_PCI_DEVICE_ID) {
-		ret = sec_debug_init(sec);
-		if (ret)
-			goto failed_to_create;
-	}
+	ret = sec_debug_init(qm);
+	if (ret)
+		goto failed_to_create;
+
 
 	return 0;
 
@@ -665,9 +665,9 @@ failed_to_create:
 	return ret;
 }
 
-static void sec_debugfs_exit(struct sec_dev *sec)
+static void sec_debugfs_exit(struct hisi_qm *qm)
 {
-	debugfs_remove_recursive(sec->qm.debug.debug_root);
+	debugfs_remove_recursive(qm->debug.debug_root);
 }
 
 static void sec_log_hw_error(struct hisi_qm *qm, u32 err_sts)
@@ -877,7 +877,7 @@ static int sec_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_probe_uninit;
 	}
 
-	ret = sec_debugfs_init(sec);
+	ret = sec_debugfs_init(qm);
 	if (ret)
 		pci_warn(pdev, "Failed to init debugfs!\n");
 
@@ -902,7 +902,7 @@ err_crypto_unregister:
 
 err_remove_from_list:
 	hisi_qm_del_from_list(qm, &sec_devices);
-	sec_debugfs_exit(sec);
+	sec_debugfs_exit(qm);
 	hisi_qm_stop(qm);
 
 err_probe_uninit:
@@ -926,7 +926,7 @@ static void sec_remove(struct pci_dev *pdev)
 	if (qm->fun_type == QM_HW_PF && qm->vfs_num)
 		hisi_qm_sriov_disable(pdev);
 
-	sec_debugfs_exit(sec);
+	sec_debugfs_exit(qm);
 
 	(void)hisi_qm_stop(qm);
 
