@@ -21,6 +21,7 @@
 #include <linux/ptrace.h>
 #include <linux/ratelimit.h>
 #include <linux/syscalls.h>
+#include <linux/pagemap.h>
 
 #include <asm/sigcontext.h>
 #include <asm/ucontext.h>
@@ -634,7 +635,6 @@ static long setup_trampoline(unsigned int syscall, unsigned int __user *tramp)
 SYSCALL_DEFINE3(swapcontext, struct ucontext __user *, old_ctx,
 		struct ucontext __user *, new_ctx, long, ctx_size)
 {
-	unsigned char tmp;
 	sigset_t set;
 	unsigned long new_msr = 0;
 	int ctx_has_vsx_region = 0;
@@ -669,9 +669,8 @@ SYSCALL_DEFINE3(swapcontext, struct ucontext __user *, old_ctx,
 	}
 	if (new_ctx == NULL)
 		return 0;
-	if (!access_ok(new_ctx, ctx_size)
-	    || __get_user(tmp, (u8 __user *) new_ctx)
-	    || __get_user(tmp, (u8 __user *) new_ctx + ctx_size - 1))
+	if (!access_ok(new_ctx, ctx_size) ||
+	    fault_in_pages_readable((u8 __user *)new_ctx, ctx_size))
 		return -EFAULT;
 
 	/*
