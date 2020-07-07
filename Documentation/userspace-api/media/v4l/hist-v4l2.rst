@@ -43,7 +43,7 @@ transmission arguments.
 1998-09-28: Revamped video standard. Made video controls individually
 enumerable.
 
-1998-10-02: The ``id`` field was removed from struct
+1998-10-02: The ``id`` field was removed from
 struct ``video_standard`` and the color subcarrier fields were
 renamed. The :ref:`VIDIOC_QUERYSTD` ioctl was
 renamed to :ref:`VIDIOC_ENUMSTD`,
@@ -260,7 +260,7 @@ multiple tuners into account.)
 
 2000-09-18: ``V4L2_BUF_TYPE_VBI`` was added. This may *break
 compatibility* as the :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` and
-:ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctls may fail now if the struct
+:ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctls may fail now if the
 struct ``v4l2_fmt`` ``type`` field does not contain
 ``V4L2_BUF_TYPE_VBI``. In the documentation of the struct
 :c:type:`v4l2_vbi_format` ``offset`` field the

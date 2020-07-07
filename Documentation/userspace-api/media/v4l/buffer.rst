@@ -23,8 +23,8 @@ argument to the :ref:`VIDIOC_QUERYBUF`,
 :ref:`VIDIOC_QBUF <VIDIOC_QBUF>` and
 :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl. In the multi-planar API,
 some plane-specific members of struct :c:type:`v4l2_buffer`,
-such as pointers and sizes for each plane, are stored in struct
-struct :c:type:`v4l2_plane` instead. In that case, struct
+such as pointers and sizes for each plane, are stored in
+struct :c:type:`v4l2_plane` instead. In that case,
 struct :c:type:`v4l2_buffer` contains an array of plane structures.
 
 Dequeued video buffers come with timestamps. The driver decides at which
