@@ -1104,10 +1104,6 @@ static inline enum link_training_result perform_link_training_int(
 	dpcd_pattern.v1_4.TRAINING_PATTERN_SET = DPCD_TRAINING_PATTERN_VIDEOIDLE;
 	dpcd_set_training_pattern(link, dpcd_pattern);
 
-	/* delay 5ms after notifying sink of idle pattern before switching output */
-	if (link->connector_signal != SIGNAL_TYPE_EDP)
-		msleep(5);
-
 	/* 4. mainlink output idle pattern*/
 	dp_set_hw_test_pattern(link, DP_TEST_PATTERN_VIDEO_MODE, NULL, 0);
 
