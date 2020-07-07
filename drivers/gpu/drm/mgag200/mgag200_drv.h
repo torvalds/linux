@@ -60,6 +60,12 @@
 		WREG8(MGAREG_SEQ_DATA, v);			\
 	} while (0)						\
 
+#define RREG_CRT(reg, v)					\
+	do {							\
+		WREG8(MGAREG_CRTC_INDEX, reg);			\
+		v = RREG8(MGAREG_CRTC_DATA);			\
+	} while (0)						\
+
 #define WREG_CRT(reg, v)					\
 	do {							\
 		WREG8(MGAREG_CRTC_INDEX, reg);			\

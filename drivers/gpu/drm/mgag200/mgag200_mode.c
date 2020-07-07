@@ -988,7 +988,7 @@ static void mgag200_set_dac_regs(struct mga_device *mdev)
 
 static void mgag200_init_regs(struct mga_device *mdev)
 {
-	u8 crtcext3, crtcext4, misc;
+	u8 crtc11, crtcext3, crtcext4, misc;
 
 	mgag200_set_pci_regs(mdev);
 	mgag200_set_dac_regs(mdev);
@@ -1011,6 +1011,12 @@ static void mgag200_init_regs(struct mga_device *mdev)
 
 	WREG_ECRT(0x03, crtcext3);
 	WREG_ECRT(0x04, crtcext4);
+
+	RREG_CRT(0x11, crtc11);
+	crtc11 &= ~(MGAREG_CRTC11_CRTCPROTECT |
+		    MGAREG_CRTC11_VINTEN |
+		    MGAREG_CRTC11_VINTCLR);
+	WREG_CRT(0x11, crtc11);
 
 	if (mdev->type == G200_ER)
 		WREG_ECRT(0x24, 0x5);
@@ -1337,12 +1343,6 @@ static void mga_crtc_prepare(struct drm_crtc *crtc)
 	struct mga_device *mdev = to_mga_device(dev);
 	u8 tmp;
 
-	/*	mga_resume(crtc);*/
-
-	WREG8(MGAREG_CRTC_INDEX, 0x11);
-	tmp = RREG8(MGAREG_CRTC_DATA);
-	WREG_CRT(0x11, tmp | 0x80);
-
 	if (mdev->type == G200_SE_A || mdev->type == G200_SE_B) {
 		WREG_SEQ(0, 1);
 		msleep(50);
@@ -1359,8 +1359,6 @@ static void mga_crtc_prepare(struct drm_crtc *crtc)
 
 	if (mdev->type == G200_WB || mdev->type == G200_EW3)
 		mga_g200wb_prepare(crtc);
-
-	WREG_CRT(17, 0);
 }
 
 /*
