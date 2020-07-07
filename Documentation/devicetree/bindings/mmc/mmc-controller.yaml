@@ -169,6 +169,11 @@ properties:
     description:
       Full power cycle of the card is supported.
 
+  full-pwr-cycle-in-suspend:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      Full power cycle of the card in suspend is supported.
+
   mmc-ddr-1_2v:
     $ref: /schemas/types.yaml#/definitions/flag
     description:
