@@ -122,6 +122,7 @@ static struct sec_dfx_item sec_dfx_labels[] = {
 	{"send_cnt", offsetof(struct sec_dfx, send_cnt)},
 	{"recv_cnt", offsetof(struct sec_dfx, recv_cnt)},
 	{"send_busy_cnt", offsetof(struct sec_dfx, send_busy_cnt)},
+	{"recv_busy_cnt", offsetof(struct sec_dfx, recv_busy_cnt)},
 	{"err_bd_cnt", offsetof(struct sec_dfx, err_bd_cnt)},
 	{"invalid_req_cnt", offsetof(struct sec_dfx, invalid_req_cnt)},
 	{"done_flag_cnt", offsetof(struct sec_dfx, done_flag_cnt)},
