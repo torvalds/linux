@@ -60,6 +60,7 @@ enum cmdq_code {
 	CMDQ_CODE_JUMP = 0x10,
 	CMDQ_CODE_WFE = 0x20,
 	CMDQ_CODE_EOC = 0x40,
+	CMDQ_CODE_WRITE_S = 0x90,
 	CMDQ_CODE_LOGIC = 0xa0,
 };
 
