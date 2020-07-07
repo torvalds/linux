@@ -1284,7 +1284,12 @@ static void mgag200_g200ev_set_hiprilvl(struct mga_device *mdev)
 
 static void mgag200_enable_display(struct mga_device *mdev)
 {
-	u8 seq1, crtcext1;
+	u8 seq0, seq1, crtcext1;
+
+	RREG_SEQ(0x00, seq0);
+	seq0 |= MGAREG_SEQ0_SYNCRST |
+		MGAREG_SEQ0_ASYNCRST;
+	WREG_SEQ(0x00, seq0);
 
 	/*
 	 * TODO: replace busy waiting with vblank IRQ; put
@@ -1307,7 +1312,11 @@ static void mgag200_enable_display(struct mga_device *mdev)
 
 static void mgag200_disable_display(struct mga_device *mdev)
 {
-	u8 seq1, crtcext1;
+	u8 seq0, seq1, crtcext1;
+
+	RREG_SEQ(0x00, seq0);
+	seq0 &= ~MGAREG_SEQ0_SYNCRST;
+	WREG_SEQ(0x00, seq0);
 
 	/*
 	 * TODO: replace busy waiting with vblank IRQ; put
@@ -1338,9 +1347,6 @@ static void mga_crtc_prepare(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	struct mga_device *mdev = to_mga_device(dev);
 
-	/* start sync reset */
-	WREG_SEQ(0, 1);
-
 	if (mdev->type == G200_WB || mdev->type == G200_EW3)
 		mga_g200wb_prepare(crtc);
 }
@@ -1357,7 +1363,6 @@ static void mga_crtc_commit(struct drm_crtc *crtc)
 	if (mdev->type == G200_WB || mdev->type == G200_EW3)
 		mga_g200wb_commit(crtc);
 
-	WREG_SEQ(0, 0x3);
 	mga_crtc_load_lut(crtc);
 	mgag200_enable_display(mdev);
 }
