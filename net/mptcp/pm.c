@@ -10,8 +10,6 @@
 #include <net/mptcp.h>
 #include "protocol.h"
 
-static struct workqueue_struct *pm_wq;
-
 /* path manager command handlers */
 
 int mptcp_pm_announce_addr(struct mptcp_sock *msk,
@@ -78,7 +76,7 @@ static bool mptcp_pm_schedule_work(struct mptcp_sock *msk,
 		return false;
 
 	msk->pm.status |= BIT(new_status);
-	if (queue_work(pm_wq, &msk->pm.work))
+	if (schedule_work(&msk->work))
 		sock_hold((struct sock *)msk);
 	return true;
 }
@@ -181,35 +179,6 @@ int mptcp_pm_get_local_id(struct mptcp_sock *msk, struct sock_common *skc)
 	return mptcp_pm_nl_get_local_id(msk, skc);
 }
 
-static void pm_worker(struct work_struct *work)
-{
-	struct mptcp_pm_data *pm = container_of(work, struct mptcp_pm_data,
-						work);
-	struct mptcp_sock *msk = container_of(pm, struct mptcp_sock, pm);
-	struct sock *sk = (struct sock *)msk;
-
-	lock_sock(sk);
-	spin_lock_bh(&msk->pm.lock);
-
-	pr_debug("msk=%p status=%x", msk, pm->status);
-	if (pm->status & BIT(MPTCP_PM_ADD_ADDR_RECEIVED)) {
-		pm->status &= ~BIT(MPTCP_PM_ADD_ADDR_RECEIVED);
-		mptcp_pm_nl_add_addr_received(msk);
-	}
-	if (pm->status & BIT(MPTCP_PM_ESTABLISHED)) {
-		pm->status &= ~BIT(MPTCP_PM_ESTABLISHED);
-		mptcp_pm_nl_fully_established(msk);
-	}
-	if (pm->status & BIT(MPTCP_PM_SUBFLOW_ESTABLISHED)) {
-		pm->status &= ~BIT(MPTCP_PM_SUBFLOW_ESTABLISHED);
-		mptcp_pm_nl_subflow_established(msk);
-	}
-
-	spin_unlock_bh(&msk->pm.lock);
-	release_sock(sk);
-	sock_put(sk);
-}
-
 void mptcp_pm_data_init(struct mptcp_sock *msk)
 {
 	msk->pm.add_addr_signaled = 0;
@@ -223,22 +192,11 @@ void mptcp_pm_data_init(struct mptcp_sock *msk)
 	msk->pm.status = 0;
 
 	spin_lock_init(&msk->pm.lock);
-	INIT_WORK(&msk->pm.work, pm_worker);
 
 	mptcp_pm_nl_data_init(msk);
 }
 
-void mptcp_pm_close(struct mptcp_sock *msk)
-{
-	if (cancel_work_sync(&msk->pm.work))
-		sock_put((struct sock *)msk);
-}
-
 void __init mptcp_pm_init(void)
 {
-	pm_wq = alloc_workqueue("pm_wq", WQ_UNBOUND | WQ_MEM_RECLAIM, 8);
-	if (!pm_wq)
-		panic("Failed to allocate workqueue");
-
 	mptcp_pm_nl_init();
 }
