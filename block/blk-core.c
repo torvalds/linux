@@ -1154,14 +1154,13 @@ static blk_qc_t __submit_bio_noacct(struct bio *bio)
 
 static blk_qc_t __submit_bio_noacct_mq(struct bio *bio)
 {
-	struct gendisk *disk = bio->bi_disk;
 	struct bio_list bio_list[2] = { };
 	blk_qc_t ret = BLK_QC_T_NONE;
 
 	current->bio_list = bio_list;
 
 	do {
-		WARN_ON_ONCE(bio->bi_disk != disk);
+		struct gendisk *disk = bio->bi_disk;
 
 		if (unlikely(bio_queue_enter(bio) != 0))
 			continue;
