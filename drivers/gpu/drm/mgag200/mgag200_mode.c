@@ -712,7 +712,7 @@ static int mga_g200er_set_plls(struct mga_device *mdev, long clock)
 	return 0;
 }
 
-static int mga_crtc_set_plls(struct mga_device *mdev, long clock)
+static int mgag200_crtc_set_plls(struct mga_device *mdev, long clock)
 {
 	u8 misc;
 
@@ -1110,8 +1110,6 @@ static void mgag200_set_mode_regs(struct mga_device *mdev,
 	WREG_ECRT(0x05, crtcext5);
 
 	WREG8(MGA_MISC_OUT, misc);
-
-	mga_crtc_set_plls(mdev, mode->clock);
 }
 
 static u8 mgag200_get_bpp_shift(struct mga_device *mdev,
@@ -1614,6 +1612,7 @@ mgag200_simple_display_pipe_enable(struct drm_simple_display_pipe *pipe,
 
 	mgag200_set_format_regs(mdev, fb);
 	mgag200_set_mode_regs(mdev, adjusted_mode);
+	mgag200_crtc_set_plls(mdev, adjusted_mode->clock);
 
 	if (mdev->type == G200_ER)
 		mgag200_g200er_reset_tagfifo(mdev);
