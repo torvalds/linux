@@ -767,8 +767,8 @@ int parse_events_load_bpf_obj(struct parse_events_state *parse_state,
 
 	return 0;
 errout:
-	parse_state->error->help = strdup("(add -v to see detail)");
-	parse_state->error->str = strdup(errbuf);
+	parse_events__handle_error(parse_state->error, 0,
+				strdup(errbuf), strdup("(add -v to see detail)"));
 	return err;
 }
 
@@ -784,36 +784,38 @@ parse_events_config_bpf(struct parse_events_state *parse_state,
 		return 0;
 
 	list_for_each_entry(term, head_config, list) {
-		char errbuf[BUFSIZ];
 		int err;
 
 		if (term->type_term != PARSE_EVENTS__TERM_TYPE_USER) {
-			snprintf(errbuf, sizeof(errbuf),
-				 "Invalid config term for BPF object");
-			errbuf[BUFSIZ - 1] = '\0';
-
-			parse_state->error->idx = term->err_term;
-			parse_state->error->str = strdup(errbuf);
+			parse_events__handle_error(parse_state->error, term->err_term,
+						strdup("Invalid config term for BPF object"),
+						NULL);
 			return -EINVAL;
 		}
 
 		err = bpf__config_obj(obj, term, parse_state->evlist, &error_pos);
 		if (err) {
+			char errbuf[BUFSIZ];
+			int idx;
+
 			bpf__strerror_config_obj(obj, term, parse_state->evlist,
 						 &error_pos, err, errbuf,
 						 sizeof(errbuf));
-			parse_state->error->help = strdup(
+
+			if (err == -BPF_LOADER_ERRNO__OBJCONF_MAP_VALUE)
+				idx = term->err_val;
+			else
+				idx = term->err_term + error_pos;
+
+			parse_events__handle_error(parse_state->error, idx,
+						strdup(errbuf),
+						strdup(
 "Hint:\tValid config terms:\n"
 "     \tmap:[<arraymap>].value<indices>=[value]\n"
 "     \tmap:[<eventmap>].event<indices>=[event]\n"
 "\n"
 "     \twhere <indices> is something like [0,3...5] or [all]\n"
-"     \t(add -v to see detail)");
-			parse_state->error->str = strdup(errbuf);
-			if (err == -BPF_LOADER_ERRNO__OBJCONF_MAP_VALUE)
-				parse_state->error->idx = term->err_val;
-			else
-				parse_state->error->idx = term->err_term + error_pos;
+"     \t(add -v to see detail)"));
 			return err;
 		}
 	}
@@ -877,8 +879,8 @@ int parse_events_load_bpf(struct parse_events_state *parse_state,
 						   -err, errbuf,
 						   sizeof(errbuf));
 
-		parse_state->error->help = strdup("(add -v to see detail)");
-		parse_state->error->str = strdup(errbuf);
+		parse_events__handle_error(parse_state->error, 0,
+					strdup(errbuf), strdup("(add -v to see detail)"));
 		return err;
 	}
 
