@@ -1336,36 +1336,6 @@ static void mgag200_disable_display(struct mga_device *mdev)
 }
 
 /*
- * This is called before a mode is programmed. A typical use might be to
- * enable DPMS during the programming to avoid seeing intermediate stages,
- * but that's not relevant to us
- */
-static void mga_crtc_prepare(struct drm_crtc *crtc)
-{
-	struct drm_device *dev = crtc->dev;
-	struct mga_device *mdev = to_mga_device(dev);
-
-	if (mdev->type == G200_WB || mdev->type == G200_EW3)
-		mgag200_g200wb_hold_bmc(mdev);
-}
-
-/*
- * This is called after a mode is programmed. It should reverse anything done
- * by the prepare function
- */
-static void mga_crtc_commit(struct drm_crtc *crtc)
-{
-	struct drm_device *dev = crtc->dev;
-	struct mga_device *mdev = to_mga_device(dev);
-
-	if (mdev->type == G200_WB || mdev->type == G200_EW3)
-		mgag200_g200wb_release_bmc(mdev);
-
-	mga_crtc_load_lut(crtc);
-	mgag200_enable_display(mdev);
-}
-
-/*
  * Connector
  */
 
@@ -1585,7 +1555,8 @@ mgag200_simple_display_pipe_enable(struct drm_simple_display_pipe *pipe,
 		.y2 = fb->height,
 	};
 
-	mga_crtc_prepare(crtc);
+	if (mdev->type == G200_WB || mdev->type == G200_EW3)
+		mgag200_g200wb_hold_bmc(mdev);
 
 	mgag200_set_format_regs(mdev, fb);
 	mgag200_set_mode_regs(mdev, adjusted_mode);
@@ -1599,7 +1570,11 @@ mgag200_simple_display_pipe_enable(struct drm_simple_display_pipe *pipe,
 	else if (mdev->type == G200_EV)
 		mgag200_g200ev_set_hiprilvl(mdev);
 
-	mga_crtc_commit(crtc);
+	if (mdev->type == G200_WB || mdev->type == G200_EW3)
+		mgag200_g200wb_release_bmc(mdev);
+
+	mga_crtc_load_lut(crtc);
+	mgag200_enable_display(mdev);
 
 	mgag200_handle_damage(mdev, fb, &fullscreen);
 }
