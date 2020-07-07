@@ -168,8 +168,10 @@ static int snd_rn_acp_probe(struct pci_dev *pci,
 {
 	struct acp_dev_data *adata;
 	struct platform_device_info pdevinfo[ACP_DEVS];
+#if defined(CONFIG_ACPI)
 	acpi_handle handle;
 	acpi_integer dmic_status;
+#endif
 	unsigned int irqflags;
 	int ret, index;
 	u32 addr;
