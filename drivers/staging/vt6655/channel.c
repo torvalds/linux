@@ -133,7 +133,7 @@ void vnt_init_bands(struct vnt_private *priv)
 
 		priv->hw->wiphy->bands[NL80211_BAND_5GHZ] =
 						&vnt_supported_5ghz_band;
-	/* fallthrough */
+		fallthrough;
 	case RF_RFMD2959:
 	case RF_AIROHA:
 	case RF_AL2230S:
