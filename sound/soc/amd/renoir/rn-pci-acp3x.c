@@ -218,6 +218,7 @@ static int snd_rn_acp_probe(struct pci_dev *pci,
 		ret = -ENODEV;
 		goto de_init;
 	} else if (dmic_acpi_check == ACP_DMIC_AUTO) {
+#if defined(CONFIG_ACPI)
 		handle = ACPI_HANDLE(&pci->dev);
 		ret = acpi_evaluate_integer(handle, "_WOV", NULL, &dmic_status);
 		if (ACPI_FAILURE(ret)) {
@@ -228,6 +229,7 @@ static int snd_rn_acp_probe(struct pci_dev *pci,
 			ret = -ENODEV;
 			goto de_init;
 		}
+#endif
 	}
 
 	adata->res = devm_kzalloc(&pci->dev,
