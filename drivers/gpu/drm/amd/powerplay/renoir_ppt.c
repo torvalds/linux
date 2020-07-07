@@ -841,59 +841,58 @@ static int renoir_set_performance_level(struct smu_context *smu,
  */
 static int renoir_set_watermarks_table(
 		struct smu_context *smu,
-		void *watermarks,
 		struct dm_pp_wm_sets_with_clock_ranges_soc15 *clock_ranges)
 {
-	int i;
+	Watermarks_t *table = smu->smu_table.watermarks_table;
 	int ret = 0;
-	Watermarks_t *table = watermarks;
+	int i;
 
-	if (!table || !clock_ranges)
-		return -EINVAL;
+	if (clock_ranges) {
+		if (clock_ranges->num_wm_dmif_sets > 4 ||
+				clock_ranges->num_wm_mcif_sets > 4)
+			return -EINVAL;
 
-	if (clock_ranges->num_wm_dmif_sets > 4 ||
-			clock_ranges->num_wm_mcif_sets > 4)
-		return -EINVAL;
+		/* save into smu->smu_table.tables[SMU_TABLE_WATERMARKS]->cpu_addr*/
+		for (i = 0; i < clock_ranges->num_wm_dmif_sets; i++) {
+			table->WatermarkRow[WM_DCFCLK][i].MinClock =
+				cpu_to_le16((uint16_t)
+				(clock_ranges->wm_dmif_clocks_ranges[i].wm_min_dcfclk_clk_in_khz));
+			table->WatermarkRow[WM_DCFCLK][i].MaxClock =
+				cpu_to_le16((uint16_t)
+				(clock_ranges->wm_dmif_clocks_ranges[i].wm_max_dcfclk_clk_in_khz));
+			table->WatermarkRow[WM_DCFCLK][i].MinMclk =
+				cpu_to_le16((uint16_t)
+				(clock_ranges->wm_dmif_clocks_ranges[i].wm_min_mem_clk_in_khz));
+			table->WatermarkRow[WM_DCFCLK][i].MaxMclk =
+				cpu_to_le16((uint16_t)
+				(clock_ranges->wm_dmif_clocks_ranges[i].wm_max_mem_clk_in_khz));
+			table->WatermarkRow[WM_DCFCLK][i].WmSetting = (uint8_t)
+					clock_ranges->wm_dmif_clocks_ranges[i].wm_set_id;
+		}
 
-	/* save into smu->smu_table.tables[SMU_TABLE_WATERMARKS]->cpu_addr*/
-	for (i = 0; i < clock_ranges->num_wm_dmif_sets; i++) {
-		table->WatermarkRow[WM_DCFCLK][i].MinClock =
-			cpu_to_le16((uint16_t)
-			(clock_ranges->wm_dmif_clocks_ranges[i].wm_min_dcfclk_clk_in_khz));
-		table->WatermarkRow[WM_DCFCLK][i].MaxClock =
-			cpu_to_le16((uint16_t)
-			(clock_ranges->wm_dmif_clocks_ranges[i].wm_max_dcfclk_clk_in_khz));
-		table->WatermarkRow[WM_DCFCLK][i].MinMclk =
-			cpu_to_le16((uint16_t)
-			(clock_ranges->wm_dmif_clocks_ranges[i].wm_min_mem_clk_in_khz));
-		table->WatermarkRow[WM_DCFCLK][i].MaxMclk =
-			cpu_to_le16((uint16_t)
-			(clock_ranges->wm_dmif_clocks_ranges[i].wm_max_mem_clk_in_khz));
-		table->WatermarkRow[WM_DCFCLK][i].WmSetting = (uint8_t)
-				clock_ranges->wm_dmif_clocks_ranges[i].wm_set_id;
+		for (i = 0; i < clock_ranges->num_wm_mcif_sets; i++) {
+			table->WatermarkRow[WM_SOCCLK][i].MinClock =
+				cpu_to_le16((uint16_t)
+				(clock_ranges->wm_mcif_clocks_ranges[i].wm_min_socclk_clk_in_khz));
+			table->WatermarkRow[WM_SOCCLK][i].MaxClock =
+				cpu_to_le16((uint16_t)
+				(clock_ranges->wm_mcif_clocks_ranges[i].wm_max_socclk_clk_in_khz));
+			table->WatermarkRow[WM_SOCCLK][i].MinMclk =
+				cpu_to_le16((uint16_t)
+				(clock_ranges->wm_mcif_clocks_ranges[i].wm_min_mem_clk_in_khz));
+			table->WatermarkRow[WM_SOCCLK][i].MaxMclk =
+				cpu_to_le16((uint16_t)
+				(clock_ranges->wm_mcif_clocks_ranges[i].wm_max_mem_clk_in_khz));
+			table->WatermarkRow[WM_SOCCLK][i].WmSetting = (uint8_t)
+					clock_ranges->wm_mcif_clocks_ranges[i].wm_set_id;
+		}
+
+		smu->watermarks_bitmap |= WATERMARKS_EXIST;
 	}
-
-	for (i = 0; i < clock_ranges->num_wm_mcif_sets; i++) {
-		table->WatermarkRow[WM_SOCCLK][i].MinClock =
-			cpu_to_le16((uint16_t)
-			(clock_ranges->wm_mcif_clocks_ranges[i].wm_min_socclk_clk_in_khz));
-		table->WatermarkRow[WM_SOCCLK][i].MaxClock =
-			cpu_to_le16((uint16_t)
-			(clock_ranges->wm_mcif_clocks_ranges[i].wm_max_socclk_clk_in_khz));
-		table->WatermarkRow[WM_SOCCLK][i].MinMclk =
-			cpu_to_le16((uint16_t)
-			(clock_ranges->wm_mcif_clocks_ranges[i].wm_min_mem_clk_in_khz));
-		table->WatermarkRow[WM_SOCCLK][i].MaxMclk =
-			cpu_to_le16((uint16_t)
-			(clock_ranges->wm_mcif_clocks_ranges[i].wm_max_mem_clk_in_khz));
-		table->WatermarkRow[WM_SOCCLK][i].WmSetting = (uint8_t)
-				clock_ranges->wm_mcif_clocks_ranges[i].wm_set_id;
-	}
-
-	smu->watermarks_bitmap |= WATERMARKS_EXIST;
 
 	/* pass data to smu controller */
-	if (!(smu->watermarks_bitmap & WATERMARKS_LOADED)) {
+	if ((smu->watermarks_bitmap & WATERMARKS_EXIST) &&
+	     !(smu->watermarks_bitmap & WATERMARKS_LOADED)) {
 		ret = smu_write_watermarks_table(smu);
 		if (ret) {
 			dev_err(smu->adev->dev, "Failed to update WMTABLE!");

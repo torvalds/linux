@@ -1486,22 +1486,11 @@ static int amdgpu_dm_smu_write_watermarks_table(struct amdgpu_device *adev)
 		return 0;
 	}
 
-	mutex_lock(&smu->mutex);
-
-	/* pass data to smu controller */
-	if ((smu->watermarks_bitmap & WATERMARKS_EXIST) &&
-			!(smu->watermarks_bitmap & WATERMARKS_LOADED)) {
-		ret = smu_write_watermarks_table(smu);
-
-		if (ret) {
-			mutex_unlock(&smu->mutex);
-			DRM_ERROR("Failed to update WMTABLE!\n");
-			return ret;
-		}
-		smu->watermarks_bitmap |= WATERMARKS_LOADED;
+	ret = smu_write_watermarks_table(smu);
+	if (ret) {
+		DRM_ERROR("Failed to update WMTABLE!\n");
+		return ret;
 	}
-
-	mutex_unlock(&smu->mutex);
 
 	return 0;
 }

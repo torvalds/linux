@@ -493,7 +493,7 @@ struct pptable_funcs {
 	int (*tables_init)(struct smu_context *smu, struct smu_table *tables);
 	int (*get_fan_speed_percent)(struct smu_context *smu, uint32_t *speed);
 	int (*get_fan_speed_rpm)(struct smu_context *smu, uint32_t *speed);
-	int (*set_watermarks_table)(struct smu_context *smu, void *watermarks,
+	int (*set_watermarks_table)(struct smu_context *smu,
 				    struct dm_pp_wm_sets_with_clock_ranges_soc15 *clock_ranges);
 	int (*get_thermal_temperature_range)(struct smu_context *smu, struct smu_temperature_range *range);
 	int (*get_uclk_dpm_states)(struct smu_context *smu, uint32_t *clocks_in_khz, uint32_t *num_states);

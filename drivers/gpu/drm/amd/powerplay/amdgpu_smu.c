@@ -1706,35 +1706,34 @@ int smu_allow_xgmi_power_down(struct smu_context *smu, bool en)
 
 int smu_write_watermarks_table(struct smu_context *smu)
 {
-	void *watermarks_table = smu->smu_table.watermarks_table;
+	int ret = 0;
 
-	if (!watermarks_table)
-		return -EINVAL;
+	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
+		return -EOPNOTSUPP;
 
-	return smu_update_table(smu,
-				SMU_TABLE_WATERMARKS,
-				0,
-				watermarks_table,
-				true);
+	mutex_lock(&smu->mutex);
+
+	ret = smu_set_watermarks_table(smu, NULL);
+
+	mutex_unlock(&smu->mutex);
+
+	return ret;
 }
 
 int smu_set_watermarks_for_clock_ranges(struct smu_context *smu,
 		struct dm_pp_wm_sets_with_clock_ranges_soc15 *clock_ranges)
 {
-	void *table = smu->smu_table.watermarks_table;
+	int ret = 0;
 
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
 		return -EOPNOTSUPP;
-
-	if (!table)
-		return -EINVAL;
 
 	mutex_lock(&smu->mutex);
 
 	if (!smu->disable_watermark &&
 			smu_feature_is_enabled(smu, SMU_FEATURE_DPM_DCEFCLK_BIT) &&
 			smu_feature_is_enabled(smu, SMU_FEATURE_DPM_SOCCLK_BIT)) {
-		smu_set_watermarks_table(smu, table, clock_ranges);
+		ret = smu_set_watermarks_table(smu, clock_ranges);
 
 		if (!(smu->watermarks_bitmap & WATERMARKS_EXIST)) {
 			smu->watermarks_bitmap |= WATERMARKS_EXIST;
@@ -1744,7 +1743,7 @@ int smu_set_watermarks_for_clock_ranges(struct smu_context *smu,
 
 	mutex_unlock(&smu->mutex);
 
-	return 0;
+	return ret;
 }
 
 int smu_set_ac_dc(struct smu_context *smu)
