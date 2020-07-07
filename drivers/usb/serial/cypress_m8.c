@@ -1046,7 +1046,7 @@ static void cypress_read_int_callback(struct urb *urb)
 		return;
 	case -EPIPE:
 		/* Can't call usb_clear_halt while in_interrupt */
-		/* FALLS THROUGH */
+		fallthrough;
 	default:
 		/* something ugly is going on... */
 		dev_err(dev, "%s - unexpected nonzero read status received: %d\n",
@@ -1195,7 +1195,7 @@ static void cypress_write_int_callback(struct urb *urb)
 		return;
 	case -EPIPE:
 		/* Cannot call usb_clear_halt while in_interrupt */
-		/* FALLTHROUGH */
+		fallthrough;
 	default:
 		dev_err(dev, "%s - unexpected nonzero write status received: %d\n",
 			__func__, status);
