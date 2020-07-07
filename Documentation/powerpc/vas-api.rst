@@ -43,7 +43,7 @@ engine for this process. Once a connection is established, the application
 should use the mmap() system call to map the hardware address of engine's
 request queue into the application's virtual address space.
 
-The application can then submit one or more requests to the the engine by
+The application can then submit one or more requests to the engine by
 using copy/paste instructions and pasting the CRBs to the virtual address
 (aka paste_address) returned by mmap(). User space can close the
 established connection or send window by closing the file descriptior
