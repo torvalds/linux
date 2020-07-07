@@ -346,9 +346,16 @@ static int sec_set_user_domain_and_cache(struct hisi_qm *qm)
 /* sec_debug_regs_clear() - clear the sec debug regs */
 static void sec_debug_regs_clear(struct hisi_qm *qm)
 {
+	int i;
+
 	/* clear current_qm */
 	writel(0x0, qm->io_base + QM_DFX_MB_CNT_VF);
 	writel(0x0, qm->io_base + QM_DFX_DB_CNT_VF);
+
+	/* clear sec dfx regs */
+	writel(0x1, qm->io_base + SEC_CTRL_CNT_CLR_CE);
+	for (i = 0; i < ARRAY_SIZE(sec_dfx_regs); i++)
+		readl(qm->io_base + sec_dfx_regs[i].offset);
 
 	/* clear rdclr_en */
 	writel(0x0, qm->io_base + SEC_CTRL_CNT_CLR_CE);
