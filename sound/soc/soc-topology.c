@@ -1263,6 +1263,7 @@ static int soc_tplg_dapm_graph_elems_load(struct soc_tplg *tplg,
 
 		ret = soc_tplg_add_route(tplg, routes[i]);
 		if (ret < 0) {
+			dev_err(tplg->dev, "ASoC: topology: add_route failed: %d\n", ret);
 			/*
 			 * this route was added to the list, it will
 			 * be freed in remove_route() so increment the
@@ -2743,15 +2744,21 @@ static int soc_tplg_process_headers(struct soc_tplg *tplg)
 
 			/* make sure header is valid before loading */
 			ret = soc_valid_header(tplg, hdr);
-			if (ret < 0)
+			if (ret < 0) {
+				dev_err(tplg->dev,
+					"ASoC: topology: invalid header: %d\n", ret);
 				return ret;
-			else if (ret == 0)
+			} else if (ret == 0) {
 				break;
+			}
 
 			/* load the header object */
 			ret = soc_tplg_load_header(tplg, hdr);
-			if (ret < 0)
+			if (ret < 0) {
+				dev_err(tplg->dev,
+					"ASoC: topology: could not load header: %d\n", ret);
 				return ret;
+			}
 
 			/* goto next header */
 			tplg->hdr_pos += le32_to_cpu(hdr->payload_size) +
