@@ -779,13 +779,6 @@ static int max98373_probe(struct snd_soc_component *component)
 	regmap_write(max98373->regmap,
 		MAX98373_R202A_PCM_TO_SPK_MONO_MIX_2,
 		0x1);
-	/* Set inital volume (0dB) */
-	regmap_write(max98373->regmap,
-		MAX98373_R203D_AMP_DIG_VOL_CTRL,
-		0x00);
-	regmap_write(max98373->regmap,
-		MAX98373_R203E_AMP_PATH_GAIN,
-		0x00);
 	/* Enable DC blocker */
 	regmap_write(max98373->regmap,
 		MAX98373_R203F_AMP_DSP_CFG,
