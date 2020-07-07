@@ -2354,6 +2354,9 @@ static int sfp_probe(struct platform_device *pdev)
 					      "%s-%s", dev_name(sfp->dev),
 					      gpio_of_names[i]);
 
+		if (!sfp_irq_name)
+			return -ENOMEM;
+
 		err = devm_request_threaded_irq(sfp->dev, sfp->gpio_irq[i],
 						NULL, sfp_irq,
 						IRQF_ONESHOT |
