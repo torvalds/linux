@@ -933,7 +933,7 @@ nv50_dp_bpc_to_depth(unsigned int bpc)
 	switch (bpc) {
 	case  6: return 0x2;
 	case  8: return 0x5;
-	case 10: /* fall-through */
+	case 10:
 	default: return 0x6;
 	}
 }
