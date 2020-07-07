@@ -880,6 +880,7 @@ static int rockchip_pm_add_one_domain(struct rockchip_pmu *pmu,
 	return 0;
 
 err_unprepare_clocks:
+	kfree(qos_is_need_init[0]);
 	clk_bulk_unprepare(pd->num_clks, pd->clks);
 err_put_clocks:
 	clk_bulk_put(pd->num_clks, pd->clks);
