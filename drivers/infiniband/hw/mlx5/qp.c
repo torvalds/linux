@@ -3005,11 +3005,12 @@ destroy_qp:
 		mlx5_ib_destroy_dct(qp);
 	} else {
 		/*
-		 * The two lines below are temp solution till QP allocation
+		 * These lines below are temp solution till QP allocation
 		 * will be moved to be under IB/core responsiblity.
 		 */
 		qp->ibqp.send_cq = attr->send_cq;
 		qp->ibqp.recv_cq = attr->recv_cq;
+		qp->ibqp.pd = pd;
 		destroy_qp_common(dev, qp, udata);
 	}
 
