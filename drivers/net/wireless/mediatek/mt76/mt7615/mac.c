@@ -1908,12 +1908,21 @@ void mt7615_pm_power_save_sched(struct mt7615_dev *dev)
 {
 	struct mt76_phy *mphy = dev->phy.mt76;
 
-	if (!mt7615_firmware_offload(dev) ||
-	    !dev->pm.enable || !mt76_is_mmio(mphy->dev) ||
-	    !test_bit(MT76_STATE_RUNNING, &mphy->state))
+	if (!mt7615_firmware_offload(dev))
+		return;
+
+	if (!mt76_is_mmio(mphy->dev))
+		return;
+
+	if (!dev->pm.enable || !test_bit(MT76_STATE_RUNNING, &mphy->state))
 		return;
 
 	dev->pm.last_activity = jiffies;
+
+	if (test_bit(MT76_HW_SCANNING, &mphy->state) ||
+	    test_bit(MT76_HW_SCHED_SCANNING, &mphy->state))
+		return;
+
 	if (!test_bit(MT76_STATE_PM, &mphy->state))
 		queue_delayed_work(dev->mt76.wq, &dev->pm.ps_work,
 				   dev->pm.idle_timeout);
