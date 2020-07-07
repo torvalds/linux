@@ -1219,13 +1219,7 @@ static void mgag200_set_format_regs(struct mga_device *mdev,
 static void mgag200_g200er_reset_tagfifo(struct mga_device *mdev)
 {
 	static uint32_t RESET_FLAG = 0x00200000; /* undocumented magic value */
-	u8 seq1;
 	u32 memctl;
-
-	/* screen off */
-	RREG_SEQ(0x01, seq1);
-	seq1 |= MGAREG_SEQ1_SCROFF;
-	WREG_SEQ(0x01, seq1);
 
 	memctl = RREG32(MGAREG_MEMCTL);
 
@@ -1236,11 +1230,6 @@ static void mgag200_g200er_reset_tagfifo(struct mga_device *mdev)
 
 	memctl &= ~RESET_FLAG;
 	WREG32(MGAREG_MEMCTL, memctl);
-
-	/* screen on */
-	RREG_SEQ(0x01, seq1);
-	seq1 &= ~MGAREG_SEQ1_SCROFF;
-	WREG_SEQ(0x01, seq1);
 }
 
 static void mgag200_g200se_set_hiprilvl(struct mga_device *mdev,
@@ -1339,21 +1328,9 @@ static void mga_crtc_prepare(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct mga_device *mdev = to_mga_device(dev);
-	u8 tmp;
 
-	if (mdev->type == G200_SE_A || mdev->type == G200_SE_B) {
-		WREG_SEQ(0, 1);
-		msleep(50);
-		WREG_SEQ(1, 0x20);
-		msleep(20);
-	} else {
-		WREG8(MGAREG_SEQ_INDEX, 0x1);
-		tmp = RREG8(MGAREG_SEQ_DATA);
-
-		/* start sync reset */
-		WREG_SEQ(0, 1);
-		WREG_SEQ(1, tmp | 0x20);
-	}
+	/* start sync reset */
+	WREG_SEQ(0, 1);
 
 	if (mdev->type == G200_WB || mdev->type == G200_EW3)
 		mga_g200wb_prepare(crtc);
@@ -1367,24 +1344,11 @@ static void mga_crtc_commit(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct mga_device *mdev = to_mga_device(dev);
-	u8 tmp;
 
 	if (mdev->type == G200_WB || mdev->type == G200_EW3)
 		mga_g200wb_commit(crtc);
 
-	if (mdev->type == G200_SE_A || mdev->type == G200_SE_B) {
-		msleep(50);
-		WREG_SEQ(1, 0x0);
-		msleep(20);
-		WREG_SEQ(0, 0x3);
-	} else {
-		WREG8(MGAREG_SEQ_INDEX, 0x1);
-		tmp = RREG8(MGAREG_SEQ_DATA);
-
-		tmp &= ~0x20;
-		WREG_SEQ(0x1, tmp);
-		WREG_SEQ(0, 3);
-	}
+	WREG_SEQ(0, 0x3);
 	mga_crtc_dpms(crtc, DRM_MODE_DPMS_ON);
 }
 
