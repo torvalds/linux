@@ -502,5 +502,30 @@ int ethtool_virtdev_set_link_ksettings(struct net_device *dev,
 				       const struct ethtool_link_ksettings *cmd,
 				       u32 *dev_speed, u8 *dev_duplex);
 
+struct netlink_ext_ack;
+struct phy_device;
+struct phy_tdr_config;
+
+/**
+ * struct ethtool_phy_ops - Optional PHY device options
+ * @start_cable_test - Start a cable test
+ * @start_cable_test_tdr - Start a Time Domain Reflectometry cable test
+ *
+ * All operations are optional (i.e. the function pointer may be set to %NULL)
+ * and callers must take this into account. Callers must hold the RTNL lock.
+ */
+struct ethtool_phy_ops {
+	int (*start_cable_test)(struct phy_device *phydev,
+				struct netlink_ext_ack *extack);
+	int (*start_cable_test_tdr)(struct phy_device *phydev,
+				    struct netlink_ext_ack *extack,
+				    const struct phy_tdr_config *config);
+};
+
+/**
+ * ethtool_set_ethtool_phy_ops - Set the ethtool_phy_ops singleton
+ * @ops: Ethtool PHY operations to set
+ */
+void ethtool_set_ethtool_phy_ops(const struct ethtool_phy_ops *ops);
 
 #endif /* _LINUX_ETHTOOL_H */

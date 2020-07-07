@@ -3027,6 +3027,11 @@ static struct phy_driver genphy_driver = {
 	.set_loopback   = genphy_loopback,
 };
 
+static const struct ethtool_phy_ops phy_ethtool_phy_ops = {
+	.start_cable_test	= phy_start_cable_test,
+	.start_cable_test_tdr	= phy_start_cable_test_tdr,
+};
+
 static int __init phy_init(void)
 {
 	int rc;
@@ -3035,6 +3040,7 @@ static int __init phy_init(void)
 	if (rc)
 		return rc;
 
+	ethtool_set_ethtool_phy_ops(&phy_ethtool_phy_ops);
 	features_init();
 
 	rc = phy_driver_register(&genphy_c45_driver, THIS_MODULE);
@@ -3056,6 +3062,7 @@ static void __exit phy_exit(void)
 	phy_driver_unregister(&genphy_c45_driver);
 	phy_driver_unregister(&genphy_driver);
 	mdio_bus_exit();
+	ethtool_set_ethtool_phy_ops(NULL);
 }
 
 subsys_initcall(phy_init);
