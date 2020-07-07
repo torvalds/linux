@@ -1087,6 +1087,7 @@ static const struct pptable_funcs renoir_ppt_funcs = {
 	.send_smc_msg_with_param = smu_v12_0_send_msg_with_param,
 	.set_gfx_cgpg = smu_v12_0_set_gfx_cgpg,
 	.gfx_off_control = smu_v12_0_gfx_off_control,
+	.get_gfx_off_status = smu_v12_0_get_gfxoff_status,
 	.init_smc_tables = smu_v12_0_init_smc_tables,
 	.fini_smc_tables = smu_v12_0_fini_smc_tables,
 	.set_default_dpm_table = smu_v12_0_set_default_dpm_tables,

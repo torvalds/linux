@@ -555,6 +555,7 @@ struct pptable_funcs {
 	int (*set_fan_speed_rpm)(struct smu_context *smu, uint32_t speed);
 	int (*set_xgmi_pstate)(struct smu_context *smu, uint32_t pstate);
 	int (*gfx_off_control)(struct smu_context *smu, bool enable);
+	uint32_t (*get_gfx_off_status)(struct smu_context *smu);
 	int (*register_irq_handler)(struct smu_context *smu);
 	int (*set_azalia_d3_pme)(struct smu_context *smu);
 	int (*get_max_sustainable_clocks_by_dc)(struct smu_context *smu, struct pp_smu_nv_clock_table *max_clocks);
@@ -754,5 +755,7 @@ int smu_get_uclk_dpm_states(struct smu_context *smu,
 
 int smu_get_dpm_clock_table(struct smu_context *smu,
 			    struct dpm_clocks *clock_table);
+
+int smu_get_status_gfxoff(struct amdgpu_device *adev, uint32_t *value);
 
 #endif

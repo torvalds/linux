@@ -239,6 +239,19 @@ int smu_get_smc_version(struct smu_context *smu, uint32_t *if_version, uint32_t 
 	return ret;
 }
 
+int smu_get_status_gfxoff(struct amdgpu_device *adev, uint32_t *value)
+{
+	int ret = 0;
+	struct smu_context *smu = &adev->smu;
+
+	if (is_support_sw_smu(adev) && smu->ppt_funcs->get_gfx_off_status)
+		*value = smu_get_gfx_off_status(smu);
+	else
+		ret = -EINVAL;
+
+	return ret;
+}
+
 int smu_set_soft_freq_range(struct smu_context *smu,
 			    enum smu_clk_type clk_type,
 			    uint32_t min,
