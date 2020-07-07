@@ -1897,7 +1897,7 @@ static bool elantech_use_host_notify(struct psmouse *psmouse,
 int elantech_init_smbus(struct psmouse *psmouse)
 {
 	struct elantech_device_info info;
-	int error = -EINVAL;
+	int error;
 
 	psmouse_reset(psmouse);
 
@@ -2015,7 +2015,7 @@ static int elantech_setup_ps2(struct psmouse *psmouse,
 int elantech_init_ps2(struct psmouse *psmouse)
 {
 	struct elantech_device_info info;
-	int error = -EINVAL;
+	int error;
 
 	psmouse_reset(psmouse);
 
@@ -2036,7 +2036,7 @@ int elantech_init_ps2(struct psmouse *psmouse)
 int elantech_init(struct psmouse *psmouse)
 {
 	struct elantech_device_info info;
-	int error = -EINVAL;
+	int error;
 
 	psmouse_reset(psmouse);
 
