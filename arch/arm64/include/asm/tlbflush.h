@@ -77,32 +77,31 @@
 #define TLBI_TTL_TG_16K		2
 #define TLBI_TTL_TG_64K		3
 
-#define __tlbi_level(op, addr, level)					\
-	do {								\
-		u64 arg = addr;						\
+#define __tlbi_level(op, addr, level) do {				\
+	u64 arg = addr;							\
 									\
-		if (cpus_have_const_cap(ARM64_HAS_ARMv8_4_TTL) &&	\
-		    level) {						\
-			u64 ttl = level & 3;				\
+	if (cpus_have_const_cap(ARM64_HAS_ARMv8_4_TTL) &&		\
+	    level) {							\
+		u64 ttl = level & 3;					\
 									\
-			switch (PAGE_SIZE) {				\
-			case SZ_4K:					\
-				ttl |= TLBI_TTL_TG_4K << 2;		\
-				break;					\
-			case SZ_16K:					\
-				ttl |= TLBI_TTL_TG_16K << 2;		\
-				break;					\
-			case SZ_64K:					\
-				ttl |= TLBI_TTL_TG_64K << 2;		\
-				break;					\
-			}						\
-									\
-			arg &= ~TLBI_TTL_MASK;				\
-			arg |= FIELD_PREP(TLBI_TTL_MASK, ttl);		\
+		switch (PAGE_SIZE) {					\
+		case SZ_4K:						\
+			ttl |= TLBI_TTL_TG_4K << 2;			\
+			break;						\
+		case SZ_16K:						\
+			ttl |= TLBI_TTL_TG_16K << 2;			\
+			break;						\
+		case SZ_64K:						\
+			ttl |= TLBI_TTL_TG_64K << 2;			\
+			break;						\
 		}							\
 									\
-		__tlbi(op, arg);					\
-	} while(0)
+		arg &= ~TLBI_TTL_MASK;					\
+		arg |= FIELD_PREP(TLBI_TTL_MASK, ttl);			\
+	}								\
+									\
+	__tlbi(op, arg);						\
+} while(0)
 
 #define __tlbi_user_level(op, arg, level) do {				\
 	if (arm64_kernel_unmapped_at_el0())				\
