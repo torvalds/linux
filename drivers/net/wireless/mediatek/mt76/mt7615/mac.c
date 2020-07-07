@@ -1932,13 +1932,21 @@ EXPORT_SYMBOL_GPL(mt7615_pm_power_save_sched);
 void mt7615_pm_power_save_work(struct work_struct *work)
 {
 	struct mt7615_dev *dev;
+	unsigned long delta;
 
 	dev = (struct mt7615_dev *)container_of(work, struct mt7615_dev,
 						pm.ps_work.work);
 
-	if (mt7615_firmware_own(dev))
-		queue_delayed_work(dev->mt76.wq, &dev->pm.ps_work,
-				   dev->pm.idle_timeout);
+	delta = dev->pm.idle_timeout;
+	if (time_is_after_jiffies(dev->pm.last_activity + delta)) {
+		delta = dev->pm.last_activity + delta - jiffies;
+		goto out;
+	}
+
+	if (!mt7615_firmware_own(dev))
+		return;
+out:
+	queue_delayed_work(dev->mt76.wq, &dev->pm.ps_work, delta);
 }
 
 static void
