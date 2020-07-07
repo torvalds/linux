@@ -2238,6 +2238,7 @@ static int sfp_probe(struct platform_device *pdev)
 {
 	const struct sff_data *sff;
 	struct i2c_adapter *i2c;
+	char *sfp_irq_name;
 	struct sfp *sfp;
 	int err, i;
 
@@ -2349,12 +2350,16 @@ static int sfp_probe(struct platform_device *pdev)
 			continue;
 		}
 
+		sfp_irq_name = devm_kasprintf(sfp->dev, GFP_KERNEL,
+					      "%s-%s", dev_name(sfp->dev),
+					      gpio_of_names[i]);
+
 		err = devm_request_threaded_irq(sfp->dev, sfp->gpio_irq[i],
 						NULL, sfp_irq,
 						IRQF_ONESHOT |
 						IRQF_TRIGGER_RISING |
 						IRQF_TRIGGER_FALLING,
-						dev_name(sfp->dev), sfp);
+						sfp_irq_name, sfp);
 		if (err) {
 			sfp->gpio_irq[i] = 0;
 			sfp->need_poll = true;
