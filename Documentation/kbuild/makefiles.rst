@@ -368,12 +368,23 @@ more details, with real examples.
 
 		subdir-ccflags-y := -Werror
 
+    ccflags-remove-y, asflags-remove-y
+	These flags are used to remove particular flags for the compiler,
+	assembler invocations.
+
+	Example::
+
+		ccflags-remove-$(CONFIG_MCOUNT) += -pg
+
     CFLAGS_$@, AFLAGS_$@
 	CFLAGS_$@ and AFLAGS_$@ only apply to commands in current
 	kbuild makefile.
 
 	$(CFLAGS_$@) specifies per-file options for $(CC).  The $@
 	part has a literal value which specifies the file that it is for.
+
+	CFLAGS_$@ has the higher priority than ccflags-remove-y; CFLAGS_$@
+	can re-add compiler flags that were removed by ccflags-remove-y.
 
 	Example::
 
@@ -386,6 +397,9 @@ more details, with real examples.
 
 	$(AFLAGS_$@) is a similar feature for source files in assembly
 	languages.
+
+	AFLAGS_$@ has the higher priority than asflags-remove-y; AFLAGS_$@
+	can re-add assembler flags that were removed by asflags-remove-y.
 
 	Example::
 
