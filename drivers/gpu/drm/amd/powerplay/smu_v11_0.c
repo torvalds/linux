@@ -764,17 +764,6 @@ int smu_v11_0_notify_memory_pool_location(struct smu_context *smu)
 	return ret;
 }
 
-int smu_v11_0_write_pptable(struct smu_context *smu)
-{
-	struct smu_table_context *table_context = &smu->smu_table;
-	int ret = 0;
-
-	ret = smu_update_table(smu, SMU_TABLE_PPTABLE, 0,
-			       table_context->driver_pptable, true);
-
-	return ret;
-}
-
 int smu_v11_0_set_min_deep_sleep_dcefclk(struct smu_context *smu, uint32_t clk)
 {
 	int ret;

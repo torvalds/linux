@@ -396,7 +396,7 @@ static int sienna_cichlid_get_smu_metrics_data(struct smu_context *smu,
 	mutex_lock(&smu->metrics_lock);
 	if (!smu_table->metrics_time ||
 	     time_after(jiffies, smu_table->metrics_time + msecs_to_jiffies(1))) {
-		ret = smu_update_table(smu,
+		ret = smu_cmn_update_table(smu,
 				       SMU_TABLE_SMU_METRICS,
 				       0,
 				       smu_table->metrics_table,
@@ -1201,7 +1201,7 @@ static int sienna_cichlid_get_power_profile_mode(struct smu_context *smu, char *
 		if (workload_type < 0)
 			return -EINVAL;
 
-		result = smu_update_table(smu,
+		result = smu_cmn_update_table(smu,
 					  SMU_TABLE_ACTIVITY_MONITOR_COEFF, workload_type,
 					  (void *)(&activity_monitor), false);
 		if (result) {
@@ -1272,7 +1272,7 @@ static int sienna_cichlid_set_power_profile_mode(struct smu_context *smu, long *
 
 	if (smu->power_profile_mode == PP_SMC_POWER_PROFILE_CUSTOM) {
 
-		ret = smu_update_table(smu,
+		ret = smu_cmn_update_table(smu,
 				       SMU_TABLE_ACTIVITY_MONITOR_COEFF, WORKLOAD_PPLIB_CUSTOM_BIT,
 				       (void *)(&activity_monitor), false);
 		if (ret) {
@@ -1316,7 +1316,7 @@ static int sienna_cichlid_set_power_profile_mode(struct smu_context *smu, long *
 			break;
 		}
 
-		ret = smu_update_table(smu,
+		ret = smu_cmn_update_table(smu,
 				       SMU_TABLE_ACTIVITY_MONITOR_COEFF, WORKLOAD_PPLIB_CUSTOM_BIT,
 				       (void *)(&activity_monitor), true);
 		if (ret) {
@@ -1439,7 +1439,7 @@ static int sienna_cichlid_set_watermarks_table(struct smu_context *smu,
 
 	if ((smu->watermarks_bitmap & WATERMARKS_EXIST) &&
 	     !(smu->watermarks_bitmap & WATERMARKS_LOADED)) {
-		ret = smu_write_watermarks_table(smu);
+		ret = smu_cmn_write_watermarks_table(smu);
 		if (ret) {
 			dev_err(smu->adev->dev, "Failed to update WMTABLE!");
 			return ret;
@@ -2441,7 +2441,7 @@ static const struct pptable_funcs sienna_cichlid_ppt_funcs = {
 	.setup_pptable = sienna_cichlid_setup_pptable,
 	.get_vbios_bootup_values = smu_v11_0_get_vbios_bootup_values,
 	.check_fw_version = smu_v11_0_check_fw_version,
-	.write_pptable = smu_v11_0_write_pptable,
+	.write_pptable = smu_cmn_write_pptable,
 	.set_driver_table_location = smu_v11_0_set_driver_table_location,
 	.set_tool_table_location = smu_v11_0_set_tool_table_location,
 	.notify_memory_pool_location = smu_v11_0_notify_memory_pool_location,

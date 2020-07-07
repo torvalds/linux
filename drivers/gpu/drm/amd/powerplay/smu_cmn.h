@@ -59,4 +59,14 @@ int smu_cmn_get_smc_version(struct smu_context *smu,
 			    uint32_t *if_version,
 			    uint32_t *smu_version);
 
+int smu_cmn_update_table(struct smu_context *smu,
+			 enum smu_table_id table_index,
+			 int argument,
+			 void *table_data,
+			 bool drv2smu);
+
+int smu_cmn_write_watermarks_table(struct smu_context *smu);
+
+int smu_cmn_write_pptable(struct smu_context *smu);
+
 #endif

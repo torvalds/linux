@@ -221,47 +221,6 @@ int smu_get_power_num_states(struct smu_context *smu,
 	return 0;
 }
 
-int smu_update_table(struct smu_context *smu, enum smu_table_id table_index, int argument,
-		     void *table_data, bool drv2smu)
-{
-	struct smu_table_context *smu_table = &smu->smu_table;
-	struct amdgpu_device *adev = smu->adev;
-	struct smu_table *table = &smu_table->driver_table;
-	int table_id = smu_cmn_to_asic_specific_index(smu,
-						      CMN2ASIC_MAPPING_TABLE,
-						      table_index);
-	uint32_t table_size;
-	int ret = 0;
-	if (!table_data || table_id >= SMU_TABLE_COUNT || table_id < 0)
-		return -EINVAL;
-
-	table_size = smu_table->tables[table_index].size;
-
-	if (drv2smu) {
-		memcpy(table->cpu_addr, table_data, table_size);
-		/*
-		 * Flush hdp cache: to guard the content seen by
-		 * GPU is consitent with CPU.
-		 */
-		amdgpu_asic_flush_hdp(adev, NULL);
-	}
-
-	ret = smu_send_smc_msg_with_param(smu, drv2smu ?
-					  SMU_MSG_TransferTableDram2Smu :
-					  SMU_MSG_TransferTableSmu2Dram,
-					  table_id | ((argument & 0xFFFF) << 16),
-					  NULL);
-	if (ret)
-		return ret;
-
-	if (!drv2smu) {
-		amdgpu_asic_flush_hdp(adev, NULL);
-		memcpy(table_data, table->cpu_addr, table_size);
-	}
-
-	return ret;
-}
-
 bool is_support_sw_smu(struct amdgpu_device *adev)
 {
 	if (adev->asic_type >= CHIP_ARCTURUS)

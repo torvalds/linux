@@ -135,7 +135,7 @@ static int renoir_get_metrics_table(struct smu_context *smu,
 
 	mutex_lock(&smu->metrics_lock);
 	if (!smu_table->metrics_time || time_after(jiffies, smu_table->metrics_time + msecs_to_jiffies(100))) {
-		ret = smu_update_table(smu, SMU_TABLE_SMU_METRICS, 0,
+		ret = smu_cmn_update_table(smu, SMU_TABLE_SMU_METRICS, 0,
 				(void *)smu_table->metrics_table, false);
 		if (ret) {
 			dev_info(smu->adev->dev, "Failed to export SMU metrics table!\n");
@@ -893,7 +893,7 @@ static int renoir_set_watermarks_table(
 	/* pass data to smu controller */
 	if ((smu->watermarks_bitmap & WATERMARKS_EXIST) &&
 	     !(smu->watermarks_bitmap & WATERMARKS_LOADED)) {
-		ret = smu_write_watermarks_table(smu);
+		ret = smu_cmn_write_watermarks_table(smu);
 		if (ret) {
 			dev_err(smu->adev->dev, "Failed to update WMTABLE!");
 			return ret;

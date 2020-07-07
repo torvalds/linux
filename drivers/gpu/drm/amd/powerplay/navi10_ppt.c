@@ -489,7 +489,7 @@ static int navi10_get_smu_metrics_data(struct smu_context *smu,
 	mutex_lock(&smu->metrics_lock);
 	if (!smu_table->metrics_time ||
 	     time_after(jiffies, smu_table->metrics_time + msecs_to_jiffies(1))) {
-		ret = smu_update_table(smu,
+		ret = smu_cmn_update_table(smu,
 				       SMU_TABLE_SMU_METRICS,
 				       0,
 				       smu_table->metrics_table,
@@ -1398,7 +1398,7 @@ static int navi10_get_power_profile_mode(struct smu_context *smu, char *buf)
 		if (workload_type < 0)
 			return -EINVAL;
 
-		result = smu_update_table(smu,
+		result = smu_cmn_update_table(smu,
 					  SMU_TABLE_ACTIVITY_MONITOR_COEFF, workload_type,
 					  (void *)(&activity_monitor), false);
 		if (result) {
@@ -1469,7 +1469,7 @@ static int navi10_set_power_profile_mode(struct smu_context *smu, long *input, u
 
 	if (smu->power_profile_mode == PP_SMC_POWER_PROFILE_CUSTOM) {
 
-		ret = smu_update_table(smu,
+		ret = smu_cmn_update_table(smu,
 				       SMU_TABLE_ACTIVITY_MONITOR_COEFF, WORKLOAD_PPLIB_CUSTOM_BIT,
 				       (void *)(&activity_monitor), false);
 		if (ret) {
@@ -1513,7 +1513,7 @@ static int navi10_set_power_profile_mode(struct smu_context *smu, long *input, u
 			break;
 		}
 
-		ret = smu_update_table(smu,
+		ret = smu_cmn_update_table(smu,
 				       SMU_TABLE_ACTIVITY_MONITOR_COEFF, WORKLOAD_PPLIB_CUSTOM_BIT,
 				       (void *)(&activity_monitor), true);
 		if (ret) {
@@ -1636,7 +1636,7 @@ static int navi10_set_watermarks_table(struct smu_context *smu,
 	/* pass data to smu controller */
 	if ((smu->watermarks_bitmap & WATERMARKS_EXIST) &&
 	     !(smu->watermarks_bitmap & WATERMARKS_LOADED)) {
-		ret = smu_write_watermarks_table(smu);
+		ret = smu_cmn_write_watermarks_table(smu);
 		if (ret) {
 			dev_err(smu->adev->dev, "Failed to update WMTABLE!");
 			return ret;
@@ -1957,7 +1957,7 @@ static int navi10_set_default_od_settings(struct smu_context *smu)
 		(OverDriveTable_t *)smu->smu_table.boot_overdrive_table;
 	int ret = 0;
 
-	ret = smu_update_table(smu, SMU_TABLE_OVERDRIVE, 0, (void *)od_table, false);
+	ret = smu_cmn_update_table(smu, SMU_TABLE_OVERDRIVE, 0, (void *)od_table, false);
 	if (ret) {
 		dev_err(smu->adev->dev, "Failed to get overdrive table!\n");
 		return ret;
@@ -2091,7 +2091,7 @@ static int navi10_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_TABL
 		break;
 	case PP_OD_COMMIT_DPM_TABLE:
 		navi10_dump_od_table(smu, od_table);
-		ret = smu_update_table(smu, SMU_TABLE_OVERDRIVE, 0, (void *)od_table, true);
+		ret = smu_cmn_update_table(smu, SMU_TABLE_OVERDRIVE, 0, (void *)od_table, true);
 		if (ret) {
 			dev_err(smu->adev->dev, "Failed to import overdrive table!\n");
 			return ret;
@@ -2289,7 +2289,7 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.setup_pptable = navi10_setup_pptable,
 	.get_vbios_bootup_values = smu_v11_0_get_vbios_bootup_values,
 	.check_fw_version = smu_v11_0_check_fw_version,
-	.write_pptable = smu_v11_0_write_pptable,
+	.write_pptable = smu_cmn_write_pptable,
 	.set_driver_table_location = smu_v11_0_set_driver_table_location,
 	.set_tool_table_location = smu_v11_0_set_tool_table_location,
 	.notify_memory_pool_location = smu_v11_0_notify_memory_pool_location,

@@ -527,7 +527,7 @@ static int arcturus_get_smu_metrics_data(struct smu_context *smu,
 
 	if (!smu_table->metrics_time ||
 	     time_after(jiffies, smu_table->metrics_time + msecs_to_jiffies(1))) {
-		ret = smu_update_table(smu,
+		ret = smu_cmn_update_table(smu,
 				       SMU_TABLE_SMU_METRICS,
 				       0,
 				       smu_table->metrics_table,
@@ -1215,7 +1215,7 @@ static int arcturus_get_power_profile_mode(struct smu_context *smu,
 			continue;
 
 		if (smu_version >= 0x360d00) {
-			result = smu_update_table(smu,
+			result = smu_cmn_update_table(smu,
 						  SMU_TABLE_ACTIVITY_MONITOR_COEFF,
 						  workload_type,
 						  (void *)(&activity_monitor),
@@ -1284,7 +1284,7 @@ static int arcturus_set_power_profile_mode(struct smu_context *smu,
 
 	if ((profile_mode == PP_SMC_POWER_PROFILE_CUSTOM) &&
 	     (smu_version >=0x360d00)) {
-		ret = smu_update_table(smu,
+		ret = smu_cmn_update_table(smu,
 				       SMU_TABLE_ACTIVITY_MONITOR_COEFF,
 				       WORKLOAD_PPLIB_CUSTOM_BIT,
 				       (void *)(&activity_monitor),
@@ -1319,7 +1319,7 @@ static int arcturus_set_power_profile_mode(struct smu_context *smu,
 			break;
 		}
 
-		ret = smu_update_table(smu,
+		ret = smu_cmn_update_table(smu,
 				       SMU_TABLE_ACTIVITY_MONITOR_COEFF,
 				       WORKLOAD_PPLIB_CUSTOM_BIT,
 				       (void *)(&activity_monitor),
@@ -1913,7 +1913,7 @@ static int arcturus_i2c_eeprom_read_data(struct i2c_adapter *control,
 
 	mutex_lock(&adev->smu.mutex);
 	/* Now read data starting with that address */
-	ret = smu_update_table(&adev->smu, SMU_TABLE_I2C_COMMANDS, 0, &req,
+	ret = smu_cmn_update_table(&adev->smu, SMU_TABLE_I2C_COMMANDS, 0, &req,
 					true);
 	mutex_unlock(&adev->smu.mutex);
 
@@ -1954,7 +1954,7 @@ static int arcturus_i2c_eeprom_write_data(struct i2c_adapter *control,
 	arcturus_fill_eeprom_i2c_req(&req, true, address, numbytes, data);
 
 	mutex_lock(&adev->smu.mutex);
-	ret = smu_update_table(&adev->smu, SMU_TABLE_I2C_COMMANDS, 0, &req, true);
+	ret = smu_cmn_update_table(&adev->smu, SMU_TABLE_I2C_COMMANDS, 0, &req, true);
 	mutex_unlock(&adev->smu.mutex);
 
 	if (!ret) {
@@ -2276,7 +2276,7 @@ static const struct pptable_funcs arcturus_ppt_funcs = {
 	.setup_pptable = arcturus_setup_pptable,
 	.get_vbios_bootup_values = smu_v11_0_get_vbios_bootup_values,
 	.check_fw_version = smu_v11_0_check_fw_version,
-	.write_pptable = smu_v11_0_write_pptable,
+	.write_pptable = smu_cmn_write_pptable,
 	.set_driver_table_location = smu_v11_0_set_driver_table_location,
 	.set_tool_table_location = smu_v11_0_set_tool_table_location,
 	.notify_memory_pool_location = smu_v11_0_notify_memory_pool_location,
