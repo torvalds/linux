@@ -275,7 +275,8 @@ int qedr_alloc_ucontext(struct ib_ucontext *uctx, struct ib_udata *udata)
 			DP_ERR(dev, "Problem copying data from user space\n");
 			return -EFAULT;
 		}
-
+		ctx->edpm_mode = !!(ureq.context_flags &
+				    QEDR_ALLOC_UCTX_EDPM_MODE);
 		ctx->db_rec = !!(ureq.context_flags & QEDR_ALLOC_UCTX_DB_REC);
 	}
 
@@ -316,7 +317,8 @@ int qedr_alloc_ucontext(struct ib_ucontext *uctx, struct ib_udata *udata)
 		uresp.dpm_flags = QEDR_DPM_TYPE_IWARP_LEGACY;
 	else
 		uresp.dpm_flags = QEDR_DPM_TYPE_ROCE_ENHANCED |
-				  QEDR_DPM_TYPE_ROCE_LEGACY;
+				  QEDR_DPM_TYPE_ROCE_LEGACY |
+				  QEDR_DPM_TYPE_ROCE_EDPM_MODE;
 
 	uresp.dpm_flags |= QEDR_DPM_SIZES_SET;
 	uresp.ldpm_limit_size = QEDR_LDPM_MAX_SIZE;
@@ -1750,7 +1752,7 @@ static int qedr_create_user_qp(struct qedr_dev *dev,
 	struct qed_rdma_create_qp_out_params out_params;
 	struct qedr_pd *pd = get_qedr_pd(ibpd);
 	struct qedr_create_qp_uresp uresp;
-	struct qedr_ucontext *ctx = NULL;
+	struct qedr_ucontext *ctx = pd ? pd->uctx : NULL;
 	struct qedr_create_qp_ureq ureq;
 	int alloc_and_init = rdma_protocol_roce(&dev->ibdev, 1);
 	int rc = -EINVAL;
@@ -1787,6 +1789,9 @@ static int qedr_create_user_qp(struct qedr_dev *dev,
 		in_params.rq_num_pages = qp->urq.pbl_info.num_pbes;
 		in_params.rq_pbl_ptr = qp->urq.pbl_tbl->pa;
 	}
+
+	if (ctx)
+		SET_FIELD(in_params.flags, QED_ROCE_EDPM_MODE, ctx->edpm_mode);
 
 	qp->qed_qp = dev->ops->rdma_create_qp(dev->rdma_ctx,
 					      &in_params, &out_params);

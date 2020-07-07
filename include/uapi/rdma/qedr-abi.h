@@ -39,7 +39,7 @@
 
 /* user kernel communication data structures. */
 enum qedr_alloc_ucontext_flags {
-	QEDR_ALLOC_UCTX_RESERVED	= 1 << 0,
+	QEDR_ALLOC_UCTX_EDPM_MODE	= 1 << 0,
 	QEDR_ALLOC_UCTX_DB_REC		= 1 << 1
 };
 
@@ -56,7 +56,7 @@ enum qedr_rdma_dpm_type {
 	QEDR_DPM_TYPE_ROCE_ENHANCED	= 1 << 0,
 	QEDR_DPM_TYPE_ROCE_LEGACY	= 1 << 1,
 	QEDR_DPM_TYPE_IWARP_LEGACY	= 1 << 2,
-	QEDR_DPM_TYPE_RESERVED		= 1 << 3,
+	QEDR_DPM_TYPE_ROCE_EDPM_MODE	= 1 << 3,
 	QEDR_DPM_SIZES_SET		= 1 << 4,
 };
 
