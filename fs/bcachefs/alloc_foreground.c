@@ -582,7 +582,7 @@ got_bucket:
 		       nr_effective, have_cache, flags, ob);
 	atomic_inc(&h->s->pin);
 out_put_head:
-	bch2_ec_stripe_head_put(h);
+	bch2_ec_stripe_head_put(c, h);
 }
 
 /* Sector allocator */

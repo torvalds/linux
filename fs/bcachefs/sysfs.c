@@ -320,8 +320,8 @@ static ssize_t bch2_new_stripes(struct bch_fs *c, char *buf)
 	struct ec_stripe_head *h;
 	struct ec_stripe_new *s;
 
-	mutex_lock(&c->ec_new_stripe_lock);
-	list_for_each_entry(h, &c->ec_new_stripe_list, list) {
+	mutex_lock(&c->ec_stripe_head_lock);
+	list_for_each_entry(h, &c->ec_stripe_head_list, list) {
 		out += scnprintf(out, end - out,
 				 "target %u algo %u redundancy %u:\n",
 				 h->target, h->algo, h->redundancy);
@@ -332,19 +332,19 @@ static ssize_t bch2_new_stripes(struct bch_fs *c, char *buf)
 					 h->s->blocks.nr,
 					 bitmap_weight(h->s->blocks_allocated,
 						       h->s->blocks.nr));
-
-		mutex_lock(&h->lock);
-		list_for_each_entry(s, &h->stripes, list)
-			out += scnprintf(out, end - out,
-					 "\tin flight: blocks %u allocated %u pin %u\n",
-					 s->blocks.nr,
-					 bitmap_weight(s->blocks_allocated,
-						       s->blocks.nr),
-					 atomic_read(&s->pin));
-		mutex_unlock(&h->lock);
-
 	}
-	mutex_unlock(&c->ec_new_stripe_lock);
+	mutex_unlock(&c->ec_stripe_head_lock);
+
+	mutex_lock(&c->ec_stripe_new_lock);
+	list_for_each_entry(h, &c->ec_stripe_new_list, list) {
+		out += scnprintf(out, end - out,
+				 "\tin flight: blocks %u allocated %u pin %u\n",
+				 s->blocks.nr,
+				 bitmap_weight(s->blocks_allocated,
+					       s->blocks.nr),
+				 atomic_read(&s->pin));
+	}
+	mutex_unlock(&c->ec_stripe_new_lock);
 
 	return out - buf;
 }

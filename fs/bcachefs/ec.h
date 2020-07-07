@@ -92,6 +92,7 @@ struct ec_stripe_new {
 	atomic_t		pin;
 
 	int			err;
+	bool			pending;
 
 	unsigned long		blocks_allocated[BITS_TO_LONGS(EC_STRIPE_MAX)];
 
@@ -107,8 +108,6 @@ struct ec_stripe_new {
 struct ec_stripe_head {
 	struct list_head	list;
 	struct mutex		lock;
-
-	struct list_head	stripes;
 
 	unsigned		target;
 	unsigned		algo;
@@ -139,7 +138,7 @@ void bch2_ec_bucket_cancel(struct bch_fs *, struct open_bucket *);
 
 int bch2_ec_stripe_new_alloc(struct bch_fs *, struct ec_stripe_head *);
 
-void bch2_ec_stripe_head_put(struct ec_stripe_head *);
+void bch2_ec_stripe_head_put(struct bch_fs *, struct ec_stripe_head *);
 struct ec_stripe_head *bch2_ec_stripe_head_get(struct bch_fs *, unsigned,
 					       unsigned, unsigned);
 

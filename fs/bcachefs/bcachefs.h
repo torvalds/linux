@@ -760,8 +760,13 @@ struct bch_fs {
 	spinlock_t		ec_stripes_heap_lock;
 
 	/* ERASURE CODING */
-	struct list_head	ec_new_stripe_list;
-	struct mutex		ec_new_stripe_lock;
+	struct list_head	ec_stripe_head_list;
+	struct mutex		ec_stripe_head_lock;
+
+	struct list_head	ec_stripe_new_list;
+	struct mutex		ec_stripe_new_lock;
+
+	struct work_struct	ec_stripe_create_work;
 	u64			ec_stripe_hint;
 
 	struct bio_set		ec_bioset;
