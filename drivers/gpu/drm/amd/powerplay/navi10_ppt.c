@@ -2216,7 +2216,7 @@ static int navi10_disable_umc_cdr_12gbps_workaround(struct smu_context *smu)
 	if (!navi10_need_umc_cdr_12gbps_workaround(smu->adev))
 		return 0;
 
-	ret = smu_get_smc_version(smu, NULL, &smu_version);
+	ret = smu_cmn_get_smc_version(smu, NULL, &smu_version);
 	if (ret)
 		return ret;
 

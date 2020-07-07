@@ -289,7 +289,7 @@ int smu_v11_0_check_fw_version(struct smu_context *smu)
 	uint8_t smu_minor, smu_debug;
 	int ret = 0;
 
-	ret = smu_get_smc_version(smu, &if_version, &smu_version);
+	ret = smu_cmn_get_smc_version(smu, &if_version, &smu_version);
 	if (ret)
 		return ret;
 
@@ -1679,7 +1679,7 @@ int smu_v11_0_get_dpm_ultimate_freq(struct smu_context *smu, enum smu_clk_type c
 	uint32_t param = 0;
 	uint32_t clock_limit;
 
-	if (!smu_clk_dpm_is_enabled(smu, clk_type)) {
+	if (!smu_cmn_clk_dpm_is_enabled(smu, clk_type)) {
 		switch (clk_type) {
 		case SMU_MCLK:
 		case SMU_UCLK:
@@ -1740,7 +1740,7 @@ int smu_v11_0_set_soft_freq_limited_range(struct smu_context *smu,
 	int ret = 0, clk_id = 0;
 	uint32_t param;
 
-	if (!smu_clk_dpm_is_enabled(smu, clk_type))
+	if (!smu_cmn_clk_dpm_is_enabled(smu, clk_type))
 		return 0;
 
 	clk_id = smu_cmn_to_asic_specific_index(smu,
@@ -1786,7 +1786,7 @@ int smu_v11_0_set_hard_freq_limited_range(struct smu_context *smu,
 	if (min <= 0 && max <= 0)
 		return -EINVAL;
 
-	if (!smu_clk_dpm_is_enabled(smu, clk_type))
+	if (!smu_cmn_clk_dpm_is_enabled(smu, clk_type))
 		return 0;
 
 	clk_id = smu_cmn_to_asic_specific_index(smu,
@@ -1943,7 +1943,7 @@ int smu_v11_0_get_dpm_freq_by_index(struct smu_context *smu,
 	if (!value)
 		return -EINVAL;
 
-	if (!smu_clk_dpm_is_enabled(smu, clk_type))
+	if (!smu_cmn_clk_dpm_is_enabled(smu, clk_type))
 		return 0;
 
 	clk_id = smu_cmn_to_asic_specific_index(smu,

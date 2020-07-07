@@ -164,6 +164,33 @@ int smu_cmn_feature_is_enabled(struct smu_context *smu,
 	return ret;
 }
 
+bool smu_cmn_clk_dpm_is_enabled(struct smu_context *smu,
+				enum smu_clk_type clk_type)
+{
+	enum smu_feature_mask feature_id = 0;
+
+	switch (clk_type) {
+	case SMU_MCLK:
+	case SMU_UCLK:
+		feature_id = SMU_FEATURE_DPM_UCLK_BIT;
+		break;
+	case SMU_GFXCLK:
+	case SMU_SCLK:
+		feature_id = SMU_FEATURE_DPM_GFXCLK_BIT;
+		break;
+	case SMU_SOCCLK:
+		feature_id = SMU_FEATURE_DPM_SOCCLK_BIT;
+		break;
+	default:
+		return true;
+	}
+
+	if (!smu_cmn_feature_is_enabled(smu, feature_id))
+		return false;
+
+	return true;
+}
+
 int smu_cmn_get_enabled_mask(struct smu_context *smu,
 			     uint32_t *feature_mask,
 			     uint32_t num)
@@ -373,4 +400,43 @@ int smu_cmn_disable_all_features_with_exception(struct smu_context *smu,
 	return smu_cmn_feature_update_enable_state(smu,
 						   features_to_disable,
 						   0);
+}
+
+int smu_cmn_get_smc_version(struct smu_context *smu,
+			    uint32_t *if_version,
+			    uint32_t *smu_version)
+{
+	int ret = 0;
+
+	if (!if_version && !smu_version)
+		return -EINVAL;
+
+	if (smu->smc_fw_if_version && smu->smc_fw_version)
+	{
+		if (if_version)
+			*if_version = smu->smc_fw_if_version;
+
+		if (smu_version)
+			*smu_version = smu->smc_fw_version;
+
+		return 0;
+	}
+
+	if (if_version) {
+		ret = smu_send_smc_msg(smu, SMU_MSG_GetDriverIfVersion, if_version);
+		if (ret)
+			return ret;
+
+		smu->smc_fw_if_version = *if_version;
+	}
+
+	if (smu_version) {
+		ret = smu_send_smc_msg(smu, SMU_MSG_GetSmuVersion, smu_version);
+		if (ret)
+			return ret;
+
+		smu->smc_fw_version = *smu_version;
+	}
+
+	return ret;
 }

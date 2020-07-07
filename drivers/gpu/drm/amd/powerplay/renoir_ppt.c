@@ -255,7 +255,7 @@ static int renoir_get_dpm_ultimate_freq(struct smu_context *smu,
 	uint32_t mclk_mask, soc_mask;
 	uint32_t clock_limit;
 
-	if (!smu_clk_dpm_is_enabled(smu, clk_type)) {
+	if (!smu_cmn_clk_dpm_is_enabled(smu, clk_type)) {
 		switch (clk_type) {
 		case SMU_MCLK:
 		case SMU_UCLK:

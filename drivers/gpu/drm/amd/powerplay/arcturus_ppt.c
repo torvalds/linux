@@ -874,7 +874,7 @@ static int arcturus_force_clk_levels(struct smu_context *smu,
 	uint32_t smu_version;
 	int ret = 0;
 
-	ret = smu_get_smc_version(smu, NULL, &smu_version);
+	ret = smu_cmn_get_smc_version(smu, NULL, &smu_version);
 	if (ret) {
 		dev_err(smu->adev->dev, "Failed to get smu version!\n");
 		return ret;
@@ -1191,7 +1191,7 @@ static int arcturus_get_power_profile_mode(struct smu_context *smu,
 	if (!buf)
 		return -EINVAL;
 
-	result = smu_get_smc_version(smu, NULL, &smu_version);
+	result = smu_cmn_get_smc_version(smu, NULL, &smu_version);
 	if (result)
 		return result;
 
@@ -1278,7 +1278,7 @@ static int arcturus_set_power_profile_mode(struct smu_context *smu,
 		return -EINVAL;
 	}
 
-	ret = smu_get_smc_version(smu, NULL, &smu_version);
+	ret = smu_cmn_get_smc_version(smu, NULL, &smu_version);
 	if (ret)
 		return ret;
 
@@ -1362,7 +1362,7 @@ static int arcturus_set_performance_level(struct smu_context *smu,
 	uint32_t smu_version;
 	int ret;
 
-	ret = smu_get_smc_version(smu, NULL, &smu_version);
+	ret = smu_cmn_get_smc_version(smu, NULL, &smu_version);
 	if (ret) {
 		dev_err(smu->adev->dev, "Failed to get smu version!\n");
 		return ret;
@@ -2106,7 +2106,7 @@ static void arcturus_get_unique_id(struct smu_context *smu)
 	uint32_t top32 = 0, bottom32 = 0, smu_version;
 	uint64_t id;
 
-	if (smu_get_smc_version(smu, NULL, &smu_version)) {
+	if (smu_cmn_get_smc_version(smu, NULL, &smu_version)) {
 		dev_warn(adev->dev, "Failed to get smu version, cannot get unique_id or serial_number\n");
 		return;
 	}
@@ -2147,7 +2147,7 @@ static int arcturus_set_df_cstate(struct smu_context *smu,
 	uint32_t smu_version;
 	int ret;
 
-	ret = smu_get_smc_version(smu, NULL, &smu_version);
+	ret = smu_cmn_get_smc_version(smu, NULL, &smu_version);
 	if (ret) {
 		dev_err(smu->adev->dev, "Failed to get smu version!\n");
 		return ret;
@@ -2167,7 +2167,7 @@ static int arcturus_allow_xgmi_power_down(struct smu_context *smu, bool en)
 	uint32_t smu_version;
 	int ret;
 
-	ret = smu_get_smc_version(smu, NULL, &smu_version);
+	ret = smu_cmn_get_smc_version(smu, NULL, &smu_version);
 	if (ret) {
 		dev_err(smu->adev->dev, "Failed to get smu version!\n");
 		return ret;

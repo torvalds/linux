@@ -91,43 +91,6 @@ int smu_sys_set_pp_feature_mask(struct smu_context *smu, uint64_t new_mask)
 	return ret;
 }
 
-int smu_get_smc_version(struct smu_context *smu, uint32_t *if_version, uint32_t *smu_version)
-{
-	int ret = 0;
-
-	if (!if_version && !smu_version)
-		return -EINVAL;
-
-	if (smu->smc_fw_if_version && smu->smc_fw_version)
-	{
-		if (if_version)
-			*if_version = smu->smc_fw_if_version;
-
-		if (smu_version)
-			*smu_version = smu->smc_fw_version;
-
-		return 0;
-	}
-
-	if (if_version) {
-		ret = smu_send_smc_msg(smu, SMU_MSG_GetDriverIfVersion, if_version);
-		if (ret)
-			return ret;
-
-		smu->smc_fw_if_version = *if_version;
-	}
-
-	if (smu_version) {
-		ret = smu_send_smc_msg(smu, SMU_MSG_GetSmuVersion, smu_version);
-		if (ret)
-			return ret;
-
-		smu->smc_fw_version = *smu_version;
-	}
-
-	return ret;
-}
-
 int smu_get_status_gfxoff(struct amdgpu_device *adev, uint32_t *value)
 {
 	int ret = 0;
@@ -182,33 +145,6 @@ int smu_get_dpm_freq_range(struct smu_context *smu,
 	mutex_unlock(&smu->mutex);
 
 	return ret;
-}
-
-bool smu_clk_dpm_is_enabled(struct smu_context *smu, enum smu_clk_type clk_type)
-{
-	enum smu_feature_mask feature_id = 0;
-
-	switch (clk_type) {
-	case SMU_MCLK:
-	case SMU_UCLK:
-		feature_id = SMU_FEATURE_DPM_UCLK_BIT;
-		break;
-	case SMU_GFXCLK:
-	case SMU_SCLK:
-		feature_id = SMU_FEATURE_DPM_GFXCLK_BIT;
-		break;
-	case SMU_SOCCLK:
-		feature_id = SMU_FEATURE_DPM_SOCCLK_BIT;
-		break;
-	default:
-		return true;
-	}
-
-	if(!smu_feature_is_enabled(smu, feature_id)) {
-		return false;
-	}
-
-	return true;
 }
 
 /**

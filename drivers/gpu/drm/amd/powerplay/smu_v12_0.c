@@ -157,7 +157,7 @@ int smu_v12_0_check_fw_version(struct smu_context *smu)
 	uint8_t smu_minor, smu_debug;
 	int ret = 0;
 
-	ret = smu_get_smc_version(smu, &if_version, &smu_version);
+	ret = smu_cmn_get_smc_version(smu, &if_version, &smu_version);
 	if (ret)
 		return ret;
 
@@ -305,7 +305,7 @@ int smu_v12_0_set_soft_freq_limited_range(struct smu_context *smu, enum smu_clk_
 {
 	int ret = 0;
 
-	if (!smu_clk_dpm_is_enabled(smu, clk_type))
+	if (!smu_cmn_clk_dpm_is_enabled(smu, clk_type))
 		return 0;
 
 	switch (clk_type) {

@@ -1732,7 +1732,7 @@ static bool sienna_cichlid_is_mode1_reset_supported(struct smu_context *smu)
 	 * SRIOV env will not support SMU mode1 reset
 	 * PM FW support mode1 reset from 58.26
 	 */
-	smu_get_smc_version(smu, NULL, &smu_version);
+	smu_cmn_get_smc_version(smu, NULL, &smu_version);
 	if (amdgpu_sriov_vf(adev) || (smu_version < 0x003a1a00))
 		return false;
 
