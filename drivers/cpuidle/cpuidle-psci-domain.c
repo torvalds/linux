@@ -26,7 +26,6 @@ struct psci_pd_provider {
 };
 
 static LIST_HEAD(psci_pd_providers);
-static bool osi_mode_enabled __initdata;
 
 static int psci_pd_power_off(struct generic_pm_domain *pd)
 {
@@ -272,7 +271,6 @@ static int __init psci_idle_init_domains(void)
 		goto remove_pd;
 	}
 
-	osi_mode_enabled = true;
 	of_node_put(np);
 	pr_info("Initialized CPU PM domain topology\n");
 	return pd_count;
@@ -292,9 +290,6 @@ subsys_initcall(psci_idle_init_domains);
 struct device __init *psci_dt_attach_cpu(int cpu)
 {
 	struct device *dev;
-
-	if (!osi_mode_enabled)
-		return NULL;
 
 	dev = dev_pm_domain_attach_by_name(get_cpu_device(cpu), "psci");
 	if (IS_ERR_OR_NULL(dev))
