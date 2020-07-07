@@ -3,8 +3,6 @@
 # MPI multiprecision maths library (from gpg)
 #
 
-ccflags-remove-$(CONFIG_FUNCTION_TRACER) += $(CC_FLAGS_FTRACE)
-
 obj-$(CONFIG_MPILIB) = mpi.o
 
 mpi-y = \

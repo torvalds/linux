@@ -1,8 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 # Font handling
 
-ccflags-remove-$(CONFIG_FUNCTION_TRACER) += $(CC_FLAGS_FTRACE)
-
 font-objs := fonts.o
 
 font-objs-$(CONFIG_FONT_SUN8x16)   += font_sun8x16.o
