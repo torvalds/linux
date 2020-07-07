@@ -109,8 +109,6 @@ static inline int save_general_regs(struct pt_regs *regs,
 	WARN_ON(!FULL_REGS(regs));
 
 	for (i = 0; i <= PT_RESULT; i ++) {
-		if (i == 14 && !FULL_REGS(regs))
-			i = 32;
 		if ( i == PT_SOFTE) {
 			if(__put_user((unsigned int)softe, &frame->mc_gregs[i]))
 				return -EFAULT;
