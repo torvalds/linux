@@ -745,9 +745,8 @@ static int mgag200_crtc_set_plls(struct mga_device *mdev, long clock)
 	return 0;
 }
 
-static void mga_g200wb_prepare(struct drm_crtc *crtc)
+static void mgag200_g200wb_hold_bmc(struct mga_device *mdev)
 {
-	struct mga_device *mdev = to_mga_device(crtc->dev);
 	u8 tmp;
 	int iter_max;
 
@@ -799,10 +798,9 @@ static void mga_g200wb_prepare(struct drm_crtc *crtc)
 	}
 }
 
-static void mga_g200wb_commit(struct drm_crtc *crtc)
+static void mgag200_g200wb_release_bmc(struct mga_device *mdev)
 {
 	u8 tmp;
-	struct mga_device *mdev = to_mga_device(crtc->dev);
 
 	/* 1- The first step is to ensure that the vrsten and hrsten are set */
 	WREG8(MGAREG_CRTCEXT_INDEX, 1);
@@ -1348,7 +1346,7 @@ static void mga_crtc_prepare(struct drm_crtc *crtc)
 	struct mga_device *mdev = to_mga_device(dev);
 
 	if (mdev->type == G200_WB || mdev->type == G200_EW3)
-		mga_g200wb_prepare(crtc);
+		mgag200_g200wb_hold_bmc(mdev);
 }
 
 /*
@@ -1361,7 +1359,7 @@ static void mga_crtc_commit(struct drm_crtc *crtc)
 	struct mga_device *mdev = to_mga_device(dev);
 
 	if (mdev->type == G200_WB || mdev->type == G200_EW3)
-		mga_g200wb_commit(crtc);
+		mgag200_g200wb_release_bmc(mdev);
 
 	mga_crtc_load_lut(crtc);
 	mgag200_enable_display(mdev);
