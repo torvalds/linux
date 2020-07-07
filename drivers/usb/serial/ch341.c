@@ -604,11 +604,13 @@ static void ch341_simulate_break(struct tty_struct *tty, int break_state)
 		}
 
 		/*
-		 * Compute expected transmission duration and add a single bit
-		 * of safety margin (the actual NUL byte transmission is 8 bits
-		 * plus one stop bit).
+		 * Compute expected transmission duration including safety
+		 * margin. The original baud rate is only restored after the
+		 * computed point in time.
+		 *
+		 * 11 bits = 1 start, 8 data, 1 stop, 1 margin
 		 */
-		priv->break_end = jiffies + (10 * HZ / CH341_MIN_BPS);
+		priv->break_end = jiffies + (11 * HZ / CH341_MIN_BPS);
 
 		return;
 	}
