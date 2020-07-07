@@ -534,7 +534,7 @@ static int gxt4500_setcolreg(unsigned int reg, unsigned int red,
 			break;
 		case DFA_PIX_32BIT:
 			val |= (reg << 24);
-			/* fall through */
+			fallthrough;
 		case DFA_PIX_24BIT:
 			val |= (reg << 16) | (reg << 8);
 			break;
