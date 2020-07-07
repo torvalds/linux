@@ -798,6 +798,7 @@ EXPORT_SYMBOL_GPL(pdptrs_changed);
 int kvm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 {
 	unsigned long old_cr0 = kvm_read_cr0(vcpu);
+	unsigned long pdptr_bits = X86_CR0_CD | X86_CR0_NW | X86_CR0_PG;
 	unsigned long update_bits = X86_CR0_PG | X86_CR0_WP;
 
 	cr0 |= X86_CR0_ET;
@@ -815,9 +816,9 @@ int kvm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 	if ((cr0 & X86_CR0_PG) && !(cr0 & X86_CR0_PE))
 		return 1;
 
-	if (!is_paging(vcpu) && (cr0 & X86_CR0_PG)) {
+	if (cr0 & X86_CR0_PG) {
 #ifdef CONFIG_X86_64
-		if ((vcpu->arch.efer & EFER_LME)) {
+		if (!is_paging(vcpu) && (vcpu->arch.efer & EFER_LME)) {
 			int cs_db, cs_l;
 
 			if (!is_pae(vcpu))
@@ -827,8 +828,8 @@ int kvm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 				return 1;
 		} else
 #endif
-		if (is_pae(vcpu) && !load_pdptrs(vcpu, vcpu->arch.walk_mmu,
-						 kvm_read_cr3(vcpu)))
+		if (is_pae(vcpu) && ((cr0 ^ old_cr0) & pdptr_bits) &&
+		    !load_pdptrs(vcpu, vcpu->arch.walk_mmu, kvm_read_cr3(vcpu)))
 			return 1;
 	}
 
