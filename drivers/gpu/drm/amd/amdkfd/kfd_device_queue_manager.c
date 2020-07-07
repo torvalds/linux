@@ -1393,6 +1393,7 @@ static int unmap_queues_cpsch(struct device_queue_manager *dqm,
 				uint32_t filter_param)
 {
 	int retval = 0;
+	struct mqd_manager *mqd_mgr;
 
 	if (!dqm->sched_running)
 		return 0;
@@ -1422,6 +1423,22 @@ static int unmap_queues_cpsch(struct device_queue_manager *dqm,
 		if (!dqm->is_resetting)
 			schedule_work(&dqm->hw_exception_work);
 		return retval;
+	}
+
+	/* In the current MEC firmware implementation, if compute queue
+	 * doesn't response to the preemption request in time, HIQ will
+	 * abandon the unmap request without returning any timeout error
+	 * to driver. Instead, MEC firmware will log the doorbell of the
+	 * unresponding compute queue to HIQ.MQD.queue_doorbell_id fields.
+	 * To make sure the queue unmap was successful, driver need to
+	 * check those fields
+	 */
+	mqd_mgr = dqm->mqd_mgrs[KFD_MQD_TYPE_HIQ];
+	if (mqd_mgr->read_doorbell_id(dqm->packets.priv_queue->queue->mqd)) {
+		pr_err("HIQ MQD's queue_doorbell_id0 is not 0, Queue preemption time out\n");
+		while (halt_if_hws_hang)
+			schedule();
+		return -ETIME;
 	}
 
 	pm_release_ib(&dqm->packets);
