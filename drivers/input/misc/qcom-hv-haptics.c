@@ -891,6 +891,15 @@ static int haptics_enable_play(struct haptics_chip *chip, bool en)
 	int rc;
 	u8 val;
 
+	if (en) {
+		val = SC_CLR_BIT | AUTO_RES_ERR_CLR_BIT |
+			HPWR_RDY_FAULT_CLR_BIT;
+		rc = haptics_write(chip, chip->cfg_addr_base,
+				HAP_CFG_FAULT_CLR_REG, &val, 1);
+		if (rc < 0)
+			return rc;
+	}
+
 	val = play->pattern_src;
 	if (play->brake && !play->brake->disabled)
 		val |= BRAKE_EN_BIT;
