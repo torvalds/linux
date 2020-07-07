@@ -452,7 +452,7 @@ static long usb_pcwd_ioctl(struct file *file, unsigned int cmd,
 
 		usb_pcwd_keepalive(usb_pcwd_device);
 	}
-		/* fall through */
+		fallthrough;
 
 	case WDIOC_GETTIMEOUT:
 		return put_user(heartbeat, p);

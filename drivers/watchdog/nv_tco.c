@@ -250,7 +250,7 @@ static long nv_tco_ioctl(struct file *file, unsigned int cmd,
 		if (tco_timer_set_heartbeat(new_heartbeat))
 			return -EINVAL;
 		tco_timer_keepalive();
-		/* Fall through */
+		fallthrough;
 	case WDIOC_GETTIMEOUT:
 		return put_user(heartbeat, p);
 	default:
