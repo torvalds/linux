@@ -133,6 +133,12 @@ DMA Fences
 .. kernel-doc:: drivers/dma-buf/dma-fence.c
    :doc: DMA fences overview
 
+DMA Fence Cross-Driver Contract
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. kernel-doc:: drivers/dma-buf/dma-fence.c
+   :doc: fence cross-driver contract
+
 DMA Fence Signalling Annotations
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

@@ -64,6 +64,52 @@ static atomic64_t dma_fence_context_counter = ATOMIC64_INIT(1);
  *   &dma_buf.resv pointer.
  */
 
+/**
+ * DOC: fence cross-driver contract
+ *
+ * Since &dma_fence provide a cross driver contract, all drivers must follow the
+ * same rules:
+ *
+ * * Fences must complete in a reasonable time. Fences which represent kernels
+ *   and shaders submitted by userspace, which could run forever, must be backed
+ *   up by timeout and gpu hang recovery code. Minimally that code must prevent
+ *   further command submission and force complete all in-flight fences, e.g.
+ *   when the driver or hardware do not support gpu reset, or if the gpu reset
+ *   failed for some reason. Ideally the driver supports gpu recovery which only
+ *   affects the offending userspace context, and no other userspace
+ *   submissions.
+ *
+ * * Drivers may have different ideas of what completion within a reasonable
+ *   time means. Some hang recovery code uses a fixed timeout, others a mix
+ *   between observing forward progress and increasingly strict timeouts.
+ *   Drivers should not try to second guess timeout handling of fences from
+ *   other drivers.
+ *
+ * * To ensure there's no deadlocks of dma_fence_wait() against other locks
+ *   drivers should annotate all code required to reach dma_fence_signal(),
+ *   which completes the fences, with dma_fence_begin_signalling() and
+ *   dma_fence_end_signalling().
+ *
+ * * Drivers are allowed to call dma_fence_wait() while holding dma_resv_lock().
+ *   This means any code required for fence completion cannot acquire a
+ *   &dma_resv lock. Note that this also pulls in the entire established
+ *   locking hierarchy around dma_resv_lock() and dma_resv_unlock().
+ *
+ * * Drivers are allowed to call dma_fence_wait() from their &shrinker
+ *   callbacks. This means any code required for fence completion cannot
+ *   allocate memory with GFP_KERNEL.
+ *
+ * * Drivers are allowed to call dma_fence_wait() from their &mmu_notifier
+ *   respectively &mmu_interval_notifier callbacks. This means any code required
+ *   for fence completeion cannot allocate memory with GFP_NOFS or GFP_NOIO.
+ *   Only GFP_ATOMIC is permissible, which might fail.
+ *
+ * Note that only GPU drivers have a reasonable excuse for both requiring
+ * &mmu_interval_notifier and &shrinker callbacks at the same time as having to
+ * track asynchronous compute work using &dma_fence. No driver outside of
+ * drivers/gpu should ever call dma_fence_wait() in such contexts.
+ */
+
 static const char *dma_fence_stub_get_name(struct dma_fence *fence)
 {
         return "stub";
