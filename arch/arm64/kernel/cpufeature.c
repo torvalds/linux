@@ -712,11 +712,52 @@ static s64 arm64_ftr_safe_value(const struct arm64_ftr_bits *ftrp, s64 new,
 
 static void __init sort_ftr_regs(void)
 {
-	int i;
+	unsigned int i;
 
-	/* Check that the array is sorted so that we can do the binary search */
-	for (i = 1; i < ARRAY_SIZE(arm64_ftr_regs); i++)
+	for (i = 0; i < ARRAY_SIZE(arm64_ftr_regs); i++) {
+		const struct arm64_ftr_reg *ftr_reg = arm64_ftr_regs[i].reg;
+		const struct arm64_ftr_bits *ftr_bits = ftr_reg->ftr_bits;
+		unsigned int j = 0;
+
+		/*
+		 * Features here must be sorted in descending order with respect
+		 * to their shift values and should not overlap with each other.
+		 */
+		for (; ftr_bits->width != 0; ftr_bits++, j++) {
+			unsigned int width = ftr_reg->ftr_bits[j].width;
+			unsigned int shift = ftr_reg->ftr_bits[j].shift;
+			unsigned int prev_shift;
+
+			WARN((shift  + width) > 64,
+				"%s has invalid feature at shift %d\n",
+				ftr_reg->name, shift);
+
+			/*
+			 * Skip the first feature. There is nothing to
+			 * compare against for now.
+			 */
+			if (j == 0)
+				continue;
+
+			prev_shift = ftr_reg->ftr_bits[j - 1].shift;
+			WARN((shift + width) > prev_shift,
+				"%s has feature overlap at shift %d\n",
+				ftr_reg->name, shift);
+		}
+
+		/*
+		 * Skip the first register. There is nothing to
+		 * compare against for now.
+		 */
+		if (i == 0)
+			continue;
+		/*
+		 * Registers here must be sorted in ascending order with respect
+		 * to sys_id for subsequent binary search in get_arm64_ftr_reg()
+		 * to work correctly.
+		 */
 		BUG_ON(arm64_ftr_regs[i].sys_id < arm64_ftr_regs[i - 1].sys_id);
+	}
 }
 
 /*
