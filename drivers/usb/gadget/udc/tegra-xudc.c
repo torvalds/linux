@@ -2742,7 +2742,7 @@ static void tegra_xudc_handle_transfer_event(struct tegra_xudc *xudc,
 		ep_wait_for_stopped(xudc, ep_index);
 		ep->enq_ptr = ep->deq_ptr;
 		tegra_xudc_ep_nuke(ep, -EIO);
-		/* FALLTHROUGH */
+		fallthrough;
 	case TRB_CMPL_CODE_STREAM_NUMP_ERROR:
 	case TRB_CMPL_CODE_CTRL_DIR_ERR:
 	case TRB_CMPL_CODE_INVALID_STREAM_TYPE_ERR:

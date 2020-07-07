@@ -567,12 +567,12 @@ static int dummy_enable(struct usb_ep *_ep,
 			if (max <= 1024)
 				break;
 			/* save a return statement */
-			/* fall through */
+			fallthrough;
 		case USB_SPEED_FULL:
 			if (max <= 64)
 				break;
 			/* save a return statement */
-			/* fall through */
+			fallthrough;
 		default:
 			if (max <= 8)
 				break;
@@ -590,7 +590,7 @@ static int dummy_enable(struct usb_ep *_ep,
 			if (max <= 1024)
 				break;
 			/* save a return statement */
-			/* fall through */
+			fallthrough;
 		case USB_SPEED_FULL:
 			if (max <= 1023)
 				break;
@@ -1943,7 +1943,7 @@ restart:
 			 * this almost certainly polls too fast.
 			 */
 			limit = max(limit, periodic_bytes(dum, ep));
-			/* FALLTHROUGH */
+			fallthrough;
 
 		default:
 treat_control_like_bulk:
@@ -2252,7 +2252,7 @@ static int dummy_hub_control(
 					 "supported for USB 2.0 roothub\n");
 				goto error;
 			}
-			/* FALLS THROUGH */
+			fallthrough;
 		case USB_PORT_FEAT_RESET:
 			/* if it's already enabled, disable */
 			if (hcd->speed == HCD_USB3) {
@@ -2276,7 +2276,7 @@ static int dummy_hub_control(
 			 * interval? Is it still 50msec as for HS?
 			 */
 			dum_hcd->re_timeout = jiffies + msecs_to_jiffies(50);
-			/* FALLS THROUGH */
+			fallthrough;
 		default:
 			if (hcd->speed == HCD_USB3) {
 				if ((dum_hcd->port_status &

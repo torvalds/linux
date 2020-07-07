@@ -386,7 +386,7 @@ static void gs_rx_push(struct work_struct *work)
 			/* presumably a transient fault */
 			pr_warn("ttyGS%d: unexpected RX status %d\n",
 				port->port_num, req->status);
-			/* FALLTHROUGH */
+			fallthrough;
 		case 0:
 			/* normal completion */
 			break;
@@ -472,7 +472,7 @@ static void gs_write_complete(struct usb_ep *ep, struct usb_request *req)
 		/* presumably a transient fault */
 		pr_warn("%s: unexpected %s status %d\n",
 			__func__, ep->name, req->status);
-		/* FALL THROUGH */
+		fallthrough;
 	case 0:
 		/* normal completion */
 		gs_start_tx(port);
@@ -871,7 +871,7 @@ static void gs_console_complete_out(struct usb_ep *ep, struct usb_request *req)
 	default:
 		pr_warn("%s: unexpected %s status %d\n",
 			__func__, ep->name, req->status);
-		/* fall through */
+		fallthrough;
 	case 0:
 		/* normal completion */
 		spin_lock(&cons->lock);
