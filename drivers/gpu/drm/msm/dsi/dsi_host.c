@@ -993,16 +993,16 @@ static void dsi_timing_setup(struct msm_dsi_host *msm_host, bool is_dual_dsi)
 		/* image data and 1 byte write_memory_start cmd */
 		wc = hdisplay * dsi_get_bpp(msm_host->format) / 8 + 1;
 
-		dsi_write(msm_host, REG_DSI_CMD_MDP_STREAM_CTRL,
-			DSI_CMD_MDP_STREAM_CTRL_WORD_COUNT(wc) |
-			DSI_CMD_MDP_STREAM_CTRL_VIRTUAL_CHANNEL(
+		dsi_write(msm_host, REG_DSI_CMD_MDP_STREAM0_CTRL,
+			DSI_CMD_MDP_STREAM0_CTRL_WORD_COUNT(wc) |
+			DSI_CMD_MDP_STREAM0_CTRL_VIRTUAL_CHANNEL(
 					msm_host->channel) |
-			DSI_CMD_MDP_STREAM_CTRL_DATA_TYPE(
+			DSI_CMD_MDP_STREAM0_CTRL_DATA_TYPE(
 					MIPI_DSI_DCS_LONG_WRITE));
 
-		dsi_write(msm_host, REG_DSI_CMD_MDP_STREAM_TOTAL,
-			DSI_CMD_MDP_STREAM_TOTAL_H_TOTAL(hdisplay) |
-			DSI_CMD_MDP_STREAM_TOTAL_V_TOTAL(mode->vdisplay));
+		dsi_write(msm_host, REG_DSI_CMD_MDP_STREAM0_TOTAL,
+			DSI_CMD_MDP_STREAM0_TOTAL_H_TOTAL(hdisplay) |
+			DSI_CMD_MDP_STREAM0_TOTAL_V_TOTAL(mode->vdisplay));
 	}
 }
 
