@@ -337,7 +337,7 @@ static void fc_disc_error(struct fc_disc *disc, struct fc_frame *fp)
 
 /**
  * fc_disc_gpn_ft_req() - Send Get Port Names by FC-4 type (GPN_FT) request
- * @lport: The discovery context
+ * @disc: The discovery context
  */
 static void fc_disc_gpn_ft_req(struct fc_disc *disc)
 {
@@ -370,7 +370,7 @@ err:
 
 /**
  * fc_disc_gpn_ft_parse() - Parse the body of the dNS GPN_FT response.
- * @lport: The local port the GPN_FT was received on
+ * @disc:  The descovery context
  * @buf:   The GPN_FT response buffer
  * @len:   The size of response buffer
  *
@@ -488,7 +488,7 @@ static void fc_disc_timeout(struct work_struct *work)
  * fc_disc_gpn_ft_resp() - Handle a response frame from Get Port Names (GPN_FT)
  * @sp:	    The sequence that the GPN_FT response was received on
  * @fp:	    The GPN_FT response frame
- * @lp_arg: The discovery context
+ * @disc_arg: The discovery context
  *
  * Locking Note: This function is called without disc mutex held, and
  *		 should do all its processing with the mutex held
