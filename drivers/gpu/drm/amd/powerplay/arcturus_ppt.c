@@ -280,7 +280,7 @@ static int arcturus_set_default_dpm_table(struct smu_context *smu)
 
 	/* socclk dpm table setup */
 	dpm_table = &dpm_context->dpm_tables.soc_table;
-	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_SOCCLK_BIT)) {
+	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_SOCCLK_BIT)) {
 		ret = smu_v11_0_set_single_dpm_table(smu,
 						     SMU_SOCCLK,
 						     dpm_table);
@@ -298,7 +298,7 @@ static int arcturus_set_default_dpm_table(struct smu_context *smu)
 
 	/* gfxclk dpm table setup */
 	dpm_table = &dpm_context->dpm_tables.gfx_table;
-	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_GFXCLK_BIT)) {
+	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_GFXCLK_BIT)) {
 		ret = smu_v11_0_set_single_dpm_table(smu,
 						     SMU_GFXCLK,
 						     dpm_table);
@@ -316,7 +316,7 @@ static int arcturus_set_default_dpm_table(struct smu_context *smu)
 
 	/* memclk dpm table setup */
 	dpm_table = &dpm_context->dpm_tables.uclk_table;
-	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT)) {
+	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT)) {
 		ret = smu_v11_0_set_single_dpm_table(smu,
 						     SMU_UCLK,
 						     dpm_table);
@@ -334,7 +334,7 @@ static int arcturus_set_default_dpm_table(struct smu_context *smu)
 
 	/* fclk dpm table setup */
 	dpm_table = &dpm_context->dpm_tables.fclk_table;
-	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_FCLK_BIT)) {
+	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_FCLK_BIT)) {
 		ret = smu_v11_0_set_single_dpm_table(smu,
 						     SMU_FCLK,
 						     dpm_table);
@@ -650,31 +650,31 @@ static int arcturus_get_current_clk_freq_by_table(struct smu_context *smu,
 		 * We can use Average_* for dpm disabled case.
 		 *   But this is available for gfxclk/uclk/socclk/vclk/dclk.
 		 */
-		if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_GFXCLK_BIT))
+		if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_GFXCLK_BIT))
 			member_type = METRICS_CURR_GFXCLK;
 		else
 			member_type = METRICS_AVERAGE_GFXCLK;
 		break;
 	case PPCLK_UCLK:
-		if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT))
+		if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT))
 			member_type = METRICS_CURR_UCLK;
 		else
 			member_type = METRICS_AVERAGE_UCLK;
 		break;
 	case PPCLK_SOCCLK:
-		if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_SOCCLK_BIT))
+		if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_SOCCLK_BIT))
 			member_type = METRICS_CURR_SOCCLK;
 		else
 			member_type = METRICS_AVERAGE_SOCCLK;
 		break;
 	case PPCLK_VCLK:
-		if (smu_feature_is_enabled(smu, SMU_FEATURE_VCN_PG_BIT))
+		if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_VCN_PG_BIT))
 			member_type = METRICS_CURR_VCLK;
 		else
 			member_type = METRICS_AVERAGE_VCLK;
 		break;
 	case PPCLK_DCLK:
-		if (smu_feature_is_enabled(smu, SMU_FEATURE_VCN_PG_BIT))
+		if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_VCN_PG_BIT))
 			member_type = METRICS_CURR_DCLK;
 		else
 			member_type = METRICS_AVERAGE_DCLK;
@@ -820,7 +820,7 @@ static int arcturus_upload_dpm_level(struct smu_context *smu,
 	uint32_t freq;
 	int ret = 0;
 
-	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_GFXCLK_BIT) &&
+	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_GFXCLK_BIT) &&
 	    (feature_mask & FEATURE_DPM_GFXCLK_MASK)) {
 		freq = dpm_context->dpm_tables.gfx_table.dpm_levels[level].value;
 		ret = smu_send_smc_msg_with_param(smu,
@@ -834,7 +834,7 @@ static int arcturus_upload_dpm_level(struct smu_context *smu,
 		}
 	}
 
-	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT) &&
+	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT) &&
 	    (feature_mask & FEATURE_DPM_UCLK_MASK)) {
 		freq = dpm_context->dpm_tables.uclk_table.dpm_levels[level].value;
 		ret = smu_send_smc_msg_with_param(smu,
@@ -848,7 +848,7 @@ static int arcturus_upload_dpm_level(struct smu_context *smu,
 		}
 	}
 
-	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_SOCCLK_BIT) &&
+	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_SOCCLK_BIT) &&
 	    (feature_mask & FEATURE_DPM_SOCCLK_MASK)) {
 		freq = dpm_context->dpm_tables.soc_table.dpm_levels[level].value;
 		ret = smu_send_smc_msg_with_param(smu,
@@ -1837,7 +1837,7 @@ static int arcturus_dpm_set_vcn_enable(struct smu_context *smu, bool enable)
 	int ret = 0;
 
 	if (enable) {
-		if (!smu_feature_is_enabled(smu, SMU_FEATURE_VCN_PG_BIT)) {
+		if (!smu_cmn_feature_is_enabled(smu, SMU_FEATURE_VCN_PG_BIT)) {
 			ret = smu_feature_set_enabled(smu, SMU_FEATURE_VCN_PG_BIT, 1);
 			if (ret) {
 				dev_err(smu->adev->dev, "[EnableVCNDPM] failed!\n");
@@ -1846,7 +1846,7 @@ static int arcturus_dpm_set_vcn_enable(struct smu_context *smu, bool enable)
 		}
 		power_gate->vcn_gated = false;
 	} else {
-		if (smu_feature_is_enabled(smu, SMU_FEATURE_VCN_PG_BIT)) {
+		if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_VCN_PG_BIT)) {
 			ret = smu_feature_set_enabled(smu, SMU_FEATURE_VCN_PG_BIT, 0);
 			if (ret) {
 				dev_err(smu->adev->dev, "[DisableVCNDPM] failed!\n");
@@ -2285,6 +2285,7 @@ static const struct pptable_funcs arcturus_ppt_funcs = {
 	.init_display_count = NULL,
 	.set_allowed_mask = smu_v11_0_set_allowed_mask,
 	.get_enabled_mask = smu_v11_0_get_enabled_mask,
+	.feature_is_enabled = smu_cmn_feature_is_enabled,
 	.notify_display_change = NULL,
 	.set_power_limit = smu_v11_0_set_power_limit,
 	.init_max_sustainable_clocks = smu_v11_0_init_max_sustainable_clocks,

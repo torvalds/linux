@@ -936,7 +936,7 @@ int smu_v11_0_notify_display_change(struct smu_context *smu)
 	if (!smu->pm_enabled)
 		return ret;
 
-	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT) &&
+	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT) &&
 	    smu->adev->gmc.vram_type == AMDGPU_VRAM_TYPE_HBM)
 		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetUclkFastSwitch, 1, NULL);
 
@@ -994,7 +994,7 @@ int smu_v11_0_init_max_sustainable_clocks(struct smu_context *smu)
 	max_sustainable_clocks->phy_clock = 0xFFFFFFFF;
 	max_sustainable_clocks->pixel_clock = 0xFFFFFFFF;
 
-	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT)) {
+	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT)) {
 		ret = smu_v11_0_get_max_sustainable_clock(smu,
 							  &(max_sustainable_clocks->uclock),
 							  SMU_UCLK);
@@ -1005,7 +1005,7 @@ int smu_v11_0_init_max_sustainable_clocks(struct smu_context *smu)
 		}
 	}
 
-	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_SOCCLK_BIT)) {
+	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_SOCCLK_BIT)) {
 		ret = smu_v11_0_get_max_sustainable_clock(smu,
 							  &(max_sustainable_clocks->soc_clock),
 							  SMU_SOCCLK);
@@ -1016,7 +1016,7 @@ int smu_v11_0_init_max_sustainable_clocks(struct smu_context *smu)
 		}
 	}
 
-	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_DCEFCLK_BIT)) {
+	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_DCEFCLK_BIT)) {
 		ret = smu_v11_0_get_max_sustainable_clock(smu,
 							  &(max_sustainable_clocks->dcef_clock),
 							  SMU_DCEFCLK);
@@ -1064,7 +1064,7 @@ int smu_v11_0_get_current_power_limit(struct smu_context *smu,
 	int power_src;
 	int ret = 0;
 
-	if (!smu_feature_is_enabled(smu, SMU_FEATURE_PPT_BIT))
+	if (!smu_cmn_feature_is_enabled(smu, SMU_FEATURE_PPT_BIT))
 		return -EINVAL;
 
 	power_src = smu_cmn_to_asic_specific_index(smu,
@@ -1089,7 +1089,7 @@ int smu_v11_0_set_power_limit(struct smu_context *smu, uint32_t n)
 {
 	int ret = 0;
 
-	if (!smu_feature_is_enabled(smu, SMU_FEATURE_PPT_BIT)) {
+	if (!smu_cmn_feature_is_enabled(smu, SMU_FEATURE_PPT_BIT)) {
 		dev_err(smu->adev->dev, "Setting new power limit is not supported!\n");
 		return -EOPNOTSUPP;
 	}
@@ -1152,8 +1152,8 @@ smu_v11_0_display_clock_voltage_request(struct smu_context *smu,
 	enum smu_clk_type clk_select = 0;
 	uint32_t clk_freq = clock_req->clock_freq_in_khz / 1000;
 
-	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_DCEFCLK_BIT) ||
-		smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT)) {
+	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_DCEFCLK_BIT) ||
+		smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT)) {
 		switch (clk_type) {
 		case amd_pp_dcef_clock:
 			clk_select = SMU_DCEFCLK;
@@ -1219,7 +1219,7 @@ int smu_v11_0_gfx_off_control(struct smu_context *smu, bool enable)
 uint32_t
 smu_v11_0_get_fan_control_mode(struct smu_context *smu)
 {
-	if (!smu_feature_is_enabled(smu, SMU_FEATURE_FAN_CONTROL_BIT))
+	if (!smu_cmn_feature_is_enabled(smu, SMU_FEATURE_FAN_CONTROL_BIT))
 		return AMD_FAN_CTRL_MANUAL;
 	else
 		return AMD_FAN_CTRL_AUTO;
@@ -1599,7 +1599,7 @@ bool smu_v11_0_baco_is_support(struct smu_context *smu)
 
 	/* Arcturus does not support this bit mask */
 	if (smu_cmn_feature_is_supported(smu, SMU_FEATURE_BACO_BIT) &&
-	   !smu_feature_is_enabled(smu, SMU_FEATURE_BACO_BIT))
+	   !smu_cmn_feature_is_enabled(smu, SMU_FEATURE_BACO_BIT))
 		return false;
 
 	return true;
