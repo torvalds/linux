@@ -2807,7 +2807,7 @@ static struct fotg210_qh *qh_make(struct fotg210_hcd *fotg210, struct urb *urb,
 	switch (urb->dev->speed) {
 	case USB_SPEED_LOW:
 		info1 |= QH_LOW_SPEED;
-		/* FALL THROUGH */
+		fallthrough;
 
 	case USB_SPEED_FULL:
 		/* EPS 0 means "full" */
@@ -4634,7 +4634,7 @@ static inline int scan_frame_queue(struct fotg210_hcd *fotg210, unsigned frame,
 		default:
 			fotg210_dbg(fotg210, "corrupt type %d frame %d shadow %p\n",
 					type, frame, q.ptr);
-			/* FALL THROUGH */
+			fallthrough;
 		case Q_TYPE_QH:
 		case Q_TYPE_FSTN:
 			/* End of the iTDs and siTDs */
@@ -5411,7 +5411,7 @@ rescan:
 		 */
 		if (tmp)
 			start_unlink_async(fotg210, qh);
-		/* FALL THROUGH */
+		fallthrough;
 	case QH_STATE_UNLINK:		/* wait for hw to finish? */
 	case QH_STATE_UNLINK_WAIT:
 idle_timeout:
@@ -5425,7 +5425,7 @@ idle_timeout:
 			qh_destroy(fotg210, qh);
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	default:
 		/* caller was supposed to have unlinked any requests;
 		 * that's not our job.  just leak this memory.

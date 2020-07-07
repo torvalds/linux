@@ -2815,7 +2815,7 @@ static int cdns3_gadget_udc_start(struct usb_gadget *gadget,
 		dev_err(priv_dev->dev,
 			"invalid maximum_speed parameter %d\n",
 			max_speed);
-		/* fall through */
+		fallthrough;
 	case USB_SPEED_UNKNOWN:
 		/* default to superspeed */
 		max_speed = USB_SPEED_SUPER;
@@ -3056,7 +3056,7 @@ static int cdns3_gadget_start(struct cdns3 *cdns)
 	default:
 		dev_err(cdns->dev, "invalid maximum_speed parameter %d\n",
 			max_speed);
-		/* fall through */
+		fallthrough;
 	case USB_SPEED_UNKNOWN:
 		/* default to superspeed */
 		max_speed = USB_SPEED_SUPER;

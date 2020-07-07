@@ -1858,7 +1858,7 @@ static struct ehci_qh *qh_make(struct oxu_hcd *oxu,
 	switch (urb->dev->speed) {
 	case USB_SPEED_LOW:
 		info1 |= (1 << 12);	/* EPS "low" */
-		/* FALL THROUGH */
+		fallthrough;
 
 	case USB_SPEED_FULL:
 		/* EPS 0 means "full" */
@@ -3377,7 +3377,7 @@ static int oxu_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 		switch (qh->qh_state) {
 		case QH_STATE_LINKED:
 			intr_deschedule(oxu, qh);
-			/* FALL THROUGH */
+			fallthrough;
 		case QH_STATE_IDLE:
 			qh_completions(oxu, qh);
 			break;
@@ -3449,7 +3449,7 @@ rescan:
 		if (!tmp)
 			goto nogood;
 		unlink_async(oxu, qh);
-		/* FALL THROUGH */
+		fallthrough;
 	case QH_STATE_UNLINK:		/* wait for hw to finish? */
 idle_timeout:
 		spin_unlock_irqrestore(&oxu->lock, flags);
@@ -3460,7 +3460,7 @@ idle_timeout:
 			qh_put(qh);
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	default:
 nogood:
 		/* caller was supposed to have unlinked any requests;

@@ -4698,7 +4698,7 @@ hub_port_init(struct usb_hub *hub, struct usb_device *udev, int port1,
 						r = 0;
 						break;
 					}
-					/* FALL THROUGH */
+					fallthrough;
 				default:
 					if (r == 0)
 						r = -EPROTO;

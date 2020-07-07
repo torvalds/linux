@@ -182,7 +182,7 @@ get_endpoints(struct usbtest_dev *dev, struct usb_interface *intf)
 			case USB_ENDPOINT_XFER_ISOC:
 				if (dev->info->iso)
 					endpoint_update(edi, &iso_in, &iso_out, e);
-				/* FALLTHROUGH */
+				fallthrough;
 			default:
 				continue;
 			}
@@ -364,7 +364,7 @@ static void simple_fill_buf(struct urb *urb)
 
 	switch (pattern) {
 	default:
-		/* FALLTHROUGH */
+		fallthrough;
 	case 0:
 		memset(buf, 0, len);
 		break;
@@ -681,7 +681,7 @@ static int get_altsetting(struct usbtest_dev *dev)
 		return dev->buf[0];
 	case 0:
 		retval = -ERANGE;
-		/* FALLTHROUGH */
+		fallthrough;
 	default:
 		return retval;
 	}
@@ -1951,7 +1951,7 @@ static void complicated_callback(struct urb *urb)
 			dev_err(&ctx->dev->intf->dev,
 					"resubmit err %d\n",
 					status);
-			/* FALLTHROUGH */
+			fallthrough;
 		case -ENODEV:			/* disconnected */
 		case -ESHUTDOWN:		/* endpoint disabled */
 			ctx->submit_error = 1;

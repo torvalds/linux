@@ -427,7 +427,7 @@ static int usb_parse_endpoint(struct device *ddev, int cfgno,
 			i = maxp & (BIT(12) | BIT(11));
 			maxp &= ~i;
 		}
-		/* fallthrough */
+		fallthrough;
 	default:
 		maxpacket_maxes = high_speed_maxpacket_maxes;
 		break;
