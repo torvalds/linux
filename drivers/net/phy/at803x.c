@@ -400,8 +400,8 @@ static int at803x_parse_dt(struct phy_device *phydev)
 {
 	struct device_node *node = phydev->mdio.dev.of_node;
 	struct at803x_priv *priv = phydev->priv;
-	unsigned int sel, mask;
 	u32 freq, strength;
+	unsigned int sel;
 	int ret;
 
 	if (!IS_ENABLED(CONFIG_OF_MDIO))
@@ -409,7 +409,6 @@ static int at803x_parse_dt(struct phy_device *phydev)
 
 	ret = of_property_read_u32(node, "qca,clk-out-frequency", &freq);
 	if (!ret) {
-		mask = AT803X_CLK_OUT_MASK;
 		switch (freq) {
 		case 25000000:
 			sel = AT803X_CLK_OUT_25MHZ_XTAL;
@@ -428,8 +427,8 @@ static int at803x_parse_dt(struct phy_device *phydev)
 			return -EINVAL;
 		}
 
-		priv->clk_25m_reg |= FIELD_PREP(mask, sel);
-		priv->clk_25m_mask |= mask;
+		priv->clk_25m_reg |= FIELD_PREP(AT803X_CLK_OUT_MASK, sel);
+		priv->clk_25m_mask |= AT803X_CLK_OUT_MASK;
 
 		/* Fixup for the AR8030/AR8035. This chip has another mask and
 		 * doesn't support the DSP reference. Eg. the lowest bit of the
