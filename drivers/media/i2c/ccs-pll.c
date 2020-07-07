@@ -40,6 +40,11 @@ static inline uint32_t is_one_or_even(uint32_t a)
 	return 1;
 }
 
+static inline uint32_t one_or_more(uint32_t a)
+{
+	return a ?: 1;
+}
+
 static int bounds_check(struct device *dev, uint32_t val,
 			uint32_t min, uint32_t max, char *str)
 {
@@ -458,8 +463,10 @@ int ccs_pll_calculate(struct device *dev, const struct ccs_pll_limits *lim,
 	min_op_pre_pll_clk_div =
 		max_t(uint16_t, min_op_pre_pll_clk_div,
 		      clk_div_even_up(
-			      DIV_ROUND_UP(mul * pll->ext_clk_freq_hz,
-					   op_lim_fr->max_pll_op_clk_freq_hz)));
+			      mul /
+			      one_or_more(
+				      DIV_ROUND_UP(op_lim_fr->max_pll_op_clk_freq_hz,
+						   pll->ext_clk_freq_hz))));
 	dev_dbg(dev, "pll_op check: min / max op_pre_pll_clk_div: %u / %u\n",
 		min_op_pre_pll_clk_div, max_op_pre_pll_clk_div);
 
