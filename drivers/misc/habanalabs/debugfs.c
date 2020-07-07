@@ -36,7 +36,7 @@ static int hl_debugfs_i2c_read(struct hl_device *hdev, u8 i2c_bus, u8 i2c_addr,
 	pkt.i2c_reg = i2c_reg;
 
 	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
-					HL_DEVICE_TIMEOUT_USEC, (long *) val);
+						0, (long *) val);
 
 	if (rc)
 		dev_err(hdev->dev, "Failed to read from I2C, error %d\n", rc);
@@ -63,7 +63,7 @@ static int hl_debugfs_i2c_write(struct hl_device *hdev, u8 i2c_bus, u8 i2c_addr,
 	pkt.value = cpu_to_le64(val);
 
 	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
-					HL_DEVICE_TIMEOUT_USEC, NULL);
+						0, NULL);
 
 	if (rc)
 		dev_err(hdev->dev, "Failed to write to I2C, error %d\n", rc);
@@ -87,7 +87,7 @@ static void hl_debugfs_led_set(struct hl_device *hdev, u8 led, u8 state)
 	pkt.value = cpu_to_le64(state);
 
 	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
-						HL_DEVICE_TIMEOUT_USEC, NULL);
+						0, NULL);
 
 	if (rc)
 		dev_err(hdev->dev, "Failed to set LED %d, error %d\n", led, rc);

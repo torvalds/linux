@@ -80,6 +80,7 @@
 #define GAUDI_PLDM_QMAN0_TIMEOUT_USEC	(HL_DEVICE_TIMEOUT_USEC * 30)
 #define GAUDI_PLDM_TPC_KERNEL_WAIT_USEC	(HL_DEVICE_TIMEOUT_USEC * 30)
 #define GAUDI_BOOT_FIT_REQ_TIMEOUT_USEC	1000000		/* 1s */
+#define GAUDI_MSG_TO_CPU_TIMEOUT_USEC	4000000		/* 4s */
 
 #define GAUDI_QMAN0_FENCE_VAL		0x72E91AB9
 
@@ -3478,6 +3479,9 @@ static int gaudi_send_cpu_message(struct hl_device *hdev, u32 *msg,
 			*result = 0;
 		return 0;
 	}
+
+	if (!timeout)
+		timeout = GAUDI_MSG_TO_CPU_TIMEOUT_USEC;
 
 	return hl_fw_send_cpu_message(hdev, GAUDI_QUEUE_ID_CPU_PQ, msg, len,
 						timeout, result);

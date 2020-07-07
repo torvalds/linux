@@ -588,7 +588,11 @@ enum hl_pll_frequency {
  * @hw_queues_unlock: release H/W queues lock.
  * @get_pci_id: retrieve PCI ID.
  * @get_eeprom_data: retrieve EEPROM data from F/W.
- * @send_cpu_message: send buffer to ArmCP.
+ * @send_cpu_message: send message to F/W. If the message is timedout, the
+ *                    driver will eventually reset the device. The timeout can
+ *                    be determined by the calling function or it can be 0 and
+ *                    then the timeout is the default timeout for the specific
+ *                    ASIC
  * @get_hw_state: retrieve the H/W state
  * @pci_bars_map: Map PCI BARs.
  * @set_dram_bar_base: Set DRAM BAR to map specific device address. Returns

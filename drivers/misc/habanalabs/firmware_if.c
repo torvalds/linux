@@ -61,7 +61,7 @@ int hl_fw_send_pci_access_msg(struct hl_device *hdev, u32 opcode)
 	pkt.ctl = cpu_to_le32(opcode << ARMCP_PKT_CTL_OPCODE_SHIFT);
 
 	return hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt,
-				sizeof(pkt), HL_DEVICE_TIMEOUT_USEC, NULL);
+						sizeof(pkt), 0, NULL);
 }
 
 int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
@@ -144,7 +144,7 @@ int hl_fw_unmask_irq(struct hl_device *hdev, u16 event_type)
 	pkt.value = cpu_to_le64(event_type);
 
 	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
-			HL_DEVICE_TIMEOUT_USEC, &result);
+						0, &result);
 
 	if (rc)
 		dev_err(hdev->dev, "failed to unmask RAZWI IRQ %d", event_type);
@@ -183,7 +183,7 @@ int hl_fw_unmask_irq_arr(struct hl_device *hdev, const u32 *irq_arr,
 						ARMCP_PKT_CTL_OPCODE_SHIFT);
 
 	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) pkt,
-			total_pkt_size, HL_DEVICE_TIMEOUT_USEC, &result);
+						total_pkt_size, 0, &result);
 
 	if (rc)
 		dev_err(hdev->dev, "failed to unmask IRQ array\n");
@@ -204,7 +204,7 @@ int hl_fw_test_cpu_queue(struct hl_device *hdev)
 	test_pkt.value = cpu_to_le64(ARMCP_PACKET_FENCE_VAL);
 
 	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &test_pkt,
-			sizeof(test_pkt), HL_DEVICE_TIMEOUT_USEC, &result);
+						sizeof(test_pkt), 0, &result);
 
 	if (!rc) {
 		if (result != ARMCP_PACKET_FENCE_VAL)
@@ -248,7 +248,7 @@ int hl_fw_send_heartbeat(struct hl_device *hdev)
 	hb_pkt.value = cpu_to_le64(ARMCP_PACKET_FENCE_VAL);
 
 	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &hb_pkt,
-			sizeof(hb_pkt), HL_DEVICE_TIMEOUT_USEC, &result);
+						sizeof(hb_pkt), 0, &result);
 
 	if ((rc) || (result != ARMCP_PACKET_FENCE_VAL))
 		rc = -EIO;
