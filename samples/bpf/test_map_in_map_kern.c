@@ -13,6 +13,8 @@
 #include <bpf/bpf_helpers.h>
 #include "bpf_legacy.h"
 #include <bpf/bpf_tracing.h>
+#include <bpf/bpf_core_read.h>
+#include "trace_common.h"
 
 #define MAX_NR_PORTS 65536
 
@@ -102,9 +104,10 @@ static __always_inline int do_inline_hash_lookup(void *inner_map, u32 port)
 	return result ? *result : -ENOENT;
 }
 
-SEC("kprobe/sys_connect")
+SEC("kprobe/" SYSCALL(sys_connect))
 int trace_sys_connect(struct pt_regs *ctx)
 {
+	struct pt_regs *real_regs = (struct pt_regs *)PT_REGS_PARM1_CORE(ctx);
 	struct sockaddr_in6 *in6;
 	u16 test_case, port, dst6[8];
 	int addrlen, ret, inline_ret, ret_key = 0;
@@ -112,8 +115,8 @@ int trace_sys_connect(struct pt_regs *ctx)
 	void *outer_map, *inner_map;
 	bool inline_hash = false;
 
-	in6 = (struct sockaddr_in6 *)PT_REGS_PARM2(ctx);
-	addrlen = (int)PT_REGS_PARM3(ctx);
+	in6 = (struct sockaddr_in6 *)PT_REGS_PARM2_CORE(real_regs);
+	addrlen = (int)PT_REGS_PARM3_CORE(real_regs);
 
 	if (addrlen != sizeof(*in6))
 		return 0;
