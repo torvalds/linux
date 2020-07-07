@@ -593,6 +593,7 @@ static void init_prb_bdqc(struct packet_sock *po,
 						req_u->req3.tp_block_size);
 	p1->tov_in_jiffies = msecs_to_jiffies(p1->retire_blk_tov);
 	p1->blk_sizeof_priv = req_u->req3.tp_sizeof_priv;
+	rwlock_init(&p1->blk_fill_in_prog_lock);
 
 	p1->max_frame_len = p1->kblk_size - BLK_PLUS_PRIV(p1->blk_sizeof_priv);
 	prb_init_ft_ops(p1, req_u);
@@ -659,10 +660,9 @@ static void prb_retire_rx_blk_timer_expired(struct timer_list *t)
 	 *
 	 */
 	if (BLOCK_NUM_PKTS(pbd)) {
-		while (atomic_read(&pkc->blk_fill_in_prog)) {
-			/* Waiting for skb_copy_bits to finish... */
-			cpu_relax();
-		}
+		/* Waiting for skb_copy_bits to finish... */
+		write_lock(&pkc->blk_fill_in_prog_lock);
+		write_unlock(&pkc->blk_fill_in_prog_lock);
 	}
 
 	if (pkc->last_kactive_blk_num == pkc->kactive_blk_num) {
@@ -921,10 +921,9 @@ static void prb_retire_current_block(struct tpacket_kbdq_core *pkc,
 		 * the timer-handler already handled this case.
 		 */
 		if (!(status & TP_STATUS_BLK_TMO)) {
-			while (atomic_read(&pkc->blk_fill_in_prog)) {
-				/* Waiting for skb_copy_bits to finish... */
-				cpu_relax();
-			}
+			/* Waiting for skb_copy_bits to finish... */
+			write_lock(&pkc->blk_fill_in_prog_lock);
+			write_unlock(&pkc->blk_fill_in_prog_lock);
 		}
 		prb_close_block(pkc, pbd, po, status);
 		return;
@@ -944,7 +943,8 @@ static int prb_queue_frozen(struct tpacket_kbdq_core *pkc)
 static void prb_clear_blk_fill_status(struct packet_ring_buffer *rb)
 {
 	struct tpacket_kbdq_core *pkc  = GET_PBDQC_FROM_RB(rb);
-	atomic_dec(&pkc->blk_fill_in_prog);
+
+	read_unlock(&pkc->blk_fill_in_prog_lock);
 }
 
 static void prb_fill_rxhash(struct tpacket_kbdq_core *pkc,
@@ -998,7 +998,7 @@ static void prb_fill_curr_block(char *curr,
 	pkc->nxt_offset += TOTAL_PKT_LEN_INCL_ALIGN(len);
 	BLOCK_LEN(pbd) += TOTAL_PKT_LEN_INCL_ALIGN(len);
 	BLOCK_NUM_PKTS(pbd) += 1;
-	atomic_inc(&pkc->blk_fill_in_prog);
+	read_lock(&pkc->blk_fill_in_prog_lock);
 	prb_run_all_ft_ops(pkc, ppd);
 }
 
