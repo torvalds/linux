@@ -287,7 +287,7 @@ out:
 }
 subsys_initcall(psci_idle_init_domains);
 
-struct device __init *psci_dt_attach_cpu(int cpu)
+struct device *psci_dt_attach_cpu(int cpu)
 {
 	struct device *dev;
 
@@ -300,4 +300,12 @@ struct device __init *psci_dt_attach_cpu(int cpu)
 		pm_runtime_get_sync(dev);
 
 	return dev;
+}
+
+void psci_dt_detach_cpu(struct device *dev)
+{
+	if (IS_ERR_OR_NULL(dev))
+		return;
+
+	dev_pm_domain_detach(dev, false);
 }
