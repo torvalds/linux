@@ -17,6 +17,16 @@ menuconfig THERMAL
 
 if THERMAL
 
+config THERMAL_NETLINK
+	bool "Thermal netlink management"
+	depends on NET
+	default y
+	help
+	  The thermal framework has a netlink interface to do thermal
+	  zones discovery, temperature readings and events such as
+	  trip point crossed, cooling device update or governor
+	  change. It is recommended to enable the feature.
+
 config THERMAL_STATISTICS
 	bool "Thermal state transition statistics"
 	help
