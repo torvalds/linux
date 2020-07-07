@@ -181,7 +181,7 @@ static int mdio_remove(struct device *dev)
 
 /**
  * mdio_driver_register - register an mdio_driver with the MDIO layer
- * @new_driver: new mdio_driver to register
+ * @drv: new mdio_driver to register
  */
 int mdio_driver_register(struct mdio_driver *drv)
 {
