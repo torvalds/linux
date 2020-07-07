@@ -678,7 +678,6 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 
 	INIT_LIST_HEAD(&c->ec_new_stripe_list);
 	mutex_init(&c->ec_new_stripe_lock);
-	mutex_init(&c->ec_stripe_create_lock);
 	spin_lock_init(&c->ec_stripes_heap_lock);
 
 	seqcount_init(&c->gc_pos_lock);

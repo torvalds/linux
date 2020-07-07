@@ -168,6 +168,7 @@ read_attribute(btree_updates);
 read_attribute(dirty_btree_nodes);
 read_attribute(btree_key_cache);
 read_attribute(btree_transactions);
+read_attribute(stripes_heap);
 
 read_attribute(internal_uuid);
 
@@ -418,6 +419,13 @@ SHOW(bch2_fs)
 		return out.pos - buf;
 	}
 
+	if (attr == &sysfs_stripes_heap) {
+		struct printbuf out = _PBUF(buf, PAGE_SIZE);
+
+		bch2_stripes_heap_to_text(&out, c);
+		return out.pos - buf;
+	}
+
 	if (attr == &sysfs_compression_stats)
 		return bch2_compression_stats(c, buf);
 
@@ -583,6 +591,7 @@ struct attribute *bch2_fs_internal_files[] = {
 	&sysfs_dirty_btree_nodes,
 	&sysfs_btree_key_cache,
 	&sysfs_btree_transactions,
+	&sysfs_stripes_heap,
 
 	&sysfs_read_realloc_races,
 	&sysfs_extent_migrate_done,

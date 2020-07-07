@@ -884,51 +884,46 @@ static s64 ptr_disk_sectors_delta(struct extent_ptr_decoded p,
 }
 
 static void bucket_set_stripe(struct bch_fs *c,
-			      const struct bch_stripe *v,
+			      const struct bch_extent_ptr *ptr,
 			      struct bch_fs_usage *fs_usage,
 			      u64 journal_seq,
 			      unsigned flags,
 			      bool enabled)
 {
 	bool gc = flags & BTREE_TRIGGER_GC;
-	unsigned i;
+	struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
+	struct bucket *g = PTR_BUCKET(ca, ptr, gc);
+	struct bucket_mark new, old;
 
-	for (i = 0; i < v->nr_blocks; i++) {
-		const struct bch_extent_ptr *ptr = v->ptrs + i;
-		struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
-		struct bucket *g = PTR_BUCKET(ca, ptr, gc);
-		struct bucket_mark new, old;
+	old = bucket_cmpxchg(g, new, ({
+		new.stripe			= enabled;
+		if (journal_seq) {
+			new.journal_seq_valid	= 1;
+			new.journal_seq		= journal_seq;
+		}
+	}));
 
-		old = bucket_cmpxchg(g, new, ({
-			new.stripe			= enabled;
-			if (journal_seq) {
-				new.journal_seq_valid	= 1;
-				new.journal_seq		= journal_seq;
-			}
-		}));
+	bch2_dev_usage_update(c, ca, fs_usage, old, new, gc);
 
-		bch2_dev_usage_update(c, ca, fs_usage, old, new, gc);
-
-		/*
-		 * XXX write repair code for these, flag stripe as possibly bad
-		 */
-		if (old.gen != ptr->gen)
-			bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
-				      "stripe with stale pointer");
+	/*
+	 * XXX write repair code for these, flag stripe as possibly bad
+	 */
+	if (old.gen != ptr->gen)
+		bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
+			      "stripe with stale pointer");
 #if 0
-		/*
-		 * We'd like to check for these, but these checks don't work
-		 * yet:
-		 */
-		if (old.stripe && enabled)
-			bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
-				      "multiple stripes using same bucket");
+	/*
+	 * We'd like to check for these, but these checks don't work
+	 * yet:
+	 */
+	if (old.stripe && enabled)
+		bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
+			      "multiple stripes using same bucket");
 
-		if (!old.stripe && !enabled)
-			bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
-				      "deleting stripe but bucket not marked as stripe bucket");
+	if (!old.stripe && !enabled)
+		bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
+			      "deleting stripe but bucket not marked as stripe bucket");
 #endif
-	}
 }
 
 static int __mark_pointer(struct bch_fs *c, struct bkey_s_c k,
@@ -1070,8 +1065,7 @@ static int bch2_mark_stripe_ptr(struct bch_fs *c,
 {
 	bool gc = flags & BTREE_TRIGGER_GC;
 	struct stripe *m;
-	unsigned old, new;
-	int blocks_nonempty_delta;
+	unsigned i, blocks_nonempty = 0;
 
 	m = genradix_ptr(&c->stripes[gc], p.idx);
 
@@ -1090,19 +1084,16 @@ static int bch2_mark_stripe_ptr(struct bch_fs *c,
 	*nr_parity	= m->nr_redundant;
 	*r = m->r;
 
-	old = m->block_sectors[p.block];
 	m->block_sectors[p.block] += sectors;
-	new = m->block_sectors[p.block];
 
-	blocks_nonempty_delta = (int) !!new - (int) !!old;
-	if (blocks_nonempty_delta) {
-		m->blocks_nonempty += blocks_nonempty_delta;
+	for (i = 0; i < m->nr_blocks; i++)
+		blocks_nonempty += m->block_sectors[i] != 0;
 
+	if (m->blocks_nonempty != blocks_nonempty) {
+		m->blocks_nonempty = blocks_nonempty;
 		if (!gc)
 			bch2_stripes_heap_update(c, m, p.idx);
 	}
-
-	m->dirty = true;
 
 	spin_unlock(&c->ec_stripes_heap_lock);
 
@@ -1207,10 +1198,11 @@ static int bch2_mark_stripe(struct bch_fs *c,
 
 	if (!new_s) {
 		/* Deleting: */
-		bucket_set_stripe(c, old_s, fs_usage,
-				  journal_seq, flags, false);
+		for (i = 0; i < old_s->nr_blocks; i++)
+			bucket_set_stripe(c, old_s->ptrs + i, fs_usage,
+					  journal_seq, flags, false);
 
-		if (!gc) {
+		if (!gc && m->on_heap) {
 			spin_lock(&c->ec_stripes_heap_lock);
 			bch2_stripes_heap_del(c, m, idx);
 			spin_unlock(&c->ec_stripes_heap_lock);
@@ -1221,10 +1213,21 @@ static int bch2_mark_stripe(struct bch_fs *c,
 		BUG_ON(old_s && new_s->nr_blocks != old_s->nr_blocks);
 		BUG_ON(old_s && new_s->nr_redundant != old_s->nr_redundant);
 
-		if (!old_s)
-			bucket_set_stripe(c, new_s, fs_usage,
-					  journal_seq, flags, true);
+		for (i = 0; i < new_s->nr_blocks; i++) {
+			if (!old_s ||
+			    memcmp(new_s->ptrs + i,
+				   old_s->ptrs + i,
+				   sizeof(struct bch_extent_ptr))) {
 
+				if (old_s)
+					bucket_set_stripe(c, old_s->ptrs + i, fs_usage,
+							  journal_seq, flags, false);
+				bucket_set_stripe(c, new_s->ptrs + i, fs_usage,
+						  journal_seq, flags, true);
+			}
+		}
+
+		m->alive	= true;
 		m->sectors	= le16_to_cpu(new_s->sectors);
 		m->algorithm	= new_s->algorithm;
 		m->nr_blocks	= new_s->nr_blocks;
@@ -1248,8 +1251,6 @@ static int bch2_mark_stripe(struct bch_fs *c,
 			bch2_stripes_heap_update(c, m, idx);
 			spin_unlock(&c->ec_stripes_heap_lock);
 		}
-
-		m->alive	= true;
 	}
 
 	return 0;

@@ -157,6 +157,8 @@ int bch2_stripes_write(struct bch_fs *, unsigned, bool *);
 
 int bch2_ec_mem_alloc(struct bch_fs *, bool);
 
+void bch2_stripes_heap_to_text(struct printbuf *, struct bch_fs *);
+
 void bch2_fs_ec_exit(struct bch_fs *);
 int bch2_fs_ec_init(struct bch_fs *);
 

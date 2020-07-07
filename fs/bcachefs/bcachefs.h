@@ -755,7 +755,6 @@ struct bch_fs {
 
 	/* STRIPES: */
 	GENRADIX(struct stripe) stripes[2];
-	struct mutex		ec_stripe_create_lock;
 
 	ec_stripes_heap		ec_stripes_heap;
 	spinlock_t		ec_stripes_heap_lock;

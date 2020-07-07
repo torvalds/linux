@@ -22,6 +22,7 @@ struct stripe {
 
 	unsigned		alive:1;
 	unsigned		dirty:1;
+	unsigned		on_heap:1;
 	u8			blocks_nonempty;
 	u16			block_sectors[EC_STRIPE_MAX];
 

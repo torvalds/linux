@@ -619,8 +619,11 @@ static int bch2_gc_done(struct bch_fs *c,
 				copy_stripe_field(block_sectors[i],
 						  "block_sectors[%u]", i);
 
-			if (dst->alive)
+			if (dst->alive) {
+				spin_lock(&c->ec_stripes_heap_lock);
 				bch2_stripes_heap_insert(c, dst, dst_iter.pos);
+				spin_unlock(&c->ec_stripes_heap_lock);
+			}
 
 			genradix_iter_advance(&dst_iter, &c->stripes[0]);
 			genradix_iter_advance(&src_iter, &c->stripes[1]);
