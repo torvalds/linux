@@ -3519,8 +3519,8 @@ static bool retrieve_link_cap(struct dc_link *link)
 		status = core_link_read_dpcd(
 				link,
 				DP_DSC_BRANCH_OVERALL_THROUGHPUT_0,
-				link->dpcd_caps.dsc_caps.dsc_ext_caps.raw,
-				sizeof(link->dpcd_caps.dsc_caps.dsc_ext_caps.raw));
+				link->dpcd_caps.dsc_caps.dsc_branch_decoder_caps.raw,
+				sizeof(link->dpcd_caps.dsc_caps.dsc_branch_decoder_caps.raw));
 	}
 
 	if (!dpcd_read_sink_ext_caps(link))

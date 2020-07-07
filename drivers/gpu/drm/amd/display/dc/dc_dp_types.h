@@ -726,7 +726,7 @@ union dpcd_dsc_basic_capabilities {
 	uint8_t raw[16];
 };
 
-union dpcd_dsc_ext_capabilities {
+union dpcd_dsc_branch_decoder_capabilities {
 	struct {
 		uint8_t BRANCH_OVERALL_THROUGHPUT_0;
 		uint8_t BRANCH_OVERALL_THROUGHPUT_1;
@@ -737,7 +737,7 @@ union dpcd_dsc_ext_capabilities {
 
 struct dpcd_dsc_capabilities {
 	union dpcd_dsc_basic_capabilities dsc_basic_caps;
-	union dpcd_dsc_ext_capabilities dsc_ext_caps;
+	union dpcd_dsc_branch_decoder_capabilities dsc_branch_decoder_caps;
 };
 
 /* These parameters are from PSR capabilities reported by Sink DPCD */
