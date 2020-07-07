@@ -539,30 +539,6 @@ static bool udma_is_chan_paused(struct udma_chan *uc)
 	return false;
 }
 
-static void udma_sync_for_device(struct udma_chan *uc, int idx)
-{
-	struct udma_desc *d = uc->desc;
-
-	if (uc->cyclic && uc->config.pkt_mode) {
-		dma_sync_single_for_device(uc->ud->dev,
-					   d->hwdesc[idx].cppi5_desc_paddr,
-					   d->hwdesc[idx].cppi5_desc_size,
-					   DMA_TO_DEVICE);
-	} else {
-		int i;
-
-		for (i = 0; i < d->hwdesc_count; i++) {
-			if (!d->hwdesc[i].cppi5_desc_vaddr)
-				continue;
-
-			dma_sync_single_for_device(uc->ud->dev,
-						d->hwdesc[i].cppi5_desc_paddr,
-						d->hwdesc[i].cppi5_desc_size,
-						DMA_TO_DEVICE);
-		}
-	}
-}
-
 static inline dma_addr_t udma_get_rx_flush_hwdesc_paddr(struct udma_chan *uc)
 {
 	return uc->ud->rx_flush.hwdescs[uc->config.pkt_mode].cppi5_desc_paddr;
@@ -593,7 +569,6 @@ static int udma_push_to_ring(struct udma_chan *uc, int idx)
 		paddr = udma_curr_cppi5_desc_paddr(d, idx);
 
 		wmb(); /* Ensure that writes are not moved over this point */
-		udma_sync_for_device(uc, idx);
 	}
 
 	return k3_ringacc_ring_push(ring, &paddr);
@@ -628,11 +603,11 @@ static int udma_pop_from_ring(struct udma_chan *uc, dma_addr_t *addr)
 	}
 
 	if (ring && k3_ringacc_ring_get_occ(ring)) {
-		struct udma_desc *d = NULL;
-
 		ret = k3_ringacc_ring_pop(ring, addr);
 		if (ret)
 			return ret;
+
+		rmb(); /* Ensure that reads are not moved before this point */
 
 		/* Teardown completion */
 		if (cppi5_desc_is_tdcm(*addr))
@@ -641,14 +616,6 @@ static int udma_pop_from_ring(struct udma_chan *uc, dma_addr_t *addr)
 		/* Check for flush descriptor */
 		if (udma_desc_is_rx_flush(uc, *addr))
 			return -ENOENT;
-
-		d = udma_udma_desc_from_paddr(uc, *addr);
-
-		if (d)
-			dma_sync_single_for_cpu(uc->ud->dev, *addr,
-						d->hwdesc[0].cppi5_desc_size,
-						DMA_FROM_DEVICE);
-		rmb(); /* Ensure that reads are not moved before this point */
 	}
 
 	return ret;
