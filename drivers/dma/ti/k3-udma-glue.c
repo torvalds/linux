@@ -186,17 +186,17 @@ static void k3_udma_glue_dump_tx_rt_chn(struct k3_udma_glue_tx_channel *chn,
 	struct device *dev = chn->common.dev;
 
 	dev_dbg(dev, "=== dump ===> %s\n", mark);
-	dev_dbg(dev, "0x%08X: %08X\n", UDMA_TCHAN_RT_CTL_REG,
-		xudma_tchanrt_read(chn->udma_tchanx, UDMA_TCHAN_RT_CTL_REG));
-	dev_dbg(dev, "0x%08X: %08X\n", UDMA_TCHAN_RT_PEER_RT_EN_REG,
+	dev_dbg(dev, "0x%08X: %08X\n", UDMA_CHAN_RT_CTL_REG,
+		xudma_tchanrt_read(chn->udma_tchanx, UDMA_CHAN_RT_CTL_REG));
+	dev_dbg(dev, "0x%08X: %08X\n", UDMA_CHAN_RT_PEER_RT_EN_REG,
 		xudma_tchanrt_read(chn->udma_tchanx,
-				   UDMA_TCHAN_RT_PEER_RT_EN_REG));
-	dev_dbg(dev, "0x%08X: %08X\n", UDMA_TCHAN_RT_PCNT_REG,
-		xudma_tchanrt_read(chn->udma_tchanx, UDMA_TCHAN_RT_PCNT_REG));
-	dev_dbg(dev, "0x%08X: %08X\n", UDMA_TCHAN_RT_BCNT_REG,
-		xudma_tchanrt_read(chn->udma_tchanx, UDMA_TCHAN_RT_BCNT_REG));
-	dev_dbg(dev, "0x%08X: %08X\n", UDMA_TCHAN_RT_SBCNT_REG,
-		xudma_tchanrt_read(chn->udma_tchanx, UDMA_TCHAN_RT_SBCNT_REG));
+				   UDMA_CHAN_RT_PEER_RT_EN_REG));
+	dev_dbg(dev, "0x%08X: %08X\n", UDMA_CHAN_RT_PCNT_REG,
+		xudma_tchanrt_read(chn->udma_tchanx, UDMA_CHAN_RT_PCNT_REG));
+	dev_dbg(dev, "0x%08X: %08X\n", UDMA_CHAN_RT_BCNT_REG,
+		xudma_tchanrt_read(chn->udma_tchanx, UDMA_CHAN_RT_BCNT_REG));
+	dev_dbg(dev, "0x%08X: %08X\n", UDMA_CHAN_RT_SBCNT_REG,
+		xudma_tchanrt_read(chn->udma_tchanx, UDMA_CHAN_RT_SBCNT_REG));
 }
 
 static int k3_udma_glue_cfg_tx_chn(struct k3_udma_glue_tx_channel *tx_chn)
@@ -389,14 +389,13 @@ int k3_udma_glue_enable_tx_chn(struct k3_udma_glue_tx_channel *tx_chn)
 	u32 txrt_ctl;
 
 	txrt_ctl = UDMA_PEER_RT_EN_ENABLE;
-	xudma_tchanrt_write(tx_chn->udma_tchanx,
-			    UDMA_TCHAN_RT_PEER_RT_EN_REG,
+	xudma_tchanrt_write(tx_chn->udma_tchanx, UDMA_CHAN_RT_PEER_RT_EN_REG,
 			    txrt_ctl);
 
 	txrt_ctl = xudma_tchanrt_read(tx_chn->udma_tchanx,
-				      UDMA_TCHAN_RT_CTL_REG);
+				      UDMA_CHAN_RT_CTL_REG);
 	txrt_ctl |= UDMA_CHAN_RT_CTL_EN;
-	xudma_tchanrt_write(tx_chn->udma_tchanx, UDMA_TCHAN_RT_CTL_REG,
+	xudma_tchanrt_write(tx_chn->udma_tchanx, UDMA_CHAN_RT_CTL_REG,
 			    txrt_ctl);
 
 	k3_udma_glue_dump_tx_rt_chn(tx_chn, "txchn en");
@@ -408,10 +407,10 @@ void k3_udma_glue_disable_tx_chn(struct k3_udma_glue_tx_channel *tx_chn)
 {
 	k3_udma_glue_dump_tx_rt_chn(tx_chn, "txchn dis1");
 
-	xudma_tchanrt_write(tx_chn->udma_tchanx, UDMA_TCHAN_RT_CTL_REG, 0);
+	xudma_tchanrt_write(tx_chn->udma_tchanx, UDMA_CHAN_RT_CTL_REG, 0);
 
 	xudma_tchanrt_write(tx_chn->udma_tchanx,
-			    UDMA_TCHAN_RT_PEER_RT_EN_REG, 0);
+			    UDMA_CHAN_RT_PEER_RT_EN_REG, 0);
 	k3_udma_glue_dump_tx_rt_chn(tx_chn, "txchn dis2");
 }
 EXPORT_SYMBOL_GPL(k3_udma_glue_disable_tx_chn);
@@ -424,14 +423,14 @@ void k3_udma_glue_tdown_tx_chn(struct k3_udma_glue_tx_channel *tx_chn,
 
 	k3_udma_glue_dump_tx_rt_chn(tx_chn, "txchn tdown1");
 
-	xudma_tchanrt_write(tx_chn->udma_tchanx, UDMA_TCHAN_RT_CTL_REG,
+	xudma_tchanrt_write(tx_chn->udma_tchanx, UDMA_CHAN_RT_CTL_REG,
 			    UDMA_CHAN_RT_CTL_EN | UDMA_CHAN_RT_CTL_TDOWN);
 
-	val = xudma_tchanrt_read(tx_chn->udma_tchanx, UDMA_TCHAN_RT_CTL_REG);
+	val = xudma_tchanrt_read(tx_chn->udma_tchanx, UDMA_CHAN_RT_CTL_REG);
 
 	while (sync && (val & UDMA_CHAN_RT_CTL_EN)) {
 		val = xudma_tchanrt_read(tx_chn->udma_tchanx,
-					 UDMA_TCHAN_RT_CTL_REG);
+					 UDMA_CHAN_RT_CTL_REG);
 		udelay(1);
 		if (i > K3_UDMAX_TDOWN_TIMEOUT_US) {
 			dev_err(tx_chn->common.dev, "TX tdown timeout\n");
@@ -441,7 +440,7 @@ void k3_udma_glue_tdown_tx_chn(struct k3_udma_glue_tx_channel *tx_chn,
 	}
 
 	val = xudma_tchanrt_read(tx_chn->udma_tchanx,
-				 UDMA_TCHAN_RT_PEER_RT_EN_REG);
+				 UDMA_CHAN_RT_PEER_RT_EN_REG);
 	if (sync && (val & UDMA_PEER_RT_EN_ENABLE))
 		dev_err(tx_chn->common.dev, "TX tdown peer not stopped\n");
 	k3_udma_glue_dump_tx_rt_chn(tx_chn, "txchn tdown2");
@@ -716,17 +715,17 @@ static void k3_udma_glue_dump_rx_rt_chn(struct k3_udma_glue_rx_channel *chn,
 
 	dev_dbg(dev, "=== dump ===> %s\n", mark);
 
-	dev_dbg(dev, "0x%08X: %08X\n", UDMA_RCHAN_RT_CTL_REG,
-		xudma_rchanrt_read(chn->udma_rchanx, UDMA_RCHAN_RT_CTL_REG));
-	dev_dbg(dev, "0x%08X: %08X\n", UDMA_RCHAN_RT_PEER_RT_EN_REG,
+	dev_dbg(dev, "0x%08X: %08X\n", UDMA_CHAN_RT_CTL_REG,
+		xudma_rchanrt_read(chn->udma_rchanx, UDMA_CHAN_RT_CTL_REG));
+	dev_dbg(dev, "0x%08X: %08X\n", UDMA_CHAN_RT_PEER_RT_EN_REG,
 		xudma_rchanrt_read(chn->udma_rchanx,
-				   UDMA_RCHAN_RT_PEER_RT_EN_REG));
-	dev_dbg(dev, "0x%08X: %08X\n", UDMA_RCHAN_RT_PCNT_REG,
-		xudma_rchanrt_read(chn->udma_rchanx, UDMA_RCHAN_RT_PCNT_REG));
-	dev_dbg(dev, "0x%08X: %08X\n", UDMA_RCHAN_RT_BCNT_REG,
-		xudma_rchanrt_read(chn->udma_rchanx, UDMA_RCHAN_RT_BCNT_REG));
-	dev_dbg(dev, "0x%08X: %08X\n", UDMA_RCHAN_RT_SBCNT_REG,
-		xudma_rchanrt_read(chn->udma_rchanx, UDMA_RCHAN_RT_SBCNT_REG));
+				   UDMA_CHAN_RT_PEER_RT_EN_REG));
+	dev_dbg(dev, "0x%08X: %08X\n", UDMA_CHAN_RT_PCNT_REG,
+		xudma_rchanrt_read(chn->udma_rchanx, UDMA_CHAN_RT_PCNT_REG));
+	dev_dbg(dev, "0x%08X: %08X\n", UDMA_CHAN_RT_BCNT_REG,
+		xudma_rchanrt_read(chn->udma_rchanx, UDMA_CHAN_RT_BCNT_REG));
+	dev_dbg(dev, "0x%08X: %08X\n", UDMA_CHAN_RT_SBCNT_REG,
+		xudma_rchanrt_read(chn->udma_rchanx, UDMA_CHAN_RT_SBCNT_REG));
 }
 
 static int
@@ -1084,13 +1083,12 @@ int k3_udma_glue_enable_rx_chn(struct k3_udma_glue_rx_channel *rx_chn)
 		return -EINVAL;
 
 	rxrt_ctl = xudma_rchanrt_read(rx_chn->udma_rchanx,
-				      UDMA_RCHAN_RT_CTL_REG);
+				      UDMA_CHAN_RT_CTL_REG);
 	rxrt_ctl |= UDMA_CHAN_RT_CTL_EN;
-	xudma_rchanrt_write(rx_chn->udma_rchanx, UDMA_RCHAN_RT_CTL_REG,
+	xudma_rchanrt_write(rx_chn->udma_rchanx, UDMA_CHAN_RT_CTL_REG,
 			    rxrt_ctl);
 
-	xudma_rchanrt_write(rx_chn->udma_rchanx,
-			    UDMA_RCHAN_RT_PEER_RT_EN_REG,
+	xudma_rchanrt_write(rx_chn->udma_rchanx, UDMA_CHAN_RT_PEER_RT_EN_REG,
 			    UDMA_PEER_RT_EN_ENABLE);
 
 	k3_udma_glue_dump_rx_rt_chn(rx_chn, "rxrt en");
@@ -1103,9 +1101,8 @@ void k3_udma_glue_disable_rx_chn(struct k3_udma_glue_rx_channel *rx_chn)
 	k3_udma_glue_dump_rx_rt_chn(rx_chn, "rxrt dis1");
 
 	xudma_rchanrt_write(rx_chn->udma_rchanx,
-			    UDMA_RCHAN_RT_PEER_RT_EN_REG,
-			    0);
-	xudma_rchanrt_write(rx_chn->udma_rchanx, UDMA_RCHAN_RT_CTL_REG, 0);
+			    UDMA_CHAN_RT_PEER_RT_EN_REG, 0);
+	xudma_rchanrt_write(rx_chn->udma_rchanx, UDMA_CHAN_RT_CTL_REG, 0);
 
 	k3_udma_glue_dump_rx_rt_chn(rx_chn, "rxrt dis2");
 }
@@ -1122,14 +1119,14 @@ void k3_udma_glue_tdown_rx_chn(struct k3_udma_glue_rx_channel *rx_chn,
 
 	k3_udma_glue_dump_rx_rt_chn(rx_chn, "rxrt tdown1");
 
-	xudma_rchanrt_write(rx_chn->udma_rchanx, UDMA_RCHAN_RT_PEER_RT_EN_REG,
+	xudma_rchanrt_write(rx_chn->udma_rchanx, UDMA_CHAN_RT_PEER_RT_EN_REG,
 			    UDMA_PEER_RT_EN_ENABLE | UDMA_PEER_RT_EN_TEARDOWN);
 
-	val = xudma_rchanrt_read(rx_chn->udma_rchanx, UDMA_RCHAN_RT_CTL_REG);
+	val = xudma_rchanrt_read(rx_chn->udma_rchanx, UDMA_CHAN_RT_CTL_REG);
 
 	while (sync && (val & UDMA_CHAN_RT_CTL_EN)) {
 		val = xudma_rchanrt_read(rx_chn->udma_rchanx,
-					 UDMA_RCHAN_RT_CTL_REG);
+					 UDMA_CHAN_RT_CTL_REG);
 		udelay(1);
 		if (i > K3_UDMAX_TDOWN_TIMEOUT_US) {
 			dev_err(rx_chn->common.dev, "RX tdown timeout\n");
@@ -1139,7 +1136,7 @@ void k3_udma_glue_tdown_rx_chn(struct k3_udma_glue_rx_channel *rx_chn,
 	}
 
 	val = xudma_rchanrt_read(rx_chn->udma_rchanx,
-				 UDMA_RCHAN_RT_PEER_RT_EN_REG);
+				 UDMA_CHAN_RT_PEER_RT_EN_REG);
 	if (sync && (val & UDMA_PEER_RT_EN_ENABLE))
 		dev_err(rx_chn->common.dev, "TX tdown peer not stopped\n");
 	k3_udma_glue_dump_rx_rt_chn(rx_chn, "rxrt tdown2");
