@@ -256,8 +256,6 @@ static const struct v4l2_file_operations sun4i_csi_fops = {
 	.open		= sun4i_csi_open,
 	.release	= sun4i_csi_release,
 	.unlocked_ioctl	= video_ioctl2,
-	.read		= vb2_fop_read,
-	.write		= vb2_fop_write,
 	.poll		= vb2_fop_poll,
 	.mmap		= vb2_fop_mmap,
 };
