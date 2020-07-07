@@ -3147,7 +3147,7 @@ Possible features:
 :Capability: basic
 :Architectures: arm, arm64
 :Type: vm ioctl
-:Parameters: struct struct kvm_vcpu_init (out)
+:Parameters: struct kvm_vcpu_init (out)
 :Returns: 0 on success; -1 on error
 
 Errors:
