@@ -800,9 +800,10 @@ static u8 update_white_list(struct hci_request *req)
 
 	/* Once the controller offloading of advertisement monitor is in place,
 	 * the if condition should include the support of MSFT extension
-	 * support.
+	 * support. If suspend is ongoing, whitelist should be the default to
+	 * prevent waking by random advertisements.
 	 */
-	if (!idr_is_empty(&hdev->adv_monitors_idr))
+	if (!idr_is_empty(&hdev->adv_monitors_idr) && !hdev->suspended)
 		return 0x00;
 
 	/* Select filter policy to use white list */
