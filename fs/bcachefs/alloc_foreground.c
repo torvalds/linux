@@ -344,10 +344,9 @@ struct dev_alloc_list bch2_dev_alloc_list(struct bch_fs *c,
 					  struct bch_devs_mask *devs)
 {
 	struct dev_alloc_list ret = { .nr = 0 };
-	struct bch_dev *ca;
 	unsigned i;
 
-	for_each_member_device_rcu(ca, c, i, devs)
+	for_each_set_bit(i, devs->d, BCH_SB_MEMBERS_MAX)
 		ret.devs[ret.nr++] = i;
 
 	bubble_sort(ret.devs, ret.nr, dev_stripe_cmp);
@@ -396,16 +395,16 @@ static void add_new_bucket(struct bch_fs *c,
 	ob_push(c, ptrs, ob);
 }
 
-static int bch2_bucket_alloc_set(struct bch_fs *c,
-				 struct open_buckets *ptrs,
-				 struct dev_stripe_state *stripe,
-				 struct bch_devs_mask *devs_may_alloc,
-				 unsigned nr_replicas,
-				 unsigned *nr_effective,
-				 bool *have_cache,
-				 enum alloc_reserve reserve,
-				 unsigned flags,
-				 struct closure *cl)
+int bch2_bucket_alloc_set(struct bch_fs *c,
+			  struct open_buckets *ptrs,
+			  struct dev_stripe_state *stripe,
+			  struct bch_devs_mask *devs_may_alloc,
+			  unsigned nr_replicas,
+			  unsigned *nr_effective,
+			  bool *have_cache,
+			  enum alloc_reserve reserve,
+			  unsigned flags,
+			  struct closure *cl)
 {
 	struct dev_alloc_list devs_sorted =
 		bch2_dev_alloc_list(c, stripe, devs_may_alloc);
@@ -456,74 +455,6 @@ static int bch2_bucket_alloc_set(struct bch_fs *c,
 /* Allocate from stripes: */
 
 /*
- * XXX: use a higher watermark for allocating open buckets here:
- */
-static int ec_stripe_alloc(struct bch_fs *c, struct ec_stripe_head *h)
-{
-	struct bch_devs_mask devs;
-	struct open_bucket *ob;
-	unsigned i, nr_have = 0, nr_data =
-		min_t(unsigned, h->nr_active_devs,
-		      EC_STRIPE_MAX) - h->redundancy;
-	bool have_cache = true;
-	int ret = 0;
-
-	BUG_ON(h->blocks.nr > nr_data);
-	BUG_ON(h->parity.nr > h->redundancy);
-
-	devs = h->devs;
-
-	open_bucket_for_each(c, &h->parity, ob, i)
-		__clear_bit(ob->ptr.dev, devs.d);
-	open_bucket_for_each(c, &h->blocks, ob, i)
-		__clear_bit(ob->ptr.dev, devs.d);
-
-	percpu_down_read(&c->mark_lock);
-	rcu_read_lock();
-
-	if (h->parity.nr < h->redundancy) {
-		nr_have = h->parity.nr;
-
-		ret = bch2_bucket_alloc_set(c, &h->parity,
-					    &h->parity_stripe,
-					    &devs,
-					    h->redundancy,
-					    &nr_have,
-					    &have_cache,
-					    RESERVE_NONE,
-					    0,
-					    NULL);
-		if (ret)
-			goto err;
-	}
-
-	if (h->blocks.nr < nr_data) {
-		nr_have = h->blocks.nr;
-
-		ret = bch2_bucket_alloc_set(c, &h->blocks,
-					    &h->block_stripe,
-					    &devs,
-					    nr_data,
-					    &nr_have,
-					    &have_cache,
-					    RESERVE_NONE,
-					    0,
-					    NULL);
-		if (ret)
-			goto err;
-	}
-
-	rcu_read_unlock();
-	percpu_up_read(&c->mark_lock);
-
-	return bch2_ec_stripe_new_alloc(c, h);
-err:
-	rcu_read_unlock();
-	percpu_up_read(&c->mark_lock);
-	return -1;
-}
-
-/*
  * if we can't allocate a new stripe because there are already too many
  * partially filled stripes, force allocating from an existing stripe even when
  * it's to a device we don't want:
@@ -555,27 +486,23 @@ static void bucket_alloc_from_stripe(struct bch_fs *c,
 	if (ec_open_bucket(c, ptrs))
 		return;
 
-	h = bch2_ec_stripe_head_get(c, target, erasure_code, nr_replicas - 1);
+	h = bch2_ec_stripe_head_get(c, target, 0, nr_replicas - 1);
 	if (!h)
 		return;
 
-	if (!h->s && ec_stripe_alloc(c, h))
-		goto out_put_head;
-
-	rcu_read_lock();
 	devs_sorted = bch2_dev_alloc_list(c, &wp->stripe, devs_may_alloc);
-	rcu_read_unlock();
 
 	for (i = 0; i < devs_sorted.nr; i++)
 		open_bucket_for_each(c, &h->s->blocks, ob, ec_idx)
 			if (ob->ptr.dev == devs_sorted.devs[i] &&
-			    !test_and_set_bit(ec_idx, h->s->blocks_allocated))
+			    !test_and_set_bit(h->s->data_block_idx[ec_idx],
+					      h->s->blocks_allocated))
 				goto got_bucket;
 	goto out_put_head;
 got_bucket:
 	ca = bch_dev_bkey_exists(c, ob->ptr.dev);
 
-	ob->ec_idx	= ec_idx;
+	ob->ec_idx	= h->s->data_block_idx[ec_idx];
 	ob->ec		= h->s;
 
 	add_new_bucket(c, ptrs, devs_may_alloc,

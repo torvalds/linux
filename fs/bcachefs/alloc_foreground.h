@@ -92,6 +92,11 @@ static inline void bch2_open_bucket_get(struct bch_fs *c,
 	}
 }
 
+int bch2_bucket_alloc_set(struct bch_fs *, struct open_buckets *,
+			  struct dev_stripe_state *, struct bch_devs_mask *,
+			  unsigned, unsigned *, bool *, enum alloc_reserve,
+			  unsigned, struct closure *);
+
 struct write_point *bch2_alloc_sectors_start(struct bch_fs *,
 					     unsigned, unsigned,
 					     struct write_point_specifier,

@@ -92,11 +92,15 @@ struct ec_stripe_new {
 	atomic_t		pin;
 
 	int			err;
-	bool			pending;
 
+	u8			nr_data;
+	u8			nr_parity;
+	bool			allocated;
+	bool			pending;
 	unsigned long		blocks_allocated[BITS_TO_LONGS(EC_STRIPE_MAX)];
 
 	struct open_buckets	blocks;
+	u8			data_block_idx[EC_STRIPE_MAX];
 	struct open_buckets	parity;
 
 	struct keylist		keys;

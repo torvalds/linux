@@ -200,40 +200,6 @@ static bool extent_has_stripe_ptr(struct bkey_s_c k, u64 idx)
 	return false;
 }
 
-static void ec_stripe_key_init(struct bch_fs *c,
-			       struct bkey_i_stripe *s,
-			       struct open_buckets *blocks,
-			       struct open_buckets *parity,
-			       unsigned stripe_size)
-{
-	struct open_bucket *ob;
-	unsigned i, u64s;
-
-	bkey_stripe_init(&s->k_i);
-	s->v.sectors			= cpu_to_le16(stripe_size);
-	s->v.algorithm			= 0;
-	s->v.nr_blocks			= parity->nr + blocks->nr;
-	s->v.nr_redundant		= parity->nr;
-	s->v.csum_granularity_bits	= ilog2(c->sb.encoded_extent_max);
-	s->v.csum_type			= BCH_CSUM_CRC32C;
-	s->v.pad			= 0;
-
-	open_bucket_for_each(c, blocks, ob, i)
-		s->v.ptrs[i]			= ob->ptr;
-
-	open_bucket_for_each(c, parity, ob, i)
-		s->v.ptrs[blocks->nr + i]	= ob->ptr;
-
-	while ((u64s = stripe_val_u64s(&s->v)) > BKEY_VAL_U64s_MAX) {
-		BUG_ON(1 << s->v.csum_granularity_bits >=
-		       le16_to_cpu(s->v.sectors) ||
-		       s->v.csum_granularity_bits == U8_MAX);
-		s->v.csum_granularity_bits++;
-	}
-
-	set_bkey_val_u64s(&s->k, u64s);
-}
-
 /* Checksumming: */
 
 static void ec_generate_checksums(struct ec_stripe_buf *buf)
@@ -866,6 +832,8 @@ static void ec_stripe_create(struct ec_stripe_new *s)
 		goto err;
 	}
 
+	BUG_ON(!s->allocated);
+
 	if (!percpu_ref_tryget(&c->writes))
 		goto err;
 
@@ -952,6 +920,8 @@ static void ec_stripe_new_put(struct bch_fs *c, struct ec_stripe_new *s)
 static void ec_stripe_set_pending(struct bch_fs *c, struct ec_stripe_head *h)
 {
 	struct ec_stripe_new *s = h->s;
+
+	BUG_ON(!s->allocated && !s->err);
 
 	h->s		= NULL;
 	s->pending	= true;
@@ -1063,14 +1033,38 @@ static unsigned pick_blocksize(struct bch_fs *c,
 	return best.size;
 }
 
-int bch2_ec_stripe_new_alloc(struct bch_fs *c, struct ec_stripe_head *h)
+static void ec_stripe_key_init(struct bch_fs *c,
+			       struct bkey_i_stripe *s,
+			       unsigned nr_data,
+			       unsigned nr_parity,
+			       unsigned stripe_size)
+{
+	unsigned u64s;
+
+	bkey_stripe_init(&s->k_i);
+	s->v.sectors			= cpu_to_le16(stripe_size);
+	s->v.algorithm			= 0;
+	s->v.nr_blocks			= nr_data + nr_parity;
+	s->v.nr_redundant		= nr_parity;
+	s->v.csum_granularity_bits	= ilog2(c->sb.encoded_extent_max);
+	s->v.csum_type			= BCH_CSUM_CRC32C;
+	s->v.pad			= 0;
+
+	while ((u64s = stripe_val_u64s(&s->v)) > BKEY_VAL_U64s_MAX) {
+		BUG_ON(1 << s->v.csum_granularity_bits >=
+		       le16_to_cpu(s->v.sectors) ||
+		       s->v.csum_granularity_bits == U8_MAX);
+		s->v.csum_granularity_bits++;
+	}
+
+	set_bkey_val_u64s(&s->k, u64s);
+}
+
+static int ec_new_stripe_alloc(struct bch_fs *c, struct ec_stripe_head *h)
 {
 	struct ec_stripe_new *s;
 	unsigned i;
 
-	BUG_ON(h->parity.nr != h->redundancy);
-	BUG_ON(!h->blocks.nr);
-	BUG_ON(h->parity.nr + h->blocks.nr > EC_STRIPE_MAX);
 	lockdep_assert_held(&h->lock);
 
 	s = kzalloc(sizeof(*s), GFP_KERNEL);
@@ -1081,11 +1075,9 @@ int bch2_ec_stripe_new_alloc(struct bch_fs *c, struct ec_stripe_head *h)
 	atomic_set(&s->pin, 1);
 	s->c		= c;
 	s->h		= h;
-	s->blocks	= h->blocks;
-	s->parity	= h->parity;
-
-	memset(&h->blocks, 0, sizeof(h->blocks));
-	memset(&h->parity, 0, sizeof(h->parity));
+	s->nr_data	= min_t(unsigned, h->nr_active_devs,
+				EC_STRIPE_MAX) - h->redundancy;
+	s->nr_parity	= h->redundancy;
 
 	bch2_keylist_init(&s->keys, s->inline_keys);
 
@@ -1093,9 +1085,8 @@ int bch2_ec_stripe_new_alloc(struct bch_fs *c, struct ec_stripe_head *h)
 	s->stripe.size		= h->blocksize;
 	memset(s->stripe.valid, 0xFF, sizeof(s->stripe.valid));
 
-	ec_stripe_key_init(c, &s->stripe.key,
-			   &s->blocks, &s->parity,
-			   h->blocksize);
+	ec_stripe_key_init(c, &s->stripe.key, s->nr_data,
+			   s->nr_parity, h->blocksize);
 
 	for (i = 0; i < s->stripe.key.v.nr_blocks; i++) {
 		s->stripe.data[i] = kvpmalloc(s->stripe.size << 9, GFP_KERNEL);
@@ -1153,6 +1144,7 @@ ec_new_stripe_head_alloc(struct bch_fs *c, unsigned target,
 void bch2_ec_stripe_head_put(struct bch_fs *c, struct ec_stripe_head *h)
 {
 	if (h->s &&
+	    h->s->allocated &&
 	    bitmap_weight(h->s->blocks_allocated,
 			  h->s->blocks.nr) == h->s->blocks.nr)
 		ec_stripe_set_pending(c, h);
@@ -1160,7 +1152,7 @@ void bch2_ec_stripe_head_put(struct bch_fs *c, struct ec_stripe_head *h)
 	mutex_unlock(&h->lock);
 }
 
-struct ec_stripe_head *bch2_ec_stripe_head_get(struct bch_fs *c,
+struct ec_stripe_head *__bch2_ec_stripe_head_get(struct bch_fs *c,
 					       unsigned target,
 					       unsigned algo,
 					       unsigned redundancy)
@@ -1185,6 +1177,122 @@ found:
 	return h;
 }
 
+/*
+ * XXX: use a higher watermark for allocating open buckets here:
+ */
+static int new_stripe_alloc_buckets(struct bch_fs *c, struct ec_stripe_head *h)
+{
+	struct bch_devs_mask devs;
+	struct open_bucket *ob;
+	unsigned i, nr_have, nr_data =
+		min_t(unsigned, h->nr_active_devs,
+		      EC_STRIPE_MAX) - h->redundancy;
+	bool have_cache = true;
+	int ret = 0;
+
+	devs = h->devs;
+
+	for_each_set_bit(i, h->s->blocks_allocated, EC_STRIPE_MAX) {
+		__clear_bit(h->s->stripe.key.v.ptrs[i].dev, devs.d);
+		--nr_data;
+	}
+
+	BUG_ON(h->s->blocks.nr > nr_data);
+	BUG_ON(h->s->parity.nr > h->redundancy);
+
+	open_bucket_for_each(c, &h->s->parity, ob, i)
+		__clear_bit(ob->ptr.dev, devs.d);
+	open_bucket_for_each(c, &h->s->blocks, ob, i)
+		__clear_bit(ob->ptr.dev, devs.d);
+
+	percpu_down_read(&c->mark_lock);
+	rcu_read_lock();
+
+	if (h->s->parity.nr < h->redundancy) {
+		nr_have = h->s->parity.nr;
+
+		ret = bch2_bucket_alloc_set(c, &h->s->parity,
+					    &h->parity_stripe,
+					    &devs,
+					    h->redundancy,
+					    &nr_have,
+					    &have_cache,
+					    RESERVE_NONE,
+					    0,
+					    NULL);
+		if (ret)
+			goto err;
+	}
+
+	if (h->s->blocks.nr < nr_data) {
+		nr_have = h->s->blocks.nr;
+
+		ret = bch2_bucket_alloc_set(c, &h->s->blocks,
+					    &h->block_stripe,
+					    &devs,
+					    nr_data,
+					    &nr_have,
+					    &have_cache,
+					    RESERVE_NONE,
+					    0,
+					    NULL);
+		if (ret)
+			goto err;
+	}
+err:
+	rcu_read_unlock();
+	percpu_up_read(&c->mark_lock);
+	return ret;
+}
+
+struct ec_stripe_head *bch2_ec_stripe_head_get(struct bch_fs *c,
+					       unsigned target,
+					       unsigned algo,
+					       unsigned redundancy)
+{
+	struct closure cl;
+	struct ec_stripe_head *h;
+	struct open_bucket *ob;
+	unsigned i, data_idx = 0;
+
+	closure_init_stack(&cl);
+
+	h = __bch2_ec_stripe_head_get(c, target, algo, redundancy);
+	if (!h)
+		return NULL;
+
+	if (!h->s && ec_new_stripe_alloc(c, h)) {
+		bch2_ec_stripe_head_put(c, h);
+		return NULL;
+	}
+
+	if (!h->s->allocated) {
+		if (new_stripe_alloc_buckets(c, h)) {
+			bch2_ec_stripe_head_put(c, h);
+			h = NULL;
+			goto out;
+		}
+
+		open_bucket_for_each(c, &h->s->blocks, ob, i) {
+			data_idx = find_next_zero_bit(h->s->blocks_allocated,
+						      h->s->nr_data, data_idx);
+			BUG_ON(data_idx >= h->s->nr_data);
+
+			h->s->stripe.key.v.ptrs[data_idx] = ob->ptr;
+			h->s->data_block_idx[i] = data_idx;
+			data_idx++;
+		}
+
+		open_bucket_for_each(c, &h->s->parity, ob, i)
+			h->s->stripe.key.v.ptrs[h->s->nr_data + i] = ob->ptr;
+
+		h->s->allocated = true;
+	}
+out:
+	closure_sync(&cl);
+	return h;
+}
+
 void bch2_ec_stop_dev(struct bch_fs *c, struct bch_dev *ca)
 {
 	struct ec_stripe_head *h;
@@ -1195,9 +1303,6 @@ void bch2_ec_stop_dev(struct bch_fs *c, struct bch_dev *ca)
 	list_for_each_entry(h, &c->ec_stripe_head_list, list) {
 
 		mutex_lock(&h->lock);
-		bch2_open_buckets_stop_dev(c, ca, &h->blocks);
-		bch2_open_buckets_stop_dev(c, ca, &h->parity);
-
 		if (!h->s)
 			goto unlock;
 
