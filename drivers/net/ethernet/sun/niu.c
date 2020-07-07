@@ -9873,7 +9873,7 @@ static void niu_pci_remove_one(struct pci_dev *pdev)
 	}
 }
 
-static int niu_suspend(struct device *dev_d)
+static int __maybe_unused niu_suspend(struct device *dev_d)
 {
 	struct net_device *dev = dev_get_drvdata(dev_d);
 	struct niu *np = netdev_priv(dev);
@@ -9900,7 +9900,7 @@ static int niu_suspend(struct device *dev_d)
 	return 0;
 }
 
-static int niu_resume(struct device *dev_d)
+static int __maybe_unused niu_resume(struct device *dev_d)
 {
 	struct net_device *dev = dev_get_drvdata(dev_d);
 	struct niu *np = netdev_priv(dev);
