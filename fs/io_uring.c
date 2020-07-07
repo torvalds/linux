@@ -2064,7 +2064,7 @@ static void io_iopoll_reap_events(struct io_ring_ctx *ctx)
 	while (!list_empty(&ctx->poll_list)) {
 		unsigned int nr_events = 0;
 
-		io_iopoll_getevents(ctx, &nr_events, 1);
+		io_do_iopoll(ctx, &nr_events, 1);
 
 		/*
 		 * Ensure we allow local-to-the-cpu processing to take place,
@@ -6318,8 +6318,8 @@ static int io_sq_thread(void *data)
 			unsigned nr_events = 0;
 
 			mutex_lock(&ctx->uring_lock);
-			if (!list_empty(&ctx->poll_list))
-				io_iopoll_getevents(ctx, &nr_events, 0);
+			if (!list_empty(&ctx->poll_list) && !need_resched())
+				io_do_iopoll(ctx, &nr_events, 0);
 			else
 				timeout = jiffies + ctx->sq_thread_idle;
 			mutex_unlock(&ctx->uring_lock);
