@@ -238,7 +238,7 @@ static void hgpk_spewing_hack(struct psmouse *psmouse,
 		/* we're not spewing, but this packet might be the start */
 		priv->spew_flag = MAYBE_SPEWING;
 
-		/* fall-through */
+		fallthrough;
 
 	case MAYBE_SPEWING:
 		priv->spew_count++;
@@ -249,7 +249,7 @@ static void hgpk_spewing_hack(struct psmouse *psmouse,
 		/* excessive spew detected, request recalibration */
 		priv->spew_flag = SPEW_DETECTED;
 
-		/* fall-through */
+		fallthrough;
 
 	case SPEW_DETECTED:
 		/* only recalibrate when the overall delta to the cursor

@@ -255,7 +255,7 @@ static void stmfts_parse_events(struct stmfts_data *sdata)
 		case STMFTS_EV_SLEEP_OUT_CONTROLLER_READY:
 		case STMFTS_EV_STATUS:
 			complete(&sdata->cmd_done);
-			/* fall through */
+			fallthrough;
 
 		case STMFTS_EV_NO_EVENT:
 		case STMFTS_EV_DEBUG:
