@@ -328,6 +328,9 @@ int smu_v12_0_set_soft_freq_limited_range(struct smu_context *smu, enum smu_clk_
 {
 	int ret = 0;
 
+	if (!smu_clk_dpm_is_enabled(smu, clk_type))
+		return 0;
+
 	switch (clk_type) {
 	case SMU_GFXCLK:
 	case SMU_SCLK:

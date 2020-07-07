@@ -262,9 +262,6 @@ int smu_set_soft_freq_range(struct smu_context *smu,
 {
 	int ret = 0;
 
-	if (!smu_clk_dpm_is_enabled(smu, clk_type))
-		return 0;
-
 	mutex_lock(&smu->mutex);
 
 	if (smu->ppt_funcs->set_soft_freq_limited_range)

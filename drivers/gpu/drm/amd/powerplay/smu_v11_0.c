@@ -1769,6 +1769,9 @@ int smu_v11_0_set_soft_freq_limited_range(struct smu_context *smu,
 	int ret = 0, clk_id = 0;
 	uint32_t param;
 
+	if (!smu_clk_dpm_is_enabled(smu, clk_type))
+		return 0;
+
 	clk_id = smu_cmn_to_asic_specific_index(smu,
 						CMN2ASIC_MAPPING_CLK,
 						clk_type);
