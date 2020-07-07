@@ -15153,7 +15153,7 @@ static int lpfc_cq_poll_hdler(struct irq_poll *iop, int budget)
 {
 	struct lpfc_queue *cq = container_of(iop, struct lpfc_queue, iop);
 
-	 __lpfc_sli4_hba_process_cq(cq, LPFC_IRQ_POLL);
+	__lpfc_sli4_hba_process_cq(cq, LPFC_IRQ_POLL);
 
 	return 1;
 }
