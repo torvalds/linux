@@ -666,6 +666,8 @@ static bool symbol__is_idle(const char *name)
 		"poll_idle",
 		"ppc64_runlatch_off",
 		"pseries_dedicated_idle_sleep",
+		"psw_idle",
+		"psw_idle_exit",
 		NULL
 	};
 	int i;
