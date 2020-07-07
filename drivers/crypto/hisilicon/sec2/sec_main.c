@@ -282,7 +282,7 @@ static int sec_engine_init(struct hisi_qm *qm)
 					 reg, reg & 0x1, SEC_DELAY_10_US,
 					 SEC_POLL_TIMEOUT_US);
 	if (ret) {
-		dev_err(&qm->pdev->dev, "fail to init sec mem\n");
+		pci_err(qm->pdev, "fail to init sec mem\n");
 		return ret;
 	}
 
@@ -371,7 +371,7 @@ static void sec_hw_error_enable(struct hisi_qm *qm)
 
 	if (qm->ver == QM_HW_V1) {
 		writel(SEC_CORE_INT_DISABLE, qm->io_base + SEC_CORE_INT_MASK);
-		dev_info(&qm->pdev->dev, "V1 not support hw error handle\n");
+		pci_info(qm->pdev, "V1 not support hw error handle\n");
 		return;
 	}
 
@@ -599,7 +599,7 @@ static int sec_core_debug_init(struct hisi_qm *qm)
 
 	regset = devm_kzalloc(dev, sizeof(*regset), GFP_KERNEL);
 	if (!regset)
-		return -ENOENT;
+		return -ENOMEM;
 
 	regset->regs = sec_dfx_regs;
 	regset->nregs = ARRAY_SIZE(sec_dfx_regs);
@@ -686,8 +686,6 @@ static void sec_log_hw_error(struct hisi_qm *qm, u32 err_sts)
 						SEC_CORE_SRAM_ECC_ERR_INFO);
 				dev_err(dev, "multi ecc sram num=0x%x\n",
 					SEC_ECC_NUM(err_val));
-				dev_err(dev, "multi ecc sram addr=0x%x\n",
-					SEC_ECC_ADDR(err_val));
 			}
 		}
 		errs++;
@@ -996,5 +994,6 @@ module_exit(sec_exit);
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Zaibo Xu <xuzaibo@huawei.com>");
 MODULE_AUTHOR("Longfang Liu <liulongfang@huawei.com>");
+MODULE_AUTHOR("Kai Ye <yekai13@huawei.com>");
 MODULE_AUTHOR("Wei Zhang <zhangwei375@huawei.com>");
 MODULE_DESCRIPTION("Driver for HiSilicon SEC accelerator");
