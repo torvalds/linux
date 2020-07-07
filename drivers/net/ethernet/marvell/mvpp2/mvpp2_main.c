@@ -548,8 +548,10 @@ static int mvpp2_bm_pool_destroy(struct device *dev, struct mvpp2 *priv,
 	val |= MVPP2_BM_STOP_MASK;
 	mvpp2_write(priv, MVPP2_BM_POOL_CTRL_REG(bm_pool->id), val);
 
-	if (priv->percpu_pools)
+	if (priv->percpu_pools) {
 		page_pool_destroy(priv->page_pool[bm_pool->id]);
+		priv->page_pool[bm_pool->id] = NULL;
+	}
 
 	dma_free_coherent(dev, bm_pool->size_bytes,
 			  bm_pool->virt_addr,
@@ -609,8 +611,15 @@ static int mvpp2_bm_init(struct device *dev, struct mvpp2 *priv)
 						       mvpp2_pools[pn].buf_num,
 						       mvpp2_pools[pn].pkt_size,
 						       dma_dir);
-			if (IS_ERR(priv->page_pool[i]))
+			if (IS_ERR(priv->page_pool[i])) {
+				int j;
+
+				for (j = 0; j < i; j++) {
+					page_pool_destroy(priv->page_pool[j]);
+					priv->page_pool[j] = NULL;
+				}
 				return PTR_ERR(priv->page_pool[i]);
+			}
 		}
 	}
 
@@ -4486,7 +4495,7 @@ static int mvpp2_check_pagepool_dma(struct mvpp2_port *port)
 	if (!priv->percpu_pools)
 		return err;
 
-	if (!priv->page_pool)
+	if (!priv->page_pool[0])
 		return -ENOMEM;
 
 	for (i = 0; i < priv->port_count; i++) {
