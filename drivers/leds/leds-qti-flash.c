@@ -205,8 +205,7 @@ static const u32 flash_led_max_ires_values[MAX_IRES_LEVELS] = {
 
 static int timeout_to_code(u32 timeout)
 {
-	if (timeout < SAFETY_TIMER_MIN_TIMEOUT_MS ||
-		timeout > SAFETY_TIMER_MAX_TIMEOUT_MS)
+	if (!timeout || timeout > SAFETY_TIMER_MAX_TIMEOUT_MS)
 		return -EINVAL;
 
 	return DIV_ROUND_CLOSEST(timeout, SAFETY_TIMER_STEP_SIZE) - 1;
@@ -1120,6 +1119,11 @@ static int qti_flash_strobe_set(struct led_classdev_flash *fdev,
 	if (state && !fnode->configured)
 		return -EINVAL;
 
+	if (!fnode->duration) {
+		pr_debug("Safety time duration is zero, strobe not set\n");
+		return -EINVAL;
+	}
+
 	mask = FLASH_LED_ENABLE(fnode->id);
 	value = state ? FLASH_LED_ENABLE(fnode->id) : 0;
 
@@ -1161,6 +1165,11 @@ static int qti_flash_timeout_set(struct led_classdev_flash *fdev,
 
 	fnode = container_of(fdev, struct flash_node_data, fdev);
 	led = fnode->led;
+
+	if (!timeout) {
+		fnode->duration = 0;
+		return 0;
+	}
 
 	timeout = timeout / 1000;
 
@@ -1504,7 +1513,7 @@ static int register_flash_device(struct qti_flash_led *led,
 	setting->val = default_curr_ma;
 
 	setting = &fnode->fdev.timeout;
-	setting->min = SAFETY_TIMER_MIN_TIMEOUT_MS * 1000;
+	setting->min = 0;
 	setting->max = SAFETY_TIMER_MAX_TIMEOUT_MS * 1000;
 	setting->step = SAFETY_TIMER_STEP_SIZE * 1000;
 	setting->val = SAFETY_TIMER_DEFAULT_TIMEOUT_MS * 1000;
