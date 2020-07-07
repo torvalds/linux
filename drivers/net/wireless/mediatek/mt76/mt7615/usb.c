@@ -167,12 +167,16 @@ __mt7663u_mac_set_key(struct mt7615_dev *dev,
 
 	lockdep_assert_held(&dev->mt76.mutex);
 
-	if (!sta)
-		return -EINVAL;
+	if (!sta) {
+		err = -EINVAL;
+		goto out;
+	}
 
 	cipher = mt7615_mac_get_cipher(key->cipher);
-	if (cipher == MT_CIPHER_NONE)
-		return -EOPNOTSUPP;
+	if (cipher == MT_CIPHER_NONE) {
+		err = -EOPNOTSUPP;
+		goto out;
+	}
 
 	wcid = &wd->sta->wcid;
 
@@ -180,19 +184,22 @@ __mt7663u_mac_set_key(struct mt7615_dev *dev,
 	err = mt7615_mac_wtbl_update_key(dev, wcid, key->key, key->keylen,
 					 cipher, key->cmd);
 	if (err < 0)
-		return err;
+		goto out;
 
 	err = mt7615_mac_wtbl_update_pk(dev, wcid, cipher, key->keyidx,
 					key->cmd);
 	if (err < 0)
-		return err;
+		goto out;
 
 	if (key->cmd == SET_KEY)
 		wcid->cipher |= BIT(cipher);
 	else
 		wcid->cipher &= ~BIT(cipher);
 
-	return 0;
+out:
+	kfree(key->key);
+
+	return err;
 }
 
 void mt7663u_wtbl_work(struct work_struct *work)
