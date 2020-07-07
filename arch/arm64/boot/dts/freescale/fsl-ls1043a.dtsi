@@ -758,6 +758,7 @@
 			snps,quirk-frame-length-adjustment = <0x20>;
 			snps,dis_rxdet_inp3_quirk;
 			snps,incr-burst-type-adjustment = <1>, <4>, <8>, <16>;
+			status = "disabled";
 		};
 
 		usb1: usb3@3000000 {
@@ -768,6 +769,7 @@
 			snps,quirk-frame-length-adjustment = <0x20>;
 			snps,dis_rxdet_inp3_quirk;
 			snps,incr-burst-type-adjustment = <1>, <4>, <8>, <16>;
+			status = "disabled";
 		};
 
 		usb2: usb3@3100000 {
@@ -778,6 +780,7 @@
 			snps,quirk-frame-length-adjustment = <0x20>;
 			snps,dis_rxdet_inp3_quirk;
 			snps,incr-burst-type-adjustment = <1>, <4>, <8>, <16>;
+			status = "disabled";
 		};
 
 		sata: sata@3200000 {
