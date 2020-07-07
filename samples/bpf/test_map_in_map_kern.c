@@ -11,7 +11,6 @@
 #include <uapi/linux/bpf.h>
 #include <uapi/linux/in6.h>
 #include <bpf/bpf_helpers.h>
-#include "bpf_legacy.h"
 #include <bpf/bpf_tracing.h>
 #include <bpf/bpf_core_read.h>
 #include "trace_common.h"
@@ -19,60 +18,60 @@
 #define MAX_NR_PORTS 65536
 
 /* map #0 */
-struct bpf_map_def_legacy SEC("maps") port_a = {
-	.type = BPF_MAP_TYPE_ARRAY,
-	.key_size = sizeof(u32),
-	.value_size = sizeof(int),
-	.max_entries = MAX_NR_PORTS,
-};
+struct inner_a {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__type(key, u32);
+	__type(value, int);
+	__uint(max_entries, MAX_NR_PORTS);
+} port_a SEC(".maps");
 
 /* map #1 */
-struct bpf_map_def_legacy SEC("maps") port_h = {
-	.type = BPF_MAP_TYPE_HASH,
-	.key_size = sizeof(u32),
-	.value_size = sizeof(int),
-	.max_entries = 1,
-};
+struct inner_h {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__type(key, u32);
+	__type(value, int);
+	__uint(max_entries, 1);
+} port_h SEC(".maps");
 
 /* map #2 */
-struct bpf_map_def_legacy SEC("maps") reg_result_h = {
-	.type = BPF_MAP_TYPE_HASH,
-	.key_size = sizeof(u32),
-	.value_size = sizeof(int),
-	.max_entries = 1,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__type(key, u32);
+	__type(value, int);
+	__uint(max_entries, 1);
+} reg_result_h SEC(".maps");
 
 /* map #3 */
-struct bpf_map_def_legacy SEC("maps") inline_result_h = {
-	.type = BPF_MAP_TYPE_HASH,
-	.key_size = sizeof(u32),
-	.value_size = sizeof(int),
-	.max_entries = 1,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__type(key, u32);
+	__type(value, int);
+	__uint(max_entries, 1);
+} inline_result_h SEC(".maps");
 
 /* map #4 */ /* Test case #0 */
-struct bpf_map_def_legacy SEC("maps") a_of_port_a = {
-	.type = BPF_MAP_TYPE_ARRAY_OF_MAPS,
-	.key_size = sizeof(u32),
-	.inner_map_idx = 0, /* map_fd[0] is port_a */
-	.max_entries = MAX_NR_PORTS,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY_OF_MAPS);
+	__uint(max_entries, MAX_NR_PORTS);
+	__uint(key_size, sizeof(u32));
+	__array(values, struct inner_a); /* use inner_a as inner map */
+} a_of_port_a SEC(".maps");
 
 /* map #5 */ /* Test case #1 */
-struct bpf_map_def_legacy SEC("maps") h_of_port_a = {
-	.type = BPF_MAP_TYPE_HASH_OF_MAPS,
-	.key_size = sizeof(u32),
-	.inner_map_idx = 0, /* map_fd[0] is port_a */
-	.max_entries = 1,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH_OF_MAPS);
+	__uint(max_entries, 1);
+	__uint(key_size, sizeof(u32));
+	__array(values, struct inner_a); /* use inner_a as inner map */
+} h_of_port_a SEC(".maps");
 
 /* map #6 */ /* Test case #2 */
-struct bpf_map_def_legacy SEC("maps") h_of_port_h = {
-	.type = BPF_MAP_TYPE_HASH_OF_MAPS,
-	.key_size = sizeof(u32),
-	.inner_map_idx = 1, /* map_fd[1] is port_h */
-	.max_entries = 1,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH_OF_MAPS);
+	__uint(max_entries, 1);
+	__uint(key_size, sizeof(u32));
+	__array(values, struct inner_h); /* use inner_h as inner map */
+} h_of_port_h SEC(".maps");
 
 static __always_inline int do_reg_lookup(void *inner_map, u32 port)
 {
