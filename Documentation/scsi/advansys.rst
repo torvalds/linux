@@ -125,7 +125,7 @@ The following constants can be defined in the source file.
    c. klogd is started with the appropriate -c parameter
       (e.g. klogd -c 8)
 
-   This will cause printk() messages to be be displayed on the
+   This will cause printk() messages to be displayed on the
    current console. Refer to the klogd(8) and syslogd(8) man pages
    for details.
 
