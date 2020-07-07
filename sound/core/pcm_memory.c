@@ -41,8 +41,9 @@ static int do_alloc_pages(struct snd_card *card, int type, struct device *dev,
 	    card->total_pcm_alloc_bytes + size > max_alloc_per_card)
 		return -ENOMEM;
 
-	if (IS_ENABLED(CONFIG_SND_DMA_SGBUF) &&
-	    (type == SNDRV_DMA_TYPE_DEV_SG || type == SNDRV_DMA_TYPE_DEV_UC_SG) &&
+
+#ifdef CONFIG_SND_DMA_SGBUF
+	if ((type == SNDRV_DMA_TYPE_DEV_SG || type == SNDRV_DMA_TYPE_DEV_UC_SG) &&
 	    !dma_is_direct(get_dma_ops(dev))) {
 		/* mutate to continuous page allocation */
 		dev_dbg(dev, "Use continuous page allocator\n");
@@ -51,6 +52,7 @@ static int do_alloc_pages(struct snd_card *card, int type, struct device *dev,
 		else
 			type = SNDRV_DMA_TYPE_DEV_UC;
 	}
+#endif /* CONFIG_SND_DMA_SGBUF */
 
 	err = snd_dma_alloc_pages(type, dev, size, dmab);
 	if (!err) {
