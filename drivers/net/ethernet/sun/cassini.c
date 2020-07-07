@@ -5203,7 +5203,7 @@ static int __maybe_unused cas_suspend(struct device *dev_d)
 	return 0;
 }
 
-static int cas_resume(struct device *dev_d)
+static int __maybe_unused cas_resume(struct device *dev_d)
 {
 	struct net_device *dev = dev_get_drvdata(dev_d);
 	struct cas *cp = netdev_priv(dev);
