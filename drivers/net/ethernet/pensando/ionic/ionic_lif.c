@@ -1313,7 +1313,7 @@ static int ionic_change_mtu(struct net_device *netdev, int new_mtu)
 		return err;
 
 	netdev->mtu = new_mtu;
-	err = ionic_reset_queues(lif);
+	err = ionic_reset_queues(lif, NULL, NULL);
 
 	return err;
 }
@@ -1325,7 +1325,7 @@ static void ionic_tx_timeout_work(struct work_struct *ws)
 	netdev_info(lif->netdev, "Tx Timeout recovery\n");
 
 	rtnl_lock();
-	ionic_reset_queues(lif);
+	ionic_reset_queues(lif, NULL, NULL);
 	rtnl_unlock();
 }
 
@@ -1988,7 +1988,7 @@ static const struct net_device_ops ionic_netdev_ops = {
 	.ndo_get_vf_stats       = ionic_get_vf_stats,
 };
 
-int ionic_reset_queues(struct ionic_lif *lif)
+int ionic_reset_queues(struct ionic_lif *lif, ionic_reset_cb cb, void *arg)
 {
 	bool running;
 	int err = 0;
@@ -2001,12 +2001,19 @@ int ionic_reset_queues(struct ionic_lif *lif)
 	if (running) {
 		netif_device_detach(lif->netdev);
 		err = ionic_stop(lif->netdev);
+		if (err)
+			goto reset_out;
 	}
-	if (!err && running) {
-		ionic_open(lif->netdev);
+
+	if (cb)
+		cb(lif, arg);
+
+	if (running) {
+		err = ionic_open(lif->netdev);
 		netif_device_attach(lif->netdev);
 	}
 
+reset_out:
 	clear_bit(IONIC_LIF_F_QUEUE_RESET, lif->state);
 
 	return err;
