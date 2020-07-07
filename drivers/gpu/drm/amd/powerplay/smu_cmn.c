@@ -162,3 +162,33 @@ int smu_cmn_feature_is_enabled(struct smu_context *smu,
 
 	return ret;
 }
+
+int smu_cmn_get_enabled_mask(struct smu_context *smu,
+			     uint32_t *feature_mask,
+			     uint32_t num)
+{
+	uint32_t feature_mask_high = 0, feature_mask_low = 0;
+	struct smu_feature *feature = &smu->smu_feature;
+	int ret = 0;
+
+	if (!feature_mask || num < 2)
+		return -EINVAL;
+
+	if (bitmap_empty(feature->enabled, feature->feature_num)) {
+		ret = smu_send_smc_msg(smu, SMU_MSG_GetEnabledSmuFeaturesHigh, &feature_mask_high);
+		if (ret)
+			return ret;
+
+		ret = smu_send_smc_msg(smu, SMU_MSG_GetEnabledSmuFeaturesLow, &feature_mask_low);
+		if (ret)
+			return ret;
+
+		feature_mask[0] = feature_mask_low;
+		feature_mask[1] = feature_mask_high;
+	} else {
+		bitmap_copy((unsigned long *)feature_mask, feature->enabled,
+			     feature->feature_num);
+	}
+
+	return ret;
+}

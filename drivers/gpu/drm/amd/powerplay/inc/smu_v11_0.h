@@ -177,9 +177,6 @@ int smu_v11_0_init_display_count(struct smu_context *smu, uint32_t count);
 
 int smu_v11_0_set_allowed_mask(struct smu_context *smu);
 
-int smu_v11_0_get_enabled_mask(struct smu_context *smu,
-				      uint32_t *feature_mask, uint32_t num);
-
 int smu_v11_0_notify_display_change(struct smu_context *smu);
 
 int smu_v11_0_get_current_power_limit(struct smu_context *smu,

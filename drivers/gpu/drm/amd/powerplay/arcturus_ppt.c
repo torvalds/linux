@@ -1824,7 +1824,7 @@ static bool arcturus_is_dpm_running(struct smu_context *smu)
 	int ret = 0;
 	uint32_t feature_mask[2];
 	unsigned long feature_enabled;
-	ret = smu_feature_get_enabled_mask(smu, feature_mask, 2);
+	ret = smu_cmn_get_enabled_mask(smu, feature_mask, 2);
 	feature_enabled = (unsigned long)((uint64_t)feature_mask[0] |
 			   ((uint64_t)feature_mask[1] << 32));
 	return !!(feature_enabled & SMC_DPM_FEATURE);
@@ -2284,7 +2284,7 @@ static const struct pptable_funcs arcturus_ppt_funcs = {
 	.send_smc_msg_with_param = smu_v11_0_send_msg_with_param,
 	.init_display_count = NULL,
 	.set_allowed_mask = smu_v11_0_set_allowed_mask,
-	.get_enabled_mask = smu_v11_0_get_enabled_mask,
+	.get_enabled_mask = smu_cmn_get_enabled_mask,
 	.feature_is_enabled = smu_cmn_feature_is_enabled,
 	.notify_display_change = NULL,
 	.set_power_limit = smu_v11_0_set_power_limit,

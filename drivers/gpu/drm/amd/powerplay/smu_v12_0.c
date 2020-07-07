@@ -296,29 +296,6 @@ int smu_v12_0_set_default_dpm_tables(struct smu_context *smu)
 	return smu_update_table(smu, SMU_TABLE_DPMCLOCKS, 0, smu_table->clocks_table, false);
 }
 
-int smu_v12_0_get_enabled_mask(struct smu_context *smu,
-				      uint32_t *feature_mask, uint32_t num)
-{
-	uint32_t feature_mask_high = 0, feature_mask_low = 0;
-	int ret = 0;
-
-	if (!feature_mask || num < 2)
-		return -EINVAL;
-
-	ret = smu_send_smc_msg(smu, SMU_MSG_GetEnabledSmuFeaturesHigh, &feature_mask_high);
-	if (ret)
-		return ret;
-
-	ret = smu_send_smc_msg(smu, SMU_MSG_GetEnabledSmuFeaturesLow, &feature_mask_low);
-	if (ret)
-		return ret;
-
-	feature_mask[0] = feature_mask_low;
-	feature_mask[1] = feature_mask_high;
-
-	return ret;
-}
-
 int smu_v12_0_mode2_reset(struct smu_context *smu){
 	return smu_v12_0_send_msg_with_param(smu, SMU_MSG_GfxDeviceDriverReset, SMU_RESET_MODE_2, NULL);
 }
