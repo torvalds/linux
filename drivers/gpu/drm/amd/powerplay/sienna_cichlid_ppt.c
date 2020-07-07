@@ -826,6 +826,8 @@ static int sienna_cichlid_dpm_set_vcn_enable(struct smu_context *smu, bool enabl
 {
 	struct smu_power_context *smu_power = &smu->smu_power;
 	struct smu_power_gate *power_gate = &smu_power->power_gate;
+	struct amdgpu_device *adev = smu->adev;
+
 	int ret = 0;
 
 	if (enable) {
@@ -834,9 +836,12 @@ static int sienna_cichlid_dpm_set_vcn_enable(struct smu_context *smu, bool enabl
 			ret = smu_send_smc_msg_with_param(smu, SMU_MSG_PowerUpVcn, 0, NULL);
 			if (ret)
 				return ret;
-			ret = smu_send_smc_msg_with_param(smu, SMU_MSG_PowerUpVcn, 0x10000, NULL);
-			if (ret)
-				return ret;
+			if (adev->asic_type == CHIP_SIENNA_CICHLID) {
+				ret = smu_send_smc_msg_with_param(smu, SMU_MSG_PowerUpVcn,
+								  0x10000, NULL);
+				if (ret)
+					return ret;
+			}
 		}
 		power_gate->vcn_gated = false;
 	} else {
@@ -844,9 +849,12 @@ static int sienna_cichlid_dpm_set_vcn_enable(struct smu_context *smu, bool enabl
 			ret = smu_send_smc_msg_with_param(smu, SMU_MSG_PowerDownVcn, 0, NULL);
 			if (ret)
 				return ret;
-			ret = smu_send_smc_msg_with_param(smu, SMU_MSG_PowerDownVcn, 0x10000, NULL);
-			if (ret)
-				return ret;
+			if (adev->asic_type == CHIP_SIENNA_CICHLID) {
+				ret = smu_send_smc_msg_with_param(smu, SMU_MSG_PowerDownVcn,
+								  0x10000, NULL);
+				if (ret)
+					return ret;
+			}
 		}
 		power_gate->vcn_gated = true;
 	}
