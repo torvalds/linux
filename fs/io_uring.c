@@ -2080,9 +2080,9 @@ static void io_iopoll_reap_events(struct io_ring_ctx *ctx)
 	mutex_unlock(&ctx->uring_lock);
 }
 
-static int io_iopoll_check(struct io_ring_ctx *ctx, unsigned *nr_events,
-			   long min)
+static int io_iopoll_check(struct io_ring_ctx *ctx, long min)
 {
+	unsigned int nr_events = 0;
 	int iters = 0, ret = 0;
 
 	/*
@@ -2116,11 +2116,11 @@ static int io_iopoll_check(struct io_ring_ctx *ctx, unsigned *nr_events,
 			mutex_lock(&ctx->uring_lock);
 		}
 
-		ret = io_iopoll_getevents(ctx, nr_events, min);
+		ret = io_iopoll_getevents(ctx, &nr_events, min);
 		if (ret <= 0)
 			break;
 		ret = 0;
-	} while (min && !*nr_events && !need_resched());
+	} while (min && !nr_events && !need_resched());
 
 	mutex_unlock(&ctx->uring_lock);
 	return ret;
@@ -7977,8 +7977,6 @@ SYSCALL_DEFINE6(io_uring_enter, unsigned int, fd, u32, to_submit,
 			goto out;
 	}
 	if (flags & IORING_ENTER_GETEVENTS) {
-		unsigned nr_events = 0;
-
 		min_complete = min(min_complete, ctx->cq_entries);
 
 		/*
@@ -7989,7 +7987,7 @@ SYSCALL_DEFINE6(io_uring_enter, unsigned int, fd, u32, to_submit,
 		 */
 		if (ctx->flags & IORING_SETUP_IOPOLL &&
 		    !(ctx->flags & IORING_SETUP_SQPOLL)) {
-			ret = io_iopoll_check(ctx, &nr_events, min_complete);
+			ret = io_iopoll_check(ctx, min_complete);
 		} else {
 			ret = io_cqring_wait(ctx, min_complete, sig, sigsz);
 		}
