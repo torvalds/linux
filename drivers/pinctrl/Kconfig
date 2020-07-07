@@ -179,10 +179,14 @@ config PINCTRL_OXNAS
 
 config PINCTRL_ROCKCHIP
 	tristate "Rockchip gpio and pinctrl driver"
+	select GPIOLIB
 	select PINMUX
 	select GENERIC_PINCONF
 	select GENERIC_IRQ_CHIP
 	select MFD_SYSCON
+	default ARCH_ROCKCHIP
+	help
+	  This support pinctrl and gpio driver for Rockchip SoCs.
 
 config PINCTRL_RZA1
 	bool "Renesas RZ/A1 gpio and pinctrl driver"
