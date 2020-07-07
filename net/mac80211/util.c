@@ -2347,10 +2347,10 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		case NL80211_IFTYPE_ADHOC:
 			if (sdata->vif.bss_conf.ibss_joined)
 				WARN_ON(drv_join_ibss(local, sdata));
-			/* fall through */
+			fallthrough;
 		default:
 			ieee80211_reconfig_stations(sdata);
-			/* fall through */
+			fallthrough;
 		case NL80211_IFTYPE_AP: /* AP stations are handled later */
 			for (i = 0; i < IEEE80211_NUM_ACS; i++)
 				drv_conf_tx(local, sdata, i,
@@ -2399,7 +2399,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 			break;
 		case NL80211_IFTYPE_ADHOC:
 			changed |= BSS_CHANGED_IBSS;
-			/* fall through */
+			fallthrough;
 		case NL80211_IFTYPE_AP:
 			changed |= BSS_CHANGED_SSID | BSS_CHANGED_P2P_PS;
 
@@ -2414,8 +2414,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 				if (rcu_access_pointer(sdata->u.ap.beacon))
 					drv_start_ap(local, sdata);
 			}
-
-			/* fall through */
+			fallthrough;
 		case NL80211_IFTYPE_MESH_POINT:
 			if (sdata->vif.bss_conf.enable_beacon) {
 				changed |= BSS_CHANGED_BEACON |
@@ -2885,7 +2884,7 @@ void ieee80211_ie_build_he_6ghz_cap(struct ieee80211_sub_if_data *sdata,
 	case IEEE80211_SMPS_AUTOMATIC:
 	case IEEE80211_SMPS_NUM_MODES:
 		WARN_ON(1);
-		/* fall through */
+		fallthrough;
 	case IEEE80211_SMPS_OFF:
 		cap |= u16_encode_bits(WLAN_HT_CAP_SM_PS_DISABLED,
 				       IEEE80211_HE_6GHZ_CAP_SM_PS);
@@ -3196,7 +3195,7 @@ bool ieee80211_chandef_vht_oper(struct ieee80211_hw *hw, u32 vht_cap_info,
 		break;
 	case 0x01:
 		support_80_80 = false;
-		/* fall through */
+		fallthrough;
 	case 0x02:
 	case 0x03:
 		ccf1 = ccfs2;
@@ -3566,7 +3565,7 @@ u64 ieee80211_calculate_rx_timestamp(struct ieee80211_local *local,
 		break;
 	default:
 		WARN_ON(1);
-		/* fall through */
+		fallthrough;
 	case RX_ENC_LEGACY: {
 		struct ieee80211_supported_band *sband;
 		int shift = 0;

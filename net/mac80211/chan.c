@@ -748,7 +748,7 @@ void ieee80211_recalc_smps_chanctx(struct ieee80211_local *local,
 		default:
 			WARN_ONCE(1, "Invalid SMPS mode %d\n",
 				  sdata->smps_mode);
-			/* fall through */
+			fallthrough;
 		case IEEE80211_SMPS_OFF:
 			needed_static = sdata->needed_rx_chains;
 			needed_dynamic = sdata->needed_rx_chains;
