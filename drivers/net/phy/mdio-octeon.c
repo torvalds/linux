@@ -108,12 +108,6 @@ static struct platform_driver octeon_mdiobus_driver = {
 	.remove		= octeon_mdiobus_remove,
 };
 
-void octeon_mdiobus_force_mod_depencency(void)
-{
-	/* Let ethernet drivers force us to be loaded.  */
-}
-EXPORT_SYMBOL(octeon_mdiobus_force_mod_depencency);
-
 module_platform_driver(octeon_mdiobus_driver);
 
 MODULE_DESCRIPTION("Cavium OCTEON MDIO bus driver");
