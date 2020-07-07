@@ -150,6 +150,10 @@ properties:
           - const: si-linux,cat874
           - const: renesas,r8a774c0
 
+      - description: RZ/G2H (R8A774E1)
+        items:
+          - const: renesas,r8a774e1
+
       - description: R-Car M1A (R8A77781)
         items:
           - enum:
