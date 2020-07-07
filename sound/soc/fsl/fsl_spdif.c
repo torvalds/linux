@@ -985,6 +985,10 @@ static int fsl_spdif_dai_probe(struct snd_soc_dai *dai)
 
 	snd_soc_add_dai_controls(dai, fsl_spdif_ctrls, ARRAY_SIZE(fsl_spdif_ctrls));
 
+	/*Clear the val bit for Tx*/
+	regmap_update_bits(spdif_private->regmap, REG_SPDIF_SCR,
+			   SCR_VAL_MASK, SCR_VAL_CLEAR);
+
 	return 0;
 }
 
