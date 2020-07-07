@@ -584,6 +584,8 @@ struct pptable_funcs {
 	int (*disable_umc_cdr_12gbps_workaround)(struct smu_context *smu);
 	int (*set_power_source)(struct smu_context *smu, enum smu_power_src_type power_src);
 	void (*log_thermal_throttling_event)(struct smu_context *smu);
+	size_t (*get_pp_feature_mask)(struct smu_context *smu, char *buf);
+	int (*set_pp_feature_mask)(struct smu_context *smu, uint64_t new_mask);
 };
 
 typedef enum {
@@ -729,9 +731,6 @@ extern const struct amd_ip_funcs smu_ip_funcs;
 extern const struct amdgpu_ip_block_version smu_v11_0_ip_block;
 extern const struct amdgpu_ip_block_version smu_v12_0_ip_block;
 
-extern int smu_feature_set_enabled(struct smu_context *smu,
-				   enum smu_feature_mask mask, bool enable);
-
 int smu_update_table(struct smu_context *smu, enum smu_table_id table_index, int argument,
 		     void *table_data, bool drv2smu);
 
@@ -771,7 +770,6 @@ int smu_set_display_count(struct smu_context *smu, uint32_t count);
 int smu_set_ac_dc(struct smu_context *smu);
 bool smu_clk_dpm_is_enabled(struct smu_context *smu, enum smu_clk_type clk_type);
 const char *smu_get_message_name(struct smu_context *smu, enum smu_message_type type);
-const char *smu_get_feature_name(struct smu_context *smu, enum smu_feature_mask feature);
 size_t smu_sys_get_pp_feature_mask(struct smu_context *smu, char *buf);
 int smu_sys_set_pp_feature_mask(struct smu_context *smu, uint64_t new_mask);
 int smu_force_clk_levels(struct smu_context *smu,

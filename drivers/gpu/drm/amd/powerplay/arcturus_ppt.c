@@ -1838,7 +1838,7 @@ static int arcturus_dpm_set_vcn_enable(struct smu_context *smu, bool enable)
 
 	if (enable) {
 		if (!smu_cmn_feature_is_enabled(smu, SMU_FEATURE_VCN_PG_BIT)) {
-			ret = smu_feature_set_enabled(smu, SMU_FEATURE_VCN_PG_BIT, 1);
+			ret = smu_cmn_feature_set_enabled(smu, SMU_FEATURE_VCN_PG_BIT, 1);
 			if (ret) {
 				dev_err(smu->adev->dev, "[EnableVCNDPM] failed!\n");
 				return ret;
@@ -1847,7 +1847,7 @@ static int arcturus_dpm_set_vcn_enable(struct smu_context *smu, bool enable)
 		power_gate->vcn_gated = false;
 	} else {
 		if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_VCN_PG_BIT)) {
-			ret = smu_feature_set_enabled(smu, SMU_FEATURE_VCN_PG_BIT, 0);
+			ret = smu_cmn_feature_set_enabled(smu, SMU_FEATURE_VCN_PG_BIT, 0);
 			if (ret) {
 				dev_err(smu->adev->dev, "[DisableVCNDPM] failed!\n");
 				return ret;
@@ -2312,6 +2312,8 @@ static const struct pptable_funcs arcturus_ppt_funcs = {
 	.set_df_cstate = arcturus_set_df_cstate,
 	.allow_xgmi_power_down = arcturus_allow_xgmi_power_down,
 	.log_thermal_throttling_event = arcturus_log_thermal_throttling_event,
+	.get_pp_feature_mask = smu_cmn_get_pp_feature_mask,
+	.set_pp_feature_mask = smu_cmn_set_pp_feature_mask,
 };
 
 void arcturus_set_ppt_funcs(struct smu_context *smu)

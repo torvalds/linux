@@ -1025,6 +1025,8 @@ static const struct pptable_funcs renoir_ppt_funcs = {
 	.set_soft_freq_limited_range = smu_v12_0_set_soft_freq_limited_range,
 	.set_driver_table_location = smu_v12_0_set_driver_table_location,
 	.is_dpm_running = renoir_is_dpm_running,
+	.get_pp_feature_mask = smu_cmn_get_pp_feature_mask,
+	.set_pp_feature_mask = smu_cmn_set_pp_feature_mask,
 };
 
 void renoir_set_ppt_funcs(struct smu_context *smu)

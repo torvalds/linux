@@ -59,147 +59,33 @@ const char *smu_get_message_name(struct smu_context *smu, enum smu_message_type 
 	return __smu_message_names[type];
 }
 
-#undef __SMU_DUMMY_MAP
-#define __SMU_DUMMY_MAP(fea)	#fea
-static const char* __smu_feature_names[] = {
-	SMU_FEATURE_MASKS
-};
-
-const char *smu_get_feature_name(struct smu_context *smu, enum smu_feature_mask feature)
-{
-	if (feature < 0 || feature >= SMU_FEATURE_COUNT)
-		return "unknown smu feature";
-	return __smu_feature_names[feature];
-}
-
 size_t smu_sys_get_pp_feature_mask(struct smu_context *smu, char *buf)
 {
 	size_t size = 0;
-	int ret = 0, i = 0;
-	uint32_t feature_mask[2] = { 0 };
-	int32_t feature_index = 0;
-	uint32_t count = 0;
-	uint32_t sort_feature[SMU_FEATURE_COUNT];
-	uint64_t hw_feature_count = 0;
 
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
 		return -EOPNOTSUPP;
 
 	mutex_lock(&smu->mutex);
 
-	ret = smu_feature_get_enabled_mask(smu, feature_mask, 2);
-	if (ret)
-		goto failed;
+	size = smu_get_pp_feature_mask(smu, buf);
 
-	size =  sprintf(buf + size, "features high: 0x%08x low: 0x%08x\n",
-			feature_mask[1], feature_mask[0]);
-
-	for (i = 0; i < SMU_FEATURE_COUNT; i++) {
-		feature_index = smu_cmn_to_asic_specific_index(smu,
-							       CMN2ASIC_MAPPING_FEATURE,
-							       i);
-		if (feature_index < 0)
-			continue;
-		sort_feature[feature_index] = i;
-		hw_feature_count++;
-	}
-
-	for (i = 0; i < hw_feature_count; i++) {
-		size += sprintf(buf + size, "%02d. %-20s (%2d) : %s\n",
-			       count++,
-			       smu_get_feature_name(smu, sort_feature[i]),
-			       i,
-			       !!smu_feature_is_enabled(smu, sort_feature[i]) ?
-			       "enabled" : "disabled");
-	}
-
-failed:
 	mutex_unlock(&smu->mutex);
 
 	return size;
 }
 
-static int smu_feature_update_enable_state(struct smu_context *smu,
-					   uint64_t feature_mask,
-					   bool enabled)
-{
-	struct smu_feature *feature = &smu->smu_feature;
-	int ret = 0;
-
-	if (enabled) {
-		ret = smu_send_smc_msg_with_param(smu,
-						  SMU_MSG_EnableSmuFeaturesLow,
-						  lower_32_bits(feature_mask),
-						  NULL);
-		if (ret)
-			return ret;
-		ret = smu_send_smc_msg_with_param(smu,
-						  SMU_MSG_EnableSmuFeaturesHigh,
-						  upper_32_bits(feature_mask),
-						  NULL);
-		if (ret)
-			return ret;
-	} else {
-		ret = smu_send_smc_msg_with_param(smu,
-						  SMU_MSG_DisableSmuFeaturesLow,
-						  lower_32_bits(feature_mask),
-						  NULL);
-		if (ret)
-			return ret;
-		ret = smu_send_smc_msg_with_param(smu,
-						  SMU_MSG_DisableSmuFeaturesHigh,
-						  upper_32_bits(feature_mask),
-						  NULL);
-		if (ret)
-			return ret;
-	}
-
-	mutex_lock(&feature->mutex);
-	if (enabled)
-		bitmap_or(feature->enabled, feature->enabled,
-				(unsigned long *)(&feature_mask), SMU_FEATURE_MAX);
-	else
-		bitmap_andnot(feature->enabled, feature->enabled,
-				(unsigned long *)(&feature_mask), SMU_FEATURE_MAX);
-	mutex_unlock(&feature->mutex);
-
-	return ret;
-}
-
 int smu_sys_set_pp_feature_mask(struct smu_context *smu, uint64_t new_mask)
 {
 	int ret = 0;
-	uint32_t feature_mask[2] = { 0 };
-	uint64_t feature_2_enabled = 0;
-	uint64_t feature_2_disabled = 0;
-	uint64_t feature_enables = 0;
 
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
 		return -EOPNOTSUPP;
 
 	mutex_lock(&smu->mutex);
 
-	ret = smu_feature_get_enabled_mask(smu, feature_mask, 2);
-	if (ret)
-		goto out;
+	ret = smu_set_pp_feature_mask(smu, new_mask);
 
-	feature_enables = ((uint64_t)feature_mask[1] << 32 | (uint64_t)feature_mask[0]);
-
-	feature_2_enabled  = ~feature_enables & new_mask;
-	feature_2_disabled = feature_enables & ~new_mask;
-
-	if (feature_2_enabled) {
-		ret = smu_feature_update_enable_state(smu, feature_2_enabled, true);
-		if (ret)
-			goto out;
-	}
-	if (feature_2_disabled) {
-		ret = smu_feature_update_enable_state(smu, feature_2_disabled, false);
-		if (ret)
-			goto out;
-	}
-
-out:
 	mutex_unlock(&smu->mutex);
 
 	return ret;
@@ -538,25 +424,6 @@ static int smu_get_driver_allowed_feature_mask(struct smu_context *smu)
 	mutex_unlock(&feature->mutex);
 
 	return ret;
-}
-
-int smu_feature_set_enabled(struct smu_context *smu, enum smu_feature_mask mask,
-			    bool enable)
-{
-	struct smu_feature *feature = &smu->smu_feature;
-	int feature_id;
-
-	feature_id = smu_cmn_to_asic_specific_index(smu,
-						    CMN2ASIC_MAPPING_FEATURE,
-						    mask);
-	if (feature_id < 0)
-		return -EINVAL;
-
-	WARN_ON(feature_id > feature->feature_num);
-
-	return smu_feature_update_enable_state(smu,
-					       1ULL << feature_id,
-					       enable);
 }
 
 static int smu_set_funcs(struct amdgpu_device *adev)

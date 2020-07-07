@@ -39,4 +39,14 @@ int smu_cmn_get_enabled_mask(struct smu_context *smu,
 			     uint32_t *feature_mask,
 			     uint32_t num);
 
+int smu_cmn_feature_set_enabled(struct smu_context *smu,
+				enum smu_feature_mask mask,
+				bool enable);
+
+size_t smu_cmn_get_pp_feature_mask(struct smu_context *smu,
+				   char *buf);
+
+int smu_cmn_set_pp_feature_mask(struct smu_context *smu,
+				uint64_t new_mask);
+
 #endif
