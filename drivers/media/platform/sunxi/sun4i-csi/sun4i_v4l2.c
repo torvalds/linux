@@ -242,7 +242,8 @@ static int sun4i_csi_release(struct file *file)
 
 	mutex_lock(&csi->lock);
 
-	v4l2_fh_release(file);
+	_vb2_fop_release(file, NULL);
+
 	v4l2_pipeline_pm_put(&csi->vdev.entity);
 	pm_runtime_put(csi->dev);
 
