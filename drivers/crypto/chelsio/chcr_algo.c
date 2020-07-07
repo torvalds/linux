@@ -690,26 +690,22 @@ static int chcr_sg_ent_in_wr(struct scatterlist *src,
 	return min(srclen, dstlen);
 }
 
-static int chcr_cipher_fallback(struct crypto_sync_skcipher *cipher,
-				u32 flags,
-				struct scatterlist *src,
-				struct scatterlist *dst,
-				unsigned int nbytes,
+static int chcr_cipher_fallback(struct crypto_skcipher *cipher,
+				struct skcipher_request *req,
 				u8 *iv,
 				unsigned short op_type)
 {
+	struct chcr_skcipher_req_ctx *reqctx = skcipher_request_ctx(req);
 	int err;
 
-	SYNC_SKCIPHER_REQUEST_ON_STACK(subreq, cipher);
+	skcipher_request_set_tfm(&reqctx->fallback_req, cipher);
+	skcipher_request_set_callback(&reqctx->fallback_req, req->base.flags,
+				      req->base.complete, req->base.data);
+	skcipher_request_set_crypt(&reqctx->fallback_req, req->src, req->dst,
+				   req->cryptlen, iv);
 
-	skcipher_request_set_sync_tfm(subreq, cipher);
-	skcipher_request_set_callback(subreq, flags, NULL, NULL);
-	skcipher_request_set_crypt(subreq, src, dst,
-				   nbytes, iv);
-
-	err = op_type ? crypto_skcipher_decrypt(subreq) :
-		crypto_skcipher_encrypt(subreq);
-	skcipher_request_zero(subreq);
+	err = op_type ? crypto_skcipher_decrypt(&reqctx->fallback_req) :
+			crypto_skcipher_encrypt(&reqctx->fallback_req);
 
 	return err;
 
@@ -924,11 +920,11 @@ static int chcr_cipher_fallback_setkey(struct crypto_skcipher *cipher,
 {
 	struct ablk_ctx *ablkctx = ABLK_CTX(c_ctx(cipher));
 
-	crypto_sync_skcipher_clear_flags(ablkctx->sw_cipher,
+	crypto_skcipher_clear_flags(ablkctx->sw_cipher,
 				CRYPTO_TFM_REQ_MASK);
-	crypto_sync_skcipher_set_flags(ablkctx->sw_cipher,
+	crypto_skcipher_set_flags(ablkctx->sw_cipher,
 				cipher->base.crt_flags & CRYPTO_TFM_REQ_MASK);
-	return crypto_sync_skcipher_setkey(ablkctx->sw_cipher, key, keylen);
+	return crypto_skcipher_setkey(ablkctx->sw_cipher, key, keylen);
 }
 
 static int chcr_aes_cbc_setkey(struct crypto_skcipher *cipher,
@@ -1206,13 +1202,8 @@ static int chcr_handle_cipher_resp(struct skcipher_request *req,
 				      req);
 		memcpy(req->iv, reqctx->init_iv, IV);
 		atomic_inc(&adap->chcr_stats.fallback);
-		err = chcr_cipher_fallback(ablkctx->sw_cipher,
-				     req->base.flags,
-				     req->src,
-				     req->dst,
-				     req->cryptlen,
-				     req->iv,
-				     reqctx->op);
+		err = chcr_cipher_fallback(ablkctx->sw_cipher, req, req->iv,
+					   reqctx->op);
 		goto complete;
 	}
 
@@ -1341,11 +1332,7 @@ static int process_cipher(struct skcipher_request *req,
 		chcr_cipher_dma_unmap(&ULD_CTX(c_ctx(tfm))->lldi.pdev->dev,
 				      req);
 fallback:       atomic_inc(&adap->chcr_stats.fallback);
-		err = chcr_cipher_fallback(ablkctx->sw_cipher,
-					   req->base.flags,
-					   req->src,
-					   req->dst,
-					   req->cryptlen,
+		err = chcr_cipher_fallback(ablkctx->sw_cipher, req,
 					   subtype ==
 					   CRYPTO_ALG_SUB_TYPE_CTR_RFC3686 ?
 					   reqctx->iv : req->iv,
@@ -1486,14 +1473,15 @@ static int chcr_init_tfm(struct crypto_skcipher *tfm)
 	struct chcr_context *ctx = crypto_skcipher_ctx(tfm);
 	struct ablk_ctx *ablkctx = ABLK_CTX(ctx);
 
-	ablkctx->sw_cipher = crypto_alloc_sync_skcipher(alg->base.cra_name, 0,
+	ablkctx->sw_cipher = crypto_alloc_skcipher(alg->base.cra_name, 0,
 				CRYPTO_ALG_NEED_FALLBACK);
 	if (IS_ERR(ablkctx->sw_cipher)) {
 		pr_err("failed to allocate fallback for %s\n", alg->base.cra_name);
 		return PTR_ERR(ablkctx->sw_cipher);
 	}
 	init_completion(&ctx->cbc_aes_aio_done);
-	crypto_skcipher_set_reqsize(tfm, sizeof(struct chcr_skcipher_req_ctx));
+	crypto_skcipher_set_reqsize(tfm, sizeof(struct chcr_skcipher_req_ctx) +
+					 crypto_skcipher_reqsize(ablkctx->sw_cipher));
 
 	return chcr_device_init(ctx);
 }
@@ -1507,13 +1495,14 @@ static int chcr_rfc3686_init(struct crypto_skcipher *tfm)
 	/*RFC3686 initialises IV counter value to 1, rfc3686(ctr(aes))
 	 * cannot be used as fallback in chcr_handle_cipher_response
 	 */
-	ablkctx->sw_cipher = crypto_alloc_sync_skcipher("ctr(aes)", 0,
+	ablkctx->sw_cipher = crypto_alloc_skcipher("ctr(aes)", 0,
 				CRYPTO_ALG_NEED_FALLBACK);
 	if (IS_ERR(ablkctx->sw_cipher)) {
 		pr_err("failed to allocate fallback for %s\n", alg->base.cra_name);
 		return PTR_ERR(ablkctx->sw_cipher);
 	}
-	crypto_skcipher_set_reqsize(tfm, sizeof(struct chcr_skcipher_req_ctx));
+	crypto_skcipher_set_reqsize(tfm, sizeof(struct chcr_skcipher_req_ctx) +
+				    crypto_skcipher_reqsize(ablkctx->sw_cipher));
 	return chcr_device_init(ctx);
 }
 
@@ -1523,7 +1512,7 @@ static void chcr_exit_tfm(struct crypto_skcipher *tfm)
 	struct chcr_context *ctx = crypto_skcipher_ctx(tfm);
 	struct ablk_ctx *ablkctx = ABLK_CTX(ctx);
 
-	crypto_free_sync_skcipher(ablkctx->sw_cipher);
+	crypto_free_skcipher(ablkctx->sw_cipher);
 }
 
 static int get_alg_config(struct algo_param *params,
