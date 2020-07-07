@@ -1108,7 +1108,6 @@ static int smu_hw_init(void *handle)
 static int smu_disable_dpms(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
-	uint64_t features_to_disable;
 	int ret = 0;
 	bool use_baco = !smu->is_apu &&
 		((adev->in_gpu_reset &&
@@ -1144,13 +1143,8 @@ static int smu_disable_dpms(struct smu_context *smu)
 	 * BACO feature has to be kept enabled.
 	 */
 	if (use_baco && smu_feature_is_enabled(smu, SMU_FEATURE_BACO_BIT)) {
-		features_to_disable = U64_MAX &
-			~(1ULL << smu_cmn_to_asic_specific_index(smu,
-							CMN2ASIC_MAPPING_FEATURE,
-							SMU_FEATURE_BACO_BIT));
-		ret = smu_feature_update_enable_state(smu,
-						      features_to_disable,
-						      0);
+		ret = smu_disable_all_features_with_exception(smu,
+							      SMU_FEATURE_BACO_BIT);
 		if (ret)
 			dev_err(adev->dev, "Failed to disable smu features except BACO.\n");
 	} else {

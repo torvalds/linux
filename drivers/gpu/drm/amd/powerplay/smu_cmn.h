@@ -49,4 +49,7 @@ size_t smu_cmn_get_pp_feature_mask(struct smu_context *smu,
 int smu_cmn_set_pp_feature_mask(struct smu_context *smu,
 				uint64_t new_mask);
 
+int smu_cmn_disable_all_features_with_exception(struct smu_context *smu,
+						enum smu_feature_mask mask);
+
 #endif

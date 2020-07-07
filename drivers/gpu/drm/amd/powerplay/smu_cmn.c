@@ -355,3 +355,22 @@ int smu_cmn_set_pp_feature_mask(struct smu_context *smu,
 
 	return ret;
 }
+
+int smu_cmn_disable_all_features_with_exception(struct smu_context *smu,
+						enum smu_feature_mask mask)
+{
+	uint64_t features_to_disable = U64_MAX;
+	int skipped_feature_id;
+
+	skipped_feature_id = smu_cmn_to_asic_specific_index(smu,
+							    CMN2ASIC_MAPPING_FEATURE,
+							    mask);
+	if (skipped_feature_id < 0)
+		return -EINVAL;
+
+	features_to_disable &= ~(1ULL << skipped_feature_id);
+
+	return smu_cmn_feature_update_enable_state(smu,
+						   features_to_disable,
+						   0);
+}
