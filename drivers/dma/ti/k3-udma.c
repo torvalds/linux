@@ -588,7 +588,7 @@ static bool udma_desc_is_rx_flush(struct udma_chan *uc, dma_addr_t addr)
 static int udma_pop_from_ring(struct udma_chan *uc, dma_addr_t *addr)
 {
 	struct k3_ring *ring = NULL;
-	int ret = -ENOENT;
+	int ret;
 
 	switch (uc->config.dir) {
 	case DMA_DEV_TO_MEM:
@@ -599,26 +599,24 @@ static int udma_pop_from_ring(struct udma_chan *uc, dma_addr_t *addr)
 		ring = uc->tchan->tc_ring;
 		break;
 	default:
-		break;
+		return -ENOENT;
 	}
 
-	if (ring && k3_ringacc_ring_get_occ(ring)) {
-		ret = k3_ringacc_ring_pop(ring, addr);
-		if (ret)
-			return ret;
+	ret = k3_ringacc_ring_pop(ring, addr);
+	if (ret)
+		return ret;
 
-		rmb(); /* Ensure that reads are not moved before this point */
+	rmb(); /* Ensure that reads are not moved before this point */
 
-		/* Teardown completion */
-		if (cppi5_desc_is_tdcm(*addr))
-			return ret;
+	/* Teardown completion */
+	if (cppi5_desc_is_tdcm(*addr))
+		return 0;
 
-		/* Check for flush descriptor */
-		if (udma_desc_is_rx_flush(uc, *addr))
-			return -ENOENT;
-	}
+	/* Check for flush descriptor */
+	if (udma_desc_is_rx_flush(uc, *addr))
+		return -ENOENT;
 
-	return ret;
+	return 0;
 }
 
 static void udma_reset_rings(struct udma_chan *uc)
