@@ -155,11 +155,13 @@ static int fan53880_i2c_probe(struct i2c_client *i2c,
 	return 0;
 }
 
+#ifdef CONFIG_OF
 static const struct of_device_id fan53880_dt_ids[] = {
 	{ .compatible = "onnn,fan53880", },
 	{}
 };
 MODULE_DEVICE_TABLE(of, fan53880_dt_ids);
+#endif
 
 static const struct i2c_device_id fan53880_i2c_id[] = {
 	{ "fan53880", },
