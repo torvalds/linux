@@ -25,8 +25,8 @@
 
 #include <linux/slab.h>
 
-#include "dce/dce_8_0_d.h"
-#include "dce/dce_8_0_sh_mask.h"
+#include "dce/dce_6_0_d.h"
+#include "dce/dce_6_0_sh_mask.h"
 
 #include "dm_services.h"
 
@@ -73,7 +73,6 @@
 #define mmDP3_DP_DPHY_INTERNAL_CTRL                     0x45DE
 #define mmDP4_DP_DPHY_INTERNAL_CTRL                     0x48DE
 #define mmDP5_DP_DPHY_INTERNAL_CTRL                     0x4BDE
-#define mmDP6_DP_DPHY_INTERNAL_CTRL                     0x4EDE
 #endif
 
 
@@ -91,7 +90,6 @@
 	#define mmDP3_DP_DPHY_FAST_TRAINING                     0x45CE
 	#define mmDP4_DP_DPHY_FAST_TRAINING                     0x48CE
 	#define mmDP5_DP_DPHY_FAST_TRAINING                     0x4BCE
-	#define mmDP6_DP_DPHY_FAST_TRAINING                     0x4ECE
 #endif
 
 
@@ -113,38 +111,38 @@ static const struct dce110_timing_generator_offsets dce60_tg_offsets[] = {
 		{
 			.crtc = (mmCRTC0_CRTC_CONTROL - mmCRTC_CONTROL),
 			.dcp =  (mmGRPH_CONTROL - mmGRPH_CONTROL),
-			.dmif = (mmDMIF_PG0_DPG_WATERMARK_MASK_CONTROL
-					- mmDPG_WATERMARK_MASK_CONTROL),
+			.dmif = (mmDMIF_PG0_DPG_PIPE_ARBITRATION_CONTROL3
+					- mmDPG_PIPE_ARBITRATION_CONTROL3),
 		},
 		{
 			.crtc = (mmCRTC1_CRTC_CONTROL - mmCRTC_CONTROL),
 			.dcp = (mmDCP1_GRPH_CONTROL - mmGRPH_CONTROL),
-			.dmif = (mmDMIF_PG1_DPG_WATERMARK_MASK_CONTROL
-					- mmDPG_WATERMARK_MASK_CONTROL),
+			.dmif = (mmDMIF_PG1_DPG_PIPE_ARBITRATION_CONTROL3
+					- mmDPG_PIPE_ARBITRATION_CONTROL3),
 		},
 		{
 			.crtc = (mmCRTC2_CRTC_CONTROL - mmCRTC_CONTROL),
 			.dcp = (mmDCP2_GRPH_CONTROL - mmGRPH_CONTROL),
-			.dmif = (mmDMIF_PG2_DPG_WATERMARK_MASK_CONTROL
-					- mmDPG_WATERMARK_MASK_CONTROL),
+			.dmif = (mmDMIF_PG2_DPG_PIPE_ARBITRATION_CONTROL3
+					- mmDPG_PIPE_ARBITRATION_CONTROL3),
 		},
 		{
 			.crtc = (mmCRTC3_CRTC_CONTROL - mmCRTC_CONTROL),
 			.dcp = (mmDCP3_GRPH_CONTROL - mmGRPH_CONTROL),
-			.dmif = (mmDMIF_PG3_DPG_WATERMARK_MASK_CONTROL
-					- mmDPG_WATERMARK_MASK_CONTROL),
+			.dmif = (mmDMIF_PG3_DPG_PIPE_ARBITRATION_CONTROL3
+					- mmDPG_PIPE_ARBITRATION_CONTROL3),
 		},
 		{
 			.crtc = (mmCRTC4_CRTC_CONTROL - mmCRTC_CONTROL),
 			.dcp = (mmDCP4_GRPH_CONTROL - mmGRPH_CONTROL),
-			.dmif = (mmDMIF_PG4_DPG_WATERMARK_MASK_CONTROL
-					- mmDPG_WATERMARK_MASK_CONTROL),
+			.dmif = (mmDMIF_PG4_DPG_PIPE_ARBITRATION_CONTROL3
+					- mmDPG_PIPE_ARBITRATION_CONTROL3),
 		},
 		{
 			.crtc = (mmCRTC5_CRTC_CONTROL - mmCRTC_CONTROL),
 			.dcp = (mmDCP5_GRPH_CONTROL - mmGRPH_CONTROL),
-			.dmif = (mmDMIF_PG5_DPG_WATERMARK_MASK_CONTROL
-					- mmDPG_WATERMARK_MASK_CONTROL),
+			.dmif = (mmDMIF_PG5_DPG_PIPE_ARBITRATION_CONTROL3
+					- mmDPG_PIPE_ARBITRATION_CONTROL3),
 		}
 };
 
@@ -171,16 +169,16 @@ static const struct dce_ipp_registers ipp_regs[] = {
 };
 
 static const struct dce_ipp_shift ipp_shift = {
-		IPP_COMMON_MASK_SH_LIST_DCE_COMMON_BASE(__SHIFT)
+		IPP_DCE60_MASK_SH_LIST_DCE_COMMON_BASE(__SHIFT)
 };
 
 static const struct dce_ipp_mask ipp_mask = {
-		IPP_COMMON_MASK_SH_LIST_DCE_COMMON_BASE(_MASK)
+		IPP_DCE60_MASK_SH_LIST_DCE_COMMON_BASE(_MASK)
 };
 
 #define transform_regs(id)\
 [id] = {\
-		XFM_COMMON_REG_LIST_DCE80(id)\
+		XFM_COMMON_REG_LIST_DCE60(id)\
 }
 
 static const struct dce_transform_registers xfm_regs[] = {
@@ -193,11 +191,11 @@ static const struct dce_transform_registers xfm_regs[] = {
 };
 
 static const struct dce_transform_shift xfm_shift = {
-		XFM_COMMON_MASK_SH_LIST_DCE80(__SHIFT)
+		XFM_COMMON_MASK_SH_LIST_DCE60(__SHIFT)
 };
 
 static const struct dce_transform_mask xfm_mask = {
-		XFM_COMMON_MASK_SH_LIST_DCE80(_MASK)
+		XFM_COMMON_MASK_SH_LIST_DCE60(_MASK)
 };
 
 #define aux_regs(id)\
@@ -230,7 +228,7 @@ static const struct dce110_link_enc_hpd_registers link_enc_hpd_regs[] = {
 
 #define link_regs(id)\
 [id] = {\
-	LE_DCE80_REG_LIST(id)\
+	LE_DCE60_REG_LIST(id)\
 }
 
 static const struct dce110_link_enc_registers link_enc_regs[] = {
@@ -239,8 +237,7 @@ static const struct dce110_link_enc_registers link_enc_regs[] = {
 	link_regs(2),
 	link_regs(3),
 	link_regs(4),
-	link_regs(5),
-	link_regs(6),
+	link_regs(5)
 };
 
 #define stream_enc_regs(id)\
@@ -255,8 +252,7 @@ static const struct dce110_stream_enc_registers stream_enc_regs[] = {
 	stream_enc_regs(2),
 	stream_enc_regs(3),
 	stream_enc_regs(4),
-	stream_enc_regs(5),
-	stream_enc_regs(6)
+	stream_enc_regs(5)
 };
 
 static const struct dce_stream_encoder_shift se_shift = {
@@ -281,7 +277,7 @@ static const struct dce_panel_cntl_mask panel_cntl_mask = {
 
 #define opp_regs(id)\
 [id] = {\
-	OPP_DCE_80_REG_LIST(id),\
+	OPP_DCE_60_REG_LIST(id),\
 }
 
 static const struct dce_opp_registers opp_regs[] = {
@@ -294,11 +290,11 @@ static const struct dce_opp_registers opp_regs[] = {
 };
 
 static const struct dce_opp_shift opp_shift = {
-	OPP_COMMON_MASK_SH_LIST_DCE_80(__SHIFT)
+	OPP_COMMON_MASK_SH_LIST_DCE_60(__SHIFT)
 };
 
 static const struct dce_opp_mask opp_mask = {
-	OPP_COMMON_MASK_SH_LIST_DCE_80(_MASK)
+	OPP_COMMON_MASK_SH_LIST_DCE_60(_MASK)
 };
 
 static const struct dce110_aux_registers_shift aux_shift = {
@@ -336,15 +332,14 @@ static const struct dce_audio_registers audio_regs[] = {
 	audio_regs(3),
 	audio_regs(4),
 	audio_regs(5),
-	audio_regs(6),
 };
 
 static const struct dce_audio_shift audio_shift = {
-		AUD_COMMON_MASK_SH_LIST(__SHIFT)
+		AUD_DCE60_MASK_SH_LIST(__SHIFT)
 };
 
 static const struct dce_audio_mask audio_mask = {
-		AUD_COMMON_MASK_SH_LIST(_MASK)
+		AUD_DCE60_MASK_SH_LIST(_MASK)
 };
 
 #define clk_src_regs(id)\
@@ -419,15 +414,15 @@ static const struct dc_plane_cap plane_cap = {
 };
 
 static const struct dce_dmcu_registers dmcu_regs = {
-		DMCU_DCE80_REG_LIST()
+		DMCU_DCE60_REG_LIST()
 };
 
 static const struct dce_dmcu_shift dmcu_shift = {
-		DMCU_MASK_SH_LIST_DCE80(__SHIFT)
+		DMCU_MASK_SH_LIST_DCE60(__SHIFT)
 };
 
 static const struct dce_dmcu_mask dmcu_mask = {
-		DMCU_MASK_SH_LIST_DCE80(_MASK)
+		DMCU_MASK_SH_LIST_DCE60(_MASK)
 };
 static const struct dce_abm_registers abm_regs = {
 		ABM_DCE110_COMMON_REG_LIST()
@@ -497,7 +492,7 @@ static void read_dce_straps(
 static struct audio *create_audio(
 		struct dc_context *ctx, unsigned int inst)
 {
-	return dce_audio_create(ctx, inst,
+	return dce60_audio_create(ctx, inst,
 			&audio_regs[inst], &audio_shift, &audio_mask);
 }
 
@@ -526,7 +521,7 @@ static struct output_pixel_processor *dce60_opp_create(
 	if (!opp)
 		return NULL;
 
-	dce110_opp_construct(opp,
+	dce60_opp_construct(opp,
 			     ctx, inst, &opp_regs[inst], &opp_shift, &opp_mask);
 	return &opp->base;
 }
@@ -618,15 +613,15 @@ static struct stream_encoder *dce60_stream_encoder_create(
 	.reg_name[id] = mm ## block ## id ## _ ## reg_name
 
 static const struct dce_hwseq_registers hwseq_reg = {
-		HWSEQ_DCE8_REG_LIST()
+		HWSEQ_DCE6_REG_LIST()
 };
 
 static const struct dce_hwseq_shift hwseq_shift = {
-		HWSEQ_DCE8_MASK_SH_LIST(__SHIFT)
+		HWSEQ_DCE6_MASK_SH_LIST(__SHIFT)
 };
 
 static const struct dce_hwseq_mask hwseq_mask = {
-		HWSEQ_DCE8_MASK_SH_LIST(_MASK)
+		HWSEQ_DCE6_MASK_SH_LIST(_MASK)
 };
 
 static struct dce_hwseq *dce60_hwseq_create(
@@ -651,7 +646,7 @@ static const struct resource_create_funcs res_create_funcs = {
 };
 
 #define mi_inst_regs(id) { \
-	MI_DCE8_REG_LIST(id), \
+	MI_DCE6_REG_LIST(id), \
 	.MC_HUB_RDREQ_DMIF_LIMIT = mmMC_HUB_RDREQ_DMIF_LIMIT \
 }
 static const struct dce_mem_input_registers mi_regs[] = {
@@ -664,12 +659,12 @@ static const struct dce_mem_input_registers mi_regs[] = {
 };
 
 static const struct dce_mem_input_shift mi_shifts = {
-		MI_DCE8_MASK_SH_LIST(__SHIFT),
+		MI_DCE6_MASK_SH_LIST(__SHIFT),
 		.ENABLE = MC_HUB_RDREQ_DMIF_LIMIT__ENABLE__SHIFT
 };
 
 static const struct dce_mem_input_mask mi_masks = {
-		MI_DCE8_MASK_SH_LIST(_MASK),
+		MI_DCE6_MASK_SH_LIST(_MASK),
 		.ENABLE = MC_HUB_RDREQ_DMIF_LIMIT__ENABLE_MASK
 };
 
@@ -685,7 +680,7 @@ static struct mem_input *dce60_mem_input_create(
 		return NULL;
 	}
 
-	dce_mem_input_construct(dce_mi, ctx, inst, &mi_regs[inst], &mi_shifts, &mi_masks);
+	dce60_mem_input_construct(dce_mi, ctx, inst, &mi_regs[inst], &mi_shifts, &mi_masks);
 	dce_mi->wa.single_head_rdreq_dmif_limit = 2;
 	return &dce_mi->base;
 }
@@ -706,7 +701,7 @@ static struct transform *dce60_transform_create(
 	if (!transform)
 		return NULL;
 
-	dce_transform_construct(transform, ctx, inst,
+	dce60_transform_construct(transform, ctx, inst,
 				&xfm_regs[inst], &xfm_shift, &xfm_mask);
 	transform->prescaler_on = false;
 	return &transform->base;
@@ -732,7 +727,7 @@ struct link_encoder *dce60_link_encoder_create(
 	link_regs_id =
 		map_transmitter_id_to_phy_instance(enc_init_data->transmitter);
 
-	dce110_link_encoder_construct(enc110,
+	dce60_link_encoder_construct(enc110,
 				      enc_init_data,
 				      &link_enc_feature,
 				      &link_enc_regs[link_regs_id],
@@ -798,7 +793,7 @@ static struct input_pixel_processor *dce60_ipp_create(
 		return NULL;
 	}
 
-	dce_ipp_construct(ipp, ctx, inst,
+	dce60_ipp_construct(ipp, ctx, inst,
 			&ipp_regs[inst], &ipp_shift, &ipp_mask);
 	return &ipp->base;
 }
