@@ -1230,7 +1230,7 @@ smu_v11_0_auto_fan_control(struct smu_context *smu, bool auto_fan_control)
 {
 	int ret = 0;
 
-	if (!smu_feature_is_supported(smu, SMU_FEATURE_FAN_CONTROL_BIT))
+	if (!smu_cmn_feature_is_supported(smu, SMU_FEATURE_FAN_CONTROL_BIT))
 		return 0;
 
 	ret = smu_feature_set_enabled(smu, SMU_FEATURE_FAN_CONTROL_BIT, auto_fan_control);
@@ -1598,7 +1598,7 @@ bool smu_v11_0_baco_is_support(struct smu_context *smu)
 		return false;
 
 	/* Arcturus does not support this bit mask */
-	if (smu_feature_is_supported(smu, SMU_FEATURE_BACO_BIT) &&
+	if (smu_cmn_feature_is_supported(smu, SMU_FEATURE_BACO_BIT) &&
 	   !smu_feature_is_enabled(smu, SMU_FEATURE_BACO_BIT))
 		return false;
 

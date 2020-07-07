@@ -29,4 +29,7 @@ int smu_cmn_to_asic_specific_index(struct smu_context *smu,
 				   enum smu_cmn2asic_mapping_type type,
 				   uint32_t index);
 
+int smu_cmn_feature_is_supported(struct smu_context *smu,
+				 enum smu_feature_mask mask);
+
 #endif
