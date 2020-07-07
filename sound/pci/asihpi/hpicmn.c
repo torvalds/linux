@@ -28,10 +28,12 @@ struct hpi_adapters_list {
 static struct hpi_adapters_list adapters;
 
 /**
-* Given an HPI Message that was sent out and a response that was received,
-* validate that the response has the correct fields filled in,
-* i.e ObjectType, Function etc
-**/
+ * hpi_validate_response - Given an HPI Message that was sent out and
+ * a response that was received, validate that the response has the
+ * correct fields filled in, i.e ObjectType, Function etc
+ * @phm: message
+ * @phr: response
+ */
 u16 hpi_validate_response(struct hpi_message *phm, struct hpi_response *phr)
 {
 	if (phr->type != HPI_TYPE_RESPONSE) {
@@ -106,10 +108,11 @@ void hpi_delete_adapter(struct hpi_adapter_obj *pao)
 }
 
 /**
-* FindAdapter returns a pointer to the struct hpi_adapter_obj with
-* index wAdapterIndex in an HPI_ADAPTERS_LIST structure.
-*
-*/
+ * hpi_find_adapter - FindAdapter returns a pointer to the struct
+ * hpi_adapter_obj with index wAdapterIndex in an HPI_ADAPTERS_LIST
+ * structure.
+ * @adapter_index: value in [0, HPI_MAX_ADAPTERS[
+ */
 struct hpi_adapter_obj *hpi_find_adapter(u16 adapter_index)
 {
 	struct hpi_adapter_obj *pao = NULL;
@@ -137,10 +140,9 @@ struct hpi_adapter_obj *hpi_find_adapter(u16 adapter_index)
 }
 
 /**
-*
-* wipe an HPI_ADAPTERS_LIST structure.
-*
-**/
+ * wipe_adapter_list - wipe an HPI_ADAPTERS_LIST structure.
+ *
+ */
 static void wipe_adapter_list(void)
 {
 	memset(&adapters, 0, sizeof(adapters));

@@ -114,7 +114,7 @@ int xen_snd_front_stream_prepare(struct xen_snd_front_evtchnl *evtchnl,
 
 int xen_snd_front_stream_close(struct xen_snd_front_evtchnl *evtchnl)
 {
-	struct xensnd_req *req;
+	__always_unused struct xensnd_req *req;
 	int ret;
 
 	mutex_lock(&evtchnl->u.req.req_io_lock);

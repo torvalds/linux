@@ -293,7 +293,6 @@ static int pcr_set_check(struct cmp_connection *c, __be32 pcr)
 /**
  * cmp_connection_establish - establish a connection to the target
  * @c: the connection manager
- * @max_payload_bytes: the amount of data (including CIP headers) per packet
  *
  * This function establishes a point-to-point connection from the local
  * computer to the target by allocating isochronous resources (channel and
