@@ -235,17 +235,14 @@ static int qti_flash_led_read(struct qti_flash_led *led, u16 offset,
 				u8 *data, u8 len)
 {
 	int rc;
-	u32 val;
 
-	rc = regmap_bulk_read(led->regmap, (led->base + offset), &val, len);
-	if (rc < 0) {
+	rc = regmap_bulk_read(led->regmap, (led->base + offset), data, len);
+	if (rc < 0)
 		pr_err("Failed to read from 0x%04X rc = %d\n",
 			(led->base + offset), rc);
-	} else {
-		pr_debug("Read 0x%02X from addr 0x%04X\n", val,
+	else
+		pr_debug("Read %*ph from addr %#x\n", len, data,
 			(led->base + offset));
-		*data = (u8)val;
-	}
 
 	return rc;
 }
@@ -261,7 +258,7 @@ static int qti_flash_led_write(struct qti_flash_led *led, u16 offset,
 		pr_err("Failed to write to 0x%04X rc = %d\n",
 			(led->base + offset), rc);
 	else
-		pr_debug("Wrote 0x%02X to addr 0x%04X\n", data,
+		pr_debug("Wrote %*ph to addr %#x\n", len, data,
 			(led->base + offset));
 
 	return rc;
@@ -278,7 +275,7 @@ static int qti_flash_led_masked_write(struct qti_flash_led *led,
 		pr_err("Failed to update bits from 0x%04X, rc = %d\n",
 			(led->base + offset), rc);
 	else
-		pr_debug("Wrote 0x%02X to addr 0x%04X\n", data,
+		pr_debug("Wrote %#x mask %#x to addr %#x\n", data, mask,
 			(led->base + offset));
 
 	return rc;
