@@ -58,7 +58,8 @@
 
 /* VPP_POSTBLEND_VD1_H_START_END */
 #define VD_H_END(value)			FIELD_PREP(GENMASK(11, 0), value)
-#define VD_H_START(value)		FIELD_PREP(GENMASK(27, 16), value)
+#define VD_H_START(value)		FIELD_PREP(GENMASK(27, 16), \
+						   ((value) & GENMASK(13, 0)))
 
 /* VPP_POSTBLEND_VD1_V_START_END */
 #define VD_V_END(value)			FIELD_PREP(GENMASK(11, 0), value)
@@ -144,7 +145,8 @@
 #define AFBC_MIF_BLK_END_V(value)	FIELD_PREP(GENMASK(11, 0), value)
 
 /* AFBC_PIXEL_HOR_SCOPE */
-#define AFBC_DEC_PIXEL_BGN_H(value)	FIELD_PREP(GENMASK(28, 16), value)
+#define AFBC_DEC_PIXEL_BGN_H(value)	FIELD_PREP(GENMASK(28, 16), \
+						   ((value) & GENMASK(12, 0)))
 #define AFBC_DEC_PIXEL_END_H(value)	FIELD_PREP(GENMASK(12, 0), value)
 
 /* AFBC_PIXEL_VER_SCOPE */
