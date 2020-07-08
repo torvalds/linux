@@ -247,7 +247,8 @@ static void smcr_lgr_link_deactivate_all(struct smc_link_group *lgr)
 		if (smc_link_usable(lnk))
 			lnk->state = SMC_LNK_INACTIVE;
 	}
-	wake_up_interruptible_all(&lgr->llc_waiter);
+	wake_up_all(&lgr->llc_msg_waiter);
+	wake_up_all(&lgr->llc_flow_waiter);
 }
 
 static void smc_lgr_free(struct smc_link_group *lgr);
@@ -1130,18 +1131,19 @@ static void smcr_link_up(struct smc_link_group *lgr,
 			return;
 		if (lgr->llc_flow_lcl.type != SMC_LLC_FLOW_NONE) {
 			/* some other llc task is ongoing */
-			wait_event_interruptible_timeout(lgr->llc_waiter,
-				(lgr->llc_flow_lcl.type == SMC_LLC_FLOW_NONE),
+			wait_event_timeout(lgr->llc_flow_waiter,
+				(list_empty(&lgr->list) ||
+				 lgr->llc_flow_lcl.type == SMC_LLC_FLOW_NONE),
 				SMC_LLC_WAIT_TIME);
 		}
-		if (list_empty(&lgr->list) ||
-		    !smc_ib_port_active(smcibdev, ibport))
-			return; /* lgr or device no longer active */
-		link = smc_llc_usable_link(lgr);
-		if (!link)
-			return;
-		smc_llc_send_add_link(link, smcibdev->mac[ibport - 1], gid,
-				      NULL, SMC_LLC_REQ);
+		/* lgr or device no longer active? */
+		if (!list_empty(&lgr->list) &&
+		    smc_ib_port_active(smcibdev, ibport))
+			link = smc_llc_usable_link(lgr);
+		if (link)
+			smc_llc_send_add_link(link, smcibdev->mac[ibport - 1],
+					      gid, NULL, SMC_LLC_REQ);
+		wake_up(&lgr->llc_flow_waiter);	/* wake up next waiter */
 	}
 }
 
@@ -1195,13 +1197,17 @@ static void smcr_link_down(struct smc_link *lnk)
 		if (lgr->llc_flow_lcl.type != SMC_LLC_FLOW_NONE) {
 			/* another llc task is ongoing */
 			mutex_unlock(&lgr->llc_conf_mutex);
-			wait_event_interruptible_timeout(lgr->llc_waiter,
-				(lgr->llc_flow_lcl.type == SMC_LLC_FLOW_NONE),
+			wait_event_timeout(lgr->llc_flow_waiter,
+				(list_empty(&lgr->list) ||
+				 lgr->llc_flow_lcl.type == SMC_LLC_FLOW_NONE),
 				SMC_LLC_WAIT_TIME);
 			mutex_lock(&lgr->llc_conf_mutex);
 		}
-		smc_llc_send_delete_link(to_lnk, del_link_id, SMC_LLC_REQ, true,
-					 SMC_LLC_DEL_LOST_PATH);
+		if (!list_empty(&lgr->list))
+			smc_llc_send_delete_link(to_lnk, del_link_id,
+						 SMC_LLC_REQ, true,
+						 SMC_LLC_DEL_LOST_PATH);
+		wake_up(&lgr->llc_flow_waiter);	/* wake up next waiter */
 	}
 }
 
@@ -1262,7 +1268,7 @@ static void smc_link_down_work(struct work_struct *work)
 
 	if (list_empty(&lgr->list))
 		return;
-	wake_up_interruptible_all(&lgr->llc_waiter);
+	wake_up_all(&lgr->llc_msg_waiter);
 	mutex_lock(&lgr->llc_conf_mutex);
 	smcr_link_down(link);
 	mutex_unlock(&lgr->llc_conf_mutex);
