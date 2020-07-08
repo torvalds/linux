@@ -1269,6 +1269,41 @@ TRACE_EVENT(xs_stream_read_request,
 			__entry->copied, __entry->reclen, __entry->offset)
 );
 
+TRACE_EVENT(rpcb_getport,
+	TP_PROTO(
+		const struct rpc_clnt *clnt,
+		const struct rpc_task *task,
+		unsigned int bind_version
+	),
+
+	TP_ARGS(clnt, task, bind_version),
+
+	TP_STRUCT__entry(
+		__field(unsigned int, task_id)
+		__field(unsigned int, client_id)
+		__field(unsigned int, program)
+		__field(unsigned int, version)
+		__field(int, protocol)
+		__field(unsigned int, bind_version)
+		__string(servername, task->tk_xprt->servername)
+	),
+
+	TP_fast_assign(
+		__entry->task_id = task->tk_pid;
+		__entry->client_id = clnt->cl_clid;
+		__entry->program = clnt->cl_prog;
+		__entry->version = clnt->cl_vers;
+		__entry->protocol = task->tk_xprt->prot;
+		__entry->bind_version = bind_version;
+		__assign_str(servername, task->tk_xprt->servername);
+	),
+
+	TP_printk("task:%u@%u server=%s program=%u version=%u protocol=%d bind_version=%u",
+		__entry->task_id, __entry->client_id, __get_str(servername),
+		__entry->program, __entry->version, __entry->protocol,
+		__entry->bind_version
+	)
+);
 
 DECLARE_EVENT_CLASS(svc_xdr_buf_class,
 	TP_PROTO(

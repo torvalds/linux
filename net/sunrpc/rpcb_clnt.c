@@ -31,6 +31,8 @@
 #include <linux/sunrpc/sched.h>
 #include <linux/sunrpc/xprtsock.h>
 
+#include <trace/events/sunrpc.h>
+
 #include "netns.h"
 
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
@@ -693,18 +695,12 @@ void rpcb_getport_async(struct rpc_task *task)
 	rcu_read_unlock();
 	xprt = xprt_get(task->tk_xprt);
 
-	dprintk("RPC: %5u %s(%s, %u, %u, %d)\n",
-		task->tk_pid, __func__,
-		xprt->servername, clnt->cl_prog, clnt->cl_vers, xprt->prot);
-
 	/* Put self on the wait queue to ensure we get notified if
 	 * some other task is already attempting to bind the port */
 	rpc_sleep_on_timeout(&xprt->binding, task,
 			NULL, jiffies + xprt->bind_timeout);
 
 	if (xprt_test_and_set_binding(xprt)) {
-		dprintk("RPC: %5u %s: waiting for another binder\n",
-			task->tk_pid, __func__);
 		xprt_put(xprt);
 		return;
 	}
@@ -712,8 +708,6 @@ void rpcb_getport_async(struct rpc_task *task)
 	/* Someone else may have bound if we slept */
 	if (xprt_bound(xprt)) {
 		status = 0;
-		dprintk("RPC: %5u %s: already bound\n",
-			task->tk_pid, __func__);
 		goto bailout_nofree;
 	}
 
@@ -732,20 +726,15 @@ void rpcb_getport_async(struct rpc_task *task)
 		break;
 	default:
 		status = -EAFNOSUPPORT;
-		dprintk("RPC: %5u %s: bad address family\n",
-				task->tk_pid, __func__);
 		goto bailout_nofree;
 	}
 	if (proc == NULL) {
 		xprt->bind_index = 0;
 		status = -EPFNOSUPPORT;
-		dprintk("RPC: %5u %s: no more getport versions available\n",
-			task->tk_pid, __func__);
 		goto bailout_nofree;
 	}
 
-	dprintk("RPC: %5u %s: trying rpcbind version %u\n",
-		task->tk_pid, __func__, bind_version);
+	trace_rpcb_getport(clnt, task, bind_version);
 
 	rpcb_clnt = rpcb_create(xprt->xprt_net,
 				clnt->cl_nodename,
@@ -754,16 +743,12 @@ void rpcb_getport_async(struct rpc_task *task)
 				clnt->cl_cred);
 	if (IS_ERR(rpcb_clnt)) {
 		status = PTR_ERR(rpcb_clnt);
-		dprintk("RPC: %5u %s: rpcb_create failed, error %ld\n",
-			task->tk_pid, __func__, PTR_ERR(rpcb_clnt));
 		goto bailout_nofree;
 	}
 
 	map = kzalloc(sizeof(struct rpcbind_args), GFP_NOFS);
 	if (!map) {
 		status = -ENOMEM;
-		dprintk("RPC: %5u %s: no memory available\n",
-			task->tk_pid, __func__);
 		goto bailout_release_client;
 	}
 	map->r_prog = clnt->cl_prog;
@@ -780,8 +765,6 @@ void rpcb_getport_async(struct rpc_task *task)
 		map->r_addr = rpc_sockaddr2uaddr(sap, GFP_NOFS);
 		if (!map->r_addr) {
 			status = -ENOMEM;
-			dprintk("RPC: %5u %s: no memory available\n",
-				task->tk_pid, __func__);
 			goto bailout_free_args;
 		}
 		map->r_owner = "";
