@@ -711,9 +711,22 @@ static int pcm_prepare(struct snd_pcm_substream *substream)
 
 	if (snd_BUG_ON(pipe_index >= px_num(chip)))
 		return -EINVAL;
-	if (snd_BUG_ON(!is_pipe_allocated(chip, pipe_index)))
+
+	/*
+	 * We passed checks we can do independently; now take
+	 * exclusive control
+	 */
+
+	spin_lock_irq(&chip->lock);
+
+	if (snd_BUG_ON(!is_pipe_allocated(chip, pipe_index))) {
+		spin_unlock(&chip->lock);
 		return -EINVAL;
+	}
+
 	set_audio_format(chip, pipe_index, &format);
+	spin_unlock_irq(&chip->lock);
+
 	return 0;
 }
 
