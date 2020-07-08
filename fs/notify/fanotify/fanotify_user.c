@@ -836,13 +836,26 @@ static int fanotify_add_inode_mark(struct fsnotify_group *group,
 				 FSNOTIFY_OBJ_TYPE_INODE, mask, flags, fsid);
 }
 
+static struct fsnotify_event *fanotify_alloc_overflow_event(void)
+{
+	struct fanotify_event *oevent;
+
+	oevent = kmalloc(sizeof(*oevent), GFP_KERNEL_ACCOUNT);
+	if (!oevent)
+		return NULL;
+
+	fanotify_init_event(oevent, 0, FS_Q_OVERFLOW);
+	oevent->type = FANOTIFY_EVENT_TYPE_OVERFLOW;
+
+	return &oevent->fse;
+}
+
 /* fanotify syscalls */
 SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 {
 	struct fsnotify_group *group;
 	int f_flags, fd;
 	struct user_struct *user;
-	struct fanotify_event *oevent;
 
 	pr_debug("%s: flags=%x event_f_flags=%x\n",
 		 __func__, flags, event_f_flags);
@@ -897,13 +910,11 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 	atomic_inc(&user->fanotify_listeners);
 	group->memcg = get_mem_cgroup_from_mm(current->mm);
 
-	oevent = fanotify_alloc_event(group, NULL, FS_Q_OVERFLOW, NULL,
-				      FSNOTIFY_EVENT_NONE, NULL, NULL);
-	if (unlikely(!oevent)) {
+	group->overflow_event = fanotify_alloc_overflow_event();
+	if (unlikely(!group->overflow_event)) {
 		fd = -ENOMEM;
 		goto out_destroy_group;
 	}
-	group->overflow_event = &oevent->fse;
 
 	if (force_o_largefile())
 		event_f_flags |= O_LARGEFILE;

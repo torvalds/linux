@@ -63,6 +63,7 @@ enum fanotify_event_type {
 	FANOTIFY_EVENT_TYPE_FID_NAME, /* variable length */
 	FANOTIFY_EVENT_TYPE_PATH,
 	FANOTIFY_EVENT_TYPE_PATH_PERM,
+	FANOTIFY_EVENT_TYPE_OVERFLOW, /* struct fanotify_event */
 };
 
 struct fanotify_event {
@@ -71,6 +72,14 @@ struct fanotify_event {
 	enum fanotify_event_type type;
 	struct pid *pid;
 };
+
+static inline void fanotify_init_event(struct fanotify_event *event,
+				       unsigned long id, u32 mask)
+{
+	fsnotify_init_event(&event->fse, id);
+	event->mask = mask;
+	event->pid = NULL;
+}
 
 struct fanotify_fid_event {
 	struct fanotify_event fae;
@@ -202,9 +211,3 @@ static inline struct path *fanotify_event_path(struct fanotify_event *event)
 	else
 		return NULL;
 }
-
-struct fanotify_event *fanotify_alloc_event(struct fsnotify_group *group,
-					    struct inode *inode, u32 mask,
-					    const void *data, int data_type,
-					    const struct qstr *file_name,
-					    __kernel_fsid_t *fsid);

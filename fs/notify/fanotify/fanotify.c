@@ -344,11 +344,11 @@ static struct inode *fanotify_fid_inode(struct inode *to_tell, u32 event_mask,
 	return fsnotify_data_inode(data, data_type);
 }
 
-struct fanotify_event *fanotify_alloc_event(struct fsnotify_group *group,
-					    struct inode *inode, u32 mask,
-					    const void *data, int data_type,
-					    const struct qstr *file_name,
-					    __kernel_fsid_t *fsid)
+static struct fanotify_event *fanotify_alloc_event(struct fsnotify_group *group,
+						struct inode *inode, u32 mask,
+						const void *data, int data_type,
+						const struct qstr *file_name,
+						__kernel_fsid_t *fsid)
 {
 	struct fanotify_event *event = NULL;
 	struct fanotify_fid_event *ffe = NULL;
@@ -426,8 +426,7 @@ init:
 	 * event queue, so event reported on parent is merged with event
 	 * reported on child when both directory and child watches exist.
 	 */
-	fsnotify_init_event(&event->fse, (unsigned long)id);
-	event->mask = mask;
+	fanotify_init_event(event, (unsigned long)id, mask);
 	if (FAN_GROUP_FLAG(group, FAN_REPORT_TID))
 		event->pid = get_pid(task_pid(current));
 	else
@@ -443,15 +442,8 @@ init:
 		fanotify_encode_fh(fanotify_event_dir_fh(event), id, gfp);
 
 	if (fanotify_event_has_path(event)) {
-		struct path *p = fanotify_event_path(event);
-
-		if (path) {
-			*p = *path;
-			path_get(path);
-		} else {
-			p->mnt = NULL;
-			p->dentry = NULL;
-		}
+		*fanotify_event_path(event) = *path;
+		path_get(path);
 	}
 out:
 	memalloc_unuse_memcg();
@@ -639,6 +631,9 @@ static void fanotify_free_event(struct fsnotify_event *fsn_event)
 		break;
 	case FANOTIFY_EVENT_TYPE_FID_NAME:
 		fanotify_free_name_event(event);
+		break;
+	case FANOTIFY_EVENT_TYPE_OVERFLOW:
+		kfree(event);
 		break;
 	default:
 		WARN_ON_ONCE(1);
