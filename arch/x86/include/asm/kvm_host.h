@@ -545,6 +545,7 @@ struct kvm_vcpu_arch {
 	unsigned long cr3;
 	unsigned long cr4;
 	unsigned long cr4_guest_owned_bits;
+	unsigned long cr4_guest_rsvd_bits;
 	unsigned long cr8;
 	u32 host_pkru;
 	u32 pkru;
