@@ -2055,10 +2055,6 @@ call_connect(struct rpc_task *task)
 		return;
 	}
 
-	dprintk("RPC: %5u call_connect xprt %p %s connected\n",
-			task->tk_pid, xprt,
-			(xprt_connected(xprt) ? "is" : "is not"));
-
 	task->tk_action = call_connect_status;
 	if (task->tk_status < 0)
 		return;

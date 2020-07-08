@@ -834,8 +834,7 @@ void xprt_connect(struct rpc_task *task)
 {
 	struct rpc_xprt	*xprt = task->tk_rqstp->rq_xprt;
 
-	dprintk("RPC: %5u xprt_connect xprt %p %s connected\n", task->tk_pid,
-			xprt, (xprt_connected(xprt) ? "is" : "is not"));
+	trace_xprt_connect(xprt);
 
 	if (!xprt_bound(xprt)) {
 		task->tk_status = -EAGAIN;
