@@ -400,7 +400,7 @@ static int roles_init(struct policydb *p)
 	if (!key)
 		goto out;
 
-	rc = hashtab_insert(&p->p_roles.table, key, role);
+	rc = symtab_insert(&p->p_roles, key, role);
 	if (rc)
 		goto out;
 
@@ -1065,7 +1065,7 @@ static int str_read(char **strp, gfp_t flags, void *fp, u32 len)
 	return 0;
 }
 
-static int perm_read(struct policydb *p, struct hashtab *h, void *fp)
+static int perm_read(struct policydb *p, struct symtab *s, void *fp)
 {
 	char *key = NULL;
 	struct perm_datum *perdatum;
@@ -1088,7 +1088,7 @@ static int perm_read(struct policydb *p, struct hashtab *h, void *fp)
 	if (rc)
 		goto bad;
 
-	rc = hashtab_insert(h, key, perdatum);
+	rc = symtab_insert(s, key, perdatum);
 	if (rc)
 		goto bad;
 
@@ -1098,7 +1098,7 @@ bad:
 	return rc;
 }
 
-static int common_read(struct policydb *p, struct hashtab *h, void *fp)
+static int common_read(struct policydb *p, struct symtab *s, void *fp)
 {
 	char *key = NULL;
 	struct common_datum *comdatum;
@@ -1128,12 +1128,12 @@ static int common_read(struct policydb *p, struct hashtab *h, void *fp)
 		goto bad;
 
 	for (i = 0; i < nel; i++) {
-		rc = perm_read(p, &comdatum->permissions.table, fp);
+		rc = perm_read(p, &comdatum->permissions, fp);
 		if (rc)
 			goto bad;
 	}
 
-	rc = hashtab_insert(h, key, comdatum);
+	rc = symtab_insert(s, key, comdatum);
 	if (rc)
 		goto bad;
 	return 0;
@@ -1262,7 +1262,7 @@ static int read_cons_helper(struct policydb *p,
 	return 0;
 }
 
-static int class_read(struct policydb *p, struct hashtab *h, void *fp)
+static int class_read(struct policydb *p, struct symtab *s, void *fp)
 {
 	char *key = NULL;
 	struct class_datum *cladatum;
@@ -1300,8 +1300,8 @@ static int class_read(struct policydb *p, struct hashtab *h, void *fp)
 			goto bad;
 
 		rc = -EINVAL;
-		cladatum->comdatum = hashtab_search(&p->p_commons.table,
-						    cladatum->comkey);
+		cladatum->comdatum = symtab_search(&p->p_commons,
+						   cladatum->comkey);
 		if (!cladatum->comdatum) {
 			pr_err("SELinux:  unknown common %s\n",
 			       cladatum->comkey);
@@ -1309,7 +1309,7 @@ static int class_read(struct policydb *p, struct hashtab *h, void *fp)
 		}
 	}
 	for (i = 0; i < nel; i++) {
-		rc = perm_read(p, &cladatum->permissions.table, fp);
+		rc = perm_read(p, &cladatum->permissions, fp);
 		if (rc)
 			goto bad;
 	}
@@ -1347,7 +1347,7 @@ static int class_read(struct policydb *p, struct hashtab *h, void *fp)
 		cladatum->default_type = le32_to_cpu(buf[0]);
 	}
 
-	rc = hashtab_insert(h, key, cladatum);
+	rc = symtab_insert(s, key, cladatum);
 	if (rc)
 		goto bad;
 
@@ -1357,7 +1357,7 @@ bad:
 	return rc;
 }
 
-static int role_read(struct policydb *p, struct hashtab *h, void *fp)
+static int role_read(struct policydb *p, struct symtab *s, void *fp)
 {
 	char *key = NULL;
 	struct role_datum *role;
@@ -1404,7 +1404,7 @@ static int role_read(struct policydb *p, struct hashtab *h, void *fp)
 		goto bad;
 	}
 
-	rc = hashtab_insert(h, key, role);
+	rc = symtab_insert(s, key, role);
 	if (rc)
 		goto bad;
 	return 0;
@@ -1413,7 +1413,7 @@ bad:
 	return rc;
 }
 
-static int type_read(struct policydb *p, struct hashtab *h, void *fp)
+static int type_read(struct policydb *p, struct symtab *s, void *fp)
 {
 	char *key = NULL;
 	struct type_datum *typdatum;
@@ -1451,7 +1451,7 @@ static int type_read(struct policydb *p, struct hashtab *h, void *fp)
 	if (rc)
 		goto bad;
 
-	rc = hashtab_insert(h, key, typdatum);
+	rc = symtab_insert(s, key, typdatum);
 	if (rc)
 		goto bad;
 	return 0;
@@ -1487,7 +1487,7 @@ static int mls_read_level(struct mls_level *lp, void *fp)
 	return 0;
 }
 
-static int user_read(struct policydb *p, struct hashtab *h, void *fp)
+static int user_read(struct policydb *p, struct symtab *s, void *fp)
 {
 	char *key = NULL;
 	struct user_datum *usrdatum;
@@ -1528,7 +1528,7 @@ static int user_read(struct policydb *p, struct hashtab *h, void *fp)
 			goto bad;
 	}
 
-	rc = hashtab_insert(h, key, usrdatum);
+	rc = symtab_insert(s, key, usrdatum);
 	if (rc)
 		goto bad;
 	return 0;
@@ -1537,7 +1537,7 @@ bad:
 	return rc;
 }
 
-static int sens_read(struct policydb *p, struct hashtab *h, void *fp)
+static int sens_read(struct policydb *p, struct symtab *s, void *fp)
 {
 	char *key = NULL;
 	struct level_datum *levdatum;
@@ -1569,7 +1569,7 @@ static int sens_read(struct policydb *p, struct hashtab *h, void *fp)
 	if (rc)
 		goto bad;
 
-	rc = hashtab_insert(h, key, levdatum);
+	rc = symtab_insert(s, key, levdatum);
 	if (rc)
 		goto bad;
 	return 0;
@@ -1578,7 +1578,7 @@ bad:
 	return rc;
 }
 
-static int cat_read(struct policydb *p, struct hashtab *h, void *fp)
+static int cat_read(struct policydb *p, struct symtab *s, void *fp)
 {
 	char *key = NULL;
 	struct cat_datum *catdatum;
@@ -1602,7 +1602,7 @@ static int cat_read(struct policydb *p, struct hashtab *h, void *fp)
 	if (rc)
 		goto bad;
 
-	rc = hashtab_insert(h, key, catdatum);
+	rc = symtab_insert(s, key, catdatum);
 	if (rc)
 		goto bad;
 	return 0;
@@ -1611,7 +1611,7 @@ bad:
 	return rc;
 }
 
-static int (*read_f[SYM_NUM]) (struct policydb *p, struct hashtab *h, void *fp) =
+static int (*read_f[SYM_NUM]) (struct policydb *p, struct symtab *s, void *fp) =
 {
 	common_read,
 	class_read,
@@ -1751,7 +1751,7 @@ u16 string_to_security_class(struct policydb *p, const char *name)
 {
 	struct class_datum *cladatum;
 
-	cladatum = hashtab_search(&p->p_classes.table, name);
+	cladatum = symtab_search(&p->p_classes, name);
 	if (!cladatum)
 		return 0;
 
@@ -1770,9 +1770,9 @@ u32 string_to_av_perm(struct policydb *p, u16 tclass, const char *name)
 	cladatum = p->class_val_to_struct[tclass-1];
 	comdatum = cladatum->comdatum;
 	if (comdatum)
-		perdatum = hashtab_search(&comdatum->permissions.table, name);
+		perdatum = symtab_search(&comdatum->permissions, name);
 	if (!perdatum)
-		perdatum = hashtab_search(&cladatum->permissions.table, name);
+		perdatum = symtab_search(&cladatum->permissions, name);
 	if (!perdatum)
 		return 0;
 
@@ -2509,7 +2509,7 @@ int policydb_read(struct policydb *p, void *fp)
 		}
 
 		for (j = 0; j < nel; j++) {
-			rc = read_f[i](p, &p->symtab[i].table, fp);
+			rc = read_f[i](p, &p->symtab[i], fp);
 			if (rc)
 				goto bad;
 		}

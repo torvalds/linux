@@ -19,6 +19,9 @@ struct symtab {
 
 int symtab_init(struct symtab *s, unsigned int size);
 
+int symtab_insert(struct symtab *s, char *name, void *datum);
+void *symtab_search(struct symtab *s, const char *name);
+
 #endif	/* _SS_SYMTAB_H_ */
 
 

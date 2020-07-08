@@ -39,3 +39,12 @@ int symtab_init(struct symtab *s, unsigned int size)
 	return hashtab_init(&s->table, symhash, symcmp, size);
 }
 
+int symtab_insert(struct symtab *s, char *name, void *datum)
+{
+	return hashtab_insert(&s->table, name, datum);
+}
+
+void *symtab_search(struct symtab *s, const char *name)
+{
+	return hashtab_search(&s->table, name);
+}
