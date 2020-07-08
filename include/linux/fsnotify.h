@@ -30,12 +30,6 @@ static inline void fsnotify_name(struct inode *dir, __u32 mask,
 				 const struct qstr *name, u32 cookie)
 {
 	fsnotify(dir, mask, child, FSNOTIFY_EVENT_INODE, name, cookie);
-	/*
-	 * Send another flavor of the event without child inode data and
-	 * without the specific event type (e.g. FS_CREATE|FS_IS_DIR).
-	 * The name is relative to the dir inode the event is reported to.
-	 */
-	fsnotify(dir, FS_DIR_MODIFY, dir, FSNOTIFY_EVENT_INODE, name, 0);
 }
 
 static inline void fsnotify_dirent(struct inode *dir, struct dentry *dentry,

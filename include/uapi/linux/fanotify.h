@@ -24,7 +24,6 @@
 #define FAN_OPEN_PERM		0x00010000	/* File open in perm check */
 #define FAN_ACCESS_PERM		0x00020000	/* File accessed in perm check */
 #define FAN_OPEN_EXEC_PERM	0x00040000	/* File open/exec in perm check */
-#define FAN_DIR_MODIFY		0x00080000	/* Directory entry was modified */
 
 #define FAN_EVENT_ON_CHILD	0x08000000	/* Interested in child events */
 

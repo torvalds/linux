@@ -425,6 +425,7 @@ static struct fanotify_event *fanotify_alloc_event(struct fsnotify_group *group,
 	gfp_t gfp = GFP_KERNEL_ACCOUNT;
 	struct inode *id = fanotify_fid_inode(mask, data, data_type, dir);
 	const struct path *path = fsnotify_data_path(data, data_type);
+	bool name_event = false;
 
 	/*
 	 * For queues with unlimited length lost events are not expected and
@@ -442,12 +443,7 @@ static struct fanotify_event *fanotify_alloc_event(struct fsnotify_group *group,
 
 	if (fanotify_is_perm_event(mask)) {
 		event = fanotify_alloc_perm_event(path, gfp);
-	} else if (mask & FAN_DIR_MODIFY && !(WARN_ON_ONCE(!file_name))) {
-		/*
-		 * For FAN_DIR_MODIFY event, we report the fid of the directory
-		 * and the name of the modified entry.
-		 * Allocate an fanotify_name_event struct and copy the name.
-		 */
+	} else if (name_event && file_name) {
 		event = fanotify_alloc_name_event(id, fsid, file_name, gfp);
 	} else if (FAN_GROUP_FLAG(group, FAN_REPORT_FID)) {
 		event = fanotify_alloc_fid_event(id, fsid, gfp);
@@ -528,7 +524,6 @@ static int fanotify_handle_event(struct fsnotify_group *group, u32 mask,
 	BUILD_BUG_ON(FAN_MOVED_FROM != FS_MOVED_FROM);
 	BUILD_BUG_ON(FAN_CREATE != FS_CREATE);
 	BUILD_BUG_ON(FAN_DELETE != FS_DELETE);
-	BUILD_BUG_ON(FAN_DIR_MODIFY != FS_DIR_MODIFY);
 	BUILD_BUG_ON(FAN_DELETE_SELF != FS_DELETE_SELF);
 	BUILD_BUG_ON(FAN_MOVE_SELF != FS_MOVE_SELF);
 	BUILD_BUG_ON(FAN_EVENT_ON_CHILD != FS_EVENT_ON_CHILD);
