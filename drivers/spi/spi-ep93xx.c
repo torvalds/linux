@@ -10,7 +10,7 @@
  *
  * For more information about the SPI controller see documentation on Cirrus
  * Logic web site:
- *     http://www.cirrus.com/en/pubs/manual/EP93xx_Users_Guide_UM1.pdf
+ *     https://www.cirrus.com/en/pubs/manual/EP93xx_Users_Guide_UM1.pdf
  */
 
 #include <linux/io.h>
