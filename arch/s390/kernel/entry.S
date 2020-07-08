@@ -378,9 +378,9 @@ ENTRY(system_call)
 	stmg	%r8,%r15,__LC_SAVE_AREA_SYNC
 	BPOFF
 	lg	%r12,__LC_CURRENT
-	lghi	%r13,__TASK_thread
 	lghi	%r14,_PIF_SYSCALL
 .Lsysc_per:
+	lghi	%r13,__TASK_thread
 	lg	%r15,__LC_KERNEL_STACK
 	la	%r11,STACK_FRAME_OVERHEAD(%r15)	# pointer to pt_regs
 	UPDATE_VTIME %r8,%r9,__LC_SYNC_ENTER_TIMER

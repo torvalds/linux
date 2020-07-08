@@ -531,22 +531,22 @@ struct enetc_msg_cmd_header {
 
 /* Common H/W utility functions */
 
-static inline void enetc_enable_rxvlan(struct enetc_hw *hw, int si_idx,
-				       bool en)
+static inline void enetc_bdr_enable_rxvlan(struct enetc_hw *hw, int idx,
+					   bool en)
 {
-	u32 val = enetc_rxbdr_rd(hw, si_idx, ENETC_RBMR);
+	u32 val = enetc_rxbdr_rd(hw, idx, ENETC_RBMR);
 
 	val = (val & ~ENETC_RBMR_VTE) | (en ? ENETC_RBMR_VTE : 0);
-	enetc_rxbdr_wr(hw, si_idx, ENETC_RBMR, val);
+	enetc_rxbdr_wr(hw, idx, ENETC_RBMR, val);
 }
 
-static inline void enetc_enable_txvlan(struct enetc_hw *hw, int si_idx,
-				       bool en)
+static inline void enetc_bdr_enable_txvlan(struct enetc_hw *hw, int idx,
+					   bool en)
 {
-	u32 val = enetc_txbdr_rd(hw, si_idx, ENETC_TBMR);
+	u32 val = enetc_txbdr_rd(hw, idx, ENETC_TBMR);
 
 	val = (val & ~ENETC_TBMR_VIH) | (en ? ENETC_TBMR_VIH : 0);
-	enetc_txbdr_wr(hw, si_idx, ENETC_TBMR, val);
+	enetc_txbdr_wr(hw, idx, ENETC_TBMR, val);
 }
 
 static inline void enetc_set_bdr_prio(struct enetc_hw *hw, int bdr_idx,

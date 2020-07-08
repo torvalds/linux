@@ -5944,7 +5944,7 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *vha)
 			break;
 		}
 
-		if (NVME_TARGET(vha->hw, fcport)) {
+		if (found && NVME_TARGET(vha->hw, fcport)) {
 			if (fcport->disc_state == DSC_DELETE_PEND) {
 				qla2x00_set_fcport_disc_state(fcport, DSC_GNL);
 				vha->fcport_count--;

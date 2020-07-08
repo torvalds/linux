@@ -520,8 +520,7 @@ static bool dmirror_allocate_chunk(struct dmirror_device *mdevice,
 err_free:
 	kfree(devmem);
 err_release:
-	release_mem_region(devmem->pagemap.res.start,
-			   resource_size(&devmem->pagemap.res));
+	release_mem_region(res->start, resource_size(res));
 err:
 	mutex_unlock(&mdevice->devmem_lock);
 	return false;

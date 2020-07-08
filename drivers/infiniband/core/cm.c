@@ -918,6 +918,7 @@ static void cm_free_work(struct cm_work *work)
 
 static void cm_queue_work_unlock(struct cm_id_private *cm_id_priv,
 				 struct cm_work *work)
+	__releases(&cm_id_priv->lock)
 {
 	bool immediate;
 
