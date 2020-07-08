@@ -435,70 +435,24 @@ int smu_v11_0_setup_pptable(struct smu_context *smu)
 	return 0;
 }
 
-static int smu_v11_0_init_dpm_context(struct smu_context *smu)
-{
-	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
-
-	if (smu_dpm->dpm_context || smu_dpm->dpm_context_size != 0)
-		return -EINVAL;
-
-	return smu_alloc_dpm_context(smu);
-}
-
-static int smu_v11_0_fini_dpm_context(struct smu_context *smu)
-{
-	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
-
-	if (!smu_dpm->dpm_context || smu_dpm->dpm_context_size == 0)
-		return -EINVAL;
-
-	kfree(smu_dpm->dpm_context);
-	kfree(smu_dpm->golden_dpm_context);
-	kfree(smu_dpm->dpm_current_power_state);
-	kfree(smu_dpm->dpm_request_power_state);
-	smu_dpm->dpm_context = NULL;
-	smu_dpm->golden_dpm_context = NULL;
-	smu_dpm->dpm_context_size = 0;
-	smu_dpm->dpm_current_power_state = NULL;
-	smu_dpm->dpm_request_power_state = NULL;
-
-	return 0;
-}
-
 int smu_v11_0_init_smc_tables(struct smu_context *smu)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
-	struct smu_table *tables = NULL;
+	struct smu_table *tables = smu_table->tables;
 	int ret = 0;
-
-	tables = kcalloc(SMU_TABLE_COUNT, sizeof(struct smu_table),
-			 GFP_KERNEL);
-	if (!tables) {
-		ret = -ENOMEM;
-		goto err0_out;
-	}
-	smu_table->tables = tables;
-
-	ret = smu_tables_init(smu, tables);
-	if (ret)
-		goto err1_out;
-
-	ret = smu_v11_0_init_dpm_context(smu);
-	if (ret)
-		goto err1_out;
 
 	smu_table->driver_pptable =
 		kzalloc(tables[SMU_TABLE_PPTABLE].size, GFP_KERNEL);
 	if (!smu_table->driver_pptable) {
 		ret = -ENOMEM;
-		goto err2_out;
+		goto err0_out;
 	}
 
 	smu_table->max_sustainable_clocks =
 		kzalloc(sizeof(struct smu_11_0_max_sustainable_clocks), GFP_KERNEL);
 	if (!smu_table->max_sustainable_clocks) {
 		ret = -ENOMEM;
-		goto err3_out;
+		goto err1_out;
 	}
 
 	/* Arcturus does not support OVERDRIVE */
@@ -507,29 +461,25 @@ int smu_v11_0_init_smc_tables(struct smu_context *smu)
 			kzalloc(tables[SMU_TABLE_OVERDRIVE].size, GFP_KERNEL);
 		if (!smu_table->overdrive_table) {
 			ret = -ENOMEM;
-			goto err4_out;
+			goto err2_out;
 		}
 
 		smu_table->boot_overdrive_table =
 			kzalloc(tables[SMU_TABLE_OVERDRIVE].size, GFP_KERNEL);
 		if (!smu_table->boot_overdrive_table) {
 			ret = -ENOMEM;
-			goto err5_out;
+			goto err3_out;
 		}
 	}
 
 	return 0;
 
-err5_out:
-	kfree(smu_table->overdrive_table);
-err4_out:
-	kfree(smu_table->max_sustainable_clocks);
 err3_out:
-	kfree(smu_table->driver_pptable);
+	kfree(smu_table->overdrive_table);
 err2_out:
-	smu_v11_0_fini_dpm_context(smu);
+	kfree(smu_table->max_sustainable_clocks);
 err1_out:
-	kfree(tables);
+	kfree(smu_table->driver_pptable);
 err0_out:
 	return ret;
 }
@@ -537,10 +487,7 @@ err0_out:
 int smu_v11_0_fini_smc_tables(struct smu_context *smu)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
-	int ret = 0;
-
-	if (!smu_table->tables)
-		return -EINVAL;
+	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
 
 	kfree(smu_table->boot_overdrive_table);
 	kfree(smu_table->overdrive_table);
@@ -553,17 +500,22 @@ int smu_v11_0_fini_smc_tables(struct smu_context *smu)
 	kfree(smu_table->hardcode_pptable);
 	smu_table->hardcode_pptable = NULL;
 
-	kfree(smu_table->tables);
 	kfree(smu_table->metrics_table);
 	kfree(smu_table->watermarks_table);
-	smu_table->tables = NULL;
 	smu_table->metrics_table = NULL;
 	smu_table->watermarks_table = NULL;
 	smu_table->metrics_time = 0;
 
-	ret = smu_v11_0_fini_dpm_context(smu);
-	if (ret)
-		return ret;
+	kfree(smu_dpm->dpm_context);
+	kfree(smu_dpm->golden_dpm_context);
+	kfree(smu_dpm->dpm_current_power_state);
+	kfree(smu_dpm->dpm_request_power_state);
+	smu_dpm->dpm_context = NULL;
+	smu_dpm->golden_dpm_context = NULL;
+	smu_dpm->dpm_context_size = 0;
+	smu_dpm->dpm_current_power_state = NULL;
+	smu_dpm->dpm_request_power_state = NULL;
+
 	return 0;
 }
 

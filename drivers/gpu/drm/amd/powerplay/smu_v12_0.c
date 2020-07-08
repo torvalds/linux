@@ -255,36 +255,18 @@ int smu_v12_0_gfx_off_control(struct smu_context *smu, bool enable)
 	return ret;
 }
 
-int smu_v12_0_init_smc_tables(struct smu_context *smu)
-{
-	struct smu_table_context *smu_table = &smu->smu_table;
-	struct smu_table *tables = NULL;
-
-	if (smu_table->tables)
-		return -EINVAL;
-
-	tables = kcalloc(SMU_TABLE_COUNT, sizeof(struct smu_table),
-			 GFP_KERNEL);
-	if (!tables)
-		return -ENOMEM;
-
-	smu_table->tables = tables;
-
-	return smu_tables_init(smu, tables);
-}
-
 int smu_v12_0_fini_smc_tables(struct smu_context *smu)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
 
-	if (!smu_table->tables)
-		return -EINVAL;
-
 	kfree(smu_table->clocks_table);
-	kfree(smu_table->tables);
-
 	smu_table->clocks_table = NULL;
-	smu_table->tables = NULL;
+
+	kfree(smu_table->metrics_table);
+	smu_table->metrics_table = NULL;
+
+	kfree(smu_table->watermarks_table);
+	smu_table->watermarks_table = NULL;
 
 	return 0;
 }

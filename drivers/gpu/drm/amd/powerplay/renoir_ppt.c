@@ -151,9 +151,10 @@ static int renoir_get_metrics_table(struct smu_context *smu,
 	return ret;
 }
 
-static int renoir_tables_init(struct smu_context *smu, struct smu_table *tables)
+static int renoir_init_smc_tables(struct smu_context *smu)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
+	struct smu_table *tables = smu_table->tables;
 
 	SMU_TABLE_INIT(tables, SMU_TABLE_WATERMARKS, sizeof(Watermarks_t),
 		PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
@@ -994,7 +995,6 @@ static bool renoir_is_dpm_running(struct smu_context *smu)
 }
 
 static const struct pptable_funcs renoir_ppt_funcs = {
-	.tables_init = renoir_tables_init,
 	.set_power_state = NULL,
 	.print_clk_levels = renoir_print_clk_levels,
 	.get_current_power_state = renoir_get_current_power_state,
@@ -1014,7 +1014,7 @@ static const struct pptable_funcs renoir_ppt_funcs = {
 	.set_gfx_cgpg = smu_v12_0_set_gfx_cgpg,
 	.gfx_off_control = smu_v12_0_gfx_off_control,
 	.get_gfx_off_status = smu_v12_0_get_gfxoff_status,
-	.init_smc_tables = smu_v12_0_init_smc_tables,
+	.init_smc_tables = renoir_init_smc_tables,
 	.fini_smc_tables = smu_v12_0_fini_smc_tables,
 	.set_default_dpm_table = smu_v12_0_set_default_dpm_tables,
 	.get_enabled_mask = smu_cmn_get_enabled_mask,

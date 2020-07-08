@@ -207,9 +207,10 @@ static const struct cmn2asic_mapping arcturus_workload_map[PP_SMC_POWER_PROFILE_
 	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_CUSTOM,		WORKLOAD_PPLIB_CUSTOM_BIT),
 };
 
-static int arcturus_tables_init(struct smu_context *smu, struct smu_table *tables)
+static int arcturus_tables_init(struct smu_context *smu)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
+	struct smu_table *tables = smu_table->tables;
 
 	SMU_TABLE_INIT(tables, SMU_TABLE_PPTABLE, sizeof(PPTable_t),
 		       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
@@ -256,6 +257,21 @@ static int arcturus_allocate_dpm_context(struct smu_context *smu)
 		return -ENOMEM;
 
 	return 0;
+}
+
+static int arcturus_init_smc_tables(struct smu_context *smu)
+{
+	int ret = 0;
+
+	ret = arcturus_tables_init(smu);
+	if (ret)
+		return ret;
+
+	ret = arcturus_allocate_dpm_context(smu);
+	if (ret)
+		return ret;
+
+	return smu_v11_0_init_smc_tables(smu);
 }
 
 static int
@@ -2237,9 +2253,6 @@ static void arcturus_log_thermal_throttling_event(struct smu_context *smu)
 }
 
 static const struct pptable_funcs arcturus_ppt_funcs = {
-	/* internal structurs allocations */
-	.tables_init = arcturus_tables_init,
-	.alloc_dpm_context = arcturus_allocate_dpm_context,
 	/* init dpm */
 	.get_allowed_feature_mask = arcturus_get_allowed_feature_mask,
 	/* btc */
@@ -2267,7 +2280,7 @@ static const struct pptable_funcs arcturus_ppt_funcs = {
 	.init_microcode = smu_v11_0_init_microcode,
 	.load_microcode = smu_v11_0_load_microcode,
 	.fini_microcode = smu_v11_0_fini_microcode,
-	.init_smc_tables = smu_v11_0_init_smc_tables,
+	.init_smc_tables = arcturus_init_smc_tables,
 	.fini_smc_tables = smu_v11_0_fini_smc_tables,
 	.init_power = smu_v11_0_init_power,
 	.fini_power = smu_v11_0_fini_power,

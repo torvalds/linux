@@ -448,9 +448,10 @@ static int navi10_setup_pptable(struct smu_context *smu)
 	return ret;
 }
 
-static int navi10_tables_init(struct smu_context *smu, struct smu_table *tables)
+static int navi10_tables_init(struct smu_context *smu)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
+	struct smu_table *tables = smu_table->tables;
 
 	SMU_TABLE_INIT(tables, SMU_TABLE_PPTABLE, sizeof(PPTable_t),
 		       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
@@ -579,9 +580,6 @@ static int navi10_allocate_dpm_context(struct smu_context *smu)
 {
 	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
 
-	if (smu_dpm->dpm_context)
-		return -EINVAL;
-
 	smu_dpm->dpm_context = kzalloc(sizeof(struct smu_11_0_dpm_context),
 				       GFP_KERNEL);
 	if (!smu_dpm->dpm_context)
@@ -590,6 +588,21 @@ static int navi10_allocate_dpm_context(struct smu_context *smu)
 	smu_dpm->dpm_context_size = sizeof(struct smu_11_0_dpm_context);
 
 	return 0;
+}
+
+static int navi10_init_smc_tables(struct smu_context *smu)
+{
+	int ret = 0;
+
+	ret = navi10_tables_init(smu);
+	if (ret)
+		return ret;
+
+	ret = navi10_allocate_dpm_context(smu);
+	if (ret)
+		return ret;
+
+	return smu_v11_0_init_smc_tables(smu);
 }
 
 static int navi10_set_default_dpm_table(struct smu_context *smu)
@@ -2252,8 +2265,6 @@ static int navi10_disable_umc_cdr_12gbps_workaround(struct smu_context *smu)
 }
 
 static const struct pptable_funcs navi10_ppt_funcs = {
-	.tables_init = navi10_tables_init,
-	.alloc_dpm_context = navi10_allocate_dpm_context,
 	.get_allowed_feature_mask = navi10_get_allowed_feature_mask,
 	.set_default_dpm_table = navi10_set_default_dpm_table,
 	.dpm_set_vcn_enable = navi10_dpm_set_vcn_enable,
@@ -2281,7 +2292,7 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.init_microcode = smu_v11_0_init_microcode,
 	.load_microcode = smu_v11_0_load_microcode,
 	.fini_microcode = smu_v11_0_fini_microcode,
-	.init_smc_tables = smu_v11_0_init_smc_tables,
+	.init_smc_tables = navi10_init_smc_tables,
 	.fini_smc_tables = smu_v11_0_fini_smc_tables,
 	.init_power = smu_v11_0_init_power,
 	.fini_power = smu_v11_0_fini_power,
