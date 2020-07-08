@@ -1334,6 +1334,92 @@ TRACE_EVENT(rpcb_setport,
 	)
 );
 
+TRACE_EVENT(pmap_register,
+	TP_PROTO(
+		u32 program,
+		u32 version,
+		int protocol,
+		unsigned short port
+	),
+
+	TP_ARGS(program, version, protocol, port),
+
+	TP_STRUCT__entry(
+		__field(unsigned int, program)
+		__field(unsigned int, version)
+		__field(int, protocol)
+		__field(unsigned int, port)
+	),
+
+	TP_fast_assign(
+		__entry->program = program;
+		__entry->version = version;
+		__entry->protocol = protocol;
+		__entry->port = port;
+	),
+
+	TP_printk("program=%u version=%u protocol=%d port=%u",
+		__entry->program, __entry->version,
+		__entry->protocol, __entry->port
+	)
+);
+
+TRACE_EVENT(rpcb_register,
+	TP_PROTO(
+		u32 program,
+		u32 version,
+		const char *addr,
+		const char *netid
+	),
+
+	TP_ARGS(program, version, addr, netid),
+
+	TP_STRUCT__entry(
+		__field(unsigned int, program)
+		__field(unsigned int, version)
+		__string(addr, addr)
+		__string(netid, netid)
+	),
+
+	TP_fast_assign(
+		__entry->program = program;
+		__entry->version = version;
+		__assign_str(addr, addr);
+		__assign_str(netid, netid);
+	),
+
+	TP_printk("program=%u version=%u addr=%s netid=%s",
+		__entry->program, __entry->version,
+		__get_str(addr), __get_str(netid)
+	)
+);
+
+TRACE_EVENT(rpcb_unregister,
+	TP_PROTO(
+		u32 program,
+		u32 version,
+		const char *netid
+	),
+
+	TP_ARGS(program, version, netid),
+
+	TP_STRUCT__entry(
+		__field(unsigned int, program)
+		__field(unsigned int, version)
+		__string(netid, netid)
+	),
+
+	TP_fast_assign(
+		__entry->program = program;
+		__entry->version = version;
+		__assign_str(netid, netid);
+	),
+
+	TP_printk("program=%u version=%u netid=%s",
+		__entry->program, __entry->version, __get_str(netid)
+	)
+);
+
 DECLARE_EVENT_CLASS(svc_xdr_buf_class,
 	TP_PROTO(
 		const struct svc_rqst *rqst,

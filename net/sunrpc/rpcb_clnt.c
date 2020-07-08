@@ -35,10 +35,6 @@
 
 #include "netns.h"
 
-#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
-# define RPCDBG_FACILITY	RPCDBG_BIND
-#endif
-
 #define RPCBIND_SOCK_PATHNAME	"/var/run/rpcbind.sock"
 
 #define RPCBIND_PROGRAM		(100000u)
@@ -444,9 +440,7 @@ int rpcb_register(struct net *net, u32 prog, u32 vers, int prot, unsigned short 
 	struct sunrpc_net *sn = net_generic(net, sunrpc_net_id);
 	bool is_set = false;
 
-	dprintk("RPC:       %sregistering (%u, %u, %d, %u) with local "
-			"rpcbind\n", (port ? "" : "un"),
-			prog, vers, prot, port);
+	trace_pmap_register(prog, vers, prot, port);
 
 	msg.rpc_proc = &rpcb_procedures2[RPCBPROC_UNSET];
 	if (port != 0) {
@@ -471,11 +465,6 @@ static int rpcb_register_inet4(struct sunrpc_net *sn,
 	int result;
 
 	map->r_addr = rpc_sockaddr2uaddr(sap, GFP_KERNEL);
-
-	dprintk("RPC:       %sregistering [%u, %u, %s, '%s'] with "
-		"local rpcbind\n", (port ? "" : "un"),
-			map->r_prog, map->r_vers,
-			map->r_addr, map->r_netid);
 
 	msg->rpc_proc = &rpcb_procedures4[RPCBPROC_UNSET];
 	if (port != 0) {
@@ -503,11 +492,6 @@ static int rpcb_register_inet6(struct sunrpc_net *sn,
 
 	map->r_addr = rpc_sockaddr2uaddr(sap, GFP_KERNEL);
 
-	dprintk("RPC:       %sregistering [%u, %u, %s, '%s'] with "
-		"local rpcbind\n", (port ? "" : "un"),
-			map->r_prog, map->r_vers,
-			map->r_addr, map->r_netid);
-
 	msg->rpc_proc = &rpcb_procedures4[RPCBPROC_UNSET];
 	if (port != 0) {
 		msg->rpc_proc = &rpcb_procedures4[RPCBPROC_SET];
@@ -524,9 +508,7 @@ static int rpcb_unregister_all_protofamilies(struct sunrpc_net *sn,
 {
 	struct rpcbind_args *map = msg->rpc_argp;
 
-	dprintk("RPC:       unregistering [%u, %u, '%s'] with "
-		"local rpcbind\n",
-			map->r_prog, map->r_vers, map->r_netid);
+	trace_rpcb_unregister(map->r_prog, map->r_vers, map->r_netid);
 
 	map->r_addr = "";
 	msg->rpc_proc = &rpcb_procedures4[RPCBPROC_UNSET];
@@ -597,6 +579,8 @@ int rpcb_v4_register(struct net *net, const u32 program, const u32 version,
 
 	if (address == NULL)
 		return rpcb_unregister_all_protofamilies(sn, &msg);
+
+	trace_rpcb_register(map.r_prog, map.r_vers, map.r_addr, map.r_netid);
 
 	switch (address->sa_family) {
 	case AF_INET:
