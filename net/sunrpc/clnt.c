@@ -2398,7 +2398,7 @@ rpc_check_timeout(struct rpc_task *task)
 	if (xprt_adjust_timeout(task->tk_rqstp) == 0)
 		return;
 
-	dprintk("RPC: %5u call_timeout (major)\n", task->tk_pid);
+	trace_rpc_timeout_status(task);
 	task->tk_timeouts++;
 
 	if (RPC_IS_SOFTCONN(task) && !rpc_check_connected(task->tk_rqstp)) {
