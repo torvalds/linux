@@ -898,6 +898,34 @@ DEFINE_RPC_SOCKET_EVENT_DONE(rpc_socket_reset_connection);
 DEFINE_RPC_SOCKET_EVENT(rpc_socket_close);
 DEFINE_RPC_SOCKET_EVENT(rpc_socket_shutdown);
 
+TRACE_EVENT(rpc_socket_nospace,
+	TP_PROTO(
+		const struct rpc_rqst *rqst,
+		const struct sock_xprt *transport
+	),
+
+	TP_ARGS(rqst, transport),
+
+	TP_STRUCT__entry(
+		__field(unsigned int, task_id)
+		__field(unsigned int, client_id)
+		__field(unsigned int, total)
+		__field(unsigned int, remaining)
+	),
+
+	TP_fast_assign(
+		__entry->task_id = rqst->rq_task->tk_pid;
+		__entry->client_id = rqst->rq_task->tk_client->cl_clid;
+		__entry->total = rqst->rq_slen;
+		__entry->remaining = rqst->rq_slen - transport->xmit.offset;
+	),
+
+	TP_printk("task:%u@%u total=%u remaining=%u",
+		__entry->task_id, __entry->client_id,
+		__entry->total, __entry->remaining
+	)
+);
+
 TRACE_DEFINE_ENUM(XPRT_LOCKED);
 TRACE_DEFINE_ENUM(XPRT_CONNECTED);
 TRACE_DEFINE_ENUM(XPRT_CONNECTING);
