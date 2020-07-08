@@ -33,6 +33,12 @@ static bool bw_validate_amd(char *buf, unsigned long *data,
 	unsigned long bw;
 	int ret;
 
+	/* temporary: always false on AMD */
+	if (!r->membw.delay_linear && r->membw.arch_needs_linear) {
+		rdt_last_cmd_puts("No support for non-linear MB domains\n");
+		return false;
+	}
+
 	ret = kstrtoul(buf, 10, &bw);
 	if (ret) {
 		rdt_last_cmd_printf("Non-decimal digit in MB value %s\n", buf);
@@ -82,7 +88,7 @@ static bool bw_validate(char *buf, unsigned long *data, struct rdt_resource *r)
 	/*
 	 * Only linear delay values is supported for current Intel SKUs.
 	 */
-	if (!r->membw.delay_linear) {
+	if (!r->membw.delay_linear && r->membw.arch_needs_linear) {
 		rdt_last_cmd_puts("No support for non-linear MB domains\n");
 		return false;
 	}
