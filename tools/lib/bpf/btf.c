@@ -389,7 +389,7 @@ void btf__free(struct btf *btf)
 	if (!btf)
 		return;
 
-	if (btf->fd != -1)
+	if (btf->fd >= 0)
 		close(btf->fd);
 
 	free(btf->data);
@@ -698,6 +698,11 @@ done:
 int btf__fd(const struct btf *btf)
 {
 	return btf->fd;
+}
+
+void btf__set_fd(struct btf *btf, int fd)
+{
+	btf->fd = fd;
 }
 
 const void *btf__get_raw_data(const struct btf *btf, __u32 *size)
