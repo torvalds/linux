@@ -15,6 +15,7 @@
 #include <linux/iopoll.h>
 #include <linux/regulator/consumer.h>
 #include <linux/interconnect.h>
+#include <linux/pinctrl/consumer.h>
 
 #include "sdhci-pltfm.h"
 #include "cqhci.h"
@@ -1353,6 +1354,19 @@ static void sdhci_msm_set_uhs_signaling(struct sdhci_host *host,
 		sdhci_msm_hs400(host, &mmc->ios);
 }
 
+static int sdhci_msm_set_pincfg(struct sdhci_msm_host *msm_host, bool level)
+{
+	struct platform_device *pdev = msm_host->pdev;
+	int ret;
+
+	if (level)
+		ret = pinctrl_pm_select_default_state(&pdev->dev);
+	else
+		ret = pinctrl_pm_select_sleep_state(&pdev->dev);
+
+	return ret;
+}
+
 static int sdhci_msm_set_vmmc(struct mmc_host *mmc)
 {
 	if (IS_ERR(mmc->supply.vmmc))
@@ -1595,6 +1609,9 @@ static void sdhci_msm_handle_pwr_irq(struct sdhci_host *host, int irq)
 		ret = sdhci_msm_set_vmmc(mmc);
 		if (!ret)
 			ret = sdhci_msm_set_vqmmc(msm_host, mmc,
+					pwr_state & REQ_BUS_ON);
+		if (!ret)
+			ret = sdhci_msm_set_pincfg(msm_host,
 					pwr_state & REQ_BUS_ON);
 		if (!ret)
 			irq_ack |= CORE_PWRCTL_BUS_SUCCESS;
