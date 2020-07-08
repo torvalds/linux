@@ -211,7 +211,7 @@ int fscrypt_derive_dirhash_key(struct fscrypt_info *ci,
 	int err;
 
 	err = fscrypt_hkdf_expand(&mk->mk_secret.hkdf, HKDF_CONTEXT_DIRHASH_KEY,
-				  ci->ci_nonce, FS_KEY_DERIVATION_NONCE_SIZE,
+				  ci->ci_nonce, FSCRYPT_FILE_NONCE_SIZE,
 				  (u8 *)&ci->ci_dirhash_key,
 				  sizeof(ci->ci_dirhash_key));
 	if (err)
@@ -292,8 +292,7 @@ static int fscrypt_setup_v2_file_key(struct fscrypt_info *ci,
 
 		err = fscrypt_hkdf_expand(&mk->mk_secret.hkdf,
 					  HKDF_CONTEXT_PER_FILE_ENC_KEY,
-					  ci->ci_nonce,
-					  FS_KEY_DERIVATION_NONCE_SIZE,
+					  ci->ci_nonce, FSCRYPT_FILE_NONCE_SIZE,
 					  derived_key, ci->ci_mode->keysize);
 		if (err)
 			return err;
@@ -498,7 +497,7 @@ int fscrypt_get_encryption_info(struct inode *inode)
 	}
 
 	memcpy(crypt_info->ci_nonce, fscrypt_context_nonce(&ctx),
-	       FS_KEY_DERIVATION_NONCE_SIZE);
+	       FSCRYPT_FILE_NONCE_SIZE);
 
 	if (!fscrypt_supported_policy(&crypt_info->ci_policy, inode)) {
 		res = -EINVAL;

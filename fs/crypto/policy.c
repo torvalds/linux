@@ -529,7 +529,7 @@ int fscrypt_ioctl_get_nonce(struct file *filp, void __user *arg)
 	if (!fscrypt_context_is_valid(&ctx, ret))
 		return -EINVAL;
 	if (copy_to_user(arg, fscrypt_context_nonce(&ctx),
-			 FS_KEY_DERIVATION_NONCE_SIZE))
+			 FSCRYPT_FILE_NONCE_SIZE))
 		return -EFAULT;
 	return 0;
 }
