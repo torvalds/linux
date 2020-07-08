@@ -13,6 +13,8 @@
 #include <linux/dma-buf.h>
 #include <linux/vmalloc.h>
 
+#include "gt/intel_gt_requests.h"
+
 #include "i915_trace.h"
 
 static bool swap_available(void)
@@ -111,15 +113,6 @@ i915_gem_shrink(struct drm_i915_private *i915,
 	unsigned long count = 0;
 	unsigned long scanned = 0;
 
-	/*
-	 * When shrinking the active list, we should also consider active
-	 * contexts. Active contexts are pinned until they are retired, and
-	 * so can not be simply unbound to retire and unpin their pages. To
-	 * shrink the contexts, we must wait until the gpu is idle and
-	 * completed its switch to the kernel context. In short, we do
-	 * not have a good mechanism for idling a specific context.
-	 */
-
 	trace_i915_gem_shrink(i915, target, shrink);
 
 	/*
@@ -132,6 +125,20 @@ i915_gem_shrink(struct drm_i915_private *i915,
 		if (!wakeref)
 			shrink &= ~I915_SHRINK_BOUND;
 	}
+
+	/*
+	 * When shrinking the active list, we should also consider active
+	 * contexts. Active contexts are pinned until they are retired, and
+	 * so can not be simply unbound to retire and unpin their pages. To
+	 * shrink the contexts, we must wait until the gpu is idle and
+	 * completed its switch to the kernel context. In short, we do
+	 * not have a good mechanism for idling a specific context, but
+	 * what we can do is give them a kick so that we do not keep idle
+	 * contexts around longer than is necessary.
+	 */
+	if (shrink & I915_SHRINK_ACTIVE)
+		/* Retire requests to unpin all idle contexts */
+		intel_gt_retire_requests(&i915->gt);
 
 	/*
 	 * As we may completely rewrite the (un)bound list whilst unbinding
