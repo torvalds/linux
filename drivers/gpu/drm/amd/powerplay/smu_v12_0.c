@@ -20,10 +20,11 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#define SWSMU_CODE_LAYER_L3
+
 #include <linux/firmware.h>
 #include "amdgpu.h"
 #include "amdgpu_smu.h"
-#include "smu_internal.h"
 #include "atomfirmware.h"
 #include "amdgpu_atomfirmware.h"
 #include "smu_v12_0.h"

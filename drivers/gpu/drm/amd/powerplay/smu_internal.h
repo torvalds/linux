@@ -25,6 +25,8 @@
 
 #include "amdgpu_smu.h"
 
+#if defined(SWSMU_CODE_LAYER_L1)
+
 #define smu_ppt_funcs(intf, ret, smu, args...) \
 	((smu)->ppt_funcs ? ((smu)->ppt_funcs->intf ? (smu)->ppt_funcs->intf(smu, ##args) : ret) : -EINVAL)
 
@@ -94,4 +96,5 @@
 #define smu_get_pp_feature_mask(smu, buf)				smu_ppt_funcs(get_pp_feature_mask, 0, smu, buf)
 #define smu_set_pp_feature_mask(smu, new_mask)				smu_ppt_funcs(set_pp_feature_mask, 0, smu, new_mask)
 
+#endif
 #endif

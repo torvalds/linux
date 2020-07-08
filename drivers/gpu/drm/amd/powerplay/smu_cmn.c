@@ -20,10 +20,11 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#define SWSMU_CODE_LAYER_L4
+
 #include "amdgpu.h"
 #include "amdgpu_smu.h"
 #include "smu_cmn.h"
-#include "smu_internal.h"
 #include "soc15_common.h"
 
 /*

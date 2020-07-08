@@ -134,6 +134,8 @@ enum smu_v11_0_baco_seq {
 	BACO_SEQ_COUNT,
 };
 
+#if defined(SWSMU_CODE_LAYER_L2) || defined(SWSMU_CODE_LAYER_L3)
+
 int smu_v11_0_init_microcode(struct smu_context *smu);
 
 void smu_v11_0_fini_microcode(struct smu_context *smu);
@@ -262,4 +264,5 @@ int smu_v11_0_get_dpm_level_range(struct smu_context *smu,
 				  uint32_t *min_value,
 				  uint32_t *max_value);
 
+#endif
 #endif

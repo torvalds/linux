@@ -21,9 +21,10 @@
  *
  */
 
+#define SWSMU_CODE_LAYER_L2
+
 #include "amdgpu.h"
 #include "amdgpu_smu.h"
-#include "smu_internal.h"
 #include "smu_v12_0_ppsmc.h"
 #include "smu12_driver_if.h"
 #include "smu_v12_0.h"

@@ -20,14 +20,14 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#define SWSMU_CODE_LAYER_L1
+
 #include <linux/firmware.h>
 #include <linux/pci.h>
 
 #include "amdgpu.h"
 #include "amdgpu_smu.h"
 #include "smu_internal.h"
-#include "smu_v11_0.h"
-#include "smu_v12_0.h"
 #include "atom.h"
 #include "arcturus_ppt.h"
 #include "navi10_ppt.h"

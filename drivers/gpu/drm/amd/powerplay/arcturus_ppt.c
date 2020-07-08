@@ -21,10 +21,11 @@
  *
  */
 
+#define SWSMU_CODE_LAYER_L2
+
 #include <linux/firmware.h>
 #include "amdgpu.h"
 #include "amdgpu_smu.h"
-#include "smu_internal.h"
 #include "atomfirmware.h"
 #include "amdgpu_atomfirmware.h"
 #include "amdgpu_atombios.h"

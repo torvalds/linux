@@ -31,6 +31,8 @@
 #define MP1_Public			0x03b00000
 #define MP1_SRAM			0x03c00004
 
+#if defined(SWSMU_CODE_LAYER_L2) || defined(SWSMU_CODE_LAYER_L3)
+
 int smu_v12_0_check_fw_status(struct smu_context *smu);
 
 int smu_v12_0_check_fw_version(struct smu_context *smu);
@@ -58,4 +60,5 @@ int smu_v12_0_set_soft_freq_limited_range(struct smu_context *smu, enum smu_clk_
 
 int smu_v12_0_set_driver_table_location(struct smu_context *smu);
 
+#endif
 #endif
