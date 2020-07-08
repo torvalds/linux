@@ -6731,6 +6731,11 @@ reenter_guest:
 	 */
 	x86_spec_ctrl_set_guest(vmx->spec_ctrl, 0);
 
+	/*
+	 * Tell context tracking that this CPU is about to enter guest mode.
+	 */
+	guest_enter_irqoff();
+
 	/* L1D Flush includes CPU buffer clear to mitigate MDS */
 	if (static_branch_unlikely(&vmx_l1d_should_flush))
 		vmx_l1d_flush(vcpu);
@@ -6744,6 +6749,11 @@ reenter_guest:
 				   vmx->loaded_vmcs->launched);
 
 	vcpu->arch.cr2 = read_cr2();
+
+	/*
+	 * Tell context tracking that this CPU is back.
+	 */
+	guest_exit_irqoff();
 
 	/*
 	 * We do not use IBRS in the kernel. If this vCPU has used the
