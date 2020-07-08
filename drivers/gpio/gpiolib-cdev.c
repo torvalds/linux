@@ -164,10 +164,10 @@ static long linehandle_set_config(struct linehandle_state *lh,
 	return 0;
 }
 
-static long linehandle_ioctl(struct file *filep, unsigned int cmd,
+static long linehandle_ioctl(struct file *file, unsigned int cmd,
 			     unsigned long arg)
 {
-	struct linehandle_state *lh = filep->private_data;
+	struct linehandle_state *lh = file->private_data;
 	void __user *ip = (void __user *)arg;
 	struct gpiohandle_data ghd;
 	DECLARE_BITMAP(vals, GPIOHANDLES_MAX);
@@ -221,16 +221,16 @@ static long linehandle_ioctl(struct file *filep, unsigned int cmd,
 }
 
 #ifdef CONFIG_COMPAT
-static long linehandle_ioctl_compat(struct file *filep, unsigned int cmd,
+static long linehandle_ioctl_compat(struct file *file, unsigned int cmd,
 				    unsigned long arg)
 {
-	return linehandle_ioctl(filep, cmd, (unsigned long)compat_ptr(arg));
+	return linehandle_ioctl(file, cmd, (unsigned long)compat_ptr(arg));
 }
 #endif
 
-static int linehandle_release(struct inode *inode, struct file *filep)
+static int linehandle_release(struct inode *inode, struct file *file)
 {
-	struct linehandle_state *lh = filep->private_data;
+	struct linehandle_state *lh = file->private_data;
 	struct gpio_device *gdev = lh->gdev;
 	int i;
 
@@ -412,13 +412,13 @@ struct lineevent_state {
 	(GPIOEVENT_REQUEST_RISING_EDGE | \
 	GPIOEVENT_REQUEST_FALLING_EDGE)
 
-static __poll_t lineevent_poll(struct file *filep,
+static __poll_t lineevent_poll(struct file *file,
 			       struct poll_table_struct *wait)
 {
-	struct lineevent_state *le = filep->private_data;
+	struct lineevent_state *le = file->private_data;
 	__poll_t events = 0;
 
-	poll_wait(filep, &le->wait, wait);
+	poll_wait(file, &le->wait, wait);
 
 	if (!kfifo_is_empty_spinlocked_noirqsave(&le->events, &le->wait.lock))
 		events = EPOLLIN | EPOLLRDNORM;
@@ -427,12 +427,12 @@ static __poll_t lineevent_poll(struct file *filep,
 }
 
 
-static ssize_t lineevent_read(struct file *filep,
+static ssize_t lineevent_read(struct file *file,
 			      char __user *buf,
 			      size_t count,
 			      loff_t *f_ps)
 {
-	struct lineevent_state *le = filep->private_data;
+	struct lineevent_state *le = file->private_data;
 	struct gpioevent_data ge;
 	ssize_t bytes_read = 0;
 	int ret;
@@ -448,7 +448,7 @@ static ssize_t lineevent_read(struct file *filep,
 				return bytes_read;
 			}
 
-			if (filep->f_flags & O_NONBLOCK) {
+			if (file->f_flags & O_NONBLOCK) {
 				spin_unlock(&le->wait.lock);
 				return -EAGAIN;
 			}
@@ -481,9 +481,9 @@ static ssize_t lineevent_read(struct file *filep,
 	return bytes_read;
 }
 
-static int lineevent_release(struct inode *inode, struct file *filep)
+static int lineevent_release(struct inode *inode, struct file *file)
 {
-	struct lineevent_state *le = filep->private_data;
+	struct lineevent_state *le = file->private_data;
 	struct gpio_device *gdev = le->gdev;
 
 	free_irq(le->irq, le);
@@ -494,10 +494,10 @@ static int lineevent_release(struct inode *inode, struct file *filep)
 	return 0;
 }
 
-static long lineevent_ioctl(struct file *filep, unsigned int cmd,
+static long lineevent_ioctl(struct file *file, unsigned int cmd,
 			    unsigned long arg)
 {
-	struct lineevent_state *le = filep->private_data;
+	struct lineevent_state *le = file->private_data;
 	void __user *ip = (void __user *)arg;
 	struct gpiohandle_data ghd;
 
@@ -524,10 +524,10 @@ static long lineevent_ioctl(struct file *filep, unsigned int cmd,
 }
 
 #ifdef CONFIG_COMPAT
-static long lineevent_ioctl_compat(struct file *filep, unsigned int cmd,
+static long lineevent_ioctl_compat(struct file *file, unsigned int cmd,
 				   unsigned long arg)
 {
-	return lineevent_ioctl(filep, cmd, (unsigned long)compat_ptr(arg));
+	return lineevent_ioctl(file, cmd, (unsigned long)compat_ptr(arg));
 }
 #endif
 
@@ -826,9 +826,9 @@ struct gpio_chardev_data {
 /*
  * gpio_ioctl() - ioctl handler for the GPIO chardev
  */
-static long gpio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+static long gpio_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	struct gpio_chardev_data *priv = filp->private_data;
+	struct gpio_chardev_data *priv = file->private_data;
 	struct gpio_device *gdev = priv->gdev;
 	struct gpio_chip *gc = gdev->chip;
 	void __user *ip = (void __user *)arg;
@@ -919,10 +919,10 @@ static long gpio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 }
 
 #ifdef CONFIG_COMPAT
-static long gpio_ioctl_compat(struct file *filp, unsigned int cmd,
+static long gpio_ioctl_compat(struct file *file, unsigned int cmd,
 			      unsigned long arg)
 {
-	return gpio_ioctl(filp, cmd, (unsigned long)compat_ptr(arg));
+	return gpio_ioctl(file, cmd, (unsigned long)compat_ptr(arg));
 }
 #endif
 
@@ -958,13 +958,13 @@ static int lineinfo_changed_notify(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
-static __poll_t lineinfo_watch_poll(struct file *filep,
+static __poll_t lineinfo_watch_poll(struct file *file,
 				    struct poll_table_struct *pollt)
 {
-	struct gpio_chardev_data *priv = filep->private_data;
+	struct gpio_chardev_data *priv = file->private_data;
 	__poll_t events = 0;
 
-	poll_wait(filep, &priv->wait, pollt);
+	poll_wait(file, &priv->wait, pollt);
 
 	if (!kfifo_is_empty_spinlocked_noirqsave(&priv->events,
 						 &priv->wait.lock))
@@ -973,10 +973,10 @@ static __poll_t lineinfo_watch_poll(struct file *filep,
 	return events;
 }
 
-static ssize_t lineinfo_watch_read(struct file *filep, char __user *buf,
+static ssize_t lineinfo_watch_read(struct file *file, char __user *buf,
 				   size_t count, loff_t *off)
 {
-	struct gpio_chardev_data *priv = filep->private_data;
+	struct gpio_chardev_data *priv = file->private_data;
 	struct gpioline_info_changed event;
 	ssize_t bytes_read = 0;
 	int ret;
@@ -992,7 +992,7 @@ static ssize_t lineinfo_watch_read(struct file *filep, char __user *buf,
 				return bytes_read;
 			}
 
-			if (filep->f_flags & O_NONBLOCK) {
+			if (file->f_flags & O_NONBLOCK) {
 				spin_unlock(&priv->wait.lock);
 				return -EAGAIN;
 			}
@@ -1024,10 +1024,10 @@ static ssize_t lineinfo_watch_read(struct file *filep, char __user *buf,
 /**
  * gpio_chrdev_open() - open the chardev for ioctl operations
  * @inode: inode for this chardev
- * @filp: file struct for storing private data
+ * @file: file struct for storing private data
  * Returns 0 on success
  */
-static int gpio_chrdev_open(struct inode *inode, struct file *filp)
+static int gpio_chrdev_open(struct inode *inode, struct file *file)
 {
 	struct gpio_device *gdev = container_of(inode->i_cdev,
 						struct gpio_device, chrdev);
@@ -1057,9 +1057,9 @@ static int gpio_chrdev_open(struct inode *inode, struct file *filp)
 		goto out_free_bitmap;
 
 	get_device(&gdev->dev);
-	filp->private_data = priv;
+	file->private_data = priv;
 
-	ret = nonseekable_open(inode, filp);
+	ret = nonseekable_open(inode, file);
 	if (ret)
 		goto out_unregister_notifier;
 
@@ -1078,12 +1078,12 @@ out_free_priv:
 /**
  * gpio_chrdev_release() - close chardev after ioctl operations
  * @inode: inode for this chardev
- * @filp: file struct for storing private data
+ * @file: file struct for storing private data
  * Returns 0 on success
  */
-static int gpio_chrdev_release(struct inode *inode, struct file *filp)
+static int gpio_chrdev_release(struct inode *inode, struct file *file)
 {
-	struct gpio_chardev_data *priv = filp->private_data;
+	struct gpio_chardev_data *priv = file->private_data;
 	struct gpio_device *gdev = priv->gdev;
 
 	bitmap_free(priv->watched_lines);
