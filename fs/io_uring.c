@@ -4655,12 +4655,13 @@ static void io_async_task_func(struct callback_head *cb)
 	/* restore ->work in case we need to retry again */
 	if (req->flags & REQ_F_WORK_INITIALIZED)
 		memcpy(&req->work, &apoll->work, sizeof(req->work));
-	kfree(apoll);
 
 	if (!READ_ONCE(apoll->poll.canceled))
 		__io_req_task_submit(req);
 	else
 		__io_req_task_cancel(req, -ECANCELED);
+
+	kfree(apoll);
 }
 
 static int io_async_wake(struct wait_queue_entry *wait, unsigned mode, int sync,
