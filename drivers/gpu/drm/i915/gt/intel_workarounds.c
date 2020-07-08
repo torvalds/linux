@@ -1649,11 +1649,6 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 			    GEN7_SARCHKMD,
 			    GEN7_DISABLE_SAMPLER_PREFETCH);
 
-		/* Wa_1407928979:tgl */
-		wa_write_or(wal,
-			    GEN7_FF_THREAD_MODE,
-			    GEN12_FF_TESSELATION_DOP_GATE_DISABLE);
-
 		/* Wa_1408615072:tgl */
 		wa_write_or(wal, UNSLICE_UNIT_LEVEL_CLKGATE2,
 			    VSUNIT_CLKGATE_DIS_TGL);
@@ -1677,6 +1672,14 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 		 * Wa_14010229206:tgl
 		 */
 		wa_masked_en(wal, GEN9_ROW_CHICKEN4, GEN12_DISABLE_TDL_PUSH);
+
+		/*
+		 * Wa_1407928979:tgl A*
+		 * Wa_18011464164:tgl B0+
+		 * Wa_22010931296:tgl B0+
+		 */
+		wa_write_or(wal, GEN7_FF_THREAD_MODE,
+			    GEN12_FF_TESSELATION_DOP_GATE_DISABLE);
 	}
 
 	if (IS_GEN(i915, 11)) {
