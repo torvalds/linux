@@ -2497,8 +2497,6 @@ out:
 	case 0:
 		task->tk_action = rpc_exit_task;
 		task->tk_status = rpcauth_unwrap_resp(task, &xdr);
-		dprintk("RPC: %5u %s result %d\n",
-			task->tk_pid, __func__, task->tk_status);
 		return;
 	case -EAGAIN:
 		task->tk_status = 0;
