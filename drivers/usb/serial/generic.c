@@ -594,7 +594,7 @@ EXPORT_SYMBOL_GPL(usb_serial_handle_sysrq_char);
 
 int usb_serial_handle_break(struct usb_serial_port *port)
 {
-	if (!port->port.console)
+	if (!port->port.console || !IS_ENABLED(CONFIG_MAGIC_SYSRQ))
 		return 0;
 
 	if (!port->sysrq) {
