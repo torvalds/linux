@@ -832,7 +832,6 @@ static long gpio_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	void __user *ip = (void __user *)arg;
 	struct gpio_desc *desc;
 	__u32 offset;
-	int hwgpio;
 
 	/* We fail any subsequent ioctl():s when the chip is gone */
 	if (!gc)
@@ -860,11 +859,10 @@ static long gpio_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (copy_from_user(&lineinfo, ip, sizeof(lineinfo)))
 			return -EFAULT;
 
+		/* this doubles as a range check on line_offset */
 		desc = gpiochip_get_desc(gc, lineinfo.line_offset);
 		if (IS_ERR(desc))
 			return PTR_ERR(desc);
-
-		hwgpio = gpio_chip_hwgpio(desc);
 
 		gpio_desc_to_lineinfo(desc, &lineinfo);
 
@@ -881,19 +879,18 @@ static long gpio_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (copy_from_user(&lineinfo, ip, sizeof(lineinfo)))
 			return -EFAULT;
 
+		/* this doubles as a range check on line_offset */
 		desc = gpiochip_get_desc(gc, lineinfo.line_offset);
 		if (IS_ERR(desc))
 			return PTR_ERR(desc);
 
-		hwgpio = gpio_chip_hwgpio(desc);
-
-		if (test_and_set_bit(hwgpio, cdev->watched_lines))
+		if (test_and_set_bit(lineinfo.line_offset, cdev->watched_lines))
 			return -EBUSY;
 
 		gpio_desc_to_lineinfo(desc, &lineinfo);
 
 		if (copy_to_user(ip, &lineinfo, sizeof(lineinfo))) {
-			clear_bit(hwgpio, cdev->watched_lines);
+			clear_bit(lineinfo.line_offset, cdev->watched_lines);
 			return -EFAULT;
 		}
 
@@ -902,13 +899,10 @@ static long gpio_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (copy_from_user(&offset, ip, sizeof(offset)))
 			return -EFAULT;
 
-		desc = gpiochip_get_desc(gc, offset);
-		if (IS_ERR(desc))
-			return PTR_ERR(desc);
+		if (offset >= cdev->gdev->ngpio)
+			return -EINVAL;
 
-		hwgpio = gpio_chip_hwgpio(desc);
-
-		if (!test_and_clear_bit(hwgpio, cdev->watched_lines))
+		if (!test_and_clear_bit(offset, cdev->watched_lines))
 			return -EBUSY;
 
 		return 0;
