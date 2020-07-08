@@ -423,7 +423,6 @@ DEFINE_CONN_EVENT(connect);
 DEFINE_CONN_EVENT(disconnect);
 
 DEFINE_RXPRT_EVENT(xprtrdma_op_inject_dsc);
-DEFINE_RXPRT_EVENT(xprtrdma_op_setport);
 
 TRACE_EVENT(xprtrdma_op_connect,
 	TP_PROTO(

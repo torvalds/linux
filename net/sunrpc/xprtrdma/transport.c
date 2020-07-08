@@ -413,9 +413,6 @@ xprt_rdma_set_port(struct rpc_xprt *xprt, u16 port)
 	kfree(xprt->address_strings[RPC_DISPLAY_HEX_PORT]);
 	snprintf(buf, sizeof(buf), "%4hx", port);
 	xprt->address_strings[RPC_DISPLAY_HEX_PORT] = kstrdup(buf, GFP_KERNEL);
-
-	trace_xprtrdma_op_setport(container_of(xprt, struct rpcrdma_xprt,
-					       rx_xprt));
 }
 
 /**

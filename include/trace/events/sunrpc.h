@@ -1305,6 +1305,35 @@ TRACE_EVENT(rpcb_getport,
 	)
 );
 
+TRACE_EVENT(rpcb_setport,
+	TP_PROTO(
+		const struct rpc_task *task,
+		int status,
+		unsigned short port
+	),
+
+	TP_ARGS(task, status, port),
+
+	TP_STRUCT__entry(
+		__field(unsigned int, task_id)
+		__field(unsigned int, client_id)
+		__field(int, status)
+		__field(unsigned short, port)
+	),
+
+	TP_fast_assign(
+		__entry->task_id = task->tk_pid;
+		__entry->client_id = task->tk_client->cl_clid;
+		__entry->status = status;
+		__entry->port = port;
+	),
+
+	TP_printk("task:%u@%u status=%d port=%u",
+		__entry->task_id, __entry->client_id,
+		__entry->status, __entry->port
+	)
+);
+
 DECLARE_EVENT_CLASS(svc_xdr_buf_class,
 	TP_PROTO(
 		const struct svc_rqst *rqst,

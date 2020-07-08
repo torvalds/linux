@@ -801,34 +801,33 @@ static void rpcb_getport_done(struct rpc_task *child, void *data)
 {
 	struct rpcbind_args *map = data;
 	struct rpc_xprt *xprt = map->r_xprt;
-	int status = child->tk_status;
+
+	map->r_status = child->tk_status;
 
 	/* Garbage reply: retry with a lesser rpcbind version */
-	if (status == -EIO)
-		status = -EPROTONOSUPPORT;
+	if (map->r_status == -EIO)
+		map->r_status = -EPROTONOSUPPORT;
 
 	/* rpcbind server doesn't support this rpcbind protocol version */
-	if (status == -EPROTONOSUPPORT)
+	if (map->r_status == -EPROTONOSUPPORT)
 		xprt->bind_index++;
 
-	if (status < 0) {
+	if (map->r_status < 0) {
 		/* rpcbind server not available on remote host? */
-		xprt->ops->set_port(xprt, 0);
+		map->r_port = 0;
+
 	} else if (map->r_port == 0) {
 		/* Requested RPC service wasn't registered on remote host */
-		xprt->ops->set_port(xprt, 0);
-		status = -EACCES;
+		map->r_status = -EACCES;
 	} else {
 		/* Succeeded */
-		xprt->ops->set_port(xprt, map->r_port);
-		xprt_set_bound(xprt);
-		status = 0;
+		map->r_status = 0;
 	}
 
-	dprintk("RPC: %5u rpcb_getport_done(status %d, port %u)\n",
-			child->tk_pid, status, map->r_port);
-
-	map->r_status = status;
+	trace_rpcb_setport(child, map->r_status, map->r_port);
+	xprt->ops->set_port(xprt, map->r_port);
+	if (map->r_port)
+		xprt_set_bound(xprt);
 }
 
 /*
