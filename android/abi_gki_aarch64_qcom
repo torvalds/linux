@@ -803,6 +803,8 @@
   __sg_page_iter_next
   __sg_page_iter_start
   simple_read_from_buffer
+  single_open
+  single_release
   sk_alloc
   skb_add_rx_frag
   skb_clone
@@ -2593,8 +2595,6 @@
   schedule_timeout_interruptible
   seq_vprintf
   set_cpus_allowed_ptr
-  single_open
-  single_release
   skip_spaces
   strchrnul
   unregister_netevent_notifier
