@@ -2109,13 +2109,6 @@ static int navi10_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_TABL
 			dev_err(smu->adev->dev, "Failed to import overdrive table!\n");
 			return ret;
 		}
-		// no lock needed because smu_od_edit_dpm_table has it
-		ret = smu_handle_task(smu, smu->smu_dpm.dpm_level,
-			AMD_PP_TASK_READJUST_POWER_STATE,
-			false);
-		if (ret) {
-			return ret;
-		}
 		break;
 	case PP_OD_EDIT_VDDC_CURVE:
 		if (!navi10_od_feature_is_supported(od_settings, SMU_11_0_ODCAP_GFXCLK_CURVE)) {

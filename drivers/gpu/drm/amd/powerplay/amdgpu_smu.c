@@ -1914,8 +1914,14 @@ int smu_od_edit_dpm_table(struct smu_context *smu,
 
 	mutex_lock(&smu->mutex);
 
-	if (smu->ppt_funcs->od_edit_dpm_table)
+	if (smu->ppt_funcs->od_edit_dpm_table) {
 		ret = smu->ppt_funcs->od_edit_dpm_table(smu, type, input, size);
+		if (!ret && (type == PP_OD_COMMIT_DPM_TABLE))
+			ret = smu_handle_task(smu,
+					      smu->smu_dpm.dpm_level,
+					      AMD_PP_TASK_READJUST_POWER_STATE,
+					      false);
+	}
 
 	mutex_unlock(&smu->mutex);
 
