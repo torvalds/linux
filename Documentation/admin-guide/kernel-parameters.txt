@@ -3073,6 +3073,10 @@
 			and gids from such clients.  This is intended to ease
 			migration from NFSv2/v3.
 
+	nmi_backtrace.backtrace_idle [KNL]
+			Dump stacks even of idle CPUs in response to an
+			NMI stack-backtrace request.
+
 	nmi_debug=	[KNL,SH] Specify one or more actions to take
 			when a NMI is triggered.
 			Format: [state][,regs][,debounce][,die]
