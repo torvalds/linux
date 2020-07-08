@@ -722,6 +722,9 @@ parse_power_conservation_features(struct drm_i915_private *dev_priv,
 	 */
 	if (!(power->drrs & BIT(panel_type)))
 		dev_priv->vbt.drrs_type = DRRS_NOT_SUPPORTED;
+
+	if (bdb->version >= 232)
+		dev_priv->vbt.edp.hobl = power->hobl & BIT(panel_type);
 }
 
 static void
