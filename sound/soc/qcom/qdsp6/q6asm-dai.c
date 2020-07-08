@@ -218,6 +218,7 @@ static int q6asm_dai_prepare(struct snd_soc_component *component,
 	struct snd_soc_pcm_runtime *soc_prtd = substream->private_data;
 	struct q6asm_dai_rtd *prtd = runtime->private_data;
 	struct q6asm_dai_data *pdata;
+	struct device *dev = component->dev;
 	int ret, i;
 
 	pdata = snd_soc_component_get_drvdata(component);
@@ -225,7 +226,7 @@ static int q6asm_dai_prepare(struct snd_soc_component *component,
 		return -EINVAL;
 
 	if (!prtd || !prtd->audio_client) {
-		pr_err("%s: private data null or audio client freed\n",
+		dev_err(dev, "%s: private data null or audio client freed\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -248,7 +249,7 @@ static int q6asm_dai_prepare(struct snd_soc_component *component,
 				       prtd->periods);
 
 	if (ret < 0) {
-		pr_err("Audio Start: Buffer Allocation failed rc = %d\n",
+		dev_err(dev, "Audio Start: Buffer Allocation failed rc = %d\n",
 							ret);
 		return -ENOMEM;
 	}
@@ -262,7 +263,7 @@ static int q6asm_dai_prepare(struct snd_soc_component *component,
 	}
 
 	if (ret < 0) {
-		pr_err("%s: q6asm_open_write failed\n", __func__);
+		dev_err(dev, "%s: q6asm_open_write failed\n", __func__);
 		q6asm_audio_client_free(prtd->audio_client);
 		prtd->audio_client = NULL;
 		return -ENOMEM;
@@ -272,7 +273,7 @@ static int q6asm_dai_prepare(struct snd_soc_component *component,
 	ret = q6routing_stream_open(soc_prtd->dai_link->id, LEGACY_PCM_MODE,
 			      prtd->session_id, substream->stream);
 	if (ret) {
-		pr_err("%s: stream reg failed ret:%d\n", __func__, ret);
+		dev_err(dev, "%s: stream reg failed ret:%d\n", __func__, ret);
 		return ret;
 	}
 
@@ -292,7 +293,7 @@ static int q6asm_dai_prepare(struct snd_soc_component *component,
 
 	}
 	if (ret < 0)
-		pr_info("%s: CMD Format block failed\n", __func__);
+		dev_info(dev, "%s: CMD Format block failed\n", __func__);
 
 	prtd->state = Q6ASM_STREAM_RUNNING;
 
@@ -344,7 +345,7 @@ static int q6asm_dai_open(struct snd_soc_component *component,
 
 	pdata = snd_soc_component_get_drvdata(component);
 	if (!pdata) {
-		pr_err("Drv data not found ..\n");
+		dev_err(dev, "Drv data not found ..\n");
 		return -EINVAL;
 	}
 
@@ -357,7 +358,7 @@ static int q6asm_dai_open(struct snd_soc_component *component,
 				(q6asm_cb)event_handler, prtd, stream_id,
 				LEGACY_PCM_MODE);
 	if (IS_ERR(prtd->audio_client)) {
-		pr_info("%s: Could not allocate memory\n", __func__);
+		dev_info(dev, "%s: Could not allocate memory\n", __func__);
 		ret = PTR_ERR(prtd->audio_client);
 		kfree(prtd);
 		return ret;
@@ -372,12 +373,12 @@ static int q6asm_dai_open(struct snd_soc_component *component,
 				SNDRV_PCM_HW_PARAM_RATE,
 				&constraints_sample_rates);
 	if (ret < 0)
-		pr_info("snd_pcm_hw_constraint_list failed\n");
+		dev_info(dev, "snd_pcm_hw_constraint_list failed\n");
 	/* Ensure that buffer size is a multiple of period size */
 	ret = snd_pcm_hw_constraint_integer(runtime,
 					    SNDRV_PCM_HW_PARAM_PERIODS);
 	if (ret < 0)
-		pr_info("snd_pcm_hw_constraint_integer failed\n");
+		dev_info(dev, "snd_pcm_hw_constraint_integer failed\n");
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		ret = snd_pcm_hw_constraint_minmax(runtime,
@@ -385,21 +386,21 @@ static int q6asm_dai_open(struct snd_soc_component *component,
 			PLAYBACK_MIN_NUM_PERIODS * PLAYBACK_MIN_PERIOD_SIZE,
 			PLAYBACK_MAX_NUM_PERIODS * PLAYBACK_MAX_PERIOD_SIZE);
 		if (ret < 0) {
-			pr_err("constraint for buffer bytes min max ret = %d\n",
-									ret);
+			dev_err(dev, "constraint for buffer bytes min max ret = %d\n",
+				ret);
 		}
 	}
 
 	ret = snd_pcm_hw_constraint_step(runtime, 0,
 		SNDRV_PCM_HW_PARAM_PERIOD_BYTES, 32);
 	if (ret < 0) {
-		pr_err("constraint for period bytes step ret = %d\n",
+		dev_err(dev, "constraint for period bytes step ret = %d\n",
 								ret);
 	}
 	ret = snd_pcm_hw_constraint_step(runtime, 0,
 		SNDRV_PCM_HW_PARAM_BUFFER_BYTES, 32);
 	if (ret < 0) {
-		pr_err("constraint for buffer bytes step ret = %d\n",
+		dev_err(dev, "constraint for buffer bytes step ret = %d\n",
 								ret);
 	}
 
