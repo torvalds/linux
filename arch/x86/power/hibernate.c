@@ -12,6 +12,7 @@
 #include <linux/scatterlist.h>
 #include <linux/kdebug.h>
 #include <linux/cpu.h>
+#include <linux/pgtable.h>
 
 #include <crypto/hash.h>
 
@@ -19,7 +20,6 @@
 #include <asm/init.h>
 #include <asm/proto.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/mtrr.h>
 #include <asm/sections.h>
 #include <asm/suspend.h>

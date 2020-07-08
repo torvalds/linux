@@ -56,6 +56,7 @@ enum drm_sched_priority {
  *              Jobs from this entity can be scheduled on any scheduler
  *              on this list.
  * @num_sched_list: number of drm_gpu_schedulers in the sched_list.
+ * @priority: priority of the entity
  * @rq_lock: lock to modify the runqueue to which this entity belongs.
  * @job_queue: the list of jobs of this entity.
  * @fence_seq: a linearly increasing seqno incremented with each

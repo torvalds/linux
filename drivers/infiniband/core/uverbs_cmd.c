@@ -311,7 +311,7 @@ static int ib_uverbs_get_context(struct uverbs_attr_bundle *attrs)
 	return 0;
 
 err_uobj:
-	rdma_alloc_abort_uobject(uobj, attrs);
+	rdma_alloc_abort_uobject(uobj, attrs, false);
 err_ucontext:
 	kfree(attrs->context);
 	attrs->context = NULL;
@@ -356,8 +356,6 @@ static void copy_query_dev_fields(struct ib_ucontext *ucontext,
 	resp->max_mcast_qp_attach	= attr->max_mcast_qp_attach;
 	resp->max_total_mcast_qp_attach	= attr->max_total_mcast_qp_attach;
 	resp->max_ah			= attr->max_ah;
-	resp->max_fmr			= attr->max_fmr;
-	resp->max_map_per_fmr		= attr->max_map_per_fmr;
 	resp->max_srq			= attr->max_srq;
 	resp->max_srq_wr		= attr->max_srq_wr;
 	resp->max_srq_sge		= attr->max_srq_sge;
@@ -1051,6 +1049,10 @@ static struct ib_ucq_object *create_cq(struct uverbs_attr_bundle *attrs,
 		goto err_free;
 
 	obj->uevent.uobject.object = cq;
+	obj->uevent.event_file = READ_ONCE(attrs->ufile->default_async_file);
+	if (obj->uevent.event_file)
+		uverbs_uobject_get(&obj->uevent.event_file->uobj);
+
 	memset(&resp, 0, sizeof resp);
 	resp.base.cq_handle = obj->uevent.uobject.id;
 	resp.base.cqe       = cq->cqe;
@@ -1067,6 +1069,8 @@ static struct ib_ucq_object *create_cq(struct uverbs_attr_bundle *attrs,
 	return obj;
 
 err_cb:
+	if (obj->uevent.event_file)
+		uverbs_uobject_put(&obj->uevent.event_file->uobj);
 	ib_destroy_cq_user(cq, uverbs_get_cleared_udata(attrs));
 	cq = NULL;
 err_free:
@@ -1460,6 +1464,9 @@ static int create_qp(struct uverbs_attr_bundle *attrs,
 	}
 
 	obj->uevent.uobject.object = qp;
+	obj->uevent.event_file = READ_ONCE(attrs->ufile->default_async_file);
+	if (obj->uevent.event_file)
+		uverbs_uobject_get(&obj->uevent.event_file->uobj);
 
 	memset(&resp, 0, sizeof resp);
 	resp.base.qpn             = qp->qp_num;
@@ -1473,7 +1480,7 @@ static int create_qp(struct uverbs_attr_bundle *attrs,
 
 	ret = uverbs_response(attrs, &resp, sizeof(resp));
 	if (ret)
-		goto err_cb;
+		goto err_uevent;
 
 	if (xrcd) {
 		obj->uxrcd = container_of(xrcd_uobj, struct ib_uxrcd_object,
@@ -1498,6 +1505,9 @@ static int create_qp(struct uverbs_attr_bundle *attrs,
 
 	rdma_alloc_commit_uobject(&obj->uevent.uobject, attrs);
 	return 0;
+err_uevent:
+	if (obj->uevent.event_file)
+		uverbs_uobject_put(&obj->uevent.event_file->uobj);
 err_cb:
 	ib_destroy_qp_user(qp, uverbs_get_cleared_udata(attrs));
 
@@ -2954,11 +2964,11 @@ static int ib_uverbs_ex_create_wq(struct uverbs_attr_bundle *attrs)
 	wq_init_attr.cq = cq;
 	wq_init_attr.max_sge = cmd.max_sge;
 	wq_init_attr.max_wr = cmd.max_wr;
-	wq_init_attr.wq_context = attrs->ufile;
 	wq_init_attr.wq_type = cmd.wq_type;
 	wq_init_attr.event_handler = ib_uverbs_wq_event_handler;
 	wq_init_attr.create_flags = cmd.create_flags;
 	INIT_LIST_HEAD(&obj->uevent.event_list);
+	obj->uevent.uobject.user_handle = cmd.user_handle;
 
 	wq = pd->device->ops.create_wq(pd, &wq_init_attr, &attrs->driver_udata);
 	if (IS_ERR(wq)) {
@@ -2972,12 +2982,12 @@ static int ib_uverbs_ex_create_wq(struct uverbs_attr_bundle *attrs)
 	wq->cq = cq;
 	wq->pd = pd;
 	wq->device = pd->device;
-	wq->wq_context = wq_init_attr.wq_context;
 	atomic_set(&wq->usecnt, 0);
 	atomic_inc(&pd->usecnt);
 	atomic_inc(&cq->usecnt);
-	wq->uobject = obj;
-	obj->uevent.uobject.object = wq;
+	obj->uevent.event_file = READ_ONCE(attrs->ufile->default_async_file);
+	if (obj->uevent.event_file)
+		uverbs_uobject_get(&obj->uevent.event_file->uobj);
 
 	memset(&resp, 0, sizeof(resp));
 	resp.wq_handle = obj->uevent.uobject.id;
@@ -2996,6 +3006,8 @@ static int ib_uverbs_ex_create_wq(struct uverbs_attr_bundle *attrs)
 	return 0;
 
 err_copy:
+	if (obj->uevent.event_file)
+		uverbs_uobject_put(&obj->uevent.event_file->uobj);
 	ib_destroy_wq(wq, uverbs_get_cleared_udata(attrs));
 err_put_cq:
 	rdma_lookup_put_uobject(&cq->uobject->uevent.uobject,
@@ -3441,46 +3453,25 @@ static int __uverbs_create_xsrq(struct uverbs_attr_bundle *attrs,
 	}
 
 	attr.event_handler  = ib_uverbs_srq_event_handler;
-	attr.srq_context    = attrs->ufile;
 	attr.srq_type       = cmd->srq_type;
 	attr.attr.max_wr    = cmd->max_wr;
 	attr.attr.max_sge   = cmd->max_sge;
 	attr.attr.srq_limit = cmd->srq_limit;
 
 	INIT_LIST_HEAD(&obj->uevent.event_list);
+	obj->uevent.uobject.user_handle = cmd->user_handle;
 
-	srq = rdma_zalloc_drv_obj(ib_dev, ib_srq);
-	if (!srq) {
-		ret = -ENOMEM;
-		goto err_put;
+	srq = ib_create_srq_user(pd, &attr, obj, udata);
+	if (IS_ERR(srq)) {
+		ret = PTR_ERR(srq);
+		goto err_put_pd;
 	}
-
-	srq->device        = pd->device;
-	srq->pd            = pd;
-	srq->srq_type	   = cmd->srq_type;
-	srq->uobject       = obj;
-	srq->event_handler = attr.event_handler;
-	srq->srq_context   = attr.srq_context;
-
-	ret = pd->device->ops.create_srq(srq, &attr, udata);
-	if (ret)
-		goto err_free;
-
-	if (ib_srq_has_cq(cmd->srq_type)) {
-		srq->ext.cq       = attr.ext.cq;
-		atomic_inc(&attr.ext.cq->usecnt);
-	}
-
-	if (cmd->srq_type == IB_SRQT_XRC) {
-		srq->ext.xrc.xrcd = attr.ext.xrc.xrcd;
-		atomic_inc(&attr.ext.xrc.xrcd->usecnt);
-	}
-
-	atomic_inc(&pd->usecnt);
-	atomic_set(&srq->usecnt, 0);
 
 	obj->uevent.uobject.object = srq;
 	obj->uevent.uobject.user_handle = cmd->user_handle;
+	obj->uevent.event_file = READ_ONCE(attrs->ufile->default_async_file);
+	if (obj->uevent.event_file)
+		uverbs_uobject_get(&obj->uevent.event_file->uobj);
 
 	memset(&resp, 0, sizeof resp);
 	resp.srq_handle = obj->uevent.uobject.id;
@@ -3505,14 +3496,11 @@ static int __uverbs_create_xsrq(struct uverbs_attr_bundle *attrs,
 	return 0;
 
 err_copy:
+	if (obj->uevent.event_file)
+		uverbs_uobject_put(&obj->uevent.event_file->uobj);
 	ib_destroy_srq_user(srq, uverbs_get_cleared_udata(attrs));
-	/* It was released in ib_destroy_srq_user */
-	srq = NULL;
-err_free:
-	kfree(srq);
-err_put:
+err_put_pd:
 	uobj_put_obj_read(pd);
-
 err_put_cq:
 	if (ib_srq_has_cq(cmd->srq_type))
 		rdma_lookup_put_uobject(&attr.ext.cq->uobject->uevent.uobject,
@@ -3751,7 +3739,7 @@ static int ib_uverbs_ex_modify_cq(struct uverbs_attr_bundle *attrs)
 #define UAPI_DEF_WRITE_IO(req, resp)                                           \
 	.write.has_resp = 1 +                                                  \
 			  BUILD_BUG_ON_ZERO(offsetof(req, response) != 0) +    \
-			  BUILD_BUG_ON_ZERO(sizeof(((req *)0)->response) !=    \
+			  BUILD_BUG_ON_ZERO(sizeof_field(req, response) !=    \
 					    sizeof(u64)),                      \
 	.write.req_size = sizeof(req), .write.resp_size = sizeof(resp)
 

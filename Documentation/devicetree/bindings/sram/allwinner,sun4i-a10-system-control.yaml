@@ -29,8 +29,8 @@ properties:
       - const: allwinner,sun4i-a10-system-control
       - const: allwinner,sun5i-a13-system-control
       - items:
-        - const: allwinner,sun7i-a20-system-control
-        - const: allwinner,sun4i-a10-system-control
+          - const: allwinner,sun7i-a20-system-control
+          - const: allwinner,sun4i-a10-system-control
       - const: allwinner,sun8i-a23-system-control
       - const: allwinner,sun8i-h3-system-control
       - const: allwinner,sun50i-a64-sram-controller
@@ -38,11 +38,11 @@ properties:
       - const: allwinner,sun50i-a64-system-control
       - const: allwinner,sun50i-h5-system-control
       - items:
-        - const: allwinner,sun50i-h6-system-control
-        - const: allwinner,sun50i-a64-system-control
+          - const: allwinner,sun50i-h6-system-control
+          - const: allwinner,sun50i-a64-system-control
       - items:
-        - const: allwinner,suniv-f1c100s-system-control
-        - const: allwinner,sun4i-a10-system-control
+          - const: allwinner,suniv-f1c100s-system-control
+          - const: allwinner,sun4i-a10-system-control
 
   reg:
     maxItems: 1
@@ -69,44 +69,44 @@ patternProperties:
               - const: allwinner,sun4i-a10-sram-d
               - const: allwinner,sun50i-a64-sram-c
               - items:
-                - const: allwinner,sun5i-a13-sram-a3-a4
-                - const: allwinner,sun4i-a10-sram-a3-a4
+                  - const: allwinner,sun5i-a13-sram-a3-a4
+                  - const: allwinner,sun4i-a10-sram-a3-a4
               - items:
-                - const: allwinner,sun7i-a20-sram-a3-a4
-                - const: allwinner,sun4i-a10-sram-a3-a4
+                  - const: allwinner,sun7i-a20-sram-a3-a4
+                  - const: allwinner,sun4i-a10-sram-a3-a4
               - items:
-                - const: allwinner,sun5i-a13-sram-c1
-                - const: allwinner,sun4i-a10-sram-c1
+                  - const: allwinner,sun5i-a13-sram-c1
+                  - const: allwinner,sun4i-a10-sram-c1
               - items:
-                - const: allwinner,sun7i-a20-sram-c1
-                - const: allwinner,sun4i-a10-sram-c1
+                  - const: allwinner,sun7i-a20-sram-c1
+                  - const: allwinner,sun4i-a10-sram-c1
               - items:
-                - const: allwinner,sun8i-a23-sram-c1
-                - const: allwinner,sun4i-a10-sram-c1
+                  - const: allwinner,sun8i-a23-sram-c1
+                  - const: allwinner,sun4i-a10-sram-c1
               - items:
-                - const: allwinner,sun8i-h3-sram-c1
-                - const: allwinner,sun4i-a10-sram-c1
+                  - const: allwinner,sun8i-h3-sram-c1
+                  - const: allwinner,sun4i-a10-sram-c1
               - items:
-                - const: allwinner,sun50i-a64-sram-c1
-                - const: allwinner,sun4i-a10-sram-c1
+                  - const: allwinner,sun50i-a64-sram-c1
+                  - const: allwinner,sun4i-a10-sram-c1
               - items:
-                - const: allwinner,sun50i-h5-sram-c1
-                - const: allwinner,sun4i-a10-sram-c1
+                  - const: allwinner,sun50i-h5-sram-c1
+                  - const: allwinner,sun4i-a10-sram-c1
               - items:
-                - const: allwinner,sun50i-h6-sram-c1
-                - const: allwinner,sun4i-a10-sram-c1
+                  - const: allwinner,sun50i-h6-sram-c1
+                  - const: allwinner,sun4i-a10-sram-c1
               - items:
-                - const: allwinner,sun5i-a13-sram-d
-                - const: allwinner,sun4i-a10-sram-d
+                  - const: allwinner,sun5i-a13-sram-d
+                  - const: allwinner,sun4i-a10-sram-d
               - items:
-                - const: allwinner,sun7i-a20-sram-d
-                - const: allwinner,sun4i-a10-sram-d
+                  - const: allwinner,sun7i-a20-sram-d
+                  - const: allwinner,sun4i-a10-sram-d
               - items:
-                - const: allwinner,suniv-f1c100s-sram-d
-                - const: allwinner,sun4i-a10-sram-d
+                  - const: allwinner,suniv-f1c100s-sram-d
+                  - const: allwinner,sun4i-a10-sram-d
               - items:
-                - const: allwinner,sun50i-h6-sram-c
-                - const: allwinner,sun50i-a64-sram-c
+                  - const: allwinner,sun50i-h6-sram-c
+                  - const: allwinner,sun50i-a64-sram-c
 
 required:
   - "#address-cells"

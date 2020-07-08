@@ -40,6 +40,7 @@
 #include <drm/drm_file.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_device.h>
+#include <drm/drm_ioctl.h>
 #include <kgd_kfd_interface.h>
 #include <linux/swap.h>
 
@@ -282,6 +283,7 @@ struct kfd_dev {
 
 	/* Firmware versions */
 	uint16_t mec_fw_version;
+	uint16_t mec2_fw_version;
 	uint16_t sdma_fw_version;
 
 	/* Maximum process number mapped to HW scheduler */
@@ -410,6 +412,10 @@ enum KFD_QUEUE_PRIORITY {
  * @is_active: Defines if the queue is active or not. @is_active and
  * @is_evicted are protected by the DQM lock.
  *
+ * @is_gws: Defines if the queue has been updated to be GWS-capable or not.
+ * @is_gws should be protected by the DQM lock, since changing it can yield the
+ * possibility of updating DQM state on number of GWS queues.
+ *
  * @vmid: If the scheduling mode is no cp scheduling the field defines the vmid
  * of the queue.
  *
@@ -432,6 +438,7 @@ struct queue_properties {
 	bool is_interop;
 	bool is_evicted;
 	bool is_active;
+	bool is_gws;
 	/* Not relevant for user mode queues in cp scheduling */
 	unsigned int vmid;
 	/* Relevant only for sdma queues*/
@@ -563,6 +570,14 @@ struct qcm_process_device {
 	 */
 	bool reset_wavefronts;
 
+	/* This flag tells us if this process has a GWS-capable
+	 * queue that will be mapped into the runlist. It's
+	 * possible to request a GWS BO, but not have the queue
+	 * currently mapped, and this changes how the MAP_PROCESS
+	 * PM4 packet is configured.
+	 */
+	bool mapped_gws_queue;
+
 	/*
 	 * All the memory management data should be here too
 	 */
@@ -615,6 +630,8 @@ enum kfd_pdd_bound {
 	PDD_BOUND_SUSPENDED,
 };
 
+#define MAX_VRAM_FILENAME_LEN 11
+
 /* Data that is per-process-per device. */
 struct kfd_process_device {
 	/*
@@ -657,6 +674,11 @@ struct kfd_process_device {
 
 	/* Is this process/pasid bound to this device? (amd_iommu_bind_pasid) */
 	enum kfd_pdd_bound bound;
+
+	/* VRAM usage */
+	uint64_t vram_usage;
+	struct attribute attr_vram;
+	char vram_filename[MAX_VRAM_FILENAME_LEN];
 };
 
 #define qpd_to_pdd(x) container_of(x, struct kfd_process_device, qpd)
@@ -923,6 +945,8 @@ int pqm_set_gws(struct process_queue_manager *pqm, unsigned int qid,
 			void *gws);
 struct kernel_queue *pqm_get_kernel_queue(struct process_queue_manager *pqm,
 						unsigned int qid);
+struct queue *pqm_get_user_queue(struct process_queue_manager *pqm,
+						unsigned int qid);
 int pqm_get_wave_state(struct process_queue_manager *pqm,
 		       unsigned int qid,
 		       void __user *ctl_stack,
@@ -1050,10 +1074,10 @@ void kfd_dec_compute_active(struct kfd_dev *dev);
 /* Check with device cgroup if @kfd device is accessible */
 static inline int kfd_devcgroup_check_permission(struct kfd_dev *kfd)
 {
-#if defined(CONFIG_CGROUP_DEVICE)
+#if defined(CONFIG_CGROUP_DEVICE) || defined(CONFIG_CGROUP_BPF)
 	struct drm_device *ddev = kfd->ddev;
 
-	return devcgroup_check_permission(DEVCG_DEV_CHAR, ddev->driver->major,
+	return devcgroup_check_permission(DEVCG_DEV_CHAR, DRM_MAJOR,
 					  ddev->render->index,
 					  DEVCG_ACC_WRITE | DEVCG_ACC_READ);
 #else

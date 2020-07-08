@@ -344,6 +344,12 @@ struct gpio_desc *gpiod_get_from_of_node(struct device_node *node,
 	if (transitory)
 		lflags |= GPIO_TRANSITORY;
 
+	if (flags & OF_GPIO_PULL_UP)
+		lflags |= GPIO_PULL_UP;
+
+	if (flags & OF_GPIO_PULL_DOWN)
+		lflags |= GPIO_PULL_DOWN;
+
 	ret = gpiod_configure_flags(desc, propname, lflags, dflags);
 	if (ret < 0) {
 		gpiod_put(desc);
@@ -460,6 +466,24 @@ static struct gpio_desc *of_find_arizona_gpio(struct device *dev,
 	return of_get_named_gpiod_flags(dev->of_node, con_id, 0, of_flags);
 }
 
+static struct gpio_desc *of_find_usb_gpio(struct device *dev,
+					  const char *con_id,
+					  enum of_gpio_flags *of_flags)
+{
+	/*
+	 * Currently this USB quirk is only for the Fairchild FUSB302 host which is using
+	 * an undocumented DT GPIO line named "fcs,int_n" without the compulsory "-gpios"
+	 * suffix.
+	 */
+	if (!IS_ENABLED(CONFIG_TYPEC_FUSB302))
+		return ERR_PTR(-ENOENT);
+
+	if (!con_id || strcmp(con_id, "fcs,int_n"))
+		return ERR_PTR(-ENOENT);
+
+	return of_get_named_gpiod_flags(dev->of_node, con_id, 0, of_flags);
+}
+
 struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
 			       unsigned int idx, unsigned long *flags)
 {
@@ -503,6 +527,9 @@ struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
 
 	if (PTR_ERR(desc) == -ENOENT)
 		desc = of_find_arizona_gpio(dev, con_id, &of_flags);
+
+	if (PTR_ERR(desc) == -ENOENT)
+		desc = of_find_usb_gpio(dev, con_id, &of_flags);
 
 	if (IS_ERR(desc))
 		return desc;
@@ -585,6 +612,10 @@ static struct gpio_desc *of_parse_own_gpio(struct device_node *np,
 		*lflags |= GPIO_ACTIVE_LOW;
 	if (xlate_flags & OF_GPIO_TRANSITORY)
 		*lflags |= GPIO_TRANSITORY;
+	if (xlate_flags & OF_GPIO_PULL_UP)
+		*lflags |= GPIO_PULL_UP;
+	if (xlate_flags & OF_GPIO_PULL_DOWN)
+		*lflags |= GPIO_PULL_DOWN;
 
 	if (of_property_read_bool(np, "input"))
 		*dflags |= GPIOD_IN;

@@ -62,7 +62,7 @@
 
 		ranges = <0 0xf7000000 0x1000000>;
 
-		sdhci0: sdhci@ab0000 {
+		sdhci0: mmc@ab0000 {
 			compatible = "mrvl,pxav3-mmc";
 			reg = <0xab0000 0x200>;
 			clocks = <&chip_clk CLKID_SDIO0XIN>, <&chip_clk CLKID_SDIO0>;

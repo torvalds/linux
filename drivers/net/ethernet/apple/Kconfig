@@ -7,7 +7,7 @@ config NET_VENDOR_APPLE
 	bool "Apple devices"
 	default y
 	depends on (PPC_PMAC && PPC32) || MAC
-	---help---
+	help
 	  If you have a network (Ethernet) card belonging to this class, say Y.
 
 	  Note that the answer to this question doesn't directly affect the
@@ -21,7 +21,7 @@ config MACE
 	tristate "MACE (Power Mac ethernet) support"
 	depends on PPC_PMAC && PPC32
 	select CRC32
-	---help---
+	help
 	  Power Macintoshes and clones with Ethernet built-in on the
 	  motherboard will usually use a MACE (Medium Access Control for
 	  Ethernet) interface. Say Y to include support for the MACE chip.
@@ -32,7 +32,7 @@ config MACE
 config MACE_AAUI_PORT
 	bool "Use AAUI port instead of TP by default"
 	depends on MACE
-	---help---
+	help
 	  Some Apple machines (notably the Apple Network Server) which use the
 	  MACE ethernet chip have an Apple AUI port (small 15-pin connector),
 	  instead of an 8-pin RJ45 connector for twisted-pair ethernet.  Say
@@ -44,7 +44,7 @@ config BMAC
 	tristate "BMAC (G3 ethernet) support"
 	depends on PPC_PMAC && PPC32
 	select CRC32
-	---help---
+	help
 	  Say Y for support of BMAC Ethernet interfaces. These are used on G3
 	  computers.
 
@@ -55,7 +55,7 @@ config MACMACE
 	tristate "Macintosh (AV) onboard MACE ethernet"
 	depends on MAC
 	select CRC32
-	---help---
+	help
 	  Support for the onboard AMD 79C940 MACE Ethernet controller used in
 	  the 660AV and 840AV Macintosh.  If you have one of these Macintoshes
 	  say Y here.

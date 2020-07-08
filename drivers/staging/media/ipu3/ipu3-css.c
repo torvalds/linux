@@ -1911,6 +1911,13 @@ int imgu_css_meta_fmt_set(struct v4l2_meta_format *fmt)
 	switch (fmt->dataformat) {
 	case V4L2_META_FMT_IPU3_PARAMS:
 		fmt->buffersize = sizeof(struct ipu3_uapi_params);
+
+		/*
+		 * Sanity check for the parameter struct size. This must
+		 * not change!
+		 */
+		BUILD_BUG_ON(sizeof(struct ipu3_uapi_params) != 39328);
+
 		break;
 	case V4L2_META_FMT_IPU3_STAT_3A:
 		fmt->buffersize = sizeof(struct ipu3_uapi_stats_3a);

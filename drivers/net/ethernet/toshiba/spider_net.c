@@ -1615,7 +1615,7 @@ spider_net_interrupt(int irq, void *ptr)
  * spider_net_poll_controller - artificial interrupt for netconsole etc.
  * @netdev: interface device structure
  *
- * see Documentation/networking/netconsole.txt
+ * see Documentation/networking/netconsole.rst
  */
 static void
 spider_net_poll_controller(struct net_device *netdev)

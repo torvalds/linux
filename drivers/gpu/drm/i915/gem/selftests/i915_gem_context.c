@@ -972,12 +972,6 @@ emit_rpcs_query(struct drm_i915_gem_object *obj,
 		goto err_batch;
 	}
 
-	err = rq->engine->emit_bb_start(rq,
-					batch->node.start, batch->node.size,
-					0);
-	if (err)
-		goto err_request;
-
 	i915_vma_lock(batch);
 	err = i915_request_await_object(rq, batch->obj, false);
 	if (err == 0)
@@ -994,6 +988,18 @@ emit_rpcs_query(struct drm_i915_gem_object *obj,
 	if (err)
 		goto skip_request;
 
+	if (rq->engine->emit_init_breadcrumb) {
+		err = rq->engine->emit_init_breadcrumb(rq);
+		if (err)
+			goto skip_request;
+	}
+
+	err = rq->engine->emit_bb_start(rq,
+					batch->node.start, batch->node.size,
+					0);
+	if (err)
+		goto skip_request;
+
 	i915_vma_unpin_and_release(&batch, 0);
 	i915_vma_unpin(vma);
 
@@ -1005,7 +1011,6 @@ emit_rpcs_query(struct drm_i915_gem_object *obj,
 
 skip_request:
 	i915_request_set_error_once(rq, err);
-err_request:
 	i915_request_add(rq);
 err_batch:
 	i915_vma_unpin_and_release(&batch, 0);
@@ -1541,15 +1546,21 @@ static int write_to_scratch(struct i915_gem_context *ctx,
 		goto err_unpin;
 	}
 
-	err = engine->emit_bb_start(rq, vma->node.start, vma->node.size, 0);
-	if (err)
-		goto err_request;
-
 	i915_vma_lock(vma);
 	err = i915_request_await_object(rq, vma->obj, false);
 	if (err == 0)
 		err = i915_vma_move_to_active(vma, rq, 0);
 	i915_vma_unlock(vma);
+	if (err)
+		goto skip_request;
+
+	if (rq->engine->emit_init_breadcrumb) {
+		err = rq->engine->emit_init_breadcrumb(rq);
+		if (err)
+			goto skip_request;
+	}
+
+	err = engine->emit_bb_start(rq, vma->node.start, vma->node.size, 0);
 	if (err)
 		goto skip_request;
 
@@ -1560,7 +1571,6 @@ static int write_to_scratch(struct i915_gem_context *ctx,
 	goto out_vm;
 skip_request:
 	i915_request_set_error_once(rq, err);
-err_request:
 	i915_request_add(rq);
 err_unpin:
 	i915_vma_unpin(vma);
@@ -1674,10 +1684,6 @@ static int read_from_scratch(struct i915_gem_context *ctx,
 		goto err_unpin;
 	}
 
-	err = engine->emit_bb_start(rq, vma->node.start, vma->node.size, flags);
-	if (err)
-		goto err_request;
-
 	i915_vma_lock(vma);
 	err = i915_request_await_object(rq, vma->obj, true);
 	if (err == 0)
@@ -1686,8 +1692,17 @@ static int read_from_scratch(struct i915_gem_context *ctx,
 	if (err)
 		goto skip_request;
 
+	if (rq->engine->emit_init_breadcrumb) {
+		err = rq->engine->emit_init_breadcrumb(rq);
+		if (err)
+			goto skip_request;
+	}
+
+	err = engine->emit_bb_start(rq, vma->node.start, vma->node.size, flags);
+	if (err)
+		goto skip_request;
+
 	i915_vma_unpin(vma);
-	i915_vma_close(vma);
 
 	i915_request_add(rq);
 
@@ -1709,7 +1724,6 @@ static int read_from_scratch(struct i915_gem_context *ctx,
 	goto out_vm;
 skip_request:
 	i915_request_set_error_once(rq, err);
-err_request:
 	i915_request_add(rq);
 err_unpin:
 	i915_vma_unpin(vma);
@@ -1925,7 +1939,7 @@ static int mock_context_barrier(void *arg)
 		goto out;
 	}
 
-	rq = igt_request_alloc(ctx, i915->engine[RCS0]);
+	rq = igt_request_alloc(ctx, i915->gt.engine[RCS0]);
 	if (IS_ERR(rq)) {
 		pr_err("Request allocation failed!\n");
 		goto out;

@@ -56,6 +56,7 @@ modules.order
 /linux
 /vmlinux
 /vmlinux.32
+/vmlinux.symvers
 /vmlinux-gdb.py
 /vmlinuz
 /System.map
@@ -141,6 +142,9 @@ x509.genkey
 /allno.config
 /allrandom.config
 /allyes.config
+
+# Kconfig savedefconfig output
+/defconfig
 
 # Kdevelop4
 *.kdev4

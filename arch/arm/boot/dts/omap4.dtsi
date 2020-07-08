@@ -655,3 +655,13 @@
 		#reset-cells = <1>;
 	};
 };
+
+/* Preferred always-on timer for clockevent */
+&timer1_target {
+	ti,no-reset-on-init;
+	ti,no-idle;
+	timer@0 {
+		assigned-clocks = <&l4_wkup_clkctrl OMAP4_TIMER1_CLKCTRL 24>;
+		assigned-clock-parents = <&sys_32k_ck>;
+	};
+};

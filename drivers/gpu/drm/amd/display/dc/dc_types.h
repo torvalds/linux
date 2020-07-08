@@ -862,4 +862,9 @@ struct dsc_dec_dpcd_caps {
 	uint32_t branch_max_line_width;
 };
 
+enum dc_psr_version {
+	DC_PSR_VERSION_1			= 0,
+	DC_PSR_VERSION_UNSUPPORTED		= 0xFFFFFFFF,
+};
+
 #endif /* DC_TYPES_H_ */

@@ -158,6 +158,8 @@ struct intel_device_info {
 
 	enum intel_platform platform;
 
+	unsigned int dma_mask_size; /* available DMA address bits */
+
 	enum intel_ppgtt_type ppgtt_type;
 	unsigned int ppgtt_size; /* log2, e.g. 31/32/48 bits */
 
@@ -168,6 +170,7 @@ struct intel_device_info {
 	u32 display_mmio_offset;
 
 	u8 pipe_mask;
+	u8 cpu_transcoder_mask;
 
 #define DEFINE_FLAG(name) u8 name:1
 	DEV_INFO_FOR_EACH_FLAG(DEFINE_FLAG);
@@ -218,7 +221,7 @@ struct intel_runtime_info {
 
 	u32 rawclk_freq;
 
-	u32 cs_timestamp_frequency_khz;
+	u32 cs_timestamp_frequency_hz;
 	u32 cs_timestamp_period_ns;
 
 	/* Media engine access to SFC per instance */

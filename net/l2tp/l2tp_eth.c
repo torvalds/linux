@@ -56,6 +56,7 @@ static int l2tp_eth_dev_init(struct net_device *dev)
 {
 	eth_hw_addr_random(dev);
 	eth_broadcast_addr(dev->broadcast);
+	netdev_lockdep_set_classes(dev);
 
 	return 0;
 }

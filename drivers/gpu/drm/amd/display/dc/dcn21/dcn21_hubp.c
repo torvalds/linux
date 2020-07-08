@@ -778,21 +778,28 @@ void dmcub_PLAT_54186_wa(struct hubp *hubp, struct surface_flip_registers *flip_
 {
 	struct dc_dmub_srv *dmcub = hubp->ctx->dmub_srv;
 	struct dcn21_hubp *hubp21 = TO_DCN21_HUBP(hubp);
-	struct dmub_rb_cmd_PLAT_54186_wa PLAT_54186_wa = { 0 };
+	union dmub_rb_cmd cmd;
 
-	PLAT_54186_wa.header.type = DMUB_CMD__PLAT_54186_WA;
-	PLAT_54186_wa.flip.DCSURF_PRIMARY_SURFACE_ADDRESS = flip_regs->DCSURF_PRIMARY_SURFACE_ADDRESS;
-	PLAT_54186_wa.flip.DCSURF_PRIMARY_SURFACE_ADDRESS_C = flip_regs->DCSURF_PRIMARY_SURFACE_ADDRESS_C;
-	PLAT_54186_wa.flip.DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH = flip_regs->DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH;
-	PLAT_54186_wa.flip.DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH_C = flip_regs->DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH_C;
-	PLAT_54186_wa.flip.flip_params.grph_stereo = flip_regs->grph_stereo;
-	PLAT_54186_wa.flip.flip_params.hubp_inst = hubp->inst;
-	PLAT_54186_wa.flip.flip_params.immediate = flip_regs->immediate;
-	PLAT_54186_wa.flip.flip_params.tmz_surface = flip_regs->tmz_surface;
-	PLAT_54186_wa.flip.flip_params.vmid = flip_regs->vmid;
+	memset(&cmd, 0, sizeof(cmd));
+
+	cmd.PLAT_54186_wa.header.type = DMUB_CMD__PLAT_54186_WA;
+	cmd.PLAT_54186_wa.header.payload_bytes = sizeof(cmd.PLAT_54186_wa.flip);
+	cmd.PLAT_54186_wa.flip.DCSURF_PRIMARY_SURFACE_ADDRESS =
+		flip_regs->DCSURF_PRIMARY_SURFACE_ADDRESS;
+	cmd.PLAT_54186_wa.flip.DCSURF_PRIMARY_SURFACE_ADDRESS_C =
+		flip_regs->DCSURF_PRIMARY_SURFACE_ADDRESS_C;
+	cmd.PLAT_54186_wa.flip.DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH =
+		flip_regs->DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH;
+	cmd.PLAT_54186_wa.flip.DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH_C =
+		flip_regs->DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH_C;
+	cmd.PLAT_54186_wa.flip.flip_params.grph_stereo = flip_regs->grph_stereo;
+	cmd.PLAT_54186_wa.flip.flip_params.hubp_inst = hubp->inst;
+	cmd.PLAT_54186_wa.flip.flip_params.immediate = flip_regs->immediate;
+	cmd.PLAT_54186_wa.flip.flip_params.tmz_surface = flip_regs->tmz_surface;
+	cmd.PLAT_54186_wa.flip.flip_params.vmid = flip_regs->vmid;
 
 	PERF_TRACE();  // TODO: remove after performance is stable.
-	dc_dmub_srv_cmd_queue(dmcub, &PLAT_54186_wa.header);
+	dc_dmub_srv_cmd_queue(dmcub, &cmd);
 	PERF_TRACE();  // TODO: remove after performance is stable.
 	dc_dmub_srv_cmd_execute(dmcub);
 	PERF_TRACE();  // TODO: remove after performance is stable.

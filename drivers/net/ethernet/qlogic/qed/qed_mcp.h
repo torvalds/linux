@@ -685,6 +685,18 @@ int qed_mcp_bist_nvm_get_image_att(struct qed_hwfn *p_hwfn,
  */
 int qed_mfw_process_tlv_req(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
 
+/**
+ * @brief Send raw debug data to the MFW
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ * @param p_buf - raw debug data buffer
+ * @param size - buffer size
+ */
+int
+qed_mcp_send_raw_debug_data(struct qed_hwfn *p_hwfn,
+			    struct qed_ptt *p_ptt, u8 *p_buf, u32 size);
+
 /* Using hwfn number (and not pf_num) is required since in CMT mode,
  * same pf_num may be used by two different hwfn
  * TODO - this shouldn't really be in .h file, but until all fields
@@ -731,6 +743,9 @@ struct qed_mcp_info {
 
 	/* Capabilties negotiated with the MFW */
 	u32					capabilities;
+
+	/* S/N for debug data mailbox commands */
+	atomic_t dbg_data_seq;
 };
 
 struct qed_mcp_mb_params {
@@ -1000,6 +1015,19 @@ int __qed_configure_pf_min_bandwidth(struct qed_hwfn *p_hwfn,
 
 int qed_mcp_mask_parities(struct qed_hwfn *p_hwfn,
 			  struct qed_ptt *p_ptt, u32 mask_parities);
+
+/* @brief - Gets the mdump retained data from the MFW.
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ * @param p_mdump_retain
+ *
+ * @param return 0 upon success.
+ */
+int
+qed_mcp_mdump_get_retain(struct qed_hwfn *p_hwfn,
+			 struct qed_ptt *p_ptt,
+			 struct mdump_retain_data_stc *p_mdump_retain);
 
 /**
  * @brief - Sets the MFW's max value for the given resource

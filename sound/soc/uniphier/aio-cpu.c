@@ -424,7 +424,7 @@ static void uniphier_aio_dai_suspend(struct snd_soc_dai *dai)
 {
 	struct uniphier_aio *aio = uniphier_priv(dai);
 
-	if (!dai->active)
+	if (!snd_soc_dai_active(dai))
 		return;
 
 	aio->chip->num_wup_aios--;
@@ -448,7 +448,7 @@ static int uniphier_aio_dai_resume(struct snd_soc_dai *dai)
 	struct uniphier_aio *aio = uniphier_priv(dai);
 	int ret, i;
 
-	if (!dai->active)
+	if (!snd_soc_dai_active(dai))
 		return 0;
 
 	if (!aio->chip->active)

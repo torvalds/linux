@@ -2,32 +2,26 @@ Generic device tree bindings for I2C busses
 ===========================================
 
 This document describes generic bindings which can be used to describe I2C
-busses in a device tree.
+busses and their child devices in a device tree.
 
-Required properties
--------------------
+Required properties (per bus)
+-----------------------------
 
 - #address-cells  - should be <1>. Read more about addresses below.
 - #size-cells     - should be <0>.
-- compatible      - name of I2C bus controller following generic names
-		    recommended practice.
+- compatible      - name of I2C bus controller
 
 For other required properties e.g. to describe register sets,
 clocks, etc. check the binding documentation of the specific driver.
 
 The cells properties above define that an address of children of an I2C bus
-are described by a single value. This is usually a 7 bit address. However,
-flags can be attached to the address. I2C_TEN_BIT_ADDRESS is used to mark a 10
-bit address. It is needed to avoid the ambiguity between e.g. a 7 bit address
-of 0x50 and a 10 bit address of 0x050 which, in theory, can be on the same bus.
-Another flag is I2C_OWN_SLAVE_ADDRESS to mark addresses on which we listen to
-be devices ourselves.
+are described by a single value.
 
-Optional properties
--------------------
+Optional properties (per bus)
+-----------------------------
 
 These properties may not be supported by all drivers. However, if a driver
-wants to support one of the below features, it should adapt the bindings below.
+wants to support one of the below features, it should adapt these bindings.
 
 - clock-frequency
 	frequency of bus clock in Hz.
@@ -73,6 +67,40 @@ wants to support one of the below features, it should adapt the bindings below.
 	i2c bus clock frequency (clock-frequency).
 	Specified in Hz.
 
+- multi-master
+	states that there is another master active on this bus. The OS can use
+	this information to adapt power management to keep the arbitration awake
+	all the time, for example. Can not be combined with 'single-master'.
+
+- single-master
+	states that there is no other master active on this bus. The OS can use
+	this information to detect a stalled bus more reliably, for example.
+	Can not be combined with 'multi-master'.
+
+Required properties (per child device)
+--------------------------------------
+
+- compatible
+	name of I2C slave device
+
+- reg
+	One or many I2C slave addresses. These are usually a 7 bit addresses.
+	However, flags can be attached to an address. I2C_TEN_BIT_ADDRESS is
+	used to mark a 10 bit address. It is needed to avoid the ambiguity
+	between e.g. a 7 bit address of 0x50 and a 10 bit address of 0x050
+	which, in theory, can be on the same bus.
+	Another flag is I2C_OWN_SLAVE_ADDRESS to mark addresses on which we
+	listen to be devices ourselves.
+
+Optional properties (per child device)
+--------------------------------------
+
+These properties may not be supported by all drivers. However, if a driver
+wants to support one of the below features, it should adapt these bindings.
+
+- host-notify
+	device uses SMBus host notify protocol instead of interrupt line.
+
 - interrupts
 	interrupts used by the device.
 
@@ -80,23 +108,12 @@ wants to support one of the below features, it should adapt the bindings below.
 	"irq", "wakeup" and "smbus_alert" names are recognized by I2C core,
 	other names are	left to individual drivers.
 
-- host-notify
-	device uses SMBus host notify protocol instead of interrupt line.
-
-- multi-master
-	states that there is another master active on this bus. The OS can use
-	this information to adapt power management to keep the arbitration awake
-	all the time, for example.
-
-- wakeup-source
-	device can be used as a wakeup source.
-
-- reg
-	I2C slave addresses
-
 - reg-names
 	Names of map programmable addresses.
 	It can contain any map needing another address than default one.
+
+- wakeup-source
+	device can be used as a wakeup source.
 
 Binding may contain optional "interrupts" property, describing interrupts
 used by the device. I2C core will assign "irq" interrupt (or the very first

@@ -89,6 +89,8 @@
 #define GV100_DISP                                    /* cl5070.h */ 0x0000c370
 #define TU102_DISP                                    /* cl5070.h */ 0x0000c570
 
+#define GV100_DISP_CAPS                                              0x0000c373
+
 #define NV31_MPEG                                                    0x00003174
 #define G82_MPEG                                                     0x00008274
 

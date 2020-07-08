@@ -49,9 +49,8 @@ properties:
        0 - Mic bias is set to VREF
        1 - Mic bias is set to VREF × 1.096
        6 - Mic bias is set to AVDD
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - enum: [0, 1, 6]
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1, 6]
 
   ti,vref-source:
     description: |
@@ -59,9 +58,55 @@ properties:
        0 - Set VREF to 2.75V
        1 - Set VREF to 2.5V
        2 - Set VREF to 1.375V
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - enum: [0, 1, 2]
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1, 2]
+
+  ti,pdm-edge-select:
+    description: |
+       Defines the PDMCLK sampling edge configuration for the PDM inputs.  This
+       array is defined as <PDMIN1 PDMIN2 PDMIN3 PDMIN4>.
+
+       0 - (default) Odd channel is latched on the negative edge and even
+       channel is latched on the the positive edge.
+       1 - Odd channel is latched on the positive edge and even channel is
+       latched on the the negative edge.
+
+       PDMIN1 - PDMCLK latching edge used for channel 1 and 2 data
+       PDMIN2 - PDMCLK latching edge used for channel 3 and 4 data
+       PDMIN3 - PDMCLK latching edge used for channel 5 and 6 data
+       PDMIN4 - PDMCLK latching edge used for channel 7 and 8 data
+
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 1
+    maxItems: 4
+    items:
+      maximum: 1
+    default: [0, 0, 0, 0]
+
+  ti,gpi-config:
+    description: |
+       Defines the configuration for the general purpose input pins (GPI).
+       The array is defined as <GPI1 GPI2 GPI3 GPI4>.
+
+       0 - (default) disabled
+       1 - GPIX is configured as a general-purpose input (GPI)
+       2 - GPIX is configured as a master clock input (MCLK)
+       3 - GPIX is configured as an ASI input for daisy-chain (SDIN)
+       4 - GPIX is configured as a PDM data input for channel 1 and channel
+            (PDMDIN1)
+       5 - GPIX is configured as a PDM data input for channel 3 and channel
+            (PDMDIN2)
+       6 - GPIX is configured as a PDM data input for channel 5 and channel
+            (PDMDIN3)
+       7 - GPIX is configured as a PDM data input for channel 7 and channel
+            (PDMDIN4)
+
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 1
+    maxItems: 4
+    items:
+      maximum: 7
+    default: [0, 0, 0, 0]
 
 required:
   - compatible
@@ -77,6 +122,8 @@ examples:
         compatible = "ti,tlv320adc5140";
         reg = <0x4c>;
         ti,mic-bias-source = <6>;
+        ti,pdm-edge-select = <0 1 0 1>;
+        ti,gpi-config = <4 5 6 7>;
         reset-gpios = <&gpio0 14 GPIO_ACTIVE_HIGH>;
       };
     };

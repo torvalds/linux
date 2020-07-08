@@ -37,4 +37,4 @@ when changes are made.
 
 The following CEC error injection implementations exist:
 
-- Documentation/media/uapi/cec/cec-pin-error-inj.rst
+- Documentation/userspace-api/media/cec/cec-pin-error-inj.rst

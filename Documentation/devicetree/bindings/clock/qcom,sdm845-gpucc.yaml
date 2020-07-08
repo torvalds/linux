@@ -60,7 +60,7 @@ examples:
     #include <dt-bindings/clock/qcom,rpmh.h>
     clock-controller@5090000 {
       compatible = "qcom,sdm845-gpucc";
-      reg = <0 0x05090000 0 0x9000>;
+      reg = <0x05090000 0x9000>;
       clocks = <&rpmhcc RPMH_CXO_CLK>,
                <&gcc GCC_GPU_GPLL0_CLK_SRC>,
                <&gcc GCC_GPU_GPLL0_DIV_CLK_SRC>;

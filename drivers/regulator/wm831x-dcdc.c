@@ -204,7 +204,7 @@ static irqreturn_t wm831x_dcdc_oc_irq(int irq, void *data)
  * BUCKV specifics
  */
 
-static const struct regulator_linear_range wm831x_buckv_ranges[] = {
+static const struct linear_range wm831x_buckv_ranges[] = {
 	REGULATOR_LINEAR_RANGE(600000, 0, 0x7, 0),
 	REGULATOR_LINEAR_RANGE(600000, 0x8, 0x68, 12500),
 };

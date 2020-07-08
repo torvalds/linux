@@ -25,7 +25,7 @@ void rodata_test(void)
 	}
 
 	/* test 2: write to the variable; this should fault */
-	if (!probe_kernel_write((void *)&rodata_test_data,
+	if (!copy_to_kernel_nofault((void *)&rodata_test_data,
 				(void *)&zero, sizeof(zero))) {
 		pr_err("test data was not read only\n");
 		return;

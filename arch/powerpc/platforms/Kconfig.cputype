@@ -55,8 +55,8 @@ config PPC_8xx
 	select SYS_SUPPORTS_HUGETLBFS
 	select PPC_HAVE_KUEP
 	select PPC_HAVE_KUAP
-	select PPC_MM_SLICES if HUGETLB_PAGE
 	select HAVE_ARCH_VMAP_STACK
+	select HUGETLBFS
 
 config 40x
 	bool "AMCC 40x"
@@ -280,7 +280,7 @@ config PHYS_64BIT
 	bool 'Large physical address support' if E500 || PPC_86xx
 	depends on (44x || E500 || PPC_86xx) && !PPC_83xx && !PPC_82xx
 	select PHYS_ADDR_T_64BIT
-	---help---
+	help
 	  This option enables kernel support for larger than 32-bit physical
 	  addresses.  This feature may not be available on all cores.
 
@@ -293,7 +293,7 @@ config PHYS_64BIT
 config ALTIVEC
 	bool "AltiVec Support"
 	depends on PPC_BOOK3S_32 || PPC_BOOK3S_64 || (PPC_E500MC && PPC64)
-	---help---
+	help
 	  This option enables kernel support for the Altivec extensions to the
 	  PowerPC processor. The kernel currently supports saving and restoring
 	  altivec registers, and turning on the 'altivec enable' bit so user
@@ -309,7 +309,7 @@ config ALTIVEC
 config VSX
 	bool "VSX Support"
 	depends on PPC_BOOK3S_64 && ALTIVEC && PPC_FPU
-	---help---
+	help
 
 	  This option enables kernel support for the Vector Scaler extensions
 	  to the PowerPC processor. The kernel currently supports saving and
@@ -330,7 +330,7 @@ config SPE
 	bool "SPE Support"
 	depends on SPE_POSSIBLE
 	default y
-	---help---
+	help
 	  This option enables kernel support for the Signal Processing
 	  Extensions (SPE) to the PowerPC processor. The kernel currently
 	  supports saving and restoring SPE registers, and turning on the
@@ -377,7 +377,7 @@ config PPC_HAVE_KUEP
 config PPC_KUEP
 	bool "Kernel Userspace Execution Prevention"
 	depends on PPC_HAVE_KUEP
-	default y
+	default y if !PPC_BOOK3S_32
 	help
 	  Enable support for Kernel Userspace Execution Prevention (KUEP)
 
@@ -389,7 +389,7 @@ config PPC_HAVE_KUAP
 config PPC_KUAP
 	bool "Kernel Userspace Access Protection"
 	depends on PPC_HAVE_KUAP
-	default y
+	default y if !PPC_BOOK3S_32
 	help
 	  Enable support for Kernel Userspace Access Protection (KUAP)
 
@@ -446,7 +446,7 @@ config SMP
 	depends on PPC_BOOK3S || PPC_BOOK3E || FSL_BOOKE || PPC_47x
 	select GENERIC_IRQ_MIGRATION
 	bool "Symmetric multi-processing support" if !FORCE_SMP
-	---help---
+	help
 	  This enables support for systems with more than one CPU. If you have
 	  a system with only one CPU, say N. If you have a system with more
 	  than one CPU, say Y.  Note that the kernel does not currently

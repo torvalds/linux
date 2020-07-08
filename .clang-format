@@ -80,6 +80,7 @@ ForEachMacros:
   - 'ax25_uid_for_each'
   - '__bio_for_each_bvec'
   - 'bio_for_each_bvec'
+  - 'bio_for_each_bvec_all'
   - 'bio_for_each_integrity_vec'
   - '__bio_for_each_segment'
   - 'bio_for_each_segment'

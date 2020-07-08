@@ -58,10 +58,6 @@ static struct ch_tc_pedit_fields pedits[] = {
 	PEDIT_FIELDS(IP6_, DST_63_32, 4, nat_lip, 4),
 	PEDIT_FIELDS(IP6_, DST_95_64, 4, nat_lip, 8),
 	PEDIT_FIELDS(IP6_, DST_127_96, 4, nat_lip, 12),
-	PEDIT_FIELDS(TCP_, SPORT, 2, nat_fport, 0),
-	PEDIT_FIELDS(TCP_, DPORT, 2, nat_lport, 0),
-	PEDIT_FIELDS(UDP_, SPORT, 2, nat_fport, 0),
-	PEDIT_FIELDS(UDP_, DPORT, 2, nat_lport, 0),
 };
 
 static struct ch_tc_flower_entry *allocate_flower_entry(void)
@@ -156,14 +152,14 @@ static void cxgb4_process_flow_match(struct net_device *dev,
 		struct flow_match_ports match;
 
 		flow_rule_match_ports(rule, &match);
-		fs->val.lport = cpu_to_be16(match.key->dst);
-		fs->mask.lport = cpu_to_be16(match.mask->dst);
-		fs->val.fport = cpu_to_be16(match.key->src);
-		fs->mask.fport = cpu_to_be16(match.mask->src);
+		fs->val.lport = be16_to_cpu(match.key->dst);
+		fs->mask.lport = be16_to_cpu(match.mask->dst);
+		fs->val.fport = be16_to_cpu(match.key->src);
+		fs->mask.fport = be16_to_cpu(match.mask->src);
 
 		/* also initialize nat_lport/fport to same values */
-		fs->nat_lport = cpu_to_be16(match.key->dst);
-		fs->nat_fport = cpu_to_be16(match.key->src);
+		fs->nat_lport = fs->val.lport;
+		fs->nat_fport = fs->val.fport;
 	}
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_IP)) {
@@ -354,12 +350,9 @@ static void process_pedit_field(struct ch_filter_specification *fs, u32 val,
 		switch (offset) {
 		case PEDIT_TCP_SPORT_DPORT:
 			if (~mask & PEDIT_TCP_UDP_SPORT_MASK)
-				offload_pedit(fs, cpu_to_be32(val) >> 16,
-					      cpu_to_be32(mask) >> 16,
-					      TCP_SPORT);
+				fs->nat_fport = val;
 			else
-				offload_pedit(fs, cpu_to_be32(val),
-					      cpu_to_be32(mask), TCP_DPORT);
+				fs->nat_lport = val >> 16;
 		}
 		fs->nat_mode = NAT_MODE_ALL;
 		break;
@@ -367,12 +360,9 @@ static void process_pedit_field(struct ch_filter_specification *fs, u32 val,
 		switch (offset) {
 		case PEDIT_UDP_SPORT_DPORT:
 			if (~mask & PEDIT_TCP_UDP_SPORT_MASK)
-				offload_pedit(fs, cpu_to_be32(val) >> 16,
-					      cpu_to_be32(mask) >> 16,
-					      UDP_SPORT);
+				fs->nat_fport = val;
 			else
-				offload_pedit(fs, cpu_to_be32(val),
-					      cpu_to_be32(mask), UDP_DPORT);
+				fs->nat_lport = val >> 16;
 		}
 		fs->nat_mode = NAT_MODE_ALL;
 	}

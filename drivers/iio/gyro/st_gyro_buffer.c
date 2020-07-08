@@ -37,8 +37,7 @@ static int st_gyro_buffer_postenable(struct iio_dev *indio_dev)
 	if (err < 0)
 		return err;
 
-	err = st_sensors_set_axis_enable(indio_dev,
-					 (u8)indio_dev->active_scan_mask[0]);
+	err = st_sensors_set_axis_enable(indio_dev, indio_dev->active_scan_mask[0]);
 	if (err < 0)
 		goto st_gyro_buffer_predisable;
 

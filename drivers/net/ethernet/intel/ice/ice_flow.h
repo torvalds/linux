@@ -43,6 +43,7 @@ enum ice_flow_seg_hdr {
 	ICE_FLOW_SEG_HDR_TCP		= 0x00000040,
 	ICE_FLOW_SEG_HDR_UDP		= 0x00000080,
 	ICE_FLOW_SEG_HDR_SCTP		= 0x00000100,
+	ICE_FLOW_SEG_HDR_GRE		= 0x00000200,
 };
 
 enum ice_flow_field {
@@ -58,6 +59,8 @@ enum ice_flow_field {
 	ICE_FLOW_FIELD_IDX_UDP_DST_PORT,
 	ICE_FLOW_FIELD_IDX_SCTP_SRC_PORT,
 	ICE_FLOW_FIELD_IDX_SCTP_DST_PORT,
+	/* GRE */
+	ICE_FLOW_FIELD_IDX_GRE_KEYID,
 	/* The total number of enums must not exceed 64 */
 	ICE_FLOW_FIELD_IDX_MAX
 };
@@ -125,6 +128,7 @@ enum ice_flow_priority {
 };
 
 #define ICE_FLOW_SEG_MAX		2
+#define ICE_FLOW_SEG_RAW_FLD_MAX	2
 #define ICE_FLOW_FV_EXTRACT_SZ		2
 
 #define ICE_FLOW_SET_HDRS(seg, val)	((seg)->hdrs |= (u32)(val))
@@ -161,13 +165,37 @@ struct ice_flow_fld_info {
 	struct ice_flow_seg_xtrct xtrct;
 };
 
+struct ice_flow_seg_fld_raw {
+	struct ice_flow_fld_info info;
+	u16 off;	/* Offset from the start of the segment */
+};
+
 struct ice_flow_seg_info {
 	u32 hdrs;	/* Bitmask indicating protocol headers present */
 	u64 match;	/* Bitmask indicating header fields to be matched */
 	u64 range;	/* Bitmask indicating header fields matched as ranges */
 
 	struct ice_flow_fld_info fields[ICE_FLOW_FIELD_IDX_MAX];
+
+	u8 raws_cnt;	/* Number of raw fields to be matched */
+	struct ice_flow_seg_fld_raw raws[ICE_FLOW_SEG_RAW_FLD_MAX];
 };
+
+/* This structure describes a flow entry, and is tracked only in this file */
+struct ice_flow_entry {
+	struct list_head l_entry;
+
+	u64 id;
+	struct ice_flow_prof *prof;
+	/* Flow entry's content */
+	void *entry;
+	enum ice_flow_priority priority;
+	u16 vsi_handle;
+	u16 entry_sz;
+};
+
+#define ICE_FLOW_ENTRY_HNDL(e)	((u64)e)
+#define ICE_FLOW_ENTRY_PTR(h)	((struct ice_flow_entry *)(h))
 
 struct ice_flow_prof {
 	struct list_head l_entry;
@@ -194,7 +222,24 @@ struct ice_rss_cfg {
 	u32 packet_hdr;
 };
 
-enum ice_status ice_flow_rem_entry(struct ice_hw *hw, u64 entry_h);
+enum ice_status
+ice_flow_add_prof(struct ice_hw *hw, enum ice_block blk, enum ice_flow_dir dir,
+		  u64 prof_id, struct ice_flow_seg_info *segs, u8 segs_cnt,
+		  struct ice_flow_prof **prof);
+enum ice_status
+ice_flow_rem_prof(struct ice_hw *hw, enum ice_block blk, u64 prof_id);
+enum ice_status
+ice_flow_add_entry(struct ice_hw *hw, enum ice_block blk, u64 prof_id,
+		   u64 entry_id, u16 vsi, enum ice_flow_priority prio,
+		   void *data, u64 *entry_h);
+enum ice_status
+ice_flow_rem_entry(struct ice_hw *hw, enum ice_block blk, u64 entry_h);
+void
+ice_flow_set_fld(struct ice_flow_seg_info *seg, enum ice_flow_field fld,
+		 u16 val_loc, u16 mask_loc, u16 last_loc, bool range);
+void
+ice_flow_add_fld_raw(struct ice_flow_seg_info *seg, u16 off, u8 len,
+		     u16 val_loc, u16 mask_loc);
 void ice_rem_vsi_rss_list(struct ice_hw *hw, u16 vsi_handle);
 enum ice_status ice_replay_rss_cfg(struct ice_hw *hw, u16 vsi_handle);
 enum ice_status

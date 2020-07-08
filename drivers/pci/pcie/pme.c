@@ -408,7 +408,7 @@ static int pcie_pme_suspend(struct pcie_device *srv)
 
 /**
  * pcie_pme_resume - Resume PCIe PME service device.
- * @srv - PCIe service device to resume.
+ * @srv: PCIe service device to resume.
  */
 static int pcie_pme_resume(struct pcie_device *srv)
 {
@@ -431,7 +431,7 @@ static int pcie_pme_resume(struct pcie_device *srv)
 
 /**
  * pcie_pme_remove - Prepare PCIe PME service device for removal.
- * @srv - PCIe service device to remove.
+ * @srv: PCIe service device to remove.
  */
 static void pcie_pme_remove(struct pcie_device *srv)
 {

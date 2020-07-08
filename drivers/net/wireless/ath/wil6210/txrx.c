@@ -897,7 +897,6 @@ static void wil_rx_handle_eapol(struct wil6210_vif *vif, struct sk_buff *skb)
 void wil_netif_rx(struct sk_buff *skb, struct net_device *ndev, int cid,
 		  struct wil_net_stats *stats, bool gro)
 {
-	gro_result_t rc = GRO_NORMAL;
 	struct wil6210_vif *vif = ndev_to_vif(ndev);
 	struct wil6210_priv *wil = ndev_to_wil(ndev);
 	struct wireless_dev *wdev = vif_to_wdev(vif);
@@ -908,22 +907,16 @@ void wil_netif_rx(struct sk_buff *skb, struct net_device *ndev, int cid,
 	 */
 	int mcast = is_multicast_ether_addr(da);
 	struct sk_buff *xmit_skb = NULL;
-	static const char * const gro_res_str[] = {
-		[GRO_MERGED]		= "GRO_MERGED",
-		[GRO_MERGED_FREE]	= "GRO_MERGED_FREE",
-		[GRO_HELD]		= "GRO_HELD",
-		[GRO_NORMAL]		= "GRO_NORMAL",
-		[GRO_DROP]		= "GRO_DROP",
-		[GRO_CONSUMED]		= "GRO_CONSUMED",
-	};
 
 	if (wdev->iftype == NL80211_IFTYPE_STATION) {
 		sa = wil_skb_get_sa(skb);
 		if (mcast && ether_addr_equal(sa, ndev->dev_addr)) {
 			/* mcast packet looped back to us */
-			rc = GRO_DROP;
 			dev_kfree_skb(skb);
-			goto stats;
+			ndev->stats.rx_dropped++;
+			stats->rx_dropped++;
+			wil_dbg_txrx(wil, "Rx drop %d bytes\n", len);
+			return;
 		}
 	} else if (wdev->iftype == NL80211_IFTYPE_AP && !vif->ap_isolate) {
 		if (mcast) {
@@ -967,26 +960,16 @@ void wil_netif_rx(struct sk_buff *skb, struct net_device *ndev, int cid,
 			wil_rx_handle_eapol(vif, skb);
 
 		if (gro)
-			rc = napi_gro_receive(&wil->napi_rx, skb);
+			napi_gro_receive(&wil->napi_rx, skb);
 		else
 			netif_rx_ni(skb);
-		wil_dbg_txrx(wil, "Rx complete %d bytes => %s\n",
-			     len, gro_res_str[rc]);
 	}
-stats:
-	/* statistics. rc set to GRO_NORMAL for AP bridging */
-	if (unlikely(rc == GRO_DROP)) {
-		ndev->stats.rx_dropped++;
-		stats->rx_dropped++;
-		wil_dbg_txrx(wil, "Rx drop %d bytes\n", len);
-	} else {
-		ndev->stats.rx_packets++;
-		stats->rx_packets++;
-		ndev->stats.rx_bytes += len;
-		stats->rx_bytes += len;
-		if (mcast)
-			ndev->stats.multicast++;
-	}
+	ndev->stats.rx_packets++;
+	stats->rx_packets++;
+	ndev->stats.rx_bytes += len;
+	stats->rx_bytes += len;
+	if (mcast)
+		ndev->stats.multicast++;
 }
 
 void wil_netif_rx_any(struct sk_buff *skb, struct net_device *ndev)

@@ -6,6 +6,7 @@
 config ARC
 	def_bool y
 	select ARC_TIMERS
+	select ARCH_HAS_DEBUG_VM_PGTABLE
 	select ARCH_HAS_DMA_PREP_COHERENT
 	select ARCH_HAS_PTE_SPECIAL
 	select ARCH_HAS_SETUP_DMA_OPS
@@ -168,6 +169,15 @@ config ARC_CPU_HS
 		* SETcc, BMSKN, XBFU...
 
 endchoice
+
+config ARC_TUNE_MCPU
+	string "Override default -mcpu compiler flag"
+	default ""
+	help
+	  Override default -mcpu=xxx compiler flag (which is set depending on
+	  the ISA version) with the specified value.
+	  NOTE: If specified flag isn't supported by current compiler the
+	  ISA default value will be used as a fallback.
 
 config CPU_BIG_ENDIAN
 	bool "Enable Big Endian Mode"
@@ -347,7 +357,7 @@ config NODES_SHIFT
 	default "0" if !DISCONTIGMEM
 	default "1" if DISCONTIGMEM
 	depends on NEED_MULTIPLE_NODES
-	---help---
+	help
 	  Accessing memory beyond 1GB (with or w/o PAE) requires 2 memory
 	  zones.
 
@@ -463,6 +473,12 @@ config ARC_IRQ_NO_AUTOSAVE
 	  On HS cores, taken interrupt auto saves the regfile on stack.
 	  This is programmable and can be optionally disabled in which case
 	  software INTERRUPT_PROLOGUE/EPILGUE do the needed work
+
+config ARC_LPB_DISABLE
+	bool "Disable loop buffer (LPB)"
+	help
+	  On HS cores, loop buffer (LPB) is programmable in runtime and can
+	  be optionally disabled.
 
 endif # ISA_ARCV2
 

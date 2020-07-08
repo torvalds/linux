@@ -108,7 +108,7 @@ ftrace_modify_code(unsigned long ip, unsigned char *old_code,
 		goto skip_check;
 
 	/* read the text we want to modify */
-	if (probe_kernel_read(replaced, (void *)ip, MCOUNT_INSN_SIZE))
+	if (copy_from_kernel_nofault(replaced, (void *)ip, MCOUNT_INSN_SIZE))
 		return -EFAULT;
 
 	/* Make sure it is what we expect it to be */
@@ -117,7 +117,7 @@ ftrace_modify_code(unsigned long ip, unsigned char *old_code,
 
 skip_check:
 	/* replace the text with the new text */
-	if (probe_kernel_write(((void *)ip), new_code, MCOUNT_INSN_SIZE))
+	if (copy_to_kernel_nofault(((void *)ip), new_code, MCOUNT_INSN_SIZE))
 		return -EPERM;
 	flush_icache_range(ip, ip + MCOUNT_INSN_SIZE);
 
@@ -129,7 +129,7 @@ static int ftrace_make_nop_check(struct dyn_ftrace *rec, unsigned long addr)
 	unsigned char __attribute__((aligned(8))) replaced[MCOUNT_INSN_SIZE];
 	unsigned long ip = rec->ip;
 
-	if (probe_kernel_read(replaced, (void *)ip, MCOUNT_INSN_SIZE))
+	if (copy_from_kernel_nofault(replaced, (void *)ip, MCOUNT_INSN_SIZE))
 		return -EFAULT;
 	if (rec->flags & FTRACE_FL_CONVERTED) {
 		struct ftrace_call_insn *call_insn, *tmp_call;

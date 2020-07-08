@@ -6,7 +6,7 @@
 config PPP
 	tristate "PPP (point-to-point protocol) support"
 	select SLHC
-	---help---
+	help
 	  PPP (Point to Point Protocol) is a newer and better SLIP.  It serves
 	  the same purpose: sending Internet traffic over telephone (and other
 	  serial) lines.  Ask your access provider if they support it, because
@@ -38,7 +38,7 @@ if PPP
 config PPP_BSDCOMP
 	tristate "PPP BSD-Compress compression"
 	depends on PPP
-	---help---
+	help
 	  Support for the BSD-Compress compression method for PPP, which uses
 	  the LZW compression method to compress each PPP packet before it is
 	  sent over the wire. The machine at the other end of the PPP link
@@ -59,7 +59,7 @@ config PPP_DEFLATE
 	depends on PPP
 	select ZLIB_INFLATE
 	select ZLIB_DEFLATE
-	---help---
+	help
 	  Support for the Deflate compression method for PPP, which uses the
 	  Deflate algorithm (the same algorithm that gzip uses) to compress
 	  each PPP packet before it is sent over the wire.  The machine at the
@@ -72,7 +72,7 @@ config PPP_DEFLATE
 config PPP_FILTER
 	bool "PPP filtering"
 	depends on PPP
-	---help---
+	help
 	  Say Y here if you want to be able to filter the packets passing over
 	  PPP interfaces.  This allows you to control which packets count as
 	  activity (i.e. which packets will reset the idle timer or bring up
@@ -88,7 +88,7 @@ config PPP_MPPE
 	select CRYPTO
 	select CRYPTO_SHA1
 	select CRYPTO_LIB_ARC4
-	---help---
+	help
 	  Support for the MPPE Encryption protocol, as employed by the
 	  Microsoft Point-to-Point Tunneling Protocol.
 
@@ -98,7 +98,7 @@ config PPP_MPPE
 config PPP_MULTILINK
 	bool "PPP multilink support"
 	depends on PPP
-	---help---
+	help
 	  PPP multilink is a protocol (defined in RFC 1990) which allows you
 	  to combine several (logical or physical) lines into one logical PPP
 	  connection, so that you can utilize your full bandwidth.
@@ -111,7 +111,7 @@ config PPP_MULTILINK
 config PPPOATM
 	tristate "PPP over ATM"
 	depends on ATM && PPP
-	---help---
+	help
 	  Support PPP (Point to Point Protocol) encapsulated in ATM frames.
 	  This implementation does not yet comply with section 8 of RFC2364,
 	  which can lead to bad results if the ATM peer loses state and
@@ -120,7 +120,7 @@ config PPPOATM
 config PPPOE
 	tristate "PPP over Ethernet"
 	depends on PPP
-	---help---
+	help
 	  Support for PPP over Ethernet.
 
 	  This driver requires the latest version of pppd from the CVS
@@ -132,7 +132,7 @@ config PPPOE
 config PPTP
 	tristate "PPP over IPv4 (PPTP)"
 	depends on PPP && NET_IPGRE_DEMUX
-	---help---
+	help
 	  Support for PPP over IPv4.(Point-to-Point Tunneling Protocol)
 
 	  This driver requires pppd plugin to work in client mode or
@@ -143,7 +143,7 @@ config PPTP
 config PPPOL2TP
 	tristate "PPP over L2TP"
 	depends on L2TP && PPP
-	---help---
+	help
 	  Support for PPP-over-L2TP socket family. L2TP is a protocol
 	  used by ISPs and enterprises to tunnel PPP traffic over UDP
 	  tunnels. L2TP is replacing PPTP for VPN uses.
@@ -153,7 +153,7 @@ config PPP_ASYNC
 	tristate "PPP support for async serial ports"
 	depends on PPP
 	select CRC_CCITT
-	---help---
+	help
 	  Say Y (or M) here if you want to be able to use PPP over standard
 	  asynchronous serial ports, such as COM1 or COM2 on a PC.  If you use
 	  a modem (not a synchronous or ISDN modem) to contact your ISP, you
@@ -166,7 +166,7 @@ config PPP_ASYNC
 config PPP_SYNC_TTY
 	tristate "PPP support for sync tty ports"
 	depends on PPP
-	---help---
+	help
 	  Say Y (or M) here if you want to be able to use PPP over synchronous
 	  (HDLC) tty devices, such as the SyncLink adapter. These devices
 	  are often used for high-speed leased lines like T1/E1.

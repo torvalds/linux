@@ -13,7 +13,6 @@
 #include <asm/highmem.h>
 #include <asm/mach/map.h>
 #include <asm/mmu_context.h>
-#include <asm/pgtable.h>
 #include <asm/ptrace.h>
 
 #ifdef CONFIG_EFI
@@ -49,14 +48,6 @@ void efi_virtmap_unload(void);
 #endif /* CONFIG_EFI */
 
 /* arch specific definitions used by the stub code */
-
-#define efi_bs_call(func, ...)	efi_system_table()->boottime->func(__VA_ARGS__)
-#define efi_rt_call(func, ...)	efi_system_table()->runtime->func(__VA_ARGS__)
-#define efi_is_native()		(true)
-
-#define efi_table_attr(inst, attr)	(inst->attr)
-
-#define efi_call_proto(inst, func, ...) inst->func(inst, ##__VA_ARGS__)
 
 struct screen_info *alloc_screen_info(void);
 void free_screen_info(struct screen_info *si);
@@ -95,5 +86,12 @@ static inline unsigned long efi_get_max_initrd_addr(unsigned long dram_base,
 {
 	return dram_base + SZ_512M;
 }
+
+struct efi_arm_entry_state {
+	u32	cpsr_before_ebs;
+	u32	sctlr_before_ebs;
+	u32	cpsr_after_ebs;
+	u32	sctlr_after_ebs;
+};
 
 #endif /* _ASM_ARM_EFI_H */

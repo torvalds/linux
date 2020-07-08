@@ -254,3 +254,4 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Pablo Neira Ayuso <pablo@netfilter.org>");
 MODULE_ALIAS_NFT_EXPR("quota");
 MODULE_ALIAS_NFT_OBJ(NFT_OBJECT_QUOTA);
+MODULE_DESCRIPTION("Netfilter nftables quota module");

@@ -325,9 +325,18 @@ success:
 static void amdgpu_xgmi_sysfs_rem_dev_info(struct amdgpu_device *adev,
 					  struct amdgpu_hive_info *hive)
 {
+	char node[10];
+	memset(node, 0, sizeof(node));
+
 	device_remove_file(adev->dev, &dev_attr_xgmi_device_id);
-	sysfs_remove_link(&adev->dev->kobj, adev->ddev->unique);
-	sysfs_remove_link(hive->kobj, adev->ddev->unique);
+	device_remove_file(adev->dev, &dev_attr_xgmi_error);
+
+	if (adev != hive->adev)
+		sysfs_remove_link(&adev->dev->kobj,"xgmi_hive_info");
+
+	sprintf(node, "node%d", hive->number_devices);
+	sysfs_remove_link(hive->kobj, node);
+
 }
 
 
@@ -373,7 +382,13 @@ struct amdgpu_hive_info *amdgpu_get_xgmi_hive(struct amdgpu_device *adev, int lo
 
 	if (lock)
 		mutex_lock(&tmp->hive_lock);
-	tmp->pstate = -1;
+	tmp->pstate = AMDGPU_XGMI_PSTATE_UNKNOWN;
+	tmp->hi_req_gpu = NULL;
+	/*
+	 * hive pstate on boot is high in vega20 so we have to go to low
+	 * pstate on after boot.
+	 */
+	tmp->hi_req_count = AMDGPU_MAX_XGMI_DEVICE_PER_HIVE;
 	mutex_unlock(&xgmi_mutex);
 
 	return tmp;
@@ -383,56 +398,59 @@ int amdgpu_xgmi_set_pstate(struct amdgpu_device *adev, int pstate)
 {
 	int ret = 0;
 	struct amdgpu_hive_info *hive = amdgpu_get_xgmi_hive(adev, 0);
-	struct amdgpu_device *tmp_adev;
-	bool update_hive_pstate = true;
-	bool is_high_pstate = pstate && adev->asic_type == CHIP_VEGA20;
+	struct amdgpu_device *request_adev = hive->hi_req_gpu ?
+						hive->hi_req_gpu : adev;
+	bool is_hi_req = pstate == AMDGPU_XGMI_PSTATE_MAX_VEGA20;
+	bool init_low = hive->pstate == AMDGPU_XGMI_PSTATE_UNKNOWN;
 
-	if (!hive)
+	/* fw bug so temporarily disable pstate switching */
+	return 0;
+
+	if (!hive || adev->asic_type != CHIP_VEGA20)
 		return 0;
 
 	mutex_lock(&hive->hive_lock);
 
-	if (hive->pstate == pstate) {
-		adev->pstate = is_high_pstate ? pstate : adev->pstate;
-		goto out;
-	}
-
-	dev_dbg(adev->dev, "Set xgmi pstate %d.\n", pstate);
-
-	ret = amdgpu_dpm_set_xgmi_pstate(adev, pstate);
-	if (ret) {
-		dev_err(adev->dev,
-			"XGMI: Set pstate failure on device %llx, hive %llx, ret %d",
-			adev->gmc.xgmi.node_id,
-			adev->gmc.xgmi.hive_id, ret);
-		goto out;
-	}
-
-	/* Update device pstate */
-	adev->pstate = pstate;
+	if (is_hi_req)
+		hive->hi_req_count++;
+	else
+		hive->hi_req_count--;
 
 	/*
-	 * Update the hive pstate only all devices of the hive
-	 * are in the same pstate
+	 * Vega20 only needs single peer to request pstate high for the hive to
+	 * go high but all peers must request pstate low for the hive to go low
 	 */
-	list_for_each_entry(tmp_adev, &hive->device_list, gmc.xgmi.head) {
-		if (tmp_adev->pstate != adev->pstate) {
-			update_hive_pstate = false;
-			break;
-		}
-	}
-	if (update_hive_pstate || is_high_pstate)
-		hive->pstate = pstate;
+	if (hive->pstate == pstate ||
+			(!is_hi_req && hive->hi_req_count && !init_low))
+		goto out;
 
+	dev_dbg(request_adev->dev, "Set xgmi pstate %d.\n", pstate);
+
+	ret = amdgpu_dpm_set_xgmi_pstate(request_adev, pstate);
+	if (ret) {
+		dev_err(request_adev->dev,
+			"XGMI: Set pstate failure on device %llx, hive %llx, ret %d",
+			request_adev->gmc.xgmi.node_id,
+			request_adev->gmc.xgmi.hive_id, ret);
+		goto out;
+	}
+
+	if (init_low)
+		hive->pstate = hive->hi_req_count ?
+					hive->pstate : AMDGPU_XGMI_PSTATE_MIN;
+	else {
+		hive->pstate = pstate;
+		hive->hi_req_gpu = pstate != AMDGPU_XGMI_PSTATE_MIN ?
+							adev : NULL;
+	}
 out:
 	mutex_unlock(&hive->hive_lock);
-
 	return ret;
 }
 
 int amdgpu_xgmi_update_topology(struct amdgpu_hive_info *hive, struct amdgpu_device *adev)
 {
-	int ret = -EINVAL;
+	int ret;
 
 	/* Each psp need to set the latest topology */
 	ret = psp_xgmi_set_topology_info(&adev->psp,
@@ -507,9 +525,6 @@ int amdgpu_xgmi_add_device(struct amdgpu_device *adev)
 		goto exit;
 	}
 
-	/* Set default device pstate */
-	adev->pstate = -1;
-
 	top_info = &adev->psp.xgmi_context.top_info;
 
 	list_add_tail(&adev->gmc.xgmi.head, &hive->device_list);
@@ -577,14 +592,14 @@ int amdgpu_xgmi_remove_device(struct amdgpu_device *adev)
 	if (!hive)
 		return -EINVAL;
 
-	if (!(hive->number_devices--)) {
+	task_barrier_rem_task(&hive->tb);
+	amdgpu_xgmi_sysfs_rem_dev_info(adev, hive);
+	mutex_unlock(&hive->hive_lock);
+
+	if(!(--hive->number_devices)){
 		amdgpu_xgmi_sysfs_destroy(adev, hive);
 		mutex_destroy(&hive->hive_lock);
 		mutex_destroy(&hive->reset_lock);
-	} else {
-		task_barrier_rem_task(&hive->tb);
-		amdgpu_xgmi_sysfs_rem_dev_info(adev, hive);
-		mutex_unlock(&hive->hive_lock);
 	}
 
 	return psp_xgmi_terminate(&adev->psp);
@@ -603,6 +618,8 @@ int amdgpu_xgmi_ras_late_init(struct amdgpu_device *adev)
 	if (!adev->gmc.xgmi.supported ||
 	    adev->gmc.xgmi.num_physical_nodes == 0)
 		return 0;
+
+	amdgpu_xgmi_reset_ras_error_count(adev);
 
 	if (!adev->gmc.xgmi.ras_if) {
 		adev->gmc.xgmi.ras_if = kmalloc(sizeof(struct ras_common_if), GFP_KERNEL);
@@ -641,31 +658,34 @@ void amdgpu_xgmi_ras_fini(struct amdgpu_device *adev)
 uint64_t amdgpu_xgmi_get_relative_phy_addr(struct amdgpu_device *adev,
 					   uint64_t addr)
 {
-	uint32_t df_inst_id;
-	uint64_t dram_base_addr = 0;
-	const struct amdgpu_df_funcs *df_funcs = adev->df.funcs;
+	struct amdgpu_xgmi *xgmi = &adev->gmc.xgmi;
+	return (addr + xgmi->physical_node_id * xgmi->node_segment_size);
+}
 
-	if ((!df_funcs)                 ||
-	    (!df_funcs->get_df_inst_id) ||
-	    (!df_funcs->get_dram_base_addr)) {
-		dev_warn(adev->dev,
-			 "XGMI: relative phy_addr algorithm is not supported\n");
-		return addr;
+static void pcs_clear_status(struct amdgpu_device *adev, uint32_t pcs_status_reg)
+{
+	WREG32_PCIE(pcs_status_reg, 0xFFFFFFFF);
+	WREG32_PCIE(pcs_status_reg, 0);
+}
+
+void amdgpu_xgmi_reset_ras_error_count(struct amdgpu_device *adev)
+{
+	uint32_t i;
+
+	switch (adev->asic_type) {
+	case CHIP_ARCTURUS:
+		for (i = 0; i < ARRAY_SIZE(xgmi_pcs_err_status_reg_arct); i++)
+			pcs_clear_status(adev,
+					 xgmi_pcs_err_status_reg_arct[i]);
+		break;
+	case CHIP_VEGA20:
+		for (i = 0; i < ARRAY_SIZE(xgmi_pcs_err_status_reg_vg20); i++)
+			pcs_clear_status(adev,
+					 xgmi_pcs_err_status_reg_vg20[i]);
+		break;
+	default:
+		break;
 	}
-
-	if (amdgpu_dpm_set_df_cstate(adev, DF_CSTATE_DISALLOW)) {
-		dev_warn(adev->dev,
-			 "failed to disable DF-Cstate, DF register may not be accessible\n");
-		return addr;
-	}
-
-	df_inst_id = df_funcs->get_df_inst_id(adev);
-	dram_base_addr = df_funcs->get_dram_base_addr(adev, df_inst_id);
-
-	if (amdgpu_dpm_set_df_cstate(adev, DF_CSTATE_ALLOW))
-		dev_warn(adev->dev, "failed to enable DF-Cstate\n");
-
-	return addr + dram_base_addr;
 }
 
 static int amdgpu_xgmi_query_pcs_error_status(struct amdgpu_device *adev,
@@ -757,6 +777,8 @@ int amdgpu_xgmi_query_ras_error_count(struct amdgpu_device *adev,
 		}
 		break;
 	}
+
+	amdgpu_xgmi_reset_ras_error_count(adev);
 
 	err_data->ue_count += ue_cnt;
 	err_data->ce_count += ce_cnt;

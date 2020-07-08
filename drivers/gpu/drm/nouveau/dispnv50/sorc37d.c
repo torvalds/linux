@@ -33,7 +33,16 @@ sorc37d_ctrl(struct nv50_core *core, int or, u32 ctrl,
 	}
 }
 
+static void
+sorc37d_get_caps(struct nv50_disp *disp, struct nouveau_encoder *outp, int or)
+{
+	u32 tmp = nvif_rd32(&disp->caps, 0x000144 + (or * 8));
+
+	outp->caps.dp_interlace = !!(tmp & 0x04000000);
+}
+
 const struct nv50_outp_func
 sorc37d = {
 	.ctrl = sorc37d_ctrl,
+	.get_caps = sorc37d_get_caps,
 };

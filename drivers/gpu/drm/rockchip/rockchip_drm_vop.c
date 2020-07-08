@@ -91,8 +91,21 @@
 #define VOP_WIN_TO_INDEX(vop_win) \
 	((vop_win) - (vop_win)->vop->win)
 
+#define VOP_AFBC_SET(vop, name, v) \
+	do { \
+		if ((vop)->data->afbc) \
+			vop_reg_set((vop), &(vop)->data->afbc->name, \
+				    0, ~0, v, #name); \
+	} while (0)
+
 #define to_vop(x) container_of(x, struct vop, crtc)
 #define to_vop_win(x) container_of(x, struct vop_win, base)
+
+#define AFBC_FMT_RGB565		0x0
+#define AFBC_FMT_U8U8U8U8	0x5
+#define AFBC_FMT_U8U8U8		0x4
+
+#define AFBC_TILE_16x16		BIT(4)
 
 /*
  * The coefficients of the following matrix are all fixed points.
@@ -272,6 +285,29 @@ static enum vop_data_format vop_convert_format(uint32_t format)
 		DRM_ERROR("unsupported format[%08x]\n", format);
 		return -EINVAL;
 	}
+}
+
+static int vop_convert_afbc_format(uint32_t format)
+{
+	switch (format) {
+	case DRM_FORMAT_XRGB8888:
+	case DRM_FORMAT_ARGB8888:
+	case DRM_FORMAT_XBGR8888:
+	case DRM_FORMAT_ABGR8888:
+		return AFBC_FMT_U8U8U8U8;
+	case DRM_FORMAT_RGB888:
+	case DRM_FORMAT_BGR888:
+		return AFBC_FMT_U8U8U8;
+	case DRM_FORMAT_RGB565:
+	case DRM_FORMAT_BGR565:
+		return AFBC_FMT_RGB565;
+	/* either of the below should not be reachable */
+	default:
+		DRM_WARN_ONCE("unsupported AFBC format[%08x]\n", format);
+		return -EINVAL;
+	}
+
+	return -EINVAL;
 }
 
 static uint16_t scl_vop_cal_scale(enum scale_mode mode, uint32_t src,
@@ -598,6 +634,17 @@ static int vop_enable(struct drm_crtc *crtc, struct drm_crtc_state *old_state)
 			vop_win_disable(vop, vop_win);
 		}
 	}
+
+	if (vop->data->afbc) {
+		struct rockchip_crtc_state *s;
+		/*
+		 * Disable AFBC and forget there was a vop window with AFBC
+		 */
+		VOP_AFBC_SET(vop, enable, 0);
+		s = to_rockchip_crtc_state(crtc->state);
+		s->enable_afbc = false;
+	}
+
 	spin_unlock(&vop->reg_lock);
 
 	vop_cfg_done(vop);
@@ -710,6 +757,26 @@ static void vop_plane_destroy(struct drm_plane *plane)
 	drm_plane_cleanup(plane);
 }
 
+static inline bool rockchip_afbc(u64 modifier)
+{
+	return modifier == ROCKCHIP_AFBC_MOD;
+}
+
+static bool rockchip_mod_supported(struct drm_plane *plane,
+				   u32 format, u64 modifier)
+{
+	if (modifier == DRM_FORMAT_MOD_LINEAR)
+		return true;
+
+	if (!rockchip_afbc(modifier)) {
+		DRM_DEBUG_KMS("Unsupported format modifier 0x%llx\n", modifier);
+
+		return false;
+	}
+
+	return vop_convert_afbc_format(format) >= 0;
+}
+
 static int vop_plane_atomic_check(struct drm_plane *plane,
 			   struct drm_plane_state *state)
 {
@@ -756,6 +823,30 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 	if (fb->format->is_yuv && state->rotation & DRM_MODE_REFLECT_Y) {
 		DRM_ERROR("Invalid Source: Yuv format does not support this rotation\n");
 		return -EINVAL;
+	}
+
+	if (rockchip_afbc(fb->modifier)) {
+		struct vop *vop = to_vop(crtc);
+
+		if (!vop->data->afbc) {
+			DRM_ERROR("vop does not support AFBC\n");
+			return -EINVAL;
+		}
+
+		ret = vop_convert_afbc_format(fb->format->format);
+		if (ret < 0)
+			return ret;
+
+		if (state->src.x1 || state->src.y1) {
+			DRM_ERROR("AFBC does not support offset display, xpos=%d, ypos=%d, offset=%d\n", state->src.x1, state->src.y1, fb->offsets[0]);
+			return -EINVAL;
+		}
+
+		if (state->rotation && state->rotation != DRM_MODE_ROTATE_0) {
+			DRM_ERROR("No rotation support in AFBC, rotation=%d\n",
+				  state->rotation);
+			return -EINVAL;
+		}
 	}
 
 	return 0;
@@ -845,6 +936,16 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	format = vop_convert_format(fb->format->format);
 
 	spin_lock(&vop->reg_lock);
+
+	if (rockchip_afbc(fb->modifier)) {
+		int afbc_format = vop_convert_afbc_format(fb->format->format);
+
+		VOP_AFBC_SET(vop, format, afbc_format | AFBC_TILE_16x16);
+		VOP_AFBC_SET(vop, hreg_block_split, 0);
+		VOP_AFBC_SET(vop, win_sel, VOP_WIN_TO_INDEX(vop_win));
+		VOP_AFBC_SET(vop, hdr_ptr, dma_addr);
+		VOP_AFBC_SET(vop, pic_size, act_info);
+	}
 
 	VOP_WIN_SET(vop, win, format, format);
 	VOP_WIN_SET(vop, win, yrgb_vir, DIV_ROUND_UP(fb->pitches[0], 4));
@@ -1001,6 +1102,7 @@ static const struct drm_plane_funcs vop_plane_funcs = {
 	.reset = drm_atomic_helper_plane_reset,
 	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
+	.format_mod_supported = rockchip_mod_supported,
 };
 
 static int vop_crtc_enable_vblank(struct drm_crtc *crtc)
@@ -1310,6 +1412,10 @@ static int vop_crtc_atomic_check(struct drm_crtc *crtc,
 				 struct drm_crtc_state *crtc_state)
 {
 	struct vop *vop = to_vop(crtc);
+	struct drm_plane *plane;
+	struct drm_plane_state *plane_state;
+	struct rockchip_crtc_state *s;
+	int afbc_planes = 0;
 
 	if (vop->lut_regs && crtc_state->color_mgmt_changed &&
 	    crtc_state->gamma_lut) {
@@ -1323,6 +1429,27 @@ static int vop_crtc_atomic_check(struct drm_crtc *crtc,
 		}
 	}
 
+	drm_atomic_crtc_state_for_each_plane(plane, crtc_state) {
+		plane_state =
+			drm_atomic_get_plane_state(crtc_state->state, plane);
+		if (IS_ERR(plane_state)) {
+			DRM_DEBUG_KMS("Cannot get plane state for plane %s\n",
+				      plane->name);
+			return PTR_ERR(plane_state);
+		}
+
+		if (drm_is_afbc(plane_state->fb->modifier))
+			++afbc_planes;
+	}
+
+	if (afbc_planes > 1) {
+		DRM_DEBUG_KMS("Invalid number of AFBC planes; got %d, expected at most 1\n", afbc_planes);
+		return -EINVAL;
+	}
+
+	s = to_rockchip_crtc_state(crtc_state);
+	s->enable_afbc = afbc_planes > 0;
+
 	return 0;
 }
 
@@ -1333,6 +1460,7 @@ static void vop_crtc_atomic_flush(struct drm_crtc *crtc,
 	struct drm_plane_state *old_plane_state, *new_plane_state;
 	struct vop *vop = to_vop(crtc);
 	struct drm_plane *plane;
+	struct rockchip_crtc_state *s;
 	int i;
 
 	if (WARN_ON(!vop->is_enabled))
@@ -1340,6 +1468,9 @@ static void vop_crtc_atomic_flush(struct drm_crtc *crtc,
 
 	spin_lock(&vop->reg_lock);
 
+	/* Enable AFBC if there is some AFBC window, disable otherwise. */
+	s = to_rockchip_crtc_state(crtc->state);
+	VOP_AFBC_SET(vop, enable, s->enable_afbc);
 	vop_cfg_done(vop);
 
 	spin_unlock(&vop->reg_lock);
@@ -1634,7 +1765,8 @@ static int vop_create_crtc(struct vop *vop)
 					       0, &vop_plane_funcs,
 					       win_data->phy->data_formats,
 					       win_data->phy->nformats,
-					       NULL, win_data->type, NULL);
+					       win_data->phy->format_modifiers,
+					       win_data->type, NULL);
 		if (ret) {
 			DRM_DEV_ERROR(vop->dev, "failed to init plane %d\n",
 				      ret);
@@ -1678,7 +1810,8 @@ static int vop_create_crtc(struct vop *vop)
 					       &vop_plane_funcs,
 					       win_data->phy->data_formats,
 					       win_data->phy->nformats,
-					       NULL, win_data->type, NULL);
+					       win_data->phy->format_modifiers,
+					       win_data->type, NULL);
 		if (ret) {
 			DRM_DEV_ERROR(vop->dev, "failed to init overlay %d\n",
 				      ret);

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config VIRTIO
 	tristate
-	---help---
+	help
 	  This option is selected by any driver which implements the virtio
 	  bus, such as CONFIG_VIRTIO_PCI, CONFIG_VIRTIO_MMIO, CONFIG_RPMSG
 	  or CONFIG_S390_GUEST.
@@ -16,7 +16,7 @@ config VIRTIO_PCI
 	tristate "PCI driver for virtio devices"
 	depends on PCI
 	select VIRTIO
-	---help---
+	help
 	  This driver provides support for virtio based paravirtual device
 	  drivers over PCI.  This requires that your VMM has appropriate PCI
 	  virtio backends.  Most QEMU based VMMs should support these devices
@@ -28,7 +28,7 @@ config VIRTIO_PCI_LEGACY
 	bool "Support for legacy virtio draft 0.9.X and older devices"
 	default y
 	depends on VIRTIO_PCI
-	---help---
+	help
           Virtio PCI Card 0.9.X Draft (circa 2014) and older device support.
 
 	  This option enables building a transitional driver, supporting
@@ -72,9 +72,26 @@ config VIRTIO_BALLOON
 	depends on VIRTIO
 	select MEMORY_BALLOON
 	select PAGE_REPORTING
-	---help---
+	help
 	 This driver supports increasing and decreasing the amount
 	 of memory within a KVM guest.
+
+	 If unsure, say M.
+
+config VIRTIO_MEM
+	tristate "Virtio mem driver"
+	default m
+	depends on X86_64
+	depends on VIRTIO
+	depends on MEMORY_HOTPLUG_SPARSE
+	depends on MEMORY_HOTREMOVE
+	select CONTIG_ALLOC
+	help
+	 This driver provides access to virtio-mem paravirtualized memory
+	 devices, allowing to hotplug and hotunplug memory.
+
+	 This driver was only tested under x86-64, but should theoretically
+	 work on all architectures that support memory hotplug and hotremove.
 
 	 If unsure, say M.
 
@@ -82,7 +99,7 @@ config VIRTIO_INPUT
 	tristate "Virtio input driver"
 	depends on VIRTIO
 	depends on INPUT
-	---help---
+	help
 	 This driver supports virtio input devices such as
 	 keyboards, mice and tablets.
 
@@ -92,7 +109,7 @@ config VIRTIO_MMIO
 	tristate "Platform bus driver for memory mapped virtio devices"
 	depends on HAS_IOMEM && HAS_DMA
 	select VIRTIO
-	---help---
+	help
 	 This drivers provides support for memory mapped virtio
 	 platform device driver.
 
@@ -101,7 +118,7 @@ config VIRTIO_MMIO
 config VIRTIO_MMIO_CMDLINE_DEVICES
 	bool "Memory mapped virtio devices parameter parsing"
 	depends on VIRTIO_MMIO
-	---help---
+	help
 	 Allow virtio-mmio devices instantiation via the kernel command line
 	 or module parameters. Be aware that using incorrect parameters (base
 	 address in particular) can crash your system - you have been warned.

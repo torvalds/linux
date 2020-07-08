@@ -408,7 +408,7 @@ static inline enum btrfs_map_op btrfs_op(struct bio *bio)
 		return BTRFS_MAP_WRITE;
 	default:
 		WARN_ON_ONCE(1);
-		/* fall through */
+		fallthrough;
 	case REQ_OP_READ:
 		return BTRFS_MAP_READ;
 	}

@@ -27,10 +27,9 @@
 #define _DMUB_DC_SRV_H_
 
 #include "os_types.h"
-#include "../dmub/inc/dmub_cmd.h"
+#include "dmub/dmub_srv.h"
 
 struct dmub_srv;
-struct dmub_cmd_header;
 
 struct dc_reg_helper_state {
 	bool gather_in_progress;
@@ -49,7 +48,7 @@ struct dc_dmub_srv {
 };
 
 void dc_dmub_srv_cmd_queue(struct dc_dmub_srv *dc_dmub_srv,
-			   struct dmub_cmd_header *cmd);
+			   union dmub_rb_cmd *cmd);
 
 void dc_dmub_srv_cmd_execute(struct dc_dmub_srv *dc_dmub_srv);
 

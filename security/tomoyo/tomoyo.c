@@ -63,20 +63,14 @@ static void tomoyo_bprm_committed_creds(struct linux_binprm *bprm)
 
 #ifndef CONFIG_SECURITY_TOMOYO_OMIT_USERSPACE_LOADER
 /**
- * tomoyo_bprm_set_creds - Target for security_bprm_set_creds().
+ * tomoyo_bprm_for_exec - Target for security_bprm_creds_for_exec().
  *
  * @bprm: Pointer to "struct linux_binprm".
  *
  * Returns 0.
  */
-static int tomoyo_bprm_set_creds(struct linux_binprm *bprm)
+static int tomoyo_bprm_creds_for_exec(struct linux_binprm *bprm)
 {
-	/*
-	 * Do only if this function is called for the first time of an execve
-	 * operation.
-	 */
-	if (bprm->called_set_creds)
-		return 0;
 	/*
 	 * Load policy if /sbin/tomoyo-init exists and /sbin/init is requested
 	 * for the first time.
@@ -539,7 +533,7 @@ static struct security_hook_list tomoyo_hooks[] __lsm_ro_after_init = {
 	LSM_HOOK_INIT(task_alloc, tomoyo_task_alloc),
 	LSM_HOOK_INIT(task_free, tomoyo_task_free),
 #ifndef CONFIG_SECURITY_TOMOYO_OMIT_USERSPACE_LOADER
-	LSM_HOOK_INIT(bprm_set_creds, tomoyo_bprm_set_creds),
+	LSM_HOOK_INIT(bprm_creds_for_exec, tomoyo_bprm_creds_for_exec),
 #endif
 	LSM_HOOK_INIT(bprm_check_security, tomoyo_bprm_check_security),
 	LSM_HOOK_INIT(file_fcntl, tomoyo_file_fcntl),

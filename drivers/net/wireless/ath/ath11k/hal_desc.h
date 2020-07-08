@@ -2,6 +2,8 @@
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
  */
+#include "core.h"
+
 #ifndef ATH11K_HAL_DESC_H
 #define ATH11K_HAL_DESC_H
 
@@ -477,7 +479,7 @@ enum hal_tlv_tag {
 
 struct hal_tlv_hdr {
 	u32 tl;
-	u8 value[0];
+	u8 value[];
 } __packed;
 
 #define RX_MPDU_DESC_INFO0_MSDU_COUNT		GENMASK(7, 0)
@@ -1972,7 +1974,7 @@ struct hal_rx_reo_queue {
 	u32 processed_total_bytes;
 	u32 info5;
 	u32 rsvd[3];
-	struct hal_rx_reo_queue_ext ext_desc[0];
+	struct hal_rx_reo_queue_ext ext_desc[];
 } __packed;
 
 /* hal_rx_reo_queue

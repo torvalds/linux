@@ -26,6 +26,7 @@
 #include <asm/debug.h>
 #include <asm/code-patching.h>
 #include <linux/slab.h>
+#include <asm/inst.h>
 
 /*
  * This table contains the mapping between PowerPC hardware trap types, and
@@ -418,13 +419,13 @@ int kgdb_arch_set_breakpoint(struct kgdb_bkpt *bpt)
 {
 	int err;
 	unsigned int instr;
-	unsigned int *addr = (unsigned int *)bpt->bpt_addr;
+	struct ppc_inst *addr = (struct ppc_inst *)bpt->bpt_addr;
 
-	err = probe_kernel_address(addr, instr);
+	err = get_kernel_nofault(instr, (unsigned *) addr);
 	if (err)
 		return err;
 
-	err = patch_instruction(addr, BREAK_INSTR);
+	err = patch_instruction(addr, ppc_inst(BREAK_INSTR));
 	if (err)
 		return -EFAULT;
 
@@ -437,9 +438,9 @@ int kgdb_arch_remove_breakpoint(struct kgdb_bkpt *bpt)
 {
 	int err;
 	unsigned int instr = *(unsigned int *)bpt->saved_instr;
-	unsigned int *addr = (unsigned int *)bpt->bpt_addr;
+	struct ppc_inst *addr = (struct ppc_inst *)bpt->bpt_addr;
 
-	err = patch_instruction(addr, instr);
+	err = patch_instruction(addr, ppc_inst(instr));
 	if (err)
 		return -EFAULT;
 

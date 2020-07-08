@@ -71,7 +71,7 @@ be allowed write access to a ramfs mount.
 
 A ramfs derivative called tmpfs was created to add size limits, and the ability
 to write the data to swap space.  Normal users can be allowed write access to
-tmpfs mounts.  See Documentation/filesystems/tmpfs.txt for more information.
+tmpfs mounts.  See Documentation/filesystems/tmpfs.rst for more information.
 
 What is rootfs?
 ---------------

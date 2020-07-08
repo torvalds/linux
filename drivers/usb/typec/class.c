@@ -917,6 +917,12 @@ EXPORT_SYMBOL_GPL(typec_unregister_cable);
 /* ------------------------------------------------------------------------- */
 /* USB Type-C ports */
 
+static const char * const typec_orientations[] = {
+	[TYPEC_ORIENTATION_NONE]	= "unknown",
+	[TYPEC_ORIENTATION_NORMAL]	= "normal",
+	[TYPEC_ORIENTATION_REVERSE]	= "reverse",
+};
+
 static const char * const typec_roles[] = {
 	[TYPEC_SINK]	= "sink",
 	[TYPEC_SOURCE]	= "source",
@@ -1248,18 +1254,9 @@ static ssize_t orientation_show(struct device *dev,
 				   struct device_attribute *attr,
 				   char *buf)
 {
-	struct typec_port *p = to_typec_port(dev);
-	enum typec_orientation orientation = typec_get_orientation(p);
+	struct typec_port *port = to_typec_port(dev);
 
-	switch (orientation) {
-	case TYPEC_ORIENTATION_NORMAL:
-		return sprintf(buf, "%s\n", "normal");
-	case TYPEC_ORIENTATION_REVERSE:
-		return sprintf(buf, "%s\n", "reverse");
-	case TYPEC_ORIENTATION_NONE:
-	default:
-		return sprintf(buf, "%s\n", "unknown");
-	}
+	return sprintf(buf, "%s\n", typec_orientations[port->orientation]);
 }
 static DEVICE_ATTR_RO(orientation);
 
@@ -1450,6 +1447,21 @@ void typec_set_pwr_opmode(struct typec_port *port,
 	}
 }
 EXPORT_SYMBOL_GPL(typec_set_pwr_opmode);
+
+/**
+ * typec_find_orientation - Convert orientation string to enum typec_orientation
+ * @name: Orientation string
+ *
+ * This routine is used to find the typec_orientation by its string name @name.
+ *
+ * Returns the orientation value on success, otherwise negative error code.
+ */
+int typec_find_orientation(const char *name)
+{
+	return match_string(typec_orientations, ARRAY_SIZE(typec_orientations),
+			    name);
+}
+EXPORT_SYMBOL_GPL(typec_find_orientation);
 
 /**
  * typec_find_port_power_role - Get the typec port power capability

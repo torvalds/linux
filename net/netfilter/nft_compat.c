@@ -902,3 +902,4 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Pablo Neira Ayuso <pablo@netfilter.org>");
 MODULE_ALIAS_NFT_EXPR("match");
 MODULE_ALIAS_NFT_EXPR("target");
+MODULE_DESCRIPTION("x_tables over nftables support");

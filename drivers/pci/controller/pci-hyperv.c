@@ -480,6 +480,9 @@ struct hv_pcibus_device {
 
 	struct workqueue_struct *wq;
 
+	/* Highest slot of child device with resources allocated */
+	int wslot_res_allocated;
+
 	/* hypercall arg, must not cross page boundary */
 	struct hv_retarget_device_interrupt retarget_msi_interrupt_params;
 
@@ -1356,11 +1359,11 @@ static void hv_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 {
 	struct irq_cfg *cfg = irqd_cfg(data);
 	struct hv_pcibus_device *hbus;
+	struct vmbus_channel *channel;
 	struct hv_pci_dev *hpdev;
 	struct pci_bus *pbus;
 	struct pci_dev *pdev;
 	struct cpumask *dest;
-	unsigned long flags;
 	struct compose_comp_ctxt comp;
 	struct tran_int_desc *int_desc;
 	struct {
@@ -1378,6 +1381,7 @@ static void hv_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 	dest = irq_data_get_effective_affinity_mask(data);
 	pbus = pdev->bus;
 	hbus = container_of(pbus->sysdata, struct hv_pcibus_device, sysdata);
+	channel = hbus->hdev->channel;
 	hpdev = get_pcichild_wslot(hbus, devfn_to_wslot(pdev->devfn));
 	if (!hpdev)
 		goto return_null_message;
@@ -1436,41 +1440,50 @@ static void hv_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 	}
 
 	/*
+	 * Prevents hv_pci_onchannelcallback() from running concurrently
+	 * in the tasklet.
+	 */
+	tasklet_disable(&channel->callback_event);
+
+	/*
 	 * Since this function is called with IRQ locks held, can't
 	 * do normal wait for completion; instead poll.
 	 */
 	while (!try_wait_for_completion(&comp.comp_pkt.host_event)) {
+		unsigned long flags;
+
 		/* 0xFFFF means an invalid PCI VENDOR ID. */
 		if (hv_pcifront_get_vendor_id(hpdev) == 0xFFFF) {
 			dev_err_once(&hbus->hdev->device,
 				     "the device has gone\n");
-			goto free_int_desc;
+			goto enable_tasklet;
 		}
 
 		/*
-		 * When the higher level interrupt code calls us with
-		 * interrupt disabled, we must poll the channel by calling
-		 * the channel callback directly when channel->target_cpu is
-		 * the current CPU. When the higher level interrupt code
-		 * calls us with interrupt enabled, let's add the
-		 * local_irq_save()/restore() to avoid race:
-		 * hv_pci_onchannelcallback() can also run in tasklet.
+		 * Make sure that the ring buffer data structure doesn't get
+		 * freed while we dereference the ring buffer pointer.  Test
+		 * for the channel's onchannel_callback being NULL within a
+		 * sched_lock critical section.  See also the inline comments
+		 * in vmbus_reset_channel_cb().
 		 */
-		local_irq_save(flags);
-
-		if (hbus->hdev->channel->target_cpu == smp_processor_id())
-			hv_pci_onchannelcallback(hbus);
-
-		local_irq_restore(flags);
+		spin_lock_irqsave(&channel->sched_lock, flags);
+		if (unlikely(channel->onchannel_callback == NULL)) {
+			spin_unlock_irqrestore(&channel->sched_lock, flags);
+			goto enable_tasklet;
+		}
+		hv_pci_onchannelcallback(hbus);
+		spin_unlock_irqrestore(&channel->sched_lock, flags);
 
 		if (hpdev->state == hv_pcichild_ejecting) {
 			dev_err_once(&hbus->hdev->device,
 				     "the device is being ejected\n");
-			goto free_int_desc;
+			goto enable_tasklet;
 		}
 
 		udelay(100);
 	}
+
+	tasklet_enable(&channel->callback_event);
 
 	if (comp.comp_pkt.completion_status < 0) {
 		dev_err(&hbus->hdev->device,
@@ -1495,6 +1508,8 @@ static void hv_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 	put_pcichild(hpdev);
 	return;
 
+enable_tasklet:
+	tasklet_enable(&channel->callback_event);
 free_int_desc:
 	kfree(int_desc);
 drop_reference:
@@ -2198,10 +2213,8 @@ static void hv_pci_devices_present(struct hv_pcibus_device *hbus,
 	struct hv_dr_state *dr;
 	int i;
 
-	dr = kzalloc(offsetof(struct hv_dr_state, func) +
-		     (sizeof(struct hv_pcidev_description) *
-		      (relations->device_count)), GFP_NOWAIT);
-
+	dr = kzalloc(struct_size(dr, func, relations->device_count),
+		     GFP_NOWAIT);
 	if (!dr)
 		return;
 
@@ -2235,10 +2248,8 @@ static void hv_pci_devices_present2(struct hv_pcibus_device *hbus,
 	struct hv_dr_state *dr;
 	int i;
 
-	dr = kzalloc(offsetof(struct hv_dr_state, func) +
-		     (sizeof(struct hv_pcidev_description) *
-		      (relations->device_count)), GFP_NOWAIT);
-
+	dr = kzalloc(struct_size(dr, func, relations->device_count),
+		     GFP_NOWAIT);
 	if (!dr)
 		return;
 
@@ -2432,9 +2443,8 @@ static void hv_pci_onchannelcallback(void *context)
 
 				bus_rel = (struct pci_bus_relations *)buffer;
 				if (bytes_recvd <
-				    offsetof(struct pci_bus_relations, func) +
-				    (sizeof(struct pci_function_description) *
-				     (bus_rel->device_count))) {
+					struct_size(bus_rel, func,
+						    bus_rel->device_count)) {
 					dev_err(&hbus->hdev->device,
 						"bus relations too small\n");
 					break;
@@ -2447,9 +2457,8 @@ static void hv_pci_onchannelcallback(void *context)
 
 				bus_rel2 = (struct pci_bus_relations2 *)buffer;
 				if (bytes_recvd <
-				    offsetof(struct pci_bus_relations2, func) +
-				    (sizeof(struct pci_function_description2) *
-				     (bus_rel2->device_count))) {
+					struct_size(bus_rel2, func,
+						    bus_rel2->device_count)) {
 					dev_err(&hbus->hdev->device,
 						"bus relations v2 too small\n");
 					break;
@@ -2736,6 +2745,8 @@ static void hv_free_config_window(struct hv_pcibus_device *hbus)
 	vmbus_free_mmio(hbus->mem_config->start, PCI_CONFIG_MMIO_LENGTH);
 }
 
+static int hv_pci_bus_exit(struct hv_device *hdev, bool keep_devs);
+
 /**
  * hv_pci_enter_d0() - Bring the "bus" into the D0 power state
  * @hdev:	VMBus's tracking struct for this root PCI bus
@@ -2748,8 +2759,10 @@ static int hv_pci_enter_d0(struct hv_device *hdev)
 	struct pci_bus_d0_entry *d0_entry;
 	struct hv_pci_compl comp_pkt;
 	struct pci_packet *pkt;
+	bool retry = true;
 	int ret;
 
+enter_d0_retry:
 	/*
 	 * Tell the host that the bus is ready to use, and moved into the
 	 * powered-on state.  This includes telling the host which region
@@ -2775,6 +2788,38 @@ static int hv_pci_enter_d0(struct hv_device *hdev)
 
 	if (ret)
 		goto exit;
+
+	/*
+	 * In certain case (Kdump) the pci device of interest was
+	 * not cleanly shut down and resource is still held on host
+	 * side, the host could return invalid device status.
+	 * We need to explicitly request host to release the resource
+	 * and try to enter D0 again.
+	 */
+	if (comp_pkt.completion_status < 0 && retry) {
+		retry = false;
+
+		dev_err(&hdev->device, "Retrying D0 Entry\n");
+
+		/*
+		 * Hv_pci_bus_exit() calls hv_send_resource_released()
+		 * to free up resources of its child devices.
+		 * In the kdump kernel we need to set the
+		 * wslot_res_allocated to 255 so it scans all child
+		 * devices to release resources allocated in the
+		 * normal kernel before panic happened.
+		 */
+		hbus->wslot_res_allocated = 255;
+
+		ret = hv_pci_bus_exit(hdev, true);
+
+		if (ret == 0) {
+			kfree(pkt);
+			goto enter_d0_retry;
+		}
+		dev_err(&hdev->device,
+			"Retrying D0 failed with ret %d\n", ret);
+	}
 
 	if (comp_pkt.completion_status < 0) {
 		dev_err(&hdev->device,
@@ -2847,7 +2892,7 @@ static int hv_send_resources_allocated(struct hv_device *hdev)
 	struct hv_pci_dev *hpdev;
 	struct pci_packet *pkt;
 	size_t size_res;
-	u32 wslot;
+	int wslot;
 	int ret;
 
 	size_res = (hbus->protocol_version < PCI_PROTOCOL_VERSION_1_2)
@@ -2900,6 +2945,8 @@ static int hv_send_resources_allocated(struct hv_device *hdev)
 				comp_pkt.completion_status);
 			break;
 		}
+
+		hbus->wslot_res_allocated = wslot;
 	}
 
 	kfree(pkt);
@@ -2918,10 +2965,10 @@ static int hv_send_resources_released(struct hv_device *hdev)
 	struct hv_pcibus_device *hbus = hv_get_drvdata(hdev);
 	struct pci_child_message pkt;
 	struct hv_pci_dev *hpdev;
-	u32 wslot;
+	int wslot;
 	int ret;
 
-	for (wslot = 0; wslot < 256; wslot++) {
+	for (wslot = hbus->wslot_res_allocated; wslot >= 0; wslot--) {
 		hpdev = get_pcichild_wslot(hbus, wslot);
 		if (!hpdev)
 			continue;
@@ -2936,7 +2983,11 @@ static int hv_send_resources_released(struct hv_device *hdev)
 				       VM_PKT_DATA_INBAND, 0);
 		if (ret)
 			return ret;
+
+		hbus->wslot_res_allocated = wslot - 1;
 	}
+
+	hbus->wslot_res_allocated = -1;
 
 	return 0;
 }
@@ -3037,6 +3088,7 @@ static int hv_pci_probe(struct hv_device *hdev,
 	if (!hbus)
 		return -ENOMEM;
 	hbus->state = hv_pcibus_init;
+	hbus->wslot_res_allocated = -1;
 
 	/*
 	 * The PCI bus "domain" is what is called "segment" in ACPI and other
@@ -3136,7 +3188,7 @@ static int hv_pci_probe(struct hv_device *hdev,
 
 	ret = hv_pci_allocate_bridge_windows(hbus);
 	if (ret)
-		goto free_irq_domain;
+		goto exit_d0;
 
 	ret = hv_send_resources_allocated(hdev);
 	if (ret)
@@ -3154,6 +3206,8 @@ static int hv_pci_probe(struct hv_device *hdev,
 
 free_windows:
 	hv_pci_free_bridge_windows(hbus);
+exit_d0:
+	(void) hv_pci_bus_exit(hdev, true);
 free_irq_domain:
 	irq_domain_remove(hbus->irq_domain);
 free_fwnode:
@@ -3173,7 +3227,7 @@ free_bus:
 	return ret;
 }
 
-static int hv_pci_bus_exit(struct hv_device *hdev, bool hibernating)
+static int hv_pci_bus_exit(struct hv_device *hdev, bool keep_devs)
 {
 	struct hv_pcibus_device *hbus = hv_get_drvdata(hdev);
 	struct {
@@ -3191,7 +3245,7 @@ static int hv_pci_bus_exit(struct hv_device *hdev, bool hibernating)
 	if (hdev->channel->rescind)
 		return 0;
 
-	if (!hibernating) {
+	if (!keep_devs) {
 		/* Delete any children which might still exist. */
 		dr = kzalloc(sizeof(*dr), GFP_KERNEL);
 		if (dr && hv_pci_start_relations_work(hbus, dr))

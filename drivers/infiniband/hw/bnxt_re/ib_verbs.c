@@ -177,9 +177,6 @@ int bnxt_re_query_device(struct ib_device *ibdev,
 	ib_attr->max_total_mcast_qp_attach = 0;
 	ib_attr->max_ah = dev_attr->max_ah;
 
-	ib_attr->max_fmr = 0;
-	ib_attr->max_map_per_fmr = 0;
-
 	ib_attr->max_srq = dev_attr->max_srq;
 	ib_attr->max_srq_wr = dev_attr->max_srq_wqes;
 	ib_attr->max_srq_sge = dev_attr->max_srq_sges;
@@ -631,11 +628,12 @@ static u8 bnxt_re_stack_to_dev_nw_type(enum rdma_network_type ntype)
 	return nw_type;
 }
 
-int bnxt_re_create_ah(struct ib_ah *ib_ah, struct rdma_ah_attr *ah_attr,
-		      u32 flags, struct ib_udata *udata)
+int bnxt_re_create_ah(struct ib_ah *ib_ah, struct rdma_ah_init_attr *init_attr,
+		      struct ib_udata *udata)
 {
 	struct ib_pd *ib_pd = ib_ah->pd;
 	struct bnxt_re_pd *pd = container_of(ib_pd, struct bnxt_re_pd, ib_pd);
+	struct rdma_ah_attr *ah_attr = init_attr->ah_attr;
 	const struct ib_global_route *grh = rdma_ah_read_grh(ah_attr);
 	struct bnxt_re_dev *rdev = pd->rdev;
 	const struct ib_gid_attr *sgid_attr;
@@ -673,7 +671,8 @@ int bnxt_re_create_ah(struct ib_ah *ib_ah, struct rdma_ah_attr *ah_attr,
 
 	memcpy(ah->qplib_ah.dmac, ah_attr->roce.dmac, ETH_ALEN);
 	rc = bnxt_qplib_create_ah(&rdev->qplib_res, &ah->qplib_ah,
-				  !(flags & RDMA_CREATE_AH_SLEEPABLE));
+				  !(init_attr->flags &
+				    RDMA_CREATE_AH_SLEEPABLE));
 	if (rc) {
 		ibdev_err(&rdev->ibdev, "Failed to allocate HW AH");
 		return rc;
@@ -856,7 +855,7 @@ static int bnxt_re_init_user_qp(struct bnxt_re_dev *rdev, struct bnxt_re_pd *pd,
 	if (ib_copy_from_udata(&ureq, udata, sizeof(ureq)))
 		return -EFAULT;
 
-	bytes = (qplib_qp->sq.max_wqe * BNXT_QPLIB_MAX_SQE_ENTRY_SIZE);
+	bytes = (qplib_qp->sq.max_wqe * qplib_qp->sq.wqe_size);
 	/* Consider mapping PSN search memory only for RC QPs. */
 	if (qplib_qp->type == CMDQ_CREATE_QP_TYPE_RC) {
 		psn_sz = bnxt_qplib_is_chip_gen_p5(rdev->chip_ctx) ?
@@ -879,7 +878,7 @@ static int bnxt_re_init_user_qp(struct bnxt_re_dev *rdev, struct bnxt_re_pd *pd,
 	qplib_qp->qp_handle = ureq.qp_handle;
 
 	if (!qp->qplib_qp.srq) {
-		bytes = (qplib_qp->rq.max_wqe * BNXT_QPLIB_MAX_RQE_ENTRY_SIZE);
+		bytes = (qplib_qp->rq.max_wqe * qplib_qp->rq.wqe_size);
 		bytes = PAGE_ALIGN(bytes);
 		umem = ib_umem_get(&rdev->ibdev, ureq.qprva, bytes,
 				   IB_ACCESS_LOCAL_WRITE);
@@ -976,6 +975,7 @@ static struct bnxt_re_qp *bnxt_re_create_shadow_qp
 	qp->qplib_qp.sig_type = true;
 
 	/* Shadow QP SQ depth should be same as QP1 RQ depth */
+	qp->qplib_qp.sq.wqe_size = bnxt_re_get_swqe_size();
 	qp->qplib_qp.sq.max_wqe = qp1_qp->rq.max_wqe;
 	qp->qplib_qp.sq.max_sge = 2;
 	/* Q full delta can be 1 since it is internal QP */
@@ -986,6 +986,7 @@ static struct bnxt_re_qp *bnxt_re_create_shadow_qp
 	qp->qplib_qp.scq = qp1_qp->scq;
 	qp->qplib_qp.rcq = qp1_qp->rcq;
 
+	qp->qplib_qp.rq.wqe_size = bnxt_re_get_rwqe_size();
 	qp->qplib_qp.rq.max_wqe = qp1_qp->rq.max_wqe;
 	qp->qplib_qp.rq.max_sge = qp1_qp->rq.max_sge;
 	/* Q full delta can be 1 since it is internal QP */
@@ -1021,10 +1022,12 @@ static int bnxt_re_init_rq_attr(struct bnxt_re_qp *qp,
 	struct bnxt_qplib_dev_attr *dev_attr;
 	struct bnxt_qplib_qp *qplqp;
 	struct bnxt_re_dev *rdev;
+	struct bnxt_qplib_q *rq;
 	int entries;
 
 	rdev = qp->rdev;
 	qplqp = &qp->qplib_qp;
+	rq = &qplqp->rq;
 	dev_attr = &rdev->dev_attr;
 
 	if (init_attr->srq) {
@@ -1036,23 +1039,21 @@ static int bnxt_re_init_rq_attr(struct bnxt_re_qp *qp,
 			return -EINVAL;
 		}
 		qplqp->srq = &srq->qplib_srq;
-		qplqp->rq.max_wqe = 0;
+		rq->max_wqe = 0;
 	} else {
+		rq->wqe_size = bnxt_re_get_rwqe_size();
 		/* Allocate 1 more than what's provided so posting max doesn't
 		 * mean empty.
 		 */
 		entries = roundup_pow_of_two(init_attr->cap.max_recv_wr + 1);
-		qplqp->rq.max_wqe = min_t(u32, entries,
-					  dev_attr->max_qp_wqes + 1);
-
-		qplqp->rq.q_full_delta = qplqp->rq.max_wqe -
-					 init_attr->cap.max_recv_wr;
-		qplqp->rq.max_sge = init_attr->cap.max_recv_sge;
-		if (qplqp->rq.max_sge > dev_attr->max_qp_sges)
-			qplqp->rq.max_sge = dev_attr->max_qp_sges;
+		rq->max_wqe = min_t(u32, entries, dev_attr->max_qp_wqes + 1);
+		rq->q_full_delta = rq->max_wqe - init_attr->cap.max_recv_wr;
+		rq->max_sge = init_attr->cap.max_recv_sge;
+		if (rq->max_sge > dev_attr->max_qp_sges)
+			rq->max_sge = dev_attr->max_qp_sges;
 	}
-	qplqp->rq.sg_info.pgsize = PAGE_SIZE;
-	qplqp->rq.sg_info.pgshft = PAGE_SHIFT;
+	rq->sg_info.pgsize = PAGE_SIZE;
+	rq->sg_info.pgshft = PAGE_SHIFT;
 
 	return 0;
 }
@@ -1080,15 +1081,18 @@ static void bnxt_re_init_sq_attr(struct bnxt_re_qp *qp,
 	struct bnxt_qplib_dev_attr *dev_attr;
 	struct bnxt_qplib_qp *qplqp;
 	struct bnxt_re_dev *rdev;
+	struct bnxt_qplib_q *sq;
 	int entries;
 
 	rdev = qp->rdev;
 	qplqp = &qp->qplib_qp;
+	sq = &qplqp->sq;
 	dev_attr = &rdev->dev_attr;
 
-	qplqp->sq.max_sge = init_attr->cap.max_send_sge;
-	if (qplqp->sq.max_sge > dev_attr->max_qp_sges)
-		qplqp->sq.max_sge = dev_attr->max_qp_sges;
+	sq->wqe_size = bnxt_re_get_swqe_size();
+	sq->max_sge = init_attr->cap.max_send_sge;
+	if (sq->max_sge > dev_attr->max_qp_sges)
+		sq->max_sge = dev_attr->max_qp_sges;
 	/*
 	 * Change the SQ depth if user has requested minimum using
 	 * configfs. Only supported for kernel consumers
@@ -1096,9 +1100,9 @@ static void bnxt_re_init_sq_attr(struct bnxt_re_qp *qp,
 	entries = init_attr->cap.max_send_wr;
 	/* Allocate 128 + 1 more than what's provided */
 	entries = roundup_pow_of_two(entries + BNXT_QPLIB_RESERVED_QP_WRS + 1);
-	qplqp->sq.max_wqe = min_t(u32, entries, dev_attr->max_qp_wqes +
-			BNXT_QPLIB_RESERVED_QP_WRS + 1);
-	qplqp->sq.q_full_delta = BNXT_QPLIB_RESERVED_QP_WRS + 1;
+	sq->max_wqe = min_t(u32, entries, dev_attr->max_qp_wqes +
+			    BNXT_QPLIB_RESERVED_QP_WRS + 1);
+	sq->q_full_delta = BNXT_QPLIB_RESERVED_QP_WRS + 1;
 	/*
 	 * Reserving one slot for Phantom WQE. Application can
 	 * post one extra entry in this case. But allowing this to avoid
@@ -1511,7 +1515,7 @@ static int bnxt_re_init_user_srq(struct bnxt_re_dev *rdev,
 	if (ib_copy_from_udata(&ureq, udata, sizeof(ureq)))
 		return -EFAULT;
 
-	bytes = (qplib_srq->max_wqe * BNXT_QPLIB_MAX_RQE_ENTRY_SIZE);
+	bytes = (qplib_srq->max_wqe * qplib_srq->wqe_size);
 	bytes = PAGE_ALIGN(bytes);
 	umem = ib_umem_get(&rdev->ibdev, ureq.srqva, bytes,
 			   IB_ACCESS_LOCAL_WRITE);
@@ -1534,14 +1538,19 @@ int bnxt_re_create_srq(struct ib_srq *ib_srq,
 		       struct ib_srq_init_attr *srq_init_attr,
 		       struct ib_udata *udata)
 {
-	struct ib_pd *ib_pd = ib_srq->pd;
-	struct bnxt_re_pd *pd = container_of(ib_pd, struct bnxt_re_pd, ib_pd);
-	struct bnxt_re_dev *rdev = pd->rdev;
-	struct bnxt_qplib_dev_attr *dev_attr = &rdev->dev_attr;
-	struct bnxt_re_srq *srq =
-		container_of(ib_srq, struct bnxt_re_srq, ib_srq);
+	struct bnxt_qplib_dev_attr *dev_attr;
 	struct bnxt_qplib_nq *nq = NULL;
+	struct bnxt_re_dev *rdev;
+	struct bnxt_re_srq *srq;
+	struct bnxt_re_pd *pd;
+	struct ib_pd *ib_pd;
 	int rc, entries;
+
+	ib_pd = ib_srq->pd;
+	pd = container_of(ib_pd, struct bnxt_re_pd, ib_pd);
+	rdev = pd->rdev;
+	dev_attr = &rdev->dev_attr;
+	srq = container_of(ib_srq, struct bnxt_re_srq, ib_srq);
 
 	if (srq_init_attr->attr.max_wr >= dev_attr->max_srq_wqes) {
 		ibdev_err(&rdev->ibdev, "Create CQ failed - max exceeded");
@@ -1563,8 +1572,9 @@ int bnxt_re_create_srq(struct ib_srq *ib_srq,
 	entries = roundup_pow_of_two(srq_init_attr->attr.max_wr + 1);
 	if (entries > dev_attr->max_srq_wqes + 1)
 		entries = dev_attr->max_srq_wqes + 1;
-
 	srq->qplib_srq.max_wqe = entries;
+
+	srq->qplib_srq.wqe_size = bnxt_re_get_rwqe_size();
 	srq->qplib_srq.max_sge = srq_init_attr->attr.max_sge;
 	srq->qplib_srq.threshold = srq_init_attr->attr.srq_limit;
 	srq->srq_limit = srq_init_attr->attr.srq_limit;

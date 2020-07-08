@@ -59,7 +59,7 @@ recomputed for each resulting segment.  See the skbuff.h comment (section 'E')
 for more details.
 
 A driver declares its offload capabilities in netdev->hw_features; see
-Documentation/networking/netdev-features.txt for more.  Note that a device
+Documentation/networking/netdev-features.rst for more.  Note that a device
 which only advertises NETIF_F_IP[V6]_CSUM must still obey the csum_start and
 csum_offset given in the SKB; if it tries to deduce these itself in hardware
 (as some NICs do) the driver should check that the values in the SKB match

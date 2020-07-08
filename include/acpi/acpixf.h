@@ -12,7 +12,7 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20200326
+#define ACPI_CA_VERSION                 0x20200528
 
 #include <acpi/acconfig.h>
 #include <acpi/actypes.h>

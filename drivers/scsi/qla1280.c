@@ -526,7 +526,7 @@ static struct pci_device_id qla1280_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, qla1280_pci_tbl);
 
-DEFINE_MUTEX(qla1280_firmware_mutex);
+static DEFINE_MUTEX(qla1280_firmware_mutex);
 
 struct qla_fw {
 	char *fwname;
@@ -535,7 +535,7 @@ struct qla_fw {
 
 #define QL_NUM_FW_IMAGES 3
 
-struct qla_fw qla1280_fw_tbl[QL_NUM_FW_IMAGES] = {
+static struct qla_fw qla1280_fw_tbl[QL_NUM_FW_IMAGES] = {
 	{"qlogic/1040.bin",  NULL},	/* image 0 */
 	{"qlogic/1280.bin",  NULL},	/* image 1 */
 	{"qlogic/12160.bin", NULL},	/* image 2 */

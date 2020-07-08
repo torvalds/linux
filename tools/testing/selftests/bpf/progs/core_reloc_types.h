@@ -379,7 +379,7 @@ struct core_reloc_arrays___equiv_zero_sz_arr {
 	struct core_reloc_arrays_substruct c[3];
 	struct core_reloc_arrays_substruct d[1][2];
 	/* equivalent to flexible array */
-	struct core_reloc_arrays_substruct f[0][2];
+	struct core_reloc_arrays_substruct f[][2];
 };
 
 struct core_reloc_arrays___fixed_arr {

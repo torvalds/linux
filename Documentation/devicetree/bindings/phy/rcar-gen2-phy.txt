@@ -4,7 +4,8 @@ This file provides information on what the device node for the R-Car generation
 2 USB PHY contains.
 
 Required properties:
-- compatible: "renesas,usb-phy-r8a7743" if the device is a part of R8A7743 SoC.
+- compatible: "renesas,usb-phy-r8a7742" if the device is a part of R8A7742 SoC.
+	      "renesas,usb-phy-r8a7743" if the device is a part of R8A7743 SoC.
 	      "renesas,usb-phy-r8a7744" if the device is a part of R8A7744 SoC.
 	      "renesas,usb-phy-r8a7745" if the device is a part of R8A7745 SoC.
 	      "renesas,usb-phy-r8a77470" if the device is a part of R8A77470 SoC.

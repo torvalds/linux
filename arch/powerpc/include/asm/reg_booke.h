@@ -663,60 +663,6 @@
 #define EPC_EPID	0x00003fff
 #define EPC_EPID_SHIFT	0
 
-/*
- * The IBM-403 is an even more odd special case, as it is much
- * older than the IBM-405 series.  We put these down here incase someone
- * wishes to support these machines again.
- */
-#ifdef CONFIG_403GCX
-/* Special Purpose Registers (SPRNs)*/
-#define SPRN_TBHU	0x3CC	/* Time Base High User-mode */
-#define SPRN_TBLU	0x3CD	/* Time Base Low User-mode */
-#define SPRN_CDBCR	0x3D7	/* Cache Debug Control Register */
-#define SPRN_TBHI	0x3DC	/* Time Base High */
-#define SPRN_TBLO	0x3DD	/* Time Base Low */
-#define SPRN_DBCR	0x3F2	/* Debug Control Register */
-#define SPRN_PBL1	0x3FC	/* Protection Bound Lower 1 */
-#define SPRN_PBL2	0x3FE	/* Protection Bound Lower 2 */
-#define SPRN_PBU1	0x3FD	/* Protection Bound Upper 1 */
-#define SPRN_PBU2	0x3FF	/* Protection Bound Upper 2 */
-
-
-/* Bit definitions for the DBCR. */
-#define DBCR_EDM	DBCR0_EDM
-#define DBCR_IDM	DBCR0_IDM
-#define DBCR_RST(x)	(((x) & 0x3) << 28)
-#define DBCR_RST_NONE	0
-#define DBCR_RST_CORE	1
-#define DBCR_RST_CHIP	2
-#define DBCR_RST_SYSTEM	3
-#define DBCR_IC		DBCR0_IC	/* Instruction Completion Debug Evnt */
-#define DBCR_BT		DBCR0_BT	/* Branch Taken Debug Event */
-#define DBCR_EDE	DBCR0_EDE	/* Exception Debug Event */
-#define DBCR_TDE	DBCR0_TDE	/* TRAP Debug Event */
-#define DBCR_FER	0x00F80000	/* First Events Remaining Mask */
-#define DBCR_FT		0x00040000	/* Freeze Timers on Debug Event */
-#define DBCR_IA1	0x00020000	/* Instr. Addr. Compare 1 Enable */
-#define DBCR_IA2	0x00010000	/* Instr. Addr. Compare 2 Enable */
-#define DBCR_D1R	0x00008000	/* Data Addr. Compare 1 Read Enable */
-#define DBCR_D1W	0x00004000	/* Data Addr. Compare 1 Write Enable */
-#define DBCR_D1S(x)	(((x) & 0x3) << 12)	/* Data Adrr. Compare 1 Size */
-#define DAC_BYTE	0
-#define DAC_HALF	1
-#define DAC_WORD	2
-#define DAC_QUAD	3
-#define DBCR_D2R	0x00000800	/* Data Addr. Compare 2 Read Enable */
-#define DBCR_D2W	0x00000400	/* Data Addr. Compare 2 Write Enable */
-#define DBCR_D2S(x)	(((x) & 0x3) << 8)	/* Data Addr. Compare 2 Size */
-#define DBCR_SBT	0x00000040	/* Second Branch Taken Debug Event */
-#define DBCR_SED	0x00000020	/* Second Exception Debug Event */
-#define DBCR_STD	0x00000010	/* Second Trap Debug Event */
-#define DBCR_SIA	0x00000008	/* Second IAC Enable */
-#define DBCR_SDA	0x00000004	/* Second DAC Enable */
-#define DBCR_JOI	0x00000002	/* JTAG Serial Outbound Int. Enable */
-#define DBCR_JII	0x00000001	/* JTAG Serial Inbound Int. Enable */
-#endif /* 403GCX */
-
 /* Some 476 specific registers */
 #define SPRN_SSPCR		830
 #define SPRN_USPCR		831

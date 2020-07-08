@@ -56,6 +56,16 @@
 			  3300000 0x0>;
 		status = "okay";
 	};
+
+	sd_vcc_reg: sd_vcc_reg {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc-sd";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+		enable-active-high;
+		gpio = <&expgpio 6 GPIO_ACTIVE_HIGH>;
+	};
 };
 
 &firmware {
@@ -69,7 +79,7 @@
 				  "GLOBAL_RESET",
 				  "VDD_SD_IO_SEL",
 				  "CAM_GPIO",
-				  "",
+				  "SD_PWR_ON",
 				  "";
 		status = "okay";
 	};
@@ -174,6 +184,7 @@
 /* EMMC2 is used to drive the SD card */
 &emmc2 {
 	vqmmc-supply = <&sd_io_1v8_reg>;
+	vmmc-supply = <&sd_vcc_reg>;
 	broken-cd;
 	status = "okay";
 };

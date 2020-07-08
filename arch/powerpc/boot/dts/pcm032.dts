@@ -3,9 +3,7 @@
  * phyCORE-MPC5200B-IO (pcm032) board Device Tree Source
  *
  * Copyright (C) 2006-2009 Pengutronix
- * Sascha Hauer <s.hauer@pengutronix.de>
- * Juergen Beisert <j.beisert@pengutronix.de>
- * Wolfram Sang <w.sang@pengutronix.de>
+ * Sascha Hauer, Juergen Beisert, Wolfram Sang <kernel@pengutronix.de>
  */
 
 /include/ "mpc5200b.dtsi"

@@ -90,6 +90,10 @@
 		dpaux@545c0000 {
 			status = "okay";
 		};
+
+		i2c@546c0000 {
+			status = "okay";
+		};
 	};
 
 	gpu@57000000 {
@@ -145,7 +149,8 @@
 		pmic: pmic@3c {
 			compatible = "maxim,max77620";
 			reg = <0x3c>;
-			interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-parent = <&tegra_pmc>;
+			interrupts = <51 IRQ_TYPE_LEVEL_LOW>;
 
 			#interrupt-cells = <2>;
 			interrupt-controller;

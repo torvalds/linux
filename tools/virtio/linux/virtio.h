@@ -11,12 +11,11 @@ struct device {
 struct virtio_device {
 	struct device dev;
 	u64 features;
+	struct list_head vqs;
 };
 
 struct virtqueue {
-	/* TODO: commented as list macros are empty stubs for now.
-	 * Broken but enough for virtio_ring.c
-	 * struct list_head list; */
+	struct list_head list;
 	void (*callback)(struct virtqueue *vq);
 	const char *name;
 	struct virtio_device *vdev;

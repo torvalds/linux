@@ -99,6 +99,15 @@ static void imx_sc_check_for_events(struct work_struct *work)
 				      msecs_to_jiffies(REPEAT_INTERVAL));
 }
 
+static void imx_sc_key_action(void *data)
+{
+	struct imx_key_drv_data *priv = data;
+
+	imx_scu_irq_group_enable(SC_IRQ_GROUP_WAKE, SC_IRQ_BUTTON, false);
+	imx_scu_irq_unregister_notifier(&priv->key_notifier);
+	cancel_delayed_work_sync(&priv->check_work);
+}
+
 static int imx_sc_key_probe(struct platform_device *pdev)
 {
 	struct imx_key_drv_data *priv;
@@ -149,27 +158,16 @@ static int imx_sc_key_probe(struct platform_device *pdev)
 		return error;
 	}
 
+	error = devm_add_action_or_reset(&pdev->dev, imx_sc_key_action, &priv);
+	if (error)
+		return error;
+
 	priv->key_notifier.notifier_call = imx_sc_key_notify;
 	error = imx_scu_irq_register_notifier(&priv->key_notifier);
-	if (error) {
-		imx_scu_irq_group_enable(SC_IRQ_GROUP_WAKE, SC_IRQ_BUTTON,
-					 false);
+	if (error)
 		dev_err(&pdev->dev, "failed to register scu notifier\n");
-		return error;
-	}
 
-	return 0;
-}
-
-static int imx_sc_key_remove(struct platform_device *pdev)
-{
-	struct imx_key_drv_data *priv = platform_get_drvdata(pdev);
-
-	imx_scu_irq_group_enable(SC_IRQ_GROUP_WAKE, SC_IRQ_BUTTON, false);
-	imx_scu_irq_unregister_notifier(&priv->key_notifier);
-	cancel_delayed_work_sync(&priv->check_work);
-
-	return 0;
+	return error;
 }
 
 static const struct of_device_id imx_sc_key_ids[] = {
@@ -184,7 +182,6 @@ static struct platform_driver imx_sc_key_driver = {
 		.of_match_table = imx_sc_key_ids,
 	},
 	.probe = imx_sc_key_probe,
-	.remove = imx_sc_key_remove,
 };
 module_platform_driver(imx_sc_key_driver);
 

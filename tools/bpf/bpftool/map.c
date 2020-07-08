@@ -49,6 +49,7 @@ const char * const map_type_name[] = {
 	[BPF_MAP_TYPE_STACK]			= "stack",
 	[BPF_MAP_TYPE_SK_STORAGE]		= "sk_storage",
 	[BPF_MAP_TYPE_STRUCT_OPS]		= "struct_ops",
+	[BPF_MAP_TYPE_RINGBUF]			= "ringbuf",
 };
 
 const size_t map_type_name_size = ARRAY_SIZE(map_type_name);
@@ -1561,24 +1562,24 @@ static int do_help(int argc, char **argv)
 	}
 
 	fprintf(stderr,
-		"Usage: %s %s { show | list }   [MAP]\n"
-		"       %s %s create     FILE type TYPE key KEY_SIZE value VALUE_SIZE \\\n"
-		"                              entries MAX_ENTRIES name NAME [flags FLAGS] \\\n"
-		"                              [dev NAME]\n"
-		"       %s %s dump       MAP\n"
-		"       %s %s update     MAP [key DATA] [value VALUE] [UPDATE_FLAGS]\n"
-		"       %s %s lookup     MAP [key DATA]\n"
-		"       %s %s getnext    MAP [key DATA]\n"
-		"       %s %s delete     MAP  key DATA\n"
-		"       %s %s pin        MAP  FILE\n"
-		"       %s %s event_pipe MAP [cpu N index M]\n"
-		"       %s %s peek       MAP\n"
-		"       %s %s push       MAP value VALUE\n"
-		"       %s %s pop        MAP\n"
-		"       %s %s enqueue    MAP value VALUE\n"
-		"       %s %s dequeue    MAP\n"
-		"       %s %s freeze     MAP\n"
-		"       %s %s help\n"
+		"Usage: %1$s %2$s { show | list }   [MAP]\n"
+		"       %1$s %2$s create     FILE type TYPE key KEY_SIZE value VALUE_SIZE \\\n"
+		"                                  entries MAX_ENTRIES name NAME [flags FLAGS] \\\n"
+		"                                  [dev NAME]\n"
+		"       %1$s %2$s dump       MAP\n"
+		"       %1$s %2$s update     MAP [key DATA] [value VALUE] [UPDATE_FLAGS]\n"
+		"       %1$s %2$s lookup     MAP [key DATA]\n"
+		"       %1$s %2$s getnext    MAP [key DATA]\n"
+		"       %1$s %2$s delete     MAP  key DATA\n"
+		"       %1$s %2$s pin        MAP  FILE\n"
+		"       %1$s %2$s event_pipe MAP [cpu N index M]\n"
+		"       %1$s %2$s peek       MAP\n"
+		"       %1$s %2$s push       MAP value VALUE\n"
+		"       %1$s %2$s pop        MAP\n"
+		"       %1$s %2$s enqueue    MAP value VALUE\n"
+		"       %1$s %2$s dequeue    MAP\n"
+		"       %1$s %2$s freeze     MAP\n"
+		"       %1$s %2$s help\n"
 		"\n"
 		"       " HELP_SPEC_MAP "\n"
 		"       DATA := { [hex] BYTES }\n"
@@ -1589,14 +1590,10 @@ static int do_help(int argc, char **argv)
 		"                 percpu_array | stack_trace | cgroup_array | lru_hash |\n"
 		"                 lru_percpu_hash | lpm_trie | array_of_maps | hash_of_maps |\n"
 		"                 devmap | devmap_hash | sockmap | cpumap | xskmap | sockhash |\n"
-		"                 cgroup_storage | reuseport_sockarray | percpu_cgroup_storage }\n"
+		"                 cgroup_storage | reuseport_sockarray | percpu_cgroup_storage |\n"
+		"                 queue | stack | sk_storage | struct_ops | ringbuf }\n"
 		"       " HELP_SPEC_OPTIONS "\n"
 		"",
-		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
-		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
-		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
-		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
-		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
 		bin_name, argv[-2]);
 
 	return 0;

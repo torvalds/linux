@@ -10,30 +10,21 @@
 #include "intel_engine.h"
 #include "intel_engine_heartbeat.h"
 #include "intel_engine_pm.h"
-#include "intel_engine_pool.h"
 #include "intel_gt.h"
 #include "intel_gt_pm.h"
 #include "intel_rc6.h"
 #include "intel_ring.h"
+#include "shmem_utils.h"
 
 static int __engine_unpark(struct intel_wakeref *wf)
 {
 	struct intel_engine_cs *engine =
 		container_of(wf, typeof(*engine), wakeref);
 	struct intel_context *ce;
-	void *map;
 
 	ENGINE_TRACE(engine, "\n");
 
 	intel_gt_pm_get(engine->gt);
-
-	/* Pin the default state for fast resets from atomic context. */
-	map = NULL;
-	if (engine->default_state)
-		map = i915_gem_object_pin_map(engine->default_state,
-					      I915_MAP_WB);
-	if (!IS_ERR_OR_NULL(map))
-		engine->pinned_default_state = map;
 
 	/* Discard stale context state from across idling */
 	ce = engine->kernel_context;
@@ -44,6 +35,7 @@ static int __engine_unpark(struct intel_wakeref *wf)
 		if (IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM) && ce->state) {
 			struct drm_i915_gem_object *obj = ce->state->obj;
 			int type = i915_coherent_map_type(engine->i915);
+			void *map;
 
 			map = i915_gem_object_pin_map(obj, type);
 			if (!IS_ERR(map)) {
@@ -181,7 +173,7 @@ static bool switch_to_kernel_context(struct intel_engine_cs *engine)
 	 * Ergo, if we put ourselves on the timelines.active_list
 	 * (se intel_timeline_enter()) before we increment the
 	 * engine->wakeref.count, we may see the request completion and retire
-	 * it causing an undeflow of the engine->wakeref.
+	 * it causing an underflow of the engine->wakeref.
 	 */
 	flags = __timeline_mark_lock(ce);
 	GEM_BUG_ON(atomic_read(&ce->timeline->active_count) < 0);
@@ -255,18 +247,12 @@ static int __engine_park(struct intel_wakeref *wf)
 
 	intel_engine_park_heartbeat(engine);
 	intel_engine_disarm_breadcrumbs(engine);
-	intel_engine_pool_park(&engine->pool);
 
 	/* Must be reset upon idling, or we may miss the busy wakeup. */
 	GEM_BUG_ON(engine->execlists.queue_priority_hint != INT_MIN);
 
 	if (engine->park)
 		engine->park(engine);
-
-	if (engine->pinned_default_state) {
-		i915_gem_object_unpin_map(engine->default_state);
-		engine->pinned_default_state = NULL;
-	}
 
 	engine->execlists.no_priolist = false;
 

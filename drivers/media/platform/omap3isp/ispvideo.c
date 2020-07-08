@@ -10,7 +10,6 @@
  *	     Sakari Ailus <sakari.ailus@iki.fi>
  */
 
-#include <asm/cacheflush.h>
 #include <linux/clk.h>
 #include <linux/mm.h>
 #include <linux/module.h>

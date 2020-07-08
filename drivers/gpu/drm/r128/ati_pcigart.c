@@ -32,9 +32,10 @@
  */
 
 #include <linux/export.h>
+#include <linux/pci.h>
 
 #include <drm/drm_device.h>
-#include <drm/drm_pci.h>
+#include <drm/drm_legacy.h>
 #include <drm/drm_print.h>
 
 #include "ati_pcigart.h"

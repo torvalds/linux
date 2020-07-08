@@ -66,6 +66,9 @@
 #include <linux/crash_dump.h>
 #include <net/udp_tunnel.h>
 #include <net/xfrm.h>
+#if defined(CONFIG_CHELSIO_TLS_DEVICE)
+#include <net/tls.h>
+#endif
 
 #include "cxgb4.h"
 #include "cxgb4_filter.h"
@@ -180,6 +183,7 @@ static struct dentry *cxgb4_debugfs_root;
 
 LIST_HEAD(adapter_list);
 DEFINE_MUTEX(uld_mutex);
+LIST_HEAD(uld_list);
 
 static int cfg_queues(struct adapter *adap);
 
@@ -445,7 +449,7 @@ static int set_rxmode(struct net_device *dev, int mtu, bool sleep_ok)
  *		   or -1
  *	@addr: the new MAC address value
  *	@persist: whether a new MAC allocation should be persistent
- *	@add_smt: if true also add the address to the HW SMT
+ *	@smt_idx: the destination to store the new SMT index.
  *
  *	Modifies an MPS filter and sets it to the new MAC address if
  *	@tcam_idx >= 0, or adds the MAC address to a new filter if
@@ -1579,6 +1583,7 @@ static int tid_init(struct tid_info *t)
 	atomic_set(&t->tids_in_use, 0);
 	atomic_set(&t->conns_in_use, 0);
 	atomic_set(&t->hash_tids_in_use, 0);
+	atomic_set(&t->eotids_in_use, 0);
 
 	/* Setup the free list for atid_tab and clear the stid bitmap. */
 	if (natids) {
@@ -1610,6 +1615,7 @@ static int tid_init(struct tid_info *t)
  *	@stid: the server TID
  *	@sip: local IP address to bind server to
  *	@sport: the server's TCP port
+ *	@vlan: the VLAN header information
  *	@queue: queue to direct messages from this server to
  *
  *	Create an IP server for the given port and address.
@@ -2604,7 +2610,7 @@ int cxgb4_create_server_filter(const struct net_device *dev, unsigned int stid,
 
 	/* Clear out filter specifications */
 	memset(&f->fs, 0, sizeof(struct ch_filter_specification));
-	f->fs.val.lport = cpu_to_be16(sport);
+	f->fs.val.lport = be16_to_cpu(sport);
 	f->fs.mask.lport  = ~0;
 	val = (u8 *)&sip;
 	if ((val[0] | val[1] | val[2] | val[3]) != 0) {
@@ -3021,7 +3027,7 @@ static int cxgb4_mgmt_set_vf_rate(struct net_device *dev, int vf,
 			      SCHED_CLASS_RATEUNIT_BITS,
 			      SCHED_CLASS_RATEMODE_ABS,
 			      pi->tx_chan, class_id, 0,
-			      max_tx_rate * 1000, 0, pktsize);
+			      max_tx_rate * 1000, 0, pktsize, 0);
 	if (ret) {
 		dev_err(adap->pdev_dev, "Err %d for Traffic Class config\n",
 			ret);
@@ -5372,10 +5378,10 @@ static inline bool is_x_10g_port(const struct link_config *lc)
 static int cfg_queues(struct adapter *adap)
 {
 	u32 avail_qsets, avail_eth_qsets, avail_uld_qsets;
-	u32 i, n10g = 0, qidx = 0, n1g = 0;
 	u32 ncpus = num_online_cpus();
 	u32 niqflint, neq, num_ulds;
 	struct sge *s = &adap->sge;
+	u32 i, n10g = 0, qidx = 0;
 	u32 q10g = 0, q1g;
 
 	/* Reduce memory usage in kdump environment, disable all offload. */
@@ -5421,7 +5427,6 @@ static int cfg_queues(struct adapter *adap)
 	if (n10g)
 		q10g = (avail_eth_qsets - (adap->params.nports - n10g)) / n10g;
 
-	n1g = adap->params.nports - n10g;
 #ifdef CONFIG_CHELSIO_T4_DCB
 	/* For Data Center Bridging support we need to be able to support up
 	 * to 8 Traffic Priorities; each of which will be assigned to its
@@ -5439,7 +5444,8 @@ static int cfg_queues(struct adapter *adap)
 	else
 		q10g = max(8U, q10g);
 
-	while ((q10g * n10g) > (avail_eth_qsets - n1g * q1g))
+	while ((q10g * n10g) >
+	       (avail_eth_qsets - (adap->params.nports - n10g) * q1g))
 		q10g--;
 
 #else /* !CONFIG_CHELSIO_T4_DCB */
@@ -6062,6 +6068,79 @@ static int cxgb4_iov_configure(struct pci_dev *pdev, int num_vfs)
 }
 #endif /* CONFIG_PCI_IOV */
 
+#if defined(CONFIG_CHELSIO_TLS_DEVICE)
+
+static int cxgb4_ktls_dev_add(struct net_device *netdev, struct sock *sk,
+			      enum tls_offload_ctx_dir direction,
+			      struct tls_crypto_info *crypto_info,
+			      u32 tcp_sn)
+{
+	struct adapter *adap = netdev2adap(netdev);
+	int ret = 0;
+
+	mutex_lock(&uld_mutex);
+	if (!adap->uld[CXGB4_ULD_CRYPTO].handle) {
+		dev_err(adap->pdev_dev, "chcr driver is not loaded\n");
+		ret = -EOPNOTSUPP;
+		goto out_unlock;
+	}
+
+	if (!adap->uld[CXGB4_ULD_CRYPTO].tlsdev_ops) {
+		dev_err(adap->pdev_dev,
+			"chcr driver has no registered tlsdev_ops()\n");
+		ret = -EOPNOTSUPP;
+		goto out_unlock;
+	}
+
+	ret = cxgb4_set_ktls_feature(adap, FW_PARAMS_PARAM_DEV_KTLS_HW_ENABLE);
+	if (ret)
+		goto out_unlock;
+
+	ret = adap->uld[CXGB4_ULD_CRYPTO].tlsdev_ops->tls_dev_add(netdev, sk,
+								  direction,
+								  crypto_info,
+								  tcp_sn);
+	/* if there is a failure, clear the refcount */
+	if (ret)
+		cxgb4_set_ktls_feature(adap,
+				       FW_PARAMS_PARAM_DEV_KTLS_HW_DISABLE);
+out_unlock:
+	mutex_unlock(&uld_mutex);
+	return ret;
+}
+
+static void cxgb4_ktls_dev_del(struct net_device *netdev,
+			       struct tls_context *tls_ctx,
+			       enum tls_offload_ctx_dir direction)
+{
+	struct adapter *adap = netdev2adap(netdev);
+
+	mutex_lock(&uld_mutex);
+	if (!adap->uld[CXGB4_ULD_CRYPTO].handle) {
+		dev_err(adap->pdev_dev, "chcr driver is not loaded\n");
+		goto out_unlock;
+	}
+
+	if (!adap->uld[CXGB4_ULD_CRYPTO].tlsdev_ops) {
+		dev_err(adap->pdev_dev,
+			"chcr driver has no registered tlsdev_ops\n");
+		goto out_unlock;
+	}
+
+	adap->uld[CXGB4_ULD_CRYPTO].tlsdev_ops->tls_dev_del(netdev, tls_ctx,
+							    direction);
+	cxgb4_set_ktls_feature(adap, FW_PARAMS_PARAM_DEV_KTLS_HW_DISABLE);
+
+out_unlock:
+	mutex_unlock(&uld_mutex);
+}
+
+static const struct tlsdev_ops cxgb4_ktls_ops = {
+	.tls_dev_add = cxgb4_ktls_dev_add,
+	.tls_dev_del = cxgb4_ktls_dev_del,
+};
+#endif /* CONFIG_CHELSIO_TLS_DEVICE */
+
 static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct net_device *netdev;
@@ -6311,7 +6390,14 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			netdev->hw_features |= NETIF_F_HIGHDMA;
 		netdev->features |= netdev->hw_features;
 		netdev->vlan_features = netdev->features & VLAN_FEAT;
-
+#if defined(CONFIG_CHELSIO_TLS_DEVICE)
+		if (pi->adapter->params.crypto & FW_CAPS_CONFIG_TLS_HW) {
+			netdev->hw_features |= NETIF_F_HW_TLS_TX;
+			netdev->tlsdev_ops = &cxgb4_ktls_ops;
+			/* initialize the refcount */
+			refcount_set(&pi->adapter->chcr_ktls.ktls_refcount, 0);
+		}
+#endif
 		netdev->priv_flags |= IFF_UNICAST_FLT;
 
 		/* MTU range: 81 - 9600 */
@@ -6518,11 +6604,8 @@ fw_attach_fail:
 	/* PCIe EEH recovery on powerpc platforms needs fundamental reset */
 	pdev->needs_freset = 1;
 
-	if (is_uld(adapter)) {
-		mutex_lock(&uld_mutex);
-		list_add_tail(&adapter->list_node, &adapter_list);
-		mutex_unlock(&uld_mutex);
-	}
+	if (is_uld(adapter))
+		cxgb4_uld_enable(adapter);
 
 	if (!is_t4(adapter->params.chip))
 		cxgb4_ptp_init(adapter);

@@ -10,6 +10,7 @@
 
 #include <linux/i2c.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/init.h>
@@ -418,7 +419,7 @@ MODULE_DEVICE_TABLE(of, cm3232_of_match);
 static struct i2c_driver cm3232_driver = {
 	.driver = {
 		.name	= "cm3232",
-		.of_match_table = of_match_ptr(cm3232_of_match),
+		.of_match_table = cm3232_of_match,
 #ifdef CONFIG_PM_SLEEP
 		.pm	= &cm3232_pm_ops,
 #endif

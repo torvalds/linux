@@ -31,7 +31,7 @@ static bool next_heartbeat(struct intel_engine_cs *engine)
 	delay = msecs_to_jiffies_timeout(delay);
 	if (delay >= HZ)
 		delay = round_jiffies_up_relative(delay);
-	schedule_delayed_work(&engine->heartbeat.work, delay);
+	mod_delayed_work(system_wq, &engine->heartbeat.work, delay);
 
 	return true;
 }

@@ -10,10 +10,10 @@
  */
 
 #include <linux/interrupt.h>
-#include <asm/acrn.h>
 #include <asm/apic.h>
 #include <asm/desc.h>
 #include <asm/hypervisor.h>
+#include <asm/idtentry.h>
 #include <asm/irq_regs.h>
 
 static uint32_t __init acrn_detect(void)
@@ -24,7 +24,7 @@ static uint32_t __init acrn_detect(void)
 static void __init acrn_init_platform(void)
 {
 	/* Setup the IDT for ACRN hypervisor callback */
-	alloc_intr_gate(HYPERVISOR_CALLBACK_VECTOR, acrn_hv_callback_vector);
+	alloc_intr_gate(HYPERVISOR_CALLBACK_VECTOR, asm_sysvec_acrn_hv_callback);
 }
 
 static bool acrn_x2apic_available(void)
@@ -39,7 +39,7 @@ static bool acrn_x2apic_available(void)
 
 static void (*acrn_intr_handler)(void);
 
-__visible void __irq_entry acrn_hv_vector_handler(struct pt_regs *regs)
+DEFINE_IDTENTRY_SYSVEC(sysvec_acrn_hv_callback)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
 
@@ -50,13 +50,12 @@ __visible void __irq_entry acrn_hv_vector_handler(struct pt_regs *regs)
 	 * will block the interrupt whose vector is lower than
 	 * HYPERVISOR_CALLBACK_VECTOR.
 	 */
-	entering_ack_irq();
+	ack_APIC_irq();
 	inc_irq_stat(irq_hv_callback_count);
 
 	if (acrn_intr_handler)
 		acrn_intr_handler();
 
-	exiting_irq();
 	set_irq_regs(old_regs);
 }
 

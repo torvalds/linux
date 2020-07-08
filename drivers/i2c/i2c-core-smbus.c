@@ -4,7 +4,7 @@
  *
  * This file contains the SMBus functions which are always included in the I2C
  * core because they can be emulated via I2C. SMBus specific extensions
- * (e.g. smbalert) are handled in a seperate i2c-smbus module.
+ * (e.g. smbalert) are handled in a separate i2c-smbus module.
  *
  * All SMBus-related things are written by Frodo Looijaard <frodol@dds.nl>
  * SMBus 2.0 support by Mark Studebaker <mdsxyz123@yahoo.com> and
@@ -495,6 +495,13 @@ static s32 i2c_smbus_xfer_emulated(struct i2c_adapter *adapter, u16 addr,
 			break;
 		case I2C_SMBUS_BLOCK_DATA:
 		case I2C_SMBUS_BLOCK_PROC_CALL:
+			if (msg[1].buf[0] > I2C_SMBUS_BLOCK_MAX) {
+				dev_err(&adapter->dev,
+					"Invalid block size returned: %d\n",
+					msg[1].buf[0]);
+				status = -EPROTO;
+				goto cleanup;
+			}
 			for (i = 0; i < msg[1].buf[0] + 1; i++)
 				data->block[i] = msg[1].buf[i];
 			break;

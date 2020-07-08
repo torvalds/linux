@@ -32,7 +32,6 @@
 #include <asm/memory.h>
 #include <asm/mmu_context.h>
 #include <asm/pgalloc.h>
-#include <asm/pgtable.h>
 #include <asm/pgtable-hwdef.h>
 #include <asm/sections.h>
 #include <asm/smp.h>
@@ -184,11 +183,12 @@ static int trans_pgd_map_page(pgd_t *trans_pgd, void *page,
 		       pgprot_t pgprot)
 {
 	pgd_t *pgdp;
+	p4d_t *p4dp;
 	pud_t *pudp;
 	pmd_t *pmdp;
 	pte_t *ptep;
 
-	pgdp = pgd_offset_raw(trans_pgd, dst_addr);
+	pgdp = pgd_offset_pgd(trans_pgd, dst_addr);
 	if (pgd_none(READ_ONCE(*pgdp))) {
 		pudp = (void *)get_safe_page(GFP_ATOMIC);
 		if (!pudp)
@@ -196,7 +196,15 @@ static int trans_pgd_map_page(pgd_t *trans_pgd, void *page,
 		pgd_populate(&init_mm, pgdp, pudp);
 	}
 
-	pudp = pud_offset(pgdp, dst_addr);
+	p4dp = p4d_offset(pgdp, dst_addr);
+	if (p4d_none(READ_ONCE(*p4dp))) {
+		pudp = (void *)get_safe_page(GFP_ATOMIC);
+		if (!pudp)
+			return -ENOMEM;
+		p4d_populate(&init_mm, p4dp, pudp);
+	}
+
+	pudp = pud_offset(p4dp, dst_addr);
 	if (pud_none(READ_ONCE(*pudp))) {
 		pmdp = (void *)get_safe_page(GFP_ATOMIC);
 		if (!pmdp)
@@ -419,7 +427,7 @@ static int copy_pmd(pud_t *dst_pudp, pud_t *src_pudp, unsigned long start,
 	return 0;
 }
 
-static int copy_pud(pgd_t *dst_pgdp, pgd_t *src_pgdp, unsigned long start,
+static int copy_pud(p4d_t *dst_p4dp, p4d_t *src_p4dp, unsigned long start,
 		    unsigned long end)
 {
 	pud_t *dst_pudp;
@@ -427,15 +435,15 @@ static int copy_pud(pgd_t *dst_pgdp, pgd_t *src_pgdp, unsigned long start,
 	unsigned long next;
 	unsigned long addr = start;
 
-	if (pgd_none(READ_ONCE(*dst_pgdp))) {
+	if (p4d_none(READ_ONCE(*dst_p4dp))) {
 		dst_pudp = (pud_t *)get_safe_page(GFP_ATOMIC);
 		if (!dst_pudp)
 			return -ENOMEM;
-		pgd_populate(&init_mm, dst_pgdp, dst_pudp);
+		p4d_populate(&init_mm, dst_p4dp, dst_pudp);
 	}
-	dst_pudp = pud_offset(dst_pgdp, start);
+	dst_pudp = pud_offset(dst_p4dp, start);
 
-	src_pudp = pud_offset(src_pgdp, start);
+	src_pudp = pud_offset(src_p4dp, start);
 	do {
 		pud_t pud = READ_ONCE(*src_pudp);
 
@@ -454,6 +462,27 @@ static int copy_pud(pgd_t *dst_pgdp, pgd_t *src_pgdp, unsigned long start,
 	return 0;
 }
 
+static int copy_p4d(pgd_t *dst_pgdp, pgd_t *src_pgdp, unsigned long start,
+		    unsigned long end)
+{
+	p4d_t *dst_p4dp;
+	p4d_t *src_p4dp;
+	unsigned long next;
+	unsigned long addr = start;
+
+	dst_p4dp = p4d_offset(dst_pgdp, start);
+	src_p4dp = p4d_offset(src_pgdp, start);
+	do {
+		next = p4d_addr_end(addr, end);
+		if (p4d_none(READ_ONCE(*src_p4dp)))
+			continue;
+		if (copy_pud(dst_p4dp, src_p4dp, addr, next))
+			return -ENOMEM;
+	} while (dst_p4dp++, src_p4dp++, addr = next, addr != end);
+
+	return 0;
+}
+
 static int copy_page_tables(pgd_t *dst_pgdp, unsigned long start,
 			    unsigned long end)
 {
@@ -461,12 +490,12 @@ static int copy_page_tables(pgd_t *dst_pgdp, unsigned long start,
 	unsigned long addr = start;
 	pgd_t *src_pgdp = pgd_offset_k(start);
 
-	dst_pgdp = pgd_offset_raw(dst_pgdp, start);
+	dst_pgdp = pgd_offset_pgd(dst_pgdp, start);
 	do {
 		next = pgd_addr_end(addr, end);
 		if (pgd_none(READ_ONCE(*src_pgdp)))
 			continue;
-		if (copy_pud(dst_pgdp, src_pgdp, addr, next))
+		if (copy_p4d(dst_pgdp, src_pgdp, addr, next))
 			return -ENOMEM;
 	} while (dst_pgdp++, src_pgdp++, addr = next, addr != end);
 

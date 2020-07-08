@@ -290,7 +290,7 @@ int snd_skl_parse_uuids(struct sst_dsp *ctx, const struct firmware *fw,
 			goto free_uuid_list;
 		}
 
-		guid_copy(&module->uuid, (guid_t *)&mod_entry->uuid);
+		import_guid(&module->uuid, mod_entry->uuid);
 
 		module->id = (i | (index << 12));
 		module->is_loadable = mod_entry->type.load_type;

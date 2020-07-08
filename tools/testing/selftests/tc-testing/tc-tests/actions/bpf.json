@@ -260,10 +260,10 @@
                 255
             ]
         ],
-        "cmdUnderTest": "$TC action add action bpf bytecode '4,40 0 0 12,21 0 1 2054,6 0 0 262144,6 0 0 0' index 4294967296 cookie 12345",
+        "cmdUnderTest": "$TC action add action bpf bytecode '4,40 0 0 12,21 0 1 2054,6 0 0 262144,6 0 0 0' index 4294967296 cookie 123456",
         "expExitCode": "255",
         "verifyCmd": "$TC action ls action bpf",
-        "matchPattern": "action order [0-9]*: bpf bytecode '4,40 0 0 12,21 0 1 2048,6 0 0 262144,6 0 0 0' default-action pipe.*cookie 12345",
+        "matchPattern": "action order [0-9]*: bpf bytecode '4,40 0 0 12,21 0 1 2048,6 0 0 262144,6 0 0 0' default-action pipe.*cookie 123456",
         "matchCount": "0",
         "teardown": [
             "$TC action flush action bpf"

@@ -79,6 +79,7 @@ enum {
 
 typedef void (*defer_handler_t)(struct chtls_dev *dev, struct sk_buff *skb);
 extern struct request_sock_ops chtls_rsk_ops;
+extern struct request_sock_ops chtls_rsk_opsv6;
 
 struct deferred_skb_cb {
 	defer_handler_t handler;

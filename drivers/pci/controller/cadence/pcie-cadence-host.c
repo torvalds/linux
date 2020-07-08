@@ -140,9 +140,6 @@ static int cdns_pcie_host_init_address_translation(struct cdns_pcie_rc *rc)
 	for_each_of_pci_range(&parser, &range) {
 		bool is_io;
 
-		if (r >= rc->max_regions)
-			break;
-
 		if ((range.flags & IORESOURCE_TYPE_BITS) == IORESOURCE_MEM)
 			is_io = false;
 		else if ((range.flags & IORESOURCE_TYPE_BITS) == IORESOURCE_IO)
@@ -219,17 +216,14 @@ int cdns_pcie_host_setup(struct cdns_pcie_rc *rc)
 	pcie = &rc->pcie;
 	pcie->is_rc = true;
 
-	rc->max_regions = 32;
-	of_property_read_u32(np, "cdns,max-outbound-regions", &rc->max_regions);
-
 	rc->no_bar_nbits = 32;
 	of_property_read_u32(np, "cdns,no-bar-match-nbits", &rc->no_bar_nbits);
 
 	rc->vendor_id = 0xffff;
-	of_property_read_u16(np, "vendor-id", &rc->vendor_id);
+	of_property_read_u32(np, "vendor-id", &rc->vendor_id);
 
 	rc->device_id = 0xffff;
-	of_property_read_u16(np, "device-id", &rc->device_id);
+	of_property_read_u32(np, "device-id", &rc->device_id);
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "reg");
 	pcie->reg_base = devm_ioremap_resource(dev, res);

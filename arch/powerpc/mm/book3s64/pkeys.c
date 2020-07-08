@@ -353,9 +353,6 @@ static bool pkey_access_permitted(int pkey, bool write, bool execute)
 	int pkey_shift;
 	u64 amr;
 
-	if (!is_pkey_enabled(pkey))
-		return true;
-
 	pkey_shift = pkeyshift(pkey);
 	if (execute && !(read_iamr() & (IAMR_EX_BIT << pkey_shift)))
 		return true;

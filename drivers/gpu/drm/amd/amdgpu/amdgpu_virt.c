@@ -38,7 +38,8 @@ bool amdgpu_virt_mmio_blocked(struct amdgpu_device *adev)
 void amdgpu_virt_init_setting(struct amdgpu_device *adev)
 {
 	/* enable virtual display */
-	adev->mode_info.num_crtc = 1;
+	if (adev->mode_info.num_crtc == 0)
+		adev->mode_info.num_crtc = 1;
 	adev->enable_virtual_display = true;
 	adev->ddev->driver->driver_features &= ~DRIVER_ATOMIC;
 	adev->cg_flags = 0;
@@ -59,7 +60,10 @@ void amdgpu_virt_kiq_reg_write_reg_wait(struct amdgpu_device *adev,
 	amdgpu_ring_alloc(ring, 32);
 	amdgpu_ring_emit_reg_write_reg_wait(ring, reg0, reg1,
 					    ref, mask);
-	amdgpu_fence_emit_polling(ring, &seq);
+	r = amdgpu_fence_emit_polling(ring, &seq, MAX_KIQ_REG_WAIT);
+	if (r)
+		goto failed_undo;
+
 	amdgpu_ring_commit(ring);
 	spin_unlock_irqrestore(&kiq->ring_lock, flags);
 
@@ -81,6 +85,9 @@ void amdgpu_virt_kiq_reg_write_reg_wait(struct amdgpu_device *adev,
 
 	return;
 
+failed_undo:
+	amdgpu_ring_undo(ring);
+	spin_unlock_irqrestore(&kiq->ring_lock, flags);
 failed_kiq:
 	pr_err("failed to write reg %x wait reg %x\n", reg0, reg1);
 }
@@ -150,6 +157,19 @@ int amdgpu_virt_reset_gpu(struct amdgpu_device *adev)
 	}
 
 	return 0;
+}
+
+void amdgpu_virt_request_init_data(struct amdgpu_device *adev)
+{
+	struct amdgpu_virt *virt = &adev->virt;
+
+	if (virt->ops && virt->ops->req_init_data)
+		virt->ops->req_init_data(adev);
+
+	if (adev->virt.req_init_data_ver > 0)
+		DRM_INFO("host supports REQ_INIT_DATA handshake\n");
+	else
+		DRM_WARN("host doesn't support REQ_INIT_DATA handshake\n");
 }
 
 /**
@@ -286,4 +306,83 @@ void amdgpu_virt_init_data_exchange(struct amdgpu_device *adev)
 			}
 		}
 	}
+}
+
+void amdgpu_detect_virtualization(struct amdgpu_device *adev)
+{
+	uint32_t reg;
+
+	switch (adev->asic_type) {
+	case CHIP_TONGA:
+	case CHIP_FIJI:
+		reg = RREG32(mmBIF_IOV_FUNC_IDENTIFIER);
+		break;
+	case CHIP_VEGA10:
+	case CHIP_VEGA20:
+	case CHIP_NAVI10:
+	case CHIP_NAVI12:
+	case CHIP_ARCTURUS:
+		reg = RREG32(mmRCC_IOV_FUNC_IDENTIFIER);
+		break;
+	default: /* other chip doesn't support SRIOV */
+		reg = 0;
+		break;
+	}
+
+	if (reg & 1)
+		adev->virt.caps |= AMDGPU_SRIOV_CAPS_IS_VF;
+
+	if (reg & 0x80000000)
+		adev->virt.caps |= AMDGPU_SRIOV_CAPS_ENABLE_IOV;
+
+	if (!reg) {
+		if (is_virtual_machine())	/* passthrough mode exclus sriov mod */
+			adev->virt.caps |= AMDGPU_PASSTHROUGH_MODE;
+	}
+}
+
+bool amdgpu_virt_access_debugfs_is_mmio(struct amdgpu_device *adev)
+{
+	return amdgpu_sriov_is_debug(adev) ? true : false;
+}
+
+bool amdgpu_virt_access_debugfs_is_kiq(struct amdgpu_device *adev)
+{
+	return amdgpu_sriov_is_normal(adev) ? true : false;
+}
+
+int amdgpu_virt_enable_access_debugfs(struct amdgpu_device *adev)
+{
+	if (!amdgpu_sriov_vf(adev) ||
+	    amdgpu_virt_access_debugfs_is_kiq(adev))
+		return 0;
+
+	if (amdgpu_virt_access_debugfs_is_mmio(adev))
+		adev->virt.caps &= ~AMDGPU_SRIOV_CAPS_RUNTIME;
+	else
+		return -EPERM;
+
+	return 0;
+}
+
+void amdgpu_virt_disable_access_debugfs(struct amdgpu_device *adev)
+{
+	if (amdgpu_sriov_vf(adev))
+		adev->virt.caps |= AMDGPU_SRIOV_CAPS_RUNTIME;
+}
+
+enum amdgpu_sriov_vf_mode amdgpu_virt_get_sriov_vf_mode(struct amdgpu_device *adev)
+{
+	enum amdgpu_sriov_vf_mode mode;
+
+	if (amdgpu_sriov_vf(adev)) {
+		if (amdgpu_sriov_is_pp_one_vf(adev))
+			mode = SRIOV_VF_MODE_ONE_VF;
+		else
+			mode = SRIOV_VF_MODE_MULTI_VF;
+	} else {
+		mode = SRIOV_VF_MODE_BARE_METAL;
+	}
+
+	return mode;
 }

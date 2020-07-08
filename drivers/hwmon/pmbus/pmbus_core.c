@@ -109,8 +109,8 @@ struct pmbus_data {
 	bool has_status_word;		/* device uses STATUS_WORD register */
 	int (*read_status)(struct i2c_client *client, int page);
 
-	u8 currpage;
-	u8 currphase;	/* current phase, 0xff for all */
+	s16 currpage;	/* current page, -1 for unknown/unset */
+	s16 currphase;	/* current phase, 0xff for all, -1 for unknown/unset */
 };
 
 struct pmbus_debugfs_entry {
@@ -1869,7 +1869,7 @@ static int pmbus_add_fan_ctrl(struct i2c_client *client,
 	struct pmbus_sensor *sensor;
 
 	sensor = pmbus_add_sensor(data, "fan", "target", index, page,
-				  PMBUS_VIRT_FAN_TARGET_1 + id, 0xff, PSC_FAN,
+				  0xff, PMBUS_VIRT_FAN_TARGET_1 + id, PSC_FAN,
 				  false, false, true);
 
 	if (!sensor)
@@ -1880,14 +1880,14 @@ static int pmbus_add_fan_ctrl(struct i2c_client *client,
 		return 0;
 
 	sensor = pmbus_add_sensor(data, "pwm", NULL, index, page,
-				  PMBUS_VIRT_PWM_1 + id, 0xff, PSC_PWM,
+				  0xff, PMBUS_VIRT_PWM_1 + id, PSC_PWM,
 				  false, false, true);
 
 	if (!sensor)
 		return -ENOMEM;
 
 	sensor = pmbus_add_sensor(data, "pwm", "enable", index, page,
-				  PMBUS_VIRT_PWM_ENABLE_1 + id, 0xff, PSC_PWM,
+				  0xff, PMBUS_VIRT_PWM_ENABLE_1 + id, PSC_PWM,
 				  true, false, false);
 
 	if (!sensor)
@@ -1929,7 +1929,7 @@ static int pmbus_add_fan_attributes(struct i2c_client *client,
 				continue;
 
 			if (pmbus_add_sensor(data, "fan", "input", index,
-					     page, pmbus_fan_registers[f], 0xff,
+					     page, 0xff, pmbus_fan_registers[f],
 					     PSC_FAN, true, true, true) == NULL)
 				return -ENOMEM;
 
@@ -2529,8 +2529,8 @@ int pmbus_do_probe(struct i2c_client *client, const struct i2c_device_id *id,
 	if (pdata)
 		data->flags = pdata->flags;
 	data->info = info;
-	data->currpage = 0xff;
-	data->currphase = 0xfe;
+	data->currpage = -1;
+	data->currphase = -1;
 
 	ret = pmbus_init_common(client, data, info);
 	if (ret < 0)

@@ -480,8 +480,8 @@ static void phylink_get_fixed_state(struct phylink *pl,
 				    struct phylink_link_state *state)
 {
 	*state = pl->link_config;
-	if (pl->get_fixed_state)
-		pl->get_fixed_state(pl->netdev, state);
+	if (pl->config->get_fixed_state)
+		pl->config->get_fixed_state(pl->config, state);
 	else if (pl->link_gpio)
 		state->link = !!gpiod_get_value_cansleep(pl->link_gpio);
 
@@ -803,8 +803,7 @@ void phylink_destroy(struct phylink *pl)
 }
 EXPORT_SYMBOL_GPL(phylink_destroy);
 
-static void phylink_phy_change(struct phy_device *phydev, bool up,
-			       bool do_carrier)
+static void phylink_phy_change(struct phy_device *phydev, bool up)
 {
 	struct phylink *pl = phydev->phylink;
 	bool tx_pause, rx_pause;
@@ -1045,32 +1044,6 @@ void phylink_disconnect_phy(struct phylink *pl)
 EXPORT_SYMBOL_GPL(phylink_disconnect_phy);
 
 /**
- * phylink_fixed_state_cb() - allow setting a fixed link callback
- * @pl: a pointer to a &struct phylink returned from phylink_create()
- * @cb: callback to execute to determine the fixed link state.
- *
- * The MAC driver should call this driver when the state of its link
- * can be determined through e.g: an out of band MMIO register.
- */
-int phylink_fixed_state_cb(struct phylink *pl,
-			   void (*cb)(struct net_device *dev,
-				      struct phylink_link_state *state))
-{
-	/* It does not make sense to let the link be overriden unless we use
-	 * MLO_AN_FIXED
-	 */
-	if (pl->cfg_link_an_mode != MLO_AN_FIXED)
-		return -EINVAL;
-
-	mutex_lock(&pl->state_mutex);
-	pl->get_fixed_state = cb;
-	mutex_unlock(&pl->state_mutex);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(phylink_fixed_state_cb);
-
-/**
  * phylink_mac_change() - notify phylink of a change in MAC state
  * @pl: a pointer to a &struct phylink returned from phylink_create()
  * @up: indicates whether the link is currently up.
@@ -1106,6 +1079,8 @@ static irqreturn_t phylink_link_handler(int irq, void *data)
  */
 void phylink_start(struct phylink *pl)
 {
+	bool poll = false;
+
 	ASSERT_RTNL();
 
 	phylink_info(pl, "configuring for %s/%s link mode\n",
@@ -1142,10 +1117,18 @@ void phylink_start(struct phylink *pl)
 				irq = 0;
 		}
 		if (irq <= 0)
-			mod_timer(&pl->link_poll, jiffies + HZ);
+			poll = true;
 	}
-	if ((pl->cfg_link_an_mode == MLO_AN_FIXED && pl->get_fixed_state) ||
-	    pl->config->pcs_poll)
+
+	switch (pl->cfg_link_an_mode) {
+	case MLO_AN_FIXED:
+		poll |= pl->config->poll_fixed_state;
+		break;
+	case MLO_AN_INBAND:
+		poll |= pl->config->pcs_poll;
+		break;
+	}
+	if (poll)
 		mod_timer(&pl->link_poll, jiffies + HZ);
 	if (pl->phydev)
 		phy_start(pl->phydev);
@@ -1480,6 +1463,8 @@ int phylink_ethtool_set_pauseparam(struct phylink *pl,
 				   struct ethtool_pauseparam *pause)
 {
 	struct phylink_link_state *config = &pl->link_config;
+	bool manual_changed;
+	int pause_state;
 
 	ASSERT_RTNL();
 
@@ -1494,15 +1479,15 @@ int phylink_ethtool_set_pauseparam(struct phylink *pl,
 	    !pause->autoneg && pause->rx_pause != pause->tx_pause)
 		return -EINVAL;
 
-	mutex_lock(&pl->state_mutex);
-	config->pause = 0;
+	pause_state = 0;
 	if (pause->autoneg)
-		config->pause |= MLO_PAUSE_AN;
+		pause_state |= MLO_PAUSE_AN;
 	if (pause->rx_pause)
-		config->pause |= MLO_PAUSE_RX;
+		pause_state |= MLO_PAUSE_RX;
 	if (pause->tx_pause)
-		config->pause |= MLO_PAUSE_TX;
+		pause_state |= MLO_PAUSE_TX;
 
+	mutex_lock(&pl->state_mutex);
 	/*
 	 * See the comments for linkmode_set_pause(), wrt the deficiencies
 	 * with the current implementation.  A solution to this issue would
@@ -1519,18 +1504,35 @@ int phylink_ethtool_set_pauseparam(struct phylink *pl,
 	linkmode_set_pause(config->advertising, pause->tx_pause,
 			   pause->rx_pause);
 
-	/* If we have a PHY, phylib will call our link state function if the
-	 * mode has changed, which will trigger a resolve and update the MAC
-	 * configuration.
+	manual_changed = (config->pause ^ pause_state) & MLO_PAUSE_AN ||
+			 (!(pause_state & MLO_PAUSE_AN) &&
+			   (config->pause ^ pause_state) & MLO_PAUSE_TXRX_MASK);
+
+	config->pause = pause_state;
+
+	if (!pl->phydev && !test_bit(PHYLINK_DISABLE_STOPPED,
+				     &pl->phylink_disable_state))
+		phylink_pcs_config(pl, true, &pl->link_config);
+
+	mutex_unlock(&pl->state_mutex);
+
+	/* If we have a PHY, a change of the pause frame advertisement will
+	 * cause phylib to renegotiate (if AN is enabled) which will in turn
+	 * call our phylink_phy_change() and trigger a resolve.  Note that
+	 * we can't hold our state mutex while calling phy_set_asym_pause().
 	 */
-	if (pl->phydev) {
+	if (pl->phydev)
 		phy_set_asym_pause(pl->phydev, pause->rx_pause,
 				   pause->tx_pause);
-	} else if (!test_bit(PHYLINK_DISABLE_STOPPED,
-			     &pl->phylink_disable_state)) {
-		phylink_pcs_config(pl, true, &pl->link_config);
+
+	/* If the manual pause settings changed, make sure we trigger a
+	 * resolve to update their state; we can not guarantee that the
+	 * link will cycle.
+	 */
+	if (manual_changed) {
+		pl->mac_link_dropped = true;
+		phylink_run_resolve(pl);
 	}
-	mutex_unlock(&pl->state_mutex);
 
 	return 0;
 }
@@ -1648,7 +1650,7 @@ static int phylink_phy_read(struct phylink *pl, unsigned int phy_id,
 	if (mdio_phy_id_is_c45(phy_id)) {
 		prtad = mdio_phy_id_prtad(phy_id);
 		devad = mdio_phy_id_devad(phy_id);
-		devad = MII_ADDR_C45 | devad << 16 | reg;
+		devad = mdiobus_c45_addr(devad, reg);
 	} else if (phydev->is_c45) {
 		switch (reg) {
 		case MII_BMCR:
@@ -1671,7 +1673,7 @@ static int phylink_phy_read(struct phylink *pl, unsigned int phy_id,
 			return -EINVAL;
 		}
 		prtad = phy_id;
-		devad = MII_ADDR_C45 | devad << 16 | reg;
+		devad = mdiobus_c45_addr(devad, reg);
 	} else {
 		prtad = phy_id;
 		devad = reg;
@@ -1688,7 +1690,7 @@ static int phylink_phy_write(struct phylink *pl, unsigned int phy_id,
 	if (mdio_phy_id_is_c45(phy_id)) {
 		prtad = mdio_phy_id_prtad(phy_id);
 		devad = mdio_phy_id_devad(phy_id);
-		devad = MII_ADDR_C45 | devad << 16 | reg;
+		devad = mdiobus_c45_addr(devad, reg);
 	} else if (phydev->is_c45) {
 		switch (reg) {
 		case MII_BMCR:
@@ -1711,7 +1713,7 @@ static int phylink_phy_write(struct phylink *pl, unsigned int phy_id,
 			return -EINVAL;
 		}
 		prtad = phy_id;
-		devad = MII_ADDR_C45 | devad << 16 | reg;
+		devad = mdiobus_c45_addr(devad, reg);
 	} else {
 		prtad = phy_id;
 		devad = reg;
@@ -2309,7 +2311,6 @@ void phylink_mii_c22_pcs_an_restart(struct mdio_device *pcs)
 }
 EXPORT_SYMBOL_GPL(phylink_mii_c22_pcs_an_restart);
 
-#define C45_ADDR(d,a)	(MII_ADDR_C45 | (d) << 16 | (a))
 void phylink_mii_c45_pcs_get_state(struct mdio_device *pcs,
 				   struct phylink_link_state *state)
 {
@@ -2317,7 +2318,7 @@ void phylink_mii_c45_pcs_get_state(struct mdio_device *pcs,
 	int addr = pcs->addr;
 	int stat;
 
-	stat = mdiobus_read(bus, addr, C45_ADDR(MDIO_MMD_PCS, MDIO_STAT1));
+	stat = mdiobus_c45_read(bus, addr, MDIO_MMD_PCS, MDIO_STAT1);
 	if (stat < 0) {
 		state->link = false;
 		return;

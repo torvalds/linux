@@ -36,15 +36,15 @@
 #include "intel_panel.h"
 #include "intel_vdsc.h"
 
-static inline int header_credits_available(struct drm_i915_private *dev_priv,
-					   enum transcoder dsi_trans)
+static int header_credits_available(struct drm_i915_private *dev_priv,
+				    enum transcoder dsi_trans)
 {
 	return (intel_de_read(dev_priv, DSI_CMD_TXCTL(dsi_trans)) & FREE_HEADER_CREDIT_MASK)
 		>> FREE_HEADER_CREDIT_SHIFT;
 }
 
-static inline int payload_credits_available(struct drm_i915_private *dev_priv,
-					    enum transcoder dsi_trans)
+static int payload_credits_available(struct drm_i915_private *dev_priv,
+				     enum transcoder dsi_trans)
 {
 	return (intel_de_read(dev_priv, DSI_CMD_TXCTL(dsi_trans)) & FREE_PLOAD_CREDIT_MASK)
 		>> FREE_PLOAD_CREDIT_SHIFT;
@@ -186,16 +186,19 @@ static int dsi_send_pkt_hdr(struct intel_dsi_host *host,
 static int dsi_send_pkt_payld(struct intel_dsi_host *host,
 			      struct mipi_dsi_packet pkt)
 {
+	struct intel_dsi *intel_dsi = host->intel_dsi;
+	struct drm_i915_private *i915 = to_i915(intel_dsi->base.base.dev);
+
 	/* payload queue can accept *256 bytes*, check limit */
 	if (pkt.payload_length > MAX_PLOAD_CREDIT * 4) {
-		DRM_ERROR("payload size exceeds max queue limit\n");
+		drm_err(&i915->drm, "payload size exceeds max queue limit\n");
 		return -1;
 	}
 
 	/* load data into command payload queue */
 	if (!add_payld_to_queue(host, pkt.payload,
 				pkt.payload_length)) {
-		DRM_ERROR("adding payload to queue failed\n");
+		drm_err(&i915->drm, "adding payload to queue failed\n");
 		return -1;
 	}
 
@@ -744,6 +747,18 @@ gen11_dsi_configure_transcoder(struct intel_encoder *encoder,
 				tmp |= VIDEO_MODE_SYNC_PULSE;
 				break;
 			}
+		} else {
+			/*
+			 * FIXME: Retrieve this info from VBT.
+			 * As per the spec when dsi transcoder is operating
+			 * in TE GATE mode, TE comes from GPIO
+			 * which is UTIL PIN for DSI 0.
+			 * Also this GPIO would not be used for other
+			 * purposes is an assumption.
+			 */
+			tmp &= ~OP_MODE_MASK;
+			tmp |= CMD_MODE_TE_GATE;
+			tmp |= TE_SOURCE_GPIO;
 		}
 
 		intel_de_write(dev_priv, DSI_TRANS_FUNC_CONF(dsi_trans), tmp);
@@ -837,14 +852,33 @@ gen11_dsi_set_transcoder_timings(struct intel_encoder *encoder,
 	}
 
 	hactive = adjusted_mode->crtc_hdisplay;
-	htotal = DIV_ROUND_UP(adjusted_mode->crtc_htotal * mul, div);
+
+	if (is_vid_mode(intel_dsi))
+		htotal = DIV_ROUND_UP(adjusted_mode->crtc_htotal * mul, div);
+	else
+		htotal = DIV_ROUND_UP((hactive + 160) * mul, div);
+
 	hsync_start = DIV_ROUND_UP(adjusted_mode->crtc_hsync_start * mul, div);
 	hsync_end = DIV_ROUND_UP(adjusted_mode->crtc_hsync_end * mul, div);
 	hsync_size  = hsync_end - hsync_start;
 	hback_porch = (adjusted_mode->crtc_htotal -
 		       adjusted_mode->crtc_hsync_end);
 	vactive = adjusted_mode->crtc_vdisplay;
-	vtotal = adjusted_mode->crtc_vtotal;
+
+	if (is_vid_mode(intel_dsi)) {
+		vtotal = adjusted_mode->crtc_vtotal;
+	} else {
+		int bpp, line_time_us, byte_clk_period_ns;
+
+		if (crtc_state->dsc.compression_enable)
+			bpp = crtc_state->dsc.compressed_bpp;
+		else
+			bpp = mipi_dsi_pixel_format_to_bpp(intel_dsi->pixel_format);
+
+		byte_clk_period_ns = 1000000 / afe_clk(encoder, crtc_state);
+		line_time_us = (htotal * (bpp / 8) * byte_clk_period_ns) / (1000 * intel_dsi->lane_count);
+		vtotal = vactive + DIV_ROUND_UP(400, line_time_us);
+	}
 	vsync_start = adjusted_mode->crtc_vsync_start;
 	vsync_end = adjusted_mode->crtc_vsync_end;
 	vsync_shift = hsync_start - htotal / 2;
@@ -873,7 +907,7 @@ gen11_dsi_set_transcoder_timings(struct intel_encoder *encoder,
 	}
 
 	/* TRANS_HSYNC register to be programmed only for video mode */
-	if (intel_dsi->operation_mode == INTEL_DSI_VIDEO_MODE) {
+	if (is_vid_mode(intel_dsi)) {
 		if (intel_dsi->video_mode_format ==
 		    VIDEO_MODE_NON_BURST_WITH_SYNC_PULSE) {
 			/* BSPEC: hsync size should be atleast 16 pixels */
@@ -916,22 +950,27 @@ gen11_dsi_set_transcoder_timings(struct intel_encoder *encoder,
 	if (vsync_start < vactive)
 		drm_err(&dev_priv->drm, "vsync_start less than vactive\n");
 
-	/* program TRANS_VSYNC register */
-	for_each_dsi_port(port, intel_dsi->ports) {
-		dsi_trans = dsi_port_to_transcoder(port);
-		intel_de_write(dev_priv, VSYNC(dsi_trans),
-			       (vsync_start - 1) | ((vsync_end - 1) << 16));
+	/* program TRANS_VSYNC register for video mode only */
+	if (is_vid_mode(intel_dsi)) {
+		for_each_dsi_port(port, intel_dsi->ports) {
+			dsi_trans = dsi_port_to_transcoder(port);
+			intel_de_write(dev_priv, VSYNC(dsi_trans),
+				       (vsync_start - 1) | ((vsync_end - 1) << 16));
+		}
 	}
 
 	/*
-	 * FIXME: It has to be programmed only for interlaced
+	 * FIXME: It has to be programmed only for video modes and interlaced
 	 * modes. Put the check condition here once interlaced
 	 * info available as described above.
 	 * program TRANS_VSYNCSHIFT register
 	 */
-	for_each_dsi_port(port, intel_dsi->ports) {
-		dsi_trans = dsi_port_to_transcoder(port);
-		intel_de_write(dev_priv, VSYNCSHIFT(dsi_trans), vsync_shift);
+	if (is_vid_mode(intel_dsi)) {
+		for_each_dsi_port(port, intel_dsi->ports) {
+			dsi_trans = dsi_port_to_transcoder(port);
+			intel_de_write(dev_priv, VSYNCSHIFT(dsi_trans),
+				       vsync_shift);
+		}
 	}
 
 	/* program TRANS_VBLANK register, should be same as vtotal programmed */
@@ -1016,6 +1055,32 @@ static void gen11_dsi_setup_timeouts(struct intel_encoder *encoder,
 	}
 }
 
+static void gen11_dsi_config_util_pin(struct intel_encoder *encoder,
+				      bool enable)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
+	u32 tmp;
+
+	/*
+	 * used as TE i/p for DSI0,
+	 * for dual link/DSI1 TE is from slave DSI1
+	 * through GPIO.
+	 */
+	if (is_vid_mode(intel_dsi) || (intel_dsi->ports & BIT(PORT_B)))
+		return;
+
+	tmp = intel_de_read(dev_priv, UTIL_PIN_CTL);
+
+	if (enable) {
+		tmp |= UTIL_PIN_DIRECTION_INPUT;
+		tmp |= UTIL_PIN_ENABLE;
+	} else {
+		tmp &= ~UTIL_PIN_ENABLE;
+	}
+	intel_de_write(dev_priv, UTIL_PIN_CTL, tmp);
+}
+
 static void
 gen11_dsi_enable_port_and_phy(struct intel_encoder *encoder,
 			      const struct intel_crtc_state *crtc_state)
@@ -1036,6 +1101,9 @@ gen11_dsi_enable_port_and_phy(struct intel_encoder *encoder,
 
 	/* setup D-PHY timings */
 	gen11_dsi_setup_dphy_timings(encoder, crtc_state);
+
+	/* Since transcoder is configured to take events from GPIO */
+	gen11_dsi_config_util_pin(encoder, true);
 
 	/* step 4h: setup DSI protocol timeouts */
 	gen11_dsi_setup_timeouts(encoder, crtc_state);
@@ -1088,7 +1156,8 @@ static void gen11_dsi_powerup_panel(struct intel_encoder *encoder)
 	wait_for_cmds_dispatched_to_panel(encoder);
 }
 
-static void gen11_dsi_pre_pll_enable(struct intel_encoder *encoder,
+static void gen11_dsi_pre_pll_enable(struct intel_atomic_state *state,
+				     struct intel_encoder *encoder,
 				     const struct intel_crtc_state *crtc_state,
 				     const struct drm_connector_state *conn_state)
 {
@@ -1099,7 +1168,8 @@ static void gen11_dsi_pre_pll_enable(struct intel_encoder *encoder,
 	gen11_dsi_program_esc_clk_div(encoder, crtc_state);
 }
 
-static void gen11_dsi_pre_enable(struct intel_encoder *encoder,
+static void gen11_dsi_pre_enable(struct intel_atomic_state *state,
+				 struct intel_encoder *encoder,
 				 const struct intel_crtc_state *pipe_config,
 				 const struct drm_connector_state *conn_state)
 {
@@ -1118,13 +1188,14 @@ static void gen11_dsi_pre_enable(struct intel_encoder *encoder,
 	gen11_dsi_set_transcoder_timings(encoder, pipe_config);
 }
 
-static void gen11_dsi_enable(struct intel_encoder *encoder,
+static void gen11_dsi_enable(struct intel_atomic_state *state,
+			     struct intel_encoder *encoder,
 			     const struct intel_crtc_state *crtc_state,
 			     const struct drm_connector_state *conn_state)
 {
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 
-	WARN_ON(crtc_state->has_pch_encoder);
+	drm_WARN_ON(state->base.dev, crtc_state->has_pch_encoder);
 
 	/* step6d: enable dsi transcoder */
 	gen11_dsi_enable_transcoder(encoder);
@@ -1179,6 +1250,15 @@ static void gen11_dsi_deconfigure_trancoder(struct intel_encoder *encoder)
 	enum port port;
 	enum transcoder dsi_trans;
 	u32 tmp;
+
+	/* disable periodic update mode */
+	if (is_cmd_mode(intel_dsi)) {
+		for_each_dsi_port(port, intel_dsi->ports) {
+			tmp = intel_de_read(dev_priv, DSI_CMD_FRMCTL(port));
+			tmp &= ~DSI_PERIODIC_FRAME_UPDATE_ENABLE;
+			intel_de_write(dev_priv, DSI_CMD_FRMCTL(port), tmp);
+		}
+	}
 
 	/* put dsi link in ULPS */
 	for_each_dsi_port(port, intel_dsi->ports) {
@@ -1264,7 +1344,8 @@ static void gen11_dsi_disable_io_power(struct intel_encoder *encoder)
 	}
 }
 
-static void gen11_dsi_disable(struct intel_encoder *encoder,
+static void gen11_dsi_disable(struct intel_atomic_state *state,
+			      struct intel_encoder *encoder,
 			      const struct intel_crtc_state *old_crtc_state,
 			      const struct drm_connector_state *old_conn_state)
 {
@@ -1286,11 +1367,14 @@ static void gen11_dsi_disable(struct intel_encoder *encoder,
 	/* step3: disable port */
 	gen11_dsi_disable_port(encoder);
 
+	gen11_dsi_config_util_pin(encoder, false);
+
 	/* step4: disable IO power */
 	gen11_dsi_disable_io_power(encoder);
 }
 
-static void gen11_dsi_post_disable(struct intel_encoder *encoder,
+static void gen11_dsi_post_disable(struct intel_atomic_state *state,
+				   struct intel_encoder *encoder,
 				   const struct intel_crtc_state *old_crtc_state,
 				   const struct drm_connector_state *old_conn_state)
 {
@@ -1347,6 +1431,22 @@ static void gen11_dsi_get_timings(struct intel_encoder *encoder,
 	adjusted_mode->crtc_vblank_end = adjusted_mode->crtc_vtotal;
 }
 
+static bool gen11_dsi_is_periodic_cmd_mode(struct intel_dsi *intel_dsi)
+{
+	struct drm_device *dev = intel_dsi->base.base.dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	enum transcoder dsi_trans;
+	u32 val;
+
+	if (intel_dsi->ports == BIT(PORT_B))
+		dsi_trans = TRANSCODER_DSI_1;
+	else
+		dsi_trans = TRANSCODER_DSI_0;
+
+	val = intel_de_read(dev_priv, DSI_TRANS_FUNC_CONF(dsi_trans));
+	return (val & DSI_PERIODIC_FRAME_UPDATE_ENABLE);
+}
+
 static void gen11_dsi_get_config(struct intel_encoder *encoder,
 				 struct intel_crtc_state *pipe_config)
 {
@@ -1367,6 +1467,10 @@ static void gen11_dsi_get_config(struct intel_encoder *encoder,
 	gen11_dsi_get_timings(encoder, pipe_config);
 	pipe_config->output_types |= BIT(INTEL_OUTPUT_DSI);
 	pipe_config->pipe_bpp = bdw_get_pipemisc_bpp(crtc);
+
+	if (gen11_dsi_is_periodic_cmd_mode(intel_dsi))
+		pipe_config->hw.adjusted_mode.private_flags |=
+					I915_MODE_FLAG_DSI_PERIODIC_CMD_MODE;
 }
 
 static int gen11_dsi_dsc_compute_config(struct intel_encoder *encoder,
@@ -1417,18 +1521,22 @@ static int gen11_dsi_compute_config(struct intel_encoder *encoder,
 				    struct intel_crtc_state *pipe_config,
 				    struct drm_connector_state *conn_state)
 {
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = container_of(encoder, struct intel_dsi,
 						   base);
 	struct intel_connector *intel_connector = intel_dsi->attached_connector;
-	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
 	const struct drm_display_mode *fixed_mode =
-					intel_connector->panel.fixed_mode;
+		intel_connector->panel.fixed_mode;
 	struct drm_display_mode *adjusted_mode =
-					&pipe_config->hw.adjusted_mode;
+		&pipe_config->hw.adjusted_mode;
+	int ret;
 
 	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
 	intel_fixed_panel_mode(fixed_mode, adjusted_mode);
-	intel_pch_panel_fitting(crtc, pipe_config, conn_state->scaling_mode);
+
+	ret = intel_pch_panel_fitting(pipe_config, conn_state);
+	if (ret)
+		return ret;
 
 	adjusted_mode->flags = 0;
 
@@ -1446,9 +1554,31 @@ static int gen11_dsi_compute_config(struct intel_encoder *encoder,
 	pipe_config->clock_set = true;
 
 	if (gen11_dsi_dsc_compute_config(encoder, pipe_config))
-		DRM_DEBUG_KMS("Attempting to use DSC failed\n");
+		drm_dbg_kms(&i915->drm, "Attempting to use DSC failed\n");
 
 	pipe_config->port_clock = afe_clk(encoder, pipe_config) / 5;
+
+	/* We would not operate in periodic command mode */
+	pipe_config->hw.adjusted_mode.private_flags &=
+					~I915_MODE_FLAG_DSI_PERIODIC_CMD_MODE;
+
+	/*
+	 * In case of TE GATE cmd mode, we
+	 * receive TE from the slave if
+	 * dual link is enabled
+	 */
+	if (is_cmd_mode(intel_dsi)) {
+		if (intel_dsi->ports == (BIT(PORT_B) | BIT(PORT_A)))
+			pipe_config->hw.adjusted_mode.private_flags |=
+						I915_MODE_FLAG_DSI_USE_TE1 |
+						I915_MODE_FLAG_DSI_USE_TE0;
+		else if (intel_dsi->ports == BIT(PORT_B))
+			pipe_config->hw.adjusted_mode.private_flags |=
+						I915_MODE_FLAG_DSI_USE_TE1;
+		else
+			pipe_config->hw.adjusted_mode.private_flags |=
+						I915_MODE_FLAG_DSI_USE_TE0;
+	}
 
 	return 0;
 }

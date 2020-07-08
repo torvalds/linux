@@ -21,6 +21,7 @@ properties:
       - enum:
           - nvidia,tegra210-xudc # For Tegra210
           - nvidia,tegra186-xudc # For Tegra186
+          - nvidia,tegra194-xudc # For Tegra194
 
   reg:
     minItems: 2
@@ -63,13 +64,11 @@ properties:
      - const: hs_src
 
   power-domains:
-    maxItems: 2
     items:
       - description: XUSBB(device) power-domain
       - description: XUSBA(superspeed) power-domain
 
   power-domain-names:
-    maxItems: 2
     items:
       - const: dev
       - const: ss
@@ -144,6 +143,7 @@ allOf:
           contains:
             enum:
               - nvidia,tegra186-xudc
+              - nvidia,tegra194-xudc
     then:
       properties:
         reg:
@@ -163,9 +163,9 @@ examples:
 
     usb@700d0000 {
         compatible = "nvidia,tegra210-xudc";
-        reg = <0x0 0x700d0000 0x0 0x8000>,
-              <0x0 0x700d8000 0x0 0x1000>,
-              <0x0 0x700d9000 0x0 0x1000>;
+        reg = <0x700d0000 0x8000>,
+              <0x700d8000 0x1000>,
+              <0x700d9000 0x1000>;
         reg-names = "base", "fpci", "ipfs";
 
         interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;

@@ -6,7 +6,7 @@
  *
  * Thanks to Twinhan who kindly provided hardware and information.
  *
- * see Documentation/media/dvb-drivers/dvb-usb.rst for more information
+ * see Documentation/driver-api/media/drivers/dvb-usb.rst for more information
  */
 #include "vp7045.h"
 

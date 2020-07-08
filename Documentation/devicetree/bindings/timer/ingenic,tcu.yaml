@@ -1,0 +1,280 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/timer/ingenic,tcu.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Ingenic SoCs Timer/Counter Unit (TCU) devicetree bindings
+
+description: |
+  For a description of the TCU hardware and drivers, have a look at
+  Documentation/mips/ingenic-tcu.rst.
+
+maintainers:
+  - Paul Cercueil <paul@crapouillou.net>
+
+select:
+  properties:
+    compatible:
+      contains:
+        enum:
+          - ingenic,jz4740-tcu
+          - ingenic,jz4725b-tcu
+          - ingenic,jz4770-tcu
+          - ingenic,jz4780-tcu
+          - ingenic,x1000-tcu
+  required:
+    - compatible
+
+properties:
+  $nodename:
+    pattern: "^timer@[0-9a-f]+$"
+
+  "#address-cells":
+    const: 1
+
+  "#size-cells":
+    const: 1
+
+  "#clock-cells":
+    const: 1
+
+  "#interrupt-cells":
+    const: 1
+
+  interrupt-controller: true
+
+  ranges: true
+
+  compatible:
+    oneOf:
+      - items:
+        - enum:
+          - ingenic,jz4740-tcu
+          - ingenic,jz4725b-tcu
+          - ingenic,jz4770-tcu
+          - ingenic,x1000-tcu
+        - const: simple-mfd
+      - items:
+        - const: ingenic,jz4780-tcu
+        - const: ingenic,jz4770-tcu
+        - const: simple-mfd
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    items:
+      - description: RTC clock
+      - description: EXT clock
+      - description: PCLK clock
+      - description: TCU clock
+    minItems: 3
+
+  clock-names:
+    items:
+      - const: rtc
+      - const: ext
+      - const: pclk
+      - const: tcu
+    minItems: 3
+
+  interrupts:
+    items:
+      - description: TCU0 interrupt
+      - description: TCU1 interrupt
+      - description: TCU2 interrupt
+    minItems: 1
+
+  assigned-clocks:
+    minItems: 1
+    maxItems: 8
+
+  assigned-clock-parents:
+    minItems: 1
+    maxItems: 8
+
+  assigned-clock-rates:
+    minItems: 1
+    maxItems: 8
+
+  ingenic,pwm-channels-mask:
+    description: Bitmask of TCU channels reserved for PWM use.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0x00
+    maximum: 0xff
+    default: 0xfc
+
+patternProperties:
+  "^watchdog@[a-f0-9]+$":
+    type: object
+    $ref: ../watchdog/watchdog.yaml#
+    properties:
+      compatible:
+        oneOf:
+          - enum:
+            - ingenic,jz4740-watchdog
+            - ingenic,jz4780-watchdog
+          - items:
+            - const: ingenic,jz4770-watchdog
+            - const: ingenic,jz4740-watchdog
+
+      reg:
+        maxItems: 1
+
+      clocks:
+        maxItems: 1
+
+      clock-names:
+        const: wdt
+
+    required:
+      - compatible
+      - reg
+      - clocks
+      - clock-names
+
+  "^pwm@[a-f0-9]+$":
+    type: object
+    $ref: ../pwm/pwm.yaml#
+    properties:
+      compatible:
+        oneOf:
+          - enum:
+            - ingenic,jz4740-pwm
+          - items:
+            - enum:
+              - ingenic,jz4770-pwm
+              - ingenic,jz4780-pwm
+            - const: ingenic,jz4740-pwm
+
+      reg:
+        maxItems: 1
+
+      clocks:
+        minItems: 6
+        maxItems: 8
+
+      clock-names:
+        items:
+          - const: timer0
+          - const: timer1
+          - const: timer2
+          - const: timer3
+          - const: timer4
+          - const: timer5
+          - const: timer6
+          - const: timer7
+        minItems: 6
+
+    required:
+      - compatible
+      - reg
+      - clocks
+      - clock-names
+
+  "^timer@[a-f0-9]+$":
+    type: object
+    properties:
+      compatible:
+        oneOf:
+          - enum:
+            - ingenic,jz4725b-ost
+            - ingenic,jz4770-ost
+          - items:
+            - const: ingenic,jz4780-ost
+            - const: ingenic,jz4770-ost
+
+      reg:
+        maxItems: 1
+
+      clocks:
+        maxItems: 1
+
+      clock-names:
+        const: ost
+
+      interrupts:
+        maxItems: 1
+
+    required:
+      - compatible
+      - reg
+      - clocks
+      - clock-names
+      - interrupts
+
+    additionalProperties: false
+
+required:
+  - "#clock-cells"
+  - "#interrupt-cells"
+  - interrupt-controller
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+  - interrupts
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/jz4770-cgu.h>
+    #include <dt-bindings/clock/ingenic,tcu.h>
+    tcu: timer@10002000 {
+      compatible = "ingenic,jz4770-tcu", "simple-mfd";
+      reg = <0x10002000 0x1000>;
+      #address-cells = <1>;
+      #size-cells = <1>;
+      ranges = <0x0 0x10002000 0x1000>;
+
+      #clock-cells = <1>;
+
+      clocks = <&cgu JZ4770_CLK_RTC>,
+               <&cgu JZ4770_CLK_EXT>,
+               <&cgu JZ4770_CLK_PCLK>;
+      clock-names = "rtc", "ext", "pclk";
+
+      interrupt-controller;
+      #interrupt-cells = <1>;
+
+      interrupt-parent = <&intc>;
+      interrupts = <27 26 25>;
+
+      watchdog: watchdog@0 {
+        compatible = "ingenic,jz4770-watchdog", "ingenic,jz4740-watchdog";
+        reg = <0x0 0xc>;
+
+        clocks = <&tcu TCU_CLK_WDT>;
+        clock-names = "wdt";
+      };
+
+      pwm: pwm@40 {
+        compatible = "ingenic,jz4770-pwm", "ingenic,jz4740-pwm";
+        reg = <0x40 0x80>;
+
+        #pwm-cells = <3>;
+
+        clocks = <&tcu TCU_CLK_TIMER0>,
+                 <&tcu TCU_CLK_TIMER1>,
+                 <&tcu TCU_CLK_TIMER2>,
+                 <&tcu TCU_CLK_TIMER3>,
+                 <&tcu TCU_CLK_TIMER4>,
+                 <&tcu TCU_CLK_TIMER5>,
+                 <&tcu TCU_CLK_TIMER6>,
+                 <&tcu TCU_CLK_TIMER7>;
+        clock-names = "timer0", "timer1", "timer2", "timer3",
+                "timer4", "timer5", "timer6", "timer7";
+      };
+
+      ost: timer@e0 {
+        compatible = "ingenic,jz4770-ost";
+        reg = <0xe0 0x20>;
+
+        clocks = <&tcu TCU_CLK_OST>;
+        clock-names = "ost";
+
+        interrupts = <15>;
+      };
+    };

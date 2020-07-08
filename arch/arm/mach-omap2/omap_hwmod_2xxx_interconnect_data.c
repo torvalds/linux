@@ -95,14 +95,6 @@ struct omap_hwmod_ocp_if omap2xxx_l4_core__mcspi2 = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-/* l4_core -> timer2 */
-struct omap_hwmod_ocp_if omap2xxx_l4_core__timer2 = {
-	.master		= &omap2xxx_l4_core_hwmod,
-	.slave		= &omap2xxx_timer2_hwmod,
-	.clk		= "gpt2_ick",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
 /* l4_core -> timer3 */
 struct omap_hwmod_ocp_if omap2xxx_l4_core__timer3 = {
 	.master		= &omap2xxx_l4_core_hwmod,
