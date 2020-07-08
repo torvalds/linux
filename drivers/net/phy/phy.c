@@ -489,6 +489,54 @@ static void phy_abort_cable_test(struct phy_device *phydev)
 		phydev_err(phydev, "Error while aborting cable test");
 }
 
+int phy_ethtool_get_strings(struct phy_device *phydev, u8 *data)
+{
+	if (!phydev->drv)
+		return -EIO;
+
+	mutex_lock(&phydev->lock);
+	phydev->drv->get_strings(phydev, data);
+	mutex_unlock(&phydev->lock);
+
+	return 0;
+}
+EXPORT_SYMBOL(phy_ethtool_get_strings);
+
+int phy_ethtool_get_sset_count(struct phy_device *phydev)
+{
+	int ret;
+
+	if (!phydev->drv)
+		return -EIO;
+
+	if (phydev->drv->get_sset_count &&
+	    phydev->drv->get_strings &&
+	    phydev->drv->get_stats) {
+		mutex_lock(&phydev->lock);
+		ret = phydev->drv->get_sset_count(phydev);
+		mutex_unlock(&phydev->lock);
+
+		return ret;
+	}
+
+	return -EOPNOTSUPP;
+}
+EXPORT_SYMBOL(phy_ethtool_get_sset_count);
+
+int phy_ethtool_get_stats(struct phy_device *phydev,
+			  struct ethtool_stats *stats, u64 *data)
+{
+	if (!phydev->drv)
+		return -EIO;
+
+	mutex_lock(&phydev->lock);
+	phydev->drv->get_stats(phydev, stats, data);
+	mutex_unlock(&phydev->lock);
+
+	return 0;
+}
+EXPORT_SYMBOL(phy_ethtool_get_stats);
+
 int phy_start_cable_test(struct phy_device *phydev,
 			 struct netlink_ext_ack *extack)
 {
