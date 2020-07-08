@@ -329,6 +329,9 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 	if (status != EFI_SUCCESS)
 		goto fail_free_initrd;
 
+	if (IS_ENABLED(CONFIG_ARM))
+		efi_handle_post_ebs_state();
+
 	efi_enter_kernel(image_addr, fdt_addr, fdt_totalsize((void *)fdt_addr));
 	/* not reached */
 

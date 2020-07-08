@@ -133,9 +133,6 @@ module_param_named(preemption_timer, enable_preemption_timer, bool, S_IRUGO);
 #define KVM_VM_CR0_ALWAYS_ON				\
 	(KVM_VM_CR0_ALWAYS_ON_UNRESTRICTED_GUEST | 	\
 	 X86_CR0_WP | X86_CR0_PG | X86_CR0_PE)
-#define KVM_CR4_GUEST_OWNED_BITS				      \
-	(X86_CR4_PVI | X86_CR4_DE | X86_CR4_PCE | X86_CR4_OSFXSR      \
-	 | X86_CR4_OSXMMEXCPT | X86_CR4_LA57 | X86_CR4_TSD)
 
 #define KVM_VM_CR4_ALWAYS_ON_UNRESTRICTED_GUEST X86_CR4_VMXE
 #define KVM_PMODE_VM_CR4_ALWAYS_ON (X86_CR4_PAE | X86_CR4_VMXE)
@@ -4034,9 +4031,9 @@ void vmx_set_constant_host_state(struct vcpu_vmx *vmx)
 
 void set_cr4_guest_host_mask(struct vcpu_vmx *vmx)
 {
-	vmx->vcpu.arch.cr4_guest_owned_bits = KVM_CR4_GUEST_OWNED_BITS;
-	if (enable_ept)
-		vmx->vcpu.arch.cr4_guest_owned_bits |= X86_CR4_PGE;
+	vmx->vcpu.arch.cr4_guest_owned_bits = KVM_POSSIBLE_CR4_GUEST_BITS;
+	if (!enable_ept)
+		vmx->vcpu.arch.cr4_guest_owned_bits &= ~X86_CR4_PGE;
 	if (is_guest_mode(&vmx->vcpu))
 		vmx->vcpu.arch.cr4_guest_owned_bits &=
 			~get_vmcs12(&vmx->vcpu)->cr4_guest_host_mask;
@@ -4333,8 +4330,8 @@ static void init_vmcs(struct vcpu_vmx *vmx)
 	/* 22.2.1, 20.8.1 */
 	vm_entry_controls_set(vmx, vmx_vmentry_ctrl());
 
-	vmx->vcpu.arch.cr0_guest_owned_bits = X86_CR0_TS;
-	vmcs_writel(CR0_GUEST_HOST_MASK, ~X86_CR0_TS);
+	vmx->vcpu.arch.cr0_guest_owned_bits = KVM_POSSIBLE_CR0_GUEST_BITS;
+	vmcs_writel(CR0_GUEST_HOST_MASK, ~vmx->vcpu.arch.cr0_guest_owned_bits);
 
 	set_cr4_guest_host_mask(vmx);
 
@@ -6606,23 +6603,6 @@ static void atomic_switch_perf_msrs(struct vcpu_vmx *vmx)
 					msrs[i].host, false);
 }
 
-static void atomic_switch_umwait_control_msr(struct vcpu_vmx *vmx)
-{
-	u32 host_umwait_control;
-
-	if (!vmx_has_waitpkg(vmx))
-		return;
-
-	host_umwait_control = get_umwait_control_msr();
-
-	if (vmx->msr_ia32_umwait_control != host_umwait_control)
-		add_atomic_switch_msr(vmx, MSR_IA32_UMWAIT_CONTROL,
-			vmx->msr_ia32_umwait_control,
-			host_umwait_control, false);
-	else
-		clear_atomic_switch_msr(vmx, MSR_IA32_UMWAIT_CONTROL);
-}
-
 static void vmx_update_hv_timer(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
@@ -6728,9 +6708,7 @@ reenter_guest:
 
 	pt_guest_enter(vmx);
 
-	if (vcpu_to_pmu(vcpu)->version)
-		atomic_switch_perf_msrs(vmx);
-	atomic_switch_umwait_control_msr(vmx);
+	atomic_switch_perf_msrs(vmx);
 
 	if (enable_preemption_timer)
 		vmx_update_hv_timer(vcpu);
@@ -7501,11 +7479,11 @@ static void vmx_flush_log_dirty(struct kvm *kvm)
 	kvm_flush_pml_buffers(kvm);
 }
 
-static int vmx_write_pml_buffer(struct kvm_vcpu *vcpu)
+static int vmx_write_pml_buffer(struct kvm_vcpu *vcpu, gpa_t gpa)
 {
 	struct vmcs12 *vmcs12;
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
-	gpa_t gpa, dst;
+	gpa_t dst;
 
 	if (is_guest_mode(vcpu)) {
 		WARN_ON_ONCE(vmx->nested.pml_full);
@@ -7524,7 +7502,7 @@ static int vmx_write_pml_buffer(struct kvm_vcpu *vcpu)
 			return 1;
 		}
 
-		gpa = vmcs_read64(GUEST_PHYSICAL_ADDRESS) & ~0xFFFull;
+		gpa &= ~0xFFFull;
 		dst = vmcs12->pml_address + sizeof(u64) * vmcs12->guest_pml_index;
 
 		if (kvm_write_guest_page(vcpu->kvm, gpa_to_gfn(dst), &gpa,

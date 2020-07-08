@@ -45,7 +45,6 @@ static struct platform_device *kgdboc_pdev;
 
 #if IS_BUILTIN(CONFIG_KGDB_SERIAL_CONSOLE)
 static struct kgdb_io		kgdboc_earlycon_io_ops;
-static struct console		*earlycon;
 static int                      (*earlycon_orig_exit)(struct console *con);
 #endif /* IS_BUILTIN(CONFIG_KGDB_SERIAL_CONSOLE) */
 
@@ -145,7 +144,7 @@ static void kgdboc_unregister_kbd(void)
 #if IS_BUILTIN(CONFIG_KGDB_SERIAL_CONSOLE)
 static void cleanup_earlycon(void)
 {
-	if (earlycon)
+	if (kgdboc_earlycon_io_ops.cons)
 		kgdb_unregister_io_module(&kgdboc_earlycon_io_ops);
 }
 #else /* !IS_BUILTIN(CONFIG_KGDB_SERIAL_CONSOLE) */
@@ -178,7 +177,7 @@ static int configure_kgdboc(void)
 		goto noconfig;
 	}
 
-	kgdboc_io_ops.is_console = 0;
+	kgdboc_io_ops.cons = NULL;
 	kgdb_tty_driver = NULL;
 
 	kgdboc_use_kms = 0;
@@ -198,7 +197,7 @@ static int configure_kgdboc(void)
 		int idx;
 		if (cons->device && cons->device(cons, &idx) == p &&
 		    idx == tty_line) {
-			kgdboc_io_ops.is_console = 1;
+			kgdboc_io_ops.cons = cons;
 			break;
 		}
 	}
@@ -433,7 +432,8 @@ static int kgdboc_earlycon_get_char(void)
 {
 	char c;
 
-	if (!earlycon->read(earlycon, &c, 1))
+	if (!kgdboc_earlycon_io_ops.cons->read(kgdboc_earlycon_io_ops.cons,
+					       &c, 1))
 		return NO_POLL_CHAR;
 
 	return c;
@@ -441,7 +441,8 @@ static int kgdboc_earlycon_get_char(void)
 
 static void kgdboc_earlycon_put_char(u8 chr)
 {
-	earlycon->write(earlycon, &chr, 1);
+	kgdboc_earlycon_io_ops.cons->write(kgdboc_earlycon_io_ops.cons, &chr,
+					   1);
 }
 
 static void kgdboc_earlycon_pre_exp_handler(void)
@@ -461,7 +462,7 @@ static void kgdboc_earlycon_pre_exp_handler(void)
 	 * boot if we detect this case.
 	 */
 	for_each_console(con)
-		if (con == earlycon)
+		if (con == kgdboc_earlycon_io_ops.cons)
 			return;
 
 	already_warned = true;
@@ -484,25 +485,25 @@ static int kgdboc_earlycon_deferred_exit(struct console *con)
 
 static void kgdboc_earlycon_deinit(void)
 {
-	if (!earlycon)
+	if (!kgdboc_earlycon_io_ops.cons)
 		return;
 
-	if (earlycon->exit == kgdboc_earlycon_deferred_exit)
+	if (kgdboc_earlycon_io_ops.cons->exit == kgdboc_earlycon_deferred_exit)
 		/*
 		 * kgdboc_earlycon is exiting but original boot console exit
 		 * was never called (AKA kgdboc_earlycon_deferred_exit()
 		 * didn't ever run).  Undo our trap.
 		 */
-		earlycon->exit = earlycon_orig_exit;
-	else if (earlycon->exit)
+		kgdboc_earlycon_io_ops.cons->exit = earlycon_orig_exit;
+	else if (kgdboc_earlycon_io_ops.cons->exit)
 		/*
 		 * We skipped calling the exit() routine so we could try to
 		 * keep using the boot console even after it went away.  We're
 		 * finally done so call the function now.
 		 */
-		earlycon->exit(earlycon);
+		kgdboc_earlycon_io_ops.cons->exit(kgdboc_earlycon_io_ops.cons);
 
-	earlycon = NULL;
+	kgdboc_earlycon_io_ops.cons = NULL;
 }
 
 static struct kgdb_io kgdboc_earlycon_io_ops = {
@@ -511,7 +512,6 @@ static struct kgdb_io kgdboc_earlycon_io_ops = {
 	.write_char		= kgdboc_earlycon_put_char,
 	.pre_exception		= kgdboc_earlycon_pre_exp_handler,
 	.deinit			= kgdboc_earlycon_deinit,
-	.is_console		= true,
 };
 
 #define MAX_CONSOLE_NAME_LEN (sizeof((struct console *) 0)->name)
@@ -557,10 +557,10 @@ static int __init kgdboc_earlycon_init(char *opt)
 		goto unlock;
 	}
 
-	earlycon = con;
+	kgdboc_earlycon_io_ops.cons = con;
 	pr_info("Going to register kgdb with earlycon '%s'\n", con->name);
 	if (kgdb_register_io_module(&kgdboc_earlycon_io_ops) != 0) {
-		earlycon = NULL;
+		kgdboc_earlycon_io_ops.cons = NULL;
 		pr_info("Failed to register kgdb with earlycon\n");
 	} else {
 		/* Trap exit so we can keep earlycon longer if needed. */

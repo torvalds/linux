@@ -107,3 +107,4 @@ module_exit(nft_dup_ipv4_module_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Pablo Neira Ayuso <pablo@netfilter.org>");
 MODULE_ALIAS_NFT_AF_EXPR(AF_INET, "dup");
+MODULE_DESCRIPTION("IPv4 nftables packet duplication support");

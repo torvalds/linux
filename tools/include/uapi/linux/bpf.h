@@ -3168,7 +3168,7 @@ union bpf_attr {
  *	Return
  *		The id is returned or 0 in case the id could not be retrieved.
  *
- * void *bpf_ringbuf_output(void *ringbuf, void *data, u64 size, u64 flags)
+ * int bpf_ringbuf_output(void *ringbuf, void *data, u64 size, u64 flags)
  * 	Description
  * 		Copy *size* bytes from *data* into a ring buffer *ringbuf*.
  * 		If BPF_RB_NO_WAKEUP is specified in *flags*, no notification of

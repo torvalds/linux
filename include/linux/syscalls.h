@@ -1360,7 +1360,7 @@ static inline long ksys_lchown(const char __user *filename, uid_t user,
 
 extern long do_sys_ftruncate(unsigned int fd, loff_t length, int small);
 
-static inline long ksys_ftruncate(unsigned int fd, unsigned long length)
+static inline long ksys_ftruncate(unsigned int fd, loff_t length)
 {
 	return do_sys_ftruncate(fd, length, 1);
 }

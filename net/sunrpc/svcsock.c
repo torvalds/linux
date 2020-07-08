@@ -44,6 +44,7 @@
 #include <net/tcp.h>
 #include <net/tcp_states.h>
 #include <linux/uaccess.h>
+#include <linux/highmem.h>
 #include <asm/ioctls.h>
 
 #include <linux/sunrpc/types.h>

@@ -2169,12 +2169,11 @@ static inline int pci_pcie_type(const struct pci_dev *dev)
  */
 static inline struct pci_dev *pcie_find_root_port(struct pci_dev *dev)
 {
-	struct pci_dev *bridge = pci_upstream_bridge(dev);
-
-	while (bridge) {
-		if (pci_pcie_type(bridge) == PCI_EXP_TYPE_ROOT_PORT)
-			return bridge;
-		bridge = pci_upstream_bridge(bridge);
+	while (dev) {
+		if (pci_is_pcie(dev) &&
+		    pci_pcie_type(dev) == PCI_EXP_TYPE_ROOT_PORT)
+			return dev;
+		dev = pci_upstream_bridge(dev);
 	}
 
 	return NULL;

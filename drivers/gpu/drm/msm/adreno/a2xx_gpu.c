@@ -408,7 +408,7 @@ a2xx_create_address_space(struct msm_gpu *gpu, struct platform_device *pdev)
 	struct msm_gem_address_space *aspace;
 
 	aspace = msm_gem_address_space_create(mmu, "gpu", SZ_16M,
-		SZ_16M + 0xfff * SZ_64K);
+		0xfff * SZ_64K);
 
 	if (IS_ERR(aspace) && !IS_ERR(mmu))
 		mmu->funcs->destroy(mmu);

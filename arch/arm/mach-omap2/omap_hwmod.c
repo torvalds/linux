@@ -3489,7 +3489,7 @@ static const struct omap_hwmod_reset dra7_reset_quirks[] = {
 };
 
 static const struct omap_hwmod_reset omap_reset_quirks[] = {
-	{ .match = "dss", .len = 3, .reset = omap_dss_reset, },
+	{ .match = "dss_core", .len = 8, .reset = omap_dss_reset, },
 	{ .match = "hdq1w", .len = 5, .reset = omap_hdq1w_reset, },
 	{ .match = "i2c", .len = 3, .reset = omap_i2c_reset, },
 	{ .match = "wd_timer", .len = 8, .reset = omap2_wd_timer_reset, },

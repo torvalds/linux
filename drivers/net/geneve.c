@@ -1649,6 +1649,7 @@ static int geneve_changelink(struct net_device *dev, struct nlattr *tb[],
 	geneve->collect_md = metadata;
 	geneve->use_udp6_rx_checksums = use_udp6_rx_checksums;
 	geneve->ttl_inherit = ttl_inherit;
+	geneve->df = df;
 	geneve_unquiesce(geneve, gs4, gs6);
 
 	return 0;
