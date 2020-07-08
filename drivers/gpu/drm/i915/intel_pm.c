@@ -94,10 +94,8 @@ static void gen9_init_clock_gating(struct drm_i915_private *dev_priv)
 	I915_WRITE(GEN8_CHICKEN_DCPR_1,
 		   I915_READ(GEN8_CHICKEN_DCPR_1) | MASK_WAKEMEM);
 
-	/* WaFbcTurnOffFbcWatermark:skl,bxt,kbl,cfl */
 	/* WaFbcWakeMemOn:skl,bxt,kbl,glk,cfl */
 	I915_WRITE(DISP_ARB_CTL, I915_READ(DISP_ARB_CTL) |
-		   DISP_FBC_WM_DIS |
 		   DISP_FBC_MEMORY_WAKE);
 
 	/* WaFbcHighMemBwCorruptionAvoidance:skl,bxt,kbl,cfl */
@@ -140,6 +138,10 @@ static void bxt_init_clock_gating(struct drm_i915_private *dev_priv)
 	 * application, using batch buffers or any other means.
 	 */
 	I915_WRITE(RM_TIMEOUT, MMIO_TIMEOUT_US(950));
+
+	/* WaFbcTurnOffFbcWatermark:bxt */
+	I915_WRITE(DISP_ARB_CTL, I915_READ(DISP_ARB_CTL) |
+		   DISP_FBC_WM_DIS);
 }
 
 static void glk_init_clock_gating(struct drm_i915_private *dev_priv)
@@ -7189,6 +7191,10 @@ static void cfl_init_clock_gating(struct drm_i915_private *dev_priv)
 	cnp_init_clock_gating(dev_priv);
 	gen9_init_clock_gating(dev_priv);
 
+	/* WaFbcTurnOffFbcWatermark:cfl */
+	I915_WRITE(DISP_ARB_CTL, I915_READ(DISP_ARB_CTL) |
+		   DISP_FBC_WM_DIS);
+
 	/* WaFbcNukeOnHostModify:cfl */
 	I915_WRITE(ILK_DPFC_CHICKEN, I915_READ(ILK_DPFC_CHICKEN) |
 		   ILK_DPFC_NUKE_ON_ANY_MODIFICATION);
@@ -7208,6 +7214,10 @@ static void kbl_init_clock_gating(struct drm_i915_private *dev_priv)
 		I915_WRITE(GEN6_UCGCTL1, I915_READ(GEN6_UCGCTL1) |
 			   GEN6_GAMUNIT_CLOCK_GATE_DISABLE);
 
+	/* WaFbcTurnOffFbcWatermark:kbl */
+	I915_WRITE(DISP_ARB_CTL, I915_READ(DISP_ARB_CTL) |
+		   DISP_FBC_WM_DIS);
+
 	/* WaFbcNukeOnHostModify:kbl */
 	I915_WRITE(ILK_DPFC_CHICKEN, I915_READ(ILK_DPFC_CHICKEN) |
 		   ILK_DPFC_NUKE_ON_ANY_MODIFICATION);
@@ -7220,6 +7230,10 @@ static void skl_init_clock_gating(struct drm_i915_private *dev_priv)
 	/* WAC6entrylatency:skl */
 	I915_WRITE(FBC_LLC_READ_CTRL, I915_READ(FBC_LLC_READ_CTRL) |
 		   FBC_LLC_FULLY_OPEN);
+
+	/* WaFbcTurnOffFbcWatermark:skl */
+	I915_WRITE(DISP_ARB_CTL, I915_READ(DISP_ARB_CTL) |
+		   DISP_FBC_WM_DIS);
 
 	/* WaFbcNukeOnHostModify:skl */
 	I915_WRITE(ILK_DPFC_CHICKEN, I915_READ(ILK_DPFC_CHICKEN) |
