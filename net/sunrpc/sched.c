@@ -885,9 +885,6 @@ static void __rpc_execute(struct rpc_task *task)
 	int task_is_async = RPC_IS_ASYNC(task);
 	int status = 0;
 
-	dprintk("RPC: %5u __rpc_execute flags=0x%x\n",
-			task->tk_pid, task->tk_flags);
-
 	WARN_ON_ONCE(RPC_IS_QUEUED(task));
 	if (RPC_IS_QUEUED(task))
 		return;
@@ -947,7 +944,7 @@ static void __rpc_execute(struct rpc_task *task)
 			return;
 
 		/* sync task: sleep here */
-		dprintk("RPC: %5u sync task going to sleep\n", task->tk_pid);
+		trace_rpc_task_sync_sleep(task, task->tk_action);
 		status = out_of_line_wait_on_bit(&task->tk_runstate,
 				RPC_TASK_QUEUED, rpc_wait_bit_killable,
 				TASK_KILLABLE);
@@ -963,11 +960,9 @@ static void __rpc_execute(struct rpc_task *task)
 			task->tk_rpc_status = -ERESTARTSYS;
 			rpc_exit(task, -ERESTARTSYS);
 		}
-		dprintk("RPC: %5u sync task resuming\n", task->tk_pid);
+		trace_rpc_task_sync_wake(task, task->tk_action);
 	}
 
-	dprintk("RPC: %5u return %d, status %d\n", task->tk_pid, status,
-			task->tk_status);
 	/* Release all resources associated with the task */
 	rpc_release_task(task);
 }
@@ -1146,10 +1141,8 @@ static void rpc_free_task(struct rpc_task *task)
 	put_rpccred(task->tk_op_cred);
 	rpc_release_calldata(task->tk_ops, task->tk_calldata);
 
-	if (tk_flags & RPC_TASK_DYNAMIC) {
-		dprintk("RPC: %5u freeing task\n", task->tk_pid);
+	if (tk_flags & RPC_TASK_DYNAMIC)
 		mempool_free(task, rpc_task_mempool);
-	}
 }
 
 static void rpc_async_release(struct work_struct *work)
@@ -1203,8 +1196,6 @@ EXPORT_SYMBOL_GPL(rpc_put_task_async);
 
 static void rpc_release_task(struct rpc_task *task)
 {
-	dprintk("RPC: %5u release task\n", task->tk_pid);
-
 	WARN_ON_ONCE(RPC_IS_QUEUED(task));
 
 	rpc_release_resources_task(task);
