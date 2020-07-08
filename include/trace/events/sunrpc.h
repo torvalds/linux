@@ -1031,37 +1031,6 @@ TRACE_EVENT(xprt_transmit,
 		__entry->seqno, __entry->status)
 );
 
-TRACE_EVENT(xprt_enq_xmit,
-	TP_PROTO(
-		const struct rpc_task *task,
-		int stage
-	),
-
-	TP_ARGS(task, stage),
-
-	TP_STRUCT__entry(
-		__field(unsigned int, task_id)
-		__field(unsigned int, client_id)
-		__field(u32, xid)
-		__field(u32, seqno)
-		__field(int, stage)
-	),
-
-	TP_fast_assign(
-		__entry->task_id = task->tk_pid;
-		__entry->client_id = task->tk_client ?
-			task->tk_client->cl_clid : -1;
-		__entry->xid = be32_to_cpu(task->tk_rqstp->rq_xid);
-		__entry->seqno = task->tk_rqstp->rq_seqno;
-		__entry->stage = stage;
-	),
-
-	TP_printk(
-		"task:%u@%u xid=0x%08x seqno=%u stage=%d",
-		__entry->task_id, __entry->client_id, __entry->xid,
-		__entry->seqno, __entry->stage)
-);
-
 TRACE_EVENT(xprt_ping,
 	TP_PROTO(const struct rpc_xprt *xprt, int status),
 
@@ -1175,6 +1144,30 @@ DEFINE_CONG_EVENT(reserve_cong);
 DEFINE_CONG_EVENT(release_cong);
 DEFINE_CONG_EVENT(get_cong);
 DEFINE_CONG_EVENT(put_cong);
+
+TRACE_EVENT(xprt_reserve,
+	TP_PROTO(
+		const struct rpc_rqst *rqst
+	),
+
+	TP_ARGS(rqst),
+
+	TP_STRUCT__entry(
+		__field(unsigned int, task_id)
+		__field(unsigned int, client_id)
+		__field(u32, xid)
+	),
+
+	TP_fast_assign(
+		__entry->task_id = rqst->rq_task->tk_pid;
+		__entry->client_id = rqst->rq_task->tk_client->cl_clid;
+		__entry->xid = be32_to_cpu(rqst->rq_xid);
+	),
+
+	TP_printk("task:%u@%u xid=0x%08x",
+		__entry->task_id, __entry->client_id, __entry->xid
+	)
+);
 
 TRACE_EVENT(xs_stream_read_data,
 	TP_PROTO(struct rpc_xprt *xprt, ssize_t err, size_t total),
