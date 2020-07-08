@@ -336,7 +336,7 @@ struct echoaudio {
 	struct mutex mode_mutex;
 	u16 num_digital_modes, digital_mode_list[6];
 	u16 num_clock_sources, clock_source_list[10];
-	atomic_t opencount;
+	unsigned int opencount;  /* protected by mode_mutex */
 	struct snd_kcontrol *clock_src_ctl;
 	struct snd_pcm *analog_pcm, *digital_pcm;
 	struct snd_card *card;
@@ -353,8 +353,8 @@ struct echoaudio {
 	struct timer_list timer;
 	char tinuse;				/* Timer in use */
 	char midi_full;				/* MIDI output buffer is full */
-	char can_set_rate;
-	char rate_set;
+	char can_set_rate;                      /* protected by mode_mutex */
+	char rate_set;                          /* protected by mode_mutex */
 
 	/* This stuff is used mainly by the lowlevel code */
 	struct comm_page *comm_page;	/* Virtual address of the memory

@@ -245,13 +245,20 @@ static int hw_rule_sample_rate(struct snd_pcm_hw_params *params,
 						      SNDRV_PCM_HW_PARAM_RATE);
 	struct echoaudio *chip = rule->private;
 	struct snd_interval fixed;
+	int err;
 
-	if (!chip->can_set_rate) {
+	mutex_lock(&chip->mode_mutex);
+
+	if (chip->can_set_rate) {
+		err = 0;
+	} else {
 		snd_interval_any(&fixed);
 		fixed.min = fixed.max = chip->sample_rate;
-		return snd_interval_refine(rate, &fixed);
+		err = snd_interval_refine(rate, &fixed);
 	}
-	return 0;
+
+	mutex_unlock(&chip->mode_mutex);
+	return err;
 }
 
 
@@ -322,13 +329,24 @@ static int pcm_open(struct snd_pcm_substream *substream,
 				       SNDRV_PCM_HW_PARAM_RATE, -1)) < 0)
 		return err;
 
-	/* Finally allocate a page for the scatter-gather list */
+	/* Allocate a page for the scatter-gather list */
 	if ((err = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV,
 				       &chip->pci->dev,
 				       PAGE_SIZE, &pipe->sgpage)) < 0) {
 		dev_err(chip->card->dev, "s-g list allocation failed\n");
 		return err;
 	}
+
+	/*
+	 * Sole ownership required to set the rate
+	 */
+
+	dev_dbg(chip->card->dev, "pcm_open opencount=%d can_set_rate=%d, rate_set=%d",
+		chip->opencount, chip->can_set_rate, chip->rate_set);
+
+	chip->opencount++;
+	if (chip->opencount > 1 && chip->rate_set)
+		chip->can_set_rate = 0;
 
 	return 0;
 }
@@ -353,12 +371,7 @@ static int pcm_analog_in_open(struct snd_pcm_substream *substream)
 				       hw_rule_capture_format_by_channels, NULL,
 				       SNDRV_PCM_HW_PARAM_CHANNELS, -1)) < 0)
 		return err;
-	atomic_inc(&chip->opencount);
-	if (atomic_read(&chip->opencount) > 1 && chip->rate_set)
-		chip->can_set_rate=0;
-	dev_dbg(chip->card->dev, "pcm_analog_in_open  cs=%d  oc=%d  r=%d\n",
-		chip->can_set_rate, atomic_read(&chip->opencount),
-		chip->sample_rate);
+
 	return 0;
 }
 
@@ -388,12 +401,7 @@ static int pcm_analog_out_open(struct snd_pcm_substream *substream)
 				       NULL,
 				       SNDRV_PCM_HW_PARAM_CHANNELS, -1)) < 0)
 		return err;
-	atomic_inc(&chip->opencount);
-	if (atomic_read(&chip->opencount) > 1 && chip->rate_set)
-		chip->can_set_rate=0;
-	dev_dbg(chip->card->dev, "pcm_analog_out_open  cs=%d  oc=%d  r=%d\n",
-		chip->can_set_rate, atomic_read(&chip->opencount),
-		chip->sample_rate);
+
 	return 0;
 }
 
@@ -428,10 +436,6 @@ static int pcm_digital_in_open(struct snd_pcm_substream *substream)
 				       hw_rule_capture_format_by_channels, NULL,
 				       SNDRV_PCM_HW_PARAM_CHANNELS, -1)) < 0)
 		goto din_exit;
-
-	atomic_inc(&chip->opencount);
-	if (atomic_read(&chip->opencount) > 1 && chip->rate_set)
-		chip->can_set_rate=0;
 
 din_exit:
 	mutex_unlock(&chip->mode_mutex);
@@ -471,9 +475,7 @@ static int pcm_digital_out_open(struct snd_pcm_substream *substream)
 				       NULL, SNDRV_PCM_HW_PARAM_CHANNELS,
 				       -1)) < 0)
 		goto dout_exit;
-	atomic_inc(&chip->opencount);
-	if (atomic_read(&chip->opencount) > 1 && chip->rate_set)
-		chip->can_set_rate=0;
+
 dout_exit:
 	mutex_unlock(&chip->mode_mutex);
 	return err;
@@ -488,23 +490,29 @@ dout_exit:
 static int pcm_close(struct snd_pcm_substream *substream)
 {
 	struct echoaudio *chip = snd_pcm_substream_chip(substream);
-	int oc;
 
 	/* Nothing to do here. Audio is already off and pipe will be
 	 * freed by its callback
 	 */
 
-	atomic_dec(&chip->opencount);
-	oc = atomic_read(&chip->opencount);
-	dev_dbg(chip->card->dev, "pcm_close  oc=%d  cs=%d  rs=%d\n", oc,
-		chip->can_set_rate, chip->rate_set);
-	if (oc < 2)
-		chip->can_set_rate = 1;
-	if (oc == 0)
-		chip->rate_set = 0;
-	dev_dbg(chip->card->dev, "pcm_close2 oc=%d  cs=%d  rs=%d\n", oc,
-		chip->can_set_rate, chip->rate_set);
+	mutex_lock(&chip->mode_mutex);
 
+	dev_dbg(chip->card->dev, "pcm_open opencount=%d can_set_rate=%d, rate_set=%d",
+		chip->opencount, chip->can_set_rate, chip->rate_set);
+
+	chip->opencount--;
+
+	switch (chip->opencount) {
+	case 1:
+		chip->can_set_rate = 1;
+		break;
+
+	case 0:
+		chip->rate_set = 0;
+		break;
+	}
+
+	mutex_unlock(&chip->mode_mutex);
 	return 0;
 }
 
@@ -1409,7 +1417,7 @@ static int snd_echo_digital_mode_put(struct snd_kcontrol *kcontrol,
 		/* Do not allow the user to change the digital mode when a pcm
 		device is open because it also changes the number of channels
 		and the allowed sample rates */
-		if (atomic_read(&chip->opencount)) {
+		if (chip->opencount) {
 			changed = -EAGAIN;
 		} else {
 			changed = set_digital_mode(chip, dmode);
@@ -1874,7 +1882,7 @@ static int snd_echo_create(struct snd_card *card,
 		chip->card = card;
 		chip->pci = pci;
 		chip->irq = -1;
-		atomic_set(&chip->opencount, 0);
+		chip->opencount = 0;
 		mutex_init(&chip->mode_mutex);
 		chip->can_set_rate = 1;
 	} else {
