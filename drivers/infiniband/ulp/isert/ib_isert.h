@@ -63,7 +63,8 @@
 		(ISER_RX_PAYLOAD_SIZE + sizeof(u64) + sizeof(struct ib_sge) + \
 		 sizeof(struct ib_cqe) + sizeof(bool)))
 
-#define ISCSI_ISER_SG_TABLESIZE		256
+/* Maximum support is 16MB I/O size */
+#define ISCSI_ISER_MAX_SG_TABLESIZE	4096
 
 enum isert_desc_type {
 	ISCSI_TX_CONTROL,

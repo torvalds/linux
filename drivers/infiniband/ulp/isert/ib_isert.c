@@ -119,7 +119,7 @@ isert_create_qp(struct isert_conn *isert_conn,
 {
 	struct isert_device *device = isert_conn->device;
 	struct ib_qp_init_attr attr;
-	int ret;
+	int ret, factor;
 
 	memset(&attr, 0, sizeof(struct ib_qp_init_attr));
 	attr.event_handler = isert_qp_event_callback;
@@ -128,7 +128,9 @@ isert_create_qp(struct isert_conn *isert_conn,
 	attr.recv_cq = comp->cq;
 	attr.cap.max_send_wr = ISERT_QP_MAX_REQ_DTOS + 1;
 	attr.cap.max_recv_wr = ISERT_QP_MAX_RECV_DTOS + 1;
-	attr.cap.max_rdma_ctxs = ISCSI_DEF_XMIT_CMDS_MAX;
+	factor = rdma_rw_mr_factor(device->ib_device, cma_id->port_num,
+				   ISCSI_ISER_MAX_SG_TABLESIZE);
+	attr.cap.max_rdma_ctxs = ISCSI_DEF_XMIT_CMDS_MAX * factor;
 	attr.cap.max_send_sge = device->ib_device->attrs.max_send_sge;
 	attr.cap.max_recv_sge = 1;
 	attr.sq_sig_type = IB_SIGNAL_REQ_WR;
