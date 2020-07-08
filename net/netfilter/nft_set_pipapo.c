@@ -1249,8 +1249,6 @@ static int nft_pipapo_insert(const struct net *net, const struct nft_set *set,
 		if (err)
 			return err;
 
-		this_cpu_write(nft_pipapo_scratch_index, false);
-
 		m->bsize_max = bsize_max;
 	} else {
 		put_cpu_ptr(m->scratch);
