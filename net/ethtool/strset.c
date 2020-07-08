@@ -209,13 +209,15 @@ static void strset_cleanup_data(struct ethnl_reply_data *reply_base)
 static int strset_prepare_set(struct strset_info *info, struct net_device *dev,
 			      unsigned int id, bool counts_only)
 {
+	const struct ethtool_phy_ops *phy_ops = ethtool_phy_ops;
 	const struct ethtool_ops *ops = dev->ethtool_ops;
 	void *strings;
 	int count, ret;
 
 	if (id == ETH_SS_PHY_STATS && dev->phydev &&
-	    !ops->get_ethtool_phy_stats)
-		ret = phy_ethtool_get_sset_count(dev->phydev);
+	    !ops->get_ethtool_phy_stats && phy_ops &&
+	    phy_ops->get_sset_count)
+		ret = phy_ops->get_sset_count(dev->phydev);
 	else if (ops->get_sset_count && ops->get_strings)
 		ret = ops->get_sset_count(dev, id);
 	else
@@ -231,8 +233,9 @@ static int strset_prepare_set(struct strset_info *info, struct net_device *dev,
 		if (!strings)
 			return -ENOMEM;
 		if (id == ETH_SS_PHY_STATS && dev->phydev &&
-		    !ops->get_ethtool_phy_stats)
-			phy_ethtool_get_strings(dev->phydev, strings);
+		    !ops->get_ethtool_phy_stats && phy_ops &&
+		    phy_ops->get_strings)
+			phy_ops->get_strings(dev->phydev, strings);
 		else
 			ops->get_strings(dev, id, strings);
 		info->strings = strings;
