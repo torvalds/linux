@@ -478,16 +478,20 @@ static ssize_t lineevent_read(struct file *file,
 	return bytes_read;
 }
 
+static void lineevent_free(struct lineevent_state *le)
+{
+	if (le->irq)
+		free_irq(le->irq, le);
+	if (le->desc)
+		gpiod_free(le->desc);
+	kfree(le->label);
+	put_device(&le->gdev->dev);
+	kfree(le);
+}
+
 static int lineevent_release(struct inode *inode, struct file *file)
 {
-	struct lineevent_state *le = file->private_data;
-	struct gpio_device *gdev = le->gdev;
-
-	free_irq(le->irq, le);
-	gpiod_free(le->desc);
-	kfree(le->label);
-	kfree(le);
-	put_device(&gdev->dev);
+	lineevent_free(file->private_data);
 	return 0;
 }
 
@@ -612,7 +616,7 @@ static int lineevent_create(struct gpio_device *gdev, void __user *ip)
 	u32 eflags;
 	int fd;
 	int ret;
-	int irqflags = 0;
+	int irq, irqflags = 0;
 
 	if (copy_from_user(&eventreq, ip, sizeof(eventreq)))
 		return -EFAULT;
@@ -663,7 +667,7 @@ static int lineevent_create(struct gpio_device *gdev, void __user *ip)
 
 	ret = gpiod_request(desc, le->label);
 	if (ret)
-		goto out_free_label;
+		goto out_free_le;
 	le->desc = desc;
 	le->eflags = eflags;
 
@@ -671,16 +675,17 @@ static int lineevent_create(struct gpio_device *gdev, void __user *ip)
 
 	ret = gpiod_direction_input(desc);
 	if (ret)
-		goto out_free_desc;
+		goto out_free_le;
 
 	blocking_notifier_call_chain(&desc->gdev->notifier,
 				     GPIOLINE_CHANGED_REQUESTED, desc);
 
-	le->irq = gpiod_to_irq(desc);
-	if (le->irq <= 0) {
+	irq = gpiod_to_irq(desc);
+	if (irq <= 0) {
 		ret = -ENODEV;
-		goto out_free_desc;
+		goto out_free_le;
 	}
+	le->irq = irq;
 
 	if (eflags & GPIOEVENT_REQUEST_RISING_EDGE)
 		irqflags |= test_bit(FLAG_ACTIVE_LOW, &desc->flags) ?
@@ -701,12 +706,12 @@ static int lineevent_create(struct gpio_device *gdev, void __user *ip)
 				   le->label,
 				   le);
 	if (ret)
-		goto out_free_desc;
+		goto out_free_le;
 
 	fd = get_unused_fd_flags(O_RDONLY | O_CLOEXEC);
 	if (fd < 0) {
 		ret = fd;
-		goto out_free_irq;
+		goto out_free_le;
 	}
 
 	file = anon_inode_getfile("gpio-event",
@@ -735,15 +740,8 @@ static int lineevent_create(struct gpio_device *gdev, void __user *ip)
 
 out_put_unused_fd:
 	put_unused_fd(fd);
-out_free_irq:
-	free_irq(le->irq, le);
-out_free_desc:
-	gpiod_free(le->desc);
-out_free_label:
-	kfree(le->label);
 out_free_le:
-	kfree(le);
-	put_device(&gdev->dev);
+	lineevent_free(le);
 	return ret;
 }
 
