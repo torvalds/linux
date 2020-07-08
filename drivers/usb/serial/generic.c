@@ -585,11 +585,10 @@ int usb_serial_handle_sysrq_char(struct usb_serial_port *port, unsigned int ch)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(usb_serial_handle_sysrq_char);
-#endif
 
 int usb_serial_handle_break(struct usb_serial_port *port)
 {
-	if (!port->port.console || !IS_ENABLED(CONFIG_MAGIC_SYSRQ))
+	if (!port->port.console)
 		return 0;
 
 	if (!port->sysrq) {
@@ -600,6 +599,7 @@ int usb_serial_handle_break(struct usb_serial_port *port)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(usb_serial_handle_break);
+#endif
 
 /**
  * usb_serial_handle_dcd_change - handle a change of carrier detect state

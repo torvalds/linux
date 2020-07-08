@@ -369,14 +369,18 @@ extern int usb_serial_generic_prepare_write_buffer(struct usb_serial_port *port,
 #if defined(CONFIG_USB_SERIAL_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
 extern int usb_serial_handle_sysrq_char(struct usb_serial_port *port,
 					unsigned int ch);
+extern int usb_serial_handle_break(struct usb_serial_port *port);
 #else
 static inline int usb_serial_handle_sysrq_char(struct usb_serial_port *port, unsigned int ch)
 {
 	return 0;
 }
+static inline int usb_serial_handle_break(struct usb_serial_port *port)
+{
+	return 0;
+}
 #endif
 
-extern int usb_serial_handle_break(struct usb_serial_port *port);
 extern void usb_serial_handle_dcd_change(struct usb_serial_port *usb_port,
 					 struct tty_struct *tty,
 					 unsigned int status);
