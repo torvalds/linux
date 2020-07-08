@@ -2338,17 +2338,22 @@ static bool section_have_execinstr(struct bpf_object *obj, int idx)
 	return false;
 }
 
-static void bpf_object__sanitize_btf(struct bpf_object *obj)
+static bool btf_needs_sanitization(struct bpf_object *obj)
 {
 	bool has_func_global = obj->caps.btf_func_global;
 	bool has_datasec = obj->caps.btf_datasec;
 	bool has_func = obj->caps.btf_func;
-	struct btf *btf = obj->btf;
+
+	return !has_func || !has_datasec || !has_func_global;
+}
+
+static void bpf_object__sanitize_btf(struct bpf_object *obj, struct btf *btf)
+{
+	bool has_func_global = obj->caps.btf_func_global;
+	bool has_datasec = obj->caps.btf_datasec;
+	bool has_func = obj->caps.btf_func;
 	struct btf_type *t;
 	int i, j, vlen;
-
-	if (!obj->btf || (has_func && has_datasec && has_func_global))
-		return;
 
 	for (i = 1; i <= btf__get_nr_types(btf); i++) {
 		t = (struct btf_type *)btf__type_by_id(btf, i);
@@ -2399,17 +2404,6 @@ static void bpf_object__sanitize_btf(struct bpf_object *obj)
 			/* replace BTF_FUNC_GLOBAL with BTF_FUNC_STATIC */
 			t->info = BTF_INFO_ENC(BTF_KIND_FUNC, 0, 0);
 		}
-	}
-}
-
-static void bpf_object__sanitize_btf_ext(struct bpf_object *obj)
-{
-	if (!obj->btf_ext)
-		return;
-
-	if (!obj->caps.btf_func) {
-		btf_ext__free(obj->btf_ext);
-		obj->btf_ext = NULL;
 	}
 }
 
@@ -2530,30 +2524,50 @@ static int bpf_object__load_vmlinux_btf(struct bpf_object *obj)
 
 static int bpf_object__sanitize_and_load_btf(struct bpf_object *obj)
 {
+	struct btf *kern_btf = obj->btf;
+	bool btf_mandatory, sanitize;
 	int err = 0;
 
 	if (!obj->btf)
 		return 0;
 
-	bpf_object__sanitize_btf(obj);
-	bpf_object__sanitize_btf_ext(obj);
+	sanitize = btf_needs_sanitization(obj);
+	if (sanitize) {
+		const void *orig_data;
+		void *san_data;
+		__u32 sz;
 
-	err = btf__load(obj->btf);
-	if (err) {
-		pr_warn("Error loading %s into kernel: %d.\n",
-			BTF_ELF_SEC, err);
-		btf__free(obj->btf);
-		obj->btf = NULL;
-		/* btf_ext can't exist without btf, so free it as well */
-		if (obj->btf_ext) {
-			btf_ext__free(obj->btf_ext);
-			obj->btf_ext = NULL;
-		}
+		/* clone BTF to sanitize a copy and leave the original intact */
+		orig_data = btf__get_raw_data(obj->btf, &sz);
+		san_data = malloc(sz);
+		if (!san_data)
+			return -ENOMEM;
+		memcpy(san_data, orig_data, sz);
+		kern_btf = btf__new(san_data, sz);
+		if (IS_ERR(kern_btf))
+			return PTR_ERR(kern_btf);
 
-		if (kernel_needs_btf(obj))
-			return err;
+		bpf_object__sanitize_btf(obj, kern_btf);
 	}
-	return 0;
+
+	err = btf__load(kern_btf);
+	if (sanitize) {
+		if (!err) {
+			/* move fd to libbpf's BTF */
+			btf__set_fd(obj->btf, btf__fd(kern_btf));
+			btf__set_fd(kern_btf, -1);
+		}
+		btf__free(kern_btf);
+	}
+	if (err) {
+		btf_mandatory = kernel_needs_btf(obj);
+		pr_warn("Error loading .BTF into kernel: %d. %s\n", err,
+			btf_mandatory ? "BTF is mandatory, can't proceed."
+				      : "BTF is optional, ignoring.");
+		if (!btf_mandatory)
+			err = 0;
+	}
+	return err;
 }
 
 static int bpf_object__elf_collect(struct bpf_object *obj)
@@ -3777,7 +3791,7 @@ static int bpf_object__create_map(struct bpf_object *obj, struct bpf_map *map)
 	create_attr.btf_fd = 0;
 	create_attr.btf_key_type_id = 0;
 	create_attr.btf_value_type_id = 0;
-	if (obj->btf && !bpf_map_find_btf_info(obj, map)) {
+	if (obj->btf && btf__fd(obj->btf) >= 0 && !bpf_map_find_btf_info(obj, map)) {
 		create_attr.btf_fd = btf__fd(obj->btf);
 		create_attr.btf_key_type_id = map->btf_key_type_id;
 		create_attr.btf_value_type_id = map->btf_value_type_id;
@@ -5361,18 +5375,17 @@ load_program(struct bpf_program *prog, struct bpf_insn *insns, int insns_cnt,
 		load_attr.kern_version = kern_version;
 		load_attr.prog_ifindex = prog->prog_ifindex;
 	}
-	/* if .BTF.ext was loaded, kernel supports associated BTF for prog */
-	if (prog->obj->btf_ext)
-		btf_fd = bpf_object__btf_fd(prog->obj);
-	else
-		btf_fd = -1;
-	load_attr.prog_btf_fd = btf_fd >= 0 ? btf_fd : 0;
-	load_attr.func_info = prog->func_info;
-	load_attr.func_info_rec_size = prog->func_info_rec_size;
-	load_attr.func_info_cnt = prog->func_info_cnt;
-	load_attr.line_info = prog->line_info;
-	load_attr.line_info_rec_size = prog->line_info_rec_size;
-	load_attr.line_info_cnt = prog->line_info_cnt;
+	/* specify func_info/line_info only if kernel supports them */
+	btf_fd = bpf_object__btf_fd(prog->obj);
+	if (btf_fd >= 0 && prog->obj->caps.btf_func) {
+		load_attr.prog_btf_fd = btf_fd;
+		load_attr.func_info = prog->func_info;
+		load_attr.func_info_rec_size = prog->func_info_rec_size;
+		load_attr.func_info_cnt = prog->func_info_cnt;
+		load_attr.line_info = prog->line_info;
+		load_attr.line_info_rec_size = prog->line_info_rec_size;
+		load_attr.line_info_cnt = prog->line_info_cnt;
+	}
 	load_attr.log_level = prog->log_level;
 	load_attr.prog_flags = prog->prog_flags;
 
