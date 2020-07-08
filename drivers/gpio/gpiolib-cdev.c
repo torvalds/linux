@@ -887,15 +887,16 @@ static long gpio_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		hwgpio = gpio_chip_hwgpio(desc);
 
-		if (test_bit(hwgpio, cdev->watched_lines))
+		if (test_and_set_bit(hwgpio, cdev->watched_lines))
 			return -EBUSY;
 
 		gpio_desc_to_lineinfo(desc, &lineinfo);
 
-		if (copy_to_user(ip, &lineinfo, sizeof(lineinfo)))
+		if (copy_to_user(ip, &lineinfo, sizeof(lineinfo))) {
+			clear_bit(hwgpio, cdev->watched_lines);
 			return -EFAULT;
+		}
 
-		set_bit(hwgpio, cdev->watched_lines);
 		return 0;
 	} else if (cmd == GPIO_GET_LINEINFO_UNWATCH_IOCTL) {
 		if (copy_from_user(&offset, ip, sizeof(offset)))
@@ -907,10 +908,9 @@ static long gpio_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		hwgpio = gpio_chip_hwgpio(desc);
 
-		if (!test_bit(hwgpio, cdev->watched_lines))
+		if (!test_and_clear_bit(hwgpio, cdev->watched_lines))
 			return -EBUSY;
 
-		clear_bit(hwgpio, cdev->watched_lines);
 		return 0;
 	}
 	return -EINVAL;
