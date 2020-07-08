@@ -7,13 +7,13 @@
 // Author: Shunli Wang <shunli.wang@mediatek.com>
 
 #include <linux/module.h>
+#include <linux/pinctrl/consumer.h>
+#include <sound/jack.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
-#include <sound/jack.h>
-#include <linux/pinctrl/consumer.h>
 
-#include "mt8183-afe-common.h"
 #include "../../codecs/ts3a227e.h"
+#include "mt8183-afe-common.h"
 
 enum PINCTRL_PIN_STATE {
 	PIN_STATE_DEFAULT = 0,
