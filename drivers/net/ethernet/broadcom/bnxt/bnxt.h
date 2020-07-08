@@ -1023,6 +1023,8 @@ struct bnxt_vnic_info {
 #define BNXT_RSS_TABLE_MAX_TBL_P5	8
 #define BNXT_MAX_RSS_TABLE_SIZE_P5				\
 	(BNXT_RSS_TABLE_SIZE_P5 * BNXT_RSS_TABLE_MAX_TBL_P5)
+#define BNXT_MAX_RSS_TABLE_ENTRIES_P5				\
+	(BNXT_RSS_TABLE_ENTRIES_P5 * BNXT_RSS_TABLE_MAX_TBL_P5)
 
 	u32		rx_mask;
 
@@ -1655,6 +1657,8 @@ struct bnxt {
 	struct bnxt_ring_grp_info	*grp_info;
 	struct bnxt_vnic_info	*vnic_info;
 	int			nr_vnics;
+	u16			*rss_indir_tbl;
+	u16			rss_indir_tbl_entries;
 	u32			rss_hash_cfg;
 
 	u16			max_mtu;
