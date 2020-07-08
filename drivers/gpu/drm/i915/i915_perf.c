@@ -1772,7 +1772,7 @@ static int alloc_noa_wait(struct i915_perf_stream *stream)
 	GEM_BUG_ON(cs - batch > PAGE_SIZE / sizeof(*batch));
 
 	i915_gem_object_flush_map(bo);
-	i915_gem_object_unpin_map(bo);
+	__i915_gem_object_release_map(bo);
 
 	stream->noa_wait = vma;
 	return 0;
@@ -1867,7 +1867,7 @@ alloc_oa_config_buffer(struct i915_perf_stream *stream,
 	*cs++ = 0;
 
 	i915_gem_object_flush_map(obj);
-	i915_gem_object_unpin_map(obj);
+	__i915_gem_object_release_map(obj);
 
 	oa_bo->vma = i915_vma_instance(obj,
 				       &stream->engine->gt->ggtt->vm,

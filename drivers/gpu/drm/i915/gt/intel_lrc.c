@@ -3937,7 +3937,7 @@ static int intel_init_workaround_bb(struct intel_engine_cs *engine)
 	GEM_BUG_ON(batch_ptr - batch > CTX_WA_BB_OBJ_SIZE);
 
 	__i915_gem_object_flush_map(wa_ctx->vma->obj, 0, batch_ptr - batch);
-	i915_gem_object_unpin_map(wa_ctx->vma->obj);
+	__i915_gem_object_release_map(wa_ctx->vma->obj);
 	if (ret)
 		lrc_destroy_wa_ctx(engine);
 

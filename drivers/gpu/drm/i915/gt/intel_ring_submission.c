@@ -543,7 +543,7 @@ alloc_context_vma(struct intel_engine_cs *engine)
 			   vaddr, engine->context_size);
 
 		i915_gem_object_flush_map(obj);
-		i915_gem_object_unpin_map(obj);
+		__i915_gem_object_release_map(obj);
 	}
 
 	vma = i915_vma_instance(obj, &engine->gt->ggtt->vm, NULL);

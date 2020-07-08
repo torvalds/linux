@@ -150,7 +150,7 @@ static int render_state_setup(struct intel_renderstate *so,
 	ret = 0;
 out:
 	__i915_gem_object_flush_map(so->vma->obj, 0, i * sizeof(u32));
-	i915_gem_object_unpin_map(so->vma->obj);
+	__i915_gem_object_release_map(so->vma->obj);
 	return ret;
 }
 

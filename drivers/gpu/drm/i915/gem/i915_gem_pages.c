@@ -408,6 +408,21 @@ void __i915_gem_object_flush_map(struct drm_i915_gem_object *obj,
 	}
 }
 
+void __i915_gem_object_release_map(struct drm_i915_gem_object *obj)
+{
+	GEM_BUG_ON(!obj->mm.mapping);
+
+	/*
+	 * We allow removing the mapping from underneath pinned pages!
+	 *
+	 * Furthermore, since this is an unsafe operation reserved only
+	 * for construction time manipulation, we ignore locking prudence.
+	 */
+	unmap_object(obj, page_mask_bits(fetch_and_zero(&obj->mm.mapping)));
+
+	i915_gem_object_unpin_map(obj);
+}
+
 struct scatterlist *
 i915_gem_object_get_sg(struct drm_i915_gem_object *obj,
 		       unsigned int n,
