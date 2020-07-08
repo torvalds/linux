@@ -98,7 +98,7 @@ static int linehandle_validate_flags(u32 flags)
 	/* Only one bias flag can be set. */
 	if (((flags & GPIOHANDLE_REQUEST_BIAS_DISABLE) &&
 	     (flags & (GPIOHANDLE_REQUEST_BIAS_PULL_DOWN |
-			GPIOHANDLE_REQUEST_BIAS_PULL_UP))) ||
+		       GPIOHANDLE_REQUEST_BIAS_PULL_UP))) ||
 	    ((flags & GPIOHANDLE_REQUEST_BIAS_PULL_DOWN) &&
 	     (flags & GPIOHANDLE_REQUEST_BIAS_PULL_UP)))
 		return -EINVAL;
@@ -212,11 +212,11 @@ static long linehandle_ioctl(struct file *filep, unsigned int cmd,
 
 		/* Reuse the array setting function */
 		return gpiod_set_array_value_complex(false,
-					      true,
-					      lh->numdescs,
-					      lh->descs,
-					      NULL,
-					      vals);
+						     true,
+						     lh->numdescs,
+						     lh->descs,
+						     NULL,
+						     vals);
 	} else if (cmd == GPIOHANDLE_SET_CONFIG_IOCTL) {
 		return linehandle_set_config(lh, ip);
 	}
@@ -225,7 +225,7 @@ static long linehandle_ioctl(struct file *filep, unsigned int cmd,
 
 #ifdef CONFIG_COMPAT
 static long linehandle_ioctl_compat(struct file *filep, unsigned int cmd,
-			     unsigned long arg)
+				    unsigned long arg)
 {
 	return linehandle_ioctl(filep, cmd, (unsigned long)compat_ptr(arg));
 }
@@ -428,7 +428,7 @@ struct lineevent_state {
 	GPIOEVENT_REQUEST_FALLING_EDGE)
 
 static __poll_t lineevent_poll(struct file *filep,
-				   struct poll_table_struct *wait)
+			       struct poll_table_struct *wait)
 {
 	struct lineevent_state *le = filep->private_data;
 	__poll_t events = 0;
@@ -720,11 +720,11 @@ static int lineevent_create(struct gpio_device *gdev, void __user *ip)
 
 	/* Request a thread to read the events */
 	ret = request_threaded_irq(le->irq,
-			lineevent_irq_handler,
-			lineevent_irq_thread,
-			irqflags,
-			le->label,
-			le);
+				   lineevent_irq_handler,
+				   lineevent_irq_thread,
+				   irqflags,
+				   le->label,
+				   le);
 	if (ret)
 		goto out_free_desc;
 
@@ -1052,7 +1052,7 @@ static ssize_t lineinfo_watch_read(struct file *filep, char __user *buf,
 static int gpio_chrdev_open(struct inode *inode, struct file *filp)
 {
 	struct gpio_device *gdev = container_of(inode->i_cdev,
-					      struct gpio_device, chrdev);
+						struct gpio_device, chrdev);
 	struct gpio_chardev_data *priv;
 	int ret = -ENOMEM;
 
