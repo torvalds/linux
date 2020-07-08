@@ -158,8 +158,8 @@ static long linehandle_set_config(struct linehandle_state *lh,
 				return ret;
 		}
 
-		atomic_notifier_call_chain(&desc->gdev->notifier,
-					   GPIOLINE_CHANGED_CONFIG, desc);
+		blocking_notifier_call_chain(&desc->gdev->notifier,
+					     GPIOLINE_CHANGED_CONFIG, desc);
 	}
 	return 0;
 }
@@ -325,8 +325,8 @@ static int linehandle_create(struct gpio_device *gdev, void __user *ip)
 				goto out_free_descs;
 		}
 
-		atomic_notifier_call_chain(&desc->gdev->notifier,
-					   GPIOLINE_CHANGED_REQUESTED, desc);
+		blocking_notifier_call_chain(&desc->gdev->notifier,
+					     GPIOLINE_CHANGED_REQUESTED, desc);
 
 		dev_dbg(&gdev->dev, "registered chardev handle for line %d\n",
 			offset);
@@ -674,8 +674,8 @@ static int lineevent_create(struct gpio_device *gdev, void __user *ip)
 	if (ret)
 		goto out_free_desc;
 
-	atomic_notifier_call_chain(&desc->gdev->notifier,
-				   GPIOLINE_CHANGED_REQUESTED, desc);
+	blocking_notifier_call_chain(&desc->gdev->notifier,
+				     GPIOLINE_CHANGED_REQUESTED, desc);
 
 	le->irq = gpiod_to_irq(desc);
 	if (le->irq <= 0) {
@@ -1049,8 +1049,8 @@ static int gpio_chrdev_open(struct inode *inode, struct file *file)
 	priv->gdev = gdev;
 
 	priv->lineinfo_changed_nb.notifier_call = lineinfo_changed_notify;
-	ret = atomic_notifier_chain_register(&gdev->notifier,
-					     &priv->lineinfo_changed_nb);
+	ret = blocking_notifier_chain_register(&gdev->notifier,
+					       &priv->lineinfo_changed_nb);
 	if (ret)
 		goto out_free_bitmap;
 
@@ -1064,8 +1064,8 @@ static int gpio_chrdev_open(struct inode *inode, struct file *file)
 	return ret;
 
 out_unregister_notifier:
-	atomic_notifier_chain_unregister(&gdev->notifier,
-					 &priv->lineinfo_changed_nb);
+	blocking_notifier_chain_unregister(&gdev->notifier,
+					   &priv->lineinfo_changed_nb);
 out_free_bitmap:
 	bitmap_free(priv->watched_lines);
 out_free_priv:
@@ -1085,8 +1085,8 @@ static int gpio_chrdev_release(struct inode *inode, struct file *file)
 	struct gpio_device *gdev = priv->gdev;
 
 	bitmap_free(priv->watched_lines);
-	atomic_notifier_chain_unregister(&gdev->notifier,
-					 &priv->lineinfo_changed_nb);
+	blocking_notifier_chain_unregister(&gdev->notifier,
+					   &priv->lineinfo_changed_nb);
 	put_device(&gdev->dev);
 	kfree(priv);
 

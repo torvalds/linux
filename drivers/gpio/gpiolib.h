@@ -56,7 +56,7 @@ struct gpio_device {
 	const char		*label;
 	void			*data;
 	struct list_head        list;
-	struct atomic_notifier_head notifier;
+	struct blocking_notifier_head notifier;
 
 #ifdef CONFIG_PINCTRL
 	/*
