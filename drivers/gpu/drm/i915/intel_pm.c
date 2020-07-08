@@ -94,7 +94,10 @@ static void gen9_init_clock_gating(struct drm_i915_private *dev_priv)
 	I915_WRITE(GEN8_CHICKEN_DCPR_1,
 		   I915_READ(GEN8_CHICKEN_DCPR_1) | MASK_WAKEMEM);
 
-	/* WaFbcWakeMemOn:skl,bxt,kbl,glk,cfl */
+	/*
+	 * WaFbcWakeMemOn:skl,bxt,kbl,glk,cfl
+	 * Display WA #0859: skl,bxt,kbl,glk,cfl
+	 */
 	I915_WRITE(DISP_ARB_CTL, I915_READ(DISP_ARB_CTL) |
 		   DISP_FBC_MEMORY_WAKE);
 
@@ -135,11 +138,17 @@ static void bxt_init_clock_gating(struct drm_i915_private *dev_priv)
 	 */
 	I915_WRITE(RM_TIMEOUT, MMIO_TIMEOUT_US(950));
 
-	/* WaFbcTurnOffFbcWatermark:bxt */
+	/*
+	 * WaFbcTurnOffFbcWatermark:bxt
+	 * Display WA #0562: bxt
+	 */
 	I915_WRITE(DISP_ARB_CTL, I915_READ(DISP_ARB_CTL) |
 		   DISP_FBC_WM_DIS);
 
-	/* WaFbcHighMemBwCorruptionAvoidance:bxt */
+	/*
+	 * WaFbcHighMemBwCorruptionAvoidance:bxt
+	 * Display WA #0883: bxt
+	 */
 	I915_WRITE(ILK_DPFC_CHICKEN, I915_READ(ILK_DPFC_CHICKEN) |
 		   ILK_DPFC_DISABLE_DUMMY0);
 }
@@ -7165,7 +7174,10 @@ static void cnl_init_clock_gating(struct drm_i915_private *dev_priv)
 	I915_WRITE(GEN8_CHICKEN_DCPR_1,
 		   I915_READ(GEN8_CHICKEN_DCPR_1) | MASK_WAKEMEM);
 
-	/* WaFbcWakeMemOn:cnl */
+	/*
+	 * WaFbcWakeMemOn:cnl
+	 * Display WA #0859: cnl
+	 */
 	I915_WRITE(DISP_ARB_CTL, I915_READ(DISP_ARB_CTL) |
 		   DISP_FBC_MEMORY_WAKE);
 
@@ -7191,11 +7203,17 @@ static void cfl_init_clock_gating(struct drm_i915_private *dev_priv)
 	cnp_init_clock_gating(dev_priv);
 	gen9_init_clock_gating(dev_priv);
 
-	/* WaFbcTurnOffFbcWatermark:cfl */
+	/*
+	 * WaFbcTurnOffFbcWatermark:cfl
+	 * Display WA #0562: cfl
+	 */
 	I915_WRITE(DISP_ARB_CTL, I915_READ(DISP_ARB_CTL) |
 		   DISP_FBC_WM_DIS);
 
-	/* WaFbcNukeOnHostModify:cfl */
+	/*
+	 * WaFbcNukeOnHostModify:cfl
+	 * Display WA #0873: cfl
+	 */
 	I915_WRITE(ILK_DPFC_CHICKEN, I915_READ(ILK_DPFC_CHICKEN) |
 		   ILK_DPFC_NUKE_ON_ANY_MODIFICATION);
 }
@@ -7214,11 +7232,17 @@ static void kbl_init_clock_gating(struct drm_i915_private *dev_priv)
 		I915_WRITE(GEN6_UCGCTL1, I915_READ(GEN6_UCGCTL1) |
 			   GEN6_GAMUNIT_CLOCK_GATE_DISABLE);
 
-	/* WaFbcTurnOffFbcWatermark:kbl */
+	/*
+	 * WaFbcTurnOffFbcWatermark:kbl
+	 * Display WA #0562: kbl
+	 */
 	I915_WRITE(DISP_ARB_CTL, I915_READ(DISP_ARB_CTL) |
 		   DISP_FBC_WM_DIS);
 
-	/* WaFbcNukeOnHostModify:kbl */
+	/*
+	 * WaFbcNukeOnHostModify:kbl
+	 * Display WA #0873: kbl
+	 */
 	I915_WRITE(ILK_DPFC_CHICKEN, I915_READ(ILK_DPFC_CHICKEN) |
 		   ILK_DPFC_NUKE_ON_ANY_MODIFICATION);
 }
@@ -7231,15 +7255,24 @@ static void skl_init_clock_gating(struct drm_i915_private *dev_priv)
 	I915_WRITE(FBC_LLC_READ_CTRL, I915_READ(FBC_LLC_READ_CTRL) |
 		   FBC_LLC_FULLY_OPEN);
 
-	/* WaFbcTurnOffFbcWatermark:skl */
+	/*
+	 * WaFbcTurnOffFbcWatermark:skl
+	 * Display WA #0562: skl
+	 */
 	I915_WRITE(DISP_ARB_CTL, I915_READ(DISP_ARB_CTL) |
 		   DISP_FBC_WM_DIS);
 
-	/* WaFbcNukeOnHostModify:skl */
+	/*
+	 * WaFbcNukeOnHostModify:skl
+	 * Display WA #0873: skl
+	 */
 	I915_WRITE(ILK_DPFC_CHICKEN, I915_READ(ILK_DPFC_CHICKEN) |
 		   ILK_DPFC_NUKE_ON_ANY_MODIFICATION);
 
-	/* WaFbcHighMemBwCorruptionAvoidance:skl */
+	/*
+	 * WaFbcHighMemBwCorruptionAvoidance:skl
+	 * Display WA #0883: skl
+	 */
 	I915_WRITE(ILK_DPFC_CHICKEN, I915_READ(ILK_DPFC_CHICKEN) |
 		   ILK_DPFC_DISABLE_DUMMY0);
 }
