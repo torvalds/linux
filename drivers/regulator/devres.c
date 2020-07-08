@@ -173,6 +173,7 @@ static void devm_rdev_release(struct device *dev, void *res)
 
 /**
  * devm_regulator_register - Resource managed regulator_register()
+ * @dev:  device to supply
  * @regulator_desc: regulator to register
  * @config: runtime configuration for regulator
  *
@@ -216,7 +217,8 @@ static int devm_rdev_match(struct device *dev, void *res, void *data)
 
 /**
  * devm_regulator_unregister - Resource managed regulator_unregister()
- * @regulator: regulator to free
+ * @dev:  device to supply
+ * @rdev: regulator to free
  *
  * Unregister a regulator registered with devm_regulator_register().
  * Normally this function will not need to be called and the resource
