@@ -27,10 +27,6 @@
 
 #include "sunrpc.h"
 
-#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
-#define RPCDBG_FACILITY		RPCDBG_SCHED
-#endif
-
 #define CREATE_TRACE_POINTS
 #include <trace/events/sunrpc.h>
 
@@ -1065,9 +1061,6 @@ static void rpc_init_task(struct rpc_task *task, const struct rpc_task_setup *ta
 		task->tk_action = rpc_prepare_task;
 
 	rpc_init_task_statistics(task);
-
-	dprintk("RPC:       new task initialized, procpid %u\n",
-				task_pid_nr(current));
 }
 
 static struct rpc_task *
@@ -1091,7 +1084,6 @@ struct rpc_task *rpc_new_task(const struct rpc_task_setup *setup_data)
 
 	rpc_init_task(task, setup_data);
 	task->tk_flags |= flags;
-	dprintk("RPC:       allocated task %p\n", task);
 	return task;
 }
 
@@ -1216,7 +1208,6 @@ static int rpciod_start(void)
 	/*
 	 * Create the rpciod thread and wait for it to start.
 	 */
-	dprintk("RPC:       creating workqueue rpciod\n");
 	wq = alloc_workqueue("rpciod", WQ_MEM_RECLAIM | WQ_UNBOUND, 0);
 	if (!wq)
 		goto out_failed;
@@ -1241,7 +1232,6 @@ static void rpciod_stop(void)
 
 	if (rpciod_workqueue == NULL)
 		return;
-	dprintk("RPC:       destroying workqueue rpciod\n");
 
 	wq = rpciod_workqueue;
 	rpciod_workqueue = NULL;
