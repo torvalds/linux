@@ -508,6 +508,9 @@ struct phy_tdr_config;
 
 /**
  * struct ethtool_phy_ops - Optional PHY device options
+ * @get_sset_count: Get number of strings that @get_strings will write.
+ * @get_strings: Return a set of strings that describe the requested objects
+ * @get_stats: Return extended statistics about the PHY device.
  * @start_cable_test - Start a cable test
  * @start_cable_test_tdr - Start a Time Domain Reflectometry cable test
  *
@@ -515,6 +518,10 @@ struct phy_tdr_config;
  * and callers must take this into account. Callers must hold the RTNL lock.
  */
 struct ethtool_phy_ops {
+	int (*get_sset_count)(struct phy_device *dev);
+	int (*get_strings)(struct phy_device *dev, u8 *data);
+	int (*get_stats)(struct phy_device *dev,
+			 struct ethtool_stats *stats, u64 *data);
 	int (*start_cable_test)(struct phy_device *phydev,
 				struct netlink_ext_ack *extack);
 	int (*start_cable_test_tdr)(struct phy_device *phydev,
