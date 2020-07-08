@@ -24,7 +24,7 @@ description: |
   conversions.  The DP83869HM can also support Bridge Conversion from RGMII to
   SGMII and SGMII to RGMII.
 
-  Specifications about the charger can be found at:
+  Specifications about the Ethernet PHY can be found at:
     http://www.ti.com/lit/ds/symlink/dp83869hm.pdf
 
 properties:
