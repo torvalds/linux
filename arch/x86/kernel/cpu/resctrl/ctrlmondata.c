@@ -76,12 +76,14 @@ int parse_bw(struct rdt_parse_data *data, struct rdt_resource *r,
 }
 
 /*
- * Check whether a cache bit mask is valid. The SDM says:
+ * Check whether a cache bit mask is valid.
+ * For Intel the SDM says:
  *	Please note that all (and only) contiguous '1' combinations
  *	are allowed (e.g. FFFFH, 0FF0H, 003CH, etc.).
  * Additionally Haswell requires at least two bits set.
+ * AMD allows non-contiguous bitmasks.
  */
-bool cbm_validate_intel(char *buf, u32 *data, struct rdt_resource *r)
+static bool cbm_validate(char *buf, u32 *data, struct rdt_resource *r)
 {
 	unsigned long first_bit, zero_bit, val;
 	unsigned int cbm_len = r->cache.cbm_len;
@@ -93,7 +95,8 @@ bool cbm_validate_intel(char *buf, u32 *data, struct rdt_resource *r)
 		return false;
 	}
 
-	if (val == 0 || val > r->default_ctrl) {
+	if ((!r->cache.arch_has_empty_bitmaps && val == 0) ||
+	    val > r->default_ctrl) {
 		rdt_last_cmd_puts("Mask out of range\n");
 		return false;
 	}
@@ -101,7 +104,9 @@ bool cbm_validate_intel(char *buf, u32 *data, struct rdt_resource *r)
 	first_bit = find_first_bit(&val, cbm_len);
 	zero_bit = find_next_zero_bit(&val, cbm_len, first_bit);
 
-	if (find_next_bit(&val, cbm_len, zero_bit) < cbm_len) {
+	/* Are non-contiguous bitmaps allowed? */
+	if (!r->cache.arch_has_sparse_bitmaps &&
+	    (find_next_bit(&val, cbm_len, zero_bit) < cbm_len)) {
 		rdt_last_cmd_printf("The mask %lx has non-consecutive 1-bits\n", val);
 		return false;
 	}
@@ -109,30 +114,6 @@ bool cbm_validate_intel(char *buf, u32 *data, struct rdt_resource *r)
 	if ((zero_bit - first_bit) < r->cache.min_cbm_bits) {
 		rdt_last_cmd_printf("Need at least %d bits in the mask\n",
 				    r->cache.min_cbm_bits);
-		return false;
-	}
-
-	*data = val;
-	return true;
-}
-
-/*
- * Check whether a cache bit mask is valid. AMD allows non-contiguous
- * bitmasks
- */
-bool cbm_validate_amd(char *buf, u32 *data, struct rdt_resource *r)
-{
-	unsigned long val;
-	int ret;
-
-	ret = kstrtoul(buf, 16, &val);
-	if (ret) {
-		rdt_last_cmd_printf("Non-hex character in the mask %s\n", buf);
-		return false;
-	}
-
-	if (val > r->default_ctrl) {
-		rdt_last_cmd_puts("Mask out of range\n");
 		return false;
 	}
 
@@ -165,7 +146,7 @@ int parse_cbm(struct rdt_parse_data *data, struct rdt_resource *r,
 		return -EINVAL;
 	}
 
-	if (!r->cbm_validate(data->buf, &cbm_val, r))
+	if (!cbm_validate(data->buf, &cbm_val, r))
 		return -EINVAL;
 
 	if ((rdtgrp->mode == RDT_MODE_EXCLUSIVE ||
