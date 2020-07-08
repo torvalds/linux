@@ -1530,7 +1530,7 @@ static int intel_uncore_fw_domains_init(struct intel_uncore *uncore)
 
 	if (INTEL_GEN(i915) >= 11) {
 		/* we'll prune the domains of missing engines later */
-		intel_engine_mask_t emask = INTEL_INFO(i915)->engine_mask;
+		intel_engine_mask_t emask = INTEL_INFO(i915)->platform_engine_mask;
 		int i;
 
 		uncore->funcs.force_wake_get = fw_domains_get_with_fallback;

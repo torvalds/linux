@@ -347,7 +347,7 @@ static int gdrst_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 			gvt_dbg_mmio("vgpu%d: request GUC Reset\n", vgpu->id);
 			vgpu_vreg_t(vgpu, GUC_STATUS) |= GS_MIA_IN_RESET;
 		}
-		engine_mask &= INTEL_INFO(vgpu->gvt->gt->i915)->engine_mask;
+		engine_mask &= vgpu->gvt->gt->info.engine_mask;
 	}
 
 	/* vgpu_lock already hold by emulate mmio r/w */

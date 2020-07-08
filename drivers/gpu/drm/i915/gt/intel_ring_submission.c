@@ -649,7 +649,7 @@ static inline int mi_set_context(struct i915_request *rq,
 	struct drm_i915_private *i915 = engine->i915;
 	enum intel_engine_id id;
 	const int num_engines =
-		IS_HASWELL(i915) ? RUNTIME_INFO(i915)->num_engines - 1 : 0;
+		IS_HASWELL(i915) ? engine->gt->info.num_engines - 1 : 0;
 	bool force_restore = false;
 	int len;
 	u32 *cs;

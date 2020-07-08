@@ -106,7 +106,7 @@ static void __guc_ads_init(struct intel_guc *guc)
 
 	blob->system_info.vdbox_enable_mask = VDBOX_MASK(gt);
 	blob->system_info.vebox_enable_mask = VEBOX_MASK(gt);
-	blob->system_info.vdbox_sfc_support_mask = RUNTIME_INFO(dev_priv)->vdbox_sfc_access;
+	blob->system_info.vdbox_sfc_support_mask = gt->info.vdbox_sfc_access;
 
 	base = intel_guc_ggtt_offset(guc, guc->ads_vma);
 

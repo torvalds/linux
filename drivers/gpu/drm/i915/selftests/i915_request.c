@@ -1454,7 +1454,7 @@ out_flush:
 		idx++;
 	}
 	pr_info("Completed %lu waits for %lu fences across %d engines and %d cpus\n",
-		num_waits, num_fences, RUNTIME_INFO(i915)->num_engines, ncpus);
+		num_waits, num_fences, idx, ncpus);
 
 	ret = igt_live_test_end(&live) ?: ret;
 out_contexts:

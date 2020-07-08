@@ -370,7 +370,7 @@ static void __setup_engine_capabilities(struct intel_engine_cs *engine)
 		 * instances.
 		 */
 		if ((INTEL_GEN(i915) >= 11 &&
-		     RUNTIME_INFO(i915)->vdbox_sfc_access & engine->mask) ||
+		     engine->gt->info.vdbox_sfc_access & engine->mask) ||
 		    (INTEL_GEN(i915) >= 9 && engine->instance == 0))
 			engine->uabi_capabilities |=
 				I915_VIDEO_AND_ENHANCE_CLASS_CAPABILITY_SFC;
@@ -463,13 +463,15 @@ void intel_engines_free(struct intel_gt *gt)
 static intel_engine_mask_t init_engine_mask(struct intel_gt *gt)
 {
 	struct drm_i915_private *i915 = gt->i915;
-	struct intel_device_info *info = mkwrite_device_info(i915);
+	struct intel_gt_info *info = &gt->info;
 	struct intel_uncore *uncore = gt->uncore;
 	unsigned int logical_vdbox = 0;
 	unsigned int i;
 	u32 media_fuse;
 	u16 vdbox_mask;
 	u16 vebox_mask;
+
+	info->engine_mask = INTEL_INFO(i915)->platform_engine_mask;
 
 	if (INTEL_GEN(i915) < 11)
 		return info->engine_mask;
@@ -498,7 +500,7 @@ static intel_engine_mask_t init_engine_mask(struct intel_gt *gt)
 		 * In TGL each VDBOX has access to an SFC.
 		 */
 		if (INTEL_GEN(i915) >= 12 || logical_vdbox++ % 2 == 0)
-			RUNTIME_INFO(i915)->vdbox_sfc_access |= BIT(i);
+			gt->info.vdbox_sfc_access |= BIT(i);
 	}
 	drm_dbg(&i915->drm, "vdbox enable: %04x, instances: %04lx\n",
 		vdbox_mask, VDBOX_MASK(gt));
@@ -531,7 +533,6 @@ static intel_engine_mask_t init_engine_mask(struct intel_gt *gt)
 int intel_engines_init_mmio(struct intel_gt *gt)
 {
 	struct drm_i915_private *i915 = gt->i915;
-	struct intel_device_info *device_info = mkwrite_device_info(i915);
 	const unsigned int engine_mask = init_engine_mask(gt);
 	unsigned int mask = 0;
 	unsigned int i;
@@ -561,9 +562,9 @@ int intel_engines_init_mmio(struct intel_gt *gt)
 	 * engines.
 	 */
 	if (drm_WARN_ON(&i915->drm, mask != engine_mask))
-		device_info->engine_mask = mask;
+		gt->info.engine_mask = mask;
 
-	RUNTIME_INFO(i915)->num_engines = hweight32(mask);
+	gt->info.num_engines = hweight32(mask);
 
 	intel_gt_check_and_clear_faults(gt);
 

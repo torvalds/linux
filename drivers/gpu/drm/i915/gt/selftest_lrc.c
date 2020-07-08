@@ -963,7 +963,7 @@ slice_semaphore_queue(struct intel_engine_cs *outer,
 		goto out;
 
 	if (i915_request_wait(head, 0,
-			      2 * RUNTIME_INFO(outer->i915)->num_engines * (count + 2) * (count + 3)) < 0) {
+			      2 * outer->gt->info.num_engines * (count + 2) * (count + 3)) < 0) {
 		pr_err("Failed to slice along semaphore chain of length (%d, %d)!\n",
 		       count, n);
 		GEM_TRACE_DUMP();
@@ -3569,8 +3569,7 @@ static int smoke_crescendo(struct preempt_smoke *smoke, unsigned int flags)
 	}
 
 	pr_info("Submitted %lu crescendo:%x requests across %d engines and %d contexts\n",
-		count, flags,
-		RUNTIME_INFO(smoke->gt->i915)->num_engines, smoke->ncontext);
+		count, flags, smoke->gt->info.num_engines, smoke->ncontext);
 	return 0;
 }
 
@@ -3597,8 +3596,7 @@ static int smoke_random(struct preempt_smoke *smoke, unsigned int flags)
 	} while (count < smoke->ncontext && !__igt_timeout(end_time, NULL));
 
 	pr_info("Submitted %lu random:%x requests across %d engines and %d contexts\n",
-		count, flags,
-		RUNTIME_INFO(smoke->gt->i915)->num_engines, smoke->ncontext);
+		count, flags, smoke->gt->info.num_engines, smoke->ncontext);
 	return 0;
 }
 

@@ -342,7 +342,7 @@ static int gen6_reset_engines(struct intel_gt *gt,
 static int gen11_lock_sfc(struct intel_engine_cs *engine, u32 *hw_mask)
 {
 	struct intel_uncore *uncore = engine->uncore;
-	u8 vdbox_sfc_access = RUNTIME_INFO(engine->i915)->vdbox_sfc_access;
+	u8 vdbox_sfc_access = engine->gt->info.vdbox_sfc_access;
 	i915_reg_t sfc_forced_lock, sfc_forced_lock_ack;
 	u32 sfc_forced_lock_bit, sfc_forced_lock_ack_bit;
 	i915_reg_t sfc_usage;
@@ -417,7 +417,7 @@ static int gen11_lock_sfc(struct intel_engine_cs *engine, u32 *hw_mask)
 static void gen11_unlock_sfc(struct intel_engine_cs *engine)
 {
 	struct intel_uncore *uncore = engine->uncore;
-	u8 vdbox_sfc_access = RUNTIME_INFO(engine->i915)->vdbox_sfc_access;
+	u8 vdbox_sfc_access = engine->gt->info.vdbox_sfc_access;
 	i915_reg_t sfc_forced_lock;
 	u32 sfc_forced_lock_bit;
 
@@ -1246,7 +1246,7 @@ void intel_gt_handle_error(struct intel_gt *gt,
 	 */
 	wakeref = intel_runtime_pm_get(gt->uncore->rpm);
 
-	engine_mask &= INTEL_INFO(gt->i915)->engine_mask;
+	engine_mask &= gt->info.engine_mask;
 
 	if (flags & I915_ERROR_CAPTURE) {
 		i915_capture_error_state(gt->i915);

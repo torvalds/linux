@@ -1256,7 +1256,7 @@ static inline struct drm_i915_private *pdev_to_i915(struct pci_dev *pdev)
 
 /* Iterator over subset of engines selected by mask */
 #define for_each_engine_masked(engine__, gt__, mask__, tmp__) \
-	for ((tmp__) = (mask__) & INTEL_INFO((gt__)->i915)->engine_mask; \
+	for ((tmp__) = (mask__) & (gt__)->info.engine_mask; \
 	     (tmp__) ? \
 	     ((engine__) = (gt__)->engine[__mask_next_bit(tmp__)]), 1 : \
 	     0;)
@@ -1563,12 +1563,12 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 #define IS_GEN9_BC(dev_priv)	(IS_GEN(dev_priv, 9) && !IS_LP(dev_priv))
 
 #define __HAS_ENGINE(engine_mask, id) ((engine_mask) & BIT(id))
-#define HAS_ENGINE(gt, id) __HAS_ENGINE(INTEL_INFO((gt)->i915)->engine_mask, id)
+#define HAS_ENGINE(gt, id) __HAS_ENGINE((gt)->info.engine_mask, id)
 
 #define ENGINE_INSTANCES_MASK(gt, first, count) ({		\
 	unsigned int first__ = (first);					\
 	unsigned int count__ = (count);					\
-	(INTEL_INFO((gt)->i915)->engine_mask &				\
+	((gt)->info.engine_mask &						\
 	 GENMASK(first__ + count__ - 1, first__)) >> first__;		\
 })
 #define VDBOX_MASK(gt) \

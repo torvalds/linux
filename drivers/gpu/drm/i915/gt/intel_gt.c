@@ -642,3 +642,9 @@ void intel_gt_driver_late_release(struct intel_gt *gt)
 	intel_gt_fini_timelines(gt);
 	intel_engines_free(gt);
 }
+
+void intel_gt_info_print(const struct intel_gt_info *info,
+			 struct drm_printer *p)
+{
+	drm_printf(p, "available engines: %x\n", info->engine_mask);
+}

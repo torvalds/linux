@@ -1980,8 +1980,7 @@ static int eb_submit(struct i915_execbuffer *eb, struct i915_vma *batch)
 
 static int num_vcs_engines(const struct drm_i915_private *i915)
 {
-	return hweight64(INTEL_INFO(i915)->engine_mask &
-			 GENMASK_ULL(VCS0 + I915_MAX_VCS - 1, VCS0));
+	return hweight64(VDBOX_MASK(&i915->gt));
 }
 
 /*
