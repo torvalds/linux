@@ -101,7 +101,7 @@
 };
 
 &mdio0 {
-	ethphy0: ethphy@0 {
+	ethphy0: ethernet-phy@0 {
 		reg = <0>;
 	};
 };
@@ -112,7 +112,7 @@
 };
 
 &mdio1 {
-	ethphy1: ethphy@0 {
+	ethphy1: ethernet-phy@0 {
 		reg = <0>;
 	};
 };
