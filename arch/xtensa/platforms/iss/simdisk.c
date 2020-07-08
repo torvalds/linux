@@ -127,8 +127,6 @@ static int simdisk_open(struct block_device *bdev, fmode_t mode)
 	struct simdisk *dev = bdev->bd_disk->private_data;
 
 	spin_lock(&dev->lock);
-	if (!dev->users)
-		check_disk_change(bdev);
 	++dev->users;
 	spin_unlock(&dev->lock);
 	return 0;
