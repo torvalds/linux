@@ -228,17 +228,21 @@ static long linehandle_ioctl_compat(struct file *file, unsigned int cmd,
 }
 #endif
 
-static int linehandle_release(struct inode *inode, struct file *file)
+static void linehandle_free(struct linehandle_state *lh)
 {
-	struct linehandle_state *lh = file->private_data;
-	struct gpio_device *gdev = lh->gdev;
 	int i;
 
 	for (i = 0; i < lh->num_descs; i++)
-		gpiod_free(lh->descs[i]);
+		if (lh->descs[i])
+			gpiod_free(lh->descs[i]);
 	kfree(lh->label);
+	put_device(&lh->gdev->dev);
 	kfree(lh);
-	put_device(&gdev->dev);
+}
+
+static int linehandle_release(struct inode *inode, struct file *file)
+{
+	linehandle_free(file->private_data);
 	return 0;
 }
 
@@ -257,7 +261,7 @@ static int linehandle_create(struct gpio_device *gdev, void __user *ip)
 	struct gpiohandle_request handlereq;
 	struct linehandle_state *lh;
 	struct file *file;
-	int fd, i, count = 0, ret;
+	int fd, i, ret;
 	u32 lflags;
 
 	if (copy_from_user(&handlereq, ip, sizeof(handlereq)))
@@ -288,6 +292,8 @@ static int linehandle_create(struct gpio_device *gdev, void __user *ip)
 		}
 	}
 
+	lh->num_descs = handlereq.lines;
+
 	/* Request each GPIO */
 	for (i = 0; i < handlereq.lines; i++) {
 		u32 offset = handlereq.lineoffsets[i];
@@ -295,19 +301,18 @@ static int linehandle_create(struct gpio_device *gdev, void __user *ip)
 
 		if (IS_ERR(desc)) {
 			ret = PTR_ERR(desc);
-			goto out_free_descs;
+			goto out_free_lh;
 		}
 
 		ret = gpiod_request(desc, lh->label);
 		if (ret)
-			goto out_free_descs;
+			goto out_free_lh;
 		lh->descs[i] = desc;
-		count = i + 1;
 		linehandle_flags_to_desc_flags(handlereq.flags, &desc->flags);
 
 		ret = gpiod_set_transitory(desc, false);
 		if (ret < 0)
-			goto out_free_descs;
+			goto out_free_lh;
 
 		/*
 		 * Lines have to be requested explicitly for input
@@ -318,11 +323,11 @@ static int linehandle_create(struct gpio_device *gdev, void __user *ip)
 
 			ret = gpiod_direction_output(desc, val);
 			if (ret)
-				goto out_free_descs;
+				goto out_free_lh;
 		} else if (lflags & GPIOHANDLE_REQUEST_INPUT) {
 			ret = gpiod_direction_input(desc);
 			if (ret)
-				goto out_free_descs;
+				goto out_free_lh;
 		}
 
 		blocking_notifier_call_chain(&desc->gdev->notifier,
@@ -331,12 +336,11 @@ static int linehandle_create(struct gpio_device *gdev, void __user *ip)
 		dev_dbg(&gdev->dev, "registered chardev handle for line %d\n",
 			offset);
 	}
-	lh->num_descs = handlereq.lines;
 
 	fd = get_unused_fd_flags(O_RDONLY | O_CLOEXEC);
 	if (fd < 0) {
 		ret = fd;
-		goto out_free_descs;
+		goto out_free_lh;
 	}
 
 	file = anon_inode_getfile("gpio-linehandle",
@@ -368,13 +372,8 @@ static int linehandle_create(struct gpio_device *gdev, void __user *ip)
 
 out_put_unused_fd:
 	put_unused_fd(fd);
-out_free_descs:
-	for (i = 0; i < count; i++)
-		gpiod_free(lh->descs[i]);
-	kfree(lh->label);
 out_free_lh:
-	kfree(lh);
-	put_device(&gdev->dev);
+	linehandle_free(lh);
 	return ret;
 }
 
