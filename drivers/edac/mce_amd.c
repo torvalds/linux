@@ -210,6 +210,11 @@ static const char * const smca_if_mce_desc[] = {
 	"L2 BTB Multi-Match Error",
 	"L2 Cache Response Poison Error",
 	"System Read Data Error",
+	"Hardware Assertion Error",
+	"L1-TLB Multi-Hit",
+	"L2-TLB Multi-Hit",
+	"BSR Parity Error",
+	"CT MCE",
 };
 
 static const char * const smca_l2_mce_desc[] = {
@@ -228,7 +233,8 @@ static const char * const smca_de_mce_desc[] = {
 	"Fetch address FIFO parity error",
 	"Patch RAM data parity error",
 	"Patch RAM sequencer parity error",
-	"Micro-op buffer parity error"
+	"Micro-op buffer parity error",
+	"Hardware Assertion MCA Error",
 };
 
 static const char * const smca_ex_mce_desc[] = {
@@ -244,6 +250,8 @@ static const char * const smca_ex_mce_desc[] = {
 	"Scheduling queue parity error",
 	"Branch buffer queue parity error",
 	"Hardware Assertion error",
+	"Spec Map parity error",
+	"Retire Map parity error",
 };
 
 static const char * const smca_fp_mce_desc[] = {
@@ -360,6 +368,7 @@ static const char * const smca_smu2_mce_desc[] = {
 	"Instruction Tag Cache Bank A ECC or parity error",
 	"Instruction Tag Cache Bank B ECC or parity error",
 	"System Hub Read Buffer ECC or parity error",
+	"PHY RAM ECC error",
 };
 
 static const char * const smca_mp5_mce_desc[] = {
