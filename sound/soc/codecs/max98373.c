@@ -404,6 +404,20 @@ const struct snd_soc_component_driver soc_codec_dev_max98373 = {
 };
 EXPORT_SYMBOL_GPL(soc_codec_dev_max98373);
 
+const struct snd_soc_component_driver soc_codec_dev_max98373_sdw = {
+	.probe			= NULL,
+	.controls		= max98373_snd_controls,
+	.num_controls		= ARRAY_SIZE(max98373_snd_controls),
+	.dapm_widgets		= max98373_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(max98373_dapm_widgets),
+	.dapm_routes		= max98373_audio_map,
+	.num_dapm_routes	= ARRAY_SIZE(max98373_audio_map),
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
+};
+EXPORT_SYMBOL_GPL(soc_codec_dev_max98373_sdw);
+
 void max98373_slot_config(struct device *dev,
 			  struct max98373_priv *max98373)
 {
