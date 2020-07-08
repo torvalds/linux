@@ -171,7 +171,7 @@ static void load_render_mocs(const struct intel_engine_cs *engine)
 		return;
 
 	for (ring_id = 0; ring_id < cnt; ring_id++) {
-		if (!HAS_ENGINE(engine->i915, ring_id))
+		if (!HAS_ENGINE(engine->gt, ring_id))
 			continue;
 
 		offset.reg = regs[ring_id];

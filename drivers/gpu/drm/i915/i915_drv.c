@@ -533,7 +533,7 @@ static int i915_driver_mmio_probe(struct drm_i915_private *dev_priv)
 
 	intel_device_info_init_mmio(dev_priv);
 
-	intel_uncore_prune_mmio_domains(&dev_priv->uncore);
+	intel_uncore_prune_engine_fw_domains(&dev_priv->uncore, &dev_priv->gt);
 
 	intel_uc_init_mmio(&dev_priv->gt.uc);
 
