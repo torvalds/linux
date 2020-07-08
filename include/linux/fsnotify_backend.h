@@ -220,12 +220,11 @@ enum fsnotify_data_type {
 	FSNOTIFY_EVENT_INODE,
 };
 
-static inline const struct inode *fsnotify_data_inode(const void *data,
-						      int data_type)
+static inline struct inode *fsnotify_data_inode(const void *data, int data_type)
 {
 	switch (data_type) {
 	case FSNOTIFY_EVENT_INODE:
-		return data;
+		return (struct inode *)data;
 	case FSNOTIFY_EVENT_PATH:
 		return d_inode(((const struct path *)data)->dentry);
 	default:
