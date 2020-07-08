@@ -347,7 +347,7 @@ struct usb3phy_reg {
 };
 
 /**
- * struct rockchip_usb3phy_port_cfg: usb3-phy port configuration.
+ * struct rockchip_usb3phy_port_cfg - usb3-phy port configuration.
  * @reg: the base address for usb3-phy config.
  * @typec_conn_dir: the register of type-c connector direction.
  * @usb3tousb2_en: the register of type-c force usb2 to usb2 enable.
