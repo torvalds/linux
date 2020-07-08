@@ -1519,7 +1519,8 @@ static void io_dismantle_req(struct io_kiocb *req)
 	if (req->flags & REQ_F_NEED_CLEANUP)
 		io_cleanup_req(req);
 
-	kfree(req->io);
+	if (req->io)
+		kfree(req->io);
 	if (req->file)
 		io_put_file(req, req->file, (req->flags & REQ_F_FIXED_FILE));
 	__io_put_req_task(req);
