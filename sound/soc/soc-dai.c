@@ -391,6 +391,44 @@ bool snd_soc_dai_stream_valid(struct snd_soc_dai *dai, int dir)
 	return stream->channels_min;
 }
 
+/*
+ * snd_soc_dai_link_set_capabilities() - set dai_link properties based on its DAIs
+ */
+void snd_soc_dai_link_set_capabilities(struct snd_soc_dai_link *dai_link)
+{
+	struct snd_soc_dai_link_component *cpu;
+	struct snd_soc_dai_link_component *codec;
+	struct snd_soc_dai *dai;
+	bool supported[SNDRV_PCM_STREAM_LAST + 1];
+	int direction;
+	int i;
+
+	for_each_pcm_streams(direction) {
+		supported[direction] = true;
+
+		for_each_link_cpus(dai_link, i, cpu) {
+			dai = snd_soc_find_dai(cpu);
+			if (!dai || !snd_soc_dai_stream_valid(dai, direction)) {
+				supported[direction] = false;
+				break;
+			}
+		}
+		if (!supported[direction])
+			continue;
+		for_each_link_codecs(dai_link, i, codec) {
+			dai = snd_soc_find_dai(codec);
+			if (!dai || !snd_soc_dai_stream_valid(dai, direction)) {
+				supported[direction] = false;
+				break;
+			}
+		}
+	}
+
+	dai_link->dpcm_playback = supported[SNDRV_PCM_STREAM_PLAYBACK];
+	dai_link->dpcm_capture  = supported[SNDRV_PCM_STREAM_CAPTURE];
+}
+EXPORT_SYMBOL_GPL(snd_soc_dai_link_set_capabilities);
+
 void snd_soc_dai_action(struct snd_soc_dai *dai,
 			int stream, int action)
 {
