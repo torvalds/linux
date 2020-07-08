@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: GPL-2.0
-// Copyright (c) 2017, Maxim Integrated
+/* SPDX-License-Identifier: GPL-2.0-only */
+/* Copyright (c) 2017 Maxim Integrated */
 
 #ifndef _MAX98373_H
 #define _MAX98373_H
@@ -213,4 +213,10 @@ struct max98373_priv {
 	unsigned int ch_size;
 	bool tdm_mode;
 };
+
+extern const struct snd_soc_component_driver soc_codec_dev_max98373;
+
+void max98373_reset(struct max98373_priv *max98373, struct device *dev);
+void max98373_slot_config(struct device *dev,
+			  struct max98373_priv *max98373);
 #endif

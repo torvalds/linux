@@ -115,7 +115,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_MAX98925
 	imply SND_SOC_MAX98926
 	imply SND_SOC_MAX98927
-	imply SND_SOC_MAX98373
+	imply SND_SOC_MAX98373_I2C
 	imply SND_SOC_MAX98390
 	imply SND_SOC_MAX9850
 	imply SND_SOC_MAX9860
@@ -868,8 +868,12 @@ config SND_SOC_MAX98927
 	depends on I2C
 
 config SND_SOC_MAX98373
+	tristate
+
+config SND_SOC_MAX98373_I2C
 	tristate "Maxim Integrated MAX98373 Speaker Amplifier"
 	depends on I2C
+	select SND_SOC_MAX98373
 
 config SND_SOC_MAX98390
 	tristate "Maxim Integrated MAX98390 Speaker Amplifier"
