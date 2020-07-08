@@ -840,11 +840,6 @@ static void rpcb_enc_mapping(struct rpc_rqst *req, struct xdr_stream *xdr,
 	const struct rpcbind_args *rpcb = data;
 	__be32 *p;
 
-	dprintk("RPC: %5u encoding PMAP_%s call (%u, %u, %d, %u)\n",
-			req->rq_task->tk_pid,
-			req->rq_task->tk_msg.rpc_proc->p_name,
-			rpcb->r_prog, rpcb->r_vers, rpcb->r_prot, rpcb->r_port);
-
 	p = xdr_reserve_space(xdr, RPCB_mappingargs_sz << 2);
 	*p++ = cpu_to_be32(rpcb->r_prog);
 	*p++ = cpu_to_be32(rpcb->r_vers);
@@ -866,8 +861,6 @@ static int rpcb_dec_getport(struct rpc_rqst *req, struct xdr_stream *xdr,
 		return -EIO;
 
 	port = be32_to_cpup(p);
-	dprintk("RPC: %5u PMAP_%s result: %lu\n", req->rq_task->tk_pid,
-			req->rq_task->tk_msg.rpc_proc->p_name, port);
 	if (unlikely(port > USHRT_MAX))
 		return -EIO;
 
@@ -888,11 +881,6 @@ static int rpcb_dec_set(struct rpc_rqst *req, struct xdr_stream *xdr,
 	*boolp = 0;
 	if (*p != xdr_zero)
 		*boolp = 1;
-
-	dprintk("RPC: %5u RPCB_%s call %s\n",
-			req->rq_task->tk_pid,
-			req->rq_task->tk_msg.rpc_proc->p_name,
-			(*boolp ? "succeeded" : "failed"));
 	return 0;
 }
 
@@ -916,12 +904,6 @@ static void rpcb_enc_getaddr(struct rpc_rqst *req, struct xdr_stream *xdr,
 {
 	const struct rpcbind_args *rpcb = data;
 	__be32 *p;
-
-	dprintk("RPC: %5u encoding RPCB_%s call (%u, %u, '%s', '%s')\n",
-			req->rq_task->tk_pid,
-			req->rq_task->tk_msg.rpc_proc->p_name,
-			rpcb->r_prog, rpcb->r_vers,
-			rpcb->r_netid, rpcb->r_addr);
 
 	p = xdr_reserve_space(xdr, (RPCB_program_sz + RPCB_version_sz) << 2);
 	*p++ = cpu_to_be32(rpcb->r_prog);
@@ -952,11 +934,8 @@ static int rpcb_dec_getaddr(struct rpc_rqst *req, struct xdr_stream *xdr,
 	 * If the returned universal address is a null string,
 	 * the requested RPC service was not registered.
 	 */
-	if (len == 0) {
-		dprintk("RPC: %5u RPCB reply: program not registered\n",
-				req->rq_task->tk_pid);
+	if (len == 0)
 		return 0;
-	}
 
 	if (unlikely(len > RPCBIND_MAXUADDRLEN))
 		goto out_fail;
@@ -964,8 +943,6 @@ static int rpcb_dec_getaddr(struct rpc_rqst *req, struct xdr_stream *xdr,
 	p = xdr_inline_decode(xdr, len);
 	if (unlikely(p == NULL))
 		goto out_fail;
-	dprintk("RPC: %5u RPCB_%s reply: %*pE\n", req->rq_task->tk_pid,
-			req->rq_task->tk_msg.rpc_proc->p_name, len, (char *)p);
 
 	if (rpc_uaddr2sockaddr(req->rq_xprt->xprt_net, (char *)p, len,
 				sap, sizeof(address)) == 0)
@@ -975,9 +952,6 @@ static int rpcb_dec_getaddr(struct rpc_rqst *req, struct xdr_stream *xdr,
 	return 0;
 
 out_fail:
-	dprintk("RPC: %5u malformed RPCB_%s reply\n",
-			req->rq_task->tk_pid,
-			req->rq_task->tk_msg.rpc_proc->p_name);
 	return -EIO;
 }
 
