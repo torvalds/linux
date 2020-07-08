@@ -1131,8 +1131,6 @@ void xprt_complete_rqst(struct rpc_task *task, int copied)
 	struct rpc_rqst *req = task->tk_rqstp;
 	struct rpc_xprt *xprt = req->rq_xprt;
 
-	trace_xprt_complete_rqst(xprt, req->rq_xid, copied);
-
 	xprt->stat.recvs++;
 
 	req->rq_private_buf.len = copied;

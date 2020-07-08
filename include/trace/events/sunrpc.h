@@ -969,7 +969,6 @@ DECLARE_EVENT_CLASS(rpc_xprt_event,
 
 DEFINE_RPC_XPRT_EVENT(timer);
 DEFINE_RPC_XPRT_EVENT(lookup_rqst);
-DEFINE_RPC_XPRT_EVENT(complete_rqst);
 
 TRACE_EVENT(xprt_transmit,
 	TP_PROTO(
