@@ -218,10 +218,6 @@ static void rpcb_set_local(struct net *net, struct rpc_clnt *clnt,
 	sn->rpcb_is_af_local = is_af_local ? 1 : 0;
 	smp_wmb();
 	sn->rpcb_users = 1;
-	dprintk("RPC:       created new rpcb local clients (rpcb_local_clnt: "
-		"%p, rpcb_local_clnt4: %p) for net %x%s\n",
-		sn->rpcb_local_clnt, sn->rpcb_local_clnt4,
-		net->ns.inum, (net == &init_net) ? " (init_net)" : "");
 }
 
 /*
@@ -263,19 +259,13 @@ static int rpcb_create_local_unix(struct net *net)
 	 */
 	clnt = rpc_create(&args);
 	if (IS_ERR(clnt)) {
-		dprintk("RPC:       failed to create AF_LOCAL rpcbind "
-				"client (errno %ld).\n", PTR_ERR(clnt));
 		result = PTR_ERR(clnt);
 		goto out;
 	}
 
 	clnt4 = rpc_bind_new_program(clnt, &rpcb_program, RPCBVERS_4);
-	if (IS_ERR(clnt4)) {
-		dprintk("RPC:       failed to bind second program to "
-				"rpcbind v4 client (errno %ld).\n",
-				PTR_ERR(clnt4));
+	if (IS_ERR(clnt4))
 		clnt4 = NULL;
-	}
 
 	rpcb_set_local(net, clnt, clnt4, true);
 
@@ -311,8 +301,6 @@ static int rpcb_create_local_net(struct net *net)
 
 	clnt = rpc_create(&args);
 	if (IS_ERR(clnt)) {
-		dprintk("RPC:       failed to create local rpcbind "
-				"client (errno %ld).\n", PTR_ERR(clnt));
 		result = PTR_ERR(clnt);
 		goto out;
 	}
@@ -323,12 +311,8 @@ static int rpcb_create_local_net(struct net *net)
 	 * v4 upcalls.
 	 */
 	clnt4 = rpc_bind_new_program(clnt, &rpcb_program, RPCBVERS_4);
-	if (IS_ERR(clnt4)) {
-		dprintk("RPC:       failed to bind second program to "
-				"rpcbind v4 client (errno %ld).\n",
-				PTR_ERR(clnt4));
+	if (IS_ERR(clnt4))
 		clnt4 = NULL;
-	}
 
 	rpcb_set_local(net, clnt, clnt4, false);
 
@@ -405,11 +389,8 @@ static int rpcb_register_call(struct sunrpc_net *sn, struct rpc_clnt *clnt, stru
 	msg->rpc_resp = &result;
 
 	error = rpc_call_sync(clnt, msg, flags);
-	if (error < 0) {
-		dprintk("RPC:       failed to contact local rpcbind "
-				"server (errno %d).\n", -error);
+	if (error < 0)
 		return error;
-	}
 
 	if (!result)
 		return -EACCES;
