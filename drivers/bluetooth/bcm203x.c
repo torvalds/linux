@@ -106,7 +106,7 @@ static void bcm203x_complete(struct urb *urb)
 		}
 
 		data->state = BCM203X_LOAD_FIRMWARE;
-		/* fall through */
+		fallthrough;
 	case BCM203X_LOAD_FIRMWARE:
 		if (data->fw_sent == data->fw_size) {
 			usb_fill_int_urb(urb, udev, usb_rcvintpipe(udev, BCM203X_IN_EP),
