@@ -626,7 +626,7 @@ static void err_print_capabilities(struct drm_i915_error_state_buf *m,
 
 	intel_device_info_print_static(&error->device_info, &p);
 	intel_device_info_print_runtime(&error->runtime_info, &p);
-	intel_device_info_print_topology(&error->runtime_info.sseu, &p);
+	intel_sseu_print_topology(&error->runtime_info.sseu, &p);
 	intel_gt_info_print(&error->gt->info, &p);
 	intel_driver_caps_print(&error->driver_caps, &p);
 }

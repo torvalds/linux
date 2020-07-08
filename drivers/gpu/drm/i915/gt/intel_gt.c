@@ -47,6 +47,7 @@ void intel_gt_init_hw_early(struct intel_gt *gt, struct i915_ggtt *ggtt)
 int intel_gt_init_mmio(struct intel_gt *gt)
 {
 	intel_uc_init_mmio(&gt->uc);
+	intel_sseu_info_init(gt);
 
 	return intel_engines_init_mmio(gt);
 }

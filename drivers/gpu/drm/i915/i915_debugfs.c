@@ -1327,7 +1327,7 @@ static int i915_rcs_topology(struct seq_file *m, void *unused)
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
 	struct drm_printer p = drm_seq_file_printer(m);
 
-	intel_device_info_print_topology(&RUNTIME_INFO(dev_priv)->sseu, &p);
+	intel_sseu_print_topology(&RUNTIME_INFO(dev_priv)->sseu, &p);
 
 	return 0;
 }
