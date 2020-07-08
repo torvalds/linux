@@ -17,7 +17,7 @@
  * The algorithm was originally described in detail in this paper
  * (although the algorithm has evolved somewhat since then):
  *
- *     http://www.ssrc.ucsc.edu/Papers/weil-sc06.pdf
+ *     https://www.ssrc.ucsc.edu/Papers/weil-sc06.pdf
  *
  * LGPL2
  */

@@ -13,7 +13,7 @@ config CEPH_FS
 	  scalable file system designed to provide high performance,
 	  reliable access to petabytes of storage.
 
-	  More information at http://ceph.newdream.net/.
+	  More information at https://ceph.io/.
 
 	  If unsure, say N.
 
