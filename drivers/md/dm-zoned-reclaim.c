@@ -456,6 +456,8 @@ static unsigned int dmz_reclaim_percentage(struct dmz_reclaim *zrc)
 		nr_zones = dmz_nr_rnd_zones(zmd, zrc->dev_idx);
 		nr_unmap = dmz_nr_unmap_rnd_zones(zmd, zrc->dev_idx);
 	}
+	if (nr_unmap <= 1)
+		return 0;
 	return nr_unmap * 100 / nr_zones;
 }
 
