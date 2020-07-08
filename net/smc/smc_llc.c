@@ -1241,8 +1241,8 @@ static void smc_llc_process_cli_delete_link(struct smc_link_group *lgr)
 	smc_llc_send_message(lnk, &qentry->msg); /* response */
 
 	if (smc_link_downing(&lnk_del->state)) {
-		smc_switch_conns(lgr, lnk_del, false);
-		smc_wr_tx_wait_no_pending_sends(lnk_del);
+		if (smc_switch_conns(lgr, lnk_del, false))
+			smc_wr_tx_wait_no_pending_sends(lnk_del);
 	}
 	smcr_link_clear(lnk_del, true);
 
@@ -1316,8 +1316,8 @@ static void smc_llc_process_srv_delete_link(struct smc_link_group *lgr)
 		goto out; /* asymmetric link already deleted */
 
 	if (smc_link_downing(&lnk_del->state)) {
-		smc_switch_conns(lgr, lnk_del, false);
-		smc_wr_tx_wait_no_pending_sends(lnk_del);
+		if (smc_switch_conns(lgr, lnk_del, false))
+			smc_wr_tx_wait_no_pending_sends(lnk_del);
 	}
 	if (!list_empty(&lgr->list)) {
 		/* qentry is either a request from peer (send it back to
