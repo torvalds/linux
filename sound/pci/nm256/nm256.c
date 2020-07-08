@@ -560,7 +560,7 @@ snd_nm256_playback_trigger(struct snd_pcm_substream *substream, int cmd)
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_RESUME:
 		s->suspended = 0;
-		/* fallthru */
+		fallthrough;
 	case SNDRV_PCM_TRIGGER_START:
 		if (! s->running) {
 			snd_nm256_playback_start(chip, s, substream);
@@ -569,7 +569,7 @@ snd_nm256_playback_trigger(struct snd_pcm_substream *substream, int cmd)
 		break;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 		s->suspended = 1;
-		/* fallthru */
+		fallthrough;
 	case SNDRV_PCM_TRIGGER_STOP:
 		if (s->running) {
 			snd_nm256_playback_stop(chip);
@@ -1664,7 +1664,7 @@ static int snd_nm256_probe(struct pci_dev *pci,
 			return -ENODEV;
 		case NM_RESET_WORKAROUND_2:
 			reset_workaround_2 = 1;
-			/* Fall-through */
+			fallthrough;
 		case NM_RESET_WORKAROUND:
 			reset_workaround = 1;
 			break;

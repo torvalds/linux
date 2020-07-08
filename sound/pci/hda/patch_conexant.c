@@ -1018,7 +1018,7 @@ static int patch_conexant_auto(struct hda_codec *codec)
 		break;
 	case 0x14f150f2:
 		codec->power_save_node = 1;
-		/* Fall through */
+		fallthrough;
 	default:
 		codec->pin_amp_workaround = 1;
 		snd_hda_pick_fixup(codec, cxt5066_fixup_models,
