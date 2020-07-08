@@ -20,11 +20,13 @@
 #include <linux/hrtimer.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/kthread.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/reboot.h>
 #include <linux/types.h>
 #include <linux/watchdog.h>
+#include <linux/workqueue.h>
 
 #define TIMER_MARGIN	60		/* Default is 60 seconds */
 static unsigned int soft_margin = TIMER_MARGIN;	/* in seconds */
@@ -49,11 +51,34 @@ module_param(soft_panic, int, 0);
 MODULE_PARM_DESC(soft_panic,
 	"Softdog action, set to 1 to panic, 0 to reboot (default=0)");
 
+static char *soft_reboot_cmd;
+module_param(soft_reboot_cmd, charp, 0000);
+MODULE_PARM_DESC(soft_reboot_cmd,
+	"Set reboot command. Emergency reboot takes place if unset");
+
+static bool soft_active_on_boot;
+module_param(soft_active_on_boot, bool, 0000);
+MODULE_PARM_DESC(soft_active_on_boot,
+	"Set to true to active Softdog on boot (default=false)");
+
 static struct hrtimer softdog_ticktock;
 static struct hrtimer softdog_preticktock;
 
+static int reboot_kthread_fn(void *data)
+{
+	kernel_restart(soft_reboot_cmd);
+	return -EPERM; /* Should not reach here */
+}
+
+static void reboot_work_fn(struct work_struct *unused)
+{
+	kthread_run(reboot_kthread_fn, NULL, "softdog_reboot");
+}
+
 static enum hrtimer_restart softdog_fire(struct hrtimer *timer)
 {
+	static bool soft_reboot_fired;
+
 	module_put(THIS_MODULE);
 	if (soft_noboot) {
 		pr_crit("Triggered - Reboot ignored\n");
@@ -62,6 +87,33 @@ static enum hrtimer_restart softdog_fire(struct hrtimer *timer)
 		panic("Software Watchdog Timer expired");
 	} else {
 		pr_crit("Initiating system reboot\n");
+		if (!soft_reboot_fired && soft_reboot_cmd != NULL) {
+			static DECLARE_WORK(reboot_work, reboot_work_fn);
+			/*
+			 * The 'kernel_restart' is a 'might-sleep' operation.
+			 * Also, executing it in system-wide workqueues blocks
+			 * any driver from using the same workqueue in its
+			 * shutdown callback function. Thus, we should execute
+			 * the 'kernel_restart' in a standalone kernel thread.
+			 * But since starting a kernel thread is also a
+			 * 'might-sleep' operation, so the 'reboot_work' is
+			 * required as a launcher of the kernel thread.
+			 *
+			 * After request the reboot, restart the timer to
+			 * schedule an 'emergency_restart' reboot after
+			 * 'TIMER_MARGIN' seconds. It's because if the softdog
+			 * hangs, it might be because of scheduling issues. And
+			 * if that is the case, both 'schedule_work' and
+			 * 'kernel_restart' may possibly be malfunctional at the
+			 * same time.
+			 */
+			soft_reboot_fired = true;
+			schedule_work(&reboot_work);
+			hrtimer_add_expires_ns(timer,
+					(u64)TIMER_MARGIN * NSEC_PER_SEC);
+
+			return HRTIMER_RESTART;
+		}
 		emergency_restart();
 		pr_crit("Reboot didn't ?????\n");
 	}
@@ -145,12 +197,17 @@ static int __init softdog_init(void)
 		softdog_preticktock.function = softdog_pretimeout;
 	}
 
+	if (soft_active_on_boot)
+		softdog_ping(&softdog_dev);
+
 	ret = watchdog_register_device(&softdog_dev);
 	if (ret)
 		return ret;
 
 	pr_info("initialized. soft_noboot=%d soft_margin=%d sec soft_panic=%d (nowayout=%d)\n",
 		soft_noboot, softdog_dev.timeout, soft_panic, nowayout);
+	pr_info("             soft_reboot_cmd=%s soft_active_on_boot=%d\n",
+		soft_reboot_cmd ?: "<not set>", soft_active_on_boot);
 
 	return 0;
 }
