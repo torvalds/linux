@@ -3936,6 +3936,7 @@ bool amdgpu_device_should_recover_gpu(struct amdgpu_device *adev)
 		case CHIP_NAVI10:
 		case CHIP_NAVI14:
 		case CHIP_NAVI12:
+		case CHIP_SIENNA_CICHLID:
 			break;
 		default:
 			goto disabled;
