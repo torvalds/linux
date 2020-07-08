@@ -605,8 +605,6 @@ xprt_rdma_free(struct rpc_task *task)
 	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(rqst->rq_xprt);
 	struct rpcrdma_req *req = rpcr_to_rdmar(rqst);
 
-	trace_xprtrdma_op_free(task, req);
-
 	if (!list_empty(&req->rl_registered))
 		frwr_unmap_sync(r_xprt, req);
 
