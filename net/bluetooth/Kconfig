@@ -21,7 +21,7 @@ menuconfig BT
 	  It was designed as a replacement for cables and other short-range
 	  technologies like IrDA.  Bluetooth operates in personal area range
 	  that typically extends up to 10 meters.  More information about
-	  Bluetooth can be found at <http://www.bluetooth.com/>.
+	  Bluetooth can be found at <https://www.bluetooth.com/>.
 
 	  Linux Bluetooth subsystem consist of several layers:
 	     Bluetooth Core
