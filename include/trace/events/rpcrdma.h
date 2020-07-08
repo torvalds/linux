@@ -1191,36 +1191,6 @@ TRACE_EVENT(xprtrdma_decode_seg,
  ** Allocation/release of rpcrdma_reqs and rpcrdma_reps
  **/
 
-TRACE_EVENT(xprtrdma_op_allocate,
-	TP_PROTO(
-		const struct rpc_task *task,
-		const struct rpcrdma_req *req
-	),
-
-	TP_ARGS(task, req),
-
-	TP_STRUCT__entry(
-		__field(unsigned int, task_id)
-		__field(unsigned int, client_id)
-		__field(const void *, req)
-		__field(size_t, callsize)
-		__field(size_t, rcvsize)
-	),
-
-	TP_fast_assign(
-		__entry->task_id = task->tk_pid;
-		__entry->client_id = task->tk_client->cl_clid;
-		__entry->req = req;
-		__entry->callsize = task->tk_rqstp->rq_callsize;
-		__entry->rcvsize = task->tk_rqstp->rq_rcvsize;
-	),
-
-	TP_printk("task:%u@%u req=%p (%zu, %zu)",
-		__entry->task_id, __entry->client_id,
-		__entry->req, __entry->callsize, __entry->rcvsize
-	)
-);
-
 TRACE_EVENT(xprtrdma_op_free,
 	TP_PROTO(
 		const struct rpc_task *task,

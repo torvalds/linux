@@ -1823,6 +1823,7 @@ call_allocate(struct rpc_task *task)
 	req->rq_rcvsize <<= 2;
 
 	status = xprt->ops->buf_alloc(task);
+	trace_rpc_buf_alloc(task, status);
 	xprt_inject_disconnect(xprt);
 	if (status == 0)
 		return;
@@ -1830,8 +1831,6 @@ call_allocate(struct rpc_task *task)
 		rpc_call_rpcerror(task, status);
 		return;
 	}
-
-	dprintk("RPC: %5u rpc_buffer allocation failed\n", task->tk_pid);
 
 	if (RPC_IS_ASYNC(task) || !fatal_signal_pending(current)) {
 		task->tk_action = call_allocate;

@@ -586,11 +586,9 @@ xprt_rdma_allocate(struct rpc_task *task)
 
 	rqst->rq_buffer = rdmab_data(req->rl_sendbuf);
 	rqst->rq_rbuffer = rdmab_data(req->rl_recvbuf);
-	trace_xprtrdma_op_allocate(task, req);
 	return 0;
 
 out_fail:
-	trace_xprtrdma_op_allocate(task, NULL);
 	return -ENOMEM;
 }
 

@@ -1036,8 +1036,6 @@ int rpc_malloc(struct rpc_task *task)
 		return -ENOMEM;
 
 	buf->len = size;
-	dprintk("RPC: %5u allocated buffer of size %zu at %p\n",
-			task->tk_pid, size, buf);
 	rqst->rq_buffer = buf->data;
 	rqst->rq_rbuffer = (char *)rqst->rq_buffer + rqst->rq_callsize;
 	return 0;
