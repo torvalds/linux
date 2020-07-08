@@ -222,8 +222,9 @@ static bool nested_vmcb_check_controls(struct vmcb_control_area *control)
 	return true;
 }
 
-static bool nested_vmcb_checks(struct vmcb *vmcb)
+static bool nested_vmcb_checks(struct vcpu_svm *svm, struct vmcb *vmcb)
 {
+	bool nested_vmcb_lma;
 	if ((vmcb->save.efer & EFER_SVME) == 0)
 		return false;
 
@@ -232,6 +233,27 @@ static bool nested_vmcb_checks(struct vmcb *vmcb)
 		return false;
 
 	if (!kvm_dr6_valid(vmcb->save.dr6) || !kvm_dr7_valid(vmcb->save.dr7))
+		return false;
+
+	nested_vmcb_lma =
+	        (vmcb->save.efer & EFER_LME) &&
+		(vmcb->save.cr0 & X86_CR0_PG);
+
+	if (!nested_vmcb_lma) {
+		if (vmcb->save.cr4 & X86_CR4_PAE) {
+			if (vmcb->save.cr3 & MSR_CR3_LEGACY_PAE_RESERVED_MASK)
+				return false;
+		} else {
+			if (vmcb->save.cr3 & MSR_CR3_LEGACY_RESERVED_MASK)
+				return false;
+		}
+	} else {
+		if (!(vmcb->save.cr4 & X86_CR4_PAE) ||
+		    !(vmcb->save.cr0 & X86_CR0_PE) ||
+		    (vmcb->save.cr3 & MSR_CR3_LONG_RESERVED_MASK))
+			return false;
+	}
+	if (kvm_valid_cr4(&svm->vcpu, vmcb->save.cr4))
 		return false;
 
 	return nested_vmcb_check_controls(&vmcb->control);
@@ -419,7 +441,7 @@ int nested_svm_vmrun(struct vcpu_svm *svm)
 
 	nested_vmcb = map.hva;
 
-	if (!nested_vmcb_checks(nested_vmcb)) {
+	if (!nested_vmcb_checks(svm, nested_vmcb)) {
 		nested_vmcb->control.exit_code    = SVM_EXIT_ERR;
 		nested_vmcb->control.exit_code_hi = 0;
 		nested_vmcb->control.exit_info_1  = 0;
