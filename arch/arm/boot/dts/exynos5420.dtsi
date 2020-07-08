@@ -240,9 +240,6 @@
 		dmc: memory-controller@10c20000 {
 			compatible = "samsung,exynos5422-dmc";
 			reg = <0x10c20000 0x10000>, <0x10c30000 0x10000>;
-			interrupt-parent = <&combiner>;
-			interrupts = <16 0>, <16 1>;
-			interrupt-names = "drex_0", "drex_1";
 			clocks = <&clock CLK_FOUT_SPLL>,
 				 <&clock CLK_MOUT_SCLK_SPLL>,
 				 <&clock CLK_FF_DOUT_SPLL2>,
