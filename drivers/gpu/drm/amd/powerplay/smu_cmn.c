@@ -24,6 +24,7 @@
 #include "amdgpu_smu.h"
 #include "smu_cmn.h"
 #include "smu_internal.h"
+#include "soc15_common.h"
 
 /*
  * DO NOT use these for err/warn/info/debug messages.
@@ -34,6 +35,126 @@
 #undef pr_warn
 #undef pr_info
 #undef pr_debug
+
+/*
+ * Although these are defined in each ASIC's specific header file.
+ * They share the same definitions and values. That makes common
+ * APIs for SMC messages issuing for all ASICs possible.
+ */
+#define mmMP1_SMN_C2PMSG_66                                                                            0x0282
+#define mmMP1_SMN_C2PMSG_66_BASE_IDX                                                                   0
+
+#define mmMP1_SMN_C2PMSG_82                                                                            0x0292
+#define mmMP1_SMN_C2PMSG_82_BASE_IDX                                                                   0
+
+#define mmMP1_SMN_C2PMSG_90                                                                            0x029a
+#define mmMP1_SMN_C2PMSG_90_BASE_IDX                                                                   0
+
+#define MP1_C2PMSG_90__CONTENT_MASK                                                                    0xFFFFFFFFL
+
+#undef __SMU_DUMMY_MAP
+#define __SMU_DUMMY_MAP(type)	#type
+static const char* __smu_message_names[] = {
+	SMU_MESSAGE_TYPES
+};
+
+static const char *smu_get_message_name(struct smu_context *smu,
+					enum smu_message_type type)
+{
+	if (type < 0 || type >= SMU_MSG_MAX_COUNT)
+		return "unknown smu message";
+
+	return __smu_message_names[type];
+}
+
+static void smu_cmn_send_msg_without_waiting(struct smu_context *smu,
+					     uint16_t msg)
+{
+	struct amdgpu_device *adev = smu->adev;
+
+	WREG32_SOC15_NO_KIQ(MP1, 0, mmMP1_SMN_C2PMSG_66, msg);
+}
+
+static void smu_cmn_read_arg(struct smu_context *smu,
+			     uint32_t *arg)
+{
+	struct amdgpu_device *adev = smu->adev;
+
+	*arg = RREG32_SOC15_NO_KIQ(MP1, 0, mmMP1_SMN_C2PMSG_82);
+}
+
+static int smu_cmn_wait_for_response(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+	uint32_t cur_value, i, timeout = adev->usec_timeout * 10;
+
+	for (i = 0; i < timeout; i++) {
+		cur_value = RREG32_SOC15_NO_KIQ(MP1, 0, mmMP1_SMN_C2PMSG_90);
+		if ((cur_value & MP1_C2PMSG_90__CONTENT_MASK) != 0)
+			return cur_value == 0x1 ? 0 : -EIO;
+
+		udelay(1);
+	}
+
+	/* timeout means wrong logic */
+	if (i == timeout)
+		return -ETIME;
+
+	return RREG32_SOC15_NO_KIQ(MP1, 0, mmMP1_SMN_C2PMSG_90) == 0x1 ? 0 : -EIO;
+}
+
+int smu_cmn_send_smc_msg_with_param(struct smu_context *smu,
+				    enum smu_message_type msg,
+				    uint32_t param,
+				    uint32_t *read_arg)
+{
+	struct amdgpu_device *adev = smu->adev;
+	int ret = 0, index = 0;
+
+	index = smu_cmn_to_asic_specific_index(smu,
+					       CMN2ASIC_MAPPING_MSG,
+					       msg);
+	if (index < 0)
+		return index == -EACCES ? 0 : index;
+
+	mutex_lock(&smu->message_lock);
+	ret = smu_cmn_wait_for_response(smu);
+	if (ret) {
+		dev_err(adev->dev, "Msg issuing pre-check failed and "
+		       "SMU may be not in the right state!\n");
+		goto out;
+	}
+
+	WREG32_SOC15_NO_KIQ(MP1, 0, mmMP1_SMN_C2PMSG_90, 0);
+
+	WREG32_SOC15_NO_KIQ(MP1, 0, mmMP1_SMN_C2PMSG_82, param);
+
+	smu_cmn_send_msg_without_waiting(smu, (uint16_t)index);
+
+	ret = smu_cmn_wait_for_response(smu);
+	if (ret) {
+		dev_err(adev->dev, "failed send message: %10s (%d) \tparam: 0x%08x response %#x\n",
+		       smu_get_message_name(smu, msg), index, param, ret);
+		goto out;
+	}
+
+	if (read_arg)
+		smu_cmn_read_arg(smu, read_arg);
+
+out:
+	mutex_unlock(&smu->message_lock);
+	return ret;
+}
+
+int smu_cmn_send_smc_msg(struct smu_context *smu,
+			 enum smu_message_type msg,
+			 uint32_t *read_arg)
+{
+	return smu_cmn_send_smc_msg_with_param(smu,
+					       msg,
+					       0,
+					       read_arg);
+}
 
 int smu_cmn_to_asic_specific_index(struct smu_context *smu,
 				   enum smu_cmn2asic_mapping_type type,
@@ -203,11 +324,11 @@ int smu_cmn_get_enabled_mask(struct smu_context *smu,
 		return -EINVAL;
 
 	if (bitmap_empty(feature->enabled, feature->feature_num)) {
-		ret = smu_send_smc_msg(smu, SMU_MSG_GetEnabledSmuFeaturesHigh, &feature_mask_high);
+		ret = smu_cmn_send_smc_msg(smu, SMU_MSG_GetEnabledSmuFeaturesHigh, &feature_mask_high);
 		if (ret)
 			return ret;
 
-		ret = smu_send_smc_msg(smu, SMU_MSG_GetEnabledSmuFeaturesLow, &feature_mask_low);
+		ret = smu_cmn_send_smc_msg(smu, SMU_MSG_GetEnabledSmuFeaturesLow, &feature_mask_low);
 		if (ret)
 			return ret;
 
@@ -229,26 +350,26 @@ static int smu_cmn_feature_update_enable_state(struct smu_context *smu,
 	int ret = 0;
 
 	if (enabled) {
-		ret = smu_send_smc_msg_with_param(smu,
+		ret = smu_cmn_send_smc_msg_with_param(smu,
 						  SMU_MSG_EnableSmuFeaturesLow,
 						  lower_32_bits(feature_mask),
 						  NULL);
 		if (ret)
 			return ret;
-		ret = smu_send_smc_msg_with_param(smu,
+		ret = smu_cmn_send_smc_msg_with_param(smu,
 						  SMU_MSG_EnableSmuFeaturesHigh,
 						  upper_32_bits(feature_mask),
 						  NULL);
 		if (ret)
 			return ret;
 	} else {
-		ret = smu_send_smc_msg_with_param(smu,
+		ret = smu_cmn_send_smc_msg_with_param(smu,
 						  SMU_MSG_DisableSmuFeaturesLow,
 						  lower_32_bits(feature_mask),
 						  NULL);
 		if (ret)
 			return ret;
-		ret = smu_send_smc_msg_with_param(smu,
+		ret = smu_cmn_send_smc_msg_with_param(smu,
 						  SMU_MSG_DisableSmuFeaturesHigh,
 						  upper_32_bits(feature_mask),
 						  NULL);
@@ -423,7 +544,7 @@ int smu_cmn_get_smc_version(struct smu_context *smu,
 	}
 
 	if (if_version) {
-		ret = smu_send_smc_msg(smu, SMU_MSG_GetDriverIfVersion, if_version);
+		ret = smu_cmn_send_smc_msg(smu, SMU_MSG_GetDriverIfVersion, if_version);
 		if (ret)
 			return ret;
 
@@ -431,7 +552,7 @@ int smu_cmn_get_smc_version(struct smu_context *smu,
 	}
 
 	if (smu_version) {
-		ret = smu_send_smc_msg(smu, SMU_MSG_GetSmuVersion, smu_version);
+		ret = smu_cmn_send_smc_msg(smu, SMU_MSG_GetSmuVersion, smu_version);
 		if (ret)
 			return ret;
 
@@ -469,7 +590,7 @@ int smu_cmn_update_table(struct smu_context *smu,
 		amdgpu_asic_flush_hdp(adev, NULL);
 	}
 
-	ret = smu_send_smc_msg_with_param(smu, drv2smu ?
+	ret = smu_cmn_send_smc_msg_with_param(smu, drv2smu ?
 					  SMU_MSG_TransferTableDram2Smu :
 					  SMU_MSG_TransferTableSmu2Dram,
 					  table_id | ((argument & 0xFFFF) << 16),

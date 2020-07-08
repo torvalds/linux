@@ -25,6 +25,15 @@
 
 #include "amdgpu_smu.h"
 
+int smu_cmn_send_smc_msg_with_param(struct smu_context *smu,
+				    enum smu_message_type msg,
+				    uint32_t param,
+				    uint32_t *read_arg);
+
+int smu_cmn_send_smc_msg(struct smu_context *smu,
+			 enum smu_message_type msg,
+			 uint32_t *read_arg);
+
 int smu_cmn_to_asic_specific_index(struct smu_context *smu,
 				   enum smu_cmn2asic_mapping_type type,
 				   uint32_t index);

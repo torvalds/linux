@@ -46,19 +46,6 @@
 #undef pr_info
 #undef pr_debug
 
-#undef __SMU_DUMMY_MAP
-#define __SMU_DUMMY_MAP(type)	#type
-static const char* __smu_message_names[] = {
-	SMU_MESSAGE_TYPES
-};
-
-const char *smu_get_message_name(struct smu_context *smu, enum smu_message_type type)
-{
-	if (type < 0 || type >= SMU_MSG_MAX_COUNT)
-		return "unknown smu message";
-	return __smu_message_names[type];
-}
-
 size_t smu_sys_get_pp_feature_mask(struct smu_context *smu, char *buf)
 {
 	size_t size = 0;

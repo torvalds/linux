@@ -455,13 +455,13 @@ static int arcturus_run_btc(struct smu_context *smu)
 {
 	int ret = 0;
 
-	ret = smu_send_smc_msg(smu, SMU_MSG_RunAfllBtc, NULL);
+	ret = smu_cmn_send_smc_msg(smu, SMU_MSG_RunAfllBtc, NULL);
 	if (ret) {
 		dev_err(smu->adev->dev, "RunAfllBtc failed!\n");
 		return ret;
 	}
 
-	return smu_send_smc_msg(smu, SMU_MSG_RunDcBtc, NULL);
+	return smu_cmn_send_smc_msg(smu, SMU_MSG_RunDcBtc, NULL);
 }
 
 static int arcturus_populate_umd_state_clk(struct smu_context *smu)
@@ -839,7 +839,7 @@ static int arcturus_upload_dpm_level(struct smu_context *smu,
 	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_GFXCLK_BIT) &&
 	    (feature_mask & FEATURE_DPM_GFXCLK_MASK)) {
 		freq = dpm_context->dpm_tables.gfx_table.dpm_levels[level].value;
-		ret = smu_send_smc_msg_with_param(smu,
+		ret = smu_cmn_send_smc_msg_with_param(smu,
 			(max ? SMU_MSG_SetSoftMaxByFreq : SMU_MSG_SetSoftMinByFreq),
 			(PPCLK_GFXCLK << 16) | (freq & 0xffff),
 			NULL);
@@ -853,7 +853,7 @@ static int arcturus_upload_dpm_level(struct smu_context *smu,
 	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT) &&
 	    (feature_mask & FEATURE_DPM_UCLK_MASK)) {
 		freq = dpm_context->dpm_tables.uclk_table.dpm_levels[level].value;
-		ret = smu_send_smc_msg_with_param(smu,
+		ret = smu_cmn_send_smc_msg_with_param(smu,
 			(max ? SMU_MSG_SetSoftMaxByFreq : SMU_MSG_SetSoftMinByFreq),
 			(PPCLK_UCLK << 16) | (freq & 0xffff),
 			NULL);
@@ -867,7 +867,7 @@ static int arcturus_upload_dpm_level(struct smu_context *smu,
 	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_SOCCLK_BIT) &&
 	    (feature_mask & FEATURE_DPM_SOCCLK_MASK)) {
 		freq = dpm_context->dpm_tables.soc_table.dpm_levels[level].value;
-		ret = smu_send_smc_msg_with_param(smu,
+		ret = smu_cmn_send_smc_msg_with_param(smu,
 			(max ? SMU_MSG_SetSoftMaxByFreq : SMU_MSG_SetSoftMinByFreq),
 			(PPCLK_SOCCLK << 16) | (freq & 0xffff),
 			NULL);
@@ -1358,7 +1358,7 @@ static int arcturus_set_power_profile_mode(struct smu_context *smu,
 		return -EINVAL;
 	}
 
-	ret = smu_send_smc_msg_with_param(smu,
+	ret = smu_cmn_send_smc_msg_with_param(smu,
 					  SMU_MSG_SetWorkloadMask,
 					  1 << workload_type,
 					  NULL);
@@ -2134,8 +2134,8 @@ static void arcturus_get_unique_id(struct smu_context *smu)
 	}
 
 	/* Get the SN to turn into a Unique ID */
-	smu_send_smc_msg(smu, SMU_MSG_ReadSerialNumTop32, &top32);
-	smu_send_smc_msg(smu, SMU_MSG_ReadSerialNumBottom32, &bottom32);
+	smu_cmn_send_smc_msg(smu, SMU_MSG_ReadSerialNumTop32, &top32);
+	smu_cmn_send_smc_msg(smu, SMU_MSG_ReadSerialNumBottom32, &bottom32);
 
 	id = ((uint64_t)bottom32 << 32) | top32;
 	adev->unique_id = id;
@@ -2175,7 +2175,7 @@ static int arcturus_set_df_cstate(struct smu_context *smu,
 		return -EINVAL;
 	}
 
-	return smu_send_smc_msg_with_param(smu, SMU_MSG_DFCstateControl, state, NULL);
+	return smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_DFCstateControl, state, NULL);
 }
 
 static int arcturus_allow_xgmi_power_down(struct smu_context *smu, bool en)
@@ -2196,12 +2196,12 @@ static int arcturus_allow_xgmi_power_down(struct smu_context *smu, bool en)
 	}
 
 	if (en)
-		return smu_send_smc_msg_with_param(smu,
+		return smu_cmn_send_smc_msg_with_param(smu,
 						   SMU_MSG_GmiPwrDnControl,
 						   1,
 						   NULL);
 
-	return smu_send_smc_msg_with_param(smu,
+	return smu_cmn_send_smc_msg_with_param(smu,
 					   SMU_MSG_GmiPwrDnControl,
 					   0,
 					   NULL);
@@ -2294,7 +2294,8 @@ static const struct pptable_funcs arcturus_ppt_funcs = {
 	.set_tool_table_location = smu_v11_0_set_tool_table_location,
 	.notify_memory_pool_location = smu_v11_0_notify_memory_pool_location,
 	.system_features_control = smu_v11_0_system_features_control,
-	.send_smc_msg_with_param = smu_v11_0_send_msg_with_param,
+	.send_smc_msg_with_param = smu_cmn_send_smc_msg_with_param,
+	.send_smc_msg = smu_cmn_send_smc_msg,
 	.init_display_count = NULL,
 	.set_allowed_mask = smu_v11_0_set_allowed_mask,
 	.get_enabled_mask = smu_cmn_get_enabled_mask,
