@@ -143,7 +143,7 @@ void __fsnotify_update_child_dentry_flags(struct inode *inode)
 }
 
 /* Notify this dentry's parent about a child's events. */
-int fsnotify_parent(struct dentry *dentry, __u32 mask, const void *data,
+int __fsnotify_parent(struct dentry *dentry, __u32 mask, const void *data,
 		    int data_type)
 {
 	struct dentry *parent;
@@ -174,7 +174,7 @@ int fsnotify_parent(struct dentry *dentry, __u32 mask, const void *data,
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(fsnotify_parent);
+EXPORT_SYMBOL_GPL(__fsnotify_parent);
 
 static int send_to_group(struct inode *to_tell,
 			 __u32 mask, const void *data,
@@ -315,17 +315,11 @@ int fsnotify(struct inode *to_tell, __u32 mask, const void *data, int data_is,
 	struct fsnotify_iter_info iter_info = {};
 	struct super_block *sb = to_tell->i_sb;
 	struct mount *mnt = NULL;
-	__u32 mnt_or_sb_mask = sb->s_fsnotify_mask;
 	int ret = 0;
-	__u32 test_mask = (mask & ALL_FSNOTIFY_EVENTS);
+	__u32 test_mask, marks_mask;
 
-	if (path) {
+	if (path)
 		mnt = real_mount(path->mnt);
-		mnt_or_sb_mask |= mnt->mnt_fsnotify_mask;
-	}
-	/* An event "on child" is not intended for a mount/sb mark */
-	if (mask & FS_EVENT_ON_CHILD)
-		mnt_or_sb_mask = 0;
 
 	/*
 	 * Optimization: srcu_read_lock() has a memory barrier which can
@@ -337,13 +331,22 @@ int fsnotify(struct inode *to_tell, __u32 mask, const void *data, int data_is,
 	if (!to_tell->i_fsnotify_marks && !sb->s_fsnotify_marks &&
 	    (!mnt || !mnt->mnt_fsnotify_marks))
 		return 0;
+
+	/* An event "on child" is not intended for a mount/sb mark */
+	marks_mask = to_tell->i_fsnotify_mask;
+	if (!(mask & FS_EVENT_ON_CHILD)) {
+		marks_mask |= sb->s_fsnotify_mask;
+		if (mnt)
+			marks_mask |= mnt->mnt_fsnotify_mask;
+	}
+
 	/*
 	 * if this is a modify event we may need to clear the ignored masks
 	 * otherwise return if neither the inode nor the vfsmount/sb care about
 	 * this type of event.
 	 */
-	if (!(mask & FS_MODIFY) &&
-	    !(test_mask & (to_tell->i_fsnotify_mask | mnt_or_sb_mask)))
+	test_mask = (mask & ALL_FSNOTIFY_EVENTS);
+	if (!(mask & FS_MODIFY) && !(test_mask & marks_mask))
 		return 0;
 
 	iter_info.srcu_idx = srcu_read_lock(&fsnotify_mark_srcu);

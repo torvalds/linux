@@ -379,7 +379,7 @@ struct fsnotify_mark {
 /* main fsnotify call to send events */
 extern int fsnotify(struct inode *to_tell, __u32 mask, const void *data,
 		    int data_type, const struct qstr *name, u32 cookie);
-extern int fsnotify_parent(struct dentry *dentry, __u32 mask, const void *data,
+extern int __fsnotify_parent(struct dentry *dentry, __u32 mask, const void *data,
 			   int data_type);
 extern void __fsnotify_inode_delete(struct inode *inode);
 extern void __fsnotify_vfsmount_delete(struct vfsmount *mnt);
@@ -541,7 +541,7 @@ static inline int fsnotify(struct inode *to_tell, __u32 mask, const void *data,
 	return 0;
 }
 
-static inline int fsnotify_parent(struct dentry *dentry, __u32 mask,
+static inline int __fsnotify_parent(struct dentry *dentry, __u32 mask,
 				  const void *data, int data_type)
 {
 	return 0;
