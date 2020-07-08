@@ -1957,7 +1957,6 @@ call_bind_status(struct rpc_task *task)
 		return;
 	}
 
-	trace_rpc_bind_status(task);
 	if (task->tk_status >= 0)
 		goto out_next;
 	if (xprt_bound(xprt)) {
@@ -1967,12 +1966,10 @@ call_bind_status(struct rpc_task *task)
 
 	switch (task->tk_status) {
 	case -ENOMEM:
-		dprintk("RPC: %5u rpcbind out of memory\n", task->tk_pid);
 		rpc_delay(task, HZ >> 2);
 		goto retry_timeout;
 	case -EACCES:
-		dprintk("RPC: %5u remote rpcbind: RPC program/version "
-				"unavailable\n", task->tk_pid);
+		trace_rpcb_prog_unavail_err(task);
 		/* fail immediately if this is an RPC ping */
 		if (task->tk_msg.rpc_proc->p_proc == 0) {
 			status = -EOPNOTSUPP;
@@ -1989,17 +1986,14 @@ call_bind_status(struct rpc_task *task)
 	case -EAGAIN:
 		goto retry_timeout;
 	case -ETIMEDOUT:
-		dprintk("RPC: %5u rpcbind request timed out\n",
-				task->tk_pid);
+		trace_rpcb_timeout_err(task);
 		goto retry_timeout;
 	case -EPFNOSUPPORT:
 		/* server doesn't support any rpcbind version we know of */
-		dprintk("RPC: %5u unrecognized remote rpcbind service\n",
-				task->tk_pid);
+		trace_rpcb_bind_version_err(task);
 		break;
 	case -EPROTONOSUPPORT:
-		dprintk("RPC: %5u remote rpcbind version unavailable, retrying\n",
-				task->tk_pid);
+		trace_rpcb_bind_version_err(task);
 		goto retry_timeout;
 	case -ECONNREFUSED:		/* connection problems */
 	case -ECONNRESET:
@@ -2010,8 +2004,7 @@ call_bind_status(struct rpc_task *task)
 	case -EHOSTUNREACH:
 	case -ENETUNREACH:
 	case -EPIPE:
-		dprintk("RPC: %5u remote rpcbind unreachable: %d\n",
-				task->tk_pid, task->tk_status);
+		trace_rpcb_unreachable_err(task);
 		if (!RPC_IS_SOFTCONN(task)) {
 			rpc_delay(task, 5*HZ);
 			goto retry_timeout;
@@ -2019,8 +2012,7 @@ call_bind_status(struct rpc_task *task)
 		status = task->tk_status;
 		break;
 	default:
-		dprintk("RPC: %5u unrecognized rpcbind error (%d)\n",
-				task->tk_pid, -task->tk_status);
+		trace_rpcb_unrecognized_err(task);
 	}
 
 	rpc_call_rpcerror(task, status);

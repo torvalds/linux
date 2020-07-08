@@ -259,7 +259,6 @@ DECLARE_EVENT_CLASS(rpc_task_status,
 			TP_ARGS(task))
 
 DEFINE_RPC_STATUS_EVENT(call);
-DEFINE_RPC_STATUS_EVENT(bind);
 DEFINE_RPC_STATUS_EVENT(connect);
 DEFINE_RPC_STATUS_EVENT(timeout);
 DEFINE_RPC_STATUS_EVENT(retry_refresh);
@@ -519,6 +518,19 @@ DEFINE_RPC_REPLY_EVENT(mismatch);
 DEFINE_RPC_REPLY_EVENT(stale_creds);
 DEFINE_RPC_REPLY_EVENT(bad_creds);
 DEFINE_RPC_REPLY_EVENT(auth_tooweak);
+
+#define DEFINE_RPCB_ERROR_EVENT(name)					\
+	DEFINE_EVENT(rpc_reply_event, rpcb_##name##_err,		\
+			TP_PROTO(					\
+				const struct rpc_task *task		\
+			),						\
+			TP_ARGS(task))
+
+DEFINE_RPCB_ERROR_EVENT(prog_unavail);
+DEFINE_RPCB_ERROR_EVENT(timeout);
+DEFINE_RPCB_ERROR_EVENT(bind_version);
+DEFINE_RPCB_ERROR_EVENT(unreachable);
+DEFINE_RPCB_ERROR_EVENT(unrecognized);
 
 TRACE_EVENT(rpc_buf_alloc,
 	TP_PROTO(
