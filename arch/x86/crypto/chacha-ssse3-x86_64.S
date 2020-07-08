@@ -124,10 +124,10 @@ ENTRY(chacha_block_xor_ssse3)
 	FRAME_BEGIN
 
 	# x0..3 = s0..3
-	movdqa		0x00(%rdi),%xmm0
-	movdqa		0x10(%rdi),%xmm1
-	movdqa		0x20(%rdi),%xmm2
-	movdqa		0x30(%rdi),%xmm3
+	movdqu		0x00(%rdi),%xmm0
+	movdqu		0x10(%rdi),%xmm1
+	movdqu		0x20(%rdi),%xmm2
+	movdqu		0x30(%rdi),%xmm3
 	movdqa		%xmm0,%xmm8
 	movdqa		%xmm1,%xmm9
 	movdqa		%xmm2,%xmm10
@@ -209,10 +209,10 @@ ENTRY(hchacha_block_ssse3)
 	# %edx: nrounds
 	FRAME_BEGIN
 
-	movdqa		0x00(%rdi),%xmm0
-	movdqa		0x10(%rdi),%xmm1
-	movdqa		0x20(%rdi),%xmm2
-	movdqa		0x30(%rdi),%xmm3
+	movdqu		0x00(%rdi),%xmm0
+	movdqu		0x10(%rdi),%xmm1
+	movdqu		0x20(%rdi),%xmm2
+	movdqu		0x30(%rdi),%xmm3
 
 	mov		%edx,%r8d
 	call		chacha_permute
