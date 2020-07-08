@@ -20,6 +20,7 @@ int build_obj_refs_table(struct obj_refs_table *table, enum bpf_obj_type type)
 }
 void delete_obj_refs_table(struct obj_refs_table *table) {}
 void emit_obj_refs_plain(struct obj_refs_table *table, __u32 id, const char *prefix) {}
+void emit_obj_refs_json(struct obj_refs_table *table, __u32 id, json_writer_t *json_writer) {}
 
 #else /* BPFTOOL_WITHOUT_SKELETONS */
 
