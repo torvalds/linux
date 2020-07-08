@@ -44,6 +44,13 @@ void intel_gt_init_hw_early(struct intel_gt *gt, struct i915_ggtt *ggtt)
 	gt->ggtt = ggtt;
 }
 
+int intel_gt_init_mmio(struct intel_gt *gt)
+{
+	intel_uc_init_mmio(&gt->uc);
+
+	return intel_engines_init_mmio(gt);
+}
+
 static void init_unused_ring(struct intel_gt *gt, u32 base)
 {
 	struct intel_uncore *uncore = gt->uncore;
