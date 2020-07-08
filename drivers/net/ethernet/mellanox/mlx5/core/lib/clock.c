@@ -273,17 +273,17 @@ static int mlx5_extts_configure(struct ptp_clock_info *ptp,
 	if (rq->extts.index >= clock->ptp_info.n_pins)
 		return -EINVAL;
 
+	pin = ptp_find_pin(clock->ptp, PTP_PF_EXTTS, rq->extts.index);
+	if (pin < 0)
+		return -EBUSY;
+
 	if (on) {
-		pin = ptp_find_pin(clock->ptp, PTP_PF_EXTTS, rq->extts.index);
-		if (pin < 0)
-			return -EBUSY;
 		pin_mode = MLX5_PIN_MODE_IN;
 		pattern = !!(rq->extts.flags & PTP_FALLING_EDGE);
 		field_select = MLX5_MTPPS_FS_PIN_MODE |
 			       MLX5_MTPPS_FS_PATTERN |
 			       MLX5_MTPPS_FS_ENABLE;
 	} else {
-		pin = rq->extts.index;
 		field_select = MLX5_MTPPS_FS_ENABLE;
 	}
 
@@ -331,12 +331,12 @@ static int mlx5_perout_configure(struct ptp_clock_info *ptp,
 	if (rq->perout.index >= clock->ptp_info.n_pins)
 		return -EINVAL;
 
-	if (on) {
-		pin = ptp_find_pin(clock->ptp, PTP_PF_PEROUT,
-				   rq->perout.index);
-		if (pin < 0)
-			return -EBUSY;
+	pin = ptp_find_pin(clock->ptp, PTP_PF_PEROUT,
+			   rq->perout.index);
+	if (pin < 0)
+		return -EBUSY;
 
+	if (on) {
 		pin_mode = MLX5_PIN_MODE_OUT;
 		pattern = MLX5_OUT_PATTERN_PERIODIC;
 		ts.tv_sec = rq->perout.period.sec;
@@ -362,7 +362,6 @@ static int mlx5_perout_configure(struct ptp_clock_info *ptp,
 			       MLX5_MTPPS_FS_ENABLE |
 			       MLX5_MTPPS_FS_TIME_STAMP;
 	} else {
-		pin = rq->perout.index;
 		field_select = MLX5_MTPPS_FS_ENABLE;
 	}
 
@@ -452,7 +451,7 @@ static int mlx5_init_pin_config(struct mlx5_clock *clock)
 			 "mlx5_pps%d", i);
 		clock->ptp_info.pin_config[i].index = i;
 		clock->ptp_info.pin_config[i].func = PTP_PF_NONE;
-		clock->ptp_info.pin_config[i].chan = i;
+		clock->ptp_info.pin_config[i].chan = 0;
 	}
 
 	return 0;
