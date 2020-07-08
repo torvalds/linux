@@ -7683,13 +7683,8 @@ static void gfx_v10_0_ring_emit_ib_compute(struct amdgpu_ring *ring,
 static void gfx_v10_0_ring_emit_fence(struct amdgpu_ring *ring, u64 addr,
 				     u64 seq, unsigned flags)
 {
-	struct amdgpu_device *adev = ring->adev;
 	bool write64bit = flags & AMDGPU_FENCE_FLAG_64BIT;
 	bool int_sel = flags & AMDGPU_FENCE_FLAG_INT;
-
-	/* Interrupt not work fine on GFX10.1 model yet. Use fallback instead */
-	if (adev->pdev->device == 0x50)
-		int_sel = false;
 
 	/* RELEASE_MEM - flush caches, send int */
 	amdgpu_ring_write(ring, PACKET3(PACKET3_RELEASE_MEM, 6));
