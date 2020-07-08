@@ -1348,26 +1348,6 @@ EXPORT_SYMBOL_GPL(bd_unlink_disk_holder);
 #endif
 
 /**
- * flush_disk - invalidates all buffer-cache entries on a disk
- *
- * @bdev:      struct block device to be flushed
- * @kill_dirty: flag to guide handling of dirty inodes
- *
- * Invalidates all buffer-cache entries on a disk. It should be called
- * when a disk has been changed -- either by a media change or online
- * resize.
- */
-static void flush_disk(struct block_device *bdev, bool kill_dirty)
-{
-	if (__invalidate_device(bdev, kill_dirty)) {
-		printk(KERN_WARNING "VFS: busy inodes on changed media or "
-		       "resized disk %s\n",
-		       bdev->bd_disk ? bdev->bd_disk->disk_name : "");
-	}
-	bdev->bd_invalidated = 1;
-}
-
-/**
  * check_disk_size_change - checks for disk size change and adjusts bdev size.
  * @disk: struct gendisk to check
  * @bdev: struct bdev to adjust.
@@ -1391,8 +1371,9 @@ static void check_disk_size_change(struct gendisk *disk,
 			       disk->disk_name, bdev_size, disk_size);
 		}
 		i_size_write(bdev->bd_inode, disk_size);
-		if (bdev_size > disk_size)
-			flush_disk(bdev, false);
+		if (bdev_size > disk_size && __invalidate_device(bdev, false))
+			pr_warn("VFS: busy inodes on resized disk %s\n",
+				disk->disk_name);
 	}
 	bdev->bd_invalidated = 0;
 }
@@ -1451,7 +1432,10 @@ int check_disk_change(struct block_device *bdev)
 	if (!(events & DISK_EVENT_MEDIA_CHANGE))
 		return 0;
 
-	flush_disk(bdev, true);
+	if (__invalidate_device(bdev, true))
+		pr_warn("VFS: busy inodes on changed media %s\n",
+			disk->disk_name);
+	bdev->bd_invalidated = 1;
 	if (bdops->revalidate_disk)
 		bdops->revalidate_disk(bdev->bd_disk);
 	return 1;
