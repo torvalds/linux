@@ -326,7 +326,8 @@ static int panel_simple_xfer_spi_cmd_seq(struct panel_simple *panel,
 	return 0;
 }
 
-static int panel_simple_xfer_cmd_seq(struct panel_simple *panel,
+#if IS_ENABLED(CONFIG_DRM_MIPI_DSI)
+static int panel_simple_xfer_dsi_cmd_seq(struct panel_simple *panel,
 				     struct panel_cmd_seq *seq)
 {
 	struct device *dev = panel->base.dev;
@@ -338,27 +339,42 @@ static int panel_simple_xfer_cmd_seq(struct panel_simple *panel,
 		return -EINVAL;
 
 	for (i = 0; i < seq->cmd_cnt; i++) {
-		struct panel_cmd_desc *desc = &seq->cmds[i];
-		struct panel_cmd_header *header = &desc->header;
-		struct mipi_dsi_msg msg = {
-			.channel = dsi->channel,
-			.type = header->data_type,
-			.tx_buf = desc->payload,
-			.tx_len = header->payload_length,
-		};
+		struct panel_cmd_desc *cmd = &seq->cmds[i];
 
-		err = mipi_dsi_device_transfer(dsi, &msg);
-		if (err < 0) {
-			dev_err(dev, "failed to xfer cmd%d: %d\n", i, err);
-			return err;
+		switch (cmd->header.data_type) {
+		case MIPI_DSI_GENERIC_SHORT_WRITE_0_PARAM:
+		case MIPI_DSI_GENERIC_SHORT_WRITE_1_PARAM:
+		case MIPI_DSI_GENERIC_SHORT_WRITE_2_PARAM:
+		case MIPI_DSI_GENERIC_LONG_WRITE:
+			err = mipi_dsi_generic_write(dsi, cmd->payload,
+						     cmd->header.payload_length);
+			break;
+		case MIPI_DSI_DCS_SHORT_WRITE:
+		case MIPI_DSI_DCS_SHORT_WRITE_PARAM:
+		case MIPI_DSI_DCS_LONG_WRITE:
+			err = mipi_dsi_dcs_write_buffer(dsi, cmd->payload,
+							cmd->header.payload_length);
+			break;
+		default:
+			return -EINVAL;
 		}
 
-		if (header->delay)
-			panel_simple_sleep(header->delay);
+		if (err < 0)
+			dev_err(dev, "failed to write dcs cmd: %d\n", err);
+
+		if (cmd->header.delay)
+			panel_simple_sleep(cmd->header.delay);
 	}
 
 	return 0;
 }
+#else
+static inline int panel_simple_xfer_dsi_cmd_seq(struct panel_simple *panel,
+						struct panel_cmd_seq *seq)
+{
+	return -EINVAL;
+}
+#endif
 
 static int panel_simple_get_fixed_modes(struct panel_simple *panel)
 {
@@ -523,7 +539,7 @@ static int panel_simple_unprepare(struct drm_panel *panel)
 
 	if (p->desc->exit_seq) {
 		if (p->dsi)
-			panel_simple_xfer_cmd_seq(p, p->desc->exit_seq);
+			panel_simple_xfer_dsi_cmd_seq(p, p->desc->exit_seq);
 		else if (p->cmd_type == CMD_TYPE_SPI)
 			err = panel_simple_xfer_spi_cmd_seq(p, p->desc->exit_seq);
 		if (err)
@@ -575,7 +591,7 @@ static int panel_simple_prepare(struct drm_panel *panel)
 
 	if (p->desc->init_seq) {
 		if (p->dsi)
-			panel_simple_xfer_cmd_seq(p, p->desc->init_seq);
+			panel_simple_xfer_dsi_cmd_seq(p, p->desc->init_seq);
 		else if (p->cmd_type == CMD_TYPE_SPI)
 			err = panel_simple_xfer_spi_cmd_seq(p, p->desc->init_seq);
 		if (err)
