@@ -158,6 +158,13 @@ static int int_queue_sanity_checks(struct hl_device *hdev,
 {
 	int free_slots_cnt;
 
+	if (num_of_entries > q->int_queue_len) {
+		dev_err(hdev->dev,
+			"Cannot populate queue %u with %u jobs\n",
+			q->hw_queue_id, num_of_entries);
+		return -ENOMEM;
+	}
+
 	/* Check we have enough space in the queue */
 	free_slots_cnt = queue_free_slots(q, q->int_queue_len);
 

@@ -421,6 +421,10 @@ struct hl_cs_job;
 #define HL_QUEUE_LENGTH			4096
 #define HL_QUEUE_SIZE_IN_BYTES		(HL_QUEUE_LENGTH * HL_BD_SIZE)
 
+#if (HL_MAX_JOBS_PER_CS > HL_QUEUE_LENGTH)
+#error "HL_QUEUE_LENGTH must be greater than HL_MAX_JOBS_PER_CS"
+#endif
+
 /* HL_CQ_LENGTH is in units of struct hl_cq_entry */
 #define HL_CQ_LENGTH			HL_QUEUE_LENGTH
 #define HL_CQ_SIZE_IN_BYTES		(HL_CQ_LENGTH * HL_CQ_ENTRY_SIZE)
