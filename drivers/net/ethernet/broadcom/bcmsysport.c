@@ -1250,8 +1250,7 @@ static struct sk_buff *bcm_sysport_insert_tsb(struct sk_buff *skb,
 	memset(tsb, 0, sizeof(*tsb));
 
 	if (skb_vlan_tag_present(skb)) {
-		tsb->pcp_dei_vid = (skb_vlan_tag_get_prio(skb) >>
-				    VLAN_PRIO_SHIFT & PCP_DEI_MASK);
+		tsb->pcp_dei_vid = skb_vlan_tag_get_prio(skb) & PCP_DEI_MASK;
 		tsb->pcp_dei_vid |= (u32)skb_vlan_tag_get_id(skb) << VID_SHIFT;
 	}
 
