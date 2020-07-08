@@ -31,12 +31,16 @@ properties:
 
   clocks:
     minItems: 1
-    maxItems: 2
+    maxItems: 3
 
   clock-names:
     oneOf:
       - const: link          # for PXs2
-      - items:               # for PXs3
+      - items:               # for PXs3 with phy-ext
+        - const: link
+        - const: phy
+        - const: phy-ext
+      - items:               # for others
         - const: link
         - const: phy
 
