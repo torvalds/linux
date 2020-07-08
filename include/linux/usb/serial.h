@@ -365,8 +365,17 @@ extern int usb_serial_generic_submit_read_urbs(struct usb_serial_port *port,
 extern void usb_serial_generic_process_read_urb(struct urb *urb);
 extern int usb_serial_generic_prepare_write_buffer(struct usb_serial_port *port,
 						void *dest, size_t size);
+
+#if defined(CONFIG_USB_SERIAL_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
 extern int usb_serial_handle_sysrq_char(struct usb_serial_port *port,
 					unsigned int ch);
+#else
+static inline int usb_serial_handle_sysrq_char(struct usb_serial_port *port, unsigned int ch)
+{
+	return 0;
+}
+#endif
+
 extern int usb_serial_handle_break(struct usb_serial_port *port);
 extern void usb_serial_handle_dcd_change(struct usb_serial_port *usb_port,
 					 struct tty_struct *tty,

@@ -571,7 +571,7 @@ int usb_serial_generic_get_icount(struct tty_struct *tty,
 }
 EXPORT_SYMBOL_GPL(usb_serial_generic_get_icount);
 
-#ifdef CONFIG_MAGIC_SYSRQ
+#if defined(CONFIG_USB_SERIAL_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
 int usb_serial_handle_sysrq_char(struct usb_serial_port *port, unsigned int ch)
 {
 	if (port->sysrq) {
@@ -584,13 +584,8 @@ int usb_serial_handle_sysrq_char(struct usb_serial_port *port, unsigned int ch)
 	}
 	return 0;
 }
-#else
-int usb_serial_handle_sysrq_char(struct usb_serial_port *port, unsigned int ch)
-{
-	return 0;
-}
-#endif
 EXPORT_SYMBOL_GPL(usb_serial_handle_sysrq_char);
+#endif
 
 int usb_serial_handle_break(struct usb_serial_port *port)
 {
