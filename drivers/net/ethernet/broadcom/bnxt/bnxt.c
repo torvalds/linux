@@ -4869,6 +4869,19 @@ static void bnxt_set_dflt_rss_indir_tbl(struct bnxt *bp)
 		memset(&bp->rss_indir_tbl[i], 0, pad * sizeof(u16));
 }
 
+static u16 bnxt_get_max_rss_ring(struct bnxt *bp)
+{
+	u16 i, tbl_size, max_ring = 0;
+
+	if (!bp->rss_indir_tbl)
+		return 0;
+
+	tbl_size = bnxt_get_rxfh_indir_size(bp->dev);
+	for (i = 0; i < tbl_size; i++)
+		max_ring = max(max_ring, bp->rss_indir_tbl[i]);
+	return max_ring;
+}
+
 int bnxt_get_nr_rss_ctxs(struct bnxt *bp, int rx_rings)
 {
 	if (bp->flags & BNXT_FLAG_CHIP_P5)
@@ -6058,6 +6071,21 @@ static int __bnxt_reserve_rings(struct bnxt *bp)
 		rx = rx_rings << 1;
 	cp = sh ? max_t(int, tx, rx_rings) : tx + rx_rings;
 	bp->tx_nr_rings = tx;
+
+	/* If we cannot reserve all the RX rings, reset the RSS map only
+	 * if absolutely necessary
+	 */
+	if (rx_rings != bp->rx_nr_rings) {
+		netdev_warn(bp->dev, "Able to reserve only %d out of %d requested RX rings\n",
+			    rx_rings, bp->rx_nr_rings);
+		if ((bp->dev->priv_flags & IFF_RXFH_CONFIGURED) &&
+		    (bnxt_get_nr_rss_ctxs(bp, bp->rx_nr_rings) !=
+		     bnxt_get_nr_rss_ctxs(bp, rx_rings) ||
+		     bnxt_get_max_rss_ring(bp) >= rx_rings)) {
+			netdev_warn(bp->dev, "RSS table entries reverting to default\n");
+			bp->dev->priv_flags &= ~IFF_RXFH_CONFIGURED;
+		}
+	}
 	bp->rx_nr_rings = rx_rings;
 	bp->cp_nr_rings = cp;
 
@@ -8262,7 +8290,8 @@ int bnxt_reserve_rings(struct bnxt *bp, bool irq_re_init)
 			rc = bnxt_init_int_mode(bp);
 		bnxt_ulp_irq_restart(bp, rc);
 	}
-	bnxt_set_dflt_rss_indir_tbl(bp);
+	if (!netif_is_rxfh_configured(bp->dev))
+		bnxt_set_dflt_rss_indir_tbl(bp);
 
 	if (rc) {
 		netdev_err(bp->dev, "ring reservation/IRQ init failure rc: %d\n", rc);
