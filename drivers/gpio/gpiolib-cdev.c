@@ -39,13 +39,13 @@
  * @gdev: the GPIO device the handle pertains to
  * @label: consumer label used to tag descriptors
  * @descs: the GPIO descriptors held by this handle
- * @numdescs: the number of descriptors held in the descs array
+ * @num_descs: the number of descriptors held in the descs array
  */
 struct linehandle_state {
 	struct gpio_device *gdev;
 	const char *label;
 	struct gpio_desc *descs[GPIOHANDLES_MAX];
-	u32 numdescs;
+	u32 num_descs;
 };
 
 #define GPIOHANDLE_REQUEST_VALID_FLAGS \
@@ -138,7 +138,7 @@ static long linehandle_set_config(struct linehandle_state *lh,
 	if (ret)
 		return ret;
 
-	for (i = 0; i < lh->numdescs; i++) {
+	for (i = 0; i < lh->num_descs; i++) {
 		desc = lh->descs[i];
 		linehandle_flags_to_desc_flags(gcnf.flags, &desc->flags);
 
@@ -177,7 +177,7 @@ static long linehandle_ioctl(struct file *file, unsigned int cmd,
 		/* NOTE: It's ok to read values of output lines. */
 		int ret = gpiod_get_array_value_complex(false,
 							true,
-							lh->numdescs,
+							lh->num_descs,
 							lh->descs,
 							NULL,
 							vals);
@@ -185,7 +185,7 @@ static long linehandle_ioctl(struct file *file, unsigned int cmd,
 			return ret;
 
 		memset(&ghd, 0, sizeof(ghd));
-		for (i = 0; i < lh->numdescs; i++)
+		for (i = 0; i < lh->num_descs; i++)
 			ghd.values[i] = test_bit(i, vals);
 
 		if (copy_to_user(ip, &ghd, sizeof(ghd)))
@@ -204,13 +204,13 @@ static long linehandle_ioctl(struct file *file, unsigned int cmd,
 			return -EFAULT;
 
 		/* Clamp all values to [0,1] */
-		for (i = 0; i < lh->numdescs; i++)
+		for (i = 0; i < lh->num_descs; i++)
 			__assign_bit(i, vals, ghd.values[i]);
 
 		/* Reuse the array setting function */
 		return gpiod_set_array_value_complex(false,
 						     true,
-						     lh->numdescs,
+						     lh->num_descs,
 						     lh->descs,
 						     NULL,
 						     vals);
@@ -234,7 +234,7 @@ static int linehandle_release(struct inode *inode, struct file *file)
 	struct gpio_device *gdev = lh->gdev;
 	int i;
 
-	for (i = 0; i < lh->numdescs; i++)
+	for (i = 0; i < lh->num_descs; i++)
 		gpiod_free(lh->descs[i]);
 	kfree(lh->label);
 	kfree(lh);
@@ -333,7 +333,7 @@ static int linehandle_create(struct gpio_device *gdev, void __user *ip)
 	}
 	/* Let i point at the last handle */
 	i--;
-	lh->numdescs = handlereq.lines;
+	lh->num_descs = handlereq.lines;
 
 	fd = get_unused_fd_flags(O_RDONLY | O_CLOEXEC);
 	if (fd < 0) {
@@ -364,7 +364,7 @@ static int linehandle_create(struct gpio_device *gdev, void __user *ip)
 	fd_install(fd, file);
 
 	dev_dbg(&gdev->dev, "registered chardev handle for %d lines\n",
-		lh->numdescs);
+		lh->num_descs);
 
 	return 0;
 
