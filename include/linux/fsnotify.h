@@ -48,44 +48,37 @@ static inline void fsnotify_dirent(struct inode *dir, struct dentry *dentry,
 static inline int fsnotify_parent(struct dentry *dentry, __u32 mask,
 				  const void *data, int data_type)
 {
-	if (!(dentry->d_flags & DCACHE_FSNOTIFY_PARENT_WATCHED))
-		return 0;
-
-	return __fsnotify_parent(dentry, mask, data, data_type);
-}
-
-/*
- * Simple wrappers to consolidate calls fsnotify_parent()/fsnotify() when
- * an event is on a file/dentry.
- */
-static inline void fsnotify_dentry(struct dentry *dentry, __u32 mask)
-{
 	struct inode *inode = d_inode(dentry);
 
 	if (S_ISDIR(inode->i_mode))
 		mask |= FS_ISDIR;
 
-	fsnotify_parent(dentry, mask, inode, FSNOTIFY_EVENT_INODE);
-	fsnotify(inode, mask, inode, FSNOTIFY_EVENT_INODE, NULL, 0);
+	if (!(dentry->d_flags & DCACHE_FSNOTIFY_PARENT_WATCHED))
+		goto notify_child;
+
+	return __fsnotify_parent(dentry, mask, data, data_type);
+
+notify_child:
+	return fsnotify(inode, mask, data, data_type, NULL, 0);
+}
+
+/*
+ * Simple wrappers to consolidate calls to fsnotify_parent() when an event
+ * is on a file/dentry.
+ */
+static inline void fsnotify_dentry(struct dentry *dentry, __u32 mask)
+{
+	fsnotify_parent(dentry, mask, d_inode(dentry), FSNOTIFY_EVENT_INODE);
 }
 
 static inline int fsnotify_file(struct file *file, __u32 mask)
 {
 	const struct path *path = &file->f_path;
-	struct inode *inode = file_inode(file);
-	int ret;
 
 	if (file->f_mode & FMODE_NONOTIFY)
 		return 0;
 
-	if (S_ISDIR(inode->i_mode))
-		mask |= FS_ISDIR;
-
-	ret = fsnotify_parent(path->dentry, mask, path, FSNOTIFY_EVENT_PATH);
-	if (ret)
-		return ret;
-
-	return fsnotify(inode, mask, path, FSNOTIFY_EVENT_PATH, NULL, 0);
+	return fsnotify_parent(path->dentry, mask, path, FSNOTIFY_EVENT_PATH);
 }
 
 /* Simple call site for access decisions */

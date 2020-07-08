@@ -142,16 +142,20 @@ void __fsnotify_update_child_dentry_flags(struct inode *inode)
 	spin_unlock(&inode->i_lock);
 }
 
-/* Notify this dentry's parent about a child's events. */
+/*
+ * Notify this dentry's parent about a child's events with child name info
+ * if parent is watching.
+ * Notify also the child without name info if child inode is watching.
+ */
 int __fsnotify_parent(struct dentry *dentry, __u32 mask, const void *data,
-		    int data_type)
+		      int data_type)
 {
 	struct dentry *parent;
 	struct inode *p_inode;
 	int ret = 0;
 
 	if (!(dentry->d_flags & DCACHE_FSNOTIFY_PARENT_WATCHED))
-		return 0;
+		goto notify_child;
 
 	parent = dget_parent(dentry);
 	p_inode = parent->d_inode;
@@ -161,18 +165,23 @@ int __fsnotify_parent(struct dentry *dentry, __u32 mask, const void *data,
 	} else if (p_inode->i_fsnotify_mask & mask & ALL_FSNOTIFY_EVENTS) {
 		struct name_snapshot name;
 
-		/* we are notifying a parent so come up with the new mask which
-		 * specifies these are events which came from a child. */
-		mask |= FS_EVENT_ON_CHILD;
-
+		/*
+		 * We are notifying a parent, so set a flag in mask to inform
+		 * backend that event has information about a child entry.
+		 */
 		take_dentry_name_snapshot(&name, dentry);
-		ret = fsnotify(p_inode, mask, data, data_type, &name.name, 0);
+		ret = fsnotify(p_inode, mask | FS_EVENT_ON_CHILD, data,
+			       data_type, &name.name, 0);
 		release_dentry_name_snapshot(&name);
 	}
 
 	dput(parent);
 
-	return ret;
+	if (ret)
+		return ret;
+
+notify_child:
+	return fsnotify(d_inode(dentry), mask, data, data_type, NULL, 0);
 }
 EXPORT_SYMBOL_GPL(__fsnotify_parent);
 
