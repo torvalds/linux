@@ -1752,12 +1752,10 @@ call_refreshresult(struct rpc_task *task)
 		if (!task->tk_cred_retry)
 			break;
 		task->tk_cred_retry--;
-		dprintk("RPC: %5u %s: retry refresh creds\n",
-				task->tk_pid, __func__);
+		trace_rpc_retry_refresh_status(task);
 		return;
 	}
-	dprintk("RPC: %5u %s: refresh creds failed with error %d\n",
-				task->tk_pid, __func__, status);
+	trace_rpc_refresh_status(task);
 	rpc_call_rpcerror(task, status);
 }
 
@@ -1881,8 +1879,7 @@ call_encode(struct rpc_task *task)
 			} else {
 				task->tk_action = call_refresh;
 				task->tk_cred_retry--;
-				dprintk("RPC: %5u %s: retry refresh creds\n",
-					task->tk_pid, __func__);
+				trace_rpc_retry_refresh_status(task);
 			}
 			break;
 		default:

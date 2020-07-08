@@ -262,6 +262,8 @@ DEFINE_RPC_STATUS_EVENT(call);
 DEFINE_RPC_STATUS_EVENT(bind);
 DEFINE_RPC_STATUS_EVENT(connect);
 DEFINE_RPC_STATUS_EVENT(timeout);
+DEFINE_RPC_STATUS_EVENT(retry_refresh);
+DEFINE_RPC_STATUS_EVENT(refresh);
 
 TRACE_EVENT(rpc_request,
 	TP_PROTO(const struct rpc_task *task),
