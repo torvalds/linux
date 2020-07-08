@@ -443,8 +443,7 @@ static struct sk_buff *create_monitor_event(struct hci_dev *hdev, int event)
 	case HCI_DEV_SETUP:
 		if (hdev->manufacturer == 0xffff)
 			return NULL;
-
-		/* fall through */
+		fallthrough;
 
 	case HCI_DEV_UP:
 		skb = bt_skb_alloc(HCI_MON_INDEX_INFO_SIZE, GFP_ATOMIC);

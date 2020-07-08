@@ -4525,7 +4525,7 @@ static bool discovery_type_is_valid(struct hci_dev *hdev, uint8_t type,
 		*mgmt_status = mgmt_le_support(hdev);
 		if (*mgmt_status)
 			return false;
-		/* Intentional fall-through */
+		fallthrough;
 	case DISCOV_TYPE_BREDR:
 		*mgmt_status = mgmt_bredr_support(hdev);
 		if (*mgmt_status)
@@ -5901,7 +5901,7 @@ static int load_long_term_keys(struct sock *sk, struct hci_dev *hdev,
 		case MGMT_LTK_P256_DEBUG:
 			authenticated = 0x00;
 			type = SMP_LTK_P256_DEBUG;
-			/* fall through */
+			fallthrough;
 		default:
 			continue;
 		}

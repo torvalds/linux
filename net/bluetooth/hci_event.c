@@ -2825,7 +2825,7 @@ static void hci_disconn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		case HCI_AUTO_CONN_LINK_LOSS:
 			if (ev->reason != HCI_ERROR_CONNECTION_TIMEOUT)
 				break;
-			/* Fall through */
+			fallthrough;
 
 		case HCI_AUTO_CONN_DIRECT:
 		case HCI_AUTO_CONN_ALWAYS:
@@ -4320,7 +4320,7 @@ static void hci_sync_conn_complete_evt(struct hci_dev *hdev,
 			if (hci_setup_sync(conn, conn->link->handle))
 				goto unlock;
 		}
-		/* fall through */
+		fallthrough;
 
 	default:
 		conn->state = BT_CLOSED;
