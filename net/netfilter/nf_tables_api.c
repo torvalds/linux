@@ -4375,7 +4375,7 @@ void nf_tables_deactivate_set(const struct nft_ctx *ctx, struct nft_set *set,
 	case NFT_TRANS_ABORT:
 	case NFT_TRANS_RELEASE:
 		set->use--;
-		/* fall through */
+		fallthrough;
 	default:
 		nf_tables_unbind_set(ctx, set, binding,
 				     phase == NFT_TRANS_COMMIT);
@@ -6256,7 +6256,7 @@ void nf_tables_deactivate_flowtable(const struct nft_ctx *ctx,
 	case NFT_TRANS_ABORT:
 	case NFT_TRANS_RELEASE:
 		flowtable->use--;
-		/* fall through */
+		fallthrough;
 	default:
 		return;
 	}
@@ -7262,7 +7262,7 @@ static int nf_tables_validate(struct net *net)
 		break;
 	case NFT_VALIDATE_NEED:
 		nft_validate_state_update(net, NFT_VALIDATE_DO);
-		/* fall through */
+		fallthrough;
 	case NFT_VALIDATE_DO:
 		list_for_each_entry(table, &net->nft.tables, list) {
 			if (nft_table_validate(net, table) < 0)
@@ -8336,7 +8336,7 @@ static int nft_verdict_init(const struct nft_ctx *ctx, struct nft_data *data,
 		default:
 			return -EINVAL;
 		}
-		/* fall through */
+		fallthrough;
 	case NFT_CONTINUE:
 	case NFT_BREAK:
 	case NFT_RETURN:
