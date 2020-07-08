@@ -826,8 +826,8 @@ struct gpio_chardev_data {
  */
 static long gpio_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	struct gpio_chardev_data *priv = file->private_data;
-	struct gpio_device *gdev = priv->gdev;
+	struct gpio_chardev_data *cdev = file->private_data;
+	struct gpio_device *gdev = cdev->gdev;
 	struct gpio_chip *gc = gdev->chip;
 	void __user *ip = (void __user *)arg;
 	struct gpio_desc *desc;
@@ -887,7 +887,7 @@ static long gpio_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		hwgpio = gpio_chip_hwgpio(desc);
 
-		if (test_bit(hwgpio, priv->watched_lines))
+		if (test_bit(hwgpio, cdev->watched_lines))
 			return -EBUSY;
 
 		gpio_desc_to_lineinfo(desc, &lineinfo);
@@ -895,7 +895,7 @@ static long gpio_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (copy_to_user(ip, &lineinfo, sizeof(lineinfo)))
 			return -EFAULT;
 
-		set_bit(hwgpio, priv->watched_lines);
+		set_bit(hwgpio, cdev->watched_lines);
 		return 0;
 	} else if (cmd == GPIO_GET_LINEINFO_UNWATCH_IOCTL) {
 		if (copy_from_user(&offset, ip, sizeof(offset)))
@@ -907,10 +907,10 @@ static long gpio_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		hwgpio = gpio_chip_hwgpio(desc);
 
-		if (!test_bit(hwgpio, priv->watched_lines))
+		if (!test_bit(hwgpio, cdev->watched_lines))
 			return -EBUSY;
 
-		clear_bit(hwgpio, priv->watched_lines);
+		clear_bit(hwgpio, cdev->watched_lines);
 		return 0;
 	}
 	return -EINVAL;
@@ -933,12 +933,12 @@ to_gpio_chardev_data(struct notifier_block *nb)
 static int lineinfo_changed_notify(struct notifier_block *nb,
 				   unsigned long action, void *data)
 {
-	struct gpio_chardev_data *priv = to_gpio_chardev_data(nb);
+	struct gpio_chardev_data *cdev = to_gpio_chardev_data(nb);
 	struct gpioline_info_changed chg;
 	struct gpio_desc *desc = data;
 	int ret;
 
-	if (!test_bit(gpio_chip_hwgpio(desc), priv->watched_lines))
+	if (!test_bit(gpio_chip_hwgpio(desc), cdev->watched_lines))
 		return NOTIFY_DONE;
 
 	memset(&chg, 0, sizeof(chg));
@@ -947,9 +947,9 @@ static int lineinfo_changed_notify(struct notifier_block *nb,
 	chg.timestamp = ktime_get_ns();
 	gpio_desc_to_lineinfo(desc, &chg.info);
 
-	ret = kfifo_in_spinlocked(&priv->events, &chg, 1, &priv->wait.lock);
+	ret = kfifo_in_spinlocked(&cdev->events, &chg, 1, &cdev->wait.lock);
 	if (ret)
-		wake_up_poll(&priv->wait, EPOLLIN);
+		wake_up_poll(&cdev->wait, EPOLLIN);
 	else
 		pr_debug_ratelimited("lineinfo event FIFO is full - event dropped\n");
 
@@ -959,13 +959,13 @@ static int lineinfo_changed_notify(struct notifier_block *nb,
 static __poll_t lineinfo_watch_poll(struct file *file,
 				    struct poll_table_struct *pollt)
 {
-	struct gpio_chardev_data *priv = file->private_data;
+	struct gpio_chardev_data *cdev = file->private_data;
 	__poll_t events = 0;
 
-	poll_wait(file, &priv->wait, pollt);
+	poll_wait(file, &cdev->wait, pollt);
 
-	if (!kfifo_is_empty_spinlocked_noirqsave(&priv->events,
-						 &priv->wait.lock))
+	if (!kfifo_is_empty_spinlocked_noirqsave(&cdev->events,
+						 &cdev->wait.lock))
 		events = EPOLLIN | EPOLLRDNORM;
 
 	return events;
@@ -974,7 +974,7 @@ static __poll_t lineinfo_watch_poll(struct file *file,
 static ssize_t lineinfo_watch_read(struct file *file, char __user *buf,
 				   size_t count, loff_t *off)
 {
-	struct gpio_chardev_data *priv = file->private_data;
+	struct gpio_chardev_data *cdev = file->private_data;
 	struct gpioline_info_changed event;
 	ssize_t bytes_read = 0;
 	int ret;
@@ -983,28 +983,28 @@ static ssize_t lineinfo_watch_read(struct file *file, char __user *buf,
 		return -EINVAL;
 
 	do {
-		spin_lock(&priv->wait.lock);
-		if (kfifo_is_empty(&priv->events)) {
+		spin_lock(&cdev->wait.lock);
+		if (kfifo_is_empty(&cdev->events)) {
 			if (bytes_read) {
-				spin_unlock(&priv->wait.lock);
+				spin_unlock(&cdev->wait.lock);
 				return bytes_read;
 			}
 
 			if (file->f_flags & O_NONBLOCK) {
-				spin_unlock(&priv->wait.lock);
+				spin_unlock(&cdev->wait.lock);
 				return -EAGAIN;
 			}
 
-			ret = wait_event_interruptible_locked(priv->wait,
-					!kfifo_is_empty(&priv->events));
+			ret = wait_event_interruptible_locked(cdev->wait,
+					!kfifo_is_empty(&cdev->events));
 			if (ret) {
-				spin_unlock(&priv->wait.lock);
+				spin_unlock(&cdev->wait.lock);
 				return ret;
 			}
 		}
 
-		ret = kfifo_out(&priv->events, &event, 1);
-		spin_unlock(&priv->wait.lock);
+		ret = kfifo_out(&cdev->events, &event, 1);
+		spin_unlock(&cdev->wait.lock);
 		if (ret != 1) {
 			ret = -EIO;
 			break;
@@ -1029,33 +1029,33 @@ static int gpio_chrdev_open(struct inode *inode, struct file *file)
 {
 	struct gpio_device *gdev = container_of(inode->i_cdev,
 						struct gpio_device, chrdev);
-	struct gpio_chardev_data *priv;
+	struct gpio_chardev_data *cdev;
 	int ret = -ENOMEM;
 
 	/* Fail on open if the backing gpiochip is gone */
 	if (!gdev->chip)
 		return -ENODEV;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
-	if (!priv)
+	cdev = kzalloc(sizeof(*cdev), GFP_KERNEL);
+	if (!cdev)
 		return -ENOMEM;
 
-	priv->watched_lines = bitmap_zalloc(gdev->chip->ngpio, GFP_KERNEL);
-	if (!priv->watched_lines)
-		goto out_free_priv;
+	cdev->watched_lines = bitmap_zalloc(gdev->chip->ngpio, GFP_KERNEL);
+	if (!cdev->watched_lines)
+		goto out_free_cdev;
 
-	init_waitqueue_head(&priv->wait);
-	INIT_KFIFO(priv->events);
-	priv->gdev = gdev;
+	init_waitqueue_head(&cdev->wait);
+	INIT_KFIFO(cdev->events);
+	cdev->gdev = gdev;
 
-	priv->lineinfo_changed_nb.notifier_call = lineinfo_changed_notify;
+	cdev->lineinfo_changed_nb.notifier_call = lineinfo_changed_notify;
 	ret = blocking_notifier_chain_register(&gdev->notifier,
-					       &priv->lineinfo_changed_nb);
+					       &cdev->lineinfo_changed_nb);
 	if (ret)
 		goto out_free_bitmap;
 
 	get_device(&gdev->dev);
-	file->private_data = priv;
+	file->private_data = cdev;
 
 	ret = nonseekable_open(inode, file);
 	if (ret)
@@ -1065,11 +1065,11 @@ static int gpio_chrdev_open(struct inode *inode, struct file *file)
 
 out_unregister_notifier:
 	blocking_notifier_chain_unregister(&gdev->notifier,
-					   &priv->lineinfo_changed_nb);
+					   &cdev->lineinfo_changed_nb);
 out_free_bitmap:
-	bitmap_free(priv->watched_lines);
-out_free_priv:
-	kfree(priv);
+	bitmap_free(cdev->watched_lines);
+out_free_cdev:
+	kfree(cdev);
 	return ret;
 }
 
@@ -1081,14 +1081,14 @@ out_free_priv:
  */
 static int gpio_chrdev_release(struct inode *inode, struct file *file)
 {
-	struct gpio_chardev_data *priv = file->private_data;
-	struct gpio_device *gdev = priv->gdev;
+	struct gpio_chardev_data *cdev = file->private_data;
+	struct gpio_device *gdev = cdev->gdev;
 
-	bitmap_free(priv->watched_lines);
+	bitmap_free(cdev->watched_lines);
 	blocking_notifier_chain_unregister(&gdev->notifier,
-					   &priv->lineinfo_changed_nb);
+					   &cdev->lineinfo_changed_nb);
 	put_device(&gdev->dev);
-	kfree(priv);
+	kfree(cdev);
 
 	return 0;
 }
