@@ -517,13 +517,14 @@ static void ssu100_process_read_urb(struct urb *urb)
 	if (!len)
 		return;	/* status only */
 
-	if (port->port.console && port->sysrq) {
+	if (port->sysrq) {
 		for (i = 0; i < len; i++, ch++) {
 			if (!usb_serial_handle_sysrq_char(port, *ch))
 				tty_insert_flip_char(&port->port, *ch, flag);
 		}
-	} else
+	} else {
 		tty_insert_flip_string_fixed_flag(&port->port, ch, flag, len);
+	}
 
 	tty_flip_buffer_push(&port->port);
 }

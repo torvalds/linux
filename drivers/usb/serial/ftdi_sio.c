@@ -2561,7 +2561,7 @@ static int ftdi_process_packet(struct usb_serial_port *port,
 
 	port->icount.rx += len - 2;
 
-	if (brkint || (port->port.console && port->sysrq)) {
+	if (brkint || port->sysrq) {
 		for (i = 2; i < len; i++) {
 			if (brkint && i == len - 1) {
 				if (usb_serial_handle_break(port))
