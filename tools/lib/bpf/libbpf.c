@@ -2473,19 +2473,11 @@ static int bpf_object__finalize_btf(struct bpf_object *obj)
 		return 0;
 
 	err = btf__finalize_data(obj, obj->btf);
-	if (!err)
-		return 0;
-
-	pr_warn("Error finalizing %s: %d.\n", BTF_ELF_SEC, err);
-	btf__free(obj->btf);
-	obj->btf = NULL;
-	btf_ext__free(obj->btf_ext);
-	obj->btf_ext = NULL;
-
-	if (libbpf_needs_btf(obj)) {
-		pr_warn("BTF is required, but is missing or corrupted.\n");
-		return -ENOENT;
+	if (err) {
+		pr_warn("Error finalizing %s: %d.\n", BTF_ELF_SEC, err);
+		return err;
 	}
+
 	return 0;
 }
 
