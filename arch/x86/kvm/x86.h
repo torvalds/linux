@@ -391,6 +391,8 @@ bool kvm_vcpu_exit_request(struct kvm_vcpu *vcpu);
 		__reserved_bits |= X86_CR4_LA57;        \
 	if (!__cpu_has(__c, X86_FEATURE_UMIP))          \
 		__reserved_bits |= X86_CR4_UMIP;        \
+	if (!__cpu_has(__c, X86_FEATURE_VMX))           \
+		__reserved_bits |= X86_CR4_VMXE;        \
 	__reserved_bits;                                \
 })
 
