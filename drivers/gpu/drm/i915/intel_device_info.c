@@ -29,7 +29,6 @@
 #include "display/intel_de.h"
 #include "intel_device_info.h"
 #include "i915_drv.h"
-#include "gt/intel_sseu.h"
 
 #define PLATFORM_NAME(x) [INTEL_##x] = #x
 static const char * const platform_names[] = {
@@ -115,8 +114,6 @@ void intel_device_info_print_static(const struct intel_device_info *info,
 void intel_device_info_print_runtime(const struct intel_runtime_info *info,
 				     struct drm_printer *p)
 {
-	intel_sseu_dump(&info->sseu, p);
-
 	drm_printf(p, "rawclk rate: %u kHz\n", info->rawclk_freq);
 	drm_printf(p, "CS timestamp frequency: %u Hz\n",
 		   info->cs_timestamp_frequency_hz);

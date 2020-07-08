@@ -68,7 +68,6 @@ struct __guc_ads_blob {
 static void __guc_ads_init(struct intel_guc *guc)
 {
 	struct intel_gt *gt = guc_to_gt(guc);
-	struct drm_i915_private *dev_priv = gt->i915;
 	struct __guc_ads_blob *blob = guc->ads_blob;
 	const u32 skipped_size = LRC_PPHWSP_SZ * PAGE_SIZE + LR_HW_CONTEXT_SIZE;
 	u32 base;
@@ -100,7 +99,7 @@ static void __guc_ads_init(struct intel_guc *guc)
 	}
 
 	/* System info */
-	blob->system_info.slice_enabled = hweight8(RUNTIME_INFO(dev_priv)->sseu.slice_mask);
+	blob->system_info.slice_enabled = hweight8(gt->info.sseu.slice_mask);
 	blob->system_info.rcs_enabled = 1;
 	blob->system_info.bcs_enabled = 1;
 

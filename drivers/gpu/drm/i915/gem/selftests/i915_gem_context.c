@@ -1229,7 +1229,7 @@ __igt_ctx_sseu(struct drm_i915_private *i915,
 	int inst = 0;
 	int ret = 0;
 
-	if (INTEL_GEN(i915) < 9 || !RUNTIME_INFO(i915)->sseu.has_slice_pg)
+	if (INTEL_GEN(i915) < 9)
 		return 0;
 
 	if (flags & TEST_RESET)
@@ -1253,6 +1253,9 @@ __igt_ctx_sseu(struct drm_i915_private *i915,
 			break;
 
 		if (hweight32(engine->sseu.slice_mask) < 2)
+			continue;
+
+		if (!engine->gt->info.sseu.has_slice_pg)
 			continue;
 
 		/*

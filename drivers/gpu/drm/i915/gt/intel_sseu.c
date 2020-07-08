@@ -128,7 +128,7 @@ static void gen11_compute_sseu_info(struct sseu_dev_info *sseu,
 
 static void gen12_sseu_info_init(struct intel_gt *gt)
 {
-	struct sseu_dev_info *sseu = &RUNTIME_INFO(gt->i915)->sseu;
+	struct sseu_dev_info *sseu = &gt->info.sseu;
 	struct intel_uncore *uncore = gt->uncore;
 	u32 dss_en;
 	u16 eu_en = 0;
@@ -163,7 +163,7 @@ static void gen12_sseu_info_init(struct intel_gt *gt)
 
 static void gen11_sseu_info_init(struct intel_gt *gt)
 {
-	struct sseu_dev_info *sseu = &RUNTIME_INFO(gt->i915)->sseu;
+	struct sseu_dev_info *sseu = &gt->info.sseu;
 	struct intel_uncore *uncore = gt->uncore;
 	u32 ss_en;
 	u8 eu_en;
@@ -192,7 +192,7 @@ static void gen11_sseu_info_init(struct intel_gt *gt)
 static void gen10_sseu_info_init(struct intel_gt *gt)
 {
 	struct intel_uncore *uncore = gt->uncore;
-	struct sseu_dev_info *sseu = &RUNTIME_INFO(gt->i915)->sseu;
+	struct sseu_dev_info *sseu = &gt->info.sseu;
 	const u32 fuse2 = intel_uncore_read(uncore, GEN8_FUSE2);
 	const int eu_mask = 0xff;
 	u32 subslice_mask, eu_en;
@@ -268,7 +268,7 @@ static void gen10_sseu_info_init(struct intel_gt *gt)
 
 static void cherryview_sseu_info_init(struct intel_gt *gt)
 {
-	struct sseu_dev_info *sseu = &RUNTIME_INFO(gt->i915)->sseu;
+	struct sseu_dev_info *sseu = &gt->info.sseu;
 	u32 fuse;
 	u8 subslice_mask = 0;
 
@@ -325,7 +325,7 @@ static void gen9_sseu_info_init(struct intel_gt *gt)
 {
 	struct drm_i915_private *i915 = gt->i915;
 	struct intel_device_info *info = mkwrite_device_info(i915);
-	struct sseu_dev_info *sseu = &RUNTIME_INFO(i915)->sseu;
+	struct sseu_dev_info *sseu = &gt->info.sseu;
 	struct intel_uncore *uncore = gt->uncore;
 	u32 fuse2, eu_disable, subslice_mask;
 	const u8 eu_mask = 0xff;
@@ -430,7 +430,7 @@ static void gen9_sseu_info_init(struct intel_gt *gt)
 
 static void bdw_sseu_info_init(struct intel_gt *gt)
 {
-	struct sseu_dev_info *sseu = &RUNTIME_INFO(gt->i915)->sseu;
+	struct sseu_dev_info *sseu = &gt->info.sseu;
 	struct intel_uncore *uncore = gt->uncore;
 	int s, ss;
 	u32 fuse2, subslice_mask, eu_disable[3]; /* s_max */
@@ -516,7 +516,7 @@ static void bdw_sseu_info_init(struct intel_gt *gt)
 static void hsw_sseu_info_init(struct intel_gt *gt)
 {
 	struct drm_i915_private *i915 = gt->i915;
-	struct sseu_dev_info *sseu = &RUNTIME_INFO(gt->i915)->sseu;
+	struct sseu_dev_info *sseu = &gt->info.sseu;
 	u32 fuse1;
 	u8 subslice_mask = 0;
 	int s, ss;
@@ -601,10 +601,11 @@ void intel_sseu_info_init(struct intel_gt *gt)
 		gen12_sseu_info_init(gt);
 }
 
-u32 intel_sseu_make_rpcs(struct drm_i915_private *i915,
+u32 intel_sseu_make_rpcs(struct intel_gt *gt,
 			 const struct intel_sseu *req_sseu)
 {
-	const struct sseu_dev_info *sseu = &RUNTIME_INFO(i915)->sseu;
+	struct drm_i915_private *i915 = gt->i915;
+	const struct sseu_dev_info *sseu = &gt->info.sseu;
 	bool subslice_pg = sseu->has_subslice_pg;
 	u8 slices, subslices;
 	u32 rpcs = 0;

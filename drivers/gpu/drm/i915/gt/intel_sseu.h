@@ -98,7 +98,7 @@ void intel_sseu_set_subslices(struct sseu_dev_info *sseu, int slice,
 
 void intel_sseu_info_init(struct intel_gt *gt);
 
-u32 intel_sseu_make_rpcs(struct drm_i915_private *i915,
+u32 intel_sseu_make_rpcs(struct intel_gt *gt,
 			 const struct intel_sseu *req_sseu);
 
 void intel_sseu_dump(const struct sseu_dev_info *sseu, struct drm_printer *p);

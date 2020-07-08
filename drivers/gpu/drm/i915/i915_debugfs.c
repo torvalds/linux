@@ -1327,7 +1327,7 @@ static int i915_rcs_topology(struct seq_file *m, void *unused)
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
 	struct drm_printer p = drm_seq_file_printer(m);
 
-	intel_sseu_print_topology(&RUNTIME_INFO(dev_priv)->sseu, &p);
+	intel_sseu_print_topology(&dev_priv->gt.info.sseu, &p);
 
 	return 0;
 }
@@ -1628,7 +1628,7 @@ static void gen10_sseu_device_status(struct drm_i915_private *dev_priv,
 				     struct sseu_dev_info *sseu)
 {
 #define SS_MAX 6
-	const struct intel_runtime_info *info = RUNTIME_INFO(dev_priv);
+	const struct intel_gt_info *info = &dev_priv->gt.info;
 	u32 s_reg[SS_MAX], eu_reg[2 * SS_MAX], eu_mask[2];
 	int s, ss;
 
@@ -1685,7 +1685,7 @@ static void gen9_sseu_device_status(struct drm_i915_private *dev_priv,
 				    struct sseu_dev_info *sseu)
 {
 #define SS_MAX 3
-	const struct intel_runtime_info *info = RUNTIME_INFO(dev_priv);
+	const struct intel_gt_info *info = &dev_priv->gt.info;
 	u32 s_reg[SS_MAX], eu_reg[2 * SS_MAX], eu_mask[2];
 	int s, ss;
 
@@ -1743,7 +1743,7 @@ static void gen9_sseu_device_status(struct drm_i915_private *dev_priv,
 static void bdw_sseu_device_status(struct drm_i915_private *dev_priv,
 				   struct sseu_dev_info *sseu)
 {
-	const struct intel_runtime_info *info = RUNTIME_INFO(dev_priv);
+	const struct intel_gt_info *info = &dev_priv->gt.info;
 	u32 slice_info = I915_READ(GEN8_GT_SLICE_INFO);
 	int s;
 
@@ -1806,7 +1806,7 @@ static void i915_print_sseu_info(struct seq_file *m, bool is_available_info,
 static int i915_sseu_status(struct seq_file *m, void *unused)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	const struct intel_runtime_info *info = RUNTIME_INFO(dev_priv);
+	const struct intel_gt_info *info = &dev_priv->gt.info;
 	struct sseu_dev_info sseu;
 	intel_wakeref_t wakeref;
 

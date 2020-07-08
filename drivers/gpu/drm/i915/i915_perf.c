@@ -2196,7 +2196,7 @@ static int gen8_configure_context(struct i915_gem_context *ctx,
 		if (!intel_context_pin_if_active(ce))
 			continue;
 
-		flex->value = intel_sseu_make_rpcs(ctx->i915, &ce->sseu);
+		flex->value = intel_sseu_make_rpcs(ce->engine->gt, &ce->sseu);
 		err = gen8_modify_context(ce, flex, count);
 
 		intel_context_unpin(ce);
@@ -2340,7 +2340,7 @@ oa_configure_all_contexts(struct i915_perf_stream *stream,
 		if (engine->class != RENDER_CLASS)
 			continue;
 
-		regs[0].value = intel_sseu_make_rpcs(i915, &ce->sseu);
+		regs[0].value = intel_sseu_make_rpcs(engine->gt, &ce->sseu);
 
 		err = gen8_modify_self(ce, regs, num_regs, active);
 		if (err)
@@ -2740,8 +2740,7 @@ static void
 get_default_sseu_config(struct intel_sseu *out_sseu,
 			struct intel_engine_cs *engine)
 {
-	const struct sseu_dev_info *devinfo_sseu =
-		&RUNTIME_INFO(engine->i915)->sseu;
+	const struct sseu_dev_info *devinfo_sseu = &engine->gt->info.sseu;
 
 	*out_sseu = intel_sseu_from_device_info(devinfo_sseu);
 
@@ -2766,7 +2765,7 @@ get_sseu_config(struct intel_sseu *out_sseu,
 	    drm_sseu->engine.engine_instance != engine->uabi_instance)
 		return -EINVAL;
 
-	return i915_gem_user_to_context_sseu(engine->i915, drm_sseu, out_sseu);
+	return i915_gem_user_to_context_sseu(engine->gt, drm_sseu, out_sseu);
 }
 
 /**

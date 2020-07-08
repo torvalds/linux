@@ -426,7 +426,7 @@ static void err_compression_marker(struct drm_i915_error_state_buf *m)
 static void error_print_instdone(struct drm_i915_error_state_buf *m,
 				 const struct intel_engine_coredump *ee)
 {
-	const struct sseu_dev_info *sseu = &RUNTIME_INFO(m->i915)->sseu;
+	const struct sseu_dev_info *sseu = &ee->engine->gt->info.sseu;
 	int slice;
 	int subslice;
 
@@ -626,8 +626,8 @@ static void err_print_capabilities(struct drm_i915_error_state_buf *m,
 
 	intel_device_info_print_static(&error->device_info, &p);
 	intel_device_info_print_runtime(&error->runtime_info, &p);
-	intel_sseu_print_topology(&error->runtime_info.sseu, &p);
 	intel_gt_info_print(&error->gt->info, &p);
+	intel_sseu_print_topology(&error->gt->info.sseu, &p);
 	intel_driver_caps_print(&error->driver_caps, &p);
 }
 

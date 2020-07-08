@@ -3422,7 +3422,7 @@ __execlists_update_reg_state(const struct intel_context *ce,
 	/* RPCS */
 	if (engine->class == RENDER_CLASS) {
 		regs[CTX_R_PWR_CLK_STATE] =
-			intel_sseu_make_rpcs(engine->i915, &ce->sseu);
+			intel_sseu_make_rpcs(engine->gt, &ce->sseu);
 
 		i915_oa_init_reg_state(ce, engine);
 	}

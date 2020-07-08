@@ -116,6 +116,9 @@ struct intel_gt {
 
 		/* Media engine access to SFC per instance */
 		u8 vdbox_sfc_access;
+
+		/* Slice/subslice/EU info */
+		struct sseu_dev_info sseu;
 	} info;
 };
 
