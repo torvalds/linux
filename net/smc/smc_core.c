@@ -15,6 +15,7 @@
 #include <linux/workqueue.h>
 #include <linux/wait.h>
 #include <linux/reboot.h>
+#include <linux/mutex.h>
 #include <net/tcp.h>
 #include <net/sock.h>
 #include <rdma/ib_verbs.h>
@@ -1961,14 +1962,14 @@ static void smc_core_going_away(void)
 	struct smc_ib_device *smcibdev;
 	struct smcd_dev *smcd;
 
-	spin_lock(&smc_ib_devices.lock);
+	mutex_lock(&smc_ib_devices.mutex);
 	list_for_each_entry(smcibdev, &smc_ib_devices.list, list) {
 		int i;
 
 		for (i = 0; i < SMC_MAX_PORTS; i++)
 			set_bit(i, smcibdev->ports_going_away);
 	}
-	spin_unlock(&smc_ib_devices.lock);
+	mutex_unlock(&smc_ib_devices.mutex);
 
 	spin_lock(&smcd_dev_list.lock);
 	list_for_each_entry(smcd, &smcd_dev_list.list, list) {
