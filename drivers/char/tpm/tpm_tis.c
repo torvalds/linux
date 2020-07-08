@@ -238,7 +238,6 @@ static int tpm_tis_pnp_init(struct pnp_dev *pnp_dev,
 static struct pnp_device_id tpm_pnp_tbl[] = {
 	{"PNP0C31", 0},		/* TPM */
 	{"ATM1200", 0},		/* Atmel */
-	{"IFX0102", 0},		/* Infineon */
 	{"BCM0101", 0},		/* Broadcom */
 	{"BCM0102", 0},		/* Broadcom */
 	{"NSC1200", 0},		/* National */
