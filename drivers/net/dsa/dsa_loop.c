@@ -280,12 +280,10 @@ static int dsa_loop_drv_probe(struct mdio_device *mdiodev)
 	struct dsa_loop_pdata *pdata = mdiodev->dev.platform_data;
 	struct dsa_loop_priv *ps;
 	struct dsa_switch *ds;
+	int ret;
 
 	if (!pdata)
 		return -ENODEV;
-
-	dev_info(&mdiodev->dev, "%s: 0x%0x\n",
-		 pdata->name, pdata->enabled_ports);
 
 	ds = devm_kzalloc(&mdiodev->dev, sizeof(*ds), GFP_KERNEL);
 	if (!ds)
@@ -311,7 +309,12 @@ static int dsa_loop_drv_probe(struct mdio_device *mdiodev)
 
 	dev_set_drvdata(&mdiodev->dev, ds);
 
-	return dsa_register_switch(ds);
+	ret = dsa_register_switch(ds);
+	if (!ret)
+		dev_info(&mdiodev->dev, "%s: 0x%0x\n",
+			 pdata->name, pdata->enabled_ports);
+
+	return ret;
 }
 
 static void dsa_loop_drv_remove(struct mdio_device *mdiodev)
