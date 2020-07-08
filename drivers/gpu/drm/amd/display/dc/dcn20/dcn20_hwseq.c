@@ -1482,22 +1482,23 @@ static void dcn20_update_dchubp_dpp(
 
 			memset(&adjust, 0, sizeof(adjust));
 			adjust.gamut_adjust_type = GRAPHICS_GAMUT_ADJUST_TYPE_BYPASS;
-			/* save the enablement of gamut remap for dpp*/
+
+			/* save the enablement of gamut remap for dpp */
 			enable_remap_dpp = pipe_ctx->stream->gamut_remap_matrix.enable_remap;
-			/*force bypass gamut remap for dpp/cm*/
+
+			/* force bypass gamut remap for dpp/cm */
 			pipe_ctx->stream->gamut_remap_matrix.enable_remap = false;
 			dc->hwss.program_gamut_remap(pipe_ctx);
-			/*restore gamut remap flag for the top plane and use this remap into mpc*/
-			if (pipe_ctx->top_pipe == NULL)
-				pipe_ctx->stream->gamut_remap_matrix.enable_remap = enable_remap_dpp;
-			else
-				pipe_ctx->stream->gamut_remap_matrix.enable_remap = false;
 
-			if (pipe_ctx->stream->gamut_remap_matrix.enable_remap == true) {
-				adjust.gamut_adjust_type = GRAPHICS_GAMUT_ADJUST_TYPE_SW;
-				for (i = 0; i < CSC_TEMPERATURE_MATRIX_SIZE; i++)
-					adjust.temperature_matrix[i] =
-						pipe_ctx->stream->gamut_remap_matrix.matrix[i];
+			/* restore gamut remap flag and use this remap into mpc */
+			pipe_ctx->stream->gamut_remap_matrix.enable_remap = enable_remap_dpp;
+
+			/* build remap matrix for top plane if enabled */
+			if (enable_remap_dpp && pipe_ctx->top_pipe == NULL) {
+					adjust.gamut_adjust_type = GRAPHICS_GAMUT_ADJUST_TYPE_SW;
+					for (i = 0; i < CSC_TEMPERATURE_MATRIX_SIZE; i++)
+						adjust.temperature_matrix[i] =
+								pipe_ctx->stream->gamut_remap_matrix.matrix[i];
 			}
 			mpc->funcs->set_gamut_remap(mpc, mpcc_id, &adjust);
 		} else
