@@ -175,22 +175,4 @@ static inline int gpio_chip_hwgpio(const struct gpio_desc *desc)
 #define chip_dbg(gc, fmt, ...)					\
 	dev_dbg(&gc->gpiodev->dev, "(%s): " fmt, gc->label, ##__VA_ARGS__)
 
-#ifdef CONFIG_GPIO_SYSFS
-
-int gpiochip_sysfs_register(struct gpio_device *gdev);
-void gpiochip_sysfs_unregister(struct gpio_device *gdev);
-
-#else
-
-static inline int gpiochip_sysfs_register(struct gpio_device *gdev)
-{
-	return 0;
-}
-
-static inline void gpiochip_sysfs_unregister(struct gpio_device *gdev)
-{
-}
-
-#endif /* CONFIG_GPIO_SYSFS */
-
 #endif /* GPIOLIB_H */

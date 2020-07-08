@@ -26,6 +26,7 @@
 #include "gpiolib-of.h"
 #include "gpiolib-acpi.h"
 #include "gpiolib-cdev.h"
+#include "gpiolib-sysfs.h"
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/gpio.h>
