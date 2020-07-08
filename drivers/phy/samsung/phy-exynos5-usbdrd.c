@@ -180,14 +180,14 @@ struct exynos5_usbdrd_phy_drvdata {
  * @utmiclk: clock for utmi+ phy
  * @itpclk: clock for ITP generation
  * @drv_data: pointer to SoC level driver data structure
- * @phys[]: array for 'EXYNOS5_DRDPHYS_NUM' number of PHY
+ * @phys: array for 'EXYNOS5_DRDPHYS_NUM' number of PHY
  *	    instances each with its 'phy' and 'phy_cfg'.
  * @extrefclk: frequency select settings when using 'separate
  *	       reference clocks' for SS and HS operations
  * @ref_clk: reference clock to PHY block from which PHY's
  *	     operational clocks are derived
- * vbus: VBUS regulator for phy
- * vbus_boost: Boost regulator for VBUS present on few Exynos boards
+ * @vbus: VBUS regulator for phy
+ * @vbus_boost: Boost regulator for VBUS present on few Exynos boards
  */
 struct exynos5_usbdrd_phy {
 	struct device *dev;
