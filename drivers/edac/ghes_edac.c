@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2013 by Mauro Carvalho Chehab
  *
- * Red Hat Inc. http://www.redhat.com
+ * Red Hat Inc. https://www.redhat.com
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
