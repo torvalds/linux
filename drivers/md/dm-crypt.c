@@ -129,7 +129,8 @@ struct iv_elephant_private {
  */
 enum flags { DM_CRYPT_SUSPENDED, DM_CRYPT_KEY_VALID,
 	     DM_CRYPT_SAME_CPU, DM_CRYPT_NO_OFFLOAD,
-	     DM_CRYPT_NO_READ_WORKQUEUE, DM_CRYPT_NO_WRITE_WORKQUEUE };
+	     DM_CRYPT_NO_READ_WORKQUEUE, DM_CRYPT_NO_WRITE_WORKQUEUE,
+	     DM_CRYPT_WRITE_INLINE };
 
 enum cipher_flags {
 	CRYPT_MODE_INTEGRITY_AEAD,	/* Use authenticated mode for cihper */
@@ -1919,9 +1920,32 @@ static void kcryptd_crypt_write_io_submit(struct dm_crypt_io *io, int async)
 	spin_unlock_irqrestore(&cc->write_thread_lock, flags);
 }
 
+static bool kcryptd_crypt_write_inline(struct crypt_config *cc,
+				       struct convert_context *ctx)
+
+{
+	if (!test_bit(DM_CRYPT_WRITE_INLINE, &cc->flags))
+		return false;
+
+	/*
+	 * Note: zone append writes (REQ_OP_ZONE_APPEND) do not have ordering
+	 * constraints so they do not need to be issued inline by
+	 * kcryptd_crypt_write_convert().
+	 */
+	switch (bio_op(ctx->bio_in)) {
+	case REQ_OP_WRITE:
+	case REQ_OP_WRITE_SAME:
+	case REQ_OP_WRITE_ZEROES:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static void kcryptd_crypt_write_convert(struct dm_crypt_io *io)
 {
 	struct crypt_config *cc = io->cc;
+	struct convert_context *ctx = &io->ctx;
 	struct bio *clone;
 	int crypt_finished;
 	sector_t sector = io->sector;
@@ -1931,7 +1955,7 @@ static void kcryptd_crypt_write_convert(struct dm_crypt_io *io)
 	 * Prevent io from disappearing until this function completes.
 	 */
 	crypt_inc_pending(io);
-	crypt_convert_init(cc, &io->ctx, NULL, io->base_bio, sector);
+	crypt_convert_init(cc, ctx, NULL, io->base_bio, sector);
 
 	clone = crypt_alloc_buffer(io, io->base_bio->bi_iter.bi_size);
 	if (unlikely(!clone)) {
@@ -1945,11 +1969,16 @@ static void kcryptd_crypt_write_convert(struct dm_crypt_io *io)
 	sector += bio_sectors(clone);
 
 	crypt_inc_pending(io);
-	r = crypt_convert(cc, &io->ctx,
+	r = crypt_convert(cc, ctx,
 			  test_bit(DM_CRYPT_NO_WRITE_WORKQUEUE, &cc->flags));
 	if (r)
 		io->error = r;
-	crypt_finished = atomic_dec_and_test(&io->ctx.cc_pending);
+	crypt_finished = atomic_dec_and_test(&ctx->cc_pending);
+	if (!crypt_finished && kcryptd_crypt_write_inline(cc, ctx)) {
+		/* Wait for completion signaled by kcryptd_async_done() */
+		wait_for_completion(&ctx->restart);
+		crypt_finished = 1;
+	}
 
 	/* Encryption was already finished, submit io now */
 	if (crypt_finished) {
@@ -2021,10 +2050,21 @@ static void kcryptd_async_done(struct crypto_async_request *async_req,
 	if (!atomic_dec_and_test(&ctx->cc_pending))
 		return;
 
-	if (bio_data_dir(io->base_bio) == READ)
+	/*
+	 * The request is fully completed: for inline writes, let
+	 * kcryptd_crypt_write_convert() do the IO submission.
+	 */
+	if (bio_data_dir(io->base_bio) == READ) {
 		kcryptd_crypt_read_done(io);
-	else
-		kcryptd_crypt_write_io_submit(io, 1);
+		return;
+	}
+
+	if (kcryptd_crypt_write_inline(cc, ctx)) {
+		complete(&ctx->restart);
+		return;
+	}
+
+	kcryptd_crypt_write_io_submit(io, 1);
 }
 
 static void kcryptd_crypt(struct work_struct *work)
@@ -2936,6 +2976,21 @@ static int crypt_ctr_optional(struct dm_target *ti, unsigned int argc, char **ar
 	return 0;
 }
 
+#ifdef CONFIG_BLK_DEV_ZONED
+
+static int crypt_report_zones(struct dm_target *ti,
+		struct dm_report_zones_args *args, unsigned int nr_zones)
+{
+	struct crypt_config *cc = ti->private;
+	sector_t sector = cc->start + dm_target_offset(ti, args->next_sector);
+
+	args->start = cc->start;
+	return blkdev_report_zones(cc->dev->bdev, sector, nr_zones,
+				   dm_report_zones_cb, args);
+}
+
+#endif
+
 /*
  * Construct an encryption mapping:
  * <cipher> [<key>|:<key_size>:<user|logon>:<key_description>] <iv_offset> <dev_path> <start>
@@ -3068,6 +3123,16 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad;
 	}
 	cc->start = tmpll;
+
+	/*
+	 * For zoned block devices, we need to preserve the issuer write
+	 * ordering. To do so, disable write workqueues and force inline
+	 * encryption completion.
+	 */
+	if (bdev_is_zoned(cc->dev->bdev)) {
+		set_bit(DM_CRYPT_NO_WRITE_WORKQUEUE, &cc->flags);
+		set_bit(DM_CRYPT_WRITE_INLINE, &cc->flags);
+	}
 
 	if (crypt_integrity_aead(cc) || cc->integrity_iv_size) {
 		ret = crypt_integrity_ctr(cc, ti);
@@ -3358,6 +3423,10 @@ static struct target_type crypt_target = {
 	.module = THIS_MODULE,
 	.ctr    = crypt_ctr,
 	.dtr    = crypt_dtr,
+#ifdef CONFIG_BLK_DEV_ZONED
+	.features = DM_TARGET_ZONED_HM,
+	.report_zones = crypt_report_zones,
+#endif
 	.map    = crypt_map,
 	.status = crypt_status,
 	.postsuspend = crypt_postsuspend,
