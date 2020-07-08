@@ -495,7 +495,7 @@ static void ssu100_update_lsr(struct usb_serial_port *port, u8 lsr,
 static void ssu100_process_read_urb(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
-	char *packet = (char *)urb->transfer_buffer;
+	char *packet = urb->transfer_buffer;
 	char flag = TTY_NORMAL;
 	u32 len = urb->actual_length;
 	int i;

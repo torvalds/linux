@@ -570,8 +570,7 @@ static void sierra_instat_callback(struct urb *urb)
 		urb, port, portdata);
 
 	if (status == 0) {
-		struct usb_ctrlrequest *req_pkt =
-				(struct usb_ctrlrequest *)urb->transfer_buffer;
+		struct usb_ctrlrequest *req_pkt = urb->transfer_buffer;
 
 		if (!req_pkt) {
 			dev_dbg(&port->dev, "%s: NULL req_pkt\n",

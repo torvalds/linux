@@ -2584,7 +2584,7 @@ static void ftdi_process_read_urb(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
-	char *data = (char *)urb->transfer_buffer;
+	char *data = urb->transfer_buffer;
 	int i;
 	int len;
 	int count = 0;

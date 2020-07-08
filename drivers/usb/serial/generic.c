@@ -345,7 +345,7 @@ EXPORT_SYMBOL_GPL(usb_serial_generic_submit_read_urbs);
 void usb_serial_generic_process_read_urb(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
-	char *ch = (char *)urb->transfer_buffer;
+	char *ch = urb->transfer_buffer;
 	int i;
 
 	if (!urb->actual_length)
