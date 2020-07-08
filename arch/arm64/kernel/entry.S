@@ -126,8 +126,10 @@ alternative_else_nop_endif
 	add	\dst, \dst, #(\sym - .entry.tramp.text)
 	.endm
 
-	// This macro corrupts x0-x3. It is the caller's duty
-	// to save/restore them if required.
+	/*
+	 * This macro corrupts x0-x3. It is the caller's duty  to save/restore
+	 * them if required.
+	 */
 	.macro	apply_ssbd, state, tmp1, tmp2
 #ifdef CONFIG_ARM64_SSBD
 alternative_cb	arm64_enable_wa2_handling
@@ -168,8 +170,10 @@ alternative_cb_end
 
 	.if	\el == 0
 	.if	\regsize == 32
-	// If we're returning from a 32-bit task on a system affected by
-	// 1418040 then re-enable userspace access to the virtual counter.
+	/*
+	 * If we're returning from a 32-bit task on a system affected by
+	 * 1418040 then re-enable userspace access to the virtual counter.
+	 */
 #ifdef CONFIG_ARM64_ERRATUM_1418040
 alternative_if ARM64_WORKAROUND_1418040
 	mrs	x0, cntkctl_el1
@@ -183,8 +187,10 @@ alternative_else_nop_endif
 	ldr_this_cpu	tsk, __entry_task, x20
 	msr	sp_el0, tsk
 
-	// Ensure MDSCR_EL1.SS is clear, since we can unmask debug exceptions
-	// when scheduling.
+	/*
+	 * Ensure MDSCR_EL1.SS is clear, since we can unmask debug exceptions
+	 * when scheduling.
+	 */
 	ldr	x19, [tsk, #TSK_TI_FLAGS]
 	disable_step_tsk x19, x20
 
@@ -381,11 +387,11 @@ alternative_else_nop_endif
 	.if	\el == 0
 alternative_insn eret, nop, ARM64_UNMAP_KERNEL_AT_EL0
 #ifdef CONFIG_UNMAP_KERNEL_AT_EL0
-	bne	5f
+	bne	4f
 	msr	far_el1, x30
 	tramp_alias	x30, tramp_exit_native
 	br	x30
-5:
+4:
 	tramp_alias	x30, tramp_exit_compat
 	br	x30
 #endif
