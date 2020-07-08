@@ -112,6 +112,7 @@ gt-y += \
 	gt/intel_ring_submission.o \
 	gt/intel_rps.o \
 	gt/intel_sseu.o \
+	gt/intel_sseu_debugfs.o \
 	gt/intel_timeline.o \
 	gt/intel_workarounds.o \
 	gt/shmem_utils.o \
