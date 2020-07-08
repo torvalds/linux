@@ -7098,6 +7098,10 @@ static void gen8_set_l3sqc_credits(struct drm_i915_private *dev_priv,
 
 static void icl_init_clock_gating(struct drm_i915_private *dev_priv)
 {
+	/* Wa_1409120013:icl,ehl */
+	I915_WRITE(ILK_DPFC_CHICKEN,
+		   ILK_DPFC_CHICKEN_COMP_DUMMY_PIXEL);
+
 	/* This is not an Wa. Enable to reduce Sampler power */
 	I915_WRITE(GEN10_DFR_RATIO_EN_AND_CHICKEN,
 		   I915_READ(GEN10_DFR_RATIO_EN_AND_CHICKEN) & ~DFR_DISABLE);
@@ -7111,6 +7115,10 @@ static void tgl_init_clock_gating(struct drm_i915_private *dev_priv)
 {
 	u32 vd_pg_enable = 0;
 	unsigned int i;
+
+	/* Wa_1409120013:tgl */
+	I915_WRITE(ILK_DPFC_CHICKEN,
+		   ILK_DPFC_CHICKEN_COMP_DUMMY_PIXEL);
 
 	/* This is not a WA. Enable VD HCP & MFX_ENC powergate */
 	for (i = 0; i < I915_MAX_VCS; i++) {
@@ -7222,6 +7230,11 @@ static void bdw_init_clock_gating(struct drm_i915_private *dev_priv)
 {
 	enum pipe pipe;
 
+	/* WaFbcAsynchFlipDisableFbcQueue:hsw,bdw */
+	I915_WRITE(CHICKEN_PIPESL_1(PIPE_A),
+		   I915_READ(CHICKEN_PIPESL_1(PIPE_A)) |
+		   HSW_FBCQ_DIS);
+
 	/* WaSwitchSolVfFArbitrationPriority:bdw */
 	I915_WRITE(GAM_ECOCHK, I915_READ(GAM_ECOCHK) | HSW_ECOCHK_ARB_PRIO_SOL);
 
@@ -7269,6 +7282,11 @@ static void bdw_init_clock_gating(struct drm_i915_private *dev_priv)
 
 static void hsw_init_clock_gating(struct drm_i915_private *dev_priv)
 {
+	/* WaFbcAsynchFlipDisableFbcQueue:hsw,bdw */
+	I915_WRITE(CHICKEN_PIPESL_1(PIPE_A),
+		   I915_READ(CHICKEN_PIPESL_1(PIPE_A)) |
+		   HSW_FBCQ_DIS);
+
 	/* This is required by WaCatErrorRejectionIssue:hsw */
 	I915_WRITE(GEN7_SQ_CHICKEN_MBCUNIT_CONFIG,
 		   I915_READ(GEN7_SQ_CHICKEN_MBCUNIT_CONFIG) |
@@ -7285,6 +7303,11 @@ static void ivb_init_clock_gating(struct drm_i915_private *dev_priv)
 	u32 snpcr;
 
 	I915_WRITE(ILK_DSPCLK_GATE_D, ILK_VRHUNIT_CLOCK_GATE_DISABLE);
+
+	/* WaFbcAsynchFlipDisableFbcQueue:ivb */
+	I915_WRITE(ILK_DISPLAY_CHICKEN1,
+		   I915_READ(ILK_DISPLAY_CHICKEN1) |
+		   ILK_FBCQ_DIS);
 
 	/* WaDisableBackToBackFlipFix:ivb */
 	I915_WRITE(IVB_CHICKEN3,

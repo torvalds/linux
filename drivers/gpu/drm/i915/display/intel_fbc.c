@@ -347,21 +347,6 @@ static void gen7_fbc_activate(struct drm_i915_private *dev_priv)
 	if (dev_priv->fbc.false_color)
 		dpfc_ctl |= FBC_CTL_FALSE_COLOR;
 
-	if (IS_IVYBRIDGE(dev_priv)) {
-		/* WaFbcAsynchFlipDisableFbcQueue:ivb */
-		intel_de_write(dev_priv, ILK_DISPLAY_CHICKEN1,
-			       intel_de_read(dev_priv, ILK_DISPLAY_CHICKEN1) | ILK_FBCQ_DIS);
-	} else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
-		/* WaFbcAsynchFlipDisableFbcQueue:hsw,bdw */
-		intel_de_write(dev_priv, CHICKEN_PIPESL_1(params->crtc.pipe),
-			       intel_de_read(dev_priv, CHICKEN_PIPESL_1(params->crtc.pipe)) | HSW_FBCQ_DIS);
-	}
-
-	if (INTEL_GEN(dev_priv) >= 11)
-		/* Wa_1409120013:icl,ehl,tgl */
-		intel_de_write(dev_priv, ILK_DPFC_CHICKEN,
-			       ILK_DPFC_CHICKEN_COMP_DUMMY_PIXEL);
-
 	intel_de_write(dev_priv, ILK_DPFC_CONTROL, dpfc_ctl | DPFC_CTL_EN);
 
 	intel_fbc_recompress(dev_priv);
