@@ -76,13 +76,11 @@ static int versatile_pci_probe(struct platform_device *pdev)
 	if (!bridge)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	versatile_pci_base = devm_ioremap_resource(dev, res);
+	versatile_pci_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(versatile_pci_base))
 		return PTR_ERR(versatile_pci_base);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	versatile_cfg_base[0] = devm_ioremap_resource(dev, res);
+	versatile_cfg_base[0] = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(versatile_cfg_base[0]))
 		return PTR_ERR(versatile_cfg_base[0]);
 

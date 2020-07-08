@@ -422,7 +422,6 @@ static int faraday_pci_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	const struct faraday_pci_variant *variant =
 		of_device_get_match_data(dev);
-	struct resource *regs;
 	struct resource_entry *win;
 	struct faraday_pci *p;
 	struct resource *io;
@@ -465,8 +464,7 @@ static int faraday_pci_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	p->base = devm_ioremap_resource(dev, regs);
+	p->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(p->base))
 		return PTR_ERR(p->base);
 

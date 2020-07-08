@@ -84,14 +84,12 @@ static int exynos5440_pcie_get_mem_resources(struct platform_device *pdev,
 {
 	struct dw_pcie *pci = ep->pci;
 	struct device *dev = pci->dev;
-	struct resource *res;
 
 	ep->mem_res = devm_kzalloc(dev, sizeof(*ep->mem_res), GFP_KERNEL);
 	if (!ep->mem_res)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	ep->mem_res->elbi_base = devm_ioremap_resource(dev, res);
+	ep->mem_res->elbi_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ep->mem_res->elbi_base))
 		return PTR_ERR(ep->mem_res->elbi_base);
 
