@@ -910,11 +910,21 @@ xfs_fs_freeze(
 	struct super_block	*sb)
 {
 	struct xfs_mount	*mp = XFS_M(sb);
+	unsigned int		flags;
+	int			ret;
 
+	/*
+	 * The filesystem is now frozen far enough that memory reclaim
+	 * cannot safely operate on the filesystem. Hence we need to
+	 * set a GFP_NOFS context here to avoid recursion deadlocks.
+	 */
+	flags = memalloc_nofs_save();
 	xfs_stop_block_reaping(mp);
 	xfs_save_resvblks(mp);
 	xfs_quiesce_attr(mp);
-	return xfs_sync_sb(mp, true);
+	ret = xfs_sync_sb(mp, true);
+	memalloc_nofs_restore(flags);
+	return ret;
 }
 
 STATIC int
