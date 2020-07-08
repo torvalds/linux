@@ -1598,7 +1598,15 @@ asmlinkage void kvm_spurious_fault(void);
 	insn "\n\t"							\
 	"jmp	668f \n\t"						\
 	"667: \n\t"							\
+	"1: \n\t"							\
+	".pushsection .discard.instr_begin \n\t"			\
+	".long 1b - . \n\t"						\
+	".popsection \n\t"						\
 	"call	kvm_spurious_fault \n\t"				\
+	"1: \n\t"							\
+	".pushsection .discard.instr_end \n\t"				\
+	".long 1b - . \n\t"						\
+	".popsection \n\t"						\
 	"668: \n\t"							\
 	_ASM_EXTABLE(666b, 667b)
 
