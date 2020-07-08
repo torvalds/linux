@@ -298,7 +298,12 @@ struct audiopipe {
 					 * the current dma position
 					 * (lower 32 bits only)
 					 */
-	u32 last_counter;		/* The last position, which is used
+	u32 last_period;                /* Counter position last time a
+					 * period elapsed
+					 */
+	u32 last_counter;		/* Used exclusively by pcm_pointer
+					 * under PCM core locks.
+					 * The last position, which is used
 					 * to compute...
 					 */
 	u32 position;			/* ...the number of bytes tranferred
@@ -332,7 +337,6 @@ struct audioformat {
 struct echoaudio {
 	spinlock_t lock;
 	struct snd_pcm_substream *substream[DSP_MAXPIPES];
-	int last_period[DSP_MAXPIPES];
 	struct mutex mode_mutex;
 	u16 num_digital_modes, digital_mode_list[6];
 	u16 num_clock_sources, clock_source_list[10];
