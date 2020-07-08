@@ -389,7 +389,7 @@ static void pseries_hp_work_fn(struct work_struct *work)
 	handle_dlpar_errorlog(hp_work->errlog);
 
 	kfree(hp_work->errlog);
-	kfree((void *)work);
+	kfree(work);
 }
 
 void queue_hotplug_event(struct pseries_hp_errorlog *hp_errlog)
