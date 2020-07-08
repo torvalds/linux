@@ -467,7 +467,6 @@ prototypes::
 	int (*compat_ioctl) (struct block_device *, fmode_t, unsigned, unsigned long);
 	int (*direct_access) (struct block_device *, sector_t, void **,
 				unsigned long *);
-	int (*media_changed) (struct gendisk *);
 	void (*unlock_native_capacity) (struct gendisk *);
 	int (*revalidate_disk) (struct gendisk *);
 	int (*getgeo)(struct block_device *, struct hd_geometry *);
@@ -483,14 +482,13 @@ release:		yes
 ioctl:			no
 compat_ioctl:		no
 direct_access:		no
-media_changed:		no
 unlock_native_capacity:	no
 revalidate_disk:	no
 getgeo:			no
 swap_slot_free_notify:	no	(see below)
 ======================= ===================
 
-media_changed, unlock_native_capacity and revalidate_disk are called only from
+unlock_native_capacity and revalidate_disk are called only from
 check_disk_change().
 
 swap_slot_free_notify is called with swap_lock and sometimes the page lock
