@@ -2088,7 +2088,7 @@ void amdgpu_ttm_set_buffer_funcs_status(struct amdgpu_device *adev, bool enable)
 	uint64_t size;
 	int r;
 
-	if (!adev->mman.initialized || adev->in_gpu_reset ||
+	if (!adev->mman.initialized || amdgpu_in_reset(adev) ||
 	    adev->mman.buffer_funcs_enabled == enable)
 		return;
 

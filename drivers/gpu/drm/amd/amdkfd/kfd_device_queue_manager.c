@@ -304,15 +304,17 @@ static void deallocate_vmid(struct device_queue_manager *dqm,
 				struct qcm_process_device *qpd,
 				struct queue *q)
 {
-	/* On GFX v7, CP doesn't flush TC at dequeue */
-	if (q->device->device_info->asic_family == CHIP_HAWAII)
-		if (flush_texture_cache_nocpsch(q->device, qpd))
-			pr_err("Failed to flush TC\n");
+	if (!dqm->is_resetting) {
+		/* On GFX v7, CP doesn't flush TC at dequeue */
+		if (q->device->device_info->asic_family == CHIP_HAWAII)
+			if (flush_texture_cache_nocpsch(q->device, qpd))
+				pr_err("Failed to flush TC\n");
 
-	kfd_flush_tlb(qpd_to_pdd(qpd));
+		kfd_flush_tlb(qpd_to_pdd(qpd));
 
-	/* Release the vmid mapping */
-	set_pasid_vmid_mapping(dqm, 0, qpd->vmid);
+		/* Release the vmid mapping */
+		set_pasid_vmid_mapping(dqm, 0, qpd->vmid);
+	}
 	dqm->vmid_pasid[qpd->vmid] = 0;
 
 	qpd->vmid = 0;

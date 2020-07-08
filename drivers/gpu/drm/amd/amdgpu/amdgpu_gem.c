@@ -671,6 +671,8 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 		bo_va = NULL;
 	}
 
+	down_read(&adev->reset_sem);
+
 	switch (args->operation) {
 	case AMDGPU_VA_OP_MAP:
 		va_flags = amdgpu_gem_va_map_flags(adev, args->flags);
@@ -699,6 +701,8 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 	if (!r && !(args->flags & AMDGPU_VM_DELAY_UPDATE) && !amdgpu_vm_debug)
 		amdgpu_gem_va_update_vm(adev, &fpriv->vm, bo_va,
 					args->operation);
+
+	up_read(&adev->reset_sem);
 
 error_backoff:
 	ttm_eu_backoff_reservation(&ticket, &list);

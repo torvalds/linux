@@ -30,7 +30,8 @@ struct amdgpu_hive_info {
 	uint64_t		hive_id;
 	struct list_head	device_list;
 	int number_devices;
-	struct mutex hive_lock, reset_lock;
+	struct mutex hive_lock;
+	atomic_t in_reset;
 	struct kobject *kobj;
 	struct device_attribute dev_attr;
 	struct amdgpu_device *adev;

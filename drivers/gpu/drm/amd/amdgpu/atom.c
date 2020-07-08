@@ -755,6 +755,7 @@ static void atom_op_jump(atom_exec_context *ctx, int *ptr, int arg)
 				/* jiffies wrap around we will just wait a little longer */
 				ctx->last_jump_jiffies = jiffies;
 			}
+			schedule();
 		} else {
 			ctx->last_jump = ctx->start + target;
 			ctx->last_jump_jiffies = jiffies;

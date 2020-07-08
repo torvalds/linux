@@ -1647,7 +1647,7 @@ static int dm_suspend(void *handle)
 	struct amdgpu_display_manager *dm = &adev->dm;
 	int ret = 0;
 
-	if (adev->in_gpu_reset) {
+	if (amdgpu_in_reset(adev)) {
 		mutex_lock(&dm->dc_lock);
 		dm->cached_dc_state = dc_copy_state(dm->dc->current_state);
 
@@ -1833,7 +1833,7 @@ static int dm_resume(void *handle)
 	struct dc_state *dc_state;
 	int i, r, j;
 
-	if (adev->in_gpu_reset) {
+	if (amdgpu_in_reset(adev)) {
 		dc_state = dm->cached_dc_state;
 
 		r = dm_dmub_hw_init(adev);

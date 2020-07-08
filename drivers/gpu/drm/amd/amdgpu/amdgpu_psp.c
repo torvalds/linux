@@ -1684,7 +1684,7 @@ static int psp_load_smu_fw(struct psp_context *psp)
 		return 0;
 
 
-	if (adev->in_gpu_reset && ras && ras->supported) {
+	if (amdgpu_in_reset(adev) && ras && ras->supported) {
 		ret = amdgpu_dpm_set_mp1_state(adev, PP_MP1_STATE_UNLOAD);
 		if (ret) {
 			DRM_WARN("Failed to set MP1 state prepare for reload\n");
@@ -1799,7 +1799,7 @@ static int psp_load_fw(struct amdgpu_device *adev)
 	int ret;
 	struct psp_context *psp = &adev->psp;
 
-	if (amdgpu_sriov_vf(adev) && adev->in_gpu_reset) {
+	if (amdgpu_sriov_vf(adev) && amdgpu_in_reset(adev)) {
 		psp_ring_stop(psp, PSP_RING_TYPE__KM); /* should not destroy ring, only stop */
 		goto skip_memalloc;
 	}

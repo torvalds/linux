@@ -628,7 +628,8 @@ int amdgpu_ucode_init_bo(struct amdgpu_device *adev)
 	struct amdgpu_firmware_info *ucode = NULL;
 
  /* for baremetal, the ucode is allocated in gtt, so don't need to fill the bo when reset/suspend */
-	if (!amdgpu_sriov_vf(adev) && (adev->in_gpu_reset || adev->in_suspend))
+	if (!amdgpu_sriov_vf(adev) &&
+		(amdgpu_in_reset(adev) || adev->in_suspend))
 		return 0;
 	/*
 	 * if SMU loaded firmware, it needn't add SMC, UVD, and VCE

@@ -1084,6 +1084,8 @@ void amdgpu_driver_postclose_kms(struct drm_device *dev,
 	if (!fpriv)
 		return;
 
+	down_read(&adev->reset_sem);
+
 	pm_runtime_get_sync(dev->dev);
 
 	if (amdgpu_device_ip_get_ip_block(adev, AMD_IP_BLOCK_TYPE_UVD) != NULL)
@@ -1122,6 +1124,8 @@ void amdgpu_driver_postclose_kms(struct drm_device *dev,
 
 	pm_runtime_mark_last_busy(dev->dev);
 	pm_runtime_put_autosuspend(dev->dev);
+
+	up_read(&adev->reset_sem);
 }
 
 /*
