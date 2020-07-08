@@ -106,6 +106,22 @@ static int linehandle_validate_flags(u32 flags)
 	return 0;
 }
 
+static void linehandle_flags_to_desc_flags(u32 lflags, unsigned long *flagsp)
+{
+	assign_bit(FLAG_ACTIVE_LOW, flagsp,
+		   lflags & GPIOHANDLE_REQUEST_ACTIVE_LOW);
+	assign_bit(FLAG_OPEN_DRAIN, flagsp,
+		   lflags & GPIOHANDLE_REQUEST_OPEN_DRAIN);
+	assign_bit(FLAG_OPEN_SOURCE, flagsp,
+		   lflags & GPIOHANDLE_REQUEST_OPEN_SOURCE);
+	assign_bit(FLAG_PULL_UP, flagsp,
+		   lflags & GPIOHANDLE_REQUEST_BIAS_PULL_UP);
+	assign_bit(FLAG_PULL_DOWN, flagsp,
+		   lflags & GPIOHANDLE_REQUEST_BIAS_PULL_DOWN);
+	assign_bit(FLAG_BIAS_DISABLE, flagsp,
+		   lflags & GPIOHANDLE_REQUEST_BIAS_DISABLE);
+}
+
 static long linehandle_set_config(struct linehandle_state *lh,
 				  void __user *ip)
 {
@@ -113,7 +129,6 @@ static long linehandle_set_config(struct linehandle_state *lh,
 	struct gpio_desc *desc;
 	int i, ret;
 	u32 lflags;
-	unsigned long *flagsp;
 
 	if (copy_from_user(&gcnf, ip, sizeof(gcnf)))
 		return -EFAULT;
@@ -125,25 +140,7 @@ static long linehandle_set_config(struct linehandle_state *lh,
 
 	for (i = 0; i < lh->numdescs; i++) {
 		desc = lh->descs[i];
-		flagsp = &desc->flags;
-
-		assign_bit(FLAG_ACTIVE_LOW, flagsp,
-			lflags & GPIOHANDLE_REQUEST_ACTIVE_LOW);
-
-		assign_bit(FLAG_OPEN_DRAIN, flagsp,
-			lflags & GPIOHANDLE_REQUEST_OPEN_DRAIN);
-
-		assign_bit(FLAG_OPEN_SOURCE, flagsp,
-			lflags & GPIOHANDLE_REQUEST_OPEN_SOURCE);
-
-		assign_bit(FLAG_PULL_UP, flagsp,
-			lflags & GPIOHANDLE_REQUEST_BIAS_PULL_UP);
-
-		assign_bit(FLAG_PULL_DOWN, flagsp,
-			lflags & GPIOHANDLE_REQUEST_BIAS_PULL_DOWN);
-
-		assign_bit(FLAG_BIAS_DISABLE, flagsp,
-			lflags & GPIOHANDLE_REQUEST_BIAS_DISABLE);
+		linehandle_flags_to_desc_flags(gcnf.flags, &desc->flags);
 
 		/*
 		 * Lines have to be requested explicitly for input
@@ -306,19 +303,7 @@ static int linehandle_create(struct gpio_device *gdev, void __user *ip)
 			goto out_free_descs;
 		lh->descs[i] = desc;
 		count = i + 1;
-
-		if (lflags & GPIOHANDLE_REQUEST_ACTIVE_LOW)
-			set_bit(FLAG_ACTIVE_LOW, &desc->flags);
-		if (lflags & GPIOHANDLE_REQUEST_OPEN_DRAIN)
-			set_bit(FLAG_OPEN_DRAIN, &desc->flags);
-		if (lflags & GPIOHANDLE_REQUEST_OPEN_SOURCE)
-			set_bit(FLAG_OPEN_SOURCE, &desc->flags);
-		if (lflags & GPIOHANDLE_REQUEST_BIAS_DISABLE)
-			set_bit(FLAG_BIAS_DISABLE, &desc->flags);
-		if (lflags & GPIOHANDLE_REQUEST_BIAS_PULL_DOWN)
-			set_bit(FLAG_PULL_DOWN, &desc->flags);
-		if (lflags & GPIOHANDLE_REQUEST_BIAS_PULL_UP)
-			set_bit(FLAG_PULL_UP, &desc->flags);
+		linehandle_flags_to_desc_flags(handlereq.flags, &desc->flags);
 
 		ret = gpiod_set_transitory(desc, false);
 		if (ret < 0)
@@ -685,14 +670,7 @@ static int lineevent_create(struct gpio_device *gdev, void __user *ip)
 	le->desc = desc;
 	le->eflags = eflags;
 
-	if (lflags & GPIOHANDLE_REQUEST_ACTIVE_LOW)
-		set_bit(FLAG_ACTIVE_LOW, &desc->flags);
-	if (lflags & GPIOHANDLE_REQUEST_BIAS_DISABLE)
-		set_bit(FLAG_BIAS_DISABLE, &desc->flags);
-	if (lflags & GPIOHANDLE_REQUEST_BIAS_PULL_DOWN)
-		set_bit(FLAG_PULL_DOWN, &desc->flags);
-	if (lflags & GPIOHANDLE_REQUEST_BIAS_PULL_UP)
-		set_bit(FLAG_PULL_UP, &desc->flags);
+	linehandle_flags_to_desc_flags(lflags, &desc->flags);
 
 	ret = gpiod_direction_input(desc);
 	if (ret)
