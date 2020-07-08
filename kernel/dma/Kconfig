@@ -5,6 +5,9 @@ config HAS_DMA
 	depends on !NO_DMA
 	default y
 
+config DMA_OPS
+	bool
+
 config NEED_SG_DMA_LENGTH
 	bool
 
@@ -60,6 +63,7 @@ config DMA_NONCOHERENT_CACHE_SYNC
 config DMA_VIRT_OPS
 	bool
 	depends on HAS_DMA
+	select DMA_OPS
 
 config SWIOTLB
 	bool

@@ -1183,6 +1183,8 @@ static void setup_dma_device(struct ib_device *device)
 	struct device *parent = device->dev.parent;
 
 	WARN_ON_ONCE(device->dma_device);
+
+#ifdef CONFIG_DMA_OPS
 	if (device->dev.dma_ops) {
 		/*
 		 * The caller provided custom DMA operations. Copy the
@@ -1203,7 +1205,9 @@ static void setup_dma_device(struct ib_device *device)
 			else
 				WARN_ON_ONCE(true);
 		}
-	} else {
+	} else
+#endif /* CONFIG_DMA_OPS */
+	{
 		/*
 		 * The caller did not provide custom DMA operations. Use the
 		 * DMA mapping operations of the parent device.

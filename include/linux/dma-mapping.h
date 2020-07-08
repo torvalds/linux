@@ -191,6 +191,7 @@ static inline int dma_mmap_from_global_coherent(struct vm_area_struct *vma,
 #ifdef CONFIG_HAS_DMA
 #include <asm/dma-mapping.h>
 
+#ifdef CONFIG_DMA_OPS
 static inline const struct dma_map_ops *get_dma_ops(struct device *dev)
 {
 	if (dev->dma_ops)
@@ -203,7 +204,16 @@ static inline void set_dma_ops(struct device *dev,
 {
 	dev->dma_ops = dma_ops;
 }
-
+#else /* CONFIG_DMA_OPS */
+static inline const struct dma_map_ops *get_dma_ops(struct device *dev)
+{
+	return NULL;
+}
+static inline void set_dma_ops(struct device *dev,
+			       const struct dma_map_ops *dma_ops)
+{
+}
+#endif /* CONFIG_DMA_OPS */
 
 static inline int dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 {
