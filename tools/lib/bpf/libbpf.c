@@ -8591,7 +8591,7 @@ static struct perf_buffer *__perf_buffer__new(int map_fd, size_t page_cnt,
 					      struct perf_buffer_params *p)
 {
 	const char *online_cpus_file = "/sys/devices/system/cpu/online";
-	struct bpf_map_info map = {};
+	struct bpf_map_info map;
 	char msg[STRERR_BUFSIZE];
 	struct perf_buffer *pb;
 	bool *online = NULL;
@@ -8604,19 +8604,28 @@ static struct perf_buffer *__perf_buffer__new(int map_fd, size_t page_cnt,
 		return ERR_PTR(-EINVAL);
 	}
 
+	/* best-effort sanity checks */
+	memset(&map, 0, sizeof(map));
 	map_info_len = sizeof(map);
 	err = bpf_obj_get_info_by_fd(map_fd, &map, &map_info_len);
 	if (err) {
 		err = -errno;
-		pr_warn("failed to get map info for map FD %d: %s\n",
-			map_fd, libbpf_strerror_r(err, msg, sizeof(msg)));
-		return ERR_PTR(err);
-	}
-
-	if (map.type != BPF_MAP_TYPE_PERF_EVENT_ARRAY) {
-		pr_warn("map '%s' should be BPF_MAP_TYPE_PERF_EVENT_ARRAY\n",
-			map.name);
-		return ERR_PTR(-EINVAL);
+		/* if BPF_OBJ_GET_INFO_BY_FD is supported, will return
+		 * -EBADFD, -EFAULT, or -E2BIG on real error
+		 */
+		if (err != -EINVAL) {
+			pr_warn("failed to get map info for map FD %d: %s\n",
+				map_fd, libbpf_strerror_r(err, msg, sizeof(msg)));
+			return ERR_PTR(err);
+		}
+		pr_debug("failed to get map info for FD %d; API not supported? Ignoring...\n",
+			 map_fd);
+	} else {
+		if (map.type != BPF_MAP_TYPE_PERF_EVENT_ARRAY) {
+			pr_warn("map '%s' should be BPF_MAP_TYPE_PERF_EVENT_ARRAY\n",
+				map.name);
+			return ERR_PTR(-EINVAL);
+		}
 	}
 
 	pb = calloc(1, sizeof(*pb));
@@ -8648,7 +8657,7 @@ static struct perf_buffer *__perf_buffer__new(int map_fd, size_t page_cnt,
 			err = pb->cpu_cnt;
 			goto error;
 		}
-		if (map.max_entries < pb->cpu_cnt)
+		if (map.max_entries && map.max_entries < pb->cpu_cnt)
 			pb->cpu_cnt = map.max_entries;
 	}
 
