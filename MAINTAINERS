@@ -1170,6 +1170,8 @@ M:	Todd Kjos <tkjos@android.com>
 M:	Martijn Coenen <maco@android.com>
 M:	Joel Fernandes <joel@joelfernandes.org>
 M:	Christian Brauner <christian@brauner.io>
+M:	Hridya Valsaraju <hridya@google.com>
+M:	Suren Baghdasaryan <surenb@google.com>
 L:	devel@driverdev.osuosl.org
 S:	Supported
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/staging.git
