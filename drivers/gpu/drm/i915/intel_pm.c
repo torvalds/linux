@@ -98,10 +98,6 @@ static void gen9_init_clock_gating(struct drm_i915_private *dev_priv)
 	I915_WRITE(DISP_ARB_CTL, I915_READ(DISP_ARB_CTL) |
 		   DISP_FBC_MEMORY_WAKE);
 
-	/* WaFbcHighMemBwCorruptionAvoidance:skl,bxt,kbl,cfl */
-	I915_WRITE(ILK_DPFC_CHICKEN, I915_READ(ILK_DPFC_CHICKEN) |
-		   ILK_DPFC_DISABLE_DUMMY0);
-
 	if (IS_SKYLAKE(dev_priv)) {
 		/* WaDisableDopClockGating */
 		I915_WRITE(GEN7_MISCCPCTL, I915_READ(GEN7_MISCCPCTL)
@@ -142,6 +138,10 @@ static void bxt_init_clock_gating(struct drm_i915_private *dev_priv)
 	/* WaFbcTurnOffFbcWatermark:bxt */
 	I915_WRITE(DISP_ARB_CTL, I915_READ(DISP_ARB_CTL) |
 		   DISP_FBC_WM_DIS);
+
+	/* WaFbcHighMemBwCorruptionAvoidance:bxt */
+	I915_WRITE(ILK_DPFC_CHICKEN, I915_READ(ILK_DPFC_CHICKEN) |
+		   ILK_DPFC_DISABLE_DUMMY0);
 }
 
 static void glk_init_clock_gating(struct drm_i915_private *dev_priv)
@@ -7238,6 +7238,10 @@ static void skl_init_clock_gating(struct drm_i915_private *dev_priv)
 	/* WaFbcNukeOnHostModify:skl */
 	I915_WRITE(ILK_DPFC_CHICKEN, I915_READ(ILK_DPFC_CHICKEN) |
 		   ILK_DPFC_NUKE_ON_ANY_MODIFICATION);
+
+	/* WaFbcHighMemBwCorruptionAvoidance:skl */
+	I915_WRITE(ILK_DPFC_CHICKEN, I915_READ(ILK_DPFC_CHICKEN) |
+		   ILK_DPFC_DISABLE_DUMMY0);
 }
 
 static void bdw_init_clock_gating(struct drm_i915_private *dev_priv)
