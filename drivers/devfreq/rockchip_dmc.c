@@ -3276,6 +3276,7 @@ vop_bw_tbl:
 	if (target > vop_last_rate)
 		rockchip_dmcfreq_update_target(dmcfreq);
 }
+EXPORT_SYMBOL(rockchip_dmcfreq_vop_bandwidth_update);
 
 int rockchip_dmcfreq_vop_bandwidth_request(struct devfreq *devfreq,
 					   unsigned int bw_mbyte)
@@ -3305,6 +3306,7 @@ int rockchip_dmcfreq_vop_bandwidth_request(struct devfreq *devfreq,
 	else
 		return -EINVAL;
 }
+EXPORT_SYMBOL(rockchip_dmcfreq_vop_bandwidth_request);
 
 static int devfreq_dmc_ondemand_func(struct devfreq *df,
 				     unsigned long *freq)
