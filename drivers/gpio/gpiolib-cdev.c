@@ -1,24 +1,24 @@
 // SPDX-License-Identifier: GPL-2.0
 
+#include <linux/anon_inodes.h>
 #include <linux/bitmap.h>
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/interrupt.h>
-#include <linux/irqreturn.h>
-#include <linux/spinlock.h>
+#include <linux/cdev.h>
+#include <linux/compat.h>
 #include <linux/device.h>
 #include <linux/err.h>
+#include <linux/file.h>
 #include <linux/gpio.h>
 #include <linux/gpio/driver.h>
-#include <linux/pinctrl/consumer.h>
-#include <linux/cdev.h>
-#include <linux/uaccess.h>
-#include <linux/compat.h>
-#include <linux/anon_inodes.h>
-#include <linux/file.h>
+#include <linux/interrupt.h>
+#include <linux/irqreturn.h>
+#include <linux/kernel.h>
 #include <linux/kfifo.h>
+#include <linux/module.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/poll.h>
+#include <linux/spinlock.h>
 #include <linux/timekeeping.h>
+#include <linux/uaccess.h>
 #include <uapi/linux/gpio.h>
 
 #include "gpiolib.h"
