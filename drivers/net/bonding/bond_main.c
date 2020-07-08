@@ -383,9 +383,14 @@ static int bond_vlan_rx_kill_vid(struct net_device *bond_dev,
 static int bond_ipsec_add_sa(struct xfrm_state *xs)
 {
 	struct net_device *bond_dev = xs->xso.dev;
-	struct bonding *bond = netdev_priv(bond_dev);
-	struct slave *slave = rtnl_dereference(bond->curr_active_slave);
+	struct bonding *bond;
+	struct slave *slave;
 
+	if (!bond_dev)
+		return -EINVAL;
+
+	bond = netdev_priv(bond_dev);
+	slave = rtnl_dereference(bond->curr_active_slave);
 	xs->xso.real_dev = slave->dev;
 	bond->xs = xs;
 
@@ -405,8 +410,14 @@ static int bond_ipsec_add_sa(struct xfrm_state *xs)
 static void bond_ipsec_del_sa(struct xfrm_state *xs)
 {
 	struct net_device *bond_dev = xs->xso.dev;
-	struct bonding *bond = netdev_priv(bond_dev);
-	struct slave *slave = rtnl_dereference(bond->curr_active_slave);
+	struct bonding *bond;
+	struct slave *slave;
+
+	if (!bond_dev)
+		return;
+
+	bond = netdev_priv(bond_dev);
+	slave = rtnl_dereference(bond->curr_active_slave);
 
 	if (!slave)
 		return;
@@ -960,12 +971,12 @@ void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
 	if (old_active == new_active)
 		return;
 
-	if (new_active) {
 #ifdef CONFIG_XFRM_OFFLOAD
-		if ((BOND_MODE(bond) == BOND_MODE_ACTIVEBACKUP) && bond->xs)
-			bond_ipsec_del_sa(bond->xs);
+	if (old_active && bond->xs)
+		bond_ipsec_del_sa(bond->xs);
 #endif /* CONFIG_XFRM_OFFLOAD */
 
+	if (new_active) {
 		new_active->last_link_up = jiffies;
 
 		if (new_active->link == BOND_LINK_BACK) {
@@ -1028,13 +1039,6 @@ void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
 					bond_should_notify_peers(bond);
 			}
 
-#ifdef CONFIG_XFRM_OFFLOAD
-			if (old_active && bond->xs) {
-				xfrm_dev_state_flush(dev_net(bond->dev), bond->dev, true);
-				bond_ipsec_add_sa(bond->xs);
-			}
-#endif /* CONFIG_XFRM_OFFLOAD */
-
 			call_netdevice_notifiers(NETDEV_BONDING_FAILOVER, bond->dev);
 			if (should_notify_peers) {
 				bond->send_peer_notif--;
@@ -1043,6 +1047,13 @@ void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
 			}
 		}
 	}
+
+#ifdef CONFIG_XFRM_OFFLOAD
+	if (new_active && bond->xs) {
+		xfrm_dev_state_flush(dev_net(bond->dev), bond->dev, true);
+		bond_ipsec_add_sa(bond->xs);
+	}
+#endif /* CONFIG_XFRM_OFFLOAD */
 
 	/* resend IGMP joins since active slave has changed or
 	 * all were sent on curr_active_slave.
