@@ -238,6 +238,66 @@ found:
 	rcu_read_unlock();
 	return msk;
 }
+EXPORT_SYMBOL_GPL(mptcp_token_get_sock);
+
+/**
+ * mptcp_token_iter_next - iterate over the token container from given pos
+ * @net: namespace to be iterated
+ * @s_slot: start slot number
+ * @s_num: start number inside the given lock
+ *
+ * This function returns the first mptcp connection structure found inside the
+ * token container starting from the specified position, or NULL.
+ *
+ * On successful iteration, the iterator is move to the next position and the
+ * the acquires a reference to the returned socket.
+ */
+struct mptcp_sock *mptcp_token_iter_next(const struct net *net, long *s_slot,
+					 long *s_num)
+{
+	struct mptcp_sock *ret = NULL;
+	struct hlist_nulls_node *pos;
+	int slot, num;
+
+	for (slot = *s_slot; slot <= token_mask; *s_num = 0, slot++) {
+		struct token_bucket *bucket = &token_hash[slot];
+		struct sock *sk;
+
+		num = 0;
+
+		if (hlist_nulls_empty(&bucket->msk_chain))
+			continue;
+
+		rcu_read_lock();
+		sk_nulls_for_each_rcu(sk, pos, &bucket->msk_chain) {
+			++num;
+			if (!net_eq(sock_net(sk), net))
+				continue;
+
+			if (num <= *s_num)
+				continue;
+
+			if (!refcount_inc_not_zero(&sk->sk_refcnt))
+				continue;
+
+			if (!net_eq(sock_net(sk), net)) {
+				sock_put(sk);
+				continue;
+			}
+
+			ret = mptcp_sk(sk);
+			rcu_read_unlock();
+			goto out;
+		}
+		rcu_read_unlock();
+	}
+
+out:
+	*s_slot = slot;
+	*s_num = num;
+	return ret;
+}
+EXPORT_SYMBOL_GPL(mptcp_token_iter_next);
 
 /**
  * mptcp_token_destroy_request - remove mptcp connection/token
@@ -312,7 +372,6 @@ void __init mptcp_token_init(void)
 EXPORT_SYMBOL_GPL(mptcp_token_new_request);
 EXPORT_SYMBOL_GPL(mptcp_token_new_connect);
 EXPORT_SYMBOL_GPL(mptcp_token_accept);
-EXPORT_SYMBOL_GPL(mptcp_token_get_sock);
 EXPORT_SYMBOL_GPL(mptcp_token_destroy_request);
 EXPORT_SYMBOL_GPL(mptcp_token_destroy);
 #endif

@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <strings.h>
+#include <signal.h>
 #include <unistd.h>
 
 #include <sys/poll.h>
@@ -36,6 +37,7 @@ extern int optind;
 
 static int  poll_timeout = 10 * 1000;
 static bool listen_mode;
+static bool quit;
 
 enum cfg_mode {
 	CFG_MODE_POLL,
@@ -52,11 +54,12 @@ static int pf = AF_INET;
 static int cfg_sndbuf;
 static int cfg_rcvbuf;
 static bool cfg_join;
+static int cfg_wait;
 
 static void die_usage(void)
 {
 	fprintf(stderr, "Usage: mptcp_connect [-6] [-u] [-s MPTCP|TCP] [-p port] [-m mode]"
-		"[-l] connect_address\n");
+		"[-l] [-w sec] connect_address\n");
 	fprintf(stderr, "\t-6 use ipv6\n");
 	fprintf(stderr, "\t-t num -- set poll timeout to num\n");
 	fprintf(stderr, "\t-S num -- set SO_SNDBUF to num\n");
@@ -65,7 +68,13 @@ static void die_usage(void)
 	fprintf(stderr, "\t-m [MPTCP|TCP] -- use tcp or mptcp sockets\n");
 	fprintf(stderr, "\t-s [mmap|poll] -- use poll (default) or mmap\n");
 	fprintf(stderr, "\t-u -- check mptcp ulp\n");
+	fprintf(stderr, "\t-w num -- wait num sec before closing the socket\n");
 	exit(1);
+}
+
+static void handle_signal(int nr)
+{
+	quit = true;
 }
 
 static const char *getxinfo_strerr(int err)
@@ -418,8 +427,8 @@ static int copyfd_io_poll(int infd, int peerfd, int outfd)
 	}
 
 	/* leave some time for late join/announce */
-	if (cfg_join)
-		usleep(400000);
+	if (cfg_wait)
+		usleep(cfg_wait);
 
 	close(peerfd);
 	return 0;
@@ -812,11 +821,12 @@ static void parse_opts(int argc, char **argv)
 {
 	int c;
 
-	while ((c = getopt(argc, argv, "6jlp:s:hut:m:S:R:")) != -1) {
+	while ((c = getopt(argc, argv, "6jlp:s:hut:m:S:R:w:")) != -1) {
 		switch (c) {
 		case 'j':
 			cfg_join = true;
 			cfg_mode = CFG_MODE_POLL;
+			cfg_wait = 400000;
 			break;
 		case 'l':
 			listen_mode = true;
@@ -850,6 +860,9 @@ static void parse_opts(int argc, char **argv)
 		case 'R':
 			cfg_rcvbuf = parse_int(optarg);
 			break;
+		case 'w':
+			cfg_wait = atoi(optarg)*1000000;
+			break;
 		}
 	}
 
@@ -865,6 +878,7 @@ int main(int argc, char *argv[])
 {
 	init_rng();
 
+	signal(SIGUSR1, handle_signal);
 	parse_opts(argc, argv);
 
 	if (tcpulp_audit)
