@@ -1069,18 +1069,14 @@ err:
 	return NULL;
 }
 
-static inline bool __req_need_defer(struct io_kiocb *req)
-{
-	struct io_ring_ctx *ctx = req->ctx;
-
-	return req->sequence != ctx->cached_cq_tail
-				+ atomic_read(&ctx->cached_cq_overflow);
-}
-
 static inline bool req_need_defer(struct io_kiocb *req)
 {
-	if (unlikely(req->flags & REQ_F_IO_DRAIN))
-		return __req_need_defer(req);
+	if (unlikely(req->flags & REQ_F_IO_DRAIN)) {
+		struct io_ring_ctx *ctx = req->ctx;
+
+		return req->sequence != ctx->cached_cq_tail
+					+ atomic_read(&ctx->cached_cq_overflow);
+	}
 
 	return false;
 }
