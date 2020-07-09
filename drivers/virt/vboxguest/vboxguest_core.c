@@ -662,6 +662,48 @@ static int vbg_reset_host_capabilities(struct vbg_dev *gdev)
 }
 
 /**
+ * Set guest capabilities on the host.
+ * Must be called with gdev->session_mutex hold.
+ * Return: 0 or negative errno value.
+ * @gdev:			The Guest extension device.
+ * @session:			The session.
+ * @session_termination:	Set if we're called by the session cleanup code.
+ */
+static int vbg_set_host_capabilities(struct vbg_dev *gdev,
+				     struct vbg_session *session,
+				     bool session_termination)
+{
+	struct vmmdev_mask *req;
+	u32 caps;
+	int rc;
+
+	WARN_ON(!mutex_is_locked(&gdev->session_mutex));
+
+	caps = gdev->set_guest_caps_tracker.mask;
+
+	if (gdev->guest_caps_host == caps)
+		return 0;
+
+	/* On termination the requestor is the kernel, as we're cleaning up. */
+	req = vbg_req_alloc(sizeof(*req), VMMDEVREQ_SET_GUEST_CAPABILITIES,
+			    session_termination ? VBG_KERNEL_REQUEST :
+						  session->requestor);
+	if (!req) {
+		gdev->guest_caps_host = U32_MAX;
+		return -ENOMEM;
+	}
+
+	req->or_mask = caps;
+	req->not_mask = ~caps;
+	rc = vbg_req_perform(gdev, req);
+	vbg_req_free(req, sizeof(*req));
+
+	gdev->guest_caps_host = (rc >= 0) ? caps : U32_MAX;
+
+	return vbg_status_code_to_errno(rc);
+}
+
+/**
  * Sets the guest capabilities for a session. Takes the session spinlock.
  * Return: 0 or negative errno value.
  * @gdev:			The Guest extension device.
@@ -678,23 +720,8 @@ static int vbg_set_session_capabilities(struct vbg_dev *gdev,
 					u32 or_mask, u32 not_mask,
 					bool session_termination)
 {
-	struct vmmdev_mask *req;
 	u32 changed, previous;
-	int rc, ret = 0;
-
-	/*
-	 * Allocate a request buffer before taking the spinlock, when
-	 * the session is being terminated the requestor is the kernel,
-	 * as we're cleaning up.
-	 */
-	req = vbg_req_alloc(sizeof(*req), VMMDEVREQ_SET_GUEST_CAPABILITIES,
-			    session_termination ? VBG_KERNEL_REQUEST :
-						  session->requestor);
-	if (!req) {
-		if (!session_termination)
-			return -ENOMEM;
-		/* Ignore allocation failure, we must do session cleanup. */
-	}
+	int ret = 0;
 
 	mutex_lock(&gdev->session_mutex);
 
@@ -709,23 +736,10 @@ static int vbg_set_session_capabilities(struct vbg_dev *gdev,
 		goto out;
 
 	vbg_track_bit_usage(&gdev->set_guest_caps_tracker, changed, previous);
-	or_mask = gdev->set_guest_caps_tracker.mask;
 
-	if (gdev->guest_caps_host == or_mask || !req)
-		goto out;
-
-	gdev->guest_caps_host = or_mask;
-	req->or_mask = or_mask;
-	req->not_mask = ~or_mask;
-	rc = vbg_req_perform(gdev, req);
-	if (rc < 0) {
-		ret = vbg_status_code_to_errno(rc);
-
-		/* Failed, roll back (unless it's session termination time). */
-		gdev->guest_caps_host = U32_MAX;
-		if (session_termination)
-			goto out;
-
+	ret = vbg_set_host_capabilities(gdev, session, session_termination);
+	/* Roll back on failure, unless it's session termination time. */
+	if (ret < 0 && !session_termination) {
 		vbg_track_bit_usage(&gdev->set_guest_caps_tracker, changed,
 				    session->set_guest_caps);
 		session->set_guest_caps = previous;
@@ -733,7 +747,6 @@ static int vbg_set_session_capabilities(struct vbg_dev *gdev,
 
 out:
 	mutex_unlock(&gdev->session_mutex);
-	vbg_req_free(req, sizeof(*req));
 
 	return ret;
 }
