@@ -25,6 +25,9 @@
 
 /**
  * of_gpio_spi_cs_get_count() - special GPIO counting for SPI
+ * @dev:    Consuming device
+ * @con_id: Function within the GPIO consumer
+ *
  * Some elder GPIO controllers need special quirks. Currently we handle
  * the Freescale GPIO controller with bindings that doesn't use the
  * established "cs-gpios" for chip selects but instead rely on

@@ -410,7 +410,7 @@ config GPIO_MXS
 
 config GPIO_OCTEON
 	tristate "Cavium OCTEON GPIO"
-	depends on GPIOLIB && CAVIUM_OCTEON_SOC
+	depends on CAVIUM_OCTEON_SOC
 	default y
 	help
 	  Say yes here to support the on-chip GPIO lines on the OCTEON
@@ -1117,7 +1117,7 @@ config GPIO_DLN2
 
 config HTC_EGPIO
 	bool "HTC EGPIO support"
-	depends on GPIOLIB && ARM
+	depends on ARM
 	help
 	  This driver supports the CPLD egpio chip present on
 	  several HTC phones.  It provides basic support for input
