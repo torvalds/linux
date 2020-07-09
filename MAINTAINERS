@@ -3306,7 +3306,7 @@ X:	arch/riscv/net/bpf_jit_comp32.c
 
 BPF JIT for S390
 M:	Ilya Leoshkevich <iii@linux.ibm.com>
-M:	Heiko Carstens <heiko.carstens@de.ibm.com>
+M:	Heiko Carstens <hca@linux.ibm.com>
 M:	Vasily Gorbik <gor@linux.ibm.com>
 L:	netdev@vger.kernel.org
 L:	bpf@vger.kernel.org
@@ -14831,7 +14831,7 @@ S:	Maintained
 F:	drivers/video/fbdev/savage/
 
 S390
-M:	Heiko Carstens <heiko.carstens@de.ibm.com>
+M:	Heiko Carstens <hca@linux.ibm.com>
 M:	Vasily Gorbik <gor@linux.ibm.com>
 M:	Christian Borntraeger <borntraeger@de.ibm.com>
 L:	linux-s390@vger.kernel.org
