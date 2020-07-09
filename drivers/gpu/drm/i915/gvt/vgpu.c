@@ -579,13 +579,14 @@ void intel_gvt_reset_vgpu_locked(struct intel_vgpu *vgpu, bool dmlr,
 			intel_vgpu_reset_cfg_space(vgpu);
 			/* only reset the failsafe mode when dmlr reset */
 			vgpu->failsafe = false;
-			vgpu->pv_notified = false;
 			/*
 			 * PCI_D0 is set before dmlr, so reset d3_entered here
 			 * after done using.
 			 */
 			if(vgpu->d3_entered)
 				vgpu->d3_entered = false;
+			else
+				vgpu->pv_notified = false;
 		}
 	}
 
