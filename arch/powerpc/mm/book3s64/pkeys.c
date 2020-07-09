@@ -128,7 +128,10 @@ static int pkey_initialize(void)
 #else
 	os_reserved = 0;
 #endif
-	/* Bits are in LE format. */
+	/*
+	 * key 1 is recommended not to be used. PowerISA(3.0) page 1015,
+	 * programming note.
+	 */
 	reserved_allocation_mask = (0x1 << 1) | (0x1 << execute_only_key);
 
 	/* register mask is in BE format */
