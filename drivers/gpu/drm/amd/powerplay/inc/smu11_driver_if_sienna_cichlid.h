@@ -27,9 +27,9 @@
 // *** IMPORTANT ***
 // SMU TEAM: Always increment the interface version if 
 // any structure is changed in this file
-#define SMU11_DRIVER_IF_VERSION 0x32
+#define SMU11_DRIVER_IF_VERSION 0x33
 
-#define PPTABLE_Sienna_Cichlid_SMU_VERSION 4
+#define PPTABLE_Sienna_Cichlid_SMU_VERSION 5
 
 #define NUM_GFXCLK_DPM_LEVELS  16
 #define NUM_SMNCLK_DPM_LEVELS  2
@@ -128,7 +128,7 @@
 #define FEATURE_2_STEP_PSTATE_BIT       46
 #define FEATURE_SMNCLK_DPM_BIT          47
 #define FEATURE_SPARE_48_BIT            48
-#define FEATURE_SPARE_49_BIT            49
+#define FEATURE_GFX_EDC_BIT             49
 #define FEATURE_SPARE_50_BIT            50
 #define FEATURE_SPARE_51_BIT            51
 #define FEATURE_SPARE_52_BIT            52
@@ -564,6 +564,12 @@ typedef enum {
   TDC_THROTTLER_COUNT
 } TDC_THROTTLER_e;
 
+typedef enum {
+  CUSTOMER_VARIANT_ROW,
+  CUSTOMER_VARIANT_FALCON,
+  CUSTOMER_VARIANT_COUNT,
+} CUSTOMER_VARIANT_e;
+	 
 // Used for 2-step UCLK DPM change workaround
 typedef struct {
   uint16_t Fmin;
@@ -786,7 +792,10 @@ typedef struct {
   QuadraticInt_t    ReservedEquation3; 
 
   // SECTION: Sku Reserved
-  uint32_t         SkuReserved[15];
+  uint8_t          CustomerVariant;
+  uint8_t          Spare[3];
+  uint32_t         SkuReserved[14];
+
 
   // MAJOR SECTION: BOARD PARAMETERS
 
