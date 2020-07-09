@@ -2135,6 +2135,7 @@ static int __mlxsw_core_port_init(struct mlxsw_core *mlxsw_core, u8 local_port,
 
 	attrs.split = split;
 	attrs.lanes = lanes;
+	attrs.splittable = splittable;
 	attrs.flavour = flavour;
 	attrs.phys.port_number = port_number;
 	attrs.phys.split_subport_number = split_port_subnumber;
