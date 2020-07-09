@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2020 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+#include "rv1109.dtsi"
+#include "rv11xx-evb-v12.dtsi"
+#include "rv11xx-thunder-boot-emmc.dtsi"
+#include "rv11xx-evb-thunder-boot.dtsi"
+
+/ {
+	model = "Rockchip RV1109 EVB DDR3 V12 with eMMC (Thunder Boot)";
+	compatible = "rockchip,rv1109-evb-ddr3-v12-tb-emmc", "rockchip,rv1109";
+
+	chosen {
+		bootargs = "loglevel=0 initcall_nr_threads=-1 initcall_debug=0 printk.devkmsg=on root=/dev/rd0 console=ttyFIQ0 snd_aloop.index=7 driver_async_probe=dwmmc_rockchip rk.root2nd=/dev/mmcblk0p7";
+	};
+};
