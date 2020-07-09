@@ -2147,7 +2147,7 @@ int cxgbi_conn_init_pdu(struct iscsi_task *task, unsigned int offset,
 	struct iscsi_conn *conn = task->conn;
 	struct iscsi_tcp_task *tcp_task = task->dd_data;
 	struct cxgbi_task_data *tdata = iscsi_task_cxgbi_data(task);
-	struct sk_buff *skb = tdata->skb;
+	struct sk_buff *skb;
 	struct scsi_cmnd *sc = task->sc;
 	u32 expected_count, expected_offset;
 	u32 datalen = count, dlimit = 0;
@@ -2161,6 +2161,7 @@ int cxgbi_conn_init_pdu(struct iscsi_task *task, unsigned int offset,
 		       tcp_task ? tcp_task->dd_data : NULL, tdata);
 		return -EINVAL;
 	}
+	skb = tdata->skb;
 
 	log_debug(1 << CXGBI_DBG_ISCSI | 1 << CXGBI_DBG_PDU_TX,
 		  "task 0x%p,0x%p, skb 0x%p, 0x%x,0x%x,0x%x, %u+%u.\n",
@@ -2365,7 +2366,7 @@ int cxgbi_conn_xmit_pdu(struct iscsi_task *task)
 	struct iscsi_tcp_task *tcp_task = task->dd_data;
 	struct cxgbi_task_data *tdata = iscsi_task_cxgbi_data(task);
 	struct cxgbi_task_tag_info *ttinfo = &tdata->ttinfo;
-	struct sk_buff *skb = tdata->skb;
+	struct sk_buff *skb;
 	struct cxgbi_sock *csk = NULL;
 	u32 pdulen = 0;
 	u32 datalen;
@@ -2378,6 +2379,7 @@ int cxgbi_conn_xmit_pdu(struct iscsi_task *task)
 		return -EINVAL;
 	}
 
+	skb = tdata->skb;
 	if (!skb) {
 		log_debug(1 << CXGBI_DBG_ISCSI | 1 << CXGBI_DBG_PDU_TX,
 			  "task 0x%p, skb NULL.\n", task);
