@@ -55,9 +55,7 @@ out:
 static int nr_packages;
 static struct device *cpu_hwmon_dev;
 
-static ssize_t get_hwmon_name(struct device *dev,
-			struct device_attribute *attr, char *buf);
-static SENSOR_DEVICE_ATTR(name, 0444, get_hwmon_name, NULL, 0);
+static SENSOR_DEVICE_ATTR(name, 0444, NULL, NULL, 0);
 
 static struct attribute *cpu_hwmon_attributes[] = {
 	&sensor_dev_attr_name.dev_attr.attr,
@@ -68,13 +66,6 @@ static struct attribute *cpu_hwmon_attributes[] = {
 static struct attribute_group cpu_hwmon_attribute_group = {
 	.attrs = cpu_hwmon_attributes,
 };
-
-/* Hwmon device get name */
-static ssize_t get_hwmon_name(struct device *dev,
-			struct device_attribute *attr, char *buf)
-{
-	return sprintf(buf, "cpu-hwmon\n");
-}
 
 static ssize_t get_cpu_temp(struct device *dev,
 			struct device_attribute *attr, char *buf);
@@ -176,7 +167,7 @@ static int __init loongson_hwmon_init(void)
 		csr_temp_enable = csr_readl(LOONGSON_CSR_FEATURES) &
 				  LOONGSON_CSRF_TEMP;
 
-	cpu_hwmon_dev = hwmon_device_register(NULL);
+	cpu_hwmon_dev = hwmon_device_register_with_info(NULL, "cpu_hwmon", NULL, NULL, NULL);
 	if (IS_ERR(cpu_hwmon_dev)) {
 		ret = PTR_ERR(cpu_hwmon_dev);
 		pr_err("hwmon_device_register fail!\n");
@@ -185,13 +176,6 @@ static int __init loongson_hwmon_init(void)
 
 	nr_packages = loongson_sysconf.nr_cpus /
 		loongson_sysconf.cores_per_package;
-
-	ret = sysfs_create_group(&cpu_hwmon_dev->kobj,
-				&cpu_hwmon_attribute_group);
-	if (ret) {
-		pr_err("fail to create loongson hwmon!\n");
-		goto fail_sysfs_create_group_hwmon;
-	}
 
 	ret = create_sysfs_cputemp_files(&cpu_hwmon_dev->kobj);
 	if (ret) {
@@ -207,8 +191,6 @@ static int __init loongson_hwmon_init(void)
 fail_create_sysfs_cputemp_files:
 	sysfs_remove_group(&cpu_hwmon_dev->kobj,
 				&cpu_hwmon_attribute_group);
-
-fail_sysfs_create_group_hwmon:
 	hwmon_device_unregister(cpu_hwmon_dev);
 
 fail_hwmon_device_register:
