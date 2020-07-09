@@ -47,6 +47,7 @@ static int xfrmi_dev_init(struct net_device *dev);
 static void xfrmi_dev_setup(struct net_device *dev);
 static struct rtnl_link_ops xfrmi_link_ops __read_mostly;
 static unsigned int xfrmi_net_id __read_mostly;
+static const struct net_device_ops xfrmi_netdev_ops;
 
 struct xfrmi_net {
 	/* lists for storing interfaces in use */
@@ -73,8 +74,7 @@ static struct xfrm_if *xfrmi_lookup(struct net *net, struct xfrm_state *x)
 static struct xfrm_if *xfrmi_decode_session(struct sk_buff *skb,
 					    unsigned short family)
 {
-	struct xfrmi_net *xfrmn;
-	struct xfrm_if *xi;
+	struct net_device *dev;
 	int ifindex = 0;
 
 	if (!secpath_exists(skb) || !skb->dev)
@@ -88,18 +88,21 @@ static struct xfrm_if *xfrmi_decode_session(struct sk_buff *skb,
 		ifindex = inet_sdif(skb);
 		break;
 	}
-	if (!ifindex)
-		ifindex = skb->dev->ifindex;
 
-	xfrmn = net_generic(xs_net(xfrm_input_state(skb)), xfrmi_net_id);
+	if (ifindex) {
+		struct net *net = xs_net(xfrm_input_state(skb));
 
-	for_each_xfrmi_rcu(xfrmn->xfrmi[0], xi) {
-		if (ifindex == xi->dev->ifindex &&
-			(xi->dev->flags & IFF_UP))
-				return xi;
+		dev = dev_get_by_index_rcu(net, ifindex);
+	} else {
+		dev = skb->dev;
 	}
 
-	return NULL;
+	if (!dev || !(dev->flags & IFF_UP))
+		return NULL;
+	if (dev->netdev_ops != &xfrmi_netdev_ops)
+		return NULL;
+
+	return netdev_priv(dev);
 }
 
 static void xfrmi_link(struct xfrmi_net *xfrmn, struct xfrm_if *xi)
