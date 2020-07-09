@@ -28,14 +28,16 @@ static struct gbaudio_module_info *find_gb_module(
 					struct gbaudio_codec_info *codec,
 					char const *name)
 {
-	int dev_id, ret;
+	int dev_id;
 	char begin[NAME_SIZE];
 	struct gbaudio_module_info *module;
 
 	if (!name)
 		return NULL;
 
-	ret = sscanf(name, "%s %d", begin, &dev_id);
+	if (sscanf(name, "%s %d", begin, &dev_id) != 2)
+		return NULL;
+
 	dev_dbg(codec->dev, "%s:Find module#%d\n", __func__, dev_id);
 
 	mutex_lock(&codec->lock);
@@ -377,7 +379,6 @@ static int gbcodec_mixer_dapm_ctl_get(struct snd_kcontrol *kcontrol,
 				      struct snd_ctl_elem_value *ucontrol)
 {
 	int ret;
-	struct gb_audio_ctl_elem_info *info;
 	struct gbaudio_ctl_pvt *data;
 	struct gb_audio_ctl_elem_value gbvalue;
 	struct gbaudio_module_info *module;
@@ -393,7 +394,6 @@ static int gbcodec_mixer_dapm_ctl_get(struct snd_kcontrol *kcontrol,
 		return -EINVAL;
 
 	data = (struct gbaudio_ctl_pvt *)kcontrol->private_value;
-	info = (struct gb_audio_ctl_elem_info *)data->info;
 	bundle = to_gb_bundle(module->dev);
 
 	if (data->vcount == 2)
