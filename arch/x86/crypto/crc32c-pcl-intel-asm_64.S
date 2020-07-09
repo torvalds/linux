@@ -43,7 +43,6 @@
  * SOFTWARE.
  */
 
-#include <asm/inst.h>
 #include <linux/linkage.h>
 #include <asm/nospec-branch.h>
 
@@ -225,10 +224,10 @@ LABEL crc_ %i
 	subq    %rax, tmp			# tmp -= rax*24
 
 	movq    crc_init, %xmm1			# CRC for block 1
-	PCLMULQDQ 0x00,%xmm0,%xmm1		# Multiply by K2
+	pclmulqdq $0x00, %xmm0, %xmm1		# Multiply by K2
 
 	movq    crc1, %xmm2			# CRC for block 2
-	PCLMULQDQ 0x10, %xmm0, %xmm2		# Multiply by K1
+	pclmulqdq $0x10, %xmm0, %xmm2		# Multiply by K1
 
 	pxor    %xmm2,%xmm1
 	movq    %xmm1, %rax
