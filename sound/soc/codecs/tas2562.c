@@ -394,7 +394,7 @@ static int tas2562_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	return 0;
 }
 
-static int tas2562_mute(struct snd_soc_dai *dai, int mute)
+static int tas2562_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 
@@ -612,7 +612,8 @@ static const struct snd_soc_dai_ops tas2562_speaker_dai_ops = {
 	.hw_params	= tas2562_hw_params,
 	.set_fmt	= tas2562_set_dai_fmt,
 	.set_tdm_slot	= tas2562_set_dai_tdm_slot,
-	.digital_mute	= tas2562_mute,
+	.mute_stream	= tas2562_mute,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver tas2562_dai[] = {
