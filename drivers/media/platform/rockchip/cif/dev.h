@@ -100,6 +100,20 @@ enum host_type_t {
 	RK_DSI_RXHOST
 };
 
+enum rkcif_lvds_pad {
+	RKCIF_LVDS_PAD_SINK = 0x0,
+	RKCIF_LVDS_PAD_SRC_ID0,
+	RKCIF_LVDS_PAD_SRC_ID1,
+	RKCIF_LVDS_PAD_SRC_ID2,
+	RKCIF_LVDS_PAD_SRC_ID3,
+	RKCIF_LVDS_PAD_MAX
+};
+
+enum rkcif_lvds_state {
+	RKCIF_LVDS_STOP = 0,
+	RKCIF_LVDS_START,
+};
+
 /*
  * struct rkcif_pipeline - An CIF hardware pipeline
  *
@@ -200,6 +214,7 @@ struct csi_channel_info {
 	unsigned int virtual_width;
 	unsigned int crop_st_x;
 	unsigned int crop_st_y;
+	struct rkmodule_lvds_cfg lvds_cfg;
 };
 
 struct rkcif_vdev_node {
@@ -264,6 +279,19 @@ struct rkcif_stream {
 	int				crop_enable;
 };
 
+struct rkcif_lvds_subdev {
+	struct rkcif_device	*cifdev;
+	struct v4l2_subdev sd;
+	struct v4l2_subdev *remote_sd;
+	struct media_pad pads[RKCIF_LVDS_PAD_MAX];
+	struct v4l2_mbus_framefmt in_fmt;
+	const struct cif_output_fmt	*cif_fmt_out;
+	const struct cif_input_fmt	*cif_fmt_in;
+	enum rkcif_lvds_state state;
+	struct rkcif_sensor_info sensor_self;
+	atomic_t frm_sync_seq;
+};
+
 static inline struct rkcif_buffer *to_rkcif_buffer(struct vb2_v4l2_buffer *vb)
 {
 	return container_of(vb, struct rkcif_buffer, vb);
@@ -319,7 +347,7 @@ struct rkcif_device {
 	struct rkcif_sensor_info	sensors[RKCIF_MAX_SENSOR];
 	u32				num_sensors;
 	struct rkcif_sensor_info	*active_sensor;
-	struct v4l2_subdev		*mipi_sensor;
+	struct v4l2_subdev		*terminal_sensor;
 
 	struct rkcif_stream		stream[RKCIF_MULTI_STREAMS_NUM];
 	struct rkcif_pipeline		pipe;
@@ -336,8 +364,8 @@ struct rkcif_device {
 	bool				can_be_reset;
 	struct rkcif_hdr		hdr;
 	struct rkcif_buffer		*rdbk_buf[RDBK_MAX];
-
 	struct rkcif_luma_vdev		luma_vdev;
+	struct rkcif_lvds_subdev	lvds_subdev;
 };
 
 void rkcif_write_register(struct rkcif_device *dev,
@@ -354,10 +382,11 @@ int rkcif_register_stream_vdevs(struct rkcif_device *dev,
 				int stream_num,
 				bool is_multi_input);
 void rkcif_stream_init(struct rkcif_device *dev, u32 id);
-
 void rkcif_irq_oneframe(struct rkcif_device *cif_dev);
 void rkcif_irq_pingpong(struct rkcif_device *cif_dev);
 void rkcif_soft_reset(struct rkcif_device *cif_dev,
-		      bool is_rst_iommu);
+			   bool is_rst_iommu);
+int rkcif_register_lvds_subdev(struct rkcif_device *dev);
+void rkcif_unregister_lvds_subdev(struct rkcif_device *dev);
 
 #endif

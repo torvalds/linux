@@ -379,8 +379,8 @@ static struct v4l2_subdev *get_remote_sensor(struct rkcif_stream *stream)
 	return media_entity_to_v4l2_subdev(sensor_me);
 }
 
-static void get_remote_mipi_sensor(struct rkcif_stream *stream,
-				   struct v4l2_subdev **sensor_sd)
+static void get_remote_terminal_sensor(struct rkcif_stream *stream,
+				       struct v4l2_subdev **sensor_sd)
 {
 	struct media_graph graph;
 	struct media_entity *entity = &stream->vnode.vdev.entity;
@@ -419,6 +419,13 @@ static struct rkcif_sensor_info *sd_to_sensor(struct rkcif_device *dev,
 		if (dev->sensors[i].sd == sd)
 			return &dev->sensors[i];
 
+	if (i == dev->num_sensors) {
+		for (i = 0; i < dev->num_sensors; ++i) {
+			if (dev->sensors[i].mbus.type == V4L2_MBUS_CCP2)
+				return &dev->lvds_subdev.sensor_self;
+		}
+	}
+
 	return NULL;
 }
 
@@ -433,13 +440,17 @@ static int rkcif_update_sensor_info(struct rkcif_stream *stream)
 		return -ENODEV;
 
 	sensor = sd_to_sensor(stream->cifdev, sensor_sd);
+	if (!sensor) {
+		v4l2_err(&stream->cifdev->v4l2_dev, "get sensor for updating failed!\n");
+		return -ENODEV;
+	}
 	ret = v4l2_subdev_call(sensor->sd, video, g_mbus_config,
 			       &sensor->mbus);
 	if (ret && ret != -ENOIOCTLCMD)
 		return ret;
 	stream->cifdev->active_sensor = sensor;
 
-	get_remote_mipi_sensor(stream, &stream->cifdev->mipi_sensor);
+	get_remote_terminal_sensor(stream, &stream->cifdev->terminal_sensor);
 
 	return ret;
 }
@@ -831,6 +842,106 @@ static enum cif_reg_index get_reg_index_of_id_crop_start(int channel_id)
 	return index;
 }
 
+static enum cif_reg_index get_reg_index_of_lvds_sav_eav_act0(int channel_id)
+{
+	enum cif_reg_index index;
+
+	switch (channel_id) {
+	case 0:
+		index = CIF_REG_LVDS_SAV_EAV_ACT0_ID0;
+		break;
+	case 1:
+		index = CIF_REG_LVDS_SAV_EAV_ACT0_ID1;
+		break;
+	case 2:
+		index = CIF_REG_LVDS_SAV_EAV_ACT0_ID2;
+		break;
+	case 3:
+		index = CIF_REG_LVDS_SAV_EAV_ACT0_ID3;
+		break;
+	default:
+		index = CIF_REG_LVDS_SAV_EAV_ACT0_ID0;
+		break;
+	}
+
+	return index;
+}
+
+static enum cif_reg_index get_reg_index_of_lvds_sav_eav_act1(int channel_id)
+{
+	enum cif_reg_index index;
+
+	switch (channel_id) {
+	case 0:
+		index = CIF_REG_LVDS_SAV_EAV_ACT1_ID0;
+		break;
+	case 1:
+		index = CIF_REG_LVDS_SAV_EAV_ACT1_ID1;
+		break;
+	case 2:
+		index = CIF_REG_LVDS_SAV_EAV_ACT1_ID2;
+		break;
+	case 3:
+		index = CIF_REG_LVDS_SAV_EAV_ACT1_ID3;
+		break;
+	default:
+		index = CIF_REG_LVDS_SAV_EAV_ACT1_ID0;
+		break;
+	}
+
+	return index;
+}
+
+static enum cif_reg_index get_reg_index_of_lvds_sav_eav_blk0(int channel_id)
+{
+	enum cif_reg_index index;
+
+	switch (channel_id) {
+	case 0:
+		index = CIF_REG_LVDS_SAV_EAV_BLK0_ID0;
+		break;
+	case 1:
+		index = CIF_REG_LVDS_SAV_EAV_BLK0_ID1;
+		break;
+	case 2:
+		index = CIF_REG_LVDS_SAV_EAV_BLK0_ID2;
+		break;
+	case 3:
+		index = CIF_REG_LVDS_SAV_EAV_BLK0_ID3;
+		break;
+	default:
+		index = CIF_REG_LVDS_SAV_EAV_BLK0_ID0;
+		break;
+	}
+
+	return index;
+}
+
+static enum cif_reg_index get_reg_index_of_lvds_sav_eav_blk1(int channel_id)
+{
+	enum cif_reg_index index;
+
+	switch (channel_id) {
+	case 0:
+		index = CIF_REG_LVDS_SAV_EAV_BLK1_ID0;
+		break;
+	case 1:
+		index = CIF_REG_LVDS_SAV_EAV_BLK1_ID1;
+		break;
+	case 2:
+		index = CIF_REG_LVDS_SAV_EAV_BLK1_ID2;
+		break;
+	case 3:
+		index = CIF_REG_LVDS_SAV_EAV_BLK1_ID3;
+		break;
+	default:
+		index = CIF_REG_LVDS_SAV_EAV_BLK1_ID0;
+		break;
+	}
+
+	return index;
+}
+
 /***************************** stream operations ******************************/
 static void rkcif_assign_new_buffer_oneframe(struct rkcif_stream *stream,
 					     enum rkcif_yuvaddr_state stat)
@@ -937,6 +1048,7 @@ static void rkcif_assign_new_buffer_pingpong(struct rkcif_stream *stream,
 {
 	struct rkcif_dummy_buffer *dummy_buf = &stream->dummy_buf;
 	struct rkcif_device *dev = stream->cifdev;
+	struct v4l2_mbus_config *mbus_cfg = &dev->active_sensor->mbus;
 	struct rkcif_buffer *buffer = NULL;
 	u32 frm_addr_y, frm_addr_uv;
 
@@ -944,7 +1056,8 @@ static void rkcif_assign_new_buffer_pingpong(struct rkcif_stream *stream,
 		u32 frm0_addr_y, frm0_addr_uv;
 		u32 frm1_addr_y, frm1_addr_uv;
 
-		if (dev->active_sensor->mbus.type == V4L2_MBUS_CSI2) {
+		if (mbus_cfg->type == V4L2_MBUS_CSI2 ||
+		    mbus_cfg->type == V4L2_MBUS_CCP2) {
 			frm0_addr_y = get_reg_index_of_frm0_y_addr(csi_ch);
 			frm0_addr_uv = get_reg_index_of_frm0_uv_addr(csi_ch);
 			frm1_addr_y = get_reg_index_of_frm1_y_addr(csi_ch);
@@ -995,7 +1108,8 @@ static void rkcif_assign_new_buffer_pingpong(struct rkcif_stream *stream,
 		}
 		spin_unlock(&stream->vbq_lock);
 	} else {
-		if (dev->active_sensor->mbus.type == V4L2_MBUS_CSI2) {
+		if (mbus_cfg->type == V4L2_MBUS_CSI2 ||
+		    mbus_cfg->type == V4L2_MBUS_CCP2) {
 			frm_addr_y = stream->frame_phase & CIF_CSI_FRAME1_READY ?
 				     get_reg_index_of_frm1_y_addr(csi_ch) :
 				     get_reg_index_of_frm0_y_addr(csi_ch);
@@ -1086,6 +1200,56 @@ static void rkcif_csi_get_vc_num(struct rkcif_device *dev,
 		dev->channels[0].vc = 0;
 }
 
+static void rkcif_csi_set_lvds_sav_eav(struct rkcif_stream *stream,
+				       struct csi_channel_info *channel)
+{
+	struct rkcif_device *dev = stream->cifdev;
+	struct rkmodule_lvds_cfg *lvds_cfg = &channel->lvds_cfg;
+	struct rkmodule_lvds_frame_sync_code *frm_sync_code = NULL;
+	struct rkmodule_lvds_frm_sync_code *odd_sync_code = NULL;
+	struct rkmodule_lvds_frm_sync_code *even_sync_code = NULL;
+
+	if (dev->hdr.mode == NO_HDR) {
+		frm_sync_code = &lvds_cfg->frm_sync_code[LVDS_CODE_GRP_LINEAR];
+		odd_sync_code = &frm_sync_code->odd_sync_code;
+		even_sync_code = odd_sync_code;
+	} else {
+		if (channel->id == RKCIF_STREAM_MIPI_ID0)
+			frm_sync_code = &lvds_cfg->frm_sync_code[LVDS_CODE_GRP_LONG];
+		else if (channel->id == RKCIF_STREAM_MIPI_ID1)
+			frm_sync_code = &lvds_cfg->frm_sync_code[LVDS_CODE_GRP_SHORT];
+		else if (channel->id == RKCIF_STREAM_MIPI_ID2)
+			frm_sync_code = &lvds_cfg->frm_sync_code[LVDS_CODE_GRP_MEDIUM];
+		else
+			frm_sync_code = &lvds_cfg->frm_sync_code[LVDS_CODE_GRP_LONG];
+
+		odd_sync_code = &frm_sync_code->odd_sync_code;
+		even_sync_code = &frm_sync_code->even_sync_code;
+	}
+
+	if (odd_sync_code &&  even_sync_code) {
+		rkcif_write_register(stream->cifdev,
+				     get_reg_index_of_lvds_sav_eav_act0(channel->id),
+				     SW_LVDS_EAV_ACT(odd_sync_code->act.eav) |
+				     SW_LVDS_SAV_ACT(odd_sync_code->act.sav));
+
+		rkcif_write_register(stream->cifdev,
+				     get_reg_index_of_lvds_sav_eav_blk0(channel->id),
+				     SW_LVDS_EAV_BLK(odd_sync_code->blk.eav) |
+				     SW_LVDS_SAV_BLK(odd_sync_code->blk.sav));
+
+		rkcif_write_register(stream->cifdev,
+				     get_reg_index_of_lvds_sav_eav_act1(channel->id),
+				     SW_LVDS_EAV_ACT(even_sync_code->act.eav) |
+				     SW_LVDS_SAV_ACT(even_sync_code->act.sav));
+
+		rkcif_write_register(stream->cifdev,
+				     get_reg_index_of_lvds_sav_eav_blk1(channel->id),
+				     SW_LVDS_EAV_BLK(even_sync_code->blk.eav) |
+				     SW_LVDS_SAV_BLK(even_sync_code->blk.sav));
+	}
+}
+
 static int rkcif_csi_channel_init(struct rkcif_stream *stream,
 				  struct csi_channel_info *channel)
 {
@@ -1123,6 +1287,11 @@ static int rkcif_csi_channel_init(struct rkcif_stream *stream,
 		return -EINVAL;
 	}
 
+	/*
+	 * for mipi or lvds, when enable compact, the virtual width of raw10/raw12
+	 * needs aligned with :ALIGN(bits_per_pixel * width / 8, 8), if enable 16bit mode
+	 * needs aligned with :ALIGN(bits_per_pixel * width * 2, 8)
+	 */
 	if (dev->hdr.mode == NO_HDR) {
 		if (channel->fmt_val == CSI_WRDDR_TYPE_RAW10 ||
 		    channel->fmt_val == CSI_WRDDR_TYPE_RAW12)
@@ -1156,9 +1325,10 @@ static int rkcif_csi_channel_init(struct rkcif_stream *stream,
 }
 
 static int rkcif_csi_channel_set(struct rkcif_stream *stream,
-				 struct csi_channel_info *channel)
+				       struct csi_channel_info *channel,
+				       enum v4l2_mbus_type mbus_type)
 {
-	unsigned int val;
+	unsigned int val = 0x0;
 	struct rkcif_device *dev = stream->cifdev;
 
 	if (channel->id >= 4)
@@ -1191,7 +1361,24 @@ static int rkcif_csi_channel_set(struct rkcif_stream *stream,
 
 	rkcif_write_register(dev, CIF_REG_MIPI_WATER_LINE, 0x70012);
 
-	rkcif_write_register(dev, CIF_REG_MIPI_LVDS_CTRL, 0x7075);
+	val = CIF_MIPI_LVDS_SW_PRESS_VALUE(0x3) |
+		CIF_MIPI_LVDS_SW_PRESS_ENABLE |
+		CIF_MIPI_LVDS_SW_HURRY_VALUE(0x3) |
+		CIF_MIPI_LVDS_SW_HURRY_ENABLE |
+		CIF_MIPI_LVDS_SW_WATER_LINE_25 |
+		CIF_MIPI_LVDS_SW_WATER_LINE_ENABLE;
+	if (mbus_type  == V4L2_MBUS_CSI2) {
+		val &= ~CIF_MIPI_LVDS_SW_SEL_LVDS;
+	} else if (mbus_type  == V4L2_MBUS_CCP2) {
+		if (channel->fmt_val == CSI_WRDDR_TYPE_RAW12)
+			val |= CIF_MIPI_LVDS_SW_LVDS_WIDTH_12BITS;
+		else if (channel->fmt_val == CSI_WRDDR_TYPE_RAW10)
+			val |= CIF_MIPI_LVDS_SW_LVDS_WIDTH_10BITS;
+		else
+			val |= CIF_MIPI_LVDS_SW_LVDS_WIDTH_8BITS;
+		val |= CIF_MIPI_LVDS_SW_SEL_LVDS;
+	}
+	rkcif_write_register(dev, CIF_REG_MIPI_LVDS_CTRL, val);
 
 	rkcif_write_register_or(dev, CIF_REG_MIPI_LVDS_INTEN,
 				CSI_ALL_ERROR_INTEN);
@@ -1215,12 +1402,23 @@ static int rkcif_csi_channel_set(struct rkcif_stream *stream,
 	/* Set up an buffer for the next frame */
 	rkcif_assign_new_buffer_pingpong(stream, 1, channel->id);
 
-	val = CSI_ENABLE_CAPTURE | channel->fmt_val |
-	      channel->cmd_mode_en << 4 | channel->crop_en << 5 |
-	      channel->id << 8 | channel->data_type << 10 ;
+	if (mbus_type  == V4L2_MBUS_CSI2) {
+		val = CSI_ENABLE_CAPTURE | channel->fmt_val |
+		      channel->cmd_mode_en << 4 | channel->crop_en << 5 |
+		      channel->id << 8 | channel->data_type << 10;
 
-	if (dev->hdr.mode != NO_HDR)
-		val |= CSI_ENABLE_MIPI_COMPACT;
+		if (dev->hdr.mode != NO_HDR)
+			val |= CSI_ENABLE_MIPI_COMPACT;
+	} else if (mbus_type  == V4L2_MBUS_CCP2) {
+		rkcif_csi_set_lvds_sav_eav(stream, channel);
+		val = LVDS_ENABLE_CAPTURE | LVDS_MODE(channel->lvds_cfg.mode) |
+		      LVDS_MAIN_LANE(0) | LVDS_FID(0) |
+		      LVDS_LANES_ENABLED(dev->active_sensor->lanes);
+
+		if (dev->hdr.mode != NO_HDR)
+			val |= LVDS_COMPACT;
+	}
+
 	rkcif_write_register(dev, get_reg_index_of_id_ctrl0(channel->id), val);
 
 	return 0;
@@ -1229,18 +1427,38 @@ static int rkcif_csi_channel_set(struct rkcif_stream *stream,
 static int rkcif_csi_stream_start(struct rkcif_stream *stream)
 {
 	struct rkcif_device *dev = stream->cifdev;
-	unsigned int flags = dev->active_sensor->mbus.flags;
+	struct rkcif_sensor_info *active_sensor = dev->active_sensor;
+	unsigned int flags = active_sensor->mbus.flags;
+	enum v4l2_mbus_type mbus_type = active_sensor->mbus.type;
 	struct csi_channel_info *channel;
+	u32 ret = 0;
 
 	stream->frame_idx = 0;
 
-	rkcif_csi_get_vc_num(dev, flags);
+	if (mbus_type == V4L2_MBUS_CSI2) {
+		rkcif_csi_get_vc_num(dev, flags);
 
-	channel = &dev->channels[stream->id];
+		channel = &dev->channels[stream->id];
+		channel->id = stream->id;
+		rkcif_csi_channel_init(stream, channel);
+		rkcif_csi_channel_set(stream, channel, V4L2_MBUS_CSI2);
+	} else if (mbus_type == V4L2_MBUS_CCP2) {
+		rkcif_csi_get_vc_num(dev, flags);
 
-	channel->id = stream->id;
-	rkcif_csi_channel_init(stream, channel);
-	rkcif_csi_channel_set(stream, channel);
+		channel = &dev->channels[stream->id];
+		channel->id = stream->id;
+
+		ret = v4l2_subdev_call(dev->terminal_sensor, core,
+				       ioctl, RKMODULE_GET_LVDS_CFG,
+				       &channel->lvds_cfg);
+		if (ret) {
+			v4l2_err(&dev->v4l2_dev, "Err: get lvds config failed!!\n");
+			return ret;
+		}
+
+		rkcif_csi_channel_init(stream, channel);
+		rkcif_csi_channel_set(stream, channel, V4L2_MBUS_CCP2);
+	}
 
 	stream->state = RKCIF_STATE_STREAMING;
 	dev->workmode = RKCIF_WORKMODE_PINGPONG;
@@ -1250,11 +1468,13 @@ static int rkcif_csi_stream_start(struct rkcif_stream *stream)
 
 static void rkcif_stream_stop(struct rkcif_stream *stream)
 {
+	struct rkcif_device *cif_dev = stream->cifdev;
+	struct v4l2_mbus_config *mbus_cfg = &cif_dev->active_sensor->mbus;
 	u32 val;
 	int id;
-	struct rkcif_device *cif_dev = stream->cifdev;
 
-	if (cif_dev->active_sensor->mbus.type == V4L2_MBUS_CSI2) {
+	if (mbus_cfg->type == V4L2_MBUS_CSI2 ||
+	    mbus_cfg->type == V4L2_MBUS_CCP2) {
 		id = stream->id;
 		val = rkcif_read_register(cif_dev, get_reg_index_of_id_ctrl0(id));
 		rkcif_write_register(cif_dev, get_reg_index_of_id_ctrl0(id),
@@ -1782,6 +2002,12 @@ static int rkcif_sanity_check_fmt(struct rkcif_stream *stream,
 				return -EINVAL;
 			}
 		}
+	} else if (dev->active_sensor->mbus.type == V4L2_MBUS_CCP2) {
+		if (crop->left % 4 != 0) {
+			v4l2_err(v4l2_dev,
+				 "ERROR: lvds crop left must align %d\n", 4);
+			return -EINVAL;
+		}
 	}
 
 	return 0;
@@ -1816,9 +2042,9 @@ static int rkcif_start_streaming(struct vb2_queue *queue, unsigned int count)
 		}
 	}
 
-	if (dev->mipi_sensor) {
+	if (dev->terminal_sensor) {
 		if (!dev->has_get_hdr) {
-			ret = v4l2_subdev_call(dev->mipi_sensor,
+			ret = v4l2_subdev_call(dev->terminal_sensor,
 					       core, ioctl,
 					       RKMODULE_GET_HDR_CFG,
 					       &hdr_cfg);
@@ -1868,7 +2094,8 @@ static int rkcif_start_streaming(struct vb2_queue *queue, unsigned int count)
 
 	if (dev->chip_id == CHIP_RK1808_CIF ||
 	    dev->chip_id == CHIP_RV1126_CIF) {
-		if (dev->active_sensor->mbus.type == V4L2_MBUS_CSI2)
+		if (dev->active_sensor->mbus.type == V4L2_MBUS_CSI2 ||
+		    dev->active_sensor->mbus.type == V4L2_MBUS_CCP2)
 			ret = rkcif_csi_stream_start(stream);
 		else
 			ret = rkcif_stream_start(stream);
@@ -1879,17 +2106,17 @@ static int rkcif_start_streaming(struct vb2_queue *queue, unsigned int count)
 	if (ret < 0)
 		goto runtime_put;
 
-	if (sensor_info->mbus.type != V4L2_MBUS_PARALLEL) {
-		ret = dev->pipe.set_stream(&dev->pipe, true);
-		if (ret < 0)
-			goto stop_stream;
-	}
-
 	ret = media_pipeline_start(&node->vdev.entity, &dev->pipe.pipe);
 	if (ret < 0) {
 		v4l2_err(&dev->v4l2_dev, "start pipeline failed %d\n",
 			 ret);
 		goto pipe_stream_off;
+	}
+
+	if (sensor_info->mbus.type != V4L2_MBUS_PARALLEL) {
+		ret = dev->pipe.set_stream(&dev->pipe, true);
+		if (ret < 0)
+			goto stop_stream;
 	}
 
 	if (dev->hdr.mode == HDR_X2) {
@@ -1910,10 +2137,10 @@ static int rkcif_start_streaming(struct vb2_queue *queue, unsigned int count)
 	v4l2_info(&dev->v4l2_dev, "%s successfully!\n", __func__);
 	goto out;
 
-pipe_stream_off:
-	dev->pipe.set_stream(&dev->pipe, false);
 stop_stream:
 	rkcif_stream_stop(stream);
+pipe_stream_off:
+	dev->pipe.set_stream(&dev->pipe, false);
 runtime_put:
 	pm_runtime_put(dev->dev);
 destroy_buf:
@@ -1988,9 +2215,9 @@ static void rkcif_set_fmt(struct rkcif_stream *stream,
 		get_input_fmt(dev->active_sensor->sd,
 			      &input_rect, stream->id + 1);
 
-	if (dev->mipi_sensor) {
+	if (dev->terminal_sensor) {
 		if (!dev->has_get_hdr) {
-			ret = v4l2_subdev_call(dev->mipi_sensor,
+			ret = v4l2_subdev_call(dev->terminal_sensor,
 					       core, ioctl,
 					       RKMODULE_GET_HDR_CFG,
 					       &hdr_cfg);
@@ -2484,6 +2711,182 @@ err:
 	return ret;
 }
 
+static struct v4l2_subdev *get_lvds_remote_sensor(struct v4l2_subdev *sd)
+{
+	struct media_pad *local, *remote;
+	struct media_entity *sensor_me;
+
+	local = &sd->entity.pads[RKCIF_LVDS_PAD_SINK];
+	remote = media_entity_remote_pad(local);
+	if (!remote) {
+		v4l2_warn(sd, "No link between dphy and sensor with lvds\n");
+		return NULL;
+	}
+
+	sensor_me = media_entity_remote_pad(local)->entity;
+	return media_entity_to_v4l2_subdev(sensor_me);
+}
+
+static int rkcif_lvds_subdev_link_setup(struct media_entity *entity,
+					const struct media_pad *local,
+					const struct media_pad *remote,
+					u32 flags)
+{
+	return 0;
+}
+
+static int rkcif_lvds_sd_set_fmt(struct v4l2_subdev *sd,
+				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_format *fmt)
+{
+	struct v4l2_subdev *sensor = get_lvds_remote_sensor(sd);
+
+	/*
+	 * Do not allow format changes and just relay whatever
+	 * set currently in the sensor.
+	 */
+	return v4l2_subdev_call(sensor, pad, get_fmt, NULL, fmt);
+}
+
+static int rkcif_lvds_sd_get_fmt(struct v4l2_subdev *sd,
+				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_format *fmt)
+{
+	struct v4l2_subdev *sensor = get_lvds_remote_sensor(sd);
+
+	/*
+	 * Do not allow format changes and just relay whatever
+	 * set currently in the sensor.
+	 */
+	return v4l2_subdev_call(sensor, pad, get_fmt, NULL, fmt);
+}
+
+static int rkcif_lvds_g_mbus_config(struct v4l2_subdev *sd,
+				    struct v4l2_mbus_config *mbus)
+{
+	struct v4l2_subdev *sensor_sd = get_lvds_remote_sensor(sd);
+	int ret;
+
+	ret = v4l2_subdev_call(sensor_sd, video, g_mbus_config, mbus);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int rkcif_lvds_sd_s_stream(struct v4l2_subdev *sd, int on)
+{
+	return 0;
+}
+
+static int rkcif_lvds_sd_s_power(struct v4l2_subdev *sd, int on)
+{
+	return 0;
+}
+
+static int rkcif_lvds_subscribe_event(struct v4l2_subdev *sd, struct v4l2_fh *fh,
+				      struct v4l2_event_subscription *sub)
+{
+	if (sub->type != V4L2_EVENT_FRAME_SYNC)
+		return -EINVAL;
+
+	return v4l2_event_subscribe(fh, sub, 0, NULL);
+}
+
+static const struct media_entity_operations rkcif_lvds_sd_media_ops = {
+	.link_setup = rkcif_lvds_subdev_link_setup,
+	.link_validate = v4l2_subdev_link_validate,
+};
+
+static const struct v4l2_subdev_pad_ops rkcif_lvds_sd_pad_ops = {
+	.set_fmt = rkcif_lvds_sd_set_fmt,
+	.get_fmt = rkcif_lvds_sd_get_fmt,
+};
+
+static const struct v4l2_subdev_video_ops rkcif_lvds_sd_video_ops = {
+	.g_mbus_config = rkcif_lvds_g_mbus_config,
+	.s_stream = rkcif_lvds_sd_s_stream,
+};
+
+static const struct v4l2_subdev_core_ops rkcif_lvds_sd_core_ops = {
+	.s_power = rkcif_lvds_sd_s_power,
+	.subscribe_event = rkcif_lvds_subscribe_event,
+	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
+};
+
+static struct v4l2_subdev_ops rkcif_lvds_sd_ops = {
+	.core = &rkcif_lvds_sd_core_ops,
+	.video = &rkcif_lvds_sd_video_ops,
+	.pad = &rkcif_lvds_sd_pad_ops,
+};
+
+static void rkcif_lvds_event_inc_sof(struct rkcif_device *dev)
+{
+	struct rkcif_lvds_subdev *subdev = &dev->lvds_subdev;
+
+	if (subdev) {
+		struct v4l2_event event = {
+			.type = V4L2_EVENT_FRAME_SYNC,
+			.u.frame_sync.frame_sequence =
+				atomic_inc_return(&subdev->frm_sync_seq) - 1,
+		};
+		v4l2_event_queue(subdev->sd.devnode, &event);
+	}
+}
+
+int rkcif_register_lvds_subdev(struct rkcif_device *dev)
+{
+	struct v4l2_device *v4l2_dev = &dev->v4l2_dev;
+	struct rkcif_lvds_subdev *lvds_subdev = &dev->lvds_subdev;
+	struct v4l2_subdev *sd;
+	int ret;
+
+	memset(lvds_subdev, 0, sizeof(*lvds_subdev));
+	lvds_subdev->cifdev = dev;
+	sd = &lvds_subdev->sd;
+	lvds_subdev->state = RKCIF_LVDS_STOP;
+	v4l2_subdev_init(sd, &rkcif_lvds_sd_ops);
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	sd->entity.ops = &rkcif_lvds_sd_media_ops;
+	snprintf(sd->name, sizeof(sd->name), "rkcif-lvds-subdev");
+
+	lvds_subdev->pads[RKCIF_LVDS_PAD_SINK].flags =
+		MEDIA_PAD_FL_SINK | MEDIA_PAD_FL_MUST_CONNECT;
+	lvds_subdev->pads[RKCIF_LVDS_PAD_SRC_ID0].flags = MEDIA_PAD_FL_SOURCE;
+	lvds_subdev->pads[RKCIF_LVDS_PAD_SRC_ID1].flags = MEDIA_PAD_FL_SOURCE;
+	lvds_subdev->pads[RKCIF_LVDS_PAD_SRC_ID2].flags = MEDIA_PAD_FL_SOURCE;
+	lvds_subdev->pads[RKCIF_LVDS_PAD_SRC_ID3].flags = MEDIA_PAD_FL_SOURCE;
+
+	ret = media_entity_pads_init(&sd->entity, RKCIF_LVDS_PAD_MAX,
+				     lvds_subdev->pads);
+	if (ret < 0)
+		return ret;
+	sd->owner = THIS_MODULE;
+	v4l2_set_subdevdata(sd, lvds_subdev);
+	ret = v4l2_device_register_subdev(v4l2_dev, sd);
+	if (ret < 0)
+		goto free_media;
+
+	ret = v4l2_device_register_subdev_nodes(v4l2_dev);
+	if (ret < 0)
+		goto free_subdev;
+	return ret;
+free_subdev:
+	v4l2_device_unregister_subdev(sd);
+free_media:
+	media_entity_cleanup(&sd->entity);
+	v4l2_err(sd, "Failed to register subdev, ret:%d\n", ret);
+	return ret;
+}
+
+void rkcif_unregister_lvds_subdev(struct rkcif_device *dev)
+{
+	struct v4l2_subdev *sd = &dev->lvds_subdev.sd;
+
+	v4l2_device_unregister_subdev(sd);
+	media_entity_cleanup(&sd->entity);
+}
+
 static void rkcif_vb_done_oneframe(struct rkcif_stream *stream,
 				   struct vb2_v4l2_buffer *vb_done)
 {
@@ -2495,7 +2898,10 @@ static void rkcif_vb_done_oneframe(struct rkcif_stream *stream,
 		vb2_set_plane_payload(&vb_done->vb2_buf, i,
 				      stream->pixm.plane_fmt[i].sizeimage);
 	}
-	vb_done->vb2_buf.timestamp = ktime_get_ns();
+
+	if (stream->cifdev->hdr.mode == NO_HDR)
+		vb_done->vb2_buf.timestamp = ktime_get_ns();
+
 	vb2_buffer_done(&vb_done->vb2_buf, VB2_BUF_STATE_DONE);
 }
 
@@ -2692,10 +3098,12 @@ void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 	/* TODO: xuhf-debug: add stream type */
 	struct rkcif_stream *stream;
 	struct rkcif_buffer *active_buf = NULL;
+	struct v4l2_mbus_config *mbus = &cif_dev->active_sensor->mbus;
 	void __iomem *base = cif_dev->base_addr;
 	unsigned int intstat, i = 0xff;
 
-	if (cif_dev->active_sensor->mbus.type == V4L2_MBUS_CSI2 &&
+	if ((mbus->type == V4L2_MBUS_CSI2 ||
+	     mbus->type == V4L2_MBUS_CCP2) &&
 	    (cif_dev->chip_id == CHIP_RK1808_CIF ||
 	     cif_dev->chip_id == CHIP_RV1126_CIF)) {
 		int mipi_id;
@@ -2710,8 +3118,8 @@ void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 
 		if (intstat & CSI_FIFO_OVERFLOW) {
 			v4l2_err(&cif_dev->v4l2_dev,
-				 "ERROR: csi fifo overflow!! intstat: 0x%x\n",
-				  intstat);
+				 "ERROR: csi fifo overflow, intstat:0x%x, lastline:%d!!\n",
+				  intstat, lastline);
 			return;
 		}
 
@@ -2728,11 +3136,19 @@ void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 			return;
 		}
 
-		if (intstat & CSI_FRAME0_START_ID0)
-			rkcif_csi2_event_inc_sof();
+		if (intstat & CSI_FRAME0_START_ID0) {
+			if (mbus->type == V4L2_MBUS_CSI2)
+				rkcif_csi2_event_inc_sof();
+			else if (mbus->type == V4L2_MBUS_CCP2)
+				rkcif_lvds_event_inc_sof(cif_dev);
+		}
 
-		if (intstat & CSI_FRAME1_START_ID0)
-			rkcif_csi2_event_inc_sof();
+		if (intstat & CSI_FRAME1_START_ID0) {
+			if (mbus->type == V4L2_MBUS_CSI2)
+				rkcif_csi2_event_inc_sof();
+			else if (mbus->type == V4L2_MBUS_CCP2)
+				rkcif_lvds_event_inc_sof(cif_dev);
+		}
 
 		/* if do not reach frame dma end, return irq */
 		mipi_id = rkcif_csi_g_mipi_id(&cif_dev->v4l2_dev, intstat);
@@ -2799,6 +3215,7 @@ void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 			if (cif_dev->hdr.mode == NO_HDR) {
 				if (active_buf)
 					rkcif_vb_done_oneframe(stream, vb_done);
+				v4l2_err(&cif_dev->v4l2_dev, "no_hdr vb done\n");
 			} else if (cif_dev->hdr.mode == HDR_X2) {
 				if (mipi_id == RKCIF_STREAM_MIPI_ID0) {
 					if (cif_dev->rdbk_buf[RDBK_L]) {
@@ -2849,7 +3266,6 @@ void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 		 *  - FRAME_END: cif has saved frame to memory,
 		 *    a frame ready
 		 */
-
 		if ((intstat & PST_INF_FRAME_END)) {
 			rkcif_write_register(cif_dev, CIF_REG_DVP_INTSTAT,
 					     PST_INF_FRAME_END_CLR);

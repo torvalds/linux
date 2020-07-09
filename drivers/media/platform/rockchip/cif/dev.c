@@ -208,20 +208,56 @@ static int rkcif_pipeline_close(struct rkcif_pipeline *p)
  */
 static int rkcif_pipeline_set_stream(struct rkcif_pipeline *p, bool on)
 {
+	struct rkcif_device *cif_dev = container_of(p, struct rkcif_device, pipe);
+	bool can_be_set = false;
 	int i, ret;
 
-	if ((on && atomic_inc_return(&p->stream_cnt) > 1) ||
-	    (!on && atomic_dec_return(&p->stream_cnt) > 0))
-		return 0;
+	if (cif_dev->hdr.mode == NO_HDR) {
+		if ((on && atomic_inc_return(&p->stream_cnt) > 1) ||
+		    (!on && atomic_dec_return(&p->stream_cnt) > 0))
+			return 0;
 
-	if (on)
-		rockchip_set_system_status(SYS_STATUS_CIF0);
+		if (on)
+			rockchip_set_system_status(SYS_STATUS_CIF0);
 
-	/* phy -> sensor */
-	for (i = 0; i < p->num_subdevs; i++) {
-		ret = v4l2_subdev_call(p->subdevs[i], video, s_stream, on);
-		if (on && ret < 0 && ret != -ENOIOCTLCMD && ret != -ENODEV)
-			goto err_stream_off;
+		/* phy -> sensor */
+		for (i = 0; i < p->num_subdevs; i++) {
+			ret = v4l2_subdev_call(p->subdevs[i], video, s_stream, on);
+			if (on && ret < 0 && ret != -ENOIOCTLCMD && ret != -ENODEV)
+				goto err_stream_off;
+		}
+	} else {
+		if (!on && atomic_dec_return(&p->stream_cnt) > 0)
+			return 0;
+
+		if (on) {
+			atomic_inc(&p->stream_cnt);
+			if (cif_dev->hdr.mode == HDR_X2) {
+				if (atomic_read(&p->stream_cnt) == 1) {
+					rockchip_set_system_status(SYS_STATUS_CIF0);
+					can_be_set = false;
+				} else if (atomic_read(&p->stream_cnt) == 2) {
+					can_be_set = true;
+				}
+			} else if (cif_dev->hdr.mode == HDR_X3) {
+				if (atomic_read(&p->stream_cnt) == 1) {
+					rockchip_set_system_status(SYS_STATUS_CIF0);
+					can_be_set = false;
+				} else if (atomic_read(&p->stream_cnt) == 3) {
+					can_be_set = true;
+				}
+			}
+		}
+
+		if (on && can_be_set) {
+			/* phy -> sensor */
+			for (i = 0; i < p->num_subdevs; i++) {
+				ret = v4l2_subdev_call(p->subdevs[i], video, s_stream, on);
+
+				if (on && ret < 0 && ret != -ENOIOCTLCMD && ret != -ENODEV)
+					goto err_stream_off;
+			}
+		}
 	}
 
 	if (!on)
@@ -252,24 +288,40 @@ static int rkcif_create_links(struct rkcif_device *dev)
 	/* sensor links(or mipi-phy) */
 	for (s = 0; s < dev->num_sensors; ++s) {
 		struct rkcif_sensor_info *sensor = &dev->sensors[s];
+		struct rkcif_sensor_info linked_sensor;
 		struct media_entity *source_entity, *sink_entity;
 
-		for (pad = 0; pad < sensor->sd->entity.num_pads; pad++) {
-			if (sensor->sd->entity.pads[pad].flags &
+		linked_sensor.lanes = sensor->lanes;
+
+		if (sensor->mbus.type == V4L2_MBUS_CCP2) {
+			linked_sensor.sd = &dev->lvds_subdev.sd;
+			dev->lvds_subdev.sensor_self.sd = &dev->lvds_subdev.sd;
+			dev->lvds_subdev.sensor_self.lanes = sensor->lanes;
+			memcpy(&dev->lvds_subdev.sensor_self.mbus, &sensor->mbus,
+			       sizeof(struct v4l2_mbus_config));
+		} else {
+			linked_sensor.sd = sensor->sd;
+		}
+
+		memcpy(&linked_sensor.mbus, &sensor->mbus,
+		       sizeof(struct v4l2_mbus_config));
+
+		for (pad = 0; pad < linked_sensor.sd->entity.num_pads; pad++) {
+			if (linked_sensor.sd->entity.pads[pad].flags &
 				MEDIA_PAD_FL_SOURCE) {
-				if (pad == sensor->sd->entity.num_pads) {
+				if (pad == linked_sensor.sd->entity.num_pads) {
 					dev_err(dev->dev,
 						"failed to find src pad for %s\n",
-						sensor->sd->name);
+						linked_sensor.sd->name);
 
 					break;
 				}
 
-				if ((sensor->mbus.type == V4L2_MBUS_BT656 ||
-				     sensor->mbus.type == V4L2_MBUS_PARALLEL) &&
+				if ((linked_sensor.mbus.type == V4L2_MBUS_BT656 ||
+				     linked_sensor.mbus.type == V4L2_MBUS_PARALLEL) &&
 				    (dev->chip_id == CHIP_RK1808_CIF ||
 				     dev->chip_id == CHIP_RV1126_CIF)) {
-					source_entity = &sensor->sd->entity;
+					source_entity = &linked_sensor.sd->entity;
 					sink_entity = &dev->stream[RKCIF_STREAM_DVP].vnode.vdev.entity;
 
 					ret = media_create_pad_link(source_entity,
@@ -279,12 +331,12 @@ static int rkcif_create_links(struct rkcif_device *dev)
 								    MEDIA_LNK_FL_ENABLED);
 					if (ret)
 						dev_err(dev->dev, "failed to create link for %s\n",
-							sensor->sd->name);
+							linked_sensor.sd->name);
 					break;
 				}
 
 				for (id = 0; id < stream_num; id++) {
-					source_entity = &sensor->sd->entity;
+					source_entity = &linked_sensor.sd->entity;
 					sink_entity = &dev->stream[id].vnode.vdev.entity;
 
 					if ((dev->chip_id != CHIP_RK1808_CIF &&
@@ -302,11 +354,25 @@ static int rkcif_create_links(struct rkcif_device *dev)
 					if (ret) {
 						dev_err(dev->dev,
 							"failed to create link for %s\n",
-							sensor->sd->name);
+							linked_sensor.sd->name);
 						break;
 					}
 				}
 			}
+		}
+
+		if (sensor->mbus.type == V4L2_MBUS_CCP2) {
+			source_entity = &sensor->sd->entity;
+			sink_entity = &linked_sensor.sd->entity;
+			ret = media_create_pad_link(source_entity,
+						    1,
+						    sink_entity,
+						    0,
+						    MEDIA_LNK_FL_ENABLED);
+			if (ret)
+				dev_err(dev->dev, "failed to create link between %s and %s\n",
+					linked_sensor.sd->name,
+					sensor->sd->name);
 		}
 	}
 
@@ -321,27 +387,41 @@ static int _set_pipeline_default_fmt(struct rkcif_device *dev)
 static int subdev_notifier_complete(struct v4l2_async_notifier *notifier)
 {
 	struct rkcif_device *dev;
-	int ret;
+	struct rkcif_sensor_info *sensor;
+	int ret, index;
 
 	dev = container_of(notifier, struct rkcif_device, notifier);
 
-	/* mutex_lock(&dev->media_dev.graph_mutex); */
+	for (index = 0; index < dev->num_sensors; index++) {
+		sensor = &dev->sensors[index];
+		if (sensor->mbus.type == V4L2_MBUS_CCP2) {
+			ret = rkcif_register_lvds_subdev(dev);
+			if (ret < 0) {
+				v4l2_err(&dev->v4l2_dev,
+					 "Err: register lvds subdev failed!!!\n");
+				goto notifier_end;
+			}
+			break;
+		}
+	}
 
 	ret = rkcif_create_links(dev);
 	if (ret < 0)
-		goto unlock;
+		goto unregister_lvds;
 
 	ret = v4l2_device_register_subdev_nodes(&dev->v4l2_dev);
 	if (ret < 0)
-		goto unlock;
+		goto unregister_lvds;
 
 	ret = _set_pipeline_default_fmt(dev);
 	if (ret < 0)
-		goto unlock;
+		goto unregister_lvds;
 	v4l2_info(&dev->v4l2_dev, "Async subdev notifier completed\n");
+	return ret;
 
-unlock:
-	/* mutex_unlock(&dev->media_dev.graph_mutex); */
+unregister_lvds:
+	rkcif_unregister_lvds_subdev(dev);
+notifier_end:
 	return ret;
 }
 
@@ -383,7 +463,8 @@ static int rkcif_fwnode_parse(struct device *dev,
 
 	if (vep->bus_type != V4L2_MBUS_BT656 &&
 	    vep->bus_type != V4L2_MBUS_PARALLEL &&
-	    vep->bus_type != V4L2_MBUS_CSI2)
+	    vep->bus_type != V4L2_MBUS_CSI2 &&
+	    vep->bus_type != V4L2_MBUS_CCP2)
 		return 0;
 
 	rk_asd->mbus.type = vep->bus_type;
@@ -391,6 +472,8 @@ static int rkcif_fwnode_parse(struct device *dev,
 	if (vep->bus_type == V4L2_MBUS_CSI2) {
 		rk_asd->mbus.flags = vep->bus.mipi_csi2.flags;
 		rk_asd->lanes = vep->bus.mipi_csi2.num_data_lanes;
+	} else if (vep->bus_type == V4L2_MBUS_CCP2) {
+		rk_asd->lanes = vep->bus.mipi_csi1.data_lane;
 	} else {
 		rk_asd->mbus.flags = bus->flags;
 	}
@@ -1152,6 +1235,9 @@ static int rkcif_plat_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 	if (cif_dev->iommu_en)
 		rkcif_iommu_cleanup(cif_dev);
+
+	if (cif_dev->active_sensor->mbus.type == V4L2_MBUS_CCP2)
+		rkcif_unregister_lvds_subdev(cif_dev);
 
 	media_device_unregister(&cif_dev->media_dev);
 	v4l2_device_unregister(&cif_dev->v4l2_dev);
