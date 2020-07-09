@@ -200,6 +200,56 @@ ice_aq_get_phy_caps(struct ice_port_info *pi, bool qual_mods, u8 report_mode,
 }
 
 /**
+ * ice_aq_get_link_topo_handle - get link topology node return status
+ * @pi: port information structure
+ * @node_type: requested node type
+ * @cd: pointer to command details structure or NULL
+ *
+ * Get link topology node return status for specified node type (0x06E0)
+ *
+ * Node type cage can be used to determine if cage is present. If AQC
+ * returns error (ENOENT), then no cage present. If no cage present, then
+ * connection type is backplane or BASE-T.
+ */
+static enum ice_status
+ice_aq_get_link_topo_handle(struct ice_port_info *pi, u8 node_type,
+			    struct ice_sq_cd *cd)
+{
+	struct ice_aqc_get_link_topo *cmd;
+	struct ice_aq_desc desc;
+
+	cmd = &desc.params.get_link_topo;
+
+	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_get_link_topo);
+
+	cmd->addr.node_type_ctx = (ICE_AQC_LINK_TOPO_NODE_CTX_PORT <<
+				   ICE_AQC_LINK_TOPO_NODE_CTX_S);
+
+	/* set node type */
+	cmd->addr.node_type_ctx |= (ICE_AQC_LINK_TOPO_NODE_TYPE_M & node_type);
+
+	return ice_aq_send_cmd(pi->hw, &desc, NULL, 0, cd);
+}
+
+/**
+ * ice_is_media_cage_present
+ * @pi: port information structure
+ *
+ * Returns true if media cage is present, else false. If no cage, then
+ * media type is backplane or BASE-T.
+ */
+static bool ice_is_media_cage_present(struct ice_port_info *pi)
+{
+	/* Node type cage can be used to determine if cage is present. If AQC
+	 * returns error (ENOENT), then no cage present. If no cage present then
+	 * connection type is backplane or BASE-T.
+	 */
+	return !ice_aq_get_link_topo_handle(pi,
+					    ICE_AQC_LINK_TOPO_NODE_TYPE_CAGE,
+					    NULL);
+}
+
+/**
  * ice_get_media_type - Gets media type
  * @pi: port information structure
  */
@@ -224,7 +274,6 @@ static enum ice_media_type ice_get_media_type(struct ice_port_info *pi)
 		case ICE_PHY_TYPE_LOW_10G_SFI_C2C:
 		case ICE_PHY_TYPE_LOW_25GBASE_SR:
 		case ICE_PHY_TYPE_LOW_25GBASE_LR:
-		case ICE_PHY_TYPE_LOW_25G_AUI_C2C:
 		case ICE_PHY_TYPE_LOW_40GBASE_SR4:
 		case ICE_PHY_TYPE_LOW_40GBASE_LR4:
 		case ICE_PHY_TYPE_LOW_50GBASE_SR2:
@@ -255,6 +304,16 @@ static enum ice_media_type ice_get_media_type(struct ice_port_info *pi)
 		case ICE_PHY_TYPE_LOW_100GBASE_CR_PAM4:
 		case ICE_PHY_TYPE_LOW_100GBASE_CP2:
 			return ICE_MEDIA_DA;
+		case ICE_PHY_TYPE_LOW_25G_AUI_C2C:
+		case ICE_PHY_TYPE_LOW_40G_XLAUI:
+		case ICE_PHY_TYPE_LOW_50G_LAUI2:
+		case ICE_PHY_TYPE_LOW_50G_AUI2:
+		case ICE_PHY_TYPE_LOW_50G_AUI1:
+		case ICE_PHY_TYPE_LOW_100G_AUI4:
+		case ICE_PHY_TYPE_LOW_100G_CAUI4:
+			if (ice_is_media_cage_present(pi))
+				return ICE_MEDIA_DA;
+			fallthrough;
 		case ICE_PHY_TYPE_LOW_1000BASE_KX:
 		case ICE_PHY_TYPE_LOW_2500BASE_KX:
 		case ICE_PHY_TYPE_LOW_2500BASE_X:
@@ -272,6 +331,11 @@ static enum ice_media_type ice_get_media_type(struct ice_port_info *pi)
 		}
 	} else {
 		switch (hw_link_info->phy_type_high) {
+		case ICE_PHY_TYPE_HIGH_100G_AUI2:
+		case ICE_PHY_TYPE_HIGH_100G_CAUI2:
+			if (ice_is_media_cage_present(pi))
+				return ICE_MEDIA_DA;
+			fallthrough;
 		case ICE_PHY_TYPE_HIGH_100GBASE_KR2_PAM4:
 			return ICE_MEDIA_BACKPLANE;
 		}
