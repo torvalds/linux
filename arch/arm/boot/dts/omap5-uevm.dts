@@ -15,6 +15,26 @@
 		reg = <0 0x80000000 0 0x7f000000>; /* 2032 MB */
 	};
 
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		dsp_memory_region: dsp-memory@95000000 {
+			compatible = "shared-dma-pool";
+			reg = <0 0x95000000 0 0x800000>;
+			reusable;
+			status = "okay";
+		};
+
+		ipu_memory_region: ipu-memory@95800000 {
+			compatible = "shared-dma-pool";
+			reg = <0 0x95800000 0 0x3800000>;
+			reusable;
+			status = "okay";
+		};
+	};
+
 	aliases {
 		ethernet = &ethernet;
 	};
@@ -197,4 +217,14 @@
 
 &wlcore {
 	compatible = "ti,wl1837";
+};
+
+&dsp {
+	status = "okay";
+	memory-region = <&dsp_memory_region>;
+};
+
+&ipu {
+	status = "okay";
+	memory-region = <&ipu_memory_region>;
 };
