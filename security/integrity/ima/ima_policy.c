@@ -984,8 +984,25 @@ static void check_template_modsig(const struct ima_template_desc *template)
 
 static bool ima_validate_rule(struct ima_rule_entry *entry)
 {
-	/* Ensure that the action is set */
+	/* Ensure that the action is set and is compatible with the flags */
 	if (entry->action == UNKNOWN)
+		return false;
+
+	if (entry->action != MEASURE && entry->flags & IMA_PCR)
+		return false;
+
+	if (entry->action != APPRAISE &&
+	    entry->flags & (IMA_DIGSIG_REQUIRED | IMA_MODSIG_ALLOWED | IMA_CHECK_BLACKLIST))
+		return false;
+
+	/*
+	 * The IMA_FUNC bit must be set if and only if there's a valid hook
+	 * function specified, and vice versa. Enforcing this property allows
+	 * for the NONE case below to validate a rule without an explicit hook
+	 * function.
+	 */
+	if (((entry->flags & IMA_FUNC) && entry->func == NONE) ||
+	    (!(entry->flags & IMA_FUNC) && entry->func != NONE))
 		return false;
 
 	/*
@@ -999,12 +1016,27 @@ static bool ima_validate_rule(struct ima_rule_entry *entry)
 	case BPRM_CHECK:
 	case CREDS_CHECK:
 	case POST_SETATTR:
-	case MODULE_CHECK:
 	case FIRMWARE_CHECK:
+	case POLICY_CHECK:
+		if (entry->flags & ~(IMA_FUNC | IMA_MASK | IMA_FSMAGIC |
+				     IMA_UID | IMA_FOWNER | IMA_FSUUID |
+				     IMA_INMASK | IMA_EUID | IMA_PCR |
+				     IMA_FSNAME | IMA_DIGSIG_REQUIRED |
+				     IMA_PERMIT_DIRECTIO))
+			return false;
+
+		break;
+	case MODULE_CHECK:
 	case KEXEC_KERNEL_CHECK:
 	case KEXEC_INITRAMFS_CHECK:
-	case POLICY_CHECK:
-		/* Validation of these hook functions is in ima_parse_rule() */
+		if (entry->flags & ~(IMA_FUNC | IMA_MASK | IMA_FSMAGIC |
+				     IMA_UID | IMA_FOWNER | IMA_FSUUID |
+				     IMA_INMASK | IMA_EUID | IMA_PCR |
+				     IMA_FSNAME | IMA_DIGSIG_REQUIRED |
+				     IMA_PERMIT_DIRECTIO | IMA_MODSIG_ALLOWED |
+				     IMA_CHECK_BLACKLIST))
+			return false;
+
 		break;
 	case KEXEC_CMDLINE:
 		if (entry->action & ~(MEASURE | DONT_MEASURE))
@@ -1218,7 +1250,6 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 			keyrings_len = strlen(args[0].from) + 1;
 
 			if ((entry->keyrings) ||
-			    (entry->func != KEY_CHECK) ||
 			    (keyrings_len < 2)) {
 				result = -EINVAL;
 				break;
@@ -1358,15 +1389,10 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 						   AUDIT_SUBJ_TYPE);
 			break;
 		case Opt_appraise_type:
-			if (entry->action != APPRAISE) {
-				result = -EINVAL;
-				break;
-			}
-
 			ima_log_string(ab, "appraise_type", args[0].from);
 			if ((strcmp(args[0].from, "imasig")) == 0)
 				entry->flags |= IMA_DIGSIG_REQUIRED;
-			else if (ima_hook_supports_modsig(entry->func) &&
+			else if (IS_ENABLED(CONFIG_IMA_APPRAISE_MODSIG) &&
 				 strcmp(args[0].from, "imasig|modsig") == 0)
 				entry->flags |= IMA_DIGSIG_REQUIRED |
 						IMA_MODSIG_ALLOWED;
@@ -1374,11 +1400,6 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 				result = -EINVAL;
 			break;
 		case Opt_appraise_flag:
-			if (entry->action != APPRAISE) {
-				result = -EINVAL;
-				break;
-			}
-
 			ima_log_string(ab, "appraise_flag", args[0].from);
 			if (IS_ENABLED(CONFIG_IMA_APPRAISE_MODSIG) &&
 			    strstr(args[0].from, "blacklist"))
@@ -1390,10 +1411,6 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 			entry->flags |= IMA_PERMIT_DIRECTIO;
 			break;
 		case Opt_pcr:
-			if (entry->action != MEASURE) {
-				result = -EINVAL;
-				break;
-			}
 			ima_log_string(ab, "pcr", args[0].from);
 
 			result = kstrtoint(args[0].from, 10, &entry->pcr);
