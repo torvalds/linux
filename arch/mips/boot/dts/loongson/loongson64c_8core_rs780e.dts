@@ -6,7 +6,7 @@
 #include "rs780e-pch.dtsi"
 
 / {
-	compatible = "loongson,loongson3-8core-rs780e";
+	compatible = "loongson,loongson64c-8core-rs780e";
 };
 
 &package0 {
