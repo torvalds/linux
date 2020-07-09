@@ -57,11 +57,12 @@
 #define H_PMD_FRAG_NR	(PAGE_SIZE >> H_PMD_FRAG_SIZE_SHIFT)
 
 /* memory key bits, only 8 keys supported */
-#define H_PTE_PKEY_BIT0	0
-#define H_PTE_PKEY_BIT1	0
+#define H_PTE_PKEY_BIT4	0
+#define H_PTE_PKEY_BIT3	0
 #define H_PTE_PKEY_BIT2	_RPAGE_RSV3
-#define H_PTE_PKEY_BIT3	_RPAGE_RSV4
-#define H_PTE_PKEY_BIT4	_RPAGE_RSV5
+#define H_PTE_PKEY_BIT1	_RPAGE_RSV4
+#define H_PTE_PKEY_BIT0	_RPAGE_RSV5
+
 
 /*
  * On all 4K setups, remap_4k_pfn() equates to remap_pfn_range()
