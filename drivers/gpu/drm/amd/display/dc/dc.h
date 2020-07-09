@@ -1265,6 +1265,9 @@ void dc_unlock_memory_clock_frequency(struct dc *dc);
 void dc_lock_memory_clock_frequency(struct dc *dc);
 
 #endif
+
+bool dc_set_psr_allow_active(struct dc *dc, bool enable);
+
 /*******************************************************************************
  * DSC Interfaces
  ******************************************************************************/
