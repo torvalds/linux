@@ -299,8 +299,13 @@ static void scftorture_invoke_one(struct scf_statistics *scfp, struct torture_ra
 		preempt_disable();
 	if (scfsp->scfs_prim == SCF_PRIM_SINGLE || scfsp->scfs_wait) {
 		scfcp = kmalloc(sizeof(*scfcp), GFP_ATOMIC);
-		if (WARN_ON_ONCE(!scfcp))
+		if (WARN_ON_ONCE(!scfcp)) {
 			atomic_inc(&n_alloc_errs);
+		} else {
+			scfcp->scfc_cpu = -1;
+			scfcp->scfc_wait = scfsp->scfs_wait;
+			scfcp->scfc_out = false;
+		}
 	}
 	switch (scfsp->scfs_prim) {
 	case SCF_PRIM_SINGLE:
@@ -311,8 +316,6 @@ static void scftorture_invoke_one(struct scf_statistics *scfp, struct torture_ra
 			scfp->n_single++;
 		if (scfcp) {
 			scfcp->scfc_cpu = cpu;
-			scfcp->scfc_wait = scfsp->scfs_wait;
-			scfcp->scfc_out = false;
 			scfcp->scfc_in = true;
 		}
 		ret = smp_call_function_single(cpu, scf_handler_1, (void *)scfcp, scfsp->scfs_wait);
@@ -330,12 +333,8 @@ static void scftorture_invoke_one(struct scf_statistics *scfp, struct torture_ra
 			scfp->n_many_wait++;
 		else
 			scfp->n_many++;
-		if (scfcp) {
-			scfcp->scfc_cpu = -1;
-			scfcp->scfc_wait = true;
-			scfcp->scfc_out = false;
+		if (scfcp)
 			scfcp->scfc_in = true;
-		}
 		smp_call_function_many(cpu_online_mask, scf_handler, scfcp, scfsp->scfs_wait);
 		break;
 	case SCF_PRIM_ALL:
@@ -343,12 +342,8 @@ static void scftorture_invoke_one(struct scf_statistics *scfp, struct torture_ra
 			scfp->n_all_wait++;
 		else
 			scfp->n_all++;
-		if (scfcp) {
-			scfcp->scfc_cpu = -1;
-			scfcp->scfc_wait = true;
-			scfcp->scfc_out = false;
+		if (scfcp)
 			scfcp->scfc_in = true;
-		}
 		smp_call_function(scf_handler, scfcp, scfsp->scfs_wait);
 		break;
 	}
