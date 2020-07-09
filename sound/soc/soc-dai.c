@@ -298,8 +298,14 @@ int snd_soc_dai_digital_mute(struct snd_soc_dai *dai, int mute,
 {
 	int ret = -ENOTSUPP;
 
+	/*
+	 * ignore if direction was CAPTURE
+	 * and it had .no_capture_mute flag
+	 */
 	if (dai->driver->ops &&
-	    dai->driver->ops->mute_stream)
+	    dai->driver->ops->mute_stream &&
+	    (direction == SNDRV_PCM_STREAM_PLAYBACK ||
+	     !dai->driver->ops->no_capture_mute))
 		ret = dai->driver->ops->mute_stream(dai, mute, direction);
 	else if (direction == SNDRV_PCM_STREAM_PLAYBACK &&
 		 dai->driver->ops &&
