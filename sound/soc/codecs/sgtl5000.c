@@ -775,7 +775,7 @@ static const struct snd_kcontrol_new sgtl5000_snd_controls[] = {
 };
 
 /* mute the codec used by alsa core */
-static int sgtl5000_digital_mute(struct snd_soc_dai *codec_dai, int mute)
+static int sgtl5000_mute_stream(struct snd_soc_dai *codec_dai, int mute, int direction)
 {
 	struct snd_soc_component *component = codec_dai->component;
 	u16 i2s_pwr = SGTL5000_I2S_IN_POWERUP;
@@ -1160,9 +1160,10 @@ static int sgtl5000_set_bias_level(struct snd_soc_component *component,
 
 static const struct snd_soc_dai_ops sgtl5000_ops = {
 	.hw_params = sgtl5000_pcm_hw_params,
-	.digital_mute = sgtl5000_digital_mute,
+	.mute_stream = sgtl5000_mute_stream,
 	.set_fmt = sgtl5000_set_dai_fmt,
 	.set_sysclk = sgtl5000_set_dai_sysclk,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver sgtl5000_dai = {

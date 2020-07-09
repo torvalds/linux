@@ -900,7 +900,7 @@ static int nau8822_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int nau8822_mute(struct snd_soc_dai *dai, int mute)
+static int nau8822_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 
@@ -967,10 +967,11 @@ static int nau8822_set_bias_level(struct snd_soc_component *component,
 
 static const struct snd_soc_dai_ops nau8822_dai_ops = {
 	.hw_params	= nau8822_hw_params,
-	.digital_mute	= nau8822_mute,
+	.mute_stream	= nau8822_mute,
 	.set_fmt	= nau8822_set_dai_fmt,
 	.set_sysclk	= nau8822_set_dai_sysclk,
 	.set_pll	= nau8822_set_pll,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver nau8822_dai = {

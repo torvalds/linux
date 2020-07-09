@@ -902,7 +902,7 @@ static const struct snd_soc_dapm_route pm860x_dapm_routes[] = {
  * Use MUTE_LEFT & MUTE_RIGHT to implement digital mute.
  * These bits can also be used to mute.
  */
-static int pm860x_digital_mute(struct snd_soc_dai *codec_dai, int mute)
+static int pm860x_mute_stream(struct snd_soc_dai *codec_dai, int mute, int direction)
 {
 	struct snd_soc_component *component = codec_dai->component;
 	int data = 0, mask = MUTE_LEFT | MUTE_RIGHT;
@@ -1136,17 +1136,19 @@ static int pm860x_set_bias_level(struct snd_soc_component *component,
 }
 
 static const struct snd_soc_dai_ops pm860x_pcm_dai_ops = {
-	.digital_mute	= pm860x_digital_mute,
+	.mute_stream	= pm860x_mute_stream,
 	.hw_params	= pm860x_pcm_hw_params,
 	.set_fmt	= pm860x_pcm_set_dai_fmt,
 	.set_sysclk	= pm860x_set_dai_sysclk,
+	.no_capture_mute = 1,
 };
 
 static const struct snd_soc_dai_ops pm860x_i2s_dai_ops = {
-	.digital_mute	= pm860x_digital_mute,
+	.mute_stream	= pm860x_mute_stream,
 	.hw_params	= pm860x_i2s_hw_params,
 	.set_fmt	= pm860x_i2s_set_dai_fmt,
 	.set_sysclk	= pm860x_set_dai_sysclk,
+	.no_capture_mute = 1,
 };
 
 #define PM860X_RATES	(SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000 |	\
