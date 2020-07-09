@@ -13,9 +13,9 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 
-#include "mt8183-afe-common.h"
 #include "../../codecs/da7219-aad.h"
 #include "../../codecs/da7219.h"
+#include "mt8183-afe-common.h"
 
 struct mt8183_da7219_max98357_priv {
 	struct snd_soc_jack headset_jack;
