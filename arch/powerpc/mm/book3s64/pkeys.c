@@ -27,9 +27,7 @@ static u32 initial_allocation_mask __ro_after_init;
  */
 static u64 default_amr = ~0x0UL;
 static u64 default_iamr = 0x5555555555555555UL;
-
-/* Allow all keys to be modified by default */
-static u64 default_uamor = ~0x0UL;
+u64 default_uamor __ro_after_init;
 /*
  * Key used to implement PROT_EXEC mmap. Denies READ/WRITE
  * We pick key 2 because 0 is special key and 1 is reserved as per ISA.
@@ -122,10 +120,11 @@ void __init pkey_early_init_devtree(void)
 
 	/* scan the device tree for pkey feature */
 	pkeys_total = scan_pkey_feature();
-	if (!pkeys_total) {
-		/* No support for pkey. Mark it disabled */
-		return;
-	}
+	if (!pkeys_total)
+		goto out;
+
+	/* Allow all keys to be modified by default */
+	default_uamor = ~0x0UL;
 
 	cur_cpu_spec->mmu_features |= MMU_FTR_PKEY;
 
@@ -209,6 +208,12 @@ void __init pkey_early_init_devtree(void)
 	initial_allocation_mask |= reserved_allocation_mask;
 
 	pr_info("Enabling pkeys with max key count %d\n", num_pkey);
+out:
+	/*
+	 * Setup uamor on boot cpu
+	 */
+	mtspr(SPRN_UAMOR, default_uamor);
+
 	return;
 }
 
@@ -249,11 +254,6 @@ static inline void write_iamr(u64 value)
 static inline u64 read_uamor(void)
 {
 	return mfspr(SPRN_UAMOR);
-}
-
-static inline void write_uamor(u64 value)
-{
-	mtspr(SPRN_UAMOR, value);
 }
 
 static bool is_pkey_enabled(int pkey)
@@ -326,7 +326,6 @@ void thread_pkey_regs_save(struct thread_struct *thread)
 	 */
 	thread->amr = read_amr();
 	thread->iamr = read_iamr();
-	thread->uamor = read_uamor();
 }
 
 void thread_pkey_regs_restore(struct thread_struct *new_thread,
@@ -339,8 +338,6 @@ void thread_pkey_regs_restore(struct thread_struct *new_thread,
 		write_amr(new_thread->amr);
 	if (old_thread->iamr != new_thread->iamr)
 		write_iamr(new_thread->iamr);
-	if (old_thread->uamor != new_thread->uamor)
-		write_uamor(new_thread->uamor);
 }
 
 void thread_pkey_regs_init(struct thread_struct *thread)
@@ -350,11 +347,9 @@ void thread_pkey_regs_init(struct thread_struct *thread)
 
 	thread->amr   = default_amr;
 	thread->iamr  = default_iamr;
-	thread->uamor = default_uamor;
 
 	write_amr(default_amr);
 	write_iamr(default_iamr);
-	write_uamor(default_uamor);
 }
 
 int execute_only_pkey(struct mm_struct *mm)

@@ -488,14 +488,21 @@ static int pkey_active(struct task_struct *target, const struct user_regset *reg
 static int pkey_get(struct task_struct *target, const struct user_regset *regset,
 		    unsigned int pos, unsigned int count, void *kbuf, void __user *ubuf)
 {
+	int ret;
+
 	BUILD_BUG_ON(TSO(amr) + sizeof(unsigned long) != TSO(iamr));
-	BUILD_BUG_ON(TSO(iamr) + sizeof(unsigned long) != TSO(uamor));
 
 	if (!arch_pkeys_enabled())
 		return -ENODEV;
 
-	return user_regset_copyout(&pos, &count, &kbuf, &ubuf, &target->thread.amr,
-				   0, ELF_NPKEY * sizeof(unsigned long));
+	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf, &target->thread.amr,
+				  0, 2 * sizeof(unsigned long));
+	if (ret)
+		return ret;
+
+	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf, &default_uamor,
+				  2 * sizeof(unsigned long), 3 * sizeof(unsigned long));
+	return ret;
 }
 
 static int pkey_set(struct task_struct *target, const struct user_regset *regset,
@@ -517,9 +524,17 @@ static int pkey_set(struct task_struct *target, const struct user_regset *regset
 	if (ret)
 		return ret;
 
-	/* UAMOR determines which bits of the AMR can be set from userspace. */
-	target->thread.amr = (new_amr & target->thread.uamor) |
-			     (target->thread.amr & ~target->thread.uamor);
+	/*
+	 * UAMOR determines which bits of the AMR can be set from userspace.
+	 * UAMOR value 0b11 indicates that the AMR value can be modified
+	 * from userspace. If the kernel is using a specific key, we avoid
+	 * userspace modifying the AMR value for that key by masking them
+	 * via UAMOR 0b00.
+	 *
+	 * Pick the AMR values for the keys that kernel is using. This
+	 * will be indicated by the ~default_uamor bits.
+	 */
+	target->thread.amr = (new_amr & default_uamor) | (target->thread.amr & ~default_uamor);
 
 	return 0;
 }

@@ -620,6 +620,10 @@ void setup_kuap(bool disabled)
 
 	/* Make sure userspace can't change the AMR */
 	mtspr(SPRN_UAMOR, 0);
+
+	/*
+	 * Set the default kernel AMR values on all cpus.
+	 */
 	mtspr(SPRN_AMR, AMR_KUAP_BLOCKED);
 	isync();
 }
