@@ -973,6 +973,43 @@ static void check_template_modsig(const struct ima_template_desc *template)
 #undef MSG
 }
 
+static bool ima_validate_rule(struct ima_rule_entry *entry)
+{
+	/* Ensure that the action is set */
+	if (entry->action == UNKNOWN)
+		return false;
+
+	/*
+	 * Ensure that the hook function is compatible with the other
+	 * components of the rule
+	 */
+	switch (entry->func) {
+	case NONE:
+	case FILE_CHECK:
+	case MMAP_CHECK:
+	case BPRM_CHECK:
+	case CREDS_CHECK:
+	case POST_SETATTR:
+	case MODULE_CHECK:
+	case FIRMWARE_CHECK:
+	case KEXEC_KERNEL_CHECK:
+	case KEXEC_INITRAMFS_CHECK:
+	case POLICY_CHECK:
+		/* Validation of these hook functions is in ima_parse_rule() */
+		break;
+	case KEXEC_CMDLINE:
+	case KEY_CHECK:
+		if (entry->action & ~(MEASURE | DONT_MEASURE))
+			return false;
+
+		break;
+	default:
+		return false;
+	}
+
+	return true;
+}
+
 static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 {
 	struct audit_buffer *ab;
@@ -1150,7 +1187,6 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 			keyrings_len = strlen(args[0].from) + 1;
 
 			if ((entry->keyrings) ||
-			    (entry->action != MEASURE) ||
 			    (entry->func != KEY_CHECK) ||
 			    (keyrings_len < 2)) {
 				result = -EINVAL;
@@ -1356,7 +1392,7 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 			break;
 		}
 	}
-	if (!result && (entry->action == UNKNOWN))
+	if (!result && !ima_validate_rule(entry))
 		result = -EINVAL;
 	else if (entry->action == APPRAISE)
 		temp_ima_appraise |= ima_appraise_flag(entry->func);
