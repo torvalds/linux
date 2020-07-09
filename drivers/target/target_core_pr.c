@@ -1159,7 +1159,6 @@ static struct t10_pr_registration *__core_scsi3_locate_pr_reg(
 {
 	struct t10_reservation *pr_tmpl = &dev->t10_pr;
 	struct t10_pr_registration *pr_reg, *pr_reg_tmp;
-	struct se_portal_group *tpg;
 
 	spin_lock(&pr_tmpl->registration_lock);
 	list_for_each_entry_safe(pr_reg, pr_reg_tmp,
@@ -1170,7 +1169,6 @@ static struct t10_pr_registration *__core_scsi3_locate_pr_reg(
 		if (pr_reg->pr_reg_nacl != nacl)
 			continue;
 
-		tpg = pr_reg->pr_reg_nacl->se_tpg;
 		/*
 		 * If this registration does NOT contain a fabric provided
 		 * ISID, then we have found a match.
