@@ -29,6 +29,11 @@
  */
 
 /*
+ * Support for KUEP feature.
+ */
+#define MMU_FTR_KUEP			ASM_CONST(0x00000400)
+
+/*
  * Support for memory protection keys.
  */
 #define MMU_FTR_PKEY			ASM_CONST(0x00000800)
@@ -189,6 +194,10 @@ enum {
 #ifdef CONFIG_PPC_MEM_KEYS
 	MMU_FTR_PKEY |
 #endif
+#ifdef CONFIG_PPC_KUEP
+	MMU_FTR_KUEP |
+#endif /* CONFIG_PPC_KUAP */
+
 		0,
 };
 

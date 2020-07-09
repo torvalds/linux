@@ -593,8 +593,10 @@ void setup_kuep(bool disabled)
 	if (disabled || !early_radix_enabled())
 		return;
 
-	if (smp_processor_id() == boot_cpuid)
+	if (smp_processor_id() == boot_cpuid) {
 		pr_info("Activating Kernel Userspace Execution Prevention\n");
+		cur_cpu_spec->mmu_features |= MMU_FTR_KUEP;
+	}
 
 	/*
 	 * Radix always uses key0 of the IAMR to determine if an access is
