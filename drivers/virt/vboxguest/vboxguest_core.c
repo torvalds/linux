@@ -559,7 +559,7 @@ static int vbg_reset_host_event_filter(struct vbg_dev *gdev,
  * Changes the event filter mask for the given session.
  *
  * This is called in response to VBG_IOCTL_CHANGE_FILTER_MASK as well as to
- * do session cleanup. Takes the session spinlock.
+ * do session cleanup. Takes the session mutex.
  *
  * Return: 0 or negative errno value.
  * @gdev:			The Guest extension device.
@@ -811,7 +811,7 @@ out:
 }
 
 /**
- * Sets the guest capabilities for a session. Takes the session spinlock.
+ * Sets the guest capabilities for a session. Takes the session mutex.
  * Return: 0 or negative errno value.
  * @gdev:			The Guest extension device.
  * @session:			The session.
