@@ -11,12 +11,14 @@
 #
 
 usage() {
-	echo "Usage: $0 [--save-scmversion] [srctree]" >&2
+	echo "Usage: $0 [--save-scmversion] [srctree] [branch] [kmi-generation]" >&2
 	exit 1
 }
 
 scm_only=false
 srctree=.
+android_release=
+kmi_generation=
 if test "$1" = "--save-scmversion"; then
 	scm_only=true
 	shift
@@ -24,6 +26,24 @@ fi
 if test $# -gt 0; then
 	srctree=$1
 	shift
+fi
+if test $# -gt 0; then
+	# Extract the Android release version. If there is no match, then return 255
+	# and clear the var $android_release
+	android_release=`echo "$1" | sed -e '/android[0-9]\{2,\}/!{q255}; \
+		s/^\(android[0-9]\{2,\}\)-.*/\1/'`
+	if test $? -ne 0; then
+		android_release=
+	fi
+	shift
+
+	if test $# -gt 0; then
+		kmi_generation=$1
+		[ $(expr $kmi_generation : '^[0-9]\+$') -eq 0 ] && usage
+		shift
+	else
+		usage
+	fi
 fi
 if test $# -gt 0 -o ! -d "$srctree"; then
 	usage
@@ -46,6 +66,10 @@ scm_version()
 	# Check for git and a git repo.
 	if test -z "$(git rev-parse --show-cdup 2>/dev/null)" &&
 	   head=`git rev-parse --verify --short HEAD 2>/dev/null`; then
+
+		if [ -n "$android_release" ] && [ -n "$kmi_generation" ]; then
+			printf '%s' "-$android_release-$kmi_generation"
+		fi
 
 		# If we are at a tagged commit (like "v2.6.30-rc6"), we ignore
 		# it, because this version is defined in the top level Makefile.
