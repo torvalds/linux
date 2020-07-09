@@ -4865,6 +4865,9 @@ static int nl80211_start_ap(struct sk_buff *skb, struct genl_info *info)
 
 	memset(&params, 0, sizeof(params));
 
+	/* disable BSS color by default */
+	params.he_bss_color.disabled = true;
+
 	/* these are required for START_AP */
 	if (!info->attrs[NL80211_ATTR_BEACON_INTERVAL] ||
 	    !info->attrs[NL80211_ATTR_DTIM_PERIOD] ||
