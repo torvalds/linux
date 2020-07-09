@@ -2424,7 +2424,7 @@ ice_update_phy_type(u64 *phy_type_low, u64 *phy_type_high,
 /**
  * ice_aq_set_phy_cfg
  * @hw: pointer to the HW struct
- * @lport: logical port number
+ * @pi: port info structure of the interested logical port
  * @cfg: structure with PHY configuration data to be set
  * @cd: pointer to command details structure or NULL
  *
@@ -2434,7 +2434,7 @@ ice_update_phy_type(u64 *phy_type_low, u64 *phy_type_high,
  * parameters. This status will be indicated by the command response (0x0601).
  */
 enum ice_status
-ice_aq_set_phy_cfg(struct ice_hw *hw, u8 lport,
+ice_aq_set_phy_cfg(struct ice_hw *hw, struct ice_port_info *pi,
 		   struct ice_aqc_set_phy_cfg_data *cfg, struct ice_sq_cd *cd)
 {
 	struct ice_aq_desc desc;
@@ -2453,7 +2453,7 @@ ice_aq_set_phy_cfg(struct ice_hw *hw, u8 lport,
 	}
 
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_set_phy_cfg);
-	desc.params.set_phy.lport_num = lport;
+	desc.params.set_phy.lport_num = pi->lport;
 	desc.flags |= cpu_to_le16(ICE_AQ_FLAG_RD);
 
 	ice_debug(hw, ICE_DBG_LINK, "phy_type_low = 0x%llx\n",
@@ -2470,6 +2470,9 @@ ice_aq_set_phy_cfg(struct ice_hw *hw, u8 lport,
 	status = ice_aq_send_cmd(hw, &desc, cfg, sizeof(*cfg), cd);
 	if (hw->adminq.sq_last_status == ICE_AQ_RC_EMODE)
 		status = 0;
+
+	if (!status)
+		pi->phy.curr_user_phy_cfg = *cfg;
 
 	return status;
 }
@@ -2515,16 +2518,98 @@ enum ice_status ice_update_link_info(struct ice_port_info *pi)
 }
 
 /**
+ * ice_cache_phy_user_req
+ * @pi: port information structure
+ * @cache_data: PHY logging data
+ * @cache_mode: PHY logging mode
+ *
+ * Log the user request on (FC, FEC, SPEED) for later use.
+ */
+static void
+ice_cache_phy_user_req(struct ice_port_info *pi,
+		       struct ice_phy_cache_mode_data cache_data,
+		       enum ice_phy_cache_mode cache_mode)
+{
+	if (!pi)
+		return;
+
+	switch (cache_mode) {
+	case ICE_FC_MODE:
+		pi->phy.curr_user_fc_req = cache_data.data.curr_user_fc_req;
+		break;
+	case ICE_SPEED_MODE:
+		pi->phy.curr_user_speed_req =
+			cache_data.data.curr_user_speed_req;
+		break;
+	case ICE_FEC_MODE:
+		pi->phy.curr_user_fec_req = cache_data.data.curr_user_fec_req;
+		break;
+	default:
+		break;
+	}
+}
+
+/**
+ * ice_caps_to_fc_mode
+ * @caps: PHY capabilities
+ *
+ * Convert PHY FC capabilities to ice FC mode
+ */
+enum ice_fc_mode ice_caps_to_fc_mode(u8 caps)
+{
+	if (caps & ICE_AQC_PHY_EN_TX_LINK_PAUSE &&
+	    caps & ICE_AQC_PHY_EN_RX_LINK_PAUSE)
+		return ICE_FC_FULL;
+
+	if (caps & ICE_AQC_PHY_EN_TX_LINK_PAUSE)
+		return ICE_FC_TX_PAUSE;
+
+	if (caps & ICE_AQC_PHY_EN_RX_LINK_PAUSE)
+		return ICE_FC_RX_PAUSE;
+
+	return ICE_FC_NONE;
+}
+
+/**
+ * ice_caps_to_fec_mode
+ * @caps: PHY capabilities
+ * @fec_options: Link FEC options
+ *
+ * Convert PHY FEC capabilities to ice FEC mode
+ */
+enum ice_fec_mode ice_caps_to_fec_mode(u8 caps, u8 fec_options)
+{
+	if (caps & ICE_AQC_PHY_EN_AUTO_FEC)
+		return ICE_FEC_AUTO;
+
+	if (fec_options & (ICE_AQC_PHY_FEC_10G_KR_40G_KR4_EN |
+			   ICE_AQC_PHY_FEC_10G_KR_40G_KR4_REQ |
+			   ICE_AQC_PHY_FEC_25G_KR_CLAUSE74_EN |
+			   ICE_AQC_PHY_FEC_25G_KR_REQ))
+		return ICE_FEC_BASER;
+
+	if (fec_options & (ICE_AQC_PHY_FEC_25G_RS_528_REQ |
+			   ICE_AQC_PHY_FEC_25G_RS_544_REQ |
+			   ICE_AQC_PHY_FEC_25G_RS_CLAUSE91_EN))
+		return ICE_FEC_RS;
+
+	return ICE_FEC_NONE;
+}
+
+/**
  * ice_cfg_phy_fc - Configure PHY FC data based on FC mode
+ * @pi: port information structure
  * @cfg: PHY configuration data to set FC mode
  * @req_mode: FC mode to configure
  */
-static enum ice_status
-ice_cfg_phy_fc(struct ice_aqc_set_phy_cfg_data *cfg, enum ice_fc_mode req_mode)
+enum ice_status
+ice_cfg_phy_fc(struct ice_port_info *pi, struct ice_aqc_set_phy_cfg_data *cfg,
+	       enum ice_fc_mode req_mode)
 {
+	struct ice_phy_cache_mode_data cache_data;
 	u8 pause_mask = 0x0;
 
-	if (!cfg)
+	if (!pi || !cfg)
 		return ICE_ERR_BAD_PTR;
 
 	switch (req_mode) {
@@ -2549,6 +2634,10 @@ ice_cfg_phy_fc(struct ice_aqc_set_phy_cfg_data *cfg, enum ice_fc_mode req_mode)
 	/* set the new capabilities */
 	cfg->caps |= pause_mask;
 
+	/* Cache user FC request */
+	cache_data.data.curr_user_fc_req = req_mode;
+	ice_cache_phy_user_req(pi, cache_data, ICE_FC_MODE);
+
 	return 0;
 }
 
@@ -2563,12 +2652,12 @@ ice_cfg_phy_fc(struct ice_aqc_set_phy_cfg_data *cfg, enum ice_fc_mode req_mode)
 enum ice_status
 ice_set_fc(struct ice_port_info *pi, u8 *aq_failures, bool ena_auto_link_update)
 {
-	struct ice_aqc_set_phy_cfg_data  cfg = { 0 };
+	struct ice_aqc_set_phy_cfg_data cfg = { 0 };
 	struct ice_aqc_get_phy_caps_data *pcaps;
 	enum ice_status status;
 	struct ice_hw *hw;
 
-	if (!pi)
+	if (!pi || !aq_failures)
 		return ICE_ERR_BAD_PTR;
 
 	*aq_failures = 0;
@@ -2589,7 +2678,7 @@ ice_set_fc(struct ice_port_info *pi, u8 *aq_failures, bool ena_auto_link_update)
 	ice_copy_phy_caps_to_cfg(pcaps, &cfg);
 
 	/* Configure the set PHY data */
-	status = ice_cfg_phy_fc(&cfg, pi->fc.req_mode);
+	status = ice_cfg_phy_fc(pi, &cfg, pi->fc.req_mode);
 	if (status)
 		goto out;
 
@@ -2601,7 +2690,7 @@ ice_set_fc(struct ice_port_info *pi, u8 *aq_failures, bool ena_auto_link_update)
 		if (ena_auto_link_update)
 			cfg.caps |= ICE_AQ_PHY_ENA_AUTO_LINK_UPDT;
 
-		status = ice_aq_set_phy_cfg(hw, pi->lport, &cfg, NULL);
+		status = ice_aq_set_phy_cfg(hw, pi, &cfg, NULL);
 		if (status) {
 			*aq_failures = ICE_SET_FC_AQ_FAIL_SET;
 			goto out;
@@ -2628,6 +2717,42 @@ ice_set_fc(struct ice_port_info *pi, u8 *aq_failures, bool ena_auto_link_update)
 out:
 	devm_kfree(ice_hw_to_dev(hw), pcaps);
 	return status;
+}
+
+/**
+ * ice_phy_caps_equals_cfg
+ * @phy_caps: PHY capabilities
+ * @phy_cfg: PHY configuration
+ *
+ * Helper function to determine if PHY capabilities matches PHY
+ * configuration
+ */
+bool
+ice_phy_caps_equals_cfg(struct ice_aqc_get_phy_caps_data *phy_caps,
+			struct ice_aqc_set_phy_cfg_data *phy_cfg)
+{
+	u8 caps_mask, cfg_mask;
+
+	if (!phy_caps || !phy_cfg)
+		return false;
+
+	/* These bits are not common between capabilities and configuration.
+	 * Do not use them to determine equality.
+	 */
+	caps_mask = ICE_AQC_PHY_CAPS_MASK & ~(ICE_AQC_PHY_AN_MODE |
+					      ICE_AQC_GET_PHY_EN_MOD_QUAL);
+	cfg_mask = ICE_AQ_PHY_ENA_VALID_MASK & ~ICE_AQ_PHY_ENA_AUTO_LINK_UPDT;
+
+	if (phy_caps->phy_type_low != phy_cfg->phy_type_low ||
+	    phy_caps->phy_type_high != phy_cfg->phy_type_high ||
+	    ((phy_caps->caps & caps_mask) != (phy_cfg->caps & cfg_mask)) ||
+	    phy_caps->low_power_ctrl != phy_cfg->low_power_ctrl ||
+	    phy_caps->eee_cap != phy_cfg->eee_cap ||
+	    phy_caps->eeer_value != phy_cfg->eeer_value ||
+	    phy_caps->link_fec_options != phy_cfg->link_fec_opt)
+		return false;
+
+	return true;
 }
 
 /**

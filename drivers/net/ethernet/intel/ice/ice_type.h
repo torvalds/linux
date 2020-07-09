@@ -87,11 +87,25 @@ enum ice_fc_mode {
 	ICE_FC_DFLT
 };
 
+enum ice_phy_cache_mode {
+	ICE_FC_MODE = 0,
+	ICE_SPEED_MODE,
+	ICE_FEC_MODE
+};
+
 enum ice_fec_mode {
 	ICE_FEC_NONE = 0,
 	ICE_FEC_RS,
 	ICE_FEC_BASER,
 	ICE_FEC_AUTO
+};
+
+struct ice_phy_cache_mode_data {
+	union {
+		enum ice_fec_mode curr_user_fec_req;
+		enum ice_fc_mode curr_user_fc_req;
+		u16 curr_user_speed_req;
+	} data;
 };
 
 enum ice_set_fc_aq_failures {
@@ -160,6 +174,13 @@ struct ice_phy_info {
 	u64 phy_type_high;
 	enum ice_media_type media_type;
 	u8 get_link_info;
+	/* Please refer to struct ice_aqc_get_link_status_data to get
+	 * detail of enable bit in curr_user_speed_req
+	 */
+	u16 curr_user_speed_req;
+	enum ice_fec_mode curr_user_fec_req;
+	enum ice_fc_mode curr_user_fc_req;
+	struct ice_aqc_set_phy_cfg_data curr_user_phy_cfg;
 };
 
 /* protocol enumeration for filters */

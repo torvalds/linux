@@ -796,10 +796,6 @@ ice_link_event(struct ice_pf *pf, struct ice_port_info *pi, bool link_up,
 		dev_dbg(dev, "Failed to update link status and re-enable link events for port %d\n",
 			pi->lport);
 
-	/* if the old link up/down and speed is the same as the new */
-	if (link_up == old_link && link_speed == old_link_speed)
-		return result;
-
 	vsi = ice_get_main_vsi(pf);
 	if (!vsi || !vsi->port_info)
 		return -EINVAL;
@@ -816,6 +812,10 @@ ice_link_event(struct ice_pf *pf, struct ice_port_info *pi, bool link_up,
 			return result;
 		}
 	}
+
+	/* if the old link up/down and speed is the same as the new */
+	if (link_up == old_link && link_speed == old_link_speed)
+		return result;
 
 	ice_dcb_rebuild(pf);
 	ice_vsi_link_event(vsi, link_up);
@@ -1380,25 +1380,23 @@ static int ice_force_phys_link_state(struct ice_vsi *vsi, bool link_up)
 	    link_up == !!(pi->phy.link_info.link_info & ICE_AQ_LINK_UP))
 		goto out;
 
-	cfg = kzalloc(sizeof(*cfg), GFP_KERNEL);
+	/* Use the current user PHY configuration. The current user PHY
+	 * configuration is initialized during probe from PHY capabilities
+	 * software mode, and updated on set PHY configuration.
+	 */
+	cfg = kmemdup(&pi->phy.curr_user_phy_cfg, sizeof(*cfg), GFP_KERNEL);
 	if (!cfg) {
 		retcode = -ENOMEM;
 		goto out;
 	}
 
-	cfg->phy_type_low = pcaps->phy_type_low;
-	cfg->phy_type_high = pcaps->phy_type_high;
-	cfg->caps = pcaps->caps | ICE_AQ_PHY_ENA_AUTO_LINK_UPDT;
-	cfg->low_power_ctrl = pcaps->low_power_ctrl;
-	cfg->eee_cap = pcaps->eee_cap;
-	cfg->eeer_value = pcaps->eeer_value;
-	cfg->link_fec_opt = pcaps->link_fec_options;
+	cfg->caps |= ICE_AQ_PHY_ENA_AUTO_LINK_UPDT;
 	if (link_up)
 		cfg->caps |= ICE_AQ_PHY_ENA_LINK;
 	else
 		cfg->caps &= ~ICE_AQ_PHY_ENA_LINK;
 
-	retcode = ice_aq_set_phy_cfg(&vsi->back->hw, pi->lport, cfg, NULL);
+	retcode = ice_aq_set_phy_cfg(&vsi->back->hw, pi, cfg, NULL);
 	if (retcode) {
 		dev_err(dev, "Failed to set phy config, VSI %d error %d\n",
 			vsi->vsi_num, retcode);
@@ -1412,8 +1410,219 @@ out:
 }
 
 /**
- * ice_check_media_subtask - Check for media; bring link up if detected.
+ * ice_init_nvm_phy_type - Initialize the NVM PHY type
+ * @pi: port info structure
+ *
+ * Initialize nvm_phy_type_[low|high]
+ */
+static int ice_init_nvm_phy_type(struct ice_port_info *pi)
+{
+	struct ice_aqc_get_phy_caps_data *pcaps;
+	struct ice_pf *pf = pi->hw->back;
+	enum ice_status status;
+	int err = 0;
+
+	pcaps = kzalloc(sizeof(*pcaps), GFP_KERNEL);
+	if (!pcaps)
+		return -ENOMEM;
+
+	status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_NVM_CAP, pcaps,
+				     NULL);
+
+	if (status) {
+		dev_err(ice_pf_to_dev(pf), "Get PHY capability failed.\n");
+		err = -EIO;
+		goto out;
+	}
+
+	pf->nvm_phy_type_hi = pcaps->phy_type_high;
+	pf->nvm_phy_type_lo = pcaps->phy_type_low;
+
+out:
+	kfree(pcaps);
+	return err;
+}
+
+/**
+ * ice_init_phy_user_cfg - Initialize the PHY user configuration
+ * @pi: port info structure
+ *
+ * Initialize the current user PHY configuration, speed, FEC, and FC requested
+ * mode to default. The PHY defaults are from get PHY capabilities topology
+ * with media so call when media is first available. An error is returned if
+ * called when media is not available. The PHY initialization completed state is
+ * set here.
+ *
+ * These configurations are used when setting PHY
+ * configuration. The user PHY configuration is updated on set PHY
+ * configuration. Returns 0 on success, negative on failure
+ */
+static int ice_init_phy_user_cfg(struct ice_port_info *pi)
+{
+	struct ice_aqc_get_phy_caps_data *pcaps;
+	struct ice_phy_info *phy = &pi->phy;
+	struct ice_pf *pf = pi->hw->back;
+	enum ice_status status;
+	struct ice_vsi *vsi;
+	int err = 0;
+
+	if (!(phy->link_info.link_info & ICE_AQ_MEDIA_AVAILABLE))
+		return -EIO;
+
+	vsi = ice_get_main_vsi(pf);
+	if (!vsi)
+		return -EINVAL;
+
+	pcaps = kzalloc(sizeof(*pcaps), GFP_KERNEL);
+	if (!pcaps)
+		return -ENOMEM;
+
+	status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_TOPO_CAP, pcaps,
+				     NULL);
+	if (status) {
+		dev_err(ice_pf_to_dev(pf), "Get PHY capability failed.\n");
+		err = -EIO;
+		goto err_out;
+	}
+
+	ice_copy_phy_caps_to_cfg(pcaps, &pi->phy.curr_user_phy_cfg);
+	/* initialize PHY using topology with media */
+	phy->curr_user_fec_req = ice_caps_to_fec_mode(pcaps->caps,
+						      pcaps->link_fec_options);
+	phy->curr_user_fc_req = ice_caps_to_fc_mode(pcaps->caps);
+
+	phy->curr_user_speed_req = ICE_AQ_LINK_SPEED_M;
+	set_bit(__ICE_PHY_INIT_COMPLETE, pf->state);
+err_out:
+	kfree(pcaps);
+	return err;
+}
+
+/**
+ * ice_configure_phy - configure PHY
+ * @vsi: VSI of PHY
+ *
+ * Set the PHY configuration. If the current PHY configuration is the same as
+ * the curr_user_phy_cfg, then do nothing to avoid link flap. Otherwise
+ * configure the based get PHY capabilities for topology with media.
+ */
+static int ice_configure_phy(struct ice_vsi *vsi)
+{
+	struct device *dev = ice_pf_to_dev(vsi->back);
+	struct ice_aqc_get_phy_caps_data *pcaps;
+	struct ice_aqc_set_phy_cfg_data *cfg;
+	u64 phy_low = 0, phy_high = 0;
+	struct ice_port_info *pi;
+	enum ice_status status;
+	int err = 0;
+
+	pi = vsi->port_info;
+	if (!pi)
+		return -EINVAL;
+
+	/* Ensure we have media as we cannot configure a medialess port */
+	if (!(pi->phy.link_info.link_info & ICE_AQ_MEDIA_AVAILABLE))
+		return -EPERM;
+
+	ice_print_topo_conflict(vsi);
+
+	if (vsi->port_info->phy.link_info.topo_media_conflict ==
+	    ICE_AQ_LINK_TOPO_UNSUPP_MEDIA)
+		return -EPERM;
+
+	if (test_bit(ICE_FLAG_LINK_DOWN_ON_CLOSE_ENA, vsi->back->flags))
+		return ice_force_phys_link_state(vsi, true);
+
+	pcaps = kzalloc(sizeof(*pcaps), GFP_KERNEL);
+	if (!pcaps)
+		return -ENOMEM;
+
+	/* Get current PHY config */
+	status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_SW_CFG, pcaps,
+				     NULL);
+	if (status) {
+		dev_err(dev, "Failed to get PHY configuration, VSI %d error %s\n",
+			vsi->vsi_num, ice_stat_str(status));
+		err = -EIO;
+		goto done;
+	}
+
+	/* If PHY enable link is configured and configuration has not changed,
+	 * there's nothing to do
+	 */
+	if (pcaps->caps & ICE_AQC_PHY_EN_LINK &&
+	    ice_phy_caps_equals_cfg(pcaps, &pi->phy.curr_user_phy_cfg))
+		goto done;
+
+	/* Use PHY topology as baseline for configuration */
+	memset(pcaps, 0, sizeof(*pcaps));
+	status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_TOPO_CAP, pcaps,
+				     NULL);
+	if (status) {
+		dev_err(dev, "Failed to get PHY topology, VSI %d error %s\n",
+			vsi->vsi_num, ice_stat_str(status));
+		err = -EIO;
+		goto done;
+	}
+
+	cfg = kzalloc(sizeof(*cfg), GFP_KERNEL);
+	if (!cfg) {
+		err = -ENOMEM;
+		goto done;
+	}
+
+	ice_copy_phy_caps_to_cfg(pcaps, cfg);
+
+	/* Speed - If default override pending, use curr_user_phy_cfg set in
+	 * ice_init_phy_user_cfg_ldo.
+	 */
+	ice_update_phy_type(&phy_low, &phy_high, pi->phy.curr_user_speed_req);
+	cfg->phy_type_low = pcaps->phy_type_low & cpu_to_le64(phy_low);
+	cfg->phy_type_high = pcaps->phy_type_high & cpu_to_le64(phy_high);
+
+	/* Can't provide what was requested; use PHY capabilities */
+	if (!cfg->phy_type_low && !cfg->phy_type_high) {
+		cfg->phy_type_low = pcaps->phy_type_low;
+		cfg->phy_type_high = pcaps->phy_type_high;
+	}
+
+	/* FEC */
+	ice_cfg_phy_fec(pi, cfg, pi->phy.curr_user_fec_req);
+
+	/* Can't provide what was requested; use PHY capabilities */
+	if (cfg->link_fec_opt !=
+	    (cfg->link_fec_opt & pcaps->link_fec_options)) {
+		cfg->caps |= pcaps->caps & ICE_AQC_PHY_EN_AUTO_FEC;
+		cfg->link_fec_opt = pcaps->link_fec_options;
+	}
+
+	/* Flow Control - always supported; no need to check against
+	 * capabilities
+	 */
+	ice_cfg_phy_fc(pi, cfg, pi->phy.curr_user_fc_req);
+
+	/* Enable link and link update */
+	cfg->caps |= ICE_AQ_PHY_ENA_AUTO_LINK_UPDT | ICE_AQ_PHY_ENA_LINK;
+
+	status = ice_aq_set_phy_cfg(&vsi->back->hw, pi, cfg, NULL);
+	if (status) {
+		dev_err(dev, "Failed to set phy config, VSI %d error %s\n",
+			vsi->vsi_num, ice_stat_str(status));
+		err = -EIO;
+	}
+
+	kfree(cfg);
+done:
+	kfree(pcaps);
+	return err;
+}
+
+/**
+ * ice_check_media_subtask - Check for media
  * @pf: pointer to PF struct
+ *
+ * If media is available, then initialize PHY user configuration if it is not
+ * been, and configure the PHY if the interface is up.
  */
 static void ice_check_media_subtask(struct ice_pf *pf)
 {
@@ -1421,15 +1630,12 @@ static void ice_check_media_subtask(struct ice_pf *pf)
 	struct ice_vsi *vsi;
 	int err;
 
-	vsi = ice_get_main_vsi(pf);
-	if (!vsi)
+	/* No need to check for media if it's already present */
+	if (!test_bit(ICE_FLAG_NO_MEDIA, pf->flags))
 		return;
 
-	/* No need to check for media if it's already present or the interface
-	 * is down
-	 */
-	if (!test_bit(ICE_FLAG_NO_MEDIA, pf->flags) ||
-	    test_bit(__ICE_DOWN, vsi->state))
+	vsi = ice_get_main_vsi(pf);
+	if (!vsi)
 		return;
 
 	/* Refresh link info and check if media is present */
@@ -1439,10 +1645,19 @@ static void ice_check_media_subtask(struct ice_pf *pf)
 		return;
 
 	if (pi->phy.link_info.link_info & ICE_AQ_MEDIA_AVAILABLE) {
-		err = ice_force_phys_link_state(vsi, true);
-		if (err)
+		if (!test_bit(__ICE_PHY_INIT_COMPLETE, pf->state))
+			ice_init_phy_user_cfg(pi);
+
+		/* PHY settings are reset on media insertion, reconfigure
+		 * PHY to preserve settings.
+		 */
+		if (test_bit(__ICE_DOWN, vsi->state) &&
+		    test_bit(ICE_FLAG_LINK_DOWN_ON_CLOSE_ENA, vsi->back->flags))
 			return;
-		clear_bit(ICE_FLAG_NO_MEDIA, pf->flags);
+
+		err = ice_configure_phy(vsi);
+		if (!err)
+			clear_bit(ICE_FLAG_NO_MEDIA, pf->flags);
 
 		/* A Link Status Event will be generated; the event handler
 		 * will complete bringing the interface up
@@ -3520,6 +3735,37 @@ ice_probe(struct pci_dev *pdev, const struct pci_device_id __always_unused *ent)
 	if (err) {
 		dev_err(dev, "ice_init_link_events failed: %d\n", err);
 		goto err_alloc_sw_unroll;
+	}
+
+	err = ice_init_nvm_phy_type(pf->hw.port_info);
+	if (err) {
+		dev_err(dev, "ice_init_nvm_phy_type failed: %d\n", err);
+		goto err_alloc_sw_unroll;
+	}
+
+	err = ice_update_link_info(pf->hw.port_info);
+	if (err) {
+		dev_err(dev, "ice_update_link_info failed: %d\n", err);
+		goto err_alloc_sw_unroll;
+	}
+
+	/* if media available, initialize PHY settings */
+	if (pf->hw.port_info->phy.link_info.link_info &
+	    ICE_AQ_MEDIA_AVAILABLE) {
+		err = ice_init_phy_user_cfg(pf->hw.port_info);
+		if (err) {
+			dev_err(dev, "ice_init_phy_user_cfg failed: %d\n", err);
+			goto err_alloc_sw_unroll;
+		}
+
+		if (!test_bit(ICE_FLAG_LINK_DOWN_ON_CLOSE_ENA, pf->flags)) {
+			struct ice_vsi *vsi = ice_get_main_vsi(pf);
+
+			if (vsi)
+				ice_configure_phy(vsi);
+		}
+	} else {
+		set_bit(ICE_FLAG_NO_MEDIA, pf->flags);
 	}
 
 	ice_verify_cacheline_size(pf);
@@ -6018,20 +6264,30 @@ int ice_open(struct net_device *netdev)
 
 	/* Set PHY if there is media, otherwise, turn off PHY */
 	if (pi->phy.link_info.link_info & ICE_AQ_MEDIA_AVAILABLE) {
-		err = ice_force_phys_link_state(vsi, true);
+		clear_bit(ICE_FLAG_NO_MEDIA, pf->flags);
+		if (!test_bit(__ICE_PHY_INIT_COMPLETE, pf->state)) {
+			err = ice_init_phy_user_cfg(pi);
+			if (err) {
+				netdev_err(netdev, "Failed to initialize PHY settings, error %d\n",
+					   err);
+				return err;
+			}
+		}
+
+		err = ice_configure_phy(vsi);
 		if (err) {
 			netdev_err(netdev, "Failed to set physical link up, error %d\n",
 				   err);
 			return err;
 		}
 	} else {
+		set_bit(ICE_FLAG_NO_MEDIA, pf->flags);
 		err = ice_aq_set_link_restart_an(pi, false, NULL);
 		if (err) {
 			netdev_err(netdev, "Failed to set PHY state, VSI %d error %d\n",
 				   vsi->vsi_num, err);
 			return err;
 		}
-		set_bit(ICE_FLAG_NO_MEDIA, vsi->back->flags);
 	}
 
 	err = ice_vsi_open(vsi);

@@ -222,6 +222,7 @@ enum ice_state {
 	__ICE_OICR_INTR_DIS,		/* Global OICR interrupt disabled */
 	__ICE_MDD_VF_PRINT_PENDING,	/* set when MDD event handle */
 	__ICE_VF_RESETS_DISABLED,	/* disable resets during ice_remove */
+	__ICE_PHY_INIT_COMPLETE,
 	__ICE_STATE_NBITS		/* must be last */
 };
 
@@ -437,6 +438,9 @@ struct ice_pf {
 	u32 tx_timeout_recovery_level;
 	char int_name[ICE_INT_NAME_STR_LEN];
 	u32 sw_int_count;
+
+	__le64 nvm_phy_type_lo; /* NVM PHY type low */
+	__le64 nvm_phy_type_hi; /* NVM PHY type high */
 };
 
 struct ice_netdev_priv {

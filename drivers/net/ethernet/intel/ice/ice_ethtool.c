@@ -966,11 +966,8 @@ static int ice_set_fec_cfg(struct net_device *netdev, enum ice_fec_mode req_fec)
 {
 	struct ice_netdev_priv *np = netdev_priv(netdev);
 	struct ice_aqc_set_phy_cfg_data config = { 0 };
-	struct ice_aqc_get_phy_caps_data *caps;
 	struct ice_vsi *vsi = np->vsi;
 	struct ice_port_info *pi;
-	enum ice_status status;
-	int err = 0;
 
 	pi = vsi->port_info;
 	if (!pi)
@@ -982,30 +979,26 @@ static int ice_set_fec_cfg(struct net_device *netdev, enum ice_fec_mode req_fec)
 		return -EOPNOTSUPP;
 	}
 
-	/* Get last SW configuration */
-	caps = kzalloc(sizeof(*caps), GFP_KERNEL);
-	if (!caps)
-		return -ENOMEM;
+	/* Proceed only if requesting different FEC mode */
+	if (pi->phy.curr_user_fec_req == req_fec)
+		return 0;
 
-	status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_SW_CFG,
-				     caps, NULL);
-	if (status) {
-		err = -EAGAIN;
-		goto done;
-	}
-
-	/* Copy SW configuration returned from PHY caps to PHY config */
-	ice_copy_phy_caps_to_cfg(caps, &config);
+	/* Copy the current user PHY configuration. The current user PHY
+	 * configuration is initialized during probe from PHY capabilities
+	 * software mode, and updated on set PHY configuration.
+	 */
+	memcpy(&config, &pi->phy.curr_user_phy_cfg, sizeof(config));
 
 	ice_cfg_phy_fec(pi, &config, req_fec);
 	config.caps |= ICE_AQ_PHY_ENA_AUTO_LINK_UPDT;
 
-	if (ice_aq_set_phy_cfg(pi->hw, pi->lport, &config, NULL))
-		err = -EAGAIN;
+	if (ice_aq_set_phy_cfg(pi->hw, pi, &config, NULL))
+		return -EAGAIN;
 
-done:
-	kfree(caps);
-	return err;
+	/* Save requested FEC config */
+	pi->phy.curr_user_fec_req = req_fec;
+
+	return 0;
 }
 
 /**
@@ -2102,10 +2095,10 @@ static int
 ice_set_link_ksettings(struct net_device *netdev,
 		       const struct ethtool_link_ksettings *ks)
 {
-	u8 autoneg, timeout = TEST_SET_BITS_TIMEOUT, lport = 0;
 	struct ice_netdev_priv *np = netdev_priv(netdev);
 	struct ethtool_link_ksettings safe_ks, copy_ks;
 	struct ice_aqc_get_phy_caps_data *abilities;
+	u8 autoneg, timeout = TEST_SET_BITS_TIMEOUT;
 	u16 adv_link_speed, curr_link_speed, idx;
 	struct ice_aqc_set_phy_cfg_data config;
 	struct ice_pf *pf = np->vsi->back;
@@ -2137,6 +2130,18 @@ ice_set_link_ksettings(struct net_device *netdev,
 	    p->phy.link_info.link_info & ICE_AQ_LINK_UP)
 		return -EOPNOTSUPP;
 
+	abilities = kzalloc(sizeof(*abilities), GFP_KERNEL);
+	if (!abilities)
+		return -ENOMEM;
+
+	/* Get the PHY capabilities based on media */
+	status = ice_aq_get_phy_caps(p, false, ICE_AQC_REPORT_TOPO_CAP,
+				     abilities, NULL);
+	if (status) {
+		err = -EAGAIN;
+		goto done;
+	}
+
 	/* copy the ksettings to copy_ks to avoid modifying the original */
 	memcpy(&copy_ks, ks, sizeof(copy_ks));
 
@@ -2153,8 +2158,10 @@ ice_set_link_ksettings(struct net_device *netdev,
 	 */
 	if (!bitmap_subset(copy_ks.link_modes.advertising,
 			   safe_ks.link_modes.supported,
-			   __ETHTOOL_LINK_MODE_MASK_NBITS))
-		return -EINVAL;
+			   __ETHTOOL_LINK_MODE_MASK_NBITS)) {
+		err = -EINVAL;
+		goto done;
+	}
 
 	/* get our own copy of the bits to check against */
 	memset(&safe_ks, 0, sizeof(safe_ks));
@@ -2171,33 +2178,27 @@ ice_set_link_ksettings(struct net_device *netdev,
 	/* If copy_ks.base and safe_ks.base are not the same now, then they are
 	 * trying to set something that we do not support.
 	 */
-	if (memcmp(&copy_ks.base, &safe_ks.base, sizeof(copy_ks.base)))
-		return -EOPNOTSUPP;
-
-	while (test_and_set_bit(__ICE_CFG_BUSY, pf->state)) {
-		timeout--;
-		if (!timeout)
-			return -EBUSY;
-		usleep_range(TEST_SET_BITS_SLEEP_MIN, TEST_SET_BITS_SLEEP_MAX);
-	}
-
-	abilities = kzalloc(sizeof(*abilities), GFP_KERNEL);
-	if (!abilities)
-		return -ENOMEM;
-
-	/* Get the current PHY config */
-	status = ice_aq_get_phy_caps(p, false, ICE_AQC_REPORT_SW_CFG, abilities,
-				     NULL);
-	if (status) {
-		err = -EAGAIN;
+	if (memcmp(&copy_ks.base, &safe_ks.base, sizeof(copy_ks.base))) {
+		err = -EOPNOTSUPP;
 		goto done;
 	}
 
-	/* Copy abilities to config in case autoneg is not set below */
-	memset(&config, 0, sizeof(config));
-	config.caps = abilities->caps & ~ICE_AQC_PHY_AN_MODE;
-	if (abilities->caps & ICE_AQC_PHY_AN_MODE)
-		config.caps |= ICE_AQ_PHY_ENA_AUTO_LINK_UPDT;
+	while (test_and_set_bit(__ICE_CFG_BUSY, pf->state)) {
+		timeout--;
+		if (!timeout) {
+			err = -EBUSY;
+			goto done;
+		}
+		usleep_range(TEST_SET_BITS_SLEEP_MIN, TEST_SET_BITS_SLEEP_MAX);
+	}
+
+	/* Copy the current user PHY configuration. The current user PHY
+	 * configuration is initialized during probe from PHY capabilities
+	 * software mode, and updated on set PHY configuration.
+	 */
+	memcpy(&config, &p->phy.curr_user_phy_cfg, sizeof(config));
+
+	config.caps |= ICE_AQ_PHY_ENA_AUTO_LINK_UPDT;
 
 	/* Check autoneg */
 	err = ice_setup_autoneg(p, &safe_ks, &config, autoneg, &autoneg_changed,
@@ -2232,26 +2233,30 @@ ice_set_link_ksettings(struct net_device *netdev,
 		goto done;
 	}
 
-	/* copy over the rest of the abilities */
-	config.low_power_ctrl = abilities->low_power_ctrl;
-	config.eee_cap = abilities->eee_cap;
-	config.eeer_value = abilities->eeer_value;
-	config.link_fec_opt = abilities->link_fec_options;
-
 	/* save the requested speeds */
 	p->phy.link_info.req_speeds = adv_link_speed;
 
 	/* set link and auto negotiation so changes take effect */
 	config.caps |= ICE_AQ_PHY_ENA_LINK;
 
-	if (phy_type_low || phy_type_high) {
-		config.phy_type_high = cpu_to_le64(phy_type_high) &
-			abilities->phy_type_high;
-		config.phy_type_low = cpu_to_le64(phy_type_low) &
-			abilities->phy_type_low;
-	} else {
+	/* check if there is a PHY type for the requested advertised speed */
+	if (!(phy_type_low || phy_type_high)) {
+		netdev_info(netdev, "The selected speed is not supported by the current media. Please select a link speed that is supported by the current media.\n");
 		err = -EAGAIN;
-		netdev_info(netdev, "Nothing changed. No PHY_TYPE is corresponded to advertised link speed.\n");
+		goto done;
+	}
+
+	/* intersect requested advertised speed PHY types with media PHY types
+	 * for set PHY configuration
+	 */
+	config.phy_type_high = cpu_to_le64(phy_type_high) &
+			abilities->phy_type_high;
+	config.phy_type_low = cpu_to_le64(phy_type_low) &
+			abilities->phy_type_low;
+
+	if (!(config.phy_type_high || config.phy_type_low)) {
+		netdev_info(netdev, "The selected speed is not supported by the current media. Please select a link speed that is supported by the current media.\n");
+		err = -EAGAIN;
 		goto done;
 	}
 
@@ -2266,12 +2271,15 @@ ice_set_link_ksettings(struct net_device *netdev,
 	}
 
 	/* make the aq call */
-	status = ice_aq_set_phy_cfg(&pf->hw, lport, &config, NULL);
+	status = ice_aq_set_phy_cfg(&pf->hw, p, &config, NULL);
 	if (status) {
 		netdev_info(netdev, "Set phy config failed,\n");
 		err = -EAGAIN;
+		goto done;
 	}
 
+	/* Save speed request */
+	p->phy.curr_user_speed_req = adv_link_speed;
 done:
 	kfree(abilities);
 	clear_bit(__ICE_CFG_BUSY, pf->state);
