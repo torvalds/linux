@@ -12,7 +12,7 @@
 #include <linux/pkeys.h>
 #include <linux/of_device.h>
 
-DEFINE_STATIC_KEY_TRUE(pkey_disabled);
+DEFINE_STATIC_KEY_FALSE(pkey_disabled);
 int  pkeys_total;		/* Total pkeys as per device tree */
 u32  initial_allocation_mask;   /* Bits set for the initially allocated keys */
 /*
@@ -113,9 +113,8 @@ static int pkey_initialize(void)
 
 	/* scan the device tree for pkey feature */
 	pkeys_total = scan_pkey_feature();
-	if (pkeys_total)
-		static_branch_disable(&pkey_disabled);
-	else {
+	if (!pkeys_total) {
+		/* No support for pkey. Mark it disabled */
 		static_branch_enable(&pkey_disabled);
 		return 0;
 	}
