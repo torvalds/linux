@@ -773,22 +773,6 @@ static int update_state(struct drm_device *drm_dev,
 	return ret;
 }
 
-static bool is_support_hotplug(uint32_t output_type)
-{
-	switch (output_type) {
-	case DRM_MODE_CONNECTOR_DVII:
-	case DRM_MODE_CONNECTOR_DVID:
-	case DRM_MODE_CONNECTOR_DVIA:
-	case DRM_MODE_CONNECTOR_DisplayPort:
-	case DRM_MODE_CONNECTOR_HDMIA:
-	case DRM_MODE_CONNECTOR_HDMIB:
-	case DRM_MODE_CONNECTOR_TV:
-		return true;
-	default:
-		return false;
-	}
-}
-
 static void show_loader_logo(struct drm_device *drm_dev)
 {
 	struct drm_atomic_state *state, *old_state;
@@ -1392,6 +1376,22 @@ static void rockchip_drm_set_property_default(struct drm_device *drm)
 
 err_unlock:
 	drm_modeset_unlock_all(drm);
+}
+
+static bool is_support_hotplug(uint32_t output_type)
+{
+	switch (output_type) {
+	case DRM_MODE_CONNECTOR_DVII:
+	case DRM_MODE_CONNECTOR_DVID:
+	case DRM_MODE_CONNECTOR_DVIA:
+	case DRM_MODE_CONNECTOR_DisplayPort:
+	case DRM_MODE_CONNECTOR_HDMIA:
+	case DRM_MODE_CONNECTOR_HDMIB:
+	case DRM_MODE_CONNECTOR_TV:
+		return true;
+	default:
+		return false;
+	}
 }
 
 static int rockchip_drm_bind(struct device *dev)
