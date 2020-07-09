@@ -18,7 +18,7 @@
 	http://www.scyld.com/network/sundance.html
 	[link no longer provides useful info -jgarzik]
 	Archives of the mailing list are still available at
-	http://www.beowulf.org/pipermail/netdrivers/
+	https://www.beowulf.org/pipermail/netdrivers/
 
 */
 
