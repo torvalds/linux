@@ -511,7 +511,7 @@ static int enetc_streamid_hw_set(struct enetc_ndev_priv *priv,
 
 	cbd.addr[0] = lower_32_bits(dma);
 	cbd.addr[1] = upper_32_bits(dma);
-	memset(si_data->dmac, 0xff, ETH_ALEN);
+	eth_broadcast_addr(si_data->dmac);
 	si_data->vid_vidm_tg =
 		cpu_to_le16(ENETC_CBDR_SID_VID_MASK
 			    + ((0x3 << 14) | ENETC_CBDR_SID_VIDM));
