@@ -6176,6 +6176,7 @@ static int vmx_set_nested_state(struct kvm_vcpu *vcpu,
 			goto error_guest_mode;
 	}
 
+	vmx->nested.has_preemption_timer_deadline = false;
 	if (kvm_state->hdr.vmx.flags & KVM_STATE_VMX_PREEMPTION_TIMER_DEADLINE) {
 		vmx->nested.has_preemption_timer_deadline = true;
 		vmx->nested.preemption_timer_deadline =
