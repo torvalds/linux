@@ -23,7 +23,6 @@ u32 reserved_allocation_mask __ro_after_init;
 /* Bits set for the initially allocated keys */
 static u32 initial_allocation_mask __ro_after_init;
 
-static bool pkey_execute_disable_supported;
 /*
  * Even if we allocate keys with sys_pkey_alloc(), we need to make sure
  * other thread still find the access denied using the same keys.
@@ -38,6 +37,7 @@ static u64 default_uamor = ~0x0UL;
  * We pick key 2 because 0 is special key and 1 is reserved as per ISA.
  */
 static int execute_only_key = 2;
+static bool pkey_execute_disable_supported;
 
 
 #define AMR_BITS_PER_PKEY 2
@@ -151,7 +151,7 @@ void __init pkey_early_init_devtree(void)
 	num_pkey = pkeys_total;
 #endif
 
-	if (unlikely(num_pkey <= execute_only_key)) {
+	if (unlikely(num_pkey <= execute_only_key) || !pkey_execute_disable_supported) {
 		/*
 		 * Insufficient number of keys to support
 		 * execute only key. Mark it unavailable.
@@ -359,7 +359,7 @@ void thread_pkey_regs_init(struct thread_struct *thread)
 	write_uamor(default_uamor);
 }
 
-int __execute_only_pkey(struct mm_struct *mm)
+int execute_only_pkey(struct mm_struct *mm)
 {
 	return mm->context.execute_only_pkey;
 }
