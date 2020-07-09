@@ -251,25 +251,6 @@ static inline void write_iamr(u64 value)
 	mtspr(SPRN_IAMR, value);
 }
 
-static inline u64 read_uamor(void)
-{
-	return mfspr(SPRN_UAMOR);
-}
-
-static bool is_pkey_enabled(int pkey)
-{
-	u64 uamor = read_uamor();
-	u64 pkey_bits = 0x3ul << pkeyshift(pkey);
-	u64 uamor_pkey_bits = (uamor & pkey_bits);
-
-	/*
-	 * Both the bits in UAMOR corresponding to the key should be set or
-	 * reset.
-	 */
-	WARN_ON(uamor_pkey_bits && (uamor_pkey_bits != pkey_bits));
-	return !!(uamor_pkey_bits);
-}
-
 static inline void init_amr(int pkey, u8 init_bits)
 {
 	u64 new_amr_bits = (((u64)init_bits & 0x3UL) << pkeyshift(pkey));
@@ -295,8 +276,18 @@ int __arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
 {
 	u64 new_amr_bits = 0x0ul;
 	u64 new_iamr_bits = 0x0ul;
+	u64 pkey_bits, uamor_pkey_bits;
 
-	if (!is_pkey_enabled(pkey))
+	/*
+	 * Check whether the key is disabled by UAMOR.
+	 */
+	pkey_bits = 0x3ul << pkeyshift(pkey);
+	uamor_pkey_bits = (default_uamor & pkey_bits);
+
+	/*
+	 * Both the bits in UAMOR corresponding to the key should be set
+	 */
+	if (uamor_pkey_bits != pkey_bits)
 		return -EINVAL;
 
 	if (init_val & PKEY_DISABLE_EXECUTE) {
