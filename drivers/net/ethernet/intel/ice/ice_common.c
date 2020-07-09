@@ -150,11 +150,13 @@ ice_aq_get_phy_caps(struct ice_port_info *pi, bool qual_mods, u8 report_mode,
 	u16 pcaps_size = sizeof(*pcaps);
 	struct ice_aq_desc desc;
 	enum ice_status status;
+	struct ice_hw *hw;
 
 	cmd = &desc.params.get_phy;
 
 	if (!pcaps || (report_mode & ~ICE_AQC_REPORT_MODE_M) || !pi)
 		return ICE_ERR_PARAM;
+	hw = pi->hw;
 
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_get_phy_caps);
 
@@ -162,7 +164,32 @@ ice_aq_get_phy_caps(struct ice_port_info *pi, bool qual_mods, u8 report_mode,
 		cmd->param0 |= cpu_to_le16(ICE_AQC_GET_PHY_RQM);
 
 	cmd->param0 |= cpu_to_le16(report_mode);
-	status = ice_aq_send_cmd(pi->hw, &desc, pcaps, pcaps_size, cd);
+	status = ice_aq_send_cmd(hw, &desc, pcaps, pcaps_size, cd);
+
+	ice_debug(hw, ICE_DBG_LINK, "get phy caps - report_mode = 0x%x\n",
+		  report_mode);
+	ice_debug(hw, ICE_DBG_LINK, "	phy_type_low = 0x%llx\n",
+		  (unsigned long long)le64_to_cpu(pcaps->phy_type_low));
+	ice_debug(hw, ICE_DBG_LINK, "	phy_type_high = 0x%llx\n",
+		  (unsigned long long)le64_to_cpu(pcaps->phy_type_high));
+	ice_debug(hw, ICE_DBG_LINK, "	caps = 0x%x\n", pcaps->caps);
+	ice_debug(hw, ICE_DBG_LINK, "	low_power_ctrl = 0x%x\n",
+		  pcaps->low_power_ctrl);
+	ice_debug(hw, ICE_DBG_LINK, "	eee_cap = 0x%x\n", pcaps->eee_cap);
+	ice_debug(hw, ICE_DBG_LINK, "	eeer_value = 0x%x\n",
+		  pcaps->eeer_value);
+	ice_debug(hw, ICE_DBG_LINK, "	link_fec_options = 0x%x\n",
+		  pcaps->link_fec_options);
+	ice_debug(hw, ICE_DBG_LINK, "	module_compliance_enforcement = 0x%x\n",
+		  pcaps->module_compliance_enforcement);
+	ice_debug(hw, ICE_DBG_LINK, "   extended_compliance_code = 0x%x\n",
+		  pcaps->extended_compliance_code);
+	ice_debug(hw, ICE_DBG_LINK, "   module_type[0] = 0x%x\n",
+		  pcaps->module_type[0]);
+	ice_debug(hw, ICE_DBG_LINK, "   module_type[1] = 0x%x\n",
+		  pcaps->module_type[1]);
+	ice_debug(hw, ICE_DBG_LINK, "   module_type[2] = 0x%x\n",
+		  pcaps->module_type[2]);
 
 	if (!status && report_mode == ICE_AQC_REPORT_TOPO_CAP) {
 		pi->phy.phy_type_low = le64_to_cpu(pcaps->phy_type_low);
@@ -326,18 +353,21 @@ ice_aq_get_link_info(struct ice_port_info *pi, bool ena_lse,
 
 	li->lse_ena = !!(resp->cmd_flags & cpu_to_le16(ICE_AQ_LSE_IS_ENABLED));
 
-	ice_debug(hw, ICE_DBG_LINK, "link_speed = 0x%x\n", li->link_speed);
-	ice_debug(hw, ICE_DBG_LINK, "phy_type_low = 0x%llx\n",
+	ice_debug(hw, ICE_DBG_LINK, "get link info\n");
+	ice_debug(hw, ICE_DBG_LINK, "	link_speed = 0x%x\n", li->link_speed);
+	ice_debug(hw, ICE_DBG_LINK, "	phy_type_low = 0x%llx\n",
 		  (unsigned long long)li->phy_type_low);
-	ice_debug(hw, ICE_DBG_LINK, "phy_type_high = 0x%llx\n",
+	ice_debug(hw, ICE_DBG_LINK, "	phy_type_high = 0x%llx\n",
 		  (unsigned long long)li->phy_type_high);
-	ice_debug(hw, ICE_DBG_LINK, "media_type = 0x%x\n", *hw_media_type);
-	ice_debug(hw, ICE_DBG_LINK, "link_info = 0x%x\n", li->link_info);
-	ice_debug(hw, ICE_DBG_LINK, "an_info = 0x%x\n", li->an_info);
-	ice_debug(hw, ICE_DBG_LINK, "ext_info = 0x%x\n", li->ext_info);
-	ice_debug(hw, ICE_DBG_LINK, "lse_ena = 0x%x\n", li->lse_ena);
-	ice_debug(hw, ICE_DBG_LINK, "max_frame = 0x%x\n", li->max_frame_size);
-	ice_debug(hw, ICE_DBG_LINK, "pacing = 0x%x\n", li->pacing);
+	ice_debug(hw, ICE_DBG_LINK, "	media_type = 0x%x\n", *hw_media_type);
+	ice_debug(hw, ICE_DBG_LINK, "	link_info = 0x%x\n", li->link_info);
+	ice_debug(hw, ICE_DBG_LINK, "	an_info = 0x%x\n", li->an_info);
+	ice_debug(hw, ICE_DBG_LINK, "	ext_info = 0x%x\n", li->ext_info);
+	ice_debug(hw, ICE_DBG_LINK, "	fec_info = 0x%x\n", li->fec_info);
+	ice_debug(hw, ICE_DBG_LINK, "	lse_ena = 0x%x\n", li->lse_ena);
+	ice_debug(hw, ICE_DBG_LINK, "	max_frame = 0x%x\n",
+		  li->max_frame_size);
+	ice_debug(hw, ICE_DBG_LINK, "	pacing = 0x%x\n", li->pacing);
 
 	/* save link status information */
 	if (link)
@@ -2489,16 +2519,18 @@ ice_aq_set_phy_cfg(struct ice_hw *hw, struct ice_port_info *pi,
 	desc.params.set_phy.lport_num = pi->lport;
 	desc.flags |= cpu_to_le16(ICE_AQ_FLAG_RD);
 
-	ice_debug(hw, ICE_DBG_LINK, "phy_type_low = 0x%llx\n",
+	ice_debug(hw, ICE_DBG_LINK, "set phy cfg\n");
+	ice_debug(hw, ICE_DBG_LINK, "	phy_type_low = 0x%llx\n",
 		  (unsigned long long)le64_to_cpu(cfg->phy_type_low));
-	ice_debug(hw, ICE_DBG_LINK, "phy_type_high = 0x%llx\n",
+	ice_debug(hw, ICE_DBG_LINK, "	phy_type_high = 0x%llx\n",
 		  (unsigned long long)le64_to_cpu(cfg->phy_type_high));
-	ice_debug(hw, ICE_DBG_LINK, "caps = 0x%x\n", cfg->caps);
-	ice_debug(hw, ICE_DBG_LINK, "low_power_ctrl = 0x%x\n",
+	ice_debug(hw, ICE_DBG_LINK, "	caps = 0x%x\n", cfg->caps);
+	ice_debug(hw, ICE_DBG_LINK, "	low_power_ctrl = 0x%x\n",
 		  cfg->low_power_ctrl);
-	ice_debug(hw, ICE_DBG_LINK, "eee_cap = 0x%x\n", cfg->eee_cap);
-	ice_debug(hw, ICE_DBG_LINK, "eeer_value = 0x%x\n", cfg->eeer_value);
-	ice_debug(hw, ICE_DBG_LINK, "link_fec_opt = 0x%x\n", cfg->link_fec_opt);
+	ice_debug(hw, ICE_DBG_LINK, "	eee_cap = 0x%x\n", cfg->eee_cap);
+	ice_debug(hw, ICE_DBG_LINK, "	eeer_value = 0x%x\n", cfg->eeer_value);
+	ice_debug(hw, ICE_DBG_LINK, "	link_fec_opt = 0x%x\n",
+		  cfg->link_fec_opt);
 
 	status = ice_aq_send_cmd(hw, &desc, cfg, sizeof(*cfg), cd);
 	if (hw->adminq.sq_last_status == ICE_AQ_RC_EMODE)
