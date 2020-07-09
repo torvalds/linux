@@ -183,6 +183,7 @@ static int pkey_initialize(void)
 	 * programming note.
 	 */
 	reserved_allocation_mask |= (0x1 << 1);
+	default_uamor &= ~(0x3ul << pkeyshift(1));
 
 	/*
 	 * Prevent the usage of OS reserved the keys. Update UAMOR
