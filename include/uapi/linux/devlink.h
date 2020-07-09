@@ -455,6 +455,8 @@ enum devlink_attr {
 
 	DEVLINK_ATTR_INFO_BOARD_SERIAL_NUMBER,	/* string */
 
+	DEVLINK_ATTR_PORT_LANES,			/* u32 */
+
 	/* add new attributes above here, update the policy in devlink.c */
 
 	__DEVLINK_ATTR_MAX,

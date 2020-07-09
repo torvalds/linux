@@ -530,6 +530,10 @@ static int devlink_nl_port_attrs_put(struct sk_buff *msg,
 
 	if (!devlink_port->attrs_set)
 		return 0;
+	if (attrs->lanes) {
+		if (nla_put_u32(msg, DEVLINK_ATTR_PORT_LANES, attrs->lanes))
+			return -EMSGSIZE;
+	}
 	if (nla_put_u16(msg, DEVLINK_ATTR_PORT_FLAVOUR, attrs->flavour))
 		return -EMSGSIZE;
 	switch (devlink_port->attrs.flavour) {
