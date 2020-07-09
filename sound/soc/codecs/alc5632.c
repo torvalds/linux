@@ -902,7 +902,7 @@ static int alc5632_pcm_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int alc5632_mute(struct snd_soc_dai *dai, int mute)
+static int alc5632_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 	u16 hp_mute = ALC5632_MISC_HP_DEPOP_MUTE_L
@@ -1005,10 +1005,11 @@ static int alc5632_set_bias_level(struct snd_soc_component *component,
 
 static const struct snd_soc_dai_ops alc5632_dai_ops = {
 		.hw_params = alc5632_pcm_hw_params,
-		.digital_mute = alc5632_mute,
+		.mute_stream = alc5632_mute,
 		.set_fmt = alc5632_set_dai_fmt,
 		.set_sysclk = alc5632_set_dai_sysclk,
 		.set_pll = alc5632_set_dai_pll,
+		.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver alc5632_dai = {

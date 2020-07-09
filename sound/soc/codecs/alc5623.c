@@ -737,7 +737,7 @@ static int alc5623_pcm_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int alc5623_mute(struct snd_soc_dai *dai, int mute)
+static int alc5623_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 	u16 hp_mute = ALC5623_MISC_M_DAC_L_INPUT | ALC5623_MISC_M_DAC_R_INPUT;
@@ -829,10 +829,11 @@ static int alc5623_set_bias_level(struct snd_soc_component *component,
 
 static const struct snd_soc_dai_ops alc5623_dai_ops = {
 		.hw_params = alc5623_pcm_hw_params,
-		.digital_mute = alc5623_mute,
+		.mute_stream = alc5623_mute,
 		.set_fmt = alc5623_set_dai_fmt,
 		.set_sysclk = alc5623_set_dai_sysclk,
 		.set_pll = alc5623_set_dai_pll,
+		.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver alc5623_dai = {
