@@ -264,12 +264,14 @@ static int max77620_gpio_probe(struct platform_device *pdev)
 {
 	struct max77620_chip *chip =  dev_get_drvdata(pdev->dev.parent);
 	struct max77620_gpio *mgpio;
-	int gpio_irq;
+	unsigned int gpio_irq;
 	int ret;
 
-	gpio_irq = platform_get_irq(pdev, 0);
-	if (gpio_irq <= 0)
-		return -ENODEV;
+	ret = platform_get_irq(pdev, 0);
+	if (ret < 0)
+		return ret;
+
+	gpio_irq = ret;
 
 	mgpio = devm_kzalloc(&pdev->dev, sizeof(*mgpio), GFP_KERNEL);
 	if (!mgpio)
