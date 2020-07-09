@@ -449,7 +449,36 @@ static struct snd_soc_dai_link mt8183_da7219_max98357_dai_links[] = {
 };
 
 static int
-mt8183_da7219_max98357_headset_init(struct snd_soc_component *component);
+mt8183_da7219_max98357_headset_init(struct snd_soc_component *component)
+{
+	int ret;
+	struct mt8183_da7219_max98357_priv *priv =
+			snd_soc_card_get_drvdata(component->card);
+
+	/* Enable Headset and 4 Buttons Jack detection */
+	ret = snd_soc_card_jack_new(component->card,
+				    "Headset Jack",
+				    SND_JACK_HEADSET |
+				    SND_JACK_BTN_0 | SND_JACK_BTN_1 |
+				    SND_JACK_BTN_2 | SND_JACK_BTN_3,
+				    &priv->headset_jack,
+				    NULL, 0);
+	if (ret)
+		return ret;
+
+	snd_jack_set_key(
+		priv->headset_jack.jack, SND_JACK_BTN_0, KEY_PLAYPAUSE);
+	snd_jack_set_key(
+		priv->headset_jack.jack, SND_JACK_BTN_1, KEY_VOLUMEUP);
+	snd_jack_set_key(
+		priv->headset_jack.jack, SND_JACK_BTN_2, KEY_VOLUMEDOWN);
+	snd_jack_set_key(
+		priv->headset_jack.jack, SND_JACK_BTN_3, KEY_VOICECOMMAND);
+
+	da7219_aad_jack_det(component, &priv->headset_jack);
+
+	return 0;
+}
 
 static struct snd_soc_aux_dev mt8183_da7219_max98357_headset_dev = {
 	.dlc = COMP_EMPTY(),
@@ -495,38 +524,6 @@ static struct snd_soc_card mt8183_da7219_max98357_card = {
 	.codec_conf = mt6358_codec_conf,
 	.num_configs = ARRAY_SIZE(mt6358_codec_conf),
 };
-
-static int
-mt8183_da7219_max98357_headset_init(struct snd_soc_component *component)
-{
-	int ret;
-	struct mt8183_da7219_max98357_priv *priv =
-			snd_soc_card_get_drvdata(component->card);
-
-	/* Enable Headset and 4 Buttons Jack detection */
-	ret = snd_soc_card_jack_new(&mt8183_da7219_max98357_card,
-				    "Headset Jack",
-				    SND_JACK_HEADSET |
-				    SND_JACK_BTN_0 | SND_JACK_BTN_1 |
-				    SND_JACK_BTN_2 | SND_JACK_BTN_3,
-				    &priv->headset_jack,
-				    NULL, 0);
-	if (ret)
-		return ret;
-
-	snd_jack_set_key(
-		priv->headset_jack.jack, SND_JACK_BTN_0, KEY_PLAYPAUSE);
-	snd_jack_set_key(
-		priv->headset_jack.jack, SND_JACK_BTN_1, KEY_VOLUMEUP);
-	snd_jack_set_key(
-		priv->headset_jack.jack, SND_JACK_BTN_2, KEY_VOLUMEDOWN);
-	snd_jack_set_key(
-		priv->headset_jack.jack, SND_JACK_BTN_3, KEY_VOICECOMMAND);
-
-	da7219_aad_jack_det(component, &priv->headset_jack);
-
-	return 0;
-}
 
 static int mt8183_da7219_max98357_dev_probe(struct platform_device *pdev)
 {
