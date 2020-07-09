@@ -484,7 +484,7 @@ static int cs42l51_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int cs42l51_dai_mute(struct snd_soc_dai *dai, int mute)
+static int cs42l51_dai_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 	int reg;
@@ -511,7 +511,8 @@ static const struct snd_soc_dai_ops cs42l51_dai_ops = {
 	.hw_params      = cs42l51_hw_params,
 	.set_sysclk     = cs42l51_set_dai_sysclk,
 	.set_fmt        = cs42l51_set_dai_fmt,
-	.digital_mute   = cs42l51_dai_mute,
+	.mute_stream    = cs42l51_dai_mute,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver cs42l51_dai = {

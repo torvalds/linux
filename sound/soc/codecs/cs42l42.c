@@ -849,7 +849,7 @@ static int cs42l42_set_sysclk(struct snd_soc_dai *dai,
 	return 0;
 }
 
-static int cs42l42_digital_mute(struct snd_soc_dai *dai, int mute)
+static int cs42l42_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 	unsigned int regval;
@@ -909,7 +909,8 @@ static const struct snd_soc_dai_ops cs42l42_ops = {
 	.hw_params	= cs42l42_pcm_hw_params,
 	.set_fmt	= cs42l42_set_dai_fmt,
 	.set_sysclk	= cs42l42_set_sysclk,
-	.digital_mute = cs42l42_digital_mute
+	.mute_stream	= cs42l42_mute,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver cs42l42_dai = {

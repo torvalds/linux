@@ -406,7 +406,7 @@ static int cs4270_hw_params(struct snd_pcm_substream *substream,
  * board does not have the MUTEA or MUTEB pins connected to such circuitry,
  * then this function will do nothing.
  */
-static int cs4270_dai_mute(struct snd_soc_dai *dai, int mute)
+static int cs4270_dai_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 	struct cs4270_private *cs4270 = snd_soc_component_get_drvdata(component);
@@ -471,7 +471,8 @@ static const struct snd_soc_dai_ops cs4270_dai_ops = {
 	.hw_params	= cs4270_hw_params,
 	.set_sysclk	= cs4270_set_dai_sysclk,
 	.set_fmt	= cs4270_set_dai_fmt,
-	.digital_mute	= cs4270_dai_mute,
+	.mute_stream	= cs4270_dai_mute,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver cs4270_dai = {
