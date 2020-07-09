@@ -709,7 +709,7 @@ static ssize_t store_energy_performance_preference(
 	struct cpudata *cpu_data = all_cpu_data[policy->cpu];
 	char str_preference[21];
 	bool raw = false;
-	u32 epp;
+	u32 epp = 0;
 	int ret;
 
 	ret = sscanf(buf, "%20s", str_preference);
