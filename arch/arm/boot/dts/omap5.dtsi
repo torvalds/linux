@@ -216,6 +216,29 @@
 			};
 		};
 
+		dsp: dsp {
+			compatible = "ti,omap5-dsp";
+			ti,bootreg = <&scm_conf 0x304 0>;
+			iommus = <&mmu_dsp>;
+			resets = <&prm_dsp 0>;
+			clocks = <&dsp_clkctrl OMAP5_MMU_DSP_CLKCTRL 0>;
+			firmware-name = "omap5-dsp-fw.xe64T";
+			mboxes = <&mailbox &mbox_dsp>;
+			status = "disabled";
+		};
+
+		ipu: ipu@55020000 {
+			compatible = "ti,omap5-ipu";
+			reg = <0x55020000 0x10000>;
+			reg-names = "l2ram";
+			iommus = <&mmu_ipu>;
+			resets = <&prm_core 0>, <&prm_core 1>;
+			clocks = <&ipu_clkctrl OMAP5_MMU_IPU_CLKCTRL 0>;
+			firmware-name = "omap5-ipu-fw.xem4";
+			mboxes = <&mailbox &mbox_ipu>;
+			status = "disabled";
+		};
+
 		dmm@4e000000 {
 			compatible = "ti,omap5-dmm";
 			reg = <0x4e000000 0x800>;
