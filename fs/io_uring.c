@@ -6851,8 +6851,10 @@ static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 			}
 			table->files[index] = file;
 			err = io_sqe_file_register(ctx, file, i);
-			if (err)
+			if (err) {
+				fput(file);
 				break;
+			}
 		}
 		nr_args--;
 		done++;
