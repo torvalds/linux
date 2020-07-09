@@ -6,7 +6,7 @@
 #ifndef __SOC_ROCKCHIP_OPP_SELECT_H
 #define __SOC_ROCKCHIP_OPP_SELECT_H
 
-#ifdef CONFIG_ROCKCHIP_OPP
+#if IS_ENABLED(CONFIG_ROCKCHIP_OPP)
 int rockchip_of_get_leakage(struct device *dev, char *lkg_name, int *leakage);
 void rockchip_of_get_lkg_sel(struct device *dev, struct device_node *np,
 			     char *lkg_name, int process,

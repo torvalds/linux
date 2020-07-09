@@ -6,6 +6,7 @@
 #include <linux/clk.h>
 #include <linux/cpufreq.h>
 #include <linux/devfreq.h>
+#include <linux/module.h>
 #include <linux/nvmem-consumer.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
@@ -977,3 +978,7 @@ int rockchip_init_opp_table(struct device *dev,
 	return 0;
 }
 EXPORT_SYMBOL(rockchip_init_opp_table);
+
+MODULE_DESCRIPTION("ROCKCHIP OPP Select");
+MODULE_AUTHOR("Finley Xiao <finley.xiao@rock-chips.com>, Liang Chen <cl@rock-chips.com>");
+MODULE_LICENSE("GPL");

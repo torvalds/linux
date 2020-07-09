@@ -52,7 +52,7 @@ config ROCKCHIP_IPA
 	  If unsure, say N.
 
 config ROCKCHIP_OPP
-	bool "Rockchip OPP select support"
+	tristate "Rockchip OPP select support"
 	depends on PM_DEVFREQ
 	default y
 	help
