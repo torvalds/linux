@@ -65,8 +65,7 @@ struct devlink_port_pci_vf_attrs {
 };
 
 struct devlink_port_attrs {
-	u8 split:1,
-	   switch_port:1;
+	u8 split:1;
 	enum devlink_port_flavour flavour;
 	struct netdev_phys_item_id switch_id;
 	union {
@@ -89,7 +88,8 @@ struct devlink_port {
 	enum devlink_port_type desired_type;
 	void *type_dev;
 	struct devlink_port_attrs attrs;
-	u8 attrs_set:1;
+	u8 attrs_set:1,
+	   switch_port:1;
 	struct delayed_work type_warn_dw;
 };
 

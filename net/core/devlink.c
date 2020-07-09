@@ -7521,13 +7521,13 @@ static int __devlink_port_attrs_set(struct devlink_port *devlink_port,
 	devlink_port->attrs_set = true;
 	attrs->flavour = flavour;
 	if (switch_id) {
-		attrs->switch_port = true;
+		devlink_port->switch_port = true;
 		if (WARN_ON(switch_id_len > MAX_PHYS_ITEM_ID_LEN))
 			switch_id_len = MAX_PHYS_ITEM_ID_LEN;
 		memcpy(attrs->switch_id.id, switch_id, switch_id_len);
 		attrs->switch_id.id_len = switch_id_len;
 	} else {
-		attrs->switch_port = false;
+		devlink_port->switch_port = false;
 	}
 	return 0;
 }
@@ -9461,7 +9461,7 @@ int devlink_compat_switch_id_get(struct net_device *dev,
 	 * any devlink lock as only permanent values are accessed.
 	 */
 	devlink_port = netdev_to_devlink_port(dev);
-	if (!devlink_port || !devlink_port->attrs.switch_port)
+	if (!devlink_port || !devlink_port->switch_port)
 		return -EOPNOTSUPP;
 
 	memcpy(ppid, &devlink_port->attrs.switch_id, sizeof(*ppid));
