@@ -194,6 +194,8 @@ ice_aq_get_phy_caps(struct ice_port_info *pi, bool qual_mods, u8 report_mode,
 	if (!status && report_mode == ICE_AQC_REPORT_TOPO_CAP) {
 		pi->phy.phy_type_low = le64_to_cpu(pcaps->phy_type_low);
 		pi->phy.phy_type_high = le64_to_cpu(pcaps->phy_type_high);
+		memcpy(pi->phy.link_info.module_type, &pcaps->module_type,
+		       sizeof(pi->phy.link_info.module_type));
 	}
 
 	return status;
@@ -266,6 +268,18 @@ static enum ice_media_type ice_get_media_type(struct ice_port_info *pi)
 		return ICE_MEDIA_UNKNOWN;
 
 	if (hw_link_info->phy_type_low) {
+		/* 1G SGMII is a special case where some DA cable PHYs
+		 * may show this as an option when it really shouldn't
+		 * be since SGMII is meant to be between a MAC and a PHY
+		 * in a backplane. Try to detect this case and handle it
+		 */
+		if (hw_link_info->phy_type_low == ICE_PHY_TYPE_LOW_1G_SGMII &&
+		    (hw_link_info->module_type[ICE_AQC_MOD_TYPE_IDENT] ==
+		    ICE_AQC_MOD_TYPE_BYTE1_SFP_PLUS_CU_ACTIVE ||
+		    hw_link_info->module_type[ICE_AQC_MOD_TYPE_IDENT] ==
+		    ICE_AQC_MOD_TYPE_BYTE1_SFP_PLUS_CU_PASSIVE))
+			return ICE_MEDIA_DA;
+
 		switch (hw_link_info->phy_type_low) {
 		case ICE_PHY_TYPE_LOW_1000BASE_SX:
 		case ICE_PHY_TYPE_LOW_1000BASE_LX:
@@ -2647,9 +2661,6 @@ enum ice_status ice_update_link_info(struct ice_port_info *pi)
 
 		status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_TOPO_CAP,
 					     pcaps, NULL);
-		if (!status)
-			memcpy(li->module_type, &pcaps->module_type,
-			       sizeof(li->module_type));
 
 		devm_kfree(ice_hw_to_dev(hw), pcaps);
 	}
