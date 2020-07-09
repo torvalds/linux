@@ -4237,3 +4237,18 @@ ice_get_link_default_override(struct ice_link_default_override_tlv *ldo,
 
 	return status;
 }
+
+/**
+ * ice_is_phy_caps_an_enabled - check if PHY capabilities autoneg is enabled
+ * @caps: get PHY capability data
+ */
+bool ice_is_phy_caps_an_enabled(struct ice_aqc_get_phy_caps_data *caps)
+{
+	if (caps->caps & ICE_AQC_PHY_AN_MODE ||
+	    caps->low_power_ctrl & (ICE_AQC_PHY_AN_EN_CLAUSE28 |
+				    ICE_AQC_PHY_AN_EN_CLAUSE73 |
+				    ICE_AQC_PHY_AN_EN_CLAUSE37))
+		return true;
+
+	return false;
+}
