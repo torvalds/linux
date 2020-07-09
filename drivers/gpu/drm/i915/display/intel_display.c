@@ -3822,6 +3822,17 @@ skl_check_main_ccs_coordinates(struct intel_plane_state *plane_state,
 	return true;
 }
 
+unsigned int
+intel_plane_fence_y_offset(const struct intel_plane_state *plane_state)
+{
+	int x = 0, y = 0;
+
+	intel_plane_adjust_aligned_offset(&x, &y, plane_state, 0,
+					  plane_state->color_plane[0].offset, 0);
+
+	return y;
+}
+
 static int skl_check_main_surface(struct intel_plane_state *plane_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane_state->uapi.plane->dev);
