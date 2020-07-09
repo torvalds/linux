@@ -229,7 +229,25 @@ queue_init(void *priv, struct vb2_queue *src_vq, struct vb2_queue *dst_vq)
 	return vb2_queue_init(dst_vq);
 }
 
-static int hantro_s_ctrl(struct v4l2_ctrl *ctrl)
+static int hantro_try_ctrl(struct v4l2_ctrl *ctrl)
+{
+	if (ctrl->id == V4L2_CID_MPEG_VIDEO_H264_SPS) {
+		const struct v4l2_ctrl_h264_sps *sps = ctrl->p_new.p_h264_sps;
+
+		if (sps->chroma_format_idc > 1)
+			/* Only 4:0:0 and 4:2:0 are supported */
+			return -EINVAL;
+		if (sps->bit_depth_luma_minus8 != sps->bit_depth_chroma_minus8)
+			/* Luma and chroma bit depth mismatch */
+			return -EINVAL;
+		if (sps->bit_depth_luma_minus8 != 0)
+			/* Only 8-bit is supported */
+			return -EINVAL;
+	}
+	return 0;
+}
+
+static int hantro_jpeg_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct hantro_ctx *ctx;
 
@@ -250,7 +268,11 @@ static int hantro_s_ctrl(struct v4l2_ctrl *ctrl)
 }
 
 static const struct v4l2_ctrl_ops hantro_ctrl_ops = {
-	.s_ctrl = hantro_s_ctrl,
+	.try_ctrl = hantro_try_ctrl,
+};
+
+static const struct v4l2_ctrl_ops hantro_jpeg_ctrl_ops = {
+	.s_ctrl = hantro_jpeg_s_ctrl,
 };
 
 static const struct hantro_ctrl controls[] = {
@@ -262,7 +284,7 @@ static const struct hantro_ctrl controls[] = {
 			.max = 100,
 			.step = 1,
 			.def = 50,
-			.ops = &hantro_ctrl_ops,
+			.ops = &hantro_jpeg_ctrl_ops,
 		},
 	}, {
 		.codec = HANTRO_MPEG2_DECODER,
@@ -293,6 +315,7 @@ static const struct hantro_ctrl controls[] = {
 		.codec = HANTRO_H264_DECODER,
 		.cfg = {
 			.id = V4L2_CID_MPEG_VIDEO_H264_SPS,
+			.ops = &hantro_ctrl_ops,
 		},
 	}, {
 		.codec = HANTRO_H264_DECODER,
