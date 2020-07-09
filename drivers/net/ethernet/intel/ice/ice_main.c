@@ -1446,6 +1446,8 @@ out:
 /**
  * ice_init_link_dflt_override - Initialize link default override
  * @pi: port info structure
+ *
+ * Initialize link default override and PHY total port shutdown during probe
  */
 static void ice_init_link_dflt_override(struct ice_port_info *pi)
 {
@@ -1453,7 +1455,17 @@ static void ice_init_link_dflt_override(struct ice_port_info *pi)
 	struct ice_pf *pf = pi->hw->back;
 
 	ldo = &pf->link_dflt_override;
-	ice_get_link_default_override(ldo, pi);
+	if (ice_get_link_default_override(ldo, pi))
+		return;
+
+	if (!(ldo->options & ICE_LINK_OVERRIDE_PORT_DIS))
+		return;
+
+	/* Enable Total Port Shutdown (override/replace link-down-on-close
+	 * ethtool private flag) for ports with Port Disable bit set.
+	 */
+	set_bit(ICE_FLAG_TOTAL_PORT_SHUTDOWN_ENA, pf->flags);
+	set_bit(ICE_FLAG_LINK_DOWN_ON_CLOSE_ENA, pf->flags);
 }
 
 /**
