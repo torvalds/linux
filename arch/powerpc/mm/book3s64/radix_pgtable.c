@@ -15,6 +15,7 @@
 #include <linux/mm.h>
 #include <linux/hugetlb.h>
 #include <linux/string_helpers.h>
+#include <linux/memory.h>
 
 #include <asm/pgalloc.h>
 #include <asm/mmu_context.h>
@@ -33,6 +34,7 @@
 
 unsigned int mmu_pid_bits;
 unsigned int mmu_base_pid;
+unsigned int radix_mem_block_size __ro_after_init;
 
 static __ref void *early_alloc_pgtable(unsigned long size, int nid,
 			unsigned long region_start, unsigned long region_end)
@@ -265,6 +267,7 @@ static unsigned long next_boundary(unsigned long addr, unsigned long end)
 
 static int __meminit create_physical_mapping(unsigned long start,
 					     unsigned long end,
+					     unsigned long max_mapping_size,
 					     int nid, pgprot_t _prot)
 {
 	unsigned long vaddr, addr, mapping_size = 0;
@@ -278,6 +281,8 @@ static int __meminit create_physical_mapping(unsigned long start,
 		int rc;
 
 		gap = next_boundary(addr, end) - addr;
+		if (gap > max_mapping_size)
+			gap = max_mapping_size;
 		previous_size = mapping_size;
 		prev_exec = exec;
 
@@ -328,8 +333,9 @@ static void __init radix_init_pgtable(void)
 
 	/* We don't support slb for radix */
 	mmu_slb_size = 0;
+
 	/*
-	 * Create the linear mapping, using standard page size for now
+	 * Create the linear mapping
 	 */
 	for_each_memblock(memory, reg) {
 		/*
@@ -345,6 +351,7 @@ static void __init radix_init_pgtable(void)
 
 		WARN_ON(create_physical_mapping(reg->base,
 						reg->base + reg->size,
+						radix_mem_block_size,
 						-1, PAGE_KERNEL));
 	}
 
@@ -485,6 +492,57 @@ static int __init radix_dt_scan_page_sizes(unsigned long node,
 	return 1;
 }
 
+#ifdef CONFIG_MEMORY_HOTPLUG
+static int __init probe_memory_block_size(unsigned long node, const char *uname, int
+					  depth, void *data)
+{
+	unsigned long *mem_block_size = (unsigned long *)data;
+	const __be64 *prop;
+	int len;
+
+	if (depth != 1)
+		return 0;
+
+	if (strcmp(uname, "ibm,dynamic-reconfiguration-memory"))
+		return 0;
+
+	prop = of_get_flat_dt_prop(node, "ibm,lmb-size", &len);
+	if (!prop || len < sizeof(__be64))
+		/*
+		 * Nothing in the device tree
+		 */
+		*mem_block_size = MIN_MEMORY_BLOCK_SIZE;
+	else
+		*mem_block_size = be64_to_cpup(prop);
+	return 1;
+}
+
+static unsigned long radix_memory_block_size(void)
+{
+	unsigned long mem_block_size = MIN_MEMORY_BLOCK_SIZE;
+
+	/*
+	 * OPAL firmware feature is set by now. Hence we are ok
+	 * to test OPAL feature.
+	 */
+	if (firmware_has_feature(FW_FEATURE_OPAL))
+		mem_block_size = 1UL * 1024 * 1024 * 1024;
+	else
+		of_scan_flat_dt(probe_memory_block_size, &mem_block_size);
+
+	return mem_block_size;
+}
+
+#else   /* CONFIG_MEMORY_HOTPLUG */
+
+static unsigned long radix_memory_block_size(void)
+{
+	return 1UL * 1024 * 1024 * 1024;
+}
+
+#endif /* CONFIG_MEMORY_HOTPLUG */
+
+
 void __init radix__early_init_devtree(void)
 {
 	int rc;
@@ -493,17 +551,27 @@ void __init radix__early_init_devtree(void)
 	 * Try to find the available page sizes in the device-tree
 	 */
 	rc = of_scan_flat_dt(radix_dt_scan_page_sizes, NULL);
-	if (rc != 0)  /* Found */
-		goto found;
-	/*
-	 * let's assume we have page 4k and 64k support
-	 */
-	mmu_psize_defs[MMU_PAGE_4K].shift = 12;
-	mmu_psize_defs[MMU_PAGE_4K].ap = 0x0;
+	if (!rc) {
+		/*
+		 * No page size details found in device tree.
+		 * Let's assume we have page 4k and 64k support
+		 */
+		mmu_psize_defs[MMU_PAGE_4K].shift = 12;
+		mmu_psize_defs[MMU_PAGE_4K].ap = 0x0;
 
-	mmu_psize_defs[MMU_PAGE_64K].shift = 16;
-	mmu_psize_defs[MMU_PAGE_64K].ap = 0x5;
-found:
+		mmu_psize_defs[MMU_PAGE_64K].shift = 16;
+		mmu_psize_defs[MMU_PAGE_64K].ap = 0x5;
+	}
+
+	/*
+	 * Max mapping size used when mapping pages. We don't use
+	 * ppc_md.memory_block_size() here because this get called
+	 * early and we don't have machine probe called yet. Also
+	 * the pseries implementation only check for ibm,lmb-size.
+	 * All hypervisor supporting radix do expose that device
+	 * tree node.
+	 */
+	radix_mem_block_size = radix_memory_block_size();
 	return;
 }
 
@@ -855,7 +923,8 @@ int __meminit radix__create_section_mapping(unsigned long start,
 		return -1;
 	}
 
-	return create_physical_mapping(__pa(start), __pa(end), nid, prot);
+	return create_physical_mapping(__pa(start), __pa(end),
+				       radix_mem_block_size, nid, prot);
 }
 
 int __meminit radix__remove_section_mapping(unsigned long start, unsigned long end)
