@@ -423,6 +423,8 @@ struct ice_pf {
 	u16 empr_count;		/* EMP reset count */
 	u16 pfr_count;		/* PF reset count */
 
+	u8 wol_ena : 1;		/* software state of WoL */
+	u32 wakeup_reason;	/* last wakeup reason */
 	struct ice_hw_port_stats stats;
 	struct ice_hw_port_stats stats_prev;
 	struct ice_hw hw;
@@ -568,6 +570,7 @@ int ice_schedule_reset(struct ice_pf *pf, enum ice_reset_req reset);
 void ice_print_link_msg(struct ice_vsi *vsi, bool isup);
 const char *ice_stat_str(enum ice_status stat_err);
 const char *ice_aq_str(enum ice_aq_err aq_err);
+bool ice_is_wol_supported(struct ice_pf *pf);
 int
 ice_fdir_write_fltr(struct ice_pf *pf, struct ice_fdir_fltr *input, bool add,
 		    bool is_tun);

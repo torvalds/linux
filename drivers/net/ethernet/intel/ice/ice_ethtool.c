@@ -3322,6 +3322,58 @@ static int ice_set_channels(struct net_device *dev, struct ethtool_channels *ch)
 	return 0;
 }
 
+/**
+ * ice_get_wol - get current Wake on LAN configuration
+ * @netdev: network interface device structure
+ * @wol: Ethtool structure to retrieve WoL settings
+ */
+static void ice_get_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
+{
+	struct ice_netdev_priv *np = netdev_priv(netdev);
+	struct ice_pf *pf = np->vsi->back;
+
+	if (np->vsi->type != ICE_VSI_PF)
+		netdev_warn(netdev, "Wake on LAN is not supported on this interface!\n");
+
+	/* Get WoL settings based on the HW capability */
+	if (ice_is_wol_supported(pf)) {
+		wol->supported = WAKE_MAGIC;
+		wol->wolopts = pf->wol_ena ? WAKE_MAGIC : 0;
+	} else {
+		wol->supported = 0;
+		wol->wolopts = 0;
+	}
+}
+
+/**
+ * ice_set_wol - set Wake on LAN on supported device
+ * @netdev: network interface device structure
+ * @wol: Ethtool structure to set WoL
+ */
+static int ice_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
+{
+	struct ice_netdev_priv *np = netdev_priv(netdev);
+	struct ice_vsi *vsi = np->vsi;
+	struct ice_pf *pf = vsi->back;
+
+	if (vsi->type != ICE_VSI_PF || !ice_is_wol_supported(pf))
+		return -EOPNOTSUPP;
+
+	/* only magic packet is supported */
+	if (wol->wolopts && wol->wolopts != WAKE_MAGIC)
+		return -EOPNOTSUPP;
+
+	/* Set WoL only if there is a new value */
+	if (pf->wol_ena != !!wol->wolopts) {
+		pf->wol_ena = !!wol->wolopts;
+		device_set_wakeup_enable(ice_pf_to_dev(pf), pf->wol_ena);
+		netdev_dbg(netdev, "WoL magic packet %sabled\n",
+			   pf->wol_ena ? "en" : "dis");
+	}
+
+	return 0;
+}
+
 enum ice_container_type {
 	ICE_RX_CONTAINER,
 	ICE_TX_CONTAINER,
@@ -3805,6 +3857,8 @@ static const struct ethtool_ops ice_ethtool_ops = {
 	.get_drvinfo		= ice_get_drvinfo,
 	.get_regs_len		= ice_get_regs_len,
 	.get_regs		= ice_get_regs,
+	.get_wol		= ice_get_wol,
+	.set_wol		= ice_set_wol,
 	.get_msglevel		= ice_get_msglevel,
 	.set_msglevel		= ice_set_msglevel,
 	.self_test		= ice_self_test,
@@ -3847,6 +3901,8 @@ static const struct ethtool_ops ice_ethtool_safe_mode_ops = {
 	.get_drvinfo		= ice_get_drvinfo,
 	.get_regs_len		= ice_get_regs_len,
 	.get_regs		= ice_get_regs,
+	.get_wol		= ice_get_wol,
+	.set_wol		= ice_set_wol,
 	.get_msglevel		= ice_get_msglevel,
 	.set_msglevel		= ice_set_msglevel,
 	.get_link		= ethtool_op_get_link,
