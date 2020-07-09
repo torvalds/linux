@@ -134,7 +134,7 @@ static int aic26_hw_params(struct snd_pcm_substream *substream,
 /*
  * aic26_mute - Mute control to reduce noise when changing audio format
  */
-static int aic26_mute(struct snd_soc_dai *dai, int mute)
+static int aic26_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 	struct aic26 *aic26 = snd_soc_component_get_drvdata(component);
@@ -211,9 +211,10 @@ static int aic26_set_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 
 static const struct snd_soc_dai_ops aic26_dai_ops = {
 	.hw_params	= aic26_hw_params,
-	.digital_mute	= aic26_mute,
+	.mute_stream	= aic26_mute,
 	.set_sysclk	= aic26_set_sysclk,
 	.set_fmt	= aic26_set_fmt,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver aic26_dai = {

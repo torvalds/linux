@@ -1216,7 +1216,7 @@ static int aic3x_prepare(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int aic3x_mute(struct snd_soc_dai *dai, int mute)
+static int aic3x_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 	u8 ldac_reg = snd_soc_component_read(component, LDAC_VOL) & ~MUTE_ON;
@@ -1481,10 +1481,11 @@ static int aic3x_set_bias_level(struct snd_soc_component *component,
 static const struct snd_soc_dai_ops aic3x_dai_ops = {
 	.hw_params	= aic3x_hw_params,
 	.prepare	= aic3x_prepare,
-	.digital_mute	= aic3x_mute,
+	.mute_stream	= aic3x_mute,
 	.set_sysclk	= aic3x_set_dai_sysclk,
 	.set_fmt	= aic3x_set_dai_fmt,
 	.set_tdm_slot	= aic3x_set_dai_tdm_slot,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver aic3x_dai = {

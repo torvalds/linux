@@ -812,7 +812,7 @@ static int aic32x4_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int aic32x4_mute(struct snd_soc_dai *dai, int mute)
+static int aic32x4_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 
@@ -866,9 +866,10 @@ static int aic32x4_set_bias_level(struct snd_soc_component *component,
 
 static const struct snd_soc_dai_ops aic32x4_ops = {
 	.hw_params = aic32x4_hw_params,
-	.digital_mute = aic32x4_mute,
+	.mute_stream = aic32x4_mute,
 	.set_fmt = aic32x4_set_dai_fmt,
 	.set_sysclk = aic32x4_set_dai_sysclk,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver aic32x4_dai = {
