@@ -208,6 +208,7 @@ void __init pkey_early_init_devtree(void)
 	 */
 	initial_allocation_mask |= reserved_allocation_mask;
 
+	pr_info("Enabling pkeys with max key count %d\n", num_pkey);
 	return;
 }
 
