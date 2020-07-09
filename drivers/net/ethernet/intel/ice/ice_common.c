@@ -173,8 +173,8 @@ ice_aq_get_phy_caps(struct ice_port_info *pi, bool qual_mods, u8 report_mode,
 	ice_debug(hw, ICE_DBG_LINK, "	phy_type_high = 0x%llx\n",
 		  (unsigned long long)le64_to_cpu(pcaps->phy_type_high));
 	ice_debug(hw, ICE_DBG_LINK, "	caps = 0x%x\n", pcaps->caps);
-	ice_debug(hw, ICE_DBG_LINK, "	low_power_ctrl = 0x%x\n",
-		  pcaps->low_power_ctrl);
+	ice_debug(hw, ICE_DBG_LINK, "	low_power_ctrl_an = 0x%x\n",
+		  pcaps->low_power_ctrl_an);
 	ice_debug(hw, ICE_DBG_LINK, "	eee_cap = 0x%x\n", pcaps->eee_cap);
 	ice_debug(hw, ICE_DBG_LINK, "	eeer_value = 0x%x\n",
 		  pcaps->eeer_value);
@@ -2525,8 +2525,8 @@ ice_aq_set_phy_cfg(struct ice_hw *hw, struct ice_port_info *pi,
 	ice_debug(hw, ICE_DBG_LINK, "	phy_type_high = 0x%llx\n",
 		  (unsigned long long)le64_to_cpu(cfg->phy_type_high));
 	ice_debug(hw, ICE_DBG_LINK, "	caps = 0x%x\n", cfg->caps);
-	ice_debug(hw, ICE_DBG_LINK, "	low_power_ctrl = 0x%x\n",
-		  cfg->low_power_ctrl);
+	ice_debug(hw, ICE_DBG_LINK, "	low_power_ctrl_an = 0x%x\n",
+		  cfg->low_power_ctrl_an);
 	ice_debug(hw, ICE_DBG_LINK, "	eee_cap = 0x%x\n", cfg->eee_cap);
 	ice_debug(hw, ICE_DBG_LINK, "	eeer_value = 0x%x\n", cfg->eeer_value);
 	ice_debug(hw, ICE_DBG_LINK, "	link_fec_opt = 0x%x\n",
@@ -2811,7 +2811,7 @@ ice_phy_caps_equals_cfg(struct ice_aqc_get_phy_caps_data *phy_caps,
 	if (phy_caps->phy_type_low != phy_cfg->phy_type_low ||
 	    phy_caps->phy_type_high != phy_cfg->phy_type_high ||
 	    ((phy_caps->caps & caps_mask) != (phy_cfg->caps & cfg_mask)) ||
-	    phy_caps->low_power_ctrl != phy_cfg->low_power_ctrl ||
+	    phy_caps->low_power_ctrl_an != phy_cfg->low_power_ctrl_an ||
 	    phy_caps->eee_cap != phy_cfg->eee_cap ||
 	    phy_caps->eeer_value != phy_cfg->eeer_value ||
 	    phy_caps->link_fec_options != phy_cfg->link_fec_opt)
@@ -2841,7 +2841,7 @@ ice_copy_phy_caps_to_cfg(struct ice_port_info *pi,
 	cfg->phy_type_low = caps->phy_type_low;
 	cfg->phy_type_high = caps->phy_type_high;
 	cfg->caps = caps->caps;
-	cfg->low_power_ctrl = caps->low_power_ctrl;
+	cfg->low_power_ctrl_an = caps->low_power_ctrl_an;
 	cfg->eee_cap = caps->eee_cap;
 	cfg->eeer_value = caps->eeer_value;
 	cfg->link_fec_opt = caps->link_fec_options;
@@ -4245,9 +4245,9 @@ ice_get_link_default_override(struct ice_link_default_override_tlv *ldo,
 bool ice_is_phy_caps_an_enabled(struct ice_aqc_get_phy_caps_data *caps)
 {
 	if (caps->caps & ICE_AQC_PHY_AN_MODE ||
-	    caps->low_power_ctrl & (ICE_AQC_PHY_AN_EN_CLAUSE28 |
-				    ICE_AQC_PHY_AN_EN_CLAUSE73 |
-				    ICE_AQC_PHY_AN_EN_CLAUSE37))
+	    caps->low_power_ctrl_an & (ICE_AQC_PHY_AN_EN_CLAUSE28 |
+				       ICE_AQC_PHY_AN_EN_CLAUSE73 |
+				       ICE_AQC_PHY_AN_EN_CLAUSE37))
 		return true;
 
 	return false;
