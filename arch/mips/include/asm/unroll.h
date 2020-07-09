@@ -25,7 +25,8 @@
 	 * generate reasonable code for the switch statement,	\
 	 * so we skip the sanity check for those compilers.	\
 	 */							\
-	BUILD_BUG_ON((CONFIG_CLANG_VERSION >= 80000) &&		\
+	BUILD_BUG_ON((CONFIG_CC_IS_GCC ||			\
+		      CONFIG_CLANG_VERSION >= 80000) &&		\
 		     !__builtin_constant_p(times));		\
 								\
 	switch (times) {					\
