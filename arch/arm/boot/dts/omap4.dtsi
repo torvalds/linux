@@ -106,10 +106,6 @@
 			sram = <&ocmcram>;
 		};
 
-		dsp {
-			compatible = "ti,omap3-c64";
-		};
-
 		iva {
 			compatible = "ti,ivahd";
 			ti,hwmods = "iva";
@@ -275,6 +271,17 @@
 			hw-caps-read-idle-ctrl;
 			hw-caps-ll-interface;
 			hw-caps-temp-alert;
+		};
+
+		dsp: dsp {
+			compatible = "ti,omap4-dsp";
+			ti,bootreg = <&scm_conf 0x304 0>;
+			iommus = <&mmu_dsp>;
+			resets = <&prm_tesla 0>;
+			clocks = <&tesla_clkctrl OMAP4_DSP_CLKCTRL 0>;
+			firmware-name = "omap4-dsp-fw.xe64T";
+			mboxes = <&mailbox &mbox_dsp>;
+			status = "disabled";
 		};
 
 		aes1_target: target-module@4b501000 {
