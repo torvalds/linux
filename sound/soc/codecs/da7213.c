@@ -1332,7 +1332,7 @@ static int da7213_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	return 0;
 }
 
-static int da7213_mute(struct snd_soc_dai *dai, int mute)
+static int da7213_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 
@@ -1528,7 +1528,8 @@ static int da7213_set_component_pll(struct snd_soc_component *component,
 static const struct snd_soc_dai_ops da7213_dai_ops = {
 	.hw_params	= da7213_hw_params,
 	.set_fmt	= da7213_set_dai_fmt,
-	.digital_mute	= da7213_mute,
+	.mute_stream	= da7213_mute,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver da7213_dai = {

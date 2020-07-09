@@ -1211,7 +1211,7 @@ static int da9055_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	return 0;
 }
 
-static int da9055_mute(struct snd_soc_dai *dai, int mute)
+static int da9055_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 
@@ -1324,7 +1324,8 @@ static const struct snd_soc_dai_ops da9055_dai_ops = {
 	.set_fmt	= da9055_set_dai_fmt,
 	.set_sysclk	= da9055_set_dai_sysclk,
 	.set_pll	= da9055_set_dai_pll,
-	.digital_mute	= da9055_mute,
+	.mute_stream	= da9055_mute,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver da9055_dai = {

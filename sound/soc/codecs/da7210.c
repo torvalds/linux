@@ -924,7 +924,7 @@ static int da7210_set_dai_fmt(struct snd_soc_dai *codec_dai, u32 fmt)
 	return 0;
 }
 
-static int da7210_mute(struct snd_soc_dai *dai, int mute)
+static int da7210_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 	u8 mute_reg = snd_soc_component_read(component, DA7210_DAC_HPF) & 0xFB;
@@ -1036,7 +1036,8 @@ static const struct snd_soc_dai_ops da7210_dai_ops = {
 	.set_fmt	= da7210_set_dai_fmt,
 	.set_sysclk	= da7210_set_dai_sysclk,
 	.set_pll	= da7210_set_dai_pll,
-	.digital_mute	= da7210_mute,
+	.mute_stream	= da7210_mute,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver da7210_dai = {
