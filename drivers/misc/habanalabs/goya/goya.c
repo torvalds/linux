@@ -3811,7 +3811,7 @@ static int goya_parse_cb_mmu(struct hl_device *hdev,
 			sizeof(struct packet_msg_prot) * 2;
 
 	rc = hl_cb_create(hdev, &hdev->kernel_cb_mgr, hdev->kernel_ctx,
-				parser->patched_cb_size, false,
+				parser->patched_cb_size, false, false,
 				&patched_cb_handle);
 
 	if (rc) {
@@ -3885,7 +3885,7 @@ static int goya_parse_cb_no_mmu(struct hl_device *hdev,
 		goto free_userptr;
 
 	rc = hl_cb_create(hdev, &hdev->kernel_cb_mgr, hdev->kernel_ctx,
-				parser->patched_cb_size, false,
+				parser->patched_cb_size, false, false,
 				&patched_cb_handle);
 	if (rc) {
 		dev_err(hdev->dev,

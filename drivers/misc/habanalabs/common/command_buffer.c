@@ -13,6 +13,131 @@
 #include <linux/uaccess.h>
 #include <linux/genalloc.h>
 
+static int cb_map_mem(struct hl_ctx *ctx, struct hl_cb *cb)
+{
+	struct hl_device *hdev = ctx->hdev;
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	struct hl_vm_va_block *va_block, *tmp;
+	dma_addr_t bus_addr;
+	u64 virt_addr;
+	u32 page_size = prop->pmmu.page_size;
+	s32 offset;
+	int rc;
+
+	if (!hdev->supports_cb_mapping) {
+		dev_err_ratelimited(hdev->dev,
+				"Cannot map CB because no VA range is allocated for CB mapping\n");
+		return -EINVAL;
+	}
+
+	if (!hdev->mmu_enable) {
+		dev_err_ratelimited(hdev->dev,
+				"Cannot map CB because MMU is disabled\n");
+		return -EINVAL;
+	}
+
+	INIT_LIST_HEAD(&cb->va_block_list);
+
+	for (bus_addr = cb->bus_address;
+			bus_addr < cb->bus_address + cb->size;
+			bus_addr += page_size) {
+
+		virt_addr = (u64) gen_pool_alloc(ctx->cb_va_pool, page_size);
+		if (!virt_addr) {
+			dev_err(hdev->dev,
+				"Failed to allocate device virtual address for CB\n");
+			rc = -ENOMEM;
+			goto err_va_pool_free;
+		}
+
+		va_block = kzalloc(sizeof(*va_block), GFP_KERNEL);
+		if (!va_block) {
+			rc = -ENOMEM;
+			gen_pool_free(ctx->cb_va_pool, virt_addr, page_size);
+			goto err_va_pool_free;
+		}
+
+		va_block->start = virt_addr;
+		va_block->end = virt_addr + page_size;
+		va_block->size = page_size;
+		list_add_tail(&va_block->node, &cb->va_block_list);
+	}
+
+	mutex_lock(&ctx->mmu_lock);
+
+	bus_addr = cb->bus_address;
+	offset = 0;
+	list_for_each_entry(va_block, &cb->va_block_list, node) {
+		rc = hl_mmu_map(ctx, va_block->start, bus_addr, va_block->size,
+				list_is_last(&va_block->node,
+						&cb->va_block_list));
+		if (rc) {
+			dev_err(hdev->dev, "Failed to map VA %#llx to CB\n",
+				va_block->start);
+			goto err_va_umap;
+		}
+
+		bus_addr += va_block->size;
+		offset += va_block->size;
+	}
+
+	hdev->asic_funcs->mmu_invalidate_cache(hdev, false, VM_TYPE_USERPTR);
+
+	mutex_unlock(&ctx->mmu_lock);
+
+	cb->is_mmu_mapped = true;
+
+	return 0;
+
+err_va_umap:
+	list_for_each_entry(va_block, &cb->va_block_list, node) {
+		if (offset <= 0)
+			break;
+		hl_mmu_unmap(ctx, va_block->start, va_block->size,
+				offset <= va_block->size);
+		offset -= va_block->size;
+	}
+
+	hdev->asic_funcs->mmu_invalidate_cache(hdev, true, VM_TYPE_USERPTR);
+
+	mutex_unlock(&ctx->mmu_lock);
+
+err_va_pool_free:
+	list_for_each_entry_safe(va_block, tmp, &cb->va_block_list, node) {
+		gen_pool_free(ctx->cb_va_pool, va_block->start, va_block->size);
+		list_del(&va_block->node);
+		kfree(va_block);
+	}
+
+	return rc;
+}
+
+static void cb_unmap_mem(struct hl_ctx *ctx, struct hl_cb *cb)
+{
+	struct hl_device *hdev = ctx->hdev;
+	struct hl_vm_va_block *va_block, *tmp;
+
+	mutex_lock(&ctx->mmu_lock);
+
+	list_for_each_entry(va_block, &cb->va_block_list, node)
+		if (hl_mmu_unmap(ctx, va_block->start, va_block->size,
+				list_is_last(&va_block->node,
+						&cb->va_block_list)))
+			dev_warn_ratelimited(hdev->dev,
+					"Failed to unmap CB's va 0x%llx\n",
+					va_block->start);
+
+	hdev->asic_funcs->mmu_invalidate_cache(hdev, true, VM_TYPE_USERPTR);
+
+	mutex_unlock(&ctx->mmu_lock);
+
+	list_for_each_entry_safe(va_block, tmp, &cb->va_block_list, node) {
+		gen_pool_free(ctx->cb_va_pool, va_block->start, va_block->size);
+		list_del(&va_block->node);
+		kfree(va_block);
+	}
+}
+
 static void cb_fini(struct hl_device *hdev, struct hl_cb *cb)
 {
 	if (cb->is_internal)
@@ -46,6 +171,9 @@ static void cb_release(struct kref *ref)
 	hdev = cb->hdev;
 
 	hl_debugfs_remove_cb(cb);
+
+	if (cb->is_mmu_mapped)
+		cb_unmap_mem(cb->ctx, cb);
 
 	hl_ctx_put(cb->ctx);
 
@@ -110,7 +238,7 @@ static struct hl_cb *hl_cb_alloc(struct hl_device *hdev, u32 cb_size,
 
 int hl_cb_create(struct hl_device *hdev, struct hl_cb_mgr *mgr,
 			struct hl_ctx *ctx, u32 cb_size, bool internal_cb,
-			u64 *handle)
+			bool map_cb, u64 *handle)
 {
 	struct hl_cb *cb;
 	bool alloc_new_cb = true;
@@ -169,13 +297,26 @@ int hl_cb_create(struct hl_device *hdev, struct hl_cb_mgr *mgr,
 	cb->ctx = ctx;
 	hl_ctx_get(hdev, cb->ctx);
 
+	if (map_cb) {
+		if (ctx_id == HL_KERNEL_ASID_ID) {
+			dev_err(hdev->dev,
+				"CB mapping is not supported for kernel context\n");
+			rc = -EINVAL;
+			goto release_cb;
+		}
+
+		rc = cb_map_mem(ctx, cb);
+		if (rc)
+			goto release_cb;
+	}
+
 	spin_lock(&mgr->cb_lock);
 	rc = idr_alloc(&mgr->cb_handles, cb, 1, 0, GFP_ATOMIC);
 	spin_unlock(&mgr->cb_lock);
 
 	if (rc < 0) {
 		dev_err(hdev->dev, "Failed to allocate IDR for a new CB\n");
-		goto release_cb;
+		goto unmap_mem;
 	}
 
 	cb->id = (u64) rc;
@@ -194,6 +335,9 @@ int hl_cb_create(struct hl_device *hdev, struct hl_cb_mgr *mgr,
 
 	return 0;
 
+unmap_mem:
+	if (cb->is_mmu_mapped)
+		cb_unmap_mem(cb->ctx, cb);
 release_cb:
 	hl_ctx_put(cb->ctx);
 	cb_do_release(hdev, cb);
@@ -256,7 +400,9 @@ int hl_cb_ioctl(struct hl_fpriv *hpriv, void *data)
 			rc = -EINVAL;
 		} else {
 			rc = hl_cb_create(hdev, &hpriv->cb_mgr, hpriv->ctx,
-					args->in.cb_size, false, &handle);
+					args->in.cb_size, false,
+					!!(args->in.flags & HL_CB_FLAGS_MAP),
+					&handle);
 		}
 
 		memset(args, 0, sizeof(*args));
@@ -442,7 +588,7 @@ struct hl_cb *hl_cb_kernel_create(struct hl_device *hdev, u32 cb_size,
 	int rc;
 
 	rc = hl_cb_create(hdev, &hdev->kernel_cb_mgr, hdev->kernel_ctx, cb_size,
-				internal_cb, &cb_handle);
+				internal_cb, false, &cb_handle);
 	if (rc) {
 		dev_err(hdev->dev,
 			"Failed to allocate CB for the kernel driver %d\n", rc);
@@ -497,4 +643,46 @@ int hl_cb_pool_fini(struct hl_device *hdev)
 	}
 
 	return 0;
+}
+
+int hl_cb_va_pool_init(struct hl_ctx *ctx)
+{
+	struct hl_device *hdev = ctx->hdev;
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	int rc;
+
+	if (!hdev->supports_cb_mapping)
+		return 0;
+
+	ctx->cb_va_pool = gen_pool_create(__ffs(prop->pmmu.page_size), -1);
+	if (!ctx->cb_va_pool) {
+		dev_err(hdev->dev,
+			"Failed to create VA gen pool for CB mapping\n");
+		return -ENOMEM;
+	}
+
+	rc = gen_pool_add(ctx->cb_va_pool, prop->cb_va_start_addr,
+			prop->cb_va_end_addr - prop->cb_va_start_addr, -1);
+	if (rc) {
+		dev_err(hdev->dev,
+			"Failed to add memory to VA gen pool for CB mapping\n");
+		goto err_pool_destroy;
+	}
+
+	return 0;
+
+err_pool_destroy:
+	gen_pool_destroy(ctx->cb_va_pool);
+
+	return rc;
+}
+
+void hl_cb_va_pool_fini(struct hl_ctx *ctx)
+{
+	struct hl_device *hdev = ctx->hdev;
+
+	if (!hdev->supports_cb_mapping)
+		return;
+
+	gen_pool_destroy(ctx->cb_va_pool);
 }

@@ -291,6 +291,10 @@ struct hl_mmu_properties {
  * @pcie_aux_dbi_reg_addr: Address of the PCIE_AUX DBI register.
  * @mmu_pgt_addr: base physical address in DRAM of MMU page tables.
  * @mmu_dram_default_page_addr: DRAM default page physical address.
+ * @cb_va_start_addr: virtual start address of command buffers which are mapped
+ *                    to the device's MMU.
+ * @cb_va_end_addr: virtual end address of command buffers which are mapped to
+ *                  the device's MMU.
  * @mmu_pgt_size: MMU page tables total size.
  * @mmu_pte_size: PTE size in MMU page tables.
  * @mmu_hop_table_size: MMU hop table size.
@@ -339,6 +343,8 @@ struct asic_fixed_properties {
 	u64				pcie_aux_dbi_reg_addr;
 	u64				mmu_pgt_addr;
 	u64				mmu_dram_default_page_addr;
+	u64				cb_va_start_addr;
+	u64				cb_va_end_addr;
 	u32				mmu_pgt_size;
 	u32				mmu_pte_size;
 	u32				mmu_hop_table_size;
@@ -421,6 +427,8 @@ struct hl_cb_mgr {
  * @lock: spinlock to protect mmap/cs flows.
  * @debugfs_list: node in debugfs list of command buffers.
  * @pool_list: node in pool list of command buffers.
+ * @va_block_list: list of virtual addresses blocks of the CB if it is mapped to
+ *                 the device's MMU.
  * @id: the CB's ID.
  * @kernel_address: Holds the CB's kernel virtual address.
  * @bus_address: Holds the CB's DMA address.
@@ -430,6 +438,7 @@ struct hl_cb_mgr {
  * @mmap: true if the CB is currently mmaped to user.
  * @is_pool: true if CB was acquired from the pool, false otherwise.
  * @is_internal: internaly allocated
+ * @is_mmu_mapped: true if the CB is mapped to the device's MMU.
  */
 struct hl_cb {
 	struct kref		refcount;
@@ -438,6 +447,7 @@ struct hl_cb {
 	spinlock_t		lock;
 	struct list_head	debugfs_list;
 	struct list_head	pool_list;
+	struct list_head	va_block_list;
 	u64			id;
 	u64			kernel_address;
 	dma_addr_t		bus_address;
@@ -447,6 +457,7 @@ struct hl_cb {
 	u8			mmap;
 	u8			is_pool;
 	u8			is_internal;
+	u8			is_mmu_mapped;
 };
 
 
@@ -843,6 +854,8 @@ struct hl_va_range {
  * @mmu_lock: protects the MMU page tables. Any change to the PGT, modifying the
  *            MMU hash or walking the PGT requires talking this lock.
  * @debugfs_list: node in debugfs list of contexts.
+ * @cb_va_pool: device VA pool for command buffers which are mapped to the
+ *              device's MMU.
  * @cs_sequence: sequence number for CS. Value is assigned to a CS and passed
  *			to user so user could inquire about CS. It is used as
  *			index to cs_pending array.
@@ -874,6 +887,7 @@ struct hl_ctx {
 	struct mutex		mmu_lock;
 	struct list_head	debugfs_list;
 	struct hl_cs_counters	cs_counters;
+	struct gen_pool		*cb_va_pool;
 	u64			cs_sequence;
 	u64			*dram_default_hops;
 	spinlock_t		cs_lock;
@@ -1574,6 +1588,7 @@ struct hl_mmu_funcs {
  * @sync_stream_queue_idx: helper index for sync stream queues initialization.
  * @supports_coresight: is CoreSight supported.
  * @supports_soft_reset: is soft reset supported.
+ * @supports_cb_mapping: is mapping a CB to the device's MMU supported.
  */
 struct hl_device {
 	struct pci_dev			*pdev;
@@ -1673,6 +1688,7 @@ struct hl_device {
 	u8				sync_stream_queue_idx;
 	u8				supports_coresight;
 	u8				supports_soft_reset;
+	u8				supports_cb_mapping;
 
 	/* Parameters for bring-up */
 	u8				mmu_enable;
@@ -1840,7 +1856,7 @@ void hl_hwmon_fini(struct hl_device *hdev);
 
 int hl_cb_create(struct hl_device *hdev, struct hl_cb_mgr *mgr,
 			struct hl_ctx *ctx, u32 cb_size, bool internal_cb,
-			u64 *handle);
+			bool map_cb, u64 *handle);
 int hl_cb_destroy(struct hl_device *hdev, struct hl_cb_mgr *mgr, u64 cb_handle);
 int hl_cb_mmap(struct hl_fpriv *hpriv, struct vm_area_struct *vma);
 struct hl_cb *hl_cb_get(struct hl_device *hdev,	struct hl_cb_mgr *mgr,
@@ -1852,6 +1868,8 @@ struct hl_cb *hl_cb_kernel_create(struct hl_device *hdev, u32 cb_size,
 					bool internal_cb);
 int hl_cb_pool_init(struct hl_device *hdev);
 int hl_cb_pool_fini(struct hl_device *hdev);
+int hl_cb_va_pool_init(struct hl_ctx *ctx);
+void hl_cb_va_pool_fini(struct hl_ctx *ctx);
 
 void hl_cs_rollback_all(struct hl_device *hdev);
 struct hl_cs_job *hl_cs_allocate_job(struct hl_device *hdev,

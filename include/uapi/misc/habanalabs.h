@@ -462,6 +462,9 @@ struct hl_info_args {
 /* 2MB minus 32 bytes for 2xMSG_PROT */
 #define HL_MAX_CB_SIZE		(0x200000 - 32)
 
+/* Indicates whether the command buffer should be mapped to the device's MMU */
+#define HL_CB_FLAGS_MAP		0x1
+
 struct hl_cb_in {
 	/* Handle of CB or 0 if we want to create one */
 	__u64 cb_handle;
@@ -473,7 +476,8 @@ struct hl_cb_in {
 	__u32 cb_size;
 	/* Context ID - Currently not in use */
 	__u32 ctx_id;
-	__u32 pad;
+	/* HL_CB_FLAGS_* */
+	__u32 flags;
 };
 
 struct hl_cb_out {
@@ -855,6 +859,12 @@ struct hl_debug_args {
  *
  * When creating a new CB, the IOCTL returns a handle of it, and the user-space
  * process needs to use that handle to mmap the buffer so it can access them.
+ *
+ * In some instances, the device must access the command buffer through the
+ * device's MMU, and thus its memory should be mapped. In these cases, user can
+ * indicate the driver that such a mapping is required.
+ * The resulting device virtual address will be used internally by the driver,
+ * and won't be returned to user.
  *
  */
 #define HL_IOCTL_CB		\
