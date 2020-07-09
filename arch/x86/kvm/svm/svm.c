@@ -3550,7 +3550,7 @@ static u64 svm_get_mt_mask(struct kvm_vcpu *vcpu, gfn_t gfn, bool is_mmio)
 	return 0;
 }
 
-static void svm_cpuid_update(struct kvm_vcpu *vcpu)
+static void svm_vcpu_after_set_cpuid(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
@@ -4050,7 +4050,7 @@ static struct kvm_x86_ops svm_x86_ops __initdata = {
 
 	.get_exit_info = svm_get_exit_info,
 
-	.cpuid_update = svm_cpuid_update,
+	.vcpu_after_set_cpuid = svm_vcpu_after_set_cpuid,
 
 	.has_wbinvd_exit = svm_has_wbinvd_exit,
 

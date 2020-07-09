@@ -1052,7 +1052,7 @@ struct kvm_x86_ops {
 	void (*hardware_unsetup)(void);
 	bool (*cpu_has_accelerated_tpr)(void);
 	bool (*has_emulated_msr)(u32 index);
-	void (*cpuid_update)(struct kvm_vcpu *vcpu);
+	void (*vcpu_after_set_cpuid)(struct kvm_vcpu *vcpu);
 
 	unsigned int vm_size;
 	int (*vm_init)(struct kvm *kvm);
