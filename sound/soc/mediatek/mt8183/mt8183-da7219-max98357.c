@@ -17,6 +17,9 @@
 #include "../../codecs/da7219.h"
 #include "mt8183-afe-common.h"
 
+#define DA7219_CODEC_DAI "da7219-hifi"
+#define DA7219_DEV_NAME "da7219.5-001a"
+
 struct mt8183_da7219_max98357_priv {
 	struct snd_soc_jack headset_jack;
 };
@@ -54,8 +57,7 @@ static int mt8183_da7219_i2s_hw_params(struct snd_pcm_substream *substream,
 		dev_err(rtd->dev, "failed to set cpu dai sysclk\n");
 
 	for_each_rtd_codec_dais(rtd, j, codec_dai) {
-
-		if (!strcmp(codec_dai->component->name, "da7219.5-001a")) {
+		if (!strcmp(codec_dai->component->name, DA7219_DEV_NAME)) {
 			ret = snd_soc_dai_set_sysclk(codec_dai,
 						     DA7219_CLKSRC_MCLK,
 						     mclk_fs,
@@ -87,8 +89,7 @@ static int mt8183_da7219_hw_free(struct snd_pcm_substream *substream)
 	int ret = 0, j;
 
 	for_each_rtd_codec_dais(rtd, j, codec_dai) {
-
-		if (!strcmp(codec_dai->component->name, "da7219.5-001a")) {
+		if (!strcmp(codec_dai->component->name, DA7219_DEV_NAME)) {
 			ret = snd_soc_dai_set_pll(codec_dai,
 						  0, DA7219_SYSCLK_MCLK, 0, 0);
 			if (ret < 0) {
@@ -268,13 +269,13 @@ SND_SOC_DAILINK_DEFS(i2s1,
 
 SND_SOC_DAILINK_DEFS(i2s2,
 	DAILINK_COMP_ARRAY(COMP_CPU("I2S2")),
-	DAILINK_COMP_ARRAY(COMP_CODEC("da7219.5-001a", "da7219-hifi")),
+	DAILINK_COMP_ARRAY(COMP_CODEC(DA7219_DEV_NAME, DA7219_CODEC_DAI)),
 	DAILINK_COMP_ARRAY(COMP_EMPTY()));
 
 SND_SOC_DAILINK_DEFS(i2s3,
 	DAILINK_COMP_ARRAY(COMP_CPU("I2S3")),
 	DAILINK_COMP_ARRAY(COMP_CODEC("max98357a", "HiFi"),
-			 COMP_CODEC("da7219.5-001a", "da7219-hifi")),
+			   COMP_CODEC(DA7219_DEV_NAME, DA7219_CODEC_DAI)),
 	DAILINK_COMP_ARRAY(COMP_EMPTY()));
 
 SND_SOC_DAILINK_DEFS(i2s5,
