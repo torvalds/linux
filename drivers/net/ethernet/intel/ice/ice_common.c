@@ -285,6 +285,14 @@ static enum ice_media_type ice_get_media_type(struct ice_port_info *pi)
 		case ICE_PHY_TYPE_LOW_100GBASE_LR4:
 		case ICE_PHY_TYPE_LOW_100GBASE_SR2:
 		case ICE_PHY_TYPE_LOW_100GBASE_DR:
+		case ICE_PHY_TYPE_LOW_10G_SFI_AOC_ACC:
+		case ICE_PHY_TYPE_LOW_25G_AUI_AOC_ACC:
+		case ICE_PHY_TYPE_LOW_40G_XLAUI_AOC_ACC:
+		case ICE_PHY_TYPE_LOW_50G_LAUI2_AOC_ACC:
+		case ICE_PHY_TYPE_LOW_50G_AUI2_AOC_ACC:
+		case ICE_PHY_TYPE_LOW_50G_AUI1_AOC_ACC:
+		case ICE_PHY_TYPE_LOW_100G_CAUI4_AOC_ACC:
+		case ICE_PHY_TYPE_LOW_100G_AUI4_AOC_ACC:
 			return ICE_MEDIA_FIBER;
 		case ICE_PHY_TYPE_LOW_100BASE_TX:
 		case ICE_PHY_TYPE_LOW_1000BASE_T:
@@ -338,6 +346,9 @@ static enum ice_media_type ice_get_media_type(struct ice_port_info *pi)
 			fallthrough;
 		case ICE_PHY_TYPE_HIGH_100GBASE_KR2_PAM4:
 			return ICE_MEDIA_BACKPLANE;
+		case ICE_PHY_TYPE_HIGH_100G_CAUI2_AOC_ACC:
+		case ICE_PHY_TYPE_HIGH_100G_AUI2_AOC_ACC:
+			return ICE_MEDIA_FIBER;
 		}
 	}
 	return ICE_MEDIA_UNKNOWN;
