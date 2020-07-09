@@ -449,7 +449,7 @@ static int tlv320aic23_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		break;
 	case SND_SOC_DAIFMT_DSP_A:
 		iface_reg |= TLV320AIC23_LRP_ON;
-		/* fall through */
+		fallthrough;
 	case SND_SOC_DAIFMT_DSP_B:
 		iface_reg |= TLV320AIC23_FOR_DSP;
 		break;

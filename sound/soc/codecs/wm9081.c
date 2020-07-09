@@ -929,7 +929,7 @@ static int wm9081_set_dai_fmt(struct snd_soc_dai *dai,
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_DSP_B:
 		aif2 |= WM9081_AIF_LRCLK_INV;
-		/* fall through */
+		fallthrough;
 	case SND_SOC_DAIFMT_DSP_A:
 		aif2 |= 0x3;
 		break;

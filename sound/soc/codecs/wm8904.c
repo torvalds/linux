@@ -1436,7 +1436,7 @@ static int wm8904_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_DSP_B:
 		aif1 |= 0x3 | WM8904_AIF_LRCLK_INV;
-		/* fall through */
+		fallthrough;
 	case SND_SOC_DAIFMT_DSP_A:
 		aif1 |= 0x3;
 		break;
@@ -1824,7 +1824,7 @@ static int wm8904_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 			break;
 		}
 		clk_id = WM8904_CLK_MCLK;
-		/* fallthrough */
+		fallthrough;
 
 	case WM8904_CLK_MCLK:
 		priv->sysclk_src = clk_id;

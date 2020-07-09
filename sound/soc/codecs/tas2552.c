@@ -407,7 +407,7 @@ static int tas2552_set_dai_sysclk(struct snd_soc_dai *dai, int clk_id,
 			clk_id = TAS2552_PLL_CLKIN_BCLK;
 			freq = 0;
 		}
-		/* fall through */
+		fallthrough;
 	case TAS2552_PLL_CLKIN_BCLK:
 	case TAS2552_PLL_CLKIN_1_8_FIXED:
 		mask = TAS2552_PLL_SRC_MASK;

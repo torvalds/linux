@@ -451,13 +451,13 @@ static int ak4613_set_bias_level(struct snd_soc_component *component,
 	switch (level) {
 	case SND_SOC_BIAS_ON:
 		mgmt1 |= RSTN;
-		/* fall through */
+		fallthrough;
 	case SND_SOC_BIAS_PREPARE:
 		mgmt1 |= PMADC | PMDAC;
-		/* fall through */
+		fallthrough;
 	case SND_SOC_BIAS_STANDBY:
 		mgmt1 |= PMVR;
-		/* fall through */
+		fallthrough;
 	case SND_SOC_BIAS_OFF:
 	default:
 		break;

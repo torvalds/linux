@@ -650,7 +650,7 @@ static int wm8961_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 
 	case SND_SOC_DAIFMT_DSP_B:
 		aif |= WM8961_LRP;
-		/* fall through */
+		fallthrough;
 	case SND_SOC_DAIFMT_DSP_A:
 		aif |= 3;
 		switch (fmt & SND_SOC_DAIFMT_INV_MASK) {

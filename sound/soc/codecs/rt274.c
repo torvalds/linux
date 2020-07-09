@@ -760,7 +760,7 @@ static int rt274_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 		break;
 	default:
 		dev_warn(component->dev, "invalid pll source, use BCLK\n");
-		/* fall through */
+		fallthrough;
 	case RT274_PLL2_S_BCLK:
 		snd_soc_component_update_bits(component, RT274_PLL2_CTRL,
 				RT274_PLL2_SRC_MASK, RT274_PLL2_SRC_BCLK);
@@ -788,7 +788,7 @@ static int rt274_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 			break;
 		default:
 			dev_warn(component->dev, "invalid freq_in, assume 4.8M\n");
-			/* fall through */
+			fallthrough;
 		case 100:
 			snd_soc_component_write(component, 0x7a, 0xaab6);
 			snd_soc_component_write(component, 0x7b, 0x0301);

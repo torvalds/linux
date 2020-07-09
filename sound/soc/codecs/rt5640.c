@@ -1662,7 +1662,7 @@ static int get_sdp_info(struct snd_soc_component *component, int dai_id)
 			break;
 		case RT5640_IF_113:
 			ret |= RT5640_U_IF1;
-			/* fall through */
+			fallthrough;
 		case RT5640_IF_312:
 		case RT5640_IF_213:
 			ret |= RT5640_U_IF2;
@@ -1678,7 +1678,7 @@ static int get_sdp_info(struct snd_soc_component *component, int dai_id)
 			break;
 		case RT5640_IF_223:
 			ret |= RT5640_U_IF1;
-			/* fall through */
+			fallthrough;
 		case RT5640_IF_123:
 		case RT5640_IF_321:
 			ret |= RT5640_U_IF2;

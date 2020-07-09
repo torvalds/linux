@@ -1927,7 +1927,7 @@ static int wm8903_set_pdata_irq_trigger(struct i2c_client *i2c,
 		* We assume the controller imposes no restrictions,
 		* so we are able to select active-high
 		*/
-		/* Fall-through */
+		fallthrough;
 	case IRQ_TYPE_LEVEL_HIGH:
 		pdata->irq_active_low = false;
 		break;

@@ -966,7 +966,8 @@ static int wm8753_pcm_set_dai_fmt(struct snd_soc_component *component,
 	case SND_SOC_DAIFMT_CBS_CFS:
 		break;
 	case SND_SOC_DAIFMT_CBM_CFM:
-		ioctl |= 0x2; /* fall through */
+		ioctl |= 0x2;
+		fallthrough;
 	case SND_SOC_DAIFMT_CBM_CFS:
 		voice |= 0x0040;
 		break;
@@ -1091,7 +1092,8 @@ static int wm8753_i2s_set_dai_fmt(struct snd_soc_component *component,
 	case SND_SOC_DAIFMT_CBS_CFS:
 		break;
 	case SND_SOC_DAIFMT_CBM_CFM:
-		ioctl |= 0x1; /* fall through */
+		ioctl |= 0x1;
+		fallthrough;
 	case SND_SOC_DAIFMT_CBM_CFS:
 		hifi |= 0x0040;
 		break;
