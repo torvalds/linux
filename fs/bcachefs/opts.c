@@ -45,12 +45,9 @@ const char * const bch2_str_hash_types[] = {
 };
 
 const char * const bch2_data_types[] = {
-	"none",
-	"sb",
-	"journal",
-	"btree",
-	"data",
-	"cached",
+#define x(t, n) #t,
+	BCH_DATA_TYPES()
+#undef x
 	NULL
 };
 

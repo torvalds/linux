@@ -1144,7 +1144,7 @@ ec_new_stripe_head_alloc(struct bch_fs *c, unsigned target,
 	h->redundancy	= redundancy;
 
 	rcu_read_lock();
-	h->devs = target_rw_devs(c, BCH_DATA_USER, target);
+	h->devs = target_rw_devs(c, BCH_DATA_user, target);
 
 	for_each_member_device_rcu(ca, c, i, &h->devs)
 		if (!ca->mi.durability)

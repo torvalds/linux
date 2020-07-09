@@ -1030,14 +1030,19 @@ LE64_BITMASK(BCH_KDF_SCRYPT_P,	struct bch_sb_field_crypt, kdf_flags, 32, 48);
 
 /* BCH_SB_FIELD_replicas: */
 
+#define BCH_DATA_TYPES()		\
+	x(none,		0)		\
+	x(sb,		1)		\
+	x(journal,	2)		\
+	x(btree,	3)		\
+	x(user,		4)		\
+	x(cached,	5)
+
 enum bch_data_type {
-	BCH_DATA_NONE		= 0,
-	BCH_DATA_SB		= 1,
-	BCH_DATA_JOURNAL	= 2,
-	BCH_DATA_BTREE		= 3,
-	BCH_DATA_USER		= 4,
-	BCH_DATA_CACHED		= 5,
-	BCH_DATA_NR		= 6,
+#define x(t, n) BCH_DATA_##t,
+	BCH_DATA_TYPES()
+#undef x
+	BCH_DATA_NR
 };
 
 struct bch_replicas_entry_v0 {

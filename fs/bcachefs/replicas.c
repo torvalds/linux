@@ -113,16 +113,16 @@ void bch2_bkey_to_replicas(struct bch_replicas_entry *e,
 	switch (k.k->type) {
 	case KEY_TYPE_btree_ptr:
 	case KEY_TYPE_btree_ptr_v2:
-		e->data_type = BCH_DATA_BTREE;
+		e->data_type = BCH_DATA_btree;
 		extent_to_replicas(k, e);
 		break;
 	case KEY_TYPE_extent:
 	case KEY_TYPE_reflink_v:
-		e->data_type = BCH_DATA_USER;
+		e->data_type = BCH_DATA_user;
 		extent_to_replicas(k, e);
 		break;
 	case KEY_TYPE_stripe:
-		e->data_type = BCH_DATA_USER;
+		e->data_type = BCH_DATA_user;
 		stripe_to_replicas(k, e);
 		break;
 	}
@@ -137,7 +137,7 @@ void bch2_devlist_to_replicas(struct bch_replicas_entry *e,
 	unsigned i;
 
 	BUG_ON(!data_type ||
-	       data_type == BCH_DATA_SB ||
+	       data_type == BCH_DATA_sb ||
 	       data_type >= BCH_DATA_NR);
 
 	e->data_type	= data_type;
@@ -614,7 +614,7 @@ retry:
 		struct bch_replicas_entry *e =
 			cpu_replicas_entry(&c->replicas, i);
 
-		if (e->data_type == BCH_DATA_JOURNAL ||
+		if (e->data_type == BCH_DATA_journal ||
 		    c->usage_base->replicas[i] ||
 		    percpu_u64_get(&c->usage[0]->replicas[i]) ||
 		    percpu_u64_get(&c->usage[1]->replicas[i]))
@@ -1040,13 +1040,13 @@ static bool have_enough_devs(struct replicas_status s,
 
 bool bch2_have_enough_devs(struct replicas_status s, unsigned flags)
 {
-	return (have_enough_devs(s, BCH_DATA_JOURNAL,
+	return (have_enough_devs(s, BCH_DATA_journal,
 				 flags & BCH_FORCE_IF_METADATA_DEGRADED,
 				 flags & BCH_FORCE_IF_METADATA_LOST) &&
-		have_enough_devs(s, BCH_DATA_BTREE,
+		have_enough_devs(s, BCH_DATA_btree,
 				 flags & BCH_FORCE_IF_METADATA_DEGRADED,
 				 flags & BCH_FORCE_IF_METADATA_LOST) &&
-		have_enough_devs(s, BCH_DATA_USER,
+		have_enough_devs(s, BCH_DATA_user,
 				 flags & BCH_FORCE_IF_DATA_DEGRADED,
 				 flags & BCH_FORCE_IF_DATA_LOST));
 }
@@ -1056,9 +1056,9 @@ int bch2_replicas_online(struct bch_fs *c, bool meta)
 	struct replicas_status s = bch2_replicas_status(c);
 
 	return (meta
-		? min(s.replicas[BCH_DATA_JOURNAL].redundancy,
-		      s.replicas[BCH_DATA_BTREE].redundancy)
-		: s.replicas[BCH_DATA_USER].redundancy) + 1;
+		? min(s.replicas[BCH_DATA_journal].redundancy,
+		      s.replicas[BCH_DATA_btree].redundancy)
+		: s.replicas[BCH_DATA_user].redundancy) + 1;
 }
 
 unsigned bch2_dev_has_data(struct bch_fs *c, struct bch_dev *ca)

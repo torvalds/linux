@@ -36,7 +36,7 @@ int bch2_mark_bkey_replicas(struct bch_fs *, struct bkey_s_c);
 static inline void bch2_replicas_entry_cached(struct bch_replicas_entry *e,
 					      unsigned dev)
 {
-	e->data_type	= BCH_DATA_CACHED;
+	e->data_type	= BCH_DATA_cached;
 	e->nr_devs	= 1;
 	e->nr_required	= 1;
 	e->devs[0]	= dev;

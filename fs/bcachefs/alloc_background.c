@@ -53,10 +53,10 @@ static void pd_controllers_update(struct work_struct *work)
 		 * reclaimed by copy GC
 		 */
 		s64 fragmented = (bucket_to_sector(ca,
-					stats.buckets[BCH_DATA_USER] +
-					stats.buckets[BCH_DATA_CACHED]) -
-				  (stats.sectors[BCH_DATA_USER] +
-				   stats.sectors[BCH_DATA_CACHED])) << 9;
+					stats.buckets[BCH_DATA_user] +
+					stats.buckets[BCH_DATA_cached]) -
+				  (stats.sectors[BCH_DATA_user] +
+				   stats.sectors[BCH_DATA_cached])) << 9;
 
 		fragmented = max(0LL, fragmented);
 

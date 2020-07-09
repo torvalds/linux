@@ -70,7 +70,7 @@ static struct journal_space {
 
 	rcu_read_lock();
 	for_each_member_device_rcu(ca, c, i,
-				   &c->rw_devs[BCH_DATA_JOURNAL]) {
+				   &c->rw_devs[BCH_DATA_journal]) {
 		struct journal_device *ja = &ca->journal;
 		unsigned buckets_this_device, sectors_this_device;
 
@@ -139,7 +139,7 @@ void bch2_journal_space_available(struct journal *j)
 
 	rcu_read_lock();
 	for_each_member_device_rcu(ca, c, i,
-				   &c->rw_devs[BCH_DATA_JOURNAL]) {
+				   &c->rw_devs[BCH_DATA_journal]) {
 		struct journal_device *ja = &ca->journal;
 
 		if (!ja->nr)
@@ -618,7 +618,7 @@ int bch2_journal_flush_device_pins(struct journal *j, int dev_idx)
 		return ret;
 
 	mutex_lock(&c->replicas_gc_lock);
-	bch2_replicas_gc_start(c, 1 << BCH_DATA_JOURNAL);
+	bch2_replicas_gc_start(c, 1 << BCH_DATA_journal);
 
 	seq = 0;
 
@@ -627,7 +627,7 @@ int bch2_journal_flush_device_pins(struct journal *j, int dev_idx)
 		struct bch_replicas_padded replicas;
 
 		seq = max(seq, journal_last_seq(j));
-		bch2_devlist_to_replicas(&replicas.e, BCH_DATA_JOURNAL,
+		bch2_devlist_to_replicas(&replicas.e, BCH_DATA_journal,
 					 journal_seq_pin(j, seq)->devs);
 		seq++;
 

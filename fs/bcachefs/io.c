@@ -486,7 +486,7 @@ void bch2_submit_wbio_replicas(struct bch_write_bio *wbio, struct bch_fs *c,
 
 			bio_set_dev(&n->bio, ca->disk_sb.bdev);
 
-			if (type != BCH_DATA_BTREE && unlikely(c->opts.no_data_io)) {
+			if (type != BCH_DATA_btree && unlikely(c->opts.no_data_io)) {
 				bio_endio(&n->bio);
 				continue;
 			}
@@ -1128,7 +1128,7 @@ again:
 		key_to_write = (void *) (op->insert_keys.keys_p +
 					 key_to_write_offset);
 
-		bch2_submit_wbio_replicas(to_wbio(bio), c, BCH_DATA_USER,
+		bch2_submit_wbio_replicas(to_wbio(bio), c, BCH_DATA_user,
 					  key_to_write);
 	} while (ret);
 
@@ -2170,7 +2170,7 @@ get_bio:
 			goto out;
 		}
 
-		this_cpu_add(ca->io_done->sectors[READ][BCH_DATA_USER],
+		this_cpu_add(ca->io_done->sectors[READ][BCH_DATA_user],
 			     bio_sectors(&rbio->bio));
 		bio_set_dev(&rbio->bio, ca->disk_sb.bdev);
 

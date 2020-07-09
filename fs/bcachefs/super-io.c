@@ -659,7 +659,7 @@ static void read_back_super(struct bch_fs *c, struct bch_dev *ca)
 	bio->bi_private		= ca;
 	bch2_bio_map(bio, ca->sb_read_scratch, PAGE_SIZE);
 
-	this_cpu_add(ca->io_done->sectors[READ][BCH_DATA_SB],
+	this_cpu_add(ca->io_done->sectors[READ][BCH_DATA_sb],
 		     bio_sectors(bio));
 
 	percpu_ref_get(&ca->io_ref);
@@ -685,7 +685,7 @@ static void write_one_super(struct bch_fs *c, struct bch_dev *ca, unsigned idx)
 		     roundup((size_t) vstruct_bytes(sb),
 			     bdev_logical_block_size(ca->disk_sb.bdev)));
 
-	this_cpu_add(ca->io_done->sectors[WRITE][BCH_DATA_SB],
+	this_cpu_add(ca->io_done->sectors[WRITE][BCH_DATA_sb],
 		     bio_sectors(bio));
 
 	percpu_ref_get(&ca->io_ref);

@@ -660,7 +660,7 @@ int bch2_journal_read(struct bch_fs *c, struct list_head *list)
 
 	for_each_member_device(ca, c, iter) {
 		if (!test_bit(BCH_FS_REBUILD_REPLICAS, &c->flags) &&
-		    !(bch2_dev_has_data(c, ca) & (1 << BCH_DATA_JOURNAL)))
+		    !(bch2_dev_has_data(c, ca) & (1 << BCH_DATA_journal)))
 			continue;
 
 		if ((ca->mi.state == BCH_MEMBER_STATE_RW ||
@@ -694,7 +694,7 @@ int bch2_journal_read(struct bch_fs *c, struct list_head *list)
 		 * the devices - this is wrong:
 		 */
 
-		bch2_devlist_to_replicas(&replicas.e, BCH_DATA_JOURNAL, i->devs);
+		bch2_devlist_to_replicas(&replicas.e, BCH_DATA_journal, i->devs);
 
 		if (!degraded &&
 		    (test_bit(BCH_FS_REBUILD_REPLICAS, &c->flags) ||
@@ -795,7 +795,7 @@ static int journal_write_alloc(struct journal *j, struct journal_buf *w,
 	rcu_read_lock();
 
 	devs_sorted = bch2_dev_alloc_list(c, &j->wp.stripe,
-					  &c->rw_devs[BCH_DATA_JOURNAL]);
+					  &c->rw_devs[BCH_DATA_journal]);
 
 	__journal_write_alloc(j, w, &devs_sorted,
 			      sectors, &replicas, replicas_want);
@@ -913,7 +913,7 @@ static void journal_write_done(struct closure *cl)
 		goto err;
 	}
 
-	bch2_devlist_to_replicas(&replicas.e, BCH_DATA_JOURNAL, devs);
+	bch2_devlist_to_replicas(&replicas.e, BCH_DATA_journal, devs);
 
 	if (bch2_mark_replicas(c, &replicas.e))
 		goto err;
@@ -1105,7 +1105,7 @@ retry_alloc:
 			continue;
 		}
 
-		this_cpu_add(ca->io_done->sectors[WRITE][BCH_DATA_JOURNAL],
+		this_cpu_add(ca->io_done->sectors[WRITE][BCH_DATA_journal],
 			     sectors);
 
 		bio = ca->journal.bio;

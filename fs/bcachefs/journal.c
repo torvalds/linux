@@ -846,7 +846,7 @@ static int __bch2_set_nr_journal_buckets(struct bch_dev *ca, unsigned nr,
 		if (pos <= ja->cur_idx)
 			ja->cur_idx = (ja->cur_idx + 1) % ja->nr;
 
-		bch2_mark_metadata_bucket(c, ca, bucket, BCH_DATA_JOURNAL,
+		bch2_mark_metadata_bucket(c, ca, bucket, BCH_DATA_journal,
 					  ca->mi.bucket_size,
 					  gc_phase(GC_PHASE_SB),
 					  0);
@@ -1198,7 +1198,7 @@ ssize_t bch2_journal_print_debug(struct journal *j, char *buf)
 	       test_bit(JOURNAL_REPLAY_DONE,	&j->flags));
 
 	for_each_member_device_rcu(ca, c, iter,
-				   &c->rw_devs[BCH_DATA_JOURNAL]) {
+				   &c->rw_devs[BCH_DATA_journal]) {
 		struct journal_device *ja = &ca->journal;
 
 		if (!ja->nr)

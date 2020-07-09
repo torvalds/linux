@@ -133,13 +133,13 @@ void bch2_fs_usage_initialize(struct bch_fs *c)
 			cpu_replicas_entry(&c->replicas, i);
 
 		switch (e->data_type) {
-		case BCH_DATA_BTREE:
+		case BCH_DATA_btree:
 			usage->btree	+= usage->replicas[i];
 			break;
-		case BCH_DATA_USER:
+		case BCH_DATA_user:
 			usage->data	+= usage->replicas[i];
 			break;
-		case BCH_DATA_CACHED:
+		case BCH_DATA_cached:
 			usage->cached	+= usage->replicas[i];
 			break;
 		}
@@ -367,7 +367,7 @@ static inline int is_fragmented_bucket(struct bucket_mark m,
 				       struct bch_dev *ca)
 {
 	if (!m.owned_by_allocator &&
-	    m.data_type == BCH_DATA_USER &&
+	    m.data_type == BCH_DATA_user &&
 	    bucket_sectors_used(m))
 		return max_t(int, 0, (int) ca->mi.bucket_size -
 			     bucket_sectors_used(m));
@@ -382,7 +382,7 @@ static inline int bucket_stripe_sectors(struct bucket_mark m)
 static inline enum bch_data_type bucket_type(struct bucket_mark m)
 {
 	return m.cached_sectors && !m.dirty_sectors
-		? BCH_DATA_CACHED
+		? BCH_DATA_cached
 		: m.data_type;
 }
 
@@ -437,7 +437,7 @@ static inline void account_bucket(struct bch_fs_usage *fs_usage,
 				  enum bch_data_type type,
 				  int nr, s64 size)
 {
-	if (type == BCH_DATA_SB || type == BCH_DATA_JOURNAL)
+	if (type == BCH_DATA_sb || type == BCH_DATA_journal)
 		fs_usage->hidden	+= size;
 
 	dev_usage->buckets[type]	+= nr;
@@ -472,7 +472,7 @@ static void bch2_dev_usage_update(struct bch_fs *c, struct bch_dev *ca,
 
 	u->sectors[old.data_type] -= old.dirty_sectors;
 	u->sectors[new.data_type] += new.dirty_sectors;
-	u->sectors[BCH_DATA_CACHED] +=
+	u->sectors[BCH_DATA_cached] +=
 		(int) new.cached_sectors - (int) old.cached_sectors;
 	u->sectors_fragmented +=
 		is_fragmented_bucket(new, ca) - is_fragmented_bucket(old, ca);
@@ -520,13 +520,13 @@ static inline int update_replicas(struct bch_fs *c,
 		return 0;
 
 	switch (r->data_type) {
-	case BCH_DATA_BTREE:
+	case BCH_DATA_btree:
 		fs_usage->btree		+= sectors;
 		break;
-	case BCH_DATA_USER:
+	case BCH_DATA_user:
 		fs_usage->data		+= sectors;
 		break;
-	case BCH_DATA_CACHED:
+	case BCH_DATA_cached:
 		fs_usage->cached	+= sectors;
 		break;
 	}
@@ -798,8 +798,8 @@ static int __bch2_mark_metadata_bucket(struct bch_fs *c, struct bch_dev *ca,
 	struct bucket_mark old, new;
 	bool overflow;
 
-	BUG_ON(data_type != BCH_DATA_SB &&
-	       data_type != BCH_DATA_JOURNAL);
+	BUG_ON(data_type != BCH_DATA_sb &&
+	       data_type != BCH_DATA_journal);
 
 	old = bucket_cmpxchg(g, new, ({
 		new.data_type	= data_type;
@@ -830,8 +830,8 @@ void bch2_mark_metadata_bucket(struct bch_fs *c, struct bch_dev *ca,
 			       unsigned sectors, struct gc_pos pos,
 			       unsigned flags)
 {
-	BUG_ON(type != BCH_DATA_SB &&
-	       type != BCH_DATA_JOURNAL);
+	BUG_ON(type != BCH_DATA_sb &&
+	       type != BCH_DATA_journal);
 
 	preempt_disable();
 
@@ -1123,7 +1123,7 @@ static int bch2_mark_extent(struct bch_fs *c,
 	BUG_ON(!sectors);
 
 	bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
-		s64 disk_sectors = data_type == BCH_DATA_BTREE
+		s64 disk_sectors = data_type == BCH_DATA_btree
 			? sectors
 			: ptr_disk_sectors_delta(p, offset, sectors, flags);
 
@@ -1285,12 +1285,12 @@ static int bch2_mark_key_locked(struct bch_fs *c,
 			: -c->opts.btree_node_size;
 
 		ret = bch2_mark_extent(c, old, new, offset, sectors,
-				BCH_DATA_BTREE, fs_usage, journal_seq, flags);
+				BCH_DATA_btree, fs_usage, journal_seq, flags);
 		break;
 	case KEY_TYPE_extent:
 	case KEY_TYPE_reflink_v:
 		ret = bch2_mark_extent(c, old, new, offset, sectors,
-				BCH_DATA_USER, fs_usage, journal_seq, flags);
+				BCH_DATA_user, fs_usage, journal_seq, flags);
 		break;
 	case KEY_TYPE_stripe:
 		ret = bch2_mark_stripe(c, old, new, fs_usage, journal_seq, flags);
@@ -1668,7 +1668,7 @@ static int bch2_trans_mark_extent(struct btree_trans *trans,
 	BUG_ON(!sectors);
 
 	bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
-		s64 disk_sectors = data_type == BCH_DATA_BTREE
+		s64 disk_sectors = data_type == BCH_DATA_btree
 			? sectors
 			: ptr_disk_sectors_delta(p, offset, sectors, flags);
 
@@ -1810,11 +1810,11 @@ int bch2_trans_mark_key(struct btree_trans *trans, struct bkey_s_c k,
 			: -c->opts.btree_node_size;
 
 		return bch2_trans_mark_extent(trans, k, offset, sectors,
-					      flags, BCH_DATA_BTREE);
+					      flags, BCH_DATA_btree);
 	case KEY_TYPE_extent:
 	case KEY_TYPE_reflink_v:
 		return bch2_trans_mark_extent(trans, k, offset, sectors,
-					      flags, BCH_DATA_USER);
+					      flags, BCH_DATA_user);
 	case KEY_TYPE_inode:
 		d = replicas_deltas_realloc(trans, 0);
 

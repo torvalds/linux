@@ -99,9 +99,9 @@ static inline enum bch_data_type ptr_data_type(const struct bkey *k,
 {
 	if (k->type == KEY_TYPE_btree_ptr ||
 	    k->type == KEY_TYPE_btree_ptr_v2)
-		return BCH_DATA_BTREE;
+		return BCH_DATA_btree;
 
-	return ptr->cached ? BCH_DATA_CACHED : BCH_DATA_USER;
+	return ptr->cached ? BCH_DATA_cached : BCH_DATA_user;
 }
 
 static inline struct bucket_mark ptr_bucket_mark(struct bch_dev *ca,

@@ -534,7 +534,7 @@ static void get_buckets_from_writepoint(struct bch_fs *c,
 		if (*nr_effective < nr_replicas &&
 		    test_bit(ob->ptr.dev, devs_may_alloc->d) &&
 		    (ca->mi.durability ||
-		     (wp->type == BCH_DATA_USER && !*have_cache)) &&
+		     (wp->type == BCH_DATA_user && !*have_cache)) &&
 		    (ob->ec || !need_ec)) {
 			add_new_bucket(c, ptrs, devs_may_alloc,
 				       nr_effective, have_cache,
@@ -813,11 +813,11 @@ retry:
 
 	wp = writepoint_find(c, write_point.v);
 
-	if (wp->type == BCH_DATA_USER)
+	if (wp->type == BCH_DATA_user)
 		ob_flags |= BUCKET_MAY_ALLOC_PARTIAL;
 
 	/* metadata may not allocate on cache devices: */
-	if (wp->type != BCH_DATA_USER)
+	if (wp->type != BCH_DATA_user)
 		have_cache = true;
 
 	if (!target || (flags & BCH_WRITE_ONLY_SPECIFIED_DEVS)) {
@@ -856,7 +856,7 @@ alloc_done:
 
 	/* Free buckets we didn't use: */
 	open_bucket_for_each(c, &wp->ptrs, ob, i)
-		open_bucket_free_unused(c, ob, wp->type == BCH_DATA_USER);
+		open_bucket_free_unused(c, ob, wp->type == BCH_DATA_user);
 
 	wp->ptrs = ptrs;
 
@@ -876,7 +876,7 @@ err:
 			ob_push(c, &ptrs, ob);
 		else
 			open_bucket_free_unused(c, ob,
-					wp->type == BCH_DATA_USER);
+					wp->type == BCH_DATA_user);
 	wp->ptrs = ptrs;
 
 	mutex_unlock(&wp->lock);
@@ -907,7 +907,7 @@ void bch2_alloc_sectors_append_ptrs(struct bch_fs *c, struct write_point *wp,
 		struct bch_extent_ptr tmp = ob->ptr;
 
 		tmp.cached = !ca->mi.durability &&
-			wp->type == BCH_DATA_USER;
+			wp->type == BCH_DATA_user;
 
 		tmp.offset += ca->mi.bucket_size - ob->sectors_free;
 		bch2_bkey_append_ptr(k, tmp);
@@ -956,12 +956,12 @@ void bch2_fs_allocator_foreground_init(struct bch_fs *c)
 		c->open_buckets_freelist = ob - c->open_buckets;
 	}
 
-	writepoint_init(&c->btree_write_point, BCH_DATA_BTREE);
-	writepoint_init(&c->rebalance_write_point, BCH_DATA_USER);
+	writepoint_init(&c->btree_write_point, BCH_DATA_btree);
+	writepoint_init(&c->rebalance_write_point, BCH_DATA_user);
 
 	for (wp = c->write_points;
 	     wp < c->write_points + c->write_points_nr; wp++) {
-		writepoint_init(wp, BCH_DATA_USER);
+		writepoint_init(wp, BCH_DATA_user);
 
 		wp->last_used	= sched_clock();
 		wp->write_point	= (unsigned long) wp;
