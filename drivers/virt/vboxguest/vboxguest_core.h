@@ -118,6 +118,15 @@ struct vbg_dev {
 	u32 event_filter_host;
 
 	/**
+	 * Guest capabilities which have been switched to acquire_mode.
+	 */
+	u32 acquire_mode_guest_caps;
+	/**
+	 * Guest capabilities acquired by vbg_acquire_session_capabilities().
+	 * Only one session can acquire a capability at a time.
+	 */
+	u32 acquired_guest_caps;
+	/**
 	 * Usage counters for guest capabilities requested through
 	 * vbg_set_session_capabilities(). Indexed by capability bit
 	 * number, one count per session using a capability.
@@ -164,6 +173,11 @@ struct vbg_session {
 	 * host filter. Protected by vbg_gdev.session_mutex.
 	 */
 	u32 event_filter;
+	/**
+	 * Guest capabilities acquired by vbg_acquire_session_capabilities().
+	 * Only one session can acquire a capability at a time.
+	 */
+	u32 acquired_guest_caps;
 	/**
 	 * Guest capabilities set through vbg_set_session_capabilities().
 	 * A capability claimed by any guest session will be reported to the
