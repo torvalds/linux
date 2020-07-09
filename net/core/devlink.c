@@ -940,6 +940,7 @@ static int devlink_nl_cmd_port_split_doit(struct sk_buff *skb,
 					  struct genl_info *info)
 {
 	struct devlink *devlink = info->user_ptr[0];
+	struct devlink_port *devlink_port;
 	u32 port_index;
 	u32 count;
 
@@ -947,8 +948,27 @@ static int devlink_nl_cmd_port_split_doit(struct sk_buff *skb,
 	    !info->attrs[DEVLINK_ATTR_PORT_SPLIT_COUNT])
 		return -EINVAL;
 
+	devlink_port = devlink_port_get_from_info(devlink, info);
 	port_index = nla_get_u32(info->attrs[DEVLINK_ATTR_PORT_INDEX]);
 	count = nla_get_u32(info->attrs[DEVLINK_ATTR_PORT_SPLIT_COUNT]);
+
+	if (IS_ERR(devlink_port))
+		return -EINVAL;
+
+	if (!devlink_port->attrs.splittable) {
+		/* Split ports cannot be split. */
+		if (devlink_port->attrs.split)
+			NL_SET_ERR_MSG_MOD(info->extack, "Port cannot be split further");
+		else
+			NL_SET_ERR_MSG_MOD(info->extack, "Port cannot be split");
+		return -EINVAL;
+	}
+
+	if (count < 2 || !is_power_of_2(count) || count > devlink_port->attrs.lanes) {
+		NL_SET_ERR_MSG_MOD(info->extack, "Invalid split count");
+		return -EINVAL;
+	}
+
 	return devlink_port_split(devlink, port_index, count, info->extack);
 }
 
