@@ -24,7 +24,7 @@ void bpf_sk_reuseport_detach(struct sock *sk)
 
 	write_lock_bh(&sk->sk_callback_lock);
 	sk_user_data = (uintptr_t)sk->sk_user_data;
-	if (sk_user_data) {
+	if (sk_user_data & SK_USER_DATA_BPF) {
 		struct sock __rcu **socks;
 
 		socks = (void *)(sk_user_data & SK_USER_DATA_PTRMASK);
@@ -309,7 +309,8 @@ int bpf_fd_reuseport_array_update_elem(struct bpf_map *map, void *key,
 	if (err)
 		goto put_file_unlock;
 
-	sk_user_data = (uintptr_t)&array->ptrs[index] | SK_USER_DATA_NOCOPY;
+	sk_user_data = (uintptr_t)&array->ptrs[index] | SK_USER_DATA_NOCOPY |
+		SK_USER_DATA_BPF;
 	WRITE_ONCE(nsk->sk_user_data, (void *)sk_user_data);
 	rcu_assign_pointer(array->ptrs[index], nsk);
 	free_osk = osk;
