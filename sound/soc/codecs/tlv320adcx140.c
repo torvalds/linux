@@ -313,6 +313,14 @@ static const struct snd_kcontrol_new adcx140_dapm_ch3_en_switch =
 	SOC_DAPM_SINGLE("Switch", ADCX140_ASI_OUT_CH_EN, 5, 1, 0);
 static const struct snd_kcontrol_new adcx140_dapm_ch4_en_switch =
 	SOC_DAPM_SINGLE("Switch", ADCX140_ASI_OUT_CH_EN, 4, 1, 0);
+static const struct snd_kcontrol_new adcx140_dapm_ch5_en_switch =
+	SOC_DAPM_SINGLE("Switch", ADCX140_ASI_OUT_CH_EN, 3, 1, 0);
+static const struct snd_kcontrol_new adcx140_dapm_ch6_en_switch =
+	SOC_DAPM_SINGLE("Switch", ADCX140_ASI_OUT_CH_EN, 2, 1, 0);
+static const struct snd_kcontrol_new adcx140_dapm_ch7_en_switch =
+	SOC_DAPM_SINGLE("Switch", ADCX140_ASI_OUT_CH_EN, 1, 1, 0);
+static const struct snd_kcontrol_new adcx140_dapm_ch8_en_switch =
+	SOC_DAPM_SINGLE("Switch", ADCX140_ASI_OUT_CH_EN, 0, 1, 0);
 
 static const struct snd_kcontrol_new adcx140_dapm_ch1_dre_en_switch =
 	SOC_DAPM_SINGLE("Switch", ADCX140_CH1_CFG0, 0, 1, 0);
@@ -406,6 +414,15 @@ static const struct snd_soc_dapm_widget adcx140_dapm_widgets[] = {
 	SND_SOC_DAPM_SWITCH("CH4_ASI_EN", SND_SOC_NOPM, 0, 0,
 			    &adcx140_dapm_ch4_en_switch),
 
+	SND_SOC_DAPM_SWITCH("CH5_ASI_EN", SND_SOC_NOPM, 0, 0,
+			    &adcx140_dapm_ch5_en_switch),
+	SND_SOC_DAPM_SWITCH("CH6_ASI_EN", SND_SOC_NOPM, 0, 0,
+			    &adcx140_dapm_ch6_en_switch),
+	SND_SOC_DAPM_SWITCH("CH7_ASI_EN", SND_SOC_NOPM, 0, 0,
+			    &adcx140_dapm_ch7_en_switch),
+	SND_SOC_DAPM_SWITCH("CH8_ASI_EN", SND_SOC_NOPM, 0, 0,
+			    &adcx140_dapm_ch8_en_switch),
+
 	SND_SOC_DAPM_SWITCH("DRE_ENABLE", SND_SOC_NOPM, 0, 0,
 			    &adcx140_dapm_dre_en_switch),
 
@@ -445,6 +462,11 @@ static const struct snd_soc_dapm_route adcx140_audio_map[] = {
 	{"CH2_ASI_EN", "Switch", "CH2_ADC"},
 	{"CH3_ASI_EN", "Switch", "CH3_ADC"},
 	{"CH4_ASI_EN", "Switch", "CH4_ADC"},
+
+	{"CH5_ASI_EN", "Switch", "CH5_OUT"},
+	{"CH6_ASI_EN", "Switch", "CH6_OUT"},
+	{"CH7_ASI_EN", "Switch", "CH7_OUT"},
+	{"CH8_ASI_EN", "Switch", "CH8_OUT"},
 
 	{"Decimation Filter", "Linear Phase", "DRE_ENABLE"},
 	{"Decimation Filter", "Low Latency", "DRE_ENABLE"},
