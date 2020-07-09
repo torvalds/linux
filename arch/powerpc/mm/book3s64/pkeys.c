@@ -189,9 +189,10 @@ static int pkey_initialize(void)
 
 	/*
 	 * Prevent the usage of OS reserved keys. Update UAMOR
-	 * for those keys.
+	 * for those keys. Also mark the rest of the bits in the
+	 * 32 bit mask as reserved.
 	 */
-	for (i = num_pkey; i < pkeys_total; i++) {
+	for (i = num_pkey; i < 32 ; i++) {
 		reserved_allocation_mask |= (0x1 << i);
 		default_uamor &= ~(0x3ul << pkeyshift(i));
 	}
