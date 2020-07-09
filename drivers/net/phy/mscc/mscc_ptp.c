@@ -1494,10 +1494,7 @@ static int __vsc8584_init_ptp(struct phy_device *phydev)
 
 	vsc8531->ptp->ptp_clock = ptp_clock_register(&vsc8531->ptp->caps,
 						     &phydev->mdio.dev);
-	if (IS_ERR(vsc8531->ptp->ptp_clock))
-		return PTR_ERR(vsc8531->ptp->ptp_clock);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(vsc8531->ptp->ptp_clock);
 }
 
 void vsc8584_config_ts_intr(struct phy_device *phydev)
