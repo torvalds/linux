@@ -153,18 +153,17 @@ static struct delayed_work thermal_work;
 
 static void do_thermal_timer(struct work_struct *work)
 {
-	int i, value, temp_max = 0;
+	int i, value;
 
 	for (i = 0; i < nr_packages; i++) {
 		value = loongson3_cpu_temp(i);
-		if (value > temp_max)
-			temp_max = value;
+		if (value > CPU_THERMAL_THRESHOLD) {
+			pr_emerg("Power off due to high temp: %d\n", value);
+			orderly_poweroff(true);
+		}
 	}
 
-	if (temp_max <= CPU_THERMAL_THRESHOLD)
-		schedule_delayed_work(&thermal_work, msecs_to_jiffies(5000));
-	else
-		orderly_poweroff(true);
+	schedule_delayed_work(&thermal_work, msecs_to_jiffies(5000));
 }
 
 static int __init loongson_hwmon_init(void)
