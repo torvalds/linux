@@ -2456,18 +2456,21 @@ static int amdgpu_device_ip_suspend_phase1(struct amdgpu_device *adev)
 	for (i = adev->num_ip_blocks - 1; i >= 0; i--) {
 		if (!adev->ip_blocks[i].status.valid)
 			continue;
+
 		/* displays are handled separately */
-		if (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_DCE) {
-			/* XXX handle errors */
-			r = adev->ip_blocks[i].version->funcs->suspend(adev);
-			/* XXX handle errors */
-			if (r) {
-				DRM_ERROR("suspend of IP block <%s> failed %d\n",
-					  adev->ip_blocks[i].version->funcs->name, r);
-				return r;
-			}
-			adev->ip_blocks[i].status.hw = false;
+		if (adev->ip_blocks[i].version->type != AMD_IP_BLOCK_TYPE_DCE)
+			continue;
+
+		/* XXX handle errors */
+		r = adev->ip_blocks[i].version->funcs->suspend(adev);
+		/* XXX handle errors */
+		if (r) {
+			DRM_ERROR("suspend of IP block <%s> failed %d\n",
+				  adev->ip_blocks[i].version->funcs->name, r);
+			return r;
 		}
+
+		adev->ip_blocks[i].status.hw = false;
 	}
 
 	return 0;
