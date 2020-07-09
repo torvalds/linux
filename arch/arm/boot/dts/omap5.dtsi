@@ -31,6 +31,8 @@
 		serial3 = &uart4;
 		serial4 = &uart5;
 		serial5 = &uart6;
+		rproc0 = &dsp;
+		rproc1 = &ipu;
 	};
 
 	cpus {
