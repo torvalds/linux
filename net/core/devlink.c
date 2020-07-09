@@ -528,7 +528,7 @@ static int devlink_nl_port_attrs_put(struct sk_buff *msg,
 {
 	struct devlink_port_attrs *attrs = &devlink_port->attrs;
 
-	if (!attrs->set)
+	if (!devlink_port->attrs_set)
 		return 0;
 	if (nla_put_u16(msg, DEVLINK_ATTR_PORT_FLAVOUR, attrs->flavour))
 		return -EMSGSIZE;
@@ -7518,7 +7518,7 @@ static int __devlink_port_attrs_set(struct devlink_port *devlink_port,
 
 	if (WARN_ON(devlink_port->registered))
 		return -EEXIST;
-	attrs->set = true;
+	devlink_port->attrs_set = true;
 	attrs->flavour = flavour;
 	if (switch_id) {
 		attrs->switch_port = true;
@@ -7626,7 +7626,7 @@ static int __devlink_port_phys_port_name_get(struct devlink_port *devlink_port,
 	struct devlink_port_attrs *attrs = &devlink_port->attrs;
 	int n = 0;
 
-	if (!attrs->set)
+	if (!devlink_port->attrs_set)
 		return -EOPNOTSUPP;
 
 	switch (attrs->flavour) {
