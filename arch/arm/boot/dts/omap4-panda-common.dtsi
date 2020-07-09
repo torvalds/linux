@@ -596,10 +596,12 @@
 	status = "okay";
 	memory-region = <&dsp_memory_region>;
 	ti,timers = <&timer5>;
+	ti,watchdog-timers = <&timer6>;
 };
 
 &ipu {
 	status = "okay";
 	memory-region = <&ipu_memory_region>;
 	ti,timers = <&timer3>;
+	ti,watchdog-timers = <&timer9>, <&timer11>;
 };
