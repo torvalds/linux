@@ -343,11 +343,16 @@ static void ec_block_io(struct bch_fs *c, struct ec_stripe_buf *buf,
 	unsigned offset = 0, bytes = buf->size << 9;
 	struct bch_extent_ptr *ptr = &v->ptrs[idx];
 	struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
+	enum bch_data_type data_type = idx < buf->key.v.nr_blocks - buf->key.v.nr_redundant
+		? BCH_DATA_user
+		: BCH_DATA_parity;
 
 	if (!bch2_dev_get_ioref(ca, rw)) {
 		clear_bit(idx, buf->valid);
 		return;
 	}
+
+	this_cpu_add(ca->io_done->sectors[rw][data_type], buf->size);
 
 	while (offset < bytes) {
 		unsigned nr_iovecs = min_t(size_t, BIO_MAX_VECS,
@@ -670,6 +675,7 @@ static void ec_stripe_delete_work(struct work_struct *work)
 /* stripe creation: */
 
 static int ec_stripe_bkey_insert(struct bch_fs *c,
+				 struct ec_stripe_new *s,
 				 struct bkey_i_stripe *stripe)
 {
 	struct btree_trans trans;
@@ -711,7 +717,7 @@ found_slot:
 
 	bch2_trans_update(&trans, iter, &stripe->k_i, 0);
 
-	ret = bch2_trans_commit(&trans, NULL, NULL,
+	ret = bch2_trans_commit(&trans, &s->res, NULL,
 				BTREE_INSERT_NOFAIL);
 err:
 	bch2_trans_iter_put(&trans, iter);
@@ -858,8 +864,8 @@ static void ec_stripe_create(struct ec_stripe_new *s)
 
 	ret = s->existing_stripe
 		? bch2_btree_insert(c, BTREE_ID_EC, &s->stripe.key.k_i,
-				    NULL, NULL, BTREE_INSERT_NOFAIL)
-		: ec_stripe_bkey_insert(c, &s->stripe.key);
+				    &s->res, NULL, BTREE_INSERT_NOFAIL)
+		: ec_stripe_bkey_insert(c, s, &s->stripe.key);
 	if (ret) {
 		bch_err(c, "error creating stripe: error creating stripe key");
 		goto err_put_writes;
@@ -886,6 +892,8 @@ static void ec_stripe_create(struct ec_stripe_new *s)
 err_put_writes:
 	percpu_ref_put(&c->writes);
 err:
+	bch2_disk_reservation_put(c, &s->res);
+
 	open_bucket_for_each(c, &s->blocks, ob, i) {
 		ob->ec = NULL;
 		__bch2_open_bucket_put(c, ob);
@@ -1325,6 +1333,7 @@ struct ec_stripe_head *bch2_ec_stripe_head_get(struct bch_fs *c,
 	struct open_bucket *ob;
 	unsigned i, data_idx = 0;
 	s64 idx;
+	int ret;
 
 	closure_init_stack(&cl);
 
@@ -1354,6 +1363,22 @@ struct ec_stripe_head *bch2_ec_stripe_head_get(struct bch_fs *c,
 					__set_bit(i, h->s->blocks_allocated);
 					ec_block_io(c, &h->s->stripe, READ, i, &cl);
 				}
+		}
+
+		if (!h->s->existing_stripe &&
+		    !h->s->res.sectors) {
+			ret = bch2_disk_reservation_get(c, &h->s->res,
+							h->blocksize,
+							h->s->nr_parity, 0);
+			if (ret) {
+				/* What should we do here? */
+				bch_err(c, "unable to create new stripe: %i", ret);
+				bch2_ec_stripe_head_put(c, h);
+				h = NULL;
+				goto out;
+
+			}
+
 		}
 
 		if (new_stripe_alloc_buckets(c, h)) {

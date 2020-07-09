@@ -122,7 +122,7 @@ void bch2_bkey_to_replicas(struct bch_replicas_entry *e,
 		extent_to_replicas(k, e);
 		break;
 	case KEY_TYPE_stripe:
-		e->data_type = BCH_DATA_user;
+		e->data_type = BCH_DATA_parity;
 		stripe_to_replicas(k, e);
 		break;
 	}
@@ -449,7 +449,23 @@ static int __bch2_mark_bkey_replicas(struct bch_fs *c, struct bkey_s_c k,
 
 	bch2_bkey_to_replicas(&search.e, k);
 
-	return __bch2_mark_replicas(c, &search.e, check);
+	ret = __bch2_mark_replicas(c, &search.e, check);
+	if (ret)
+		return ret;
+
+	if (search.e.data_type == BCH_DATA_parity) {
+		search.e.data_type = BCH_DATA_cached;
+		ret = __bch2_mark_replicas(c, &search.e, check);
+		if (ret)
+			return ret;
+
+		search.e.data_type = BCH_DATA_user;
+		ret = __bch2_mark_replicas(c, &search.e, check);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 bool bch2_bkey_replicas_marked(struct bch_fs *c,
