@@ -2230,7 +2230,7 @@ void kvm_lapic_set_base(struct kvm_vcpu *vcpu, u64 value)
 	vcpu->arch.apic_base = value;
 
 	if ((old_value ^ value) & MSR_IA32_APICBASE_ENABLE)
-		kvm_update_cpuid(vcpu);
+		kvm_update_cpuid_runtime(vcpu);
 
 	if (!apic)
 		return;

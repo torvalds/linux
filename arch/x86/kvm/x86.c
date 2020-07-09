@@ -940,7 +940,7 @@ static int __kvm_set_xcr(struct kvm_vcpu *vcpu, u32 index, u64 xcr)
 	vcpu->arch.xcr0 = xcr0;
 
 	if ((xcr0 ^ old_xcr0) & XFEATURE_MASK_EXTEND)
-		kvm_update_cpuid(vcpu);
+		kvm_update_cpuid_runtime(vcpu);
 	return 0;
 }
 
@@ -1004,7 +1004,7 @@ int kvm_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 		kvm_mmu_reset_context(vcpu);
 
 	if ((cr4 ^ old_cr4) & (X86_CR4_OSXSAVE | X86_CR4_PKE))
-		kvm_update_cpuid(vcpu);
+		kvm_update_cpuid_runtime(vcpu);
 
 	return 0;
 }
@@ -2916,7 +2916,7 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 			if (!guest_cpuid_has(vcpu, X86_FEATURE_XMM3))
 				return 1;
 			vcpu->arch.ia32_misc_enable_msr = data;
-			kvm_update_cpuid(vcpu);
+			kvm_update_cpuid_runtime(vcpu);
 		} else {
 			vcpu->arch.ia32_misc_enable_msr = data;
 		}
@@ -8170,7 +8170,7 @@ static void enter_smm(struct kvm_vcpu *vcpu)
 		kvm_x86_ops.set_efer(vcpu, 0);
 #endif
 
-	kvm_update_cpuid(vcpu);
+	kvm_update_cpuid_runtime(vcpu);
 	kvm_mmu_reset_context(vcpu);
 }
 
@@ -9194,7 +9194,7 @@ static int __set_sregs(struct kvm_vcpu *vcpu, struct kvm_sregs *sregs)
 				(X86_CR4_OSXSAVE | X86_CR4_PKE));
 	kvm_x86_ops.set_cr4(vcpu, sregs->cr4);
 	if (cpuid_update_needed)
-		kvm_update_cpuid(vcpu);
+		kvm_update_cpuid_runtime(vcpu);
 
 	idx = srcu_read_lock(&vcpu->kvm->srcu);
 	if (is_pae_paging(vcpu)) {
