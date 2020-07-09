@@ -14,11 +14,14 @@
 
 DEFINE_STATIC_KEY_FALSE(pkey_disabled);
 int  num_pkey;		/* Max number of pkeys supported */
-u32  initial_allocation_mask;   /* Bits set for the initially allocated keys */
 /*
  *  Keys marked in the reservation list cannot be allocated by  userspace
  */
-u32  reserved_allocation_mask;
+u32 reserved_allocation_mask __ro_after_init;
+
+/* Bits set for the initially allocated keys */
+static u32 initial_allocation_mask __ro_after_init;
+
 static bool pkey_execute_disable_supported;
 /*
  * Even if we allocate keys with sys_pkey_alloc(), we need to make sure
