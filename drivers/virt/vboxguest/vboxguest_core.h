@@ -118,11 +118,12 @@ struct vbg_dev {
 	u32 event_filter_host;
 
 	/**
-	 * Usage counters for guest capabilities. Indexed by capability bit
+	 * Usage counters for guest capabilities requested through
+	 * vbg_set_session_capabilities(). Indexed by capability bit
 	 * number, one count per session using a capability.
 	 * Protected by session_mutex.
 	 */
-	struct vbg_bit_usage_tracker guest_caps_tracker;
+	struct vbg_bit_usage_tracker set_guest_caps_tracker;
 	/**
 	 * The guest capabilities last reported to the host (or UINT32_MAX).
 	 * Protected by session_mutex.
@@ -164,11 +165,11 @@ struct vbg_session {
 	 */
 	u32 event_filter;
 	/**
-	 * Guest capabilities for this session.
+	 * Guest capabilities set through vbg_set_session_capabilities().
 	 * A capability claimed by any guest session will be reported to the
 	 * host. Protected by vbg_gdev.session_mutex.
 	 */
-	u32 guest_caps;
+	u32 set_guest_caps;
 	/** VMMDEV_REQUESTOR_* flags */
 	u32 requestor;
 	/** Set on CANCEL_ALL_WAITEVENTS, protected by vbg_devevent_spinlock. */

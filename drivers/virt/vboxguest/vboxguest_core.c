@@ -699,17 +699,17 @@ static int vbg_set_session_capabilities(struct vbg_dev *gdev,
 	mutex_lock(&gdev->session_mutex);
 
 	/* Apply the changes to the session mask. */
-	previous = session->guest_caps;
-	session->guest_caps |= or_mask;
-	session->guest_caps &= ~not_mask;
+	previous = session->set_guest_caps;
+	session->set_guest_caps |= or_mask;
+	session->set_guest_caps &= ~not_mask;
 
 	/* If anything actually changed, update the global usage counters. */
-	changed = previous ^ session->guest_caps;
+	changed = previous ^ session->set_guest_caps;
 	if (!changed)
 		goto out;
 
-	vbg_track_bit_usage(&gdev->guest_caps_tracker, changed, previous);
-	or_mask = gdev->guest_caps_tracker.mask;
+	vbg_track_bit_usage(&gdev->set_guest_caps_tracker, changed, previous);
+	or_mask = gdev->set_guest_caps_tracker.mask;
 
 	if (gdev->guest_caps_host == or_mask || !req)
 		goto out;
@@ -726,9 +726,9 @@ static int vbg_set_session_capabilities(struct vbg_dev *gdev,
 		if (session_termination)
 			goto out;
 
-		vbg_track_bit_usage(&gdev->guest_caps_tracker, changed,
-				    session->guest_caps);
-		session->guest_caps = previous;
+		vbg_track_bit_usage(&gdev->set_guest_caps_tracker, changed,
+				    session->set_guest_caps);
+		session->set_guest_caps = previous;
 	}
 
 out:
@@ -1452,7 +1452,7 @@ static int vbg_ioctl_change_guest_capabilities(struct vbg_dev *gdev,
 	if (ret)
 		return ret;
 
-	caps->u.out.session_caps = session->guest_caps;
+	caps->u.out.session_caps = session->set_guest_caps;
 	caps->u.out.global_caps = gdev->guest_caps_host;
 
 	return 0;
