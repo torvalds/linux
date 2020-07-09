@@ -1123,7 +1123,7 @@ static void __init initcall_init_workers(void)
 	int i;
 
 	if (initcall_nr_workers < 0)
-		initcall_nr_workers = num_online_cpus();
+		initcall_nr_workers = num_online_cpus() * 2;
 
 	if (!initcall_nr_workers)
 		return;
