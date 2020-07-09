@@ -13,6 +13,10 @@ config MPTCP
 
 if MPTCP
 
+config INET_MPTCP_DIAG
+	depends on INET_DIAG
+	def_tristate INET_DIAG
+
 config MPTCP_IPV6
 	bool "MPTCP: IPv6 support for Multipath TCP"
 	select IPV6
