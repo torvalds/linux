@@ -902,6 +902,7 @@ static int io_file_get(struct io_submit_state *state, struct io_kiocb *req,
 static void __io_queue_sqe(struct io_kiocb *req,
 			   const struct io_uring_sqe *sqe,
 			   struct io_comp_state *cs);
+static void io_file_put_work(struct work_struct *work);
 
 static ssize_t io_import_iovec(int rw, struct io_kiocb *req,
 			       struct iovec **iovec, struct iov_iter *iter,
@@ -942,7 +943,7 @@ static void __io_put_req_task(struct io_kiocb *req)
 		put_task_struct(req->task);
 }
 
-static void io_sq_thread_drop_mm(struct io_ring_ctx *ctx)
+static void io_sq_thread_drop_mm(void)
 {
 	struct mm_struct *mm = current->mm;
 
@@ -976,8 +977,6 @@ static inline void req_set_fail_links(struct io_kiocb *req)
 	if ((req->flags & (REQ_F_LINK | REQ_F_HARDLINK)) == REQ_F_LINK)
 		req->flags |= REQ_F_FAIL_LINK;
 }
-
-static void io_file_put_work(struct work_struct *work);
 
 /*
  * Note: must call io_req_init_async() for the first time you
@@ -6339,7 +6338,7 @@ static int io_sq_thread(void *data)
 			 * adding ourselves to the waitqueue, as the unuse/drop
 			 * may sleep.
 			 */
-			io_sq_thread_drop_mm(ctx);
+			io_sq_thread_drop_mm();
 
 			/*
 			 * We're polling. If we're within the defined idle
@@ -6410,7 +6409,7 @@ static int io_sq_thread(void *data)
 
 	io_run_task_work();
 
-	io_sq_thread_drop_mm(ctx);
+	io_sq_thread_drop_mm();
 	revert_creds(old_cred);
 
 	kthread_parkme();
