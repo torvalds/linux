@@ -116,7 +116,7 @@ void kvm_update_cpuid_runtime(struct kvm_vcpu *vcpu)
 	}
 }
 
-static void kvm_update_cpuid(struct kvm_vcpu *vcpu)
+static void kvm_vcpu_after_set_cpuid(struct kvm_vcpu *vcpu)
 {
 	struct kvm_lapic *apic = vcpu->arch.apic;
 	struct kvm_cpuid_entry2 *best;
@@ -230,7 +230,7 @@ int kvm_vcpu_ioctl_set_cpuid(struct kvm_vcpu *vcpu,
 	cpuid_fix_nx_cap(vcpu);
 	kvm_x86_ops.cpuid_update(vcpu);
 	kvm_update_cpuid_runtime(vcpu);
-	kvm_update_cpuid(vcpu);
+	kvm_vcpu_after_set_cpuid(vcpu);
 
 	kvfree(cpuid_entries);
 out:
@@ -259,7 +259,7 @@ int kvm_vcpu_ioctl_set_cpuid2(struct kvm_vcpu *vcpu,
 
 	kvm_x86_ops.cpuid_update(vcpu);
 	kvm_update_cpuid_runtime(vcpu);
-	kvm_update_cpuid(vcpu);
+	kvm_vcpu_after_set_cpuid(vcpu);
 out:
 	return r;
 }
