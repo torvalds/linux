@@ -150,6 +150,18 @@ static inline void crash_send_ipi(void (*crash_ipi_callback)(struct pt_regs *))
 }
 
 #endif /* CONFIG_KEXEC_CORE */
+
+#ifdef CONFIG_PPC_BOOK3S_64
+#include <asm/book3s/64/kexec.h>
+#endif
+
+#ifndef reset_sprs
+#define reset_sprs reset_sprs
+static inline void reset_sprs(void)
+{
+}
+#endif
+
 #endif /* ! __ASSEMBLY__ */
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_KEXEC_H */
