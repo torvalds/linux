@@ -3110,7 +3110,8 @@ static int wm8994_aif3_hw_params(struct snd_pcm_substream *substream,
 	return snd_soc_component_update_bits(component, aif1_reg, WM8994_AIF1_WL_MASK, aif1);
 }
 
-static int wm8994_aif_mute(struct snd_soc_dai *codec_dai, int mute)
+static int wm8994_aif_mute(struct snd_soc_dai *codec_dai, int mute,
+			   int direction)
 {
 	struct snd_soc_component *component = codec_dai->component;
 	int mute_reg;
@@ -3187,18 +3188,20 @@ static const struct snd_soc_dai_ops wm8994_aif1_dai_ops = {
 	.set_sysclk	= wm8994_set_dai_sysclk,
 	.set_fmt	= wm8994_set_dai_fmt,
 	.hw_params	= wm8994_hw_params,
-	.digital_mute	= wm8994_aif_mute,
+	.mute_stream	= wm8994_aif_mute,
 	.set_pll	= wm8994_set_fll,
 	.set_tristate	= wm8994_set_tristate,
+	.no_capture_mute = 1,
 };
 
 static const struct snd_soc_dai_ops wm8994_aif2_dai_ops = {
 	.set_sysclk	= wm8994_set_dai_sysclk,
 	.set_fmt	= wm8994_set_dai_fmt,
 	.hw_params	= wm8994_hw_params,
-	.digital_mute   = wm8994_aif_mute,
+	.mute_stream	= wm8994_aif_mute,
 	.set_pll	= wm8994_set_fll,
 	.set_tristate	= wm8994_set_tristate,
+	.no_capture_mute = 1,
 };
 
 static const struct snd_soc_dai_ops wm8994_aif3_dai_ops = {

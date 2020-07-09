@@ -836,7 +836,7 @@ static int wm8978_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int wm8978_mute(struct snd_soc_dai *dai, int mute)
+static int wm8978_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 
@@ -893,10 +893,11 @@ static int wm8978_set_bias_level(struct snd_soc_component *component,
 
 static const struct snd_soc_dai_ops wm8978_dai_ops = {
 	.hw_params	= wm8978_hw_params,
-	.digital_mute	= wm8978_mute,
+	.mute_stream	= wm8978_mute,
 	.set_fmt	= wm8978_set_dai_fmt,
 	.set_clkdiv	= wm8978_set_dai_clkdiv,
 	.set_sysclk	= wm8978_set_dai_sysclk,
+	.no_capture_mute = 1,
 };
 
 /* Also supports 12kHz */

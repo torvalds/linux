@@ -204,7 +204,7 @@ static void wm8711_shutdown(struct snd_pcm_substream *substream,
 	}
 }
 
-static int wm8711_mute(struct snd_soc_dai *dai, int mute)
+static int wm8711_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 	u16 mute_reg = snd_soc_component_read(component, WM8711_APDIGI) & 0xfff7;
@@ -329,9 +329,10 @@ static const struct snd_soc_dai_ops wm8711_ops = {
 	.prepare = wm8711_pcm_prepare,
 	.hw_params = wm8711_hw_params,
 	.shutdown = wm8711_shutdown,
-	.digital_mute = wm8711_mute,
+	.mute_stream = wm8711_mute,
 	.set_sysclk = wm8711_set_dai_sysclk,
 	.set_fmt = wm8711_set_dai_fmt,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver wm8711_dai = {

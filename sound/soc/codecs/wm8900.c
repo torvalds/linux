@@ -967,7 +967,7 @@ static int wm8900_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	return 0;
 }
 
-static int wm8900_digital_mute(struct snd_soc_dai *codec_dai, int mute)
+static int wm8900_mute(struct snd_soc_dai *codec_dai, int mute, int direction)
 {
 	struct snd_soc_component *component = codec_dai->component;
 	u16 reg;
@@ -997,7 +997,8 @@ static const struct snd_soc_dai_ops wm8900_dai_ops = {
 	.set_clkdiv	= wm8900_set_dai_clkdiv,
 	.set_pll	= wm8900_set_dai_pll,
 	.set_fmt	= wm8900_set_dai_fmt,
-	.digital_mute	= wm8900_digital_mute,
+	.mute_stream	= wm8900_mute,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver wm8900_dai = {

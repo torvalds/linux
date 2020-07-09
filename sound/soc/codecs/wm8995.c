@@ -1417,7 +1417,7 @@ static bool wm8995_volatile(struct device *dev, unsigned int reg)
 	}
 }
 
-static int wm8995_aif_mute(struct snd_soc_dai *dai, int mute)
+static int wm8995_aif_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 	int mute_reg;
@@ -2094,18 +2094,20 @@ static const struct snd_soc_dai_ops wm8995_aif1_dai_ops = {
 	.set_sysclk = wm8995_set_dai_sysclk,
 	.set_fmt = wm8995_set_dai_fmt,
 	.hw_params = wm8995_hw_params,
-	.digital_mute = wm8995_aif_mute,
+	.mute_stream = wm8995_aif_mute,
 	.set_pll = wm8995_set_fll,
 	.set_tristate = wm8995_set_tristate,
+	.no_capture_mute = 1,
 };
 
 static const struct snd_soc_dai_ops wm8995_aif2_dai_ops = {
 	.set_sysclk = wm8995_set_dai_sysclk,
 	.set_fmt = wm8995_set_dai_fmt,
 	.hw_params = wm8995_hw_params,
-	.digital_mute = wm8995_aif_mute,
+	.mute_stream = wm8995_aif_mute,
 	.set_pll = wm8995_set_fll,
 	.set_tristate = wm8995_set_tristate,
+	.no_capture_mute = 1,
 };
 
 static const struct snd_soc_dai_ops wm8995_aif3_dai_ops = {

@@ -2918,7 +2918,7 @@ static int wm8962_set_fll(struct snd_soc_component *component, int fll_id, int s
 	return 0;
 }
 
-static int wm8962_mute(struct snd_soc_dai *dai, int mute)
+static int wm8962_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 	int val, ret;
@@ -2951,7 +2951,8 @@ static const struct snd_soc_dai_ops wm8962_dai_ops = {
 	.hw_params = wm8962_hw_params,
 	.set_sysclk = wm8962_set_dai_sysclk,
 	.set_fmt = wm8962_set_dai_fmt,
-	.digital_mute = wm8962_mute,
+	.mute_stream = wm8962_mute,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver wm8962_dai = {

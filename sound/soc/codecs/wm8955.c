@@ -745,7 +745,7 @@ static int wm8955_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 }
 
 
-static int wm8955_digital_mute(struct snd_soc_dai *codec_dai, int mute)
+static int wm8955_mute(struct snd_soc_dai *codec_dai, int mute, int direction)
 {
 	struct snd_soc_component *component = codec_dai->component;
 	int val;
@@ -848,7 +848,8 @@ static const struct snd_soc_dai_ops wm8955_dai_ops = {
 	.set_sysclk = wm8955_set_sysclk,
 	.set_fmt = wm8955_set_fmt,
 	.hw_params = wm8955_hw_params,
-	.digital_mute = wm8955_digital_mute,
+	.mute_stream = wm8955_mute,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver wm8955_dai = {

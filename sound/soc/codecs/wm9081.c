@@ -1147,7 +1147,7 @@ static int wm9081_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int wm9081_digital_mute(struct snd_soc_dai *codec_dai, int mute)
+static int wm9081_mute(struct snd_soc_dai *codec_dai, int mute, int direction)
 {
 	struct snd_soc_component *component = codec_dai->component;
 	unsigned int reg;
@@ -1232,8 +1232,9 @@ static int wm9081_set_tdm_slot(struct snd_soc_dai *dai,
 static const struct snd_soc_dai_ops wm9081_dai_ops = {
 	.hw_params = wm9081_hw_params,
 	.set_fmt = wm9081_set_dai_fmt,
-	.digital_mute = wm9081_digital_mute,
+	.mute_stream = wm9081_mute,
 	.set_tdm_slot = wm9081_set_tdm_slot,
+	.no_capture_mute = 1,
 };
 
 /* We report two channels because the CODEC processes a stereo signal, even

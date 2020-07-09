@@ -1297,7 +1297,7 @@ static int wm8753_voice_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	return wm8753_voice_write_dai_fmt(component, fmt);
 };
 
-static int wm8753_mute(struct snd_soc_dai *dai, int mute)
+static int wm8753_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 	u16 mute_reg = snd_soc_component_read(component, WM8753_DAC) & 0xfff7;
@@ -1382,20 +1382,22 @@ static int wm8753_set_bias_level(struct snd_soc_component *component,
  */
 static const struct snd_soc_dai_ops wm8753_dai_ops_hifi_mode = {
 	.hw_params	= wm8753_i2s_hw_params,
-	.digital_mute	= wm8753_mute,
+	.mute_stream	= wm8753_mute,
 	.set_fmt	= wm8753_hifi_set_dai_fmt,
 	.set_clkdiv	= wm8753_set_dai_clkdiv,
 	.set_pll	= wm8753_set_dai_pll,
 	.set_sysclk	= wm8753_set_dai_sysclk,
+	.no_capture_mute = 1,
 };
 
 static const struct snd_soc_dai_ops wm8753_dai_ops_voice_mode = {
 	.hw_params	= wm8753_pcm_hw_params,
-	.digital_mute	= wm8753_mute,
+	.mute_stream	= wm8753_mute,
 	.set_fmt	= wm8753_voice_set_dai_fmt,
 	.set_clkdiv	= wm8753_set_dai_clkdiv,
 	.set_pll	= wm8753_set_dai_pll,
 	.set_sysclk	= wm8753_set_dai_sysclk,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver wm8753_dai[] = {

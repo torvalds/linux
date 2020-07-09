@@ -1330,7 +1330,7 @@ static int wm8993_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int wm8993_digital_mute(struct snd_soc_dai *codec_dai, int mute)
+static int wm8993_mute(struct snd_soc_dai *codec_dai, int mute, int direction)
 {
 	struct snd_soc_component *component = codec_dai->component;
 	unsigned int reg;
@@ -1444,9 +1444,10 @@ static const struct snd_soc_dai_ops wm8993_ops = {
 	.set_sysclk = wm8993_set_sysclk,
 	.set_fmt = wm8993_set_dai_fmt,
 	.hw_params = wm8993_hw_params,
-	.digital_mute = wm8993_digital_mute,
+	.mute_stream = wm8993_mute,
 	.set_pll = wm8993_set_fll,
 	.set_tdm_slot = wm8993_set_tdm_slot,
+	.no_capture_mute = 1,
 };
 
 #define WM8993_RATES SNDRV_PCM_RATE_8000_48000

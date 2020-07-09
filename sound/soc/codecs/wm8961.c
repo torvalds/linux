@@ -698,7 +698,7 @@ static int wm8961_set_tristate(struct snd_soc_dai *dai, int tristate)
 	return snd_soc_component_write(component, WM8961_ADDITIONAL_CONTROL_2, reg);
 }
 
-static int wm8961_digital_mute(struct snd_soc_dai *dai, int mute)
+static int wm8961_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 	u16 reg = snd_soc_component_read(component, WM8961_ADC_DAC_CONTROL_1);
@@ -806,9 +806,10 @@ static const struct snd_soc_dai_ops wm8961_dai_ops = {
 	.hw_params = wm8961_hw_params,
 	.set_sysclk = wm8961_set_sysclk,
 	.set_fmt = wm8961_set_fmt,
-	.digital_mute = wm8961_digital_mute,
+	.mute_stream = wm8961_mute,
 	.set_tristate = wm8961_set_tristate,
 	.set_clkdiv = wm8961_set_clkdiv,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver wm8961_dai = {

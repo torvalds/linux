@@ -487,7 +487,7 @@ static int wm8510_pcm_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int wm8510_mute(struct snd_soc_dai *dai, int mute)
+static int wm8510_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 	u16 mute_reg = snd_soc_component_read(component, WM8510_DAC) & 0xffbf;
@@ -547,10 +547,11 @@ static int wm8510_set_bias_level(struct snd_soc_component *component,
 
 static const struct snd_soc_dai_ops wm8510_dai_ops = {
 	.hw_params	= wm8510_pcm_hw_params,
-	.digital_mute	= wm8510_mute,
+	.mute_stream	= wm8510_mute,
 	.set_fmt	= wm8510_set_dai_fmt,
 	.set_clkdiv	= wm8510_set_dai_clkdiv,
 	.set_pll	= wm8510_set_dai_pll,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver wm8510_dai = {
