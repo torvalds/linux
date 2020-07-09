@@ -299,7 +299,11 @@ static int rockchip_dp_drm_encoder_loader_protect(struct drm_encoder *encoder,
 		}
 
 		clk_prepare_enable(dp->pclk);
+
+		rockchip_drm_psr_inhibit_put(&dp->encoder);
 	} else {
+		rockchip_drm_psr_inhibit_get(&dp->encoder);
+
 		clk_disable_unprepare(dp->pclk);
 
 		if (dp->vccio_supply)

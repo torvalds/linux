@@ -1154,13 +1154,30 @@ analogix_dp_best_encoder(struct drm_connector *connector)
 static int analogix_dp_loader_protect(struct drm_connector *connector, bool on)
 {
 	struct analogix_dp_device *dp = to_dp(connector);
+	int ret;
 
 	if (dp->plat_data->panel)
 		drm_panel_loader_protect(dp->plat_data->panel, on);
-	if (on)
+	if (on) {
 		pm_runtime_get_sync(dp->dev);
-	else
+
+		ret = analogix_dp_detect_sink_psr(dp);
+		if (ret)
+			return ret;
+
+		/* Check whether panel supports fast training */
+		ret = analogix_dp_fast_link_train_detection(dp);
+		if (ret)
+			dp->psr_enable = false;
+
+		if (dp->psr_enable) {
+			ret = analogix_dp_enable_sink_psr(dp);
+			if (ret)
+				return ret;
+		}
+	} else {
 		pm_runtime_put(dp->dev);
+	}
 
 	return 0;
 }
