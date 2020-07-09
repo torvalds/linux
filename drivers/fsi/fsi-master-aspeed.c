@@ -241,9 +241,10 @@ static int aspeed_master_read(struct fsi_master *master, int link,
 	struct fsi_master_aspeed *aspeed = to_fsi_master_aspeed(master);
 	int ret;
 
-	if (id != 0)
+	if (id > 0x3)
 		return -EINVAL;
 
+	addr |= id << 21;
 	addr += link * FSI_HUB_LINK_SIZE;
 
 	switch (size) {
@@ -273,9 +274,10 @@ static int aspeed_master_write(struct fsi_master *master, int link,
 	struct fsi_master_aspeed *aspeed = to_fsi_master_aspeed(master);
 	int ret;
 
-	if (id != 0)
+	if (id > 0x3)
 		return -EINVAL;
 
+	addr |= id << 21;
 	addr += link * FSI_HUB_LINK_SIZE;
 
 	switch (size) {
