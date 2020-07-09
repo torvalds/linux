@@ -1413,7 +1413,7 @@ out:
  * ice_init_nvm_phy_type - Initialize the NVM PHY type
  * @pi: port info structure
  *
- * Initialize nvm_phy_type_[low|high]
+ * Initialize nvm_phy_type_[low|high] for link lenient mode support
  */
 static int ice_init_nvm_phy_type(struct ice_port_info *pi)
 {
@@ -1441,6 +1441,59 @@ static int ice_init_nvm_phy_type(struct ice_port_info *pi)
 out:
 	kfree(pcaps);
 	return err;
+}
+
+/**
+ * ice_init_link_dflt_override - Initialize link default override
+ * @pi: port info structure
+ */
+static void ice_init_link_dflt_override(struct ice_port_info *pi)
+{
+	struct ice_link_default_override_tlv *ldo;
+	struct ice_pf *pf = pi->hw->back;
+
+	ldo = &pf->link_dflt_override;
+	ice_get_link_default_override(ldo, pi);
+}
+
+/**
+ * ice_init_phy_cfg_dflt_override - Initialize PHY cfg default override settings
+ * @pi: port info structure
+ *
+ * If default override is enabled, initialized the user PHY cfg speed and FEC
+ * settings using the default override mask from the NVM.
+ *
+ * The PHY should only be configured with the default override settings the
+ * first time media is available. The __ICE_LINK_DEFAULT_OVERRIDE_PENDING state
+ * is used to indicate that the user PHY cfg default override is initialized
+ * and the PHY has not been configured with the default override settings. The
+ * state is set here, and cleared in ice_configure_phy the first time the PHY is
+ * configured.
+ */
+static void ice_init_phy_cfg_dflt_override(struct ice_port_info *pi)
+{
+	struct ice_link_default_override_tlv *ldo;
+	struct ice_aqc_set_phy_cfg_data *cfg;
+	struct ice_phy_info *phy = &pi->phy;
+	struct ice_pf *pf = pi->hw->back;
+
+	ldo = &pf->link_dflt_override;
+
+	/* If link default override is enabled, use to mask NVM PHY capabilities
+	 * for speed and FEC default configuration.
+	 */
+	cfg = &phy->curr_user_phy_cfg;
+
+	if (ldo->phy_type_low || ldo->phy_type_high) {
+		cfg->phy_type_low = pf->nvm_phy_type_lo &
+				    cpu_to_le64(ldo->phy_type_low);
+		cfg->phy_type_high = pf->nvm_phy_type_hi &
+				     cpu_to_le64(ldo->phy_type_high);
+	}
+	cfg->link_fec_opt = ldo->fec_options;
+	phy->curr_user_fec_req = ICE_FEC_AUTO;
+
+	set_bit(__ICE_LINK_DEFAULT_OVERRIDE_PENDING, pf->state);
 }
 
 /**
@@ -1485,12 +1538,31 @@ static int ice_init_phy_user_cfg(struct ice_port_info *pi)
 		goto err_out;
 	}
 
-	ice_copy_phy_caps_to_cfg(pcaps, &pi->phy.curr_user_phy_cfg);
-	/* initialize PHY using topology with media */
+	ice_copy_phy_caps_to_cfg(pi, pcaps, &pi->phy.curr_user_phy_cfg);
+
+	/* check if lenient mode is supported and enabled */
+	if (ice_fw_supports_link_override(&vsi->back->hw) &&
+	    !(pcaps->module_compliance_enforcement &
+	      ICE_AQC_MOD_ENFORCE_STRICT_MODE)) {
+		set_bit(ICE_FLAG_LINK_LENIENT_MODE_ENA, pf->flags);
+
+		/* if link default override is enabled, initialize user PHY
+		 * configuration with link default override values
+		 */
+		if (pf->link_dflt_override.options & ICE_LINK_OVERRIDE_EN) {
+			ice_init_phy_cfg_dflt_override(pi);
+			goto out;
+		}
+	}
+
+	/* if link default override is not enabled, initialize PHY using
+	 * topology with media
+	 */
 	phy->curr_user_fec_req = ice_caps_to_fec_mode(pcaps->caps,
 						      pcaps->link_fec_options);
 	phy->curr_user_fc_req = ice_caps_to_fc_mode(pcaps->caps);
 
+out:
 	phy->curr_user_speed_req = ICE_AQ_LINK_SPEED_M;
 	set_bit(__ICE_PHY_INIT_COMPLETE, pf->state);
 err_out:
@@ -1511,7 +1583,6 @@ static int ice_configure_phy(struct ice_vsi *vsi)
 	struct device *dev = ice_pf_to_dev(vsi->back);
 	struct ice_aqc_get_phy_caps_data *pcaps;
 	struct ice_aqc_set_phy_cfg_data *cfg;
-	u64 phy_low = 0, phy_high = 0;
 	struct ice_port_info *pi;
 	enum ice_status status;
 	int err = 0;
@@ -1571,14 +1642,24 @@ static int ice_configure_phy(struct ice_vsi *vsi)
 		goto done;
 	}
 
-	ice_copy_phy_caps_to_cfg(pcaps, cfg);
+	ice_copy_phy_caps_to_cfg(pi, pcaps, cfg);
 
 	/* Speed - If default override pending, use curr_user_phy_cfg set in
 	 * ice_init_phy_user_cfg_ldo.
 	 */
-	ice_update_phy_type(&phy_low, &phy_high, pi->phy.curr_user_speed_req);
-	cfg->phy_type_low = pcaps->phy_type_low & cpu_to_le64(phy_low);
-	cfg->phy_type_high = pcaps->phy_type_high & cpu_to_le64(phy_high);
+	if (test_and_clear_bit(__ICE_LINK_DEFAULT_OVERRIDE_PENDING,
+			       vsi->back->state)) {
+		cfg->phy_type_low = pi->phy.curr_user_phy_cfg.phy_type_low;
+		cfg->phy_type_high = pi->phy.curr_user_phy_cfg.phy_type_high;
+	} else {
+		u64 phy_low = 0, phy_high = 0;
+
+		ice_update_phy_type(&phy_low, &phy_high,
+				    pi->phy.curr_user_speed_req);
+		cfg->phy_type_low = pcaps->phy_type_low & cpu_to_le64(phy_low);
+		cfg->phy_type_high = pcaps->phy_type_high &
+				     cpu_to_le64(phy_high);
+	}
 
 	/* Can't provide what was requested; use PHY capabilities */
 	if (!cfg->phy_type_low && !cfg->phy_type_high) {
@@ -3748,6 +3829,8 @@ ice_probe(struct pci_dev *pdev, const struct pci_device_id __always_unused *ent)
 		dev_err(dev, "ice_update_link_info failed: %d\n", err);
 		goto err_alloc_sw_unroll;
 	}
+
+	ice_init_link_dflt_override(pf->hw.port_info);
 
 	/* if media available, initialize PHY settings */
 	if (pf->hw.port_info->phy.link_info.link_info &

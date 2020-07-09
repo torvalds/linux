@@ -222,6 +222,7 @@ enum ice_state {
 	__ICE_OICR_INTR_DIS,		/* Global OICR interrupt disabled */
 	__ICE_MDD_VF_PRINT_PENDING,	/* set when MDD event handle */
 	__ICE_VF_RESETS_DISABLED,	/* disable resets during ice_remove */
+	__ICE_LINK_DEFAULT_OVERRIDE_PENDING,
 	__ICE_PHY_INIT_COMPLETE,
 	__ICE_STATE_NBITS		/* must be last */
 };
@@ -364,6 +365,7 @@ enum ice_pf_flags {
 	ICE_FLAG_LEGACY_RX,
 	ICE_FLAG_VF_TRUE_PROMISC_ENA,
 	ICE_FLAG_MDD_AUTO_RESET_VF,
+	ICE_FLAG_LINK_LENIENT_MODE_ENA,
 	ICE_PF_FLAGS_NBITS		/* must be last */
 };
 
@@ -441,6 +443,7 @@ struct ice_pf {
 
 	__le64 nvm_phy_type_lo; /* NVM PHY type low */
 	__le64 nvm_phy_type_hi; /* NVM PHY type high */
+	struct ice_link_default_override_tlv link_dflt_override;
 };
 
 struct ice_netdev_priv {

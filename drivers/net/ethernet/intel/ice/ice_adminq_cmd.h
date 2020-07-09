@@ -983,7 +983,8 @@ struct ice_aqc_get_phy_caps_data {
 #define ICE_AQC_PHY_FEC_25G_RS_CLAUSE91_EN		BIT(6)
 #define ICE_AQC_PHY_FEC_25G_KR_CLAUSE74_EN		BIT(7)
 #define ICE_AQC_PHY_FEC_MASK				ICE_M(0xdf, 0)
-	u8 rsvd1;	/* Byte 35 reserved */
+	u8 module_compliance_enforcement;
+#define ICE_AQC_MOD_ENFORCE_STRICT_MODE			BIT(0)
 	u8 extended_compliance_code;
 #define ICE_MODULE_TYPE_TOTAL_BYTE			3
 	u8 module_type[ICE_MODULE_TYPE_TOTAL_BYTE];
@@ -1036,7 +1037,7 @@ struct ice_aqc_set_phy_cfg_data {
 	__le16 eee_cap; /* Value from ice_aqc_get_phy_caps */
 	__le16 eeer_value;
 	u8 link_fec_opt; /* Use defines from ice_aqc_get_phy_caps */
-	u8 rsvd1;
+	u8 module_compliance_enforcement;
 };
 
 /* Set MAC Config command data structure (direct 0x0603) */

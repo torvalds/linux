@@ -20,7 +20,40 @@ static enum ice_status ice_set_mac_type(struct ice_hw *hw)
 	if (hw->vendor_id != PCI_VENDOR_ID_INTEL)
 		return ICE_ERR_DEVICE_NOT_SUPPORTED;
 
-	hw->mac_type = ICE_MAC_GENERIC;
+	switch (hw->device_id) {
+	case ICE_DEV_ID_E810C_BACKPLANE:
+	case ICE_DEV_ID_E810C_QSFP:
+	case ICE_DEV_ID_E810C_SFP:
+	case ICE_DEV_ID_E810_XXV_SFP:
+		hw->mac_type = ICE_MAC_E810;
+		break;
+	case ICE_DEV_ID_E823C_10G_BASE_T:
+	case ICE_DEV_ID_E823C_BACKPLANE:
+	case ICE_DEV_ID_E823C_QSFP:
+	case ICE_DEV_ID_E823C_SFP:
+	case ICE_DEV_ID_E823C_SGMII:
+	case ICE_DEV_ID_E822C_10G_BASE_T:
+	case ICE_DEV_ID_E822C_BACKPLANE:
+	case ICE_DEV_ID_E822C_QSFP:
+	case ICE_DEV_ID_E822C_SFP:
+	case ICE_DEV_ID_E822C_SGMII:
+	case ICE_DEV_ID_E822L_10G_BASE_T:
+	case ICE_DEV_ID_E822L_BACKPLANE:
+	case ICE_DEV_ID_E822L_SFP:
+	case ICE_DEV_ID_E822L_SGMII:
+	case ICE_DEV_ID_E823L_10G_BASE_T:
+	case ICE_DEV_ID_E823L_1GBE:
+	case ICE_DEV_ID_E823L_BACKPLANE:
+	case ICE_DEV_ID_E823L_QSFP:
+	case ICE_DEV_ID_E823L_SFP:
+		hw->mac_type = ICE_MAC_GENERIC;
+		break;
+	default:
+		hw->mac_type = ICE_MAC_UNKNOWN;
+		break;
+	}
+
+	ice_debug(hw, ICE_DBG_INIT, "mac_type: %d\n", hw->mac_type);
 	return 0;
 }
 
@@ -2675,7 +2708,7 @@ ice_set_fc(struct ice_port_info *pi, u8 *aq_failures, bool ena_auto_link_update)
 		goto out;
 	}
 
-	ice_copy_phy_caps_to_cfg(pcaps, &cfg);
+	ice_copy_phy_caps_to_cfg(pi, pcaps, &cfg);
 
 	/* Configure the set PHY data */
 	status = ice_cfg_phy_fc(pi, &cfg, pi->fc.req_mode);
@@ -2757,6 +2790,7 @@ ice_phy_caps_equals_cfg(struct ice_aqc_get_phy_caps_data *phy_caps,
 
 /**
  * ice_copy_phy_caps_to_cfg - Copy PHY ability data to configuration data
+ * @pi: port information structure
  * @caps: PHY ability structure to copy date from
  * @cfg: PHY configuration structure to copy data to
  *
@@ -2764,10 +2798,11 @@ ice_phy_caps_equals_cfg(struct ice_aqc_get_phy_caps_data *phy_caps,
  * data structure
  */
 void
-ice_copy_phy_caps_to_cfg(struct ice_aqc_get_phy_caps_data *caps,
+ice_copy_phy_caps_to_cfg(struct ice_port_info *pi,
+			 struct ice_aqc_get_phy_caps_data *caps,
 			 struct ice_aqc_set_phy_cfg_data *cfg)
 {
-	if (!caps || !cfg)
+	if (!pi || !caps || !cfg)
 		return;
 
 	memset(cfg, 0, sizeof(*cfg));
@@ -2778,6 +2813,19 @@ ice_copy_phy_caps_to_cfg(struct ice_aqc_get_phy_caps_data *caps,
 	cfg->eee_cap = caps->eee_cap;
 	cfg->eeer_value = caps->eeer_value;
 	cfg->link_fec_opt = caps->link_fec_options;
+	cfg->module_compliance_enforcement =
+		caps->module_compliance_enforcement;
+
+	if (ice_fw_supports_link_override(pi->hw)) {
+		struct ice_link_default_override_tlv tlv;
+
+		if (ice_get_link_default_override(&tlv, pi))
+			return;
+
+		if (tlv.options & ICE_LINK_OVERRIDE_STRICT_MODE)
+			cfg->module_compliance_enforcement |=
+				ICE_LINK_OVERRIDE_STRICT_MODE;
+	}
 }
 
 /**
@@ -2838,6 +2886,17 @@ ice_cfg_phy_fec(struct ice_port_info *pi, struct ice_aqc_set_phy_cfg_data *cfg,
 	default:
 		status = ICE_ERR_PARAM;
 		break;
+	}
+
+	if (fec == ICE_FEC_AUTO && ice_fw_supports_link_override(pi->hw)) {
+		struct ice_link_default_override_tlv tlv;
+
+		if (ice_get_link_default_override(&tlv, pi))
+			goto out;
+
+		if (!(tlv.options & ICE_LINK_OVERRIDE_STRICT_MODE) &&
+		    (tlv.options & ICE_LINK_OVERRIDE_EN))
+			cfg->link_fec_opt = tlv.fec_options;
 	}
 
 out:
@@ -4041,5 +4100,108 @@ ice_sched_query_elem(struct ice_hw *hw, u32 node_teid,
 					  NULL);
 	if (status || num_elem_ret != 1)
 		ice_debug(hw, ICE_DBG_SCHED, "query element failed\n");
+	return status;
+}
+
+/**
+ * ice_fw_supports_link_override
+ * @hw: pointer to the hardware structure
+ *
+ * Checks if the firmware supports link override
+ */
+bool ice_fw_supports_link_override(struct ice_hw *hw)
+{
+	/* Currently, only supported for E810 devices */
+	if (hw->mac_type != ICE_MAC_E810)
+		return false;
+
+	if (hw->api_maj_ver == ICE_FW_API_LINK_OVERRIDE_MAJ) {
+		if (hw->api_min_ver > ICE_FW_API_LINK_OVERRIDE_MIN)
+			return true;
+		if (hw->api_min_ver == ICE_FW_API_LINK_OVERRIDE_MIN &&
+		    hw->api_patch >= ICE_FW_API_LINK_OVERRIDE_PATCH)
+			return true;
+	} else if (hw->api_maj_ver > ICE_FW_API_LINK_OVERRIDE_MAJ) {
+		return true;
+	}
+
+	return false;
+}
+
+/**
+ * ice_get_link_default_override
+ * @ldo: pointer to the link default override struct
+ * @pi: pointer to the port info struct
+ *
+ * Gets the link default override for a port
+ */
+enum ice_status
+ice_get_link_default_override(struct ice_link_default_override_tlv *ldo,
+			      struct ice_port_info *pi)
+{
+	u16 i, tlv, tlv_len, tlv_start, buf, offset;
+	struct ice_hw *hw = pi->hw;
+	enum ice_status status;
+
+	status = ice_get_pfa_module_tlv(hw, &tlv, &tlv_len,
+					ICE_SR_LINK_DEFAULT_OVERRIDE_PTR);
+	if (status) {
+		ice_debug(hw, ICE_DBG_INIT,
+			  "Failed to read link override TLV.\n");
+		return status;
+	}
+
+	/* Each port has its own config; calculate for our port */
+	tlv_start = tlv + pi->lport * ICE_SR_PFA_LINK_OVERRIDE_WORDS +
+		ICE_SR_PFA_LINK_OVERRIDE_OFFSET;
+
+	/* link options first */
+	status = ice_read_sr_word(hw, tlv_start, &buf);
+	if (status) {
+		ice_debug(hw, ICE_DBG_INIT,
+			  "Failed to read override link options.\n");
+		return status;
+	}
+	ldo->options = buf & ICE_LINK_OVERRIDE_OPT_M;
+	ldo->phy_config = (buf & ICE_LINK_OVERRIDE_PHY_CFG_M) >>
+		ICE_LINK_OVERRIDE_PHY_CFG_S;
+
+	/* link PHY config */
+	offset = tlv_start + ICE_SR_PFA_LINK_OVERRIDE_FEC_OFFSET;
+	status = ice_read_sr_word(hw, offset, &buf);
+	if (status) {
+		ice_debug(hw, ICE_DBG_INIT,
+			  "Failed to read override phy config.\n");
+		return status;
+	}
+	ldo->fec_options = buf & ICE_LINK_OVERRIDE_FEC_OPT_M;
+
+	/* PHY types low */
+	offset = tlv_start + ICE_SR_PFA_LINK_OVERRIDE_PHY_OFFSET;
+	for (i = 0; i < ICE_SR_PFA_LINK_OVERRIDE_PHY_WORDS; i++) {
+		status = ice_read_sr_word(hw, (offset + i), &buf);
+		if (status) {
+			ice_debug(hw, ICE_DBG_INIT,
+				  "Failed to read override link options.\n");
+			return status;
+		}
+		/* shift 16 bits at a time to fill 64 bits */
+		ldo->phy_type_low |= ((u64)buf << (i * 16));
+	}
+
+	/* PHY types high */
+	offset = tlv_start + ICE_SR_PFA_LINK_OVERRIDE_PHY_OFFSET +
+		ICE_SR_PFA_LINK_OVERRIDE_PHY_WORDS;
+	for (i = 0; i < ICE_SR_PFA_LINK_OVERRIDE_PHY_WORDS; i++) {
+		status = ice_read_sr_word(hw, (offset + i), &buf);
+		if (status) {
+			ice_debug(hw, ICE_DBG_INIT,
+				  "Failed to read override link options.\n");
+			return status;
+		}
+		/* shift 16 bits at a time to fill 64 bits */
+		ldo->phy_type_high |= ((u64)buf << (i * 16));
+	}
+
 	return status;
 }
