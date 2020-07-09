@@ -4383,11 +4383,6 @@ int sdhci_setup_host(struct sdhci_host *host)
 	if (!IS_ERR(mmc->supply.vqmmc)) {
 		if (enable_vqmmc) {
 			ret = regulator_enable(mmc->supply.vqmmc);
-			if (ret) {
-				pr_warn("%s: Failed to enable vqmmc regulator: %d\n",
-					mmc_hostname(mmc), ret);
-				mmc->supply.vqmmc = ERR_PTR(-EINVAL);
-			}
 			host->sdhci_core_to_disable_vqmmc = !ret;
 		}
 
@@ -4402,6 +4397,13 @@ int sdhci_setup_host(struct sdhci_host *host)
 		if (!regulator_is_supported_voltage(mmc->supply.vqmmc, 2700000,
 						    3600000))
 			host->flags &= ~SDHCI_SIGNALING_330;
+
+		if (ret) {
+			pr_warn("%s: Failed to enable vqmmc regulator: %d\n",
+				mmc_hostname(mmc), ret);
+			mmc->supply.vqmmc = ERR_PTR(-EINVAL);
+		}
+
 	}
 
 	if (host->quirks2 & SDHCI_QUIRK2_NO_1_8_V) {
