@@ -344,6 +344,7 @@ struct sdebug_defer {
 	struct execute_work ew;
 	int sqa_idx;	/* index of sdebug_queue array */
 	int qc_idx;	/* index of sdebug_queued_cmd array within sqa_idx */
+	int hc_idx;	/* hostwide tag index */
 	int issuing_cpu;
 	bool init_hrt;
 	bool init_wq;
@@ -759,6 +760,7 @@ static int sdebug_dsense = DEF_D_SENSE;
 static int sdebug_every_nth = DEF_EVERY_NTH;
 static int sdebug_fake_rw = DEF_FAKE_RW;
 static unsigned int sdebug_guard = DEF_GUARD;
+static int sdebug_host_max_queue;	/* per host */
 static int sdebug_lowest_aligned = DEF_LOWEST_ALIGNED;
 static int sdebug_max_luns = DEF_MAX_LUNS;
 static int sdebug_max_queue = SDEBUG_CANQUEUE;	/* per submit queue */
@@ -4707,13 +4709,26 @@ fini:
 
 static struct sdebug_queue *get_queue(struct scsi_cmnd *cmnd)
 {
-	u32 tag = blk_mq_unique_tag(cmnd->request);
-	u16 hwq = blk_mq_unique_tag_to_hwq(tag);
+	u16 hwq;
 
-	pr_debug("tag=%#x, hwq=%d\n", tag, hwq);
-	if (WARN_ON_ONCE(hwq >= submit_queues))
-		hwq = 0;
+	if (sdebug_host_max_queue) {
+		/* Provide a simple method to choose the hwq */
+		hwq = smp_processor_id() % submit_queues;
+	} else {
+		u32 tag = blk_mq_unique_tag(cmnd->request);
+
+		hwq = blk_mq_unique_tag_to_hwq(tag);
+
+		pr_debug("tag=%#x, hwq=%d\n", tag, hwq);
+		if (WARN_ON_ONCE(hwq >= submit_queues))
+			hwq = 0;
+	}
 	return sdebug_q_arr + hwq;
+}
+
+static u32 get_tag(struct scsi_cmnd *cmnd)
+{
+	return blk_mq_unique_tag(cmnd->request);
 }
 
 /* Queued (deferred) command completions converge here. */
@@ -4747,8 +4762,8 @@ static void sdebug_q_cmd_complete(struct sdebug_defer *sd_dp)
 	scp = sqcp->a_cmnd;
 	if (unlikely(scp == NULL)) {
 		spin_unlock_irqrestore(&sqp->qc_lock, iflags);
-		pr_err("scp is NULL, sqa_idx=%d, qc_idx=%d\n",
-		       sd_dp->sqa_idx, qc_idx);
+		pr_err("scp is NULL, sqa_idx=%d, qc_idx=%d, hc_idx=%d\n",
+		       sd_dp->sqa_idx, qc_idx, sd_dp->hc_idx);
 		return;
 	}
 	devip = (struct sdebug_dev_info *)scp->device->hostdata;
@@ -5451,6 +5466,10 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 		new_sd_dp = false;
 	}
 
+	/* Set the hostwide tag */
+	if (sdebug_host_max_queue)
+		sd_dp->hc_idx = get_tag(cmnd);
+
 	if (ndelay > 0 && ndelay < INCLUSIVE_TIMING_MAX_NS)
 		ns_from_boot = ktime_get_boottime_ns();
 
@@ -5572,6 +5591,7 @@ module_param_named(every_nth, sdebug_every_nth, int, S_IRUGO | S_IWUSR);
 module_param_named(fake_rw, sdebug_fake_rw, int, S_IRUGO | S_IWUSR);
 module_param_named(guard, sdebug_guard, uint, S_IRUGO);
 module_param_named(host_lock, sdebug_host_lock, bool, S_IRUGO | S_IWUSR);
+module_param_named(host_max_queue, sdebug_host_max_queue, int, S_IRUGO);
 module_param_string(inq_product, sdebug_inq_product_id,
 		    sizeof(sdebug_inq_product_id), S_IRUGO | S_IWUSR);
 module_param_string(inq_rev, sdebug_inq_product_rev,
@@ -5642,6 +5662,8 @@ MODULE_PARM_DESC(every_nth, "timeout every nth command(def=0)");
 MODULE_PARM_DESC(fake_rw, "fake reads/writes instead of copying (def=0)");
 MODULE_PARM_DESC(guard, "protection checksum: 0=crc, 1=ip (def=0)");
 MODULE_PARM_DESC(host_lock, "host_lock is ignored (def=0)");
+MODULE_PARM_DESC(host_max_queue,
+		 "host max # of queued cmds (0 to max(def) [max_queue fixed equal for !0])");
 MODULE_PARM_DESC(inq_product, "SCSI INQUIRY product string (def=\"scsi_debug\")");
 MODULE_PARM_DESC(inq_rev, "SCSI INQUIRY revision string (def=\""
 		 SDEBUG_VERSION "\")");
@@ -6141,7 +6163,8 @@ static ssize_t max_queue_store(struct device_driver *ddp, const char *buf,
 	struct sdebug_queue *sqp;
 
 	if ((count > 0) && (1 == sscanf(buf, "%d", &n)) && (n > 0) &&
-	    (n <= SDEBUG_CANQUEUE)) {
+	    (n <= SDEBUG_CANQUEUE) &&
+	    (sdebug_host_max_queue == 0)) {
 		block_unblock_all_queues(true);
 		k = 0;
 		for (j = 0, sqp = sdebug_q_arr; j < submit_queues;
@@ -6163,6 +6186,17 @@ static ssize_t max_queue_store(struct device_driver *ddp, const char *buf,
 	return -EINVAL;
 }
 static DRIVER_ATTR_RW(max_queue);
+
+static ssize_t host_max_queue_show(struct device_driver *ddp, char *buf)
+{
+	return scnprintf(buf, PAGE_SIZE, "%d\n", sdebug_host_max_queue);
+}
+
+/*
+ * Since this is used for .can_queue, and we get the hc_idx tag from the bitmap
+ * in range [0, sdebug_host_max_queue), we can't change it.
+ */
+static DRIVER_ATTR_RO(host_max_queue);
 
 static ssize_t no_uld_show(struct device_driver *ddp, char *buf)
 {
@@ -6503,6 +6537,7 @@ static struct attribute *sdebug_drv_attrs[] = {
 	&driver_attr_ptype.attr,
 	&driver_attr_dsense.attr,
 	&driver_attr_fake_rw.attr,
+	&driver_attr_host_max_queue.attr,
 	&driver_attr_no_lun_0.attr,
 	&driver_attr_num_tgts.attr,
 	&driver_attr_dev_size_mb.attr,
@@ -6617,6 +6652,20 @@ static int __init scsi_debug_init(void)
 	if ((sdebug_max_queue > SDEBUG_CANQUEUE) || (sdebug_max_queue < 1)) {
 		pr_err("max_queue must be in range [1, %d]\n", SDEBUG_CANQUEUE);
 		return -EINVAL;
+	}
+
+	if ((sdebug_host_max_queue > SDEBUG_CANQUEUE) ||
+	    (sdebug_host_max_queue < 0)) {
+		pr_err("host_max_queue must be in range [0 %d]\n",
+		       SDEBUG_CANQUEUE);
+		return -EINVAL;
+	}
+
+	if (sdebug_host_max_queue &&
+	    (sdebug_max_queue != sdebug_host_max_queue)) {
+		sdebug_max_queue = sdebug_host_max_queue;
+		pr_warn("fixing max submit queue depth to host max queue depth, %d\n",
+			sdebug_max_queue);
 	}
 
 	sdebug_q_arr = kcalloc(submit_queues, sizeof(struct sdebug_queue),
@@ -7257,7 +7306,10 @@ static int sdebug_driver_probe(struct device *dev)
 
 	sdbg_host = to_sdebug_host(dev);
 
-	sdebug_driver_template.can_queue = sdebug_max_queue;
+	if (sdebug_host_max_queue)
+		sdebug_driver_template.can_queue = sdebug_host_max_queue;
+	else
+		sdebug_driver_template.can_queue = sdebug_max_queue;
 	if (!sdebug_clustering)
 		sdebug_driver_template.dma_boundary = PAGE_SIZE - 1;
 
@@ -7272,9 +7324,13 @@ static int sdebug_driver_probe(struct device *dev)
 			my_name, submit_queues, nr_cpu_ids);
 		submit_queues = nr_cpu_ids;
 	}
-	/* Decide whether to tell scsi subsystem that we want mq */
-	/* Following should give the same answer for each host */
-	hpnt->nr_hw_queues = submit_queues;
+	/*
+	 * Decide whether to tell scsi subsystem that we want mq. The
+	 * following should give the same answer for each host. If the host
+	 * has a limit of hostwide max commands, then do not set.
+	 */
+	if (!sdebug_host_max_queue)
+		hpnt->nr_hw_queues = submit_queues;
 
 	sdbg_host->shost = hpnt;
 	*((struct sdebug_host_info **)hpnt->hostdata) = sdbg_host;
