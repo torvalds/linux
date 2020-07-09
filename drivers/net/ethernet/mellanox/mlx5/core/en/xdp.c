@@ -196,16 +196,19 @@ static void mlx5e_xdp_mpwqe_session_start(struct mlx5e_xdpsq *sq)
 {
 	struct mlx5e_xdp_mpwqe *session = &sq->mpwqe;
 	struct mlx5e_xdpsq_stats *stats = sq->stats;
+	struct mlx5e_tx_wqe *wqe;
 	u16 pi;
 
 	pi = mlx5e_xdpsq_get_next_pi(sq, MLX5E_XDP_MPW_MAX_WQEBBS);
-	session->wqe = MLX5E_TX_FETCH_WQE(sq, pi);
+	wqe = MLX5E_TX_FETCH_WQE(sq, pi);
+	net_prefetchw(wqe->data);
 
-	net_prefetchw(session->wqe->data);
-	session->ds_count  = MLX5E_XDP_TX_EMPTY_DS_COUNT;
-	session->pkt_count = 0;
-
-	mlx5e_xdp_update_inline_state(sq);
+	*session = (struct mlx5e_xdp_mpwqe) {
+		.wqe = wqe,
+		.ds_count = MLX5E_TX_WQE_EMPTY_DS_COUNT,
+		.pkt_count = 0,
+		.inline_on = mlx5e_xdp_get_inline_state(sq, session->inline_on),
+	};
 
 	stats->mpwqe++;
 }

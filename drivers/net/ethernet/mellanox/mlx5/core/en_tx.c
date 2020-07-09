@@ -305,7 +305,7 @@ static void mlx5e_sq_xmit_prepare(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 static void mlx5e_sq_calc_wqe_attr(struct sk_buff *skb, const struct mlx5e_tx_attr *attr,
 				   struct mlx5e_tx_wqe_attr *wqe_attr)
 {
-	u16 ds_cnt = sizeof(struct mlx5e_tx_wqe) / MLX5_SEND_WQE_DS;
+	u16 ds_cnt = MLX5E_TX_WQE_EMPTY_DS_COUNT;
 	u16 ds_cnt_inl = 0;
 
 	ds_cnt += !!attr->headlen + skb_shinfo(skb)->nr_frags;

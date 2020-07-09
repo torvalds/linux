@@ -38,9 +38,7 @@
 #include "en/txrx.h"
 
 #define MLX5E_XDP_MIN_INLINE (ETH_HLEN + VLAN_HLEN)
-#define MLX5E_XDP_TX_EMPTY_DS_COUNT \
-	(sizeof(struct mlx5e_tx_wqe) / MLX5_SEND_WQE_DS)
-#define MLX5E_XDP_TX_DS_COUNT (MLX5E_XDP_TX_EMPTY_DS_COUNT + 1 /* SG DS */)
+#define MLX5E_XDP_TX_DS_COUNT (MLX5E_TX_WQE_EMPTY_DS_COUNT + 1 /* SG DS */)
 
 #define MLX5E_XDP_INLINE_WQE_MAX_DS_CNT 16
 #define MLX5E_XDP_INLINE_WQE_SZ_THRSD \
@@ -123,23 +121,20 @@ static inline void mlx5e_xmit_xdp_doorbell(struct mlx5e_xdpsq *sq)
 /* Enable inline WQEs to shift some load from a congested HCA (HW) to
  * a less congested cpu (SW).
  */
-static inline void mlx5e_xdp_update_inline_state(struct mlx5e_xdpsq *sq)
+static inline bool mlx5e_xdp_get_inline_state(struct mlx5e_xdpsq *sq, bool cur)
 {
 	u16 outstanding = sq->xdpi_fifo_pc - sq->xdpi_fifo_cc;
-	struct mlx5e_xdp_mpwqe *session = &sq->mpwqe;
 
 #define MLX5E_XDP_INLINE_WATERMARK_LOW	10
 #define MLX5E_XDP_INLINE_WATERMARK_HIGH 128
 
-	if (session->inline_on) {
-		if (outstanding <= MLX5E_XDP_INLINE_WATERMARK_LOW)
-			session->inline_on = 0;
-		return;
-	}
+	if (cur && outstanding <= MLX5E_XDP_INLINE_WATERMARK_LOW)
+		return false;
 
-	/* inline is false */
-	if (outstanding >= MLX5E_XDP_INLINE_WATERMARK_HIGH)
-		session->inline_on = 1;
+	if (!cur && outstanding >= MLX5E_XDP_INLINE_WATERMARK_HIGH)
+		return true;
+
+	return cur;
 }
 
 static inline bool mlx5e_xdp_mpqwe_is_full(struct mlx5e_xdp_mpwqe *session)
