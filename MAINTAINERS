@@ -11332,7 +11332,6 @@ F:	Documentation/devicetree/bindings/pwm/atmel-pwm.txt
 F:	drivers/pwm/pwm-atmel.c
 
 MICROCHIP SAMA5D2-COMPATIBLE ADC DRIVER
-M:	Ludovic Desroches <ludovic.desroches@microchip.com>
 M:	Eugen Hristev <eugen.hristev@microchip.com>
 L:	linux-iio@vger.kernel.org
 S:	Supported
