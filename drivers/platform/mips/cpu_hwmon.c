@@ -11,7 +11,7 @@
 #include <loongson_hwmon.h>
 #include <loongson_regs.h>
 
-static int csr_temp_enable = 0;
+static int csr_temp_enable;
 
 /*
  * Loongson-3 series cpu has two sensors inside,
@@ -44,7 +44,7 @@ int loongson3_cpu_temp(int cpu)
 	case PRID_REV_LOONGSON3A_R3_0:
 	case PRID_REV_LOONGSON3A_R3_1:
 	default:
-		reg = (reg & 0xffff)*731/0x4000 - 273;
+		reg = (reg & 0xffff) * 731 / 0x4000 - 273;
 		break;
 	}
 
@@ -57,7 +57,7 @@ static struct device *cpu_hwmon_dev;
 
 static ssize_t get_hwmon_name(struct device *dev,
 			struct device_attribute *attr, char *buf);
-static SENSOR_DEVICE_ATTR(name, S_IRUGO, get_hwmon_name, NULL, 0);
+static SENSOR_DEVICE_ATTR(name, 0444, get_hwmon_name, NULL, 0);
 
 static struct attribute *cpu_hwmon_attributes[] = {
 	&sensor_dev_attr_name.dev_attr.attr,
@@ -81,14 +81,14 @@ static ssize_t get_cpu_temp(struct device *dev,
 static ssize_t cpu_temp_label(struct device *dev,
 			struct device_attribute *attr, char *buf);
 
-static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, get_cpu_temp, NULL, 1);
-static SENSOR_DEVICE_ATTR(temp1_label, S_IRUGO, cpu_temp_label, NULL, 1);
-static SENSOR_DEVICE_ATTR(temp2_input, S_IRUGO, get_cpu_temp, NULL, 2);
-static SENSOR_DEVICE_ATTR(temp2_label, S_IRUGO, cpu_temp_label, NULL, 2);
-static SENSOR_DEVICE_ATTR(temp3_input, S_IRUGO, get_cpu_temp, NULL, 3);
-static SENSOR_DEVICE_ATTR(temp3_label, S_IRUGO, cpu_temp_label, NULL, 3);
-static SENSOR_DEVICE_ATTR(temp4_input, S_IRUGO, get_cpu_temp, NULL, 4);
-static SENSOR_DEVICE_ATTR(temp4_label, S_IRUGO, cpu_temp_label, NULL, 4);
+static SENSOR_DEVICE_ATTR(temp1_input, 0444, get_cpu_temp, NULL, 1);
+static SENSOR_DEVICE_ATTR(temp1_label, 0444, cpu_temp_label, NULL, 1);
+static SENSOR_DEVICE_ATTR(temp2_input, 0444, get_cpu_temp, NULL, 2);
+static SENSOR_DEVICE_ATTR(temp2_label, 0444, cpu_temp_label, NULL, 2);
+static SENSOR_DEVICE_ATTR(temp3_input, 0444, get_cpu_temp, NULL, 3);
+static SENSOR_DEVICE_ATTR(temp3_label, 0444, cpu_temp_label, NULL, 3);
+static SENSOR_DEVICE_ATTR(temp4_input, 0444, get_cpu_temp, NULL, 4);
+static SENSOR_DEVICE_ATTR(temp4_label, 0444, cpu_temp_label, NULL, 4);
 
 static const struct attribute *hwmon_cputemp[4][3] = {
 	{
@@ -117,6 +117,7 @@ static ssize_t cpu_temp_label(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
 	int id = (to_sensor_dev_attr(attr))->index - 1;
+
 	return sprintf(buf, "CPU %d Temperature\n", id);
 }
 
@@ -125,6 +126,7 @@ static ssize_t get_cpu_temp(struct device *dev,
 {
 	int id = (to_sensor_dev_attr(attr))->index - 1;
 	int value = loongson3_cpu_temp(id);
+
 	return sprintf(buf, "%d\n", value);
 }
 
@@ -132,7 +134,7 @@ static int create_sysfs_cputemp_files(struct kobject *kobj)
 {
 	int i, ret = 0;
 
-	for (i=0; i<nr_packages; i++)
+	for (i = 0; i < nr_packages; i++)
 		ret = sysfs_create_files(kobj, hwmon_cputemp[i]);
 
 	return ret;
@@ -142,7 +144,7 @@ static void remove_sysfs_cputemp_files(struct kobject *kobj)
 {
 	int i;
 
-	for (i=0; i<nr_packages; i++)
+	for (i = 0; i < nr_packages; i++)
 		sysfs_remove_files(kobj, hwmon_cputemp[i]);
 }
 
@@ -153,7 +155,7 @@ static void do_thermal_timer(struct work_struct *work)
 {
 	int i, value, temp_max = 0;
 
-	for (i=0; i<nr_packages; i++) {
+	for (i = 0; i < nr_packages; i++) {
 		value = loongson3_cpu_temp(i);
 		if (value > temp_max)
 			temp_max = value;
@@ -172,7 +174,8 @@ static int __init loongson_hwmon_init(void)
 	pr_info("Loongson Hwmon Enter...\n");
 
 	if (cpu_has_csr())
-		csr_temp_enable = csr_readl(LOONGSON_CSR_FEATURES) & LOONGSON_CSRF_TEMP;
+		csr_temp_enable = csr_readl(LOONGSON_CSR_FEATURES) &
+				  LOONGSON_CSRF_TEMP;
 
 	cpu_hwmon_dev = hwmon_device_register(NULL);
 	if (IS_ERR(cpu_hwmon_dev)) {
