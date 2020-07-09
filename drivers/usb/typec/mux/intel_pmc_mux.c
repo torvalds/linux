@@ -310,6 +310,9 @@ pmc_usb_mux_set(struct typec_mux *mux, struct typec_mux_state *state)
 {
 	struct pmc_usb_port *port = typec_mux_get_drvdata(mux);
 
+	if (port->orientation == TYPEC_ORIENTATION_NONE || port->role == USB_ROLE_NONE)
+		return 0;
+
 	if (state->mode == TYPEC_STATE_SAFE)
 		return pmc_usb_mux_safe_state(port);
 	if (state->mode == TYPEC_STATE_USB)
