@@ -222,9 +222,11 @@
 &dsp {
 	status = "okay";
 	memory-region = <&dsp_memory_region>;
+	ti,timers = <&timer5>;
 };
 
 &ipu {
 	status = "okay";
 	memory-region = <&ipu_memory_region>;
+	ti,timers = <&timer3>;
 };
