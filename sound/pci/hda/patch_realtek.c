@@ -382,7 +382,7 @@ static void alc_fill_eapd_coef(struct hda_codec *codec)
 	case 0x10ec0295:
 	case 0x10ec0299:
 		alc_update_coef_idx(codec, 0x67, 0xf000, 0x3000);
-		/* fallthrough */
+		fallthrough;
 	case 0x10ec0215:
 	case 0x10ec0233:
 	case 0x10ec0235:
@@ -4698,7 +4698,7 @@ static void alc_headset_mode_mic_in(struct hda_codec *codec, hda_nid_t hp_pin,
 		break;
 	case 0x10ec0867:
 		alc_update_coefex_idx(codec, 0x57, 0x5, 0, 1<<14);
-		/* fallthru */
+		fallthrough;
 	case 0x10ec0221:
 	case 0x10ec0662:
 		snd_hda_set_pin_ctl_cache(codec, hp_pin, 0);
