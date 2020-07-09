@@ -312,6 +312,7 @@ int ice_devlink_create_port(struct ice_pf *pf)
 	struct devlink *devlink = priv_to_devlink(pf);
 	struct ice_vsi *vsi = ice_get_main_vsi(pf);
 	struct device *dev = ice_pf_to_dev(pf);
+	struct devlink_port_attrs attrs = {};
 	int err;
 
 	if (!vsi) {
@@ -319,8 +320,9 @@ int ice_devlink_create_port(struct ice_pf *pf)
 		return -EIO;
 	}
 
-	devlink_port_attrs_set(&pf->devlink_port, DEVLINK_PORT_FLAVOUR_PHYSICAL,
-			       pf->hw.pf_id, false, 0, NULL, 0);
+	attrs.flavour = DEVLINK_PORT_FLAVOUR_PHYSICAL;
+	attrs.phys.port_number = pf->hw.pf_id;
+	devlink_port_attrs_set(&pf->devlink_port, &attrs);
 	err = devlink_port_register(devlink, &pf->devlink_port, pf->hw.pf_id);
 	if (err) {
 		dev_err(dev, "devlink_port_register failed: %d\n", err);

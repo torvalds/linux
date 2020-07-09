@@ -1733,12 +1733,16 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 	struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan;
 	bool split = !!split_base_local_port;
 	struct mlxsw_sp_port *mlxsw_sp_port;
+	u32 lanes = port_mapping->width;
 	struct net_device *dev;
+	bool splittable;
 	int err;
 
+	splittable = lanes > 1 && !split;
 	err = mlxsw_core_port_init(mlxsw_sp->core, local_port,
 				   port_mapping->module + 1, split,
-				   port_mapping->lane / port_mapping->width,
+				   port_mapping->lane / lanes,
+				   splittable, lanes,
 				   mlxsw_sp->base_mac,
 				   sizeof(mlxsw_sp->base_mac));
 	if (err) {
@@ -2232,13 +2236,6 @@ static int mlxsw_sp_port_split(struct mlxsw_core *mlxsw_core, u8 local_port,
 		return -EINVAL;
 	}
 
-	/* Split ports cannot be split. */
-	if (mlxsw_sp_port->split) {
-		netdev_err(mlxsw_sp_port->dev, "Port cannot be split further\n");
-		NL_SET_ERR_MSG_MOD(extack, "Port cannot be split further");
-		return -EINVAL;
-	}
-
 	max_width = mlxsw_core_module_max_width(mlxsw_core,
 						mlxsw_sp_port->mapping.module);
 	if (max_width < 0) {
@@ -2247,16 +2244,10 @@ static int mlxsw_sp_port_split(struct mlxsw_core *mlxsw_core, u8 local_port,
 		return max_width;
 	}
 
-	/* Split port with non-max and 1 module width cannot be split. */
-	if (mlxsw_sp_port->mapping.width != max_width || max_width == 1) {
+	/* Split port with non-max cannot be split. */
+	if (mlxsw_sp_port->mapping.width != max_width) {
 		netdev_err(mlxsw_sp_port->dev, "Port cannot be split\n");
 		NL_SET_ERR_MSG_MOD(extack, "Port cannot be split");
-		return -EINVAL;
-	}
-
-	if (count == 1 || !is_power_of_2(count) || count > max_width) {
-		netdev_err(mlxsw_sp_port->dev, "Invalid split count\n");
-		NL_SET_ERR_MSG_MOD(extack, "Invalid split count");
 		return -EINVAL;
 	}
 
