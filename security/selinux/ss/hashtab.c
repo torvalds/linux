@@ -29,16 +29,10 @@ static u32 hashtab_compute_size(u32 nel)
 	return nel == 0 ? 0 : roundup_pow_of_two(nel);
 }
 
-int hashtab_init(struct hashtab *h,
-		 u32 (*hash_value)(struct hashtab *h, const void *key),
-		 int (*keycmp)(struct hashtab *h, const void *key1,
-			       const void *key2),
-		 u32 nel_hint)
+int hashtab_init(struct hashtab *h, u32 nel_hint)
 {
 	h->size = hashtab_compute_size(nel_hint);
 	h->nel = 0;
-	h->hash_value = hash_value;
-	h->keycmp = keycmp;
 	if (!h->size)
 		return 0;
 
@@ -46,7 +40,8 @@ int hashtab_init(struct hashtab *h,
 	return h->htable ? 0 : -ENOMEM;
 }
 
-int hashtab_insert(struct hashtab *h, void *key, void *datum)
+int hashtab_insert(struct hashtab *h, void *key, void *datum,
+		   struct hashtab_key_params key_params)
 {
 	u32 hvalue;
 	struct hashtab_node *prev, *cur, *newnode;
@@ -56,16 +51,19 @@ int hashtab_insert(struct hashtab *h, void *key, void *datum)
 	if (!h->size || h->nel == HASHTAB_MAX_NODES)
 		return -EINVAL;
 
-	hvalue = h->hash_value(h, key);
+	hvalue = key_params.hash(key) & (h->size - 1);
 	prev = NULL;
 	cur = h->htable[hvalue];
-	while (cur && h->keycmp(h, key, cur->key) > 0) {
+	while (cur) {
+		int cmp = key_params.cmp(key, cur->key);
+
+		if (cmp == 0)
+			return -EEXIST;
+		if (cmp < 0)
+			break;
 		prev = cur;
 		cur = cur->next;
 	}
-
-	if (cur && (h->keycmp(h, key, cur->key) == 0))
-		return -EEXIST;
 
 	newnode = kmem_cache_zalloc(hashtab_node_cachep, GFP_KERNEL);
 	if (!newnode)
@@ -84,7 +82,8 @@ int hashtab_insert(struct hashtab *h, void *key, void *datum)
 	return 0;
 }
 
-void *hashtab_search(struct hashtab *h, const void *key)
+void *hashtab_search(struct hashtab *h, const void *key,
+		     struct hashtab_key_params key_params)
 {
 	u32 hvalue;
 	struct hashtab_node *cur;
@@ -92,15 +91,18 @@ void *hashtab_search(struct hashtab *h, const void *key)
 	if (!h->size)
 		return NULL;
 
-	hvalue = h->hash_value(h, key);
+	hvalue = key_params.hash(key) & (h->size - 1);
 	cur = h->htable[hvalue];
-	while (cur && h->keycmp(h, key, cur->key) > 0)
+	while (cur) {
+		int cmp = key_params.cmp(key, cur->key);
+
+		if (cmp == 0)
+			return cur->datum;
+		if (cmp < 0)
+			break;
 		cur = cur->next;
-
-	if (!cur || (h->keycmp(h, key, cur->key) != 0))
-		return NULL;
-
-	return cur->datum;
+	}
+	return NULL;
 }
 
 void hashtab_destroy(struct hashtab *h)

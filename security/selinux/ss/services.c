@@ -1671,7 +1671,7 @@ static void filename_compute_type(struct policydb *policydb,
 	ft.tclass = tclass;
 	ft.name = objname;
 
-	datum = hashtab_search(&policydb->filename_trans, &ft);
+	datum = policydb_filenametr_search(policydb, &ft);
 	while (datum) {
 		if (ebitmap_get_bit(&datum->stypes, stype - 1)) {
 			newcontext->type = datum->otype;
@@ -1834,7 +1834,7 @@ static int security_compute_sid(struct selinux_state *state,
 			.tclass = tclass,
 		};
 
-		rtd = hashtab_search(&policydb->role_tr, &rtk);
+		rtd = policydb_roletr_search(policydb, &rtk);
 		if (rtd)
 			newcontext.role = rtd->new_role;
 	}

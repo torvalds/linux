@@ -13,6 +13,12 @@
 
 #define HASHTAB_MAX_NODES	0xffffffff
 
+struct hashtab_key_params {
+	u32 (*hash)(const void *key);	/* hash function */
+	int (*cmp)(const void *key1, const void *key2);
+					/* key comparison function */
+};
+
 struct hashtab_node {
 	void *key;
 	void *datum;
@@ -23,10 +29,6 @@ struct hashtab {
 	struct hashtab_node **htable;	/* hash table */
 	u32 size;			/* number of slots in hash table */
 	u32 nel;			/* number of elements in hash table */
-	u32 (*hash_value)(struct hashtab *h, const void *key);
-					/* hash function */
-	int (*keycmp)(struct hashtab *h, const void *key1, const void *key2);
-					/* key comparison function */
 };
 
 struct hashtab_info {
@@ -39,11 +41,7 @@ struct hashtab_info {
  *
  * Returns -ENOMEM if insufficient space is available or 0 otherwise.
  */
-int hashtab_init(struct hashtab *h,
-		 u32 (*hash_value)(struct hashtab *h, const void *key),
-		 int (*keycmp)(struct hashtab *h, const void *key1,
-			       const void *key2),
-		 u32 nel_hint);
+int hashtab_init(struct hashtab *h, u32 nel_hint);
 
 /*
  * Inserts the specified (key, datum) pair into the specified hash table.
@@ -53,7 +51,8 @@ int hashtab_init(struct hashtab *h,
  * -EINVAL for general errors or
   0 otherwise.
  */
-int hashtab_insert(struct hashtab *h, void *k, void *d);
+int hashtab_insert(struct hashtab *h, void *k, void *d,
+		   struct hashtab_key_params key_params);
 
 /*
  * Searches for the entry with the specified key in the hash table.
@@ -61,7 +60,8 @@ int hashtab_insert(struct hashtab *h, void *k, void *d);
  * Returns NULL if no entry has the specified key or
  * the datum of the entry otherwise.
  */
-void *hashtab_search(struct hashtab *h, const void *k);
+void *hashtab_search(struct hashtab *h, const void *k,
+		     struct hashtab_key_params key_params);
 
 /*
  * Destroys the specified hash table.

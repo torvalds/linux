@@ -507,7 +507,7 @@ int mls_compute_sid(struct policydb *p,
 		rtr.source_type = scontext->type;
 		rtr.target_type = tcontext->type;
 		rtr.target_class = tclass;
-		r = hashtab_search(&p->range_tr, &rtr);
+		r = policydb_rangetr_search(p, &rtr);
 		if (r)
 			return mls_range_set(newcontext, r);
 
