@@ -277,6 +277,7 @@ static int max77620_gpio_probe(struct platform_device *pdev)
 	if (!mgpio)
 		return -ENOMEM;
 
+	mutex_init(&mgpio->buslock);
 	mgpio->rmap = chip->rmap;
 	mgpio->dev = &pdev->dev;
 
@@ -291,6 +292,11 @@ static int max77620_gpio_probe(struct platform_device *pdev)
 	mgpio->gpio_chip.can_sleep = 1;
 	mgpio->gpio_chip.base = -1;
 
+	mgpio->gpio_chip.irq.chip = &max77620_gpio_irqchip;
+	mgpio->gpio_chip.irq.default_type = IRQ_TYPE_NONE;
+	mgpio->gpio_chip.irq.handler = handle_edge_irq;
+	mgpio->gpio_chip.irq.threaded = true;
+
 	platform_set_drvdata(pdev, mgpio);
 
 	ret = devm_gpiochip_add_data(&pdev->dev, &mgpio->gpio_chip, mgpio);
@@ -299,11 +305,6 @@ static int max77620_gpio_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	mutex_init(&mgpio->buslock);
-
-	gpiochip_irqchip_add_nested(&mgpio->gpio_chip, &max77620_gpio_irqchip,
-				    0, handle_edge_irq, IRQ_TYPE_NONE);
-
 	ret = devm_request_threaded_irq(&pdev->dev, gpio_irq, NULL,
 					max77620_gpio_irqhandler, IRQF_ONESHOT,
 					"max77620-gpio", mgpio);
@@ -311,9 +312,6 @@ static int max77620_gpio_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to request IRQ: %d\n", ret);
 		return ret;
 	}
-
-	gpiochip_set_nested_irqchip(&mgpio->gpio_chip, &max77620_gpio_irqchip,
-				    gpio_irq);
 
 	return 0;
 }
