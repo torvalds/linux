@@ -1290,6 +1290,7 @@
 
 &u2phy0 {
 	status = "okay";
+	vup-gpios = <&gpio0 RK_PC1 GPIO_ACTIVE_LOW>;
 	u2phy_otg: otg-port {
 		status = "okay";
 	};
@@ -1297,7 +1298,6 @@
 
 &u2phy1 {
 	status = "okay";
-
 	u2phy_host: host-port {
 		status = "okay";
 		phy-supply = <&vcc5v0_host>;
