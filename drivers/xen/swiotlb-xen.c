@@ -52,11 +52,6 @@ static unsigned long xen_io_tlb_nslabs;
  * Quick lookup value of the bus address of the IOTLB.
  */
 
-/*
- * Both of these functions should avoid XEN_PFN_PHYS because phys_addr_t
- * can be 32bit when dma_addr_t is 64bit leading to a loss in
- * information if the shift is done before casting to 64bit.
- */
 static inline dma_addr_t xen_phys_to_bus(struct device *dev, phys_addr_t paddr)
 {
 	unsigned long bfn = pfn_to_bfn(XEN_PFN_DOWN(paddr));
@@ -101,7 +96,7 @@ static int is_xen_swiotlb_buffer(struct device *dev, dma_addr_t dma_addr)
 {
 	unsigned long bfn = XEN_PFN_DOWN(dma_addr);
 	unsigned long xen_pfn = bfn_to_local_pfn(bfn);
-	phys_addr_t paddr = XEN_PFN_PHYS(xen_pfn);
+	phys_addr_t paddr = (phys_addr_t)xen_pfn << XEN_PAGE_SHIFT;
 
 	/* If the address is outside our domain, it CAN
 	 * have the same virtual address as another address
