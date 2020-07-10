@@ -63,6 +63,8 @@ MODULE_FIRMWARE("amdgpu/sienna_cichlid_smc.bin");
 
 #define SMU11_VOLTAGE_SCALE 4
 
+#define SMU11_MODE1_RESET_WAIT_TIME_IN_MS 500  //500ms
+
 static int smu_v11_0_send_msg_without_waiting(struct smu_context *smu,
 					      uint16_t msg)
 {
@@ -1690,6 +1692,17 @@ int smu_v11_0_baco_exit(struct smu_context *smu)
 	ret = smu_v11_0_baco_set_state(smu, SMU_BACO_STATE_EXIT);
 	if (ret)
 		return ret;
+
+	return ret;
+}
+
+int smu_v11_0_mode1_reset(struct smu_context *smu)
+{
+	int ret = 0;
+
+	ret = smu_send_smc_msg(smu, SMU_MSG_Mode1Reset, NULL);
+	if (!ret)
+		msleep(SMU11_MODE1_RESET_WAIT_TIME_IN_MS);
 
 	return ret;
 }
