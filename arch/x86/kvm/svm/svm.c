@@ -2358,6 +2358,8 @@ static int svm_get_msr_feature(struct kvm_msr_entry *msr)
 		if (boot_cpu_has(X86_FEATURE_LFENCE_RDTSC))
 			msr->data |= MSR_F10H_DECFG_LFENCE_SERIALIZE;
 		break;
+	case MSR_IA32_PERF_CAPABILITIES:
+		return 0;
 	default:
 		return KVM_MSR_RET_INVALID;
 	}

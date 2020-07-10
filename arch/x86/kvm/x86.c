@@ -2857,6 +2857,20 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 			return 1;
 		vcpu->arch.arch_capabilities = data;
 		break;
+	case MSR_IA32_PERF_CAPABILITIES: {
+		struct kvm_msr_entry msr_ent = {.index = msr, .data = 0};
+
+		if (!msr_info->host_initiated)
+			return 1;
+		if (guest_cpuid_has(vcpu, X86_FEATURE_PDCM) && kvm_get_msr_feature(&msr_ent))
+			return 1;
+		if (data & ~msr_ent.data)
+			return 1;
+
+		vcpu->arch.perf_capabilities = data;
+
+		return 0;
+		}
 	case MSR_EFER:
 		return set_efer(vcpu, msr_info);
 	case MSR_K7_HWCR:
@@ -3196,6 +3210,12 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		    !guest_cpuid_has(vcpu, X86_FEATURE_ARCH_CAPABILITIES))
 			return 1;
 		msr_info->data = vcpu->arch.arch_capabilities;
+		break;
+	case MSR_IA32_PERF_CAPABILITIES:
+		if (!msr_info->host_initiated &&
+		    !guest_cpuid_has(vcpu, X86_FEATURE_PDCM))
+			return 1;
+		msr_info->data = vcpu->arch.perf_capabilities;
 		break;
 	case MSR_IA32_POWER_CTL:
 		msr_info->data = vcpu->arch.msr_ia32_power_ctl;
