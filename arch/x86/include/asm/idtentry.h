@@ -13,8 +13,12 @@
 void idtentry_enter_user(struct pt_regs *regs);
 void idtentry_exit_user(struct pt_regs *regs);
 
-bool idtentry_enter_cond_rcu(struct pt_regs *regs);
-void idtentry_exit_cond_rcu(struct pt_regs *regs, bool rcu_exit);
+typedef struct idtentry_state {
+	bool exit_rcu;
+} idtentry_state_t;
+
+idtentry_state_t idtentry_enter(struct pt_regs *regs);
+void idtentry_exit(struct pt_regs *regs, idtentry_state_t state);
 
 /**
  * DECLARE_IDTENTRY - Declare functions for simple IDT entry points
@@ -54,12 +58,12 @@ static __always_inline void __##func(struct pt_regs *regs);		\
 									\
 __visible noinstr void func(struct pt_regs *regs)			\
 {									\
-	bool rcu_exit = idtentry_enter_cond_rcu(regs);			\
+	idtentry_state_t state = idtentry_enter(regs);			\
 									\
 	instrumentation_begin();					\
 	__##func (regs);						\
 	instrumentation_end();						\
-	idtentry_exit_cond_rcu(regs, rcu_exit);				\
+	idtentry_exit(regs, state);					\
 }									\
 									\
 static __always_inline void __##func(struct pt_regs *regs)
@@ -101,12 +105,12 @@ static __always_inline void __##func(struct pt_regs *regs,		\
 __visible noinstr void func(struct pt_regs *regs,			\
 			    unsigned long error_code)			\
 {									\
-	bool rcu_exit = idtentry_enter_cond_rcu(regs);			\
+	idtentry_state_t state = idtentry_enter(regs);			\
 									\
 	instrumentation_begin();					\
 	__##func (regs, error_code);					\
 	instrumentation_end();						\
-	idtentry_exit_cond_rcu(regs, rcu_exit);				\
+	idtentry_exit(regs, state);					\
 }									\
 									\
 static __always_inline void __##func(struct pt_regs *regs,		\
@@ -199,7 +203,7 @@ static __always_inline void __##func(struct pt_regs *regs, u8 vector);	\
 __visible noinstr void func(struct pt_regs *regs,			\
 			    unsigned long error_code)			\
 {									\
-	bool rcu_exit = idtentry_enter_cond_rcu(regs);			\
+	idtentry_state_t state = idtentry_enter(regs);			\
 									\
 	instrumentation_begin();					\
 	irq_enter_rcu();						\
@@ -207,7 +211,7 @@ __visible noinstr void func(struct pt_regs *regs,			\
 	__##func (regs, (u8)error_code);				\
 	irq_exit_rcu();							\
 	instrumentation_end();						\
-	idtentry_exit_cond_rcu(regs, rcu_exit);				\
+	idtentry_exit(regs, state);					\
 }									\
 									\
 static __always_inline void __##func(struct pt_regs *regs, u8 vector)
@@ -241,7 +245,7 @@ static void __##func(struct pt_regs *regs);				\
 									\
 __visible noinstr void func(struct pt_regs *regs)			\
 {									\
-	bool rcu_exit = idtentry_enter_cond_rcu(regs);			\
+	idtentry_state_t state = idtentry_enter(regs);			\
 									\
 	instrumentation_begin();					\
 	irq_enter_rcu();						\
@@ -249,7 +253,7 @@ __visible noinstr void func(struct pt_regs *regs)			\
 	run_on_irqstack_cond(__##func, regs, regs);			\
 	irq_exit_rcu();							\
 	instrumentation_end();						\
-	idtentry_exit_cond_rcu(regs, rcu_exit);				\
+	idtentry_exit(regs, state);					\
 }									\
 									\
 static noinline void __##func(struct pt_regs *regs)
@@ -270,7 +274,7 @@ static __always_inline void __##func(struct pt_regs *regs);		\
 									\
 __visible noinstr void func(struct pt_regs *regs)			\
 {									\
-	bool rcu_exit = idtentry_enter_cond_rcu(regs);			\
+	idtentry_state_t state = idtentry_enter(regs);			\
 									\
 	instrumentation_begin();					\
 	__irq_enter_raw();						\
@@ -278,7 +282,7 @@ __visible noinstr void func(struct pt_regs *regs)			\
 	__##func (regs);						\
 	__irq_exit_raw();						\
 	instrumentation_end();						\
-	idtentry_exit_cond_rcu(regs, rcu_exit);				\
+	idtentry_exit(regs, state);					\
 }									\
 									\
 static __always_inline void __##func(struct pt_regs *regs)
@@ -353,10 +357,6 @@ static __always_inline void __##func(struct pt_regs *regs)
 
 #else	/* CONFIG_X86_64 */
 
-/* Maps to a regular IDTENTRY on 32bit for now */
-# define DECLARE_IDTENTRY_IST		DECLARE_IDTENTRY
-# define DEFINE_IDTENTRY_IST		DEFINE_IDTENTRY
-
 /**
  * DECLARE_IDTENTRY_DF - Declare functions for double fault 32bit variant
  * @vector:	Vector number (ignored for C)
@@ -387,28 +387,18 @@ __visible noinstr void func(struct pt_regs *regs,			\
 #endif	/* !CONFIG_X86_64 */
 
 /* C-Code mapping */
+#define DECLARE_IDTENTRY_NMI		DECLARE_IDTENTRY_RAW
+#define DEFINE_IDTENTRY_NMI		DEFINE_IDTENTRY_RAW
+
+#ifdef CONFIG_X86_64
 #define DECLARE_IDTENTRY_MCE		DECLARE_IDTENTRY_IST
 #define DEFINE_IDTENTRY_MCE		DEFINE_IDTENTRY_IST
 #define DEFINE_IDTENTRY_MCE_USER	DEFINE_IDTENTRY_NOIST
 
-#define DECLARE_IDTENTRY_NMI		DECLARE_IDTENTRY_RAW
-#define DEFINE_IDTENTRY_NMI		DEFINE_IDTENTRY_RAW
-
 #define DECLARE_IDTENTRY_DEBUG		DECLARE_IDTENTRY_IST
 #define DEFINE_IDTENTRY_DEBUG		DEFINE_IDTENTRY_IST
 #define DEFINE_IDTENTRY_DEBUG_USER	DEFINE_IDTENTRY_NOIST
-
-/**
- * DECLARE_IDTENTRY_XEN - Declare functions for XEN redirect IDT entry points
- * @vector:	Vector number (ignored for C)
- * @func:	Function name of the entry point
- *
- * Used for xennmi and xendebug redirections. No DEFINE as this is all ASM
- * indirection magic.
- */
-#define DECLARE_IDTENTRY_XEN(vector, func)				\
-	asmlinkage void xen_asm_exc_xen##func(void);			\
-	asmlinkage void asm_exc_xen##func(void)
+#endif
 
 #else /* !__ASSEMBLY__ */
 
@@ -455,9 +445,6 @@ __visible noinstr void func(struct pt_regs *regs,			\
 # define DECLARE_IDTENTRY_MCE(vector, func)				\
 	DECLARE_IDTENTRY(vector, func)
 
-# define DECLARE_IDTENTRY_DEBUG(vector, func)				\
-	DECLARE_IDTENTRY(vector, func)
-
 /* No ASM emitted for DF as this goes through a C shim */
 # define DECLARE_IDTENTRY_DF(vector, func)
 
@@ -468,10 +455,6 @@ __visible noinstr void func(struct pt_regs *regs,			\
 
 /* No ASM code emitted for NMI */
 #define DECLARE_IDTENTRY_NMI(vector, func)
-
-/* XEN NMI and DB wrapper */
-#define DECLARE_IDTENTRY_XEN(vector, func)				\
-	idtentry vector asm_exc_xen##func exc_##func has_error_code=0
 
 /*
  * ASM code to emit the common vector entry stubs where each stub is
@@ -565,16 +548,28 @@ DECLARE_IDTENTRY_RAW(X86_TRAP_BP,		exc_int3);
 DECLARE_IDTENTRY_RAW_ERRORCODE(X86_TRAP_PF,	exc_page_fault);
 
 #ifdef CONFIG_X86_MCE
+#ifdef CONFIG_X86_64
 DECLARE_IDTENTRY_MCE(X86_TRAP_MC,	exc_machine_check);
+#else
+DECLARE_IDTENTRY_RAW(X86_TRAP_MC,	exc_machine_check);
+#endif
 #endif
 
 /* NMI */
 DECLARE_IDTENTRY_NMI(X86_TRAP_NMI,	exc_nmi);
-DECLARE_IDTENTRY_XEN(X86_TRAP_NMI,	nmi);
+#ifdef CONFIG_XEN_PV
+DECLARE_IDTENTRY_RAW(X86_TRAP_NMI,	xenpv_exc_nmi);
+#endif
 
 /* #DB */
+#ifdef CONFIG_X86_64
 DECLARE_IDTENTRY_DEBUG(X86_TRAP_DB,	exc_debug);
-DECLARE_IDTENTRY_XEN(X86_TRAP_DB,	debug);
+#else
+DECLARE_IDTENTRY_RAW(X86_TRAP_DB,	exc_debug);
+#endif
+#ifdef CONFIG_XEN_PV
+DECLARE_IDTENTRY_RAW(X86_TRAP_DB,	xenpv_exc_debug);
+#endif
 
 /* #DF */
 DECLARE_IDTENTRY_DF(X86_TRAP_DF,	exc_double_fault);

@@ -84,17 +84,16 @@ static inline void cond_local_irq_disable(struct pt_regs *regs)
 		local_irq_disable();
 }
 
-int is_valid_bugaddr(unsigned long addr)
+__always_inline int is_valid_bugaddr(unsigned long addr)
 {
-	unsigned short ud;
-
 	if (addr < TASK_SIZE_MAX)
 		return 0;
 
-	if (probe_kernel_address((unsigned short *)addr, ud))
-		return 0;
-
-	return ud == INSN_UD0 || ud == INSN_UD2;
+	/*
+	 * We got #UD, if the text isn't readable we'd have gotten
+	 * a different exception.
+	 */
+	return *(unsigned short *)addr == INSN_UD2;
 }
 
 static nokprobe_inline int
@@ -216,46 +215,51 @@ static inline void handle_invalid_op(struct pt_regs *regs)
 		      ILL_ILLOPN, error_get_trap_addr(regs));
 }
 
-DEFINE_IDTENTRY_RAW(exc_invalid_op)
+static noinstr bool handle_bug(struct pt_regs *regs)
 {
-	bool rcu_exit;
+	bool handled = false;
+
+	if (!is_valid_bugaddr(regs->ip))
+		return handled;
 
 	/*
-	 * Handle BUG/WARN like NMIs instead of like normal idtentries:
-	 * if we bugged/warned in a bad RCU context, for example, the last
-	 * thing we want is to BUG/WARN again in the idtentry code, ad
-	 * infinitum.
+	 * All lies, just get the WARN/BUG out.
 	 */
-	if (!user_mode(regs) && is_valid_bugaddr(regs->ip)) {
-		enum bug_trap_type type;
-
-		nmi_enter();
-		instrumentation_begin();
-		trace_hardirqs_off_finish();
-		type = report_bug(regs->ip, regs);
-		if (regs->flags & X86_EFLAGS_IF)
-			trace_hardirqs_on_prepare();
-		instrumentation_end();
-		nmi_exit();
-
-		if (type == BUG_TRAP_TYPE_WARN) {
-			/* Skip the ud2. */
-			regs->ip += LEN_UD2;
-			return;
-		}
-
-		/*
-		 * Else, if this was a BUG and report_bug returns or if this
-		 * was just a normal #UD, we want to continue onward and
-		 * crash.
-		 */
+	instrumentation_begin();
+	/*
+	 * Since we're emulating a CALL with exceptions, restore the interrupt
+	 * state to what it was at the exception site.
+	 */
+	if (regs->flags & X86_EFLAGS_IF)
+		raw_local_irq_enable();
+	if (report_bug(regs->ip, regs) == BUG_TRAP_TYPE_WARN) {
+		regs->ip += LEN_UD2;
+		handled = true;
 	}
+	if (regs->flags & X86_EFLAGS_IF)
+		raw_local_irq_disable();
+	instrumentation_end();
 
-	rcu_exit = idtentry_enter_cond_rcu(regs);
+	return handled;
+}
+
+DEFINE_IDTENTRY_RAW(exc_invalid_op)
+{
+	idtentry_state_t state;
+
+	/*
+	 * We use UD2 as a short encoding for 'CALL __WARN', as such
+	 * handle it before exception entry to avoid recursive WARN
+	 * in case exception entry is the one triggering WARNs.
+	 */
+	if (!user_mode(regs) && handle_bug(regs))
+		return;
+
+	state = idtentry_enter(regs);
 	instrumentation_begin();
 	handle_invalid_op(regs);
 	instrumentation_end();
-	idtentry_exit_cond_rcu(regs, rcu_exit);
+	idtentry_exit(regs, state);
 }
 
 DEFINE_IDTENTRY(exc_coproc_segment_overrun)
@@ -488,7 +492,8 @@ static enum kernel_gp_hint get_kernel_gp_address(struct pt_regs *regs,
 	u8 insn_buf[MAX_INSN_SIZE];
 	struct insn insn;
 
-	if (probe_kernel_read(insn_buf, (void *)regs->ip, MAX_INSN_SIZE))
+	if (copy_from_kernel_nofault(insn_buf, (void *)regs->ip,
+			MAX_INSN_SIZE))
 		return GP_NO_HINT;
 
 	kernel_insn_init(&insn, insn_buf, MAX_INSN_SIZE);
@@ -690,13 +695,13 @@ struct bad_iret_stack *fixup_bad_iret(struct bad_iret_stack *s)
 		(struct bad_iret_stack *)__this_cpu_read(cpu_tss_rw.x86_tss.sp0) - 1;
 
 	/* Copy the IRET target to the temporary storage. */
-	memcpy(&tmp.regs.ip, (void *)s->regs.sp, 5*8);
+	__memcpy(&tmp.regs.ip, (void *)s->regs.sp, 5*8);
 
 	/* Copy the remainder of the stack from the current stack. */
-	memcpy(&tmp, s, offsetof(struct bad_iret_stack, regs.ip));
+	__memcpy(&tmp, s, offsetof(struct bad_iret_stack, regs.ip));
 
 	/* Update the entry stack */
-	memcpy(new_stack, &tmp, sizeof(tmp));
+	__memcpy(new_stack, &tmp, sizeof(tmp));
 
 	BUG_ON(!user_mode(&new_stack->regs));
 	return new_stack;
@@ -865,6 +870,12 @@ static __always_inline void exc_debug_kernel(struct pt_regs *regs,
 	trace_hardirqs_off_finish();
 
 	/*
+	 * If something gets miswired and we end up here for a user mode
+	 * #DB, we will malfunction.
+	 */
+	WARN_ON_ONCE(user_mode(regs));
+
+	/*
 	 * Catch SYSENTER with TF set and clear DR_STEP. If this hit a
 	 * watchpoint at the same time then that will still be handled.
 	 */
@@ -882,6 +893,12 @@ static __always_inline void exc_debug_kernel(struct pt_regs *regs,
 static __always_inline void exc_debug_user(struct pt_regs *regs,
 					   unsigned long dr6)
 {
+	/*
+	 * If something gets miswired and we end up here for a kernel mode
+	 * #DB, we will malfunction.
+	 */
+	WARN_ON_ONCE(!user_mode(regs));
+
 	idtentry_enter_user(regs);
 	instrumentation_begin();
 
@@ -912,7 +929,7 @@ DEFINE_IDTENTRY_DEBUG_USER(exc_debug)
 }
 #else
 /* 32 bit does not have separate entry points. */
-DEFINE_IDTENTRY_DEBUG(exc_debug)
+DEFINE_IDTENTRY_RAW(exc_debug)
 {
 	unsigned long dr6, dr7;
 

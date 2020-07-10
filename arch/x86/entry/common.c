@@ -45,6 +45,32 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/syscalls.h>
 
+/* Check that the stack and regs on entry from user mode are sane. */
+static void check_user_regs(struct pt_regs *regs)
+{
+	if (IS_ENABLED(CONFIG_DEBUG_ENTRY)) {
+		/*
+		 * Make sure that the entry code gave us a sensible EFLAGS
+		 * register.  Native because we want to check the actual CPU
+		 * state, not the interrupt state as imagined by Xen.
+		 */
+		unsigned long flags = native_save_fl();
+		WARN_ON_ONCE(flags & (X86_EFLAGS_AC | X86_EFLAGS_DF |
+				      X86_EFLAGS_NT));
+
+		/* We think we came from user mode. Make sure pt_regs agrees. */
+		WARN_ON_ONCE(!user_mode(regs));
+
+		/*
+		 * All entries from user mode (except #DF) should be on the
+		 * normal thread stack and should have user pt_regs in the
+		 * correct location.
+		 */
+		WARN_ON_ONCE(!on_thread_stack());
+		WARN_ON_ONCE(regs != task_pt_regs(current));
+	}
+}
+
 #ifdef CONFIG_CONTEXT_TRACKING
 /**
  * enter_from_user_mode - Establish state when coming from user mode
@@ -126,9 +152,6 @@ static long syscall_trace_enter(struct pt_regs *regs)
 	struct thread_info *ti = current_thread_info();
 	unsigned long ret = 0;
 	u32 work;
-
-	if (IS_ENABLED(CONFIG_DEBUG_ENTRY))
-		BUG_ON(regs != task_pt_regs(current));
 
 	work = READ_ONCE(ti->flags);
 
@@ -346,6 +369,8 @@ __visible noinstr void do_syscall_64(unsigned long nr, struct pt_regs *regs)
 {
 	struct thread_info *ti;
 
+	check_user_regs(regs);
+
 	enter_from_user_mode();
 	instrumentation_begin();
 
@@ -409,6 +434,8 @@ static void do_syscall_32_irqs_on(struct pt_regs *regs)
 /* Handles int $0x80 */
 __visible noinstr void do_int80_syscall_32(struct pt_regs *regs)
 {
+	check_user_regs(regs);
+
 	enter_from_user_mode();
 	instrumentation_begin();
 
@@ -460,6 +487,8 @@ __visible noinstr long do_fast_syscall_32(struct pt_regs *regs)
 					vdso_image_32.sym_int80_landing_pad;
 	bool success;
 
+	check_user_regs(regs);
+
 	/*
 	 * SYSENTER loses EIP, and even SYSCALL32 needs us to skip forward
 	 * so that 'regs->ip -= 2' lands back on an int $0x80 instruction.
@@ -510,6 +539,18 @@ __visible noinstr long do_fast_syscall_32(struct pt_regs *regs)
 		(regs->flags & (X86_EFLAGS_RF | X86_EFLAGS_TF | X86_EFLAGS_VM)) == 0;
 #endif
 }
+
+/* Returns 0 to return using IRET or 1 to return using SYSEXIT/SYSRETL. */
+__visible noinstr long do_SYSENTER_32(struct pt_regs *regs)
+{
+	/* SYSENTER loses RSP, but the vDSO saved it in RBP. */
+	regs->sp = regs->bp;
+
+	/* SYSENTER clobbers EFLAGS.IF.  Assume it was set in usermode. */
+	regs->flags |= X86_EFLAGS_IF;
+
+	return do_fast_syscall_32(regs);
+}
 #endif
 
 SYSCALL_DEFINE0(ni_syscall)
@@ -518,8 +559,7 @@ SYSCALL_DEFINE0(ni_syscall)
 }
 
 /**
- * idtentry_enter_cond_rcu - Handle state tracking on idtentry with conditional
- *			     RCU handling
+ * idtentry_enter - Handle state tracking on ordinary idtentries
  * @regs:	Pointer to pt_regs of interrupted context
  *
  * Invokes:
@@ -530,6 +570,9 @@ SYSCALL_DEFINE0(ni_syscall)
  *
  *  - The hardirq tracer to keep the state consistent as low level ASM
  *    entry disabled interrupts.
+ *
+ * As a precondition, this requires that the entry came from user mode,
+ * idle, or a kernel context in which RCU is watching.
  *
  * For kernel mode entries RCU handling is done conditional. If RCU is
  * watching then the only RCU requirement is to check whether the tick has
@@ -544,17 +587,21 @@ SYSCALL_DEFINE0(ni_syscall)
  * establish the proper context for NOHZ_FULL. Otherwise scheduling on exit
  * would not be possible.
  *
- * Returns: True if RCU has been adjusted on a kernel entry
- *	    False otherwise
+ * Returns: An opaque object that must be passed to idtentry_exit()
  *
- * The return value must be fed into the rcu_exit argument of
- * idtentry_exit_cond_rcu().
+ * The return value must be fed into the state argument of
+ * idtentry_exit().
  */
-bool noinstr idtentry_enter_cond_rcu(struct pt_regs *regs)
+idtentry_state_t noinstr idtentry_enter(struct pt_regs *regs)
 {
+	idtentry_state_t ret = {
+		.exit_rcu = false,
+	};
+
 	if (user_mode(regs)) {
+		check_user_regs(regs);
 		enter_from_user_mode();
-		return false;
+		return ret;
 	}
 
 	/*
@@ -592,7 +639,8 @@ bool noinstr idtentry_enter_cond_rcu(struct pt_regs *regs)
 		trace_hardirqs_off_finish();
 		instrumentation_end();
 
-		return true;
+		ret.exit_rcu = true;
+		return ret;
 	}
 
 	/*
@@ -607,7 +655,7 @@ bool noinstr idtentry_enter_cond_rcu(struct pt_regs *regs)
 	trace_hardirqs_off();
 	instrumentation_end();
 
-	return false;
+	return ret;
 }
 
 static void idtentry_exit_cond_resched(struct pt_regs *regs, bool may_sched)
@@ -625,10 +673,9 @@ static void idtentry_exit_cond_resched(struct pt_regs *regs, bool may_sched)
 }
 
 /**
- * idtentry_exit_cond_rcu - Handle return from exception with conditional RCU
- *			    handling
+ * idtentry_exit - Handle return from exception that used idtentry_enter()
  * @regs:	Pointer to pt_regs (exception entry regs)
- * @rcu_exit:	Invoke rcu_irq_exit() if true
+ * @state:	Return value from matching call to idtentry_enter()
  *
  * Depending on the return target (kernel/user) this runs the necessary
  * preemption and work checks if possible and reguired and returns to
@@ -637,10 +684,10 @@ static void idtentry_exit_cond_resched(struct pt_regs *regs, bool may_sched)
  * This is the last action before returning to the low level ASM code which
  * just needs to return to the appropriate context.
  *
- * Counterpart to idtentry_enter_cond_rcu(). The return value of the entry
- * function must be fed into the @rcu_exit argument.
+ * Counterpart to idtentry_enter(). The return value of the entry
+ * function must be fed into the @state argument.
  */
-void noinstr idtentry_exit_cond_rcu(struct pt_regs *regs, bool rcu_exit)
+void noinstr idtentry_exit(struct pt_regs *regs, idtentry_state_t state)
 {
 	lockdep_assert_irqs_disabled();
 
@@ -653,7 +700,7 @@ void noinstr idtentry_exit_cond_rcu(struct pt_regs *regs, bool rcu_exit)
 		 * carefully and needs the same ordering of lockdep/tracing
 		 * and RCU as the return to user mode path.
 		 */
-		if (rcu_exit) {
+		if (state.exit_rcu) {
 			instrumentation_begin();
 			/* Tell the tracer that IRET will enable interrupts */
 			trace_hardirqs_on_prepare();
@@ -672,7 +719,7 @@ void noinstr idtentry_exit_cond_rcu(struct pt_regs *regs, bool rcu_exit)
 		 * IRQ flags state is correct already. Just tell RCU if it
 		 * was not watching on entry.
 		 */
-		if (rcu_exit)
+		if (state.exit_rcu)
 			rcu_irq_exit();
 	}
 }
@@ -686,6 +733,7 @@ void noinstr idtentry_exit_cond_rcu(struct pt_regs *regs, bool rcu_exit)
  */
 void noinstr idtentry_enter_user(struct pt_regs *regs)
 {
+	check_user_regs(regs);
 	enter_from_user_mode();
 }
 
@@ -757,9 +805,10 @@ static void __xen_pv_evtchn_do_upcall(void)
 __visible noinstr void xen_pv_evtchn_do_upcall(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs;
-	bool inhcall, rcu_exit;
+	bool inhcall;
+	idtentry_state_t state;
 
-	rcu_exit = idtentry_enter_cond_rcu(regs);
+	state = idtentry_enter(regs);
 	old_regs = set_irq_regs(regs);
 
 	instrumentation_begin();
@@ -769,13 +818,13 @@ __visible noinstr void xen_pv_evtchn_do_upcall(struct pt_regs *regs)
 	set_irq_regs(old_regs);
 
 	inhcall = get_and_clear_inhcall();
-	if (inhcall && !WARN_ON_ONCE(rcu_exit)) {
+	if (inhcall && !WARN_ON_ONCE(state.exit_rcu)) {
 		instrumentation_begin();
 		idtentry_exit_cond_resched(regs, true);
 		instrumentation_end();
 		restore_inhcall(inhcall);
 	} else {
-		idtentry_exit_cond_rcu(regs, rcu_exit);
+		idtentry_exit(regs, state);
 	}
 }
 #endif /* CONFIG_XEN_PV */

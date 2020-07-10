@@ -3344,7 +3344,7 @@ static fastpath_t svm_exit_handlers_fastpath(struct kvm_vcpu *vcpu)
 
 void __svm_vcpu_run(unsigned long vmcb_pa, unsigned long *regs);
 
-static fastpath_t svm_vcpu_run(struct kvm_vcpu *vcpu)
+static __no_kcsan fastpath_t svm_vcpu_run(struct kvm_vcpu *vcpu)
 {
 	fastpath_t exit_fastpath;
 	struct vcpu_svm *svm = to_svm(vcpu);
