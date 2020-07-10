@@ -240,7 +240,7 @@ static int scmi_reset_set_notify_enabled(const struct scmi_handle *handle,
 }
 
 static void *scmi_reset_fill_custom_report(const struct scmi_handle *handle,
-					   u8 evt_id, u64 timestamp,
+					   u8 evt_id, ktime_t timestamp,
 					   const void *payld, size_t payld_sz,
 					   void *report, u32 *src_id)
 {

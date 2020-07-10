@@ -381,47 +381,47 @@ enum scmi_notification_events {
 };
 
 struct scmi_power_state_changed_report {
-	u64 timestamp;
-	u32 agent_id;
-	u32 domain_id;
-	u32 power_state;
+	ktime_t		timestamp;
+	unsigned int	agent_id;
+	unsigned int	domain_id;
+	unsigned int	power_state;
 };
 
 struct scmi_perf_limits_report {
-	u64 timestamp;
-	u32 agent_id;
-	u32 domain_id;
-	u32 range_max;
-	u32 range_min;
+	ktime_t		timestamp;
+	unsigned int	agent_id;
+	unsigned int	domain_id;
+	unsigned int	range_max;
+	unsigned int	range_min;
 };
 
 struct scmi_perf_level_report {
-	u64 timestamp;
-	u32 agent_id;
-	u32 domain_id;
-	u32 performance_level;
+	ktime_t		timestamp;
+	unsigned int	agent_id;
+	unsigned int	domain_id;
+	unsigned int	performance_level;
 };
 
 struct scmi_sensor_trip_point_report {
-	u64 timestamp;
-	u32 agent_id;
-	u32 sensor_id;
-	u32 trip_point_desc;
+	ktime_t		timestamp;
+	unsigned int	agent_id;
+	unsigned int	sensor_id;
+	unsigned int	trip_point_desc;
 };
 
 struct scmi_reset_issued_report {
-	u64 timestamp;
-	u32 agent_id;
-	u32 domain_id;
-	u32 reset_state;
+	ktime_t		timestamp;
+	unsigned int	agent_id;
+	unsigned int	domain_id;
+	unsigned int	reset_state;
 };
 
 struct scmi_base_error_report {
-	u64 timestamp;
-	u32 agent_id;
-	bool fatal;
-	u16 cmd_count;
-	u64 reports[];
+	ktime_t			timestamp;
+	unsigned int		agent_id;
+	bool			fatal;
+	unsigned int		cmd_count;
+	unsigned long long	reports[];
 };
 
 #endif /* _LINUX_SCMI_PROTOCOL_H */
