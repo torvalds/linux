@@ -886,6 +886,9 @@ and that the resulting file may be very large.  The "d" option may be followed
 by flags which affect what debug messages will or will not be logged. Each flag
 must be preceded by either '+' or '-'. The flags support by Intel PT are:
 		-a	Suppress logging of perf events
+		+a	Log all perf events
+By default, logged perf events are filtered by any specified time ranges, but
+flag +a overrides that.
 
 In addition, the period of the "instructions" event can be specified. e.g.
 

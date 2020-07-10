@@ -249,9 +249,22 @@ static void intel_pt_dump_sample(struct perf_session *session,
 	intel_pt_dump(pt, sample->aux_sample.data, sample->aux_sample.size);
 }
 
-static bool intel_pt_log_events(struct intel_pt *pt)
+static bool intel_pt_log_events(struct intel_pt *pt, u64 tm)
 {
-	return !(pt->synth_opts.log_minus_flags & AUXTRACE_LOG_FLG_ALL_PERF_EVTS);
+	struct perf_time_interval *range = pt->synth_opts.ptime_range;
+	int n = pt->synth_opts.range_num;
+
+	if (pt->synth_opts.log_plus_flags & AUXTRACE_LOG_FLG_ALL_PERF_EVTS)
+		return true;
+
+	if (pt->synth_opts.log_minus_flags & AUXTRACE_LOG_FLG_ALL_PERF_EVTS)
+		return false;
+
+	/* perf_time__ranges_skip_sample does not work if time is zero */
+	if (!tm)
+		tm = 1;
+
+	return !n || !perf_time__ranges_skip_sample(range, n, tm);
 }
 
 static int intel_pt_do_fix_overlap(struct intel_pt *pt, struct auxtrace_buffer *a,
@@ -2747,7 +2760,7 @@ static int intel_pt_process_event(struct perf_session *session,
 	if (!err && event->header.type == PERF_RECORD_TEXT_POKE)
 		err = intel_pt_text_poke(pt, event);
 
-	if (intel_pt_enable_logging && intel_pt_log_events(pt)) {
+	if (intel_pt_enable_logging && intel_pt_log_events(pt, sample->time)) {
 		intel_pt_log("event %u: cpu %d time %"PRIu64" tsc %#"PRIx64" ",
 			     event->header.type, sample->cpu, sample->time, timestamp);
 		intel_pt_log_event(event);
