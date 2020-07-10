@@ -111,7 +111,7 @@ static int bch2_gc_mark_key(struct bch_fs *c, struct bkey_s_c k,
 			atomic64_set(&c->key_version, k.k->version.lo);
 
 		if (test_bit(BCH_FS_REBUILD_REPLICAS, &c->flags) ||
-		    fsck_err_on(!bch2_bkey_replicas_marked(c, k, false), c,
+		    fsck_err_on(!bch2_bkey_replicas_marked(c, k), c,
 				"superblock not marked as containing replicas (type %u)",
 				k.k->type)) {
 			ret = bch2_mark_bkey_replicas(c, k);

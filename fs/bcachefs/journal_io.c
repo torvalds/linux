@@ -699,7 +699,7 @@ int bch2_journal_read(struct bch_fs *c, struct list_head *list)
 
 		if (!degraded &&
 		    (test_bit(BCH_FS_REBUILD_REPLICAS, &c->flags) ||
-		     fsck_err_on(!bch2_replicas_marked(c, &replicas.e, false), c,
+		     fsck_err_on(!bch2_replicas_marked(c, &replicas.e), c,
 				 "superblock not marked as containing replicas %s",
 				 (bch2_replicas_entry_to_text(&PBUF(buf),
 							      &replicas.e), buf)))) {

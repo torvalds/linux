@@ -178,11 +178,6 @@ void bch2_btree_ptr_debugcheck(struct bch_fs *c, struct bkey_s_c k)
 	if (!percpu_down_read_trylock(&c->mark_lock))
 		return;
 
-	bch2_fs_inconsistent_on(!test_bit(BCH_FS_REBUILD_REPLICAS, &c->flags) &&
-		!bch2_bkey_replicas_marked_locked(c, k, false), c,
-		"btree key bad (replicas not marked in superblock):\n%s",
-		(bch2_bkey_val_to_text(&PBUF(buf), c, k), buf));
-
 	bkey_for_each_ptr(ptrs, ptr) {
 		ca = bch_dev_bkey_exists(c, ptr->dev);
 
@@ -265,11 +260,6 @@ void bch2_extent_debugcheck(struct bch_fs *c, struct bkey_s_c k)
 
 	if (!percpu_down_read_trylock(&c->mark_lock))
 		return;
-
-	bch2_fs_inconsistent_on(!test_bit(BCH_FS_REBUILD_REPLICAS, &c->flags) &&
-		!bch2_bkey_replicas_marked_locked(c, e.s_c, false), c,
-		"extent key bad (replicas not marked in superblock):\n%s",
-		(bch2_bkey_val_to_text(&PBUF(buf), c, e.s_c), buf));
 
 	extent_for_each_ptr_decode(e, p, entry) {
 		struct bch_dev *ca	= bch_dev_bkey_exists(c, p.ptr.dev);

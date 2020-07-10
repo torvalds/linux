@@ -21,16 +21,12 @@ int bch2_replicas_entry_idx(struct bch_fs *,
 void bch2_devlist_to_replicas(struct bch_replicas_entry *,
 			      enum bch_data_type,
 			      struct bch_devs_list);
-bool bch2_replicas_marked(struct bch_fs *,
-			  struct bch_replicas_entry *, bool);
+bool bch2_replicas_marked(struct bch_fs *, struct bch_replicas_entry *);
 int bch2_mark_replicas(struct bch_fs *,
 		       struct bch_replicas_entry *);
 
-bool bch2_bkey_replicas_marked_locked(struct bch_fs *,
-				      struct bkey_s_c, bool);
 void bch2_bkey_to_replicas(struct bch_replicas_entry *, struct bkey_s_c);
-bool bch2_bkey_replicas_marked(struct bch_fs *,
-			       struct bkey_s_c, bool);
+bool bch2_bkey_replicas_marked(struct bch_fs *, struct bkey_s_c);
 int bch2_mark_bkey_replicas(struct bch_fs *, struct bkey_s_c);
 
 static inline void bch2_replicas_entry_cached(struct bch_replicas_entry *e,

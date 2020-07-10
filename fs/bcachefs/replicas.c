@@ -213,29 +213,20 @@ static bool __replicas_has_entry(struct bch_replicas_cpu *r,
 	return __replicas_entry_idx(r, search) >= 0;
 }
 
-static bool bch2_replicas_marked_locked(struct bch_fs *c,
-			  struct bch_replicas_entry *search,
-			  bool check_gc_replicas)
+bool bch2_replicas_marked(struct bch_fs *c,
+			  struct bch_replicas_entry *search)
 {
+	bool marked;
+
 	if (!search->nr_devs)
 		return true;
 
 	verify_replicas_entry(search);
 
-	return __replicas_has_entry(&c->replicas, search) &&
-		(!check_gc_replicas ||
-		 likely((!c->replicas_gc.entries)) ||
-		 __replicas_has_entry(&c->replicas_gc, search));
-}
-
-bool bch2_replicas_marked(struct bch_fs *c,
-			  struct bch_replicas_entry *search,
-			  bool check_gc_replicas)
-{
-	bool marked;
-
 	percpu_down_read(&c->mark_lock);
-	marked = bch2_replicas_marked_locked(c, search, check_gc_replicas);
+	marked = __replicas_has_entry(&c->replicas, search) &&
+		(likely((!c->replicas_gc.entries)) ||
+		 __replicas_has_entry(&c->replicas_gc, search));
 	percpu_up_read(&c->mark_lock);
 
 	return marked;
@@ -426,49 +417,22 @@ err:
 	goto out;
 }
 
-int bch2_mark_replicas(struct bch_fs *c,
-		       struct bch_replicas_entry *r)
+static int __bch2_mark_replicas(struct bch_fs *c,
+				struct bch_replicas_entry *r,
+				bool check)
 {
-	return likely(bch2_replicas_marked(c, r, true))
-		? 0
+	return likely(bch2_replicas_marked(c, r))	? 0
+		: check					? -1
 		: bch2_mark_replicas_slowpath(c, r);
 }
 
-bool bch2_bkey_replicas_marked_locked(struct bch_fs *c,
-				      struct bkey_s_c k,
-				      bool check_gc_replicas)
+int bch2_mark_replicas(struct bch_fs *c, struct bch_replicas_entry *r)
 {
-	struct bch_replicas_padded search;
-	struct bch_devs_list cached = bch2_bkey_cached_devs(k);
-	unsigned i;
-
-	for (i = 0; i < cached.nr; i++) {
-		bch2_replicas_entry_cached(&search.e, cached.devs[i]);
-
-		if (!bch2_replicas_marked_locked(c, &search.e,
-						 check_gc_replicas))
-			return false;
-	}
-
-	bch2_bkey_to_replicas(&search.e, k);
-
-	return bch2_replicas_marked_locked(c, &search.e, check_gc_replicas);
+	return __bch2_mark_replicas(c, r, false);
 }
 
-bool bch2_bkey_replicas_marked(struct bch_fs *c,
-			       struct bkey_s_c k,
-			       bool check_gc_replicas)
-{
-	bool marked;
-
-	percpu_down_read(&c->mark_lock);
-	marked = bch2_bkey_replicas_marked_locked(c, k, check_gc_replicas);
-	percpu_up_read(&c->mark_lock);
-
-	return marked;
-}
-
-int bch2_mark_bkey_replicas(struct bch_fs *c, struct bkey_s_c k)
+static int __bch2_mark_bkey_replicas(struct bch_fs *c, struct bkey_s_c k,
+				     bool check)
 {
 	struct bch_replicas_padded search;
 	struct bch_devs_list cached = bch2_bkey_cached_devs(k);
@@ -478,14 +442,25 @@ int bch2_mark_bkey_replicas(struct bch_fs *c, struct bkey_s_c k)
 	for (i = 0; i < cached.nr; i++) {
 		bch2_replicas_entry_cached(&search.e, cached.devs[i]);
 
-		ret = bch2_mark_replicas(c, &search.e);
+		ret = __bch2_mark_replicas(c, &search.e, check);
 		if (ret)
 			return ret;
 	}
 
 	bch2_bkey_to_replicas(&search.e, k);
 
-	return bch2_mark_replicas(c, &search.e);
+	return __bch2_mark_replicas(c, &search.e, check);
+}
+
+bool bch2_bkey_replicas_marked(struct bch_fs *c,
+			       struct bkey_s_c k)
+{
+	return __bch2_mark_bkey_replicas(c, k, true) == 0;
+}
+
+int bch2_mark_bkey_replicas(struct bch_fs *c, struct bkey_s_c k)
+{
+	return __bch2_mark_bkey_replicas(c, k, false);
 }
 
 int bch2_replicas_gc_end(struct bch_fs *c, int ret)
