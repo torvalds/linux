@@ -8309,6 +8309,13 @@ static int __init vmx_init(void)
 #endif
 	vmx_check_vmcs12_offsets();
 
+	/*
+	 * Intel processors don't have problems with
+	 * GUEST_MAXPHYADDR < HOST_MAXPHYADDR so enable
+	 * it for VMX by default
+	 */
+	allow_smaller_maxphyaddr = true;
+
 	return 0;
 }
 module_init(vmx_init);

@@ -187,6 +187,9 @@ static struct kvm_shared_msrs __percpu *shared_msrs;
 u64 __read_mostly host_efer;
 EXPORT_SYMBOL_GPL(host_efer);
 
+bool __read_mostly allow_smaller_maxphyaddr;
+EXPORT_SYMBOL_GPL(allow_smaller_maxphyaddr);
+
 static u64 __read_mostly host_xss;
 u64 __read_mostly supported_xss;
 EXPORT_SYMBOL_GPL(supported_xss);
@@ -3573,6 +3576,9 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		break;
 	case KVM_CAP_HYPERV_ENLIGHTENED_VMCS:
 		r = kvm_x86_ops.nested_ops->enable_evmcs != NULL;
+		break;
+	case KVM_CAP_SMALLER_MAXPHYADDR:
+		r = (int) allow_smaller_maxphyaddr;
 		break;
 	default:
 		break;
