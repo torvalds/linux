@@ -4,13 +4,29 @@
 #ifndef __PANFROST_DEVFREQ_H__
 #define __PANFROST_DEVFREQ_H__
 
+#include <linux/ktime.h>
+
+struct devfreq;
+struct thermal_cooling_device;
+
+struct panfrost_device;
+
+struct panfrost_devfreq {
+	struct devfreq *devfreq;
+	struct thermal_cooling_device *cooling;
+	ktime_t busy_time;
+	ktime_t idle_time;
+	ktime_t time_last_update;
+	atomic_t busy_count;
+};
+
 int panfrost_devfreq_init(struct panfrost_device *pfdev);
 void panfrost_devfreq_fini(struct panfrost_device *pfdev);
 
 void panfrost_devfreq_resume(struct panfrost_device *pfdev);
 void panfrost_devfreq_suspend(struct panfrost_device *pfdev);
 
-void panfrost_devfreq_record_busy(struct panfrost_device *pfdev);
-void panfrost_devfreq_record_idle(struct panfrost_device *pfdev);
+void panfrost_devfreq_record_busy(struct panfrost_devfreq *devfreq);
+void panfrost_devfreq_record_idle(struct panfrost_devfreq *devfreq);
 
 #endif /* __PANFROST_DEVFREQ_H__ */

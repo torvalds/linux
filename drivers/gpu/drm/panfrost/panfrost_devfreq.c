@@ -10,23 +10,23 @@
 #include "panfrost_device.h"
 #include "panfrost_devfreq.h"
 
-static void panfrost_devfreq_update_utilization(struct panfrost_device *pfdev)
+static void panfrost_devfreq_update_utilization(struct panfrost_devfreq *pfdevfreq)
 {
 	ktime_t now;
 	ktime_t last;
 
-	if (!pfdev->devfreq.devfreq)
+	if (!pfdevfreq->devfreq)
 		return;
 
 	now = ktime_get();
-	last = pfdev->devfreq.time_last_update;
+	last = pfdevfreq->time_last_update;
 
-	if (atomic_read(&pfdev->devfreq.busy_count) > 0)
-		pfdev->devfreq.busy_time += ktime_sub(now, last);
+	if (atomic_read(&pfdevfreq->busy_count) > 0)
+		pfdevfreq->busy_time += ktime_sub(now, last);
 	else
-		pfdev->devfreq.idle_time += ktime_sub(now, last);
+		pfdevfreq->idle_time += ktime_sub(now, last);
 
-	pfdev->devfreq.time_last_update = now;
+	pfdevfreq->time_last_update = now;
 }
 
 static int panfrost_devfreq_target(struct device *dev, unsigned long *freq,
@@ -47,30 +47,31 @@ static int panfrost_devfreq_target(struct device *dev, unsigned long *freq,
 	return 0;
 }
 
-static void panfrost_devfreq_reset(struct panfrost_device *pfdev)
+static void panfrost_devfreq_reset(struct panfrost_devfreq *pfdevfreq)
 {
-	pfdev->devfreq.busy_time = 0;
-	pfdev->devfreq.idle_time = 0;
-	pfdev->devfreq.time_last_update = ktime_get();
+	pfdevfreq->busy_time = 0;
+	pfdevfreq->idle_time = 0;
+	pfdevfreq->time_last_update = ktime_get();
 }
 
 static int panfrost_devfreq_get_dev_status(struct device *dev,
 					   struct devfreq_dev_status *status)
 {
 	struct panfrost_device *pfdev = dev_get_drvdata(dev);
+	struct panfrost_devfreq *pfdevfreq = &pfdev->pfdevfreq;
 
-	panfrost_devfreq_update_utilization(pfdev);
+	panfrost_devfreq_update_utilization(pfdevfreq);
 
 	status->current_frequency = clk_get_rate(pfdev->clock);
-	status->total_time = ktime_to_ns(ktime_add(pfdev->devfreq.busy_time,
-						   pfdev->devfreq.idle_time));
+	status->total_time = ktime_to_ns(ktime_add(pfdevfreq->busy_time,
+						   pfdevfreq->idle_time));
 
-	status->busy_time = ktime_to_ns(pfdev->devfreq.busy_time);
+	status->busy_time = ktime_to_ns(pfdevfreq->busy_time);
 
-	panfrost_devfreq_reset(pfdev);
+	panfrost_devfreq_reset(pfdevfreq);
 
-	dev_dbg(pfdev->dev, "busy %lu total %lu %lu %% freq %lu MHz\n", status->busy_time,
-		status->total_time,
+	dev_dbg(pfdev->dev, "busy %lu total %lu %lu %% freq %lu MHz\n",
+		status->busy_time, status->total_time,
 		status->busy_time / (status->total_time / 100),
 		status->current_frequency / 1000 / 1000);
 
@@ -91,6 +92,7 @@ int panfrost_devfreq_init(struct panfrost_device *pfdev)
 	struct device *dev = &pfdev->pdev->dev;
 	struct devfreq *devfreq;
 	struct thermal_cooling_device *cooling;
+	struct panfrost_devfreq *pfdevfreq = &pfdev->pfdevfreq;
 
 	ret = dev_pm_opp_of_add_table(dev);
 	if (ret == -ENODEV) /* Optional, continue without devfreq */
@@ -98,7 +100,7 @@ int panfrost_devfreq_init(struct panfrost_device *pfdev)
 	else if (ret)
 		return ret;
 
-	panfrost_devfreq_reset(pfdev);
+	panfrost_devfreq_reset(pfdevfreq);
 
 	cur_freq = clk_get_rate(pfdev->clock);
 
@@ -116,53 +118,59 @@ int panfrost_devfreq_init(struct panfrost_device *pfdev)
 		dev_pm_opp_of_remove_table(dev);
 		return PTR_ERR(devfreq);
 	}
-	pfdev->devfreq.devfreq = devfreq;
+	pfdevfreq->devfreq = devfreq;
 
 	cooling = of_devfreq_cooling_register(dev->of_node, devfreq);
 	if (IS_ERR(cooling))
 		DRM_DEV_INFO(dev, "Failed to register cooling device\n");
 	else
-		pfdev->devfreq.cooling = cooling;
+		pfdevfreq->cooling = cooling;
 
 	return 0;
 }
 
 void panfrost_devfreq_fini(struct panfrost_device *pfdev)
 {
-	if (pfdev->devfreq.cooling)
-		devfreq_cooling_unregister(pfdev->devfreq.cooling);
+	struct panfrost_devfreq *pfdevfreq = &pfdev->pfdevfreq;
+
+	if (pfdevfreq->cooling)
+		devfreq_cooling_unregister(pfdevfreq->cooling);
 	dev_pm_opp_of_remove_table(&pfdev->pdev->dev);
 }
 
 void panfrost_devfreq_resume(struct panfrost_device *pfdev)
 {
-	if (!pfdev->devfreq.devfreq)
+	struct panfrost_devfreq *pfdevfreq = &pfdev->pfdevfreq;
+
+	if (!pfdevfreq->devfreq)
 		return;
 
-	panfrost_devfreq_reset(pfdev);
+	panfrost_devfreq_reset(pfdevfreq);
 
-	devfreq_resume_device(pfdev->devfreq.devfreq);
+	devfreq_resume_device(pfdevfreq->devfreq);
 }
 
 void panfrost_devfreq_suspend(struct panfrost_device *pfdev)
 {
-	if (!pfdev->devfreq.devfreq)
+	struct panfrost_devfreq *pfdevfreq = &pfdev->pfdevfreq;
+
+	if (!pfdevfreq->devfreq)
 		return;
 
-	devfreq_suspend_device(pfdev->devfreq.devfreq);
+	devfreq_suspend_device(pfdevfreq->devfreq);
 }
 
-void panfrost_devfreq_record_busy(struct panfrost_device *pfdev)
+void panfrost_devfreq_record_busy(struct panfrost_devfreq *pfdevfreq)
 {
-	panfrost_devfreq_update_utilization(pfdev);
-	atomic_inc(&pfdev->devfreq.busy_count);
+	panfrost_devfreq_update_utilization(pfdevfreq);
+	atomic_inc(&pfdevfreq->busy_count);
 }
 
-void panfrost_devfreq_record_idle(struct panfrost_device *pfdev)
+void panfrost_devfreq_record_idle(struct panfrost_devfreq *pfdevfreq)
 {
 	int count;
 
-	panfrost_devfreq_update_utilization(pfdev);
-	count = atomic_dec_if_positive(&pfdev->devfreq.busy_count);
+	panfrost_devfreq_update_utilization(pfdevfreq);
+	count = atomic_dec_if_positive(&pfdevfreq->busy_count);
 	WARN_ON(count < 0);
 }
