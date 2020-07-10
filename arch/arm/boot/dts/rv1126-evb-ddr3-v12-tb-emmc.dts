@@ -140,3 +140,10 @@
 	memory-region-thunderboot = <&rkisp_thunderboot>;
 };
 
+&route_dsi {
+	status = "disabled";
+};
+
+&vcc18_lcd_n {
+	/delete-property/ regulator-boot-on;
+};
