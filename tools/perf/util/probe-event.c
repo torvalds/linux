@@ -375,9 +375,13 @@ static int find_alternative_probe_point(struct debuginfo *dinfo,
 
 	/* Find the address of given function */
 	map__for_each_symbol_by_name(map, pp->function, sym) {
-		if (uprobes)
+		if (uprobes) {
 			address = sym->start;
-		else
+			if (sym->type == STT_GNU_IFUNC)
+				pr_warning("Warning: The probe function (%s) is a GNU indirect function.\n"
+					   "Consider identifying the final function used at run time and set the probe directly on that.\n",
+					   pp->function);
+		} else
 			address = map->unmap_ip(map, sym->start) - map->reloc;
 		break;
 	}
