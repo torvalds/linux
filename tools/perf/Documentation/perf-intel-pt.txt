@@ -999,6 +999,21 @@ What *will* be decoded with the (single) q option:
 Note the q option does not specify what events will be synthesized e.g. the p
 option must be used also to show power events.
 
+Repeating the q option (double-q i.e. qq) results in even faster decoding and even
+less detail.  The decoder decodes only extended PSB (PSB+) packets, getting the
+instruction pointer if there is a FUP packet within PSB+ (i.e. between PSB and
+PSBEND).  Note PSB packets occur regularly in the trace based on the psb_period
+config term (refer config terms section).  There will be a FUP packet if the
+PSB+ occurs while control flow is being traced.
+
+What will *not* be decoded with the qq option:
+
+	- everything except instruction pointer associated with PSB packets
+
+What *will* be decoded with the qq option:
+
+	- instruction pointer associated with PSB packets
+
 
 dump option
 ~~~~~~~~~~~

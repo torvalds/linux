@@ -113,6 +113,7 @@ struct intel_pt_decoder {
 	bool in_psb;
 	bool hop;
 	bool hop_psb_fup;
+	bool leap;
 	enum intel_pt_param_flags flags;
 	uint64_t pos;
 	uint64_t last_ip;
@@ -240,6 +241,7 @@ struct intel_pt_decoder *intel_pt_decoder_new(struct intel_pt_params *params)
 	decoder->return_compression = params->return_compression;
 	decoder->branch_enable      = params->branch_enable;
 	decoder->hop                = params->quick >= 1;
+	decoder->leap               = params->quick >= 2;
 
 	decoder->flags              = params->flags;
 
@@ -1903,9 +1905,18 @@ static int intel_pt_resample(struct intel_pt_decoder *decoder)
 #define HOP_RETURN	2
 #define HOP_AGAIN	3
 
+static int intel_pt_scan_for_psb(struct intel_pt_decoder *decoder);
+
 /* Hop mode: Ignore TNT, do not walk code, but get ip from FUPs and TIPs */
 static int intel_pt_hop_trace(struct intel_pt_decoder *decoder, bool *no_tip, int *err)
 {
+	/* Leap from PSB to PSB, getting ip from FUP within PSB+ */
+	if (decoder->leap && !decoder->in_psb && decoder->packet.type != INTEL_PT_PSB) {
+		*err = intel_pt_scan_for_psb(decoder);
+		if (*err)
+			return HOP_RETURN;
+	}
+
 	switch (decoder->packet.type) {
 	case INTEL_PT_TNT:
 		return HOP_IGNORE;
@@ -2681,6 +2692,7 @@ static int intel_pt_sync(struct intel_pt_decoder *decoder)
 	decoder->ip = 0;
 	intel_pt_clear_stack(&decoder->stack);
 
+leap:
 	err = intel_pt_scan_for_psb(decoder);
 	if (err)
 		return err;
@@ -2702,6 +2714,12 @@ static int intel_pt_sync(struct intel_pt_decoder *decoder)
 			decoder->pkt_state = INTEL_PT_STATE_RESAMPLE;
 		else
 			decoder->pkt_state = INTEL_PT_STATE_IN_SYNC;
+	} else if (decoder->leap) {
+		/*
+		 * In leap mode, only PSB+ is decoded, so keeping leaping to the
+		 * next PSB until there is an ip.
+		 */
+		goto leap;
 	} else {
 		return intel_pt_sync_ip(decoder);
 	}
