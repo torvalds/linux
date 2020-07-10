@@ -11,6 +11,7 @@
 #include "kvm_cache_regs.h"
 #include "ops.h"
 #include "vmcs.h"
+#include "cpuid.h"
 
 extern const u32 vmx_msr_index[];
 
@@ -552,7 +553,7 @@ static inline bool vmx_has_waitpkg(struct vcpu_vmx *vmx)
 
 static inline bool vmx_need_pf_intercept(struct kvm_vcpu *vcpu)
 {
-	return !enable_ept;
+	return !enable_ept || cpuid_maxphyaddr(vcpu) < boot_cpu_data.x86_phys_bits;
 }
 
 void dump_vmcs(void);

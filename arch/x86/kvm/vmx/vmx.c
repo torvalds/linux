@@ -4791,9 +4791,15 @@ static int handle_exception_nmi(struct kvm_vcpu *vcpu)
 
 	if (is_page_fault(intr_info)) {
 		cr2 = vmx_get_exit_qual(vcpu);
-		/* EPT won't cause page fault directly */
-		WARN_ON_ONCE(!vcpu->arch.apf.host_apf_flags && enable_ept);
-		return kvm_handle_page_fault(vcpu, error_code, cr2, NULL, 0);
+		if (enable_ept && !vcpu->arch.apf.host_apf_flags) {
+			/*
+			 * EPT will cause page fault only if we need to
+			 * detect illegal GPAs.
+			 */
+			kvm_fixup_and_inject_pf_error(vcpu, cr2, error_code);
+			return 1;
+		} else
+			return kvm_handle_page_fault(vcpu, error_code, cr2, NULL, 0);
 	}
 
 	ex_no = intr_info & INTR_INFO_VECTOR_MASK;
@@ -5309,6 +5315,18 @@ static int handle_ept_violation(struct kvm_vcpu *vcpu)
 	       PFERR_GUEST_FINAL_MASK : PFERR_GUEST_PAGE_MASK;
 
 	vcpu->arch.exit_qualification = exit_qualification;
+
+	/*
+	 * Check that the GPA doesn't exceed physical memory limits, as that is
+	 * a guest page fault.  We have to emulate the instruction here, because
+	 * if the illegal address is that of a paging structure, then
+	 * EPT_VIOLATION_ACC_WRITE bit is set.  Alternatively, if supported we
+	 * would also use advanced VM-exit information for EPT violations to
+	 * reconstruct the page fault error code.
+	 */
+	if (unlikely(kvm_mmu_is_illegal_gpa(vcpu, gpa)))
+		return kvm_emulate_instruction(vcpu, 0);
+
 	return kvm_mmu_page_fault(vcpu, gpa, error_code, NULL, 0);
 }
 
