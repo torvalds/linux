@@ -1274,6 +1274,7 @@ static bool io_cqring_overflow_flush(struct io_ring_ctx *ctx, bool force)
 	if (cqe) {
 		clear_bit(0, &ctx->sq_check_overflow);
 		clear_bit(0, &ctx->cq_check_overflow);
+		ctx->rings->sq_flags &= ~IORING_SQ_CQ_OVERFLOW;
 	}
 	spin_unlock_irqrestore(&ctx->completion_lock, flags);
 	io_cqring_ev_posted(ctx);
@@ -1311,6 +1312,7 @@ static void __io_cqring_fill_event(struct io_kiocb *req, long res, long cflags)
 		if (list_empty(&ctx->cq_overflow_list)) {
 			set_bit(0, &ctx->sq_check_overflow);
 			set_bit(0, &ctx->cq_check_overflow);
+			ctx->rings->sq_flags |= IORING_SQ_CQ_OVERFLOW;
 		}
 		req->flags |= REQ_F_OVERFLOW;
 		refcount_inc(&req->refs);
@@ -6080,9 +6082,9 @@ static int io_sq_thread(void *data)
 			}
 
 			/* Tell userspace we may need a wakeup call */
+			spin_lock_irq(&ctx->completion_lock);
 			ctx->rings->sq_flags |= IORING_SQ_NEED_WAKEUP;
-			/* make sure to read SQ tail after writing flags */
-			smp_mb();
+			spin_unlock_irq(&ctx->completion_lock);
 
 			to_submit = io_sqring_entries(ctx);
 			if (!to_submit || ret == -EBUSY) {
@@ -6100,13 +6102,17 @@ static int io_sq_thread(void *data)
 				schedule();
 				finish_wait(&ctx->sqo_wait, &wait);
 
+				spin_lock_irq(&ctx->completion_lock);
 				ctx->rings->sq_flags &= ~IORING_SQ_NEED_WAKEUP;
+				spin_unlock_irq(&ctx->completion_lock);
 				ret = 0;
 				continue;
 			}
 			finish_wait(&ctx->sqo_wait, &wait);
 
+			spin_lock_irq(&ctx->completion_lock);
 			ctx->rings->sq_flags &= ~IORING_SQ_NEED_WAKEUP;
+			spin_unlock_irq(&ctx->completion_lock);
 		}
 
 		mutex_lock(&ctx->uring_lock);
@@ -6693,6 +6699,7 @@ static int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 		for (i = 0; i < nr_tables; i++)
 			kfree(ctx->file_data->table[i].files);
 
+		percpu_ref_exit(&ctx->file_data->refs);
 		kfree(ctx->file_data->table);
 		kfree(ctx->file_data);
 		ctx->file_data = NULL;
@@ -6845,8 +6852,10 @@ static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 			}
 			table->files[index] = file;
 			err = io_sqe_file_register(ctx, file, i);
-			if (err)
+			if (err) {
+				fput(file);
 				break;
+			}
 		}
 		nr_args--;
 		done++;
@@ -7342,9 +7351,6 @@ static void io_ring_ctx_free(struct io_ring_ctx *ctx)
 	io_mem_free(ctx->sq_sqes);
 
 	percpu_ref_exit(&ctx->refs);
-	if (ctx->account_mem)
-		io_unaccount_mem(ctx->user,
-				ring_pages(ctx->sq_entries, ctx->cq_entries));
 	free_uid(ctx->user);
 	put_cred(ctx->creds);
 	kfree(ctx->cancel_hash);
@@ -7429,6 +7435,16 @@ static void io_ring_ctx_wait_and_kill(struct io_ring_ctx *ctx)
 	if (ctx->rings)
 		io_cqring_overflow_flush(ctx, true);
 	idr_for_each(&ctx->personality_idr, io_remove_personalities, ctx);
+
+	/*
+	 * Do this upfront, so we won't have a grace period where the ring
+	 * is closed but resources aren't reaped yet. This can cause
+	 * spurious failure in setting up a new ring.
+	 */
+	if (ctx->account_mem)
+		io_unaccount_mem(ctx->user,
+				ring_pages(ctx->sq_entries, ctx->cq_entries));
+
 	INIT_WORK(&ctx->exit_work, io_ring_exit_work);
 	queue_work(system_wq, &ctx->exit_work);
 }
@@ -7488,6 +7504,7 @@ static void io_uring_cancel_files(struct io_ring_ctx *ctx,
 			if (list_empty(&ctx->cq_overflow_list)) {
 				clear_bit(0, &ctx->sq_check_overflow);
 				clear_bit(0, &ctx->cq_check_overflow);
+				ctx->rings->sq_flags &= ~IORING_SQ_CQ_OVERFLOW;
 			}
 			spin_unlock_irq(&ctx->completion_lock);
 
