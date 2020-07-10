@@ -12,7 +12,6 @@
 #include <linux/topology.h>
 #include "hpre.h"
 
-#define HPRE_VF_NUM			63
 #define HPRE_QUEUE_NUM_V2		1024
 #define HPRE_QM_ABNML_INT_MASK		0x100004
 #define HPRE_CTRL_CNT_CLR_CE_BIT	BIT(0)
@@ -46,9 +45,9 @@
 #define HPRE_CORE_IS_SCHD_OFFSET	0x90
 
 #define HPRE_RAS_CE_ENB			0x301410
-#define HPRE_HAC_RAS_CE_ENABLE		0x3f
+#define HPRE_HAC_RAS_CE_ENABLE		0x1
 #define HPRE_RAS_NFE_ENB		0x301414
-#define HPRE_HAC_RAS_NFE_ENABLE		0x3fffc0
+#define HPRE_HAC_RAS_NFE_ENABLE		0x3ffffe
 #define HPRE_RAS_FE_ENB			0x301418
 #define HPRE_HAC_RAS_FE_ENABLE		0
 
@@ -264,7 +263,7 @@ static int hpre_set_user_domain_and_cache(struct hisi_qm *qm)
 	writel(HPRE_BD_USR_MASK, HPRE_ADDR(qm, HPRE_BD_AWUSR_CFG));
 	writel(0x1, HPRE_ADDR(qm, HPRE_RDCHN_INI_CFG));
 	ret = readl_relaxed_poll_timeout(HPRE_ADDR(qm, HPRE_RDCHN_INI_ST), val,
-			val & BIT(0),
+					 val & BIT(0),
 			HPRE_REG_RD_INTVRL_US,
 			HPRE_REG_RD_TMOUT_US);
 	if (ret) {
@@ -372,7 +371,6 @@ static int hpre_current_qm_write(struct hpre_debugfs_file *file, u32 val)
 	u32 num_vfs = qm->vfs_num;
 	u32 vfq_num, tmp;
 
-
 	if (val > num_vfs)
 		return -EINVAL;
 
@@ -449,7 +447,7 @@ static int hpre_cluster_inqry_write(struct hpre_debugfs_file *file, u32 val)
 }
 
 static ssize_t hpre_ctrl_debug_read(struct file *filp, char __user *buf,
-			       size_t count, loff_t *pos)
+				    size_t count, loff_t *pos)
 {
 	struct hpre_debugfs_file *file = filp->private_data;
 	char tbuf[HPRE_DBGFS_VAL_MAX_LEN];
@@ -477,7 +475,7 @@ static ssize_t hpre_ctrl_debug_read(struct file *filp, char __user *buf,
 }
 
 static ssize_t hpre_ctrl_debug_write(struct file *filp, const char __user *buf,
-				size_t count, loff_t *pos)
+				     size_t count, loff_t *pos)
 {
 	struct hpre_debugfs_file *file = filp->private_data;
 	char tbuf[HPRE_DBGFS_VAL_MAX_LEN];
