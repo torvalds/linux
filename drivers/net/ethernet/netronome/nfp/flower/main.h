@@ -458,7 +458,7 @@ void nfp_flower_qos_cleanup(struct nfp_app *app);
 int nfp_flower_setup_qos_offload(struct nfp_app *app, struct net_device *netdev,
 				 struct tc_cls_matchall_offload *flow);
 void nfp_flower_stats_rlim_reply(struct nfp_app *app, struct sk_buff *skb);
-int nfp_flower_indr_setup_tc_cb(struct net_device *netdev, void *cb_priv,
+int nfp_flower_indr_setup_tc_cb(struct net_device *netdev, struct Qdisc *sch, void *cb_priv,
 				enum tc_setup_type type, void *type_data,
 				void *data,
 				void (*cleanup)(struct flow_block_cb *block_cb));

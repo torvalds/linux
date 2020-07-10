@@ -444,6 +444,7 @@ struct flow_block_offload {
 	struct list_head cb_list;
 	struct list_head *driver_block_list;
 	struct netlink_ext_ack *extack;
+	struct Qdisc *sch;
 };
 
 enum tc_setup_type;
@@ -455,6 +456,7 @@ struct flow_block_cb;
 struct flow_block_indr {
 	struct list_head		list;
 	struct net_device		*dev;
+	struct Qdisc			*sch;
 	enum flow_block_binder_type	binder_type;
 	void				*data;
 	void				*cb_priv;
@@ -479,7 +481,8 @@ struct flow_block_cb *flow_indr_block_cb_alloc(flow_setup_cb_t *cb,
 					       void *cb_ident, void *cb_priv,
 					       void (*release)(void *cb_priv),
 					       struct flow_block_offload *bo,
-					       struct net_device *dev, void *data,
+					       struct net_device *dev,
+					       struct Qdisc *sch, void *data,
 					       void *indr_cb_priv,
 					       void (*cleanup)(struct flow_block_cb *block_cb));
 void flow_block_cb_free(struct flow_block_cb *block_cb);
@@ -553,7 +556,7 @@ static inline void flow_block_init(struct flow_block *flow_block)
 	INIT_LIST_HEAD(&flow_block->cb_list);
 }
 
-typedef int flow_indr_block_bind_cb_t(struct net_device *dev, void *cb_priv,
+typedef int flow_indr_block_bind_cb_t(struct net_device *dev, struct Qdisc *sch, void *cb_priv,
 				      enum tc_setup_type type, void *type_data,
 				      void *data,
 				      void (*cleanup)(struct flow_block_cb *block_cb));
@@ -561,7 +564,7 @@ typedef int flow_indr_block_bind_cb_t(struct net_device *dev, void *cb_priv,
 int flow_indr_dev_register(flow_indr_block_bind_cb_t *cb, void *cb_priv);
 void flow_indr_dev_unregister(flow_indr_block_bind_cb_t *cb, void *cb_priv,
 			      void (*release)(void *cb_priv));
-int flow_indr_dev_setup_offload(struct net_device *dev,
+int flow_indr_dev_setup_offload(struct net_device *dev, struct Qdisc *sch,
 				enum tc_setup_type type, void *data,
 				struct flow_block_offload *bo,
 				void (*cleanup)(struct flow_block_cb *block_cb));
