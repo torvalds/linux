@@ -1510,12 +1510,6 @@ void kvm_mmu_new_pgd(struct kvm_vcpu *vcpu, gpa_t new_pgd, bool skip_tlb_flush,
 
 void kvm_configure_mmu(bool enable_tdp, int tdp_page_level);
 
-static inline gpa_t translate_gpa(struct kvm_vcpu *vcpu, gpa_t gpa, u32 access,
-				  struct x86_exception *exception)
-{
-	return gpa;
-}
-
 static inline u16 kvm_read_ldt(void)
 {
 	u16 ldt;

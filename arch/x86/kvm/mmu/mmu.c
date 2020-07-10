@@ -516,6 +516,12 @@ static bool check_mmio_spte(struct kvm_vcpu *vcpu, u64 spte)
 	return likely(kvm_gen == spte_gen);
 }
 
+static gpa_t translate_gpa(struct kvm_vcpu *vcpu, gpa_t gpa, u32 access,
+                                  struct x86_exception *exception)
+{
+        return gpa;
+}
+
 /*
  * Sets the shadow PTE masks used by the MMU.
  *
