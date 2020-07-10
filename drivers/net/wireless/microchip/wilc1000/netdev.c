@@ -176,23 +176,19 @@ static int wilc_wlan_get_firmware(struct net_device *dev)
 	struct wilc_vif *vif = netdev_priv(dev);
 	struct wilc *wilc = vif->wilc;
 	int chip_id;
-	const struct firmware *wilc_firmware;
-	char *firmware;
+	const struct firmware *wilc_fw;
 
 	chip_id = wilc_get_chipid(wilc, false);
 
-	if (chip_id < 0x1003a0)
-		firmware = FIRMWARE_1002;
-	else
-		firmware = FIRMWARE_1003;
+	netdev_info(dev, "ChipID [%x] loading firmware [%s]\n", chip_id,
+		    FIRMWARE_WILC1000);
 
-	netdev_info(dev, "loading firmware %s\n", firmware);
-
-	if (request_firmware(&wilc_firmware, firmware, wilc->dev) != 0) {
-		netdev_err(dev, "%s - firmware not available\n", firmware);
+	if (request_firmware(&wilc_fw, FIRMWARE_WILC1000, wilc->dev) != 0) {
+		netdev_err(dev, "%s - firmware not available\n",
+			   FIRMWARE_WILC1000);
 		return -EINVAL;
 	}
-	wilc->firmware = wilc_firmware;
+	wilc->firmware = wilc_fw;
 
 	return 0;
 }
