@@ -1196,18 +1196,22 @@ static int register_devlink_port(struct mlx5_core_dev *dev,
 	mlx5e_rep_get_port_parent_id(rpriv->netdev, &ppid);
 	dl_port_index = mlx5_esw_vport_to_devlink_port_index(dev, rep->vport);
 	pfnum = PCI_FUNC(dev->pdev->devfn);
-	attrs.flavour = DEVLINK_PORT_FLAVOUR_PHYSICAL;
-	attrs.phys.port_number = pfnum;
-	memcpy(attrs.switch_id.id, &ppid.id[0], ppid.id_len);
-	attrs.switch_id.id_len = ppid.id_len;
-	if (rep->vport == MLX5_VPORT_UPLINK)
+	if (rep->vport == MLX5_VPORT_UPLINK) {
+		attrs.flavour = DEVLINK_PORT_FLAVOUR_PHYSICAL;
+		attrs.phys.port_number = pfnum;
+		memcpy(attrs.switch_id.id, &ppid.id[0], ppid.id_len);
+		attrs.switch_id.id_len = ppid.id_len;
 		devlink_port_attrs_set(&rpriv->dl_port, &attrs);
-	else if (rep->vport == MLX5_VPORT_PF)
+	} else if (rep->vport == MLX5_VPORT_PF) {
+		memcpy(rpriv->dl_port.attrs.switch_id.id, &ppid.id[0], ppid.id_len);
+		rpriv->dl_port.attrs.switch_id.id_len = ppid.id_len;
 		devlink_port_attrs_pci_pf_set(&rpriv->dl_port, pfnum);
-	else if (mlx5_eswitch_is_vf_vport(dev->priv.eswitch, rpriv->rep->vport))
+	} else if (mlx5_eswitch_is_vf_vport(dev->priv.eswitch, rpriv->rep->vport)) {
+		memcpy(rpriv->dl_port.attrs.switch_id.id, &ppid.id[0], ppid.id_len);
+		rpriv->dl_port.attrs.switch_id.id_len = ppid.id_len;
 		devlink_port_attrs_pci_vf_set(&rpriv->dl_port,
 					      pfnum, rep->vport - 1);
-
+	}
 	return devlink_port_register(devlink, &rpriv->dl_port, dl_port_index);
 }
 
