@@ -196,6 +196,11 @@ outputting the above style in the ``git log`` or ``git show`` commands::
 	[pretty]
 		fixes = Fixes: %h (\"%s\")
 
+An example call::
+
+	$ git log -1 --pretty=fixes 54a4f0239f2e
+	Fixes: 54a4f0239f2e ("KVM: MMU: make kvm_mmu_zap_page() return the number of pages it actually freed")
+
 .. _split_changes:
 
 3) Separate your changes
