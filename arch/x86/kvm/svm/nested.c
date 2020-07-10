@@ -336,6 +336,21 @@ static void nested_vmcb_save_pending_event(struct vcpu_svm *svm,
 	nested_vmcb->control.exit_int_info = exit_int_info;
 }
 
+static inline bool nested_npt_enabled(struct vcpu_svm *svm)
+{
+	return svm->nested.ctl.nested_ctl & SVM_NESTED_CTL_NP_ENABLE;
+}
+
+/*
+ * Load guest's cr3 at nested entry. @nested_npt is true if we are
+ * emulating VM-Entry into a guest with NPT enabled.
+ */
+static int nested_svm_load_cr3(struct kvm_vcpu *vcpu, unsigned long cr3,
+			       bool nested_npt)
+{
+	return kvm_set_cr3(vcpu, cr3);
+}
+
 static void nested_prepare_vmcb_save(struct vcpu_svm *svm, struct vmcb *nested_vmcb)
 {
 	/* Load the nested guest state */
@@ -349,7 +364,8 @@ static void nested_prepare_vmcb_save(struct vcpu_svm *svm, struct vmcb *nested_v
 	svm_set_efer(&svm->vcpu, nested_vmcb->save.efer);
 	svm_set_cr0(&svm->vcpu, nested_vmcb->save.cr0);
 	svm_set_cr4(&svm->vcpu, nested_vmcb->save.cr4);
-	(void)kvm_set_cr3(&svm->vcpu, nested_vmcb->save.cr3);
+	(void)nested_svm_load_cr3(&svm->vcpu, nested_vmcb->save.cr3,
+				  nested_npt_enabled(svm));
 
 	svm->vmcb->save.cr2 = svm->vcpu.arch.cr2 = nested_vmcb->save.cr2;
 	kvm_rax_write(&svm->vcpu, nested_vmcb->save.rax);
@@ -368,7 +384,8 @@ static void nested_prepare_vmcb_save(struct vcpu_svm *svm, struct vmcb *nested_v
 static void nested_prepare_vmcb_control(struct vcpu_svm *svm)
 {
 	const u32 mask = V_INTR_MASKING_MASK | V_GIF_ENABLE_MASK | V_GIF_MASK;
-	if (svm->nested.ctl.nested_ctl & SVM_NESTED_CTL_NP_ENABLE)
+
+	if (nested_npt_enabled(svm))
 		nested_svm_init_mmu_context(&svm->vcpu);
 
 	/* Guest paging mode is active - reset mmu */
