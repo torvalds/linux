@@ -1560,6 +1560,14 @@ static void free_bprm(struct linux_binprm *bprm)
 	kfree(bprm);
 }
 
+static struct linux_binprm *alloc_bprm(void)
+{
+	struct linux_binprm *bprm = kzalloc(sizeof(*bprm), GFP_KERNEL);
+	if (!bprm)
+		return ERR_PTR(-ENOMEM);
+	return bprm;
+}
+
 int bprm_change_interp(const char *interp, struct linux_binprm *bprm)
 {
 	/* If a binfmt changed the interp, free it first. */
@@ -1848,18 +1856,19 @@ static int do_execveat_common(int fd, struct filename *filename,
 	 * further execve() calls fail. */
 	current->flags &= ~PF_NPROC_EXCEEDED;
 
+	bprm = alloc_bprm();
+	if (IS_ERR(bprm)) {
+		retval = PTR_ERR(bprm);
+		goto out_ret;
+	}
+
 	retval = unshare_files(&displaced);
 	if (retval)
-		goto out_ret;
-
-	retval = -ENOMEM;
-	bprm = kzalloc(sizeof(*bprm), GFP_KERNEL);
-	if (!bprm)
-		goto out_files;
+		goto out_free;
 
 	retval = prepare_bprm_creds(bprm);
 	if (retval)
-		goto out_free;
+		goto out_files;
 
 	check_unsafe_exec(bprm);
 	current->in_execve = 1;
@@ -1956,13 +1965,13 @@ out_unmark:
 	current->fs->in_exec = 0;
 	current->in_execve = 0;
 
+out_files:
+	if (displaced)
+		reset_files_struct(displaced);
 out_free:
 	free_bprm(bprm);
 	kfree(pathbuf);
 
-out_files:
-	if (displaced)
-		reset_files_struct(displaced);
 out_ret:
 	putname(filename);
 	return retval;
