@@ -6699,6 +6699,7 @@ static int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 		for (i = 0; i < nr_tables; i++)
 			kfree(ctx->file_data->table[i].files);
 
+		percpu_ref_exit(&ctx->file_data->refs);
 		kfree(ctx->file_data->table);
 		kfree(ctx->file_data);
 		ctx->file_data = NULL;
