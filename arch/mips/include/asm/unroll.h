@@ -25,9 +25,7 @@
 	 * generate reasonable code for the switch statement,	\
 	 * so we skip the sanity check for those compilers.	\
 	 */							\
-	BUILD_BUG_ON((CONFIG_CC_IS_GCC ||			\
-		      CONFIG_CLANG_VERSION >= 80000) &&		\
-		     !__builtin_constant_p(times));		\
+	BUILD_BUG_ON(!__builtin_constant_p(times));		\
 								\
 	switch (times) {					\
 	case 32: fn(__VA_ARGS__); /* fall through */		\
