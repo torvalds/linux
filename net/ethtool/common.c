@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
+#include <linux/ethtool_netlink.h>
 #include <linux/net_tstamp.h>
 #include <linux/phy.h>
 #include <linux/rtnetlink.h>
@@ -271,6 +272,14 @@ const char ts_rx_filter_names[][ETH_GSTRING_LEN] = {
 	[HWTSTAMP_FILTER_NTP_ALL]		= "ntp-all",
 };
 static_assert(ARRAY_SIZE(ts_rx_filter_names) == __HWTSTAMP_FILTER_CNT);
+
+const char udp_tunnel_type_names[][ETH_GSTRING_LEN] = {
+	[ETHTOOL_UDP_TUNNEL_TYPE_VXLAN]		= "vxlan",
+	[ETHTOOL_UDP_TUNNEL_TYPE_GENEVE]	= "geneve",
+	[ETHTOOL_UDP_TUNNEL_TYPE_VXLAN_GPE]	= "vxlan-gpe",
+};
+static_assert(ARRAY_SIZE(udp_tunnel_type_names) ==
+	      __ETHTOOL_UDP_TUNNEL_TYPE_CNT);
 
 /* return false if legacy contained non-0 deprecated fields
  * maxtxpkt/maxrxpkt. rest of ksettings always updated

@@ -1765,12 +1765,8 @@ struct bnxt {
 	((u64)(maj) << 48 | (u64)(min) << 32 | (u64)(bld) << 16 | (rsv))
 #define BNXT_FW_MAJ(bp)		((bp)->fw_ver_code >> 48)
 
-	__be16			vxlan_port;
-	u8			vxlan_port_cnt;
-	__le16			vxlan_fw_dst_port_id;
-	__be16			nge_port;
-	u8			nge_port_cnt;
-	__le16			nge_fw_dst_port_id;
+	u16			vxlan_fw_dst_port_id;
+	u16			nge_fw_dst_port_id;
 	u8			port_partition_type;
 	u8			port_count;
 	u16			br_mode;
@@ -1790,16 +1786,12 @@ struct bnxt {
 #define BNXT_RX_NTP_FLTR_SP_EVENT	1
 #define BNXT_LINK_CHNG_SP_EVENT		2
 #define BNXT_HWRM_EXEC_FWD_REQ_SP_EVENT	3
-#define BNXT_VXLAN_ADD_PORT_SP_EVENT	4
-#define BNXT_VXLAN_DEL_PORT_SP_EVENT	5
 #define BNXT_RESET_TASK_SP_EVENT	6
 #define BNXT_RST_RING_SP_EVENT		7
 #define BNXT_HWRM_PF_UNLOAD_SP_EVENT	8
 #define BNXT_PERIODIC_STATS_SP_EVENT	9
 #define BNXT_HWRM_PORT_MODULE_SP_EVENT	10
 #define BNXT_RESET_TASK_SILENT_SP_EVENT	11
-#define BNXT_GENEVE_ADD_PORT_SP_EVENT	12
-#define BNXT_GENEVE_DEL_PORT_SP_EVENT	13
 #define BNXT_LINK_SPEED_CHNG_SP_EVENT	14
 #define BNXT_FLOW_STATS_SP_EVENT	15
 #define BNXT_UPDATE_PHY_SP_EVENT	16
