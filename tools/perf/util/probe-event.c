@@ -2968,6 +2968,16 @@ static int find_probe_trace_events_from_map(struct perf_probe_event *pev,
 	for (j = 0; j < num_matched_functions; j++) {
 		sym = syms[j];
 
+		/* There can be duplicated symbols in the map */
+		for (i = 0; i < j; i++)
+			if (sym->start == syms[i]->start) {
+				pr_debug("Found duplicated symbol %s @ %" PRIx64 "\n",
+					 sym->name, sym->start);
+				break;
+			}
+		if (i != j)
+			continue;
+
 		tev = (*tevs) + ret;
 		tp = &tev->point;
 		if (ret == num_matched_functions) {
