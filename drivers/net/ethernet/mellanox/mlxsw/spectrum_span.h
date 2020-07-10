@@ -26,6 +26,9 @@ struct mlxsw_sp_span_parms {
 enum mlxsw_sp_span_trigger {
 	MLXSW_SP_SPAN_TRIGGER_INGRESS,
 	MLXSW_SP_SPAN_TRIGGER_EGRESS,
+	MLXSW_SP_SPAN_TRIGGER_TAIL_DROP,
+	MLXSW_SP_SPAN_TRIGGER_EARLY_DROP,
+	MLXSW_SP_SPAN_TRIGGER_ECN,
 };
 
 struct mlxsw_sp_span_trigger_parms {
