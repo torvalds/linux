@@ -43,6 +43,17 @@ static const match_table_t opt_tokens = {
 	{ NVMF_OPT_ERR,		NULL		}
 };
 
+static int fcloop_verify_addr(substring_t *s)
+{
+	size_t blen = s->to - s->from + 1;
+
+	if (strnlen(s->from, blen) != NVME_FC_TRADDR_HEXNAMELEN + 2 ||
+	    strncmp(s->from, "0x", 2))
+		return -EINVAL;
+
+	return 0;
+}
+
 static int
 fcloop_parse_options(struct fcloop_ctrl_options *opts,
 		const char *buf)
@@ -64,14 +75,16 @@ fcloop_parse_options(struct fcloop_ctrl_options *opts,
 		opts->mask |= token;
 		switch (token) {
 		case NVMF_OPT_WWNN:
-			if (match_u64(args, &token64)) {
+			if (fcloop_verify_addr(args) ||
+			    match_u64(args, &token64)) {
 				ret = -EINVAL;
 				goto out_free_options;
 			}
 			opts->wwnn = token64;
 			break;
 		case NVMF_OPT_WWPN:
-			if (match_u64(args, &token64)) {
+			if (fcloop_verify_addr(args) ||
+			    match_u64(args, &token64)) {
 				ret = -EINVAL;
 				goto out_free_options;
 			}
@@ -92,14 +105,16 @@ fcloop_parse_options(struct fcloop_ctrl_options *opts,
 			opts->fcaddr = token;
 			break;
 		case NVMF_OPT_LPWWNN:
-			if (match_u64(args, &token64)) {
+			if (fcloop_verify_addr(args) ||
+			    match_u64(args, &token64)) {
 				ret = -EINVAL;
 				goto out_free_options;
 			}
 			opts->lpwwnn = token64;
 			break;
 		case NVMF_OPT_LPWWPN:
-			if (match_u64(args, &token64)) {
+			if (fcloop_verify_addr(args) ||
+			    match_u64(args, &token64)) {
 				ret = -EINVAL;
 				goto out_free_options;
 			}
@@ -141,14 +156,16 @@ fcloop_parse_nm_options(struct device *dev, u64 *nname, u64 *pname,
 		token = match_token(p, opt_tokens, args);
 		switch (token) {
 		case NVMF_OPT_WWNN:
-			if (match_u64(args, &token64)) {
+			if (fcloop_verify_addr(args) ||
+			    match_u64(args, &token64)) {
 				ret = -EINVAL;
 				goto out_free_options;
 			}
 			*nname = token64;
 			break;
 		case NVMF_OPT_WWPN:
-			if (match_u64(args, &token64)) {
+			if (fcloop_verify_addr(args) ||
+			    match_u64(args, &token64)) {
 				ret = -EINVAL;
 				goto out_free_options;
 			}

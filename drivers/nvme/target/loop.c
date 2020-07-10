@@ -36,7 +36,6 @@ struct nvme_loop_ctrl {
 	struct nvme_loop_iod	async_event_iod;
 	struct nvme_ctrl	ctrl;
 
-	struct nvmet_ctrl	*target_ctrl;
 	struct nvmet_port	*port;
 };
 
