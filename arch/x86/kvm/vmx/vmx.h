@@ -550,6 +550,11 @@ static inline bool vmx_has_waitpkg(struct vcpu_vmx *vmx)
 		SECONDARY_EXEC_ENABLE_USR_WAIT_PAUSE;
 }
 
+static inline bool vmx_need_pf_intercept(struct kvm_vcpu *vcpu)
+{
+	return !enable_ept;
+}
+
 void dump_vmcs(void);
 
 #endif /* __KVM_X86_VMX_H */
