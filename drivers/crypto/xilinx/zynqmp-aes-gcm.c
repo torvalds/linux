@@ -364,6 +364,7 @@ static struct zynqmp_aead_drv_ctx aes_drv_ctx = {
 		.cra_priority		= 200,
 		.cra_flags		= CRYPTO_ALG_TYPE_AEAD |
 					  CRYPTO_ALG_ASYNC |
+					  CRYPTO_ALG_ALLOCATES_MEMORY |
 					  CRYPTO_ALG_KERN_DRIVER_ONLY |
 					  CRYPTO_ALG_NEED_FALLBACK,
 		.cra_blocksize		= ZYNQMP_AES_BLK_SIZE,

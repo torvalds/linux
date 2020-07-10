@@ -4434,6 +4434,7 @@ static int chcr_register_alg(void)
 			driver_algs[i].alg.skcipher.base.cra_module = THIS_MODULE;
 			driver_algs[i].alg.skcipher.base.cra_flags =
 				CRYPTO_ALG_TYPE_SKCIPHER | CRYPTO_ALG_ASYNC |
+				CRYPTO_ALG_ALLOCATES_MEMORY |
 				CRYPTO_ALG_NEED_FALLBACK;
 			driver_algs[i].alg.skcipher.base.cra_ctxsize =
 				sizeof(struct chcr_context) +
@@ -4445,7 +4446,8 @@ static int chcr_register_alg(void)
 			break;
 		case CRYPTO_ALG_TYPE_AEAD:
 			driver_algs[i].alg.aead.base.cra_flags =
-				CRYPTO_ALG_ASYNC | CRYPTO_ALG_NEED_FALLBACK;
+				CRYPTO_ALG_ASYNC | CRYPTO_ALG_NEED_FALLBACK |
+				CRYPTO_ALG_ALLOCATES_MEMORY;
 			driver_algs[i].alg.aead.encrypt = chcr_aead_encrypt;
 			driver_algs[i].alg.aead.decrypt = chcr_aead_decrypt;
 			driver_algs[i].alg.aead.init = chcr_aead_cra_init;
@@ -4465,7 +4467,8 @@ static int chcr_register_alg(void)
 			a_hash->halg.statesize = SZ_AHASH_REQ_CTX;
 			a_hash->halg.base.cra_priority = CHCR_CRA_PRIORITY;
 			a_hash->halg.base.cra_module = THIS_MODULE;
-			a_hash->halg.base.cra_flags = CRYPTO_ALG_ASYNC;
+			a_hash->halg.base.cra_flags =
+				CRYPTO_ALG_ASYNC | CRYPTO_ALG_ALLOCATES_MEMORY;
 			a_hash->halg.base.cra_alignmask = 0;
 			a_hash->halg.base.cra_exit = NULL;
 

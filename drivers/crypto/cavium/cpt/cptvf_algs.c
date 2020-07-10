@@ -341,7 +341,8 @@ static int cvm_enc_dec_init(struct crypto_skcipher *tfm)
 }
 
 static struct skcipher_alg algs[] = { {
-	.base.cra_flags		= CRYPTO_ALG_ASYNC,
+	.base.cra_flags		= CRYPTO_ALG_ASYNC |
+				  CRYPTO_ALG_ALLOCATES_MEMORY,
 	.base.cra_blocksize	= AES_BLOCK_SIZE,
 	.base.cra_ctxsize	= sizeof(struct cvm_enc_ctx),
 	.base.cra_alignmask	= 7,
@@ -358,7 +359,8 @@ static struct skcipher_alg algs[] = { {
 	.decrypt		= cvm_decrypt,
 	.init			= cvm_enc_dec_init,
 }, {
-	.base.cra_flags		= CRYPTO_ALG_ASYNC,
+	.base.cra_flags		= CRYPTO_ALG_ASYNC |
+				  CRYPTO_ALG_ALLOCATES_MEMORY,
 	.base.cra_blocksize	= AES_BLOCK_SIZE,
 	.base.cra_ctxsize	= sizeof(struct cvm_enc_ctx),
 	.base.cra_alignmask	= 7,
@@ -375,7 +377,8 @@ static struct skcipher_alg algs[] = { {
 	.decrypt		= cvm_decrypt,
 	.init			= cvm_enc_dec_init,
 }, {
-	.base.cra_flags		= CRYPTO_ALG_ASYNC,
+	.base.cra_flags		= CRYPTO_ALG_ASYNC |
+				  CRYPTO_ALG_ALLOCATES_MEMORY,
 	.base.cra_blocksize	= AES_BLOCK_SIZE,
 	.base.cra_ctxsize	= sizeof(struct cvm_enc_ctx),
 	.base.cra_alignmask	= 7,
@@ -391,7 +394,8 @@ static struct skcipher_alg algs[] = { {
 	.decrypt		= cvm_decrypt,
 	.init			= cvm_enc_dec_init,
 }, {
-	.base.cra_flags		= CRYPTO_ALG_ASYNC,
+	.base.cra_flags		= CRYPTO_ALG_ASYNC |
+				  CRYPTO_ALG_ALLOCATES_MEMORY,
 	.base.cra_blocksize	= AES_BLOCK_SIZE,
 	.base.cra_ctxsize	= sizeof(struct cvm_enc_ctx),
 	.base.cra_alignmask	= 7,
@@ -408,7 +412,8 @@ static struct skcipher_alg algs[] = { {
 	.decrypt		= cvm_decrypt,
 	.init			= cvm_enc_dec_init,
 }, {
-	.base.cra_flags		= CRYPTO_ALG_ASYNC,
+	.base.cra_flags		= CRYPTO_ALG_ASYNC |
+				  CRYPTO_ALG_ALLOCATES_MEMORY,
 	.base.cra_blocksize	= DES3_EDE_BLOCK_SIZE,
 	.base.cra_ctxsize	= sizeof(struct cvm_des3_ctx),
 	.base.cra_alignmask	= 7,
@@ -425,7 +430,8 @@ static struct skcipher_alg algs[] = { {
 	.decrypt		= cvm_decrypt,
 	.init			= cvm_enc_dec_init,
 }, {
-	.base.cra_flags		= CRYPTO_ALG_ASYNC,
+	.base.cra_flags		= CRYPTO_ALG_ASYNC |
+				  CRYPTO_ALG_ALLOCATES_MEMORY,
 	.base.cra_blocksize	= DES3_EDE_BLOCK_SIZE,
 	.base.cra_ctxsize	= sizeof(struct cvm_des3_ctx),
 	.base.cra_alignmask	= 7,
