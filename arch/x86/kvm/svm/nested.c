@@ -493,6 +493,8 @@ int nested_svm_vmrun(struct vcpu_svm *svm)
 	enter_svm_guest_mode(svm, vmcb_gpa, nested_vmcb);
 
 	if (!nested_svm_vmrun_msrpm(svm)) {
+		svm->nested.nested_run_pending = 0;
+
 		svm->vmcb->control.exit_code    = SVM_EXIT_ERR;
 		svm->vmcb->control.exit_code_hi = 0;
 		svm->vmcb->control.exit_info_1  = 0;
