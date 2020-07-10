@@ -710,7 +710,6 @@ struct mlxsw_sp_flow_block {
 
 struct mlxsw_sp_flow_block_binding {
 	struct list_head list;
-	struct net_device *dev;
 	struct mlxsw_sp_port *mlxsw_sp_port;
 	bool ingress;
 };
