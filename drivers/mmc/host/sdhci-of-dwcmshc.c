@@ -19,6 +19,9 @@
 /* DWCMSHC specific Mode Select value */
 #define DWCMSHC_CTRL_HS400		0x7
 
+#define DWCMSHC_EMMC_CONTROL		0x52c
+#define DWCMSHC_ENHANCED_STROBE		BIT(8)
+
 #define BOUNDARY_OK(addr, len) \
 	((addr | (SZ_128M - 1)) == ((addr + len - 1) | (SZ_128M - 1)))
 
@@ -73,6 +76,21 @@ static void dwcmshc_set_uhs_signaling(struct sdhci_host *host,
 	else if (timing == MMC_TIMING_MMC_HS400)
 		ctrl_2 |= DWCMSHC_CTRL_HS400;
 	sdhci_writew(host, ctrl_2, SDHCI_HOST_CONTROL2);
+}
+
+static void dwcmshc_hs400_enhanced_strobe(struct mmc_host *mmc,
+					  struct mmc_ios *ios)
+{
+	u32 vendor;
+	struct sdhci_host *host = mmc_priv(mmc);
+
+	vendor = sdhci_readl(host, DWCMSHC_EMMC_CONTROL);
+	if (ios->enhanced_strobe)
+		vendor |= DWCMSHC_ENHANCED_STROBE;
+	else
+		vendor &= ~DWCMSHC_ENHANCED_STROBE;
+
+	sdhci_writel(host, vendor, DWCMSHC_EMMC_CONTROL);
 }
 
 static const struct sdhci_ops sdhci_dwcmshc_ops = {
@@ -132,6 +150,9 @@ static int dwcmshc_probe(struct platform_device *pdev)
 		goto err_clk;
 
 	sdhci_get_of_property(pdev);
+
+	host->mmc_host_ops.hs400_enhanced_strobe =
+		dwcmshc_hs400_enhanced_strobe;
 
 	err = sdhci_add_host(host);
 	if (err)
