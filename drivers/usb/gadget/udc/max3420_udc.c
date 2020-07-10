@@ -7,7 +7,7 @@
  *
  * Based on:
  *	o MAX3420E datasheet
- *		http://datasheets.maximintegrated.com/en/ds/MAX3420E.pdf
+ *		https://datasheets.maximintegrated.com/en/ds/MAX3420E.pdf
  *	o MAX342{0,1}E Programming Guides
  *		https://pdfserv.maximintegrated.com/en/an/AN3598.pdf
  *		https://pdfserv.maximintegrated.com/en/an/AN3785.pdf
