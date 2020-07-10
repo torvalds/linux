@@ -291,6 +291,8 @@ int line6_create_audio_in_urbs(struct snd_line6_pcm *line6pcm)
 		urb->interval = LINE6_ISO_INTERVAL;
 		urb->error_count = 0;
 		urb->complete = audio_in_callback;
+		if (usb_urb_ep_type_check(urb))
+			return -EINVAL;
 	}
 
 	return 0;
