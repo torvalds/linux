@@ -17,17 +17,17 @@ SECTIONS {
 
 	.bss : {
 		*(.bss .bss.[0-9a-zA-Z_]*)
-		*(.bss..L* .bss..compoundliteral*)
+		*(.bss..L*)
 	}
 
 	.data : {
 		*(.data .data.[0-9a-zA-Z_]*)
-		*(.data..L* .data..compoundliteral*)
+		*(.data..L*)
 	}
 
 	.rodata : {
 		*(.rodata .rodata.[0-9a-zA-Z_]*)
-		*(.rodata..L* .rodata..compoundliteral*)
+		*(.rodata..L*)
 	}
 
 	/*
