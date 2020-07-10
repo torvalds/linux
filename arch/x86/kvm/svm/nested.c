@@ -48,13 +48,6 @@ static void nested_svm_inject_npf_exit(struct kvm_vcpu *vcpu,
 	svm->vmcb->control.exit_info_1 &= ~0xffffffffULL;
 	svm->vmcb->control.exit_info_1 |= fault->error_code;
 
-	/*
-	 * The present bit is always zero for page structure faults on real
-	 * hardware.
-	 */
-	if (svm->vmcb->control.exit_info_1 & (2ULL << 32))
-		svm->vmcb->control.exit_info_1 &= ~1;
-
 	nested_svm_vmexit(svm);
 }
 
