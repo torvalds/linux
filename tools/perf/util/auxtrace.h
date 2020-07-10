@@ -604,13 +604,15 @@ bool auxtrace__evsel_is_auxtrace(struct perf_session *session,
 				 struct evsel *evsel);
 
 #define ITRACE_HELP \
-"				i:	    		synthesize instructions events\n"		\
+"				i[period]:    		synthesize instructions events\n" \
 "				b:	    		synthesize branches events (branch misses for Arm SPE)\n" \
 "				c:	    		synthesize branches events (calls only)\n"	\
 "				r:	    		synthesize branches events (returns only)\n" \
 "				x:	    		synthesize transactions events\n"		\
 "				w:	    		synthesize ptwrite events\n"		\
 "				p:	    		synthesize power events\n"			\
+"				o:			synthesize other events recorded due to the use\n" \
+"							of aux-output (refer to perf record)\n"	\
 "				e:	    		synthesize error events\n"			\
 "				d:	    		create a debug log\n"			\
 "				f:	    		synthesize first level cache events\n" \
@@ -618,7 +620,9 @@ bool auxtrace__evsel_is_auxtrace(struct perf_session *session,
 "				t:	    		synthesize TLB events\n" \
 "				a:	    		synthesize remote access events\n" \
 "				g[len]:     		synthesize a call chain (use with i or x)\n" \
+"				G[len]:			synthesize a call chain on existing event records\n" \
 "				l[len]:     		synthesize last branch entries (use with i or x)\n" \
+"				L[len]:			synthesize last branch entries on existing event records\n" \
 "				sNUMBER:    		skip initial number of events\n"		\
 "				PERIOD[ns|us|ms|i|t]:   specify period to sample stream\n" \
 "				concatenate multiple options. Default is ibxwpe or cewp\n"
