@@ -815,15 +815,6 @@ static int vmw_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg
 	return 0;
 }
 
-static void vmw_ttm_io_mem_free(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
-{
-}
-
-static int vmw_ttm_fault_reserve_notify(struct ttm_buffer_object *bo)
-{
-	return 0;
-}
-
 /**
  * vmw_move_notify - TTM move_notify_callback
  *
@@ -866,7 +857,5 @@ struct ttm_bo_driver vmw_bo_driver = {
 	.verify_access = vmw_verify_access,
 	.move_notify = vmw_move_notify,
 	.swap_notify = vmw_swap_notify,
-	.fault_reserve_notify = &vmw_ttm_fault_reserve_notify,
 	.io_mem_reserve = &vmw_ttm_io_mem_reserve,
-	.io_mem_free = &vmw_ttm_io_mem_free,
 };

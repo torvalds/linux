@@ -129,11 +129,6 @@ int qxl_ttm_io_mem_reserve(struct ttm_bo_device *bdev,
 	return 0;
 }
 
-static void qxl_ttm_io_mem_free(struct ttm_bo_device *bdev,
-				struct ttm_mem_reg *mem)
-{
-}
-
 /*
  * TTM backend functions.
  */
@@ -247,7 +242,6 @@ static struct ttm_bo_driver qxl_bo_driver = {
 	.evict_flags = &qxl_evict_flags,
 	.move = &qxl_bo_move,
 	.io_mem_reserve = &qxl_ttm_io_mem_reserve,
-	.io_mem_free = &qxl_ttm_io_mem_free,
 	.move_notify = &qxl_bo_move_notify,
 };
 

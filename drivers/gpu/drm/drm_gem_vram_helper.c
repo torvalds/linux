@@ -1081,10 +1081,6 @@ static int bo_driver_io_mem_reserve(struct ttm_bo_device *bdev,
 	return 0;
 }
 
-static void bo_driver_io_mem_free(struct ttm_bo_device *bdev,
-				  struct ttm_mem_reg *mem)
-{ }
-
 static struct ttm_bo_driver bo_driver = {
 	.ttm_tt_create = bo_driver_ttm_tt_create,
 	.ttm_tt_populate = ttm_pool_populate,
@@ -1094,7 +1090,6 @@ static struct ttm_bo_driver bo_driver = {
 	.evict_flags = bo_driver_evict_flags,
 	.move_notify = bo_driver_move_notify,
 	.io_mem_reserve = bo_driver_io_mem_reserve,
-	.io_mem_free = bo_driver_io_mem_free,
 };
 
 /*
