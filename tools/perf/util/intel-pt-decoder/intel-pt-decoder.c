@@ -1977,8 +1977,10 @@ next:
 			 * possibility of another CBR change that gets caught up
 			 * in the PSB+.
 			 */
-			if (decoder->cbr != decoder->cbr_seen)
+			if (decoder->cbr != decoder->cbr_seen) {
+				decoder->state.type = 0;
 				return 0;
+			}
 			break;
 
 		case INTEL_PT_PIP:
@@ -2019,8 +2021,10 @@ next:
 
 		case INTEL_PT_CBR:
 			intel_pt_calc_cbr(decoder);
-			if (decoder->cbr != decoder->cbr_seen)
+			if (decoder->cbr != decoder->cbr_seen) {
+				decoder->state.type = 0;
 				return 0;
+			}
 			break;
 
 		case INTEL_PT_MODE_EXEC:
