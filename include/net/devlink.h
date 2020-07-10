@@ -101,6 +101,8 @@ struct devlink_port {
 	u8 attrs_set:1,
 	   switch_port:1;
 	struct delayed_work type_warn_dw;
+	struct list_head reporter_list;
+	struct mutex reporters_lock; /* Protects reporter_list */
 };
 
 struct devlink_sb_pool_info {
@@ -1336,8 +1338,17 @@ struct devlink_health_reporter *
 devlink_health_reporter_create(struct devlink *devlink,
 			       const struct devlink_health_reporter_ops *ops,
 			       u64 graceful_period, void *priv);
+
+struct devlink_health_reporter *
+devlink_port_health_reporter_create(struct devlink_port *port,
+				    const struct devlink_health_reporter_ops *ops,
+				    u64 graceful_period, void *priv);
+
 void
 devlink_health_reporter_destroy(struct devlink_health_reporter *reporter);
+
+void
+devlink_port_health_reporter_destroy(struct devlink_health_reporter *reporter);
 
 void *
 devlink_health_reporter_priv(struct devlink_health_reporter *reporter);
