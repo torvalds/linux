@@ -1466,10 +1466,10 @@ static int exynos5_dmc_probe(struct platform_device *pdev)
 		 * Setup default thresholds for the devfreq governor.
 		 * The values are chosen based on experiments.
 		 */
-		dmc->gov_data.upthreshold = 30;
+		dmc->gov_data.upthreshold = 10;
 		dmc->gov_data.downdifferential = 5;
 
-		exynos5_dmc_df_profile.polling_ms = 500;
+		exynos5_dmc_df_profile.polling_ms = 100;
 	}
 
 
