@@ -5379,6 +5379,29 @@ unlock:
 }
 EXPORT_SYMBOL_GPL(devlink_health_reporter_create);
 
+static void
+devlink_health_reporter_free(struct devlink_health_reporter *reporter)
+{
+	mutex_destroy(&reporter->dump_lock);
+	if (reporter->dump_fmsg)
+		devlink_fmsg_free(reporter->dump_fmsg);
+	kfree(reporter);
+}
+
+static void
+devlink_health_reporter_put(struct devlink_health_reporter *reporter)
+{
+	if (refcount_dec_and_test(&reporter->refcount))
+		devlink_health_reporter_free(reporter);
+}
+
+static void
+__devlink_health_reporter_destroy(struct devlink_health_reporter *reporter)
+{
+	list_del(&reporter->list);
+	devlink_health_reporter_put(reporter);
+}
+
 /**
  *	devlink_health_reporter_destroy - destroy devlink health reporter
  *
@@ -5388,14 +5411,8 @@ void
 devlink_health_reporter_destroy(struct devlink_health_reporter *reporter)
 {
 	mutex_lock(&reporter->devlink->reporters_lock);
-	list_del(&reporter->list);
+	__devlink_health_reporter_destroy(reporter);
 	mutex_unlock(&reporter->devlink->reporters_lock);
-	while (refcount_read(&reporter->refcount) > 1)
-		msleep(100);
-	mutex_destroy(&reporter->dump_lock);
-	if (reporter->dump_fmsg)
-		devlink_fmsg_free(reporter->dump_fmsg);
-	kfree(reporter);
 }
 EXPORT_SYMBOL_GPL(devlink_health_reporter_destroy);
 
@@ -5663,12 +5680,6 @@ devlink_health_reporter_get_from_cb(struct netlink_callback *cb)
 unlock:
 	mutex_unlock(&devlink_mutex);
 	return NULL;
-}
-
-static void
-devlink_health_reporter_put(struct devlink_health_reporter *reporter)
-{
-	refcount_dec(&reporter->refcount);
 }
 
 void
