@@ -258,7 +258,7 @@ struct scmi_event_header {
 	u8	evt_id;
 	size_t	payld_sz;
 	u8	payld[];
-} __packed;
+};
 
 struct scmi_registered_event;
 
