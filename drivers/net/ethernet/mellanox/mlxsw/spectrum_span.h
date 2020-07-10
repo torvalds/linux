@@ -35,6 +35,7 @@ struct mlxsw_sp_span_trigger_parms {
 struct mlxsw_sp_span_entry_ops;
 
 struct mlxsw_sp_span_ops {
+	int (*init)(struct mlxsw_sp *mlxsw_sp);
 	u32 (*buffsize_get)(int mtu, u32 speed);
 };
 

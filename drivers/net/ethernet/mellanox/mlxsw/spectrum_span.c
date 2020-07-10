@@ -21,6 +21,7 @@
 struct mlxsw_sp_span {
 	struct work_struct work;
 	struct mlxsw_sp *mlxsw_sp;
+	const struct mlxsw_sp_span_trigger_ops **span_trigger_ops_arr;
 	struct list_head analyzed_ports_list;
 	struct mutex analyzed_ports_lock; /* Protects analyzed_ports_list */
 	struct list_head trigger_entries_list;
@@ -38,10 +39,24 @@ struct mlxsw_sp_span_analyzed_port {
 
 struct mlxsw_sp_span_trigger_entry {
 	struct list_head list; /* Member of trigger_entries_list */
+	struct mlxsw_sp_span *span;
+	const struct mlxsw_sp_span_trigger_ops *ops;
 	refcount_t ref_count;
 	u8 local_port;
 	enum mlxsw_sp_span_trigger trigger;
 	struct mlxsw_sp_span_trigger_parms parms;
+};
+
+enum mlxsw_sp_span_trigger_type {
+	MLXSW_SP_SPAN_TRIGGER_TYPE_PORT,
+};
+
+struct mlxsw_sp_span_trigger_ops {
+	int (*bind)(struct mlxsw_sp_span_trigger_entry *trigger_entry);
+	void (*unbind)(struct mlxsw_sp_span_trigger_entry *trigger_entry);
+	bool (*matches)(struct mlxsw_sp_span_trigger_entry *trigger_entry,
+			enum mlxsw_sp_span_trigger trigger,
+			struct mlxsw_sp_port *mlxsw_sp_port);
 };
 
 static void mlxsw_sp_span_respin_work(struct work_struct *work);
@@ -57,7 +72,7 @@ int mlxsw_sp_span_init(struct mlxsw_sp *mlxsw_sp)
 {
 	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
 	struct mlxsw_sp_span *span;
-	int i, entries_count;
+	int i, entries_count, err;
 
 	if (!MLXSW_CORE_RES_VALID(mlxsw_sp->core, MAX_SPAN))
 		return -EIO;
@@ -77,11 +92,20 @@ int mlxsw_sp_span_init(struct mlxsw_sp *mlxsw_sp)
 	for (i = 0; i < mlxsw_sp->span->entries_count; i++)
 		mlxsw_sp->span->entries[i].id = i;
 
+	err = mlxsw_sp->span_ops->init(mlxsw_sp);
+	if (err)
+		goto err_init;
+
 	devlink_resource_occ_get_register(devlink, MLXSW_SP_RESOURCE_SPAN,
 					  mlxsw_sp_span_occ_get, mlxsw_sp);
 	INIT_WORK(&span->work, mlxsw_sp_span_respin_work);
 
 	return 0;
+
+err_init:
+	mutex_destroy(&mlxsw_sp->span->analyzed_ports_lock);
+	kfree(mlxsw_sp->span);
+	return err;
 }
 
 void mlxsw_sp_span_fini(struct mlxsw_sp *mlxsw_sp)
@@ -1059,9 +1083,9 @@ out_unlock:
 }
 
 static int
-__mlxsw_sp_span_trigger_entry_bind(struct mlxsw_sp_span *span,
-				   struct mlxsw_sp_span_trigger_entry *
-				   trigger_entry, bool enable)
+__mlxsw_sp_span_trigger_port_bind(struct mlxsw_sp_span *span,
+				  struct mlxsw_sp_span_trigger_entry *
+				  trigger_entry, bool enable)
 {
 	char mpar_pl[MLXSW_REG_MPAR_LEN];
 	enum mlxsw_reg_mpar_i_e i_e;
@@ -1084,19 +1108,60 @@ __mlxsw_sp_span_trigger_entry_bind(struct mlxsw_sp_span *span,
 }
 
 static int
-mlxsw_sp_span_trigger_entry_bind(struct mlxsw_sp_span *span,
-				 struct mlxsw_sp_span_trigger_entry *
-				 trigger_entry)
+mlxsw_sp_span_trigger_port_bind(struct mlxsw_sp_span_trigger_entry *
+				trigger_entry)
 {
-	return __mlxsw_sp_span_trigger_entry_bind(span, trigger_entry, true);
+	return __mlxsw_sp_span_trigger_port_bind(trigger_entry->span,
+						 trigger_entry, true);
 }
 
 static void
-mlxsw_sp_span_trigger_entry_unbind(struct mlxsw_sp_span *span,
-				   struct mlxsw_sp_span_trigger_entry *
-				   trigger_entry)
+mlxsw_sp_span_trigger_port_unbind(struct mlxsw_sp_span_trigger_entry *
+				  trigger_entry)
 {
-	__mlxsw_sp_span_trigger_entry_bind(span, trigger_entry, false);
+	__mlxsw_sp_span_trigger_port_bind(trigger_entry->span, trigger_entry,
+					  false);
+}
+
+static bool
+mlxsw_sp_span_trigger_port_matches(struct mlxsw_sp_span_trigger_entry *
+				   trigger_entry,
+				   enum mlxsw_sp_span_trigger trigger,
+				   struct mlxsw_sp_port *mlxsw_sp_port)
+{
+	return trigger_entry->trigger == trigger &&
+	       trigger_entry->local_port == mlxsw_sp_port->local_port;
+}
+
+static const struct mlxsw_sp_span_trigger_ops
+mlxsw_sp_span_trigger_port_ops = {
+	.bind = mlxsw_sp_span_trigger_port_bind,
+	.unbind = mlxsw_sp_span_trigger_port_unbind,
+	.matches = mlxsw_sp_span_trigger_port_matches,
+};
+
+static const struct mlxsw_sp_span_trigger_ops *
+mlxsw_sp_span_trigger_ops_arr[] = {
+	[MLXSW_SP_SPAN_TRIGGER_TYPE_PORT] = &mlxsw_sp_span_trigger_port_ops,
+};
+
+static void
+mlxsw_sp_span_trigger_ops_set(struct mlxsw_sp_span_trigger_entry *trigger_entry)
+{
+	struct mlxsw_sp_span *span = trigger_entry->span;
+	enum mlxsw_sp_span_trigger_type type;
+
+	switch (trigger_entry->trigger) {
+	case MLXSW_SP_SPAN_TRIGGER_INGRESS: /* fall-through */
+	case MLXSW_SP_SPAN_TRIGGER_EGRESS:
+		type = MLXSW_SP_SPAN_TRIGGER_TYPE_PORT;
+		break;
+	default:
+		WARN_ON_ONCE(1);
+		return;
+	}
+
+	trigger_entry->ops = span->span_trigger_ops_arr[type];
 }
 
 static struct mlxsw_sp_span_trigger_entry *
@@ -1114,12 +1179,15 @@ mlxsw_sp_span_trigger_entry_create(struct mlxsw_sp_span *span,
 		return ERR_PTR(-ENOMEM);
 
 	refcount_set(&trigger_entry->ref_count, 1);
-	trigger_entry->local_port = mlxsw_sp_port->local_port;
+	trigger_entry->local_port = mlxsw_sp_port ? mlxsw_sp_port->local_port :
+						    0;
 	trigger_entry->trigger = trigger;
 	memcpy(&trigger_entry->parms, parms, sizeof(trigger_entry->parms));
+	trigger_entry->span = span;
+	mlxsw_sp_span_trigger_ops_set(trigger_entry);
 	list_add_tail(&trigger_entry->list, &span->trigger_entries_list);
 
-	err = mlxsw_sp_span_trigger_entry_bind(span, trigger_entry);
+	err = trigger_entry->ops->bind(trigger_entry);
 	if (err)
 		goto err_trigger_entry_bind;
 
@@ -1136,7 +1204,7 @@ mlxsw_sp_span_trigger_entry_destroy(struct mlxsw_sp_span *span,
 				    struct mlxsw_sp_span_trigger_entry *
 				    trigger_entry)
 {
-	mlxsw_sp_span_trigger_entry_unbind(span, trigger_entry);
+	trigger_entry->ops->unbind(trigger_entry);
 	list_del(&trigger_entry->list);
 	kfree(trigger_entry);
 }
@@ -1149,8 +1217,8 @@ mlxsw_sp_span_trigger_entry_find(struct mlxsw_sp_span *span,
 	struct mlxsw_sp_span_trigger_entry *trigger_entry;
 
 	list_for_each_entry(trigger_entry, &span->trigger_entries_list, list) {
-		if (trigger_entry->trigger == trigger &&
-		    trigger_entry->local_port == mlxsw_sp_port->local_port)
+		if (trigger_entry->ops->matches(trigger_entry, trigger,
+						mlxsw_sp_port))
 			return trigger_entry;
 	}
 
@@ -1216,14 +1284,29 @@ void mlxsw_sp_span_agent_unbind(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_sp_span_trigger_entry_destroy(mlxsw_sp->span, trigger_entry);
 }
 
+static int mlxsw_sp1_span_init(struct mlxsw_sp *mlxsw_sp)
+{
+	mlxsw_sp->span->span_trigger_ops_arr = mlxsw_sp_span_trigger_ops_arr;
+
+	return 0;
+}
+
 static u32 mlxsw_sp1_span_buffsize_get(int mtu, u32 speed)
 {
 	return mtu * 5 / 2;
 }
 
 const struct mlxsw_sp_span_ops mlxsw_sp1_span_ops = {
+	.init = mlxsw_sp1_span_init,
 	.buffsize_get = mlxsw_sp1_span_buffsize_get,
 };
+
+static int mlxsw_sp2_span_init(struct mlxsw_sp *mlxsw_sp)
+{
+	mlxsw_sp->span->span_trigger_ops_arr = mlxsw_sp_span_trigger_ops_arr;
+
+	return 0;
+}
 
 #define MLXSW_SP2_SPAN_EG_MIRROR_BUFFER_FACTOR 38
 #define MLXSW_SP3_SPAN_EG_MIRROR_BUFFER_FACTOR 50
@@ -1241,6 +1324,7 @@ static u32 mlxsw_sp2_span_buffsize_get(int mtu, u32 speed)
 }
 
 const struct mlxsw_sp_span_ops mlxsw_sp2_span_ops = {
+	.init = mlxsw_sp2_span_init,
 	.buffsize_get = mlxsw_sp2_span_buffsize_get,
 };
 
@@ -1252,5 +1336,6 @@ static u32 mlxsw_sp3_span_buffsize_get(int mtu, u32 speed)
 }
 
 const struct mlxsw_sp_span_ops mlxsw_sp3_span_ops = {
+	.init = mlxsw_sp2_span_init,
 	.buffsize_get = mlxsw_sp3_span_buffsize_get,
 };
