@@ -6963,9 +6963,12 @@ static int __init brightness_init(struct ibm_init_struct *iibm)
 			pr_warn("Cannot enable backlight brightness support, ACPI is already handling it.  Refer to the acpi_backlight kernel parameter.\n");
 			return 1;
 		}
-	} else if (tp_features.bright_acpimode && brightness_enable > 1) {
-		pr_notice("Standard ACPI backlight interface not available, thinkpad_acpi native brightness control enabled\n");
+	} else if (!tp_features.bright_acpimode) {
+		pr_notice("ACPI backlight interface not available\n");
+		return 1;
 	}
+
+	pr_notice("ACPI native brightness control enabled\n");
 
 	/*
 	 * Check for module parameter bogosity, note that we
