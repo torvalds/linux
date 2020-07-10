@@ -89,6 +89,10 @@ mlxsw_sp_span_agent_unbind(struct mlxsw_sp *mlxsw_sp,
 			   enum mlxsw_sp_span_trigger trigger,
 			   struct mlxsw_sp_port *mlxsw_sp_port,
 			   const struct mlxsw_sp_span_trigger_parms *parms);
+int mlxsw_sp_span_trigger_enable(struct mlxsw_sp_port *mlxsw_sp_port,
+				 enum mlxsw_sp_span_trigger trigger, u8 tc);
+void mlxsw_sp_span_trigger_disable(struct mlxsw_sp_port *mlxsw_sp_port,
+				   enum mlxsw_sp_span_trigger trigger, u8 tc);
 
 extern const struct mlxsw_sp_span_ops mlxsw_sp1_span_ops;
 extern const struct mlxsw_sp_span_ops mlxsw_sp2_span_ops;

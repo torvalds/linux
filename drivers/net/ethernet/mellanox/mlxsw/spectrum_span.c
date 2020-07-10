@@ -58,6 +58,10 @@ struct mlxsw_sp_span_trigger_ops {
 	bool (*matches)(struct mlxsw_sp_span_trigger_entry *trigger_entry,
 			enum mlxsw_sp_span_trigger trigger,
 			struct mlxsw_sp_port *mlxsw_sp_port);
+	int (*enable)(struct mlxsw_sp_span_trigger_entry *trigger_entry,
+		      struct mlxsw_sp_port *mlxsw_sp_port, u8 tc);
+	void (*disable)(struct mlxsw_sp_span_trigger_entry *trigger_entry,
+			struct mlxsw_sp_port *mlxsw_sp_port, u8 tc);
 };
 
 static void mlxsw_sp_span_respin_work(struct work_struct *work);
@@ -1134,11 +1138,29 @@ mlxsw_sp_span_trigger_port_matches(struct mlxsw_sp_span_trigger_entry *
 	       trigger_entry->local_port == mlxsw_sp_port->local_port;
 }
 
+static int
+mlxsw_sp_span_trigger_port_enable(struct mlxsw_sp_span_trigger_entry *
+				  trigger_entry,
+				  struct mlxsw_sp_port *mlxsw_sp_port, u8 tc)
+{
+	/* Port trigger are enabled during binding. */
+	return 0;
+}
+
+static void
+mlxsw_sp_span_trigger_port_disable(struct mlxsw_sp_span_trigger_entry *
+				   trigger_entry,
+				   struct mlxsw_sp_port *mlxsw_sp_port, u8 tc)
+{
+}
+
 static const struct mlxsw_sp_span_trigger_ops
 mlxsw_sp_span_trigger_port_ops = {
 	.bind = mlxsw_sp_span_trigger_port_bind,
 	.unbind = mlxsw_sp_span_trigger_port_unbind,
 	.matches = mlxsw_sp_span_trigger_port_matches,
+	.enable = mlxsw_sp_span_trigger_port_enable,
+	.disable = mlxsw_sp_span_trigger_port_disable,
 };
 
 static int
@@ -1164,11 +1186,30 @@ mlxsw_sp1_span_trigger_global_matches(struct mlxsw_sp_span_trigger_entry *
 	return false;
 }
 
+static int
+mlxsw_sp1_span_trigger_global_enable(struct mlxsw_sp_span_trigger_entry *
+				     trigger_entry,
+				     struct mlxsw_sp_port *mlxsw_sp_port,
+				     u8 tc)
+{
+	return -EOPNOTSUPP;
+}
+
+static void
+mlxsw_sp1_span_trigger_global_disable(struct mlxsw_sp_span_trigger_entry *
+				      trigger_entry,
+				      struct mlxsw_sp_port *mlxsw_sp_port,
+				      u8 tc)
+{
+}
+
 static const struct mlxsw_sp_span_trigger_ops
 mlxsw_sp1_span_trigger_global_ops = {
 	.bind = mlxsw_sp1_span_trigger_global_bind,
 	.unbind = mlxsw_sp1_span_trigger_global_unbind,
 	.matches = mlxsw_sp1_span_trigger_global_matches,
+	.enable = mlxsw_sp1_span_trigger_global_enable,
+	.disable = mlxsw_sp1_span_trigger_global_disable,
 };
 
 static const struct mlxsw_sp_span_trigger_ops *
@@ -1224,11 +1265,71 @@ mlxsw_sp2_span_trigger_global_matches(struct mlxsw_sp_span_trigger_entry *
 	return trigger_entry->trigger == trigger;
 }
 
+static int
+__mlxsw_sp2_span_trigger_global_enable(struct mlxsw_sp_span_trigger_entry *
+				       trigger_entry,
+				       struct mlxsw_sp_port *mlxsw_sp_port,
+				       u8 tc, bool enable)
+{
+	struct mlxsw_sp *mlxsw_sp = trigger_entry->span->mlxsw_sp;
+	char momte_pl[MLXSW_REG_MOMTE_LEN];
+	enum mlxsw_reg_momte_type type;
+	int err;
+
+	switch (trigger_entry->trigger) {
+	case MLXSW_SP_SPAN_TRIGGER_TAIL_DROP:
+		type = MLXSW_REG_MOMTE_TYPE_SHARED_BUFFER_TCLASS;
+		break;
+	case MLXSW_SP_SPAN_TRIGGER_EARLY_DROP:
+		type = MLXSW_REG_MOMTE_TYPE_WRED;
+		break;
+	case MLXSW_SP_SPAN_TRIGGER_ECN:
+		type = MLXSW_REG_MOMTE_TYPE_ECN;
+		break;
+	default:
+		WARN_ON_ONCE(1);
+		return -EINVAL;
+	}
+
+	/* Query existing configuration in order to only change the state of
+	 * the specified traffic class.
+	 */
+	mlxsw_reg_momte_pack(momte_pl, mlxsw_sp_port->local_port, type);
+	err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(momte), momte_pl);
+	if (err)
+		return err;
+
+	mlxsw_reg_momte_tclass_en_set(momte_pl, tc, enable);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(momte), momte_pl);
+}
+
+static int
+mlxsw_sp2_span_trigger_global_enable(struct mlxsw_sp_span_trigger_entry *
+				     trigger_entry,
+				     struct mlxsw_sp_port *mlxsw_sp_port,
+				     u8 tc)
+{
+	return __mlxsw_sp2_span_trigger_global_enable(trigger_entry,
+						      mlxsw_sp_port, tc, true);
+}
+
+static void
+mlxsw_sp2_span_trigger_global_disable(struct mlxsw_sp_span_trigger_entry *
+				      trigger_entry,
+				      struct mlxsw_sp_port *mlxsw_sp_port,
+				      u8 tc)
+{
+	__mlxsw_sp2_span_trigger_global_enable(trigger_entry, mlxsw_sp_port, tc,
+					       false);
+}
+
 static const struct mlxsw_sp_span_trigger_ops
 mlxsw_sp2_span_trigger_global_ops = {
 	.bind = mlxsw_sp2_span_trigger_global_bind,
 	.unbind = mlxsw_sp2_span_trigger_global_unbind,
 	.matches = mlxsw_sp2_span_trigger_global_matches,
+	.enable = mlxsw_sp2_span_trigger_global_enable,
+	.disable = mlxsw_sp2_span_trigger_global_disable,
 };
 
 static const struct mlxsw_sp_span_trigger_ops *
@@ -1380,6 +1481,40 @@ void mlxsw_sp_span_agent_unbind(struct mlxsw_sp *mlxsw_sp,
 		return;
 
 	mlxsw_sp_span_trigger_entry_destroy(mlxsw_sp->span, trigger_entry);
+}
+
+int mlxsw_sp_span_trigger_enable(struct mlxsw_sp_port *mlxsw_sp_port,
+				 enum mlxsw_sp_span_trigger trigger, u8 tc)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	struct mlxsw_sp_span_trigger_entry *trigger_entry;
+
+	ASSERT_RTNL();
+
+	trigger_entry = mlxsw_sp_span_trigger_entry_find(mlxsw_sp->span,
+							 trigger,
+							 mlxsw_sp_port);
+	if (WARN_ON_ONCE(!trigger_entry))
+		return -EINVAL;
+
+	return trigger_entry->ops->enable(trigger_entry, mlxsw_sp_port, tc);
+}
+
+void mlxsw_sp_span_trigger_disable(struct mlxsw_sp_port *mlxsw_sp_port,
+				   enum mlxsw_sp_span_trigger trigger, u8 tc)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	struct mlxsw_sp_span_trigger_entry *trigger_entry;
+
+	ASSERT_RTNL();
+
+	trigger_entry = mlxsw_sp_span_trigger_entry_find(mlxsw_sp->span,
+							 trigger,
+							 mlxsw_sp_port);
+	if (WARN_ON_ONCE(!trigger_entry))
+		return;
+
+	return trigger_entry->ops->disable(trigger_entry, mlxsw_sp_port, tc);
 }
 
 static int mlxsw_sp1_span_init(struct mlxsw_sp *mlxsw_sp)
