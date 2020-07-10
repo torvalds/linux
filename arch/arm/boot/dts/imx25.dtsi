@@ -411,7 +411,7 @@
 
 			pwm2: pwm@53fa0000 {
 				compatible = "fsl,imx25-pwm", "fsl,imx27-pwm";
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 				reg = <0x53fa0000 0x4000>;
 				clocks = <&clks 106>, <&clks 52>;
 				clock-names = "ipg", "per";
@@ -430,7 +430,7 @@
 
 			pwm3: pwm@53fa8000 {
 				compatible = "fsl,imx25-pwm", "fsl,imx27-pwm";
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 				reg = <0x53fa8000 0x4000>;
 				clocks = <&clks 107>, <&clks 52>;
 				clock-names = "ipg", "per";
@@ -488,7 +488,7 @@
 
 			pwm4: pwm@53fc8000 {
 				compatible = "fsl,imx25-pwm", "fsl,imx27-pwm";
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 				reg = <0x53fc8000 0x4000>;
 				clocks = <&clks 108>, <&clks 52>;
 				clock-names = "ipg", "per";
@@ -535,7 +535,7 @@
 
 			pwm1: pwm@53fe0000 {
 				compatible = "fsl,imx25-pwm", "fsl,imx27-pwm";
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 				reg = <0x53fe0000 0x4000>;
 				clocks = <&clks 105>, <&clks 52>;
 				clock-names = "ipg", "per";

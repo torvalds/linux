@@ -145,25 +145,21 @@
 &pwm4 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm4>;
-	#pwm-cells = <3>;
 };
 
 &pwm5 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm5>;
-	#pwm-cells = <3>;
 };
 
 &pwm6 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm6>;
-	#pwm-cells = <3>;
 };
 
 &pwm7 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm7>;
-	#pwm-cells = <3>;
 };
 
 &sdma {

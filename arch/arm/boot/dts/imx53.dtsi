@@ -525,7 +525,7 @@
 			};
 
 			pwm1: pwm@53fb4000 {
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 				compatible = "fsl,imx53-pwm", "fsl,imx27-pwm";
 				reg = <0x53fb4000 0x4000>;
 				clocks = <&clks IMX5_CLK_PWM1_IPG_GATE>,
@@ -535,7 +535,7 @@
 			};
 
 			pwm2: pwm@53fb8000 {
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 				compatible = "fsl,imx53-pwm", "fsl,imx27-pwm";
 				reg = <0x53fb8000 0x4000>;
 				clocks = <&clks IMX5_CLK_PWM2_IPG_GATE>,

@@ -327,7 +327,7 @@
 				interrupts = <26>;
 				clocks = <&clks 10>, <&clks 42>;
 				clock-names = "ipg", "per";
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 				status = "disabled";
 			};
 		};

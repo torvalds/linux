@@ -423,7 +423,7 @@
 				clocks = <&clks IMX6SX_CLK_PWM1>,
 					 <&clks IMX6SX_CLK_PWM1>;
 				clock-names = "ipg", "per";
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 			};
 
 			pwm2: pwm@2084000 {
@@ -433,7 +433,7 @@
 				clocks = <&clks IMX6SX_CLK_PWM2>,
 					 <&clks IMX6SX_CLK_PWM2>;
 				clock-names = "ipg", "per";
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 			};
 
 			pwm3: pwm@2088000 {
@@ -443,7 +443,7 @@
 				clocks = <&clks IMX6SX_CLK_PWM3>,
 					 <&clks IMX6SX_CLK_PWM3>;
 				clock-names = "ipg", "per";
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 			};
 
 			pwm4: pwm@208c000 {
@@ -453,7 +453,7 @@
 				clocks = <&clks IMX6SX_CLK_PWM4>,
 					 <&clks IMX6SX_CLK_PWM4>;
 				clock-names = "ipg", "per";
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 			};
 
 			flexcan1: can@2090000 {
@@ -1357,7 +1357,7 @@
 				clocks = <&clks IMX6SX_CLK_PWM5>,
 					 <&clks IMX6SX_CLK_PWM5>;
 				clock-names = "ipg", "per";
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 			};
 
 			pwm6: pwm@22a8000 {
@@ -1367,7 +1367,7 @@
 				clocks = <&clks IMX6SX_CLK_PWM6>,
 					 <&clks IMX6SX_CLK_PWM6>;
 				clock-names = "ipg", "per";
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 			};
 
 			pwm7: pwm@22ac000 {
@@ -1377,7 +1377,7 @@
 				clocks = <&clks IMX6SX_CLK_PWM7>,
 					 <&clks IMX6SX_CLK_PWM7>;
 				clock-names = "ipg", "per";
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 			};
 
 			pwm8: pwm@22b0000 {
@@ -1387,7 +1387,7 @@
 				clocks = <&clks IMX6SX_CLK_PWM8>,
 					 <&clks IMX6SX_CLK_PWM8>;
 				clock-names = "ipg", "per";
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 			};
 		};
 

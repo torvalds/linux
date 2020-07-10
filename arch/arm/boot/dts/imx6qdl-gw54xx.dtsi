@@ -419,6 +419,7 @@
 };
 
 &pwm4 {
+	#pwm-cells = <2>;
 	pinctrl-names = "default", "state_dio";
 	pinctrl-0 = <&pinctrl_pwm4_backlight>;
 	pinctrl-1 = <&pinctrl_pwm4_dio>;
