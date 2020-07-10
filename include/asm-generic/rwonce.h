@@ -26,8 +26,6 @@
 #include <linux/kasan-checks.h>
 #include <linux/kcsan-checks.h>
 
-#include <asm/barrier.h>
-
 /*
  * Yes, this permits 64-bit accesses on 32-bit architectures. These will
  * actually be atomic in some cases (namely Armv7 + LPAE), but for others we
