@@ -626,8 +626,6 @@ static void err_print_capabilities(struct drm_i915_error_state_buf *m,
 
 	intel_device_info_print_static(&error->device_info, &p);
 	intel_device_info_print_runtime(&error->runtime_info, &p);
-	intel_gt_info_print(&error->gt->info, &p);
-	intel_sseu_print_topology(&error->gt->info.sseu, &p);
 	intel_driver_caps_print(&error->driver_caps, &p);
 }
 
@@ -676,6 +674,15 @@ static void err_free_sgl(struct scatterlist *sgl)
 		free_page((unsigned long)sgl);
 		sgl = sg;
 	}
+}
+
+static void err_print_gt_info(struct drm_i915_error_state_buf *m,
+			      struct intel_gt_coredump *gt)
+{
+	struct drm_printer p = i915_error_printer(m);
+
+	intel_gt_info_print(&gt->info, &p);
+	intel_sseu_print_topology(&gt->info.sseu, &p);
 }
 
 static void err_print_gt(struct drm_i915_error_state_buf *m,
@@ -734,6 +741,8 @@ static void err_print_gt(struct drm_i915_error_state_buf *m,
 
 	if (gt->uc)
 		err_print_uc(m, gt->uc);
+
+	err_print_gt_info(m, gt);
 }
 
 static void __err_print_to_sgl(struct drm_i915_error_state_buf *m,
