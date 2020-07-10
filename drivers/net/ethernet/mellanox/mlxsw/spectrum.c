@@ -175,10 +175,6 @@ struct mlxsw_sp_mlxfw_dev {
 	struct mlxsw_sp *mlxsw_sp;
 };
 
-struct mlxsw_sp_span_ops {
-	u32 (*buffsize_get)(int mtu, u32 speed);
-};
-
 static int mlxsw_sp_component_query(struct mlxfw_dev *mlxfw_dev,
 				    u16 component_index, u32 *p_max_size,
 				    u8 *p_align_bits, u16 *p_max_write_size)
@@ -2811,52 +2807,6 @@ static const struct mlxsw_sp_ptp_ops mlxsw_sp2_ptp_ops = {
 	.get_stats_strings = mlxsw_sp2_get_stats_strings,
 	.get_stats	= mlxsw_sp2_get_stats,
 };
-
-static u32 mlxsw_sp1_span_buffsize_get(int mtu, u32 speed)
-{
-	return mtu * 5 / 2;
-}
-
-static const struct mlxsw_sp_span_ops mlxsw_sp1_span_ops = {
-	.buffsize_get = mlxsw_sp1_span_buffsize_get,
-};
-
-#define MLXSW_SP2_SPAN_EG_MIRROR_BUFFER_FACTOR 38
-#define MLXSW_SP3_SPAN_EG_MIRROR_BUFFER_FACTOR 50
-
-static u32 __mlxsw_sp_span_buffsize_get(int mtu, u32 speed, u32 buffer_factor)
-{
-	return 3 * mtu + buffer_factor * speed / 1000;
-}
-
-static u32 mlxsw_sp2_span_buffsize_get(int mtu, u32 speed)
-{
-	int factor = MLXSW_SP2_SPAN_EG_MIRROR_BUFFER_FACTOR;
-
-	return __mlxsw_sp_span_buffsize_get(mtu, speed, factor);
-}
-
-static const struct mlxsw_sp_span_ops mlxsw_sp2_span_ops = {
-	.buffsize_get = mlxsw_sp2_span_buffsize_get,
-};
-
-static u32 mlxsw_sp3_span_buffsize_get(int mtu, u32 speed)
-{
-	int factor = MLXSW_SP3_SPAN_EG_MIRROR_BUFFER_FACTOR;
-
-	return __mlxsw_sp_span_buffsize_get(mtu, speed, factor);
-}
-
-static const struct mlxsw_sp_span_ops mlxsw_sp3_span_ops = {
-	.buffsize_get = mlxsw_sp3_span_buffsize_get,
-};
-
-u32 mlxsw_sp_span_buffsize_get(struct mlxsw_sp *mlxsw_sp, int mtu, u32 speed)
-{
-	u32 buffsize = mlxsw_sp->span_ops->buffsize_get(speed, mtu);
-
-	return mlxsw_sp_bytes_cells(mlxsw_sp, buffsize) + 1;
-}
 
 static int mlxsw_sp_netdevice_event(struct notifier_block *unused,
 				    unsigned long event, void *ptr);
