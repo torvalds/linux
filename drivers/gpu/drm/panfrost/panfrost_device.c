@@ -225,9 +225,12 @@ int panfrost_device_init(struct panfrost_device *pfdev)
 		goto out_clk;
 	}
 
-	err = panfrost_regulator_init(pfdev);
-	if (err)
-		goto out_devfreq;
+	/* OPP will handle regulators */
+	if (!pfdev->pfdevfreq.opp_of_table_added) {
+		err = panfrost_regulator_init(pfdev);
+		if (err)
+			goto out_devfreq;
+	}
 
 	err = panfrost_reset_init(pfdev);
 	if (err) {
