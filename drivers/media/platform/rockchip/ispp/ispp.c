@@ -271,12 +271,14 @@ static int rkispp_sd_s_stream(struct v4l2_subdev *sd, int on)
 	v4l2_dbg(1, rkispp_debug, &ispp_sdev->dev->v4l2_dev,
 		 "s_stream on:%d\n", on);
 
+	if (on)
+		ispp_sdev->state = ISPP_START;
 	ret = v4l2_subdev_call(ispp_sdev->remote_sd,
 			       video, s_stream, on);
-	if (!ret)
-		ispp_sdev->state = on;
-	if ((on && ret) || (!on && !ret))
+	if ((on && ret) || (!on && !ret)) {
+		ispp_sdev->state = ISPP_STOP;
 		rkispp_free_pool(&dev->stream_vdev);
+	}
 	return ret;
 }
 
@@ -413,7 +415,6 @@ static int rkispp_sd_s_power(struct v4l2_subdev *sd, int on)
 			v4l2_err(&ispp_dev->v4l2_dev,
 				 "%s runtime put failed:%d\n",
 				 __func__, ret);
-		ispp_sdev->state = ISPP_STOP;
 	}
 
 	return ret;
