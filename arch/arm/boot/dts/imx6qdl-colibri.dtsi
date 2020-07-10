@@ -363,7 +363,6 @@
 };
 
 &usbotg {
-	pinctrl-names = "default";
 	disable-over-current;
 	dr_mode = "peripheral";
 	status = "disabled";
