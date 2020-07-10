@@ -5309,16 +5309,26 @@ devlink_health_reporter_priv(struct devlink_health_reporter *reporter)
 EXPORT_SYMBOL_GPL(devlink_health_reporter_priv);
 
 static struct devlink_health_reporter *
-devlink_health_reporter_find_by_name(struct devlink *devlink,
-				     const char *reporter_name)
+__devlink_health_reporter_find_by_name(struct list_head *reporter_list,
+				       struct mutex *list_lock,
+				       const char *reporter_name)
 {
 	struct devlink_health_reporter *reporter;
 
-	lockdep_assert_held(&devlink->reporters_lock);
-	list_for_each_entry(reporter, &devlink->reporter_list, list)
+	lockdep_assert_held(list_lock);
+	list_for_each_entry(reporter, reporter_list, list)
 		if (!strcmp(reporter->ops->name, reporter_name))
 			return reporter;
 	return NULL;
+}
+
+static struct devlink_health_reporter *
+devlink_health_reporter_find_by_name(struct devlink *devlink,
+				     const char *reporter_name)
+{
+	return __devlink_health_reporter_find_by_name(&devlink->reporter_list,
+						      &devlink->reporters_lock,
+						      reporter_name);
 }
 
 static struct devlink_health_reporter *
