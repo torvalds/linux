@@ -255,6 +255,10 @@ struct udp_tunnel_nic_ops {
 	void (*add_port)(struct net_device *dev, struct udp_tunnel_info *ti);
 	void (*del_port)(struct net_device *dev, struct udp_tunnel_info *ti);
 	void (*reset_ntf)(struct net_device *dev);
+
+	size_t (*dump_size)(struct net_device *dev, unsigned int table);
+	int (*dump_write)(struct net_device *dev, unsigned int table,
+			  struct sk_buff *skb);
 };
 
 #ifdef CONFIG_INET
@@ -317,5 +321,22 @@ static inline void udp_tunnel_nic_reset_ntf(struct net_device *dev)
 {
 	if (udp_tunnel_nic_ops)
 		udp_tunnel_nic_ops->reset_ntf(dev);
+}
+
+static inline size_t
+udp_tunnel_nic_dump_size(struct net_device *dev, unsigned int table)
+{
+	if (!udp_tunnel_nic_ops)
+		return 0;
+	return udp_tunnel_nic_ops->dump_size(dev, table);
+}
+
+static inline int
+udp_tunnel_nic_dump_write(struct net_device *dev, unsigned int table,
+			  struct sk_buff *skb)
+{
+	if (!udp_tunnel_nic_ops)
+		return 0;
+	return udp_tunnel_nic_ops->dump_write(dev, table, skb);
 }
 #endif

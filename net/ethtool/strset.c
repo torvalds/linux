@@ -75,6 +75,11 @@ static const struct strset_info info_template[] = {
 		.count		= __HWTSTAMP_FILTER_CNT,
 		.strings	= ts_rx_filter_names,
 	},
+	[ETH_SS_UDP_TUNNEL_TYPES] = {
+		.per_dev	= false,
+		.count		= __ETHTOOL_UDP_TUNNEL_TYPE_CNT,
+		.strings	= udp_tunnel_type_names,
+	},
 };
 
 struct strset_req_info {

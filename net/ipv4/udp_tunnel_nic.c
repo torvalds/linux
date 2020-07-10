@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 // Copyright (c) 2020 Facebook Inc.
 
+#include <linux/ethtool_netlink.h>
 #include <linux/netdevice.h>
 #include <linux/slab.h>
 #include <linux/types.h>
@@ -70,6 +71,12 @@ static bool
 udp_tunnel_nic_entry_is_free(struct udp_tunnel_nic_table_entry *entry)
 {
 	return entry->use_cnt == 0 && !entry->flags;
+}
+
+static bool
+udp_tunnel_nic_entry_is_present(struct udp_tunnel_nic_table_entry *entry)
+{
+	return entry->use_cnt && !(entry->flags & ~UDP_TUNNEL_NIC_ENTRY_FROZEN);
 }
 
 static bool
@@ -564,12 +571,74 @@ static void __udp_tunnel_nic_reset_ntf(struct net_device *dev)
 	__udp_tunnel_nic_device_sync(dev, utn);
 }
 
+static size_t
+__udp_tunnel_nic_dump_size(struct net_device *dev, unsigned int table)
+{
+	const struct udp_tunnel_nic_info *info = dev->udp_tunnel_nic_info;
+	struct udp_tunnel_nic *utn;
+	unsigned int j;
+	size_t size;
+
+	utn = dev->udp_tunnel_nic;
+	if (!utn)
+		return 0;
+
+	size = 0;
+	for (j = 0; j < info->tables[table].n_entries; j++) {
+		if (!udp_tunnel_nic_entry_is_present(&utn->entries[table][j]))
+			continue;
+
+		size += nla_total_size(0) +		 /* _TABLE_ENTRY */
+			nla_total_size(sizeof(__be16)) + /* _ENTRY_PORT */
+			nla_total_size(sizeof(u32));	 /* _ENTRY_TYPE */
+	}
+
+	return size;
+}
+
+static int
+__udp_tunnel_nic_dump_write(struct net_device *dev, unsigned int table,
+			    struct sk_buff *skb)
+{
+	const struct udp_tunnel_nic_info *info = dev->udp_tunnel_nic_info;
+	struct udp_tunnel_nic *utn;
+	struct nlattr *nest;
+	unsigned int j;
+
+	utn = dev->udp_tunnel_nic;
+	if (!utn)
+		return 0;
+
+	for (j = 0; j < info->tables[table].n_entries; j++) {
+		if (!udp_tunnel_nic_entry_is_present(&utn->entries[table][j]))
+			continue;
+
+		nest = nla_nest_start(skb, ETHTOOL_A_TUNNEL_UDP_TABLE_ENTRY);
+
+		if (nla_put_be16(skb, ETHTOOL_A_TUNNEL_UDP_ENTRY_PORT,
+				 utn->entries[table][j].port) ||
+		    nla_put_u32(skb, ETHTOOL_A_TUNNEL_UDP_ENTRY_TYPE,
+				ilog2(utn->entries[table][j].type)))
+			goto err_cancel;
+
+		nla_nest_end(skb, nest);
+	}
+
+	return 0;
+
+err_cancel:
+	nla_nest_cancel(skb, nest);
+	return -EMSGSIZE;
+}
+
 static const struct udp_tunnel_nic_ops __udp_tunnel_nic_ops = {
 	.get_port	= __udp_tunnel_nic_get_port,
 	.set_port_priv	= __udp_tunnel_nic_set_port_priv,
 	.add_port	= __udp_tunnel_nic_add_port,
 	.del_port	= __udp_tunnel_nic_del_port,
 	.reset_ntf	= __udp_tunnel_nic_reset_ntf,
+	.dump_size	= __udp_tunnel_nic_dump_size,
+	.dump_write	= __udp_tunnel_nic_dump_write,
 };
 
 static void
