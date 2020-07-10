@@ -219,8 +219,7 @@ static int mlxsw_sp_setup_tc_block_bind(struct mlxsw_sp_port *mlxsw_sp_port,
 					       mlxsw_sp_tc_block_release);
 		if (IS_ERR(block_cb)) {
 			mlxsw_sp_flow_block_destroy(flow_block);
-			err = PTR_ERR(block_cb);
-			goto err_cb_register;
+			return PTR_ERR(block_cb);
 		}
 		register_block = true;
 	} else {
@@ -247,7 +246,6 @@ static int mlxsw_sp_setup_tc_block_bind(struct mlxsw_sp_port *mlxsw_sp_port,
 err_block_bind:
 	if (!flow_block_cb_decref(block_cb))
 		flow_block_cb_free(block_cb);
-err_cb_register:
 	return err;
 }
 
