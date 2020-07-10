@@ -871,7 +871,14 @@ Developer Manuals.
 
 Error events show where the decoder lost the trace.  Error events
 are quite important.  Users must know if what they are seeing is a complete
-picture or not.
+picture or not. The "e" option may be followed by flags which affect what errors
+will or will not be reported.  Each flag must be preceded by either '+' or '-'.
+The flags supported by Intel PT are:
+		-o	Suppress overflow errors
+		-l	Suppress trace data lost errors
+For example, for errors but not overflow or data lost errors:
+
+	--itrace=e-o-l
 
 The "d" option will cause the creation of a file "intel_pt.log" containing all
 decoded packets and instructions.  Note that this option slows down the decoder

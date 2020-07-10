@@ -1863,6 +1863,15 @@ static int intel_pt_synth_error(struct intel_pt *pt, int code, int cpu,
 	char msg[MAX_AUXTRACE_ERROR_MSG];
 	int err;
 
+	if (pt->synth_opts.error_minus_flags) {
+		if (code == INTEL_PT_ERR_OVR &&
+		    pt->synth_opts.error_minus_flags & AUXTRACE_ERR_FLG_OVERFLOW)
+			return 0;
+		if (code == INTEL_PT_ERR_LOST &&
+		    pt->synth_opts.error_minus_flags & AUXTRACE_ERR_FLG_DATA_LOST)
+			return 0;
+	}
+
 	intel_pt__strerror(code, msg, MAX_AUXTRACE_ERROR_MSG);
 
 	auxtrace_synth_error(&event.auxtrace_error, PERF_AUXTRACE_ERROR_ITRACE,
