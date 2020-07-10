@@ -53,3 +53,8 @@
 	The flags are:
 		o	overflow
 		l	trace data lost
+
+	If supported, the 'd' option may be followed by flags which affect what
+	debug messages will or will not be logged. Each flag must be preceded
+	by either '+' or '-'. The flags are:
+		a	all perf events

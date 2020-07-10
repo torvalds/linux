@@ -1483,6 +1483,9 @@ int itrace_parse_synth_opts(const struct option *opt, const char *str,
 			break;
 		case 'd':
 			synth_opts->log = true;
+			if (get_flags(&p, &synth_opts->log_plus_flags,
+				      &synth_opts->log_minus_flags))
+				goto out_err;
 			break;
 		case 'c':
 			synth_opts->branches = true;

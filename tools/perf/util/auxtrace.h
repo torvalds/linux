@@ -58,6 +58,8 @@ enum itrace_period_type {
 #define AUXTRACE_ERR_FLG_OVERFLOW	(1 << ('o' - 'a'))
 #define AUXTRACE_ERR_FLG_DATA_LOST	(1 << ('l' - 'a'))
 
+#define AUXTRACE_LOG_FLG_ALL_PERF_EVTS	(1 << ('a' - 'a'))
+
 /**
  * struct itrace_synth_opts - AUX area tracing synthesis options.
  * @set: indicates whether or not options have been set
@@ -96,6 +98,8 @@ enum itrace_period_type {
  * @range_num: number of time intervals to trace
  * @error_plus_flags: flags to affect what errors are reported
  * @error_minus_flags: flags to affect what errors are reported
+ * @log_plus_flags: flags to affect what is logged
+ * @log_minus_flags: flags to affect what is logged
  */
 struct itrace_synth_opts {
 	bool			set;
@@ -131,6 +135,8 @@ struct itrace_synth_opts {
 	int			range_num;
 	unsigned int		error_plus_flags;
 	unsigned int		error_minus_flags;
+	unsigned int		log_plus_flags;
+	unsigned int		log_minus_flags;
 };
 
 /**
@@ -624,7 +630,9 @@ bool auxtrace__evsel_is_auxtrace(struct perf_session *session,
 "							each flag must be preceded by + or -\n" \
 "							error flags are: o (overflow)\n" \
 "									 l (data lost)\n" \
-"				d:	    		create a debug log\n"			\
+"				d[flags]:		create a debug log\n" \
+"							each flag must be preceded by + or -\n" \
+"							log flags are: a (all perf events)\n" \
 "				f:	    		synthesize first level cache events\n" \
 "				m:	    		synthesize last level cache events\n" \
 "				t:	    		synthesize TLB events\n" \
