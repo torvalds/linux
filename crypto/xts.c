@@ -340,8 +340,6 @@ static int create(struct crypto_template *tmpl, struct rtattr **tb)
 	err = crypto_check_attr_type(tb, CRYPTO_ALG_TYPE_SKCIPHER, &mask);
 	if (err)
 		return err;
-	mask |= crypto_requires_off(crypto_get_attr_type(tb),
-				    CRYPTO_ALG_NEED_FALLBACK);
 
 	cipher_name = crypto_attr_alg_name(tb[1]);
 	if (IS_ERR(cipher_name))

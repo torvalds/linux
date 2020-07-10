@@ -265,8 +265,6 @@ static int crypto_rfc3686_create(struct crypto_template *tmpl,
 	err = crypto_check_attr_type(tb, CRYPTO_ALG_TYPE_SKCIPHER, &mask);
 	if (err)
 		return err;
-	mask |= crypto_requires_off(crypto_get_attr_type(tb),
-				    CRYPTO_ALG_NEED_FALLBACK);
 
 	inst = kzalloc(sizeof(*inst) + sizeof(*spawn), GFP_KERNEL);
 	if (!inst)
