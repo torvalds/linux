@@ -342,8 +342,8 @@ static inline bool nested_npt_enabled(struct vcpu_svm *svm)
 }
 
 /*
- * Load guest's cr3 at nested entry. @nested_npt is true if we are
- * emulating VM-Entry into a guest with NPT enabled.
+ * Load guest's/host's cr3 on nested vmentry or vmexit. @nested_npt is true
+ * if we are emulating VM-Entry into a guest with NPT enabled.
  */
 static int nested_svm_load_cr3(struct kvm_vcpu *vcpu, unsigned long cr3,
 			       bool nested_npt)
@@ -676,15 +676,12 @@ int nested_svm_vmexit(struct vcpu_svm *svm)
 
 	nested_svm_uninit_mmu_context(&svm->vcpu);
 
-	if (npt_enabled) {
-		svm->vmcb->save.cr3 = hsave->save.cr3;
-		svm->vcpu.arch.cr3 = hsave->save.cr3;
-	} else {
-		(void)kvm_set_cr3(&svm->vcpu, hsave->save.cr3);
-	}
+	rc = nested_svm_load_cr3(&svm->vcpu, hsave->save.cr3, false);
+	if (rc)
+		return 1;
 
-	kvm_mmu_reset_context(&svm->vcpu);
-	kvm_mmu_load(&svm->vcpu);
+	if (npt_enabled)
+		svm->vmcb->save.cr3 = hsave->save.cr3;
 
 	/*
 	 * Drop what we picked up for L2 via svm_complete_interrupts() so it
