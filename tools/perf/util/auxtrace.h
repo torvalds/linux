@@ -100,6 +100,7 @@ enum itrace_period_type {
  * @error_minus_flags: flags to affect what errors are reported
  * @log_plus_flags: flags to affect what is logged
  * @log_minus_flags: flags to affect what is logged
+ * @quick: quicker (less detailed) decoding
  */
 struct itrace_synth_opts {
 	bool			set;
@@ -137,6 +138,7 @@ struct itrace_synth_opts {
 	unsigned int		error_minus_flags;
 	unsigned int		log_plus_flags;
 	unsigned int		log_minus_flags;
+	unsigned int		quick;
 };
 
 /**
@@ -642,6 +644,7 @@ bool auxtrace__evsel_is_auxtrace(struct perf_session *session,
 "				l[len]:     		synthesize last branch entries (use with i or x)\n" \
 "				L[len]:			synthesize last branch entries on existing event records\n" \
 "				sNUMBER:    		skip initial number of events\n"		\
+"				q:			quicker (less detailed) decoding\n" \
 "				PERIOD[ns|us|ms|i|t]:   specify period to sample stream\n" \
 "				concatenate multiple options. Default is ibxwpe or cewp\n"
 
