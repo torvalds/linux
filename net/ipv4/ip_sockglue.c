@@ -411,6 +411,9 @@ void ip_icmp_error(struct sock *sk, struct sk_buff *skb, int err,
 	serr->port = port;
 
 	if (skb_pull(skb, payload - skb->data)) {
+		if (inet_sk(sk)->recverr_rfc4884)
+			ip_icmp_error_rfc4884(skb, &serr->ee.ee_rfc4884);
+
 		skb_reset_transport_header(skb);
 		if (sock_queue_err_skb(sk, skb) == 0)
 			return;
@@ -904,6 +907,7 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 	case IP_RECVORIGDSTADDR:
 	case IP_CHECKSUM:
 	case IP_RECVFRAGSIZE:
+	case IP_RECVERR_RFC4884:
 		if (optlen >= sizeof(int)) {
 			if (get_user(val, (int __user *) optval))
 				return -EFAULT;
@@ -1062,6 +1066,11 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 		inet->recverr = !!val;
 		if (!val)
 			skb_queue_purge(&sk->sk_error_queue);
+		break;
+	case IP_RECVERR_RFC4884:
+		if (val < 0 || val > 1)
+			goto e_inval;
+		inet->recverr_rfc4884 = !!val;
 		break;
 	case IP_MULTICAST_TTL:
 		if (sk->sk_type == SOCK_STREAM)
@@ -1610,6 +1619,9 @@ static int do_ip_getsockopt(struct sock *sk, int level, int optname,
 	}
 	case IP_RECVERR:
 		val = inet->recverr;
+		break;
+	case IP_RECVERR_RFC4884:
+		val = inet->recverr_rfc4884;
 		break;
 	case IP_MULTICAST_TTL:
 		val = inet->mc_ttl;
