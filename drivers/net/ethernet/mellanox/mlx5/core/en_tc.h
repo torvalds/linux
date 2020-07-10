@@ -70,9 +70,9 @@ struct tunnel_match_enc_opts {
  * Upper TUNNEL_INFO_BITS for general tunnel info.
  * Lower ENC_OPTS_BITS bits for enc_opts.
  */
-#define TUNNEL_INFO_BITS 6
+#define TUNNEL_INFO_BITS 12
 #define TUNNEL_INFO_BITS_MASK GENMASK(TUNNEL_INFO_BITS - 1, 0)
-#define ENC_OPTS_BITS 2
+#define ENC_OPTS_BITS 12
 #define ENC_OPTS_BITS_MASK GENMASK(ENC_OPTS_BITS - 1, 0)
 #define TUNNEL_ID_BITS (TUNNEL_INFO_BITS + ENC_OPTS_BITS)
 #define TUNNEL_ID_MASK GENMASK(TUNNEL_ID_BITS - 1, 0)
@@ -129,10 +129,10 @@ enum mlx5e_tc_attr_to_reg {
 	TUNNEL_TO_REG,
 	CTSTATE_TO_REG,
 	ZONE_TO_REG,
+	ZONE_RESTORE_TO_REG,
 	MARK_TO_REG,
 	LABELS_TO_REG,
 	FTEID_TO_REG,
-	TUPLEID_TO_REG,
 };
 
 struct mlx5e_tc_attr_to_reg_mapping {
@@ -148,12 +148,6 @@ extern struct mlx5e_tc_attr_to_reg_mapping mlx5e_tc_attr_to_reg_mappings[];
 bool mlx5e_is_valid_eswitch_fwd_dev(struct mlx5e_priv *priv,
 				    struct net_device *out_dev);
 
-struct mlx5e_tc_mod_hdr_acts {
-	int num_actions;
-	int max_actions;
-	void *actions;
-};
-
 int mlx5e_tc_match_to_reg_set(struct mlx5_core_dev *mdev,
 			      struct mlx5e_tc_mod_hdr_acts *mod_hdr_acts,
 			      enum mlx5e_tc_attr_to_reg type,
@@ -163,6 +157,11 @@ void mlx5e_tc_match_to_reg_match(struct mlx5_flow_spec *spec,
 				 enum mlx5e_tc_attr_to_reg type,
 				 u32 data,
 				 u32 mask);
+
+void mlx5e_tc_match_to_reg_get_match(struct mlx5_flow_spec *spec,
+				     enum mlx5e_tc_attr_to_reg type,
+				     u32 *data,
+				     u32 *mask);
 
 int alloc_mod_hdr_actions(struct mlx5_core_dev *mdev,
 			  int namespace,
