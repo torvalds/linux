@@ -825,6 +825,7 @@ The letters are:
 	l	synthesize last branch entries (use with i or x)
 	L	synthesize last branch entries on existing event records
 	s	skip initial number of events
+	q	quicker (less detailed) decoding
 
 "Instructions" events look like they were recorded by "perf record -e
 instructions".
@@ -968,6 +969,36 @@ at the beginning. This is useful to ignore initialization code.
 	--itrace=i0nss1000000
 
 skips the first million instructions.
+
+The q option changes the way the trace is decoded.  The decoding is much faster
+but much less detailed.  Specifically, with the q option, the decoder does not
+decode TNT packets, and does not walk object code, but gets the ip from FUP and
+TIP packets.  The q option can be used with the b and i options but the period
+is not used.  The q option decodes more quickly, but is useful only if the
+control flow of interest is represented or indicated by FUP, TIP, TIP.PGE, or
+TIP.PGD packets (refer below).  However the q option could be used to find time
+ranges that could then be decoded fully using the --time option.
+
+What will *not* be decoded with the (single) q option:
+
+	- direct calls and jmps
+	- conditional branches
+	- non-branch instructions
+
+What *will* be decoded with the (single) q option:
+
+	- asynchronous branches such as interrupts
+	- indirect branches
+	- function return target address *if* the noretcomp config term (refer
+	config terms section) was used
+	- start of (control-flow) tracing
+	- end of (control-flow) tracing, if it is not out of context
+	- power events, ptwrite, transaction start and abort
+	- instruction pointer associated with PSB packets
+
+Note the q option does not specify what events will be synthesized e.g. the p
+option must be used also to show power events.
+
 
 dump option
 ~~~~~~~~~~~
