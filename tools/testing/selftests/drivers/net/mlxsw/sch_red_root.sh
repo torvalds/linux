@@ -7,6 +7,7 @@ ALL_TESTS="
 	ecn_nodrop_test
 	red_test
 	mc_backlog_test
+	red_mirror_test
 "
 source sch_red_core.sh
 
@@ -54,6 +55,13 @@ mc_backlog_test()
 	# Note that the backlog value here does not correspond to RED
 	# configuration, but is arbitrary.
 	do_mc_backlog_test 10 $BACKLOG
+	uninstall_qdisc
+}
+
+red_mirror_test()
+{
+	install_qdisc qevent early_drop block 10
+	do_drop_mirror_test 10 $BACKLOG
 	uninstall_qdisc
 }
 
