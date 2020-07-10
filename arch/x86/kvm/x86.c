@@ -9316,7 +9316,7 @@ int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
 	 */
 	kvm_set_rflags(vcpu, rflags);
 
-	kvm_x86_ops.update_bp_intercept(vcpu);
+	kvm_x86_ops.update_exception_bitmap(vcpu);
 
 	r = 0;
 
