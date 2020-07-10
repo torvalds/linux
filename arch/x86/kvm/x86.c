@@ -10738,6 +10738,27 @@ int kvm_spec_ctrl_test_value(u64 value)
 }
 EXPORT_SYMBOL_GPL(kvm_spec_ctrl_test_value);
 
+void kvm_fixup_and_inject_pf_error(struct kvm_vcpu *vcpu, gva_t gva, u16 error_code)
+{
+	struct x86_exception fault;
+
+	if (!(error_code & PFERR_PRESENT_MASK) ||
+	    vcpu->arch.walk_mmu->gva_to_gpa(vcpu, gva, error_code, &fault) != UNMAPPED_GVA) {
+		/*
+		 * If vcpu->arch.walk_mmu->gva_to_gpa succeeded, the page
+		 * tables probably do not match the TLB.  Just proceed
+		 * with the error code that the processor gave.
+		 */
+		fault.vector = PF_VECTOR;
+		fault.error_code_valid = true;
+		fault.error_code = error_code;
+		fault.nested_page_fault = false;
+		fault.address = gva;
+	}
+	vcpu->arch.walk_mmu->inject_page_fault(vcpu, &fault);
+}
+EXPORT_SYMBOL_GPL(kvm_fixup_and_inject_pf_error);
+
 EXPORT_TRACEPOINT_SYMBOL_GPL(kvm_exit);
 EXPORT_TRACEPOINT_SYMBOL_GPL(kvm_fast_mmio);
 EXPORT_TRACEPOINT_SYMBOL_GPL(kvm_inj_virq);

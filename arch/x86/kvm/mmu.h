@@ -4,6 +4,7 @@
 
 #include <linux/kvm_host.h>
 #include "kvm_cache_regs.h"
+#include "cpuid.h"
 
 #define PT64_PT_BITS 9
 #define PT64_ENT_PER_PAGE (1 << PT64_PT_BITS)
@@ -148,6 +149,11 @@ static inline int is_writable_pte(unsigned long pte)
 static inline bool is_write_protection(struct kvm_vcpu *vcpu)
 {
 	return kvm_read_cr0_bits(vcpu, X86_CR0_WP);
+}
+
+static inline bool kvm_mmu_is_illegal_gpa(struct kvm_vcpu *vcpu, gpa_t gpa)
+{
+        return (gpa >= BIT_ULL(cpuid_maxphyaddr(vcpu)));
 }
 
 /*
