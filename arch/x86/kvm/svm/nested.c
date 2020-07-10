@@ -404,7 +404,7 @@ static void nested_prepare_vmcb_control(struct vcpu_svm *svm)
 	vmcb_mark_all_dirty(svm->vmcb);
 }
 
-void enter_svm_guest_mode(struct vcpu_svm *svm, u64 vmcb_gpa,
+int enter_svm_guest_mode(struct vcpu_svm *svm, u64 vmcb_gpa,
 			  struct vmcb *nested_vmcb)
 {
 	svm->nested.vmcb = vmcb_gpa;
@@ -413,6 +413,8 @@ void enter_svm_guest_mode(struct vcpu_svm *svm, u64 vmcb_gpa,
 	nested_prepare_vmcb_control(svm);
 
 	svm_set_gif(svm, true);
+
+	return 0;
 }
 
 int nested_svm_vmrun(struct vcpu_svm *svm)
@@ -490,18 +492,22 @@ int nested_svm_vmrun(struct vcpu_svm *svm)
 	copy_vmcb_control_area(&hsave->control, &vmcb->control);
 
 	svm->nested.nested_run_pending = 1;
-	enter_svm_guest_mode(svm, vmcb_gpa, nested_vmcb);
 
-	if (!nested_svm_vmrun_msrpm(svm)) {
-		svm->nested.nested_run_pending = 0;
+	if (enter_svm_guest_mode(svm, vmcb_gpa, nested_vmcb))
+		goto out_exit_err;
 
-		svm->vmcb->control.exit_code    = SVM_EXIT_ERR;
-		svm->vmcb->control.exit_code_hi = 0;
-		svm->vmcb->control.exit_info_1  = 0;
-		svm->vmcb->control.exit_info_2  = 0;
+	if (nested_svm_vmrun_msrpm(svm))
+		goto out;
 
-		nested_svm_vmexit(svm);
-	}
+out_exit_err:
+	svm->nested.nested_run_pending = 0;
+
+	svm->vmcb->control.exit_code    = SVM_EXIT_ERR;
+	svm->vmcb->control.exit_code_hi = 0;
+	svm->vmcb->control.exit_info_1  = 0;
+	svm->vmcb->control.exit_info_2  = 0;
+
+	nested_svm_vmexit(svm);
 
 out:
 	kvm_vcpu_unmap(&svm->vcpu, &map, true);
