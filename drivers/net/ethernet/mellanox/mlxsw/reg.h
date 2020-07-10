@@ -9502,6 +9502,57 @@ MLXSW_ITEM32(reg, mogcr, ptp_iftc, 0x00, 1, 1);
  */
 MLXSW_ITEM32(reg, mogcr, ptp_eftc, 0x00, 0, 1);
 
+/* MPAGR - Monitoring Port Analyzer Global Register
+ * ------------------------------------------------
+ * This register is used for global port analyzer configurations.
+ * Note: This register is not supported by current FW versions for Spectrum-1.
+ */
+#define MLXSW_REG_MPAGR_ID 0x9089
+#define MLXSW_REG_MPAGR_LEN 0x0C
+
+MLXSW_REG_DEFINE(mpagr, MLXSW_REG_MPAGR_ID, MLXSW_REG_MPAGR_LEN);
+
+enum mlxsw_reg_mpagr_trigger {
+	MLXSW_REG_MPAGR_TRIGGER_EGRESS,
+	MLXSW_REG_MPAGR_TRIGGER_INGRESS,
+	MLXSW_REG_MPAGR_TRIGGER_INGRESS_WRED,
+	MLXSW_REG_MPAGR_TRIGGER_INGRESS_SHARED_BUFFER,
+	MLXSW_REG_MPAGR_TRIGGER_INGRESS_ING_CONG,
+	MLXSW_REG_MPAGR_TRIGGER_INGRESS_EGR_CONG,
+	MLXSW_REG_MPAGR_TRIGGER_EGRESS_ECN,
+	MLXSW_REG_MPAGR_TRIGGER_EGRESS_HIGH_LATENCY,
+};
+
+/* reg_mpagr_trigger
+ * Mirror trigger.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, mpagr, trigger, 0x00, 0, 4);
+
+/* reg_mpagr_pa_id
+ * Port analyzer ID.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mpagr, pa_id, 0x04, 0, 4);
+
+/* reg_mpagr_probability_rate
+ * Sampling rate.
+ * Valid values are: 1 to 3.5*10^9
+ * Value of 1 means "sample all". Default is 1.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mpagr, probability_rate, 0x08, 0, 32);
+
+static inline void mlxsw_reg_mpagr_pack(char *payload,
+					enum mlxsw_reg_mpagr_trigger trigger,
+					u8 pa_id, u32 probability_rate)
+{
+	MLXSW_REG_ZERO(mpagr, payload);
+	mlxsw_reg_mpagr_trigger_set(payload, trigger);
+	mlxsw_reg_mpagr_pa_id_set(payload, pa_id);
+	mlxsw_reg_mpagr_probability_rate_set(payload, probability_rate);
+}
+
 /* MOMTE - Monitoring Mirror Trigger Enable Register
  * -------------------------------------------------
  * This register is used to configure the mirror enable for different mirror
@@ -10902,6 +10953,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(mgpc),
 	MLXSW_REG(mprs),
 	MLXSW_REG(mogcr),
+	MLXSW_REG(mpagr),
 	MLXSW_REG(momte),
 	MLXSW_REG(mtpppc),
 	MLXSW_REG(mtpptr),
