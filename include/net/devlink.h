@@ -101,6 +101,8 @@ struct devlink_port {
 	u8 attrs_set:1,
 	   switch_port:1;
 	struct delayed_work type_warn_dw;
+	struct list_head reporter_list;
+	struct mutex reporters_lock; /* Protects reporter_list */
 };
 
 struct devlink_sb_pool_info {
