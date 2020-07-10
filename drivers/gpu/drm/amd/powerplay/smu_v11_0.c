@@ -1777,8 +1777,7 @@ int smu_v11_0_set_soft_freq_limited_range(struct smu_context *smu,
 	if (clk_id < 0)
 		return clk_id;
 
-	if (clk_type == SMU_GFXCLK &&
-	    adev->asic_type == CHIP_SIENNA_CICHLID)
+	if (clk_type == SMU_GFXCLK)
 		amdgpu_gfx_off_ctrl(adev, false);
 
 	if (max > 0) {
@@ -1798,8 +1797,7 @@ int smu_v11_0_set_soft_freq_limited_range(struct smu_context *smu,
 	}
 
 out:
-	if (clk_type == SMU_GFXCLK &&
-	    adev->asic_type == CHIP_SIENNA_CICHLID)
+	if (clk_type == SMU_GFXCLK)
 		amdgpu_gfx_off_ctrl(adev, true);
 
 	return ret;
