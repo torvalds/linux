@@ -177,8 +177,12 @@ struct intel_engine_execlists {
 	 * the first error interrupt, record the EIR and schedule the tasklet.
 	 * In the tasklet, we process the pending CS events to ensure we have
 	 * the guilty request, and then reset the engine.
+	 *
+	 * Low 16b are used by HW, with the upper 16b used as the enabling mask.
+	 * Reserve the upper 16b for tracking internal errors.
 	 */
 	u32 error_interrupt;
+#define ERROR_CSB BIT(31)
 
 	/**
 	 * @reset_ccid: Active CCID [EXECLISTS_STATUS_HI] at the time of reset
