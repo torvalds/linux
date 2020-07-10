@@ -348,7 +348,28 @@ static inline bool nested_npt_enabled(struct vcpu_svm *svm)
 static int nested_svm_load_cr3(struct kvm_vcpu *vcpu, unsigned long cr3,
 			       bool nested_npt)
 {
-	return kvm_set_cr3(vcpu, cr3);
+	if (cr3 & rsvd_bits(cpuid_maxphyaddr(vcpu), 63))
+		return -EINVAL;
+
+	if (!nested_npt && is_pae_paging(vcpu) &&
+	    (cr3 != kvm_read_cr3(vcpu) || pdptrs_changed(vcpu))) {
+		if (!load_pdptrs(vcpu, vcpu->arch.walk_mmu, cr3))
+			return -EINVAL;
+	}
+
+	/*
+	 * TODO: optimize unconditional TLB flush/MMU sync here and in
+	 * kvm_init_shadow_npt_mmu().
+	 */
+	if (!nested_npt)
+		kvm_mmu_new_pgd(vcpu, cr3, false, false);
+
+	vcpu->arch.cr3 = cr3;
+	kvm_register_mark_available(vcpu, VCPU_EXREG_CR3);
+
+	kvm_init_mmu(vcpu, false);
+
+	return 0;
 }
 
 static void nested_prepare_vmcb_save(struct vcpu_svm *svm, struct vmcb *nested_vmcb)
@@ -364,9 +385,6 @@ static void nested_prepare_vmcb_save(struct vcpu_svm *svm, struct vmcb *nested_v
 	svm_set_efer(&svm->vcpu, nested_vmcb->save.efer);
 	svm_set_cr0(&svm->vcpu, nested_vmcb->save.cr0);
 	svm_set_cr4(&svm->vcpu, nested_vmcb->save.cr4);
-	(void)nested_svm_load_cr3(&svm->vcpu, nested_vmcb->save.cr3,
-				  nested_npt_enabled(svm));
-
 	svm->vmcb->save.cr2 = svm->vcpu.arch.cr2 = nested_vmcb->save.cr2;
 	kvm_rax_write(&svm->vcpu, nested_vmcb->save.rax);
 	kvm_rsp_write(&svm->vcpu, nested_vmcb->save.rsp);
@@ -387,11 +405,6 @@ static void nested_prepare_vmcb_control(struct vcpu_svm *svm)
 
 	if (nested_npt_enabled(svm))
 		nested_svm_init_mmu_context(&svm->vcpu);
-
-	/* Guest paging mode is active - reset mmu */
-	kvm_mmu_reset_context(&svm->vcpu);
-
-	svm_flush_tlb(&svm->vcpu);
 
 	svm->vmcb->control.tsc_offset = svm->vcpu.arch.tsc_offset =
 		svm->vcpu.arch.l1_tsc_offset + svm->nested.ctl.tsc_offset;
@@ -424,10 +437,17 @@ static void nested_prepare_vmcb_control(struct vcpu_svm *svm)
 int enter_svm_guest_mode(struct vcpu_svm *svm, u64 vmcb_gpa,
 			  struct vmcb *nested_vmcb)
 {
+	int ret;
+
 	svm->nested.vmcb = vmcb_gpa;
 	load_nested_vmcb_control(svm, &nested_vmcb->control);
 	nested_prepare_vmcb_save(svm, nested_vmcb);
 	nested_prepare_vmcb_control(svm);
+
+	ret = nested_svm_load_cr3(&svm->vcpu, nested_vmcb->save.cr3,
+				  nested_npt_enabled(svm));
+	if (ret)
+		return ret;
 
 	svm_set_gif(svm, true);
 
