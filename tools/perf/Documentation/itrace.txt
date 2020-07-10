@@ -47,3 +47,9 @@
 	--itrace=i0nss1000000
 
 	skips the first million instructions.
+
+	The 'e' option may be followed by flags which affect what errors will or
+	will not be reported. Each flag must be preceded by either '+' or '-'.
+	The flags are:
+		o	overflow
+		l	trace data lost
