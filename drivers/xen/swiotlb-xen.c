@@ -413,8 +413,12 @@ static dma_addr_t xen_swiotlb_map_page(struct device *dev, struct page *page,
 	}
 
 done:
-	if (!dev_is_dma_coherent(dev) && !(attrs & DMA_ATTR_SKIP_CPU_SYNC))
-		xen_dma_sync_for_device(dev, dev_addr, phys, size, dir);
+	if (!dev_is_dma_coherent(dev) && !(attrs & DMA_ATTR_SKIP_CPU_SYNC)) {
+		if (pfn_valid(PFN_DOWN(dma_to_phys(dev, dev_addr))))
+			arch_sync_dma_for_device(phys, size, dir);
+		else
+			xen_dma_sync_for_device(dev, dev_addr, size, dir);
+	}
 	return dev_addr;
 }
 
@@ -433,8 +437,12 @@ static void xen_swiotlb_unmap_page(struct device *hwdev, dma_addr_t dev_addr,
 
 	BUG_ON(dir == DMA_NONE);
 
-	if (!dev_is_dma_coherent(hwdev) && !(attrs & DMA_ATTR_SKIP_CPU_SYNC))
-		xen_dma_sync_for_cpu(hwdev, dev_addr, paddr, size, dir);
+	if (!dev_is_dma_coherent(hwdev) && !(attrs & DMA_ATTR_SKIP_CPU_SYNC)) {
+		if (pfn_valid(PFN_DOWN(dma_to_phys(hwdev, dev_addr))))
+			arch_sync_dma_for_cpu(paddr, size, dir);
+		else
+			xen_dma_sync_for_cpu(hwdev, dev_addr, size, dir);
+	}
 
 	/* NOTE: We use dev_addr here, not paddr! */
 	if (is_xen_swiotlb_buffer(hwdev, dev_addr))
@@ -447,8 +455,12 @@ xen_swiotlb_sync_single_for_cpu(struct device *dev, dma_addr_t dma_addr,
 {
 	phys_addr_t paddr = xen_dma_to_phys(dev, dma_addr);
 
-	if (!dev_is_dma_coherent(dev))
-		xen_dma_sync_for_cpu(dev, dma_addr, paddr, size, dir);
+	if (!dev_is_dma_coherent(dev)) {
+		if (pfn_valid(PFN_DOWN(dma_to_phys(dev, dma_addr))))
+			arch_sync_dma_for_cpu(paddr, size, dir);
+		else
+			xen_dma_sync_for_cpu(dev, dma_addr, size, dir);
+	}
 
 	if (is_xen_swiotlb_buffer(dev, dma_addr))
 		swiotlb_tbl_sync_single(dev, paddr, size, dir, SYNC_FOR_CPU);
@@ -463,8 +475,12 @@ xen_swiotlb_sync_single_for_device(struct device *dev, dma_addr_t dma_addr,
 	if (is_xen_swiotlb_buffer(dev, dma_addr))
 		swiotlb_tbl_sync_single(dev, paddr, size, dir, SYNC_FOR_DEVICE);
 
-	if (!dev_is_dma_coherent(dev))
-		xen_dma_sync_for_device(dev, dma_addr, paddr, size, dir);
+	if (!dev_is_dma_coherent(dev)) {
+		if (pfn_valid(PFN_DOWN(dma_to_phys(dev, dma_addr))))
+			arch_sync_dma_for_device(paddr, size, dir);
+		else
+			xen_dma_sync_for_device(dev, dma_addr, size, dir);
+	}
 }
 
 /*
