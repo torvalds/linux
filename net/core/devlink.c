@@ -5372,6 +5372,42 @@ __devlink_health_reporter_create(struct devlink *devlink,
 }
 
 /**
+ *	devlink_port_health_reporter_create - create devlink health reporter for
+ *	                                      specified port instance
+ *
+ *	@port: devlink_port which should contain the new reporter
+ *	@ops: ops
+ *	@graceful_period: to avoid recovery loops, in msecs
+ *	@priv: priv
+ */
+struct devlink_health_reporter *
+devlink_port_health_reporter_create(struct devlink_port *port,
+				    const struct devlink_health_reporter_ops *ops,
+				    u64 graceful_period, void *priv)
+{
+	struct devlink_health_reporter *reporter;
+
+	mutex_lock(&port->reporters_lock);
+	if (__devlink_health_reporter_find_by_name(&port->reporter_list,
+						   &port->reporters_lock, ops->name)) {
+		reporter = ERR_PTR(-EEXIST);
+		goto unlock;
+	}
+
+	reporter = __devlink_health_reporter_create(port->devlink, ops,
+						    graceful_period, priv);
+	if (IS_ERR(reporter))
+		goto unlock;
+
+	reporter->devlink_port = port;
+	list_add_tail(&reporter->list, &port->reporter_list);
+unlock:
+	mutex_unlock(&port->reporters_lock);
+	return reporter;
+}
+EXPORT_SYMBOL_GPL(devlink_port_health_reporter_create);
+
+/**
  *	devlink_health_reporter_create - create devlink health reporter
  *
  *	@devlink: devlink
@@ -5440,6 +5476,20 @@ devlink_health_reporter_destroy(struct devlink_health_reporter *reporter)
 	mutex_unlock(&reporter->devlink->reporters_lock);
 }
 EXPORT_SYMBOL_GPL(devlink_health_reporter_destroy);
+
+/**
+ *	devlink_port_health_reporter_destroy - destroy devlink port health reporter
+ *
+ *	@reporter: devlink health reporter to destroy
+ */
+void
+devlink_port_health_reporter_destroy(struct devlink_health_reporter *reporter)
+{
+	mutex_lock(&reporter->devlink_port->reporters_lock);
+	__devlink_health_reporter_destroy(reporter);
+	mutex_unlock(&reporter->devlink_port->reporters_lock);
+}
+EXPORT_SYMBOL_GPL(devlink_port_health_reporter_destroy);
 
 static int
 devlink_nl_health_reporter_fill(struct sk_buff *msg,
