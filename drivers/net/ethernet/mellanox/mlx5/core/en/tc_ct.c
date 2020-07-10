@@ -1097,6 +1097,7 @@ mlx5_tc_ct_flush_ft_entry(void *ptr, void *arg)
 	struct mlx5_ct_entry *entry = ptr;
 
 	mlx5_tc_ct_entry_del_rules(ct_priv, entry);
+	kfree(entry);
 }
 
 static void
