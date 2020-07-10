@@ -31,6 +31,7 @@ static const char *const loader_protect_clocks[] = {
 	"clk_scr1_jtag"
 };
 
+static bool rkisp_tb_firstboot;
 static struct clk **loader_clocks;
 static int __maybe_unused rkisp_tb_clocks_loader_protect(void)
 {
@@ -76,13 +77,15 @@ static int __maybe_unused rkisp_tb_clocks_loader_unprotect(void)
 
 static int __maybe_unused rkisp_tb_runtime_suspend(struct device *dev)
 {
-	rkisp_tb_clocks_loader_unprotect();
 	return 0;
 }
 
 static int __maybe_unused rkisp_tb_runtime_resume(struct device *dev)
 {
-	rkisp_tb_clocks_loader_protect();
+	if (rkisp_tb_firstboot) {
+		rkisp_tb_firstboot = false;
+		rkisp_tb_clocks_loader_protect();
+	}
 	return 0;
 }
 
@@ -102,6 +105,7 @@ static const struct of_device_id rkisp_tb_plat_of_match[] = {
 
 static int rkisp_tb_plat_probe(struct platform_device *pdev)
 {
+	rkisp_tb_firstboot = true;
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_get_sync(&pdev->dev);
 

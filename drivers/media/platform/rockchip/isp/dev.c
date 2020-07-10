@@ -1234,10 +1234,8 @@ static int __maybe_unused rkisp_runtime_suspend(struct device *dev)
 			disable_irq(isp_dev->mipi_irq);
 	}
 
-	if (!isp_dev->is_thunderboot) {
-		rkisp_disable_sys_clk(isp_dev);
-		ret = pinctrl_pm_select_sleep_state(dev);
-	}
+	rkisp_disable_sys_clk(isp_dev);
+	ret = pinctrl_pm_select_sleep_state(dev);
 
 	return ret;
 }
@@ -1247,12 +1245,10 @@ static int __maybe_unused rkisp_runtime_resume(struct device *dev)
 	struct rkisp_device *isp_dev = dev_get_drvdata(dev);
 	int ret;
 
-	if (!isp_dev->is_thunderboot) {
-		ret = pinctrl_pm_select_default_state(dev);
-		if (ret < 0)
-			return ret;
-		rkisp_enable_sys_clk(isp_dev);
-	}
+	ret = pinctrl_pm_select_default_state(dev);
+	if (ret < 0)
+		return ret;
+	rkisp_enable_sys_clk(isp_dev);
 
 	if (isp_dev->isp_ver == ISP_V12 || isp_dev->isp_ver == ISP_V13) {
 		writel(0, isp_dev->base_addr + CIF_ISP_CSI0_MASK1);
