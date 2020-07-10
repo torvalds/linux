@@ -546,7 +546,7 @@ static int vop_match_desc(struct device *dev, void *data)
 	return vdev->desc == (void __iomem *)data;
 }
 
-static struct _vop_vdev *vop_dc_to_vdev(struct mic_device_ctrl *dc)
+static struct _vop_vdev *vop_dc_to_vdev(struct mic_device_ctrl __iomem *dc)
 {
 	return (struct _vop_vdev *)(unsigned long)readq(&dc->vdev);
 }
