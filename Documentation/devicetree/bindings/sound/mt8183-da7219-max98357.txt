@@ -6,11 +6,15 @@ Required properties:
 - mediatek,headset-codec: the phandles of da7219 codecs
 - mediatek,platform: the phandle of MT8183 ASoC platform
 
+Optional properties:
+- mediatek,hdmi-codec: the phandles of HDMI codec
+
 Example:
 
 	sound {
 		compatible = "mediatek,mt8183_da7219_max98357";
 		mediatek,headset-codec = <&da7219>;
+		mediatek,hdmi-codec = <&it6505dptx>;
 		mediatek,platform = <&afe>;
 	};
 
