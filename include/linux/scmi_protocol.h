@@ -421,7 +421,7 @@ struct scmi_base_error_report {
 	u32 agent_id;
 	bool fatal;
 	u16 cmd_count;
-	u64 reports[0];
+	u64 reports[];
 };
 
 #endif /* _LINUX_SCMI_PROTOCOL_H */
