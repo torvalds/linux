@@ -148,6 +148,7 @@ static void kvm_vcpu_after_set_cpuid(struct kvm_vcpu *vcpu)
 	kvm_pmu_refresh(vcpu);
 	vcpu->arch.cr4_guest_rsvd_bits =
 	    __cr4_reserved_bits(guest_cpuid_has, vcpu);
+	kvm_x86_ops.update_exception_bitmap(vcpu);
 }
 
 static int is_efer_nx(void)
