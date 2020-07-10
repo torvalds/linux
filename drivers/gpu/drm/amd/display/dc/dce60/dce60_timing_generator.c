@@ -128,20 +128,12 @@ static void dce60_timing_generator_enable_advanced_request(
 	struct dce110_timing_generator *tg110 = DCE110TG_FROM_TG(tg);
 	uint32_t addr = CRTC_REG(mmCRTC_START_LINE_CONTROL);
 	uint32_t value = dm_read_reg(tg->ctx, addr);
+	/* DCE6 has CRTC_PREFETCH_EN bit in CRTC_CONTROL register */
+	uint32_t addr2 = CRTC_REG(mmCRTC_CONTROL);
+	uint32_t value2 = dm_read_reg(tg->ctx, addr2);
 
-	if (enable) {
-		set_reg_field_value(
-			value,
-			0,
-			CRTC_START_LINE_CONTROL,
-			CRTC_LEGACY_REQUESTOR_EN);
-	} else {
-		set_reg_field_value(
-			value,
-			1,
-			CRTC_START_LINE_CONTROL,
-			CRTC_LEGACY_REQUESTOR_EN);
-	}
+	/* DCE6 does not support CRTC_LEGACY_REQUESTOR_EN bit
+	   so here is not possible to set bit based on enable argument */
 
 	if ((timing->v_sync_width + timing->v_front_porch) <= 3) {
 		set_reg_field_value(
@@ -150,9 +142,9 @@ static void dce60_timing_generator_enable_advanced_request(
 			CRTC_START_LINE_CONTROL,
 			CRTC_ADVANCED_START_LINE_POSITION);
 		set_reg_field_value(
-			value,
+			value2,
 			0,
-			CRTC_START_LINE_CONTROL,
+			CRTC_CONTROL,
 			CRTC_PREFETCH_EN);
 	} else {
 		set_reg_field_value(
@@ -161,9 +153,9 @@ static void dce60_timing_generator_enable_advanced_request(
 			CRTC_START_LINE_CONTROL,
 			CRTC_ADVANCED_START_LINE_POSITION);
 		set_reg_field_value(
-			value,
+			value2,
 			1,
-			CRTC_START_LINE_CONTROL,
+			CRTC_CONTROL,
 			CRTC_PREFETCH_EN);
 	}
 
@@ -180,6 +172,33 @@ static void dce60_timing_generator_enable_advanced_request(
 		CRTC_INTERLACE_START_LINE_EARLY);
 
 	dm_write_reg(tg->ctx, addr, value);
+	dm_write_reg(tg->ctx, addr2, value2);
+}
+
+static bool dce60_is_tg_enabled(struct timing_generator *tg)
+{
+	uint32_t addr = 0;
+	uint32_t value = 0;
+	uint32_t field = 0;
+	struct dce110_timing_generator *tg110 = DCE110TG_FROM_TG(tg);
+
+	addr = CRTC_REG(mmCRTC_CONTROL);
+	value = dm_read_reg(tg->ctx, addr);
+	field = get_reg_field_value(value, CRTC_CONTROL,
+				    CRTC_CURRENT_MASTER_EN_STATE);
+	return field == 1;
+}
+
+bool dce60_configure_crc(struct timing_generator *tg,
+			  const struct crc_params *params)
+{
+	/* Cannot configure crc on a CRTC that is disabled */
+	if (!dce60_is_tg_enabled(tg))
+		return false;
+
+	/* DCE6 has no CRTC_CRC_CNTL register, nothing to do */
+
+	return true;
 }
 
 static const struct timing_generator_funcs dce60_tg_funcs = {
@@ -217,7 +236,7 @@ static const struct timing_generator_funcs dce60_tg_funcs = {
 		/* DCE6.0 overrides */
 		.enable_advanced_request =
 				dce60_timing_generator_enable_advanced_request,
-		.configure_crc = dce110_configure_crc,
+		.configure_crc = dce60_configure_crc,
 		.get_crc = dce110_get_crc,
 };
 
