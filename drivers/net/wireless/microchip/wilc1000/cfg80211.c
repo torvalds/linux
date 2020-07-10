@@ -46,9 +46,11 @@ static const struct ieee80211_txrx_stypes
 	}
 };
 
+#ifdef CONFIG_PM
 static const struct wiphy_wowlan_support wowlan_support = {
 	.flags = WIPHY_WOWLAN_ANY
 };
+#endif
 
 struct wilc_p2p_mgmt_data {
 	int size;
