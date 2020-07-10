@@ -397,7 +397,7 @@ void btf__free(struct btf *btf)
 	free(btf);
 }
 
-struct btf *btf__new(__u8 *data, __u32 size)
+struct btf *btf__new(const void *data, __u32 size)
 {
 	struct btf *btf;
 	int err;

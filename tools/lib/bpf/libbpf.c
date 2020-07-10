@@ -2533,17 +2533,12 @@ static int bpf_object__sanitize_and_load_btf(struct bpf_object *obj)
 
 	sanitize = btf_needs_sanitization(obj);
 	if (sanitize) {
-		const void *orig_data;
-		void *san_data;
+		const void *raw_data;
 		__u32 sz;
 
 		/* clone BTF to sanitize a copy and leave the original intact */
-		orig_data = btf__get_raw_data(obj->btf, &sz);
-		san_data = malloc(sz);
-		if (!san_data)
-			return -ENOMEM;
-		memcpy(san_data, orig_data, sz);
-		kern_btf = btf__new(san_data, sz);
+		raw_data = btf__get_raw_data(obj->btf, &sz);
+		kern_btf = btf__new(raw_data, sz);
 		if (IS_ERR(kern_btf))
 			return PTR_ERR(kern_btf);
 
