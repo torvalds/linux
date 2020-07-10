@@ -304,13 +304,7 @@ static inline __virtio64 cpu_to_virtio64(struct virtio_device *vdev, u64 val)
 				 __u8: (x), \
 				 __le16: virtio16_to_cpu((vdev), (__force __virtio16)(x)), \
 				 __le32: virtio32_to_cpu((vdev), (__force __virtio32)(x)), \
-				 __le64: virtio64_to_cpu((vdev), (__force __virtio64)(x)), \
-				 default: _Generic((x), \
-						  __u8: (x), \
-						  __u16: virtio16_to_cpu((vdev), (__force __virtio16)(x)), \
-						  __u32: virtio32_to_cpu((vdev), (__force __virtio32)(x)), \
-						  __u64: virtio64_to_cpu((vdev), (__force __virtio64)(x)) \
-						  ) \
+				 __le64: virtio64_to_cpu((vdev), (__force __virtio64)(x)) \
 				 ) \
 		)
 
@@ -330,13 +324,7 @@ static inline __virtio64 cpu_to_virtio64(struct virtio_device *vdev, u64 val)
 				 __u8: (x), \
 				 __le16: (__force __le16)cpu_to_virtio16((vdev), (x)), \
 				 __le32: (__force __le32)cpu_to_virtio32((vdev), (x)), \
-				 __le64: (__force __le64)cpu_to_virtio64((vdev), (x)), \
-				 default: _Generic((m), \
-						  __u8: (x), \
-						  __u16: (__force __u16)cpu_to_virtio16((vdev), (x)), \
-						  __u32: (__force __u32)cpu_to_virtio32((vdev), (x)), \
-						  __u64: (__force __u64)cpu_to_virtio64((vdev), (x)) \
-						  ) \
+				 __le64: (__force __le64)cpu_to_virtio64((vdev), (x)) \
 				 ) \
 		)
 
