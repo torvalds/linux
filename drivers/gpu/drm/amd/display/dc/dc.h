@@ -96,6 +96,9 @@ struct dc_plane_cap {
 		uint32_t nv12;
 		uint32_t fp16;
 	} max_downscale_factor;
+	// minimal width/height
+	uint32_t min_width;
+	uint32_t min_height;
 };
 
 // Color management caps (DPP and MPC)
