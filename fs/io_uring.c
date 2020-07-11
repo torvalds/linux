@@ -7416,15 +7416,15 @@ static unsigned long rings_size(unsigned sq_entries, unsigned cq_entries,
 		return SIZE_MAX;
 #endif
 
+	if (sq_offset)
+		*sq_offset = off;
+
 	sq_array_size = array_size(sizeof(u32), sq_entries);
 	if (sq_array_size == SIZE_MAX)
 		return SIZE_MAX;
 
 	if (check_add_overflow(off, sq_array_size, &off))
 		return SIZE_MAX;
-
-	if (sq_offset)
-		*sq_offset = off;
 
 	return off;
 }
