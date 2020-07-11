@@ -2,7 +2,7 @@
 /*
  * dwc3-of-simple.c - OF glue layer for simple integrations
  *
- * Copyright (c) 2015 Texas Instruments Incorporated - http://www.ti.com
+ * Copyright (c) 2015 Texas Instruments Incorporated - https://www.ti.com
  *
  * Author: Felipe Balbi <balbi@ti.com>
  *

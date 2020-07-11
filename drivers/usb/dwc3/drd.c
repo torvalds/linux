@@ -2,7 +2,7 @@
 /*
  * drd.c - DesignWare USB3 DRD Controller Dual-role support
  *
- * Copyright (C) 2017 Texas Instruments Incorporated - http://www.ti.com
+ * Copyright (C) 2017 Texas Instruments Incorporated - https://www.ti.com
  *
  * Authors: Roger Quadros <rogerq@ti.com>
  */
