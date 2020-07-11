@@ -142,7 +142,7 @@ static int cros_ec_regulator_set_voltage(struct regulator_dev *dev, int min_uV,
 			   sizeof(cmd), NULL, 0);
 }
 
-static struct regulator_ops cros_ec_regulator_voltage_ops = {
+static const struct regulator_ops cros_ec_regulator_voltage_ops = {
 	.enable = cros_ec_regulator_enable,
 	.disable = cros_ec_regulator_disable,
 	.is_enabled = cros_ec_regulator_is_enabled,
