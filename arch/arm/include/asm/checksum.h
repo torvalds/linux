@@ -43,16 +43,15 @@ csum_partial_copy_from_user(const void __user *src, void *dst, int len, __wsum s
 #define _HAVE_ARCH_COPY_AND_CSUM_FROM_USER
 #define _HAVE_ARCH_CSUM_AND_COPY
 static inline
-__wsum csum_and_copy_from_user (const void __user *src, void *dst,
-				      int len, __wsum sum, int *err_ptr)
+__wsum csum_and_copy_from_user(const void __user *src, void *dst, int len)
 {
-	if (access_ok(src, len))
-		return csum_partial_copy_from_user(src, dst, len, sum, err_ptr);
+	int err = 0;
 
-	if (len)
-		*err_ptr = -EFAULT;
+	if (!access_ok(src, len))
+		return 0;
 
-	return sum;
+	sum = csum_partial_copy_from_user(src, dst, len, ~0U, &err);
+	return err ? 0 : sum;
 }
 
 /*

@@ -44,22 +44,19 @@ static inline __wsum csum_partial_copy_nocheck(const void *src, void *dst, int l
 }
 
 static inline __wsum csum_and_copy_from_user(const void __user *src,
-					     void *dst, int len,
-					     __wsum sum, int *err_ptr)
+					     void *dst, int len)
 {
 	__wsum ret;
+	int err = 0;
 
 	might_sleep();
-	if (!user_access_begin(src, len)) {
-		if (len)
-			*err_ptr = -EFAULT;
-		return sum;
-	}
+	if (!user_access_begin(src, len))
+		return 0;
 	ret = csum_partial_copy_generic((__force void *)src, dst,
-					len, sum, err_ptr, NULL);
+					len, ~0U, &err, NULL);
 	user_access_end();
 
-	return ret;
+	return err ? 0 : ret;
 }
 
 /*
@@ -177,23 +174,19 @@ static inline __sum16 csum_ipv6_magic(const struct in6_addr *saddr,
  */
 static inline __wsum csum_and_copy_to_user(const void *src,
 					   void __user *dst,
-					   int len, __wsum sum,
-					   int *err_ptr)
+					   int len)
 {
 	__wsum ret;
+	int err = 0;
 
 	might_sleep();
-	if (user_access_begin(dst, len)) {
-		ret = csum_partial_copy_generic(src, (__force void *)dst,
-						len, sum, NULL, err_ptr);
-		user_access_end();
-		return ret;
-	}
+	if (!user_access_begin(dst, len))
+		return 0;
 
-	if (len)
-		*err_ptr = -EFAULT;
-
-	return (__force __wsum)-1; /* invalid checksum */
+	ret = csum_partial_copy_generic(src, (__force void *)dst,
+					len, ~0U, NULL, &err);
+	user_access_end();
+	return err ? 0 : ret;
 }
 
 #endif /* _ASM_X86_CHECKSUM_32_H */

@@ -325,30 +325,27 @@ csum_partial_cfu_unaligned(const unsigned long __user * src,
 }
 
 __wsum
-csum_and_copy_from_user(const void __user *src, void *dst, int len,
-			       __wsum sum, int *errp)
+csum_and_copy_from_user(const void __user *src, void *dst, int len)
 {
-	unsigned long checksum = (__force u32) sum;
+	unsigned long checksum = ~0U;
 	unsigned long soff = 7 & (unsigned long) src;
 	unsigned long doff = 7 & (unsigned long) dst;
+	int err = 0;
 
 	if (len) {
-		if (!access_ok(src, len)) {
-			if (errp) *errp = -EFAULT;
-			memset(dst, 0, len);
-			return sum;
-		}
+		if (!access_ok(src, len))
+			return 0;
 		if (!doff) {
 			if (!soff)
 				checksum = csum_partial_cfu_aligned(
 					(const unsigned long __user *) src,
 					(unsigned long *) dst,
-					len-8, checksum, errp);
+					len-8, checksum, &err);
 			else
 				checksum = csum_partial_cfu_dest_aligned(
 					(const unsigned long __user *) src,
 					(unsigned long *) dst,
-					soff, len-8, checksum, errp);
+					soff, len-8, checksum, &err);
 		} else {
 			unsigned long partial_dest;
 			ldq_u(partial_dest, dst);
@@ -357,15 +354,15 @@ csum_and_copy_from_user(const void __user *src, void *dst, int len,
 					(const unsigned long __user *) src,
 					(unsigned long *) dst,
 					doff, len-8, checksum,
-					partial_dest, errp);
+					partial_dest, &err);
 			else
 				checksum = csum_partial_cfu_unaligned(
 					(const unsigned long __user *) src,
 					(unsigned long *) dst,
 					soff, doff, len-8, checksum,
-					partial_dest, errp);
+					partial_dest, &err);
 		}
-		checksum = from64to16 (checksum);
+		checksum = err ? 0 : from64to16 (checksum);
 	}
 	return (__force __wsum)checksum;
 }
@@ -378,7 +375,7 @@ csum_partial_copy_nocheck(const void *src, void *dst, int len)
 	mm_segment_t oldfs = get_fs();
 	set_fs(KERNEL_DS);
 	checksum = csum_and_copy_from_user((__force const void __user *)src,
-						dst, len, 0, NULL);
+						dst, len);
 	set_fs(oldfs);
 	return checksum;
 }

@@ -60,16 +60,15 @@ __wsum csum_partial_copy_from_user(const void __user *src, void *dst, int len,
 
 #define _HAVE_ARCH_COPY_AND_CSUM_FROM_USER
 static inline
-__wsum csum_and_copy_from_user(const void __user *src, void *dst,
-			       int len, __wsum sum, int *err_ptr)
+__wsum csum_and_copy_from_user(const void __user *src, void *dst, int len)
 {
-	if (access_ok(src, len))
-		return csum_partial_copy_from_user(src, dst, len, sum,
-						   err_ptr);
-	if (len)
-		*err_ptr = -EFAULT;
+	__wsum sum = ~0U;
+	int err = 0;
 
-	return sum;
+	if (!access_ok(src, len))
+		return 0;
+	sum = csum_partial_copy_from_user(src, dst, len, sum, &err);
+	return err ? 0 : sum;
 }
 
 /*
@@ -77,24 +76,23 @@ __wsum csum_and_copy_from_user(const void __user *src, void *dst,
  */
 #define HAVE_CSUM_COPY_USER
 static inline
-__wsum csum_and_copy_to_user(const void *src, void __user *dst, int len,
-			     __wsum sum, int *err_ptr)
+__wsum csum_and_copy_to_user(const void *src, void __user *dst, int len)
 {
-	might_fault();
-	if (access_ok(dst, len)) {
-		if (uaccess_kernel())
-			return __csum_partial_copy_kernel(src,
-							  (__force void *)dst,
-							  len, sum, err_ptr);
-		else
-			return __csum_partial_copy_to_user(src,
-							   (__force void *)dst,
-							   len, sum, err_ptr);
-	}
-	if (len)
-		*err_ptr = -EFAULT;
+	int err = 0;
+	__wsum sum = ~0U;
 
-	return (__force __wsum)-1; /* invalid checksum */
+	might_fault();
+	if (!access_ok(dst, len))
+		return 0;
+	if (uaccess_kernel())
+		sum = __csum_partial_copy_kernel(src,
+						  (__force void *)dst,
+						  len, sum, &err);
+	else
+		sum = __csum_partial_copy_to_user(src,
+						   (__force void *)dst,
+						   len, sum, &err);
+	return err ? 0 : sum;
 }
 
 /*

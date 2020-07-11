@@ -1449,15 +1449,14 @@ size_t csum_and_copy_from_iter(void *addr, size_t bytes, __wsum *csum,
 		return 0;
 	}
 	iterate_and_advance(i, bytes, v, ({
-		int err = 0;
 		next = csum_and_copy_from_user(v.iov_base,
 					       (to += v.iov_len) - v.iov_len,
-					       v.iov_len, ~0U, &err);
-		if (!err) {
+					       v.iov_len);
+		if (next) {
 			sum = csum_block_add(sum, next, off);
 			off += v.iov_len;
 		}
-		err ? v.iov_len : 0;
+		next ? 0 : v.iov_len;
 	}), ({
 		char *p = kmap_atomic(v.bv_page);
 		sum = csum_and_memcpy((to += v.bv_len) - v.bv_len,
@@ -1491,11 +1490,10 @@ bool csum_and_copy_from_iter_full(void *addr, size_t bytes, __wsum *csum,
 	if (unlikely(i->count < bytes))
 		return false;
 	iterate_all_kinds(i, bytes, v, ({
-		int err = 0;
 		next = csum_and_copy_from_user(v.iov_base,
 					       (to += v.iov_len) - v.iov_len,
-					       v.iov_len, ~0U, &err);
-		if (err)
+					       v.iov_len);
+		if (!next)
 			return false;
 		sum = csum_block_add(sum, next, off);
 		off += v.iov_len;
@@ -1537,15 +1535,14 @@ size_t csum_and_copy_to_iter(const void *addr, size_t bytes, void *csump,
 		return 0;
 	}
 	iterate_and_advance(i, bytes, v, ({
-		int err = 0;
 		next = csum_and_copy_to_user((from += v.iov_len) - v.iov_len,
 					     v.iov_base,
-					     v.iov_len, ~0U, &err);
-		if (!err) {
+					     v.iov_len);
+		if (next) {
 			sum = csum_block_add(sum, next, off);
 			off += v.iov_len;
 		}
-		err ? v.iov_len : 0;
+		next ? 0 : v.iov_len;
 	}), ({
 		char *p = kmap_atomic(v.bv_page);
 		sum = csum_and_memcpy(p + v.bv_offset,

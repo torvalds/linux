@@ -22,13 +22,15 @@
  */
 __wsum
 csum_and_copy_from_user(const void __user *src, void *dst,
-			    int len, __wsum isum, int *errp)
+			    int len)
 {
+	int err = 0;
+	__wsum isum = ~0U;
+
 	might_sleep();
-	*errp = 0;
 
 	if (!user_access_begin(src, len))
-		goto out_err;
+		return 0;
 
 	/*
 	 * Why 6, not 7? To handle odd addresses aligned we
@@ -53,20 +55,15 @@ csum_and_copy_from_user(const void __user *src, void *dst,
 		}
 	}
 	isum = csum_partial_copy_generic((__force const void *)src,
-				dst, len, isum, errp, NULL);
+				dst, len, isum, &err, NULL);
 	user_access_end();
-	if (unlikely(*errp))
-		goto out_err;
-
+	if (unlikely(err))
+		isum = 0;
 	return isum;
 
 out:
 	user_access_end();
-out_err:
-	*errp = -EFAULT;
-	memset(dst, 0, len);
-
-	return isum;
+	return 0;
 }
 EXPORT_SYMBOL(csum_and_copy_from_user);
 
@@ -83,16 +80,15 @@ EXPORT_SYMBOL(csum_and_copy_from_user);
  */
 __wsum
 csum_and_copy_to_user(const void *src, void __user *dst,
-			  int len, __wsum isum, int *errp)
+			  int len)
 {
-	__wsum ret;
+	__wsum ret, isum = ~0U;
+	int err = 0;
 
 	might_sleep();
 
-	if (!user_access_begin(dst, len)) {
-		*errp = -EFAULT;
+	if (!user_access_begin(dst, len))
 		return 0;
-	}
 
 	if (unlikely((unsigned long)dst & 6)) {
 		while (((unsigned long)dst & 6) && len >= 2) {
@@ -107,15 +103,13 @@ csum_and_copy_to_user(const void *src, void __user *dst,
 		}
 	}
 
-	*errp = 0;
 	ret = csum_partial_copy_generic(src, (void __force *)dst,
-					len, isum, NULL, errp);
+					len, isum, NULL, &err);
 	user_access_end();
-	return ret;
+	return err ? 0 : ret;
 out:
 	user_access_end();
-	*errp = -EFAULT;
-	return isum;
+	return 0;
 }
 EXPORT_SYMBOL(csum_and_copy_to_user);
 

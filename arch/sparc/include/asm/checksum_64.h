@@ -51,12 +51,11 @@ long __csum_partial_copy_from_user(const void __user *src,
 
 static inline __wsum
 csum_and_copy_from_user(const void __user *src,
-			    void *dst, int len,
-			    __wsum sum, int *err)
+			    void *dst, int len)
 {
-	long ret = __csum_partial_copy_from_user(src, dst, len, sum);
+	long ret = __csum_partial_copy_from_user(src, dst, len, ~0U);
 	if (ret < 0)
-		*err = -EFAULT;
+		return 0;
 	return (__force __wsum) ret;
 }
 
@@ -70,12 +69,11 @@ long __csum_partial_copy_to_user(const void *src,
 
 static inline __wsum
 csum_and_copy_to_user(const void *src,
-		      void __user *dst, int len,
-		      __wsum sum, int *err)
+		      void __user *dst, int len)
 {
-	long ret = __csum_partial_copy_to_user(src, dst, len, sum);
+	long ret = __csum_partial_copy_to_user(src, dst, len, ~0U);
 	if (ret < 0)
-		*err = -EFAULT;
+		return 0;
 	return (__force __wsum) ret;
 }
 

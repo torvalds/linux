@@ -129,8 +129,7 @@ EXPORT_SYMBOL(csum_partial);
  */
 
 __wsum
-csum_and_copy_from_user(const void __user *src, void *dst,
-			    int len, __wsum sum, int *csum_err)
+csum_and_copy_from_user(const void __user *src, void *dst, int len)
 {
 	/*
 	 * GCC doesn't like more than 10 operands for the asm
@@ -138,6 +137,7 @@ csum_and_copy_from_user(const void __user *src, void *dst,
 	 * code.
 	 */
 	unsigned long tmp1, tmp2;
+	__wsum sum = ~0U;
 
 	__asm__("movel %2,%4\n\t"
 		"btst #1,%4\n\t"	/* Check alignment */
@@ -311,9 +311,7 @@ csum_and_copy_from_user(const void __user *src, void *dst,
 		: "0" (sum), "1" (len), "2" (src), "3" (dst)
 	    );
 
-	*csum_err = tmp2;
-
-	return(sum);
+	return tmp2 ? 0 : sum;
 }
 
 EXPORT_SYMBOL(csum_and_copy_from_user);
