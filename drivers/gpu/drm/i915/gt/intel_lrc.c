@@ -3029,12 +3029,12 @@ static u32 active_ccid(struct intel_engine_cs *engine)
 	return ENGINE_READ_FW(engine, RING_EXECLIST_STATUS_HI);
 }
 
-static bool execlists_capture(struct intel_engine_cs *engine)
+static void execlists_capture(struct intel_engine_cs *engine)
 {
 	struct execlists_capture *cap;
 
 	if (!IS_ENABLED(CONFIG_DRM_I915_CAPTURE_ERROR))
-		return true;
+		return;
 
 	/*
 	 * We need to _quickly_ capture the engine state before we reset.
@@ -3043,7 +3043,7 @@ static bool execlists_capture(struct intel_engine_cs *engine)
 	 */
 	cap = capture_regs(engine);
 	if (!cap)
-		return true;
+		return;
 
 	spin_lock_irq(&engine->active.lock);
 	cap->rq = active_context(engine, active_ccid(engine));
@@ -3080,14 +3080,13 @@ static bool execlists_capture(struct intel_engine_cs *engine)
 
 	INIT_WORK(&cap->work, execlists_capture_work);
 	schedule_work(&cap->work);
-	return true;
+	return;
 
 err_rq:
 	i915_request_put(cap->rq);
 err_free:
 	i915_gpu_coredump_put(cap->error);
 	kfree(cap);
-	return false;
 }
 
 static void execlists_reset(struct intel_engine_cs *engine, const char *msg)
@@ -3107,10 +3106,8 @@ static void execlists_reset(struct intel_engine_cs *engine, const char *msg)
 	tasklet_disable_nosync(&engine->execlists.tasklet);
 
 	ring_set_paused(engine, 1); /* Freeze the current request in place */
-	if (execlists_capture(engine))
-		intel_engine_reset(engine, msg);
-	else
-		ring_set_paused(engine, 0);
+	execlists_capture(engine);
+	intel_engine_reset(engine, msg);
 
 	tasklet_enable(&engine->execlists.tasklet);
 	clear_and_wake_up_bit(bit, lock);
