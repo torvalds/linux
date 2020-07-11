@@ -1557,15 +1557,37 @@ static void free_bprm(struct linux_binprm *bprm)
 	/* If a binfmt changed the interp, free it. */
 	if (bprm->interp != bprm->filename)
 		kfree(bprm->interp);
+	kfree(bprm->fdpath);
 	kfree(bprm);
 }
 
-static struct linux_binprm *alloc_bprm(void)
+static struct linux_binprm *alloc_bprm(int fd, struct filename *filename)
 {
 	struct linux_binprm *bprm = kzalloc(sizeof(*bprm), GFP_KERNEL);
+	int retval = -ENOMEM;
 	if (!bprm)
-		return ERR_PTR(-ENOMEM);
+		goto out;
+
+	if (fd == AT_FDCWD || filename->name[0] == '/') {
+		bprm->filename = filename->name;
+	} else {
+		if (filename->name[0] == '\0')
+			bprm->fdpath = kasprintf(GFP_KERNEL, "/dev/fd/%d", fd);
+		else
+			bprm->fdpath = kasprintf(GFP_KERNEL, "/dev/fd/%d/%s",
+						  fd, filename->name);
+		if (!bprm->fdpath)
+			goto out_free;
+
+		bprm->filename = bprm->fdpath;
+	}
+	bprm->interp = bprm->filename;
 	return bprm;
+
+out_free:
+	free_bprm(bprm);
+out:
+	return ERR_PTR(retval);
 }
 
 int bprm_change_interp(const char *interp, struct linux_binprm *bprm)
@@ -1831,7 +1853,6 @@ static int do_execveat_common(int fd, struct filename *filename,
 			      struct user_arg_ptr envp,
 			      int flags)
 {
-	char *pathbuf = NULL;
 	struct linux_binprm *bprm;
 	struct file *file;
 	struct files_struct *displaced;
@@ -1856,7 +1877,7 @@ static int do_execveat_common(int fd, struct filename *filename,
 	 * further execve() calls fail. */
 	current->flags &= ~PF_NPROC_EXCEEDED;
 
-	bprm = alloc_bprm();
+	bprm = alloc_bprm(fd, filename);
 	if (IS_ERR(bprm)) {
 		retval = PTR_ERR(bprm);
 		goto out_ret;
@@ -1881,28 +1902,14 @@ static int do_execveat_common(int fd, struct filename *filename,
 	sched_exec();
 
 	bprm->file = file;
-	if (fd == AT_FDCWD || filename->name[0] == '/') {
-		bprm->filename = filename->name;
-	} else {
-		if (filename->name[0] == '\0')
-			pathbuf = kasprintf(GFP_KERNEL, "/dev/fd/%d", fd);
-		else
-			pathbuf = kasprintf(GFP_KERNEL, "/dev/fd/%d/%s",
-					    fd, filename->name);
-		if (!pathbuf) {
-			retval = -ENOMEM;
-			goto out_unmark;
-		}
-		/*
-		 * Record that a name derived from an O_CLOEXEC fd will be
-		 * inaccessible after exec. Relies on having exclusive access to
-		 * current->files (due to unshare_files above).
-		 */
-		if (close_on_exec(fd, rcu_dereference_raw(current->files->fdt)))
-			bprm->interp_flags |= BINPRM_FLAGS_PATH_INACCESSIBLE;
-		bprm->filename = pathbuf;
-	}
-	bprm->interp = bprm->filename;
+	/*
+	 * Record that a name derived from an O_CLOEXEC fd will be
+	 * inaccessible after exec. Relies on having exclusive access to
+	 * current->files (due to unshare_files above).
+	 */
+	if (bprm->fdpath &&
+	    close_on_exec(fd, rcu_dereference_raw(current->files->fdt)))
+		bprm->interp_flags |= BINPRM_FLAGS_PATH_INACCESSIBLE;
 
 	retval = bprm_mm_init(bprm);
 	if (retval)
@@ -1941,7 +1948,6 @@ static int do_execveat_common(int fd, struct filename *filename,
 	acct_update_integrals(current);
 	task_numa_free(current, false);
 	free_bprm(bprm);
-	kfree(pathbuf);
 	putname(filename);
 	if (displaced)
 		put_files_struct(displaced);
@@ -1970,7 +1976,6 @@ out_files:
 		reset_files_struct(displaced);
 out_free:
 	free_bprm(bprm);
-	kfree(pathbuf);
 
 out_ret:
 	putname(filename);

@@ -56,6 +56,7 @@ struct linux_binprm {
 	const char *interp;	/* Name of the binary really executed. Most
 				   of the time same as filename, but could be
 				   different for binfmt_{misc,script} */
+	const char *fdpath;	/* generated filename for execveat */
 	unsigned interp_flags;
 	int execfd;		/* File descriptor of the executable */
 	unsigned long loader, exec;
