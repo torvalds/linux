@@ -788,8 +788,9 @@ int ql_dump_risc_ram_area(struct ql_adapter *qdev, void *buf,
 	char *my_buf;
 	dma_addr_t buf_dma;
 
-	my_buf = pci_alloc_consistent(qdev->pdev, word_count * sizeof(u32),
-				      &buf_dma);
+	my_buf = dma_alloc_coherent(&qdev->pdev->dev,
+				    word_count * sizeof(u32), &buf_dma,
+				    GFP_ATOMIC);
 	if (!my_buf)
 		return -EIO;
 
@@ -797,8 +798,8 @@ int ql_dump_risc_ram_area(struct ql_adapter *qdev, void *buf,
 	if (!status)
 		memcpy(buf, my_buf, word_count * sizeof(u32));
 
-	pci_free_consistent(qdev->pdev, word_count * sizeof(u32), my_buf,
-			    buf_dma);
+	dma_free_coherent(&qdev->pdev->dev, word_count * sizeof(u32), my_buf,
+			  buf_dma);
 	return status;
 }
 
