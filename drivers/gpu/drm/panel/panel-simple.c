@@ -430,13 +430,17 @@ static int panel_simple_get_fixed_modes(struct panel_simple *panel)
 		num++;
 	}
 
-	connector->display_info.bpc = panel->desc->bpc;
-	connector->display_info.width_mm = panel->desc->size.width;
-	connector->display_info.height_mm = panel->desc->size.height;
+	if (panel->desc->bpc)
+		connector->display_info.bpc = panel->desc->bpc;
+	if (panel->desc->size.width)
+		connector->display_info.width_mm = panel->desc->size.width;
+	if (panel->desc->size.height)
+		connector->display_info.height_mm = panel->desc->size.height;
 	if (panel->desc->bus_format)
 		drm_display_info_set_bus_formats(&connector->display_info,
 						 &panel->desc->bus_format, 1);
-	connector->display_info.bus_flags = panel->desc->bus_flags;
+	if (panel->desc->bus_flags)
+		connector->display_info.bus_flags = panel->desc->bus_flags;
 
 	return num;
 }
@@ -3091,23 +3095,23 @@ static int panel_simple_of_get_desc_data(struct device *dev,
 		return -ENOMEM;
 
 	err = of_get_drm_display_mode(np, mode, &bus_flags, OF_USE_NATIVE_MODE);
-	if (err)
-		return err;
+	if (!err) {
+		desc->modes = mode;
+		desc->num_modes = 1;
+		desc->bus_flags = bus_flags;
 
-	desc->modes = mode;
-	desc->num_modes = 1;
-	desc->bus_flags = bus_flags;
+		of_property_read_u32(np, "bpc", &desc->bpc);
+		of_property_read_u32(np, "bus-format", &desc->bus_format);
+		of_property_read_u32(np, "width-mm", &desc->size.width);
+		of_property_read_u32(np, "height-mm", &desc->size.height);
+	}
 
-	of_property_read_u32(np, "bpc", &desc->bpc);
-	of_property_read_u32(np, "width-mm", &desc->size.width);
-	of_property_read_u32(np, "height-mm", &desc->size.height);
 	of_property_read_u32(np, "prepare-delay-ms", &desc->delay.prepare);
 	of_property_read_u32(np, "enable-delay-ms", &desc->delay.enable);
 	of_property_read_u32(np, "disable-delay-ms", &desc->delay.disable);
 	of_property_read_u32(np, "unprepare-delay-ms", &desc->delay.unprepare);
 	of_property_read_u32(np, "reset-delay-ms", &desc->delay.reset);
 	of_property_read_u32(np, "init-delay-ms", &desc->delay.init);
-	of_property_read_u32(np, "bus-format", &desc->bus_format);
 
 	data = of_get_property(np, "panel-init-sequence", &len);
 	if (data) {
