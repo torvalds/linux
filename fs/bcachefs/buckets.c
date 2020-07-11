@@ -2009,7 +2009,6 @@ int bch2_dev_buckets_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 	alloc_fifo	free[RESERVE_NR];
 	alloc_fifo	free_inc;
 	alloc_heap	alloc_heap;
-	copygc_heap	copygc_heap;
 
 	size_t btree_reserve	= DIV_ROUND_UP(BTREE_NODE_RESERVE,
 			     ca->mi.bucket_size / c->opts.btree_node_size);
@@ -2018,15 +2017,13 @@ int bch2_dev_buckets_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 	size_t copygc_reserve	= max_t(size_t, 2, nbuckets >> 7);
 	size_t free_inc_nr	= max(max_t(size_t, 1, nbuckets >> 12),
 				      btree_reserve * 2);
-	bool resize = ca->buckets[0] != NULL,
-	     start_copygc = ca->copygc_thread != NULL;
+	bool resize = ca->buckets[0] != NULL;
 	int ret = -ENOMEM;
 	unsigned i;
 
 	memset(&free,		0, sizeof(free));
 	memset(&free_inc,	0, sizeof(free_inc));
 	memset(&alloc_heap,	0, sizeof(alloc_heap));
-	memset(&copygc_heap,	0, sizeof(copygc_heap));
 
 	if (!(buckets		= kvpmalloc(sizeof(struct bucket_array) +
 					    nbuckets * sizeof(struct bucket),
@@ -2039,14 +2036,13 @@ int bch2_dev_buckets_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 		       copygc_reserve, GFP_KERNEL) ||
 	    !init_fifo(&free[RESERVE_NONE], reserve_none, GFP_KERNEL) ||
 	    !init_fifo(&free_inc,	free_inc_nr, GFP_KERNEL) ||
-	    !init_heap(&alloc_heap,	ALLOC_SCAN_BATCH(ca) << 1, GFP_KERNEL) ||
-	    !init_heap(&copygc_heap,	copygc_reserve, GFP_KERNEL))
+	    !init_heap(&alloc_heap,	ALLOC_SCAN_BATCH(ca) << 1, GFP_KERNEL))
 		goto err;
 
 	buckets->first_bucket	= ca->mi.first_bucket;
 	buckets->nbuckets	= nbuckets;
 
-	bch2_copygc_stop(ca);
+	bch2_copygc_stop(c);
 
 	if (resize) {
 		down_write(&c->gc_lock);
@@ -2089,21 +2085,13 @@ int bch2_dev_buckets_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 	/* with gc lock held, alloc_heap can't be in use: */
 	swap(ca->alloc_heap, alloc_heap);
 
-	/* and we shut down copygc: */
-	swap(ca->copygc_heap, copygc_heap);
-
 	nbuckets = ca->mi.nbuckets;
 
 	if (resize)
 		up_write(&ca->bucket_lock);
 
-	if (start_copygc &&
-	    bch2_copygc_start(c, ca))
-		bch_err(ca, "error restarting copygc thread");
-
 	ret = 0;
 err:
-	free_heap(&copygc_heap);
 	free_heap(&alloc_heap);
 	free_fifo(&free_inc);
 	for (i = 0; i < RESERVE_NR; i++)
@@ -2120,7 +2108,6 @@ void bch2_dev_buckets_free(struct bch_dev *ca)
 {
 	unsigned i;
 
-	free_heap(&ca->copygc_heap);
 	free_heap(&ca->alloc_heap);
 	free_fifo(&ca->free_inc);
 	for (i = 0; i < RESERVE_NR; i++)

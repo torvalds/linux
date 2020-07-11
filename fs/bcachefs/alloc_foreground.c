@@ -956,8 +956,9 @@ void bch2_fs_allocator_foreground_init(struct bch_fs *c)
 		c->open_buckets_freelist = ob - c->open_buckets;
 	}
 
-	writepoint_init(&c->btree_write_point, BCH_DATA_btree);
-	writepoint_init(&c->rebalance_write_point, BCH_DATA_user);
+	writepoint_init(&c->btree_write_point,		BCH_DATA_btree);
+	writepoint_init(&c->rebalance_write_point,	BCH_DATA_user);
+	writepoint_init(&c->copygc_write_point,		BCH_DATA_user);
 
 	for (wp = c->write_points;
 	     wp < c->write_points + c->write_points_nr; wp++) {

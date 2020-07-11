@@ -121,6 +121,7 @@ struct disk_reservation {
 };
 
 struct copygc_heap_entry {
+	u8			dev;
 	u8			gen;
 	u32			sectors;
 	u64			offset;

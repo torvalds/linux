@@ -379,6 +379,7 @@ SHOW(bch2_fs)
 
 	sysfs_printf(rebalance_enabled,		"%i", c->rebalance.enabled);
 	sysfs_pd_controller_show(rebalance,	&c->rebalance.pd); /* XXX */
+	sysfs_pd_controller_show(copy_gc,	&c->copygc_pd);
 
 	if (attr == &sysfs_rebalance_work)
 		return bch2_rebalance_work_show(c, buf);
@@ -460,14 +461,11 @@ STORE(bch2_fs)
 	}
 
 	if (attr == &sysfs_copy_gc_enabled) {
-		struct bch_dev *ca;
-		unsigned i;
 		ssize_t ret = strtoul_safe(buf, c->copy_gc_enabled)
 			?: (ssize_t) size;
 
-		for_each_member_device(ca, c, i)
-			if (ca->copygc_thread)
-				wake_up_process(ca->copygc_thread);
+		if (c->copygc_thread)
+			wake_up_process(c->copygc_thread);
 		return ret;
 	}
 
@@ -482,6 +480,7 @@ STORE(bch2_fs)
 	sysfs_strtoul(pd_controllers_update_seconds,
 		      c->pd_controllers_update_seconds);
 	sysfs_pd_controller_store(rebalance,	&c->rebalance.pd);
+	sysfs_pd_controller_store(copy_gc,	&c->copygc_pd);
 
 	sysfs_strtoul(promote_whole_extents,	c->promote_whole_extents);
 
@@ -607,6 +606,7 @@ struct attribute *bch2_fs_internal_files[] = {
 	&sysfs_rebalance_enabled,
 	&sysfs_rebalance_work,
 	sysfs_pd_controller_files(rebalance),
+	sysfs_pd_controller_files(copy_gc),
 
 	&sysfs_new_stripes,
 
@@ -882,7 +882,7 @@ static ssize_t show_dev_alloc_debug(struct bch_dev *ca, char *buf)
 		stats.sectors[BCH_DATA_cached],
 		stats.sectors_ec,
 		stats.sectors_fragmented,
-		ca->copygc_threshold,
+		c->copygc_threshold,
 		c->freelist_wait.list.first		? "waiting" : "empty",
 		c->open_buckets_nr_free, OPEN_BUCKETS_COUNT,
 		BTREE_NODE_OPEN_BUCKET_RESERVE,
@@ -949,8 +949,6 @@ SHOW(bch2_dev)
 		return out.pos - buf;
 	}
 
-	sysfs_pd_controller_show(copy_gc, &ca->copygc_pd);
-
 	if (attr == &sysfs_cache_replacement_policy) {
 		bch2_string_opt_to_text(&out,
 					bch2_cache_replacement_policies,
@@ -1003,8 +1001,6 @@ STORE(bch2_dev)
 	struct bch_dev *ca = container_of(kobj, struct bch_dev, kobj);
 	struct bch_fs *c = ca->fs;
 	struct bch_member *mi;
-
-	sysfs_pd_controller_store(copy_gc, &ca->copygc_pd);
 
 	if (attr == &sysfs_discard) {
 		bool v = strtoul_or_return(buf);
@@ -1090,8 +1086,6 @@ struct attribute *bch2_dev_files[] = {
 	/* debug: */
 	&sysfs_alloc_debug,
 	&sysfs_wake_allocator,
-
-	sysfs_pd_controller_files(copy_gc),
 	NULL
 };
 

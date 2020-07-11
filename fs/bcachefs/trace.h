@@ -470,10 +470,10 @@ TRACE_EVENT(move_data,
 );
 
 TRACE_EVENT(copygc,
-	TP_PROTO(struct bch_dev *ca,
+	TP_PROTO(struct bch_fs *c,
 		 u64 sectors_moved, u64 sectors_not_moved,
 		 u64 buckets_moved, u64 buckets_not_moved),
-	TP_ARGS(ca,
+	TP_ARGS(c,
 		sectors_moved, sectors_not_moved,
 		buckets_moved, buckets_not_moved),
 
@@ -486,7 +486,7 @@ TRACE_EVENT(copygc,
 	),
 
 	TP_fast_assign(
-		memcpy(__entry->uuid, ca->uuid.b, 16);
+		memcpy(__entry->uuid, c->sb.user_uuid.b, 16);
 		__entry->sectors_moved		= sectors_moved;
 		__entry->sectors_not_moved	= sectors_not_moved;
 		__entry->buckets_moved		= buckets_moved;

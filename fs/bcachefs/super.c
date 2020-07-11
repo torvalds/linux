@@ -181,10 +181,7 @@ static void __bch2_fs_read_only(struct bch_fs *c)
 	int ret;
 
 	bch2_rebalance_stop(c);
-
-	for_each_member_device(ca, c, i)
-		bch2_copygc_stop(ca);
-
+	bch2_copygc_stop(c);
 	bch2_gc_thread_stop(c);
 
 	/*
@@ -364,8 +361,6 @@ bool bch2_fs_emergency_read_only(struct bch_fs *c)
 
 static int bch2_fs_read_write_late(struct bch_fs *c)
 {
-	struct bch_dev *ca;
-	unsigned i;
 	int ret;
 
 	ret = bch2_gc_thread_start(c);
@@ -374,13 +369,10 @@ static int bch2_fs_read_write_late(struct bch_fs *c)
 		return ret;
 	}
 
-	for_each_rw_member(ca, c, i) {
-		ret = bch2_copygc_start(c, ca);
-		if (ret) {
-			bch_err(c, "error starting copygc threads");
-			percpu_ref_put(&ca->io_ref);
-			return ret;
-		}
+	ret = bch2_copygc_start(c);
+	if (ret) {
+		bch_err(c, "error starting copygc thread");
+		return ret;
 	}
 
 	ret = bch2_rebalance_start(c);
@@ -504,6 +496,7 @@ static void bch2_fs_free(struct bch_fs *c)
 	kfree(c->replicas_gc.entries);
 	kfree(rcu_dereference_protected(c->disk_groups, 1));
 	kfree(c->journal_seq_blacklist_table);
+	free_heap(&c->copygc_heap);
 
 	if (c->journal_reclaim_wq)
 		destroy_workqueue(c->journal_reclaim_wq);
@@ -652,6 +645,7 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	for (i = 0; i < BCH_TIME_STAT_NR; i++)
 		bch2_time_stats_init(&c->times[i]);
 
+	bch2_fs_copygc_init(c);
 	bch2_fs_btree_key_cache_init_early(&c->btree_key_cache);
 	bch2_fs_allocator_background_init(c);
 	bch2_fs_allocator_foreground_init(c);
@@ -1076,10 +1070,6 @@ static struct bch_dev *__bch2_dev_alloc(struct bch_fs *c,
 
 	init_rwsem(&ca->bucket_lock);
 
-	writepoint_init(&ca->copygc_write_point, BCH_DATA_user);
-
-	bch2_dev_copygc_init(ca);
-
 	INIT_WORK(&ca->io_error_work, bch2_io_error_work);
 
 	bch2_time_stats_init(&ca->io_latency[READ]);
@@ -1318,8 +1308,6 @@ static bool bch2_fs_may_start(struct bch_fs *c)
 
 static void __bch2_dev_read_only(struct bch_fs *c, struct bch_dev *ca)
 {
-	bch2_copygc_stop(ca);
-
 	/*
 	 * The allocator thread itself allocates btree nodes, so stop it first:
 	 */
@@ -1339,9 +1327,6 @@ static const char *__bch2_dev_read_write(struct bch_fs *c, struct bch_dev *ca)
 
 	if (bch2_dev_allocator_start(ca))
 		return "error starting allocator thread";
-
-	if (bch2_copygc_start(c, ca))
-		return "error starting copygc thread";
 
 	return NULL;
 }
