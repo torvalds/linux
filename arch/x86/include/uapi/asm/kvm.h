@@ -408,14 +408,15 @@ struct kvm_vmx_nested_state_data {
 };
 
 struct kvm_vmx_nested_state_hdr {
-	__u32 flags;
 	__u64 vmxon_pa;
 	__u64 vmcs12_pa;
-	__u64 preemption_timer_deadline;
 
 	struct {
 		__u16 flags;
 	} smm;
+
+	__u32 flags;
+	__u64 preemption_timer_deadline;
 };
 
 struct kvm_svm_nested_state_data {

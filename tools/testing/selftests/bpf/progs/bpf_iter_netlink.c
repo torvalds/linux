@@ -7,7 +7,21 @@
 
 char _license[] SEC("license") = "GPL";
 
-static inline struct inode *SOCK_INODE(struct socket *socket)
+#define sk_rmem_alloc	sk_backlog.rmem_alloc
+#define sk_refcnt	__sk_common.skc_refcnt
+
+struct bpf_iter_meta {
+	struct seq_file *seq;
+	__u64 session_id;
+	__u64 seq_num;
+} __attribute__((preserve_access_index));
+
+struct bpf_iter__netlink {
+	struct bpf_iter_meta *meta;
+	struct netlink_sock *sk;
+} __attribute__((preserve_access_index));
+
+static __attribute__((noinline)) struct inode *SOCK_INODE(struct socket *socket)
 {
 	return &container_of(socket, struct socket_alloc, socket)->vfs_inode;
 }

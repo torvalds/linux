@@ -208,7 +208,7 @@ config FPGA_DFL_PCI
 
 config FPGA_MGR_ZYNQMP_FPGA
 	tristate "Xilinx ZynqMP FPGA"
-	depends on ARCH_ZYNQMP || COMPILE_TEST
+	depends on ZYNQMP_FIRMWARE || (!ZYNQMP_FIRMWARE && COMPILE_TEST)
 	help
 	  FPGA manager driver support for Xilinx ZynqMP FPGAs.
 	  This driver uses the processor configuration port(PCAP)

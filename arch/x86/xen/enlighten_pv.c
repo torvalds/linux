@@ -598,6 +598,26 @@ static void xen_write_ldt_entry(struct desc_struct *dt, int entrynum,
 }
 
 #ifdef CONFIG_X86_64
+void noist_exc_debug(struct pt_regs *regs);
+
+DEFINE_IDTENTRY_RAW(xenpv_exc_nmi)
+{
+	/* On Xen PV, NMI doesn't use IST.  The C part is the sane as native. */
+	exc_nmi(regs);
+}
+
+DEFINE_IDTENTRY_RAW(xenpv_exc_debug)
+{
+	/*
+	 * There's no IST on Xen PV, but we still need to dispatch
+	 * to the correct handler.
+	 */
+	if (user_mode(regs))
+		noist_exc_debug(regs);
+	else
+		exc_debug(regs);
+}
+
 struct trap_array_entry {
 	void (*orig)(void);
 	void (*xen)(void);
@@ -609,18 +629,18 @@ struct trap_array_entry {
 	.xen		= xen_asm_##func,		\
 	.ist_okay	= ist_ok }
 
-#define TRAP_ENTRY_REDIR(func, xenfunc, ist_ok) {	\
+#define TRAP_ENTRY_REDIR(func, ist_ok) {		\
 	.orig		= asm_##func,			\
-	.xen		= xen_asm_##xenfunc,		\
+	.xen		= xen_asm_xenpv_##func,		\
 	.ist_okay	= ist_ok }
 
 static struct trap_array_entry trap_array[] = {
-	TRAP_ENTRY_REDIR(exc_debug, exc_xendebug,	true  ),
+	TRAP_ENTRY_REDIR(exc_debug,			true  ),
 	TRAP_ENTRY(exc_double_fault,			true  ),
 #ifdef CONFIG_X86_MCE
 	TRAP_ENTRY(exc_machine_check,			true  ),
 #endif
-	TRAP_ENTRY_REDIR(exc_nmi, exc_xennmi,		true  ),
+	TRAP_ENTRY_REDIR(exc_nmi,			true  ),
 	TRAP_ENTRY(exc_int3,				false ),
 	TRAP_ENTRY(exc_overflow,			false ),
 #ifdef CONFIG_IA32_EMULATION

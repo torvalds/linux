@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Test that the flow_dissector program can be updated with a single
- * syscall by attaching a new program that replaces the existing one.
- *
- * Corner case - the same program cannot be attached twice.
+ * Tests for attaching, detaching, and replacing flow_dissector BPF program.
  */
 
 #define _GNU_SOURCE
@@ -116,7 +113,7 @@ static void test_prog_attach_prog_attach(int netns, int prog1, int prog2)
 	CHECK_FAIL(query_attached_prog_id(netns) != query_prog_id(prog2));
 
 out_detach:
-	err = bpf_prog_detach(0, BPF_FLOW_DISSECTOR);
+	err = bpf_prog_detach2(prog2, 0, BPF_FLOW_DISSECTOR);
 	if (CHECK_FAIL(err))
 		perror("bpf_prog_detach");
 	CHECK_FAIL(prog_is_attached(netns));
@@ -152,7 +149,7 @@ static void test_prog_attach_link_create(int netns, int prog1, int prog2)
 	DECLARE_LIBBPF_OPTS(bpf_link_create_opts, opts);
 	int err, link;
 
-	err = bpf_prog_attach(prog1, -1, BPF_FLOW_DISSECTOR, 0);
+	err = bpf_prog_attach(prog1, 0, BPF_FLOW_DISSECTOR, 0);
 	if (CHECK_FAIL(err)) {
 		perror("bpf_prog_attach(prog1)");
 		return;
@@ -168,7 +165,7 @@ static void test_prog_attach_link_create(int netns, int prog1, int prog2)
 		close(link);
 	CHECK_FAIL(query_attached_prog_id(netns) != query_prog_id(prog1));
 
-	err = bpf_prog_detach(-1, BPF_FLOW_DISSECTOR);
+	err = bpf_prog_detach2(prog1, 0, BPF_FLOW_DISSECTOR);
 	if (CHECK_FAIL(err))
 		perror("bpf_prog_detach");
 	CHECK_FAIL(prog_is_attached(netns));
@@ -188,7 +185,7 @@ static void test_link_create_prog_attach(int netns, int prog1, int prog2)
 
 	/* Expect failure attaching prog when link exists */
 	errno = 0;
-	err = bpf_prog_attach(prog2, -1, BPF_FLOW_DISSECTOR, 0);
+	err = bpf_prog_attach(prog2, 0, BPF_FLOW_DISSECTOR, 0);
 	if (CHECK_FAIL(!err || errno != EEXIST))
 		perror("bpf_prog_attach(prog2) expected EEXIST");
 	CHECK_FAIL(query_attached_prog_id(netns) != query_prog_id(prog1));
@@ -211,7 +208,7 @@ static void test_link_create_prog_detach(int netns, int prog1, int prog2)
 
 	/* Expect failure detaching prog when link exists */
 	errno = 0;
-	err = bpf_prog_detach(-1, BPF_FLOW_DISSECTOR);
+	err = bpf_prog_detach2(prog1, 0, BPF_FLOW_DISSECTOR);
 	if (CHECK_FAIL(!err || errno != EINVAL))
 		perror("bpf_prog_detach expected EINVAL");
 	CHECK_FAIL(query_attached_prog_id(netns) != query_prog_id(prog1));
@@ -231,7 +228,7 @@ static void test_prog_attach_detach_query(int netns, int prog1, int prog2)
 	}
 	CHECK_FAIL(query_attached_prog_id(netns) != query_prog_id(prog1));
 
-	err = bpf_prog_detach(0, BPF_FLOW_DISSECTOR);
+	err = bpf_prog_detach2(prog1, 0, BPF_FLOW_DISSECTOR);
 	if (CHECK_FAIL(err)) {
 		perror("bpf_prog_detach");
 		return;
@@ -303,6 +300,31 @@ static void test_link_update_replace_old_prog(int netns, int prog1, int prog2)
 	if (CHECK_FAIL(err))
 		perror("bpf_link_update");
 	CHECK_FAIL(query_attached_prog_id(netns) != query_prog_id(prog2));
+
+	close(link);
+	CHECK_FAIL(prog_is_attached(netns));
+}
+
+static void test_link_update_same_prog(int netns, int prog1, int prog2)
+{
+	DECLARE_LIBBPF_OPTS(bpf_link_create_opts, create_opts);
+	DECLARE_LIBBPF_OPTS(bpf_link_update_opts, update_opts);
+	int err, link;
+
+	link = bpf_link_create(prog1, netns, BPF_FLOW_DISSECTOR, &create_opts);
+	if (CHECK_FAIL(link < 0)) {
+		perror("bpf_link_create(prog1)");
+		return;
+	}
+	CHECK_FAIL(query_attached_prog_id(netns) != query_prog_id(prog1));
+
+	/* Expect success updating the prog with the same one */
+	update_opts.flags = 0;
+	update_opts.old_prog_fd = 0;
+	err = bpf_link_update(link, prog1, &update_opts);
+	if (CHECK_FAIL(err))
+		perror("bpf_link_update");
+	CHECK_FAIL(query_attached_prog_id(netns) != query_prog_id(prog1));
 
 	close(link);
 	CHECK_FAIL(prog_is_attached(netns));
@@ -571,6 +593,8 @@ static void run_tests(int netns)
 		  test_link_update_no_old_prog },
 		{ "link update with replace old prog",
 		  test_link_update_replace_old_prog },
+		{ "link update with same prog",
+		  test_link_update_same_prog },
 		{ "link update invalid opts",
 		  test_link_update_invalid_opts },
 		{ "link update invalid prog",
