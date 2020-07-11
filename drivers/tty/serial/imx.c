@@ -2406,9 +2406,6 @@ static int imx_uart_probe(struct platform_device *pdev)
 		}
 	}
 
-	/* We need to initialize lock even for non-registered console */
-	spin_lock_init(&sport->port.lock);
-
 	imx_uart_ports[sport->port.line] = sport;
 
 	platform_set_drvdata(pdev, sport);
