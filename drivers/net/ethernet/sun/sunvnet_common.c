@@ -1168,7 +1168,7 @@ static inline struct sk_buff *vnet_skb_shape(struct sk_buff *skb, int ncookies)
 			*(__sum16 *)(skb->data + offset) = 0;
 			csum = skb_copy_and_csum_bits(skb, start,
 						      nskb->data + start,
-						      skb->len - start, 0);
+						      skb->len - start);
 
 			/* add in the header checksums */
 			if (skb->protocol == htons(ETH_P_IP)) {
