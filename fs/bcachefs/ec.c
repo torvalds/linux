@@ -784,12 +784,9 @@ static int ec_stripe_update_ptrs(struct bch_fs *c,
 		bkey_on_stack_reassemble(&sk, c, k);
 		e = bkey_i_to_s_extent(sk.k);
 
-		extent_for_each_ptr(e, ptr) {
-			if (ptr->dev == dev)
-				ec_ptr = ptr;
-			else
-				ptr->cached = true;
-		}
+		bch2_bkey_drop_ptrs(e.s, ptr, ptr->dev != dev);
+		ec_ptr = (void *) bch2_bkey_has_device(e.s_c, dev);
+		BUG_ON(!ec_ptr);
 
 		extent_stripe_ptr_add(e, s, ec_ptr, idx);
 
