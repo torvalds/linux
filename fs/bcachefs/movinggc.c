@@ -105,7 +105,7 @@ static enum data_cmd copygc_pred(struct bch_fs *c, void *arg,
 		return DATA_SKIP;
 
 	/* XXX: use io_opts for this inode */
-	data_opts->target		= dev_to_target(dev_idx);
+	data_opts->target		= io_opts->background_target;
 	data_opts->btree_insert_flags	= BTREE_INSERT_USE_RESERVE;
 	data_opts->rewrite_dev		= dev_idx;
 	return DATA_REWRITE;

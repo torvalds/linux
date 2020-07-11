@@ -12,6 +12,13 @@ struct bch_dev;
 struct bch_fs;
 struct bch_devs_List;
 
+enum bucket_alloc_ret {
+	ALLOC_SUCCESS,
+	OPEN_BUCKETS_EMPTY,
+	FREELIST_EMPTY,		/* Allocator thread not keeping up */
+	INSUFFICIENT_DEVICES,
+};
+
 struct dev_alloc_list {
 	unsigned	nr;
 	u8		devs[BCH_SB_MEMBERS_MAX];
@@ -92,10 +99,11 @@ static inline void bch2_open_bucket_get(struct bch_fs *c,
 	}
 }
 
-int bch2_bucket_alloc_set(struct bch_fs *, struct open_buckets *,
-			  struct dev_stripe_state *, struct bch_devs_mask *,
-			  unsigned, unsigned *, bool *, enum alloc_reserve,
-			  unsigned, struct closure *);
+enum bucket_alloc_ret
+bch2_bucket_alloc_set(struct bch_fs *, struct open_buckets *,
+		      struct dev_stripe_state *, struct bch_devs_mask *,
+		      unsigned, unsigned *, bool *, enum alloc_reserve,
+		      unsigned, struct closure *);
 
 struct write_point *bch2_alloc_sectors_start(struct bch_fs *,
 					     unsigned, unsigned,

@@ -246,11 +246,14 @@ int bch2_migrate_write_init(struct bch_fs *c, struct migrate_write *m,
 	m->op.target	= data_opts.target,
 	m->op.write_point = wp;
 
-	if (m->data_opts.btree_insert_flags & BTREE_INSERT_USE_RESERVE)
+	if (m->data_opts.btree_insert_flags & BTREE_INSERT_USE_RESERVE) {
 		m->op.alloc_reserve = RESERVE_MOVINGGC;
+	} else {
+		/* XXX: this should probably be passed in */
+		m->op.flags |= BCH_WRITE_ONLY_SPECIFIED_DEVS;
+	}
 
-	m->op.flags |= BCH_WRITE_ONLY_SPECIFIED_DEVS|
-		BCH_WRITE_PAGES_STABLE|
+	m->op.flags |= BCH_WRITE_PAGES_STABLE|
 		BCH_WRITE_PAGES_OWNED|
 		BCH_WRITE_DATA_ENCODED|
 		BCH_WRITE_FROM_INTERNAL;
