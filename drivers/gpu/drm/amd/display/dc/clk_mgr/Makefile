@@ -30,6 +30,17 @@ AMD_DAL_CLK_MGR = $(addprefix $(AMDDALPATH)/dc/clk_mgr/,$(CLK_MGR))
 AMD_DISPLAY_FILES += $(AMD_DAL_CLK_MGR)
 
 
+ifdef CONFIG_DRM_AMD_DC_SI
+###############################################################################
+# DCE 60
+###############################################################################
+CLK_MGR_DCE60 = dce60_clk_mgr.o
+
+AMD_DAL_CLK_MGR_DCE60 = $(addprefix $(AMDDALPATH)/dc/clk_mgr/dce60/,$(CLK_MGR_DCE60))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_CLK_MGR_DCE60)
+endif
+
 ###############################################################################
 # DCE 100 and DCE8x
 ###############################################################################
