@@ -723,7 +723,7 @@ static unsigned bch2_extent_ptr_durability(struct bch_fs *c,
 		if (WARN_ON(!s))
 			goto out;
 
-		durability = max_t(unsigned, durability, s->nr_redundant);
+		durability += s->nr_redundant;
 	}
 out:
 	return durability;
