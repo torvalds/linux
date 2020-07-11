@@ -462,8 +462,8 @@ EXPORT_SYMBOL(csum_partial)
 	lw	errptr, 16(sp)
 #endif
 	.if \__nocheck == 1
-	FEXPORT(csum_partial_copy_nocheck)
-	EXPORT_SYMBOL(csum_partial_copy_nocheck)
+	FEXPORT(__csum_partial_copy_nocheck)
+	EXPORT_SYMBOL(__csum_partial_copy_nocheck)
 	.endif
 	move	sum, zero
 	move	odd, zero

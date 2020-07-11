@@ -129,9 +129,9 @@ EXPORT_SYMBOL(csum_and_copy_to_user);
  * Returns an 32bit unfolded checksum of the buffer.
  */
 __wsum
-csum_partial_copy_nocheck(const void *src, void *dst, int len, __wsum sum)
+csum_partial_copy_nocheck(const void *src, void *dst, int len)
 {
-	return csum_partial_copy_generic(src, dst, len, sum, NULL, NULL);
+	return csum_partial_copy_generic(src, dst, len, 0, NULL, NULL);
 }
 EXPORT_SYMBOL(csum_partial_copy_nocheck);
 

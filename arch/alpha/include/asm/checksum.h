@@ -45,7 +45,7 @@ extern __wsum csum_partial(const void *buff, int len, __wsum sum);
 #define _HAVE_ARCH_CSUM_AND_COPY
 __wsum csum_and_copy_from_user(const void __user *src, void *dst, int len, __wsum sum, int *errp);
 
-__wsum csum_partial_copy_nocheck(const void *src, void *dst, int len, __wsum sum);
+__wsum csum_partial_copy_nocheck(const void *src, void *dst, int len);
 
 
 /*

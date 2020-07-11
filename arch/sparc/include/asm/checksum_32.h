@@ -42,7 +42,7 @@ __wsum csum_partial(const void *buff, int len, __wsum sum);
 unsigned int __csum_partial_copy_sparc_generic (const unsigned char *, unsigned char *);
 
 static inline __wsum
-csum_partial_copy_nocheck(const void *src, void *dst, int len, __wsum sum)
+csum_partial_copy_nocheck(const void *src, void *dst, int len)
 {
 	register unsigned int ret asm("o0") = (unsigned int)src;
 	register char *d asm("o1") = dst;
@@ -52,7 +52,7 @@ csum_partial_copy_nocheck(const void *src, void *dst, int len, __wsum sum)
 		"call __csum_partial_copy_sparc_generic\n\t"
 		" mov %6, %%g7\n"
 	: "=&r" (ret), "=&r" (d), "=&r" (l)
-	: "0" (ret), "1" (d), "2" (l), "r" (sum)
+	: "0" (ret), "1" (d), "2" (l), "r" (0)
 	: "o2", "o3", "o4", "o5", "o7",
 	  "g2", "g3", "g4", "g5", "g7",
 	  "memory", "cc");

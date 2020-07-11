@@ -1648,7 +1648,7 @@ static int ip_reply_glue_bits(void *dptr, char *to, int offset,
 {
 	__wsum csum;
 
-	csum = csum_partial_copy_nocheck(dptr+offset, to, len, 0);
+	csum = csum_partial_copy_nocheck(dptr+offset, to, len);
 	skb->csum = csum_block_add(skb->csum, csum, odd);
 	return 0;
 }

@@ -372,13 +372,13 @@ csum_and_copy_from_user(const void __user *src, void *dst, int len,
 EXPORT_SYMBOL(csum_and_copy_from_user);
 
 __wsum
-csum_partial_copy_nocheck(const void *src, void *dst, int len, __wsum sum)
+csum_partial_copy_nocheck(const void *src, void *dst, int len)
 {
 	__wsum checksum;
 	mm_segment_t oldfs = get_fs();
 	set_fs(KERNEL_DS);
 	checksum = csum_and_copy_from_user((__force const void __user *)src,
-						dst, len, sum, NULL);
+						dst, len, 0, NULL);
 	set_fs(oldfs);
 	return checksum;
 }

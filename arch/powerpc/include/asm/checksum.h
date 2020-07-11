@@ -30,8 +30,8 @@ extern __wsum csum_and_copy_to_user(const void *src, void __user *dst,
 				    int len, __wsum sum, int *err_ptr);
 
 #define _HAVE_ARCH_CSUM_AND_COPY
-#define csum_partial_copy_nocheck(src, dst, len, sum)   \
-        csum_partial_copy_generic((src), (dst), (len), (sum), NULL, NULL)
+#define csum_partial_copy_nocheck(src, dst, len)   \
+        csum_partial_copy_generic((src), (dst), (len), 0, NULL, NULL)
 
 
 /*

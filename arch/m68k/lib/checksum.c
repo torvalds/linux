@@ -324,9 +324,10 @@ EXPORT_SYMBOL(csum_and_copy_from_user);
  */
 
 __wsum
-csum_partial_copy_nocheck(const void *src, void *dst, int len, __wsum sum)
+csum_partial_copy_nocheck(const void *src, void *dst, int len)
 {
 	unsigned long tmp1, tmp2;
+	__wsum sum = 0;
 	__asm__("movel %2,%4\n\t"
 		"btst #1,%4\n\t"	/* Check alignment */
 		"jeq 2f\n\t"

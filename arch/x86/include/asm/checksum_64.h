@@ -139,8 +139,7 @@ extern __wsum csum_and_copy_from_user(const void __user *src, void *dst,
 					  int len, __wsum isum, int *errp);
 extern __wsum csum_and_copy_to_user(const void *src, void __user *dst,
 					int len, __wsum isum, int *errp);
-extern __wsum csum_partial_copy_nocheck(const void *src, void *dst,
-					int len, __wsum sum);
+extern __wsum csum_partial_copy_nocheck(const void *src, void *dst, int len);
 
 /**
  * ip_compute_csum - Compute an 16bit IP checksum.

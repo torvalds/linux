@@ -38,10 +38,9 @@ asmlinkage __wsum csum_partial_copy_generic(const void *src, void *dst,
  *	If you use these functions directly please don't forget the
  *	access_ok().
  */
-static inline __wsum csum_partial_copy_nocheck(const void *src, void *dst,
-					       int len, __wsum sum)
+static inline __wsum csum_partial_copy_nocheck(const void *src, void *dst, int len)
 {
-	return csum_partial_copy_generic(src, dst, len, sum, NULL, NULL);
+	return csum_partial_copy_generic(src, dst, len, 0, NULL, NULL);
 }
 
 static inline __wsum csum_and_copy_from_user(const void __user *src,

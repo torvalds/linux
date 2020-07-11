@@ -102,8 +102,11 @@ __wsum csum_and_copy_to_user(const void *src, void __user *dst, int len,
  * we have just one address space, so this is identical to the above)
  */
 #define _HAVE_ARCH_CSUM_AND_COPY
-__wsum csum_partial_copy_nocheck(const void *src, void *dst,
-				       int len, __wsum sum);
+__wsum __csum_partial_copy_nocheck(const void *src, void *dst, int len, __wsum sum);
+static inline __wsum csum_partial_copy_nocheck(const void *src, void *dst, int len)
+{
+	return __csum_partial_copy_nocheck(src, dst, len, 0);
+}
 
 /*
  *	Fold a partial checksum without adding pseudo headers

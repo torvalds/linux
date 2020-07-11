@@ -381,7 +381,7 @@ static void icmp_push_reply(struct icmp_bxm *icmp_param,
 
 		csum = csum_partial_copy_nocheck((void *)&icmp_param->data,
 						 (char *)icmph,
-						 icmp_param->head_len, 0);
+						 icmp_param->head_len);
 		skb_queue_walk(&sk->sk_write_queue, skb1) {
 			csum = csum_add(csum, skb1->csum);
 		}

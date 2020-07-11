@@ -33,7 +33,7 @@
 #endif
 
 #ifndef FUNC_NAME
-#define FUNC_NAME	csum_partial_copy_nocheck
+#define FUNC_NAME	__csum_partial_copy_nocheck
 #endif
 
 	.register	%g2, #scratch
