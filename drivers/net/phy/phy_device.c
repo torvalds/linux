@@ -734,7 +734,8 @@ static int get_phy_c45_ids(struct mii_bus *bus, int addr,
 	/* Find first non-zero Devices In package. Device zero is reserved
 	 * for 802.3 c45 complied PHYs, so don't probe it at first.
 	 */
-	for (i = 1; i < MDIO_MMD_NUM && devs_in_pkg == 0; i++) {
+	for (i = 1; i < MDIO_MMD_NUM && devs_in_pkg == 0 &&
+	     (devs_in_pkg & 0x1fffffff) == 0x1fffffff; i++) {
 		if (i == MDIO_MMD_VEND1 || i == MDIO_MMD_VEND2) {
 			/* Check that there is a device present at this
 			 * address before reading the devices-in-package
