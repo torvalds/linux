@@ -15,6 +15,10 @@ struct expr_parse_ctx {
 	struct hashmap ids;
 };
 
+struct expr_id_data {
+	double	val;
+};
+
 struct expr_scanner_ctx {
 	int start_token;
 	int runtime;

@@ -138,7 +138,7 @@ static struct evsel *find_evsel_group(struct evlist *perf_evlist,
 				      unsigned long *evlist_used)
 {
 	struct evsel *ev, *current_leader = NULL;
-	double *val_ptr;
+	struct expr_id_data *val_ptr;
 	int i = 0, matched_events = 0, events_to_match;
 	const int idnum = (int)hashmap__size(&pctx->ids);
 
