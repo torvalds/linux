@@ -3893,6 +3893,15 @@ static int io_setup_async_msg(struct io_kiocb *req,
 	return -EAGAIN;
 }
 
+static int io_sendmsg_copy_hdr(struct io_kiocb *req,
+			       struct io_async_msghdr *iomsg)
+{
+	iomsg->iov = iomsg->fast_iov;
+	iomsg->msg.msg_name = &iomsg->addr;
+	return sendmsg_copy_msghdr(&iomsg->msg, req->sr_msg.umsg,
+				   req->sr_msg.msg_flags, &iomsg->iov);
+}
+
 static int io_sendmsg_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 	struct io_sr_msg *sr = &req->sr_msg;
@@ -3917,10 +3926,7 @@ static int io_sendmsg_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	if (req->flags & REQ_F_NEED_CLEANUP)
 		return 0;
 
-	io->msg.msg.msg_name = &io->msg.addr;
-	io->msg.iov = io->msg.fast_iov;
-	ret = sendmsg_copy_msghdr(&io->msg.msg, sr->umsg, sr->msg_flags,
-					&io->msg.iov);
+	ret = io_sendmsg_copy_hdr(req, &io->msg);
 	if (!ret)
 		req->flags |= REQ_F_NEED_CLEANUP;
 	return ret;
@@ -3946,12 +3952,7 @@ static int io_sendmsg(struct io_kiocb *req, bool force_nonblock,
 				kmsg->iov = kmsg->fast_iov;
 			kmsg->msg.msg_iter.iov = kmsg->iov;
 		} else {
-			struct io_sr_msg *sr = &req->sr_msg;
-
-			iomsg.msg.msg_name = &iomsg.addr;
-			iomsg.iov = iomsg.fast_iov;
-			ret = sendmsg_copy_msghdr(&iomsg.msg, sr->umsg,
-					sr->msg_flags, &iomsg.iov);
+			ret = io_sendmsg_copy_hdr(req, &iomsg);
 			if (ret)
 				return ret;
 			kmsg = &iomsg;
