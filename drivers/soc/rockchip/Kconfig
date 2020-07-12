@@ -140,4 +140,10 @@ config ROCKCHIP_THUNDER_BOOT
 	  Say y here to enable Rockchip thunder boot support.
 	  This option make the kernel boot faster.
 
+config ROCKCHIP_THUNDER_BOOT_SFC
+	bool "Rockchip Thunder Boot from SFC"
+	depends on ROCKCHIP_THUNDER_BOOT
+	help
+	  Say y if boot from SPI Flash from SFC controller.
+
 endif
