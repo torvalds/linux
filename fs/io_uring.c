@@ -505,7 +505,6 @@ struct io_async_rw {
 	ssize_t				nr_segs;
 	ssize_t				size;
 	struct wait_page_queue		wpq;
-	struct callback_head		task_work;
 };
 
 struct io_async_ctx {
@@ -2901,33 +2900,11 @@ static int io_read_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 	return 0;
 }
 
-static void io_async_buf_cancel(struct callback_head *cb)
-{
-	struct io_async_rw *rw;
-	struct io_kiocb *req;
-
-	rw = container_of(cb, struct io_async_rw, task_work);
-	req = rw->wpq.wait.private;
-	__io_req_task_cancel(req, -ECANCELED);
-}
-
-static void io_async_buf_retry(struct callback_head *cb)
-{
-	struct io_async_rw *rw;
-	struct io_kiocb *req;
-
-	rw = container_of(cb, struct io_async_rw, task_work);
-	req = rw->wpq.wait.private;
-
-	__io_req_task_submit(req);
-}
-
 static int io_async_buf_func(struct wait_queue_entry *wait, unsigned mode,
 			     int sync, void *arg)
 {
 	struct wait_page_queue *wpq;
 	struct io_kiocb *req = wait->private;
-	struct io_async_rw *rw = &req->io->rw;
 	struct wait_page_key *key = arg;
 	int ret;
 
@@ -2939,17 +2916,17 @@ static int io_async_buf_func(struct wait_queue_entry *wait, unsigned mode,
 
 	list_del_init(&wait->entry);
 
-	init_task_work(&rw->task_work, io_async_buf_retry);
+	init_task_work(&req->task_work, io_req_task_submit);
 	/* submit ref gets dropped, acquire a new one */
 	refcount_inc(&req->refs);
-	ret = io_req_task_work_add(req, &rw->task_work);
+	ret = io_req_task_work_add(req, &req->task_work);
 	if (unlikely(ret)) {
 		struct task_struct *tsk;
 
 		/* queue just for cancelation */
-		init_task_work(&rw->task_work, io_async_buf_cancel);
+		init_task_work(&req->task_work, io_req_task_cancel);
 		tsk = io_wq_get_task(req->ctx->io_wq);
-		task_work_add(tsk, &rw->task_work, 0);
+		task_work_add(tsk, &req->task_work, 0);
 		wake_up_process(tsk);
 	}
 	return 1;
