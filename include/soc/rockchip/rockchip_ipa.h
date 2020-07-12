@@ -16,7 +16,7 @@ struct ipa_power_model_data {
 	s32 ls[3];			/* leakage scaling factor */
 };
 
-#ifdef CONFIG_ROCKCHIP_IPA
+#if IS_ENABLED(CONFIG_ROCKCHIP_IPA)
 struct ipa_power_model_data *rockchip_ipa_power_model_init(struct device *dev,
 							   char *lkg_name);
 unsigned long

@@ -41,7 +41,7 @@ config ROCKCHIP_HW_DECOMPRESS
 	  LZ4, GZIP, ZLIB.
 
 config ROCKCHIP_IPA
-	bool "Rockchip IPA support"
+	tristate "Rockchip IPA support"
 	depends on THERMAL && OF
 	default y
 	help
