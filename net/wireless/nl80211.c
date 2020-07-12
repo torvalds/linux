@@ -7993,15 +7993,18 @@ static int nl80211_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 	rdev->scan_req = request;
 	err = rdev_scan(rdev, request);
 
-	if (!err) {
-		nl80211_send_scan_start(rdev, wdev);
-		if (wdev->netdev)
-			dev_hold(wdev->netdev);
-	} else {
+	if (err)
+		goto out_free;
+
+	nl80211_send_scan_start(rdev, wdev);
+	if (wdev->netdev)
+		dev_hold(wdev->netdev);
+
+	return 0;
+
  out_free:
-		rdev->scan_req = NULL;
-		kfree(request);
-	}
+	rdev->scan_req = NULL;
+	kfree(request);
 
 	return err;
 }
