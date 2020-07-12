@@ -69,7 +69,7 @@ all_other: all_other other
 
 other: ID
 {
-	expr__add_id(ctx, $1, 0.0);
+	expr__add_id_val(ctx, $1, 0.0);
 }
 |
 MIN | MAX | IF | ELSE | SMT_ON | NUMBER | '|' | '^' | '&' | '-' | '+' | '*' | '/' | '%' | '(' | ')' | ','

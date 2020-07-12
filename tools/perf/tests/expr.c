@@ -24,8 +24,8 @@ int test__expr(struct test *t __maybe_unused, int subtest __maybe_unused)
 	struct expr_parse_ctx ctx;
 
 	expr__ctx_init(&ctx);
-	expr__add_id(&ctx, strdup("FOO"), 1);
-	expr__add_id(&ctx, strdup("BAR"), 2);
+	expr__add_id_val(&ctx, strdup("FOO"), 1);
+	expr__add_id_val(&ctx, strdup("BAR"), 2);
 
 	ret = test(&ctx, "1+1", 2);
 	ret |= test(&ctx, "FOO+BAR", 3);

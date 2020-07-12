@@ -773,9 +773,9 @@ static int prepare_metric(struct evsel **metric_events,
 			*pn = 0;
 
 		if (metric_total)
-			expr__add_id(pctx, n, metric_total);
+			expr__add_id_val(pctx, n, metric_total);
 		else
-			expr__add_id(pctx, n, avg_stats(stats)*scale);
+			expr__add_id_val(pctx, n, avg_stats(stats)*scale);
 	}
 
 	return i;
