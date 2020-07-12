@@ -31,8 +31,8 @@
  */
 
 #include <linux/irq.h>
-#include <linux/indirect_call_wrapper.h>
 #include "en.h"
+#include "en/txrx.h"
 #include "en/xdp.h"
 #include "en/xsk/rx.h"
 #include "en/xsk/tx.h"

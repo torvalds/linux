@@ -6,7 +6,6 @@
 #include "en/xdp.h"
 #include "en/params.h"
 #include <net/xdp_sock_drv.h>
-#include <linux/indirect_call_wrapper.h>
 
 int mlx5e_xsk_wakeup(struct net_device *dev, u32 qid, u32 flags)
 {
