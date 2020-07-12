@@ -194,6 +194,7 @@
 
 			usb3-0 {
 				nvidia,usb2-companion = <1>;
+				vbus-supply = <&vdd_usb1>;
 				status = "okay";
 			};
 		};
