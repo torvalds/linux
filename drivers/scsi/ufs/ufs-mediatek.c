@@ -16,6 +16,7 @@
 #include <linux/soc/mediatek/mtk_sip_svc.h>
 
 #include "ufshcd.h"
+#include "ufshcd-crypto.h"
 #include "ufshcd-pltfrm.h"
 #include "ufs_quirks.h"
 #include "unipro.h"
@@ -24,6 +25,9 @@
 #define ufs_mtk_smc(cmd, val, res) \
 	arm_smccc_smc(MTK_SIP_UFS_CONTROL, \
 		      cmd, val, 0, 0, 0, 0, 0, &(res))
+
+#define ufs_mtk_crypto_ctrl(res, enable) \
+	ufs_mtk_smc(UFS_MTK_SIP_CRYPTO_CTRL, enable, res)
 
 #define ufs_mtk_ref_clk_notify(on, res) \
 	ufs_mtk_smc(UFS_MTK_SIP_REF_CLK_NOTIFICATION, on, res)
@@ -73,6 +77,18 @@ static void ufs_mtk_cfg_unipro_cg(struct ufs_hba *hba, bool enable)
 	}
 }
 
+static void ufs_mtk_crypto_enable(struct ufs_hba *hba)
+{
+	struct arm_smccc_res res;
+
+	ufs_mtk_crypto_ctrl(res, 1);
+	if (res.a0) {
+		dev_info(hba->dev, "%s: crypto enable failed, err: %lu\n",
+			 __func__, res.a0);
+		hba->caps &= ~UFSHCD_CAP_CRYPTO;
+	}
+}
+
 static int ufs_mtk_hce_enable_notify(struct ufs_hba *hba,
 				     enum ufs_notify_change_status status)
 {
@@ -83,6 +99,9 @@ static int ufs_mtk_hce_enable_notify(struct ufs_hba *hba,
 			hba->vps->hba_enable_delay_us = 0;
 		else
 			hba->vps->hba_enable_delay_us = 600;
+
+		if (hba->caps & UFSHCD_CAP_CRYPTO)
+			ufs_mtk_crypto_enable(hba);
 	}
 
 	return 0;
@@ -316,6 +335,9 @@ static int ufs_mtk_init(struct ufs_hba *hba)
 
 	/* Enable clock-gating */
 	hba->caps |= UFSHCD_CAP_CLK_GATING;
+
+	/* Enable inline encryption */
+	hba->caps |= UFSHCD_CAP_CRYPTO;
 
 	/* Enable WriteBooster */
 	hba->caps |= UFSHCD_CAP_WB_EN;
