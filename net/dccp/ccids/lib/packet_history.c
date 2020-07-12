@@ -365,6 +365,7 @@ void tfrc_rx_hist_purge(struct tfrc_rx_hist *h)
 
 /**
  * tfrc_rx_hist_rtt_last_s - reference entry to compute RTT samples against
+ * @h:	The non-empty RX history object
  */
 static inline struct tfrc_rx_hist_entry *
 			tfrc_rx_hist_rtt_last_s(const struct tfrc_rx_hist *h)
@@ -374,6 +375,7 @@ static inline struct tfrc_rx_hist_entry *
 
 /**
  * tfrc_rx_hist_rtt_prev_s - previously suitable (wrt rtt_last_s) RTT-sampling entry
+ * @h:	The non-empty RX history object
  */
 static inline struct tfrc_rx_hist_entry *
 			tfrc_rx_hist_rtt_prev_s(const struct tfrc_rx_hist *h)
