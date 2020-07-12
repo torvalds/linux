@@ -448,18 +448,9 @@ static int count(struct user_arg_ptr argv, int max)
 	return i;
 }
 
-static int prepare_arg_pages(struct linux_binprm *bprm,
-			struct user_arg_ptr argv, struct user_arg_ptr envp)
+static int bprm_stack_limits(struct linux_binprm *bprm)
 {
 	unsigned long limit, ptr_size;
-
-	bprm->argc = count(argv, MAX_ARG_STRINGS);
-	if (bprm->argc < 0)
-		return bprm->argc;
-
-	bprm->envc = count(envp, MAX_ARG_STRINGS);
-	if (bprm->envc < 0)
-		return bprm->envc;
 
 	/*
 	 * Limit to 1/4 of the max stack size or 3/4 of _STK_LIM
@@ -1964,7 +1955,17 @@ static int do_execveat_common(int fd, struct filename *filename,
 		goto out_ret;
 	}
 
-	retval = prepare_arg_pages(bprm, argv, envp);
+	retval = count(argv, MAX_ARG_STRINGS);
+	if (retval < 0)
+		goto out_free;
+	bprm->argc = retval;
+
+	retval = count(envp, MAX_ARG_STRINGS);
+	if (retval < 0)
+		goto out_free;
+	bprm->envc = retval;
+
+	retval = bprm_stack_limits(bprm);
 	if (retval < 0)
 		goto out_free;
 
