@@ -2375,7 +2375,7 @@ static int nf_tables_delchain(struct net *net, struct sock *nlsk,
 
 /**
  *	nft_register_expr - register nf_tables expr type
- *	@ops: expr type
+ *	@type: expr type
  *
  *	Registers the expr type for use with nf_tables. Returns zero on
  *	success or a negative errno code otherwise.
@@ -2394,7 +2394,7 @@ EXPORT_SYMBOL_GPL(nft_register_expr);
 
 /**
  *	nft_unregister_expr - unregister nf_tables expr type
- *	@ops: expr type
+ *	@type: expr type
  *
  * 	Unregisters the expr typefor use with nf_tables.
  */
@@ -5595,7 +5595,7 @@ struct nft_set_gc_batch *nft_set_gc_batch_alloc(const struct nft_set *set,
 
 /**
  *	nft_register_obj- register nf_tables stateful object type
- *	@obj: object type
+ *	@obj_type: object type
  *
  *	Registers the object type for use with nf_tables. Returns zero on
  *	success or a negative errno code otherwise.
@@ -5614,7 +5614,7 @@ EXPORT_SYMBOL_GPL(nft_register_obj);
 
 /**
  *	nft_unregister_obj - unregister nf_tables object type
- *	@obj: object type
+ *	@obj_type: object type
  *
  * 	Unregisters the object type for use with nf_tables.
  */

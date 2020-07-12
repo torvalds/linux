@@ -1006,7 +1006,7 @@ static int nf_ct_resolve_clash_harder(struct sk_buff *skb, u32 repl_idx)
  *
  * @skb: skb that causes the clash
  * @h: tuplehash of the clashing entry already in table
- * @hash_reply: hash slot for reply direction
+ * @reply_hash: hash slot for reply direction
  *
  * A conntrack entry can be inserted to the connection tracking table
  * if there is no existing entry with an identical tuple.
