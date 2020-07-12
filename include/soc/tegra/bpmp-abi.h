@@ -148,6 +148,7 @@ struct mrq_response {
 #define MRQ_FMON		72
 #define MRQ_EC			73
 #define MRQ_FBVOLT_STATUS	74
+#define MRQ_DEBUG		75
 
 /** @} */
 
@@ -156,7 +157,7 @@ struct mrq_response {
  * @brief Maximum MRQ code to be sent by CPU software to
  * BPMP. Subject to change in future
  */
-#define MAX_CPU_MRQ_ID		74
+#define MAX_CPU_MRQ_ID		75
 
 /**
  * @addtogroup MRQ_Payloads
@@ -532,6 +533,8 @@ struct mrq_module_mail_response {
  * @def MRQ_DEBUGFS
  * @brief Interact with BPMP's debugfs file nodes
  *
+ * @deprecated use MRQ_DEBUG instead.
+ *
  * * Platforms: T186, T194
  * * Initiators: Any
  * * Targets: BPMP
@@ -670,6 +673,190 @@ struct mrq_debugfs_response {
 #define DEBUGFS_S_IRUSR	(1 << 8)
 #define DEBUGFS_S_IWUSR	(1 << 7)
 /** @} */
+
+/**
+ * @ingroup MRQ_Codes
+ * @def MRQ_DEBUG
+ * @brief Interact with BPMP's debugfs file nodes. Use message payload
+ * for exchanging data. This is functionally equivalent to
+ * @ref MRQ_DEBUGFS. But the way in which data is exchanged is different.
+ * When software running on CPU tries to read a debugfs file,
+ * the file path and read data will be stored in message payload.
+ * Since the message payload size is limited, a debugfs file
+ * transaction might require multiple frames of data exchanged
+ * between BPMP and CPU until the transaction completes.
+ *
+ * * Platforms: T194
+ * * Initiators: Any
+ * * Targets: BPMP
+ * * Request Payload: @ref mrq_debug_request
+ * * Response Payload: @ref mrq_debug_response
+ */
+
+/** @ingroup Debugfs */
+enum mrq_debug_commands {
+	/** @brief Open required file for read operation */
+	CMD_DEBUG_OPEN_RO = 0,
+	/** @brief Open required file for write operation */
+	CMD_DEBUG_OPEN_WO = 1,
+	/** @brief Perform read */
+	CMD_DEBUG_READ = 2,
+	/** @brief Perform write */
+	CMD_DEBUG_WRITE = 3,
+	/** @brief Close file */
+	CMD_DEBUG_CLOSE = 4,
+	/** @brief Not a command */
+	CMD_DEBUG_MAX
+};
+
+/**
+ * @ingroup Debugfs
+ * @brief Maximum number of files that can be open at a given time
+ */
+#define DEBUG_MAX_OPEN_FILES	1
+
+/**
+ * @ingroup Debugfs
+ * @brief Maximum size of null-terminated file name string in bytes.
+ * Value is derived from memory available in message payload while
+ * using @ref cmd_debug_fopen_request
+ * Value 4 corresponds to size of @ref mrq_debug_commands
+ * in @ref mrq_debug_request.
+ * 120 - 4 dbg_cmd(32bit)  = 116
+ */
+#define DEBUG_FNAME_MAX_SZ	(MSG_DATA_MIN_SZ - 4)
+
+/**
+ * @ingroup Debugfs
+ * @brief Parameters for CMD_DEBUG_OPEN command
+ */
+struct cmd_debug_fopen_request {
+	/** @brief File name - Null-terminated string with maximum
+	 * length @ref DEBUG_FNAME_MAX_SZ
+	 */
+	char name[DEBUG_FNAME_MAX_SZ];
+} __ABI_PACKED;
+
+/**
+ * @ingroup Debugfs
+ * @brief Response data for CMD_DEBUG_OPEN_RO/WO command
+ */
+struct cmd_debug_fopen_response {
+	/** @brief Identifier for file access */
+	uint32_t fd;
+	/** @brief Data length. File data size for READ command.
+	 * Maximum allowed length for WRITE command
+	 */
+	uint32_t datalen;
+} __ABI_PACKED;
+
+/**
+ * @ingroup Debugfs
+ * @brief Parameters for CMD_DEBUG_READ command
+ */
+struct cmd_debug_fread_request {
+	/** @brief File access identifier received in response
+	 * to CMD_DEBUG_OPEN_RO request
+	 */
+	uint32_t fd;
+} __ABI_PACKED;
+
+/**
+ * @ingroup Debugfs
+ * @brief Maximum size of read data in bytes.
+ * Value is derived from memory available in message payload while
+ * using @ref cmd_debug_fread_response.
+ */
+#define DEBUG_READ_MAX_SZ	(MSG_DATA_MIN_SZ - 4)
+
+/**
+ * @ingroup Debugfs
+ * @brief Response data for CMD_DEBUG_READ command
+ */
+struct cmd_debug_fread_response {
+	/** @brief Size of data provided in this response in bytes */
+	uint32_t readlen;
+	/** @brief File data from seek position */
+	char data[DEBUG_READ_MAX_SZ];
+} __ABI_PACKED;
+
+/**
+ * @ingroup Debugfs
+ * @brief Maximum size of write data in bytes.
+ * Value is derived from memory available in message payload while
+ * using @ref cmd_debug_fwrite_request.
+ */
+#define DEBUG_WRITE_MAX_SZ	(MSG_DATA_MIN_SZ - 12)
+
+/**
+ * @ingroup Debugfs
+ * @brief Parameters for CMD_DEBUG_WRITE command
+ */
+struct cmd_debug_fwrite_request {
+	/** @brief File access identifier received in response
+	 * to CMD_DEBUG_OPEN_RO request
+	 */
+	uint32_t fd;
+	/** @brief Size of write data in bytes */
+	uint32_t datalen;
+	/** @brief Data to be written */
+	char data[DEBUG_WRITE_MAX_SZ];
+} __ABI_PACKED;
+
+/**
+ * @ingroup Debugfs
+ * @brief Parameters for CMD_DEBUG_CLOSE command
+ */
+struct cmd_debug_fclose_request {
+	/** @brief File access identifier received in response
+	 * to CMD_DEBUG_OPEN_RO request
+	 */
+	uint32_t fd;
+} __ABI_PACKED;
+
+/**
+ * @ingroup Debugfs
+ * @brief Request with #MRQ_DEBUG.
+ *
+ * The sender of an MRQ_DEBUG message uses #cmd to specify a debugfs
+ * command to execute. Legal commands are the values of @ref
+ * mrq_debug_commands. Each command requires a specific additional
+ * payload of data.
+ *
+ * |command            |payload|
+ * |-------------------|-------|
+ * |CMD_DEBUG_OPEN_RO  |fop    |
+ * |CMD_DEBUG_OPEN_WO  |fop    |
+ * |CMD_DEBUG_READ     |frd    |
+ * |CMD_DEBUG_WRITE    |fwr    |
+ * |CMD_DEBUG_CLOSE    |fcl    |
+ */
+struct mrq_debug_request {
+	/** @brief Sub-command (@ref mrq_debug_commands) */
+	uint32_t cmd;
+	union {
+		/** @brief Request payload for CMD_DEBUG_OPEN_RO/WO command */
+		struct cmd_debug_fopen_request fop;
+		/** @brief Request payload for CMD_DEBUG_READ command */
+		struct cmd_debug_fread_request frd;
+		/** @brief Request payload for CMD_DEBUG_WRITE command */
+		struct cmd_debug_fwrite_request fwr;
+		/** @brief Request payload for CMD_DEBUG_CLOSE command */
+		struct cmd_debug_fclose_request fcl;
+	} __UNION_ANON;
+} __ABI_PACKED;
+
+/**
+ * @ingroup Debugfs
+ */
+struct mrq_debug_response {
+	union {
+		/** @brief Response data for CMD_DEBUG_OPEN_RO/WO command */
+		struct cmd_debug_fopen_response fop;
+		/** @brief Response data for CMD_DEBUG_READ command */
+		struct cmd_debug_fread_response frd;
+	} __UNION_ANON;
+} __ABI_PACKED;
 
 /**
  * @ingroup MRQ_Codes
