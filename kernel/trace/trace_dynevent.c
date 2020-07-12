@@ -206,14 +206,14 @@ static const struct file_operations dynamic_events_ops = {
 /* Make a tracefs interface for controlling dynamic events */
 static __init int init_dynamic_event(void)
 {
-	struct dentry *d_tracer;
 	struct dentry *entry;
+	int ret;
 
-	d_tracer = tracing_init_dentry();
-	if (IS_ERR(d_tracer))
+	ret = tracing_init_dentry();
+	if (ret)
 		return 0;
 
-	entry = tracefs_create_file("dynamic_events", 0644, d_tracer,
+	entry = tracefs_create_file("dynamic_events", 0644, NULL,
 				    NULL, &dynamic_events_ops);
 
 	/* Event list interface */

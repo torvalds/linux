@@ -1901,14 +1901,14 @@ subsys_initcall(init_kprobe_trace_early);
 /* Make a tracefs interface for controlling probe points */
 static __init int init_kprobe_trace(void)
 {
-	struct dentry *d_tracer;
+	int ret;
 	struct dentry *entry;
 
-	d_tracer = tracing_init_dentry();
-	if (IS_ERR(d_tracer))
+	ret = tracing_init_dentry();
+	if (ret)
 		return 0;
 
-	entry = tracefs_create_file("kprobe_events", 0644, d_tracer,
+	entry = tracefs_create_file("kprobe_events", 0644, NULL,
 				    NULL, &kprobe_events_ops);
 
 	/* Event list interface */
@@ -1916,7 +1916,7 @@ static __init int init_kprobe_trace(void)
 		pr_warn("Could not create tracefs 'kprobe_events' entry\n");
 
 	/* Profile interface */
-	entry = tracefs_create_file("kprobe_profile", 0444, d_tracer,
+	entry = tracefs_create_file("kprobe_profile", 0444, NULL,
 				    NULL, &kprobe_profile_ops);
 
 	if (!entry)

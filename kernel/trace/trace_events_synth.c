@@ -1757,7 +1757,6 @@ static const struct file_operations synth_events_fops = {
 static __init int trace_events_synth_init(void)
 {
 	struct dentry *entry = NULL;
-	struct dentry *d_tracer;
 	int err = 0;
 
 	err = dyn_event_register(&synth_event_ops);
@@ -1766,13 +1765,11 @@ static __init int trace_events_synth_init(void)
 		return err;
 	}
 
-	d_tracer = tracing_init_dentry();
-	if (IS_ERR(d_tracer)) {
-		err = PTR_ERR(d_tracer);
+	err = tracing_init_dentry();
+	if (err)
 		goto err;
-	}
 
-	entry = tracefs_create_file("synthetic_events", 0644, d_tracer,
+	entry = tracefs_create_file("synthetic_events", 0644, NULL,
 				    NULL, &synth_events_fops);
 	if (!entry) {
 		err = -ENODEV;

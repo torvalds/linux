@@ -1625,21 +1625,20 @@ void destroy_local_trace_uprobe(struct trace_event_call *event_call)
 /* Make a trace interface for controling probe points */
 static __init int init_uprobe_trace(void)
 {
-	struct dentry *d_tracer;
 	int ret;
 
 	ret = dyn_event_register(&trace_uprobe_ops);
 	if (ret)
 		return ret;
 
-	d_tracer = tracing_init_dentry();
-	if (IS_ERR(d_tracer))
+	ret = tracing_init_dentry();
+	if (ret)
 		return 0;
 
-	trace_create_file("uprobe_events", 0644, d_tracer,
+	trace_create_file("uprobe_events", 0644, NULL,
 				    NULL, &uprobe_events_ops);
 	/* Profile interface */
-	trace_create_file("uprobe_profile", 0444, d_tracer,
+	trace_create_file("uprobe_profile", 0444, NULL,
 				    NULL, &uprobe_profile_ops);
 	return 0;
 }
