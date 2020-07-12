@@ -636,7 +636,10 @@ static int call_ipmr_mfc_entry_notifiers(struct net *net,
 
 /**
  *	vif_delete - Delete a VIF entry
+ *	@mrt: Table to delete from
+ *	@vifi: VIF identifier to delete
  *	@notify: Set to 1, if the caller is a notifier_call
+ *	@head: if unregistering the VIF, place it on this queue
  */
 static int vif_delete(struct mr_table *mrt, int vifi, int notify,
 		      struct list_head *head)

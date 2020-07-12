@@ -4448,7 +4448,6 @@ static void tcp_sack_remove(struct tcp_sock *tp)
 /**
  * tcp_try_coalesce - try to merge skb to prior one
  * @sk: socket
- * @dest: destination queue
  * @to: prior buffer
  * @from: buffer to add in queue
  * @fragstolen: pointer to boolean

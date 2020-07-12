@@ -3337,6 +3337,8 @@ int tcp_send_synack(struct sock *sk)
  * sk: listener socket
  * dst: dst entry attached to the SYNACK
  * req: request_sock pointer
+ * foc: cookie for tcp fast open
+ * synack_type: Type of synback to prepare
  *
  * Allocate one skb and build a SYNACK packet.
  * @dst is consumed : Caller should not use it again.
