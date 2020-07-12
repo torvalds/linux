@@ -127,6 +127,8 @@ static int mrq_debugfs_read(struct tegra_bpmp *bpmp,
 	err = tegra_bpmp_transfer(bpmp, &msg);
 	if (err < 0)
 		return err;
+	else if (msg.rx.ret < 0)
+		return -EINVAL;
 
 	*nbytes = (size_t)resp.fop.nbytes;
 
@@ -184,6 +186,8 @@ static int mrq_debugfs_dumpdir(struct tegra_bpmp *bpmp, dma_addr_t addr,
 	err = tegra_bpmp_transfer(bpmp, &msg);
 	if (err < 0)
 		return err;
+	else if (msg.rx.ret < 0)
+		return -EINVAL;
 
 	*nbytes = (size_t)resp.dumpdir.nbytes;
 
@@ -374,7 +378,7 @@ int tegra_bpmp_init_debugfs(struct tegra_bpmp *bpmp)
 {
 	dma_addr_t phys;
 	void *virt;
-	const size_t sz = SZ_256K;
+	const size_t sz = SZ_512K;
 	size_t nbytes;
 	int ret;
 	struct dentry *root;
@@ -394,8 +398,12 @@ int tegra_bpmp_init_debugfs(struct tegra_bpmp *bpmp)
 	}
 
 	ret = mrq_debugfs_dumpdir(bpmp, phys, sz, &nbytes);
-	if (ret < 0)
+	if (ret < 0) {
 		goto free;
+	} else if (nbytes > sz) {
+		ret = -EINVAL;
+		goto free;
+	}
 
 	ret = create_debugfs_mirror(bpmp, virt, nbytes, root);
 free:
