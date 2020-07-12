@@ -704,7 +704,6 @@ EXPORT_SYMBOL(nfc_tm_deactivated);
  * nfc_alloc_send_skb - allocate a skb for data exchange responses
  *
  * @size: size to allocate
- * @gfp: gfp flags
  */
 struct sk_buff *nfc_alloc_send_skb(struct nfc_dev *dev, struct sock *sk,
 				   unsigned int flags, unsigned int size,
@@ -749,7 +748,7 @@ EXPORT_SYMBOL(nfc_alloc_recv_skb);
  *
  * @dev: The nfc device that found the targets
  * @targets: array of nfc targets found
- * @ntargets: targets array size
+ * @n_targets: targets array size
  *
  * The device driver must call this function when one or many nfc targets
  * are found. After calling this function, the device driver must stop
