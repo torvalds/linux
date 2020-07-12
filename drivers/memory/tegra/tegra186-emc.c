@@ -268,10 +268,10 @@ static int tegra186_emc_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id tegra186_emc_of_match[] = {
-#if defined(CONFIG_ARCH_TEGRA186_SOC)
+#if defined(CONFIG_ARCH_TEGRA_186_SOC)
 	{ .compatible = "nvidia,tegra186-emc" },
 #endif
-#if defined(CONFIG_ARCH_TEGRA194_SOC)
+#if defined(CONFIG_ARCH_TEGRA_194_SOC)
 	{ .compatible = "nvidia,tegra194-emc" },
 #endif
 	{ /* sentinel */ }
