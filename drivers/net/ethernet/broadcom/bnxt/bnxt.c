@@ -10385,15 +10385,15 @@ static void bnxt_sp_task(struct work_struct *work)
 				       &bp->sp_event))
 			bnxt_hwrm_phy_qcaps(bp);
 
-		if (test_and_clear_bit(BNXT_LINK_CFG_CHANGE_SP_EVENT,
-				       &bp->sp_event))
-			bnxt_init_ethtool_link_settings(bp);
-
 		rc = bnxt_update_link(bp, true);
-		mutex_unlock(&bp->link_lock);
 		if (rc)
 			netdev_err(bp->dev, "SP task can't update link (rc: %x)\n",
 				   rc);
+
+		if (test_and_clear_bit(BNXT_LINK_CFG_CHANGE_SP_EVENT,
+				       &bp->sp_event))
+			bnxt_init_ethtool_link_settings(bp);
+		mutex_unlock(&bp->link_lock);
 	}
 	if (test_and_clear_bit(BNXT_UPDATE_PHY_SP_EVENT, &bp->sp_event)) {
 		int rc;
