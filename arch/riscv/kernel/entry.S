@@ -435,12 +435,8 @@ ENTRY(__switch_to)
 	lw a4, TASK_TI_CPU(a1)
 	sw a3, TASK_TI_CPU(a1)
 	sw a4, TASK_TI_CPU(a0)
-#if TASK_TI != 0
-#error "TASK_TI != 0: tp will contain a 'struct thread_info', not a 'struct task_struct' so get_current() won't work."
-	addi tp, a1, TASK_TI
-#else
+	/* The offset of thread_info in task_struct is zero. */
 	move tp, a1
-#endif
 	ret
 ENDPROC(__switch_to)
 
