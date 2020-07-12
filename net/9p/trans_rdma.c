@@ -94,14 +94,15 @@ struct p9_trans_rdma {
 	struct completion cm_done;
 };
 
+struct p9_rdma_req;
+
 /**
- * p9_rdma_context - Keeps track of in-process WR
+ * struct p9_rdma_context - Keeps track of in-process WR
  *
  * @busa: Bus address to unmap when the WR completes
  * @req: Keeps track of requests (send)
  * @rc: Keepts track of replies (receive)
  */
-struct p9_rdma_req;
 struct p9_rdma_context {
 	struct ib_cqe cqe;
 	dma_addr_t busa;
@@ -112,7 +113,7 @@ struct p9_rdma_context {
 };
 
 /**
- * p9_rdma_opts - Collection of mount options
+ * struct p9_rdma_opts - Collection of mount options
  * @port: port of connection
  * @sq_depth: The requested depth of the SQ. This really doesn't need
  * to be any deeper than the number of threads used in the client
