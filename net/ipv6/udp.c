@@ -1059,6 +1059,9 @@ static int udpv6_pre_connect(struct sock *sk, struct sockaddr *uaddr,
  *	@sk:	socket we are sending on
  *	@skb:	sk_buff containing the filled-in UDP header
  *		(checksum field must be zeroed out)
+ *	@saddr: source address
+ *	@daddr: destination address
+ *	@len:	length of packet
  */
 static void udp6_hwcsum_outgoing(struct sock *sk, struct sk_buff *skb,
 				 const struct in6_addr *saddr,
