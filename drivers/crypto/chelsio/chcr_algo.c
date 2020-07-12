@@ -1215,7 +1215,7 @@ static int chcr_handle_cipher_resp(struct skcipher_request *req,
 	wrparam.bytes = bytes;
 	skb = create_cipher_wr(&wrparam);
 	if (IS_ERR(skb)) {
-		pr_err("chcr : %s : Failed to form WR. No memory\n", __func__);
+		pr_err("%s : Failed to form WR. No memory\n", __func__);
 		err = PTR_ERR(skb);
 		goto unmap;
 	}
@@ -1545,7 +1545,7 @@ static int get_alg_config(struct algo_param *params,
 		params->result_size = SHA512_DIGEST_SIZE;
 		break;
 	default:
-		pr_err("chcr : ERROR, unsupported digest size\n");
+		pr_err("ERROR, unsupported digest size\n");
 		return -EINVAL;
 	}
 	return 0;
@@ -3560,7 +3560,7 @@ static int chcr_authenc_setkey(struct crypto_aead *authenc, const u8 *key,
 		goto out;
 
 	if (get_alg_config(&param, max_authsize)) {
-		pr_err("chcr : Unsupported digest size\n");
+		pr_err("Unsupported digest size\n");
 		goto out;
 	}
 	subtype = get_aead_subtype(authenc);
@@ -3579,7 +3579,7 @@ static int chcr_authenc_setkey(struct crypto_aead *authenc, const u8 *key,
 	} else if (keys.enckeylen == AES_KEYSIZE_256) {
 		ck_size = CHCR_KEYCTX_CIPHER_KEY_SIZE_256;
 	} else {
-		pr_err("chcr : Unsupported cipher key\n");
+		pr_err("Unsupported cipher key\n");
 		goto out;
 	}
 
@@ -3597,7 +3597,7 @@ static int chcr_authenc_setkey(struct crypto_aead *authenc, const u8 *key,
 	}
 	base_hash  = chcr_alloc_shash(max_authsize);
 	if (IS_ERR(base_hash)) {
-		pr_err("chcr : Base driver cannot be loaded\n");
+		pr_err("Base driver cannot be loaded\n");
 		goto out;
 	}
 	{
@@ -3613,7 +3613,7 @@ static int chcr_authenc_setkey(struct crypto_aead *authenc, const u8 *key,
 						  keys.authkeylen,
 						  o_ptr);
 			if (err) {
-				pr_err("chcr : Base driver cannot be loaded\n");
+				pr_err("Base driver cannot be loaded\n");
 				goto out;
 			}
 			keys.authkeylen = max_authsize;
@@ -3698,7 +3698,7 @@ static int chcr_aead_digest_null_setkey(struct crypto_aead *authenc,
 	} else if (keys.enckeylen == AES_KEYSIZE_256) {
 		ck_size = CHCR_KEYCTX_CIPHER_KEY_SIZE_256;
 	} else {
-		pr_err("chcr : Unsupported cipher key %d\n", keys.enckeylen);
+		pr_err("Unsupported cipher key %d\n", keys.enckeylen);
 		goto out;
 	}
 	memcpy(aeadctx->key, keys.enckey, keys.enckeylen);
@@ -3734,7 +3734,7 @@ static int chcr_aead_op(struct aead_request *req,
 
 	cdev = a_ctx(tfm)->dev;
 	if (!cdev) {
-		pr_err("chcr : %s : No crypto device.\n", __func__);
+		pr_err("%s : No crypto device.\n", __func__);
 		return -ENXIO;
 	}
 
@@ -4487,8 +4487,7 @@ static int chcr_register_alg(void)
 			break;
 		}
 		if (err) {
-			pr_err("chcr : %s : Algorithm registration failed\n",
-			       name);
+			pr_err("%s : Algorithm registration failed\n", name);
 			goto register_err;
 		} else {
 			driver_algs[i].is_registered = 1;
