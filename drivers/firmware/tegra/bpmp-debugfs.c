@@ -206,7 +206,7 @@ static int debugfs_show(struct seq_file *m, void *p)
 	char buf[256];
 	const char *filename;
 	size_t len, nbytes;
-	int ret;
+	int err;
 
 	filename = get_filename(bpmp, file, buf, sizeof(buf));
 	if (!filename)
@@ -220,24 +220,24 @@ static int debugfs_show(struct seq_file *m, void *p)
 	datavirt = dma_alloc_coherent(bpmp->dev, datasize, &dataphys,
 				      GFP_KERNEL | GFP_DMA32);
 	if (!datavirt) {
-		ret = -ENOMEM;
+		err = -ENOMEM;
 		goto free_namebuf;
 	}
 
 	len = strlen(filename);
 	strncpy(namevirt, filename, namesize);
 
-	ret = mrq_debugfs_read(bpmp, namephys, len, dataphys, datasize,
+	err = mrq_debugfs_read(bpmp, namephys, len, dataphys, datasize,
 			       &nbytes);
 
-	if (!ret)
+	if (!err)
 		seq_write(m, datavirt, nbytes);
 
 	dma_free_coherent(bpmp->dev, datasize, datavirt, dataphys);
 free_namebuf:
 	dma_free_coherent(bpmp->dev, namesize, namevirt, namephys);
 
-	return ret;
+	return err;
 }
 
 static int debugfs_open(struct inode *inode, struct file *file)
@@ -257,7 +257,7 @@ static ssize_t debugfs_store(struct file *file, const char __user *buf,
 	char fnamebuf[256];
 	const char *filename;
 	size_t len;
-	int ret;
+	int err;
 
 	filename = get_filename(bpmp, file, fnamebuf, sizeof(fnamebuf));
 	if (!filename)
@@ -271,7 +271,7 @@ static ssize_t debugfs_store(struct file *file, const char __user *buf,
 	datavirt = dma_alloc_coherent(bpmp->dev, datasize, &dataphys,
 				      GFP_KERNEL | GFP_DMA32);
 	if (!datavirt) {
-		ret = -ENOMEM;
+		err = -ENOMEM;
 		goto free_namebuf;
 	}
 
@@ -279,11 +279,11 @@ static ssize_t debugfs_store(struct file *file, const char __user *buf,
 	strncpy(namevirt, filename, namesize);
 
 	if (copy_from_user(datavirt, buf, count)) {
-		ret = -EFAULT;
+		err = -EFAULT;
 		goto free_databuf;
 	}
 
-	ret = mrq_debugfs_write(bpmp, namephys, len, dataphys,
+	err = mrq_debugfs_write(bpmp, namephys, len, dataphys,
 				count);
 
 free_databuf:
@@ -291,7 +291,7 @@ free_databuf:
 free_namebuf:
 	dma_free_coherent(bpmp->dev, namesize, namevirt, namephys);
 
-	return ret ?: count;
+	return err ?: count;
 }
 
 static const struct file_operations debugfs_fops = {
@@ -380,8 +380,8 @@ int tegra_bpmp_init_debugfs(struct tegra_bpmp *bpmp)
 	void *virt;
 	const size_t sz = SZ_512K;
 	size_t nbytes;
-	int ret;
 	struct dentry *root;
+	int err;
 
 	if (!tegra_bpmp_mrq_is_supported(bpmp, MRQ_DEBUGFS))
 		return 0;
@@ -393,24 +393,24 @@ int tegra_bpmp_init_debugfs(struct tegra_bpmp *bpmp)
 	virt = dma_alloc_coherent(bpmp->dev, sz, &phys,
 				  GFP_KERNEL | GFP_DMA32);
 	if (!virt) {
-		ret = -ENOMEM;
+		err = -ENOMEM;
 		goto out;
 	}
 
-	ret = mrq_debugfs_dumpdir(bpmp, phys, sz, &nbytes);
-	if (ret < 0) {
+	err = mrq_debugfs_dumpdir(bpmp, phys, sz, &nbytes);
+	if (err < 0) {
 		goto free;
 	} else if (nbytes > sz) {
-		ret = -EINVAL;
+		err = -EINVAL;
 		goto free;
 	}
 
-	ret = create_debugfs_mirror(bpmp, virt, nbytes, root);
+	err = create_debugfs_mirror(bpmp, virt, nbytes, root);
 free:
 	dma_free_coherent(bpmp->dev, sz, virt, phys);
 out:
-	if (ret < 0)
+	if (err < 0)
 		debugfs_remove(root);
 
-	return ret;
+	return err;
 }

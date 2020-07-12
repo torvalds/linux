@@ -515,10 +515,10 @@ bool tegra_bpmp_mrq_is_supported(struct tegra_bpmp *bpmp, unsigned int mrq)
 			.size = sizeof(resp),
 		},
 	};
-	int ret;
+	int err;
 
-	ret = tegra_bpmp_transfer(bpmp, &msg);
-	if (ret || msg.rx.ret)
+	err = tegra_bpmp_transfer(bpmp, &msg);
+	if (err || msg.rx.ret)
 		return false;
 
 	return resp.status == 0;
