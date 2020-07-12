@@ -445,7 +445,7 @@ u32 tipc_link_state(struct tipc_link *l)
 
 /**
  * tipc_link_create - create a new link
- * @n: pointer to associated node
+ * @net: pointer to associated network namespace
  * @if_name: associated interface name
  * @bearer_id: id (index) of associated bearer
  * @tolerance: link tolerance to be used by link
@@ -530,7 +530,7 @@ bool tipc_link_create(struct net *net, char *if_name, int bearer_id,
 
 /**
  * tipc_link_bc_create - create new link to be used for broadcast
- * @n: pointer to associated node
+ * @net: pointer to associated network namespace
  * @mtu: mtu to be used initially if no peers
  * @window: send window to be used
  * @inputq: queue to put messages ready for delivery
@@ -989,7 +989,7 @@ void tipc_link_reset(struct tipc_link *l)
 
 /**
  * tipc_link_xmit(): enqueue buffer list according to queue situation
- * @link: link to use
+ * @l: link to use
  * @list: chain of buffers containing message
  * @xmitq: returned list of packets to be sent by caller
  *
