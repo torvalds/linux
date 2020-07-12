@@ -354,32 +354,43 @@ static int bpmp_populate_dir(struct tegra_bpmp *bpmp, struct seqbuf *seqbuf,
 	return 0;
 }
 
-static int create_debugfs_mirror(struct tegra_bpmp *bpmp, void *buf,
-				 size_t bufsize, struct dentry *root)
+static int bpmp_populate_debugfs_shmem(struct tegra_bpmp *bpmp,
+				       struct dentry *root)
 {
 	struct seqbuf seqbuf;
+	const size_t sz = SZ_512K;
+	dma_addr_t phys;
+	size_t nbytes;
+	void *virt;
 	int err;
 
 	bpmp->debugfs_mirror = debugfs_create_dir("debug", root);
 	if (!bpmp->debugfs_mirror)
 		return -ENOMEM;
 
-	seqbuf_init(&seqbuf, buf, bufsize);
-	err = bpmp_populate_dir(bpmp, &seqbuf, bpmp->debugfs_mirror, 0);
+	virt = dma_alloc_coherent(bpmp->dev, sz, &phys,
+				  GFP_KERNEL | GFP_DMA32);
+	if (!virt)
+		return -ENOMEM;
+
+	err = mrq_debugfs_dumpdir(bpmp, phys, sz, &nbytes);
 	if (err < 0) {
-		debugfs_remove_recursive(bpmp->debugfs_mirror);
-		bpmp->debugfs_mirror = NULL;
+		goto free;
+	} else if (nbytes > sz) {
+		err = -EINVAL;
+		goto free;
 	}
+
+	seqbuf_init(&seqbuf, virt, nbytes);
+	err = bpmp_populate_dir(bpmp, &seqbuf, bpmp->debugfs_mirror, 0);
+free:
+	dma_free_coherent(bpmp->dev, sz, virt, phys);
 
 	return err;
 }
 
 int tegra_bpmp_init_debugfs(struct tegra_bpmp *bpmp)
 {
-	dma_addr_t phys;
-	void *virt;
-	const size_t sz = SZ_512K;
-	size_t nbytes;
 	struct dentry *root;
 	int err;
 
@@ -390,27 +401,9 @@ int tegra_bpmp_init_debugfs(struct tegra_bpmp *bpmp)
 	if (!root)
 		return -ENOMEM;
 
-	virt = dma_alloc_coherent(bpmp->dev, sz, &phys,
-				  GFP_KERNEL | GFP_DMA32);
-	if (!virt) {
-		err = -ENOMEM;
-		goto out;
-	}
-
-	err = mrq_debugfs_dumpdir(bpmp, phys, sz, &nbytes);
-	if (err < 0) {
-		goto free;
-	} else if (nbytes > sz) {
-		err = -EINVAL;
-		goto free;
-	}
-
-	err = create_debugfs_mirror(bpmp, virt, nbytes, root);
-free:
-	dma_free_coherent(bpmp->dev, sz, virt, phys);
-out:
+	err = bpmp_populate_debugfs_shmem(bpmp, root);
 	if (err < 0)
-		debugfs_remove(root);
+		debugfs_remove_recursive(root);
 
 	return err;
 }
