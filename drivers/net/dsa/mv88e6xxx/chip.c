@@ -2693,6 +2693,31 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 	return mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_DEFAULT_VLAN, 0);
 }
 
+static int mv88e6xxx_get_max_mtu(struct dsa_switch *ds, int port)
+{
+	struct mv88e6xxx_chip *chip = ds->priv;
+
+	if (chip->info->ops->port_set_jumbo_size)
+		return 10240;
+	return 1522;
+}
+
+static int mv88e6xxx_change_mtu(struct dsa_switch *ds, int port, int new_mtu)
+{
+	struct mv88e6xxx_chip *chip = ds->priv;
+	int ret = 0;
+
+	mv88e6xxx_reg_lock(chip);
+	if (chip->info->ops->port_set_jumbo_size)
+		ret = chip->info->ops->port_set_jumbo_size(chip, port, new_mtu);
+	else
+		if (new_mtu > 1522)
+			ret = -EINVAL;
+	mv88e6xxx_reg_unlock(chip);
+
+	return ret;
+}
+
 static int mv88e6xxx_port_enable(struct dsa_switch *ds, int port,
 				 struct phy_device *phydev)
 {
@@ -5525,6 +5550,8 @@ static const struct dsa_switch_ops mv88e6xxx_switch_ops = {
 	.get_sset_count		= mv88e6xxx_get_sset_count,
 	.port_enable		= mv88e6xxx_port_enable,
 	.port_disable		= mv88e6xxx_port_disable,
+	.port_max_mtu		= mv88e6xxx_get_max_mtu,
+	.port_change_mtu	= mv88e6xxx_change_mtu,
 	.get_mac_eee		= mv88e6xxx_get_mac_eee,
 	.set_mac_eee		= mv88e6xxx_set_mac_eee,
 	.get_eeprom_len		= mv88e6xxx_get_eeprom_len,
