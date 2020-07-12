@@ -223,15 +223,9 @@ static int tegra186_cpufreq_probe(struct platform_device *pdev)
 		}
 	}
 
-	tegra_bpmp_put(bpmp);
-
 	tegra186_cpufreq_driver.driver_data = data;
 
 	err = cpufreq_register_driver(&tegra186_cpufreq_driver);
-	if (err)
-		return err;
-
-	return 0;
 
 put_bpmp:
 	tegra_bpmp_put(bpmp);
