@@ -3935,7 +3935,7 @@ static int io_sendmsg(struct io_kiocb *req, bool force_nonblock,
 
 	sock = sock_from_file(req->file, &ret);
 	if (sock) {
-		struct io_async_ctx io;
+		struct io_async_msghdr iomsg;
 		unsigned flags;
 
 		if (req->io) {
@@ -3948,14 +3948,13 @@ static int io_sendmsg(struct io_kiocb *req, bool force_nonblock,
 		} else {
 			struct io_sr_msg *sr = &req->sr_msg;
 
-			kmsg = &io.msg;
-			kmsg->msg.msg_name = &io.msg.addr;
-
-			io.msg.iov = io.msg.fast_iov;
-			ret = sendmsg_copy_msghdr(&io.msg.msg, sr->umsg,
-					sr->msg_flags, &io.msg.iov);
+			iomsg.msg.msg_name = &iomsg.addr;
+			iomsg.iov = iomsg.fast_iov;
+			ret = sendmsg_copy_msghdr(&iomsg.msg, sr->umsg,
+					sr->msg_flags, &iomsg.iov);
 			if (ret)
 				return ret;
+			kmsg = &iomsg;
 		}
 
 		flags = req->sr_msg.msg_flags;
@@ -4023,30 +4022,31 @@ static int io_send(struct io_kiocb *req, bool force_nonblock,
 	return 0;
 }
 
-static int __io_recvmsg_copy_hdr(struct io_kiocb *req, struct io_async_ctx *io)
+static int __io_recvmsg_copy_hdr(struct io_kiocb *req,
+				 struct io_async_msghdr *iomsg)
 {
 	struct io_sr_msg *sr = &req->sr_msg;
 	struct iovec __user *uiov;
 	size_t iov_len;
 	int ret;
 
-	ret = __copy_msghdr_from_user(&io->msg.msg, sr->umsg,
-					&io->msg.uaddr, &uiov, &iov_len);
+	ret = __copy_msghdr_from_user(&iomsg->msg, sr->umsg,
+					&iomsg->uaddr, &uiov, &iov_len);
 	if (ret)
 		return ret;
 
 	if (req->flags & REQ_F_BUFFER_SELECT) {
 		if (iov_len > 1)
 			return -EINVAL;
-		if (copy_from_user(io->msg.iov, uiov, sizeof(*uiov)))
+		if (copy_from_user(iomsg->iov, uiov, sizeof(*uiov)))
 			return -EFAULT;
-		sr->len = io->msg.iov[0].iov_len;
-		iov_iter_init(&io->msg.msg.msg_iter, READ, io->msg.iov, 1,
+		sr->len = iomsg->iov[0].iov_len;
+		iov_iter_init(&iomsg->msg.msg_iter, READ, iomsg->iov, 1,
 				sr->len);
-		io->msg.iov = NULL;
+		iomsg->iov = NULL;
 	} else {
 		ret = import_iovec(READ, uiov, iov_len, UIO_FASTIOV,
-					&io->msg.iov, &io->msg.msg.msg_iter);
+					&iomsg->iov, &iomsg->msg.msg_iter);
 		if (ret > 0)
 			ret = 0;
 	}
@@ -4056,7 +4056,7 @@ static int __io_recvmsg_copy_hdr(struct io_kiocb *req, struct io_async_ctx *io)
 
 #ifdef CONFIG_COMPAT
 static int __io_compat_recvmsg_copy_hdr(struct io_kiocb *req,
-					struct io_async_ctx *io)
+					struct io_async_msghdr *iomsg)
 {
 	struct compat_msghdr __user *msg_compat;
 	struct io_sr_msg *sr = &req->sr_msg;
@@ -4066,7 +4066,7 @@ static int __io_compat_recvmsg_copy_hdr(struct io_kiocb *req,
 	int ret;
 
 	msg_compat = (struct compat_msghdr __user *) sr->umsg;
-	ret = __get_compat_msghdr(&io->msg.msg, msg_compat, &io->msg.uaddr,
+	ret = __get_compat_msghdr(&iomsg->msg, msg_compat, &iomsg->uaddr,
 					&ptr, &len);
 	if (ret)
 		return ret;
@@ -4083,12 +4083,12 @@ static int __io_compat_recvmsg_copy_hdr(struct io_kiocb *req,
 			return -EFAULT;
 		if (clen < 0)
 			return -EINVAL;
-		sr->len = io->msg.iov[0].iov_len;
-		io->msg.iov = NULL;
+		sr->len = iomsg->iov[0].iov_len;
+		iomsg->iov = NULL;
 	} else {
 		ret = compat_import_iovec(READ, uiov, len, UIO_FASTIOV,
-						&io->msg.iov,
-						&io->msg.msg.msg_iter);
+						&iomsg->iov,
+						&iomsg->msg.msg_iter);
 		if (ret < 0)
 			return ret;
 	}
@@ -4097,17 +4097,18 @@ static int __io_compat_recvmsg_copy_hdr(struct io_kiocb *req,
 }
 #endif
 
-static int io_recvmsg_copy_hdr(struct io_kiocb *req, struct io_async_ctx *io)
+static int io_recvmsg_copy_hdr(struct io_kiocb *req,
+			       struct io_async_msghdr *iomsg)
 {
-	io->msg.msg.msg_name = &io->msg.addr;
-	io->msg.iov = io->msg.fast_iov;
+	iomsg->msg.msg_name = &iomsg->addr;
+	iomsg->iov = iomsg->fast_iov;
 
 #ifdef CONFIG_COMPAT
 	if (req->ctx->compat)
-		return __io_compat_recvmsg_copy_hdr(req, io);
+		return __io_compat_recvmsg_copy_hdr(req, iomsg);
 #endif
 
-	return __io_recvmsg_copy_hdr(req, io);
+	return __io_recvmsg_copy_hdr(req, iomsg);
 }
 
 static struct io_buffer *io_recv_buffer_select(struct io_kiocb *req,
@@ -4157,7 +4158,7 @@ static int io_recvmsg_prep(struct io_kiocb *req,
 	if (req->flags & REQ_F_NEED_CLEANUP)
 		return 0;
 
-	ret = io_recvmsg_copy_hdr(req, io);
+	ret = io_recvmsg_copy_hdr(req, &io->msg);
 	if (!ret)
 		req->flags |= REQ_F_NEED_CLEANUP;
 	return ret;
@@ -4173,7 +4174,7 @@ static int io_recvmsg(struct io_kiocb *req, bool force_nonblock,
 	sock = sock_from_file(req->file, &ret);
 	if (sock) {
 		struct io_buffer *kbuf;
-		struct io_async_ctx io;
+		struct io_async_msghdr iomsg;
 		unsigned flags;
 
 		if (req->io) {
@@ -4184,12 +4185,10 @@ static int io_recvmsg(struct io_kiocb *req, bool force_nonblock,
 				kmsg->iov = kmsg->fast_iov;
 			kmsg->msg.msg_iter.iov = kmsg->iov;
 		} else {
-			kmsg = &io.msg;
-			kmsg->msg.msg_name = &io.msg.addr;
-
-			ret = io_recvmsg_copy_hdr(req, &io);
+			ret = io_recvmsg_copy_hdr(req, &iomsg);
 			if (ret)
 				return ret;
+			kmsg = &iomsg;
 		}
 
 		kbuf = io_recv_buffer_select(req, &cflags, !force_nonblock);
