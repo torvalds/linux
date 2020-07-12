@@ -5,7 +5,6 @@ config NET_DSA_MSCC_FELIX
 	depends on NET_VENDOR_MICROSEMI
 	depends on NET_VENDOR_FREESCALE
 	depends on HAS_IOMEM
-	depends on REGMAP_MMIO
 	select MSCC_OCELOT_SWITCH_LIB
 	select NET_DSA_TAG_OCELOT
 	select FSL_ENETC_MDIO
