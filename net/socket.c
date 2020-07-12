@@ -586,15 +586,6 @@ struct socket *sock_alloc(void)
 }
 EXPORT_SYMBOL(sock_alloc);
 
-/**
- *	sock_release - close a socket
- *	@sock: socket to close
- *
- *	The socket is released from the protocol stack if it has a release
- *	callback, and the inode is then released if the socket is bound to
- *	an inode not a file.
- */
-
 static void __sock_release(struct socket *sock, struct inode *inode)
 {
 	if (sock->ops) {
@@ -620,6 +611,14 @@ static void __sock_release(struct socket *sock, struct inode *inode)
 	sock->file = NULL;
 }
 
+/**
+ *	sock_release - close a socket
+ *	@sock: socket to close
+ *
+ *	The socket is released from the protocol stack if it has a release
+ *	callback, and the inode is then released if the socket is bound to
+ *	an inode not a file.
+ */
 void sock_release(struct socket *sock)
 {
 	__sock_release(sock, NULL);
