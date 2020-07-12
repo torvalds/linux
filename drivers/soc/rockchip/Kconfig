@@ -128,10 +128,17 @@ config ROCKCHIP_THUNDER_BOOT_MMC
 	help
 	  Say y if boot from MMC.
 
+config ROCKCHIP_THUNDER_BOOT_SFC
+	bool "Rockchip Thunder Boot from SFC"
+	depends on ROCKCHIP_THUNDER_BOOT
+	help
+	  Say y if boot from SPI Flash from SFC controller.
+
 config ROCKCHIP_SCHED_PERFORMANCE_BIAS
 	bool "Rockchip task scheduler optimization"
 	default y
 	help
 	  Say y here to enable rockchip optimize task scheduler for performance bias,
 	  this would cause a little more power consumption.
+
 endif
