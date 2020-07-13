@@ -1597,7 +1597,6 @@ static int aspeed_video_setup_video(struct aspeed_video *video)
 	video_set_drvdata(vdev, video);
 	rc = video_register_device(vdev, VFL_TYPE_VIDEO, 0);
 	if (rc) {
-		vb2_queue_release(vbq);
 		v4l2_ctrl_handler_free(&video->ctrl_handler);
 		v4l2_device_unregister(v4l2_dev);
 
@@ -1737,9 +1736,7 @@ static int aspeed_video_remove(struct platform_device *pdev)
 	clk_unprepare(video->vclk);
 	clk_unprepare(video->eclk);
 
-	video_unregister_device(&video->vdev);
-
-	vb2_queue_release(&video->queue);
+	vb2_video_unregister_device(&video->vdev);
 
 	v4l2_ctrl_handler_free(&video->ctrl_handler);
 

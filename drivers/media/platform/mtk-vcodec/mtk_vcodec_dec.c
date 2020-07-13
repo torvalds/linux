@@ -1525,10 +1525,8 @@ int mtk_vcodec_dec_queue_init(void *priv, struct vb2_queue *src_vq,
 	dst_vq->dev             = &ctx->dev->plat_dev->dev;
 
 	ret = vb2_queue_init(dst_vq);
-	if (ret) {
-		vb2_queue_release(src_vq);
+	if (ret)
 		mtk_v4l2_err("Failed to initialize videobuf2 queue(capture)");
-	}
 
 	return ret;
 }
