@@ -1200,6 +1200,12 @@ static inline void br_vlan_notify(const struct net_bridge *br,
 				  int cmd)
 {
 }
+
+static inline bool br_vlan_can_enter_range(const struct net_bridge_vlan *v_curr,
+					   const struct net_bridge_vlan *range_end)
+{
+	return true;
+}
 #endif
 
 /* br_vlan_options.c */
