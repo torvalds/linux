@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2010-2011 Picochip Ltd., Jamie Iles
- * http://www.picochip.com
+ * https://www.picochip.com
  *
  * This file implements a driver for the Synopsys DesignWare watchdog device
  * in the many subsystems. The watchdog has 16 different timeout periods

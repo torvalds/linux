@@ -7,7 +7,7 @@
  *	Based off i8xx_tco.c:
  *	(c) Copyright 2000 kernel concepts <nils@kernelconcepts.de>, All Rights
  *	Reserved.
- *				http://www.kernelconcepts.de
+ *				https://www.kernelconcepts.de
  *
  *	TCO timer driver for NV chipsets
  *	based on softdog.c by Alan Cox <alan@redhat.com>

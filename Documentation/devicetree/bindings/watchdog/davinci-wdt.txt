@@ -11,8 +11,8 @@ Optional properties:
 	   See clock-bindings.txt
 
 Documentation:
-Davinci DM646x - http://www.ti.com/lit/ug/spruer5b/spruer5b.pdf
-Keystone - http://www.ti.com/lit/ug/sprugv5a/sprugv5a.pdf
+Davinci DM646x - https://www.ti.com/lit/ug/spruer5b/spruer5b.pdf
+Keystone - https://www.ti.com/lit/ug/sprugv5a/sprugv5a.pdf
 
 Examples:
 
