@@ -83,25 +83,25 @@ int cdns3_get_vbus(struct cdns3 *cdns)
 	return vbus;
 }
 
-int cdns3_is_host(struct cdns3 *cdns)
+bool cdns3_is_host(struct cdns3 *cdns)
 {
 	if (cdns->dr_mode == USB_DR_MODE_HOST)
-		return 1;
+		return true;
 	else if (!cdns3_get_id(cdns))
-		return 1;
+		return true;
 
-	return 0;
+	return false;
 }
 
-int cdns3_is_device(struct cdns3 *cdns)
+bool cdns3_is_device(struct cdns3 *cdns)
 {
 	if (cdns->dr_mode == USB_DR_MODE_PERIPHERAL)
-		return 1;
+		return true;
 	else if (cdns->dr_mode == USB_DR_MODE_OTG)
 		if (cdns3_get_id(cdns))
-			return 1;
+			return true;
 
-	return 0;
+	return false;
 }
 
 /**

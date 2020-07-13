@@ -153,8 +153,8 @@ struct cdns3_otg_common_regs {
 /* Only for CDNS3_CONTROLLER_V0 version */
 #define OVERRIDE_IDPULLUP_V0		BIT(24)
 
-int cdns3_is_host(struct cdns3 *cdns);
-int cdns3_is_device(struct cdns3 *cdns);
+bool cdns3_is_host(struct cdns3 *cdns);
+bool cdns3_is_device(struct cdns3 *cdns);
 int cdns3_get_id(struct cdns3 *cdns);
 int cdns3_get_vbus(struct cdns3 *cdns);
 int cdns3_drd_init(struct cdns3 *cdns);
