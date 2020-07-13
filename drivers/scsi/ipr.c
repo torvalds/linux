@@ -738,7 +738,6 @@ struct ipr_cmnd *ipr_get_free_ipr_cmnd(struct ipr_ioa_cfg *ioa_cfg)
 static void ipr_mask_and_clear_interrupts(struct ipr_ioa_cfg *ioa_cfg,
 					  u32 clr_ints)
 {
-	volatile u32 int_reg;
 	int i;
 
 	/* Stop new interrupts */
@@ -758,7 +757,7 @@ static void ipr_mask_and_clear_interrupts(struct ipr_ioa_cfg *ioa_cfg,
 	if (ioa_cfg->sis64)
 		writel(~0, ioa_cfg->regs.clr_interrupt_reg);
 	writel(clr_ints, ioa_cfg->regs.clr_interrupt_reg32);
-	int_reg = readl(ioa_cfg->regs.sense_interrupt_reg);
+	readl(ioa_cfg->regs.sense_interrupt_reg);
 }
 
 /**
@@ -5510,7 +5509,7 @@ static int ipr_cancel_op(struct scsi_cmnd *scsi_cmd)
 	struct ipr_ioa_cfg *ioa_cfg;
 	struct ipr_resource_entry *res;
 	struct ipr_cmd_pkt *cmd_pkt;
-	u32 ioasc, int_reg;
+	u32 ioasc;
 	int i, op_found = 0;
 	struct ipr_hrr_queue *hrrq;
 
@@ -5533,7 +5532,7 @@ static int ipr_cancel_op(struct scsi_cmnd *scsi_cmd)
 	 * by a still not detected EEH error. In such cases, reading a register will
 	 * trigger the EEH recovery infrastructure.
 	 */
-	int_reg = readl(ioa_cfg->regs.sense_interrupt_reg);
+	readl(ioa_cfg->regs.sense_interrupt_reg);
 
 	if (!ipr_is_gscsi(res))
 		return FAILED;
@@ -5780,7 +5779,6 @@ static int ipr_process_hrrq(struct ipr_hrr_queue *hrr_queue, int budget,
 
 static int ipr_iopoll(struct irq_poll *iop, int budget)
 {
-	struct ipr_ioa_cfg *ioa_cfg;
 	struct ipr_hrr_queue *hrrq;
 	struct ipr_cmnd *ipr_cmd, *temp;
 	unsigned long hrrq_flags;
@@ -5788,7 +5786,6 @@ static int ipr_iopoll(struct irq_poll *iop, int budget)
 	LIST_HEAD(doneq);
 
 	hrrq = container_of(iop, struct ipr_hrr_queue, iopoll);
-	ioa_cfg = hrrq->ioa_cfg;
 
 	spin_lock_irqsave(hrrq->lock, hrrq_flags);
 	completed_ops = ipr_process_hrrq(hrrq, budget, &doneq);
@@ -8680,7 +8677,6 @@ static int ipr_dump_mailbox_wait(struct ipr_cmnd *ipr_cmd)
 static int ipr_reset_restore_cfg_space(struct ipr_cmnd *ipr_cmd)
 {
 	struct ipr_ioa_cfg *ioa_cfg = ipr_cmd->ioa_cfg;
-	u32 int_reg;
 
 	ENTER;
 	ioa_cfg->pdev->state_saved = true;
@@ -8696,7 +8692,7 @@ static int ipr_reset_restore_cfg_space(struct ipr_cmnd *ipr_cmd)
 	if (ioa_cfg->sis64) {
 		/* Set the adapter to the correct endian mode. */
 		writel(IPR_ENDIAN_SWAP_KEY, ioa_cfg->regs.endian_swap_reg);
-		int_reg = readl(ioa_cfg->regs.endian_swap_reg);
+		readl(ioa_cfg->regs.endian_swap_reg);
 	}
 
 	if (ioa_cfg->ioa_unit_checked) {
@@ -10119,7 +10115,6 @@ static irqreturn_t ipr_test_intr(int irq, void *devp)
 static int ipr_test_msi(struct ipr_ioa_cfg *ioa_cfg, struct pci_dev *pdev)
 {
 	int rc;
-	volatile u32 int_reg;
 	unsigned long lock_flags = 0;
 	int irq = pci_irq_vector(pdev, 0);
 
@@ -10130,7 +10125,7 @@ static int ipr_test_msi(struct ipr_ioa_cfg *ioa_cfg, struct pci_dev *pdev)
 	ioa_cfg->msi_received = 0;
 	ipr_mask_and_clear_interrupts(ioa_cfg, ~IPR_PCII_IOA_TRANS_TO_OPER);
 	writel(IPR_PCII_IO_DEBUG_ACKNOWLEDGE, ioa_cfg->regs.clr_interrupt_mask_reg32);
-	int_reg = readl(ioa_cfg->regs.sense_interrupt_mask_reg);
+	readl(ioa_cfg->regs.sense_interrupt_mask_reg);
 	spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
 
 	rc = request_irq(irq, ipr_test_intr, 0, IPR_NAME, ioa_cfg);
@@ -10141,7 +10136,7 @@ static int ipr_test_msi(struct ipr_ioa_cfg *ioa_cfg, struct pci_dev *pdev)
 		dev_info(&pdev->dev, "IRQ assigned: %d\n", irq);
 
 	writel(IPR_PCII_IO_DEBUG_ACKNOWLEDGE, ioa_cfg->regs.sense_interrupt_reg32);
-	int_reg = readl(ioa_cfg->regs.sense_interrupt_reg);
+	readl(ioa_cfg->regs.sense_interrupt_reg);
 	wait_event_timeout(ioa_cfg->msi_wait_q, ioa_cfg->msi_received, HZ);
 	spin_lock_irqsave(ioa_cfg->host->host_lock, lock_flags);
 	ipr_mask_and_clear_interrupts(ioa_cfg, ~IPR_PCII_IOA_TRANS_TO_OPER);
