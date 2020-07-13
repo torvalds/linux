@@ -6,7 +6,7 @@
  */
 
 #include "habanalabs.h"
-#include "include/hl_boot_if.h"
+#include "include/common/hl_boot_if.h"
 
 #include <linux/firmware.h>
 #include <linux/genalloc.h>

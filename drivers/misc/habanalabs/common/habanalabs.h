@@ -8,8 +8,8 @@
 #ifndef HABANALABSP_H_
 #define HABANALABSP_H_
 
-#include "include/armcp_if.h"
-#include "include/qman_if.h"
+#include "include/common/armcp_if.h"
+#include "include/common/qman_if.h"
 #include <uapi/misc/habanalabs.h>
 
 #include <linux/cdev.h>

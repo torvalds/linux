@@ -10,7 +10,7 @@
 
 #include <uapi/misc/habanalabs.h>
 #include "habanalabs.h"
-#include "include/hl_boot_if.h"
+#include "include/common/hl_boot_if.h"
 #include "include/goya/goya_packets.h"
 #include "include/goya/goya.h"
 #include "include/goya/goya_async_events.h"
