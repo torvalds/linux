@@ -2872,11 +2872,27 @@ static int io_setup_async_rw(struct io_kiocb *req, ssize_t io_size,
 	return 0;
 }
 
+static inline int io_rw_prep_async(struct io_kiocb *req, int rw,
+				   bool force_nonblock)
+{
+	struct io_async_ctx *io = req->io;
+	struct iov_iter iter;
+	ssize_t ret;
+
+	io->rw.iov = io->rw.fast_iov;
+	req->io = NULL;
+	ret = io_import_iovec(rw, req, &io->rw.iov, &iter, !force_nonblock);
+	req->io = io;
+	if (unlikely(ret < 0))
+		return ret;
+
+	io_req_map_rw(req, ret, io->rw.iov, io->rw.fast_iov, &iter);
+	return 0;
+}
+
 static int io_read_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 			bool force_nonblock)
 {
-	struct io_async_ctx *io;
-	struct iov_iter iter;
 	ssize_t ret;
 
 	ret = io_prep_rw(req, sqe, force_nonblock);
@@ -2889,17 +2905,7 @@ static int io_read_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 	/* either don't need iovec imported or already have it */
 	if (!req->io || req->flags & REQ_F_NEED_CLEANUP)
 		return 0;
-
-	io = req->io;
-	io->rw.iov = io->rw.fast_iov;
-	req->io = NULL;
-	ret = io_import_iovec(READ, req, &io->rw.iov, &iter, !force_nonblock);
-	req->io = io;
-	if (ret < 0)
-		return ret;
-
-	io_req_map_rw(req, ret, io->rw.iov, io->rw.fast_iov, &iter);
-	return 0;
+	return io_rw_prep_async(req, READ, force_nonblock);
 }
 
 static int io_async_buf_func(struct wait_queue_entry *wait, unsigned mode,
@@ -3043,8 +3049,6 @@ out_free:
 static int io_write_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 			 bool force_nonblock)
 {
-	struct io_async_ctx *io;
-	struct iov_iter iter;
 	ssize_t ret;
 
 	ret = io_prep_rw(req, sqe, force_nonblock);
@@ -3059,17 +3063,7 @@ static int io_write_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 	/* either don't need iovec imported or already have it */
 	if (!req->io || req->flags & REQ_F_NEED_CLEANUP)
 		return 0;
-
-	io = req->io;
-	io->rw.iov = io->rw.fast_iov;
-	req->io = NULL;
-	ret = io_import_iovec(WRITE, req, &io->rw.iov, &iter, !force_nonblock);
-	req->io = io;
-	if (ret < 0)
-		return ret;
-
-	io_req_map_rw(req, ret, io->rw.iov, io->rw.fast_iov, &iter);
-	return 0;
+	return io_rw_prep_async(req, WRITE, force_nonblock);
 }
 
 static int io_write(struct io_kiocb *req, bool force_nonblock,
