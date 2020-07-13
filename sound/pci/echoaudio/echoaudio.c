@@ -721,7 +721,7 @@ static int pcm_prepare(struct snd_pcm_substream *substream)
 	spin_lock_irq(&chip->lock);
 
 	if (snd_BUG_ON(!is_pipe_allocated(chip, pipe_index))) {
-		spin_unlock(&chip->lock);
+		spin_unlock_irq(&chip->lock);
 		return -EINVAL;
 	}
 

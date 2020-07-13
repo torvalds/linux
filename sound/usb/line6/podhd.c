@@ -11,6 +11,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <sound/core.h>
+#include <sound/control.h>
 #include <sound/pcm.h>
 
 #include "driver.h"
@@ -37,6 +38,9 @@ struct usb_line6_podhd {
 
 	/* Firmware version */
 	int firmware_version;
+
+	/* Monitor level */
+	int monitor_level;
 };
 
 #define line6_to_podhd(x)	container_of(x, struct usb_line6_podhd, line6)
@@ -250,6 +254,118 @@ static void podhd_disconnect(struct usb_line6 *line6)
 	}
 }
 
+static const unsigned int float_zero_to_one_lookup[] = {
+0x00000000, 0x3c23d70a, 0x3ca3d70a, 0x3cf5c28f, 0x3d23d70a, 0x3d4ccccd,
+0x3d75c28f, 0x3d8f5c29, 0x3da3d70a, 0x3db851ec, 0x3dcccccd, 0x3de147ae,
+0x3df5c28f, 0x3e051eb8, 0x3e0f5c29, 0x3e19999a, 0x3e23d70a, 0x3e2e147b,
+0x3e3851ec, 0x3e428f5c, 0x3e4ccccd, 0x3e570a3d, 0x3e6147ae, 0x3e6b851f,
+0x3e75c28f, 0x3e800000, 0x3e851eb8, 0x3e8a3d71, 0x3e8f5c29, 0x3e947ae1,
+0x3e99999a, 0x3e9eb852, 0x3ea3d70a, 0x3ea8f5c3, 0x3eae147b, 0x3eb33333,
+0x3eb851ec, 0x3ebd70a4, 0x3ec28f5c, 0x3ec7ae14, 0x3ecccccd, 0x3ed1eb85,
+0x3ed70a3d, 0x3edc28f6, 0x3ee147ae, 0x3ee66666, 0x3eeb851f, 0x3ef0a3d7,
+0x3ef5c28f, 0x3efae148, 0x3f000000, 0x3f028f5c, 0x3f051eb8, 0x3f07ae14,
+0x3f0a3d71, 0x3f0ccccd, 0x3f0f5c29, 0x3f11eb85, 0x3f147ae1, 0x3f170a3d,
+0x3f19999a, 0x3f1c28f6, 0x3f1eb852, 0x3f2147ae, 0x3f23d70a, 0x3f266666,
+0x3f28f5c3, 0x3f2b851f, 0x3f2e147b, 0x3f30a3d7, 0x3f333333, 0x3f35c28f,
+0x3f3851ec, 0x3f3ae148, 0x3f3d70a4, 0x3f400000, 0x3f428f5c, 0x3f451eb8,
+0x3f47ae14, 0x3f4a3d71, 0x3f4ccccd, 0x3f4f5c29, 0x3f51eb85, 0x3f547ae1,
+0x3f570a3d, 0x3f59999a, 0x3f5c28f6, 0x3f5eb852, 0x3f6147ae, 0x3f63d70a,
+0x3f666666, 0x3f68f5c3, 0x3f6b851f, 0x3f6e147b, 0x3f70a3d7, 0x3f733333,
+0x3f75c28f, 0x3f7851ec, 0x3f7ae148, 0x3f7d70a4, 0x3f800000
+};
+
+static void podhd_set_monitor_level(struct usb_line6_podhd *podhd, int value)
+{
+	unsigned int fl;
+	static const unsigned char msg[16] = {
+		/* Chunk is 0xc bytes (without first word) */
+		0x0c, 0x00,
+		/* First chunk in the message */
+		0x01, 0x00,
+		/* Message size is 2 4-byte words */
+		0x02, 0x00,
+		/* Unknown */
+		0x04, 0x41,
+		/* Unknown */
+		0x04, 0x00, 0x13, 0x00,
+		/* Volume, LE float32, 0.0 - 1.0 */
+		0x00, 0x00, 0x00, 0x00
+	};
+	unsigned char *buf;
+
+	buf = kmalloc(sizeof(msg), GFP_KERNEL);
+	if (!buf)
+		return;
+
+	memcpy(buf, msg, sizeof(msg));
+
+	if (value < 0)
+		value = 0;
+
+	if (value >= ARRAY_SIZE(float_zero_to_one_lookup))
+		value = ARRAY_SIZE(float_zero_to_one_lookup) - 1;
+
+	fl = float_zero_to_one_lookup[value];
+
+	buf[12] = (fl >> 0) & 0xff;
+	buf[13] = (fl >> 8) & 0xff;
+	buf[14] = (fl >> 16) & 0xff;
+	buf[15] = (fl >> 24) & 0xff;
+
+	line6_send_raw_message(&podhd->line6, buf, sizeof(msg));
+	kfree(buf);
+
+	podhd->monitor_level = value;
+}
+
+/* control info callback */
+static int snd_podhd_control_monitor_info(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_info *uinfo)
+{
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	uinfo->count = 1;
+	uinfo->value.integer.min = 0;
+	uinfo->value.integer.max = 100;
+	uinfo->value.integer.step = 1;
+	return 0;
+}
+
+/* control get callback */
+static int snd_podhd_control_monitor_get(struct snd_kcontrol *kcontrol,
+				       struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_line6_pcm *line6pcm = snd_kcontrol_chip(kcontrol);
+	struct usb_line6_podhd *podhd = line6_to_podhd(line6pcm->line6);
+
+	ucontrol->value.integer.value[0] = podhd->monitor_level;
+	return 0;
+}
+
+/* control put callback */
+static int snd_podhd_control_monitor_put(struct snd_kcontrol *kcontrol,
+				       struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_line6_pcm *line6pcm = snd_kcontrol_chip(kcontrol);
+	struct usb_line6_podhd *podhd = line6_to_podhd(line6pcm->line6);
+
+	if (ucontrol->value.integer.value[0] == podhd->monitor_level)
+		return 0;
+
+	podhd_set_monitor_level(podhd, ucontrol->value.integer.value[0]);
+	return 1;
+}
+
+/* control definition */
+static const struct snd_kcontrol_new podhd_control_monitor = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name = "Monitor Playback Volume",
+	.index = 0,
+	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
+	.info = snd_podhd_control_monitor_info,
+	.get = snd_podhd_control_monitor_get,
+	.put = snd_podhd_control_monitor_put
+};
+
 /*
 	Try to init POD HD device.
 */
@@ -294,6 +410,15 @@ static int podhd_init(struct usb_line6 *line6,
 			(id->driver_info == LINE6_PODX3 ||
 			id->driver_info == LINE6_PODX3LIVE) ? &podx3_pcm_properties :
 			&podhd_pcm_properties);
+		if (err < 0)
+			return err;
+	}
+
+	if (pod->line6.properties->capabilities & LINE6_CAP_HWMON_CTL) {
+		podhd_set_monitor_level(pod, 100);
+		err = snd_ctl_add(line6->card,
+				  snd_ctl_new1(&podhd_control_monitor,
+					       line6->line6pcm));
 		if (err < 0)
 			return err;
 	}
@@ -354,7 +479,7 @@ static const struct line6_properties podhd_properties_table[] = {
 		.id = "PODHD500",
 		.name = "POD HD500",
 		.capabilities	= LINE6_CAP_PCM | LINE6_CAP_CONTROL
-				| LINE6_CAP_HWMON,
+				| LINE6_CAP_HWMON | LINE6_CAP_HWMON_CTL,
 		.altsetting = 1,
 		.ctrl_if = 1,
 		.ep_ctrl_r = 0x81,
