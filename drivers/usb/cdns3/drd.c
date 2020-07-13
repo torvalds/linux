@@ -87,7 +87,7 @@ bool cdns3_is_host(struct cdns3 *cdns)
 {
 	if (cdns->dr_mode == USB_DR_MODE_HOST)
 		return true;
-	else if (!cdns3_get_id(cdns))
+	else if (cdns3_get_id(cdns) == CDNS3_ID_HOST)
 		return true;
 
 	return false;
@@ -98,7 +98,7 @@ bool cdns3_is_device(struct cdns3 *cdns)
 	if (cdns->dr_mode == USB_DR_MODE_PERIPHERAL)
 		return true;
 	else if (cdns->dr_mode == USB_DR_MODE_OTG)
-		if (cdns3_get_id(cdns))
+		if (cdns3_get_id(cdns) == CDNS3_ID_PERIPHERAL)
 			return true;
 
 	return false;
