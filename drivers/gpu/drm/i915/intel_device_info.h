@@ -122,6 +122,7 @@ enum intel_ppgtt_type {
 	func(has_logical_ring_contexts); \
 	func(has_logical_ring_elsq); \
 	func(has_logical_ring_preemption); \
+	func(has_master_unit_irq); \
 	func(has_pooled_eu); \
 	func(has_rc6); \
 	func(has_rc6p); \
