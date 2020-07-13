@@ -1571,6 +1571,17 @@ static int dwc3_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	/* Reset the whole dwc3 controller */
+	ret = reset_control_assert(dwc->reset);
+	if (ret)
+		return ret;
+
+	udelay(1);
+
+	ret = reset_control_deassert(dwc->reset);
+	if (ret)
+		return ret;
+
 	if (!dwc3_core_is_valid(dwc)) {
 		dev_err(dwc->dev, "this is not a DesignWare USB3 DRD Core\n");
 		return -ENODEV;
