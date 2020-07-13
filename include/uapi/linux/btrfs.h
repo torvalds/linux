@@ -252,6 +252,8 @@ struct btrfs_ioctl_dev_info_args {
 
 /* Request information about filesystem generation */
 #define BTRFS_FS_INFO_FLAG_GENERATION			(1 << 1)
+/* Request information about filesystem metadata UUID */
+#define BTRFS_FS_INFO_FLAG_METADATA_UUID		(1 << 2)
 
 struct btrfs_ioctl_fs_info_args {
 	__u64 max_id;				/* out */
@@ -265,7 +267,8 @@ struct btrfs_ioctl_fs_info_args {
 	__u16 csum_size;			/* out */
 	__u64 flags;				/* in/out */
 	__u64 generation;			/* out */
-	__u8 reserved[960];			/* pad to 1k */
+	__u8 metadata_uuid[BTRFS_FSID_SIZE];	/* out */
+	__u8 reserved[944];			/* pad to 1k */
 };
 
 /*
