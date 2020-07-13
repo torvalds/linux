@@ -2740,10 +2740,8 @@ static ssize_t io_import_iovec(int rw, struct io_kiocb *req,
 	if (req->io) {
 		struct io_async_rw *iorw = &req->io->rw;
 
-		*iovec = iorw->iov;
-		iov_iter_init(iter, rw, *iovec, iorw->nr_segs, iorw->size);
-		if (iorw->iov == iorw->fast_iov)
-			*iovec = NULL;
+		iov_iter_init(iter, rw, iorw->iov, iorw->nr_segs, iorw->size);
+		*iovec = NULL;
 		return iorw->size;
 	}
 
@@ -3026,6 +3024,8 @@ copy_iov:
 						inline_vecs, &iter);
 			if (ret)
 				goto out_free;
+			/* it's copied and will be cleaned with ->io */
+			iovec = NULL;
 			/* if we can retry, do so with the callbacks armed */
 			if (io_rw_should_retry(req)) {
 				ret2 = io_iter_do_read(req, &iter);
@@ -3041,7 +3041,7 @@ copy_iov:
 		}
 	}
 out_free:
-	if (!(req->flags & REQ_F_NEED_CLEANUP))
+	if (iovec)
 		kfree(iovec);
 	return ret;
 }
@@ -3143,11 +3143,13 @@ copy_iov:
 						inline_vecs, &iter);
 			if (ret)
 				goto out_free;
+			/* it's copied and will be cleaned with ->io */
+			iovec = NULL;
 			return -EAGAIN;
 		}
 	}
 out_free:
-	if (!(req->flags & REQ_F_NEED_CLEANUP))
+	if (iovec)
 		kfree(iovec);
 	return ret;
 }
