@@ -6,3 +6,12 @@ config CAN_ROCKCHIP
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called rockchip_can.
+
+config CANFD_ROCKCHIP
+	tristate "Rockchip CANFD controller"
+	depends on ARCH_ROCKCHIP
+	---help---
+	  Say Y here if you want to use CANFD controller found on Rockchip SoCs.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called rockchip_canfd.
