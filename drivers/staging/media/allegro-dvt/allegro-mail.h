@@ -25,7 +25,7 @@ const char *msg_type_name(enum mcu_msg_type type);
 struct mcu_msg_header {
 	u16 length;		/* length of the body in bytes */
 	u16 type;
-} __attribute__ ((__packed__));
+};
 
 struct mcu_msg_init_request {
 	struct mcu_msg_header header;
@@ -33,12 +33,12 @@ struct mcu_msg_init_request {
 	u32 suballoc_dma;
 	u32 suballoc_size;
 	s32 l2_cache[3];
-} __attribute__ ((__packed__));
+};
 
 struct mcu_msg_init_response {
 	struct mcu_msg_header header;
 	u32 reserved0;
-} __attribute__ ((__packed__));
+};
 
 struct create_channel_param {
 	u16 width;
@@ -127,13 +127,13 @@ struct create_channel_param {
 	u32 subframe_latency;
 	u32 lda_control_mode;
 	u32 unknown41;
-} __attribute__ ((__packed__));
+};
 
 struct mcu_msg_create_channel {
 	struct mcu_msg_header header;
 	u32 user_id;
 	struct create_channel_param param;
-} __attribute__ ((__packed__));
+};
 
 struct mcu_msg_create_channel_response {
 	struct mcu_msg_header header;
@@ -148,30 +148,30 @@ struct mcu_msg_create_channel_response {
 	u32 rec_buffers_size;
 	u32 reserved;
 	u32 error_code;
-} __attribute__ ((__packed__));
+};
 
 struct mcu_msg_destroy_channel {
 	struct mcu_msg_header header;
 	u32 channel_id;
-} __attribute__ ((__packed__));
+};
 
 struct mcu_msg_destroy_channel_response {
 	struct mcu_msg_header header;
 	u32 channel_id;
-} __attribute__ ((__packed__));
+};
 
 struct mcu_msg_push_buffers_internal_buffer {
 	u32 dma_addr;
 	u32 mcu_addr;
 	u32 size;
-} __attribute__ ((__packed__));
+};
 
 struct mcu_msg_push_buffers_internal {
 	struct mcu_msg_header header;
 	u32 channel_id;
 	size_t num_buffers;
 	struct mcu_msg_push_buffers_internal_buffer buffer[];
-} __attribute__ ((__packed__));
+};
 
 struct mcu_msg_put_stream_buffer {
 	struct mcu_msg_header header;
@@ -181,7 +181,7 @@ struct mcu_msg_put_stream_buffer {
 	u32 size;
 	u32 offset;
 	u64 stream_id;
-} __attribute__ ((__packed__));
+};
 
 struct mcu_msg_encode_frame {
 	struct mcu_msg_header header;
@@ -214,7 +214,7 @@ struct mcu_msg_encode_frame {
 	u32 stride;
 	u32 ep2;
 	u64 ep2_v;
-} __attribute__ ((__packed__));
+};
 
 struct mcu_msg_encode_frame_response {
 	struct mcu_msg_header header;
@@ -255,7 +255,7 @@ struct mcu_msg_encode_frame_response {
 	u16 pps_qp;
 	u16 reserved1;
 	u32 reserved2;
-} __attribute__ ((__packed__));
+};
 
 union mcu_msg_response {
 	struct mcu_msg_header header;
