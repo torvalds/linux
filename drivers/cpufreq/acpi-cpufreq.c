@@ -612,7 +612,7 @@ static const struct dmi_system_id sw_any_bug_dmi_table[] = {
 static int acpi_cpufreq_blacklist(struct cpuinfo_x86 *c)
 {
 	/* Intel Xeon Processor 7100 Series Specification Update
-	 * http://www.intel.com/Assets/PDF/specupdate/314554.pdf
+	 * https://www.intel.com/Assets/PDF/specupdate/314554.pdf
 	 * AL30: A Machine Check Exception (MCE) Occurring during an
 	 * Enhanced Intel SpeedStep Technology Ratio Change May Cause
 	 * Both Processor Cores to Lock Up. */
