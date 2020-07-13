@@ -897,7 +897,19 @@ static const struct intel_device_info rkl_info = {
 
 #define GEN12_DGFX_FEATURES \
 	GEN12_FEATURES, \
+	.memory_regions = REGION_SMEM | REGION_LMEM, \
+	.has_master_unit_irq = 1, \
 	.is_dgfx = 1
+
+static const struct intel_device_info dg1_info __maybe_unused = {
+	GEN12_DGFX_FEATURES,
+	PLATFORM(INTEL_DG1),
+	.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C) | BIT(PIPE_D),
+	.require_force_probe = 1,
+	.platform_engine_mask =
+		BIT(RCS0) | BIT(BCS0) | BIT(VECS0) |
+		BIT(VCS0) | BIT(VCS2),
+};
 
 #undef GEN
 #undef PLATFORM

@@ -82,6 +82,7 @@ enum intel_platform {
 	/* gen12 */
 	INTEL_TIGERLAKE,
 	INTEL_ROCKETLAKE,
+	INTEL_DG1,
 	INTEL_MAX_PLATFORMS
 };
 
