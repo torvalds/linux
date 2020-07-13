@@ -36,6 +36,8 @@ static inline unsigned long cputime_to_usecs(const cputime_t ct)
 	return mulhdu((__force u64) ct, __cputime_usec_factor);
 }
 
+#define cputime_to_nsecs(cputime) tb_to_ns((__force u64)cputime)
+
 /*
  * PPC64 uses PACA which is task independent for storing accounting data while
  * PPC32 uses struct thread_info, therefore at task switch the accounting data
