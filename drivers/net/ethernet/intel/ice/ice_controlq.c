@@ -312,9 +312,10 @@ ice_cfg_rq_regs(struct ice_hw *hw, struct ice_ctl_q_info *cq)
 
 #define ICE_FREE_CQ_BUFS(hw, qi, ring)					\
 do {									\
-	int i;								\
 	/* free descriptors */						\
-	if ((qi)->ring.r.ring##_bi)					\
+	if ((qi)->ring.r.ring##_bi) {					\
+		int i;							\
+									\
 		for (i = 0; i < (qi)->num_##ring##_entries; i++)	\
 			if ((qi)->ring.r.ring##_bi[i].pa) {		\
 				dmam_free_coherent(ice_hw_to_dev(hw),	\
@@ -325,6 +326,7 @@ do {									\
 					(qi)->ring.r.ring##_bi[i].pa = 0;\
 					(qi)->ring.r.ring##_bi[i].size = 0;\
 		}							\
+	}								\
 	/* free the buffer info list */					\
 	if ((qi)->ring.cmd_buf)						\
 		devm_kfree(ice_hw_to_dev(hw), (qi)->ring.cmd_buf);	\
