@@ -3114,7 +3114,8 @@ static void icp_hpd_irq_setup(struct drm_i915_private *dev_priv,
 	hotplug_irqs = sde_ddi_mask | sde_tc_mask;
 	enabled_irqs = intel_hpd_enabled_irqs(dev_priv, dev_priv->hotplug.pch_hpd);
 
-	I915_WRITE(SHPD_FILTER_CNT, SHPD_FILTER_CNT_500_ADJ);
+	if (INTEL_PCH_TYPE(dev_priv) <= PCH_TGP)
+		I915_WRITE(SHPD_FILTER_CNT, SHPD_FILTER_CNT_500_ADJ);
 
 	ibx_display_interrupt_update(dev_priv, hotplug_irqs, enabled_irqs);
 
