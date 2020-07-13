@@ -27,13 +27,6 @@
 
 static int cdns3_idle_init(struct cdns3 *cdns);
 
-static inline
-struct cdns3_role_driver *cdns3_get_current_role_driver(struct cdns3 *cdns)
-{
-	WARN_ON(!cdns->roles[cdns->role]);
-	return cdns->roles[cdns->role];
-}
-
 static int cdns3_role_start(struct cdns3 *cdns, enum usb_role role)
 {
 	int ret;
