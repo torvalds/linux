@@ -463,7 +463,7 @@ void ice_dcb_rebuild(struct ice_pf *pf)
 		}
 	}
 
-	dev_info(dev, "DCB restored after reset\n");
+	dev_info(dev, "DCB info restored\n");
 	ret = ice_query_port_ets(pf->hw.port_info, &buf, sizeof(buf), NULL);
 	if (ret) {
 		dev_err(dev, "Query Port ETS failed\n");
