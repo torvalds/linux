@@ -1178,7 +1178,6 @@ static int tw5864_video_input_init(struct tw5864_input *input, int video_nr)
 
 free_v4l2_hdl:
 	v4l2_ctrl_handler_free(hdl);
-	vb2_queue_release(&input->vidq);
 free_mutex:
 	mutex_destroy(&input->lock);
 
@@ -1187,9 +1186,8 @@ free_mutex:
 
 static void tw5864_video_input_fini(struct tw5864_input *dev)
 {
-	video_unregister_device(&dev->vdev);
+	vb2_video_unregister_device(&dev->vdev);
 	v4l2_ctrl_handler_free(&dev->hdl);
-	vb2_queue_release(&dev->vidq);
 }
 
 void tw5864_video_fini(struct tw5864_dev *dev)

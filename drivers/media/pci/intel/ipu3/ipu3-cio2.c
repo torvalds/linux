@@ -1633,7 +1633,7 @@ static int cio2_queue_init(struct cio2_device *cio2, struct cio2_queue *q)
 	if (r) {
 		dev_err(&cio2->pci_dev->dev,
 			"failed to initialize videobuf2 queue (%d)\n", r);
-		goto fail_vbq;
+		goto fail_subdev;
 	}
 
 	/* Initialize vdev */
@@ -1664,10 +1664,8 @@ static int cio2_queue_init(struct cio2_device *cio2, struct cio2_queue *q)
 	return 0;
 
 fail_link:
-	video_unregister_device(&q->vdev);
+	vb2_video_unregister_device(&q->vdev);
 fail_vdev:
-	vb2_queue_release(vbq);
-fail_vbq:
 	v4l2_device_unregister_subdev(subdev);
 fail_subdev:
 	media_entity_cleanup(&vdev->entity);
@@ -1683,9 +1681,8 @@ fail_fbpt:
 
 static void cio2_queue_exit(struct cio2_device *cio2, struct cio2_queue *q)
 {
-	video_unregister_device(&q->vdev);
+	vb2_video_unregister_device(&q->vdev);
 	media_entity_cleanup(&q->vdev.entity);
-	vb2_queue_release(&q->vbq);
 	v4l2_device_unregister_subdev(&q->subdev);
 	media_entity_cleanup(&q->subdev.entity);
 	cio2_fbpt_exit(q, &cio2->pci_dev->dev);

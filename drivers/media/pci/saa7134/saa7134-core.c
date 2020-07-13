@@ -965,21 +965,21 @@ static void saa7134_unregister_video(struct saa7134_dev *dev)
 
 	if (dev->video_dev) {
 		if (video_is_registered(dev->video_dev))
-			video_unregister_device(dev->video_dev);
+			vb2_video_unregister_device(dev->video_dev);
 		else
 			video_device_release(dev->video_dev);
 		dev->video_dev = NULL;
 	}
 	if (dev->vbi_dev) {
 		if (video_is_registered(dev->vbi_dev))
-			video_unregister_device(dev->vbi_dev);
+			vb2_video_unregister_device(dev->vbi_dev);
 		else
 			video_device_release(dev->vbi_dev);
 		dev->vbi_dev = NULL;
 	}
 	if (dev->radio_dev) {
 		if (video_is_registered(dev->radio_dev))
-			video_unregister_device(dev->radio_dev);
+			vb2_video_unregister_device(dev->radio_dev);
 		else
 			video_device_release(dev->radio_dev);
 		dev->radio_dev = NULL;
