@@ -316,7 +316,7 @@ static const u32 *ocelot_regmap[TARGET_MAX] = {
 	[DEV_GMII] = ocelot_dev_gmii_regmap,
 };
 
-static const struct reg_field ocelot_regfields[] = {
+static const struct reg_field ocelot_regfields[REGFIELD_MAX] = {
 	[ANA_ADVLEARN_VLAN_CHK] = REG_FIELD(ANA_ADVLEARN, 11, 11),
 	[ANA_ADVLEARN_LEARN_MIRROR] = REG_FIELD(ANA_ADVLEARN, 0, 10),
 	[ANA_ANEVENTS_MSTI_DROP] = REG_FIELD(ANA_ANEVENTS, 27, 27),
