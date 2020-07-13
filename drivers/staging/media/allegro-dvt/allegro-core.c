@@ -206,6 +206,8 @@ struct allegro_channel {
 	unsigned int cpb_size;
 	unsigned int gop_size;
 
+	struct allegro_buffer config_blob;
+
 	struct v4l2_ctrl *mpeg_video_h264_profile;
 	struct v4l2_ctrl *mpeg_video_h264_level;
 	struct v4l2_ctrl *mpeg_video_h264_i_frame_qp;
@@ -978,6 +980,14 @@ static int allegro_mcu_send_create_channel(struct allegro_dev *dev,
 					   struct allegro_channel *channel)
 {
 	struct mcu_msg_create_channel msg;
+	struct allegro_buffer *blob = &channel->config_blob;
+	struct create_channel_param param;
+	size_t size;
+
+	memset(&param, 0, sizeof(param));
+	fill_create_channel_param(channel, &param);
+	allegro_alloc_buffer(dev, blob, sizeof(struct create_channel_param));
+	size = allegro_encode_config_blob(blob->vaddr, &param);
 
 	memset(&msg, 0, sizeof(msg));
 
@@ -986,7 +996,9 @@ static int allegro_mcu_send_create_channel(struct allegro_dev *dev,
 
 	msg.user_id = channel->user_id;
 
-	fill_create_channel_param(channel, &msg.param);
+	msg.blob = blob->vaddr;
+	msg.blob_size = size;
+	msg.blob_mcu_addr = to_mcu_addr(dev, blob->paddr);
 
 	allegro_mbox_send(dev->mbox_command, &msg);
 
@@ -1596,6 +1608,7 @@ allegro_handle_create_channel(struct allegro_dev *dev,
 {
 	struct allegro_channel *channel;
 	int err = 0;
+	struct create_channel_param param;
 
 	channel = allegro_find_channel_by_user_id(dev, msg->user_id);
 	if (IS_ERR(channel)) {
@@ -1620,6 +1633,11 @@ allegro_handle_create_channel(struct allegro_dev *dev,
 	v4l2_dbg(1, debug, &dev->v4l2_dev,
 		 "user %d: channel has channel id %d\n",
 		 channel->user_id, channel->mcu_channel_id);
+
+	err = allegro_decode_config_blob(&param, msg, channel->config_blob.vaddr);
+	allegro_free_buffer(channel->dev, &channel->config_blob);
+	if (err)
+		goto out;
 
 	v4l2_dbg(1, debug, &dev->v4l2_dev,
 		 "channel %d: intermediate buffers: %d x %d bytes\n",

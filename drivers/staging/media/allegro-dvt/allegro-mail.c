@@ -9,6 +9,7 @@
 #include <linux/bitfield.h>
 #include <linux/export.h>
 #include <linux/errno.h>
+#include <linux/string.h>
 #include <linux/videodev2.h>
 
 #include "allegro-mail.h"
@@ -65,8 +66,8 @@ static inline u32 settings_get_mcu_codec(struct create_channel_param *param)
 	}
 }
 
-static ssize_t
-allegro_encode_channel_config(u32 *dst, struct create_channel_param *param)
+ssize_t
+allegro_encode_config_blob(u32 *dst, struct create_channel_param *param)
 {
 	unsigned int i = 0;
 	u32 val;
@@ -158,16 +159,21 @@ allegro_encode_channel_config(u32 *dst, struct create_channel_param *param)
 static ssize_t
 allegro_enc_create_channel(u32 *dst, struct mcu_msg_create_channel *msg)
 {
-	struct create_channel_param *param = &msg->param;
-	ssize_t size = 0;
 	unsigned int i = 0;
 
 	dst[i++] = msg->user_id;
 
-	size = allegro_encode_channel_config(&dst[i], param);
-	i += size / sizeof(*dst);
+	memcpy(&dst[i], msg->blob, msg->blob_size);
+	i += msg->blob_size / sizeof(*dst);
 
 	return i * sizeof(*dst);
+}
+
+ssize_t allegro_decode_config_blob(struct create_channel_param *param,
+				   struct mcu_msg_create_channel_response *msg,
+				   u32 *src)
+{
+	return 0;
 }
 
 static ssize_t

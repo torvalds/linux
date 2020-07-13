@@ -116,7 +116,9 @@ struct create_channel_param {
 struct mcu_msg_create_channel {
 	struct mcu_msg_header header;
 	u32 user_id;
-	struct create_channel_param param;
+	u32 *blob;
+	size_t blob_size;
+	u32 blob_mcu_addr;
 };
 
 struct mcu_msg_create_channel_response {
@@ -248,6 +250,11 @@ union mcu_msg_response {
 	struct mcu_msg_destroy_channel_response destroy_channel;
 	struct mcu_msg_encode_frame_response encode_frame;
 };
+
+ssize_t allegro_encode_config_blob(u32 *dst, struct create_channel_param *param);
+ssize_t allegro_decode_config_blob(struct create_channel_param *param,
+				   struct mcu_msg_create_channel_response *msg,
+				   u32 *src);
 
 int allegro_decode_mail(void *msg, u32 *src);
 ssize_t allegro_encode_mail(u32 *dst, void *msg);
