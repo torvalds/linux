@@ -47,6 +47,7 @@
 /**
  * pm8001_ctl_mpi_interface_rev_show - MPI interface revision number
  * @cdev: pointer to embedded class device
+ * @attr: device attribute (unused)
  * @buf: the buffer returned
  *
  * A sysfs 'read-only' shost attribute.
@@ -72,6 +73,7 @@ DEVICE_ATTR(interface_rev, S_IRUGO, pm8001_ctl_mpi_interface_rev_show, NULL);
 /**
  * controller_fatal_error_show - check controller is under fatal err
  * @cdev: pointer to embedded class device
+ * @attr: device attribute (unused)
  * @buf: the buffer returned
  *
  * A sysfs 'read only' shost attribute.
@@ -121,6 +123,7 @@ static DEVICE_ATTR(fw_version, S_IRUGO, pm8001_ctl_fw_version_show, NULL);
 /**
  * pm8001_ctl_ila_version_show - ila version
  * @cdev: pointer to embedded class device
+ * @attr: device attribute (unused)
  * @buf: the buffer returned
  *
  * A sysfs 'read-only' shost attribute.
@@ -146,6 +149,7 @@ static DEVICE_ATTR(ila_version, 0444, pm8001_ctl_ila_version_show, NULL);
 /**
  * pm8001_ctl_inactive_fw_version_show - Inacative firmware version number
  * @cdev: pointer to embedded class device
+ * @attr: device attribute (unused)
  * @buf: the buffer returned
  *
  * A sysfs 'read-only' shost attribute.
@@ -172,6 +176,7 @@ DEVICE_ATTR(inc_fw_ver, 0444, pm8001_ctl_inactive_fw_version_show, NULL);
 /**
  * pm8001_ctl_max_out_io_show - max outstanding io supported
  * @cdev: pointer to embedded class device
+ * @attr: device attribute (unused)
  * @buf: the buffer returned
  *
  * A sysfs 'read-only' shost attribute.
@@ -195,6 +200,7 @@ static DEVICE_ATTR(max_out_io, S_IRUGO, pm8001_ctl_max_out_io_show, NULL);
 /**
  * pm8001_ctl_max_devices_show - max devices support
  * @cdev: pointer to embedded class device
+ * @attr: device attribute (unused)
  * @buf: the buffer returned
  *
  * A sysfs 'read-only' shost attribute.
@@ -221,6 +227,7 @@ static DEVICE_ATTR(max_devices, S_IRUGO, pm8001_ctl_max_devices_show, NULL);
  * pm8001_ctl_max_sg_list_show - max sg list supported iff not 0.0 for no
  * hardware limitation
  * @cdev: pointer to embedded class device
+ * @attr: device attribute (unused)
  * @buf: the buffer returned
  *
  * A sysfs 'read-only' shost attribute.
@@ -265,6 +272,7 @@ show_sas_spec_support_status(unsigned int mode, char *buf)
 /**
  * pm8001_ctl_sas_spec_support_show - sas spec supported
  * @cdev: pointer to embedded class device
+ * @attr: device attribute (unused)
  * @buf: the buffer returned
  *
  * A sysfs 'read-only' shost attribute.
@@ -292,6 +300,7 @@ static DEVICE_ATTR(sas_spec_support, S_IRUGO,
 /**
  * pm8001_ctl_sas_address_show - sas address
  * @cdev: pointer to embedded class device
+ * @attr: device attribute (unused)
  * @buf: the buffer returned
  *
  * This is the controller sas address
@@ -346,6 +355,7 @@ static DEVICE_ATTR(logging_level, S_IRUGO | S_IWUSR,
 /**
  * pm8001_ctl_aap_log_show - aap1 event log
  * @cdev: pointer to embedded class device
+ * @attr: device attribute (unused)
  * @buf: the buffer returned
  *
  * A sysfs 'read-only' shost attribute.
@@ -483,6 +493,7 @@ static DEVICE_ATTR(bios_version, S_IRUGO, pm8001_ctl_bios_version_show, NULL);
 /**
  * event_log_size_show - event log size
  * @cdev: pointer to embedded class device
+ * @attr: device attribute (unused)
  * @buf: the buffer returned
  *
  * A sysfs read  shost attribute.
@@ -501,6 +512,7 @@ static DEVICE_ATTR_RO(event_log_size);
 /**
  * pm8001_ctl_aap_log_show - IOP event log
  * @cdev: pointer to embedded class device
+ * @attr: device attribute (unused)
  * @buf: the buffer returned
  *
  * A sysfs 'read-only' shost attribute.
@@ -538,6 +550,7 @@ static DEVICE_ATTR(iop_log, S_IRUGO, pm8001_ctl_iop_log_show, NULL);
 /**
  ** pm8001_ctl_fatal_log_show - fatal error logging
  ** @cdev:pointer to embedded class device
+ ** @attr: device attribute
  ** @buf: the buffer returned
  **
  ** A sysfs 'read-only' shost attribute.
@@ -557,6 +570,7 @@ static DEVICE_ATTR(fatal_log, S_IRUGO, pm8001_ctl_fatal_log_show, NULL);
 /**
  ** non_fatal_log_show - non fatal error logging
  ** @cdev:pointer to embedded class device
+ ** @attr: device attribute
  ** @buf: the buffer returned
  **
  ** A sysfs 'read-only' shost attribute.
