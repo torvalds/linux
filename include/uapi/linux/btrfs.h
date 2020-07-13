@@ -243,6 +243,13 @@ struct btrfs_ioctl_dev_info_args {
 	__u8 path[BTRFS_DEVICE_PATH_NAME_MAX];	/* out */
 };
 
+/*
+ * Retrieve information about the filesystem
+ */
+
+/* Request information about checksum type and size */
+#define BTRFS_FS_INFO_FLAG_CSUM_INFO			(1 << 0)
+
 struct btrfs_ioctl_fs_info_args {
 	__u64 max_id;				/* out */
 	__u64 num_devices;			/* out */
@@ -250,8 +257,11 @@ struct btrfs_ioctl_fs_info_args {
 	__u32 nodesize;				/* out */
 	__u32 sectorsize;			/* out */
 	__u32 clone_alignment;			/* out */
-	__u32 reserved32;
-	__u64 reserved[122];			/* pad to 1k */
+	/* See BTRFS_FS_INFO_FLAG_* */
+	__u16 csum_type;			/* out */
+	__u16 csum_size;			/* out */
+	__u64 flags;				/* in/out */
+	__u8 reserved[968];			/* pad to 1k */
 };
 
 /*
