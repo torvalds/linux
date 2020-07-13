@@ -350,7 +350,8 @@ static inline int aac_valid_context(struct scsi_cmnd *scsicmd,
 
 /**
  *	aac_get_config_status	-	check the adapter configuration
- *	@common: adapter to query
+ *	@dev: aac driver data
+ *	@commit_flag: force sending CT_COMMIT_CONFIG
  *
  *	Query config status, and commit the configuration if needed.
  */
@@ -442,7 +443,7 @@ static void aac_expose_phy_device(struct scsi_cmnd *scsicmd)
 
 /**
  *	aac_get_containers	-	list containers
- *	@common: adapter to probe
+ *	@dev: aac driver data
  *
  *	Make a list of all containers on this controller
  */
