@@ -854,7 +854,7 @@ SYM_CODE_START(ret_from_fork)
 	CALL_NOSPEC ebx
 	/*
 	 * A kernel thread is allowed to return here after successfully
-	 * calling do_execve().  Exit to userspace to complete the execve()
+	 * calling kernel_execve().  Exit to userspace to complete the execve()
 	 * syscall.
 	 */
 	movl	$0, PT_EAX(%esp)

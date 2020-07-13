@@ -293,7 +293,7 @@ SYM_CODE_START(ret_from_fork)
 	CALL_NOSPEC rbx
 	/*
 	 * A kernel thread is allowed to return here after successfully
-	 * calling do_execve().  Exit to userspace to complete the execve()
+	 * calling kernel_execve().  Exit to userspace to complete the execve()
 	 * syscall.
 	 */
 	movq	$0, RAX(%rsp)
