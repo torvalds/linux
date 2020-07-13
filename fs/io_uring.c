@@ -1339,8 +1339,8 @@ static bool io_cqring_overflow_flush(struct io_ring_ctx *ctx, bool force)
 			break;
 
 		req = list_first_entry(&ctx->cq_overflow_list, struct io_kiocb,
-						list);
-		list_move(&req->list, &list);
+						compl.list);
+		list_move(&req->compl.list, &list);
 		req->flags &= ~REQ_F_OVERFLOW;
 		if (cqe) {
 			WRITE_ONCE(cqe->user_data, req->user_data);
@@ -1362,8 +1362,8 @@ static bool io_cqring_overflow_flush(struct io_ring_ctx *ctx, bool force)
 	io_cqring_ev_posted(ctx);
 
 	while (!list_empty(&list)) {
-		req = list_first_entry(&list, struct io_kiocb, list);
-		list_del(&req->list);
+		req = list_first_entry(&list, struct io_kiocb, compl.list);
+		list_del(&req->compl.list);
 		io_put_req(req);
 	}
 
@@ -1396,11 +1396,12 @@ static void __io_cqring_fill_event(struct io_kiocb *req, long res, long cflags)
 			set_bit(0, &ctx->cq_check_overflow);
 			ctx->rings->sq_flags |= IORING_SQ_CQ_OVERFLOW;
 		}
+		io_clean_op(req);
 		req->flags |= REQ_F_OVERFLOW;
-		refcount_inc(&req->refs);
 		req->result = res;
 		req->cflags = cflags;
-		list_add_tail(&req->list, &ctx->cq_overflow_list);
+		refcount_inc(&req->refs);
+		list_add_tail(&req->compl.list, &ctx->cq_overflow_list);
 	}
 }
 
@@ -7835,7 +7836,7 @@ static void io_uring_cancel_files(struct io_ring_ctx *ctx,
 
 		if (cancel_req->flags & REQ_F_OVERFLOW) {
 			spin_lock_irq(&ctx->completion_lock);
-			list_del(&cancel_req->list);
+			list_del(&cancel_req->compl.list);
 			cancel_req->flags &= ~REQ_F_OVERFLOW;
 			if (list_empty(&ctx->cq_overflow_list)) {
 				clear_bit(0, &ctx->sq_check_overflow);
