@@ -30,9 +30,7 @@ asmlinkage __wsum csum_partial(const void *buff, int len, __wsum sum);
  * better 64-bit) boundary
  */
 
-asmlinkage __wsum csum_partial_copy_generic(const void *src, void *dst,
-					    int len, __wsum sum,
-					    int *src_err_ptr, int *dst_err_ptr);
+asmlinkage __wsum csum_partial_copy_generic(const void *src, void *dst, int len);
 
 #define _HAVE_ARCH_CSUM_AND_COPY
 /*
@@ -45,21 +43,16 @@ asmlinkage __wsum csum_partial_copy_generic(const void *src, void *dst,
 static inline
 __wsum csum_partial_copy_nocheck(const void *src, void *dst, int len)
 {
-	return csum_partial_copy_generic(src, dst, len, 0, NULL, NULL);
+	return csum_partial_copy_generic(src, dst, len);
 }
 
 #define _HAVE_ARCH_COPY_AND_CSUM_FROM_USER
 static inline
 __wsum csum_and_copy_from_user(const void __user *src, void *dst, int len)
 {
-	int err = 0;
-	__wsum sum = ~0U;
-
 	if (!access_ok(src, len))
 		return 0;
-	sum = csum_partial_copy_generic((__force const void *)src, dst,
-					len, sum, &err, NULL);
-	return err ? 0 : sum;
+	return csum_partial_copy_generic((__force const void *)src, dst, len);
 }
 
 /*
@@ -202,13 +195,8 @@ static inline __wsum csum_and_copy_to_user(const void *src,
 					   void __user *dst,
 					   int len)
 {
-	int err = 0;
-	__wsum sum = ~0U;
-
 	if (!access_ok(dst, len))
 		return 0;
-	sum = csum_partial_copy_generic((__force const void *)src,
-						dst, len, sum, NULL, &err);
-	return err ? 0 : sum;
+	return csum_partial_copy_generic((__force const void *)src, dst, len);
 }
 #endif /* __ASM_SH_CHECKSUM_H */
