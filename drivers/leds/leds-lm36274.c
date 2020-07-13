@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 // TI LM36274 LED chip family driver
-// Copyright (C) 2019 Texas Instruments Incorporated - http://www.ti.com/
+// Copyright (C) 2019 Texas Instruments Incorporated - https://www.ti.com/
 
 #include <linux/bitops.h>
 #include <linux/device.h>

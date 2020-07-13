@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 // Flash and torch driver for Texas Instruments LM3601X LED
 // Flash driver chip family
-// Copyright (C) 2018 Texas Instruments Incorporated - http://www.ti.com/
+// Copyright (C) 2018 Texas Instruments Incorporated - https://www.ti.com/
 
 #include <linux/delay.h>
 #include <linux/i2c.h>
