@@ -879,7 +879,7 @@ int msm_video_register(struct camss_video *video, struct v4l2_device *v4l2_dev,
 	if (ret < 0) {
 		dev_err(v4l2_dev->dev, "Failed to init video entity: %d\n",
 			ret);
-		goto error_media_init;
+		goto error_vb2_init;
 	}
 
 	mutex_init(&video->lock);
@@ -936,23 +936,15 @@ int msm_video_register(struct camss_video *video, struct v4l2_device *v4l2_dev,
 error_video_register:
 	media_entity_cleanup(&vdev->entity);
 	mutex_destroy(&video->lock);
-error_media_init:
-	vb2_queue_release(&video->vb2_q);
 error_vb2_init:
 	mutex_destroy(&video->q_lock);
 
 	return ret;
 }
 
-void msm_video_stop_streaming(struct camss_video *video)
-{
-	if (vb2_is_streaming(&video->vb2_q))
-		vb2_queue_release(&video->vb2_q);
-}
-
 void msm_video_unregister(struct camss_video *video)
 {
 	atomic_inc(&video->camss->ref_count);
-	video_unregister_device(&video->vdev);
+	vb2_video_unregister_device(&video->vdev);
 	atomic_dec(&video->camss->ref_count);
 }
