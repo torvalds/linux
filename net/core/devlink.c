@@ -5471,9 +5471,11 @@ __devlink_health_reporter_destroy(struct devlink_health_reporter *reporter)
 void
 devlink_health_reporter_destroy(struct devlink_health_reporter *reporter)
 {
-	mutex_lock(&reporter->devlink->reporters_lock);
+	struct mutex *lock = &reporter->devlink->reporters_lock;
+
+	mutex_lock(lock);
 	__devlink_health_reporter_destroy(reporter);
-	mutex_unlock(&reporter->devlink->reporters_lock);
+	mutex_unlock(lock);
 }
 EXPORT_SYMBOL_GPL(devlink_health_reporter_destroy);
 
@@ -5485,9 +5487,11 @@ EXPORT_SYMBOL_GPL(devlink_health_reporter_destroy);
 void
 devlink_port_health_reporter_destroy(struct devlink_health_reporter *reporter)
 {
-	mutex_lock(&reporter->devlink_port->reporters_lock);
+	struct mutex *lock = &reporter->devlink_port->reporters_lock;
+
+	mutex_lock(lock);
 	__devlink_health_reporter_destroy(reporter);
-	mutex_unlock(&reporter->devlink_port->reporters_lock);
+	mutex_unlock(lock);
 }
 EXPORT_SYMBOL_GPL(devlink_port_health_reporter_destroy);
 
