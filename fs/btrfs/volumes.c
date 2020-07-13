@@ -4135,7 +4135,22 @@ int btrfs_balance(struct btrfs_fs_info *fs_info,
 	mutex_lock(&fs_info->balance_mutex);
 	if (ret == -ECANCELED && atomic_read(&fs_info->balance_pause_req))
 		btrfs_info(fs_info, "balance: paused");
-	else if (ret == -ECANCELED && atomic_read(&fs_info->balance_cancel_req))
+	/*
+	 * Balance can be canceled by:
+	 *
+	 * - Regular cancel request
+	 *   Then ret == -ECANCELED and balance_cancel_req > 0
+	 *
+	 * - Fatal signal to "btrfs" process
+	 *   Either the signal caught by wait_reserve_ticket() and callers
+	 *   got -EINTR, or caught by btrfs_should_cancel_balance() and
+	 *   got -ECANCELED.
+	 *   Either way, in this case balance_cancel_req = 0, and
+	 *   ret == -EINTR or ret == -ECANCELED.
+	 *
+	 * So here we only check the return value to catch canceled balance.
+	 */
+	else if (ret == -ECANCELED || ret == -EINTR)
 		btrfs_info(fs_info, "balance: canceled");
 	else
 		btrfs_info(fs_info, "balance: ended with status: %d", ret);
