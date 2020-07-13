@@ -191,11 +191,17 @@ err:
  */
 static enum usb_role cdns3_hw_role_state_machine(struct cdns3 *cdns)
 {
-	enum usb_role role;
+	enum usb_role role = USB_ROLE_NONE;
 	int id, vbus;
 
-	if (cdns->dr_mode != USB_DR_MODE_OTG)
-		goto not_otg;
+	if (cdns->dr_mode != USB_DR_MODE_OTG) {
+		if (cdns3_is_host(cdns))
+			role = USB_ROLE_HOST;
+		if (cdns3_is_device(cdns))
+			role = USB_ROLE_DEVICE;
+
+		return role;
+	}
 
 	id = cdns3_get_id(cdns);
 	vbus = cdns3_get_vbus(cdns);
@@ -230,14 +236,6 @@ static enum usb_role cdns3_hw_role_state_machine(struct cdns3 *cdns)
 	}
 
 	dev_dbg(cdns->dev, "role %d -> %d\n", cdns->role, role);
-
-	return role;
-
-not_otg:
-	if (cdns3_is_host(cdns))
-		role = USB_ROLE_HOST;
-	if (cdns3_is_device(cdns))
-		role = USB_ROLE_DEVICE;
 
 	return role;
 }
