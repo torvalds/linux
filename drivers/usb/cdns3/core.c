@@ -347,7 +347,6 @@ static int cdns3_role_set(struct usb_role_switch *sw, enum usb_role role)
 		case USB_ROLE_HOST:
 			break;
 		default:
-			ret = -EPERM;
 			goto pm_put;
 		}
 	}
@@ -358,17 +357,14 @@ static int cdns3_role_set(struct usb_role_switch *sw, enum usb_role role)
 		case USB_ROLE_DEVICE:
 			break;
 		default:
-			ret = -EPERM;
 			goto pm_put;
 		}
 	}
 
 	cdns3_role_stop(cdns);
 	ret = cdns3_role_start(cdns, role);
-	if (ret) {
+	if (ret)
 		dev_err(cdns->dev, "set role %d has failed\n", role);
-		ret = -EPERM;
-	}
 
 pm_put:
 	pm_runtime_put_sync(cdns->dev);
@@ -393,7 +389,7 @@ static int cdns3_probe(struct platform_device *pdev)
 	ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
 	if (ret) {
 		dev_err(dev, "error setting dma mask: %d\n", ret);
-		return -ENODEV;
+		return ret;
 	}
 
 	cdns = devm_kzalloc(dev, sizeof(*cdns), GFP_KERNEL);
