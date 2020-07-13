@@ -4623,6 +4623,8 @@ static void ice_pci_err_resume(struct pci_dev *pdev)
 		return;
 	}
 
+	ice_restore_all_vfs_msi_state(pdev);
+
 	ice_do_reset(pf, ICE_RESET_PFR);
 	ice_service_task_restart(pf);
 	mod_timer(&pf->serv_tmr, round_jiffies(jiffies + pf->serv_tmr_period));
