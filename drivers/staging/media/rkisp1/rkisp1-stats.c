@@ -406,7 +406,7 @@ int rkisp1_stats_register(struct rkisp1_stats *stats,
 	node->pad.flags = MEDIA_PAD_FL_SINK;
 	ret = media_entity_pads_init(&vdev->entity, 1, &node->pad);
 	if (ret)
-		goto err_release_queue;
+		goto err_mutex_destroy;
 
 	ret = video_register_device(vdev, VFL_TYPE_VIDEO, -1);
 	if (ret) {
@@ -419,8 +419,7 @@ int rkisp1_stats_register(struct rkisp1_stats *stats,
 
 err_cleanup_media_entity:
 	media_entity_cleanup(&vdev->entity);
-err_release_queue:
-	vb2_queue_release(vdev->queue);
+err_mutex_destroy:
 	mutex_destroy(&node->vlock);
 	return ret;
 }
@@ -430,8 +429,7 @@ void rkisp1_stats_unregister(struct rkisp1_stats *stats)
 	struct rkisp1_vdev_node *node = &stats->vnode;
 	struct video_device *vdev = &node->vdev;
 
-	video_unregister_device(vdev);
+	vb2_video_unregister_device(vdev);
 	media_entity_cleanup(&vdev->entity);
-	vb2_queue_release(vdev->queue);
 	mutex_destroy(&node->vlock);
 }

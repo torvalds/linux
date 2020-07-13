@@ -1604,7 +1604,7 @@ int rkisp1_params_register(struct rkisp1_params *params,
 	node->pad.flags = MEDIA_PAD_FL_SOURCE;
 	ret = media_entity_pads_init(&vdev->entity, 1, &node->pad);
 	if (ret)
-		goto err_release_queue;
+		return ret;
 	ret = video_register_device(vdev, VFL_TYPE_VIDEO, -1);
 	if (ret) {
 		dev_err(rkisp1->dev,
@@ -1614,8 +1614,6 @@ int rkisp1_params_register(struct rkisp1_params *params,
 	return 0;
 err_cleanup_media_entity:
 	media_entity_cleanup(&vdev->entity);
-err_release_queue:
-	vb2_queue_release(vdev->queue);
 	return ret;
 }
 
@@ -1624,7 +1622,6 @@ void rkisp1_params_unregister(struct rkisp1_params *params)
 	struct rkisp1_vdev_node *node = &params->vnode;
 	struct video_device *vdev = &node->vdev;
 
-	video_unregister_device(vdev);
+	vb2_video_unregister_device(vdev);
 	media_entity_cleanup(&vdev->entity);
-	vb2_queue_release(vdev->queue);
 }

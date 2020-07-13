@@ -795,12 +795,8 @@ void tegra_v4l2_nodes_cleanup_tpg(struct tegra_video_device *vid)
 	struct tegra_csi_channel *csi_chan;
 	struct tegra_vi_channel *chan;
 
-	list_for_each_entry(chan, &vi->vi_chans, list) {
-		video_unregister_device(&chan->video);
-		mutex_lock(&chan->video_lock);
-		vb2_queue_release(&chan->queue);
-		mutex_unlock(&chan->video_lock);
-	}
+	list_for_each_entry(chan, &vi->vi_chans, list)
+		vb2_video_unregister_device(&chan->video);
 
 	list_for_each_entry(csi_chan, &csi->csi_chans, list)
 		v4l2_device_unregister_subdev(&csi_chan->subdev);

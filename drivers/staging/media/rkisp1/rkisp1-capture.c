@@ -1265,7 +1265,7 @@ static const struct v4l2_file_operations rkisp1_fops = {
 static void rkisp1_unregister_capture(struct rkisp1_capture *cap)
 {
 	media_entity_cleanup(&cap->vnode.vdev.entity);
-	video_unregister_device(&cap->vnode.vdev);
+	vb2_video_unregister_device(&cap->vnode.vdev);
 }
 
 void rkisp1_capture_devs_unregister(struct rkisp1_device *rkisp1)
