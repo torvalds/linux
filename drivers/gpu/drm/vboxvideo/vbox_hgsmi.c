@@ -8,7 +8,7 @@
 #include "vboxvideo_vbe.h"
 #include "hgsmi_defs.h"
 
-/* One-at-a-Time Hash from http://www.burtleburtle.net/bob/hash/doobs.html */
+/* One-at-a-Time Hash from https://www.burtleburtle.net/bob/hash/doobs.html */
 static u32 hgsmi_hash_process(u32 hash, const u8 *data, int size)
 {
 	while (size--) {
