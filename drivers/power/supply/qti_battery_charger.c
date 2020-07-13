@@ -47,6 +47,7 @@
 #define WLS_FW_PREPARE_TIME_MS		300
 #define WLS_FW_WAIT_TIME_MS		500
 #define WLS_FW_BUF_SIZE			128
+#define DEFAULT_RESTRICT_FCC_UA		1000000
 
 enum psy_type {
 	PSY_TYPE_BATTERY,
@@ -100,6 +101,9 @@ enum usb_property_id {
 	USB_ADAP_TYPE,
 	USB_MOISTURE_DET_EN,
 	USB_MOISTURE_DET_STS,
+	USB_TEMP,
+	USB_REAL_TYPE,
+	USB_TYPEC_COMPLIANT,
 	USB_PROP_MAX,
 };
 
@@ -112,6 +116,12 @@ enum wireless_property_id {
 	WLS_TYPE,
 	WLS_BOOST_EN,
 	WLS_PROP_MAX,
+};
+
+enum {
+	QTI_POWER_SUPPLY_USB_TYPE_HVDCP = 0x80,
+	QTI_POWER_SUPPLY_USB_TYPE_HVDCP_3,
+	QTI_POWER_SUPPLY_USB_TYPE_HVDCP_3P5,
 };
 
 struct battery_charger_set_notify_msg {
@@ -221,6 +231,9 @@ struct battery_chg_dev {
 	bool				wls_fw_update_reqd;
 	u32				wls_fw_version;
 	struct notifier_block		reboot_notifier;
+	u32				thermal_fcc_ua;
+	u32				restrict_fcc_ua;
+	bool				restrict_chg_en;
 };
 
 static const int battery_prop_map[BATT_PROP_MAX] = {
@@ -256,6 +269,7 @@ static const int usb_prop_map[USB_PROP_MAX] = {
 	[USB_CURR_MAX]		= POWER_SUPPLY_PROP_CURRENT_MAX,
 	[USB_INPUT_CURR_LIMIT]	= POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT,
 	[USB_ADAP_TYPE]		= POWER_SUPPLY_PROP_USB_TYPE,
+	[USB_TEMP]		= POWER_SUPPLY_PROP_TEMP,
 };
 
 static const int wls_prop_map[WLS_PROP_MAX] = {
@@ -264,6 +278,17 @@ static const int wls_prop_map[WLS_PROP_MAX] = {
 	[WLS_VOLT_MAX]		= POWER_SUPPLY_PROP_VOLTAGE_MAX,
 	[WLS_CURR_NOW]		= POWER_SUPPLY_PROP_CURRENT_NOW,
 	[WLS_CURR_MAX]		= POWER_SUPPLY_PROP_CURRENT_MAX,
+};
+
+/* Standard usb_type definitions similar to power_supply_sysfs.c */
+static const char * const power_supply_usb_type_text[] = {
+	"Unknown", "SDP", "DCP", "CDP", "ACA", "C",
+	"PD", "PD_DRP", "PD_PPS", "BrickID"
+};
+
+/* Custom usb_type definitions */
+static const char * const qc_power_supply_usb_type_text[] = {
+	"HVDCP", "HVDCP_3", "HVDCP_3P5"
 };
 
 static int battery_chg_fw_write(struct battery_chg_dev *bcdev, void *data,
@@ -707,6 +732,28 @@ static const struct power_supply_desc wls_psy_desc = {
 	.property_is_writeable	= wls_psy_prop_is_writeable,
 };
 
+static const char *get_usb_type_name(u32 usb_type)
+{
+	u32 i;
+
+	if (usb_type >= QTI_POWER_SUPPLY_USB_TYPE_HVDCP &&
+	    usb_type <= QTI_POWER_SUPPLY_USB_TYPE_HVDCP_3P5) {
+		for (i = 0; i < ARRAY_SIZE(qc_power_supply_usb_type_text);
+		     i++) {
+			if (i == (usb_type - QTI_POWER_SUPPLY_USB_TYPE_HVDCP))
+				return qc_power_supply_usb_type_text[i];
+		}
+		return "Unknown";
+	}
+
+	for (i = 0; i < ARRAY_SIZE(power_supply_usb_type_text); i++) {
+		if (i == usb_type)
+			return power_supply_usb_type_text[i];
+	}
+
+	return "Unknown";
+}
+
 static int usb_psy_set_icl(struct battery_chg_dev *bcdev, u32 prop_id, int val)
 {
 	struct psy_state *pst = &bcdev->psy_list[PSY_TYPE_USB];
@@ -758,6 +805,8 @@ static int usb_psy_get_prop(struct power_supply *psy,
 		return rc;
 
 	pval->intval = pst->prop[prop_id];
+	if (prop == POWER_SUPPLY_PROP_TEMP)
+		pval->intval = DIV_ROUND_CLOSEST((int)pval->intval, 10);
 
 	return 0;
 }
@@ -806,6 +855,7 @@ static enum power_supply_property usb_props[] = {
 	POWER_SUPPLY_PROP_CURRENT_MAX,
 	POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT,
 	POWER_SUPPLY_PROP_USB_TYPE,
+	POWER_SUPPLY_PROP_TEMP,
 };
 
 static enum power_supply_usb_type usb_psy_supported_types[] = {
@@ -833,6 +883,26 @@ static const struct power_supply_desc usb_psy_desc = {
 	.property_is_writeable	= usb_psy_prop_is_writeable,
 };
 
+static int __battery_psy_set_charge_current(struct battery_chg_dev *bcdev,
+					u32 fcc_ua)
+{
+	int rc;
+
+	if (bcdev->restrict_chg_en)
+		fcc_ua = min_t(u32, fcc_ua, bcdev->thermal_fcc_ua);
+	else
+		fcc_ua = bcdev->thermal_fcc_ua;
+
+	rc = write_property_id(bcdev, &bcdev->psy_list[PSY_TYPE_BATTERY],
+				BATT_CHG_CTRL_LIM, fcc_ua);
+	if (rc < 0)
+		pr_err("Failed to set FCC %u, rc=%d\n", fcc_ua, rc);
+	else
+		pr_debug("Set FCC to %u uA\n", fcc_ua);
+
+	return rc;
+}
+
 static int battery_psy_set_charge_current(struct battery_chg_dev *bcdev,
 					int val)
 {
@@ -852,11 +922,10 @@ static int battery_psy_set_charge_current(struct battery_chg_dev *bcdev,
 
 	fcc_ua = bcdev->thermal_levels[val];
 
-	rc = write_property_id(bcdev, &bcdev->psy_list[PSY_TYPE_BATTERY],
-				BATT_CHG_CTRL_LIM, fcc_ua);
+	rc = __battery_psy_set_charge_current(bcdev, fcc_ua);
 	if (!rc) {
 		bcdev->curr_thermal_level = val;
-		pr_debug("Set FCC to %u uA\n", fcc_ua);
+		bcdev->thermal_fcc_ua = fcc_ua;
 	}
 
 	return rc;
@@ -1232,6 +1301,102 @@ static ssize_t wireless_fw_update_store(struct class *c,
 }
 static CLASS_ATTR_WO(wireless_fw_update);
 
+static ssize_t usb_typec_compliant_show(struct class *c,
+				struct class_attribute *attr, char *buf)
+{
+	struct battery_chg_dev *bcdev = container_of(c, struct battery_chg_dev,
+						battery_class);
+	struct psy_state *pst = &bcdev->psy_list[PSY_TYPE_USB];
+	int rc;
+
+	rc = read_property_id(bcdev, pst, USB_TYPEC_COMPLIANT);
+	if (rc < 0)
+		return rc;
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n",
+			(int)pst->prop[USB_TYPEC_COMPLIANT]);
+}
+static CLASS_ATTR_RO(usb_typec_compliant);
+
+static ssize_t usb_real_type_show(struct class *c,
+				struct class_attribute *attr, char *buf)
+{
+	struct battery_chg_dev *bcdev = container_of(c, struct battery_chg_dev,
+						battery_class);
+	struct psy_state *pst = &bcdev->psy_list[PSY_TYPE_USB];
+	int rc;
+
+	rc = read_property_id(bcdev, pst, USB_REAL_TYPE);
+	if (rc < 0)
+		return rc;
+
+	return scnprintf(buf, PAGE_SIZE, "%s\n",
+			get_usb_type_name(pst->prop[USB_REAL_TYPE]));
+}
+static CLASS_ATTR_RO(usb_real_type);
+
+static ssize_t restrict_cur_store(struct class *c, struct class_attribute *attr,
+				const char *buf, size_t count)
+{
+	struct battery_chg_dev *bcdev = container_of(c, struct battery_chg_dev,
+						battery_class);
+	int rc;
+	u32 val;
+
+	if (kstrtou32(buf, 0, &val) || val > bcdev->thermal_fcc_ua)
+		return -EINVAL;
+
+	if (bcdev->restrict_chg_en) {
+		rc = __battery_psy_set_charge_current(bcdev, val);
+		if (rc < 0)
+			return rc;
+	}
+
+	bcdev->restrict_fcc_ua = val;
+
+	return count;
+}
+
+static ssize_t restrict_cur_show(struct class *c, struct class_attribute *attr,
+				char *buf)
+{
+	struct battery_chg_dev *bcdev = container_of(c, struct battery_chg_dev,
+						battery_class);
+
+	return scnprintf(buf, PAGE_SIZE, "%u\n", bcdev->restrict_fcc_ua);
+}
+static CLASS_ATTR_RW(restrict_cur);
+
+static ssize_t restrict_chg_store(struct class *c, struct class_attribute *attr,
+				const char *buf, size_t count)
+{
+	struct battery_chg_dev *bcdev = container_of(c, struct battery_chg_dev,
+						battery_class);
+	int rc;
+	bool val;
+
+	if (kstrtobool(buf, &val))
+		return -EINVAL;
+
+	bcdev->restrict_chg_en = val;
+
+	rc = __battery_psy_set_charge_current(bcdev, bcdev->restrict_fcc_ua);
+	if (rc < 0)
+		return rc;
+
+	return count;
+}
+
+static ssize_t restrict_chg_show(struct class *c, struct class_attribute *attr,
+				char *buf)
+{
+	struct battery_chg_dev *bcdev = container_of(c, struct battery_chg_dev,
+						battery_class);
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", bcdev->restrict_chg_en);
+}
+static CLASS_ATTR_RW(restrict_chg);
+
 static ssize_t fake_soc_store(struct class *c, struct class_attribute *attr,
 				const char *buf, size_t count)
 {
@@ -1417,6 +1582,10 @@ static struct attribute *battery_class_attrs[] = {
 	&class_attr_wireless_fw_force_update.attr,
 	&class_attr_wireless_fw_version.attr,
 	&class_attr_ship_mode_en.attr,
+	&class_attr_restrict_chg.attr,
+	&class_attr_restrict_cur.attr,
+	&class_attr_usb_real_type.attr,
+	&class_attr_usb_typec_compliant.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(battery_class);
@@ -1512,6 +1681,7 @@ static int battery_chg_parse_dt(struct battery_chg_dev *bcdev)
 	}
 
 	bcdev->num_thermal_levels = len;
+	bcdev->thermal_fcc_ua = pst->prop[BATT_CHG_CTRL_LIM_MAX];
 
 	return 0;
 }
@@ -1609,6 +1779,7 @@ static int battery_chg_probe(struct platform_device *pdev)
 	if (rc < 0)
 		goto error;
 
+	bcdev->restrict_fcc_ua = DEFAULT_RESTRICT_FCC_UA;
 	platform_set_drvdata(pdev, bcdev);
 	bcdev->fake_soc = -EINVAL;
 	rc = battery_chg_init_psy(bcdev);
