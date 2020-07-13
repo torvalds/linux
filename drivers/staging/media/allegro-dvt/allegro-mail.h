@@ -20,10 +20,15 @@ enum mcu_msg_type {
 	MCU_MSG_TYPE_PUSH_BUFFER_REFERENCE = 0x000f,
 };
 
+enum mcu_msg_version {
+	MCU_MSG_VERSION_2018_2,
+};
+
 const char *msg_type_name(enum mcu_msg_type type);
 
 struct mcu_msg_header {
 	enum mcu_msg_type type;
+	enum mcu_msg_version version;
 };
 
 struct mcu_msg_init_request {
@@ -40,6 +45,7 @@ struct mcu_msg_init_response {
 };
 
 struct create_channel_param {
+	enum mcu_msg_version version;
 	u16 width;
 	u16 height;
 	u32 format;

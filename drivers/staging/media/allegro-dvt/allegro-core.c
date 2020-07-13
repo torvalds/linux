@@ -130,6 +130,7 @@ struct allegro_dev {
 	struct regmap *regmap;
 	struct regmap *sram;
 
+	const struct fw_info *fw_info;
 	struct allegro_buffer firmware;
 	struct allegro_buffer suballocator;
 
@@ -277,6 +278,7 @@ struct fw_info {
 	unsigned int mailbox_cmd;
 	unsigned int mailbox_status;
 	size_t mailbox_size;
+	enum mcu_msg_version mailbox_version;
 	size_t suballocator_size;
 };
 
@@ -288,6 +290,7 @@ static const struct fw_info supported_firmware[] = {
 		.mailbox_cmd = 0x7800,
 		.mailbox_status = 0x7c00,
 		.mailbox_size = 0x400 - 0x8,
+		.mailbox_version = MCU_MSG_VERSION_2018_2,
 		.suballocator_size = SZ_16M,
 	},
 };
@@ -749,6 +752,8 @@ static void allegro_mbox_notify(struct allegro_mbox *mbox)
 	if (!msg)
 		return;
 
+	msg->header.version = dev->fw_info->mailbox_version;
+
 	tmp = kmalloc(mbox->size, GFP_KERNEL);
 	if (!tmp)
 		goto out;
@@ -776,6 +781,7 @@ static void allegro_mcu_send_init(struct allegro_dev *dev,
 	memset(&msg, 0, sizeof(msg));
 
 	msg.header.type = MCU_MSG_TYPE_INIT;
+	msg.header.version = dev->fw_info->mailbox_version;
 
 	msg.suballoc_dma = to_mcu_addr(dev, suballoc_dma);
 	msg.suballoc_size = to_mcu_size(dev, suballoc_size);
@@ -989,11 +995,13 @@ static int allegro_mcu_send_create_channel(struct allegro_dev *dev,
 	memset(&param, 0, sizeof(param));
 	fill_create_channel_param(channel, &param);
 	allegro_alloc_buffer(dev, blob, sizeof(struct create_channel_param));
+	param.version = dev->fw_info->mailbox_version;
 	size = allegro_encode_config_blob(blob->vaddr, &param);
 
 	memset(&msg, 0, sizeof(msg));
 
 	msg.header.type = MCU_MSG_TYPE_CREATE_CHANNEL;
+	msg.header.version = dev->fw_info->mailbox_version;
 
 	msg.user_id = channel->user_id;
 
@@ -1014,6 +1022,7 @@ static int allegro_mcu_send_destroy_channel(struct allegro_dev *dev,
 	memset(&msg, 0, sizeof(msg));
 
 	msg.header.type = MCU_MSG_TYPE_DESTROY_CHANNEL;
+	msg.header.version = dev->fw_info->mailbox_version;
 
 	msg.channel_id = channel->mcu_channel_id;
 
@@ -1033,6 +1042,7 @@ static int allegro_mcu_send_put_stream_buffer(struct allegro_dev *dev,
 	memset(&msg, 0, sizeof(msg));
 
 	msg.header.type = MCU_MSG_TYPE_PUT_STREAM_BUFFER;
+	msg.header.version = dev->fw_info->mailbox_version;
 
 	msg.channel_id = channel->mcu_channel_id;
 	msg.dma_addr = to_codec_addr(dev, paddr);
@@ -1057,6 +1067,7 @@ static int allegro_mcu_send_encode_frame(struct allegro_dev *dev,
 	memset(&msg, 0, sizeof(msg));
 
 	msg.header.type = MCU_MSG_TYPE_ENCODE_FRAME;
+	msg.header.version = dev->fw_info->mailbox_version;
 
 	msg.channel_id = channel->mcu_channel_id;
 	msg.encoding_options = AL_OPT_FORCE_LOAD;
@@ -1121,6 +1132,8 @@ static int allegro_mcu_push_buffer_internal(struct allegro_channel *channel,
 		return -ENOMEM;
 
 	msg->header.type = type;
+	msg->header.version = dev->fw_info->mailbox_version;
+
 	msg->channel_id = channel->mcu_channel_id;
 	msg->num_buffers = num_buffers;
 
@@ -2988,7 +3001,6 @@ static void allegro_fw_callback(const struct firmware *fw, void *context)
 	const char *fw_codec_name = "al5e.fw";
 	const struct firmware *fw_codec;
 	int err;
-	const struct fw_info *info;
 
 	if (!fw)
 		return;
@@ -2999,14 +3011,14 @@ static void allegro_fw_callback(const struct firmware *fw, void *context)
 	if (err)
 		goto err_release_firmware;
 
-	info = allegro_get_firmware_info(dev, fw, fw_codec);
-	if (!info) {
+	dev->fw_info = allegro_get_firmware_info(dev, fw, fw_codec);
+	if (!dev->fw_info) {
 		v4l2_err(&dev->v4l2_dev, "firmware is not supported\n");
 		goto err_release_firmware_codec;
 	}
 
 	v4l2_info(&dev->v4l2_dev,
-		  "using mcu firmware version '%s'\n", info->version);
+		  "using mcu firmware version '%s'\n", dev->fw_info->version);
 
 	/* Ensure that the mcu is sleeping at the reset vector */
 	err = allegro_mcu_reset(dev);
@@ -3018,7 +3030,7 @@ static void allegro_fw_callback(const struct firmware *fw, void *context)
 	allegro_copy_firmware(dev, fw->data, fw->size);
 	allegro_copy_fw_codec(dev, fw_codec->data, fw_codec->size);
 
-	err = allegro_mcu_hw_init(dev, info);
+	err = allegro_mcu_hw_init(dev, dev->fw_info);
 	if (err) {
 		v4l2_err(&dev->v4l2_dev, "failed to initialize mcu\n");
 		goto err_free_fw_codec;
