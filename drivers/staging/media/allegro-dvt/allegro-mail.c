@@ -173,6 +173,9 @@ ssize_t allegro_decode_config_blob(struct create_channel_param *param,
 				   struct mcu_msg_create_channel_response *msg,
 				   u32 *src)
 {
+	param->num_ref_idx_l0 = msg->num_ref_idx_l0;
+	param->num_ref_idx_l1 = msg->num_ref_idx_l1;
+
 	return 0;
 }
 
@@ -273,7 +276,8 @@ allegro_dec_create_channel(struct mcu_msg_create_channel_response *msg,
 	msg->user_id = src[i++];
 	msg->options = src[i++];
 	msg->num_core = src[i++];
-	msg->pps_param = src[i++];
+	msg->num_ref_idx_l0 = FIELD_GET(GENMASK(7, 4), src[i]);
+	msg->num_ref_idx_l1 = FIELD_GET(GENMASK(11, 8), src[i++]);
 	msg->int_buffers_count = src[i++];
 	msg->int_buffers_size = src[i++];
 	msg->rec_buffers_count = src[i++];

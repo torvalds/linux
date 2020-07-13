@@ -55,6 +55,8 @@ struct create_channel_param {
 	u32 log2_max_frame_num;
 	u32 temporal_mvp_enable;
 	u32 dbf_ovr_en;
+	u32 num_ref_idx_l0;
+	u32 num_ref_idx_l1;
 	u32 rdo_cost_mode;
 	u32 lf;
 	u32 lf_x_tile;
@@ -127,7 +129,8 @@ struct mcu_msg_create_channel_response {
 	u32 user_id;
 	u32 options;
 	u32 num_core;
-	u32 pps_param;
+	u32 num_ref_idx_l0;
+	u32 num_ref_idx_l1;
 	u32 int_buffers_count;
 	u32 int_buffers_size;
 	u32 rec_buffers_count;

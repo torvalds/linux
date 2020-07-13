@@ -208,6 +208,9 @@ struct allegro_channel {
 
 	struct allegro_buffer config_blob;
 
+	unsigned int num_ref_idx_l0;
+	unsigned int num_ref_idx_l1;
+
 	struct v4l2_ctrl *mpeg_video_h264_profile;
 	struct v4l2_ctrl *mpeg_video_h264_level;
 	struct v4l2_ctrl *mpeg_video_h264_i_frame_qp;
@@ -1336,8 +1339,8 @@ static ssize_t allegro_h264_write_pps(struct allegro_channel *channel,
 	pps->entropy_coding_mode_flag = 0;
 	pps->bottom_field_pic_order_in_frame_present_flag = 0;
 	pps->num_slice_groups_minus1 = 0;
-	pps->num_ref_idx_l0_default_active_minus1 = 2;
-	pps->num_ref_idx_l1_default_active_minus1 = 2;
+	pps->num_ref_idx_l0_default_active_minus1 = channel->num_ref_idx_l0 - 1;
+	pps->num_ref_idx_l1_default_active_minus1 = channel->num_ref_idx_l1 - 1;
 	pps->weighted_pred_flag = 0;
 	pps->weighted_bipred_idc = 0;
 	pps->pic_init_qp_minus26 = 0;
@@ -1638,6 +1641,9 @@ allegro_handle_create_channel(struct allegro_dev *dev,
 	allegro_free_buffer(channel->dev, &channel->config_blob);
 	if (err)
 		goto out;
+
+	channel->num_ref_idx_l0 = param.num_ref_idx_l0;
+	channel->num_ref_idx_l1 = param.num_ref_idx_l1;
 
 	v4l2_dbg(1, debug, &dev->v4l2_dev,
 		 "channel %d: intermediate buffers: %d x %d bytes\n",
