@@ -42,6 +42,7 @@
  * struct pcs_func_vals - mux function register offset and value pair
  * @reg:	register virtual address
  * @val:	register value
+ * @mask:	mask
  */
 struct pcs_func_vals {
 	void __iomem *reg;
@@ -83,6 +84,8 @@ struct pcs_conf_type {
  * @nvals:	number of entries in vals array
  * @pgnames:	array of pingroup names the function uses
  * @npgnames:	number of pingroup names the function uses
+ * @conf:	array of pin configurations
+ * @nconfs:	number of pin configurations available
  * @node:	list node
  */
 struct pcs_function {
@@ -653,6 +656,7 @@ static const struct pinconf_ops pcs_pinconf_ops = {
  * pcs_add_pin() - add a pin to the static per controller pin array
  * @pcs: pcs driver instance
  * @offset: register offset from base
+ * @pin_pos: unused
  */
 static int pcs_add_pin(struct pcs_device *pcs, unsigned offset,
 		unsigned pin_pos)
@@ -959,7 +963,6 @@ static int pcs_parse_pinconf(struct pcs_device *pcs, struct device_node *np,
 
 /**
  * pcs_parse_one_pinctrl_entry() - parses a device tree mux entry
- * @pctldev: pin controller device
  * @pcs: pinctrl driver instance
  * @np: device node of the mux entry
  * @map: map entry
@@ -1353,7 +1356,9 @@ static int pcs_add_gpio_func(struct device_node *node, struct pcs_device *pcs)
 	}
 	return ret;
 }
+
 /**
+ * struct pcs_interrupt
  * @reg:	virtual address of interrupt register
  * @hwirq:	hardware irq number
  * @irq:	virtual irq number
@@ -1368,6 +1373,9 @@ struct pcs_interrupt {
 
 /**
  * pcs_irq_set() - enables or disables an interrupt
+ * @pcs_soc: SoC specific settings
+ * @irq: interrupt
+ * @enable: enable or disable the interrupt
  *
  * Note that this currently assumes one interrupt per pinctrl
  * register that is typically used for wake-up events.
@@ -1448,7 +1456,7 @@ static int pcs_irq_set_wake(struct irq_data *d, unsigned int state)
 
 /**
  * pcs_irq_handle() - common interrupt handler
- * @pcs_irq: interrupt data
+ * @pcs_soc: SoC specific settings
  *
  * Note that this currently assumes we have one interrupt bit per
  * mux register. This interrupt is typically used for wake-up events.
@@ -1496,7 +1504,6 @@ static irqreturn_t pcs_irq_handler(int irq, void *d)
 
 /**
  * pcs_irq_handle() - handler for the dedicated chained interrupt case
- * @irq: interrupt
  * @desc: interrupt descriptor
  *
  * Use this if you have a separate interrupt for each
