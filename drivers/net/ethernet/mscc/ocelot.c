@@ -1276,10 +1276,10 @@ void ocelot_port_set_maxlen(struct ocelot *ocelot, int port, size_t sdu)
 	/* Set Pause watermark hysteresis */
 	pause_start = 6 * maxlen / OCELOT_BUFFER_CELL_SZ;
 	pause_stop = 4 * maxlen / OCELOT_BUFFER_CELL_SZ;
-	ocelot_rmw_rix(ocelot, SYS_PAUSE_CFG_PAUSE_START(pause_start),
-		       SYS_PAUSE_CFG_PAUSE_START_M, SYS_PAUSE_CFG, port);
-	ocelot_rmw_rix(ocelot, SYS_PAUSE_CFG_PAUSE_STOP(pause_stop),
-		       SYS_PAUSE_CFG_PAUSE_STOP_M, SYS_PAUSE_CFG, port);
+	ocelot_fields_write(ocelot, port, SYS_PAUSE_CFG_PAUSE_START,
+			    pause_start);
+	ocelot_fields_write(ocelot, port, SYS_PAUSE_CFG_PAUSE_STOP,
+			    pause_stop);
 
 	/* Tail dropping watermark */
 	atop_wm = (ocelot->shared_queue_sz - 9 * maxlen) /
@@ -1343,8 +1343,7 @@ void ocelot_init_port(struct ocelot *ocelot, int port)
 	ocelot_port_writel(ocelot_port, 0, DEV_MAC_FC_MAC_LOW_CFG);
 
 	/* Enable transmission of pause frames */
-	ocelot_rmw_rix(ocelot, SYS_PAUSE_CFG_PAUSE_ENA, SYS_PAUSE_CFG_PAUSE_ENA,
-		       SYS_PAUSE_CFG, port);
+	ocelot_fields_write(ocelot, port, SYS_PAUSE_CFG_PAUSE_ENA, 1);
 
 	/* Drop frames with multicast source address */
 	ocelot_rmw_gix(ocelot, ANA_PORT_DROP_CFG_DROP_MC_SMAC_ENA,
@@ -1403,8 +1402,7 @@ void ocelot_configure_cpu(struct ocelot *ocelot, int npi,
 				    injection);
 
 		/* Disable transmission of pause frames */
-		ocelot_rmw_rix(ocelot, 0, SYS_PAUSE_CFG_PAUSE_ENA,
-			       SYS_PAUSE_CFG, npi);
+		ocelot_fields_write(ocelot, npi, SYS_PAUSE_CFG_PAUSE_ENA, 0);
 	}
 
 	/* Enable CPU port module */
