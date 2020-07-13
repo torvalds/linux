@@ -11113,7 +11113,7 @@ found_any:
 		/* 1 to 1, the first LPFC_CPU_FIRST_IRQ cpus to a unique hdwq */
 		cpup->hdwq = idx;
 		idx++;
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
 				"3333 Set Affinity: CPU %d (phys %d core %d): "
 				"hdwq %d eq %d flg x%x\n",
 				cpu, cpup->phys_id, cpup->core_id,
@@ -11191,7 +11191,7 @@ found_any:
 			start_cpu = first_cpu;
 		cpup->hdwq = new_cpup->hdwq;
  logit:
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
 				"3335 Set Affinity: CPU %d (phys %d core %d): "
 				"hdwq %d eq %d flg x%x\n",
 				cpu, cpup->phys_id, cpup->core_id,
@@ -14088,8 +14088,8 @@ lpfc_init(void)
 {
 	int error = 0;
 
-	printk(LPFC_MODULE_DESC "\n");
-	printk(LPFC_COPYRIGHT "\n");
+	pr_info(LPFC_MODULE_DESC "\n");
+	pr_info(LPFC_COPYRIGHT "\n");
 
 	error = misc_register(&lpfc_mgmt_dev);
 	if (error)
