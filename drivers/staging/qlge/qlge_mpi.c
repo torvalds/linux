@@ -17,36 +17,34 @@ int ql_unpause_mpi_risc(struct ql_adapter *qdev)
 int ql_pause_mpi_risc(struct ql_adapter *qdev)
 {
 	u32 tmp;
-	int count = UDELAY_COUNT;
+	int count;
 
 	/* Pause the RISC */
 	ql_write32(qdev, CSR, CSR_CMD_SET_PAUSE);
-	do {
+	for (count = UDELAY_COUNT; count; count--) {
 		tmp = ql_read32(qdev, CSR);
 		if (tmp & CSR_RP)
 			break;
 		mdelay(UDELAY_DELAY);
-		count--;
-	} while (count);
+	}
 	return (count == 0) ? -ETIMEDOUT : 0;
 }
 
 int ql_hard_reset_mpi_risc(struct ql_adapter *qdev)
 {
 	u32 tmp;
-	int count = UDELAY_COUNT;
+	int count;
 
 	/* Reset the RISC */
 	ql_write32(qdev, CSR, CSR_CMD_SET_RST);
-	do {
+	for (count = UDELAY_COUNT; count; count--) {
 		tmp = ql_read32(qdev, CSR);
 		if (tmp & CSR_RR) {
 			ql_write32(qdev, CSR, CSR_CMD_CLR_RST);
 			break;
 		}
 		mdelay(UDELAY_DELAY);
-		count--;
-	} while (count);
+	}
 	return (count == 0) ? -ETIMEDOUT : 0;
 }
 
@@ -147,15 +145,15 @@ static int ql_get_mb_sts(struct ql_adapter *qdev, struct mbox_params *mbcp)
  */
 static int ql_wait_mbx_cmd_cmplt(struct ql_adapter *qdev)
 {
-	int count = 100;
+	int count;
 	u32 value;
 
-	do {
+	for (count = 100; count; count--) {
 		value = ql_read32(qdev, STS);
 		if (value & STS_PI)
 			return 0;
 		mdelay(UDELAY_DELAY); /* 100ms */
-	} while (--count);
+	}
 	return -ETIMEDOUT;
 }
 
@@ -914,10 +912,10 @@ int ql_mb_wol_set_magic(struct ql_adapter *qdev, u32 enable_wol)
 static int ql_idc_wait(struct ql_adapter *qdev)
 {
 	int status = -ETIMEDOUT;
-	long wait_time = 1 * HZ;
 	struct mbox_params *mbcp = &qdev->idc_mbc;
+	long wait_time;
 
-	do {
+	for (wait_time = 1 * HZ; wait_time;) {
 		/* Wait here for the command to complete
 		 * via the IDC process.
 		 */
@@ -947,7 +945,7 @@ static int ql_idc_wait(struct ql_adapter *qdev)
 			status = -EIO;
 			break;
 		}
-	} while (wait_time);
+	}
 
 	return status;
 }
@@ -1080,18 +1078,18 @@ static int ql_mb_get_mgmnt_traffic_ctl(struct ql_adapter *qdev, u32 *control)
 
 int ql_wait_fifo_empty(struct ql_adapter *qdev)
 {
-	int count = 5;
+	int count;
 	u32 mgmnt_fifo_empty;
 	u32 nic_fifo_empty;
 
-	do {
+	for (count = 6; count; count--) {
 		nic_fifo_empty = ql_read32(qdev, STS) & STS_NFE;
 		ql_mb_get_mgmnt_traffic_ctl(qdev, &mgmnt_fifo_empty);
 		mgmnt_fifo_empty &= MB_GET_MPI_TFK_FIFO_EMPTY;
 		if (nic_fifo_empty && mgmnt_fifo_empty)
 			return 0;
 		msleep(100);
-	} while (count-- > 0);
+	}
 	return -ETIMEDOUT;
 }
 
