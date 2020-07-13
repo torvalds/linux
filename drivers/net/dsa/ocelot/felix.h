@@ -51,6 +51,7 @@ struct felix_info {
 
 extern const struct dsa_switch_ops felix_switch_ops;
 extern struct pci_driver felix_vsc9959_pci_driver;
+extern struct platform_driver seville_vsc9953_driver;
 
 /* DSA glue / front-end for struct ocelot */
 struct felix {
@@ -62,5 +63,16 @@ struct felix {
 	resource_size_t			switch_base;
 	resource_size_t			imdio_base;
 };
+
+void vsc9959_pcs_link_state(struct ocelot *ocelot, int port,
+			    struct phylink_link_state *state);
+void vsc9959_pcs_config(struct ocelot *ocelot, int port,
+			unsigned int link_an_mode,
+			const struct phylink_link_state *state);
+void vsc9959_pcs_link_up(struct ocelot *ocelot, int port,
+			 unsigned int link_an_mode,
+			 phy_interface_t interface,
+			 int speed, int duplex);
+void vsc9959_mdio_bus_free(struct ocelot *ocelot);
 
 #endif

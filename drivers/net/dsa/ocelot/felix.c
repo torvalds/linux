@@ -13,6 +13,7 @@
 #include <soc/mscc/ocelot_ana.h>
 #include <soc/mscc/ocelot_ptp.h>
 #include <soc/mscc/ocelot.h>
+#include <linux/platform_device.h>
 #include <linux/packing.h>
 #include <linux/module.h>
 #include <linux/of_net.h>
@@ -820,13 +821,24 @@ const struct dsa_switch_ops felix_switch_ops = {
 
 static int __init felix_init(void)
 {
-	return pci_register_driver(&felix_vsc9959_pci_driver);
+	int err;
+
+	err = pci_register_driver(&felix_vsc9959_pci_driver);
+	if (err)
+		return err;
+
+	err = platform_driver_register(&seville_vsc9953_driver);
+	if (err)
+		return err;
+
+	return 0;
 }
 module_init(felix_init);
 
 static void __exit felix_exit(void)
 {
 	pci_unregister_driver(&felix_vsc9959_pci_driver);
+	platform_driver_unregister(&seville_vsc9953_driver);
 }
 module_exit(felix_exit);
 

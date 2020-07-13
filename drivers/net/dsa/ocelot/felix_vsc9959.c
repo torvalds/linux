@@ -852,9 +852,9 @@ static void vsc9959_pcs_config_usxgmii(struct phy_device *pcs,
 		      USXGMII_ADVERTISE_FDX);
 }
 
-static void vsc9959_pcs_config(struct ocelot *ocelot, int port,
-			       unsigned int link_an_mode,
-			       const struct phylink_link_state *state)
+void vsc9959_pcs_config(struct ocelot *ocelot, int port,
+			unsigned int link_an_mode,
+			const struct phylink_link_state *state)
 {
 	struct felix *felix = ocelot_to_felix(ocelot);
 	struct phy_device *pcs = felix->pcs[port];
@@ -965,10 +965,10 @@ static void vsc9959_pcs_link_up_2500basex(struct phy_device *pcs,
 	phy_clear_bits(pcs, MII_BMCR, BMCR_ANENABLE);
 }
 
-static void vsc9959_pcs_link_up(struct ocelot *ocelot, int port,
-				unsigned int link_an_mode,
-				phy_interface_t interface,
-				int speed, int duplex)
+void vsc9959_pcs_link_up(struct ocelot *ocelot, int port,
+			 unsigned int link_an_mode,
+			 phy_interface_t interface,
+			 int speed, int duplex)
 {
 	struct felix *felix = ocelot_to_felix(ocelot);
 	struct phy_device *pcs = felix->pcs[port];
@@ -1096,8 +1096,8 @@ static void vsc9959_pcs_link_state_usxgmii(struct phy_device *pcs,
 		pcs->duplex = DUPLEX_HALF;
 }
 
-static void vsc9959_pcs_link_state(struct ocelot *ocelot, int port,
-				   struct phylink_link_state *state)
+void vsc9959_pcs_link_state(struct ocelot *ocelot, int port,
+			    struct phylink_link_state *state)
 {
 	struct felix *felix = ocelot_to_felix(ocelot);
 	struct phy_device *pcs = felix->pcs[port];
@@ -1286,7 +1286,7 @@ static int vsc9959_mdio_bus_alloc(struct ocelot *ocelot)
 	return 0;
 }
 
-static void vsc9959_mdio_bus_free(struct ocelot *ocelot)
+void vsc9959_mdio_bus_free(struct ocelot *ocelot)
 {
 	struct felix *felix = ocelot_to_felix(ocelot);
 	int port;
