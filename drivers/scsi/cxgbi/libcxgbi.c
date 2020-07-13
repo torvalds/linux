@@ -2183,8 +2183,7 @@ int cxgbi_conn_init_pdu(struct iscsi_task *task, unsigned int offset,
 	}
 
 	log_debug(1 << CXGBI_DBG_ISCSI | 1 << CXGBI_DBG_PDU_TX,
-		  "cxgbi_conn_init_pdu: tdata->total_count %u, "
-		  "tdata->total_offset %u\n",
+		  "data->total_count %u, tdata->total_offset %u\n",
 		  tdata->total_count, tdata->total_offset);
 
 	expected_count = tdata->total_count;
