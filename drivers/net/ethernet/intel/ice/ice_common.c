@@ -611,8 +611,6 @@ static enum ice_status ice_get_fw_log_cfg(struct ice_hw *hw)
 
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_fw_logging_info);
 
-	desc.flags |= cpu_to_le16(ICE_AQ_FLAG_RD);
-
 	status = ice_aq_send_cmd(hw, &desc, config, size, NULL);
 	if (!status) {
 		u16 i;
