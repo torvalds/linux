@@ -4134,7 +4134,7 @@ ice_probe(struct pci_dev *pdev, const struct pci_device_id __always_unused *ent)
 	if (err) {
 		dev_err(dev, "probe failed sending driver version %s. error: %d\n",
 			UTS_RELEASE, err);
-		goto err_alloc_sw_unroll;
+		goto err_send_version_unroll;
 	}
 
 	/* since everything is good, start the service timer */
@@ -4143,19 +4143,19 @@ ice_probe(struct pci_dev *pdev, const struct pci_device_id __always_unused *ent)
 	err = ice_init_link_events(pf->hw.port_info);
 	if (err) {
 		dev_err(dev, "ice_init_link_events failed: %d\n", err);
-		goto err_alloc_sw_unroll;
+		goto err_send_version_unroll;
 	}
 
 	err = ice_init_nvm_phy_type(pf->hw.port_info);
 	if (err) {
 		dev_err(dev, "ice_init_nvm_phy_type failed: %d\n", err);
-		goto err_alloc_sw_unroll;
+		goto err_send_version_unroll;
 	}
 
 	err = ice_update_link_info(pf->hw.port_info);
 	if (err) {
 		dev_err(dev, "ice_update_link_info failed: %d\n", err);
-		goto err_alloc_sw_unroll;
+		goto err_send_version_unroll;
 	}
 
 	ice_init_link_dflt_override(pf->hw.port_info);
@@ -4166,7 +4166,7 @@ ice_probe(struct pci_dev *pdev, const struct pci_device_id __always_unused *ent)
 		err = ice_init_phy_user_cfg(pf->hw.port_info);
 		if (err) {
 			dev_err(dev, "ice_init_phy_user_cfg failed: %d\n", err);
-			goto err_alloc_sw_unroll;
+			goto err_send_version_unroll;
 		}
 
 		if (!test_bit(ICE_FLAG_LINK_DOWN_ON_CLOSE_ENA, pf->flags)) {
@@ -4220,6 +4220,8 @@ probe_done:
 	clear_bit(__ICE_DOWN, pf->state);
 	return 0;
 
+err_send_version_unroll:
+	ice_vsi_release_all(pf);
 err_alloc_sw_unroll:
 	ice_devlink_destroy_port(pf);
 	set_bit(__ICE_SERVICE_DIS, pf->state);
