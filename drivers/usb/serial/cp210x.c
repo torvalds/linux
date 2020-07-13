@@ -824,7 +824,16 @@ static int cp210x_open(struct tty_struct *tty, struct usb_serial_port *port)
 	if (tty)
 		cp210x_change_speed(tty, port, NULL);
 
-	return usb_serial_generic_open(tty, port);
+	result = usb_serial_generic_open(tty, port);
+	if (result)
+		goto err_disable;
+
+	return 0;
+
+err_disable:
+	cp210x_write_u16_reg(port, CP210X_IFC_ENABLE, UART_DISABLE);
+
+	return result;
 }
 
 static void cp210x_close(struct usb_serial_port *port)
