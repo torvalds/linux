@@ -126,6 +126,7 @@ struct interactive_cpu {
 	struct interactive_policy *ipolicy;
 
 	struct irq_work irq_work;
+	struct irq_work boost_irq_work;
 	u64 last_sample_time;
 	unsigned long next_sample_jiffies;
 	bool work_in_progress;
@@ -148,6 +149,8 @@ struct interactive_cpu {
 	u64 pol_hispeed_val_time; /* policy hispeed_validate_time */
 	u64 loc_hispeed_val_time; /* per-cpu hispeed_validate_time */
 	int cpu;
+	unsigned int task_boost_freq;
+	u64 task_boos_endtime;
 };
 
 static DEFINE_PER_CPU(struct interactive_cpu, interactive_cpu);
@@ -422,6 +425,9 @@ static void eval_target_freq(struct interactive_cpu *icpu)
 	if (now < tunables->touchboostpulse_endtime &&
 	    new_freq < tunables->touchboost_freq) {
 		new_freq = tunables->touchboost_freq;
+	}
+	if ((now < icpu->task_boos_endtime) && (new_freq < icpu->task_boost_freq)) {
+		new_freq = icpu->task_boost_freq;
 	}
 #endif
 	if (policy->cur >= tunables->hispeed_freq &&
@@ -1131,6 +1137,9 @@ static inline void gov_clear_update_util(struct cpufreq_policy *policy)
 static void icpu_cancel_work(struct interactive_cpu *icpu)
 {
 	irq_work_sync(&icpu->irq_work);
+#ifdef CONFIG_ARCH_ROCKCHIP
+	irq_work_sync(&icpu->boost_irq_work);
+#endif
 	icpu->work_in_progress = false;
 	del_timer_sync(&icpu->slack_timer);
 }
@@ -1354,6 +1363,87 @@ static void rockchip_cpufreq_policy_init(struct interactive_policy *ipolicy)
 		*tunables = backup_tunables[index];
 		tunables->attr_set = attr_set;
 	}
+}
+
+static void task_boost_irq_work(struct irq_work *irq_work)
+{
+	struct interactive_cpu *pcpu;
+	unsigned long flags[2];
+
+	pcpu = container_of(irq_work, struct interactive_cpu, boost_irq_work);
+	if (!down_read_trylock(&pcpu->enable_sem))
+		return;
+
+	if (!pcpu->ipolicy)
+		goto out;
+
+	spin_lock_irqsave(&speedchange_cpumask_lock, flags[0]);
+	spin_lock_irqsave(&pcpu->target_freq_lock, flags[1]);
+	if (pcpu->target_freq < pcpu->task_boost_freq) {
+		pcpu->target_freq = pcpu->task_boost_freq;
+		cpumask_set_cpu(pcpu->cpu, &speedchange_cpumask);
+		wake_up_process(speedchange_task);
+	}
+	spin_unlock_irqrestore(&pcpu->target_freq_lock, flags[1]);
+	spin_unlock_irqrestore(&speedchange_cpumask_lock, flags[0]);
+
+out:
+	up_read(&pcpu->enable_sem);
+}
+
+static unsigned int get_freq_for_util(struct cpufreq_policy *policy, unsigned long util)
+{
+	struct cpufreq_frequency_table *pos;
+	unsigned long max_cap, cur_cap;
+	unsigned int freq = 0;
+
+	max_cap = arch_scale_cpu_capacity(NULL, policy->cpu);
+	cpufreq_for_each_valid_entry(pos, policy->freq_table) {
+		freq = pos->frequency;
+
+		cur_cap = max_cap * freq / policy->max;
+		if (cur_cap > util)
+			break;
+	}
+
+	return freq;
+}
+
+extern unsigned long capacity_curr_of(int cpu);
+
+void cpufreq_task_boost(int cpu, unsigned long util)
+{
+	struct interactive_cpu *pcpu = &per_cpu(interactive_cpu, cpu);
+	struct interactive_policy *ipolicy = pcpu->ipolicy;
+	unsigned long cap, min_util;
+
+	if (!down_read_trylock(&pcpu->enable_sem))
+		return;
+
+	if (!ipolicy)
+		goto out;
+
+	if (ipolicy->policy->cur == ipolicy->policy->max)
+		goto out;
+
+	min_util = util + (util >> 2);
+	cap = capacity_curr_of(cpu);
+	if (min_util > cap) {
+		u64 now = ktime_to_us(ktime_get());
+		u64 prev_boos_endtime = pcpu->task_boos_endtime;
+		unsigned int boost_freq;
+
+		pcpu->task_boos_endtime = now + ipolicy->tunables->sampling_rate;
+		boost_freq = get_freq_for_util(ipolicy->policy, min_util);
+		if ((now < prev_boos_endtime) && (boost_freq <= pcpu->task_boost_freq))
+			goto out;
+		pcpu->task_boost_freq = boost_freq;
+
+		irq_work_queue(&pcpu->boost_irq_work);
+	}
+
+out:
+	up_read(&pcpu->enable_sem);
 }
 #endif
 
@@ -1583,6 +1673,9 @@ static int __init cpufreq_interactive_gov_init(void)
 		icpu = &per_cpu(interactive_cpu, cpu);
 
 		init_irq_work(&icpu->irq_work, irq_work);
+#ifdef CONFIG_ARCH_ROCKCHIP
+		init_irq_work(&icpu->boost_irq_work, task_boost_irq_work);
+#endif
 		spin_lock_init(&icpu->load_lock);
 		spin_lock_init(&icpu->target_freq_lock);
 		init_rwsem(&icpu->enable_sem);
