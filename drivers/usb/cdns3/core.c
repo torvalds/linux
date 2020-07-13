@@ -86,7 +86,7 @@ static int cdns3_core_init_role(struct cdns3 *cdns)
 	struct device *dev = cdns->dev;
 	enum usb_dr_mode best_dr_mode;
 	enum usb_dr_mode dr_mode;
-	int ret = 0;
+	int ret;
 
 	dr_mode = usb_get_dr_mode(dev);
 	cdns->role = USB_ROLE_NONE;
@@ -177,7 +177,7 @@ static int cdns3_core_init_role(struct cdns3 *cdns)
 		goto err;
 	}
 
-	return ret;
+	return 0;
 err:
 	cdns3_exit_roles(cdns);
 	return ret;

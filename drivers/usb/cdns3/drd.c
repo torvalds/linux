@@ -29,7 +29,6 @@
  */
 int cdns3_set_mode(struct cdns3 *cdns, enum usb_dr_mode mode)
 {
-	int ret = 0;
 	u32 reg;
 
 	switch (mode) {
@@ -61,7 +60,7 @@ int cdns3_set_mode(struct cdns3 *cdns, enum usb_dr_mode mode)
 		return -EINVAL;
 	}
 
-	return ret;
+	return 0;
 }
 
 int cdns3_get_id(struct cdns3 *cdns)
@@ -134,11 +133,11 @@ static void cdns3_otg_enable_irq(struct cdns3 *cdns)
 int cdns3_drd_switch_host(struct cdns3 *cdns, int on)
 {
 	int ret, val;
-	u32 reg = OTGCMD_OTG_DIS;
 
 	/* switch OTG core */
 	if (on) {
-		writel(OTGCMD_HOST_BUS_REQ | reg, &cdns->otg_regs->cmd);
+		writel(OTGCMD_HOST_BUS_REQ | OTGCMD_OTG_DIS,
+		       &cdns->otg_regs->cmd);
 
 		dev_dbg(cdns->dev, "Waiting till Host mode is turned on\n");
 		ret = readl_poll_timeout_atomic(&cdns->otg_regs->sts, val,
@@ -212,7 +211,7 @@ int cdns3_drd_switch_gadget(struct cdns3 *cdns, int on)
  */
 static int cdns3_init_otg_mode(struct cdns3 *cdns)
 {
-	int ret = 0;
+	int ret;
 
 	cdns3_otg_disable_irq(cdns);
 	/* clear all interrupts */
@@ -223,7 +222,8 @@ static int cdns3_init_otg_mode(struct cdns3 *cdns)
 		return ret;
 
 	cdns3_otg_enable_irq(cdns);
-	return ret;
+
+	return 0;
 }
 
 /**
@@ -234,7 +234,7 @@ static int cdns3_init_otg_mode(struct cdns3 *cdns)
  */
 int cdns3_drd_update_mode(struct cdns3 *cdns)
 {
-	int ret = 0;
+	int ret;
 
 	switch (cdns->dr_mode) {
 	case USB_DR_MODE_PERIPHERAL:
@@ -307,8 +307,8 @@ static irqreturn_t cdns3_drd_irq(int irq, void *data)
 int cdns3_drd_init(struct cdns3 *cdns)
 {
 	void __iomem *regs;
-	int ret = 0;
 	u32 state;
+	int ret;
 
 	regs = devm_ioremap_resource(cdns->dev, &cdns->otg_res);
 	if (IS_ERR(regs))
@@ -359,7 +359,6 @@ int cdns3_drd_init(struct cdns3 *cdns)
 					cdns3_drd_thread_irq,
 					IRQF_SHARED,
 					dev_name(cdns->dev), cdns);
-
 	if (ret) {
 		dev_err(cdns->dev, "couldn't get otg_irq\n");
 		return ret;
@@ -371,7 +370,7 @@ int cdns3_drd_init(struct cdns3 *cdns)
 		return -ENODEV;
 	}
 
-	return ret;
+	return 0;
 }
 
 int cdns3_drd_exit(struct cdns3 *cdns)
