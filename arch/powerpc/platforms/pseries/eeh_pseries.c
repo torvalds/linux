@@ -24,6 +24,7 @@
 #include <linux/sched.h>
 #include <linux/seq_file.h>
 #include <linux/spinlock.h>
+#include <linux/crash_dump.h>
 
 #include <asm/eeh.h>
 #include <asm/eeh_event.h>
@@ -80,6 +81,152 @@ void pseries_pcibios_bus_add_device(struct pci_dev *pdev)
 	eeh_probe_device(pdev);
 }
 
+
+/**
+ * pseries_eeh_get_config_addr - Retrieve config address
+ *
+ * Retrieve the assocated config address. Actually, there're 2 RTAS
+ * function calls dedicated for the purpose. We need implement
+ * it through the new function and then the old one. Besides,
+ * you should make sure the config address is figured out from
+ * FDT node before calling the function.
+ *
+ * It's notable that zero'ed return value means invalid PE config
+ * address.
+ */
+static int pseries_eeh_get_config_addr(struct pci_controller *phb, int config_addr)
+{
+	int ret = 0;
+	int rets[3];
+
+	if (ibm_get_config_addr_info2 != RTAS_UNKNOWN_SERVICE) {
+		/*
+		 * First of all, we need to make sure there has one PE
+		 * associated with the device. Otherwise, PE address is
+		 * meaningless.
+		 */
+		ret = rtas_call(ibm_get_config_addr_info2, 4, 2, rets,
+				config_addr, BUID_HI(phb->buid),
+				BUID_LO(phb->buid), 1);
+		if (ret || (rets[0] == 0))
+			return 0;
+
+		/* Retrieve the associated PE config address */
+		ret = rtas_call(ibm_get_config_addr_info2, 4, 2, rets,
+				config_addr, BUID_HI(phb->buid),
+				BUID_LO(phb->buid), 0);
+		if (ret) {
+			pr_warn("%s: Failed to get address for PHB#%x-PE#%x\n",
+				__func__, phb->global_number, config_addr);
+			return 0;
+		}
+
+		return rets[0];
+	}
+
+	if (ibm_get_config_addr_info != RTAS_UNKNOWN_SERVICE) {
+		ret = rtas_call(ibm_get_config_addr_info, 4, 2, rets,
+				config_addr, BUID_HI(phb->buid),
+				BUID_LO(phb->buid), 0);
+		if (ret) {
+			pr_warn("%s: Failed to get address for PHB#%x-PE#%x\n",
+				__func__, phb->global_number, config_addr);
+			return 0;
+		}
+
+		return rets[0];
+	}
+
+	return ret;
+}
+
+/**
+ * pseries_eeh_phb_reset - Reset the specified PHB
+ * @phb: PCI controller
+ * @config_adddr: the associated config address
+ * @option: reset option
+ *
+ * Reset the specified PHB/PE
+ */
+static int pseries_eeh_phb_reset(struct pci_controller *phb, int config_addr, int option)
+{
+	int ret;
+
+	/* Reset PE through RTAS call */
+	ret = rtas_call(ibm_set_slot_reset, 4, 1, NULL,
+			config_addr, BUID_HI(phb->buid),
+			BUID_LO(phb->buid), option);
+
+	/* If fundamental-reset not supported, try hot-reset */
+	if (option == EEH_RESET_FUNDAMENTAL &&
+	    ret == -8) {
+		option = EEH_RESET_HOT;
+		ret = rtas_call(ibm_set_slot_reset, 4, 1, NULL,
+				config_addr, BUID_HI(phb->buid),
+				BUID_LO(phb->buid), option);
+	}
+
+	/* We need reset hold or settlement delay */
+	if (option == EEH_RESET_FUNDAMENTAL ||
+	    option == EEH_RESET_HOT)
+		msleep(EEH_PE_RST_HOLD_TIME);
+	else
+		msleep(EEH_PE_RST_SETTLE_TIME);
+
+	return ret;
+}
+
+/**
+ * pseries_eeh_phb_configure_bridge - Configure PCI bridges in the indicated PE
+ * @phb: PCI controller
+ * @config_adddr: the associated config address
+ *
+ * The function will be called to reconfigure the bridges included
+ * in the specified PE so that the mulfunctional PE would be recovered
+ * again.
+ */
+static int pseries_eeh_phb_configure_bridge(struct pci_controller *phb, int config_addr)
+{
+	int ret;
+	/* Waiting 0.2s maximum before skipping configuration */
+	int max_wait = 200;
+
+	while (max_wait > 0) {
+		ret = rtas_call(ibm_configure_pe, 3, 1, NULL,
+				config_addr, BUID_HI(phb->buid),
+				BUID_LO(phb->buid));
+
+		if (!ret)
+			return ret;
+		if (ret < 0)
+			break;
+
+		/*
+		 * If RTAS returns a delay value that's above 100ms, cut it
+		 * down to 100ms in case firmware made a mistake.  For more
+		 * on how these delay values work see rtas_busy_delay_time
+		 */
+		if (ret > RTAS_EXTENDED_DELAY_MIN+2 &&
+		    ret <= RTAS_EXTENDED_DELAY_MAX)
+			ret = RTAS_EXTENDED_DELAY_MIN+2;
+
+		max_wait -= rtas_busy_delay_time(ret);
+
+		if (max_wait < 0)
+			break;
+
+		rtas_busy_delay(ret);
+	}
+
+	pr_warn("%s: Unable to configure bridge PHB#%x-PE#%x (%d)\n",
+		__func__, phb->global_number, config_addr, ret);
+	/* PAPR defines -3 as "Parameter Error" for this function: */
+	if (ret == -3)
+		return -EINVAL;
+	else
+		return -EIO;
+}
+
 /*
  * Buffer for reporting slot-error-detail rtas calls. Its here
  * in BSS, and not dynamically alloced, so that it ends up in
@@ -96,6 +243,10 @@ static int eeh_error_buf_size;
  */
 static int pseries_eeh_init(void)
 {
+	struct pci_controller *phb;
+	struct pci_dn *pdn;
+	int addr, config_addr;
+
 	/* figure out EEH RTAS function call tokens */
 	ibm_set_eeh_option		= rtas_token("ibm,set-eeh-option");
 	ibm_set_slot_reset		= rtas_token("ibm,set-slot-reset");
@@ -147,6 +298,22 @@ static int pseries_eeh_init(void)
 
 	/* Set EEH machine dependent code */
 	ppc_md.pcibios_bus_add_device = pseries_pcibios_bus_add_device;
+
+	if (is_kdump_kernel() || reset_devices) {
+		pr_info("Issue PHB reset ...\n");
+		list_for_each_entry(phb, &hose_list, list_node) {
+			pdn = list_first_entry(&PCI_DN(phb->dn)->child_list, struct pci_dn, list);
+			addr = (pdn->busno << 16) | (pdn->devfn << 8);
+			config_addr = pseries_eeh_get_config_addr(phb, addr);
+			/* invalid PE config addr */
+			if (config_addr == 0)
+				continue;
+
+			pseries_eeh_phb_reset(phb, config_addr, EEH_RESET_FUNDAMENTAL);
+			pseries_eeh_phb_reset(phb, config_addr, EEH_RESET_DEACTIVATE);
+			pseries_eeh_phb_configure_bridge(phb, config_addr);
+		}
+	}
 
 	return 0;
 }
@@ -569,35 +736,13 @@ static int pseries_eeh_get_state(struct eeh_pe *pe, int *delay)
 static int pseries_eeh_reset(struct eeh_pe *pe, int option)
 {
 	int config_addr;
-	int ret;
 
 	/* Figure out PE address */
 	config_addr = pe->config_addr;
 	if (pe->addr)
 		config_addr = pe->addr;
 
-	/* Reset PE through RTAS call */
-	ret = rtas_call(ibm_set_slot_reset, 4, 1, NULL,
-			config_addr, BUID_HI(pe->phb->buid),
-			BUID_LO(pe->phb->buid), option);
-
-	/* If fundamental-reset not supported, try hot-reset */
-	if (option == EEH_RESET_FUNDAMENTAL &&
-	    ret == -8) {
-		option = EEH_RESET_HOT;
-		ret = rtas_call(ibm_set_slot_reset, 4, 1, NULL,
-				config_addr, BUID_HI(pe->phb->buid),
-				BUID_LO(pe->phb->buid), option);
-	}
-
-	/* We need reset hold or settlement delay */
-	if (option == EEH_RESET_FUNDAMENTAL ||
-	    option == EEH_RESET_HOT)
-		msleep(EEH_PE_RST_HOLD_TIME);
-	else
-		msleep(EEH_PE_RST_SETTLE_TIME);
-
-	return ret;
+	return pseries_eeh_phb_reset(pe->phb, config_addr, option);
 }
 
 /**
@@ -641,56 +786,17 @@ static int pseries_eeh_get_log(struct eeh_pe *pe, int severity, char *drv_log, u
  * pseries_eeh_configure_bridge - Configure PCI bridges in the indicated PE
  * @pe: EEH PE
  *
- * The function will be called to reconfigure the bridges included
- * in the specified PE so that the mulfunctional PE would be recovered
- * again.
  */
 static int pseries_eeh_configure_bridge(struct eeh_pe *pe)
 {
 	int config_addr;
-	int ret;
-	/* Waiting 0.2s maximum before skipping configuration */
-	int max_wait = 200;
 
 	/* Figure out the PE address */
 	config_addr = pe->config_addr;
 	if (pe->addr)
 		config_addr = pe->addr;
 
-	while (max_wait > 0) {
-		ret = rtas_call(ibm_configure_pe, 3, 1, NULL,
-				config_addr, BUID_HI(pe->phb->buid),
-				BUID_LO(pe->phb->buid));
-
-		if (!ret)
-			return ret;
-		if (ret < 0)
-			break;
-
-		/*
-		 * If RTAS returns a delay value that's above 100ms, cut it
-		 * down to 100ms in case firmware made a mistake.  For more
-		 * on how these delay values work see rtas_busy_delay_time
-		 */
-		if (ret > RTAS_EXTENDED_DELAY_MIN+2 &&
-		    ret <= RTAS_EXTENDED_DELAY_MAX)
-			ret = RTAS_EXTENDED_DELAY_MIN+2;
-
-		max_wait -= rtas_busy_delay_time(ret);
-
-		if (max_wait < 0)
-			break;
-
-		rtas_busy_delay(ret);
-	}
-
-	pr_warn("%s: Unable to configure bridge PHB#%x-PE#%x (%d)\n",
-		__func__, pe->phb->global_number, pe->addr, ret);
-	/* PAPR defines -3 as "Parameter Error" for this function: */
-	if (ret == -3)
-		return -EINVAL;
-	else
-		return -EIO;
+	return pseries_eeh_phb_configure_bridge(pe->phb, config_addr);
 }
 
 /**
