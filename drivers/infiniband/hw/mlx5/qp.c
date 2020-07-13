@@ -2668,6 +2668,10 @@ static int process_create_flags(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 	if (qp_type == IB_QPT_RAW_PACKET && attr->rwq_ind_tbl)
 		return (create_flags) ? -EINVAL : 0;
 
+	process_create_flag(dev, &create_flags, IB_QP_CREATE_NETIF_QP,
+			    mlx5_get_flow_namespace(dev->mdev,
+						    MLX5_FLOW_NAMESPACE_BYPASS),
+			    qp);
 	process_create_flag(dev, &create_flags,
 			    IB_QP_CREATE_INTEGRITY_EN,
 			    MLX5_CAP_GEN(mdev, sho), qp);
@@ -3001,11 +3005,12 @@ destroy_qp:
 		mlx5_ib_destroy_dct(qp);
 	} else {
 		/*
-		 * The two lines below are temp solution till QP allocation
+		 * These lines below are temp solution till QP allocation
 		 * will be moved to be under IB/core responsiblity.
 		 */
 		qp->ibqp.send_cq = attr->send_cq;
 		qp->ibqp.recv_cq = attr->recv_cq;
+		qp->ibqp.pd = pd;
 		destroy_qp_common(dev, qp, udata);
 	}
 

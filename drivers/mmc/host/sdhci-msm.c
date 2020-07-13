@@ -618,8 +618,9 @@ static int msm_init_cm_dll(struct sdhci_host *host)
 	config &= ~CORE_CLK_PWRSAVE;
 	writel_relaxed(config, host->ioaddr + msm_offset->core_vendor_spec);
 
-	config = msm_host->dll_config;
-	writel_relaxed(config, host->ioaddr + msm_offset->core_dll_config);
+	if (msm_host->dll_config)
+		writel_relaxed(msm_host->dll_config,
+				host->ioaddr + msm_offset->core_dll_config);
 
 	if (msm_host->use_14lpp_dll_reset) {
 		config = readl_relaxed(host->ioaddr +

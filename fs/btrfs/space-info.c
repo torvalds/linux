@@ -879,8 +879,8 @@ static bool steal_from_global_rsv(struct btrfs_fs_info *fs_info,
 		return false;
 	}
 	global_rsv->reserved -= ticket->bytes;
+	remove_ticket(space_info, ticket);
 	ticket->bytes = 0;
-	list_del_init(&ticket->list);
 	wake_up(&ticket->wait);
 	space_info->tickets_id++;
 	if (global_rsv->reserved < global_rsv->size)

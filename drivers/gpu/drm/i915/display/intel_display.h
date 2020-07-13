@@ -608,6 +608,7 @@ unsigned int i9xx_plane_max_stride(struct intel_plane *plane,
 				   u32 pixel_format, u64 modifier,
 				   unsigned int rotation);
 int bdw_get_pipemisc_bpp(struct intel_crtc *crtc);
+unsigned int intel_plane_fence_y_offset(const struct intel_plane_state *plane_state);
 
 struct intel_display_error_state *
 intel_display_capture_error_state(struct drm_i915_private *dev_priv);

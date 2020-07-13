@@ -230,7 +230,7 @@ static int per_file_stats(int id, void *ptr, void *data)
 	struct file_stats *stats = data;
 	struct i915_vma *vma;
 
-	if (!kref_get_unless_zero(&obj->base.refcount))
+	if (IS_ERR_OR_NULL(obj) || !kref_get_unless_zero(&obj->base.refcount))
 		return 0;
 
 	stats->count++;

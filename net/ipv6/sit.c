@@ -1421,6 +1421,7 @@ static void ipip6_tunnel_setup(struct net_device *dev)
 	int t_hlen = tunnel->hlen + sizeof(struct iphdr);
 
 	dev->netdev_ops		= &ipip6_netdev_ops;
+	dev->header_ops		= &ip_tunnel_header_ops;
 	dev->needs_free_netdev	= true;
 	dev->priv_destructor	= ipip6_dev_free;
 

@@ -44,18 +44,18 @@ DECLARE_INSN(c_beqz, MATCH_C_BEQZ, MASK_C_BEQZ)
 DECLARE_INSN(c_bnez, MATCH_C_BNEZ, MASK_C_BNEZ)
 DECLARE_INSN(sret, MATCH_SRET, MASK_SRET)
 
-int decode_register_index(unsigned long opcode, int offset)
+static int decode_register_index(unsigned long opcode, int offset)
 {
 	return (opcode >> offset) & 0x1F;
 }
 
-int decode_register_index_short(unsigned long opcode, int offset)
+static int decode_register_index_short(unsigned long opcode, int offset)
 {
 	return ((opcode >> offset) & 0x7) + 8;
 }
 
 /* Calculate the new address for after a step */
-int get_step_address(struct pt_regs *regs, unsigned long *next_addr)
+static int get_step_address(struct pt_regs *regs, unsigned long *next_addr)
 {
 	unsigned long pc = regs->epc;
 	unsigned long *regs_ptr = (unsigned long *)regs;
@@ -136,7 +136,7 @@ int get_step_address(struct pt_regs *regs, unsigned long *next_addr)
 	return 0;
 }
 
-int do_single_step(struct pt_regs *regs)
+static int do_single_step(struct pt_regs *regs)
 {
 	/* Determine where the target instruction will send us to */
 	unsigned long addr = 0;
@@ -320,7 +320,7 @@ int kgdb_arch_handle_exception(int vector, int signo, int err_code,
 	return err;
 }
 
-int kgdb_riscv_kgdbbreak(unsigned long addr)
+static int kgdb_riscv_kgdbbreak(unsigned long addr)
 {
 	if (stepped_address == addr)
 		return KGDB_SW_SINGLE_STEP;

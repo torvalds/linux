@@ -747,6 +747,19 @@ ipv6_fcnal_runtime()
 	run_cmd "$IP nexthop add id 86 via 2001:db8:91::2 dev veth1"
 	run_cmd "$IP ro add 2001:db8:101::1/128 nhid 81"
 
+	# rpfilter and default route
+	$IP nexthop flush >/dev/null 2>&1
+	run_cmd "ip netns exec me ip6tables -t mangle -I PREROUTING 1 -m rpfilter --invert -j DROP"
+	run_cmd "$IP nexthop add id 91 via 2001:db8:91::2 dev veth1"
+	run_cmd "$IP nexthop add id 92 via 2001:db8:92::2 dev veth3"
+	run_cmd "$IP nexthop add id 93 group 91/92"
+	run_cmd "$IP -6 ro add default nhid 91"
+	run_cmd "ip netns exec me ping -c1 -w1 2001:db8:101::1"
+	log_test $? 0 "Nexthop with default route and rpfilter"
+	run_cmd "$IP -6 ro replace default nhid 93"
+	run_cmd "ip netns exec me ping -c1 -w1 2001:db8:101::1"
+	log_test $? 0 "Nexthop with multipath default route and rpfilter"
+
 	# TO-DO:
 	# existing route with old nexthop; append route with new nexthop
 	# existing route with old nexthop; replace route with new

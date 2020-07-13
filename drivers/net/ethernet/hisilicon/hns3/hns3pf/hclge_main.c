@@ -9859,7 +9859,7 @@ retry:
 	set_bit(HCLGE_STATE_RST_HANDLING, &hdev->state);
 	hdev->reset_type = HNAE3_FLR_RESET;
 	ret = hclge_reset_prepare(hdev);
-	if (ret) {
+	if (ret || hdev->reset_pending) {
 		dev_err(&hdev->pdev->dev, "fail to prepare FLR, ret=%d\n",
 			ret);
 		if (hdev->reset_pending ||

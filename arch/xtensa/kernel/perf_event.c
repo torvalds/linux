@@ -362,9 +362,7 @@ irqreturn_t xtensa_pmu_irq_handler(int irq, void *dev_id)
 	struct xtensa_pmu_events *ev = this_cpu_ptr(&xtensa_pmu_events);
 	unsigned i;
 
-	for (i = find_first_bit(ev->used_mask, XCHAL_NUM_PERF_COUNTERS);
-	     i < XCHAL_NUM_PERF_COUNTERS;
-	     i = find_next_bit(ev->used_mask, XCHAL_NUM_PERF_COUNTERS, i + 1)) {
+	for_each_set_bit(i, ev->used_mask, XCHAL_NUM_PERF_COUNTERS) {
 		uint32_t v = get_er(XTENSA_PMU_PMSTAT(i));
 		struct perf_event *event = ev->event[i];
 		struct hw_perf_event *hwc = &event->hw;

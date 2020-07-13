@@ -5406,7 +5406,10 @@ static bool _hfi1_schedule_tid_send(struct rvt_qp *qp)
 	struct hfi1_ibport *ibp =
 		to_iport(qp->ibqp.device, qp->port_num);
 	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
-	struct hfi1_devdata *dd = dd_from_ibdev(qp->ibqp.device);
+	struct hfi1_devdata *dd = ppd->dd;
+
+	if ((dd->flags & HFI1_SHUTDOWN))
+		return true;
 
 	return iowait_tid_schedule(&priv->s_iowait, ppd->hfi1_wq,
 				   priv->s_sde ?
