@@ -444,10 +444,6 @@ void ice_dcb_rebuild(struct ice_pf *pf)
 		goto dcb_error;
 	}
 
-	/* If DCB was not enabled previously, we are done */
-	if (!test_bit(ICE_FLAG_DCB_ENA, pf->flags))
-		return;
-
 	mutex_lock(&pf->tc_mutex);
 
 	if (!pf->hw.port_info->is_sw_lldp)

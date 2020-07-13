@@ -767,6 +767,100 @@ static void ice_vsi_link_event(struct ice_vsi *vsi, bool link_up)
 }
 
 /**
+ * ice_set_dflt_mib - send a default config MIB to the FW
+ * @pf: private PF struct
+ *
+ * This function sends a default configuration MIB to the FW.
+ *
+ * If this function errors out at any point, the driver is still able to
+ * function.  The main impact is that LFC may not operate as expected.
+ * Therefore an error state in this function should be treated with a DBG
+ * message and continue on with driver rebuild/reenable.
+ */
+static void ice_set_dflt_mib(struct ice_pf *pf)
+{
+	struct device *dev = ice_pf_to_dev(pf);
+	u8 mib_type, *buf, *lldpmib = NULL;
+	u16 len, typelen, offset = 0;
+	struct ice_lldp_org_tlv *tlv;
+	struct ice_hw *hw;
+	u32 ouisubtype;
+
+	if (!pf) {
+		dev_dbg(dev, "%s NULL pf pointer\n", __func__);
+		return;
+	}
+
+	hw = &pf->hw;
+	mib_type = SET_LOCAL_MIB_TYPE_LOCAL_MIB;
+	lldpmib = kzalloc(ICE_LLDPDU_SIZE, GFP_KERNEL);
+	if (!lldpmib) {
+		dev_dbg(dev, "%s Failed to allocate MIB memory\n",
+			__func__);
+		return;
+	}
+
+	/* Add ETS CFG TLV */
+	tlv = (struct ice_lldp_org_tlv *)lldpmib;
+	typelen = ((ICE_TLV_TYPE_ORG << ICE_LLDP_TLV_TYPE_S) |
+		   ICE_IEEE_ETS_TLV_LEN);
+	tlv->typelen = htons(typelen);
+	ouisubtype = ((ICE_IEEE_8021QAZ_OUI << ICE_LLDP_TLV_OUI_S) |
+		      ICE_IEEE_SUBTYPE_ETS_CFG);
+	tlv->ouisubtype = htonl(ouisubtype);
+
+	buf = tlv->tlvinfo;
+	buf[0] = 0;
+
+	/* ETS CFG all UPs map to TC 0. Next 4 (1 - 4) Octets = 0.
+	 * Octets 5 - 12 are BW values, set octet 5 to 100% BW.
+	 * Octets 13 - 20 are TSA values - leave as zeros
+	 */
+	buf[5] = 0x64;
+	len = (typelen & ICE_LLDP_TLV_LEN_M) >> ICE_LLDP_TLV_LEN_S;
+	offset += len + 2;
+	tlv = (struct ice_lldp_org_tlv *)
+		((char *)tlv + sizeof(tlv->typelen) + len);
+
+	/* Add ETS REC TLV */
+	buf = tlv->tlvinfo;
+	tlv->typelen = htons(typelen);
+
+	ouisubtype = ((ICE_IEEE_8021QAZ_OUI << ICE_LLDP_TLV_OUI_S) |
+		      ICE_IEEE_SUBTYPE_ETS_REC);
+	tlv->ouisubtype = htonl(ouisubtype);
+
+	/* First octet of buf is reserved
+	 * Octets 1 - 4 map UP to TC - all UPs map to zero
+	 * Octets 5 - 12 are BW values - set TC 0 to 100%.
+	 * Octets 13 - 20 are TSA value - leave as zeros
+	 */
+	buf[5] = 0x64;
+	offset += len + 2;
+	tlv = (struct ice_lldp_org_tlv *)
+		((char *)tlv + sizeof(tlv->typelen) + len);
+
+	/* Add PFC CFG TLV */
+	typelen = ((ICE_TLV_TYPE_ORG << ICE_LLDP_TLV_TYPE_S) |
+		   ICE_IEEE_PFC_TLV_LEN);
+	tlv->typelen = htons(typelen);
+
+	ouisubtype = ((ICE_IEEE_8021QAZ_OUI << ICE_LLDP_TLV_OUI_S) |
+		      ICE_IEEE_SUBTYPE_PFC_CFG);
+	tlv->ouisubtype = htonl(ouisubtype);
+
+	/* Octet 1 left as all zeros - PFC disabled */
+	buf[0] = 0x08;
+	len = (typelen & ICE_LLDP_TLV_LEN_M) >> ICE_LLDP_TLV_LEN_S;
+	offset += len + 2;
+
+	if (ice_aq_set_lldp_mib(hw, mib_type, (void *)lldpmib, offset, NULL))
+		dev_dbg(dev, "%s Failed to set default LLDP MIB\n", __func__);
+
+	kfree(lldpmib);
+}
+
+/**
  * ice_link_event - process the link event
  * @pf: PF that the link event is associated with
  * @pi: port_info for the port that the link event is associated with
@@ -821,7 +915,13 @@ ice_link_event(struct ice_pf *pf, struct ice_port_info *pi, bool link_up,
 	if (link_up == old_link && link_speed == old_link_speed)
 		return result;
 
-	ice_dcb_rebuild(pf);
+	if (ice_is_dcb_active(pf)) {
+		if (test_bit(ICE_FLAG_DCB_ENA, pf->flags))
+			ice_dcb_rebuild(pf);
+	} else {
+		if (link_up)
+			ice_set_dflt_mib(pf);
+	}
 	ice_vsi_link_event(vsi, link_up);
 	ice_print_link_msg(vsi, link_up);
 
