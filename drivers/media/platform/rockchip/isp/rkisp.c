@@ -1863,15 +1863,6 @@ static long rkisp_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			isp_dev->resmem_pa = 0;
 			isp_dev->resmem_size = 0;
 		}
-
-		v4l2_info(sd, "thunderboot info: %d, %d, %d, %d, %d, %d, 0x%x\n",
-			  head->enable,
-			  head->complete,
-			  head->frm_total,
-			  head->hdr_mode,
-			  head->width,
-			  head->height,
-			  head->bus_fmt);
 		break;
 	case RKISP_CMD_FREE_SHARED_BUF:
 		if (isp_dev->resmem_pa && isp_dev->resmem_size)
@@ -2043,6 +2034,7 @@ void rkisp_unregister_isp_subdev(struct rkisp_device *isp_dev)
 void rkisp_chk_tb_over(struct rkisp_device *isp_dev)
 {
 	struct rkisp_thunderboot_resmem_head *head;
+	enum rkisp_tb_state tb_state;
 	void *resmem_va;
 	u32 i;
 
@@ -2067,10 +2059,23 @@ void rkisp_chk_tb_over(struct rkisp_device *isp_dev)
 					  "wait thunderboot over timeout\n");
 		}
 
-		if (head->complete != RKISP_TB_OK)
-			head->frm_total = 0;
+		v4l2_info(&isp_dev->v4l2_dev,
+			  "thunderboot info: %d, %d, %d, %d, %d, %d, 0x%x\n",
+			  head->enable,
+			  head->complete,
+			  head->frm_total,
+			  head->hdr_mode,
+			  head->width,
+			  head->height,
+			  head->bus_fmt);
 
-		rkisp_tb_set_state((enum rkisp_tb_state)head->complete);
+		tb_state = RKISP_TB_OK;
+		if (head->complete != RKISP_TB_OK) {
+			head->frm_total = 0;
+			tb_state = RKISP_TB_NG;
+		}
+
+		rkisp_tb_set_state(tb_state);
 		rkisp_tb_unprotect_clk();
 		rkisp_register_irq(isp_dev);
 		isp_dev->is_thunderboot = false;

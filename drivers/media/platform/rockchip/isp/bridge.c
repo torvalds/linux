@@ -654,6 +654,7 @@ static long bridge_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		dev->work_mode = mode->work_mode;
 		dev->buf_num = mode->buf_num;
 		ret = config_mode(dev);
+		rkisp_chk_tb_over(dev->ispdev);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
