@@ -2,7 +2,7 @@
  * ecma_167.h
  *
  * This file is based on ECMA-167 3rd edition (June 1997)
- * http://www.ecma.ch
+ * https://www.ecma.ch
  *
  * Copyright (c) 2001-2002  Ben Fennema
  * Copyright (c) 2017-2019  Pali Rohár <pali@kernel.org>
