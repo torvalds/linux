@@ -255,6 +255,34 @@ struct clk;
 #define RK3399_PMU_CLKGATE_CON(x)	((x) * 0x4 + 0x100)
 #define RK3399_PMU_SOFTRST_CON(x)	((x) * 0x4 + 0x110)
 
+#define RK3568_PLL_CON(x)		RK2928_PLL_CON(x)
+#define RK3568_MODE_CON0		0xc0
+#define RK3568_MISC_CON0		0xc4
+#define RK3568_MISC_CON1		0xc8
+#define RK3568_MISC_CON2		0xcc
+#define RK3568_GLB_CNT_TH		0xd0
+#define RK3568_GLB_SRST_FST		0xd4
+#define RK3568_GLB_SRST_SND		0xd8
+#define RK3568_GLB_RST_CON		0xdc
+#define RK3568_GLB_RST_ST		0xe0
+#define RK3568_CLKSEL_CON(x)		((x) * 0x4 + 0x100)
+#define RK3568_CLKGATE_CON(x)		((x) * 0x4 + 0x300)
+#define RK3568_SOFTRST_CON(x)		((x) * 0x4 + 0x400)
+#define RK3568_SDMMC0_CON0		0x580
+#define RK3568_SDMMC0_CON1		0x584
+#define RK3568_SDMMC1_CON0		0x588
+#define RK3568_SDMMC1_CON1		0x58c
+#define RK3568_SDMMC2_CON0		0x590
+#define RK3568_SDMMC2_CON1		0x594
+#define RK3568_EMMC_CON0		0x598
+#define RK3568_EMMC_CON1		0x59c
+
+#define RK3568_PMU_PLL_CON(x)		RK2928_PLL_CON(x)
+#define RK3568_PMU_MODE_CON0		0x80
+#define RK3568_PMU_CLKSEL_CON(x)	((x) * 0x4 + 0x100)
+#define RK3568_PMU_CLKGATE_CON(x)	((x) * 0x4 + 0x180)
+#define RK3568_PMU_SOFTRST_CON(x)	((x) * 0x4 + 0x200)
+
 enum rockchip_pll_type {
 	pll_rk3036,
 	pll_rk3066,
@@ -398,7 +426,7 @@ struct rockchip_cpuclk_clksel {
 	u32 val;
 };
 
-#define ROCKCHIP_CPUCLK_NUM_DIVIDERS	2
+#define ROCKCHIP_CPUCLK_NUM_DIVIDERS	5
 struct rockchip_cpuclk_rate_table {
 	unsigned long prate;
 	struct rockchip_cpuclk_clksel divs[ROCKCHIP_CPUCLK_NUM_DIVIDERS];
@@ -409,6 +437,12 @@ struct rockchip_cpuclk_rate_table {
  * @core_reg:		register offset of the core settings register
  * @div_core_shift:	core divider offset used to divide the pll value
  * @div_core_mask:	core divider mask
+ * @div_core1_shift:	core1 divider offset used to divide the pll value
+ * @div_core1_mask:	core1 divider mask
+ * @div_core2_shift:	core2 divider offset used to divide the pll value
+ * @div_core2_mask:	core2 divider mask
+ * @div_core3_shift:	core3 divider offset used to divide the pll value
+ * @div_core3_mask:	core3 divider mask
  * @mux_core_alt:	mux value to select alternate parent
  * @mux_core_main:	mux value to select main parent of core
  * @mux_core_shift:	offset of the core multiplexer
@@ -418,6 +452,15 @@ struct rockchip_cpuclk_reg_data {
 	int		core_reg;
 	u8		div_core_shift;
 	u32		div_core_mask;
+	int		core1_reg;
+	u8		div_core1_shift;
+	u32		div_core1_mask;
+	int		core2_reg;
+	u8		div_core2_shift;
+	u32		div_core2_mask;
+	int		core3_reg;
+	u8		div_core3_shift;
+	u32		div_core3_mask;
 	u8		mux_core_alt;
 	u8		mux_core_main;
 	u8		mux_core_shift;

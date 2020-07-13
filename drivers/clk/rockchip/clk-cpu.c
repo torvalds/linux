@@ -165,6 +165,19 @@ static int rockchip_cpuclk_pre_rate_change(struct rockchip_cpuclk *cpuclk,
 		writel(HIWORD_UPDATE(alt_div, reg_data->div_core_mask,
 				     reg_data->div_core_shift),
 		       cpuclk->reg_base + reg_data->core_reg);
+		if (reg_data->core1_reg)
+			writel(HIWORD_UPDATE(alt_div, reg_data->div_core1_mask,
+					     reg_data->div_core1_shift),
+			       cpuclk->reg_base + reg_data->core1_reg);
+		if (reg_data->core2_reg)
+			writel(HIWORD_UPDATE(alt_div, reg_data->div_core2_mask,
+					     reg_data->div_core2_shift),
+			       cpuclk->reg_base + reg_data->core2_reg);
+		if (reg_data->core3_reg)
+			writel(HIWORD_UPDATE(alt_div, reg_data->div_core3_mask,
+					     reg_data->div_core3_shift),
+			       cpuclk->reg_base + reg_data->core3_reg);
+
 	}
 	rockchip_boost_add_core_div(cpuclk->pll_hw, alt_prate);
 
@@ -207,6 +220,18 @@ static int rockchip_cpuclk_post_rate_change(struct rockchip_cpuclk *cpuclk,
 	writel(HIWORD_UPDATE(0, reg_data->div_core_mask,
 			     reg_data->div_core_shift),
 	       cpuclk->reg_base + reg_data->core_reg);
+	if (reg_data->core1_reg)
+		writel(HIWORD_UPDATE(0, reg_data->div_core1_mask,
+				     reg_data->div_core1_shift),
+		       cpuclk->reg_base + reg_data->core1_reg);
+	if (reg_data->core2_reg)
+		writel(HIWORD_UPDATE(0, reg_data->div_core2_mask,
+				     reg_data->div_core2_shift),
+		       cpuclk->reg_base + reg_data->core2_reg);
+	if (reg_data->core3_reg)
+		writel(HIWORD_UPDATE(0, reg_data->div_core3_mask,
+				     reg_data->div_core3_shift),
+		       cpuclk->reg_base + reg_data->core3_reg);
 
 	if (ndata->old_rate > ndata->new_rate)
 		rockchip_cpuclk_set_dividers(cpuclk, rate);
