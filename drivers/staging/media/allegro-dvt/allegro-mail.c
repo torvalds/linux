@@ -9,6 +9,7 @@
 #include <linux/bitfield.h>
 #include <linux/export.h>
 #include <linux/errno.h>
+#include <linux/videodev2.h>
 
 #include "allegro-mail.h"
 
@@ -53,17 +54,29 @@ allegro_enc_init(u32 *dst, struct mcu_msg_init_request *msg)
 	return i * sizeof(*dst);
 }
 
+static inline u32 settings_get_mcu_codec(struct create_channel_param *param)
+{
+	u32 pixelformat = param->codec;
+
+	switch (pixelformat) {
+	case V4L2_PIX_FMT_H264:
+	default:
+		return 1;
+	}
+}
+
 static ssize_t
 allegro_encode_channel_config(u32 *dst, struct create_channel_param *param)
 {
 	unsigned int i = 0;
+	unsigned int codec = settings_get_mcu_codec(param);
 
 	dst[i++] = FIELD_PREP(GENMASK(31, 16), param->height) |
 		   FIELD_PREP(GENMASK(15, 0), param->width);
 	dst[i++] = param->format;
 	dst[i++] = param->colorspace;
 	dst[i++] = param->src_mode;
-	dst[i++] = FIELD_PREP(GENMASK(31, 24), param->codec) |
+	dst[i++] = FIELD_PREP(GENMASK(31, 24), codec) |
 		   FIELD_PREP(GENMASK(23, 8), param->constraint_set_flags) |
 		   FIELD_PREP(GENMASK(7, 0), param->profile);
 	dst[i++] = FIELD_PREP(GENMASK(31, 16), param->tier) |

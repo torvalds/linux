@@ -812,15 +812,6 @@ static u32 v4l2_colorspace_to_mcu_colorspace(enum v4l2_colorspace colorspace)
 	}
 }
 
-static s8 v4l2_pixelformat_to_mcu_codec(u32 pixelformat)
-{
-	switch (pixelformat) {
-	case V4L2_PIX_FMT_H264:
-	default:
-		return 1;
-	}
-}
-
 static u8 v4l2_profile_to_mcu_profile(enum v4l2_mpeg_video_h264_profile profile)
 {
 	switch (profile) {
@@ -919,7 +910,7 @@ static int fill_create_channel_param(struct allegro_channel *channel,
 	param->src_mode = 0x0;
 	param->profile = v4l2_profile_to_mcu_profile(channel->profile);
 	param->constraint_set_flags = BIT(1);
-	param->codec = v4l2_pixelformat_to_mcu_codec(channel->codec);
+	param->codec = channel->codec;
 	param->level = v4l2_level_to_mcu_level(channel->level);
 	param->tier = 0;
 	param->sps_param = BIT(20) | 0x4a;

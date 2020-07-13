@@ -48,7 +48,7 @@ struct create_channel_param {
 	u32 src_mode;
 	u8 profile;
 	u16 constraint_set_flags;
-	s8 codec;
+	u32 codec;
 	u16 level;
 	u16 tier;
 	u32 sps_param;
