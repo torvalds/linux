@@ -974,6 +974,11 @@ static int virtballoon_probe(struct virtio_device *vdev)
 		/*
 		 * Let the hypervisor know that we are expecting a
 		 * specific value to be written back in balloon pages.
+		 *
+		 * If the PAGE_POISON value was larger than a byte we would
+		 * need to byte swap poison_val here to guarantee it is
+		 * little-endian. However for now it is a single byte so we
+		 * can pass it as-is.
 		 */
 		if (!want_init_on_free())
 			memset(&poison_val, PAGE_POISON, sizeof(poison_val));
