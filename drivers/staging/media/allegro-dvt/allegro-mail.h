@@ -264,4 +264,7 @@ union mcu_msg_response {
 	struct mcu_msg_encode_frame_response encode_frame;
 };
 
+int allegro_decode_mail(void *msg, u32 *src);
+ssize_t allegro_encode_mail(u32 *dst, void *msg);
+
 #endif

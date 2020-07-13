@@ -705,11 +705,20 @@ static ssize_t allegro_mbox_read(struct allegro_mbox *mbox,
 static int allegro_mbox_send(struct allegro_mbox *mbox, void *msg)
 {
 	struct allegro_dev *dev = mbox->dev;
-	struct mcu_msg_header *header = msg;
-	ssize_t size = sizeof(*header) + header->length;
+	ssize_t size;
 	int err;
+	u32 *tmp;
 
-	err = allegro_mbox_write(mbox, msg, size);
+	tmp = kzalloc(mbox->size, GFP_KERNEL);
+	if (!tmp) {
+		err = -ENOMEM;
+		goto out;
+	}
+
+	size = allegro_encode_mail(tmp, msg);
+
+	err = allegro_mbox_write(mbox, tmp, size);
+	kfree(tmp);
 	if (err)
 		goto out;
 
@@ -728,18 +737,29 @@ static void allegro_mbox_notify(struct allegro_mbox *mbox)
 	struct allegro_dev *dev = mbox->dev;
 	union mcu_msg_response *msg;
 	ssize_t size;
+	u32 *tmp;
+	int err;
 
 	msg = kmalloc(sizeof(*msg), GFP_KERNEL);
 	if (!msg)
 		return;
 
-	size = allegro_mbox_read(mbox, (u32 *)msg, sizeof(*msg));
+	tmp = kmalloc(mbox->size, GFP_KERNEL);
+	if (!tmp)
+		goto out;
+
+	size = allegro_mbox_read(mbox, tmp, mbox->size);
 	if (size < 0)
+		goto out;
+
+	err = allegro_decode_mail(msg, tmp);
+	if (err)
 		goto out;
 
 	allegro_handle_message(dev, msg);
 
 out:
+	kfree(tmp);
 	kfree(msg);
 }
 
