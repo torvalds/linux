@@ -509,8 +509,8 @@ static unsigned int ice_rx_offset(struct ice_ring *rx_ring)
 	return 0;
 }
 
-static unsigned int ice_rx_frame_truesize(struct ice_ring *rx_ring,
-					  unsigned int size)
+static unsigned int
+ice_rx_frame_truesize(struct ice_ring *rx_ring, unsigned int __maybe_unused size)
 {
 	unsigned int truesize;
 
