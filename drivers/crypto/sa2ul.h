@@ -73,7 +73,6 @@ struct sa_tfm_ctx;
 #define SA_ENG_ID_AM1   4       /* Auth. engine with SHA1/MD5/SHA2 core */
 #define SA_ENG_ID_AM2   5       /*  Authentication engine for pass 2 */
 #define SA_ENG_ID_OUTPORT2 20   /*  Egress module 2  */
-#define SA_ENG_ID_NONE  0xff
 
 /*
  * Command Label Definitions
@@ -155,6 +154,13 @@ struct sa_tfm_ctx;
 
 #define SA_ALIGN_MASK		(sizeof(u32) - 1)
 #define SA_ALIGNED		__aligned(32)
+
+#define SA_AUTH_SW_CTRL_MD5	1
+#define SA_AUTH_SW_CTRL_SHA1	2
+#define SA_AUTH_SW_CTRL_SHA224	3
+#define SA_AUTH_SW_CTRL_SHA256	4
+#define SA_AUTH_SW_CTRL_SHA384	5
+#define SA_AUTH_SW_CTRL_SHA512	6
 
 /* SA2UL can only handle maximum data size of 64KB */
 #define SA_MAX_DATA_SZ		U16_MAX
@@ -297,13 +303,29 @@ struct sa_tfm_ctx {
 	struct sa_crypto_data *dev_data;
 	struct sa_ctx_info enc;
 	struct sa_ctx_info dec;
+	struct sa_ctx_info auth;
 	int keylen;
 	int iv_idx;
 	u32 key[AES_KEYSIZE_256 / sizeof(u32)];
+	u8 authkey[SHA512_BLOCK_SIZE];
+	struct crypto_shash	*shash;
 	/* for fallback */
 	union {
 		struct crypto_sync_skcipher	*skcipher;
+		struct crypto_ahash		*ahash;
 	} fallback;
+};
+
+/**
+ * struct sa_sha_req_ctx: Structure used for sha request
+ * @dev_data: struct sa_crypto_data pointer
+ * @cmdl: Complete command label with psdata and epib included
+ * @fallback_req: SW fallback request container
+ */
+struct sa_sha_req_ctx {
+	struct sa_crypto_data	*dev_data;
+	u32			cmdl[SA_MAX_CMDL_WORDS + SA_PSDATA_CTX_WORDS];
+	struct ahash_request	fallback_req;
 };
 
 enum sa_submode {
