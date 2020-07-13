@@ -356,17 +356,3 @@ void __iomem *__init efi_ioremap(unsigned long phys_addr, unsigned long size,
 
 	return (void __iomem *)__va(phys_addr);
 }
-
-static int __init arch_parse_efi_cmdline(char *str)
-{
-	if (!str) {
-		pr_warn("need at least one option\n");
-		return -EINVAL;
-	}
-
-	if (!efi_is_mixed() && parse_option_str(str, "old_map"))
-		set_bit(EFI_UV1_MEMMAP, &efi.flags);
-
-	return 0;
-}
-early_param("efi", arch_parse_efi_cmdline);
