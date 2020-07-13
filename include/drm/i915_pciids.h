@@ -618,4 +618,8 @@
 	INTEL_VGA_DEVICE(0x4C90, info), \
 	INTEL_VGA_DEVICE(0x4C9A, info)
 
+/* DG1 */
+#define INTEL_DG1_IDS(info) \
+	INTEL_VGA_DEVICE(0x4905, info)
+
 #endif /* _I915_PCIIDS_H */
