@@ -4,7 +4,7 @@
  *
  * Copyright (C) 1998-2003 Krzysztof Halasa <khc@pm.waw.pl>
  *
- * For information see <http://www.kernel.org/pub/linux/utils/net/hdlc/>
+ * For information see <https://www.kernel.org/pub/linux/utils/net/hdlc/>
  *
  * Note: integrated CSU/DSU/DDS are not supported by this driver
  *
