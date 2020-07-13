@@ -13,6 +13,7 @@
 .. toctree::
    :maxdepth: 2
 
+   admin-guide/index
    process/index
    filesystems/index
 
