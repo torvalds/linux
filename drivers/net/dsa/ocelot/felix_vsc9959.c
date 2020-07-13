@@ -8,6 +8,7 @@
 #include <soc/mscc/ocelot_ptp.h>
 #include <soc/mscc/ocelot_sys.h>
 #include <soc/mscc/ocelot.h>
+#include <linux/packing.h>
 #include <net/pkt_sched.h>
 #include <linux/iopoll.h>
 #include <linux/pci.h>
@@ -1432,6 +1433,24 @@ static int vsc9959_port_setup_tc(struct dsa_switch *ds, int port,
 	}
 }
 
+static void vsc9959_xmit_template_populate(struct ocelot *ocelot, int port)
+{
+	struct ocelot_port *ocelot_port = ocelot->ports[port];
+	u8 *template = ocelot_port->xmit_template;
+	u64 bypass, dest, src;
+
+	/* Set the source port as the CPU port module and not the
+	 * NPI port
+	 */
+	src = ocelot->num_phys_ports;
+	dest = BIT(port);
+	bypass = true;
+
+	packing(template, &bypass, 127, 127, OCELOT_TAG_LEN, PACK, 0);
+	packing(template, &dest,    68,  56, OCELOT_TAG_LEN, PACK, 0);
+	packing(template, &src,     46,  43, OCELOT_TAG_LEN, PACK, 0);
+}
+
 struct felix_info felix_info_vsc9959 = {
 	.target_io_res		= vsc9959_target_io_res,
 	.port_io_res		= vsc9959_port_io_res,
@@ -1458,4 +1477,5 @@ struct felix_info felix_info_vsc9959 = {
 	.prevalidate_phy_mode	= vsc9959_prevalidate_phy_mode,
 	.port_setup_tc          = vsc9959_port_setup_tc,
 	.port_sched_speed_set   = vsc9959_sched_speed_set,
+	.xmit_template_populate	= vsc9959_xmit_template_populate,
 };
