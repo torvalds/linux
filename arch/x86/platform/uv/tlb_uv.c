@@ -1050,8 +1050,8 @@ const struct cpumask *uv_flush_tlb_others(const struct cpumask *cpumask,
 	switch (bcp->uvhub_version) {
 	case UV_BAU_V2:
 	case UV_BAU_V3:
-		bau_desc->payload.uv1_2_3.address = address;
-		bau_desc->payload.uv1_2_3.sending_cpu = cpu;
+		bau_desc->payload.uv2_3.address = address;
+		bau_desc->payload.uv2_3.sending_cpu = cpu;
 		break;
 	case UV_BAU_V4:
 		bau_desc->payload.uv4.address = address;
