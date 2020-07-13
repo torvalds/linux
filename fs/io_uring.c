@@ -320,12 +320,12 @@ struct io_ring_ctx {
 		spinlock_t		completion_lock;
 
 		/*
-		 * ->poll_list is protected by the ctx->uring_lock for
+		 * ->iopoll_list is protected by the ctx->uring_lock for
 		 * io_uring instances that don't use IORING_SETUP_SQPOLL.
 		 * For SQPOLL, only the single threaded io_sq_thread() will
 		 * manipulate the list, hence no extra locking is needed there.
 		 */
-		struct list_head	poll_list;
+		struct list_head	iopoll_list;
 		struct hlist_head	*cancel_hash;
 		unsigned		cancel_hash_bits;
 		bool			poll_multi_file;
@@ -1064,7 +1064,7 @@ static struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 	mutex_init(&ctx->uring_lock);
 	init_waitqueue_head(&ctx->wait);
 	spin_lock_init(&ctx->completion_lock);
-	INIT_LIST_HEAD(&ctx->poll_list);
+	INIT_LIST_HEAD(&ctx->iopoll_list);
 	INIT_LIST_HEAD(&ctx->defer_list);
 	INIT_LIST_HEAD(&ctx->timeout_list);
 	init_waitqueue_head(&ctx->inflight_wait);
@@ -2009,7 +2009,7 @@ static int io_do_iopoll(struct io_ring_ctx *ctx, unsigned int *nr_events,
 	spin = !ctx->poll_multi_file && *nr_events < min;
 
 	ret = 0;
-	list_for_each_entry_safe(req, tmp, &ctx->poll_list, list) {
+	list_for_each_entry_safe(req, tmp, &ctx->iopoll_list, list) {
 		struct kiocb *kiocb = &req->rw.kiocb;
 
 		/*
@@ -2051,7 +2051,7 @@ static int io_do_iopoll(struct io_ring_ctx *ctx, unsigned int *nr_events,
 static int io_iopoll_getevents(struct io_ring_ctx *ctx, unsigned int *nr_events,
 				long min)
 {
-	while (!list_empty(&ctx->poll_list) && !need_resched()) {
+	while (!list_empty(&ctx->iopoll_list) && !need_resched()) {
 		int ret;
 
 		ret = io_do_iopoll(ctx, nr_events, min);
@@ -2074,7 +2074,7 @@ static void io_iopoll_try_reap_events(struct io_ring_ctx *ctx)
 		return;
 
 	mutex_lock(&ctx->uring_lock);
-	while (!list_empty(&ctx->poll_list)) {
+	while (!list_empty(&ctx->iopoll_list)) {
 		unsigned int nr_events = 0;
 
 		io_do_iopoll(ctx, &nr_events, 0);
@@ -2291,12 +2291,12 @@ static void io_iopoll_req_issued(struct io_kiocb *req)
 	 * how we do polling eventually, not spinning if we're on potentially
 	 * different devices.
 	 */
-	if (list_empty(&ctx->poll_list)) {
+	if (list_empty(&ctx->iopoll_list)) {
 		ctx->poll_multi_file = false;
 	} else if (!ctx->poll_multi_file) {
 		struct io_kiocb *list_req;
 
-		list_req = list_first_entry(&ctx->poll_list, struct io_kiocb,
+		list_req = list_first_entry(&ctx->iopoll_list, struct io_kiocb,
 						list);
 		if (list_req->file != req->file)
 			ctx->poll_multi_file = true;
@@ -2307,9 +2307,9 @@ static void io_iopoll_req_issued(struct io_kiocb *req)
 	 * it to the front so we find it first.
 	 */
 	if (READ_ONCE(req->iopoll_completed))
-		list_add(&req->list, &ctx->poll_list);
+		list_add(&req->list, &ctx->iopoll_list);
 	else
-		list_add_tail(&req->list, &ctx->poll_list);
+		list_add_tail(&req->list, &ctx->iopoll_list);
 
 	if ((ctx->flags & IORING_SETUP_SQPOLL) &&
 	    wq_has_sleeper(&ctx->sqo_wait))
@@ -6329,11 +6329,11 @@ static int io_sq_thread(void *data)
 	while (!kthread_should_park()) {
 		unsigned int to_submit;
 
-		if (!list_empty(&ctx->poll_list)) {
+		if (!list_empty(&ctx->iopoll_list)) {
 			unsigned nr_events = 0;
 
 			mutex_lock(&ctx->uring_lock);
-			if (!list_empty(&ctx->poll_list) && !need_resched())
+			if (!list_empty(&ctx->iopoll_list) && !need_resched())
 				io_do_iopoll(ctx, &nr_events, 0);
 			else
 				timeout = jiffies + ctx->sq_thread_idle;
@@ -6362,7 +6362,7 @@ static int io_sq_thread(void *data)
 			 * more IO, we should wait for the application to
 			 * reap events and wake us up.
 			 */
-			if (!list_empty(&ctx->poll_list) || need_resched() ||
+			if (!list_empty(&ctx->iopoll_list) || need_resched() ||
 			    (!time_after(jiffies, timeout) && ret != -EBUSY &&
 			    !percpu_ref_is_dying(&ctx->refs))) {
 				io_run_task_work();
@@ -6375,13 +6375,13 @@ static int io_sq_thread(void *data)
 
 			/*
 			 * While doing polled IO, before going to sleep, we need
-			 * to check if there are new reqs added to poll_list, it
-			 * is because reqs may have been punted to io worker and
-			 * will be added to poll_list later, hence check the
-			 * poll_list again.
+			 * to check if there are new reqs added to iopoll_list,
+			 * it is because reqs may have been punted to io worker
+			 * and will be added to iopoll_list later, hence check
+			 * the iopoll_list again.
 			 */
 			if ((ctx->flags & IORING_SETUP_IOPOLL) &&
-			    !list_empty_careful(&ctx->poll_list)) {
+			    !list_empty_careful(&ctx->iopoll_list)) {
 				finish_wait(&ctx->sqo_wait, &wait);
 				continue;
 			}
