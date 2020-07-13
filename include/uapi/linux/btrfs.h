@@ -250,6 +250,9 @@ struct btrfs_ioctl_dev_info_args {
 /* Request information about checksum type and size */
 #define BTRFS_FS_INFO_FLAG_CSUM_INFO			(1 << 0)
 
+/* Request information about filesystem generation */
+#define BTRFS_FS_INFO_FLAG_GENERATION			(1 << 1)
+
 struct btrfs_ioctl_fs_info_args {
 	__u64 max_id;				/* out */
 	__u64 num_devices;			/* out */
@@ -261,7 +264,8 @@ struct btrfs_ioctl_fs_info_args {
 	__u16 csum_type;			/* out */
 	__u16 csum_size;			/* out */
 	__u64 flags;				/* in/out */
-	__u8 reserved[968];			/* pad to 1k */
+	__u64 generation;			/* out */
+	__u8 reserved[960];			/* pad to 1k */
 };
 
 /*
