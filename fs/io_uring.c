@@ -396,6 +396,7 @@ struct io_timeout {
 	int				flags;
 	u32				off;
 	u32				target_seq;
+	struct list_head		list;
 };
 
 struct io_rw {
@@ -1213,7 +1214,7 @@ static void io_kill_timeout(struct io_kiocb *req)
 	ret = hrtimer_try_to_cancel(&req->io->timeout.timer);
 	if (ret != -1) {
 		atomic_inc(&req->ctx->cq_timeouts);
-		list_del_init(&req->list);
+		list_del_init(&req->timeout.list);
 		req->flags |= REQ_F_COMP_LOCKED;
 		io_cqring_fill_event(req, 0);
 		io_put_req(req);
@@ -1225,7 +1226,7 @@ static void io_kill_timeouts(struct io_ring_ctx *ctx)
 	struct io_kiocb *req, *tmp;
 
 	spin_lock_irq(&ctx->completion_lock);
-	list_for_each_entry_safe(req, tmp, &ctx->timeout_list, list)
+	list_for_each_entry_safe(req, tmp, &ctx->timeout_list, timeout.list)
 		io_kill_timeout(req);
 	spin_unlock_irq(&ctx->completion_lock);
 }
@@ -1248,7 +1249,7 @@ static void io_flush_timeouts(struct io_ring_ctx *ctx)
 {
 	while (!list_empty(&ctx->timeout_list)) {
 		struct io_kiocb *req = list_first_entry(&ctx->timeout_list,
-							struct io_kiocb, list);
+						struct io_kiocb, timeout.list);
 
 		if (io_is_timeout_noseq(req))
 			break;
@@ -1256,7 +1257,7 @@ static void io_flush_timeouts(struct io_ring_ctx *ctx)
 					- atomic_read(&ctx->cq_timeouts))
 			break;
 
-		list_del_init(&req->list);
+		list_del_init(&req->timeout.list);
 		io_kill_timeout(req);
 	}
 }
@@ -4997,8 +4998,8 @@ static enum hrtimer_restart io_timeout_fn(struct hrtimer *timer)
 	 * We could be racing with timeout deletion. If the list is empty,
 	 * then timeout lookup already found it and will be handling it.
 	 */
-	if (!list_empty(&req->list))
-		list_del_init(&req->list);
+	if (!list_empty(&req->timeout.list))
+		list_del_init(&req->timeout.list);
 
 	io_cqring_fill_event(req, -ETIME);
 	io_commit_cqring(ctx);
@@ -5015,9 +5016,9 @@ static int io_timeout_cancel(struct io_ring_ctx *ctx, __u64 user_data)
 	struct io_kiocb *req;
 	int ret = -ENOENT;
 
-	list_for_each_entry(req, &ctx->timeout_list, list) {
+	list_for_each_entry(req, &ctx->timeout_list, timeout.list) {
 		if (user_data == req->user_data) {
-			list_del_init(&req->list);
+			list_del_init(&req->timeout.list);
 			ret = 0;
 			break;
 		}
@@ -5139,7 +5140,8 @@ static int io_timeout(struct io_kiocb *req)
 	 * the one we need first.
 	 */
 	list_for_each_prev(entry, &ctx->timeout_list) {
-		struct io_kiocb *nxt = list_entry(entry, struct io_kiocb, list);
+		struct io_kiocb *nxt = list_entry(entry, struct io_kiocb,
+						  timeout.list);
 
 		if (io_is_timeout_noseq(nxt))
 			continue;
@@ -5148,7 +5150,7 @@ static int io_timeout(struct io_kiocb *req)
 			break;
 	}
 add:
-	list_add(&req->list, entry);
+	list_add(&req->timeout.list, entry);
 	data->timer.function = io_timeout_fn;
 	hrtimer_start(&data->timer, timespec64_to_ktime(data->ts), data->mode);
 	spin_unlock_irq(&ctx->completion_lock);
