@@ -5913,10 +5913,6 @@ static void ice_rebuild(struct ice_pf *pf, enum ice_reset_req reset_type)
 	if (err)
 		goto err_sched_init_port;
 
-	err = ice_update_link_info(hw->port_info);
-	if (err)
-		dev_err(dev, "Get link status error %d\n", err);
-
 	/* start misc vector */
 	err = ice_req_irq_msix_misc(pf);
 	if (err) {
