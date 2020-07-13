@@ -487,6 +487,11 @@ struct io_statx {
 	struct statx __user		*buffer;
 };
 
+struct io_completion {
+	struct file			*file;
+	struct list_head		list;
+};
+
 struct io_async_connect {
 	struct sockaddr_storage		address;
 };
@@ -622,6 +627,8 @@ struct io_kiocb {
 		struct io_splice	splice;
 		struct io_provide_buf	pbuf;
 		struct io_statx		statx;
+		/* use only after cleaning per-op data, see io_clean_op() */
+		struct io_completion	compl;
 	};
 
 	struct io_async_ctx		*io;
@@ -896,7 +903,7 @@ static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 static int io_grab_files(struct io_kiocb *req);
 static void io_complete_rw_common(struct kiocb *kiocb, long res,
 				  struct io_comp_state *cs);
-static void io_cleanup_req(struct io_kiocb *req);
+static void __io_clean_op(struct io_kiocb *req);
 static int io_file_get(struct io_submit_state *state, struct io_kiocb *req,
 		       int fd, struct file **out_file, bool fixed);
 static void __io_queue_sqe(struct io_kiocb *req,
@@ -934,6 +941,12 @@ static void io_get_req_task(struct io_kiocb *req)
 		return;
 	get_task_struct(req->task);
 	req->flags |= REQ_F_TASK_PINNED;
+}
+
+static inline void io_clean_op(struct io_kiocb *req)
+{
+	if (req->flags & REQ_F_NEED_CLEANUP)
+		__io_clean_op(req);
 }
 
 /* not idempotent -- it doesn't clear REQ_F_TASK_PINNED */
@@ -1413,8 +1426,8 @@ static void io_submit_flush_completions(struct io_comp_state *cs)
 	while (!list_empty(&cs->list)) {
 		struct io_kiocb *req;
 
-		req = list_first_entry(&cs->list, struct io_kiocb, list);
-		list_del(&req->list);
+		req = list_first_entry(&cs->list, struct io_kiocb, compl.list);
+		list_del(&req->compl.list);
 		__io_cqring_fill_event(req, req->result, req->cflags);
 		if (!(req->flags & REQ_F_LINK_HEAD)) {
 			req->flags |= REQ_F_COMP_LOCKED;
@@ -1439,9 +1452,10 @@ static void __io_req_complete(struct io_kiocb *req, long res, unsigned cflags,
 		io_cqring_add_event(req, res, cflags);
 		io_put_req(req);
 	} else {
+		io_clean_op(req);
 		req->result = res;
 		req->cflags = cflags;
-		list_add_tail(&req->list, &cs->list);
+		list_add_tail(&req->compl.list, &cs->list);
 		if (++cs->nr >= 32)
 			io_submit_flush_completions(cs);
 	}
@@ -1515,8 +1529,7 @@ static inline void io_put_file(struct io_kiocb *req, struct file *file,
 
 static void io_dismantle_req(struct io_kiocb *req)
 {
-	if (req->flags & REQ_F_NEED_CLEANUP)
-		io_cleanup_req(req);
+	io_clean_op(req);
 
 	if (req->io)
 		kfree(req->io);
@@ -5402,7 +5415,7 @@ static int io_req_defer(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	return -EIOCBQUEUED;
 }
 
-static void io_cleanup_req(struct io_kiocb *req)
+static void __io_clean_op(struct io_kiocb *req)
 {
 	struct io_async_ctx *io = req->io;
 
