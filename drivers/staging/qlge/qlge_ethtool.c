@@ -516,8 +516,8 @@ static void ql_create_lb_frame(struct sk_buff *skb,
 	memset(skb->data, 0xFF, frame_size);
 	frame_size &= ~1;
 	memset(&skb->data[frame_size / 2], 0xAA, frame_size / 2 - 1);
-	memset(&skb->data[frame_size / 2 + 10], 0xBE, 1);
-	memset(&skb->data[frame_size / 2 + 12], 0xAF, 1);
+	skb->data[frame_size / 2 + 10] = (unsigned char)0xBE;
+	skb->data[frame_size / 2 + 12] = (unsigned char)0xAF;
 }
 
 void ql_check_lb_frame(struct ql_adapter *qdev,
