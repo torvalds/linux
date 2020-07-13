@@ -226,7 +226,9 @@ static int amd8111e_free_skbs(struct net_device *dev)
 	/* Freeing transmit skbs */
 	for(i = 0; i < NUM_TX_BUFFERS; i++){
 		if(lp->tx_skbuff[i]){
-			pci_unmap_single(lp->pci_dev,lp->tx_dma_addr[i],					lp->tx_skbuff[i]->len,PCI_DMA_TODEVICE);
+			dma_unmap_single(&lp->pci_dev->dev,
+					 lp->tx_dma_addr[i],
+					 lp->tx_skbuff[i]->len, DMA_TO_DEVICE);
 			dev_kfree_skb (lp->tx_skbuff[i]);
 			lp->tx_skbuff[i] = NULL;
 			lp->tx_dma_addr[i] = 0;
@@ -236,8 +238,9 @@ static int amd8111e_free_skbs(struct net_device *dev)
 	for (i = 0; i < NUM_RX_BUFFERS; i++){
 		rx_skbuff = lp->rx_skbuff[i];
 		if(rx_skbuff != NULL){
-			pci_unmap_single(lp->pci_dev,lp->rx_dma_addr[i],
-				  lp->rx_buff_len - 2,PCI_DMA_FROMDEVICE);
+			dma_unmap_single(&lp->pci_dev->dev,
+					 lp->rx_dma_addr[i],
+					 lp->rx_buff_len - 2, DMA_FROM_DEVICE);
 			dev_kfree_skb(lp->rx_skbuff[i]);
 			lp->rx_skbuff[i] = NULL;
 			lp->rx_dma_addr[i] = 0;
@@ -287,20 +290,20 @@ static int amd8111e_init_ring(struct net_device *dev)
 		amd8111e_free_skbs(dev);
 
 	else{
-		 /* allocate the tx and rx descriptors */
-	     	if((lp->tx_ring = pci_alloc_consistent(lp->pci_dev,
-			sizeof(struct amd8111e_tx_dr)*NUM_TX_RING_DR,
-			&lp->tx_ring_dma_addr)) == NULL)
-
+		/* allocate the tx and rx descriptors */
+		lp->tx_ring = dma_alloc_coherent(&lp->pci_dev->dev,
+			sizeof(struct amd8111e_tx_dr) * NUM_TX_RING_DR,
+			&lp->tx_ring_dma_addr, GFP_ATOMIC);
+		if (!lp->tx_ring)
 			goto err_no_mem;
 
-	     	if((lp->rx_ring = pci_alloc_consistent(lp->pci_dev,
-			sizeof(struct amd8111e_rx_dr)*NUM_RX_RING_DR,
-			&lp->rx_ring_dma_addr)) == NULL)
-
+		lp->rx_ring = dma_alloc_coherent(&lp->pci_dev->dev,
+			sizeof(struct amd8111e_rx_dr) * NUM_RX_RING_DR,
+			&lp->rx_ring_dma_addr, GFP_ATOMIC);
+		if (!lp->rx_ring)
 			goto err_free_tx_ring;
-
 	}
+
 	/* Set new receive buff size */
 	amd8111e_set_rx_buff_len(dev);
 
@@ -318,8 +321,10 @@ static int amd8111e_init_ring(struct net_device *dev)
 	}
         /* Initilaizing receive descriptors */
 	for (i = 0; i < NUM_RX_BUFFERS; i++) {
-		lp->rx_dma_addr[i] = pci_map_single(lp->pci_dev,
-			lp->rx_skbuff[i]->data,lp->rx_buff_len-2, PCI_DMA_FROMDEVICE);
+		lp->rx_dma_addr[i] = dma_map_single(&lp->pci_dev->dev,
+						    lp->rx_skbuff[i]->data,
+						    lp->rx_buff_len - 2,
+						    DMA_FROM_DEVICE);
 
 		lp->rx_ring[i].buff_phy_addr = cpu_to_le32(lp->rx_dma_addr[i]);
 		lp->rx_ring[i].buff_count = cpu_to_le16(lp->rx_buff_len-2);
@@ -338,15 +343,15 @@ static int amd8111e_init_ring(struct net_device *dev)
 
 err_free_rx_ring:
 
-	pci_free_consistent(lp->pci_dev,
-		sizeof(struct amd8111e_rx_dr)*NUM_RX_RING_DR,lp->rx_ring,
-		lp->rx_ring_dma_addr);
+	dma_free_coherent(&lp->pci_dev->dev,
+			  sizeof(struct amd8111e_rx_dr) * NUM_RX_RING_DR,
+			  lp->rx_ring, lp->rx_ring_dma_addr);
 
 err_free_tx_ring:
 
-	pci_free_consistent(lp->pci_dev,
-		 sizeof(struct amd8111e_tx_dr)*NUM_TX_RING_DR,lp->tx_ring,
-		 lp->tx_ring_dma_addr);
+	dma_free_coherent(&lp->pci_dev->dev,
+			  sizeof(struct amd8111e_tx_dr) * NUM_TX_RING_DR,
+			  lp->tx_ring, lp->tx_ring_dma_addr);
 
 err_no_mem:
 	return -ENOMEM;
@@ -612,16 +617,16 @@ static void amd8111e_free_ring(struct amd8111e_priv *lp)
 {
 	/* Free transmit and receive descriptor rings */
 	if(lp->rx_ring){
-		pci_free_consistent(lp->pci_dev,
-			sizeof(struct amd8111e_rx_dr)*NUM_RX_RING_DR,
-			lp->rx_ring, lp->rx_ring_dma_addr);
+		dma_free_coherent(&lp->pci_dev->dev,
+				  sizeof(struct amd8111e_rx_dr) * NUM_RX_RING_DR,
+				  lp->rx_ring, lp->rx_ring_dma_addr);
 		lp->rx_ring = NULL;
 	}
 
 	if(lp->tx_ring){
-		pci_free_consistent(lp->pci_dev,
-			sizeof(struct amd8111e_tx_dr)*NUM_TX_RING_DR,
-			lp->tx_ring, lp->tx_ring_dma_addr);
+		dma_free_coherent(&lp->pci_dev->dev,
+				  sizeof(struct amd8111e_tx_dr) * NUM_TX_RING_DR,
+				  lp->tx_ring, lp->tx_ring_dma_addr);
 
 		lp->tx_ring = NULL;
 	}
@@ -649,9 +654,10 @@ static int amd8111e_tx(struct net_device *dev)
 
 		/* We must free the original skb */
 		if (lp->tx_skbuff[tx_index]) {
-			pci_unmap_single(lp->pci_dev, lp->tx_dma_addr[tx_index],
-				  	lp->tx_skbuff[tx_index]->len,
-					PCI_DMA_TODEVICE);
+			dma_unmap_single(&lp->pci_dev->dev,
+					 lp->tx_dma_addr[tx_index],
+					 lp->tx_skbuff[tx_index]->len,
+					 DMA_TO_DEVICE);
 			dev_consume_skb_irq(lp->tx_skbuff[tx_index]);
 			lp->tx_skbuff[tx_index] = NULL;
 			lp->tx_dma_addr[tx_index] = 0;
@@ -737,14 +743,14 @@ static int amd8111e_rx_poll(struct napi_struct *napi, int budget)
 
 		skb_reserve(new_skb, 2);
 		skb = lp->rx_skbuff[rx_index];
-		pci_unmap_single(lp->pci_dev,lp->rx_dma_addr[rx_index],
-				 lp->rx_buff_len-2, PCI_DMA_FROMDEVICE);
+		dma_unmap_single(&lp->pci_dev->dev, lp->rx_dma_addr[rx_index],
+				 lp->rx_buff_len - 2, DMA_FROM_DEVICE);
 		skb_put(skb, pkt_len);
 		lp->rx_skbuff[rx_index] = new_skb;
-		lp->rx_dma_addr[rx_index] = pci_map_single(lp->pci_dev,
+		lp->rx_dma_addr[rx_index] = dma_map_single(&lp->pci_dev->dev,
 							   new_skb->data,
-							   lp->rx_buff_len-2,
-							   PCI_DMA_FROMDEVICE);
+							   lp->rx_buff_len - 2,
+							   DMA_FROM_DEVICE);
 
 		skb->protocol = eth_type_trans(skb, dev);
 
@@ -1270,7 +1276,8 @@ static netdev_tx_t amd8111e_start_xmit(struct sk_buff *skb,
 	}
 #endif
 	lp->tx_dma_addr[tx_index] =
-	    pci_map_single(lp->pci_dev, skb->data, skb->len, PCI_DMA_TODEVICE);
+	    dma_map_single(&lp->pci_dev->dev, skb->data, skb->len,
+			   DMA_TO_DEVICE);
 	lp->tx_ring[tx_index].buff_phy_addr =
 	    cpu_to_le32(lp->tx_dma_addr[tx_index]);
 
@@ -1773,7 +1780,7 @@ static int amd8111e_probe_one(struct pci_dev *pdev,
 	}
 
 	/* Initialize DMA */
-	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32)) < 0) {
+	if (dma_set_mask(&pdev->dev, DMA_BIT_MASK(32)) < 0) {
 		dev_err(&pdev->dev, "DMA not supported\n");
 		err = -ENODEV;
 		goto err_free_reg;
