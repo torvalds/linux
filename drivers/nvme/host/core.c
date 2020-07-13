@@ -4313,8 +4313,7 @@ EXPORT_SYMBOL_GPL(nvme_stop_ctrl);
 
 void nvme_start_ctrl(struct nvme_ctrl *ctrl)
 {
-	if (ctrl->kato)
-		nvme_start_keep_alive(ctrl);
+	nvme_start_keep_alive(ctrl);
 
 	nvme_enable_aen(ctrl);
 
