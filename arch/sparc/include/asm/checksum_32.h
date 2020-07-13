@@ -50,9 +50,9 @@ csum_partial_copy_nocheck(const void *src, void *dst, int len)
 
 	__asm__ __volatile__ (
 		"call __csum_partial_copy_sparc_generic\n\t"
-		" mov %6, %%g7\n"
+		" mov -1, %%g7\n"
 	: "=&r" (ret), "=&r" (d), "=&r" (l)
-	: "0" (ret), "1" (d), "2" (l), "r" (0)
+	: "0" (ret), "1" (d), "2" (l)
 	: "o2", "o3", "o4", "o5", "o7",
 	  "g2", "g3", "g4", "g5", "g7",
 	  "memory", "cc");
@@ -61,29 +61,10 @@ csum_partial_copy_nocheck(const void *src, void *dst, int len)
 
 static inline __wsum
 csum_and_copy_from_user(const void __user *src, void *dst, int len)
-  {
-	register unsigned long ret asm("o0") = (unsigned long)src;
-	register char *d asm("o1") = dst;
-	register int l asm("g1") = len;
-	register __wsum s asm("g7") = ~0U;
-	int err = 0;
-
+{
 	if (unlikely(!access_ok(src, len)))
 		return 0;
-
-	__asm__ __volatile__ (
-	".section __ex_table,#alloc\n\t"
-	".align 4\n\t"
-	".word 1f,2\n\t"
-	".previous\n"
-	"1:\n\t"
-	"call __csum_partial_copy_sparc_generic\n\t"
-	" st %8, [%%sp + 64]\n"
-	: "=&r" (ret), "=&r" (d), "=&r" (l), "=&r" (s)
-	: "0" (ret), "1" (d), "2" (l), "3" (s), "r" (&err)
-	: "o2", "o3", "o4", "o5", "o7", "g2", "g3", "g4", "g5",
-	  "cc", "memory");
-	return err ? 0 : (__force __wsum)ret;
+	return csum_partial_copy_nocheck((__force void *)src, dst, len);
 }
 
 #define HAVE_CSUM_COPY_USER
@@ -91,29 +72,9 @@ csum_and_copy_from_user(const void __user *src, void *dst, int len)
 static inline __wsum
 csum_and_copy_to_user(const void *src, void __user *dst, int len)
 {
-	register unsigned long ret asm("o0") = (unsigned long)src;
-	register char __user *d asm("o1") = dst;
-	register int l asm("g1") = len;
-	register __wsum s asm("g7") = ~0U;
-	int err = 0;
-
 	if (!access_ok(dst, len))
 		return 0;
-
-	__asm__ __volatile__ (
-	".section __ex_table,#alloc\n\t"
-	".align 4\n\t"
-	".word 1f,1\n\t"
-	".previous\n"
-	"1:\n\t"
-	"call __csum_partial_copy_sparc_generic\n\t"
-	" st %8, [%%sp + 64]\n"
-	: "=&r" (ret), "=&r" (d), "=&r" (l), "=&r" (s)
-	: "0" (ret), "1" (d), "2" (l), "3" (s), "r" (&err)
-	: "o2", "o3", "o4", "o5", "o7",
-	  "g2", "g3", "g4", "g5",
-	  "cc", "memory");
-	return err ? 0 : (__force __wsum)ret;
+	return csum_partial_copy_nocheck(src, (__force void *)dst, len);
 }
 
 /* ihl is always 5 or greater, almost always is 5, and iph is word aligned
