@@ -546,11 +546,6 @@ enum {
 	 */
 	BTRFS_FS_EXCL_OP,
 	/*
-	 * To info transaction_kthread we need an immediate commit so it
-	 * doesn't need to wait for commit_interval
-	 */
-	BTRFS_FS_NEED_ASYNC_COMMIT,
-	/*
 	 * Indicate that balance has been set up from the ioctl and is in the
 	 * main phase. The fs_info::balance_ctl is initialized.
 	 * Set and cleared while holding fs_info::balance_mutex.
