@@ -167,7 +167,6 @@
 
 		target-module@20000 {			/* 0x4a020000, ap 109 08.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "usb_otg_ss";
 			reg = <0x20000 0x4>,
 			      <0x20010 0x4>;
 			reg-names = "rev", "sysc";

@@ -376,49 +376,6 @@ static struct omap_hwmod omap54xx_usb_tll_hs_hwmod = {
 };
 
 /*
- * 'usb_otg_ss' class
- * 2.0 super speed (usb_otg_ss) controller
- */
-
-static struct omap_hwmod_class_sysconfig omap54xx_usb_otg_ss_sysc = {
-	.rev_offs	= 0x0000,
-	.sysc_offs	= 0x0010,
-	.sysc_flags	= (SYSC_HAS_DMADISABLE | SYSC_HAS_MIDLEMODE |
-			   SYSC_HAS_SIDLEMODE),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART |
-			   SIDLE_SMART_WKUP | MSTANDBY_FORCE | MSTANDBY_NO |
-			   MSTANDBY_SMART | MSTANDBY_SMART_WKUP),
-	.sysc_fields	= &omap_hwmod_sysc_type2,
-};
-
-static struct omap_hwmod_class omap54xx_usb_otg_ss_hwmod_class = {
-	.name	= "usb_otg_ss",
-	.sysc	= &omap54xx_usb_otg_ss_sysc,
-};
-
-/* usb_otg_ss */
-static struct omap_hwmod_opt_clk usb_otg_ss_opt_clks[] = {
-	{ .role = "refclk960m", .clk = "usb_otg_ss_refclk960m" },
-};
-
-static struct omap_hwmod omap54xx_usb_otg_ss_hwmod = {
-	.name		= "usb_otg_ss",
-	.class		= &omap54xx_usb_otg_ss_hwmod_class,
-	.clkdm_name	= "l3init_clkdm",
-	.flags		= HWMOD_SWSUP_SIDLE,
-	.main_clk	= "dpll_core_h13x2_ck",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = OMAP54XX_CM_L3INIT_USB_OTG_SS_CLKCTRL_OFFSET,
-			.context_offs = OMAP54XX_RM_L3INIT_USB_OTG_SS_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_HWCTRL,
-		},
-	},
-	.opt_clks	= usb_otg_ss_opt_clks,
-	.opt_clks_cnt	= ARRAY_SIZE(usb_otg_ss_opt_clks),
-};
-
-/*
  * 'sata' class
  * sata:  serial ata interface  gen2 compliant   ( 1 rx/ 1 tx)
  */
@@ -635,14 +592,6 @@ static struct omap_hwmod_ocp_if omap54xx_l4_cfg__usb_tll_hs = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-/* l4_cfg -> usb_otg_ss */
-static struct omap_hwmod_ocp_if omap54xx_l4_cfg__usb_otg_ss = {
-	.master		= &omap54xx_l4_cfg_hwmod,
-	.slave		= &omap54xx_usb_otg_ss_hwmod,
-	.clk		= "dpll_core_h13x2_ck",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
 static struct omap_hwmod_ocp_if *omap54xx_hwmod_ocp_ifs[] __initdata = {
 	&omap54xx_l3_main_1__dmm,
 	&omap54xx_l3_main_3__l3_instr,
@@ -665,7 +614,6 @@ static struct omap_hwmod_ocp_if *omap54xx_hwmod_ocp_ifs[] __initdata = {
 	&omap54xx_l4_cfg__mpu,
 	&omap54xx_l4_cfg__usb_host_hs,
 	&omap54xx_l4_cfg__usb_tll_hs,
-	&omap54xx_l4_cfg__usb_otg_ss,
 	&omap54xx_l4_cfg__sata,
 	NULL,
 };
