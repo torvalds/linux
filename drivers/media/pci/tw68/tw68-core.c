@@ -57,7 +57,7 @@ static atomic_t tw68_instance = ATOMIC_INIT(0);
 /* ------------------------------------------------------------------ */
 
 /*
- * Please add any new PCI IDs to: http://pci-ids.ucw.cz.  This keeps
+ * Please add any new PCI IDs to: https://pci-ids.ucw.cz.  This keeps
  * the PCI ID database up to date.  Note that the entries must be
  * added under vendor 0x1797 (Techwell Inc.) as subsystem IDs.
  */
