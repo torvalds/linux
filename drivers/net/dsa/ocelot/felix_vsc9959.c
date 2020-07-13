@@ -1128,6 +1128,43 @@ static void vsc9959_pcs_link_state(struct ocelot *ocelot, int port,
 	vsc9959_pcs_link_state_resolve(pcs, state);
 }
 
+static void vsc9959_phylink_validate(struct ocelot *ocelot, int port,
+				     unsigned long *supported,
+				     struct phylink_link_state *state)
+{
+	struct ocelot_port *ocelot_port = ocelot->ports[port];
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
+
+	if (state->interface != PHY_INTERFACE_MODE_NA &&
+	    state->interface != ocelot_port->phy_mode) {
+		bitmap_zero(supported, __ETHTOOL_LINK_MODE_MASK_NBITS);
+		return;
+	}
+
+	phylink_set_port_modes(mask);
+	phylink_set(mask, Autoneg);
+	phylink_set(mask, Pause);
+	phylink_set(mask, Asym_Pause);
+	phylink_set(mask, 10baseT_Half);
+	phylink_set(mask, 10baseT_Full);
+	phylink_set(mask, 100baseT_Half);
+	phylink_set(mask, 100baseT_Full);
+	phylink_set(mask, 1000baseT_Half);
+	phylink_set(mask, 1000baseT_Full);
+
+	if (state->interface == PHY_INTERFACE_MODE_INTERNAL ||
+	    state->interface == PHY_INTERFACE_MODE_2500BASEX ||
+	    state->interface == PHY_INTERFACE_MODE_USXGMII) {
+		phylink_set(mask, 2500baseT_Full);
+		phylink_set(mask, 2500baseX_Full);
+	}
+
+	bitmap_and(supported, supported, mask,
+		   __ETHTOOL_LINK_MODE_MASK_NBITS);
+	bitmap_and(state->advertising, state->advertising, mask,
+		   __ETHTOOL_LINK_MODE_MASK_NBITS);
+}
+
 static int vsc9959_prevalidate_phy_mode(struct ocelot *ocelot, int port,
 					phy_interface_t phy_mode)
 {
@@ -1171,7 +1208,6 @@ static int vsc9959_mdio_bus_alloc(struct ocelot *ocelot)
 	struct felix *felix = ocelot_to_felix(ocelot);
 	struct enetc_mdio_priv *mdio_priv;
 	struct device *dev = ocelot->dev;
-	resource_size_t imdio_base;
 	void __iomem *imdio_regs;
 	struct resource res;
 	struct enetc_hw *hw;
@@ -1187,13 +1223,10 @@ static int vsc9959_mdio_bus_alloc(struct ocelot *ocelot)
 		return -ENOMEM;
 	}
 
-	imdio_base = pci_resource_start(felix->pdev,
-					felix->info->imdio_pci_bar);
-
 	memcpy(&res, felix->info->imdio_res, sizeof(res));
 	res.flags = IORESOURCE_MEM;
-	res.start += imdio_base;
-	res.end += imdio_base;
+	res.start += felix->imdio_base;
+	res.end += felix->imdio_base;
 
 	imdio_regs = devm_ioremap_resource(dev, &res);
 	if (IS_ERR(imdio_regs)) {
@@ -1467,7 +1500,7 @@ static void vsc9959_xmit_template_populate(struct ocelot *ocelot, int port)
 	packing(template, &src,     46,  43, OCELOT_TAG_LEN, PACK, 0);
 }
 
-struct felix_info felix_info_vsc9959 = {
+static const struct felix_info felix_info_vsc9959 = {
 	.target_io_res		= vsc9959_target_io_res,
 	.port_io_res		= vsc9959_port_io_res,
 	.imdio_res		= &vsc9959_imdio_res,
@@ -1490,8 +1523,148 @@ struct felix_info felix_info_vsc9959 = {
 	.pcs_config		= vsc9959_pcs_config,
 	.pcs_link_up		= vsc9959_pcs_link_up,
 	.pcs_link_state		= vsc9959_pcs_link_state,
+	.phylink_validate	= vsc9959_phylink_validate,
 	.prevalidate_phy_mode	= vsc9959_prevalidate_phy_mode,
 	.port_setup_tc          = vsc9959_port_setup_tc,
 	.port_sched_speed_set   = vsc9959_sched_speed_set,
 	.xmit_template_populate	= vsc9959_xmit_template_populate,
+};
+
+static irqreturn_t felix_irq_handler(int irq, void *data)
+{
+	struct ocelot *ocelot = (struct ocelot *)data;
+
+	/* The INTB interrupt is used for both PTP TX timestamp interrupt
+	 * and preemption status change interrupt on each port.
+	 *
+	 * - Get txtstamp if have
+	 * - TODO: handle preemption. Without handling it, driver may get
+	 *   interrupt storm.
+	 */
+
+	ocelot_get_txtstamp(ocelot);
+
+	return IRQ_HANDLED;
+}
+
+static int felix_pci_probe(struct pci_dev *pdev,
+			   const struct pci_device_id *id)
+{
+	struct dsa_switch *ds;
+	struct ocelot *ocelot;
+	struct felix *felix;
+	int err;
+
+	if (pdev->dev.of_node && !of_device_is_available(pdev->dev.of_node)) {
+		dev_info(&pdev->dev, "device is disabled, skipping\n");
+		return -ENODEV;
+	}
+
+	err = pci_enable_device(pdev);
+	if (err) {
+		dev_err(&pdev->dev, "device enable failed\n");
+		goto err_pci_enable;
+	}
+
+	/* set up for high or low dma */
+	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
+	if (err) {
+		err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
+		if (err) {
+			dev_err(&pdev->dev,
+				"DMA configuration failed: 0x%x\n", err);
+			goto err_dma;
+		}
+	}
+
+	felix = kzalloc(sizeof(struct felix), GFP_KERNEL);
+	if (!felix) {
+		err = -ENOMEM;
+		dev_err(&pdev->dev, "Failed to allocate driver memory\n");
+		goto err_alloc_felix;
+	}
+
+	pci_set_drvdata(pdev, felix);
+	ocelot = &felix->ocelot;
+	ocelot->dev = &pdev->dev;
+	felix->info = &felix_info_vsc9959;
+	felix->switch_base = pci_resource_start(pdev,
+						felix->info->switch_pci_bar);
+	felix->imdio_base = pci_resource_start(pdev,
+					       felix->info->imdio_pci_bar);
+
+	pci_set_master(pdev);
+
+	err = devm_request_threaded_irq(&pdev->dev, pdev->irq, NULL,
+					&felix_irq_handler, IRQF_ONESHOT,
+					"felix-intb", ocelot);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to request irq\n");
+		goto err_alloc_irq;
+	}
+
+	ocelot->ptp = 1;
+
+	ds = kzalloc(sizeof(struct dsa_switch), GFP_KERNEL);
+	if (!ds) {
+		err = -ENOMEM;
+		dev_err(&pdev->dev, "Failed to allocate DSA switch\n");
+		goto err_alloc_ds;
+	}
+
+	ds->dev = &pdev->dev;
+	ds->num_ports = felix->info->num_ports;
+	ds->num_tx_queues = felix->info->num_tx_queues;
+	ds->ops = &felix_switch_ops;
+	ds->priv = ocelot;
+	felix->ds = ds;
+
+	err = dsa_register_switch(ds);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to register DSA switch: %d\n", err);
+		goto err_register_ds;
+	}
+
+	return 0;
+
+err_register_ds:
+	kfree(ds);
+err_alloc_ds:
+err_alloc_irq:
+err_alloc_felix:
+	kfree(felix);
+err_dma:
+	pci_disable_device(pdev);
+err_pci_enable:
+	return err;
+}
+
+static void felix_pci_remove(struct pci_dev *pdev)
+{
+	struct felix *felix;
+
+	felix = pci_get_drvdata(pdev);
+
+	dsa_unregister_switch(felix->ds);
+
+	kfree(felix->ds);
+	kfree(felix);
+
+	pci_disable_device(pdev);
+}
+
+static struct pci_device_id felix_ids[] = {
+	{
+		/* NXP LS1028A */
+		PCI_DEVICE(PCI_VENDOR_ID_FREESCALE, 0xEEF0),
+	},
+	{ 0, }
+};
+MODULE_DEVICE_TABLE(pci, felix_ids);
+
+struct pci_driver felix_vsc9959_pci_driver = {
+	.name		= "mscc_felix",
+	.id_table	= felix_ids,
+	.probe		= felix_pci_probe,
+	.remove		= felix_pci_remove,
 };

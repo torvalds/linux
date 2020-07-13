@@ -37,6 +37,9 @@ struct felix_info {
 			       int speed, int duplex);
 	void	(*pcs_link_state)(struct ocelot *ocelot, int port,
 				  struct phylink_link_state *state);
+	void	(*phylink_validate)(struct ocelot *ocelot, int port,
+				    unsigned long *supported,
+				    struct phylink_link_state *state);
 	int	(*prevalidate_phy_mode)(struct ocelot *ocelot, int port,
 					phy_interface_t phy_mode);
 	int	(*port_setup_tc)(struct dsa_switch *ds, int port,
@@ -46,20 +49,18 @@ struct felix_info {
 	void	(*xmit_template_populate)(struct ocelot *ocelot, int port);
 };
 
-extern struct felix_info		felix_info_vsc9959;
-
-enum felix_instance {
-	FELIX_INSTANCE_VSC9959		= 0,
-};
+extern const struct dsa_switch_ops felix_switch_ops;
+extern struct pci_driver felix_vsc9959_pci_driver;
 
 /* DSA glue / front-end for struct ocelot */
 struct felix {
 	struct dsa_switch		*ds;
-	struct pci_dev			*pdev;
-	struct felix_info		*info;
+	const struct felix_info		*info;
 	struct ocelot			ocelot;
 	struct mii_bus			*imdio;
 	struct phy_device		**pcs;
+	resource_size_t			switch_base;
+	resource_size_t			imdio_base;
 };
 
 #endif
