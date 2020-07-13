@@ -365,7 +365,7 @@ int cdns3_drd_init(struct cdns3 *cdns)
 	}
 
 	state = readl(&cdns->otg_regs->sts);
-	if (OTGSTS_OTG_NRDY(state) != 0) {
+	if (OTGSTS_OTG_NRDY(state)) {
 		dev_err(cdns->dev, "Cadence USB3 OTG device not ready\n");
 		return -ENODEV;
 	}
