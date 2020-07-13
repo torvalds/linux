@@ -116,7 +116,7 @@ static int ttm_mem_io_evict(struct ttm_mem_type_manager *man)
 	struct ttm_buffer_object *bo;
 
 	if (!man->use_io_reserve_lru || list_empty(&man->io_reserve_lru))
-		return -EAGAIN;
+		return -ENOSPC;
 
 	bo = list_first_entry(&man->io_reserve_lru,
 			      struct ttm_buffer_object,
@@ -143,7 +143,7 @@ int ttm_mem_io_reserve(struct ttm_bo_device *bdev,
 	    mem->bus.io_reserved_count++ == 0) {
 retry:
 		ret = bdev->driver->io_mem_reserve(bdev, mem);
-		if (ret == -EAGAIN) {
+		if (ret == -ENOSPC) {
 			ret = ttm_mem_io_evict(man);
 			if (ret == 0)
 				goto retry;

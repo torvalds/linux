@@ -1505,8 +1505,6 @@ nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *reg)
 			if (ret != 1) {
 				if (WARN_ON(ret == 0))
 					return -EINVAL;
-				if (ret == -ENOSPC)
-					return -EAGAIN;
 				return ret;
 			}
 
