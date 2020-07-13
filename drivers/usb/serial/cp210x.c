@@ -266,7 +266,7 @@ enum cp210x_event_state {
 };
 
 struct cp210x_port_private {
-	__u8			bInterfaceNumber;
+	u8			bInterfaceNumber;
 	bool			has_swapped_line_ctl;
 	bool			event_mode;
 	enum cp210x_event_state event_state;
