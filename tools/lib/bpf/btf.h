@@ -144,6 +144,8 @@ struct btf_dump_emit_type_decl_opts {
 	 * necessary indentation already
 	 */
 	int indent_level;
+	/* strip all the const/volatile/restrict mods */
+	bool strip_mods;
 };
 #define btf_dump_emit_type_decl_opts__last_field indent_level
 
