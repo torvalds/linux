@@ -80,7 +80,7 @@ enum {
 	DRV_GRP_MAX,
 };
 
-static const char * const mtk_default_register_base_names[] = {
+static const char * const mtk_default_register_base_names[] __maybe_unused = {
 	"base",
 };
 
