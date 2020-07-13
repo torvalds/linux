@@ -913,10 +913,17 @@ static int fill_create_channel_param(struct allegro_channel *channel,
 	param->codec = channel->codec;
 	param->level = v4l2_level_to_mcu_level(channel->level);
 	param->tier = 0;
-	param->sps_param = BIT(20) | 0x4a;
-	param->pps_param = BIT(2);
-	param->enc_option = AL_OPT_RDO_COST_MODE | AL_OPT_LF_X_TILE |
-			    AL_OPT_LF_X_SLICE | AL_OPT_LF;
+
+	param->log2_max_poc = 10;
+	param->log2_max_frame_num = 4;
+	param->temporal_mvp_enable = 1;
+
+	param->dbf_ovr_en = 1;
+	param->rdo_cost_mode = 1;
+	param->lf = 1;
+	param->lf_x_tile = 1;
+	param->lf_x_slice = 1;
+
 	param->beta_offset = -1;
 	param->tc_offset = -1;
 	param->num_slices = 1;

@@ -69,6 +69,7 @@ static ssize_t
 allegro_encode_channel_config(u32 *dst, struct create_channel_param *param)
 {
 	unsigned int i = 0;
+	u32 val;
 	unsigned int codec = settings_get_mcu_codec(param);
 
 	dst[i++] = FIELD_PREP(GENMASK(31, 16), param->height) |
@@ -81,9 +82,24 @@ allegro_encode_channel_config(u32 *dst, struct create_channel_param *param)
 		   FIELD_PREP(GENMASK(7, 0), param->profile);
 	dst[i++] = FIELD_PREP(GENMASK(31, 16), param->tier) |
 		   FIELD_PREP(GENMASK(15, 0), param->level);
-	dst[i++] = param->sps_param;
-	dst[i++] = param->pps_param;
-	dst[i++] = param->enc_option;
+
+	val = 0;
+	val |= param->temporal_mvp_enable ? BIT(20) : 0;
+	val |= FIELD_PREP(GENMASK(7, 4), param->log2_max_frame_num) |
+	       FIELD_PREP(GENMASK(3, 0), param->log2_max_poc);
+	dst[i++] = val;
+
+	val = 0;
+	val |= param->dbf_ovr_en ? BIT(2) : 0;
+	dst[i++] = val;
+
+	val = 0;
+	val |= param->lf ? BIT(2) : 0;
+	val |= param->lf_x_tile ? BIT(3) : 0;
+	val |= param->lf_x_slice ? BIT(4) : 0;
+	val |= param->rdo_cost_mode ? BIT(20) : 0;
+	dst[i++] = val;
+
 	dst[i++] = FIELD_PREP(GENMASK(15, 8), param->beta_offset) |
 		   FIELD_PREP(GENMASK(7, 0), param->tc_offset);
 	dst[i++] = param->unknown11;

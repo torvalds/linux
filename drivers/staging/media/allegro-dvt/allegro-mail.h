@@ -51,30 +51,14 @@ struct create_channel_param {
 	u32 codec;
 	u16 level;
 	u16 tier;
-	u32 sps_param;
-	u32 pps_param;
-
-	u32 enc_option;
-#define AL_OPT_WPP			BIT(0)
-#define AL_OPT_TILE			BIT(1)
-#define AL_OPT_LF			BIT(2)
-#define AL_OPT_LF_X_SLICE		BIT(3)
-#define AL_OPT_LF_X_TILE		BIT(4)
-#define AL_OPT_SCL_LST			BIT(5)
-#define AL_OPT_CONST_INTRA_PRED		BIT(6)
-#define AL_OPT_QP_TAB_RELATIVE		BIT(7)
-#define AL_OPT_FIX_PREDICTOR		BIT(8)
-#define AL_OPT_CUSTOM_LDA		BIT(9)
-#define AL_OPT_ENABLE_AUTO_QP		BIT(10)
-#define AL_OPT_ADAPT_AUTO_QP		BIT(11)
-#define AL_OPT_TRANSFO_SKIP		BIT(13)
-#define AL_OPT_FORCE_REC		BIT(15)
-#define AL_OPT_FORCE_MV_OUT		BIT(16)
-#define AL_OPT_FORCE_MV_CLIP		BIT(17)
-#define AL_OPT_LOWLAT_SYNC		BIT(18)
-#define AL_OPT_LOWLAT_INT		BIT(19)
-#define AL_OPT_RDO_COST_MODE		BIT(20)
-
+	u32 log2_max_poc;
+	u32 log2_max_frame_num;
+	u32 temporal_mvp_enable;
+	u32 dbf_ovr_en;
+	u32 rdo_cost_mode;
+	u32 lf;
+	u32 lf_x_tile;
+	u32 lf_x_slice;
 	s8 beta_offset;
 	s8 tc_offset;
 	u16 reserved10;
