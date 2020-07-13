@@ -61,7 +61,7 @@ struct ipa_cmd_info {
  * @ipv6:	- Whether the table is for IPv6 or IPv4
  * @hashed:	- Whether the table is hashed or non-hashed
  *
- * @Return:	true if region is valid, false otherwise
+ * Return:	true if region is valid, false otherwise
  */
 bool ipa_cmd_table_valid(struct ipa *ipa, const struct ipa_mem *mem,
 			    bool route, bool ipv6, bool hashed);
@@ -70,7 +70,7 @@ bool ipa_cmd_table_valid(struct ipa *ipa, const struct ipa_mem *mem,
  * ipa_cmd_data_valid() - Validate command-realted configuration is valid
  * @ipa:	- IPA pointer
  *
- * @Return:	true if assumptions required for command are valid
+ * Return:	true if assumptions required for command are valid
  */
 bool ipa_cmd_data_valid(struct ipa *ipa);
 
@@ -95,7 +95,7 @@ static inline bool ipa_cmd_data_valid(struct ipa *ipa)
  * @channel:	AP->IPA command TX GSI channel pointer
  * @tre_count:	Number of pool elements to allocate
  *
- * @Return:	0 if successful, or a negative error code
+ * Return:	0 if successful, or a negative error code
  */
 int ipa_cmd_pool_init(struct gsi_channel *gsi_channel, u32 tre_count);
 
@@ -166,7 +166,7 @@ void ipa_cmd_tag_process_add(struct gsi_trans *trans);
 /**
  * ipa_cmd_tag_process_add_count() - Number of commands in a tag process
  *
- * @Return:	The number of elements to allocate in a transaction
+ * Return:	The number of elements to allocate in a transaction
  *		to hold tag process commands
  */
 u32 ipa_cmd_tag_process_count(void);
@@ -184,7 +184,7 @@ void ipa_cmd_tag_process(struct ipa *ipa);
  * @ipa:	IPA pointer
  * @tre_count:	Number of elements in the transaction
  *
- * @Return:	A GSI transaction structure, or a null pointer if all
+ * Return:	A GSI transaction structure, or a null pointer if all
  *		available transactions are in use
  */
 struct gsi_trans *ipa_cmd_trans_alloc(struct ipa *ipa, u32 tre_count);

@@ -1363,7 +1363,7 @@ static void gsi_channel_update(struct gsi_channel *channel)
  * gsi_channel_poll_one() - Return a single completed transaction on a channel
  * @channel:	Channel to be polled
  *
- * @Return:	Transaction pointer, or null if none are available
+ * Return:	Transaction pointer, or null if none are available
  *
  * This function returns the first entry on a channel's completed transaction
  * list.  If that list is empty, the hardware is consulted to determine
@@ -1393,8 +1393,8 @@ static struct gsi_trans *gsi_channel_poll_one(struct gsi_channel *channel)
  * gsi_channel_poll() - NAPI poll function for a channel
  * @napi:	NAPI structure for the channel
  * @budget:	Budget supplied by NAPI core
-
- * @Return:	 Number of items polled (<= budget)
+ *
+ * Return:	Number of items polled (<= budget)
  *
  * Single transactions completed by hardware are polled until either
  * the budget is exhausted, or there are no more.  Each transaction

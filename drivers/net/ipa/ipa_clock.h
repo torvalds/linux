@@ -22,7 +22,7 @@ u32 ipa_clock_rate(struct ipa *ipa);
  * ipa_clock_init() - Initialize IPA clocking
  * @dev:	IPA device
  *
- * @Return:	A pointer to an ipa_clock structure, or a pointer-coded error
+ * Return:	A pointer to an ipa_clock structure, or a pointer-coded error
  */
 struct ipa_clock *ipa_clock_init(struct device *dev);
 

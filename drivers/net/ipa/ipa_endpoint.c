@@ -349,7 +349,7 @@ static void ipa_endpoint_force_close(struct ipa_endpoint *endpoint)
 
 /**
  * ipa_endpoint_suspend_aggr() - Emulate suspend interrupt
- * @endpoint_id:	Endpoint on which to emulate a suspend
+ * @endpoint:	Endpoint on which to emulate a suspend
  *
  *  Emulate suspend IPA interrupt to unsuspend an endpoint suspended
  *  with an open aggregation frame.  This is to work around a hardware
@@ -499,6 +499,9 @@ static void ipa_endpoint_init_cfg(struct ipa_endpoint *endpoint)
 }
 
 /**
+ * ipa_endpoint_init_hdr() - Initialize HDR endpoint configuration register
+ * @endpoint:	Endpoint pointer
+ *
  * We program QMAP endpoints so each packet received is preceded by a QMAP
  * header structure.  The QMAP header contains a 1-byte mux_id and 2-byte
  * packet size field, and we have the IPA hardware populate both for each
@@ -921,6 +924,8 @@ err_free_pages:
 
 /**
  * ipa_endpoint_replenish() - Replenish the Rx packets cache.
+ * @endpoint:	Endpoint to be replenished
+ * @count:	Number of buffers to send to hardware
  *
  * Allocate RX packet wrapper structures with maximal socket buffers
  * for an endpoint.  These are supplied to the hardware, which fills
@@ -1231,7 +1236,7 @@ void ipa_endpoint_default_route_clear(struct ipa *ipa)
  * on its underlying GSI channel, a special sequence of actions must be
  * taken to ensure the IPA pipeline is properly cleared.
  *
- * @Return:	0 if successful, or a negative error code
+ * Return:	0 if successful, or a negative error code
  */
 static int ipa_endpoint_reset_rx_aggr(struct ipa_endpoint *endpoint)
 {

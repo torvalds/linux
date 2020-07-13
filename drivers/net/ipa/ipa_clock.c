@@ -44,7 +44,7 @@
 /**
  * struct ipa_clock - IPA clocking information
  * @count:		Clocking reference count
- * @mutex;		Protects clock enable/disable
+ * @mutex:		Protects clock enable/disable
  * @core:		IPA core clock
  * @memory_path:	Memory interconnect
  * @imem_path:		Internal memory interconnect
