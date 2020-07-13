@@ -258,7 +258,7 @@ static void aac_aif_callback(void *context, struct fib * fibptr)
 }
 
 
-/**
+/*
  *	aac_intr_normal	-	Handle command replies
  *	@dev: Device
  *	@index: completion reference
