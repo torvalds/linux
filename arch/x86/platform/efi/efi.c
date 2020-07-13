@@ -496,7 +496,7 @@ void __init efi_init(void)
 		efi_print_memmap();
 }
 
-#if defined(CONFIG_X86_32) || defined(CONFIG_X86_UV)
+#if defined(CONFIG_X86_32)
 
 void __init efi_set_executable(efi_memory_desc_t *md, bool executable)
 {
