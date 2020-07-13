@@ -16,7 +16,6 @@
 
 		.macro	save_regs
 		stmfd	sp!, {r1, r4 - r8, lr}
-		mov	r3, #0
 		.endm
 
 		.macro	load_regs
