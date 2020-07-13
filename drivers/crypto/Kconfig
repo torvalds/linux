@@ -866,4 +866,18 @@ source "drivers/crypto/hisilicon/Kconfig"
 
 source "drivers/crypto/amlogic/Kconfig"
 
+config CRYPTO_DEV_SA2UL
+	tristate "Support for TI security accelerator"
+	depends on ARCH_K3 || COMPILE_TEST
+	select ARM64_CRYPTO
+	select CRYPTO_AES
+	select CRYPTO_AES_ARM64
+	select CRYPTO_ALGAPI
+	select HW_RANDOM
+	select SG_SPLIT
+	help
+	  K3 devices include a security accelerator engine that may be
+	  used for crypto offload.  Select this if you want to use hardware
+	  acceleration for cryptographic algorithms on these devices.
+
 endif # CRYPTO_HW
