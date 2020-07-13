@@ -17,9 +17,6 @@ struct xfs_eofblocks {
 	__u64		eof_min_file_size;
 };
 
-#define SYNC_WAIT		0x0001	/* wait for i/o to complete */
-#define SYNC_TRYLOCK		0x0002  /* only try to lock inodes */
-
 /*
  * tags for inode radix tree
  */
