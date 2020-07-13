@@ -13,6 +13,7 @@ Linux 内核用户和管理员指南
 
 这个初始部分包含总体信息，包括描述内核的README， 关于内核参数的文档等。
 
+Todolist:
 
    README
    kernel-parameters
@@ -21,10 +22,13 @@ Linux 内核用户和管理员指南
 
 本节介绍CPU漏洞及其缓解措施。
 
+Todolist:
+
    hw-vuln/index
 
 下面的一组文档，针对的是试图跟踪问题和bug的用户。
 
+Todolist:
 
    reporting-bugs
    security-bugs
@@ -40,9 +44,19 @@ Linux 内核用户和管理员指南
 这是应用程序开发人员感兴趣的章节的开始。可以在这里找到涵盖内核ABI各个
 方面的文档。
 
+Todolist:
+
    sysfs-rules
 
 本手册的其余部分包括各种指南，介绍如何根据您的喜好配置内核的特定行为。
+
+
+.. toctree::
+   :maxdepth: 1
+
+   clearing-warn-once
+
+Todolist:
 
    acpi/index
    aoe/index
@@ -57,7 +71,6 @@ Linux 内核用户和管理员指南
    cgroup-v1/index
    cgroup-v2
    cifs/index
-   clearing-warn-once
    cpu-load
    cputopology
    dell_rbu
