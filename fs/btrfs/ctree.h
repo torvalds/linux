@@ -2560,16 +2560,46 @@ int btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
 int btrfs_extent_readonly(struct btrfs_fs_info *fs_info, u64 bytenr);
 void btrfs_clear_space_info_full(struct btrfs_fs_info *info);
 
+/*
+ * Different levels for to flush space when doing space reservations.
+ *
+ * The higher the level, the more methods we try to reclaim space.
+ */
 enum btrfs_reserve_flush_enum {
 	/* If we are in the transaction, we can't flush anything.*/
 	BTRFS_RESERVE_NO_FLUSH,
+
 	/*
-	 * Flushing delalloc may cause deadlock somewhere, in this
-	 * case, use FLUSH LIMIT
+	 * Flush space by:
+	 * - Running delayed inode items
+	 * - Allocating a new chunk
 	 */
 	BTRFS_RESERVE_FLUSH_LIMIT,
+
+	/*
+	 * Flush space by:
+	 * - Running delayed inode items
+	 * - Running delayed refs
+	 * - Running delalloc and waiting for ordered extents
+	 * - Allocating a new chunk
+	 */
 	BTRFS_RESERVE_FLUSH_EVICT,
+
+	/*
+	 * Flush space by above mentioned methods and by:
+	 * - Running delayed iputs
+	 * - Commiting transaction
+	 *
+	 * Can be interruped by fatal signal.
+	 */
 	BTRFS_RESERVE_FLUSH_ALL,
+
+	/*
+	 * Pretty much the same as FLUSH_ALL, but can also steal space from
+	 * global rsv.
+	 *
+	 * Can be interruped by fatal signal.
+	 */
 	BTRFS_RESERVE_FLUSH_ALL_STEAL,
 };
 
