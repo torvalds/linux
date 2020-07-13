@@ -1,0 +1,107 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2020 Rockchip Electronics Co., Ltd.
+ */
+
+/ {
+	memory: memory {
+		device_type = "memory";
+		reg = <0x00000000 0x20000000>;
+	};
+
+	ramdisk: ramdisk {
+		compatible = "rockchip,ramdisk";
+		memory-region = <&ramdisk_r>;
+	};
+
+	reserved-memory {
+		trust@0 {
+			reg = <0x00000000 0x00200000>;
+			no-map;
+		};
+
+		trust@200000 {
+			reg = <0x00200000 0x00008000>;
+		};
+
+		ramoops@210000 {
+			compatible = "ramoops";
+			reg = <0x00210000 0x000f0000>;
+			record-size = <0x20000>;
+			console-size = <0x20000>;
+			ftrace-size = <0x00000>;
+			pmsg-size = <0x50000>;
+		};
+
+		rtos@300000 {
+			reg = <0x00300000 0x00100000>;
+			no-map;
+		};
+
+		ramdisk_r: ramdisk@2800000 {
+			reg = <0x02800000 (40 * 0x00100000)>;
+		};
+
+		ramdisk_c: ramdisk@5800000 {
+			reg = <0x05800000 (20 * 0x00100000)>;
+		};
+
+		rkisp_thunderboot: rkisp@10000000 {
+			reg = <0x10000000 (144 * 0x00100000)>;
+		};
+	};
+
+	thunder_boot_rkisp: thunder-boot-rkisp {
+		compatible = "rockchip,thunder-boot-rkisp";
+		clocks = <&cru ACLK_ISP>, <&cru HCLK_ISP>,
+			 <&cru CLK_ISP>, <&cru CLK_MIPICSI_OUT>,
+			 <&cru CLK_I2C1>, <&cru PCLK_I2C1>,
+			 <&cru CLK_SCR1>, <&cru CLK_SCR1_CORE>,
+			 <&cru CLK_SCR1_RTC>, <&cru CLK_SCR1_JTAG>;
+		clock-names = "aclk_isp", "hclk_isp", "clk_isp",
+			      "xvclk", "i2c", "pclk",
+			      "clk_scr1", "clk_scr1_core",
+			      "clk_scr1_rtc", "clk_scr1_jtag";
+		assigned-clocks = <&cru ACLK_ISP>, <&cru HCLK_ISP>, <&cru CLK_MIPICSI_OUT>;
+		assigned-clock-rates = <500000000>, <250000000>, <24000000>;
+		power-domains = <&power RV1126_PD_VI>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&mipicsi_clk0>;
+		status = "okay";
+	};
+};
+
+&cpu0_opp_table {
+	rockchip,reboot-freq = <1200000>;
+	/delete-node/ opp-1296000000;
+	/delete-node/ opp-1416000000;
+	/delete-node/ opp-1512000000;
+};
+
+&cru {
+	/delete-property/ assigned-clocks;
+	/delete-property/ assigned-clock-rates;
+	/delete-property/ assigned-clock-parents;
+};
+
+&ddr_timing {
+	status = "disabled";
+};
+
+&hw_decompress {
+	status = "okay";
+	memory-region = <&ramdisk_c>;
+};
+
+&isp_reserved {
+	inactive;
+};
+
+&ramoops {
+	status = "disabled";
+};
+
+&rkisp {
+	memory-region-thunderboot = <&rkisp_thunderboot>;
+};

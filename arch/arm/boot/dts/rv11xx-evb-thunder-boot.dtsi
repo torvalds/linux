@@ -1,0 +1,11 @@
+&i2c0 {
+	clock-frequency = <1000000>;
+};
+
+&route_dsi {
+	status = "disabled";
+};
+
+&vcc18_lcd_n {
+	/delete-property/ regulator-boot-on;
+};
