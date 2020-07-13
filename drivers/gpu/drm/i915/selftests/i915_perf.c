@@ -328,6 +328,7 @@ static int live_noa_gpr(void *arg)
 	/* Fill the 16 qword [32 dword] GPR with a known unlikely value */
 	cs = intel_ring_begin(rq, 2 * 32 + 2);
 	if (IS_ERR(cs)) {
+		err = PTR_ERR(cs);
 		i915_request_add(rq);
 		goto out_rq;
 	}
