@@ -313,6 +313,7 @@ struct sa_tfm_ctx {
 	union {
 		struct crypto_sync_skcipher	*skcipher;
 		struct crypto_ahash		*ahash;
+		struct crypto_aead		*aead;
 	} fallback;
 };
 
