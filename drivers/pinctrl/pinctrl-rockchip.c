@@ -9,7 +9,7 @@
  * Copyright (c) 2012 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  * Copyright (c) 2012 Linaro Ltd
- *		http://www.linaro.org
+ *		https://www.linaro.org
  *
  * and pinctrl-at91:
  * Copyright (C) 2011-2012 Jean-Christophe PLAGNIOL-VILLARD <plagnioj@jcrosoft.com>
