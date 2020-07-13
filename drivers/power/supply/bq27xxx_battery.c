@@ -18,31 +18,31 @@
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
  * Datasheets:
- * http://www.ti.com/product/bq27000
- * http://www.ti.com/product/bq27200
- * http://www.ti.com/product/bq27010
- * http://www.ti.com/product/bq27210
- * http://www.ti.com/product/bq27500
- * http://www.ti.com/product/bq27510-g1
- * http://www.ti.com/product/bq27510-g2
- * http://www.ti.com/product/bq27510-g3
- * http://www.ti.com/product/bq27520-g1
- * http://www.ti.com/product/bq27520-g2
- * http://www.ti.com/product/bq27520-g3
- * http://www.ti.com/product/bq27520-g4
- * http://www.ti.com/product/bq27530-g1
- * http://www.ti.com/product/bq27531-g1
- * http://www.ti.com/product/bq27541-g1
- * http://www.ti.com/product/bq27542-g1
- * http://www.ti.com/product/bq27546-g1
- * http://www.ti.com/product/bq27742-g1
- * http://www.ti.com/product/bq27545-g1
- * http://www.ti.com/product/bq27421-g1
- * http://www.ti.com/product/bq27425-g1
- * http://www.ti.com/product/bq27426
- * http://www.ti.com/product/bq27411-g1
- * http://www.ti.com/product/bq27441-g1
- * http://www.ti.com/product/bq27621-g1
+ * https://www.ti.com/product/bq27000
+ * https://www.ti.com/product/bq27200
+ * https://www.ti.com/product/bq27010
+ * https://www.ti.com/product/bq27210
+ * https://www.ti.com/product/bq27500
+ * https://www.ti.com/product/bq27510-g1
+ * https://www.ti.com/product/bq27510-g2
+ * https://www.ti.com/product/bq27510-g3
+ * https://www.ti.com/product/bq27520-g1
+ * https://www.ti.com/product/bq27520-g2
+ * https://www.ti.com/product/bq27520-g3
+ * https://www.ti.com/product/bq27520-g4
+ * https://www.ti.com/product/bq27530-g1
+ * https://www.ti.com/product/bq27531-g1
+ * https://www.ti.com/product/bq27541-g1
+ * https://www.ti.com/product/bq27542-g1
+ * https://www.ti.com/product/bq27546-g1
+ * https://www.ti.com/product/bq27742-g1
+ * https://www.ti.com/product/bq27545-g1
+ * https://www.ti.com/product/bq27421-g1
+ * https://www.ti.com/product/bq27425-g1
+ * https://www.ti.com/product/bq27426
+ * https://www.ti.com/product/bq27411-g1
+ * https://www.ti.com/product/bq27441-g1
+ * https://www.ti.com/product/bq27621-g1
  */
 
 #include <linux/device.h>
