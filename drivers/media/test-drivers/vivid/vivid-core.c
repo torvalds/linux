@@ -1827,16 +1827,16 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 	return 0;
 
 unreg_dev:
-	video_unregister_device(&dev->touch_cap_dev);
-	video_unregister_device(&dev->meta_out_dev);
-	video_unregister_device(&dev->meta_cap_dev);
+	vb2_video_unregister_device(&dev->touch_cap_dev);
+	vb2_video_unregister_device(&dev->meta_out_dev);
+	vb2_video_unregister_device(&dev->meta_cap_dev);
 	video_unregister_device(&dev->radio_tx_dev);
 	video_unregister_device(&dev->radio_rx_dev);
-	video_unregister_device(&dev->sdr_cap_dev);
-	video_unregister_device(&dev->vbi_out_dev);
-	video_unregister_device(&dev->vbi_cap_dev);
-	video_unregister_device(&dev->vid_out_dev);
-	video_unregister_device(&dev->vid_cap_dev);
+	vb2_video_unregister_device(&dev->sdr_cap_dev);
+	vb2_video_unregister_device(&dev->vbi_out_dev);
+	vb2_video_unregister_device(&dev->vbi_cap_dev);
+	vb2_video_unregister_device(&dev->vid_out_dev);
+	vb2_video_unregister_device(&dev->vid_cap_dev);
 	cec_unregister_adapter(dev->cec_rx_adap);
 	for (i = 0; i < MAX_OUTPUTS; i++)
 		cec_unregister_adapter(dev->cec_tx_adap[i]);
@@ -1907,27 +1907,27 @@ static int vivid_remove(struct platform_device *pdev)
 		if (dev->has_vid_cap) {
 			v4l2_info(&dev->v4l2_dev, "unregistering %s\n",
 				video_device_node_name(&dev->vid_cap_dev));
-			video_unregister_device(&dev->vid_cap_dev);
+			vb2_video_unregister_device(&dev->vid_cap_dev);
 		}
 		if (dev->has_vid_out) {
 			v4l2_info(&dev->v4l2_dev, "unregistering %s\n",
 				video_device_node_name(&dev->vid_out_dev));
-			video_unregister_device(&dev->vid_out_dev);
+			vb2_video_unregister_device(&dev->vid_out_dev);
 		}
 		if (dev->has_vbi_cap) {
 			v4l2_info(&dev->v4l2_dev, "unregistering %s\n",
 				video_device_node_name(&dev->vbi_cap_dev));
-			video_unregister_device(&dev->vbi_cap_dev);
+			vb2_video_unregister_device(&dev->vbi_cap_dev);
 		}
 		if (dev->has_vbi_out) {
 			v4l2_info(&dev->v4l2_dev, "unregistering %s\n",
 				video_device_node_name(&dev->vbi_out_dev));
-			video_unregister_device(&dev->vbi_out_dev);
+			vb2_video_unregister_device(&dev->vbi_out_dev);
 		}
 		if (dev->has_sdr_cap) {
 			v4l2_info(&dev->v4l2_dev, "unregistering %s\n",
 				video_device_node_name(&dev->sdr_cap_dev));
-			video_unregister_device(&dev->sdr_cap_dev);
+			vb2_video_unregister_device(&dev->sdr_cap_dev);
 		}
 		if (dev->has_radio_rx) {
 			v4l2_info(&dev->v4l2_dev, "unregistering %s\n",
@@ -1948,17 +1948,17 @@ static int vivid_remove(struct platform_device *pdev)
 		if (dev->has_meta_cap) {
 			v4l2_info(&dev->v4l2_dev, "unregistering %s\n",
 				  video_device_node_name(&dev->meta_cap_dev));
-			video_unregister_device(&dev->meta_cap_dev);
+			vb2_video_unregister_device(&dev->meta_cap_dev);
 		}
 		if (dev->has_meta_out) {
 			v4l2_info(&dev->v4l2_dev, "unregistering %s\n",
 				  video_device_node_name(&dev->meta_out_dev));
-			video_unregister_device(&dev->meta_out_dev);
+			vb2_video_unregister_device(&dev->meta_out_dev);
 		}
 		if (dev->has_touch_cap) {
 			v4l2_info(&dev->v4l2_dev, "unregistering %s\n",
 				  video_device_node_name(&dev->touch_cap_dev));
-			video_unregister_device(&dev->touch_cap_dev);
+			vb2_video_unregister_device(&dev->touch_cap_dev);
 		}
 		cec_unregister_adapter(dev->cec_rx_adap);
 		for (j = 0; j < MAX_OUTPUTS; j++)
