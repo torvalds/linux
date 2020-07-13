@@ -1005,8 +1005,7 @@ struct notifier_block ocelot_switchdev_blocking_nb __read_mostly = {
 	.notifier_call = ocelot_switchdev_blocking_event,
 };
 
-int ocelot_probe_port(struct ocelot *ocelot, u8 port,
-		      void __iomem *regs,
+int ocelot_probe_port(struct ocelot *ocelot, int port, struct regmap *target,
 		      struct phy_device *phy)
 {
 	struct ocelot_port_private *priv;
@@ -1024,7 +1023,7 @@ int ocelot_probe_port(struct ocelot *ocelot, u8 port,
 	priv->chip_port = port;
 	ocelot_port = &priv->port;
 	ocelot_port->ocelot = ocelot;
-	ocelot_port->regs = regs;
+	ocelot_port->target = target;
 	ocelot->ports[port] = ocelot_port;
 
 	dev->netdev_ops = &ocelot_port_netdev_ops;

@@ -49,13 +49,25 @@ EXPORT_SYMBOL(__ocelot_rmw_ix);
 
 u32 ocelot_port_readl(struct ocelot_port *port, u32 reg)
 {
-	return readl(port->regs + reg);
+	struct ocelot *ocelot = port->ocelot;
+	u16 target = reg >> TARGET_OFFSET;
+	u32 val;
+
+	WARN_ON(!target);
+
+	regmap_read(port->target, ocelot->map[target][reg & REG_MASK], &val);
+	return val;
 }
 EXPORT_SYMBOL(ocelot_port_readl);
 
 void ocelot_port_writel(struct ocelot_port *port, u32 val, u32 reg)
 {
-	writel(val, port->regs + reg);
+	struct ocelot *ocelot = port->ocelot;
+	u16 target = reg >> TARGET_OFFSET;
+
+	WARN_ON(!target);
+
+	regmap_write(port->target, ocelot->map[target][reg & REG_MASK], val);
 }
 EXPORT_SYMBOL(ocelot_port_writel);
 

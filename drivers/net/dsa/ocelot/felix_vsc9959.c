@@ -329,7 +329,49 @@ static const u32 vsc9959_gcb_regmap[] = {
 	REG(GCB_SOFT_RST,			0x000004),
 };
 
-static const u32 *vsc9959_regmap[] = {
+static const u32 vsc9959_dev_gmii_regmap[] = {
+	REG(DEV_CLOCK_CFG,			0x0),
+	REG(DEV_PORT_MISC,			0x4),
+	REG(DEV_EVENTS,				0x8),
+	REG(DEV_EEE_CFG,			0xc),
+	REG(DEV_RX_PATH_DELAY,			0x10),
+	REG(DEV_TX_PATH_DELAY,			0x14),
+	REG(DEV_PTP_PREDICT_CFG,		0x18),
+	REG(DEV_MAC_ENA_CFG,			0x1c),
+	REG(DEV_MAC_MODE_CFG,			0x20),
+	REG(DEV_MAC_MAXLEN_CFG,			0x24),
+	REG(DEV_MAC_TAGS_CFG,			0x28),
+	REG(DEV_MAC_ADV_CHK_CFG,		0x2c),
+	REG(DEV_MAC_IFG_CFG,			0x30),
+	REG(DEV_MAC_HDX_CFG,			0x34),
+	REG(DEV_MAC_DBG_CFG,			0x38),
+	REG(DEV_MAC_FC_MAC_LOW_CFG,		0x3c),
+	REG(DEV_MAC_FC_MAC_HIGH_CFG,		0x40),
+	REG(DEV_MAC_STICKY,			0x44),
+	REG_RESERVED(PCS1G_CFG),
+	REG_RESERVED(PCS1G_MODE_CFG),
+	REG_RESERVED(PCS1G_SD_CFG),
+	REG_RESERVED(PCS1G_ANEG_CFG),
+	REG_RESERVED(PCS1G_ANEG_NP_CFG),
+	REG_RESERVED(PCS1G_LB_CFG),
+	REG_RESERVED(PCS1G_DBG_CFG),
+	REG_RESERVED(PCS1G_CDET_CFG),
+	REG_RESERVED(PCS1G_ANEG_STATUS),
+	REG_RESERVED(PCS1G_ANEG_NP_STATUS),
+	REG_RESERVED(PCS1G_LINK_STATUS),
+	REG_RESERVED(PCS1G_LINK_DOWN_CNT),
+	REG_RESERVED(PCS1G_STICKY),
+	REG_RESERVED(PCS1G_DEBUG_STATUS),
+	REG_RESERVED(PCS1G_LPI_CFG),
+	REG_RESERVED(PCS1G_LPI_WAKE_ERROR_CNT),
+	REG_RESERVED(PCS1G_LPI_STATUS),
+	REG_RESERVED(PCS1G_TSTPAT_MODE_CFG),
+	REG_RESERVED(PCS1G_TSTPAT_STATUS),
+	REG_RESERVED(DEV_PCS_FX100_CFG),
+	REG_RESERVED(DEV_PCS_FX100_STATUS),
+};
+
+static const u32 *vsc9959_regmap[TARGET_MAX] = {
 	[ANA]	= vsc9959_ana_regmap,
 	[QS]	= vsc9959_qs_regmap,
 	[QSYS]	= vsc9959_qsys_regmap,
@@ -338,10 +380,11 @@ static const u32 *vsc9959_regmap[] = {
 	[S2]	= vsc9959_s2_regmap,
 	[PTP]	= vsc9959_ptp_regmap,
 	[GCB]	= vsc9959_gcb_regmap,
+	[DEV_GMII] = vsc9959_dev_gmii_regmap,
 };
 
 /* Addresses are relative to the PCI device's base address */
-static const struct resource vsc9959_target_io_res[] = {
+static const struct resource vsc9959_target_io_res[TARGET_MAX] = {
 	[ANA] = {
 		.start	= 0x0280000,
 		.end	= 0x028ffff,
