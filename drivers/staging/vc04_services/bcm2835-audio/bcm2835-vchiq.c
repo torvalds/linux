@@ -9,7 +9,7 @@
 
 struct bcm2835_audio_instance {
 	struct device *dev;
-	unsigned service_handle;
+	unsigned int service_handle;
 	struct completion msg_avail_comp;
 	struct mutex vchi_mutex;
 	struct bcm2835_alsa_stream *alsa_stream;
@@ -91,7 +91,7 @@ static int bcm2835_audio_send_simple(struct bcm2835_audio_instance *instance,
 
 static enum vchiq_status audio_vchi_callback(enum vchiq_reason reason,
 					     struct vchiq_header *header,
-					     unsigned handle, void *userdata)
+					     unsigned int handle, void *userdata)
 {
 	struct bcm2835_audio_instance *instance = vchiq_get_service_userdata(handle);
 	struct vc_audio_msg *m;

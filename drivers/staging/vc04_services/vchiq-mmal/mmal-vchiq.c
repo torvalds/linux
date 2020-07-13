@@ -163,7 +163,7 @@ struct mmal_msg_context {
 };
 
 struct vchiq_mmal_instance {
-	unsigned service_handle;
+	unsigned int service_handle;
 
 	/* ensure serialised access to service */
 	struct mutex vchiq_mutex;
@@ -548,7 +548,7 @@ static void bulk_abort_cb(struct vchiq_mmal_instance *instance,
 /* incoming event service callback */
 static enum vchiq_status service_callback(enum vchiq_reason reason,
 					  struct vchiq_header *header,
-					  unsigned handle, void *bulk_ctx)
+					  unsigned int handle, void *bulk_ctx)
 {
 	struct vchiq_mmal_instance *instance = vchiq_get_service_userdata(handle);
 	u32 msg_len;

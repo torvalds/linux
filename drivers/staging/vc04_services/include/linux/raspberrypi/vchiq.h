@@ -84,11 +84,11 @@ extern enum vchiq_status vchiq_open_service(struct vchiq_instance *instance,
 extern enum vchiq_status vchiq_close_service(unsigned int service);
 extern enum vchiq_status vchiq_use_service(unsigned int service);
 extern enum vchiq_status vchiq_release_service(unsigned int service);
-extern void vchiq_msg_queue_push(unsigned handle, struct vchiq_header *header);
+extern void vchiq_msg_queue_push(unsigned int handle, struct vchiq_header *header);
 extern void           vchiq_release_message(unsigned int service,
 	struct vchiq_header *header);
-extern int vchiq_queue_kernel_message(unsigned handle, void *data,
-				      unsigned size);
+extern int vchiq_queue_kernel_message(unsigned int handle, void *data,
+				      unsigned int size);
 extern enum vchiq_status vchiq_bulk_transmit(unsigned int service,
 	const void *data, unsigned int size, void *userdata,
 	enum vchiq_bulk_mode mode);
@@ -98,6 +98,6 @@ extern enum vchiq_status vchiq_bulk_receive(unsigned int service,
 extern void *vchiq_get_service_userdata(unsigned int service);
 extern enum vchiq_status vchiq_get_peer_version(unsigned int handle,
       short *peer_version);
-extern struct vchiq_header *vchiq_msg_hold(unsigned handle);
+extern struct vchiq_header *vchiq_msg_hold(unsigned int handle);
 
 #endif /* VCHIQ_H */
