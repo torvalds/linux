@@ -15,6 +15,7 @@
 #include <linux/remoteproc/qcom_rproc.h>
 #include <linux/rpmsg/qcom_glink.h>
 #include <linux/rpmsg/qcom_smd.h>
+#include <linux/slab.h>
 #include <linux/soc/qcom/mdt_loader.h>
 
 #include "remoteproc_internal.h"
