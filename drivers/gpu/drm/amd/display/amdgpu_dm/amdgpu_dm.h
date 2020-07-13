@@ -414,7 +414,6 @@ struct dm_crtc_state {
 
 	int update_type;
 	int active_planes;
-	bool interrupts_enabled;
 
 	int crc_skip_count;
 	enum amdgpu_dm_pipe_crc_source crc_src;
