@@ -226,7 +226,7 @@ void __iowrite64_copy(void __iomem *to, const void *from, size_t count)
        zpci_memcpy_toio(to, from, count);
 }
 
-void __iomem *ioremap(phys_addr_t addr, size_t size)
+static void __iomem *__ioremap(phys_addr_t addr, size_t size, pgprot_t prot)
 {
 	unsigned long offset, vaddr;
 	struct vm_struct *area;
@@ -247,13 +247,36 @@ void __iomem *ioremap(phys_addr_t addr, size_t size)
 		return NULL;
 
 	vaddr = (unsigned long) area->addr;
-	if (ioremap_page_range(vaddr, vaddr + size, addr, PAGE_KERNEL)) {
+	if (ioremap_page_range(vaddr, vaddr + size, addr, prot)) {
 		free_vm_area(area);
 		return NULL;
 	}
 	return (void __iomem *) ((unsigned long) area->addr + offset);
 }
+
+void __iomem *ioremap_prot(phys_addr_t addr, size_t size, unsigned long prot)
+{
+	return __ioremap(addr, size, __pgprot(prot));
+}
+EXPORT_SYMBOL(ioremap_prot);
+
+void __iomem *ioremap(phys_addr_t addr, size_t size)
+{
+	return __ioremap(addr, size, PAGE_KERNEL);
+}
 EXPORT_SYMBOL(ioremap);
+
+void __iomem *ioremap_wc(phys_addr_t addr, size_t size)
+{
+	return __ioremap(addr, size, pgprot_writecombine(PAGE_KERNEL));
+}
+EXPORT_SYMBOL(ioremap_wc);
+
+void __iomem *ioremap_wt(phys_addr_t addr, size_t size)
+{
+	return __ioremap(addr, size, pgprot_writethrough(PAGE_KERNEL));
+}
+EXPORT_SYMBOL(ioremap_wt);
 
 void iounmap(volatile void __iomem *addr)
 {
@@ -783,6 +806,9 @@ static int zpci_mem_init(void)
 				    sizeof(*zpci_iomap_bitmap), GFP_KERNEL);
 	if (!zpci_iomap_bitmap)
 		goto error_iomap_bitmap;
+
+	if (static_branch_likely(&have_mio))
+		clp_setup_writeback_mio();
 
 	return 0;
 error_iomap_bitmap:

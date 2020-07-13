@@ -292,6 +292,40 @@ static int clp_set_pci_fn(struct zpci_dev *zdev, u8 nr_dma_as, u8 command)
 	return rc;
 }
 
+int clp_setup_writeback_mio(void)
+{
+	struct clp_req_rsp_slpc_pci *rrb;
+	u8  wb_bit_pos;
+	int rc;
+
+	rrb = clp_alloc_block(GFP_KERNEL);
+	if (!rrb)
+		return -ENOMEM;
+
+	memset(rrb, 0, sizeof(*rrb));
+	rrb->request.hdr.len = sizeof(rrb->request);
+	rrb->request.hdr.cmd = CLP_SLPC;
+	rrb->response.hdr.len = sizeof(rrb->response);
+
+	rc = clp_req(rrb, CLP_LPS_PCI);
+	if (!rc && rrb->response.hdr.rsp == CLP_RC_OK) {
+		if (rrb->response.vwb) {
+			wb_bit_pos = rrb->response.mio_wb;
+			set_bit_inv(wb_bit_pos, &mio_wb_bit_mask);
+			zpci_dbg(3, "wb bit: %d\n", wb_bit_pos);
+		} else {
+			zpci_dbg(3, "wb bit: n.a.\n");
+		}
+
+	} else {
+		zpci_err("SLPC PCI:\n");
+		zpci_err_clp(rrb->response.hdr.rsp, rc);
+		rc = -EIO;
+	}
+	clp_free_block(rrb);
+	return rc;
+}
+
 int clp_enable_fh(struct zpci_dev *zdev, u8 nr_dma_as)
 {
 	int rc;
@@ -495,7 +529,7 @@ static int clp_base_command(struct clp_req *req, struct clp_req_hdr *lpcb)
 	}
 }
 
-static int clp_pci_slpc(struct clp_req *req, struct clp_req_rsp_slpc *lpcb)
+static int clp_pci_slpc(struct clp_req *req, struct clp_req_rsp_slpc_pci *lpcb)
 {
 	unsigned long limit = PAGE_SIZE - sizeof(lpcb->request);
 

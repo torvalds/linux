@@ -128,6 +128,12 @@ struct lowcore *lowcore_ptr[NR_CPUS];
 EXPORT_SYMBOL(lowcore_ptr);
 
 /*
+ * The Write Back bit position in the physaddr is given by the SLPC PCI.
+ * Leaving the mask zero always uses write through which is safe
+ */
+unsigned long mio_wb_bit_mask __ro_after_init;
+
+/*
  * This is set up by the setup-routine at boot-time
  * for S390 need to find out, what we have to setup
  * using address 0x10400 ...

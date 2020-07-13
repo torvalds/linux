@@ -94,6 +94,9 @@ extern unsigned long vmalloc_size;
 extern unsigned long max_physmem_end;
 extern unsigned long __swsusp_reset_dma;
 
+/* The Write Back bit position in the physaddr is given by the SLPC PCI */
+extern unsigned long mio_wb_bit_mask;
+
 #define MACHINE_IS_VM		(S390_lowcore.machine_flags & MACHINE_FLAG_VM)
 #define MACHINE_IS_KVM		(S390_lowcore.machine_flags & MACHINE_FLAG_KVM)
 #define MACHINE_IS_LPAR		(S390_lowcore.machine_flags & MACHINE_FLAG_LPAR)
