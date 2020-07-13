@@ -2302,6 +2302,15 @@ err_dma_tx:
 	return ret;
 }
 
+static int sa_link_child(struct device *dev, void *data)
+{
+	struct device *parent = data;
+
+	device_link_add(dev, parent, DL_FLAG_AUTOPROBE_CONSUMER);
+
+	return 0;
+}
+
 static int sa_ul_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -2351,6 +2360,8 @@ static int sa_ul_probe(struct platform_device *pdev)
 	ret = of_platform_populate(node, NULL, NULL, &pdev->dev);
 	if (ret)
 		goto release_dma;
+
+	device_for_each_child(&pdev->dev, &pdev->dev, sa_link_child);
 
 	return 0;
 
