@@ -781,8 +781,10 @@ int amdgpu_debugfs_fence_init(struct amdgpu_device *adev)
 {
 #if defined(CONFIG_DEBUG_FS)
 	if (amdgpu_sriov_vf(adev))
-		return amdgpu_debugfs_add_files(adev, amdgpu_debugfs_fence_list_sriov, 1);
-	return amdgpu_debugfs_add_files(adev, amdgpu_debugfs_fence_list, 2);
+		return amdgpu_debugfs_add_files(adev, amdgpu_debugfs_fence_list_sriov,
+						ARRAY_SIZE(amdgpu_debugfs_fence_list_sriov));
+	return amdgpu_debugfs_add_files(adev, amdgpu_debugfs_fence_list,
+					ARRAY_SIZE(amdgpu_debugfs_fence_list));
 #else
 	return 0;
 #endif
