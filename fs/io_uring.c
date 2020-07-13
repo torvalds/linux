@@ -491,6 +491,7 @@ struct io_statx {
 struct io_completion {
 	struct file			*file;
 	struct list_head		list;
+	int				cflags;
 };
 
 struct io_async_connect {
@@ -633,7 +634,6 @@ struct io_kiocb {
 	};
 
 	struct io_async_ctx		*io;
-	int				cflags;
 	u8				opcode;
 	/* polled IO has completed */
 	u8				iopoll_completed;
@@ -1351,7 +1351,7 @@ static bool io_cqring_overflow_flush(struct io_ring_ctx *ctx, bool force)
 		if (cqe) {
 			WRITE_ONCE(cqe->user_data, req->user_data);
 			WRITE_ONCE(cqe->res, req->result);
-			WRITE_ONCE(cqe->flags, req->cflags);
+			WRITE_ONCE(cqe->flags, req->compl.cflags);
 		} else {
 			WRITE_ONCE(ctx->rings->cq_overflow,
 				atomic_inc_return(&ctx->cached_cq_overflow));
@@ -1405,7 +1405,7 @@ static void __io_cqring_fill_event(struct io_kiocb *req, long res, long cflags)
 		io_clean_op(req);
 		req->flags |= REQ_F_OVERFLOW;
 		req->result = res;
-		req->cflags = cflags;
+		req->compl.cflags = cflags;
 		refcount_inc(&req->refs);
 		list_add_tail(&req->compl.list, &ctx->cq_overflow_list);
 	}
@@ -1439,7 +1439,7 @@ static void io_submit_flush_completions(struct io_comp_state *cs)
 
 		req = list_first_entry(&cs->list, struct io_kiocb, compl.list);
 		list_del(&req->compl.list);
-		__io_cqring_fill_event(req, req->result, req->cflags);
+		__io_cqring_fill_event(req, req->result, req->compl.cflags);
 		if (!(req->flags & REQ_F_LINK_HEAD)) {
 			req->flags |= REQ_F_COMP_LOCKED;
 			io_put_req(req);
@@ -1465,7 +1465,7 @@ static void __io_req_complete(struct io_kiocb *req, long res, unsigned cflags,
 	} else {
 		io_clean_op(req);
 		req->result = res;
-		req->cflags = cflags;
+		req->compl.cflags = cflags;
 		list_add_tail(&req->compl.list, &cs->list);
 		if (++cs->nr >= 32)
 			io_submit_flush_completions(cs);
