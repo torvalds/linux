@@ -279,12 +279,12 @@ static irqreturn_t cdns3_drd_irq(int irq, void *data)
 	u32 reg;
 
 	if (cdns->dr_mode != USB_DR_MODE_OTG)
-		return ret;
+		return IRQ_NONE;
 
 	reg = readl(&cdns->otg_regs->ivect);
 
 	if (!reg)
-		return ret;
+		return IRQ_NONE;
 
 	if (reg & OTGIEN_ID_CHANGE_INT) {
 		dev_dbg(cdns->dev, "OTG IRQ: new ID: %d\n",
