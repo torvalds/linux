@@ -11,6 +11,7 @@
 #include <linux/ctype.h>
 
 #include "gpiolib.h"
+#include "gpiolib-sysfs.h"
 
 #define GPIO_IRQF_TRIGGER_FALLING	BIT(0)
 #define GPIO_IRQF_TRIGGER_RISING	BIT(1)
