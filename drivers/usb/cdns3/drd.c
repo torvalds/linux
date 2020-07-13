@@ -124,83 +124,95 @@ static void cdns3_otg_enable_irq(struct cdns3 *cdns)
 }
 
 /**
- * cdns3_drd_switch_host - start/stop host
- * @cdns: Pointer to controller context structure
- * @on: 1 for start, 0 for stop
+ * cdns3_drd_host_on - start host.
+ * @cdns: Pointer to controller context structure.
+ *
+ * Returns 0 on success otherwise negative errno.
+ */
+int cdns3_drd_host_on(struct cdns3 *cdns)
+{
+	u32 val;
+	int ret;
+
+	/* Enable host mode. */
+	writel(OTGCMD_HOST_BUS_REQ | OTGCMD_OTG_DIS,
+	       &cdns->otg_regs->cmd);
+
+	dev_dbg(cdns->dev, "Waiting till Host mode is turned on\n");
+	ret = readl_poll_timeout_atomic(&cdns->otg_regs->sts, val,
+					val & OTGSTS_XHCI_READY, 1, 100000);
+
+	if (ret)
+		dev_err(cdns->dev, "timeout waiting for xhci_ready\n");
+
+	return ret;
+}
+
+/**
+ * cdns3_drd_host_off - stop host.
+ * @cdns: Pointer to controller context structure.
+ */
+void cdns3_drd_host_off(struct cdns3 *cdns)
+{
+	u32 val;
+
+	writel(OTGCMD_HOST_BUS_DROP | OTGCMD_DEV_BUS_DROP |
+	       OTGCMD_DEV_POWER_OFF | OTGCMD_HOST_POWER_OFF,
+	       &cdns->otg_regs->cmd);
+
+	/* Waiting till H_IDLE state.*/
+	readl_poll_timeout_atomic(&cdns->otg_regs->state, val,
+				  !(val & OTGSTATE_HOST_STATE_MASK),
+				  1, 2000000);
+}
+
+/**
+ * cdns3_drd_gadget_on - start gadget.
+ * @cdns: Pointer to controller context structure.
  *
  * Returns 0 on success otherwise negative errno
  */
-int cdns3_drd_switch_host(struct cdns3 *cdns, int on)
+int cdns3_drd_gadget_on(struct cdns3 *cdns)
 {
 	int ret, val;
+	u32 reg = OTGCMD_OTG_DIS;
 
 	/* switch OTG core */
-	if (on) {
-		writel(OTGCMD_HOST_BUS_REQ | OTGCMD_OTG_DIS,
-		       &cdns->otg_regs->cmd);
+	writel(OTGCMD_DEV_BUS_REQ | reg, &cdns->otg_regs->cmd);
 
-		dev_dbg(cdns->dev, "Waiting till Host mode is turned on\n");
-		ret = readl_poll_timeout_atomic(&cdns->otg_regs->sts, val,
-						val & OTGSTS_XHCI_READY,
-						1, 100000);
-		if (ret) {
-			dev_err(cdns->dev, "timeout waiting for xhci_ready\n");
-			return ret;
-		}
-	} else {
-		writel(OTGCMD_HOST_BUS_DROP | OTGCMD_DEV_BUS_DROP |
-		       OTGCMD_DEV_POWER_OFF | OTGCMD_HOST_POWER_OFF,
-		       &cdns->otg_regs->cmd);
-		/* Waiting till H_IDLE state.*/
-		readl_poll_timeout_atomic(&cdns->otg_regs->state, val,
-					  !(val & OTGSTATE_HOST_STATE_MASK),
-					  1, 2000000);
+	dev_dbg(cdns->dev, "Waiting till Device mode is turned on\n");
+
+	ret = readl_poll_timeout_atomic(&cdns->otg_regs->sts, val,
+					val & OTGSTS_DEV_READY,
+					1, 100000);
+	if (ret) {
+		dev_err(cdns->dev, "timeout waiting for dev_ready\n");
+		return ret;
 	}
 
 	return 0;
 }
 
 /**
- * cdns3_drd_switch_gadget - start/stop gadget
- * @cdns: Pointer to controller context structure
- * @on: 1 for start, 0 for stop
- *
- * Returns 0 on success otherwise negative errno
+ * cdns3_drd_gadget_off - stop gadget.
+ * @cdns: Pointer to controller context structure.
  */
-int cdns3_drd_switch_gadget(struct cdns3 *cdns, int on)
+void cdns3_drd_gadget_off(struct cdns3 *cdns)
 {
-	int ret, val;
-	u32 reg = OTGCMD_OTG_DIS;
+	u32 val;
 
-	/* switch OTG core */
-	if (on) {
-		writel(OTGCMD_DEV_BUS_REQ | reg, &cdns->otg_regs->cmd);
-
-		dev_dbg(cdns->dev, "Waiting till Device mode is turned on\n");
-
-		ret = readl_poll_timeout_atomic(&cdns->otg_regs->sts, val,
-						val & OTGSTS_DEV_READY,
-						1, 100000);
-		if (ret) {
-			dev_err(cdns->dev, "timeout waiting for dev_ready\n");
-			return ret;
-		}
-	} else {
-		/*
-		 * driver should wait at least 10us after disabling Device
-		 * before turning-off Device (DEV_BUS_DROP)
-		 */
-		usleep_range(20, 30);
-		writel(OTGCMD_HOST_BUS_DROP | OTGCMD_DEV_BUS_DROP |
-		       OTGCMD_DEV_POWER_OFF | OTGCMD_HOST_POWER_OFF,
-		       &cdns->otg_regs->cmd);
-		/* Waiting till DEV_IDLE state.*/
-		readl_poll_timeout_atomic(&cdns->otg_regs->state, val,
-					  !(val & OTGSTATE_DEV_STATE_MASK),
-					  1, 2000000);
-	}
-
-	return 0;
+	/*
+	 * Driver should wait at least 10us after disabling Device
+	 * before turning-off Device (DEV_BUS_DROP).
+	 */
+	usleep_range(20, 30);
+	writel(OTGCMD_HOST_BUS_DROP | OTGCMD_DEV_BUS_DROP |
+	       OTGCMD_DEV_POWER_OFF | OTGCMD_HOST_POWER_OFF,
+	       &cdns->otg_regs->cmd);
+	/* Waiting till DEV_IDLE state.*/
+	readl_poll_timeout_atomic(&cdns->otg_regs->state, val,
+				  !(val & OTGSTATE_DEV_STATE_MASK),
+				  1, 2000000);
 }
 
 /**

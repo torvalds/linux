@@ -3017,7 +3017,7 @@ void cdns3_gadget_exit(struct cdns3 *cdns)
 	kfree(priv_dev->zlp_buf);
 	kfree(priv_dev);
 	cdns->gadget_dev = NULL;
-	cdns3_drd_switch_gadget(cdns, 0);
+	cdns3_drd_gadget_off(cdns);
 }
 
 static int cdns3_gadget_start(struct cdns3 *cdns)
@@ -3148,7 +3148,7 @@ static int __cdns3_gadget_init(struct cdns3 *cdns)
 		return ret;
 	}
 
-	cdns3_drd_switch_gadget(cdns, 1);
+	cdns3_drd_gadget_on(cdns);
 	pm_runtime_get_sync(cdns->dev);
 
 	ret = cdns3_gadget_start(cdns);
