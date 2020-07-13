@@ -392,6 +392,7 @@ struct hl_cb_mgr {
  * @ctx_id: holds the ID of the owner's context.
  * @mmap: true if the CB is currently mmaped to user.
  * @is_pool: true if CB was acquired from the pool, false otherwise.
+ * @is_internal: internaly allocated
  */
 struct hl_cb {
 	struct kref		refcount;
@@ -408,6 +409,7 @@ struct hl_cb {
 	u32			ctx_id;
 	u8			mmap;
 	u8			is_pool;
+	u8			is_internal;
 };
 
 
@@ -643,6 +645,7 @@ enum div_select_defs {
  * @rreg: Read a register. Needed for simulator support.
  * @wreg: Write a register. Needed for simulator support.
  * @halt_coresight: stop the ETF and ETR traces.
+ * @ctx_init: context dependent initialization.
  * @get_clk_rate: Retrieve the ASIC current and maximum clock rate in MHz
  * @get_queue_id_for_cq: Get the H/W queue id related to the given CQ index.
  * @read_device_fw_version: read the device's firmware versions that are
@@ -745,6 +748,7 @@ struct hl_asic_funcs {
 	u32 (*rreg)(struct hl_device *hdev, u32 reg);
 	void (*wreg)(struct hl_device *hdev, u32 reg, u32 val);
 	void (*halt_coresight)(struct hl_device *hdev);
+	int (*ctx_init)(struct hl_ctx *ctx);
 	int (*get_clk_rate)(struct hl_device *hdev, u32 *cur_clk, u32 *max_clk);
 	u32 (*get_queue_id_for_cq)(struct hl_device *hdev, u32 cq_idx);
 	void (*read_device_fw_version)(struct hl_device *hdev,
@@ -1432,6 +1436,10 @@ struct hl_device_idle_busy_ts {
  * @hl_debugfs: device's debugfs manager.
  * @cb_pool: list of preallocated CBs.
  * @cb_pool_lock: protects the CB pool.
+ * @internal_cb_pool_virt_addr: internal command buffer pool virtual address.
+ * @internal_cb_pool_dma_addr: internal command buffer pool dma address.
+ * @internal_cb_pool: internal command buffer memory pool.
+ * @internal_cb_va_base: internal cb pool mmu virtual address base
  * @fpriv_list: list of file private data structures. Each structure is created
  *              when a user opens the device
  * @fpriv_list_lock: protects the fpriv_list
@@ -1530,6 +1538,11 @@ struct hl_device {
 
 	struct list_head		cb_pool;
 	spinlock_t			cb_pool_lock;
+
+	void				*internal_cb_pool_virt_addr;
+	dma_addr_t			internal_cb_pool_dma_addr;
+	struct gen_pool			*internal_cb_pool;
+	u64				internal_cb_va_base;
 
 	struct list_head		fpriv_list;
 	struct mutex			fpriv_list_lock;
@@ -1741,7 +1754,7 @@ int hl_hwmon_init(struct hl_device *hdev);
 void hl_hwmon_fini(struct hl_device *hdev);
 
 int hl_cb_create(struct hl_device *hdev, struct hl_cb_mgr *mgr, u32 cb_size,
-		u64 *handle, int ctx_id);
+		u64 *handle, int ctx_id, bool internal_cb);
 int hl_cb_destroy(struct hl_device *hdev, struct hl_cb_mgr *mgr, u64 cb_handle);
 int hl_cb_mmap(struct hl_fpriv *hpriv, struct vm_area_struct *vma);
 struct hl_cb *hl_cb_get(struct hl_device *hdev,	struct hl_cb_mgr *mgr,
@@ -1749,7 +1762,8 @@ struct hl_cb *hl_cb_get(struct hl_device *hdev,	struct hl_cb_mgr *mgr,
 void hl_cb_put(struct hl_cb *cb);
 void hl_cb_mgr_init(struct hl_cb_mgr *mgr);
 void hl_cb_mgr_fini(struct hl_device *hdev, struct hl_cb_mgr *mgr);
-struct hl_cb *hl_cb_kernel_create(struct hl_device *hdev, u32 cb_size);
+struct hl_cb *hl_cb_kernel_create(struct hl_device *hdev, u32 cb_size,
+					bool internal_cb);
 int hl_cb_pool_init(struct hl_device *hdev);
 int hl_cb_pool_fini(struct hl_device *hdev);
 

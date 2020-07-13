@@ -635,7 +635,7 @@ static int _gaudi_init_tpc_mem(struct hl_device *hdev,
 	u8 tpc_id;
 	int rc;
 
-	cb = hl_cb_kernel_create(hdev, PAGE_SIZE);
+	cb = hl_cb_kernel_create(hdev, PAGE_SIZE, false);
 	if (!cb)
 		return -EFAULT;
 
@@ -4048,9 +4048,8 @@ static int gaudi_parse_cb_mmu(struct hl_device *hdev,
 	parser->patched_cb_size = parser->user_cb_size +
 			sizeof(struct packet_msg_prot) * 2;
 
-	rc = hl_cb_create(hdev, &hdev->kernel_cb_mgr,
-				parser->patched_cb_size,
-				&patched_cb_handle, HL_KERNEL_ASID_ID);
+	rc = hl_cb_create(hdev, &hdev->kernel_cb_mgr, parser->patched_cb_size,
+			&patched_cb_handle, HL_KERNEL_ASID_ID, false);
 
 	if (rc) {
 		dev_err(hdev->dev,
@@ -4122,9 +4121,8 @@ static int gaudi_parse_cb_no_mmu(struct hl_device *hdev,
 	if (rc)
 		goto free_userptr;
 
-	rc = hl_cb_create(hdev, &hdev->kernel_cb_mgr,
-				parser->patched_cb_size,
-				&patched_cb_handle, HL_KERNEL_ASID_ID);
+	rc = hl_cb_create(hdev, &hdev->kernel_cb_mgr, parser->patched_cb_size,
+			&patched_cb_handle, HL_KERNEL_ASID_ID, false);
 	if (rc) {
 		dev_err(hdev->dev,
 			"Failed to allocate patched CB for DMA CS %d\n", rc);
@@ -4257,7 +4255,7 @@ static int gaudi_memset_device_memory(struct hl_device *hdev, u64 addr,
 	struct hl_cb *cb;
 	int rc;
 
-	cb = hl_cb_kernel_create(hdev, PAGE_SIZE);
+	cb = hl_cb_kernel_create(hdev, PAGE_SIZE, false);
 	if (!cb)
 		return -EFAULT;
 
@@ -6229,6 +6227,11 @@ static enum hl_device_hw_state gaudi_get_hw_state(struct hl_device *hdev)
 	return RREG32(mmHW_STATE);
 }
 
+int gaudi_ctx_init(struct hl_ctx *ctx)
+{
+	return 0;
+}
+
 static u32 gaudi_get_queue_id_for_cq(struct hl_device *hdev, u32 cq_idx)
 {
 	return gaudi_cq_assignment[cq_idx];
@@ -6532,6 +6535,7 @@ static const struct hl_asic_funcs gaudi_funcs = {
 	.rreg = hl_rreg,
 	.wreg = hl_wreg,
 	.halt_coresight = gaudi_halt_coresight,
+	.ctx_init = gaudi_ctx_init,
 	.get_clk_rate = gaudi_get_clk_rate,
 	.get_queue_id_for_cq = gaudi_get_queue_id_for_cq,
 	.read_device_fw_version = gaudi_read_device_fw_version,

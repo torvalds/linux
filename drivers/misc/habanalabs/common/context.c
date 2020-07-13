@@ -153,10 +153,18 @@ int hl_ctx_init(struct hl_device *hdev, struct hl_ctx *ctx, bool is_kernel_ctx)
 			rc = -ENOMEM;
 			goto mem_ctx_err;
 		}
+
+		rc = hdev->asic_funcs->ctx_init(ctx);
+		if (rc) {
+			dev_err(hdev->dev, "ctx_init failed\n");
+			goto ctx_init_err;
+		}
 	}
 
 	return 0;
 
+ctx_init_err:
+	hl_vm_ctx_fini(ctx);
 mem_ctx_err:
 	if (ctx->asid != HL_KERNEL_ASID_ID)
 		hl_asid_free(hdev, ctx->asid);

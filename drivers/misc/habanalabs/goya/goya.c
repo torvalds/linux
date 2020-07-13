@@ -3771,9 +3771,8 @@ static int goya_parse_cb_mmu(struct hl_device *hdev,
 	parser->patched_cb_size = parser->user_cb_size +
 			sizeof(struct packet_msg_prot) * 2;
 
-	rc = hl_cb_create(hdev, &hdev->kernel_cb_mgr,
-				parser->patched_cb_size,
-				&patched_cb_handle, HL_KERNEL_ASID_ID);
+	rc = hl_cb_create(hdev, &hdev->kernel_cb_mgr, parser->patched_cb_size,
+			&patched_cb_handle, HL_KERNEL_ASID_ID, false);
 
 	if (rc) {
 		dev_err(hdev->dev,
@@ -3845,9 +3844,8 @@ static int goya_parse_cb_no_mmu(struct hl_device *hdev,
 	if (rc)
 		goto free_userptr;
 
-	rc = hl_cb_create(hdev, &hdev->kernel_cb_mgr,
-				parser->patched_cb_size,
-				&patched_cb_handle, HL_KERNEL_ASID_ID);
+	rc = hl_cb_create(hdev, &hdev->kernel_cb_mgr, parser->patched_cb_size,
+			&patched_cb_handle, HL_KERNEL_ASID_ID, false);
 	if (rc) {
 		dev_err(hdev->dev,
 			"Failed to allocate patched CB for DMA CS %d\n", rc);
@@ -4693,7 +4691,7 @@ static int goya_memset_device_memory(struct hl_device *hdev, u64 addr, u64 size,
 	lin_dma_pkts_cnt = DIV_ROUND_UP_ULL(size, SZ_2G);
 	cb_size = lin_dma_pkts_cnt * sizeof(struct packet_lin_dma) +
 						sizeof(struct packet_msg_prot);
-	cb = hl_cb_kernel_create(hdev, cb_size);
+	cb = hl_cb_kernel_create(hdev, cb_size, false);
 	if (!cb)
 		return -ENOMEM;
 
@@ -5223,6 +5221,11 @@ static enum hl_device_hw_state goya_get_hw_state(struct hl_device *hdev)
 	return RREG32(mmHW_STATE);
 }
 
+int goya_ctx_init(struct hl_ctx *ctx)
+{
+	return 0;
+}
+
 u32 goya_get_queue_id_for_cq(struct hl_device *hdev, u32 cq_idx)
 {
 	return cq_idx;
@@ -5336,6 +5339,7 @@ static const struct hl_asic_funcs goya_funcs = {
 	.rreg = hl_rreg,
 	.wreg = hl_wreg,
 	.halt_coresight = goya_halt_coresight,
+	.ctx_init = goya_ctx_init,
 	.get_clk_rate = goya_get_clk_rate,
 	.get_queue_id_for_cq = goya_get_queue_id_for_cq,
 	.read_device_fw_version = goya_read_device_fw_version,

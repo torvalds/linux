@@ -919,18 +919,19 @@ static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 		goto put_cs;
 	}
 
-	cb = hl_cb_kernel_create(hdev, PAGE_SIZE);
+	if (cs->type == CS_TYPE_WAIT)
+		cb_size = hdev->asic_funcs->get_wait_cb_size(hdev);
+	else
+		cb_size = hdev->asic_funcs->get_signal_cb_size(hdev);
+
+	cb = hl_cb_kernel_create(hdev, cb_size,
+				q_type == QUEUE_TYPE_HW && hdev->mmu_enable);
 	if (!cb) {
 		ctx->cs_counters.out_of_mem_drop_cnt++;
 		kfree(job);
 		rc = -EFAULT;
 		goto put_cs;
 	}
-
-	if (cs->type == CS_TYPE_WAIT)
-		cb_size = hdev->asic_funcs->get_wait_cb_size(hdev);
-	else
-		cb_size = hdev->asic_funcs->get_signal_cb_size(hdev);
 
 	job->id = 0;
 	job->cs = cs;
