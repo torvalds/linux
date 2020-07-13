@@ -684,3 +684,21 @@ void flush_dcache_icache_hugepage(struct page *page)
 		}
 	}
 }
+
+void __init gigantic_hugetlb_cma_reserve(void)
+{
+	unsigned long order = 0;
+
+	if (radix_enabled())
+		order = PUD_SHIFT - PAGE_SHIFT;
+	else if (!firmware_has_feature(FW_FEATURE_LPAR) && mmu_psize_defs[MMU_PAGE_16G].shift)
+		/*
+		 * For pseries we do use ibm,expected#pages for reserving 16G pages.
+		 */
+		order = mmu_psize_to_shift(MMU_PAGE_16G) - PAGE_SHIFT;
+
+	if (order) {
+		VM_WARN_ON(order < MAX_ORDER);
+		hugetlb_cma_reserve(order);
+	}
+}
