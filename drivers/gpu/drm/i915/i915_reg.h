@@ -7733,6 +7733,10 @@ enum {
 #define  GEN11_GT_DW1_IRQ		(1 << 1)
 #define  GEN11_GT_DW0_IRQ		(1 << 0)
 
+#define DG1_MSTR_UNIT_INTR		_MMIO(0x190008)
+#define   DG1_MSTR_IRQ			REG_BIT(31)
+#define   DG1_MSTR_UNIT(u)		REG_BIT(u)
+
 #define GEN11_DISPLAY_INT_CTL		_MMIO(0x44200)
 #define  GEN11_DISPLAY_IRQ_ENABLE	(1 << 31)
 #define  GEN11_AUDIO_CODEC_IRQ		(1 << 24)

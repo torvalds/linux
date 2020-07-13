@@ -495,6 +495,10 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 		seq_printf(m, "PCU interrupt enable:\t%08x\n",
 			   I915_READ(GEN8_PCU_IER));
 	} else if (INTEL_GEN(dev_priv) >= 11) {
+		if (HAS_MASTER_UNIT_IRQ(dev_priv))
+			seq_printf(m, "Master Unit Interrupt Control:  %08x\n",
+				   I915_READ(DG1_MSTR_UNIT_INTR));
+
 		seq_printf(m, "Master Interrupt Control:  %08x\n",
 			   I915_READ(GEN11_GFX_MSTR_IRQ));
 
