@@ -2224,6 +2224,7 @@ static inline void ql_write_db_reg_relaxed(u32 val, void __iomem *addr)
 static inline u32 ql_read_sh_reg(__le32  *addr)
 {
 	u32 reg;
+
 	reg =  le32_to_cpu(*addr);
 	rmb();
 	return reg;
