@@ -776,7 +776,6 @@ static void allegro_mcu_send_init(struct allegro_dev *dev,
 	memset(&msg, 0, sizeof(msg));
 
 	msg.header.type = MCU_MSG_TYPE_INIT;
-	msg.header.length = sizeof(msg) - sizeof(msg.header);
 
 	msg.suballoc_dma = to_mcu_addr(dev, suballoc_dma);
 	msg.suballoc_size = to_mcu_size(dev, suballoc_size);
@@ -995,7 +994,6 @@ static int allegro_mcu_send_create_channel(struct allegro_dev *dev,
 	memset(&msg, 0, sizeof(msg));
 
 	msg.header.type = MCU_MSG_TYPE_CREATE_CHANNEL;
-	msg.header.length = sizeof(msg) - sizeof(msg.header);
 
 	msg.user_id = channel->user_id;
 
@@ -1016,7 +1014,6 @@ static int allegro_mcu_send_destroy_channel(struct allegro_dev *dev,
 	memset(&msg, 0, sizeof(msg));
 
 	msg.header.type = MCU_MSG_TYPE_DESTROY_CHANNEL;
-	msg.header.length = sizeof(msg) - sizeof(msg.header);
 
 	msg.channel_id = channel->mcu_channel_id;
 
@@ -1036,7 +1033,6 @@ static int allegro_mcu_send_put_stream_buffer(struct allegro_dev *dev,
 	memset(&msg, 0, sizeof(msg));
 
 	msg.header.type = MCU_MSG_TYPE_PUT_STREAM_BUFFER;
-	msg.header.length = sizeof(msg) - sizeof(msg.header);
 
 	msg.channel_id = channel->mcu_channel_id;
 	msg.dma_addr = to_codec_addr(dev, paddr);
@@ -1061,7 +1057,6 @@ static int allegro_mcu_send_encode_frame(struct allegro_dev *dev,
 	memset(&msg, 0, sizeof(msg));
 
 	msg.header.type = MCU_MSG_TYPE_ENCODE_FRAME;
-	msg.header.length = sizeof(msg) - sizeof(msg.header);
 
 	msg.channel_id = channel->mcu_channel_id;
 	msg.encoding_options = AL_OPT_FORCE_LOAD;
@@ -1125,7 +1120,6 @@ static int allegro_mcu_push_buffer_internal(struct allegro_channel *channel,
 	if (!msg)
 		return -ENOMEM;
 
-	msg->header.length = size - sizeof(msg->header);
 	msg->header.type = type;
 	msg->channel_id = channel->mcu_channel_id;
 	msg->num_buffers = num_buffers;

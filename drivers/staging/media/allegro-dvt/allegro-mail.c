@@ -257,8 +257,6 @@ allegro_dec_init(struct mcu_msg_init_response *msg, u32 *src)
 {
 	unsigned int i = 0;
 
-	msg->header.type = FIELD_GET(GENMASK(31, 16), src[i]);
-	msg->header.length = FIELD_GET(GENMASK(15, 0), src[i++]);
 	msg->reserved0 = src[i++];
 
 	return i * sizeof(*src);
@@ -270,8 +268,6 @@ allegro_dec_create_channel(struct mcu_msg_create_channel_response *msg,
 {
 	unsigned int i = 0;
 
-	msg->header.type = FIELD_GET(GENMASK(31, 16), src[i]);
-	msg->header.length = FIELD_GET(GENMASK(15, 0), src[i++]);
 	msg->channel_id = src[i++];
 	msg->user_id = src[i++];
 	msg->options = src[i++];
@@ -294,8 +290,6 @@ allegro_dec_destroy_channel(struct mcu_msg_destroy_channel_response *msg,
 {
 	unsigned int i = 0;
 
-	msg->header.type = FIELD_GET(GENMASK(31, 16), src[i]);
-	msg->header.length = FIELD_GET(GENMASK(15, 0), src[i++]);
 	msg->channel_id = src[i++];
 
 	return i * sizeof(*src);
@@ -307,8 +301,6 @@ allegro_dec_encode_frame(struct mcu_msg_encode_frame_response *msg, u32 *src)
 	unsigned int i = 0;
 	unsigned int j;
 
-	msg->header.type = FIELD_GET(GENMASK(31, 16), src[i]);
-	msg->header.length = FIELD_GET(GENMASK(15, 0), src[i++]);
 	msg->channel_id = src[i++];
 
 	msg->stream_id = src[i++];
@@ -418,7 +410,10 @@ int allegro_decode_mail(void *msg, u32 *src)
 	if (!src || !msg)
 		return -EINVAL;
 
-	header = (struct mcu_msg_header *)src;
+	header = msg;
+	header->type = FIELD_GET(GENMASK(31, 16), src[0]);
+
+	src++;
 	switch (header->type) {
 	case MCU_MSG_TYPE_INIT:
 		allegro_dec_init(msg, src);

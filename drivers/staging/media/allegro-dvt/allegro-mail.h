@@ -23,8 +23,7 @@ enum mcu_msg_type {
 const char *msg_type_name(enum mcu_msg_type type);
 
 struct mcu_msg_header {
-	u16 length;		/* length of the body in bytes */
-	u16 type;
+	enum mcu_msg_type type;
 };
 
 struct mcu_msg_init_request {
