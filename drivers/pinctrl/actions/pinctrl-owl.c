@@ -35,8 +35,12 @@
  * @pctrldev: pinctrl handle
  * @chip: gpio chip
  * @lock: spinlock to protect registers
+ * @clk: clock control
  * @soc: reference to soc_data
  * @base: pinctrl register base address
+ * @irq_chip: IRQ chip information
+ * @num_irq: number of possible interrupts
+ * @irq: interrupt numbers
  */
 struct owl_pinctrl {
 	struct device *dev;
