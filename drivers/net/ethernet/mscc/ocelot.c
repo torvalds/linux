@@ -1401,6 +1401,10 @@ void ocelot_configure_cpu(struct ocelot *ocelot, int npi,
 				    extraction);
 		ocelot_fields_write(ocelot, npi, SYS_PORT_MODE_INCL_INJ_HDR,
 				    injection);
+
+		/* Disable transmission of pause frames */
+		ocelot_rmw_rix(ocelot, 0, SYS_PAUSE_CFG_PAUSE_ENA,
+			       SYS_PAUSE_CFG, npi);
 	}
 
 	/* Enable CPU port module */
