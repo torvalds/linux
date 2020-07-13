@@ -156,7 +156,7 @@ allegro_enc_push_buffers(u32 *dst, struct mcu_msg_push_buffers_internal *msg)
 {
 	unsigned int i = 0;
 	struct mcu_msg_push_buffers_internal_buffer *buffer;
-	unsigned int num_buffers = (msg->header.length - 4) / sizeof(*buffer);
+	unsigned int num_buffers = msg->num_buffers;
 	unsigned int j;
 
 	dst[i++] = msg->channel_id;

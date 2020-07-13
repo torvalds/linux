@@ -1115,6 +1115,7 @@ static int allegro_mcu_push_buffer_internal(struct allegro_channel *channel,
 	msg->header.length = size - sizeof(msg->header);
 	msg->header.type = type;
 	msg->channel_id = channel->mcu_channel_id;
+	msg->num_buffers = num_buffers;
 
 	buffer = msg->buffer;
 	list_for_each_entry(al_buffer, list, head) {
