@@ -240,7 +240,6 @@
 
 		target-module@62000 {			/* 0x4a062000, ap 11 16.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "usb_tll_hs";
 			reg = <0x62000 0x4>,
 			      <0x62010 0x4>,
 			      <0x62014 0x4>;
@@ -268,7 +267,6 @@
 
 		target-module@64000 {			/* 0x4a064000, ap 86 1e.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "usb_host_hs";
 			reg = <0x64000 0x4>,
 			      <0x64010 0x4>,
 			      <0x64014 0x4>;
