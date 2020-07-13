@@ -343,6 +343,9 @@ static void shp_config(struct rkispp_params_vdev *params_vdev,
 	void __iomem *base = params_vdev->dev->base_addr;
 	u32 i, val;
 
+	rkispp_set_bits(base + RKISPP_SHARP_CTRL, SW_SHP_WR_ROT_MODE(3),
+			SW_SHP_WR_ROT_MODE(arg->rotation));
+
 	rkispp_write(base + RKISPP_SHARP_SC_DOWN,
 		(arg->scl_down_v & 0x1) << 1 | (arg->scl_down_h & 0x1));
 

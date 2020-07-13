@@ -167,6 +167,7 @@ struct rkispp_nr_config {
 } __attribute__ ((packed));
 
 struct rkispp_sharp_config {
+	u8 rotation;
 	u8 scl_down_v;
 	u8 scl_down_h;
 	u8 tile_ycnt;

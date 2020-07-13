@@ -1041,6 +1041,8 @@ static int config_mb(struct rkispp_stream *stream)
 	}
 	if (stream->out_cap_fmt.wr_fmt & FMT_YUYV)
 		mult = 2;
+	else if (stream->out_cap_fmt.wr_fmt & FMT_FBC)
+		mult = 0;
 	set_vir_stride(stream, ALIGN(stream->out_fmt.width * mult, 16) >> 2);
 	v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
 		 "%s last module:%d\n", __func__, i);
