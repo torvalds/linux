@@ -22,6 +22,7 @@ enum mcu_msg_type {
 
 enum mcu_msg_version {
 	MCU_MSG_VERSION_2018_2,
+	MCU_MSG_VERSION_2019_2,
 };
 
 const char *msg_type_name(enum mcu_msg_type type);
@@ -46,11 +47,14 @@ struct mcu_msg_init_response {
 
 struct create_channel_param {
 	enum mcu_msg_version version;
+	u32 layer_id;
 	u16 width;
 	u16 height;
+	u32 videomode;
 	u32 format;
 	u32 colorspace;
 	u32 src_mode;
+	u32 src_bit_depth;
 	u8 profile;
 	u16 constraint_set_flags;
 	u32 codec;
@@ -59,9 +63,11 @@ struct create_channel_param {
 	u32 log2_max_poc;
 	u32 log2_max_frame_num;
 	u32 temporal_mvp_enable;
+	u32 enable_reordering;
 	u32 dbf_ovr_en;
 	u32 num_ref_idx_l0;
 	u32 num_ref_idx_l1;
+	u32 custom_lda;
 	u32 rdo_cost_mode;
 	u32 lf;
 	u32 lf_x_tile;
@@ -105,6 +111,10 @@ struct create_channel_param {
 	u16 golden_delta;
 	u16 golden_ref_frequency;
 	u32 rate_control_option;
+	u32 num_pixel;
+	u16 max_psnr;
+	u16 max_pixel_value;
+	u32 maxpicturesize[3];
 
 	/* gop param */
 	u32 gop_ctrl_mode;
@@ -114,10 +124,16 @@ struct create_channel_param {
 	u16 gop_length;
 	u8 num_b;
 	u8 freq_golden_ref;
+	u32 enable_lt;
+	u32 tmpdqp;
 
 	u32 subframe_latency;
 	u32 lda_control_mode;
 	u32 unknown41;
+
+	u32 lda_factors[6];
+
+	u32 max_num_merge_cand;
 };
 
 struct mcu_msg_create_channel {
@@ -126,6 +142,7 @@ struct mcu_msg_create_channel {
 	u32 *blob;
 	size_t blob_size;
 	u32 blob_mcu_addr;
+	u32 ep1_addr;
 };
 
 struct mcu_msg_create_channel_response {
@@ -203,9 +220,12 @@ struct mcu_msg_encode_frame {
 	/* u32 scene_change_delay (optional) */
 	/* rate control param (optional) */
 	/* gop param (optional) */
+	/* dynamic resolution params (optional) */
 	u32 src_y;
 	u32 src_uv;
+	u32 is_10_bit;
 	u32 stride;
+	u32 format;
 	u32 ep2;
 	u64 ep2_v;
 };
@@ -249,6 +269,10 @@ struct mcu_msg_encode_frame_response {
 	u16 pps_qp;
 	u16 reserved1;
 	u32 reserved2;
+	u32 reserved3;
+	u32 reserved4;
+	u32 reserved5;
+	u32 reserved6;
 };
 
 union mcu_msg_response {

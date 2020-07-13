@@ -292,6 +292,15 @@ static const struct fw_info supported_firmware[] = {
 		.mailbox_size = 0x400 - 0x8,
 		.mailbox_version = MCU_MSG_VERSION_2018_2,
 		.suballocator_size = SZ_16M,
+	}, {
+		.id = 14680,
+		.id_codec = 126572,
+		.version = "v2019.2",
+		.mailbox_cmd = 0x7000,
+		.mailbox_status = 0x7800,
+		.mailbox_size = 0x800 - 0x8,
+		.mailbox_version = MCU_MSG_VERSION_2019_2,
+		.suballocator_size = SZ_32M,
 	},
 };
 
@@ -930,9 +939,12 @@ static int fill_create_channel_param(struct allegro_channel *channel,
 
 	param->dbf_ovr_en = 1;
 	param->rdo_cost_mode = 1;
+	param->custom_lda = 1;
 	param->lf = 1;
 	param->lf_x_tile = 1;
 	param->lf_x_slice = 1;
+
+	param->src_bit_depth = 8;
 
 	param->beta_offset = -1;
 	param->tc_offset = -1;
@@ -974,12 +986,25 @@ static int fill_create_channel_param(struct allegro_channel *channel,
 	param->golden_ref_frequency = 10;
 	param->rate_control_option = 0x00000000;
 
-	param->gop_ctrl_mode = 0x00000000;
+	param->num_pixel = channel->width + channel->height;
+	param->max_psnr = 4200;
+	param->max_pixel_value = 255;
+
+	param->gop_ctrl_mode = 0x00000002;
 	param->freq_idr = channel->gop_size;
 	param->freq_lt = 0;
 	param->gdr_mode = 0x00000000;
 	param->gop_length = channel->gop_size;
 	param->subframe_latency = 0x00000000;
+
+	param->lda_factors[0] = 51;
+	param->lda_factors[1] = 90;
+	param->lda_factors[2] = 151;
+	param->lda_factors[3] = 151;
+	param->lda_factors[4] = 151;
+	param->lda_factors[5] = 151;
+
+	param->max_num_merge_cand = 5;
 
 	return 0;
 }

@@ -44,6 +44,7 @@ static ssize_t
 allegro_enc_init(u32 *dst, struct mcu_msg_init_request *msg)
 {
 	unsigned int i = 0;
+	enum mcu_msg_version version = msg->header.version;
 
 	dst[i++] = msg->reserved0;
 	dst[i++] = msg->suballoc_dma;
@@ -51,33 +52,55 @@ allegro_enc_init(u32 *dst, struct mcu_msg_init_request *msg)
 	dst[i++] = msg->l2_cache[0];
 	dst[i++] = msg->l2_cache[1];
 	dst[i++] = msg->l2_cache[2];
+	if (version >= MCU_MSG_VERSION_2019_2) {
+		dst[i++] = -1;
+		dst[i++] = 0;
+	}
 
 	return i * sizeof(*dst);
 }
 
 static inline u32 settings_get_mcu_codec(struct create_channel_param *param)
 {
+	enum mcu_msg_version version = param->version;
 	u32 pixelformat = param->codec;
 
-	switch (pixelformat) {
-	case V4L2_PIX_FMT_H264:
-	default:
-		return 1;
+	if (version < MCU_MSG_VERSION_2019_2) {
+		switch (pixelformat) {
+		case V4L2_PIX_FMT_H264:
+		default:
+			return 1;
+		}
+	} else {
+		switch (pixelformat) {
+		case V4L2_PIX_FMT_H264:
+		default:
+			return 0;
+		}
 	}
 }
 
 ssize_t
 allegro_encode_config_blob(u32 *dst, struct create_channel_param *param)
 {
+	enum mcu_msg_version version = param->version;
 	unsigned int i = 0;
+	unsigned int j = 0;
 	u32 val;
 	unsigned int codec = settings_get_mcu_codec(param);
 
+	if (version >= MCU_MSG_VERSION_2019_2)
+		dst[i++] = param->layer_id;
 	dst[i++] = FIELD_PREP(GENMASK(31, 16), param->height) |
 		   FIELD_PREP(GENMASK(15, 0), param->width);
+	if (version >= MCU_MSG_VERSION_2019_2)
+		dst[i++] = param->videomode;
 	dst[i++] = param->format;
-	dst[i++] = param->colorspace;
+	if (version < MCU_MSG_VERSION_2019_2)
+		dst[i++] = param->colorspace;
 	dst[i++] = param->src_mode;
+	if (version >= MCU_MSG_VERSION_2019_2)
+		dst[i++] = param->src_bit_depth;
 	dst[i++] = FIELD_PREP(GENMASK(31, 24), codec) |
 		   FIELD_PREP(GENMASK(23, 8), param->constraint_set_flags) |
 		   FIELD_PREP(GENMASK(7, 0), param->profile);
@@ -94,19 +117,31 @@ allegro_encode_config_blob(u32 *dst, struct create_channel_param *param)
 	val |= param->dbf_ovr_en ? BIT(2) : 0;
 	dst[i++] = val;
 
-	val = 0;
-	val |= param->lf ? BIT(2) : 0;
-	val |= param->lf_x_tile ? BIT(3) : 0;
-	val |= param->lf_x_slice ? BIT(4) : 0;
-	val |= param->rdo_cost_mode ? BIT(20) : 0;
-	dst[i++] = val;
+	if (version >= MCU_MSG_VERSION_2019_2) {
+		val = 0;
+		val |= param->custom_lda ? BIT(2) : 0;
+		val |= param->rdo_cost_mode ? BIT(20) : 0;
+		dst[i++] = val;
+
+		val = 0;
+		val |= param->lf ? BIT(2) : 0;
+		val |= param->lf_x_tile ? BIT(3) : 0;
+		val |= param->lf_x_slice ? BIT(4) : 0;
+		dst[i++] = val;
+	} else {
+		val = 0;
+		dst[i++] = val;
+	}
 
 	dst[i++] = FIELD_PREP(GENMASK(15, 8), param->beta_offset) |
 		   FIELD_PREP(GENMASK(7, 0), param->tc_offset);
 	dst[i++] = param->unknown11;
 	dst[i++] = param->unknown12;
-	dst[i++] = FIELD_PREP(GENMASK(31, 16), param->prefetch_auto) |
-		   FIELD_PREP(GENMASK(15, 0), param->num_slices);
+	if (version >= MCU_MSG_VERSION_2019_2)
+		dst[i++] = param->num_slices;
+	else
+		dst[i++] = FIELD_PREP(GENMASK(31, 16), param->prefetch_auto) |
+			   FIELD_PREP(GENMASK(15, 0), param->num_slices);
 	dst[i++] = param->prefetch_mem_offset;
 	dst[i++] = param->prefetch_mem_size;
 	dst[i++] = FIELD_PREP(GENMASK(31, 16), param->clip_vrt_range) |
@@ -139,19 +174,51 @@ allegro_encode_config_blob(u32 *dst, struct create_channel_param *param)
 		   FIELD_PREP(GENMASK(15, 0), param->pb_delta);
 	dst[i++] = FIELD_PREP(GENMASK(31, 16), param->golden_ref_frequency) |
 		   FIELD_PREP(GENMASK(15, 0), param->golden_delta);
-	dst[i++] = param->rate_control_option;
+	if (version >= MCU_MSG_VERSION_2019_2)
+		dst[i++] = param->rate_control_option;
+	else
+		dst[i++] = 0;
 
-	dst[i++] = param->gop_ctrl_mode;
+	if (version >= MCU_MSG_VERSION_2019_2) {
+		dst[i++] = param->num_pixel;
+		dst[i++] = FIELD_PREP(GENMASK(31, 16), param->max_pixel_value) |
+			FIELD_PREP(GENMASK(15, 0), param->max_psnr);
+		for (j = 0; j < 3; j++)
+			dst[i++] = param->maxpicturesize[j];
+	}
+
+	if (version >= MCU_MSG_VERSION_2019_2)
+		dst[i++] = param->gop_ctrl_mode;
+	else
+		dst[i++] = 0;
+
+	if (version >= MCU_MSG_VERSION_2019_2)
+		dst[i++] = FIELD_PREP(GENMASK(31, 24), param->freq_golden_ref) |
+			   FIELD_PREP(GENMASK(23, 16), param->num_b) |
+			   FIELD_PREP(GENMASK(15, 0), param->gop_length);
 	dst[i++] = param->freq_idr;
+	if (version >= MCU_MSG_VERSION_2019_2)
+		dst[i++] = param->enable_lt;
 	dst[i++] = param->freq_lt;
 	dst[i++] = param->gdr_mode;
-	dst[i++] = FIELD_PREP(GENMASK(31, 24), param->freq_golden_ref) |
-		   FIELD_PREP(GENMASK(23, 16), param->num_b) |
-		   FIELD_PREP(GENMASK(15, 0), param->gop_length);
+	if (version < MCU_MSG_VERSION_2019_2)
+		dst[i++] = FIELD_PREP(GENMASK(31, 24), param->freq_golden_ref) |
+			   FIELD_PREP(GENMASK(23, 16), param->num_b) |
+			   FIELD_PREP(GENMASK(15, 0), param->gop_length);
+
+	if (version >= MCU_MSG_VERSION_2019_2)
+		dst[i++] = param->tmpdqp;
 
 	dst[i++] = param->subframe_latency;
 	dst[i++] = param->lda_control_mode;
-	dst[i++] = param->unknown41;
+	if (version < MCU_MSG_VERSION_2019_2)
+		dst[i++] = param->unknown41;
+
+	if (version >= MCU_MSG_VERSION_2019_2) {
+		for (j = 0; j < 6; j++)
+			dst[i++] = param->lda_factors[j];
+		dst[i++] = param->max_num_merge_cand;
+	}
 
 	return i * sizeof(*dst);
 }
@@ -159,12 +226,20 @@ allegro_encode_config_blob(u32 *dst, struct create_channel_param *param)
 static ssize_t
 allegro_enc_create_channel(u32 *dst, struct mcu_msg_create_channel *msg)
 {
+	enum mcu_msg_version version = msg->header.version;
 	unsigned int i = 0;
 
 	dst[i++] = msg->user_id;
 
-	memcpy(&dst[i], msg->blob, msg->blob_size);
-	i += msg->blob_size / sizeof(*dst);
+	if (version >= MCU_MSG_VERSION_2019_2) {
+		dst[i++] = msg->blob_mcu_addr;
+	} else {
+		memcpy(&dst[i], msg->blob, msg->blob_size);
+		i += msg->blob_size / sizeof(*dst);
+	}
+
+	if (version >= MCU_MSG_VERSION_2019_2)
+		dst[i++] = msg->ep1_addr;
 
 	return i * sizeof(*dst);
 }
@@ -173,8 +248,15 @@ ssize_t allegro_decode_config_blob(struct create_channel_param *param,
 				   struct mcu_msg_create_channel_response *msg,
 				   u32 *src)
 {
-	param->num_ref_idx_l0 = msg->num_ref_idx_l0;
-	param->num_ref_idx_l1 = msg->num_ref_idx_l1;
+	enum mcu_msg_version version = msg->header.version;
+
+	if (version >= MCU_MSG_VERSION_2019_2) {
+		param->num_ref_idx_l0 = FIELD_GET(GENMASK(7, 4), src[9]);
+		param->num_ref_idx_l1 = FIELD_GET(GENMASK(11, 8), src[9]);
+	} else {
+		param->num_ref_idx_l0 = msg->num_ref_idx_l0;
+		param->num_ref_idx_l1 = msg->num_ref_idx_l1;
+	}
 
 	return 0;
 }
@@ -229,6 +311,7 @@ allegro_enc_put_stream_buffer(u32 *dst,
 static ssize_t
 allegro_enc_encode_frame(u32 *dst, struct mcu_msg_encode_frame *msg)
 {
+	enum mcu_msg_version version = msg->header.version;
 	unsigned int i = 0;
 
 	dst[i++] = msg->channel_id;
@@ -237,6 +320,14 @@ allegro_enc_encode_frame(u32 *dst, struct mcu_msg_encode_frame *msg)
 	dst[i++] = msg->encoding_options;
 	dst[i++] = FIELD_PREP(GENMASK(31, 16), msg->padding) |
 		   FIELD_PREP(GENMASK(15, 0), msg->pps_qp);
+
+	if (version >= MCU_MSG_VERSION_2019_2) {
+		dst[i++] = 0;
+		dst[i++] = 0;
+		dst[i++] = 0;
+		dst[i++] = 0;
+	}
+
 	dst[i++] = lower_32_bits(msg->user_param);
 	dst[i++] = upper_32_bits(msg->user_param);
 	dst[i++] = lower_32_bits(msg->src_handle);
@@ -244,7 +335,11 @@ allegro_enc_encode_frame(u32 *dst, struct mcu_msg_encode_frame *msg)
 	dst[i++] = msg->request_options;
 	dst[i++] = msg->src_y;
 	dst[i++] = msg->src_uv;
+	if (version >= MCU_MSG_VERSION_2019_2)
+		dst[i++] = msg->is_10_bit;
 	dst[i++] = msg->stride;
+	if (version >= MCU_MSG_VERSION_2019_2)
+		dst[i++] = msg->format;
 	dst[i++] = msg->ep2;
 	dst[i++] = lower_32_bits(msg->ep2_v);
 	dst[i++] = upper_32_bits(msg->ep2_v);
@@ -266,14 +361,21 @@ static ssize_t
 allegro_dec_create_channel(struct mcu_msg_create_channel_response *msg,
 			   u32 *src)
 {
+	enum mcu_msg_version version = msg->header.version;
 	unsigned int i = 0;
 
 	msg->channel_id = src[i++];
 	msg->user_id = src[i++];
-	msg->options = src[i++];
-	msg->num_core = src[i++];
-	msg->num_ref_idx_l0 = FIELD_GET(GENMASK(7, 4), src[i]);
-	msg->num_ref_idx_l1 = FIELD_GET(GENMASK(11, 8), src[i++]);
+	/*
+	 * Version >= MCU_MSG_VERSION_2019_2 is handled in
+	 * allegro_decode_config_blob().
+	 */
+	if (version < MCU_MSG_VERSION_2019_2) {
+		msg->options = src[i++];
+		msg->num_core = src[i++];
+		msg->num_ref_idx_l0 = FIELD_GET(GENMASK(7, 4), src[i]);
+		msg->num_ref_idx_l1 = FIELD_GET(GENMASK(11, 8), src[i++]);
+	}
 	msg->int_buffers_count = src[i++];
 	msg->int_buffers_size = src[i++];
 	msg->rec_buffers_count = src[i++];
@@ -298,6 +400,7 @@ allegro_dec_destroy_channel(struct mcu_msg_destroy_channel_response *msg,
 static ssize_t
 allegro_dec_encode_frame(struct mcu_msg_encode_frame_response *msg, u32 *src)
 {
+	enum mcu_msg_version version = msg->header.version;
 	unsigned int i = 0;
 	unsigned int j;
 
@@ -341,6 +444,12 @@ allegro_dec_encode_frame(struct mcu_msg_encode_frame_response *msg, u32 *src)
 	msg->pps_qp = FIELD_GET(GENMASK(15, 0), src[i++]);
 
 	msg->reserved2 = src[i++];
+	if (version >= MCU_MSG_VERSION_2019_2) {
+		msg->reserved3 = src[i++];
+		msg->reserved4 = src[i++];
+		msg->reserved5 = src[i++];
+		msg->reserved6 = src[i++];
+	}
 
 	return i * sizeof(*src);
 }
