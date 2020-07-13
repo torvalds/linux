@@ -641,7 +641,6 @@ struct io_kiocb {
 	u16				buf_index;
 
 	struct io_ring_ctx	*ctx;
-	struct list_head	list;
 	unsigned int		flags;
 	refcount_t		refs;
 	struct task_struct	*task;
@@ -674,6 +673,11 @@ struct io_kiocb {
 		struct io_wq_work	work;
 	};
 	struct callback_head	task_work;
+};
+
+struct io_defer_entry {
+	struct list_head	list;
+	struct io_kiocb		*req;
 };
 
 #define IO_IOPOLL_BATCH			8
@@ -1234,14 +1238,15 @@ static void io_kill_timeouts(struct io_ring_ctx *ctx)
 static void __io_queue_deferred(struct io_ring_ctx *ctx)
 {
 	do {
-		struct io_kiocb *req = list_first_entry(&ctx->defer_list,
-							struct io_kiocb, list);
+		struct io_defer_entry *de = list_first_entry(&ctx->defer_list,
+						struct io_defer_entry, list);
 
-		if (req_need_defer(req))
+		if (req_need_defer(de->req))
 			break;
-		list_del_init(&req->list);
+		list_del_init(&de->list);
 		/* punt-init is done before queueing for defer */
-		__io_queue_async_work(req);
+		__io_queue_async_work(de->req);
+		kfree(de);
 	} while (!list_empty(&ctx->defer_list));
 }
 
@@ -5394,6 +5399,7 @@ static int io_req_defer_prep(struct io_kiocb *req,
 static int io_req_defer(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 	struct io_ring_ctx *ctx = req->ctx;
+	struct io_defer_entry *de;
 	int ret;
 
 	/* Still need defer if there is pending req in defer list. */
@@ -5408,15 +5414,20 @@ static int io_req_defer(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 			return ret;
 	}
 	io_prep_async_link(req);
+	de = kmalloc(sizeof(*de), GFP_KERNEL);
+	if (!de)
+		return -ENOMEM;
 
 	spin_lock_irq(&ctx->completion_lock);
 	if (!req_need_defer(req) && list_empty(&ctx->defer_list)) {
 		spin_unlock_irq(&ctx->completion_lock);
+		kfree(de);
 		return 0;
 	}
 
 	trace_io_uring_defer(ctx, req, req->user_data);
-	list_add_tail(&req->list, &ctx->defer_list);
+	de->req = req;
+	list_add_tail(&de->list, &ctx->defer_list);
 	spin_unlock_irq(&ctx->completion_lock);
 	return -EIOCBQUEUED;
 }
