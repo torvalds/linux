@@ -63,14 +63,10 @@ static int
 mpp_taskqueue_push_pending(struct mpp_taskqueue *queue,
 			   struct mpp_task *task)
 {
-	struct mpp_dev *mpp;
-
 	if (!task->session || !task->session->mpp)
 		return -EINVAL;
-	mpp = task->session->mpp;
 
 	kref_get(&task->ref);
-	atomic_inc(&mpp->task_count);
 	mutex_lock(&queue->pending_lock);
 	list_add_tail(&task->queue_link, &queue->pending_list);
 	mutex_unlock(&queue->pending_lock);
@@ -82,16 +78,12 @@ static int
 mpp_taskqueue_pop_pending(struct mpp_taskqueue *queue,
 			  struct mpp_task *task)
 {
-	struct mpp_dev *mpp;
-
 	if (!task->session || !task->session->mpp)
 		return -EINVAL;
-	mpp = task->session->mpp;
 
 	mutex_lock(&queue->pending_lock);
 	list_del_init(&task->queue_link);
 	mutex_unlock(&queue->pending_lock);
-	atomic_dec(&mpp->task_count);
 	kref_put(&task->ref, mpp_free_task);
 
 	return 0;
@@ -154,16 +146,12 @@ static int
 mpp_taskqueue_pop_running(struct mpp_taskqueue *queue,
 			  struct mpp_task *task)
 {
-	struct mpp_dev *mpp;
-
 	if (!task->session || !task->session->mpp)
 		return -EINVAL;
-	mpp = task->session->mpp;
 
 	mutex_lock(&queue->running_lock);
 	list_del_init(&task->queue_link);
 	mutex_unlock(&queue->running_lock);
-	atomic_dec(&mpp->task_count);
 	kref_put(&task->ref, mpp_free_task);
 
 	return 0;
@@ -208,7 +196,6 @@ mpp_session_push_pending(struct mpp_session *session,
 			 struct mpp_task *task)
 {
 	kref_get(&task->ref);
-	atomic_inc(&session->task_count);
 	mutex_lock(&session->pending_lock);
 	list_add_tail(&task->pending_link, &session->pending_list);
 	mutex_unlock(&session->pending_lock);
@@ -223,7 +210,6 @@ mpp_session_pop_pending(struct mpp_session *session,
 	mutex_lock(&session->pending_lock);
 	list_del_init(&task->pending_link);
 	mutex_unlock(&session->pending_lock);
-	atomic_dec(&session->task_count);
 	kref_put(&task->ref, mpp_free_task);
 
 	return 0;
@@ -290,6 +276,9 @@ static void mpp_free_task(struct kref *ref)
 
 	if (mpp->dev_ops->free_task)
 		mpp->dev_ops->free_task(session, task);
+	/* Decrease reference count */
+	atomic_dec(&session->task_count);
+	atomic_dec(&mpp->task_count);
 }
 
 static void mpp_task_timeout_work(struct work_struct *work_s)
@@ -357,8 +346,10 @@ static int mpp_process_task(struct mpp_session *session,
 	 * mpp_task_try_run, it may be get a task who has push in queue but
 	 * not in session, cause some errors.
 	 */
+	atomic_inc(&session->task_count);
 	mpp_session_push_pending(session, task);
 	/* push current task to queue */
+	atomic_inc(&mpp->task_count);
 	mpp_taskqueue_push_pending(mpp->queue, task);
 	set_bit(TASK_STATE_PENDING, &task->state);
 	/* trigger current queue to run task */
@@ -944,7 +935,7 @@ static int mpp_process_request(struct mpp_session *session,
 
 		ret = readx_poll_timeout(atomic_read,
 					 &session->task_count,
-					 val, val == 0, 1000, 50000);
+					 val, val == 0, 1000, 500000);
 		if (ret == -ETIMEDOUT) {
 			mpp_err("wait task running time out\n");
 		} else {
@@ -1172,7 +1163,7 @@ static int mpp_dev_release(struct inode *inode, struct file *filp)
 	atomic_inc(&session->release_request);
 	ret = readx_poll_timeout(atomic_read,
 				 &session->task_count,
-				 val, val == 0, 1000, 50000);
+				 val, val == 0, 1000, 500000);
 	if (ret == -ETIMEDOUT)
 		mpp_err("session %p, wait task count %d time out\n",
 			session, atomic_read(&session->task_count));
