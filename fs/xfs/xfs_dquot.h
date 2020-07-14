@@ -72,7 +72,6 @@ struct xfs_dquot {
 	struct xfs_dquot_res	q_ino;	/* inodes */
 	struct xfs_dquot_res	q_rtb;	/* realtime blocks */
 
-	struct xfs_disk_dquot	q_core;
 	struct xfs_dq_logitem	q_logitem;
 
 	xfs_qcnt_t		q_prealloc_lo_wmark;

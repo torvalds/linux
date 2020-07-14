@@ -79,7 +79,6 @@ xchk_quota_item(
 	struct xchk_quota_info	*sqi = priv;
 	struct xfs_scrub	*sc = sqi->sc;
 	struct xfs_mount	*mp = sc->mp;
-	struct xfs_disk_dquot	*d = &dq->q_core;
 	struct xfs_quotainfo	*qi = mp->m_quotainfo;
 	xfs_fileoff_t		offset;
 	xfs_ino_t		fs_icount;
@@ -97,13 +96,6 @@ xchk_quota_item(
 		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
 
 	sqi->last_id = dq->q_id;
-
-	/* Did we get the dquot type we wanted? */
-	if (dqtype != (d->d_flags & XFS_DQ_ALLTYPES))
-		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
-
-	if (d->d_pad0 != cpu_to_be32(0) || d->d_pad != cpu_to_be16(0))
-		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
 
 	/*
 	 * Warn if the hard limits are larger than the fs.
