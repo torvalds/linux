@@ -124,8 +124,12 @@ static struct net_device_stats *ip6_get_stats(struct net_device *dev)
 	return &dev->stats;
 }
 
+#define for_each_ip6_tunnel_rcu(start) \
+	for (t = rcu_dereference(start); t; t = rcu_dereference(t->next))
+
 /**
  * ip6_tnl_lookup - fetch tunnel matching the end-point addresses
+ *   @net: network namespace
  *   @link: ifindex of underlying interface
  *   @remote: the address of the tunnel exit-point
  *   @local: the address of the tunnel entry-point
@@ -135,9 +139,6 @@ static struct net_device_stats *ip6_get_stats(struct net_device *dev)
  *   else fallback tunnel if its device is up,
  *   else %NULL
  **/
-
-#define for_each_ip6_tunnel_rcu(start) \
-	for (t = rcu_dereference(start); t; t = rcu_dereference(t->next))
 
 static struct ip6_tnl *
 ip6_tnl_lookup(struct net *net, int link,
@@ -302,8 +303,8 @@ out:
 
 /**
  * ip6_tnl_create - create a new tunnel
+ *   @net: network namespace
  *   @p: tunnel parameters
- *   @pt: pointer to new tunnel
  *
  * Description:
  *   Create tunnel matching given parameters.
@@ -351,6 +352,7 @@ failed:
 
 /**
  * ip6_tnl_locate - find or create tunnel matching given parameters
+ *   @net: network namespace
  *   @p: tunnel parameters
  *   @create: != 0 if allowed to create new tunnel if no match found
  *

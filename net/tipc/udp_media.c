@@ -565,7 +565,7 @@ msg_full:
 
 /**
  * tipc_parse_udp_addr - build udp media address from netlink data
- * @nlattr:	netlink attribute containing sockaddr storage aligned address
+ * @nla:	netlink attribute containing sockaddr storage aligned address
  * @addr:	tipc media address to fill with address, port and protocol type
  * @scope_id:	IPv6 scope id pointer, not NULL indicates it's required
  */

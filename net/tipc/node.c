@@ -1515,7 +1515,7 @@ static void node_lost_contact(struct tipc_node *n,
  * tipc_node_get_linkname - get the name of a link
  *
  * @bearer_id: id of the bearer
- * @node: peer node address
+ * @addr: peer node address
  * @linkname: link name output buffer
  *
  * Returns 0 on success
@@ -2022,7 +2022,7 @@ static bool tipc_node_check_state(struct tipc_node *n, struct sk_buff *skb,
  * tipc_rcv - process TIPC packets/messages arriving from off-node
  * @net: the applicable net namespace
  * @skb: TIPC packet
- * @bearer: pointer to bearer message arrived on
+ * @b: pointer to bearer message arrived on
  *
  * Invoked with no locks held. Bearer pointer must point to a valid bearer
  * structure (i.e. cannot be NULL), but bearer can be inactive.

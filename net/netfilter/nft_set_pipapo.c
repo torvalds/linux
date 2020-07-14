@@ -401,7 +401,7 @@ int pipapo_refill(unsigned long *map, int len, int rules, unsigned long *dst,
  * nft_pipapo_lookup() - Lookup function
  * @net:	Network namespace
  * @set:	nftables API set representation
- * @elem:	nftables API element representation containing key data
+ * @key:	nftables API element representation containing key data
  * @ext:	nftables API extension pointer, filled with matching reference
  *
  * For more details, see DOC: Theory of Operation.
@@ -1075,7 +1075,7 @@ out:
  * @m:		Matching data, including mapping table
  * @map:	Table of rule maps: array of first rule and amount of rules
  *		in next field a given rule maps to, for each field
- * @ext:	For last field, nft_set_ext pointer matching rules map to
+ * @e:		For last field, nft_set_ext pointer matching rules map to
  */
 static void pipapo_map(struct nft_pipapo_match *m,
 		       union nft_pipapo_map_bucket map[NFT_PIPAPO_MAX_FIELDS],
@@ -1099,7 +1099,7 @@ static void pipapo_map(struct nft_pipapo_match *m,
 /**
  * pipapo_realloc_scratch() - Reallocate scratch maps for partial match results
  * @clone:	Copy of matching data with pending insertions and deletions
- * @bsize_max	Maximum bucket size, scratch maps cover two buckets
+ * @bsize_max:	Maximum bucket size, scratch maps cover two buckets
  *
  * Return: 0 on success, -ENOMEM on failure.
  */
@@ -1447,7 +1447,7 @@ static void pipapo_unmap(union nft_pipapo_map_bucket *mt, int rules,
 /**
  * pipapo_drop() - Delete entry from lookup and mapping tables, given rule map
  * @m:		Matching data
- * @rulemap	Table of rule maps, arrays of first rule and amount of rules
+ * @rulemap:	Table of rule maps, arrays of first rule and amount of rules
  *		in next field a given entry maps to, for each field
  *
  * For each rule in lookup table buckets mapping to this set of rules, drop
