@@ -543,6 +543,7 @@ void qede_set_dcbnl_ops(struct net_device *ndev);
 
 void qede_config_debug(uint debug, u32 *p_dp_module, u8 *p_dp_level);
 void qede_set_ethtool_ops(struct net_device *netdev);
+void qede_set_udp_tunnels(struct qede_dev *edev);
 void qede_reload(struct qede_dev *edev,
 		 struct qede_reload_args *args, bool is_locked);
 int qede_change_mtu(struct net_device *dev, int new_mtu);
