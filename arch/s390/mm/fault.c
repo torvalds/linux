@@ -376,7 +376,7 @@ static noinline void do_fault_error(struct pt_regs *regs, int access,
  * routines.
  *
  * interruption code (int_code):
- *   04       Protection           ->  Write-Protection  (suprression)
+ *   04       Protection           ->  Write-Protection  (suppression)
  *   10       Segment translation  ->  Not present       (nullification)
  *   11       Page translation     ->  Not present       (nullification)
  *   3b       Region third trans.  ->  Not present       (nullification)
