@@ -759,13 +759,13 @@ static int rsnd_soc_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
 	struct rsnd_dai *rdai = rsnd_dai_to_rdai(dai);
 
-	/* set master/slave audio interface */
+	/* set clock master for audio interface */
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBM_CFM:
 		rdai->clk_master = 0;
 		break;
 	case SND_SOC_DAIFMT_CBS_CFS:
-		rdai->clk_master = 1; /* codec is slave, cpu is master */
+		rdai->clk_master = 1; /* cpu is master */
 		break;
 	default:
 		return -EINVAL;
