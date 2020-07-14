@@ -4131,14 +4131,6 @@ static int amdgpu_debugfs_pm_info(struct seq_file *m, void *data)
 		return r;
 	}
 
-	down_read(&adev->reset_sem);
-	amdgpu_device_ip_get_clockgating_state(adev, &flags);
-	up_read(&adev->reset_sem);
-
-	seq_printf(m, "Clock Gating Flags Mask: 0x%x\n", flags);
-	amdgpu_parse_cg_state(m, flags);
-	seq_printf(m, "\n");
-
 	if (!adev->pm.dpm_enabled) {
 		seq_printf(m, "dpm not enabled\n");
 		pm_runtime_mark_last_busy(dev->dev);
@@ -4160,7 +4152,18 @@ static int amdgpu_debugfs_pm_info(struct seq_file *m, void *data)
 		r = amdgpu_debugfs_pm_info_pp(m, adev);
 	}
 	up_read(&adev->reset_sem);
+	if (r)
+		goto out;
 
+	down_read(&adev->reset_sem);
+	amdgpu_device_ip_get_clockgating_state(adev, &flags);
+	up_read(&adev->reset_sem);
+
+	seq_printf(m, "Clock Gating Flags Mask: 0x%x\n", flags);
+	amdgpu_parse_cg_state(m, flags);
+	seq_printf(m, "\n");
+
+out:
 	pm_runtime_mark_last_busy(dev->dev);
 	pm_runtime_put_autosuspend(dev->dev);
 
