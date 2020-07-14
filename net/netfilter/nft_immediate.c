@@ -103,9 +103,9 @@ static void nft_immediate_destroy(const struct nft_ctx *ctx,
 {
 	const struct nft_immediate_expr *priv = nft_expr_priv(expr);
 	const struct nft_data *data = &priv->data;
+	struct nft_rule *rule, *n;
 	struct nft_ctx chain_ctx;
 	struct nft_chain *chain;
-	struct nft_rule *rule;
 
 	if (priv->dreg != NFT_REG_VERDICT)
 		return;
@@ -121,7 +121,7 @@ static void nft_immediate_destroy(const struct nft_ctx *ctx,
 		chain_ctx = *ctx;
 		chain_ctx.chain = chain;
 
-		list_for_each_entry(rule, &chain->rules, list)
+		list_for_each_entry_safe(rule, n, &chain->rules, list)
 			nf_tables_rule_release(&chain_ctx, rule);
 
 		nf_tables_chain_destroy(&chain_ctx);
