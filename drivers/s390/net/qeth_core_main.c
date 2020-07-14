@@ -4835,17 +4835,17 @@ static int qeth_snmp_command(struct qeth_card *card, char __user *udata)
 }
 
 static int qeth_setadpparms_query_oat_cb(struct qeth_card *card,
-		struct qeth_reply *reply, unsigned long data)
+					 struct qeth_reply *reply,
+					 unsigned long data)
 {
 	struct qeth_ipa_cmd *cmd = (struct qeth_ipa_cmd *)data;
-	struct qeth_qoat_priv *priv;
+	struct qeth_qoat_priv *priv = reply->param;
 	int resdatalen;
 
 	QETH_CARD_TEXT(card, 3, "qoatcb");
 	if (qeth_setadpparms_inspect_rc(cmd))
 		return -EIO;
 
-	priv = (struct qeth_qoat_priv *)reply->param;
 	resdatalen = cmd->data.setadapterparms.hdr.cmdlength;
 
 	if (resdatalen > (priv->buffer_len - priv->response_len))
@@ -4873,24 +4873,17 @@ static int qeth_query_oat_command(struct qeth_card *card, char __user *udata)
 
 	QETH_CARD_TEXT(card, 3, "qoatcmd");
 
-	if (!qeth_adp_supported(card, IPA_SETADP_QUERY_OAT)) {
-		rc = -EOPNOTSUPP;
-		goto out;
-	}
+	if (!qeth_adp_supported(card, IPA_SETADP_QUERY_OAT))
+		return -EOPNOTSUPP;
 
-	if (copy_from_user(&oat_data, udata,
-	    sizeof(struct qeth_query_oat_data))) {
-			rc = -EFAULT;
-			goto out;
-	}
+	if (copy_from_user(&oat_data, udata, sizeof(oat_data)))
+		return -EFAULT;
 
 	priv.buffer_len = oat_data.buffer_len;
 	priv.response_len = 0;
 	priv.buffer = vzalloc(oat_data.buffer_len);
-	if (!priv.buffer) {
-		rc = -ENOMEM;
-		goto out;
-	}
+	if (!priv.buffer)
+		return -ENOMEM;
 
 	iob = qeth_get_adapter_cmd(card, IPA_SETADP_QUERY_OAT,
 				   SETADP_DATA_SIZEOF(query_oat));
@@ -4902,28 +4895,19 @@ static int qeth_query_oat_command(struct qeth_card *card, char __user *udata)
 	oat_req = &cmd->data.setadapterparms.data.query_oat;
 	oat_req->subcmd_code = oat_data.command;
 
-	rc = qeth_send_ipa_cmd(card, iob, qeth_setadpparms_query_oat_cb,
-			       &priv);
+	rc = qeth_send_ipa_cmd(card, iob, qeth_setadpparms_query_oat_cb, &priv);
 	if (!rc) {
 		tmp = is_compat_task() ? compat_ptr(oat_data.ptr) :
 					 u64_to_user_ptr(oat_data.ptr);
-
-		if (copy_to_user(tmp, priv.buffer,
-		    priv.response_len)) {
-			rc = -EFAULT;
-			goto out_free;
-		}
-
 		oat_data.response_len = priv.response_len;
 
-		if (copy_to_user(udata, &oat_data,
-		    sizeof(struct qeth_query_oat_data)))
+		if (copy_to_user(tmp, priv.buffer, priv.response_len) ||
+		    copy_to_user(udata, &oat_data, sizeof(oat_data)))
 			rc = -EFAULT;
 	}
 
 out_free:
 	vfree(priv.buffer);
-out:
 	return rc;
 }
 
