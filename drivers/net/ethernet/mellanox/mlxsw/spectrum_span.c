@@ -1032,9 +1032,10 @@ void mlxsw_sp_span_respin(struct mlxsw_sp *mlxsw_sp)
 	mlxsw_core_schedule_work(&mlxsw_sp->span->work);
 }
 
-int mlxsw_sp_span_agent_get(struct mlxsw_sp *mlxsw_sp,
-			    const struct net_device *to_dev, int *p_span_id)
+int mlxsw_sp_span_agent_get(struct mlxsw_sp *mlxsw_sp, int *p_span_id,
+			    const struct mlxsw_sp_span_agent_parms *parms)
 {
+	const struct net_device *to_dev = parms->to_dev;
 	const struct mlxsw_sp_span_entry_ops *ops;
 	struct mlxsw_sp_span_entry *span_entry;
 	struct mlxsw_sp_span_parms sparms;
