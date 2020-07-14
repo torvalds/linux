@@ -357,6 +357,7 @@ static int live_noa_gpr(void *arg)
 
 		cs = intel_ring_begin(rq, 4);
 		if (IS_ERR(cs)) {
+			err = PTR_ERR(cs);
 			i915_request_add(rq);
 			goto out_rq;
 		}
