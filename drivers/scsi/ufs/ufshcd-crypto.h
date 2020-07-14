@@ -10,9 +10,9 @@
 #include "ufshcd.h"
 #include "ufshci.h"
 
-static inline void ufshcd_prepare_lrbp_crypto_spec(struct ufs_hba *hba,
-						   struct scsi_cmnd *cmd,
-						   struct ufshcd_lrb *lrbp)
+static inline void ufshcd_prepare_lrbp_crypto(struct ufs_hba *hba,
+					      struct scsi_cmnd *cmd,
+					      struct ufshcd_lrb *lrbp)
 {
 	struct request *rq = cmd->request;
 
@@ -24,18 +24,6 @@ static inline void ufshcd_prepare_lrbp_crypto_spec(struct ufs_hba *hba,
 	}
 }
 
-bool ufshcd_crypto_enable_spec(struct ufs_hba *hba);
-
-struct blk_ksm_ll_ops;
-int ufshcd_hba_init_crypto_spec(struct ufs_hba *hba,
-				const struct blk_ksm_ll_ops *ksm_ops);
-
-void ufshcd_crypto_setup_rq_keyslot_manager_spec(struct ufs_hba *hba,
-						 struct request_queue *q);
-
-void ufshcd_crypto_destroy_keyslot_manager_spec(struct ufs_hba *hba);
-
-/* Crypto Variant Ops Support */
 bool ufshcd_crypto_enable(struct ufs_hba *hba);
 
 int ufshcd_hba_init_crypto(struct ufs_hba *hba);
@@ -44,25 +32,6 @@ void ufshcd_crypto_setup_rq_keyslot_manager(struct ufs_hba *hba,
 					    struct request_queue *q);
 
 void ufshcd_crypto_destroy_keyslot_manager(struct ufs_hba *hba);
-
-void ufshcd_prepare_lrbp_crypto(struct ufs_hba *hba,
-				struct scsi_cmnd *cmd,
-				struct ufshcd_lrb *lrbp);
-
-int ufshcd_map_sg_crypto(struct ufs_hba *hba, struct ufshcd_lrb *lrbp);
-
-int ufshcd_complete_lrbp_crypto(struct ufs_hba *hba,
-				struct scsi_cmnd *cmd,
-				struct ufshcd_lrb *lrbp);
-
-void ufshcd_crypto_debug(struct ufs_hba *hba);
-
-int ufshcd_crypto_suspend(struct ufs_hba *hba, enum ufs_pm_op pm_op);
-
-int ufshcd_crypto_resume(struct ufs_hba *hba, enum ufs_pm_op pm_op);
-
-void ufshcd_crypto_set_vops(struct ufs_hba *hba,
-			    struct ufs_hba_crypto_variant_ops *crypto_vops);
 
 #else /* CONFIG_SCSI_UFS_CRYPTO */
 
@@ -85,36 +54,6 @@ static inline void ufshcd_crypto_setup_rq_keyslot_manager(struct ufs_hba *hba,
 
 static inline void ufshcd_crypto_destroy_keyslot_manager(struct ufs_hba *hba)
 { }
-
-static inline int ufshcd_map_sg_crypto(struct ufs_hba *hba,
-				       struct ufshcd_lrb *lrbp)
-{
-	return 0;
-}
-
-static inline int ufshcd_complete_lrbp_crypto(struct ufs_hba *hba,
-					      struct scsi_cmnd *cmd,
-					      struct ufshcd_lrb *lrbp)
-{
-	return 0;
-}
-
-static inline void ufshcd_crypto_debug(struct ufs_hba *hba) { }
-
-static inline int ufshcd_crypto_suspend(struct ufs_hba *hba,
-					enum ufs_pm_op pm_op)
-{
-	return 0;
-}
-
-static inline int ufshcd_crypto_resume(struct ufs_hba *hba,
-					enum ufs_pm_op pm_op)
-{
-	return 0;
-}
-
-static inline void ufshcd_crypto_set_vops(struct ufs_hba *hba,
-			struct ufs_hba_crypto_variant_ops *crypto_vops) { }
 
 #endif /* CONFIG_SCSI_UFS_CRYPTO */
 
