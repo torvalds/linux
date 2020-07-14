@@ -24,7 +24,7 @@
 #define ROCKCHIP_CPU_RK3288		0x32880000
 #define ROCKCHIP_CPU_RK3308		0x33080000
 
-#ifdef CONFIG_ROCKCHIP_CPUINFO
+#if IS_ENABLED(CONFIG_ROCKCHIP_CPUINFO)
 
 extern unsigned long rockchip_soc_id;
 
