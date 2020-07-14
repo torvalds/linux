@@ -2903,9 +2903,10 @@ void intel_init_cdclk_hooks(struct drm_i915_private *dev_priv)
 		dev_priv->display.get_cdclk = i85x_get_cdclk;
 	else if (IS_I845G(dev_priv))
 		dev_priv->display.get_cdclk = fixed_200mhz_get_cdclk;
-	else { /* 830 */
-		drm_WARN(&dev_priv->drm, !IS_I830(dev_priv),
-			 "Unknown platform. Assuming 133 MHz CDCLK\n");
+	else if (IS_I830(dev_priv))
 		dev_priv->display.get_cdclk = fixed_133mhz_get_cdclk;
-	}
+
+	if (drm_WARN(&dev_priv->drm, !dev_priv->display.get_cdclk,
+		     "Unknown platform. Assuming 133 MHz CDCLK\n"))
+		dev_priv->display.get_cdclk = fixed_133mhz_get_cdclk;
 }
