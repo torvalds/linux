@@ -566,9 +566,9 @@ struct v4l2_subdev_ir_parameters {
  *
  * @rx_read: Reads received codes or pulse width data.
  *	The semantics are similar to a non-blocking read() call.
- * @rx_g_parameters: Get the current operating parameters and state of the
+ * @rx_g_parameters: Get the current operating parameters and state of
  *	the IR receiver.
- * @rx_s_parameters: Set the current operating parameters and state of the
+ * @rx_s_parameters: Set the current operating parameters and state of
  *	the IR receiver.  It is recommended to call
  *	[rt]x_g_parameters first to fill out the current state, and only change
  *	the fields that need to be changed.  Upon return, the actual device
@@ -582,9 +582,9 @@ struct v4l2_subdev_ir_parameters {
  *
  * @tx_write: Writes codes or pulse width data for transmission.
  *	The semantics are similar to a non-blocking write() call.
- * @tx_g_parameters: Get the current operating parameters and state of the
+ * @tx_g_parameters: Get the current operating parameters and state of
  *	the IR transmitter.
- * @tx_s_parameters: Set the current operating parameters and state of the
+ * @tx_s_parameters: Set the current operating parameters and state of
  *	the IR transmitter.  It is recommended to call
  *	[rt]x_g_parameters first to fill out the current state, and only change
  *	the fields that need to be changed.  Upon return, the actual device
