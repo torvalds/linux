@@ -213,6 +213,11 @@ mlxsw_pci_cqe_item_helpers(dqn, 0, 12, 12);
  */
 MLXSW_ITEM32(pci, cqe2, user_def_val_orig_pkt_len, 0x14, 0, 20);
 
+/* pci_cqe_mirror_reason
+ * Mirror reason.
+ */
+MLXSW_ITEM32(pci, cqe2, mirror_reason, 0x18, 24, 8);
+
 /* pci_cqe_owner
  * Ownership bit.
  */
