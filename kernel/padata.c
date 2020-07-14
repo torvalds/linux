@@ -789,19 +789,6 @@ out:
 }
 EXPORT_SYMBOL(padata_set_cpumask);
 
-/**
- * padata_stop - stop the parallel processing
- *
- * @pinst: padata instance to stop
- */
-void padata_stop(struct padata_instance *pinst)
-{
-	mutex_lock(&pinst->lock);
-	__padata_stop(pinst);
-	mutex_unlock(&pinst->lock);
-}
-EXPORT_SYMBOL(padata_stop);
-
 #ifdef CONFIG_HOTPLUG_CPU
 
 static int __padata_add_cpu(struct padata_instance *pinst, int cpu)
@@ -883,7 +870,6 @@ static void __padata_free(struct padata_instance *pinst)
 
 	WARN_ON(!list_empty(&pinst->pslist));
 
-	padata_stop(pinst);
 	free_cpumask_var(pinst->rcpumask.cbcpu);
 	free_cpumask_var(pinst->rcpumask.pcpu);
 	free_cpumask_var(pinst->cpumask.pcpu);

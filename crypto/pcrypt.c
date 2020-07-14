@@ -327,12 +327,6 @@ static int pcrypt_init_padata(struct padata_instance **pinst, const char *name)
 	return ret;
 }
 
-static void pcrypt_fini_padata(struct padata_instance *pinst)
-{
-	padata_stop(pinst);
-	padata_free(pinst);
-}
-
 static struct crypto_template pcrypt_tmpl = {
 	.name = "pcrypt",
 	.create = pcrypt_create,
@@ -358,7 +352,7 @@ static int __init pcrypt_init(void)
 	return crypto_register_template(&pcrypt_tmpl);
 
 err_deinit_pencrypt:
-	pcrypt_fini_padata(pencrypt);
+	padata_free(pencrypt);
 err_unreg_kset:
 	kset_unregister(pcrypt_kset);
 err:
@@ -369,8 +363,8 @@ static void __exit pcrypt_exit(void)
 {
 	crypto_unregister_template(&pcrypt_tmpl);
 
-	pcrypt_fini_padata(pencrypt);
-	pcrypt_fini_padata(pdecrypt);
+	padata_free(pencrypt);
+	padata_free(pdecrypt);
 
 	kset_unregister(pcrypt_kset);
 }
