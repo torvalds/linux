@@ -20,6 +20,7 @@
 #include <linux/serial.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/ktime.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/rational.h>
 #include <linux/slab.h>
@@ -233,9 +234,8 @@ struct imx_port {
 	bool			context_saved;
 
 	enum imx_tx_state	tx_state;
-	unsigned long		tx_state_next_change;
-	struct timer_list	trigger_start_tx;
-	struct timer_list	trigger_stop_tx;
+	struct hrtimer		trigger_start_tx;
+	struct hrtimer		trigger_stop_tx;
 };
 
 struct imx_port_ucrs {
@@ -412,6 +412,15 @@ static void imx_uart_rts_inactive(struct imx_port *sport, u32 *ucr2)
 	mctrl_gpio_set(sport->gpios, sport->port.mctrl);
 }
 
+static void start_hrtimer_ms(struct hrtimer *hrt, unsigned long msec)
+{
+       long sec = msec / MSEC_PER_SEC;
+       long nsec = (msec % MSEC_PER_SEC) * 1000000;
+       ktime_t t = ktime_set(sec, nsec);
+
+       hrtimer_start(hrt, t, HRTIMER_MODE_REL);
+}
+
 /* called with port.lock taken and irqs off */
 static void imx_uart_start_rx(struct uart_port *port)
 {
@@ -468,16 +477,16 @@ static void imx_uart_stop_tx(struct uart_port *port)
 	if (port->rs485.flags & SER_RS485_ENABLED) {
 		if (sport->tx_state == SEND) {
 			sport->tx_state = WAIT_AFTER_SEND;
-			sport->tx_state_next_change =
-				jiffies + DIV_ROUND_UP(port->rs485.delay_rts_after_send * HZ, 1000);
+			start_hrtimer_ms(&sport->trigger_stop_tx,
+					 port->rs485.delay_rts_after_send);
+			return;
 		}
 
 		if (sport->tx_state == WAIT_AFTER_RTS ||
-		    (sport->tx_state == WAIT_AFTER_SEND &&
-		     time_after_eq(jiffies, sport->tx_state_next_change))) {
+		    sport->tx_state == WAIT_AFTER_SEND) {
 			u32 ucr2;
 
-			del_timer(&sport->trigger_start_tx);
+			hrtimer_try_to_cancel(&sport->trigger_start_tx);
 
 			ucr2 = imx_uart_readl(sport, UCR2);
 			if (port->rs485.flags & SER_RS485_RTS_AFTER_SEND)
@@ -489,8 +498,6 @@ static void imx_uart_stop_tx(struct uart_port *port)
 			imx_uart_start_rx(port);
 
 			sport->tx_state = OFF;
-		} else if (sport->tx_state == WAIT_AFTER_SEND) {
-			mod_timer(&sport->trigger_stop_tx, sport->tx_state_next_change);
 		}
 	} else {
 		sport->tx_state = OFF;
@@ -710,15 +717,16 @@ static void imx_uart_start_tx(struct uart_port *port)
 				imx_uart_stop_rx(port);
 
 			sport->tx_state = WAIT_AFTER_RTS;
-			sport->tx_state_next_change =
-				jiffies + DIV_ROUND_UP(port->rs485.delay_rts_before_send * HZ, 1000);
+			start_hrtimer_ms(&sport->trigger_start_tx,
+					 port->rs485.delay_rts_before_send);
+			return;
 		}
 
-		if (sport->tx_state == WAIT_AFTER_SEND ||
-		    (sport->tx_state == WAIT_AFTER_RTS &&
-		     time_after_eq(jiffies, sport->tx_state_next_change))) {
+		if (sport->tx_state == WAIT_AFTER_SEND
+		    || sport->tx_state == WAIT_AFTER_RTS) {
 
-			del_timer(&sport->trigger_stop_tx);
+			hrtimer_try_to_cancel(&sport->trigger_stop_tx);
+
 			/*
 			 * Enable transmitter and shifter empty irq only if DMA
 			 * is off.  In the DMA case this is done in the
@@ -731,10 +739,6 @@ static void imx_uart_start_tx(struct uart_port *port)
 			}
 
 			sport->tx_state = SEND;
-
-		} else if (sport->tx_state == WAIT_AFTER_RTS) {
-			mod_timer(&sport->trigger_start_tx, sport->tx_state_next_change);
-			return;
 		}
 	} else {
 		sport->tx_state = SEND;
@@ -2283,26 +2287,30 @@ static void imx_uart_probe_pdata(struct imx_port *sport,
 		sport->have_rtscts = 1;
 }
 
-static void imx_trigger_start_tx(struct timer_list *t)
+static enum hrtimer_restart imx_trigger_start_tx(struct hrtimer *t)
 {
-	struct imx_port *sport = from_timer(sport, t, trigger_start_tx);
+	struct imx_port *sport = container_of(t, struct imx_port, trigger_start_tx);
 	unsigned long flags;
 
 	spin_lock_irqsave(&sport->port.lock, flags);
 	if (sport->tx_state == WAIT_AFTER_RTS)
 		imx_uart_start_tx(&sport->port);
 	spin_unlock_irqrestore(&sport->port.lock, flags);
+
+	return HRTIMER_NORESTART;
 }
 
-static void imx_trigger_stop_tx(struct timer_list *t)
+static enum hrtimer_restart imx_trigger_stop_tx(struct hrtimer *t)
 {
-	struct imx_port *sport = from_timer(sport, t, trigger_stop_tx);
+	struct imx_port *sport = container_of(t, struct imx_port, trigger_stop_tx);
 	unsigned long flags;
 
 	spin_lock_irqsave(&sport->port.lock, flags);
 	if (sport->tx_state == WAIT_AFTER_SEND)
 		imx_uart_stop_tx(&sport->port);
 	spin_unlock_irqrestore(&sport->port.lock, flags);
+
+	return HRTIMER_NORESTART;
 }
 
 static int imx_uart_probe(struct platform_device *pdev)
@@ -2451,8 +2459,10 @@ static int imx_uart_probe(struct platform_device *pdev)
 
 	clk_disable_unprepare(sport->clk_ipg);
 
-	timer_setup(&sport->trigger_start_tx, imx_trigger_start_tx, 0);
-	timer_setup(&sport->trigger_stop_tx, imx_trigger_stop_tx, 0);
+	hrtimer_init(&sport->trigger_start_tx, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hrtimer_init(&sport->trigger_stop_tx, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	sport->trigger_start_tx.function = imx_trigger_start_tx;
+	sport->trigger_stop_tx.function = imx_trigger_stop_tx;
 
 	/*
 	 * Allocate the IRQ(s) i.MX1 has three interrupts whereas later
