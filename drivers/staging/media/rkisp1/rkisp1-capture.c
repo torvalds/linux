@@ -617,10 +617,11 @@ static void rkisp1_set_next_buf(struct rkisp1_capture *cap)
 static void rkisp1_handle_buffer(struct rkisp1_capture *cap)
 {
 	struct rkisp1_isp *isp = &cap->rkisp1->isp;
-	struct rkisp1_buffer *curr_buf = cap->buf.curr;
+	struct rkisp1_buffer *curr_buf;
 	unsigned long flags;
 
 	spin_lock_irqsave(&cap->buf.lock, flags);
+	curr_buf = cap->buf.curr;
 
 	if (curr_buf) {
 		curr_buf->vb.sequence = atomic_read(&isp->frame_sequence);
@@ -640,9 +641,9 @@ static void rkisp1_handle_buffer(struct rkisp1_capture *cap)
 						 queue);
 		list_del(&cap->buf.next->queue);
 	}
-	spin_unlock_irqrestore(&cap->buf.lock, flags);
 
 	rkisp1_set_next_buf(cap);
+	spin_unlock_irqrestore(&cap->buf.lock, flags);
 }
 
 void rkisp1_capture_isr(struct rkisp1_device *rkisp1)
