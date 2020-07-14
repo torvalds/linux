@@ -1505,16 +1505,30 @@ static int __maybe_unused qcom_geni_serial_sys_suspend(struct device *dev)
 	struct uart_port *uport = &port->uport;
 	struct qcom_geni_private_data *private_data = uport->private_data;
 
+	/*
+	 * This is done so we can hit the lowest possible state in suspend
+	 * even with no_console_suspend
+	 */
+	if (uart_console(uport)) {
+		geni_icc_set_tag(&port->se, 0x3);
+		geni_icc_set_bw(&port->se);
+	}
 	return uart_suspend_port(private_data->drv, uport);
 }
 
 static int __maybe_unused qcom_geni_serial_sys_resume(struct device *dev)
 {
+	int ret;
 	struct qcom_geni_serial_port *port = dev_get_drvdata(dev);
 	struct uart_port *uport = &port->uport;
 	struct qcom_geni_private_data *private_data = uport->private_data;
 
-	return uart_resume_port(private_data->drv, uport);
+	ret = uart_resume_port(private_data->drv, uport);
+	if (uart_console(uport)) {
+		geni_icc_set_tag(&port->se, 0x7);
+		geni_icc_set_bw(&port->se);
+	}
+	return ret;
 }
 
 static const struct dev_pm_ops qcom_geni_serial_pm_ops = {
