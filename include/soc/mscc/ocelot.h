@@ -126,6 +126,7 @@ enum ocelot_target {
 	HSIO,
 	PTP,
 	GCB,
+	DEV_GMII,
 	TARGET_MAX,
 };
 
@@ -408,6 +409,48 @@ enum ocelot_reg {
 	PTP_CLK_CFG_ADJ_CFG,
 	PTP_CLK_CFG_ADJ_FREQ,
 	GCB_SOFT_RST = GCB << TARGET_OFFSET,
+	GCB_MIIM_MII_STATUS,
+	GCB_MIIM_MII_CMD,
+	GCB_MIIM_MII_DATA,
+	DEV_CLOCK_CFG = DEV_GMII << TARGET_OFFSET,
+	DEV_PORT_MISC,
+	DEV_EVENTS,
+	DEV_EEE_CFG,
+	DEV_RX_PATH_DELAY,
+	DEV_TX_PATH_DELAY,
+	DEV_PTP_PREDICT_CFG,
+	DEV_MAC_ENA_CFG,
+	DEV_MAC_MODE_CFG,
+	DEV_MAC_MAXLEN_CFG,
+	DEV_MAC_TAGS_CFG,
+	DEV_MAC_ADV_CHK_CFG,
+	DEV_MAC_IFG_CFG,
+	DEV_MAC_HDX_CFG,
+	DEV_MAC_DBG_CFG,
+	DEV_MAC_FC_MAC_LOW_CFG,
+	DEV_MAC_FC_MAC_HIGH_CFG,
+	DEV_MAC_STICKY,
+	PCS1G_CFG,
+	PCS1G_MODE_CFG,
+	PCS1G_SD_CFG,
+	PCS1G_ANEG_CFG,
+	PCS1G_ANEG_NP_CFG,
+	PCS1G_LB_CFG,
+	PCS1G_DBG_CFG,
+	PCS1G_CDET_CFG,
+	PCS1G_ANEG_STATUS,
+	PCS1G_ANEG_NP_STATUS,
+	PCS1G_LINK_STATUS,
+	PCS1G_LINK_DOWN_CNT,
+	PCS1G_STICKY,
+	PCS1G_DEBUG_STATUS,
+	PCS1G_LPI_CFG,
+	PCS1G_LPI_WAKE_ERROR_CNT,
+	PCS1G_LPI_STATUS,
+	PCS1G_TSTPAT_MODE_CFG,
+	PCS1G_TSTPAT_STATUS,
+	DEV_PCS_FX100_CFG,
+	DEV_PCS_FX100_STATUS,
 };
 
 enum ocelot_regfield {
@@ -447,15 +490,30 @@ enum ocelot_regfield {
 	ANA_TABLES_MACACCESS_B_DOM,
 	ANA_TABLES_MACTINDX_BUCKET,
 	ANA_TABLES_MACTINDX_M_INDEX,
+	QSYS_SWITCH_PORT_MODE_PORT_ENA,
+	QSYS_SWITCH_PORT_MODE_SCH_NEXT_CFG,
+	QSYS_SWITCH_PORT_MODE_YEL_RSRVD,
+	QSYS_SWITCH_PORT_MODE_INGRESS_DROP_MODE,
+	QSYS_SWITCH_PORT_MODE_TX_PFC_ENA,
+	QSYS_SWITCH_PORT_MODE_TX_PFC_MODE,
 	QSYS_TIMED_FRAME_ENTRY_TFRM_VLD,
 	QSYS_TIMED_FRAME_ENTRY_TFRM_FP,
 	QSYS_TIMED_FRAME_ENTRY_TFRM_PORTNO,
 	QSYS_TIMED_FRAME_ENTRY_TFRM_TM_SEL,
 	QSYS_TIMED_FRAME_ENTRY_TFRM_TM_T,
+	SYS_PORT_MODE_DATA_WO_TS,
+	SYS_PORT_MODE_INCL_INJ_HDR,
+	SYS_PORT_MODE_INCL_XTR_HDR,
+	SYS_PORT_MODE_INCL_HDR_ERR,
 	SYS_RESET_CFG_CORE_ENA,
 	SYS_RESET_CFG_MEM_ENA,
 	SYS_RESET_CFG_MEM_INIT,
 	GCB_SOFT_RST_SWC_RST,
+	GCB_MIIM_MII_STATUS_PENDING,
+	GCB_MIIM_MII_STATUS_BUSY,
+	SYS_PAUSE_CFG_PAUSE_START,
+	SYS_PAUSE_CFG_PAUSE_STOP,
+	SYS_PAUSE_CFG_PAUSE_ENA,
 	REGFIELD_MAX
 };
 
@@ -483,6 +541,7 @@ struct ocelot;
 
 struct ocelot_ops {
 	int (*reset)(struct ocelot *ocelot);
+	u16 (*wm_enc)(u16 value);
 };
 
 struct ocelot_vcap_block {
@@ -494,7 +553,7 @@ struct ocelot_vcap_block {
 struct ocelot_port {
 	struct ocelot			*ocelot;
 
-	void __iomem			*regs;
+	struct regmap			*target;
 
 	bool				vlan_aware;
 
@@ -509,6 +568,8 @@ struct ocelot_port {
 	u8				ts_id;
 
 	phy_interface_t			phy_mode;
+
+	u8				*xmit_template;
 };
 
 struct ocelot {
@@ -592,6 +653,11 @@ struct ocelot_policer {
 #define ocelot_rmw_gix(ocelot, val, m, reg, gi) __ocelot_rmw_ix(ocelot, val, m, reg, reg##_GSZ * (gi))
 #define ocelot_rmw_rix(ocelot, val, m, reg, ri) __ocelot_rmw_ix(ocelot, val, m, reg, reg##_RSZ * (ri))
 #define ocelot_rmw(ocelot, val, m, reg) __ocelot_rmw_ix(ocelot, val, m, reg, 0)
+
+#define ocelot_field_write(ocelot, reg, val) regmap_field_write((ocelot)->regfields[(reg)], (val))
+#define ocelot_field_read(ocelot, reg, val) regmap_field_read((ocelot)->regfields[(reg)], (val))
+#define ocelot_fields_write(ocelot, id, reg, val) regmap_fields_write((ocelot)->regfields[(reg)], (id), (val))
+#define ocelot_fields_read(ocelot, id, reg, val) regmap_fields_read((ocelot)->regfields[(reg)], (id), (val))
 
 /* I/O */
 u32 ocelot_port_readl(struct ocelot_port *port, u32 reg);

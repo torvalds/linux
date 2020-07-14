@@ -8,6 +8,7 @@
 #include <soc/mscc/ocelot_ptp.h>
 #include <soc/mscc/ocelot_sys.h>
 #include <soc/mscc/ocelot.h>
+#include <linux/packing.h>
 #include <net/pkt_sched.h>
 #include <linux/iopoll.h>
 #include <linux/pci.h>
@@ -329,7 +330,49 @@ static const u32 vsc9959_gcb_regmap[] = {
 	REG(GCB_SOFT_RST,			0x000004),
 };
 
-static const u32 *vsc9959_regmap[] = {
+static const u32 vsc9959_dev_gmii_regmap[] = {
+	REG(DEV_CLOCK_CFG,			0x0),
+	REG(DEV_PORT_MISC,			0x4),
+	REG(DEV_EVENTS,				0x8),
+	REG(DEV_EEE_CFG,			0xc),
+	REG(DEV_RX_PATH_DELAY,			0x10),
+	REG(DEV_TX_PATH_DELAY,			0x14),
+	REG(DEV_PTP_PREDICT_CFG,		0x18),
+	REG(DEV_MAC_ENA_CFG,			0x1c),
+	REG(DEV_MAC_MODE_CFG,			0x20),
+	REG(DEV_MAC_MAXLEN_CFG,			0x24),
+	REG(DEV_MAC_TAGS_CFG,			0x28),
+	REG(DEV_MAC_ADV_CHK_CFG,		0x2c),
+	REG(DEV_MAC_IFG_CFG,			0x30),
+	REG(DEV_MAC_HDX_CFG,			0x34),
+	REG(DEV_MAC_DBG_CFG,			0x38),
+	REG(DEV_MAC_FC_MAC_LOW_CFG,		0x3c),
+	REG(DEV_MAC_FC_MAC_HIGH_CFG,		0x40),
+	REG(DEV_MAC_STICKY,			0x44),
+	REG_RESERVED(PCS1G_CFG),
+	REG_RESERVED(PCS1G_MODE_CFG),
+	REG_RESERVED(PCS1G_SD_CFG),
+	REG_RESERVED(PCS1G_ANEG_CFG),
+	REG_RESERVED(PCS1G_ANEG_NP_CFG),
+	REG_RESERVED(PCS1G_LB_CFG),
+	REG_RESERVED(PCS1G_DBG_CFG),
+	REG_RESERVED(PCS1G_CDET_CFG),
+	REG_RESERVED(PCS1G_ANEG_STATUS),
+	REG_RESERVED(PCS1G_ANEG_NP_STATUS),
+	REG_RESERVED(PCS1G_LINK_STATUS),
+	REG_RESERVED(PCS1G_LINK_DOWN_CNT),
+	REG_RESERVED(PCS1G_STICKY),
+	REG_RESERVED(PCS1G_DEBUG_STATUS),
+	REG_RESERVED(PCS1G_LPI_CFG),
+	REG_RESERVED(PCS1G_LPI_WAKE_ERROR_CNT),
+	REG_RESERVED(PCS1G_LPI_STATUS),
+	REG_RESERVED(PCS1G_TSTPAT_MODE_CFG),
+	REG_RESERVED(PCS1G_TSTPAT_STATUS),
+	REG_RESERVED(DEV_PCS_FX100_CFG),
+	REG_RESERVED(DEV_PCS_FX100_STATUS),
+};
+
+static const u32 *vsc9959_regmap[TARGET_MAX] = {
 	[ANA]	= vsc9959_ana_regmap,
 	[QS]	= vsc9959_qs_regmap,
 	[QSYS]	= vsc9959_qsys_regmap,
@@ -338,10 +381,11 @@ static const u32 *vsc9959_regmap[] = {
 	[S2]	= vsc9959_s2_regmap,
 	[PTP]	= vsc9959_ptp_regmap,
 	[GCB]	= vsc9959_gcb_regmap,
+	[DEV_GMII] = vsc9959_dev_gmii_regmap,
 };
 
 /* Addresses are relative to the PCI device's base address */
-static const struct resource vsc9959_target_io_res[] = {
+static const struct resource vsc9959_target_io_res[TARGET_MAX] = {
 	[ANA] = {
 		.start	= 0x0280000,
 		.end	= 0x028ffff,
@@ -426,7 +470,7 @@ static const struct resource vsc9959_imdio_res = {
 	.name		= "imdio",
 };
 
-static const struct reg_field vsc9959_regfields[] = {
+static const struct reg_field vsc9959_regfields[REGFIELD_MAX] = {
 	[ANA_ADVLEARN_VLAN_CHK] = REG_FIELD(ANA_ADVLEARN, 6, 6),
 	[ANA_ADVLEARN_LEARN_MIRROR] = REG_FIELD(ANA_ADVLEARN, 0, 5),
 	[ANA_ANEVENTS_FLOOD_DISCARD] = REG_FIELD(ANA_ANEVENTS, 30, 30),
@@ -460,6 +504,20 @@ static const struct reg_field vsc9959_regfields[] = {
 	[ANA_TABLES_MACTINDX_M_INDEX] = REG_FIELD(ANA_TABLES_MACTINDX, 0, 10),
 	[SYS_RESET_CFG_CORE_ENA] = REG_FIELD(SYS_RESET_CFG, 0, 0),
 	[GCB_SOFT_RST_SWC_RST] = REG_FIELD(GCB_SOFT_RST, 0, 0),
+	/* Replicated per number of ports (7), register size 4 per port */
+	[QSYS_SWITCH_PORT_MODE_PORT_ENA] = REG_FIELD_ID(QSYS_SWITCH_PORT_MODE, 14, 14, 7, 4),
+	[QSYS_SWITCH_PORT_MODE_SCH_NEXT_CFG] = REG_FIELD_ID(QSYS_SWITCH_PORT_MODE, 11, 13, 7, 4),
+	[QSYS_SWITCH_PORT_MODE_YEL_RSRVD] = REG_FIELD_ID(QSYS_SWITCH_PORT_MODE, 10, 10, 7, 4),
+	[QSYS_SWITCH_PORT_MODE_INGRESS_DROP_MODE] = REG_FIELD_ID(QSYS_SWITCH_PORT_MODE, 9, 9, 7, 4),
+	[QSYS_SWITCH_PORT_MODE_TX_PFC_ENA] = REG_FIELD_ID(QSYS_SWITCH_PORT_MODE, 1, 8, 7, 4),
+	[QSYS_SWITCH_PORT_MODE_TX_PFC_MODE] = REG_FIELD_ID(QSYS_SWITCH_PORT_MODE, 0, 0, 7, 4),
+	[SYS_PORT_MODE_DATA_WO_TS] = REG_FIELD_ID(SYS_PORT_MODE, 5, 6, 7, 4),
+	[SYS_PORT_MODE_INCL_INJ_HDR] = REG_FIELD_ID(SYS_PORT_MODE, 3, 4, 7, 4),
+	[SYS_PORT_MODE_INCL_XTR_HDR] = REG_FIELD_ID(SYS_PORT_MODE, 1, 2, 7, 4),
+	[SYS_PORT_MODE_INCL_HDR_ERR] = REG_FIELD_ID(SYS_PORT_MODE, 0, 0, 7, 4),
+	[SYS_PAUSE_CFG_PAUSE_START] = REG_FIELD_ID(SYS_PAUSE_CFG, 10, 18, 7, 4),
+	[SYS_PAUSE_CFG_PAUSE_STOP] = REG_FIELD_ID(SYS_PAUSE_CFG, 1, 9, 7, 4),
+	[SYS_PAUSE_CFG_PAUSE_ENA] = REG_FIELD_ID(SYS_PAUSE_CFG, 0, 1, 7, 4),
 };
 
 static const struct ocelot_stat_layout vsc9959_stats_layout[] = {
@@ -794,9 +852,9 @@ static void vsc9959_pcs_config_usxgmii(struct phy_device *pcs,
 		      USXGMII_ADVERTISE_FDX);
 }
 
-static void vsc9959_pcs_config(struct ocelot *ocelot, int port,
-			       unsigned int link_an_mode,
-			       const struct phylink_link_state *state)
+void vsc9959_pcs_config(struct ocelot *ocelot, int port,
+			unsigned int link_an_mode,
+			const struct phylink_link_state *state)
 {
 	struct felix *felix = ocelot_to_felix(ocelot);
 	struct phy_device *pcs = felix->pcs[port];
@@ -907,10 +965,10 @@ static void vsc9959_pcs_link_up_2500basex(struct phy_device *pcs,
 	phy_clear_bits(pcs, MII_BMCR, BMCR_ANENABLE);
 }
 
-static void vsc9959_pcs_link_up(struct ocelot *ocelot, int port,
-				unsigned int link_an_mode,
-				phy_interface_t interface,
-				int speed, int duplex)
+void vsc9959_pcs_link_up(struct ocelot *ocelot, int port,
+			 unsigned int link_an_mode,
+			 phy_interface_t interface,
+			 int speed, int duplex)
 {
 	struct felix *felix = ocelot_to_felix(ocelot);
 	struct phy_device *pcs = felix->pcs[port];
@@ -1038,8 +1096,8 @@ static void vsc9959_pcs_link_state_usxgmii(struct phy_device *pcs,
 		pcs->duplex = DUPLEX_HALF;
 }
 
-static void vsc9959_pcs_link_state(struct ocelot *ocelot, int port,
-				   struct phylink_link_state *state)
+void vsc9959_pcs_link_state(struct ocelot *ocelot, int port,
+			    struct phylink_link_state *state)
 {
 	struct felix *felix = ocelot_to_felix(ocelot);
 	struct phy_device *pcs = felix->pcs[port];
@@ -1070,6 +1128,43 @@ static void vsc9959_pcs_link_state(struct ocelot *ocelot, int port,
 	vsc9959_pcs_link_state_resolve(pcs, state);
 }
 
+static void vsc9959_phylink_validate(struct ocelot *ocelot, int port,
+				     unsigned long *supported,
+				     struct phylink_link_state *state)
+{
+	struct ocelot_port *ocelot_port = ocelot->ports[port];
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
+
+	if (state->interface != PHY_INTERFACE_MODE_NA &&
+	    state->interface != ocelot_port->phy_mode) {
+		bitmap_zero(supported, __ETHTOOL_LINK_MODE_MASK_NBITS);
+		return;
+	}
+
+	phylink_set_port_modes(mask);
+	phylink_set(mask, Autoneg);
+	phylink_set(mask, Pause);
+	phylink_set(mask, Asym_Pause);
+	phylink_set(mask, 10baseT_Half);
+	phylink_set(mask, 10baseT_Full);
+	phylink_set(mask, 100baseT_Half);
+	phylink_set(mask, 100baseT_Full);
+	phylink_set(mask, 1000baseT_Half);
+	phylink_set(mask, 1000baseT_Full);
+
+	if (state->interface == PHY_INTERFACE_MODE_INTERNAL ||
+	    state->interface == PHY_INTERFACE_MODE_2500BASEX ||
+	    state->interface == PHY_INTERFACE_MODE_USXGMII) {
+		phylink_set(mask, 2500baseT_Full);
+		phylink_set(mask, 2500baseX_Full);
+	}
+
+	bitmap_and(supported, supported, mask,
+		   __ETHTOOL_LINK_MODE_MASK_NBITS);
+	bitmap_and(state->advertising, state->advertising, mask,
+		   __ETHTOOL_LINK_MODE_MASK_NBITS);
+}
+
 static int vsc9959_prevalidate_phy_mode(struct ocelot *ocelot, int port,
 					phy_interface_t phy_mode)
 {
@@ -1091,8 +1186,21 @@ static int vsc9959_prevalidate_phy_mode(struct ocelot *ocelot, int port,
 	}
 }
 
+/* Watermark encode
+ * Bit 8:   Unit; 0:1, 1:16
+ * Bit 7-0: Value to be multiplied with unit
+ */
+static u16 vsc9959_wm_enc(u16 value)
+{
+	if (value >= BIT(8))
+		return BIT(8) | (value / 16);
+
+	return value;
+}
+
 static const struct ocelot_ops vsc9959_ops = {
 	.reset			= vsc9959_reset,
+	.wm_enc			= vsc9959_wm_enc,
 };
 
 static int vsc9959_mdio_bus_alloc(struct ocelot *ocelot)
@@ -1100,7 +1208,6 @@ static int vsc9959_mdio_bus_alloc(struct ocelot *ocelot)
 	struct felix *felix = ocelot_to_felix(ocelot);
 	struct enetc_mdio_priv *mdio_priv;
 	struct device *dev = ocelot->dev;
-	resource_size_t imdio_base;
 	void __iomem *imdio_regs;
 	struct resource res;
 	struct enetc_hw *hw;
@@ -1116,13 +1223,10 @@ static int vsc9959_mdio_bus_alloc(struct ocelot *ocelot)
 		return -ENOMEM;
 	}
 
-	imdio_base = pci_resource_start(felix->pdev,
-					felix->info->imdio_pci_bar);
-
 	memcpy(&res, felix->info->imdio_res, sizeof(res));
 	res.flags = IORESOURCE_MEM;
-	res.start += imdio_base;
-	res.end += imdio_base;
+	res.start += felix->imdio_base;
+	res.end += felix->imdio_base;
 
 	imdio_regs = devm_ioremap_resource(dev, &res);
 	if (IS_ERR(imdio_regs)) {
@@ -1182,7 +1286,7 @@ static int vsc9959_mdio_bus_alloc(struct ocelot *ocelot)
 	return 0;
 }
 
-static void vsc9959_mdio_bus_free(struct ocelot *ocelot)
+void vsc9959_mdio_bus_free(struct ocelot *ocelot)
 {
 	struct felix *felix = ocelot_to_felix(ocelot);
 	int port;
@@ -1378,7 +1482,25 @@ static int vsc9959_port_setup_tc(struct dsa_switch *ds, int port,
 	}
 }
 
-struct felix_info felix_info_vsc9959 = {
+static void vsc9959_xmit_template_populate(struct ocelot *ocelot, int port)
+{
+	struct ocelot_port *ocelot_port = ocelot->ports[port];
+	u8 *template = ocelot_port->xmit_template;
+	u64 bypass, dest, src;
+
+	/* Set the source port as the CPU port module and not the
+	 * NPI port
+	 */
+	src = ocelot->num_phys_ports;
+	dest = BIT(port);
+	bypass = true;
+
+	packing(template, &bypass, 127, 127, OCELOT_TAG_LEN, PACK, 0);
+	packing(template, &dest,    68,  56, OCELOT_TAG_LEN, PACK, 0);
+	packing(template, &src,     46,  43, OCELOT_TAG_LEN, PACK, 0);
+}
+
+static const struct felix_info felix_info_vsc9959 = {
 	.target_io_res		= vsc9959_target_io_res,
 	.port_io_res		= vsc9959_port_io_res,
 	.imdio_res		= &vsc9959_imdio_res,
@@ -1401,7 +1523,148 @@ struct felix_info felix_info_vsc9959 = {
 	.pcs_config		= vsc9959_pcs_config,
 	.pcs_link_up		= vsc9959_pcs_link_up,
 	.pcs_link_state		= vsc9959_pcs_link_state,
+	.phylink_validate	= vsc9959_phylink_validate,
 	.prevalidate_phy_mode	= vsc9959_prevalidate_phy_mode,
 	.port_setup_tc          = vsc9959_port_setup_tc,
 	.port_sched_speed_set   = vsc9959_sched_speed_set,
+	.xmit_template_populate	= vsc9959_xmit_template_populate,
+};
+
+static irqreturn_t felix_irq_handler(int irq, void *data)
+{
+	struct ocelot *ocelot = (struct ocelot *)data;
+
+	/* The INTB interrupt is used for both PTP TX timestamp interrupt
+	 * and preemption status change interrupt on each port.
+	 *
+	 * - Get txtstamp if have
+	 * - TODO: handle preemption. Without handling it, driver may get
+	 *   interrupt storm.
+	 */
+
+	ocelot_get_txtstamp(ocelot);
+
+	return IRQ_HANDLED;
+}
+
+static int felix_pci_probe(struct pci_dev *pdev,
+			   const struct pci_device_id *id)
+{
+	struct dsa_switch *ds;
+	struct ocelot *ocelot;
+	struct felix *felix;
+	int err;
+
+	if (pdev->dev.of_node && !of_device_is_available(pdev->dev.of_node)) {
+		dev_info(&pdev->dev, "device is disabled, skipping\n");
+		return -ENODEV;
+	}
+
+	err = pci_enable_device(pdev);
+	if (err) {
+		dev_err(&pdev->dev, "device enable failed\n");
+		goto err_pci_enable;
+	}
+
+	/* set up for high or low dma */
+	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
+	if (err) {
+		err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
+		if (err) {
+			dev_err(&pdev->dev,
+				"DMA configuration failed: 0x%x\n", err);
+			goto err_dma;
+		}
+	}
+
+	felix = kzalloc(sizeof(struct felix), GFP_KERNEL);
+	if (!felix) {
+		err = -ENOMEM;
+		dev_err(&pdev->dev, "Failed to allocate driver memory\n");
+		goto err_alloc_felix;
+	}
+
+	pci_set_drvdata(pdev, felix);
+	ocelot = &felix->ocelot;
+	ocelot->dev = &pdev->dev;
+	felix->info = &felix_info_vsc9959;
+	felix->switch_base = pci_resource_start(pdev,
+						felix->info->switch_pci_bar);
+	felix->imdio_base = pci_resource_start(pdev,
+					       felix->info->imdio_pci_bar);
+
+	pci_set_master(pdev);
+
+	err = devm_request_threaded_irq(&pdev->dev, pdev->irq, NULL,
+					&felix_irq_handler, IRQF_ONESHOT,
+					"felix-intb", ocelot);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to request irq\n");
+		goto err_alloc_irq;
+	}
+
+	ocelot->ptp = 1;
+
+	ds = kzalloc(sizeof(struct dsa_switch), GFP_KERNEL);
+	if (!ds) {
+		err = -ENOMEM;
+		dev_err(&pdev->dev, "Failed to allocate DSA switch\n");
+		goto err_alloc_ds;
+	}
+
+	ds->dev = &pdev->dev;
+	ds->num_ports = felix->info->num_ports;
+	ds->num_tx_queues = felix->info->num_tx_queues;
+	ds->ops = &felix_switch_ops;
+	ds->priv = ocelot;
+	felix->ds = ds;
+
+	err = dsa_register_switch(ds);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to register DSA switch: %d\n", err);
+		goto err_register_ds;
+	}
+
+	return 0;
+
+err_register_ds:
+	kfree(ds);
+err_alloc_ds:
+err_alloc_irq:
+err_alloc_felix:
+	kfree(felix);
+err_dma:
+	pci_disable_device(pdev);
+err_pci_enable:
+	return err;
+}
+
+static void felix_pci_remove(struct pci_dev *pdev)
+{
+	struct felix *felix;
+
+	felix = pci_get_drvdata(pdev);
+
+	dsa_unregister_switch(felix->ds);
+
+	kfree(felix->ds);
+	kfree(felix);
+
+	pci_disable_device(pdev);
+}
+
+static struct pci_device_id felix_ids[] = {
+	{
+		/* NXP LS1028A */
+		PCI_DEVICE(PCI_VENDOR_ID_FREESCALE, 0xEEF0),
+	},
+	{ 0, }
+};
+MODULE_DEVICE_TABLE(pci, felix_ids);
+
+struct pci_driver felix_vsc9959_pci_driver = {
+	.name		= "mscc_felix",
+	.id_table	= felix_ids,
+	.probe		= felix_pci_probe,
+	.remove		= felix_pci_remove,
 };
