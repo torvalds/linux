@@ -522,21 +522,21 @@ Files in /sys/fs/ext4/<devname>:
 Ioctls
 ======
 
-There is some Ext4 specific functionality which can be accessed by applications
-through the system call interfaces. The list of all Ext4 specific ioctls are
-shown in the table below.
+Ext4 implements various ioctls which can be used by applications to access
+ext4-specific functionality. An incomplete list of these ioctls is shown in the
+table below. This list includes truly ext4-specific ioctls (``EXT4_IOC_*``) as
+well as ioctls that may have been ext4-specific originally but are now supported
+by some other filesystem(s) too (``FS_IOC_*``).
 
-Table of Ext4 specific ioctls
+Table of Ext4 ioctls
 
-  EXT4_IOC_GETFLAGS
+  FS_IOC_GETFLAGS
         Get additional attributes associated with inode.  The ioctl argument is
-        an integer bitfield, with bit values described in ext4.h. This ioctl is
-        an alias for FS_IOC_GETFLAGS.
+        an integer bitfield, with bit values described in ext4.h.
 
-  EXT4_IOC_SETFLAGS
+  FS_IOC_SETFLAGS
         Set additional attributes associated with inode.  The ioctl argument is
-        an integer bitfield, with bit values described in ext4.h. This ioctl is
-        an alias for FS_IOC_SETFLAGS.
+        an integer bitfield, with bit values described in ext4.h.
 
   EXT4_IOC_GETVERSION, EXT4_IOC_GETVERSION_OLD
         Get the inode i_generation number stored for each inode. The
