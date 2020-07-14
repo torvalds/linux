@@ -20,7 +20,9 @@ long long in4 __attribute__((aligned(64))) = 0;
 struct s in5 = {};
 
 /* .rodata section */
-const volatile int in6 = 0;
+const volatile struct {
+	const int in6;
+} in = {};
 
 /* .data section */
 int out1 = -1;
@@ -46,7 +48,7 @@ int handler(const void *ctx)
 	out3 = in3;
 	out4 = in4;
 	out5 = in5;
-	out6 = in6;
+	out6 = in.in6;
 
 	bpf_syscall = CONFIG_BPF_SYSCALL;
 	kern_ver = LINUX_KERNEL_VERSION;
