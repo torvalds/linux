@@ -19,7 +19,7 @@
 98: 	x,y;					\
 	.section .fixup,ALLOC,EXECINSTR;	\
 	.align	4;				\
-99:	ba 30f;					\
+99:	retl;					\
 	 a, b, %o0;				\
 	.section __ex_table,ALLOC;		\
 	.align	4;				\
@@ -194,24 +194,15 @@ __memset_end:
 1:
 	sll	%g2, 3, %g2
 	add	%o3, %o1, %o0
-	b 30f
+	retl
 	 sub	%o0, %g2, %o0
 21:
 	mov	8, %o0
 	and	%o1, 7, %o1
 	sub	%o0, %g2, %o0
 	sll	%o0, 3, %o0
-	b 30f
+	retl
 	 add	%o0, %o1, %o0
-30:
-/* %o4 is faulting address, %o5 is %pc where fault occurred */
-	save	%sp, -104, %sp
-	mov	%i5, %o0
-	mov	%i7, %o1
-	call	lookup_fault
-	 mov	%i4, %o2
-	ret
-	 restore
 
 	.globl __bzero_end
 __bzero_end:
