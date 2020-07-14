@@ -575,12 +575,16 @@ static void rkisp1_dummy_buf_destroy(struct rkisp1_capture *cap)
 
 static void rkisp1_set_next_buf(struct rkisp1_capture *cap)
 {
-	/*
-	 * Use the dummy space allocated by dma_alloc_coherent to
-	 * throw data if there is no available buffer.
-	 */
-	if (cap->buf.next) {
-		u32 *buff_addr = cap->buf.next->buff_addr;
+	cap->buf.curr = cap->buf.next;
+	cap->buf.next = NULL;
+
+	if (!list_empty(&cap->buf.queue)) {
+		u32 *buff_addr;
+
+		cap->buf.next = list_first_entry(&cap->buf.queue, struct rkisp1_buffer, queue);
+		list_del(&cap->buf.next->queue);
+
+		buff_addr = cap->buf.next->buff_addr;
 
 		rkisp1_write(cap->rkisp1,
 			     buff_addr[RKISP1_PLANE_Y],
@@ -592,6 +596,10 @@ static void rkisp1_set_next_buf(struct rkisp1_capture *cap)
 			     buff_addr[RKISP1_PLANE_CR],
 			     cap->config->mi.cr_base_ad_init);
 	} else {
+		/*
+		 * Use the dummy space allocated by dma_alloc_coherent to
+		 * throw data if there is no available buffer.
+		 */
 		rkisp1_write(cap->rkisp1,
 			     cap->buf.dummy.dma_addr,
 			     cap->config->mi.y_base_ad_init);
@@ -630,16 +638,6 @@ static void rkisp1_handle_buffer(struct rkisp1_capture *cap)
 		vb2_buffer_done(&curr_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 	} else {
 		cap->rkisp1->debug.frame_drop[cap->id]++;
-	}
-
-	cap->buf.curr = cap->buf.next;
-	cap->buf.next = NULL;
-
-	if (!list_empty(&cap->buf.queue)) {
-		cap->buf.next = list_first_entry(&cap->buf.queue,
-						 struct rkisp1_buffer,
-						 queue);
-		list_del(&cap->buf.next->queue);
 	}
 
 	rkisp1_set_next_buf(cap);
