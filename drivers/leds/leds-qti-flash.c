@@ -522,8 +522,8 @@ static int qti_flash_led_symmetry_config(
 	}
 
 	if (type == FLASH_LED_TYPE_UNKNOWN) {
-		pr_err("Error in symmetry configuration for switch device\n");
-		return -EINVAL;
+		/* No channels are configured */
+		return 0;
 	}
 
 	for (i = 0; i < led->num_fnodes; i++) {
