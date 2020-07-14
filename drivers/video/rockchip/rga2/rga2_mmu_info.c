@@ -40,51 +40,16 @@ extern struct rga2_mmu_buf_t rga2_mmu_buf;
 
 void rga2_dma_flush_range(void *pstart, void *pend)
 {
-#ifdef CONFIG_ARM
-	dmac_flush_range(pstart, pend);
-	outer_flush_range(virt_to_phys(pstart), virt_to_phys(pend));
-#elif defined(CONFIG_ARM64)
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0)
-	__dma_flush_area(pstart, pend - pstart);
-#else
-	__dma_flush_range(pstart, pend);
-#endif
-#endif
+	dma_sync_single_for_device(rga2_drvdata->dev, virt_to_phys(pstart), pend - pstart, DMA_TO_DEVICE);
 }
 
 static void rga2_dma_flush_page(struct page *page)
 {
 	phys_addr_t paddr;
-	void *virt;
 
 	paddr = page_to_phys(page);
-#ifdef CONFIG_ARM
-	if (PageHighMem(page)) {
-#ifdef CONFIG_HIGHMEM
-		if (cache_is_vipt_nonaliasing()) {
-			virt = kmap_atomic(page);
-			dmac_flush_range(virt, virt + PAGE_SIZE);
-			kunmap_atomic(virt);
-		} else {
-			virt = kmap_high_get(page);
-			dmac_flush_range(virt, virt + PAGE_SIZE);
-			kunmap_high(page);
-		}
-#endif
-	} else {
-		virt = page_address(page);
-		dmac_flush_range(virt, virt + PAGE_SIZE);
-	}
 
-	outer_flush_range(paddr, paddr + PAGE_SIZE);
-#elif defined(CONFIG_ARM64)
-	virt = page_address(page);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0)
-	__dma_flush_area(virt, PAGE_SIZE);
-#else
-	__dma_flush_range(virt, virt + PAGE_SIZE);
-#endif
-#endif
+	dma_sync_single_for_device(rga2_drvdata->dev, paddr, PAGE_SIZE, DMA_TO_DEVICE);
 }
 
 #if 0
@@ -620,6 +585,7 @@ static int rga2_mmu_info_BitBlt_mode(struct rga2_reg *reg, struct rga2_req *req)
 				(rga2_mmu_buf.front & (rga2_mmu_buf.size - 1));
         MMU_Base_phys = rga2_mmu_buf.buf +
 				(rga2_mmu_buf.front & (rga2_mmu_buf.size - 1));
+
         mutex_unlock(&rga2_service.lock);
         if (Src0MemSize) {
 		if (req->sg_src0) {

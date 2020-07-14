@@ -87,25 +87,6 @@ int RGA2_INT_FLAG;
 rga2_session rga2_session_global;
 long (*rga2_ioctl_kernel_p)(struct rga_req *);
 
-struct rga2_drvdata_t {
-	struct miscdevice miscdev;
-	struct device *dev;
-	void *rga_base;
-	int irq;
-
-	struct delayed_work power_off_work;
-	struct wake_lock wake_lock;
-	void (*rga_irq_callback)(int rga_retval);
-
-	struct clk *aclk_rga2;
-	struct clk *hclk_rga2;
-	struct clk *pd_rga2;
-	struct clk *clk_rga2;
-
-	struct ion_client * ion_client;
-	char version[16];
-};
-
 struct rga2_drvdata_t *rga2_drvdata;
 struct rga2_service_info rga2_service;
 struct rga2_mmu_buf_t rga2_mmu_buf;
