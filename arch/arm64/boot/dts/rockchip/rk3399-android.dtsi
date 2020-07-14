@@ -123,7 +123,6 @@
 		clocks = <&cru ACLK_RGA>, <&cru HCLK_RGA>, <&cru SCLK_RGA_CORE>;
 		clock-names = "aclk_rga", "hclk_rga", "clk_rga";
 		power-domains = <&power RK3399_PD_RGA>;
-		dma-coherent;
 		status = "okay";
 	};
 

@@ -1612,7 +1612,6 @@
 		clocks = <&cru ACLK_RGA>, <&cru HCLK_RGA>, <&cru SCLK_RGA_CORE>;
 		clock-names = "aclk_rga", "hclk_rga", "clk_rga";
 		power-domains = <&power PX30_PD_VO>;
-		dma-coherent;
 		status = "disabled";
 	};
 
