@@ -441,28 +441,6 @@ static int padata_setup_cpumasks(struct padata_instance *pinst)
 	return err;
 }
 
-static int pd_setup_cpumasks(struct parallel_data *pd,
-			     const struct cpumask *pcpumask,
-			     const struct cpumask *cbcpumask)
-{
-	int err = -ENOMEM;
-
-	if (!alloc_cpumask_var(&pd->cpumask.pcpu, GFP_KERNEL))
-		goto out;
-	if (!alloc_cpumask_var(&pd->cpumask.cbcpu, GFP_KERNEL))
-		goto free_pcpu_mask;
-
-	cpumask_copy(pd->cpumask.pcpu, pcpumask);
-	cpumask_copy(pd->cpumask.cbcpu, cbcpumask);
-
-	return 0;
-
-free_pcpu_mask:
-	free_cpumask_var(pd->cpumask.pcpu);
-out:
-	return err;
-}
-
 static void __init padata_mt_helper(struct work_struct *w)
 {
 	struct padata_work *pw = container_of(w, struct padata_work, pw_work);
@@ -613,8 +591,14 @@ static struct parallel_data *padata_alloc_pd(struct padata_shell *ps)
 		goto err_free_pqueue;
 
 	pd->ps = ps;
-	if (pd_setup_cpumasks(pd, pcpumask, cbcpumask))
+
+	if (!alloc_cpumask_var(&pd->cpumask.pcpu, GFP_KERNEL))
 		goto err_free_squeue;
+	if (!alloc_cpumask_var(&pd->cpumask.cbcpu, GFP_KERNEL))
+		goto err_free_pcpu;
+
+	cpumask_copy(pd->cpumask.pcpu, pcpumask);
+	cpumask_copy(pd->cpumask.cbcpu, cbcpumask);
 
 	padata_init_pqueues(pd);
 	padata_init_squeues(pd);
@@ -626,6 +610,8 @@ static struct parallel_data *padata_alloc_pd(struct padata_shell *ps)
 
 	return pd;
 
+err_free_pcpu:
+	free_cpumask_var(pd->cpumask.pcpu);
 err_free_squeue:
 	free_percpu(pd->squeue);
 err_free_pqueue:
