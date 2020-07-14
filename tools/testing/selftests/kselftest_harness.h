@@ -680,7 +680,8 @@
 			__bail(_assert, _metadata->no_print, _metadata->step))
 
 #define __INC_STEP(_metadata) \
-	if (_metadata->passed && _metadata->step < 255) \
+	/* Keep "step" below 255 (which is used for "SKIP" reporting). */	\
+	if (_metadata->passed && _metadata->step < 253) \
 		_metadata->step++;
 
 #define is_signed_type(var)       (!!(((__typeof__(var))(-1)) < (__typeof__(var))1))
@@ -976,12 +977,6 @@ void __run_test(struct __fixture_metadata *f,
 		t->passed = 0;
 	} else if (t->pid == 0) {
 		t->fn(t, variant);
-		/* Make sure step doesn't get lost in reporting */
-		if (t->step >= 255) {
-			ksft_print_msg("Too many test steps (%u)!?\n", t->step);
-			t->step = 254;
-		}
-		/* Use 255 for SKIP */
 		if (t->skip)
 			_exit(255);
 		/* Pass is exit 0 */
