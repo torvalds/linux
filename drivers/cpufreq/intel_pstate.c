@@ -2823,7 +2823,12 @@ static int __init intel_pstate_init(void)
 	id = x86_match_cpu(hwp_support_ids);
 	if (id) {
 		copy_cpu_funcs(&core_funcs);
-		if (!no_hwp) {
+		/*
+		 * Avoid enabling HWP for processors without EPP support,
+		 * because that means incomplete HWP implementation which is a
+		 * corner case and supporting it is generally problematic.
+		 */
+		if (!no_hwp && boot_cpu_has(X86_FEATURE_HWP_EPP)) {
 			hwp_active++;
 			hwp_mode_bdw = id->driver_data;
 			intel_pstate.attr = hwp_cpufreq_attrs;
