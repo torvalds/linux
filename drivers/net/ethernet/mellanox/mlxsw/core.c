@@ -1524,7 +1524,8 @@ static bool __is_rx_listener_equal(const struct mlxsw_rx_listener *rxl_a,
 {
 	return (rxl_a->func == rxl_b->func &&
 		rxl_a->local_port == rxl_b->local_port &&
-		rxl_a->trap_id == rxl_b->trap_id);
+		rxl_a->trap_id == rxl_b->trap_id &&
+		rxl_a->mirror_reason == rxl_b->mirror_reason);
 }
 
 static struct mlxsw_rx_listener_item *
@@ -2044,7 +2045,8 @@ void mlxsw_core_skb_receive(struct mlxsw_core *mlxsw_core, struct sk_buff *skb,
 		rxl = &rxl_item->rxl;
 		if ((rxl->local_port == MLXSW_PORT_DONT_CARE ||
 		     rxl->local_port == local_port) &&
-		    rxl->trap_id == rx_info->trap_id) {
+		    rxl->trap_id == rx_info->trap_id &&
+		    rxl->mirror_reason == rx_info->mirror_reason) {
 			if (rxl_item->enabled)
 				found = true;
 			break;

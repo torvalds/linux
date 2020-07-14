@@ -1295,10 +1295,13 @@ static int mlxsw_sp_qevent_mirror_configure(struct mlxsw_sp *mlxsw_sp,
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = qevent_binding->mlxsw_sp_port;
 	struct mlxsw_sp_span_trigger_parms trigger_parms = {};
+	struct mlxsw_sp_span_agent_parms agent_parms = {
+		.to_dev = mall_entry->mirror.to_dev,
+	};
 	int span_id;
 	int err;
 
-	err = mlxsw_sp_span_agent_get(mlxsw_sp, mall_entry->mirror.to_dev, &span_id);
+	err = mlxsw_sp_span_agent_get(mlxsw_sp, &span_id, &agent_parms);
 	if (err)
 		return err;
 

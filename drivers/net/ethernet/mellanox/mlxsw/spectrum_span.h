@@ -21,6 +21,8 @@ struct mlxsw_sp_span_parms {
 	union mlxsw_sp_l3addr daddr;
 	union mlxsw_sp_l3addr saddr;
 	u16 vid;
+	u16 policer_id;
+	bool policer_enable;
 };
 
 enum mlxsw_sp_span_trigger {
@@ -35,11 +37,19 @@ struct mlxsw_sp_span_trigger_parms {
 	int span_id;
 };
 
+struct mlxsw_sp_span_agent_parms {
+	const struct net_device *to_dev;
+	u16 policer_id;
+	bool policer_enable;
+};
+
 struct mlxsw_sp_span_entry_ops;
 
 struct mlxsw_sp_span_ops {
 	int (*init)(struct mlxsw_sp *mlxsw_sp);
 	u32 (*buffsize_get)(int mtu, u32 speed);
+	int (*policer_id_base_set)(struct mlxsw_sp *mlxsw_sp,
+				   u16 policer_id_base);
 };
 
 struct mlxsw_sp_span_entry {
@@ -52,7 +62,8 @@ struct mlxsw_sp_span_entry {
 
 struct mlxsw_sp_span_entry_ops {
 	bool (*can_handle)(const struct net_device *to_dev);
-	int (*parms_set)(const struct net_device *to_dev,
+	int (*parms_set)(struct mlxsw_sp *mlxsw_sp,
+			 const struct net_device *to_dev,
 			 struct mlxsw_sp_span_parms *sparmsp);
 	int (*configure)(struct mlxsw_sp_span_entry *span_entry,
 			 struct mlxsw_sp_span_parms sparms);
@@ -73,8 +84,8 @@ void mlxsw_sp_span_entry_invalidate(struct mlxsw_sp *mlxsw_sp,
 int mlxsw_sp_span_port_mtu_update(struct mlxsw_sp_port *port, u16 mtu);
 void mlxsw_sp_span_speed_update_work(struct work_struct *work);
 
-int mlxsw_sp_span_agent_get(struct mlxsw_sp *mlxsw_sp,
-			    const struct net_device *to_dev, int *p_span_id);
+int mlxsw_sp_span_agent_get(struct mlxsw_sp *mlxsw_sp, int *p_span_id,
+			    const struct mlxsw_sp_span_agent_parms *parms);
 void mlxsw_sp_span_agent_put(struct mlxsw_sp *mlxsw_sp, int span_id);
 int mlxsw_sp_span_analyzed_port_get(struct mlxsw_sp_port *mlxsw_sp_port,
 				    bool ingress);
