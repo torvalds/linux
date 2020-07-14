@@ -504,6 +504,16 @@ static inline void nvme_mpath_check_last_path(struct nvme_ns *ns)
 		kblockd_schedule_work(&head->requeue_work);
 }
 
+static inline void nvme_mpath_update_disk_size(struct gendisk *disk)
+{
+	struct block_device *bdev = bdget_disk(disk, 0);
+
+	if (bdev) {
+		bd_set_size(bdev, get_capacity(disk) << SECTOR_SHIFT);
+		bdput(bdev);
+	}
+}
+
 extern struct device_attribute dev_attr_ana_grpid;
 extern struct device_attribute dev_attr_ana_state;
 
@@ -568,6 +578,9 @@ static inline void nvme_mpath_wait_freeze(struct nvme_subsystem *subsys)
 {
 }
 static inline void nvme_mpath_start_freeze(struct nvme_subsystem *subsys)
+{
+}
+static inline void nvme_mpath_update_disk_size(struct gendisk *disk)
 {
 }
 #endif /* CONFIG_NVME_MULTIPATH */
