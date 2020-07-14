@@ -8662,6 +8662,13 @@ MLXSW_REG_DEFINE(mpat, MLXSW_REG_MPAT_ID, MLXSW_REG_MPAT_LEN);
  */
 MLXSW_ITEM32(reg, mpat, pa_id, 0x00, 28, 4);
 
+/* reg_mpat_session_id
+ * Mirror Session ID.
+ * Used for MIRROR_SESSION<i> trap.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mpat, session_id, 0x00, 24, 4);
+
 /* reg_mpat_system_port
  * A unique port identifier for the final destination of the packet.
  * Access: RW
@@ -8718,6 +8725,18 @@ enum mlxsw_reg_mpat_span_type {
  * Access: RW
  */
 MLXSW_ITEM32(reg, mpat, span_type, 0x04, 0, 4);
+
+/* reg_mpat_pide
+ * Policer enable.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mpat, pide, 0x0C, 15, 1);
+
+/* reg_mpat_pid
+ * Policer ID.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mpat, pid, 0x0C, 0, 14);
 
 /* Remote SPAN - Ethernet VLAN
  * - - - - - - - - - - - - - -
