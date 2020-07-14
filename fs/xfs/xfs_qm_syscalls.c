@@ -437,6 +437,58 @@ xfs_qm_scall_quotaon(
 	(QC_LIMIT_MASK | QC_TIMER_MASK | QC_WARNS_MASK)
 
 /*
+ * Adjust limits of this quota, and the defaults if passed in.  Returns true
+ * if the new limits made sense and were applied, false otherwise.
+ */
+static inline bool
+xfs_setqlim_limits(
+	struct xfs_mount	*mp,
+	struct xfs_dquot_res	*res,
+	struct xfs_quota_limits	*qlim,
+	xfs_qcnt_t		hard,
+	xfs_qcnt_t		soft,
+	const char		*tag)
+{
+	/* The hard limit can't be less than the soft limit. */
+	if (hard != 0 && hard < soft) {
+		xfs_debug(mp, "%shard %lld < %ssoft %lld", tag, hard, tag,
+				soft);
+		return false;
+	}
+
+	res->hardlimit = hard;
+	res->softlimit = soft;
+	if (qlim) {
+		qlim->hard = hard;
+		qlim->soft = soft;
+	}
+
+	return true;
+}
+
+static inline void
+xfs_setqlim_warns(
+	struct xfs_dquot_res	*res,
+	struct xfs_quota_limits	*qlim,
+	int			warns)
+{
+	res->warnings = warns;
+	if (qlim)
+		qlim->warn = warns;
+}
+
+static inline void
+xfs_setqlim_timer(
+	struct xfs_dquot_res	*res,
+	struct xfs_quota_limits	*qlim,
+	s64			timer)
+{
+	res->timer = timer;
+	if (qlim)
+		qlim->time = timer;
+}
+
+/*
  * Adjust quota limits, and start/stop timers accordingly.
  */
 int
@@ -450,6 +502,8 @@ xfs_qm_scall_setqlim(
 	struct xfs_dquot	*dqp;
 	struct xfs_trans	*tp;
 	struct xfs_def_quota	*defq;
+	struct xfs_dquot_res	*res;
+	struct xfs_quota_limits	*qlim;
 	int			error;
 	xfs_qcnt_t		hard, soft;
 
@@ -489,79 +543,13 @@ xfs_qm_scall_setqlim(
 	xfs_trans_dqjoin(tp, dqp);
 
 	/*
+	 * Update quota limits, warnings, and timers, and the defaults
+	 * if we're touching id == 0.
+	 *
 	 * Make sure that hardlimits are >= soft limits before changing.
-	 */
-	hard = (newlim->d_fieldmask & QC_SPC_HARD) ?
-		(xfs_qcnt_t) XFS_B_TO_FSB(mp, newlim->d_spc_hardlimit) :
-			dqp->q_blk.hardlimit;
-	soft = (newlim->d_fieldmask & QC_SPC_SOFT) ?
-		(xfs_qcnt_t) XFS_B_TO_FSB(mp, newlim->d_spc_softlimit) :
-			dqp->q_blk.softlimit;
-	if (hard == 0 || hard >= soft) {
-		dqp->q_blk.hardlimit = hard;
-		dqp->q_blk.softlimit = soft;
-		xfs_dquot_set_prealloc_limits(dqp);
-		if (id == 0) {
-			defq->blk.hard = hard;
-			defq->blk.soft = soft;
-		}
-	} else {
-		xfs_debug(mp, "blkhard %Ld < blksoft %Ld", hard, soft);
-	}
-	hard = (newlim->d_fieldmask & QC_RT_SPC_HARD) ?
-		(xfs_qcnt_t) XFS_B_TO_FSB(mp, newlim->d_rt_spc_hardlimit) :
-			dqp->q_rtb.hardlimit;
-	soft = (newlim->d_fieldmask & QC_RT_SPC_SOFT) ?
-		(xfs_qcnt_t) XFS_B_TO_FSB(mp, newlim->d_rt_spc_softlimit) :
-			dqp->q_rtb.softlimit;
-	if (hard == 0 || hard >= soft) {
-		dqp->q_rtb.hardlimit = hard;
-		dqp->q_rtb.softlimit = soft;
-		if (id == 0) {
-			defq->rtb.hard = hard;
-			defq->rtb.soft = soft;
-		}
-	} else {
-		xfs_debug(mp, "rtbhard %Ld < rtbsoft %Ld", hard, soft);
-	}
-
-	hard = (newlim->d_fieldmask & QC_INO_HARD) ?
-		(xfs_qcnt_t) newlim->d_ino_hardlimit :
-			dqp->q_ino.hardlimit;
-	soft = (newlim->d_fieldmask & QC_INO_SOFT) ?
-		(xfs_qcnt_t) newlim->d_ino_softlimit :
-			dqp->q_ino.softlimit;
-	if (hard == 0 || hard >= soft) {
-		dqp->q_ino.hardlimit = hard;
-		dqp->q_ino.softlimit = soft;
-		if (id == 0) {
-			defq->ino.hard = hard;
-			defq->ino.soft = soft;
-		}
-	} else {
-		xfs_debug(mp, "ihard %Ld < isoft %Ld", hard, soft);
-	}
-
-	/*
-	 * Update warnings counter(s) if requested
-	 */
-	if (newlim->d_fieldmask & QC_SPC_WARNS)
-		dqp->q_blk.warnings = newlim->d_spc_warns;
-	if (newlim->d_fieldmask & QC_INO_WARNS)
-		dqp->q_ino.warnings = newlim->d_ino_warns;
-	if (newlim->d_fieldmask & QC_RT_SPC_WARNS)
-		dqp->q_rtb.warnings = newlim->d_rt_spc_warns;
-
-	if (id == 0) {
-		if (newlim->d_fieldmask & QC_SPC_WARNS)
-			defq->blk.warn = newlim->d_spc_warns;
-		if (newlim->d_fieldmask & QC_INO_WARNS)
-			defq->ino.warn = newlim->d_ino_warns;
-		if (newlim->d_fieldmask & QC_RT_SPC_WARNS)
-			defq->rtb.warn = newlim->d_rt_spc_warns;
-	}
-
-	/*
+	 *
+	 * Update warnings counter(s) if requested.
+	 *
 	 * Timelimits for the super user set the relative time the other users
 	 * can be over quota for this file system. If it is zero a default is
 	 * used.  Ditto for the default soft and hard limit values (already
@@ -570,21 +558,55 @@ xfs_qm_scall_setqlim(
 	 * For other IDs, userspace can bump out the grace period if over
 	 * the soft limit.
 	 */
-	if (newlim->d_fieldmask & QC_SPC_TIMER)
-		dqp->q_blk.timer = newlim->d_spc_timer;
-	if (newlim->d_fieldmask & QC_INO_TIMER)
-		dqp->q_ino.timer = newlim->d_ino_timer;
-	if (newlim->d_fieldmask & QC_RT_SPC_TIMER)
-		dqp->q_rtb.timer = newlim->d_rt_spc_timer;
 
-	if (id == 0) {
-		if (newlim->d_fieldmask & QC_SPC_TIMER)
-			defq->blk.time = newlim->d_spc_timer;
-		if (newlim->d_fieldmask & QC_INO_TIMER)
-			defq->ino.time = newlim->d_ino_timer;
-		if (newlim->d_fieldmask & QC_RT_SPC_TIMER)
-			defq->rtb.time = newlim->d_rt_spc_timer;
-	}
+	/* Blocks on the data device. */
+	hard = (newlim->d_fieldmask & QC_SPC_HARD) ?
+		(xfs_qcnt_t) XFS_B_TO_FSB(mp, newlim->d_spc_hardlimit) :
+			dqp->q_blk.hardlimit;
+	soft = (newlim->d_fieldmask & QC_SPC_SOFT) ?
+		(xfs_qcnt_t) XFS_B_TO_FSB(mp, newlim->d_spc_softlimit) :
+			dqp->q_blk.softlimit;
+	res = &dqp->q_blk;
+	qlim = id == 0 ? &defq->blk : NULL;
+
+	if (xfs_setqlim_limits(mp, res, qlim, hard, soft, "blk"))
+		xfs_dquot_set_prealloc_limits(dqp);
+	if (newlim->d_fieldmask & QC_SPC_WARNS)
+		xfs_setqlim_warns(res, qlim, newlim->d_spc_warns);
+	if (newlim->d_fieldmask & QC_SPC_TIMER)
+		xfs_setqlim_timer(res, qlim, newlim->d_spc_timer);
+
+	/* Blocks on the realtime device. */
+	hard = (newlim->d_fieldmask & QC_RT_SPC_HARD) ?
+		(xfs_qcnt_t) XFS_B_TO_FSB(mp, newlim->d_rt_spc_hardlimit) :
+			dqp->q_rtb.hardlimit;
+	soft = (newlim->d_fieldmask & QC_RT_SPC_SOFT) ?
+		(xfs_qcnt_t) XFS_B_TO_FSB(mp, newlim->d_rt_spc_softlimit) :
+			dqp->q_rtb.softlimit;
+	res = &dqp->q_rtb;
+	qlim = id == 0 ? &defq->rtb : NULL;
+
+	xfs_setqlim_limits(mp, res, qlim, hard, soft, "rtb");
+	if (newlim->d_fieldmask & QC_RT_SPC_WARNS)
+		xfs_setqlim_warns(res, qlim, newlim->d_rt_spc_warns);
+	if (newlim->d_fieldmask & QC_RT_SPC_TIMER)
+		xfs_setqlim_timer(res, qlim, newlim->d_rt_spc_timer);
+
+	/* Inodes */
+	hard = (newlim->d_fieldmask & QC_INO_HARD) ?
+		(xfs_qcnt_t) newlim->d_ino_hardlimit :
+			dqp->q_ino.hardlimit;
+	soft = (newlim->d_fieldmask & QC_INO_SOFT) ?
+		(xfs_qcnt_t) newlim->d_ino_softlimit :
+			dqp->q_ino.softlimit;
+	res = &dqp->q_ino;
+	qlim = id == 0 ? &defq->ino : NULL;
+
+	xfs_setqlim_limits(mp, res, qlim, hard, soft, "ino");
+	if (newlim->d_fieldmask & QC_INO_WARNS)
+		xfs_setqlim_warns(res, qlim, newlim->d_ino_warns);
+	if (newlim->d_fieldmask & QC_INO_TIMER)
+		xfs_setqlim_timer(res, qlim, newlim->d_ino_timer);
 
 	if (id != 0) {
 		/*
