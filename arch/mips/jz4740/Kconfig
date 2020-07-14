@@ -31,6 +31,10 @@ config X1000_CU1000_NEO
 	bool "YSH & ATIL CU1000 Module with Neo backplane"
 	select MACH_X1000
 
+config X1830_CU1830_NEO
+	bool "YSH & ATIL CU1830 Module with Neo backplane"
+	select MACH_X1830
+
 endchoice
 
 config MACH_JZ4725B
