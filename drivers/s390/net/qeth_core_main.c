@@ -2026,7 +2026,7 @@ static bool qeth_mpc_match_reply(struct qeth_cmd_buffer *iob,
 }
 
 static struct qeth_cmd_buffer *qeth_mpc_alloc_cmd(struct qeth_card *card,
-						  void *data,
+						  const void *data,
 						  unsigned int data_length)
 {
 	struct qeth_cmd_buffer *iob;
