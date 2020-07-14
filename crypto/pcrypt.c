@@ -355,9 +355,6 @@ static int __init pcrypt_init(void)
 	if (err)
 		goto err_deinit_pencrypt;
 
-	padata_start(pencrypt);
-	padata_start(pdecrypt);
-
 	return crypto_register_template(&pcrypt_tmpl);
 
 err_deinit_pencrypt:

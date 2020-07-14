@@ -790,30 +790,6 @@ out:
 EXPORT_SYMBOL(padata_set_cpumask);
 
 /**
- * padata_start - start the parallel processing
- *
- * @pinst: padata instance to start
- *
- * Return: 0 on success or negative error code
- */
-int padata_start(struct padata_instance *pinst)
-{
-	int err = 0;
-
-	mutex_lock(&pinst->lock);
-
-	if (pinst->flags & PADATA_INVALID)
-		err = -EINVAL;
-
-	__padata_start(pinst);
-
-	mutex_unlock(&pinst->lock);
-
-	return err;
-}
-EXPORT_SYMBOL(padata_start);
-
-/**
  * padata_stop - stop the parallel processing
  *
  * @pinst: padata instance to stop
@@ -1100,7 +1076,7 @@ static struct padata_instance *padata_alloc(const char *name,
 	if (padata_setup_cpumasks(pinst))
 		goto err_free_rcpumask_cbcpu;
 
-	pinst->flags = 0;
+	__padata_start(pinst);
 
 	kobject_init(&pinst->kobj, &padata_attr_type);
 	mutex_init(&pinst->lock);
