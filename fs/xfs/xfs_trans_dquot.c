@@ -587,25 +587,25 @@ xfs_trans_dqresv(
 	if (flags & XFS_TRANS_DQ_RES_BLKS) {
 		hardlimit = dqp->q_blk.hardlimit;
 		if (!hardlimit)
-			hardlimit = defq->bhardlimit;
+			hardlimit = defq->blk.hard;
 		softlimit = dqp->q_blk.softlimit;
 		if (!softlimit)
-			softlimit = defq->bsoftlimit;
+			softlimit = defq->blk.soft;
 		timer = dqp->q_blk.timer;
 		warns = dqp->q_blk.warnings;
-		warnlimit = defq->bwarnlimit;
+		warnlimit = defq->blk.warn;
 		resbcountp = &dqp->q_blk.reserved;
 	} else {
 		ASSERT(flags & XFS_TRANS_DQ_RES_RTBLKS);
 		hardlimit = dqp->q_rtb.hardlimit;
 		if (!hardlimit)
-			hardlimit = defq->rtbhardlimit;
+			hardlimit = defq->rtb.hard;
 		softlimit = dqp->q_rtb.softlimit;
 		if (!softlimit)
-			softlimit = defq->rtbsoftlimit;
+			softlimit = defq->rtb.soft;
 		timer = dqp->q_rtb.timer;
 		warns = dqp->q_rtb.warnings;
-		warnlimit = defq->rtbwarnlimit;
+		warnlimit = defq->rtb.warn;
 		resbcountp = &dqp->q_rtb.reserved;
 	}
 
@@ -640,13 +640,13 @@ xfs_trans_dqresv(
 			total_count = dqp->q_ino.reserved + ninos;
 			timer = dqp->q_ino.timer;
 			warns = dqp->q_ino.warnings;
-			warnlimit = defq->iwarnlimit;
+			warnlimit = defq->ino.warn;
 			hardlimit = dqp->q_ino.hardlimit;
 			if (!hardlimit)
-				hardlimit = defq->ihardlimit;
+				hardlimit = defq->ino.hard;
 			softlimit = dqp->q_ino.softlimit;
 			if (!softlimit)
-				softlimit = defq->isoftlimit;
+				softlimit = defq->ino.soft;
 
 			if (hardlimit && total_count > hardlimit) {
 				xfs_quota_warn(mp, dqp, QUOTA_NL_IHARDWARN);

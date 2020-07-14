@@ -77,22 +77,22 @@ xfs_qm_adjust_dqlimits(
 	ASSERT(dq->q_id);
 	defq = xfs_get_defquota(q, xfs_dquot_type(dq));
 
-	if (defq->bsoftlimit && !dq->q_blk.softlimit) {
-		dq->q_blk.softlimit = defq->bsoftlimit;
+	if (defq->blk.soft && !dq->q_blk.softlimit) {
+		dq->q_blk.softlimit = defq->blk.soft;
 		prealloc = 1;
 	}
-	if (defq->bhardlimit && !dq->q_blk.hardlimit) {
-		dq->q_blk.hardlimit = defq->bhardlimit;
+	if (defq->blk.hard && !dq->q_blk.hardlimit) {
+		dq->q_blk.hardlimit = defq->blk.hard;
 		prealloc = 1;
 	}
-	if (defq->isoftlimit && !dq->q_ino.softlimit)
-		dq->q_ino.softlimit = defq->isoftlimit;
-	if (defq->ihardlimit && !dq->q_ino.hardlimit)
-		dq->q_ino.hardlimit = defq->ihardlimit;
-	if (defq->rtbsoftlimit && !dq->q_rtb.softlimit)
-		dq->q_rtb.softlimit = defq->rtbsoftlimit;
-	if (defq->rtbhardlimit && !dq->q_rtb.hardlimit)
-		dq->q_rtb.hardlimit = defq->rtbhardlimit;
+	if (defq->ino.soft && !dq->q_ino.softlimit)
+		dq->q_ino.softlimit = defq->ino.soft;
+	if (defq->ino.hard && !dq->q_ino.hardlimit)
+		dq->q_ino.hardlimit = defq->ino.hard;
+	if (defq->rtb.soft && !dq->q_rtb.softlimit)
+		dq->q_rtb.softlimit = defq->rtb.soft;
+	if (defq->rtb.hard && !dq->q_rtb.hardlimit)
+		dq->q_rtb.hardlimit = defq->rtb.hard;
 
 	if (prealloc)
 		xfs_dquot_set_prealloc_limits(dq);
@@ -137,7 +137,7 @@ xfs_qm_adjust_dqtimers(
 		    (dq->q_blk.hardlimit &&
 		     (dq->q_blk.count > dq->q_blk.hardlimit))) {
 			dq->q_blk.timer = ktime_get_real_seconds() +
-					defq->btimelimit;
+					defq->blk.time;
 		} else {
 			dq->q_blk.warnings = 0;
 		}
@@ -156,7 +156,7 @@ xfs_qm_adjust_dqtimers(
 		    (dq->q_ino.hardlimit &&
 		     (dq->q_ino.count > dq->q_ino.hardlimit))) {
 			dq->q_ino.timer = ktime_get_real_seconds() +
-					defq->itimelimit;
+					defq->ino.time;
 		} else {
 			dq->q_ino.warnings = 0;
 		}
@@ -175,7 +175,7 @@ xfs_qm_adjust_dqtimers(
 		    (dq->q_rtb.hardlimit &&
 		     (dq->q_rtb.count > dq->q_rtb.hardlimit))) {
 			dq->q_rtb.timer = ktime_get_real_seconds() +
-					defq->rtbtimelimit;
+					defq->rtb.time;
 		} else {
 			dq->q_rtb.warnings = 0;
 		}

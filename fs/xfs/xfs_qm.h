@@ -30,20 +30,18 @@ extern struct kmem_zone	*xfs_qm_dqtrxzone;
 	!dqp->q_rtb.count && \
 	!dqp->q_ino.count)
 
+struct xfs_quota_limits {
+	xfs_qcnt_t		hard;	/* default hard limit */
+	xfs_qcnt_t		soft;	/* default soft limit */
+	time64_t		time;	/* limit for timers */
+	xfs_qwarncnt_t		warn;	/* limit for warnings */
+};
+
 /* Defaults for each quota type: time limits, warn limits, usage limits */
 struct xfs_def_quota {
-	time64_t	btimelimit;	/* limit for blks timer */
-	time64_t	itimelimit;	/* limit for inodes timer */
-	time64_t	rtbtimelimit;	/* limit for rt blks timer */
-	xfs_qwarncnt_t	bwarnlimit;	/* limit for blks warnings */
-	xfs_qwarncnt_t	iwarnlimit;	/* limit for inodes warnings */
-	xfs_qwarncnt_t	rtbwarnlimit;	/* limit for rt blks warnings */
-	xfs_qcnt_t	bhardlimit;	/* default data blk hard limit */
-	xfs_qcnt_t	bsoftlimit;	/* default data blk soft limit */
-	xfs_qcnt_t	ihardlimit;	/* default inode count hard limit */
-	xfs_qcnt_t	isoftlimit;	/* default inode count soft limit */
-	xfs_qcnt_t	rtbhardlimit;	/* default realtime blk hard limit */
-	xfs_qcnt_t	rtbsoftlimit;	/* default realtime blk soft limit */
+	struct xfs_quota_limits	blk;
+	struct xfs_quota_limits	ino;
+	struct xfs_quota_limits	rtb;
 };
 
 /*
