@@ -477,12 +477,16 @@ static int fuse_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	struct fuse_fs_context *ctx = fc->fs_private;
 	int opt;
 
-	/*
-	 * Ignore options coming from mount(MS_REMOUNT) for backward
-	 * compatibility.
-	 */
-	if (fc->purpose == FS_CONTEXT_FOR_RECONFIGURE)
-		return 0;
+	if (fc->purpose == FS_CONTEXT_FOR_RECONFIGURE) {
+		/*
+		 * Ignore options coming from mount(MS_REMOUNT) for backward
+		 * compatibility.
+		 */
+		if (fc->oldapi)
+			return 0;
+
+		return invalfc(fc, "No changes allowed in reconfigure");
+	}
 
 	opt = fs_parse(fc, fuse_fs_parameters, param, &result);
 	if (opt < 0)
