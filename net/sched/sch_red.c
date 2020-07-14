@@ -94,7 +94,7 @@ static int red_enqueue(struct sk_buff *skb, struct Qdisc *sch, spinlock_t *root_
 
 		if (INET_ECN_set_ce(skb)) {
 			q->stats.prob_mark++;
-			skb = tcf_qevent_handle(&q->qe_mark, sch, skb, root_lock, to_free, &ret);
+			skb = tcf_qevent_handle(&q->qe_mark, sch, skb, to_free, &ret);
 			if (!skb)
 				return NET_XMIT_CN | ret;
 		} else if (!red_use_nodrop(q)) {
@@ -114,7 +114,7 @@ static int red_enqueue(struct sk_buff *skb, struct Qdisc *sch, spinlock_t *root_
 
 		if (INET_ECN_set_ce(skb)) {
 			q->stats.forced_mark++;
-			skb = tcf_qevent_handle(&q->qe_mark, sch, skb, root_lock, to_free, &ret);
+			skb = tcf_qevent_handle(&q->qe_mark, sch, skb, to_free, &ret);
 			if (!skb)
 				return NET_XMIT_CN | ret;
 		} else if (!red_use_nodrop(q)) {
@@ -137,7 +137,7 @@ static int red_enqueue(struct sk_buff *skb, struct Qdisc *sch, spinlock_t *root_
 	return ret;
 
 congestion_drop:
-	skb = tcf_qevent_handle(&q->qe_early_drop, sch, skb, root_lock, to_free, &ret);
+	skb = tcf_qevent_handle(&q->qe_early_drop, sch, skb, to_free, &ret);
 	if (!skb)
 		return NET_XMIT_CN | ret;
 

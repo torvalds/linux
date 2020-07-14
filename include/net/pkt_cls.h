@@ -568,7 +568,7 @@ void tcf_qevent_destroy(struct tcf_qevent *qe, struct Qdisc *sch);
 int tcf_qevent_validate_change(struct tcf_qevent *qe, struct nlattr *block_index_attr,
 			       struct netlink_ext_ack *extack);
 struct sk_buff *tcf_qevent_handle(struct tcf_qevent *qe, struct Qdisc *sch, struct sk_buff *skb,
-				  spinlock_t *root_lock, struct sk_buff **to_free, int *ret);
+				  struct sk_buff **to_free, int *ret);
 int tcf_qevent_dump(struct sk_buff *skb, int attr_name, struct tcf_qevent *qe);
 #else
 static inline int tcf_qevent_init(struct tcf_qevent *qe, struct Qdisc *sch,
@@ -591,7 +591,7 @@ static inline int tcf_qevent_validate_change(struct tcf_qevent *qe, struct nlatt
 
 static inline struct sk_buff *
 tcf_qevent_handle(struct tcf_qevent *qe, struct Qdisc *sch, struct sk_buff *skb,
-		  spinlock_t *root_lock, struct sk_buff **to_free, int *ret)
+		  struct sk_buff **to_free, int *ret)
 {
 	return skb;
 }
