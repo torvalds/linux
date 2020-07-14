@@ -659,7 +659,7 @@ xfs_qm_scall_getquota_fill_qc(
 	if (((XFS_IS_UQUOTA_ENFORCED(mp) && type == XFS_DQ_USER) ||
 	     (XFS_IS_GQUOTA_ENFORCED(mp) && type == XFS_DQ_GROUP) ||
 	     (XFS_IS_PQUOTA_ENFORCED(mp) && type == XFS_DQ_PROJ)) &&
-	    dqp->q_core.d_id != 0) {
+	    dqp->q_id != 0) {
 		if ((dst->d_space > dst->d_spc_softlimit) &&
 		    (dst->d_spc_softlimit > 0)) {
 			ASSERT(dst->d_spc_timer != 0);
@@ -726,7 +726,7 @@ xfs_qm_scall_getquota_next(
 		return error;
 
 	/* Fill in the ID we actually read from disk */
-	*id = be32_to_cpu(dqp->q_core.d_id);
+	*id = dqp->q_id;
 
 	xfs_qm_scall_getquota_fill_qc(mp, type, dqp, dst);
 

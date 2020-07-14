@@ -35,9 +35,10 @@ struct xfs_dquot {
 	struct xfs_mount	*q_mount;
 	uint8_t			dq_flags;
 	uint16_t		q_flags;
+	xfs_dqid_t		q_id;
 	uint			q_nrefs;
-	xfs_daddr_t		q_blkno;
 	int			q_bufoffset;
+	xfs_daddr_t		q_blkno;
 	xfs_fileoff_t		q_fileoffset;
 
 	struct xfs_disk_dquot	q_core;

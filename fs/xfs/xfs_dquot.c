@@ -75,7 +75,7 @@ xfs_qm_adjust_dqlimits(
 	struct xfs_def_quota	*defq;
 	int			prealloc = 0;
 
-	ASSERT(d->d_id);
+	ASSERT(dq->q_id);
 	defq = xfs_get_defquota(q, xfs_dquot_type(dq));
 
 	if (defq->bsoftlimit && !d->d_blk_softlimit) {
@@ -121,7 +121,7 @@ xfs_qm_adjust_dqtimers(
 	struct xfs_disk_dquot	*d = &dq->q_core;
 	struct xfs_def_quota	*defq;
 
-	ASSERT(d->d_id);
+	ASSERT(dq->q_id);
 	defq = xfs_get_defquota(qi, xfs_dquot_type(dq));
 
 #ifdef DEBUG
@@ -366,7 +366,7 @@ xfs_dquot_disk_alloc(
 	 * Make a chunk of dquots out of this buffer and log
 	 * the entire thing.
 	 */
-	xfs_qm_init_dquot_blk(tp, mp, be32_to_cpu(dqp->q_core.d_id),
+	xfs_qm_init_dquot_blk(tp, mp, dqp->q_id,
 			      dqp->dq_flags & XFS_DQ_ALLTYPES, bp);
 	xfs_buf_set_ref(bp, XFS_DQUOT_REF);
 
@@ -479,7 +479,7 @@ xfs_dquot_alloc(
 	dqp = kmem_zone_zalloc(xfs_qm_dqzone, 0);
 
 	dqp->dq_flags = type;
-	dqp->q_core.d_id = cpu_to_be32(id);
+	dqp->q_id = id;
 	dqp->q_mount = mp;
 	INIT_LIST_HEAD(&dqp->q_lru);
 	mutex_init(&dqp->q_qlock);
@@ -537,10 +537,10 @@ xfs_dquot_from_disk(
 	 * Everything else was checked by the dquot buffer verifier.
 	 */
 	if ((ddqp->d_flags & XFS_DQ_ALLTYPES) != dqp->dq_flags ||
-	    ddqp->d_id != dqp->q_core.d_id) {
+	    be32_to_cpu(ddqp->d_id) != dqp->q_id) {
 		xfs_alert_tag(bp->b_mount, XFS_PTAG_VERIFIER_ERROR,
 			  "Metadata corruption detected at %pS, quota %u",
-			  __this_address, be32_to_cpu(dqp->q_core.d_id));
+			  __this_address, dqp->q_id);
 		xfs_alert(bp->b_mount, "Unmount and run xfs_repair");
 		return -EFSCORRUPTED;
 	}
@@ -1187,11 +1187,10 @@ xfs_qm_dqflush(
 	ddqp = &dqb->dd_diskdq;
 
 	/* sanity check the in-core structure before we flush */
-	fa = xfs_dquot_verify(mp, &dqp->q_core, be32_to_cpu(dqp->q_core.d_id),
-			      0);
+	fa = xfs_dquot_verify(mp, &dqp->q_core, dqp->q_id, 0);
 	if (fa) {
 		xfs_alert(mp, "corrupt dquot ID 0x%x in memory at %pS",
-				be32_to_cpu(dqp->q_core.d_id), fa);
+				dqp->q_id, fa);
 		xfs_buf_relse(bp);
 		error = -EFSCORRUPTED;
 		goto out_abort;
@@ -1200,7 +1199,7 @@ xfs_qm_dqflush(
 	fa = xfs_qm_dqflush_check(dqp);
 	if (fa) {
 		xfs_alert(mp, "corrupt dquot ID 0x%x in memory at %pS",
-				be32_to_cpu(dqp->q_core.d_id), fa);
+				dqp->q_id, fa);
 		xfs_buf_relse(bp);
 		error = -EFSCORRUPTED;
 		goto out_abort;
@@ -1273,8 +1272,7 @@ xfs_dqlock2(
 {
 	if (d1 && d2) {
 		ASSERT(d1 != d2);
-		if (be32_to_cpu(d1->q_core.d_id) >
-		    be32_to_cpu(d2->q_core.d_id)) {
+		if (d1->q_id > d2->q_id) {
 			mutex_lock(&d2->q_qlock);
 			mutex_lock_nested(&d1->q_qlock, XFS_QLOCK_NESTED);
 		} else {
@@ -1342,9 +1340,8 @@ xfs_qm_dqiterate(
 			return error;
 
 		error = iter_fn(dq, dqtype, priv);
-		id = be32_to_cpu(dq->q_core.d_id);
+		id = dq->q_id;
 		xfs_qm_dqput(dq);
-		id++;
 	} while (error == 0 && id != 0);
 
 	return error;

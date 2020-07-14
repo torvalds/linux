@@ -92,7 +92,6 @@ xchk_quota_item(
 	unsigned long long	icount;
 	unsigned long long	rcount;
 	xfs_ino_t		fs_icount;
-	xfs_dqid_t		id = be32_to_cpu(d->d_id);
 	int			error = 0;
 
 	if (xchk_should_terminate(sc, &error))
@@ -102,11 +101,11 @@ xchk_quota_item(
 	 * Except for the root dquot, the actual dquot we got must either have
 	 * the same or higher id as we saw before.
 	 */
-	offset = id / qi->qi_dqperchunk;
-	if (id && id <= sqi->last_id)
+	offset = dq->q_id / qi->qi_dqperchunk;
+	if (dq->q_id && dq->q_id <= sqi->last_id)
 		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
 
-	sqi->last_id = id;
+	sqi->last_id = dq->q_id;
 
 	/* Did we get the dquot type we wanted? */
 	if (dqtype != (d->d_flags & XFS_DQ_ALLTYPES))
@@ -175,13 +174,19 @@ xchk_quota_item(
 	 * lower limit than the actual usage.  However, we flag it for
 	 * admin review.
 	 */
-	if (id != 0 && bhard != 0 && bcount > bhard)
-		xchk_fblock_set_warning(sc, XFS_DATA_FORK, offset);
-	if (id != 0 && ihard != 0 && icount > ihard)
-		xchk_fblock_set_warning(sc, XFS_DATA_FORK, offset);
-	if (id != 0 && rhard != 0 && rcount > rhard)
+	if (dq->q_id == 0)
+		goto out;
+
+	if (bhard != 0 && bcount > bhard)
 		xchk_fblock_set_warning(sc, XFS_DATA_FORK, offset);
 
+	if (ihard != 0 && icount > ihard)
+		xchk_fblock_set_warning(sc, XFS_DATA_FORK, offset);
+
+	if (rhard != 0 && rcount > rhard)
+		xchk_fblock_set_warning(sc, XFS_DATA_FORK, offset);
+
+out:
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		return -EFSCORRUPTED;
 

@@ -386,7 +386,7 @@ xfs_trans_apply_dquot_deltas(
 			 * Get any default limits in use.
 			 * Start/reset the timer(s) if needed.
 			 */
-			if (d->d_id) {
+			if (dqp->q_id) {
 				xfs_qm_adjust_dqlimits(tp->t_mountp, dqp);
 				xfs_qm_adjust_dqtimers(tp->t_mountp, dqp);
 			}
@@ -558,8 +558,7 @@ xfs_quota_warn(
 	else
 		qtype = GRPQUOTA;
 
-	quota_send_warning(make_kqid(&init_user_ns, qtype,
-				     be32_to_cpu(dqp->q_core.d_id)),
+	quota_send_warning(make_kqid(&init_user_ns, qtype, dqp->q_id),
 			   mp->m_super->s_dev, type);
 }
 
@@ -618,8 +617,7 @@ xfs_trans_dqresv(
 		resbcountp = &dqp->q_res_rtbcount;
 	}
 
-	if ((flags & XFS_QMOPT_FORCE_RES) == 0 &&
-	    dqp->q_core.d_id &&
+	if ((flags & XFS_QMOPT_FORCE_RES) == 0 && dqp->q_id &&
 	    ((XFS_IS_UQUOTA_ENFORCED(dqp->q_mount) && XFS_QM_ISUDQ(dqp)) ||
 	     (XFS_IS_GQUOTA_ENFORCED(dqp->q_mount) && XFS_QM_ISGDQ(dqp)) ||
 	     (XFS_IS_PQUOTA_ENFORCED(dqp->q_mount) && XFS_QM_ISPDQ(dqp)))) {
