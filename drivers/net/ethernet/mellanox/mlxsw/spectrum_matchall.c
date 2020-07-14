@@ -27,7 +27,7 @@ mlxsw_sp_mall_port_mirror_add(struct mlxsw_sp_port *mlxsw_sp_port,
 			      struct mlxsw_sp_mall_entry *mall_entry)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
-	struct mlxsw_sp_span_agent_parms agent_parms;
+	struct mlxsw_sp_span_agent_parms agent_parms = {};
 	struct mlxsw_sp_span_trigger_parms parms;
 	enum mlxsw_sp_span_trigger trigger;
 	int err;

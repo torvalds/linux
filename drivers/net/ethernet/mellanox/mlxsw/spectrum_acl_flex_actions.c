@@ -136,7 +136,7 @@ mlxsw_sp_act_mirror_add(void *priv, u8 local_in_port,
 			const struct net_device *out_dev,
 			bool ingress, int *p_span_id)
 {
-	struct mlxsw_sp_span_agent_parms agent_parms;
+	struct mlxsw_sp_span_agent_parms agent_parms = {};
 	struct mlxsw_sp_port *mlxsw_sp_port;
 	struct mlxsw_sp *mlxsw_sp = priv;
 	int err;

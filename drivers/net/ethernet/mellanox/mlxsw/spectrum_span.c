@@ -27,6 +27,8 @@ struct mlxsw_sp_span {
 	struct list_head analyzed_ports_list;
 	struct mutex analyzed_ports_lock; /* Protects analyzed_ports_list */
 	struct list_head trigger_entries_list;
+	u16 policer_id_base;
+	refcount_t policer_id_base_ref_count;
 	atomic_t active_entries_count;
 	int entries_count;
 	struct mlxsw_sp_span_entry entries[];
@@ -88,6 +90,7 @@ int mlxsw_sp_span_init(struct mlxsw_sp *mlxsw_sp)
 	span = kzalloc(struct_size(span, entries, entries_count), GFP_KERNEL);
 	if (!span)
 		return -ENOMEM;
+	refcount_set(&span->policer_id_base_ref_count, 0);
 	span->entries_count = entries_count;
 	atomic_set(&span->active_entries_count, 0);
 	mutex_init(&span->analyzed_ports_lock);
@@ -182,6 +185,8 @@ mlxsw_sp_span_entry_phys_configure(struct mlxsw_sp_span_entry *span_entry,
 	/* Create a new port analayzer entry for local_port. */
 	mlxsw_reg_mpat_pack(mpat_pl, pa_id, local_port, true,
 			    MLXSW_REG_MPAT_SPAN_TYPE_LOCAL_ETH);
+	mlxsw_reg_mpat_pide_set(mpat_pl, sparms.policer_enable);
+	mlxsw_reg_mpat_pid_set(mpat_pl, sparms.policer_id);
 
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(mpat), mpat_pl);
 }
@@ -478,6 +483,8 @@ mlxsw_sp_span_entry_gretap4_configure(struct mlxsw_sp_span_entry *span_entry,
 	/* Create a new port analayzer entry for local_port. */
 	mlxsw_reg_mpat_pack(mpat_pl, pa_id, local_port, true,
 			    MLXSW_REG_MPAT_SPAN_TYPE_REMOTE_ETH_L3);
+	mlxsw_reg_mpat_pide_set(mpat_pl, sparms.policer_enable);
+	mlxsw_reg_mpat_pid_set(mpat_pl, sparms.policer_id);
 	mlxsw_reg_mpat_eth_rspan_pack(mpat_pl, sparms.vid);
 	mlxsw_reg_mpat_eth_rspan_l2_pack(mpat_pl,
 				    MLXSW_REG_MPAT_ETH_RSPAN_VERSION_NO_HEADER,
@@ -580,6 +587,8 @@ mlxsw_sp_span_entry_gretap6_configure(struct mlxsw_sp_span_entry *span_entry,
 	/* Create a new port analayzer entry for local_port. */
 	mlxsw_reg_mpat_pack(mpat_pl, pa_id, local_port, true,
 			    MLXSW_REG_MPAT_SPAN_TYPE_REMOTE_ETH_L3);
+	mlxsw_reg_mpat_pide_set(mpat_pl, sparms.policer_enable);
+	mlxsw_reg_mpat_pid_set(mpat_pl, sparms.policer_id);
 	mlxsw_reg_mpat_eth_rspan_pack(mpat_pl, sparms.vid);
 	mlxsw_reg_mpat_eth_rspan_l2_pack(mpat_pl,
 				    MLXSW_REG_MPAT_ETH_RSPAN_VERSION_NO_HEADER,
@@ -643,6 +652,8 @@ mlxsw_sp_span_entry_vlan_configure(struct mlxsw_sp_span_entry *span_entry,
 
 	mlxsw_reg_mpat_pack(mpat_pl, pa_id, local_port, true,
 			    MLXSW_REG_MPAT_SPAN_TYPE_REMOTE_ETH);
+	mlxsw_reg_mpat_pide_set(mpat_pl, sparms.policer_enable);
+	mlxsw_reg_mpat_pid_set(mpat_pl, sparms.policer_id);
 	mlxsw_reg_mpat_eth_rspan_pack(mpat_pl, sparms.vid);
 
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(mpat), mpat_pl);
@@ -790,6 +801,45 @@ mlxsw_sp_span_entry_deconfigure(struct mlxsw_sp_span_entry *span_entry)
 		span_entry->ops->deconfigure(span_entry);
 }
 
+static int mlxsw_sp_span_policer_id_base_set(struct mlxsw_sp_span *span,
+					     u16 policer_id)
+{
+	struct mlxsw_sp *mlxsw_sp = span->mlxsw_sp;
+	u16 policer_id_base;
+	int err;
+
+	/* Policers set on SPAN agents must be in the range of
+	 * `policer_id_base .. policer_id_base + max_span_agents - 1`. If the
+	 * base is set and the new policer is not within the range, then we
+	 * must error out.
+	 */
+	if (refcount_read(&span->policer_id_base_ref_count)) {
+		if (policer_id < span->policer_id_base ||
+		    policer_id >= span->policer_id_base + span->entries_count)
+			return -EINVAL;
+
+		refcount_inc(&span->policer_id_base_ref_count);
+		return 0;
+	}
+
+	/* Base must be even. */
+	policer_id_base = policer_id % 2 == 0 ? policer_id : policer_id - 1;
+	err = mlxsw_sp->span_ops->policer_id_base_set(mlxsw_sp,
+						      policer_id_base);
+	if (err)
+		return err;
+
+	span->policer_id_base = policer_id_base;
+	refcount_set(&span->policer_id_base_ref_count, 1);
+
+	return 0;
+}
+
+static void mlxsw_sp_span_policer_id_base_unset(struct mlxsw_sp_span *span)
+{
+	refcount_dec(&span->policer_id_base_ref_count);
+}
+
 static struct mlxsw_sp_span_entry *
 mlxsw_sp_span_entry_create(struct mlxsw_sp *mlxsw_sp,
 			   const struct net_device *to_dev,
@@ -809,6 +859,15 @@ mlxsw_sp_span_entry_create(struct mlxsw_sp *mlxsw_sp,
 	if (!span_entry)
 		return NULL;
 
+	if (sparms.policer_enable) {
+		int err;
+
+		err = mlxsw_sp_span_policer_id_base_set(mlxsw_sp->span,
+							sparms.policer_id);
+		if (err)
+			return NULL;
+	}
+
 	atomic_inc(&mlxsw_sp->span->active_entries_count);
 	span_entry->ops = ops;
 	refcount_set(&span_entry->ref_count, 1);
@@ -823,6 +882,8 @@ static void mlxsw_sp_span_entry_destroy(struct mlxsw_sp *mlxsw_sp,
 {
 	mlxsw_sp_span_entry_deconfigure(span_entry);
 	atomic_dec(&mlxsw_sp->span->active_entries_count);
+	if (span_entry->parms.policer_enable)
+		mlxsw_sp_span_policer_id_base_unset(mlxsw_sp->span);
 }
 
 struct mlxsw_sp_span_entry *
@@ -862,6 +923,24 @@ mlxsw_sp_span_entry_find_by_id(struct mlxsw_sp *mlxsw_sp, int span_id)
 }
 
 static struct mlxsw_sp_span_entry *
+mlxsw_sp_span_entry_find_by_parms(struct mlxsw_sp *mlxsw_sp,
+				  const struct net_device *to_dev,
+				  const struct mlxsw_sp_span_parms *sparms)
+{
+	int i;
+
+	for (i = 0; i < mlxsw_sp->span->entries_count; i++) {
+		struct mlxsw_sp_span_entry *curr = &mlxsw_sp->span->entries[i];
+
+		if (refcount_read(&curr->ref_count) && curr->to_dev == to_dev &&
+		    curr->parms.policer_enable == sparms->policer_enable &&
+		    curr->parms.policer_id == sparms->policer_id)
+			return curr;
+	}
+	return NULL;
+}
+
+static struct mlxsw_sp_span_entry *
 mlxsw_sp_span_entry_get(struct mlxsw_sp *mlxsw_sp,
 			const struct net_device *to_dev,
 			const struct mlxsw_sp_span_entry_ops *ops,
@@ -869,7 +948,8 @@ mlxsw_sp_span_entry_get(struct mlxsw_sp *mlxsw_sp,
 {
 	struct mlxsw_sp_span_entry *span_entry;
 
-	span_entry = mlxsw_sp_span_entry_find_by_port(mlxsw_sp, to_dev);
+	span_entry = mlxsw_sp_span_entry_find_by_parms(mlxsw_sp, to_dev,
+						       &sparms);
 	if (span_entry) {
 		/* Already exists, just take a reference */
 		refcount_inc(&span_entry->ref_count);
@@ -1054,6 +1134,8 @@ int mlxsw_sp_span_agent_get(struct mlxsw_sp *mlxsw_sp, int *p_span_id,
 	if (err)
 		return err;
 
+	sparms.policer_id = parms->policer_id;
+	sparms.policer_enable = parms->policer_enable;
 	span_entry = mlxsw_sp_span_entry_get(mlxsw_sp, to_dev, ops, sparms);
 	if (!span_entry)
 		return -ENOBUFS;
@@ -1634,9 +1716,16 @@ static u32 mlxsw_sp1_span_buffsize_get(int mtu, u32 speed)
 	return mtu * 5 / 2;
 }
 
+static int mlxsw_sp1_span_policer_id_base_set(struct mlxsw_sp *mlxsw_sp,
+					      u16 policer_id_base)
+{
+	return -EOPNOTSUPP;
+}
+
 const struct mlxsw_sp_span_ops mlxsw_sp1_span_ops = {
 	.init = mlxsw_sp1_span_init,
 	.buffsize_get = mlxsw_sp1_span_buffsize_get,
+	.policer_id_base_set = mlxsw_sp1_span_policer_id_base_set,
 };
 
 static int mlxsw_sp2_span_init(struct mlxsw_sp *mlxsw_sp)
@@ -1672,9 +1761,24 @@ static u32 mlxsw_sp2_span_buffsize_get(int mtu, u32 speed)
 	return __mlxsw_sp_span_buffsize_get(mtu, speed, factor);
 }
 
+static int mlxsw_sp2_span_policer_id_base_set(struct mlxsw_sp *mlxsw_sp,
+					      u16 policer_id_base)
+{
+	char mogcr_pl[MLXSW_REG_MOGCR_LEN];
+	int err;
+
+	err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(mogcr), mogcr_pl);
+	if (err)
+		return err;
+
+	mlxsw_reg_mogcr_mirroring_pid_base_set(mogcr_pl, policer_id_base);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(mogcr), mogcr_pl);
+}
+
 const struct mlxsw_sp_span_ops mlxsw_sp2_span_ops = {
 	.init = mlxsw_sp2_span_init,
 	.buffsize_get = mlxsw_sp2_span_buffsize_get,
+	.policer_id_base_set = mlxsw_sp2_span_policer_id_base_set,
 };
 
 static u32 mlxsw_sp3_span_buffsize_get(int mtu, u32 speed)
@@ -1687,4 +1791,5 @@ static u32 mlxsw_sp3_span_buffsize_get(int mtu, u32 speed)
 const struct mlxsw_sp_span_ops mlxsw_sp3_span_ops = {
 	.init = mlxsw_sp2_span_init,
 	.buffsize_get = mlxsw_sp3_span_buffsize_get,
+	.policer_id_base_set = mlxsw_sp2_span_policer_id_base_set,
 };

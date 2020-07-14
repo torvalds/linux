@@ -21,6 +21,8 @@ struct mlxsw_sp_span_parms {
 	union mlxsw_sp_l3addr daddr;
 	union mlxsw_sp_l3addr saddr;
 	u16 vid;
+	u16 policer_id;
+	bool policer_enable;
 };
 
 enum mlxsw_sp_span_trigger {
@@ -37,6 +39,8 @@ struct mlxsw_sp_span_trigger_parms {
 
 struct mlxsw_sp_span_agent_parms {
 	const struct net_device *to_dev;
+	u16 policer_id;
+	bool policer_enable;
 };
 
 struct mlxsw_sp_span_entry_ops;
@@ -44,6 +48,8 @@ struct mlxsw_sp_span_entry_ops;
 struct mlxsw_sp_span_ops {
 	int (*init)(struct mlxsw_sp *mlxsw_sp);
 	u32 (*buffsize_get)(int mtu, u32 speed);
+	int (*policer_id_base_set)(struct mlxsw_sp *mlxsw_sp,
+				   u16 policer_id_base);
 };
 
 struct mlxsw_sp_span_entry {
