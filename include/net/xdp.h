@@ -98,6 +98,11 @@ struct xdp_frame {
 	struct net_device *dev_rx; /* used by cpumap */
 };
 
+struct xdp_cpumap_stats {
+	unsigned int pass;
+	unsigned int drop;
+};
+
 /* Clear kernel pointers in xdp_frame */
 static inline void xdp_scrub_frame(struct xdp_frame *frame)
 {

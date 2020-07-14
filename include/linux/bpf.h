@@ -1272,6 +1272,7 @@ struct bpf_cpu_map_entry *__cpu_map_lookup_elem(struct bpf_map *map, u32 key);
 void __cpu_map_flush(void);
 int cpu_map_enqueue(struct bpf_cpu_map_entry *rcpu, struct xdp_buff *xdp,
 		    struct net_device *dev_rx);
+bool cpu_map_prog_allowed(struct bpf_map *map);
 
 /* Return map's numa specified by userspace */
 static inline int bpf_map_attr_numa_node(const union bpf_attr *attr)
@@ -1430,6 +1431,11 @@ static inline int cpu_map_enqueue(struct bpf_cpu_map_entry *rcpu,
 				  struct net_device *dev_rx)
 {
 	return 0;
+}
+
+static inline bool cpu_map_prog_allowed(struct bpf_map *map)
+{
+	return false;
 }
 
 static inline struct bpf_prog *bpf_prog_get_type_path(const char *name,
