@@ -272,7 +272,6 @@ static void ib_device_check_mandatory(struct ib_device *device)
 	} mandatory_table[] = {
 		IB_MANDATORY_FUNC(query_device),
 		IB_MANDATORY_FUNC(query_port),
-		IB_MANDATORY_FUNC(query_pkey),
 		IB_MANDATORY_FUNC(alloc_pd),
 		IB_MANDATORY_FUNC(dealloc_pd),
 		IB_MANDATORY_FUNC(create_qp),
@@ -2361,6 +2360,9 @@ int ib_query_pkey(struct ib_device *device,
 {
 	if (!rdma_is_port_valid(device, port_num))
 		return -EINVAL;
+
+	if (!device->ops.query_pkey)
+		return -EOPNOTSUPP;
 
 	return device->ops.query_pkey(device, port_num, index, pkey);
 }
