@@ -176,6 +176,7 @@ struct mlxsw_rx_info {
 		u16 lag_id;
 	} u;
 	u8 lag_port_index;
+	u8 mirror_reason;
 	int trap_id;
 };
 
