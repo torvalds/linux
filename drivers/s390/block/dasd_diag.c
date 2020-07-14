@@ -319,7 +319,7 @@ dasd_diag_check_device(struct dasd_device *device)
 	struct dasd_diag_characteristics *rdc_data;
 	struct vtoc_cms_label *label;
 	struct dasd_block *block;
-	struct dasd_diag_bio bio;
+	struct dasd_diag_bio *bio;
 	unsigned int sb, bsize;
 	blocknum_t end_block;
 	int rc;
@@ -395,29 +395,36 @@ dasd_diag_check_device(struct dasd_device *device)
 		rc = -ENOMEM;
 		goto out;
 	}
+	bio = kzalloc(sizeof(*bio), GFP_KERNEL);
+	if (bio == NULL)  {
+		DBF_DEV_EVENT(DBF_WARNING, device, "%s",
+			      "No memory to allocate initialization bio");
+		rc = -ENOMEM;
+		goto out_label;
+	}
 	rc = 0;
 	end_block = 0;
 	/* try all sizes - needed for ECKD devices */
 	for (bsize = 512; bsize <= PAGE_SIZE; bsize <<= 1) {
 		mdsk_init_io(device, bsize, 0, &end_block);
-		memset(&bio, 0, sizeof (struct dasd_diag_bio));
-		bio.type = MDSK_READ_REQ;
-		bio.block_number = private->pt_block + 1;
-		bio.buffer = label;
+		memset(bio, 0, sizeof(*bio));
+		bio->type = MDSK_READ_REQ;
+		bio->block_number = private->pt_block + 1;
+		bio->buffer = label;
 		memset(&private->iob, 0, sizeof (struct dasd_diag_rw_io));
 		private->iob.dev_nr = rdc_data->dev_nr;
 		private->iob.key = 0;
 		private->iob.flags = 0;	/* do synchronous io */
 		private->iob.block_count = 1;
 		private->iob.interrupt_params = 0;
-		private->iob.bio_list = &bio;
+		private->iob.bio_list = bio;
 		private->iob.flaga = DASD_DIAG_FLAGA_DEFAULT;
 		rc = dia250(&private->iob, RW_BIO);
 		if (rc == 3) {
 			pr_warn("%s: A 64-bit DIAG call failed\n",
 				dev_name(&device->cdev->dev));
 			rc = -EOPNOTSUPP;
-			goto out_label;
+			goto out_bio;
 		}
 		mdsk_term_io(device);
 		if (rc == 0)
@@ -427,7 +434,7 @@ dasd_diag_check_device(struct dasd_device *device)
 		pr_warn("%s: Accessing the DASD failed because of an incorrect format (rc=%d)\n",
 			dev_name(&device->cdev->dev), rc);
 		rc = -EIO;
-		goto out_label;
+		goto out_bio;
 	}
 	/* check for label block */
 	if (memcmp(label->label_id, DASD_DIAG_CMS1,
@@ -457,6 +464,8 @@ dasd_diag_check_device(struct dasd_device *device)
 			(rc == 4) ? ", read-only device" : "");
 		rc = 0;
 	}
+out_bio:
+	kfree(bio);
 out_label:
 	free_page((long) label);
 out:
