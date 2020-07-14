@@ -31,9 +31,10 @@ enum {
  * The incore dquot structure
  */
 struct xfs_dquot {
-	uint			dq_flags;
 	struct list_head	q_lru;
 	struct xfs_mount	*q_mount;
+	uint8_t			dq_flags;
+	uint16_t		q_flags;
 	uint			q_nrefs;
 	xfs_daddr_t		q_blkno;
 	int			q_bufoffset;
@@ -145,7 +146,7 @@ static inline bool xfs_dquot_lowsp(struct xfs_dquot *dqp)
 }
 
 #define XFS_DQ_IS_LOCKED(dqp)	(mutex_is_locked(&((dqp)->q_qlock)))
-#define XFS_DQ_IS_DIRTY(dqp)	((dqp)->dq_flags & XFS_DQ_DIRTY)
+#define XFS_DQ_IS_DIRTY(dqp)	((dqp)->q_flags & XFS_DQFLAG_DIRTY)
 #define XFS_QM_ISUDQ(dqp)	((dqp)->dq_flags & XFS_DQ_USER)
 #define XFS_QM_ISPDQ(dqp)	((dqp)->dq_flags & XFS_DQ_PROJ)
 #define XFS_QM_ISGDQ(dqp)	((dqp)->dq_flags & XFS_DQ_GROUP)

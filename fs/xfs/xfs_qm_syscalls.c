@@ -598,7 +598,7 @@ xfs_qm_scall_setqlim(
 		 */
 		xfs_qm_adjust_dqtimers(mp, dqp);
 	}
-	dqp->dq_flags |= XFS_DQ_DIRTY;
+	dqp->q_flags |= XFS_DQFLAG_DIRTY;
 	xfs_trans_log_dquot(tp, dqp);
 
 	error = xfs_trans_commit(tp);

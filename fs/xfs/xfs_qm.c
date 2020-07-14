@@ -124,10 +124,10 @@ xfs_qm_dqpurge(
 	int			error = -EAGAIN;
 
 	xfs_dqlock(dqp);
-	if ((dqp->dq_flags & XFS_DQ_FREEING) || dqp->q_nrefs != 0)
+	if ((dqp->q_flags & XFS_DQFLAG_FREEING) || dqp->q_nrefs != 0)
 		goto out_unlock;
 
-	dqp->dq_flags |= XFS_DQ_FREEING;
+	dqp->q_flags |= XFS_DQFLAG_FREEING;
 
 	xfs_dqflock(dqp);
 
@@ -148,7 +148,7 @@ xfs_qm_dqpurge(
 			error = xfs_bwrite(bp);
 			xfs_buf_relse(bp);
 		} else if (error == -EAGAIN) {
-			dqp->dq_flags &= ~XFS_DQ_FREEING;
+			dqp->q_flags &= ~XFS_DQFLAG_FREEING;
 			goto out_unlock;
 		}
 		xfs_dqflock(dqp);
@@ -474,7 +474,7 @@ xfs_qm_dquot_isolate(
 	/*
 	 * Prevent lookups now that we are past the point of no return.
 	 */
-	dqp->dq_flags |= XFS_DQ_FREEING;
+	dqp->q_flags |= XFS_DQFLAG_FREEING;
 	xfs_dqunlock(dqp);
 
 	ASSERT(dqp->q_nrefs == 0);
@@ -1113,7 +1113,7 @@ xfs_qm_quotacheck_dqadjust(
 		xfs_qm_adjust_dqtimers(mp, dqp);
 	}
 
-	dqp->dq_flags |= XFS_DQ_DIRTY;
+	dqp->q_flags |= XFS_DQFLAG_DIRTY;
 	xfs_qm_dqput(dqp);
 	return 0;
 }
@@ -1219,7 +1219,7 @@ xfs_qm_flush_one(
 	int			error = 0;
 
 	xfs_dqlock(dqp);
-	if (dqp->dq_flags & XFS_DQ_FREEING)
+	if (dqp->q_flags & XFS_DQFLAG_FREEING)
 		goto out_unlock;
 	if (!XFS_DQ_IS_DIRTY(dqp))
 		goto out_unlock;

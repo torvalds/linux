@@ -723,7 +723,7 @@ restart:
 	}
 
 	xfs_dqlock(dqp);
-	if (dqp->dq_flags & XFS_DQ_FREEING) {
+	if (dqp->q_flags & XFS_DQFLAG_FREEING) {
 		xfs_dqunlock(dqp);
 		mutex_unlock(&qi->qi_tree_lock);
 		trace_xfs_dqget_freeing(dqp);
@@ -1179,7 +1179,7 @@ xfs_qm_dqflush(
 	/*
 	 * Clear the dirty field and remember the flush lsn for later use.
 	 */
-	dqp->dq_flags &= ~XFS_DQ_DIRTY;
+	dqp->q_flags &= ~XFS_DQFLAG_DIRTY;
 
 	xfs_trans_ail_copy_lsn(mp->m_ail, &dqp->q_logitem.qli_flush_lsn,
 					&dqp->q_logitem.qli_item.li_lsn);
@@ -1220,7 +1220,7 @@ xfs_qm_dqflush(
 	return 0;
 
 out_abort:
-	dqp->dq_flags &= ~XFS_DQ_DIRTY;
+	dqp->q_flags &= ~XFS_DQFLAG_DIRTY;
 	xfs_trans_ail_delete(lip, 0);
 	xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
 out_unlock:

@@ -391,7 +391,7 @@ xfs_trans_apply_dquot_deltas(
 				xfs_qm_adjust_dqtimers(tp->t_mountp, dqp);
 			}
 
-			dqp->dq_flags |= XFS_DQ_DIRTY;
+			dqp->q_flags |= XFS_DQFLAG_DIRTY;
 			/*
 			 * add this to the list of items to get logged
 			 */
