@@ -588,12 +588,12 @@ static int q6adm_probe(struct apr_device *adev)
 	struct device *dev = &adev->dev;
 	struct q6adm *adm;
 
-	adm = devm_kzalloc(&adev->dev, sizeof(*adm), GFP_KERNEL);
+	adm = devm_kzalloc(dev, sizeof(*adm), GFP_KERNEL);
 	if (!adm)
 		return -ENOMEM;
 
 	adm->apr = adev;
-	dev_set_drvdata(&adev->dev, adm);
+	dev_set_drvdata(dev, adm);
 	adm->dev = dev;
 	q6core_get_svc_api_info(adev->svc_id, &adm->ainfo);
 	mutex_init(&adm->lock);
