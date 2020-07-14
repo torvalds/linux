@@ -4060,7 +4060,6 @@ static void intel_ddi_set_link_train(struct intel_dp *intel_dp,
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	u8 train_pat_mask = drm_dp_training_pattern_mask(intel_dp->dpcd);
-	enum port port = dp_to_dig_port(intel_dp)->base.port;
 	u32 temp;
 
 	temp = intel_de_read(dev_priv, intel_dp->regs.dp_tp_ctl);
@@ -4085,9 +4084,6 @@ static void intel_ddi_set_link_train(struct intel_dp *intel_dp,
 	}
 
 	intel_de_write(dev_priv, intel_dp->regs.dp_tp_ctl, temp);
-
-	intel_de_write(dev_priv, DDI_BUF_CTL(port), intel_dp->DP);
-	intel_de_posting_read(dev_priv, DDI_BUF_CTL(port));
 }
 
 static void intel_ddi_set_idle_link_train(struct intel_dp *intel_dp)
