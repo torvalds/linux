@@ -61,6 +61,7 @@ struct ethsw_core {
 	struct fsl_mc_io		*mc_io;
 	u16				dpsw_handle;
 	struct dpsw_attr		sw_attr;
+	u16				major, minor;
 	int				dev_id;
 	struct ethsw_port_priv		**ports;
 
