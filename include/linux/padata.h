@@ -167,7 +167,6 @@ struct padata_mt_job {
  * @serial_wq: The workqueue used for serial work.
  * @pslist: List of padata_shell objects attached to this instance.
  * @cpumask: User supplied cpumasks for parallel and serial works.
- * @rcpumask: Actual cpumasks based on user cpumask and cpu_online_mask.
  * @kobj: padata instance kernel object.
  * @lock: padata instance lock.
  * @flags: padata flags.
@@ -179,7 +178,6 @@ struct padata_instance {
 	struct workqueue_struct		*serial_wq;
 	struct list_head		pslist;
 	struct padata_cpumask		cpumask;
-	struct padata_cpumask		rcpumask;
 	struct kobject                   kobj;
 	struct mutex			 lock;
 	u8				 flags;

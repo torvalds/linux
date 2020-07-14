@@ -571,12 +571,7 @@ static void padata_init_pqueues(struct parallel_data *pd)
 static struct parallel_data *padata_alloc_pd(struct padata_shell *ps)
 {
 	struct padata_instance *pinst = ps->pinst;
-	const struct cpumask *cbcpumask;
-	const struct cpumask *pcpumask;
 	struct parallel_data *pd;
-
-	cbcpumask = pinst->rcpumask.cbcpu;
-	pcpumask = pinst->rcpumask.pcpu;
 
 	pd = kzalloc(sizeof(struct parallel_data), GFP_KERNEL);
 	if (!pd)
@@ -597,8 +592,8 @@ static struct parallel_data *padata_alloc_pd(struct padata_shell *ps)
 	if (!alloc_cpumask_var(&pd->cpumask.cbcpu, GFP_KERNEL))
 		goto err_free_pcpu;
 
-	cpumask_copy(pd->cpumask.pcpu, pcpumask);
-	cpumask_copy(pd->cpumask.cbcpu, cbcpumask);
+	cpumask_and(pd->cpumask.pcpu, pinst->cpumask.pcpu, cpu_online_mask);
+	cpumask_and(pd->cpumask.cbcpu, pinst->cpumask.cbcpu, cpu_online_mask);
 
 	padata_init_pqueues(pd);
 	padata_init_squeues(pd);
@@ -667,12 +662,6 @@ static int padata_replace(struct padata_instance *pinst)
 	int err = 0;
 
 	pinst->flags |= PADATA_RESET;
-
-	cpumask_and(pinst->rcpumask.pcpu, pinst->cpumask.pcpu,
-		    cpu_online_mask);
-
-	cpumask_and(pinst->rcpumask.cbcpu, pinst->cpumask.cbcpu,
-		    cpu_online_mask);
 
 	list_for_each_entry(ps, &pinst->pslist, list) {
 		err = padata_replace_one(ps);
@@ -856,8 +845,6 @@ static void __padata_free(struct padata_instance *pinst)
 
 	WARN_ON(!list_empty(&pinst->pslist));
 
-	free_cpumask_var(pinst->rcpumask.cbcpu);
-	free_cpumask_var(pinst->rcpumask.pcpu);
 	free_cpumask_var(pinst->cpumask.pcpu);
 	free_cpumask_var(pinst->cpumask.cbcpu);
 	destroy_workqueue(pinst->serial_wq);
@@ -1033,20 +1020,13 @@ static struct padata_instance *padata_alloc(const char *name,
 	    !padata_validate_cpumask(pinst, cbcpumask))
 		goto err_free_masks;
 
-	if (!alloc_cpumask_var(&pinst->rcpumask.pcpu, GFP_KERNEL))
-		goto err_free_masks;
-	if (!alloc_cpumask_var(&pinst->rcpumask.cbcpu, GFP_KERNEL))
-		goto err_free_rcpumask_pcpu;
-
 	INIT_LIST_HEAD(&pinst->pslist);
 
 	cpumask_copy(pinst->cpumask.pcpu, pcpumask);
 	cpumask_copy(pinst->cpumask.cbcpu, cbcpumask);
-	cpumask_and(pinst->rcpumask.pcpu, pcpumask, cpu_online_mask);
-	cpumask_and(pinst->rcpumask.cbcpu, cbcpumask, cpu_online_mask);
 
 	if (padata_setup_cpumasks(pinst))
-		goto err_free_rcpumask_cbcpu;
+		goto err_free_masks;
 
 	__padata_start(pinst);
 
@@ -1064,10 +1044,6 @@ static struct padata_instance *padata_alloc(const char *name,
 
 	return pinst;
 
-err_free_rcpumask_cbcpu:
-	free_cpumask_var(pinst->rcpumask.cbcpu);
-err_free_rcpumask_pcpu:
-	free_cpumask_var(pinst->rcpumask.pcpu);
 err_free_masks:
 	free_cpumask_var(pinst->cpumask.pcpu);
 	free_cpumask_var(pinst->cpumask.cbcpu);
