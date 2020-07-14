@@ -608,7 +608,7 @@ int vfs_fchmod(struct file *file, umode_t mode)
 	return chmod_common(&file->f_path, mode);
 }
 
-int ksys_fchmod(unsigned int fd, umode_t mode)
+SYSCALL_DEFINE2(fchmod, unsigned int, fd, umode_t, mode)
 {
 	struct fd f = fdget(fd);
 	int err = -EBADF;
@@ -618,11 +618,6 @@ int ksys_fchmod(unsigned int fd, umode_t mode)
 		fdput(f);
 	}
 	return err;
-}
-
-SYSCALL_DEFINE2(fchmod, unsigned int, fd, umode_t, mode)
-{
-	return ksys_fchmod(fd, mode);
 }
 
 int do_fchmodat(int dfd, const char __user *filename, umode_t mode)
