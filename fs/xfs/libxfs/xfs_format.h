@@ -1199,6 +1199,22 @@ typedef struct xfs_dqblk {
 #define XFS_DQUOT_CRC_OFF	offsetof(struct xfs_dqblk, dd_crc)
 
 /*
+ * This defines the unit of allocation of dquots.
+ *
+ * Currently, it is just one file system block, and a 4K blk contains 30
+ * (136 * 30 = 4080) dquots. It's probably not worth trying to make
+ * this more dynamic.
+ *
+ * However, if this number is changed, we have to make sure that we don't
+ * implicitly assume that we do allocations in chunks of a single filesystem
+ * block in the dquot/xqm code.
+ *
+ * This is part of the ondisk format because the structure size is not a power
+ * of two, which leaves slack at the end of the disk block.
+ */
+#define XFS_DQUOT_CLUSTER_SIZE_FSB	(xfs_filblks_t)1
+
+/*
  * Remote symlink format and access functions.
  */
 #define XFS_SYMLINK_MAGIC	0x58534c4d	/* XSLM */

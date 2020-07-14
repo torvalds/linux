@@ -30,17 +30,6 @@ extern struct kmem_zone	*xfs_qm_dqtrxzone;
 	!dqp->q_core.d_rtbcount && \
 	!dqp->q_core.d_icount)
 
-/*
- * This defines the unit of allocation of dquots.
- * Currently, it is just one file system block, and a 4K blk contains 30
- * (136 * 30 = 4080) dquots. It's probably not worth trying to make
- * this more dynamic.
- * XXXsup However, if this number is changed, we have to make sure that we don't
- * implicitly assume that we do allocations in chunks of a single filesystem
- * block in the dquot/xqm code.
- */
-#define XFS_DQUOT_CLUSTER_SIZE_FSB	(xfs_filblks_t)1
-
 /* Defaults for each quota type: time limits, warn limits, usage limits */
 struct xfs_def_quota {
 	time64_t	btimelimit;	/* limit for blks timer */
