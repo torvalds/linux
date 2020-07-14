@@ -252,12 +252,7 @@ static inline unsigned long __clear_user(void __user *addr, unsigned long size)
 	unsigned long ret;
 
 	__asm__ __volatile__ (
-		".section __ex_table,#alloc\n\t"
-		".align 4\n\t"
-		".word 1f,3\n\t"
-		".previous\n\t"
 		"mov %2, %%o1\n"
-		"1:\n\t"
 		"call __bzero\n\t"
 		" mov %1, %%o0\n\t"
 		"mov %%o0, %0\n"

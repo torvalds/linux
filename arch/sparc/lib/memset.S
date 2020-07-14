@@ -68,8 +68,6 @@ __bzero_begin:
 	.globl	memset
 	EXPORT_SYMBOL(__bzero)
 	EXPORT_SYMBOL(memset)
-	.globl	__memset_start, __memset_end
-__memset_start:
 memset:
 	mov	%o0, %g1
 	mov	1, %g4
@@ -181,7 +179,6 @@ __bzero:
 5:
 	retl
 	 clr	%o0
-__memset_end:
 
 	.section .fixup,#alloc,#execinstr
 	.align	4
