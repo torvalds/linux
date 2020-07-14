@@ -473,6 +473,13 @@ static int port_open(struct net_device *netdev)
 	/* No need to allow Tx as control interface is disabled */
 	netif_tx_stop_all_queues(netdev);
 
+	/* Explicitly set carrier off, otherwise
+	 * netif_carrier_ok() will return true and cause 'ip link show'
+	 * to report the LOWER_UP flag, even though the link
+	 * notification wasn't even received.
+	 */
+	netif_carrier_off(netdev);
+
 	err = dpsw_if_enable(port_priv->ethsw_data->mc_io, 0,
 			     port_priv->ethsw_data->dpsw_handle,
 			     port_priv->idx);
