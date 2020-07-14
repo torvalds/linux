@@ -9,6 +9,7 @@
 #include <linux/elf.h>
 #include <linux/pagemap.h>
 #include <linux/irq_work.h>
+#include <linux/btf_ids.h>
 #include "percpu_freelist.h"
 
 #define STACK_CREATE_FLAG_MASK					\
@@ -576,7 +577,9 @@ BPF_CALL_4(bpf_get_task_stack, struct task_struct *, task, void *, buf,
 	return __bpf_get_stack(regs, task, buf, size, flags);
 }
 
-static int bpf_get_task_stack_btf_ids[5];
+BTF_ID_LIST(bpf_get_task_stack_btf_ids)
+BTF_ID(struct, task_struct)
+
 const struct bpf_func_proto bpf_get_task_stack_proto = {
 	.func		= bpf_get_task_stack,
 	.gpl_only	= false,

@@ -111,6 +111,7 @@ SCRATCH_DIR := $(OUTPUT)/tools
 BUILD_DIR := $(SCRATCH_DIR)/build
 INCLUDE_DIR := $(SCRATCH_DIR)/include
 BPFOBJ := $(BUILD_DIR)/libbpf/libbpf.a
+RESOLVE_BTFIDS := $(BUILD_DIR)/resolve_btfids/resolve_btfids
 
 # Define simple and short `make test_progs`, `make test_sysctl`, etc targets
 # to build individual tests.
@@ -177,7 +178,7 @@ $(BPFOBJ): $(wildcard $(BPFDIR)/*.[ch] $(BPFDIR)/Makefile)		       \
 	$(Q)$(MAKE) $(submake_extras) -C $(BPFDIR) OUTPUT=$(BUILD_DIR)/libbpf/ \
 		    DESTDIR=$(SCRATCH_DIR) prefix= all install_headers
 
-$(BUILD_DIR)/libbpf $(BUILD_DIR)/bpftool $(INCLUDE_DIR):
+$(BUILD_DIR)/libbpf $(BUILD_DIR)/bpftool $(BUILD_DIR)/resolve_btfids $(INCLUDE_DIR):
 	$(call msg,MKDIR,,$@)
 	mkdir -p $@
 
@@ -189,6 +190,16 @@ else
 	$(call msg,CP,,$@)
 	cp "$(VMLINUX_H)" $@
 endif
+
+$(RESOLVE_BTFIDS): $(BPFOBJ) | $(BUILD_DIR)/resolve_btfids	\
+		       $(TOOLSDIR)/bpf/resolve_btfids/main.c	\
+		       $(TOOLSDIR)/lib/rbtree.c			\
+		       $(TOOLSDIR)/lib/zalloc.c			\
+		       $(TOOLSDIR)/lib/string.c			\
+		       $(TOOLSDIR)/lib/ctype.c			\
+		       $(TOOLSDIR)/lib/str_error_r.c
+	$(Q)$(MAKE) $(submake_extras) -C $(TOOLSDIR)/bpf/resolve_btfids	\
+		OUTPUT=$(BUILD_DIR)/resolve_btfids/ BPFOBJ=$(BPFOBJ)
 
 # Get Clang's default includes on this system, as opposed to those seen by
 # '-target bpf'. This fixes "missing" files on some architectures/distros,
@@ -352,9 +363,11 @@ endif
 
 $(OUTPUT)/$(TRUNNER_BINARY): $(TRUNNER_TEST_OBJS)			\
 			     $(TRUNNER_EXTRA_OBJS) $$(BPFOBJ)		\
+			     $(RESOLVE_BTFIDS)				\
 			     | $(TRUNNER_BINARY)-extras
 	$$(call msg,BINARY,,$$@)
 	$$(CC) $$(CFLAGS) $$(filter %.a %.o,$$^) $$(LDLIBS) -o $$@
+	$(RESOLVE_BTFIDS) --no-fail --btf btf_data.o $$@
 
 endef
 

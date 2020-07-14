@@ -691,6 +691,42 @@ kernel API, the ``insn_off`` is the instruction offset in the unit of ``struct
 bpf_insn``. For ELF API, the ``insn_off`` is the byte offset from the
 beginning of section (``btf_ext_info_sec->sec_name_off``).
 
+4.2 .BTF_ids section
+====================
+
+The .BTF_ids section encodes BTF ID values that are used within the kernel.
+
+This section is created during the kernel compilation with the help of
+macros defined in ``include/linux/btf_ids.h`` header file. Kernel code can
+use them to create lists and sets (sorted lists) of BTF ID values.
+
+The ``BTF_ID_LIST`` and ``BTF_ID`` macros define unsorted list of BTF ID values,
+with following syntax::
+
+  BTF_ID_LIST(list)
+  BTF_ID(type1, name1)
+  BTF_ID(type2, name2)
+
+resulting in following layout in .BTF_ids section::
+
+  __BTF_ID__type1__name1__1:
+  .zero 4
+  __BTF_ID__type2__name2__2:
+  .zero 4
+
+The ``u32 list[];`` variable is defined to access the list.
+
+The ``BTF_ID_UNUSED`` macro defines 4 zero bytes. It's used when we
+want to define unused entry in BTF_ID_LIST, like::
+
+      BTF_ID_LIST(bpf_skb_output_btf_ids)
+      BTF_ID(struct, sk_buff)
+      BTF_ID_UNUSED
+      BTF_ID(struct, task_struct)
+
+All the BTF ID lists and sets are compiled in the .BTF_ids section and
+resolved during the linking phase of kernel build by ``resolve_btfids`` tool.
+
 5. Using BTF
 ************
 

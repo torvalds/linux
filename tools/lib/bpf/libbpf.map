@@ -288,4 +288,5 @@ LIBBPF_0.1.0 {
 		bpf_map__value_size;
 		bpf_program__autoload;
 		bpf_program__set_autoload;
+		btf__set_fd;
 } LIBBPF_0.0.9;
