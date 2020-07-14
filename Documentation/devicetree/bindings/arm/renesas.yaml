@@ -118,6 +118,7 @@ properties:
         items:
           - enum:
               - hoperun,hihope-rzg2m # HopeRun HiHope RZ/G2M platform
+              - beacon,beacon-rzg2m # Beacon EmbeddedWorks RZ/G2M Kit
           - const: renesas,r8a774a1
 
       - items:
