@@ -4557,7 +4557,6 @@ static int qeth_setadpparms_set_access_ctrl_cb(struct qeth_card *card,
 {
 	struct qeth_ipa_cmd *cmd = (struct qeth_ipa_cmd *) data;
 	struct qeth_set_access_ctrl *access_ctrl_req;
-	int fallback = *(int *)reply->param;
 
 	QETH_CARD_TEXT(card, 4, "setaccb");
 
@@ -4571,70 +4570,54 @@ static int qeth_setadpparms_set_access_ctrl_cb(struct qeth_card *card,
 				 cmd->data.setadapterparms.hdr.return_code);
 	switch (qeth_setadpparms_inspect_rc(cmd)) {
 	case SET_ACCESS_CTRL_RC_SUCCESS:
-		if (card->options.isolation == ISOLATION_MODE_NONE) {
+		if (access_ctrl_req->subcmd_code == ISOLATION_MODE_NONE)
 			dev_info(&card->gdev->dev,
 			    "QDIO data connection isolation is deactivated\n");
-		} else {
+		else
 			dev_info(&card->gdev->dev,
 			    "QDIO data connection isolation is activated\n");
-		}
-		break;
+		return 0;
 	case SET_ACCESS_CTRL_RC_ALREADY_NOT_ISOLATED:
 		QETH_DBF_MESSAGE(2, "QDIO data connection isolation on device %x already deactivated\n",
 				 CARD_DEVID(card));
-		if (fallback)
-			card->options.isolation = card->options.prev_isolation;
-		break;
+		return 0;
 	case SET_ACCESS_CTRL_RC_ALREADY_ISOLATED:
 		QETH_DBF_MESSAGE(2, "QDIO data connection isolation on device %x already activated\n",
 				 CARD_DEVID(card));
-		if (fallback)
-			card->options.isolation = card->options.prev_isolation;
-		break;
+		return 0;
 	case SET_ACCESS_CTRL_RC_NOT_SUPPORTED:
 		dev_err(&card->gdev->dev, "Adapter does not "
 			"support QDIO data connection isolation\n");
-		break;
+		return -EOPNOTSUPP;
 	case SET_ACCESS_CTRL_RC_NONE_SHARED_ADAPTER:
 		dev_err(&card->gdev->dev,
 			"Adapter is dedicated. "
 			"QDIO data connection isolation not supported\n");
-		if (fallback)
-			card->options.isolation = card->options.prev_isolation;
-		break;
+		return -EOPNOTSUPP;
 	case SET_ACCESS_CTRL_RC_ACTIVE_CHECKSUM_OFF:
 		dev_err(&card->gdev->dev,
 			"TSO does not permit QDIO data connection isolation\n");
-		if (fallback)
-			card->options.isolation = card->options.prev_isolation;
-		break;
+		return -EPERM;
 	case SET_ACCESS_CTRL_RC_REFLREL_UNSUPPORTED:
 		dev_err(&card->gdev->dev, "The adjacent switch port does not "
 			"support reflective relay mode\n");
-		if (fallback)
-			card->options.isolation = card->options.prev_isolation;
-		break;
+		return -EOPNOTSUPP;
 	case SET_ACCESS_CTRL_RC_REFLREL_FAILED:
 		dev_err(&card->gdev->dev, "The reflective relay mode cannot be "
 					"enabled at the adjacent switch port");
-		if (fallback)
-			card->options.isolation = card->options.prev_isolation;
-		break;
+		return -EREMOTEIO;
 	case SET_ACCESS_CTRL_RC_REFLREL_DEACT_FAILED:
 		dev_warn(&card->gdev->dev, "Turning off reflective relay mode "
 					"at the adjacent switch failed\n");
-		break;
+		/* benign error while disabling ISOLATION_MODE_FWD */
+		return 0;
 	default:
-		/* this should never happen */
-		if (fallback)
-			card->options.isolation = card->options.prev_isolation;
-		break;
+		return -EIO;
 	}
-	return (cmd->hdr.return_code) ? -EIO : 0;
 }
 
-static int qeth_setadpparms_set_access_ctrl(struct qeth_card *card,
-		enum qeth_ipa_isolation_modes isolation, int fallback)
+int qeth_setadpparms_set_access_ctrl(struct qeth_card *card,
+				     enum qeth_ipa_isolation_modes mode)
 {
 	int rc;
 	struct qeth_cmd_buffer *iob;
@@ -4643,41 +4626,28 @@ static int qeth_setadpparms_set_access_ctrl(struct qeth_card *card,
 
 	QETH_CARD_TEXT(card, 4, "setacctl");
 
+	if (!qeth_adp_supported(card, IPA_SETADP_SET_ACCESS_CONTROL)) {
+		dev_err(&card->gdev->dev,
+			"Adapter does not support QDIO data connection isolation\n");
+		return -EOPNOTSUPP;
+	}
+
 	iob = qeth_get_adapter_cmd(card, IPA_SETADP_SET_ACCESS_CONTROL,
 				   SETADP_DATA_SIZEOF(set_access_ctrl));
 	if (!iob)
 		return -ENOMEM;
 	cmd = __ipa_cmd(iob);
 	access_ctrl_req = &cmd->data.setadapterparms.data.set_access_ctrl;
-	access_ctrl_req->subcmd_code = isolation;
+	access_ctrl_req->subcmd_code = mode;
 
 	rc = qeth_send_ipa_cmd(card, iob, qeth_setadpparms_set_access_ctrl_cb,
-			       &fallback);
-	QETH_CARD_TEXT_(card, 2, "rc=%d", rc);
-	return rc;
-}
-
-int qeth_set_access_ctrl_online(struct qeth_card *card, int fallback)
-{
-	int rc = 0;
-
-	QETH_CARD_TEXT(card, 4, "setactlo");
-
-	if (!qeth_adp_supported(card, IPA_SETADP_SET_ACCESS_CONTROL)) {
-		dev_err(&card->gdev->dev, "Adapter does not "
-			"support QDIO data connection isolation\n");
-		if (fallback)
-			card->options.isolation = card->options.prev_isolation;
-		return -EOPNOTSUPP;
-	}
-
-	rc = qeth_setadpparms_set_access_ctrl(card, card->options.isolation,
-					      fallback);
+			       NULL);
 	if (rc) {
+		QETH_CARD_TEXT_(card, 2, "rc=%d", rc);
 		QETH_DBF_MESSAGE(3, "IPA(SET_ACCESS_CTRL(%d) on device %x: sent failed\n",
 				 rc, CARD_DEVID(card));
-		rc = -EOPNOTSUPP;
 	}
+
 	return rc;
 }
 
@@ -5347,7 +5317,8 @@ retriable:
 		card->info.hwtrap = 0;
 
 	if (card->options.isolation != ISOLATION_MODE_NONE) {
-		rc = qeth_set_access_ctrl_online(card, 0);
+		rc = qeth_setadpparms_set_access_ctrl(card,
+						      card->options.isolation);
 		if (rc)
 			goto out;
 	}
@@ -6858,7 +6829,7 @@ netdev_features_t qeth_features_check(struct sk_buff *skb,
 
 	/* Traffic with local next-hop is not eligible for some offloads: */
 	if (skb->ip_summed == CHECKSUM_PARTIAL &&
-	    card->options.isolation != ISOLATION_MODE_FWD) {
+	    READ_ONCE(card->options.isolation) != ISOLATION_MODE_FWD) {
 		netdev_features_t restricted = 0;
 
 		if (skb_is_gso(skb) && !netif_needs_gso(skb, features))
