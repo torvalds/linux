@@ -692,16 +692,15 @@ mlxsw_sp_span_entry_configure(struct mlxsw_sp *mlxsw_sp,
 		goto set_parms;
 
 	if (sparms.dest_port->mlxsw_sp != mlxsw_sp) {
-		netdev_err(span_entry->to_dev, "Cannot mirror to %s, which belongs to a different mlxsw instance",
-			   sparms.dest_port->dev->name);
+		dev_err(mlxsw_sp->bus_info->dev,
+			"Cannot mirror to a port which belongs to a different mlxsw instance\n");
 		sparms.dest_port = NULL;
 		goto set_parms;
 	}
 
 	err = span_entry->ops->configure(span_entry, sparms);
 	if (err) {
-		netdev_err(span_entry->to_dev, "Failed to offload mirror to %s",
-			   sparms.dest_port->dev->name);
+		dev_err(mlxsw_sp->bus_info->dev, "Failed to offload mirror\n");
 		sparms.dest_port = NULL;
 		goto set_parms;
 	}
