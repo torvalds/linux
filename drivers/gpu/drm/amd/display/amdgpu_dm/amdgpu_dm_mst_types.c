@@ -450,6 +450,7 @@ struct dsc_mst_fairness_params {
 	struct dc_dsc_bw_range bw_range;
 	bool compression_possible;
 	struct drm_dp_mst_port *port;
+	bool clock_overwrite;
 };
 
 struct dsc_mst_fairness_vars {
@@ -615,7 +616,9 @@ static void try_disable_dsc(struct drm_atomic_state *state,
 	int remaining_to_try = 0;
 
 	for (i = 0; i < count; i++) {
-		if (vars[i].dsc_enabled && vars[i].bpp_x16 == params[i].bw_range.max_target_bpp_x16) {
+		if (vars[i].dsc_enabled
+				&& vars[i].bpp_x16 == params[i].bw_range.max_target_bpp_x16
+				&& !params[i].clock_overwrite) {
 			kbps_increase[i] = params[i].bw_range.stream_kbps - params[i].bw_range.max_kbps;
 			tried[i] = false;
 			remaining_to_try += 1;
@@ -676,6 +679,7 @@ static bool compute_mst_dsc_configs_for_link(struct drm_atomic_state *state,
 	struct dsc_mst_fairness_vars vars[MAX_PIPES];
 	struct amdgpu_dm_connector *aconnector;
 	int count = 0;
+	bool debugfs_overwrite = false;
 
 	memset(params, 0, sizeof(params));
 
@@ -694,6 +698,9 @@ static bool compute_mst_dsc_configs_for_link(struct drm_atomic_state *state,
 		params[count].sink = stream->sink;
 		aconnector = (struct amdgpu_dm_connector *)stream->dm_stream_context;
 		params[count].port = aconnector->port;
+		params[count].clock_overwrite = aconnector->dsc_settings.dsc_clock_en;
+		if (params[count].clock_overwrite)
+			debugfs_overwrite = true;
 		params[count].compression_possible = stream->sink->dsc_caps.dsc_dec_caps.is_dsc_supported;
 		dc_dsc_get_policy_for_timing(params[count].timing, &dsc_policy);
 		if (!dc_dsc_compute_bandwidth_range(
@@ -719,7 +726,7 @@ static bool compute_mst_dsc_configs_for_link(struct drm_atomic_state *state,
 						 dm_mst_get_pbn_divider(dc_link)) < 0)
 			return false;
 	}
-	if (!drm_dp_mst_atomic_check(state)) {
+	if (!drm_dp_mst_atomic_check(state) && !debugfs_overwrite) {
 		set_dsc_configs_from_fairness_vars(params, vars, count);
 		return true;
 	}

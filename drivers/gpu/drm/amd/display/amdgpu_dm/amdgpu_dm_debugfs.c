@@ -980,6 +980,21 @@ static ssize_t dp_dpcd_data_read(struct file *f, char __user *buf,
 	return read_size - r;
 }
 
+/* function: read DSC status on the connector
+ *
+ * The read function: dp_dsc_clock_en_read
+ * returns current status of DSC clock on the connector.
+ * The return is a boolean flag: 1 or 0.
+ *
+ * Access it with the following command (you need to specify
+ * connector like DP-1):
+ *
+ *	cat /sys/kernel/debug/dri/0/DP-X/dsc_clock_en
+ *
+ * Expected output:
+ * 1 - means that DSC is currently enabled
+ * 0 - means that DSC is disabled
+ */
 static ssize_t dp_dsc_clock_en_read(struct file *f, char __user *buf,
 				    size_t size, loff_t *pos)
 {
@@ -1035,6 +1050,79 @@ static ssize_t dp_dsc_clock_en_read(struct file *f, char __user *buf,
 
 	kfree(rd_buf);
 	return result;
+}
+
+/* function: write force DSC on the connector
+ *
+ * The write function: dp_dsc_clock_en_write
+ * enables to force DSC on the connector.
+ * User can write to either force enable DSC
+ * on the next modeset or set it to driver default
+ *
+ * Writing DSC settings is done with the following command:
+ * - To force enable DSC (you need to specify
+ * connector like DP-1):
+ *
+ *	echo 0x1 > /sys/kernel/debug/dri/0/DP-X/dsc_clock_en
+ *
+ * - To return to default state set the flag to zero and
+ * let driver deal with DSC automatically
+ * (you need to specify connector like DP-1):
+ *
+ *	echo 0x0 > /sys/kernel/debug/dri/0/DP-X/dsc_clock_en
+ *
+ */
+static ssize_t dp_dsc_clock_en_write(struct file *f, const char __user *buf,
+				     size_t size, loff_t *pos)
+{
+	struct amdgpu_dm_connector *aconnector = file_inode(f)->i_private;
+	struct pipe_ctx *pipe_ctx;
+	int i;
+	char *wr_buf = NULL;
+	uint32_t wr_buf_size = 42;
+	int max_param_num = 1;
+	long param[1] = {0};
+	uint8_t param_nums = 0;
+
+	if (size == 0)
+		return -EINVAL;
+
+	wr_buf = kcalloc(wr_buf_size, sizeof(char), GFP_KERNEL);
+
+	if (!wr_buf) {
+		DRM_DEBUG_DRIVER("no memory to allocate write buffer\n");
+		return -ENOSPC;
+	}
+
+	if (parse_write_buffer_into_params(wr_buf, wr_buf_size,
+					    (long *)param, buf,
+					    max_param_num,
+					    &param_nums)) {
+		kfree(wr_buf);
+		return -EINVAL;
+	}
+
+	if (param_nums <= 0) {
+		DRM_DEBUG_DRIVER("user data not be read\n");
+		kfree(wr_buf);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		pipe_ctx = &aconnector->dc_link->dc->current_state->res_ctx.pipe_ctx[i];
+			if (pipe_ctx && pipe_ctx->stream &&
+			    pipe_ctx->stream->link == aconnector->dc_link)
+				break;
+	}
+
+	if (!pipe_ctx || !pipe_ctx->stream)
+		goto done;
+
+	aconnector->dsc_settings.dsc_clock_en = param[0];
+
+done:
+	kfree(wr_buf);
+	return size;
 }
 
 static ssize_t dp_dsc_slice_width_read(struct file *f, char __user *buf,
@@ -1446,6 +1534,7 @@ DEFINE_SHOW_ATTRIBUTE(hdcp_sink_capability);
 static const struct file_operations dp_dsc_clock_en_debugfs_fops = {
 	.owner = THIS_MODULE,
 	.read = dp_dsc_clock_en_read,
+	.write = dp_dsc_clock_en_write,
 	.llseek = default_llseek
 };
 

@@ -4659,7 +4659,7 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 							     dc_link_get_link_cap(aconnector->dc_link));
 
 #if defined(CONFIG_DRM_AMD_DC_DCN)
-		if (dsc_caps.is_dsc_supported)
+		if (dsc_caps.is_dsc_supported) {
 			if (dc_dsc_compute_config(aconnector->dc_link->ctx->dc->res_pool->dscs[0],
 						  &dsc_caps,
 						  aconnector->dc_link->ctx->dc->debug.dsc_min_slice_height_override,
@@ -4667,6 +4667,9 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 						  &stream->timing,
 						  &stream->timing.dsc_cfg))
 				stream->timing.flags.DSC = 1;
+			if (aconnector->dsc_settings.dsc_clock_en)
+				stream->timing.flags.DSC = 1;
+		}
 #endif
 	}
 

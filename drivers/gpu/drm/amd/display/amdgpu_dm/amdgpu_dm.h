@@ -342,6 +342,10 @@ struct amdgpu_display_manager {
 	struct amdgpu_encoder mst_encoders[AMDGPU_DM_MAX_CRTC];
 };
 
+struct dsc_preferred_settings {
+	bool dsc_clock_en;
+};
+
 struct amdgpu_dm_connector {
 
 	struct drm_connector base;
@@ -389,6 +393,7 @@ struct amdgpu_dm_connector {
 	uint32_t debugfs_dpcd_size;
 #endif
 	bool force_yuv420_output;
+	struct dsc_preferred_settings dsc_settings;
 };
 
 #define to_amdgpu_dm_connector(x) container_of(x, struct amdgpu_dm_connector, base)
