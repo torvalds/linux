@@ -1687,7 +1687,7 @@ hash:
 
 static void cake_reconfigure(struct Qdisc *sch);
 
-static s32 cake_enqueue(struct sk_buff *skb, struct Qdisc *sch, spinlock_t *root_lock,
+static s32 cake_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 			struct sk_buff **to_free)
 {
 	struct cake_sched_data *q = qdisc_priv(sch);

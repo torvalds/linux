@@ -57,7 +57,6 @@ struct qdisc_skb_head {
 struct Qdisc {
 	int 			(*enqueue)(struct sk_buff *skb,
 					   struct Qdisc *sch,
-					   spinlock_t *root_lock,
 					   struct sk_buff **to_free);
 	struct sk_buff *	(*dequeue)(struct Qdisc *sch);
 	unsigned int		flags;
@@ -242,7 +241,6 @@ struct Qdisc_ops {
 
 	int 			(*enqueue)(struct sk_buff *skb,
 					   struct Qdisc *sch,
-					   spinlock_t *root_lock,
 					   struct sk_buff **to_free);
 	struct sk_buff *	(*dequeue)(struct Qdisc *);
 	struct sk_buff *	(*peek)(struct Qdisc *);
@@ -790,11 +788,11 @@ static inline void qdisc_calculate_pkt_len(struct sk_buff *skb,
 #endif
 }
 
-static inline int qdisc_enqueue(struct sk_buff *skb, struct Qdisc *sch, spinlock_t *root_lock,
+static inline int qdisc_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 				struct sk_buff **to_free)
 {
 	qdisc_calculate_pkt_len(skb, sch);
-	return sch->enqueue(skb, sch, root_lock, to_free);
+	return sch->enqueue(skb, sch, to_free);
 }
 
 static inline void _bstats_update(struct gnet_stats_basic_packed *bstats,
