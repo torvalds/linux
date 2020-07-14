@@ -969,7 +969,7 @@ void qeth_clear_ipacmd_list(struct qeth_card *card)
 
 	spin_lock_irqsave(&card->lock, flags);
 	list_for_each_entry(iob, &card->cmd_waiter_list, list)
-		qeth_notify_cmd(iob, -EIO);
+		qeth_notify_cmd(iob, -ECANCELED);
 	spin_unlock_irqrestore(&card->lock, flags);
 }
 EXPORT_SYMBOL_GPL(qeth_clear_ipacmd_list);
