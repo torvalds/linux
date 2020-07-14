@@ -281,11 +281,11 @@ static int siu_pcm_stmread_stop(struct siu_port *port_info)
 	return 0;
 }
 
-static bool filter(struct dma_chan *chan, void *slave)
+static bool filter(struct dma_chan *chan, void *secondary)
 {
-	struct sh_dmae_slave *param = slave;
+	struct sh_dmae_slave *param = secondary;
 
-	pr_debug("%s: slave ID %d\n", __func__, param->shdma_slave.slave_id);
+	pr_debug("%s: secondary ID %d\n", __func__, param->shdma_slave.slave_id);
 
 	chan->private = &param->shdma_slave;
 	return true;
