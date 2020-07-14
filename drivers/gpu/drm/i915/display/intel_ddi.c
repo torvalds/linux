@@ -4037,8 +4037,7 @@ static void intel_ddi_prepare_link_retrain(struct intel_dp *intel_dp)
 			intel_wait_ddi_buf_idle(dev_priv, port);
 	}
 
-	dp_tp_ctl = DP_TP_CTL_ENABLE |
-		    DP_TP_CTL_LINK_TRAIN_PAT1 | DP_TP_CTL_SCRAMBLE_DISABLE;
+	dp_tp_ctl = DP_TP_CTL_ENABLE | DP_TP_CTL_LINK_TRAIN_PAT1;
 	if (intel_dp->link_mst)
 		dp_tp_ctl |= DP_TP_CTL_MODE_MST;
 	else {
@@ -4065,11 +4064,6 @@ static void intel_ddi_set_link_train(struct intel_dp *intel_dp,
 	u32 temp;
 
 	temp = intel_de_read(dev_priv, intel_dp->regs.dp_tp_ctl);
-
-	if (dp_train_pat & DP_LINK_SCRAMBLING_DISABLE)
-		temp |= DP_TP_CTL_SCRAMBLE_DISABLE;
-	else
-		temp &= ~DP_TP_CTL_SCRAMBLE_DISABLE;
 
 	temp &= ~DP_TP_CTL_LINK_TRAIN_MASK;
 	switch (dp_train_pat & train_pat_mask) {
