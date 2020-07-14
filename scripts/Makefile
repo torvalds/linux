@@ -31,8 +31,6 @@ hostprogs := $(always-y) $(always-m)
 # The following programs are only built on demand
 hostprogs += unifdef
 
-extra-$(CONFIG_LTO_CLANG)   += module-lto.lds
-
 subdir-$(CONFIG_GCC_PLUGINS) += gcc-plugins
 subdir-$(CONFIG_MODVERSIONS) += genksyms
 subdir-$(CONFIG_SECURITY_SELINUX) += selinux
