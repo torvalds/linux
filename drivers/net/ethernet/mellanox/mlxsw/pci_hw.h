@@ -176,7 +176,7 @@ MLXSW_ITEM32(pci, cqe, byte_count, 0x04, 0, 14);
 /* pci_cqe_trap_id
  * Trap ID that captured the packet.
  */
-MLXSW_ITEM32(pci, cqe, trap_id, 0x08, 0, 9);
+MLXSW_ITEM32(pci, cqe, trap_id, 0x08, 0, 10);
 
 /* pci_cqe_crc
  * Length include CRC. Indicates the length field includes

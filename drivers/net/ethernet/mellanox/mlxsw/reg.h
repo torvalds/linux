@@ -5778,7 +5778,7 @@ MLXSW_ITEM32(reg, hpkt, trap_group, 0x00, 12, 6);
  * Note: A trap ID can only be associated with a single trap group. The device
  * will associate the trap ID with the last trap group configured.
  */
-MLXSW_ITEM32(reg, hpkt, trap_id, 0x00, 0, 9);
+MLXSW_ITEM32(reg, hpkt, trap_id, 0x00, 0, 10);
 
 enum {
 	MLXSW_REG_HPKT_CTRL_PACKET_DEFAULT,
