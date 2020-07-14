@@ -57,6 +57,10 @@ int br_mrp_set_ring_state(struct net_bridge *br,
 			  struct br_mrp_ring_state *state);
 int br_mrp_set_ring_role(struct net_bridge *br, struct br_mrp_ring_role *role);
 int br_mrp_start_test(struct net_bridge *br, struct br_mrp_start_test *test);
+int br_mrp_set_in_state(struct net_bridge *br, struct br_mrp_in_state *state);
+int br_mrp_set_in_role(struct net_bridge *br, struct br_mrp_in_role *role);
+int br_mrp_start_in_test(struct net_bridge *br,
+			 struct br_mrp_start_in_test *test);
 
 /* br_mrp_switchdev.c */
 int br_mrp_switchdev_add(struct net_bridge *br, struct br_mrp *mrp);
