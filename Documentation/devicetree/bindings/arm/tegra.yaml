@@ -101,3 +101,11 @@ properties:
           - enum:
               - nvidia,p2972-0000
           - const: nvidia,tegra194
+      - description: Jetson Xavier NX
+        items:
+          - const: nvidia,p3668-0000
+          - const: nvidia,tegra194
+      - description: Jetson Xavier NX Developer Kit
+        items:
+          - const: nvidia,p3509-0000+p3668-0000
+          - const: nvidia,tegra194
