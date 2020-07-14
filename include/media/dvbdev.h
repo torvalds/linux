@@ -385,7 +385,7 @@ struct i2c_client;
  * with dvb_module_probe() should use dvb_module_release() to unbind.
  *
  * Return:
- *	On success, return an &struct i2c_client, pointing the the bound
+ *	On success, return an &struct i2c_client, pointing to the bound
  *	I2C device. %NULL otherwise.
  *
  * .. note::
