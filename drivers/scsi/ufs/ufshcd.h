@@ -293,8 +293,6 @@ struct ufs_pwr_mode_info {
 	struct ufs_pa_layer_attr info;
 };
 
-union ufs_crypto_cfg_entry;
-
 /**
  * struct ufs_hba_variant_ops - variant specific callbacks
  * @name: variant name
@@ -322,7 +320,7 @@ union ufs_crypto_cfg_entry;
  * @dbg_register_dump: used to dump controller debug information
  * @phy_initialization: used to initialize phys
  * @device_reset: called to issue a reset pulse on the UFS device
- * @program_key: program an inline encryption key into a keyslot
+ * @program_key: program or evict an inline encryption key
  */
 struct ufs_hba_variant_ops {
 	const char *name;

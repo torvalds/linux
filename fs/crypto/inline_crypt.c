@@ -79,7 +79,7 @@ int fscrypt_select_encryption_impl(struct fscrypt_info *ci,
 	if (!fscrypt_needs_contents_encryption(inode))
 		return 0;
 
-	/* The crypto mode must be valid */
+	/* The crypto mode must have a blk-crypto counterpart */
 	if (ci->ci_mode->blk_crypto_mode == BLK_ENCRYPTION_MODE_INVALID)
 		return 0;
 
@@ -101,8 +101,8 @@ int fscrypt_select_encryption_impl(struct fscrypt_info *ci,
 		return 0;
 
 	/*
-	 * blk-crypto must support the crypto configuration we'll use for the
-	 * inode on all devices in the sb
+	 * On all the filesystem's devices, blk-crypto must support the crypto
+	 * configuration that the file would use.
 	 */
 	crypto_cfg.crypto_mode = ci->ci_mode->blk_crypto_mode;
 	crypto_cfg.data_unit_size = sb->s_blocksize;
@@ -122,6 +122,7 @@ int fscrypt_select_encryption_impl(struct fscrypt_info *ci,
 	ci->ci_inlinecrypt = true;
 out_free_devs:
 	kfree(devs);
+
 	return 0;
 }
 
@@ -336,7 +337,7 @@ EXPORT_SYMBOL_GPL(fscrypt_set_bio_crypt_ctx_bh);
  *
  * When building a bio which may contain data which should undergo inline
  * encryption (or decryption) via fscrypt, filesystems should call this function
- * to ensure that the resulting bio contains only logically contiguous data.
+ * to ensure that the resulting bio contains only contiguous data unit numbers.
  * This will return false if the next part of the I/O cannot be merged with the
  * bio because either the encryption key would be different or the encryption
  * data unit numbers would be discontiguous.
@@ -441,6 +442,8 @@ EXPORT_SYMBOL_GPL(fscrypt_dio_supported);
  * targeting @pos, in order to avoid crossing a data unit number (DUN)
  * discontinuity.  This is only needed for certain IV generation methods.
  *
+ * This assumes block_size == PAGE_SIZE; see fscrypt_dio_supported().
+ *
  * Return: the actual number of pages that can be submitted
  */
 int fscrypt_limit_dio_pages(const struct inode *inode, loff_t pos, int nr_pages)
@@ -458,10 +461,6 @@ int fscrypt_limit_dio_pages(const struct inode *inode, loff_t pos, int nr_pages)
 	      FSCRYPT_POLICY_FLAG_IV_INO_LBLK_32))
 		return nr_pages;
 
-	/*
-	 * fscrypt_select_encryption_impl() ensures that block_size == PAGE_SIZE
-	 * when using FSCRYPT_POLICY_FLAG_IV_INO_LBLK_32.
-	 */
 	if (WARN_ON_ONCE(i_blocksize(inode) != PAGE_SIZE))
 		return 1;
 

@@ -192,12 +192,9 @@ struct fscrypt_prepared_key {
 struct fscrypt_info {
 
 	/* The key in a form prepared for actual encryption/decryption */
-	struct fscrypt_prepared_key	ci_enc_key;
+	struct fscrypt_prepared_key ci_enc_key;
 
-	/*
-	 * True if the ci_enc_key should be freed when this fscrypt_info is
-	 * freed
-	 */
+	/* True if ci_enc_key should be freed when this fscrypt_info is freed */
 	bool ci_owns_key;
 
 #ifdef CONFIG_FS_ENCRYPTION_INLINE_CRYPT
@@ -380,8 +377,8 @@ static inline int fscrypt_select_encryption_impl(struct fscrypt_info *ci,
 	return 0;
 }
 
-static inline bool fscrypt_using_inline_encryption(
-					const struct fscrypt_info *ci)
+static inline bool
+fscrypt_using_inline_encryption(const struct fscrypt_info *ci)
 {
 	return false;
 }

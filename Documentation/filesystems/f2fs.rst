@@ -259,11 +259,13 @@ compress_extension=%s  Support adding specified extension, so that f2fs can enab
                        these file by default rather than to enable it via ioctl.
                        For other files, we can still enable compression via ioctl.
 inlinecrypt
-                       Encrypt/decrypt the contents of encrypted files using the
-                       blk-crypto framework rather than filesystem-layer encryption.
-                       This allows the use of inline encryption hardware. The on-disk
-                       format is unaffected. For more details, see
+                       When possible, encrypt/decrypt the contents of encrypted
+                       files using the blk-crypto framework rather than
+                       filesystem-layer encryption. This allows the use of
+                       inline encryption hardware. The on-disk format is
+                       unaffected. For more details, see
                        Documentation/block/inline-encryption.rst.
+====================== ============================================================
 
 Debugfs Entries
 ===============

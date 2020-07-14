@@ -2002,15 +2002,26 @@ int ufshcd_copy_query_response(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 /**
  * ufshcd_hba_capabilities - Read controller capabilities
  * @hba: per adapter instance
+ *
+ * Return: 0 on success, negative on error.
  */
-static inline void ufshcd_hba_capabilities(struct ufs_hba *hba)
+static inline int ufshcd_hba_capabilities(struct ufs_hba *hba)
 {
+	int err;
+
 	hba->capabilities = ufshcd_readl(hba, REG_CONTROLLER_CAPABILITIES);
 
 	/* nutrs and nutmrs are 0 based values */
 	hba->nutrs = (hba->capabilities & MASK_TRANSFER_REQUESTS_SLOTS) + 1;
 	hba->nutmrs =
 	((hba->capabilities & MASK_TASK_MANAGEMENT_REQUEST_SLOTS) >> 16) + 1;
+
+	/* Read crypto capabilities */
+	err = ufshcd_hba_init_crypto_capabilities(hba);
+	if (err)
+		dev_err(hba->dev, "crypto setup failed\n");
+
+	return err;
 }
 
 /**
@@ -2263,16 +2274,10 @@ static void ufshcd_prepare_req_desc_hdr(struct ufshcd_lrb *lrbp,
 	if (lrbp->intr_cmd)
 		dword_0 |= UTP_REQ_DESC_INT_CMD;
 
-	/* Transfer request descriptor header fields */
-#ifdef CONFIG_SCSI_UFS_CRYPTO
-	if (lrbp->crypto_key_slot >= 0) {
-		dword_0 |= UTP_REQ_DESC_CRYPTO_ENABLE_CMD;
-		dword_0 |= lrbp->crypto_key_slot;
-		dword_1 = lower_32_bits(lrbp->data_unit_num);
-		dword_3 = upper_32_bits(lrbp->data_unit_num);
-	}
-#endif /* CONFIG_SCSI_UFS_CRYPTO */
+	/* Prepare crypto related dwords */
+	ufshcd_prepare_req_desc_hdr_crypto(lrbp, &dword_0, &dword_1, &dword_3);
 
+	/* Transfer request descriptor header fields */
 	req_desc->header.dword_0 = cpu_to_le32(dword_0);
 	req_desc->header.dword_1 = cpu_to_le32(dword_1);
 	/*
@@ -2539,7 +2544,7 @@ static int ufshcd_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 	lrbp->lun = ufshcd_scsi_to_upiu_lun(cmd->device->lun);
 	lrbp->intr_cmd = !ufshcd_is_intr_aggr_allowed(hba) ? true : false;
 
-	ufshcd_prepare_lrbp_crypto(hba, cmd, lrbp);
+	ufshcd_prepare_lrbp_crypto(cmd->request, lrbp);
 
 	lrbp->req_abort_skip = false;
 
@@ -2574,9 +2579,7 @@ static int ufshcd_compose_dev_cmd(struct ufs_hba *hba,
 	lrbp->task_tag = tag;
 	lrbp->lun = 0; /* device management cmd is not specific to any LUN */
 	lrbp->intr_cmd = true; /* No interrupt aggregation */
-#ifdef CONFIG_SCSI_UFS_CRYPTO
-	lrbp->crypto_key_slot = -1; /* No crypto operations */
-#endif
+	ufshcd_prepare_lrbp_crypto(NULL, lrbp);
 	hba->dev_cmd.type = cmd_type;
 
 	return ufshcd_comp_devman_upiu(hba, lrbp);
@@ -4827,6 +4830,7 @@ ufshcd_transfer_rsp_status(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 	case OCS_MISMATCH_RESP_UPIU_SIZE:
 	case OCS_PEER_COMM_FAILURE:
 	case OCS_FATAL_ERROR:
+	case OCS_DEVICE_FATAL_ERROR:
 	case OCS_INVALID_CRYPTO_CONFIG:
 	case OCS_GENERAL_CRYPTO_ERROR:
 	default:
@@ -6149,9 +6153,7 @@ static int ufshcd_issue_devman_upiu_cmd(struct ufs_hba *hba,
 	lrbp->task_tag = tag;
 	lrbp->lun = 0;
 	lrbp->intr_cmd = true;
-#ifdef CONFIG_SCSI_UFS_CRYPTO
-	lrbp->crypto_key_slot = -1; /* No crypto operations */
-#endif
+	ufshcd_prepare_lrbp_crypto(NULL, lrbp);
 	hba->dev_cmd.type = cmd_type;
 
 	switch (hba->ufs_version) {
@@ -8801,7 +8803,9 @@ int ufshcd_init(struct ufs_hba *hba, void __iomem *mmio_base, unsigned int irq)
 		goto out_error;
 
 	/* Read capabilities registers */
-	ufshcd_hba_capabilities(hba);
+	err = ufshcd_hba_capabilities(hba);
+	if (err)
+		goto out_disable;
 
 	/* Get UFS version supported by the controller */
 	hba->ufs_version = ufshcd_get_ufs_version(hba);
@@ -8911,12 +8915,7 @@ int ufshcd_init(struct ufs_hba *hba, void __iomem *mmio_base, unsigned int irq)
 	/* Reset the attached device */
 	ufshcd_vops_device_reset(hba);
 
-	/* Init crypto */
-	err = ufshcd_hba_init_crypto(hba);
-	if (err) {
-		dev_err(hba->dev, "crypto setup failed\n");
-		goto free_tmf_queue;
-	}
+	ufshcd_init_crypto(hba);
 
 	/* Host controller enable */
 	err = ufshcd_hba_enable(hba);
