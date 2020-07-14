@@ -1889,7 +1889,7 @@ int cxgbi_conn_alloc_pdu(struct iscsi_task *task, u8 op)
 	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
 	struct cxgbi_conn *cconn = tcp_conn->dd_data;
 	struct cxgbi_device *cdev = cconn->chba->cdev;
-	struct cxgbi_sock *csk = (cconn && cconn->cep) ? cconn->cep->csk : NULL;
+	struct cxgbi_sock *csk = cconn->cep ? cconn->cep->csk : NULL;
 	struct iscsi_tcp_task *tcp_task = task->dd_data;
 	struct cxgbi_task_data *tdata = iscsi_task_cxgbi_data(task);
 	struct scsi_cmnd *sc = task->sc;
