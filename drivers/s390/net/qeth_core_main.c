@@ -4663,8 +4663,7 @@ int qeth_set_access_ctrl_online(struct qeth_card *card, int fallback)
 
 	QETH_CARD_TEXT(card, 4, "setactlo");
 
-	if ((IS_OSD(card) || IS_OSX(card)) &&
-	    qeth_adp_supported(card, IPA_SETADP_SET_ACCESS_CONTROL)) {
+	if (qeth_adp_supported(card, IPA_SETADP_SET_ACCESS_CONTROL)) {
 		rc = qeth_setadpparms_set_access_ctrl(card,
 			card->options.isolation, fallback);
 		if (rc) {
@@ -5347,9 +5346,11 @@ retriable:
 	    (card->info.hwtrap && qeth_hw_trap(card, QETH_DIAGS_TRAP_ARM)))
 		card->info.hwtrap = 0;
 
-	rc = qeth_set_access_ctrl_online(card, 0);
-	if (rc)
-		goto out;
+	if (card->options.isolation != ISOLATION_MODE_NONE) {
+		rc = qeth_set_access_ctrl_online(card, 0);
+		if (rc)
+			goto out;
+	}
 
 	rc = qeth_init_qdio_queues(card);
 	if (rc) {
