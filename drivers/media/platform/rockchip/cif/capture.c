@@ -1497,6 +1497,7 @@ static void rkcif_stop_streaming(struct vb2_queue *queue)
 
 	if (dev->can_be_reset) {
 		if (dev->hdr.mode != NO_HDR) {
+			rkcif_stop_luma(&dev->luma_vdev);
 			val = rkcif_read_register(dev, CIF_REG_MIPI_LVDS_CTRL);
 			val |= CIF_MIPI_LVDS_SW_DMA_IDLE;
 			rkcif_write_register(dev, CIF_REG_MIPI_LVDS_CTRL, val);
@@ -1889,6 +1890,21 @@ static int rkcif_start_streaming(struct vb2_queue *queue, unsigned int count)
 		v4l2_err(&dev->v4l2_dev, "start pipeline failed %d\n",
 			 ret);
 		goto pipe_stream_off;
+	}
+
+	if (dev->hdr.mode == HDR_X2) {
+		if (dev->stream[RKCIF_STREAM_MIPI_ID0].state == RKCIF_STATE_STREAMING &&
+		    dev->stream[RKCIF_STREAM_MIPI_ID1].state == RKCIF_STATE_STREAMING) {
+			rkcif_start_luma(&dev->luma_vdev,
+				dev->stream[RKCIF_STREAM_MIPI_ID0].cif_fmt_in);
+		}
+	} else if (dev->hdr.mode == HDR_X3) {
+		if (dev->stream[RKCIF_STREAM_MIPI_ID0].state == RKCIF_STATE_STREAMING &&
+		    dev->stream[RKCIF_STREAM_MIPI_ID1].state == RKCIF_STATE_STREAMING &&
+		    dev->stream[RKCIF_STREAM_MIPI_ID2].state == RKCIF_STATE_STREAMING) {
+			rkcif_start_luma(&dev->luma_vdev,
+				dev->stream[RKCIF_STREAM_MIPI_ID0].cif_fmt_in);
+		}
 	}
 
 	v4l2_info(&dev->v4l2_dev, "%s successfully!\n", __func__);
@@ -2772,6 +2788,7 @@ void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 			}
 
 			rkcif_assign_new_buffer_pingpong(stream, 0, mipi_id);
+			rkcif_luma_isr(&cif_dev->luma_vdev, mipi_id);
 
 			if (active_buf) {
 				vb_done = &active_buf->vb;

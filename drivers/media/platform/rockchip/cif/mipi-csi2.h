@@ -5,4 +5,6 @@
 
 void rkcif_csi2_event_inc_sof(void);
 
+u32 rkcif_csi2_get_sof(void);
+
 #endif

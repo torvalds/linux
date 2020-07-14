@@ -18,6 +18,7 @@
 #include <linux/rk-camera-module.h>
 #include "regs.h"
 #include "version.h"
+#include "cif-luma.h"
 
 #define CIF_DRIVER_NAME		"rkcif"
 #define CIF_VIDEODEVICE_NAME	"stream_cif"
@@ -335,6 +336,8 @@ struct rkcif_device {
 	bool				can_be_reset;
 	struct rkcif_hdr		hdr;
 	struct rkcif_buffer		*rdbk_buf[RDBK_MAX];
+
+	struct rkcif_luma_vdev		luma_vdev;
 };
 
 void rkcif_write_register(struct rkcif_device *dev,

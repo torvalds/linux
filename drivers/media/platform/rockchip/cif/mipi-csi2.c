@@ -389,6 +389,15 @@ void rkcif_csi2_event_inc_sof(void)
 	}
 }
 
+u32 rkcif_csi2_get_sof(void)
+{
+	if (g_csi2_dev) {
+		return atomic_read(&g_csi2_dev->frm_sync_seq) - 1;
+	}
+
+	return 0;
+}
+
 static int rkcif_csi2_subscribe_event(struct v4l2_subdev *sd, struct v4l2_fh *fh,
 					     struct v4l2_event_subscription *sub)
 {

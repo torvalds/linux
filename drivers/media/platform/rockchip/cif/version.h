@@ -27,6 +27,7 @@
  *1. support kernel-4.19 and support vicap single dvp for rv1126
  *2. support vicap + mipi(single) for rv1126
  *3. support vicap + mipi hdr for rv1126
+ *4. add luma device node for rv1126 vicap
  */
 
 #define RKCIF_DRIVER_VERSION KERNEL_VERSION(0, 1, 0x3)
