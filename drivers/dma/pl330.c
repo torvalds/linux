@@ -285,7 +285,7 @@ struct pl330_config {
 	u32		irq_ns;
 };
 
-/**
+/*
  * Request Configuration.
  * The PL330 core does not modify this and uses the last
  * working configuration if the request doesn't provide any.
