@@ -3,6 +3,8 @@
 #ifndef _LINUX_BTF_IDS_H
 #define _LINUX_BTF_IDS_H
 
+#ifdef CONFIG_DEBUG_INFO_BTF
+
 #include <linux/compiler.h> /* for __PASTE */
 
 /*
@@ -83,5 +85,12 @@ asm(							\
 ".zero 4                                       \n"	\
 ".popsection;                                  \n");
 
+#else
+
+#define BTF_ID_LIST(name) static u32 name[5];
+#define BTF_ID(prefix, name)
+#define BTF_ID_UNUSED
+
+#endif /* CONFIG_DEBUG_INFO_BTF */
 
 #endif
