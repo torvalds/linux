@@ -21,6 +21,7 @@
  *
  * @cinfo: SCMI channel info
  * @shmem: Transmit/Receive shared memory area
+ * @shmem_lock: Lock to protect access to Tx/Rx shared memory area
  * @func_id: smc/hvc call function id
  */
 
