@@ -96,7 +96,7 @@ struct generic_pm_domain {
 	struct dev_pm_domain domain;	/* PM domain operations */
 	struct list_head gpd_list_node;	/* Node in the global PM domains list */
 	struct list_head parent_links;	/* Links with PM domain as a parent */
-	struct list_head child_links;/* Links with PM domain as a child */
+	struct list_head child_links;	/* Links with PM domain as a child */
 	struct list_head dev_list;	/* List of devices */
 	struct dev_power_governor *gov;
 	struct work_struct power_off_work;
