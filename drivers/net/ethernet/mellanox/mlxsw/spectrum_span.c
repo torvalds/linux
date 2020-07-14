@@ -128,6 +128,38 @@ void mlxsw_sp_span_fini(struct mlxsw_sp *mlxsw_sp)
 	kfree(mlxsw_sp->span);
 }
 
+static bool mlxsw_sp1_span_cpu_can_handle(const struct net_device *dev)
+{
+	return !dev;
+}
+
+static int mlxsw_sp1_span_entry_cpu_parms(struct mlxsw_sp *mlxsw_sp,
+					  const struct net_device *to_dev,
+					  struct mlxsw_sp_span_parms *sparmsp)
+{
+	return -EOPNOTSUPP;
+}
+
+static int
+mlxsw_sp1_span_entry_cpu_configure(struct mlxsw_sp_span_entry *span_entry,
+				   struct mlxsw_sp_span_parms sparms)
+{
+	return -EOPNOTSUPP;
+}
+
+static void
+mlxsw_sp1_span_entry_cpu_deconfigure(struct mlxsw_sp_span_entry *span_entry)
+{
+}
+
+static const
+struct mlxsw_sp_span_entry_ops mlxsw_sp1_span_entry_ops_cpu = {
+	.can_handle = mlxsw_sp1_span_cpu_can_handle,
+	.parms_set = mlxsw_sp1_span_entry_cpu_parms,
+	.configure = mlxsw_sp1_span_entry_cpu_configure,
+	.deconfigure = mlxsw_sp1_span_entry_cpu_deconfigure,
+};
+
 static int
 mlxsw_sp_span_entry_phys_parms(struct mlxsw_sp *mlxsw_sp,
 			       const struct net_device *to_dev,
@@ -633,6 +665,7 @@ struct mlxsw_sp_span_entry_ops mlxsw_sp_span_entry_ops_vlan = {
 
 static const
 struct mlxsw_sp_span_entry_ops *mlxsw_sp1_span_entry_ops_arr[] = {
+	&mlxsw_sp1_span_entry_ops_cpu,
 	&mlxsw_sp_span_entry_ops_phys,
 #if IS_ENABLED(CONFIG_NET_IPGRE)
 	&mlxsw_sp_span_entry_ops_gretap4,
@@ -643,8 +676,49 @@ struct mlxsw_sp_span_entry_ops *mlxsw_sp1_span_entry_ops_arr[] = {
 	&mlxsw_sp_span_entry_ops_vlan,
 };
 
+static bool mlxsw_sp2_span_cpu_can_handle(const struct net_device *dev)
+{
+	return !dev;
+}
+
+static int mlxsw_sp2_span_entry_cpu_parms(struct mlxsw_sp *mlxsw_sp,
+					  const struct net_device *to_dev,
+					  struct mlxsw_sp_span_parms *sparmsp)
+{
+	sparmsp->dest_port = mlxsw_sp->ports[MLXSW_PORT_CPU_PORT];
+	return 0;
+}
+
+static int
+mlxsw_sp2_span_entry_cpu_configure(struct mlxsw_sp_span_entry *span_entry,
+				   struct mlxsw_sp_span_parms sparms)
+{
+	/* Mirroring to the CPU port is like mirroring to any other physical
+	 * port. Its local port is used instead of that of the physical port.
+	 */
+	return mlxsw_sp_span_entry_phys_configure(span_entry, sparms);
+}
+
+static void
+mlxsw_sp2_span_entry_cpu_deconfigure(struct mlxsw_sp_span_entry *span_entry)
+{
+	enum mlxsw_reg_mpat_span_type span_type;
+
+	span_type = MLXSW_REG_MPAT_SPAN_TYPE_LOCAL_ETH;
+	mlxsw_sp_span_entry_deconfigure_common(span_entry, span_type);
+}
+
+static const
+struct mlxsw_sp_span_entry_ops mlxsw_sp2_span_entry_ops_cpu = {
+	.can_handle = mlxsw_sp2_span_cpu_can_handle,
+	.parms_set = mlxsw_sp2_span_entry_cpu_parms,
+	.configure = mlxsw_sp2_span_entry_cpu_configure,
+	.deconfigure = mlxsw_sp2_span_entry_cpu_deconfigure,
+};
+
 static const
 struct mlxsw_sp_span_entry_ops *mlxsw_sp2_span_entry_ops_arr[] = {
+	&mlxsw_sp2_span_entry_ops_cpu,
 	&mlxsw_sp_span_entry_ops_phys,
 #if IS_ENABLED(CONFIG_NET_IPGRE)
 	&mlxsw_sp_span_entry_ops_gretap4,
@@ -1540,6 +1614,13 @@ static int mlxsw_sp1_span_init(struct mlxsw_sp *mlxsw_sp)
 {
 	size_t arr_size = ARRAY_SIZE(mlxsw_sp1_span_entry_ops_arr);
 
+	/* Must be first to avoid NULL pointer dereference by subsequent
+	 * can_handle() callbacks.
+	 */
+	if (WARN_ON(mlxsw_sp1_span_entry_ops_arr[0] !=
+		    &mlxsw_sp1_span_entry_ops_cpu))
+		return -EINVAL;
+
 	mlxsw_sp->span->span_trigger_ops_arr = mlxsw_sp1_span_trigger_ops_arr;
 	mlxsw_sp->span->span_entry_ops_arr = mlxsw_sp1_span_entry_ops_arr;
 	mlxsw_sp->span->span_entry_ops_arr_size = arr_size;
@@ -1560,6 +1641,13 @@ const struct mlxsw_sp_span_ops mlxsw_sp1_span_ops = {
 static int mlxsw_sp2_span_init(struct mlxsw_sp *mlxsw_sp)
 {
 	size_t arr_size = ARRAY_SIZE(mlxsw_sp2_span_entry_ops_arr);
+
+	/* Must be first to avoid NULL pointer dereference by subsequent
+	 * can_handle() callbacks.
+	 */
+	if (WARN_ON(mlxsw_sp2_span_entry_ops_arr[0] !=
+		    &mlxsw_sp2_span_entry_ops_cpu))
+		return -EINVAL;
 
 	mlxsw_sp->span->span_trigger_ops_arr = mlxsw_sp2_span_trigger_ops_arr;
 	mlxsw_sp->span->span_entry_ops_arr = mlxsw_sp2_span_entry_ops_arr;
