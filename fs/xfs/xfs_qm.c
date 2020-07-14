@@ -902,17 +902,13 @@ xfs_qm_reset_dqcounts_all(
 	xfs_dqid_t		firstid,
 	xfs_fsblock_t		bno,
 	xfs_filblks_t		blkcnt,
-	uint			flags,
+	uint			type,
 	struct list_head	*buffer_list)
 {
 	struct xfs_buf		*bp;
-	int			error;
-	int			type;
+	int			error = 0;
 
 	ASSERT(blkcnt > 0);
-	type = flags & XFS_QMOPT_UQUOTA ? XFS_DQ_USER :
-		(flags & XFS_QMOPT_PQUOTA ? XFS_DQ_PROJ : XFS_DQ_GROUP);
-	error = 0;
 
 	/*
 	 * Blkcnt arg can be a very big number, and might even be
@@ -972,7 +968,7 @@ STATIC int
 xfs_qm_reset_dqcounts_buf(
 	struct xfs_mount	*mp,
 	struct xfs_inode	*qip,
-	uint			flags,
+	uint			type,
 	struct list_head	*buffer_list)
 {
 	struct xfs_bmbt_irec	*map;
@@ -1048,7 +1044,7 @@ xfs_qm_reset_dqcounts_buf(
 			error = xfs_qm_reset_dqcounts_all(mp, firstid,
 						   map[i].br_startblock,
 						   map[i].br_blockcount,
-						   flags, buffer_list);
+						   type, buffer_list);
 			if (error)
 				goto out;
 		}
@@ -1292,7 +1288,7 @@ xfs_qm_quotacheck(
 	 * We don't log our changes till later.
 	 */
 	if (uip) {
-		error = xfs_qm_reset_dqcounts_buf(mp, uip, XFS_QMOPT_UQUOTA,
+		error = xfs_qm_reset_dqcounts_buf(mp, uip, XFS_DQ_USER,
 					 &buffer_list);
 		if (error)
 			goto error_return;
@@ -1300,7 +1296,7 @@ xfs_qm_quotacheck(
 	}
 
 	if (gip) {
-		error = xfs_qm_reset_dqcounts_buf(mp, gip, XFS_QMOPT_GQUOTA,
+		error = xfs_qm_reset_dqcounts_buf(mp, gip, XFS_DQ_GROUP,
 					 &buffer_list);
 		if (error)
 			goto error_return;
@@ -1308,7 +1304,7 @@ xfs_qm_quotacheck(
 	}
 
 	if (pip) {
-		error = xfs_qm_reset_dqcounts_buf(mp, pip, XFS_QMOPT_PQUOTA,
+		error = xfs_qm_reset_dqcounts_buf(mp, pip, XFS_DQ_PROJ,
 					 &buffer_list);
 		if (error)
 			goto error_return;
