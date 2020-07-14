@@ -2143,7 +2143,7 @@ ahd_linux_queue_abort_cmd(struct scsi_cmnd *cmd)
 	u_int  last_phase;
 	u_int  saved_scsiid;
 	u_int  cdb_byte;
-	int    retval;
+	int    retval = SUCCESS;
 	int    was_paused;
 	int    paused;
 	int    wait;
@@ -2181,8 +2181,7 @@ ahd_linux_queue_abort_cmd(struct scsi_cmnd *cmd)
 		 * so we must not still own the command.
 		 */
 		scmd_printk(KERN_INFO, cmd, "Is not an active device\n");
-		retval = SUCCESS;
-		goto no_cmd;
+		goto done;
 	}
 
 	/*
@@ -2195,7 +2194,7 @@ ahd_linux_queue_abort_cmd(struct scsi_cmnd *cmd)
 
 	if (pending_scb == NULL) {
 		scmd_printk(KERN_INFO, cmd, "Command not found\n");
-		goto no_cmd;
+		goto done;
 	}
 
 	if ((pending_scb->flags & SCB_RECOVERY_SCB) != 0) {
@@ -2203,7 +2202,7 @@ ahd_linux_queue_abort_cmd(struct scsi_cmnd *cmd)
 		 * We can't queue two recovery actions using the same SCB
 		 */
 		retval = FAILED;
-		goto  done;
+		goto done;
 	}
 
 	/*
@@ -2218,7 +2217,7 @@ ahd_linux_queue_abort_cmd(struct scsi_cmnd *cmd)
 
 	if ((pending_scb->flags & SCB_ACTIVE) == 0) {
 		scmd_printk(KERN_INFO, cmd, "Command already completed\n");
-		goto no_cmd;
+		goto done;
 	}
 
 	printk("%s: At time of recovery, card was %spaused\n",
@@ -2235,7 +2234,6 @@ ahd_linux_queue_abort_cmd(struct scsi_cmnd *cmd)
 		printk("%s:%d:%d:%d: Cmd aborted from QINFIFO\n",
 		       ahd_name(ahd), cmd->device->channel, 
 		       cmd->device->id, (u8)cmd->device->lun);
-		retval = SUCCESS;
 		goto done;
 	}
 
@@ -2332,17 +2330,10 @@ ahd_linux_queue_abort_cmd(struct scsi_cmnd *cmd)
 	} else {
 		scmd_printk(KERN_INFO, cmd, "Unable to deliver message\n");
 		retval = FAILED;
-		goto done;
 	}
 
-no_cmd:
-	/*
-	 * Our assumption is that if we don't have the command, no
-	 * recovery action was required, so we return success.  Again,
-	 * the semantics of the mid-layer recovery engine are not
-	 * well defined, so this may change in time.
-	 */
-	retval = SUCCESS;
+
+	ahd_restore_modes(ahd, saved_modes);
 done:
 	if (paused)
 		ahd_unpause(ahd);
