@@ -562,8 +562,9 @@ static int live_hwsp_engine(void *arg)
 		struct intel_timeline *tl = timelines[n];
 
 		if (!err && *tl->hwsp_seqno != n) {
-			pr_err("Invalid seqno stored in timeline %lu, found 0x%x\n",
-			       n, *tl->hwsp_seqno);
+			pr_err("Invalid seqno stored in timeline %lu @ %x, found 0x%x\n",
+			       n, tl->hwsp_offset, *tl->hwsp_seqno);
+			GEM_TRACE_DUMP();
 			err = -EINVAL;
 		}
 		intel_timeline_put(tl);
@@ -633,8 +634,9 @@ out:
 		struct intel_timeline *tl = timelines[n];
 
 		if (!err && *tl->hwsp_seqno != n) {
-			pr_err("Invalid seqno stored in timeline %lu, found 0x%x\n",
-			       n, *tl->hwsp_seqno);
+			pr_err("Invalid seqno stored in timeline %lu @ %x, found 0x%x\n",
+			       n, tl->hwsp_offset, *tl->hwsp_seqno);
+			GEM_TRACE_DUMP();
 			err = -EINVAL;
 		}
 		intel_timeline_put(tl);
@@ -965,8 +967,9 @@ static int live_hwsp_recycle(void *arg)
 			}
 
 			if (*tl->hwsp_seqno != count) {
-				pr_err("Invalid seqno stored in timeline %lu, found 0x%x\n",
+				pr_err("Invalid seqno stored in timeline %lu @ tl->hwsp_offset, found 0x%x\n",
 				       count, *tl->hwsp_seqno);
+				GEM_TRACE_DUMP();
 				err = -EINVAL;
 			}
 
