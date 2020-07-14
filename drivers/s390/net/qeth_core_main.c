@@ -2436,6 +2436,17 @@ static int qeth_cm_setup(struct qeth_card *card)
 	return qeth_send_control_data(card, iob, qeth_cm_setup_cb, NULL);
 }
 
+static bool qeth_is_supported_link_type(struct qeth_card *card, u8 link_type)
+{
+	if (link_type == QETH_LINK_TYPE_LANE_TR ||
+	    link_type == QETH_LINK_TYPE_HSTR) {
+		dev_err(&card->gdev->dev, "Unsupported Token Ring device\n");
+		return false;
+	}
+
+	return true;
+}
+
 static int qeth_update_max_mtu(struct qeth_card *card, unsigned int max_mtu)
 {
 	struct net_device *dev = card->dev;
@@ -2495,8 +2506,8 @@ static int qeth_ulp_enable_cb(struct qeth_card *card, struct qeth_reply *reply,
 {
 	__u16 mtu, framesize;
 	__u16 len;
-	__u8 link_type;
 	struct qeth_cmd_buffer *iob;
+	u8 link_type = 0;
 
 	QETH_CARD_TEXT(card, 2, "ulpenacb");
 
@@ -2516,9 +2527,11 @@ static int qeth_ulp_enable_cb(struct qeth_card *card, struct qeth_reply *reply,
 	if (len >= QETH_MPC_DIFINFO_LEN_INDICATES_LINK_TYPE) {
 		memcpy(&link_type,
 		       QETH_ULP_ENABLE_RESP_LINK_TYPE(iob->data), 1);
-		card->info.link_type = link_type;
-	} else
-		card->info.link_type = 0;
+		if (!qeth_is_supported_link_type(card, link_type))
+			return -EPROTONOSUPPORT;
+	}
+
+	card->info.link_type = link_type;
 	QETH_CARD_TEXT_(card, 2, "link%d", card->info.link_type);
 	return 0;
 }
@@ -3100,7 +3113,6 @@ struct qeth_cmd_buffer *qeth_ipa_alloc_cmd(struct qeth_card *card,
 					   enum qeth_prot_versions prot,
 					   unsigned int data_length)
 {
-	enum qeth_link_types link_type = card->info.link_type;
 	struct qeth_cmd_buffer *iob;
 	struct qeth_ipacmd_hdr *hdr;
 
@@ -3116,7 +3128,7 @@ struct qeth_cmd_buffer *qeth_ipa_alloc_cmd(struct qeth_card *card,
 	hdr->command = cmd_code;
 	hdr->initiator = IPA_CMD_INITIATOR_HOST;
 	/* hdr->seqno is set by qeth_send_control_data() */
-	hdr->adapter_type = (link_type == QETH_LINK_TYPE_HSTR) ? 2 : 1;
+	hdr->adapter_type = QETH_LINK_TYPE_FAST_ETH;
 	hdr->rel_adapter_no = (u8) card->dev->dev_port;
 	hdr->prim_version_no = IS_LAYER2(card) ? 2 : 1;
 	hdr->param_count = 1;
@@ -3199,18 +3211,22 @@ static int qeth_query_setadapterparms_cb(struct qeth_card *card,
 		struct qeth_reply *reply, unsigned long data)
 {
 	struct qeth_ipa_cmd *cmd = (struct qeth_ipa_cmd *) data;
+	struct qeth_query_cmds_supp *query_cmd;
 
 	QETH_CARD_TEXT(card, 3, "quyadpcb");
 	if (qeth_setadpparms_inspect_rc(cmd))
 		return -EIO;
 
-	if (cmd->data.setadapterparms.data.query_cmds_supp.lan_type & 0x7f) {
-		card->info.link_type =
-		      cmd->data.setadapterparms.data.query_cmds_supp.lan_type;
+	query_cmd = &cmd->data.setadapterparms.data.query_cmds_supp;
+	if (query_cmd->lan_type & 0x7f) {
+		if (!qeth_is_supported_link_type(card, query_cmd->lan_type))
+			return -EPROTONOSUPPORT;
+
+		card->info.link_type = query_cmd->lan_type;
 		QETH_CARD_TEXT_(card, 2, "lnk %d", card->info.link_type);
 	}
-	card->options.adp.supported =
-		cmd->data.setadapterparms.data.query_cmds_supp.supported_cmds;
+
+	card->options.adp.supported = query_cmd->supported_cmds;
 	return 0;
 }
 

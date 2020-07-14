@@ -1919,12 +1919,6 @@ static int qeth_l3_setup_netdev(struct qeth_card *card)
 		return rc;
 
 	if (IS_OSD(card) || IS_OSX(card)) {
-		if ((card->info.link_type == QETH_LINK_TYPE_LANE_TR) ||
-		    (card->info.link_type == QETH_LINK_TYPE_HSTR)) {
-			pr_info("qeth_l3: ignoring TR device\n");
-			return -ENODEV;
-		}
-
 		card->dev->netdev_ops = &qeth_l3_osa_netdev_ops;
 
 		/*IPv6 address autoconfiguration stuff*/
