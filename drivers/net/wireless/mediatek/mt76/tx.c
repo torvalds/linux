@@ -264,6 +264,13 @@ mt76_tx(struct mt76_phy *phy, struct ieee80211_sta *sta,
 		skb_set_queue_mapping(skb, qid);
 	}
 
+	if ((dev->drv->drv_flags & MT_DRV_HW_MGMT_TXQ) &&
+	    !ieee80211_is_data(hdr->frame_control) &&
+	    !ieee80211_is_bufferable_mmpdu(hdr->frame_control)) {
+		qid = MT_TXQ_PSD;
+		skb_set_queue_mapping(skb, qid);
+	}
+
 	if (!(wcid->tx_info & MT_WCID_TX_INFO_SET))
 		ieee80211_get_tx_rates(info->control.vif, sta, skb,
 				       info->control.rates, 1);
