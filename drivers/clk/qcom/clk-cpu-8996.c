@@ -338,7 +338,7 @@ static const struct regmap_config cpu_msm8996_regmap_config = {
 	.val_format_endian	= REGMAP_ENDIAN_LITTLE,
 };
 
-struct clk_regmap *cpu_msm8996_clks[] = {
+static struct clk_regmap *cpu_msm8996_clks[] = {
 	&perfcl_pll.clkr,
 	&pwrcl_pll.clkr,
 	&perfcl_alt_pll.clkr,
