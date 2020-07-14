@@ -3586,8 +3586,8 @@ static ssize_t nvme_ctrl_reconnect_delay_store(struct device *dev,
 	int err;
 
 	err = kstrtou32(buf, 10, &v);
-	if (err || v > UINT_MAX)
-		return -EINVAL;
+	if (err)
+		return err;
 
 	ctrl->opts->reconnect_delay = v;
 	return count;
