@@ -10,29 +10,6 @@
 #include "spectrum_span.h"
 #include "reg.h"
 
-enum mlxsw_sp_mall_action_type {
-	MLXSW_SP_MALL_ACTION_TYPE_MIRROR,
-	MLXSW_SP_MALL_ACTION_TYPE_SAMPLE,
-};
-
-struct mlxsw_sp_mall_mirror_entry {
-	const struct net_device *to_dev;
-	int span_id;
-};
-
-struct mlxsw_sp_mall_entry {
-	struct list_head list;
-	unsigned long cookie;
-	unsigned int priority;
-	enum mlxsw_sp_mall_action_type type;
-	bool ingress;
-	union {
-		struct mlxsw_sp_mall_mirror_entry mirror;
-		struct mlxsw_sp_port_sample sample;
-	};
-	struct rcu_head rcu;
-};
-
 static struct mlxsw_sp_mall_entry *
 mlxsw_sp_mall_entry_find(struct mlxsw_sp_flow_block *block, unsigned long cookie)
 {

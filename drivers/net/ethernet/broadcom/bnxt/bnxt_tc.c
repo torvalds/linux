@@ -1888,7 +1888,7 @@ static void bnxt_tc_setup_indr_rel(void *cb_priv)
 	kfree(priv);
 }
 
-static int bnxt_tc_setup_indr_block(struct net_device *netdev, struct bnxt *bp,
+static int bnxt_tc_setup_indr_block(struct net_device *netdev, struct Qdisc *sch, struct bnxt *bp,
 				    struct flow_block_offload *f, void *data,
 				    void (*cleanup)(struct flow_block_cb *block_cb))
 {
@@ -1911,7 +1911,7 @@ static int bnxt_tc_setup_indr_block(struct net_device *netdev, struct bnxt *bp,
 		block_cb = flow_indr_block_cb_alloc(bnxt_tc_setup_indr_block_cb,
 						    cb_priv, cb_priv,
 						    bnxt_tc_setup_indr_rel, f,
-						    netdev, data, bp, cleanup);
+						    netdev, sch, data, bp, cleanup);
 		if (IS_ERR(block_cb)) {
 			list_del(&cb_priv->list);
 			kfree(cb_priv);
@@ -1946,7 +1946,7 @@ static bool bnxt_is_netdev_indr_offload(struct net_device *netdev)
 	return netif_is_vxlan(netdev);
 }
 
-static int bnxt_tc_setup_indr_cb(struct net_device *netdev, void *cb_priv,
+static int bnxt_tc_setup_indr_cb(struct net_device *netdev, struct Qdisc *sch, void *cb_priv,
 				 enum tc_setup_type type, void *type_data,
 				 void *data,
 				 void (*cleanup)(struct flow_block_cb *block_cb))
@@ -1956,8 +1956,7 @@ static int bnxt_tc_setup_indr_cb(struct net_device *netdev, void *cb_priv,
 
 	switch (type) {
 	case TC_SETUP_BLOCK:
-		return bnxt_tc_setup_indr_block(netdev, cb_priv, type_data, data,
-						cleanup);
+		return bnxt_tc_setup_indr_block(netdev, sch, cb_priv, type_data, data, cleanup);
 	default:
 		break;
 	}

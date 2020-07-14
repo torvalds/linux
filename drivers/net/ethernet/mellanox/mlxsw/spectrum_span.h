@@ -26,6 +26,9 @@ struct mlxsw_sp_span_parms {
 enum mlxsw_sp_span_trigger {
 	MLXSW_SP_SPAN_TRIGGER_INGRESS,
 	MLXSW_SP_SPAN_TRIGGER_EGRESS,
+	MLXSW_SP_SPAN_TRIGGER_TAIL_DROP,
+	MLXSW_SP_SPAN_TRIGGER_EARLY_DROP,
+	MLXSW_SP_SPAN_TRIGGER_ECN,
 };
 
 struct mlxsw_sp_span_trigger_parms {
@@ -33,6 +36,11 @@ struct mlxsw_sp_span_trigger_parms {
 };
 
 struct mlxsw_sp_span_entry_ops;
+
+struct mlxsw_sp_span_ops {
+	int (*init)(struct mlxsw_sp *mlxsw_sp);
+	u32 (*buffsize_get)(int mtu, u32 speed);
+};
 
 struct mlxsw_sp_span_entry {
 	const struct net_device *to_dev;
@@ -81,5 +89,13 @@ mlxsw_sp_span_agent_unbind(struct mlxsw_sp *mlxsw_sp,
 			   enum mlxsw_sp_span_trigger trigger,
 			   struct mlxsw_sp_port *mlxsw_sp_port,
 			   const struct mlxsw_sp_span_trigger_parms *parms);
+int mlxsw_sp_span_trigger_enable(struct mlxsw_sp_port *mlxsw_sp_port,
+				 enum mlxsw_sp_span_trigger trigger, u8 tc);
+void mlxsw_sp_span_trigger_disable(struct mlxsw_sp_port *mlxsw_sp_port,
+				   enum mlxsw_sp_span_trigger trigger, u8 tc);
+
+extern const struct mlxsw_sp_span_ops mlxsw_sp1_span_ops;
+extern const struct mlxsw_sp_span_ops mlxsw_sp2_span_ops;
+extern const struct mlxsw_sp_span_ops mlxsw_sp3_span_ops;
 
 #endif

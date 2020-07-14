@@ -964,7 +964,7 @@ static int nf_flow_table_indr_offload_cmd(struct flow_block_offload *bo,
 	nf_flow_table_block_offload_init(bo, dev_net(dev), cmd, flowtable,
 					 extack);
 
-	return flow_indr_dev_setup_offload(dev, TC_SETUP_FT, flowtable, bo,
+	return flow_indr_dev_setup_offload(dev, NULL, TC_SETUP_FT, flowtable, bo,
 					   nf_flow_table_indr_cleanup);
 }
 

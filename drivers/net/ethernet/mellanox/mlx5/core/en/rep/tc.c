@@ -404,7 +404,7 @@ static void mlx5e_rep_indr_block_unbind(void *cb_priv)
 static LIST_HEAD(mlx5e_block_cb_list);
 
 static int
-mlx5e_rep_indr_setup_block(struct net_device *netdev,
+mlx5e_rep_indr_setup_block(struct net_device *netdev, struct Qdisc *sch,
 			   struct mlx5e_rep_priv *rpriv,
 			   struct flow_block_offload *f,
 			   flow_setup_cb_t *setup_cb,
@@ -442,7 +442,7 @@ mlx5e_rep_indr_setup_block(struct net_device *netdev,
 
 		block_cb = flow_indr_block_cb_alloc(setup_cb, indr_priv, indr_priv,
 						    mlx5e_rep_indr_block_unbind,
-						    f, netdev, data, rpriv,
+						    f, netdev, sch, data, rpriv,
 						    cleanup);
 		if (IS_ERR(block_cb)) {
 			list_del(&indr_priv->list);
@@ -472,18 +472,18 @@ mlx5e_rep_indr_setup_block(struct net_device *netdev,
 }
 
 static
-int mlx5e_rep_indr_setup_cb(struct net_device *netdev, void *cb_priv,
+int mlx5e_rep_indr_setup_cb(struct net_device *netdev, struct Qdisc *sch, void *cb_priv,
 			    enum tc_setup_type type, void *type_data,
 			    void *data,
 			    void (*cleanup)(struct flow_block_cb *block_cb))
 {
 	switch (type) {
 	case TC_SETUP_BLOCK:
-		return mlx5e_rep_indr_setup_block(netdev, cb_priv, type_data,
+		return mlx5e_rep_indr_setup_block(netdev, sch, cb_priv, type_data,
 						  mlx5e_rep_indr_setup_tc_cb,
 						  data, cleanup);
 	case TC_SETUP_FT:
-		return mlx5e_rep_indr_setup_block(netdev, cb_priv, type_data,
+		return mlx5e_rep_indr_setup_block(netdev, sch, cb_priv, type_data,
 						  mlx5e_rep_indr_setup_ft_cb,
 						  data, cleanup);
 	default:
