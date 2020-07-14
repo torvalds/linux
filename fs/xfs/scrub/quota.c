@@ -82,12 +82,6 @@ xchk_quota_item(
 	struct xfs_disk_dquot	*d = &dq->q_core;
 	struct xfs_quotainfo	*qi = mp->m_quotainfo;
 	xfs_fileoff_t		offset;
-	unsigned long long	bsoft;
-	unsigned long long	isoft;
-	unsigned long long	rsoft;
-	unsigned long long	bhard;
-	unsigned long long	ihard;
-	unsigned long long	rhard;
 	unsigned long long	bcount;
 	unsigned long long	icount;
 	unsigned long long	rcount;
@@ -114,15 +108,6 @@ xchk_quota_item(
 	if (d->d_pad0 != cpu_to_be32(0) || d->d_pad != cpu_to_be16(0))
 		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
 
-	/* Check the limits. */
-	bhard = be64_to_cpu(d->d_blk_hardlimit);
-	ihard = be64_to_cpu(d->d_ino_hardlimit);
-	rhard = be64_to_cpu(d->d_rtb_hardlimit);
-
-	bsoft = be64_to_cpu(d->d_blk_softlimit);
-	isoft = be64_to_cpu(d->d_ino_softlimit);
-	rsoft = be64_to_cpu(d->d_rtb_softlimit);
-
 	/*
 	 * Warn if the hard limits are larger than the fs.
 	 * Administrators can do this, though in production this seems
@@ -131,19 +116,19 @@ xchk_quota_item(
 	 * Complain about corruption if the soft limit is greater than
 	 * the hard limit.
 	 */
-	if (bhard > mp->m_sb.sb_dblocks)
+	if (dq->q_blk.hardlimit > mp->m_sb.sb_dblocks)
 		xchk_fblock_set_warning(sc, XFS_DATA_FORK, offset);
-	if (bsoft > bhard)
+	if (dq->q_blk.softlimit > dq->q_blk.hardlimit)
 		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
 
-	if (ihard > M_IGEO(mp)->maxicount)
+	if (dq->q_ino.hardlimit > M_IGEO(mp)->maxicount)
 		xchk_fblock_set_warning(sc, XFS_DATA_FORK, offset);
-	if (isoft > ihard)
+	if (dq->q_ino.softlimit > dq->q_ino.hardlimit)
 		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
 
-	if (rhard > mp->m_sb.sb_rblocks)
+	if (dq->q_rtb.hardlimit > mp->m_sb.sb_rblocks)
 		xchk_fblock_set_warning(sc, XFS_DATA_FORK, offset);
-	if (rsoft > rhard)
+	if (dq->q_rtb.softlimit > dq->q_rtb.hardlimit)
 		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
 
 	/* Check the resource counts. */
@@ -177,13 +162,16 @@ xchk_quota_item(
 	if (dq->q_id == 0)
 		goto out;
 
-	if (bhard != 0 && bcount > bhard)
+	if (dq->q_blk.hardlimit != 0 &&
+	    bcount > dq->q_blk.hardlimit)
 		xchk_fblock_set_warning(sc, XFS_DATA_FORK, offset);
 
-	if (ihard != 0 && icount > ihard)
+	if (dq->q_ino.hardlimit != 0 &&
+	    icount > dq->q_ino.hardlimit)
 		xchk_fblock_set_warning(sc, XFS_DATA_FORK, offset);
 
-	if (rhard != 0 && rcount > rhard)
+	if (dq->q_rtb.hardlimit != 0 &&
+	    rcount > dq->q_rtb.hardlimit)
 		xchk_fblock_set_warning(sc, XFS_DATA_FORK, offset);
 
 out:

@@ -30,6 +30,10 @@ enum {
 struct xfs_dquot_res {
 	/* Total resources allocated and reserved. */
 	xfs_qcnt_t		reserved;
+
+	/* Absolute and preferred limits. */
+	xfs_qcnt_t		hardlimit;
+	xfs_qcnt_t		softlimit;
 };
 
 /*
@@ -143,7 +147,7 @@ static inline bool xfs_dquot_lowsp(struct xfs_dquot *dqp)
 {
 	int64_t freesp;
 
-	freesp = be64_to_cpu(dqp->q_core.d_blk_hardlimit) - dqp->q_blk.reserved;
+	freesp = dqp->q_blk.hardlimit - dqp->q_blk.reserved;
 	if (freesp < dqp->q_low_space[XFS_QLOWSP_1_PCNT])
 		return true;
 

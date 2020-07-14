@@ -20,12 +20,12 @@ extern struct kmem_zone	*xfs_qm_dqtrxzone;
 #define XFS_DQITER_MAP_SIZE	10
 
 #define XFS_IS_DQUOT_UNINITIALIZED(dqp) ( \
-	!dqp->q_core.d_blk_hardlimit && \
-	!dqp->q_core.d_blk_softlimit && \
-	!dqp->q_core.d_rtb_hardlimit && \
-	!dqp->q_core.d_rtb_softlimit && \
-	!dqp->q_core.d_ino_hardlimit && \
-	!dqp->q_core.d_ino_softlimit && \
+	!dqp->q_blk.hardlimit && \
+	!dqp->q_blk.softlimit && \
+	!dqp->q_rtb.hardlimit && \
+	!dqp->q_rtb.softlimit && \
+	!dqp->q_ino.hardlimit && \
+	!dqp->q_ino.softlimit && \
 	!dqp->q_core.d_bcount && \
 	!dqp->q_core.d_rtbcount && \
 	!dqp->q_core.d_icount)

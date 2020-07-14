@@ -71,29 +71,28 @@ xfs_qm_adjust_dqlimits(
 	struct xfs_dquot	*dq)
 {
 	struct xfs_quotainfo	*q = mp->m_quotainfo;
-	struct xfs_disk_dquot	*d = &dq->q_core;
 	struct xfs_def_quota	*defq;
 	int			prealloc = 0;
 
 	ASSERT(dq->q_id);
 	defq = xfs_get_defquota(q, xfs_dquot_type(dq));
 
-	if (defq->bsoftlimit && !d->d_blk_softlimit) {
-		d->d_blk_softlimit = cpu_to_be64(defq->bsoftlimit);
+	if (defq->bsoftlimit && !dq->q_blk.softlimit) {
+		dq->q_blk.softlimit = defq->bsoftlimit;
 		prealloc = 1;
 	}
-	if (defq->bhardlimit && !d->d_blk_hardlimit) {
-		d->d_blk_hardlimit = cpu_to_be64(defq->bhardlimit);
+	if (defq->bhardlimit && !dq->q_blk.hardlimit) {
+		dq->q_blk.hardlimit = defq->bhardlimit;
 		prealloc = 1;
 	}
-	if (defq->isoftlimit && !d->d_ino_softlimit)
-		d->d_ino_softlimit = cpu_to_be64(defq->isoftlimit);
-	if (defq->ihardlimit && !d->d_ino_hardlimit)
-		d->d_ino_hardlimit = cpu_to_be64(defq->ihardlimit);
-	if (defq->rtbsoftlimit && !d->d_rtb_softlimit)
-		d->d_rtb_softlimit = cpu_to_be64(defq->rtbsoftlimit);
-	if (defq->rtbhardlimit && !d->d_rtb_hardlimit)
-		d->d_rtb_hardlimit = cpu_to_be64(defq->rtbhardlimit);
+	if (defq->isoftlimit && !dq->q_ino.softlimit)
+		dq->q_ino.softlimit = defq->isoftlimit;
+	if (defq->ihardlimit && !dq->q_ino.hardlimit)
+		dq->q_ino.hardlimit = defq->ihardlimit;
+	if (defq->rtbsoftlimit && !dq->q_rtb.softlimit)
+		dq->q_rtb.softlimit = defq->rtbsoftlimit;
+	if (defq->rtbhardlimit && !dq->q_rtb.hardlimit)
+		dq->q_rtb.hardlimit = defq->rtbhardlimit;
 
 	if (prealloc)
 		xfs_dquot_set_prealloc_limits(dq);
@@ -125,82 +124,67 @@ xfs_qm_adjust_dqtimers(
 	defq = xfs_get_defquota(qi, xfs_dquot_type(dq));
 
 #ifdef DEBUG
-	if (d->d_blk_hardlimit)
-		ASSERT(be64_to_cpu(d->d_blk_softlimit) <=
-		       be64_to_cpu(d->d_blk_hardlimit));
-	if (d->d_ino_hardlimit)
-		ASSERT(be64_to_cpu(d->d_ino_softlimit) <=
-		       be64_to_cpu(d->d_ino_hardlimit));
-	if (d->d_rtb_hardlimit)
-		ASSERT(be64_to_cpu(d->d_rtb_softlimit) <=
-		       be64_to_cpu(d->d_rtb_hardlimit));
+	if (dq->q_blk.hardlimit)
+		ASSERT(dq->q_blk.softlimit <= dq->q_blk.hardlimit);
+	if (dq->q_ino.hardlimit)
+		ASSERT(dq->q_ino.softlimit <= dq->q_ino.hardlimit);
+	if (dq->q_rtb.hardlimit)
+		ASSERT(dq->q_rtb.softlimit <= dq->q_rtb.hardlimit);
 #endif
 
 	if (!d->d_btimer) {
-		if ((d->d_blk_softlimit &&
-		     (be64_to_cpu(d->d_bcount) >
-		      be64_to_cpu(d->d_blk_softlimit))) ||
-		    (d->d_blk_hardlimit &&
-		     (be64_to_cpu(d->d_bcount) >
-		      be64_to_cpu(d->d_blk_hardlimit)))) {
+		if ((dq->q_blk.softlimit &&
+		     (be64_to_cpu(d->d_bcount) > dq->q_blk.softlimit)) ||
+		    (dq->q_blk.hardlimit &&
+		     (be64_to_cpu(d->d_bcount) > dq->q_blk.hardlimit))) {
 			d->d_btimer = cpu_to_be32(ktime_get_real_seconds() +
 					defq->btimelimit);
 		} else {
 			d->d_bwarns = 0;
 		}
 	} else {
-		if ((!d->d_blk_softlimit ||
-		     (be64_to_cpu(d->d_bcount) <=
-		      be64_to_cpu(d->d_blk_softlimit))) &&
-		    (!d->d_blk_hardlimit ||
-		    (be64_to_cpu(d->d_bcount) <=
-		     be64_to_cpu(d->d_blk_hardlimit)))) {
+		if ((!dq->q_blk.softlimit ||
+		     (be64_to_cpu(d->d_bcount) <= dq->q_blk.softlimit)) &&
+		    (!dq->q_blk.hardlimit ||
+		    (be64_to_cpu(d->d_bcount) <= dq->q_blk.hardlimit))) {
 			d->d_btimer = 0;
 		}
 	}
 
 	if (!d->d_itimer) {
-		if ((d->d_ino_softlimit &&
-		     (be64_to_cpu(d->d_icount) >
-		      be64_to_cpu(d->d_ino_softlimit))) ||
-		    (d->d_ino_hardlimit &&
-		     (be64_to_cpu(d->d_icount) >
-		      be64_to_cpu(d->d_ino_hardlimit)))) {
+		if ((dq->q_ino.softlimit &&
+		     (be64_to_cpu(d->d_icount) > dq->q_ino.softlimit)) ||
+		    (dq->q_ino.hardlimit &&
+		     (be64_to_cpu(d->d_icount) > dq->q_ino.hardlimit))) {
 			d->d_itimer = cpu_to_be32(ktime_get_real_seconds() +
 					defq->itimelimit);
 		} else {
 			d->d_iwarns = 0;
 		}
 	} else {
-		if ((!d->d_ino_softlimit ||
-		     (be64_to_cpu(d->d_icount) <=
-		      be64_to_cpu(d->d_ino_softlimit)))  &&
-		    (!d->d_ino_hardlimit ||
-		     (be64_to_cpu(d->d_icount) <=
-		      be64_to_cpu(d->d_ino_hardlimit)))) {
+		if ((!dq->q_ino.softlimit ||
+		     (be64_to_cpu(d->d_icount) <= dq->q_ino.softlimit))  &&
+		    (!dq->q_ino.hardlimit ||
+		     (be64_to_cpu(d->d_icount) <= dq->q_ino.hardlimit))) {
 			d->d_itimer = 0;
 		}
 	}
 
 	if (!d->d_rtbtimer) {
-		if ((d->d_rtb_softlimit &&
-		     (be64_to_cpu(d->d_rtbcount) >
-		      be64_to_cpu(d->d_rtb_softlimit))) ||
-		    (d->d_rtb_hardlimit &&
-		     (be64_to_cpu(d->d_rtbcount) >
-		      be64_to_cpu(d->d_rtb_hardlimit)))) {
+		if ((dq->q_rtb.softlimit &&
+		     (be64_to_cpu(d->d_rtbcount) > dq->q_rtb.softlimit)) ||
+		    (dq->q_rtb.hardlimit &&
+		     (be64_to_cpu(d->d_rtbcount) > dq->q_rtb.hardlimit))) {
 			d->d_rtbtimer = cpu_to_be32(ktime_get_real_seconds() +
 					defq->rtbtimelimit);
 		} else {
 			d->d_rtbwarns = 0;
 		}
 	} else {
-		if ((!d->d_rtb_softlimit ||
-		     (be64_to_cpu(d->d_rtbcount) <=
-		      be64_to_cpu(d->d_rtb_softlimit))) &&
-		    (!d->d_rtb_hardlimit ||
-		     (be64_to_cpu(d->d_rtbcount) <=
-		      be64_to_cpu(d->d_rtb_hardlimit)))) {
+		if ((!dq->q_rtb.softlimit ||
+		     (be64_to_cpu(d->d_rtbcount) <= dq->q_rtb.softlimit)) &&
+		    (!dq->q_rtb.hardlimit ||
+		     (be64_to_cpu(d->d_rtbcount) <= dq->q_rtb.hardlimit))) {
 			d->d_rtbtimer = 0;
 		}
 	}
@@ -291,8 +275,8 @@ xfs_dquot_set_prealloc_limits(struct xfs_dquot *dqp)
 {
 	uint64_t space;
 
-	dqp->q_prealloc_hi_wmark = be64_to_cpu(dqp->q_core.d_blk_hardlimit);
-	dqp->q_prealloc_lo_wmark = be64_to_cpu(dqp->q_core.d_blk_softlimit);
+	dqp->q_prealloc_hi_wmark = dqp->q_blk.hardlimit;
+	dqp->q_prealloc_lo_wmark = dqp->q_blk.softlimit;
 	if (!dqp->q_prealloc_lo_wmark) {
 		dqp->q_prealloc_lo_wmark = dqp->q_prealloc_hi_wmark;
 		do_div(dqp->q_prealloc_lo_wmark, 100);
@@ -547,6 +531,12 @@ xfs_dquot_from_disk(
 
 	/* copy everything from disk dquot to the incore dquot */
 	memcpy(&dqp->q_core, ddqp, sizeof(struct xfs_disk_dquot));
+	dqp->q_blk.hardlimit = be64_to_cpu(ddqp->d_blk_hardlimit);
+	dqp->q_blk.softlimit = be64_to_cpu(ddqp->d_blk_softlimit);
+	dqp->q_ino.hardlimit = be64_to_cpu(ddqp->d_ino_hardlimit);
+	dqp->q_ino.softlimit = be64_to_cpu(ddqp->d_ino_softlimit);
+	dqp->q_rtb.hardlimit = be64_to_cpu(ddqp->d_rtb_hardlimit);
+	dqp->q_rtb.softlimit = be64_to_cpu(ddqp->d_rtb_softlimit);
 
 	/*
 	 * Reservation counters are defined as reservation plus current usage
@@ -568,6 +558,12 @@ xfs_dquot_to_disk(
 	struct xfs_dquot	*dqp)
 {
 	memcpy(ddqp, &dqp->q_core, sizeof(struct xfs_disk_dquot));
+	ddqp->d_blk_hardlimit = cpu_to_be64(dqp->q_blk.hardlimit);
+	ddqp->d_blk_softlimit = cpu_to_be64(dqp->q_blk.softlimit);
+	ddqp->d_ino_hardlimit = cpu_to_be64(dqp->q_ino.hardlimit);
+	ddqp->d_ino_softlimit = cpu_to_be64(dqp->q_ino.softlimit);
+	ddqp->d_rtb_hardlimit = cpu_to_be64(dqp->q_rtb.hardlimit);
+	ddqp->d_rtb_softlimit = cpu_to_be64(dqp->q_rtb.softlimit);
 }
 
 /* Allocate and initialize the dquot buffer for this in-core dquot. */
@@ -1129,11 +1125,30 @@ static xfs_failaddr_t
 xfs_qm_dqflush_check(
 	struct xfs_dquot	*dqp)
 {
+	struct xfs_disk_dquot	*ddq = &dqp->q_core;
 	__u8			type = dqp->dq_flags & XFS_DQ_ALLTYPES;
 
 	if (type != XFS_DQ_USER &&
 	    type != XFS_DQ_GROUP &&
 	    type != XFS_DQ_PROJ)
+		return __this_address;
+
+	if (dqp->q_id == 0)
+		return NULL;
+
+	if (dqp->q_blk.softlimit &&
+	    be64_to_cpu(ddq->d_bcount) > dqp->q_blk.softlimit &&
+	    !ddq->d_btimer)
+		return __this_address;
+
+	if (dqp->q_ino.softlimit &&
+	    be64_to_cpu(ddq->d_icount) > dqp->q_ino.softlimit &&
+	    !ddq->d_itimer)
+		return __this_address;
+
+	if (dqp->q_rtb.softlimit &&
+	    be64_to_cpu(ddq->d_rtbcount) > dqp->q_rtb.softlimit &&
+	    !ddq->d_rtbtimer)
 		return __this_address;
 
 	return NULL;
