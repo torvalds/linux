@@ -16,6 +16,20 @@ else
   MAKEFLAGS=--no-print-directory
 endif
 
+# always use the host compiler
+ifneq ($(LLVM),)
+HOSTAR  ?= llvm-ar
+HOSTCC  ?= clang
+HOSTLD  ?= ld.lld
+else
+HOSTAR  ?= ar
+HOSTCC  ?= gcc
+HOSTLD  ?= ld
+endif
+AR       = $(HOSTAR)
+CC       = $(HOSTCC)
+LD       = $(HOSTLD)
+
 OUTPUT ?= $(srctree)/tools/bpf/resolve_btfids/
 
 LIBBPF_SRC := $(srctree)/tools/lib/bpf/
