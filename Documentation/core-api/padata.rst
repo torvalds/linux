@@ -27,7 +27,7 @@ padata_instance structure for overall control of how jobs are to be run::
 
     #include <linux/padata.h>
 
-    struct padata_instance *padata_alloc_possible(const char *name);
+    struct padata_instance *padata_alloc(const char *name);
 
 'name' simply identifies the instance.
 

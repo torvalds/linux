@@ -979,18 +979,12 @@ static struct kobj_type padata_attr_type = {
 };
 
 /**
- * padata_alloc - allocate and initialize a padata instance and specify
- *                cpumasks for serial and parallel workers.
- *
+ * padata_alloc - allocate and initialize a padata instance
  * @name: used to identify the instance
- * @pcpumask: cpumask that will be used for padata parallelization
- * @cbcpumask: cpumask that will be used for padata serialization
  *
  * Return: new instance on success, NULL on error
  */
-static struct padata_instance *padata_alloc(const char *name,
-					    const struct cpumask *pcpumask,
-					    const struct cpumask *cbcpumask)
+struct padata_instance *padata_alloc(const char *name)
 {
 	struct padata_instance *pinst;
 
@@ -1016,14 +1010,11 @@ static struct padata_instance *padata_alloc(const char *name,
 		free_cpumask_var(pinst->cpumask.pcpu);
 		goto err_free_serial_wq;
 	}
-	if (!padata_validate_cpumask(pinst, pcpumask) ||
-	    !padata_validate_cpumask(pinst, cbcpumask))
-		goto err_free_masks;
 
 	INIT_LIST_HEAD(&pinst->pslist);
 
-	cpumask_copy(pinst->cpumask.pcpu, pcpumask);
-	cpumask_copy(pinst->cpumask.cbcpu, cbcpumask);
+	cpumask_copy(pinst->cpumask.pcpu, cpu_possible_mask);
+	cpumask_copy(pinst->cpumask.cbcpu, cpu_possible_mask);
 
 	if (padata_setup_cpumasks(pinst))
 		goto err_free_masks;
@@ -1057,21 +1048,7 @@ err_free_inst:
 err:
 	return NULL;
 }
-
-/**
- * padata_alloc_possible - Allocate and initialize padata instance.
- *                         Use the cpu_possible_mask for serial and
- *                         parallel workers.
- *
- * @name: used to identify the instance
- *
- * Return: new instance on success, NULL on error
- */
-struct padata_instance *padata_alloc_possible(const char *name)
-{
-	return padata_alloc(name, cpu_possible_mask, cpu_possible_mask);
-}
-EXPORT_SYMBOL(padata_alloc_possible);
+EXPORT_SYMBOL(padata_alloc);
 
 /**
  * padata_free - free a padata instance

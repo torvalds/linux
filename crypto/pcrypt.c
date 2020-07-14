@@ -316,7 +316,7 @@ static int pcrypt_init_padata(struct padata_instance **pinst, const char *name)
 {
 	int ret = -ENOMEM;
 
-	*pinst = padata_alloc_possible(name);
+	*pinst = padata_alloc(name);
 	if (!*pinst)
 		return ret;
 

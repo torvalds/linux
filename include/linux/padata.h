@@ -192,7 +192,7 @@ extern void __init padata_init(void);
 static inline void __init padata_init(void) {}
 #endif
 
-extern struct padata_instance *padata_alloc_possible(const char *name);
+extern struct padata_instance *padata_alloc(const char *name);
 extern void padata_free(struct padata_instance *pinst);
 extern struct padata_shell *padata_alloc_shell(struct padata_instance *pinst);
 extern void padata_free_shell(struct padata_shell *ps);
