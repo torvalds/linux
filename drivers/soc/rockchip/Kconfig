@@ -18,8 +18,7 @@ config ROCKCHIP_CPUINFO
 	  If unsure, say N.
 
 config ROCKCHIP_GRF
-	bool
-	default y
+	tristate "Rockchip GRF"
 	help
 	  The General Register Files are a central component providing
 	  special additional settings registers for a lot of soc-components.
