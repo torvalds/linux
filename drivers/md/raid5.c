@@ -5799,7 +5799,7 @@ static sector_t reshape_request(struct mddev *mddev, sector_t sector_nr, int *sk
 		sector_div(sector_nr, new_data_disks);
 		if (sector_nr) {
 			mddev->curr_resync_completed = sector_nr;
-			sysfs_notify(&mddev->kobj, NULL, "sync_completed");
+			sysfs_notify_dirent_safe(mddev->sysfs_completed);
 			*skipped = 1;
 			retn = sector_nr;
 			goto finish;
@@ -5913,7 +5913,7 @@ static sector_t reshape_request(struct mddev *mddev, sector_t sector_nr, int *sk
 		conf->reshape_safe = mddev->reshape_position;
 		spin_unlock_irq(&conf->device_lock);
 		wake_up(&conf->wait_for_overlap);
-		sysfs_notify(&mddev->kobj, NULL, "sync_completed");
+		sysfs_notify_dirent_safe(mddev->sysfs_completed);
 	}
 
 	INIT_LIST_HEAD(&stripes);
@@ -6020,7 +6020,7 @@ finish:
 		conf->reshape_safe = mddev->reshape_position;
 		spin_unlock_irq(&conf->device_lock);
 		wake_up(&conf->wait_for_overlap);
-		sysfs_notify(&mddev->kobj, NULL, "sync_completed");
+		sysfs_notify_dirent_safe(mddev->sysfs_completed);
 	}
 ret:
 	return retn;
