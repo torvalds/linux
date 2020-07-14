@@ -113,7 +113,7 @@ struct monitor_dev_profile {
 	struct cpumask allowed_cpus;
 };
 
-#ifdef CONFIG_ROCKCHIP_SYSTEM_MONITOR
+#if IS_ENABLED(CONFIG_ROCKCHIP_SYSTEM_MONITOR)
 struct monitor_dev_info *
 rockchip_system_monitor_register(struct device *dev,
 				 struct monitor_dev_profile *devp);
