@@ -22,6 +22,8 @@ struct mlxsw_sp_span {
 	struct work_struct work;
 	struct mlxsw_sp *mlxsw_sp;
 	const struct mlxsw_sp_span_trigger_ops **span_trigger_ops_arr;
+	const struct mlxsw_sp_span_entry_ops **span_entry_ops_arr;
+	size_t span_entry_ops_arr_size;
 	struct list_head analyzed_ports_list;
 	struct mutex analyzed_ports_lock; /* Protects analyzed_ports_list */
 	struct list_head trigger_entries_list;
@@ -626,7 +628,19 @@ struct mlxsw_sp_span_entry_ops mlxsw_sp_span_entry_ops_vlan = {
 };
 
 static const
-struct mlxsw_sp_span_entry_ops *const mlxsw_sp_span_entry_types[] = {
+struct mlxsw_sp_span_entry_ops *mlxsw_sp1_span_entry_ops_arr[] = {
+	&mlxsw_sp_span_entry_ops_phys,
+#if IS_ENABLED(CONFIG_NET_IPGRE)
+	&mlxsw_sp_span_entry_ops_gretap4,
+#endif
+#if IS_ENABLED(CONFIG_IPV6_GRE)
+	&mlxsw_sp_span_entry_ops_gretap6,
+#endif
+	&mlxsw_sp_span_entry_ops_vlan,
+};
+
+static const
+struct mlxsw_sp_span_entry_ops *mlxsw_sp2_span_entry_ops_arr[] = {
 	&mlxsw_sp_span_entry_ops_phys,
 #if IS_ENABLED(CONFIG_NET_IPGRE)
 	&mlxsw_sp_span_entry_ops_gretap4,
@@ -894,11 +908,12 @@ static const struct mlxsw_sp_span_entry_ops *
 mlxsw_sp_span_entry_ops(struct mlxsw_sp *mlxsw_sp,
 			const struct net_device *to_dev)
 {
+	struct mlxsw_sp_span *span = mlxsw_sp->span;
 	size_t i;
 
-	for (i = 0; i < ARRAY_SIZE(mlxsw_sp_span_entry_types); ++i)
-		if (mlxsw_sp_span_entry_types[i]->can_handle(to_dev))
-			return mlxsw_sp_span_entry_types[i];
+	for (i = 0; i < span->span_entry_ops_arr_size; ++i)
+		if (span->span_entry_ops_arr[i]->can_handle(to_dev))
+			return span->span_entry_ops_arr[i];
 
 	return NULL;
 }
@@ -1519,7 +1534,11 @@ void mlxsw_sp_span_trigger_disable(struct mlxsw_sp_port *mlxsw_sp_port,
 
 static int mlxsw_sp1_span_init(struct mlxsw_sp *mlxsw_sp)
 {
+	size_t arr_size = ARRAY_SIZE(mlxsw_sp1_span_entry_ops_arr);
+
 	mlxsw_sp->span->span_trigger_ops_arr = mlxsw_sp1_span_trigger_ops_arr;
+	mlxsw_sp->span->span_entry_ops_arr = mlxsw_sp1_span_entry_ops_arr;
+	mlxsw_sp->span->span_entry_ops_arr_size = arr_size;
 
 	return 0;
 }
@@ -1536,7 +1555,11 @@ const struct mlxsw_sp_span_ops mlxsw_sp1_span_ops = {
 
 static int mlxsw_sp2_span_init(struct mlxsw_sp *mlxsw_sp)
 {
+	size_t arr_size = ARRAY_SIZE(mlxsw_sp2_span_entry_ops_arr);
+
 	mlxsw_sp->span->span_trigger_ops_arr = mlxsw_sp2_span_trigger_ops_arr;
+	mlxsw_sp->span->span_entry_ops_arr = mlxsw_sp2_span_entry_ops_arr;
+	mlxsw_sp->span->span_entry_ops_arr_size = arr_size;
 
 	return 0;
 }
