@@ -967,13 +967,12 @@ int rt5682_headset_detect(struct snd_soc_component *component, int jack_insert)
 		rt5682_enable_push_button_irq(component, false);
 		snd_soc_component_update_bits(component, RT5682_CBJ_CTRL_1,
 			RT5682_TRIG_JD_MASK, RT5682_TRIG_JD_LOW);
-		if (snd_soc_dapm_get_pin_status(dapm, "MICBIAS"))
+		if (!snd_soc_dapm_get_pin_status(dapm, "MICBIAS"))
+			snd_soc_component_update_bits(component,
+				RT5682_PWR_ANLG_1, RT5682_PWR_MB, 0);
+		if (!snd_soc_dapm_get_pin_status(dapm, "Vref2"))
 			snd_soc_component_update_bits(component,
 				RT5682_PWR_ANLG_1, RT5682_PWR_VREF2, 0);
-		else
-			snd_soc_component_update_bits(component,
-				RT5682_PWR_ANLG_1,
-				RT5682_PWR_VREF2 | RT5682_PWR_MB, 0);
 		snd_soc_component_update_bits(component, RT5682_PWR_ANLG_3,
 			RT5682_PWR_CBJ, 0);
 
@@ -1609,8 +1608,7 @@ static const struct snd_soc_dapm_widget rt5682_dapm_widgets[] = {
 		0, set_filter_clk, SND_SOC_DAPM_PRE_PMU),
 	SND_SOC_DAPM_SUPPLY("Vref1", RT5682_PWR_ANLG_1, RT5682_PWR_VREF1_BIT, 0,
 		rt5682_set_verf, SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
-	SND_SOC_DAPM_SUPPLY("Vref2", RT5682_PWR_ANLG_1, RT5682_PWR_VREF2_BIT, 0,
-		NULL, 0),
+	SND_SOC_DAPM_SUPPLY("Vref2", SND_SOC_NOPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("MICBIAS", SND_SOC_NOPM, 0, 0, NULL, 0),
 
 	/* ASRC */
@@ -2493,6 +2491,15 @@ static int rt5682_wclk_prepare(struct clk_hw *hw)
 	snd_soc_dapm_force_enable_pin_unlocked(dapm, "MICBIAS");
 	snd_soc_component_update_bits(component, RT5682_PWR_ANLG_1,
 				RT5682_PWR_MB, RT5682_PWR_MB);
+
+	snd_soc_dapm_force_enable_pin_unlocked(dapm, "Vref2");
+	snd_soc_component_update_bits(component, RT5682_PWR_ANLG_1,
+			RT5682_PWR_VREF2 | RT5682_PWR_FV2,
+			RT5682_PWR_VREF2);
+	usleep_range(55000, 60000);
+	snd_soc_component_update_bits(component, RT5682_PWR_ANLG_1,
+			RT5682_PWR_FV2, RT5682_PWR_FV2);
+
 	snd_soc_dapm_force_enable_pin_unlocked(dapm, "I2S1");
 	snd_soc_dapm_force_enable_pin_unlocked(dapm, "PLL2F");
 	snd_soc_dapm_force_enable_pin_unlocked(dapm, "PLL2B");
@@ -2518,9 +2525,12 @@ static void rt5682_wclk_unprepare(struct clk_hw *hw)
 	snd_soc_dapm_mutex_lock(dapm);
 
 	snd_soc_dapm_disable_pin_unlocked(dapm, "MICBIAS");
+	snd_soc_dapm_disable_pin_unlocked(dapm, "Vref2");
 	if (!rt5682->jack_type)
 		snd_soc_component_update_bits(component, RT5682_PWR_ANLG_1,
+				RT5682_PWR_VREF2 | RT5682_PWR_FV2 |
 				RT5682_PWR_MB, 0);
+
 	snd_soc_dapm_disable_pin_unlocked(dapm, "I2S1");
 	snd_soc_dapm_disable_pin_unlocked(dapm, "PLL2F");
 	snd_soc_dapm_disable_pin_unlocked(dapm, "PLL2B");
