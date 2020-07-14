@@ -77,21 +77,21 @@ xfs_qm_adjust_dqlimits(
 	ASSERT(dq->q_id);
 	defq = xfs_get_defquota(q, xfs_dquot_type(dq));
 
-	if (defq->blk.soft && !dq->q_blk.softlimit) {
+	if (!dq->q_blk.softlimit) {
 		dq->q_blk.softlimit = defq->blk.soft;
 		prealloc = 1;
 	}
-	if (defq->blk.hard && !dq->q_blk.hardlimit) {
+	if (!dq->q_blk.hardlimit) {
 		dq->q_blk.hardlimit = defq->blk.hard;
 		prealloc = 1;
 	}
-	if (defq->ino.soft && !dq->q_ino.softlimit)
+	if (!dq->q_ino.softlimit)
 		dq->q_ino.softlimit = defq->ino.soft;
-	if (defq->ino.hard && !dq->q_ino.hardlimit)
+	if (!dq->q_ino.hardlimit)
 		dq->q_ino.hardlimit = defq->ino.hard;
-	if (defq->rtb.soft && !dq->q_rtb.softlimit)
+	if (!dq->q_rtb.softlimit)
 		dq->q_rtb.softlimit = defq->rtb.soft;
-	if (defq->rtb.hard && !dq->q_rtb.hardlimit)
+	if (!dq->q_rtb.hardlimit)
 		dq->q_rtb.hardlimit = defq->rtb.hard;
 
 	if (prealloc)
