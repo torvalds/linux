@@ -318,6 +318,7 @@ static struct page **sev_pin_memory(struct kvm *kvm, unsigned long uaddr,
 	unsigned long locked, lock_limit;
 	struct page **pages;
 	unsigned long first, last;
+	int ret;
 
 	if (ulen == 0 || uaddr + ulen < uaddr)
 		return ERR_PTR(-EINVAL);
@@ -351,6 +352,7 @@ static struct page **sev_pin_memory(struct kvm *kvm, unsigned long uaddr,
 	npinned = pin_user_pages_fast(uaddr, npages, write ? FOLL_WRITE : 0, pages);
 	if (npinned != npages) {
 		pr_err("SEV: Failure locking %lu pages.\n", npages);
+		ret = -ENOMEM;
 		goto err;
 	}
 
@@ -360,13 +362,11 @@ static struct page **sev_pin_memory(struct kvm *kvm, unsigned long uaddr,
 	return pages;
 
 err:
-	if (npinned > 0) {
+	if (npinned > 0)
 		unpin_user_pages(pages, npinned);
-		npinned = -ENOMEM;
-	}
 
 	kvfree(pages);
-	return ERR_PTR(npinned);
+	return ERR_PTR(ret);
 }
 
 static void sev_unpin_memory(struct kvm *kvm, struct page **pages,
@@ -440,8 +440,8 @@ static int sev_launch_update_data(struct kvm *kvm, struct kvm_sev_cmd *argp)
 
 	/* Lock the user memory. */
 	inpages = sev_pin_memory(kvm, vaddr, size, &npages, 1);
-	if (!inpages) {
-		ret = -ENOMEM;
+	if (IS_ERR(inpages)) {
+		ret = PTR_ERR(inpages);
 		goto e_free;
 	}
 
@@ -795,13 +795,13 @@ static int sev_dbg_crypt(struct kvm *kvm, struct kvm_sev_cmd *argp, bool dec)
 
 		/* lock userspace source and destination page */
 		src_p = sev_pin_memory(kvm, vaddr & PAGE_MASK, PAGE_SIZE, &n, 0);
-		if (!src_p)
-			return -EFAULT;
+		if (IS_ERR(src_p))
+			return PTR_ERR(src_p);
 
 		dst_p = sev_pin_memory(kvm, dst_vaddr & PAGE_MASK, PAGE_SIZE, &n, 1);
-		if (!dst_p) {
+		if (IS_ERR(dst_p)) {
 			sev_unpin_memory(kvm, src_p, n);
-			return -EFAULT;
+			return PTR_ERR(dst_p);
 		}
 
 		/*
