@@ -14794,7 +14794,8 @@ static int intel_atomic_check_cdclk(struct intel_atomic_state *state,
 				    bool *need_cdclk_calc)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	struct intel_cdclk_state *new_cdclk_state;
+	const struct intel_cdclk_state *old_cdclk_state;
+	const struct intel_cdclk_state *new_cdclk_state;
 	struct intel_plane_state *plane_state;
 	struct intel_bw_state *new_bw_state;
 	struct intel_plane *plane;
@@ -14813,9 +14814,11 @@ static int intel_atomic_check_cdclk(struct intel_atomic_state *state,
 			return ret;
 	}
 
+	old_cdclk_state = intel_atomic_get_old_cdclk_state(state);
 	new_cdclk_state = intel_atomic_get_new_cdclk_state(state);
 
-	if (new_cdclk_state && new_cdclk_state->force_min_cdclk_changed)
+	if (new_cdclk_state &&
+	    old_cdclk_state->force_min_cdclk != new_cdclk_state->force_min_cdclk)
 		*need_cdclk_calc = true;
 
 	ret = dev_priv->display.bw_calc_min_cdclk(state);

@@ -2426,7 +2426,6 @@ static struct intel_global_state *intel_cdclk_duplicate_state(struct intel_globa
 	if (!cdclk_state)
 		return NULL;
 
-	cdclk_state->force_min_cdclk_changed = false;
 	cdclk_state->pipe = INVALID_PIPE;
 
 	return &cdclk_state->base;
@@ -2501,6 +2500,7 @@ int intel_modeset_calc_cdclk(struct intel_atomic_state *state)
 		if (ret)
 			return ret;
 	} else if (old_cdclk_state->active_pipes != new_cdclk_state->active_pipes ||
+		   old_cdclk_state->force_min_cdclk != new_cdclk_state->force_min_cdclk ||
 		   intel_cdclk_changed(&old_cdclk_state->logical,
 				       &new_cdclk_state->logical)) {
 		ret = intel_atomic_lock_global_state(&new_cdclk_state->base);
