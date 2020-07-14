@@ -45,6 +45,7 @@ xfs_qm_dquot_logitem_format(
 	struct xfs_log_item	*lip,
 	struct xfs_log_vec	*lv)
 {
+	struct xfs_disk_dquot	ddq;
 	struct xfs_dq_logitem	*qlip = DQUOT_ITEM(lip);
 	struct xfs_log_iovec	*vecp = NULL;
 	struct xfs_dq_logformat	*qlf;
@@ -58,8 +59,9 @@ xfs_qm_dquot_logitem_format(
 	qlf->qlf_boffset = qlip->qli_dquot->q_bufoffset;
 	xlog_finish_iovec(lv, vecp, sizeof(struct xfs_dq_logformat));
 
-	xlog_copy_iovec(lv, &vecp, XLOG_REG_TYPE_DQUOT,
-			&qlip->qli_dquot->q_core,
+	xfs_dquot_to_disk(&ddq, qlip->qli_dquot);
+
+	xlog_copy_iovec(lv, &vecp, XLOG_REG_TYPE_DQUOT, &ddq,
 			sizeof(struct xfs_disk_dquot));
 }
 
