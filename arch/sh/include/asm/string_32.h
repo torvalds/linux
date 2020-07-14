@@ -2,8 +2,6 @@
 #ifndef __ASM_SH_STRING_H
 #define __ASM_SH_STRING_H
 
-#ifdef __KERNEL__
-
 /*
  * Copyright (C) 1999 Niibe Yutaka
  * But consider these trivial functions to be public domain.
@@ -126,7 +124,5 @@ extern void *memchr(const void *__s, int __c, size_t __n);
 
 #define __HAVE_ARCH_STRLEN
 extern size_t strlen(const char *);
-
-#endif /* __KERNEL__ */
 
 #endif /* __ASM_SH_STRING_H */
