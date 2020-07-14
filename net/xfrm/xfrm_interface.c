@@ -47,21 +47,30 @@ static int xfrmi_dev_init(struct net_device *dev);
 static void xfrmi_dev_setup(struct net_device *dev);
 static struct rtnl_link_ops xfrmi_link_ops __read_mostly;
 static unsigned int xfrmi_net_id __read_mostly;
+static const struct net_device_ops xfrmi_netdev_ops;
+
+#define XFRMI_HASH_BITS	8
+#define XFRMI_HASH_SIZE	BIT(XFRMI_HASH_BITS)
 
 struct xfrmi_net {
 	/* lists for storing interfaces in use */
-	struct xfrm_if __rcu *xfrmi[1];
+	struct xfrm_if __rcu *xfrmi[XFRMI_HASH_SIZE];
 };
 
 #define for_each_xfrmi_rcu(start, xi) \
 	for (xi = rcu_dereference(start); xi; xi = rcu_dereference(xi->next))
+
+static u32 xfrmi_hash(u32 if_id)
+{
+	return hash_32(if_id, XFRMI_HASH_BITS);
+}
 
 static struct xfrm_if *xfrmi_lookup(struct net *net, struct xfrm_state *x)
 {
 	struct xfrmi_net *xfrmn = net_generic(net, xfrmi_net_id);
 	struct xfrm_if *xi;
 
-	for_each_xfrmi_rcu(xfrmn->xfrmi[0], xi) {
+	for_each_xfrmi_rcu(xfrmn->xfrmi[xfrmi_hash(x->if_id)], xi) {
 		if (x->if_id == xi->p.if_id &&
 		    (xi->dev->flags & IFF_UP))
 			return xi;
@@ -73,8 +82,7 @@ static struct xfrm_if *xfrmi_lookup(struct net *net, struct xfrm_state *x)
 static struct xfrm_if *xfrmi_decode_session(struct sk_buff *skb,
 					    unsigned short family)
 {
-	struct xfrmi_net *xfrmn;
-	struct xfrm_if *xi;
+	struct net_device *dev;
 	int ifindex = 0;
 
 	if (!secpath_exists(skb) || !skb->dev)
@@ -88,23 +96,26 @@ static struct xfrm_if *xfrmi_decode_session(struct sk_buff *skb,
 		ifindex = inet_sdif(skb);
 		break;
 	}
-	if (!ifindex)
-		ifindex = skb->dev->ifindex;
 
-	xfrmn = net_generic(xs_net(xfrm_input_state(skb)), xfrmi_net_id);
+	if (ifindex) {
+		struct net *net = xs_net(xfrm_input_state(skb));
 
-	for_each_xfrmi_rcu(xfrmn->xfrmi[0], xi) {
-		if (ifindex == xi->dev->ifindex &&
-			(xi->dev->flags & IFF_UP))
-				return xi;
+		dev = dev_get_by_index_rcu(net, ifindex);
+	} else {
+		dev = skb->dev;
 	}
 
-	return NULL;
+	if (!dev || !(dev->flags & IFF_UP))
+		return NULL;
+	if (dev->netdev_ops != &xfrmi_netdev_ops)
+		return NULL;
+
+	return netdev_priv(dev);
 }
 
 static void xfrmi_link(struct xfrmi_net *xfrmn, struct xfrm_if *xi)
 {
-	struct xfrm_if __rcu **xip = &xfrmn->xfrmi[0];
+	struct xfrm_if __rcu **xip = &xfrmn->xfrmi[xfrmi_hash(xi->p.if_id)];
 
 	rcu_assign_pointer(xi->next , rtnl_dereference(*xip));
 	rcu_assign_pointer(*xip, xi);
@@ -115,7 +126,7 @@ static void xfrmi_unlink(struct xfrmi_net *xfrmn, struct xfrm_if *xi)
 	struct xfrm_if __rcu **xip;
 	struct xfrm_if *iter;
 
-	for (xip = &xfrmn->xfrmi[0];
+	for (xip = &xfrmn->xfrmi[xfrmi_hash(xi->p.if_id)];
 	     (iter = rtnl_dereference(*xip)) != NULL;
 	     xip = &iter->next) {
 		if (xi == iter) {
@@ -159,7 +170,7 @@ static struct xfrm_if *xfrmi_locate(struct net *net, struct xfrm_if_parms *p)
 	struct xfrm_if *xi;
 	struct xfrmi_net *xfrmn = net_generic(net, xfrmi_net_id);
 
-	for (xip = &xfrmn->xfrmi[0];
+	for (xip = &xfrmn->xfrmi[xfrmi_hash(p->if_id)];
 	     (xi = rtnl_dereference(*xip)) != NULL;
 	     xip = &xi->next)
 		if (xi->p.if_id == p->if_id)
@@ -758,11 +769,14 @@ static void __net_exit xfrmi_exit_batch_net(struct list_head *net_exit_list)
 		struct xfrmi_net *xfrmn = net_generic(net, xfrmi_net_id);
 		struct xfrm_if __rcu **xip;
 		struct xfrm_if *xi;
+		int i;
 
-		for (xip = &xfrmn->xfrmi[0];
-		     (xi = rtnl_dereference(*xip)) != NULL;
-		     xip = &xi->next)
-			unregister_netdevice_queue(xi->dev, &list);
+		for (i = 0; i < XFRMI_HASH_SIZE; i++) {
+			for (xip = &xfrmn->xfrmi[i];
+			     (xi = rtnl_dereference(*xip)) != NULL;
+			     xip = &xi->next)
+				unregister_netdevice_queue(xi->dev, &list);
+		}
 	}
 	unregister_netdevice_many(&list);
 	rtnl_unlock();
