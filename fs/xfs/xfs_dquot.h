@@ -31,6 +31,9 @@ struct xfs_dquot_res {
 	/* Total resources allocated and reserved. */
 	xfs_qcnt_t		reserved;
 
+	/* Total resources allocated. */
+	xfs_qcnt_t		count;
+
 	/* Absolute and preferred limits. */
 	xfs_qcnt_t		hardlimit;
 	xfs_qcnt_t		softlimit;

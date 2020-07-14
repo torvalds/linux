@@ -26,9 +26,9 @@ extern struct kmem_zone	*xfs_qm_dqtrxzone;
 	!dqp->q_rtb.softlimit && \
 	!dqp->q_ino.hardlimit && \
 	!dqp->q_ino.softlimit && \
-	!dqp->q_core.d_bcount && \
-	!dqp->q_core.d_rtbcount && \
-	!dqp->q_core.d_icount)
+	!dqp->q_blk.count && \
+	!dqp->q_rtb.count && \
+	!dqp->q_ino.count)
 
 /* Defaults for each quota type: time limits, warn limits, usage limits */
 struct xfs_def_quota {
