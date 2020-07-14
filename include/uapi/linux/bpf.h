@@ -3849,6 +3849,15 @@ struct bpf_devmap_val {
 	} bpf_prog;
 };
 
+/* CPUMAP map-value layout
+ *
+ * The struct data-layout of map-value is a configuration interface.
+ * New members can only be added to the end of this structure.
+ */
+struct bpf_cpumap_val {
+	__u32 qsize;	/* queue size to remote target CPU */
+};
+
 enum sk_action {
 	SK_DROP = 0,
 	SK_PASS,
