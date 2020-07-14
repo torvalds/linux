@@ -614,7 +614,10 @@ static int setup_initial_state(struct drm_device *drm_dev,
 		    mode->crtc_hsync_end == set->crtc_hsync_end &&
 		    mode->crtc_vsync_end == set->crtc_vsync_end &&
 		    drm_mode_vrefresh(mode) == set->vrefresh &&
-		    mode->flags == set->flags &&
+		    /* we just need to focus on DRM_MODE_FLAG_ALL flag, so here
+		     * we compare mode->flags with set->flags & DRM_MODE_FLAG_ALL.
+		     */
+		    mode->flags == (set->flags & DRM_MODE_FLAG_ALL) &&
 		    mode->picture_aspect_ratio == set->picture_aspect_ratio) {
 			found = 1;
 			match = 1;

@@ -118,7 +118,8 @@ struct rockchip_crtc_state {
 	int output_mode;
 	int output_bpc;
 	int output_flags;
-	int bus_format;
+	u32 bus_format;
+	u32 bus_flags;
 	int yuv_overlay;
 	int post_r2y_en;
 	int post_y2r_en;

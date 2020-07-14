@@ -2909,7 +2909,7 @@ static void vop_crtc_atomic_enable(struct drm_crtc *crtc,
 	if (vop->mcu_timing.mcu_pix_total)
 		vop_mcu_mode(crtc);
 
-	dclk_inv = (adjusted_mode->flags & DRM_MODE_FLAG_PPIXDATA) ? 0 : 1;
+	dclk_inv = (s->bus_flags & DRM_BUS_FLAG_PIXDATA_NEGEDGE) ? 1 : 0;
 
 	VOP_CTRL_SET(vop, dclk_pol, dclk_inv);
 	val = (adjusted_mode->flags & DRM_MODE_FLAG_NHSYNC) ?
@@ -4015,12 +4015,8 @@ static int vop_plane_init(struct vop *vop, struct vop_win *win,
 			  unsigned long possible_crtcs)
 {
 	struct rockchip_drm_private *private = vop->drm_dev->dev_private;
-	struct drm_plane *share = NULL;
 	uint64_t feature = 0;
 	int ret;
-
-	if (win->parent)
-		share = &win->parent->base;
 
 	ret = drm_universal_plane_init(vop->drm_dev, &win->base, possible_crtcs, &vop_plane_funcs,
 				       win->data_formats, win->nformats, NULL, win->type, NULL);
