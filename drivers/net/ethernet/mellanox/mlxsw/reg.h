@@ -9521,6 +9521,14 @@ MLXSW_ITEM32(reg, mogcr, ptp_iftc, 0x00, 1, 1);
  */
 MLXSW_ITEM32(reg, mogcr, ptp_eftc, 0x00, 0, 1);
 
+/* reg_mogcr_mirroring_pid_base
+ * Base policer id for mirroring policers.
+ * Must have an even value (e.g. 1000, not 1001).
+ * Reserved when SwitchX/-2, Switch-IB/2, Spectrum-1 and Quantum.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mogcr, mirroring_pid_base, 0x0C, 0, 14);
+
 /* MPAGR - Monitoring Port Analyzer Global Register
  * ------------------------------------------------
  * This register is used for global port analyzer configurations.
