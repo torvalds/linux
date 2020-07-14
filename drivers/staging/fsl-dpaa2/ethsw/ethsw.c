@@ -1672,6 +1672,10 @@ static int ethsw_probe(struct fsl_mc_device *sw_dev)
 		goto err_free_ports;
 	}
 
+	/* Make sure the switch ports are disabled at probe time */
+	for (i = 0; i < ethsw->sw_attr.num_ifs; i++)
+		dpsw_if_disable(ethsw->mc_io, 0, ethsw->dpsw_handle, i);
+
 	/* Setup IRQs */
 	err = ethsw_setup_irqs(sw_dev);
 	if (err)
