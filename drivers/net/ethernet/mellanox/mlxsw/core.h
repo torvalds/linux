@@ -61,6 +61,7 @@ void mlxsw_core_ptp_transmitted(struct mlxsw_core *mlxsw_core,
 struct mlxsw_rx_listener {
 	void (*func)(struct sk_buff *skb, u8 local_port, void *priv);
 	u8 local_port;
+	u8 mirror_reason;
 	u16 trap_id;
 };
 
