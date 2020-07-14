@@ -205,11 +205,11 @@ xfs_fs_rm_xquota(
 		return -EINVAL;
 
 	if (uflags & FS_USER_QUOTA)
-		flags |= XFS_DQ_USER;
+		flags |= XFS_QMOPT_UQUOTA;
 	if (uflags & FS_GROUP_QUOTA)
-		flags |= XFS_DQ_GROUP;
+		flags |= XFS_QMOPT_GQUOTA;
 	if (uflags & FS_PROJ_QUOTA)
-		flags |= XFS_DQ_PROJ;
+		flags |= XFS_QMOPT_PQUOTA;
 
 	return xfs_qm_scall_trunc_qfiles(mp, flags);
 }

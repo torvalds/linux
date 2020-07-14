@@ -322,23 +322,23 @@ xfs_qm_scall_trunc_qfiles(
 	int		error = -EINVAL;
 
 	if (!xfs_sb_version_hasquota(&mp->m_sb) || flags == 0 ||
-	    (flags & ~XFS_DQ_ALLTYPES)) {
+	    (flags & ~XFS_QMOPT_QUOTALL)) {
 		xfs_debug(mp, "%s: flags=%x m_qflags=%x",
 			__func__, flags, mp->m_qflags);
 		return -EINVAL;
 	}
 
-	if (flags & XFS_DQ_USER) {
+	if (flags & XFS_QMOPT_UQUOTA) {
 		error = xfs_qm_scall_trunc_qfile(mp, mp->m_sb.sb_uquotino);
 		if (error)
 			return error;
 	}
-	if (flags & XFS_DQ_GROUP) {
+	if (flags & XFS_QMOPT_GQUOTA) {
 		error = xfs_qm_scall_trunc_qfile(mp, mp->m_sb.sb_gquotino);
 		if (error)
 			return error;
 	}
-	if (flags & XFS_DQ_PROJ)
+	if (flags & XFS_QMOPT_PQUOTA)
 		error = xfs_qm_scall_trunc_qfile(mp, mp->m_sb.sb_pquotino);
 
 	return error;
