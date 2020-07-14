@@ -67,17 +67,6 @@ struct padata_serial_queue {
 };
 
 /**
- * struct padata_parallel_queue - The percpu padata parallel queue
- *
- * @reorder: List to wait for reordering after parallel processing.
- * @num_obj: Number of objects that are processed by this cpu.
- */
-struct padata_parallel_queue {
-       struct padata_list    reorder;
-       atomic_t              num_obj;
-};
-
-/**
  * struct padata_cpumask - The cpumasks for the parallel/serial workers
  *
  * @pcpu: cpumask for the parallel workers.
@@ -93,7 +82,7 @@ struct padata_cpumask {
  * that depends on the cpumask in use.
  *
  * @ps: padata_shell object.
- * @pqueue: percpu padata queues used for parallelization.
+ * @reorder_list: percpu reorder lists
  * @squeue: percpu padata queues used for serialuzation.
  * @refcnt: Number of objects holding a reference on this parallel_data.
  * @seq_nr: Sequence number of the parallelized data object.
@@ -105,7 +94,7 @@ struct padata_cpumask {
  */
 struct parallel_data {
 	struct padata_shell		*ps;
-	struct padata_parallel_queue	__percpu *pqueue;
+	struct padata_list		__percpu *reorder_list;
 	struct padata_serial_queue	__percpu *squeue;
 	atomic_t			refcnt;
 	unsigned int			seq_nr;

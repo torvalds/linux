@@ -250,13 +250,11 @@ EXPORT_SYMBOL(padata_do_parallel);
 static struct padata_priv *padata_find_next(struct parallel_data *pd,
 					    bool remove_object)
 {
-	struct padata_parallel_queue *next_queue;
 	struct padata_priv *padata;
 	struct padata_list *reorder;
 	int cpu = pd->cpu;
 
-	next_queue = per_cpu_ptr(pd->pqueue, cpu);
-	reorder = &next_queue->reorder;
+	reorder = per_cpu_ptr(pd->reorder_list, cpu);
 
 	spin_lock(&reorder->lock);
 	if (list_empty(&reorder->list)) {
@@ -291,7 +289,7 @@ static void padata_reorder(struct parallel_data *pd)
 	int cb_cpu;
 	struct padata_priv *padata;
 	struct padata_serial_queue *squeue;
-	struct padata_parallel_queue *next_queue;
+	struct padata_list *reorder;
 
 	/*
 	 * We need to ensure that only one cpu can work on dequeueing of
@@ -339,9 +337,8 @@ static void padata_reorder(struct parallel_data *pd)
 	 */
 	smp_mb();
 
-	next_queue = per_cpu_ptr(pd->pqueue, pd->cpu);
-	if (!list_empty(&next_queue->reorder.list) &&
-	    padata_find_next(pd, false))
+	reorder = per_cpu_ptr(pd->reorder_list, pd->cpu);
+	if (!list_empty(&reorder->list) && padata_find_next(pd, false))
 		queue_work(pinst->serial_wq, &pd->reorder_work);
 }
 
@@ -401,17 +398,16 @@ void padata_do_serial(struct padata_priv *padata)
 {
 	struct parallel_data *pd = padata->pd;
 	int hashed_cpu = padata_cpu_hash(pd, padata->seq_nr);
-	struct padata_parallel_queue *pqueue = per_cpu_ptr(pd->pqueue,
-							   hashed_cpu);
+	struct padata_list *reorder = per_cpu_ptr(pd->reorder_list, hashed_cpu);
 	struct padata_priv *cur;
 
-	spin_lock(&pqueue->reorder.lock);
+	spin_lock(&reorder->lock);
 	/* Sort in ascending order of sequence number. */
-	list_for_each_entry_reverse(cur, &pqueue->reorder.list, list)
+	list_for_each_entry_reverse(cur, &reorder->list, list)
 		if (cur->seq_nr < padata->seq_nr)
 			break;
 	list_add(&padata->list, &cur->list);
-	spin_unlock(&pqueue->reorder.lock);
+	spin_unlock(&reorder->lock);
 
 	/*
 	 * Ensure the addition to the reorder list is ordered correctly
@@ -553,17 +549,15 @@ static void padata_init_squeues(struct parallel_data *pd)
 	}
 }
 
-/* Initialize all percpu queues used by parallel workers */
-static void padata_init_pqueues(struct parallel_data *pd)
+/* Initialize per-CPU reorder lists */
+static void padata_init_reorder_list(struct parallel_data *pd)
 {
 	int cpu;
-	struct padata_parallel_queue *pqueue;
+	struct padata_list *list;
 
 	for_each_cpu(cpu, pd->cpumask.pcpu) {
-		pqueue = per_cpu_ptr(pd->pqueue, cpu);
-
-		__padata_list_init(&pqueue->reorder);
-		atomic_set(&pqueue->num_obj, 0);
+		list = per_cpu_ptr(pd->reorder_list, cpu);
+		__padata_list_init(list);
 	}
 }
 
@@ -577,13 +571,13 @@ static struct parallel_data *padata_alloc_pd(struct padata_shell *ps)
 	if (!pd)
 		goto err;
 
-	pd->pqueue = alloc_percpu(struct padata_parallel_queue);
-	if (!pd->pqueue)
+	pd->reorder_list = alloc_percpu(struct padata_list);
+	if (!pd->reorder_list)
 		goto err_free_pd;
 
 	pd->squeue = alloc_percpu(struct padata_serial_queue);
 	if (!pd->squeue)
-		goto err_free_pqueue;
+		goto err_free_reorder_list;
 
 	pd->ps = ps;
 
@@ -595,7 +589,7 @@ static struct parallel_data *padata_alloc_pd(struct padata_shell *ps)
 	cpumask_and(pd->cpumask.pcpu, pinst->cpumask.pcpu, cpu_online_mask);
 	cpumask_and(pd->cpumask.cbcpu, pinst->cpumask.cbcpu, cpu_online_mask);
 
-	padata_init_pqueues(pd);
+	padata_init_reorder_list(pd);
 	padata_init_squeues(pd);
 	pd->seq_nr = -1;
 	atomic_set(&pd->refcnt, 1);
@@ -609,8 +603,8 @@ err_free_pcpu:
 	free_cpumask_var(pd->cpumask.pcpu);
 err_free_squeue:
 	free_percpu(pd->squeue);
-err_free_pqueue:
-	free_percpu(pd->pqueue);
+err_free_reorder_list:
+	free_percpu(pd->reorder_list);
 err_free_pd:
 	kfree(pd);
 err:
@@ -621,7 +615,7 @@ static void padata_free_pd(struct parallel_data *pd)
 {
 	free_cpumask_var(pd->cpumask.pcpu);
 	free_cpumask_var(pd->cpumask.cbcpu);
-	free_percpu(pd->pqueue);
+	free_percpu(pd->reorder_list);
 	free_percpu(pd->squeue);
 	kfree(pd);
 }
