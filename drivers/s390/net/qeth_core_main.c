@@ -4907,10 +4907,8 @@ static int qeth_query_oat_command(struct qeth_card *card, char __user *udata)
 	rc = qeth_send_ipa_cmd(card, iob, qeth_setadpparms_query_oat_cb,
 			       &priv);
 	if (!rc) {
-		if (is_compat_task())
-			tmp = compat_ptr(oat_data.ptr);
-		else
-			tmp = (void __user *)(unsigned long)oat_data.ptr;
+		tmp = is_compat_task() ? compat_ptr(oat_data.ptr) :
+					 u64_to_user_ptr(oat_data.ptr);
 
 		if (copy_to_user(tmp, priv.buffer,
 		    priv.response_len)) {
