@@ -408,14 +408,14 @@ static int mei_hbm_add_cl_resp(struct mei_device *dev, u8 addr, u8 status)
 {
 	struct mei_msg_hdr mei_hdr;
 	struct hbm_add_client_response resp;
-	const size_t len = sizeof(struct hbm_add_client_response);
+	const size_t len = sizeof(resp);
 	int ret;
 
 	dev_dbg(dev->dev, "adding client response\n");
 
 	mei_hbm_hdr(&mei_hdr, len);
 
-	memset(&resp, 0, sizeof(struct hbm_add_client_response));
+	memset(&resp, 0, len);
 	resp.hbm_cmd = MEI_HBM_ADD_CLIENT_RES_CMD;
 	resp.me_addr = addr;
 	resp.status  = status;
