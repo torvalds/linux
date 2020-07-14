@@ -1655,7 +1655,6 @@
 		clocks = <&cru ACLK_RGA>, <&cru HCLK_RGA>, <&cru CLK_RGA_CORE>;
 		clock-names = "aclk_rga", "hclk_rga", "clk_rga";
 		power-domains = <&power RV1126_PD_VO>;
-		dma-coherent;
 		status = "disable";
 	};
 

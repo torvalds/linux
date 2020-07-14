@@ -331,7 +331,6 @@
 	clock-names = "aclk_rga", "hclk_rga", "clk_rga";
 	assigned-clocks = <&cru ACLK_RGA>, <&cru SCLK_RGA>;
 	assigned-clock-rates = <300000000>, <300000000>;
-	dma-coherent;
 	status = "okay";
 };
 
