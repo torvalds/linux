@@ -9,9 +9,6 @@
 
 	aliases {
 		ethernet0 = "/ethernet@2490000";
-		mmc0 = "/mmc@3460000";
-		mmc1 = "/mmc@3400000";
-		serial0 = &uarta;
 		i2c0 = "/bpmp/i2c";
 		i2c1 = "/i2c@3160000";
 		i2c2 = "/i2c@c240000";
@@ -20,6 +17,9 @@
 		i2c5 = "/i2c@31c0000";
 		i2c6 = "/i2c@c250000";
 		i2c7 = "/i2c@31e0000";
+		mmc0 = "/mmc@3460000";
+		mmc1 = "/mmc@3400000";
+		serial0 = &uarta;
 	};
 
 	chosen {
