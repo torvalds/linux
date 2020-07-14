@@ -140,7 +140,7 @@ xfs_qm_adjust_dqtimers(
 			d->d_btimer = cpu_to_be32(ktime_get_real_seconds() +
 					defq->btimelimit);
 		} else {
-			d->d_bwarns = 0;
+			dq->q_blk.warnings = 0;
 		}
 	} else {
 		if ((!dq->q_blk.softlimit ||
@@ -159,7 +159,7 @@ xfs_qm_adjust_dqtimers(
 			d->d_itimer = cpu_to_be32(ktime_get_real_seconds() +
 					defq->itimelimit);
 		} else {
-			d->d_iwarns = 0;
+			dq->q_ino.warnings = 0;
 		}
 	} else {
 		if ((!dq->q_ino.softlimit ||
@@ -178,7 +178,7 @@ xfs_qm_adjust_dqtimers(
 			d->d_rtbtimer = cpu_to_be32(ktime_get_real_seconds() +
 					defq->rtbtimelimit);
 		} else {
-			d->d_rtbwarns = 0;
+			dq->q_rtb.warnings = 0;
 		}
 	} else {
 		if ((!dq->q_rtb.softlimit ||
@@ -542,6 +542,10 @@ xfs_dquot_from_disk(
 	dqp->q_ino.count = be64_to_cpu(ddqp->d_icount);
 	dqp->q_rtb.count = be64_to_cpu(ddqp->d_rtbcount);
 
+	dqp->q_blk.warnings = be16_to_cpu(ddqp->d_bwarns);
+	dqp->q_ino.warnings = be16_to_cpu(ddqp->d_iwarns);
+	dqp->q_rtb.warnings = be16_to_cpu(ddqp->d_rtbwarns);
+
 	/*
 	 * Reservation counters are defined as reservation plus current usage
 	 * to avoid having to add every time.
@@ -572,6 +576,10 @@ xfs_dquot_to_disk(
 	ddqp->d_bcount = cpu_to_be64(dqp->q_blk.count);
 	ddqp->d_icount = cpu_to_be64(dqp->q_ino.count);
 	ddqp->d_rtbcount = cpu_to_be64(dqp->q_rtb.count);
+
+	ddqp->d_bwarns = cpu_to_be16(dqp->q_blk.warnings);
+	ddqp->d_iwarns = cpu_to_be16(dqp->q_ino.warnings);
+	ddqp->d_rtbwarns = cpu_to_be16(dqp->q_rtb.warnings);
 }
 
 /* Allocate and initialize the dquot buffer for this in-core dquot. */

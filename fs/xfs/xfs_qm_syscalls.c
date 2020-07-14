@@ -548,11 +548,11 @@ xfs_qm_scall_setqlim(
 	 * Update warnings counter(s) if requested
 	 */
 	if (newlim->d_fieldmask & QC_SPC_WARNS)
-		ddq->d_bwarns = cpu_to_be16(newlim->d_spc_warns);
+		dqp->q_blk.warnings = newlim->d_spc_warns;
 	if (newlim->d_fieldmask & QC_INO_WARNS)
-		ddq->d_iwarns = cpu_to_be16(newlim->d_ino_warns);
+		dqp->q_ino.warnings = newlim->d_ino_warns;
 	if (newlim->d_fieldmask & QC_RT_SPC_WARNS)
-		ddq->d_rtbwarns = cpu_to_be16(newlim->d_rt_spc_warns);
+		dqp->q_rtb.warnings = newlim->d_rt_spc_warns;
 
 	if (id == 0) {
 		if (newlim->d_fieldmask & QC_SPC_WARNS)
@@ -627,13 +627,13 @@ xfs_qm_scall_getquota_fill_qc(
 	dst->d_ino_count = dqp->q_ino.reserved;
 	dst->d_spc_timer = be32_to_cpu(dqp->q_core.d_btimer);
 	dst->d_ino_timer = be32_to_cpu(dqp->q_core.d_itimer);
-	dst->d_ino_warns = be16_to_cpu(dqp->q_core.d_iwarns);
-	dst->d_spc_warns = be16_to_cpu(dqp->q_core.d_bwarns);
+	dst->d_ino_warns = dqp->q_ino.warnings;
+	dst->d_spc_warns = dqp->q_blk.warnings;
 	dst->d_rt_spc_hardlimit = XFS_FSB_TO_B(mp, dqp->q_rtb.hardlimit);
 	dst->d_rt_spc_softlimit = XFS_FSB_TO_B(mp, dqp->q_rtb.softlimit);
 	dst->d_rt_space = XFS_FSB_TO_B(mp, dqp->q_rtb.reserved);
 	dst->d_rt_spc_timer = be32_to_cpu(dqp->q_core.d_rtbtimer);
-	dst->d_rt_spc_warns = be16_to_cpu(dqp->q_core.d_rtbwarns);
+	dst->d_rt_spc_warns = dqp->q_rtb.warnings;
 
 	/*
 	 * Internally, we don't reset all the timers when quota enforcement
