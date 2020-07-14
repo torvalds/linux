@@ -17,8 +17,8 @@ struct intel_atomic_state;
 struct intel_crtc_state;
 
 struct intel_cdclk_vals {
-	u16 refclk;
 	u32 cdclk;
+	u16 refclk;
 	u8 divider;	/* CD2X divider * 2 */
 	u8 ratio;
 };
