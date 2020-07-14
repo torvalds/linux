@@ -191,11 +191,9 @@ __visible noinstr void func(struct pt_regs *regs, unsigned long error_code)
  * to the function as error_code argument which needs to be truncated
  * to an u8 because the push is sign extending.
  *
- * On 64-bit idtentry_enter/exit() are invoked in the ASM entry code before
- * and after switching to the interrupt stack. On 32-bit this happens in C.
- *
  * irq_enter/exit_rcu() are invoked before the function body and the
- * KVM L1D flush request is set.
+ * KVM L1D flush request is set. Stack switching to the interrupt stack
+ * has to be done in the function body if necessary.
  */
 #define DEFINE_IDTENTRY_IRQ(func)					\
 static __always_inline void __##func(struct pt_regs *regs, u8 vector);	\
