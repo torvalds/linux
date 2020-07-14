@@ -1773,13 +1773,8 @@ static int xgbe_prep_tso(struct sk_buff *skb, struct xgbe_packet_data *packet)
 	return 0;
 }
 
-static bool xgbe_is_vxlan(struct xgbe_prv_data *pdata, struct sk_buff *skb)
+static bool xgbe_is_vxlan(struct sk_buff *skb)
 {
-	struct xgbe_vxlan_data *vdata;
-
-	if (pdata->vxlan_force_disable)
-		return false;
-
 	if (!skb->encapsulation)
 		return false;
 
@@ -1801,19 +1796,13 @@ static bool xgbe_is_vxlan(struct xgbe_prv_data *pdata, struct sk_buff *skb)
 		return false;
 	}
 
-	/* See if we have the UDP port in our list */
-	list_for_each_entry(vdata, &pdata->vxlan_ports, list) {
-		if ((skb->protocol == htons(ETH_P_IP)) &&
-		    (vdata->sa_family == AF_INET) &&
-		    (vdata->port == udp_hdr(skb)->dest))
-			return true;
-		else if ((skb->protocol == htons(ETH_P_IPV6)) &&
-			 (vdata->sa_family == AF_INET6) &&
-			 (vdata->port == udp_hdr(skb)->dest))
-			return true;
-	}
+	if (skb->inner_protocol_type != ENCAP_TYPE_ETHER ||
+	    skb->inner_protocol != htons(ETH_P_TEB) ||
+	    (skb_inner_mac_header(skb) - skb_transport_header(skb) !=
+	     sizeof(struct udphdr) + sizeof(struct vxlanhdr)))
+		return false;
 
-	return false;
+	return true;
 }
 
 static int xgbe_is_tso(struct sk_buff *skb)
@@ -1864,7 +1853,7 @@ static void xgbe_packet_info(struct xgbe_prv_data *pdata,
 		XGMAC_SET_BITS(packet->attributes, TX_PACKET_ATTRIBUTES,
 			       CSUM_ENABLE, 1);
 
-	if (xgbe_is_vxlan(pdata, skb))
+	if (xgbe_is_vxlan(skb))
 		XGMAC_SET_BITS(packet->attributes, TX_PACKET_ATTRIBUTES,
 			       VXLAN, 1);
 
