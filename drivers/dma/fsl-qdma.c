@@ -136,7 +136,7 @@
  * @__reserved1:	    Reserved field.
  * @cfg8b_w1:		    Compound descriptor command queue origin produced
  *			    by qDMA and dynamic debug field.
- * @data		    Pointer to the memory 40-bit address, describes DMA
+ * @data:		    Pointer to the memory 40-bit address, describes DMA
  *			    source information and DMA destination information.
  */
 struct fsl_qdma_format {
