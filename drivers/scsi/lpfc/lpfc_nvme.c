@@ -2423,6 +2423,7 @@ lpfc_nvme_register_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	struct nvme_fc_remote_port *remote_port;
 	struct nvme_fc_port_info rpinfo;
 	struct lpfc_nodelist *prev_ndlp = NULL;
+	struct fc_rport *srport = ndlp->rport;
 
 	lpfc_printf_vlog(ndlp->vport, KERN_INFO, LOG_NVME_DISC,
 			 "6006 Register NVME PORT. DID x%06x nlptype x%x\n",
@@ -2452,6 +2453,10 @@ lpfc_nvme_register_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 
 	rpinfo.port_name = wwn_to_u64(ndlp->nlp_portname.u.wwn);
 	rpinfo.node_name = wwn_to_u64(ndlp->nlp_nodename.u.wwn);
+	if (srport)
+		rpinfo.dev_loss_tmo = srport->dev_loss_tmo;
+	else
+		rpinfo.dev_loss_tmo = vport->cfg_devloss_tmo;
 
 	spin_lock_irq(&vport->phba->hbalock);
 	oldrport = lpfc_ndlp_get_nrport(ndlp);
