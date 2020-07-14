@@ -2163,6 +2163,7 @@
 			snps,dis_u2_susphy_quirk;
 			snps,dis-del-phy-power-chg-quirk;
 			snps,tx-ipgap-linecheck-dis-quirk;
+			snps,tx-fifo-resize;
 			snps,xhci-trb-ent-quirk;
 			status = "disabled";
 		};
