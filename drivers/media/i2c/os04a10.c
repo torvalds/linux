@@ -797,39 +797,6 @@ static const struct regval os04a10_hdr12bit_2560x1440_regs[] = {
  */
 static const struct os04a10_mode supported_modes[] = {
 	{
-		.bus_fmt = MEDIA_BUS_FMT_SBGGR12_1X12,
-		.width = 2688,
-		.height = 1520,
-		.max_fps = {
-			.numerator = 10000,
-			.denominator = 300372,
-		},
-		.exp_def = 0x0240,
-		.hts_def = 0x05c4 * 2,
-		.vts_def = 0x0984,
-		.reg_list = os04a10_linear12bit_2688x1520_regs,
-		.hdr_mode = NO_HDR,
-		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
-	},
-	{
-		.bus_fmt = MEDIA_BUS_FMT_SBGGR12_1X12,
-		.width = 2688,
-		.height = 1520,
-		.max_fps = {
-			.numerator = 10000,
-			.denominator = 225000,
-		},
-		.exp_def = 0x0240,
-		.hts_def = 0x05c4 * 2,
-		.vts_def = 0x0658,
-		.reg_list = os04a10_hdr12bit_2688x1520_regs,
-		.hdr_mode = HDR_X2,
-		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_1,
-		.vc[PAD1] = V4L2_MBUS_CSI2_CHANNEL_0,//L->csi wr0
-		.vc[PAD2] = V4L2_MBUS_CSI2_CHANNEL_1,
-		.vc[PAD3] = V4L2_MBUS_CSI2_CHANNEL_1,//M->csi wr2
-	},
-	{
 		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
 		.width = 2688,
 		.height = 1520,
@@ -858,6 +825,39 @@ static const struct os04a10_mode supported_modes[] = {
 		.vts_def = 0x0658,
 		/*.vts_def = 0x0cb0,*/
 		.reg_list = os04a10_hdr10bit_2688x1520_regs,
+		.hdr_mode = HDR_X2,
+		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_1,
+		.vc[PAD1] = V4L2_MBUS_CSI2_CHANNEL_0,//L->csi wr0
+		.vc[PAD2] = V4L2_MBUS_CSI2_CHANNEL_1,
+		.vc[PAD3] = V4L2_MBUS_CSI2_CHANNEL_1,//M->csi wr2
+	},
+	{
+		.bus_fmt = MEDIA_BUS_FMT_SBGGR12_1X12,
+		.width = 2688,
+		.height = 1520,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 300372,
+		},
+		.exp_def = 0x0240,
+		.hts_def = 0x05c4 * 2,
+		.vts_def = 0x0984,
+		.reg_list = os04a10_linear12bit_2688x1520_regs,
+		.hdr_mode = NO_HDR,
+		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
+	},
+	{
+		.bus_fmt = MEDIA_BUS_FMT_SBGGR12_1X12,
+		.width = 2688,
+		.height = 1520,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 225000,
+		},
+		.exp_def = 0x0240,
+		.hts_def = 0x05c4 * 2,
+		.vts_def = 0x0658,
+		.reg_list = os04a10_hdr12bit_2688x1520_regs,
 		.hdr_mode = HDR_X2,
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_1,
 		.vc[PAD1] = V4L2_MBUS_CSI2_CHANNEL_0,//L->csi wr0
