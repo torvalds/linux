@@ -1674,7 +1674,8 @@ __acquires(fi->lock)
 	}
 }
 
-static void tree_insert(struct rb_root *root, struct fuse_writepage_args *wpa)
+static struct fuse_writepage_args *fuse_insert_writeback(struct rb_root *root,
+						struct fuse_writepage_args *wpa)
 {
 	pgoff_t idx_from = wpa->ia.write.in.offset >> PAGE_SHIFT;
 	pgoff_t idx_to = idx_from + wpa->ia.ap.num_pages - 1;
@@ -1697,11 +1698,17 @@ static void tree_insert(struct rb_root *root, struct fuse_writepage_args *wpa)
 		else if (idx_to < curr_index)
 			p = &(*p)->rb_left;
 		else
-			return (void) WARN_ON(true);
+			return curr;
 	}
 
 	rb_link_node(&wpa->writepages_entry, parent, p);
 	rb_insert_color(&wpa->writepages_entry, root);
+	return NULL;
+}
+
+static void tree_insert(struct rb_root *root, struct fuse_writepage_args *wpa)
+{
+	WARN_ON(fuse_insert_writeback(root, wpa));
 }
 
 static void fuse_writepage_end(struct fuse_conn *fc, struct fuse_args *args,
@@ -1953,14 +1960,14 @@ static void fuse_writepages_send(struct fuse_fill_wb_data *data)
 }
 
 /*
- * First recheck under fi->lock if the offending offset is still under
- * writeback.  If yes, then iterate auxiliary write requests, to see if there's
+ * Check under fi->lock if the page is under writeback, and insert it onto the
+ * rb_tree if not. Otherwise iterate auxiliary write requests, to see if there's
  * one already added for a page at this offset.  If there's none, then insert
  * this new request onto the auxiliary list, otherwise reuse the existing one by
- * copying the new page contents over to the old temporary page.
+ * swapping the new temp page with the old one.
  */
-static bool fuse_writepage_in_flight(struct fuse_writepage_args *new_wpa,
-				     struct page *page)
+static bool fuse_writepage_add(struct fuse_writepage_args *new_wpa,
+			       struct page *page)
 {
 	struct fuse_inode *fi = get_fuse_inode(new_wpa->inode);
 	struct fuse_writepage_args *tmp;
@@ -1968,17 +1975,15 @@ static bool fuse_writepage_in_flight(struct fuse_writepage_args *new_wpa,
 	struct fuse_args_pages *new_ap = &new_wpa->ia.ap;
 
 	WARN_ON(new_ap->num_pages != 0);
+	new_ap->num_pages = 1;
 
 	spin_lock(&fi->lock);
-	rb_erase(&new_wpa->writepages_entry, &fi->writepages);
-	old_wpa = fuse_find_writeback(fi, page->index, page->index);
+	old_wpa = fuse_insert_writeback(&fi->writepages, new_wpa);
 	if (!old_wpa) {
-		tree_insert(&fi->writepages, new_wpa);
 		spin_unlock(&fi->lock);
-		return false;
+		return true;
 	}
 
-	new_ap->num_pages = 1;
 	for (tmp = old_wpa->next; tmp; tmp = tmp->next) {
 		pgoff_t curr_index;
 
@@ -2007,7 +2012,7 @@ static bool fuse_writepage_in_flight(struct fuse_writepage_args *new_wpa,
 		fuse_writepage_free(new_wpa);
 	}
 
-	return true;
+	return false;
 }
 
 static int fuse_writepages_fill(struct page *page,
@@ -2086,12 +2091,6 @@ static int fuse_writepages_fill(struct page *page,
 		ap->args.end = fuse_writepage_end;
 		ap->num_pages = 0;
 		wpa->inode = inode;
-
-		spin_lock(&fi->lock);
-		tree_insert(&fi->writepages, wpa);
-		spin_unlock(&fi->lock);
-
-		data->wpa = wpa;
 	}
 	set_page_writeback(page);
 
@@ -2099,26 +2098,25 @@ static int fuse_writepages_fill(struct page *page,
 	ap->pages[ap->num_pages] = tmp_page;
 	ap->descs[ap->num_pages].offset = 0;
 	ap->descs[ap->num_pages].length = PAGE_SIZE;
+	data->orig_pages[ap->num_pages] = page;
 
 	inc_wb_stat(&inode_to_bdi(inode)->wb, WB_WRITEBACK);
 	inc_node_page_state(tmp_page, NR_WRITEBACK_TEMP);
 
 	err = 0;
-	if (is_writeback && fuse_writepage_in_flight(wpa, page)) {
+	if (data->wpa) {
+		/*
+		 * Protected by fi->lock against concurrent access by
+		 * fuse_page_is_writeback().
+		 */
+		spin_lock(&fi->lock);
+		ap->num_pages++;
+		spin_unlock(&fi->lock);
+	} else if (fuse_writepage_add(wpa, page)) {
+		data->wpa = wpa;
+	} else {
 		end_page_writeback(page);
-		data->wpa = NULL;
-		goto out_unlock;
 	}
-	data->orig_pages[ap->num_pages] = page;
-
-	/*
-	 * Protected by fi->lock against concurrent access by
-	 * fuse_page_is_writeback().
-	 */
-	spin_lock(&fi->lock);
-	ap->num_pages++;
-	spin_unlock(&fi->lock);
-
 out_unlock:
 	unlock_page(page);
 
