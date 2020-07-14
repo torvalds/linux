@@ -126,6 +126,7 @@ config SUN3
 	depends on MMU
 	depends on !MMU_MOTOROLA
 	select MMU_SUN3 if MMU
+	select NO_DMA
 	select M68020
 	help
 	  This option enables support for the Sun 3 series of workstations

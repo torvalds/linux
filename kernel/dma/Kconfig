@@ -1,5 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
+config NO_DMA
+	bool
+
 config HAS_DMA
 	bool
 	depends on !NO_DMA
