@@ -193,6 +193,7 @@ static const bool debug_evictions; /* = false */
 #endif
 
 extern int amdgpu_tmz;
+extern int amdgpu_reset_method;
 
 #ifdef CONFIG_DRM_AMDGPU_SI
 extern int amdgpu_si_support;

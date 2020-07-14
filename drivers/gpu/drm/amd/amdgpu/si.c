@@ -1229,6 +1229,11 @@ static bool si_asic_supports_baco(struct amdgpu_device *adev)
 static enum amd_reset_method
 si_asic_reset_method(struct amdgpu_device *adev)
 {
+	if (amdgpu_reset_method != AMD_RESET_METHOD_LEGACY &&
+	    amdgpu_reset_method != -1)
+		dev_warn(adev->dev, "Specified reset method:%d isn't supported, using AUTO instead.\n",
+				  amdgpu_reset_method);
+
 	return AMD_RESET_METHOD_LEGACY;
 }
 
