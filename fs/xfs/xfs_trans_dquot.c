@@ -293,6 +293,37 @@ xfs_trans_dqlockedjoin(
 	}
 }
 
+/* Apply dqtrx changes to the quota reservation counters. */
+static inline void
+xfs_apply_quota_reservation_deltas(
+	struct xfs_dquot_res	*res,
+	uint64_t		reserved,
+	int64_t			res_used,
+	int64_t			count_delta)
+{
+	if (reserved != 0) {
+		/*
+		 * Subtle math here: If reserved > res_used (the normal case),
+		 * we're simply subtracting the unused transaction quota
+		 * reservation from the dquot reservation.
+		 *
+		 * If, however, res_used > reserved, then we have allocated
+		 * more quota blocks than were reserved for the transaction.
+		 * We must add that excess to the dquot reservation since it
+		 * tracks (usage + resv) and by definition we didn't reserve
+		 * that excess.
+		 */
+		res->reserved -= abs(reserved - res_used);
+	} else if (count_delta != 0) {
+		/*
+		 * These blks were never reserved, either inside a transaction
+		 * or outside one (in a delayed allocation). Also, this isn't
+		 * always a negative number since we sometimes deliberately
+		 * skip quota reservations.
+		 */
+		res->reserved += count_delta;
+	}
+}
 
 /*
  * Called by xfs_trans_commit() and similar in spirit to
@@ -327,6 +358,8 @@ xfs_trans_apply_dquot_deltas(
 		xfs_trans_dqlockedjoin(tp, qa);
 
 		for (i = 0; i < XFS_QM_TRANS_MAXDQS; i++) {
+			uint64_t	blk_res_used;
+
 			qtrx = &qa[i];
 			/*
 			 * The array of dquots is filled
@@ -396,71 +429,27 @@ xfs_trans_apply_dquot_deltas(
 			 * In case of delayed allocations, there's no
 			 * reservation that a transaction structure knows of.
 			 */
-			if (qtrx->qt_blk_res != 0) {
-				uint64_t	blk_res_used = 0;
+			blk_res_used = max_t(int64_t, 0, qtrx->qt_bcount_delta);
+			xfs_apply_quota_reservation_deltas(&dqp->q_blk,
+					qtrx->qt_blk_res, blk_res_used,
+					qtrx->qt_bcount_delta);
 
-				if (qtrx->qt_bcount_delta > 0)
-					blk_res_used = qtrx->qt_bcount_delta;
-
-				if (qtrx->qt_blk_res != blk_res_used) {
-					if (qtrx->qt_blk_res > blk_res_used)
-						dqp->q_blk.reserved -= (xfs_qcnt_t)
-							(qtrx->qt_blk_res -
-							 blk_res_used);
-					else
-						dqp->q_blk.reserved -= (xfs_qcnt_t)
-							(blk_res_used -
-							 qtrx->qt_blk_res);
-				}
-			} else {
-				/*
-				 * These blks were never reserved, either inside
-				 * a transaction or outside one (in a delayed
-				 * allocation). Also, this isn't always a
-				 * negative number since we sometimes
-				 * deliberately skip quota reservations.
-				 */
-				if (qtrx->qt_bcount_delta) {
-					dqp->q_blk.reserved +=
-					      (xfs_qcnt_t)qtrx->qt_bcount_delta;
-				}
-			}
 			/*
 			 * Adjust the RT reservation.
 			 */
-			if (qtrx->qt_rtblk_res != 0) {
-				if (qtrx->qt_rtblk_res != qtrx->qt_rtblk_res_used) {
-					if (qtrx->qt_rtblk_res >
-					    qtrx->qt_rtblk_res_used)
-					       dqp->q_rtb.reserved -= (xfs_qcnt_t)
-						       (qtrx->qt_rtblk_res -
-							qtrx->qt_rtblk_res_used);
-					else
-					       dqp->q_rtb.reserved -= (xfs_qcnt_t)
-						       (qtrx->qt_rtblk_res_used -
-							qtrx->qt_rtblk_res);
-				}
-			} else {
-				if (qtrx->qt_rtbcount_delta)
-					dqp->q_rtb.reserved +=
-					    (xfs_qcnt_t)qtrx->qt_rtbcount_delta;
-			}
+			xfs_apply_quota_reservation_deltas(&dqp->q_rtb,
+					qtrx->qt_rtblk_res,
+					qtrx->qt_rtblk_res_used,
+					qtrx->qt_rtbcount_delta);
 
 			/*
 			 * Adjust the inode reservation.
 			 */
-			if (qtrx->qt_ino_res != 0) {
-				ASSERT(qtrx->qt_ino_res >=
-				       qtrx->qt_ino_res_used);
-				if (qtrx->qt_ino_res > qtrx->qt_ino_res_used)
-					dqp->q_ino.reserved -= (xfs_qcnt_t)
-						(qtrx->qt_ino_res -
-						 qtrx->qt_ino_res_used);
-			} else {
-				if (qtrx->qt_icount_delta)
-					dqp->q_ino.reserved +=
-					    (xfs_qcnt_t)qtrx->qt_icount_delta;
-			}
+			ASSERT(qtrx->qt_ino_res >= qtrx->qt_ino_res_used);
+			xfs_apply_quota_reservation_deltas(&dqp->q_ino,
+					qtrx->qt_ino_res,
+					qtrx->qt_ino_res_used,
+					qtrx->qt_icount_delta);
 
 			ASSERT(dqp->q_blk.reserved >= dqp->q_blk.count);
 			ASSERT(dqp->q_ino.reserved >= dqp->q_ino.count);
