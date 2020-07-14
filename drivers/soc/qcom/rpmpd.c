@@ -4,8 +4,8 @@
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/mutex.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/pm_domain.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -427,4 +427,3 @@ core_initcall(rpmpd_init);
 
 MODULE_DESCRIPTION("Qualcomm Technologies, Inc. RPM Power Domain Driver");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:qcom-rpmpd");
