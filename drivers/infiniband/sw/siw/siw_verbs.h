@@ -46,7 +46,6 @@ int siw_create_cq(struct ib_cq *base_cq, const struct ib_cq_init_attr *attr,
 		  struct ib_udata *udata);
 int siw_query_port(struct ib_device *base_dev, u8 port,
 		   struct ib_port_attr *attr);
-int siw_query_pkey(struct ib_device *base_dev, u8 port, u16 idx, u16 *pkey);
 int siw_query_gid(struct ib_device *base_dev, u8 port, int idx,
 		  union ib_gid *gid);
 int siw_alloc_pd(struct ib_pd *base_pd, struct ib_udata *udata);
