@@ -117,7 +117,6 @@ xfs_qm_adjust_dqtimers(
 	struct xfs_dquot	*dq)
 {
 	struct xfs_quotainfo	*qi = mp->m_quotainfo;
-	struct xfs_disk_dquot	*d = &dq->q_core;
 	struct xfs_def_quota	*defq;
 
 	ASSERT(dq->q_id);
@@ -132,13 +131,13 @@ xfs_qm_adjust_dqtimers(
 		ASSERT(dq->q_rtb.softlimit <= dq->q_rtb.hardlimit);
 #endif
 
-	if (!d->d_btimer) {
+	if (!dq->q_blk.timer) {
 		if ((dq->q_blk.softlimit &&
 		     (dq->q_blk.count > dq->q_blk.softlimit)) ||
 		    (dq->q_blk.hardlimit &&
 		     (dq->q_blk.count > dq->q_blk.hardlimit))) {
-			d->d_btimer = cpu_to_be32(ktime_get_real_seconds() +
-					defq->btimelimit);
+			dq->q_blk.timer = ktime_get_real_seconds() +
+					defq->btimelimit;
 		} else {
 			dq->q_blk.warnings = 0;
 		}
@@ -147,17 +146,17 @@ xfs_qm_adjust_dqtimers(
 		     (dq->q_blk.count <= dq->q_blk.softlimit)) &&
 		    (!dq->q_blk.hardlimit ||
 		    (dq->q_blk.count <= dq->q_blk.hardlimit))) {
-			d->d_btimer = 0;
+			dq->q_blk.timer = 0;
 		}
 	}
 
-	if (!d->d_itimer) {
+	if (!dq->q_ino.timer) {
 		if ((dq->q_ino.softlimit &&
 		     (dq->q_ino.count > dq->q_ino.softlimit)) ||
 		    (dq->q_ino.hardlimit &&
 		     (dq->q_ino.count > dq->q_ino.hardlimit))) {
-			d->d_itimer = cpu_to_be32(ktime_get_real_seconds() +
-					defq->itimelimit);
+			dq->q_ino.timer = ktime_get_real_seconds() +
+					defq->itimelimit;
 		} else {
 			dq->q_ino.warnings = 0;
 		}
@@ -166,17 +165,17 @@ xfs_qm_adjust_dqtimers(
 		     (dq->q_ino.count <= dq->q_ino.softlimit))  &&
 		    (!dq->q_ino.hardlimit ||
 		     (dq->q_ino.count <= dq->q_ino.hardlimit))) {
-			d->d_itimer = 0;
+			dq->q_ino.timer = 0;
 		}
 	}
 
-	if (!d->d_rtbtimer) {
+	if (!dq->q_rtb.timer) {
 		if ((dq->q_rtb.softlimit &&
 		     (dq->q_rtb.count > dq->q_rtb.softlimit)) ||
 		    (dq->q_rtb.hardlimit &&
 		     (dq->q_rtb.count > dq->q_rtb.hardlimit))) {
-			d->d_rtbtimer = cpu_to_be32(ktime_get_real_seconds() +
-					defq->rtbtimelimit);
+			dq->q_rtb.timer = ktime_get_real_seconds() +
+					defq->rtbtimelimit;
 		} else {
 			dq->q_rtb.warnings = 0;
 		}
@@ -185,7 +184,7 @@ xfs_qm_adjust_dqtimers(
 		     (dq->q_rtb.count <= dq->q_rtb.softlimit)) &&
 		    (!dq->q_rtb.hardlimit ||
 		     (dq->q_rtb.count <= dq->q_rtb.hardlimit))) {
-			d->d_rtbtimer = 0;
+			dq->q_rtb.timer = 0;
 		}
 	}
 }
@@ -546,6 +545,10 @@ xfs_dquot_from_disk(
 	dqp->q_ino.warnings = be16_to_cpu(ddqp->d_iwarns);
 	dqp->q_rtb.warnings = be16_to_cpu(ddqp->d_rtbwarns);
 
+	dqp->q_blk.timer = be32_to_cpu(ddqp->d_btimer);
+	dqp->q_ino.timer = be32_to_cpu(ddqp->d_itimer);
+	dqp->q_rtb.timer = be32_to_cpu(ddqp->d_rtbtimer);
+
 	/*
 	 * Reservation counters are defined as reservation plus current usage
 	 * to avoid having to add every time.
@@ -580,6 +583,10 @@ xfs_dquot_to_disk(
 	ddqp->d_bwarns = cpu_to_be16(dqp->q_blk.warnings);
 	ddqp->d_iwarns = cpu_to_be16(dqp->q_ino.warnings);
 	ddqp->d_rtbwarns = cpu_to_be16(dqp->q_rtb.warnings);
+
+	ddqp->d_btimer = cpu_to_be32(dqp->q_blk.timer);
+	ddqp->d_itimer = cpu_to_be32(dqp->q_ino.timer);
+	ddqp->d_rtbtimer = cpu_to_be32(dqp->q_rtb.timer);
 }
 
 /* Allocate and initialize the dquot buffer for this in-core dquot. */
@@ -1141,7 +1148,6 @@ static xfs_failaddr_t
 xfs_qm_dqflush_check(
 	struct xfs_dquot	*dqp)
 {
-	struct xfs_disk_dquot	*ddq = &dqp->q_core;
 	__u8			type = dqp->dq_flags & XFS_DQ_ALLTYPES;
 
 	if (type != XFS_DQ_USER &&
@@ -1153,15 +1159,15 @@ xfs_qm_dqflush_check(
 		return NULL;
 
 	if (dqp->q_blk.softlimit && dqp->q_blk.count > dqp->q_blk.softlimit &&
-	    !ddq->d_btimer)
+	    !dqp->q_blk.timer)
 		return __this_address;
 
 	if (dqp->q_ino.softlimit && dqp->q_ino.count > dqp->q_ino.softlimit &&
-	    !ddq->d_itimer)
+	    !dqp->q_ino.timer)
 		return __this_address;
 
 	if (dqp->q_rtb.softlimit && dqp->q_rtb.count > dqp->q_rtb.softlimit &&
-	    !ddq->d_rtbtimer)
+	    !dqp->q_rtb.timer)
 		return __this_address;
 
 	return NULL;

@@ -579,7 +579,6 @@ xfs_qm_init_timelimits(
 {
 	struct xfs_quotainfo	*qinf = mp->m_quotainfo;
 	struct xfs_def_quota	*defq;
-	struct xfs_disk_dquot	*ddqp;
 	struct xfs_dquot	*dqp;
 	int			error;
 
@@ -603,19 +602,17 @@ xfs_qm_init_timelimits(
 	if (error)
 		return;
 
-	ddqp = &dqp->q_core;
-
 	/*
 	 * The warnings and timers set the grace period given to
 	 * a user or group before he or she can not perform any
 	 * more writing. If it is zero, a default is used.
 	 */
-	if (ddqp->d_btimer)
-		defq->btimelimit = be32_to_cpu(ddqp->d_btimer);
-	if (ddqp->d_itimer)
-		defq->itimelimit = be32_to_cpu(ddqp->d_itimer);
-	if (ddqp->d_rtbtimer)
-		defq->rtbtimelimit = be32_to_cpu(ddqp->d_rtbtimer);
+	if (dqp->q_blk.timer)
+		defq->btimelimit = dqp->q_blk.timer;
+	if (dqp->q_ino.timer)
+		defq->itimelimit = dqp->q_ino.timer;
+	if (dqp->q_rtb.timer)
+		defq->rtbtimelimit = dqp->q_rtb.timer;
 	if (dqp->q_blk.warnings)
 		defq->bwarnlimit = dqp->q_blk.warnings;
 	if (dqp->q_ino.warnings)

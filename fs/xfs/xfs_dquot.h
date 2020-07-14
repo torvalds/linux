@@ -39,6 +39,13 @@ struct xfs_dquot_res {
 	xfs_qcnt_t		softlimit;
 
 	/*
+	 * For root dquots, this is the default grace period, in seconds.
+	 * Otherwise, this is when the quota grace period expires,
+	 * in seconds since the Unix epoch.
+	 */
+	time64_t		timer;
+
+	/*
 	 * For root dquots, this is the maximum number of warnings that will
 	 * be issued for this quota type.  Otherwise, this is the number of
 	 * warnings issued against this quota.  Note that none of this is
