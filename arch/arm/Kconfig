@@ -1148,12 +1148,6 @@ config PCI_NANOENGINE
 	help
 	  Enable PCI on the BSE nanoEngine board.
 
-config PCI_HOST_ITE8152
-	bool
-	depends on PCI && MACH_ARMCORE
-	default y
-	select DMABOUNCE
-
 config ARM_ERRATA_814220
 	bool "ARM errata: Cache maintenance by set/way operations can execute out of order"
 	depends on CPU_V7
