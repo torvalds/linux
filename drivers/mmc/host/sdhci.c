@@ -4104,7 +4104,7 @@ int sdhci_setup_host(struct sdhci_host *host)
 	unsigned int ocr_avail;
 	unsigned int override_timeout_clk;
 	u32 max_clk;
-	int ret;
+	int ret = 0;
 	bool enable_vqmmc = false;
 
 	WARN_ON(host == NULL);
