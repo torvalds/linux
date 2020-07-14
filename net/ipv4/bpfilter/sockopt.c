@@ -12,15 +12,14 @@
 struct bpfilter_umh_ops bpfilter_ops;
 EXPORT_SYMBOL_GPL(bpfilter_ops);
 
-static void bpfilter_umh_cleanup(struct umh_info *info)
+void bpfilter_umh_cleanup(struct umd_info *info)
 {
-	mutex_lock(&bpfilter_ops.lock);
-	bpfilter_ops.stop = true;
 	fput(info->pipe_to_umh);
 	fput(info->pipe_from_umh);
-	info->pid = 0;
-	mutex_unlock(&bpfilter_ops.lock);
+	put_pid(info->tgid);
+	info->tgid = NULL;
 }
+EXPORT_SYMBOL_GPL(bpfilter_umh_cleanup);
 
 static int bpfilter_mbox_request(struct sock *sk, int optname,
 				 char __user *optval,
@@ -38,7 +37,11 @@ static int bpfilter_mbox_request(struct sock *sk, int optname,
 			goto out;
 		}
 	}
-	if (bpfilter_ops.stop) {
+	if (bpfilter_ops.info.tgid &&
+	    thread_group_exited(bpfilter_ops.info.tgid))
+		bpfilter_umh_cleanup(&bpfilter_ops.info);
+
+	if (!bpfilter_ops.info.tgid) {
 		err = bpfilter_ops.start();
 		if (err)
 			goto out;
@@ -69,9 +72,8 @@ int bpfilter_ip_get_sockopt(struct sock *sk, int optname, char __user *optval,
 static int __init bpfilter_sockopt_init(void)
 {
 	mutex_init(&bpfilter_ops.lock);
-	bpfilter_ops.stop = true;
-	bpfilter_ops.info.cmdline = "bpfilter_umh";
-	bpfilter_ops.info.cleanup = &bpfilter_umh_cleanup;
+	bpfilter_ops.info.tgid = NULL;
+	bpfilter_ops.info.driver_name = "bpfilter_umh";
 
 	return 0;
 }
