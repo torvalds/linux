@@ -8,7 +8,8 @@ title: Ingenic XBurst based Platforms Device Tree Bindings
 
 maintainers:
   - 周琰杰 (Zhou Yanjie) <zhouyanjie@wanyeetech.com>
-description: |
+
+description:
   Devices with a Ingenic XBurst CPU shall have the following properties.
 
 properties:
@@ -37,8 +38,13 @@ properties:
           - const: img,ci20
           - const: ingenic,jz4780
 
-      - description: YSH & ATIL General Board CU Neo
+      - description: YSH & ATIL General Board, CU1000 Module with Neo Backplane
         items:
           - const: yna,cu1000-neo
-          - const: ingenic,x1000
+          - const: ingenic,x1000e
+
+      - description: YSH & ATIL General Board, CU1830 Module with Neo Backplane
+        items:
+          - const: yna,cu1830-neo
+          - const: ingenic,x1830
 ...
