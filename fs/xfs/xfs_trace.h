@@ -879,7 +879,7 @@ DECLARE_EVENT_CLASS(xfs_dquot_class,
 		__entry->id = dqp->q_id;
 		__entry->flags = dqp->dq_flags | dqp->q_flags;
 		__entry->nrefs = dqp->q_nrefs;
-		__entry->res_bcount = dqp->q_res_bcount;
+		__entry->res_bcount = dqp->q_blk.reserved;
 		__entry->bcount = be64_to_cpu(dqp->q_core.d_bcount);
 		__entry->icount = be64_to_cpu(dqp->q_core.d_icount);
 		__entry->blk_hardlimit =

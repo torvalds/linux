@@ -552,9 +552,9 @@ xfs_dquot_from_disk(
 	 * Reservation counters are defined as reservation plus current usage
 	 * to avoid having to add every time.
 	 */
-	dqp->q_res_bcount = be64_to_cpu(ddqp->d_bcount);
-	dqp->q_res_icount = be64_to_cpu(ddqp->d_icount);
-	dqp->q_res_rtbcount = be64_to_cpu(ddqp->d_rtbcount);
+	dqp->q_blk.reserved = be64_to_cpu(ddqp->d_bcount);
+	dqp->q_ino.reserved = be64_to_cpu(ddqp->d_icount);
+	dqp->q_rtb.reserved = be64_to_cpu(ddqp->d_rtbcount);
 
 	/* initialize the dquot speculative prealloc thresholds */
 	xfs_dquot_set_prealloc_limits(dqp);

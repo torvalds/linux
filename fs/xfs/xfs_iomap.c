@@ -307,7 +307,7 @@ xfs_quota_need_throttle(
 		return false;
 
 	/* under the lo watermark, no throttle */
-	if (dq->q_res_bcount + alloc_blocks < dq->q_prealloc_lo_wmark)
+	if (dq->q_blk.reserved + alloc_blocks < dq->q_prealloc_lo_wmark)
 		return false;
 
 	return true;
@@ -326,13 +326,13 @@ xfs_quota_calc_throttle(
 	struct xfs_dquot *dq = xfs_inode_dquot(ip, type);
 
 	/* no dq, or over hi wmark, squash the prealloc completely */
-	if (!dq || dq->q_res_bcount >= dq->q_prealloc_hi_wmark) {
+	if (!dq || dq->q_blk.reserved >= dq->q_prealloc_hi_wmark) {
 		*qblocks = 0;
 		*qfreesp = 0;
 		return;
 	}
 
-	freesp = dq->q_prealloc_hi_wmark - dq->q_res_bcount;
+	freesp = dq->q_prealloc_hi_wmark - dq->q_blk.reserved;
 	if (freesp < dq->q_low_space[XFS_QLOWSP_5_PCNT]) {
 		shift = 2;
 		if (freesp < dq->q_low_space[XFS_QLOWSP_3_PCNT])

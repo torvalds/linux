@@ -1092,14 +1092,14 @@ xfs_qm_quotacheck_dqadjust(
 	 * resource usage.
 	 */
 	be64_add_cpu(&dqp->q_core.d_icount, 1);
-	dqp->q_res_icount++;
+	dqp->q_ino.reserved++;
 	if (nblks) {
 		be64_add_cpu(&dqp->q_core.d_bcount, nblks);
-		dqp->q_res_bcount += nblks;
+		dqp->q_blk.reserved += nblks;
 	}
 	if (rtblks) {
 		be64_add_cpu(&dqp->q_core.d_rtbcount, rtblks);
-		dqp->q_res_rtbcount += rtblks;
+		dqp->q_rtb.reserved += rtblks;
 	}
 
 	/*

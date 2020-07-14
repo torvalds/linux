@@ -27,6 +27,11 @@ enum {
 	XFS_QLOWSP_MAX
 };
 
+struct xfs_dquot_res {
+	/* Total resources allocated and reserved. */
+	xfs_qcnt_t		reserved;
+};
+
 /*
  * The incore dquot structure
  */
@@ -41,14 +46,13 @@ struct xfs_dquot {
 	xfs_daddr_t		q_blkno;
 	xfs_fileoff_t		q_fileoffset;
 
+	struct xfs_dquot_res	q_blk;	/* regular blocks */
+	struct xfs_dquot_res	q_ino;	/* inodes */
+	struct xfs_dquot_res	q_rtb;	/* realtime blocks */
+
 	struct xfs_disk_dquot	q_core;
 	struct xfs_dq_logitem	q_logitem;
-	/* total regular nblks used+reserved */
-	xfs_qcnt_t		q_res_bcount;
-	/* total inos allocd+reserved */
-	xfs_qcnt_t		q_res_icount;
-	/* total realtime blks used+reserved */
-	xfs_qcnt_t		q_res_rtbcount;
+
 	xfs_qcnt_t		q_prealloc_lo_wmark;
 	xfs_qcnt_t		q_prealloc_hi_wmark;
 	int64_t			q_low_space[XFS_QLOWSP_MAX];
@@ -139,7 +143,7 @@ static inline bool xfs_dquot_lowsp(struct xfs_dquot *dqp)
 {
 	int64_t freesp;
 
-	freesp = be64_to_cpu(dqp->q_core.d_blk_hardlimit) - dqp->q_res_bcount;
+	freesp = be64_to_cpu(dqp->q_core.d_blk_hardlimit) - dqp->q_blk.reserved;
 	if (freesp < dqp->q_low_space[XFS_QLOWSP_1_PCNT])
 		return true;
 
