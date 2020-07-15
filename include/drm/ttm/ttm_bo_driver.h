@@ -47,7 +47,6 @@
 
 #define TTM_MEMTYPE_FLAG_FIXED         (1 << 0)	/* Fixed (on-card) PCI memory */
 #define TTM_MEMTYPE_FLAG_MAPPABLE      (1 << 1)	/* Memory mappable */
-#define TTM_MEMTYPE_FLAG_CMA           (1 << 3)	/* Can't map aperture */
 
 struct ttm_mem_type_manager;
 

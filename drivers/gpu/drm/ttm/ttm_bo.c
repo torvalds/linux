@@ -272,20 +272,15 @@ static int ttm_bo_handle_move_mem(struct ttm_buffer_object *bo,
 				  struct ttm_operation_ctx *ctx)
 {
 	struct ttm_bo_device *bdev = bo->bdev;
-	bool old_is_pci = ttm_mem_reg_is_pci(bdev, &bo->mem);
-	bool new_is_pci = ttm_mem_reg_is_pci(bdev, mem);
 	struct ttm_mem_type_manager *old_man = &bdev->man[bo->mem.mem_type];
 	struct ttm_mem_type_manager *new_man = &bdev->man[mem->mem_type];
-	int ret = 0;
+	int ret;
 
-	if (old_is_pci || new_is_pci ||
-	    ((mem->placement & bo->mem.placement & TTM_PL_MASK_CACHING) == 0)) {
-		ret = ttm_mem_io_lock(old_man, true);
-		if (unlikely(ret != 0))
-			goto out_err;
-		ttm_bo_unmap_virtual_locked(bo);
-		ttm_mem_io_unlock(old_man);
-	}
+	ret = ttm_mem_io_lock(old_man, true);
+	if (unlikely(ret != 0))
+		goto out_err;
+	ttm_bo_unmap_virtual_locked(bo);
+	ttm_mem_io_unlock(old_man);
 
 	/*
 	 * Create and bind a ttm if required.
@@ -1697,23 +1692,6 @@ EXPORT_SYMBOL(ttm_bo_device_init);
 /*
  * buffer object vm functions.
  */
-
-bool ttm_mem_reg_is_pci(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
-{
-	struct ttm_mem_type_manager *man = &bdev->man[mem->mem_type];
-
-	if (!(man->flags & TTM_MEMTYPE_FLAG_FIXED)) {
-		if (mem->mem_type == TTM_PL_SYSTEM)
-			return false;
-
-		if (man->flags & TTM_MEMTYPE_FLAG_CMA)
-			return false;
-
-		if (mem->placement & TTM_PL_FLAG_CACHED)
-			return false;
-	}
-	return true;
-}
 
 void ttm_bo_unmap_virtual_locked(struct ttm_buffer_object *bo)
 {
