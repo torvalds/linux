@@ -1033,14 +1033,18 @@ again:
 		}
 	}
 
+	/* Device is now enabled as part of the initialization requires
+	 * communication with the device firmware to get information that
+	 * is required for the initialization itself
+	 */
+	hdev->disabled = false;
+
 	rc = hdev->asic_funcs->hw_init(hdev);
 	if (rc) {
 		dev_err(hdev->dev,
 			"failed to initialize the H/W after reset\n");
 		goto out_err;
 	}
-
-	hdev->disabled = false;
 
 	/* Check that the communication with the device is working */
 	rc = hdev->asic_funcs->test_queues(hdev);
@@ -1261,14 +1265,18 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 	 */
 	add_cdev_sysfs_on_err = true;
 
+	/* Device is now enabled as part of the initialization requires
+	 * communication with the device firmware to get information that
+	 * is required for the initialization itself
+	 */
+	hdev->disabled = false;
+
 	rc = hdev->asic_funcs->hw_init(hdev);
 	if (rc) {
 		dev_err(hdev->dev, "failed to initialize the H/W\n");
 		rc = 0;
 		goto out_disabled;
 	}
-
-	hdev->disabled = false;
 
 	/* Check that the communication with the device is working */
 	rc = hdev->asic_funcs->test_queues(hdev);
