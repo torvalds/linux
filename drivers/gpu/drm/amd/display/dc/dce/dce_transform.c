@@ -306,6 +306,36 @@ static void calculate_inits(
 	inits->v_init.fraction = dc_fixpt_u0d19(v_init) << 5;
 }
 
+#if defined(CONFIG_DRM_AMD_DC_SI)
+static void dce60_calculate_inits(
+	struct dce_transform *xfm_dce,
+	const struct scaler_data *data,
+	struct sclh_ratios_inits *inits)
+{
+	struct fixed31_32 v_init;
+
+	inits->h_int_scale_ratio =
+		dc_fixpt_u2d19(data->ratios.horz) << 5;
+	inits->v_int_scale_ratio =
+		dc_fixpt_u2d19(data->ratios.vert) << 5;
+
+	/* DCE6 h_init_luma setting inspired by DCE110 */
+	inits->h_init_luma.integer = 1;
+
+	/* DCE6 h_init_chroma setting inspired by DCE110 */
+	inits->h_init_chroma.integer = 1;
+
+	v_init =
+		dc_fixpt_div_int(
+			dc_fixpt_add(
+				data->ratios.vert,
+				dc_fixpt_from_int(data->taps.v_taps + 1)),
+				2);
+	inits->v_init.integer = dc_fixpt_floor(v_init);
+	inits->v_init.fraction = dc_fixpt_u0d19(v_init) << 5;
+}
+#endif
+
 static void program_scl_ratios_inits(
 	struct dce_transform *xfm_dce,
 	struct scl_ratios_inits *inits)
@@ -327,6 +357,36 @@ static void program_scl_ratios_inits(
 
 	REG_WRITE(SCL_AUTOMATIC_MODE_CONTROL, 0);
 }
+
+#if defined(CONFIG_DRM_AMD_DC_SI)
+static void dce60_program_scl_ratios_inits(
+	struct dce_transform *xfm_dce,
+	struct sclh_ratios_inits *inits)
+{
+
+	REG_SET(SCL_HORZ_FILTER_SCALE_RATIO, 0,
+			SCL_H_SCALE_RATIO, inits->h_int_scale_ratio);
+
+	REG_SET(SCL_VERT_FILTER_SCALE_RATIO, 0,
+			SCL_V_SCALE_RATIO, inits->v_int_scale_ratio);
+
+	/* DCE6 has SCL_HORZ_FILTER_INIT_RGB_LUMA register */
+	REG_SET_2(SCL_HORZ_FILTER_INIT_RGB_LUMA, 0,
+			SCL_H_INIT_INT_RGB_Y, inits->h_init_luma.integer,
+			SCL_H_INIT_FRAC_RGB_Y, inits->h_init_luma.fraction);
+
+	/* DCE6 has SCL_HORZ_FILTER_INIT_CHROMA register */
+	REG_SET_2(SCL_HORZ_FILTER_INIT_CHROMA, 0,
+			SCL_H_INIT_INT_CBCR, inits->h_init_chroma.integer,
+			SCL_H_INIT_FRAC_CBCR, inits->h_init_chroma.fraction);
+
+	REG_SET_2(SCL_VERT_FILTER_INIT, 0,
+			SCL_V_INIT_INT, inits->v_init.integer,
+			SCL_V_INIT_FRAC, inits->v_init.fraction);
+
+	REG_WRITE(SCL_AUTOMATIC_MODE_CONTROL, 0);
+}
+#endif
 
 static const uint16_t *get_filter_coeffs_16p(int taps, struct fixed31_32 ratio)
 {
@@ -453,12 +513,14 @@ static void dce60_transform_set_scaler(
 	is_scaling_required = dce60_setup_scaling_configuration(xfm_dce, data);
 
 	if (is_scaling_required) {
-		/* 3. Calculate and program ratio, filter initialization */
-		struct scl_ratios_inits inits = { 0 };
+		/* 3. Calculate and program ratio, DCE6 filter initialization */
+		struct sclh_ratios_inits inits = { 0 };
 
-		calculate_inits(xfm_dce, data, &inits);
+		/* DCE6 has specific calculate_inits() function */
+		dce60_calculate_inits(xfm_dce, data, &inits);
 
-		program_scl_ratios_inits(xfm_dce, &inits);
+		/* DCE6 has specific program_scl_ratios_inits() function */
+		dce60_program_scl_ratios_inits(xfm_dce, &inits);
 
 		coeffs_v = get_filter_coeffs_16p(data->taps.v_taps, data->ratios.vert);
 		coeffs_h = get_filter_coeffs_16p(data->taps.h_taps, data->ratios.horz);
@@ -503,7 +565,7 @@ static void dce60_transform_set_scaler(
 	/* 6. Program the viewport */
 	program_viewport(xfm_dce, &data->viewport);
 
-	/* DCE6 does not have bit to flip to new coefficient memory */
+	/* DCE6 has no SCL_COEF_UPDATE_COMPLETE bit to flip to new coefficient memory */
 
 	/* DCE6 DATA_FORMAT register does not support ALPHA_EN */
 }

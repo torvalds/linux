@@ -331,6 +331,14 @@
 	XFM_SF(VIEWPORT_SIZE, VIEWPORT_WIDTH, mask_sh), \
 	XFM_SF(SCL_HORZ_FILTER_SCALE_RATIO, SCL_H_SCALE_RATIO, mask_sh), \
 	XFM_SF(SCL_VERT_FILTER_SCALE_RATIO, SCL_V_SCALE_RATIO, mask_sh), \
+	XFM_SF(SCL_HORZ_FILTER_INIT_RGB_LUMA, SCL_H_INIT_INT_RGB_Y, mask_sh), \
+	XFM_SF(SCL_HORZ_FILTER_INIT_RGB_LUMA, SCL_H_INIT_FRAC_RGB_Y, mask_sh), \
+	XFM_SF(SCL_HORZ_FILTER_INIT_CHROMA, SCL_H_INIT_INT_CBCR, mask_sh), \
+	XFM_SF(SCL_HORZ_FILTER_INIT_CHROMA, SCL_H_INIT_FRAC_CBCR, mask_sh), \
+	XFM_SF(SCL_VERT_FILTER_INIT, SCL_V_INIT_INT, mask_sh), \
+	XFM_SF(SCL_VERT_FILTER_INIT, SCL_V_INIT_FRAC, mask_sh), \
+	XFM_SF(SCL_HORZ_FILTER_CONTROL, SCL_H_FILTER_PICK_NEAREST, mask_sh), \
+	XFM_SF(SCL_VERT_FILTER_CONTROL, SCL_V_FILTER_PICK_NEAREST, mask_sh), \
 	XFM_SF(DC_LB_MEMORY_SPLIT, DC_LB_MEMORY_CONFIG, mask_sh), \
 	XFM_SF(DC_LB_MEM_SIZE, DC_LB_MEM_SIZE, mask_sh)
 #endif
@@ -497,6 +505,10 @@
 	type SCL_V_SCALE_RATIO; \
 	type SCL_H_INIT_INT; \
 	type SCL_H_INIT_FRAC; \
+	type SCL_H_INIT_INT_RGB_Y; \
+	type SCL_H_INIT_FRAC_RGB_Y; \
+	type SCL_H_INIT_INT_CBCR; \
+	type SCL_H_INIT_FRAC_CBCR; \
 	type SCL_V_INIT_INT; \
 	type SCL_V_INIT_FRAC; \
 	type DC_LB_MEMORY_CONFIG; \
@@ -505,6 +517,8 @@
 	type LB_MEMORY_SIZE; \
 	type SCL_V_2TAP_HARDCODE_COEF_EN; \
 	type SCL_H_2TAP_HARDCODE_COEF_EN; \
+	type SCL_V_FILTER_PICK_NEAREST; \
+	type SCL_H_FILTER_PICK_NEAREST; \
 	type SCL_COEF_UPDATE_COMPLETE; \
 	type ALPHA_EN
 
@@ -575,6 +589,10 @@ struct dce_transform_registers {
 	uint32_t SCL_HORZ_FILTER_SCALE_RATIO;
 	uint32_t SCL_VERT_FILTER_SCALE_RATIO;
 	uint32_t SCL_HORZ_FILTER_INIT;
+#if defined(CONFIG_DRM_AMD_DC_SI)
+	uint32_t SCL_HORZ_FILTER_INIT_RGB_LUMA;
+	uint32_t SCL_HORZ_FILTER_INIT_CHROMA;
+#endif
 	uint32_t SCL_VERT_FILTER_INIT;
 	uint32_t SCL_AUTOMATIC_MODE_CONTROL;
 #if defined(CONFIG_DRM_AMD_DC_SI)
@@ -597,6 +615,16 @@ struct scl_ratios_inits {
 	struct init_int_and_frac h_init;
 	struct init_int_and_frac v_init;
 };
+
+#if defined(CONFIG_DRM_AMD_DC_SI)
+struct sclh_ratios_inits {
+	uint32_t h_int_scale_ratio;
+	uint32_t v_int_scale_ratio;
+	struct init_int_and_frac h_init_luma;
+	struct init_int_and_frac h_init_chroma;
+	struct init_int_and_frac v_init;
+};
+#endif
 
 enum ram_filter_type {
 	FILTER_TYPE_RGB_Y_VERTICAL	= 0, /* 0 - RGB/Y Vertical filter */
