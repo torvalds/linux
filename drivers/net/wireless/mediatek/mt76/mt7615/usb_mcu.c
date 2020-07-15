@@ -28,7 +28,8 @@ mt7663u_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
 	else
 		ep = MT_EP_OUT_AC_BE;
 
-	ret = mt76u_skb_dma_info(skb, skb->len);
+	put_unaligned_le32(skb->len, skb_push(skb, sizeof(skb->len)));
+	ret = mt76_skb_adjust_pad(skb);
 	if (ret < 0)
 		goto out;
 
