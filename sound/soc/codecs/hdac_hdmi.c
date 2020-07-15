@@ -2235,8 +2235,6 @@ static int hdac_hdmi_runtime_suspend(struct device *dev)
 	if (!bus)
 		return 0;
 
-	clear_dapm_works(hdev);
-
 	/*
 	 * Power down afg.
 	 * codec_read is preferred over codec_write to set the power state.
