@@ -23,13 +23,18 @@ static int utimes_common(const struct path *path, struct timespec64 *times)
 	struct inode *inode = path->dentry->d_inode;
 	struct inode *delegated_inode = NULL;
 
+	if (times) {
+		if (!nsec_valid(times[0].tv_nsec) ||
+		    !nsec_valid(times[1].tv_nsec))
+			return -EINVAL;
+		if (times[0].tv_nsec == UTIME_NOW &&
+		    times[1].tv_nsec == UTIME_NOW)
+			times = NULL;
+	}
+
 	error = mnt_want_write(path->mnt);
 	if (error)
 		goto out;
-
-	if (times && times[0].tv_nsec == UTIME_NOW &&
-		     times[1].tv_nsec == UTIME_NOW)
-		times = NULL;
 
 	newattrs.ia_valid = ATTR_CTIME | ATTR_MTIME | ATTR_ATIME;
 	if (times) {
@@ -76,9 +81,6 @@ static int do_utimes_path(int dfd, const char __user *filename,
 	struct path path;
 	int lookup_flags = 0, error;
 
-	if (times &&
-	    (!nsec_valid(times[0].tv_nsec) || !nsec_valid(times[1].tv_nsec)))
-		return -EINVAL;
 	if (flags & ~(AT_SYMLINK_NOFOLLOW | AT_EMPTY_PATH))
 		return -EINVAL;
 
@@ -107,9 +109,6 @@ static int do_utimes_fd(int fd, struct timespec64 *times, int flags)
 	struct fd f;
 	int error;
 
-	if (times &&
-	    (!nsec_valid(times[0].tv_nsec) || !nsec_valid(times[1].tv_nsec)))
-		return -EINVAL;
 	if (flags)
 		return -EINVAL;
 
