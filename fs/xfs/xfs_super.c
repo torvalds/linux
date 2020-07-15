@@ -1721,6 +1721,10 @@ xfs_fc_reconfigure(
 	int			flags = fc->sb_flags;
 	int			error;
 
+	/* version 5 superblocks always support version counters. */
+	if (XFS_SB_VERSION_NUM(&mp->m_sb) == XFS_SB_VERSION_5)
+		fc->sb_flags |= SB_I_VERSION;
+
 	error = xfs_fc_validate_params(new_mp);
 	if (error)
 		return error;
