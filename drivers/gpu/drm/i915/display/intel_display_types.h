@@ -1375,6 +1375,9 @@ struct intel_dp {
 
 	/* Display stream compression testing */
 	bool force_dsc_en;
+
+	bool hobl_failed;
+	bool hobl_active;
 };
 
 enum lspcon_vendor {

@@ -706,6 +706,28 @@ static const struct cnl_ddi_buf_trans tgl_combo_phy_ddi_translations_dp_hbr2[] =
 	{ 0x6, 0x7F, 0x3F, 0x00, 0x00 },	/* 900   900      0.0   */
 };
 
+/*
+ * Cloned the HOBL entry to comply with the voltage and pre-emphasis entries
+ * that DisplayPort specification requires
+ */
+static const struct cnl_ddi_buf_trans tgl_combo_phy_ddi_translations_edp_hbr2_hobl[] = {
+						/* VS	pre-emp	*/
+	{ 0x6, 0x7F, 0x3F, 0x00, 0x00 },	/* 0	0	*/
+	{ 0x6, 0x7F, 0x3F, 0x00, 0x00 },	/* 0	1	*/
+	{ 0x6, 0x7F, 0x3F, 0x00, 0x00 },	/* 0	2	*/
+	{ 0x6, 0x7F, 0x3F, 0x00, 0x00 },	/* 0	3	*/
+	{ 0x6, 0x7F, 0x3F, 0x00, 0x00 },	/* 1	0	*/
+	{ 0x6, 0x7F, 0x3F, 0x00, 0x00 },	/* 1	1	*/
+	{ 0x6, 0x7F, 0x3F, 0x00, 0x00 },	/* 1	2	*/
+	{ 0x6, 0x7F, 0x3F, 0x00, 0x00 },	/* 2	0	*/
+	{ 0x6, 0x7F, 0x3F, 0x00, 0x00 },	/* 2	1	*/
+};
+
+static bool is_hobl_buf_trans(const struct cnl_ddi_buf_trans *table)
+{
+	return table == tgl_combo_phy_ddi_translations_edp_hbr2_hobl;
+}
+
 static const struct ddi_buf_trans *
 bdw_get_buf_trans_edp(struct intel_encoder *encoder, int *n_entries)
 {
@@ -1050,6 +1072,18 @@ static const struct cnl_ddi_buf_trans *
 tgl_get_combo_buf_trans(struct intel_encoder *encoder, int type, int rate,
 			int *n_entries)
 {
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+
+	if (type == INTEL_OUTPUT_EDP && dev_priv->vbt.edp.hobl) {
+		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+
+		if (!intel_dp->hobl_failed && rate <= 540000) {
+			/* Same table applies to TGL, RKL and DG1 */
+			*n_entries = ARRAY_SIZE(tgl_combo_phy_ddi_translations_edp_hbr2_hobl);
+			return tgl_combo_phy_ddi_translations_edp_hbr2_hobl;
+		}
+	}
+
 	if (type == INTEL_OUTPUT_HDMI || type == INTEL_OUTPUT_EDP) {
 		return icl_get_combo_buf_trans(encoder, type, rate, n_entries);
 	} else if (rate > 270000) {
@@ -2390,6 +2424,15 @@ static void icl_ddi_combo_vswing_program(struct intel_encoder *encoder,
 			    "DDI translation not found for level %d. Using %d instead.",
 			    level, n_entries - 1);
 		level = n_entries - 1;
+	}
+
+	if (type == INTEL_OUTPUT_EDP) {
+		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+
+		val = EDP4K2K_MODE_OVRD_EN | EDP4K2K_MODE_OVRD_OPTIMIZED;
+		intel_dp->hobl_active = is_hobl_buf_trans(ddi_translations);
+		intel_de_rmw(dev_priv, ICL_PORT_CL_DW10(phy), val,
+			     intel_dp->hobl_active ? val : 0);
 	}
 
 	/* Set PORT_TX_DW5 */
