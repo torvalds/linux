@@ -840,6 +840,7 @@ static void next_key(u8 *key, int round)
 static void byte_sub(u8 *in, u8 *out)
 {
 	int i;
+
 	for (i = 0; i < 16; i++)
 		out[i] = sbox(in[i]);
 }
