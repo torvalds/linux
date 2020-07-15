@@ -279,7 +279,11 @@ int __update_load_avg_blocked_se(u64 now, struct sched_entity *se)
 int __update_load_avg_se(u64 now, struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
 	if (___update_load_sum(now, &se->avg, !!se->on_rq, !!se->on_rq,
+#ifdef CONFIG_ROCKCHIP_SCHED_PERFORMANCE_BIAS
+		(sysctl_sched_performance_bias && se->on_rq) || (cfs_rq->curr == se))) {
+#else
 				cfs_rq->curr == se)) {
+#endif
 
 		___update_load_avg(&se->avg, se_weight(se), se_runnable(se));
 		cfs_se_util_change(&se->avg);

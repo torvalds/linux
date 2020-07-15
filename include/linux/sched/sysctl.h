@@ -67,6 +67,10 @@ extern unsigned int sysctl_sched_uclamp_util_max;
 extern unsigned int sysctl_sched_cfs_bandwidth_slice;
 #endif
 
+#ifdef CONFIG_ROCKCHIP_SCHED_PERFORMANCE_BIAS
+extern unsigned int sysctl_sched_performance_bias;
+#endif
+
 #ifdef CONFIG_SCHED_AUTOGROUP
 extern unsigned int sysctl_sched_autogroup_enabled;
 #endif

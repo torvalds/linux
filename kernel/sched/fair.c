@@ -20,6 +20,9 @@
  *  Adaptive scheduling granularity, math enhancements by Peter Zijlstra
  *  Copyright (C) 2007 Red Hat, Inc., Peter Zijlstra
  */
+#ifdef CONFIG_ROCKCHIP_SCHED_PERFORMANCE_BIAS
+#include <linux/cpufreq.h>
+#endif
 #include "sched.h"
 
 #include <trace/events/sched.h>
@@ -118,6 +121,10 @@ int __weak arch_asym_cpu_priority(int cpu)
  * (default: 5 msec, units: microseconds)
  */
 unsigned int sysctl_sched_cfs_bandwidth_slice		= 5000UL;
+#endif
+
+#ifdef CONFIG_ROCKCHIP_SCHED_PERFORMANCE_BIAS
+unsigned int sysctl_sched_performance_bias = 1;
 #endif
 
 /*
@@ -737,6 +744,12 @@ void init_entity_runnable_average(struct sched_entity *se)
 
 	se->runnable_weight = se->load.weight;
 
+#ifdef CONFIG_ROCKCHIP_SCHED_PERFORMANCE_BIAS
+	if (sysctl_sched_performance_bias) {
+		sa->util_avg = SCHED_CAPACITY_SCALE >> 1;
+		sa->util_sum = sa->util_avg * LOAD_AVG_MAX;
+	}
+#endif
 	/* when this task enqueue'ed, it will contribute to its cfs_rq's load_avg */
 }
 
@@ -776,7 +789,11 @@ void post_init_entity_util_avg(struct sched_entity *se)
 	long cpu_scale = arch_scale_cpu_capacity(NULL, cpu_of(rq_of(cfs_rq)));
 	long cap = (long)(cpu_scale - cfs_rq->avg.util_avg) / 2;
 
+#ifdef CONFIG_ROCKCHIP_SCHED_PERFORMANCE_BIAS
+	if (!sysctl_sched_performance_bias && (cap > 0)) {
+#else
 	if (cap > 0) {
+#endif
 		if (cfs_rq->avg.util_avg != 0) {
 			sa->util_avg  = cfs_rq->avg.util_avg * se->load.weight;
 			sa->util_avg /= (cfs_rq->avg.load_avg + 1);
@@ -3863,6 +3880,22 @@ static inline int task_fits_capacity(struct task_struct *p, long capacity)
 	return capacity * 1024 > uclamp_task_util(p) * capacity_margin;
 }
 
+#ifdef CONFIG_ROCKCHIP_SCHED_PERFORMANCE_BIAS
+static inline bool task_fits_max(struct task_struct *p, int cpu)
+{
+	unsigned long capacity = capacity_of(cpu);
+	unsigned long max_capacity = cpu_rq(cpu)->rd->max_cpu_capacity.val;
+
+	if (capacity == max_capacity)
+		return true;
+
+	if (capacity * capacity_margin > max_capacity * 1024)
+		return true;
+
+	return task_fits_capacity(p, capacity);
+}
+#endif
+
 static inline void update_misfit_status(struct task_struct *p, struct rq *rq)
 {
 	if (!static_branch_unlikely(&sched_asym_cpucapacity))
@@ -5247,6 +5280,11 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 	struct cfs_rq *cfs_rq;
 	struct sched_entity *se = &p->se;
 
+#ifdef CONFIG_ROCKCHIP_SCHED_PERFORMANCE_BIAS
+	if (sysctl_sched_performance_bias)
+		cpufreq_task_boost(rq->cpu, task_util_est(p));
+#endif
+
 	/*
 	 * The code below (indirectly) updates schedutil which looks at
 	 * the cfs_rq utilization to select a frequency.
@@ -6016,6 +6054,13 @@ find_idlest_group(struct sched_domain *sd, struct task_struct *p,
 					&p->cpus_allowed))
 			continue;
 
+#ifdef CONFIG_ROCKCHIP_SCHED_PERFORMANCE_BIAS
+		if (sysctl_sched_performance_bias) {
+			if (!task_fits_max(p, group_first_cpu(group)))
+				continue;
+		}
+#endif
+
 		local_group = cpumask_test_cpu(this_cpu,
 					       sched_group_span(group));
 
@@ -6104,6 +6149,13 @@ find_idlest_group(struct sched_domain *sd, struct task_struct *p,
 skip_spare:
 	if (!idlest)
 		return NULL;
+
+#ifdef CONFIG_ROCKCHIP_SCHED_PERFORMANCE_BIAS
+	if (sysctl_sched_performance_bias) {
+		if ((this_runnable_load == ULONG_MAX) || (this_avg_load == ULONG_MAX))
+			return idlest;
+	}
+#endif
 
 	/*
 	 * When comparing groups across NUMA domains, it's possible for the
@@ -8218,6 +8270,13 @@ static int detach_tasks(struct lb_env *env)
 			env->flags |= LBF_NEED_BREAK;
 			break;
 		}
+
+#ifdef CONFIG_ROCKCHIP_SCHED_PERFORMANCE_BIAS
+		if (sysctl_sched_performance_bias) {
+			if ((env->idle == CPU_NOT_IDLE) && (!task_fits_max(p, env->dst_cpu)))
+				goto next;
+		}
+#endif
 
 		if (!can_migrate_task(p, env))
 			goto next;
