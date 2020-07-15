@@ -99,6 +99,17 @@ config POWER_RESET_HISI
 	help
 	  Reboot support for Hisilicon boards.
 
+config POWER_RESET_LINKSTATION
+	tristate "Buffalo LinkStation power-off driver"
+	depends on ARCH_MVEBU || COMPILE_TEST
+	depends on OF_MDIO && PHYLIB
+	help
+	  This driver supports turning off some Buffalo LinkStations by
+	  setting an output pin at the ethernet PHY to the correct state.
+	  It also makes the device compatible with the WoL function.
+
+	  Say Y here if you have a Buffalo LinkStation LS421D/E.
+
 config POWER_RESET_MSM
 	bool "Qualcomm MSM power-off driver"
 	depends on ARCH_QCOM
