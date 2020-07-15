@@ -21,9 +21,9 @@
  */
 
 #include <linux/clk.h>
-#include <linux/delay.h>
 #include <linux/host1x.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
@@ -295,19 +295,15 @@ EXPORT_SYMBOL(tegra_mipi_disable);
 
 static int tegra_mipi_wait(struct tegra_mipi *mipi)
 {
-	unsigned long timeout = jiffies + msecs_to_jiffies(250);
+	void __iomem *status_reg = mipi->regs + (MIPI_CAL_STATUS << 2);
 	u32 value;
+	int err;
 
-	while (time_before(jiffies, timeout)) {
-		value = tegra_mipi_readl(mipi, MIPI_CAL_STATUS);
-		if ((value & MIPI_CAL_STATUS_ACTIVE) == 0 &&
-		    (value & MIPI_CAL_STATUS_DONE) != 0)
-			return 0;
-
-		usleep_range(10, 50);
-	}
-
-	return -ETIMEDOUT;
+	err = readl_relaxed_poll_timeout(status_reg, value,
+					 !(value & MIPI_CAL_STATUS_ACTIVE) &&
+					 (value & MIPI_CAL_STATUS_DONE), 50,
+					 250000);
+	return err;
 }
 
 int tegra_mipi_calibrate(struct tegra_mipi_device *device)
