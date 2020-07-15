@@ -2430,10 +2430,15 @@ static void r5c_recovery_flush_data_only_stripes(struct r5l_log *log,
 	struct mddev *mddev = log->rdev->mddev;
 	struct r5conf *conf = mddev->private;
 	struct stripe_head *sh, *next;
+	bool cleared_pending = false;
 
 	if (ctx->data_only_stripes == 0)
 		return;
 
+	if (test_bit(MD_SB_CHANGE_PENDING, &mddev->sb_flags)) {
+		cleared_pending = true;
+		clear_bit(MD_SB_CHANGE_PENDING, &mddev->sb_flags);
+	}
 	log->r5c_journal_mode = R5C_JOURNAL_MODE_WRITE_BACK;
 
 	list_for_each_entry_safe(sh, next, &ctx->cached_list, lru) {
@@ -2448,6 +2453,8 @@ static void r5c_recovery_flush_data_only_stripes(struct r5l_log *log,
 		   atomic_read(&conf->active_stripes) == 0);
 
 	log->r5c_journal_mode = R5C_JOURNAL_MODE_WRITE_THROUGH;
+	if (cleared_pending)
+		set_bit(MD_SB_CHANGE_PENDING, &mddev->sb_flags);
 }
 
 static int r5l_recovery_log(struct r5l_log *log)
