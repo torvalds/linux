@@ -16,7 +16,7 @@ static bool nsec_valid(long nsec)
 	return nsec >= 0 && nsec <= 999999999;
 }
 
-static int utimes_common(const struct path *path, struct timespec64 *times)
+int vfs_utimes(const struct path *path, struct timespec64 *times)
 {
 	int error;
 	struct iattr newattrs;
@@ -94,7 +94,7 @@ retry:
 	if (error)
 		return error;
 
-	error = utimes_common(&path, times);
+	error = vfs_utimes(&path, times);
 	path_put(&path);
 	if (retry_estale(error, lookup_flags)) {
 		lookup_flags |= LOOKUP_REVAL;
@@ -115,7 +115,7 @@ static int do_utimes_fd(int fd, struct timespec64 *times, int flags)
 	f = fdget(fd);
 	if (!f.file)
 		return -EBADF;
-	error = utimes_common(&f.file->f_path, times);
+	error = vfs_utimes(&f.file->f_path, times);
 	fdput(f);
 	return error;
 }
