@@ -173,6 +173,7 @@ struct bnxt_qplib_db_info {
 	void __iomem		*priv_db;
 	struct bnxt_qplib_hwq	*hwq;
 	u32			xid;
+	u32			max_slot;
 };
 
 /* Tables */
@@ -332,6 +333,14 @@ static inline void *bnxt_qplib_get_qe(struct bnxt_qplib_hwq *hwq,
 	return (void *)(hwq->pbl_ptr[pg_num] + hwq->element_size * pg_idx);
 }
 
+static inline void *bnxt_qplib_get_prod_qe(struct bnxt_qplib_hwq *hwq, u32 idx)
+{
+	idx += hwq->prod;
+	if (idx >= hwq->depth)
+		idx -= hwq->depth;
+	return bnxt_qplib_get_qe(hwq, idx, NULL);
+}
+
 #define to_bnxt_qplib(ptr, type, member)	\
 	container_of(ptr, type, member)
 
@@ -409,8 +418,7 @@ static inline void bnxt_qplib_ring_prod_db(struct bnxt_qplib_db_info *info,
 
 	key = (info->xid & DBC_DBC_XID_MASK) | DBC_DBC_PATH_ROCE | type;
 	key <<= 32;
-	key |= (info->hwq->prod & (info->hwq->max_elements - 1)) &
-		DBC_DBC_INDEX_MASK;
+	key |= ((info->hwq->prod / info->max_slot)) & DBC_DBC_INDEX_MASK;
 	writeq(key, info->db);
 }
 

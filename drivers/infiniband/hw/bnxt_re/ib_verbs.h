@@ -136,14 +136,14 @@ struct bnxt_re_ucontext {
 	spinlock_t		sh_lock;	/* protect shpg */
 };
 
-static inline u16 bnxt_re_get_swqe_size(void)
+static inline u16 bnxt_re_get_swqe_size(int nsge)
 {
-	return sizeof(struct sq_send);
+	return sizeof(struct sq_send_hdr) + nsge * sizeof(struct sq_sge);
 }
 
-static inline u16 bnxt_re_get_rwqe_size(void)
+static inline u16 bnxt_re_get_rwqe_size(int nsge)
 {
-	return sizeof(struct rq_wqe);
+	return sizeof(struct rq_wqe_hdr) + (nsge * sizeof(struct sq_sge));
 }
 
 int bnxt_re_query_device(struct ib_device *ibdev,
