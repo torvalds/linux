@@ -1788,13 +1788,29 @@ long i915_request_wait(struct i915_request *rq,
 	if (dma_fence_add_callback(&rq->fence, &wait.cb, request_wait_wake))
 		goto out;
 
+	/*
+	 * Flush the submission tasklet, but only if it may help this request.
+	 *
+	 * We sometimes experience some latency between the HW interrupts and
+	 * tasklet execution (mostly due to ksoftirqd latency, but it can also
+	 * be due to lazy CS events), so lets run the tasklet manually if there
+	 * is a chance it may submit this request. If the request is not ready
+	 * to run, as it is waiting for other fences to be signaled, flushing
+	 * the tasklet is busy work without any advantage for this client.
+	 *
+	 * If the HW is being lazy, this is the last chance before we go to
+	 * sleep to catch any pending events. We will check periodically in
+	 * the heartbeat to flush the submission tasklets as a last resort
+	 * for unhappy HW.
+	 */
+	if (i915_request_is_ready(rq))
+		intel_engine_flush_submission(rq->engine);
+
 	for (;;) {
 		set_current_state(state);
 
 		if (dma_fence_is_signaled(&rq->fence))
 			break;
-
-		intel_engine_flush_submission(rq->engine);
 
 		if (signal_pending_state(state, current)) {
 			timeout = -ERESTARTSYS;
