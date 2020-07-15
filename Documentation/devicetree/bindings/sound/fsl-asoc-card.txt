@@ -69,6 +69,9 @@ Optional properties:
 			        coexisting in order to support the old bindings
 				of wm8962 and sgtl5000.
 
+  - hp-det-gpio		: The GPIO that detect headphones are plugged in
+  - mic-det-gpio	: The GPIO that detect microphones are plugged in
+
 Optional unless SSI is selected as a CPU DAI:
 
   - mux-int-port	: The internal port of the i.MX audio muxer (AUDMUX)
