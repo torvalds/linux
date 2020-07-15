@@ -462,6 +462,7 @@ static void io_impersonate_work(struct io_worker *worker,
 		io_wq_switch_mm(worker, work);
 	if (worker->cur_creds != work->creds)
 		io_wq_switch_creds(worker, work);
+	current->signal->rlim[RLIMIT_FSIZE].rlim_cur = work->fsize;
 }
 
 static void io_assign_current_work(struct io_worker *worker,

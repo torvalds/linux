@@ -645,7 +645,6 @@ struct io_kiocb {
 	unsigned int		flags;
 	refcount_t		refs;
 	struct task_struct	*task;
-	unsigned long		fsize;
 	u64			user_data;
 
 	struct list_head	link_list;
@@ -736,6 +735,7 @@ struct io_op_def {
 	unsigned		pollout : 1;
 	/* op supports buffer selection */
 	unsigned		buffer_select : 1;
+	unsigned		needs_fsize : 1;
 };
 
 static const struct io_op_def io_op_defs[] = {
@@ -755,6 +755,7 @@ static const struct io_op_def io_op_defs[] = {
 		.hash_reg_file		= 1,
 		.unbound_nonreg_file	= 1,
 		.pollout		= 1,
+		.needs_fsize		= 1,
 	},
 	[IORING_OP_FSYNC] = {
 		.needs_file		= 1,
@@ -769,6 +770,7 @@ static const struct io_op_def io_op_defs[] = {
 		.hash_reg_file		= 1,
 		.unbound_nonreg_file	= 1,
 		.pollout		= 1,
+		.needs_fsize		= 1,
 	},
 	[IORING_OP_POLL_ADD] = {
 		.needs_file		= 1,
@@ -821,6 +823,7 @@ static const struct io_op_def io_op_defs[] = {
 	},
 	[IORING_OP_FALLOCATE] = {
 		.needs_file		= 1,
+		.needs_fsize		= 1,
 	},
 	[IORING_OP_OPENAT] = {
 		.file_table		= 1,
@@ -852,6 +855,7 @@ static const struct io_op_def io_op_defs[] = {
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
 		.pollout		= 1,
+		.needs_fsize		= 1,
 	},
 	[IORING_OP_FADVISE] = {
 		.needs_file		= 1,
@@ -1169,6 +1173,10 @@ static void io_prep_async_work(struct io_kiocb *req)
 		}
 		spin_unlock(&current->fs->lock);
 	}
+	if (def->needs_fsize)
+		req->work.fsize = rlimit(RLIMIT_FSIZE);
+	else
+		req->work.fsize = RLIM_INFINITY;
 }
 
 static void io_prep_async_link(struct io_kiocb *req)
@@ -3072,8 +3080,6 @@ static int io_write_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 	if (unlikely(!(req->file->f_mode & FMODE_WRITE)))
 		return -EBADF;
 
-	req->fsize = rlimit(RLIMIT_FSIZE);
-
 	/* either don't need iovec imported or already have it */
 	if (!req->io || req->flags & REQ_F_NEED_CLEANUP)
 		return 0;
@@ -3130,16 +3136,10 @@ static int io_write(struct io_kiocb *req, bool force_nonblock,
 		}
 		kiocb->ki_flags |= IOCB_WRITE;
 
-		if (!force_nonblock)
-			current->signal->rlim[RLIMIT_FSIZE].rlim_cur = req->fsize;
-
 		if (req->file->f_op->write_iter)
 			ret2 = call_write_iter(req->file, kiocb, &iter);
 		else
 			ret2 = loop_rw_iter(WRITE, req->file, kiocb, &iter);
-
-		if (!force_nonblock)
-			current->signal->rlim[RLIMIT_FSIZE].rlim_cur = RLIM_INFINITY;
 
 		/*
 		 * Raw bdev writes will return -EOPNOTSUPP for IOCB_NOWAIT. Just
@@ -3335,7 +3335,6 @@ static int io_fallocate_prep(struct io_kiocb *req,
 	req->sync.off = READ_ONCE(sqe->off);
 	req->sync.len = READ_ONCE(sqe->addr);
 	req->sync.mode = READ_ONCE(sqe->len);
-	req->fsize = rlimit(RLIMIT_FSIZE);
 	return 0;
 }
 
@@ -3346,11 +3345,8 @@ static int io_fallocate(struct io_kiocb *req, bool force_nonblock)
 	/* fallocate always requiring blocking context */
 	if (force_nonblock)
 		return -EAGAIN;
-
-	current->signal->rlim[RLIMIT_FSIZE].rlim_cur = req->fsize;
 	ret = vfs_fallocate(req->file, req->sync.mode, req->sync.off,
 				req->sync.len);
-	current->signal->rlim[RLIMIT_FSIZE].rlim_cur = RLIM_INFINITY;
 	if (ret < 0)
 		req_set_fail_links(req);
 	io_req_complete(req, ret);

@@ -89,6 +89,7 @@ struct io_wq_work {
 	struct mm_struct *mm;
 	const struct cred *creds;
 	struct fs_struct *fs;
+	unsigned long fsize;
 	unsigned flags;
 };
 
