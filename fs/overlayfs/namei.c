@@ -1066,6 +1066,10 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 			upperredirect = NULL;
 			goto out_free_oe;
 		}
+		err = ovl_check_metacopy_xattr(upperdentry);
+		if (err < 0)
+			goto out_free_oe;
+		uppermetacopy = err;
 	}
 
 	if (upperdentry || ctr) {
