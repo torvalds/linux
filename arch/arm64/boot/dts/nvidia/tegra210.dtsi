@@ -361,6 +361,9 @@
 			compatible = "nvidia,tegra210-isp";
 			reg = <0x0 0x54600000 0x0 0x00040000>;
 			interrupts = <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&tegra_car TEGRA210_CLK_ISPA>;
+			resets = <&tegra_car 23>;
+			reset-names = "isp";
 			status = "disabled";
 		};
 
@@ -368,6 +371,9 @@
 			compatible = "nvidia,tegra210-isp";
 			reg = <0x0 0x54680000 0x0 0x00040000>;
 			interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&tegra_car TEGRA210_CLK_ISPB>;
+			resets = <&tegra_car 3>;
+			reset-names = "isp";
 			status = "disabled";
 		};
 
