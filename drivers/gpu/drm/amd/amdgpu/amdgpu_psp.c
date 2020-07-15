@@ -2286,7 +2286,9 @@ int parse_ta_bin_descriptor(struct psp_context *psp,
 	if (!psp || !desc || !ta_hdr)
 		return -EINVAL;
 
-	ucode_start_addr  = (uint8_t *)ta_hdr + le32_to_cpu(desc->offset_bytes);
+	ucode_start_addr  = (uint8_t *)ta_hdr +
+			    le32_to_cpu(desc->offset_bytes) +
+			    le32_to_cpu(ta_hdr->header.ucode_array_offset_bytes);
 
 	switch (desc->fw_type) {
 	case TA_FW_TYPE_PSP_ASD:
