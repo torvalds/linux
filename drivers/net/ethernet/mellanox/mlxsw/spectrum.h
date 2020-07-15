@@ -62,6 +62,8 @@ enum mlxsw_sp_resource_id {
 	MLXSW_SP_RESOURCE_COUNTERS,
 	MLXSW_SP_RESOURCE_COUNTERS_FLOW,
 	MLXSW_SP_RESOURCE_COUNTERS_RIF,
+	MLXSW_SP_RESOURCE_GLOBAL_POLICERS,
+	MLXSW_SP_RESOURCE_SINGLE_RATE_POLICERS,
 };
 
 struct mlxsw_sp_port;
@@ -1227,5 +1229,6 @@ int mlxsw_sp_policer_drops_counter_get(struct mlxsw_sp *mlxsw_sp,
 				       u16 policer_index, u64 *p_drops);
 int mlxsw_sp_policers_init(struct mlxsw_sp *mlxsw_sp);
 void mlxsw_sp_policers_fini(struct mlxsw_sp *mlxsw_sp);
+int mlxsw_sp_policer_resources_register(struct mlxsw_core *mlxsw_core);
 
 #endif
