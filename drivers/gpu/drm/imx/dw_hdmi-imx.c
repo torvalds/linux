@@ -111,10 +111,6 @@ static int dw_hdmi_imx_parse_dt(struct imx_hdmi *hdmi)
 	return 0;
 }
 
-static void dw_hdmi_imx_encoder_disable(struct drm_encoder *encoder)
-{
-}
-
 static void dw_hdmi_imx_encoder_enable(struct drm_encoder *encoder)
 {
 	struct imx_hdmi *hdmi = enc_to_imx_hdmi(encoder);
@@ -140,7 +136,6 @@ static int dw_hdmi_imx_atomic_check(struct drm_encoder *encoder,
 
 static const struct drm_encoder_helper_funcs dw_hdmi_imx_encoder_helper_funcs = {
 	.enable     = dw_hdmi_imx_encoder_enable,
-	.disable    = dw_hdmi_imx_encoder_disable,
 	.atomic_check = dw_hdmi_imx_atomic_check,
 };
 
