@@ -148,16 +148,6 @@ static inline bool mlx5e_accel_tx_finish(struct mlx5e_priv *priv,
 	return true;
 }
 
-static inline int mlx5e_accel_sk_get_rxq(struct sock *sk)
-{
-	int rxq = sk_rx_queue_get(sk);
-
-	if (unlikely(rxq == -1))
-		rxq = 0;
-
-	return rxq;
-}
-
 static inline int mlx5e_accel_init_rx(struct mlx5e_priv *priv)
 {
 	return mlx5e_ktls_init_rx(priv);
