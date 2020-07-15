@@ -1791,10 +1791,10 @@ static const struct snd_kcontrol_new snd_ac97_ad1981x_jack_sense[] = {
 	AC97_SINGLE("Line Jack Sense", AC97_AD_JACK_SPDIF, 12, 1, 0),
 };
 
-/* black list to avoid HP/Line jack-sense controls
+/* deny list to avoid HP/Line jack-sense controls
  * (SS vendor << 16 | device)
  */
-static const unsigned int ad1981_jacks_blacklist[] = {
+static const unsigned int ad1981_jacks_denylist[] = {
 	0x10140523, /* Thinkpad R40 */
 	0x10140534, /* Thinkpad X31 */
 	0x10140537, /* Thinkpad T41p */
@@ -1821,7 +1821,7 @@ static int check_list(struct snd_ac97 *ac97, const unsigned int *list)
 
 static int patch_ad1981a_specific(struct snd_ac97 * ac97)
 {
-	if (check_list(ac97, ad1981_jacks_blacklist))
+	if (check_list(ac97, ad1981_jacks_denylist))
 		return 0;
 	return patch_build_controls(ac97, snd_ac97_ad1981x_jack_sense,
 				    ARRAY_SIZE(snd_ac97_ad1981x_jack_sense));
@@ -1835,10 +1835,10 @@ static const struct snd_ac97_build_ops patch_ad1981a_build_ops = {
 #endif
 };
 
-/* white list to enable HP jack-sense bits
+/* allow list to enable HP jack-sense bits
  * (SS vendor << 16 | device)
  */
-static const unsigned int ad1981_jacks_whitelist[] = {
+static const unsigned int ad1981_jacks_allowlist[] = {
 	0x0e11005a, /* HP nc4000/4010 */
 	0x103c0890, /* HP nc6000 */
 	0x103c0938, /* HP nc4220 */
@@ -1853,7 +1853,7 @@ static const unsigned int ad1981_jacks_whitelist[] = {
 
 static void check_ad1981_hp_jack_sense(struct snd_ac97 *ac97)
 {
-	if (check_list(ac97, ad1981_jacks_whitelist))
+	if (check_list(ac97, ad1981_jacks_allowlist))
 		/* enable headphone jack sense */
 		snd_ac97_update_bits(ac97, AC97_AD_JACK_SPDIF, 1<<11, 1<<11);
 }
@@ -1877,7 +1877,7 @@ static int patch_ad1981b_specific(struct snd_ac97 *ac97)
 
 	if ((err = patch_build_controls(ac97, &snd_ac97_ad198x_2cmic, 1)) < 0)
 		return err;
-	if (check_list(ac97, ad1981_jacks_blacklist))
+	if (check_list(ac97, ad1981_jacks_denylist))
 		return 0;
 	return patch_build_controls(ac97, snd_ac97_ad1981x_jack_sense,
 				    ARRAY_SIZE(snd_ac97_ad1981x_jack_sense));

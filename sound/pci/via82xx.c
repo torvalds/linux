@@ -2419,7 +2419,7 @@ static const struct via823x_info via823x_cards[] = {
  * auto detection of DXS channel supports.
  */
 
-static const struct snd_pci_quirk dxs_whitelist[] = {
+static const struct snd_pci_quirk dxs_allowlist[] = {
 	SND_PCI_QUIRK(0x1005, 0x4710, "Avance Logic Mobo", VIA_DXS_ENABLE),
 	SND_PCI_QUIRK(0x1019, 0x0996, "ESC Mobo", VIA_DXS_48K),
 	SND_PCI_QUIRK(0x1019, 0x0a81, "ECS K7VTA3 v8.0", VIA_DXS_NO_VRA),
@@ -2467,9 +2467,9 @@ static int check_dxs_list(struct pci_dev *pci, int revision)
 {
 	const struct snd_pci_quirk *w;
 
-	w = snd_pci_quirk_lookup(pci, dxs_whitelist);
+	w = snd_pci_quirk_lookup(pci, dxs_allowlist);
 	if (w) {
-		dev_dbg(&pci->dev, "DXS white list for %s found\n",
+		dev_dbg(&pci->dev, "DXS allow list for %s found\n",
 			    snd_pci_quirk_name(w));
 		return w->value;
 	}
