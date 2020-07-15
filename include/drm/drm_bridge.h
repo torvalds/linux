@@ -475,7 +475,7 @@ struct drm_bridge_funcs {
 	 * one of them should be provided.
 	 *
 	 * If drivers need to tweak &drm_bridge_state.input_bus_cfg.flags or
-	 * &drm_bridge_state.output_bus_cfg.flags it should should happen in
+	 * &drm_bridge_state.output_bus_cfg.flags it should happen in
 	 * this function. By default the &drm_bridge_state.output_bus_cfg.flags
 	 * field is set to the next bridge
 	 * &drm_bridge_state.input_bus_cfg.flags value or
