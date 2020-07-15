@@ -1115,31 +1115,7 @@ static void __io_commit_cqring(struct io_ring_ctx *ctx)
 	}
 }
 
-static void io_req_work_grab_env(struct io_kiocb *req)
-{
-	const struct io_op_def *def = &io_op_defs[req->opcode];
-
-	io_req_init_async(req);
-
-	if (!req->work.mm && def->needs_mm) {
-		mmgrab(current->mm);
-		req->work.mm = current->mm;
-	}
-	if (!req->work.creds)
-		req->work.creds = get_current_cred();
-	if (!req->work.fs && def->needs_fs) {
-		spin_lock(&current->fs->lock);
-		if (!current->fs->in_exec) {
-			req->work.fs = current->fs;
-			req->work.fs->users++;
-		} else {
-			req->work.flags |= IO_WQ_WORK_CANCEL;
-		}
-		spin_unlock(&current->fs->lock);
-	}
-}
-
-static inline void io_req_work_drop_env(struct io_kiocb *req)
+static void io_req_clean_work(struct io_kiocb *req)
 {
 	if (!(req->flags & REQ_F_WORK_INITIALIZED))
 		return;
@@ -1177,8 +1153,22 @@ static void io_prep_async_work(struct io_kiocb *req)
 		if (def->unbound_nonreg_file)
 			req->work.flags |= IO_WQ_WORK_UNBOUND;
 	}
-
-	io_req_work_grab_env(req);
+	if (!req->work.mm && def->needs_mm) {
+		mmgrab(current->mm);
+		req->work.mm = current->mm;
+	}
+	if (!req->work.creds)
+		req->work.creds = get_current_cred();
+	if (!req->work.fs && def->needs_fs) {
+		spin_lock(&current->fs->lock);
+		if (!current->fs->in_exec) {
+			req->work.fs = current->fs;
+			req->work.fs->users++;
+		} else {
+			req->work.flags |= IO_WQ_WORK_CANCEL;
+		}
+		spin_unlock(&current->fs->lock);
+	}
 }
 
 static void io_prep_async_link(struct io_kiocb *req)
@@ -1547,7 +1537,7 @@ static void io_dismantle_req(struct io_kiocb *req)
 	if (req->file)
 		io_put_file(req, req->file, (req->flags & REQ_F_FIXED_FILE));
 	__io_put_req_task(req);
-	io_req_work_drop_env(req);
+	io_req_clean_work(req);
 
 	if (req->flags & REQ_F_INFLIGHT) {
 		struct io_ring_ctx *ctx = req->ctx;
@@ -4825,7 +4815,7 @@ static bool io_poll_remove_one(struct io_kiocb *req)
 			io_put_req(req);
 			/*
 			 * restore ->work because we will call
-			 * io_req_work_drop_env below when dropping the
+			 * io_req_clean_work below when dropping the
 			 * final reference.
 			 */
 			if (req->flags & REQ_F_WORK_INITIALIZED)
@@ -4965,7 +4955,7 @@ static int io_poll_add(struct io_kiocb *req)
 	__poll_t mask;
 
 	/* ->work is in union with hash_node and others */
-	io_req_work_drop_env(req);
+	io_req_clean_work(req);
 	req->flags &= ~REQ_F_WORK_INITIALIZED;
 
 	INIT_HLIST_NODE(&req->hash_node);
