@@ -971,15 +971,6 @@ static int iio_enable_buffers(struct iio_dev *indio_dev,
 			goto err_disable_buffers;
 	}
 
-	if (indio_dev->setup_ops->postenable) {
-		ret = indio_dev->setup_ops->postenable(indio_dev);
-		if (ret) {
-			dev_dbg(&indio_dev->dev,
-			       "Buffer not started: postenable failed (%d)\n", ret);
-			goto err_disable_buffers;
-		}
-	}
-
 	if (indio_dev->currentmode == INDIO_BUFFER_TRIGGERED) {
 		ret = iio_trigger_attach_poll_func(indio_dev->trig,
 						   indio_dev->pollfunc);
@@ -987,8 +978,22 @@ static int iio_enable_buffers(struct iio_dev *indio_dev,
 			goto err_disable_buffers;
 	}
 
+	if (indio_dev->setup_ops->postenable) {
+		ret = indio_dev->setup_ops->postenable(indio_dev);
+		if (ret) {
+			dev_dbg(&indio_dev->dev,
+			       "Buffer not started: postenable failed (%d)\n", ret);
+			goto err_detach_pollfunc;
+		}
+	}
+
 	return 0;
 
+err_detach_pollfunc:
+	if (indio_dev->currentmode == INDIO_BUFFER_TRIGGERED) {
+		iio_trigger_detach_poll_func(indio_dev->trig,
+					     indio_dev->pollfunc);
+	}
 err_disable_buffers:
 	list_for_each_entry_continue_reverse(buffer, &iio_dev_opaque->buffer_list,
 					     buffer_list)
@@ -1014,11 +1019,6 @@ static int iio_disable_buffers(struct iio_dev *indio_dev)
 	if (list_empty(&iio_dev_opaque->buffer_list))
 		return 0;
 
-	if (indio_dev->currentmode == INDIO_BUFFER_TRIGGERED) {
-		iio_trigger_detach_poll_func(indio_dev->trig,
-					     indio_dev->pollfunc);
-	}
-
 	/*
 	 * If things go wrong at some step in disable we still need to continue
 	 * to perform the other steps, otherwise we leave the device in a
@@ -1030,6 +1030,11 @@ static int iio_disable_buffers(struct iio_dev *indio_dev)
 		ret2 = indio_dev->setup_ops->predisable(indio_dev);
 		if (ret2 && !ret)
 			ret = ret2;
+	}
+
+	if (indio_dev->currentmode == INDIO_BUFFER_TRIGGERED) {
+		iio_trigger_detach_poll_func(indio_dev->trig,
+					     indio_dev->pollfunc);
 	}
 
 	list_for_each_entry(buffer, &iio_dev_opaque->buffer_list, buffer_list) {
