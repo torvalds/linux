@@ -1054,6 +1054,7 @@ enum {
 enum {
 	MLX5_INTERFACE_PROTOCOL_IB  = 0,
 	MLX5_INTERFACE_PROTOCOL_ETH = 1,
+	MLX5_INTERFACE_PROTOCOL_VDPA = 2,
 };
 
 struct mlx5_interface {
