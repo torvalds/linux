@@ -5279,6 +5279,9 @@ static int io_req_defer_prep(struct io_kiocb *req,
 	if (!sqe)
 		return 0;
 
+	if (io_alloc_async_ctx(req))
+		return -EAGAIN;
+
 	if (io_op_defs[req->opcode].file_table) {
 		io_req_init_async(req);
 		ret = io_grab_files(req);
@@ -5418,10 +5421,8 @@ static int io_req_defer(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		return 0;
 
 	if (!req->io) {
-		if (io_alloc_async_ctx(req))
-			return -EAGAIN;
 		ret = io_req_defer_prep(req, sqe);
-		if (ret < 0)
+		if (ret)
 			return ret;
 	}
 	io_prep_async_link(req);
@@ -6024,11 +6025,8 @@ fail_req:
 		}
 	} else if (req->flags & REQ_F_FORCE_ASYNC) {
 		if (!req->io) {
-			ret = -EAGAIN;
-			if (io_alloc_async_ctx(req))
-				goto fail_req;
 			ret = io_req_defer_prep(req, sqe);
-			if (unlikely(ret < 0))
+			if (unlikely(ret))
 				goto fail_req;
 		}
 
@@ -6081,11 +6079,8 @@ static int io_submit_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 			head->flags |= REQ_F_IO_DRAIN;
 			ctx->drain_next = 1;
 		}
-		if (io_alloc_async_ctx(req))
-			return -EAGAIN;
-
 		ret = io_req_defer_prep(req, sqe);
-		if (ret) {
+		if (unlikely(ret)) {
 			/* fail even hard links since we don't submit */
 			head->flags |= REQ_F_FAIL_LINK;
 			return ret;
@@ -6108,11 +6103,8 @@ static int io_submit_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 			req->flags |= REQ_F_LINK_HEAD;
 			INIT_LIST_HEAD(&req->link_list);
 
-			if (io_alloc_async_ctx(req))
-				return -EAGAIN;
-
 			ret = io_req_defer_prep(req, sqe);
-			if (ret)
+			if (unlikely(ret))
 				req->flags |= REQ_F_FAIL_LINK;
 			*link = req;
 		} else {
