@@ -15,15 +15,13 @@ extern char bpfilter_umh_end;
 
 static void shutdown_umh(void)
 {
-	struct task_struct *tsk;
+	struct umd_info *info = &bpfilter_ops.info;
+	struct pid *tgid = info->tgid;
 
-	if (bpfilter_ops.stop)
-		return;
-
-	tsk = get_pid_task(find_vpid(bpfilter_ops.info.pid), PIDTYPE_PID);
-	if (tsk) {
-		send_sig(SIGKILL, tsk, 1);
-		put_task_struct(tsk);
+	if (tgid) {
+		kill_pid(tgid, SIGKILL, 1);
+		wait_event(tgid->wait_pidfd, thread_group_exited(tgid));
+		bpfilter_umh_cleanup(info);
 	}
 }
 
@@ -48,8 +46,9 @@ static int __bpfilter_process_sockopt(struct sock *sk, int optname,
 	req.cmd = optname;
 	req.addr = (long __force __user)optval;
 	req.len = optlen;
-	if (!bpfilter_ops.info.pid)
+	if (!bpfilter_ops.info.tgid)
 		goto out;
+	pos = 0;
 	n = kernel_write(bpfilter_ops.info.pipe_to_umh, &req, sizeof(req),
 			   &pos);
 	if (n != sizeof(req)) {
@@ -77,13 +76,10 @@ static int start_umh(void)
 	int err;
 
 	/* fork usermode process */
-	err = fork_usermode_blob(&bpfilter_umh_start,
-				 &bpfilter_umh_end - &bpfilter_umh_start,
-				 &bpfilter_ops.info);
+	err = fork_usermode_driver(&bpfilter_ops.info);
 	if (err)
 		return err;
-	bpfilter_ops.stop = false;
-	pr_info("Loaded bpfilter_umh pid %d\n", bpfilter_ops.info.pid);
+	pr_info("Loaded bpfilter_umh pid %d\n", pid_nr(bpfilter_ops.info.tgid));
 
 	/* health check that usermode process started correctly */
 	if (__bpfilter_process_sockopt(NULL, 0, NULL, 0, 0) != 0) {
@@ -98,18 +94,21 @@ static int __init load_umh(void)
 {
 	int err;
 
+	err = umd_load_blob(&bpfilter_ops.info,
+			    &bpfilter_umh_start,
+			    &bpfilter_umh_end - &bpfilter_umh_start);
+	if (err)
+		return err;
+
 	mutex_lock(&bpfilter_ops.lock);
-	if (!bpfilter_ops.stop) {
-		err = -EFAULT;
-		goto out;
-	}
 	err = start_umh();
 	if (!err && IS_ENABLED(CONFIG_INET)) {
 		bpfilter_ops.sockopt = &__bpfilter_process_sockopt;
 		bpfilter_ops.start = &start_umh;
 	}
-out:
 	mutex_unlock(&bpfilter_ops.lock);
+	if (err)
+		umd_unload_blob(&bpfilter_ops.info);
 	return err;
 }
 
@@ -122,6 +121,8 @@ static void __exit fini_umh(void)
 		bpfilter_ops.sockopt = NULL;
 	}
 	mutex_unlock(&bpfilter_ops.lock);
+
+	umd_unload_blob(&bpfilter_ops.info);
 }
 module_init(load_umh);
 module_exit(fini_umh);
