@@ -430,6 +430,7 @@ struct haptics_chip {
 	struct regulator_dev		*swr_slave_rdev;
 	struct mutex			irq_lock;
 	struct nvmem_cell		*cl_brake_nvmem;
+	struct nvmem_device		*hap_cfg_nvmem;
 	struct class			hap_class;
 	int				fifo_empty_irq;
 	u32				effects_count;
@@ -892,6 +893,40 @@ static int haptics_set_direct_play(struct haptics_chip *chip, u8 amplitude)
 	return rc;
 }
 
+#define PBS_ARG_REG				0x42
+#define HAP_VREG_ON_VAL				0x1
+#define HAP_VREG_OFF_VAL			0x2
+#define PBS_TRIG_SET_REG			0xE5
+#define PBS_TRIG_SET_VAL			0x1
+static int haptics_boost_vreg_enable(struct haptics_chip *chip, bool en)
+{
+	int rc;
+	u8 val;
+
+	if (chip->hap_cfg_nvmem == NULL) {
+		dev_dbg(chip->dev, "nvmem device for hap_cfg is not defined\n");
+		return 0;
+	}
+
+	val = en ? HAP_VREG_ON_VAL : HAP_VREG_OFF_VAL;
+	rc = nvmem_device_write(chip->hap_cfg_nvmem,
+			PBS_ARG_REG, 1, &val);
+	if (rc < 0) {
+		dev_err(chip->dev, "write SDAM %#x failed, rc=%d\n",
+				PBS_ARG_REG, rc);
+		return rc;
+	}
+
+	val = PBS_TRIG_SET_VAL;
+	rc = nvmem_device_write(chip->hap_cfg_nvmem,
+			PBS_TRIG_SET_REG, 1, &val);
+	if (rc < 0)
+		dev_err(chip->dev, "Write SDAM %#x failed, rc=%d\n",
+				PBS_TRIG_SET_REG, rc);
+
+	return rc;
+}
+
 static int haptics_enable_play(struct haptics_chip *chip, bool en)
 {
 	struct haptics_play_info *play = &chip->play;
@@ -916,8 +951,17 @@ static int haptics_enable_play(struct haptics_chip *chip, bool en)
 
 	rc = haptics_write(chip, chip->cfg_addr_base,
 			HAP_CFG_SPMI_PLAY_REG, &val, 1);
-	if (rc < 0)
+	if (rc < 0) {
 		dev_err(chip->dev, "Write SPMI_PLAY failed, rc=%d\n", rc);
+		return rc;
+	}
+
+	if (play->pattern_src == FIFO) {
+		rc = haptics_boost_vreg_enable(chip, en);
+		if (rc < 0)
+			dev_err(chip->dev, "Notify vreg %s failed, rc=%d\n",
+					en ? "enabling" : "disabling", rc);
+	}
 
 	return rc;
 }
@@ -3065,6 +3109,18 @@ static int haptics_parse_dt(struct haptics_chip *chip)
 				dev_err(chip->dev, "Failed to get nvmem-cells, rc=%d\n",
 							rc);
 
+			return rc;
+		}
+	}
+
+	if (of_find_property(node, "nvmem", NULL)) {
+		chip->hap_cfg_nvmem =
+			devm_nvmem_device_get(chip->dev, "hap_cfg_sdam");
+		if (IS_ERR(chip->hap_cfg_nvmem)) {
+			rc = PTR_ERR(chip->hap_cfg_nvmem);
+			if (rc != -EPROBE_DEFER)
+				dev_err(chip->dev, "Failed to get nvmem device, rc=%d\n",
+						rc);
 			return rc;
 		}
 	}
