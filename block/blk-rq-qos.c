@@ -273,6 +273,8 @@ void rq_qos_wait(struct rq_wait *rqw, void *private_data,
 		if (data.got_token)
 			break;
 		if (!has_sleeper && acquire_inflight_cb(rqw, private_data)) {
+			finish_wait(&rqw->wait, &data.wq);
+
 			/*
 			 * We raced with wbt_wake_function() getting a token,
 			 * which means we now have two. Put our local token
