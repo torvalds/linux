@@ -498,7 +498,7 @@ struct qed_fcoe_pf_params {
 	u8 bdq_pbl_num_entries[2];
 };
 
-/* Most of the the parameters below are described in the FW iSCSI / TCP HSI */
+/* Most of the parameters below are described in the FW iSCSI / TCP HSI */
 struct qed_iscsi_pf_params {
 	u64 glbl_q_params_addr;
 	u64 bdq_pbl_base_addr[3];
