@@ -332,6 +332,9 @@ int mock_engine_init(struct intel_engine_cs *engine)
 	if (IS_ERR(ce))
 		goto err_breadcrumbs;
 
+	/* We insist the kernel context is using the status_page */
+	engine->status_page.vma = ce->timeline->hwsp_ggtt;
+
 	engine->kernel_context = ce;
 	return 0;
 
