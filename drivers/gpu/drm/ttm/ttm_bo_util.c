@@ -93,7 +93,7 @@ EXPORT_SYMBOL(ttm_bo_move_ttm);
 
 int ttm_mem_io_lock(struct ttm_mem_type_manager *man, bool interruptible)
 {
-	if (likely(man->io_reserve_fastpath))
+	if (likely(!man->use_io_reserve_lru))
 		return 0;
 
 	if (interruptible)
@@ -105,7 +105,7 @@ int ttm_mem_io_lock(struct ttm_mem_type_manager *man, bool interruptible)
 
 void ttm_mem_io_unlock(struct ttm_mem_type_manager *man)
 {
-	if (likely(man->io_reserve_fastpath))
+	if (likely(!man->use_io_reserve_lru))
 		return;
 
 	mutex_unlock(&man->io_reserve_mutex);
@@ -136,7 +136,7 @@ int ttm_mem_io_reserve(struct ttm_bo_device *bdev,
 
 	if (!bdev->driver->io_mem_reserve)
 		return 0;
-	if (likely(man->io_reserve_fastpath))
+	if (likely(!man->use_io_reserve_lru))
 		return bdev->driver->io_mem_reserve(bdev, mem);
 
 	if (bdev->driver->io_mem_reserve &&
@@ -157,7 +157,7 @@ void ttm_mem_io_free(struct ttm_bo_device *bdev,
 {
 	struct ttm_mem_type_manager *man = &bdev->man[mem->mem_type];
 
-	if (likely(man->io_reserve_fastpath))
+	if (likely(!man->use_io_reserve_lru))
 		return;
 
 	if (bdev->driver->io_mem_reserve &&
