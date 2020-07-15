@@ -1133,6 +1133,45 @@ static inline enum link_training_result perform_link_training_int(
 	return status;
 }
 
+static enum link_training_result check_link_loss_status(
+	struct dc_link *link,
+	const struct link_training_settings *link_training_setting)
+{
+	enum link_training_result status = LINK_TRAINING_SUCCESS;
+	unsigned int lane01_status_address = DP_LANE0_1_STATUS;
+	union lane_status lane_status;
+	uint8_t dpcd_buf[4] = {0};
+	uint32_t lane;
+
+	core_link_read_dpcd(
+		link,
+		lane01_status_address,
+		(uint8_t *)(dpcd_buf),
+		sizeof(dpcd_buf));
+
+	/*parse lane status*/
+	for (lane = 0; lane < link->cur_link_settings.lane_count; lane++) {
+		/*
+		 * check lanes status
+		 */
+		lane_status.raw = get_nibble_at_index(&dpcd_buf[0], lane);
+
+		if (!lane_status.bits.CHANNEL_EQ_DONE_0 ||
+			!lane_status.bits.CR_DONE_0 ||
+			!lane_status.bits.SYMBOL_LOCKED_0) {
+			/* if one of the channel equalization, clock
+			 * recovery or symbol lock is dropped
+			 * consider it as (link has been
+			 * dropped) dp sink status has changed
+			 */
+			status = LINK_TRAINING_LINK_LOSS;
+			break;
+		}
+	}
+
+	return status;
+}
+
 static void initialize_training_settings(
 	 struct dc_link *link,
 	const struct dc_link_settings *link_setting,
@@ -1372,6 +1411,9 @@ static void print_status_message(
 	case LINK_TRAINING_LQA_FAIL:
 		lt_result = "LQA failed";
 		break;
+	case LINK_TRAINING_LINK_LOSS:
+		lt_result = "Link loss";
+		break;
 	default:
 		break;
 	}
@@ -1529,6 +1571,14 @@ enum link_training_result dc_link_dp_perform_link_training(
 		status = perform_link_training_int(link,
 				&lt_settings,
 				status);
+	}
+
+	/* delay 5ms after Main Link output idle pattern and then check
+	 * DPCD 0202h.
+	 */
+	if (link->connector_signal != SIGNAL_TYPE_EDP && status == LINK_TRAINING_SUCCESS) {
+		msleep(5);
+		status = check_link_loss_status(link, &lt_settings);
 	}
 
 	/* 6. print status message*/
