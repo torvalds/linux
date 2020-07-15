@@ -24,6 +24,8 @@
 #ifndef AMDGPU_VIRT_H
 #define AMDGPU_VIRT_H
 
+#include "amdgv_sriovmsg.h"
+
 #define AMDGPU_SRIOV_CAPS_SRIOV_VBIOS  (1 << 0) /* vBIOS is sr-iov ready */
 #define AMDGPU_SRIOV_CAPS_ENABLE_IOV   (1 << 1) /* sr-iov is enabled on this GPU */
 #define AMDGPU_SRIOV_CAPS_IS_VF        (1 << 2) /* this GPU is a virtual function */
@@ -79,7 +81,10 @@ struct amdgpu_virt_fw_reserve {
 	struct amd_sriov_msg_vf2pf_info_header *p_vf2pf;
 	unsigned int checksum_key;
 };
+
 /*
+ * Legacy GIM header
+ *
  * Defination between PF and VF
  * Structures forcibly aligned to 4 to keep the same style as PF.
  */
@@ -101,15 +106,7 @@ enum AMDGIM_FEATURE_FLAG {
 	AMDGIM_FEATURE_PP_ONE_VF = (1 << 4),
 };
 
-struct amd_sriov_msg_pf2vf_info_header {
-	/* the total structure size in byte. */
-	uint32_t size;
-	/* version of this structure, written by the GIM */
-	uint32_t version;
-	/* reserved */
-	uint32_t reserved[2];
-} __aligned(4);
-struct  amdgim_pf2vf_info_v1 {
+struct amdgim_pf2vf_info_v1 {
 	/* header contains size and version */
 	struct amd_sriov_msg_pf2vf_info_header header;
 	/* max_width * max_height */
@@ -128,6 +125,7 @@ struct  amdgim_pf2vf_info_v1 {
 	unsigned int checksum;
 } __aligned(4);
 
+/* TODO: below struct is duplicated to amd_sriov_msg_pf2vf_info */
 struct  amdgim_pf2vf_info_v2 {
 	/* header contains size and version */
 	struct amd_sriov_msg_pf2vf_info_header header;
@@ -164,16 +162,6 @@ struct  amdgim_pf2vf_info_v2 {
 	/* VCE FW size in KB */
 	uint32_t vcefw_ksize;
 	uint32_t reserved[AMDGIM_GET_STRUCTURE_RESERVED_SIZE(256, 0, 0, (18 + sizeof(struct amd_sriov_msg_pf2vf_info_header)/sizeof(uint32_t)), 0)];
-} __aligned(4);
-
-
-struct amd_sriov_msg_vf2pf_info_header {
-	/* the total structure size in byte. */
-	uint32_t size;
-	/*version of this structure, written by the guest */
-	uint32_t version;
-	/* reserved */
-	uint32_t reserved[2];
 } __aligned(4);
 
 struct amdgim_vf2pf_info_v1 {
@@ -237,8 +225,9 @@ struct amdgim_vf2pf_info_v2 {
 	uint32_t reserved[AMDGIM_GET_STRUCTURE_RESERVED_SIZE(256, 64, 0, (12 + sizeof(struct amd_sriov_msg_vf2pf_info_header)/sizeof(uint32_t)), 0)];
 } __aligned(4);
 
+/* TODO: below macro and typedef will cause compile error, need to remove */
 #define AMDGPU_FW_VRAM_VF2PF_VER 2
-typedef struct amdgim_vf2pf_info_v2 amdgim_vf2pf_info ;
+typedef struct amd_sriov_msg_vf2pf_info amdgim_vf2pf_info;
 
 #define AMDGPU_FW_VRAM_VF2PF_WRITE(adev, field, val) \
 	do { \
