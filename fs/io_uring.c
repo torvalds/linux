@@ -5473,9 +5473,6 @@ static void __io_clean_op(struct io_kiocb *req)
 		if (req->flags & REQ_F_BUFFER_SELECTED)
 			kfree(req->sr_msg.kbuf);
 		break;
-	case IORING_OP_OPENAT:
-	case IORING_OP_OPENAT2:
-		break;
 	case IORING_OP_SPLICE:
 	case IORING_OP_TEE:
 		io_put_file(req, req->splice.file_in,
