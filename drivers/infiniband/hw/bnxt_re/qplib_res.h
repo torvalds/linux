@@ -363,6 +363,17 @@ int bnxt_qplib_alloc_ctx(struct bnxt_qplib_res *res,
 			 struct bnxt_qplib_ctx *ctx,
 			 bool virt_fn, bool is_p5);
 
+static inline void bnxt_qplib_hwq_incr_prod(struct bnxt_qplib_hwq *hwq, u32 cnt)
+{
+	hwq->prod = (hwq->prod + cnt) % hwq->depth;
+}
+
+static inline void bnxt_qplib_hwq_incr_cons(struct bnxt_qplib_hwq *hwq,
+					    u32 cnt)
+{
+	hwq->cons = (hwq->cons + cnt) % hwq->depth;
+}
+
 static inline void bnxt_qplib_ring_db32(struct bnxt_qplib_db_info *info,
 					bool arm)
 {

@@ -74,6 +74,7 @@ struct bnxt_qplib_swq {
 	u8				flags;
 	u32				start_psn;
 	u32				next_psn;
+	u8				slots;
 	struct sq_psn_search		*psn_search;
 	struct sq_psn_search_ext	*psn_ext;
 };
@@ -213,6 +214,8 @@ struct bnxt_qplib_q {
 	u32				phantom_cqe_cnt;
 	u32				next_cq_cons;
 	bool				flushed;
+	u32				swq_start;
+	u32				swq_last;
 };
 
 struct bnxt_qplib_qp {
@@ -490,4 +493,20 @@ int bnxt_qplib_process_flush_list(struct bnxt_qplib_cq *cq,
 				  struct bnxt_qplib_cqe *cqe,
 				  int num_cqes);
 void bnxt_qplib_flush_cqn_wq(struct bnxt_qplib_qp *qp);
+
+static inline void *bnxt_qplib_get_swqe(struct bnxt_qplib_q *que, u32 *swq_idx)
+{
+	u32 idx;
+
+	idx = que->swq_start;
+	if (swq_idx)
+		*swq_idx = idx;
+	return &que->swq[idx];
+}
+
+static inline void bnxt_qplib_swq_mod_start(struct bnxt_qplib_q *que, u32 idx)
+{
+	que->swq_start = que->swq[idx].next_idx;
+}
+
 #endif /* __BNXT_QPLIB_FP_H__ */
