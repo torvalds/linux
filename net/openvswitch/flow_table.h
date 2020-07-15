@@ -27,9 +27,17 @@ struct mask_cache_entry {
 	u32 mask_index;
 };
 
+struct mask_count {
+	int index;
+	u64 counter;
+};
+
 struct mask_array {
 	struct rcu_head rcu;
 	int count, max;
+	u64 __percpu *masks_usage_cntr;
+	u64 *masks_usage_zero_cntr;
+	struct u64_stats_sync syncp;
 	struct sw_flow_mask __rcu *masks[];
 };
 
@@ -86,4 +94,7 @@ bool ovs_flow_cmp(const struct sw_flow *, const struct sw_flow_match *);
 
 void ovs_flow_mask_key(struct sw_flow_key *dst, const struct sw_flow_key *src,
 		       bool full, const struct sw_flow_mask *mask);
+
+void ovs_flow_masks_rebalance(struct flow_table *table);
+
 #endif /* flow_table.h */

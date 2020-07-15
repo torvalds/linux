@@ -130,6 +130,8 @@ static int queue_userspace_packet(struct datapath *dp, struct sk_buff *,
 				  const struct dp_upcall_info *,
 				  uint32_t cutlen);
 
+static void ovs_dp_masks_rebalance(struct work_struct *work);
+
 /* Must be called with rcu_read_lock or ovs_mutex. */
 const char *ovs_dp_name(const struct datapath *dp)
 {
@@ -1653,6 +1655,7 @@ static int ovs_dp_cmd_new(struct sk_buff *skb, struct genl_info *info)
 		goto err_destroy_reply;
 
 	ovs_dp_set_net(dp, sock_net(skb->sk));
+	INIT_DELAYED_WORK(&dp->masks_rebalance, ovs_dp_masks_rebalance);
 
 	/* Allocate table. */
 	err = ovs_flow_tbl_init(&dp->table);
@@ -1712,6 +1715,9 @@ static int ovs_dp_cmd_new(struct sk_buff *skb, struct genl_info *info)
 	ovs_net = net_generic(ovs_dp_get_net(dp), ovs_net_id);
 	list_add_tail_rcu(&dp->list_node, &ovs_net->dps);
 
+	schedule_delayed_work(&dp->masks_rebalance,
+			      msecs_to_jiffies(DP_MASKS_REBALANCE_INTERVAL));
+
 	ovs_unlock();
 
 	ovs_notify(&dp_datapath_genl_family, reply, info);
@@ -1756,6 +1762,9 @@ static void __dp_destroy(struct datapath *dp)
 
 	/* RCU destroy the flow table */
 	call_rcu(&dp->rcu, destroy_dp_rcu);
+
+	/* Cancel remaining work. */
+	cancel_delayed_work_sync(&dp->masks_rebalance);
 }
 
 static int ovs_dp_cmd_del(struct sk_buff *skb, struct genl_info *info)
@@ -2336,6 +2345,19 @@ out:
 	cb->args[1] = j;
 
 	return skb->len;
+}
+
+static void ovs_dp_masks_rebalance(struct work_struct *work)
+{
+	struct datapath *dp = container_of(work, struct datapath,
+					   masks_rebalance.work);
+
+	ovs_lock();
+	ovs_flow_masks_rebalance(&dp->table);
+	ovs_unlock();
+
+	schedule_delayed_work(&dp->masks_rebalance,
+			      msecs_to_jiffies(DP_MASKS_REBALANCE_INTERVAL));
 }
 
 static const struct nla_policy vport_policy[OVS_VPORT_ATTR_MAX + 1] = {

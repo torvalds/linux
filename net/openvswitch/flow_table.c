@@ -29,6 +29,7 @@
 #include <linux/icmp.h>
 #include <linux/icmpv6.h>
 #include <linux/rculist.h>
+#include <linux/sort.h>
 #include <net/ip.h>
 #include <net/ipv6.h>
 #include <net/ndisc.h>
@@ -169,15 +170,69 @@ static struct table_instance *table_instance_alloc(int new_size)
 	return ti;
 }
 
+static void __mask_array_destroy(struct mask_array *ma)
+{
+	free_percpu(ma->masks_usage_cntr);
+	kfree(ma);
+}
+
+static void mask_array_rcu_cb(struct rcu_head *rcu)
+{
+	struct mask_array *ma = container_of(rcu, struct mask_array, rcu);
+
+	__mask_array_destroy(ma);
+}
+
+static void tbl_mask_array_reset_counters(struct mask_array *ma)
+{
+	int i, cpu;
+
+	/* As the per CPU counters are not atomic we can not go ahead and
+	 * reset them from another CPU. To be able to still have an approximate
+	 * zero based counter we store the value at reset, and subtract it
+	 * later when processing.
+	 */
+	for (i = 0; i < ma->max; i++)  {
+		ma->masks_usage_zero_cntr[i] = 0;
+
+		for_each_possible_cpu(cpu) {
+			u64 *usage_counters = per_cpu_ptr(ma->masks_usage_cntr,
+							  cpu);
+			unsigned int start;
+			u64 counter;
+
+			do {
+				start = u64_stats_fetch_begin_irq(&ma->syncp);
+				counter = usage_counters[i];
+			} while (u64_stats_fetch_retry_irq(&ma->syncp, start));
+
+			ma->masks_usage_zero_cntr[i] += counter;
+		}
+	}
+}
+
 static struct mask_array *tbl_mask_array_alloc(int size)
 {
 	struct mask_array *new;
 
 	size = max(MASK_ARRAY_SIZE_MIN, size);
 	new = kzalloc(sizeof(struct mask_array) +
-		      sizeof(struct sw_flow_mask *) * size, GFP_KERNEL);
+		      sizeof(struct sw_flow_mask *) * size +
+		      sizeof(u64) * size, GFP_KERNEL);
 	if (!new)
 		return NULL;
+
+	new->masks_usage_zero_cntr = (u64 *)((u8 *)new +
+					     sizeof(struct mask_array) +
+					     sizeof(struct sw_flow_mask *) *
+					     size);
+
+	new->masks_usage_cntr = __alloc_percpu(sizeof(u64) * size,
+					       __alignof__(u64));
+	if (!new->masks_usage_cntr) {
+		kfree(new);
+		return NULL;
+	}
 
 	new->count = 0;
 	new->max = size;
@@ -202,10 +257,10 @@ static int tbl_mask_array_realloc(struct flow_table *tbl, int size)
 			if (ovsl_dereference(old->masks[i]))
 				new->masks[new->count++] = old->masks[i];
 		}
+		call_rcu(&old->rcu, mask_array_rcu_cb);
 	}
 
 	rcu_assign_pointer(tbl->mask_array, new);
-	kfree_rcu(old, rcu);
 
 	return 0;
 }
@@ -223,6 +278,11 @@ static int tbl_mask_array_add_mask(struct flow_table *tbl,
 			return err;
 
 		ma = ovsl_dereference(tbl->mask_array);
+	} else {
+		/* On every add or delete we need to reset the counters so
+		 * every new mask gets a fair chance of being prioritized.
+		 */
+		tbl_mask_array_reset_counters(ma);
 	}
 
 	BUG_ON(ovsl_dereference(ma->masks[ma_count]));
@@ -260,6 +320,9 @@ found:
 	if (ma->max >= (MASK_ARRAY_SIZE_MIN * 2) &&
 	    ma_count <= (ma->max / 3))
 		tbl_mask_array_realloc(tbl, ma->max / 2);
+	else
+		tbl_mask_array_reset_counters(ma);
+
 }
 
 /* Remove 'mask' from the mask list, if it is not needed any more. */
@@ -312,7 +375,7 @@ int ovs_flow_tbl_init(struct flow_table *table)
 free_ti:
 	__table_instance_destroy(ti);
 free_mask_array:
-	kfree(ma);
+	__mask_array_destroy(ma);
 free_mask_cache:
 	free_percpu(table->mask_cache);
 	return -ENOMEM;
@@ -392,7 +455,7 @@ void ovs_flow_tbl_destroy(struct flow_table *table)
 	struct table_instance *ufid_ti = rcu_dereference_raw(table->ufid_ti);
 
 	free_percpu(table->mask_cache);
-	kfree_rcu(rcu_dereference_raw(table->mask_array), rcu);
+	call_rcu(&table->mask_array->rcu, mask_array_rcu_cb);
 	table_instance_destroy(table, ti, ufid_ti, false);
 }
 
@@ -606,6 +669,7 @@ static struct sw_flow *flow_lookup(struct flow_table *tbl,
 				   u32 *n_mask_hit,
 				   u32 *index)
 {
+	u64 *usage_counters = this_cpu_ptr(ma->masks_usage_cntr);
 	struct sw_flow *flow;
 	struct sw_flow_mask *mask;
 	int i;
@@ -614,8 +678,12 @@ static struct sw_flow *flow_lookup(struct flow_table *tbl,
 		mask = rcu_dereference_ovsl(ma->masks[*index]);
 		if (mask) {
 			flow = masked_flow_lookup(ti, key, mask, n_mask_hit);
-			if (flow)
+			if (flow) {
+				u64_stats_update_begin(&ma->syncp);
+				usage_counters[*index]++;
+				u64_stats_update_end(&ma->syncp);
 				return flow;
+			}
 		}
 	}
 
@@ -631,6 +699,9 @@ static struct sw_flow *flow_lookup(struct flow_table *tbl,
 		flow = masked_flow_lookup(ti, key, mask, n_mask_hit);
 		if (flow) { /* Found */
 			*index = i;
+			u64_stats_update_begin(&ma->syncp);
+			usage_counters[*index]++;
+			u64_stats_update_end(&ma->syncp);
 			return flow;
 		}
 	}
@@ -932,6 +1003,98 @@ int ovs_flow_tbl_insert(struct flow_table *table, struct sw_flow *flow,
 		flow_ufid_insert(table, flow);
 
 	return 0;
+}
+
+static int compare_mask_and_count(const void *a, const void *b)
+{
+	const struct mask_count *mc_a = a;
+	const struct mask_count *mc_b = b;
+
+	return (s64)mc_b->counter - (s64)mc_a->counter;
+}
+
+/* Must be called with OVS mutex held. */
+void ovs_flow_masks_rebalance(struct flow_table *table)
+{
+	struct mask_array *ma = rcu_dereference_ovsl(table->mask_array);
+	struct mask_count *masks_and_count;
+	struct mask_array *new;
+	int masks_entries = 0;
+	int i;
+
+	/* Build array of all current entries with use counters. */
+	masks_and_count = kmalloc_array(ma->max, sizeof(*masks_and_count),
+					GFP_KERNEL);
+	if (!masks_and_count)
+		return;
+
+	for (i = 0; i < ma->max; i++)  {
+		struct sw_flow_mask *mask;
+		unsigned int start;
+		int cpu;
+
+		mask = rcu_dereference_ovsl(ma->masks[i]);
+		if (unlikely(!mask))
+			break;
+
+		masks_and_count[i].index = i;
+		masks_and_count[i].counter = 0;
+
+		for_each_possible_cpu(cpu) {
+			u64 *usage_counters = per_cpu_ptr(ma->masks_usage_cntr,
+							  cpu);
+			u64 counter;
+
+			do {
+				start = u64_stats_fetch_begin_irq(&ma->syncp);
+				counter = usage_counters[i];
+			} while (u64_stats_fetch_retry_irq(&ma->syncp, start));
+
+			masks_and_count[i].counter += counter;
+		}
+
+		/* Subtract the zero count value. */
+		masks_and_count[i].counter -= ma->masks_usage_zero_cntr[i];
+
+		/* Rather than calling tbl_mask_array_reset_counters()
+		 * below when no change is needed, do it inline here.
+		 */
+		ma->masks_usage_zero_cntr[i] += masks_and_count[i].counter;
+	}
+
+	if (i == 0)
+		goto free_mask_entries;
+
+	/* Sort the entries */
+	masks_entries = i;
+	sort(masks_and_count, masks_entries, sizeof(*masks_and_count),
+	     compare_mask_and_count, NULL);
+
+	/* If the order is the same, nothing to do... */
+	for (i = 0; i < masks_entries; i++) {
+		if (i != masks_and_count[i].index)
+			break;
+	}
+	if (i == masks_entries)
+		goto free_mask_entries;
+
+	/* Rebuilt the new list in order of usage. */
+	new = tbl_mask_array_alloc(ma->max);
+	if (!new)
+		goto free_mask_entries;
+
+	for (i = 0; i < masks_entries; i++) {
+		int index = masks_and_count[i].index;
+
+		new->masks[new->count++] =
+			rcu_dereference_ovsl(ma->masks[index]);
+	}
+
+	rcu_assign_pointer(table->mask_array, new);
+	call_rcu(&ma->rcu, mask_array_rcu_cb);
+
+free_mask_entries:
+	kfree(masks_and_count);
 }
 
 /* Initializes the flow module.
