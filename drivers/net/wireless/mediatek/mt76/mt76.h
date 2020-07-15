@@ -34,6 +34,7 @@ struct mt76_reg_pair {
 enum mt76_bus_type {
 	MT76_BUS_MMIO,
 	MT76_BUS_USB,
+	MT76_BUS_SDIO,
 };
 
 struct mt76_bus_ops {
@@ -53,6 +54,7 @@ struct mt76_bus_ops {
 
 #define mt76_is_usb(dev) ((dev)->bus->type == MT76_BUS_USB)
 #define mt76_is_mmio(dev) ((dev)->bus->type == MT76_BUS_MMIO)
+#define mt76_is_sdio(dev) ((dev)->bus->type == MT76_BUS_SDIO)
 
 enum mt76_txq_id {
 	MT_TXQ_VO = IEEE80211_AC_VO,
@@ -95,6 +97,7 @@ struct mt76_queue_entry {
 	union {
 		struct mt76_txwi_cache *txwi;
 		struct urb *urb;
+		int buf_sz;
 	};
 	enum mt76_txq_id qid;
 	bool skip_buf0:1;
@@ -147,6 +150,8 @@ struct mt76_mcu_ops {
 			    int len, bool wait_resp);
 	int (*mcu_skb_send_msg)(struct mt76_dev *dev, struct sk_buff *skb,
 				int cmd, bool wait_resp);
+	u32 (*mcu_rr)(struct mt76_dev *dev, u32 offset);
+	void (*mcu_wr)(struct mt76_dev *dev, u32 offset, u32 val);
 	int (*mcu_wr_rp)(struct mt76_dev *dev, u32 base,
 			 const struct mt76_reg_pair *rp, int len);
 	int (*mcu_rd_rp)(struct mt76_dev *dev, u32 base,
@@ -440,6 +445,24 @@ struct mt76_usb {
 	} mcu;
 };
 
+struct mt76_sdio {
+	struct task_struct *tx_kthread;
+	struct task_struct *kthread;
+	struct work_struct stat_work;
+
+	unsigned long state;
+
+	struct sdio_func *func;
+
+	struct {
+		struct mutex lock;
+		int pse_data_quota;
+		int ple_data_quota;
+		int pse_mcu_quota;
+		int deficit;
+	} sched;
+};
+
 struct mt76_mmio {
 	void __iomem *regs;
 	spinlock_t irq_lock;
@@ -626,6 +649,7 @@ struct mt76_dev {
 	union {
 		struct mt76_mmio mmio;
 		struct mt76_usb usb;
+		struct mt76_sdio sdio;
 	};
 };
 
@@ -1029,6 +1053,12 @@ void mt76u_stop_tx(struct mt76_dev *dev);
 void mt76u_stop_rx(struct mt76_dev *dev);
 int mt76u_resume_rx(struct mt76_dev *dev);
 void mt76u_queues_deinit(struct mt76_dev *dev);
+
+int mt76s_init(struct mt76_dev *dev, struct sdio_func *func,
+	       const struct mt76_bus_ops *bus_ops);
+int mt76s_alloc_queues(struct mt76_dev *dev);
+void mt76s_stop_txrx(struct mt76_dev *dev);
+void mt76s_deinit(struct mt76_dev *dev);
 
 struct sk_buff *
 mt76_mcu_msg_alloc(struct mt76_dev *dev, const void *data,
