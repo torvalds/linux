@@ -243,6 +243,7 @@ EXPORT_SYMBOL(rproc_da_to_va);
  *
  * Return: a valid pointer on carveout entry on success or NULL on failure.
  */
+__printf(2, 3)
 struct rproc_mem_entry *
 rproc_find_carveout_by_name(struct rproc *rproc, const char *name, ...)
 {
@@ -966,6 +967,7 @@ EXPORT_SYMBOL(rproc_add_carveout);
  * This function allocates a rproc_mem_entry struct and fill it with parameters
  * provided by client.
  */
+__printf(8, 9)
 struct rproc_mem_entry *
 rproc_mem_entry_init(struct device *dev,
 		     void *va, dma_addr_t dma, size_t len, u32 da,
@@ -1009,6 +1011,7 @@ EXPORT_SYMBOL(rproc_mem_entry_init);
  * This function allocates a rproc_mem_entry struct and fill it with parameters
  * provided by client.
  */
+__printf(5, 6)
 struct rproc_mem_entry *
 rproc_of_resm_mem_entry_init(struct device *dev, u32 of_resm_idx, size_t len,
 			     u32 da, const char *name, ...)
