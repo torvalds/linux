@@ -790,7 +790,7 @@ qla27xx_handle_8200_aen(scsi_qla_host_t *vha, uint16_t *mb)
 	}
 }
 
-struct purex_item *
+static struct purex_item *
 qla24xx_alloc_purex_item(scsi_qla_host_t *vha, uint16_t size)
 {
 	struct purex_item *item = NULL;
@@ -878,7 +878,7 @@ qla27xx_copy_fpin_pkt(struct scsi_qla_host *vha, void **pkt,
 	struct purex_item *item;
 	void *fpin_pkt = NULL;
 
-	total_bytes = le16_to_cpu(purex->frame_size & 0x0FFF)
+	total_bytes = (le16_to_cpu(purex->frame_size) & 0x0FFF)
 	    - PURX_ELS_HEADER_SIZE;
 	pending_bytes = total_bytes;
 	entry_count = entry_count_remaining = purex->entry_count;

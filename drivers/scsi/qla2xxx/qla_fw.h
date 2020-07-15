@@ -610,7 +610,7 @@ struct sts_entry_24xx {
 	__le32	residual_len;		/* FW calc residual transfer length. */
 
 	union {
-		uint16_t reserved_1;
+		__le16 reserved_1;
 		__le16	nvme_rsp_pyld_len;
 	};
 
