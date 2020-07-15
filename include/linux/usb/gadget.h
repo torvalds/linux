@@ -731,7 +731,7 @@ int usb_gadget_probe_driver(struct usb_gadget_driver *driver);
  * it will first disconnect().  The driver is also requested
  * to unbind() and clean up any device state, before this procedure
  * finally returns.  It's expected that the unbind() functions
- * will in in exit sections, so may not be linked in some kernels.
+ * will be in exit sections, so may not be linked in some kernels.
  */
 int usb_gadget_unregister_driver(struct usb_gadget_driver *driver);
 
