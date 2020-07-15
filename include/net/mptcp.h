@@ -164,10 +164,6 @@ static inline bool mptcp_syn_options(struct sock *sk, const struct sk_buff *skb,
 	return false;
 }
 
-static inline void mptcp_rcv_synsent(struct sock *sk)
-{
-}
-
 static inline bool mptcp_synack_options(const struct request_sock *req,
 					unsigned int *size,
 					struct mptcp_out_options *opts)
