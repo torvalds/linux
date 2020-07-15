@@ -213,7 +213,7 @@ struct usb_serial_endpoints {
  *	Return 0 to continue on with the initialization sequence.  Anything
  *	else will abort it.
  * @attach: pointer to the driver's attach function.
- *	This will be called when the struct usb_serial structure is fully set
+ *	This will be called when the struct usb_serial structure is fully
  *	set up.  Do any local initialization of the device, or any private
  *	memory structure allocation at this point in time.
  * @disconnect: pointer to the driver's disconnect function.  This will be
