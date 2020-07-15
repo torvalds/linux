@@ -732,9 +732,12 @@ static int rkisp_config_lvds(struct rkisp_device *dev)
 		ret = -EINVAL;
 		goto err;
 	}
-	val = SW_LVDS_SAV(cfg.act.sav) | SW_LVDS_EAV(cfg.act.eav);
+
+	val = SW_LVDS_SAV(cfg.frm_sync_code[LVDS_CODE_GRP_LINEAR].odd_sync_code.act.sav) |
+	      SW_LVDS_EAV(cfg.frm_sync_code[LVDS_CODE_GRP_LINEAR].odd_sync_code.act.eav);
 	writel(val, dev->base_addr + LVDS_SAV_EAV_ACT);
-	val = SW_LVDS_SAV(cfg.blk.sav) | SW_LVDS_EAV(cfg.blk.eav);
+	val = SW_LVDS_SAV(cfg.frm_sync_code[LVDS_CODE_GRP_LINEAR].odd_sync_code.blk.sav) |
+	      SW_LVDS_EAV(cfg.frm_sync_code[LVDS_CODE_GRP_LINEAR].odd_sync_code.blk.eav);
 	writel(val, dev->base_addr + LVDS_SAV_EAV_BLK);
 	val = SW_LVDS_EN | SW_LVDS_WIDTH(data) | SW_LVDS_LANE_EN(lane) | cfg.mode;
 	writel(val, dev->base_addr + LVDS_CTRL);

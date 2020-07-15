@@ -228,20 +228,55 @@ struct rkmodule_sync_code {
  * le: line end
  * fs: frame start
  * fe: frame end
+ * SONY_DOL_HDR_1: sony dol hdr pattern 1
+ * SONY_DOL_HDR_2: sony dol hdr pattern 2
  */
 enum rkmodule_lvds_mode {
 	LS_FIRST = 0,
-	FS_FIRST = BIT(1),
+	FS_FIRST,
+	SONY_DOL_HDR_1,
+	SONY_DOL_HDR_2
 };
 
-/* struct rkmodule_lvds_cfg
+/* sync code of different frame type (hdr or linear) for lvds
  * act: valid line sync code
  * blk: invalid line sync code
  */
-struct rkmodule_lvds_cfg {
-	enum rkmodule_lvds_mode mode;
+struct rkmodule_lvds_frm_sync_code {
 	struct rkmodule_sync_code act;
 	struct rkmodule_sync_code blk;
+};
+
+/* sync code for lvds of sensor
+ * odd_sync_code: sync code of odd frame id for lvds of sony sensor
+ * even_sync_code: sync code of even frame id for lvds of sony sensor
+ */
+struct rkmodule_lvds_frame_sync_code {
+	struct rkmodule_lvds_frm_sync_code odd_sync_code;
+	struct rkmodule_lvds_frm_sync_code even_sync_code;
+};
+
+/* lvds sync code category of sensor for different operation */
+enum rkmodule_lvds_sync_code_group {
+	LVDS_CODE_GRP_LINEAR = 0x0,
+	LVDS_CODE_GRP_LONG,
+	LVDS_CODE_GRP_MEDIUM,
+	LVDS_CODE_GRP_SHORT,
+	LVDS_CODE_GRP_MAX
+};
+
+/* struct rkmodule_lvds_cfg
+ * frm_sync_code[index]:
+ *  index == LVDS_CODE_GRP_LONG:
+ *    sync code for frame of linear mode or for long frame of hdr mode
+ *  index == LVDS_CODE_GRP_MEDIUM:
+ *    sync code for medium long frame of hdr mode
+ *  index == LVDS_CODE_GRP_SHOR:
+ *    sync code for short long frame of hdr mode
+ */
+struct rkmodule_lvds_cfg {
+	enum rkmodule_lvds_mode mode;
+	struct rkmodule_lvds_frame_sync_code frm_sync_code[LVDS_CODE_GRP_MAX];
 } __attribute__ ((packed));
 
 /**
