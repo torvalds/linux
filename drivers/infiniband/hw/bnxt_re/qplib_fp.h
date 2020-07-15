@@ -39,6 +39,51 @@
 #ifndef __BNXT_QPLIB_FP_H__
 #define __BNXT_QPLIB_FP_H__
 
+/* Few helper structures temporarily defined here
+ * should get rid of these when roce_hsi.h is updated
+ * in original code base
+ */
+struct sq_ud_ext_hdr {
+	__le32 dst_qp;
+	__le32 avid;
+	__le64 rsvd;
+};
+
+struct sq_raw_ext_hdr {
+	__le32 cfa_meta;
+	__le32 rsvd0;
+	__le64 rsvd1;
+};
+
+struct sq_rdma_ext_hdr {
+	__le64 remote_va;
+	__le32 remote_key;
+	__le32 rsvd;
+};
+
+struct sq_atomic_ext_hdr {
+	__le64 swap_data;
+	__le64 cmp_data;
+};
+
+struct sq_fr_pmr_ext_hdr {
+	__le64 pblptr;
+	__le64 va;
+};
+
+struct sq_bind_ext_hdr {
+	__le64 va;
+	__le32 length_lo;
+	__le32 length_hi;
+};
+
+struct rq_ext_hdr {
+	__le64 rsvd1;
+	__le64 rsvd2;
+};
+
+/* Helper structures end */
+
 struct bnxt_qplib_srq {
 	struct bnxt_qplib_pd		*pd;
 	struct bnxt_qplib_dpi		*dpi;
