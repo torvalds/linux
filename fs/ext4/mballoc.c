@@ -4399,7 +4399,7 @@ ext4_mb_initialize_context(struct ext4_allocation_context *ac,
 	ac->ac_g_ex = ac->ac_o_ex;
 	ac->ac_flags = ar->flags;
 
-	/* we have to define context: we'll we work with a file or
+	/* we have to define context: we'll work with a file or
 	 * locality group. this is a policy, actually */
 	ext4_mb_group_or_file(ac);
 
