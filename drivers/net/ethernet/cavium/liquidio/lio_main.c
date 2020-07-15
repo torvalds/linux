@@ -2670,6 +2670,35 @@ static int liquidio_vxlan_port_command(struct net_device *netdev, int command,
 	return ret;
 }
 
+static int liquidio_udp_tunnel_set_port(struct net_device *netdev,
+					unsigned int table, unsigned int entry,
+					struct udp_tunnel_info *ti)
+{
+	return liquidio_vxlan_port_command(netdev,
+					   OCTNET_CMD_VXLAN_PORT_CONFIG,
+					   htons(ti->port),
+					   OCTNET_CMD_VXLAN_PORT_ADD);
+}
+
+static int liquidio_udp_tunnel_unset_port(struct net_device *netdev,
+					  unsigned int table,
+					  unsigned int entry,
+					  struct udp_tunnel_info *ti)
+{
+	return liquidio_vxlan_port_command(netdev,
+					   OCTNET_CMD_VXLAN_PORT_CONFIG,
+					   htons(ti->port),
+					   OCTNET_CMD_VXLAN_PORT_DEL);
+}
+
+static const struct udp_tunnel_nic_info liquidio_udp_tunnels = {
+	.set_port	= liquidio_udp_tunnel_set_port,
+	.unset_port	= liquidio_udp_tunnel_unset_port,
+	.tables		= {
+		{ .n_entries = 1024, .tunnel_types = UDP_TUNNEL_TYPE_VXLAN, },
+	},
+};
+
 /** \brief Net device fix features
  * @param netdev  pointer to network device
  * @param request features requested
@@ -2756,30 +2785,6 @@ static int liquidio_set_features(struct net_device *netdev,
 				     OCTNET_CMD_VLAN_FILTER_DISABLE);
 
 	return 0;
-}
-
-static void liquidio_add_vxlan_port(struct net_device *netdev,
-				    struct udp_tunnel_info *ti)
-{
-	if (ti->type != UDP_TUNNEL_TYPE_VXLAN)
-		return;
-
-	liquidio_vxlan_port_command(netdev,
-				    OCTNET_CMD_VXLAN_PORT_CONFIG,
-				    htons(ti->port),
-				    OCTNET_CMD_VXLAN_PORT_ADD);
-}
-
-static void liquidio_del_vxlan_port(struct net_device *netdev,
-				    struct udp_tunnel_info *ti)
-{
-	if (ti->type != UDP_TUNNEL_TYPE_VXLAN)
-		return;
-
-	liquidio_vxlan_port_command(netdev,
-				    OCTNET_CMD_VXLAN_PORT_CONFIG,
-				    htons(ti->port),
-				    OCTNET_CMD_VXLAN_PORT_DEL);
 }
 
 static int __liquidio_set_vf_mac(struct net_device *netdev, int vfidx,
@@ -3208,8 +3213,8 @@ static const struct net_device_ops lionetdevops = {
 	.ndo_do_ioctl		= liquidio_ioctl,
 	.ndo_fix_features	= liquidio_fix_features,
 	.ndo_set_features	= liquidio_set_features,
-	.ndo_udp_tunnel_add	= liquidio_add_vxlan_port,
-	.ndo_udp_tunnel_del	= liquidio_del_vxlan_port,
+	.ndo_udp_tunnel_add	= udp_tunnel_nic_add_port,
+	.ndo_udp_tunnel_del	= udp_tunnel_nic_del_port,
 	.ndo_set_vf_mac		= liquidio_set_vf_mac,
 	.ndo_set_vf_vlan	= liquidio_set_vf_vlan,
 	.ndo_get_vf_config	= liquidio_get_vf_config,
@@ -3563,6 +3568,8 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 
 		netdev->hw_enc_features = (lio->enc_dev_capability &
 					   ~NETIF_F_LRO);
+
+		netdev->udp_tunnel_nic_info = &liquidio_udp_tunnels;
 
 		lio->dev_capability |= NETIF_F_GSO_UDP_TUNNEL;
 

@@ -663,8 +663,8 @@ static const struct net_device_ops qede_netdev_ops = {
 	.ndo_get_vf_config = qede_get_vf_config,
 	.ndo_set_vf_rate = qede_set_vf_rate,
 #endif
-	.ndo_udp_tunnel_add = qede_udp_tunnel_add,
-	.ndo_udp_tunnel_del = qede_udp_tunnel_del,
+	.ndo_udp_tunnel_add = udp_tunnel_nic_add_port,
+	.ndo_udp_tunnel_del = udp_tunnel_nic_del_port,
 	.ndo_features_check = qede_features_check,
 	.ndo_bpf = qede_xdp,
 #ifdef CONFIG_RFS_ACCEL
@@ -687,8 +687,8 @@ static const struct net_device_ops qede_netdev_vf_ops = {
 	.ndo_fix_features = qede_fix_features,
 	.ndo_set_features = qede_set_features,
 	.ndo_get_stats64 = qede_get_stats64,
-	.ndo_udp_tunnel_add = qede_udp_tunnel_add,
-	.ndo_udp_tunnel_del = qede_udp_tunnel_del,
+	.ndo_udp_tunnel_add = udp_tunnel_nic_add_port,
+	.ndo_udp_tunnel_del = udp_tunnel_nic_del_port,
 	.ndo_features_check = qede_features_check,
 };
 
@@ -706,8 +706,8 @@ static const struct net_device_ops qede_netdev_vf_xdp_ops = {
 	.ndo_fix_features = qede_fix_features,
 	.ndo_set_features = qede_set_features,
 	.ndo_get_stats64 = qede_get_stats64,
-	.ndo_udp_tunnel_add = qede_udp_tunnel_add,
-	.ndo_udp_tunnel_del = qede_udp_tunnel_del,
+	.ndo_udp_tunnel_add = udp_tunnel_nic_add_port,
+	.ndo_udp_tunnel_del = udp_tunnel_nic_del_port,
 	.ndo_features_check = qede_features_check,
 	.ndo_bpf = qede_xdp,
 };
@@ -822,6 +822,8 @@ static void qede_init_ndev(struct qede_dev *edev)
 				NETIF_F_GSO_UDP_TUNNEL_CSUM);
 		ndev->hw_enc_features |= (NETIF_F_GSO_UDP_TUNNEL |
 					  NETIF_F_GSO_UDP_TUNNEL_CSUM);
+
+		qede_set_udp_tunnels(edev);
 	}
 
 	if (edev->dev_info.common.gre_enable) {
@@ -2421,7 +2423,7 @@ static int qede_open(struct net_device *ndev)
 	if (rc)
 		return rc;
 
-	udp_tunnel_get_rx_info(ndev);
+	udp_tunnel_nic_reset_ntf(ndev);
 
 	edev->ops->common->update_drv_state(edev->cdev, true);
 
@@ -2523,7 +2525,7 @@ static void qede_recovery_handler(struct qede_dev *edev)
 			goto err;
 
 		qede_config_rx_mode(edev->ndev);
-		udp_tunnel_get_rx_info(edev->ndev);
+		udp_tunnel_nic_reset_ntf(edev->ndev);
 	}
 
 	edev->state = curr_state;

@@ -3732,129 +3732,71 @@ static int cxgb_setup_tc(struct net_device *dev, enum tc_setup_type type,
 	}
 }
 
-static void cxgb_del_udp_tunnel(struct net_device *netdev,
-				struct udp_tunnel_info *ti)
+static int cxgb_udp_tunnel_unset_port(struct net_device *netdev,
+				      unsigned int table, unsigned int entry,
+				      struct udp_tunnel_info *ti)
 {
 	struct port_info *pi = netdev_priv(netdev);
 	struct adapter *adapter = pi->adapter;
-	unsigned int chip_ver = CHELSIO_CHIP_VERSION(adapter->params.chip);
 	u8 match_all_mac[] = { 0, 0, 0, 0, 0, 0 };
 	int ret = 0, i;
 
-	if (chip_ver < CHELSIO_T6)
-		return;
-
 	switch (ti->type) {
 	case UDP_TUNNEL_TYPE_VXLAN:
-		if (!adapter->vxlan_port_cnt ||
-		    adapter->vxlan_port != ti->port)
-			return; /* Invalid VxLAN destination port */
-
-		adapter->vxlan_port_cnt--;
-		if (adapter->vxlan_port_cnt)
-			return;
-
 		adapter->vxlan_port = 0;
 		t4_write_reg(adapter, MPS_RX_VXLAN_TYPE_A, 0);
 		break;
 	case UDP_TUNNEL_TYPE_GENEVE:
-		if (!adapter->geneve_port_cnt ||
-		    adapter->geneve_port != ti->port)
-			return; /* Invalid GENEVE destination port */
-
-		adapter->geneve_port_cnt--;
-		if (adapter->geneve_port_cnt)
-			return;
-
 		adapter->geneve_port = 0;
 		t4_write_reg(adapter, MPS_RX_GENEVE_TYPE_A, 0);
 		break;
 	default:
-		return;
+		return -EINVAL;
 	}
 
 	/* Matchall mac entries can be deleted only after all tunnel ports
 	 * are brought down or removed.
 	 */
 	if (!adapter->rawf_cnt)
-		return;
+		return 0;
 	for_each_port(adapter, i) {
 		pi = adap2pinfo(adapter, i);
 		ret = t4_free_raw_mac_filt(adapter, pi->viid,
 					   match_all_mac, match_all_mac,
-					   adapter->rawf_start +
-					    pi->port_id,
+					   adapter->rawf_start + pi->port_id,
 					   1, pi->port_id, false);
 		if (ret < 0) {
 			netdev_info(netdev, "Failed to free mac filter entry, for port %d\n",
 				    i);
-			return;
+			return ret;
 		}
 	}
+
+	return 0;
 }
 
-static void cxgb_add_udp_tunnel(struct net_device *netdev,
-				struct udp_tunnel_info *ti)
+static int cxgb_udp_tunnel_set_port(struct net_device *netdev,
+				    unsigned int table, unsigned int entry,
+				    struct udp_tunnel_info *ti)
 {
 	struct port_info *pi = netdev_priv(netdev);
 	struct adapter *adapter = pi->adapter;
-	unsigned int chip_ver = CHELSIO_CHIP_VERSION(adapter->params.chip);
 	u8 match_all_mac[] = { 0, 0, 0, 0, 0, 0 };
 	int i, ret;
 
-	if (chip_ver < CHELSIO_T6 || !adapter->rawf_cnt)
-		return;
-
 	switch (ti->type) {
 	case UDP_TUNNEL_TYPE_VXLAN:
-		/* Callback for adding vxlan port can be called with the same
-		 * port for both IPv4 and IPv6. We should not disable the
-		 * offloading when the same port for both protocols is added
-		 * and later one of them is removed.
-		 */
-		if (adapter->vxlan_port_cnt &&
-		    adapter->vxlan_port == ti->port) {
-			adapter->vxlan_port_cnt++;
-			return;
-		}
-
-		/* We will support only one VxLAN port */
-		if (adapter->vxlan_port_cnt) {
-			netdev_info(netdev, "UDP port %d already offloaded, not adding port %d\n",
-				    be16_to_cpu(adapter->vxlan_port),
-				    be16_to_cpu(ti->port));
-			return;
-		}
-
 		adapter->vxlan_port = ti->port;
-		adapter->vxlan_port_cnt = 1;
-
 		t4_write_reg(adapter, MPS_RX_VXLAN_TYPE_A,
 			     VXLAN_V(be16_to_cpu(ti->port)) | VXLAN_EN_F);
 		break;
 	case UDP_TUNNEL_TYPE_GENEVE:
-		if (adapter->geneve_port_cnt &&
-		    adapter->geneve_port == ti->port) {
-			adapter->geneve_port_cnt++;
-			return;
-		}
-
-		/* We will support only one GENEVE port */
-		if (adapter->geneve_port_cnt) {
-			netdev_info(netdev, "UDP port %d already offloaded, not adding port %d\n",
-				    be16_to_cpu(adapter->geneve_port),
-				    be16_to_cpu(ti->port));
-			return;
-		}
-
 		adapter->geneve_port = ti->port;
-		adapter->geneve_port_cnt = 1;
-
 		t4_write_reg(adapter, MPS_RX_GENEVE_TYPE_A,
 			     GENEVE_V(be16_to_cpu(ti->port)) | GENEVE_EN_F);
 		break;
 	default:
-		return;
+		return -EINVAL;
 	}
 
 	/* Create a 'match all' mac filter entry for inner mac,
@@ -3869,17 +3811,26 @@ static void cxgb_add_udp_tunnel(struct net_device *netdev,
 		ret = t4_alloc_raw_mac_filt(adapter, pi->viid,
 					    match_all_mac,
 					    match_all_mac,
-					    adapter->rawf_start +
-					    pi->port_id,
+					    adapter->rawf_start + pi->port_id,
 					    1, pi->port_id, false);
 		if (ret < 0) {
 			netdev_info(netdev, "Failed to allocate a mac filter entry, not adding port %d\n",
 				    be16_to_cpu(ti->port));
-			cxgb_del_udp_tunnel(netdev, ti);
-			return;
+			return ret;
 		}
 	}
+
+	return 0;
 }
+
+static const struct udp_tunnel_nic_info cxgb_udp_tunnels = {
+	.set_port	= cxgb_udp_tunnel_set_port,
+	.unset_port	= cxgb_udp_tunnel_unset_port,
+	.tables		= {
+		{ .n_entries = 1, .tunnel_types = UDP_TUNNEL_TYPE_VXLAN,  },
+		{ .n_entries = 1, .tunnel_types = UDP_TUNNEL_TYPE_GENEVE, },
+	},
+};
 
 static netdev_features_t cxgb_features_check(struct sk_buff *skb,
 					     struct net_device *dev,
@@ -3930,8 +3881,8 @@ static const struct net_device_ops cxgb4_netdev_ops = {
 #endif /* CONFIG_CHELSIO_T4_FCOE */
 	.ndo_set_tx_maxrate   = cxgb_set_tx_maxrate,
 	.ndo_setup_tc         = cxgb_setup_tc,
-	.ndo_udp_tunnel_add   = cxgb_add_udp_tunnel,
-	.ndo_udp_tunnel_del   = cxgb_del_udp_tunnel,
+	.ndo_udp_tunnel_add   = udp_tunnel_nic_add_port,
+	.ndo_udp_tunnel_del   = udp_tunnel_nic_del_port,
 	.ndo_features_check   = cxgb_features_check,
 	.ndo_fix_features     = cxgb_fix_features,
 };
@@ -6761,6 +6712,9 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			netdev->hw_features |= NETIF_F_GSO_UDP_TUNNEL |
 					       NETIF_F_GSO_UDP_TUNNEL_CSUM |
 					       NETIF_F_HW_TLS_RECORD;
+
+			if (adapter->rawf_cnt)
+				netdev->udp_tunnel_nic_info = &cxgb_udp_tunnels;
 		}
 
 		if (highdma)
