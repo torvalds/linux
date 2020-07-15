@@ -388,6 +388,9 @@
 			reset-names = "i2c";
 			power-domains = <&pd_venc>;
 			status = "disabled";
+
+			#address-cells = <1>;
+			#size-cells = <0>;
 		};
 	};
 
