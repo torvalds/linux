@@ -143,7 +143,7 @@ struct drm_gem_object_funcs {
 	/**
 	 * @vunmap:
 	 *
-	 * Releases the the address previously returned by @vmap. Used by the
+	 * Releases the address previously returned by @vmap. Used by the
 	 * drm_gem_dmabuf_vunmap() helper.
 	 *
 	 * This callback is optional.
@@ -157,7 +157,7 @@ struct drm_gem_object_funcs {
 	 *
 	 * This callback is optional.
 	 *
-	 * The callback is used by by both drm_gem_mmap_obj() and
+	 * The callback is used by both drm_gem_mmap_obj() and
 	 * drm_gem_prime_mmap().  When @mmap is present @vm_ops is not
 	 * used, the @mmap callback must set vma->vm_ops instead.
 	 */
