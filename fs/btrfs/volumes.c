@@ -1173,6 +1173,7 @@ static void close_fs_devices(struct btrfs_fs_devices *fs_devices)
 	WARN_ON(fs_devices->rw_devices);
 	fs_devices->opened = 0;
 	fs_devices->seeding = false;
+	fs_devices->fs_info = NULL;
 }
 
 void btrfs_close_devices(struct btrfs_fs_devices *fs_devices)
@@ -7201,6 +7202,7 @@ void btrfs_init_devices_late(struct btrfs_fs_info *fs_info)
 			device->fs_info = fs_info;
 		mutex_unlock(&fs_devices->device_list_mutex);
 
+		fs_devices->fs_info = fs_info;
 		fs_devices = fs_devices->seed;
 	}
 }
@@ -7497,24 +7499,6 @@ void btrfs_commit_device_sizes(struct btrfs_transaction *trans)
 		curr->commit_bytes_used = curr->bytes_used;
 	}
 	mutex_unlock(&trans->fs_info->chunk_mutex);
-}
-
-void btrfs_set_fs_info_ptr(struct btrfs_fs_info *fs_info)
-{
-	struct btrfs_fs_devices *fs_devices = fs_info->fs_devices;
-	while (fs_devices) {
-		fs_devices->fs_info = fs_info;
-		fs_devices = fs_devices->seed;
-	}
-}
-
-void btrfs_reset_fs_info_ptr(struct btrfs_fs_info *fs_info)
-{
-	struct btrfs_fs_devices *fs_devices = fs_info->fs_devices;
-	while (fs_devices) {
-		fs_devices->fs_info = NULL;
-		fs_devices = fs_devices->seed;
-	}
 }
 
 /*

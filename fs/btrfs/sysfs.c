@@ -939,8 +939,6 @@ void btrfs_sysfs_remove_mounted(struct btrfs_fs_info *fs_info)
 {
 	struct kobject *fsid_kobj = &fs_info->fs_devices->fsid_kobj;
 
-	btrfs_reset_fs_info_ptr(fs_info);
-
 	sysfs_remove_link(fsid_kobj, "bdi");
 
 	if (fs_info->space_info_kobj) {
@@ -1403,8 +1401,6 @@ int btrfs_sysfs_add_mounted(struct btrfs_fs_info *fs_info)
 	int error;
 	struct btrfs_fs_devices *fs_devs = fs_info->fs_devices;
 	struct kobject *fsid_kobj = &fs_devs->fsid_kobj;
-
-	btrfs_set_fs_info_ptr(fs_info);
 
 	error = btrfs_sysfs_add_devices_dir(fs_devs, NULL);
 	if (error)
