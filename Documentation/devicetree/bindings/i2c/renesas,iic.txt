@@ -11,6 +11,7 @@ Required properties:
 			- "renesas,iic-r8a774a1" (RZ/G2M)
 			- "renesas,iic-r8a774b1" (RZ/G2N)
 			- "renesas,iic-r8a774c0" (RZ/G2E)
+			- "renesas,iic-r8a774e1" (RZ/G2H)
 			- "renesas,iic-r8a7790" (R-Car H2)
 			- "renesas,iic-r8a7791" (R-Car M2-W)
 			- "renesas,iic-r8a7792" (R-Car V2H)
