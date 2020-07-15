@@ -4685,7 +4685,8 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 	update_stream_signal(stream, sink);
 
 	if (stream->signal == SIGNAL_TYPE_HDMI_TYPE_A)
-		mod_build_hf_vsif_infopacket(stream, &stream->vsp_infopacket, false, false);
+		mod_build_hf_vsif_infopacket(stream, &stream->vsp_infopacket);
+
 	if (stream->link->psr_settings.psr_feature_enabled) {
 		//
 		// should decide stream support vsc sdp colorimetry capability
