@@ -2860,6 +2860,12 @@ static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 		goto err_fids_init;
 	}
 
+	err = mlxsw_sp_policers_init(mlxsw_sp);
+	if (err) {
+		dev_err(mlxsw_sp->bus_info->dev, "Failed to initialize policers\n");
+		goto err_policers_init;
+	}
+
 	err = mlxsw_sp_traps_init(mlxsw_sp);
 	if (err) {
 		dev_err(mlxsw_sp->bus_info->dev, "Failed to set traps\n");
@@ -3019,6 +3025,8 @@ err_buffers_init:
 err_devlink_traps_init:
 	mlxsw_sp_traps_fini(mlxsw_sp);
 err_traps_init:
+	mlxsw_sp_policers_fini(mlxsw_sp);
+err_policers_init:
 	mlxsw_sp_fids_fini(mlxsw_sp);
 err_fids_init:
 	mlxsw_sp_kvdl_fini(mlxsw_sp);
@@ -3046,6 +3054,7 @@ static int mlxsw_sp1_init(struct mlxsw_core *mlxsw_core,
 	mlxsw_sp->port_type_speed_ops = &mlxsw_sp1_port_type_speed_ops;
 	mlxsw_sp->ptp_ops = &mlxsw_sp1_ptp_ops;
 	mlxsw_sp->span_ops = &mlxsw_sp1_span_ops;
+	mlxsw_sp->policer_core_ops = &mlxsw_sp1_policer_core_ops;
 	mlxsw_sp->listeners = mlxsw_sp1_listener;
 	mlxsw_sp->listeners_count = ARRAY_SIZE(mlxsw_sp1_listener);
 	mlxsw_sp->lowest_shaper_bs = MLXSW_REG_QEEC_LOWEST_SHAPER_BS_SP1;
@@ -3074,6 +3083,7 @@ static int mlxsw_sp2_init(struct mlxsw_core *mlxsw_core,
 	mlxsw_sp->port_type_speed_ops = &mlxsw_sp2_port_type_speed_ops;
 	mlxsw_sp->ptp_ops = &mlxsw_sp2_ptp_ops;
 	mlxsw_sp->span_ops = &mlxsw_sp2_span_ops;
+	mlxsw_sp->policer_core_ops = &mlxsw_sp2_policer_core_ops;
 	mlxsw_sp->lowest_shaper_bs = MLXSW_REG_QEEC_LOWEST_SHAPER_BS_SP2;
 
 	return mlxsw_sp_init(mlxsw_core, mlxsw_bus_info, extack);
@@ -3100,6 +3110,7 @@ static int mlxsw_sp3_init(struct mlxsw_core *mlxsw_core,
 	mlxsw_sp->port_type_speed_ops = &mlxsw_sp2_port_type_speed_ops;
 	mlxsw_sp->ptp_ops = &mlxsw_sp2_ptp_ops;
 	mlxsw_sp->span_ops = &mlxsw_sp3_span_ops;
+	mlxsw_sp->policer_core_ops = &mlxsw_sp2_policer_core_ops;
 	mlxsw_sp->lowest_shaper_bs = MLXSW_REG_QEEC_LOWEST_SHAPER_BS_SP3;
 
 	return mlxsw_sp_init(mlxsw_core, mlxsw_bus_info, extack);
@@ -3129,6 +3140,7 @@ static void mlxsw_sp_fini(struct mlxsw_core *mlxsw_core)
 	mlxsw_sp_buffers_fini(mlxsw_sp);
 	mlxsw_sp_devlink_traps_fini(mlxsw_sp);
 	mlxsw_sp_traps_fini(mlxsw_sp);
+	mlxsw_sp_policers_fini(mlxsw_sp);
 	mlxsw_sp_fids_fini(mlxsw_sp);
 	mlxsw_sp_kvdl_fini(mlxsw_sp);
 }

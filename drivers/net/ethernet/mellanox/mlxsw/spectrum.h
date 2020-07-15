@@ -151,6 +151,7 @@ struct mlxsw_sp {
 	struct mlxsw_afa *afa;
 	struct mlxsw_sp_acl *acl;
 	struct mlxsw_sp_fid_core *fid_core;
+	struct mlxsw_sp_policer_core *policer_core;
 	struct mlxsw_sp_kvdl *kvdl;
 	struct mlxsw_sp_nve *nve;
 	struct notifier_block netdevice_nb;
@@ -173,6 +174,7 @@ struct mlxsw_sp {
 	const struct mlxsw_sp_port_type_speed_ops *port_type_speed_ops;
 	const struct mlxsw_sp_ptp_ops *ptp_ops;
 	const struct mlxsw_sp_span_ops *span_ops;
+	const struct mlxsw_sp_policer_core_ops *policer_core_ops;
 	const struct mlxsw_listener *listeners;
 	size_t listeners_count;
 	u32 lowest_shaper_bs;
@@ -1195,5 +1197,35 @@ static inline struct net *mlxsw_sp_net(struct mlxsw_sp *mlxsw_sp)
 extern const struct ethtool_ops mlxsw_sp_port_ethtool_ops;
 extern const struct mlxsw_sp_port_type_speed_ops mlxsw_sp1_port_type_speed_ops;
 extern const struct mlxsw_sp_port_type_speed_ops mlxsw_sp2_port_type_speed_ops;
+
+/* spectrum_policer.c */
+extern const struct mlxsw_sp_policer_core_ops mlxsw_sp1_policer_core_ops;
+extern const struct mlxsw_sp_policer_core_ops mlxsw_sp2_policer_core_ops;
+
+enum mlxsw_sp_policer_type {
+	MLXSW_SP_POLICER_TYPE_SINGLE_RATE,
+
+	__MLXSW_SP_POLICER_TYPE_MAX,
+	MLXSW_SP_POLICER_TYPE_MAX = __MLXSW_SP_POLICER_TYPE_MAX - 1,
+};
+
+struct mlxsw_sp_policer_params {
+	u64 rate;
+	u64 burst;
+	bool bytes;
+};
+
+int mlxsw_sp_policer_add(struct mlxsw_sp *mlxsw_sp,
+			 enum mlxsw_sp_policer_type type,
+			 const struct mlxsw_sp_policer_params *params,
+			 struct netlink_ext_ack *extack, u16 *p_policer_index);
+void mlxsw_sp_policer_del(struct mlxsw_sp *mlxsw_sp,
+			  enum mlxsw_sp_policer_type type,
+			  u16 policer_index);
+int mlxsw_sp_policer_drops_counter_get(struct mlxsw_sp *mlxsw_sp,
+				       enum mlxsw_sp_policer_type type,
+				       u16 policer_index, u64 *p_drops);
+int mlxsw_sp_policers_init(struct mlxsw_sp *mlxsw_sp);
+void mlxsw_sp_policers_fini(struct mlxsw_sp *mlxsw_sp);
 
 #endif
