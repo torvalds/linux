@@ -97,6 +97,11 @@ struct hinic_dev {
 	int				lb_test_rx_idx;
 	int				lb_pkt_len;
 	u8				*lb_test_rx_buf;
+	struct devlink			*devlink;
+};
+
+struct hinic_devlink_priv {
+	struct hinic_hwdev		*hwdev;
 };
 
 #endif

@@ -18,6 +18,7 @@
 #include <linux/semaphore.h>
 #include <linux/workqueue.h>
 #include <net/ip.h>
+#include <net/devlink.h>
 #include <linux/bitops.h>
 #include <linux/bitmap.h>
 #include <linux/delay.h>
@@ -25,6 +26,7 @@
 
 #include "hinic_hw_qp.h"
 #include "hinic_hw_dev.h"
+#include "hinic_devlink.h"
 #include "hinic_port.h"
 #include "hinic_tx.h"
 #include "hinic_rx.h"
@@ -1075,9 +1077,11 @@ static int nic_dev_init(struct pci_dev *pdev)
 	struct hinic_rx_mode_work *rx_mode_work;
 	struct hinic_txq_stats *tx_stats;
 	struct hinic_rxq_stats *rx_stats;
+	struct hinic_devlink_priv *priv;
 	struct hinic_dev *nic_dev;
 	struct net_device *netdev;
 	struct hinic_hwdev *hwdev;
+	struct devlink *devlink;
 	int err, num_qps;
 
 	hwdev = hinic_init_hwdev(pdev);
@@ -1085,6 +1089,16 @@ static int nic_dev_init(struct pci_dev *pdev)
 		dev_err(&pdev->dev, "Failed to initialize HW device\n");
 		return PTR_ERR(hwdev);
 	}
+
+	devlink = hinic_devlink_alloc();
+	if (!devlink) {
+		dev_err(&pdev->dev, "Hinic devlink alloc failed\n");
+		err = -ENOMEM;
+		goto err_devlink_alloc;
+	}
+
+	priv = devlink_priv(devlink);
+	priv->hwdev = hwdev;
 
 	num_qps = hinic_hwdev_num_qps(hwdev);
 	if (num_qps <= 0) {
@@ -1121,6 +1135,7 @@ static int nic_dev_init(struct pci_dev *pdev)
 	nic_dev->sriov_info.hwdev = hwdev;
 	nic_dev->sriov_info.pdev = pdev;
 	nic_dev->max_qps = num_qps;
+	nic_dev->devlink = devlink;
 
 	hinic_set_ethtool_ops(netdev);
 
@@ -1145,6 +1160,10 @@ static int nic_dev_init(struct pci_dev *pdev)
 		err = -ENOMEM;
 		goto err_workq;
 	}
+
+	err = hinic_devlink_register(devlink, &pdev->dev);
+	if (err)
+		goto err_devlink_reg;
 
 	pci_set_drvdata(pdev, netdev);
 
@@ -1223,9 +1242,11 @@ err_set_features:
 	cancel_work_sync(&rx_mode_work->work);
 
 err_set_mtu:
-err_get_mac:
+	hinic_port_del_mac(nic_dev, netdev->dev_addr, 0);
 err_add_mac:
+err_get_mac:
 	pci_set_drvdata(pdev, NULL);
+err_devlink_reg:
 	destroy_workqueue(nic_dev->workq);
 
 err_workq:
@@ -1234,6 +1255,7 @@ err_vlan_bitmap:
 
 err_alloc_etherdev:
 err_num_qps:
+err_devlink_alloc:
 	hinic_free_hwdev(hwdev);
 	return err;
 }
@@ -1342,9 +1364,11 @@ static void hinic_remove(struct pci_dev *pdev)
 
 	pci_set_drvdata(pdev, NULL);
 
+	hinic_devlink_unregister(nic_dev->devlink);
+
 	destroy_workqueue(nic_dev->workq);
 
-	hinic_vf_func_free(nic_dev->hwdev);
+	hinic_devlink_free(nic_dev->devlink);
 
 	hinic_free_hwdev(nic_dev->hwdev);
 

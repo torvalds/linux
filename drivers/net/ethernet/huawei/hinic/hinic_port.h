@@ -703,6 +703,31 @@ struct hinic_cmd_get_std_sfp_info {
 	u8 sfp_info[STD_SFP_INFO_MAX_SIZE];
 };
 
+struct hinic_cmd_update_fw {
+	u8 status;
+	u8 version;
+	u8 rsvd0[6];
+
+	struct {
+		u32 SL:1;
+		u32 SF:1;
+		u32 flag:1;
+		u32 reserved:13;
+		u32 fragment_len:16;
+	} ctl_info;
+
+	struct {
+		u32 FW_section_CRC;
+		u32 FW_section_type;
+	} section_info;
+
+	u32 total_len;
+	u32 setion_total_len;
+	u32 fw_section_version;
+	u32 section_offset;
+	u32 data[384];
+};
+
 int hinic_port_add_mac(struct hinic_dev *nic_dev, const u8 *addr,
 		       u16 vlan_id);
 

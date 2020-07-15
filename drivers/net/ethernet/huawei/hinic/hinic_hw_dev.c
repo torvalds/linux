@@ -897,6 +897,8 @@ void hinic_free_hwdev(struct hinic_hwdev *hwdev)
 
 	set_resources_state(hwdev, HINIC_RES_CLEAN);
 
+	hinic_vf_func_free(hwdev);
+
 	free_pfhwdev(pfhwdev);
 
 	hinic_aeqs_free(&hwdev->aeqs);
@@ -1046,4 +1048,30 @@ void hinic_hwdev_set_msix_state(struct hinic_hwdev *hwdev, u16 msix_index,
 				enum hinic_msix_state flag)
 {
 	hinic_set_msix_state(hwdev->hwif, msix_index, flag);
+}
+
+int hinic_get_board_info(struct hinic_hwdev *hwdev,
+			 struct hinic_comm_board_info *board_info)
+{
+	u16 out_size = sizeof(*board_info);
+	struct hinic_pfhwdev *pfhwdev;
+	int err;
+
+	if (!hwdev || !board_info)
+		return -EINVAL;
+
+	pfhwdev = container_of(hwdev, struct hinic_pfhwdev, hwdev);
+
+	err = hinic_msg_to_mgmt(&pfhwdev->pf_to_mgmt, HINIC_MOD_COMM,
+				HINIC_COMM_CMD_GET_BOARD_INFO,
+				board_info, sizeof(*board_info),
+				board_info, &out_size, HINIC_MGMT_MSG_SYNC);
+	if (err || board_info->status || !out_size) {
+		dev_err(&hwdev->hwif->pdev->dev,
+			"Failed to get board info, err: %d, status: 0x%x, out size: 0x%x\n",
+			err, board_info->status, out_size);
+		return -EIO;
+	}
+
+	return 0;
 }

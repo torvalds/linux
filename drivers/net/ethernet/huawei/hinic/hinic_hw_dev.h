@@ -116,6 +116,8 @@ enum hinic_port_cmd {
 
 	HINIC_PORT_CMD_SET_TSO          = 112,
 
+	HINIC_PORT_CMD_UPDATE_FW	= 114,
+
 	HINIC_PORT_CMD_SET_RQ_IQ_MAP	= 115,
 
 	HINIC_PORT_CMD_LINK_STATUS_REPORT = 160,
@@ -307,6 +309,35 @@ struct hinic_msix_config {
 	u8	rsvd1[3];
 };
 
+struct hinic_board_info {
+	u32	board_type;
+	u32	port_num;
+	u32	port_speed;
+	u32	pcie_width;
+	u32	host_num;
+	u32	pf_num;
+	u32	vf_total_num;
+	u32	tile_num;
+	u32	qcm_num;
+	u32	core_num;
+	u32	work_mode;
+	u32	service_mode;
+	u32	pcie_mode;
+	u32	cfg_addr;
+	u32	boot_sel;
+	u32	board_id;
+};
+
+struct hinic_comm_board_info {
+	u8	status;
+	u8	version;
+	u8	rsvd0[6];
+
+	struct hinic_board_info info;
+
+	u32	rsvd1[4];
+};
+
 struct hinic_hwdev {
 	struct hinic_hwif               *hwif;
 	struct msix_entry               *msix_entries;
@@ -406,5 +437,8 @@ int hinic_get_interrupt_cfg(struct hinic_hwdev *hwdev,
 
 int hinic_set_interrupt_cfg(struct hinic_hwdev *hwdev,
 			    struct hinic_msix_config *interrupt_info);
+
+int hinic_get_board_info(struct hinic_hwdev *hwdev,
+			 struct hinic_comm_board_info *board_info);
 
 #endif

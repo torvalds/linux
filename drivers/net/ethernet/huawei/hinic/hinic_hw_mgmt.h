@@ -87,7 +87,9 @@ enum hinic_comm_cmd {
 
 	HINIC_COMM_CMD_PAGESIZE_SET	= 0x50,
 
-	HINIC_COMM_CMD_MAX              = 0x51,
+	HINIC_COMM_CMD_GET_BOARD_INFO	= 0x52,
+
+	HINIC_COMM_CMD_MAX,
 };
 
 enum hinic_mgmt_cb_state {
