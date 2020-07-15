@@ -141,6 +141,47 @@ mux_err:
 	return -ENODEV;
 }
 
+static int cros_typec_add_partner(struct cros_typec_data *typec, int port_num,
+				  bool pd_en)
+{
+	struct cros_typec_port *port = typec->ports[port_num];
+	struct typec_partner_desc p_desc = {
+		.usb_pd = pd_en,
+	};
+	int ret = 0;
+
+	/*
+	 * Fill an initial PD identity, which will then be updated with info
+	 * from the EC.
+	 */
+	p_desc.identity = &port->p_identity;
+
+	port->partner = typec_register_partner(port->port, &p_desc);
+	if (IS_ERR(port->partner)) {
+		ret = PTR_ERR(port->partner);
+		port->partner = NULL;
+	}
+
+	return ret;
+}
+
+static void cros_typec_remove_partner(struct cros_typec_data *typec,
+				     int port_num)
+{
+	struct cros_typec_port *port = typec->ports[port_num];
+
+	port->state.alt = NULL;
+	port->state.mode = TYPEC_STATE_USB;
+	port->state.data = NULL;
+
+	usb_role_switch_set_role(port->role_sw, USB_ROLE_NONE);
+	typec_switch_set(port->ori_sw, TYPEC_ORIENTATION_NONE);
+	typec_mux_set(port->mux, &port->state);
+
+	typec_unregister_partner(port->partner);
+	port->partner = NULL;
+}
+
 static void cros_unregister_ports(struct cros_typec_data *typec)
 {
 	int i;
@@ -148,6 +189,7 @@ static void cros_unregister_ports(struct cros_typec_data *typec)
 	for (i = 0; i < typec->num_ports; i++) {
 		if (!typec->ports[i])
 			continue;
+		cros_typec_remove_partner(typec, i);
 		usb_role_switch_put(typec->ports[i]->role_sw);
 		typec_switch_put(typec->ports[i]->ori_sw);
 		typec_mux_put(typec->ports[i]->mux);
@@ -284,47 +326,6 @@ static int cros_typec_ec_command(struct cros_typec_data *typec,
 
 	kfree(msg);
 	return ret;
-}
-
-static int cros_typec_add_partner(struct cros_typec_data *typec, int port_num,
-				  bool pd_en)
-{
-	struct cros_typec_port *port = typec->ports[port_num];
-	struct typec_partner_desc p_desc = {
-		.usb_pd = pd_en,
-	};
-	int ret = 0;
-
-	/*
-	 * Fill an initial PD identity, which will then be updated with info
-	 * from the EC.
-	 */
-	p_desc.identity = &port->p_identity;
-
-	port->partner = typec_register_partner(port->port, &p_desc);
-	if (IS_ERR(port->partner)) {
-		ret = PTR_ERR(port->partner);
-		port->partner = NULL;
-	}
-
-	return ret;
-}
-
-static void cros_typec_remove_partner(struct cros_typec_data *typec,
-				     int port_num)
-{
-	struct cros_typec_port *port = typec->ports[port_num];
-
-	port->state.alt = NULL;
-	port->state.mode = TYPEC_STATE_USB;
-	port->state.data = NULL;
-
-	usb_role_switch_set_role(port->role_sw, USB_ROLE_NONE);
-	typec_switch_set(port->ori_sw, TYPEC_ORIENTATION_NONE);
-	typec_mux_set(port->mux, &port->state);
-
-	typec_unregister_partner(port->partner);
-	port->partner = NULL;
 }
 
 static void cros_typec_set_port_params_v0(struct cros_typec_data *typec,
