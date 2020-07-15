@@ -28,10 +28,14 @@ config MT7622_WMAC
 	  which has the same feature set as a MT7615, but limited to
 	  2.4 GHz only.
 
+config MT7663_USB_SDIO_COMMON
+	tristate
+	select MT7615_COMMON
+
 config MT7663U
 	tristate "MediaTek MT7663U (USB) support"
 	select MT76_USB
-	select MT7615_COMMON
+	select MT7663_USB_SDIO_COMMON
 	depends on MAC80211
 	depends on USB
 	help

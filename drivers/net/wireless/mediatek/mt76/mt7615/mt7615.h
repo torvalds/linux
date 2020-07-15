@@ -409,6 +409,7 @@ extern struct ieee80211_rate mt7615_rates[12];
 extern const struct ieee80211_ops mt7615_ops;
 extern const u32 mt7615e_reg_map[__MT_BASE_MAX];
 extern const u32 mt7663e_reg_map[__MT_BASE_MAX];
+extern const u32 mt7663_usb_sdio_reg_map[__MT_BASE_MAX];
 extern struct pci_driver mt7615_pci_driver;
 extern struct platform_driver mt7622_wmac_driver;
 extern const struct mt76_testmode_ops mt7615_testmode_ops;
@@ -657,8 +658,16 @@ int mt7615_mcu_update_arp_filter(struct ieee80211_hw *hw,
 int __mt7663_load_firmware(struct mt7615_dev *dev);
 
 /* usb */
-void mt7663u_wtbl_work(struct work_struct *work);
+int mt7663_usb_sdio_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+				   enum mt76_txq_id qid, struct mt76_wcid *wcid,
+				   struct ieee80211_sta *sta,
+				   struct mt76_tx_info *tx_info);
+bool mt7663_usb_sdio_tx_status_data(struct mt76_dev *mdev, u8 *update);
+void mt7663_usb_sdio_tx_complete_skb(struct mt76_dev *mdev,
+				     enum mt76_txq_id qid,
+				     struct mt76_queue_entry *e);
+void mt7663_usb_sdio_wtbl_work(struct work_struct *work);
+int mt7663_usb_sdio_register_device(struct mt7615_dev *dev);
 int mt7663u_mcu_init(struct mt7615_dev *dev);
-int mt7663u_register_device(struct mt7615_dev *dev);
 
 #endif
