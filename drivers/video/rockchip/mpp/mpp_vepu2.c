@@ -40,6 +40,8 @@
 
 #define VEPU2_GET_FORMAT(x)			(((x) >> 4) & 0x3)
 #define VEPU2_FORMAT_MASK			(0x30)
+#define VEPU2_GET_WIDTH(x)			(((x >> 8) & 0x1ff) << 4)
+#define VEPU2_GET_HEIGHT(x)			(((x >> 20) & 0x1ff) << 4)
 
 #define VEPU2_FMT_RESERVED			(0)
 #define VEPU2_FMT_VP8E				(1)
@@ -88,6 +90,10 @@ struct vepu_task {
 	struct mpp_request w_reqs[MPP_MAX_MSG_NUM];
 	u32 r_req_cnt;
 	struct mpp_request r_reqs[MPP_MAX_MSG_NUM];
+	/* image info */
+	u32 width;
+	u32 height;
+	u32 pixels;
 };
 
 struct vepu_dev {
@@ -95,6 +101,7 @@ struct vepu_dev {
 
 	struct mpp_clk_info aclk_info;
 	struct mpp_clk_info hclk_info;
+	u32 default_max_load;
 #ifdef CONFIG_PROC_FS
 	struct proc_dir_entry *procfs;
 #endif
@@ -242,6 +249,11 @@ static void *vepu_alloc_task(struct mpp_session *session,
 			goto fail;
 	}
 	task->clk_mode = CLK_MODE_NORMAL;
+	/* get resolution info */
+	task->width = VEPU2_GET_WIDTH(task->reg[VEPU2_REG_ENC_EN_INDEX]);
+	task->height = VEPU2_GET_HEIGHT(task->reg[VEPU2_REG_ENC_EN_INDEX]);
+	task->pixels = task->width * task->height;
+	mpp_debug(DEBUG_TASK_INFO, "width=%d, height=%d\n", task->width, task->height);
 
 	mpp_debug_leave();
 
@@ -449,6 +461,9 @@ static int vepu_init(struct mpp_dev *mpp)
 	ret = mpp_get_clk_info(mpp, &enc->hclk_info, "hclk_vcodec");
 	if (ret)
 		mpp_err("failed on clk_get hclk_vcodec\n");
+	/* Get normal max workload from dtsi */
+	of_property_read_u32(mpp->dev->of_node,
+			     "rockchip,default-max-load", &enc->default_max_load);
 	/* Set default rates */
 	mpp_set_clk_info_rate_hz(&enc->aclk_info, CLK_MODE_DEFAULT, 300 * MHZ);
 
@@ -485,6 +500,42 @@ static int vepu_clk_off(struct mpp_dev *mpp)
 
 	mpp_clk_safe_disable(enc->aclk_info.clk);
 	mpp_clk_safe_disable(enc->hclk_info.clk);
+
+	return 0;
+}
+
+static int vepu_get_freq(struct mpp_dev *mpp,
+			 struct mpp_task *mpp_task)
+{
+	u32 task_cnt;
+	u32 workload;
+	struct mpp_task *loop = NULL, *n;
+	struct vepu_dev *enc = to_vepu_dev(mpp);
+	struct vepu_task *task = to_vepu_task(mpp_task);
+
+	/* if not set max load, consider not have advanced mode */
+	if (!enc->default_max_load)
+		return 0;
+
+	task_cnt = 1;
+	workload = task->pixels;
+	/* calc workload in pending list */
+	mutex_lock(&mpp->queue->pending_lock);
+	list_for_each_entry_safe(loop, n,
+				 &mpp->queue->pending_list,
+				 queue_link) {
+		struct vepu_task *loop_task = to_vepu_task(loop);
+
+		task_cnt++;
+		workload += loop_task->pixels;
+	}
+	mutex_unlock(&mpp->queue->pending_lock);
+
+	if (workload > enc->default_max_load)
+		task->clk_mode = CLK_MODE_ADVANCED;
+
+	mpp_debug(DEBUG_TASK_INFO, "pending task %d, workload %d, clk_mode=%d\n",
+		  task_cnt, workload, task->clk_mode);
 
 	return 0;
 }
@@ -532,6 +583,7 @@ static struct mpp_hw_ops vepu_v2_hw_ops = {
 	.init = vepu_init,
 	.clk_on = vepu_clk_on,
 	.clk_off = vepu_clk_off,
+	.get_freq = vepu_get_freq,
 	.set_freq = vepu_set_freq,
 	.reduce_freq = vepu_reduce_freq,
 	.reset = vepu_reset,
