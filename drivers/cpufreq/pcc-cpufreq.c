@@ -616,7 +616,7 @@ static void __exit pcc_cpufreq_exit(void)
 	free_percpu(pcc_cpu_info);
 }
 
-static const struct acpi_device_id processor_device_ids[] = {
+static const struct acpi_device_id __maybe_unused processor_device_ids[] = {
 	{ACPI_PROCESSOR_OBJECT_HID, },
 	{ACPI_PROCESSOR_DEVICE_HID, },
 	{},
