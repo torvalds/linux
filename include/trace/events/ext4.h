@@ -1312,18 +1312,34 @@ DEFINE_EVENT(ext4__bitmap_load, ext4_mb_buddy_bitmap_load,
 	TP_ARGS(sb, group)
 );
 
-DEFINE_EVENT(ext4__bitmap_load, ext4_read_block_bitmap_load,
+DEFINE_EVENT(ext4__bitmap_load, ext4_load_inode_bitmap,
 
 	TP_PROTO(struct super_block *sb, unsigned long group),
 
 	TP_ARGS(sb, group)
 );
 
-DEFINE_EVENT(ext4__bitmap_load, ext4_load_inode_bitmap,
+TRACE_EVENT(ext4_read_block_bitmap_load,
+	TP_PROTO(struct super_block *sb, unsigned long group, bool prefetch),
 
-	TP_PROTO(struct super_block *sb, unsigned long group),
+	TP_ARGS(sb, group, prefetch),
 
-	TP_ARGS(sb, group)
+	TP_STRUCT__entry(
+		__field(	dev_t,	dev			)
+		__field(	__u32,	group			)
+		__field(	bool,	prefetch		)
+
+	),
+
+	TP_fast_assign(
+		__entry->dev	= sb->s_dev;
+		__entry->group	= group;
+		__entry->prefetch = prefetch;
+	),
+
+	TP_printk("dev %d,%d group %u prefetch %d",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->group, __entry->prefetch)
 );
 
 TRACE_EVENT(ext4_direct_IO_enter,
