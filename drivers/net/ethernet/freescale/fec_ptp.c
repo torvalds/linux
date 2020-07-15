@@ -264,7 +264,7 @@ void fec_ptp_start_cyclecounter(struct net_device *ndev)
 	fep->cc.mult = FEC_CC_MULT;
 
 	/* reset the ns time counter */
-	timecounter_init(&fep->tc, &fep->cc, ktime_to_ns(ktime_get_real()));
+	timecounter_init(&fep->tc, &fep->cc, 0);
 
 	spin_unlock_irqrestore(&fep->tmreg_lock, flags);
 }
