@@ -341,7 +341,7 @@ struct usb_interface_cache {
  * @interface: array of pointers to usb_interface structures, one for each
  *	interface in the configuration.  The number of interfaces is stored
  *	in desc.bNumInterfaces.  These pointers are valid only while the
- *	the configuration is active.
+ *	configuration is active.
  * @intf_cache: array of pointers to usb_interface_cache structures, one
  *	for each interface in the configuration.  These structures exist
  *	for the entire life of the device.
