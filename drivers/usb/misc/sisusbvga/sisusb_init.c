@@ -45,6 +45,7 @@
 
 #include "sisusb.h"
 #include "sisusb_init.h"
+#include "sisusb_tables.h"
 
 /*********************************************/
 /*         POINTER INITIALIZATION            */
