@@ -439,7 +439,7 @@ struct ieee80211_sta_s1g_cap {
  * This structure describes a frequency band a wiphy
  * is able to operate in.
  *
- * @channels: Array of channels the hardware can operate in
+ * @channels: Array of channels the hardware can operate with
  *	in this band.
  * @band: the band this structure represents
  * @n_channels: Number of channels in @channels
@@ -5527,7 +5527,7 @@ static inline int ieee80211_data_to_8023(struct sk_buff *skb, const u8 *addr,
  *
  * @skb: The input A-MSDU frame without any headers.
  * @list: The output list of 802.3 frames. It must be allocated and
- *	initialized by by the caller.
+ *	initialized by the caller.
  * @addr: The device MAC address.
  * @iftype: The device interface type.
  * @extra_headroom: The hardware extra headroom for SKBs in the @list.
