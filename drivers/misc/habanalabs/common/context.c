@@ -23,7 +23,7 @@ static void hl_ctx_fini(struct hl_ctx *ctx)
 	 */
 
 	for (i = 0 ; i < hdev->asic_prop.max_pending_cs ; i++)
-		dma_fence_put(ctx->cs_pending[i]);
+		hl_fence_put(ctx->cs_pending[i]);
 
 	kfree(ctx->cs_pending);
 
@@ -128,7 +128,7 @@ int hl_ctx_init(struct hl_device *hdev, struct hl_ctx *ctx, bool is_kernel_ctx)
 	atomic_set(&ctx->thread_ctx_switch_token, 1);
 	ctx->thread_ctx_switch_wait_token = 0;
 	ctx->cs_pending = kcalloc(hdev->asic_prop.max_pending_cs,
-				sizeof(struct dma_fence *),
+				sizeof(struct hl_fence *),
 				GFP_KERNEL);
 	if (!ctx->cs_pending)
 		return -ENOMEM;
@@ -184,10 +184,10 @@ int hl_ctx_put(struct hl_ctx *ctx)
 	return kref_put(&ctx->refcount, hl_ctx_do_release);
 }
 
-struct dma_fence *hl_ctx_get_fence(struct hl_ctx *ctx, u64 seq)
+struct hl_fence *hl_ctx_get_fence(struct hl_ctx *ctx, u64 seq)
 {
 	struct asic_fixed_properties *asic_prop = &ctx->hdev->asic_prop;
-	struct dma_fence *fence;
+	struct hl_fence *fence;
 
 	spin_lock(&ctx->cs_lock);
 
@@ -201,8 +201,9 @@ struct dma_fence *hl_ctx_get_fence(struct hl_ctx *ctx, u64 seq)
 		return NULL;
 	}
 
-	fence = dma_fence_get(
-			ctx->cs_pending[seq & (asic_prop->max_pending_cs - 1)]);
+	fence = ctx->cs_pending[seq & (asic_prop->max_pending_cs - 1)];
+	hl_fence_get(fence);
+
 	spin_unlock(&ctx->cs_lock);
 
 	return fence;

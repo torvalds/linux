@@ -474,7 +474,7 @@ static void init_signal_wait_cs(struct hl_cs *cs)
 		 * wait CS was submitted.
 		 */
 		mb();
-		dma_fence_put(cs->signal_fence);
+		hl_fence_put(cs->signal_fence);
 		cs->signal_fence = NULL;
 	}
 }
