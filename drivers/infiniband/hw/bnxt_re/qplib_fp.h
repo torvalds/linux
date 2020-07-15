@@ -224,9 +224,10 @@ struct bnxt_qplib_qp {
 	u32				id;
 	u8				type;
 	u8				sig_type;
-	u32				modify_flags;
+	u8				wqe_mode;
 	u8				state;
 	u8				cur_qp_state;
+	u64				modify_flags;
 	u32				max_inline_data;
 	u32				mtu;
 	u8				path_mtu;

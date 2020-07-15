@@ -41,6 +41,28 @@
 
 extern const struct bnxt_qplib_gid bnxt_qplib_gid_zero;
 
+#define CHIP_NUM_57508		0x1750
+#define CHIP_NUM_57504		0x1751
+#define CHIP_NUM_57502		0x1752
+
+enum bnxt_qplib_wqe_mode {
+	BNXT_QPLIB_WQE_MODE_STATIC	= 0x00,
+	BNXT_QPLIB_WQE_MODE_VARIABLE	= 0x01,
+	BNXT_QPLIB_WQE_MODE_INVALID	= 0x02
+};
+
+struct bnxt_qplib_drv_modes {
+	u8	wqe_mode;
+	/* Other modes to follow here */
+};
+
+struct bnxt_qplib_chip_ctx {
+	u16	chip_num;
+	u8	chip_rev;
+	u8	chip_metal;
+	struct bnxt_qplib_drv_modes modes;
+};
+
 #define PTR_CNT_PER_PG		(PAGE_SIZE / sizeof(void *))
 #define PTR_MAX_IDX_PER_PG	(PTR_CNT_PER_PG - 1)
 #define PTR_PG(x)		(((x) & ~PTR_MAX_IDX_PER_PG) / PTR_CNT_PER_PG)
@@ -229,16 +251,6 @@ struct bnxt_qplib_ctx {
 	struct bnxt_qplib_vf_res	vf_res;
 	u64				hwrm_intf_ver;
 };
-
-struct bnxt_qplib_chip_ctx {
-	u16	chip_num;
-	u8	chip_rev;
-	u8	chip_metal;
-};
-
-#define CHIP_NUM_57508		0x1750
-#define CHIP_NUM_57504		0x1751
-#define CHIP_NUM_57502		0x1752
 
 struct bnxt_qplib_res {
 	struct pci_dev			*pdev;
