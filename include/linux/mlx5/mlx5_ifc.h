@@ -10653,4 +10653,10 @@ struct mlx5_ifc_tls_progress_params_bits {
 	u8         hw_offset_record_number[0x18];
 };
 
+enum {
+	MLX5_MTT_PERM_READ	= 1 << 0,
+	MLX5_MTT_PERM_WRITE	= 1 << 1,
+	MLX5_MTT_PERM_RW	= MLX5_MTT_PERM_READ | MLX5_MTT_PERM_WRITE,
+};
+
 #endif /* MLX5_IFC_H */
