@@ -244,7 +244,7 @@ static unsigned extract_freq(struct cpufreq_policy *policy, u32 val)
 
 static u32 cpu_freq_read_intel(struct acpi_pct_register *not_used)
 {
-	u32 val, dummy;
+	u32 val, dummy __always_unused;
 
 	rdmsr(MSR_IA32_PERF_CTL, val, dummy);
 	return val;
@@ -261,7 +261,7 @@ static void cpu_freq_write_intel(struct acpi_pct_register *not_used, u32 val)
 
 static u32 cpu_freq_read_amd(struct acpi_pct_register *not_used)
 {
-	u32 val, dummy;
+	u32 val, dummy __always_unused;
 
 	rdmsr(MSR_AMD_PERF_CTL, val, dummy);
 	return val;
