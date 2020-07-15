@@ -28,6 +28,7 @@ enum mt7615_reg_base {
 	MT_PCIE_REMAP_BASE2,
 	MT_TOP_MISC_BASE,
 	MT_EFUSE_ADDR_BASE,
+	MT_PP_BASE,
 	__MT_BASE_MAX,
 };
 
@@ -152,6 +153,8 @@ enum mt7615_reg_base {
 
 #define MT_PLE(ofs)			((dev)->reg_map[MT_PLE_BASE] + (ofs))
 
+#define MT_PLE_PG_HIF0_GROUP		MT_PLE(0x110)
+#define MT_HIF0_MIN_QUOTA		GENMASK(11, 0)
 #define MT_PLE_FL_Q0_CTRL		MT_PLE(0x1b0)
 #define MT_PLE_FL_Q1_CTRL		MT_PLE(0x1b4)
 #define MT_PLE_FL_Q2_CTRL		MT_PLE(0x1b8)
@@ -161,12 +164,21 @@ enum mt7615_reg_base {
 					       ((n) << 2))
 
 #define MT_PSE(ofs)			((dev)->reg_map[MT_PSE_BASE] + (ofs))
+#define MT_PSE_PG_HIF0_GROUP		MT_PSE(0x110)
+#define MT_HIF0_MIN_QUOTA		GENMASK(11, 0)
+#define MT_PSE_PG_HIF1_GROUP		MT_PSE(0x118)
+#define MT_HIF1_MIN_QUOTA		GENMASK(11, 0)
 #define MT_PSE_QUEUE_EMPTY		MT_PSE(0x0b4)
 #define MT_HIF_0_EMPTY_MASK		BIT(16)
 #define MT_HIF_1_EMPTY_MASK		BIT(17)
 #define MT_HIF_ALL_EMPTY_MASK		GENMASK(17, 16)
 #define MT_PSE_PG_INFO			MT_PSE(0x194)
 #define MT_PSE_SRC_CNT			GENMASK(27, 16)
+
+#define MT_PP(ofs)			((dev)->reg_map[MT_PP_BASE] + (ofs))
+#define MT_PP_TXDWCNT			MT_PP(0x0)
+#define MT_PP_TXDWCNT_TX0_ADD_DW_CNT	GENMASK(7, 0)
+#define MT_PP_TXDWCNT_TX1_ADD_DW_CNT	GENMASK(15, 8)
 
 #define MT_WF_PHY_BASE			0x82070000
 #define MT_WF_PHY(ofs)			(MT_WF_PHY_BASE + (ofs))

@@ -656,6 +656,8 @@ int mt7615_mcu_update_arp_filter(struct ieee80211_hw *hw,
 				 struct ieee80211_vif *vif,
 				 struct ieee80211_bss_conf *info);
 int __mt7663_load_firmware(struct mt7615_dev *dev);
+u32 mt7615_mcu_reg_rr(struct mt76_dev *dev, u32 offset);
+void mt7615_mcu_reg_wr(struct mt76_dev *dev, u32 offset, u32 val);
 
 /* usb */
 int mt7663_usb_sdio_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
@@ -669,5 +671,13 @@ void mt7663_usb_sdio_tx_complete_skb(struct mt76_dev *mdev,
 void mt7663_usb_sdio_wtbl_work(struct work_struct *work);
 int mt7663_usb_sdio_register_device(struct mt7615_dev *dev);
 int mt7663u_mcu_init(struct mt7615_dev *dev);
+
+/* sdio */
+u32 mt7663s_read_pcr(struct mt7615_dev *dev);
+int mt7663s_mcu_init(struct mt7615_dev *dev);
+int mt7663s_driver_own(struct mt7615_dev *dev);
+int mt7663s_firmware_own(struct mt7615_dev *dev);
+int mt7663s_kthread_run(void *data);
+void mt7663s_sdio_irq(struct sdio_func *func);
 
 #endif

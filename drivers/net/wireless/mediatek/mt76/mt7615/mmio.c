@@ -43,6 +43,7 @@ const u32 mt7663e_reg_map[] = {
 	[MT_CSR_BASE]		= 0x07000,
 	[MT_PLE_BASE]		= 0x08000,
 	[MT_PSE_BASE]		= 0x0c000,
+	[MT_PP_BASE]            = 0x0e000,
 	[MT_CFG_BASE]		= 0x20000,
 	[MT_AGG_BASE]		= 0x22000,
 	[MT_TMAC_BASE]		= 0x24000,

@@ -146,7 +146,10 @@ void mt7615_mcu_fill_msg(struct mt7615_dev *dev, struct sk_buff *skb,
 		mcu_txd->cid = mcu_cmd;
 		break;
 	case MCU_CE_PREFIX:
-		mcu_txd->set_query = MCU_Q_SET;
+		if (cmd & MCU_QUERY_MASK)
+			mcu_txd->set_query = MCU_Q_QUERY;
+		else
+			mcu_txd->set_query = MCU_Q_SET;
 		mcu_txd->cid = mcu_cmd;
 		break;
 	default:
@@ -212,6 +215,14 @@ mt7615_mcu_parse_response(struct mt7615_dev *dev, int cmd,
 		skb_pull(skb, sizeof(*rxd));
 		event = (struct mt7615_mcu_uni_event *)skb->data;
 		ret = le32_to_cpu(event->status);
+		break;
+	}
+	case MCU_CMD_REG_READ: {
+		struct mt7615_mcu_reg_event *event;
+
+		skb_pull(skb, sizeof(*rxd));
+		event = (struct mt7615_mcu_reg_event *)skb->data;
+		ret = (int)le32_to_cpu(event->val);
 		break;
 	}
 	default:
@@ -3885,3 +3896,32 @@ int mt7615_mcu_set_p2p_oppps(struct ieee80211_hw *hw,
 	return __mt76_mcu_send_msg(&dev->mt76, MCU_CMD_SET_P2P_OPPPS,
 				   &req, sizeof(req), false);
 }
+
+u32 mt7615_mcu_reg_rr(struct mt76_dev *dev, u32 offset)
+{
+	struct {
+		__le32 addr;
+		__le32 val;
+	} __packed req = {
+		.addr = cpu_to_le32(offset),
+	};
+
+	return __mt76_mcu_send_msg(dev, MCU_CMD_REG_READ,
+				   &req, sizeof(req), true);
+}
+EXPORT_SYMBOL_GPL(mt7615_mcu_reg_rr);
+
+void mt7615_mcu_reg_wr(struct mt76_dev *dev, u32 offset, u32 val)
+{
+	struct {
+		__le32 addr;
+		__le32 val;
+	} __packed req = {
+		.addr = cpu_to_le32(offset),
+		.val = cpu_to_le32(val),
+	};
+
+	__mt76_mcu_send_msg(dev, MCU_CMD_REG_WRITE,
+			    &req, sizeof(req), false);
+}
+EXPORT_SYMBOL_GPL(mt7615_mcu_reg_wr);
