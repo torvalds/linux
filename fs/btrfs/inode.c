@@ -3336,6 +3336,14 @@ cache_index:
 	 */
 	BTRFS_I(inode)->last_unlink_trans = BTRFS_I(inode)->last_trans;
 
+	/*
+	 * Same logic as for last_unlink_trans. We don't persist the generation
+	 * of the last transaction where this inode was used for a reflink
+	 * operation, so after eviction and reloading the inode we must be
+	 * pessimistic and assume the last transaction that modified the inode.
+	 */
+	BTRFS_I(inode)->last_reflink_trans = BTRFS_I(inode)->last_trans;
+
 	path->slots[0]++;
 	if (inode->i_nlink != 1 ||
 	    path->slots[0] >= btrfs_header_nritems(leaf))
@@ -8550,6 +8558,7 @@ struct inode *btrfs_alloc_inode(struct super_block *sb)
 	ei->index_cnt = (u64)-1;
 	ei->dir_index = 0;
 	ei->last_unlink_trans = 0;
+	ei->last_reflink_trans = 0;
 	ei->last_log_commit = 0;
 
 	spin_lock_init(&ei->lock);
