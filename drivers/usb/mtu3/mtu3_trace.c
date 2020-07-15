@@ -8,6 +8,7 @@
  */
 
 #define CREATE_TRACE_POINTS
+#include "mtu3_debug.h"
 #include "mtu3_trace.h"
 
 void mtu3_dbg_trace(struct device *dev, const char *fmt, ...)
