@@ -363,7 +363,7 @@
  * @NL80211_CMD_SET_STATION: Set station attributes for station identified by
  *	%NL80211_ATTR_MAC on the interface identified by %NL80211_ATTR_IFINDEX.
  * @NL80211_CMD_NEW_STATION: Add a station with given attributes to the
- *	the interface identified by %NL80211_ATTR_IFINDEX.
+ *	interface identified by %NL80211_ATTR_IFINDEX.
  * @NL80211_CMD_DEL_STATION: Remove a station identified by %NL80211_ATTR_MAC
  *	or, if no MAC address given, all stations, on the interface identified
  *	by %NL80211_ATTR_IFINDEX. %NL80211_ATTR_MGMT_SUBTYPE and
@@ -383,7 +383,7 @@
  * @NL80211_CMD_DEL_MPATH: Delete a mesh path to the destination given by
  *	%NL80211_ATTR_MAC.
  * @NL80211_CMD_NEW_PATH: Add a mesh path with given attributes to the
- *	the interface identified by %NL80211_ATTR_IFINDEX.
+ *	interface identified by %NL80211_ATTR_IFINDEX.
  * @NL80211_CMD_DEL_PATH: Remove a mesh path identified by %NL80211_ATTR_MAC
  *	or, if no MAC address given, all mesh paths, on the interface identified
  *	by %NL80211_ATTR_IFINDEX.
@@ -934,7 +934,7 @@
  * @NL80211_CMD_SET_COALESCE: Configure coalesce rules or clear existing rules.
  *
  * @NL80211_CMD_CHANNEL_SWITCH: Perform a channel switch by announcing the
- *	the new channel information (Channel Switch Announcement - CSA)
+ *	new channel information (Channel Switch Announcement - CSA)
  *	in the beacon for some time (as defined in the
  *	%NL80211_ATTR_CH_SWITCH_COUNT parameter) and then change to the
  *	new channel. Userspace provides the new channel information (using
@@ -1113,7 +1113,7 @@
  *	randomization may be enabled and configured by specifying the
  *	%NL80211_ATTR_MAC and %NL80211_ATTR_MAC_MASK attributes.
  *	If a timeout is requested, use the %NL80211_ATTR_TIMEOUT attribute.
- *	A u64 cookie for further %NL80211_ATTR_COOKIE use is is returned in
+ *	A u64 cookie for further %NL80211_ATTR_COOKIE use is returned in
  *	the netlink extended ack message.
  *
  *	To cancel a measurement, close the socket that requested it.
@@ -1511,7 +1511,7 @@ enum nl80211_commands {
  *	rates as defined by IEEE 802.11 7.3.2.2 but without the length
  *	restriction (at most %NL80211_MAX_SUPP_RATES).
  * @NL80211_ATTR_STA_VLAN: interface index of VLAN interface to move station
- *	to, or the AP interface the station was originally added to to.
+ *	to, or the AP interface the station was originally added to.
  * @NL80211_ATTR_STA_INFO: information about a station, part of station info
  *	given for %NL80211_CMD_GET_STATION, nested attribute containing
  *	info as possible, see &enum nl80211_sta_info.
@@ -2084,7 +2084,7 @@ enum nl80211_commands {
  * @NL80211_ATTR_STA_SUPPORTED_CHANNELS: array of supported channels.
  *
  * @NL80211_ATTR_STA_SUPPORTED_OPER_CLASSES: array of supported
- *      supported operating classes.
+ *      operating classes.
  *
  * @NL80211_ATTR_HANDLE_DFS: A flag indicating whether user space
  *	controls DFS operation in IBSS mode. If the flag is included in
@@ -2395,7 +2395,7 @@ enum nl80211_commands {
  *      nl80211_txq_stats)
  * @NL80211_ATTR_TXQ_LIMIT: Total packet limit for the TXQ queues for this phy.
  *      The smaller of this and the memory limit is enforced.
- * @NL80211_ATTR_TXQ_MEMORY_LIMIT: Total memory memory limit (in bytes) for the
+ * @NL80211_ATTR_TXQ_MEMORY_LIMIT: Total memory limit (in bytes) for the
  *      TXQ queues for this phy. The smaller of this and the packet limit is
  *      enforced.
  * @NL80211_ATTR_TXQ_QUANTUM: TXQ scheduler quantum (bytes). Number of bytes
@@ -5652,7 +5652,7 @@ enum nl80211_feature_flags {
  * enum nl80211_ext_feature_index - bit index of extended features.
  * @NL80211_EXT_FEATURE_VHT_IBSS: This driver supports IBSS with VHT datarates.
  * @NL80211_EXT_FEATURE_RRM: This driver supports RRM. When featured, user can
- *	can request to use RRM (see %NL80211_ATTR_USE_RRM) with
+ *	request to use RRM (see %NL80211_ATTR_USE_RRM) with
  *	%NL80211_CMD_ASSOCIATE and %NL80211_CMD_CONNECT requests, which will set
  *	the ASSOC_REQ_USE_RRM flag in the association request even if
  *	NL80211_FEATURE_QUIET is not advertized.
@@ -6061,7 +6061,7 @@ enum nl80211_dfs_state {
 };
 
 /**
- * enum enum nl80211_protocol_features - nl80211 protocol features
+ * enum nl80211_protocol_features - nl80211 protocol features
  * @NL80211_PROTOCOL_FEATURE_SPLIT_WIPHY_DUMP: nl80211 supports splitting
  *	wiphy dumps (if requested by the application with the attribute
  *	%NL80211_ATTR_SPLIT_WIPHY_DUMP. Also supported is filtering the
