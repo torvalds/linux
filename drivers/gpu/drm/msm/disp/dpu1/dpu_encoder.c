@@ -212,14 +212,14 @@ static u32 dither_matrix[DITHER_MATRIX_SZ] = {
 	15, 7, 13, 5, 3, 11, 1, 9, 12, 4, 14, 6, 0, 8, 2, 10
 };
 
-static void _dpu_encoder_setup_dither(struct dpu_encoder_phys *phys)
+static void _dpu_encoder_setup_dither(struct dpu_hw_pingpong *hw_pp, unsigned bpc)
 {
 	struct dpu_hw_dither_cfg dither_cfg = { 0 };
 
-	if (!phys->hw_pp || !phys->hw_pp->ops.setup_dither)
+	if (!hw_pp->ops.setup_dither)
 		return;
 
-	switch (phys->connector->display_info.bpc) {
+	switch (bpc) {
 	case 6:
 		dither_cfg.c0_bitdepth = 6;
 		dither_cfg.c1_bitdepth = 6;
@@ -228,14 +228,14 @@ static void _dpu_encoder_setup_dither(struct dpu_encoder_phys *phys)
 		dither_cfg.temporal_en = 0;
 		break;
 	default:
-		phys->hw_pp->ops.setup_dither(phys->hw_pp, NULL);
+		hw_pp->ops.setup_dither(hw_pp, NULL);
 		return;
 	}
 
 	memcpy(&dither_cfg.matrix, dither_matrix,
 			sizeof(u32) * DITHER_MATRIX_SZ);
 
-	phys->hw_pp->ops.setup_dither(phys->hw_pp, &dither_cfg);
+	hw_pp->ops.setup_dither(hw_pp, &dither_cfg);
 }
 
 void dpu_encoder_helper_report_irq_timeout(struct dpu_encoder_phys *phys_enc,
@@ -1113,11 +1113,13 @@ static void _dpu_encoder_virt_enable_helper(struct drm_encoder *drm_enc)
 
 	_dpu_encoder_update_vsync_source(dpu_enc, &dpu_enc->disp_info);
 
-	if (dpu_enc->disp_info.intf_type == DRM_MODE_ENCODER_DSI) {
-		for (i = 0; i < dpu_enc->num_phys_encs; i++) {
-			struct dpu_encoder_phys *phys = dpu_enc->phys_encs[i];
-
-			_dpu_encoder_setup_dither(phys);
+	if (dpu_enc->disp_info.intf_type == DRM_MODE_ENCODER_DSI &&
+			!WARN_ON(dpu_enc->num_phys_encs == 0)) {
+		unsigned bpc = dpu_enc->phys_encs[0]->connector->display_info.bpc;
+		for (i = 0; i < MAX_CHANNELS_PER_ENC; i++) {
+			if (!dpu_enc->hw_pp[i])
+				continue;
+			_dpu_encoder_setup_dither(dpu_enc->hw_pp[i], bpc);
 		}
 	}
 }
