@@ -163,6 +163,9 @@ struct bnxt_qplib_hwq {
 	u32				cons;		/* raw */
 	u8				cp_bit;
 	u8				is_user;
+	u64				*pad_pg;
+	u32				pad_stride;
+	u32				pad_pgofft;
 };
 
 struct bnxt_qplib_db_info {
