@@ -869,18 +869,19 @@ void mptcp_space(const struct sock *ssk, int *space, int *full_space)
 static void subflow_data_ready(struct sock *sk)
 {
 	struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(sk);
+	u16 state = 1 << inet_sk_state_load(sk);
 	struct sock *parent = subflow->conn;
 	struct mptcp_sock *msk;
 
 	msk = mptcp_sk(parent);
-	if ((1 << inet_sk_state_load(sk)) & (TCPF_LISTEN | TCPF_CLOSE)) {
+	if (state & TCPF_LISTEN) {
 		set_bit(MPTCP_DATA_READY, &msk->flags);
 		parent->sk_data_ready(parent);
 		return;
 	}
 
 	WARN_ON_ONCE(!__mptcp_check_fallback(msk) && !subflow->mp_capable &&
-		     !subflow->mp_join);
+		     !subflow->mp_join && !(state & TCPF_CLOSE));
 
 	if (mptcp_subflow_data_available(sk))
 		mptcp_data_ready(parent, sk);
