@@ -223,7 +223,7 @@ struct ipv6_pinfo {
 
 	/*
 	 * Packed in 16bits.
-	 * Omit one shift by by putting the signed field at MSB.
+	 * Omit one shift by putting the signed field at MSB.
 	 */
 #if defined(__BIG_ENDIAN_BITFIELD)
 	__s16			hop_limit:9;
