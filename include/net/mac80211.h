@@ -2727,7 +2727,7 @@ void ieee80211_free_txskb(struct ieee80211_hw *hw, struct sk_buff *skb);
  * for devices that support offload of data packets (e.g. ARP responses).
  *
  * Mac80211 drivers should set the @NL80211_EXT_FEATURE_CAN_REPLACE_PTK0 flag
- * when they are able to replace in-use PTK keys according to to following
+ * when they are able to replace in-use PTK keys according to the following
  * requirements:
  * 1) They do not hand over frames decrypted with the old key to
       mac80211 once the call to set_key() with command %DISABLE_KEY has been
@@ -4709,7 +4709,7 @@ void ieee80211_tx_status_irqsafe(struct ieee80211_hw *hw,
  *
  * Call this function for all transmitted data frames after their transmit
  * completion. This callback should only be called for data frames which
- * are are using driver's (or hardware's) offload capability of encap/decap
+ * are using driver's (or hardware's) offload capability of encap/decap
  * 802.11 frames.
  *
  * This function may not be called in IRQ context. Calls to this function
@@ -6344,7 +6344,7 @@ void ieee80211_unreserve_tid(struct ieee80211_sta *sta, u8 tid);
  *
  * Note that this must be called in an rcu_read_lock() critical section,
  * which can only be released after the SKB was handled. Some pointers in
- * skb->cb, e.g. the key pointer, are protected by by RCU and thus the
+ * skb->cb, e.g. the key pointer, are protected by RCU and thus the
  * critical section must persist not just for the duration of this call
  * but for the duration of the frame handling.
  * However, also note that while in the wake_tx_queue() method,
