@@ -1267,6 +1267,7 @@ struct rtw_coex_stat {
 	bool bt_link_exist;
 	bool bt_whck_test;
 	bool bt_inq_page;
+	bool bt_inq_remain;
 	bool bt_inq;
 	bool bt_page;
 	bool bt_ble_voice;
@@ -1367,6 +1368,8 @@ struct rtw_coex {
 	struct delayed_work bt_relink_work;
 	struct delayed_work bt_reenable_work;
 	struct delayed_work defreeze_work;
+	struct delayed_work wl_remain_work;
+	struct delayed_work bt_remain_work;
 };
 
 #define DPK_RF_REG_NUM 7
