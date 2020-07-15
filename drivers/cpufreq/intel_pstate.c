@@ -201,9 +201,7 @@ struct global_params {
  * @pstate:		Stores P state limits for this CPU
  * @vid:		Stores VID limits for this CPU
  * @last_sample_time:	Last Sample time
- * @aperf_mperf_shift:	Number of clock cycles after aperf, merf is incremented
- *			This shift is a multiplier to mperf delta to
- *			calculate CPU busy.
+ * @aperf_mperf_shift:	APERF vs MPERF counting frequency difference
  * @prev_aperf:		Last APERF value read from APERF MSR
  * @prev_mperf:		Last MPERF value read from MPERF MSR
  * @prev_tsc:		Last timestamp counter (TSC) value
