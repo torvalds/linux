@@ -2065,6 +2065,9 @@
 		interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru ACLK_JPEG>, <&cru HCLK_JPEG>;
 		clock-names = "aclk_vcodec", "hclk_vcodec";
+		rockchip,normal-rates = <400000000>, <0>;
+		rockchip,advanced-rates = <500000000>, <0>;
+		rockchip,default-max-load = <2088960>;
 		resets = <&cru SRST_JPEG_A>, <&cru SRST_JPEG_H>;
 		reset-names = "shared_video_a", "shared_video_h";
 		iommus = <&vpu_mmu>;
