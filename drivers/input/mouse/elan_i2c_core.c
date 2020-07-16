@@ -312,7 +312,6 @@ static int elan_initialize(struct elan_tp_data *data)
 static int elan_query_device_info(struct elan_tp_data *data)
 {
 	int error;
-	u16 ic_type;
 
 	error = data->ops->get_version(data->client, false, &data->fw_version);
 	if (error)
@@ -336,12 +335,7 @@ static int elan_query_device_info(struct elan_tp_data *data)
 	if (error)
 		return error;
 
-	if (data->pattern == 0x01)
-		ic_type = data->ic_type;
-	else
-		ic_type = data->iap_version;
-
-	error = elan_get_fwinfo(ic_type, &data->fw_validpage_count,
+	error = elan_get_fwinfo(data->ic_type, &data->fw_validpage_count,
 				&data->fw_signature_address);
 	if (error)
 		dev_warn(&data->client->dev,

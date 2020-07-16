@@ -43,6 +43,7 @@
 #define ETP_I2C_RESOLUTION_CMD		0x0108
 #define ETP_I2C_PRESSURE_CMD		0x010A
 #define ETP_I2C_IAP_VERSION_CMD		0x0110
+#define ETP_I2C_IC_TYPE_P0_CMD		0x0110
 #define ETP_I2C_SET_CMD			0x0300
 #define ETP_I2C_POWER_CMD		0x0307
 #define ETP_I2C_FW_CHECKSUM_CMD		0x030F
@@ -330,7 +331,14 @@ static int elan_i2c_get_sm_version(struct i2c_client *client,
 			return error;
 		}
 		*version = val[0];
-		*ic_type = val[1];
+
+		error = elan_i2c_read_cmd(client, ETP_I2C_IC_TYPE_P0_CMD, val);
+		if (error) {
+			dev_err(&client->dev, "failed to get ic type: %d\n",
+				error);
+			return error;
+		}
+		*ic_type = val[0];
 
 		error = elan_i2c_read_cmd(client, ETP_I2C_NSM_VERSION_CMD,
 					  val);
