@@ -4098,7 +4098,7 @@ static int io_recvmsg_copy_hdr(struct io_kiocb *req,
 }
 
 static struct io_buffer *io_recv_buffer_select(struct io_kiocb *req,
-					       int *cflags, bool needs_lock)
+					       bool needs_lock)
 {
 	struct io_sr_msg *sr = &req->sr_msg;
 	struct io_buffer *kbuf;
@@ -4109,10 +4109,12 @@ static struct io_buffer *io_recv_buffer_select(struct io_kiocb *req,
 
 	sr->kbuf = kbuf;
 	req->flags |= REQ_F_BUFFER_SELECTED;
-
-	*cflags = kbuf->bid << IORING_CQE_BUFFER_SHIFT;
-	*cflags |= IORING_CQE_F_BUFFER;
 	return kbuf;
+}
+
+static inline unsigned int io_put_recv_kbuf(struct io_kiocb *req)
+{
+	return io_put_kbuf(req, req->sr_msg.kbuf);
 }
 
 static int io_recvmsg_prep(struct io_kiocb *req,
@@ -4152,7 +4154,7 @@ static int io_recvmsg(struct io_kiocb *req, bool force_nonblock,
 {
 	struct io_async_msghdr iomsg, *kmsg;
 	struct socket *sock;
-	struct io_buffer *kbuf = NULL;
+	struct io_buffer *kbuf;
 	unsigned flags;
 	int ret, cflags = 0;
 
@@ -4175,7 +4177,7 @@ static int io_recvmsg(struct io_kiocb *req, bool force_nonblock,
 	}
 
 	if (req->flags & REQ_F_BUFFER_SELECT) {
-		kbuf = io_recv_buffer_select(req, &cflags, !force_nonblock);
+		kbuf = io_recv_buffer_select(req, !force_nonblock);
 		if (IS_ERR(kbuf))
 			return PTR_ERR(kbuf);
 		kmsg->fast_iov[0].iov_base = u64_to_user_ptr(kbuf->addr);
@@ -4196,12 +4198,11 @@ static int io_recvmsg(struct io_kiocb *req, bool force_nonblock,
 	if (ret == -ERESTARTSYS)
 		ret = -EINTR;
 
-	if (kbuf)
-		kfree(kbuf);
+	if (req->flags & REQ_F_BUFFER_SELECTED)
+		cflags = io_put_recv_kbuf(req);
 	if (kmsg->iov != kmsg->fast_iov)
 		kfree(kmsg->iov);
-	req->flags &= ~(REQ_F_NEED_CLEANUP | REQ_F_BUFFER_SELECTED);
-
+	req->flags &= ~REQ_F_NEED_CLEANUP;
 	if (ret < 0)
 		req_set_fail_links(req);
 	__io_req_complete(req, ret, cflags, cs);
@@ -4225,7 +4226,7 @@ static int io_recv(struct io_kiocb *req, bool force_nonblock,
 		return ret;
 
 	if (req->flags & REQ_F_BUFFER_SELECT) {
-		kbuf = io_recv_buffer_select(req, &cflags, !force_nonblock);
+		kbuf = io_recv_buffer_select(req, !force_nonblock);
 		if (IS_ERR(kbuf))
 			return PTR_ERR(kbuf);
 		buf = u64_to_user_ptr(kbuf->addr);
@@ -4254,9 +4255,8 @@ static int io_recv(struct io_kiocb *req, bool force_nonblock,
 	if (ret == -ERESTARTSYS)
 		ret = -EINTR;
 out_free:
-	if (kbuf)
-		kfree(kbuf);
-	req->flags &= ~REQ_F_NEED_CLEANUP;
+	if (req->flags & REQ_F_BUFFER_SELECTED)
+		cflags = io_put_recv_kbuf(req);
 	if (ret < 0)
 		req_set_fail_links(req);
 	__io_req_complete(req, ret, cflags, cs);
