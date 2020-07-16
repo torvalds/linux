@@ -307,10 +307,34 @@ static struct attribute *devlink_attrs[] = {
 };
 ATTRIBUTE_GROUPS(devlink);
 
+static void device_link_free(struct device_link *link)
+{
+	while (refcount_dec_not_one(&link->rpm_active))
+		pm_runtime_put(link->supplier);
+
+	put_device(link->consumer);
+	put_device(link->supplier);
+	kfree(link);
+}
+
+#ifdef CONFIG_SRCU
+static void __device_link_free_srcu(struct rcu_head *rhead)
+{
+	device_link_free(container_of(rhead, struct device_link, rcu_head));
+}
+
 static void devlink_dev_release(struct device *dev)
 {
-	kfree(to_devlink(dev));
+	struct device_link *link = to_devlink(dev);
+
+	call_srcu(&device_links_srcu, &link->rcu_head, __device_link_free_srcu);
 }
+#else
+static void devlink_dev_release(struct device *dev)
+{
+	device_link_free(to_devlink(dev));
+}
+#endif
 
 static struct class devlink_class = {
 	.name = "devlink",
@@ -731,22 +755,7 @@ static void device_link_add_missing_supplier_links(void)
 	mutex_unlock(&wfs_lock);
 }
 
-static void device_link_free(struct device_link *link)
-{
-	while (refcount_dec_not_one(&link->rpm_active))
-		pm_runtime_put(link->supplier);
-
-	put_device(link->consumer);
-	put_device(link->supplier);
-	device_unregister(&link->link_dev);
-}
-
 #ifdef CONFIG_SRCU
-static void __device_link_free_srcu(struct rcu_head *rhead)
-{
-	device_link_free(container_of(rhead, struct device_link, rcu_head));
-}
-
 static void __device_link_del(struct kref *kref)
 {
 	struct device_link *link = container_of(kref, struct device_link, kref);
@@ -759,7 +768,7 @@ static void __device_link_del(struct kref *kref)
 
 	list_del_rcu(&link->s_node);
 	list_del_rcu(&link->c_node);
-	call_srcu(&device_links_srcu, &link->rcu_head, __device_link_free_srcu);
+	device_unregister(&link->link_dev);
 }
 #else /* !CONFIG_SRCU */
 static void __device_link_del(struct kref *kref)
@@ -774,7 +783,7 @@ static void __device_link_del(struct kref *kref)
 
 	list_del(&link->s_node);
 	list_del(&link->c_node);
-	device_link_free(link);
+	device_unregister(&link->link_dev);
 }
 #endif /* !CONFIG_SRCU */
 
