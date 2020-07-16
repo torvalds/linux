@@ -167,7 +167,7 @@ static inline bool
 xfs_dquot_is_enforced(
 	const struct xfs_dquot	*dqp)
 {
-	switch (dqp->dq_flags & XFS_DQTYPE_REC_MASK) {
+	switch (xfs_dquot_type(dqp)) {
 	case XFS_DQTYPE_USER:
 		return XFS_IS_UQUOTA_ENFORCED(dqp->q_mount);
 	case XFS_DQTYPE_GROUP:

@@ -273,14 +273,15 @@ xfs_dquot_disk_alloc(
 	struct xfs_trans	*tp = *tpp;
 	struct xfs_mount	*mp = tp->t_mountp;
 	struct xfs_buf		*bp;
-	struct xfs_inode	*quotip = xfs_quota_inode(mp, dqp->dq_flags);
+	uint			qtype = xfs_dquot_type(dqp);
+	struct xfs_inode	*quotip = xfs_quota_inode(mp, qtype);
 	int			nmaps = 1;
 	int			error;
 
 	trace_xfs_dqalloc(dqp);
 
 	xfs_ilock(quotip, XFS_ILOCK_EXCL);
-	if (!xfs_this_quota_on(dqp->q_mount, dqp->dq_flags)) {
+	if (!xfs_this_quota_on(dqp->q_mount, qtype)) {
 		/*
 		 * Return if this type of quotas is turned off while we didn't
 		 * have an inode lock
@@ -317,8 +318,7 @@ xfs_dquot_disk_alloc(
 	 * Make a chunk of dquots out of this buffer and log
 	 * the entire thing.
 	 */
-	xfs_qm_init_dquot_blk(tp, mp, dqp->q_id,
-			      dqp->dq_flags & XFS_DQTYPE_REC_MASK, bp);
+	xfs_qm_init_dquot_blk(tp, mp, dqp->q_id, qtype, bp);
 	xfs_buf_set_ref(bp, XFS_DQUOT_REF);
 
 	/*
@@ -365,13 +365,14 @@ xfs_dquot_disk_read(
 {
 	struct xfs_bmbt_irec	map;
 	struct xfs_buf		*bp;
-	struct xfs_inode	*quotip = xfs_quota_inode(mp, dqp->dq_flags);
+	uint			qtype = xfs_dquot_type(dqp);
+	struct xfs_inode	*quotip = xfs_quota_inode(mp, qtype);
 	uint			lock_mode;
 	int			nmaps = 1;
 	int			error;
 
 	lock_mode = xfs_ilock_data_map_shared(quotip);
-	if (!xfs_this_quota_on(mp, dqp->dq_flags)) {
+	if (!xfs_this_quota_on(mp, qtype)) {
 		/*
 		 * Return if this type of quotas is turned off while we
 		 * didn't have the quota inode lock.
@@ -487,7 +488,7 @@ xfs_dquot_from_disk(
 	 * Ensure that we got the type and ID we were looking for.
 	 * Everything else was checked by the dquot buffer verifier.
 	 */
-	if ((ddqp->d_flags & XFS_DQTYPE_REC_MASK) != dqp->dq_flags ||
+	if ((ddqp->d_flags & XFS_DQTYPE_REC_MASK) != xfs_dquot_type(dqp) ||
 	    be32_to_cpu(ddqp->d_id) != dqp->q_id) {
 		xfs_alert_tag(bp->b_mount, XFS_PTAG_VERIFIER_ERROR,
 			  "Metadata corruption detected at %pS, quota %u",
