@@ -56,7 +56,7 @@ struct ad5449_chip_info {
  * @has_sdo:		whether the SDO line is connected
  * @dac_cache:		Cache for the DAC values
  * @data:		spi transfer buffers
- * @lock		lock to protect the data buffer during SPI ops
+ * @lock:		lock to protect the data buffer during SPI ops
  */
 struct ad5449 {
 	struct spi_device		*spi;
