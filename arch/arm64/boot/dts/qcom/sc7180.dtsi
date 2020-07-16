@@ -3233,6 +3233,7 @@
 				<GIC_SPI 424 IRQ_TYPE_LEVEL_HIGH /* CE10 */>,
 				<GIC_SPI 425 IRQ_TYPE_LEVEL_HIGH /* CE11 */>;
 			memory-region = <&wlan_mem>;
+			qcom,msa-fixed-perm;
 			status = "disabled";
 		};
 	};
