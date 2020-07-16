@@ -656,12 +656,13 @@ out:
 }
 
 static __u32 fanotify_mark_remove_from_mask(struct fsnotify_mark *fsn_mark,
-					    __u32 mask,
-					    unsigned int flags,
-					    int *destroy)
+					    __u32 mask, unsigned int flags,
+					    __u32 umask, int *destroy)
 {
 	__u32 oldmask = 0;
 
+	/* umask bits cannot be removed by user */
+	mask &= ~umask;
 	spin_lock(&fsn_mark->lock);
 	if (!(flags & FAN_MARK_IGNORED_MASK)) {
 		oldmask = fsn_mark->mask;
@@ -669,7 +670,13 @@ static __u32 fanotify_mark_remove_from_mask(struct fsnotify_mark *fsn_mark,
 	} else {
 		fsn_mark->ignored_mask &= ~mask;
 	}
-	*destroy = !(fsn_mark->mask | fsn_mark->ignored_mask);
+	/*
+	 * We need to keep the mark around even if remaining mask cannot
+	 * result in any events (e.g. mask == FAN_ONDIR) to support incremenal
+	 * changes to the mask.
+	 * Destroy mark when only umask bits remain.
+	 */
+	*destroy = !((fsn_mark->mask | fsn_mark->ignored_mask) & ~umask);
 	spin_unlock(&fsn_mark->lock);
 
 	return mask & oldmask;
@@ -677,7 +684,7 @@ static __u32 fanotify_mark_remove_from_mask(struct fsnotify_mark *fsn_mark,
 
 static int fanotify_remove_mark(struct fsnotify_group *group,
 				fsnotify_connp_t *connp, __u32 mask,
-				unsigned int flags)
+				unsigned int flags, __u32 umask)
 {
 	struct fsnotify_mark *fsn_mark = NULL;
 	__u32 removed;
@@ -691,7 +698,7 @@ static int fanotify_remove_mark(struct fsnotify_group *group,
 	}
 
 	removed = fanotify_mark_remove_from_mask(fsn_mark, mask, flags,
-						 &destroy_mark);
+						 umask, &destroy_mark);
 	if (removed & fsnotify_conn_mask(fsn_mark->connector))
 		fsnotify_recalc_mask(fsn_mark->connector);
 	if (destroy_mark)
@@ -707,25 +714,26 @@ static int fanotify_remove_mark(struct fsnotify_group *group,
 
 static int fanotify_remove_vfsmount_mark(struct fsnotify_group *group,
 					 struct vfsmount *mnt, __u32 mask,
-					 unsigned int flags)
+					 unsigned int flags, __u32 umask)
 {
 	return fanotify_remove_mark(group, &real_mount(mnt)->mnt_fsnotify_marks,
-				    mask, flags);
+				    mask, flags, umask);
 }
 
 static int fanotify_remove_sb_mark(struct fsnotify_group *group,
-				      struct super_block *sb, __u32 mask,
-				      unsigned int flags)
+				   struct super_block *sb, __u32 mask,
+				   unsigned int flags, __u32 umask)
 {
-	return fanotify_remove_mark(group, &sb->s_fsnotify_marks, mask, flags);
+	return fanotify_remove_mark(group, &sb->s_fsnotify_marks, mask,
+				    flags, umask);
 }
 
 static int fanotify_remove_inode_mark(struct fsnotify_group *group,
 				      struct inode *inode, __u32 mask,
-				      unsigned int flags)
+				      unsigned int flags, __u32 umask)
 {
 	return fanotify_remove_mark(group, &inode->i_fsnotify_marks, mask,
-				    flags);
+				    flags, umask);
 }
 
 static __u32 fanotify_mark_add_to_mask(struct fsnotify_mark *fsn_mark,
@@ -1175,13 +1183,13 @@ static int do_fanotify_mark(int fanotify_fd, unsigned int flags, __u64 mask,
 	case FAN_MARK_REMOVE:
 		if (mark_type == FAN_MARK_MOUNT)
 			ret = fanotify_remove_vfsmount_mark(group, mnt, mask,
-							    flags);
+							    flags, 0);
 		else if (mark_type == FAN_MARK_FILESYSTEM)
 			ret = fanotify_remove_sb_mark(group, mnt->mnt_sb, mask,
-						      flags);
+						      flags, 0);
 		else
 			ret = fanotify_remove_inode_mark(group, inode, mask,
-							 flags);
+							 flags, 0);
 		break;
 	default:
 		ret = -EINVAL;
