@@ -3916,7 +3916,7 @@ static int io_sendmsg_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 static int io_sendmsg(struct io_kiocb *req, bool force_nonblock,
 		      struct io_comp_state *cs)
 {
-	struct io_async_msghdr iomsg, *kmsg = NULL;
+	struct io_async_msghdr iomsg, *kmsg;
 	struct socket *sock;
 	unsigned flags;
 	int ret;
@@ -3951,7 +3951,7 @@ static int io_sendmsg(struct io_kiocb *req, bool force_nonblock,
 	if (ret == -ERESTARTSYS)
 		ret = -EINTR;
 
-	if (kmsg && kmsg->iov != kmsg->fast_iov)
+	if (kmsg->iov != kmsg->fast_iov)
 		kfree(kmsg->iov);
 	req->flags &= ~REQ_F_NEED_CLEANUP;
 	if (ret < 0)
@@ -4147,7 +4147,7 @@ static int io_recvmsg_prep(struct io_kiocb *req,
 static int io_recvmsg(struct io_kiocb *req, bool force_nonblock,
 		      struct io_comp_state *cs)
 {
-	struct io_async_msghdr iomsg, *kmsg = NULL;
+	struct io_async_msghdr iomsg, *kmsg;
 	struct socket *sock;
 	struct io_buffer *kbuf;
 	unsigned flags;
@@ -4199,7 +4199,7 @@ static int io_recvmsg(struct io_kiocb *req, bool force_nonblock,
 	if (kbuf)
 		kfree(kbuf);
 
-	if (kmsg && kmsg->iov != kmsg->fast_iov)
+	if (kmsg->iov != kmsg->fast_iov)
 		kfree(kmsg->iov);
 	req->flags &= ~REQ_F_NEED_CLEANUP;
 
@@ -4212,7 +4212,7 @@ static int io_recvmsg(struct io_kiocb *req, bool force_nonblock,
 static int io_recv(struct io_kiocb *req, bool force_nonblock,
 		   struct io_comp_state *cs)
 {
-	struct io_buffer *kbuf = NULL;
+	struct io_buffer *kbuf;
 	struct io_sr_msg *sr = &req->sr_msg;
 	struct msghdr msg;
 	void __user *buf = sr->buf;
