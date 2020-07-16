@@ -391,6 +391,8 @@ static struct rockchip_clk_branch rv1126_clk_pmu_branches[] __initdata = {
 			RV1126_PMU_CLKSEL_CON(8), 15, 1, MFLAGS,
 			RV1126_PMU_CLKGATE_CON(1), 10, GFLAGS),
 
+	GATE(PCLK_PMUPVTM, "pclk_pmupvtm", "pclk_pdpmu", 0,
+			RV1126_PMU_CLKGATE_CON(2), 6, GFLAGS),
 	GATE(CLK_PMUPVTM, "clk_pmupvtm", "xin24m", 0,
 			RV1126_PMU_CLKGATE_CON(2), 5, GFLAGS),
 	GATE(CLK_CORE_PMUPVTM, "clk_core_pmupvtm", "xin24m", 0,
@@ -432,8 +434,6 @@ static struct rockchip_clk_branch rv1126_clk_pmu_branches[] __initdata = {
 			RV1126_PMU_CLKGATE_CON(2), 0, GFLAGS),
 	GATE(PCLK_PDPMU_NIU, "pclk_pdpmu_niu", "pclk_pdpmu", CLK_IGNORE_UNUSED,
 			RV1126_PMU_CLKGATE_CON(0), 2, GFLAGS),
-	GATE(PCLK_PMUPVTM, "pclk_pmupvtm", "pclk_pdpmu", 0,
-			RV1126_PMU_CLKGATE_CON(2), 6, GFLAGS),
 
 	GATE(PCLK_SCRKEYGEN, "pclk_scrkeygen", "pclk_pdpmu", 0,
 			RV1126_PMU_CLKGATE_CON(0), 7, GFLAGS),
@@ -452,6 +452,9 @@ static struct rockchip_clk_branch rv1126_clk_branches[] __initdata = {
 	 * Clock-Architecture Diagram 3
 	 */
 	/* PD_CORE */
+	COMPOSITE_NOMUX(0, "pclk_dbg", "armclk", CLK_IGNORE_UNUSED,
+			RV1126_CLKSEL_CON(1), 0, 3, DFLAGS | CLK_DIVIDER_READ_ONLY,
+			RV1126_CLKGATE_CON(0), 6, GFLAGS),
 	GATE(CLK_CORE_CPUPVTM, "clk_core_cpupvtm", "armclk", 0,
 			RV1126_CLKGATE_CON(0), 12, GFLAGS),
 	GATE(PCLK_CPUPVTM, "pclk_cpupvtm", "pclk_dbg", 0,
@@ -1130,6 +1133,8 @@ static struct rockchip_clk_branch rv1126_clk_branches[] __initdata = {
 	/*
 	 * Clock-Architecture Diagram 15
 	 */
+	GATE(PCLK_PDTOP, "pclk_pdtop", "pclk_pdbus", CLK_IGNORE_UNUSED,
+			RV1126_CLKGATE_CON(23), 8, GFLAGS),
 	GATE(PCLK_DSIPHY, "pclk_dsiphy", "pclk_pdtop", 0,
 			RV1126_CLKGATE_CON(23), 4, GFLAGS),
 	GATE(PCLK_CSIPHY0, "pclk_csiphy0", "pclk_pdtop", 0,
@@ -1146,9 +1151,6 @@ static struct rockchip_clk_branch rv1126_clk_branches[] __initdata = {
 	 * Clock-Architecture Diagram 3
 	 */
 	/* PD_CORE */
-	COMPOSITE_NOMUX(0, "pclk_dbg", "armclk", CLK_IGNORE_UNUSED,
-			RV1126_CLKSEL_CON(1), 0, 3, DFLAGS | CLK_DIVIDER_READ_ONLY,
-			RV1126_CLKGATE_CON(0), 6, GFLAGS),
 	COMPOSITE_NOMUX(0, "aclk_core", "armclk", CLK_IGNORE_UNUSED,
 			RV1126_CLKSEL_CON(1), 4, 4, DFLAGS | CLK_DIVIDER_READ_ONLY,
 			RV1126_CLKGATE_CON(0), 2, GFLAGS),
@@ -1337,8 +1339,6 @@ static struct rockchip_clk_branch rv1126_clk_branches[] __initdata = {
 	/*
 	 * Clock-Architecture Diagram 15
 	 */
-	GATE(PCLK_PDTOP, "pclk_pdtop", "pclk_pdbus", CLK_IGNORE_UNUSED,
-			RV1126_CLKGATE_CON(23), 8, GFLAGS),
 	GATE(0, "pclk_topniu", "pclk_pdtop", CLK_IGNORE_UNUSED,
 			RV1126_CLKGATE_CON(23), 9, GFLAGS),
 	GATE(PCLK_TOPCRU, "pclk_topcru", "pclk_pdtop", CLK_IGNORE_UNUSED,
