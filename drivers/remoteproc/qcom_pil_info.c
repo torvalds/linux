@@ -108,7 +108,7 @@ found_unused:
 found_existing:
 	/* Use two writel() as base is only aligned to 4 bytes on odd entries */
 	writel(base, entry + PIL_RELOC_NAME_LEN);
-	writel(base >> 32, entry + PIL_RELOC_NAME_LEN + 4);
+	writel((u64)base >> 32, entry + PIL_RELOC_NAME_LEN + 4);
 	writel(size, entry + PIL_RELOC_NAME_LEN + sizeof(__le64));
 	mutex_unlock(&pil_reloc_lock);
 
