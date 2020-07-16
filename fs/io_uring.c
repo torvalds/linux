@@ -957,7 +957,7 @@ static void io_get_req_task(struct io_kiocb *req)
 
 static inline void io_clean_op(struct io_kiocb *req)
 {
-	if (req->flags & REQ_F_NEED_CLEANUP)
+	if (req->flags & (REQ_F_NEED_CLEANUP | REQ_F_BUFFER_SELECTED))
 		__io_clean_op(req);
 }
 
@@ -1931,6 +1931,7 @@ static int io_put_kbuf(struct io_kiocb *req)
 	cflags = kbuf->bid << IORING_CQE_BUFFER_SHIFT;
 	cflags |= IORING_CQE_F_BUFFER;
 	req->rw.addr = 0;
+	req->flags &= ~REQ_F_BUFFER_SELECTED;
 	kfree(kbuf);
 	return cflags;
 }
@@ -4188,20 +4189,16 @@ static int io_recvmsg(struct io_kiocb *req, bool force_nonblock,
 
 	ret = __sys_recvmsg_sock(sock, &kmsg->msg, req->sr_msg.umsg,
 					kmsg->uaddr, flags);
-	if (force_nonblock && ret == -EAGAIN) {
-		ret = io_setup_async_msg(req, kmsg);
-		if (ret != -EAGAIN)
-			kfree(kbuf);
-		return ret;
-	}
+	if (force_nonblock && ret == -EAGAIN)
+		return io_setup_async_msg(req, kmsg);
 	if (ret == -ERESTARTSYS)
 		ret = -EINTR;
+
 	if (kbuf)
 		kfree(kbuf);
-
 	if (kmsg->iov != kmsg->fast_iov)
 		kfree(kmsg->iov);
-	req->flags &= ~REQ_F_NEED_CLEANUP;
+	req->flags &= ~(REQ_F_NEED_CLEANUP | REQ_F_BUFFER_SELECTED);
 
 	if (ret < 0)
 		req_set_fail_links(req);
@@ -4235,7 +4232,6 @@ static int io_recv(struct io_kiocb *req, bool force_nonblock,
 	if (unlikely(ret))
 		goto out_free;
 
-	req->flags |= REQ_F_NEED_CLEANUP;
 	msg.msg_name = NULL;
 	msg.msg_control = NULL;
 	msg.msg_controllen = 0;
@@ -4255,7 +4251,8 @@ static int io_recv(struct io_kiocb *req, bool force_nonblock,
 	if (ret == -ERESTARTSYS)
 		ret = -EINTR;
 out_free:
-	kfree(kbuf);
+	if (kbuf)
+		kfree(kbuf);
 	req->flags &= ~REQ_F_NEED_CLEANUP;
 	if (ret < 0)
 		req_set_fail_links(req);
@@ -5436,39 +5433,45 @@ static void __io_clean_op(struct io_kiocb *req)
 {
 	struct io_async_ctx *io = req->io;
 
-	switch (req->opcode) {
-	case IORING_OP_READV:
-	case IORING_OP_READ_FIXED:
-	case IORING_OP_READ:
-		if (req->flags & REQ_F_BUFFER_SELECTED)
+	if (req->flags & REQ_F_BUFFER_SELECTED) {
+		switch (req->opcode) {
+		case IORING_OP_READV:
+		case IORING_OP_READ_FIXED:
+		case IORING_OP_READ:
 			kfree((void *)(unsigned long)req->rw.addr);
-		/* fallthrough */
-	case IORING_OP_WRITEV:
-	case IORING_OP_WRITE_FIXED:
-	case IORING_OP_WRITE:
-		if (io->rw.iov != io->rw.fast_iov)
-			kfree(io->rw.iov);
-		break;
-	case IORING_OP_RECVMSG:
-		if (req->flags & REQ_F_BUFFER_SELECTED)
+			break;
+		case IORING_OP_RECVMSG:
+		case IORING_OP_RECV:
 			kfree(req->sr_msg.kbuf);
-		/* fallthrough */
-	case IORING_OP_SENDMSG:
-		if (io->msg.iov != io->msg.fast_iov)
-			kfree(io->msg.iov);
-		break;
-	case IORING_OP_RECV:
-		if (req->flags & REQ_F_BUFFER_SELECTED)
-			kfree(req->sr_msg.kbuf);
-		break;
-	case IORING_OP_SPLICE:
-	case IORING_OP_TEE:
-		io_put_file(req, req->splice.file_in,
-			    (req->splice.flags & SPLICE_F_FD_IN_FIXED));
-		break;
+			break;
+		}
+		req->flags &= ~REQ_F_BUFFER_SELECTED;
 	}
 
-	req->flags &= ~REQ_F_NEED_CLEANUP;
+	if (req->flags & REQ_F_NEED_CLEANUP) {
+		switch (req->opcode) {
+		case IORING_OP_READV:
+		case IORING_OP_READ_FIXED:
+		case IORING_OP_READ:
+		case IORING_OP_WRITEV:
+		case IORING_OP_WRITE_FIXED:
+		case IORING_OP_WRITE:
+			if (io->rw.iov != io->rw.fast_iov)
+				kfree(io->rw.iov);
+			break;
+		case IORING_OP_RECVMSG:
+		case IORING_OP_SENDMSG:
+			if (io->msg.iov != io->msg.fast_iov)
+				kfree(io->msg.iov);
+			break;
+		case IORING_OP_SPLICE:
+		case IORING_OP_TEE:
+			io_put_file(req, req->splice.file_in,
+				    (req->splice.flags & SPLICE_F_FD_IN_FIXED));
+			break;
+		}
+		req->flags &= ~REQ_F_NEED_CLEANUP;
+	}
 }
 
 static int io_issue_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
