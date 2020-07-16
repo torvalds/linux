@@ -956,14 +956,15 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 		return -EINVAL;
 
 	/*
-	 * Reporting either object fid or dir fid.
 	 * Child name is reported with parent fid so requires dir fid.
+	 * If reporting child name, we can report both child fid and dir fid.
 	 */
 	switch (fid_mode) {
 	case 0:
 	case FAN_REPORT_FID:
 	case FAN_REPORT_DIR_FID:
 	case FAN_REPORT_DFID_NAME:
+	case FAN_REPORT_DFID_NAME | FAN_REPORT_FID:
 		break;
 	default:
 		return -EINVAL;

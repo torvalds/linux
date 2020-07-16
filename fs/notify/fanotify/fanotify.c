@@ -477,15 +477,19 @@ static struct fanotify_event *fanotify_alloc_fid_event(struct inode *id,
 static struct fanotify_event *fanotify_alloc_name_event(struct inode *id,
 							__kernel_fsid_t *fsid,
 							const struct qstr *file_name,
+							struct inode *child,
 							gfp_t gfp)
 {
 	struct fanotify_name_event *fne;
 	struct fanotify_info *info;
-	struct fanotify_fh *dfh;
+	struct fanotify_fh *dfh, *ffh;
 	unsigned int dir_fh_len = fanotify_encode_fh_len(id);
+	unsigned int child_fh_len = fanotify_encode_fh_len(child);
 	unsigned int size;
 
 	size = sizeof(*fne) + FANOTIFY_FH_HDR_LEN + dir_fh_len;
+	if (child_fh_len)
+		size += FANOTIFY_FH_HDR_LEN + child_fh_len;
 	if (file_name)
 		size += file_name->len + 1;
 	fne = kmalloc(size, gfp);
@@ -498,11 +502,15 @@ static struct fanotify_event *fanotify_alloc_name_event(struct inode *id,
 	fanotify_info_init(info);
 	dfh = fanotify_info_dir_fh(info);
 	info->dir_fh_totlen = fanotify_encode_fh(dfh, id, dir_fh_len, 0);
+	if (child_fh_len) {
+		ffh = fanotify_info_file_fh(info);
+		info->file_fh_totlen = fanotify_encode_fh(ffh, child, child_fh_len, 0);
+	}
 	if (file_name)
 		fanotify_info_copy_name(info, file_name);
 
-	pr_debug("%s: ino=%lu size=%u dir_fh_len=%u name_len=%u name='%.*s'\n",
-		 __func__, id->i_ino, size, dir_fh_len,
+	pr_debug("%s: ino=%lu size=%u dir_fh_len=%u child_fh_len=%u name_len=%u name='%.*s'\n",
+		 __func__, id->i_ino, size, dir_fh_len, child_fh_len,
 		 info->name_len, info->name_len, fanotify_info_name(info));
 
 	return &fne->fae;
@@ -520,9 +528,19 @@ static struct fanotify_event *fanotify_alloc_event(struct fsnotify_group *group,
 	struct inode *dirid = fanotify_dfid_inode(mask, data, data_type, dir);
 	const struct path *path = fsnotify_data_path(data, data_type);
 	unsigned int fid_mode = FAN_GROUP_FLAG(group, FANOTIFY_FID_BITS);
+	struct inode *child = NULL;
 	bool name_event = false;
 
 	if ((fid_mode & FAN_REPORT_DIR_FID) && dirid) {
+		/*
+		 * With both flags FAN_REPORT_DIR_FID and FAN_REPORT_FID, we
+		 * report the child fid for events reported on a non-dir child
+		 * in addition to reporting the parent fid and child name.
+		 */
+		if ((fid_mode & FAN_REPORT_FID) &&
+		    id != dirid && !(mask & FAN_ONDIR))
+			child = id;
+
 		id = dirid;
 
 		/*
@@ -558,7 +576,8 @@ static struct fanotify_event *fanotify_alloc_event(struct fsnotify_group *group,
 	if (fanotify_is_perm_event(mask)) {
 		event = fanotify_alloc_perm_event(path, gfp);
 	} else if (name_event && file_name) {
-		event = fanotify_alloc_name_event(id, fsid, file_name, gfp);
+		event = fanotify_alloc_name_event(id, fsid, file_name, child,
+						  gfp);
 	} else if (fid_mode) {
 		event = fanotify_alloc_fid_event(id, fsid, gfp);
 	} else {

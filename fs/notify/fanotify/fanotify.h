@@ -193,6 +193,8 @@ static inline struct fanotify_fh *fanotify_event_object_fh(
 {
 	if (event->type == FANOTIFY_EVENT_TYPE_FID)
 		return &FANOTIFY_FE(event)->object_fh;
+	else if (event->type == FANOTIFY_EVENT_TYPE_FID_NAME)
+		return fanotify_info_file_fh(&FANOTIFY_NE(event)->info);
 	else
 		return NULL;
 }
@@ -208,9 +210,13 @@ static inline struct fanotify_info *fanotify_event_info(
 
 static inline int fanotify_event_object_fh_len(struct fanotify_event *event)
 {
+	struct fanotify_info *info = fanotify_event_info(event);
 	struct fanotify_fh *fh = fanotify_event_object_fh(event);
 
-	return fh ? fh->len : 0;
+	if (info)
+		return info->file_fh_totlen ? fh->len : 0;
+	else
+		return fh ? fh->len : 0;
 }
 
 static inline int fanotify_event_dir_fh_len(struct fanotify_event *event)
