@@ -440,6 +440,20 @@ enum rproc_crash_type {
 };
 
 /**
+ * enum rproc_dump_mechanism - Coredump options for core
+ * @RPROC_COREDUMP_DEFAULT:	Copy dump to separate buffer and carry on with
+				recovery
+ * @RPROC_COREDUMP_INLINE:	Read segments directly from device memory. Stall
+				recovery until all segments are read
+ * @RPROC_COREDUMP_DISABLED:	Don't perform any dump
+ */
+enum rproc_dump_mechanism {
+	RPROC_COREDUMP_DEFAULT,
+	RPROC_COREDUMP_INLINE,
+	RPROC_COREDUMP_DISABLED,
+};
+
+/**
  * struct rproc_dump_segment - segment info from ELF header
  * @node:	list node related to the rproc segment list
  * @da:		device address of the segment
@@ -471,6 +485,7 @@ struct rproc_dump_segment {
  * @dev: virtual device for refcounting and common remoteproc behavior
  * @power: refcount of users who need this rproc powered up
  * @state: state of the device
+ * @dump_conf: Currently selected coredump configuration
  * @lock: lock which protects concurrent manipulations of the rproc
  * @dbg_dir: debugfs directory of this rproc device
  * @traces: list of trace buffers
@@ -505,6 +520,7 @@ struct rproc {
 	struct device dev;
 	atomic_t power;
 	unsigned int state;
+	enum rproc_dump_mechanism dump_conf;
 	struct mutex lock;
 	struct dentry *dbg_dir;
 	struct list_head traces;
