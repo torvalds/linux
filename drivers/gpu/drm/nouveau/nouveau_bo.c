@@ -655,13 +655,12 @@ nouveau_bo_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 
 	switch (type) {
 	case TTM_PL_SYSTEM:
-		man->flags = TTM_MEMTYPE_FLAG_MAPPABLE;
+		man->flags = 0;
 		man->available_caching = TTM_PL_MASK_CACHING;
 		man->default_caching = TTM_PL_FLAG_CACHED;
 		break;
 	case TTM_PL_VRAM:
-		man->flags = TTM_MEMTYPE_FLAG_FIXED |
-			     TTM_MEMTYPE_FLAG_MAPPABLE;
+		man->flags = TTM_MEMTYPE_FLAG_FIXED;
 		man->available_caching = TTM_PL_FLAG_UNCACHED |
 					 TTM_PL_FLAG_WC;
 		man->default_caching = TTM_PL_FLAG_WC;
@@ -690,12 +689,12 @@ nouveau_bo_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 			man->func = &ttm_bo_manager_func;
 
 		if (drm->agp.bridge) {
-			man->flags = TTM_MEMTYPE_FLAG_MAPPABLE;
+			man->flags = 0;
 			man->available_caching = TTM_PL_FLAG_UNCACHED |
 				TTM_PL_FLAG_WC;
 			man->default_caching = TTM_PL_FLAG_WC;
 		} else {
-			man->flags = TTM_MEMTYPE_FLAG_MAPPABLE;
+			man->flags = 0;
 			man->available_caching = TTM_PL_MASK_CACHING;
 			man->default_caching = TTM_PL_FLAG_CACHED;
 		}
@@ -1437,7 +1436,6 @@ nouveau_bo_verify_access(struct ttm_buffer_object *bo, struct file *filp)
 static int
 nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *reg)
 {
-	struct ttm_mem_type_manager *man = &bdev->man[reg->mem_type];
 	struct nouveau_drm *drm = nouveau_bdev(bdev);
 	struct nvkm_device *device = nvxx_device(&drm->client.device);
 	struct nouveau_mem *mem = nouveau_mem(reg);
@@ -1447,8 +1445,7 @@ nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *reg)
 	reg->bus.size = reg->num_pages << PAGE_SHIFT;
 	reg->bus.base = 0;
 	reg->bus.is_iomem = false;
-	if (!(man->flags & TTM_MEMTYPE_FLAG_MAPPABLE))
-		return -EINVAL;
+
 	switch (reg->mem_type) {
 	case TTM_PL_SYSTEM:
 		/* System memory */
