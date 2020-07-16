@@ -221,7 +221,6 @@
 	INTEL_VGA_DEVICE(0x0D1B, info), /* CRW GT2 reserved */ \
 	INTEL_VGA_DEVICE(0x0D1E, info), /* CRW GT2 reserved */ \
 	INTEL_VGA_DEVICE(0x0416, info), /* GT2 mobile */ \
-	INTEL_VGA_DEVICE(0x0426, info), /* GT2 mobile */ \
 	INTEL_VGA_DEVICE(0x0C16, info), /* SDV GT2 mobile */ \
 	INTEL_VGA_DEVICE(0x0D16, info)  /* CRW GT2 mobile */
 
@@ -246,6 +245,7 @@
 	INTEL_VGA_DEVICE(0x0D2A, info), /* CRW GT3 server */ \
 	INTEL_VGA_DEVICE(0x0D2B, info), /* CRW GT3 reserved */ \
 	INTEL_VGA_DEVICE(0x0D2E, info), /* CRW GT3 reserved */ \
+	INTEL_VGA_DEVICE(0x0426, info), /* GT3 mobile */ \
 	INTEL_VGA_DEVICE(0x0C26, info), /* SDV GT3 mobile */ \
 	INTEL_VGA_DEVICE(0x0D26, info)  /* CRW GT3 mobile */
 
