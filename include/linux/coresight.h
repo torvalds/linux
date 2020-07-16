@@ -179,7 +179,8 @@ struct coresight_sysfs_link {
  * @enable:	'true' if component is currently part of an active path.
  * @activated:	'true' only if a _sink_ has been activated.  A sink can be
  *		activated but not yet enabled.  Enabling for a _sink_
- *		appens when a source has been selected for that it.
+ *		happens when a source has been selected and a path is enabled
+ *		from source to that sink.
  * @ea:		Device attribute for sink representation under PMU directory.
  * @ect_dev:	Associated cross trigger device. Not part of the trace data
  *		path or connections.
