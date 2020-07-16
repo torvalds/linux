@@ -59,7 +59,7 @@ static char chip_type;
 	#include "gsl3680_tab106.h"
 	#define TP_SIZE_1366X768
 	#define Y_POL
-#elif defined(CONFIG_TOUCHSCREEN_GSL3673)
+#elif IS_ENABLED(CONFIG_TOUCHSCREEN_GSL3673)
 	#include "gsl3673.h"
 #else
 	#include "gsl3680b_zm97f.h"
