@@ -767,8 +767,8 @@ scaled to [-128…128] and then clipped to [-128…127].
    information. So if something other than sRGB is used, then the driver
    will have to set that information explicitly. Effectively
    ``V4L2_COLORSPACE_JPEG`` can be considered to be an abbreviation for
-   ``V4L2_COLORSPACE_SRGB``, ``V4L2_YCBCR_ENC_601`` and
-   ``V4L2_QUANTIZATION_FULL_RANGE``.
+   ``V4L2_COLORSPACE_SRGB``, ``V4L2_XFER_FUNC_SRGB``, ``V4L2_YCBCR_ENC_601``
+   and ``V4L2_QUANTIZATION_FULL_RANGE``.
 
 ***************************************
 Detailed Transfer Function Descriptions
