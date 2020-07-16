@@ -100,7 +100,7 @@ static struct fanotify_event *get_one_event(struct fsnotify_group *group,
 	if (fsnotify_notify_queue_is_empty(group))
 		goto out;
 
-	if (FAN_GROUP_FLAG(group, FAN_REPORT_FID)) {
+	if (FAN_GROUP_FLAG(group, FANOTIFY_FID_BITS)) {
 		event_size += fanotify_event_info_len(
 			FANOTIFY_E(fsnotify_peek_first_event(group)));
 	}
@@ -882,7 +882,7 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 		return -EINVAL;
 	}
 
-	if ((flags & FAN_REPORT_FID) &&
+	if ((flags & FANOTIFY_FID_BITS) &&
 	    (flags & FANOTIFY_CLASS_BITS) != FAN_CLASS_NOTIF)
 		return -EINVAL;
 
@@ -1040,7 +1040,7 @@ static int do_fanotify_mark(int fanotify_fd, unsigned int flags, __u64 mask,
 	__kernel_fsid_t __fsid, *fsid = NULL;
 	u32 valid_mask = FANOTIFY_EVENTS | FANOTIFY_EVENT_FLAGS;
 	unsigned int mark_type = flags & FANOTIFY_MARK_TYPE_BITS;
-	unsigned int obj_type;
+	unsigned int obj_type, fid_mode;
 	int ret;
 
 	pr_debug("%s: fanotify_fd=%d flags=%x dfd=%d pathname=%p mask=%llx\n",
@@ -1113,9 +1113,9 @@ static int do_fanotify_mark(int fanotify_fd, unsigned int flags, __u64 mask,
 	 * inode events are not supported on a mount mark, because they do not
 	 * carry enough information (i.e. path) to be filtered by mount point.
 	 */
+	fid_mode = FAN_GROUP_FLAG(group, FANOTIFY_FID_BITS);
 	if (mask & FANOTIFY_INODE_EVENTS &&
-	    (!FAN_GROUP_FLAG(group, FAN_REPORT_FID) ||
-	     mark_type == FAN_MARK_MOUNT))
+	    (!fid_mode || mark_type == FAN_MARK_MOUNT))
 		goto fput_and_out;
 
 	if (flags & FAN_MARK_FLUSH) {
@@ -1140,7 +1140,7 @@ static int do_fanotify_mark(int fanotify_fd, unsigned int flags, __u64 mask,
 			goto path_put_and_out;
 	}
 
-	if (FAN_GROUP_FLAG(group, FAN_REPORT_FID)) {
+	if (fid_mode) {
 		ret = fanotify_test_fid(&path, &__fsid);
 		if (ret)
 			goto path_put_and_out;
