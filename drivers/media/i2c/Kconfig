@@ -1442,6 +1442,17 @@ config VIDEO_BF3925
 	  To compile this driver as a module, choose M here: the
 	  module will be called bf3925.
 
+config VIDEO_JX_F37
+	tristate "SOI JX_F37 sensor support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on MEDIA_CAMERA_SUPPORT
+	select V4L2_FWNODE
+	help
+	  Support for the SOI JX_F37 sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called jx_f37.
+
 config VIDEO_JX_H65
 	tristate "SOI JX_H65 sensor support"
 	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
