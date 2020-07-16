@@ -6009,8 +6009,9 @@ static int amdgpu_dm_plane_init(struct amdgpu_display_manager *dm,
 		DRM_MODE_ROTATE_0 | DRM_MODE_ROTATE_90 |
 		DRM_MODE_ROTATE_180 | DRM_MODE_ROTATE_270;
 
-	drm_plane_create_rotation_property(plane, DRM_MODE_ROTATE_0,
-					   supported_rotations);
+	if (dm->adev->asic_type >= CHIP_BONAIRE)
+		drm_plane_create_rotation_property(plane, DRM_MODE_ROTATE_0,
+						   supported_rotations);
 
 	drm_plane_helper_add(plane, &dm_plane_helper_funcs);
 
