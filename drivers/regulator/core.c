@@ -51,6 +51,7 @@ static LIST_HEAD(regulator_map_list);
 static LIST_HEAD(regulator_ena_gpio_list);
 static LIST_HEAD(regulator_supply_alias_list);
 static LIST_HEAD(regulator_coupler_list);
+static LIST_HEAD(regulator_debug_list);
 static bool has_full_constraints;
 
 static struct dentry *debugfs_root;
@@ -90,6 +91,11 @@ struct regulator_supply_alias {
 	const char *src_supply;
 	struct device *alias_dev;
 	const char *alias_supply;
+};
+
+struct regulator_limit_volt {
+	struct list_head list;
+	struct regulator *reg;
 };
 
 static int _regulator_is_enabled(struct regulator_dev *rdev);
@@ -4919,11 +4925,265 @@ static void regulator_dev_release(struct device *dev)
 	kfree(rdev);
 }
 
+#ifdef CONFIG_DEBUG_FS
+
+#define MAX_DEBUG_BUF_LEN 50
+#define REGULATOR_ALLOW_WRITE_DEBUGFS
+
+#ifdef REGULATOR_ALLOW_WRITE_DEBUGFS
+
+static int reg_debug_enable_set(void *data, u64 val)
+{
+	struct regulator *regulator = data;
+	int ret;
+
+	if (val) {
+		ret = regulator_enable(regulator);
+		if (ret)
+			rdev_err(regulator->rdev, "enable failed, ret=%d\n",
+				 ret);
+	} else {
+		ret = regulator_disable(regulator);
+		if (ret)
+			rdev_err(regulator->rdev, "disable failed, ret=%d\n",
+				 ret);
+	}
+
+	return ret;
+}
+
+static int reg_debug_force_disable_set(void *data, u64 val)
+{
+	struct regulator *regulator = data;
+	int ret = 0;
+
+	if (val > 0) {
+		ret = regulator_force_disable(regulator);
+		if (ret)
+			rdev_err(regulator->rdev, "force_disable failed, ret=%d\n",
+				 ret);
+	}
+
+	return ret;
+}
+
+
+static ssize_t reg_debug_voltage_write(struct file *file,
+				       const char __user *ubuf,
+				       size_t count,
+				       loff_t *ppos)
+{
+	struct regulator *regulator = file->private_data;
+	struct regulator_dev *rdev = regulator->rdev;
+	struct regulator *reg;
+
+	char buf[MAX_DEBUG_BUF_LEN];
+	int ret;
+	int min_uV, max_uV = -1;
+
+	if (count < MAX_DEBUG_BUF_LEN) {
+		if (copy_from_user(buf, ubuf, count))
+			return -EFAULT;
+
+		buf[count] = '\0';
+		ret = kstrtoint(buf, 10, &min_uV);
+
+		/* Check that target voltage were specified. */
+		if (ret || min_uV < 0) {
+			rdev_err(regulator->rdev, "incorrect values specified: \"%s\"; should be: \"target_uV\"\n",
+				 buf);
+			return -EINVAL;
+		}
+
+		max_uV = rdev->constraints->max_uV;
+
+		list_for_each_entry(reg, &rdev->consumer_list, list) {
+			if ((!reg->voltage->min_uV && !reg->voltage->max_uV) ||
+			    (reg == regulator))
+				continue;
+			reg->voltage->min_uV = min_uV;
+			reg->voltage->max_uV = max_uV;
+		}
+
+		ret = regulator_set_voltage(regulator, min_uV, max_uV);
+		if (ret) {
+			rdev_err(regulator->rdev, "set voltage(%d, %d) failed, ret=%d\n",
+				 min_uV, max_uV, ret);
+			return ret;
+		}
+	} else {
+		rdev_err(regulator->rdev, "voltage request string exceeds maximum buffer size\n");
+		return -EINVAL;
+	}
+
+	return count;
+}
+
+static int reg_debug_mode_set(void *data, u64 val)
+{
+	struct regulator *regulator = data;
+	unsigned int mode = val;
+	int ret;
+
+	ret = regulator_set_mode(regulator, mode);
+	if (ret)
+		rdev_err(regulator->rdev, "set mode=%u failed, ret=%d\n",
+			 mode, ret);
+
+	return ret;
+}
+
+static int reg_debug_set_load(void *data, u64 val)
+{
+	struct regulator *regulator = data;
+	int load = val;
+	int ret;
+
+	ret = regulator_set_load(regulator, load);
+	if (ret)
+		rdev_err(regulator->rdev, "set load=%d failed, ret=%d\n",
+			 load, ret);
+
+	return ret;
+}
+
+#else
+#define reg_debug_enable_set NULL
+#define reg_debug_force_disable_set NULL
+#define reg_debug_voltage_write NULL
+#define reg_debug_mode_set NULL
+#define reg_debug_set_load NULL
+#endif
+
+static int reg_debug_enable_get(void *data, u64 *val)
+{
+	struct regulator *regulator = data;
+
+	*val = regulator_is_enabled(regulator);
+
+	return 0;
+}
+DEFINE_DEBUGFS_ATTRIBUTE(reg_enable_fops, reg_debug_enable_get,
+			reg_debug_enable_set, "%llu\n");
+
+
+DEFINE_DEBUGFS_ATTRIBUTE(reg_force_disable_fops, reg_debug_enable_get,
+			reg_debug_force_disable_set, "%llu\n");
+
+static ssize_t reg_debug_voltage_read(struct file *file, char __user *ubuf,
+				      size_t count, loff_t *ppos)
+{
+	struct regulator *regulator = file->private_data;
+	char buf[MAX_DEBUG_BUF_LEN];
+	int voltage, ret;
+
+	voltage = regulator_get_voltage(regulator);
+
+	ret = snprintf(buf, MAX_DEBUG_BUF_LEN - 1, "%d\n", voltage);
+
+	return simple_read_from_buffer(ubuf, count, ppos, buf, ret);
+}
+
+static int reg_debug_voltage_open(struct inode *inode, struct file *file)
+{
+	file->private_data = inode->i_private;
+
+	return 0;
+}
+
+static const struct file_operations reg_voltage_fops = {
+	.write	= reg_debug_voltage_write,
+	.open   = reg_debug_voltage_open,
+	.read	= reg_debug_voltage_read,
+};
+
+static int reg_debug_mode_get(void *data, u64 *val)
+{
+	struct regulator *regulator = data;
+	int mode;
+
+	mode = regulator_get_mode(regulator);
+	if (mode < 0) {
+		rdev_err(regulator->rdev, "get mode failed, ret=%d\n", mode);
+		return mode;
+	}
+
+	*val = mode;
+
+	return 0;
+}
+DEFINE_DEBUGFS_ATTRIBUTE(reg_mode_fops, reg_debug_mode_get, reg_debug_mode_set,
+			"%llu\n");
+
+DEFINE_DEBUGFS_ATTRIBUTE(reg_set_load_fops, reg_debug_mode_get,
+			reg_debug_set_load, "%llu\n");
+
+static int reg_debug_consumers_show(struct seq_file *m, void *v)
+{
+	struct regulator_dev *rdev = m->private;
+	struct regulator *reg;
+	const char *supply_name;
+
+	regulator_lock(rdev);
+
+	/* Print a header if there are consumers. */
+	if (rdev->open_count)
+		seq_printf(m, "%-32s   Min_uV   Max_uV  load_uA\n",
+			   "Device-Supply");
+
+	list_for_each_entry(reg, &rdev->consumer_list, list) {
+		if (reg->supply_name)
+			supply_name = reg->supply_name;
+		else
+			supply_name = "(null)-(null)";
+
+		seq_printf(m, "%-32s %8d %8d %8d\n", supply_name,
+			   reg->voltage->min_uV, reg->voltage->max_uV, reg->uA_load);
+	}
+
+	regulator_unlock(rdev);
+
+	return 0;
+}
+
+static int reg_debug_consumers_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, reg_debug_consumers_show, inode->i_private);
+}
+
+static const struct file_operations reg_consumers_fops = {
+	.owner		= THIS_MODULE,
+	.open		= reg_debug_consumers_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static void rdev_deinit_debugfs(struct regulator_dev *rdev)
+{
+	struct regulator_limit_volt *reg_debug, *n;
+
+	debugfs_remove_recursive(rdev->debugfs);
+
+	list_for_each_entry_safe(reg_debug, n, &regulator_debug_list, list) {
+		if (reg_debug->reg->rdev == rdev) {
+			reg_debug->reg->debugfs = NULL;
+			list_del(&reg_debug->list);
+			regulator_put(reg_debug->reg);
+			kfree(reg_debug);
+		}
+	}
+}
+
 static void rdev_init_debugfs(struct regulator_dev *rdev)
 {
 	struct device *parent = rdev->dev.parent;
 	const char *rname = rdev_get_name(rdev);
 	char name[NAME_MAX];
+	struct regulator *regulator;
+	const struct regulator_ops *ops;
+	struct regulator_limit_volt *reg_debug;
+	mode_t mode;
 
 	/* Avoid duplicate debugfs directory names */
 	if (parent && rname == rdev->desc->name) {
@@ -4944,7 +5204,87 @@ static void rdev_init_debugfs(struct regulator_dev *rdev)
 			   &rdev->open_count);
 	debugfs_create_u32("bypass_count", 0444, rdev->debugfs,
 			   &rdev->bypass_count);
+	debugfs_create_file("consumers", 0444, rdev->debugfs, rdev,
+			    &reg_consumers_fops);
+
+	regulator = regulator_get(NULL, rdev_get_name(rdev));
+	if (IS_ERR(regulator)) {
+		rdev_err(rdev, "regulator get failed, ret=%ld\n",
+			 PTR_ERR(regulator));
+		return;
+	}
+
+	reg_debug = kzalloc(sizeof(*reg_debug), GFP_KERNEL);
+	if (reg_debug == NULL) {
+		regulator_put(regulator);
+		return;
+	}
+	reg_debug->reg = regulator;
+	list_add(&reg_debug->list, &regulator_debug_list);
+
+	ops = rdev->desc->ops;
+
+	mode = 0444;
+#ifdef REGULATOR_ALLOW_WRITE_DEBUGFS
+	mode |= 0200;
+#endif
+	debugfs_create_file("enable", mode, rdev->debugfs, regulator,
+			    &reg_enable_fops);
+
+	mode = 0;
+	if (ops->is_enabled)
+		mode |= 0444;
+#ifdef REGULATOR_ALLOW_WRITE_DEBUGFS
+	if (ops->disable)
+		mode |= 0200;
+#endif
+	if (mode)
+		debugfs_create_file("force_disable", mode, rdev->debugfs,
+				    regulator, &reg_force_disable_fops);
+
+	mode = 0;
+	if (ops->get_voltage || ops->get_voltage_sel)
+		mode |= 0444;
+#ifdef REGULATOR_ALLOW_WRITE_DEBUGFS
+	if (ops->set_voltage || ops->set_voltage_sel)
+		mode |= 0200;
+#endif
+	if (mode)
+		debugfs_create_file("voltage", mode, rdev->debugfs, regulator,
+				    &reg_voltage_fops);
+
+	mode = 0;
+	if (ops->get_mode)
+		mode |= 0444;
+#ifdef REGULATOR_ALLOW_WRITE_DEBUGFS
+	if (ops->set_mode)
+		mode |= 0200;
+#endif
+	if (mode)
+		debugfs_create_file("mode", mode, rdev->debugfs, regulator,
+				    &reg_mode_fops);
+
+	mode = 0;
+	if (ops->get_mode)
+		mode |= 0444;
+#ifdef REGULATOR_ALLOW_WRITE_DEBUGFS
+	if (ops->set_load || (ops->get_optimum_mode && ops->set_mode))
+		mode |= 0200;
+#endif
+	if (mode)
+		debugfs_create_file("load", mode, rdev->debugfs, regulator,
+				    &reg_set_load_fops);
 }
+
+#else
+static inline void rdev_deinit_debugfs(struct regulator_dev *rdev)
+{
+}
+
+static inline void rdev_init_debugfs(struct regulator_dev *rdev)
+{
+}
+#endif
 
 static int regulator_register_resolve_supply(struct device *dev, void *data)
 {
@@ -5420,7 +5760,7 @@ void regulator_unregister(struct regulator_dev *rdev)
 
 	mutex_lock(&regulator_list_mutex);
 
-	debugfs_remove_recursive(rdev->debugfs);
+	rdev_deinit_debugfs(rdev);
 	WARN_ON(rdev->open_count);
 	regulator_remove_coupling(rdev);
 	unset_regulator_supplies(rdev);
