@@ -2017,7 +2017,8 @@ static int max98090_dai_set_sysclk(struct snd_soc_dai *dai,
 	return 0;
 }
 
-static int max98090_dai_digital_mute(struct snd_soc_dai *codec_dai, int mute)
+static int max98090_dai_mute(struct snd_soc_dai *codec_dai, int mute,
+			     int direction)
 {
 	struct snd_soc_component *component = codec_dai->component;
 	int regval;
@@ -2347,8 +2348,9 @@ static const struct snd_soc_dai_ops max98090_dai_ops = {
 	.set_fmt = max98090_dai_set_fmt,
 	.set_tdm_slot = max98090_set_tdm_slot,
 	.hw_params = max98090_dai_hw_params,
-	.digital_mute = max98090_dai_digital_mute,
+	.mute_stream = max98090_dai_mute,
 	.trigger = max98090_dai_trigger,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver max98090_dai[] = {

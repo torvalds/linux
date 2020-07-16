@@ -800,7 +800,7 @@ static int wm8580_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 	return 0;
 }
 
-static int wm8580_digital_mute(struct snd_soc_dai *codec_dai, int mute)
+static int wm8580_mute(struct snd_soc_dai *codec_dai, int mute, int direction)
 {
 	struct snd_soc_component *component = codec_dai->component;
 	unsigned int reg;
@@ -866,7 +866,8 @@ static const struct snd_soc_dai_ops wm8580_dai_ops_playback = {
 	.set_fmt	= wm8580_set_paif_dai_fmt,
 	.set_clkdiv	= wm8580_set_dai_clkdiv,
 	.set_pll	= wm8580_set_dai_pll,
-	.digital_mute	= wm8580_digital_mute,
+	.mute_stream	= wm8580_mute,
+	.no_capture_mute = 1,
 };
 
 static const struct snd_soc_dai_ops wm8580_dai_ops_capture = {

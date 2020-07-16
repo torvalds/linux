@@ -404,7 +404,7 @@ static void tlv320aic23_shutdown(struct snd_pcm_substream *substream,
 		aic23->requested_adc = 0;
 }
 
-static int tlv320aic23_mute(struct snd_soc_dai *dai, int mute)
+static int tlv320aic23_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 	u16 reg;
@@ -512,9 +512,10 @@ static const struct snd_soc_dai_ops tlv320aic23_dai_ops = {
 	.prepare	= tlv320aic23_pcm_prepare,
 	.hw_params	= tlv320aic23_hw_params,
 	.shutdown	= tlv320aic23_shutdown,
-	.digital_mute	= tlv320aic23_mute,
+	.mute_stream	= tlv320aic23_mute,
 	.set_fmt	= tlv320aic23_set_dai_fmt,
 	.set_sysclk	= tlv320aic23_set_dai_sysclk,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver tlv320aic23_dai = {

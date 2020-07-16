@@ -280,6 +280,9 @@ struct snd_soc_dai_ops {
 	 */
 	snd_pcm_sframes_t (*delay)(struct snd_pcm_substream *,
 		struct snd_soc_dai *);
+
+	/* bit field */
+	unsigned int no_capture_mute:1;
 };
 
 struct snd_soc_cdai_ops {

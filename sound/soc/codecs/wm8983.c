@@ -557,7 +557,7 @@ static bool wm8983_writeable(struct device *dev, unsigned int reg)
 	}
 }
 
-static int wm8983_dac_mute(struct snd_soc_dai *dai, int mute)
+static int wm8983_dac_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 
@@ -943,11 +943,12 @@ static int wm8983_probe(struct snd_soc_component *component)
 }
 
 static const struct snd_soc_dai_ops wm8983_dai_ops = {
-	.digital_mute = wm8983_dac_mute,
+	.mute_stream = wm8983_dac_mute,
 	.hw_params = wm8983_hw_params,
 	.set_fmt = wm8983_set_fmt,
 	.set_sysclk = wm8983_set_sysclk,
-	.set_pll = wm8983_set_pll
+	.set_pll = wm8983_set_pll,
+	.no_capture_mute = 1,
 };
 
 #define WM8983_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | \

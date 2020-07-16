@@ -452,7 +452,7 @@ error_ret:
 	return ret;
 }
 
-static int wm8940_mute(struct snd_soc_dai *dai, int mute)
+static int wm8940_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 	u16 mute_reg = snd_soc_component_read(component, WM8940_DAC) & 0xffbf;
@@ -664,10 +664,11 @@ static int wm8940_set_dai_clkdiv(struct snd_soc_dai *codec_dai,
 static const struct snd_soc_dai_ops wm8940_dai_ops = {
 	.hw_params = wm8940_i2s_hw_params,
 	.set_sysclk = wm8940_set_dai_sysclk,
-	.digital_mute = wm8940_mute,
+	.mute_stream = wm8940_mute,
 	.set_fmt = wm8940_set_dai_fmt,
 	.set_clkdiv = wm8940_set_dai_clkdiv,
 	.set_pll = wm8940_set_dai_pll,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver wm8940_dai = {

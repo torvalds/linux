@@ -1274,7 +1274,8 @@ static int max98088_dai2_set_fmt(struct snd_soc_dai *codec_dai,
        return 0;
 }
 
-static int max98088_dai1_digital_mute(struct snd_soc_dai *codec_dai, int mute)
+static int max98088_dai1_mute(struct snd_soc_dai *codec_dai, int mute,
+			      int direction)
 {
        struct snd_soc_component *component = codec_dai->component;
        int reg;
@@ -1289,7 +1290,8 @@ static int max98088_dai1_digital_mute(struct snd_soc_dai *codec_dai, int mute)
        return 0;
 }
 
-static int max98088_dai2_digital_mute(struct snd_soc_dai *codec_dai, int mute)
+static int max98088_dai2_mute(struct snd_soc_dai *codec_dai, int mute,
+			      int direction)
 {
        struct snd_soc_component *component = codec_dai->component;
        int reg;
@@ -1354,14 +1356,16 @@ static const struct snd_soc_dai_ops max98088_dai1_ops = {
        .set_sysclk = max98088_dai_set_sysclk,
        .set_fmt = max98088_dai1_set_fmt,
        .hw_params = max98088_dai1_hw_params,
-       .digital_mute = max98088_dai1_digital_mute,
+       .mute_stream = max98088_dai1_mute,
+       .no_capture_mute = 1,
 };
 
 static const struct snd_soc_dai_ops max98088_dai2_ops = {
        .set_sysclk = max98088_dai_set_sysclk,
        .set_fmt = max98088_dai2_set_fmt,
        .hw_params = max98088_dai2_hw_params,
-       .digital_mute = max98088_dai2_digital_mute,
+       .mute_stream = max98088_dai2_mute,
+       .no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver max98088_dai[] = {

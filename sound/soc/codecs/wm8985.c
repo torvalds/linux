@@ -649,7 +649,7 @@ static int wm8985_reset(struct snd_soc_component *component)
 	return snd_soc_component_write(component, WM8985_SOFTWARE_RESET, 0x0);
 }
 
-static int wm8985_dac_mute(struct snd_soc_dai *dai, int mute)
+static int wm8985_dac_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 
@@ -1072,11 +1072,12 @@ err_reg_enable:
 }
 
 static const struct snd_soc_dai_ops wm8985_dai_ops = {
-	.digital_mute = wm8985_dac_mute,
+	.mute_stream = wm8985_dac_mute,
 	.hw_params = wm8985_hw_params,
 	.set_fmt = wm8985_set_fmt,
 	.set_sysclk = wm8985_set_sysclk,
-	.set_pll = wm8985_set_pll
+	.set_pll = wm8985_set_pll,
+	.no_capture_mute = 1,
 };
 
 #define WM8985_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | \

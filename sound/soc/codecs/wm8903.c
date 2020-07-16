@@ -1307,7 +1307,7 @@ static int wm8903_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	return 0;
 }
 
-static int wm8903_digital_mute(struct snd_soc_dai *codec_dai, int mute)
+static int wm8903_mute(struct snd_soc_dai *codec_dai, int mute, int direction)
 {
 	struct snd_soc_component *component = codec_dai->component;
 	u16 reg;
@@ -1737,9 +1737,10 @@ static irqreturn_t wm8903_irq(int irq, void *data)
 
 static const struct snd_soc_dai_ops wm8903_dai_ops = {
 	.hw_params	= wm8903_hw_params,
-	.digital_mute	= wm8903_digital_mute,
+	.mute_stream	= wm8903_mute,
 	.set_fmt	= wm8903_set_dai_fmt,
 	.set_sysclk	= wm8903_set_dai_sysclk,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver wm8903_dai = {

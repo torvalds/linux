@@ -69,7 +69,7 @@ static const struct snd_soc_dapm_route wm8728_intercon[] = {
 	{"VOUTR", NULL, "DAC"},
 };
 
-static int wm8728_mute(struct snd_soc_dai *dai, int mute)
+static int wm8728_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 	u16 mute_reg = snd_soc_component_read(component, WM8728_DACCTL);
@@ -192,8 +192,9 @@ static int wm8728_set_bias_level(struct snd_soc_component *component,
 
 static const struct snd_soc_dai_ops wm8728_dai_ops = {
 	.hw_params	= wm8728_hw_params,
-	.digital_mute	= wm8728_mute,
+	.mute_stream	= wm8728_mute,
 	.set_fmt	= wm8728_set_dai_fmt,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver wm8728_dai = {

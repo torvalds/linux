@@ -536,7 +536,7 @@ static int wm8971_pcm_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int wm8971_mute(struct snd_soc_dai *dai, int mute)
+static int wm8971_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 	u16 mute_reg = snd_soc_component_read(component, WM8971_ADCDAC) & 0xfff7;
@@ -602,9 +602,10 @@ static int wm8971_set_bias_level(struct snd_soc_component *component,
 
 static const struct snd_soc_dai_ops wm8971_dai_ops = {
 	.hw_params	= wm8971_pcm_hw_params,
-	.digital_mute	= wm8971_mute,
+	.mute_stream	= wm8971_mute,
 	.set_fmt	= wm8971_set_dai_fmt,
 	.set_sysclk	= wm8971_set_dai_sysclk,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver wm8971_dai = {

@@ -189,7 +189,7 @@ static const struct snd_soc_dapm_route tas2770_audio_map[] = {
 	{"VSENSE", "Switch", "VMON"},
 };
 
-static int tas2770_mute(struct snd_soc_dai *dai, int mute)
+static int tas2770_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 	int ret;
@@ -530,10 +530,11 @@ static int tas2770_set_dai_tdm_slot(struct snd_soc_dai *dai,
 }
 
 static struct snd_soc_dai_ops tas2770_dai_ops = {
-	.digital_mute = tas2770_mute,
+	.mute_stream = tas2770_mute,
 	.hw_params  = tas2770_hw_params,
 	.set_fmt    = tas2770_set_fmt,
 	.set_tdm_slot = tas2770_set_dai_tdm_slot,
+	.no_capture_mute = 1,
 };
 
 #define TAS2770_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\

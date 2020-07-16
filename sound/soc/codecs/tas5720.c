@@ -199,7 +199,7 @@ error_snd_soc_component_update_bits:
 	return ret;
 }
 
-static int tas5720_mute(struct snd_soc_dai *dai, int mute)
+static int tas5720_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 	int ret;
@@ -604,7 +604,8 @@ static const struct snd_soc_dai_ops tas5720_speaker_dai_ops = {
 	.hw_params	= tas5720_hw_params,
 	.set_fmt	= tas5720_set_dai_fmt,
 	.set_tdm_slot	= tas5720_set_dai_tdm_slot,
-	.digital_mute	= tas5720_mute,
+	.mute_stream	= tas5720_mute,
+	.no_capture_mute = 1,
 };
 
 /*
