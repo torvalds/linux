@@ -167,11 +167,13 @@ For example::
 package-0
 ---------
 
-The Intel RAPL technology allows two constraints, short term and long term,
-with two different time windows to be applied to each power zone.  Thus for
-each zone there are 2 attributes representing the constraint names, 2 power
-limits and 2 attributes representing the sizes of the time windows. Such that,
-constraint_j_* attributes correspond to the jth constraint (j = 0,1).
+Depending on different power zones, the Intel RAPL technology allows
+one or multiple constraints like short term, long term and peak power,
+with different time windows to be applied to each power zone.
+All the zones contain attributes representing the constraint names,
+power limits and the sizes of the time windows. Note that time window
+is not applicable to peak power. Here, constraint_j_* attributes
+correspond to the jth constraint (j = 0,1,2).
 
 For example::
 
@@ -181,6 +183,9 @@ For example::
 	constraint_1_name
 	constraint_1_power_limit_uw
 	constraint_1_time_window_us
+	constraint_2_name
+	constraint_2_power_limit_uw
+	constraint_2_time_window_us
 
 Power Zone Attributes
 =====================
