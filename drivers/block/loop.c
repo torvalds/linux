@@ -1090,11 +1090,10 @@ static int loop_configure(struct loop_device *lo, fmode_t mode,
 	 * here to avoid changing device under exclusive owner.
 	 */
 	if (!(mode & FMODE_EXCL)) {
-		claimed_bdev = bd_start_claiming(bdev, loop_configure);
-		if (IS_ERR(claimed_bdev)) {
-			error = PTR_ERR(claimed_bdev);
+		claimed_bdev = bdev->bd_contains;
+		error = bd_prepare_to_claim(bdev, claimed_bdev, loop_configure);
+		if (error)
 			goto out_putf;
-		}
 	}
 
 	error = mutex_lock_killable(&loop_ctl_mutex);
