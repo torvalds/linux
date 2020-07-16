@@ -275,7 +275,7 @@ typedef void (*regmap_unlock)(void *);
  *			readable if it belongs to one of the ranges specified
  *			by rd_noinc_table).
  * @disable_locking: This regmap is either protected by external means or
- *                   is guaranteed not be be accessed from multiple threads.
+ *                   is guaranteed not to be accessed from multiple threads.
  *                   Don't use any locking mechanisms.
  * @lock:	  Optional lock callback (overrides regmap's default lock
  *		  function, based on spinlock or mutex).
