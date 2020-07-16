@@ -171,6 +171,24 @@ xfs_qm_init_dquot_blk(
 	ASSERT(tp);
 	ASSERT(xfs_buf_islocked(bp));
 
+	switch (type) {
+	case XFS_DQTYPE_USER:
+		qflag = XFS_UQUOTA_CHKD;
+		blftype = XFS_BLF_UDQUOT_BUF;
+		break;
+	case XFS_DQTYPE_PROJ:
+		qflag = XFS_PQUOTA_CHKD;
+		blftype = XFS_BLF_PDQUOT_BUF;
+		break;
+	case XFS_DQTYPE_GROUP:
+		qflag = XFS_GQUOTA_CHKD;
+		blftype = XFS_BLF_GDQUOT_BUF;
+		break;
+	default:
+		ASSERT(0);
+		return;
+	}
+
 	d = bp->b_addr;
 
 	/*
@@ -188,17 +206,6 @@ xfs_qm_init_dquot_blk(
 			xfs_update_cksum((char *)d, sizeof(struct xfs_dqblk),
 					 XFS_DQUOT_CRC_OFF);
 		}
-	}
-
-	if (type & XFS_DQTYPE_USER) {
-		qflag = XFS_UQUOTA_CHKD;
-		blftype = XFS_BLF_UDQUOT_BUF;
-	} else if (type & XFS_DQTYPE_PROJ) {
-		qflag = XFS_PQUOTA_CHKD;
-		blftype = XFS_BLF_PDQUOT_BUF;
-	} else {
-		qflag = XFS_GQUOTA_CHKD;
-		blftype = XFS_BLF_GDQUOT_BUF;
 	}
 
 	xfs_trans_dquot_buf(tp, bp, blftype);
