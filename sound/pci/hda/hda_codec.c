@@ -792,6 +792,7 @@ void snd_hda_codec_cleanup_for_unbind(struct hda_codec *codec)
 	remove_conn_list(codec);
 	snd_hdac_regmap_exit(&codec->core);
 }
+EXPORT_SYMBOL_GPL(snd_hda_codec_cleanup_for_unbind);
 
 static unsigned int hda_set_power_state(struct hda_codec *codec,
 				unsigned int power_state);
@@ -3178,7 +3179,7 @@ int snd_hda_codec_prepare(struct hda_codec *codec,
 EXPORT_SYMBOL_GPL(snd_hda_codec_prepare);
 
 /**
- * snd_hda_codec_cleanup - Prepare a stream
+ * snd_hda_codec_cleanup - Clean up stream resources
  * @codec: the HDA codec
  * @hinfo: PCM information
  * @substream: PCM substream
