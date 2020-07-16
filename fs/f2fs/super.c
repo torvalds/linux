@@ -1184,6 +1184,7 @@ static void destroy_device_list(struct f2fs_sb_info *sbi)
 		blkdev_put(FDEV(i).bdev, FMODE_EXCL);
 #ifdef CONFIG_BLK_DEV_ZONED
 		kvfree(FDEV(i).blkz_seq);
+		kfree(FDEV(i).zone_capacity_blocks);
 #endif
 	}
 	kvfree(sbi->devs);
@@ -3088,13 +3089,26 @@ static int init_percpu_info(struct f2fs_sb_info *sbi)
 }
 
 #ifdef CONFIG_BLK_DEV_ZONED
-static int f2fs_report_zone_cb(struct blk_zone *zone, unsigned int idx,
-			       void *data)
-{
-	struct f2fs_dev_info *dev = data;
 
-	if (zone->type != BLK_ZONE_TYPE_CONVENTIONAL)
-		set_bit(idx, dev->blkz_seq);
+struct f2fs_report_zones_args {
+	struct f2fs_dev_info *dev;
+	bool zone_cap_mismatch;
+};
+
+static int f2fs_report_zone_cb(struct blk_zone *zone, unsigned int idx,
+			      void *data)
+{
+	struct f2fs_report_zones_args *rz_args = data;
+
+	if (zone->type == BLK_ZONE_TYPE_CONVENTIONAL)
+		return 0;
+
+	set_bit(idx, rz_args->dev->blkz_seq);
+	rz_args->dev->zone_capacity_blocks[idx] = zone->capacity >>
+						F2FS_LOG_SECTORS_PER_BLOCK;
+	if (zone->len != zone->capacity && !rz_args->zone_cap_mismatch)
+		rz_args->zone_cap_mismatch = true;
+
 	return 0;
 }
 
@@ -3102,6 +3116,7 @@ static int init_blkz_info(struct f2fs_sb_info *sbi, int devi)
 {
 	struct block_device *bdev = FDEV(devi).bdev;
 	sector_t nr_sectors = bdev->bd_part->nr_sects;
+	struct f2fs_report_zones_args rep_zone_arg;
 	int ret;
 
 	if (!f2fs_sb_has_blkzoned(sbi))
@@ -3127,11 +3142,25 @@ static int init_blkz_info(struct f2fs_sb_info *sbi, int devi)
 	if (!FDEV(devi).blkz_seq)
 		return -ENOMEM;
 
-	/* Get block zones type */
+	/* Get block zones type and zone-capacity */
+	FDEV(devi).zone_capacity_blocks = f2fs_kzalloc(sbi,
+					FDEV(devi).nr_blkz * sizeof(block_t),
+					GFP_KERNEL);
+	if (!FDEV(devi).zone_capacity_blocks)
+		return -ENOMEM;
+
+	rep_zone_arg.dev = &FDEV(devi);
+	rep_zone_arg.zone_cap_mismatch = false;
+
 	ret = blkdev_report_zones(bdev, 0, BLK_ALL_ZONES, f2fs_report_zone_cb,
-				  &FDEV(devi));
+				  &rep_zone_arg);
 	if (ret < 0)
 		return ret;
+
+	if (!rep_zone_arg.zone_cap_mismatch) {
+		kfree(FDEV(devi).zone_capacity_blocks);
+		FDEV(devi).zone_capacity_blocks = NULL;
+	}
 
 	return 0;
 }
