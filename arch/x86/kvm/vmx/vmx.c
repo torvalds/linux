@@ -7959,7 +7959,6 @@ static struct kvm_x86_ops vmx_x86_ops __initdata = {
 
 	.set_tss_addr = vmx_set_tss_addr,
 	.set_identity_map_addr = vmx_set_identity_map_addr,
-	.get_max_tdp_level = vmx_get_max_tdp_level,
 	.get_mt_mask = vmx_get_mt_mask,
 
 	.get_exit_info = vmx_get_exit_info,
@@ -8110,7 +8109,7 @@ static __init int hardware_setup(void)
 		ept_lpage_level = PG_LEVEL_2M;
 	else
 		ept_lpage_level = PG_LEVEL_4K;
-	kvm_configure_mmu(enable_ept, ept_lpage_level);
+	kvm_configure_mmu(enable_ept, vmx_get_max_tdp_level(), ept_lpage_level);
 
 	/*
 	 * Only enable PML when hardware supports PML feature, and both EPT

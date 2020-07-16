@@ -885,7 +885,7 @@ static __init int svm_hardware_setup(void)
 	if (npt_enabled && !npt)
 		npt_enabled = false;
 
-	kvm_configure_mmu(npt_enabled, PG_LEVEL_1G);
+	kvm_configure_mmu(npt_enabled, get_max_npt_level(), PG_LEVEL_1G);
 	pr_info("kvm: Nested Paging %sabled\n", npt_enabled ? "en" : "dis");
 
 	if (nrips) {
@@ -4109,7 +4109,6 @@ static struct kvm_x86_ops svm_x86_ops __initdata = {
 
 	.set_tss_addr = svm_set_tss_addr,
 	.set_identity_map_addr = svm_set_identity_map_addr,
-	.get_max_tdp_level = get_max_npt_level,
 	.get_mt_mask = svm_get_mt_mask,
 
 	.get_exit_info = svm_get_exit_info,

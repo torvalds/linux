@@ -1133,7 +1133,6 @@ struct kvm_x86_ops {
 	int (*sync_pir_to_irr)(struct kvm_vcpu *vcpu);
 	int (*set_tss_addr)(struct kvm *kvm, unsigned int addr);
 	int (*set_identity_map_addr)(struct kvm *kvm, u64 ident_addr);
-	int (*get_max_tdp_level)(void);
 	u64 (*get_mt_mask)(struct kvm_vcpu *vcpu, gfn_t gfn, bool is_mmio);
 
 	void (*load_mmu_pgd)(struct kvm_vcpu *vcpu, unsigned long pgd,
@@ -1509,7 +1508,8 @@ void kvm_mmu_invpcid_gva(struct kvm_vcpu *vcpu, gva_t gva, unsigned long pcid);
 void kvm_mmu_new_pgd(struct kvm_vcpu *vcpu, gpa_t new_pgd, bool skip_tlb_flush,
 		     bool skip_mmu_sync);
 
-void kvm_configure_mmu(bool enable_tdp, int tdp_page_level);
+void kvm_configure_mmu(bool enable_tdp, int tdp_max_root_level,
+		       int tdp_huge_page_level);
 
 static inline u16 kvm_read_ldt(void)
 {
