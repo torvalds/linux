@@ -3475,6 +3475,14 @@ static void icl_update_active_dpll(struct intel_atomic_state *state,
 	icl_set_active_port_dpll(crtc_state, port_dpll_id);
 }
 
+static u32 intel_get_hti_plls(struct drm_i915_private *i915)
+{
+	if (!(i915->hti_state & HDPORT_ENABLED))
+		return 0;
+
+	return REG_FIELD_GET(HDPORT_DPLL_USED_MASK, i915->hti_state);
+}
+
 static bool icl_get_combo_phy_dpll(struct intel_atomic_state *state,
 				   struct intel_crtc *crtc,
 				   struct intel_encoder *encoder)
@@ -3517,6 +3525,9 @@ static bool icl_get_combo_phy_dpll(struct intel_atomic_state *state,
 	} else {
 		dpll_mask = BIT(DPLL_ID_ICL_DPLL1) | BIT(DPLL_ID_ICL_DPLL0);
 	}
+
+	/* Eliminate DPLLs from consideration if reserved by HTI */
+	dpll_mask &= ~intel_get_hti_plls(dev_priv);
 
 	port_dpll->pll = intel_find_shared_dpll(state, crtc,
 						&port_dpll->hw_state,

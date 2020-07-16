@@ -1045,6 +1045,14 @@ struct drm_i915_private {
 	struct intel_l3_parity l3_parity;
 
 	/*
+	 * HTI (aka HDPORT) state read during initial hw readout.  Most
+	 * platforms don't have HTI, so this will just stay 0.  Those that do
+	 * will use this later to figure out which PLLs and PHYs are unavailable
+	 * for driver usage.
+	 */
+	u32 hti_state;
+
+	/*
 	 * edram size in MB.
 	 * Cannot be determined by PCIID. You must always read a register.
 	 */

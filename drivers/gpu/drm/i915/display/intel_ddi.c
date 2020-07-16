@@ -4923,12 +4923,31 @@ intel_ddi_max_lanes(struct intel_digital_port *dig_port)
 	return max_lanes;
 }
 
+static bool hti_uses_phy(struct drm_i915_private *i915, enum phy phy)
+{
+	return i915->hti_state & HDPORT_ENABLED &&
+		(i915->hti_state & HDPORT_PHY_USED_DP(phy) ||
+		 i915->hti_state & HDPORT_PHY_USED_HDMI(phy));
+}
+
 void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 {
 	struct intel_digital_port *dig_port;
 	struct intel_encoder *encoder;
 	bool init_hdmi, init_dp, init_lspcon = false;
 	enum phy phy = intel_port_to_phy(dev_priv, port);
+
+	/*
+	 * On platforms with HTI (aka HDPORT), if it's enabled at boot it may
+	 * have taken over some of the PHYs and made them unavailable to the
+	 * driver.  In that case we should skip initializing the corresponding
+	 * outputs.
+	 */
+	if (hti_uses_phy(dev_priv, phy)) {
+		drm_dbg_kms(&dev_priv->drm, "PORT %c / PHY %c reserved by HTI\n",
+			    port_name(port), phy_name(phy));
+		return;
+	}
 
 	init_hdmi = intel_bios_port_supports_dvi(dev_priv, port) ||
 		intel_bios_port_supports_hdmi(dev_priv, port);

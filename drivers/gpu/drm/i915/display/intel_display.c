@@ -47,6 +47,7 @@
 #include "display/intel_ddi.h"
 #include "display/intel_dp.h"
 #include "display/intel_dp_mst.h"
+#include "display/intel_dpll_mgr.h"
 #include "display/intel_dsi.h"
 #include "display/intel_dvo.h"
 #include "display/intel_gmbus.h"
@@ -17902,6 +17903,13 @@ int intel_modeset_init(struct drm_i915_private *i915)
 
 	if (i915->max_cdclk_freq == 0)
 		intel_update_max_cdclk(i915);
+
+	/*
+	 * If the platform has HTI, we need to find out whether it has reserved
+	 * any display resources before we create our display outputs.
+	 */
+	if (INTEL_INFO(i915)->display.has_hti)
+		i915->hti_state = intel_de_read(i915, HDPORT_STATE);
 
 	/* Just disable it once at startup */
 	intel_vga_disable(i915);
