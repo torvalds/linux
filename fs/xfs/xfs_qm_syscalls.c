@@ -495,7 +495,7 @@ int
 xfs_qm_scall_setqlim(
 	struct xfs_mount	*mp,
 	xfs_dqid_t		id,
-	uint			type,
+	xfs_dqtype_t		type,
 	struct qc_dqblk		*newlim)
 {
 	struct xfs_quotainfo	*q = mp->m_quotainfo;
@@ -634,7 +634,7 @@ out_unlock:
 static void
 xfs_qm_scall_getquota_fill_qc(
 	struct xfs_mount	*mp,
-	uint			type,
+	xfs_dqtype_t		type,
 	const struct xfs_dquot	*dqp,
 	struct qc_dqblk		*dst)
 {
@@ -685,7 +685,7 @@ int
 xfs_qm_scall_getquota(
 	struct xfs_mount	*mp,
 	xfs_dqid_t		id,
-	uint			type,
+	xfs_dqtype_t		type,
 	struct qc_dqblk		*dst)
 {
 	struct xfs_dquot	*dqp;
@@ -723,7 +723,7 @@ int
 xfs_qm_scall_getquota_next(
 	struct xfs_mount	*mp,
 	xfs_dqid_t		*id,
-	uint			type,
+	xfs_dqtype_t		type,
 	struct qc_dqblk		*dst)
 {
 	struct xfs_dquot	*dqp;

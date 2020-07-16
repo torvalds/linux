@@ -47,7 +47,7 @@ STATIC void	xfs_qm_dqfree_one(struct xfs_dquot *dqp);
 STATIC int
 xfs_qm_dquot_walk(
 	struct xfs_mount	*mp,
-	int			type,
+	xfs_dqtype_t		type,
 	int			(*execute)(struct xfs_dquot *dqp, void *data),
 	void			*data)
 {
@@ -250,7 +250,7 @@ STATIC int
 xfs_qm_dqattach_one(
 	struct xfs_inode	*ip,
 	xfs_dqid_t		id,
-	uint			type,
+	xfs_dqtype_t		type,
 	bool			doalloc,
 	struct xfs_dquot	**IO_idqpp)
 {
@@ -545,7 +545,7 @@ xfs_qm_shrink_count(
 STATIC void
 xfs_qm_set_defquota(
 	struct xfs_mount	*mp,
-	uint			type,
+	xfs_dqtype_t		type,
 	struct xfs_quotainfo	*qinf)
 {
 	struct xfs_dquot	*dqp;
@@ -575,7 +575,7 @@ xfs_qm_set_defquota(
 static void
 xfs_qm_init_timelimits(
 	struct xfs_mount	*mp,
-	uint			type)
+	xfs_dqtype_t		type)
 {
 	struct xfs_quotainfo	*qinf = mp->m_quotainfo;
 	struct xfs_def_quota	*defq;
@@ -823,10 +823,10 @@ xfs_qm_qino_alloc(
 
 STATIC void
 xfs_qm_reset_dqcounts(
-	xfs_mount_t	*mp,
-	xfs_buf_t	*bp,
-	xfs_dqid_t	id,
-	uint		type)
+	struct xfs_mount	*mp,
+	struct xfs_buf		*bp,
+	xfs_dqid_t		id,
+	xfs_dqtype_t		type)
 {
 	struct xfs_dqblk	*dqb;
 	int			j;
@@ -895,7 +895,7 @@ xfs_qm_reset_dqcounts_all(
 	xfs_dqid_t		firstid,
 	xfs_fsblock_t		bno,
 	xfs_filblks_t		blkcnt,
-	uint			type,
+	xfs_dqtype_t		type,
 	struct list_head	*buffer_list)
 {
 	struct xfs_buf		*bp;
@@ -961,7 +961,7 @@ STATIC int
 xfs_qm_reset_dqcounts_buf(
 	struct xfs_mount	*mp,
 	struct xfs_inode	*qip,
-	uint			type,
+	xfs_dqtype_t		type,
 	struct list_head	*buffer_list)
 {
 	struct xfs_bmbt_irec	*map;
@@ -1059,7 +1059,7 @@ out:
 STATIC int
 xfs_qm_quotacheck_dqadjust(
 	struct xfs_inode	*ip,
-	uint			type,
+	xfs_dqtype_t		type,
 	xfs_qcnt_t		nblks,
 	xfs_qcnt_t		rtblks)
 {

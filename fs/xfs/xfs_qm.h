@@ -70,7 +70,7 @@ struct xfs_quotainfo {
 static inline struct radix_tree_root *
 xfs_dquot_tree(
 	struct xfs_quotainfo	*qi,
-	int			type)
+	xfs_dqtype_t		type)
 {
 	switch (type) {
 	case XFS_DQTYPE_USER:
@@ -86,9 +86,9 @@ xfs_dquot_tree(
 }
 
 static inline struct xfs_inode *
-xfs_quota_inode(xfs_mount_t *mp, uint dq_flags)
+xfs_quota_inode(struct xfs_mount *mp, xfs_dqtype_t type)
 {
-	switch (dq_flags) {
+	switch (type) {
 	case XFS_DQTYPE_USER:
 		return mp->m_quotainfo->qi_uquotaip;
 	case XFS_DQTYPE_GROUP:
@@ -142,17 +142,23 @@ extern void		xfs_qm_dqrele_all_inodes(struct xfs_mount *, uint);
 
 /* quota ops */
 extern int		xfs_qm_scall_trunc_qfiles(struct xfs_mount *, uint);
-extern int		xfs_qm_scall_getquota(struct xfs_mount *, xfs_dqid_t,
-					uint, struct qc_dqblk *);
-extern int		xfs_qm_scall_getquota_next(struct xfs_mount *,
-					xfs_dqid_t *, uint, struct qc_dqblk *);
-extern int		xfs_qm_scall_setqlim(struct xfs_mount *, xfs_dqid_t, uint,
-					struct qc_dqblk *);
+extern int		xfs_qm_scall_getquota(struct xfs_mount *mp,
+					xfs_dqid_t id,
+					xfs_dqtype_t type,
+					struct qc_dqblk *dst);
+extern int		xfs_qm_scall_getquota_next(struct xfs_mount *mp,
+					xfs_dqid_t *id,
+					xfs_dqtype_t type,
+					struct qc_dqblk *dst);
+extern int		xfs_qm_scall_setqlim(struct xfs_mount *mp,
+					xfs_dqid_t id,
+					xfs_dqtype_t type,
+					struct qc_dqblk *newlim);
 extern int		xfs_qm_scall_quotaon(struct xfs_mount *, uint);
 extern int		xfs_qm_scall_quotaoff(struct xfs_mount *, uint);
 
 static inline struct xfs_def_quota *
-xfs_get_defquota(struct xfs_quotainfo *qi, int type)
+xfs_get_defquota(struct xfs_quotainfo *qi, xfs_dqtype_t type)
 {
 	switch (type) {
 	case XFS_DQTYPE_USER:

@@ -109,7 +109,7 @@ xfs_dqblk_repair(
 	struct xfs_mount	*mp,
 	struct xfs_dqblk	*dqb,
 	xfs_dqid_t		id,
-	uint			type)
+	xfs_dqtype_t		type)
 {
 	/*
 	 * Typically, a repair is only requested by quotacheck.

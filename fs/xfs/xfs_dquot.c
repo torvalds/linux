@@ -158,7 +158,7 @@ xfs_qm_init_dquot_blk(
 	struct xfs_trans	*tp,
 	struct xfs_mount	*mp,
 	xfs_dqid_t		id,
-	uint			type,
+	xfs_dqtype_t		type,
 	struct xfs_buf		*bp)
 {
 	struct xfs_quotainfo	*q = mp->m_quotainfo;
@@ -273,7 +273,7 @@ xfs_dquot_disk_alloc(
 	struct xfs_trans	*tp = *tpp;
 	struct xfs_mount	*mp = tp->t_mountp;
 	struct xfs_buf		*bp;
-	uint			qtype = xfs_dquot_type(dqp);
+	xfs_dqtype_t		qtype = xfs_dquot_type(dqp);
 	struct xfs_inode	*quotip = xfs_quota_inode(mp, qtype);
 	int			nmaps = 1;
 	int			error;
@@ -365,7 +365,7 @@ xfs_dquot_disk_read(
 {
 	struct xfs_bmbt_irec	map;
 	struct xfs_buf		*bp;
-	uint			qtype = xfs_dquot_type(dqp);
+	xfs_dqtype_t		qtype = xfs_dquot_type(dqp);
 	struct xfs_inode	*quotip = xfs_quota_inode(mp, qtype);
 	uint			lock_mode;
 	int			nmaps = 1;
@@ -424,13 +424,13 @@ STATIC struct xfs_dquot *
 xfs_dquot_alloc(
 	struct xfs_mount	*mp,
 	xfs_dqid_t		id,
-	uint			type)
+	xfs_dqtype_t		type)
 {
 	struct xfs_dquot	*dqp;
 
 	dqp = kmem_zone_zalloc(xfs_qm_dqzone, 0);
 
-	dqp->dq_flags = type;
+	dqp->q_type = type;
 	dqp->q_id = id;
 	dqp->q_mount = mp;
 	INIT_LIST_HEAD(&dqp->q_lru);
@@ -498,6 +498,7 @@ xfs_dquot_from_disk(
 	}
 
 	/* copy everything from disk dquot to the incore dquot */
+	dqp->q_type = ddqp->d_flags;
 	dqp->q_blk.hardlimit = be64_to_cpu(ddqp->d_blk_hardlimit);
 	dqp->q_blk.softlimit = be64_to_cpu(ddqp->d_blk_softlimit);
 	dqp->q_ino.hardlimit = be64_to_cpu(ddqp->d_ino_hardlimit);
@@ -538,7 +539,7 @@ xfs_dquot_to_disk(
 {
 	ddqp->d_magic = cpu_to_be16(XFS_DQUOT_MAGIC);
 	ddqp->d_version = XFS_DQUOT_VERSION;
-	ddqp->d_flags = dqp->dq_flags & XFS_DQTYPE_REC_MASK;
+	ddqp->d_flags = dqp->q_type;
 	ddqp->d_id = cpu_to_be32(dqp->q_id);
 	ddqp->d_pad0 = 0;
 	ddqp->d_pad = 0;
@@ -609,7 +610,7 @@ static int
 xfs_qm_dqread(
 	struct xfs_mount	*mp,
 	xfs_dqid_t		id,
-	uint			type,
+	xfs_dqtype_t		type,
 	bool			can_alloc,
 	struct xfs_dquot	**dqpp)
 {
@@ -657,7 +658,7 @@ err:
 static int
 xfs_dq_get_next_id(
 	struct xfs_mount	*mp,
-	uint			type,
+	xfs_dqtype_t		type,
 	xfs_dqid_t		*id)
 {
 	struct xfs_inode	*quotip = xfs_quota_inode(mp, type);
@@ -781,7 +782,7 @@ xfs_qm_dqget_cache_insert(
 static int
 xfs_qm_dqget_checks(
 	struct xfs_mount	*mp,
-	uint			type)
+	xfs_dqtype_t		type)
 {
 	if (WARN_ON_ONCE(!XFS_IS_QUOTA_RUNNING(mp)))
 		return -ESRCH;
@@ -813,7 +814,7 @@ int
 xfs_qm_dqget(
 	struct xfs_mount	*mp,
 	xfs_dqid_t		id,
-	uint			type,
+	xfs_dqtype_t		type,
 	bool			can_alloc,
 	struct xfs_dquot	**O_dqpp)
 {
@@ -863,7 +864,7 @@ int
 xfs_qm_dqget_uncached(
 	struct xfs_mount	*mp,
 	xfs_dqid_t		id,
-	uint			type,
+	xfs_dqtype_t		type,
 	struct xfs_dquot	**dqpp)
 {
 	int			error;
@@ -879,7 +880,7 @@ xfs_qm_dqget_uncached(
 xfs_dqid_t
 xfs_qm_id_for_quotatype(
 	struct xfs_inode	*ip,
-	uint			type)
+	xfs_dqtype_t		type)
 {
 	switch (type) {
 	case XFS_DQTYPE_USER:
@@ -901,7 +902,7 @@ xfs_qm_id_for_quotatype(
 int
 xfs_qm_dqget_inode(
 	struct xfs_inode	*ip,
-	uint			type,
+	xfs_dqtype_t		type,
 	bool			can_alloc,
 	struct xfs_dquot	**O_dqpp)
 {
@@ -987,7 +988,7 @@ int
 xfs_qm_dqget_next(
 	struct xfs_mount	*mp,
 	xfs_dqid_t		id,
-	uint			type,
+	xfs_dqtype_t		type,
 	struct xfs_dquot	**dqpp)
 {
 	struct xfs_dquot	*dqp;
@@ -1122,7 +1123,7 @@ static xfs_failaddr_t
 xfs_qm_dqflush_check(
 	struct xfs_dquot	*dqp)
 {
-	__u8			type = dqp->dq_flags & XFS_DQTYPE_REC_MASK;
+	xfs_dqtype_t		type = xfs_dquot_type(dqp);
 
 	if (type != XFS_DQTYPE_USER &&
 	    type != XFS_DQTYPE_GROUP &&
@@ -1317,7 +1318,7 @@ xfs_qm_exit(void)
 int
 xfs_qm_dqiterate(
 	struct xfs_mount	*mp,
-	uint			dqtype,
+	xfs_dqtype_t		type,
 	xfs_qm_dqiterate_fn	iter_fn,
 	void			*priv)
 {
@@ -1326,13 +1327,13 @@ xfs_qm_dqiterate(
 	int			error;
 
 	do {
-		error = xfs_qm_dqget_next(mp, id, dqtype, &dq);
+		error = xfs_qm_dqget_next(mp, id, type, &dq);
 		if (error == -ENOENT)
 			return 0;
 		if (error)
 			return error;
 
-		error = iter_fn(dq, dqtype, priv);
+		error = iter_fn(dq, type, priv);
 		id = dq->q_id;
 		xfs_qm_dqput(dq);
 	} while (error == 0 && id != 0);

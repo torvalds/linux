@@ -899,11 +899,11 @@ xrep_find_ag_btree_roots(
 void
 xrep_force_quotacheck(
 	struct xfs_scrub	*sc,
-	uint			dqtype)
+	xfs_dqtype_t		type)
 {
 	uint			flag;
 
-	flag = xfs_quota_chkd_flag(dqtype);
+	flag = xfs_quota_chkd_flag(type);
 	if (!(flag & sc->mp->m_qflags))
 		return;
 

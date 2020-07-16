@@ -39,9 +39,9 @@ struct xfs_buf;
 
 static inline uint
 xfs_quota_chkd_flag(
-	uint		dqtype)
+	xfs_dqtype_t		type)
 {
-	switch (dqtype) {
+	switch (type) {
 	case XFS_DQTYPE_USER:
 		return XFS_UQUOTA_CHKD;
 	case XFS_DQTYPE_GROUP:

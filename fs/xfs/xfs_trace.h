@@ -865,6 +865,7 @@ DECLARE_EVENT_CLASS(xfs_dquot_class,
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(u32, id)
+		__field(xfs_dqtype_t, type)
 		__field(unsigned, flags)
 		__field(unsigned, nrefs)
 		__field(unsigned long long, res_bcount)
@@ -885,7 +886,8 @@ DECLARE_EVENT_CLASS(xfs_dquot_class,
 	TP_fast_assign(
 		__entry->dev = dqp->q_mount->m_super->s_dev;
 		__entry->id = dqp->q_id;
-		__entry->flags = dqp->dq_flags | dqp->q_flags;
+		__entry->type = dqp->q_type;
+		__entry->flags = dqp->q_flags;
 		__entry->nrefs = dqp->q_nrefs;
 
 		__entry->res_bcount = dqp->q_blk.reserved;
@@ -903,13 +905,14 @@ DECLARE_EVENT_CLASS(xfs_dquot_class,
 		__entry->ino_hardlimit = dqp->q_ino.hardlimit;
 		__entry->ino_softlimit = dqp->q_ino.softlimit;
 	),
-	TP_printk("dev %d:%d id 0x%x flags %s nrefs %u "
+	TP_printk("dev %d:%d id 0x%x type %s flags %s nrefs %u "
 		  "res_bc 0x%llx res_rtbc 0x%llx res_ic 0x%llx "
 		  "bcnt 0x%llx bhardlimit 0x%llx bsoftlimit 0x%llx "
 		  "rtbcnt 0x%llx rtbhardlimit 0x%llx rtbsoftlimit 0x%llx "
 		  "icnt 0x%llx ihardlimit 0x%llx isoftlimit 0x%llx]",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->id,
+		  __print_flags(__entry->type, "|", XFS_DQTYPE_STRINGS),
 		  __print_flags(__entry->flags, "|", XFS_DQFLAG_STRINGS),
 		  __entry->nrefs,
 		  __entry->res_bcount,
@@ -976,6 +979,7 @@ TRACE_EVENT(xfs_trans_mod_dquot,
 	TP_ARGS(tp, dqp, field, delta),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
+		__field(xfs_dqtype_t, type)
 		__field(unsigned int, flags)
 		__field(unsigned int, dqid)
 		__field(unsigned int, field)
@@ -983,14 +987,16 @@ TRACE_EVENT(xfs_trans_mod_dquot,
 	),
 	TP_fast_assign(
 		__entry->dev = tp->t_mountp->m_super->s_dev;
-		__entry->flags = dqp->dq_flags | dqp->q_flags;
+		__entry->type = dqp->q_type;
+		__entry->flags = dqp->q_flags;
 		__entry->dqid = dqp->q_id;
 		__entry->field = field;
 		__entry->delta = delta;
 	),
-	TP_printk("dev %d:%d dquot id 0x%x flags %s field %s delta %lld",
+	TP_printk("dev %d:%d dquot id 0x%x type %s flags %s field %s delta %lld",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->dqid,
+		  __print_flags(__entry->type, "|", XFS_DQTYPE_STRINGS),
 		  __print_flags(__entry->flags, "|", XFS_DQFLAG_STRINGS),
 		  __print_flags(__entry->field, "|", XFS_QMOPT_FLAGS),
 		  __entry->delta)
@@ -1001,6 +1007,7 @@ DECLARE_EVENT_CLASS(xfs_dqtrx_class,
 	TP_ARGS(qtrx),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
+		__field(xfs_dqtype_t, type)
 		__field(unsigned int, flags)
 		__field(u32, dqid)
 
@@ -1019,7 +1026,8 @@ DECLARE_EVENT_CLASS(xfs_dqtrx_class,
 	),
 	TP_fast_assign(
 		__entry->dev = qtrx->qt_dquot->q_mount->m_super->s_dev;
-		__entry->flags = qtrx->qt_dquot->dq_flags | qtrx->qt_dquot->q_flags;
+		__entry->type = qtrx->qt_dquot->q_type;
+		__entry->flags = qtrx->qt_dquot->q_flags;
 		__entry->dqid = qtrx->qt_dquot->q_id;
 
 		__entry->blk_res = qtrx->qt_blk_res;
@@ -1035,12 +1043,13 @@ DECLARE_EVENT_CLASS(xfs_dqtrx_class,
 		__entry->ino_res_used = qtrx->qt_ino_res_used;
 		__entry->icount_delta = qtrx->qt_icount_delta;
 	),
-	TP_printk("dev %d:%d dquot id 0x%x flags %s"
+	TP_printk("dev %d:%d dquot id 0x%x type %s flags %s"
 		  "blk_res %llu bcount_delta %lld delbcnt_delta %lld "
 		  "rtblk_res %llu rtblk_res_used %llu rtbcount_delta %lld delrtb_delta %lld "
 		  "ino_res %llu ino_res_used %llu icount_delta %lld",
 		MAJOR(__entry->dev), MINOR(__entry->dev),
 		__entry->dqid,
+		  __print_flags(__entry->type, "|", XFS_DQTYPE_STRINGS),
 		  __print_flags(__entry->flags, "|", XFS_DQFLAG_STRINGS),
 
 		__entry->blk_res,

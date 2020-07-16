@@ -18,7 +18,7 @@
 #include "scrub/common.h"
 
 /* Convert a scrub type code to a DQ flag, or return 0 if error. */
-static inline uint
+static inline xfs_dqtype_t
 xchk_quota_to_dqtype(
 	struct xfs_scrub	*sc)
 {
@@ -40,7 +40,7 @@ xchk_setup_quota(
 	struct xfs_scrub	*sc,
 	struct xfs_inode	*ip)
 {
-	uint			dqtype;
+	xfs_dqtype_t		dqtype;
 	int			error;
 
 	if (!XFS_IS_QUOTA_RUNNING(sc->mp) || !XFS_IS_QUOTA_ON(sc->mp))
@@ -73,7 +73,7 @@ struct xchk_quota_info {
 STATIC int
 xchk_quota_item(
 	struct xfs_dquot	*dq,
-	uint			dqtype,
+	xfs_dqtype_t		dqtype,
 	void			*priv)
 {
 	struct xchk_quota_info	*sqi = priv;
@@ -214,7 +214,7 @@ xchk_quota(
 	struct xchk_quota_info	sqi;
 	struct xfs_mount	*mp = sc->mp;
 	struct xfs_quotainfo	*qi = mp->m_quotainfo;
-	uint			dqtype;
+	xfs_dqtype_t		dqtype;
 	int			error = 0;
 
 	dqtype = xchk_quota_to_dqtype(sc);
