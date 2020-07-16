@@ -23,6 +23,7 @@
 #include <linux/interrupt.h>
 #include <linux/kdebug.h>
 #include <linux/uaccess.h>
+#include <linux/extable.h>
 
 #include <asm/page.h>
 #include <asm/openprom.h>
@@ -114,8 +115,6 @@ asmlinkage void do_sparc_fault(struct pt_regs *regs, int text_fault, int write,
 	struct vm_area_struct *vma;
 	struct task_struct *tsk = current;
 	struct mm_struct *mm = tsk->mm;
-	unsigned int fixup;
-	unsigned long g2;
 	int from_user = !(regs->psr & PSR_PS);
 	int code;
 	vm_fault_t fault;
@@ -233,22 +232,19 @@ bad_area_nosemaphore:
 
 	/* Is this in ex_table? */
 no_context:
-	g2 = regs->u_regs[UREG_G2];
 	if (!from_user) {
-		fixup = search_extables_range(regs->pc, &g2);
-		/* Values below 10 are reserved for other things */
-		if (fixup > 10) {
+		const struct exception_table_entry *entry;
+
+		entry = search_exception_tables(regs->pc);
 #ifdef DEBUG_EXCEPTIONS
-			printk("Exception: PC<%08lx> faddr<%08lx>\n",
-			       regs->pc, address);
-			printk("EX_TABLE: insn<%08lx> fixup<%08x> g2<%08lx>\n",
-				regs->pc, fixup, g2);
+		printk("Exception: PC<%08lx> faddr<%08lx>\n",
+		       regs->pc, address);
+		printk("EX_TABLE: insn<%08lx> fixup<%08x>\n",
+			regs->pc, entry->fixup);
 #endif
-			regs->u_regs[UREG_G2] = g2;
-			regs->pc = fixup;
-			regs->npc = regs->pc + 4;
-			return;
-		}
+		regs->pc = entry->fixup;
+		regs->npc = regs->pc + 4;
+		return;
 	}
 
 	unhandled_fault(address, tsk, regs);

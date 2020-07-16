@@ -16,6 +16,7 @@
 #include <linux/uaccess.h>
 #include <linux/smp.h>
 #include <linux/perf_event.h>
+#include <linux/extable.h>
 
 #include <asm/setup.h>
 
@@ -213,10 +214,10 @@ static inline int ok_for_kernel(unsigned int insn)
 
 static void kernel_mna_trap_fault(struct pt_regs *regs, unsigned int insn)
 {
-	unsigned long g2 = regs->u_regs [UREG_G2];
-	unsigned long fixup = search_extables_range(regs->pc, &g2);
+	const struct exception_table_entry *entry;
 
-	if (!fixup) {
+	entry = search_exception_tables(regs->pc);
+	if (!entry) {
 		unsigned long address = compute_effective_address(regs, insn);
         	if(address < PAGE_SIZE) {
                 	printk(KERN_ALERT "Unable to handle kernel NULL pointer dereference in mna handler");
@@ -232,9 +233,8 @@ static void kernel_mna_trap_fault(struct pt_regs *regs, unsigned int insn)
 	        die_if_kernel("Oops", regs);
 		/* Not reached */
 	}
-	regs->pc = fixup;
+	regs->pc = entry->fixup;
 	regs->npc = regs->pc + 4;
-	regs->u_regs [UREG_G2] = g2;
 }
 
 asmlinkage void kernel_unaligned_trap(struct pt_regs *regs, unsigned int insn)
