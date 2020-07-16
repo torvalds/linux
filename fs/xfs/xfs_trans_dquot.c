@@ -156,14 +156,19 @@ xfs_trans_get_dqtrx(
 	int			i;
 	struct xfs_dqtrx	*qa;
 
-	if (XFS_QM_ISUDQ(dqp))
+	switch (xfs_dquot_type(dqp)) {
+	case XFS_DQTYPE_USER:
 		qa = tp->t_dqinfo->dqs[XFS_QM_TRANS_USR];
-	else if (XFS_QM_ISGDQ(dqp))
+		break;
+	case XFS_DQTYPE_GROUP:
 		qa = tp->t_dqinfo->dqs[XFS_QM_TRANS_GRP];
-	else if (XFS_QM_ISPDQ(dqp))
+		break;
+	case XFS_DQTYPE_PROJ:
 		qa = tp->t_dqinfo->dqs[XFS_QM_TRANS_PRJ];
-	else
+		break;
+	default:
 		return NULL;
+	}
 
 	for (i = 0; i < XFS_QM_TRANS_MAXDQS; i++) {
 		if (qa[i].qt_dquot == NULL ||
@@ -713,7 +718,7 @@ xfs_trans_dqresv(
 
 error_return:
 	xfs_dqunlock(dqp);
-	if (XFS_QM_ISPDQ(dqp))
+	if (xfs_dquot_type(dqp) == XFS_DQTYPE_PROJ)
 		return -ENOSPC;
 	return -EDQUOT;
 }

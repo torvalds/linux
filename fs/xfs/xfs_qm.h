@@ -101,17 +101,6 @@ xfs_quota_inode(xfs_mount_t *mp, uint dq_flags)
 	return NULL;
 }
 
-static inline int
-xfs_dquot_type(struct xfs_dquot *dqp)
-{
-	if (XFS_QM_ISUDQ(dqp))
-		return XFS_DQTYPE_USER;
-	if (XFS_QM_ISGDQ(dqp))
-		return XFS_DQTYPE_GROUP;
-	ASSERT(XFS_QM_ISPDQ(dqp));
-	return XFS_DQTYPE_PROJ;
-}
-
 extern void	xfs_trans_mod_dquot(struct xfs_trans *tp, struct xfs_dquot *dqp,
 				    uint field, int64_t delta);
 extern void	xfs_trans_dqjoin(struct xfs_trans *, struct xfs_dquot *);
