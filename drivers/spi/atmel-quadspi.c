@@ -430,11 +430,11 @@ static int atmel_qspi_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 
 		/* Send/Receive data */
 		if (op->data.dir == SPI_MEM_DATA_IN)
-			_memcpy_fromio(op->data.buf.in, aq->mem + offset,
-				       op->data.nbytes);
+			memcpy_fromio(op->data.buf.in, aq->mem + offset,
+				      op->data.nbytes);
 		else
-			_memcpy_toio(aq->mem + offset, op->data.buf.out,
-				     op->data.nbytes);
+			memcpy_toio(aq->mem + offset, op->data.buf.out,
+				    op->data.nbytes);
 
 		/* Release the chip-select */
 		atmel_qspi_write(QSPI_CR_LASTXFER, aq, QSPI_CR);
