@@ -511,6 +511,12 @@ static void etm4_disable_hw(void *info)
 			readl_relaxed(drvdata->base + TRCSSCSRn(i));
 	}
 
+	/* read back the current counter values */
+	for (i = 0; i < drvdata->nr_cntr; i++) {
+		config->cntr_val[i] =
+			readl_relaxed(drvdata->base + TRCCNTVRn(i));
+	}
+
 	coresight_disclaim_device_unlocked(drvdata->base);
 
 	CS_LOCK(drvdata->base);
