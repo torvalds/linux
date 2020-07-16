@@ -31,7 +31,7 @@ config CLK_RK1808
 	  Build the driver for RK1808 Clock Driver.
 
 config CLK_RK3036
-	bool "Rockchip RK3036 clock controller support"
+	tristate "Rockchip RK3036 clock controller support"
 	depends on ARM || COMPILE_TEST
 	default y
 	help
