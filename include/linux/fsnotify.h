@@ -53,10 +53,16 @@ static inline int fsnotify_parent(struct dentry *dentry, __u32 mask,
 {
 	struct inode *inode = d_inode(dentry);
 
-	if (S_ISDIR(inode->i_mode))
+	if (S_ISDIR(inode->i_mode)) {
 		mask |= FS_ISDIR;
 
-	if (!(dentry->d_flags & DCACHE_FSNOTIFY_PARENT_WATCHED))
+		/* sb/mount marks are not interested in name of directory */
+		if (!(dentry->d_flags & DCACHE_FSNOTIFY_PARENT_WATCHED))
+			goto notify_child;
+	}
+
+	/* disconnected dentry cannot notify parent */
+	if (IS_ROOT(dentry))
 		goto notify_child;
 
 	return __fsnotify_parent(dentry, mask, data, data_type);

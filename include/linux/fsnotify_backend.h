@@ -49,8 +49,11 @@
 #define FS_OPEN_EXEC_PERM	0x00040000	/* open/exec event in a permission hook */
 
 #define FS_EXCL_UNLINK		0x04000000	/* do not send events if object is unlinked */
-/* This inode cares about things that happen to its children.  Always set for
- * dnotify and inotify. */
+/*
+ * Set on inode mark that cares about things that happen to its children.
+ * Always set for dnotify and inotify.
+ * Set on inode/sb/mount marks that care about parent/name info.
+ */
 #define FS_EVENT_ON_CHILD	0x08000000
 
 #define FS_DN_RENAME		0x10000000	/* file renamed */
@@ -72,13 +75,21 @@
 				  FS_OPEN_EXEC_PERM)
 
 /*
- * This is a list of all events that may get sent to a parent based on fs event
- * happening to inodes inside that directory.
+ * This is a list of all events that may get sent to a parent that is watching
+ * with flag FS_EVENT_ON_CHILD based on fs event on a child of that directory.
  */
 #define FS_EVENTS_POSS_ON_CHILD   (ALL_FSNOTIFY_PERM_EVENTS | \
 				   FS_ACCESS | FS_MODIFY | FS_ATTRIB | \
 				   FS_CLOSE_WRITE | FS_CLOSE_NOWRITE | \
 				   FS_OPEN | FS_OPEN_EXEC)
+
+/*
+ * This is a list of all events that may get sent with the parent inode as the
+ * @to_tell argument of fsnotify().
+ * It may include events that can be sent to an inode/sb/mount mark, but cannot
+ * be sent to a parent watching children.
+ */
+#define FS_EVENTS_POSS_TO_PARENT (FS_EVENTS_POSS_ON_CHILD)
 
 /* Events that can be reported to backends */
 #define ALL_FSNOTIFY_EVENTS (ALL_FSNOTIFY_DIRENT_EVENTS | \
@@ -396,6 +407,19 @@ extern void __fsnotify_inode_delete(struct inode *inode);
 extern void __fsnotify_vfsmount_delete(struct vfsmount *mnt);
 extern void fsnotify_sb_delete(struct super_block *sb);
 extern u32 fsnotify_get_cookie(void);
+
+static inline __u32 fsnotify_parent_needed_mask(__u32 mask)
+{
+	/* FS_EVENT_ON_CHILD is set on marks that want parent/name info */
+	if (!(mask & FS_EVENT_ON_CHILD))
+		return 0;
+	/*
+	 * This object might be watched by a mark that cares about parent/name
+	 * info, does it care about the specific set of events that can be
+	 * reported with parent/name info?
+	 */
+	return mask & FS_EVENTS_POSS_TO_PARENT;
+}
 
 static inline int fsnotify_inode_watches_children(struct inode *inode)
 {
