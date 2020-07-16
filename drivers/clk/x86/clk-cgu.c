@@ -119,7 +119,7 @@ lgm_clk_register_mux(struct lgm_clk_provider *ctx,
 	mux->hw.init = &init;
 
 	hw = &mux->hw;
-	ret = clk_hw_register(dev, hw);
+	ret = devm_clk_hw_register(dev, hw);
 	if (ret)
 		return ERR_PTR(ret);
 
@@ -247,7 +247,7 @@ lgm_clk_register_divider(struct lgm_clk_provider *ctx,
 	div->hw.init = &init;
 
 	hw = &div->hw;
-	ret = clk_hw_register(dev, hw);
+	ret = devm_clk_hw_register(dev, hw);
 	if (ret)
 		return ERR_PTR(ret);
 
@@ -361,7 +361,7 @@ lgm_clk_register_gate(struct lgm_clk_provider *ctx,
 	gate->hw.init = &init;
 
 	hw = &gate->hw;
-	ret = clk_hw_register(dev, hw);
+	ret = devm_clk_hw_register(dev, hw);
 	if (ret)
 		return ERR_PTR(ret);
 
@@ -624,7 +624,7 @@ int lgm_clk_register_ddiv(struct lgm_clk_provider *ctx,
 		ddiv->hw.init = &init;
 
 		hw = &ddiv->hw;
-		ret = clk_hw_register(dev, hw);
+		ret = devm_clk_hw_register(dev, hw);
 		if (ret) {
 			dev_err(dev, "register clk: %s failed!\n", list->name);
 			return ret;
