@@ -35,15 +35,12 @@
 
 int ast_mm_init(struct ast_private *ast)
 {
-	struct drm_vram_mm *vmm;
 	int ret;
 	struct drm_device *dev = ast->dev;
 
-	vmm = drm_vram_helper_alloc_mm(
-		dev, pci_resource_start(dev->pdev, 0),
-		ast->vram_size);
-	if (IS_ERR(vmm)) {
-		ret = PTR_ERR(vmm);
+	ret = drmm_vram_helper_init(dev, pci_resource_start(dev->pdev, 0),
+				    ast->vram_size);
+	if (ret) {
 		drm_err(dev, "Error initializing VRAM MM; %d\n", ret);
 		return ret;
 	}
@@ -59,8 +56,6 @@ int ast_mm_init(struct ast_private *ast)
 void ast_mm_fini(struct ast_private *ast)
 {
 	struct drm_device *dev = ast->dev;
-
-	drm_vram_helper_release_mm(dev);
 
 	arch_phys_wc_del(ast->fb_mtrr);
 	arch_io_free_memtype_wc(pci_resource_start(dev->pdev, 0),
