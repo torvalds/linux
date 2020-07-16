@@ -10,6 +10,7 @@
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_gem_ttm_helper.h>
 #include <drm/drm_gem_vram_helper.h>
+#include <drm/drm_managed.h>
 #include <drm/drm_mode.h>
 #include <drm/drm_plane.h>
 #include <drm/drm_prime.h>
@@ -40,12 +41,11 @@ static const struct drm_gem_object_funcs drm_gem_vram_object_funcs;
  * the frame's scanout buffer or the cursor image. If there's no more space
  * left in VRAM, inactive GEM objects can be moved to system memory.
  *
- * The easiest way to use the VRAM helper library is to call
- * drm_vram_helper_alloc_mm(). The function allocates and initializes an
- * instance of &struct drm_vram_mm in &struct drm_device.vram_mm . Use
- * &DRM_GEM_VRAM_DRIVER to initialize &struct drm_driver and
- * &DRM_VRAM_MM_FILE_OPERATIONS to initialize &struct file_operations;
- * as illustrated below.
+ * To initialize the VRAM helper library call drmm_vram_helper_alloc_mm().
+ * The function allocates and initializes an instance of &struct drm_vram_mm
+ * in &struct drm_device.vram_mm . Use &DRM_GEM_VRAM_DRIVER to initialize
+ * &struct drm_driver and  &DRM_VRAM_MM_FILE_OPERATIONS to initialize
+ * &struct file_operations; as illustrated below.
  *
  * .. code-block:: c
  *
@@ -69,7 +69,7 @@ static const struct drm_gem_object_funcs drm_gem_vram_object_funcs;
  *		// setup device, vram base and size
  *		// ...
  *
- *		ret = drm_vram_helper_alloc_mm(dev, vram_base, vram_size);
+ *		ret = drmm_vram_helper_alloc_mm(dev, vram_base, vram_size);
  *		if (ret)
  *			return ret;
  *		return 0;
@@ -81,20 +81,12 @@ static const struct drm_gem_object_funcs drm_gem_vram_object_funcs;
  * manages an area of video RAM with VRAM MM and provides GEM VRAM objects
  * to userspace.
  *
- * To clean up the VRAM memory management, call drm_vram_helper_release_mm()
- * in the driver's clean-up code.
+ * You don't have to clean up the instance of VRAM MM.
+ * drmm_vram_helper_alloc_mm() is a managed interface that installs a
+ * clean-up handler to run during the DRM device's release.
  *
- * .. code-block:: c
- *
- *	void fini_drm_driver()
- *	{
- *		struct drm_device *dev = ...;
- *
- *		drm_vram_helper_release_mm(dev);
- *	}
- *
- * For drawing or scanout operations, buffer object have to be pinned in video
- * RAM. Call drm_gem_vram_pin() with &DRM_GEM_VRAM_PL_FLAG_VRAM or
+ * For drawing or scanout operations, rsp. buffer objects have to be pinned
+ * in video RAM. Call drm_gem_vram_pin() with &DRM_GEM_VRAM_PL_FLAG_VRAM or
  * &DRM_GEM_VRAM_PL_FLAG_SYSTEM to pin a buffer object in video RAM or system
  * memory. Call drm_gem_vram_unpin() to release the pinned object afterwards.
  *
@@ -1176,17 +1168,7 @@ static void drm_vram_mm_cleanup(struct drm_vram_mm *vmm)
  * Helpers for integration with struct drm_device
  */
 
-/**
- * drm_vram_helper_alloc_mm - Allocates a device's instance of \
-	&struct drm_vram_mm
- * @dev:	the DRM device
- * @vram_base:	the base address of the video memory
- * @vram_size:	the size of the video memory in bytes
- *
- * Returns:
- * The new instance of &struct drm_vram_mm on success, or
- * an ERR_PTR()-encoded errno code otherwise.
- */
+/* deprecated; use drmm_vram_mm_init() */
 struct drm_vram_mm *drm_vram_helper_alloc_mm(
 	struct drm_device *dev, uint64_t vram_base, size_t vram_size)
 {
@@ -1212,11 +1194,6 @@ err_kfree:
 }
 EXPORT_SYMBOL(drm_vram_helper_alloc_mm);
 
-/**
- * drm_vram_helper_release_mm - Releases a device's instance of \
-	&struct drm_vram_mm
- * @dev:	the DRM device
- */
 void drm_vram_helper_release_mm(struct drm_device *dev)
 {
 	if (!dev->vram_mm)
@@ -1227,6 +1204,41 @@ void drm_vram_helper_release_mm(struct drm_device *dev)
 	dev->vram_mm = NULL;
 }
 EXPORT_SYMBOL(drm_vram_helper_release_mm);
+
+static void drm_vram_mm_release(struct drm_device *dev, void *ptr)
+{
+	drm_vram_helper_release_mm(dev);
+}
+
+/**
+ * drmm_vram_helper_init - Initializes a device's instance of
+ *                         &struct drm_vram_mm
+ * @dev:	the DRM device
+ * @vram_base:	the base address of the video memory
+ * @vram_size:	the size of the video memory in bytes
+ *
+ * Creates a new instance of &struct drm_vram_mm and stores it in
+ * struct &drm_device.vram_mm. The instance is auto-managed and cleaned
+ * up as part of device cleanup. Calling this function multiple times
+ * will generate an error message.
+ *
+ * Returns:
+ * 0 on success, or a negative errno code otherwise.
+ */
+int drmm_vram_helper_init(struct drm_device *dev, uint64_t vram_base,
+			  size_t vram_size)
+{
+	struct drm_vram_mm *vram_mm;
+
+	if (drm_WARN_ON_ONCE(dev, dev->vram_mm))
+		return 0;
+
+	vram_mm = drm_vram_helper_alloc_mm(dev, vram_base, vram_size);
+	if (IS_ERR(vram_mm))
+		return PTR_ERR(vram_mm);
+	return drmm_add_action_or_reset(dev, drm_vram_mm_release, NULL);
+}
+EXPORT_SYMBOL(drmm_vram_helper_init);
 
 /*
  * Mode-config helpers
