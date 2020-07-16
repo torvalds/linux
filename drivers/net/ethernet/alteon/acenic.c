@@ -1151,7 +1151,7 @@ static int ace_init(struct net_device *dev)
 	/*
 	 * Get the memory for the skb rings.
 	 */
-	if (!(ap->skb = kmalloc(sizeof(struct ace_skb), GFP_KERNEL))) {
+	if (!(ap->skb = kzalloc(sizeof(struct ace_skb), GFP_KERNEL))) {
 		ecode = -EAGAIN;
 		goto init_error;
 	}
@@ -1171,9 +1171,6 @@ static int ace_init(struct net_device *dev)
 	ap->last_std_rx = 0;
 	ap->last_mini_rx = 0;
 #endif
-
-	memset(ap->info, 0, sizeof(struct ace_info));
-	memset(ap->skb, 0, sizeof(struct ace_skb));
 
 	ecode = ace_load_firmware(dev);
 	if (ecode)
