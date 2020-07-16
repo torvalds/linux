@@ -156,6 +156,23 @@ static inline struct xfs_dquot *xfs_inode_dquot(struct xfs_inode *ip, int type)
 	}
 }
 
+/* Decide if the dquot's limits are actually being enforced. */
+static inline bool
+xfs_dquot_is_enforced(
+	const struct xfs_dquot	*dqp)
+{
+	switch (dqp->dq_flags & XFS_DQTYPE_REC_MASK) {
+	case XFS_DQTYPE_USER:
+		return XFS_IS_UQUOTA_ENFORCED(dqp->q_mount);
+	case XFS_DQTYPE_GROUP:
+		return XFS_IS_GQUOTA_ENFORCED(dqp->q_mount);
+	case XFS_DQTYPE_PROJ:
+		return XFS_IS_PQUOTA_ENFORCED(dqp->q_mount);
+	}
+	ASSERT(0);
+	return false;
+}
+
 /*
  * Check whether a dquot is under low free space conditions. We assume the quota
  * is enabled and enforced.
