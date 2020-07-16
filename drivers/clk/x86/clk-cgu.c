@@ -420,18 +420,14 @@ lgm_clk_ddiv_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
 {
 	struct lgm_clk_ddiv *ddiv = to_lgm_clk_ddiv(hw);
 	unsigned int div0, div1, exdiv;
-	unsigned long flags;
 	u64 prate;
 
-	spin_lock_irqsave(&ddiv->lock, flags);
 	div0 = lgm_get_clk_val(ddiv->membase, ddiv->reg,
 			       ddiv->shift0, ddiv->width0) + 1;
 	div1 = lgm_get_clk_val(ddiv->membase, ddiv->reg,
 			       ddiv->shift1, ddiv->width1) + 1;
 	exdiv = lgm_get_clk_val(ddiv->membase, ddiv->reg,
 				ddiv->shift2, ddiv->width2);
-	spin_unlock_irqrestore(&ddiv->lock, flags);
-
 	prate = (u64)parent_rate;
 	do_div(prate, div0);
 	do_div(prate, div1);
@@ -548,24 +544,21 @@ lgm_clk_ddiv_round_rate(struct clk_hw *hw, unsigned long rate,
 		div = div * 2;
 		div = DIV_ROUND_CLOSEST_ULL((u64)div, 5);
 	}
+	spin_unlock_irqrestore(&ddiv->lock, flags);
 
-	if (div <= 0) {
-		spin_unlock_irqrestore(&ddiv->lock, flags);
+	if (div <= 0)
 		return *prate;
-	}
 
-	if (lgm_clk_get_ddiv_val(div, &ddiv1, &ddiv2) != 0) {
-		if (lgm_clk_get_ddiv_val(div + 1, &ddiv1, &ddiv2) != 0) {
-			spin_unlock_irqrestore(&ddiv->lock, flags);
+	if (lgm_clk_get_ddiv_val(div, &ddiv1, &ddiv2) != 0)
+		if (lgm_clk_get_ddiv_val(div + 1, &ddiv1, &ddiv2) != 0)
 			return -EINVAL;
-		}
-	}
 
 	rate64 = *prate;
 	do_div(rate64, ddiv1);
 	do_div(rate64, ddiv2);
 
 	/* if predivide bit is enabled, modify rounded rate by factor of 2.5 */
+	spin_lock_irqsave(&ddiv->lock, flags);
 	if (lgm_get_clk_val(ddiv->membase, ddiv->reg, ddiv->shift2, 1)) {
 		rate64 = rate64 * 2;
 		rate64 = DIV_ROUND_CLOSEST_ULL(rate64, 5);
