@@ -59,9 +59,9 @@ xfs_dquot_verify(
 	if (ddq->d_version != XFS_DQUOT_VERSION)
 		return __this_address;
 
-	if (ddq->d_flags != XFS_DQ_USER &&
-	    ddq->d_flags != XFS_DQ_PROJ &&
-	    ddq->d_flags != XFS_DQ_GROUP)
+	if (ddq->d_flags != XFS_DQTYPE_USER &&
+	    ddq->d_flags != XFS_DQTYPE_PROJ &&
+	    ddq->d_flags != XFS_DQTYPE_GROUP)
 		return __this_address;
 
 	if (id != -1 && id != be32_to_cpu(ddq->d_id))

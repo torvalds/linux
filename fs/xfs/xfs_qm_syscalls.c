@@ -660,18 +660,18 @@ xfs_qm_scall_getquota_fill_qc(
 	 * gets turned off. No need to confuse the user level code,
 	 * so return zeroes in that case.
 	 */
-	if ((!XFS_IS_UQUOTA_ENFORCED(mp) && type == XFS_DQ_USER) ||
-	    (!XFS_IS_GQUOTA_ENFORCED(mp) && type == XFS_DQ_GROUP) ||
-	    (!XFS_IS_PQUOTA_ENFORCED(mp) && type == XFS_DQ_PROJ)) {
+	if ((!XFS_IS_UQUOTA_ENFORCED(mp) && type == XFS_DQTYPE_USER) ||
+	    (!XFS_IS_GQUOTA_ENFORCED(mp) && type == XFS_DQTYPE_GROUP) ||
+	    (!XFS_IS_PQUOTA_ENFORCED(mp) && type == XFS_DQTYPE_PROJ)) {
 		dst->d_spc_timer = 0;
 		dst->d_ino_timer = 0;
 		dst->d_rt_spc_timer = 0;
 	}
 
 #ifdef DEBUG
-	if (((XFS_IS_UQUOTA_ENFORCED(mp) && type == XFS_DQ_USER) ||
-	     (XFS_IS_GQUOTA_ENFORCED(mp) && type == XFS_DQ_GROUP) ||
-	     (XFS_IS_PQUOTA_ENFORCED(mp) && type == XFS_DQ_PROJ)) &&
+	if (((XFS_IS_UQUOTA_ENFORCED(mp) && type == XFS_DQTYPE_USER) ||
+	     (XFS_IS_GQUOTA_ENFORCED(mp) && type == XFS_DQTYPE_GROUP) ||
+	     (XFS_IS_PQUOTA_ENFORCED(mp) && type == XFS_DQTYPE_PROJ)) &&
 	    dqp->q_id != 0) {
 		if ((dst->d_space > dst->d_spc_softlimit) &&
 		    (dst->d_spc_softlimit > 0)) {

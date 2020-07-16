@@ -189,11 +189,11 @@ xfs_qm_dqpurge_all(
 	uint			flags)
 {
 	if (flags & XFS_QMOPT_UQUOTA)
-		xfs_qm_dquot_walk(mp, XFS_DQ_USER, xfs_qm_dqpurge, NULL);
+		xfs_qm_dquot_walk(mp, XFS_DQTYPE_USER, xfs_qm_dqpurge, NULL);
 	if (flags & XFS_QMOPT_GQUOTA)
-		xfs_qm_dquot_walk(mp, XFS_DQ_GROUP, xfs_qm_dqpurge, NULL);
+		xfs_qm_dquot_walk(mp, XFS_DQTYPE_GROUP, xfs_qm_dqpurge, NULL);
 	if (flags & XFS_QMOPT_PQUOTA)
-		xfs_qm_dquot_walk(mp, XFS_DQ_PROJ, xfs_qm_dqpurge, NULL);
+		xfs_qm_dquot_walk(mp, XFS_DQTYPE_PROJ, xfs_qm_dqpurge, NULL);
 }
 
 /*
@@ -331,7 +331,7 @@ xfs_qm_dqattach_locked(
 
 	if (XFS_IS_UQUOTA_ON(mp) && !ip->i_udquot) {
 		error = xfs_qm_dqattach_one(ip, i_uid_read(VFS_I(ip)),
-				XFS_DQ_USER, doalloc, &ip->i_udquot);
+				XFS_DQTYPE_USER, doalloc, &ip->i_udquot);
 		if (error)
 			goto done;
 		ASSERT(ip->i_udquot);
@@ -339,14 +339,14 @@ xfs_qm_dqattach_locked(
 
 	if (XFS_IS_GQUOTA_ON(mp) && !ip->i_gdquot) {
 		error = xfs_qm_dqattach_one(ip, i_gid_read(VFS_I(ip)),
-				XFS_DQ_GROUP, doalloc, &ip->i_gdquot);
+				XFS_DQTYPE_GROUP, doalloc, &ip->i_gdquot);
 		if (error)
 			goto done;
 		ASSERT(ip->i_gdquot);
 	}
 
 	if (XFS_IS_PQUOTA_ON(mp) && !ip->i_pdquot) {
-		error = xfs_qm_dqattach_one(ip, ip->i_d.di_projid, XFS_DQ_PROJ,
+		error = xfs_qm_dqattach_one(ip, ip->i_d.di_projid, XFS_DQTYPE_PROJ,
 				doalloc, &ip->i_pdquot);
 		if (error)
 			goto done;
@@ -664,16 +664,16 @@ xfs_qm_init_quotainfo(
 
 	mp->m_qflags |= (mp->m_sb.sb_qflags & XFS_ALL_QUOTA_CHKD);
 
-	xfs_qm_init_timelimits(mp, XFS_DQ_USER);
-	xfs_qm_init_timelimits(mp, XFS_DQ_GROUP);
-	xfs_qm_init_timelimits(mp, XFS_DQ_PROJ);
+	xfs_qm_init_timelimits(mp, XFS_DQTYPE_USER);
+	xfs_qm_init_timelimits(mp, XFS_DQTYPE_GROUP);
+	xfs_qm_init_timelimits(mp, XFS_DQTYPE_PROJ);
 
 	if (XFS_IS_UQUOTA_RUNNING(mp))
-		xfs_qm_set_defquota(mp, XFS_DQ_USER, qinf);
+		xfs_qm_set_defquota(mp, XFS_DQTYPE_USER, qinf);
 	if (XFS_IS_GQUOTA_RUNNING(mp))
-		xfs_qm_set_defquota(mp, XFS_DQ_GROUP, qinf);
+		xfs_qm_set_defquota(mp, XFS_DQTYPE_GROUP, qinf);
 	if (XFS_IS_PQUOTA_RUNNING(mp))
-		xfs_qm_set_defquota(mp, XFS_DQ_PROJ, qinf);
+		xfs_qm_set_defquota(mp, XFS_DQTYPE_PROJ, qinf);
 
 	qinf->qi_shrinker.count_objects = xfs_qm_shrink_count;
 	qinf->qi_shrinker.scan_objects = xfs_qm_shrink_scan;
@@ -855,7 +855,7 @@ xfs_qm_reset_dqcounts(
 		 * xfs_dquot_verify.
 		 */
 		if (xfs_dqblk_verify(mp, &dqb[j], id + j) ||
-		    (dqb[j].dd_diskdq.d_flags & XFS_DQ_ALLTYPES) != type)
+		    (dqb[j].dd_diskdq.d_flags & XFS_DQTYPE_REC_MASK) != type)
 			xfs_dqblk_repair(mp, &dqb[j], id + j, type);
 
 		/*
@@ -1176,21 +1176,21 @@ xfs_qm_dqusage_adjust(
 	 * and quotaoffs don't race. (Quotachecks happen at mount time only).
 	 */
 	if (XFS_IS_UQUOTA_ON(mp)) {
-		error = xfs_qm_quotacheck_dqadjust(ip, XFS_DQ_USER, nblks,
+		error = xfs_qm_quotacheck_dqadjust(ip, XFS_DQTYPE_USER, nblks,
 				rtblks);
 		if (error)
 			goto error0;
 	}
 
 	if (XFS_IS_GQUOTA_ON(mp)) {
-		error = xfs_qm_quotacheck_dqadjust(ip, XFS_DQ_GROUP, nblks,
+		error = xfs_qm_quotacheck_dqadjust(ip, XFS_DQTYPE_GROUP, nblks,
 				rtblks);
 		if (error)
 			goto error0;
 	}
 
 	if (XFS_IS_PQUOTA_ON(mp)) {
-		error = xfs_qm_quotacheck_dqadjust(ip, XFS_DQ_PROJ, nblks,
+		error = xfs_qm_quotacheck_dqadjust(ip, XFS_DQTYPE_PROJ, nblks,
 				rtblks);
 		if (error)
 			goto error0;
@@ -1281,7 +1281,7 @@ xfs_qm_quotacheck(
 	 * We don't log our changes till later.
 	 */
 	if (uip) {
-		error = xfs_qm_reset_dqcounts_buf(mp, uip, XFS_DQ_USER,
+		error = xfs_qm_reset_dqcounts_buf(mp, uip, XFS_DQTYPE_USER,
 					 &buffer_list);
 		if (error)
 			goto error_return;
@@ -1289,7 +1289,7 @@ xfs_qm_quotacheck(
 	}
 
 	if (gip) {
-		error = xfs_qm_reset_dqcounts_buf(mp, gip, XFS_DQ_GROUP,
+		error = xfs_qm_reset_dqcounts_buf(mp, gip, XFS_DQTYPE_GROUP,
 					 &buffer_list);
 		if (error)
 			goto error_return;
@@ -1297,7 +1297,7 @@ xfs_qm_quotacheck(
 	}
 
 	if (pip) {
-		error = xfs_qm_reset_dqcounts_buf(mp, pip, XFS_DQ_PROJ,
+		error = xfs_qm_reset_dqcounts_buf(mp, pip, XFS_DQTYPE_PROJ,
 					 &buffer_list);
 		if (error)
 			goto error_return;
@@ -1314,17 +1314,17 @@ xfs_qm_quotacheck(
 	 * down to disk buffers if everything was updated successfully.
 	 */
 	if (XFS_IS_UQUOTA_ON(mp)) {
-		error = xfs_qm_dquot_walk(mp, XFS_DQ_USER, xfs_qm_flush_one,
+		error = xfs_qm_dquot_walk(mp, XFS_DQTYPE_USER, xfs_qm_flush_one,
 					  &buffer_list);
 	}
 	if (XFS_IS_GQUOTA_ON(mp)) {
-		error2 = xfs_qm_dquot_walk(mp, XFS_DQ_GROUP, xfs_qm_flush_one,
+		error2 = xfs_qm_dquot_walk(mp, XFS_DQTYPE_GROUP, xfs_qm_flush_one,
 					   &buffer_list);
 		if (!error)
 			error = error2;
 	}
 	if (XFS_IS_PQUOTA_ON(mp)) {
-		error2 = xfs_qm_dquot_walk(mp, XFS_DQ_PROJ, xfs_qm_flush_one,
+		error2 = xfs_qm_dquot_walk(mp, XFS_DQTYPE_PROJ, xfs_qm_flush_one,
 					   &buffer_list);
 		if (!error)
 			error = error2;
@@ -1662,7 +1662,7 @@ xfs_qm_vop_dqalloc(
 			 */
 			xfs_iunlock(ip, lockflags);
 			error = xfs_qm_dqget(mp, from_kuid(user_ns, uid),
-					XFS_DQ_USER, true, &uq);
+					XFS_DQTYPE_USER, true, &uq);
 			if (error) {
 				ASSERT(error != -ENOENT);
 				return error;
@@ -1686,7 +1686,7 @@ xfs_qm_vop_dqalloc(
 		if (!gid_eq(inode->i_gid, gid)) {
 			xfs_iunlock(ip, lockflags);
 			error = xfs_qm_dqget(mp, from_kgid(user_ns, gid),
-					XFS_DQ_GROUP, true, &gq);
+					XFS_DQTYPE_GROUP, true, &gq);
 			if (error) {
 				ASSERT(error != -ENOENT);
 				goto error_rele;
@@ -1702,8 +1702,8 @@ xfs_qm_vop_dqalloc(
 	if ((flags & XFS_QMOPT_PQUOTA) && XFS_IS_PQUOTA_ON(mp)) {
 		if (ip->i_d.di_projid != prid) {
 			xfs_iunlock(ip, lockflags);
-			error = xfs_qm_dqget(mp, (xfs_dqid_t)prid, XFS_DQ_PROJ,
-					true, &pq);
+			error = xfs_qm_dqget(mp, (xfs_dqid_t)prid,
+					XFS_DQTYPE_PROJ, true, &pq);
 			if (error) {
 				ASSERT(error != -ENOENT);
 				goto error_rele;

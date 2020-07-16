@@ -24,11 +24,11 @@ xchk_quota_to_dqtype(
 {
 	switch (sc->sm->sm_type) {
 	case XFS_SCRUB_TYPE_UQUOTA:
-		return XFS_DQ_USER;
+		return XFS_DQTYPE_USER;
 	case XFS_SCRUB_TYPE_GQUOTA:
-		return XFS_DQ_GROUP;
+		return XFS_DQTYPE_GROUP;
 	case XFS_SCRUB_TYPE_PQUOTA:
-		return XFS_DQ_PROJ;
+		return XFS_DQTYPE_PROJ;
 	default:
 		return 0;
 	}

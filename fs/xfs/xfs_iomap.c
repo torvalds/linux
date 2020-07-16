@@ -450,14 +450,14 @@ xfs_iomap_prealloc_size(
 	 * Check each quota to cap the prealloc size, provide a shift value to
 	 * throttle with and adjust amount of available space.
 	 */
-	if (xfs_quota_need_throttle(ip, XFS_DQ_USER, alloc_blocks))
-		xfs_quota_calc_throttle(ip, XFS_DQ_USER, &qblocks, &qshift,
+	if (xfs_quota_need_throttle(ip, XFS_DQTYPE_USER, alloc_blocks))
+		xfs_quota_calc_throttle(ip, XFS_DQTYPE_USER, &qblocks, &qshift,
 					&freesp);
-	if (xfs_quota_need_throttle(ip, XFS_DQ_GROUP, alloc_blocks))
-		xfs_quota_calc_throttle(ip, XFS_DQ_GROUP, &qblocks, &qshift,
+	if (xfs_quota_need_throttle(ip, XFS_DQTYPE_GROUP, alloc_blocks))
+		xfs_quota_calc_throttle(ip, XFS_DQTYPE_GROUP, &qblocks, &qshift,
 					&freesp);
-	if (xfs_quota_need_throttle(ip, XFS_DQ_PROJ, alloc_blocks))
-		xfs_quota_calc_throttle(ip, XFS_DQ_PROJ, &qblocks, &qshift,
+	if (xfs_quota_need_throttle(ip, XFS_DQTYPE_PROJ, alloc_blocks))
+		xfs_quota_calc_throttle(ip, XFS_DQTYPE_PROJ, &qblocks, &qshift,
 					&freesp);
 
 	/*

@@ -190,10 +190,10 @@ xfs_qm_init_dquot_blk(
 		}
 	}
 
-	if (type & XFS_DQ_USER) {
+	if (type & XFS_DQTYPE_USER) {
 		qflag = XFS_UQUOTA_CHKD;
 		blftype = XFS_BLF_UDQUOT_BUF;
-	} else if (type & XFS_DQ_PROJ) {
+	} else if (type & XFS_DQTYPE_PROJ) {
 		qflag = XFS_PQUOTA_CHKD;
 		blftype = XFS_BLF_PDQUOT_BUF;
 	} else {
@@ -311,7 +311,7 @@ xfs_dquot_disk_alloc(
 	 * the entire thing.
 	 */
 	xfs_qm_init_dquot_blk(tp, mp, dqp->q_id,
-			      dqp->dq_flags & XFS_DQ_ALLTYPES, bp);
+			      dqp->dq_flags & XFS_DQTYPE_REC_MASK, bp);
 	xfs_buf_set_ref(bp, XFS_DQUOT_REF);
 
 	/*
@@ -448,13 +448,13 @@ xfs_dquot_alloc(
 	 * quotas.
 	 */
 	switch (type) {
-	case XFS_DQ_USER:
+	case XFS_DQTYPE_USER:
 		/* uses the default lock class */
 		break;
-	case XFS_DQ_GROUP:
+	case XFS_DQTYPE_GROUP:
 		lockdep_set_class(&dqp->q_qlock, &xfs_dquot_group_class);
 		break;
-	case XFS_DQ_PROJ:
+	case XFS_DQTYPE_PROJ:
 		lockdep_set_class(&dqp->q_qlock, &xfs_dquot_project_class);
 		break;
 	default:
@@ -480,7 +480,7 @@ xfs_dquot_from_disk(
 	 * Ensure that we got the type and ID we were looking for.
 	 * Everything else was checked by the dquot buffer verifier.
 	 */
-	if ((ddqp->d_flags & XFS_DQ_ALLTYPES) != dqp->dq_flags ||
+	if ((ddqp->d_flags & XFS_DQTYPE_REC_MASK) != dqp->dq_flags ||
 	    be32_to_cpu(ddqp->d_id) != dqp->q_id) {
 		xfs_alert_tag(bp->b_mount, XFS_PTAG_VERIFIER_ERROR,
 			  "Metadata corruption detected at %pS, quota %u",
@@ -530,7 +530,7 @@ xfs_dquot_to_disk(
 {
 	ddqp->d_magic = cpu_to_be16(XFS_DQUOT_MAGIC);
 	ddqp->d_version = XFS_DQUOT_VERSION;
-	ddqp->d_flags = dqp->dq_flags & XFS_DQ_ALLTYPES;
+	ddqp->d_flags = dqp->dq_flags & XFS_DQTYPE_REC_MASK;
 	ddqp->d_id = cpu_to_be32(dqp->q_id);
 	ddqp->d_pad0 = 0;
 	ddqp->d_pad = 0;
@@ -779,15 +779,15 @@ xfs_qm_dqget_checks(
 		return -ESRCH;
 
 	switch (type) {
-	case XFS_DQ_USER:
+	case XFS_DQTYPE_USER:
 		if (!XFS_IS_UQUOTA_ON(mp))
 			return -ESRCH;
 		return 0;
-	case XFS_DQ_GROUP:
+	case XFS_DQTYPE_GROUP:
 		if (!XFS_IS_GQUOTA_ON(mp))
 			return -ESRCH;
 		return 0;
-	case XFS_DQ_PROJ:
+	case XFS_DQTYPE_PROJ:
 		if (!XFS_IS_PQUOTA_ON(mp))
 			return -ESRCH;
 		return 0;
@@ -874,11 +874,11 @@ xfs_qm_id_for_quotatype(
 	uint			type)
 {
 	switch (type) {
-	case XFS_DQ_USER:
+	case XFS_DQTYPE_USER:
 		return i_uid_read(VFS_I(ip));
-	case XFS_DQ_GROUP:
+	case XFS_DQTYPE_GROUP:
 		return i_gid_read(VFS_I(ip));
-	case XFS_DQ_PROJ:
+	case XFS_DQTYPE_PROJ:
 		return ip->i_d.di_projid;
 	}
 	ASSERT(0);
@@ -1114,11 +1114,11 @@ static xfs_failaddr_t
 xfs_qm_dqflush_check(
 	struct xfs_dquot	*dqp)
 {
-	__u8			type = dqp->dq_flags & XFS_DQ_ALLTYPES;
+	__u8			type = dqp->dq_flags & XFS_DQTYPE_REC_MASK;
 
-	if (type != XFS_DQ_USER &&
-	    type != XFS_DQ_GROUP &&
-	    type != XFS_DQ_PROJ)
+	if (type != XFS_DQTYPE_USER &&
+	    type != XFS_DQTYPE_GROUP &&
+	    type != XFS_DQTYPE_PROJ)
 		return __this_address;
 
 	if (dqp->q_id == 0)

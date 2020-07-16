@@ -546,11 +546,11 @@ xlog_recover_do_dquot_buffer(
 
 	type = 0;
 	if (buf_f->blf_flags & XFS_BLF_UDQUOT_BUF)
-		type |= XFS_DQ_USER;
+		type |= XFS_DQTYPE_USER;
 	if (buf_f->blf_flags & XFS_BLF_PDQUOT_BUF)
-		type |= XFS_DQ_PROJ;
+		type |= XFS_DQTYPE_PROJ;
 	if (buf_f->blf_flags & XFS_BLF_GDQUOT_BUF)
-		type |= XFS_DQ_GROUP;
+		type |= XFS_DQTYPE_GROUP;
 	/*
 	 * This type of quotas was turned off, so ignore this buffer
 	 */

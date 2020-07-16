@@ -130,12 +130,12 @@ static inline void xfs_dqunlock(struct xfs_dquot *dqp)
 
 static inline int xfs_this_quota_on(struct xfs_mount *mp, int type)
 {
-	switch (type & XFS_DQ_ALLTYPES) {
-	case XFS_DQ_USER:
+	switch (type & XFS_DQTYPE_REC_MASK) {
+	case XFS_DQTYPE_USER:
 		return XFS_IS_UQUOTA_ON(mp);
-	case XFS_DQ_GROUP:
+	case XFS_DQTYPE_GROUP:
 		return XFS_IS_GQUOTA_ON(mp);
-	case XFS_DQ_PROJ:
+	case XFS_DQTYPE_PROJ:
 		return XFS_IS_PQUOTA_ON(mp);
 	default:
 		return 0;
@@ -144,12 +144,12 @@ static inline int xfs_this_quota_on(struct xfs_mount *mp, int type)
 
 static inline struct xfs_dquot *xfs_inode_dquot(struct xfs_inode *ip, int type)
 {
-	switch (type & XFS_DQ_ALLTYPES) {
-	case XFS_DQ_USER:
+	switch (type & XFS_DQTYPE_REC_MASK) {
+	case XFS_DQTYPE_USER:
 		return ip->i_udquot;
-	case XFS_DQ_GROUP:
+	case XFS_DQTYPE_GROUP:
 		return ip->i_gdquot;
-	case XFS_DQ_PROJ:
+	case XFS_DQTYPE_PROJ:
 		return ip->i_pdquot;
 	default:
 		return NULL;
@@ -175,9 +175,9 @@ void xfs_dquot_to_disk(struct xfs_disk_dquot *ddqp, struct xfs_dquot *dqp);
 
 #define XFS_DQ_IS_LOCKED(dqp)	(mutex_is_locked(&((dqp)->q_qlock)))
 #define XFS_DQ_IS_DIRTY(dqp)	((dqp)->q_flags & XFS_DQFLAG_DIRTY)
-#define XFS_QM_ISUDQ(dqp)	((dqp)->dq_flags & XFS_DQ_USER)
-#define XFS_QM_ISPDQ(dqp)	((dqp)->dq_flags & XFS_DQ_PROJ)
-#define XFS_QM_ISGDQ(dqp)	((dqp)->dq_flags & XFS_DQ_GROUP)
+#define XFS_QM_ISUDQ(dqp)	((dqp)->dq_flags & XFS_DQTYPE_USER)
+#define XFS_QM_ISPDQ(dqp)	((dqp)->dq_flags & XFS_DQTYPE_PROJ)
+#define XFS_QM_ISGDQ(dqp)	((dqp)->dq_flags & XFS_DQTYPE_GROUP)
 
 void		xfs_qm_dqdestroy(struct xfs_dquot *dqp);
 int		xfs_qm_dqflush(struct xfs_dquot *dqp, struct xfs_buf **bpp);

@@ -73,11 +73,11 @@ xfs_dquot_tree(
 	int			type)
 {
 	switch (type) {
-	case XFS_DQ_USER:
+	case XFS_DQTYPE_USER:
 		return &qi->qi_uquota_tree;
-	case XFS_DQ_GROUP:
+	case XFS_DQTYPE_GROUP:
 		return &qi->qi_gquota_tree;
-	case XFS_DQ_PROJ:
+	case XFS_DQTYPE_PROJ:
 		return &qi->qi_pquota_tree;
 	default:
 		ASSERT(0);
@@ -88,12 +88,12 @@ xfs_dquot_tree(
 static inline struct xfs_inode *
 xfs_quota_inode(xfs_mount_t *mp, uint dq_flags)
 {
-	switch (dq_flags & XFS_DQ_ALLTYPES) {
-	case XFS_DQ_USER:
+	switch (dq_flags & XFS_DQTYPE_REC_MASK) {
+	case XFS_DQTYPE_USER:
 		return mp->m_quotainfo->qi_uquotaip;
-	case XFS_DQ_GROUP:
+	case XFS_DQTYPE_GROUP:
 		return mp->m_quotainfo->qi_gquotaip;
-	case XFS_DQ_PROJ:
+	case XFS_DQTYPE_PROJ:
 		return mp->m_quotainfo->qi_pquotaip;
 	default:
 		ASSERT(0);
@@ -105,11 +105,11 @@ static inline int
 xfs_dquot_type(struct xfs_dquot *dqp)
 {
 	if (XFS_QM_ISUDQ(dqp))
-		return XFS_DQ_USER;
+		return XFS_DQTYPE_USER;
 	if (XFS_QM_ISGDQ(dqp))
-		return XFS_DQ_GROUP;
+		return XFS_DQTYPE_GROUP;
 	ASSERT(XFS_QM_ISPDQ(dqp));
-	return XFS_DQ_PROJ;
+	return XFS_DQTYPE_PROJ;
 }
 
 extern void	xfs_trans_mod_dquot(struct xfs_trans *tp, struct xfs_dquot *dqp,
@@ -166,11 +166,11 @@ static inline struct xfs_def_quota *
 xfs_get_defquota(struct xfs_quotainfo *qi, int type)
 {
 	switch (type) {
-	case XFS_DQ_USER:
+	case XFS_DQTYPE_USER:
 		return &qi->qi_usr_default;
-	case XFS_DQ_GROUP:
+	case XFS_DQTYPE_GROUP:
 		return &qi->qi_grp_default;
-	case XFS_DQ_PROJ:
+	case XFS_DQTYPE_PROJ:
 		return &qi->qi_prj_default;
 	default:
 		ASSERT(0);

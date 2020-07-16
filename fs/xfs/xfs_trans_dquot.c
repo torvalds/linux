@@ -553,9 +553,9 @@ xfs_quota_warn(
 {
 	enum quota_type qtype;
 
-	if (dqp->dq_flags & XFS_DQ_PROJ)
+	if (dqp->dq_flags & XFS_DQTYPE_PROJ)
 		qtype = PRJQUOTA;
-	else if (dqp->dq_flags & XFS_DQ_USER)
+	else if (dqp->dq_flags & XFS_DQTYPE_USER)
 		qtype = USRQUOTA;
 	else
 		qtype = GRPQUOTA;
