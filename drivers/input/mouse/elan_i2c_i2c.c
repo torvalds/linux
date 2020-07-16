@@ -249,7 +249,13 @@ static int elan_i2c_get_pattern(struct i2c_client *client, u8 *pattern)
 		dev_err(&client->dev, "failed to get pattern: %d\n", error);
 		return error;
 	}
-	*pattern = val[1];
+
+	/*
+	 * Not all versions of firmware implement "get pattern" command.
+	 * When this command is not implemented the device will respond
+	 * with 0xFF 0xFF, which we will treat as "old" pattern 0.
+	 */
+	*pattern = val[0] == 0xFF && val[1] == 0xFF ? 0 : val[1];
 
 	return 0;
 }
