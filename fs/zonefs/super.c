@@ -607,13 +607,13 @@ static ssize_t zonefs_file_dio_append(struct kiocb *iocb, struct iov_iter *from)
 	int nr_pages;
 	ssize_t ret;
 
-	nr_pages = iov_iter_npages(from, BIO_MAX_PAGES);
-	if (!nr_pages)
-		return 0;
-
 	max = queue_max_zone_append_sectors(bdev_get_queue(bdev));
 	max = ALIGN_DOWN(max << SECTOR_SHIFT, inode->i_sb->s_blocksize);
 	iov_iter_truncate(from, max);
+
+	nr_pages = iov_iter_npages(from, BIO_MAX_PAGES);
+	if (!nr_pages)
+		return 0;
 
 	bio = bio_alloc_bioset(GFP_NOFS, nr_pages, &fs_bio_set);
 	if (!bio)
