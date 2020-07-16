@@ -92,24 +92,24 @@
 
 #define AD5758_FULL_SCALE_MICRO	65535000000ULL
 
-/**
- * struct ad5758_state - driver instance specific data
- * @spi:	spi_device
- * @lock:	mutex lock
- * @out_range:	struct which stores the output range
- * @dc_dc_mode:	variable which stores the mode of operation
- * @dc_dc_ilim:	variable which stores the dc-to-dc converter current limit
- * @slew_time:	variable which stores the target slew time
- * @pwr_down:	variable which contains whether a channel is powered down or not
- * @data:	spi transfer buffers
- */
-
 struct ad5758_range {
 	int reg;
 	int min;
 	int max;
 };
 
+/**
+ * struct ad5758_state - driver instance specific data
+ * @spi:	spi_device
+ * @lock:	mutex lock
+ * @gpio_reset:	gpio descriptor for the reset line
+ * @out_range:	struct which stores the output range
+ * @dc_dc_mode:	variable which stores the mode of operation
+ * @dc_dc_ilim:	variable which stores the dc-to-dc converter current limit
+ * @slew_time:	variable which stores the target slew time
+ * @pwr_down:	variable which contains whether a channel is powered down or not
+ * @d32:	spi transfer buffers
+ */
 struct ad5758_state {
 	struct spi_device *spi;
 	struct mutex lock;
@@ -122,7 +122,7 @@ struct ad5758_state {
 	__be32 d32[3];
 };
 
-/**
+/*
  * Output ranges corresponding to bits [3:0] from DAC_CONFIG register
  * 0000: 0 V to 5 V voltage range
  * 0001: 0 V to 10 V voltage range
