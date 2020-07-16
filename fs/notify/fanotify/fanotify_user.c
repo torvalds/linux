@@ -1220,6 +1220,13 @@ static int do_fanotify_mark(int fanotify_fd, unsigned int flags, __u64 mask,
 	if (mnt || !S_ISDIR(inode->i_mode)) {
 		mask &= ~FAN_EVENT_ON_CHILD;
 		umask = FAN_EVENT_ON_CHILD;
+		/*
+		 * If group needs to report parent fid, register for getting
+		 * events with parent/name info for non-directory.
+		 */
+		if ((fid_mode & FAN_REPORT_DIR_FID) &&
+		    (flags & FAN_MARK_ADD) && !ignored)
+			mask |= FAN_EVENT_ON_CHILD;
 	}
 
 	/* create/update an inode mark */
