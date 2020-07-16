@@ -15,6 +15,7 @@
 #include <linux/reboot.h>
 #include <linux/rpmsg.h>
 #include <linux/mutex.h>
+#include <linux/pm_wakeup.h>
 #include <linux/power_supply.h>
 #include <linux/soc/qcom/pmic_glink.h>
 #include <linux/soc/qcom/battery_charger.h>
@@ -622,8 +623,18 @@ static void handle_notification(struct battery_chg_dev *bcdev, void *data,
 		break;
 	}
 
-	if (pst && pst->psy)
+	if (pst && pst->psy) {
+		/*
+		 * For charger mode, keep the device awake at least for 50 ms
+		 * so that device won't enter suspend when a non-SDP charger
+		 * is removed. This would allow the userspace process like
+		 * "charger" to be able to read power supply uevents to take
+		 * appropriate actions (e.g. shutting down when the charger is
+		 * unplugged).
+		 */
 		power_supply_changed(pst->psy);
+		pm_wakeup_dev_event(bcdev->dev, 50, true);
+	}
 }
 
 static int battery_chg_callback(void *priv, void *data, size_t len)
