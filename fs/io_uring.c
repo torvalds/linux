@@ -3916,41 +3916,40 @@ static int io_sendmsg_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 static int io_sendmsg(struct io_kiocb *req, bool force_nonblock,
 		      struct io_comp_state *cs)
 {
-	struct io_async_msghdr *kmsg = NULL;
+	struct io_async_msghdr iomsg, *kmsg = NULL;
 	struct socket *sock;
+	unsigned flags;
 	int ret;
 
 	sock = sock_from_file(req->file, &ret);
-	if (sock) {
-		struct io_async_msghdr iomsg;
-		unsigned flags;
+	if (unlikely(!sock))
+		return ret;
 
-		if (req->io) {
-			kmsg = &req->io->msg;
-			kmsg->msg.msg_name = &req->io->msg.addr;
-			/* if iov is set, it's allocated already */
-			if (!kmsg->iov)
-				kmsg->iov = kmsg->fast_iov;
-			kmsg->msg.msg_iter.iov = kmsg->iov;
-		} else {
-			ret = io_sendmsg_copy_hdr(req, &iomsg);
-			if (ret)
-				return ret;
-			kmsg = &iomsg;
-		}
-
-		flags = req->sr_msg.msg_flags;
-		if (flags & MSG_DONTWAIT)
-			req->flags |= REQ_F_NOWAIT;
-		else if (force_nonblock)
-			flags |= MSG_DONTWAIT;
-
-		ret = __sys_sendmsg_sock(sock, &kmsg->msg, flags);
-		if (force_nonblock && ret == -EAGAIN)
-			return io_setup_async_msg(req, kmsg);
-		if (ret == -ERESTARTSYS)
-			ret = -EINTR;
+	if (req->io) {
+		kmsg = &req->io->msg;
+		kmsg->msg.msg_name = &req->io->msg.addr;
+		/* if iov is set, it's allocated already */
+		if (!kmsg->iov)
+			kmsg->iov = kmsg->fast_iov;
+		kmsg->msg.msg_iter.iov = kmsg->iov;
+	} else {
+		ret = io_sendmsg_copy_hdr(req, &iomsg);
+		if (ret)
+			return ret;
+		kmsg = &iomsg;
 	}
+
+	flags = req->sr_msg.msg_flags;
+	if (flags & MSG_DONTWAIT)
+		req->flags |= REQ_F_NOWAIT;
+	else if (force_nonblock)
+		flags |= MSG_DONTWAIT;
+
+	ret = __sys_sendmsg_sock(sock, &kmsg->msg, flags);
+	if (force_nonblock && ret == -EAGAIN)
+		return io_setup_async_msg(req, kmsg);
+	if (ret == -ERESTARTSYS)
+		ret = -EINTR;
 
 	if (kmsg && kmsg->iov != kmsg->fast_iov)
 		kfree(kmsg->iov);
@@ -3964,39 +3963,38 @@ static int io_sendmsg(struct io_kiocb *req, bool force_nonblock,
 static int io_send(struct io_kiocb *req, bool force_nonblock,
 		   struct io_comp_state *cs)
 {
+	struct io_sr_msg *sr = &req->sr_msg;
+	struct msghdr msg;
+	struct iovec iov;
 	struct socket *sock;
+	unsigned flags;
 	int ret;
 
 	sock = sock_from_file(req->file, &ret);
-	if (sock) {
-		struct io_sr_msg *sr = &req->sr_msg;
-		struct msghdr msg;
-		struct iovec iov;
-		unsigned flags;
+	if (unlikely(!sock))
+		return ret;
 
-		ret = import_single_range(WRITE, sr->buf, sr->len, &iov,
-						&msg.msg_iter);
-		if (ret)
-			return ret;
+	ret = import_single_range(WRITE, sr->buf, sr->len, &iov, &msg.msg_iter);
+	if (unlikely(ret))
+		return ret;
 
-		msg.msg_name = NULL;
-		msg.msg_control = NULL;
-		msg.msg_controllen = 0;
-		msg.msg_namelen = 0;
+	msg.msg_name = NULL;
+	msg.msg_control = NULL;
+	msg.msg_controllen = 0;
+	msg.msg_namelen = 0;
 
-		flags = req->sr_msg.msg_flags;
-		if (flags & MSG_DONTWAIT)
-			req->flags |= REQ_F_NOWAIT;
-		else if (force_nonblock)
-			flags |= MSG_DONTWAIT;
+	flags = req->sr_msg.msg_flags;
+	if (flags & MSG_DONTWAIT)
+		req->flags |= REQ_F_NOWAIT;
+	else if (force_nonblock)
+		flags |= MSG_DONTWAIT;
 
-		msg.msg_flags = flags;
-		ret = sock_sendmsg(sock, &msg);
-		if (force_nonblock && ret == -EAGAIN)
-			return -EAGAIN;
-		if (ret == -ERESTARTSYS)
-			ret = -EINTR;
-	}
+	msg.msg_flags = flags;
+	ret = sock_sendmsg(sock, &msg);
+	if (force_nonblock && ret == -EAGAIN)
+		return -EAGAIN;
+	if (ret == -ERESTARTSYS)
+		ret = -EINTR;
 
 	if (ret < 0)
 		req_set_fail_links(req);
@@ -4149,62 +4147,62 @@ static int io_recvmsg_prep(struct io_kiocb *req,
 static int io_recvmsg(struct io_kiocb *req, bool force_nonblock,
 		      struct io_comp_state *cs)
 {
-	struct io_async_msghdr *kmsg = NULL;
+	struct io_async_msghdr iomsg, *kmsg = NULL;
 	struct socket *sock;
+	struct io_buffer *kbuf;
+	unsigned flags;
 	int ret, cflags = 0;
 
 	sock = sock_from_file(req->file, &ret);
-	if (sock) {
-		struct io_buffer *kbuf;
-		struct io_async_msghdr iomsg;
-		unsigned flags;
+	if (unlikely(!sock))
+		return ret;
 
-		if (req->io) {
-			kmsg = &req->io->msg;
-			kmsg->msg.msg_name = &req->io->msg.addr;
-			/* if iov is set, it's allocated already */
-			if (!kmsg->iov)
-				kmsg->iov = kmsg->fast_iov;
-			kmsg->msg.msg_iter.iov = kmsg->iov;
-		} else {
-			ret = io_recvmsg_copy_hdr(req, &iomsg);
-			if (ret)
-				return ret;
-			kmsg = &iomsg;
-		}
-
-		kbuf = io_recv_buffer_select(req, &cflags, !force_nonblock);
-		if (IS_ERR(kbuf)) {
-			return PTR_ERR(kbuf);
-		} else if (kbuf) {
-			kmsg->fast_iov[0].iov_base = u64_to_user_ptr(kbuf->addr);
-			iov_iter_init(&kmsg->msg.msg_iter, READ, kmsg->iov,
-					1, req->sr_msg.len);
-		}
-
-		flags = req->sr_msg.msg_flags;
-		if (flags & MSG_DONTWAIT)
-			req->flags |= REQ_F_NOWAIT;
-		else if (force_nonblock)
-			flags |= MSG_DONTWAIT;
-
-		ret = __sys_recvmsg_sock(sock, &kmsg->msg, req->sr_msg.umsg,
-						kmsg->uaddr, flags);
-		if (force_nonblock && ret == -EAGAIN) {
-			ret = io_setup_async_msg(req, kmsg);
-			if (ret != -EAGAIN)
-				kfree(kbuf);
+	if (req->io) {
+		kmsg = &req->io->msg;
+		kmsg->msg.msg_name = &req->io->msg.addr;
+		/* if iov is set, it's allocated already */
+		if (!kmsg->iov)
+			kmsg->iov = kmsg->fast_iov;
+		kmsg->msg.msg_iter.iov = kmsg->iov;
+	} else {
+		ret = io_recvmsg_copy_hdr(req, &iomsg);
+		if (ret)
 			return ret;
-		}
-		if (ret == -ERESTARTSYS)
-			ret = -EINTR;
-		if (kbuf)
-			kfree(kbuf);
+		kmsg = &iomsg;
 	}
+
+	kbuf = io_recv_buffer_select(req, &cflags, !force_nonblock);
+	if (IS_ERR(kbuf)) {
+		return PTR_ERR(kbuf);
+	} else if (kbuf) {
+		kmsg->fast_iov[0].iov_base = u64_to_user_ptr(kbuf->addr);
+		iov_iter_init(&kmsg->msg.msg_iter, READ, kmsg->iov,
+				1, req->sr_msg.len);
+	}
+
+	flags = req->sr_msg.msg_flags;
+	if (flags & MSG_DONTWAIT)
+		req->flags |= REQ_F_NOWAIT;
+	else if (force_nonblock)
+		flags |= MSG_DONTWAIT;
+
+	ret = __sys_recvmsg_sock(sock, &kmsg->msg, req->sr_msg.umsg,
+					kmsg->uaddr, flags);
+	if (force_nonblock && ret == -EAGAIN) {
+		ret = io_setup_async_msg(req, kmsg);
+		if (ret != -EAGAIN)
+			kfree(kbuf);
+		return ret;
+	}
+	if (ret == -ERESTARTSYS)
+		ret = -EINTR;
+	if (kbuf)
+		kfree(kbuf);
 
 	if (kmsg && kmsg->iov != kmsg->fast_iov)
 		kfree(kmsg->iov);
 	req->flags &= ~REQ_F_NEED_CLEANUP;
+
 	if (ret < 0)
 		req_set_fail_links(req);
 	__io_req_complete(req, ret, cflags, cs);
@@ -4215,50 +4213,49 @@ static int io_recv(struct io_kiocb *req, bool force_nonblock,
 		   struct io_comp_state *cs)
 {
 	struct io_buffer *kbuf = NULL;
+	struct io_sr_msg *sr = &req->sr_msg;
+	struct msghdr msg;
+	void __user *buf = sr->buf;
 	struct socket *sock;
+	struct iovec iov;
+	unsigned flags;
 	int ret, cflags = 0;
 
 	sock = sock_from_file(req->file, &ret);
-	if (sock) {
-		struct io_sr_msg *sr = &req->sr_msg;
-		void __user *buf = sr->buf;
-		struct msghdr msg;
-		struct iovec iov;
-		unsigned flags;
+	if (unlikely(!sock))
+		return ret;
 
-		kbuf = io_recv_buffer_select(req, &cflags, !force_nonblock);
-		if (IS_ERR(kbuf))
-			return PTR_ERR(kbuf);
-		else if (kbuf)
-			buf = u64_to_user_ptr(kbuf->addr);
+	kbuf = io_recv_buffer_select(req, &cflags, !force_nonblock);
+	if (IS_ERR(kbuf))
+		return PTR_ERR(kbuf);
+	else if (kbuf)
+		buf = u64_to_user_ptr(kbuf->addr);
 
-		ret = import_single_range(READ, buf, sr->len, &iov,
-						&msg.msg_iter);
-		if (ret) {
-			kfree(kbuf);
-			return ret;
-		}
-
-		req->flags |= REQ_F_NEED_CLEANUP;
-		msg.msg_name = NULL;
-		msg.msg_control = NULL;
-		msg.msg_controllen = 0;
-		msg.msg_namelen = 0;
-		msg.msg_iocb = NULL;
-		msg.msg_flags = 0;
-
-		flags = req->sr_msg.msg_flags;
-		if (flags & MSG_DONTWAIT)
-			req->flags |= REQ_F_NOWAIT;
-		else if (force_nonblock)
-			flags |= MSG_DONTWAIT;
-
-		ret = sock_recvmsg(sock, &msg, flags);
-		if (force_nonblock && ret == -EAGAIN)
-			return -EAGAIN;
-		if (ret == -ERESTARTSYS)
-			ret = -EINTR;
+	ret = import_single_range(READ, buf, sr->len, &iov, &msg.msg_iter);
+	if (unlikely(ret)) {
+		kfree(kbuf);
+		return ret;
 	}
+
+	req->flags |= REQ_F_NEED_CLEANUP;
+	msg.msg_name = NULL;
+	msg.msg_control = NULL;
+	msg.msg_controllen = 0;
+	msg.msg_namelen = 0;
+	msg.msg_iocb = NULL;
+	msg.msg_flags = 0;
+
+	flags = req->sr_msg.msg_flags;
+	if (flags & MSG_DONTWAIT)
+		req->flags |= REQ_F_NOWAIT;
+	else if (force_nonblock)
+		flags |= MSG_DONTWAIT;
+
+	ret = sock_recvmsg(sock, &msg, flags);
+	if (force_nonblock && ret == -EAGAIN)
+		return -EAGAIN;
+	if (ret == -ERESTARTSYS)
+		ret = -EINTR;
 
 	kfree(kbuf);
 	req->flags &= ~REQ_F_NEED_CLEANUP;
