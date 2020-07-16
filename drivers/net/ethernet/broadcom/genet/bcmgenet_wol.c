@@ -229,9 +229,13 @@ void bcmgenet_wol_power_up_cfg(struct bcmgenet_priv *priv,
 	}
 
 	/* Disable WAKE_FILTER Detection */
-	reg = bcmgenet_hfb_reg_readl(priv, HFB_CTRL);
-	reg &= ~(RBUF_HFB_EN | RBUF_ACPI_EN);
-	bcmgenet_hfb_reg_writel(priv, reg, HFB_CTRL);
+	if (priv->wolopts & WAKE_FILTER) {
+		reg = bcmgenet_hfb_reg_readl(priv, HFB_CTRL);
+		if (!(reg & RBUF_ACPI_EN))
+			return;	/* already reset so skip the rest */
+		reg &= ~(RBUF_HFB_EN | RBUF_ACPI_EN);
+		bcmgenet_hfb_reg_writel(priv, reg, HFB_CTRL);
+	}
 
 	/* Disable CRC Forward */
 	reg = bcmgenet_umac_readl(priv, UMAC_CMD);
