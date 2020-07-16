@@ -246,7 +246,7 @@ struct btrfs_fs_devices {
 	 */
 	struct list_head alloc_list;
 
-	struct btrfs_fs_devices *seed;
+	struct list_head seed_list;
 	bool seeding;
 
 	int opened;

@@ -356,6 +356,7 @@ static struct btrfs_fs_devices *alloc_fs_devices(const u8 *fsid,
 	INIT_LIST_HEAD(&fs_devs->devices);
 	INIT_LIST_HEAD(&fs_devs->alloc_list);
 	INIT_LIST_HEAD(&fs_devs->fs_list);
+	INIT_LIST_HEAD(&fs_devs->seed_list);
 	if (fsid)
 		memcpy(fs_devs->fsid, fsid, BTRFS_FSID_SIZE);
 
@@ -1097,14 +1098,13 @@ static void __btrfs_free_extra_devids(struct btrfs_fs_devices *fs_devices,
 void btrfs_free_extra_devids(struct btrfs_fs_devices *fs_devices, int step)
 {
 	struct btrfs_device *latest_dev = NULL;
+	struct btrfs_fs_devices *seed_dev;
 
 	mutex_lock(&uuid_mutex);
-again:
 	__btrfs_free_extra_devids(fs_devices, step, &latest_dev);
-	if (fs_devices->seed) {
-		fs_devices = fs_devices->seed;
-		goto again;
-	}
+
+	list_for_each_entry(seed_dev, &fs_devices->seed_list, seed_list)
+		__btrfs_free_extra_devids(seed_dev, step, &latest_dev);
 
 	fs_devices->latest_bdev = latest_dev->bdev;
 
@@ -1178,20 +1178,18 @@ static void close_fs_devices(struct btrfs_fs_devices *fs_devices)
 
 void btrfs_close_devices(struct btrfs_fs_devices *fs_devices)
 {
-	struct btrfs_fs_devices *seed_devices = NULL;
+	LIST_HEAD(list);
+	struct btrfs_fs_devices *tmp;
 
 	mutex_lock(&uuid_mutex);
 	close_fs_devices(fs_devices);
-	if (!fs_devices->opened) {
-		seed_devices = fs_devices->seed;
-		fs_devices->seed = NULL;
-	}
+	if (!fs_devices->opened)
+		list_splice_init(&fs_devices->seed_list, &list);
 	mutex_unlock(&uuid_mutex);
 
-	while (seed_devices) {
-		fs_devices = seed_devices;
-		seed_devices = fs_devices->seed;
+	list_for_each_entry_safe(fs_devices, tmp, &list, seed_list) {
 		close_fs_devices(fs_devices);
+		list_del(&fs_devices->seed_list);
 		free_fs_devices(fs_devices);
 	}
 }
@@ -2169,14 +2167,7 @@ int btrfs_rm_device(struct btrfs_fs_info *fs_info, const char *device_path,
 	btrfs_free_device(device);
 
 	if (cur_devices->open_devices == 0) {
-		while (fs_devices) {
-			if (fs_devices->seed == cur_devices) {
-				fs_devices->seed = cur_devices->seed;
-				break;
-			}
-			fs_devices = fs_devices->seed;
-		}
-		cur_devices->seed = NULL;
+		list_del_init(&cur_devices->seed_list);
 		close_fs_devices(cur_devices);
 		free_fs_devices(cur_devices);
 	}
@@ -2236,8 +2227,6 @@ void btrfs_rm_dev_replace_free_srcdev(struct btrfs_device *srcdev)
 
 	/* if this is no devs we rather delete the fs_devices */
 	if (!fs_devices->num_devices) {
-		struct btrfs_fs_devices *tmp_fs_devices;
-
 		/*
 		 * On a mounted FS, num_devices can't be zero unless it's a
 		 * seed. In case of a seed device being replaced, the replace
@@ -2246,15 +2235,7 @@ void btrfs_rm_dev_replace_free_srcdev(struct btrfs_device *srcdev)
 		 */
 		ASSERT(fs_devices->seeding);
 
-		tmp_fs_devices = fs_info->fs_devices;
-		while (tmp_fs_devices) {
-			if (tmp_fs_devices->seed == fs_devices) {
-				tmp_fs_devices->seed = fs_devices->seed;
-				break;
-			}
-			tmp_fs_devices = tmp_fs_devices->seed;
-		}
-		fs_devices->seed = NULL;
+		list_del_init(&fs_devices->seed_list);
 		close_fs_devices(fs_devices);
 		free_fs_devices(fs_devices);
 	}
@@ -2409,7 +2390,7 @@ static int btrfs_prepare_sprout(struct btrfs_fs_info *fs_info)
 	fs_devices->open_devices = 0;
 	fs_devices->missing_devices = 0;
 	fs_devices->rotating = false;
-	fs_devices->seed = seed_devices;
+	list_add(&seed_devices->seed_list, &fs_devices->seed_list);
 
 	generate_random_uuid(fs_devices->fsid);
 	memcpy(fs_devices->metadata_uuid, fs_devices->fsid, BTRFS_FSID_SIZE);
@@ -6465,11 +6446,21 @@ struct btrfs_device *btrfs_find_device(struct btrfs_fs_devices *fs_devices,
 				       bool seed)
 {
 	struct btrfs_device *device;
+	struct btrfs_fs_devices *seed_devs;
 
-	while (fs_devices) {
+	if (!fsid || !memcmp(fs_devices->metadata_uuid, fsid, BTRFS_FSID_SIZE)) {
+		list_for_each_entry(device, &fs_devices->devices, dev_list) {
+			if (device->devid == devid &&
+			    (!uuid || memcmp(device->uuid, uuid,
+					     BTRFS_UUID_SIZE) == 0))
+				return device;
+		}
+	}
+
+	list_for_each_entry(seed_devs, &fs_devices->seed_list, seed_list) {
 		if (!fsid ||
-		    !memcmp(fs_devices->metadata_uuid, fsid, BTRFS_FSID_SIZE)) {
-			list_for_each_entry(device, &fs_devices->devices,
+		    !memcmp(seed_devs->metadata_uuid, fsid, BTRFS_FSID_SIZE)) {
+			list_for_each_entry(device, &seed_devs->devices,
 					    dev_list) {
 				if (device->devid == devid &&
 				    (!uuid || memcmp(device->uuid, uuid,
@@ -6477,11 +6468,8 @@ struct btrfs_device *btrfs_find_device(struct btrfs_fs_devices *fs_devices,
 					return device;
 			}
 		}
-		if (seed)
-			fs_devices = fs_devices->seed;
-		else
-			return NULL;
 	}
+
 	return NULL;
 }
 
@@ -6732,13 +6720,10 @@ static struct btrfs_fs_devices *open_seed_devices(struct btrfs_fs_info *fs_info,
 	lockdep_assert_held(&uuid_mutex);
 	ASSERT(fsid);
 
-	fs_devices = fs_info->fs_devices->seed;
-	while (fs_devices) {
+	list_for_each_entry(fs_devices, &fs_info->fs_devices->seed_list, seed_list)
 		if (!memcmp(fs_devices->fsid, fsid, BTRFS_FSID_SIZE))
 			return fs_devices;
 
-		fs_devices = fs_devices->seed;
-	}
 
 	fs_devices = find_fsid(fsid, NULL);
 	if (!fs_devices) {
@@ -6772,8 +6757,7 @@ static struct btrfs_fs_devices *open_seed_devices(struct btrfs_fs_info *fs_info,
 		goto out;
 	}
 
-	fs_devices->seed = fs_info->fs_devices->seed;
-	fs_info->fs_devices->seed = fs_devices;
+	list_add(&fs_devices->seed_list, &fs_info->fs_devices->seed_list);
 out:
 	return fs_devices;
 }
@@ -7193,17 +7177,23 @@ error:
 
 void btrfs_init_devices_late(struct btrfs_fs_info *fs_info)
 {
-	struct btrfs_fs_devices *fs_devices = fs_info->fs_devices;
+	struct btrfs_fs_devices *fs_devices = fs_info->fs_devices, *seed_devs;
 	struct btrfs_device *device;
 
-	while (fs_devices) {
-		mutex_lock(&fs_devices->device_list_mutex);
-		list_for_each_entry(device, &fs_devices->devices, dev_list)
-			device->fs_info = fs_info;
-		mutex_unlock(&fs_devices->device_list_mutex);
+	fs_devices->fs_info = fs_info;
 
-		fs_devices->fs_info = fs_info;
-		fs_devices = fs_devices->seed;
+	mutex_lock(&fs_devices->device_list_mutex);
+	list_for_each_entry(device, &fs_devices->devices, dev_list)
+		device->fs_info = fs_info;
+	mutex_unlock(&fs_devices->device_list_mutex);
+
+	list_for_each_entry(seed_devs, &fs_devices->seed_list, seed_list) {
+		mutex_lock(&seed_devs->device_list_mutex);
+		list_for_each_entry(device, &seed_devs->devices, dev_list)
+			device->fs_info = fs_info;
+		mutex_unlock(&seed_devs->device_list_mutex);
+
+		seed_devs->fs_info = fs_info;
 	}
 }
 
@@ -7581,8 +7571,11 @@ static int verify_one_dev_extent(struct btrfs_fs_info *fs_info,
 
 	/* It's possible this device is a dummy for seed device */
 	if (dev->disk_total_bytes == 0) {
-		dev = btrfs_find_device(fs_info->fs_devices->seed, devid, NULL,
-					NULL, false);
+		struct btrfs_fs_devices *devs;
+
+		devs = list_first_entry(&fs_info->fs_devices->seed_list,
+					struct btrfs_fs_devices, seed_list);
+		dev = btrfs_find_device(devs, devid, NULL, NULL, false);
 		if (!dev) {
 			btrfs_err(fs_info, "failed to find seed devid %llu",
 				  devid);

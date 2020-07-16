@@ -545,33 +545,30 @@ static int csum_dirty_buffer(struct btrfs_fs_info *fs_info, struct page *page)
 static int check_tree_block_fsid(struct extent_buffer *eb)
 {
 	struct btrfs_fs_info *fs_info = eb->fs_info;
-	struct btrfs_fs_devices *fs_devices = fs_info->fs_devices;
+	struct btrfs_fs_devices *fs_devices = fs_info->fs_devices, *seed_devs;
 	u8 fsid[BTRFS_FSID_SIZE];
-	int ret = 1;
+	u8 *metadata_uuid;
 
 	read_extent_buffer(eb, fsid, offsetof(struct btrfs_header, fsid),
 			   BTRFS_FSID_SIZE);
-	while (fs_devices) {
-		u8 *metadata_uuid;
+	/*
+	 * Checking the incompat flag is only valid for the current fs. For
+	 * seed devices it's forbidden to have their uuid changed so reading
+	 * ->fsid in this case is fine
+	 */
+	if (btrfs_fs_incompat(fs_info, METADATA_UUID))
+		metadata_uuid = fs_devices->metadata_uuid;
+	else
+		metadata_uuid = fs_devices->fsid;
 
-		/*
-		 * Checking the incompat flag is only valid for the current
-		 * fs. For seed devices it's forbidden to have their uuid
-		 * changed so reading ->fsid in this case is fine
-		 */
-		if (fs_devices == fs_info->fs_devices &&
-		    btrfs_fs_incompat(fs_info, METADATA_UUID))
-			metadata_uuid = fs_devices->metadata_uuid;
-		else
-			metadata_uuid = fs_devices->fsid;
+	if (!memcmp(fsid, metadata_uuid, BTRFS_FSID_SIZE))
+		return 0;
 
-		if (!memcmp(fsid, metadata_uuid, BTRFS_FSID_SIZE)) {
-			ret = 0;
-			break;
-		}
-		fs_devices = fs_devices->seed;
-	}
-	return ret;
+	list_for_each_entry(seed_devs, &fs_devices->seed_list, seed_list)
+		if (!memcmp(fsid, seed_devs->fsid, BTRFS_FSID_SIZE))
+			return 0;
+
+	return 1;
 }
 
 static int btree_readpage_end_io_hook(struct btrfs_io_bio *io_bio,
