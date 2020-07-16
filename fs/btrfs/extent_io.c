@@ -3446,8 +3446,7 @@ static noinline_for_stack int writepage_delalloc(struct btrfs_inode *inode,
 			 * started, so we don't want to return > 0 unless
 			 * things are going well.
 			 */
-			ret = ret < 0 ? ret : -EIO;
-			goto done;
+			return ret < 0 ? ret : -EIO;
 		}
 		/*
 		 * delalloc_end is already one less than the total length, so
@@ -3479,10 +3478,7 @@ static noinline_for_stack int writepage_delalloc(struct btrfs_inode *inode,
 		return 1;
 	}
 
-	ret = 0;
-
-done:
-	return ret;
+	return 0;
 }
 
 /*
