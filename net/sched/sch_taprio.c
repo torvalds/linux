@@ -410,7 +410,7 @@ done:
 	return txtime;
 }
 
-static int taprio_enqueue(struct sk_buff *skb, struct Qdisc *sch, spinlock_t *root_lock,
+static int taprio_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 			  struct sk_buff **to_free)
 {
 	struct taprio_sched *q = qdisc_priv(sch);
@@ -435,7 +435,7 @@ static int taprio_enqueue(struct sk_buff *skb, struct Qdisc *sch, spinlock_t *ro
 	qdisc_qstats_backlog_inc(sch, skb);
 	sch->q.qlen++;
 
-	return qdisc_enqueue(skb, child, root_lock, to_free);
+	return qdisc_enqueue(skb, child, to_free);
 }
 
 static struct sk_buff *taprio_peek_soft(struct Qdisc *sch)

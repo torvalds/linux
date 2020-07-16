@@ -3822,7 +3822,7 @@ int tcf_qevent_validate_change(struct tcf_qevent *qe, struct nlattr *block_index
 EXPORT_SYMBOL(tcf_qevent_validate_change);
 
 struct sk_buff *tcf_qevent_handle(struct tcf_qevent *qe, struct Qdisc *sch, struct sk_buff *skb,
-				  spinlock_t *root_lock, struct sk_buff **to_free, int *ret)
+				  struct sk_buff **to_free, int *ret)
 {
 	struct tcf_result cl_res;
 	struct tcf_proto *fl;
@@ -3831,9 +3831,6 @@ struct sk_buff *tcf_qevent_handle(struct tcf_qevent *qe, struct Qdisc *sch, stru
 		return skb;
 
 	fl = rcu_dereference_bh(qe->filter_chain);
-
-	if (root_lock)
-		spin_unlock(root_lock);
 
 	switch (tcf_classify(skb, fl, &cl_res, false)) {
 	case TC_ACT_SHOT:
@@ -3852,9 +3849,6 @@ struct sk_buff *tcf_qevent_handle(struct tcf_qevent *qe, struct Qdisc *sch, stru
 		*ret = __NET_XMIT_STOLEN;
 		return NULL;
 	}
-
-	if (root_lock)
-		spin_lock(root_lock);
 
 	return skb;
 }
