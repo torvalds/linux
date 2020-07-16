@@ -308,12 +308,14 @@ static const struct spi_device_id bma220_spi_id[] = {
 	{}
 };
 
+#ifdef CONFIG_ACPI
 static const struct acpi_device_id bma220_acpi_id[] = {
 	{"BMA0220", 0},
 	{}
 };
 
 MODULE_DEVICE_TABLE(spi, bma220_spi_id);
+#endif
 
 static struct spi_driver bma220_driver = {
 	.driver = {
