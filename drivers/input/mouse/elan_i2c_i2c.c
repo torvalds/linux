@@ -44,6 +44,7 @@
 #define ETP_I2C_PRESSURE_CMD		0x010A
 #define ETP_I2C_IAP_VERSION_CMD		0x0110
 #define ETP_I2C_IC_TYPE_P0_CMD		0x0110
+#define ETP_I2C_IAP_VERSION_P0_CMD	0x0111
 #define ETP_I2C_SET_CMD			0x0300
 #define ETP_I2C_POWER_CMD		0x0307
 #define ETP_I2C_FW_CHECKSUM_CMD		0x030F
@@ -266,6 +267,7 @@ static int elan_i2c_get_version(struct i2c_client *client,
 {
 	int error;
 	u8 pattern_ver;
+	u16 cmd;
 	u8 val[3];
 
 	error = elan_i2c_get_pattern(client, &pattern_ver);
@@ -274,10 +276,14 @@ static int elan_i2c_get_version(struct i2c_client *client,
 		return error;
 	}
 
-	error = elan_i2c_read_cmd(client,
-				  iap ? ETP_I2C_IAP_VERSION_CMD :
-					ETP_I2C_FW_VERSION_CMD,
-				  val);
+	if (!iap)
+		cmd = ETP_I2C_FW_VERSION_CMD;
+	else if (pattern_ver == 0)
+		cmd = ETP_I2C_IAP_VERSION_P0_CMD;
+	else
+		cmd = ETP_I2C_IAP_VERSION_CMD;
+
+	error = elan_i2c_read_cmd(client, cmd, val);
 	if (error) {
 		dev_err(&client->dev, "failed to get %s version: %d\n",
 			iap ? "IAP" : "FW", error);
