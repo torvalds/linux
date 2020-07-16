@@ -348,16 +348,9 @@ static int dynamic_replicator_probe(struct amba_device *adev,
 }
 
 static const struct amba_id dynamic_replicator_ids[] = {
-	{
-		.id     = 0x000bb909,
-		.mask   = 0x000fffff,
-	},
-	{
-		/* Coresight SoC-600 */
-		.id     = 0x000bb9ec,
-		.mask   = 0x000fffff,
-	},
-	{ 0, 0 },
+	CS_AMBA_ID(0x000bb909),
+	CS_AMBA_ID(0x000bb9ec),		/* Coresight SoC-600 */
+	{},
 };
 
 static struct amba_driver dynamic_replicator_driver = {
