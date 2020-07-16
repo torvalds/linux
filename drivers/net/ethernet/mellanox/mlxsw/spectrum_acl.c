@@ -66,6 +66,7 @@ struct mlxsw_sp_acl_rule {
 	u64 last_used;
 	u64 last_packets;
 	u64 last_bytes;
+	u64 last_drops;
 	unsigned long priv[];
 	/* priv has to be always the last item */
 };
@@ -648,6 +649,24 @@ int mlxsw_sp_acl_rulei_act_mangle(struct mlxsw_sp *mlxsw_sp,
 	return -EINVAL;
 }
 
+int mlxsw_sp_acl_rulei_act_police(struct mlxsw_sp *mlxsw_sp,
+				  struct mlxsw_sp_acl_rule_info *rulei,
+				  u32 index, u64 rate_bytes_ps,
+				  u32 burst, struct netlink_ext_ack *extack)
+{
+	int err;
+
+	err = mlxsw_afa_block_append_police(rulei->act_block, index,
+					    rate_bytes_ps, burst,
+					    &rulei->policer_index, extack);
+	if (err)
+		return err;
+
+	rulei->policer_index_valid = true;
+
+	return 0;
+}
+
 int mlxsw_sp_acl_rulei_act_count(struct mlxsw_sp *mlxsw_sp,
 				 struct mlxsw_sp_acl_rule_info *rulei,
 				 struct netlink_ext_ack *extack)
@@ -868,13 +887,16 @@ static void mlxsw_sp_acl_rule_activity_update_work(struct work_struct *work)
 
 int mlxsw_sp_acl_rule_get_stats(struct mlxsw_sp *mlxsw_sp,
 				struct mlxsw_sp_acl_rule *rule,
-				u64 *packets, u64 *bytes, u64 *last_use,
+				u64 *packets, u64 *bytes, u64 *drops,
+				u64 *last_use,
 				enum flow_action_hw_stats *used_hw_stats)
 
 {
+	enum mlxsw_sp_policer_type type = MLXSW_SP_POLICER_TYPE_SINGLE_RATE;
 	struct mlxsw_sp_acl_rule_info *rulei;
 	u64 current_packets = 0;
 	u64 current_bytes = 0;
+	u64 current_drops = 0;
 	int err;
 
 	rulei = mlxsw_sp_acl_rule_rulei(rule);
@@ -886,12 +908,21 @@ int mlxsw_sp_acl_rule_get_stats(struct mlxsw_sp *mlxsw_sp,
 			return err;
 		*used_hw_stats = FLOW_ACTION_HW_STATS_IMMEDIATE;
 	}
+	if (rulei->policer_index_valid) {
+		err = mlxsw_sp_policer_drops_counter_get(mlxsw_sp, type,
+							 rulei->policer_index,
+							 &current_drops);
+		if (err)
+			return err;
+	}
 	*packets = current_packets - rule->last_packets;
 	*bytes = current_bytes - rule->last_bytes;
+	*drops = current_drops - rule->last_drops;
 	*last_use = rule->last_used;
 
 	rule->last_bytes = current_bytes;
 	rule->last_packets = current_packets;
+	rule->last_drops = current_drops;
 
 	return 0;
 }

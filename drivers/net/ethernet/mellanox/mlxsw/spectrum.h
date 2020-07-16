@@ -62,6 +62,8 @@ enum mlxsw_sp_resource_id {
 	MLXSW_SP_RESOURCE_COUNTERS,
 	MLXSW_SP_RESOURCE_COUNTERS_FLOW,
 	MLXSW_SP_RESOURCE_COUNTERS_RIF,
+	MLXSW_SP_RESOURCE_GLOBAL_POLICERS,
+	MLXSW_SP_RESOURCE_SINGLE_RATE_POLICERS,
 };
 
 struct mlxsw_sp_port;
@@ -151,6 +153,7 @@ struct mlxsw_sp {
 	struct mlxsw_afa *afa;
 	struct mlxsw_sp_acl *acl;
 	struct mlxsw_sp_fid_core *fid_core;
+	struct mlxsw_sp_policer_core *policer_core;
 	struct mlxsw_sp_kvdl *kvdl;
 	struct mlxsw_sp_nve *nve;
 	struct notifier_block netdevice_nb;
@@ -173,6 +176,7 @@ struct mlxsw_sp {
 	const struct mlxsw_sp_port_type_speed_ops *port_type_speed_ops;
 	const struct mlxsw_sp_ptp_ops *ptp_ops;
 	const struct mlxsw_sp_span_ops *span_ops;
+	const struct mlxsw_sp_policer_core_ops *policer_core_ops;
 	const struct mlxsw_listener *listeners;
 	size_t listeners_count;
 	u32 lowest_shaper_bs;
@@ -685,8 +689,10 @@ struct mlxsw_sp_acl_rule_info {
 	u8 action_created:1,
 	   ingress_bind_blocker:1,
 	   egress_bind_blocker:1,
-	   counter_valid:1;
+	   counter_valid:1,
+	   policer_index_valid:1;
 	unsigned int counter_index;
+	u16 policer_index;
 };
 
 /* spectrum_flow.c */
@@ -847,6 +853,10 @@ int mlxsw_sp_acl_rulei_act_mangle(struct mlxsw_sp *mlxsw_sp,
 				  enum flow_action_mangle_base htype,
 				  u32 offset, u32 mask, u32 val,
 				  struct netlink_ext_ack *extack);
+int mlxsw_sp_acl_rulei_act_police(struct mlxsw_sp *mlxsw_sp,
+				  struct mlxsw_sp_acl_rule_info *rulei,
+				  u32 index, u64 rate_bytes_ps,
+				  u32 burst, struct netlink_ext_ack *extack);
 int mlxsw_sp_acl_rulei_act_count(struct mlxsw_sp *mlxsw_sp,
 				 struct mlxsw_sp_acl_rule_info *rulei,
 				 struct netlink_ext_ack *extack);
@@ -879,7 +889,8 @@ struct mlxsw_sp_acl_rule_info *
 mlxsw_sp_acl_rule_rulei(struct mlxsw_sp_acl_rule *rule);
 int mlxsw_sp_acl_rule_get_stats(struct mlxsw_sp *mlxsw_sp,
 				struct mlxsw_sp_acl_rule *rule,
-				u64 *packets, u64 *bytes, u64 *last_use,
+				u64 *packets, u64 *bytes, u64 *drops,
+				u64 *last_use,
 				enum flow_action_hw_stats *used_hw_stats);
 
 struct mlxsw_sp_fid *mlxsw_sp_acl_dummy_fid(struct mlxsw_sp *mlxsw_sp);
@@ -1195,5 +1206,36 @@ static inline struct net *mlxsw_sp_net(struct mlxsw_sp *mlxsw_sp)
 extern const struct ethtool_ops mlxsw_sp_port_ethtool_ops;
 extern const struct mlxsw_sp_port_type_speed_ops mlxsw_sp1_port_type_speed_ops;
 extern const struct mlxsw_sp_port_type_speed_ops mlxsw_sp2_port_type_speed_ops;
+
+/* spectrum_policer.c */
+extern const struct mlxsw_sp_policer_core_ops mlxsw_sp1_policer_core_ops;
+extern const struct mlxsw_sp_policer_core_ops mlxsw_sp2_policer_core_ops;
+
+enum mlxsw_sp_policer_type {
+	MLXSW_SP_POLICER_TYPE_SINGLE_RATE,
+
+	__MLXSW_SP_POLICER_TYPE_MAX,
+	MLXSW_SP_POLICER_TYPE_MAX = __MLXSW_SP_POLICER_TYPE_MAX - 1,
+};
+
+struct mlxsw_sp_policer_params {
+	u64 rate;
+	u64 burst;
+	bool bytes;
+};
+
+int mlxsw_sp_policer_add(struct mlxsw_sp *mlxsw_sp,
+			 enum mlxsw_sp_policer_type type,
+			 const struct mlxsw_sp_policer_params *params,
+			 struct netlink_ext_ack *extack, u16 *p_policer_index);
+void mlxsw_sp_policer_del(struct mlxsw_sp *mlxsw_sp,
+			  enum mlxsw_sp_policer_type type,
+			  u16 policer_index);
+int mlxsw_sp_policer_drops_counter_get(struct mlxsw_sp *mlxsw_sp,
+				       enum mlxsw_sp_policer_type type,
+				       u16 policer_index, u64 *p_drops);
+int mlxsw_sp_policers_init(struct mlxsw_sp *mlxsw_sp);
+void mlxsw_sp_policers_fini(struct mlxsw_sp *mlxsw_sp);
+int mlxsw_sp_policer_resources_register(struct mlxsw_core *mlxsw_core);
 
 #endif

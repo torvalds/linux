@@ -3405,10 +3405,19 @@ MLXSW_ITEM32(reg, qpcr, violate_action, 0x18, 0, 4);
  */
 MLXSW_ITEM64(reg, qpcr, violate_count, 0x20, 0, 64);
 
+/* Packets */
 #define MLXSW_REG_QPCR_LOWEST_CIR	1
 #define MLXSW_REG_QPCR_HIGHEST_CIR	(2 * 1000 * 1000 * 1000) /* 2Gpps */
 #define MLXSW_REG_QPCR_LOWEST_CBS	4
 #define MLXSW_REG_QPCR_HIGHEST_CBS	24
+
+/* Bandwidth */
+#define MLXSW_REG_QPCR_LOWEST_CIR_BITS		1024 /* bps */
+#define MLXSW_REG_QPCR_HIGHEST_CIR_BITS		2000000000000ULL /* 2Tbps */
+#define MLXSW_REG_QPCR_LOWEST_CBS_BITS_SP1	4
+#define MLXSW_REG_QPCR_LOWEST_CBS_BITS_SP2	4
+#define MLXSW_REG_QPCR_HIGHEST_CBS_BITS_SP1	25
+#define MLXSW_REG_QPCR_HIGHEST_CBS_BITS_SP2	31
 
 static inline void mlxsw_reg_qpcr_pack(char *payload, u16 pid,
 				       enum mlxsw_reg_qpcr_ir_units ir_units,
