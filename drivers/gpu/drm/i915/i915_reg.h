@@ -1911,10 +1911,15 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 
 #define CNL_PORT_COMP_DW0		_MMIO(0x162100)
 #define ICL_PORT_COMP_DW0(phy)		_MMIO(_ICL_PORT_COMP_DW(0, phy))
-#define   COMP_INIT			(1 << 31)
+#define   COMP_INIT			REG_BIT(31)
+#define   GRCCODE_LDO			REG_GENMASK(7, 0)
 
 #define CNL_PORT_COMP_DW1		_MMIO(0x162104)
 #define ICL_PORT_COMP_DW1(phy)		_MMIO(_ICL_PORT_COMP_DW(1, phy))
+
+#define ICL_PORT_COMP_DW2(phy)		_MMIO(_ICL_PORT_COMP_DW(2, phy))
+#define   IREF_RCAL_ORD_EN		REG_BIT(7)
+#define   IREF_RCAL_ORD			REG_GENMASK(6, 0)
 
 #define CNL_PORT_COMP_DW3		_MMIO(0x16210c)
 #define ICL_PORT_COMP_DW3(phy)		_MMIO(_ICL_PORT_COMP_DW(3, phy))
@@ -1928,6 +1933,12 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define   VOLTAGE_INFO_1_05V		(2 << 24)
 #define   VOLTAGE_INFO_MASK		(3 << 24)
 #define   VOLTAGE_INFO_SHIFT		24
+#define   FIRST_COMP_DONE		REG_BIT(22)
+
+#define ICL_PORT_COMP_DW6(phy)		_MMIO(_ICL_PORT_COMP_DW(6, phy))
+#define   GRCCODE			REG_GENMASK(30, 24)
+#define   RCOMPCODEOVEN_LDO_SYNC	REG_BIT(23)
+#define   RCOMPCODE_LD_CAP_OV		REG_GENMASK(22, 16)
 
 #define ICL_PORT_COMP_DW8(phy)		_MMIO(_ICL_PORT_COMP_DW(8, phy))
 #define   IREFGEN			(1 << 24)
