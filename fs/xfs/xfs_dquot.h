@@ -136,7 +136,7 @@ xfs_dquot_type(const struct xfs_dquot *dqp)
 
 static inline int xfs_this_quota_on(struct xfs_mount *mp, int type)
 {
-	switch (type & XFS_DQTYPE_REC_MASK) {
+	switch (type) {
 	case XFS_DQTYPE_USER:
 		return XFS_IS_UQUOTA_ON(mp);
 	case XFS_DQTYPE_GROUP:
@@ -150,7 +150,7 @@ static inline int xfs_this_quota_on(struct xfs_mount *mp, int type)
 
 static inline struct xfs_dquot *xfs_inode_dquot(struct xfs_inode *ip, int type)
 {
-	switch (type & XFS_DQTYPE_REC_MASK) {
+	switch (type) {
 	case XFS_DQTYPE_USER:
 		return ip->i_udquot;
 	case XFS_DQTYPE_GROUP:

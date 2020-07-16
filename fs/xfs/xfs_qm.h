@@ -88,7 +88,7 @@ xfs_dquot_tree(
 static inline struct xfs_inode *
 xfs_quota_inode(xfs_mount_t *mp, uint dq_flags)
 {
-	switch (dq_flags & XFS_DQTYPE_REC_MASK) {
+	switch (dq_flags) {
 	case XFS_DQTYPE_USER:
 		return mp->m_quotainfo->qi_uquotaip;
 	case XFS_DQTYPE_GROUP:
