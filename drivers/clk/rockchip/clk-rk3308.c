@@ -8,6 +8,9 @@
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/module.h>
+#include <linux/of_device.h>
+#include <linux/rockchip/cpu.h>
 #include <linux/syscore_ops.h>
 #include <dt-bindings/clock/rk3308-cru.h>
 #include "clk.h"
@@ -961,3 +964,31 @@ static void __init rk3308_clk_init(struct device_node *np)
 }
 
 CLK_OF_DECLARE(rk3308_cru, "rockchip,rk3308-cru", rk3308_clk_init);
+
+static int __init clk_rk3308_probe(struct platform_device *pdev)
+{
+	struct device_node *np = pdev->dev.of_node;
+
+	rk3308_clk_init(np);
+
+	return 0;
+}
+
+static const struct of_device_id clk_rk3308_match_table[] = {
+	{
+		.compatible = "rockchip,rk3308-cru",
+	},
+	{ }
+};
+MODULE_DEVICE_TABLE(of, clk_rk3308_match_table);
+
+static struct platform_driver clk_rk3308_driver = {
+	.driver		= {
+		.name	= "clk-rk3308",
+		.of_match_table = clk_rk3308_match_table,
+	},
+};
+builtin_platform_driver_probe(clk_rk3308_driver, clk_rk3308_probe);
+
+MODULE_DESCRIPTION("Rockchip RK3308 Clock Driver");
+MODULE_LICENSE("GPL");
