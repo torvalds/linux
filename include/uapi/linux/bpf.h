@@ -2420,7 +2420,7 @@ union bpf_attr {
  *			Look for an IPv6 socket.
  *
  *		If the *netns* is a negative signed 32-bit integer, then the
- *		socket lookup table in the netns associated with the *ctx* will
+ *		socket lookup table in the netns associated with the *ctx*
  *		will be used. For the TC hooks, this is the netns of the device
  *		in the skb. For socket hooks, this is the netns of the socket.
  *		If *netns* is any other signed 32-bit value greater than or
@@ -2457,7 +2457,7 @@ union bpf_attr {
  *			Look for an IPv6 socket.
  *
  *		If the *netns* is a negative signed 32-bit integer, then the
- *		socket lookup table in the netns associated with the *ctx* will
+ *		socket lookup table in the netns associated with the *ctx*
  *		will be used. For the TC hooks, this is the netns of the device
  *		in the skb. For socket hooks, this is the netns of the socket.
  *		If *netns* is any other signed 32-bit value greater than or
@@ -4000,7 +4000,7 @@ struct bpf_link_info {
 
 /* User bpf_sock_addr struct to access socket fields and sockaddr struct passed
  * by user and intended to be used by socket (e.g. to bind to, depends on
- * attach attach type).
+ * attach type).
  */
 struct bpf_sock_addr {
 	__u32 user_family;	/* Allows 4-byte read, but no write. */
