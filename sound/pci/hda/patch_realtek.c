@@ -6718,6 +6718,8 @@ static const struct hda_fixup alc269_fixups[] = {
 			/* Set EAPD high */
 			{ 0x20, AC_VERB_SET_COEF_INDEX, 0x40 },
 			{ 0x20, AC_VERB_SET_PROC_COEF, 0x8800 },
+			{ 0x20, AC_VERB_SET_COEF_INDEX, 0x0f },
+			{ 0x20, AC_VERB_SET_PROC_COEF, 0x7774 },
 			{ }
 		},
 		.chained = true,
