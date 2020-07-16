@@ -72,7 +72,8 @@ int rproc_coredump_add_custom_segment(struct rproc *rproc,
 				      dma_addr_t da, size_t size,
 				      void (*dumpfn)(struct rproc *rproc,
 						     struct rproc_dump_segment *segment,
-						     void *dest),
+						     void *dest, size_t offset,
+						     size_t size),
 				      void *priv)
 {
 	struct rproc_dump_segment *segment;
@@ -183,7 +184,7 @@ void rproc_coredump(struct rproc *rproc)
 		elf_phdr_set_p_align(class, phdr, 0);
 
 		if (segment->dump) {
-			segment->dump(rproc, segment, data + offset);
+			segment->dump(rproc, segment, data + offset, 0, segment->size);
 		} else {
 			ptr = rproc_da_to_va(rproc, segment->da, segment->size);
 			if (!ptr) {

@@ -1202,7 +1202,7 @@ out:
 
 static void qcom_q6v5_dump_segment(struct rproc *rproc,
 				   struct rproc_dump_segment *segment,
-				   void *dest)
+				   void *dest, size_t cp_offset, size_t size)
 {
 	int ret = 0;
 	struct q6v5 *qproc = rproc->priv;
@@ -1222,16 +1222,16 @@ static void qcom_q6v5_dump_segment(struct rproc *rproc,
 	}
 
 	if (!ret)
-		ptr = ioremap_wc(qproc->mpss_phys + offset, segment->size);
+		ptr = ioremap_wc(qproc->mpss_phys + offset + cp_offset, size);
 
 	if (ptr) {
-		memcpy(dest, ptr, segment->size);
+		memcpy(dest, ptr, size);
 		iounmap(ptr);
 	} else {
-		memset(dest, 0xff, segment->size);
+		memset(dest, 0xff, size);
 	}
 
-	qproc->current_dump_size += segment->size;
+	qproc->current_dump_size += size;
 
 	/* Reclaim mba after copying segments */
 	if (qproc->current_dump_size == qproc->total_dump_size) {
