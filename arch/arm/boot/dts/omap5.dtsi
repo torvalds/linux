@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2012 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2012 Texas Instruments Incorporated - https://www.ti.com/
  *
  * Based on "omap4.dtsi"
  */
@@ -31,6 +31,8 @@
 		serial3 = &uart4;
 		serial4 = &uart5;
 		serial5 = &uart6;
+		rproc0 = &dsp;
+		rproc1 = &ipu;
 	};
 
 	cpus {
@@ -214,6 +216,29 @@
 				#iommu-cells = <0>;
 				ti,iommu-bus-err-back;
 			};
+		};
+
+		dsp: dsp {
+			compatible = "ti,omap5-dsp";
+			ti,bootreg = <&scm_conf 0x304 0>;
+			iommus = <&mmu_dsp>;
+			resets = <&prm_dsp 0>;
+			clocks = <&dsp_clkctrl OMAP5_MMU_DSP_CLKCTRL 0>;
+			firmware-name = "omap5-dsp-fw.xe64T";
+			mboxes = <&mailbox &mbox_dsp>;
+			status = "disabled";
+		};
+
+		ipu: ipu@55020000 {
+			compatible = "ti,omap5-ipu";
+			reg = <0x55020000 0x10000>;
+			reg-names = "l2ram";
+			iommus = <&mmu_ipu>;
+			resets = <&prm_core 0>, <&prm_core 1>;
+			clocks = <&ipu_clkctrl OMAP5_MMU_IPU_CLKCTRL 0>;
+			firmware-name = "omap5-ipu-fw.xem4";
+			mboxes = <&mailbox &mbox_ipu>;
+			status = "disabled";
 		};
 
 		dmm@4e000000 {

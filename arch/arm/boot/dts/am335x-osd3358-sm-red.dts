@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2018 Octavo Systems LLC - http://www.octavosystems.com/
+/* Copyright (C) 2018 Octavo Systems LLC - https://www.octavosystems.com/
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -107,7 +107,7 @@
 	 * below to "crossed" and uncomment the video-ports -property
 	 * in tda19988 node.
 	 * AM335x errata for wiring:
-	 * http://www.ti.com/lit/er/sprz360i/sprz360i.pdf
+	 * https://www.ti.com/lit/er/sprz360i/sprz360i.pdf
 	 */
 
 	blue-and-red-wiring = "straight";
