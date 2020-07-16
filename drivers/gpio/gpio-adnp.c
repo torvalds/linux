@@ -238,36 +238,6 @@ unlock:
 	mutex_unlock(&adnp->i2c_lock);
 }
 
-static int adnp_gpio_setup(struct adnp *adnp, unsigned int num_gpios)
-{
-	struct gpio_chip *chip = &adnp->gpio;
-	int err;
-
-	adnp->reg_shift = get_count_order(num_gpios) - 3;
-
-	chip->direction_input = adnp_gpio_direction_input;
-	chip->direction_output = adnp_gpio_direction_output;
-	chip->get = adnp_gpio_get;
-	chip->set = adnp_gpio_set;
-	chip->can_sleep = true;
-
-	if (IS_ENABLED(CONFIG_DEBUG_FS))
-		chip->dbg_show = adnp_gpio_dbg_show;
-
-	chip->base = -1;
-	chip->ngpio = num_gpios;
-	chip->label = adnp->client->name;
-	chip->parent = &adnp->client->dev;
-	chip->of_node = chip->parent->of_node;
-	chip->owner = THIS_MODULE;
-
-	err = devm_gpiochip_add_data(&adnp->client->dev, chip, adnp);
-	if (err)
-		return err;
-
-	return 0;
-}
-
 static irqreturn_t adnp_irq(int irq, void *data)
 {
 	struct adnp *adnp = data;
@@ -464,18 +434,54 @@ static int adnp_irq_setup(struct adnp *adnp)
 		return err;
 	}
 
-	err = gpiochip_irqchip_add_nested(chip,
-					  &adnp_irq_chip,
-					  0,
-					  handle_simple_irq,
-					  IRQ_TYPE_NONE);
-	if (err) {
-		dev_err(chip->parent,
-			"could not connect irqchip to gpiochip\n");
-		return err;
+	return 0;
+}
+
+static int adnp_gpio_setup(struct adnp *adnp, unsigned int num_gpios,
+			   bool is_irq_controller)
+{
+	struct gpio_chip *chip = &adnp->gpio;
+	int err;
+
+	adnp->reg_shift = get_count_order(num_gpios) - 3;
+
+	chip->direction_input = adnp_gpio_direction_input;
+	chip->direction_output = adnp_gpio_direction_output;
+	chip->get = adnp_gpio_get;
+	chip->set = adnp_gpio_set;
+	chip->can_sleep = true;
+
+	if (IS_ENABLED(CONFIG_DEBUG_FS))
+		chip->dbg_show = adnp_gpio_dbg_show;
+
+	chip->base = -1;
+	chip->ngpio = num_gpios;
+	chip->label = adnp->client->name;
+	chip->parent = &adnp->client->dev;
+	chip->of_node = chip->parent->of_node;
+	chip->owner = THIS_MODULE;
+
+	if (is_irq_controller) {
+		struct gpio_irq_chip *girq;
+
+		err = adnp_irq_setup(adnp);
+		if (err)
+			return err;
+
+		girq = &chip->irq;
+		girq->chip = &adnp_irq_chip;
+		/* This will let us handle the parent IRQ in the driver */
+		girq->parent_handler = NULL;
+		girq->num_parents = 0;
+		girq->parents = NULL;
+		girq->default_type = IRQ_TYPE_NONE;
+		girq->handler = handle_simple_irq;
+		girq->threaded = true;
 	}
 
-	gpiochip_set_nested_irqchip(chip, &adnp_irq_chip, adnp->client->irq);
+	err = devm_gpiochip_add_data(&adnp->client->dev, chip, adnp);
+	if (err)
+		return err;
 
 	return 0;
 }
@@ -503,15 +509,10 @@ static int adnp_i2c_probe(struct i2c_client *client,
 	mutex_init(&adnp->i2c_lock);
 	adnp->client = client;
 
-	err = adnp_gpio_setup(adnp, num_gpios);
+	err = adnp_gpio_setup(adnp, num_gpios,
+			of_property_read_bool(np, "interrupt-controller"));
 	if (err)
 		return err;
-
-	if (of_find_property(np, "interrupt-controller", NULL)) {
-		err = adnp_irq_setup(adnp);
-		if (err)
-			return err;
-	}
 
 	i2c_set_clientdata(client, adnp);
 
