@@ -181,7 +181,7 @@
 	INTEL_HSW_ULT_GT1_IDS(info), \
 	INTEL_HSW_ULX_GT1_IDS(info), \
 	INTEL_VGA_DEVICE(0x0402, info), /* GT1 desktop */ \
-	INTEL_VGA_DEVICE(0x040a, info), /* GT1 server */ \
+	INTEL_VGA_DEVICE(0x040A, info), /* GT1 server */ \
 	INTEL_VGA_DEVICE(0x040B, info), /* GT1 reserved */ \
 	INTEL_VGA_DEVICE(0x040E, info), /* GT1 reserved */ \
 	INTEL_VGA_DEVICE(0x0C02, info), /* SDV GT1 desktop */ \
@@ -209,7 +209,7 @@
 	INTEL_HSW_ULT_GT2_IDS(info), \
 	INTEL_HSW_ULX_GT2_IDS(info), \
 	INTEL_VGA_DEVICE(0x0412, info), /* GT2 desktop */ \
-	INTEL_VGA_DEVICE(0x041a, info), /* GT2 server */ \
+	INTEL_VGA_DEVICE(0x041A, info), /* GT2 server */ \
 	INTEL_VGA_DEVICE(0x041B, info), /* GT2 reserved */ \
 	INTEL_VGA_DEVICE(0x041E, info), /* GT2 reserved */ \
 	INTEL_VGA_DEVICE(0x0C12, info), /* SDV GT2 desktop */ \
@@ -234,7 +234,7 @@
 #define INTEL_HSW_GT3_IDS(info) \
 	INTEL_HSW_ULT_GT3_IDS(info), \
 	INTEL_VGA_DEVICE(0x0422, info), /* GT3 desktop */ \
-	INTEL_VGA_DEVICE(0x042a, info), /* GT3 server */ \
+	INTEL_VGA_DEVICE(0x042A, info), /* GT3 server */ \
 	INTEL_VGA_DEVICE(0x042B, info), /* GT3 reserved */ \
 	INTEL_VGA_DEVICE(0x042E, info), /* GT3 reserved */ \
 	INTEL_VGA_DEVICE(0x0C22, info), /* SDV GT3 desktop */ \
