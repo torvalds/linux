@@ -29,8 +29,10 @@ enum {
 struct fanotify_fh {
 	u8 type;
 	u8 len;
-	u8 pad[2];
-	unsigned char buf[FANOTIFY_INLINE_FH_LEN];
+#define FANOTIFY_FH_FLAG_EXT_BUF 1
+	u8 flags;
+	u8 pad;
+	unsigned char buf[];
 } __aligned(4);
 
 /* Variable size struct for dir file handle + child file handle + name */
@@ -50,7 +52,7 @@ struct fanotify_info {
 
 static inline bool fanotify_fh_has_ext_buf(struct fanotify_fh *fh)
 {
-	return fh->len > FANOTIFY_INLINE_FH_LEN;
+	return (fh->flags & FANOTIFY_FH_FLAG_EXT_BUF);
 }
 
 static inline char **fanotify_fh_ext_buf_ptr(struct fanotify_fh *fh)
@@ -154,6 +156,8 @@ struct fanotify_fid_event {
 	struct fanotify_event fae;
 	__kernel_fsid_t fsid;
 	struct fanotify_fh object_fh;
+	/* Reserve space in object_fh.buf[] - access with fanotify_fh_buf() */
+	unsigned char _inline_fh_buf[FANOTIFY_INLINE_FH_LEN];
 };
 
 static inline struct fanotify_fid_event *
@@ -166,8 +170,6 @@ struct fanotify_name_event {
 	struct fanotify_event fae;
 	__kernel_fsid_t fsid;
 	struct fanotify_info info;
-	/* Reserve space in info.buf[] - access with fanotify_info_dir_fh() */
-	struct fanotify_fh _dir_fh;
 };
 
 static inline struct fanotify_name_event *
