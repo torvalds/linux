@@ -3065,9 +3065,9 @@ void vmx_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 	vmx->emulation_required = emulation_required(vcpu);
 }
 
-static int vmx_get_tdp_level(struct kvm_vcpu *vcpu)
+static int vmx_get_max_tdp_level(void)
 {
-	if (cpu_has_vmx_ept_5levels() && (cpuid_maxphyaddr(vcpu) > 48))
+	if (cpu_has_vmx_ept_5levels())
 		return 5;
 	return 4;
 }
@@ -7959,7 +7959,7 @@ static struct kvm_x86_ops vmx_x86_ops __initdata = {
 
 	.set_tss_addr = vmx_set_tss_addr,
 	.set_identity_map_addr = vmx_set_identity_map_addr,
-	.get_tdp_level = vmx_get_tdp_level,
+	.get_max_tdp_level = vmx_get_max_tdp_level,
 	.get_mt_mask = vmx_get_mt_mask,
 
 	.get_exit_info = vmx_get_exit_info,
