@@ -742,6 +742,7 @@ static int smmu_pmu_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, smmu_pmu);
 
 	smmu_pmu->pmu = (struct pmu) {
+		.module		= THIS_MODULE,
 		.task_ctx_nr    = perf_invalid_context,
 		.pmu_enable	= smmu_pmu_enable,
 		.pmu_disable	= smmu_pmu_disable,

@@ -380,6 +380,7 @@ static int hisi_l3c_pmu_probe(struct platform_device *pdev)
 			      l3c_pmu->sccl_id, l3c_pmu->index_id);
 	l3c_pmu->pmu = (struct pmu) {
 		.name		= name,
+		.module		= THIS_MODULE,
 		.task_ctx_nr	= perf_invalid_context,
 		.event_init	= hisi_uncore_pmu_event_init,
 		.pmu_enable	= hisi_uncore_pmu_enable,
