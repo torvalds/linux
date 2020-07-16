@@ -66,18 +66,16 @@ static int fanotify_fid_info_len(int fh_len, int name_len)
 
 static int fanotify_event_info_len(struct fanotify_event *event)
 {
-	int info_len = 0;
+	struct fanotify_info *info = fanotify_event_info(event);
+	int dir_fh_len = fanotify_event_dir_fh_len(event);
 	int fh_len = fanotify_event_object_fh_len(event);
+	int info_len = 0;
+
+	if (dir_fh_len)
+		info_len += fanotify_fid_info_len(dir_fh_len, info->name_len);
 
 	if (fh_len)
 		info_len += fanotify_fid_info_len(fh_len, 0);
-
-	if (fanotify_event_name_len(event)) {
-		struct fanotify_name_event *fne = FANOTIFY_NE(event);
-
-		info_len += fanotify_fid_info_len(fne->dir_fh.len,
-						  fne->name_len);
-	}
 
 	return info_len;
 }
@@ -305,6 +303,7 @@ static ssize_t copy_event_to_user(struct fsnotify_group *group,
 {
 	struct fanotify_event_metadata metadata;
 	struct path *path = fanotify_event_path(event);
+	struct fanotify_info *info = fanotify_event_info(event);
 	struct file *f = NULL;
 	int ret, fd = FAN_NOFD;
 
@@ -346,13 +345,11 @@ static ssize_t copy_event_to_user(struct fsnotify_group *group,
 		fd_install(fd, f);
 
 	/* Event info records order is: dir fid + name, child fid */
-	if (fanotify_event_name_len(event)) {
-		struct fanotify_name_event *fne = FANOTIFY_NE(event);
-
+	if (fanotify_event_dir_fh_len(event)) {
 		ret = copy_info_to_user(fanotify_event_fsid(event),
-					fanotify_event_dir_fh(event),
-					fne->name, fne->name_len,
-					buf, count);
+					fanotify_info_dir_fh(info),
+					fanotify_info_name(info),
+					info->name_len, buf, count);
 		if (ret < 0)
 			return ret;
 

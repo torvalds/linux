@@ -49,22 +49,44 @@ static bool fanotify_fid_event_equal(struct fanotify_fid_event *ffe1,
 		fanotify_fh_equal(&ffe1->object_fh, &ffe2->object_fh);
 }
 
+static bool fanotify_info_equal(struct fanotify_info *info1,
+				struct fanotify_info *info2)
+{
+	if (info1->dir_fh_totlen != info2->dir_fh_totlen ||
+	    info1->file_fh_totlen != info2->file_fh_totlen ||
+	    info1->name_len != info2->name_len)
+		return false;
+
+	if (info1->dir_fh_totlen &&
+	    !fanotify_fh_equal(fanotify_info_dir_fh(info1),
+			       fanotify_info_dir_fh(info2)))
+		return false;
+
+	if (info1->file_fh_totlen &&
+	    !fanotify_fh_equal(fanotify_info_file_fh(info1),
+			       fanotify_info_file_fh(info2)))
+		return false;
+
+	return !info1->name_len ||
+		!memcmp(fanotify_info_name(info1), fanotify_info_name(info2),
+			info1->name_len);
+}
+
 static bool fanotify_name_event_equal(struct fanotify_name_event *fne1,
 				      struct fanotify_name_event *fne2)
 {
+	struct fanotify_info *info1 = &fne1->info;
+	struct fanotify_info *info2 = &fne2->info;
+
 	/* Do not merge name events without dir fh */
-	if (!fne1->dir_fh.len)
+	if (!info1->dir_fh_totlen)
 		return false;
 
-	if (fne1->name_len != fne2->name_len ||
-	    !fanotify_fh_equal(&fne1->dir_fh, &fne2->dir_fh))
-		return false;
-
-	return !memcmp(fne1->name, fne2->name, fne1->name_len);
+	return fanotify_info_equal(info1, info2);
 }
 
 static bool fanotify_should_merge(struct fsnotify_event *old_fsn,
-			 struct fsnotify_event *new_fsn)
+				  struct fsnotify_event *new_fsn)
 {
 	struct fanotify_event *old, *new;
 
@@ -276,8 +298,14 @@ static u32 fanotify_group_event_mask(struct fsnotify_group *group,
 	return test_mask & user_mask;
 }
 
-static void fanotify_encode_fh(struct fanotify_fh *fh, struct inode *inode,
-			       gfp_t gfp)
+/*
+ * Encode fanotify_fh.
+ *
+ * Return total size of encoded fh including fanotify_fh header.
+ * Return 0 on failure to encode.
+ */
+static int fanotify_encode_fh(struct fanotify_fh *fh, struct inode *inode,
+			      gfp_t gfp)
 {
 	int dwords, type, bytes = 0;
 	char *ext_buf = NULL;
@@ -287,7 +315,7 @@ static void fanotify_encode_fh(struct fanotify_fh *fh, struct inode *inode,
 	fh->type = FILEID_ROOT;
 	fh->len = 0;
 	if (!inode)
-		return;
+		return 0;
 
 	dwords = 0;
 	err = -ENOENT;
@@ -315,7 +343,7 @@ static void fanotify_encode_fh(struct fanotify_fh *fh, struct inode *inode,
 	fh->type = type;
 	fh->len = bytes;
 
-	return;
+	return FANOTIFY_FH_HDR_LEN + bytes;
 
 out_err:
 	pr_warn_ratelimited("fanotify: failed to encode fid (type=%d, len=%d, err=%i)\n",
@@ -325,6 +353,7 @@ out_err:
 	/* Report the event without a file identifier on encode error */
 	fh->type = FILEID_INVALID;
 	fh->len = 0;
+	return 0;
 }
 
 /*
@@ -401,6 +430,8 @@ static struct fanotify_event *fanotify_alloc_name_event(struct inode *id,
 							gfp_t gfp)
 {
 	struct fanotify_name_event *fne;
+	struct fanotify_info *info;
+	struct fanotify_fh *dfh;
 
 	fne = kmalloc(sizeof(*fne) + file_name->len + 1, gfp);
 	if (!fne)
@@ -408,9 +439,11 @@ static struct fanotify_event *fanotify_alloc_name_event(struct inode *id,
 
 	fne->fae.type = FANOTIFY_EVENT_TYPE_FID_NAME;
 	fne->fsid = *fsid;
-	fanotify_encode_fh(&fne->dir_fh, id, gfp);
-	fne->name_len = file_name->len;
-	strcpy(fne->name, file_name->name);
+	info = &fne->info;
+	fanotify_info_init(info);
+	dfh = fanotify_info_dir_fh(info);
+	info->dir_fh_totlen = fanotify_encode_fh(dfh, id, gfp);
+	fanotify_info_copy_name(info, file_name);
 
 	return &fne->fae;
 }
@@ -626,9 +659,10 @@ static void fanotify_free_fid_event(struct fanotify_event *event)
 static void fanotify_free_name_event(struct fanotify_event *event)
 {
 	struct fanotify_name_event *fne = FANOTIFY_NE(event);
+	struct fanotify_fh *dfh = fanotify_info_dir_fh(&fne->info);
 
-	if (fanotify_fh_has_ext_buf(&fne->dir_fh))
-		kfree(fanotify_fh_ext_buf(&fne->dir_fh));
+	if (fanotify_fh_has_ext_buf(dfh))
+		kfree(fanotify_fh_ext_buf(dfh));
 	kfree(fne);
 }
 

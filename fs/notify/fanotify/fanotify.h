@@ -23,11 +23,29 @@ enum {
  * stored in either the first or last 2 dwords.
  */
 #define FANOTIFY_INLINE_FH_LEN	(3 << 2)
+#define FANOTIFY_FH_HDR_LEN	offsetof(struct fanotify_fh, buf)
 
+/* Fixed size struct for file handle */
 struct fanotify_fh {
-	unsigned char buf[FANOTIFY_INLINE_FH_LEN];
 	u8 type;
 	u8 len;
+	u8 pad[2];
+	unsigned char buf[FANOTIFY_INLINE_FH_LEN];
+} __aligned(4);
+
+/* Variable size struct for dir file handle + child file handle + name */
+struct fanotify_info {
+	/* size of dir_fh/file_fh including fanotify_fh hdr size */
+	u8 dir_fh_totlen;
+	u8 file_fh_totlen;
+	u8 name_len;
+	u8 pad;
+	unsigned char buf[];
+	/*
+	 * (struct fanotify_fh) dir_fh starts at buf[0]
+	 * (optional) file_fh starts at buf[dir_fh_totlen]
+	 * name starts at buf[dir_fh_totlen + file_fh_totlen]
+	 */
 } __aligned(4);
 
 static inline bool fanotify_fh_has_ext_buf(struct fanotify_fh *fh)
@@ -37,6 +55,7 @@ static inline bool fanotify_fh_has_ext_buf(struct fanotify_fh *fh)
 
 static inline char **fanotify_fh_ext_buf_ptr(struct fanotify_fh *fh)
 {
+	BUILD_BUG_ON(FANOTIFY_FH_HDR_LEN % 4);
 	BUILD_BUG_ON(__alignof__(char *) - 4 + sizeof(char *) >
 		     FANOTIFY_INLINE_FH_LEN);
 	return (char **)ALIGN((unsigned long)(fh->buf), __alignof__(char *));
@@ -50,6 +69,56 @@ static inline void *fanotify_fh_ext_buf(struct fanotify_fh *fh)
 static inline void *fanotify_fh_buf(struct fanotify_fh *fh)
 {
 	return fanotify_fh_has_ext_buf(fh) ? fanotify_fh_ext_buf(fh) : fh->buf;
+}
+
+static inline int fanotify_info_dir_fh_len(struct fanotify_info *info)
+{
+	if (!info->dir_fh_totlen ||
+	    WARN_ON_ONCE(info->dir_fh_totlen < FANOTIFY_FH_HDR_LEN))
+		return 0;
+
+	return info->dir_fh_totlen - FANOTIFY_FH_HDR_LEN;
+}
+
+static inline struct fanotify_fh *fanotify_info_dir_fh(struct fanotify_info *info)
+{
+	BUILD_BUG_ON(offsetof(struct fanotify_info, buf) % 4);
+
+	return (struct fanotify_fh *)info->buf;
+}
+
+static inline int fanotify_info_file_fh_len(struct fanotify_info *info)
+{
+	if (!info->file_fh_totlen ||
+	    WARN_ON_ONCE(info->file_fh_totlen < FANOTIFY_FH_HDR_LEN))
+		return 0;
+
+	return info->file_fh_totlen - FANOTIFY_FH_HDR_LEN;
+}
+
+static inline struct fanotify_fh *fanotify_info_file_fh(struct fanotify_info *info)
+{
+	return (struct fanotify_fh *)(info->buf + info->dir_fh_totlen);
+}
+
+static inline const char *fanotify_info_name(struct fanotify_info *info)
+{
+	return info->buf + info->dir_fh_totlen + info->file_fh_totlen;
+}
+
+static inline void fanotify_info_init(struct fanotify_info *info)
+{
+	info->dir_fh_totlen = 0;
+	info->file_fh_totlen = 0;
+	info->name_len = 0;
+}
+
+static inline void fanotify_info_copy_name(struct fanotify_info *info,
+					   const struct qstr *name)
+{
+	info->name_len = name->len;
+	strcpy(info->buf + info->dir_fh_totlen + info->file_fh_totlen,
+	       name->name);
 }
 
 /*
@@ -96,9 +165,9 @@ FANOTIFY_FE(struct fanotify_event *event)
 struct fanotify_name_event {
 	struct fanotify_event fae;
 	__kernel_fsid_t fsid;
-	struct fanotify_fh dir_fh;
-	u8 name_len;
-	char name[];
+	struct fanotify_info info;
+	/* Reserve space in info.buf[] - access with fanotify_info_dir_fh() */
+	struct fanotify_fh _dir_fh;
 };
 
 static inline struct fanotify_name_event *
@@ -126,11 +195,11 @@ static inline struct fanotify_fh *fanotify_event_object_fh(
 		return NULL;
 }
 
-static inline struct fanotify_fh *fanotify_event_dir_fh(
+static inline struct fanotify_info *fanotify_event_info(
 						struct fanotify_event *event)
 {
 	if (event->type == FANOTIFY_EVENT_TYPE_FID_NAME)
-		return &FANOTIFY_NE(event)->dir_fh;
+		return &FANOTIFY_NE(event)->info;
 	else
 		return NULL;
 }
@@ -142,15 +211,11 @@ static inline int fanotify_event_object_fh_len(struct fanotify_event *event)
 	return fh ? fh->len : 0;
 }
 
-static inline bool fanotify_event_has_name(struct fanotify_event *event)
+static inline int fanotify_event_dir_fh_len(struct fanotify_event *event)
 {
-	return event->type == FANOTIFY_EVENT_TYPE_FID_NAME;
-}
+	struct fanotify_info *info = fanotify_event_info(event);
 
-static inline int fanotify_event_name_len(struct fanotify_event *event)
-{
-	return fanotify_event_has_name(event) ?
-		FANOTIFY_NE(event)->name_len : 0;
+	return info ? fanotify_info_dir_fh_len(info) : 0;
 }
 
 struct fanotify_path_event {
