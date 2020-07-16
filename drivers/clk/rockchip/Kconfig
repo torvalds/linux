@@ -38,7 +38,7 @@ config CLK_RK3036
 	  Build the driver for RK3036 Clock Driver.
 
 config CLK_RK312X
-	bool "Rockchip RK312x clock controller support"
+	tristate "Rockchip RK312x clock controller support"
 	depends on ARM || COMPILE_TEST
 	default y
 	help
