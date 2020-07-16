@@ -301,7 +301,7 @@ static int mmc35240_read_measurement(struct mmc35240_data *data, __le16 buf[3])
 
 /**
  * mmc35240_raw_to_mgauss - convert raw readings to milli gauss. Also apply
-			    compensation for output value.
+ *			    compensation for output value.
  *
  * @data: device private data
  * @index: axis index for which we want the conversion
