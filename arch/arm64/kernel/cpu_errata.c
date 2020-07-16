@@ -234,14 +234,17 @@ static int detect_harden_bp_fw(void)
 		smccc_end = NULL;
 		break;
 
-#if IS_ENABLED(CONFIG_KVM)
 	case SMCCC_CONDUIT_SMC:
 		cb = call_smc_arch_workaround_1;
+#if IS_ENABLED(CONFIG_KVM)
 		smccc_start = __smccc_workaround_1_smc;
 		smccc_end = __smccc_workaround_1_smc +
 			__SMCCC_WORKAROUND_1_SMC_SZ;
-		break;
+#else
+		smccc_start = NULL;
+		smccc_end = NULL;
 #endif
+		break;
 
 	default:
 		return -1;
