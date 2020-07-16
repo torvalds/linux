@@ -80,7 +80,7 @@ config CLK_RK3328
 	  Build the driver for RK3328 Clock Driver.
 
 config CLK_RK3368
-	bool "Rockchip RK3368 clock controller support"
+	tristate "Rockchip RK3368 clock controller support"
 	depends on ARM64 || COMPILE_TEST
 	default y
 	help

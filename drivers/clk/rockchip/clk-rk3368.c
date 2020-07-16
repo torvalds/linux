@@ -5,8 +5,10 @@
 
 #include <linux/clk-provider.h>
 #include <linux/io.h>
+#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <dt-bindings/clock/rk3368-cru.h>
 #include "clk.h"
@@ -948,3 +950,31 @@ static void __init rk3368_clk_init(struct device_node *np)
 	}
 }
 CLK_OF_DECLARE(rk3368_cru, "rockchip,rk3368-cru", rk3368_clk_init);
+
+static int __init clk_rk3368_probe(struct platform_device *pdev)
+{
+	struct device_node *np = pdev->dev.of_node;
+
+	rk3368_clk_init(np);
+
+	return 0;
+}
+
+static const struct of_device_id clk_rk3368_match_table[] = {
+	{
+		.compatible = "rockchip,rk3368-cru",
+	},
+	{ }
+};
+MODULE_DEVICE_TABLE(of, clk_rk3368_match_table);
+
+static struct platform_driver clk_rk3368_driver = {
+	.driver		= {
+		.name	= "clk-rk3368",
+		.of_match_table = clk_rk3368_match_table,
+	},
+};
+builtin_platform_driver_probe(clk_rk3368_driver, clk_rk3368_probe);
+
+MODULE_DESCRIPTION("Rockchip RK3368 Clock Driver");
+MODULE_LICENSE("GPL");
