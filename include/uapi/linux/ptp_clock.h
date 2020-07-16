@@ -53,12 +53,14 @@
 /*
  * Bits of the ptp_perout_request.flags field:
  */
-#define PTP_PEROUT_ONE_SHOT (1<<0)
+#define PTP_PEROUT_ONE_SHOT		(1<<0)
+#define PTP_PEROUT_DUTY_CYCLE		(1<<1)
 
 /*
  * flag fields valid for the new PTP_PEROUT_REQUEST2 ioctl.
  */
-#define PTP_PEROUT_VALID_FLAGS	(PTP_PEROUT_ONE_SHOT)
+#define PTP_PEROUT_VALID_FLAGS		(PTP_PEROUT_ONE_SHOT | \
+					 PTP_PEROUT_DUTY_CYCLE)
 
 /*
  * No flags are valid for the original PTP_PEROUT_REQUEST ioctl
@@ -105,7 +107,16 @@ struct ptp_perout_request {
 	struct ptp_clock_time period; /* Desired period, zero means disable. */
 	unsigned int index;           /* Which channel to configure. */
 	unsigned int flags;
-	unsigned int rsv[4];          /* Reserved for future use. */
+	union {
+		/*
+		 * The "on" time of the signal.
+		 * Must be lower than the period.
+		 * Valid only if (flags & PTP_PEROUT_DUTY_CYCLE) is set.
+		 */
+		struct ptp_clock_time on;
+		/* Reserved for future use. */
+		unsigned int rsv[4];
+	};
 };
 
 #define PTP_MAX_SAMPLES 25 /* Maximum allowed offset measurement samples. */
