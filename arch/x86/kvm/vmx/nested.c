@@ -2162,7 +2162,8 @@ static void prepare_vmcs02_constant_state(struct vcpu_vmx *vmx)
 	 * consistency checks.
 	 */
 	if (enable_ept && nested_early_check)
-		vmcs_write64(EPT_POINTER, construct_eptp(&vmx->vcpu, 0));
+		vmcs_write64(EPT_POINTER,
+			     construct_eptp(&vmx->vcpu, 0, PT64_ROOT_4LEVEL));
 
 	/* All VMFUNCs are currently emulated through L0 vmexits.  */
 	if (cpu_has_vmx_vmfunc())

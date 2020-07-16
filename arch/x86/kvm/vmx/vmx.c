@@ -2933,14 +2933,16 @@ static void vmx_flush_tlb_all(struct kvm_vcpu *vcpu)
 
 static void vmx_flush_tlb_current(struct kvm_vcpu *vcpu)
 {
-	u64 root_hpa = vcpu->arch.mmu->root_hpa;
+	struct kvm_mmu *mmu = vcpu->arch.mmu;
+	u64 root_hpa = mmu->root_hpa;
 
 	/* No flush required if the current context is invalid. */
 	if (!VALID_PAGE(root_hpa))
 		return;
 
 	if (enable_ept)
-		ept_sync_context(construct_eptp(vcpu, root_hpa));
+		ept_sync_context(construct_eptp(vcpu, root_hpa,
+						mmu->shadow_root_level));
 	else if (!is_guest_mode(vcpu))
 		vpid_sync_context(to_vmx(vcpu)->vpid);
 	else
@@ -3078,11 +3080,12 @@ static int get_ept_level(struct kvm_vcpu *vcpu)
 	return vmx_get_tdp_level(vcpu);
 }
 
-u64 construct_eptp(struct kvm_vcpu *vcpu, unsigned long root_hpa)
+u64 construct_eptp(struct kvm_vcpu *vcpu, unsigned long root_hpa,
+		   int root_level)
 {
 	u64 eptp = VMX_EPTP_MT_WB;
 
-	eptp |= (get_ept_level(vcpu) == 5) ? VMX_EPTP_PWL_5 : VMX_EPTP_PWL_4;
+	eptp |= (root_level == 5) ? VMX_EPTP_PWL_5 : VMX_EPTP_PWL_4;
 
 	if (enable_ept_ad_bits &&
 	    (!is_guest_mode(vcpu) || nested_ept_ad_enabled(vcpu)))
@@ -3092,7 +3095,8 @@ u64 construct_eptp(struct kvm_vcpu *vcpu, unsigned long root_hpa)
 	return eptp;
 }
 
-static void vmx_load_mmu_pgd(struct kvm_vcpu *vcpu, unsigned long pgd)
+static void vmx_load_mmu_pgd(struct kvm_vcpu *vcpu, unsigned long pgd,
+			     int pgd_level)
 {
 	struct kvm *kvm = vcpu->kvm;
 	bool update_guest_cr3 = true;
@@ -3100,7 +3104,9 @@ static void vmx_load_mmu_pgd(struct kvm_vcpu *vcpu, unsigned long pgd)
 	u64 eptp;
 
 	if (enable_ept) {
-		eptp = construct_eptp(vcpu, pgd);
+		WARN_ON(pgd_level != get_ept_level(vcpu));
+
+		eptp = construct_eptp(vcpu, pgd, pgd_level);
 		vmcs_write64(EPT_POINTER, eptp);
 
 		if (kvm_x86_ops.tlb_remote_flush) {

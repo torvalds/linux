@@ -1136,7 +1136,8 @@ struct kvm_x86_ops {
 	int (*get_tdp_level)(struct kvm_vcpu *vcpu);
 	u64 (*get_mt_mask)(struct kvm_vcpu *vcpu, gfn_t gfn, bool is_mmio);
 
-	void (*load_mmu_pgd)(struct kvm_vcpu *vcpu, unsigned long cr3);
+	void (*load_mmu_pgd)(struct kvm_vcpu *vcpu, unsigned long pgd,
+			     int pgd_level);
 
 	bool (*has_wbinvd_exit)(void);
 
