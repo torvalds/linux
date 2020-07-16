@@ -24,7 +24,7 @@ config CLK_RV110X
 	  Build the driver for RV110x Clock Driver.
 
 config CLK_RK1808
-	bool "Rockchip RK1808 clock controller support"
+	tristate "Rockchip RK1808 clock controller support"
 	depends on ARM64 || COMPILE_TEST
 	default y
 	help

@@ -4,8 +4,10 @@
  * Author: Elaine Zhang <zhangqing@rock-chips.com>
  */
 #include <linux/clk-provider.h>
+#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/of_device.h>
 #include <linux/syscore_ops.h>
 #include <dt-bindings/clock/rk1808-cru.h>
 #include "clk.h"
@@ -1239,3 +1241,31 @@ static void __init rk1808_clk_init(struct device_node *np)
 }
 
 CLK_OF_DECLARE(rk1808_cru, "rockchip,rk1808-cru", rk1808_clk_init);
+
+static int __init clk_rk1808_probe(struct platform_device *pdev)
+{
+	struct device_node *np = pdev->dev.of_node;
+
+	rk1808_clk_init(np);
+
+	return 0;
+}
+
+static const struct of_device_id clk_rk1808_match_table[] = {
+	{
+		.compatible = "rockchip,rk1808-cru",
+	},
+	{ }
+};
+MODULE_DEVICE_TABLE(of, clk_rk1808_match_table);
+
+static struct platform_driver clk_rk1808_driver = {
+	.driver		= {
+		.name	= "clk-rk1808",
+		.of_match_table = clk_rk1808_match_table,
+	},
+};
+builtin_platform_driver_probe(clk_rk1808_driver, clk_rk1808_probe);
+
+MODULE_DESCRIPTION("Rockchip RK1808 Clock Driver");
+MODULE_LICENSE("GPL");
