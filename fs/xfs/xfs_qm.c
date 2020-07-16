@@ -830,7 +830,6 @@ xfs_qm_reset_dqcounts(
 {
 	struct xfs_dqblk	*dqb;
 	int			j;
-	xfs_failaddr_t		fa;
 
 	trace_xfs_reset_dqcounts(bp, _RET_IP_);
 
@@ -855,8 +854,8 @@ xfs_qm_reset_dqcounts(
 		 * find uninitialised dquot blks. See comment in
 		 * xfs_dquot_verify.
 		 */
-		fa = xfs_dqblk_verify(mp, &dqb[j], id + j, type);
-		if (fa)
+		if (xfs_dqblk_verify(mp, &dqb[j], id + j) ||
+		    (dqb[j].dd_diskdq.d_flags & XFS_DQ_ALLTYPES) != type)
 			xfs_dqblk_repair(mp, &dqb[j], id + j, type);
 
 		/*

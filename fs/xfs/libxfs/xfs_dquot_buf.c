@@ -37,8 +37,7 @@ xfs_failaddr_t
 xfs_dquot_verify(
 	struct xfs_mount	*mp,
 	struct xfs_disk_dquot	*ddq,
-	xfs_dqid_t		id,
-	uint			type)	/* used only during quotacheck */
+	xfs_dqid_t		id)	/* used only during quotacheck */
 {
 	/*
 	 * We can encounter an uninitialized dquot buffer for 2 reasons:
@@ -60,8 +59,6 @@ xfs_dquot_verify(
 	if (ddq->d_version != XFS_DQUOT_VERSION)
 		return __this_address;
 
-	if (type && ddq->d_flags != type)
-		return __this_address;
 	if (ddq->d_flags != XFS_DQ_USER &&
 	    ddq->d_flags != XFS_DQ_PROJ &&
 	    ddq->d_flags != XFS_DQ_GROUP)
@@ -95,14 +92,13 @@ xfs_failaddr_t
 xfs_dqblk_verify(
 	struct xfs_mount	*mp,
 	struct xfs_dqblk	*dqb,
-	xfs_dqid_t	 	id,
-	uint		 	type)	/* used only during quotacheck */
+	xfs_dqid_t		id)	/* used only during quotacheck */
 {
 	if (xfs_sb_version_hascrc(&mp->m_sb) &&
 	    !uuid_equal(&dqb->dd_uuid, &mp->m_sb.sb_meta_uuid))
 		return __this_address;
 
-	return xfs_dquot_verify(mp, &dqb->dd_diskdq, id, type);
+	return xfs_dquot_verify(mp, &dqb->dd_diskdq, id);
 }
 
 /*
@@ -205,7 +201,7 @@ xfs_dquot_buf_verify(
 		if (i == 0)
 			id = be32_to_cpu(ddq->d_id);
 
-		fa = xfs_dqblk_verify(mp, &dqb[i], id + i, 0);
+		fa = xfs_dqblk_verify(mp, &dqb[i], id + i);
 		if (fa) {
 			if (!readahead)
 				xfs_buf_verifier_error(bp, -EFSCORRUPTED,
