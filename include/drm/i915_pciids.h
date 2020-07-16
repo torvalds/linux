@@ -340,8 +340,8 @@
 	INTEL_SKL_ULT_GT1_IDS(info), \
 	INTEL_SKL_ULX_GT1_IDS(info), \
 	INTEL_VGA_DEVICE(0x1902, info), /* DT  GT1 */ \
-	INTEL_VGA_DEVICE(0x190B, info), /* Halo GT1 */ \
 	INTEL_VGA_DEVICE(0x190A, info), /* SRV GT1 */ \
+	INTEL_VGA_DEVICE(0x190B, info), /* Halo GT1 */ \
 	INTEL_VGA_DEVICE(0x1917, info)  /* DT  GT1.5 */
 
 #define INTEL_SKL_ULT_GT2_IDS(info) \
@@ -355,8 +355,8 @@
 	INTEL_SKL_ULT_GT2_IDS(info), \
 	INTEL_SKL_ULX_GT2_IDS(info), \
 	INTEL_VGA_DEVICE(0x1912, info), /* DT  GT2 */ \
-	INTEL_VGA_DEVICE(0x191B, info), /* Halo GT2 */ \
 	INTEL_VGA_DEVICE(0x191A, info), /* SRV GT2 */ \
+	INTEL_VGA_DEVICE(0x191B, info), /* Halo GT2 */ \
 	INTEL_VGA_DEVICE(0x191D, info)  /* WKS GT2 */
 
 #define INTEL_SKL_ULT_GT3_IDS(info) \
@@ -372,9 +372,9 @@
 
 #define INTEL_SKL_GT4_IDS(info) \
 	INTEL_VGA_DEVICE(0x1932, info), /* DT GT4 */ \
+	INTEL_VGA_DEVICE(0x193A, info), /* SRV GT4e */ \
 	INTEL_VGA_DEVICE(0x193B, info), /* Halo GT4e */ \
-	INTEL_VGA_DEVICE(0x193D, info), /* WKS GT4e */ \
-	INTEL_VGA_DEVICE(0x193A, info)  /* SRV GT4e */
+	INTEL_VGA_DEVICE(0x193D, info) /* WKS GT4e */
 
 #define INTEL_SKL_IDS(info)	 \
 	INTEL_SKL_GT1_IDS(info), \
