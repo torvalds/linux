@@ -1110,12 +1110,6 @@ static int iep_drv_probe(struct platform_device *pdev)
 err_misc_register:
 	free_irq(data->irq0, pdev);
 err_irq:
-	if (res) {
-		if (data->iep_base) {
-			devm_ioremap_release(&pdev->dev, res);
-		}
-		devm_release_mem_region(&pdev->dev, res->start, resource_size(res));
-	}
 err_ioremap:
 	wake_lock_destroy(&data->wake_lock);
 #ifdef IEP_CLK_ENABLE
@@ -1127,7 +1121,6 @@ err_clock:
 static int iep_drv_remove(struct platform_device *pdev)
 {
 	struct iep_drvdata *data = platform_get_drvdata(pdev);
-	struct resource *res;
 
 	iep_iommu_info_destroy(iep_service.iommu_info);
 	iep_service.iommu_info = NULL;
@@ -1136,20 +1129,8 @@ static int iep_drv_remove(struct platform_device *pdev)
 
 	misc_deregister(&(data->miscdev));
 	free_irq(data->irq0, &data->miscdev);
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	devm_ioremap_release(&pdev->dev, res);
-	devm_release_mem_region(&pdev->dev, res->start, resource_size(res));
 
 #ifdef IEP_CLK_ENABLE
-	if (data->aclk_iep)
-		devm_clk_put(&pdev->dev, data->aclk_iep);
-
-	if (data->hclk_iep)
-		devm_clk_put(&pdev->dev, data->hclk_iep);
-
-	if (data->pd_iep)
-		devm_clk_put(&pdev->dev, data->pd_iep);
-
 	pm_runtime_disable(data->dev);
 #endif
 
