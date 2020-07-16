@@ -2217,9 +2217,9 @@ static int grow_stripes(struct r5conf *conf, int num)
 /**
  * scribble_alloc - allocate percpu scribble buffer for required size
  *		    of the scribble region
- * @percpu - from for_each_present_cpu() of the caller
- * @num - total number of disks in the array
- * @cnt - scribble objs count for required size of the scribble region
+ * @percpu: from for_each_present_cpu() of the caller
+ * @num: total number of disks in the array
+ * @cnt: scribble objs count for required size of the scribble region
  *
  * The scribble buffer size must be enough to contain:
  * 1/ a struct page pointer for each device in the array +2
@@ -3710,7 +3710,7 @@ static int fetch_block(struct stripe_head *sh, struct stripe_head_state *s,
 	return 0;
 }
 
-/**
+/*
  * handle_stripe_fill - read or compute data to satisfy pending requests.
  */
 static void handle_stripe_fill(struct stripe_head *sh,
@@ -7944,8 +7944,8 @@ static int raid5_start_reshape(struct mddev *mddev)
 					else
 						rdev->recovery_offset = 0;
 
-					if (sysfs_link_rdev(mddev, rdev))
-						/* Failure here is OK */;
+					/* Failure here is OK */
+					sysfs_link_rdev(mddev, rdev);
 				}
 			} else if (rdev->raid_disk >= conf->previous_raid_disks
 				   && !test_bit(Faulty, &rdev->flags)) {
