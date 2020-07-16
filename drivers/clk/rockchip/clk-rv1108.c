@@ -7,8 +7,10 @@
 
 #include <linux/clk-provider.h>
 #include <linux/io.h>
+#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/of_device.h>
 #include <linux/syscore_ops.h>
 #include <dt-bindings/clock/rv1108-cru.h>
 #include "clk.h"
@@ -840,3 +842,31 @@ static void __init rv1108_clk_init(struct device_node *np)
 	}
 }
 CLK_OF_DECLARE(rv1108_cru, "rockchip,rv1108-cru", rv1108_clk_init);
+
+static int __init clk_rv1108_probe(struct platform_device *pdev)
+{
+	struct device_node *np = pdev->dev.of_node;
+
+	rv1108_clk_init(np);
+
+	return 0;
+}
+
+static const struct of_device_id clk_rv1108_match_table[] = {
+	{
+		.compatible = "rockchip,rv1108-cru",
+	},
+	{ }
+};
+MODULE_DEVICE_TABLE(of, clk_rv1108_match_table);
+
+static struct platform_driver clk_rv1108_driver = {
+	.driver		= {
+		.name	= "clk-rv1108",
+		.of_match_table = clk_rv1108_match_table,
+	},
+};
+builtin_platform_driver_probe(clk_rv1108_driver, clk_rv1108_probe);
+
+MODULE_DESCRIPTION("Rockchip RV1108 Clock Driver");
+MODULE_LICENSE("GPL");
