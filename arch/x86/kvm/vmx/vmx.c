@@ -3072,14 +3072,6 @@ static int vmx_get_tdp_level(struct kvm_vcpu *vcpu)
 	return 4;
 }
 
-static int get_ept_level(struct kvm_vcpu *vcpu)
-{
-	if (is_guest_mode(vcpu) && nested_cpu_has_ept(get_vmcs12(vcpu)))
-		return vmx_eptp_page_walk_level(nested_ept_get_eptp(vcpu));
-
-	return vmx_get_tdp_level(vcpu);
-}
-
 u64 construct_eptp(struct kvm_vcpu *vcpu, unsigned long root_hpa,
 		   int root_level)
 {
@@ -3104,8 +3096,6 @@ static void vmx_load_mmu_pgd(struct kvm_vcpu *vcpu, unsigned long pgd,
 	u64 eptp;
 
 	if (enable_ept) {
-		WARN_ON(pgd_level != get_ept_level(vcpu));
-
 		eptp = construct_eptp(vcpu, pgd, pgd_level);
 		vmcs_write64(EPT_POINTER, eptp);
 
