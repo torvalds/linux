@@ -5,7 +5,7 @@
 #ifndef __ROCKCHIP_CPUFREQ_H
 #define __ROCKCHIP_CPUFREQ_H
 
-#ifdef CONFIG_ARM_ROCKCHIP_CPUFREQ
+#if IS_ENABLED(CONFIG_ARM_ROCKCHIP_CPUFREQ)
 unsigned int rockchip_cpufreq_adjust_target(int cpu, unsigned int freq);
 int rockchip_cpufreq_check_rate_volt(struct device *dev);
 int rockchip_cpufreq_set_opp_info(struct device *dev);
