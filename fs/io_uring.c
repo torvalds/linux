@@ -1922,18 +1922,23 @@ static inline unsigned int io_sqring_entries(struct io_ring_ctx *ctx)
 	return smp_load_acquire(&rings->sq.tail) - ctx->cached_sq_head;
 }
 
-static int io_put_kbuf(struct io_kiocb *req)
+static unsigned int io_put_kbuf(struct io_kiocb *req, struct io_buffer *kbuf)
 {
-	struct io_buffer *kbuf;
-	int cflags;
+	unsigned int cflags;
 
-	kbuf = (struct io_buffer *) (unsigned long) req->rw.addr;
 	cflags = kbuf->bid << IORING_CQE_BUFFER_SHIFT;
 	cflags |= IORING_CQE_F_BUFFER;
-	req->rw.addr = 0;
 	req->flags &= ~REQ_F_BUFFER_SELECTED;
 	kfree(kbuf);
 	return cflags;
+}
+
+static inline unsigned int io_put_rw_kbuf(struct io_kiocb *req)
+{
+	struct io_buffer *kbuf;
+
+	kbuf = (struct io_buffer *) (unsigned long) req->rw.addr;
+	return io_put_kbuf(req, kbuf);
 }
 
 static inline bool io_run_task_work(void)
@@ -1985,7 +1990,7 @@ static void io_iopoll_complete(struct io_ring_ctx *ctx, unsigned int *nr_events,
 		list_del(&req->inflight_entry);
 
 		if (req->flags & REQ_F_BUFFER_SELECTED)
-			cflags = io_put_kbuf(req);
+			cflags = io_put_rw_kbuf(req);
 
 		__io_cqring_fill_event(req, req->result, cflags);
 		(*nr_events)++;
@@ -2177,7 +2182,7 @@ static void io_complete_rw_common(struct kiocb *kiocb, long res,
 	if (res != req->result)
 		req_set_fail_links(req);
 	if (req->flags & REQ_F_BUFFER_SELECTED)
-		cflags = io_put_kbuf(req);
+		cflags = io_put_rw_kbuf(req);
 	__io_req_complete(req, res, cflags, cs);
 }
 
