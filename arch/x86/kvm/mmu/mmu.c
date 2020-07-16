@@ -4908,7 +4908,7 @@ static void init_kvm_tdp_mmu(struct kvm_vcpu *vcpu)
 }
 
 static union kvm_mmu_role
-kvm_calc_shadow_mmu_root_page_role(struct kvm_vcpu *vcpu, bool base_only)
+kvm_calc_shadow_root_page_role_common(struct kvm_vcpu *vcpu, bool base_only)
 {
 	union kvm_mmu_role role = kvm_calc_mmu_role_common(vcpu, base_only);
 
@@ -4916,8 +4916,18 @@ kvm_calc_shadow_mmu_root_page_role(struct kvm_vcpu *vcpu, bool base_only)
 		!is_write_protection(vcpu);
 	role.base.smap_andnot_wp = role.ext.cr4_smap &&
 		!is_write_protection(vcpu);
-	role.base.direct = !is_paging(vcpu);
 	role.base.gpte_is_8_bytes = !!is_pae(vcpu);
+
+	return role;
+}
+
+static union kvm_mmu_role
+kvm_calc_shadow_mmu_root_page_role(struct kvm_vcpu *vcpu, bool base_only)
+{
+	union kvm_mmu_role role =
+		kvm_calc_shadow_root_page_role_common(vcpu, base_only);
+
+	role.base.direct = !is_paging(vcpu);
 
 	if (!is_long_mode(vcpu))
 		role.base.level = PT32E_ROOT_LEVEL;
@@ -4956,14 +4966,24 @@ static void kvm_init_shadow_mmu(struct kvm_vcpu *vcpu, u32 cr0, u32 cr4, u32 efe
 		shadow_mmu_init_context(vcpu, context, cr0, cr4, efer, new_role);
 }
 
+static union kvm_mmu_role
+kvm_calc_shadow_npt_root_page_role(struct kvm_vcpu *vcpu)
+{
+	union kvm_mmu_role role =
+		kvm_calc_shadow_root_page_role_common(vcpu, false);
+
+	role.base.direct = false;
+	role.base.level = vcpu->arch.tdp_level;
+
+	return role;
+}
+
 void kvm_init_shadow_npt_mmu(struct kvm_vcpu *vcpu, u32 cr0, u32 cr4, u32 efer,
 			     gpa_t nested_cr3)
 {
 	struct kvm_mmu *context = &vcpu->arch.guest_mmu;
-	union kvm_mmu_role new_role =
-		kvm_calc_shadow_mmu_root_page_role(vcpu, false);
+	union kvm_mmu_role new_role = kvm_calc_shadow_npt_root_page_role(vcpu);
 
-	new_role.base.level = vcpu->arch.tdp_level;
 	context->shadow_root_level = new_role.base.level;
 
 	__kvm_mmu_new_pgd(vcpu, nested_cr3, new_role.base, false, false);
