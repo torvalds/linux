@@ -211,7 +211,8 @@ static u32 fanotify_group_event_mask(struct fsnotify_group *group,
 				     int data_type)
 {
 	__u32 marks_mask = 0, marks_ignored_mask = 0;
-	__u32 test_mask, user_mask = FANOTIFY_OUTGOING_EVENTS;
+	__u32 test_mask, user_mask = FANOTIFY_OUTGOING_EVENTS |
+				     FANOTIFY_EVENT_FLAGS;
 	const struct path *path = fsnotify_data_path(data, data_type);
 	struct fsnotify_mark *mark;
 	int type;
@@ -264,14 +265,18 @@ static u32 fanotify_group_event_mask(struct fsnotify_group *group,
 	 *
 	 * For backward compatibility and consistency, do not report FAN_ONDIR
 	 * to user in legacy fanotify mode (reporting fd) and report FAN_ONDIR
-	 * to user in FAN_REPORT_FID mode for all event types.
+	 * to user in fid mode for all event types.
+	 *
+	 * We never report FAN_EVENT_ON_CHILD to user, but we do pass it in to
+	 * fanotify_alloc_event() when group is reporting fid as indication
+	 * that event happened on child.
 	 */
 	if (FAN_GROUP_FLAG(group, FAN_REPORT_FID)) {
-		/* Do not report FAN_ONDIR without any event */
-		if (!(test_mask & ~FAN_ONDIR))
+		/* Do not report event flags without any event */
+		if (!(test_mask & ~FANOTIFY_EVENT_FLAGS))
 			return 0;
 	} else {
-		user_mask &= ~FAN_ONDIR;
+		user_mask &= ~FANOTIFY_EVENT_FLAGS;
 	}
 
 	return test_mask & user_mask;
