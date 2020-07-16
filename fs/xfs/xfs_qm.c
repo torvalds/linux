@@ -855,14 +855,14 @@ xfs_qm_reset_dqcounts(
 		 * xfs_dquot_verify.
 		 */
 		if (xfs_dqblk_verify(mp, &dqb[j], id + j) ||
-		    (dqb[j].dd_diskdq.d_flags & XFS_DQTYPE_REC_MASK) != type)
+		    (dqb[j].dd_diskdq.d_type & XFS_DQTYPE_REC_MASK) != type)
 			xfs_dqblk_repair(mp, &dqb[j], id + j, type);
 
 		/*
 		 * Reset type in case we are reusing group quota file for
 		 * project quotas or vice versa
 		 */
-		ddq->d_flags = type;
+		ddq->d_type = type;
 		ddq->d_bcount = 0;
 		ddq->d_icount = 0;
 		ddq->d_rtbcount = 0;

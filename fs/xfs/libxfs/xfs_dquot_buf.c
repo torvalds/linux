@@ -61,9 +61,9 @@ xfs_dquot_verify(
 	if (ddq->d_version != XFS_DQUOT_VERSION)
 		return __this_address;
 
-	if (ddq->d_flags & ~XFS_DQTYPE_ANY)
+	if (ddq->d_type & ~XFS_DQTYPE_ANY)
 		return __this_address;
-	ddq_type = ddq->d_flags & XFS_DQTYPE_REC_MASK;
+	ddq_type = ddq->d_type & XFS_DQTYPE_REC_MASK;
 	if (ddq_type != XFS_DQTYPE_USER &&
 	    ddq_type != XFS_DQTYPE_PROJ &&
 	    ddq_type != XFS_DQTYPE_GROUP)
@@ -124,7 +124,7 @@ xfs_dqblk_repair(
 
 	dqb->dd_diskdq.d_magic = cpu_to_be16(XFS_DQUOT_MAGIC);
 	dqb->dd_diskdq.d_version = XFS_DQUOT_VERSION;
-	dqb->dd_diskdq.d_flags = type;
+	dqb->dd_diskdq.d_type = type;
 	dqb->dd_diskdq.d_id = cpu_to_be32(id);
 
 	if (xfs_sb_version_hascrc(&mp->m_sb)) {
