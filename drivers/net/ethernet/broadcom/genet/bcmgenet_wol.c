@@ -217,11 +217,16 @@ void bcmgenet_wol_power_up_cfg(struct bcmgenet_priv *priv,
 
 	priv->wol_active = 0;
 	clk_disable_unprepare(priv->clk_wol);
+	priv->crc_fwd_en = 0;
 
 	/* Disable Magic Packet Detection */
-	reg = bcmgenet_umac_readl(priv, UMAC_MPD_CTRL);
-	reg &= ~(MPD_EN | MPD_PW_EN);
-	bcmgenet_umac_writel(priv, reg, UMAC_MPD_CTRL);
+	if (priv->wolopts & (WAKE_MAGIC | WAKE_MAGICSECURE)) {
+		reg = bcmgenet_umac_readl(priv, UMAC_MPD_CTRL);
+		if (!(reg & MPD_EN))
+			return;	/* already reset so skip the rest */
+		reg &= ~(MPD_EN | MPD_PW_EN);
+		bcmgenet_umac_writel(priv, reg, UMAC_MPD_CTRL);
+	}
 
 	/* Disable WAKE_FILTER Detection */
 	reg = bcmgenet_hfb_reg_readl(priv, HFB_CTRL);
@@ -232,5 +237,4 @@ void bcmgenet_wol_power_up_cfg(struct bcmgenet_priv *priv,
 	reg = bcmgenet_umac_readl(priv, UMAC_CMD);
 	reg &= ~CMD_CRC_FWD;
 	bcmgenet_umac_writel(priv, reg, UMAC_CMD);
-	priv->crc_fwd_en = 0;
 }
