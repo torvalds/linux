@@ -522,8 +522,24 @@ static struct fanotify_event *fanotify_alloc_event(struct fsnotify_group *group,
 	unsigned int fid_mode = FAN_GROUP_FLAG(group, FANOTIFY_FID_BITS);
 	bool name_event = false;
 
-	if ((fid_mode & FAN_REPORT_DIR_FID) && dirid)
+	if ((fid_mode & FAN_REPORT_DIR_FID) && dirid) {
 		id = dirid;
+
+		/*
+		 * We record file name only in a group with FAN_REPORT_NAME
+		 * and when we have a directory inode to report.
+		 *
+		 * For directory entry modification event, we record the fid of
+		 * the directory and the name of the modified entry.
+		 *
+		 * For event on non-directory that is reported to parent, we
+		 * record the fid of the parent and the name of the child.
+		 */
+		if ((fid_mode & FAN_REPORT_NAME) &&
+		    ((mask & ALL_FSNOTIFY_DIRENT_EVENTS) ||
+		     !(mask & FAN_ONDIR)))
+			name_event = true;
+	}
 
 	/*
 	 * For queues with unlimited length lost events are not expected and
