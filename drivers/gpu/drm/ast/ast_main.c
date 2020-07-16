@@ -452,6 +452,5 @@ void ast_driver_unload(struct drm_device *dev)
 	ast_release_firmware(dev);
 	kfree(ast->dp501_fw_addr);
 
-	ast_mm_fini(ast);
 	kfree(ast);
 }

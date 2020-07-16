@@ -28,8 +28,9 @@
 
 #include <linux/pci.h>
 
-#include <drm/drm_print.h>
 #include <drm/drm_gem_vram_helper.h>
+#include <drm/drm_managed.h>
+#include <drm/drm_print.h>
 
 #include "ast_drv.h"
 
@@ -73,6 +74,15 @@ static u32 ast_get_vram_size(struct ast_private *ast)
 	return vram_size;
 }
 
+static void ast_mm_release(struct drm_device *dev, void *ptr)
+{
+	struct ast_private *ast = to_ast_private(dev);
+
+	arch_phys_wc_del(ast->fb_mtrr);
+	arch_io_free_memtype_wc(pci_resource_start(dev->pdev, 0),
+				pci_resource_len(dev->pdev, 0));
+}
+
 int ast_mm_init(struct ast_private *ast)
 {
 	u32 vram_size;
@@ -93,14 +103,5 @@ int ast_mm_init(struct ast_private *ast)
 	ast->fb_mtrr = arch_phys_wc_add(pci_resource_start(dev->pdev, 0),
 					pci_resource_len(dev->pdev, 0));
 
-	return 0;
-}
-
-void ast_mm_fini(struct ast_private *ast)
-{
-	struct drm_device *dev = ast->dev;
-
-	arch_phys_wc_del(ast->fb_mtrr);
-	arch_io_free_memtype_wc(pci_resource_start(dev->pdev, 0),
-				pci_resource_len(dev->pdev, 0));
+	return drmm_add_action_or_reset(dev, ast_mm_release, NULL);
 }

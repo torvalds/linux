@@ -291,7 +291,6 @@ int ast_mode_config_init(struct ast_private *ast);
 #define AST_MM_ALIGN_MASK ((1 << AST_MM_ALIGN_SHIFT) - 1)
 
 int ast_mm_init(struct ast_private *ast);
-void ast_mm_fini(struct ast_private *ast);
 
 /* ast post */
 void ast_enable_vga(struct drm_device *dev);
