@@ -971,7 +971,7 @@ struct spi_transfer {
  * each represented by a struct spi_transfer.  The sequence is "atomic"
  * in the sense that no other spi_message may use that SPI bus until that
  * sequence completes.  On some systems, many such sequences can execute as
- * as single programmed DMA transfer.  On all systems, these messages are
+ * a single programmed DMA transfer.  On all systems, these messages are
  * queued, and might complete after transactions to other devices.  Messages
  * sent to a given spi_device are always executed in FIFO order.
  *
@@ -1234,7 +1234,7 @@ extern int spi_bus_unlock(struct spi_controller *ctlr);
  *
  * For more specific semantics see spi_sync().
  *
- * Return: Return: zero on success, else a negative error code.
+ * Return: zero on success, else a negative error code.
  */
 static inline int
 spi_sync_transfer(struct spi_device *spi, struct spi_transfer *xfers,
