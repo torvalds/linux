@@ -100,12 +100,6 @@ static void gen9_init_clock_gating(struct drm_i915_private *dev_priv)
 	 */
 	I915_WRITE(DISP_ARB_CTL, I915_READ(DISP_ARB_CTL) |
 		   DISP_FBC_MEMORY_WAKE);
-
-	if (IS_SKYLAKE(dev_priv)) {
-		/* WaDisableDopClockGating */
-		I915_WRITE(GEN7_MISCCPCTL, I915_READ(GEN7_MISCCPCTL)
-			   & ~GEN7_DOP_CLOCK_GATE_ENABLE);
-	}
 }
 
 static void bxt_init_clock_gating(struct drm_i915_private *dev_priv)
@@ -7250,6 +7244,10 @@ static void kbl_init_clock_gating(struct drm_i915_private *dev_priv)
 static void skl_init_clock_gating(struct drm_i915_private *dev_priv)
 {
 	gen9_init_clock_gating(dev_priv);
+
+	/* WaDisableDopClockGating:skl */
+	I915_WRITE(GEN7_MISCCPCTL, I915_READ(GEN7_MISCCPCTL) &
+		   ~GEN7_DOP_CLOCK_GATE_ENABLE);
 
 	/* WAC6entrylatency:skl */
 	I915_WRITE(FBC_LLC_READ_CTRL, I915_READ(FBC_LLC_READ_CTRL) |
