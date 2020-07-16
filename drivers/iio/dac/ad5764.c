@@ -33,9 +33,8 @@
  * struct ad5764_chip_info - chip specific information
  * @int_vref:	Value of the internal reference voltage in uV - 0 if external
  *		reference voltage is used
- * @channel	channel specification
+ * @channels:	channel specification
 */
-
 struct ad5764_chip_info {
 	unsigned long int_vref;
 	const struct iio_chan_spec *channels;
@@ -46,7 +45,7 @@ struct ad5764_chip_info {
  * @spi:		spi_device
  * @chip_info:		chip info
  * @vref_reg:		vref supply regulators
- * @lock		lock to protect the data buffer during SPI ops
+ * @lock:		lock to protect the data buffer during SPI ops
  * @data:		spi transfer buffers
  */
 
