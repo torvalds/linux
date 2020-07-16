@@ -34,10 +34,6 @@ static bool fanotify_fh_equal(struct fanotify_fh *fh1,
 	if (fh1->type != fh2->type || fh1->len != fh2->len)
 		return false;
 
-	/* Do not merge events if we failed to encode fh */
-	if (fh1->type == FILEID_INVALID)
-		return false;
-
 	return !fh1->len ||
 		!memcmp(fanotify_fh_buf(fh1), fanotify_fh_buf(fh2), fh1->len);
 }
@@ -56,10 +52,7 @@ static bool fanotify_fid_event_equal(struct fanotify_fid_event *ffe1,
 static bool fanotify_name_event_equal(struct fanotify_name_event *fne1,
 				      struct fanotify_name_event *fne2)
 {
-	/*
-	 * Do not merge name events without dir fh.
-	 * FAN_DIR_MODIFY does not encode object fh, so it may be empty.
-	 */
+	/* Do not merge name events without dir fh */
 	if (!fne1->dir_fh.len)
 		return false;
 
@@ -290,8 +283,10 @@ static void fanotify_encode_fh(struct fanotify_fh *fh, struct inode *inode,
 	void *buf = fh->buf;
 	int err;
 
+	fh->type = FILEID_ROOT;
+	fh->len = 0;
 	if (!inode)
-		goto out;
+		return;
 
 	dwords = 0;
 	err = -ENOENT;
@@ -326,7 +321,6 @@ out_err:
 			    type, bytes, err);
 	kfree(ext_buf);
 	*fanotify_fh_ext_buf_ptr(fh) = NULL;
-out:
 	/* Report the event without a file identifier on encode error */
 	fh->type = FILEID_INVALID;
 	fh->len = 0;
