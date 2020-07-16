@@ -707,7 +707,6 @@ struct io_submit_state {
 	struct file		*file;
 	unsigned int		fd;
 	unsigned int		has_refs;
-	unsigned int		used_refs;
 	unsigned int		ios_left;
 };
 
@@ -2327,10 +2326,8 @@ static void io_iopoll_req_issued(struct io_kiocb *req)
 
 static void __io_state_file_put(struct io_submit_state *state)
 {
-	int diff = state->has_refs - state->used_refs;
-
-	if (diff)
-		fput_many(state->file, diff);
+	if (state->has_refs)
+		fput_many(state->file, state->has_refs);
 	state->file = NULL;
 }
 
@@ -2352,7 +2349,7 @@ static struct file *__io_file_get(struct io_submit_state *state, int fd)
 
 	if (state->file) {
 		if (state->fd == fd) {
-			state->used_refs++;
+			state->has_refs--;
 			state->ios_left--;
 			return state->file;
 		}
@@ -2363,9 +2360,8 @@ static struct file *__io_file_get(struct io_submit_state *state, int fd)
 		return NULL;
 
 	state->fd = fd;
-	state->has_refs = state->ios_left;
-	state->used_refs = 1;
 	state->ios_left--;
+	state->has_refs = state->ios_left;
 	return state->file;
 }
 
