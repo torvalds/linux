@@ -60,7 +60,7 @@ static void amdgpu_vcn_idle_work_handler(struct work_struct *work);
 
 int amdgpu_vcn_sw_init(struct amdgpu_device *adev)
 {
-	unsigned long bo_size, fw_shared_bo_size;
+	unsigned long bo_size;
 	const char *fw_name;
 	const struct common_firmware_header *hdr;
 	unsigned char fw_check;
@@ -206,9 +206,6 @@ int amdgpu_vcn_sw_init(struct amdgpu_device *adev)
 			dev_err(adev->dev, "VCN %d (%d) failed to allocate firmware shared bo\n", i, r);
 			return r;
 		}
-
-		fw_shared_bo_size = amdgpu_bo_size(adev->vcn.inst[i].fw_shared_bo);
-		adev->vcn.inst[i].saved_shm_bo = kvmalloc(fw_shared_bo_size, GFP_KERNEL);
 	}
 
 	return 0;
@@ -224,7 +221,6 @@ int amdgpu_vcn_sw_fini(struct amdgpu_device *adev)
 		if (adev->vcn.harvest_config & (1 << j))
 			continue;
 
-		kvfree(adev->vcn.inst[j].saved_shm_bo);
 		amdgpu_bo_free_kernel(&adev->vcn.inst[j].fw_shared_bo,
 					  &adev->vcn.inst[j].fw_shared_gpu_addr,
 					  (void **)&adev->vcn.inst[j].fw_shared_cpu_addr);
@@ -274,17 +270,6 @@ int amdgpu_vcn_suspend(struct amdgpu_device *adev)
 			return -ENOMEM;
 
 		memcpy_fromio(adev->vcn.inst[i].saved_bo, ptr, size);
-
-		if (adev->vcn.inst[i].fw_shared_bo == NULL)
-			return 0;
-
-		if (!adev->vcn.inst[i].saved_shm_bo)
-			return -ENOMEM;
-
-		size = amdgpu_bo_size(adev->vcn.inst[i].fw_shared_bo);
-		ptr = adev->vcn.inst[i].fw_shared_cpu_addr;
-
-		memcpy_fromio(adev->vcn.inst[i].saved_shm_bo, ptr, size);
 	}
 	return 0;
 }
@@ -322,17 +307,6 @@ int amdgpu_vcn_resume(struct amdgpu_device *adev)
 			}
 			memset_io(ptr, 0, size);
 		}
-
-		if (adev->vcn.inst[i].fw_shared_bo == NULL)
-			return -EINVAL;
-
-		size = amdgpu_bo_size(adev->vcn.inst[i].fw_shared_bo);
-		ptr = adev->vcn.inst[i].fw_shared_cpu_addr;
-
-		if (adev->vcn.inst[i].saved_shm_bo != NULL)
-			memcpy_toio(ptr, adev->vcn.inst[i].saved_shm_bo, size);
-		else
-			memset_io(ptr, 0, size);
 	}
 	return 0;
 }

@@ -207,7 +207,6 @@ struct amdgpu_vcn_inst {
 	atomic_t		dpg_enc_submission_cnt;
 	void			*fw_shared_cpu_addr;
 	uint64_t		fw_shared_gpu_addr;
-	void			*saved_shm_bo;
 };
 
 struct amdgpu_vcn {
