@@ -83,22 +83,22 @@ static bool fanotify_should_merge(struct fsnotify_event *old_fsn,
 	    old->type != new->type || old->pid != new->pid)
 		return false;
 
+	/*
+	 * We want to merge many dirent events in the same dir (i.e.
+	 * creates/unlinks/renames), but we do not want to merge dirent
+	 * events referring to subdirs with dirent events referring to
+	 * non subdirs, otherwise, user won't be able to tell from a
+	 * mask FAN_CREATE|FAN_DELETE|FAN_ONDIR if it describes mkdir+
+	 * unlink pair or rmdir+create pair of events.
+	 */
+	if ((old->mask & FS_ISDIR) != (new->mask & FS_ISDIR))
+		return false;
+
 	switch (old->type) {
 	case FANOTIFY_EVENT_TYPE_PATH:
 		return fanotify_path_equal(fanotify_event_path(old),
 					   fanotify_event_path(new));
 	case FANOTIFY_EVENT_TYPE_FID:
-		/*
-		 * We want to merge many dirent events in the same dir (i.e.
-		 * creates/unlinks/renames), but we do not want to merge dirent
-		 * events referring to subdirs with dirent events referring to
-		 * non subdirs, otherwise, user won't be able to tell from a
-		 * mask FAN_CREATE|FAN_DELETE|FAN_ONDIR if it describes mkdir+
-		 * unlink pair or rmdir+create pair of events.
-		 */
-		if ((old->mask & FS_ISDIR) != (new->mask & FS_ISDIR))
-			return false;
-
 		return fanotify_fid_event_equal(FANOTIFY_FE(old),
 						FANOTIFY_FE(new));
 	case FANOTIFY_EVENT_TYPE_FID_NAME:
