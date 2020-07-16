@@ -708,7 +708,7 @@ static int orion_spi_probe(struct platform_device *pdev)
 		/*
 		 * Only map one page for direct access. This is enough for the
 		 * simple TX transfer which only writes to the first word.
-		 * This needs to get extended for the direct SPI-NOR / SPI-NAND
+		 * This needs to get extended for the direct SPI NOR / SPI NAND
 		 * support, once this gets implemented.
 		 */
 		dir_acc = &spi->child[cs].direct_access;
