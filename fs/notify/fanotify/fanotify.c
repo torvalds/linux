@@ -535,7 +535,7 @@ static struct fanotify_event *fanotify_alloc_event(struct fsnotify_group *group,
 		/*
 		 * With both flags FAN_REPORT_DIR_FID and FAN_REPORT_FID, we
 		 * report the child fid for events reported on a non-dir child
-		 * in addition to reporting the parent fid and child name.
+		 * in addition to reporting the parent fid and maybe child name.
 		 */
 		if ((fid_mode & FAN_REPORT_FID) &&
 		    id != dirid && !(mask & FAN_ONDIR))
@@ -552,11 +552,17 @@ static struct fanotify_event *fanotify_alloc_event(struct fsnotify_group *group,
 		 *
 		 * For event on non-directory that is reported to parent, we
 		 * record the fid of the parent and the name of the child.
+		 *
+		 * Even if not reporting name, we need a variable length
+		 * fanotify_name_event if reporting both parent and child fids.
 		 */
-		if ((fid_mode & FAN_REPORT_NAME) &&
-		    ((mask & ALL_FSNOTIFY_DIRENT_EVENTS) ||
-		     !(mask & FAN_ONDIR)))
+		if (!(fid_mode & FAN_REPORT_NAME)) {
+			name_event = !!child;
+			file_name = NULL;
+		} else if ((mask & ALL_FSNOTIFY_DIRENT_EVENTS) ||
+			   !(mask & FAN_ONDIR)) {
 			name_event = true;
+		}
 	}
 
 	/*
@@ -575,7 +581,7 @@ static struct fanotify_event *fanotify_alloc_event(struct fsnotify_group *group,
 
 	if (fanotify_is_perm_event(mask)) {
 		event = fanotify_alloc_perm_event(path, gfp);
-	} else if (name_event && file_name) {
+	} else if (name_event && (file_name || child)) {
 		event = fanotify_alloc_name_event(id, fsid, file_name, child,
 						  gfp);
 	} else if (fid_mode) {

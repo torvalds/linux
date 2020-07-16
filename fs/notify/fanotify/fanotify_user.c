@@ -371,7 +371,8 @@ static ssize_t copy_event_to_user(struct fsnotify_group *group,
 
 	/* Event info records order is: dir fid + name, child fid */
 	if (fanotify_event_dir_fh_len(event)) {
-		info_type = FAN_EVENT_INFO_TYPE_DFID_NAME;
+		info_type = info->name_len ? FAN_EVENT_INFO_TYPE_DFID_NAME :
+					     FAN_EVENT_INFO_TYPE_DFID;
 		ret = copy_info_to_user(fanotify_event_fsid(event),
 					fanotify_info_dir_fh(info),
 					info_type, fanotify_info_name(info),
@@ -957,18 +958,10 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 
 	/*
 	 * Child name is reported with parent fid so requires dir fid.
-	 * If reporting child name, we can report both child fid and dir fid.
+	 * We can report both child fid and dir fid with or without name.
 	 */
-	switch (fid_mode) {
-	case 0:
-	case FAN_REPORT_FID:
-	case FAN_REPORT_DIR_FID:
-	case FAN_REPORT_DFID_NAME:
-	case FAN_REPORT_DFID_NAME | FAN_REPORT_FID:
-		break;
-	default:
+	if ((fid_mode & FAN_REPORT_NAME) && !(fid_mode & FAN_REPORT_DIR_FID))
 		return -EINVAL;
-	}
 
 	user = get_current_user();
 	if (atomic_read(&user->fanotify_listeners) > FANOTIFY_DEFAULT_MAX_LISTENERS) {
