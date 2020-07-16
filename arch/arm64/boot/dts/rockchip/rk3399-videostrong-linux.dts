@@ -254,12 +254,6 @@
 	status = "okay";
 };
 
-&vpu {
-	status = "okay";
-	/* 0 means ion, 1 means drm */
-	//allocator = <0>;
-};
-
 &vopb {
 	status = "okay";
 };

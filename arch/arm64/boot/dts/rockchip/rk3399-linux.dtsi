@@ -210,6 +210,16 @@
 	status = "okay";
 };
 
+&rkvdec {
+	status = "okay";
+	/* 0 means ion, 1 means drm */
+	//allocator = <0>;
+};
+
+&rkvdec_mmu {
+	status = "okay";
+};
+
 &vdpu {
 	status = "okay";
 };

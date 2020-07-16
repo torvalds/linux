@@ -216,18 +216,6 @@
 	vref-supply = <&vccadc_ref>;
 };
 
-&vpu {
-	status = "okay";
-	/* 0 means ion, 1 means drm */
-	//allocator = <0>;
-};
-
-&rkvdec {
-	status = "okay";
-	/* 0 means ion, 1 means drm */
-	//allocator = <0>;
-};
-
 &backlight {
 	status = "okay";
 	enable-gpios = <&gpio1 13 GPIO_ACTIVE_HIGH>;

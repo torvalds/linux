@@ -896,12 +896,6 @@
 	};
 };
 
-&rkvdec {
-	status = "okay";
-	/* 0 means ion, 1 means drm */
-	//allocator = <0>;
-};
-
 &rockchip_suspend {
 	status = "okay";
 	rockchip,sleep-debug-en = <1>;
@@ -1044,12 +1038,6 @@
 
 &vopl_mmu {
 	status = "okay";
-};
-
-&vpu {
-	status = "okay";
-	/* 0 means ion, 1 means drm */
-	//allocator = <0>;
 };
 
 &pinctrl {
