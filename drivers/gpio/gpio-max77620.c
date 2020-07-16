@@ -288,6 +288,7 @@ static int max77620_gpio_probe(struct platform_device *pdev)
 {
 	struct max77620_chip *chip =  dev_get_drvdata(pdev->dev.parent);
 	struct max77620_gpio *mgpio;
+	struct gpio_irq_chip *girq;
 	unsigned int gpio_irq;
 	int ret;
 
@@ -316,11 +317,16 @@ static int max77620_gpio_probe(struct platform_device *pdev)
 	mgpio->gpio_chip.can_sleep = 1;
 	mgpio->gpio_chip.base = -1;
 
-	mgpio->gpio_chip.irq.chip = &max77620_gpio_irqchip;
-	mgpio->gpio_chip.irq.default_type = IRQ_TYPE_NONE;
-	mgpio->gpio_chip.irq.handler = handle_edge_irq;
-	mgpio->gpio_chip.irq.init_hw = max77620_gpio_irq_init_hw,
-	mgpio->gpio_chip.irq.threaded = true;
+	girq = &mgpio->gpio_chip.irq;
+	girq->chip = &max77620_gpio_irqchip;
+	/* This will let us handle the parent IRQ in the driver */
+	girq->parent_handler = NULL;
+	girq->num_parents = 0;
+	girq->parents = NULL;
+	girq->default_type = IRQ_TYPE_NONE;
+	girq->handler = handle_edge_irq;
+	girq->init_hw = max77620_gpio_irq_init_hw,
+	girq->threaded = true;
 
 	platform_set_drvdata(pdev, mgpio);
 
