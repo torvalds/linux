@@ -651,6 +651,7 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	u32 rsd_nsecs;
 	bool slave_mode;
+	struct pinctrl *pinctrl = NULL;
 
 	slave_mode = of_property_read_bool(np, "spi-slave");
 
@@ -791,11 +792,13 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 		ctlr->can_dma = rockchip_spi_can_dma;
 	}
 
-	rs->high_speed_state = pinctrl_lookup_state(rs->dev->pins->p,
-						     "high_speed");
-	if (IS_ERR_OR_NULL(rs->high_speed_state)) {
-		dev_warn(&pdev->dev, "no high_speed pinctrl state\n");
-		rs->high_speed_state = NULL;
+	pinctrl = devm_pinctrl_get(&pdev->dev);
+	if (!IS_ERR(pinctrl)) {
+		rs->high_speed_state = pinctrl_lookup_state(pinctrl, "high_speed");
+		if (IS_ERR_OR_NULL(rs->high_speed_state)) {
+			dev_warn(&pdev->dev, "no high_speed pinctrl state\n");
+			rs->high_speed_state = NULL;
+		}
 	}
 
 	ret = devm_spi_register_controller(&pdev->dev, ctlr);
