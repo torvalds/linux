@@ -13,6 +13,8 @@
 #include <asm/sysreg.h>
 #include <asm/virt.h>
 
+#include <clocksource/arm_arch_timer.h>
+
 #include <linux/acpi.h>
 #include <linux/clocksource.h>
 #include <linux/kvm_host.h>
@@ -1173,15 +1175,14 @@ void arch_perf_update_userpage(struct perf_event *event,
 	unsigned int seq;
 	u64 ns;
 
-	/*
-	 * Internal timekeeping for enabled/running/stopped times
-	 * is always computed with the sched_clock.
-	 */
-	userpg->cap_user_time = 1;
-	userpg->cap_user_time_zero = 1;
+	userpg->cap_user_time = 0;
+	userpg->cap_user_time_zero = 0;
 
 	do {
 		rd = sched_clock_read_begin(&seq);
+
+		if (rd->read_sched_clock != arch_timer_read_counter)
+			return;
 
 		userpg->time_mult = rd->mult;
 		userpg->time_shift = rd->shift;
@@ -1212,4 +1213,10 @@ void arch_perf_update_userpage(struct perf_event *event,
 		userpg->time_mult >>= 1;
 	}
 
+	/*
+	 * Internal timekeeping for enabled/running/stopped times
+	 * is always computed with the sched_clock.
+	 */
+	userpg->cap_user_time = 1;
+	userpg->cap_user_time_zero = 1;
 }
