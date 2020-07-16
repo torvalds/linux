@@ -8,6 +8,7 @@
 #define DRIVERS_GPU_DRM_INGENIC_INGENIC_DRM_H
 
 #include <linux/bitops.h>
+#include <linux/types.h>
 
 #define JZ_REG_LCD_CFG				0x00
 #define JZ_REG_LCD_VSYNC			0x04
@@ -157,5 +158,16 @@
 
 #define JZ_LCD_SIZE01_WIDTH_LSB			0
 #define JZ_LCD_SIZE01_HEIGHT_LSB		16
+
+struct device;
+struct drm_plane;
+struct drm_plane_state;
+struct platform_driver;
+
+void ingenic_drm_plane_config(struct device *dev,
+			      struct drm_plane *plane, u32 fourcc);
+void ingenic_drm_plane_disable(struct device *dev, struct drm_plane *plane);
+
+extern struct platform_driver *ingenic_ipu_driver_ptr;
 
 #endif /* DRIVERS_GPU_DRM_INGENIC_INGENIC_DRM_H */
