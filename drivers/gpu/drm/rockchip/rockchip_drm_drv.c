@@ -808,7 +808,7 @@ static void show_loader_logo(struct drm_device *drm_dev)
 	struct list_head mode_set_list;
 	struct list_head mode_unset_list;
 	unsigned int plane_mask = 0;
-	int ret;
+	int ret, i;
 
 	root = of_get_child_by_name(np, "route");
 	if (!root) {
@@ -914,6 +914,12 @@ static void show_loader_logo(struct drm_device *drm_dev)
 		 * We don't want to see any fail on update_state.
 		 */
 		WARN_ON(update_state(drm_dev, state, set, &plane_mask));
+
+	for (i = 0; i < state->num_connector; i++) {
+		if (state->connectors[i].new_state->connector->status !=
+		    connector_status_connected)
+			state->connectors[i].new_state->best_encoder = NULL;
+	}
 
 	ret = drm_atomic_commit(state);
 	/**
