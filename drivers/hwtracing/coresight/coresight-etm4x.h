@@ -133,7 +133,7 @@
 #define ETMv4_MAX_CTXID_CMP		8
 #define ETM_MAX_VMID_CMP		8
 #define ETM_MAX_PE_CMP			8
-#define ETM_MAX_RES_SEL			16
+#define ETM_MAX_RES_SEL			32
 #define ETM_MAX_SS_CMP			8
 
 #define ETM_ARCH_V4			0x40
@@ -325,7 +325,7 @@ struct etmv4_save_state {
 	u32	trccntctlr[ETMv4_MAX_CNTR];
 	u32	trccntvr[ETMv4_MAX_CNTR];
 
-	u32	trcrsctlr[ETM_MAX_RES_SEL * 2];
+	u32	trcrsctlr[ETM_MAX_RES_SEL];
 
 	u32	trcssccr[ETM_MAX_SS_CMP];
 	u32	trcsscsr[ETM_MAX_SS_CMP];
