@@ -13,6 +13,7 @@
 
 #include <linux/arm-smccc.h>
 #include <linux/io.h>
+#include <linux/module.h>
 #include <linux/rockchip/rockchip_sip.h>
 #include <asm/cputype.h>
 #ifdef CONFIG_ARM
@@ -47,16 +48,19 @@ struct arm_smccc_res sip_smc_dram(u32 arg0, u32 arg1, u32 arg2)
 {
 	return __invoke_sip_fn_smc(SIP_DRAM_CONFIG, arg0, arg1, arg2);
 }
+EXPORT_SYMBOL_GPL(sip_smc_dram);
 
 struct arm_smccc_res sip_smc_get_atf_version(void)
 {
 	return __invoke_sip_fn_smc(SIP_ATF_VERSION, 0, 0, 0);
 }
+EXPORT_SYMBOL_GPL(sip_smc_get_atf_version);
 
 struct arm_smccc_res sip_smc_get_sip_version(void)
 {
 	return __invoke_sip_fn_smc(SIP_SIP_VERSION, 0, 0, 0);
 }
+EXPORT_SYMBOL_GPL(sip_smc_get_sip_version);
 
 int sip_smc_set_suspend_mode(u32 ctrl, u32 config1, u32 config2)
 {
@@ -65,6 +69,7 @@ int sip_smc_set_suspend_mode(u32 ctrl, u32 config1, u32 config2)
 	res = __invoke_sip_fn_smc(SIP_SUSPEND_MODE, ctrl, config1, config2);
 	return res.a0;
 }
+EXPORT_SYMBOL_GPL(sip_smc_set_suspend_mode);
 
 struct arm_smccc_res sip_smc_get_suspend_info(u32 info)
 {
@@ -73,6 +78,7 @@ struct arm_smccc_res sip_smc_get_suspend_info(u32 info)
 	res = __invoke_sip_fn_smc(SIP_SUSPEND_MODE, info, 0, 0);
 	return res;
 }
+EXPORT_SYMBOL_GPL(sip_smc_get_suspend_info);
 
 int sip_smc_virtual_poweroff(void)
 {
@@ -81,6 +87,7 @@ int sip_smc_virtual_poweroff(void)
 	res = __invoke_sip_fn_smc(PSCI_FN_NATIVE(1_0, SYSTEM_SUSPEND), 0, 0, 0);
 	return res.a0;
 }
+EXPORT_SYMBOL_GPL(sip_smc_virtual_poweroff);
 
 int sip_smc_remotectl_config(u32 func, u32 data)
 {
@@ -90,6 +97,7 @@ int sip_smc_remotectl_config(u32 func, u32 data)
 
 	return res.a0;
 }
+EXPORT_SYMBOL_GPL(sip_smc_remotectl_config);
 
 u32 sip_smc_secure_reg_read(u32 addr_phy)
 {
@@ -102,6 +110,7 @@ u32 sip_smc_secure_reg_read(u32 addr_phy)
 
 	return res.a1;
 }
+EXPORT_SYMBOL_GPL(sip_smc_secure_reg_read);
 
 int sip_smc_secure_reg_write(u32 addr_phy, u32 val)
 {
@@ -114,6 +123,7 @@ int sip_smc_secure_reg_write(u32 addr_phy, u32 val)
 
 	return res.a0;
 }
+EXPORT_SYMBOL_GPL(sip_smc_secure_reg_write);
 
 static void *sip_map(phys_addr_t start, size_t size)
 {
@@ -169,11 +179,13 @@ struct arm_smccc_res sip_smc_request_share_mem(u32 page_num,
 error:
 	return res;
 }
+EXPORT_SYMBOL_GPL(sip_smc_request_share_mem);
 
 struct arm_smccc_res sip_smc_mcu_el3fiq(u32 arg0, u32 arg1, u32 arg2)
 {
 	return __invoke_sip_fn_smc(SIP_MCU_EL3FIQ_CFG, arg0, arg1, arg2);
 }
+EXPORT_SYMBOL_GPL(sip_smc_mcu_el3fiq);
 
 struct arm_smccc_res sip_smc_vpu_reset(u32 arg0, u32 arg1, u32 arg2)
 {
@@ -191,6 +203,7 @@ struct arm_smccc_res sip_smc_bus_config(u32 arg0, u32 arg1, u32 arg2)
 	res = __invoke_sip_fn_smc(SIP_BUS_CFG, arg0, arg1, arg2);
 	return res;
 }
+EXPORT_SYMBOL_GPL(sip_smc_bus_config);
 
 struct arm_smccc_res sip_smc_lastlog_request(void)
 {
@@ -219,6 +232,7 @@ struct arm_smccc_res sip_smc_lastlog_request(void)
 
 	return res;
 }
+EXPORT_SYMBOL_GPL(sip_smc_lastlog_request);
 
 /************************** fiq debugger **************************************/
 /*
@@ -244,6 +258,7 @@ int sip_fiq_debugger_is_enabled(void)
 {
 	return fiq_sip_enabled;
 }
+EXPORT_SYMBOL_GPL(sip_fiq_debugger_is_enabled);
 
 static struct pt_regs sip_fiq_debugger_get_pt_regs(void *reg_base,
 						   unsigned long sp_el1)
@@ -373,16 +388,39 @@ int sip_fiq_debugger_uart_irq_tf_init(u32 irq_id, void *callback_fn)
 
 	return SIP_RET_SUCCESS;
 }
+EXPORT_SYMBOL_GPL(sip_fiq_debugger_uart_irq_tf_init);
+
+static ulong cpu_logical_map_mpidr(u32 cpu)
+{
+#ifdef MODULE
+	/* Empirically, local "cpu_logical_map()" for rockchip platforms */
+	ulong mpidr = 0x00;
+
+	if (cpu < 4)
+		/* 0x00, 0x01, 0x02, 0x03 */
+		mpidr = cpu;
+	else if (cpu < 8)
+		/* 0x100, 0x101, 0x102, 0x103 */
+		mpidr = 0x100 | (cpu - 4);
+	else
+		pr_err("Unsupported map cpu: %d\n", cpu);
+
+	return mpidr;
+#else
+	return cpu_logical_map(cpu);
+#endif
+}
 
 int sip_fiq_debugger_switch_cpu(u32 cpu)
 {
 	struct arm_smccc_res res;
 
 	fiq_target_cpu = cpu;
-	res = __invoke_sip_fn_smc(SIP_UARTDBG_FN, cpu_logical_map(cpu),
+	res = __invoke_sip_fn_smc(SIP_UARTDBG_FN, cpu_logical_map_mpidr(cpu),
 				  0, UARTDBG_CFG_OSHDL_CPUSW);
 	return res.a0;
 }
+EXPORT_SYMBOL_GPL(sip_fiq_debugger_switch_cpu);
 
 void sip_fiq_debugger_enable_debug(bool enable)
 {
@@ -393,6 +431,7 @@ void sip_fiq_debugger_enable_debug(bool enable)
 
 	__invoke_sip_fn_smc(SIP_UARTDBG_FN, 0, 0, val);
 }
+EXPORT_SYMBOL_GPL(sip_fiq_debugger_enable_debug);
 
 int sip_fiq_debugger_set_print_port(u32 port_phyaddr, u32 baudrate)
 {
@@ -402,6 +441,7 @@ int sip_fiq_debugger_set_print_port(u32 port_phyaddr, u32 baudrate)
 				  UARTDBG_CFG_PRINT_PORT);
 	return res.a0;
 }
+EXPORT_SYMBOL_GPL(sip_fiq_debugger_set_print_port);
 
 int sip_fiq_debugger_request_share_memory(void)
 {
@@ -415,11 +455,13 @@ int sip_fiq_debugger_request_share_memory(void)
 
 	return SIP_RET_SUCCESS;
 }
+EXPORT_SYMBOL_GPL(sip_fiq_debugger_request_share_memory);
 
 int sip_fiq_debugger_get_target_cpu(void)
 {
 	return fiq_target_cpu;
 }
+EXPORT_SYMBOL_GPL(sip_fiq_debugger_get_target_cpu);
 
 void sip_fiq_debugger_enable_fiq(bool enable, uint32_t tgt_cpu)
 {
@@ -429,6 +471,7 @@ void sip_fiq_debugger_enable_fiq(bool enable, uint32_t tgt_cpu)
 	en = enable ? UARTDBG_CFG_FIQ_ENABEL : UARTDBG_CFG_FIQ_DISABEL;
 	__invoke_sip_fn_smc(SIP_UARTDBG_FN, tgt_cpu, 0, en);
 }
+EXPORT_SYMBOL_GPL(sip_fiq_debugger_enable_fiq);
 
 /******************************************************************************/
 #ifdef CONFIG_ARM
@@ -476,3 +519,6 @@ static __init int sip_firmware_init(void)
 }
 arch_initcall(sip_firmware_init);
 #endif
+
+MODULE_DESCRIPTION("Rockchip SIP Call");
+MODULE_LICENSE("GPL");

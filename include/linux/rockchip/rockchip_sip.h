@@ -112,7 +112,7 @@ typedef enum {
  * a0: error code(0: success, !0: error);
  * a1~a3: data
  */
-#ifdef CONFIG_ROCKCHIP_SIP
+#if IS_ENABLED(CONFIG_ROCKCHIP_SIP)
 struct arm_smccc_res sip_smc_get_atf_version(void);
 struct arm_smccc_res sip_smc_get_sip_version(void);
 struct arm_smccc_res sip_smc_dram(u32 arg0, u32 arg1, u32 arg2);
