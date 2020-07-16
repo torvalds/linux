@@ -227,6 +227,7 @@ static int sgp_verify_buffer(const struct sgp_data *data,
  * @cmd:         SGP Command to issue
  * @buf:         Raw data buffer to use
  * @word_count:  Num words to read, excluding CRC bytes
+ * @duration_us: Time taken to sensor to take a reading and data to be ready.
  *
  * Return:       0 on success, negative error otherwise.
  */
