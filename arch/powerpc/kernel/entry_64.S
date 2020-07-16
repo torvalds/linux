@@ -354,7 +354,7 @@ _GLOBAL(_switch)
 	 * kernel/sched/core.c).
 	 *
 	 * Uncacheable stores in the case of involuntary preemption must
-	 * be taken care of. The smp_mb__before_spin_lock() in __schedule()
+	 * be taken care of. The smp_mb__after_spinlock() in __schedule()
 	 * is implemented as hwsync on powerpc, which orders MMIO too. So
 	 * long as there is an hwsync in the context switch path, it will
 	 * be executed on the source CPU after the task has performed
