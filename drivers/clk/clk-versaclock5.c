@@ -789,10 +789,13 @@ static int vc5_get_output_config(struct i2c_client *client,
 	int ret = 0;
 
 	child_name = kasprintf(GFP_KERNEL, "OUT%d", clk_out->num + 1);
+	if (!child_name)
+		return -ENOMEM;
+
 	np_output = of_get_child_by_name(client->dev.of_node, child_name);
 	kfree(child_name);
 	if (!np_output)
-		goto output_done;
+		return 0;
 
 	ret = vc5_update_mode(np_output, clk_out);
 	if (ret)
@@ -813,7 +816,6 @@ output_error:
 
 	of_node_put(np_output);
 
-output_done:
 	return ret;
 }
 
@@ -828,7 +830,7 @@ static int vc5_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	int ret;
 
 	vc5 = devm_kzalloc(&client->dev, sizeof(*vc5), GFP_KERNEL);
-	if (vc5 == NULL)
+	if (!vc5)
 		return -ENOMEM;
 
 	i2c_set_clientdata(client, vc5);
