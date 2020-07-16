@@ -5,8 +5,10 @@
  */
 
 #include <linux/clk-provider.h>
+#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/of_device.h>
 #include <linux/syscore_ops.h>
 #include <dt-bindings/clock/rv1126-cru.h>
 #include "clk.h"
@@ -137,9 +139,10 @@ static struct rockchip_cpuclk_rate_table rv1126_cpuclk_rates[] __initdata = {
 };
 
 static const struct rockchip_cpuclk_reg_data rv1126_cpuclk_data = {
-	.core_reg = RV1126_CLKSEL_CON(0),
-	.div_core_shift = 0,
-	.div_core_mask = 0x1f,
+	.core_reg[0] = RV1126_CLKSEL_CON(0),
+	.div_core_shift[0] = 0,
+	.div_core_mask[0] = 0x1f,
+	.num_cores = 1,
 	.mux_core_alt = 0,
 	.mux_core_main = 2,
 	.mux_core_shift = 6,
@@ -1323,9 +1326,8 @@ static struct rockchip_clk_branch rv1126_clk_branches[] __initdata = {
 			RV1126_CLKGATE_CON(21), 15, GFLAGS),
 	GATE(0, "pclk_ddr_msch", "pclk_pdddr", CLK_IGNORE_UNUSED,
 			RV1126_CLKGATE_CON(21), 6, GFLAGS),
-	COMPOSITE_DDRCLK(SCLK_DDRCLK, "sclk_ddrc", mux_dpll_gpll_p,
-			CLK_IGNORE_UNUSED, RV1126_CLKSEL_CON(64), 15, 1, 8, 5,
-			ROCKCHIP_DDRCLK_SIP_V2),
+	COMPOSITE_NOGATE(SCLK_DDRCLK, "sclk_ddrc", mux_dpll_gpll_p, CLK_IGNORE_UNUSED,
+			RV1126_CLKSEL_CON(64), 15, 1, MFLAGS, 8, 5, DFLAGS),
 	COMPOSITE(CLK_DDRPHY, "clk_ddrphy", mux_dpll_gpll_p, CLK_IGNORE_UNUSED,
 			RV1126_CLKSEL_CON(64), 15, 1, MFLAGS, 8, 5, DFLAGS,
 			RV1126_CLKGATE_CON(21), 8, GFLAGS),
@@ -1519,3 +1521,55 @@ static void __init rv1126_clk_init(struct device_node *np)
 }
 
 CLK_OF_DECLARE(rv1126_cru, "rockchip,rv1126-cru", rv1126_clk_init);
+
+struct clk_rv1126_inits {
+	void (*inits)(struct device_node *np);
+};
+
+static const struct clk_rv1126_inits clk_rv1126_pmu_init = {
+	.inits = rv1126_pmu_clk_init,
+};
+
+static const struct clk_rv1126_inits clk_rv1126_init = {
+	.inits = rv1126_clk_init,
+};
+
+static const struct of_device_id clk_rv1126_match_table[] = {
+	{
+		.compatible = "rockchip,rv1126-cru",
+		.data = &clk_rv1126_init,
+	}, {
+		.compatible = "rockchip,rv1126-pmucru",
+		.data = &clk_rv1126_pmu_init,
+	},
+	{ }
+};
+MODULE_DEVICE_TABLE(of, clk_rv1126_match_table);
+
+static int __init clk_rv1126_probe(struct platform_device *pdev)
+{
+	struct device_node *np = pdev->dev.of_node;
+	const struct of_device_id *match;
+	const struct clk_rv1126_inits *init_data;
+
+	match = of_match_device(clk_rv1126_match_table, &pdev->dev);
+	if (!match || !match->data)
+		return -EINVAL;
+
+	init_data = match->data;
+	if (init_data->inits)
+		init_data->inits(np);
+
+	return 0;
+}
+
+static struct platform_driver clk_rv1126_driver = {
+	.driver		= {
+		.name	= "clk-rv1126",
+		.of_match_table = clk_rv1126_match_table,
+	},
+};
+builtin_platform_driver_probe(clk_rv1126_driver, clk_rv1126_probe);
+
+MODULE_DESCRIPTION("Rockchip RV1126 Clock Driver");
+MODULE_LICENSE("GPL");

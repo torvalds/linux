@@ -23,6 +23,13 @@ config CLK_RV110X
 	help
 	  Build the driver for RV110x Clock Driver.
 
+config CLK_RV1126
+	tristate "Rockchip RV1126 clock controller support"
+	depends on ARM || COMPILE_TEST
+	default y
+	help
+	  Build the driver for RV1126 Clock Driver.
+
 config CLK_RK1808
 	tristate "Rockchip RK1808 clock controller support"
 	depends on ARM64 || COMPILE_TEST
