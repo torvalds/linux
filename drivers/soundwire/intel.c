@@ -123,40 +123,33 @@ static inline void intel_writew(void __iomem *base, int offset, u16 value)
 	writew(value, base + offset);
 }
 
-static int intel_clear_bit(void __iomem *base, int offset, u32 value, u32 mask)
+static int intel_wait_bit(void __iomem *base, int offset, u32 mask, u32 target)
 {
 	int timeout = 10;
 	u32 reg_read;
 
-	writel(value, base + offset);
 	do {
 		reg_read = readl(base + offset);
-		if (!(reg_read & mask))
+		if ((reg_read & mask) == target)
 			return 0;
 
 		timeout--;
-		udelay(50);
+		usleep_range(50, 100);
 	} while (timeout != 0);
 
 	return -EAGAIN;
 }
 
+static int intel_clear_bit(void __iomem *base, int offset, u32 value, u32 mask)
+{
+	writel(value, base + offset);
+	return intel_wait_bit(base, offset, mask, 0);
+}
+
 static int intel_set_bit(void __iomem *base, int offset, u32 value, u32 mask)
 {
-	int timeout = 10;
-	u32 reg_read;
-
 	writel(value, base + offset);
-	do {
-		reg_read = readl(base + offset);
-		if (reg_read & mask)
-			return 0;
-
-		timeout--;
-		udelay(50);
-	} while (timeout != 0);
-
-	return -EAGAIN;
+	return intel_wait_bit(base, offset, mask, mask);
 }
 
 /*
