@@ -84,7 +84,7 @@ static int amdgpu_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 	switch (type) {
 	case TTM_PL_SYSTEM:
 		/* System memory */
-		man->flags = TTM_MEMTYPE_FLAG_MAPPABLE;
+		man->flags = 0;
 		man->available_caching = TTM_PL_MASK_CACHING;
 		man->default_caching = TTM_PL_FLAG_CACHED;
 		break;
@@ -93,13 +93,12 @@ static int amdgpu_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 		man->func = &amdgpu_gtt_mgr_func;
 		man->available_caching = TTM_PL_MASK_CACHING;
 		man->default_caching = TTM_PL_FLAG_CACHED;
-		man->flags = TTM_MEMTYPE_FLAG_MAPPABLE;
+		man->flags = 0;
 		break;
 	case TTM_PL_VRAM:
 		/* "On-card" video ram */
 		man->func = &amdgpu_vram_mgr_func;
-		man->flags = TTM_MEMTYPE_FLAG_FIXED |
-			     TTM_MEMTYPE_FLAG_MAPPABLE;
+		man->flags = TTM_MEMTYPE_FLAG_FIXED;
 		man->available_caching = TTM_PL_FLAG_UNCACHED | TTM_PL_FLAG_WC;
 		man->default_caching = TTM_PL_FLAG_WC;
 		break;
@@ -796,7 +795,6 @@ memcpy:
  */
 static int amdgpu_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 {
-	struct ttm_mem_type_manager *man = &bdev->man[mem->mem_type];
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bdev);
 	struct drm_mm_node *mm_node = mem->mm_node;
 
@@ -805,8 +803,7 @@ static int amdgpu_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_
 	mem->bus.size = mem->num_pages << PAGE_SHIFT;
 	mem->bus.base = 0;
 	mem->bus.is_iomem = false;
-	if (!(man->flags & TTM_MEMTYPE_FLAG_MAPPABLE))
-		return -EINVAL;
+
 	switch (mem->mem_type) {
 	case TTM_PL_SYSTEM:
 		/* system memory */
