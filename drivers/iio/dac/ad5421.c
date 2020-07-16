@@ -62,7 +62,7 @@
  * @current_range:	current range which the device is configured for
  * @data:		spi transfer buffers
  * @fault_mask:		software masking of events
- * @lock	lock to protect the data buffer during SPI ops
+ * @lock:		lock to protect the data buffer during SPI ops
  */
 struct ad5421_state {
 	struct spi_device		*spi;
