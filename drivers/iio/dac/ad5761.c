@@ -57,7 +57,7 @@ enum ad5761_supported_device_ids {
  * @use_intref:		true when the internal voltage reference is used
  * @vref:		actual voltage reference in mVolts
  * @range:		output range mode used
- * @lock		lock to protect the data buffer during SPI ops
+ * @lock:		lock to protect the data buffer during SPI ops
  * @data:		cache aligned spi buffer
  */
 struct ad5761_state {
