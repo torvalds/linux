@@ -39,7 +39,6 @@ struct regulator_voltage {
 struct regulator {
 	struct device *dev;
 	struct list_head list;
-	struct list_head early_min_list;
 	unsigned int always_on:1;
 	unsigned int bypass:1;
 	int uA_load;

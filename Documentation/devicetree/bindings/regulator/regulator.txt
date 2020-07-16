@@ -5,8 +5,6 @@ Optional properties:
 - regulator-min-microvolt: smallest voltage consumers may set
 - regulator-max-microvolt: largest voltage consumers may set
 - regulator-microvolt-offset: Offset applied to voltages to compensate for voltage drops
-- regulator-early-min-microvolt: minimum voltage during system startup, make sure we
-  select a voltage that suits the needs of all regulator consumers
 - regulator-min-microamp: smallest current consumers may set
 - regulator-max-microamp: largest current consumers may set
 - regulator-input-current-limit-microamp: maximum input current regulator allows
