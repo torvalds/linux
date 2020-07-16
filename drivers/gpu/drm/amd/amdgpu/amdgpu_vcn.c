@@ -176,6 +176,7 @@ int amdgpu_vcn_sw_init(struct amdgpu_device *adev)
 	bo_size = AMDGPU_VCN_STACK_SIZE + AMDGPU_VCN_CONTEXT_SIZE;
 	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP)
 		bo_size += AMDGPU_GPU_PAGE_ALIGN(le32_to_cpu(hdr->ucode_size_bytes) + 8);
+	bo_size += AMDGPU_GPU_PAGE_ALIGN(sizeof(struct amdgpu_fw_shared));
 
 	for (i = 0; i < adev->vcn.num_vcn_inst; i++) {
 		if (adev->vcn.harvest_config & (1 << i))
@@ -189,6 +190,11 @@ int amdgpu_vcn_sw_init(struct amdgpu_device *adev)
 			return r;
 		}
 
+		adev->vcn.inst[i].fw_shared_cpu_addr = adev->vcn.inst[i].cpu_addr +
+				bo_size - AMDGPU_GPU_PAGE_ALIGN(sizeof(struct amdgpu_fw_shared));
+		adev->vcn.inst[i].fw_shared_gpu_addr = adev->vcn.inst[i].gpu_addr +
+				bo_size - AMDGPU_GPU_PAGE_ALIGN(sizeof(struct amdgpu_fw_shared));
+
 		if (adev->vcn.indirect_sram) {
 			r = amdgpu_bo_create_kernel(adev, 64 * 2 * 4, PAGE_SIZE,
 					AMDGPU_GEM_DOMAIN_VRAM, &adev->vcn.inst[i].dpg_sram_bo,
@@ -197,14 +203,6 @@ int amdgpu_vcn_sw_init(struct amdgpu_device *adev)
 				dev_err(adev->dev, "VCN %d (%d) failed to allocate DPG bo\n", i, r);
 				return r;
 			}
-		}
-
-		r = amdgpu_bo_create_kernel(adev, AMDGPU_GPU_PAGE_ALIGN(sizeof(struct amdgpu_fw_shared)),
-				PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM, &adev->vcn.inst[i].fw_shared_bo,
-				&adev->vcn.inst[i].fw_shared_gpu_addr, &adev->vcn.inst[i].fw_shared_cpu_addr);
-		if (r) {
-			dev_err(adev->dev, "VCN %d (%d) failed to allocate firmware shared bo\n", i, r);
-			return r;
 		}
 	}
 
@@ -220,10 +218,6 @@ int amdgpu_vcn_sw_fini(struct amdgpu_device *adev)
 	for (j = 0; j < adev->vcn.num_vcn_inst; ++j) {
 		if (adev->vcn.harvest_config & (1 << j))
 			continue;
-
-		amdgpu_bo_free_kernel(&adev->vcn.inst[j].fw_shared_bo,
-					  &adev->vcn.inst[j].fw_shared_gpu_addr,
-					  (void **)&adev->vcn.inst[j].fw_shared_cpu_addr);
 
 		if (adev->vcn.indirect_sram) {
 			amdgpu_bo_free_kernel(&adev->vcn.inst[j].dpg_sram_bo,
