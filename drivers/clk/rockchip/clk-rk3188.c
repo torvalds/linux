@@ -5,10 +5,12 @@
  */
 
 #include <linux/clk.h>
+#include <linux/module.h>
 #include <linux/clk-provider.h>
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/of_device.h>
 #include <dt-bindings/clock/rk3188-cru-common.h>
 #include "clk.h"
 
@@ -877,3 +879,62 @@ static void __init rk3188_clk_init(struct device_node *np)
 	rk3188a_clk_init(np);
 }
 CLK_OF_DECLARE(rk3188_cru, "rockchip,rk3188-cru", rk3188_clk_init);
+
+struct clk_rk3188_inits {
+	void (*inits)(struct device_node *np);
+};
+
+static const struct clk_rk3188_inits clk_rk3066a_init = {
+	.inits = rk3066a_clk_init,
+};
+
+static const struct clk_rk3188_inits clk_rk3188a_init = {
+	.inits = rk3188a_clk_init,
+};
+
+static const struct clk_rk3188_inits clk_rk3188_init = {
+	.inits = rk3188_clk_init,
+};
+
+static const struct of_device_id clk_rk3188_match_table[] = {
+	{
+		.compatible = "rockchip,rk3066a-cru",
+		.data = &clk_rk3066a_init,
+	}, {
+		.compatible = "rockchip,rk3188a-cru",
+		.data = &clk_rk3188a_init,
+	}, {
+		.compatible = "rockchip,rk3188-cru",
+		.data = &rk3188_clk_init,
+	},
+	{ }
+};
+MODULE_DEVICE_TABLE(of, clk_rk3188_match_table);
+
+static int __init clk_rk3188_probe(struct platform_device *pdev)
+{
+	struct device_node *np = pdev->dev.of_node;
+	const struct of_device_id *match;
+	const struct clk_rk3188_inits *init_data;
+
+	match = of_match_device(clk_rk3188_match_table, &pdev->dev);
+	if (!match || !match->data)
+		return -EINVAL;
+
+	init_data = match->data;
+	if (init_data->inits)
+		init_data->inits(np);
+
+	return 0;
+}
+
+static struct platform_driver clk_rk3188_driver = {
+	.driver		= {
+		.name	= "clk-rk3188",
+		.of_match_table = clk_rk3188_match_table,
+	},
+};
+builtin_platform_driver_probe(clk_rk3188_driver, clk_rk3188_probe);
+
+MODULE_DESCRIPTION("Rockchip RK3188 Clock Driver");
+MODULE_LICENSE("GPL");

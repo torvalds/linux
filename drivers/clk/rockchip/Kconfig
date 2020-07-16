@@ -45,7 +45,7 @@ config CLK_RK312X
 	  Build the driver for RK312x Clock Driver.
 
 config CLK_RK3188
-	bool "Rockchip RK3188 clock controller support"
+	tristate "Rockchip RK3188 clock controller support"
 	depends on ARM || COMPILE_TEST
 	default y
 	help
