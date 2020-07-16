@@ -581,19 +581,18 @@ int lgm_clk_register_ddiv(struct lgm_clk_provider *ctx,
 			  unsigned int nr_clk)
 {
 	struct device *dev = ctx->dev;
-	struct clk_init_data init = {};
-	struct lgm_clk_ddiv *ddiv;
 	struct clk_hw *hw;
 	unsigned int idx;
 	int ret;
 
 	for (idx = 0; idx < nr_clk; idx++, list++) {
-		ddiv = NULL;
+		struct clk_init_data init = {};
+		struct lgm_clk_ddiv *ddiv;
+
 		ddiv = devm_kzalloc(dev, sizeof(*ddiv), GFP_KERNEL);
 		if (!ddiv)
 			return -ENOMEM;
 
-		memset(&init, 0, sizeof(init));
 		init.name = list->name;
 		init.ops = &lgm_clk_ddiv_ops;
 		init.flags = list->flags;
