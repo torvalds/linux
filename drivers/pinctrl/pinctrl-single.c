@@ -563,7 +563,7 @@ static int pcs_pinconf_set(struct pinctrl_dev *pctldev,
 			case PIN_CONFIG_BIAS_PULL_UP:
 				if (arg)
 					pcs_pinconf_clear_bias(pctldev, pin);
-				/* fall through */
+				fallthrough;
 			case PIN_CONFIG_INPUT_SCHMITT_ENABLE:
 				data &= ~func->conf[i].mask;
 				if (arg)
