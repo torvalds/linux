@@ -1524,8 +1524,13 @@ static inline bool mlx5_ib_can_use_umr(struct mlx5_ib_dev *dev,
 		return false;
 
 	if (access_flags & IB_ACCESS_RELAXED_ORDERING &&
-	    (MLX5_CAP_GEN(dev->mdev, relaxed_ordering_write) ||
-	     MLX5_CAP_GEN(dev->mdev, relaxed_ordering_read)))
+	    MLX5_CAP_GEN(dev->mdev, relaxed_ordering_write) &&
+	    !MLX5_CAP_GEN(dev->mdev, relaxed_ordering_write_umr))
+		return false;
+
+	if (access_flags & IB_ACCESS_RELAXED_ORDERING &&
+	     MLX5_CAP_GEN(dev->mdev, relaxed_ordering_read) &&
+	     !MLX5_CAP_GEN(dev->mdev, relaxed_ordering_read_umr))
 		return false;
 
 	return true;
