@@ -871,12 +871,41 @@ __u32 tcp_init_cwnd(const struct tcp_sock *tp, const struct dst_entry *dst)
 	return min_t(__u32, cwnd, tp->snd_cwnd_clamp);
 }
 
+struct tcp_sacktag_state {
+	/* Timestamps for earliest and latest never-retransmitted segment
+	 * that was SACKed. RTO needs the earliest RTT to stay conservative,
+	 * but congestion control should still get an accurate delay signal.
+	 */
+	u64	first_sackt;
+	u64	last_sackt;
+	u32	reord;
+	u32	sack_delivered;
+	int	flag;
+	unsigned int mss_now;
+	struct rate_sample *rate;
+};
+
 /* Take a notice that peer is sending D-SACKs */
-static void tcp_dsack_seen(struct tcp_sock *tp)
+static u32 tcp_dsack_seen(struct tcp_sock *tp, u32 start_seq,
+			  u32 end_seq, struct tcp_sacktag_state *state)
 {
+	u32 seq_len, dup_segs = 1;
+
+	if (before(start_seq, end_seq)) {
+		seq_len = end_seq - start_seq;
+		if (seq_len > tp->mss_cache)
+			dup_segs = DIV_ROUND_UP(seq_len, tp->mss_cache);
+	}
+
 	tp->rx_opt.sack_ok |= TCP_DSACK_SEEN;
 	tp->rack.dsack_seen = 1;
-	tp->dsack_dups++;
+	tp->dsack_dups += dup_segs;
+
+	state->flag |= FLAG_DSACKING_ACK;
+	/* A spurious retransmission is delivered */
+	state->sack_delivered += dup_segs;
+
+	return dup_segs;
 }
 
 /* It's reordering when higher sequence was delivered (i.e. sacked) before
@@ -1103,52 +1132,36 @@ static bool tcp_is_sackblock_valid(struct tcp_sock *tp, bool is_dsack,
 
 static bool tcp_check_dsack(struct sock *sk, const struct sk_buff *ack_skb,
 			    struct tcp_sack_block_wire *sp, int num_sacks,
-			    u32 prior_snd_una)
+			    u32 prior_snd_una, struct tcp_sacktag_state *state)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	u32 start_seq_0 = get_unaligned_be32(&sp[0].start_seq);
 	u32 end_seq_0 = get_unaligned_be32(&sp[0].end_seq);
-	bool dup_sack = false;
+	u32 dup_segs;
 
 	if (before(start_seq_0, TCP_SKB_CB(ack_skb)->ack_seq)) {
-		dup_sack = true;
-		tcp_dsack_seen(tp);
 		NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPDSACKRECV);
 	} else if (num_sacks > 1) {
 		u32 end_seq_1 = get_unaligned_be32(&sp[1].end_seq);
 		u32 start_seq_1 = get_unaligned_be32(&sp[1].start_seq);
 
-		if (!after(end_seq_0, end_seq_1) &&
-		    !before(start_seq_0, start_seq_1)) {
-			dup_sack = true;
-			tcp_dsack_seen(tp);
-			NET_INC_STATS(sock_net(sk),
-					LINUX_MIB_TCPDSACKOFORECV);
-		}
+		if (after(end_seq_0, end_seq_1) || before(start_seq_0, start_seq_1))
+			return false;
+		NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPDSACKOFORECV);
+	} else {
+		return false;
 	}
 
+	dup_segs = tcp_dsack_seen(tp, start_seq_0, end_seq_0, state);
+
 	/* D-SACK for already forgotten data... Do dumb counting. */
-	if (dup_sack && tp->undo_marker && tp->undo_retrans > 0 &&
+	if (tp->undo_marker && tp->undo_retrans > 0 &&
 	    !after(end_seq_0, prior_snd_una) &&
 	    after(end_seq_0, tp->undo_marker))
-		tp->undo_retrans--;
+		tp->undo_retrans = max_t(int, 0, tp->undo_retrans - dup_segs);
 
-	return dup_sack;
+	return true;
 }
-
-struct tcp_sacktag_state {
-	u32	reord;
-	/* Timestamps for earliest and latest never-retransmitted segment
-	 * that was SACKed. RTO needs the earliest RTT to stay conservative,
-	 * but congestion control should still get an accurate delay signal.
-	 */
-	u64	first_sackt;
-	u64	last_sackt;
-	struct rate_sample *rate;
-	int	flag;
-	unsigned int mss_now;
-	u32	sack_delivered;
-};
 
 /* Check if skb is fully within the SACK block. In presence of GSO skbs,
  * the incoming SACK may not exactly match but we can find smaller MSS
@@ -1692,12 +1705,7 @@ tcp_sacktag_write_queue(struct sock *sk, const struct sk_buff *ack_skb,
 		tcp_highest_sack_reset(sk);
 
 	found_dup_sack = tcp_check_dsack(sk, ack_skb, sp_wire,
-					 num_sacks, prior_snd_una);
-	if (found_dup_sack) {
-		state->flag |= FLAG_DSACKING_ACK;
-		/* A spurious retransmission is delivered */
-		state->sack_delivered++;
-	}
+					 num_sacks, prior_snd_una, state);
 
 	/* Eliminate too old ACKs, but take into
 	 * account more or less fresh ones, they can
