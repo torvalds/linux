@@ -1009,14 +1009,13 @@ static int bo_driver_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 {
 	switch (type) {
 	case TTM_PL_SYSTEM:
-		man->flags = TTM_MEMTYPE_FLAG_MAPPABLE;
+		man->flags = 0;
 		man->available_caching = TTM_PL_MASK_CACHING;
 		man->default_caching = TTM_PL_FLAG_CACHED;
 		break;
 	case TTM_PL_VRAM:
 		man->func = &ttm_bo_manager_func;
-		man->flags = TTM_MEMTYPE_FLAG_FIXED |
-			     TTM_MEMTYPE_FLAG_MAPPABLE;
+		man->flags = TTM_MEMTYPE_FLAG_FIXED;
 		man->available_caching = TTM_PL_FLAG_UNCACHED |
 					 TTM_PL_FLAG_WC;
 		man->default_caching = TTM_PL_FLAG_WC;
@@ -1059,11 +1058,7 @@ static void bo_driver_move_notify(struct ttm_buffer_object *bo,
 static int bo_driver_io_mem_reserve(struct ttm_bo_device *bdev,
 				    struct ttm_mem_reg *mem)
 {
-	struct ttm_mem_type_manager *man = bdev->man + mem->mem_type;
 	struct drm_vram_mm *vmm = drm_vram_mm_of_bdev(bdev);
-
-	if (!(man->flags & TTM_MEMTYPE_FLAG_MAPPABLE))
-		return -EINVAL;
 
 	mem->bus.addr = NULL;
 	mem->bus.size = mem->num_pages << PAGE_SHIFT;
