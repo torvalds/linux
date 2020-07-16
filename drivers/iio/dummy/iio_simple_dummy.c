@@ -689,6 +689,7 @@ static int iio_dummy_remove(struct iio_sw_device *swd)
 
 	return 0;
 }
+
 /*
  * module_iio_sw_device_driver() -  device driver registration
  *
