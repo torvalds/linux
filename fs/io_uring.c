@@ -4098,9 +4098,6 @@ static struct io_buffer *io_recv_buffer_select(struct io_kiocb *req,
 	struct io_sr_msg *sr = &req->sr_msg;
 	struct io_buffer *kbuf;
 
-	if (!(req->flags & REQ_F_BUFFER_SELECT))
-		return NULL;
-
 	kbuf = io_buffer_select(req, &sr->len, sr->bgid, sr->kbuf, needs_lock);
 	if (IS_ERR(kbuf))
 		return kbuf;
@@ -4150,7 +4147,7 @@ static int io_recvmsg(struct io_kiocb *req, bool force_nonblock,
 {
 	struct io_async_msghdr iomsg, *kmsg;
 	struct socket *sock;
-	struct io_buffer *kbuf;
+	struct io_buffer *kbuf = NULL;
 	unsigned flags;
 	int ret, cflags = 0;
 
@@ -4172,10 +4169,10 @@ static int io_recvmsg(struct io_kiocb *req, bool force_nonblock,
 		kmsg = &iomsg;
 	}
 
-	kbuf = io_recv_buffer_select(req, &cflags, !force_nonblock);
-	if (IS_ERR(kbuf)) {
-		return PTR_ERR(kbuf);
-	} else if (kbuf) {
+	if (req->flags & REQ_F_BUFFER_SELECT) {
+		kbuf = io_recv_buffer_select(req, &cflags, !force_nonblock);
+		if (IS_ERR(kbuf))
+			return PTR_ERR(kbuf);
 		kmsg->fast_iov[0].iov_base = u64_to_user_ptr(kbuf->addr);
 		iov_iter_init(&kmsg->msg.msg_iter, READ, kmsg->iov,
 				1, req->sr_msg.len);
@@ -4222,11 +4219,12 @@ static int io_recv(struct io_kiocb *req, bool force_nonblock,
 	if (unlikely(!sock))
 		return ret;
 
-	kbuf = io_recv_buffer_select(req, &cflags, !force_nonblock);
-	if (IS_ERR(kbuf))
-		return PTR_ERR(kbuf);
-	else if (kbuf)
+	if (req->flags & REQ_F_BUFFER_SELECT) {
+		kbuf = io_recv_buffer_select(req, &cflags, !force_nonblock);
+		if (IS_ERR(kbuf))
+			return PTR_ERR(kbuf);
 		buf = u64_to_user_ptr(kbuf->addr);
+	}
 
 	ret = import_single_range(READ, buf, sr->len, &iov, &msg.msg_iter);
 	if (unlikely(ret))
