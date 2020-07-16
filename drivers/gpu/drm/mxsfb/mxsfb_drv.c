@@ -196,7 +196,7 @@ static struct drm_simple_display_pipe_funcs mxsfb_funcs = {
 	.disable_vblank	= mxsfb_pipe_disable_vblank,
 };
 
-static int mxsfb_load(struct drm_device *drm, unsigned long flags)
+static int mxsfb_load(struct drm_device *drm)
 {
 	struct platform_device *pdev = to_platform_device(drm->dev);
 	struct mxsfb_drm_private *mxsfb;
@@ -403,7 +403,7 @@ static int mxsfb_probe(struct platform_device *pdev)
 	if (IS_ERR(drm))
 		return PTR_ERR(drm);
 
-	ret = mxsfb_load(drm, 0);
+	ret = mxsfb_load(drm);
 	if (ret)
 		goto err_free;
 
