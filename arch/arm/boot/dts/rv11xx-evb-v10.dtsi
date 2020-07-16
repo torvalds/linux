@@ -195,7 +195,7 @@
 		status = "okay";
 	};
 
-	wireless-wlan {
+	wireless_wlan: wireless-wlan {
 		compatible = "wlan-platdata";
 		rockchip,grf = <&grf>;
 		clocks = <&rk809 1>;
