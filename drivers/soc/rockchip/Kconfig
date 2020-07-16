@@ -85,7 +85,7 @@ config ROCKCHIP_RAMDISK
 	  device.
 
 config ROCKCHIP_SUSPEND_MODE
-	bool "Rockchip suspend mode config"
+	tristate "Rockchip suspend mode config"
 	depends on ROCKCHIP_SIP
 	help
 	  Say Y here if you want to set the suspend mode to the ATF.

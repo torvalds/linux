@@ -11,6 +11,7 @@
 #include <linux/arm-smccc.h>
 #include <linux/bitops.h>
 #include <linux/cpu.h>
+#include <linux/module.h>
 #include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/machine.h>
@@ -150,3 +151,5 @@ static int __init rockchip_pm_drv_register(void)
 	return platform_driver_probe(&pm_driver, pm_config_init);
 }
 subsys_initcall(rockchip_pm_drv_register);
+MODULE_DESCRIPTION("Rockchip suspend mode config");
+MODULE_LICENSE("GPL");
