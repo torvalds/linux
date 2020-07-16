@@ -150,9 +150,7 @@ static inline void fsnotify_move(struct inode *old_dir, struct inode *new_dir,
 
 	if (target)
 		fsnotify_link_count(target);
-
-	if (source)
-		fsnotify_inode(source, FS_MOVE_SELF);
+	fsnotify_inode(source, FS_MOVE_SELF);
 	audit_inode_child(new_dir, moved, AUDIT_TYPE_CHILD_CREATE);
 }
 
