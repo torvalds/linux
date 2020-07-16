@@ -79,4 +79,7 @@ enum dc_status dcn30_add_stream_to_ctx(
 		struct dc *dc,
 		struct dc_state *new_ctx,
 		struct dc_stream_state *dc_stream);
+
+void dcn30_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params);
+
 #endif /* _DCN30_RESOURCE_H_ */
