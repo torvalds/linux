@@ -13,11 +13,14 @@
 #define _LEDS_LP55XX_H
 
 #include <linux/gpio/consumer.h>
+#include <linux/led-class-multicolor.h>
 
 /* Clock configuration */
 #define LP55XX_CLOCK_AUTO	0
 #define LP55XX_CLOCK_INT	1
 #define LP55XX_CLOCK_EXT	2
+
+#define LP55XX_MAX_GROUPED_CHAN	4
 
 struct lp55xx_led_config {
 	const char *name;
@@ -25,6 +28,10 @@ struct lp55xx_led_config {
 	u8 chan_nr;
 	u8 led_current; /* mA x10, 0 if led is not connected */
 	u8 max_current;
+	int num_colors;
+	unsigned int max_channel;
+	int color_id[LED_COLOR_ID_MAX];
+	int output_num[LED_COLOR_ID_MAX];
 };
 
 struct lp55xx_predef_pattern {
