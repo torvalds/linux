@@ -216,7 +216,7 @@ static int process_access_response(struct fsnotify_group *group,
 }
 
 static int copy_info_to_user(__kernel_fsid_t *fsid, struct fanotify_fh *fh,
-			     const char *name, size_t name_len,
+			     int info_type, const char *name, size_t name_len,
 			     char __user *buf, size_t count)
 {
 	struct fanotify_event_info_fid info = { };
@@ -229,7 +229,7 @@ static int copy_info_to_user(__kernel_fsid_t *fsid, struct fanotify_fh *fh,
 	pr_debug("%s: fh_len=%zu name_len=%zu, info_len=%zu, count=%zu\n",
 		 __func__, fh_len, name_len, info_len, count);
 
-	if (!fh_len || (name && !name_len))
+	if (!fh_len)
 		return 0;
 
 	if (WARN_ON_ONCE(len < sizeof(info) || len > count))
@@ -239,8 +239,21 @@ static int copy_info_to_user(__kernel_fsid_t *fsid, struct fanotify_fh *fh,
 	 * Copy event info fid header followed by variable sized file handle
 	 * and optionally followed by variable sized filename.
 	 */
-	info.hdr.info_type = name_len ? FAN_EVENT_INFO_TYPE_DFID_NAME :
-					FAN_EVENT_INFO_TYPE_FID;
+	switch (info_type) {
+	case FAN_EVENT_INFO_TYPE_FID:
+	case FAN_EVENT_INFO_TYPE_DFID:
+		if (WARN_ON_ONCE(name_len))
+			return -EFAULT;
+		break;
+	case FAN_EVENT_INFO_TYPE_DFID_NAME:
+		if (WARN_ON_ONCE(!name || !name_len))
+			return -EFAULT;
+		break;
+	default:
+		return -EFAULT;
+	}
+
+	info.hdr.info_type = info_type;
 	info.hdr.len = len;
 	info.fsid = *fsid;
 	if (copy_to_user(buf, &info, sizeof(info)))
@@ -304,8 +317,10 @@ static ssize_t copy_event_to_user(struct fsnotify_group *group,
 	struct fanotify_event_metadata metadata;
 	struct path *path = fanotify_event_path(event);
 	struct fanotify_info *info = fanotify_event_info(event);
+	unsigned int fid_mode = FAN_GROUP_FLAG(group, FANOTIFY_FID_BITS);
 	struct file *f = NULL;
 	int ret, fd = FAN_NOFD;
+	int info_type = 0;
 
 	pr_debug("%s: group=%p event=%p\n", __func__, group, event);
 
@@ -346,9 +361,10 @@ static ssize_t copy_event_to_user(struct fsnotify_group *group,
 
 	/* Event info records order is: dir fid + name, child fid */
 	if (fanotify_event_dir_fh_len(event)) {
+		info_type = FAN_EVENT_INFO_TYPE_DFID_NAME;
 		ret = copy_info_to_user(fanotify_event_fsid(event),
 					fanotify_info_dir_fh(info),
-					fanotify_info_name(info),
+					info_type, fanotify_info_name(info),
 					info->name_len, buf, count);
 		if (ret < 0)
 			return ret;
@@ -358,9 +374,33 @@ static ssize_t copy_event_to_user(struct fsnotify_group *group,
 	}
 
 	if (fanotify_event_object_fh_len(event)) {
+		if (fid_mode == FAN_REPORT_FID || info_type) {
+			/*
+			 * With only group flag FAN_REPORT_FID only type FID is
+			 * reported. Second info record type is always FID.
+			 */
+			info_type = FAN_EVENT_INFO_TYPE_FID;
+		} else if ((event->mask & ALL_FSNOTIFY_DIRENT_EVENTS) ||
+			   (event->mask & FAN_ONDIR)) {
+			/*
+			 * With group flag FAN_REPORT_DIR_FID, a single info
+			 * record has type DFID for directory entry modification
+			 * event and for event on a directory.
+			 */
+			info_type = FAN_EVENT_INFO_TYPE_DFID;
+		} else {
+			/*
+			 * With group flags FAN_REPORT_DIR_FID|FAN_REPORT_FID,
+			 * a single info record has type FID for event on a
+			 * non-directory, when there is no directory to report.
+			 * For example, on FAN_DELETE_SELF event.
+			 */
+			info_type = FAN_EVENT_INFO_TYPE_FID;
+		}
+
 		ret = copy_info_to_user(fanotify_event_fsid(event),
 					fanotify_event_object_fh(event),
-					NULL, 0, buf, count);
+					info_type, NULL, 0, buf, count);
 		if (ret < 0)
 			return ret;
 
@@ -861,6 +901,8 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 	struct fsnotify_group *group;
 	int f_flags, fd;
 	struct user_struct *user;
+	unsigned int fid_mode = flags & FANOTIFY_FID_BITS;
+	unsigned int class = flags & FANOTIFY_CLASS_BITS;
 
 	pr_debug("%s: flags=%x event_f_flags=%x\n",
 		 __func__, flags, event_f_flags);
@@ -887,9 +929,18 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 		return -EINVAL;
 	}
 
-	if ((flags & FANOTIFY_FID_BITS) &&
-	    (flags & FANOTIFY_CLASS_BITS) != FAN_CLASS_NOTIF)
+	if (fid_mode && class != FAN_CLASS_NOTIF)
 		return -EINVAL;
+
+	/* Reporting either object fid or dir fid */
+	switch (fid_mode) {
+	case 0:
+	case FAN_REPORT_FID:
+	case FAN_REPORT_DIR_FID:
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	user = get_current_user();
 	if (atomic_read(&user->fanotify_listeners) > FANOTIFY_DEFAULT_MAX_LISTENERS) {
@@ -926,7 +977,7 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 	group->fanotify_data.f_flags = event_f_flags;
 	init_waitqueue_head(&group->fanotify_data.access_waitq);
 	INIT_LIST_HEAD(&group->fanotify_data.access_list);
-	switch (flags & FANOTIFY_CLASS_BITS) {
+	switch (class) {
 	case FAN_CLASS_NOTIF:
 		group->priority = FS_PRIO_0;
 		break;
@@ -1236,7 +1287,7 @@ COMPAT_SYSCALL_DEFINE6(fanotify_mark,
  */
 static int __init fanotify_user_setup(void)
 {
-	BUILD_BUG_ON(HWEIGHT32(FANOTIFY_INIT_FLAGS) != 8);
+	BUILD_BUG_ON(HWEIGHT32(FANOTIFY_INIT_FLAGS) != 9);
 	BUILD_BUG_ON(HWEIGHT32(FANOTIFY_MARK_FLAGS) != 9);
 
 	fanotify_mark_cache = KMEM_CACHE(fsnotify_mark,

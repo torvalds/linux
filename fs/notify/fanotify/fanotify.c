@@ -223,7 +223,7 @@ out:
 static u32 fanotify_group_event_mask(struct fsnotify_group *group,
 				     struct fsnotify_iter_info *iter_info,
 				     u32 event_mask, const void *data,
-				     int data_type)
+				     int data_type, struct inode *dir)
 {
 	__u32 marks_mask = 0, marks_ignored_mask = 0;
 	__u32 test_mask, user_mask = FANOTIFY_OUTGOING_EVENTS |
@@ -242,6 +242,10 @@ static u32 fanotify_group_event_mask(struct fsnotify_group *group,
 			return 0;
 		/* Path type events are only relevant for files and dirs */
 		if (!d_is_reg(path->dentry) && !d_can_lookup(path->dentry))
+			return 0;
+	} else if (!(fid_mode & FAN_REPORT_FID)) {
+		/* Do we have a directory inode to report? */
+		if (!dir && !(event_mask & FS_ISDIR))
 			return 0;
 	}
 
@@ -396,6 +400,28 @@ static struct inode *fanotify_fid_inode(u32 event_mask, const void *data,
 	return fsnotify_data_inode(data, data_type);
 }
 
+/*
+ * The inode to use as identifier when reporting dir fid depends on the event.
+ * Report the modified directory inode on dirent modification events.
+ * Report the "victim" inode if "victim" is a directory.
+ * Report the parent inode if "victim" is not a directory and event is
+ * reported to parent.
+ * Otherwise, do not report dir fid.
+ */
+static struct inode *fanotify_dfid_inode(u32 event_mask, const void *data,
+					 int data_type, struct inode *dir)
+{
+	struct inode *inode = fsnotify_data_inode(data, data_type);
+
+	if (event_mask & ALL_FSNOTIFY_DIRENT_EVENTS)
+		return dir;
+
+	if (S_ISDIR(inode->i_mode))
+		return inode;
+
+	return dir;
+}
+
 static struct fanotify_event *fanotify_alloc_path_event(const struct path *path,
 							gfp_t gfp)
 {
@@ -491,9 +517,13 @@ static struct fanotify_event *fanotify_alloc_event(struct fsnotify_group *group,
 	struct fanotify_event *event = NULL;
 	gfp_t gfp = GFP_KERNEL_ACCOUNT;
 	struct inode *id = fanotify_fid_inode(mask, data, data_type, dir);
+	struct inode *dirid = fanotify_dfid_inode(mask, data, data_type, dir);
 	const struct path *path = fsnotify_data_path(data, data_type);
 	unsigned int fid_mode = FAN_GROUP_FLAG(group, FANOTIFY_FID_BITS);
 	bool name_event = false;
+
+	if ((fid_mode & FAN_REPORT_DIR_FID) && dirid)
+		id = dirid;
 
 	/*
 	 * For queues with unlimited length lost events are not expected and
@@ -605,7 +635,7 @@ static int fanotify_handle_event(struct fsnotify_group *group, u32 mask,
 	BUILD_BUG_ON(HWEIGHT32(ALL_FANOTIFY_EVENT_BITS) != 19);
 
 	mask = fanotify_group_event_mask(group, iter_info, mask, data,
-					 data_type);
+					 data_type, dir);
 	if (!mask)
 		return 0;
 

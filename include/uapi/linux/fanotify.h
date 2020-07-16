@@ -53,6 +53,7 @@
 /* Flags to determine fanotify event format */
 #define FAN_REPORT_TID		0x00000100	/* event->pid is thread id */
 #define FAN_REPORT_FID		0x00000200	/* Report unique file id */
+#define FAN_REPORT_DIR_FID	0x00000400	/* Report unique directory id */
 
 /* Deprecated - do not use this in programs and do not add new flags here! */
 #define FAN_ALL_INIT_FLAGS	(FAN_CLOEXEC | FAN_NONBLOCK | \
@@ -117,6 +118,7 @@ struct fanotify_event_metadata {
 
 #define FAN_EVENT_INFO_TYPE_FID		1
 #define FAN_EVENT_INFO_TYPE_DFID_NAME	2
+#define FAN_EVENT_INFO_TYPE_DFID	3
 
 /* Variable length info record following event metadata */
 struct fanotify_event_info_header {
@@ -126,10 +128,11 @@ struct fanotify_event_info_header {
 };
 
 /*
- * Unique file identifier info record. This is used both for
- * FAN_EVENT_INFO_TYPE_FID records and for FAN_EVENT_INFO_TYPE_DFID_NAME
- * records. For FAN_EVENT_INFO_TYPE_DFID_NAME there is additionally a null
- * terminated name immediately after the file handle.
+ * Unique file identifier info record.
+ * This structure is used for records of types FAN_EVENT_INFO_TYPE_FID,
+ * FAN_EVENT_INFO_TYPE_DFID and FAN_EVENT_INFO_TYPE_DFID_NAME.
+ * For FAN_EVENT_INFO_TYPE_DFID_NAME there is additionally a null terminated
+ * name immediately after the file handle.
  */
 struct fanotify_event_info_fid {
 	struct fanotify_event_info_header hdr;
