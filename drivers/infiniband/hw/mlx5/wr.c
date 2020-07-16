@@ -383,20 +383,26 @@ static void set_reg_mkey_segment(struct mlx5_mkey_seg *seg,
 
 	memset(seg, 0, sizeof(*seg));
 	if (wr->send_flags & MLX5_IB_SEND_UMR_DISABLE_MR)
-		seg->status = MLX5_MKEY_STATUS_FREE;
+		MLX5_SET(mkc, seg, free, 1);
 
-	seg->flags = convert_access(umrwr->access_flags);
+	MLX5_SET(mkc, seg, a,
+		 !!(umrwr->access_flags & IB_ACCESS_REMOTE_ATOMIC));
+	MLX5_SET(mkc, seg, rw,
+		 !!(umrwr->access_flags & IB_ACCESS_REMOTE_WRITE));
+	MLX5_SET(mkc, seg, rr, !!(umrwr->access_flags & IB_ACCESS_REMOTE_READ));
+	MLX5_SET(mkc, seg, lw, !!(umrwr->access_flags & IB_ACCESS_LOCAL_WRITE));
+	MLX5_SET(mkc, seg, lr, 1);
 	if (umrwr->pd)
-		seg->flags_pd = cpu_to_be32(to_mpd(umrwr->pd)->pdn);
+		MLX5_SET(mkc, seg, pd, to_mpd(umrwr->pd)->pdn);
 	if (wr->send_flags & MLX5_IB_SEND_UMR_UPDATE_TRANSLATION &&
 	    !umrwr->length)
-		seg->flags_pd |= cpu_to_be32(MLX5_MKEY_LEN64);
+		MLX5_SET(mkc, seg, length64, 1);
 
-	seg->start_addr = cpu_to_be64(umrwr->virt_addr);
-	seg->len = cpu_to_be64(umrwr->length);
-	seg->log2_page_size = umrwr->page_shift;
-	seg->qpn_mkey7_0 = cpu_to_be32(0xffffff00 |
-				       mlx5_mkey_variant(umrwr->mkey));
+	MLX5_SET64(mkc, seg, start_addr, umrwr->virt_addr);
+	MLX5_SET64(mkc, seg, len, umrwr->length);
+	MLX5_SET(mkc, seg, log_page_size, umrwr->page_shift);
+	MLX5_SET(mkc, seg, qpn, 0xffffff);
+	MLX5_SET(mkc, seg, mkey_7_0, mlx5_mkey_variant(umrwr->mkey));
 }
 
 static void set_reg_data_seg(struct mlx5_wqe_data_seg *dseg,

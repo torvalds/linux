@@ -1423,15 +1423,6 @@ static inline void init_query_mad(struct ib_smp *mad)
 	mad->method	   = IB_MGMT_METHOD_GET;
 }
 
-static inline u8 convert_access(int acc)
-{
-	return (acc & IB_ACCESS_REMOTE_ATOMIC ? MLX5_PERM_ATOMIC       : 0) |
-	       (acc & IB_ACCESS_REMOTE_WRITE  ? MLX5_PERM_REMOTE_WRITE : 0) |
-	       (acc & IB_ACCESS_REMOTE_READ   ? MLX5_PERM_REMOTE_READ  : 0) |
-	       (acc & IB_ACCESS_LOCAL_WRITE   ? MLX5_PERM_LOCAL_WRITE  : 0) |
-	       MLX5_PERM_LOCAL_READ;
-}
-
 static inline int is_qp1(enum ib_qp_type qp_type)
 {
 	return qp_type == MLX5_IB_QPT_HW_GSI;
