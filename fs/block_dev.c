@@ -1015,19 +1015,14 @@ static bool bd_may_claim(struct block_device *bdev, struct block_device *whole,
 }
 
 /**
- * bd_prepare_to_claim - prepare to claim a block device
+ * bd_prepare_to_claim - claim a block device
  * @bdev: block device of interest
  * @whole: the whole device containing @bdev, may equal @bdev
  * @holder: holder trying to claim @bdev
  *
- * Prepare to claim @bdev.  This function fails if @bdev is already
- * claimed by another holder and waits if another claiming is in
- * progress.  This function doesn't actually claim.  On successful
- * return, the caller has ownership of bd_claiming and bd_holder[s].
- *
- * CONTEXT:
- * spin_lock(&bdev_lock).  Might release bdev_lock, sleep and regrab
- * it multiple times.
+ * Claim @bdev.  This function fails if @bdev is already claimed by another
+ * holder and waits if another claiming is in progress. return, the caller
+ * has ownership of bd_claiming and bd_holder[s].
  *
  * RETURNS:
  * 0 if @bdev can be claimed, -EBUSY otherwise.
@@ -1036,9 +1031,12 @@ static int bd_prepare_to_claim(struct block_device *bdev,
 			       struct block_device *whole, void *holder)
 {
 retry:
+	spin_lock(&bdev_lock);
 	/* if someone else claimed, fail */
-	if (!bd_may_claim(bdev, whole, holder))
+	if (!bd_may_claim(bdev, whole, holder)) {
+		spin_unlock(&bdev_lock);
 		return -EBUSY;
+	}
 
 	/* if claiming is already in progress, wait for it to finish */
 	if (whole->bd_claiming) {
@@ -1049,11 +1047,12 @@ retry:
 		spin_unlock(&bdev_lock);
 		schedule();
 		finish_wait(wq, &wait);
-		spin_lock(&bdev_lock);
 		goto retry;
 	}
 
 	/* yay, all mine */
+	whole->bd_claiming = holder;
+	spin_unlock(&bdev_lock);
 	return 0;
 }
 
@@ -1134,19 +1133,13 @@ struct block_device *bd_start_claiming(struct block_device *bdev, void *holder)
 	if (!whole)
 		return ERR_PTR(-ENOMEM);
 
-	/* prepare to claim, if successful, mark claiming in progress */
-	spin_lock(&bdev_lock);
-
 	err = bd_prepare_to_claim(bdev, whole, holder);
-	if (err == 0) {
-		whole->bd_claiming = holder;
-		spin_unlock(&bdev_lock);
-		return whole;
-	} else {
-		spin_unlock(&bdev_lock);
+	if (err) {
 		bdput(whole);
 		return ERR_PTR(err);
 	}
+
+	return whole;
 }
 EXPORT_SYMBOL(bd_start_claiming);
 
