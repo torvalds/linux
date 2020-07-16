@@ -883,6 +883,7 @@ repeat:
 
 	list_for_each_entry(info, &kernfs_root(kn)->supers, node) {
 		struct kernfs_node *parent;
+		struct inode *p_inode = NULL;
 		struct inode *inode;
 		struct qstr name;
 
@@ -899,8 +900,6 @@ repeat:
 		name = (struct qstr)QSTR_INIT(kn->name, strlen(kn->name));
 		parent = kernfs_get_parent(kn);
 		if (parent) {
-			struct inode *p_inode;
-
 			p_inode = ilookup(info->sb, kernfs_ino(parent));
 			if (p_inode) {
 				fsnotify(p_inode, FS_MODIFY | FS_EVENT_ON_CHILD,
@@ -911,8 +910,11 @@ repeat:
 			kernfs_put(parent);
 		}
 
-		fsnotify(inode, FS_MODIFY, inode, FSNOTIFY_EVENT_INODE,
-			 NULL, 0);
+		if (!p_inode) {
+			fsnotify(inode, FS_MODIFY, inode, FSNOTIFY_EVENT_INODE,
+				 NULL, 0);
+		}
+
 		iput(inode);
 	}
 
