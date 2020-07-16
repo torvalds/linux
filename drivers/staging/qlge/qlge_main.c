@@ -3181,7 +3181,7 @@ static void ql_enable_msix(struct ql_adapter *qdev)
 msi:
 	qdev->intr_count = 1;
 	if (qlge_irq_type == MSI_IRQ) {
-		if (!pci_enable_msi(qdev->pdev)) {
+		if (pci_alloc_irq_vectors(qdev->pdev, 1, 1, PCI_IRQ_MSI) >= 0) {
 			set_bit(QL_MSI_ENABLED, &qdev->flags);
 			netif_info(qdev, ifup, qdev->ndev,
 				   "Running with MSI interrupts.\n");
