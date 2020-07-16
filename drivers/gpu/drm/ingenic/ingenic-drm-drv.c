@@ -459,14 +459,6 @@ static const struct drm_mode_config_funcs ingenic_drm_mode_config_funcs = {
 	.atomic_commit		= drm_atomic_helper_commit,
 };
 
-static void ingenic_drm_free_dma_hwdesc(void *d)
-{
-	struct ingenic_drm *priv = d;
-
-	dma_free_coherent(priv->dev, sizeof(*priv->dma_hwdesc),
-			  priv->dma_hwdesc, priv->dma_hwdesc_phys);
-}
-
 static int ingenic_drm_probe(struct platform_device *pdev)
 {
 	const struct jz_soc_info *soc_info;
@@ -549,15 +541,11 @@ static int ingenic_drm_probe(struct platform_device *pdev)
 		bridge = devm_drm_panel_bridge_add_typed(dev, panel,
 							 DRM_MODE_CONNECTOR_DPI);
 
-	priv->dma_hwdesc = dma_alloc_coherent(dev, sizeof(*priv->dma_hwdesc),
-					      &priv->dma_hwdesc_phys,
-					      GFP_KERNEL);
+	priv->dma_hwdesc = dmam_alloc_coherent(dev, sizeof(*priv->dma_hwdesc),
+					       &priv->dma_hwdesc_phys,
+					       GFP_KERNEL);
 	if (!priv->dma_hwdesc)
 		return -ENOMEM;
-
-	ret = devm_add_action_or_reset(dev, ingenic_drm_free_dma_hwdesc, priv);
-	if (ret)
-		return ret;
 
 	priv->dma_hwdesc->next = priv->dma_hwdesc_phys;
 	priv->dma_hwdesc->id = 0xdeafbead;
