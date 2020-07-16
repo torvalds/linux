@@ -226,9 +226,6 @@ static void *etm_setup_aux(struct perf_event *event, void **pages,
 		sink = coresight_get_enabled_sink(true);
 	}
 
-	if (!sink)
-		goto err;
-
 	mask = &event_data->mask;
 
 	/*
@@ -254,6 +251,16 @@ static void *etm_setup_aux(struct perf_event *event, void **pages,
 		}
 
 		/*
+		 * No sink provided - look for a default sink for one of the
+		 * devices. At present we only support topology where all CPUs
+		 * use the same sink [N:1], so only need to find one sink. The
+		 * coresight_build_path later will remove any CPU that does not
+		 * attach to the sink, or if we have not found a sink.
+		 */
+		if (!sink)
+			sink = coresight_find_default_sink(csdev);
+
+		/*
 		 * Building a path doesn't enable it, it simply builds a
 		 * list of devices from source to sink that can be
 		 * referenced later when the path is actually needed.
@@ -266,6 +273,10 @@ static void *etm_setup_aux(struct perf_event *event, void **pages,
 
 		*etm_event_cpu_path_ptr(event_data, cpu) = path;
 	}
+
+	/* no sink found for any CPU - cannot trace */
+	if (!sink)
+		goto err;
 
 	/* If we don't have any CPUs ready for tracing, abort */
 	cpu = cpumask_first(mask);
