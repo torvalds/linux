@@ -1158,6 +1158,8 @@ static inline void xfs_dinode_put_rdev(struct xfs_dinode *dip, xfs_dev_t rdev)
 				 XFS_DQTYPE_PROJ | \
 				 XFS_DQTYPE_GROUP)
 
+#define XFS_DQTYPE_ANY		(XFS_DQTYPE_REC_MASK)
+
 /*
  * This is the main portion of the on-disk representation of quota information
  * for a user.  We pad this with some more expansion room to construct the on

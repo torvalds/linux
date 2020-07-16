@@ -39,6 +39,8 @@ xfs_dquot_verify(
 	struct xfs_disk_dquot	*ddq,
 	xfs_dqid_t		id)	/* used only during quotacheck */
 {
+	__u8			ddq_type;
+
 	/*
 	 * We can encounter an uninitialized dquot buffer for 2 reasons:
 	 * 1. If we crash while deleting the quotainode(s), and those blks got
@@ -59,9 +61,12 @@ xfs_dquot_verify(
 	if (ddq->d_version != XFS_DQUOT_VERSION)
 		return __this_address;
 
-	if (ddq->d_flags != XFS_DQTYPE_USER &&
-	    ddq->d_flags != XFS_DQTYPE_PROJ &&
-	    ddq->d_flags != XFS_DQTYPE_GROUP)
+	if (ddq->d_flags & ~XFS_DQTYPE_ANY)
+		return __this_address;
+	ddq_type = ddq->d_flags & XFS_DQTYPE_REC_MASK;
+	if (ddq_type != XFS_DQTYPE_USER &&
+	    ddq_type != XFS_DQTYPE_PROJ &&
+	    ddq_type != XFS_DQTYPE_GROUP)
 		return __this_address;
 
 	if (id != -1 && id != be32_to_cpu(ddq->d_id))
