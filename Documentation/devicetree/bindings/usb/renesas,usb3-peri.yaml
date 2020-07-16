@@ -16,6 +16,7 @@ properties:
           - renesas,r8a774a1-usb3-peri # RZ/G2M
           - renesas,r8a774b1-usb3-peri # RZ/G2N
           - renesas,r8a774c0-usb3-peri # RZ/G2E
+          - renesas,r8a774e1-usb3-peri # RZ/G2H
           - renesas,r8a7795-usb3-peri  # R-Car H3
           - renesas,r8a7796-usb3-peri  # R-Car M3-W
           - renesas,r8a77961-usb3-peri # R-Car M3-W+
