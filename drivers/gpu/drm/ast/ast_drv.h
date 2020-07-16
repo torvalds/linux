@@ -110,7 +110,6 @@ struct ast_private {
 	uint32_t dram_bus_width;
 	uint32_t dram_type;
 	uint32_t mclk;
-	uint32_t vram_size;
 
 	int fb_mtrr;
 

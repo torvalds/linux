@@ -33,13 +33,56 @@
 
 #include "ast_drv.h"
 
+static u32 ast_get_vram_size(struct ast_private *ast)
+{
+	u8 jreg;
+	u32 vram_size;
+
+	ast_open_key(ast);
+
+	vram_size = AST_VIDMEM_DEFAULT_SIZE;
+	jreg = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xaa, 0xff);
+	switch (jreg & 3) {
+	case 0:
+		vram_size = AST_VIDMEM_SIZE_8M;
+		break;
+	case 1:
+		vram_size = AST_VIDMEM_SIZE_16M;
+		break;
+	case 2:
+		vram_size = AST_VIDMEM_SIZE_32M;
+		break;
+	case 3:
+		vram_size = AST_VIDMEM_SIZE_64M;
+		break;
+	}
+
+	jreg = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x99, 0xff);
+	switch (jreg & 0x03) {
+	case 1:
+		vram_size -= 0x100000;
+		break;
+	case 2:
+		vram_size -= 0x200000;
+		break;
+	case 3:
+		vram_size -= 0x400000;
+		break;
+	}
+
+	return vram_size;
+}
+
 int ast_mm_init(struct ast_private *ast)
 {
+	u32 vram_size;
 	int ret;
 	struct drm_device *dev = ast->dev;
 
+	vram_size = ast_get_vram_size(ast);
+
 	ret = drmm_vram_helper_init(dev, pci_resource_start(dev->pdev, 0),
-				    ast->vram_size);
+				    vram_size);
 	if (ret) {
 		drm_err(dev, "Error initializing VRAM MM; %d\n", ret);
 		return ret;
