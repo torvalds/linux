@@ -41,6 +41,7 @@ properties:
               - renesas,vin-r8a774a1 # RZ/G2M
               - renesas,vin-r8a774b1 # RZ/G2N
               - renesas,vin-r8a774c0 # RZ/G2E
+              - renesas,vin-r8a774e1 # RZ/G2H
               - renesas,vin-r8a7778  # R-Car M1
               - renesas,vin-r8a7779  # R-Car H1
               - renesas,vin-r8a7795  # R-Car H3
