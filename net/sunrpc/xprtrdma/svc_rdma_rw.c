@@ -262,7 +262,7 @@ struct svc_rdma_read_info {
 	unsigned int			ri_position;
 	unsigned int			ri_pageno;
 	unsigned int			ri_pageoff;
-	unsigned int			ri_chunklen;
+	unsigned int			ri_totalbytes;
 
 	struct svc_rdma_chunk_ctxt	ri_cc;
 };
@@ -726,7 +726,6 @@ static int svc_rdma_build_read_chunk(struct svc_rqst *rqstp,
 	int ret;
 
 	ret = -EINVAL;
-	info->ri_chunklen = 0;
 	while (*p++ != xdr_zero && be32_to_cpup(p++) == info->ri_position) {
 		u32 handle, length;
 		u64 offset;
@@ -737,7 +736,7 @@ static int svc_rdma_build_read_chunk(struct svc_rqst *rqstp,
 		if (ret < 0)
 			break;
 
-		info->ri_chunklen += length;
+		info->ri_totalbytes += length;
 	}
 	return ret;
 }
@@ -754,6 +753,8 @@ static int svc_rdma_build_normal_read_chunk(struct svc_rqst *rqstp,
 					    __be32 *p)
 {
 	struct svc_rdma_recv_ctxt *head = info->ri_readctxt;
+	struct xdr_buf *buf = &head->rc_arg;
+	unsigned int length;
 	int ret;
 
 	ret = svc_rdma_build_read_chunk(rqstp, info, p);
@@ -782,11 +783,10 @@ static int svc_rdma_build_normal_read_chunk(struct svc_rqst *rqstp,
 	 * Currently these chunks always start at page offset 0,
 	 * thus the rounded-up length never crosses a page boundary.
 	 */
-	info->ri_chunklen = XDR_QUADLEN(info->ri_chunklen) << 2;
-
-	head->rc_arg.page_len = info->ri_chunklen;
-	head->rc_arg.len += info->ri_chunklen;
-	head->rc_arg.buflen += info->ri_chunklen;
+	length = XDR_QUADLEN(info->ri_totalbytes) << 2;
+	buf->page_len = length;
+	buf->len += length;
+	buf->buflen += length;
 
 out:
 	return ret;
@@ -808,22 +808,20 @@ static int svc_rdma_build_pz_read_chunk(struct svc_rqst *rqstp,
 					__be32 *p)
 {
 	struct svc_rdma_recv_ctxt *head = info->ri_readctxt;
+	struct xdr_buf *buf = &head->rc_arg;
 	int ret;
 
 	ret = svc_rdma_build_read_chunk(rqstp, info, p);
 	if (ret < 0)
 		goto out;
 
-	head->rc_arg.len += info->ri_chunklen;
-	head->rc_arg.buflen += info->ri_chunklen;
+	buf->len += info->ri_totalbytes;
+	buf->buflen += info->ri_totalbytes;
 
 	head->rc_hdr_count = 1;
-	head->rc_arg.head[0].iov_base = page_address(head->rc_pages[0]);
-	head->rc_arg.head[0].iov_len = min_t(size_t, PAGE_SIZE,
-					     info->ri_chunklen);
-
-	head->rc_arg.page_len = info->ri_chunklen -
-				head->rc_arg.head[0].iov_len;
+	buf->head[0].iov_base = page_address(head->rc_pages[0]);
+	buf->head[0].iov_len = min_t(size_t, PAGE_SIZE, info->ri_totalbytes);
+	buf->page_len = info->ri_totalbytes - buf->head[0].iov_len;
 
 out:
 	return ret;
@@ -892,6 +890,7 @@ int svc_rdma_recv_read_chunk(struct svcxprt_rdma *rdma, struct svc_rqst *rqstp,
 	info->ri_readctxt = head;
 	info->ri_pageno = 0;
 	info->ri_pageoff = 0;
+	info->ri_totalbytes = 0;
 
 	info->ri_position = be32_to_cpup(p + 1);
 	if (info->ri_position)
