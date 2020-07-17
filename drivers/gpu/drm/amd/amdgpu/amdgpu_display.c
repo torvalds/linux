@@ -528,6 +528,10 @@ uint32_t amdgpu_display_supported_domains(struct amdgpu_device *adev,
 			    (adev->apu_flags & AMD_APU_IS_PICASSO))
 				domain |= AMDGPU_GEM_DOMAIN_GTT;
 			break;
+		case CHIP_RENOIR:
+			domain |= AMDGPU_GEM_DOMAIN_GTT;
+			break;
+
 		default:
 			break;
 		}
