@@ -1315,7 +1315,6 @@ void cdns3_set_hw_configuration(struct cdns3_device *priv_dev)
 		return;
 
 	writel(USB_CONF_CFGSET, &priv_dev->regs->usb_conf);
-	writel(EP_CMD_ERDY | EP_CMD_REQ_CMPL, &priv_dev->regs->ep_cmd);
 
 	cdns3_set_register_bit(&priv_dev->regs->usb_conf,
 			       USB_CONF_U1EN | USB_CONF_U2EN);
@@ -1332,6 +1331,8 @@ void cdns3_set_hw_configuration(struct cdns3_device *priv_dev)
 			cdns3_start_all_request(priv_dev, priv_ep);
 		}
 	}
+
+	cdns3_allow_enable_l1(priv_dev, 1);
 }
 
 /**

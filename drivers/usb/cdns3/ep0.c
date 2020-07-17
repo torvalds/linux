@@ -161,13 +161,12 @@ static int cdns3_req_ep0_set_configuration(struct cdns3_device *priv_dev,
 		if (result)
 			return result;
 
-		if (config) {
-			cdns3_set_hw_configuration(priv_dev);
-		} else {
+		if (!config) {
 			cdns3_hw_reset_eps_config(priv_dev);
 			usb_gadget_set_state(&priv_dev->gadget,
 					     USB_STATE_ADDRESS);
 		}
+
 		break;
 	case USB_STATE_CONFIGURED:
 		result = cdns3_ep0_delegate_req(priv_dev, ctrl_req);
@@ -707,7 +706,6 @@ static int cdns3_gadget_ep0_queue(struct usb_ep *ep,
 	struct cdns3_endpoint *priv_ep = ep_to_cdns3_ep(ep);
 	struct cdns3_device *priv_dev = priv_ep->cdns3_dev;
 	unsigned long flags;
-	int erdy_sent = 0;
 	int ret = 0;
 	u8 zlp = 0;
 
@@ -723,15 +721,8 @@ static int cdns3_gadget_ep0_queue(struct usb_ep *ep,
 	/* send STATUS stage. Should be called only for SET_CONFIGURATION */
 	if (priv_dev->ep0_stage == CDNS3_STATUS_STAGE) {
 		cdns3_select_ep(priv_dev, 0x00);
-
-		erdy_sent = !priv_dev->hw_configured_flag;
 		cdns3_set_hw_configuration(priv_dev);
-
-		if (!erdy_sent)
-			cdns3_ep0_complete_setup(priv_dev, 0, 1);
-
-		cdns3_allow_enable_l1(priv_dev, 1);
-
+		cdns3_ep0_complete_setup(priv_dev, 0, 1);
 		request->actual = 0;
 		priv_dev->status_completion_no_call = true;
 		priv_dev->pending_status_request = request;
