@@ -37,6 +37,14 @@ extern unsigned int admin_timeout;
 #define  NVME_INLINE_METADATA_SG_CNT  1
 #endif
 
+/*
+ * Default to a 4K page size, with the intention to update this
+ * path in the future to accommodate architectures with differing
+ * kernel and IO page sizes.
+ */
+#define NVME_CTRL_PAGE_SHIFT	12
+#define NVME_CTRL_PAGE_SIZE	(1 << NVME_CTRL_PAGE_SHIFT)
+
 extern struct workqueue_struct *nvme_wq;
 extern struct workqueue_struct *nvme_reset_wq;
 extern struct workqueue_struct *nvme_delete_wq;
@@ -234,7 +242,6 @@ struct nvme_ctrl {
 	u32 queue_count;
 
 	u64 cap;
-	u32 page_size;
 	u32 max_hw_sectors;
 	u32 max_segments;
 	u32 max_integrity_segments;
