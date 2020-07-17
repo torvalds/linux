@@ -373,6 +373,8 @@ static int netns_bpf_max_progs(enum netns_bpf_attach_type type)
 	switch (type) {
 	case NETNS_BPF_FLOW_DISSECTOR:
 		return 1;
+	case NETNS_BPF_SK_LOOKUP:
+		return 64;
 	default:
 		return 0;
 	}
@@ -402,6 +404,9 @@ static int netns_bpf_link_attach(struct net *net, struct bpf_link *link,
 	switch (type) {
 	case NETNS_BPF_FLOW_DISSECTOR:
 		err = flow_dissector_bpf_prog_attach_check(net, link->prog);
+		break;
+	case NETNS_BPF_SK_LOOKUP:
+		err = 0; /* nothing to check */
 		break;
 	default:
 		err = -EINVAL;
