@@ -6245,10 +6245,10 @@ static int zxr_add_headphone_gain_switch(struct hda_codec *codec)
 }
 
 /*
- * Need to create slave controls for the alternate codecs that have surround
+ * Need to create follower controls for the alternate codecs that have surround
  * capabilities.
  */
-static const char * const ca0132_alt_slave_pfxs[] = {
+static const char * const ca0132_alt_follower_pfxs[] = {
 	"Front", "Surround", "Center", "LFE", NULL,
 };
 
@@ -6376,15 +6376,15 @@ static int ca0132_build_controls(struct hda_codec *codec)
 		if (err < 0)
 			return err;
 	}
-	/* Setup vmaster with surround slaves for desktop ca0132 devices */
+	/* Setup vmaster with surround followers for desktop ca0132 devices */
 	if (ca0132_use_alt_functions(spec)) {
 		snd_hda_set_vmaster_tlv(codec, spec->dacs[0], HDA_OUTPUT,
 					spec->tlv);
 		snd_hda_add_vmaster(codec, "Master Playback Volume",
-					spec->tlv, ca0132_alt_slave_pfxs,
+					spec->tlv, ca0132_alt_follower_pfxs,
 					"Playback Volume");
 		err = __snd_hda_add_vmaster(codec, "Master Playback Switch",
-					    NULL, ca0132_alt_slave_pfxs,
+					    NULL, ca0132_alt_follower_pfxs,
 					    "Playback Switch",
 					    true, &spec->vmaster_mute.sw_kctl);
 		if (err < 0)

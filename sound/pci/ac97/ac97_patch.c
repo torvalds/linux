@@ -19,7 +19,7 @@ static struct snd_kcontrol *snd_ac97_find_mixer_ctl(struct snd_ac97 *ac97,
 						    const char *name);
 static int snd_ac97_add_vmaster(struct snd_ac97 *ac97, char *name,
 				const unsigned int *tlv,
-				const char * const *slaves);
+				const char * const *followers);
 
 /*
  *  Chip specific initialization
@@ -3373,7 +3373,7 @@ AC97_SINGLE("Downmix LFE and Center to Front", 0x5a, 12, 1, 0),
 AC97_SINGLE("Downmix Surround to Front", 0x5a, 11, 1, 0),
 };
 
-static const char * const slave_vols_vt1616[] = {
+static const char * const follower_vols_vt1616[] = {
 	"Front Playback Volume",
 	"Surround Playback Volume",
 	"Center Playback Volume",
@@ -3381,7 +3381,7 @@ static const char * const slave_vols_vt1616[] = {
 	NULL
 };
 
-static const char * const slave_sws_vt1616[] = {
+static const char * const follower_sws_vt1616[] = {
 	"Front Playback Switch",
 	"Surround Playback Switch",
 	"Center Playback Switch",
@@ -3400,10 +3400,10 @@ static struct snd_kcontrol *snd_ac97_find_mixer_ctl(struct snd_ac97 *ac97,
 	return snd_ctl_find_id(ac97->bus->card, &id);
 }
 
-/* create a virtual master control and add slaves */
+/* create a virtual master control and add followers */
 static int snd_ac97_add_vmaster(struct snd_ac97 *ac97, char *name,
 				const unsigned int *tlv,
-				const char * const *slaves)
+				const char * const *followers)
 {
 	struct snd_kcontrol *kctl;
 	const char * const *s;
@@ -3416,16 +3416,16 @@ static int snd_ac97_add_vmaster(struct snd_ac97 *ac97, char *name,
 	if (err < 0)
 		return err;
 
-	for (s = slaves; *s; s++) {
+	for (s = followers; *s; s++) {
 		struct snd_kcontrol *sctl;
 
 		sctl = snd_ac97_find_mixer_ctl(ac97, *s);
 		if (!sctl) {
 			dev_dbg(ac97->bus->card->dev,
-				"Cannot find slave %s, skipped\n", *s);
+				"Cannot find follower %s, skipped\n", *s);
 			continue;
 		}
-		err = snd_ctl_add_slave(kctl, sctl);
+		err = snd_ctl_add_follower(kctl, sctl);
 		if (err < 0)
 			return err;
 	}
@@ -3451,12 +3451,12 @@ static int patch_vt1616_specific(struct snd_ac97 * ac97)
 	snd_ac97_rename_vol_ctl(ac97, "Master Playback", "Front Playback");
 
 	err = snd_ac97_add_vmaster(ac97, "Master Playback Volume",
-				   kctl->tlv.p, slave_vols_vt1616);
+				   kctl->tlv.p, follower_vols_vt1616);
 	if (err < 0)
 		return err;
 
 	err = snd_ac97_add_vmaster(ac97, "Master Playback Switch",
-				   NULL, slave_sws_vt1616);
+				   NULL, follower_sws_vt1616);
 	if (err < 0)
 		return err;
 
