@@ -641,8 +641,7 @@ static struct genl_family thermal_gnl_family __ro_after_init = {
 	.n_mcgrps	= ARRAY_SIZE(thermal_genl_mcgrps),
 };
 
-static int __init thermal_netlink_init(void)
+int __init thermal_netlink_init(void)
 {
 	return genl_register_family(&thermal_gnl_family);
 }
-core_initcall(thermal_netlink_init);
