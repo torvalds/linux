@@ -253,6 +253,11 @@ out:
 	spin_unlock(&rtwdev->h2c.lock);
 }
 
+void rtw_fw_h2c_cmd_dbg(struct rtw_dev *rtwdev, u8 *h2c)
+{
+	rtw_fw_send_h2c_command(rtwdev, h2c);
+}
+
 static void rtw_fw_send_h2c_packet(struct rtw_dev *rtwdev, u8 *h2c_pkt)
 {
 	int ret;
