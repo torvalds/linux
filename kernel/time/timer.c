@@ -156,7 +156,8 @@ EXPORT_SYMBOL(jiffies_64);
 
 /*
  * The time start value for each level to select the bucket at enqueue
- * time.
+ * time. We start from the last possible delta of the previous level
+ * so that we can later add an extra LVL_GRAN(n) to n (see calc_index()).
  */
 #define LVL_START(n)	((LVL_SIZE - 1) << (((n) - 1) * LVL_CLK_SHIFT))
 
@@ -490,6 +491,15 @@ static inline void timer_set_idx(struct timer_list *timer, unsigned int idx)
 static inline unsigned calc_index(unsigned long expires, unsigned lvl,
 				  unsigned long *bucket_expiry)
 {
+
+	/*
+	 * The timer wheel has to guarantee that a timer does not fire
+	 * early. Early expiry can happen due to:
+	 * - Timer is armed at the edge of a tick
+	 * - Truncation of the expiry time in the outer wheel levels
+	 *
+	 * Round up with level granularity to prevent this.
+	 */
 	expires = (expires + LVL_GRAN(lvl)) >> LVL_SHIFT(lvl);
 	*bucket_expiry = expires << LVL_SHIFT(lvl);
 	return LVL_OFFS(lvl) + (expires & LVL_MASK);
