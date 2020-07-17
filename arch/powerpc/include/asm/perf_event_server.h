@@ -22,6 +22,7 @@ struct mmcr_regs {
 	unsigned long mmcr1;
 	unsigned long mmcr2;
 	unsigned long mmcra;
+	unsigned long mmcr3;
 };
 /*
  * This struct provides the constants and functions needed to
@@ -75,6 +76,7 @@ struct power_pmu {
 #define PPMU_HAS_SIER		0x00000040 /* Has SIER */
 #define PPMU_ARCH_207S		0x00000080 /* PMC is architecture v2.07S */
 #define PPMU_NO_SIAR		0x00000100 /* Do not use SIAR */
+#define PPMU_ARCH_31		0x00000200 /* Has MMCR3, SIER2 and SIER3 */
 
 /*
  * Values for flags to get_alternatives()

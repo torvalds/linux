@@ -72,6 +72,11 @@ static unsigned int freeze_events_kernel = MMCR0_FCS;
 /*
  * 32-bit doesn't have MMCRA but does have an MMCR2,
  * and a few other names are different.
+ * Also 32-bit doesn't have MMCR3, SIER2 and SIER3.
+ * Define them as zero knowing that any code path accessing
+ * these registers (via mtspr/mfspr) are done under ppmu flag
+ * check for PPMU_ARCH_31 and we will not enter that code path
+ * for 32-bit.
  */
 #ifdef CONFIG_PPC32
 
@@ -85,6 +90,9 @@ static unsigned int freeze_events_kernel = MMCR0_FCS;
 #define MMCR0_PMCC_U6		0
 
 #define SPRN_MMCRA		SPRN_MMCR2
+#define SPRN_MMCR3		0
+#define SPRN_SIER2		0
+#define SPRN_SIER3		0
 #define MMCRA_SAMPLE_ENABLE	0
 
 static inline unsigned long perf_ip_adjust(struct pt_regs *regs)
@@ -581,6 +589,11 @@ static void ebb_switch_out(unsigned long mmcr0)
 	current->thread.sdar  = mfspr(SPRN_SDAR);
 	current->thread.mmcr0 = mmcr0 & MMCR0_USER_MASK;
 	current->thread.mmcr2 = mfspr(SPRN_MMCR2) & MMCR2_USER_MASK;
+	if (ppmu->flags & PPMU_ARCH_31) {
+		current->thread.mmcr3 = mfspr(SPRN_MMCR3);
+		current->thread.sier2 = mfspr(SPRN_SIER2);
+		current->thread.sier3 = mfspr(SPRN_SIER3);
+	}
 }
 
 static unsigned long ebb_switch_in(bool ebb, struct cpu_hw_events *cpuhw)
@@ -620,6 +633,12 @@ static unsigned long ebb_switch_in(bool ebb, struct cpu_hw_events *cpuhw)
 	 * instead manage the MMCR2 entirely by itself.
 	 */
 	mtspr(SPRN_MMCR2, cpuhw->mmcr.mmcr2 | current->thread.mmcr2);
+
+	if (ppmu->flags & PPMU_ARCH_31) {
+		mtspr(SPRN_MMCR3, current->thread.mmcr3);
+		mtspr(SPRN_SIER2, current->thread.sier2);
+		mtspr(SPRN_SIER3, current->thread.sier3);
+	}
 out:
 	return mmcr0;
 }
@@ -839,6 +858,11 @@ void perf_event_print_debug(void)
 			mfspr(SPRN_MMCR2), mfspr(SPRN_EBBHR));
 		pr_info("EBBRR: %016lx BESCR: %016lx\n",
 			mfspr(SPRN_EBBRR), mfspr(SPRN_BESCR));
+	}
+
+	if (ppmu->flags & PPMU_ARCH_31) {
+		pr_info("MMCR3: %016lx SIER2: %016lx SIER3: %016lx\n",
+			mfspr(SPRN_MMCR3), mfspr(SPRN_SIER2), mfspr(SPRN_SIER3));
 	}
 #endif
 	pr_info("SIAR:  %016lx SDAR:  %016lx SIER:  %016lx\n",
@@ -1305,6 +1329,8 @@ static void power_pmu_enable(struct pmu *pmu)
 	if (!cpuhw->n_added) {
 		mtspr(SPRN_MMCRA, cpuhw->mmcr.mmcra & ~MMCRA_SAMPLE_ENABLE);
 		mtspr(SPRN_MMCR1, cpuhw->mmcr.mmcr1);
+		if (ppmu->flags & PPMU_ARCH_31)
+			mtspr(SPRN_MMCR3, cpuhw->mmcr.mmcr3);
 		goto out_enable;
 	}
 
@@ -1347,6 +1373,9 @@ static void power_pmu_enable(struct pmu *pmu)
 				| MMCR0_FC);
 	if (ppmu->flags & PPMU_ARCH_207S)
 		mtspr(SPRN_MMCR2, cpuhw->mmcr.mmcr2);
+
+	if (ppmu->flags & PPMU_ARCH_31)
+		mtspr(SPRN_MMCR3, cpuhw->mmcr.mmcr3);
 
 	/*
 	 * Read off any pre-existing events that need to move
