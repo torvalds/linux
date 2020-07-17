@@ -834,6 +834,7 @@ static int pca953x_irq_setup(struct pca953x_chip *chip, int irq_base)
 	struct irq_chip *irq_chip = &chip->irq_chip;
 	DECLARE_BITMAP(reg_direction, MAX_LINE);
 	DECLARE_BITMAP(irq_stat, MAX_LINE);
+	struct gpio_irq_chip *girq;
 	int ret;
 
 	if (dmi_first_match(pca953x_dmi_acpi_irq_info)) {
@@ -883,16 +884,16 @@ static int pca953x_irq_setup(struct pca953x_chip *chip, int irq_base)
 	irq_chip->irq_set_type = pca953x_irq_set_type;
 	irq_chip->irq_shutdown = pca953x_irq_shutdown;
 
-	ret = gpiochip_irqchip_add_nested(&chip->gpio_chip, irq_chip,
-					  irq_base, handle_simple_irq,
-					  IRQ_TYPE_NONE);
-	if (ret) {
-		dev_err(&client->dev,
-			"could not connect irqchip to gpiochip\n");
-		return ret;
-	}
-
-	gpiochip_set_nested_irqchip(&chip->gpio_chip, irq_chip, client->irq);
+	girq = &chip->gpio_chip.irq;
+	girq->chip = irq_chip;
+	/* This will let us handle the parent IRQ in the driver */
+	girq->parent_handler = NULL;
+	girq->num_parents = 0;
+	girq->parents = NULL;
+	girq->default_type = IRQ_TYPE_NONE;
+	girq->handler = handle_simple_irq;
+	girq->threaded = true;
+	girq->first = irq_base; /* FIXME: get rid of this */
 
 	return 0;
 }
@@ -1080,11 +1081,11 @@ static int pca953x_probe(struct i2c_client *client,
 	if (ret)
 		goto err_exit;
 
-	ret = devm_gpiochip_add_data(&client->dev, &chip->gpio_chip, chip);
+	ret = pca953x_irq_setup(chip, irq_base);
 	if (ret)
 		goto err_exit;
 
-	ret = pca953x_irq_setup(chip, irq_base);
+	ret = devm_gpiochip_add_data(&client->dev, &chip->gpio_chip, chip);
 	if (ret)
 		goto err_exit;
 
