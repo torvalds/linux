@@ -1139,6 +1139,36 @@ void watchdog_dev_unregister(struct watchdog_device *wdd)
 }
 
 /*
+ *	watchdog_set_last_hw_keepalive: set last HW keepalive time for watchdog
+ *	@wdd: watchdog device
+ *	@last_ping_ms: time since last HW heartbeat
+ *
+ *	Adjusts the last known HW keepalive time for a watchdog timer.
+ *	This is needed if the watchdog is already running when the probe
+ *	function is called, and it can't be pinged immediately. This
+ *	function must be called immediately after watchdog registration,
+ *	and min_hw_heartbeat_ms must be set for this to be useful.
+ */
+int watchdog_set_last_hw_keepalive(struct watchdog_device *wdd,
+				   unsigned int last_ping_ms)
+{
+	struct watchdog_core_data *wd_data;
+	ktime_t now;
+
+	if (!wdd)
+		return -EINVAL;
+
+	wd_data = wdd->wd_data;
+
+	now = ktime_get();
+
+	wd_data->last_hw_keepalive = ktime_sub(now, ms_to_ktime(last_ping_ms));
+
+	return __watchdog_ping(wdd);
+}
+EXPORT_SYMBOL_GPL(watchdog_set_last_hw_keepalive);
+
+/*
  *	watchdog_dev_init: init dev part of watchdog core
  *
  *	Allocate a range of chardev nodes to use for watchdog devices
