@@ -191,6 +191,23 @@ module_param(debug, int, 0644);
 static void __vb2_queue_cancel(struct vb2_queue *q);
 static void __enqueue_in_driver(struct vb2_buffer *vb);
 
+static const char *vb2_state_name(enum vb2_buffer_state s)
+{
+	static const char * const state_names[] = {
+		[VB2_BUF_STATE_DEQUEUED] = "dequeued",
+		[VB2_BUF_STATE_IN_REQUEST] = "in request",
+		[VB2_BUF_STATE_PREPARING] = "preparing",
+		[VB2_BUF_STATE_QUEUED] = "queued",
+		[VB2_BUF_STATE_ACTIVE] = "active",
+		[VB2_BUF_STATE_DONE] = "done",
+		[VB2_BUF_STATE_ERROR] = "error",
+	};
+
+	if ((unsigned int)(s) < ARRAY_SIZE(state_names))
+		return state_names[s];
+	return "unknown";
+}
+
 /*
  * __vb2_buf_mem_alloc() - allocate video memory for the given buffer
  */
@@ -1015,8 +1032,8 @@ void vb2_buffer_done(struct vb2_buffer *vb, enum vb2_buffer_state state)
 	 */
 	vb->cnt_buf_done++;
 #endif
-	dprintk(q, 4, "done processing on buffer %d, state: %d\n",
-			vb->index, state);
+	dprintk(q, 4, "done processing on buffer %d, state: %s\n",
+		vb->index, vb2_state_name(state));
 
 	if (state != VB2_BUF_STATE_QUEUED)
 		__vb2_buf_mem_finish(vb);
@@ -1490,8 +1507,8 @@ int vb2_core_prepare_buf(struct vb2_queue *q, unsigned int index, void *pb)
 
 	vb = q->bufs[index];
 	if (vb->state != VB2_BUF_STATE_DEQUEUED) {
-		dprintk(q, 1, "invalid buffer state %d\n",
-			vb->state);
+		dprintk(q, 1, "invalid buffer state %s\n",
+			vb2_state_name(vb->state));
 		return -EINVAL;
 	}
 	if (vb->prepared) {
@@ -1670,7 +1687,8 @@ int vb2_core_qbuf(struct vb2_queue *q, unsigned int index, void *pb,
 		dprintk(q, 1, "buffer still being prepared\n");
 		return -EINVAL;
 	default:
-		dprintk(q, 1, "invalid buffer state %d\n", vb->state);
+		dprintk(q, 1, "invalid buffer state %s\n",
+			vb2_state_name(vb->state));
 		return -EINVAL;
 	}
 
@@ -1884,7 +1902,8 @@ int vb2_core_dqbuf(struct vb2_queue *q, unsigned int *pindex, void *pb,
 		dprintk(q, 3, "returning done buffer with errors\n");
 		break;
 	default:
-		dprintk(q, 1, "invalid buffer state\n");
+		dprintk(q, 1, "invalid buffer state %s\n",
+			vb2_state_name(vb->state));
 		return -EINVAL;
 	}
 
@@ -1915,8 +1934,8 @@ int vb2_core_dqbuf(struct vb2_queue *q, unsigned int *pindex, void *pb,
 		media_request_put(vb->request);
 	vb->request = NULL;
 
-	dprintk(q, 2, "dqbuf of buffer %d, with state %d\n",
-			vb->index, vb->state);
+	dprintk(q, 2, "dqbuf of buffer %d, state: %s\n",
+		vb->index, vb2_state_name(vb->state));
 
 	return 0;
 
