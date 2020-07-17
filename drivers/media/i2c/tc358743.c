@@ -1602,8 +1602,9 @@ static int tc358743_dv_timings_cap(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int tc358743_g_mbus_config(struct v4l2_subdev *sd,
-			     struct v4l2_mbus_config *cfg)
+static int tc358743_get_mbus_config(struct v4l2_subdev *sd,
+				    unsigned int pad,
+				    struct v4l2_mbus_config *cfg)
 {
 	struct tc358743_state *state = to_state(sd);
 
@@ -1836,7 +1837,6 @@ static const struct v4l2_subdev_video_ops tc358743_video_ops = {
 	.s_dv_timings = tc358743_s_dv_timings,
 	.g_dv_timings = tc358743_g_dv_timings,
 	.query_dv_timings = tc358743_query_dv_timings,
-	.g_mbus_config = tc358743_g_mbus_config,
 	.s_stream = tc358743_s_stream,
 };
 
@@ -1848,6 +1848,7 @@ static const struct v4l2_subdev_pad_ops tc358743_pad_ops = {
 	.set_edid = tc358743_s_edid,
 	.enum_dv_timings = tc358743_enum_dv_timings,
 	.dv_timings_cap = tc358743_dv_timings_cap,
+	.get_mbus_config = tc358743_get_mbus_config,
 };
 
 static const struct v4l2_subdev_ops tc358743_ops = {

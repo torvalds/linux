@@ -1137,8 +1137,9 @@ static int mt9m111_init_cfg(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int mt9m111_g_mbus_config(struct v4l2_subdev *sd,
-				struct v4l2_mbus_config *cfg)
+static int mt9m111_get_mbus_config(struct v4l2_subdev *sd,
+				   unsigned int pad,
+				   struct v4l2_mbus_config *cfg)
 {
 	struct mt9m111 *mt9m111 = container_of(sd, struct mt9m111, subdev);
 
@@ -1155,7 +1156,6 @@ static int mt9m111_g_mbus_config(struct v4l2_subdev *sd,
 }
 
 static const struct v4l2_subdev_video_ops mt9m111_subdev_video_ops = {
-	.g_mbus_config	= mt9m111_g_mbus_config,
 	.s_stream	= mt9m111_s_stream,
 	.g_frame_interval = mt9m111_g_frame_interval,
 	.s_frame_interval = mt9m111_s_frame_interval,
@@ -1168,6 +1168,7 @@ static const struct v4l2_subdev_pad_ops mt9m111_subdev_pad_ops = {
 	.set_selection	= mt9m111_set_selection,
 	.get_fmt	= mt9m111_get_fmt,
 	.set_fmt	= mt9m111_set_fmt,
+	.get_mbus_config = mt9m111_get_mbus_config,
 };
 
 static const struct v4l2_subdev_ops mt9m111_subdev_ops = {
