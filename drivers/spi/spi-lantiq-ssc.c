@@ -149,7 +149,10 @@
 #define LTQ_SPI_IRNEN_T_XRX	BIT(0)	/* Receive end interrupt request */
 #define LTQ_SPI_IRNEN_ALL	0x1F
 
+struct lantiq_ssc_spi;
+
 struct lantiq_ssc_hwcfg {
+	int (*cfg_irq)(struct platform_device *pdev, struct lantiq_ssc_spi *spi);
 	unsigned int	irnen_r;
 	unsigned int	irnen_t;
 	unsigned int	irncr;
@@ -799,7 +802,40 @@ static int lantiq_ssc_transfer_one(struct spi_master *master,
 	return transfer_start(spi, spidev, t);
 }
 
+static int lantiq_cfg_irq(struct platform_device *pdev, struct lantiq_ssc_spi *spi)
+{
+	int irq, err;
+
+	irq = platform_get_irq_byname(pdev, LTQ_SPI_RX_IRQ_NAME);
+	if (irq < 0)
+		return irq;
+
+	err = devm_request_irq(&pdev->dev, irq, lantiq_ssc_xmit_interrupt,
+			       0, LTQ_SPI_RX_IRQ_NAME, spi);
+	if (err)
+		return err;
+
+	irq = platform_get_irq_byname(pdev, LTQ_SPI_TX_IRQ_NAME);
+	if (irq < 0)
+		return irq;
+
+	err = devm_request_irq(&pdev->dev, irq, lantiq_ssc_xmit_interrupt,
+			       0, LTQ_SPI_TX_IRQ_NAME, spi);
+
+	if (err)
+		return err;
+
+	irq = platform_get_irq_byname(pdev, LTQ_SPI_ERR_IRQ_NAME);
+	if (irq < 0)
+		return irq;
+
+	err = devm_request_irq(&pdev->dev, irq, lantiq_ssc_err_interrupt,
+			       0, LTQ_SPI_ERR_IRQ_NAME, spi);
+	return err;
+}
+
 static const struct lantiq_ssc_hwcfg lantiq_ssc_xway = {
+	.cfg_irq	= lantiq_cfg_irq,
 	.irnen_r	= LTQ_SPI_IRNEN_R_XWAY,
 	.irnen_t	= LTQ_SPI_IRNEN_T_XWAY,
 	.irnicr		= 0xF8,
@@ -809,6 +845,7 @@ static const struct lantiq_ssc_hwcfg lantiq_ssc_xway = {
 };
 
 static const struct lantiq_ssc_hwcfg lantiq_ssc_xrx = {
+	.cfg_irq	= lantiq_cfg_irq,
 	.irnen_r	= LTQ_SPI_IRNEN_R_XRX,
 	.irnen_t	= LTQ_SPI_IRNEN_T_XRX,
 	.irnicr		= 0xF8,
@@ -832,9 +869,9 @@ static int lantiq_ssc_probe(struct platform_device *pdev)
 	struct lantiq_ssc_spi *spi;
 	const struct lantiq_ssc_hwcfg *hwcfg;
 	const struct of_device_id *match;
-	int err, rx_irq, tx_irq, err_irq;
 	u32 id, supports_dma, revision;
 	unsigned int num_cs;
+	int err;
 
 	match = of_match_device(lantiq_ssc_match, dev);
 	if (!match) {
@@ -842,18 +879,6 @@ static int lantiq_ssc_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 	hwcfg = match->data;
-
-	rx_irq = platform_get_irq_byname(pdev, LTQ_SPI_RX_IRQ_NAME);
-	if (rx_irq < 0)
-		return -ENXIO;
-
-	tx_irq = platform_get_irq_byname(pdev, LTQ_SPI_TX_IRQ_NAME);
-	if (tx_irq < 0)
-		return -ENXIO;
-
-	err_irq = platform_get_irq_byname(pdev, LTQ_SPI_ERR_IRQ_NAME);
-	if (err_irq < 0)
-		return -ENXIO;
 
 	master = spi_alloc_master(dev, sizeof(struct lantiq_ssc_spi));
 	if (!master)
@@ -870,18 +895,7 @@ static int lantiq_ssc_probe(struct platform_device *pdev)
 		goto err_master_put;
 	}
 
-	err = devm_request_irq(dev, rx_irq, lantiq_ssc_xmit_interrupt,
-			       0, LTQ_SPI_RX_IRQ_NAME, spi);
-	if (err)
-		goto err_master_put;
-
-	err = devm_request_irq(dev, tx_irq, lantiq_ssc_xmit_interrupt,
-			       0, LTQ_SPI_TX_IRQ_NAME, spi);
-	if (err)
-		goto err_master_put;
-
-	err = devm_request_irq(dev, err_irq, lantiq_ssc_err_interrupt,
-			       0, LTQ_SPI_ERR_IRQ_NAME, spi);
+	err = hwcfg->cfg_irq(pdev, spi);
 	if (err)
 		goto err_master_put;
 
