@@ -1786,6 +1786,5 @@ static void __exit rk817_charge_exit(void)
 }
 module_exit(rk817_charge_exit);
 
+MODULE_DESCRIPTION("RK817 Charge driver");
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("shengfeixu <xsf@rock-chips.com>");
-MODULE_DESCRIPTION("rk817 charge driver");
