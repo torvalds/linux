@@ -72,14 +72,11 @@ int hw_atl_utils_initfw(struct aq_hw_s *self, const struct aq_fw_ops **fw_ops)
 
 	self->fw_ver_actual = hw_atl_utils_get_fw_version(self);
 
-	if (hw_atl_utils_ver_match(HW_ATL_FW_VER_1X,
-				   self->fw_ver_actual) == 0) {
+	if (hw_atl_utils_ver_match(HW_ATL_FW_VER_1X, self->fw_ver_actual)) {
 		*fw_ops = &aq_fw_1x_ops;
-	} else if (hw_atl_utils_ver_match(HW_ATL_FW_VER_2X,
-					  self->fw_ver_actual) == 0) {
+	} else if (hw_atl_utils_ver_match(HW_ATL_FW_VER_2X, self->fw_ver_actual)) {
 		*fw_ops = &aq_fw_2x_ops;
-	} else if (hw_atl_utils_ver_match(HW_ATL_FW_VER_3X,
-					  self->fw_ver_actual) == 0) {
+	} else if (hw_atl_utils_ver_match(HW_ATL_FW_VER_3X, self->fw_ver_actual)) {
 		*fw_ops = &aq_fw_2x_ops;
 	} else {
 		aq_pr_err("Bad FW version detected: %x\n",
@@ -262,9 +259,9 @@ int hw_atl_utils_soft_reset(struct aq_hw_s *self)
 	/* FW 1.x may bootup in an invalid POWER state (WOL feature).
 	 * We should work around this by forcing its state back to DEINIT
 	 */
-	if (!hw_atl_utils_ver_match(HW_ATL_FW_VER_1X,
-				    aq_hw_read_reg(self,
-						   HW_ATL_MPI_FW_VERSION))) {
+	if (hw_atl_utils_ver_match(HW_ATL_FW_VER_1X,
+				   aq_hw_read_reg(self,
+						  HW_ATL_MPI_FW_VERSION))) {
 		int err = 0;
 
 		hw_atl_utils_mpi_set_state(self, MPI_DEINIT);
@@ -434,20 +431,20 @@ int hw_atl_write_fwsettings_dwords(struct aq_hw_s *self, u32 offset, u32 *p,
 					     p, cnt, MCP_AREA_SETTINGS);
 }
 
-int hw_atl_utils_ver_match(u32 ver_expected, u32 ver_actual)
+bool hw_atl_utils_ver_match(u32 ver_expected, u32 ver_actual)
 {
 	const u32 dw_major_mask = 0xff000000U;
 	const u32 dw_minor_mask = 0x00ffffffU;
-	int err = 0;
+	bool ver_match;
 
-	err = (dw_major_mask & (ver_expected ^ ver_actual)) ? -EOPNOTSUPP : 0;
-	if (err < 0)
+	ver_match = (dw_major_mask & (ver_expected ^ ver_actual)) ? false : true;
+	if (!ver_match)
 		goto err_exit;
-	err = ((dw_minor_mask & ver_expected) > (dw_minor_mask & ver_actual)) ?
-		-EOPNOTSUPP : 0;
+	ver_match = ((dw_minor_mask & ver_expected) > (dw_minor_mask & ver_actual)) ?
+		false : true;
 
 err_exit:
-	return err;
+	return ver_match;
 }
 
 static int hw_atl_utils_init_ucp(struct aq_hw_s *self,
