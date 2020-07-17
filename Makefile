@@ -884,25 +884,6 @@ ifdef CONFIG_LIVEPATCH
 KBUILD_CFLAGS += $(call cc-option, -flive-patching=inline-clone)
 endif
 
-ifdef CONFIG_CFI_CLANG
-CC_FLAGS_CFI	:= -fsanitize=cfi \
-		   -fno-sanitize-cfi-canonical-jump-tables
-
-ifdef CONFIG_MODULES
-CC_FLAGS_CFI	+= -fsanitize-cfi-cross-dso
-endif
-
-ifdef CONFIG_CFI_PERMISSIVE
-CC_FLAGS_CFI	+= -fsanitize-recover=cfi \
-		   -fno-sanitize-trap=cfi
-endif
-
-# If LTO flags are filtered out, we must also filter out CFI.
-CC_FLAGS_LTO	+= $(CC_FLAGS_CFI)
-KBUILD_CFLAGS	+= $(CC_FLAGS_CFI)
-export CC_FLAGS_CFI
-endif
-
 ifdef CONFIG_SHADOW_CALL_STACK
 CC_FLAGS_SCS	:= -fsanitize=shadow-call-stack
 KBUILD_CFLAGS	+= $(CC_FLAGS_SCS)
