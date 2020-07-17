@@ -425,6 +425,7 @@ struct amdgpu_pm {
 	u32                     default_sclk;
 	u32                     default_mclk;
 	struct amdgpu_i2c_chan *i2c_bus;
+	bool                    bus_locked;
 	/* internal thermal controller on rv6xx+ */
 	enum amdgpu_int_thermal_type int_thermal_type;
 	struct device	        *int_hwmon_dev;

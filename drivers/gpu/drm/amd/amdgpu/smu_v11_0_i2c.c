@@ -32,7 +32,6 @@
 #include "amdgpu_amdkfd.h"
 #include <linux/i2c.h>
 #include <linux/pci.h>
-#include "amdgpu_ras.h"
 
 /* error codes */
 #define I2C_OK                0
@@ -592,14 +591,13 @@ static uint32_t smu_v11_0_i2c_eeprom_write_data(struct i2c_adapter *control,
 static void lock_bus(struct i2c_adapter *i2c, unsigned int flags)
 {
 	struct amdgpu_device *adev = to_amdgpu_device(i2c);
-	struct amdgpu_ras_eeprom_control *control = &adev->psp.ras.ras->eeprom_control;
 
 	if (!smu_v11_0_i2c_bus_lock(i2c)) {
 		DRM_ERROR("Failed to lock the bus from SMU");
 		return;
 	}
 
-	control->bus_locked = true;
+	adev->pm.bus_locked = true;
 }
 
 static int trylock_bus(struct i2c_adapter *i2c, unsigned int flags)
@@ -611,14 +609,13 @@ static int trylock_bus(struct i2c_adapter *i2c, unsigned int flags)
 static void unlock_bus(struct i2c_adapter *i2c, unsigned int flags)
 {
 	struct amdgpu_device *adev = to_amdgpu_device(i2c);
-	struct amdgpu_ras_eeprom_control *control = &adev->psp.ras.ras->eeprom_control;
 
 	if (!smu_v11_0_i2c_bus_unlock(i2c)) {
 		DRM_ERROR("Failed to unlock the bus from SMU");
 		return;
 	}
 
-	control->bus_locked = false;
+	adev->pm.bus_locked = false;
 }
 
 static const struct i2c_lock_operations smu_v11_0_i2c_i2c_lock_ops = {
@@ -632,9 +629,8 @@ static int smu_v11_0_i2c_eeprom_i2c_xfer(struct i2c_adapter *i2c_adap,
 {
 	int i, ret;
 	struct amdgpu_device *adev = to_amdgpu_device(i2c_adap);
-	struct amdgpu_ras_eeprom_control *control = &adev->psp.ras.ras->eeprom_control;
 
-	if (!control->bus_locked) {
+	if (!adev->pm.bus_locked) {
 		DRM_ERROR("I2C bus unlocked, stopping transaction!");
 		return -EIO;
 	}
