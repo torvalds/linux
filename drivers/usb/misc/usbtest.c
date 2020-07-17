@@ -2043,13 +2043,17 @@ test_queue(struct usbtest_dev *dev, struct usbtest_param_32 *param,
 	unsigned		i;
 	unsigned long		packets = 0;
 	int			status = 0;
-	struct urb		*urbs[MAX_SGLEN];
+	struct urb		**urbs;
 
 	if (!param->sglen || param->iterations > UINT_MAX / param->sglen)
 		return -EINVAL;
 
 	if (param->sglen > MAX_SGLEN)
 		return -EINVAL;
+
+	urbs = kcalloc(param->sglen, sizeof(*urbs), GFP_KERNEL);
+	if (!urbs)
+		return -ENOMEM;
 
 	memset(&context, 0, sizeof(context));
 	context.count = param->iterations * param->sglen;
@@ -2137,6 +2141,8 @@ test_queue(struct usbtest_dev *dev, struct usbtest_param_32 *param,
 	else if (context.errors >
 			(context.is_iso ? context.packet_count / 10 : 0))
 		status = -EIO;
+
+	kfree(urbs);
 	return status;
 
 fail:
@@ -2144,6 +2150,8 @@ fail:
 		if (urbs[i])
 			simple_free_urb(urbs[i]);
 	}
+
+	kfree(urbs);
 	return status;
 }
 
