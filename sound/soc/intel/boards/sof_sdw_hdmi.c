@@ -52,6 +52,9 @@ int sof_sdw_hdmi_card_late_probe(struct snd_soc_card *card)
 	int err, i = 0;
 	char jack_name[NAME_SIZE];
 
+	if (!ctx->idisp_codec)
+		return 0;
+
 	pcm = list_first_entry(&ctx->hdmi_pcm_list, struct hdmi_pcm,
 			       head);
 	component = pcm->codec_dai->component;

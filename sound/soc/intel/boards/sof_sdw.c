@@ -699,11 +699,14 @@ static inline int get_next_be_id(struct snd_soc_dai_link *links,
 	return links[be_id - 1].id + 1;
 }
 
+#define IDISP_CODEC_MASK	0x4
+
 static int sof_card_dai_links_create(struct device *dev,
 				     struct snd_soc_acpi_mach *mach,
 				     struct snd_soc_card *card)
 {
 	int ssp_num, sdw_be_num = 0, hdmi_num = 0, dmic_num;
+	struct mc_private *ctx = snd_soc_card_get_drvdata(card);
 	struct snd_soc_dai_link_component *idisp_components;
 	struct snd_soc_dai_link_component *ssp_components;
 	struct snd_soc_acpi_mach_params *mach_params;
@@ -747,12 +750,15 @@ static int sof_card_dai_links_create(struct device *dev,
 		return ret;
 	}
 
+	if (mach_params->codec_mask & IDISP_CODEC_MASK)
+		ctx->idisp_codec = true;
+
 	/* enable dmic01 & dmic16k */
 	dmic_num = (sof_sdw_quirk & SOF_SDW_PCH_DMIC) ? 2 : 0;
 	comp_num += dmic_num;
 
 	dev_dbg(dev, "sdw %d, ssp %d, dmic %d, hdmi %d", sdw_be_num, ssp_num,
-		dmic_num, hdmi_num);
+		dmic_num, ctx->idisp_codec ? hdmi_num : 0);
 
 	/* allocate BE dailinks */
 	num_links = comp_num + sdw_be_num;
@@ -901,13 +907,18 @@ DMIC:
 		if (!name)
 			return -ENOMEM;
 
-		idisp_components[i].name = "ehdaudio0D2";
-		idisp_components[i].dai_name = devm_kasprintf(dev,
-							      GFP_KERNEL,
-							      "intel-hdmi-hifi%d",
-							      i + 1);
-		if (!idisp_components[i].dai_name)
-			return -ENOMEM;
+		if (ctx->idisp_codec) {
+			idisp_components[i].name = "ehdaudio0D2";
+			idisp_components[i].dai_name = devm_kasprintf(dev,
+								      GFP_KERNEL,
+								      "intel-hdmi-hifi%d",
+								      i + 1);
+			if (!idisp_components[i].dai_name)
+				return -ENOMEM;
+		} else {
+			idisp_components[i].name = "snd-soc-dummy";
+			idisp_components[i].dai_name = "snd-soc-dummy-dai";
+		}
 
 		cpu_name = devm_kasprintf(dev, GFP_KERNEL,
 					  "iDisp%d Pin", i + 1);
@@ -982,6 +993,7 @@ static int mc_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&ctx->hdmi_pcm_list);
 
 	card->dev = &pdev->dev;
+	snd_soc_card_set_drvdata(card, ctx);
 
 	mach = pdev->dev.platform_data;
 	ret = sof_card_dai_links_create(&pdev->dev, mach,
@@ -990,8 +1002,6 @@ static int mc_probe(struct platform_device *pdev)
 		return ret;
 
 	ctx->common_hdmi_codec_drv = mach->mach_params.common_hdmi_codec_drv;
-
-	snd_soc_card_set_drvdata(card, ctx);
 
 	/*
 	 * the default amp_num is zero for each codec and
