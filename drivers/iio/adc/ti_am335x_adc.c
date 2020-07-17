@@ -294,7 +294,7 @@ static int tiadc_start_dma(struct iio_dev *indio_dev)
 static int tiadc_buffer_preenable(struct iio_dev *indio_dev)
 {
 	struct tiadc_device *adc_dev = iio_priv(indio_dev);
-	int i, fifo1count, read;
+	int i, fifo1count;
 
 	tiadc_writel(adc_dev, REG_IRQCLR, (IRQENB_FIFO1THRES |
 				IRQENB_FIFO1OVRRUN |
@@ -303,7 +303,7 @@ static int tiadc_buffer_preenable(struct iio_dev *indio_dev)
 	/* Flush FIFO. Needed in corner cases in simultaneous tsc/adc use */
 	fifo1count = tiadc_readl(adc_dev, REG_FIFO1CNT);
 	for (i = 0; i < fifo1count; i++)
-		read = tiadc_readl(adc_dev, REG_FIFO1);
+		tiadc_readl(adc_dev, REG_FIFO1);
 
 	return 0;
 }
@@ -343,7 +343,7 @@ static int tiadc_buffer_predisable(struct iio_dev *indio_dev)
 {
 	struct tiadc_device *adc_dev = iio_priv(indio_dev);
 	struct tiadc_dma *dma = &adc_dev->dma;
-	int fifo1count, i, read;
+	int fifo1count, i;
 
 	tiadc_writel(adc_dev, REG_IRQCLR, (IRQENB_FIFO1THRES |
 				IRQENB_FIFO1OVRRUN | IRQENB_FIFO1UNDRFLW));
@@ -358,7 +358,7 @@ static int tiadc_buffer_predisable(struct iio_dev *indio_dev)
 	/* Flush FIFO of leftover data in the time it takes to disable adc */
 	fifo1count = tiadc_readl(adc_dev, REG_FIFO1CNT);
 	for (i = 0; i < fifo1count; i++)
-		read = tiadc_readl(adc_dev, REG_FIFO1);
+		tiadc_readl(adc_dev, REG_FIFO1);
 
 	return 0;
 }
