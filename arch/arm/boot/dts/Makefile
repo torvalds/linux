@@ -1198,6 +1198,7 @@ dtb-$(CONFIG_MACH_SUNIV) += \
 dtb-$(CONFIG_ARCH_TANGO) += \
 	tango4-vantage-1172.dtb
 dtb-$(CONFIG_ARCH_TEGRA_2x_SOC) += \
+	tegra20-acer-a500-picasso.dtb \
 	tegra20-harmony.dtb \
 	tegra20-colibri-eval-v3.dtb \
 	tegra20-colibri-iris.dtb \
@@ -1211,6 +1212,9 @@ dtb-$(CONFIG_ARCH_TEGRA_2x_SOC) += \
 dtb-$(CONFIG_ARCH_TEGRA_3x_SOC) += \
 	tegra30-apalis-eval.dtb \
 	tegra30-apalis-v1.1-eval.dtb \
+	tegra30-asus-nexus7-grouper-PM269.dtb \
+	tegra30-asus-nexus7-grouper-E1565.dtb \
+	tegra30-asus-nexus7-tilapia-E1565.dtb \
 	tegra30-beaver.dtb \
 	tegra30-cardhu-a02.dtb \
 	tegra30-cardhu-a04.dtb \
