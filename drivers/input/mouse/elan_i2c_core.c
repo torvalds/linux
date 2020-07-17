@@ -89,7 +89,8 @@ struct elan_tp_data {
 	u8			mode;
 	u16			ic_type;
 	u16			fw_validpage_count;
-	u16			fw_signature_address;
+	u16			fw_page_size;
+	u32			fw_signature_address;
 
 	bool			irq_wake;
 
@@ -101,7 +102,7 @@ struct elan_tp_data {
 };
 
 static int elan_get_fwinfo(u16 ic_type, u16 *validpage_count,
-			   u16 *signature_address)
+			   u32 *signature_address, u16 *page_size)
 {
 	switch (ic_type) {
 	case 0x00:
@@ -130,11 +131,14 @@ static int elan_get_fwinfo(u16 ic_type, u16 *validpage_count,
 		/* unknown ic type clear value */
 		*validpage_count = 0;
 		*signature_address = 0;
+		*page_size = 0;
 		return -ENXIO;
 	}
 
 	*signature_address =
 		(*validpage_count * ETP_FW_PAGE_SIZE) - ETP_FW_SIGNATURE_SIZE;
+
+	*page_size = ETP_FW_PAGE_SIZE;
 
 	return 0;
 }
@@ -336,7 +340,8 @@ static int elan_query_device_info(struct elan_tp_data *data)
 		return error;
 
 	error = elan_get_fwinfo(data->ic_type, &data->fw_validpage_count,
-				&data->fw_signature_address);
+				&data->fw_signature_address,
+				&data->fw_page_size);
 	if (error)
 		dev_warn(&data->client->dev,
 			 "unexpected iap version %#04x (ic type: %#04x), firmware update will not work\n",
@@ -424,14 +429,14 @@ static int elan_query_device_parameters(struct elan_tp_data *data)
  * IAP firmware updater related routines
  **********************************************************
  */
-static int elan_write_fw_block(struct elan_tp_data *data,
+static int elan_write_fw_block(struct elan_tp_data *data, u16 page_size,
 			       const u8 *page, u16 checksum, int idx)
 {
 	int retry = ETP_RETRY_COUNT;
 	int error;
 
 	do {
-		error = data->ops->write_fw_block(data->client,
+		error = data->ops->write_fw_block(data->client, page_size,
 						  page, checksum, idx);
 		if (!error)
 			return 0;
@@ -460,15 +465,16 @@ static int __elan_update_firmware(struct elan_tp_data *data,
 
 	iap_start_addr = get_unaligned_le16(&fw->data[ETP_IAP_START_ADDR * 2]);
 
-	boot_page_count = (iap_start_addr * 2) / ETP_FW_PAGE_SIZE;
+	boot_page_count = (iap_start_addr * 2) / data->fw_page_size;
 	for (i = boot_page_count; i < data->fw_validpage_count; i++) {
 		u16 checksum = 0;
-		const u8 *page = &fw->data[i * ETP_FW_PAGE_SIZE];
+		const u8 *page = &fw->data[i * data->fw_page_size];
 
-		for (j = 0; j < ETP_FW_PAGE_SIZE; j += 2)
+		for (j = 0; j < data->fw_page_size; j += 2)
 			checksum += ((page[j + 1] << 8) | page[j]);
 
-		error = elan_write_fw_block(data, page, checksum, i);
+		error = elan_write_fw_block(data, data->fw_page_size,
+					    page, checksum, i);
 		if (error) {
 			dev_err(dev, "write page %d fail: %d\n", i, error);
 			return error;

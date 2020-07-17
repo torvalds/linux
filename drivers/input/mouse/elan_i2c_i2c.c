@@ -19,6 +19,7 @@
 #include <linux/interrupt.h>
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/sched.h>
 #include <asm/unaligned.h>
 
@@ -592,45 +593,52 @@ static int elan_i2c_prepare_fw_update(struct i2c_client *client)
 	return 0;
 }
 
-static int elan_i2c_write_fw_block(struct i2c_client *client,
+static int elan_i2c_write_fw_block(struct i2c_client *client, u16 fw_page_size,
 				   const u8 *page, u16 checksum, int idx)
 {
 	struct device *dev = &client->dev;
-	u8 page_store[ETP_FW_PAGE_SIZE + 4];
+	u8 *page_store;
 	u8 val[3];
 	u16 result;
 	int ret, error;
 
+	page_store = kmalloc(fw_page_size + 4, GFP_KERNEL);
+	if (!page_store)
+		return -ENOMEM;
+
 	page_store[0] = ETP_I2C_IAP_REG_L;
 	page_store[1] = ETP_I2C_IAP_REG_H;
-	memcpy(&page_store[2], page, ETP_FW_PAGE_SIZE);
+	memcpy(&page_store[2], page, fw_page_size);
 	/* recode checksum at last two bytes */
-	put_unaligned_le16(checksum, &page_store[ETP_FW_PAGE_SIZE + 2]);
+	put_unaligned_le16(checksum, &page_store[fw_page_size + 2]);
 
-	ret = i2c_master_send(client, page_store, sizeof(page_store));
-	if (ret != sizeof(page_store)) {
+	ret = i2c_master_send(client, page_store, fw_page_size + 4);
+	if (ret != fw_page_size + 4) {
 		error = ret < 0 ? ret : -EIO;
 		dev_err(dev, "Failed to write page %d: %d\n", idx, error);
-		return error;
+		goto exit;
 	}
 
 	/* Wait for F/W to update one page ROM data. */
-	msleep(35);
+	msleep(fw_page_size == ETP_FW_PAGE_SIZE_512 ? 50 : 35);
 
 	error = elan_i2c_read_cmd(client, ETP_I2C_IAP_CTRL_CMD, val);
 	if (error) {
 		dev_err(dev, "Failed to read IAP write result: %d\n", error);
-		return error;
+		goto exit;
 	}
 
 	result = le16_to_cpup((__le16 *)val);
 	if (result & (ETP_FW_IAP_PAGE_ERR | ETP_FW_IAP_INTF_ERR)) {
 		dev_err(dev, "IAP reports failed write: %04hx\n",
 			result);
-		return -EIO;
+		error = -EIO;
+		goto exit;
 	}
 
-	return 0;
+exit:
+	kfree(page_store);
+	return error;
 }
 
 static int elan_i2c_finish_fw_update(struct i2c_client *client,
