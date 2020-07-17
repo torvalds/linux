@@ -101,7 +101,7 @@ struct elan_tp_data {
 	bool			middle_button;
 };
 
-static int elan_get_fwinfo(u16 ic_type, u16 *validpage_count,
+static int elan_get_fwinfo(u16 ic_type, u8 iap_version, u16 *validpage_count,
 			   u32 *signature_address, u16 *page_size)
 {
 	switch (ic_type) {
@@ -138,7 +138,12 @@ static int elan_get_fwinfo(u16 ic_type, u16 *validpage_count,
 	*signature_address =
 		(*validpage_count * ETP_FW_PAGE_SIZE) - ETP_FW_SIGNATURE_SIZE;
 
-	*page_size = ETP_FW_PAGE_SIZE;
+	if (ic_type >= 0x0D && iap_version >= 1) {
+		*validpage_count /= 2;
+		*page_size = ETP_FW_PAGE_SIZE_128;
+	} else {
+		*page_size = ETP_FW_PAGE_SIZE;
+	}
 
 	return 0;
 }
@@ -339,7 +344,8 @@ static int elan_query_device_info(struct elan_tp_data *data)
 	if (error)
 		return error;
 
-	error = elan_get_fwinfo(data->ic_type, &data->fw_validpage_count,
+	error = elan_get_fwinfo(data->ic_type, data->iap_version,
+				&data->fw_validpage_count,
 				&data->fw_signature_address,
 				&data->fw_page_size);
 	if (error)
@@ -459,7 +465,8 @@ static int __elan_update_firmware(struct elan_tp_data *data,
 	u16 boot_page_count;
 	u16 sw_checksum = 0, fw_checksum = 0;
 
-	error = data->ops->prepare_fw_update(client);
+	error = data->ops->prepare_fw_update(client, data->ic_type,
+					     data->iap_version);
 	if (error)
 		return error;
 

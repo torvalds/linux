@@ -340,7 +340,8 @@ static int elan_smbus_set_flash_key(struct i2c_client *client)
 	return 0;
 }
 
-static int elan_smbus_prepare_fw_update(struct i2c_client *client)
+static int elan_smbus_prepare_fw_update(struct i2c_client *client, u16 ic_type,
+					u8 iap_version)
 {
 	struct device *dev = &client->dev;
 	int len;

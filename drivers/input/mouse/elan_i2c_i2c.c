@@ -56,6 +56,8 @@
 #define ETP_I2C_CALIBRATE_CMD		0x0316
 #define ETP_I2C_MAX_BASELINE_CMD	0x0317
 #define ETP_I2C_MIN_BASELINE_CMD	0x0318
+#define ETP_I2C_IAP_TYPE_REG		0x0040
+#define ETP_I2C_IAP_TYPE_CMD		0x0304
 
 #define ETP_I2C_REPORT_LEN		34
 #define ETP_I2C_DESC_LENGTH		30
@@ -528,7 +530,43 @@ static int elan_i2c_set_flash_key(struct i2c_client *client)
 	return 0;
 }
 
-static int elan_i2c_prepare_fw_update(struct i2c_client *client)
+static int elan_read_write_iap_type(struct i2c_client *client)
+{
+	int error;
+	u16 constant;
+	u8 val[3];
+	int retry = 3;
+
+	do {
+		error = elan_i2c_write_cmd(client, ETP_I2C_IAP_TYPE_CMD,
+					   ETP_I2C_IAP_TYPE_REG);
+		if (error) {
+			dev_err(&client->dev,
+				"cannot write iap type: %d\n", error);
+			return error;
+		}
+
+		error = elan_i2c_read_cmd(client, ETP_I2C_IAP_TYPE_CMD, val);
+		if (error) {
+			dev_err(&client->dev,
+				"failed to read iap type register: %d\n",
+				error);
+			return error;
+		}
+		constant = le16_to_cpup((__le16 *)val);
+		dev_dbg(&client->dev, "iap type reg: 0x%04x\n", constant);
+
+		if (constant == ETP_I2C_IAP_TYPE_REG)
+			return 0;
+
+	} while (--retry > 0);
+
+	dev_err(&client->dev, "cannot set iap type\n");
+	return -EIO;
+}
+
+static int elan_i2c_prepare_fw_update(struct i2c_client *client, u16 ic_type,
+				      u8 iap_version)
 {
 	struct device *dev = &client->dev;
 	int error;
@@ -566,6 +604,12 @@ static int elan_i2c_prepare_fw_update(struct i2c_client *client)
 	if (mode == MAIN_MODE) {
 		dev_err(dev, "wrong mode: %d\n", mode);
 		return -EIO;
+	}
+
+	if (ic_type >= 0x0D && iap_version >= 1) {
+		error = elan_read_write_iap_type(client);
+		if (error)
+			return error;
 	}
 
 	/* Set flash key again */
