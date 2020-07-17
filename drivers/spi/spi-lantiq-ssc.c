@@ -622,7 +622,9 @@ static void rx_request(struct lantiq_ssc_spi *spi)
 static irqreturn_t lantiq_ssc_xmit_interrupt(int irq, void *data)
 {
 	struct lantiq_ssc_spi *spi = data;
+	unsigned long flags;
 
+	spin_lock_irqsave(&spi->lock, flags);
 	if (spi->tx) {
 		if (spi->rx && spi->rx_todo)
 			rx_fifo_read_full_duplex(spi);
@@ -644,10 +646,12 @@ static irqreturn_t lantiq_ssc_xmit_interrupt(int irq, void *data)
 		}
 	}
 
+	spin_unlock_irqrestore(&spi->lock, flags);
 	return IRQ_HANDLED;
 
 completed:
 	queue_work(spi->wq, &spi->work);
+	spin_unlock_irqrestore(&spi->lock, flags);
 
 	return IRQ_HANDLED;
 }
@@ -656,10 +660,12 @@ static irqreturn_t lantiq_ssc_err_interrupt(int irq, void *data)
 {
 	struct lantiq_ssc_spi *spi = data;
 	u32 stat = lantiq_ssc_readl(spi, LTQ_SPI_STAT);
+	unsigned long flags;
 
 	if (!(stat & LTQ_SPI_STAT_ERRORS))
 		return IRQ_NONE;
 
+	spin_lock_irqsave(&spi->lock, flags);
 	if (stat & LTQ_SPI_STAT_RUE)
 		dev_err(spi->dev, "receive underflow error\n");
 	if (stat & LTQ_SPI_STAT_TUE)
@@ -680,6 +686,7 @@ static irqreturn_t lantiq_ssc_err_interrupt(int irq, void *data)
 	if (spi->master->cur_msg)
 		spi->master->cur_msg->status = -EIO;
 	queue_work(spi->wq, &spi->work);
+	spin_unlock_irqrestore(&spi->lock, flags);
 
 	return IRQ_HANDLED;
 }
