@@ -390,6 +390,15 @@ static void rtw_ops_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_BEACON)
 		rtw_fw_download_rsvd_page(rtwdev);
 
+	if (changed & BSS_CHANGED_BEACON_ENABLED) {
+		if (conf->enable_beacon)
+			rtw_write32_set(rtwdev, REG_FWHW_TXQ_CTRL,
+					BIT_EN_BCNQ_DL);
+		else
+			rtw_write32_clr(rtwdev, REG_FWHW_TXQ_CTRL,
+					BIT_EN_BCNQ_DL);
+	}
+
 	if (changed & BSS_CHANGED_MU_GROUPS)
 		rtw_chip_set_gid_table(rtwdev, vif, conf);
 
