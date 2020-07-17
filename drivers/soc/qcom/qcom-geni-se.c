@@ -817,6 +817,7 @@ EXPORT_SYMBOL(geni_icc_disable);
 
 void geni_remove_earlycon_icc_vote(void)
 {
+	struct platform_device *pdev;
 	struct geni_wrapper *wrapper;
 	struct device_node *parent;
 	struct device_node *child;
@@ -829,7 +830,12 @@ void geni_remove_earlycon_icc_vote(void)
 	for_each_child_of_node(parent, child) {
 		if (!of_device_is_compatible(child, "qcom,geni-se-qup"))
 			continue;
-		wrapper = platform_get_drvdata(of_find_device_by_node(child));
+
+		pdev = of_find_device_by_node(child);
+		if (!pdev)
+			continue;
+
+		wrapper = platform_get_drvdata(pdev);
 		icc_put(wrapper->to_core.path);
 		wrapper->to_core.path = NULL;
 
