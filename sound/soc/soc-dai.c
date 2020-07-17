@@ -307,10 +307,6 @@ int snd_soc_dai_digital_mute(struct snd_soc_dai *dai, int mute,
 	    (direction == SNDRV_PCM_STREAM_PLAYBACK ||
 	     !dai->driver->ops->no_capture_mute))
 		ret = dai->driver->ops->mute_stream(dai, mute, direction);
-	else if (direction == SNDRV_PCM_STREAM_PLAYBACK &&
-		 dai->driver->ops &&
-		 dai->driver->ops->digital_mute)
-		ret = dai->driver->ops->digital_mute(dai, mute);
 
 	return soc_dai_ret(dai, ret);
 }

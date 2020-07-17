@@ -246,7 +246,6 @@ struct snd_soc_dai_ops {
 	 * DAI digital mute - optional.
 	 * Called by soc-core to minimise any pops.
 	 */
-	int (*digital_mute)(struct snd_soc_dai *dai, int mute);
 	int (*mute_stream)(struct snd_soc_dai *dai, int mute, int stream);
 
 	/*
