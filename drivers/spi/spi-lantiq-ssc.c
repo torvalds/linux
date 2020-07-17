@@ -702,6 +702,24 @@ static irqreturn_t lantiq_ssc_err_interrupt(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static irqreturn_t intel_lgm_ssc_isr(int irq, void *data)
+{
+	struct lantiq_ssc_spi *spi = data;
+	const struct lantiq_ssc_hwcfg *hwcfg = spi->hwcfg;
+	u32 val = lantiq_ssc_readl(spi, hwcfg->irncr);
+
+	if (!(val & LTQ_SPI_IRNEN_ALL))
+		return IRQ_NONE;
+
+	if (val & LTQ_SPI_IRNEN_E)
+		return lantiq_ssc_err_interrupt(irq, data);
+
+	if ((val & hwcfg->irnen_t) || (val & hwcfg->irnen_r))
+		return lantiq_ssc_xmit_interrupt(irq, data);
+
+	return IRQ_HANDLED;
+}
+
 static int transfer_start(struct lantiq_ssc_spi *spi, struct spi_device *spidev,
 			  struct spi_transfer *t)
 {
@@ -802,6 +820,17 @@ static int lantiq_ssc_transfer_one(struct spi_master *master,
 	return transfer_start(spi, spidev, t);
 }
 
+static int intel_lgm_cfg_irq(struct platform_device *pdev, struct lantiq_ssc_spi *spi)
+{
+	int irq;
+
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
+
+	return devm_request_irq(&pdev->dev, irq, intel_lgm_ssc_isr, 0, "spi", spi);
+}
+
 static int lantiq_cfg_irq(struct platform_device *pdev, struct lantiq_ssc_spi *spi)
 {
 	int irq, err;
@@ -854,10 +883,21 @@ static const struct lantiq_ssc_hwcfg lantiq_ssc_xrx = {
 	.irq_ack	= false,
 };
 
+static const struct lantiq_ssc_hwcfg intel_ssc_lgm = {
+	.cfg_irq	= intel_lgm_cfg_irq,
+	.irnen_r	= LTQ_SPI_IRNEN_R_XRX,
+	.irnen_t	= LTQ_SPI_IRNEN_T_XRX,
+	.irnicr		= 0xFC,
+	.irncr		= 0xF8,
+	.fifo_size_mask	= GENMASK(7, 0),
+	.irq_ack	= true,
+};
+
 static const struct of_device_id lantiq_ssc_match[] = {
 	{ .compatible = "lantiq,ase-spi", .data = &lantiq_ssc_xway, },
 	{ .compatible = "lantiq,falcon-spi", .data = &lantiq_ssc_xrx, },
 	{ .compatible = "lantiq,xrx100-spi", .data = &lantiq_ssc_xrx, },
+	{ .compatible = "intel,lgm-spi", .data = &intel_ssc_lgm, },
 	{},
 };
 MODULE_DEVICE_TABLE(of, lantiq_ssc_match);

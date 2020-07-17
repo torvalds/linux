@@ -501,11 +501,11 @@ config SPI_NPCM_PSPI
 
 config SPI_LANTIQ_SSC
 	tristate "Lantiq SSC SPI controller"
-	depends on LANTIQ || COMPILE_TEST
+	depends on LANTIQ || X86 || COMPILE_TEST
 	help
 	  This driver supports the Lantiq SSC SPI controller in master
 	  mode. This controller is found on Intel (former Lantiq) SoCs like
-	  the Danube, Falcon, xRX200, xRX300.
+	  the Danube, Falcon, xRX200, xRX300, Lightning Mountain.
 
 config SPI_OC_TINY
 	tristate "OpenCores tiny SPI"
