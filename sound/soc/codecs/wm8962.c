@@ -151,6 +151,7 @@ static const struct reg_default wm8962_reg[] = {
 	{ 40, 0x0000 },   /* R40    - SPKOUTL volume */
 	{ 41, 0x0000 },   /* R41    - SPKOUTR volume */
 
+	{ 48, 0x0000 },   /* R48    - Additional control(4) */
 	{ 49, 0x0010 },   /* R49    - Class D Control 1 */
 	{ 51, 0x0003 },   /* R51    - Class D Control 2 */
 
@@ -841,7 +842,6 @@ static bool wm8962_readable_register(struct device *dev, unsigned int reg)
 	case WM8962_SPKOUTL_VOLUME:
 	case WM8962_SPKOUTR_VOLUME:
 	case WM8962_THERMAL_SHUTDOWN_STATUS:
-	case WM8962_ADDITIONAL_CONTROL_4:
 	case WM8962_CLASS_D_CONTROL_1:
 	case WM8962_CLASS_D_CONTROL_2:
 	case WM8962_CLOCKING_4:
@@ -956,7 +956,6 @@ static bool wm8962_readable_register(struct device *dev, unsigned int reg)
 	case WM8962_EQ39:
 	case WM8962_EQ40:
 	case WM8962_EQ41:
-	case WM8962_GPIO_BASE:
 	case WM8962_GPIO_2:
 	case WM8962_GPIO_3:
 	case WM8962_GPIO_5:
@@ -3438,7 +3437,13 @@ static int wm8962_probe(struct snd_soc_component *component)
 	/* Save boards having to disable DMIC when not in use */
 	dmicclk = false;
 	dmicdat = false;
-	for (i = 0; i < WM8962_MAX_GPIO; i++) {
+	for (i = 1; i < WM8962_MAX_GPIO; i++) {
+		/*
+		 * Register 515 (WM8962_GPIO_BASE + 3) does not exist,
+		 * so skip its access
+		 */
+		if (i == 3)
+			continue;
 		switch (snd_soc_component_read(component, WM8962_GPIO_BASE + i)
 			& WM8962_GP2_FN_MASK) {
 		case WM8962_GPIO_FN_DMICCLK:
