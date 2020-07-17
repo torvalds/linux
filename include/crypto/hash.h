@@ -687,7 +687,7 @@ static inline void ahash_request_set_crypt(struct ahash_request *req,
  * The message digest API is able to maintain state information for the
  * caller.
  *
- * The synchronous message digest API can store user-related context in in its
+ * The synchronous message digest API can store user-related context in its
  * shash_desc request data structure.
  */
 
