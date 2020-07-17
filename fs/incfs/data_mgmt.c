@@ -40,11 +40,11 @@ struct mount_info *incfs_alloc_mount_info(struct super_block *sb,
 	mi->mi_owner = get_current_cred();
 	path_get(&mi->mi_backing_dir_path);
 	mutex_init(&mi->mi_dir_struct_mutex);
-	mutex_init(&mi->mi_pending_reads_mutex);
 	init_waitqueue_head(&mi->mi_pending_reads_notif_wq);
 	init_waitqueue_head(&mi->mi_log.ml_notif_wq);
 	INIT_DELAYED_WORK(&mi->mi_log.ml_wakeup_work, log_wake_up_all);
 	spin_lock_init(&mi->mi_log.rl_lock);
+	spin_lock_init(&mi->pending_read_lock);
 	INIT_LIST_HEAD(&mi->mi_reads_list_head);
 
 	error = incfs_realloc_mount_info(mi, options);
@@ -109,7 +109,6 @@ void incfs_free_mount_info(struct mount_info *mi)
 	dput(mi->mi_index_dir);
 	path_put(&mi->mi_backing_dir_path);
 	mutex_destroy(&mi->mi_dir_struct_mutex);
-	mutex_destroy(&mi->mi_pending_reads_mutex);
 	put_cred(mi->mi_owner);
 	kfree(mi->mi_log.rl_ring_buf);
 	kfree(mi->log_xattr);
@@ -756,17 +755,27 @@ static struct pending_read *add_pending_read(struct data_file *df,
 	result->block_index = block_index;
 	result->timestamp_us = ktime_to_us(ktime_get());
 
-	mutex_lock(&mi->mi_pending_reads_mutex);
+	spin_lock(&mi->pending_read_lock);
 
 	result->serial_number = ++mi->mi_last_pending_read_number;
 	mi->mi_pending_reads_count++;
 
-	list_add(&result->mi_reads_list, &mi->mi_reads_list_head);
-	list_add(&result->segment_reads_list, &segment->reads_list_head);
-	mutex_unlock(&mi->mi_pending_reads_mutex);
+	list_add_rcu(&result->mi_reads_list, &mi->mi_reads_list_head);
+	list_add_rcu(&result->segment_reads_list, &segment->reads_list_head);
+
+	spin_unlock(&mi->pending_read_lock);
 
 	wake_up_all(&mi->mi_pending_reads_notif_wq);
 	return result;
+}
+
+static void free_pending_read_entry(struct rcu_head *entry)
+{
+	struct pending_read *read;
+
+	read = container_of(entry, struct pending_read, rcu);
+
+	kfree(read);
 }
 
 /* Notifies a given data file that pending read is completed. */
@@ -782,14 +791,17 @@ static void remove_pending_read(struct data_file *df, struct pending_read *read)
 
 	mi = df->df_mount_info;
 
-	mutex_lock(&mi->mi_pending_reads_mutex);
-	list_del(&read->mi_reads_list);
-	list_del(&read->segment_reads_list);
+	spin_lock(&mi->pending_read_lock);
+
+	list_del_rcu(&read->mi_reads_list);
+	list_del_rcu(&read->segment_reads_list);
 
 	mi->mi_pending_reads_count--;
-	mutex_unlock(&mi->mi_pending_reads_mutex);
 
-	kfree(read);
+	spin_unlock(&mi->pending_read_lock);
+
+	/* Don't free. Wait for readers */
+	call_rcu(&read->rcu, free_pending_read_entry);
 }
 
 static void notify_pending_reads(struct mount_info *mi,
@@ -799,13 +811,13 @@ static void notify_pending_reads(struct mount_info *mi,
 	struct pending_read *entry = NULL;
 
 	/* Notify pending reads waiting for this block. */
-	mutex_lock(&mi->mi_pending_reads_mutex);
-	list_for_each_entry(entry, &segment->reads_list_head,
+	rcu_read_lock();
+	list_for_each_entry_rcu(entry, &segment->reads_list_head,
 						segment_reads_list) {
 		if (entry->block_index == index)
 			set_read_done(entry);
 	}
-	mutex_unlock(&mi->mi_pending_reads_mutex);
+	rcu_read_unlock();
 	wake_up_all(&segment->new_data_arrival_wq);
 }
 
@@ -869,7 +881,6 @@ static int wait_for_data_block(struct data_file *df, int block_index,
 
 	/* Woke up, the pending read is no longer needed. */
 	remove_pending_read(df, read);
-	read = NULL;
 
 	if (wait_res == 0) {
 		/* Wait has timed out */
@@ -1292,10 +1303,14 @@ bool incfs_fresh_pending_reads_exist(struct mount_info *mi, int last_number)
 {
 	bool result = false;
 
-	mutex_lock(&mi->mi_pending_reads_mutex);
+	/*
+	 * We could probably get away with spin locks here;
+	 * if we use atomic_read() on both these variables.
+	 */
+	spin_lock(&mi->pending_read_lock);
 	result = (mi->mi_last_pending_read_number > last_number) &&
-		 (mi->mi_pending_reads_count > 0);
-	mutex_unlock(&mi->mi_pending_reads_mutex);
+		(mi->mi_pending_reads_count > 0);
+	spin_unlock(&mi->pending_read_lock);
 	return result;
 }
 
@@ -1305,6 +1320,7 @@ int incfs_collect_pending_reads(struct mount_info *mi, int sn_lowerbound,
 {
 	int reported_reads = 0;
 	struct pending_read *entry = NULL;
+	bool result = false;
 
 	if (!mi)
 		return -EFAULT;
@@ -1312,13 +1328,19 @@ int incfs_collect_pending_reads(struct mount_info *mi, int sn_lowerbound,
 	if (reads_size <= 0)
 		return 0;
 
-	mutex_lock(&mi->mi_pending_reads_mutex);
+	spin_lock(&mi->pending_read_lock);
 
-	if (mi->mi_last_pending_read_number <= sn_lowerbound
-	    || mi->mi_pending_reads_count == 0)
-		goto unlock;
+	result = ((mi->mi_last_pending_read_number <= sn_lowerbound)
+		|| (mi->mi_pending_reads_count == 0));
 
-	list_for_each_entry(entry, &mi->mi_reads_list_head, mi_reads_list) {
+	spin_unlock(&mi->pending_read_lock);
+
+	if (result)
+		return reported_reads;
+
+	rcu_read_lock();
+
+	list_for_each_entry_rcu(entry, &mi->mi_reads_list_head, mi_reads_list) {
 		if (entry->serial_number <= sn_lowerbound)
 			continue;
 
@@ -1333,8 +1355,7 @@ int incfs_collect_pending_reads(struct mount_info *mi, int sn_lowerbound,
 			break;
 	}
 
-unlock:
-	mutex_unlock(&mi->mi_pending_reads_mutex);
+	rcu_read_unlock();
 
 	return reported_reads;
 }
