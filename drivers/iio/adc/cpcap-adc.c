@@ -82,7 +82,7 @@
 
 #define CPCAP_ADC_MAX_RETRIES		5	/* Calibration */
 
-/**
+/*
  * struct cpcap_adc_ato - timing settings for cpcap adc
  *
  * Unfortunately no cpcap documentation available, please document when
@@ -121,7 +121,7 @@ struct cpcap_adc {
 	bool done;
 };
 
-/**
+/*
  * enum cpcap_adc_channel - cpcap adc channels
  */
 enum cpcap_adc_channel {
@@ -152,7 +152,7 @@ enum cpcap_adc_channel {
 	CPCAP_ADC_CHANNEL_NUM,
 };
 
-/**
+/*
  * enum cpcap_adc_timing - cpcap adc timing options
  *
  * CPCAP_ADC_TIMING_IMM seems to be immediate with no timings.
