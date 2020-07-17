@@ -1876,7 +1876,7 @@ static int arcturus_dpm_set_vcn_enable(struct smu_context *smu, bool enable)
 	return ret;
 }
 
-static void arcturus_fill_eeprom_i2c_req(SwI2cRequest_t  *req, bool write,
+static void arcturus_fill_i2c_req(SwI2cRequest_t  *req, bool write,
 				  uint8_t address, uint32_t numbytes,
 				  uint8_t *data)
 {
@@ -1908,7 +1908,7 @@ static void arcturus_fill_eeprom_i2c_req(SwI2cRequest_t  *req, bool write,
 	}
 }
 
-static int arcturus_i2c_eeprom_read_data(struct i2c_adapter *control,
+static int arcturus_i2c_read_data(struct i2c_adapter *control,
 					       uint8_t address,
 					       uint8_t *data,
 					       uint32_t numbytes)
@@ -1926,7 +1926,7 @@ static int arcturus_i2c_eeprom_read_data(struct i2c_adapter *control,
 	}
 
 	memset(&req, 0, sizeof(req));
-	arcturus_fill_eeprom_i2c_req(&req, false, address, numbytes, data);
+	arcturus_fill_i2c_req(&req, false, address, numbytes, data);
 
 	mutex_lock(&adev->smu.mutex);
 	/* Now read data starting with that address */
@@ -1941,18 +1941,18 @@ static int arcturus_i2c_eeprom_read_data(struct i2c_adapter *control,
 		for (i = 0; i < numbytes; i++)
 			data[i] = res->SwI2cCmds[i].Data;
 
-		dev_dbg(adev->dev, "arcturus_i2c_eeprom_read_data, address = %x, bytes = %d, data :",
+		dev_dbg(adev->dev, "arcturus_i2c_read_data, address = %x, bytes = %d, data :",
 				  (uint16_t)address, numbytes);
 
 		print_hex_dump(KERN_DEBUG, "data: ", DUMP_PREFIX_NONE,
 			       8, 1, data, numbytes, false);
 	} else
-		dev_err(adev->dev, "arcturus_i2c_eeprom_read_data - error occurred :%x", ret);
+		dev_err(adev->dev, "arcturus_i2c_read_data - error occurred :%x", ret);
 
 	return ret;
 }
 
-static int arcturus_i2c_eeprom_write_data(struct i2c_adapter *control,
+static int arcturus_i2c_write_data(struct i2c_adapter *control,
 						uint8_t address,
 						uint8_t *data,
 						uint32_t numbytes)
@@ -1968,7 +1968,7 @@ static int arcturus_i2c_eeprom_write_data(struct i2c_adapter *control,
 	}
 
 	memset(&req, 0, sizeof(req));
-	arcturus_fill_eeprom_i2c_req(&req, true, address, numbytes, data);
+	arcturus_fill_i2c_req(&req, true, address, numbytes, data);
 
 	mutex_lock(&adev->smu.mutex);
 	ret = smu_cmn_update_table(&adev->smu, SMU_TABLE_I2C_COMMANDS, 0, &req, true);
@@ -1994,7 +1994,7 @@ static int arcturus_i2c_eeprom_write_data(struct i2c_adapter *control,
 	return ret;
 }
 
-static int arcturus_i2c_eeprom_i2c_xfer(struct i2c_adapter *i2c_adap,
+static int arcturus_i2c_xfer(struct i2c_adapter *i2c_adap,
 			      struct i2c_msg *msgs, int num)
 {
 	uint32_t  i, j, ret, data_size, data_chunk_size, next_eeprom_addr = 0;
@@ -2017,18 +2017,18 @@ static int arcturus_i2c_eeprom_i2c_xfer(struct i2c_adapter *i2c_adap,
 			data_chunk[1] = (next_eeprom_addr & 0xff);
 
 			if (msgs[i].flags & I2C_M_RD) {
-				ret = arcturus_i2c_eeprom_read_data(i2c_adap,
-								(uint8_t)msgs[i].addr,
-								data_chunk, MAX_SW_I2C_COMMANDS);
+				ret = arcturus_i2c_read_data(i2c_adap,
+							     (uint8_t)msgs[i].addr,
+							     data_chunk, MAX_SW_I2C_COMMANDS);
 
 				memcpy(data_ptr, data_chunk + 2, data_chunk_size);
 			} else {
 
 				memcpy(data_chunk + 2, data_ptr, data_chunk_size);
 
-				ret = arcturus_i2c_eeprom_write_data(i2c_adap,
-								 (uint8_t)msgs[i].addr,
-								 data_chunk, MAX_SW_I2C_COMMANDS);
+				ret = arcturus_i2c_write_data(i2c_adap,
+							      (uint8_t)msgs[i].addr,
+							      data_chunk, MAX_SW_I2C_COMMANDS);
 			}
 
 			if (ret) {
@@ -2045,17 +2045,17 @@ static int arcturus_i2c_eeprom_i2c_xfer(struct i2c_adapter *i2c_adap,
 			data_chunk[1] = (next_eeprom_addr & 0xff);
 
 			if (msgs[i].flags & I2C_M_RD) {
-				ret = arcturus_i2c_eeprom_read_data(i2c_adap,
-								(uint8_t)msgs[i].addr,
-								data_chunk, (data_size % data_chunk_size) + 2);
+				ret = arcturus_i2c_read_data(i2c_adap,
+							     (uint8_t)msgs[i].addr,
+							     data_chunk, (data_size % data_chunk_size) + 2);
 
 				memcpy(data_ptr, data_chunk + 2, data_size % data_chunk_size);
 			} else {
 				memcpy(data_chunk + 2, data_ptr, data_size % data_chunk_size);
 
-				ret = arcturus_i2c_eeprom_write_data(i2c_adap,
-								 (uint8_t)msgs[i].addr,
-								 data_chunk, (data_size % data_chunk_size) + 2);
+				ret = arcturus_i2c_write_data(i2c_adap,
+							      (uint8_t)msgs[i].addr,
+							      data_chunk, (data_size % data_chunk_size) + 2);
 			}
 
 			if (ret) {
@@ -2069,15 +2069,15 @@ fail:
 	return num;
 }
 
-static u32 arcturus_i2c_eeprom_i2c_func(struct i2c_adapter *adap)
+static u32 arcturus_i2c_func(struct i2c_adapter *adap)
 {
 	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
 }
 
 
-static const struct i2c_algorithm arcturus_i2c_eeprom_i2c_algo = {
-	.master_xfer = arcturus_i2c_eeprom_i2c_xfer,
-	.functionality = arcturus_i2c_eeprom_i2c_func,
+static const struct i2c_algorithm arcturus_i2c_algo = {
+	.master_xfer = arcturus_i2c_xfer,
+	.functionality = arcturus_i2c_func,
 };
 
 static bool arcturus_i2c_adapter_is_added(struct i2c_adapter *control)
@@ -2087,7 +2087,7 @@ static bool arcturus_i2c_adapter_is_added(struct i2c_adapter *control)
 	return control->dev.parent == &adev->pdev->dev;
 }
 
-static int arcturus_i2c_eeprom_control_init(struct smu_context *smu, struct i2c_adapter *control)
+static int arcturus_i2c_control_init(struct smu_context *smu, struct i2c_adapter *control)
 {
 	struct amdgpu_device *adev = to_amdgpu_device(control);
 	int res;
@@ -2099,8 +2099,8 @@ static int arcturus_i2c_eeprom_control_init(struct smu_context *smu, struct i2c_
 	control->owner = THIS_MODULE;
 	control->class = I2C_CLASS_SPD;
 	control->dev.parent = &adev->pdev->dev;
-	control->algo = &arcturus_i2c_eeprom_i2c_algo;
-	snprintf(control->name, sizeof(control->name), "AMDGPU EEPROM");
+	control->algo = &arcturus_i2c_algo;
+	snprintf(control->name, sizeof(control->name), "AMDGPU SMU");
 
 	res = i2c_add_adapter(control);
 	if (res)
@@ -2109,7 +2109,7 @@ static int arcturus_i2c_eeprom_control_init(struct smu_context *smu, struct i2c_
 	return res;
 }
 
-static void arcturus_i2c_eeprom_control_fini(struct smu_context *smu, struct i2c_adapter *control)
+static void arcturus_i2c_control_fini(struct smu_context *smu, struct i2c_adapter *control)
 {
 	if (!arcturus_i2c_adapter_is_added(control))
 		return;
@@ -2275,8 +2275,8 @@ static const struct pptable_funcs arcturus_ppt_funcs = {
 	.get_power_limit = arcturus_get_power_limit,
 	.is_dpm_running = arcturus_is_dpm_running,
 	.dpm_set_vcn_enable = arcturus_dpm_set_vcn_enable,
-	.i2c_eeprom_init = arcturus_i2c_eeprom_control_init,
-	.i2c_eeprom_fini = arcturus_i2c_eeprom_control_fini,
+	.i2c_init = arcturus_i2c_control_init,
+	.i2c_fini = arcturus_i2c_control_fini,
 	.get_unique_id = arcturus_get_unique_id,
 	.init_microcode = smu_v11_0_init_microcode,
 	.load_microcode = smu_v11_0_load_microcode,

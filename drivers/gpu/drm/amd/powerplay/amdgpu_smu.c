@@ -844,7 +844,7 @@ static int smu_smc_hw_setup(struct smu_context *smu)
 		return ret;
 	}
 
-	ret = smu_i2c_eeprom_init(smu, &adev->pm.smu_i2c);
+	ret = smu_i2c_init(smu, &adev->pm.smu_i2c);
 	if (ret)
 		return ret;
 
@@ -1046,7 +1046,7 @@ static int smu_smc_hw_cleanup(struct smu_context *smu)
 	struct amdgpu_device *adev = smu->adev;
 	int ret = 0;
 
-	smu_i2c_eeprom_fini(smu, &adev->pm.smu_i2c);
+	smu_i2c_fini(smu, &adev->pm.smu_i2c);
 
 	cancel_work_sync(&smu->throttling_logging_work);
 
