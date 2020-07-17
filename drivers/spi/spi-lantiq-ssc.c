@@ -160,6 +160,7 @@ struct lantiq_ssc_hwcfg {
 	unsigned int	irnen_t;
 	unsigned int	irncr;
 	unsigned int	irnicr;
+	bool		irq_ack;
 };
 
 struct lantiq_ssc_spi {
@@ -622,9 +623,14 @@ static void rx_request(struct lantiq_ssc_spi *spi)
 static irqreturn_t lantiq_ssc_xmit_interrupt(int irq, void *data)
 {
 	struct lantiq_ssc_spi *spi = data;
+	const struct lantiq_ssc_hwcfg *hwcfg = spi->hwcfg;
+	u32 val = lantiq_ssc_readl(spi, hwcfg->irncr);
 	unsigned long flags;
 
 	spin_lock_irqsave(&spi->lock, flags);
+	if (hwcfg->irq_ack)
+		lantiq_ssc_writel(spi, val, hwcfg->irncr);
+
 	if (spi->tx) {
 		if (spi->rx && spi->rx_todo)
 			rx_fifo_read_full_duplex(spi);
@@ -659,13 +665,18 @@ completed:
 static irqreturn_t lantiq_ssc_err_interrupt(int irq, void *data)
 {
 	struct lantiq_ssc_spi *spi = data;
+	const struct lantiq_ssc_hwcfg *hwcfg = spi->hwcfg;
 	u32 stat = lantiq_ssc_readl(spi, LTQ_SPI_STAT);
+	u32 val = lantiq_ssc_readl(spi, hwcfg->irncr);
 	unsigned long flags;
 
 	if (!(stat & LTQ_SPI_STAT_ERRORS))
 		return IRQ_NONE;
 
 	spin_lock_irqsave(&spi->lock, flags);
+	if (hwcfg->irq_ack)
+		lantiq_ssc_writel(spi, val, hwcfg->irncr);
+
 	if (stat & LTQ_SPI_STAT_RUE)
 		dev_err(spi->dev, "receive underflow error\n");
 	if (stat & LTQ_SPI_STAT_TUE)
@@ -796,6 +807,7 @@ static const struct lantiq_ssc_hwcfg lantiq_ssc_xway = {
 	.irnen_t	= LTQ_SPI_IRNEN_T_XWAY,
 	.irnicr		= 0xF8,
 	.irncr		= 0xFC,
+	.irq_ack	= false,
 };
 
 static const struct lantiq_ssc_hwcfg lantiq_ssc_xrx = {
@@ -803,6 +815,7 @@ static const struct lantiq_ssc_hwcfg lantiq_ssc_xrx = {
 	.irnen_t	= LTQ_SPI_IRNEN_T_XRX,
 	.irnicr		= 0xF8,
 	.irncr		= 0xFC,
+	.irq_ack	= false,
 };
 
 static const struct of_device_id lantiq_ssc_match[] = {
