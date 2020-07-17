@@ -930,10 +930,10 @@ struct v4l2_subdev_fh {
  * @cfg: pointer to &struct v4l2_subdev_pad_config array.
  * @pad: index of the pad in the @cfg array.
  */
-static inline struct v4l2_mbus_framefmt
-*v4l2_subdev_get_try_format(struct v4l2_subdev *sd,
-			    struct v4l2_subdev_pad_config *cfg,
-			    unsigned int pad)
+static inline struct v4l2_mbus_framefmt *
+v4l2_subdev_get_try_format(struct v4l2_subdev *sd,
+			   struct v4l2_subdev_pad_config *cfg,
+			   unsigned int pad)
 {
 	if (WARN_ON(pad >= sd->entity.num_pads))
 		pad = 0;
@@ -948,10 +948,10 @@ static inline struct v4l2_mbus_framefmt
  * @cfg: pointer to &struct v4l2_subdev_pad_config array.
  * @pad: index of the pad in the @cfg array.
  */
-static inline struct v4l2_rect
-*v4l2_subdev_get_try_crop(struct v4l2_subdev *sd,
-			  struct v4l2_subdev_pad_config *cfg,
-			  unsigned int pad)
+static inline struct v4l2_rect *
+v4l2_subdev_get_try_crop(struct v4l2_subdev *sd,
+			 struct v4l2_subdev_pad_config *cfg,
+			 unsigned int pad)
 {
 	if (WARN_ON(pad >= sd->entity.num_pads))
 		pad = 0;
@@ -966,15 +966,16 @@ static inline struct v4l2_rect
  * @cfg: pointer to &struct v4l2_subdev_pad_config array.
  * @pad: index of the pad in the @cfg array.
  */
-static inline struct v4l2_rect
-*v4l2_subdev_get_try_compose(struct v4l2_subdev *sd,
-			     struct v4l2_subdev_pad_config *cfg,
-			     unsigned int pad)
+static inline struct v4l2_rect *
+v4l2_subdev_get_try_compose(struct v4l2_subdev *sd,
+			    struct v4l2_subdev_pad_config *cfg,
+			    unsigned int pad)
 {
 	if (WARN_ON(pad >= sd->entity.num_pads))
 		pad = 0;
 	return &cfg[pad].try_compose;
 }
+
 #endif
 
 extern const struct v4l2_file_operations v4l2_subdev_fops;
