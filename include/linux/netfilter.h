@@ -164,17 +164,9 @@ struct nf_sockopt_ops {
 	int set_optmin;
 	int set_optmax;
 	int (*set)(struct sock *sk, int optval, void __user *user, unsigned int len);
-#ifdef CONFIG_COMPAT
-	int (*compat_set)(struct sock *sk, int optval,
-			void __user *user, unsigned int len);
-#endif
 	int get_optmin;
 	int get_optmax;
 	int (*get)(struct sock *sk, int optval, void __user *user, int *len);
-#ifdef CONFIG_COMPAT
-	int (*compat_get)(struct sock *sk, int optval,
-			void __user *user, int *len);
-#endif
 	/* Use the module struct to lock set/get code in place */
 	struct module *owner;
 };
@@ -350,12 +342,6 @@ int nf_setsockopt(struct sock *sk, u_int8_t pf, int optval, char __user *opt,
 		  unsigned int len);
 int nf_getsockopt(struct sock *sk, u_int8_t pf, int optval, char __user *opt,
 		  int *len);
-#ifdef CONFIG_COMPAT
-int compat_nf_setsockopt(struct sock *sk, u_int8_t pf, int optval,
-		char __user *opt, unsigned int len);
-int compat_nf_getsockopt(struct sock *sk, u_int8_t pf, int optval,
-		char __user *opt, int *len);
-#endif
 
 struct flowi;
 struct nf_queue_entry;
