@@ -74,6 +74,11 @@ struct evlist {
 		pthread_t		th;
 		volatile int		done;
 	} thread;
+	struct {
+		int	fd;	/* control file descriptor */
+		int	ack;	/* ack file descriptor for control commands */
+		int	pos;	/* index at evlist core object to check signals */
+	} ctl_fd;
 };
 
 struct evsel_str_handler {
