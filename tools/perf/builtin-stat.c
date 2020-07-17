@@ -560,9 +560,61 @@ static bool is_target_alive(struct target *_target,
 	return false;
 }
 
-static int dispatch_events(bool forks, int timeout, int interval, int *times, struct timespec *ts)
+static void process_evlist(struct evlist *evlist, unsigned int interval)
+{
+	enum evlist_ctl_cmd cmd = EVLIST_CTL_CMD_UNSUPPORTED;
+
+	if (evlist__ctlfd_process(evlist, &cmd) > 0) {
+		switch (cmd) {
+		case EVLIST_CTL_CMD_ENABLE:
+			pr_info(EVLIST_ENABLED_MSG);
+			if (interval)
+				process_interval();
+			break;
+		case EVLIST_CTL_CMD_DISABLE:
+			if (interval)
+				process_interval();
+			pr_info(EVLIST_DISABLED_MSG);
+			break;
+		case EVLIST_CTL_CMD_ACK:
+		case EVLIST_CTL_CMD_UNSUPPORTED:
+		default:
+			break;
+		}
+	}
+}
+
+static void compute_tts(struct timespec *time_start, struct timespec *time_stop,
+			int *time_to_sleep)
+{
+	int tts = *time_to_sleep;
+	struct timespec time_diff;
+
+	diff_timespec(&time_diff, time_stop, time_start);
+
+	tts -= time_diff.tv_sec * MSEC_PER_SEC +
+	       time_diff.tv_nsec / NSEC_PER_MSEC;
+
+	if (tts < 0)
+		tts = 0;
+
+	*time_to_sleep = tts;
+}
+
+static int dispatch_events(bool forks, int timeout, int interval, int *times)
 {
 	int child_exited = 0, status = 0;
+	int time_to_sleep, sleep_time;
+	struct timespec time_start, time_stop;
+
+	if (interval)
+		sleep_time = interval;
+	else if (timeout)
+		sleep_time = timeout;
+	else
+		sleep_time = 1000;
+
+	time_to_sleep = sleep_time;
 
 	while (!done) {
 		if (forks)
@@ -573,9 +625,16 @@ static int dispatch_events(bool forks, int timeout, int interval, int *times, st
 		if (child_exited)
 			break;
 
-		nanosleep(ts, NULL);
-		if (timeout || handle_interval(interval, times))
-			break;
+		clock_gettime(CLOCK_MONOTONIC, &time_start);
+		if (!(evlist__poll(evsel_list, time_to_sleep) > 0)) { /* poll timeout or EINTR */
+			if (timeout || handle_interval(interval, times))
+				break;
+			time_to_sleep = sleep_time;
+		} else { /* fd revent */
+			process_evlist(evsel_list, interval);
+			clock_gettime(CLOCK_MONOTONIC, &time_stop);
+			compute_tts(&time_start, &time_stop, &time_to_sleep);
+		}
 	}
 
 	return status;
@@ -644,7 +703,6 @@ static int __run_perf_stat(int argc, const char **argv, int run_idx)
 	char msg[BUFSIZ];
 	unsigned long long t0, t1;
 	struct evsel *counter;
-	struct timespec ts;
 	size_t l;
 	int status = 0;
 	const bool forks = (argc > 0);
@@ -652,17 +710,6 @@ static int __run_perf_stat(int argc, const char **argv, int run_idx)
 	struct affinity affinity;
 	int i, cpu;
 	bool second_pass = false;
-
-	if (interval) {
-		ts.tv_sec  = interval / USEC_PER_MSEC;
-		ts.tv_nsec = (interval % USEC_PER_MSEC) * NSEC_PER_MSEC;
-	} else if (timeout) {
-		ts.tv_sec  = timeout / USEC_PER_MSEC;
-		ts.tv_nsec = (timeout % USEC_PER_MSEC) * NSEC_PER_MSEC;
-	} else {
-		ts.tv_sec  = 1;
-		ts.tv_nsec = 0;
-	}
 
 	if (forks) {
 		if (perf_evlist__prepare_workload(evsel_list, &target, argv, is_pipe,
@@ -821,7 +868,7 @@ try_again_reset:
 		enable_counters();
 
 		if (interval || timeout)
-			status = dispatch_events(forks, timeout, interval, &times, &ts);
+			status = dispatch_events(forks, timeout, interval, &times);
 		if (child_pid != -1) {
 			if (timeout)
 				kill(child_pid, SIGTERM);
@@ -838,7 +885,7 @@ try_again_reset:
 			psignal(WTERMSIG(status), argv[0]);
 	} else {
 		enable_counters();
-		status = dispatch_events(forks, timeout, interval, &times, &ts);
+		status = dispatch_events(forks, timeout, interval, &times);
 	}
 
 	disable_counters();
