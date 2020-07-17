@@ -76,7 +76,7 @@ static struct palmas_gpadc_info palmas_gpadc_info[] = {
 	PALMAS_ADC_INFO(IN15, 0, 0, 0, 0, INVALID, INVALID, true),
 };
 
-/**
+/*
  * struct palmas_gpadc - the palmas_gpadc structure
  * @ch0_current:	channel 0 current source setting
  *			0: 0 uA
@@ -94,7 +94,6 @@ static struct palmas_gpadc_info palmas_gpadc_info[] = {
  * This is the palmas_gpadc structure to store run-time information
  * and pointers for this driver instance.
  */
-
 struct palmas_gpadc {
 	struct device			*dev;
 	struct palmas			*palmas;
