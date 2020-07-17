@@ -404,6 +404,13 @@ int isa207_compute_mmcr(u64 event[], int n_ev,
 
 	mmcra = mmcr1 = mmcr2 = mmcr3 = 0;
 
+	/*
+	 * Disable bhrb unless explicitly requested
+	 * by setting MMCRA (BHRBRD) bit.
+	 */
+	if (cpu_has_feature(CPU_FTR_ARCH_31))
+		mmcra |= MMCRA_BHRB_DISABLE;
+
 	/* Second pass: assign PMCs, set all MMCR1 fields */
 	for (i = 0; i < n_ev; ++i) {
 		pmc     = (event[i] >> EVENT_PMC_SHIFT) & EVENT_PMC_MASK;
@@ -478,6 +485,11 @@ int isa207_compute_mmcr(u64 event[], int n_ev,
 			val = (event[i] >> EVENT_IFM_SHIFT) & EVENT_IFM_MASK;
 			mmcra |= val << MMCRA_IFM_SHIFT;
 		}
+
+		/* set MMCRA (BHRBRD) to 0 if there is user request for BHRB */
+		if (cpu_has_feature(CPU_FTR_ARCH_31) &&
+				(has_branch_stack(pevents[i]) || (event[i] & EVENT_WANTS_BHRB)))
+			mmcra &= ~MMCRA_BHRB_DISABLE;
 
 		if (pevents[i]->attr.exclude_user)
 			mmcr2 |= MMCR2_FCP(pmc);
