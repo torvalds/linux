@@ -467,7 +467,7 @@ static int hdac_hda_codec_probe(struct snd_soc_component *component)
 	ret = snd_hda_codec_parse_pcms(hcodec);
 	if (ret < 0) {
 		dev_err(&hdev->dev, "unable to map pcms to dai %d\n", ret);
-		goto error_regmap;
+		goto error_patch;
 	}
 
 	/* HDMI controls need to be created in machine drivers */
@@ -476,7 +476,7 @@ static int hdac_hda_codec_probe(struct snd_soc_component *component)
 		if (ret < 0) {
 			dev_err(&hdev->dev, "unable to create controls %d\n",
 				ret);
-			goto error_regmap;
+			goto error_patch;
 		}
 	}
 
@@ -496,6 +496,9 @@ static int hdac_hda_codec_probe(struct snd_soc_component *component)
 
 	return 0;
 
+error_patch:
+	if (hcodec->patch_ops.free)
+		hcodec->patch_ops.free(hcodec);
 error_regmap:
 	snd_hdac_regmap_exit(hdev);
 error_pm:
