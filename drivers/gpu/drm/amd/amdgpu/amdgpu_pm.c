@@ -694,6 +694,52 @@ static ssize_t amdgpu_set_pp_table(struct device *dev,
  * in each power level within a power state.  The pp_od_clk_voltage is used for
  * this.
  *
+ * Note that the actual memory controller clock rate are exposed, not
+ * the effective memory clock of the DRAMs. To translate it, use the
+ * following formula:
+ *
+ * Clock conversion (Mhz):
+ *
+ * HBM: effective_memory_clock = memory_controller_clock * 1
+ *
+ * G5: effective_memory_clock = memory_controller_clock * 1
+ *
+ * G6: effective_memory_clock = memory_controller_clock * 2
+ *
+ * DRAM data rate (MT/s):
+ *
+ * HBM: effective_memory_clock * 2 = data_rate
+ *
+ * G5: effective_memory_clock * 4 = data_rate
+ *
+ * G6: effective_memory_clock * 8 = data_rate
+ *
+ * Bandwidth (MB/s):
+ *
+ * data_rate * vram_bit_width / 8 = memory_bandwidth
+ *
+ * Some examples:
+ *
+ * G5 on RX460:
+ *
+ * memory_controller_clock = 1750 Mhz
+ *
+ * effective_memory_clock = 1750 Mhz * 1 = 1750 Mhz
+ *
+ * data rate = 1750 * 4 = 7000 MT/s
+ *
+ * memory_bandwidth = 7000 * 128 bits / 8 = 112000 MB/s
+ *
+ * G6 on RX5700:
+ *
+ * memory_controller_clock = 875 Mhz
+ *
+ * effective_memory_clock = 875 Mhz * 2 = 1750 Mhz
+ *
+ * data rate = 1750 * 8 = 14000 MT/s
+ *
+ * memory_bandwidth = 14000 * 256 bits / 8 = 448000 MB/s
+ *
  * < For Vega10 and previous ASICs >
  *
  * Reading the file will display:
