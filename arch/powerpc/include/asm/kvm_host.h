@@ -637,7 +637,9 @@ struct kvm_vcpu_arch {
 	u32 ccr1;
 	u32 dbsr;
 
-	u64 mmcr[5];
+	u64 mmcr[3];	/* MMCR0, MMCR1, MMCR2 */
+	u64 mmcra;
+	u64 mmcrs;
 	u32 pmc[8];
 	u32 spmc[2];
 	u64 siar;
