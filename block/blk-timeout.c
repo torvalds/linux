@@ -90,7 +90,7 @@ EXPORT_SYMBOL_GPL(blk_abort_request);
 
 static unsigned long blk_timeout_mask __read_mostly;
 
-int __init blk_timeout_init(void)
+static int __init blk_timeout_init(void)
 {
 	blk_timeout_mask = roundup_pow_of_two(HZ) - 1;
 	return 0;
