@@ -363,7 +363,7 @@ int isa207_get_constraint(u64 event, unsigned long *maskp, unsigned long *valp)
 }
 
 int isa207_compute_mmcr(u64 event[], int n_ev,
-			       unsigned int hwc[], unsigned long mmcr[],
+			       unsigned int hwc[], struct mmcr_regs *mmcr,
 			       struct perf_event *pevents[])
 {
 	unsigned long mmcra, mmcr1, mmcr2, unit, combine, psel, cache, val;
@@ -464,30 +464,30 @@ int isa207_compute_mmcr(u64 event[], int n_ev,
 	}
 
 	/* Return MMCRx values */
-	mmcr[0] = 0;
+	mmcr->mmcr0 = 0;
 
 	/* pmc_inuse is 1-based */
 	if (pmc_inuse & 2)
-		mmcr[0] = MMCR0_PMC1CE;
+		mmcr->mmcr0 = MMCR0_PMC1CE;
 
 	if (pmc_inuse & 0x7c)
-		mmcr[0] |= MMCR0_PMCjCE;
+		mmcr->mmcr0 |= MMCR0_PMCjCE;
 
 	/* If we're not using PMC 5 or 6, freeze them */
 	if (!(pmc_inuse & 0x60))
-		mmcr[0] |= MMCR0_FC56;
+		mmcr->mmcr0 |= MMCR0_FC56;
 
-	mmcr[1] = mmcr1;
-	mmcr[2] = mmcra;
-	mmcr[3] = mmcr2;
+	mmcr->mmcr1 = mmcr1;
+	mmcr->mmcra = mmcra;
+	mmcr->mmcr2 = mmcr2;
 
 	return 0;
 }
 
-void isa207_disable_pmc(unsigned int pmc, unsigned long mmcr[])
+void isa207_disable_pmc(unsigned int pmc, struct mmcr_regs *mmcr)
 {
 	if (pmc <= 3)
-		mmcr[1] &= ~(0xffUL << MMCR1_PMCSEL_SHIFT(pmc + 1));
+		mmcr->mmcr1 &= ~(0xffUL << MMCR1_PMCSEL_SHIFT(pmc + 1));
 }
 
 static int find_alternative(u64 event, const unsigned int ev_alt[][MAX_ALT], int size)

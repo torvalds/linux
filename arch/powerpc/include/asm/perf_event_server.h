@@ -17,6 +17,12 @@
 
 struct perf_event;
 
+struct mmcr_regs {
+	unsigned long mmcr0;
+	unsigned long mmcr1;
+	unsigned long mmcr2;
+	unsigned long mmcra;
+};
 /*
  * This struct provides the constants and functions needed to
  * describe the PMU on a particular POWER-family CPU.
@@ -28,7 +34,7 @@ struct power_pmu {
 	unsigned long	add_fields;
 	unsigned long	test_adder;
 	int		(*compute_mmcr)(u64 events[], int n_ev,
-				unsigned int hwc[], unsigned long mmcr[],
+				unsigned int hwc[], struct mmcr_regs *mmcr,
 				struct perf_event *pevents[]);
 	int		(*get_constraint)(u64 event_id, unsigned long *mskp,
 				unsigned long *valp);
@@ -41,7 +47,7 @@ struct power_pmu {
 	unsigned long	group_constraint_val;
 	u64             (*bhrb_filter_map)(u64 branch_sample_type);
 	void            (*config_bhrb)(u64 pmu_bhrb_filter);
-	void		(*disable_pmc)(unsigned int pmc, unsigned long mmcr[]);
+	void		(*disable_pmc)(unsigned int pmc, struct mmcr_regs *mmcr);
 	int		(*limited_pmc_event)(u64 event_id);
 	u32		flags;
 	const struct attribute_group	**attr_groups;

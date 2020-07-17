@@ -37,12 +37,7 @@ struct cpu_hw_events {
 	struct perf_event *event[MAX_HWEVENTS];
 	u64 events[MAX_HWEVENTS];
 	unsigned int flags[MAX_HWEVENTS];
-	/*
-	 * The order of the MMCR array is:
-	 *  - 64-bit, MMCR0, MMCR1, MMCRA, MMCR2
-	 *  - 32-bit, MMCR0, MMCR1, MMCR2
-	 */
-	unsigned long mmcr[4];
+	struct mmcr_regs mmcr;
 	struct perf_event *limited_counter[MAX_LIMITED_HWCOUNTERS];
 	u8  limited_hwidx[MAX_LIMITED_HWCOUNTERS];
 	u64 alternatives[MAX_HWEVENTS][MAX_EVENT_ALTERNATIVES];
@@ -121,7 +116,7 @@ static void ebb_event_add(struct perf_event *event) { }
 static void ebb_switch_out(unsigned long mmcr0) { }
 static unsigned long ebb_switch_in(bool ebb, struct cpu_hw_events *cpuhw)
 {
-	return cpuhw->mmcr[0];
+	return cpuhw->mmcr.mmcr0;
 }
 
 static inline void power_pmu_bhrb_enable(struct perf_event *event) {}
@@ -590,7 +585,7 @@ static void ebb_switch_out(unsigned long mmcr0)
 
 static unsigned long ebb_switch_in(bool ebb, struct cpu_hw_events *cpuhw)
 {
-	unsigned long mmcr0 = cpuhw->mmcr[0];
+	unsigned long mmcr0 = cpuhw->mmcr.mmcr0;
 
 	if (!ebb)
 		goto out;
@@ -624,7 +619,7 @@ static unsigned long ebb_switch_in(bool ebb, struct cpu_hw_events *cpuhw)
 	 * unfreeze counters, it should not set exclude_xxx in its events and
 	 * instead manage the MMCR2 entirely by itself.
 	 */
-	mtspr(SPRN_MMCR2, cpuhw->mmcr[3] | current->thread.mmcr2);
+	mtspr(SPRN_MMCR2, cpuhw->mmcr.mmcr2 | current->thread.mmcr2);
 out:
 	return mmcr0;
 }
@@ -1232,9 +1227,9 @@ static void power_pmu_disable(struct pmu *pmu)
 		/*
 		 * Disable instruction sampling if it was enabled
 		 */
-		if (cpuhw->mmcr[2] & MMCRA_SAMPLE_ENABLE) {
+		if (cpuhw->mmcr.mmcra & MMCRA_SAMPLE_ENABLE) {
 			mtspr(SPRN_MMCRA,
-			      cpuhw->mmcr[2] & ~MMCRA_SAMPLE_ENABLE);
+			      cpuhw->mmcr.mmcra & ~MMCRA_SAMPLE_ENABLE);
 			mb();
 			isync();
 		}
@@ -1308,18 +1303,18 @@ static void power_pmu_enable(struct pmu *pmu)
 	 * (possibly updated for removal of events).
 	 */
 	if (!cpuhw->n_added) {
-		mtspr(SPRN_MMCRA, cpuhw->mmcr[2] & ~MMCRA_SAMPLE_ENABLE);
-		mtspr(SPRN_MMCR1, cpuhw->mmcr[1]);
+		mtspr(SPRN_MMCRA, cpuhw->mmcr.mmcra & ~MMCRA_SAMPLE_ENABLE);
+		mtspr(SPRN_MMCR1, cpuhw->mmcr.mmcr1);
 		goto out_enable;
 	}
 
 	/*
 	 * Clear all MMCR settings and recompute them for the new set of events.
 	 */
-	memset(cpuhw->mmcr, 0, sizeof(cpuhw->mmcr));
+	memset(&cpuhw->mmcr, 0, sizeof(cpuhw->mmcr));
 
 	if (ppmu->compute_mmcr(cpuhw->events, cpuhw->n_events, hwc_index,
-			       cpuhw->mmcr, cpuhw->event)) {
+			       &cpuhw->mmcr, cpuhw->event)) {
 		/* shouldn't ever get here */
 		printk(KERN_ERR "oops compute_mmcr failed\n");
 		goto out;
@@ -1333,11 +1328,11 @@ static void power_pmu_enable(struct pmu *pmu)
 		 */
 		event = cpuhw->event[0];
 		if (event->attr.exclude_user)
-			cpuhw->mmcr[0] |= MMCR0_FCP;
+			cpuhw->mmcr.mmcr0 |= MMCR0_FCP;
 		if (event->attr.exclude_kernel)
-			cpuhw->mmcr[0] |= freeze_events_kernel;
+			cpuhw->mmcr.mmcr0 |= freeze_events_kernel;
 		if (event->attr.exclude_hv)
-			cpuhw->mmcr[0] |= MMCR0_FCHV;
+			cpuhw->mmcr.mmcr0 |= MMCR0_FCHV;
 	}
 
 	/*
@@ -1346,12 +1341,12 @@ static void power_pmu_enable(struct pmu *pmu)
 	 * Then unfreeze the events.
 	 */
 	ppc_set_pmu_inuse(1);
-	mtspr(SPRN_MMCRA, cpuhw->mmcr[2] & ~MMCRA_SAMPLE_ENABLE);
-	mtspr(SPRN_MMCR1, cpuhw->mmcr[1]);
-	mtspr(SPRN_MMCR0, (cpuhw->mmcr[0] & ~(MMCR0_PMC1CE | MMCR0_PMCjCE))
+	mtspr(SPRN_MMCRA, cpuhw->mmcr.mmcra & ~MMCRA_SAMPLE_ENABLE);
+	mtspr(SPRN_MMCR1, cpuhw->mmcr.mmcr1);
+	mtspr(SPRN_MMCR0, (cpuhw->mmcr.mmcr0 & ~(MMCR0_PMC1CE | MMCR0_PMCjCE))
 				| MMCR0_FC);
 	if (ppmu->flags & PPMU_ARCH_207S)
-		mtspr(SPRN_MMCR2, cpuhw->mmcr[3]);
+		mtspr(SPRN_MMCR2, cpuhw->mmcr.mmcr2);
 
 	/*
 	 * Read off any pre-existing events that need to move
@@ -1402,7 +1397,7 @@ static void power_pmu_enable(struct pmu *pmu)
 		perf_event_update_userpage(event);
 	}
 	cpuhw->n_limited = n_lim;
-	cpuhw->mmcr[0] |= MMCR0_PMXE | MMCR0_FCECE;
+	cpuhw->mmcr.mmcr0 |= MMCR0_PMXE | MMCR0_FCECE;
 
  out_enable:
 	pmao_restore_workaround(ebb);
@@ -1418,9 +1413,9 @@ static void power_pmu_enable(struct pmu *pmu)
 	/*
 	 * Enable instruction sampling if necessary
 	 */
-	if (cpuhw->mmcr[2] & MMCRA_SAMPLE_ENABLE) {
+	if (cpuhw->mmcr.mmcra & MMCRA_SAMPLE_ENABLE) {
 		mb();
-		mtspr(SPRN_MMCRA, cpuhw->mmcr[2]);
+		mtspr(SPRN_MMCRA, cpuhw->mmcr.mmcra);
 	}
 
  out:
@@ -1550,7 +1545,7 @@ static void power_pmu_del(struct perf_event *event, int ef_flags)
 				cpuhw->flags[i-1] = cpuhw->flags[i];
 			}
 			--cpuhw->n_events;
-			ppmu->disable_pmc(event->hw.idx - 1, cpuhw->mmcr);
+			ppmu->disable_pmc(event->hw.idx - 1, &cpuhw->mmcr);
 			if (event->hw.idx) {
 				write_pmc(event->hw.idx, 0);
 				event->hw.idx = 0;
@@ -1571,7 +1566,7 @@ static void power_pmu_del(struct perf_event *event, int ef_flags)
 	}
 	if (cpuhw->n_events == 0) {
 		/* disable exceptions if no events are running */
-		cpuhw->mmcr[0] &= ~(MMCR0_PMXE | MMCR0_FCECE);
+		cpuhw->mmcr.mmcr0 &= ~(MMCR0_PMXE | MMCR0_FCECE);
 	}
 
 	if (has_branch_stack(event))
@@ -2240,7 +2235,7 @@ static void __perf_event_interrupt(struct pt_regs *regs)
 	 * XXX might want to use MSR.PM to keep the events frozen until
 	 * we get back out of this interrupt.
 	 */
-	write_mmcr0(cpuhw, cpuhw->mmcr[0]);
+	write_mmcr0(cpuhw, cpuhw->mmcr.mmcr0);
 
 	if (nmi)
 		nmi_exit();
@@ -2262,7 +2257,7 @@ static int power_pmu_prepare_cpu(unsigned int cpu)
 
 	if (ppmu) {
 		memset(cpuhw, 0, sizeof(*cpuhw));
-		cpuhw->mmcr[0] = MMCR0_FC;
+		cpuhw->mmcr.mmcr0 = MMCR0_FC;
 	}
 	return 0;
 }
