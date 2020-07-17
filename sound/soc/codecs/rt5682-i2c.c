@@ -232,7 +232,7 @@ static int rt5682_i2c_probe(struct i2c_client *i2c,
 	regmap_update_bits(rt5682->regmap, RT5682_PWR_ANLG_1,
 		RT5682_LDO1_DVO_MASK | RT5682_HP_DRIVER_MASK,
 		RT5682_LDO1_DVO_12 | RT5682_HP_DRIVER_5X);
-	regmap_write(rt5682->regmap, RT5682_MICBIAS_2, 0x0380);
+	regmap_write(rt5682->regmap, RT5682_MICBIAS_2, 0x0080);
 	regmap_update_bits(rt5682->regmap, RT5682_GPIO_CTRL_1,
 		RT5682_GP4_PIN_MASK | RT5682_GP5_PIN_MASK,
 		RT5682_GP4_PIN_ADCDAT1 | RT5682_GP5_PIN_DACDAT1);
