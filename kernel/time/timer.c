@@ -544,8 +544,7 @@ static int calc_wheel_index(unsigned long expires, unsigned long clk,
 }
 
 static void
-trigger_dyntick_cpu(struct timer_base *base, struct timer_list *timer,
-		    unsigned long bucket_expiry)
+trigger_dyntick_cpu(struct timer_base *base, struct timer_list *timer)
 {
 	if (!is_timers_nohz_active())
 		return;
@@ -565,23 +564,8 @@ trigger_dyntick_cpu(struct timer_base *base, struct timer_list *timer,
 	 * timer is not deferrable. If the other CPU is on the way to idle
 	 * then it can't set base->is_idle as we hold the base lock:
 	 */
-	if (!base->is_idle)
-		return;
-
-	/*
-	 * Check whether this is the new first expiring timer. The
-	 * effective expiry time of the timer is required here
-	 * (bucket_expiry) instead of timer->expires.
-	 */
-	if (time_after_eq(bucket_expiry, base->next_expiry))
-		return;
-
-	/*
-	 * Set the next expiry time and kick the CPU so it can reevaluate the
-	 * wheel:
-	 */
-	base->next_expiry = bucket_expiry;
-	wake_up_nohz_cpu(base->cpu);
+	if (base->is_idle)
+		wake_up_nohz_cpu(base->cpu);
 }
 
 /*
@@ -592,12 +576,26 @@ trigger_dyntick_cpu(struct timer_base *base, struct timer_list *timer,
 static void enqueue_timer(struct timer_base *base, struct timer_list *timer,
 			  unsigned int idx, unsigned long bucket_expiry)
 {
+
 	hlist_add_head(&timer->entry, base->vectors + idx);
 	__set_bit(idx, base->pending_map);
 	timer_set_idx(timer, idx);
 
 	trace_timer_start(timer, timer->expires, timer->flags);
-	trigger_dyntick_cpu(base, timer, bucket_expiry);
+
+	/*
+	 * Check whether this is the new first expiring timer. The
+	 * effective expiry time of the timer is required here
+	 * (bucket_expiry) instead of timer->expires.
+	 */
+	if (time_before(bucket_expiry, base->next_expiry)) {
+		/*
+		 * Set the next expiry time and kick the CPU so it
+		 * can reevaluate the wheel:
+		 */
+		base->next_expiry = bucket_expiry;
+		trigger_dyntick_cpu(base, timer);
+	}
 }
 
 static void internal_add_timer(struct timer_base *base, struct timer_list *timer)
@@ -1493,7 +1491,6 @@ static int __collect_expired_timers(struct timer_base *base,
 	return levels;
 }
 
-#ifdef CONFIG_NO_HZ_COMMON
 /*
  * Find the next pending bucket of a level. Search from level start (@offset)
  * + @clk upwards and if nothing there, search from start of the level
@@ -1585,6 +1582,7 @@ static unsigned long __next_timer_interrupt(struct timer_base *base)
 	return next;
 }
 
+#ifdef CONFIG_NO_HZ_COMMON
 /*
  * Check, if the next hrtimer event is before the next timer wheel
  * event:
@@ -1790,6 +1788,7 @@ static inline void __run_timers(struct timer_base *base)
 
 		levels = collect_expired_timers(base, heads);
 		base->clk++;
+		base->next_expiry = __next_timer_interrupt(base);
 
 		while (levels--)
 			expire_timers(base, heads + levels);
@@ -2042,6 +2041,7 @@ static void __init init_timer_cpu(int cpu)
 		base->cpu = cpu;
 		raw_spin_lock_init(&base->lock);
 		base->clk = jiffies;
+		base->next_expiry = base->clk + NEXT_TIMER_MAX_DELTA;
 		timer_base_init_expiry_lock(base);
 	}
 }
