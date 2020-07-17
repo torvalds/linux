@@ -2783,20 +2783,6 @@ int sock_no_shutdown(struct socket *sock, int how)
 }
 EXPORT_SYMBOL(sock_no_shutdown);
 
-int sock_no_setsockopt(struct socket *sock, int level, int optname,
-		    char __user *optval, unsigned int optlen)
-{
-	return -EOPNOTSUPP;
-}
-EXPORT_SYMBOL(sock_no_setsockopt);
-
-int sock_no_getsockopt(struct socket *sock, int level, int optname,
-		    char __user *optval, int __user *optlen)
-{
-	return -EOPNOTSUPP;
-}
-EXPORT_SYMBOL(sock_no_getsockopt);
-
 int sock_no_sendmsg(struct socket *sock, struct msghdr *m, size_t len)
 {
 	return -EOPNOTSUPP;
