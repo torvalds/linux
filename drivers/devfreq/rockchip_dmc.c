@@ -55,6 +55,8 @@
 
 #include "governor.h"
 #include "rockchip_dmc_timing.h"
+#include "../clk/rockchip/clk.h"
+#include "../gpu/drm/rockchip/rockchip_drm_drv.h"
 
 #define system_status_to_dmcfreq(nb) container_of(nb, struct rockchip_dmcfreq, \
 						  status_nb)
@@ -138,6 +140,7 @@ struct rockchip_dmcfreq {
 	struct monitor_dev_info *mdev_info;
 	struct rl_map_table *vop_pn_rl_tbl;
 	struct delayed_work msch_rl_work;
+	struct share_params *set_rate_params;
 
 	unsigned long *nocp_bw;
 	unsigned long rate, target_rate;
@@ -338,21 +341,8 @@ rk3328_de_skew_setting_2_register(struct rk3328_ddr_de_skew_setting *de_skew,
 
 static int rk_drm_get_lcdc_type(void)
 {
-	struct drm_device *drm;
-	u32 lcdc_type = 0;
+	u32 lcdc_type = rockchip_drm_get_sub_dev_type();
 
-	drm = drm_device_get_by_name("rockchip");
-	if (drm) {
-		struct drm_connector *conn;
-
-		list_for_each_entry(conn, &drm->mode_config.connector_list,
-				    head) {
-			if (conn->encoder) {
-				lcdc_type = conn->connector_type;
-				break;
-			}
-		}
-	}
 	switch (lcdc_type) {
 	case DRM_MODE_CONNECTOR_DPI:
 	case DRM_MODE_CONNECTOR_LVDS:
@@ -504,6 +494,12 @@ static int rockchip_dmcfreq_target(struct device *dev, unsigned long *freq,
 	while (!down_write_trylock(&rockchip_dmcfreq_sem))
 		cond_resched();
 	dev_dbg(dev, "%lu-->%lu\n", old_clk_rate, target_rate);
+
+	if (dmcfreq->set_rate_params) {
+		dmcfreq->set_rate_params->lcdc_type = rk_drm_get_lcdc_type();
+		dmcfreq->set_rate_params->wait_flag1 = 1;
+		dmcfreq->set_rate_params->wait_flag0 = 1;
+	}
 
 	if (dmcfreq->is_set_rate_direct)
 		err = rockchip_ddr_set_rate(target_rate);
@@ -1373,6 +1369,10 @@ static __maybe_unused int px30_dmc_init(struct platform_device *pdev,
 	complt_hwirq = irqd_to_hwirq(complt_irq_data);
 	ddr_psci_param->complt_hwirq = complt_hwirq;
 
+	dmcfreq->set_rate_params = ddr_psci_param;
+	rockchip_set_ddrclk_params(dmcfreq->set_rate_params);
+	rockchip_set_ddrclk_dmcfreq_wait_complete(rockchip_dmcfreq_wait_complete);
+
 	res = sip_smc_dram(SHARE_PAGE_TYPE_DDR, 0,
 			   ROCKCHIP_SIP_CONFIG_DRAM_INIT);
 	if (res.a0) {
@@ -1446,6 +1446,10 @@ static __maybe_unused int rk1808_dmc_init(struct platform_device *pdev,
 	}
 	disable_irq(complt_irq);
 
+	dmcfreq->set_rate_params = ddr_psci_param;
+	rockchip_set_ddrclk_params(dmcfreq->set_rate_params);
+	rockchip_set_ddrclk_dmcfreq_wait_complete(rockchip_dmcfreq_wait_complete);
+
 	res = sip_smc_dram(SHARE_PAGE_TYPE_DDR, 0,
 			   ROCKCHIP_SIP_CONFIG_DRAM_INIT);
 	if (res.a0) {
@@ -1463,12 +1467,6 @@ static __maybe_unused int rk3128_dmc_init(struct platform_device *pdev,
 					  struct rockchip_dmcfreq *dmcfreq)
 {
 	struct arm_smccc_res res;
-	struct drm_device *drm = drm_device_get_by_name("rockchip");
-
-	if (!drm) {
-		dev_err(&pdev->dev, "Get drm_device fail\n");
-		return -EPROBE_DEFER;
-	}
 
 	res = sip_smc_request_share_mem(DIV_ROUND_UP(sizeof(
 					struct rk3128_ddr_dts_config_timing),
@@ -1483,6 +1481,10 @@ static __maybe_unused int rk3128_dmc_init(struct platform_device *pdev,
 
 	ddr_psci_param->hz = 0;
 	ddr_psci_param->lcdc_type = rk_drm_get_lcdc_type();
+
+	dmcfreq->set_rate_params = ddr_psci_param;
+	rockchip_set_ddrclk_params(dmcfreq->set_rate_params);
+
 	res = sip_smc_dram(SHARE_PAGE_TYPE_DDR, 0,
 			   ROCKCHIP_SIP_CONFIG_DRAM_INIT);
 
@@ -1516,6 +1518,10 @@ static __maybe_unused int rk3228_dmc_init(struct platform_device *pdev,
 		return -ENOMEM;
 
 	ddr_psci_param->hz = 0;
+
+	dmcfreq->set_rate_params = ddr_psci_param;
+	rockchip_set_ddrclk_params(dmcfreq->set_rate_params);
+
 	res = sip_smc_dram(SHARE_PAGE_TYPE_DDR, 0,
 			   ROCKCHIP_SIP_CONFIG_DRAM_INIT);
 
@@ -1536,13 +1542,7 @@ static __maybe_unused int rk3288_dmc_init(struct platform_device *pdev,
 	struct device *dev = &pdev->dev;
 	struct clk *pclk_phy, *pclk_upctl, *dmc_clk;
 	struct arm_smccc_res res;
-	struct drm_device *drm = drm_device_get_by_name("rockchip");
 	int ret;
-
-	if (!drm) {
-		dev_err(dev, "Get drm_device fail\n");
-		return -EPROBE_DEFER;
-	}
 
 	dmc_clk = devm_clk_get(dev, "dmc_clk");
 	if (IS_ERR(dmc_clk)) {
@@ -1611,6 +1611,10 @@ static __maybe_unused int rk3288_dmc_init(struct platform_device *pdev,
 
 	ddr_psci_param->hz = 0;
 	ddr_psci_param->lcdc_type = rk_drm_get_lcdc_type();
+
+	dmcfreq->set_rate_params = ddr_psci_param;
+	rockchip_set_ddrclk_params(dmcfreq->set_rate_params);
+
 	res = sip_smc_dram(SHARE_PAGE_TYPE_DDR, 0,
 			   ROCKCHIP_SIP_CONFIG_DRAM_INIT);
 
@@ -1657,6 +1661,9 @@ static __maybe_unused int rk3328_dmc_init(struct platform_device *pdev,
 	of_get_rk3328_timings(&pdev->dev, pdev->dev.of_node,
 			      (uint32_t *)ddr_psci_param);
 
+	dmcfreq->set_rate_params = ddr_psci_param;
+	rockchip_set_ddrclk_params(dmcfreq->set_rate_params);
+
 	res = sip_smc_dram(SHARE_PAGE_TYPE_DDR, 0,
 			   ROCKCHIP_SIP_CONFIG_DRAM_INIT);
 	if (res.a0) {
@@ -1678,17 +1685,11 @@ static __maybe_unused int rk3368_dmc_init(struct platform_device *pdev,
 	struct arm_smccc_res res;
 	struct rk3368_dram_timing *dram_timing;
 	struct clk *pclk_phy, *pclk_upctl;
-	struct drm_device *drm = drm_device_get_by_name("rockchip");
 	int ret;
 	u32 dram_spd_bin;
 	u32 addr_mcu_el3;
 	u32 dclk_mode;
 	u32 lcdc_type;
-
-	if (!drm) {
-		dev_err(dev, "Get drm_device fail\n");
-		return -EPROBE_DEFER;
-	}
 
 	pclk_phy = devm_clk_get(dev, "pclk_phy");
 	if (IS_ERR(pclk_phy)) {
@@ -1736,6 +1737,12 @@ static __maybe_unused int rk3368_dmc_init(struct platform_device *pdev,
 
 	if (of_property_read_u32(np, "vop-dclk-mode", &dclk_mode) == 0)
 		scpi_ddr_dclk_mode(dclk_mode);
+
+	dmcfreq->set_rate_params =
+		devm_kzalloc(dev, sizeof(struct share_params), GFP_KERNEL);
+	if (!dmcfreq->set_rate_params)
+		return -ENOMEM;
+	rockchip_set_ddrclk_params(dmcfreq->set_rate_params);
 
 	lcdc_type = rk_drm_get_lcdc_type();
 
@@ -1791,6 +1798,12 @@ static __maybe_unused int rk3399_dmc_init(struct platform_device *pdev,
 			}
 		}
 	}
+
+	dmcfreq->set_rate_params =
+		devm_kzalloc(dev, sizeof(struct share_params), GFP_KERNEL);
+	if (!dmcfreq->set_rate_params)
+		return -ENOMEM;
+	rockchip_set_ddrclk_params(dmcfreq->set_rate_params);
 
 	arm_smccc_smc(ROCKCHIP_SIP_DRAM_FREQ, 0, 0,
 		      ROCKCHIP_SIP_CONFIG_DRAM_INIT,
@@ -1950,6 +1963,10 @@ static __maybe_unused int rv1126_dmc_init(struct platform_device *pdev,
 	if (of_property_read_u32(pdev->dev.of_node, "update_deskew_cfg",
 				 &ddr_psci_param->update_deskew_cfg))
 		ddr_psci_param->update_deskew_cfg = 0;
+
+	dmcfreq->set_rate_params = ddr_psci_param;
+	rockchip_set_ddrclk_params(dmcfreq->set_rate_params);
+	rockchip_set_ddrclk_dmcfreq_wait_complete(rockchip_dmcfreq_wait_complete);
 
 	res = sip_smc_dram(SHARE_PAGE_TYPE_DDR, 0,
 			   ROCKCHIP_SIP_CONFIG_DRAM_INIT);
