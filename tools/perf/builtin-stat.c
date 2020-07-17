@@ -550,6 +550,27 @@ static bool is_target_alive(struct target *_target,
 	return false;
 }
 
+static int dispatch_events(bool forks, int timeout, int interval, int *times, struct timespec *ts)
+{
+	int child_exited = 0, status = 0;
+
+	while (!done) {
+		if (forks)
+			child_exited = waitpid(child_pid, &status, WNOHANG);
+		else
+			child_exited = !is_target_alive(&target, evsel_list->core.threads) ? 1 : 0;
+
+		if (child_exited)
+			break;
+
+		nanosleep(ts, NULL);
+		if (timeout || handle_interval(interval, times))
+			break;
+	}
+
+	return status;
+}
+
 enum counter_recovery {
 	COUNTER_SKIP,
 	COUNTER_RETRY,
@@ -789,13 +810,8 @@ try_again_reset:
 		perf_evlist__start_workload(evsel_list);
 		enable_counters();
 
-		if (interval || timeout) {
-			while (!waitpid(child_pid, &status, WNOHANG)) {
-				nanosleep(&ts, NULL);
-				if (timeout || handle_interval(interval, &times))
-					break;
-			}
-		}
+		if (interval || timeout)
+			status = dispatch_events(forks, timeout, interval, &times, &ts);
 		if (child_pid != -1) {
 			if (timeout)
 				kill(child_pid, SIGTERM);
@@ -812,11 +828,7 @@ try_again_reset:
 			psignal(WTERMSIG(status), argv[0]);
 	} else {
 		enable_counters();
-		while (!done && is_target_alive(&target, evsel_list->core.threads)) {
-			nanosleep(&ts, NULL);
-			if (timeout || handle_interval(interval, &times))
-				break;
-		}
+		status = dispatch_events(forks, timeout, interval, &times, &ts);
 	}
 
 	disable_counters();
