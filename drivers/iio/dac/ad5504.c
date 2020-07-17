@@ -43,8 +43,8 @@
  * @spi:			spi_device
  * @reg:		supply regulator
  * @vref_mv:		actual reference voltage used
- * @pwr_down_mask	power down mask
- * @pwr_down_mode	current power down mode
+ * @pwr_down_mask:	power down mask
+ * @pwr_down_mode:	current power down mode
  * @data:		transfer buffer
  */
 struct ad5504_state {
@@ -57,10 +57,9 @@ struct ad5504_state {
 	__be16				data[2] ____cacheline_aligned;
 };
 
-/**
+/*
  * ad5504_supported_device_ids:
  */
-
 enum ad5504_supported_device_ids {
 	ID_AD5504,
 	ID_AD5501,
