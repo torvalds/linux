@@ -164,8 +164,8 @@ static s32 mlx90632_pwr_continuous(struct regmap *regmap)
 }
 
 /**
- * mlx90632_perform_measurement - Trigger and retrieve current measurement cycle
- * @*data: pointer to mlx90632_data object containing regmap information
+ * mlx90632_perform_measurement() - Trigger and retrieve current measurement cycle
+ * @data: pointer to mlx90632_data object containing regmap information
  *
  * Perform a measurement and return latest measurement cycle position reported
  * by sensor. This is a blocking function for 500ms, as that is default sensor
