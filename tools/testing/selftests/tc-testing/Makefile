@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: GPL-2.0
 
-APIDIR := ../../../../include/uapi
+top_srcdir = $(abspath ../../../..)
+APIDIR := $(top_scrdir)/include/uapi
 TEST_GEN_FILES = action.o
 
-top_srcdir = ../../../../..
 KSFT_KHDR_INSTALL := 1
-include ../../lib.mk
+include ../lib.mk
 
 CLANG ?= clang
 LLC   ?= llc
@@ -28,3 +28,6 @@ $(OUTPUT)/%.o: %.c
 	$(CLANG) $(CLANG_FLAGS) \
 		 -O2 -target bpf -emit-llvm -c $< -o - |      \
 	$(LLC) -march=bpf -mcpu=$(CPU) $(LLC_FLAGS) -filetype=obj -o $@
+
+TEST_PROGS += ./tdc.sh
+TEST_FILES := tdc*.py Tdc*.py plugins plugin-lib tc-tests
