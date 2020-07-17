@@ -86,7 +86,9 @@ The details of these operations are:
   - interleaved_dma: This is common to Slave as well as M2M clients. For slave
     address of devices' fifo could be already known to the driver.
     Various types of operations could be expressed by setting
-    appropriate values to the 'dma_interleaved_template' members.
+    appropriate values to the 'dma_interleaved_template' members. Cyclic
+    interleaved DMA transfers are also possible if supported by the channel by
+    setting the DMA_PREP_REPEAT transfer flag.
 
   A non-NULL return of this transfer API represents a "descriptor" for
   the given transaction.
