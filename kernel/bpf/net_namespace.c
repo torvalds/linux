@@ -36,12 +36,50 @@ static void netns_bpf_run_array_detach(struct net *net,
 	bpf_prog_array_free(run_array);
 }
 
+static int link_index(struct net *net, enum netns_bpf_attach_type type,
+		      struct bpf_netns_link *link)
+{
+	struct bpf_netns_link *pos;
+	int i = 0;
+
+	list_for_each_entry(pos, &net->bpf.links[type], node) {
+		if (pos == link)
+			return i;
+		i++;
+	}
+	return -ENOENT;
+}
+
+static int link_count(struct net *net, enum netns_bpf_attach_type type)
+{
+	struct list_head *pos;
+	int i = 0;
+
+	list_for_each(pos, &net->bpf.links[type])
+		i++;
+	return i;
+}
+
+static void fill_prog_array(struct net *net, enum netns_bpf_attach_type type,
+			    struct bpf_prog_array *prog_array)
+{
+	struct bpf_netns_link *pos;
+	unsigned int i = 0;
+
+	list_for_each_entry(pos, &net->bpf.links[type], node) {
+		prog_array->items[i].prog = pos->link.prog;
+		i++;
+	}
+}
+
 static void bpf_netns_link_release(struct bpf_link *link)
 {
 	struct bpf_netns_link *net_link =
 		container_of(link, struct bpf_netns_link, link);
 	enum netns_bpf_attach_type type = net_link->netns_type;
+	struct bpf_prog_array *old_array, *new_array;
 	struct net *net;
+	int cnt, idx;
 
 	mutex_lock(&netns_bpf_mutex);
 
@@ -53,8 +91,26 @@ static void bpf_netns_link_release(struct bpf_link *link)
 	if (!net)
 		goto out_unlock;
 
-	netns_bpf_run_array_detach(net, type);
+	/* Remember link position in case of safe delete */
+	idx = link_index(net, type, net_link);
 	list_del(&net_link->node);
+
+	cnt = link_count(net, type);
+	if (!cnt) {
+		netns_bpf_run_array_detach(net, type);
+		goto out_unlock;
+	}
+
+	old_array = rcu_dereference_protected(net->bpf.run_array[type],
+					      lockdep_is_held(&netns_bpf_mutex));
+	new_array = bpf_prog_array_alloc(cnt, GFP_KERNEL);
+	if (!new_array) {
+		WARN_ON(bpf_prog_array_delete_safe_at(old_array, idx));
+		goto out_unlock;
+	}
+	fill_prog_array(net, type, new_array);
+	rcu_assign_pointer(net->bpf.run_array[type], new_array);
+	bpf_prog_array_free(old_array);
 
 out_unlock:
 	mutex_unlock(&netns_bpf_mutex);
@@ -77,7 +133,7 @@ static int bpf_netns_link_update_prog(struct bpf_link *link,
 	enum netns_bpf_attach_type type = net_link->netns_type;
 	struct bpf_prog_array *run_array;
 	struct net *net;
-	int ret = 0;
+	int idx, ret;
 
 	if (old_prog && old_prog != link->prog)
 		return -EPERM;
@@ -95,7 +151,10 @@ static int bpf_netns_link_update_prog(struct bpf_link *link,
 
 	run_array = rcu_dereference_protected(net->bpf.run_array[type],
 					      lockdep_is_held(&netns_bpf_mutex));
-	WRITE_ONCE(run_array->items[0].prog, new_prog);
+	idx = link_index(net, type, net_link);
+	ret = bpf_prog_array_update_at(run_array, idx, new_prog);
+	if (ret)
+		goto out_unlock;
 
 	old_prog = xchg(&link->prog, new_prog);
 	bpf_prog_put(old_prog);
@@ -309,18 +368,28 @@ int netns_bpf_prog_detach(const union bpf_attr *attr, enum bpf_prog_type ptype)
 	return ret;
 }
 
+static int netns_bpf_max_progs(enum netns_bpf_attach_type type)
+{
+	switch (type) {
+	case NETNS_BPF_FLOW_DISSECTOR:
+		return 1;
+	default:
+		return 0;
+	}
+}
+
 static int netns_bpf_link_attach(struct net *net, struct bpf_link *link,
 				 enum netns_bpf_attach_type type)
 {
 	struct bpf_netns_link *net_link =
 		container_of(link, struct bpf_netns_link, link);
 	struct bpf_prog_array *run_array;
-	int err;
+	int cnt, err;
 
 	mutex_lock(&netns_bpf_mutex);
 
-	/* Allow attaching only one prog or link for now */
-	if (!list_empty(&net->bpf.links[type])) {
+	cnt = link_count(net, type);
+	if (cnt >= netns_bpf_max_progs(type)) {
 		err = -E2BIG;
 		goto out_unlock;
 	}
@@ -341,15 +410,18 @@ static int netns_bpf_link_attach(struct net *net, struct bpf_link *link,
 	if (err)
 		goto out_unlock;
 
-	run_array = bpf_prog_array_alloc(1, GFP_KERNEL);
+	run_array = bpf_prog_array_alloc(cnt + 1, GFP_KERNEL);
 	if (!run_array) {
 		err = -ENOMEM;
 		goto out_unlock;
 	}
-	run_array->items[0].prog = link->prog;
-	rcu_assign_pointer(net->bpf.run_array[type], run_array);
 
 	list_add_tail(&net_link->node, &net->bpf.links[type]);
+
+	fill_prog_array(net, type, run_array);
+	run_array = rcu_replace_pointer(net->bpf.run_array[type], run_array,
+					lockdep_is_held(&netns_bpf_mutex));
+	bpf_prog_array_free(run_array);
 
 out_unlock:
 	mutex_unlock(&netns_bpf_mutex);
