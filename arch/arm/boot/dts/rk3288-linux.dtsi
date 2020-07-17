@@ -8,7 +8,7 @@
 
 / {
 	chosen {
-		bootargs = "earlyprintk console=ttyFIQ0 rw root=PARTUUID=614e0000-0000 rootfstype=ext4 rootwait";
+		bootargs = "earlycon=uart8250,mmio32,0xff690000 vmalloc=496M rw root=PARTUUID=614e0000-0000 rootfstype=ext4 rootwait";
 	};
 
 	/delete-node/ dmc@ff610000;
@@ -101,6 +101,8 @@
 		method = "smc";
 	};
 
+	/delete-node/ timer@ff810000;
+
 	display-subsystem {
 		status = "okay";
 
@@ -181,8 +183,32 @@
 	compatible = "rockchip,rk3288-secure-efuse";
 };
 
+&mpp_srv {
+	status = "okay";
+};
+
+&hevc {
+	status = "okay";
+};
+
+&hevc_mmu {
+	status = "okay";
+};
+
 &uart2 {
 	status = "disabled";
+};
+
+&vdpu {
+	status = "okay";
+};
+
+&vepu {
+	status = "okay";
+};
+
+&vpu_mmu {
+	status = "okay";
 };
 
 &video_phy {
