@@ -2769,10 +2769,6 @@ struct proto tcp_prot = {
 	.rsk_prot		= &tcp_request_sock_ops,
 	.h.hashinfo		= &tcp_hashinfo,
 	.no_autobind		= true,
-#ifdef CONFIG_COMPAT
-	.compat_setsockopt	= compat_tcp_setsockopt,
-	.compat_getsockopt	= compat_tcp_getsockopt,
-#endif
 	.diag_destroy		= tcp_abort,
 };
 EXPORT_SYMBOL(tcp_prot);

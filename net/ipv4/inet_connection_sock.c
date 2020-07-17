@@ -1057,34 +1057,6 @@ void inet_csk_addr2sockaddr(struct sock *sk, struct sockaddr *uaddr)
 }
 EXPORT_SYMBOL_GPL(inet_csk_addr2sockaddr);
 
-#ifdef CONFIG_COMPAT
-int inet_csk_compat_getsockopt(struct sock *sk, int level, int optname,
-			       char __user *optval, int __user *optlen)
-{
-	const struct inet_connection_sock *icsk = inet_csk(sk);
-
-	if (icsk->icsk_af_ops->compat_getsockopt)
-		return icsk->icsk_af_ops->compat_getsockopt(sk, level, optname,
-							    optval, optlen);
-	return icsk->icsk_af_ops->getsockopt(sk, level, optname,
-					     optval, optlen);
-}
-EXPORT_SYMBOL_GPL(inet_csk_compat_getsockopt);
-
-int inet_csk_compat_setsockopt(struct sock *sk, int level, int optname,
-			       char __user *optval, unsigned int optlen)
-{
-	const struct inet_connection_sock *icsk = inet_csk(sk);
-
-	if (icsk->icsk_af_ops->compat_setsockopt)
-		return icsk->icsk_af_ops->compat_setsockopt(sk, level, optname,
-							    optval, optlen);
-	return icsk->icsk_af_ops->setsockopt(sk, level, optname,
-					     optval, optlen);
-}
-EXPORT_SYMBOL_GPL(inet_csk_compat_setsockopt);
-#endif
-
 static struct dst_entry *inet_csk_rebuild_route(struct sock *sk, struct flowi *fl)
 {
 	const struct inet_sock *inet = inet_sk(sk);

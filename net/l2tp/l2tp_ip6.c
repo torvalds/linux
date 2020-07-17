@@ -745,10 +745,6 @@ static struct proto l2tp_ip6_prot = {
 	.hash		   = l2tp_ip6_hash,
 	.unhash		   = l2tp_ip6_unhash,
 	.obj_size	   = sizeof(struct l2tp_ip6_sock),
-#ifdef CONFIG_COMPAT
-	.compat_setsockopt = compat_ipv6_setsockopt,
-	.compat_getsockopt = compat_ipv6_getsockopt,
-#endif
 };
 
 static const struct proto_ops l2tp_ip6_ops = {

@@ -1147,14 +1147,6 @@ struct proto {
 					int __user *option);
 	void			(*keepalive)(struct sock *sk, int valbool);
 #ifdef CONFIG_COMPAT
-	int			(*compat_setsockopt)(struct sock *sk,
-					int level,
-					int optname, char __user *optval,
-					unsigned int optlen);
-	int			(*compat_getsockopt)(struct sock *sk,
-					int level,
-					int optname, char __user *optval,
-					int __user *option);
 	int			(*compat_ioctl)(struct sock *sk,
 					unsigned int cmd, unsigned long arg);
 #endif

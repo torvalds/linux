@@ -1087,10 +1087,6 @@ static struct sctp_af sctp_af_inet6 = {
 	.net_header_len	   = sizeof(struct ipv6hdr),
 	.sockaddr_len	   = sizeof(struct sockaddr_in6),
 	.ip_options_len	   = sctp_v6_ip_options_len,
-#ifdef CONFIG_COMPAT
-	.compat_setsockopt = compat_ipv6_setsockopt,
-	.compat_getsockopt = compat_ipv6_getsockopt,
-#endif
 };
 
 static struct sctp_pf sctp_pf_inet6 = {

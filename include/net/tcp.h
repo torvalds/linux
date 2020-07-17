@@ -401,10 +401,6 @@ int tcp_getsockopt(struct sock *sk, int level, int optname,
 		   char __user *optval, int __user *optlen);
 int tcp_setsockopt(struct sock *sk, int level, int optname,
 		   char __user *optval, unsigned int optlen);
-int compat_tcp_getsockopt(struct sock *sk, int level, int optname,
-			  char __user *optval, int __user *optlen);
-int compat_tcp_setsockopt(struct sock *sk, int level, int optname,
-			  char __user *optval, unsigned int optlen);
 void tcp_set_keepalive(struct sock *sk, int val);
 void tcp_syn_ack_timeout(const struct request_sock *req);
 int tcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int nonblock,

@@ -3199,11 +3199,6 @@ int sock_common_getsockopt(struct socket *sock, int level, int optname,
 {
 	struct sock *sk = sock->sk;
 
-#ifdef CONFIG_COMPAT
-	if (in_compat_syscal() && sk->sk_prot->compat_getsockopt)
-		return sk->sk_prot->compat_getsockopt(sk, level, optname,
-						      optval, optlen);
-#endif
 	return sk->sk_prot->getsockopt(sk, level, optname, optval, optlen);
 }
 EXPORT_SYMBOL(sock_common_getsockopt);
@@ -3231,11 +3226,6 @@ int sock_common_setsockopt(struct socket *sock, int level, int optname,
 {
 	struct sock *sk = sock->sk;
 
-#ifdef CONFIG_COMPAT
-	if (in_compat_syscall() && sk->sk_prot->compat_setsockopt)
-		return sk->sk_prot->compat_setsockopt(sk, level, optname,
-						      optval, optlen);
-#endif
 	return sk->sk_prot->setsockopt(sk, level, optname, optval, optlen);
 }
 EXPORT_SYMBOL(sock_common_setsockopt);

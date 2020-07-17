@@ -48,14 +48,6 @@ struct inet_connection_sock_af_ops {
 				  char __user *optval, unsigned int optlen);
 	int	    (*getsockopt)(struct sock *sk, int level, int optname,
 				  char __user *optval, int __user *optlen);
-#ifdef CONFIG_COMPAT
-	int	    (*compat_setsockopt)(struct sock *sk,
-				int level, int optname,
-				char __user *optval, unsigned int optlen);
-	int	    (*compat_getsockopt)(struct sock *sk,
-				int level, int optname,
-				char __user *optval, int __user *optlen);
-#endif
 	void	    (*addr2sockaddr)(struct sock *sk, struct sockaddr *);
 	void	    (*mtu_reduced)(struct sock *sk);
 };
@@ -310,11 +302,6 @@ int inet_csk_listen_start(struct sock *sk, int backlog);
 void inet_csk_listen_stop(struct sock *sk);
 
 void inet_csk_addr2sockaddr(struct sock *sk, struct sockaddr *uaddr);
-
-int inet_csk_compat_getsockopt(struct sock *sk, int level, int optname,
-			       char __user *optval, int __user *optlen);
-int inet_csk_compat_setsockopt(struct sock *sk, int level, int optname,
-			       char __user *optval, unsigned int optlen);
 
 struct dst_entry *inet_csk_update_pmtu(struct sock *sk, u32 mtu);
 

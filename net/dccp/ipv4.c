@@ -959,10 +959,6 @@ static struct proto dccp_v4_prot = {
 	.rsk_prot		= &dccp_request_sock_ops,
 	.twsk_prot		= &dccp_timewait_sock_ops,
 	.h.hashinfo		= &dccp_hashinfo,
-#ifdef CONFIG_COMPAT
-	.compat_setsockopt	= compat_dccp_setsockopt,
-	.compat_getsockopt	= compat_dccp_getsockopt,
-#endif
 };
 
 static const struct net_protocol dccp_v4_protocol = {

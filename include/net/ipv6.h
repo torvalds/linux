@@ -1088,10 +1088,6 @@ int ipv6_setsockopt(struct sock *sk, int level, int optname,
 		    char __user *optval, unsigned int optlen);
 int ipv6_getsockopt(struct sock *sk, int level, int optname,
 		    char __user *optval, int __user *optlen);
-int compat_ipv6_setsockopt(struct sock *sk, int level, int optname,
-			   char __user *optval, unsigned int optlen);
-int compat_ipv6_getsockopt(struct sock *sk, int level, int optname,
-			   char __user *optval, int __user *optlen);
 
 int __ip6_datagram_connect(struct sock *sk, struct sockaddr *addr,
 			   int addr_len);
