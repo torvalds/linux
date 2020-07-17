@@ -2094,9 +2094,8 @@ static bool sock_use_custom_sol_socket(const struct socket *sock)
  *	Set a socket option. Because we don't know the option lengths we have
  *	to pass the user mode parameter for the protocols to sort out.
  */
-
-static int __sys_setsockopt(int fd, int level, int optname,
-			    char __user *optval, int optlen)
+int __sys_setsockopt(int fd, int level, int optname, char __user *optval,
+		int optlen)
 {
 	mm_segment_t oldfs = get_fs();
 	char *kernel_optval = NULL;
@@ -2114,8 +2113,10 @@ static int __sys_setsockopt(int fd, int level, int optname,
 	if (err)
 		goto out_put;
 
-	err = BPF_CGROUP_RUN_PROG_SETSOCKOPT(sock->sk, &level, &optname,
-					     optval, &optlen, &kernel_optval);
+	if (!in_compat_syscall())
+		err = BPF_CGROUP_RUN_PROG_SETSOCKOPT(sock->sk, &level, &optname,
+						     optval, &optlen,
+						     &kernel_optval);
 	if (err < 0)
 		goto out_put;
 	if (err > 0) {
@@ -2154,9 +2155,8 @@ SYSCALL_DEFINE5(setsockopt, int, fd, int, level, int, optname,
  *	Get a socket option. Because we don't know the option lengths we have
  *	to pass a user mode parameter for the protocols to sort out.
  */
-
-static int __sys_getsockopt(int fd, int level, int optname,
-			    char __user *optval, int __user *optlen)
+int __sys_getsockopt(int fd, int level, int optname, char __user *optval,
+		int __user *optlen)
 {
 	int err, fput_needed;
 	struct socket *sock;
@@ -2170,7 +2170,8 @@ static int __sys_getsockopt(int fd, int level, int optname,
 	if (err)
 		goto out_put;
 
-	max_optlen = BPF_CGROUP_GETSOCKOPT_MAX_OPTLEN(optlen);
+	if (!in_compat_syscall())
+		max_optlen = BPF_CGROUP_GETSOCKOPT_MAX_OPTLEN(optlen);
 
 	if (level == SOL_SOCKET)
 		err = sock_getsockopt(sock, level, optname, optval, optlen);
@@ -2178,8 +2179,10 @@ static int __sys_getsockopt(int fd, int level, int optname,
 		err = sock->ops->getsockopt(sock, level, optname, optval,
 					    optlen);
 
-	err = BPF_CGROUP_RUN_PROG_GETSOCKOPT(sock->sk, level, optname, optval,
-					     optlen, max_optlen, err);
+	if (!in_compat_syscall())
+		err = BPF_CGROUP_RUN_PROG_GETSOCKOPT(sock->sk, level, optname,
+						     optval, optlen, max_optlen,
+						     err);
 out_put:
 	fput_light(sock->file, fput_needed);
 	return err;

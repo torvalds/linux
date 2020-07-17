@@ -599,9 +599,9 @@ __SYSCALL(__NR_recvfrom, compat_sys_recvfrom)
 #define __NR_shutdown 293
 __SYSCALL(__NR_shutdown, sys_shutdown)
 #define __NR_setsockopt 294
-__SYSCALL(__NR_setsockopt, compat_sys_setsockopt)
+__SYSCALL(__NR_setsockopt, sys_setsockopt)
 #define __NR_getsockopt 295
-__SYSCALL(__NR_getsockopt, compat_sys_getsockopt)
+__SYSCALL(__NR_getsockopt, sys_getsockopt)
 #define __NR_sendmsg 296
 __SYSCALL(__NR_sendmsg, compat_sys_sendmsg)
 #define __NR_recvmsg 297

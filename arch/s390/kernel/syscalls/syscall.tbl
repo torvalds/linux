@@ -372,8 +372,8 @@
 362  common	connect			sys_connect			sys_connect
 363  common	listen			sys_listen			sys_listen
 364  common	accept4			sys_accept4			sys_accept4
-365  common	getsockopt		sys_getsockopt			compat_sys_getsockopt
-366  common	setsockopt		sys_setsockopt			compat_sys_setsockopt
+365  common	getsockopt		sys_getsockopt			sys_getsockopt
+366  common	setsockopt		sys_setsockopt			sys_setsockopt
 367  common	getsockname		sys_getsockname			sys_getsockname
 368  common	getpeername		sys_getpeername			sys_getpeername
 369  common	sendto			sys_sendto			sys_sendto

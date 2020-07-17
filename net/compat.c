@@ -335,77 +335,6 @@ void scm_detach_fds_compat(struct msghdr *kmsg, struct scm_cookie *scm)
 	__scm_destroy(scm);
 }
 
-static int __compat_sys_setsockopt(int fd, int level, int optname,
-				   char __user *optval, unsigned int optlen)
-{
-	int err;
-	struct socket *sock;
-
-	if (optlen > INT_MAX)
-		return -EINVAL;
-
-	sock = sockfd_lookup(fd, &err);
-	if (sock) {
-		err = security_socket_setsockopt(sock, level, optname);
-		if (err) {
-			sockfd_put(sock);
-			return err;
-		}
-
-		if (level == SOL_SOCKET)
-			err = sock_setsockopt(sock, level,
-					optname, optval, optlen);
-		else if (sock->ops->compat_setsockopt)
-			err = sock->ops->compat_setsockopt(sock, level,
-					optname, optval, optlen);
-		else
-			err = sock->ops->setsockopt(sock, level,
-					optname, optval, optlen);
-		sockfd_put(sock);
-	}
-	return err;
-}
-
-COMPAT_SYSCALL_DEFINE5(setsockopt, int, fd, int, level, int, optname,
-		       char __user *, optval, unsigned int, optlen)
-{
-	return __compat_sys_setsockopt(fd, level, optname, optval, optlen);
-}
-
-static int __compat_sys_getsockopt(int fd, int level, int optname,
-				   char __user *optval,
-				   int __user *optlen)
-{
-	int err;
-	struct socket *sock = sockfd_lookup(fd, &err);
-
-	if (sock) {
-		err = security_socket_getsockopt(sock, level, optname);
-		if (err) {
-			sockfd_put(sock);
-			return err;
-		}
-
-		if (level == SOL_SOCKET)
-			err = sock_getsockopt(sock, level,
-					optname, optval, optlen);
-		else if (sock->ops->compat_getsockopt)
-			err = sock->ops->compat_getsockopt(sock, level,
-					optname, optval, optlen);
-		else
-			err = sock->ops->getsockopt(sock, level,
-					optname, optval, optlen);
-		sockfd_put(sock);
-	}
-	return err;
-}
-
-COMPAT_SYSCALL_DEFINE5(getsockopt, int, fd, int, level, int, optname,
-		       char __user *, optval, int __user *, optlen)
-{
-	return __compat_sys_getsockopt(fd, level, optname, optval, optlen);
-}
-
 /* Argument list sizes for compat_sys_socketcall */
 #define AL(x) ((x) * sizeof(u32))
 static unsigned char nas[21] = {
@@ -565,13 +494,11 @@ COMPAT_SYSCALL_DEFINE2(socketcall, int, call, u32 __user *, args)
 		ret = __sys_shutdown(a0, a1);
 		break;
 	case SYS_SETSOCKOPT:
-		ret = __compat_sys_setsockopt(a0, a1, a[2],
-					      compat_ptr(a[3]), a[4]);
+		ret = __sys_setsockopt(a0, a1, a[2], compat_ptr(a[3]), a[4]);
 		break;
 	case SYS_GETSOCKOPT:
-		ret = __compat_sys_getsockopt(a0, a1, a[2],
-					      compat_ptr(a[3]),
-					      compat_ptr(a[4]));
+		ret = __sys_getsockopt(a0, a1, a[2], compat_ptr(a[3]),
+				       compat_ptr(a[4]));
 		break;
 	case SYS_SENDMSG:
 		ret = __compat_sys_sendmsg(a0, compat_ptr(a1), a[2]);

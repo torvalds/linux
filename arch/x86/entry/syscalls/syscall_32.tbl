@@ -376,8 +376,8 @@
 362	i386	connect			sys_connect
 363	i386	listen			sys_listen
 364	i386	accept4			sys_accept4
-365	i386	getsockopt		sys_getsockopt			compat_sys_getsockopt
-366	i386	setsockopt		sys_setsockopt			compat_sys_setsockopt
+365	i386	getsockopt		sys_getsockopt			sys_getsockopt
+366	i386	setsockopt		sys_setsockopt			sys_setsockopt
 367	i386	getsockname		sys_getsockname
 368	i386	getpeername		sys_getpeername
 369	i386	sendto			sys_sendto
