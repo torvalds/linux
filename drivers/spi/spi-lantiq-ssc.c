@@ -49,8 +49,6 @@
 #define LTQ_SPI_RXCNT		0x84
 #define LTQ_SPI_DMACON		0xec
 #define LTQ_SPI_IRNEN		0xf4
-#define LTQ_SPI_IRNICR		0xf8
-#define LTQ_SPI_IRNCR		0xfc
 
 #define LTQ_SPI_CLC_SMC_S	16	/* Clock divider for sleep mode */
 #define LTQ_SPI_CLC_SMC_M	(0xFF << LTQ_SPI_CLC_SMC_S)
@@ -158,8 +156,10 @@
 #define LTQ_SPI_IRNEN_ALL	0x1F
 
 struct lantiq_ssc_hwcfg {
-	unsigned int irnen_r;
-	unsigned int irnen_t;
+	unsigned int	irnen_r;
+	unsigned int	irnen_t;
+	unsigned int	irncr;
+	unsigned int	irnicr;
 };
 
 struct lantiq_ssc_spi {
@@ -792,13 +792,17 @@ static int lantiq_ssc_transfer_one(struct spi_master *master,
 }
 
 static const struct lantiq_ssc_hwcfg lantiq_ssc_xway = {
-	.irnen_r = LTQ_SPI_IRNEN_R_XWAY,
-	.irnen_t = LTQ_SPI_IRNEN_T_XWAY,
+	.irnen_r	= LTQ_SPI_IRNEN_R_XWAY,
+	.irnen_t	= LTQ_SPI_IRNEN_T_XWAY,
+	.irnicr		= 0xF8,
+	.irncr		= 0xFC,
 };
 
 static const struct lantiq_ssc_hwcfg lantiq_ssc_xrx = {
-	.irnen_r = LTQ_SPI_IRNEN_R_XRX,
-	.irnen_t = LTQ_SPI_IRNEN_T_XRX,
+	.irnen_r	= LTQ_SPI_IRNEN_R_XRX,
+	.irnen_t	= LTQ_SPI_IRNEN_T_XRX,
+	.irnicr		= 0xF8,
+	.irncr		= 0xFC,
 };
 
 static const struct of_device_id lantiq_ssc_match[] = {
