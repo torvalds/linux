@@ -293,11 +293,9 @@ static void podhd_set_monitor_level(struct usb_line6_podhd *podhd, int value)
 	};
 	unsigned char *buf;
 
-	buf = kmalloc(sizeof(msg), GFP_KERNEL);
+	buf = kmemdup(msg, sizeof(msg), GFP_KERNEL);
 	if (!buf)
 		return;
-
-	memcpy(buf, msg, sizeof(msg));
 
 	if (value < 0)
 		value = 0;
