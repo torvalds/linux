@@ -933,7 +933,7 @@ ssize_t incfs_read_data_file_block(struct mem_range dst, struct file *f,
 	struct data_file_block block = {};
 	struct data_file *df = get_incfs_data_file(f);
 
-	if (!dst.data || !df)
+	if (!dst.data || !df || !tmp.data)
 		return -EFAULT;
 
 	if (tmp.len < 2 * INCFS_DATA_FILE_BLOCK_SIZE)
