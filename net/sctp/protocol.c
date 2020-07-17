@@ -1089,10 +1089,6 @@ static struct sctp_af sctp_af_inet = {
 	.net_header_len	   = sizeof(struct iphdr),
 	.sockaddr_len	   = sizeof(struct sockaddr_in),
 	.ip_options_len	   = sctp_v4_ip_options_len,
-#ifdef CONFIG_COMPAT
-	.compat_setsockopt = compat_ip_setsockopt,
-	.compat_getsockopt = compat_ip_getsockopt,
-#endif
 };
 
 struct sctp_pf *sctp_get_pf_specific(sa_family_t family)
