@@ -53,7 +53,7 @@ struct power_pmu {
 	const struct attribute_group	**attr_groups;
 	int		n_generic;
 	int		*generic_events;
-	int		(*cache_events)[PERF_COUNT_HW_CACHE_MAX]
+	u64		(*cache_events)[PERF_COUNT_HW_CACHE_MAX]
 			       [PERF_COUNT_HW_CACHE_OP_MAX]
 			       [PERF_COUNT_HW_CACHE_RESULT_MAX];
 

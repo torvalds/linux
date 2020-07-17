@@ -1790,7 +1790,7 @@ static void hw_perf_event_destroy(struct perf_event *event)
 static int hw_perf_cache_event(u64 config, u64 *eventp)
 {
 	unsigned long type, op, result;
-	int ev;
+	u64 ev;
 
 	if (!ppmu->cache_events)
 		return -EINVAL;

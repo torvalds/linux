@@ -561,7 +561,7 @@ static int power5_generic_events[] = {
  * 0 means not supported, -1 means nonsensical, other values
  * are event codes.
  */
-static int power5_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
+static u64 power5_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 	[C(L1D)] = {		/* 	RESULT_ACCESS	RESULT_MISS */
 		[C(OP_READ)] = {	0x4c1090,	0x3c1088	},
 		[C(OP_WRITE)] = {	0x3c1090,	0xc10c3		},
