@@ -468,7 +468,6 @@ static ssize_t pending_reads_read(struct file *f, char __user *buf, size_t len,
 	int new_max_sn = last_known_read_sn;
 	int reads_collected = 0;
 	ssize_t result = 0;
-	int i = 0;
 
 	if (!mi)
 		return -EFAULT;
@@ -484,15 +483,11 @@ static ssize_t pending_reads_read(struct file *f, char __user *buf, size_t len,
 		min_t(size_t, PAGE_SIZE / sizeof(*reads_buf), reads_to_collect);
 
 	reads_collected = incfs_collect_pending_reads(
-		mi, last_known_read_sn, reads_buf, reads_to_collect);
+		mi, last_known_read_sn, reads_buf, reads_to_collect, &new_max_sn);
 	if (reads_collected < 0) {
 		result = reads_collected;
 		goto out;
 	}
-
-	for (i = 0; i < reads_collected; i++)
-		if (reads_buf[i].serial_number > new_max_sn)
-			new_max_sn = reads_buf[i].serial_number;
 
 	/*
 	 * Just to make sure that we don't accidentally copy more data
