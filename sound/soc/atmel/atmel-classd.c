@@ -288,8 +288,8 @@ static int atmel_classd_component_resume(struct snd_soc_component *component)
 	return regcache_sync(dd->regmap);
 }
 
-static int atmel_classd_cpu_dai_digital_mute(struct snd_soc_dai *cpu_dai,
-					     int mute)
+static int atmel_classd_cpu_dai_mute_stream(struct snd_soc_dai *cpu_dai,
+					    int mute, int direction)
 {
 	struct snd_soc_component *component = cpu_dai->component;
 	u32 mask, val;
@@ -432,10 +432,11 @@ static int atmel_classd_cpu_dai_trigger(struct snd_pcm_substream *substream,
 static const struct snd_soc_dai_ops atmel_classd_cpu_dai_ops = {
 	.startup        = atmel_classd_cpu_dai_startup,
 	.shutdown       = atmel_classd_cpu_dai_shutdown,
-	.digital_mute	= atmel_classd_cpu_dai_digital_mute,
+	.mute_stream	= atmel_classd_cpu_dai_mute_stream,
 	.hw_params	= atmel_classd_cpu_dai_hw_params,
 	.prepare	= atmel_classd_cpu_dai_prepare,
 	.trigger	= atmel_classd_cpu_dai_trigger,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver atmel_classd_cpu_dai = {
