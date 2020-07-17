@@ -138,6 +138,9 @@ static int mt76s_process_tx_queue(struct mt76_dev *dev, enum mt76_txq_id qid)
 	bool wake;
 
 	while (q->queued > n_dequeued) {
+		if (!q->entry[q->head].done)
+			break;
+
 		if (q->entry[q->head].schedule) {
 			q->entry[q->head].schedule = false;
 			n_sw_dequeued++;
@@ -229,6 +232,7 @@ mt76s_tx_queue_skb(struct mt76_dev *dev, enum mt76_txq_id qid,
 	q->entry[q->tail].skb = tx_info.skb;
 	q->entry[q->tail].buf_sz = len;
 	q->tail = (q->tail + 1) % q->ndesc;
+	q->queued++;
 
 	return idx;
 }
@@ -251,6 +255,7 @@ mt76s_tx_queue_skb_raw(struct mt76_dev *dev, enum mt76_txq_id qid,
 	q->entry[q->tail].buf_sz = len;
 	q->entry[q->tail].skb = skb;
 	q->tail = (q->tail + 1) % q->ndesc;
+	q->queued++;
 
 out:
 	spin_unlock_bh(&q->lock);

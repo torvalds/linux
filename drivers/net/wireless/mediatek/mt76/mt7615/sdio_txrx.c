@@ -180,13 +180,10 @@ static int mt7663s_tx_run_queue(struct mt7615_dev *dev, struct mt76_queue *q)
 			return -EIO;
 		}
 
+		e->done = true;
 		q->first = (q->first + 1) % q->ndesc;
 		nframes++;
 	}
-
-	spin_lock_bh(&q->lock);
-	q->queued += nframes;
-	spin_unlock_bh(&q->lock);
 
 	return nframes;
 }
