@@ -2156,9 +2156,12 @@ registers, find a list below:
   PPC     KVM_REG_PPC_MMCRA               64
   PPC     KVM_REG_PPC_MMCR2               64
   PPC     KVM_REG_PPC_MMCRS               64
+  PPC     KVM_REG_PPC_MMCR3               64
   PPC     KVM_REG_PPC_SIAR                64
   PPC     KVM_REG_PPC_SDAR                64
   PPC     KVM_REG_PPC_SIER                64
+  PPC     KVM_REG_PPC_SIER2               64
+  PPC     KVM_REG_PPC_SIER3               64
   PPC     KVM_REG_PPC_PMC1                32
   PPC     KVM_REG_PPC_PMC2                32
   PPC     KVM_REG_PPC_PMC3                32
