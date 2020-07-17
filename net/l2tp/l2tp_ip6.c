@@ -773,8 +773,6 @@ static const struct proto_ops l2tp_ip6_ops = {
 	.sendpage	   = sock_no_sendpage,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	   = inet6_compat_ioctl,
-	.compat_setsockopt = compat_sock_common_setsockopt,
-	.compat_getsockopt = compat_sock_common_getsockopt,
 #endif
 };
 

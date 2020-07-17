@@ -1744,10 +1744,6 @@ int sock_common_recvmsg(struct socket *sock, struct msghdr *msg, size_t size,
 			int flags);
 int sock_common_setsockopt(struct socket *sock, int level, int optname,
 				  char __user *optval, unsigned int optlen);
-int compat_sock_common_getsockopt(struct socket *sock, int level,
-		int optname, char __user *optval, int __user *optlen);
-int compat_sock_common_setsockopt(struct socket *sock, int level,
-		int optname, char __user *optval, unsigned int optlen);
 
 void sk_common_release(struct sock *sk);
 
