@@ -3333,7 +3333,5 @@ static void __exit rk817_battery_exit(void)
 }
 module_exit(rk817_battery_exit);
 
+MODULE_DESCRIPTION("RK817 Battery driver");
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("shengfeixu <xsf@rock-chips.com>");
-MODULE_DESCRIPTION("rk817 battery Charger Driver");
-
