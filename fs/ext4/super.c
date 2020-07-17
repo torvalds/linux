@@ -4850,6 +4850,7 @@ static int ext4_load_journal(struct super_block *sb,
 	dev_t journal_dev;
 	int err = 0;
 	int really_read_only;
+	int journal_dev_ro;
 
 	if (WARN_ON_ONCE(!ext4_has_feature_journal(sb)))
 		return -EFSCORRUPTED;
@@ -4862,7 +4863,31 @@ static int ext4_load_journal(struct super_block *sb,
 	} else
 		journal_dev = new_decode_dev(le32_to_cpu(es->s_journal_dev));
 
-	really_read_only = bdev_read_only(sb->s_bdev);
+	if (journal_inum && journal_dev) {
+		ext4_msg(sb, KERN_ERR,
+			 "filesystem has both journal inode and journal device!");
+		return -EINVAL;
+	}
+
+	if (journal_inum) {
+		journal = ext4_get_journal(sb, journal_inum);
+		if (!journal)
+			return -EINVAL;
+	} else {
+		journal = ext4_get_dev_journal(sb, journal_dev);
+		if (!journal)
+			return -EINVAL;
+	}
+
+	journal_dev_ro = bdev_read_only(journal->j_dev);
+	really_read_only = bdev_read_only(sb->s_bdev) | journal_dev_ro;
+
+	if (journal_dev_ro && !sb_rdonly(sb)) {
+		ext4_msg(sb, KERN_ERR,
+			 "journal device read-only, try mounting with '-o ro'");
+		err = -EROFS;
+		goto err_out;
+	}
 
 	/*
 	 * Are we loading a blank journal or performing recovery after a
@@ -4877,25 +4902,12 @@ static int ext4_load_journal(struct super_block *sb,
 				ext4_msg(sb, KERN_ERR, "write access "
 					"unavailable, cannot proceed "
 					"(try mounting with noload)");
-				return -EROFS;
+				err = -EROFS;
+				goto err_out;
 			}
 			ext4_msg(sb, KERN_INFO, "write access will "
 			       "be enabled during recovery");
 		}
-	}
-
-	if (journal_inum && journal_dev) {
-		ext4_msg(sb, KERN_ERR, "filesystem has both journal "
-		       "and inode journals!");
-		return -EINVAL;
-	}
-
-	if (journal_inum) {
-		if (!(journal = ext4_get_journal(sb, journal_inum)))
-			return -EINVAL;
-	} else {
-		if (!(journal = ext4_get_dev_journal(sb, journal_dev)))
-			return -EINVAL;
 	}
 
 	if (!(journal->j_flags & JBD2_BARRIER))
@@ -4917,8 +4929,7 @@ static int ext4_load_journal(struct super_block *sb,
 
 	if (err) {
 		ext4_msg(sb, KERN_ERR, "error loading journal");
-		jbd2_journal_destroy(journal);
-		return err;
+		goto err_out;
 	}
 
 	EXT4_SB(sb)->s_journal = journal;
@@ -4938,6 +4949,10 @@ static int ext4_load_journal(struct super_block *sb,
 	}
 
 	return 0;
+
+err_out:
+	jbd2_journal_destroy(journal);
+	return err;
 }
 
 static int ext4_commit_super(struct super_block *sb, int sync)
