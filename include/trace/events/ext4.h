@@ -2742,6 +2742,50 @@ TRACE_EVENT(ext4_error,
 		  __entry->function, __entry->line)
 );
 
+TRACE_EVENT(ext4_prefetch_bitmaps,
+	    TP_PROTO(struct super_block *sb, ext4_group_t group,
+		     ext4_group_t next, unsigned int prefetch_ios),
+
+	TP_ARGS(sb, group, next, prefetch_ios),
+
+	TP_STRUCT__entry(
+		__field(	dev_t,	dev			)
+		__field(	__u32,	group			)
+		__field(	__u32,	next			)
+		__field(	__u32,	ios			)
+	),
+
+	TP_fast_assign(
+		__entry->dev	= sb->s_dev;
+		__entry->group	= group;
+		__entry->next	= next;
+		__entry->ios	= prefetch_ios;
+	),
+
+	TP_printk("dev %d,%d group %u next %u ios %u",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->group, __entry->next, __entry->ios)
+);
+
+TRACE_EVENT(ext4_lazy_itable_init,
+	    TP_PROTO(struct super_block *sb, ext4_group_t group),
+
+	TP_ARGS(sb, group),
+
+	TP_STRUCT__entry(
+		__field(	dev_t,	dev			)
+		__field(	__u32,	group			)
+	),
+
+	TP_fast_assign(
+		__entry->dev	= sb->s_dev;
+		__entry->group	= group;
+	),
+
+	TP_printk("dev %d,%d group %u",
+		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->group)
+);
+
 #endif /* _TRACE_EXT4_H */
 
 /* This part must be outside protection */

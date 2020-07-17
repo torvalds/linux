@@ -1188,6 +1188,7 @@ struct ext4_inode_info {
 #define EXT4_MOUNT_JOURNAL_CHECKSUM	0x800000 /* Journal checksums */
 #define EXT4_MOUNT_JOURNAL_ASYNC_COMMIT	0x1000000 /* Journal Async Commit */
 #define EXT4_MOUNT_WARN_ON_ERROR	0x2000000 /* Trigger WARN_ON on error */
+#define EXT4_MOUNT_PREFETCH_BLOCK_BITMAPS 0x4000000
 #define EXT4_MOUNT_DELALLOC		0x8000000 /* Delalloc support */
 #define EXT4_MOUNT_DATA_ERR_ABORT	0x10000000 /* Abort on file data write */
 #define EXT4_MOUNT_BLOCK_VALIDITY	0x20000000 /* Block validity checking */
@@ -2334,9 +2335,15 @@ struct ext4_lazy_init {
 	struct mutex		li_list_mtx;
 };
 
+enum ext4_li_mode {
+	EXT4_LI_MODE_PREFETCH_BBITMAP,
+	EXT4_LI_MODE_ITABLE,
+};
+
 struct ext4_li_request {
 	struct super_block	*lr_super;
-	struct ext4_sb_info	*lr_sbi;
+	enum ext4_li_mode	lr_mode;
+	ext4_group_t		lr_first_not_zeroed;
 	ext4_group_t		lr_next_group;
 	struct list_head	lr_request;
 	unsigned long		lr_next_sched;
@@ -2676,6 +2683,12 @@ extern int ext4_mb_reserve_blocks(struct super_block *, int);
 extern void ext4_discard_preallocations(struct inode *);
 extern int __init ext4_init_mballoc(void);
 extern void ext4_exit_mballoc(void);
+extern ext4_group_t ext4_mb_prefetch(struct super_block *sb,
+				     ext4_group_t group,
+				     unsigned int nr, int *cnt);
+extern void ext4_mb_prefetch_fini(struct super_block *sb, ext4_group_t group,
+				  unsigned int nr);
+
 extern void ext4_free_blocks(handle_t *handle, struct inode *inode,
 			     struct buffer_head *bh, ext4_fsblk_t block,
 			     unsigned long count, int flags);

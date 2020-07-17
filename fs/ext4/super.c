@@ -1521,6 +1521,7 @@ enum {
 	Opt_dioread_nolock, Opt_dioread_lock,
 	Opt_discard, Opt_nodiscard, Opt_init_itable, Opt_noinit_itable,
 	Opt_max_dir_size_kb, Opt_nojournal_checksum, Opt_nombcache,
+	Opt_prefetch_block_bitmaps,
 };
 
 static const match_table_t tokens = {
@@ -1612,6 +1613,7 @@ static const match_table_t tokens = {
 	{Opt_test_dummy_encryption, "test_dummy_encryption"},
 	{Opt_nombcache, "nombcache"},
 	{Opt_nombcache, "no_mbcache"},	/* for backward compatibility */
+	{Opt_prefetch_block_bitmaps, "prefetch_block_bitmaps"},
 	{Opt_removed, "check=none"},	/* mount option from ext2/3 */
 	{Opt_removed, "nocheck"},	/* mount option from ext2/3 */
 	{Opt_removed, "reservation"},	/* mount option from ext2/3 */
@@ -1829,6 +1831,8 @@ static const struct mount_opts {
 	{Opt_max_dir_size_kb, 0, MOPT_GTE0},
 	{Opt_test_dummy_encryption, 0, MOPT_STRING},
 	{Opt_nombcache, EXT4_MOUNT_NO_MBCACHE, MOPT_SET},
+	{Opt_prefetch_block_bitmaps, EXT4_MOUNT_PREFETCH_BLOCK_BITMAPS,
+	 MOPT_SET},
 	{Opt_err, 0, 0}
 };
 
@@ -3201,15 +3205,34 @@ static void print_daily_error_info(struct timer_list *t)
 static int ext4_run_li_request(struct ext4_li_request *elr)
 {
 	struct ext4_group_desc *gdp = NULL;
-	ext4_group_t group, ngroups;
-	struct super_block *sb;
+	struct super_block *sb = elr->lr_super;
+	ext4_group_t ngroups = EXT4_SB(sb)->s_groups_count;
+	ext4_group_t group = elr->lr_next_group;
 	unsigned long timeout = 0;
+	unsigned int prefetch_ios = 0;
 	int ret = 0;
 
-	sb = elr->lr_super;
-	ngroups = EXT4_SB(sb)->s_groups_count;
+	if (elr->lr_mode == EXT4_LI_MODE_PREFETCH_BBITMAP) {
+		elr->lr_next_group = ext4_mb_prefetch(sb, group,
+				EXT4_SB(sb)->s_mb_prefetch, &prefetch_ios);
+		if (prefetch_ios)
+			ext4_mb_prefetch_fini(sb, elr->lr_next_group,
+					      prefetch_ios);
+		trace_ext4_prefetch_bitmaps(sb, group, elr->lr_next_group,
+					    prefetch_ios);
+		if (group >= elr->lr_next_group) {
+			ret = 1;
+			if (elr->lr_first_not_zeroed != ngroups &&
+			    !sb_rdonly(sb) && test_opt(sb, INIT_INODE_TABLE)) {
+				elr->lr_next_group = elr->lr_first_not_zeroed;
+				elr->lr_mode = EXT4_LI_MODE_ITABLE;
+				ret = 0;
+			}
+		}
+		return ret;
+	}
 
-	for (group = elr->lr_next_group; group < ngroups; group++) {
+	for (; group < ngroups; group++) {
 		gdp = ext4_get_group_desc(sb, group, NULL);
 		if (!gdp) {
 			ret = 1;
@@ -3227,9 +3250,10 @@ static int ext4_run_li_request(struct ext4_li_request *elr)
 		timeout = jiffies;
 		ret = ext4_init_inode_table(sb, group,
 					    elr->lr_timeout ? 0 : 1);
+		trace_ext4_lazy_itable_init(sb, group);
 		if (elr->lr_timeout == 0) {
 			timeout = (jiffies - timeout) *
-				  elr->lr_sbi->s_li_wait_mult;
+				EXT4_SB(elr->lr_super)->s_li_wait_mult;
 			elr->lr_timeout = timeout;
 		}
 		elr->lr_next_sched = jiffies + elr->lr_timeout;
@@ -3244,15 +3268,11 @@ static int ext4_run_li_request(struct ext4_li_request *elr)
  */
 static void ext4_remove_li_request(struct ext4_li_request *elr)
 {
-	struct ext4_sb_info *sbi;
-
 	if (!elr)
 		return;
 
-	sbi = elr->lr_sbi;
-
 	list_del(&elr->lr_request);
-	sbi->s_li_request = NULL;
+	EXT4_SB(elr->lr_super)->s_li_request = NULL;
 	kfree(elr);
 }
 
@@ -3461,7 +3481,6 @@ static int ext4_li_info_new(void)
 static struct ext4_li_request *ext4_li_request_new(struct super_block *sb,
 					    ext4_group_t start)
 {
-	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	struct ext4_li_request *elr;
 
 	elr = kzalloc(sizeof(*elr), GFP_KERNEL);
@@ -3469,8 +3488,13 @@ static struct ext4_li_request *ext4_li_request_new(struct super_block *sb,
 		return NULL;
 
 	elr->lr_super = sb;
-	elr->lr_sbi = sbi;
-	elr->lr_next_group = start;
+	elr->lr_first_not_zeroed = start;
+	if (test_opt(sb, PREFETCH_BLOCK_BITMAPS))
+		elr->lr_mode = EXT4_LI_MODE_PREFETCH_BBITMAP;
+	else {
+		elr->lr_mode = EXT4_LI_MODE_ITABLE;
+		elr->lr_next_group = start;
+	}
 
 	/*
 	 * Randomize first schedule time of the request to
@@ -3500,8 +3524,9 @@ int ext4_register_li_request(struct super_block *sb,
 		goto out;
 	}
 
-	if (first_not_zeroed == ngroups || sb_rdonly(sb) ||
-	    !test_opt(sb, INIT_INODE_TABLE))
+	if (!test_opt(sb, PREFETCH_BLOCK_BITMAPS) &&
+	    (first_not_zeroed == ngroups || sb_rdonly(sb) ||
+	     !test_opt(sb, INIT_INODE_TABLE)))
 		goto out;
 
 	elr = ext4_li_request_new(sb, first_not_zeroed);

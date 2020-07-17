@@ -2232,9 +2232,8 @@ out:
  * Start prefetching @nr block bitmaps starting at @group.
  * Return the next group which needs to be prefetched.
  */
-static ext4_group_t
-ext4_mb_prefetch(struct super_block *sb, ext4_group_t group,
-		 unsigned int nr, int *cnt)
+ext4_group_t ext4_mb_prefetch(struct super_block *sb, ext4_group_t group,
+			      unsigned int nr, int *cnt)
 {
 	ext4_group_t ngroups = ext4_get_groups_count(sb);
 	struct buffer_head *bh;
@@ -2284,9 +2283,8 @@ ext4_mb_prefetch(struct super_block *sb, ext4_group_t group,
  * waiting for the block allocation bitmap read to finish when
  * ext4_mb_prefetch_fini is called from ext4_mb_regular_allocator().
  */
-static void
-ext4_mb_prefetch_fini(struct super_block *sb, ext4_group_t group,
-		      unsigned int nr)
+void ext4_mb_prefetch_fini(struct super_block *sb, ext4_group_t group,
+			   unsigned int nr)
 {
 	while (nr-- > 0) {
 		struct ext4_group_desc *gdp = ext4_get_group_desc(sb, group,
