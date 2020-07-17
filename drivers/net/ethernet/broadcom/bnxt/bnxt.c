@@ -12086,7 +12086,10 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 				goto init_err_pci_clean;
 			}
 		}
-		bnxt_init_tc(bp);
+		rc = bnxt_init_tc(bp);
+		if (rc)
+			netdev_err(dev, "Failed to initialize TC flower offload, err = %d.\n",
+				   rc);
 	}
 
 	bnxt_dl_register(bp);

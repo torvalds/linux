@@ -2000,11 +2000,8 @@ int bnxt_init_tc(struct bnxt *bp)
 	struct bnxt_tc_info *tc_info;
 	int rc;
 
-	if (bp->hwrm_spec_code < 0x10803) {
-		netdev_warn(bp->dev,
-			    "Firmware does not support TC flower offload.\n");
-		return -ENOTSUPP;
-	}
+	if (bp->hwrm_spec_code < 0x10803)
+		return 0;
 
 	tc_info = kzalloc(sizeof(*tc_info), GFP_KERNEL);
 	if (!tc_info)
