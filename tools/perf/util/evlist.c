@@ -497,7 +497,7 @@ int perf_evlist__enable_event_idx(struct evlist *evlist,
 
 int evlist__add_pollfd(struct evlist *evlist, int fd)
 {
-	return perf_evlist__add_pollfd(&evlist->core, fd, NULL, POLLIN);
+	return perf_evlist__add_pollfd(&evlist->core, fd, NULL, POLLIN, fdarray_flag__default);
 }
 
 int evlist__filter_pollfd(struct evlist *evlist, short revents_and_mask)

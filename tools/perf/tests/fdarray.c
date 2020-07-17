@@ -112,7 +112,7 @@ int test__fdarray__add(struct test *test __maybe_unused, int subtest __maybe_unu
 	}
 
 #define FDA_ADD(_idx, _fd, _revents, _nr)				   \
-	if (fdarray__add(fda, _fd, _revents) < 0) {			   \
+	if (fdarray__add(fda, _fd, _revents, fdarray_flag__default) < 0) { \
 		pr_debug("\n%d: fdarray__add(fda, %d, %d) failed!",	   \
 			 __LINE__,_fd, _revents);			   \
 		goto out_delete;					   \
