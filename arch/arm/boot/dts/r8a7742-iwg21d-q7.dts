@@ -131,6 +131,30 @@
 	};
 };
 
+&hsusb {
+	pinctrl-0 = <&usb0_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&pci0 {
+	pinctrl-0 = <&usb0_pins>;
+	pinctrl-names = "default";
+	/* Disable hsusb to enable USB2.0 host mode support on J2 */
+	/* status = "okay"; */
+};
+
+&pci1 {
+	pinctrl-0 = <&usb1_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&pci2 {
+	/* Disable xhci to enable USB2.0 host mode support on J23 bottom port */
+	/* status = "okay"; */
+};
+
 &pfc {
 	avb_pins: avb {
 		groups = "avb_mdio", "avb_gmii";
@@ -167,6 +191,16 @@
 	sound_pins: sound {
 		groups = "ssi34_ctrl", "ssi3_data", "ssi4_data";
 		function = "ssi";
+	};
+
+	usb0_pins: usb0 {
+		groups = "usb0";
+		function = "usb0";
+	};
+
+	usb1_pins: usb1 {
+		groups = "usb1_pwen";
+		function = "usb1";
 	};
 };
 
@@ -221,4 +255,12 @@
 
 &ssi4 {
 	shared-pin;
+};
+
+&usbphy {
+	status = "okay";
+};
+
+&xhci {
+	status = "okay";
 };
