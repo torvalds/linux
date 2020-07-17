@@ -4303,6 +4303,7 @@ bool check_session_state(struct ceph_mds_session *s)
 	}
 	if (s->s_state == CEPH_MDS_SESSION_NEW ||
 	    s->s_state == CEPH_MDS_SESSION_RESTARTING ||
+	    s->s_state == CEPH_MDS_SESSION_CLOSED ||
 	    s->s_state == CEPH_MDS_SESSION_REJECTED)
 		/* this mds is failed or recovering, just wait */
 		return false;
