@@ -131,6 +131,7 @@ enum ta_fw_type {
 	TA_FW_TYPE_PSP_RAS,
 	TA_FW_TYPE_PSP_HDCP,
 	TA_FW_TYPE_PSP_DTM,
+	TA_FW_TYPE_PSP_RAP,
 };
 
 struct ta_fw_bin_desc {
