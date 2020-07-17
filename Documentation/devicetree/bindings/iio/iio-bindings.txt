@@ -9,7 +9,7 @@ specifier is an array of one or more cells identifying the IIO
 output on a device. The length of an IIO specifier is defined by the
 value of a #io-channel-cells property in the IIO provider node.
 
-[1] http://marc.info/?l=linux-iio&m=135902119507483&w=2
+[1] https://marc.info/?l=linux-iio&m=135902119507483&w=2
 
 ==IIO providers==
 

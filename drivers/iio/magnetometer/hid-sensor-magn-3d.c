@@ -512,7 +512,6 @@ static int hid_magn_3d_probe(struct platform_device *pdev)
 
 	indio_dev->channels = channels;
 	indio_dev->num_channels = chan_count;
-	indio_dev->dev.parent = &pdev->dev;
 	indio_dev->info = &magn_3d_info;
 	indio_dev->name = name;
 	indio_dev->modes = INDIO_DIRECT_MODE;

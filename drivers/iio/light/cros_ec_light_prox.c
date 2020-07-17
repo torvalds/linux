@@ -145,8 +145,11 @@ static int cros_ec_light_prox_write(struct iio_dev *indio_dev,
 		break;
 	case IIO_CHAN_INFO_CALIBSCALE:
 		st->core.param.cmd = MOTIONSENSE_CMD_SENSOR_RANGE;
-		st->core.param.sensor_range.data = (val << 16) | (val2 / 100);
+		st->core.curr_range = (val << 16) | (val2 / 100);
+		st->core.param.sensor_range.data = st->core.curr_range;
 		ret = cros_ec_motion_send_host_cmd(&st->core, 0);
+		if (ret == 0)
+			st->core.range_updated = true;
 		break;
 	default:
 		ret = cros_ec_sensors_core_write(&st->core, chan, val, val2,
@@ -256,6 +259,7 @@ MODULE_DEVICE_TABLE(platform, cros_ec_light_prox_ids);
 static struct platform_driver cros_ec_light_prox_platform_driver = {
 	.driver = {
 		.name	= "cros-ec-light-prox",
+		.pm	= &cros_ec_sensors_pm_ops,
 	},
 	.probe		= cros_ec_light_prox_probe,
 	.id_table	= cros_ec_light_prox_ids,

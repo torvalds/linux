@@ -854,7 +854,6 @@ static int ad5758_probe(struct spi_device *spi)
 
 	mutex_init(&st->lock);
 
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->info = &ad5758_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;

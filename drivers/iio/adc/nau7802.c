@@ -430,8 +430,6 @@ static int nau7802_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, indio_dev);
 
-	indio_dev->dev.parent = &client->dev;
-	indio_dev->dev.of_node = client->dev.of_node;
 	indio_dev->name = dev_name(&client->dev);
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &nau7802_info;

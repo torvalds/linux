@@ -957,50 +957,29 @@ static int vcnl4010_buffer_postenable(struct iio_dev *indio_dev)
 	int ret;
 	int cmd;
 
-	ret = iio_triggered_buffer_postenable(indio_dev);
-	if (ret)
-		return ret;
-
 	/* Do not enable the buffer if we are already capturing events. */
-	if (vcnl4010_is_in_periodic_mode(data)) {
-		ret = -EBUSY;
-		goto end;
-	}
+	if (vcnl4010_is_in_periodic_mode(data))
+		return -EBUSY;
 
 	ret = i2c_smbus_write_byte_data(data->client, VCNL4010_INT_CTRL,
 					VCNL4010_INT_PROX_EN);
 	if (ret < 0)
-		goto end;
+		return ret;
 
 	cmd = VCNL4000_SELF_TIMED_EN | VCNL4000_PROX_EN;
-	ret = i2c_smbus_write_byte_data(data->client, VCNL4000_COMMAND, cmd);
-	if (ret < 0)
-		goto end;
-
-	return 0;
-end:
-	iio_triggered_buffer_predisable(indio_dev);
-
-	return ret;
+	return i2c_smbus_write_byte_data(data->client, VCNL4000_COMMAND, cmd);
 }
 
 static int vcnl4010_buffer_predisable(struct iio_dev *indio_dev)
 {
 	struct vcnl4000_data *data = iio_priv(indio_dev);
-	int ret, ret_disable;
+	int ret;
 
 	ret = i2c_smbus_write_byte_data(data->client, VCNL4010_INT_CTRL, 0);
 	if (ret < 0)
-		goto end;
+		return ret;
 
-	ret = i2c_smbus_write_byte_data(data->client, VCNL4000_COMMAND, 0);
-
-end:
-	ret_disable = iio_triggered_buffer_predisable(indio_dev);
-	if (ret == 0)
-		ret = ret_disable;
-
-	return ret;
+	return i2c_smbus_write_byte_data(data->client, VCNL4000_COMMAND, 0);
 }
 
 static const struct iio_buffer_setup_ops vcnl4010_buffer_ops = {
@@ -1058,7 +1037,6 @@ static int vcnl4000_probe(struct i2c_client *client,
 				     &data->near_level))
 		data->near_level = 0;
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = data->chip_spec->info;
 	indio_dev->channels = data->chip_spec->channels;
 	indio_dev->num_channels = data->chip_spec->num_channels;

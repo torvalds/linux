@@ -1,6 +1,6 @@
 STMicro VL6180 -  ALS, range and proximity sensor
 
-Link to datasheet: http://www.st.com/resource/en/datasheet/vl6180x.pdf
+Link to datasheet: https://www.st.com/resource/en/datasheet/vl6180x.pdf
 
 Required properties:
 

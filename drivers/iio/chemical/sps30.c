@@ -487,7 +487,6 @@ static int sps30_probe(struct i2c_client *client)
 	i2c_set_clientdata(client, indio_dev);
 	state->client = client;
 	state->state = RESET;
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &sps30_info;
 	indio_dev->name = client->name;
 	indio_dev->channels = sps30_channels;

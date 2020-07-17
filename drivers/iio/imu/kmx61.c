@@ -1248,7 +1248,6 @@ static struct iio_dev *kmx61_indiodev_setup(struct kmx61_data *data,
 
 	kmx61_set_data(indio_dev, data);
 
-	indio_dev->dev.parent = &data->client->dev;
 	indio_dev->channels = chan;
 	indio_dev->num_channels = num_channels;
 	indio_dev->name = name;

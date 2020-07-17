@@ -14,6 +14,7 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 
@@ -196,7 +197,6 @@ static int lpc32xx_adc_probe(struct platform_device *pdev)
 	init_completion(&st->completion);
 
 	iodev->name = LPC32XXAD_NAME;
-	iodev->dev.parent = &pdev->dev;
 	iodev->info = &lpc32xx_adc_iio_info;
 	iodev->modes = INDIO_DIRECT_MODE;
 	iodev->num_channels = ARRAY_SIZE(lpc32xx_adc_iio_channels);
@@ -210,19 +210,17 @@ static int lpc32xx_adc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_OF
 static const struct of_device_id lpc32xx_adc_match[] = {
 	{ .compatible = "nxp,lpc3220-adc" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, lpc32xx_adc_match);
-#endif
 
 static struct platform_driver lpc32xx_adc_driver = {
 	.probe		= lpc32xx_adc_probe,
 	.driver		= {
 		.name	= LPC32XXAD_NAME,
-		.of_match_table = of_match_ptr(lpc32xx_adc_match),
+		.of_match_table = lpc32xx_adc_match,
 	},
 };
 

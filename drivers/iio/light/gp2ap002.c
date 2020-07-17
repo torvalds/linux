@@ -596,7 +596,6 @@ static int gp2ap002_probe(struct i2c_client *client,
 	pm_runtime_use_autosuspend(dev);
 	pm_runtime_put(dev);
 
-	indio_dev->dev.parent = dev;
 	indio_dev->info = &gp2ap002_info;
 	indio_dev->name = "gp2ap002";
 	indio_dev->channels = gp2ap002_channels;

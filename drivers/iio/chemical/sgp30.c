@@ -533,7 +533,6 @@ static int sgp_probe(struct i2c_client *client,
 	if (ret)
 		return ret;
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &sgp_info;
 	indio_dev->name = id->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;

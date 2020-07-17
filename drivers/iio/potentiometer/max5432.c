@@ -102,7 +102,6 @@ static int max5432_probe(struct i2c_client *client,
 	data->client = client;
 	data->ohm = (unsigned long)of_device_get_match_data(dev);
 
-	indio_dev->dev.parent = dev;
 	indio_dev->info = &max5432_info;
 	indio_dev->channels = max5432_channels;
 	indio_dev->num_channels = ARRAY_SIZE(max5432_channels);

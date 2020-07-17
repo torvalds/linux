@@ -1480,7 +1480,6 @@ static int ltr501_probe(struct i2c_client *client,
 	if ((partid >> 4) != data->chip_info->partid)
 		return -ENODEV;
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = data->chip_info->info;
 	indio_dev->channels = data->chip_info->channels;
 	indio_dev->num_channels = data->chip_info->no_channels;

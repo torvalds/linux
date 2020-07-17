@@ -5,7 +5,7 @@
  * conversion of analog signals like battery temperature,
  * battery type, battery level etc.
  *
- * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2011 Texas Instruments Incorporated - https://www.ti.com/
  * J Keerthy <j-keerthy@ti.com>
  *
  * Based on twl4030-madc.c
@@ -772,8 +772,6 @@ static int twl4030_madc_probe(struct platform_device *pdev)
 	madc->dev = &pdev->dev;
 
 	iio_dev->name = dev_name(&pdev->dev);
-	iio_dev->dev.parent = &pdev->dev;
-	iio_dev->dev.of_node = pdev->dev.of_node;
 	iio_dev->info = &twl4030_madc_iio_info;
 	iio_dev->modes = INDIO_DIRECT_MODE;
 	iio_dev->channels = twl4030_madc_iio_channels;

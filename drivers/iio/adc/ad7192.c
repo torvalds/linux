@@ -970,7 +970,6 @@ static int ad7192_probe(struct spi_device *spi)
 
 	spi_set_drvdata(spi, indio_dev);
 	st->chip_info = of_device_get_match_data(&spi->dev);
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->name = st->chip_info->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 

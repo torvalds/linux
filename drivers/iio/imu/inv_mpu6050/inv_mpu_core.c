@@ -1530,7 +1530,6 @@ int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
 	}
 
 	dev_set_drvdata(dev, indio_dev);
-	indio_dev->dev.parent = dev;
 	/* name will be NULL when enumerated via ACPI */
 	if (name)
 		indio_dev->name = name;

@@ -11,7 +11,7 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/driver.h>
 #include <linux/module.h>
-#include <linux/of.h>
+#include <linux/mod_devicetable.h>
 
 #include "ltc2497.h"
 
@@ -98,7 +98,7 @@ MODULE_DEVICE_TABLE(of, ltc2497_of_match);
 static struct i2c_driver ltc2497_driver = {
 	.driver = {
 		.name = "ltc2497",
-		.of_match_table = of_match_ptr(ltc2497_of_match),
+		.of_match_table = ltc2497_of_match,
 	},
 	.probe = ltc2497_probe,
 	.remove = ltc2497_remove,

@@ -735,7 +735,6 @@ st_lsm6dsx_shub_alloc_iiodev(struct st_lsm6dsx_hw *hw,
 		return NULL;
 
 	iio_dev->modes = INDIO_DIRECT_MODE;
-	iio_dev->dev.parent = hw->dev;
 	iio_dev->info = &st_lsm6dsx_ext_info;
 
 	sensor = iio_priv(iio_dev);

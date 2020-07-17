@@ -972,7 +972,6 @@ static int isl29501_probe(struct i2c_client *client,
 		return ret;
 
 	indio_dev->modes = INDIO_DIRECT_MODE;
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->channels = isl29501_channels;
 	indio_dev->num_channels = ARRAY_SIZE(isl29501_channels);
 	indio_dev->name = client->name;

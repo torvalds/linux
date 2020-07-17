@@ -680,10 +680,6 @@ static int sx9500_buffer_postenable(struct iio_dev *indio_dev)
 	struct sx9500_data *data = iio_priv(indio_dev);
 	int ret = 0, i;
 
-	ret = iio_triggered_buffer_postenable(indio_dev);
-	if (ret)
-		return ret;
-
 	mutex_lock(&data->mutex);
 
 	for (i = 0; i < SX9500_NUM_CHANNELS; i++)
@@ -699,9 +695,6 @@ static int sx9500_buffer_postenable(struct iio_dev *indio_dev)
 				sx9500_dec_chan_users(data, i);
 
 	mutex_unlock(&data->mutex);
-
-	if (ret)
-		iio_triggered_buffer_predisable(indio_dev);
 
 	return ret;
 }
@@ -726,8 +719,6 @@ static int sx9500_buffer_predisable(struct iio_dev *indio_dev)
 				sx9500_inc_chan_users(data, i);
 
 	mutex_unlock(&data->mutex);
-
-	iio_triggered_buffer_predisable(indio_dev);
 
 	return ret;
 }
@@ -931,7 +922,6 @@ static int sx9500_probe(struct i2c_client *client,
 	if (IS_ERR(data->regmap))
 		return PTR_ERR(data->regmap);
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->name = SX9500_DRIVER_NAME;
 	indio_dev->channels = sx9500_channels;
 	indio_dev->num_channels = ARRAY_SIZE(sx9500_channels);

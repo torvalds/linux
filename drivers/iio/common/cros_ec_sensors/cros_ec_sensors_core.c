@@ -281,7 +281,6 @@ int cros_ec_sensors_core_init(struct platform_device *pdev,
 	state->msg->command = EC_CMD_MOTION_SENSE_CMD + ec->cmd_offset;
 	state->msg->outsize = sizeof(struct ec_params_motion_sense);
 
-	indio_dev->dev.parent = &pdev->dev;
 	indio_dev->name = pdev->name;
 
 	if (physical_device) {
@@ -352,7 +351,7 @@ int cros_ec_sensors_core_init(struct platform_device *pdev,
 		} else {
 			/*
 			 * The only way to get samples in buffer is to set a
-			 * software tigger (systrig, hrtimer).
+			 * software trigger (systrig, hrtimer).
 			 */
 			ret = devm_iio_triggered_buffer_setup(
 					dev, indio_dev, NULL, trigger_capture,
@@ -823,6 +822,27 @@ int cros_ec_sensors_core_write(struct cros_ec_sensors_core_state *st,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(cros_ec_sensors_core_write);
+
+static int __maybe_unused cros_ec_sensors_resume(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
+	struct cros_ec_sensors_core_state *st = iio_priv(indio_dev);
+	int ret = 0;
+
+	if (st->range_updated) {
+		mutex_lock(&st->cmd_lock);
+		st->param.cmd = MOTIONSENSE_CMD_SENSOR_RANGE;
+		st->param.sensor_range.data = st->curr_range;
+		st->param.sensor_range.roundup = 1;
+		ret = cros_ec_motion_send_host_cmd(st, 0);
+		mutex_unlock(&st->cmd_lock);
+	}
+	return ret;
+}
+
+SIMPLE_DEV_PM_OPS(cros_ec_sensors_pm_ops, NULL, cros_ec_sensors_resume);
+EXPORT_SYMBOL_GPL(cros_ec_sensors_pm_ops);
 
 MODULE_DESCRIPTION("ChromeOS EC sensor hub core functions");
 MODULE_LICENSE("GPL v2");

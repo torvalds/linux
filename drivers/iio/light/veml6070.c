@@ -151,7 +151,6 @@ static int veml6070_probe(struct i2c_client *client,
 	data->client1 = client;
 	mutex_init(&data->lock);
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &veml6070_info;
 	indio_dev->channels = veml6070_channels;
 	indio_dev->num_channels = ARRAY_SIZE(veml6070_channels);

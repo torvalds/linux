@@ -540,7 +540,6 @@ static int adis16136_probe(struct spi_device *spi)
 	adis16136 = iio_priv(indio_dev);
 
 	adis16136->chip_info = &adis16136_chip_info[id->driver_data];
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->channels = adis16136_channels;
 	indio_dev->num_channels = ARRAY_SIZE(adis16136_channels);

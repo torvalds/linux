@@ -227,7 +227,6 @@ static int hmc425a_probe(struct platform_device *pdev)
 
 	mutex_init(&st->lock);
 
-	indio_dev->dev.parent = &pdev->dev;
 	indio_dev->info = &hmc425a_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 

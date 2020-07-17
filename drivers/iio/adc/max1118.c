@@ -18,6 +18,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/spi/spi.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/buffer.h>
@@ -225,7 +226,6 @@ static int max1118_probe(struct spi_device *spi)
 	spi_set_drvdata(spi, indio_dev);
 
 	indio_dev->name = spi_get_device_id(spi)->name;
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->info = &max1118_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = max1118_channels;
@@ -281,8 +281,6 @@ static const struct spi_device_id max1118_id[] = {
 };
 MODULE_DEVICE_TABLE(spi, max1118_id);
 
-#ifdef CONFIG_OF
-
 static const struct of_device_id max1118_dt_ids[] = {
 	{ .compatible = "maxim,max1117" },
 	{ .compatible = "maxim,max1118" },
@@ -291,12 +289,10 @@ static const struct of_device_id max1118_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, max1118_dt_ids);
 
-#endif
-
 static struct spi_driver max1118_spi_driver = {
 	.driver = {
 		.name = "max1118",
-		.of_match_table = of_match_ptr(max1118_dt_ids),
+		.of_match_table = max1118_dt_ids,
 	},
 	.probe = max1118_probe,
 	.remove = max1118_remove,

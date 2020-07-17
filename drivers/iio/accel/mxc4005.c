@@ -416,7 +416,6 @@ static int mxc4005_probe(struct i2c_client *client,
 
 	mutex_init(&data->mutex);
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->channels = mxc4005_channels;
 	indio_dev->num_channels = ARRAY_SIZE(mxc4005_channels);
 	indio_dev->available_scan_masks = mxc4005_scan_masks;
@@ -474,12 +473,14 @@ static int mxc4005_probe(struct i2c_client *client,
 
 static const struct acpi_device_id mxc4005_acpi_match[] = {
 	{"MXC4005",	0},
+	{"MXC6655",	0},
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, mxc4005_acpi_match);
 
 static const struct i2c_device_id mxc4005_id[] = {
 	{"mxc4005",	0},
+	{"mxc6655",	0},
 	{ },
 };
 MODULE_DEVICE_TABLE(i2c, mxc4005_id);

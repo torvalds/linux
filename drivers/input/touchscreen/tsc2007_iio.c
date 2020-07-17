@@ -119,7 +119,6 @@ int tsc2007_iio_configure(struct tsc2007 *ts)
 	iio->ts = ts;
 
 	indio_dev->name = "tsc2007";
-	indio_dev->dev.parent = &ts->client->dev;
 	indio_dev->info = &tsc2007_iio_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = tsc2007_iio_channel;

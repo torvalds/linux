@@ -453,7 +453,6 @@ static int mcp4725_probe(struct i2c_client *client,
 			goto err_disable_vdd_reg;
 	}
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->name = id->name;
 	indio_dev->info = &mcp4725_info;
 	indio_dev->channels = &mcp472x_channel[id->driver_data];

@@ -108,7 +108,6 @@ static int ssp_gyro_probe(struct platform_device *pdev)
 	spd->type = SSP_GYROSCOPE_SENSOR;
 
 	indio_dev->name = ssp_gyro_name;
-	indio_dev->dev.parent = &pdev->dev;
 	indio_dev->info = &ssp_gyro_iio_info;
 	indio_dev->modes = INDIO_BUFFER_SOFTWARE;
 	indio_dev->channels = ssp_gyro_channels;

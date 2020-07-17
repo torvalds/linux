@@ -593,7 +593,6 @@ static int palmas_gpadc_probe(struct platform_device *pdev)
 	adc->extended_delay = gpadc_pdata->extended_delay;
 
 	indio_dev->name = MOD_NAME;
-	indio_dev->dev.parent = &pdev->dev;
 	indio_dev->info = &palmas_gpadc_iio_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = palmas_gpadc_iio_channel;

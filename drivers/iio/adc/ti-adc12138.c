@@ -407,7 +407,6 @@ static int adc12138_probe(struct spi_device *spi)
 	init_completion(&adc->complete);
 
 	indio_dev->name = spi_get_device_id(spi)->name;
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->info = &adc12138_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 

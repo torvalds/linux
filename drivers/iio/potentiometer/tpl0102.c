@@ -140,7 +140,6 @@ static int tpl0102_probe(struct i2c_client *client,
 		return PTR_ERR(data->regmap);
 	}
 
-	indio_dev->dev.parent = dev;
 	indio_dev->info = &tpl0102_info;
 	indio_dev->channels = tpl0102_channels;
 	indio_dev->num_channels = data->cfg->wipers;

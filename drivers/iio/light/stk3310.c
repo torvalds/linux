@@ -487,7 +487,7 @@ static bool stk3310_is_volatile_reg(struct device *dev, unsigned int reg)
 	}
 }
 
-static struct regmap_config stk3310_regmap_config = {
+static const struct regmap_config stk3310_regmap_config = {
 	.name = STK3310_REGMAP_NAME,
 	.reg_bits = 8,
 	.val_bits = 8,
@@ -585,7 +585,6 @@ static int stk3310_probe(struct i2c_client *client,
 	if (ret < 0)
 		return ret;
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &stk3310_info;
 	indio_dev->name = STK3310_DRIVER_NAME;
 	indio_dev->modes = INDIO_DIRECT_MODE;

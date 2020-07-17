@@ -297,7 +297,6 @@ static int ad5449_spi_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->name = id->name;
 	indio_dev->info = &ad5449_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;

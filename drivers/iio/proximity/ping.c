@@ -309,7 +309,6 @@ static int ping_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, indio_dev);
 
 	indio_dev->name = "ping";
-	indio_dev->dev.parent = &pdev->dev;
 	indio_dev->info = &ping_iio_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = ping_chan_spec;

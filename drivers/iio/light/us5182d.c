@@ -851,7 +851,6 @@ static int us5182d_probe(struct i2c_client *client,
 
 	mutex_init(&data->lock);
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &us5182d_info;
 	indio_dev->name = US5182D_DRV_NAME;
 	indio_dev->channels = us5182d_channels;

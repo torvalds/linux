@@ -343,8 +343,6 @@ static int envelope_detector_probe(struct platform_device *pdev)
 	INIT_DELAYED_WORK(&env->comp_timeout, envelope_detector_timeout);
 
 	indio_dev->name = dev_name(dev);
-	indio_dev->dev.parent = dev;
-	indio_dev->dev.of_node = dev->of_node;
 	indio_dev->info = &envelope_detector_info;
 	indio_dev->channels = &envelope_detector_iio_channel;
 	indio_dev->num_channels = 1;

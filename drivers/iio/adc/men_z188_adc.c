@@ -110,7 +110,6 @@ static int men_z188_probe(struct mcb_device *dev,
 
 	adc = iio_priv(indio_dev);
 	indio_dev->name = "z188-adc";
-	indio_dev->dev.parent = &dev->dev;
 	indio_dev->info = &z188_adc_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = z188_adc_iio_channels;

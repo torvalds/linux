@@ -465,7 +465,6 @@ static int cm32181_probe(struct i2c_client *client)
 	cm32181->dev = dev;
 
 	mutex_init(&cm32181->lock);
-	indio_dev->dev.parent = dev;
 	indio_dev->channels = cm32181_channels;
 	indio_dev->num_channels = ARRAY_SIZE(cm32181_channels);
 	indio_dev->info = &cm32181_info;

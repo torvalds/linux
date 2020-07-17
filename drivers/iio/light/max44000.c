@@ -538,7 +538,6 @@ static int max44000_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, indio_dev);
 	mutex_init(&data->lock);
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &max44000_info;
 	indio_dev->name = MAX44000_DRV_NAME;
 	indio_dev->channels = max44000_channels;

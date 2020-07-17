@@ -409,7 +409,6 @@ static int ad5791_probe(struct spi_device *spi)
 		goto error_disable_reg_neg;
 
 	spi_set_drvdata(spi, indio_dev);
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->info = &ad5791_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels

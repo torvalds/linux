@@ -476,7 +476,6 @@ static int ad5360_probe(struct spi_device *spi)
 	st->chip_info = &ad5360_chip_info_tbl[type];
 	st->spi = spi;
 
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->info = &ad5360_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;

@@ -179,7 +179,6 @@ static int al3010_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, indio_dev);
 	data->client = client;
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &al3010_info;
 	indio_dev->name = AL3010_DRV_NAME;
 	indio_dev->channels = al3010_channels;

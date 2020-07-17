@@ -354,8 +354,6 @@ static int da9150_gpadc_probe(struct platform_device *pdev)
 	}
 
 	indio_dev->name = dev_name(dev);
-	indio_dev->dev.parent = dev;
-	indio_dev->dev.of_node = pdev->dev.of_node;
 	indio_dev->info = &da9150_gpadc_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = da9150_gpadc_channels;

@@ -4,9 +4,9 @@
  *
  * Driver for Texas Instruments' ADC128S052, ADC122S021 and ADC124S021 ADC chip.
  * Datasheets can be found here:
- * http://www.ti.com/lit/ds/symlink/adc128s052.pdf
- * http://www.ti.com/lit/ds/symlink/adc122s021.pdf
- * http://www.ti.com/lit/ds/symlink/adc124s021.pdf
+ * https://www.ti.com/lit/ds/symlink/adc128s052.pdf
+ * https://www.ti.com/lit/ds/symlink/adc122s021.pdf
+ * https://www.ti.com/lit/ds/symlink/adc124s021.pdf
  */
 
 #include <linux/acpi.h>
@@ -152,8 +152,6 @@ static int adc128_probe(struct spi_device *spi)
 
 	spi_set_drvdata(spi, indio_dev);
 
-	indio_dev->dev.parent = &spi->dev;
-	indio_dev->dev.of_node = spi->dev.of_node;
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &adc128_info;

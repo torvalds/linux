@@ -905,7 +905,6 @@ int fxas21002c_core_probe(struct device *dev, struct regmap *regmap, int irq,
 	if (ret < 0)
 		return ret;
 
-	indio_dev->dev.parent = dev;
 	indio_dev->channels = fxas21002c_channels;
 	indio_dev->num_channels = ARRAY_SIZE(fxas21002c_channels);
 	indio_dev->name = name;
