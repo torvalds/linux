@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Device Tree Source for the HiHope RZ/G2[MN] main board
- * Rev.[2.0/3.0/4.0] common parts
+ * Device Tree Source for the HiHope RZ/G2H Rev.4.0 and
+ * HiHope RZ/G2[MN] Rev.[2.0/3.0/4.0] main board common parts
  *
  * Copyright (C) 2019 Renesas Electronics Corp.
  */
