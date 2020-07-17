@@ -3209,13 +3209,13 @@ static int udma_setup_resources(struct udma_dev *ud)
 						    "ti,sci-rm-range-rchan",
 						    "ti,sci-rm-range-rflow" };
 
-	cap2 = udma_read(ud->mmrs[MMR_GCFG], 0x28);
-	cap3 = udma_read(ud->mmrs[MMR_GCFG], 0x2c);
+	cap2 = udma_read(ud->mmrs[MMR_GCFG], UDMA_CAP_REG(2));
+	cap3 = udma_read(ud->mmrs[MMR_GCFG], UDMA_CAP_REG(3));
 
-	ud->rflow_cnt = cap3 & 0x3fff;
-	ud->tchan_cnt = cap2 & 0x1ff;
-	ud->echan_cnt = (cap2 >> 9) & 0x1ff;
-	ud->rchan_cnt = (cap2 >> 18) & 0x1ff;
+	ud->rflow_cnt = UDMA_CAP3_RFLOW_CNT(cap3);
+	ud->tchan_cnt = UDMA_CAP2_TCHAN_CNT(cap2);
+	ud->echan_cnt = UDMA_CAP2_ECHAN_CNT(cap2);
+	ud->rchan_cnt = UDMA_CAP2_RCHAN_CNT(cap2);
 	ch_count  = ud->tchan_cnt + ud->rchan_cnt;
 
 	ud->tchan_map = devm_kmalloc_array(dev, BITS_TO_LONGS(ud->tchan_cnt),

@@ -37,6 +37,12 @@
 #define UDMA_CHAN_RT_BCNT_REG		0x408
 #define UDMA_CHAN_RT_SBCNT_REG		0x410
 
+/* UDMA_CAP Registers */
+#define UDMA_CAP2_TCHAN_CNT(val)	((val) & 0x1ff)
+#define UDMA_CAP2_ECHAN_CNT(val)	(((val) >> 9) & 0x1ff)
+#define UDMA_CAP2_RCHAN_CNT(val)	(((val) >> 18) & 0x1ff)
+#define UDMA_CAP3_RFLOW_CNT(val)	((val) & 0x3fff)
+
 /* UDMA_CHAN_RT_CTL_REG */
 #define UDMA_CHAN_RT_CTL_EN		BIT(31)
 #define UDMA_CHAN_RT_CTL_TDOWN		BIT(30)
