@@ -207,7 +207,7 @@ static const struct of_device_id rockchip_saradc_match[] = {
 };
 MODULE_DEVICE_TABLE(of, rockchip_saradc_match);
 
-/**
+/*
  * Reset SARADC Controller.
  */
 static void rockchip_saradc_reset_controller(struct reset_control *reset)
