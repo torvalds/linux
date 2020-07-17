@@ -293,8 +293,8 @@ static inline void dvb_register_media_controller(struct dvb_adapter *adap,
  *
  * @adap:			pointer to &struct dvb_adapter
  */
-static inline struct media_device
-*dvb_get_media_controller(struct dvb_adapter *adap)
+static inline struct media_device *
+dvb_get_media_controller(struct dvb_adapter *adap)
 {
 	return adap->mdev;
 }
