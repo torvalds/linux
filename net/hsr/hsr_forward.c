@@ -127,6 +127,9 @@ static void hsr_fill_tag(struct sk_buff *skb, struct hsr_frame_info *frame,
 	int lane_id;
 	int lsdu_size;
 
+	/* pad to minimum packet size which is 60 + 6 (HSR tag) */
+	skb_put_padto(skb, ETH_ZLEN + HSR_HLEN);
+
 	if (port->type == HSR_PT_SLAVE_A)
 		lane_id = 0;
 	else
