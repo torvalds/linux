@@ -484,7 +484,7 @@ st_lsm6dsx_write_locked(struct st_lsm6dsx_hw *hw, unsigned int addr,
 	return err;
 }
 
-static const inline struct iio_mount_matrix *
+static inline const struct iio_mount_matrix *
 st_lsm6dsx_get_mount_matrix(const struct iio_dev *iio_dev,
 			    const struct iio_chan_spec *chan)
 {
