@@ -62,7 +62,10 @@ static int options[MAX_UNITS];
 
 #include "8390.h"
 
-static u32 ne2k_msg_enable;
+static int ne2k_msg_enable;
+
+static const int default_msg_level = (NETIF_MSG_DRV | NETIF_MSG_PROBE |
+				      NETIF_MSG_RX_ERR | NETIF_MSG_TX_ERR);
 
 #if defined(__powerpc__)
 #define inl_le(addr)  le32_to_cpu(inl(addr))
@@ -74,7 +77,7 @@ MODULE_DESCRIPTION(DRV_DESCRIPTION);
 MODULE_VERSION(DRV_VERSION);
 MODULE_LICENSE("GPL");
 
-module_param_named(msg_enable, ne2k_msg_enable, uint, 0444);
+module_param_named(msg_enable, ne2k_msg_enable, int, 0444);
 module_param_array(options, int, NULL, 0);
 module_param_array(full_duplex, int, NULL, 0);
 MODULE_PARM_DESC(msg_enable, "Debug message level (see linux/netdevice.h for bitmap)");
@@ -282,7 +285,7 @@ static int ne2k_pci_init_one(struct pci_dev *pdev,
 	}
 	dev->netdev_ops = &ne2k_netdev_ops;
 	ei_local = netdev_priv(dev);
-	ei_local->msg_enable = ne2k_msg_enable;
+	ei_local->msg_enable = netif_msg_init(ne2k_msg_enable, default_msg_level);
 
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
