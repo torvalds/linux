@@ -419,8 +419,10 @@ static int rcar_gen3_phy_usb2_init(struct phy *p)
 		INIT_WORK(&channel->work, rcar_gen3_phy_usb2_work);
 		ret = request_irq(channel->irq, rcar_gen3_phy_usb2_irq,
 				  IRQF_SHARED, dev_name(channel->dev), channel);
-		if (ret < 0)
+		if (ret < 0) {
 			dev_err(channel->dev, "No irq handler (%d)\n", channel->irq);
+			return ret;
+		}
 	}
 
 	/* Initialize USB2 part */
