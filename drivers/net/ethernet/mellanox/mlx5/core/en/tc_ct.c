@@ -32,6 +32,9 @@
 #define MLX5_FTE_ID_MAX GENMASK(MLX5_FTE_ID_BITS - 1, 0)
 #define MLX5_FTE_ID_MASK MLX5_FTE_ID_MAX
 
+#define MLX5_CT_LABELS_BITS (mlx5e_tc_attr_to_reg_mappings[LABELS_TO_REG].mlen * 8)
+#define MLX5_CT_LABELS_MASK GENMASK(MLX5_CT_LABELS_BITS - 1, 0)
+
 #define ct_dbg(fmt, args...)\
 	netdev_dbg(ct_priv->netdev, "ct_debug: " fmt "\n", ##args)
 
@@ -48,6 +51,7 @@ struct mlx5_tc_ct_priv {
 	struct mlx5_flow_table *post_ct;
 	struct mutex control_lock; /* guards parallel adds/dels */
 	struct mapping_ctx *zone_mapping;
+	struct mapping_ctx *labels_mapping;
 };
 
 struct mlx5_ct_flow {
@@ -404,6 +408,7 @@ mlx5_tc_ct_entry_del_rule(struct mlx5_tc_ct_priv *ct_priv,
 	mlx5_eswitch_del_offloaded_rule(esw, zone_rule->rule, attr);
 	mlx5e_mod_hdr_detach(ct_priv->esw->dev,
 			     &esw->offloads.mod_hdr, zone_rule->mh);
+	mapping_remove(ct_priv->labels_mapping, attr->ct_attr.ct_labels_id);
 }
 
 static void
@@ -436,7 +441,7 @@ mlx5_tc_ct_entry_set_registers(struct mlx5_tc_ct_priv *ct_priv,
 			       struct mlx5e_tc_mod_hdr_acts *mod_acts,
 			       u8 ct_state,
 			       u32 mark,
-			       u32 label,
+			       u32 labels_id,
 			       u8 zone_restore_id)
 {
 	struct mlx5_eswitch *esw = ct_priv->esw;
@@ -453,7 +458,7 @@ mlx5_tc_ct_entry_set_registers(struct mlx5_tc_ct_priv *ct_priv,
 		return err;
 
 	err = mlx5e_tc_match_to_reg_set(esw->dev, mod_acts,
-					LABELS_TO_REG, label);
+					LABELS_TO_REG, labels_id);
 	if (err)
 		return err;
 
@@ -597,13 +602,10 @@ mlx5_tc_ct_entry_create_mod_hdr(struct mlx5_tc_ct_priv *ct_priv,
 	if (!meta)
 		return -EOPNOTSUPP;
 
-	if (meta->ct_metadata.labels[1] ||
-	    meta->ct_metadata.labels[2] ||
-	    meta->ct_metadata.labels[3]) {
-		ct_dbg("Failed to offload ct entry due to unsupported label");
+	err = mapping_add(ct_priv->labels_mapping, meta->ct_metadata.labels,
+			  &attr->ct_attr.ct_labels_id);
+	if (err)
 		return -EOPNOTSUPP;
-	}
-
 	if (nat) {
 		err = mlx5_tc_ct_entry_create_nat(ct_priv, flow_rule,
 						  &mod_acts);
@@ -617,7 +619,7 @@ mlx5_tc_ct_entry_create_mod_hdr(struct mlx5_tc_ct_priv *ct_priv,
 	err = mlx5_tc_ct_entry_set_registers(ct_priv, &mod_acts,
 					     ct_state,
 					     meta->ct_metadata.mark,
-					     meta->ct_metadata.labels[0],
+					     attr->ct_attr.ct_labels_id,
 					     zone_restore_id);
 	if (err)
 		goto err_mapping;
@@ -637,6 +639,7 @@ mlx5_tc_ct_entry_create_mod_hdr(struct mlx5_tc_ct_priv *ct_priv,
 
 err_mapping:
 	dealloc_mod_hdr_actions(&mod_acts);
+	mapping_remove(ct_priv->labels_mapping, attr->ct_attr.ct_labels_id);
 	return err;
 }
 
@@ -959,6 +962,7 @@ int
 mlx5_tc_ct_parse_match(struct mlx5e_priv *priv,
 		       struct mlx5_flow_spec *spec,
 		       struct flow_cls_offload *f,
+		       struct mlx5_ct_attr *ct_attr,
 		       struct netlink_ext_ack *extack)
 {
 	struct mlx5_tc_ct_priv *ct_priv = mlx5_tc_ct_get_ct_priv(priv);
@@ -969,6 +973,7 @@ mlx5_tc_ct_parse_match(struct mlx5e_priv *priv,
 	u16 ct_state_on, ct_state_off;
 	u16 ct_state, ct_state_mask;
 	struct flow_match_ct match;
+	u32 ct_labels[4];
 
 	if (!flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_CT))
 		return 0;
@@ -992,12 +997,6 @@ mlx5_tc_ct_parse_match(struct mlx5e_priv *priv,
 			      TCA_FLOWER_KEY_CT_FLAGS_NEW)) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "only ct_state trk, est and new are supported for offload");
-		return -EOPNOTSUPP;
-	}
-
-	if (mask->ct_labels[1] || mask->ct_labels[2] || mask->ct_labels[3]) {
-		NL_SET_ERR_MSG_MOD(extack,
-				   "only lower 32bits of ct_labels are supported for offload");
 		return -EOPNOTSUPP;
 	}
 
@@ -1029,10 +1028,17 @@ mlx5_tc_ct_parse_match(struct mlx5e_priv *priv,
 	if (mask->ct_mark)
 		mlx5e_tc_match_to_reg_match(spec, MARK_TO_REG,
 					    key->ct_mark, mask->ct_mark);
-	if (mask->ct_labels[0])
-		mlx5e_tc_match_to_reg_match(spec, LABELS_TO_REG,
-					    key->ct_labels[0],
-					    mask->ct_labels[0]);
+	if (mask->ct_labels[0] || mask->ct_labels[1] || mask->ct_labels[2] ||
+	    mask->ct_labels[3]) {
+		ct_labels[0] = key->ct_labels[0] & mask->ct_labels[0];
+		ct_labels[1] = key->ct_labels[1] & mask->ct_labels[1];
+		ct_labels[2] = key->ct_labels[2] & mask->ct_labels[2];
+		ct_labels[3] = key->ct_labels[3] & mask->ct_labels[3];
+		if (mapping_add(ct_priv->labels_mapping, ct_labels, &ct_attr->ct_labels_id))
+			return -EOPNOTSUPP;
+		mlx5e_tc_match_to_reg_match(spec, LABELS_TO_REG, ct_attr->ct_labels_id,
+					    MLX5_CT_LABELS_MASK);
+	}
 
 	return 0;
 }
@@ -1398,7 +1404,7 @@ mlx5_tc_ct_del_ft_cb(struct mlx5_tc_ct_priv *ct_priv, struct mlx5_ct_ft *ft)
  * + tuple + zone match +
  * +--------------------+
  *      | set mark
- *      | set label
+ *      | set labels_id
  *      | set established
  *	| set zone_restore
  *      | do nat (if needed)
@@ -1789,7 +1795,13 @@ mlx5_tc_ct_init(struct mlx5_rep_uplink_priv *uplink_priv)
 	ct_priv->zone_mapping = mapping_create(sizeof(u16), 0, true);
 	if (IS_ERR(ct_priv->zone_mapping)) {
 		err = PTR_ERR(ct_priv->zone_mapping);
-		goto err_mapping;
+		goto err_mapping_zone;
+	}
+
+	ct_priv->labels_mapping = mapping_create(sizeof(u32) * 4, 0, true);
+	if (IS_ERR(ct_priv->labels_mapping)) {
+		err = PTR_ERR(ct_priv->labels_mapping);
+		goto err_mapping_labels;
 	}
 
 	ct_priv->esw = esw;
@@ -1833,8 +1845,10 @@ err_post_ct_tbl:
 err_ct_nat_tbl:
 	mlx5_esw_chains_destroy_global_table(esw, ct_priv->ct);
 err_ct_tbl:
+	mapping_destroy(ct_priv->labels_mapping);
+err_mapping_labels:
 	mapping_destroy(ct_priv->zone_mapping);
-err_mapping:
+err_mapping_zone:
 	kfree(ct_priv);
 err_alloc:
 err_support:
@@ -1854,6 +1868,7 @@ mlx5_tc_ct_clean(struct mlx5_rep_uplink_priv *uplink_priv)
 	mlx5_esw_chains_destroy_global_table(ct_priv->esw, ct_priv->ct_nat);
 	mlx5_esw_chains_destroy_global_table(ct_priv->esw, ct_priv->ct);
 	mapping_destroy(ct_priv->zone_mapping);
+	mapping_destroy(ct_priv->labels_mapping);
 
 	rhashtable_destroy(&ct_priv->ct_tuples_ht);
 	rhashtable_destroy(&ct_priv->ct_tuples_nat_ht);

@@ -65,6 +65,7 @@
 #include "en/hv_vhca_stats.h"
 #include "en/devlink.h"
 #include "lib/mlx5.h"
+#include "fpga/ipsec.h"
 
 bool mlx5e_check_fragmented_striding_rq_cap(struct mlx5_core_dev *mdev)
 {
@@ -231,7 +232,6 @@ static inline void mlx5e_build_umr_wqe(struct mlx5e_rq *rq,
 
 	cseg->qpn_ds    = cpu_to_be32((sq->sqn << MLX5_WQE_CTRL_QPN_SHIFT) |
 				      ds_cnt);
-	cseg->fm_ce_se  = MLX5_WQE_CTRL_CQ_UPDATE;
 	cseg->umr_mkey  = rq->mkey_be;
 
 	ucseg->flags = MLX5_UMR_TRANSLATION_OFFSET_EN | MLX5_UMR_INLINE;
@@ -496,7 +496,8 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 		rq->dealloc_wqe = mlx5e_dealloc_rx_wqe;
 
 #ifdef CONFIG_MLX5_EN_IPSEC
-		if (c->priv->ipsec)
+		if ((mlx5_fpga_ipsec_device_caps(mdev) & MLX5_ACCEL_IPSEC_CAP_DEVICE) &&
+		    c->priv->ipsec)
 			rq->handle_rx_cqe = mlx5e_ipsec_handle_rx_cqe;
 		else
 #endif

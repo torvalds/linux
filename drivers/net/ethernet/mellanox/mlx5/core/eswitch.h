@@ -513,16 +513,9 @@ static inline u16 mlx5_eswitch_first_host_vport_num(struct mlx5_core_dev *dev)
 		MLX5_VPORT_PF : MLX5_VPORT_FIRST_VF;
 }
 
-static inline bool mlx5_eswitch_is_funcs_handler(struct mlx5_core_dev *dev)
+static inline bool mlx5_eswitch_is_funcs_handler(const struct mlx5_core_dev *dev)
 {
-	/* Ideally device should have the functions changed supported
-	 * capability regardless of it being ECPF or PF wherever such
-	 * event should be processed such as on eswitch manager device.
-	 * However, some ECPF based device might not have this capability
-	 * set. Hence OR for ECPF check to cover such device.
-	 */
-	return MLX5_CAP_ESW(dev, esw_functions_changed) ||
-	       mlx5_core_is_ecpf_esw_manager(dev);
+	return mlx5_core_is_ecpf_esw_manager(dev);
 }
 
 static inline int mlx5_eswitch_uplink_idx(struct mlx5_eswitch *esw)

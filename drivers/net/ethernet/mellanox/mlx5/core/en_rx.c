@@ -973,8 +973,13 @@ static inline void mlx5e_handle_csum(struct net_device *netdev,
 		goto csum_unnecessary;
 
 	if (likely(is_last_ethertype_ip(skb, &network_depth, &proto))) {
-		if (unlikely(get_ip_proto(skb, network_depth, proto) == IPPROTO_SCTP))
+		u8 ipproto = get_ip_proto(skb, network_depth, proto);
+
+		if (unlikely(ipproto == IPPROTO_SCTP))
 			goto csum_unnecessary;
+
+		if (unlikely(mlx5_ipsec_is_rx_flow(cqe)))
+			goto csum_none;
 
 		stats->csum_complete++;
 		skb->ip_summed = CHECKSUM_COMPLETE;
@@ -1020,6 +1025,9 @@ static inline void mlx5e_build_rx_skb(struct mlx5_cqe64 *cqe,
 	skb->mac_len = ETH_HLEN;
 
 	mlx5e_tls_handle_rx_skb(rq, skb, cqe, &cqe_bcnt);
+
+	if (unlikely(mlx5_ipsec_is_rx_flow(cqe)))
+		mlx5e_ipsec_offload_handle_rx_skb(netdev, skb, cqe);
 
 	if (lro_num_seg > 1) {
 		mlx5e_lro_update_hdr(skb, cqe, cqe_bcnt);
@@ -1258,7 +1266,10 @@ void mlx5e_handle_rx_cqe_rep(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe)
 		goto free_wqe;
 	}
 
-	skb = rq->wqe.skb_from_cqe(rq, cqe, wi, cqe_bcnt);
+	skb = INDIRECT_CALL_2(rq->wqe.skb_from_cqe,
+			      mlx5e_skb_from_cqe_linear,
+			      mlx5e_skb_from_cqe_nonlinear,
+			      rq, cqe, wi, cqe_bcnt);
 	if (!skb) {
 		/* probably for XDP */
 		if (__test_and_clear_bit(MLX5E_RQ_FLAG_XDP_XMIT, rq->flags)) {
