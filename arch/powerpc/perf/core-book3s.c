@@ -2333,6 +2333,8 @@ static int __init init_ppc64_pmu(void)
 		return 0;
 	else if (!init_power9_pmu())
 		return 0;
+	else if (!init_power10_pmu())
+		return 0;
 	else if (!init_ppc970_pmu())
 		return 0;
 	else

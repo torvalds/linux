@@ -55,7 +55,9 @@ static bool is_event_valid(u64 event)
 {
 	u64 valid_mask = EVENT_VALID_MASK;
 
-	if (cpu_has_feature(CPU_FTR_ARCH_300))
+	if (cpu_has_feature(CPU_FTR_ARCH_31))
+		valid_mask = p10_EVENT_VALID_MASK;
+	else if (cpu_has_feature(CPU_FTR_ARCH_300))
 		valid_mask = p9_EVENT_VALID_MASK;
 
 	return !(event & ~valid_mask);
@@ -69,6 +71,14 @@ static inline bool is_event_marked(u64 event)
 	return false;
 }
 
+static unsigned long sdar_mod_val(u64 event)
+{
+	if (cpu_has_feature(CPU_FTR_ARCH_31))
+		return p10_SDAR_MODE(event);
+
+	return p9_SDAR_MODE(event);
+}
+
 static void mmcra_sdar_mode(u64 event, unsigned long *mmcra)
 {
 	/*
@@ -79,7 +89,7 @@ static void mmcra_sdar_mode(u64 event, unsigned long *mmcra)
 	 * MMCRA[SDAR_MODE] will be programmed as "0b01" for continous sampling
 	 * mode and will be un-changed when setting MMCRA[63] (Marked events).
 	 *
-	 * Incase of Power9:
+	 * Incase of Power9/power10:
 	 * Marked event: MMCRA[SDAR_MODE] will be set to 0b00 ('No Updates'),
 	 *               or if group already have any marked events.
 	 * For rest
@@ -90,8 +100,8 @@ static void mmcra_sdar_mode(u64 event, unsigned long *mmcra)
 	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
 		if (is_event_marked(event) || (*mmcra & MMCRA_SAMPLE_ENABLE))
 			*mmcra &= MMCRA_SDAR_MODE_NO_UPDATES;
-		else if (p9_SDAR_MODE(event))
-			*mmcra |=  p9_SDAR_MODE(event) << MMCRA_SDAR_MODE_SHIFT;
+		else if (sdar_mod_val(event))
+			*mmcra |= sdar_mod_val(event) << MMCRA_SDAR_MODE_SHIFT;
 		else
 			*mmcra |= MMCRA_SDAR_MODE_DCACHE;
 	} else
@@ -134,7 +144,11 @@ static bool is_thresh_cmp_valid(u64 event)
 	/*
 	 * Check the mantissa upper two bits are not zero, unless the
 	 * exponent is also zero. See the THRESH_CMP_MANTISSA doc.
+	 * Power10: thresh_cmp is replaced by l2_l3 event select.
 	 */
+	if (cpu_has_feature(CPU_FTR_ARCH_31))
+		return false;
+
 	cmp = (event >> EVENT_THR_CMP_SHIFT) & EVENT_THR_CMP_MASK;
 	exp = cmp >> 7;
 
@@ -251,7 +265,12 @@ int isa207_get_constraint(u64 event, unsigned long *maskp, unsigned long *valp)
 
 	pmc   = (event >> EVENT_PMC_SHIFT)        & EVENT_PMC_MASK;
 	unit  = (event >> EVENT_UNIT_SHIFT)       & EVENT_UNIT_MASK;
-	cache = (event >> EVENT_CACHE_SEL_SHIFT)  & EVENT_CACHE_SEL_MASK;
+	if (cpu_has_feature(CPU_FTR_ARCH_31))
+		cache = (event >> EVENT_CACHE_SEL_SHIFT) &
+			p10_EVENT_CACHE_SEL_MASK;
+	else
+		cache = (event >> EVENT_CACHE_SEL_SHIFT) &
+			EVENT_CACHE_SEL_MASK;
 	ebb   = (event >> EVENT_EBB_SHIFT)        & EVENT_EBB_MASK;
 
 	if (pmc) {
@@ -283,7 +302,10 @@ int isa207_get_constraint(u64 event, unsigned long *maskp, unsigned long *valp)
 	}
 
 	if (unit >= 6 && unit <= 9) {
-		if (cpu_has_feature(CPU_FTR_ARCH_300)) {
+		if (cpu_has_feature(CPU_FTR_ARCH_31) && (unit == 6)) {
+			mask |= CNST_L2L3_GROUP_MASK;
+			value |= CNST_L2L3_GROUP_VAL(event >> p10_L2L3_EVENT_SHIFT);
+		} else if (cpu_has_feature(CPU_FTR_ARCH_300)) {
 			mask  |= CNST_CACHE_GROUP_MASK;
 			value |= CNST_CACHE_GROUP_VAL(event & 0xff);
 
@@ -367,6 +389,7 @@ int isa207_compute_mmcr(u64 event[], int n_ev,
 			       struct perf_event *pevents[])
 {
 	unsigned long mmcra, mmcr1, mmcr2, unit, combine, psel, cache, val;
+	unsigned long mmcr3;
 	unsigned int pmc, pmc_inuse;
 	int i;
 
@@ -379,7 +402,7 @@ int isa207_compute_mmcr(u64 event[], int n_ev,
 			pmc_inuse |= 1 << pmc;
 	}
 
-	mmcra = mmcr1 = mmcr2 = 0;
+	mmcra = mmcr1 = mmcr2 = mmcr3 = 0;
 
 	/* Second pass: assign PMCs, set all MMCR1 fields */
 	for (i = 0; i < n_ev; ++i) {
@@ -438,8 +461,17 @@ int isa207_compute_mmcr(u64 event[], int n_ev,
 			mmcra |= val << MMCRA_THR_CTL_SHIFT;
 			val = (event[i] >> EVENT_THR_SEL_SHIFT) & EVENT_THR_SEL_MASK;
 			mmcra |= val << MMCRA_THR_SEL_SHIFT;
-			val = (event[i] >> EVENT_THR_CMP_SHIFT) & EVENT_THR_CMP_MASK;
-			mmcra |= thresh_cmp_val(val);
+			if (!cpu_has_feature(CPU_FTR_ARCH_31)) {
+				val = (event[i] >> EVENT_THR_CMP_SHIFT) &
+					EVENT_THR_CMP_MASK;
+				mmcra |= thresh_cmp_val(val);
+			}
+		}
+
+		if (cpu_has_feature(CPU_FTR_ARCH_31) && (unit == 6)) {
+			val = (event[i] >> p10_L2L3_EVENT_SHIFT) &
+				p10_EVENT_L2L3_SEL_MASK;
+			mmcr2 |= val << p10_L2L3_SEL_SHIFT;
 		}
 
 		if (event[i] & EVENT_WANTS_BHRB) {
@@ -458,6 +490,14 @@ int isa207_compute_mmcr(u64 event[], int n_ev,
 				mmcr2 |= MMCR2_FCH(pmc);
 			else
 				mmcr2 |= MMCR2_FCS(pmc);
+		}
+
+		if (cpu_has_feature(CPU_FTR_ARCH_31)) {
+			if (pmc <= 4) {
+				val = (event[i] >> p10_EVENT_MMCR3_SHIFT) &
+					p10_EVENT_MMCR3_MASK;
+				mmcr3 |= val << MMCR3_SHIFT(pmc);
+			}
 		}
 
 		hwc[i] = pmc - 1;
@@ -480,6 +520,7 @@ int isa207_compute_mmcr(u64 event[], int n_ev,
 	mmcr->mmcr1 = mmcr1;
 	mmcr->mmcra = mmcra;
 	mmcr->mmcr2 = mmcr2;
+	mmcr->mmcr3 = mmcr3;
 
 	return 0;
 }
