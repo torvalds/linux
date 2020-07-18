@@ -6943,6 +6943,11 @@ static struct r5conf *setup_conf(struct mddev *mddev)
 	if (conf == NULL)
 		goto abort;
 
+#if PAGE_SIZE != DEFAULT_STRIPE_SIZE
+	conf->stripe_size = DEFAULT_STRIPE_SIZE;
+	conf->stripe_shift = ilog2(DEFAULT_STRIPE_SIZE) - 9;
+	conf->stripe_sectors = DEFAULT_STRIPE_SIZE >> 9;
+#endif
 	INIT_LIST_HEAD(&conf->free_list);
 	INIT_LIST_HEAD(&conf->pending_list);
 	conf->pending_data = kcalloc(PENDING_IO_MAX,
