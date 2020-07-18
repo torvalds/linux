@@ -2520,7 +2520,7 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 
 /* is_double_width() is based on the wcwidth() implementation by
  * Markus Kuhn -- 2007-05-26 (Unicode 5.0)
- * Latest version: http://www.cl.cam.ac.uk/~mgk25/ucs/wcwidth.c
+ * Latest version: https://www.cl.cam.ac.uk/~mgk25/ucs/wcwidth.c
  */
 struct interval {
 	uint32_t first;
