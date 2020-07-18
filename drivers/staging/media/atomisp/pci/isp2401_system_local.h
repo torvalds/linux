@@ -36,11 +36,6 @@
 
 #define GP_FIFO_BASE   ((hrt_address)0x0000000000090104)		/* This is NOT a base address */
 
-/* DDR */
-static const hrt_address DDR_BASE[N_DDR_ID] = {
-	0x0000000120000000ULL
-};
-
 /* ISP */
 static const hrt_address ISP_CTRL_BASE[N_ISP_ID] = {
 	0x0000000000020000ULL
@@ -52,16 +47,6 @@ static const hrt_address ISP_DMEM_BASE[N_ISP_ID] = {
 
 static const hrt_address ISP_BAMEM_BASE[N_BAMEM_ID] = {
 	0x0000000000100000ULL
-};
-
-static const hrt_address ISP_VAMEM_BASE[N_VAMEM_ID] = {
-	0x00000000001C0000ULL,
-	0x00000000001D0000ULL,
-	0x00000000001E0000ULL
-};
-
-static const hrt_address ISP_HMEM_BASE[N_HMEM_ID] = {
-	0x00000000001F0000ULL
 };
 
 /* SP */
@@ -217,11 +202,6 @@ static const hrt_address STREAM2MMIO_CTRL_BASE[N_STREAM2MMIO_ID] = {
 
 #define GP_FIFO_BASE   ((hrt_address)0x00090104)		/* This is NOT a base address */
 
-/* DDR : Attention, this value not defined in 32-bit */
-static const hrt_address DDR_BASE[N_DDR_ID] = {
-	0x00000000UL
-};
-
 /* ISP */
 static const hrt_address ISP_CTRL_BASE[N_ISP_ID] = {
 	0x00020000UL
@@ -232,16 +212,6 @@ static const hrt_address ISP_DMEM_BASE[N_ISP_ID] = {
 };
 
 static const hrt_address ISP_BAMEM_BASE[N_BAMEM_ID] = {
-	0xffffffffUL
-};
-
-static const hrt_address ISP_VAMEM_BASE[N_VAMEM_ID] = {
-	0xffffffffUL,
-	0xffffffffUL,
-	0xffffffffUL
-};
-
-static const hrt_address ISP_HMEM_BASE[N_HMEM_ID] = {
 	0xffffffffUL
 };
 

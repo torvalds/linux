@@ -38,11 +38,6 @@
 
 #define GP_FIFO_BASE   ((hrt_address)0x0000000000090104)		/* This is NOT a base address */
 
-/* DDR */
-static const hrt_address DDR_BASE[N_DDR_ID] = {
-	(hrt_address)0x0000000120000000ULL
-};
-
 /* ISP */
 static const hrt_address ISP_CTRL_BASE[N_ISP_ID] = {
 	(hrt_address)0x0000000000020000ULL
@@ -56,16 +51,6 @@ static const hrt_address ISP_BAMEM_BASE[N_BAMEM_ID] = {
 	(hrt_address)0x0000000000100000ULL
 };
 
-static const hrt_address ISP_VAMEM_BASE[N_VAMEM_ID] = {
-	(hrt_address)0x00000000001C0000ULL,
-	(hrt_address)0x00000000001D0000ULL,
-	(hrt_address)0x00000000001E0000ULL
-};
-
-static const hrt_address ISP_HMEM_BASE[N_HMEM_ID] = {
-	(hrt_address)0x00000000001F0000ULL
-};
-
 /* SP */
 static const hrt_address SP_CTRL_BASE[N_SP_ID] = {
 	(hrt_address)0x0000000000010000ULL
@@ -73,10 +58,6 @@ static const hrt_address SP_CTRL_BASE[N_SP_ID] = {
 
 static const hrt_address SP_DMEM_BASE[N_SP_ID] = {
 	(hrt_address)0x0000000000300000ULL
-};
-
-static const hrt_address SP_PMEM_BASE[N_SP_ID] = {
-	(hrt_address)0x00000000000B0000ULL
 };
 
 /* MMU */
@@ -177,11 +158,6 @@ static const hrt_address RX_BASE[N_RX_ID] = {
 
 #define GP_FIFO_BASE   ((hrt_address)0x00090104)		/* This is NOT a base address */
 
-/* DDR : Attention, this value not defined in 32-bit */
-static const hrt_address DDR_BASE[N_DDR_ID] = {
-	(hrt_address)0x00000000UL
-};
-
 /* ISP */
 static const hrt_address ISP_CTRL_BASE[N_ISP_ID] = {
 	(hrt_address)0x00020000UL
@@ -195,16 +171,6 @@ static const hrt_address ISP_BAMEM_BASE[N_BAMEM_ID] = {
 	(hrt_address)0x100000UL
 };
 
-static const hrt_address ISP_VAMEM_BASE[N_VAMEM_ID] = {
-	(hrt_address)0xffffffffUL,
-	(hrt_address)0xffffffffUL,
-	(hrt_address)0xffffffffUL
-};
-
-static const hrt_address ISP_HMEM_BASE[N_HMEM_ID] = {
-	(hrt_address)0xffffffffUL
-};
-
 /* SP */
 static const hrt_address SP_CTRL_BASE[N_SP_ID] = {
 	(hrt_address)0x00010000UL
@@ -212,10 +178,6 @@ static const hrt_address SP_CTRL_BASE[N_SP_ID] = {
 
 static const hrt_address SP_DMEM_BASE[N_SP_ID] = {
 	(hrt_address)0x00300000UL
-};
-
-static const hrt_address SP_PMEM_BASE[N_SP_ID] = {
-	(hrt_address)0x000B0000UL
 };
 
 /* MMU */
