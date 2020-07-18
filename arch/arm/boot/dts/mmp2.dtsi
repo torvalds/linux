@@ -5,6 +5,7 @@
  */
 
 #include <dt-bindings/clock/marvell,mmp2.h>
+#include <dt-bindings/power/marvell,mmp2.h>
 
 / {
 	#address-cells = <1>;
@@ -37,6 +38,17 @@
 			#size-cells = <1>;
 			reg = <0xd4200000 0x00200000>;
 			ranges;
+
+			gpu: gpu@d420d000 {
+				compatible = "vivante,gc";
+				reg = <0xd420d000 0x4000>;
+				interrupts = <8>;
+				status = "disabled";
+				clocks = <&soc_clocks MMP2_CLK_GPU_3D>,
+					 <&soc_clocks MMP2_CLK_GPU_BUS>;
+				clock-names = "core", "bus";
+				power-domains = <&soc_clocks MMP2_POWER_DOMAIN_GPU>;
+			};
 
 			intc: interrupt-controller@d4282000 {
 				compatible = "mrvl,mmp2-intc";
