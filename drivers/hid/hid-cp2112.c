@@ -11,7 +11,7 @@
  * host communicates with the CP2112 via raw HID reports.
  *
  * Data Sheet:
- *   http://www.silabs.com/Support%20Documents/TechnicalDocs/CP2112.pdf
+ *   https://www.silabs.com/Support%20Documents/TechnicalDocs/CP2112.pdf
  * Programming Interface Specification:
  *   https://www.silabs.com/documents/public/application-notes/an495-cp2112-interface-specification.pdf
  */
