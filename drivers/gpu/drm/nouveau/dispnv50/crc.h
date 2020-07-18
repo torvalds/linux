@@ -52,7 +52,7 @@ struct nv50_crc_atom {
 struct nv50_crc_func {
 	int (*set_src)(struct nv50_head *, int or, enum nv50_crc_source_type,
 		       struct nv50_crc_notifier_ctx *, u32 wndw);
-	void (*set_ctx)(struct nv50_head *, struct nv50_crc_notifier_ctx *);
+	int (*set_ctx)(struct nv50_head *, struct nv50_crc_notifier_ctx *);
 	u32 (*get_entry)(struct nv50_head *, struct nv50_crc_notifier_ctx *,
 			 enum nv50_crc_source, int idx);
 	bool (*ctx_finished)(struct nv50_head *,

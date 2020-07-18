@@ -108,18 +108,4 @@ void evo_kick(u32 *, struct nv50_dmac *);
 extern const u64 disp50xx_modifiers[];
 extern const u64 disp90xx_modifiers[];
 extern const u64 wndwc57e_modifiers[];
-
-#define evo_mthd(p, m, s) do {						\
-	const u32 _m = (m), _s = (s);					\
-	if (drm_debug_enabled(DRM_UT_KMS))				\
-		pr_err("%04x %d %s\n", _m, _s, __func__);		\
-	*((p)++) = ((_s << 18) | _m);					\
-} while(0)
-
-#define evo_data(p, d) do {						\
-	const u32 _d = (d);						\
-	if (drm_debug_enabled(DRM_UT_KMS))				\
-		pr_err("\t%08x\n", _d);					\
-	*((p)++) = _d;							\
-} while(0)
 #endif

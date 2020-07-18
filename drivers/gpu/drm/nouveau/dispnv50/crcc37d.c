@@ -71,18 +71,18 @@ crcc37d_set_src(struct nv50_head *head, int or,
 	return 0;
 }
 
-static void crcc37d_set_ctx(struct nv50_head *head,
-			    struct nv50_crc_notifier_ctx *ctx)
+static int
+crcc37d_set_ctx(struct nv50_head *head, struct nv50_crc_notifier_ctx *ctx)
 {
-	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
-	u32 *push = evo_wait(core, 2);
+	struct nvif_push *push = nv50_disp(head->base.base.dev)->core->chan.push;
+	const int i = head->base.index;
+	int ret;
 
-	if (!push)
-		return;
+	if ((ret = PUSH_WAIT(push, 2)))
+		return ret;
 
-	evo_mthd(push, 0x2180 + (head->base.index * 0x400), 1);
-	evo_data(push, ctx ? ctx->ntfy.handle : 0);
-	evo_kick(push, core);
+	PUSH_NVSQ(push, NVC37D, 0x2180 + (i * 0x400), ctx ? ctx->ntfy.handle : 0);
+	return 0;
 }
 
 static u32 crcc37d_get_entry(struct nv50_head *head,
