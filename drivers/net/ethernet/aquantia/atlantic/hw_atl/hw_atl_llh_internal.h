@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/*
- * aQuantia Corporation Network Driver
- * Copyright (C) 2014-2019 aQuantia Corporation. All rights reserved
+/* Atlantic Network Driver
+ *
+ * Copyright (C) 2014-2019 aQuantia Corporation
+ * Copyright (C) 2019-2020 Marvell International Ltd.
  */
 
 /* File hw_atl_llh_internal.h: Preprocessor definitions
@@ -2837,7 +2838,11 @@
 /* Default value of bitfield MDIO Address [F:0] */
 #define HW_ATL_MDIO_ADDRESS_DEFAULT 0x0
 
+#define HW_ATL_MIF_RESET_TIMEOUT_ADR 0x00000348
+
 #define HW_ATL_FW_SM_MDIO       0x0U
 #define HW_ATL_FW_SM_RAM        0x2U
+#define HW_ATL_FW_SM_RESET1     0x3U
+#define HW_ATL_FW_SM_RESET2     0x4U
 
 #endif /* HW_ATL_LLH_INTERNAL_H */

@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/*
- * aQuantia Corporation Network Driver
- * Copyright (C) 2014-2019 aQuantia Corporation. All rights reserved
+/* Atlantic Network Driver
+ *
+ * Copyright (C) 2014-2019 aQuantia Corporation
+ * Copyright (C) 2019-2020 Marvell International Ltd.
  */
 
 /* File hw_atl_llh.h: Declarations of bitfield and register access functions for
@@ -837,6 +838,9 @@ u32 hw_atl_sem_ram_get(struct aq_hw_s *self);
 
 /* get global microprocessor mdio semaphore */
 u32 hw_atl_sem_mdio_get(struct aq_hw_s *self);
+
+u32 hw_atl_sem_reset1_get(struct aq_hw_s *self);
+u32 hw_atl_sem_reset2_get(struct aq_hw_s *self);
 
 /* get global microprocessor scratch pad register */
 u32 hw_atl_scrpad_get(struct aq_hw_s *aq_hw, u32 scratch_scp);
