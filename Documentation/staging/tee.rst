@@ -61,13 +61,17 @@ represented as a device identified via Universally Unique Identifier (UUID) and
 client drivers register a table of supported device UUIDs.
 
 TEE bus infrastructure registers following APIs:
--  match(): iterates over the client driver UUID table to find a corresponding
-   match for device UUID. If a match is found, then this particular device is
-   probed via corresponding probe API registered by the client driver. This
-   process happens whenever a device or a client driver is registered with TEE
-   bus.
--  uevent(): notifies user-space (udev) whenever a new device is registered on
-   TEE bus for auto-loading of modularized client drivers.
+
+match():
+  iterates over the client driver UUID table to find a corresponding
+  match for device UUID. If a match is found, then this particular device is
+  probed via corresponding probe API registered by the client driver. This
+  process happens whenever a device or a client driver is registered with TEE
+  bus.
+
+uevent():
+  notifies user-space (udev) whenever a new device is registered on
+  TEE bus for auto-loading of modularized client drivers.
 
 TEE bus device enumeration is specific to underlying TEE implementation, so it
 is left open for TEE drivers to provide corresponding implementation.
