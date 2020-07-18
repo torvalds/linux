@@ -1544,7 +1544,6 @@ static void io_dismantle_req(struct io_kiocb *req)
 		kfree(req->io);
 	if (req->file)
 		io_put_file(req, req->file, (req->flags & REQ_F_FIXED_FILE));
-	__io_put_req_task(req);
 	io_req_clean_work(req);
 
 	if (req->flags & REQ_F_INFLIGHT) {
@@ -1564,6 +1563,7 @@ static void __io_free_req(struct io_kiocb *req)
 	struct io_ring_ctx *ctx;
 
 	io_dismantle_req(req);
+	__io_put_req_task(req);
 	ctx = req->ctx;
 	if (likely(!io_is_fallback_req(req)))
 		kmem_cache_free(req_cachep, req);
@@ -1807,7 +1807,17 @@ static void io_free_req(struct io_kiocb *req)
 struct req_batch {
 	void *reqs[IO_IOPOLL_BATCH];
 	int to_free;
+
+	struct task_struct	*task;
+	int			task_refs;
 };
+
+static inline void io_init_req_batch(struct req_batch *rb)
+{
+	rb->to_free = 0;
+	rb->task_refs = 0;
+	rb->task = NULL;
+}
 
 static void __io_req_free_batch_flush(struct io_ring_ctx *ctx,
 				      struct req_batch *rb)
@@ -1822,6 +1832,10 @@ static void io_req_free_batch_finish(struct io_ring_ctx *ctx,
 {
 	if (rb->to_free)
 		__io_req_free_batch_flush(ctx, rb);
+	if (rb->task) {
+		put_task_struct_many(rb->task, rb->task_refs);
+		rb->task = NULL;
+	}
 }
 
 static void io_req_free_batch(struct req_batch *rb, struct io_kiocb *req)
@@ -1832,6 +1846,17 @@ static void io_req_free_batch(struct req_batch *rb, struct io_kiocb *req)
 	}
 	if (req->flags & REQ_F_LINK_HEAD)
 		io_queue_next(req);
+
+	if (req->flags & REQ_F_TASK_PINNED) {
+		if (req->task != rb->task) {
+			if (rb->task)
+				put_task_struct_many(rb->task, rb->task_refs);
+			rb->task = req->task;
+			rb->task_refs = 0;
+		}
+		rb->task_refs++;
+		req->flags &= ~REQ_F_TASK_PINNED;
+	}
 
 	io_dismantle_req(req);
 	rb->reqs[rb->to_free++] = req;
@@ -1978,7 +2003,7 @@ static void io_iopoll_complete(struct io_ring_ctx *ctx, unsigned int *nr_events,
 	/* order with ->result store in io_complete_rw_iopoll() */
 	smp_rmb();
 
-	rb.to_free = 0;
+	io_init_req_batch(&rb);
 	while (!list_empty(done)) {
 		int cflags = 0;
 
