@@ -837,6 +837,12 @@ static int cant_touch_index_test(const char *mount_dir)
 		goto failure;
 	}
 
+	err = rmdir(index_path);
+	if (err == 0 || errno != EBUSY) {
+		print_error(".index directory should not be removed\n");
+		goto failure;
+	}
+
 	err = emit_file(cmd_fd, ".index", file_name, &file_id,
 				file_size, NULL);
 	if (err != -EBUSY) {
@@ -868,6 +874,12 @@ static int cant_touch_index_test(const char *mount_dir)
 	err = link(file_path, filename_in_index);
 	if (err == 0 || errno != EBUSY) {
 		print_error("Shouldn't be able to link inside index\n");
+		goto failure;
+	}
+
+	err = rename(index_path, dst_name);
+	if (err == 0 || errno != EBUSY) {
+		print_error("Shouldn't rename .index directory\n");
 		goto failure;
 	}
 
