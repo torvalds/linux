@@ -494,9 +494,11 @@ Time and date
 	%pt[RT]t		HH:MM:SS
 	%pt[RT][dt][r]
 
-For printing date and time as represented by
+For printing date and time as represented by::
+
 	R  struct rtc_time structure
 	T  time64_t type
+
 in human readable format.
 
 By default year will be incremented by 1900 and month by 1.
