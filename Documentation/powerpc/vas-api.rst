@@ -213,7 +213,7 @@ request buffers are not in memory. The operating system handles the fault by
 updating CSB with the following data:
 
 	csb.flags = CSB_V;
-	csb.cc = CSB_CC_TRANSLATION;
+	csb.cc = CSB_CC_FAULT_ADDRESS;
 	csb.ce = CSB_CE_TERMINATION;
 	csb.address = fault_address;
 
