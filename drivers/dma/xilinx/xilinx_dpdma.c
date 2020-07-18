@@ -295,6 +295,7 @@ static inline void dpdma_set(void __iomem *base, u32 offset, u32 set)
 
 /**
  * xilinx_dpdma_sw_desc_set_dma_addrs - Set DMA addresses in the descriptor
+ * @xdev: DPDMA device
  * @sw_desc: The software descriptor in which to set DMA addresses
  * @prev: The previous descriptor
  * @dma_addr: array of dma addresses
