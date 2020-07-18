@@ -164,7 +164,7 @@ struct dma_interleaved_template {
  * @DMA_PREP_INTERRUPT - trigger an interrupt (callback) upon completion of
  *  this transaction
  * @DMA_CTRL_ACK - if clear, the descriptor cannot be reused until the client
- *  acknowledges receipt, i.e. has has a chance to establish any dependency
+ *  acknowledges receipt, i.e. has a chance to establish any dependency
  *  chains
  * @DMA_PREP_PQ_DISABLE_P - prevent generation of P while generating Q
  * @DMA_PREP_PQ_DISABLE_Q - prevent generation of Q while generating P
