@@ -895,6 +895,36 @@ out:
 	return rc;
 }
 
+/* as an SMC client, invite server to start the add_link processing */
+static void smc_llc_cli_add_link_invite(struct smc_link *link,
+					struct smc_llc_qentry *qentry)
+{
+	struct smc_link_group *lgr = smc_get_lgr(link);
+	struct smc_init_info ini;
+
+	if (lgr->type == SMC_LGR_SYMMETRIC ||
+	    lgr->type == SMC_LGR_ASYMMETRIC_PEER)
+		goto out;
+
+	ini.vlan_id = lgr->vlan_id;
+	smc_pnet_find_alt_roce(lgr, &ini, link->smcibdev);
+	if (!ini.ib_dev)
+		goto out;
+
+	smc_llc_send_add_link(link, ini.ib_dev->mac[ini.ib_port - 1],
+			      ini.ib_gid, NULL, SMC_LLC_REQ);
+out:
+	kfree(qentry);
+}
+
+static bool smc_llc_is_local_add_link(union smc_llc_msg *llc)
+{
+	if (llc->raw.hdr.common.type == SMC_LLC_ADD_LINK &&
+	    !llc->add_link.qp_mtu && !llc->add_link.link_num)
+		return true;
+	return false;
+}
+
 static void smc_llc_process_cli_add_link(struct smc_link_group *lgr)
 {
 	struct smc_llc_qentry *qentry;
@@ -902,7 +932,10 @@ static void smc_llc_process_cli_add_link(struct smc_link_group *lgr)
 	qentry = smc_llc_flow_qentry_clr(&lgr->llc_flow_lcl);
 
 	mutex_lock(&lgr->llc_conf_mutex);
-	smc_llc_cli_add_link(qentry->link, qentry);
+	if (smc_llc_is_local_add_link(&qentry->msg))
+		smc_llc_cli_add_link_invite(qentry->link, qentry);
+	else
+		smc_llc_cli_add_link(qentry->link, qentry);
 	mutex_unlock(&lgr->llc_conf_mutex);
 }
 
@@ -1160,14 +1193,14 @@ static void smc_llc_process_srv_add_link(struct smc_link_group *lgr)
 	mutex_unlock(&lgr->llc_conf_mutex);
 }
 
-/* enqueue a local add_link req to trigger a new add_link flow, only as SERV */
-void smc_llc_srv_add_link_local(struct smc_link *link)
+/* enqueue a local add_link req to trigger a new add_link flow */
+void smc_llc_add_link_local(struct smc_link *link)
 {
 	struct smc_llc_msg_add_link add_llc = {0};
 
 	add_llc.hd.length = sizeof(add_llc);
 	add_llc.hd.common.type = SMC_LLC_ADD_LINK;
-	/* no dev and port needed, we as server ignore client data anyway */
+	/* no dev and port needed */
 	smc_llc_enqueue(link, (union smc_llc_msg *)&add_llc);
 }
 
@@ -1347,7 +1380,7 @@ static void smc_llc_process_srv_delete_link(struct smc_link_group *lgr)
 
 	if (lgr->type == SMC_LGR_SINGLE && !list_empty(&lgr->list)) {
 		/* trigger setup of asymm alt link */
-		smc_llc_srv_add_link_local(lnk);
+		smc_llc_add_link_local(lnk);
 	}
 out:
 	mutex_unlock(&lgr->llc_conf_mutex);
@@ -1476,7 +1509,18 @@ static void smc_llc_event_handler(struct smc_llc_qentry *qentry)
 		if (list_empty(&lgr->list))
 			goto out;	/* lgr is terminating */
 		if (lgr->role == SMC_CLNT) {
-			if (lgr->llc_flow_lcl.type == SMC_LLC_FLOW_ADD_LINK) {
+			if (smc_llc_is_local_add_link(llc)) {
+				if (lgr->llc_flow_lcl.type ==
+				    SMC_LLC_FLOW_ADD_LINK)
+					break;	/* add_link in progress */
+				if (smc_llc_flow_start(&lgr->llc_flow_lcl,
+						       qentry)) {
+					schedule_work(&lgr->llc_add_link_work);
+				}
+				return;
+			}
+			if (lgr->llc_flow_lcl.type == SMC_LLC_FLOW_ADD_LINK &&
+			    !lgr->llc_flow_lcl.qentry) {
 				/* a flow is waiting for this message */
 				smc_llc_flow_qentry_set(&lgr->llc_flow_lcl,
 							qentry);
