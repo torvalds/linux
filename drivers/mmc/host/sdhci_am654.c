@@ -2,7 +2,7 @@
 /*
  * sdhci_am654.c - SDHCI driver for TI's AM654 SOCs
  *
- * Copyright (C) 2018 Texas Instruments Incorporated - http://www.ti.com
+ * Copyright (C) 2018 Texas Instruments Incorporated - https://www.ti.com
  *
  */
 #include <linux/clk.h>
