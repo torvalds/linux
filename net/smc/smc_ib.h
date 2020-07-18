@@ -52,6 +52,7 @@ struct smc_ib_device {				/* ib-device infos for smc */
 	DECLARE_BITMAP(ports_going_away, SMC_MAX_PORTS);
 	atomic_t		lnk_cnt;	/* number of links on ibdev */
 	wait_queue_head_t	lnks_deleted;	/* wait 4 removal of all links*/
+	struct mutex		mutex;		/* protect dev setup+cleanup */
 };
 
 struct smc_buf_desc;
