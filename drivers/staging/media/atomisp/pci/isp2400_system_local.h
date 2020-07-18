@@ -24,9 +24,6 @@
 
 #include "system_global.h"
 
-/* This interface is deprecated */
-#include "hive_types.h"
-
 /*
  * Cell specific address maps
  */
