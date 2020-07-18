@@ -210,6 +210,19 @@
 				#dma-cells = <1>;
 				status = "disabled";
 			};
+
+			audio_clk: clocks@d42a0c30 {
+				compatible = "marvell,mmp2-audio-clock";
+				reg = <0xd42a0c30 0x10>;
+				clock-names = "audio", "vctcxo", "i2s0", "i2s1";
+				clocks = <&soc_clocks MMP2_CLK_AUDIO>,
+					 <&soc_clocks MMP2_CLK_VCTCXO>,
+					 <&soc_clocks MMP2_CLK_I2S0>,
+					 <&soc_clocks MMP2_CLK_I2S1>;
+				power-domains = <&soc_clocks MMP2_POWER_DOMAIN_AUDIO>;
+				#clock-cells = <1>;
+				status = "disabled";
+			};
 		};
 
 		apb@d4000000 {	/* APB */
