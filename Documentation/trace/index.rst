@@ -20,6 +20,7 @@ Linux Tracing Technologies
    events-msr
    mmiotrace
    histogram
+   histogram-design
    boottime-trace
    hwlat_detector
    intel_th
