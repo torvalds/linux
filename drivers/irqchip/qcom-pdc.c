@@ -432,28 +432,8 @@ fail:
 	return ret;
 }
 
-static int qcom_pdc_probe(struct platform_device *pdev)
-{
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *parent = of_irq_find_parent(np);
-
-	return qcom_pdc_init(np, parent);
-}
-
-static const struct of_device_id qcom_pdc_match_table[] = {
-	{ .compatible = "qcom,pdc" },
-	{}
-};
-MODULE_DEVICE_TABLE(of, qcom_pdc_match_table);
-
-static struct platform_driver qcom_pdc_driver = {
-	.probe = qcom_pdc_probe,
-	.driver = {
-		.name = "qcom-pdc",
-		.of_match_table = qcom_pdc_match_table,
-		.suppress_bind_attrs = true,
-	},
-};
-module_platform_driver(qcom_pdc_driver);
+IRQCHIP_PLATFORM_DRIVER_BEGIN(qcom_pdc)
+IRQCHIP_MATCH("qcom,pdc", qcom_pdc_init)
+IRQCHIP_PLATFORM_DRIVER_END(qcom_pdc)
 MODULE_DESCRIPTION("Qualcomm Technologies, Inc. Power Domain Controller");
 MODULE_LICENSE("GPL v2");
