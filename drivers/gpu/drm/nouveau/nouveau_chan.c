@@ -121,6 +121,31 @@ nouveau_channel_del(struct nouveau_channel **pchan)
 	*pchan = NULL;
 }
 
+static void
+nouveau_channel_kick(struct nvif_push *push)
+{
+	struct nouveau_channel *chan = container_of(push, typeof(*chan), chan._push);
+	chan->dma.cur = chan->dma.cur + (chan->chan._push.cur - chan->chan._push.bgn);
+	FIRE_RING(chan);
+	chan->chan._push.bgn = chan->chan._push.cur;
+}
+
+static int
+nouveau_channel_wait(struct nvif_push *push, u32 size)
+{
+	struct nouveau_channel *chan = container_of(push, typeof(*chan), chan._push);
+	int ret;
+	chan->dma.cur = chan->dma.cur + (chan->chan._push.cur - chan->chan._push.bgn);
+	ret = RING_SPACE(chan, size);
+	if (ret == 0) {
+		chan->chan._push.bgn = chan->chan._push.mem.object.map.ptr;
+		chan->chan._push.bgn = chan->chan._push.bgn + chan->dma.cur;
+		chan->chan._push.cur = chan->chan._push.bgn;
+		chan->chan._push.end = chan->chan._push.bgn + size;
+	}
+	return ret;
+}
+
 static int
 nouveau_channel_prep(struct nouveau_drm *drm, struct nvif_device *device,
 		     u32 size, struct nouveau_channel **pchan)
@@ -157,6 +182,14 @@ nouveau_channel_prep(struct nouveau_drm *drm, struct nvif_device *device,
 		nouveau_channel_del(pchan);
 		return ret;
 	}
+
+	chan->chan._push.mem.object.parent = cli->base.object.parent;
+	chan->chan._push.mem.object.client = &cli->base;
+	chan->chan._push.mem.object.name = "chanPush";
+	chan->chan._push.mem.object.map.ptr = chan->push.buffer->kmap.virtual;
+	chan->chan._push.wait = nouveau_channel_wait;
+	chan->chan._push.kick = nouveau_channel_kick;
+	chan->chan.push = &chan->chan._push;
 
 	/* create dma object covering the *entire* memory space that the
 	 * pushbuf lives in, this is because the GEM code requires that
