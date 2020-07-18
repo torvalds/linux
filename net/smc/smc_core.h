@@ -349,6 +349,11 @@ static inline bool smc_link_usable(struct smc_link *lnk)
 	return true;
 }
 
+static inline bool smc_link_active(struct smc_link *lnk)
+{
+	return lnk->state == SMC_LNK_ACTIVE;
+}
+
 struct smc_sock;
 struct smc_clc_msg_accept_confirm;
 struct smc_clc_msg_local;

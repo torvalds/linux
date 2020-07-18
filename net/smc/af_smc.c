@@ -352,7 +352,7 @@ static int smcr_lgr_reg_rmbs(struct smc_link *link,
 	 */
 	mutex_lock(&lgr->llc_conf_mutex);
 	for (i = 0; i < SMC_LINKS_PER_LGR_MAX; i++) {
-		if (lgr->lnk[i].state != SMC_LNK_ACTIVE)
+		if (!smc_link_active(&lgr->lnk[i]))
 			continue;
 		rc = smcr_link_reg_rmb(&lgr->lnk[i], rmb_desc);
 		if (rc)

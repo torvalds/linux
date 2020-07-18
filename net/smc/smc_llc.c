@@ -428,7 +428,7 @@ static int smc_llc_send_confirm_rkey(struct smc_link *send_link,
 	rtok_ix = 1;
 	for (i = 0; i < SMC_LINKS_PER_LGR_MAX; i++) {
 		link = &send_link->lgr->lnk[i];
-		if (link->state == SMC_LNK_ACTIVE && link != send_link) {
+		if (smc_link_active(link) && link != send_link) {
 			rkeyllc->rtoken[rtok_ix].link_id = link->link_id;
 			rkeyllc->rtoken[rtok_ix].rmb_key =
 				htonl(rmb_desc->mr_rx[link->link_idx]->rkey);
@@ -944,7 +944,7 @@ static int smc_llc_active_link_count(struct smc_link_group *lgr)
 	int i, link_count = 0;
 
 	for (i = 0; i < SMC_LINKS_PER_LGR_MAX; i++) {
-		if (!smc_link_usable(&lgr->lnk[i]))
+		if (!smc_link_active(&lgr->lnk[i]))
 			continue;
 		link_count++;
 	}
@@ -1622,7 +1622,7 @@ static void smc_llc_rx_response(struct smc_link *link,
 
 	switch (llc_type) {
 	case SMC_LLC_TEST_LINK:
-		if (link->state == SMC_LNK_ACTIVE)
+		if (smc_link_active(link))
 			complete(&link->llc_testlink_resp);
 		break;
 	case SMC_LLC_ADD_LINK:
@@ -1706,7 +1706,7 @@ static void smc_llc_testlink_work(struct work_struct *work)
 	u8 user_data[16] = { 0 };
 	int rc;
 
-	if (link->state != SMC_LNK_ACTIVE)
+	if (!smc_link_active(link))
 		return;		/* don't reschedule worker */
 	expire_time = link->wr_rx_tstamp + link->llc_testlink_time;
 	if (time_is_after_jiffies(expire_time)) {
@@ -1718,7 +1718,7 @@ static void smc_llc_testlink_work(struct work_struct *work)
 	/* receive TEST LINK response over RoCE fabric */
 	rc = wait_for_completion_interruptible_timeout(&link->llc_testlink_resp,
 						       SMC_LLC_WAIT_TIME);
-	if (link->state != SMC_LNK_ACTIVE)
+	if (!smc_link_active(link))
 		return;		/* link state changed */
 	if (rc <= 0) {
 		smcr_link_down_cond_sched(link);
