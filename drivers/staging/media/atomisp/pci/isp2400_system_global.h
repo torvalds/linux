@@ -75,8 +75,6 @@
  * Semi global. "HRT" is accessible from SP, but the HRT types do not fully apply
  */
 #define HRT_VADDRESS_WIDTH	32
-//#define HRT_ADDRESS_WIDTH	64		/* Surprise, this is a local property*/
-#define HRT_DATA_WIDTH		32
 
 #define SIZEOF_HRT_REG		(HRT_DATA_WIDTH >> 3)
 #define HIVE_ISP_CTRL_DATA_BYTES (HIVE_ISP_CTRL_DATA_WIDTH / 8)

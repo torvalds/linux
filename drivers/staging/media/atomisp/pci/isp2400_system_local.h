@@ -24,17 +24,12 @@
 
 #include "system_global.h"
 
-/* HRT assumes 32 by default (see Linux/include/hive_types.h), overrule it in case it is different */
-#undef HRT_ADDRESS_WIDTH
-#define HRT_ADDRESS_WIDTH	64		/* Surprise, this is a local property */
-
 /* This interface is deprecated */
 #include "hive_types.h"
 
 /*
  * Cell specific address maps
  */
-#if HRT_ADDRESS_WIDTH == 64
 
 #define GP_FIFO_BASE   ((hrt_address)0x0000000000090104)		/* This is NOT a base address */
 
@@ -153,131 +148,5 @@ static const hrt_address INPUT_SYSTEM_BASE[N_INPUT_SYSTEM_ID] = {
 static const hrt_address RX_BASE[N_RX_ID] = {
 	(hrt_address)0x0000000000080100ULL
 };
-
-#elif HRT_ADDRESS_WIDTH == 32
-
-#define GP_FIFO_BASE   ((hrt_address)0x00090104)		/* This is NOT a base address */
-
-/* ISP */
-static const hrt_address ISP_CTRL_BASE[N_ISP_ID] = {
-	(hrt_address)0x00020000UL
-};
-
-static const hrt_address ISP_DMEM_BASE[N_ISP_ID] = {
-	(hrt_address)0x00200000UL
-};
-
-static const hrt_address ISP_BAMEM_BASE[N_BAMEM_ID] = {
-	(hrt_address)0x100000UL
-};
-
-/* SP */
-static const hrt_address SP_CTRL_BASE[N_SP_ID] = {
-	(hrt_address)0x00010000UL
-};
-
-static const hrt_address SP_DMEM_BASE[N_SP_ID] = {
-	(hrt_address)0x00300000UL
-};
-
-/* MMU */
-/*
- * MMU0_ID: The data MMU
- * MMU1_ID: The icache MMU
- */
-static const hrt_address MMU_BASE[N_MMU_ID] = {
-	(hrt_address)0x00070000UL,
-	(hrt_address)0x000A0000UL
-};
-
-/* DMA */
-static const hrt_address DMA_BASE[N_DMA_ID] = {
-	(hrt_address)0x00040000UL
-};
-
-/* IRQ */
-static const hrt_address IRQ_BASE[N_IRQ_ID] = {
-	(hrt_address)0x00000500UL,
-	(hrt_address)0x00030A00UL,
-	(hrt_address)0x0008C000UL,
-	(hrt_address)0x00090200UL
-};
-
-/*
-	(hrt_address)0x00000500UL};
- */
-
-/* GDC */
-static const hrt_address GDC_BASE[N_GDC_ID] = {
-	(hrt_address)0x00050000UL,
-	(hrt_address)0x00060000UL
-};
-
-/* FIFO_MONITOR (not a subset of GP_DEVICE) */
-static const hrt_address FIFO_MONITOR_BASE[N_FIFO_MONITOR_ID] = {
-	(hrt_address)0x00000000UL
-};
-
-/*
-static const hrt_address GP_REGS_BASE[N_GP_REGS_ID] = {
-	(hrt_address)0x00000000UL};
-
-static const hrt_address GP_DEVICE_BASE[N_GP_DEVICE_ID] = {
-	(hrt_address)0x00090000UL};
-*/
-
-/* GP_DEVICE (single base for all separate GP_REG instances) */
-static const hrt_address GP_DEVICE_BASE[N_GP_DEVICE_ID] = {
-	(hrt_address)0x00000000UL
-};
-
-/*GP TIMER , all timer registers are inter-twined,
- * so, having multiple base addresses for
- * different timers does not help*/
-static const hrt_address GP_TIMER_BASE =
-    (hrt_address)0x00000600UL;
-
-/* GPIO */
-static const hrt_address GPIO_BASE[N_GPIO_ID] = {
-	(hrt_address)0x00000400UL
-};
-
-/* TIMED_CTRL */
-static const hrt_address TIMED_CTRL_BASE[N_TIMED_CTRL_ID] = {
-	(hrt_address)0x00000100UL
-};
-
-/* INPUT_FORMATTER */
-static const hrt_address INPUT_FORMATTER_BASE[N_INPUT_FORMATTER_ID] = {
-	(hrt_address)0x00030000UL,
-	(hrt_address)0x00030200UL,
-	(hrt_address)0x00030400UL
-};
-
-/*	(hrt_address)0x00030600UL, */ /* memcpy() */
-
-/* INPUT_SYSTEM */
-static const hrt_address INPUT_SYSTEM_BASE[N_INPUT_SYSTEM_ID] = {
-	(hrt_address)0x00080000UL
-};
-
-/*	(hrt_address)0x00081000UL, */ /* capture A */
-/*	(hrt_address)0x00082000UL, */ /* capture B */
-/*	(hrt_address)0x00083000UL, */ /* capture C */
-/*	(hrt_address)0x00084000UL, */ /* Acquisition */
-/*	(hrt_address)0x00085000UL, */ /* DMA */
-/*	(hrt_address)0x00089000UL, */ /* ctrl */
-/*	(hrt_address)0x0008A000UL, */ /* GP regs */
-/*	(hrt_address)0x0008B000UL, */ /* FIFO */
-/*	(hrt_address)0x0008C000UL, */ /* IRQ */
-
-/* RX, the MIPI lane control regs start at offset 0 */
-static const hrt_address RX_BASE[N_RX_ID] = {
-	(hrt_address)0x00080100UL
-};
-
-#else
-#error "system_local.h: HRT_ADDRESS_WIDTH must be one of {32,64}"
-#endif
 
 #endif /* __SYSTEM_LOCAL_H_INCLUDED__ */
