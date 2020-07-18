@@ -1070,7 +1070,7 @@ static int xilinx_dpdma_config(struct dma_chan *dchan,
 	 * Abuse the slave_id to indicate that the channel is part of a video
 	 * group.
 	 */
-	if (chan->id >= ZYNQMP_DPDMA_VIDEO0 && chan->id <= ZYNQMP_DPDMA_VIDEO2)
+	if (chan->id <= ZYNQMP_DPDMA_VIDEO2)
 		chan->video_group = config->slave_id != 0;
 
 	spin_unlock_irqrestore(&chan->lock, flags);
