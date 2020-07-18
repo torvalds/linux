@@ -256,7 +256,8 @@ static void ilo_ccb_close(struct pci_dev *pdev, struct ccb_data *data)
 	memset_io(device_ccb, 0, sizeof(struct ccb));
 
 	/* free resources used to back send/recv queues */
-	pci_free_consistent(pdev, data->dma_size, data->dma_va, data->dma_pa);
+	dma_free_coherent(&pdev->dev, data->dma_size, data->dma_va,
+			  data->dma_pa);
 }
 
 static int ilo_ccb_setup(struct ilo_hwinfo *hw, struct ccb_data *data, int slot)
@@ -272,8 +273,8 @@ static int ilo_ccb_setup(struct ilo_hwinfo *hw, struct ccb_data *data, int slot)
 			 2 * desc_mem_sz(NR_QENTRY) +
 			 ILO_START_ALIGN + ILO_CACHE_SZ;
 
-	data->dma_va = pci_alloc_consistent(hw->ilo_dev, data->dma_size,
-					    &data->dma_pa);
+	data->dma_va = dma_alloc_coherent(&hw->ilo_dev->dev, data->dma_size,
+					  &data->dma_pa, GFP_ATOMIC);
 	if (!data->dma_va)
 		return -ENOMEM;
 
