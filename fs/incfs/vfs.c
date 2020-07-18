@@ -780,7 +780,8 @@ static struct dentry *open_or_create_index_dir(struct dentry *backing_dir)
 	if (err)
 		return ERR_PTR(err);
 
-	if (!d_really_is_positive(index_dentry)) {
+	if (!d_really_is_positive(index_dentry) ||
+		unlikely(d_unhashed(index_dentry))) {
 		dput(index_dentry);
 		return ERR_PTR(-EINVAL);
 	}
@@ -1646,7 +1647,8 @@ static int dir_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 	if (!err) {
 		struct inode *inode = NULL;
 
-		if (d_really_is_negative(backing_dentry)) {
+		if (d_really_is_negative(backing_dentry) ||
+			unlikely(d_unhashed(backing_dentry))) {
 			err = -EINVAL;
 			goto out;
 		}
@@ -1871,6 +1873,13 @@ static int dir_rename(struct inode *old_dir, struct dentry *old_dentry,
 		return error;
 
 	backing_old_dentry = get_incfs_dentry(old_dentry)->backing_path.dentry;
+
+	if (!backing_old_dentry || backing_old_dentry == mi->mi_index_dir) {
+		/* Renaming .index not allowed */
+		error = -EBUSY;
+		goto exit;
+	}
+
 	backing_new_dentry = get_incfs_dentry(new_dentry)->backing_path.dentry;
 	dget(backing_old_dentry);
 	dget(backing_new_dentry);
@@ -1917,6 +1926,7 @@ out:
 	dput(backing_new_dentry);
 	dput(backing_old_dentry);
 
+exit:
 	mutex_unlock(&mi->mi_dir_struct_mutex);
 	if (error)
 		pr_debug("incfs: %s err:%d\n", __func__, error);
