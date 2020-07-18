@@ -1587,6 +1587,8 @@ again:
 static void smc_llc_rx_response(struct smc_link *link,
 				struct smc_llc_qentry *qentry)
 {
+	enum smc_llc_flowtype flowtype = link->lgr->llc_flow_lcl.type;
+	struct smc_llc_flow *flow = &link->lgr->llc_flow_lcl;
 	u8 llc_type = qentry->msg.raw.hdr.common.type;
 
 	switch (llc_type) {
@@ -1595,15 +1597,20 @@ static void smc_llc_rx_response(struct smc_link *link,
 			complete(&link->llc_testlink_resp);
 		break;
 	case SMC_LLC_ADD_LINK:
-	case SMC_LLC_DELETE_LINK:
-	case SMC_LLC_CONFIRM_LINK:
 	case SMC_LLC_ADD_LINK_CONT:
+	case SMC_LLC_CONFIRM_LINK:
+		if (flowtype != SMC_LLC_FLOW_ADD_LINK || flow->qentry)
+			break;	/* drop out-of-flow response */
+		goto assign;
+	case SMC_LLC_DELETE_LINK:
+		if (flowtype != SMC_LLC_FLOW_DEL_LINK || flow->qentry)
+			break;	/* drop out-of-flow response */
+		goto assign;
 	case SMC_LLC_CONFIRM_RKEY:
 	case SMC_LLC_DELETE_RKEY:
-		/* assign responses to the local flow, we requested them */
-		smc_llc_flow_qentry_set(&link->lgr->llc_flow_lcl, qentry);
-		wake_up(&link->lgr->llc_msg_waiter);
-		return;
+		if (flowtype != SMC_LLC_FLOW_RKEY || flow->qentry)
+			break;	/* drop out-of-flow response */
+		goto assign;
 	case SMC_LLC_CONFIRM_RKEY_CONT:
 		/* not used because max links is 3 */
 		break;
@@ -1612,6 +1619,11 @@ static void smc_llc_rx_response(struct smc_link *link,
 		break;
 	}
 	kfree(qentry);
+	return;
+assign:
+	/* assign responses to the local flow, we requested them */
+	smc_llc_flow_qentry_set(&link->lgr->llc_flow_lcl, qentry);
+	wake_up(&link->lgr->llc_msg_waiter);
 }
 
 static void smc_llc_enqueue(struct smc_link *link, union smc_llc_msg *llc)
