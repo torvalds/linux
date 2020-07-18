@@ -223,6 +223,32 @@
 				#clock-cells = <1>;
 				status = "disabled";
 			};
+
+			sspa0: audio-controller@d42a0c00 {
+				compatible = "marvell,mmp-sspa";
+				reg = <0xd42a0c00 0x30>,
+				      <0xd42a0c80 0x30>;
+				interrupts = <2>;
+				clock-names = "audio", "bitclk";
+				clocks = <&soc_clocks MMP2_CLK_AUDIO>,
+					 <&audio_clk 1>;
+				power-domains = <&soc_clocks MMP2_POWER_DOMAIN_AUDIO>;
+				#sound-dai-cells = <0>;
+				status = "disabled";
+			};
+
+			sspa1: audio-controller@d42a0d00 {
+				compatible = "marvell,mmp-sspa";
+				reg = <0xd42a0d00 0x30>,
+				      <0xd42a0d80 0x30>;
+				interrupts = <3>;
+				clock-names = "audio", "bitclk";
+				clocks = <&soc_clocks MMP2_CLK_AUDIO>,
+					 <&audio_clk 2>;
+				power-domains = <&soc_clocks MMP2_POWER_DOMAIN_AUDIO>;
+				#sound-dai-cells = <0>;
+				status = "disabled";
+			};
 		};
 
 		apb@d4000000 {	/* APB */
