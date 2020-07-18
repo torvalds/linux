@@ -7670,12 +7670,12 @@ static void io_destroy_buffers(struct io_ring_ctx *ctx)
 static void io_ring_ctx_free(struct io_ring_ctx *ctx)
 {
 	io_finish_async(ctx);
+	io_sqe_buffer_unregister(ctx);
 	if (ctx->sqo_mm) {
 		mmdrop(ctx->sqo_mm);
 		ctx->sqo_mm = NULL;
 	}
 
-	io_sqe_buffer_unregister(ctx);
 	io_sqe_files_unregister(ctx);
 	io_eventfd_unregister(ctx);
 	io_destroy_buffers(ctx);
