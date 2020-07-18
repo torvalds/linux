@@ -367,10 +367,8 @@ void hsr_forward_skb(struct sk_buff *skb, struct hsr_port *port)
 		port->dev->stats.tx_bytes += skb->len;
 	}
 
-	if (frame.skb_hsr)
-		kfree_skb(frame.skb_hsr);
-	if (frame.skb_std)
-		kfree_skb(frame.skb_std);
+	kfree_skb(frame.skb_hsr);
+	kfree_skb(frame.skb_std);
 	return;
 
 out_drop:
