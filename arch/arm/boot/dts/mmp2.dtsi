@@ -192,6 +192,24 @@
 				clock-output-names = "mclk";
 				status = "disabled";
 			};
+
+			adma0: dma-controller@d42a0800 {
+				compatible = "marvell,adma-1.0";
+				reg = <0xd42a0800 0x100>;
+				interrupts = <48>;
+				#dma-cells = <1>;
+				asram = <&asram>;
+				iram = <&asram>;
+				status = "disabled";
+			};
+
+			adma1: dma-controller@d42a0900 {
+				compatible = "marvell,adma-1.0";
+				reg = <0xd42a0900 0x100>;
+				interrupts = <48>;
+				#dma-cells = <1>;
+				status = "disabled";
+			};
 		};
 
 		apb@d4000000 {	/* APB */
@@ -200,6 +218,14 @@
 			#size-cells = <1>;
 			reg = <0xd4000000 0x00200000>;
 			ranges;
+
+			dma-controller@d4000000 {
+				compatible = "marvell,pdma-1.0";
+				reg = <0xd4000000 0x10000>;
+				interrupts = <48>;
+				#dma-channels = <16>;
+				status = "disabled";
+			};
 
 			timer0: timer@d4014000 {
 				compatible = "mrvl,mmp-timer";
