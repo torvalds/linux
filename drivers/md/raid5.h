@@ -481,23 +481,6 @@ struct disk_info {
 #define HASH_MASK		(NR_HASH - 1)
 #define MAX_STRIPE_BATCH	8
 
-/* bio's attached to a stripe+device for I/O are linked together in bi_sector
- * order without overlap.  There may be several bio's per stripe+device, and
- * a bio could span several devices.
- * When walking this list for a particular stripe+device, we must never proceed
- * beyond a bio that extends past this device, as the next bio might no longer
- * be valid.
- * This function is used to determine the 'next' bio in the list, given the
- * sector of the current stripe+device
- */
-static inline struct bio *r5_next_bio(struct bio *bio, sector_t sector)
-{
-	if (bio_end_sector(bio) < sector + STRIPE_SECTORS)
-		return bio->bi_next;
-	else
-		return NULL;
-}
-
 /* NOTE NR_STRIPE_HASH_LOCKS must remain below 64.
  * This is because we sometimes take all the spinlocks
  * and creating that much locking depth can cause
@@ -690,6 +673,26 @@ struct r5conf {
 	struct r5pending_data	*next_pending_data;
 };
 
+#define RAID5_STRIPE_SIZE(conf)       STRIPE_SIZE
+#define RAID5_STRIPE_SHIFT(conf)      STRIPE_SHIFT
+#define RAID5_STRIPE_SECTORS(conf)    STRIPE_SECTORS
+
+/* bio's attached to a stripe+device for I/O are linked together in bi_sector
+ * order without overlap.  There may be several bio's per stripe+device, and
+ * a bio could span several devices.
+ * When walking this list for a particular stripe+device, we must never proceed
+ * beyond a bio that extends past this device, as the next bio might no longer
+ * be valid.
+ * This function is used to determine the 'next' bio in the list, given the
+ * sector of the current stripe+device
+ */
+static inline struct bio *r5_next_bio(struct r5conf *conf, struct bio *bio, sector_t sector)
+{
+	if (bio_end_sector(bio) < sector + RAID5_STRIPE_SECTORS(conf))
+		return bio->bi_next;
+	else
+		return NULL;
+}
 
 /*
  * Our supported algorithms
