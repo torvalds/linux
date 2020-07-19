@@ -4214,11 +4214,9 @@ static int sctp_setsockopt_interleaving_supported(struct sock *sk,
 	return 0;
 }
 
-static int sctp_setsockopt_reuse_port(struct sock *sk, char __user *optval,
+static int sctp_setsockopt_reuse_port(struct sock *sk, int *val,
 				      unsigned int optlen)
 {
-	int val;
-
 	if (!sctp_style(sk, TCP))
 		return -EOPNOTSUPP;
 
@@ -4228,10 +4226,7 @@ static int sctp_setsockopt_reuse_port(struct sock *sk, char __user *optval,
 	if (optlen < sizeof(int))
 		return -EINVAL;
 
-	if (get_user(val, (int __user *)optval))
-		return -EFAULT;
-
-	sctp_sk(sk)->reuse = !!val;
+	sctp_sk(sk)->reuse = !!*val;
 
 	return 0;
 }
@@ -4645,7 +4640,7 @@ static int sctp_setsockopt(struct sock *sk, int level, int optname,
 								optlen);
 		break;
 	case SCTP_REUSE_PORT:
-		retval = sctp_setsockopt_reuse_port(sk, optval, optlen);
+		retval = sctp_setsockopt_reuse_port(sk, kopt, optlen);
 		break;
 	case SCTP_EVENT:
 		retval = sctp_setsockopt_event(sk, optval, optlen);
