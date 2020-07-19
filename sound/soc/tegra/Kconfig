@@ -62,6 +62,16 @@ config SND_SOC_TEGRA30_I2S
 	  Tegra30 I2S interface. You will also need to select the individual
 	  machine drivers to support below.
 
+config SND_SOC_TEGRA210_AHUB
+	tristate "Tegra210 AHUB module"
+	depends on SND_SOC_TEGRA
+	help
+	  Config to enable Audio Hub (AHUB) module, which comprises of a
+	  switch called Audio Crossbar (AXBAR) used to configure or modify
+	  the audio routing path between various HW accelerators present in
+	  AHUB.
+	  Say Y or M if you want to add support for Tegra210 AHUB module.
+
 config SND_SOC_TEGRA210_DMIC
 	tristate "Tegra210 DMIC module"
 	depends on SND_SOC_TEGRA
