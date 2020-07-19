@@ -115,7 +115,7 @@ struct metric_ref_node {
 	struct list_head list;
 };
 
-struct egroup {
+struct metric {
 	struct list_head nd;
 	struct expr_parse_ctx pctx;
 	const char *metric_name;
@@ -262,7 +262,7 @@ static int metricgroup__setup_events(struct list_head *groups,
 	struct metric_expr *expr;
 	int i = 0;
 	int ret = 0;
-	struct egroup *eg;
+	struct metric *m;
 	struct evsel *evsel, *tmp;
 	unsigned long *evlist_used;
 
@@ -270,23 +270,23 @@ static int metricgroup__setup_events(struct list_head *groups,
 	if (!evlist_used)
 		return -ENOMEM;
 
-	list_for_each_entry (eg, groups, nd) {
+	list_for_each_entry (m, groups, nd) {
 		struct evsel **metric_events;
 		struct metric_ref *metric_refs = NULL;
 
 		metric_events = calloc(sizeof(void *),
-				hashmap__size(&eg->pctx.ids) + 1);
+				hashmap__size(&m->pctx.ids) + 1);
 		if (!metric_events) {
 			ret = -ENOMEM;
 			break;
 		}
-		evsel = find_evsel_group(perf_evlist, &eg->pctx,
+		evsel = find_evsel_group(perf_evlist, &m->pctx,
 					 metric_no_merge,
-					 eg->has_constraint, metric_events,
+					 m->has_constraint, metric_events,
 					 evlist_used);
 		if (!evsel) {
 			pr_debug("Cannot resolve %s: %s\n",
-					eg->metric_name, eg->metric_expr);
+					m->metric_name, m->metric_expr);
 			free(metric_events);
 			continue;
 		}
@@ -309,10 +309,10 @@ static int metricgroup__setup_events(struct list_head *groups,
 		 * Collect and store collected nested expressions
 		 * for metric processing.
 		 */
-		if (eg->metric_refs_cnt) {
+		if (m->metric_refs_cnt) {
 			struct metric_ref_node *ref;
 
-			metric_refs = zalloc(sizeof(struct metric_ref) * (eg->metric_refs_cnt + 1));
+			metric_refs = zalloc(sizeof(struct metric_ref) * (m->metric_refs_cnt + 1));
 			if (!metric_refs) {
 				ret = -ENOMEM;
 				free(metric_events);
@@ -320,7 +320,7 @@ static int metricgroup__setup_events(struct list_head *groups,
 			}
 
 			i = 0;
-			list_for_each_entry(ref, &eg->metric_refs, list) {
+			list_for_each_entry(ref, &m->metric_refs, list) {
 				/*
 				 * Intentionally passing just const char pointers,
 				 * originally from 'struct pmu_event' object.
@@ -334,11 +334,11 @@ static int metricgroup__setup_events(struct list_head *groups,
 		};
 
 		expr->metric_refs = metric_refs;
-		expr->metric_expr = eg->metric_expr;
-		expr->metric_name = eg->metric_name;
-		expr->metric_unit = eg->metric_unit;
+		expr->metric_expr = m->metric_expr;
+		expr->metric_name = m->metric_name;
+		expr->metric_unit = m->metric_unit;
 		expr->metric_events = metric_events;
-		expr->runtime = eg->runtime;
+		expr->runtime = m->runtime;
 		list_add(&expr->nd, &me->head);
 	}
 
@@ -643,41 +643,41 @@ static int __add_metric(struct list_head *group_list,
 			struct pmu_event *pe,
 			bool metric_no_group,
 			int runtime,
-			struct egroup **egp,
+			struct metric **mp,
 			struct expr_id *parent,
 			struct expr_ids *ids)
 {
 	struct metric_ref_node *ref;
-	struct egroup *eg;
+	struct metric *m;
 
-	if (*egp == NULL) {
+	if (*mp == NULL) {
 		/*
 		 * We got in here for the parent group,
 		 * allocate it and put it on the list.
 		 */
-		eg = zalloc(sizeof(*eg));
-		if (!eg)
+		m = zalloc(sizeof(*m));
+		if (!m)
 			return -ENOMEM;
 
-		expr__ctx_init(&eg->pctx);
-		eg->metric_name = pe->metric_name;
-		eg->metric_expr = pe->metric_expr;
-		eg->metric_unit = pe->unit;
-		eg->runtime = runtime;
-		eg->has_constraint = metric_no_group || metricgroup__has_constraint(pe);
-		INIT_LIST_HEAD(&eg->metric_refs);
-		eg->metric_refs_cnt = 0;
-		*egp = eg;
+		expr__ctx_init(&m->pctx);
+		m->metric_name = pe->metric_name;
+		m->metric_expr = pe->metric_expr;
+		m->metric_unit = pe->unit;
+		m->runtime = runtime;
+		m->has_constraint = metric_no_group || metricgroup__has_constraint(pe);
+		INIT_LIST_HEAD(&m->metric_refs);
+		m->metric_refs_cnt = 0;
+		*mp = m;
 
 		parent = expr_ids__alloc(ids);
 		if (!parent) {
-			free(eg);
+			free(m);
 			return -EINVAL;
 		}
 
 		parent->id = strdup(pe->metric_name);
 		if (!parent->id) {
-			free(eg);
+			free(m);
 			return -ENOMEM;
 		}
 	} else {
@@ -686,7 +686,7 @@ static int __add_metric(struct list_head *group_list,
 		 * recursive metricgroup__add_metric call, add
 		 * it to the parent group.
 		 */
-		eg = *egp;
+		m = *mp;
 
 		ref = malloc(sizeof(*ref));
 		if (!ref)
@@ -701,21 +701,21 @@ static int __add_metric(struct list_head *group_list,
 		ref->metric_name = pe->metric_name;
 		ref->metric_expr = pe->metric_expr;
 
-		list_add(&ref->list, &eg->metric_refs);
-		eg->metric_refs_cnt++;
+		list_add(&ref->list, &m->metric_refs);
+		m->metric_refs_cnt++;
 	}
 
 	/* Force all found IDs in metric to have us as parent ID. */
 	WARN_ON_ONCE(!parent);
-	eg->pctx.parent = parent;
+	m->pctx.parent = parent;
 
 	/*
 	 * For both the parent and referenced metrics, we parse
 	 * all the metric's IDs and add it to the parent context.
 	 */
-	if (expr__find_other(pe->metric_expr, NULL, &eg->pctx, runtime) < 0) {
-		expr__ctx_clear(&eg->pctx);
-		free(eg);
+	if (expr__find_other(pe->metric_expr, NULL, &m->pctx, runtime) < 0) {
+		expr__ctx_clear(&m->pctx);
+		free(m);
 		return -EINVAL;
 	}
 
@@ -723,23 +723,23 @@ static int __add_metric(struct list_head *group_list,
 	 * We add new group only in the 'parent' call,
 	 * so bail out for referenced metric case.
 	 */
-	if (eg->metric_refs_cnt)
+	if (m->metric_refs_cnt)
 		return 0;
 
 	if (list_empty(group_list))
-		list_add(&eg->nd, group_list);
+		list_add(&m->nd, group_list);
 	else {
 		struct list_head *pos;
 
 		/* Place the largest groups at the front. */
 		list_for_each_prev(pos, group_list) {
-			struct egroup *old = list_entry(pos, struct egroup, nd);
+			struct metric *old = list_entry(pos, struct metric, nd);
 
-			if (hashmap__size(&eg->pctx.ids) <=
+			if (hashmap__size(&m->pctx.ids) <=
 			    hashmap__size(&old->pctx.ids))
 				break;
 		}
-		list_add(&eg->nd, pos);
+		list_add(&m->nd, pos);
 	}
 
 	return 0;
@@ -769,7 +769,7 @@ static struct pmu_event *find_metric(const char *metric, struct pmu_events_map *
 	return NULL;
 }
 
-static int recursion_check(struct egroup *eg, const char *id, struct expr_id **parent,
+static int recursion_check(struct metric *m, const char *id, struct expr_id **parent,
 			   struct expr_ids *ids)
 {
 	struct expr_id_data *data;
@@ -782,7 +782,7 @@ static int recursion_check(struct egroup *eg, const char *id, struct expr_id **p
 	 * if we already processed 'id', if we did, it's recursion
 	 * and we fail.
 	 */
-	ret = expr__get_id(&eg->pctx, id, &data);
+	ret = expr__get_id(&m->pctx, id, &data);
 	if (ret)
 		return ret;
 
@@ -816,11 +816,11 @@ static int recursion_check(struct egroup *eg, const char *id, struct expr_id **p
 static int add_metric(struct list_head *group_list,
 		      struct pmu_event *pe,
 		      bool metric_no_group,
-		      struct egroup **egp,
+		      struct metric **mp,
 		      struct expr_id *parent,
 		      struct expr_ids *ids);
 
-static int __resolve_metric(struct egroup *eg,
+static int __resolve_metric(struct metric *m,
 			    bool metric_no_group,
 			    struct list_head *group_list,
 			    struct pmu_events_map *map,
@@ -837,7 +837,7 @@ static int __resolve_metric(struct egroup *eg,
 	 */
 	do {
 		all = true;
-		hashmap__for_each_entry((&eg->pctx.ids), cur, bkt) {
+		hashmap__for_each_entry((&m->pctx.ids), cur, bkt) {
 			struct expr_id *parent;
 			struct pmu_event *pe;
 
@@ -845,16 +845,16 @@ static int __resolve_metric(struct egroup *eg,
 			if (!pe)
 				continue;
 
-			ret = recursion_check(eg, cur->key, &parent, ids);
+			ret = recursion_check(m, cur->key, &parent, ids);
 			if (ret)
 				return ret;
 
 			all = false;
 			/* The metric key itself needs to go out.. */
-			expr__del_id(&eg->pctx, cur->key);
+			expr__del_id(&m->pctx, cur->key);
 
 			/* ... and it gets resolved to the parent context. */
-			ret = add_metric(group_list, pe, metric_no_group, &eg, parent, ids);
+			ret = add_metric(group_list, pe, metric_no_group, &m, parent, ids);
 			if (ret)
 				return ret;
 
@@ -874,11 +874,11 @@ static int resolve_metric(bool metric_no_group,
 			  struct pmu_events_map *map,
 			  struct expr_ids *ids)
 {
-	struct egroup *eg;
+	struct metric *m;
 	int err;
 
-	list_for_each_entry(eg, metric_list, nd) {
-		err = __resolve_metric(eg, metric_no_group, metric_list, map, ids);
+	list_for_each_entry(m, metric_list, nd) {
+		err = __resolve_metric(m, metric_no_group, metric_list, map, ids);
 		if (err)
 			return err;
 	}
@@ -888,17 +888,17 @@ static int resolve_metric(bool metric_no_group,
 static int add_metric(struct list_head *group_list,
 		      struct pmu_event *pe,
 		      bool metric_no_group,
-		      struct egroup **egp,
+		      struct metric **m,
 		      struct expr_id *parent,
 		      struct expr_ids *ids)
 {
-	struct egroup *orig = *egp;
+	struct metric *orig = *m;
 	int ret = 0;
 
 	pr_debug("metric expr %s for %s\n", pe->metric_expr, pe->metric_name);
 
 	if (!strstr(pe->metric_expr, "?")) {
-		ret = __add_metric(group_list, pe, metric_no_group, 1, egp, parent, ids);
+		ret = __add_metric(group_list, pe, metric_no_group, 1, m, parent, ids);
 	} else {
 		int j, count;
 
@@ -909,8 +909,8 @@ static int add_metric(struct list_head *group_list,
 		 * those events to group_list.
 		 */
 
-		for (j = 0; j < count && !ret; j++, *egp = orig)
-			ret = __add_metric(group_list, pe, metric_no_group, j, egp, parent, ids);
+		for (j = 0; j < count && !ret; j++, *m = orig)
+			ret = __add_metric(group_list, pe, metric_no_group, j, m, parent, ids);
 	}
 
 	return ret;
@@ -923,16 +923,16 @@ static int metricgroup__add_metric(const char *metric, bool metric_no_group,
 {
 	struct expr_ids ids = { .cnt = 0, };
 	struct pmu_event *pe;
-	struct egroup *eg;
+	struct metric *m;
 	LIST_HEAD(list);
 	int i, ret;
 	bool has_match = false;
 
 	map_for_each_metric(pe, i, map, metric) {
 		has_match = true;
-		eg = NULL;
+		m = NULL;
 
-		ret = add_metric(&list, pe, metric_no_group, &eg, NULL, &ids);
+		ret = add_metric(&list, pe, metric_no_group, &m, NULL, &ids);
 		if (ret)
 			return ret;
 
@@ -950,16 +950,16 @@ static int metricgroup__add_metric(const char *metric, bool metric_no_group,
 	if (!has_match)
 		return -EINVAL;
 
-	list_for_each_entry(eg, &list, nd) {
+	list_for_each_entry(m, &list, nd) {
 		if (events->len > 0)
 			strbuf_addf(events, ",");
 
-		if (eg->has_constraint) {
+		if (m->has_constraint) {
 			metricgroup__add_metric_non_group(events,
-							  &eg->pctx);
+							  &m->pctx);
 		} else {
 			metricgroup__add_metric_weak_group(events,
-							   &eg->pctx);
+							   &m->pctx);
 		}
 	}
 
@@ -1001,25 +1001,25 @@ static int metricgroup__add_metric_list(const char *list, bool metric_no_group,
 	return ret;
 }
 
-static void egroup__free_refs(struct egroup *egroup)
+static void metric__free_refs(struct metric *metric)
 {
 	struct metric_ref_node *ref, *tmp;
 
-	list_for_each_entry_safe(ref, tmp, &egroup->metric_refs, list) {
+	list_for_each_entry_safe(ref, tmp, &metric->metric_refs, list) {
 		list_del(&ref->list);
 		free(ref);
 	}
 }
 
-static void metricgroup__free_egroups(struct list_head *group_list)
+static void metricgroup__free_metrics(struct list_head *group_list)
 {
-	struct egroup *eg, *egtmp;
+	struct metric *m, *tmp;
 
-	list_for_each_entry_safe (eg, egtmp, group_list, nd) {
-		egroup__free_refs(eg);
-		expr__ctx_clear(&eg->pctx);
-		list_del_init(&eg->nd);
-		free(eg);
+	list_for_each_entry_safe (m, tmp, group_list, nd) {
+		metric__free_refs(m);
+		expr__ctx_clear(&m->pctx);
+		list_del_init(&m->nd);
+		free(m);
 	}
 }
 
@@ -1052,7 +1052,7 @@ static int parse_groups(struct evlist *perf_evlist, const char *str,
 	ret = metricgroup__setup_events(&group_list, metric_no_merge,
 					perf_evlist, metric_events);
 out:
-	metricgroup__free_egroups(&group_list);
+	metricgroup__free_metrics(&group_list);
 	return ret;
 }
 
