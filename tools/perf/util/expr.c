@@ -47,6 +47,8 @@ int expr__add_id_val(struct expr_parse_ctx *ctx, const char *id, double val)
 	}
 	ret = hashmap__set(&ctx->ids, id, data_ptr,
 			   (const void **)&old_key, (void **)&old_data);
+	if (ret)
+		free(data_ptr);
 	free(old_key);
 	free(old_data);
 	return ret;
