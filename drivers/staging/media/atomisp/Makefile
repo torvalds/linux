@@ -156,6 +156,7 @@ atomisp-objs += \
 	pci/hive_isp_css_common/host/timed_ctrl.o \
 	pci/hive_isp_css_common/host/vmem.o \
 	pci/hive_isp_css_shared/host/tag.o \
+	pci/system_local.o \
 
 obj-byt = \
 	pci/css_2400_system/hive/ia_css_isp_configs.o \
