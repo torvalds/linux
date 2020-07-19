@@ -4677,6 +4677,7 @@ out:
 static int sctp_setsockopt(struct sock *sk, int level, int optname,
 			   char __user *optval, unsigned int optlen)
 {
+	void *kopt = NULL;
 	int retval = 0;
 
 	pr_debug("%s: sk:%p, optname:%d\n", __func__, sk, optname);
@@ -4691,6 +4692,12 @@ static int sctp_setsockopt(struct sock *sk, int level, int optname,
 		struct sctp_af *af = sctp_sk(sk)->pf->af;
 		retval = af->setsockopt(sk, level, optname, optval, optlen);
 		goto out_nounlock;
+	}
+
+	if (optlen > 0) {
+		kopt = memdup_user(optval, optlen);
+		if (IS_ERR(kopt))
+			return PTR_ERR(kopt);
 	}
 
 	lock_sock(sk);
@@ -4878,6 +4885,7 @@ static int sctp_setsockopt(struct sock *sk, int level, int optname,
 	}
 
 	release_sock(sk);
+	kfree(kopt);
 
 out_nounlock:
 	return retval;
