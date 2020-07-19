@@ -8,6 +8,7 @@
 #include <uapi/misc/habanalabs.h>
 #include "habanalabs.h"
 
+#include <linux/kernel.h>
 #include <linux/fs.h>
 #include <linux/uaccess.h>
 #include <linux/slab.h>
@@ -314,7 +315,7 @@ static int clk_throttle_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 static int cs_counters_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 {
 	struct hl_device *hdev = hpriv->hdev;
-	struct hl_info_cs_counters cs_counters = {0};
+	struct hl_info_cs_counters cs_counters = { {0} };
 	u32 max_size = args->return_size;
 	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
 
@@ -330,6 +331,30 @@ static int cs_counters_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 
 	return copy_to_user(out, &cs_counters,
 		min((size_t) max_size, sizeof(cs_counters))) ? -EFAULT : 0;
+}
+
+static int sync_manager_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
+{
+	struct hl_device *hdev = hpriv->hdev;
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	struct hl_info_sync_manager sm_info = {0};
+	u32 max_size = args->return_size;
+	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
+
+	if ((!max_size) || (!out))
+		return -EINVAL;
+
+	if (args->dcore_id >= HL_MAX_DCORES)
+		return -EINVAL;
+
+	sm_info.first_available_sync_object =
+			prop->first_available_user_sob[args->dcore_id];
+	sm_info.first_available_monitor =
+			prop->first_available_user_mon[args->dcore_id];
+
+
+	return copy_to_user(out, &sm_info, min_t(size_t, (size_t) max_size,
+			sizeof(sm_info))) ? -EFAULT : 0;
 }
 
 static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
@@ -400,6 +425,9 @@ static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 
 	case HL_INFO_CLK_THROTTLE_REASON:
 		return clk_throttle_info(hpriv, args);
+
+	case HL_INFO_SYNC_MANAGER:
+		return sync_manager_info(hpriv, args);
 
 	default:
 		dev_err(dev, "Invalid request %d\n", args->op);

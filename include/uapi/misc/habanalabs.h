@@ -266,6 +266,7 @@ enum hl_device_status {
  * HL_INFO_CS_COUNTERS   - Retrieve command submission counters
  * HL_INFO_PCI_COUNTERS  - Retrieve PCI counters
  * HL_INFO_CLK_THROTTLE_REASON - Retrieve clock throttling reason
+ * HL_INFO_SYNC_MANAGER  - Retrieve sync manager info per dcore
  */
 #define HL_INFO_HW_IP_INFO		0
 #define HL_INFO_HW_EVENTS		1
@@ -280,6 +281,7 @@ enum hl_device_status {
 #define HL_INFO_CS_COUNTERS		11
 #define HL_INFO_PCI_COUNTERS		12
 #define HL_INFO_CLK_THROTTLE_REASON	13
+#define HL_INFO_SYNC_MANAGER		14
 
 #define HL_INFO_VERSION_MAX_LEN	128
 #define HL_INFO_CARD_NAME_MAX_LEN	16
@@ -368,6 +370,16 @@ struct hl_info_clk_throttle {
 };
 
 /**
+ * struct hl_info_sync_manager - sync manager information
+ * @first_available_sync_object: first available sob
+ * @first_available_monitor: first available monitor
+ */
+struct hl_info_sync_manager {
+	__u32 first_available_sync_object;
+	__u32 first_available_monitor;
+};
+
+/**
  * struct hl_info_cs_counters - command submission counters
  * @out_of_mem_drop_cnt: dropped due to memory allocation issue
  * @parsing_drop_cnt: dropped due to error in packet parsing
@@ -386,6 +398,13 @@ struct hl_info_cs_counters {
 	struct hl_cs_counters ctx_cs_counters;
 };
 
+enum gaudi_dcores {
+	HL_GAUDI_WS_DCORE,
+	HL_GAUDI_WN_DCORE,
+	HL_GAUDI_EN_DCORE,
+	HL_GAUDI_ES_DCORE
+};
+
 struct hl_info_args {
 	/* Location of relevant struct in userspace */
 	__u64 return_pointer;
@@ -402,6 +421,10 @@ struct hl_info_args {
 	__u32 op;
 
 	union {
+		/* Dcore id for which the information is relevant.
+		 * For Gaudi refer to 'enum gaudi_dcores'
+		 */
+		__u32 dcore_id;
 		/* Context ID - Currently not in use */
 		__u32 ctx_id;
 		/* Period value for utilization rate (100ms - 1000ms, in 100ms

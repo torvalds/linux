@@ -367,6 +367,7 @@ static void gaudi_mmu_prepare(struct hl_device *hdev, u32 asid);
 static int gaudi_get_fixed_properties(struct hl_device *hdev)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	u32 num_sync_stream_queues = 0;
 	int i;
 
 	prop->max_queues = GAUDI_QUEUE_ID_SIZE;
@@ -383,6 +384,7 @@ static int gaudi_get_fixed_properties(struct hl_device *hdev)
 			prop->hw_queues_props[i].driver_only = 0;
 			prop->hw_queues_props[i].requires_kernel_cb = 1;
 			prop->hw_queues_props[i].supports_sync_stream = 1;
+			num_sync_stream_queues++;
 		} else if (gaudi_queue_type[i] == QUEUE_TYPE_CPU) {
 			prop->hw_queues_props[i].type = QUEUE_TYPE_CPU;
 			prop->hw_queues_props[i].driver_only = 1;
@@ -468,6 +470,11 @@ static int gaudi_get_fixed_properties(struct hl_device *hdev)
 					CARD_NAME_MAX_LEN);
 
 	prop->max_pending_cs = GAUDI_MAX_PENDING_CS;
+
+	prop->first_available_user_sob[HL_GAUDI_WS_DCORE] =
+			num_sync_stream_queues * HL_RSVD_SOBS;
+	prop->first_available_user_mon[HL_GAUDI_WS_DCORE] =
+			num_sync_stream_queues * HL_RSVD_MONS;
 
 	return 0;
 }

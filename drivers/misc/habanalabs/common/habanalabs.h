@@ -65,6 +65,8 @@
 
 #define HL_PCI_NUM_BARS			6
 
+#define HL_MAX_DCORES			4
+
 /**
  * struct pgt_info - MMU hop page info.
  * @node: hash linked-list node for the pgts shadow hash of pgts.
@@ -291,6 +293,8 @@ struct hl_mmu_properties {
  * @max_queues: maximum amount of queues in the system
  * @sync_stream_first_sob: first sync object available for sync stream use
  * @sync_stream_first_mon: first monitor available for sync stream use
+ * @first_available_user_sob: first sob available for the user
+ * @first_available_user_mon: first monitor available for the user
  * @tpc_enabled_mask: which TPCs are enabled.
  * @completion_queues_count: number of completion queues.
  */
@@ -337,6 +341,8 @@ struct asic_fixed_properties {
 	u32				max_queues;
 	u16				sync_stream_first_sob;
 	u16				sync_stream_first_mon;
+	u16				first_available_user_sob[HL_MAX_DCORES];
+	u16				first_available_user_mon[HL_MAX_DCORES];
 	u8				tpc_enabled_mask;
 	u8				completion_queues_count;
 };
