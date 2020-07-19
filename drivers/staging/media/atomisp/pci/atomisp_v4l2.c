@@ -1708,8 +1708,8 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 
 	pci_set_master(pdev);
 
-	err = pci_enable_msi(pdev);
-	if (err) {
+	err = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_MSI);
+	if (err < 0) {
 		dev_err(&pdev->dev, "Failed to enable msi (%d)\n", err);
 		goto enable_msi_fail;
 	}
@@ -1827,7 +1827,7 @@ register_entities_fail:
 initialize_modules_fail:
 	cpu_latency_qos_remove_request(&isp->pm_qos);
 	atomisp_msi_irq_uninit(isp);
-	pci_disable_msi(pdev);
+	pci_free_irq_vectors(pdev);
 enable_msi_fail:
 fw_validation_fail:
 	release_firmware(isp->firmware);
