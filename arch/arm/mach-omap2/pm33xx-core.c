@@ -2,7 +2,7 @@
 /*
  * AM33XX Arch Power Management Routines
  *
- * Copyright (C) 2016-2018 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2016-2018 Texas Instruments Incorporated - https://www.ti.com/
  *	Dave Gerlach
  */
 
