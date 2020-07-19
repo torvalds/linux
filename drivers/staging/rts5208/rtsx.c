@@ -283,7 +283,7 @@ static int __maybe_unused rtsx_suspend(struct device *dev_d)
 	}
 
 	if (chip->msi_en)
-		pci_disable_msi(pci);
+		pci_free_irq_vectors(pci);
 
 	device_wakeup_enable(dev_d);
 
@@ -310,7 +310,7 @@ static int __maybe_unused rtsx_resume(struct device *dev_d)
 	pci_set_master(pci);
 
 	if (chip->msi_en) {
-		if (pci_enable_msi(pci) < 0)
+		if (pci_alloc_irq_vectors(pci, 1, 1, PCI_IRQ_MSI) < 0)
 			chip->msi_en = 0;
 	}
 
@@ -347,7 +347,7 @@ static void rtsx_shutdown(struct pci_dev *pci)
 	}
 
 	if (chip->msi_en)
-		pci_disable_msi(pci);
+		pci_free_irq_vectors(pci);
 
 	pci_disable_device(pci);
 }
@@ -594,7 +594,7 @@ static void rtsx_release_resources(struct rtsx_dev *dev)
 	if (dev->irq > 0)
 		free_irq(dev->irq, (void *)dev);
 	if (dev->chip->msi_en)
-		pci_disable_msi(dev->pci);
+		pci_free_irq_vectors(dev->pci);
 	if (dev->remap_addr)
 		iounmap(dev->remap_addr);
 
@@ -881,7 +881,7 @@ static int rtsx_probe(struct pci_dev *pci,
 	dev_info(&pci->dev, "pci->irq = %d\n", pci->irq);
 
 	if (dev->chip->msi_en) {
-		if (pci_enable_msi(pci) < 0)
+		if (pci_alloc_irq_vectors(pci, 1, 1, PCI_IRQ_MSI) < 0)
 			dev->chip->msi_en = 0;
 	}
 
@@ -952,7 +952,7 @@ irq_acquire_fail:
 	dev->chip->host_cmds_ptr = NULL;
 	dev->chip->host_sg_tbl_ptr = NULL;
 	if (dev->chip->msi_en)
-		pci_disable_msi(dev->pci);
+		pci_free_irq_vectors(dev->pci);
 dma_alloc_fail:
 	iounmap(dev->remap_addr);
 ioremap_fail:
