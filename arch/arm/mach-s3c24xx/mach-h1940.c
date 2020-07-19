@@ -3,7 +3,7 @@
 // Copyright (c) 2003-2005 Simtec Electronics
 //   Ben Dooks <ben@simtec.co.uk>
 //
-// http://www.handhelds.org/projects/h1940.html
+// https://www.handhelds.org/projects/h1940.html
 
 #include <linux/kernel.h>
 #include <linux/types.h>

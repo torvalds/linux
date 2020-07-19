@@ -9,7 +9,7 @@
 // Copyright (c) 2005-2008 Christer Weinigel <christer@weinigel.se>
 //
 // There is a wiki with more information about the n30 port at
-// http://handhelds.org/moin/moin.cgi/AcerN30Documentation .
+// https://handhelds.org/moin/moin.cgi/AcerN30Documentation .
 
 #include <linux/kernel.h>
 #include <linux/types.h>

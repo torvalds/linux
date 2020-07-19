@@ -6,7 +6,7 @@
 //      Weibing <http://weibing.blogbus.com> and
 //      Michel Pollet <buserror@gmail.com>
 //
-// For product information, visit http://code.google.com/p/mini2440/
+// For product information, visit https://code.google.com/p/mini2440/
 
 #include <linux/kernel.h>
 #include <linux/types.h>
