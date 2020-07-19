@@ -2,7 +2,7 @@
 /*
  * Hardware modules present on the DRA7xx chips
  *
- * Copyright (C) 2013 Texas Instruments Incorporated - http://www.ti.com
+ * Copyright (C) 2013 Texas Instruments Incorporated - https://www.ti.com
  *
  * Paul Walmsley
  * Benoit Cousson
