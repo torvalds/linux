@@ -21,11 +21,11 @@ Supported chips:
 
     Datasheets:
 
-	http://www.onsemi.com/pub_link/Collateral/ADP4000-D.PDF
+	https://www.onsemi.com/pub_link/Collateral/ADP4000-D.PDF
 
-	http://www.onsemi.com/pub_link/Collateral/NCP4200-D.PDF
+	https://www.onsemi.com/pub_link/Collateral/NCP4200-D.PDF
 
-	http://www.onsemi.com/pub_link/Collateral/JUNE%202009-%20REV.%200.PDF
+	https://www.onsemi.com/pub_link/Collateral/JUNE%202009-%20REV.%200.PDF
 
   * Lineage Power
 
@@ -53,15 +53,15 @@ Supported chips:
 
     Datasheets:
 
-	http://www.ti.com/lit/gpn/tps40400
+	https://www.ti.com/lit/gpn/tps40400
 
-	http://www.ti.com/lit/gpn/tps544b20
+	https://www.ti.com/lit/gpn/tps544b20
 
-	http://www.ti.com/lit/gpn/tps544b25
+	https://www.ti.com/lit/gpn/tps544b25
 
-	http://www.ti.com/lit/gpn/tps544c20
+	https://www.ti.com/lit/gpn/tps544c20
 
-	http://www.ti.com/lit/gpn/tps544c25
+	https://www.ti.com/lit/gpn/tps544c25
 
   * Maxim MAX20796
 
