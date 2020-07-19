@@ -2015,7 +2015,7 @@ static int prctl_set_mm_map(int opt, const void __user *addr, unsigned long data
 		 * This may have implications in the tomoyo subsystem.
 		 */
 		if (!checkpoint_restore_ns_capable(current_user_ns()))
-			return -EINVAL;
+			return -EPERM;
 
 		error = prctl_set_mm_exe_file(mm, prctl_map.exe_fd);
 		if (error)
