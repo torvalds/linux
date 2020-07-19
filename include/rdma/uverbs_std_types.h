@@ -110,6 +110,20 @@ static inline void uobj_alloc_abort(struct ib_uobject *uobj,
 	rdma_alloc_abort_uobject(uobj, attrs, false);
 }
 
+static inline void uobj_finalize_uobj_create(struct ib_uobject *uobj,
+					     struct uverbs_attr_bundle *attrs)
+{
+	/*
+	 * Tell the core code that the write() handler has completed
+	 * initializing the object and that the core should commit or
+	 * abort this object based upon the return code from the write()
+	 * method. Similar to what uverbs_finalize_uobj_create() does for
+	 * ioctl()
+	 */
+	WARN_ON(attrs->uobject);
+	attrs->uobject = uobj;
+}
+
 static inline struct ib_uobject *
 __uobj_alloc(const struct uverbs_api_object *obj,
 	     struct uverbs_attr_bundle *attrs, struct ib_device **ib_dev)

@@ -38,7 +38,12 @@ static int UVERBS_HANDLER(UVERBS_METHOD_INVOKE_WRITE)(
 	    attrs->ucore.outlen < method_elm->resp_size)
 		return -ENOSPC;
 
-	return method_elm->handler(attrs);
+	attrs->uobject = NULL;
+	rc = method_elm->handler(attrs);
+	if (attrs->uobject)
+		uverbs_finalize_object(attrs->uobject, UVERBS_ACCESS_NEW, true,
+				       !rc, attrs);
+	return rc;
 }
 
 DECLARE_UVERBS_NAMED_METHOD(UVERBS_METHOD_INVOKE_WRITE,
