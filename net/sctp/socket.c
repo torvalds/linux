@@ -2193,20 +2193,15 @@ static int sctp_setsockopt_disable_fragments(struct sock *sk, int *val,
 	return 0;
 }
 
-static int sctp_setsockopt_events(struct sock *sk, char __user *optval,
+static int sctp_setsockopt_events(struct sock *sk, __u8 *sn_type,
 				  unsigned int optlen)
 {
-	struct sctp_event_subscribe subscribe;
-	__u8 *sn_type = (__u8 *)&subscribe;
 	struct sctp_sock *sp = sctp_sk(sk);
 	struct sctp_association *asoc;
 	int i;
 
 	if (optlen > sizeof(struct sctp_event_subscribe))
 		return -EINVAL;
-
-	if (copy_from_user(&subscribe, optval, optlen))
-		return -EFAULT;
 
 	for (i = 0; i < optlen; i++)
 		sctp_ulpevent_type_set(&sp->subscribe, SCTP_SN_TYPE_BASE + i,
@@ -4697,7 +4692,7 @@ static int sctp_setsockopt(struct sock *sk, int level, int optname,
 		break;
 
 	case SCTP_EVENTS:
-		retval = sctp_setsockopt_events(sk, optval, optlen);
+		retval = sctp_setsockopt_events(sk, kopt, optlen);
 		break;
 
 	case SCTP_AUTOCLOSE:
