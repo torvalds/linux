@@ -36,6 +36,27 @@ static struct pmu_event pme_test[] = {
 	.metric_expr	= "(dcache_miss_cpi + icache_miss_cycles)",
 	.metric_name	= "cache_miss_cycles",
 },
+{
+	.metric_expr	= "l2_rqsts.demand_data_rd_hit + l2_rqsts.pf_hit + l2_rqsts.rfo_hit",
+	.metric_name	= "DCache_L2_All_Hits",
+},
+{
+	.metric_expr	= "max(l2_rqsts.all_demand_data_rd - l2_rqsts.demand_data_rd_hit, 0) + "
+			  "l2_rqsts.pf_miss + l2_rqsts.rfo_miss",
+	.metric_name	= "DCache_L2_All_Miss",
+},
+{
+	.metric_expr	= "dcache_l2_all_hits + dcache_l2_all_miss",
+	.metric_name	= "DCache_L2_All",
+},
+{
+	.metric_expr	= "d_ratio(dcache_l2_all_hits, dcache_l2_all)",
+	.metric_name	= "DCache_L2_Hits",
+},
+{
+	.metric_expr	= "d_ratio(dcache_l2_all_miss, dcache_l2_all)",
+	.metric_name	= "DCache_L2_Misses",
+},
 };
 
 static struct pmu_events_map map = {
@@ -194,10 +215,60 @@ static int test_cache_miss_cycles(void)
 	return 0;
 }
 
+
+/*
+ * DCache_L2_All_Hits = l2_rqsts.demand_data_rd_hit + l2_rqsts.pf_hit + l2_rqsts.rfo_hi
+ * DCache_L2_All_Miss = max(l2_rqsts.all_demand_data_rd - l2_rqsts.demand_data_rd_hit, 0) +
+ *                      l2_rqsts.pf_miss + l2_rqsts.rfo_miss
+ * DCache_L2_All      = dcache_l2_all_hits + dcache_l2_all_miss
+ * DCache_L2_Hits     = d_ratio(dcache_l2_all_hits, dcache_l2_all)
+ * DCache_L2_Misses   = d_ratio(dcache_l2_all_miss, dcache_l2_all)
+ *
+ * l2_rqsts.demand_data_rd_hit = 100
+ * l2_rqsts.pf_hit             = 200
+ * l2_rqsts.rfo_hi             = 300
+ * l2_rqsts.all_demand_data_rd = 400
+ * l2_rqsts.pf_miss            = 500
+ * l2_rqsts.rfo_miss           = 600
+ *
+ * DCache_L2_All_Hits = 600
+ * DCache_L2_All_Miss = MAX(400 - 100, 0) + 500 + 600 = 1400
+ * DCache_L2_All      = 600 + 1400  = 2000
+ * DCache_L2_Hits     = 600 / 2000  = 0.3
+ * DCache_L2_Misses   = 1400 / 2000 = 0.7
+ */
+static int test_dcache_l2(void)
+{
+	double ratio;
+	struct value vals[] = {
+		{ .event = "l2_rqsts.demand_data_rd_hit", .val = 100 },
+		{ .event = "l2_rqsts.pf_hit",             .val = 200 },
+		{ .event = "l2_rqsts.rfo_hit",            .val = 300 },
+		{ .event = "l2_rqsts.all_demand_data_rd", .val = 400 },
+		{ .event = "l2_rqsts.pf_miss",            .val = 500 },
+		{ .event = "l2_rqsts.rfo_miss",           .val = 600 },
+		{ .event = NULL, },
+	};
+
+	TEST_ASSERT_VAL("failed to compute metric",
+			compute_metric("DCache_L2_Hits", vals, &ratio) == 0);
+
+	TEST_ASSERT_VAL("DCache_L2_Hits failed, wrong ratio",
+			ratio == 0.3);
+
+	TEST_ASSERT_VAL("failed to compute metric",
+			compute_metric("DCache_L2_Misses", vals, &ratio) == 0);
+
+	TEST_ASSERT_VAL("DCache_L2_Misses failed, wrong ratio",
+			ratio == 0.7);
+	return 0;
+}
+
 int test__parse_metric(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	TEST_ASSERT_VAL("IPC failed", test_ipc() == 0);
 	TEST_ASSERT_VAL("frontend failed", test_frontend() == 0);
 	TEST_ASSERT_VAL("cache_miss_cycles failed", test_cache_miss_cycles() == 0);
+	TEST_ASSERT_VAL("DCache_L2 failed", test_dcache_l2() == 0);
 	return 0;
 }
