@@ -218,8 +218,8 @@ do {									\
 	dot11txpn._byte_.TSC5 = iv[7];					\
 } while (0)
 
-#define ROL32(A, n)	(((A) << (n)) | (((A)>>(32-(n)))  & ((1UL << (n)) - 1)))
-#define ROR32(A, n)	ROL32((A), 32-(n))
+#define ROL32(A, n)	(((A) << (n)) | (((A) >> (32 - (n)))  & ((1UL << (n)) - 1)))
+#define ROR32(A, n)	ROL32((A), 32 - (n))
 
 struct mic_data {
 	u32  K0, K1;         /*  Key */
@@ -275,12 +275,12 @@ static const unsigned long K[64] = {
 
 /* Various logical functions */
 #define RORc(x, y) \
-	(((((unsigned long)(x) & 0xFFFFFFFFUL) >> (unsigned long)((y)&31)) | \
-	 ((unsigned long)(x) << (unsigned long)(32-((y)&31)))) & 0xFFFFFFFFUL)
+	(((((unsigned long)(x) & 0xFFFFFFFFUL) >> (unsigned long)((y) & 31)) | \
+	 ((unsigned long)(x) << (unsigned long)(32 - ((y) & 31)))) & 0xFFFFFFFFUL)
 #define Ch(x, y, z)       (z ^ (x & (y ^ z)))
 #define Maj(x, y, z)      (((x | y) & z) | (x & y))
 #define S(x, n)         RORc((x), (n))
-#define R(x, n)         (((x)&0xFFFFFFFFUL)>>(n))
+#define R(x, n)         (((x) & 0xFFFFFFFFUL) >> (n))
 #define Sigma0(x)       (S(x, 2) ^ S(x, 13) ^ S(x, 22))
 #define Sigma1(x)       (S(x, 6) ^ S(x, 11) ^ S(x, 25))
 #define Gamma0(x)       (S(x, 7) ^ S(x, 18) ^ R(x, 3))
