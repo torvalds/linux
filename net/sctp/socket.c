@@ -2184,20 +2184,12 @@ out:
  * exceeds the current PMTU size, the message will NOT be sent and
  * instead a error will be indicated to the user.
  */
-static int sctp_setsockopt_disable_fragments(struct sock *sk,
-					     char __user *optval,
+static int sctp_setsockopt_disable_fragments(struct sock *sk, int *val,
 					     unsigned int optlen)
 {
-	int val;
-
 	if (optlen < sizeof(int))
 		return -EINVAL;
-
-	if (get_user(val, (int __user *)optval))
-		return -EFAULT;
-
-	sctp_sk(sk)->disable_fragments = (val == 0) ? 0 : 1;
-
+	sctp_sk(sk)->disable_fragments = (*val == 0) ? 0 : 1;
 	return 0;
 }
 
@@ -4701,7 +4693,7 @@ static int sctp_setsockopt(struct sock *sk, int level, int optname,
 		break;
 
 	case SCTP_DISABLE_FRAGMENTS:
-		retval = sctp_setsockopt_disable_fragments(sk, optval, optlen);
+		retval = sctp_setsockopt_disable_fragments(sk, kopt, optlen);
 		break;
 
 	case SCTP_EVENTS:
