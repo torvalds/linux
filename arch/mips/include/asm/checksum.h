@@ -41,22 +41,6 @@ __wsum __csum_partial_copy_from_user(const void *src, void *dst,
 				     int len, __wsum sum, int *err_ptr);
 __wsum __csum_partial_copy_to_user(const void *src, void *dst,
 				   int len, __wsum sum, int *err_ptr);
-/*
- * this is a new version of the above that records errors it finds in *errp,
- * but continues and zeros the rest of the buffer.
- */
-static inline
-__wsum csum_partial_copy_from_user(const void __user *src, void *dst, int len,
-				   __wsum sum, int *err_ptr)
-{
-	might_fault();
-	if (uaccess_kernel())
-		return __csum_partial_copy_kernel((__force void *)src, dst,
-						  len, sum, err_ptr);
-	else
-		return __csum_partial_copy_from_user((__force void *)src, dst,
-						     len, sum, err_ptr);
-}
 
 #define _HAVE_ARCH_COPY_AND_CSUM_FROM_USER
 static inline
@@ -65,9 +49,12 @@ __wsum csum_and_copy_from_user(const void __user *src, void *dst, int len)
 	__wsum sum = ~0U;
 	int err = 0;
 
+	might_fault();
+
 	if (!access_ok(src, len))
 		return 0;
-	sum = csum_partial_copy_from_user(src, dst, len, sum, &err);
+	sum = __csum_partial_copy_from_user((__force void *)src, dst,
+						     len, sum, &err);
 	return err ? 0 : sum;
 }
 
@@ -84,14 +71,9 @@ __wsum csum_and_copy_to_user(const void *src, void __user *dst, int len)
 	might_fault();
 	if (!access_ok(dst, len))
 		return 0;
-	if (uaccess_kernel())
-		sum = __csum_partial_copy_kernel(src,
-						  (__force void *)dst,
-						  len, sum, &err);
-	else
-		sum = __csum_partial_copy_to_user(src,
-						   (__force void *)dst,
-						   len, sum, &err);
+	sum = __csum_partial_copy_to_user(src,
+					   (__force void *)dst,
+					   len, sum, &err);
 	return err ? 0 : sum;
 }
 
