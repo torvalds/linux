@@ -11,34 +11,14 @@
 #include <linux/packing.h>
 #include <net/pkt_sched.h>
 #include <linux/iopoll.h>
+#include <linux/mdio.h>
 #include <linux/pci.h>
 #include "felix.h"
 
 #define VSC9959_VCAP_IS2_CNT		1024
 #define VSC9959_VCAP_IS2_ENTRY_WIDTH	376
 #define VSC9959_VCAP_PORT_CNT		6
-
-/* TODO: should find a better place for these */
-#define USXGMII_BMCR_RESET		BIT(15)
-#define USXGMII_BMCR_AN_EN		BIT(12)
-#define USXGMII_BMCR_RST_AN		BIT(9)
-#define USXGMII_BMSR_LNKS(status)	(((status) & GENMASK(2, 2)) >> 2)
-#define USXGMII_BMSR_AN_CMPL(status)	(((status) & GENMASK(5, 5)) >> 5)
-#define USXGMII_ADVERTISE_LNKS(x)	(((x) << 15) & BIT(15))
-#define USXGMII_ADVERTISE_FDX		BIT(12)
-#define USXGMII_ADVERTISE_SPEED(x)	(((x) << 9) & GENMASK(11, 9))
-#define USXGMII_LPA_LNKS(lpa)		((lpa) >> 15)
-#define USXGMII_LPA_DUPLEX(lpa)		(((lpa) & GENMASK(12, 12)) >> 12)
-#define USXGMII_LPA_SPEED(lpa)		(((lpa) & GENMASK(11, 9)) >> 9)
-
 #define VSC9959_TAS_GCL_ENTRY_MAX	63
-
-enum usxgmii_speed {
-	USXGMII_SPEED_10	= 0,
-	USXGMII_SPEED_100	= 1,
-	USXGMII_SPEED_1000	= 2,
-	USXGMII_SPEED_2500	= 4,
-};
 
 static const u32 vsc9959_ana_regmap[] = {
 	REG(ANA_ADVLEARN,			0x0089a0),
@@ -845,11 +825,10 @@ static void vsc9959_pcs_config_usxgmii(struct phy_device *pcs,
 {
 	/* Configure device ability for the USXGMII Replicator */
 	phy_write_mmd(pcs, MDIO_MMD_VEND2, MII_ADVERTISE,
-		      USXGMII_ADVERTISE_SPEED(USXGMII_SPEED_2500) |
-		      USXGMII_ADVERTISE_LNKS(1) |
+		      MDIO_USXGMII_2500FULL |
+		      MDIO_USXGMII_LINK |
 		      ADVERTISE_SGMII |
-		      ADVERTISE_LPACK |
-		      USXGMII_ADVERTISE_FDX);
+		      ADVERTISE_LPACK);
 }
 
 void vsc9959_pcs_config(struct ocelot *ocelot, int port,
@@ -1063,8 +1042,8 @@ static void vsc9959_pcs_link_state_usxgmii(struct phy_device *pcs,
 		return;
 
 	pcs->autoneg = true;
-	pcs->autoneg_complete = USXGMII_BMSR_AN_CMPL(status);
-	pcs->link = USXGMII_BMSR_LNKS(status);
+	pcs->autoneg_complete = !!(status & BMSR_ANEGCOMPLETE);
+	pcs->link = !!(status & BMSR_LSTATUS);
 
 	if (!pcs->link || !pcs->autoneg_complete)
 		return;
@@ -1073,24 +1052,24 @@ static void vsc9959_pcs_link_state_usxgmii(struct phy_device *pcs,
 	if (lpa < 0)
 		return;
 
-	switch (USXGMII_LPA_SPEED(lpa)) {
-	case USXGMII_SPEED_10:
+	switch (lpa & MDIO_USXGMII_SPD_MASK) {
+	case MDIO_USXGMII_10:
 		pcs->speed = SPEED_10;
 		break;
-	case USXGMII_SPEED_100:
+	case MDIO_USXGMII_100:
 		pcs->speed = SPEED_100;
 		break;
-	case USXGMII_SPEED_1000:
+	case MDIO_USXGMII_1000:
 		pcs->speed = SPEED_1000;
 		break;
-	case USXGMII_SPEED_2500:
+	case MDIO_USXGMII_2500:
 		pcs->speed = SPEED_2500;
 		break;
 	default:
 		break;
 	}
 
-	if (USXGMII_LPA_DUPLEX(lpa))
+	if (lpa & MDIO_USXGMII_FULL_DUPLEX)
 		pcs->duplex = DUPLEX_FULL;
 	else
 		pcs->duplex = DUPLEX_HALF;
