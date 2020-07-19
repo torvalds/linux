@@ -4296,29 +4296,23 @@ static int sctp_setsockopt_event(struct sock *sk, struct sctp_event *param,
 }
 
 static int sctp_setsockopt_asconf_supported(struct sock *sk,
-					    char __user *optval,
+					    struct sctp_assoc_value *params,
 					    unsigned int optlen)
 {
-	struct sctp_assoc_value params;
 	struct sctp_association *asoc;
 	struct sctp_endpoint *ep;
 	int retval = -EINVAL;
 
-	if (optlen != sizeof(params))
+	if (optlen != sizeof(*params))
 		goto out;
 
-	if (copy_from_user(&params, optval, optlen)) {
-		retval = -EFAULT;
-		goto out;
-	}
-
-	asoc = sctp_id2assoc(sk, params.assoc_id);
-	if (!asoc && params.assoc_id != SCTP_FUTURE_ASSOC &&
+	asoc = sctp_id2assoc(sk, params->assoc_id);
+	if (!asoc && params->assoc_id != SCTP_FUTURE_ASSOC &&
 	    sctp_style(sk, UDP))
 		goto out;
 
 	ep = sctp_sk(sk)->ep;
-	ep->asconf_enable = !!params.assoc_value;
+	ep->asconf_enable = !!params->assoc_value;
 
 	if (ep->asconf_enable && ep->auth_enable) {
 		sctp_auth_ep_add_chunkid(ep, SCTP_CID_ASCONF);
@@ -4641,7 +4635,7 @@ static int sctp_setsockopt(struct sock *sk, int level, int optname,
 		retval = sctp_setsockopt_event(sk, kopt, optlen);
 		break;
 	case SCTP_ASCONF_SUPPORTED:
-		retval = sctp_setsockopt_asconf_supported(sk, optval, optlen);
+		retval = sctp_setsockopt_asconf_supported(sk, kopt, optlen);
 		break;
 	case SCTP_AUTH_SUPPORTED:
 		retval = sctp_setsockopt_auth_supported(sk, optval, optlen);
