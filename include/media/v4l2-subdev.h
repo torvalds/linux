@@ -1032,8 +1032,8 @@ static inline void *v4l2_get_subdev_hostdata(const struct v4l2_subdev *sd)
  * v4l2_subdev_get_fwnode_pad_1_to_1 - Get pad number from a subdev fwnode
  *                                     endpoint, assuming 1:1 port:pad
  *
- * @entity - Pointer to the subdev entity
- * @endpoint - Pointer to a parsed fwnode endpoint
+ * @entity: Pointer to the subdev entity
+ * @endpoint: Pointer to a parsed fwnode endpoint
  *
  * This function can be used as the .get_fwnode_pad operation for
  * subdevices that map port numbers and pad indexes 1:1. If the endpoint
