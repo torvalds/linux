@@ -73,7 +73,6 @@ static void ingenic_adc_set_config(struct ingenic_adc *adc,
 {
 	uint32_t cfg;
 
-	clk_enable(adc->clk);
 	mutex_lock(&adc->lock);
 
 	cfg = readl(adc->base + JZ_ADC_REG_CFG) & ~mask;
@@ -81,7 +80,6 @@ static void ingenic_adc_set_config(struct ingenic_adc *adc,
 	writel(cfg, adc->base + JZ_ADC_REG_CFG);
 
 	mutex_unlock(&adc->lock);
-	clk_disable(adc->clk);
 }
 
 static void ingenic_adc_enable(struct ingenic_adc *adc,
@@ -124,6 +122,8 @@ static int ingenic_adc_write_raw(struct iio_dev *iio_dev,
 				 long m)
 {
 	struct ingenic_adc *adc = iio_priv(iio_dev);
+	struct device *dev = iio_dev->dev.parent;
+	int ret;
 
 	switch (m) {
 	case IIO_CHAN_INFO_SCALE:
@@ -131,6 +131,14 @@ static int ingenic_adc_write_raw(struct iio_dev *iio_dev,
 		case INGENIC_ADC_BATTERY:
 			if (!adc->soc_data->battery_vref_mode)
 				return -EINVAL;
+
+			ret = clk_enable(adc->clk);
+			if (ret) {
+				dev_err(dev, "Failed to enable clock: %d\n",
+					ret);
+				return ret;
+			}
+
 			if (val > JZ_ADC_BATTERY_LOW_VREF) {
 				ingenic_adc_set_config(adc,
 						       JZ_ADC_REG_CFG_BAT_MD,
@@ -142,6 +150,9 @@ static int ingenic_adc_write_raw(struct iio_dev *iio_dev,
 						       JZ_ADC_REG_CFG_BAT_MD);
 				adc->low_vref_mode = true;
 			}
+
+			clk_disable(adc->clk);
+
 			return 0;
 		default:
 			return -EINVAL;
@@ -312,11 +323,19 @@ static int ingenic_adc_read_avail(struct iio_dev *iio_dev,
 	};
 }
 
-static int ingenic_adc_read_chan_info_raw(struct ingenic_adc *adc,
+static int ingenic_adc_read_chan_info_raw(struct iio_dev *iio_dev,
 					  struct iio_chan_spec const *chan,
 					  int *val)
 {
 	int bit, ret, engine = (chan->channel == INGENIC_ADC_BATTERY);
+	struct ingenic_adc *adc = iio_priv(iio_dev);
+
+	ret = clk_enable(adc->clk);
+	if (ret) {
+		dev_err(iio_dev->dev.parent, "Failed to enable clock: %d\n",
+			ret);
+		return ret;
+	}
 
 	/* We cannot sample AUX/AUX2 in parallel. */
 	mutex_lock(&adc->aux_lock);
@@ -325,7 +344,6 @@ static int ingenic_adc_read_chan_info_raw(struct ingenic_adc *adc,
 		ingenic_adc_set_config(adc, JZ_ADC_REG_CFG_AUX_MD, bit);
 	}
 
-	clk_enable(adc->clk);
 	ret = ingenic_adc_capture(adc, engine);
 	if (ret)
 		goto out;
@@ -342,8 +360,8 @@ static int ingenic_adc_read_chan_info_raw(struct ingenic_adc *adc,
 
 	ret = IIO_VAL_INT;
 out:
-	clk_disable(adc->clk);
 	mutex_unlock(&adc->aux_lock);
+	clk_disable(adc->clk);
 
 	return ret;
 }
@@ -358,7 +376,7 @@ static int ingenic_adc_read_raw(struct iio_dev *iio_dev,
 
 	switch (m) {
 	case IIO_CHAN_INFO_RAW:
-		return ingenic_adc_read_chan_info_raw(adc, chan, val);
+		return ingenic_adc_read_chan_info_raw(iio_dev, chan, val);
 	case IIO_CHAN_INFO_SCALE:
 		switch (chan->channel) {
 		case INGENIC_ADC_AUX:
