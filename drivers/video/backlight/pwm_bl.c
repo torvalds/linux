@@ -108,13 +108,8 @@ static int compute_duty_cycle(struct pwm_bl_data *pb, int brightness)
 static int pwm_backlight_update_status(struct backlight_device *bl)
 {
 	struct pwm_bl_data *pb = bl_get_data(bl);
-	int brightness = bl->props.brightness;
+	int brightness = backlight_get_brightness(bl);
 	struct pwm_state state;
-
-	if (bl->props.power != FB_BLANK_UNBLANK ||
-	    bl->props.fb_blank != FB_BLANK_UNBLANK ||
-	    bl->props.state & BL_CORE_FBBLANK)
-		brightness = 0;
 
 	if (pb->notify)
 		brightness = pb->notify(pb->dev, brightness);

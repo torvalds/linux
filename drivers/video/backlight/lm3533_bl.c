@@ -39,14 +39,8 @@ static inline int lm3533_bl_get_ctrlbank_id(struct lm3533_bl *bl)
 static int lm3533_bl_update_status(struct backlight_device *bd)
 {
 	struct lm3533_bl *bl = bl_get_data(bd);
-	int brightness = bd->props.brightness;
 
-	if (bd->props.power != FB_BLANK_UNBLANK)
-		brightness = 0;
-	if (bd->props.fb_blank != FB_BLANK_UNBLANK)
-		brightness = 0;
-
-	return lm3533_ctrlbank_set_brightness(&bl->cb, (u8)brightness);
+	return lm3533_ctrlbank_set_brightness(&bl->cb, backlight_get_brightness(bd));
 }
 
 static int lm3533_bl_get_brightness(struct backlight_device *bd)
