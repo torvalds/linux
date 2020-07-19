@@ -4,7 +4,7 @@
  *
  * Copyright 2009-2017 Analog Devices Inc.
  *
- * http://www.analog.com/ADF7242
+ * https://www.analog.com/ADF7242
  */
 
 #include <linux/kernel.h>
