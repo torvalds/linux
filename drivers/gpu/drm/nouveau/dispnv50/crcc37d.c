@@ -85,7 +85,7 @@ crcc37d_set_ctx(struct nv50_head *head, struct nv50_crc_notifier_ctx *ctx)
 	if ((ret = PUSH_WAIT(push, 2)))
 		return ret;
 
-	PUSH_NVSQ(push, NVC37D, 0x2180 + (i * 0x400), ctx ? ctx->ntfy.handle : 0);
+	PUSH_MTHD(push, NVC37D, HEAD_SET_CONTEXT_DMA_CRC(i), ctx ? ctx->ntfy.handle : 0);
 	return 0;
 }
 
