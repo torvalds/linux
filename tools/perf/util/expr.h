@@ -11,12 +11,22 @@
 #include "util/hashmap.h"
 //#endif
 
+struct metric_ref;
+
 struct expr_parse_ctx {
 	struct hashmap ids;
 };
 
 struct expr_id_data {
-	double	val;
+	union {
+		double val;
+		struct {
+			const char *metric_name;
+			const char *metric_expr;
+		} ref;
+	};
+
+	bool is_ref;
 };
 
 struct expr_scanner_ctx {
@@ -29,6 +39,7 @@ void expr__ctx_clear(struct expr_parse_ctx *ctx);
 void expr__del_id(struct expr_parse_ctx *ctx, const char *id);
 int expr__add_id(struct expr_parse_ctx *ctx, const char *id);
 int expr__add_id_val(struct expr_parse_ctx *ctx, const char *id, double val);
+int expr__add_ref(struct expr_parse_ctx *ctx, struct metric_ref *ref);
 int expr__get_id(struct expr_parse_ctx *ctx, const char *id,
 		 struct expr_id_data **data);
 int expr__parse(double *final_val, struct expr_parse_ctx *ctx,

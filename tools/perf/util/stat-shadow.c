@@ -731,13 +731,14 @@ static void print_smi_cost(struct perf_stat_config *config,
 }
 
 static int prepare_metric(struct evsel **metric_events,
+			  struct metric_ref *metric_refs,
 			  struct expr_parse_ctx *pctx,
 			  int cpu,
 			  struct runtime_stat *st)
 {
 	double scale;
 	char *n, *pn;
-	int i;
+	int i, j, ret;
 
 	expr__ctx_init(pctx);
 	for (i = 0; metric_events[i]; i++) {
@@ -778,12 +779,19 @@ static int prepare_metric(struct evsel **metric_events,
 			expr__add_id_val(pctx, n, avg_stats(stats)*scale);
 	}
 
+	for (j = 0; metric_refs && metric_refs[j].metric_name; j++) {
+		ret = expr__add_ref(pctx, &metric_refs[j]);
+		if (ret)
+			return ret;
+	}
+
 	return i;
 }
 
 static void generic_metric(struct perf_stat_config *config,
 			   const char *metric_expr,
 			   struct evsel **metric_events,
+			   struct metric_ref *metric_refs,
 			   char *name,
 			   const char *metric_name,
 			   const char *metric_unit,
@@ -798,7 +806,7 @@ static void generic_metric(struct perf_stat_config *config,
 	int i;
 	void *ctxp = out->ctx;
 
-	i = prepare_metric(metric_events, &pctx, cpu, st);
+	i = prepare_metric(metric_events, metric_refs, &pctx, cpu, st);
 	if (i < 0)
 		return;
 
@@ -847,7 +855,7 @@ double test_generic_metric(struct metric_expr *mexp, int cpu, struct runtime_sta
 	struct expr_parse_ctx pctx;
 	double ratio;
 
-	if (prepare_metric(mexp->metric_events, &pctx, cpu, st) < 0)
+	if (prepare_metric(mexp->metric_events, mexp->metric_refs, &pctx, cpu, st) < 0)
 		return 0.;
 
 	if (expr__parse(&ratio, &pctx, mexp->metric_expr, 1))
@@ -1064,8 +1072,8 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 		else
 			print_metric(config, ctxp, NULL, NULL, name, 0);
 	} else if (evsel->metric_expr) {
-		generic_metric(config, evsel->metric_expr, evsel->metric_events, evsel->name,
-				evsel->metric_name, NULL, 1, cpu, out, st);
+		generic_metric(config, evsel->metric_expr, evsel->metric_events, NULL,
+				evsel->name, evsel->metric_name, NULL, 1, cpu, out, st);
 	} else if (runtime_stat_n(st, STAT_NSECS, 0, cpu) != 0) {
 		char unit = 'M';
 		char unit_buf[10];
@@ -1093,7 +1101,7 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 			if (num++ > 0)
 				out->new_line(config, ctxp);
 			generic_metric(config, mexp->metric_expr, mexp->metric_events,
-					evsel->name, mexp->metric_name,
+					mexp->metric_refs, evsel->name, mexp->metric_name,
 					mexp->metric_unit, mexp->runtime, cpu, out, st);
 		}
 	}

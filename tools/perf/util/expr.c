@@ -4,10 +4,14 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
+#include "metricgroup.h"
+#include "debug.h"
 #include "expr.h"
 #include "expr-bison.h"
 #include "expr-flex.h"
 #include <linux/kernel.h>
+#include <linux/zalloc.h>
+#include <ctype.h>
 
 #ifdef PARSER_DEBUG
 extern int expr_debug;
@@ -63,11 +67,61 @@ int expr__add_id_val(struct expr_parse_ctx *ctx, const char *id, double val)
 	if (!data_ptr)
 		return -ENOMEM;
 	data_ptr->val = val;
+	data_ptr->is_ref = false;
 
 	ret = hashmap__set(&ctx->ids, id, data_ptr,
 			   (const void **)&old_key, (void **)&old_data);
 	if (ret)
 		free(data_ptr);
+	free(old_key);
+	free(old_data);
+	return ret;
+}
+
+int expr__add_ref(struct expr_parse_ctx *ctx, struct metric_ref *ref)
+{
+	struct expr_id_data *data_ptr = NULL, *old_data = NULL;
+	char *old_key = NULL;
+	char *name, *p;
+	int ret;
+
+	data_ptr = zalloc(sizeof(*data_ptr));
+	if (!data_ptr)
+		return -ENOMEM;
+
+	name = strdup(ref->metric_name);
+	if (!name) {
+		free(data_ptr);
+		return -ENOMEM;
+	}
+
+	/*
+	 * The jevents tool converts all metric expressions
+	 * to lowercase, including metric references, hence
+	 * we need to add lowercase name for metric, so it's
+	 * properly found.
+	 */
+	for (p = name; *p; p++)
+		*p = tolower(*p);
+
+	/*
+	 * Intentionally passing just const char pointers,
+	 * originally from 'struct pmu_event' object.
+	 * We don't need to change them, so there's no
+	 * need to create our own copy.
+	 */
+	data_ptr->ref.metric_name = ref->metric_name;
+	data_ptr->ref.metric_expr = ref->metric_expr;
+	data_ptr->is_ref = true;
+
+	ret = hashmap__set(&ctx->ids, name, data_ptr,
+			   (const void **)&old_key, (void **)&old_data);
+	if (ret)
+		free(data_ptr);
+
+	pr_debug2("adding ref metric %s: %s\n",
+		  ref->metric_name, ref->metric_expr);
+
 	free(old_key);
 	free(old_data);
 	return ret;
