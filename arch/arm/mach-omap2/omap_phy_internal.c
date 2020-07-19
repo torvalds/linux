@@ -3,7 +3,7 @@
   * This file configures the internal USB PHY in OMAP4430. Used
   * with TWL6030 transceiver and MUSB on OMAP4430.
   *
-  * Copyright (C) 2010 Texas Instruments Incorporated - http://www.ti.com
+  * Copyright (C) 2010 Texas Instruments Incorporated - https://www.ti.com
   * Author: Hema HK <hemahk@ti.com>
   */
 
