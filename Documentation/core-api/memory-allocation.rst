@@ -84,6 +84,50 @@ driver for a device with such restrictions, avoid using these flags.
 And even with hardware with restrictions it is preferable to use
 `dma_alloc*` APIs.
 
+GFP flags and reclaim behavior
+------------------------------
+Memory allocations may trigger direct or background reclaim and it is
+useful to understand how hard the page allocator will try to satisfy that
+or another request.
+
+  * ``GFP_KERNEL & ~__GFP_RECLAIM`` - optimistic allocation without _any_
+    attempt to free memory at all. The most light weight mode which even
+    doesn't kick the background reclaim. Should be used carefully because it
+    might deplete the memory and the next user might hit the more aggressive
+    reclaim.
+
+  * ``GFP_KERNEL & ~__GFP_DIRECT_RECLAIM`` (or ``GFP_NOWAIT``)- optimistic
+    allocation without any attempt to free memory from the current
+    context but can wake kswapd to reclaim memory if the zone is below
+    the low watermark. Can be used from either atomic contexts or when
+    the request is a performance optimization and there is another
+    fallback for a slow path.
+
+  * ``(GFP_KERNEL|__GFP_HIGH) & ~__GFP_DIRECT_RECLAIM`` (aka ``GFP_ATOMIC``) -
+    non sleeping allocation with an expensive fallback so it can access
+    some portion of memory reserves. Usually used from interrupt/bottom-half
+    context with an expensive slow path fallback.
+
+  * ``GFP_KERNEL`` - both background and direct reclaim are allowed and the
+    **default** page allocator behavior is used. That means that not costly
+    allocation requests are basically no-fail but there is no guarantee of
+    that behavior so failures have to be checked properly by callers
+    (e.g. OOM killer victim is allowed to fail currently).
+
+  * ``GFP_KERNEL | __GFP_NORETRY`` - overrides the default allocator behavior
+    and all allocation requests fail early rather than cause disruptive
+    reclaim (one round of reclaim in this implementation). The OOM killer
+    is not invoked.
+
+  * ``GFP_KERNEL | __GFP_RETRY_MAYFAIL`` - overrides the default allocator
+    behavior and all allocation requests try really hard. The request
+    will fail if the reclaim cannot make any progress. The OOM killer
+    won't be triggered.
+
+  * ``GFP_KERNEL | __GFP_NOFAIL`` - overrides the default allocator behavior
+    and all allocation requests will loop endlessly until they succeed.
+    This might be really dangerous especially for larger orders.
+
 Selecting memory allocator
 ==========================
 
