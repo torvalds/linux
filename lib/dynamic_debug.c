@@ -525,7 +525,7 @@ static int ddebug_exec_query(char *query_string, const char *modname)
    last error or number of matching callsites.  Module name is either
    in param (for boot arg) or perhaps in query string.
 */
-static int ddebug_exec_queries(char *query, const char *modname)
+int ddebug_exec_queries(char *query, const char *modname)
 {
 	char *split;
 	int i, errs = 0, exitcode = 0, rc, nfound = 0;
@@ -557,6 +557,7 @@ static int ddebug_exec_queries(char *query, const char *modname)
 		return exitcode;
 	return nfound;
 }
+EXPORT_SYMBOL_GPL(ddebug_exec_queries);
 
 #define PREFIX_SIZE 64
 
