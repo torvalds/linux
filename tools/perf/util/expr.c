@@ -79,6 +79,17 @@ int expr__get_id(struct expr_parse_ctx *ctx, const char *id,
 	return hashmap__find(&ctx->ids, id, (void **)data) ? 0 : -1;
 }
 
+void expr__del_id(struct expr_parse_ctx *ctx, const char *id)
+{
+	struct expr_id_data *old_val = NULL;
+	char *old_key = NULL;
+
+	hashmap__delete(&ctx->ids, id,
+			(const void **)&old_key, (void **)&old_val);
+	free(old_key);
+	free(old_val);
+}
+
 void expr__ctx_init(struct expr_parse_ctx *ctx)
 {
 	hashmap__init(&ctx->ids, key_hash, key_equal, NULL);
@@ -136,16 +147,10 @@ int expr__parse(double *final_val, struct expr_parse_ctx *ctx,
 int expr__find_other(const char *expr, const char *one,
 		     struct expr_parse_ctx *ctx, int runtime)
 {
-	struct expr_id_data *old_val = NULL;
-	char *old_key = NULL;
 	int ret = __expr__parse(NULL, ctx, expr, EXPR_OTHER, runtime);
 
-	if (one) {
-		hashmap__delete(&ctx->ids, one,
-				(const void **)&old_key, (void **)&old_val);
-		free(old_key);
-		free(old_val);
-	}
+	if (one)
+		expr__del_id(ctx, one);
 
 	return ret;
 }
