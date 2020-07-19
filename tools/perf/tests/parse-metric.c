@@ -57,6 +57,18 @@ static struct pmu_event pme_test[] = {
 	.metric_expr	= "d_ratio(dcache_l2_all_miss, dcache_l2_all)",
 	.metric_name	= "DCache_L2_Misses",
 },
+{
+	.metric_expr	= "ipc + m2",
+	.metric_name	= "M1",
+},
+{
+	.metric_expr	= "ipc + m1",
+	.metric_name	= "M2",
+},
+{
+	.metric_expr	= "1/m3",
+	.metric_name	= "M3",
+}
 };
 
 static struct pmu_events_map map = {
@@ -139,8 +151,8 @@ static int compute_metric(const char *name, struct value *vals, double *ratio)
 	err = metricgroup__parse_groups_test(evlist, &map, name,
 					     false, false,
 					     &metric_events);
-
-	TEST_ASSERT_VAL("failed to parse metric", err == 0);
+	if (err)
+		return err;
 
 	if (perf_evlist__alloc_stats(evlist, false))
 		return -1;
@@ -264,11 +276,29 @@ static int test_dcache_l2(void)
 	return 0;
 }
 
+static int test_recursion_fail(void)
+{
+	double ratio;
+	struct value vals[] = {
+		{ .event = "inst_retired.any",        .val = 300 },
+		{ .event = "cpu_clk_unhalted.thread", .val = 200 },
+		{ .event = NULL, },
+	};
+
+	TEST_ASSERT_VAL("failed to find recursion",
+			compute_metric("M1", vals, &ratio) == -1);
+
+	TEST_ASSERT_VAL("failed to find recursion",
+			compute_metric("M3", vals, &ratio) == -1);
+	return 0;
+}
+
 int test__parse_metric(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	TEST_ASSERT_VAL("IPC failed", test_ipc() == 0);
 	TEST_ASSERT_VAL("frontend failed", test_frontend() == 0);
 	TEST_ASSERT_VAL("cache_miss_cycles failed", test_cache_miss_cycles() == 0);
 	TEST_ASSERT_VAL("DCache_L2 failed", test_dcache_l2() == 0);
+	TEST_ASSERT_VAL("recursion fail failed", test_recursion_fail() == 0);
 	return 0;
 }
