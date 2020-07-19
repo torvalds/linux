@@ -4444,8 +4444,8 @@ static int sctp_setsockopt(struct sock *sk, int level, int optname,
 	 */
 	if (level != SOL_SCTP) {
 		struct sctp_af *af = sctp_sk(sk)->pf->af;
-		retval = af->setsockopt(sk, level, optname, optval, optlen);
-		goto out_nounlock;
+
+		return af->setsockopt(sk, level, optname, optval, optlen);
 	}
 
 	if (optlen > 0) {
@@ -4635,8 +4635,6 @@ static int sctp_setsockopt(struct sock *sk, int level, int optname,
 
 	release_sock(sk);
 	kfree(kopt);
-
-out_nounlock:
 	return retval;
 }
 
