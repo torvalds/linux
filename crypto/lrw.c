@@ -9,7 +9,7 @@
  */
 /* This implementation is checked against the test vectors in the above
  * document and by a test vector provided by Ken Buchanan at
- * http://www.mail-archive.com/stds-p1619@listserv.ieee.org/msg00173.html
+ * https://www.mail-archive.com/stds-p1619@listserv.ieee.org/msg00173.html
  *
  * The test vectors are included in the testing module tcrypt.[ch] */
 

@@ -7,7 +7,7 @@
  * Design
  * ======
  *
- * See http://www.chronox.de/jent.html
+ * See https://www.chronox.de/jent.html
  *
  * License
  * =======
@@ -47,7 +47,7 @@
 
 /*
  * This Jitterentropy RNG is based on the jitterentropy library
- * version 2.2.0 provided at http://www.chronox.de/jent.html
+ * version 2.2.0 provided at https://www.chronox.de/jent.html
  */
 
 #ifdef __OPTIMIZE__

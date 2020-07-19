@@ -940,7 +940,7 @@ static bool ecc_point_is_zero(const struct ecc_point *point)
 }
 
 /* Point multiplication algorithm using Montgomery's ladder with co-Z
- * coordinates. From http://eprint.iacr.org/2011/338.pdf
+ * coordinates. From https://eprint.iacr.org/2011/338.pdf
  */
 
 /* Double in place */
