@@ -979,9 +979,8 @@ int sctp_asconf_mgmt(struct sctp_sock *sp, struct sctp_sockaddr_entry *addrw)
  *
  * Returns 0 if ok, <0 errno code on error.
  */
-static int sctp_setsockopt_bindx_kernel(struct sock *sk,
-					struct sockaddr *addrs, int addrs_size,
-					int op)
+static int sctp_setsockopt_bindx(struct sock *sk, struct sockaddr *addrs,
+				 int addrs_size, int op)
 {
 	int err;
 	int addrcnt = 0;
@@ -991,7 +990,7 @@ static int sctp_setsockopt_bindx_kernel(struct sock *sk,
 	struct sctp_af *af;
 
 	pr_debug("%s: sk:%p addrs:%p addrs_size:%d opt:%d\n",
-		 __func__, sk, addrs, addrs_size, op);
+		 __func__, sk, addr_buf, addrs_size, op);
 
 	if (unlikely(addrs_size <= 0))
 		return -EINVAL;
@@ -1037,29 +1036,13 @@ static int sctp_setsockopt_bindx_kernel(struct sock *sk,
 	}
 }
 
-static int sctp_setsockopt_bindx(struct sock *sk,
-				 struct sockaddr __user *addrs,
-				 int addrs_size, int op)
-{
-	struct sockaddr *kaddrs;
-	int err;
-
-	kaddrs = memdup_user(addrs, addrs_size);
-	if (IS_ERR(kaddrs))
-		return PTR_ERR(kaddrs);
-	err = sctp_setsockopt_bindx_kernel(sk, kaddrs, addrs_size, op);
-	kfree(kaddrs);
-	return err;
-}
-
 static int sctp_bind_add(struct sock *sk, struct sockaddr *addrs,
 		int addrlen)
 {
 	int err;
 
 	lock_sock(sk);
-	err = sctp_setsockopt_bindx_kernel(sk, addrs, addrlen,
-					   SCTP_BINDX_ADD_ADDR);
+	err = sctp_setsockopt_bindx(sk, addrs, addrlen, SCTP_BINDX_ADD_ADDR);
 	release_sock(sk);
 	return err;
 }
@@ -4705,14 +4688,14 @@ static int sctp_setsockopt(struct sock *sk, int level, int optname,
 	switch (optname) {
 	case SCTP_SOCKOPT_BINDX_ADD:
 		/* 'optlen' is the size of the addresses buffer. */
-		retval = sctp_setsockopt_bindx(sk, (struct sockaddr __user *)optval,
-					       optlen, SCTP_BINDX_ADD_ADDR);
+		retval = sctp_setsockopt_bindx(sk, kopt, optlen,
+					       SCTP_BINDX_ADD_ADDR);
 		break;
 
 	case SCTP_SOCKOPT_BINDX_REM:
 		/* 'optlen' is the size of the addresses buffer. */
-		retval = sctp_setsockopt_bindx(sk, (struct sockaddr __user *)optval,
-					       optlen, SCTP_BINDX_REM_ADDR);
+		retval = sctp_setsockopt_bindx(sk, kopt, optlen,
+					       SCTP_BINDX_REM_ADDR);
 		break;
 
 	case SCTP_SOCKOPT_CONNECTX_OLD:
