@@ -18,6 +18,7 @@ static struct pmu_event pme_test[] = {
 {
 	.metric_expr	= "inst_retired.any / cpu_clk_unhalted.thread",
 	.metric_name	= "IPC",
+	.metric_group	= "group1",
 },
 {
 	.metric_expr	= "idq_uops_not_delivered.core / (4 * (( ( cpu_clk_unhalted.thread / 2 ) * "
@@ -35,6 +36,7 @@ static struct pmu_event pme_test[] = {
 {
 	.metric_expr	= "(dcache_miss_cpi + icache_miss_cycles)",
 	.metric_name	= "cache_miss_cycles",
+	.metric_group	= "group1",
 },
 {
 	.metric_expr	= "l2_rqsts.demand_data_rd_hit + l2_rqsts.pf_hit + l2_rqsts.rfo_hit",
@@ -127,7 +129,9 @@ static double compute_single(struct rblist *metric_events, struct evlist *evlist
 	return 0.;
 }
 
-static int compute_metric(const char *name, struct value *vals, double *ratio)
+static int __compute_metric(const char *name, struct value *vals,
+			    const char *name1, double *ratio1,
+			    const char *name2, double *ratio2)
 {
 	struct rblist metric_events = {
 		.nr_entries = 0,
@@ -166,7 +170,10 @@ static int compute_metric(const char *name, struct value *vals, double *ratio)
 	load_runtime_stat(&st, evlist, vals);
 
 	/* And execute the metric */
-	*ratio = compute_single(&metric_events, evlist, &st, name);
+	if (name1 && ratio1)
+		*ratio1 = compute_single(&metric_events, evlist, &st, name1);
+	if (name2 && ratio2)
+		*ratio2 = compute_single(&metric_events, evlist, &st, name2);
 
 	/* ... clenup. */
 	metricgroup__rblist_exit(&metric_events);
@@ -175,6 +182,18 @@ static int compute_metric(const char *name, struct value *vals, double *ratio)
 	perf_cpu_map__put(cpus);
 	evlist__delete(evlist);
 	return 0;
+}
+
+static int compute_metric(const char *name, struct value *vals, double *ratio)
+{
+	return __compute_metric(name, vals, name, ratio, NULL, NULL);
+}
+
+static int compute_metric_group(const char *name, struct value *vals,
+				const char *name1, double *ratio1,
+				const char *name2, double *ratio2)
+{
+	return __compute_metric(name, vals, name1, ratio1, name2, ratio2);
 }
 
 static int test_ipc(void)
@@ -297,6 +316,30 @@ static int test_recursion_fail(void)
 	return 0;
 }
 
+static int test_metric_group(void)
+{
+	double ratio1, ratio2;
+	struct value vals[] = {
+		{ .event = "cpu_clk_unhalted.thread", .val = 200 },
+		{ .event = "l1d-loads-misses",        .val = 300 },
+		{ .event = "l1i-loads-misses",        .val = 200 },
+		{ .event = "inst_retired.any",        .val = 400 },
+		{ .event = NULL, },
+	};
+
+	TEST_ASSERT_VAL("failed to find recursion",
+			compute_metric_group("group1", vals,
+					     "IPC", &ratio1,
+					     "cache_miss_cycles", &ratio2) == 0);
+
+	TEST_ASSERT_VAL("group IPC failed, wrong ratio",
+			ratio1 == 2.0);
+
+	TEST_ASSERT_VAL("group cache_miss_cycles failed, wrong ratio",
+			ratio2 == 1.25);
+	return 0;
+}
+
 int test__parse_metric(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	TEST_ASSERT_VAL("IPC failed", test_ipc() == 0);
@@ -304,5 +347,6 @@ int test__parse_metric(struct test *test __maybe_unused, int subtest __maybe_unu
 	TEST_ASSERT_VAL("cache_miss_cycles failed", test_cache_miss_cycles() == 0);
 	TEST_ASSERT_VAL("DCache_L2 failed", test_dcache_l2() == 0);
 	TEST_ASSERT_VAL("recursion fail failed", test_recursion_fail() == 0);
+	TEST_ASSERT_VAL("test metric group", test_metric_group() == 0);
 	return 0;
 }
