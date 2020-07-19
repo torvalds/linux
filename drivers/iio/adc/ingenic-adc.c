@@ -8,7 +8,9 @@
 
 #include <dt-bindings/iio/adc/ingenic,adc.h>
 #include <linux/clk.h>
+#include <linux/iio/buffer.h>
 #include <linux/iio/iio.h>
+#include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
 #include <linux/kernel.h>
@@ -20,18 +22,45 @@
 #define JZ_ADC_REG_CFG			0x04
 #define JZ_ADC_REG_CTRL			0x08
 #define JZ_ADC_REG_STATUS		0x0c
+#define JZ_ADC_REG_ADSAME		0x10
+#define JZ_ADC_REG_ADWAIT		0x14
 #define JZ_ADC_REG_ADTCH		0x18
 #define JZ_ADC_REG_ADBDAT		0x1c
 #define JZ_ADC_REG_ADSDAT		0x20
+#define JZ_ADC_REG_ADCMD		0x24
 #define JZ_ADC_REG_ADCLK		0x28
 
 #define JZ_ADC_REG_ENABLE_PD		BIT(7)
 #define JZ_ADC_REG_CFG_AUX_MD		(BIT(0) | BIT(1))
 #define JZ_ADC_REG_CFG_BAT_MD		BIT(4)
+#define JZ_ADC_REG_CFG_SAMPLE_NUM(n)	((n) << 10)
+#define JZ_ADC_REG_CFG_PULL_UP(n)	((n) << 16)
+#define JZ_ADC_REG_CFG_CMD_SEL		BIT(22)
+#define JZ_ADC_REG_CFG_TOUCH_OPS_MASK	(BIT(31) | GENMASK(23, 10))
 #define JZ_ADC_REG_ADCLK_CLKDIV_LSB	0
 #define JZ4725B_ADC_REG_ADCLK_CLKDIV10US_LSB	16
 #define JZ4770_ADC_REG_ADCLK_CLKDIV10US_LSB	8
 #define JZ4770_ADC_REG_ADCLK_CLKDIVMS_LSB	16
+
+#define JZ_ADC_REG_ADCMD_YNADC		BIT(7)
+#define JZ_ADC_REG_ADCMD_YPADC		BIT(8)
+#define JZ_ADC_REG_ADCMD_XNADC		BIT(9)
+#define JZ_ADC_REG_ADCMD_XPADC		BIT(10)
+#define JZ_ADC_REG_ADCMD_VREFPYP	BIT(11)
+#define JZ_ADC_REG_ADCMD_VREFPXP	BIT(12)
+#define JZ_ADC_REG_ADCMD_VREFPXN	BIT(13)
+#define JZ_ADC_REG_ADCMD_VREFPAUX	BIT(14)
+#define JZ_ADC_REG_ADCMD_VREFPVDD33	BIT(15)
+#define JZ_ADC_REG_ADCMD_VREFNYN	BIT(16)
+#define JZ_ADC_REG_ADCMD_VREFNXP	BIT(17)
+#define JZ_ADC_REG_ADCMD_VREFNXN	BIT(18)
+#define JZ_ADC_REG_ADCMD_VREFAUX	BIT(19)
+#define JZ_ADC_REG_ADCMD_YNGRU		BIT(20)
+#define JZ_ADC_REG_ADCMD_XNGRU		BIT(21)
+#define JZ_ADC_REG_ADCMD_XPGRU		BIT(22)
+#define JZ_ADC_REG_ADCMD_YPSUP		BIT(23)
+#define JZ_ADC_REG_ADCMD_XNSUP		BIT(24)
+#define JZ_ADC_REG_ADCMD_XPSUP		BIT(25)
 
 #define JZ_ADC_AUX_VREF				3300
 #define JZ_ADC_AUX_VREF_BITS			12
@@ -43,6 +72,14 @@
 #define JZ4740_ADC_BATTERY_HIGH_VREF_BITS	12
 #define JZ4770_ADC_BATTERY_VREF			6600
 #define JZ4770_ADC_BATTERY_VREF_BITS		12
+
+#define JZ_ADC_IRQ_AUX			BIT(0)
+#define JZ_ADC_IRQ_BATTERY		BIT(1)
+#define JZ_ADC_IRQ_TOUCH		BIT(2)
+#define JZ_ADC_IRQ_PEN_DOWN		BIT(3)
+#define JZ_ADC_IRQ_PEN_UP		BIT(4)
+#define JZ_ADC_IRQ_PEN_DOWN_SLEEP	BIT(5)
+#define JZ_ADC_IRQ_SLEEP		BIT(7)
 
 struct ingenic_adc;
 
@@ -68,6 +105,61 @@ struct ingenic_adc {
 	const struct ingenic_adc_soc_data *soc_data;
 	bool low_vref_mode;
 };
+
+static void ingenic_adc_set_adcmd(struct iio_dev *iio_dev, unsigned long mask)
+{
+	struct ingenic_adc *adc = iio_priv(iio_dev);
+
+	mutex_lock(&adc->lock);
+
+	/* Init ADCMD */
+	readl(adc->base + JZ_ADC_REG_ADCMD);
+
+	if (mask & 0x3) {
+		/* Second channel (INGENIC_ADC_TOUCH_YP): sample YP vs. GND */
+		writel(JZ_ADC_REG_ADCMD_XNGRU
+		       | JZ_ADC_REG_ADCMD_VREFNXN | JZ_ADC_REG_ADCMD_VREFPVDD33
+		       | JZ_ADC_REG_ADCMD_YPADC,
+		       adc->base + JZ_ADC_REG_ADCMD);
+
+		/* First channel (INGENIC_ADC_TOUCH_XP): sample XP vs. GND */
+		writel(JZ_ADC_REG_ADCMD_YNGRU
+		       | JZ_ADC_REG_ADCMD_VREFNYN | JZ_ADC_REG_ADCMD_VREFPVDD33
+		       | JZ_ADC_REG_ADCMD_XPADC,
+		       adc->base + JZ_ADC_REG_ADCMD);
+	}
+
+	if (mask & 0xc) {
+		/* Fourth channel (INGENIC_ADC_TOUCH_YN): sample YN vs. GND */
+		writel(JZ_ADC_REG_ADCMD_XNGRU
+		       | JZ_ADC_REG_ADCMD_VREFNXN | JZ_ADC_REG_ADCMD_VREFPVDD33
+		       | JZ_ADC_REG_ADCMD_YNADC,
+		       adc->base + JZ_ADC_REG_ADCMD);
+
+		/* Third channel (INGENIC_ADC_TOUCH_XN): sample XN vs. GND */
+		writel(JZ_ADC_REG_ADCMD_YNGRU
+		       | JZ_ADC_REG_ADCMD_VREFNYN | JZ_ADC_REG_ADCMD_VREFPVDD33
+		       | JZ_ADC_REG_ADCMD_XNADC,
+		       adc->base + JZ_ADC_REG_ADCMD);
+	}
+
+	if (mask & 0x30) {
+		/* Sixth channel (INGENIC_ADC_TOUCH_YD): sample YP vs. YN */
+		writel(JZ_ADC_REG_ADCMD_VREFNYN | JZ_ADC_REG_ADCMD_VREFPVDD33
+		       | JZ_ADC_REG_ADCMD_YPADC,
+		       adc->base + JZ_ADC_REG_ADCMD);
+
+		/* Fifth channel (INGENIC_ADC_TOUCH_XD): sample XP vs. XN */
+		writel(JZ_ADC_REG_ADCMD_VREFNXN | JZ_ADC_REG_ADCMD_VREFPVDD33
+		       | JZ_ADC_REG_ADCMD_XPADC,
+		       adc->base + JZ_ADC_REG_ADCMD);
+	}
+
+	/* We're done */
+	writel(0, adc->base + JZ_ADC_REG_ADCMD);
+
+	mutex_unlock(&adc->lock);
+}
 
 static void ingenic_adc_set_config(struct ingenic_adc *adc,
 				   uint32_t mask,
@@ -289,6 +381,72 @@ static const struct iio_chan_spec jz4740_channels[] = {
 
 static const struct iio_chan_spec jz4770_channels[] = {
 	{
+		.type = IIO_VOLTAGE,
+		.indexed = 1,
+		.channel = INGENIC_ADC_TOUCH_XP,
+		.scan_index = 0,
+		.scan_type = {
+			.sign = 'u',
+			.realbits = 12,
+			.storagebits = 16,
+		},
+	},
+	{
+		.type = IIO_VOLTAGE,
+		.indexed = 1,
+		.channel = INGENIC_ADC_TOUCH_YP,
+		.scan_index = 1,
+		.scan_type = {
+			.sign = 'u',
+			.realbits = 12,
+			.storagebits = 16,
+		},
+	},
+	{
+		.type = IIO_VOLTAGE,
+		.indexed = 1,
+		.channel = INGENIC_ADC_TOUCH_XN,
+		.scan_index = 2,
+		.scan_type = {
+			.sign = 'u',
+			.realbits = 12,
+			.storagebits = 16,
+		},
+	},
+	{
+		.type = IIO_VOLTAGE,
+		.indexed = 1,
+		.channel = INGENIC_ADC_TOUCH_YN,
+		.scan_index = 3,
+		.scan_type = {
+			.sign = 'u',
+			.realbits = 12,
+			.storagebits = 16,
+		},
+	},
+	{
+		.type = IIO_VOLTAGE,
+		.indexed = 1,
+		.channel = INGENIC_ADC_TOUCH_XD,
+		.scan_index = 4,
+		.scan_type = {
+			.sign = 'u',
+			.realbits = 12,
+			.storagebits = 16,
+		},
+	},
+	{
+		.type = IIO_VOLTAGE,
+		.indexed = 1,
+		.channel = INGENIC_ADC_TOUCH_YD,
+		.scan_index = 5,
+		.scan_type = {
+			.sign = 'u',
+			.realbits = 12,
+			.storagebits = 16,
+		},
+	},
+	{
 		.extend_name = "aux",
 		.type = IIO_VOLTAGE,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
@@ -491,13 +649,89 @@ static const struct iio_info ingenic_adc_info = {
 	.of_xlate = ingenic_adc_of_xlate,
 };
 
+static int ingenic_adc_buffer_enable(struct iio_dev *iio_dev)
+{
+	struct ingenic_adc *adc = iio_priv(iio_dev);
+	int ret;
+
+	ret = clk_enable(adc->clk);
+	if (ret) {
+		dev_err(iio_dev->dev.parent, "Failed to enable clock: %d\n",
+			ret);
+		return ret;
+	}
+
+	/* It takes significant time for the touchscreen hw to stabilize. */
+	msleep(50);
+	ingenic_adc_set_config(adc, JZ_ADC_REG_CFG_TOUCH_OPS_MASK,
+			       JZ_ADC_REG_CFG_SAMPLE_NUM(4) |
+			       JZ_ADC_REG_CFG_PULL_UP(4));
+
+	writew(80, adc->base + JZ_ADC_REG_ADWAIT);
+	writew(2, adc->base + JZ_ADC_REG_ADSAME);
+	writeb((u8)~JZ_ADC_IRQ_TOUCH, adc->base + JZ_ADC_REG_CTRL);
+	writel(0, adc->base + JZ_ADC_REG_ADTCH);
+
+	ingenic_adc_set_config(adc, JZ_ADC_REG_CFG_CMD_SEL,
+			       JZ_ADC_REG_CFG_CMD_SEL);
+	ingenic_adc_set_adcmd(iio_dev, iio_dev->active_scan_mask[0]);
+
+	ingenic_adc_enable(adc, 2, true);
+
+	return 0;
+}
+
+static int ingenic_adc_buffer_disable(struct iio_dev *iio_dev)
+{
+	struct ingenic_adc *adc = iio_priv(iio_dev);
+
+	ingenic_adc_enable(adc, 2, false);
+
+	ingenic_adc_set_config(adc, JZ_ADC_REG_CFG_CMD_SEL, 0);
+
+	writeb(0xff, adc->base + JZ_ADC_REG_CTRL);
+	writeb(0xff, adc->base + JZ_ADC_REG_STATUS);
+	ingenic_adc_set_config(adc, JZ_ADC_REG_CFG_TOUCH_OPS_MASK, 0);
+	writew(0, adc->base + JZ_ADC_REG_ADSAME);
+	writew(0, adc->base + JZ_ADC_REG_ADWAIT);
+	clk_disable(adc->clk);
+
+	return 0;
+}
+
+static const struct iio_buffer_setup_ops ingenic_buffer_setup_ops = {
+	.postenable = &ingenic_adc_buffer_enable,
+	.predisable = &ingenic_adc_buffer_disable
+};
+
+static irqreturn_t ingenic_adc_irq(int irq, void *data)
+{
+	struct iio_dev *iio_dev = data;
+	struct ingenic_adc *adc = iio_priv(iio_dev);
+	unsigned long mask = iio_dev->active_scan_mask[0];
+	unsigned int i;
+	u32 tdat[3];
+
+	for (i = 0; i < ARRAY_SIZE(tdat); mask >>= 2, i++) {
+		if (mask & 0x3)
+			tdat[i] = readl(adc->base + JZ_ADC_REG_ADTCH);
+		else
+			tdat[i] = 0;
+	}
+
+	iio_push_to_buffers(iio_dev, tdat);
+	writeb(JZ_ADC_IRQ_TOUCH, adc->base + JZ_ADC_REG_STATUS);
+
+	return IRQ_HANDLED;
+}
+
 static int ingenic_adc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct iio_dev *iio_dev;
 	struct ingenic_adc *adc;
 	const struct ingenic_adc_soc_data *soc_data;
-	int ret;
+	int irq, ret;
 
 	soc_data = device_get_match_data(dev);
 	if (!soc_data)
@@ -511,6 +745,17 @@ static int ingenic_adc_probe(struct platform_device *pdev)
 	mutex_init(&adc->lock);
 	mutex_init(&adc->aux_lock);
 	adc->soc_data = soc_data;
+
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
+
+	ret = devm_request_irq(dev, irq, ingenic_adc_irq, 0,
+			       dev_name(dev), iio_dev);
+	if (ret < 0) {
+		dev_err(dev, "Failed to request irq: %d\n", ret);
+		return ret;
+	}
 
 	adc->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(adc->base))
@@ -551,7 +796,8 @@ static int ingenic_adc_probe(struct platform_device *pdev)
 
 	iio_dev->dev.parent = dev;
 	iio_dev->name = "jz-adc";
-	iio_dev->modes = INDIO_DIRECT_MODE;
+	iio_dev->modes = INDIO_DIRECT_MODE | INDIO_BUFFER_SOFTWARE;
+	iio_dev->setup_ops = &ingenic_buffer_setup_ops;
 	iio_dev->channels = soc_data->channels;
 	iio_dev->num_channels = soc_data->num_channels;
 	iio_dev->info = &ingenic_adc_info;
