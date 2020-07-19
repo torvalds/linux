@@ -198,7 +198,7 @@ static int ingenic_drm_crtc_atomic_check(struct drm_crtc *crtc,
 					 struct drm_crtc_state *state)
 {
 	struct ingenic_drm *priv = drm_crtc_get_priv(crtc);
-	struct drm_plane_state *f1_state, *f0_state, *ipu_state;
+	struct drm_plane_state *f1_state, *f0_state, *ipu_state = NULL;
 	long rate;
 
 	if (!drm_atomic_crtc_needs_modeset(state))
@@ -229,7 +229,7 @@ static int ingenic_drm_crtc_atomic_check(struct drm_crtc *crtc,
 
 		/* If all the planes are disabled, we won't get a VBLANK IRQ */
 		priv->no_vblank = !f1_state->fb && !f0_state->fb &&
-				  !(priv->ipu_plane && ipu_state->fb);
+				  !(ipu_state && ipu_state->fb);
 	}
 
 	return 0;
