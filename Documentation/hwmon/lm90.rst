@@ -51,7 +51,7 @@ Supported chips:
 
     Datasheet: Publicly available at the ON Semiconductor website
 
-	       http://www.onsemi.com/PowerSolutions/product.do?id=ADM1032
+	       https://www.onsemi.com/PowerSolutions/product.do?id=ADM1032
 
   * Analog Devices ADT7461
 
@@ -61,7 +61,7 @@ Supported chips:
 
     Datasheet: Publicly available at the ON Semiconductor website
 
-	       http://www.onsemi.com/PowerSolutions/product.do?id=ADT7461
+	       https://www.onsemi.com/PowerSolutions/product.do?id=ADT7461
 
   * Analog Devices ADT7461A
 
@@ -71,7 +71,7 @@ Supported chips:
 
     Datasheet: Publicly available at the ON Semiconductor website
 
-	       http://www.onsemi.com/PowerSolutions/product.do?id=ADT7461A
+	       https://www.onsemi.com/PowerSolutions/product.do?id=ADT7461A
 
   * ON Semiconductor NCT1008
 
@@ -81,7 +81,7 @@ Supported chips:
 
     Datasheet: Publicly available at the ON Semiconductor website
 
-	       http://www.onsemi.com/PowerSolutions/product.do?id=NCT1008
+	       https://www.onsemi.com/PowerSolutions/product.do?id=NCT1008
 
   * Maxim MAX6646
 
@@ -263,7 +263,7 @@ Supported chips:
 
     Datasheet: Publicly available at TI website
 
-	       http://www.ti.com/litv/pdf/sbos686
+	       https://www.ti.com/litv/pdf/sbos686
 
 Author: Jean Delvare <jdelvare@suse.de>
 
