@@ -4193,39 +4193,25 @@ out:
 }
 
 static int sctp_setsockopt_interleaving_supported(struct sock *sk,
-						  char __user *optval,
+						  struct sctp_assoc_value *p,
 						  unsigned int optlen)
 {
 	struct sctp_sock *sp = sctp_sk(sk);
-	struct sctp_assoc_value params;
 	struct sctp_association *asoc;
-	int retval = -EINVAL;
 
-	if (optlen < sizeof(params))
-		goto out;
+	if (optlen < sizeof(*p))
+		return -EINVAL;
 
-	optlen = sizeof(params);
-	if (copy_from_user(&params, optval, optlen)) {
-		retval = -EFAULT;
-		goto out;
-	}
-
-	asoc = sctp_id2assoc(sk, params.assoc_id);
-	if (!asoc && params.assoc_id != SCTP_FUTURE_ASSOC &&
-	    sctp_style(sk, UDP))
-		goto out;
+	asoc = sctp_id2assoc(sk, p->assoc_id);
+	if (!asoc && p->assoc_id != SCTP_FUTURE_ASSOC && sctp_style(sk, UDP))
+		return -EINVAL;
 
 	if (!sock_net(sk)->sctp.intl_enable || !sp->frag_interleave) {
-		retval = -EPERM;
-		goto out;
+		return -EPERM;
 	}
 
-	sp->ep->intl_enable = !!params.assoc_value;
-
-	retval = 0;
-
-out:
-	return retval;
+	sp->ep->intl_enable = !!p->assoc_value;
+	return 0;
 }
 
 static int sctp_setsockopt_reuse_port(struct sock *sk, char __user *optval,
@@ -4655,7 +4641,7 @@ static int sctp_setsockopt(struct sock *sk, int level, int optname,
 		retval = sctp_setsockopt_scheduler_value(sk, kopt, optlen);
 		break;
 	case SCTP_INTERLEAVING_SUPPORTED:
-		retval = sctp_setsockopt_interleaving_supported(sk, optval,
+		retval = sctp_setsockopt_interleaving_supported(sk, kopt,
 								optlen);
 		break;
 	case SCTP_REUSE_PORT:
