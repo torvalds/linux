@@ -2242,7 +2242,7 @@ static int sctp_setsockopt_events(struct sock *sk, __u8 *sn_type,
  * integer defining the number of seconds of idle time before an
  * association is closed.
  */
-static int sctp_setsockopt_autoclose(struct sock *sk, char __user *optval,
+static int sctp_setsockopt_autoclose(struct sock *sk, u32 *optval,
 				     unsigned int optlen)
 {
 	struct sctp_sock *sp = sctp_sk(sk);
@@ -2253,9 +2253,8 @@ static int sctp_setsockopt_autoclose(struct sock *sk, char __user *optval,
 		return -EOPNOTSUPP;
 	if (optlen != sizeof(int))
 		return -EINVAL;
-	if (copy_from_user(&sp->autoclose, optval, optlen))
-		return -EFAULT;
 
+	sp->autoclose = *optval;
 	if (sp->autoclose > net->sctp.max_autoclose)
 		sp->autoclose = net->sctp.max_autoclose;
 
@@ -4696,7 +4695,7 @@ static int sctp_setsockopt(struct sock *sk, int level, int optname,
 		break;
 
 	case SCTP_AUTOCLOSE:
-		retval = sctp_setsockopt_autoclose(sk, optval, optlen);
+		retval = sctp_setsockopt_autoclose(sk, kopt, optlen);
 		break;
 
 	case SCTP_PEER_ADDR_PARAMS:
