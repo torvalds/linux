@@ -103,7 +103,7 @@ void smc_llc_send_link_delete_all(struct smc_link_group *lgr, bool ord,
 				  u32 rsn);
 int smc_llc_cli_add_link(struct smc_link *link, struct smc_llc_qentry *qentry);
 int smc_llc_srv_add_link(struct smc_link *link);
-void smc_llc_srv_add_link_local(struct smc_link *link);
+void smc_llc_add_link_local(struct smc_link *link);
 int smc_llc_init(void) __init;
 
 #endif /* SMC_LLC_H */
