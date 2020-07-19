@@ -2,7 +2,7 @@
 /*
  * tas2562.h - ALSA SoC Texas Instruments TAS2562 Mono Audio Amplifier
  *
- * Copyright (C) 2019 Texas Instruments Incorporated -  http://www.ti.com
+ * Copyright (C) 2019 Texas Instruments Incorporated -  https://www.ti.com
  *
  * Author: Dan Murphy <dmurphy@ti.com>
  */

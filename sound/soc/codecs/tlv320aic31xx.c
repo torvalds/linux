@@ -2,7 +2,7 @@
 /*
  * ALSA SoC TLV320AIC31xx CODEC Driver
  *
- * Copyright (C) 2014-2017 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2014-2017 Texas Instruments Incorporated - https://www.ti.com/
  *	Jyri Sarha <jsarha@ti.com>
  *
  * Based on ground work by: Ajit Kulkarni <x0175765@ti.com>
@@ -877,7 +877,7 @@ static int aic31xx_setup_pll(struct snd_soc_component *component,
 		   there may be trouble. To fix the issue edit the
 		   aic31xx_divs table for your mclk and sample
 		   rate. Details can be found from:
-		   http://www.ti.com/lit/ds/symlink/tlv320aic3100.pdf
+		   https://www.ti.com/lit/ds/symlink/tlv320aic3100.pdf
 		   Section: 5.6 CLOCK Generation and PLL
 		*/
 	}

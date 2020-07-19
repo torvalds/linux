@@ -7,7 +7,7 @@
  * Author: Christian Glindkamp <christian.glindkamp@taskit.de>
  *
  * Initial development of this code was funded by
- * MICRONIC Computer Systeme GmbH, http://www.mcsberlin.de/
+ * MICRONIC Computer Systeme GmbH, https://www.mcsberlin.de/
  */
 
 #include <linux/module.h>

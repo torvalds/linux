@@ -2,7 +2,7 @@
  *
  * ALSA SoC TAS2770 codec driver
  *
- *  Copyright (C) 2016-2017 Texas Instruments Incorporated - http://www.ti.com/
+ *  Copyright (C) 2016-2017 Texas Instruments Incorporated - https://www.ti.com/
  */
 #ifndef __TAS2770__
 #define __TAS2770__

@@ -3,7 +3,7 @@
 // ALSA SoC Texas Instruments TAS2770 20-W Digital Input Mono Class-D
 // Audio Amplifier with Speaker I/V Sense
 //
-// Copyright (C) 2016-2017 Texas Instruments Incorporated - http://www.ti.com/
+// Copyright (C) 2016-2017 Texas Instruments Incorporated - https://www.ti.com/
 //	Author: Tracy Yi <tracy-yi@ti.com>
 //	Frank Shi <shifu0704@thundersoft.com>
 

@@ -18,9 +18,9 @@ description: |
   microphone bias or supply voltage generation.
 
   Specifications can be found at:
-    http://www.ti.com/lit/ds/symlink/tlv320adc3140.pdf
-    http://www.ti.com/lit/ds/symlink/tlv320adc5140.pdf
-    http://www.ti.com/lit/ds/symlink/tlv320adc6140.pdf
+    https://www.ti.com/lit/ds/symlink/tlv320adc3140.pdf
+    https://www.ti.com/lit/ds/symlink/tlv320adc5140.pdf
+    https://www.ti.com/lit/ds/symlink/tlv320adc6140.pdf
 
 properties:
   compatible:

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 // TLV320ADCX140 Sound driver
-// Copyright (C) 2020 Texas Instruments Incorporated - http://www.ti.com/
+// Copyright (C) 2020 Texas Instruments Incorporated - https://www.ti.com/
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
