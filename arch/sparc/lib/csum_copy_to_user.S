@@ -9,14 +9,14 @@
 	.section .fixup,"ax";	\
 	.align 4;		\
 99:	retl;			\
-	 mov	-1, %o0;	\
+	 mov	0, %o0;		\
 	.section __ex_table,"a";\
 	.align 4;		\
 	.word 98b, 99b;		\
 	.text;			\
 	.align 4;
 
-#define FUNC_NAME		__csum_partial_copy_to_user
+#define FUNC_NAME		csum_and_copy_to_user
 #define STORE(type,src,addr)	type##a src, [addr] %asi
 
 #include "csum_copy.S"

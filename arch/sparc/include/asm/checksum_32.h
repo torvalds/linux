@@ -67,8 +67,6 @@ csum_and_copy_from_user(const void __user *src, void *dst, int len)
 	return csum_partial_copy_nocheck((__force void *)src, dst, len);
 }
 
-#define HAVE_CSUM_COPY_USER
-
 static inline __wsum
 csum_and_copy_to_user(const void *src, void __user *dst, int len)
 {
