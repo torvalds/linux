@@ -3594,11 +3594,10 @@ static int sctp_setsockopt_hmac_ident(struct sock *sk,
  * association shared key.
  */
 static int sctp_setsockopt_auth_key(struct sock *sk,
-				    char __user *optval,
+				    struct sctp_authkey *authkey,
 				    unsigned int optlen)
 {
 	struct sctp_endpoint *ep = sctp_sk(sk)->ep;
-	struct sctp_authkey *authkey;
 	struct sctp_association *asoc;
 	int ret = -EINVAL;
 
@@ -3608,10 +3607,6 @@ static int sctp_setsockopt_auth_key(struct sock *sk,
 	 * this.
 	 */
 	optlen = min_t(unsigned int, optlen, USHRT_MAX + sizeof(*authkey));
-
-	authkey = memdup_user(optval, optlen);
-	if (IS_ERR(authkey))
-		return PTR_ERR(authkey);
 
 	if (authkey->sca_keylength > optlen - sizeof(*authkey))
 		goto out;
@@ -3650,7 +3645,6 @@ static int sctp_setsockopt_auth_key(struct sock *sk,
 
 out:
 	memzero_explicit(authkey, optlen);
-	kfree(authkey);
 	return ret;
 }
 
@@ -4692,7 +4686,7 @@ static int sctp_setsockopt(struct sock *sk, int level, int optname,
 		retval = sctp_setsockopt_hmac_ident(sk, kopt, optlen);
 		break;
 	case SCTP_AUTH_KEY:
-		retval = sctp_setsockopt_auth_key(sk, optval, optlen);
+		retval = sctp_setsockopt_auth_key(sk, kopt, optlen);
 		break;
 	case SCTP_AUTH_ACTIVE_KEY:
 		retval = sctp_setsockopt_active_key(sk, optval, optlen);
