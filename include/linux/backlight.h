@@ -389,16 +389,6 @@ static inline int backlight_disable(struct backlight_device *bd)
 }
 
 /**
- * backlight_put - Drop backlight reference
- * @bd: the backlight device to put
- */
-static inline void backlight_put(struct backlight_device *bd)
-{
-	if (bd)
-		put_device(&bd->dev);
-}
-
-/**
  * backlight_is_blank - Return true if display is expected to be blank
  * @bd: the backlight device
  *
