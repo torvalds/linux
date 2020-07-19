@@ -62,6 +62,17 @@ config SND_SOC_TEGRA30_I2S
 	  Tegra30 I2S interface. You will also need to select the individual
 	  machine drivers to support below.
 
+config SND_SOC_TEGRA210_DMIC
+	tristate "Tegra210 DMIC module"
+	depends on SND_SOC_TEGRA
+	help
+	  Config to enable the Digital MIC (DMIC) controller which is used
+	  to interface with Pulse Density Modulation (PDM) input devices.
+	  The DMIC controller implements a converter to convert PDM signals
+	  to Pulse Code Modulation (PCM) signals. This can be viewed as a
+	  PDM receiver.
+	  Say Y or M if you want to add support for Tegra210 DMIC module.
+
 config SND_SOC_TEGRA_RT5640
 	tristate "SoC Audio support for Tegra boards using an RT5640 codec"
 	depends on SND_SOC_TEGRA && I2C && GPIOLIB
