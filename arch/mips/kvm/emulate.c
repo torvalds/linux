@@ -2123,7 +2123,7 @@ enum emulation_result kvm_mips_emulate_load(union mips_instruction inst,
 			run->mmio.phys_addr, run->mmio.len, run->mmio.data);
 
 	if (!r) {
-		kvm_mips_complete_mmio_load(vcpu, run);
+		kvm_mips_complete_mmio_load(vcpu);
 		vcpu->mmio_needed = 0;
 		return EMULATE_DONE;
 	}
