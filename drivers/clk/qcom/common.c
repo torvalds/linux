@@ -14,6 +14,7 @@
 #include <linux/clk/qcom.h>
 
 #include "common.h"
+#include "clk-opp.h"
 #include "clk-rcg.h"
 #include "clk-regmap.h"
 #include "reset.h"
@@ -312,6 +313,8 @@ int qcom_cc_really_probe(struct platform_device *pdev,
 		ret = devm_clk_register_regmap(dev, rclks[i]);
 		if (ret)
 			return ret;
+
+		clk_hw_populate_clock_opp_table(dev->of_node, &rclks[i]->hw);
 	}
 
 	ret = devm_of_clk_add_hw_provider(dev, qcom_cc_clk_hw_get, cc);
