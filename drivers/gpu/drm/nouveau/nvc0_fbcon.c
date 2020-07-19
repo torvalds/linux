@@ -29,6 +29,8 @@
 
 #include <nvif/push906f.h>
 
+#include <nvhw/class/cl902d.h>
+
 int
 nvc0_fbcon_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 {
@@ -165,22 +167,22 @@ nvc0_fbcon_accel_init(struct fb_info *info)
 
 	switch (info->var.bits_per_pixel) {
 	case 8:
-		format = 0xf3;
+		format = NV902D_SET_DST_FORMAT_V_Y8;
 		break;
 	case 15:
-		format = 0xf8;
+		format = NV902D_SET_DST_FORMAT_V_X1R5G5B5;
 		break;
 	case 16:
-		format = 0xe8;
+		format = NV902D_SET_DST_FORMAT_V_R5G6B5;
 		break;
 	case 32:
 		switch (info->var.transp.length) {
 		case 0: /* depth 24 */
 		case 8: /* depth 32, just use 24.. */
-			format = 0xe6;
+			format = NV902D_SET_DST_FORMAT_V_X8R8G8B8;
 			break;
 		case 2: /* depth 30 */
-			format = 0xd1;
+			format = NV902D_SET_DST_FORMAT_V_A2B10G10R10;
 			break;
 		default:
 			return -EINVAL;
@@ -197,50 +199,91 @@ nvc0_fbcon_accel_init(struct fb_info *info)
 		return ret;
 	}
 
-	PUSH_NVSQ(push, NV902D, 0x0000, nfbdev->twod.handle);
+	PUSH_MTHD(push, NV902D, SET_OBJECT, nfbdev->twod.handle);
 
-	PUSH_NVSQ(push, NV902D, 0x0200, format,
-				0x0204, 1);
-	PUSH_NVSQ(push, NV902D, 0x0214, info->fix.line_length,
-				0x0218, info->var.xres_virtual,
-				0x021c, info->var.yres_virtual,
-				0x0220, upper_32_bits(nfbdev->vma->addr),
-				0x0224, lower_32_bits(nfbdev->vma->addr));
+	PUSH_MTHD(push, NV902D, SET_DST_FORMAT,
+		  NVVAL(NV902D, SET_DST_FORMAT, V, format),
 
-	PUSH_NVSQ(push, NV902D, 0x0230, format,
-				0x0234, 1);
-	PUSH_NVSQ(push, NV902D, 0x0244, info->fix.line_length,
-				0x0248, info->var.xres_virtual,
-				0x024c, info->var.yres_virtual,
-				0x0250, upper_32_bits(nfbdev->vma->addr),
-				0x0254, lower_32_bits(nfbdev->vma->addr));
+				SET_DST_MEMORY_LAYOUT,
+		  NVDEF(NV902D, SET_DST_MEMORY_LAYOUT, V, PITCH));
 
-	PUSH_NVIM(push, NV902D, 0x0290, 0);
-	PUSH_NVIM(push, NV902D, 0x02a0, 0x55);
-	PUSH_NVIM(push, NV902D, 0x02ac, 3);
-	PUSH_NVSQ(push, NV902D, 0x02e8, 2,
-				0x02ec, 1);
+	PUSH_MTHD(push, NV902D, SET_DST_PITCH, info->fix.line_length,
+				SET_DST_WIDTH, info->var.xres_virtual,
+				SET_DST_HEIGHT, info->var.yres_virtual,
 
-	PUSH_NVSQ(push, NV902D, 0X0580, 4,
-				0x0584, format);
+				SET_DST_OFFSET_UPPER,
+		  NVVAL(NV902D, SET_DST_OFFSET_UPPER, V, upper_32_bits(nfbdev->vma->addr)),
 
-	PUSH_NVSQ(push, NV902D, 0x0800, 1,
-				0x0804, format,
-				0x0808, 0,
-				0x080c, 0,
-				0x0810, 1);
-	PUSH_NVIM(push, NV902D, 0x081c, 1);
-	PUSH_NVSQ(push, NV902D, 0x0840, 0,
-				0x0844, 1,
-				0x0848, 0,
-				0x084c, 1);
+				SET_DST_OFFSET_LOWER,
+		  NVVAL(NV902D, SET_DST_OFFSET_LOWER, V, lower_32_bits(nfbdev->vma->addr)));
 
-	PUSH_NVIM(push, NV902D, 0x0888, 1);
-	PUSH_NVSQ(push, NV902D, 0x08c0, 0,
-				0x08c4, 1,
-				0x08c8, 0,
-				0x08cc, 1);
+	PUSH_MTHD(push, NV902D, SET_SRC_FORMAT,
+		  NVVAL(NV902D, SET_SRC_FORMAT, V, format),
 
+				SET_SRC_MEMORY_LAYOUT,
+		  NVDEF(NV902D, SET_SRC_MEMORY_LAYOUT, V, PITCH));
+
+	PUSH_MTHD(push, NV902D, SET_SRC_PITCH, info->fix.line_length,
+				SET_SRC_WIDTH, info->var.xres_virtual,
+				SET_SRC_HEIGHT, info->var.yres_virtual,
+
+				SET_SRC_OFFSET_UPPER,
+		  NVVAL(NV902D, SET_SRC_OFFSET_UPPER, V, upper_32_bits(nfbdev->vma->addr)),
+
+				SET_SRC_OFFSET_LOWER,
+		  NVVAL(NV902D, SET_SRC_OFFSET_LOWER, V, lower_32_bits(nfbdev->vma->addr)));
+
+	PUSH_IMMD(push, NV902D, SET_CLIP_ENABLE,
+		  NVDEF(NV902D, SET_CLIP_ENABLE, V, FALSE));
+
+	PUSH_IMMD(push, NV902D, SET_ROP,
+		  NVVAL(NV902D, SET_ROP, V, 0x55));
+
+	PUSH_IMMD(push, NV902D, SET_OPERATION,
+		  NVDEF(NV902D, SET_OPERATION, V, SRCCOPY));
+
+	PUSH_MTHD(push, NV902D, SET_MONOCHROME_PATTERN_COLOR_FORMAT,
+		  NVDEF(NV902D, SET_MONOCHROME_PATTERN_COLOR_FORMAT, V, A8R8G8B8),
+
+				SET_MONOCHROME_PATTERN_FORMAT,
+		  NVDEF(NV902D, SET_MONOCHROME_PATTERN_FORMAT, V, LE_M1));
+
+	PUSH_MTHD(push, NV902D, RENDER_SOLID_PRIM_MODE,
+		  NVDEF(NV902D, RENDER_SOLID_PRIM_MODE, V, RECTS),
+
+				SET_RENDER_SOLID_PRIM_COLOR_FORMAT,
+		  NVVAL(NV902D, SET_RENDER_SOLID_PRIM_COLOR_FORMAT, V, format));
+
+	PUSH_MTHD(push, NV902D, SET_PIXELS_FROM_CPU_DATA_TYPE,
+		  NVDEF(NV902D, SET_PIXELS_FROM_CPU_DATA_TYPE, V, INDEX),
+
+				SET_PIXELS_FROM_CPU_COLOR_FORMAT,
+		  NVVAL(NV902D, SET_PIXELS_FROM_CPU_COLOR_FORMAT, V, format),
+
+				SET_PIXELS_FROM_CPU_INDEX_FORMAT,
+		  NVDEF(NV902D, SET_PIXELS_FROM_CPU_INDEX_FORMAT, V, I1),
+
+				SET_PIXELS_FROM_CPU_MONO_FORMAT,
+		  NVDEF(NV902D, SET_PIXELS_FROM_CPU_MONO_FORMAT, V, CGA6_M1),
+
+				SET_PIXELS_FROM_CPU_WRAP,
+		  NVDEF(NV902D, SET_PIXELS_FROM_CPU_WRAP, V, WRAP_BYTE));
+
+	PUSH_IMMD(push, NV902D, SET_PIXELS_FROM_CPU_MONO_OPACITY,
+		  NVDEF(NV902D, SET_PIXELS_FROM_CPU_MONO_OPACITY, V, OPAQUE));
+
+	PUSH_MTHD(push, NV902D, SET_PIXELS_FROM_CPU_DX_DU_FRAC, 0,
+				SET_PIXELS_FROM_CPU_DX_DU_INT, 1,
+				SET_PIXELS_FROM_CPU_DY_DV_FRAC, 0,
+				SET_PIXELS_FROM_CPU_DY_DV_INT, 1);
+
+	PUSH_IMMD(push, NV902D, SET_PIXELS_FROM_MEMORY_SAFE_OVERLAP,
+		  NVDEF(NV902D, SET_PIXELS_FROM_MEMORY_SAFE_OVERLAP, V, TRUE));
+
+	PUSH_MTHD(push, NV902D, SET_PIXELS_FROM_MEMORY_DU_DX_FRAC, 0,
+				SET_PIXELS_FROM_MEMORY_DU_DX_INT, 1,
+				SET_PIXELS_FROM_MEMORY_DV_DY_FRAC, 0,
+				SET_PIXELS_FROM_MEMORY_DV_DY_INT, 1);
 	PUSH_KICK(push);
 	return 0;
 }
