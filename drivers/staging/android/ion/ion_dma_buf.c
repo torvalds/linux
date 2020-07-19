@@ -163,7 +163,6 @@ static int ion_dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
 {
 	struct ion_buffer *buffer = dmabuf->priv;
 	struct ion_heap *heap = buffer->heap;
-	void *vaddr;
 	struct ion_dma_buf_attachment *a;
 
 	if (heap->buf_ops.begin_cpu_access)
