@@ -85,12 +85,16 @@ if_expr:
 	;
 
 expr:	  NUMBER
-	| ID			{ if (expr__get_id(ctx, $1, &$$)) {
-					pr_debug("%s not found\n", $1);
+	| ID			{
+					struct expr_id_data *data;
+
+					if (expr__get_id(ctx, $1, &data) || !data) {
+						pr_debug("%s not found\n", $1);
+						free($1);
+						YYABORT;
+					}
+					$$ = data->val;
 					free($1);
-					YYABORT;
-				  }
-				  free($1);
 				}
 	| expr '|' expr		{ $$ = (long)$1 | (long)$3; }
 	| expr '&' expr		{ $$ = (long)$1 & (long)$3; }
