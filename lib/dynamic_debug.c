@@ -181,9 +181,16 @@ static int ddebug_change(const struct ddebug_query *query,
 				continue;
 
 			/* match against the format */
-			if (query->format &&
-			    !strstr(dp->format, query->format))
-				continue;
+			if (query->format) {
+				if (*query->format == '^') {
+					char *p;
+					/* anchored search. match must be at beginning */
+					p = strstr(dp->format, query->format+1);
+					if (p != dp->format)
+						continue;
+				} else if (!strstr(dp->format, query->format))
+					continue;
+			}
 
 			/* match against the line number range */
 			if (query->first_lineno &&
