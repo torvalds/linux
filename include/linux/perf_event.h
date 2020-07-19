@@ -366,7 +366,7 @@ struct pmu {
 	 * ->stop() with PERF_EF_UPDATE will read the counter and update
 	 *  period/count values like ->read() would.
 	 *
-	 * ->start() with PERF_EF_RELOAD will reprogram the the counter
+	 * ->start() with PERF_EF_RELOAD will reprogram the counter
 	 *  value, must be preceded by a ->stop() with PERF_EF_UPDATE.
 	 */
 	void (*start)			(struct perf_event *event, int flags);
