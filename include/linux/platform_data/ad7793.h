@@ -40,7 +40,7 @@ enum ad7793_bias_voltage {
  * enum ad7793_refsel - AD7793 reference voltage selection
  * @AD7793_REFSEL_REFIN1: External reference applied between REFIN1(+)
  *	and REFIN1(-).
- * @AD7793_REFSEL_REFIN2: External reference applied between REFIN2(+) and
+ * @AD7793_REFSEL_REFIN2: External reference applied between REFIN2(+)
  *	and REFIN1(-). Only valid for AD7795/AD7796.
  * @AD7793_REFSEL_INTERNAL: Internal 1.17 V reference.
  */
