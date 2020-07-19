@@ -11,6 +11,8 @@
 #include "debug.h"
 #include "expr.h"
 #include "stat.h"
+#include <perf/cpumap.h>
+#include <perf/evlist.h>
 
 static struct pmu_event pme_test[] = {
 {
@@ -21,6 +23,18 @@ static struct pmu_event pme_test[] = {
 	.metric_expr	= "idq_uops_not_delivered.core / (4 * (( ( cpu_clk_unhalted.thread / 2 ) * "
 			  "( 1 + cpu_clk_unhalted.one_thread_active / cpu_clk_unhalted.ref_xclk ) )))",
 	.metric_name	= "Frontend_Bound_SMT",
+},
+{
+	.metric_expr	= "l1d\\-loads\\-misses / inst_retired.any",
+	.metric_name	= "dcache_miss_cpi",
+},
+{
+	.metric_expr	= "l1i\\-loads\\-misses / inst_retired.any",
+	.metric_name	= "icache_miss_cycles",
+},
+{
+	.metric_expr	= "(dcache_miss_cpi + icache_miss_cycles)",
+	.metric_name	= "cache_miss_cycles",
 },
 };
 
@@ -162,9 +176,28 @@ static int test_frontend(void)
 	return 0;
 }
 
+static int test_cache_miss_cycles(void)
+{
+	double ratio;
+	struct value vals[] = {
+		{ .event = "l1d-loads-misses",  .val = 300 },
+		{ .event = "l1i-loads-misses",  .val = 200 },
+		{ .event = "inst_retired.any",  .val = 400 },
+		{ .event = NULL, },
+	};
+
+	TEST_ASSERT_VAL("failed to compute metric",
+			compute_metric("cache_miss_cycles", vals, &ratio) == 0);
+
+	TEST_ASSERT_VAL("cache_miss_cycles failed, wrong ratio",
+			ratio == 1.25);
+	return 0;
+}
+
 int test__parse_metric(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	TEST_ASSERT_VAL("IPC failed", test_ipc() == 0);
 	TEST_ASSERT_VAL("frontend failed", test_frontend() == 0);
+	TEST_ASSERT_VAL("cache_miss_cycles failed", test_cache_miss_cycles() == 0);
 	return 0;
 }
