@@ -3020,17 +3020,12 @@ static int sctp_setsockopt_primary_addr(struct sock *sk, struct sctp_prim *prim,
  * introduced, at the cost of more packets in the network.  Expects an
  *  integer boolean flag.
  */
-static int sctp_setsockopt_nodelay(struct sock *sk, char __user *optval,
+static int sctp_setsockopt_nodelay(struct sock *sk, int *val,
 				   unsigned int optlen)
 {
-	int val;
-
 	if (optlen < sizeof(int))
 		return -EINVAL;
-	if (get_user(val, (int __user *)optval))
-		return -EFAULT;
-
-	sctp_sk(sk)->nodelay = (val == 0) ? 0 : 1;
+	sctp_sk(sk)->nodelay = (*val == 0) ? 0 : 1;
 	return 0;
 }
 
@@ -4694,7 +4689,7 @@ static int sctp_setsockopt(struct sock *sk, int level, int optname,
 		retval = sctp_setsockopt_peer_primary_addr(sk, kopt, optlen);
 		break;
 	case SCTP_NODELAY:
-		retval = sctp_setsockopt_nodelay(sk, optval, optlen);
+		retval = sctp_setsockopt_nodelay(sk, kopt, optlen);
 		break;
 	case SCTP_RTOINFO:
 		retval = sctp_setsockopt_rtoinfo(sk, optval, optlen);
