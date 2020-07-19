@@ -78,7 +78,7 @@ config USB_CYPRESS_CY7C63
 	  driver supports the pre-programmed devices (incl. firmware)
 	  by AK Modul-Bus Computer GmbH.
 
-	  Please see: http://www.ak-modul-bus.de/stat/mikrocontroller.html
+	  Please see: https://www.ak-modul-bus.de/stat/mikrocontroller.html
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called cypress_cy7c63.
@@ -106,7 +106,7 @@ config USB_IDMOUSE
 	  This driver creates an entry "/dev/idmouseX" or "/dev/usb/idmouseX",
 	  which can be used by, e.g.,"cat /dev/idmouse0 > fingerprint.pnm".
 
-	  See also <http://www.fs.tum.de/~echtler/idmouse/>.
+	  See also <https://www.fs.tum.de/~echtler/idmouse/>.
 
 config USB_FTDI_ELAN
 	tristate "Elan PCMCIA CardBus Adapter USB Client"

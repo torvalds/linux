@@ -11,9 +11,9 @@
  *
  * Based on:
  *	o MAX3421E datasheet
- *		http://datasheets.maximintegrated.com/en/ds/MAX3421E.pdf
+ *		https://datasheets.maximintegrated.com/en/ds/MAX3421E.pdf
  *	o MAX3421E Programming Guide
- *		http://www.hdl.co.jp/ftpdata/utl-001/AN3785.pdf
+ *		https://www.hdl.co.jp/ftpdata/utl-001/AN3785.pdf
  *	o gadget/dummy_hcd.c
  *		For USB HCD implementation.
  *	o Arduino MAX3421 driver
@@ -317,7 +317,7 @@ static const int hrsl_to_error[] = {
 };
 
 /*
- * See http://www.beyondlogic.org/usbnutshell/usb4.shtml#Control for a
+ * See https://www.beyondlogic.org/usbnutshell/usb4.shtml#Control for a
  * reasonable overview of how control transfers use the the IN/OUT
  * tokens.
  */
