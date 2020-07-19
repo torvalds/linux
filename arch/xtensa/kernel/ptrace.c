@@ -52,6 +52,7 @@ static int gpr_get(struct task_struct *target,
 		.threadptr = regs->threadptr,
 		.windowbase = regs->windowbase,
 		.windowstart = regs->windowstart,
+		.syscall = regs->syscall,
 	};
 
 	memcpy(newregs.a,
@@ -90,6 +91,9 @@ static int gpr_set(struct task_struct *target,
 	regs->lcount = newregs.lcount;
 	regs->sar = newregs.sar;
 	regs->threadptr = newregs.threadptr;
+
+	if (newregs.syscall)
+		regs->syscall = newregs.syscall;
 
 	if (newregs.windowbase != regs->windowbase ||
 	    newregs.windowstart != regs->windowstart) {
