@@ -4,9 +4,9 @@
 #define __WCD9335_H__
 
 /*
- * WCD9335 register base can change according to the mode it works in
- * in slimbus mode the reg base starts from 0x800
- * in i2s/i2c mode the reg base is 0x0
+ * WCD9335 register base can change according to the mode it works in.
+ * In slimbus mode the reg base starts from 0x800.
+ * In i2s/i2c mode the reg base is 0x0.
  */
 #define WCD9335_REG(pg, r)	((pg << 8) | (r))
 #define WCD9335_REG_OFFSET(r)	(r & 0xFF)
