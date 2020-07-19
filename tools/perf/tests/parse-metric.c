@@ -108,17 +108,21 @@ static void load_runtime_stat(struct runtime_stat *st, struct evlist *evlist,
 }
 
 static double compute_single(struct rblist *metric_events, struct evlist *evlist,
-			     struct runtime_stat *st)
+			     struct runtime_stat *st, const char *name)
 {
-	struct evsel *evsel = evlist__first(evlist);
+	struct metric_expr *mexp;
 	struct metric_event *me;
+	struct evsel *evsel;
 
-	me = metricgroup__lookup(metric_events, evsel, false);
-	if (me != NULL) {
-		struct metric_expr *mexp;
-
-		mexp = list_first_entry(&me->head, struct metric_expr, nd);
-		return test_generic_metric(mexp, 0, st);
+	evlist__for_each_entry(evlist, evsel) {
+		me = metricgroup__lookup(metric_events, evsel, false);
+		if (me != NULL) {
+			list_for_each_entry (mexp, &me->head, nd) {
+				if (strcmp(mexp->metric_name, name))
+					continue;
+				return test_generic_metric(mexp, 0, st);
+			}
+		}
 	}
 	return 0.;
 }
@@ -162,7 +166,7 @@ static int compute_metric(const char *name, struct value *vals, double *ratio)
 	load_runtime_stat(&st, evlist, vals);
 
 	/* And execute the metric */
-	*ratio = compute_single(&metric_events, evlist, &st);
+	*ratio = compute_single(&metric_events, evlist, &st, name);
 
 	/* ... clenup. */
 	metricgroup__rblist_exit(&metric_events);
