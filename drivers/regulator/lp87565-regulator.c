@@ -2,7 +2,7 @@
 /*
  * Regulator driver for LP87565 PMIC
  *
- * Copyright (C) 2017 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2017 Texas Instruments Incorporated - https://www.ti.com/
  */
 
 #include <linux/module.h>
