@@ -614,6 +614,17 @@ static int __metricgroup__add_metric(struct list_head *group_list,
 	return 0;
 }
 
+#define map_for_each_event(__pe, __idx, __map)				\
+	for (__idx = 0, __pe = &__map->table[__idx];			\
+	     __pe->name || __pe->metric_group || __pe->metric_name;	\
+	     __pe = &__map->table[++__idx])
+
+#define map_for_each_metric(__pe, __idx, __map, __metric)		\
+	map_for_each_event(__pe, __idx, __map)				\
+		if (__pe->metric_expr &&				\
+		    (match_metric(__pe->metric_group, __metric) ||	\
+		     match_metric(__pe->metric_name, __metric)))
+
 static int metricgroup__add_metric(const char *metric, bool metric_no_group,
 				   struct strbuf *events,
 				   struct list_head *group_list,
@@ -624,49 +635,41 @@ static int metricgroup__add_metric(const char *metric, bool metric_no_group,
 	int i, ret;
 	bool has_match = false;
 
-	for (i = 0; ; i++) {
-		pe = &map->table[i];
+	map_for_each_metric(pe, i, map, metric) {
+		pr_debug("metric expr %s for %s\n", pe->metric_expr, pe->metric_name);
+		has_match = true;
 
-		if (!pe->name && !pe->metric_group && !pe->metric_name) {
-			/* End of pmu events. */
-			if (!has_match)
-				return -EINVAL;
-			break;
-		}
-		if (!pe->metric_expr)
-			continue;
-		if (match_metric(pe->metric_group, metric) ||
-		    match_metric(pe->metric_name, metric)) {
-			has_match = true;
-			pr_debug("metric expr %s for %s\n", pe->metric_expr, pe->metric_name);
+		if (!strstr(pe->metric_expr, "?")) {
+			ret = __metricgroup__add_metric(group_list,
+							pe,
+							metric_no_group,
+							1);
+			if (ret)
+				return ret;
+		} else {
+			int j, count;
 
-			if (!strstr(pe->metric_expr, "?")) {
-				ret = __metricgroup__add_metric(group_list,
-								pe,
-								metric_no_group,
-								1);
+			count = arch_get_runtimeparam();
+
+			/* This loop is added to create multiple
+			 * events depend on count value and add
+			 * those events to group_list.
+			 */
+
+			for (j = 0; j < count; j++) {
+				ret = __metricgroup__add_metric(
+					group_list, pe,
+					metric_no_group, j);
 				if (ret)
 					return ret;
-			} else {
-				int j, count;
-
-				count = arch_get_runtimeparam();
-
-				/* This loop is added to create multiple
-				 * events depend on count value and add
-				 * those events to group_list.
-				 */
-
-				for (j = 0; j < count; j++) {
-					ret = __metricgroup__add_metric(
-						group_list, pe,
-						metric_no_group, j);
-					if (ret)
-						return ret;
-				}
 			}
 		}
 	}
+
+	/* End of pmu events. */
+	if (!has_match)
+		return -EINVAL;
+
 	list_for_each_entry(eg, group_list, nd) {
 		if (events->len > 0)
 			strbuf_addf(events, ",");
