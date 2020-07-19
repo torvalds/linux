@@ -88,11 +88,11 @@ expr:	  NUMBER
 	| ID			{
 					struct expr_id_data *data;
 
-					if (expr__get_id(ctx, $1, &data) || !data) {
-						pr_debug("%s not found\n", $1);
+					if (expr__resolve_id(ctx, $1, &data)) {
 						free($1);
 						YYABORT;
 					}
+
 					$$ = data->val;
 					free($1);
 				}

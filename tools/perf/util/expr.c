@@ -112,6 +112,7 @@ int expr__add_ref(struct expr_parse_ctx *ctx, struct metric_ref *ref)
 	 */
 	data_ptr->ref.metric_name = ref->metric_name;
 	data_ptr->ref.metric_expr = ref->metric_expr;
+	data_ptr->ref.counted = false;
 	data_ptr->is_ref = true;
 
 	ret = hashmap__set(&ctx->ids, name, data_ptr,
@@ -131,6 +132,34 @@ int expr__get_id(struct expr_parse_ctx *ctx, const char *id,
 		 struct expr_id_data **data)
 {
 	return hashmap__find(&ctx->ids, id, (void **)data) ? 0 : -1;
+}
+
+int expr__resolve_id(struct expr_parse_ctx *ctx, const char *id,
+		     struct expr_id_data **datap)
+{
+	struct expr_id_data *data;
+
+	if (expr__get_id(ctx, id, datap) || !*datap) {
+		pr_debug("%s not found\n", id);
+		return -1;
+	}
+
+	data = *datap;
+
+	pr_debug2("lookup: is_ref %d, counted %d, val %f: %s\n",
+		  data->is_ref, data->ref.counted, data->val, id);
+
+	if (data->is_ref && !data->ref.counted) {
+		data->ref.counted = true;
+		pr_debug("processing metric: %s ENTRY\n", id);
+		if (expr__parse(&data->val, ctx, data->ref.metric_expr, 1)) {
+			pr_debug("%s failed to count\n", id);
+			return -1;
+		}
+		pr_debug("processing metric: %s EXIT: %f\n", id, data->val);
+	}
+
+	return 0;
 }
 
 void expr__del_id(struct expr_parse_ctx *ctx, const char *id)
@@ -172,6 +201,8 @@ __expr__parse(double *val, struct expr_parse_ctx *ctx, const char *expr,
 	YY_BUFFER_STATE buffer;
 	void *scanner;
 	int ret;
+
+	pr_debug2("parsing metric: %s\n", expr);
 
 	ret = expr_lex_init_extra(&scanner_ctx, &scanner);
 	if (ret)

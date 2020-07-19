@@ -23,6 +23,7 @@ struct expr_id_data {
 		struct {
 			const char *metric_name;
 			const char *metric_expr;
+			bool counted;
 		} ref;
 	};
 
@@ -42,6 +43,8 @@ int expr__add_id_val(struct expr_parse_ctx *ctx, const char *id, double val);
 int expr__add_ref(struct expr_parse_ctx *ctx, struct metric_ref *ref);
 int expr__get_id(struct expr_parse_ctx *ctx, const char *id,
 		 struct expr_id_data **data);
+int expr__resolve_id(struct expr_parse_ctx *ctx, const char *id,
+		     struct expr_id_data **datap);
 int expr__parse(double *final_val, struct expr_parse_ctx *ctx,
 		const char *expr, int runtime);
 int expr__find_other(const char *expr, const char *one,
