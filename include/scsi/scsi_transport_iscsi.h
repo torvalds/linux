@@ -57,7 +57,7 @@ struct iscsi_bus_flash_conn;
  *			When not offloading the data path, this is called
  *			from the scsi work queue without the session lock.
  * @xmit_task		Requests LLD to transfer cmd task. Returns 0 or the
- *			the number of bytes transferred on success, and -Exyz
+ *			number of bytes transferred on success, and -Exyz
  *			value on error. When offloading the data path, this
  *			is called from queuecommand with the session lock, or
  *			from the iscsi_conn_send_pdu context with the session
