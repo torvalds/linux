@@ -8,6 +8,8 @@
 
 #include <nvif/push507c.h>
 
+#include <nvhw/class/cl907d.h>
+
 #define CRC907D_MAX_ENTRIES 255
 
 struct crc907d_notifier {
@@ -25,30 +27,33 @@ crc907d_set_src(struct nv50_head *head, int or,
 		enum nv50_crc_source_type source,
 		struct nv50_crc_notifier_ctx *ctx, u32 wndw)
 {
-	struct drm_crtc *crtc = &head->base.base;
 	struct nvif_push *push = nv50_disp(head->base.base.dev)->core->chan.push;
 	const int i = head->base.index;
-	u32 crc_args = 0xfff00000;
+	u32 crc_args = NVDEF(NV907D, HEAD_SET_CRC_CONTROL, CONTROLLING_CHANNEL, CORE) |
+		       NVDEF(NV907D, HEAD_SET_CRC_CONTROL, EXPECT_BUFFER_COLLAPSE, FALSE) |
+		       NVDEF(NV907D, HEAD_SET_CRC_CONTROL, TIMESTAMP_MODE, FALSE) |
+		       NVDEF(NV907D, HEAD_SET_CRC_CONTROL, SECONDARY_OUTPUT, NONE) |
+		       NVDEF(NV907D, HEAD_SET_CRC_CONTROL, CRC_DURING_SNOOZE, DISABLE);
 	int ret;
 
 	switch (source) {
 	case NV50_CRC_SOURCE_TYPE_SOR:
-		crc_args |= (0x00000f0f + or * 16) << 8;
+		crc_args |= NVDEF(NV907D, HEAD_SET_CRC_CONTROL, PRIMARY_OUTPUT, SOR(or));
 		break;
 	case NV50_CRC_SOURCE_TYPE_PIOR:
-		crc_args |= (0x000000ff + or * 256) << 8;
+		crc_args |= NVDEF(NV907D, HEAD_SET_CRC_CONTROL, PRIMARY_OUTPUT, PIOR(or));
 		break;
 	case NV50_CRC_SOURCE_TYPE_DAC:
-		crc_args |= (0x00000ff0 + or) << 8;
+		crc_args |= NVDEF(NV907D, HEAD_SET_CRC_CONTROL, PRIMARY_OUTPUT, DAC(or));
 		break;
 	case NV50_CRC_SOURCE_TYPE_RG:
-		crc_args |= (0x00000ff8 + drm_crtc_index(crtc)) << 8;
+		crc_args |= NVDEF(NV907D, HEAD_SET_CRC_CONTROL, PRIMARY_OUTPUT, RG(i));
 		break;
 	case NV50_CRC_SOURCE_TYPE_SF:
-		crc_args |= (0x00000f8f + drm_crtc_index(crtc) * 16) << 8;
+		crc_args |= NVDEF(NV907D, HEAD_SET_CRC_CONTROL, PRIMARY_OUTPUT, SF(i));
 		break;
 	case NV50_CRC_SOURCE_NONE:
-		crc_args |= 0x000fff00;
+		crc_args |= NVDEF(NV907D, HEAD_SET_CRC_CONTROL, PRIMARY_OUTPUT, NONE);
 		break;
 	}
 
@@ -56,11 +61,11 @@ crc907d_set_src(struct nv50_head *head, int or,
 		return ret;
 
 	if (source) {
-		PUSH_NVSQ(push, NV907D, 0x0438 + (i * 0x300), ctx->ntfy.handle);
-		PUSH_NVSQ(push, NV907D, 0x0430 + (i * 0x300), crc_args);
+		PUSH_MTHD(push, NV907D, HEAD_SET_CONTEXT_DMA_CRC(i), ctx->ntfy.handle);
+		PUSH_MTHD(push, NV907D, HEAD_SET_CRC_CONTROL(i), crc_args);
 	} else {
-		PUSH_NVSQ(push, NV907D, 0x0430 + (i * 0x300), crc_args);
-		PUSH_NVSQ(push, NV907D, 0x0438 + (i * 0x300), 0);
+		PUSH_MTHD(push, NV907D, HEAD_SET_CRC_CONTROL(i), crc_args);
+		PUSH_MTHD(push, NV907D, HEAD_SET_CONTEXT_DMA_CRC(i), 0);
 	}
 
 	return 0;
