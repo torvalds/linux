@@ -93,6 +93,19 @@ config SND_SOC_TEGRA210_I2S
 	  compatible devices.
 	  Say Y or M if you want to add support for Tegra210 I2S module.
 
+config SND_SOC_TEGRA186_DSPK
+	tristate "Tegra186 DSPK module"
+	depends on SND_SOC_TEGRA
+	help
+	  Config to enable the Digital Speaker Controller (DSPK) which
+	  converts the multi-bit Pulse Code Modulation (PCM) audio input to
+	  oversampled 1-bit Pulse Density Modulation (PDM) output. From the
+	  signal flow perspective DSPK can be viewed as a PDM transmitter
+	  that up-samples the input to the desired sampling rate by
+	  interpolation and then converts the oversampled PCM input to
+	  the desired 1-bit output via Delta Sigma Modulation (DSM).
+	  Say Y or M if you want to add support for Tegra186 DSPK module.
+
 config SND_SOC_TEGRA_RT5640
 	tristate "SoC Audio support for Tegra boards using an RT5640 codec"
 	depends on SND_SOC_TEGRA && I2C && GPIOLIB
