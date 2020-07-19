@@ -2072,6 +2072,9 @@ int ib_advise_mr(struct ib_pd *pd, enum ib_uverbs_advise_mr_advice advice,
 	if (!pd->device->ops.advise_mr)
 		return -EOPNOTSUPP;
 
+	if (!num_sge)
+		return 0;
+
 	return pd->device->ops.advise_mr(pd, advice, flags, sg_list, num_sge,
 					 NULL);
 }

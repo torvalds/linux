@@ -69,7 +69,7 @@ static int UVERBS_HANDLER(UVERBS_METHOD_ADVISE_MR)(
 
 	num_sge = uverbs_attr_ptr_get_array_size(
 		attrs, UVERBS_ATTR_ADVISE_MR_SGE_LIST, sizeof(struct ib_sge));
-	if (num_sge < 0)
+	if (num_sge <= 0)
 		return num_sge;
 
 	sg_list = uverbs_attr_get_alloced_ptr(attrs,
