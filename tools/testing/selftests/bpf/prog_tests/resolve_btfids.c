@@ -28,7 +28,17 @@ struct symbol test_symbols[] = {
 	{ "func",    BTF_KIND_FUNC,    -1 },
 };
 
-BTF_ID_LIST(test_list)
+BTF_ID_LIST(test_list_local)
+BTF_ID_UNUSED
+BTF_ID(typedef, S)
+BTF_ID(typedef, T)
+BTF_ID(typedef, U)
+BTF_ID(struct,  S)
+BTF_ID(union,   U)
+BTF_ID(func,    func)
+
+extern __u32 test_list_global[];
+BTF_ID_LIST_GLOBAL(test_list_global)
 BTF_ID_UNUSED
 BTF_ID(typedef, S)
 BTF_ID(typedef, T)
@@ -94,18 +104,25 @@ static int resolve_symbols(void)
 
 int test_resolve_btfids(void)
 {
-	unsigned int i;
+	__u32 *test_list, *test_lists[] = { test_list_local, test_list_global };
+	unsigned int i, j;
 	int ret = 0;
 
 	if (resolve_symbols())
 		return -1;
 
-	/* Check BTF_ID_LIST(test_list) IDs */
-	for (i = 0; i < ARRAY_SIZE(test_symbols) && !ret; i++) {
-		ret = CHECK(test_list[i] != test_symbols[i].id,
-			    "id_check",
-			    "wrong ID for %s (%d != %d)\n", test_symbols[i].name,
-			    test_list[i], test_symbols[i].id);
+	/* Check BTF_ID_LIST(test_list_local) and
+	 * BTF_ID_LIST_GLOBAL(test_list_global) IDs
+	 */
+	for (j = 0; j < ARRAY_SIZE(test_lists); j++) {
+		test_list = test_lists[j];
+		for (i = 0; i < ARRAY_SIZE(test_symbols) && !ret; i++) {
+			ret = CHECK(test_list[i] != test_symbols[i].id,
+				    "id_check",
+				    "wrong ID for %s (%d != %d)\n",
+				    test_symbols[i].name,
+				    test_list[i], test_symbols[i].id);
+		}
 	}
 
 	return ret;
