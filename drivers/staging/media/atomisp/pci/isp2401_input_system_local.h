@@ -19,7 +19,6 @@
 #include "type_support.h"
 #include "input_system_global.h"
 
-#include "ibuf_ctrl.h"
 #include "csi_rx.h"
 #include "pixelgen.h"
 #include "isys_stream2mmio.h"

@@ -26,7 +26,7 @@
 				 *	isys2401_dma_cfg_t
 				 */
 
-#include "ibuf_ctrl.h"		/*	ibuf_cfg_t,
+#include "ibuf_ctrl_local.h"	/*	ibuf_cfg_t,
 				 *	ibuf_ctrl_cfg_t
 				 */
 
