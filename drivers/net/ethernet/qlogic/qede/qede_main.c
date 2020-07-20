@@ -263,6 +263,8 @@ int __init qede_init(void)
 
 	pr_info("qede_init: %s\n", version);
 
+	qede_forced_speed_maps_init();
+
 	qed_ops = qed_get_eth_ops();
 	if (!qed_ops) {
 		pr_notice("Failed to get qed ethtool operations\n");

@@ -196,6 +196,96 @@ static const char qede_tests_str_arr[QEDE_ETHTOOL_TEST_MAX][ETH_GSTRING_LEN] = {
 	"Nvram (online)\t\t",
 };
 
+/* Forced speed capabilities maps */
+
+struct qede_forced_speed_map {
+	u32		speed;
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(caps);
+
+	const u32	*cap_arr;
+	u32		arr_size;
+};
+
+#define QEDE_FORCED_SPEED_MAP(value)					\
+{									\
+	.speed		= SPEED_##value,				\
+	.cap_arr	= qede_forced_speed_##value,			\
+	.arr_size	= ARRAY_SIZE(qede_forced_speed_##value),	\
+}
+
+static const u32 qede_forced_speed_1000[] __initconst = {
+	ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
+	ETHTOOL_LINK_MODE_1000baseKX_Full_BIT,
+	ETHTOOL_LINK_MODE_1000baseX_Full_BIT,
+};
+
+static const u32 qede_forced_speed_10000[] __initconst = {
+	ETHTOOL_LINK_MODE_10000baseT_Full_BIT,
+	ETHTOOL_LINK_MODE_10000baseKR_Full_BIT,
+	ETHTOOL_LINK_MODE_10000baseKX4_Full_BIT,
+	ETHTOOL_LINK_MODE_10000baseR_FEC_BIT,
+	ETHTOOL_LINK_MODE_10000baseCR_Full_BIT,
+	ETHTOOL_LINK_MODE_10000baseSR_Full_BIT,
+	ETHTOOL_LINK_MODE_10000baseLR_Full_BIT,
+	ETHTOOL_LINK_MODE_10000baseLRM_Full_BIT,
+};
+
+static const u32 qede_forced_speed_20000[] __initconst = {
+	ETHTOOL_LINK_MODE_20000baseKR2_Full_BIT,
+};
+
+static const u32 qede_forced_speed_25000[] __initconst = {
+	ETHTOOL_LINK_MODE_25000baseKR_Full_BIT,
+	ETHTOOL_LINK_MODE_25000baseCR_Full_BIT,
+	ETHTOOL_LINK_MODE_25000baseSR_Full_BIT,
+};
+
+static const u32 qede_forced_speed_40000[] __initconst = {
+	ETHTOOL_LINK_MODE_40000baseLR4_Full_BIT,
+	ETHTOOL_LINK_MODE_40000baseKR4_Full_BIT,
+	ETHTOOL_LINK_MODE_40000baseCR4_Full_BIT,
+	ETHTOOL_LINK_MODE_40000baseSR4_Full_BIT,
+};
+
+static const u32 qede_forced_speed_50000[] __initconst = {
+	ETHTOOL_LINK_MODE_50000baseKR2_Full_BIT,
+	ETHTOOL_LINK_MODE_50000baseCR2_Full_BIT,
+	ETHTOOL_LINK_MODE_50000baseSR2_Full_BIT,
+};
+
+static const u32 qede_forced_speed_100000[] __initconst = {
+	ETHTOOL_LINK_MODE_100000baseKR4_Full_BIT,
+	ETHTOOL_LINK_MODE_100000baseSR4_Full_BIT,
+	ETHTOOL_LINK_MODE_100000baseCR4_Full_BIT,
+	ETHTOOL_LINK_MODE_100000baseLR4_ER4_Full_BIT,
+};
+
+static struct qede_forced_speed_map qede_forced_speed_maps[] __ro_after_init = {
+	QEDE_FORCED_SPEED_MAP(1000),
+	QEDE_FORCED_SPEED_MAP(10000),
+	QEDE_FORCED_SPEED_MAP(20000),
+	QEDE_FORCED_SPEED_MAP(25000),
+	QEDE_FORCED_SPEED_MAP(40000),
+	QEDE_FORCED_SPEED_MAP(50000),
+	QEDE_FORCED_SPEED_MAP(100000),
+};
+
+void __init qede_forced_speed_maps_init(void)
+{
+	struct qede_forced_speed_map *map;
+	u32 i;
+
+	for (i = 0; i < ARRAY_SIZE(qede_forced_speed_maps); i++) {
+		map = qede_forced_speed_maps + i;
+
+		linkmode_set_bit_array(map->cap_arr, map->arr_size, map->caps);
+		map->cap_arr = NULL;
+		map->arr_size = 0;
+	}
+}
+
+/* Ethtool callbacks */
+
 static void qede_get_strings_stats_txq(struct qede_dev *edev,
 				       struct qede_tx_queue *txq, u8 **buf)
 {
@@ -458,10 +548,11 @@ static int qede_set_link_ksettings(struct net_device *dev,
 				   const struct ethtool_link_ksettings *cmd)
 {
 	const struct ethtool_link_settings *base = &cmd->base;
-	__ETHTOOL_DECLARE_LINK_MODE_MASK(sup_caps);
 	struct qede_dev *edev = netdev_priv(dev);
+	const struct qede_forced_speed_map *map;
 	struct qed_link_output current_link;
 	struct qed_link_params params;
+	u32 i;
 
 	if (!edev->ops || !edev->ops->common->can_link_change(edev->cdev)) {
 		DP_INFO(edev, "Link settings are not allowed to be changed\n");
@@ -489,65 +580,24 @@ static int qede_set_link_ksettings(struct net_device *dev,
 		params.autoneg = false;
 		params.forced_speed = base->speed;
 
-		phylink_zero(sup_caps);
+		for (i = 0; i < ARRAY_SIZE(qede_forced_speed_maps); i++) {
+			map = qede_forced_speed_maps + i;
 
-		switch (base->speed) {
-		case SPEED_1000:
-			phylink_set(sup_caps, 1000baseT_Full);
-			phylink_set(sup_caps, 1000baseKX_Full);
-			phylink_set(sup_caps, 1000baseX_Full);
-			break;
-		case SPEED_10000:
-			phylink_set(sup_caps, 10000baseT_Full);
-			phylink_set(sup_caps, 10000baseKR_Full);
-			phylink_set(sup_caps, 10000baseKX4_Full);
-			phylink_set(sup_caps, 10000baseR_FEC);
-			phylink_set(sup_caps, 10000baseCR_Full);
-			phylink_set(sup_caps, 10000baseSR_Full);
-			phylink_set(sup_caps, 10000baseLR_Full);
-			phylink_set(sup_caps, 10000baseLRM_Full);
-			break;
-		case SPEED_20000:
-			phylink_set(sup_caps, 20000baseKR2_Full);
-			break;
-		case SPEED_25000:
-			phylink_set(sup_caps, 25000baseKR_Full);
-			phylink_set(sup_caps, 25000baseCR_Full);
-			phylink_set(sup_caps, 25000baseSR_Full);
-			break;
-		case SPEED_40000:
-			phylink_set(sup_caps, 40000baseLR4_Full);
-			phylink_set(sup_caps, 40000baseKR4_Full);
-			phylink_set(sup_caps, 40000baseCR4_Full);
-			phylink_set(sup_caps, 40000baseSR4_Full);
-			break;
-		case SPEED_50000:
-			phylink_set(sup_caps, 50000baseKR2_Full);
-			phylink_set(sup_caps, 50000baseCR2_Full);
-			phylink_set(sup_caps, 50000baseSR2_Full);
-			break;
-		case SPEED_100000:
-			phylink_set(sup_caps, 100000baseKR4_Full);
-			phylink_set(sup_caps, 100000baseSR4_Full);
-			phylink_set(sup_caps, 100000baseCR4_Full);
-			phylink_set(sup_caps, 100000baseLR4_ER4_Full);
-			break;
-		default:
-			DP_INFO(edev, "Unsupported speed %u\n", base->speed);
-			return -EINVAL;
+			if (base->speed != map->speed ||
+			    !linkmode_intersects(current_link.supported_caps,
+						 map->caps))
+				continue;
+
+			linkmode_and(params.adv_speeds,
+				     current_link.supported_caps, map->caps);
+			goto set_link;
 		}
 
-		if (!linkmode_intersects(current_link.supported_caps,
-					 sup_caps)) {
-			DP_INFO(edev, "%uG speed not supported\n",
-				base->speed / 1000);
-			return -EINVAL;
-		}
-
-		linkmode_and(params.adv_speeds, current_link.supported_caps,
-			     sup_caps);
+		DP_INFO(edev, "Unsupported speed %u\n", base->speed);
+		return -EINVAL;
 	}
 
+set_link:
 	params.link_up = true;
 	edev->ops->common->set_link(edev->cdev, &params);
 
