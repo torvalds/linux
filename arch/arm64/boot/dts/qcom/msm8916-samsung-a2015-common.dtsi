@@ -138,6 +138,11 @@
 	vddio-supply = <&pm8916_l6>;
 };
 
+&pm8916_resin {
+	status = "okay";
+	linux,code = <KEY_VOLUMEDOWN>;
+};
+
 &pronto {
 	status = "okay";
 };
@@ -164,19 +169,6 @@
 	pinctrl-1 = <&sdc2_clk_off &sdc2_cmd_off &sdc2_data_off &sdc2_cd_off>;
 
 	cd-gpios = <&msmgpio 38 GPIO_ACTIVE_LOW>;
-};
-
-&spmi_bus {
-	pm8916@0 {
-		pon@800 {
-			volume-down {
-				compatible = "qcom,pm8941-resin";
-				interrupts = <0x0 0x8 1 IRQ_TYPE_EDGE_BOTH>;
-				bias-pull-up;
-				linux,code = <KEY_VOLUMEDOWN>;
-			};
-		};
-	};
 };
 
 &usb {

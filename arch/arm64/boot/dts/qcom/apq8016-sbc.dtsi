@@ -323,6 +323,11 @@
 	status = "okay";
 };
 
+&pm8916_resin {
+	status = "okay";
+	linux,code = <KEY_VOLUMEDOWN>;
+};
+
 &pronto {
 	status = "okay";
 };
@@ -389,20 +394,6 @@
 		};
 		codec {
 			sound-dai = <&lpass_codec 1>, <&wcd_codec 1>;
-		};
-	};
-};
-
-&spmi_bus {
-	pm8916_0: pm8916@0 {
-		pon@800 {
-			resin {
-				compatible = "qcom,pm8941-resin";
-				interrupts = <0x0 0x8 1 IRQ_TYPE_EDGE_BOTH>;
-				debounce = <15625>;
-				bias-pull-up;
-				linux,code = <KEY_VOLUMEDOWN>;
-			};
 		};
 	};
 };
