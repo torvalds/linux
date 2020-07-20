@@ -80,17 +80,18 @@ static inline void __seqcount_init(seqcount_t *s, const char *name,
 }
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
-# define SEQCOUNT_DEP_MAP_INIT(lockname) \
-		.dep_map = { .name = #lockname } \
+
+# define SEQCOUNT_DEP_MAP_INIT(lockname)				\
+		.dep_map = { .name = #lockname }
 
 /**
  * seqcount_init() - runtime initializer for seqcount_t
  * @s: Pointer to the seqcount_t instance
  */
-# define seqcount_init(s)				\
-	do {						\
-		static struct lock_class_key __key;	\
-		__seqcount_init((s), #s, &__key);	\
+# define seqcount_init(s)						\
+	do {								\
+		static struct lock_class_key __key;			\
+		__seqcount_init((s), #s, &__key);			\
 	} while (0)
 
 static inline void seqcount_lockdep_reader_access(const seqcount_t *s)
@@ -842,20 +843,20 @@ typedef struct {
 	spinlock_t lock;
 } seqlock_t;
 
-#define __SEQLOCK_UNLOCKED(lockname)			\
-	{						\
-		.seqcount = SEQCNT_ZERO(lockname),	\
-		.lock =	__SPIN_LOCK_UNLOCKED(lockname)	\
+#define __SEQLOCK_UNLOCKED(lockname)					\
+	{								\
+		.seqcount = SEQCNT_ZERO(lockname),			\
+		.lock =	__SPIN_LOCK_UNLOCKED(lockname)			\
 	}
 
 /**
  * seqlock_init() - dynamic initializer for seqlock_t
  * @sl: Pointer to the seqlock_t instance
  */
-#define seqlock_init(sl)				\
-	do {						\
-		seqcount_init(&(sl)->seqcount);		\
-		spin_lock_init(&(sl)->lock);		\
+#define seqlock_init(sl)						\
+	do {								\
+		seqcount_init(&(sl)->seqcount);				\
+		spin_lock_init(&(sl)->lock);				\
 	} while (0)
 
 /**
