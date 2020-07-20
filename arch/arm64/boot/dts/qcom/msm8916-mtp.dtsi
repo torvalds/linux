@@ -3,8 +3,7 @@
  * Copyright (c) 2014-2015, The Linux Foundation. All rights reserved.
  */
 
-#include "msm8916.dtsi"
-#include "pm8916.dtsi"
+#include "msm8916-pm8916.dtsi"
 
 / {
 	aliases {
