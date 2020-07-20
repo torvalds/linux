@@ -34,61 +34,60 @@ enum qed_mcp_eee_mode {
 };
 
 struct qed_mcp_link_params {
-	struct qed_mcp_link_speed_params speed;
-	struct qed_mcp_link_pause_params pause;
-	u32 loopback_mode;
-	struct qed_link_eee_params eee;
+	struct qed_mcp_link_speed_params	speed;
+	struct qed_mcp_link_pause_params	pause;
+	u32					loopback_mode;
+	struct qed_link_eee_params		eee;
 };
 
 struct qed_mcp_link_capabilities {
-	u32 speed_capabilities;
-	bool default_speed_autoneg;
-	enum qed_mcp_eee_mode default_eee;
-	u32 eee_lpi_timer;
-	u8 eee_speed_caps;
+	u32					speed_capabilities;
+	bool					default_speed_autoneg;
+	enum qed_mcp_eee_mode			default_eee;
+	u32					eee_lpi_timer;
+	u8					eee_speed_caps;
 };
 
 struct qed_mcp_link_state {
-	bool    link_up;
-
-	u32	min_pf_rate;
+	bool					link_up;
+	u32					min_pf_rate;
 
 	/* Actual link speed in Mb/s */
-	u32	line_speed;
+	u32					line_speed;
 
 	/* PF max speed in Mb/s, deduced from line_speed
 	 * according to PF max bandwidth configuration.
 	 */
-	u32     speed;
-	bool    full_duplex;
+	u32					speed;
 
-	bool    an;
-	bool    an_complete;
-	bool    parallel_detection;
-	bool    pfc_enabled;
+	bool					full_duplex;
+	bool					an;
+	bool					an_complete;
+	bool					parallel_detection;
+	bool					pfc_enabled;
 
-#define QED_LINK_PARTNER_SPEED_1G_HD    BIT(0)
-#define QED_LINK_PARTNER_SPEED_1G_FD    BIT(1)
-#define QED_LINK_PARTNER_SPEED_10G      BIT(2)
-#define QED_LINK_PARTNER_SPEED_20G      BIT(3)
-#define QED_LINK_PARTNER_SPEED_25G      BIT(4)
-#define QED_LINK_PARTNER_SPEED_40G      BIT(5)
-#define QED_LINK_PARTNER_SPEED_50G      BIT(6)
-#define QED_LINK_PARTNER_SPEED_100G     BIT(7)
-	u32     partner_adv_speed;
+	u32					partner_adv_speed;
+#define QED_LINK_PARTNER_SPEED_1G_HD		BIT(0)
+#define QED_LINK_PARTNER_SPEED_1G_FD		BIT(1)
+#define QED_LINK_PARTNER_SPEED_10G		BIT(2)
+#define QED_LINK_PARTNER_SPEED_20G		BIT(3)
+#define QED_LINK_PARTNER_SPEED_25G		BIT(4)
+#define QED_LINK_PARTNER_SPEED_40G		BIT(5)
+#define QED_LINK_PARTNER_SPEED_50G		BIT(6)
+#define QED_LINK_PARTNER_SPEED_100G		BIT(7)
 
-	bool    partner_tx_flow_ctrl_en;
-	bool    partner_rx_flow_ctrl_en;
+	bool					partner_tx_flow_ctrl_en;
+	bool					partner_rx_flow_ctrl_en;
 
-#define QED_LINK_PARTNER_SYMMETRIC_PAUSE (1)
-#define QED_LINK_PARTNER_ASYMMETRIC_PAUSE (2)
-#define QED_LINK_PARTNER_BOTH_PAUSE (3)
-	u8      partner_adv_pause;
+	u8					partner_adv_pause;
+#define QED_LINK_PARTNER_SYMMETRIC_PAUSE	0x1
+#define QED_LINK_PARTNER_ASYMMETRIC_PAUSE	0x2
+#define QED_LINK_PARTNER_BOTH_PAUSE		0x3
 
-	bool    sfp_tx_fault;
-	bool    eee_active;
-	u8      eee_adv_caps;
-	u8      eee_lp_adv_caps;
+	bool					sfp_tx_fault;
+	bool					eee_active;
+	u8					eee_adv_caps;
+	u8					eee_lp_adv_caps;
 };
 
 struct qed_mcp_function_info {
