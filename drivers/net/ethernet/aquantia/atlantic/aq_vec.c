@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/*
- * aQuantia Corporation Network Driver
- * Copyright (C) 2014-2017 aQuantia Corporation. All rights reserved
+/* Atlantic Network Driver
+ *
+ * Copyright (C) 2014-2019 aQuantia Corporation
+ * Copyright (C) 2019-2020 Marvell International Ltd.
  */
 
 /* File aq_vec.c: Definition of common structure for vector of Rx and Tx rings.
@@ -349,7 +350,7 @@ cpumask_t *aq_vec_get_affinity_mask(struct aq_vec_s *self)
 	return &self->aq_ring_param.affinity_mask;
 }
 
-static void aq_vec_add_stats(struct aq_vec_s *self,
+static void aq_vec_get_stats(struct aq_vec_s *self,
 			     const unsigned int tc,
 			     struct aq_ring_stats_rx_s *stats_rx,
 			     struct aq_ring_stats_tx_s *stats_tx)
@@ -359,23 +360,23 @@ static void aq_vec_add_stats(struct aq_vec_s *self,
 	if (tc < self->rx_rings) {
 		struct aq_ring_stats_rx_s *rx = &ring[AQ_VEC_RX_ID].stats.rx;
 
-		stats_rx->packets += rx->packets;
-		stats_rx->bytes += rx->bytes;
-		stats_rx->errors += rx->errors;
-		stats_rx->jumbo_packets += rx->jumbo_packets;
-		stats_rx->lro_packets += rx->lro_packets;
-		stats_rx->pg_losts += rx->pg_losts;
-		stats_rx->pg_flips += rx->pg_flips;
-		stats_rx->pg_reuses += rx->pg_reuses;
+		stats_rx->packets = rx->packets;
+		stats_rx->bytes = rx->bytes;
+		stats_rx->errors = rx->errors;
+		stats_rx->jumbo_packets = rx->jumbo_packets;
+		stats_rx->lro_packets = rx->lro_packets;
+		stats_rx->pg_losts = rx->pg_losts;
+		stats_rx->pg_flips = rx->pg_flips;
+		stats_rx->pg_reuses = rx->pg_reuses;
 	}
 
 	if (tc < self->tx_rings) {
 		struct aq_ring_stats_tx_s *tx = &ring[AQ_VEC_TX_ID].stats.tx;
 
-		stats_tx->packets += tx->packets;
-		stats_tx->bytes += tx->bytes;
-		stats_tx->errors += tx->errors;
-		stats_tx->queue_restarts += tx->queue_restarts;
+		stats_tx->packets = tx->packets;
+		stats_tx->bytes = tx->bytes;
+		stats_tx->errors = tx->errors;
+		stats_tx->queue_restarts = tx->queue_restarts;
 	}
 }
 
@@ -389,16 +390,16 @@ int aq_vec_get_sw_stats(struct aq_vec_s *self, const unsigned int tc, u64 *data,
 	memset(&stats_rx, 0U, sizeof(struct aq_ring_stats_rx_s));
 	memset(&stats_tx, 0U, sizeof(struct aq_ring_stats_tx_s));
 
-	aq_vec_add_stats(self, tc, &stats_rx, &stats_tx);
+	aq_vec_get_stats(self, tc, &stats_rx, &stats_tx);
 
 	/* This data should mimic aq_ethtool_queue_stat_names structure
 	 */
-	data[count] += stats_rx.packets;
-	data[++count] += stats_tx.packets;
-	data[++count] += stats_tx.queue_restarts;
-	data[++count] += stats_rx.jumbo_packets;
-	data[++count] += stats_rx.lro_packets;
-	data[++count] += stats_rx.errors;
+	data[count] = stats_rx.packets;
+	data[++count] = stats_tx.packets;
+	data[++count] = stats_tx.queue_restarts;
+	data[++count] = stats_rx.jumbo_packets;
+	data[++count] = stats_rx.lro_packets;
+	data[++count] = stats_rx.errors;
 
 	if (p_count)
 		*p_count = ++count;
