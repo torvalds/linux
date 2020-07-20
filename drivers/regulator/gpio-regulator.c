@@ -148,6 +148,13 @@ of_get_gpio_regulator_config(struct device *dev, struct device_node *np,
 
 	config->supply_name = config->init_data->constraints.name;
 
+	if (config->init_data->constraints.boot_on)
+		config->enabled_at_boot = true;
+
+	/*
+	 * Do not use: undocumented device tree property.
+	 * This is kept around solely for device tree ABI stability.
+	 */
 	if (of_property_read_bool(np, "enable-at-boot"))
 		config->enabled_at_boot = true;
 
