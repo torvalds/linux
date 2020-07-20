@@ -94,6 +94,11 @@ static int aq_get_rxpages(struct aq_ring_s *self, struct aq_ring_buff_s *rxbuf,
 	if (!rxbuf->rxdata.page) {
 		ret = aq_get_rxpage(&rxbuf->rxdata, order,
 				    aq_nic_get_dev(self->aq_nic));
+		if (ret) {
+			u64_stats_update_begin(&self->stats.rx.syncp);
+			self->stats.rx.alloc_fails++;
+			u64_stats_update_end(&self->stats.rx.syncp);
+		}
 		return ret;
 	}
 
@@ -414,6 +419,9 @@ int aq_ring_rx_clean(struct aq_ring_s *self,
 			skb = build_skb(aq_buf_vaddr(&buff->rxdata),
 					AQ_CFG_RX_FRAME_MAX);
 			if (unlikely(!skb)) {
+				u64_stats_update_begin(&self->stats.rx.syncp);
+				self->stats.rx.skb_alloc_fails++;
+				u64_stats_update_end(&self->stats.rx.syncp);
 				err = -ENOMEM;
 				goto err_exit;
 			}
@@ -427,6 +435,9 @@ int aq_ring_rx_clean(struct aq_ring_s *self,
 		} else {
 			skb = napi_alloc_skb(napi, AQ_CFG_RX_HDR_SIZE);
 			if (unlikely(!skb)) {
+				u64_stats_update_begin(&self->stats.rx.syncp);
+				self->stats.rx.skb_alloc_fails++;
+				u64_stats_update_end(&self->stats.rx.syncp);
 				err = -ENOMEM;
 				goto err_exit;
 			}
@@ -599,6 +610,9 @@ unsigned int aq_ring_fill_stats_data(struct aq_ring_s *self, u64 *data)
 			data[++count] = self->stats.rx.jumbo_packets;
 			data[++count] = self->stats.rx.lro_packets;
 			data[++count] = self->stats.rx.errors;
+			data[++count] = self->stats.rx.alloc_fails;
+			data[++count] = self->stats.rx.skb_alloc_fails;
+			data[++count] = self->stats.rx.polls;
 		} while (u64_stats_fetch_retry_irq(&self->stats.rx.syncp, start));
 	} else {
 		/* This data should mimic aq_ethtool_queue_tx_stat_names structure */

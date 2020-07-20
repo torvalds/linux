@@ -94,6 +94,9 @@ static const char * const aq_ethtool_queue_rx_stat_names[] = {
 	"%sQueue[%d] InJumboPackets",
 	"%sQueue[%d] InLroPackets",
 	"%sQueue[%d] InErrors",
+	"%sQueue[%d] AllocFails",
+	"%sQueue[%d] SkbAllocFails",
+	"%sQueue[%d] Polls",
 };
 
 static const char * const aq_ethtool_queue_tx_stat_names[] = {

@@ -95,6 +95,9 @@ struct aq_ring_stats_rx_s {
 	u64 bytes;
 	u64 lro_packets;
 	u64 jumbo_packets;
+	u64 alloc_fails;
+	u64 skb_alloc_fails;
+	u64 polls;
 	u64 pg_losts;
 	u64 pg_flips;
 	u64 pg_reuses;

@@ -45,6 +45,9 @@ static int aq_vec_poll(struct napi_struct *napi, int budget)
 	} else {
 		for (i = 0U, ring = self->ring[0];
 			self->tx_rings > i; ++i, ring = self->ring[i]) {
+			u64_stats_update_begin(&ring[AQ_VEC_RX_ID].stats.rx.syncp);
+			ring[AQ_VEC_RX_ID].stats.rx.polls++;
+			u64_stats_update_end(&ring[AQ_VEC_RX_ID].stats.rx.syncp);
 			if (self->aq_hw_ops->hw_ring_tx_head_update) {
 				err = self->aq_hw_ops->hw_ring_tx_head_update(
 							self->aq_hw,
