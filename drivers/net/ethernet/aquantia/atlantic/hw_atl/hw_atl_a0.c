@@ -18,6 +18,7 @@
 
 #define DEFAULT_A0_BOARD_BASIC_CAPABILITIES \
 	.is_64_dma = true,		  \
+	.op64bit = false,		  \
 	.msix_irqs = 4U,		  \
 	.irq_mask = ~0U,		  \
 	.vecs = HW_ATL_A0_RSS_MAX,	  \

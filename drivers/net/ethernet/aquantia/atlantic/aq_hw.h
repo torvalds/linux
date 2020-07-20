@@ -67,6 +67,7 @@ struct aq_hw_caps_s {
 	u8 rx_rings;
 	bool flow_control;
 	bool is_64_dma;
+	bool op64bit;
 	u32 priv_data_len;
 };
 
