@@ -110,6 +110,46 @@ required:
   - "#address-cells"
   - "#size-cells"
 
+additionalProperties:
+  anyOf:
+    - type: object
+      allOf:
+        - $ref: pincfg-node.yaml#
+        - $ref: pinmux-node.yaml#
+
+      properties:
+        phandle: true
+        function: true
+        groups: true
+        pins: true
+        bias-disable: true
+        bias-pull-up: true
+        bias-pull-down: true
+        output-low: true
+        output-high: true
+      additionalProperties: false
+
+    - type: object
+      properties:
+        phandle: true
+      additionalProperties:
+        type: object
+        allOf:
+          - $ref: pincfg-node.yaml#
+          - $ref: pinmux-node.yaml#
+
+        properties:
+          phandle: true
+          function: true
+          groups: true
+          pins: true
+          bias-disable: true
+          bias-pull-up: true
+          bias-pull-down: true
+          output-low: true
+          output-high: true
+        additionalProperties: false
+
 examples:
   - |
     pin-controller@10010000 {
