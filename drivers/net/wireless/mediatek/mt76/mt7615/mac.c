@@ -1845,7 +1845,7 @@ void mt7615_pm_wake_work(struct work_struct *work)
 						pm.wake_work);
 	mphy = dev->phy.mt76;
 
-	if (mt7615_driver_own(dev)) {
+	if (mt7615_mcu_set_drv_ctrl(dev)) {
 		dev_err(mphy->dev->dev, "failed to wake device\n");
 		goto out;
 	}
@@ -1943,7 +1943,7 @@ void mt7615_pm_power_save_work(struct work_struct *work)
 		goto out;
 	}
 
-	if (!mt7615_firmware_own(dev))
+	if (!mt7615_mcu_set_fw_ctrl(dev))
 		return;
 out:
 	queue_delayed_work(dev->mt76.wq, &dev->pm.ps_work, delta);

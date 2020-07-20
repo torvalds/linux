@@ -220,6 +220,8 @@ struct mt7615_phy {
 #define mt7615_mcu_add_bss_info(phy, ...) (phy->dev)->mcu_ops->add_bss_info((phy),  __VA_ARGS__)
 #define mt7615_mcu_add_beacon(dev, ...)	(dev)->mcu_ops->add_beacon_offload((dev),  __VA_ARGS__)
 #define mt7615_mcu_set_pm(dev, ...)	(dev)->mcu_ops->set_pm_state((dev),  __VA_ARGS__)
+#define mt7615_mcu_set_drv_ctrl(dev)	(dev)->mcu_ops->set_drv_ctrl((dev))
+#define mt7615_mcu_set_fw_ctrl(dev)	(dev)->mcu_ops->set_fw_ctrl((dev))
 struct mt7615_mcu_ops {
 	int (*add_tx_ba)(struct mt7615_dev *dev,
 			 struct ieee80211_ampdu_params *params,
@@ -238,6 +240,8 @@ struct mt7615_mcu_ops {
 				  struct ieee80211_hw *hw,
 				  struct ieee80211_vif *vif, bool enable);
 	int (*set_pm_state)(struct mt7615_dev *dev, int band, int state);
+	int (*set_drv_ctrl)(struct mt7615_dev *dev);
+	int (*set_fw_ctrl)(struct mt7615_dev *dev);
 };
 
 struct mt7615_dev {
@@ -639,8 +643,6 @@ int mt7615_mcu_set_p2p_oppps(struct ieee80211_hw *hw,
 			     struct ieee80211_vif *vif);
 int mt7615_mcu_set_roc(struct mt7615_phy *phy, struct ieee80211_vif *vif,
 		       struct ieee80211_channel *chan, int duration);
-int mt7615_firmware_own(struct mt7615_dev *dev);
-int mt7615_driver_own(struct mt7615_dev *dev);
 
 int mt7615_init_debugfs(struct mt7615_dev *dev);
 int mt7615_mcu_wait_response(struct mt7615_dev *dev, int cmd, int seq);

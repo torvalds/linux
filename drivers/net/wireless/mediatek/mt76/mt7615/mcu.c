@@ -324,6 +324,79 @@ int mt7615_rf_wr(struct mt7615_dev *dev, u32 wf, u32 reg, u32 val)
 				   sizeof(req), false);
 }
 
+static void mt7622_trigger_hif_int(struct mt7615_dev *dev, bool en)
+{
+	if (!is_mt7622(&dev->mt76))
+		return;
+
+	regmap_update_bits(dev->infracfg, MT_INFRACFG_MISC,
+			   MT_INFRACFG_MISC_AP2CONN_WAKE,
+			   !en * MT_INFRACFG_MISC_AP2CONN_WAKE);
+}
+
+static int mt7615_mcu_drv_pmctrl(struct mt7615_dev *dev)
+{
+	struct mt76_phy *mphy = &dev->mt76.phy;
+	struct mt76_dev *mdev = &dev->mt76;
+	int i;
+
+	if (!test_and_clear_bit(MT76_STATE_PM, &mphy->state))
+		goto out;
+
+	mt7622_trigger_hif_int(dev, true);
+
+	for (i = 0; i < MT7615_DRV_OWN_RETRY_COUNT; i++) {
+		u32 addr;
+
+		addr = is_mt7663(mdev) ? MT_PCIE_DOORBELL_PUSH : MT_CFG_LPCR_HOST;
+		mt76_wr(dev, addr, MT_CFG_LPCR_HOST_DRV_OWN);
+
+		addr = is_mt7663(mdev) ? MT_CONN_HIF_ON_LPCTL : MT_CFG_LPCR_HOST;
+		if (mt76_poll_msec(dev, addr, MT_CFG_LPCR_HOST_FW_OWN, 0, 50))
+			break;
+	}
+
+	mt7622_trigger_hif_int(dev, false);
+
+	if (i == MT7615_DRV_OWN_RETRY_COUNT) {
+		dev_err(mdev->dev, "driver own failed\n");
+		set_bit(MT76_STATE_PM, &mphy->state);
+		return -EIO;
+	}
+
+out:
+	dev->pm.last_activity = jiffies;
+
+	return 0;
+}
+
+static int mt7615_mcu_fw_pmctrl(struct mt7615_dev *dev)
+{
+	struct mt76_phy *mphy = &dev->mt76.phy;
+	int err = 0;
+	u32 addr;
+
+	if (test_and_set_bit(MT76_STATE_PM, &mphy->state))
+		return 0;
+
+	mt7622_trigger_hif_int(dev, true);
+
+	addr = is_mt7663(&dev->mt76) ? MT_CONN_HIF_ON_LPCTL : MT_CFG_LPCR_HOST;
+	mt76_wr(dev, addr, MT_CFG_LPCR_HOST_FW_OWN);
+
+	if (is_mt7622(&dev->mt76) &&
+	    !mt76_poll_msec(dev, addr, MT_CFG_LPCR_HOST_FW_OWN,
+			    MT_CFG_LPCR_HOST_FW_OWN, 300)) {
+		dev_err(dev->mt76.dev, "Timeout for firmware own\n");
+		clear_bit(MT76_STATE_PM, &mphy->state);
+		err = -EIO;
+	}
+
+	mt7622_trigger_hif_int(dev, false);
+
+	return err;
+}
+
 static void
 mt7615_mcu_csa_finish(void *priv, u8 *mac, struct ieee80211_vif *vif)
 {
@@ -1314,6 +1387,8 @@ static const struct mt7615_mcu_ops wtbl_update_ops = {
 	.add_tx_ba = mt7615_mcu_wtbl_tx_ba,
 	.add_rx_ba = mt7615_mcu_wtbl_rx_ba,
 	.sta_add = mt7615_mcu_wtbl_sta_add,
+	.set_drv_ctrl = mt7615_mcu_drv_pmctrl,
+	.set_fw_ctrl = mt7615_mcu_fw_pmctrl,
 };
 
 static int
@@ -1410,6 +1485,8 @@ static const struct mt7615_mcu_ops sta_update_ops = {
 	.add_tx_ba = mt7615_mcu_sta_tx_ba,
 	.add_rx_ba = mt7615_mcu_sta_rx_ba,
 	.sta_add = mt7615_mcu_add_sta,
+	.set_drv_ctrl = mt7615_mcu_drv_pmctrl,
+	.set_fw_ctrl = mt7615_mcu_fw_pmctrl,
 };
 
 static int
@@ -1823,6 +1900,8 @@ static const struct mt7615_mcu_ops uni_update_ops = {
 	.add_tx_ba = mt7615_mcu_uni_tx_ba,
 	.add_rx_ba = mt7615_mcu_uni_rx_ba,
 	.sta_add = mt7615_mcu_uni_add_sta,
+	.set_drv_ctrl = mt7615_mcu_drv_pmctrl,
+	.set_fw_ctrl = mt7615_mcu_fw_pmctrl,
 };
 
 static int mt7615_mcu_send_firmware(struct mt7615_dev *dev, const void *data,
@@ -1894,81 +1973,6 @@ static int mt7615_mcu_start_patch(struct mt7615_dev *dev)
 	return __mt76_mcu_send_msg(&dev->mt76, MCU_CMD_PATCH_FINISH_REQ,
 				   &req, sizeof(req), true);
 }
-
-static void mt7622_trigger_hif_int(struct mt7615_dev *dev, bool en)
-{
-	if (!is_mt7622(&dev->mt76))
-		return;
-
-	regmap_update_bits(dev->infracfg, MT_INFRACFG_MISC,
-			   MT_INFRACFG_MISC_AP2CONN_WAKE,
-			   !en * MT_INFRACFG_MISC_AP2CONN_WAKE);
-}
-
-int mt7615_driver_own(struct mt7615_dev *dev)
-{
-	struct mt76_phy *mphy = &dev->mt76.phy;
-	struct mt76_dev *mdev = &dev->mt76;
-	int i;
-
-	if (!test_and_clear_bit(MT76_STATE_PM, &mphy->state))
-		goto out;
-
-	mt7622_trigger_hif_int(dev, true);
-
-	for (i = 0; i < MT7615_DRV_OWN_RETRY_COUNT; i++) {
-		u32 addr;
-
-		addr = is_mt7663(mdev) ? MT_PCIE_DOORBELL_PUSH : MT_CFG_LPCR_HOST;
-		mt76_wr(dev, addr, MT_CFG_LPCR_HOST_DRV_OWN);
-
-		addr = is_mt7663(mdev) ? MT_CONN_HIF_ON_LPCTL : MT_CFG_LPCR_HOST;
-		if (mt76_poll_msec(dev, addr, MT_CFG_LPCR_HOST_FW_OWN, 0, 50))
-			break;
-	}
-
-	mt7622_trigger_hif_int(dev, false);
-
-	if (i == MT7615_DRV_OWN_RETRY_COUNT) {
-		dev_err(mdev->dev, "driver own failed\n");
-		set_bit(MT76_STATE_PM, &mphy->state);
-		return -EIO;
-	}
-
-out:
-	dev->pm.last_activity = jiffies;
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(mt7615_driver_own);
-
-int mt7615_firmware_own(struct mt7615_dev *dev)
-{
-	struct mt76_phy *mphy = &dev->mt76.phy;
-	int err = 0;
-	u32 addr;
-
-	if (test_and_set_bit(MT76_STATE_PM, &mphy->state))
-		return 0;
-
-	mt7622_trigger_hif_int(dev, true);
-
-	addr = is_mt7663(&dev->mt76) ? MT_CONN_HIF_ON_LPCTL : MT_CFG_LPCR_HOST;
-	mt76_wr(dev, addr, MT_CFG_LPCR_HOST_FW_OWN);
-
-	if (is_mt7622(&dev->mt76) &&
-	    !mt76_poll_msec(dev, addr, MT_CFG_LPCR_HOST_FW_OWN,
-			    MT_CFG_LPCR_HOST_FW_OWN, 300)) {
-		dev_err(dev->mt76.dev, "Timeout for firmware own\n");
-		clear_bit(MT76_STATE_PM, &mphy->state);
-		err = -EIO;
-	}
-
-	mt7622_trigger_hif_int(dev, false);
-
-	return err;
-}
-EXPORT_SYMBOL_GPL(mt7615_firmware_own);
 
 static int mt7615_load_patch(struct mt7615_dev *dev, u32 addr, const char *name)
 {
@@ -2451,7 +2455,7 @@ int mt7615_mcu_init(struct mt7615_dev *dev)
 
 	dev->mt76.mcu_ops = &mt7615_mcu_ops,
 
-	ret = mt7615_driver_own(dev);
+	ret = mt7615_mcu_drv_pmctrl(dev);
 	if (ret)
 		return ret;
 
@@ -2481,7 +2485,7 @@ EXPORT_SYMBOL_GPL(mt7615_mcu_init);
 void mt7615_mcu_exit(struct mt7615_dev *dev)
 {
 	__mt76_mcu_restart(&dev->mt76);
-	mt7615_firmware_own(dev);
+	mt7615_mcu_set_fw_ctrl(dev);
 	skb_queue_purge(&dev->mt76.mcu.res_q);
 }
 EXPORT_SYMBOL_GPL(mt7615_mcu_exit);
