@@ -377,8 +377,6 @@ static const struct rtc_class_ops ds1374_rtc_ops = {
 #define TIMER_MARGIN_MIN	1
 #define TIMER_MARGIN_MAX	4095 /* 24-bit value */
 
-#define DRV_NAME "DS1374 Watchdog"
-
 static int wdt_margin;
 module_param(wdt_margin, int, 0);
 MODULE_PARM_DESC(wdt_margin, "Watchdog timeout in seconds (default 32s)");
@@ -389,7 +387,7 @@ MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default ="
 		__MODULE_STRING(WATCHDOG_NOWAYOUT)")");
 
 static const struct watchdog_info ds1374_wdt_info = {
-	.identity       = "DS1374 WTD",
+	.identity       = "DS1374 Watchdog",
 	.options        = WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING |
 						WDIOF_MAGICCLOSE,
 };
