@@ -158,12 +158,6 @@ void ia_css_debug_set_dtrace_level(
  */
 unsigned int ia_css_debug_get_dtrace_level(void);
 
-/*! @brief Dump input formatter state.
- * Dumps the input formatter state to tracing output.
- * @return	None
- */
-void ia_css_debug_dump_if_state(void);
-
 /*! @brief Dump isp hardware state.
  * Dumps the isp hardware state to tracing output.
  * @return	None
