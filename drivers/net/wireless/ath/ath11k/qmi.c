@@ -2648,6 +2648,7 @@ int ath11k_qmi_init_service(struct ath11k_base *ab)
 			     ab->qmi.service_ins_id);
 	if (ret < 0) {
 		ath11k_warn(ab, "failed to add qmi lookup\n");
+		destroy_workqueue(ab->qmi.event_wq);
 		return ret;
 	}
 
