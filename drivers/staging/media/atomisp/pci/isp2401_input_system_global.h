@@ -21,7 +21,8 @@
 /* CSI reveiver has 3 ports. */
 #define		N_CSI_PORTS (3)
 
-#include "isys_dma.h"		/*	isys2401_dma_channel,
+#include "system_local.h"
+#include "isys_dma_global.h"	/*	isys2401_dma_channel,
 				 *	isys2401_dma_cfg_t
 				 */
 

@@ -19,7 +19,7 @@
 #include "platform_support.h"
 
 #ifdef ISP2401
-#include "isys_dma.h"		/* isys2401_dma_set_max_burst_size() */
+#include "isys_dma_public.h"	/* isys2401_dma_set_max_burst_size() */
 #include "isys_irq.h"
 #endif
 

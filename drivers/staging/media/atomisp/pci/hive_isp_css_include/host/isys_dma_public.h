@@ -21,12 +21,12 @@
 #include "system_local.h"
 #include "type_support.h"
 
-STORAGE_CLASS_ISYS2401_DMA_H void isys2401_dma_reg_store(
+extern void isys2401_dma_reg_store(
     const isys2401_dma_ID_t dma_id,
     const unsigned int	reg,
     const hrt_data		value);
 
-STORAGE_CLASS_ISYS2401_DMA_H hrt_data isys2401_dma_reg_load(
+extern hrt_data isys2401_dma_reg_load(
     const isys2401_dma_ID_t dma_id,
     const unsigned int	reg);
 
