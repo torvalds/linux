@@ -718,17 +718,25 @@ static int sof_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd,
 		/* do nothing for ALH dai_link */
 		break;
 	case SOF_DAI_IMX_ESAI:
+		rate->min = dai->dai_config->esai.fsync_rate;
+		rate->max = dai->dai_config->esai.fsync_rate;
 		channels->min = dai->dai_config->esai.tdm_slots;
 		channels->max = dai->dai_config->esai.tdm_slots;
 
+		dev_dbg(component->dev,
+			"rate_min: %d rate_max: %d\n", rate->min, rate->max);
 		dev_dbg(component->dev,
 			"channels_min: %d channels_max: %d\n",
 			channels->min, channels->max);
 		break;
 	case SOF_DAI_IMX_SAI:
+		rate->min = dai->dai_config->sai.fsync_rate;
+		rate->max = dai->dai_config->sai.fsync_rate;
 		channels->min = dai->dai_config->sai.tdm_slots;
 		channels->max = dai->dai_config->sai.tdm_slots;
 
+		dev_dbg(component->dev,
+			"rate_min: %d rate_max: %d\n", rate->min, rate->max);
 		dev_dbg(component->dev,
 			"channels_min: %d channels_max: %d\n",
 			channels->min, channels->max);
