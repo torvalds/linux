@@ -1611,7 +1611,6 @@ static int drm_queue_vblank_event(struct drm_device *dev, unsigned int pipe,
 	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
 	struct drm_pending_vblank_event *e;
 	ktime_t now;
-	unsigned long flags;
 	u64 seq;
 	int ret;
 
@@ -1633,7 +1632,7 @@ static int drm_queue_vblank_event(struct drm_device *dev, unsigned int pipe,
 			e->event.vbl.crtc_id = crtc->base.id;
 	}
 
-	spin_lock_irqsave(&dev->event_lock, flags);
+	spin_lock_irq(&dev->event_lock);
 
 	/*
 	 * drm_crtc_vblank_off() might have been called after we called
@@ -1670,12 +1669,12 @@ static int drm_queue_vblank_event(struct drm_device *dev, unsigned int pipe,
 		vblwait->reply.sequence = req_seq;
 	}
 
-	spin_unlock_irqrestore(&dev->event_lock, flags);
+	spin_unlock_irq(&dev->event_lock);
 
 	return 0;
 
 err_unlock:
-	spin_unlock_irqrestore(&dev->event_lock, flags);
+	spin_unlock_irq(&dev->event_lock);
 	kfree(e);
 err_put:
 	drm_vblank_put(dev, pipe);
