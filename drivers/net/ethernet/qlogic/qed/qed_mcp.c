@@ -1446,6 +1446,25 @@ static void qed_mcp_handle_link_change(struct qed_hwfn *p_hwfn,
 	if (p_hwfn->mcp_info->capabilities & FW_MB_PARAM_FEATURE_SUPPORT_EEE)
 		qed_mcp_read_eee_config(p_hwfn, p_ptt, p_link);
 
+	if (p_hwfn->mcp_info->capabilities &
+	    FW_MB_PARAM_FEATURE_SUPPORT_FEC_CONTROL) {
+		switch (status & LINK_STATUS_FEC_MODE_MASK) {
+		case LINK_STATUS_FEC_MODE_NONE:
+			p_link->fec_active = QED_FEC_MODE_NONE;
+			break;
+		case LINK_STATUS_FEC_MODE_FIRECODE_CL74:
+			p_link->fec_active = QED_FEC_MODE_FIRECODE;
+			break;
+		case LINK_STATUS_FEC_MODE_RS_CL91:
+			p_link->fec_active = QED_FEC_MODE_RS;
+			break;
+		default:
+			p_link->fec_active = QED_FEC_MODE_AUTO;
+		}
+	} else {
+		p_link->fec_active = QED_FEC_MODE_UNSUPPORTED;
+	}
+
 	qed_link_update(p_hwfn, p_ptt);
 out:
 	spin_unlock_bh(&p_hwfn->mcp_info->link_lock);
@@ -1456,8 +1475,8 @@ int qed_mcp_set_link(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt, bool b_up)
 	struct qed_mcp_link_params *params = &p_hwfn->mcp_info->link_input;
 	struct qed_mcp_mb_params mb_params;
 	struct eth_phy_cfg phy_cfg;
+	u32 cmd, fec_bit = 0;
 	int rc = 0;
-	u32 cmd;
 
 	/* Set the shmem configuration according to params */
 	memset(&phy_cfg, 0, sizeof(phy_cfg));
@@ -1489,16 +1508,27 @@ int qed_mcp_set_link(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt, bool b_up)
 				   EEE_TX_TIMER_USEC_MASK;
 	}
 
+	if (p_hwfn->mcp_info->capabilities &
+	    FW_MB_PARAM_FEATURE_SUPPORT_FEC_CONTROL) {
+		if (params->fec & QED_FEC_MODE_NONE)
+			fec_bit |= FEC_FORCE_MODE_NONE;
+		else if (params->fec & QED_FEC_MODE_FIRECODE)
+			fec_bit |= FEC_FORCE_MODE_FIRECODE;
+		else if (params->fec & QED_FEC_MODE_RS)
+			fec_bit |= FEC_FORCE_MODE_RS;
+		else if (params->fec & QED_FEC_MODE_AUTO)
+			fec_bit |= FEC_FORCE_MODE_AUTO;
+
+		SET_MFW_FIELD(phy_cfg.fec_mode, FEC_FORCE_MODE, fec_bit);
+	}
+
 	p_hwfn->b_drv_link_init = b_up;
 
 	if (b_up) {
 		DP_VERBOSE(p_hwfn, NETIF_MSG_LINK,
-			   "Configuring Link: Speed 0x%08x, Pause 0x%08x, adv_speed 0x%08x, loopback 0x%08x, features 0x%08x\n",
-			   phy_cfg.speed,
-			   phy_cfg.pause,
-			   phy_cfg.adv_speed,
-			   phy_cfg.loopback_mode,
-			   phy_cfg.feature_config_flags);
+			   "Configuring Link: Speed 0x%08x, Pause 0x%08x, adv_speed 0x%08x, loopback 0x%08x, FEC 0x%08x\n",
+			   phy_cfg.speed, phy_cfg.pause, phy_cfg.adv_speed,
+			   phy_cfg.loopback_mode, phy_cfg.fec_mode);
 	} else {
 		DP_VERBOSE(p_hwfn, NETIF_MSG_LINK,
 			   "Resetting link\n");
@@ -3805,7 +3835,8 @@ int qed_mcp_set_capabilities(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	u32 mcp_resp, mcp_param, features;
 
 	features = DRV_MB_PARAM_FEATURE_SUPPORT_PORT_EEE |
-		   DRV_MB_PARAM_FEATURE_SUPPORT_FUNC_VLINK;
+		   DRV_MB_PARAM_FEATURE_SUPPORT_FUNC_VLINK |
+		   DRV_MB_PARAM_FEATURE_SUPPORT_PORT_FEC_CONTROL;
 
 	return qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_FEATURE_SUPPORT,
 			   features, &mcp_resp, &mcp_param);

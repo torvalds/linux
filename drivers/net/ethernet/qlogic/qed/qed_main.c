@@ -1597,6 +1597,9 @@ static int qed_set_link(struct qed_dev *cdev, struct qed_link_params *params)
 		memcpy(&link_params->eee, &params->eee,
 		       sizeof(link_params->eee));
 
+	if (params->override_flags & QED_LINK_OVERRIDE_FEC_CONFIG)
+		link_params->fec = params->fec;
+
 	rc = qed_mcp_set_link(hwfn, ptt, params->link_up);
 
 	qed_ptt_release(hwfn, ptt);
@@ -1937,6 +1940,9 @@ static void qed_fill_link(struct qed_hwfn *hwfn,
 		phylink_set(if_link->advertised_caps, Autoneg);
 	else
 		phylink_clear(if_link->advertised_caps, Autoneg);
+
+	if_link->sup_fec = link_caps.fec_default;
+	if_link->active_fec = params.fec;
 
 	/* Fill link advertised capability */
 	qed_fill_link_capability(hwfn, ptt, params.speed.advertised_speeds,

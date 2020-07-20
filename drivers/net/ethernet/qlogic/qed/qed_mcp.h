@@ -38,11 +38,13 @@ struct qed_mcp_link_params {
 	struct qed_mcp_link_pause_params	pause;
 	u32					loopback_mode;
 	struct qed_link_eee_params		eee;
+	u32					fec;
 };
 
 struct qed_mcp_link_capabilities {
 	u32					speed_capabilities;
 	bool					default_speed_autoneg;
+	u32					fec_default;
 	enum qed_mcp_eee_mode			default_eee;
 	u32					eee_lpi_timer;
 	u8					eee_speed_caps;
@@ -88,6 +90,8 @@ struct qed_mcp_link_state {
 	bool					eee_active;
 	u8					eee_adv_caps;
 	u8					eee_lp_adv_caps;
+
+	u32					fec_active;
 };
 
 struct qed_mcp_function_info {

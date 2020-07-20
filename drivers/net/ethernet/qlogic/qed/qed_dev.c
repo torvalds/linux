@@ -3968,7 +3968,7 @@ unlock_and_exit:
 
 static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
-	u32 port_cfg_addr, link_temp, nvm_cfg_addr, device_capabilities;
+	u32 port_cfg_addr, link_temp, nvm_cfg_addr, device_capabilities, fc;
 	u32 nvm_cfg1_offset, mf_mode, addr, generic_cont0, core_cfg;
 	struct qed_mcp_link_capabilities *p_caps;
 	struct qed_mcp_link_params *link;
@@ -4081,15 +4081,37 @@ static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	p_hwfn->mcp_info->link_capabilities.default_speed_autoneg =
 		link->speed.autoneg;
 
-	link_temp &= NVM_CFG1_PORT_DRV_FLOW_CONTROL_MASK;
-	link_temp >>= NVM_CFG1_PORT_DRV_FLOW_CONTROL_OFFSET;
-	link->pause.autoneg = !!(link_temp &
-				 NVM_CFG1_PORT_DRV_FLOW_CONTROL_AUTONEG);
-	link->pause.forced_rx = !!(link_temp &
-				   NVM_CFG1_PORT_DRV_FLOW_CONTROL_RX);
-	link->pause.forced_tx = !!(link_temp &
-				   NVM_CFG1_PORT_DRV_FLOW_CONTROL_TX);
+	fc = GET_MFW_FIELD(link_temp, NVM_CFG1_PORT_DRV_FLOW_CONTROL);
+	link->pause.autoneg = !!(fc & NVM_CFG1_PORT_DRV_FLOW_CONTROL_AUTONEG);
+	link->pause.forced_rx = !!(fc & NVM_CFG1_PORT_DRV_FLOW_CONTROL_RX);
+	link->pause.forced_tx = !!(fc & NVM_CFG1_PORT_DRV_FLOW_CONTROL_TX);
 	link->loopback_mode = 0;
+
+	if (p_hwfn->mcp_info->capabilities &
+	    FW_MB_PARAM_FEATURE_SUPPORT_FEC_CONTROL) {
+		switch (GET_MFW_FIELD(link_temp,
+				      NVM_CFG1_PORT_FEC_FORCE_MODE)) {
+		case NVM_CFG1_PORT_FEC_FORCE_MODE_NONE:
+			p_caps->fec_default |= QED_FEC_MODE_NONE;
+			break;
+		case NVM_CFG1_PORT_FEC_FORCE_MODE_FIRECODE:
+			p_caps->fec_default |= QED_FEC_MODE_FIRECODE;
+			break;
+		case NVM_CFG1_PORT_FEC_FORCE_MODE_RS:
+			p_caps->fec_default |= QED_FEC_MODE_RS;
+			break;
+		case NVM_CFG1_PORT_FEC_FORCE_MODE_AUTO:
+			p_caps->fec_default |= QED_FEC_MODE_AUTO;
+			break;
+		default:
+			DP_VERBOSE(p_hwfn, NETIF_MSG_LINK,
+				   "unknown FEC mode in 0x%08x\n", link_temp);
+		}
+	} else {
+		p_caps->fec_default = QED_FEC_MODE_UNSUPPORTED;
+	}
+
+	link->fec = p_caps->fec_default;
 
 	if (p_hwfn->mcp_info->capabilities & FW_MB_PARAM_FEATURE_SUPPORT_EEE) {
 		link_temp = qed_rd(p_hwfn, p_ptt, port_cfg_addr +
@@ -4122,14 +4144,12 @@ static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		p_caps->default_eee = QED_MCP_EEE_UNSUPPORTED;
 	}
 
-	DP_VERBOSE(p_hwfn,
-		   NETIF_MSG_LINK,
-		   "Read default link: Speed 0x%08x, Adv. Speed 0x%08x, AN: 0x%02x, PAUSE AN: 0x%02x EEE: %02x [%08x usec]\n",
-		   link->speed.forced_speed,
-		   link->speed.advertised_speeds,
-		   link->speed.autoneg,
-		   link->pause.autoneg,
-		   p_caps->default_eee, p_caps->eee_lpi_timer);
+	DP_VERBOSE(p_hwfn, NETIF_MSG_LINK,
+		   "Read default link: Speed 0x%08x, Adv. Speed 0x%08x, AN: 0x%02x, PAUSE AN: 0x%02x, EEE: 0x%02x [0x%08x usec], FEC: 0x%02x\n",
+		   link->speed.forced_speed, link->speed.advertised_speeds,
+		   link->speed.autoneg, link->pause.autoneg,
+		   p_caps->default_eee, p_caps->eee_lpi_timer,
+		   p_caps->fec_default);
 
 	if (IS_LEAD_HWFN(p_hwfn)) {
 		struct qed_dev *cdev = p_hwfn->cdev;
