@@ -86,6 +86,7 @@ struct nvdimm_bus_descriptor {
 	int (*flush_probe)(struct nvdimm_bus_descriptor *nd_desc);
 	int (*clear_to_send)(struct nvdimm_bus_descriptor *nd_desc,
 			struct nvdimm *nvdimm, unsigned int cmd, void *data);
+	const struct nvdimm_bus_fw_ops *fw_ops;
 };
 
 struct nd_cmd_desc {
@@ -198,6 +199,49 @@ struct nvdimm_security_ops {
 	int (*overwrite)(struct nvdimm *nvdimm,
 			const struct nvdimm_key_data *key_data);
 	int (*query_overwrite)(struct nvdimm *nvdimm);
+};
+
+enum nvdimm_fwa_state {
+	NVDIMM_FWA_INVALID,
+	NVDIMM_FWA_IDLE,
+	NVDIMM_FWA_ARMED,
+	NVDIMM_FWA_BUSY,
+	NVDIMM_FWA_ARM_OVERFLOW,
+};
+
+enum nvdimm_fwa_trigger {
+	NVDIMM_FWA_ARM,
+	NVDIMM_FWA_DISARM,
+};
+
+enum nvdimm_fwa_capability {
+	NVDIMM_FWA_CAP_INVALID,
+	NVDIMM_FWA_CAP_NONE,
+	NVDIMM_FWA_CAP_QUIESCE,
+	NVDIMM_FWA_CAP_LIVE,
+};
+
+enum nvdimm_fwa_result {
+	NVDIMM_FWA_RESULT_INVALID,
+	NVDIMM_FWA_RESULT_NONE,
+	NVDIMM_FWA_RESULT_SUCCESS,
+	NVDIMM_FWA_RESULT_NOTSTAGED,
+	NVDIMM_FWA_RESULT_NEEDRESET,
+	NVDIMM_FWA_RESULT_FAIL,
+};
+
+struct nvdimm_bus_fw_ops {
+	enum nvdimm_fwa_state (*activate_state)
+		(struct nvdimm_bus_descriptor *nd_desc);
+	enum nvdimm_fwa_capability (*capability)
+		(struct nvdimm_bus_descriptor *nd_desc);
+	int (*activate)(struct nvdimm_bus_descriptor *nd_desc);
+};
+
+struct nvdimm_fw_ops {
+	enum nvdimm_fwa_state (*activate_state)(struct nvdimm *nvdimm);
+	enum nvdimm_fwa_result (*activate_result)(struct nvdimm *nvdimm);
+	int (*arm)(struct nvdimm *nvdimm, enum nvdimm_fwa_trigger arg);
 };
 
 void badrange_init(struct badrange *badrange);
