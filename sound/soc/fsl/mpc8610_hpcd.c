@@ -98,7 +98,7 @@ static int mpc8610_hpcd_machine_probe(struct snd_soc_card *card)
  */
 static int mpc8610_hpcd_startup(struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct mpc8610_hpcd_data *machine_data =
 		container_of(rtd->card, struct mpc8610_hpcd_data, card);
 	struct device *dev = rtd->card->dev;
