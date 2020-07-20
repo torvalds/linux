@@ -1424,11 +1424,17 @@ static void rdbk_frame_end(struct rkisp_stream *stream)
 {
 	struct rkisp_device *isp_dev = stream->ispdev;
 	struct rkisp_capture_device *cap = &isp_dev->cap_dev;
+	struct rkisp_sensor_info *sensor = isp_dev->active_sensor;
+	u32 denominator = sensor->fi.interval.denominator;
+	u32 numerator = sensor->fi.interval.numerator;
 	u64 l_ts, m_ts, s_ts;
-	int max_dma;
+	int ret, max_dma, fps = -1, time = 30000000;
 
 	if (stream->id != RKISP_STREAM_DMATX2)
 		return;
+
+	if (denominator && numerator)
+		time = numerator * 1000 / denominator * 1000 * 1000;
 
 	max_dma = hdr_dma_frame(isp_dev);
 	if (max_dma == 3) {
@@ -1438,16 +1444,28 @@ static void rdbk_frame_end(struct rkisp_stream *stream)
 			m_ts = cap->rdbk_buf[RDBK_M]->vb.vb2_buf.timestamp;
 			s_ts = cap->rdbk_buf[RDBK_S]->vb.vb2_buf.timestamp;
 
-			if ((m_ts - l_ts) > 30000000LL || m_ts < l_ts) {
-				v4l2_err(&isp_dev->v4l2_dev,
-					"timestamp is not match (%lld, %lld, %lld)\n",
-					l_ts, m_ts, s_ts);
-				goto RDBK_FRM_UNMATCH;
+			if ((m_ts - l_ts) > time || (s_ts - m_ts) > time) {
+				ret = v4l2_subdev_call(sensor->sd,
+					video, g_frame_interval, &sensor->fi);
+				if (!ret) {
+					denominator = sensor->fi.interval.denominator;
+					numerator = sensor->fi.interval.numerator;
+					time = numerator * 1000 / denominator * 1000 * 1000;
+					if (numerator)
+						fps = denominator / numerator;
+				}
+				if ((m_ts - l_ts) > time || (s_ts - m_ts) > time) {
+					v4l2_err(&isp_dev->v4l2_dev,
+						 "timestamp no match, s:%lld m:%lld l:%lld, fps:%d\n",
+						 s_ts, m_ts, l_ts, fps);
+					goto RDBK_FRM_UNMATCH;
+				}
 			}
-			if ((s_ts - m_ts) > 30000000LL || s_ts < m_ts) {
+
+			if (m_ts < l_ts || s_ts < m_ts) {
 				v4l2_err(&isp_dev->v4l2_dev,
-					"timestamp is not match (%lld, %lld, %lld)\n",
-					l_ts, m_ts, s_ts);
+					 "s/m/l frame err, timestamp s:%lld m:%lld l:%lld\n",
+					 s_ts, m_ts, l_ts);
 				goto RDBK_FRM_UNMATCH;
 			}
 
@@ -1462,8 +1480,7 @@ static void rdbk_frame_end(struct rkisp_stream *stream)
 			vb2_buffer_done(&cap->rdbk_buf[RDBK_S]->vb.vb2_buf,
 				VB2_BUF_STATE_DONE);
 		} else {
-			v4l2_err(&isp_dev->v4l2_dev,
-				"lost long or middle frames\n");
+			v4l2_err(&isp_dev->v4l2_dev, "lost long or middle frames\n");
 			goto RDBK_FRM_UNMATCH;
 		}
 	} else if (max_dma == 2) {
@@ -1471,10 +1488,28 @@ static void rdbk_frame_end(struct rkisp_stream *stream)
 			l_ts = cap->rdbk_buf[RDBK_L]->vb.vb2_buf.timestamp;
 			s_ts = cap->rdbk_buf[RDBK_S]->vb.vb2_buf.timestamp;
 
-			if ((s_ts - l_ts) > 30000000LL || s_ts < l_ts) {
+			if ((s_ts - l_ts) > time) {
+				ret = v4l2_subdev_call(sensor->sd,
+					video, g_frame_interval, &sensor->fi);
+				if (!ret) {
+					denominator = sensor->fi.interval.denominator;
+					numerator = sensor->fi.interval.numerator;
+					time = numerator * 1000 / denominator * 1000 * 1000;
+					if (numerator)
+						fps = denominator / numerator;
+				}
+				if ((s_ts - l_ts) > time) {
+					v4l2_err(&isp_dev->v4l2_dev,
+						 "timestamp no match, s:%lld l:%lld, fps:%d\n",
+						 s_ts, l_ts, fps);
+					goto RDBK_FRM_UNMATCH;
+				}
+			}
+
+			if (s_ts < l_ts) {
 				v4l2_err(&isp_dev->v4l2_dev,
-					"timestamp is not match (%lld, %lld)\n",
-					l_ts, s_ts);
+					 "s/l frame err, timestamp s:%lld l:%lld\n",
+					 s_ts, l_ts);
 				goto RDBK_FRM_UNMATCH;
 			}
 
@@ -1485,13 +1520,11 @@ static void rdbk_frame_end(struct rkisp_stream *stream)
 			vb2_buffer_done(&cap->rdbk_buf[RDBK_S]->vb.vb2_buf,
 				VB2_BUF_STATE_DONE);
 		} else {
-			v4l2_err(&isp_dev->v4l2_dev,
-				"lost long frames\n");
+			v4l2_err(&isp_dev->v4l2_dev, "lost long frames\n");
 			goto RDBK_FRM_UNMATCH;
 		}
 	} else {
-		vb2_buffer_done(&cap->rdbk_buf[RDBK_S]->vb.vb2_buf,
-			VB2_BUF_STATE_DONE);
+		vb2_buffer_done(&cap->rdbk_buf[RDBK_S]->vb.vb2_buf, VB2_BUF_STATE_DONE);
 	}
 
 	cap->rdbk_buf[RDBK_L] = NULL;
@@ -1526,7 +1559,7 @@ static int mi_frame_end(struct rkisp_stream *stream)
 	unsigned long lock_flags = 0;
 	int i = 0;
 
-	if (!stream->next_buf &&
+	if (!stream->next_buf && stream->streaming &&
 	    IS_HDR_RDBK(isp_dev->hdr.op_mode) &&
 	    isp_dev->dmarx_dev.trigger == T_MANUAL &&
 	    (stream->id == RKISP_STREAM_DMATX0 ||
