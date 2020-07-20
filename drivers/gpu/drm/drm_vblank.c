@@ -2066,7 +2066,6 @@ int drm_crtc_queue_sequence_ioctl(struct drm_device *dev, void *data,
 	u64 seq;
 	u64 req_seq;
 	int ret;
-	unsigned long spin_flags;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EOPNOTSUPP;
@@ -2114,7 +2113,7 @@ int drm_crtc_queue_sequence_ioctl(struct drm_device *dev, void *data,
 	e->event.base.length = sizeof(e->event.seq);
 	e->event.seq.user_data = queue_seq->user_data;
 
-	spin_lock_irqsave(&dev->event_lock, spin_flags);
+	spin_lock_irq(&dev->event_lock);
 
 	/*
 	 * drm_crtc_vblank_off() might have been called after we called
@@ -2145,11 +2144,11 @@ int drm_crtc_queue_sequence_ioctl(struct drm_device *dev, void *data,
 		queue_seq->sequence = req_seq;
 	}
 
-	spin_unlock_irqrestore(&dev->event_lock, spin_flags);
+	spin_unlock_irq(&dev->event_lock);
 	return 0;
 
 err_unlock:
-	spin_unlock_irqrestore(&dev->event_lock, spin_flags);
+	spin_unlock_irq(&dev->event_lock);
 	drm_crtc_vblank_put(crtc);
 err_free:
 	kfree(e);
