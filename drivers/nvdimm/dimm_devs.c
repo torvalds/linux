@@ -582,7 +582,8 @@ struct nvdimm *__nvdimm_create(struct nvdimm_bus *nvdimm_bus,
 		void *provider_data, const struct attribute_group **groups,
 		unsigned long flags, unsigned long cmd_mask, int num_flush,
 		struct resource *flush_wpq, const char *dimm_id,
-		const struct nvdimm_security_ops *sec_ops)
+		const struct nvdimm_security_ops *sec_ops,
+		const struct nvdimm_fw_ops *fw_ops)
 {
 	struct nvdimm *nvdimm = kzalloc(sizeof(*nvdimm), GFP_KERNEL);
 	struct device *dev;
@@ -612,6 +613,7 @@ struct nvdimm *__nvdimm_create(struct nvdimm_bus *nvdimm_bus,
 	dev->devt = MKDEV(nvdimm_major, nvdimm->id);
 	dev->groups = groups;
 	nvdimm->sec.ops = sec_ops;
+	nvdimm->fw_ops = fw_ops;
 	nvdimm->sec.overwrite_tmo = 0;
 	INIT_DELAYED_WORK(&nvdimm->dwork, nvdimm_security_overwrite_query);
 	/*

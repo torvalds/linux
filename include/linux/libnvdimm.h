@@ -269,14 +269,15 @@ struct nvdimm *__nvdimm_create(struct nvdimm_bus *nvdimm_bus,
 		void *provider_data, const struct attribute_group **groups,
 		unsigned long flags, unsigned long cmd_mask, int num_flush,
 		struct resource *flush_wpq, const char *dimm_id,
-		const struct nvdimm_security_ops *sec_ops);
+		const struct nvdimm_security_ops *sec_ops,
+		const struct nvdimm_fw_ops *fw_ops);
 static inline struct nvdimm *nvdimm_create(struct nvdimm_bus *nvdimm_bus,
 		void *provider_data, const struct attribute_group **groups,
 		unsigned long flags, unsigned long cmd_mask, int num_flush,
 		struct resource *flush_wpq)
 {
 	return __nvdimm_create(nvdimm_bus, provider_data, groups, flags,
-			cmd_mask, num_flush, flush_wpq, NULL, NULL);
+			cmd_mask, num_flush, flush_wpq, NULL, NULL, NULL);
 }
 
 const struct nd_cmd_desc *nd_cmd_dimm_desc(int cmd);

@@ -169,4 +169,7 @@ struct nd_intel_bus_fw_activate {
 	u8 iodev_state;
 	u32 status;
 } __packed;
+
+extern const struct nvdimm_fw_ops *intel_fw_ops;
+extern const struct nvdimm_bus_fw_ops *intel_bus_fw_ops;
 #endif

@@ -220,6 +220,9 @@ struct nfit_mem {
 	struct list_head list;
 	struct acpi_device *adev;
 	struct acpi_nfit_desc *acpi_desc;
+	enum nvdimm_fwa_state fwa_state;
+	enum nvdimm_fwa_result fwa_result;
+	int fwa_count;
 	char id[NFIT_DIMM_ID_LEN+1];
 	struct resource *flush_wpq;
 	unsigned long dsm_mask;
@@ -265,6 +268,11 @@ struct acpi_nfit_desc {
 	unsigned int scrub_tmo;
 	int (*blk_do_io)(struct nd_blk_region *ndbr, resource_size_t dpa,
 			void *iobuf, u64 len, int rw);
+	enum nvdimm_fwa_state fwa_state;
+	enum nvdimm_fwa_capability fwa_cap;
+	int fwa_count;
+	bool fwa_noidle;
+	bool fwa_nosuspend;
 };
 
 enum scrub_mode {
@@ -367,4 +375,6 @@ void __acpi_nvdimm_notify(struct device *dev, u32 event);
 int acpi_nfit_ctl(struct nvdimm_bus_descriptor *nd_desc, struct nvdimm *nvdimm,
 		unsigned int cmd, void *buf, unsigned int buf_len, int *cmd_rc);
 void acpi_nfit_desc_init(struct acpi_nfit_desc *acpi_desc, struct device *dev);
+bool intel_fwa_supported(struct nvdimm_bus *nvdimm_bus);
+extern struct device_attribute dev_attr_firmware_activate_noidle;
 #endif /* __NFIT_H__ */
