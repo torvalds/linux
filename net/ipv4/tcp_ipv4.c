@@ -76,6 +76,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/inetdevice.h>
+#include <linux/btf_ids.h>
 
 #include <crypto/hash.h>
 #include <linux/scatterlist.h>
@@ -2954,7 +2955,7 @@ static void bpf_iter_fini_tcp(void *priv_data)
 	bpf_iter_fini_seq_net(priv_data);
 }
 
-static const struct bpf_iter_reg tcp_reg_info = {
+static struct bpf_iter_reg tcp_reg_info = {
 	.target			= "tcp",
 	.seq_ops		= &bpf_iter_tcp_seq_ops,
 	.init_seq_private	= bpf_iter_init_tcp,
@@ -2969,6 +2970,7 @@ static const struct bpf_iter_reg tcp_reg_info = {
 
 static void __init bpf_iter_register(void)
 {
+	tcp_reg_info.ctx_arg_info[0].btf_id = btf_sock_ids[BTF_SOCK_TYPE_SOCK_COMMON];
 	if (bpf_iter_reg_target(&tcp_reg_info))
 		pr_warn("Warning: could not register bpf iterator tcp\n");
 }

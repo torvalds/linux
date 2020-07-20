@@ -7,6 +7,7 @@
 #include <linux/fs.h>
 #include <linux/fdtable.h>
 #include <linux/filter.h>
+#include <linux/btf_ids.h>
 
 struct bpf_iter_seq_task_common {
 	struct pid_namespace *ns;
@@ -312,7 +313,11 @@ static const struct seq_operations task_file_seq_ops = {
 	.show	= task_file_seq_show,
 };
 
-static const struct bpf_iter_reg task_reg_info = {
+BTF_ID_LIST(btf_task_file_ids)
+BTF_ID(struct, task_struct)
+BTF_ID(struct, file)
+
+static struct bpf_iter_reg task_reg_info = {
 	.target			= "task",
 	.seq_ops		= &task_seq_ops,
 	.init_seq_private	= init_seq_pidns,
@@ -325,7 +330,7 @@ static const struct bpf_iter_reg task_reg_info = {
 	},
 };
 
-static const struct bpf_iter_reg task_file_reg_info = {
+static struct bpf_iter_reg task_file_reg_info = {
 	.target			= "task_file",
 	.seq_ops		= &task_file_seq_ops,
 	.init_seq_private	= init_seq_pidns,
@@ -344,10 +349,13 @@ static int __init task_iter_init(void)
 {
 	int ret;
 
+	task_reg_info.ctx_arg_info[0].btf_id = btf_task_file_ids[0];
 	ret = bpf_iter_reg_target(&task_reg_info);
 	if (ret)
 		return ret;
 
+	task_file_reg_info.ctx_arg_info[0].btf_id = btf_task_file_ids[0];
+	task_file_reg_info.ctx_arg_info[1].btf_id = btf_task_file_ids[1];
 	return bpf_iter_reg_target(&task_file_reg_info);
 }
 late_initcall(task_iter_init);
