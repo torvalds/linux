@@ -23,78 +23,6 @@
 		};
 	};
 
-	soc {
-		sdhci@7824000 {
-			status = "okay";
-
-			vmmc-supply = <&pm8916_l8>;
-			vqmmc-supply = <&pm8916_l5>;
-
-			pinctrl-names = "default", "sleep";
-			pinctrl-0 = <&sdc1_clk_on &sdc1_cmd_on &sdc1_data_on>;
-			pinctrl-1 = <&sdc1_clk_off &sdc1_cmd_off &sdc1_data_off>;
-		};
-
-		sdhci@7864000 {
-			status = "okay";
-
-			vmmc-supply = <&pm8916_l11>;
-			vqmmc-supply = <&pm8916_l12>;
-
-			pinctrl-names = "default", "sleep";
-			pinctrl-0 = <&sdc2_clk_on &sdc2_cmd_on &sdc2_data_on &sdc2_cd_on>;
-			pinctrl-1 = <&sdc2_clk_off &sdc2_cmd_off &sdc2_data_off &sdc2_cd_off>;
-
-			cd-gpios = <&msmgpio 38 GPIO_ACTIVE_LOW>;
-		};
-
-		serial@78b0000 {
-			status = "okay";
-			pinctrl-names = "default", "sleep";
-			pinctrl-0 = <&blsp1_uart2_default>;
-			pinctrl-1 = <&blsp1_uart2_sleep>;
-		};
-
-		usb@78d9000 {
-			status = "okay";
-			extcon = <&muic>, <&muic>;
-
-			hnp-disable;
-			srp-disable;
-			adp-disable;
-
-			ulpi {
-				phy {
-					extcon = <&muic>;
-					v1p8-supply = <&pm8916_l7>;
-					v3p3-supply = <&pm8916_l13>;
-				};
-			};
-		};
-
-		mdss@1a00000 {
-			dsi@1a98000 {
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				vdda-supply = <&pm8916_l2>;
-				vddio-supply = <&pm8916_l6>;
-
-				pinctrl-names = "default", "sleep";
-				pinctrl-0 = <&mdss_default>;
-				pinctrl-1 = <&mdss_sleep>;
-			};
-
-			dsi-phy@1a98300 {
-				vddio-supply = <&pm8916_l6>;
-			};
-		};
-
-		wcnss@a21b000 {
-			status = "okay";
-		};
-	};
-
 	gpio-keys {
 		compatible = "gpio-keys";
 
@@ -186,6 +114,58 @@
 	};
 };
 
+&blsp1_uart2 {
+	status = "okay";
+
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&blsp1_uart2_default>;
+	pinctrl-1 = <&blsp1_uart2_sleep>;
+};
+
+&dsi0 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	vdda-supply = <&pm8916_l2>;
+	vddio-supply = <&pm8916_l6>;
+
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&mdss_default>;
+	pinctrl-1 = <&mdss_sleep>;
+};
+
+&dsi_phy0 {
+	vddio-supply = <&pm8916_l6>;
+};
+
+&pronto {
+	status = "okay";
+};
+
+&sdhc_1 {
+	status = "okay";
+
+	vmmc-supply = <&pm8916_l8>;
+	vqmmc-supply = <&pm8916_l5>;
+
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&sdc1_clk_on &sdc1_cmd_on &sdc1_data_on>;
+	pinctrl-1 = <&sdc1_clk_off &sdc1_cmd_off &sdc1_data_off>;
+};
+
+&sdhc_2 {
+	status = "okay";
+
+	vmmc-supply = <&pm8916_l11>;
+	vqmmc-supply = <&pm8916_l12>;
+
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&sdc2_clk_on &sdc2_cmd_on &sdc2_data_on &sdc2_cd_on>;
+	pinctrl-1 = <&sdc2_clk_off &sdc2_cmd_off &sdc2_data_off &sdc2_cd_off>;
+
+	cd-gpios = <&msmgpio 38 GPIO_ACTIVE_LOW>;
+};
+
 &spmi_bus {
 	pm8916@0 {
 		pon@800 {
@@ -197,6 +177,21 @@
 			};
 		};
 	};
+};
+
+&usb {
+	status = "okay";
+	extcon = <&muic>, <&muic>;
+
+	hnp-disable;
+	srp-disable;
+	adp-disable;
+};
+
+&usb_hs_phy {
+	extcon = <&muic>;
+	v1p8-supply = <&pm8916_l7>;
+	v3p3-supply = <&pm8916_l13>;
 };
 
 &smd_rpm_regulators {

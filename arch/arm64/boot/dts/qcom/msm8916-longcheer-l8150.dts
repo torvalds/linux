@@ -29,61 +29,6 @@
 		};
 	};
 
-	soc {
-		sdhci@7824000 {
-			status = "okay";
-
-			vmmc-supply = <&pm8916_l8>;
-			vqmmc-supply = <&pm8916_l5>;
-
-			pinctrl-names = "default", "sleep";
-			pinctrl-0 = <&sdc1_clk_on &sdc1_cmd_on &sdc1_data_on>;
-			pinctrl-1 = <&sdc1_clk_off &sdc1_cmd_off &sdc1_data_off>;
-		};
-
-		sdhci@7864000 {
-			status = "okay";
-
-			vmmc-supply = <&pm8916_l11>;
-			vqmmc-supply = <&pm8916_l12>;
-
-			pinctrl-names = "default", "sleep";
-			pinctrl-0 = <&sdc2_clk_on &sdc2_cmd_on &sdc2_data_on>;
-			pinctrl-1 = <&sdc2_clk_off &sdc2_cmd_off &sdc2_data_off>;
-
-			non-removable;
-		};
-
-		serial@78b0000 {
-			status = "okay";
-			pinctrl-names = "default", "sleep";
-			pinctrl-0 = <&blsp1_uart2_default>;
-			pinctrl-1 = <&blsp1_uart2_sleep>;
-		};
-
-		usb@78d9000 {
-			status = "okay";
-			dr_mode = "peripheral";
-			extcon = <&usb_vbus>;
-
-			hnp-disable;
-			srp-disable;
-			adp-disable;
-
-			ulpi {
-				phy {
-					extcon = <&usb_vbus>;
-					v1p8-supply = <&pm8916_l7>;
-					v3p3-supply = <&pm8916_l13>;
-				};
-			};
-		};
-
-		wcnss@a21b000 {
-			status = "okay";
-		};
-	};
-
 	// FIXME: Use extcon device provided by charger driver when available
 	usb_vbus: usb-vbus {
 		compatible = "linux,extcon-usb-gpio";
@@ -108,6 +53,42 @@
 	};
 };
 
+&blsp1_uart2 {
+	status = "okay";
+
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&blsp1_uart2_default>;
+	pinctrl-1 = <&blsp1_uart2_sleep>;
+};
+
+&pronto {
+	status = "okay";
+};
+
+&sdhc_1 {
+	status = "okay";
+
+	vmmc-supply = <&pm8916_l8>;
+	vqmmc-supply = <&pm8916_l5>;
+
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&sdc1_clk_on &sdc1_cmd_on &sdc1_data_on>;
+	pinctrl-1 = <&sdc1_clk_off &sdc1_cmd_off &sdc1_data_off>;
+};
+
+&sdhc_2 {
+	status = "okay";
+
+	vmmc-supply = <&pm8916_l11>;
+	vqmmc-supply = <&pm8916_l12>;
+
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&sdc2_clk_on &sdc2_cmd_on &sdc2_data_on>;
+	pinctrl-1 = <&sdc2_clk_off &sdc2_cmd_off &sdc2_data_off>;
+
+	non-removable;
+};
+
 &spmi_bus {
 	pm8916@0 {
 		pon@800 {
@@ -119,6 +100,22 @@
 			};
 		};
 	};
+};
+
+&usb {
+	status = "okay";
+	dr_mode = "peripheral";
+	extcon = <&usb_vbus>;
+
+	hnp-disable;
+	srp-disable;
+	adp-disable;
+};
+
+&usb_hs_phy {
+	extcon = <&usb_vbus>;
+	v1p8-supply = <&pm8916_l7>;
+	v3p3-supply = <&pm8916_l13>;
 };
 
 &smd_rpm_regulators {
