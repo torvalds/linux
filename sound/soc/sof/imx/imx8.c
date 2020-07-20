@@ -374,7 +374,7 @@ static int imx8_ipc_pcm_params(struct snd_sof_dev *sdev,
 
 static struct snd_soc_dai_driver imx8_dai[] = {
 {
-	.name = "esai-port",
+	.name = "esai0",
 	.playback = {
 		.channels_min = 1,
 		.channels_max = 8,
