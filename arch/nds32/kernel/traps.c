@@ -62,40 +62,6 @@ void dump_mem(const char *lvl, unsigned long bottom, unsigned long top)
 
 EXPORT_SYMBOL(dump_mem);
 
-static void dump_instr(struct pt_regs *regs)
-{
-	unsigned long addr = instruction_pointer(regs);
-	mm_segment_t fs;
-	char str[sizeof("00000000 ") * 5 + 2 + 1], *p = str;
-	int i;
-
-	return;
-	/*
-	 * We need to switch to kernel mode so that we can use __get_user
-	 * to safely read from kernel space.  Note that we now dump the
-	 * code first, just in case the backtrace kills us.
-	 */
-	fs = get_fs();
-	set_fs(KERNEL_DS);
-
-	pr_emerg("Code: ");
-	for (i = -4; i < 1; i++) {
-		unsigned int val, bad;
-
-		bad = __get_user(val, &((u32 *) addr)[i]);
-
-		if (!bad) {
-			p += sprintf(p, i == 0 ? "(%08x) " : "%08x ", val);
-		} else {
-			p += sprintf(p, "bad PC value");
-			break;
-		}
-	}
-	pr_emerg("Code: %s\n", str);
-
-	set_fs(fs);
-}
-
 #define LOOP_TIMES (100)
 static void __dump(struct task_struct *tsk, unsigned long *base_reg,
 		   const char *loglvl)
@@ -179,7 +145,6 @@ void die(const char *str, struct pt_regs *regs, int err)
 
 	if (!user_mode(regs) || in_interrupt()) {
 		dump_mem("Stack: ", regs->sp, (regs->sp + PAGE_SIZE) & PAGE_MASK);
-		dump_instr(regs);
 		dump_stack();
 	}
 
