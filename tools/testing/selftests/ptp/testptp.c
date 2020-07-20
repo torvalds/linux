@@ -35,6 +35,8 @@
 #define CLOCK_INVALID -1
 #endif
 
+#define NSEC_PER_SEC 1000000000LL
+
 /* clock_adjtime is not available in GLIBC < 2.14 */
 #if !__GLIBC_PREREQ(2, 14)
 #include <sys/syscall.h>
@@ -169,7 +171,6 @@ int main(int argc, char *argv[])
 	int list_pins = 0;
 	int pct_offset = 0;
 	int n_samples = 0;
-	int perout = -1;
 	int pin_index = -1, pin_func;
 	int pps = -1;
 	int seconds = 0;
@@ -177,6 +178,7 @@ int main(int argc, char *argv[])
 
 	int64_t t1, t2, tp;
 	int64_t interval, offset;
+	int64_t perout = -1;
 
 	progname = strrchr(argv[0], '/');
 	progname = progname ? 1+progname : argv[0];
@@ -215,7 +217,7 @@ int main(int argc, char *argv[])
 			}
 			break;
 		case 'p':
-			perout = atoi(optarg);
+			perout = atoll(optarg);
 			break;
 		case 'P':
 			pps = atoi(optarg);
@@ -400,8 +402,8 @@ int main(int argc, char *argv[])
 		perout_request.index = index;
 		perout_request.start.sec = ts.tv_sec + 2;
 		perout_request.start.nsec = 0;
-		perout_request.period.sec = 0;
-		perout_request.period.nsec = perout;
+		perout_request.period.sec = perout / NSEC_PER_SEC;
+		perout_request.period.nsec = perout % NSEC_PER_SEC;
 		if (ioctl(fd, PTP_PEROUT_REQUEST, &perout_request)) {
 			perror("PTP_PEROUT_REQUEST");
 		} else {
