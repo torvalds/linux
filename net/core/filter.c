@@ -9426,19 +9426,19 @@ void bpf_prog_change_xdp(struct bpf_prog *prev_prog, struct bpf_prog *prog)
  * sock_common as the first argument in its memory layout.
  */
 #define BTF_SOCK_TYPE_xxx \
-	BTF_SOCK_TYPE(BTF_SOCK_TYPE_INET, "inet_sock")			\
-	BTF_SOCK_TYPE(BTF_SOCK_TYPE_INET_CONN, "inet_connection_sock")	\
-	BTF_SOCK_TYPE(BTF_SOCK_TYPE_INET_REQ, "inet_request_sock")	\
-	BTF_SOCK_TYPE(BTF_SOCK_TYPE_INET_TW, "inet_timewait_sock")	\
-	BTF_SOCK_TYPE(BTF_SOCK_TYPE_REQ, "request_sock")		\
-	BTF_SOCK_TYPE(BTF_SOCK_TYPE_SOCK, "sock")			\
-	BTF_SOCK_TYPE(BTF_SOCK_TYPE_SOCK_COMMON, "sock_common")		\
-	BTF_SOCK_TYPE(BTF_SOCK_TYPE_TCP, "tcp_sock")			\
-	BTF_SOCK_TYPE(BTF_SOCK_TYPE_TCP_REQ, "tcp_request_sock")	\
-	BTF_SOCK_TYPE(BTF_SOCK_TYPE_TCP_TW, "tcp_timewait_sock")	\
-	BTF_SOCK_TYPE(BTF_SOCK_TYPE_TCP6, "tcp6_sock")			\
-	BTF_SOCK_TYPE(BTF_SOCK_TYPE_UDP, "udp_sock")			\
-	BTF_SOCK_TYPE(BTF_SOCK_TYPE_UDP6, "udp6_sock")
+	BTF_SOCK_TYPE(BTF_SOCK_TYPE_INET, inet_sock)			\
+	BTF_SOCK_TYPE(BTF_SOCK_TYPE_INET_CONN, inet_connection_sock)	\
+	BTF_SOCK_TYPE(BTF_SOCK_TYPE_INET_REQ, inet_request_sock)	\
+	BTF_SOCK_TYPE(BTF_SOCK_TYPE_INET_TW, inet_timewait_sock)	\
+	BTF_SOCK_TYPE(BTF_SOCK_TYPE_REQ, request_sock)			\
+	BTF_SOCK_TYPE(BTF_SOCK_TYPE_SOCK, sock)				\
+	BTF_SOCK_TYPE(BTF_SOCK_TYPE_SOCK_COMMON, sock_common)		\
+	BTF_SOCK_TYPE(BTF_SOCK_TYPE_TCP, tcp_sock)			\
+	BTF_SOCK_TYPE(BTF_SOCK_TYPE_TCP_REQ, tcp_request_sock)		\
+	BTF_SOCK_TYPE(BTF_SOCK_TYPE_TCP_TW, tcp_timewait_sock)		\
+	BTF_SOCK_TYPE(BTF_SOCK_TYPE_TCP6, tcp6_sock)			\
+	BTF_SOCK_TYPE(BTF_SOCK_TYPE_UDP, udp_sock)			\
+	BTF_SOCK_TYPE(BTF_SOCK_TYPE_UDP6, udp6_sock)
 
 enum {
 #define BTF_SOCK_TYPE(name, str) name,
@@ -9447,26 +9447,13 @@ BTF_SOCK_TYPE_xxx
 MAX_BTF_SOCK_TYPE,
 };
 
-static int btf_sock_ids[MAX_BTF_SOCK_TYPE];
-
-#ifdef CONFIG_BPF_SYSCALL
-static const char *bpf_sock_types[] = {
-#define BTF_SOCK_TYPE(name, str) str,
+#ifdef CONFIG_DEBUG_INFO_BTF
+BTF_ID_LIST(btf_sock_ids)
+#define BTF_SOCK_TYPE(name, type) BTF_ID(struct, type)
 BTF_SOCK_TYPE_xxx
 #undef BTF_SOCK_TYPE
-};
-
-void init_btf_sock_ids(struct btf *btf)
-{
-	int i, btf_id;
-
-	for (i = 0; i < MAX_BTF_SOCK_TYPE; i++) {
-		btf_id = btf_find_by_name_kind(btf, bpf_sock_types[i],
-					       BTF_KIND_STRUCT);
-		if (btf_id > 0)
-			btf_sock_ids[i] = btf_id;
-	}
-}
+#else
+static u32 btf_sock_ids[MAX_BTF_SOCK_TYPE];
 #endif
 
 static bool check_arg_btf_id(u32 btf_id, u32 arg)
