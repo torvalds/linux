@@ -50,12 +50,14 @@
 #define ETP_MAX_FINGERS		5
 #define ETP_FINGER_DATA_LEN	5
 #define ETP_REPORT_ID		0x5D
+#define ETP_REPORT_ID2		0x60	/* High precision report */
 #define ETP_TP_REPORT_ID	0x5E
 #define ETP_REPORT_ID_OFFSET	2
 #define ETP_TOUCH_INFO_OFFSET	3
 #define ETP_FINGER_DATA_OFFSET	4
 #define ETP_HOVER_INFO_OFFSET	30
-#define ETP_MAX_REPORT_LEN	34
+#define ETP_MK_DATA_OFFSET	33	/* For high precision reports */
+#define ETP_MAX_REPORT_LEN	39
 
 /* The main device structure */
 struct elan_tp_data {
@@ -85,6 +87,8 @@ struct elan_tp_data {
 	u8			sm_version;
 	u8			iap_version;
 	u16			fw_checksum;
+	unsigned int		report_features;
+	unsigned int		report_len;
 	int			pressure_adjustment;
 	u8			mode;
 	u16			ic_type;
@@ -359,6 +363,12 @@ static int elan_query_device_info(struct elan_tp_data *data)
 	if (error)
 		return error;
 
+	error = data->ops->get_report_features(data->client, data->pattern,
+					       &data->report_features,
+					       &data->report_len);
+	if (error)
+		return error;
+
 	error = elan_get_fwinfo(data->ic_type, data->iap_version,
 				&data->fw_validpage_count,
 				&data->fw_signature_address,
@@ -371,16 +381,21 @@ static int elan_query_device_info(struct elan_tp_data *data)
 	return 0;
 }
 
-static unsigned int elan_convert_resolution(u8 val)
+static unsigned int elan_convert_resolution(u8 val, u8 pattern)
 {
 	/*
-	 * (value from firmware) * 10 + 790 = dpi
-	 *
+	 * pattern <= 0x01:
+	 *	(value from firmware) * 10 + 790 = dpi
+	 * else
+	 *	((value from firmware) + 3) * 100 = dpi
+	 */
+	int res = pattern <= 0x01 ?
+		(int)(char)val * 10 + 790 : ((int)(char)val + 3) * 100;
+	/*
 	 * We also have to convert dpi to dots/mm (*10/254 to avoid floating
 	 * point).
 	 */
-
-	return ((int)(char)val * 10 + 790) * 10 / 254;
+	return res * 10 / 254;
 }
 
 static int elan_query_device_parameters(struct elan_tp_data *data)
@@ -429,8 +444,8 @@ static int elan_query_device_parameters(struct elan_tp_data *data)
 		if (error)
 			return error;
 
-		data->x_res = elan_convert_resolution(hw_x_res);
-		data->y_res = elan_convert_resolution(hw_y_res);
+		data->x_res = elan_convert_resolution(hw_x_res, data->pattern);
+		data->y_res = elan_convert_resolution(hw_y_res, data->pattern);
 	} else {
 		data->x_res = (data->max_x + 1) / x_mm;
 		data->y_res = (data->max_y + 1) / y_mm;
@@ -908,24 +923,22 @@ static const struct attribute_group *elan_sysfs_groups[] = {
  * Elan isr functions
  ******************************************************************
  */
-static void elan_report_contact(struct elan_tp_data *data,
-				int contact_num, bool contact_valid,
-				u8 *finger_data)
+static void elan_report_contact(struct elan_tp_data *data, int contact_num,
+				bool contact_valid, bool high_precision,
+				u8 *packet, u8 *finger_data)
 {
 	struct input_dev *input = data->input;
 	unsigned int pos_x, pos_y;
-	unsigned int pressure, mk_x, mk_y;
-	unsigned int area_x, area_y, major, minor;
-	unsigned int scaled_pressure;
+	unsigned int pressure, scaled_pressure;
 
 	if (contact_valid) {
-		pos_x = ((finger_data[0] & 0xf0) << 4) |
-						finger_data[1];
-		pos_y = ((finger_data[0] & 0x0f) << 8) |
-						finger_data[2];
-		mk_x = (finger_data[3] & 0x0f);
-		mk_y = (finger_data[3] >> 4);
-		pressure = finger_data[4];
+		if (high_precision) {
+			pos_x = get_unaligned_be16(&finger_data[0]);
+			pos_y = get_unaligned_be16(&finger_data[2]);
+		} else {
+			pos_x = ((finger_data[0] & 0xf0) << 4) | finger_data[1];
+			pos_y = ((finger_data[0] & 0x0f) << 8) | finger_data[2];
+		}
 
 		if (pos_x > data->max_x || pos_y > data->max_y) {
 			dev_dbg(input->dev.parent,
@@ -935,18 +948,8 @@ static void elan_report_contact(struct elan_tp_data *data,
 			return;
 		}
 
-		/*
-		 * To avoid treating large finger as palm, let's reduce the
-		 * width x and y per trace.
-		 */
-		area_x = mk_x * (data->width_x - ETP_FWIDTH_REDUCE);
-		area_y = mk_y * (data->width_y - ETP_FWIDTH_REDUCE);
-
-		major = max(area_x, area_y);
-		minor = min(area_x, area_y);
-
+		pressure = finger_data[4];
 		scaled_pressure = pressure + data->pressure_adjustment;
-
 		if (scaled_pressure > ETP_MAX_PRESSURE)
 			scaled_pressure = ETP_MAX_PRESSURE;
 
@@ -955,16 +958,37 @@ static void elan_report_contact(struct elan_tp_data *data,
 		input_report_abs(input, ABS_MT_POSITION_X, pos_x);
 		input_report_abs(input, ABS_MT_POSITION_Y, data->max_y - pos_y);
 		input_report_abs(input, ABS_MT_PRESSURE, scaled_pressure);
-		input_report_abs(input, ABS_TOOL_WIDTH, mk_x);
-		input_report_abs(input, ABS_MT_TOUCH_MAJOR, major);
-		input_report_abs(input, ABS_MT_TOUCH_MINOR, minor);
+
+		if (data->report_features & ETP_FEATURE_REPORT_MK) {
+			unsigned int mk_x, mk_y, area_x, area_y;
+			u8 mk_data = high_precision ?
+				packet[ETP_MK_DATA_OFFSET + contact_num] :
+				finger_data[3];
+
+			mk_x = mk_data & 0x0f;
+			mk_y = mk_data >> 4;
+
+			/*
+			 * To avoid treating large finger as palm, let's reduce
+			 * the width x and y per trace.
+			 */
+			area_x = mk_x * (data->width_x - ETP_FWIDTH_REDUCE);
+			area_y = mk_y * (data->width_y - ETP_FWIDTH_REDUCE);
+
+			input_report_abs(input, ABS_TOOL_WIDTH, mk_x);
+			input_report_abs(input, ABS_MT_TOUCH_MAJOR,
+					 max(area_x, area_y));
+			input_report_abs(input, ABS_MT_TOUCH_MINOR,
+					 min(area_x, area_y));
+		}
 	} else {
 		input_mt_slot(input, contact_num);
 		input_mt_report_slot_state(input, MT_TOOL_FINGER, false);
 	}
 }
 
-static void elan_report_absolute(struct elan_tp_data *data, u8 *packet)
+static void elan_report_absolute(struct elan_tp_data *data, u8 *packet,
+				 bool high_precision)
 {
 	struct input_dev *input = data->input;
 	u8 *finger_data = &packet[ETP_FINGER_DATA_OFFSET];
@@ -973,11 +997,12 @@ static void elan_report_absolute(struct elan_tp_data *data, u8 *packet)
 	u8 hover_info = packet[ETP_HOVER_INFO_OFFSET];
 	bool contact_valid, hover_event;
 
-	hover_event = hover_info & 0x40;
-	for (i = 0; i < ETP_MAX_FINGERS; i++) {
-		contact_valid = tp_info & (1U << (3 + i));
-		elan_report_contact(data, i, contact_valid, finger_data);
+	hover_event = hover_info & BIT(6);
 
+	for (i = 0; i < ETP_MAX_FINGERS; i++) {
+		contact_valid = tp_info & BIT(3 + i);
+		elan_report_contact(data, i, contact_valid, high_precision,
+				    packet, finger_data);
 		if (contact_valid)
 			finger_data += ETP_FINGER_DATA_LEN;
 	}
@@ -1034,7 +1059,7 @@ static irqreturn_t elan_isr(int irq, void *dev_id)
 		goto out;
 	}
 
-	error = data->ops->get_report(data->client, report);
+	error = data->ops->get_report(data->client, report, data->report_len);
 	if (error)
 		goto out;
 
@@ -1042,7 +1067,10 @@ static irqreturn_t elan_isr(int irq, void *dev_id)
 
 	switch (report[ETP_REPORT_ID_OFFSET]) {
 	case ETP_REPORT_ID:
-		elan_report_absolute(data, report);
+		elan_report_absolute(data, report, false);
+		break;
+	case ETP_REPORT_ID2:
+		elan_report_absolute(data, report, true);
 		break;
 	case ETP_TP_REPORT_ID:
 		elan_report_trackpoint(data, report);
@@ -1133,7 +1161,9 @@ static int elan_setup_input_device(struct elan_tp_data *data)
 	input_abs_set_res(input, ABS_X, data->x_res);
 	input_abs_set_res(input, ABS_Y, data->y_res);
 	input_set_abs_params(input, ABS_PRESSURE, 0, ETP_MAX_PRESSURE, 0, 0);
-	input_set_abs_params(input, ABS_TOOL_WIDTH, 0, ETP_FINGER_WIDTH, 0, 0);
+	if (data->report_features & ETP_FEATURE_REPORT_MK)
+		input_set_abs_params(input, ABS_TOOL_WIDTH,
+				     0, ETP_FINGER_WIDTH, 0, 0);
 	input_set_abs_params(input, ABS_DISTANCE, 0, 1, 0, 0);
 
 	/* And MT parameters */
@@ -1143,10 +1173,12 @@ static int elan_setup_input_device(struct elan_tp_data *data)
 	input_abs_set_res(input, ABS_MT_POSITION_Y, data->y_res);
 	input_set_abs_params(input, ABS_MT_PRESSURE, 0,
 			     ETP_MAX_PRESSURE, 0, 0);
-	input_set_abs_params(input, ABS_MT_TOUCH_MAJOR, 0,
-			     ETP_FINGER_WIDTH * max_width, 0, 0);
-	input_set_abs_params(input, ABS_MT_TOUCH_MINOR, 0,
-			     ETP_FINGER_WIDTH * min_width, 0, 0);
+	if (data->report_features & ETP_FEATURE_REPORT_MK) {
+		input_set_abs_params(input, ABS_MT_TOUCH_MAJOR,
+				     0, ETP_FINGER_WIDTH * max_width, 0, 0);
+		input_set_abs_params(input, ABS_MT_TOUCH_MINOR,
+				     0, ETP_FINGER_WIDTH * min_width, 0, 0);
+	}
 
 	data->input = input;
 

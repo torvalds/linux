@@ -26,6 +26,8 @@
 
 #define ETP_CALIBRATE_MAX_LEN	3
 
+#define ETP_FEATURE_REPORT_MK	BIT(0)
+
 /* IAP Firmware handling */
 #define ETP_PRODUCT_ID_FORMAT_STRING	"%d.0"
 #define ETP_FW_NAME		"elan_i2c_" ETP_PRODUCT_ID_FORMAT_STRING ".bin"
@@ -82,7 +84,11 @@ struct elan_transport_ops {
 	int (*finish_fw_update)(struct i2c_client *client,
 				struct completion *reset_done);
 
-	int (*get_report)(struct i2c_client *client, u8 *report);
+	int (*get_report_features)(struct i2c_client *client, u8 pattern,
+				   unsigned int *features,
+				   unsigned int *report_len);
+	int (*get_report)(struct i2c_client *client, u8 *report,
+			  unsigned int report_len);
 	int (*get_pressure_adjustment)(struct i2c_client *client,
 				       int *adjustment);
 	int (*get_pattern)(struct i2c_client *client, u8 *pattern);

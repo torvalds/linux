@@ -60,6 +60,8 @@
 #define ETP_I2C_IAP_TYPE_CMD		0x0304
 
 #define ETP_I2C_REPORT_LEN		34
+#define ETP_I2C_REPORT_LEN_ID2		39
+#define ETP_I2C_REPORT_MAX_LEN		39
 #define ETP_I2C_DESC_LENGTH		30
 #define ETP_I2C_REPORT_DESC_LENGTH	158
 #define ETP_I2C_INF_LENGTH		2
@@ -394,7 +396,7 @@ static int elan_i2c_get_max(struct i2c_client *client,
 		return error;
 	}
 
-	*max_x = le16_to_cpup((__le16 *)val) & 0x0fff;
+	*max_x = le16_to_cpup((__le16 *)val);
 
 	error = elan_i2c_read_cmd(client, ETP_I2C_MAX_Y_AXIS_CMD, val);
 	if (error) {
@@ -402,7 +404,7 @@ static int elan_i2c_get_max(struct i2c_client *client,
 		return error;
 	}
 
-	*max_y = le16_to_cpup((__le16 *)val) & 0x0fff;
+	*max_y = le16_to_cpup((__le16 *)val);
 
 	return 0;
 }
@@ -674,12 +676,12 @@ static int elan_i2c_finish_fw_update(struct i2c_client *client,
 				     struct completion *completion)
 {
 	struct device *dev = &client->dev;
-	int error;
+	int error = 0;
 	int len;
-	u8 buffer[ETP_I2C_REPORT_LEN];
+	u8 buffer[ETP_I2C_REPORT_MAX_LEN];
 
-	len = i2c_master_recv(client, buffer, ETP_I2C_REPORT_LEN);
-	if (len != ETP_I2C_REPORT_LEN) {
+	len = i2c_master_recv(client, buffer, ETP_I2C_REPORT_MAX_LEN);
+	if (len <= 0) {
 		error = len < 0 ? len : -EIO;
 		dev_warn(dev, "failed to read I2C data after FW WDT reset: %d (%d)\n",
 			error, len);
@@ -713,20 +715,31 @@ static int elan_i2c_finish_fw_update(struct i2c_client *client,
 	return 0;
 }
 
-static int elan_i2c_get_report(struct i2c_client *client, u8 *report)
+static int elan_i2c_get_report_features(struct i2c_client *client, u8 pattern,
+					unsigned int *features,
+					unsigned int *report_len)
+{
+	*features = ETP_FEATURE_REPORT_MK;
+	*report_len = pattern <= 0x01 ?
+			ETP_I2C_REPORT_LEN : ETP_I2C_REPORT_LEN_ID2;
+	return 0;
+}
+
+static int elan_i2c_get_report(struct i2c_client *client,
+			       u8 *report, unsigned int report_len)
 {
 	int len;
 
-	len = i2c_master_recv(client, report, ETP_I2C_REPORT_LEN);
+	len = i2c_master_recv(client, report, report_len);
 	if (len < 0) {
 		dev_err(&client->dev, "failed to read report data: %d\n", len);
 		return len;
 	}
 
-	if (len != ETP_I2C_REPORT_LEN) {
+	if (len != report_len) {
 		dev_err(&client->dev,
 			"wrong report length (%d vs %d expected)\n",
-			len, ETP_I2C_REPORT_LEN);
+			len, report_len);
 		return -EIO;
 	}
 
@@ -763,5 +776,6 @@ const struct elan_transport_ops elan_i2c_ops = {
 
 	.get_pattern		= elan_i2c_get_pattern,
 
+	.get_report_features	= elan_i2c_get_report_features,
 	.get_report		= elan_i2c_get_report,
 };
