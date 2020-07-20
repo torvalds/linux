@@ -230,7 +230,6 @@ struct dsa_port {
 	 * Original copy of the master netdev net_device_ops
 	 */
 	const struct dsa_netdevice_ops *netdev_ops;
-	const struct net_device_ops *orig_ndo_ops;
 
 	bool setup;
 };
