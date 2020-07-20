@@ -415,7 +415,7 @@ struct snd_sof_dsp_ops sof_imx8_ops = {
 
 	/* DAI drivers */
 	.drv = imx8_dai,
-	.num_drv = 1, /* we have only 1 ESAI interface on i.MX8 */
+	.num_drv = ARRAY_SIZE(imx8_dai),
 
 	/* ALSA HW info flags */
 	.hw_info =	SNDRV_PCM_INFO_MMAP |
@@ -455,7 +455,7 @@ struct snd_sof_dsp_ops sof_imx8x_ops = {
 
 	/* DAI drivers */
 	.drv = imx8_dai,
-	.num_drv = 1, /* we have only 1 ESAI interface on i.MX8 */
+	.num_drv = ARRAY_SIZE(imx8_dai),
 
 	/* ALSA HW info flags */
 	.hw_info =	SNDRV_PCM_INFO_MMAP |
