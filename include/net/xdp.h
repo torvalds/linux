@@ -85,6 +85,12 @@ struct xdp_buff {
 	((xdp)->data_hard_start + (xdp)->frame_sz -	\
 	 SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
 
+static inline struct skb_shared_info *
+xdp_get_shared_info_from_buff(struct xdp_buff *xdp)
+{
+	return (struct skb_shared_info *)xdp_data_hard_end(xdp);
+}
+
 struct xdp_frame {
 	void *data;
 	u16 len;
@@ -97,6 +103,15 @@ struct xdp_frame {
 	struct xdp_mem_info mem;
 	struct net_device *dev_rx; /* used by cpumap */
 };
+
+static inline struct skb_shared_info *
+xdp_get_shared_info_from_frame(struct xdp_frame *frame)
+{
+	void *data_hard_start = frame->data - frame->headroom - sizeof(*frame);
+
+	return (struct skb_shared_info *)(data_hard_start + frame->frame_sz -
+				SKB_DATA_ALIGN(sizeof(struct skb_shared_info)));
+}
 
 /* Clear kernel pointers in xdp_frame */
 static inline void xdp_scrub_frame(struct xdp_frame *frame)
