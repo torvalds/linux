@@ -24,6 +24,7 @@
 #include <linux/qed/qed_ll2_if.h>
 #include <net/devlink.h>
 #include <linux/aer.h>
+#include <linux/phylink.h>
 
 #include "qed.h"
 #include "qed_sriov.h"
@@ -1456,10 +1457,11 @@ static bool qed_can_link_change(struct qed_dev *cdev)
 
 static int qed_set_link(struct qed_dev *cdev, struct qed_link_params *params)
 {
-	struct qed_hwfn *hwfn;
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(sup_caps);
 	struct qed_mcp_link_params *link_params;
+	struct qed_hwfn *hwfn;
 	struct qed_ptt *ptt;
-	u32 sup_caps;
+	u32 as;
 	int rc;
 
 	if (!cdev)
@@ -1482,57 +1484,79 @@ static int qed_set_link(struct qed_dev *cdev, struct qed_link_params *params)
 		return -EBUSY;
 
 	link_params = qed_mcp_get_link_params(hwfn);
+	if (!link_params)
+		return -ENODATA;
+
 	if (params->override_flags & QED_LINK_OVERRIDE_SPEED_AUTONEG)
 		link_params->speed.autoneg = params->autoneg;
+
 	if (params->override_flags & QED_LINK_OVERRIDE_SPEED_ADV_SPEEDS) {
-		link_params->speed.advertised_speeds = 0;
-		sup_caps = QED_LM_1000baseT_Full_BIT |
-			   QED_LM_1000baseKX_Full_BIT |
-			   QED_LM_1000baseX_Full_BIT;
-		if (params->adv_speeds & sup_caps)
-			link_params->speed.advertised_speeds |=
-			    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_1G;
-		sup_caps = QED_LM_10000baseT_Full_BIT |
-			   QED_LM_10000baseKR_Full_BIT |
-			   QED_LM_10000baseKX4_Full_BIT |
-			   QED_LM_10000baseR_FEC_BIT |
-			   QED_LM_10000baseCR_Full_BIT |
-			   QED_LM_10000baseSR_Full_BIT |
-			   QED_LM_10000baseLR_Full_BIT |
-			   QED_LM_10000baseLRM_Full_BIT;
-		if (params->adv_speeds & sup_caps)
-			link_params->speed.advertised_speeds |=
-			    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_10G;
-		if (params->adv_speeds & QED_LM_20000baseKR2_Full_BIT)
-			link_params->speed.advertised_speeds |=
-				NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_20G;
-		sup_caps = QED_LM_25000baseKR_Full_BIT |
-			   QED_LM_25000baseCR_Full_BIT |
-			   QED_LM_25000baseSR_Full_BIT;
-		if (params->adv_speeds & sup_caps)
-			link_params->speed.advertised_speeds |=
-			    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_25G;
-		sup_caps = QED_LM_40000baseLR4_Full_BIT |
-			   QED_LM_40000baseKR4_Full_BIT |
-			   QED_LM_40000baseCR4_Full_BIT |
-			   QED_LM_40000baseSR4_Full_BIT;
-		if (params->adv_speeds & sup_caps)
-			link_params->speed.advertised_speeds |=
-				NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_40G;
-		sup_caps = QED_LM_50000baseKR2_Full_BIT |
-			   QED_LM_50000baseCR2_Full_BIT |
-			   QED_LM_50000baseSR2_Full_BIT;
-		if (params->adv_speeds & sup_caps)
-			link_params->speed.advertised_speeds |=
-			    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_50G;
-		sup_caps = QED_LM_100000baseKR4_Full_BIT |
-			   QED_LM_100000baseSR4_Full_BIT |
-			   QED_LM_100000baseCR4_Full_BIT |
-			   QED_LM_100000baseLR4_ER4_Full_BIT;
-		if (params->adv_speeds & sup_caps)
-			link_params->speed.advertised_speeds |=
-			    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_BB_100G;
+		as = 0;
+
+		phylink_zero(sup_caps);
+		phylink_set(sup_caps, 1000baseT_Full);
+		phylink_set(sup_caps, 1000baseKX_Full);
+		phylink_set(sup_caps, 1000baseX_Full);
+
+		if (linkmode_intersects(params->adv_speeds, sup_caps))
+			as |= NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_1G;
+
+		phylink_zero(sup_caps);
+		phylink_set(sup_caps, 10000baseT_Full);
+		phylink_set(sup_caps, 10000baseKR_Full);
+		phylink_set(sup_caps, 10000baseKX4_Full);
+		phylink_set(sup_caps, 10000baseR_FEC);
+		phylink_set(sup_caps, 10000baseCR_Full);
+		phylink_set(sup_caps, 10000baseSR_Full);
+		phylink_set(sup_caps, 10000baseLR_Full);
+		phylink_set(sup_caps, 10000baseLRM_Full);
+
+		if (linkmode_intersects(params->adv_speeds, sup_caps))
+			as |= NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_10G;
+
+		phylink_zero(sup_caps);
+		phylink_set(sup_caps, 20000baseKR2_Full);
+
+		if (linkmode_intersects(params->adv_speeds, sup_caps))
+			as |= NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_20G;
+
+		phylink_zero(sup_caps);
+		phylink_set(sup_caps, 25000baseKR_Full);
+		phylink_set(sup_caps, 25000baseCR_Full);
+		phylink_set(sup_caps, 25000baseSR_Full);
+
+		if (linkmode_intersects(params->adv_speeds, sup_caps))
+			as |= NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_25G;
+
+		phylink_zero(sup_caps);
+		phylink_set(sup_caps, 40000baseLR4_Full);
+		phylink_set(sup_caps, 40000baseKR4_Full);
+		phylink_set(sup_caps, 40000baseCR4_Full);
+		phylink_set(sup_caps, 40000baseSR4_Full);
+
+		if (linkmode_intersects(params->adv_speeds, sup_caps))
+			as |= NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_40G;
+
+		phylink_zero(sup_caps);
+		phylink_set(sup_caps, 50000baseKR2_Full);
+		phylink_set(sup_caps, 50000baseCR2_Full);
+		phylink_set(sup_caps, 50000baseSR2_Full);
+
+		if (linkmode_intersects(params->adv_speeds, sup_caps))
+			as |= NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_50G;
+
+		phylink_zero(sup_caps);
+		phylink_set(sup_caps, 100000baseKR4_Full);
+		phylink_set(sup_caps, 100000baseSR4_Full);
+		phylink_set(sup_caps, 100000baseCR4_Full);
+		phylink_set(sup_caps, 100000baseLR4_ER4_Full);
+
+		if (linkmode_intersects(params->adv_speeds, sup_caps))
+			as |= NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_BB_100G;
+
+		link_params->speed.advertised_speeds = as;
 	}
+
 	if (params->override_flags & QED_LINK_OVERRIDE_SPEED_FORCED_SPEED)
 		link_params->speed.forced_speed = params->forced_speed;
 	if (params->override_flags & QED_LINK_OVERRIDE_PAUSE_CONFIG) {
@@ -1644,7 +1668,7 @@ static int qed_get_link_data(struct qed_hwfn *hwfn,
 
 static void qed_fill_link_capability(struct qed_hwfn *hwfn,
 				     struct qed_ptt *ptt, u32 capability,
-				     u32 *if_capability)
+				     unsigned long *if_caps)
 {
 	u32 media_type, tcvr_state, tcvr_type;
 	u32 speed_mask, board_cfg;
@@ -1667,113 +1691,117 @@ static void qed_fill_link_capability(struct qed_hwfn *hwfn,
 
 	switch (media_type) {
 	case MEDIA_DA_TWINAX:
-		*if_capability |= QED_LM_FIBRE_BIT;
+		phylink_set(if_caps, FIBRE);
+
 		if (capability & NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_20G)
-			*if_capability |= QED_LM_20000baseKR2_Full_BIT;
+			phylink_set(if_caps, 20000baseKR2_Full);
+
 		/* For DAC media multiple speed capabilities are supported*/
 		capability = capability & speed_mask;
 		if (capability & NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_1G)
-			*if_capability |= QED_LM_1000baseKX_Full_BIT;
+			phylink_set(if_caps, 1000baseKX_Full);
 		if (capability & NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_10G)
-			*if_capability |= QED_LM_10000baseCR_Full_BIT;
+			phylink_set(if_caps, 10000baseCR_Full);
 		if (capability & NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_40G)
-			*if_capability |= QED_LM_40000baseCR4_Full_BIT;
+			phylink_set(if_caps, 40000baseCR4_Full);
 		if (capability & NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_25G)
-			*if_capability |= QED_LM_25000baseCR_Full_BIT;
+			phylink_set(if_caps, 25000baseCR_Full);
 		if (capability & NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_50G)
-			*if_capability |= QED_LM_50000baseCR2_Full_BIT;
+			phylink_set(if_caps, 50000baseCR2_Full);
 		if (capability &
-			NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_BB_100G)
-			*if_capability |= QED_LM_100000baseCR4_Full_BIT;
+		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_BB_100G)
+			phylink_set(if_caps, 100000baseCR4_Full);
+
 		break;
 	case MEDIA_BASE_T:
-		*if_capability |= QED_LM_TP_BIT;
+		phylink_set(if_caps, TP);
+
 		if (board_cfg & NVM_CFG1_PORT_PORT_TYPE_EXT_PHY) {
 			if (capability &
-			    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_1G) {
-				*if_capability |= QED_LM_1000baseT_Full_BIT;
-			}
+			    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_1G)
+				phylink_set(if_caps, 1000baseT_Full);
 			if (capability &
-			    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_10G) {
-				*if_capability |= QED_LM_10000baseT_Full_BIT;
-			}
+			    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_10G)
+				phylink_set(if_caps, 10000baseT_Full);
 		}
+
 		if (board_cfg & NVM_CFG1_PORT_PORT_TYPE_MODULE) {
-			*if_capability |= QED_LM_FIBRE_BIT;
+			phylink_set(if_caps, FIBRE);
+
 			if (tcvr_type == ETH_TRANSCEIVER_TYPE_1000BASET)
-				*if_capability |= QED_LM_1000baseT_Full_BIT;
+				phylink_set(if_caps, 1000baseT_Full);
 			if (tcvr_type == ETH_TRANSCEIVER_TYPE_10G_BASET)
-				*if_capability |= QED_LM_10000baseT_Full_BIT;
+				phylink_set(if_caps, 10000baseT_Full);
 		}
+
 		break;
 	case MEDIA_SFP_1G_FIBER:
 	case MEDIA_SFPP_10G_FIBER:
 	case MEDIA_XFP_FIBER:
 	case MEDIA_MODULE_FIBER:
-		*if_capability |= QED_LM_FIBRE_BIT;
-		if (capability &
-		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_1G) {
+		phylink_set(if_caps, FIBRE);
+
+		if (capability & NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_1G) {
 			if ((tcvr_type == ETH_TRANSCEIVER_TYPE_1G_LX) ||
 			    (tcvr_type == ETH_TRANSCEIVER_TYPE_1G_SX))
-				*if_capability |= QED_LM_1000baseKX_Full_BIT;
+				phylink_set(if_caps, 1000baseKX_Full);
 		}
-		if (capability &
-		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_10G) {
+
+		if (capability & NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_10G) {
 			if (tcvr_type == ETH_TRANSCEIVER_TYPE_10G_SR)
-				*if_capability |= QED_LM_10000baseSR_Full_BIT;
+				phylink_set(if_caps, 10000baseSR_Full);
 			if (tcvr_type == ETH_TRANSCEIVER_TYPE_10G_LR)
-				*if_capability |= QED_LM_10000baseLR_Full_BIT;
+				phylink_set(if_caps, 10000baseLR_Full);
 			if (tcvr_type == ETH_TRANSCEIVER_TYPE_10G_LRM)
-				*if_capability |= QED_LM_10000baseLRM_Full_BIT;
+				phylink_set(if_caps, 10000baseLRM_Full);
 			if (tcvr_type == ETH_TRANSCEIVER_TYPE_10G_ER)
-				*if_capability |= QED_LM_10000baseR_FEC_BIT;
+				phylink_set(if_caps, 10000baseR_FEC);
 		}
+
 		if (capability & NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_20G)
-			*if_capability |= QED_LM_20000baseKR2_Full_BIT;
-		if (capability &
-		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_25G) {
+			phylink_set(if_caps, 20000baseKR2_Full);
+
+		if (capability & NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_25G) {
 			if (tcvr_type == ETH_TRANSCEIVER_TYPE_25G_SR)
-				*if_capability |= QED_LM_25000baseSR_Full_BIT;
+				phylink_set(if_caps, 25000baseSR_Full);
 		}
-		if (capability &
-		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_40G) {
+
+		if (capability & NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_40G) {
 			if (tcvr_type == ETH_TRANSCEIVER_TYPE_40G_LR4)
-				*if_capability |= QED_LM_40000baseLR4_Full_BIT;
+				phylink_set(if_caps, 40000baseLR4_Full);
 			if (tcvr_type == ETH_TRANSCEIVER_TYPE_40G_SR4)
-				*if_capability |= QED_LM_40000baseSR4_Full_BIT;
+				phylink_set(if_caps, 40000baseSR4_Full);
 		}
-		if (capability &
-		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_50G)
-			*if_capability |= QED_LM_50000baseKR2_Full_BIT;
+
+		if (capability & NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_50G)
+			phylink_set(if_caps, 50000baseKR2_Full);
+
 		if (capability &
 		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_BB_100G) {
 			if (tcvr_type == ETH_TRANSCEIVER_TYPE_100G_SR4)
-				*if_capability |= QED_LM_100000baseSR4_Full_BIT;
+				phylink_set(if_caps, 100000baseSR4_Full);
 		}
 
 		break;
 	case MEDIA_KR:
-		*if_capability |= QED_LM_Backplane_BIT;
+		phylink_set(if_caps, Backplane);
+
 		if (capability & NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_20G)
-			*if_capability |= QED_LM_20000baseKR2_Full_BIT;
-		if (capability &
-		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_1G)
-			*if_capability |= QED_LM_1000baseKX_Full_BIT;
-		if (capability &
-		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_10G)
-			*if_capability |= QED_LM_10000baseKR_Full_BIT;
-		if (capability &
-		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_25G)
-			*if_capability |= QED_LM_25000baseKR_Full_BIT;
-		if (capability &
-		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_40G)
-			*if_capability |= QED_LM_40000baseKR4_Full_BIT;
-		if (capability &
-		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_50G)
-			*if_capability |= QED_LM_50000baseKR2_Full_BIT;
+			phylink_set(if_caps, 20000baseKR2_Full);
+		if (capability & NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_1G)
+			phylink_set(if_caps, 1000baseKX_Full);
+		if (capability & NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_10G)
+			phylink_set(if_caps, 10000baseKR_Full);
+		if (capability & NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_25G)
+			phylink_set(if_caps, 25000baseKR_Full);
+		if (capability & NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_40G)
+			phylink_set(if_caps, 40000baseKR4_Full);
+		if (capability & NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_50G)
+			phylink_set(if_caps, 50000baseKR2_Full);
 		if (capability &
 		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_BB_100G)
-			*if_capability |= QED_LM_100000baseKR4_Full_BIT;
+			phylink_set(if_caps, 100000baseKR4_Full);
+
 		break;
 	case MEDIA_UNSPECIFIED:
 	case MEDIA_NOT_PRESENT:
@@ -1806,26 +1834,27 @@ static void qed_fill_link(struct qed_hwfn *hwfn,
 
 	/* TODO - at the moment assume supported and advertised speed equal */
 	if (link_caps.default_speed_autoneg)
-		if_link->supported_caps |= QED_LM_Autoneg_BIT;
+		phylink_set(if_link->supported_caps, Autoneg);
 	if (params.pause.autoneg ||
 	    (params.pause.forced_rx && params.pause.forced_tx))
-		if_link->supported_caps |= QED_LM_Asym_Pause_BIT;
+		phylink_set(if_link->supported_caps, Asym_Pause);
 	if (params.pause.autoneg || params.pause.forced_rx ||
 	    params.pause.forced_tx)
-		if_link->supported_caps |= QED_LM_Pause_BIT;
+		phylink_set(if_link->supported_caps, Pause);
 
-	if_link->advertised_caps = if_link->supported_caps;
+	linkmode_copy(if_link->advertised_caps, if_link->supported_caps);
+
 	if (params.speed.autoneg)
-		if_link->advertised_caps |= QED_LM_Autoneg_BIT;
+		phylink_set(if_link->advertised_caps, Autoneg);
 	else
-		if_link->advertised_caps &= ~QED_LM_Autoneg_BIT;
+		phylink_clear(if_link->advertised_caps, Autoneg);
 
 	/* Fill link advertised capability*/
 	qed_fill_link_capability(hwfn, ptt, params.speed.advertised_speeds,
-				 &if_link->advertised_caps);
+				 if_link->advertised_caps);
 	/* Fill link supported capability*/
 	qed_fill_link_capability(hwfn, ptt, link_caps.speed_capabilities,
-				 &if_link->supported_caps);
+				 if_link->supported_caps);
 
 	if (link.link_up)
 		if_link->speed = link.speed;
@@ -1845,30 +1874,29 @@ static void qed_fill_link(struct qed_hwfn *hwfn,
 		if_link->pause_config |= QED_LINK_PAUSE_TX_ENABLE;
 
 	/* Link partner capabilities */
-	if (link.partner_adv_speed &
-	    QED_LINK_PARTNER_SPEED_1G_FD)
-		if_link->lp_caps |= QED_LM_1000baseT_Full_BIT;
+
+	if (link.partner_adv_speed & QED_LINK_PARTNER_SPEED_1G_FD)
+		phylink_set(if_link->lp_caps, 1000baseT_Full);
 	if (link.partner_adv_speed & QED_LINK_PARTNER_SPEED_10G)
-		if_link->lp_caps |= QED_LM_10000baseKR_Full_BIT;
+		phylink_set(if_link->lp_caps, 10000baseKR_Full);
 	if (link.partner_adv_speed & QED_LINK_PARTNER_SPEED_20G)
-		if_link->lp_caps |= QED_LM_20000baseKR2_Full_BIT;
+		phylink_set(if_link->lp_caps, 20000baseKR2_Full);
 	if (link.partner_adv_speed & QED_LINK_PARTNER_SPEED_25G)
-		if_link->lp_caps |= QED_LM_25000baseKR_Full_BIT;
+		phylink_set(if_link->lp_caps, 25000baseKR_Full);
 	if (link.partner_adv_speed & QED_LINK_PARTNER_SPEED_40G)
-		if_link->lp_caps |= QED_LM_40000baseLR4_Full_BIT;
+		phylink_set(if_link->lp_caps, 40000baseLR4_Full);
 	if (link.partner_adv_speed & QED_LINK_PARTNER_SPEED_50G)
-		if_link->lp_caps |= QED_LM_50000baseKR2_Full_BIT;
+		phylink_set(if_link->lp_caps, 50000baseKR2_Full);
 	if (link.partner_adv_speed & QED_LINK_PARTNER_SPEED_100G)
-		if_link->lp_caps |= QED_LM_100000baseKR4_Full_BIT;
+		phylink_set(if_link->lp_caps, 100000baseKR4_Full);
 
 	if (link.an_complete)
-		if_link->lp_caps |= QED_LM_Autoneg_BIT;
-
+		phylink_set(if_link->lp_caps, Autoneg);
 	if (link.partner_adv_pause)
-		if_link->lp_caps |= QED_LM_Pause_BIT;
+		phylink_set(if_link->lp_caps, Pause);
 	if (link.partner_adv_pause == QED_LINK_PARTNER_ASYMMETRIC_PAUSE ||
 	    link.partner_adv_pause == QED_LINK_PARTNER_BOTH_PAUSE)
-		if_link->lp_caps |= QED_LM_Asym_Pause_BIT;
+		phylink_set(if_link->lp_caps, Asym_Pause);
 
 	if (link_caps.default_eee == QED_MCP_EEE_UNSUPPORTED) {
 		if_link->eee_supported = false;

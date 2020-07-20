@@ -13,6 +13,8 @@
 #include <linux/pci.h>
 #include <linux/capability.h>
 #include <linux/vmalloc.h>
+#include <linux/phylink.h>
+
 #include "qede.h"
 #include "qede_ptp.h"
 
@@ -418,76 +420,10 @@ static int qede_set_priv_flags(struct net_device *dev, u32 flags)
 	return 0;
 }
 
-struct qede_link_mode_mapping {
-	u32 qed_link_mode;
-	u32 ethtool_link_mode;
-};
-
-static const struct qede_link_mode_mapping qed_lm_map[] = {
-	{QED_LM_FIBRE_BIT, ETHTOOL_LINK_MODE_FIBRE_BIT},
-	{QED_LM_Autoneg_BIT, ETHTOOL_LINK_MODE_Autoneg_BIT},
-	{QED_LM_Asym_Pause_BIT, ETHTOOL_LINK_MODE_Asym_Pause_BIT},
-	{QED_LM_Pause_BIT, ETHTOOL_LINK_MODE_Pause_BIT},
-	{QED_LM_1000baseT_Full_BIT, ETHTOOL_LINK_MODE_1000baseT_Full_BIT},
-	{QED_LM_10000baseT_Full_BIT, ETHTOOL_LINK_MODE_10000baseT_Full_BIT},
-	{QED_LM_TP_BIT, ETHTOOL_LINK_MODE_TP_BIT},
-	{QED_LM_Backplane_BIT, ETHTOOL_LINK_MODE_Backplane_BIT},
-	{QED_LM_1000baseKX_Full_BIT, ETHTOOL_LINK_MODE_1000baseKX_Full_BIT},
-	{QED_LM_10000baseKX4_Full_BIT, ETHTOOL_LINK_MODE_10000baseKX4_Full_BIT},
-	{QED_LM_10000baseKR_Full_BIT, ETHTOOL_LINK_MODE_10000baseKR_Full_BIT},
-	{QED_LM_10000baseKR_Full_BIT, ETHTOOL_LINK_MODE_10000baseKR_Full_BIT},
-	{QED_LM_10000baseR_FEC_BIT, ETHTOOL_LINK_MODE_10000baseR_FEC_BIT},
-	{QED_LM_20000baseKR2_Full_BIT, ETHTOOL_LINK_MODE_20000baseKR2_Full_BIT},
-	{QED_LM_40000baseKR4_Full_BIT, ETHTOOL_LINK_MODE_40000baseKR4_Full_BIT},
-	{QED_LM_40000baseCR4_Full_BIT, ETHTOOL_LINK_MODE_40000baseCR4_Full_BIT},
-	{QED_LM_40000baseSR4_Full_BIT, ETHTOOL_LINK_MODE_40000baseSR4_Full_BIT},
-	{QED_LM_40000baseLR4_Full_BIT, ETHTOOL_LINK_MODE_40000baseLR4_Full_BIT},
-	{QED_LM_25000baseCR_Full_BIT, ETHTOOL_LINK_MODE_25000baseCR_Full_BIT},
-	{QED_LM_25000baseKR_Full_BIT, ETHTOOL_LINK_MODE_25000baseKR_Full_BIT},
-	{QED_LM_25000baseSR_Full_BIT, ETHTOOL_LINK_MODE_25000baseSR_Full_BIT},
-	{QED_LM_50000baseCR2_Full_BIT, ETHTOOL_LINK_MODE_50000baseCR2_Full_BIT},
-	{QED_LM_50000baseKR2_Full_BIT, ETHTOOL_LINK_MODE_50000baseKR2_Full_BIT},
-	{QED_LM_100000baseKR4_Full_BIT,
-		ETHTOOL_LINK_MODE_100000baseKR4_Full_BIT},
-	{QED_LM_100000baseSR4_Full_BIT,
-		ETHTOOL_LINK_MODE_100000baseSR4_Full_BIT},
-	{QED_LM_100000baseCR4_Full_BIT,
-		ETHTOOL_LINK_MODE_100000baseCR4_Full_BIT},
-	{QED_LM_100000baseLR4_ER4_Full_BIT,
-		ETHTOOL_LINK_MODE_100000baseLR4_ER4_Full_BIT},
-	{QED_LM_50000baseSR2_Full_BIT, ETHTOOL_LINK_MODE_50000baseSR2_Full_BIT},
-	{QED_LM_1000baseX_Full_BIT, ETHTOOL_LINK_MODE_1000baseX_Full_BIT},
-	{QED_LM_10000baseCR_Full_BIT, ETHTOOL_LINK_MODE_10000baseCR_Full_BIT},
-	{QED_LM_10000baseSR_Full_BIT, ETHTOOL_LINK_MODE_10000baseSR_Full_BIT},
-	{QED_LM_10000baseLR_Full_BIT, ETHTOOL_LINK_MODE_10000baseLR_Full_BIT},
-	{QED_LM_10000baseLRM_Full_BIT, ETHTOOL_LINK_MODE_10000baseLRM_Full_BIT},
-};
-
-#define QEDE_DRV_TO_ETHTOOL_CAPS(caps, lk_ksettings, name)	\
-{								\
-	int i;							\
-								\
-	for (i = 0; i < ARRAY_SIZE(qed_lm_map); i++) {		\
-		if ((caps) & (qed_lm_map[i].qed_link_mode))	\
-			__set_bit(qed_lm_map[i].ethtool_link_mode,\
-				  lk_ksettings->link_modes.name); \
-	}							\
-}
-
-#define QEDE_ETHTOOL_TO_DRV_CAPS(caps, lk_ksettings, name)	\
-{								\
-	int i;							\
-								\
-	for (i = 0; i < ARRAY_SIZE(qed_lm_map); i++) {		\
-		if (test_bit(qed_lm_map[i].ethtool_link_mode,	\
-			     lk_ksettings->link_modes.name))	\
-			caps |= qed_lm_map[i].qed_link_mode;	\
-	}							\
-}
-
 static int qede_get_link_ksettings(struct net_device *dev,
 				   struct ethtool_link_ksettings *cmd)
 {
+	typeof(cmd->link_modes) *link_modes = &cmd->link_modes;
 	struct ethtool_link_settings *base = &cmd->base;
 	struct qede_dev *edev = netdev_priv(dev);
 	struct qed_link_output current_link;
@@ -497,14 +433,9 @@ static int qede_get_link_ksettings(struct net_device *dev,
 	memset(&current_link, 0, sizeof(current_link));
 	edev->ops->common->get_link(edev->cdev, &current_link);
 
-	ethtool_link_ksettings_zero_link_mode(cmd, supported);
-	QEDE_DRV_TO_ETHTOOL_CAPS(current_link.supported_caps, cmd, supported)
-
-	ethtool_link_ksettings_zero_link_mode(cmd, advertising);
-	QEDE_DRV_TO_ETHTOOL_CAPS(current_link.advertised_caps, cmd, advertising)
-
-	ethtool_link_ksettings_zero_link_mode(cmd, lp_advertising);
-	QEDE_DRV_TO_ETHTOOL_CAPS(current_link.lp_caps, cmd, lp_advertising)
+	linkmode_copy(link_modes->supported, current_link.supported_caps);
+	linkmode_copy(link_modes->advertising, current_link.advertised_caps);
+	linkmode_copy(link_modes->lp_advertising, current_link.lp_caps);
 
 	if ((edev->state == QEDE_STATE_OPEN) && (current_link.link_up)) {
 		base->speed = current_link.speed;
@@ -527,10 +458,10 @@ static int qede_set_link_ksettings(struct net_device *dev,
 				   const struct ethtool_link_ksettings *cmd)
 {
 	const struct ethtool_link_settings *base = &cmd->base;
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(sup_caps);
 	struct qede_dev *edev = netdev_priv(dev);
 	struct qed_link_output current_link;
 	struct qed_link_params params;
-	u32 sup_caps;
 
 	if (!edev->ops || !edev->ops->common->can_link_change(edev->cdev)) {
 		DP_INFO(edev, "Link settings are not allowed to be changed\n");
@@ -542,105 +473,79 @@ static int qede_set_link_ksettings(struct net_device *dev,
 
 	params.override_flags |= QED_LINK_OVERRIDE_SPEED_ADV_SPEEDS;
 	params.override_flags |= QED_LINK_OVERRIDE_SPEED_AUTONEG;
+
 	if (base->autoneg == AUTONEG_ENABLE) {
-		if (!(current_link.supported_caps & QED_LM_Autoneg_BIT)) {
+		if (!phylink_test(current_link.supported_caps, Autoneg)) {
 			DP_INFO(edev, "Auto negotiation is not supported\n");
 			return -EOPNOTSUPP;
 		}
 
 		params.autoneg = true;
 		params.forced_speed = 0;
-		QEDE_ETHTOOL_TO_DRV_CAPS(params.adv_speeds, cmd, advertising)
+
+		linkmode_copy(params.adv_speeds, cmd->link_modes.advertising);
 	} else {		/* forced speed */
 		params.override_flags |= QED_LINK_OVERRIDE_SPEED_FORCED_SPEED;
 		params.autoneg = false;
 		params.forced_speed = base->speed;
+
+		phylink_zero(sup_caps);
+
 		switch (base->speed) {
 		case SPEED_1000:
-			sup_caps = QED_LM_1000baseT_Full_BIT |
-					QED_LM_1000baseKX_Full_BIT |
-					QED_LM_1000baseX_Full_BIT;
-			if (!(current_link.supported_caps & sup_caps)) {
-				DP_INFO(edev, "1G speed not supported\n");
-				return -EINVAL;
-			}
-			params.adv_speeds = current_link.supported_caps &
-						sup_caps;
+			phylink_set(sup_caps, 1000baseT_Full);
+			phylink_set(sup_caps, 1000baseKX_Full);
+			phylink_set(sup_caps, 1000baseX_Full);
 			break;
 		case SPEED_10000:
-			sup_caps = QED_LM_10000baseT_Full_BIT |
-					QED_LM_10000baseKR_Full_BIT |
-					QED_LM_10000baseKX4_Full_BIT |
-					QED_LM_10000baseR_FEC_BIT |
-					QED_LM_10000baseCR_Full_BIT |
-					QED_LM_10000baseSR_Full_BIT |
-					QED_LM_10000baseLR_Full_BIT |
-					QED_LM_10000baseLRM_Full_BIT;
-			if (!(current_link.supported_caps & sup_caps)) {
-				DP_INFO(edev, "10G speed not supported\n");
-				return -EINVAL;
-			}
-			params.adv_speeds = current_link.supported_caps &
-						sup_caps;
+			phylink_set(sup_caps, 10000baseT_Full);
+			phylink_set(sup_caps, 10000baseKR_Full);
+			phylink_set(sup_caps, 10000baseKX4_Full);
+			phylink_set(sup_caps, 10000baseR_FEC);
+			phylink_set(sup_caps, 10000baseCR_Full);
+			phylink_set(sup_caps, 10000baseSR_Full);
+			phylink_set(sup_caps, 10000baseLR_Full);
+			phylink_set(sup_caps, 10000baseLRM_Full);
 			break;
 		case SPEED_20000:
-			if (!(current_link.supported_caps &
-			    QED_LM_20000baseKR2_Full_BIT)) {
-				DP_INFO(edev, "20G speed not supported\n");
-				return -EINVAL;
-			}
-			params.adv_speeds = QED_LM_20000baseKR2_Full_BIT;
+			phylink_set(sup_caps, 20000baseKR2_Full);
 			break;
 		case SPEED_25000:
-			sup_caps = QED_LM_25000baseKR_Full_BIT |
-					QED_LM_25000baseCR_Full_BIT |
-					QED_LM_25000baseSR_Full_BIT;
-			if (!(current_link.supported_caps & sup_caps)) {
-				DP_INFO(edev, "25G speed not supported\n");
-				return -EINVAL;
-			}
-			params.adv_speeds = current_link.supported_caps &
-						sup_caps;
+			phylink_set(sup_caps, 25000baseKR_Full);
+			phylink_set(sup_caps, 25000baseCR_Full);
+			phylink_set(sup_caps, 25000baseSR_Full);
 			break;
 		case SPEED_40000:
-			sup_caps = QED_LM_40000baseLR4_Full_BIT |
-					QED_LM_40000baseKR4_Full_BIT |
-					QED_LM_40000baseCR4_Full_BIT |
-					QED_LM_40000baseSR4_Full_BIT;
-			if (!(current_link.supported_caps & sup_caps)) {
-				DP_INFO(edev, "40G speed not supported\n");
-				return -EINVAL;
-			}
-			params.adv_speeds = current_link.supported_caps &
-						sup_caps;
+			phylink_set(sup_caps, 40000baseLR4_Full);
+			phylink_set(sup_caps, 40000baseKR4_Full);
+			phylink_set(sup_caps, 40000baseCR4_Full);
+			phylink_set(sup_caps, 40000baseSR4_Full);
 			break;
 		case SPEED_50000:
-			sup_caps = QED_LM_50000baseKR2_Full_BIT |
-					QED_LM_50000baseCR2_Full_BIT |
-					QED_LM_50000baseSR2_Full_BIT;
-			if (!(current_link.supported_caps & sup_caps)) {
-				DP_INFO(edev, "50G speed not supported\n");
-				return -EINVAL;
-			}
-			params.adv_speeds = current_link.supported_caps &
-						sup_caps;
+			phylink_set(sup_caps, 50000baseKR2_Full);
+			phylink_set(sup_caps, 50000baseCR2_Full);
+			phylink_set(sup_caps, 50000baseSR2_Full);
 			break;
 		case SPEED_100000:
-			sup_caps = QED_LM_100000baseKR4_Full_BIT |
-					QED_LM_100000baseSR4_Full_BIT |
-					QED_LM_100000baseCR4_Full_BIT |
-					QED_LM_100000baseLR4_ER4_Full_BIT;
-			if (!(current_link.supported_caps & sup_caps)) {
-				DP_INFO(edev, "100G speed not supported\n");
-				return -EINVAL;
-			}
-			params.adv_speeds = current_link.supported_caps &
-						sup_caps;
+			phylink_set(sup_caps, 100000baseKR4_Full);
+			phylink_set(sup_caps, 100000baseSR4_Full);
+			phylink_set(sup_caps, 100000baseCR4_Full);
+			phylink_set(sup_caps, 100000baseLR4_ER4_Full);
 			break;
 		default:
 			DP_INFO(edev, "Unsupported speed %u\n", base->speed);
 			return -EINVAL;
 		}
+
+		if (!linkmode_intersects(current_link.supported_caps,
+					 sup_caps)) {
+			DP_INFO(edev, "%uG speed not supported\n",
+				base->speed / 1000);
+			return -EINVAL;
+		}
+
+		linkmode_and(params.adv_speeds, current_link.supported_caps,
+			     sup_caps);
 	}
 
 	params.link_up = true;
@@ -1006,13 +911,16 @@ static int qede_set_pauseparam(struct net_device *dev,
 
 	memset(&params, 0, sizeof(params));
 	params.override_flags |= QED_LINK_OVERRIDE_PAUSE_CONFIG;
+
 	if (epause->autoneg) {
-		if (!(current_link.supported_caps & QED_LM_Autoneg_BIT)) {
+		if (!phylink_test(current_link.supported_caps, Autoneg)) {
 			DP_INFO(edev, "autoneg not supported\n");
 			return -EINVAL;
 		}
+
 		params.pause_config |= QED_LINK_PAUSE_AUTONEG_ENABLE;
 	}
+
 	if (epause->rx_pause)
 		params.pause_config |= QED_LINK_PAUSE_RX_ENABLE;
 	if (epause->tx_pause)

@@ -13,6 +13,7 @@
 #include <linux/interrupt.h>
 #include <linux/list.h>
 #include <linux/kthread.h>
+#include <linux/phylink.h>
 #include <scsi/libfc.h>
 #include <scsi/scsi_host.h>
 #include <scsi/fc_frame.h>
@@ -440,6 +441,7 @@ static void qedf_link_recovery(struct work_struct *work)
 static void qedf_update_link_speed(struct qedf_ctx *qedf,
 	struct qed_link_output *link)
 {
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(sup_caps);
 	struct fc_lport *lport = qedf->lport;
 
 	lport->link_speed = FC_PORTSPEED_UNKNOWN;
@@ -474,40 +476,60 @@ static void qedf_update_link_speed(struct qedf_ctx *qedf,
 	 * Set supported link speed by querying the supported
 	 * capabilities of the link.
 	 */
-	if ((link->supported_caps & QED_LM_10000baseT_Full_BIT) ||
-	    (link->supported_caps & QED_LM_10000baseKX4_Full_BIT) ||
-	    (link->supported_caps & QED_LM_10000baseR_FEC_BIT) ||
-	    (link->supported_caps & QED_LM_10000baseCR_Full_BIT) ||
-	    (link->supported_caps & QED_LM_10000baseSR_Full_BIT) ||
-	    (link->supported_caps & QED_LM_10000baseLR_Full_BIT) ||
-	    (link->supported_caps & QED_LM_10000baseLRM_Full_BIT) ||
-	    (link->supported_caps & QED_LM_10000baseKR_Full_BIT)) {
+
+	phylink_zero(sup_caps);
+	phylink_set(sup_caps, 10000baseT_Full);
+	phylink_set(sup_caps, 10000baseKX4_Full);
+	phylink_set(sup_caps, 10000baseR_FEC);
+	phylink_set(sup_caps, 10000baseCR_Full);
+	phylink_set(sup_caps, 10000baseSR_Full);
+	phylink_set(sup_caps, 10000baseLR_Full);
+	phylink_set(sup_caps, 10000baseLRM_Full);
+	phylink_set(sup_caps, 10000baseKR_Full);
+
+	if (linkmode_intersects(link->supported_caps, sup_caps))
 		lport->link_supported_speeds |= FC_PORTSPEED_10GBIT;
-	}
-	if ((link->supported_caps & QED_LM_25000baseKR_Full_BIT) ||
-	    (link->supported_caps & QED_LM_25000baseCR_Full_BIT) ||
-	    (link->supported_caps & QED_LM_25000baseSR_Full_BIT)) {
+
+	phylink_zero(sup_caps);
+	phylink_set(sup_caps, 25000baseKR_Full);
+	phylink_set(sup_caps, 25000baseCR_Full);
+	phylink_set(sup_caps, 25000baseSR_Full);
+
+	if (linkmode_intersects(link->supported_caps, sup_caps))
 		lport->link_supported_speeds |= FC_PORTSPEED_25GBIT;
-	}
-	if ((link->supported_caps & QED_LM_40000baseLR4_Full_BIT) ||
-	    (link->supported_caps & QED_LM_40000baseKR4_Full_BIT) ||
-	    (link->supported_caps & QED_LM_40000baseCR4_Full_BIT) ||
-	    (link->supported_caps & QED_LM_40000baseSR4_Full_BIT)) {
+
+	phylink_zero(sup_caps);
+	phylink_set(sup_caps, 40000baseLR4_Full);
+	phylink_set(sup_caps, 40000baseKR4_Full);
+	phylink_set(sup_caps, 40000baseCR4_Full);
+	phylink_set(sup_caps, 40000baseSR4_Full);
+
+	if (linkmode_intersects(link->supported_caps, sup_caps))
 		lport->link_supported_speeds |= FC_PORTSPEED_40GBIT;
-	}
-	if ((link->supported_caps & QED_LM_50000baseKR2_Full_BIT) ||
-	    (link->supported_caps & QED_LM_50000baseCR2_Full_BIT) ||
-	    (link->supported_caps & QED_LM_50000baseSR2_Full_BIT)) {
+
+	phylink_zero(sup_caps);
+	phylink_set(sup_caps, 50000baseKR2_Full);
+	phylink_set(sup_caps, 50000baseCR2_Full);
+	phylink_set(sup_caps, 50000baseSR2_Full);
+
+	if (linkmode_intersects(link->supported_caps, sup_caps))
 		lport->link_supported_speeds |= FC_PORTSPEED_50GBIT;
-	}
-	if ((link->supported_caps & QED_LM_100000baseKR4_Full_BIT) ||
-	    (link->supported_caps & QED_LM_100000baseSR4_Full_BIT) ||
-	    (link->supported_caps & QED_LM_100000baseCR4_Full_BIT) ||
-	    (link->supported_caps & QED_LM_100000baseLR4_ER4_Full_BIT)) {
+
+	phylink_zero(sup_caps);
+	phylink_set(sup_caps, 100000baseKR4_Full);
+	phylink_set(sup_caps, 100000baseSR4_Full);
+	phylink_set(sup_caps, 100000baseCR4_Full);
+	phylink_set(sup_caps, 100000baseLR4_ER4_Full);
+
+	if (linkmode_intersects(link->supported_caps, sup_caps))
 		lport->link_supported_speeds |= FC_PORTSPEED_100GBIT;
-	}
-	if (link->supported_caps & QED_LM_20000baseKR2_Full_BIT)
+
+	phylink_zero(sup_caps);
+	phylink_set(sup_caps, 20000baseKR2_Full);
+
+	if (linkmode_intersects(link->supported_caps, sup_caps))
 		lport->link_supported_speeds |= FC_PORTSPEED_20GBIT;
+
 	fc_host_supported_speeds(lport->host) = lport->link_supported_speeds;
 }
 
