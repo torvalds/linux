@@ -379,9 +379,6 @@
 &usb {
 	status = "okay";
 	extcon = <&usb_id>, <&usb_id>;
-	adp-disable;
-	hnp-disable;
-	srp-disable;
 
 	pinctrl-names = "default", "device";
 	pinctrl-0 = <&usb_sw_sel_pm &usb_hub_reset_pm>;

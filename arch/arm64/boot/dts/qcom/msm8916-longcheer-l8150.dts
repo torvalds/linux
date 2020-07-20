@@ -87,10 +87,6 @@
 	status = "okay";
 	dr_mode = "peripheral";
 	extcon = <&usb_vbus>;
-
-	hnp-disable;
-	srp-disable;
-	adp-disable;
 };
 
 &usb_hs_phy {

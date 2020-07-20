@@ -153,10 +153,6 @@
 &usb {
 	status = "okay";
 	extcon = <&muic>, <&muic>;
-
-	hnp-disable;
-	srp-disable;
-	adp-disable;
 };
 
 &usb_hs_phy {

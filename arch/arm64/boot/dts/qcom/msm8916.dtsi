@@ -802,6 +802,9 @@
 			reset-names = "core";
 			phy_type = "ulpi";
 			dr_mode = "otg";
+			hnp-disable;
+			srp-disable;
+			adp-disable;
 			ahb-burst-config = <0>;
 			phy-names = "usb-phy";
 			phys = <&usb_hs_phy>;
