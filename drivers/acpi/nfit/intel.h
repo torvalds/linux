@@ -132,6 +132,9 @@ struct nd_intel_fw_activate_dimminfo {
 	u8 reserved[7];
 } __packed;
 
+#define ND_INTEL_DIMM_FWA_ARM 1
+#define ND_INTEL_DIMM_FWA_DISARM 0
+
 struct nd_intel_fw_activate_arm {
 	u8 activate_arm;
 	u32 status;
@@ -160,6 +163,8 @@ struct nd_intel_bus_fw_activate_businfo {
 #define ND_INTEL_BUS_FWA_STATUS_NOIDLE (6 | 5 << 16)
 #define ND_INTEL_BUS_FWA_STATUS_ABORT  (6 | 6 << 16)
 
+#define ND_INTEL_BUS_FWA_IODEV_FORCE_IDLE (0)
+#define ND_INTEL_BUS_FWA_IODEV_OS_IDLE (1)
 struct nd_intel_bus_fw_activate {
 	u8 iodev_state;
 	u32 status;
