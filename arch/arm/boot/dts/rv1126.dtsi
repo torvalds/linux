@@ -1586,24 +1586,18 @@
 		reg-names = "cif_regs";
 		interrupts = <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "cif-intr";
-		clocks = <&cru ACLK_CIF>, <&cru ACLK_CIFLITE>,
-			 <&cru HCLK_CIF>, <&cru HCLK_CIFLITE>,
-			 <&cru DCLK_CIF>, <&cru DCLK_CIFLITE>;
-		clock-names = "aclk_cif", "aclk_cif_lite",
-			      "hclk_cif", "hclk_cif_lite",
-			      "dclk_cif", "dclk_cif_lite";
+		clocks = <&cru ACLK_CIF>,<&cru HCLK_CIF>,
+			 <&cru DCLK_CIF>;
+		clock-names = "aclk_cif","hclk_cif",
+			      "dclk_cif";
 		resets = <&cru SRST_CIF_A>, <&cru SRST_CIF_H>,
 			 <&cru SRST_CIF_D>, <&cru SRST_CIF_P>,
-			 <&cru SRST_CIF_I>, <&cru SRST_CIF_RX_P>,
-			 <&cru SRST_CIFLITE_A>, <&cru SRST_CIFLITE_H>,
-			 <&cru SRST_CIFLITE_D>, <&cru SRST_CIFLITE_RX_P>;
+			 <&cru SRST_CIF_I>, <&cru SRST_CIF_RX_P>;
 		reset-names = "rst_cif_a", "rst_cif_h",
 			      "rst_cif_d", "rst_cif_p",
-			      "rst_cif_i", "rst_cif_rx_p",
-			      "rst_cif_lite_a", "rst_cif_lite_h",
-			      "rst_cif_lite_d", "rst_cif_lite_rx_p";
-		assigned-clocks = <&cru DCLK_CIF>, <&cru DCLK_CIFLITE>;
-		assigned-clock-rates = <300000000>, <300000000>;
+			      "rst_cif_i", "rst_cif_rx_p";
+		assigned-clocks = <&cru DCLK_CIF>;
+		assigned-clock-rates = <300000000>;
 		power-domains = <&power RV1126_PD_VI>;
 		iommus = <&rkcif_mmu>;
 		status = "disabled";
@@ -1615,6 +1609,39 @@
 		interrupts = <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "cif_mmu";
 		clocks = <&cru ACLK_CIF>, <&cru HCLK_CIF>;
+		clock-names = "aclk", "hclk";
+		power-domains = <&power RV1126_PD_VI>;
+		#iommu-cells = <0>;
+		status = "disabled";
+	};
+
+	rkcif_lite: rkcif_lite@ffae8000 {
+		compatible = "rockchip,rv1126-cif-lite";
+		reg = <0xffae8000 0x8000>;
+		reg-names = "cif_regs";
+		interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "cif-lite-intr";
+		clocks = <&cru ACLK_CIFLITE>,<&cru HCLK_CIFLITE>,
+			 <&cru DCLK_CIFLITE>;
+		clock-names = "aclk_cif_lite","hclk_cif_lite",
+			      "dclk_cif_lite";
+		resets = <&cru SRST_CIFLITE_A>, <&cru SRST_CIFLITE_H>,
+			 <&cru SRST_CIFLITE_D>, <&cru SRST_CIFLITE_RX_P>;
+		reset-names = "rst_cif_lite_a", "rst_cif_lite_h",
+			      "rst_cif_lite_d", "rst_cif_lite_rx_p";
+		assigned-clocks = <&cru DCLK_CIFLITE>;
+		assigned-clock-rates = <300000000>;
+		power-domains = <&power RV1126_PD_VI>;
+		iommus = <&rkcif_lite_mmu>;
+		status = "disabled";
+	};
+
+	rkcif_lite_mmu: iommu@ffae8800 {
+		compatible = "rockchip,iommu";
+		reg = <0xffae8800 0x100>;
+		interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "cif_lite_mmu";
+		clocks = <&cru ACLK_CIFLITE>, <&cru HCLK_CIFLITE>;
 		clock-names = "aclk", "hclk";
 		power-domains = <&power RV1126_PD_VI>;
 		#iommu-cells = <0>;
