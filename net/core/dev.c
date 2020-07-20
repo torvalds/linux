@@ -98,6 +98,7 @@
 #include <net/busy_poll.h>
 #include <linux/rtnetlink.h>
 #include <linux/stat.h>
+#include <net/dsa.h>
 #include <net/dst.h>
 #include <net/dst_metadata.h>
 #include <net/pkt_sched.h>
@@ -8601,6 +8602,10 @@ int dev_get_phys_port_name(struct net_device *dev,
 {
 	const struct net_device_ops *ops = dev->netdev_ops;
 	int err;
+
+	err  = dsa_ndo_get_phys_port_name(dev, name, len);
+	if (err == 0 || err != -EOPNOTSUPP)
+		return err;
 
 	if (ops->ndo_get_phys_port_name) {
 		err = ops->ndo_get_phys_port_name(dev, name, len);
