@@ -380,8 +380,7 @@ static void aq_vec_get_stats(struct aq_vec_s *self,
 	}
 }
 
-int aq_vec_get_sw_stats(struct aq_vec_s *self, const unsigned int tc, u64 *data,
-			unsigned int *p_count)
+unsigned int aq_vec_get_sw_stats(struct aq_vec_s *self, const unsigned int tc, u64 *data)
 {
 	struct aq_ring_stats_rx_s stats_rx;
 	struct aq_ring_stats_tx_s stats_tx;
@@ -401,8 +400,5 @@ int aq_vec_get_sw_stats(struct aq_vec_s *self, const unsigned int tc, u64 *data,
 	data[++count] = stats_rx.lro_packets;
 	data[++count] = stats_rx.errors;
 
-	if (p_count)
-		*p_count = ++count;
-
-	return 0;
+	return ++count;
 }

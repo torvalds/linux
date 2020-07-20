@@ -907,13 +907,13 @@ u64 *aq_nic_get_stats(struct aq_nic_s *self, u64 *data)
 		     aq_vec && self->aq_vecs > i;
 		     ++i, aq_vec = self->aq_vec[i]) {
 			data += count;
-			aq_vec_get_sw_stats(aq_vec, tc, data, &count);
+			count = aq_vec_get_sw_stats(aq_vec, tc, data);
 		}
 	}
 
 	data += count;
 
-err_exit:;
+err_exit:
 	return data;
 }
 
