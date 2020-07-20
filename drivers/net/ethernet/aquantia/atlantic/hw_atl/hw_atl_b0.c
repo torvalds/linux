@@ -40,6 +40,7 @@
 			NETIF_F_RXHASH |  \
 			NETIF_F_SG |      \
 			NETIF_F_TSO |     \
+			NETIF_F_TSO6 |    \
 			NETIF_F_LRO |     \
 			NETIF_F_NTUPLE |  \
 			NETIF_F_HW_VLAN_CTAG_FILTER | \
