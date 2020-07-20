@@ -1581,6 +1581,48 @@ int hw_atl_b0_set_loopback(struct aq_hw_s *self, u32 mode, bool enable)
 	return 0;
 }
 
+static u32 hw_atl_b0_ts_ready_and_latch_high_get(struct aq_hw_s *self)
+{
+	if (hw_atl_ts_ready_get(self) && hw_atl_ts_ready_latch_high_get(self))
+		return 1;
+
+	return 0;
+}
+
+static int hw_atl_b0_get_mac_temp(struct aq_hw_s *self, u32 *temp)
+{
+	bool ts_disabled;
+	int err;
+	u32 val;
+	u32 ts;
+
+	ts_disabled = (hw_atl_ts_power_down_get(self) == 1U);
+
+	if (ts_disabled) {
+		// Set AFE Temperature Sensor to on (off by default)
+		hw_atl_ts_power_down_set(self, 0U);
+
+		// Reset internal capacitors, biasing, and counters
+		hw_atl_ts_reset_set(self, 1);
+		hw_atl_ts_reset_set(self, 0);
+	}
+
+	err = readx_poll_timeout_atomic(hw_atl_b0_ts_ready_and_latch_high_get,
+					self, val, val == 1, 10000U, 500000U);
+	if (err)
+		return err;
+
+	ts = hw_atl_ts_data_get(self);
+	*temp = ts * ts * 16 / 100000 + 60 * ts - 83410;
+
+	if (ts_disabled) {
+		// Set AFE Temperature Sensor back to off
+		hw_atl_ts_power_down_set(self, 1U);
+	}
+
+	return 0;
+}
+
 const struct aq_hw_ops hw_atl_ops_b0 = {
 	.hw_soft_reset        = hw_atl_utils_soft_reset,
 	.hw_prepare           = hw_atl_utils_initfw,
@@ -1637,4 +1679,6 @@ const struct aq_hw_ops hw_atl_ops_b0 = {
 	.hw_set_offload          = hw_atl_b0_hw_offload_set,
 	.hw_set_loopback         = hw_atl_b0_set_loopback,
 	.hw_set_fc               = hw_atl_b0_set_fc,
+
+	.hw_get_mac_temp         = hw_atl_b0_get_mac_temp,
 };

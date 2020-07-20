@@ -333,6 +333,8 @@ struct aq_hw_ops {
 	int (*hw_set_fc)(struct aq_hw_s *self, u32 fc, u32 tc);
 
 	int (*hw_set_loopback)(struct aq_hw_s *self, u32 mode, bool enable);
+
+	int (*hw_get_mac_temp)(struct aq_hw_s *self, u32 *temp);
 };
 
 struct aq_fw_ops {
@@ -354,6 +356,8 @@ struct aq_fw_ops {
 	int (*update_link_status)(struct aq_hw_s *self);
 
 	int (*update_stats)(struct aq_hw_s *self);
+
+	int (*get_mac_temp)(struct aq_hw_s *self, int *temp);
 
 	int (*get_phy_temp)(struct aq_hw_s *self, int *temp);
 
