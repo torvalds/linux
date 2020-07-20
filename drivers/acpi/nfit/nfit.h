@@ -18,6 +18,7 @@
 
 /* http://pmem.io/documents/NVDIMM_DSM_Interface-V1.6.pdf */
 #define UUID_NFIT_DIMM "4309ac30-0d11-11e4-9191-0800200c9a66"
+#define UUID_INTEL_BUS "c7d8acd4-2df8-4b82-9f65-a325335af149"
 
 /* https://github.com/HewlettPackard/hpe-nvm/blob/master/Documentation/ */
 #define UUID_NFIT_DIMM_N_HPE1 "9002c334-acf3-4c0e-9642-a235f0d53bc6"
@@ -65,6 +66,13 @@ enum nvdimm_family_cmds {
 	NVDIMM_INTEL_QUERY_OVERWRITE = 26,
 	NVDIMM_INTEL_SET_MASTER_PASSPHRASE = 27,
 	NVDIMM_INTEL_MASTER_SECURE_ERASE = 28,
+	NVDIMM_INTEL_FW_ACTIVATE_DIMMINFO = 29,
+	NVDIMM_INTEL_FW_ACTIVATE_ARM = 30,
+};
+
+enum nvdimm_bus_family_cmds {
+	NVDIMM_BUS_INTEL_FW_ACTIVATE_BUSINFO = 1,
+	NVDIMM_BUS_INTEL_FW_ACTIVATE = 2,
 };
 
 #define NVDIMM_INTEL_SECURITY_CMDMASK \
@@ -75,13 +83,22 @@ enum nvdimm_family_cmds {
 | 1 << NVDIMM_INTEL_SET_MASTER_PASSPHRASE \
 | 1 << NVDIMM_INTEL_MASTER_SECURE_ERASE)
 
+#define NVDIMM_INTEL_FW_ACTIVATE_CMDMASK \
+(1 << NVDIMM_INTEL_FW_ACTIVATE_DIMMINFO | 1 << NVDIMM_INTEL_FW_ACTIVATE_ARM)
+
+#define NVDIMM_BUS_INTEL_FW_ACTIVATE_CMDMASK \
+(1 << NVDIMM_BUS_INTEL_FW_ACTIVATE_BUSINFO | 1 << NVDIMM_BUS_INTEL_FW_ACTIVATE)
+
 #define NVDIMM_INTEL_CMDMASK \
 (NVDIMM_STANDARD_CMDMASK | 1 << NVDIMM_INTEL_GET_MODES \
  | 1 << NVDIMM_INTEL_GET_FWINFO | 1 << NVDIMM_INTEL_START_FWUPDATE \
  | 1 << NVDIMM_INTEL_SEND_FWUPDATE | 1 << NVDIMM_INTEL_FINISH_FWUPDATE \
  | 1 << NVDIMM_INTEL_QUERY_FWUPDATE | 1 << NVDIMM_INTEL_SET_THRESHOLD \
  | 1 << NVDIMM_INTEL_INJECT_ERROR | 1 << NVDIMM_INTEL_LATCH_SHUTDOWN \
- | NVDIMM_INTEL_SECURITY_CMDMASK)
+ | NVDIMM_INTEL_SECURITY_CMDMASK | NVDIMM_INTEL_FW_ACTIVATE_CMDMASK)
+
+#define NVDIMM_INTEL_DENY_CMDMASK \
+(NVDIMM_INTEL_SECURITY_CMDMASK | NVDIMM_INTEL_FW_ACTIVATE_CMDMASK)
 
 enum nfit_uuids {
 	/* for simplicity alias the uuid index with the family id */
@@ -90,6 +107,11 @@ enum nfit_uuids {
 	NFIT_DEV_DIMM_N_HPE2 = NVDIMM_FAMILY_HPE2,
 	NFIT_DEV_DIMM_N_MSFT = NVDIMM_FAMILY_MSFT,
 	NFIT_DEV_DIMM_N_HYPERV = NVDIMM_FAMILY_HYPERV,
+	/*
+	 * to_nfit_bus_uuid() expects to translate bus uuid family ids
+	 * to a UUID index using NVDIMM_FAMILY_MAX as an offset
+	 */
+	NFIT_BUS_INTEL = NVDIMM_FAMILY_MAX + NVDIMM_BUS_FAMILY_INTEL,
 	NFIT_SPA_VOLATILE,
 	NFIT_SPA_PM,
 	NFIT_SPA_DCR,
@@ -238,6 +260,7 @@ struct acpi_nfit_desc {
 	unsigned long dimm_cmd_force_en;
 	unsigned long bus_cmd_force_en;
 	unsigned long bus_dsm_mask;
+	unsigned long family_dsm_mask[NVDIMM_BUS_FAMILY_MAX + 1];
 	unsigned int platform_cap;
 	unsigned int scrub_tmo;
 	int (*blk_do_io)(struct nd_blk_region *ndbr, resource_size_t dpa,
