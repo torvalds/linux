@@ -3994,37 +3994,16 @@ static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	switch ((core_cfg & NVM_CFG1_GLOB_NETWORK_PORT_MODE_MASK) >>
 		NVM_CFG1_GLOB_NETWORK_PORT_MODE_OFFSET) {
 	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_BB_2X40G:
-		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_2X40G;
-		break;
 	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_2X50G:
-		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_2X50G;
-		break;
 	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_BB_1X100G:
-		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_1X100G;
-		break;
 	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_4X10G_F:
-		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_4X10G_F;
-		break;
 	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_BB_4X10G_E:
-		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_4X10G_E;
-		break;
 	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_BB_4X20G:
-		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_4X20G;
-		break;
 	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_1X40G:
-		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_1X40G;
-		break;
 	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_2X25G:
-		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_2X25G;
-		break;
 	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_2X10G:
-		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_2X10G;
-		break;
 	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_1X25G:
-		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_1X25G;
-		break;
 	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_4X25G:
-		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_4X25G;
 		break;
 	default:
 		DP_NOTICE(p_hwfn, "Unknown port mode in 0x%08x\n", core_cfg);

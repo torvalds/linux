@@ -245,20 +245,6 @@ enum QED_FEATURE {
 	QED_MAX_FEATURES,
 };
 
-enum QED_PORT_MODE {
-	QED_PORT_MODE_DE_2X40G,
-	QED_PORT_MODE_DE_2X50G,
-	QED_PORT_MODE_DE_1X100G,
-	QED_PORT_MODE_DE_4X10G_F,
-	QED_PORT_MODE_DE_4X10G_E,
-	QED_PORT_MODE_DE_4X20G,
-	QED_PORT_MODE_DE_1X40G,
-	QED_PORT_MODE_DE_2X25G,
-	QED_PORT_MODE_DE_1X25G,
-	QED_PORT_MODE_DE_4X25G,
-	QED_PORT_MODE_DE_2X10G,
-};
-
 enum qed_dev_cap {
 	QED_DEV_CAP_ETH,
 	QED_DEV_CAP_FCOE,
@@ -337,7 +323,6 @@ struct qed_hw_info {
 
 	struct qed_igu_info		*p_igu_info;
 
-	u32				port_mode;
 	u32				hw_mode;
 	unsigned long			device_capabilities;
 	u16				mtu;
