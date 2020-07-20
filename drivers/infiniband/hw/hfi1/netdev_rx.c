@@ -373,7 +373,7 @@ void hfi1_netdev_free(struct hfi1_devdata *dd)
 {
 	if (dd->dummy_netdev) {
 		dd_dev_info(dd, "hfi1 netdev freed\n");
-		free_netdev(dd->dummy_netdev);
+		kfree(dd->dummy_netdev);
 		dd->dummy_netdev = NULL;
 	}
 }

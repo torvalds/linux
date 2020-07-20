@@ -159,11 +159,11 @@ int snd_usb_endpoint_next_packet_size(struct snd_usb_endpoint *ep)
 		return ep->maxframesize;
 
 	ep->sample_accum += ep->sample_rem;
-	if (ep->sample_accum >= ep->fps) {
-		ep->sample_accum -= ep->fps;
-		ret = ep->framesize[1];
+	if (ep->sample_accum >= ep->pps) {
+		ep->sample_accum -= ep->pps;
+		ret = ep->packsize[1];
 	} else {
-		ret = ep->framesize[0];
+		ret = ep->packsize[0];
 	}
 
 	return ret;
@@ -1088,15 +1088,15 @@ int snd_usb_endpoint_set_params(struct snd_usb_endpoint *ep,
 
 	if (snd_usb_get_speed(ep->chip->dev) == USB_SPEED_FULL) {
 		ep->freqn = get_usb_full_speed_rate(rate);
-		ep->fps = 1000;
+		ep->pps = 1000 >> ep->datainterval;
 	} else {
 		ep->freqn = get_usb_high_speed_rate(rate);
-		ep->fps = 8000;
+		ep->pps = 8000 >> ep->datainterval;
 	}
 
-	ep->sample_rem = rate % ep->fps;
-	ep->framesize[0] = rate / ep->fps;
-	ep->framesize[1] = (rate + (ep->fps - 1)) / ep->fps;
+	ep->sample_rem = rate % ep->pps;
+	ep->packsize[0] = rate / ep->pps;
+	ep->packsize[1] = (rate + (ep->pps - 1)) / ep->pps;
 
 	/* calculate the frequency in 16.16 format */
 	ep->freqm = ep->freqn;

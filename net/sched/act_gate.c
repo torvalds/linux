@@ -32,7 +32,7 @@ static ktime_t gate_get_time(struct tcf_gate *gact)
 	return KTIME_MAX;
 }
 
-static int gate_get_start_time(struct tcf_gate *gact, ktime_t *start)
+static void gate_get_start_time(struct tcf_gate *gact, ktime_t *start)
 {
 	struct tcf_gate_params *param = &gact->param;
 	ktime_t now, base, cycle;
@@ -43,18 +43,13 @@ static int gate_get_start_time(struct tcf_gate *gact, ktime_t *start)
 
 	if (ktime_after(base, now)) {
 		*start = base;
-		return 0;
+		return;
 	}
 
 	cycle = param->tcfg_cycletime;
 
-	/* cycle time should not be zero */
-	if (!cycle)
-		return -EFAULT;
-
 	n = div64_u64(ktime_sub_ns(now, base), cycle);
 	*start = ktime_add_ns(base, (n + 1) * cycle);
-	return 0;
 }
 
 static void gate_start_timer(struct tcf_gate *gact, ktime_t start)
@@ -277,6 +272,27 @@ release_list:
 	return err;
 }
 
+static void gate_setup_timer(struct tcf_gate *gact, u64 basetime,
+			     enum tk_offsets tko, s32 clockid,
+			     bool do_init)
+{
+	if (!do_init) {
+		if (basetime == gact->param.tcfg_basetime &&
+		    tko == gact->tk_offset &&
+		    clockid == gact->param.tcfg_clockid)
+			return;
+
+		spin_unlock_bh(&gact->tcf_lock);
+		hrtimer_cancel(&gact->hitimer);
+		spin_lock_bh(&gact->tcf_lock);
+	}
+	gact->param.tcfg_basetime = basetime;
+	gact->param.tcfg_clockid = clockid;
+	gact->tk_offset = tko;
+	hrtimer_init(&gact->hitimer, clockid, HRTIMER_MODE_ABS_SOFT);
+	gact->hitimer.function = gate_timer_func;
+}
+
 static int tcf_gate_init(struct net *net, struct nlattr *nla,
 			 struct nlattr *est, struct tc_action **a,
 			 int ovr, int bind, bool rtnl_held,
@@ -287,12 +303,12 @@ static int tcf_gate_init(struct net *net, struct nlattr *nla,
 	enum tk_offsets tk_offset = TK_OFFS_TAI;
 	struct nlattr *tb[TCA_GATE_MAX + 1];
 	struct tcf_chain *goto_ch = NULL;
+	u64 cycletime = 0, basetime = 0;
 	struct tcf_gate_params *p;
 	s32 clockid = CLOCK_TAI;
 	struct tcf_gate *gact;
 	struct tc_gate *parm;
 	int ret = 0, err;
-	u64 basetime = 0;
 	u32 gflags = 0;
 	s32 prio = -1;
 	ktime_t start;
@@ -307,6 +323,27 @@ static int tcf_gate_init(struct net *net, struct nlattr *nla,
 
 	if (!tb[TCA_GATE_PARMS])
 		return -EINVAL;
+
+	if (tb[TCA_GATE_CLOCKID]) {
+		clockid = nla_get_s32(tb[TCA_GATE_CLOCKID]);
+		switch (clockid) {
+		case CLOCK_REALTIME:
+			tk_offset = TK_OFFS_REAL;
+			break;
+		case CLOCK_MONOTONIC:
+			tk_offset = TK_OFFS_MAX;
+			break;
+		case CLOCK_BOOTTIME:
+			tk_offset = TK_OFFS_BOOT;
+			break;
+		case CLOCK_TAI:
+			tk_offset = TK_OFFS_TAI;
+			break;
+		default:
+			NL_SET_ERR_MSG(extack, "Invalid 'clockid'");
+			return -EINVAL;
+		}
+	}
 
 	parm = nla_data(tb[TCA_GATE_PARMS]);
 	index = parm->index;
@@ -331,10 +368,6 @@ static int tcf_gate_init(struct net *net, struct nlattr *nla,
 		tcf_idr_release(*a, bind);
 		return -EEXIST;
 	}
-	if (ret == ACT_P_CREATED) {
-		to_gate(*a)->param.tcfg_clockid = -1;
-		INIT_LIST_HEAD(&(to_gate(*a)->param.entries));
-	}
 
 	if (tb[TCA_GATE_PRIORITY])
 		prio = nla_get_s32(tb[TCA_GATE_PRIORITY]);
@@ -345,41 +378,19 @@ static int tcf_gate_init(struct net *net, struct nlattr *nla,
 	if (tb[TCA_GATE_FLAGS])
 		gflags = nla_get_u32(tb[TCA_GATE_FLAGS]);
 
-	if (tb[TCA_GATE_CLOCKID]) {
-		clockid = nla_get_s32(tb[TCA_GATE_CLOCKID]);
-		switch (clockid) {
-		case CLOCK_REALTIME:
-			tk_offset = TK_OFFS_REAL;
-			break;
-		case CLOCK_MONOTONIC:
-			tk_offset = TK_OFFS_MAX;
-			break;
-		case CLOCK_BOOTTIME:
-			tk_offset = TK_OFFS_BOOT;
-			break;
-		case CLOCK_TAI:
-			tk_offset = TK_OFFS_TAI;
-			break;
-		default:
-			NL_SET_ERR_MSG(extack, "Invalid 'clockid'");
-			goto release_idr;
-		}
-	}
+	gact = to_gate(*a);
+	if (ret == ACT_P_CREATED)
+		INIT_LIST_HEAD(&gact->param.entries);
 
 	err = tcf_action_check_ctrlact(parm->action, tp, &goto_ch, extack);
 	if (err < 0)
 		goto release_idr;
 
-	gact = to_gate(*a);
-
 	spin_lock_bh(&gact->tcf_lock);
 	p = &gact->param;
 
-	if (tb[TCA_GATE_CYCLE_TIME]) {
-		p->tcfg_cycletime = nla_get_u64(tb[TCA_GATE_CYCLE_TIME]);
-		if (!p->tcfg_cycletime_ext)
-			goto chain_put;
-	}
+	if (tb[TCA_GATE_CYCLE_TIME])
+		cycletime = nla_get_u64(tb[TCA_GATE_CYCLE_TIME]);
 
 	if (tb[TCA_GATE_ENTRY_LIST]) {
 		err = parse_gate_list(tb[TCA_GATE_ENTRY_LIST], p, extack);
@@ -387,35 +398,29 @@ static int tcf_gate_init(struct net *net, struct nlattr *nla,
 			goto chain_put;
 	}
 
-	if (!p->tcfg_cycletime) {
+	if (!cycletime) {
 		struct tcfg_gate_entry *entry;
 		ktime_t cycle = 0;
 
 		list_for_each_entry(entry, &p->entries, list)
 			cycle = ktime_add_ns(cycle, entry->interval);
-		p->tcfg_cycletime = cycle;
+		cycletime = cycle;
+		if (!cycletime) {
+			err = -EINVAL;
+			goto chain_put;
+		}
 	}
+	p->tcfg_cycletime = cycletime;
 
 	if (tb[TCA_GATE_CYCLE_TIME_EXT])
 		p->tcfg_cycletime_ext =
 			nla_get_u64(tb[TCA_GATE_CYCLE_TIME_EXT]);
 
+	gate_setup_timer(gact, basetime, tk_offset, clockid,
+			 ret == ACT_P_CREATED);
 	p->tcfg_priority = prio;
-	p->tcfg_basetime = basetime;
-	p->tcfg_clockid = clockid;
 	p->tcfg_flags = gflags;
-
-	gact->tk_offset = tk_offset;
-	hrtimer_init(&gact->hitimer, clockid, HRTIMER_MODE_ABS_SOFT);
-	gact->hitimer.function = gate_timer_func;
-
-	err = gate_get_start_time(gact, &start);
-	if (err < 0) {
-		NL_SET_ERR_MSG(extack,
-			       "Internal error: failed get start time");
-		release_entry_list(&p->entries);
-		goto chain_put;
-	}
+	gate_get_start_time(gact, &start);
 
 	gact->current_close_time = start;
 	gact->current_gate_status = GATE_ACT_GATE_OPEN | GATE_ACT_PENDING;
@@ -443,6 +448,13 @@ chain_put:
 	if (goto_ch)
 		tcf_chain_put_by_act(goto_ch);
 release_idr:
+	/* action is not inserted in any list: it's safe to init hitimer
+	 * without taking tcf_lock.
+	 */
+	if (ret == ACT_P_CREATED)
+		gate_setup_timer(gact, gact->param.tcfg_basetime,
+				 gact->tk_offset, gact->param.tcfg_clockid,
+				 true);
 	tcf_idr_release(*a, bind);
 	return err;
 }
@@ -453,9 +465,7 @@ static void tcf_gate_cleanup(struct tc_action *a)
 	struct tcf_gate_params *p;
 
 	p = &gact->param;
-	if (p->tcfg_clockid != -1)
-		hrtimer_cancel(&gact->hitimer);
-
+	hrtimer_cancel(&gact->hitimer);
 	release_entry_list(&p->entries);
 }
 

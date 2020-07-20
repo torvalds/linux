@@ -36,7 +36,7 @@ void test_fentry_fexit(void)
 	fentry_res = (__u64 *)fentry_skel->bss;
 	fexit_res = (__u64 *)fexit_skel->bss;
 	printf("%lld\n", fentry_skel->bss->test1_result);
-	for (i = 0; i < 6; i++) {
+	for (i = 0; i < 8; i++) {
 		CHECK(fentry_res[i] != 1, "result",
 		      "fentry_test%d failed err %lld\n", i + 1, fentry_res[i]);
 		CHECK(fexit_res[i] != 1, "result",

@@ -263,9 +263,62 @@ static int vhost_test_set_features(struct vhost_test *n, u64 features)
 	return 0;
 }
 
+static long vhost_test_set_backend(struct vhost_test *n, unsigned index, int fd)
+{
+	static void *backend;
+
+	const bool enable = fd != -1;
+	struct vhost_virtqueue *vq;
+	int r;
+
+	mutex_lock(&n->dev.mutex);
+	r = vhost_dev_check_owner(&n->dev);
+	if (r)
+		goto err;
+
+	if (index >= VHOST_TEST_VQ_MAX) {
+		r = -ENOBUFS;
+		goto err;
+	}
+	vq = &n->vqs[index];
+	mutex_lock(&vq->mutex);
+
+	/* Verify that ring has been setup correctly. */
+	if (!vhost_vq_access_ok(vq)) {
+		r = -EFAULT;
+		goto err_vq;
+	}
+	if (!enable) {
+		vhost_poll_stop(&vq->poll);
+		backend = vhost_vq_get_backend(vq);
+		vhost_vq_set_backend(vq, NULL);
+	} else {
+		vhost_vq_set_backend(vq, backend);
+		r = vhost_vq_init_access(vq);
+		if (r == 0)
+			r = vhost_poll_start(&vq->poll, vq->kick);
+	}
+
+	mutex_unlock(&vq->mutex);
+
+	if (enable) {
+		vhost_test_flush_vq(n, index);
+	}
+
+	mutex_unlock(&n->dev.mutex);
+	return 0;
+
+err_vq:
+	mutex_unlock(&vq->mutex);
+err:
+	mutex_unlock(&n->dev.mutex);
+	return r;
+}
+
 static long vhost_test_ioctl(struct file *f, unsigned int ioctl,
 			     unsigned long arg)
 {
+	struct vhost_vring_file backend;
 	struct vhost_test *n = f->private_data;
 	void __user *argp = (void __user *)arg;
 	u64 __user *featurep = argp;
@@ -277,6 +330,10 @@ static long vhost_test_ioctl(struct file *f, unsigned int ioctl,
 		if (copy_from_user(&test, argp, sizeof test))
 			return -EFAULT;
 		return vhost_test_run(n, test);
+	case VHOST_TEST_SET_BACKEND:
+		if (copy_from_user(&backend, argp, sizeof backend))
+			return -EFAULT;
+		return vhost_test_set_backend(n, backend.index, backend.fd);
 	case VHOST_GET_FEATURES:
 		features = VHOST_FEATURES;
 		if (copy_to_user(featurep, &features, sizeof features))

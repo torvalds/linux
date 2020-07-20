@@ -1055,7 +1055,7 @@ def cbr(id, raw_buf):
 	cbr = data[0]
 	MHz = (data[4] + 500) / 1000
 	percent = ((cbr * 1000 / data[2]) + 5) / 10
-	value = struct.pack("!hiqiiiiii", 4, 8, id, 4, cbr, 4, MHz, 4, percent)
+	value = struct.pack("!hiqiiiiii", 4, 8, id, 4, cbr, 4, int(MHz), 4, int(percent))
 	cbr_file.write(value)
 
 def mwait(id, raw_buf):

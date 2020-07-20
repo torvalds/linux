@@ -1069,10 +1069,6 @@ vmw_stdu_primary_plane_prepare_fb(struct drm_plane *plane,
 	if (new_content_type != SAME_AS_DISPLAY) {
 		struct vmw_surface_metadata metadata = {0};
 
-		metadata.base_size.width = hdisplay;
-		metadata.base_size.height = vdisplay;
-		metadata.base_size.depth = 1;
-
 		/*
 		 * If content buffer is a buffer object, then we have to
 		 * construct surface info
@@ -1103,6 +1099,10 @@ vmw_stdu_primary_plane_prepare_fb(struct drm_plane *plane,
 		} else {
 			metadata = new_vfbs->surface->metadata;
 		}
+
+		metadata.base_size.width = hdisplay;
+		metadata.base_size.height = vdisplay;
+		metadata.base_size.depth = 1;
 
 		if (vps->surf) {
 			struct drm_vmw_size cur_base_size =
