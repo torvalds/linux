@@ -32,6 +32,7 @@
 
 #include <linux/blkdev.h>
 #include <linux/random.h>
+#include <linux/sched/mm.h>
 
 #ifndef CONFIG_BCACHEFS_NO_LATENCY_ACCT
 
@@ -1052,7 +1053,10 @@ static void __bch2_write(struct closure *cl)
 	struct write_point *wp;
 	struct bio *bio;
 	bool skip_put = true;
+	unsigned nofs_flags;
 	int ret;
+
+	nofs_flags = memalloc_nofs_save();
 again:
 	memset(&op->failed, 0, sizeof(op->failed));
 
@@ -1134,13 +1138,15 @@ again:
 
 	if (!skip_put)
 		continue_at(cl, bch2_write_index, index_update_wq(op));
+out:
+	memalloc_nofs_restore(nofs_flags);
 	return;
 err:
 	op->error = ret;
 	op->flags |= BCH_WRITE_DONE;
 
 	continue_at(cl, bch2_write_index, index_update_wq(op));
-	return;
+	goto out;
 flush_io:
 	/*
 	 * If the write can't all be submitted at once, we generally want to
@@ -1151,7 +1157,7 @@ flush_io:
 	 */
 	if (current->flags & PF_WQ_WORKER) {
 		continue_at(cl, bch2_write_index, index_update_wq(op));
-		return;
+		goto out;
 	}
 
 	closure_sync(cl);
@@ -1162,7 +1168,7 @@ flush_io:
 		if (op->error) {
 			op->flags |= BCH_WRITE_DONE;
 			continue_at_nobarrier(cl, bch2_write_done, NULL);
-			return;
+			goto out;
 		}
 	}
 
