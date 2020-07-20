@@ -177,6 +177,11 @@ static u32 aq_ethtool_n_stats(struct net_device *ndev)
 	u32 n_stats = ARRAY_SIZE(aq_ethtool_stat_names) +
 		      (rx_stat_cnt + tx_stat_cnt) * cfg->vecs * cfg->tcs;
 
+#if IS_REACHABLE(CONFIG_PTP_1588_CLOCK)
+	n_stats += rx_stat_cnt * aq_ptp_get_ring_cnt(nic, ATL_RING_RX) +
+		   tx_stat_cnt * aq_ptp_get_ring_cnt(nic, ATL_RING_TX);
+#endif
+
 #if IS_ENABLED(CONFIG_MACSEC)
 	if (nic->macsec_cfg) {
 		n_stats += ARRAY_SIZE(aq_macsec_stat_names) +
@@ -199,6 +204,9 @@ static void aq_ethtool_stats(struct net_device *ndev,
 
 	memset(data, 0, aq_ethtool_n_stats(ndev) * sizeof(u64));
 	data = aq_nic_get_stats(aq_nic, data);
+#if IS_REACHABLE(CONFIG_PTP_1588_CLOCK)
+	data = aq_ptp_get_stats(aq_nic, data);
+#endif
 #if IS_ENABLED(CONFIG_MACSEC)
 	data = aq_macsec_get_stats(aq_nic, data);
 #endif
@@ -275,6 +283,35 @@ static void aq_ethtool_get_strings(struct net_device *ndev,
 				}
 			}
 		}
+#if IS_REACHABLE(CONFIG_PTP_1588_CLOCK)
+		if (nic->aq_ptp) {
+			const int rx_ring_cnt = aq_ptp_get_ring_cnt(nic, ATL_RING_RX);
+			const int tx_ring_cnt = aq_ptp_get_ring_cnt(nic, ATL_RING_TX);
+			unsigned int ptp_ring_idx =
+				aq_ptp_ring_idx(nic->aq_nic_cfg.tc_mode);
+
+			snprintf(tc_string, 8, "PTP ");
+
+			for (i = 0; i < max(rx_ring_cnt, tx_ring_cnt); i++) {
+				for (si = 0; si < rx_stat_cnt; si++) {
+					snprintf(p, ETH_GSTRING_LEN,
+						 aq_ethtool_queue_rx_stat_names[si],
+						 tc_string,
+						 i ? PTP_HWST_RING_IDX : ptp_ring_idx);
+					p += ETH_GSTRING_LEN;
+				}
+				if (i >= tx_ring_cnt)
+					continue;
+				for (si = 0; si < tx_stat_cnt; si++) {
+					snprintf(p, ETH_GSTRING_LEN,
+						 aq_ethtool_queue_tx_stat_names[si],
+						 tc_string,
+						 i ? PTP_HWST_RING_IDX : ptp_ring_idx);
+					p += ETH_GSTRING_LEN;
+				}
+			}
+		}
+#endif
 #if IS_ENABLED(CONFIG_MACSEC)
 		if (!nic->macsec_cfg)
 			break;
