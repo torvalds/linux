@@ -237,7 +237,7 @@ static u64 read_tod_clock(struct clocksource *cs)
 	preempt_disable(); /* protect from changes to steering parameters */
 	now = get_tod_clock();
 	adj = tod_steering_end - now;
-	if (unlikely((s64) adj >= 0))
+	if (unlikely((s64) adj > 0))
 		/*
 		 * manually steer by 1 cycle every 2^16 cycles. This
 		 * corresponds to shifting the tod delta by 15. 1s is
