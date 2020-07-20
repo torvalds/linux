@@ -4000,14 +4000,14 @@ static int bcmgenet_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->clk_wol)) {
 		dev_dbg(&priv->pdev->dev, "failed to get enet-wol clock\n");
 		err = PTR_ERR(priv->clk_wol);
-		goto err;
+		goto err_clk_disable;
 	}
 
 	priv->clk_eee = devm_clk_get_optional(&priv->pdev->dev, "enet-eee");
 	if (IS_ERR(priv->clk_eee)) {
 		dev_dbg(&priv->pdev->dev, "failed to get enet-eee clock\n");
 		err = PTR_ERR(priv->clk_eee);
-		goto err;
+		goto err_clk_disable;
 	}
 
 	/* If this is an internal GPHY, power it on now, before UniMAC is
