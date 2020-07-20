@@ -199,10 +199,11 @@ static inline unsigned raw_read_seqcount(const seqcount_t *s)
  */
 static inline unsigned raw_seqcount_begin(const seqcount_t *s)
 {
-	unsigned ret = READ_ONCE(s->sequence);
-	smp_rmb();
-	kcsan_atomic_next(KCSAN_SEQLOCK_REGION_MAX);
-	return ret & ~1;
+	/*
+	 * If the counter is odd, let read_seqcount_retry() fail
+	 * by decrementing the counter.
+	 */
+	return raw_read_seqcount(s) & ~1;
 }
 
 /**
