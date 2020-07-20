@@ -206,11 +206,12 @@ aq_ring_hwts_rx_alloc(struct aq_ring_s *self, struct aq_nic_s *aq_nic,
 	return self;
 }
 
-int aq_ring_init(struct aq_ring_s *self)
+int aq_ring_init(struct aq_ring_s *self, const enum atl_ring_type ring_type)
 {
 	self->hw_head = 0;
 	self->sw_head = 0;
 	self->sw_tail = 0;
+	self->ring_type = ring_type;
 
 	return 0;
 }
@@ -538,7 +539,7 @@ err_exit:
 void aq_ring_rx_deinit(struct aq_ring_s *self)
 {
 	if (!self)
-		goto err_exit;
+		return;
 
 	for (; self->sw_head != self->sw_tail;
 		self->sw_head = aq_ring_next_dx(self, self->sw_head)) {
@@ -546,14 +547,12 @@ void aq_ring_rx_deinit(struct aq_ring_s *self)
 
 		aq_free_rxpage(&buff->rxdata, aq_nic_get_dev(self->aq_nic));
 	}
-
-err_exit:;
 }
 
 void aq_ring_free(struct aq_ring_s *self)
 {
 	if (!self)
-		goto err_exit;
+		return;
 
 	kfree(self->buff_ring);
 
@@ -561,6 +560,23 @@ void aq_ring_free(struct aq_ring_s *self)
 		dma_free_coherent(aq_nic_get_dev(self->aq_nic),
 				  self->size * self->dx_size, self->dx_ring,
 				  self->dx_ring_pa);
+}
 
-err_exit:;
+unsigned int aq_ring_fill_stats_data(struct aq_ring_s *self, u64 *data)
+{
+	unsigned int count = 0U;
+
+	if (self->ring_type == ATL_RING_RX) {
+		/* This data should mimic aq_ethtool_queue_rx_stat_names structure */
+		data[count] = self->stats.rx.packets;
+		data[++count] = self->stats.rx.jumbo_packets;
+		data[++count] = self->stats.rx.lro_packets;
+		data[++count] = self->stats.rx.errors;
+	} else {
+		/* This data should mimic aq_ethtool_queue_tx_stat_names structure */
+		data[count] = self->stats.tx.packets;
+		data[++count] = self->stats.tx.queue_restarts;
+	}
+
+	return ++count;
 }

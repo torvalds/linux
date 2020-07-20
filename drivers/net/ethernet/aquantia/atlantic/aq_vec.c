@@ -181,7 +181,7 @@ int aq_vec_init(struct aq_vec_s *self, const struct aq_hw_ops *aq_hw_ops,
 
 	for (i = 0U, ring = self->ring[0];
 		self->tx_rings > i; ++i, ring = self->ring[i]) {
-		err = aq_ring_init(&ring[AQ_VEC_TX_ID]);
+		err = aq_ring_init(&ring[AQ_VEC_TX_ID], ATL_RING_TX);
 		if (err < 0)
 			goto err_exit;
 
@@ -191,7 +191,7 @@ int aq_vec_init(struct aq_vec_s *self, const struct aq_hw_ops *aq_hw_ops,
 		if (err < 0)
 			goto err_exit;
 
-		err = aq_ring_init(&ring[AQ_VEC_RX_ID]);
+		err = aq_ring_init(&ring[AQ_VEC_RX_ID], ATL_RING_RX);
 		if (err < 0)
 			goto err_exit;
 
@@ -350,55 +350,23 @@ cpumask_t *aq_vec_get_affinity_mask(struct aq_vec_s *self)
 	return &self->aq_ring_param.affinity_mask;
 }
 
-static void aq_vec_get_stats(struct aq_vec_s *self,
-			     const unsigned int tc,
-			     struct aq_ring_stats_rx_s *stats_rx,
-			     struct aq_ring_stats_tx_s *stats_tx)
+bool aq_vec_is_valid_tc(struct aq_vec_s *self, const unsigned int tc)
 {
-	struct aq_ring_s *ring = self->ring[tc];
-
-	if (tc < self->rx_rings) {
-		struct aq_ring_stats_rx_s *rx = &ring[AQ_VEC_RX_ID].stats.rx;
-
-		stats_rx->packets = rx->packets;
-		stats_rx->bytes = rx->bytes;
-		stats_rx->errors = rx->errors;
-		stats_rx->jumbo_packets = rx->jumbo_packets;
-		stats_rx->lro_packets = rx->lro_packets;
-		stats_rx->pg_losts = rx->pg_losts;
-		stats_rx->pg_flips = rx->pg_flips;
-		stats_rx->pg_reuses = rx->pg_reuses;
-	}
-
-	if (tc < self->tx_rings) {
-		struct aq_ring_stats_tx_s *tx = &ring[AQ_VEC_TX_ID].stats.tx;
-
-		stats_tx->packets = tx->packets;
-		stats_tx->bytes = tx->bytes;
-		stats_tx->errors = tx->errors;
-		stats_tx->queue_restarts = tx->queue_restarts;
-	}
+	return tc < self->rx_rings && tc < self->tx_rings;
 }
 
 unsigned int aq_vec_get_sw_stats(struct aq_vec_s *self, const unsigned int tc, u64 *data)
 {
-	struct aq_ring_stats_rx_s stats_rx;
-	struct aq_ring_stats_tx_s stats_tx;
-	unsigned int count = 0U;
+	unsigned int count;
 
-	memset(&stats_rx, 0U, sizeof(struct aq_ring_stats_rx_s));
-	memset(&stats_tx, 0U, sizeof(struct aq_ring_stats_tx_s));
+	WARN_ONCE(!aq_vec_is_valid_tc(self, tc),
+		  "Invalid tc %u (#rx=%u, #tx=%u)\n",
+		  tc, self->rx_rings, self->tx_rings);
+	if (!aq_vec_is_valid_tc(self, tc))
+		return 0;
 
-	aq_vec_get_stats(self, tc, &stats_rx, &stats_tx);
+	count = aq_ring_fill_stats_data(&self->ring[tc][AQ_VEC_RX_ID], data);
+	count += aq_ring_fill_stats_data(&self->ring[tc][AQ_VEC_TX_ID], data + count);
 
-	/* This data should mimic aq_ethtool_queue_stat_names structure
-	 */
-	data[count] = stats_rx.packets;
-	data[++count] = stats_tx.packets;
-	data[++count] = stats_tx.queue_restarts;
-	data[++count] = stats_rx.jumbo_packets;
-	data[++count] = stats_rx.lro_packets;
-	data[++count] = stats_rx.errors;
-
-	return ++count;
+	return count;
 }

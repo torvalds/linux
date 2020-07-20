@@ -844,7 +844,7 @@ int aq_ptp_ring_init(struct aq_nic_s *aq_nic)
 	if (!aq_ptp)
 		return 0;
 
-	err = aq_ring_init(&aq_ptp->ptp_tx);
+	err = aq_ring_init(&aq_ptp->ptp_tx, ATL_RING_TX);
 	if (err < 0)
 		goto err_exit;
 	err = aq_nic->aq_hw_ops->hw_ring_tx_init(aq_nic->aq_hw,
@@ -853,7 +853,7 @@ int aq_ptp_ring_init(struct aq_nic_s *aq_nic)
 	if (err < 0)
 		goto err_exit;
 
-	err = aq_ring_init(&aq_ptp->ptp_rx);
+	err = aq_ring_init(&aq_ptp->ptp_rx, ATL_RING_RX);
 	if (err < 0)
 		goto err_exit;
 	err = aq_nic->aq_hw_ops->hw_ring_rx_init(aq_nic->aq_hw,
@@ -871,7 +871,7 @@ int aq_ptp_ring_init(struct aq_nic_s *aq_nic)
 	if (err < 0)
 		goto err_rx_free;
 
-	err = aq_ring_init(&aq_ptp->hwts_rx);
+	err = aq_ring_init(&aq_ptp->hwts_rx, ATL_RING_RX);
 	if (err < 0)
 		goto err_rx_free;
 	err = aq_nic->aq_hw_ops->hw_ring_rx_init(aq_nic->aq_hw,

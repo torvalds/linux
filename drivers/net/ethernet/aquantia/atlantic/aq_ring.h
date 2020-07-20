@@ -110,6 +110,11 @@ union aq_ring_stats_s {
 	struct aq_ring_stats_tx_s tx;
 };
 
+enum atl_ring_type {
+	ATL_RING_TX,
+	ATL_RING_RX,
+};
+
 struct aq_ring_s {
 	struct aq_ring_buff_s *buff_ring;
 	u8 *dx_ring;		/* descriptors ring, dma shared mem */
@@ -124,6 +129,7 @@ struct aq_ring_s {
 	unsigned int page_order;
 	union aq_ring_stats_s stats;
 	dma_addr_t dx_ring_pa;
+	enum atl_ring_type ring_type;
 };
 
 struct aq_ring_param_s {
@@ -163,7 +169,7 @@ struct aq_ring_s *aq_ring_rx_alloc(struct aq_ring_s *self,
 				   struct aq_nic_s *aq_nic,
 				   unsigned int idx,
 				   struct aq_nic_cfg_s *aq_nic_cfg);
-int aq_ring_init(struct aq_ring_s *self);
+int aq_ring_init(struct aq_ring_s *self, const enum atl_ring_type ring_type);
 void aq_ring_rx_deinit(struct aq_ring_s *self);
 void aq_ring_free(struct aq_ring_s *self);
 void aq_ring_update_queue_state(struct aq_ring_s *ring);
@@ -180,5 +186,7 @@ struct aq_ring_s *aq_ring_hwts_rx_alloc(struct aq_ring_s *self,
 		struct aq_nic_s *aq_nic, unsigned int idx,
 		unsigned int size, unsigned int dx_size);
 void aq_ring_hwts_rx_clean(struct aq_ring_s *self, struct aq_nic_s *aq_nic);
+
+unsigned int aq_ring_fill_stats_data(struct aq_ring_s *self, u64 *data);
 
 #endif /* AQ_RING_H */

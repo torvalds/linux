@@ -89,13 +89,16 @@ static const char aq_ethtool_stat_names[][ETH_GSTRING_LEN] = {
 	"InDroppedDma",
 };
 
-static const char * const aq_ethtool_queue_stat_names[] = {
+static const char * const aq_ethtool_queue_rx_stat_names[] = {
 	"%sQueue[%d] InPackets",
-	"%sQueue[%d] OutPackets",
-	"%sQueue[%d] Restarts",
 	"%sQueue[%d] InJumboPackets",
 	"%sQueue[%d] InLroPackets",
 	"%sQueue[%d] InErrors",
+};
+
+static const char * const aq_ethtool_queue_tx_stat_names[] = {
+	"%sQueue[%d] OutPackets",
+	"%sQueue[%d] Restarts",
 };
 
 #if IS_ENABLED(CONFIG_MACSEC)
@@ -164,11 +167,12 @@ static const char aq_ethtool_priv_flag_names[][ETH_GSTRING_LEN] = {
 
 static u32 aq_ethtool_n_stats(struct net_device *ndev)
 {
+	const int rx_stat_cnt = ARRAY_SIZE(aq_ethtool_queue_rx_stat_names);
+	const int tx_stat_cnt = ARRAY_SIZE(aq_ethtool_queue_tx_stat_names);
 	struct aq_nic_s *nic = netdev_priv(ndev);
 	struct aq_nic_cfg_s *cfg = aq_nic_get_cfg(nic);
 	u32 n_stats = ARRAY_SIZE(aq_ethtool_stat_names) +
-		      ARRAY_SIZE(aq_ethtool_queue_stat_names) * cfg->vecs *
-			cfg->tcs;
+		      (rx_stat_cnt + tx_stat_cnt) * cfg->vecs * cfg->tcs;
 
 #if IS_ENABLED(CONFIG_MACSEC)
 	if (nic->macsec_cfg) {
@@ -237,7 +241,8 @@ static void aq_ethtool_get_strings(struct net_device *ndev,
 
 	switch (stringset) {
 	case ETH_SS_STATS: {
-		const int stat_cnt = ARRAY_SIZE(aq_ethtool_queue_stat_names);
+		const int rx_stat_cnt = ARRAY_SIZE(aq_ethtool_queue_rx_stat_names);
+		const int tx_stat_cnt = ARRAY_SIZE(aq_ethtool_queue_tx_stat_names);
 		char tc_string[8];
 		int tc;
 
@@ -251,9 +256,16 @@ static void aq_ethtool_get_strings(struct net_device *ndev,
 				snprintf(tc_string, 8, "TC%d ", tc);
 
 			for (i = 0; i < cfg->vecs; i++) {
-				for (si = 0; si < stat_cnt; si++) {
+				for (si = 0; si < rx_stat_cnt; si++) {
 					snprintf(p, ETH_GSTRING_LEN,
-					     aq_ethtool_queue_stat_names[si],
+					     aq_ethtool_queue_rx_stat_names[si],
+					     tc_string,
+					     AQ_NIC_CFG_TCVEC2RING(cfg, tc, i));
+					p += ETH_GSTRING_LEN;
+				}
+				for (si = 0; si < tx_stat_cnt; si++) {
+					snprintf(p, ETH_GSTRING_LEN,
+					     aq_ethtool_queue_tx_stat_names[si],
 					     tc_string,
 					     AQ_NIC_CFG_TCVEC2RING(cfg, tc, i));
 					p += ETH_GSTRING_LEN;
