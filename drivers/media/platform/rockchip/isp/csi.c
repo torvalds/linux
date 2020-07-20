@@ -477,7 +477,7 @@ int rkisp_csi_trigger_event(struct rkisp_csi_device *csi, void *arg)
 		csi->is_isp_end = true;
 
 	/* isp doesn't ready to read back */
-	if (dev->isp_state != ISP_START) {
+	if (!(dev->isp_state & ISP_START)) {
 		if (trigger)
 			kfifo_in(fifo, trigger, sizeof(*trigger));
 		csi->is_isp_end = true;

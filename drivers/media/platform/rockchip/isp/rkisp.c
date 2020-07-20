@@ -434,7 +434,15 @@ u32 rkisp_mbus_pixelcode_to_v4l2(u32 pixelcode)
 	return pixelformat;
 }
 
-/****************  register operations ****************/
+static void rkisp_set_state(struct rkisp_device *dev, u32 state)
+{
+	u32 mask = 0xff;
+
+	if (state < ISP_STOP)
+		mask = 0xff00;
+	dev->isp_state &= mask;
+	dev->isp_state |= state;
+}
 
 static void rkisp_config_clk(struct rkisp_device *dev, int on)
 {
@@ -965,7 +973,7 @@ static int rkisp_isp_stop(struct rkisp_device *dev)
 #endif
 		}
 	}
-	dev->isp_state = ISP_STOP;
+	rkisp_set_state(dev, ISP_STOP);
 
 	if (dev->isp_ver == ISP_V20)
 		kfifo_reset(&dev->csi_dev.rdbk_kfifo);
@@ -2214,6 +2222,7 @@ void rkisp_isp_isr(unsigned int isp_mis,
 
 	/* start edge of v_sync */
 	if (isp_mis & CIF_ISP_V_START) {
+		rkisp_set_state(dev, ISP_FRAME_VS);
 		dev->csi_dev.is_isp_end = false;
 		/* filt v_sync when frame read back mode */
 		if (dev->csi_dev.filt_state[CSI_F_VS]) {
@@ -2270,7 +2279,7 @@ vs_skip:
 
 		if (dev->isp_err_cnt++ > RKISP_CONTI_ERR_MAX) {
 			rkisp_isp_stop(dev);
-			dev->isp_state = ISP_ERROR;
+			rkisp_set_state(dev, ISP_ERROR);
 			v4l2_err(&dev->v4l2_dev,
 				 "Too many isp error, stop isp!\n");
 		}
@@ -2287,6 +2296,7 @@ vs_skip:
 
 	/* sampled input frame is complete */
 	if (isp_mis & CIF_ISP_FRAME_IN) {
+		rkisp_set_state(dev, ISP_FRAME_IN);
 		writel(CIF_ISP_FRAME_IN, base + CIF_ISP_ICR);
 		isp_mis_tmp = readl(base + CIF_ISP_MIS);
 		if (isp_mis_tmp & CIF_ISP_FRAME_IN)
@@ -2299,6 +2309,7 @@ vs_skip:
 	/* frame was completely put out */
 	if (isp_mis & CIF_ISP_FRAME) {
 		/* Clear Frame In (ISP) */
+		rkisp_set_state(dev, ISP_FRAME_END);
 		writel(CIF_ISP_FRAME, base + CIF_ISP_ICR);
 		isp_mis_tmp = readl(base + CIF_ISP_MIS);
 		if (isp_mis_tmp & CIF_ISP_FRAME)

@@ -87,9 +87,13 @@ enum rkisp_isp_ver {
 };
 
 enum rkisp_isp_state {
-	ISP_STOP = 0,
-	ISP_START,
-	ISP_ERROR
+	ISP_FRAME_END = BIT(0),
+	ISP_FRAME_IN = BIT(1),
+	ISP_FRAME_VS = BIT(2),
+
+	ISP_STOP = BIT(8),
+	ISP_START = BIT(9),
+	ISP_ERROR = BIT(10),
 };
 
 enum rkisp_isp_inp {

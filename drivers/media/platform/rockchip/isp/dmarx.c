@@ -405,8 +405,7 @@ static void dmarx_stop(struct rkisp_stream *stream)
 	int ret = 0;
 
 	stream->stopping = true;
-	if (dev->isp_state == ISP_START &&
-		!stream->frame_end) {
+	if ((dev->isp_state & ISP_START) && !stream->frame_end) {
 		ret = wait_event_timeout(stream->done,
 					 !stream->streaming,
 					 msecs_to_jiffies(100));

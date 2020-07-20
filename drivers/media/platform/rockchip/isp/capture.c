@@ -1533,8 +1533,9 @@ static int mi_frame_end(struct rkisp_stream *stream)
 	     stream->id == RKISP_STREAM_DMATX1 ||
 	     stream->id == RKISP_STREAM_DMATX2))
 		v4l2_info(&isp_dev->v4l2_dev,
-			  "no available stream(%d) buffer, use dummy\n",
-			  stream->id);
+			  "tx stream:%d lose frame:%d, isp state:0x%x frame:%d\n",
+			  stream->id, atomic_read(&stream->sequence) - 1,
+			  isp_dev->isp_state, isp_dev->dmarx_dev.cur_frame.id);
 
 	if (stream->curr_buf &&
 		(!interlaced ||
@@ -1906,7 +1907,7 @@ static void rkisp_stream_stop(struct rkisp_stream *stream)
 
 	stream->stopping = true;
 	stream->ops->stop_mi(stream);
-	if (dev->isp_state == ISP_START &&
+	if ((dev->isp_state & ISP_START) &&
 	    dev->isp_inp != INP_DMARX_ISP) {
 		ret = wait_event_timeout(stream->done,
 					 !stream->streaming,
