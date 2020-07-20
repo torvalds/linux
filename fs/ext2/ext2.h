@@ -52,8 +52,8 @@ struct ext2_block_alloc_info {
 	/*
 	 * Was i_next_alloc_goal in ext2_inode_info
 	 * is the *physical* companion to i_next_alloc_block.
-	 * it the the physical block number of the block which was most-recentl
-	 * allocated to this file.  This give us the goal (target) for the next
+	 * it is the physical block number of the block which was most-recently
+	 * allocated to this file.  This gives us the goal (target) for the next
 	 * allocation when we detect linearly ascending requests.
 	 */
 	ext2_fsblk_t		last_alloc_physical_block;
