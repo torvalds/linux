@@ -3988,7 +3988,7 @@ static int bcmgenet_probe(struct platform_device *pdev)
 	if (err)
 		err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 	if (err)
-		goto err;
+		goto err_clk_disable;
 
 	/* Mii wait queue */
 	init_waitqueue_head(&priv->wq);
