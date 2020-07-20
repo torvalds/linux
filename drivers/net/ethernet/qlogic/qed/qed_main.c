@@ -65,20 +65,118 @@ MODULE_VERSION(DRV_MODULE_VERSION);
 
 MODULE_FIRMWARE(QED_FW_FILE_NAME);
 
+/* MFW speed capabilities maps */
+
+struct qed_mfw_speed_map {
+	u32		mfw_val;
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(caps);
+
+	const u32	*cap_arr;
+	u32		arr_size;
+};
+
+#define QED_MFW_SPEED_MAP(type, arr)		\
+{						\
+	.mfw_val	= (type),		\
+	.cap_arr	= (arr),		\
+	.arr_size	= ARRAY_SIZE(arr),	\
+}
+
+static const u32 qed_mfw_legacy_1g[] __initconst = {
+	ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
+	ETHTOOL_LINK_MODE_1000baseKX_Full_BIT,
+	ETHTOOL_LINK_MODE_1000baseX_Full_BIT,
+};
+
+static const u32 qed_mfw_legacy_10g[] __initconst = {
+	ETHTOOL_LINK_MODE_10000baseT_Full_BIT,
+	ETHTOOL_LINK_MODE_10000baseKR_Full_BIT,
+	ETHTOOL_LINK_MODE_10000baseKX4_Full_BIT,
+	ETHTOOL_LINK_MODE_10000baseR_FEC_BIT,
+	ETHTOOL_LINK_MODE_10000baseCR_Full_BIT,
+	ETHTOOL_LINK_MODE_10000baseSR_Full_BIT,
+	ETHTOOL_LINK_MODE_10000baseLR_Full_BIT,
+	ETHTOOL_LINK_MODE_10000baseLRM_Full_BIT,
+};
+
+static const u32 qed_mfw_legacy_20g[] __initconst = {
+	ETHTOOL_LINK_MODE_20000baseKR2_Full_BIT,
+};
+
+static const u32 qed_mfw_legacy_25g[] __initconst = {
+	ETHTOOL_LINK_MODE_25000baseKR_Full_BIT,
+	ETHTOOL_LINK_MODE_25000baseCR_Full_BIT,
+	ETHTOOL_LINK_MODE_25000baseSR_Full_BIT,
+};
+
+static const u32 qed_mfw_legacy_40g[] __initconst = {
+	ETHTOOL_LINK_MODE_40000baseLR4_Full_BIT,
+	ETHTOOL_LINK_MODE_40000baseKR4_Full_BIT,
+	ETHTOOL_LINK_MODE_40000baseCR4_Full_BIT,
+	ETHTOOL_LINK_MODE_40000baseSR4_Full_BIT,
+};
+
+static const u32 qed_mfw_legacy_50g[] __initconst = {
+	ETHTOOL_LINK_MODE_50000baseKR2_Full_BIT,
+	ETHTOOL_LINK_MODE_50000baseCR2_Full_BIT,
+	ETHTOOL_LINK_MODE_50000baseSR2_Full_BIT,
+};
+
+static const u32 qed_mfw_legacy_bb_100g[] __initconst = {
+	ETHTOOL_LINK_MODE_100000baseKR4_Full_BIT,
+	ETHTOOL_LINK_MODE_100000baseSR4_Full_BIT,
+	ETHTOOL_LINK_MODE_100000baseCR4_Full_BIT,
+	ETHTOOL_LINK_MODE_100000baseLR4_ER4_Full_BIT,
+};
+
+static struct qed_mfw_speed_map qed_mfw_legacy_maps[] __ro_after_init = {
+	QED_MFW_SPEED_MAP(NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_1G,
+			  qed_mfw_legacy_1g),
+	QED_MFW_SPEED_MAP(NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_10G,
+			  qed_mfw_legacy_10g),
+	QED_MFW_SPEED_MAP(NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_20G,
+			  qed_mfw_legacy_20g),
+	QED_MFW_SPEED_MAP(NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_25G,
+			  qed_mfw_legacy_25g),
+	QED_MFW_SPEED_MAP(NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_40G,
+			  qed_mfw_legacy_40g),
+	QED_MFW_SPEED_MAP(NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_50G,
+			  qed_mfw_legacy_50g),
+	QED_MFW_SPEED_MAP(NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_BB_100G,
+			  qed_mfw_legacy_bb_100g),
+};
+
+static void __init qed_mfw_speed_map_populate(struct qed_mfw_speed_map *map)
+{
+	linkmode_set_bit_array(map->cap_arr, map->arr_size, map->caps);
+
+	map->cap_arr = NULL;
+	map->arr_size = 0;
+}
+
+static void __init qed_mfw_speed_maps_init(void)
+{
+	u32 i;
+
+	for (i = 0; i < ARRAY_SIZE(qed_mfw_legacy_maps); i++)
+		qed_mfw_speed_map_populate(qed_mfw_legacy_maps + i);
+}
+
 static int __init qed_init(void)
 {
 	pr_info("%s", version);
 
+	qed_mfw_speed_maps_init();
+
 	return 0;
 }
-
-static void __exit qed_cleanup(void)
-{
-	pr_notice("qed_cleanup called\n");
-}
-
 module_init(qed_init);
-module_exit(qed_cleanup);
+
+static void __exit qed_exit(void)
+{
+	/* To prevent marking this module as "permanent" */
+}
+module_exit(qed_exit);
 
 /* Check if the DMA controller on the machine can properly handle the DMA
  * addressing required by the device.
@@ -1457,12 +1555,13 @@ static bool qed_can_link_change(struct qed_dev *cdev)
 
 static int qed_set_link(struct qed_dev *cdev, struct qed_link_params *params)
 {
-	__ETHTOOL_DECLARE_LINK_MODE_MASK(sup_caps);
 	struct qed_mcp_link_params *link_params;
+	struct qed_mcp_link_speed_params *speed;
+	const struct qed_mfw_speed_map *map;
 	struct qed_hwfn *hwfn;
 	struct qed_ptt *ptt;
-	u32 as;
 	int rc;
+	u32 i;
 
 	if (!cdev)
 		return -ENODEV;
@@ -1487,78 +1586,25 @@ static int qed_set_link(struct qed_dev *cdev, struct qed_link_params *params)
 	if (!link_params)
 		return -ENODATA;
 
+	speed = &link_params->speed;
+
 	if (params->override_flags & QED_LINK_OVERRIDE_SPEED_AUTONEG)
-		link_params->speed.autoneg = params->autoneg;
+		speed->autoneg = !!params->autoneg;
 
 	if (params->override_flags & QED_LINK_OVERRIDE_SPEED_ADV_SPEEDS) {
-		as = 0;
+		speed->advertised_speeds = 0;
 
-		phylink_zero(sup_caps);
-		phylink_set(sup_caps, 1000baseT_Full);
-		phylink_set(sup_caps, 1000baseKX_Full);
-		phylink_set(sup_caps, 1000baseX_Full);
+		for (i = 0; i < ARRAY_SIZE(qed_mfw_legacy_maps); i++) {
+			map = qed_mfw_legacy_maps + i;
 
-		if (linkmode_intersects(params->adv_speeds, sup_caps))
-			as |= NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_1G;
-
-		phylink_zero(sup_caps);
-		phylink_set(sup_caps, 10000baseT_Full);
-		phylink_set(sup_caps, 10000baseKR_Full);
-		phylink_set(sup_caps, 10000baseKX4_Full);
-		phylink_set(sup_caps, 10000baseR_FEC);
-		phylink_set(sup_caps, 10000baseCR_Full);
-		phylink_set(sup_caps, 10000baseSR_Full);
-		phylink_set(sup_caps, 10000baseLR_Full);
-		phylink_set(sup_caps, 10000baseLRM_Full);
-
-		if (linkmode_intersects(params->adv_speeds, sup_caps))
-			as |= NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_10G;
-
-		phylink_zero(sup_caps);
-		phylink_set(sup_caps, 20000baseKR2_Full);
-
-		if (linkmode_intersects(params->adv_speeds, sup_caps))
-			as |= NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_20G;
-
-		phylink_zero(sup_caps);
-		phylink_set(sup_caps, 25000baseKR_Full);
-		phylink_set(sup_caps, 25000baseCR_Full);
-		phylink_set(sup_caps, 25000baseSR_Full);
-
-		if (linkmode_intersects(params->adv_speeds, sup_caps))
-			as |= NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_25G;
-
-		phylink_zero(sup_caps);
-		phylink_set(sup_caps, 40000baseLR4_Full);
-		phylink_set(sup_caps, 40000baseKR4_Full);
-		phylink_set(sup_caps, 40000baseCR4_Full);
-		phylink_set(sup_caps, 40000baseSR4_Full);
-
-		if (linkmode_intersects(params->adv_speeds, sup_caps))
-			as |= NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_40G;
-
-		phylink_zero(sup_caps);
-		phylink_set(sup_caps, 50000baseKR2_Full);
-		phylink_set(sup_caps, 50000baseCR2_Full);
-		phylink_set(sup_caps, 50000baseSR2_Full);
-
-		if (linkmode_intersects(params->adv_speeds, sup_caps))
-			as |= NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_50G;
-
-		phylink_zero(sup_caps);
-		phylink_set(sup_caps, 100000baseKR4_Full);
-		phylink_set(sup_caps, 100000baseSR4_Full);
-		phylink_set(sup_caps, 100000baseCR4_Full);
-		phylink_set(sup_caps, 100000baseLR4_ER4_Full);
-
-		if (linkmode_intersects(params->adv_speeds, sup_caps))
-			as |= NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_BB_100G;
-
-		link_params->speed.advertised_speeds = as;
+			if (linkmode_intersects(params->adv_speeds, map->caps))
+				speed->advertised_speeds |= map->mfw_val;
+		}
 	}
 
 	if (params->override_flags & QED_LINK_OVERRIDE_SPEED_FORCED_SPEED)
-		link_params->speed.forced_speed = params->forced_speed;
+		speed->forced_speed = params->forced_speed;
+
 	if (params->override_flags & QED_LINK_OVERRIDE_PAUSE_CONFIG) {
 		if (params->pause_config & QED_LINK_PAUSE_AUTONEG_ENABLE)
 			link_params->pause.autoneg = true;
@@ -1573,6 +1619,7 @@ static int qed_set_link(struct qed_dev *cdev, struct qed_link_params *params)
 		else
 			link_params->pause.forced_tx = false;
 	}
+
 	if (params->override_flags & QED_LINK_OVERRIDE_LOOPBACK_MODE) {
 		switch (params->loopback_mode) {
 		case QED_LINK_LOOPBACK_INT_PHY:
