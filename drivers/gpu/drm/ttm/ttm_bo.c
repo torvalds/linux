@@ -1673,6 +1673,8 @@ int ttm_bo_device_init(struct ttm_bo_device *bdev,
 	 * Initialize the system memory buffer type.
 	 * Other types need to be driver / IOCTL initialized.
 	 */
+	bdev->man[TTM_PL_SYSTEM].available_caching = TTM_PL_MASK_CACHING;
+	bdev->man[TTM_PL_SYSTEM].default_caching = TTM_PL_FLAG_CACHED;
 	ret = ttm_bo_init_mm(bdev, TTM_PL_SYSTEM, 0);
 	if (unlikely(ret != 0))
 		goto out_no_sys;

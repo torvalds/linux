@@ -84,9 +84,6 @@ static int amdgpu_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 	switch (type) {
 	case TTM_PL_SYSTEM:
 		/* System memory */
-		man->flags = 0;
-		man->available_caching = TTM_PL_MASK_CACHING;
-		man->default_caching = TTM_PL_FLAG_CACHED;
 		break;
 	case TTM_PL_TT:
 		/* GTT memory  */
