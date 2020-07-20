@@ -24,10 +24,7 @@ typedef enum {
 	INPUT_SYSTEM_ERR_PARAMETER_NOT_SUPPORTED,
 } input_system_err_t;
 
-#ifdef ISP2401
-#  include "isp2401_input_system_global.h"
-#else
-#  include "isp2400_input_system_global.h"
-#endif
+#include "isp2401_input_system_global.h"
+#include "isp2400_input_system_global.h"
 
 #endif /* __INPUT_SYSTEM_GLOBAL_H_INCLUDED__ */
