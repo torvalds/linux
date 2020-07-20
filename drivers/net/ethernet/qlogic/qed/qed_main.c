@@ -1696,21 +1696,40 @@ static void qed_fill_link_capability(struct qed_hwfn *hwfn,
 		if (capability & NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_20G)
 			phylink_set(if_caps, 20000baseKR2_Full);
 
-		/* For DAC media multiple speed capabilities are supported*/
-		capability = capability & speed_mask;
+		/* For DAC media multiple speed capabilities are supported */
+		capability |= speed_mask;
+
 		if (capability & NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_1G)
 			phylink_set(if_caps, 1000baseKX_Full);
 		if (capability & NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_10G)
 			phylink_set(if_caps, 10000baseCR_Full);
+
 		if (capability & NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_40G)
-			phylink_set(if_caps, 40000baseCR4_Full);
+			switch (tcvr_type) {
+			case ETH_TRANSCEIVER_TYPE_40G_CR4:
+			case ETH_TRANSCEIVER_TYPE_MULTI_RATE_10G_40G_CR:
+			case ETH_TRANSCEIVER_TYPE_MULTI_RATE_40G_100G_CR:
+				phylink_set(if_caps, 40000baseCR4_Full);
+				break;
+			default:
+				break;
+			}
+
 		if (capability & NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_25G)
 			phylink_set(if_caps, 25000baseCR_Full);
 		if (capability & NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_50G)
 			phylink_set(if_caps, 50000baseCR2_Full);
+
 		if (capability &
 		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_BB_100G)
-			phylink_set(if_caps, 100000baseCR4_Full);
+			switch (tcvr_type) {
+			case ETH_TRANSCEIVER_TYPE_100G_CR4:
+			case ETH_TRANSCEIVER_TYPE_MULTI_RATE_40G_100G_CR:
+				phylink_set(if_caps, 100000baseCR4_Full);
+				break;
+			default:
+				break;
+			}
 
 		break;
 	case MEDIA_BASE_T:
@@ -1728,10 +1747,16 @@ static void qed_fill_link_capability(struct qed_hwfn *hwfn,
 		if (board_cfg & NVM_CFG1_PORT_PORT_TYPE_MODULE) {
 			phylink_set(if_caps, FIBRE);
 
-			if (tcvr_type == ETH_TRANSCEIVER_TYPE_1000BASET)
+			switch (tcvr_type) {
+			case ETH_TRANSCEIVER_TYPE_1000BASET:
 				phylink_set(if_caps, 1000baseT_Full);
-			if (tcvr_type == ETH_TRANSCEIVER_TYPE_10G_BASET)
+				break;
+			case ETH_TRANSCEIVER_TYPE_10G_BASET:
 				phylink_set(if_caps, 10000baseT_Full);
+				break;
+			default:
+				break;
+			}
 		}
 
 		break;
@@ -1740,47 +1765,89 @@ static void qed_fill_link_capability(struct qed_hwfn *hwfn,
 	case MEDIA_XFP_FIBER:
 	case MEDIA_MODULE_FIBER:
 		phylink_set(if_caps, FIBRE);
+		capability |= speed_mask;
 
-		if (capability & NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_1G) {
-			if ((tcvr_type == ETH_TRANSCEIVER_TYPE_1G_LX) ||
-			    (tcvr_type == ETH_TRANSCEIVER_TYPE_1G_SX))
+		if (capability & NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_1G)
+			switch (tcvr_type) {
+			case ETH_TRANSCEIVER_TYPE_1G_LX:
+			case ETH_TRANSCEIVER_TYPE_1G_SX:
+			case ETH_TRANSCEIVER_TYPE_MULTI_RATE_1G_10G_SR:
+			case ETH_TRANSCEIVER_TYPE_MULTI_RATE_1G_10G_LR:
 				phylink_set(if_caps, 1000baseKX_Full);
-		}
+				break;
+			default:
+				break;
+			}
 
-		if (capability & NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_10G) {
-			if (tcvr_type == ETH_TRANSCEIVER_TYPE_10G_SR)
+		if (capability & NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_10G)
+			switch (tcvr_type) {
+			case ETH_TRANSCEIVER_TYPE_10G_SR:
+			case ETH_TRANSCEIVER_TYPE_MULTI_RATE_10G_40G_SR:
+			case ETH_TRANSCEIVER_TYPE_MULTI_RATE_10G_25G_SR:
+			case ETH_TRANSCEIVER_TYPE_MULTI_RATE_1G_10G_SR:
 				phylink_set(if_caps, 10000baseSR_Full);
-			if (tcvr_type == ETH_TRANSCEIVER_TYPE_10G_LR)
+				break;
+			case ETH_TRANSCEIVER_TYPE_10G_LR:
+			case ETH_TRANSCEIVER_TYPE_MULTI_RATE_10G_40G_LR:
+			case ETH_TRANSCEIVER_TYPE_MULTI_RATE_10G_25G_LR:
+			case ETH_TRANSCEIVER_TYPE_MULTI_RATE_1G_10G_LR:
 				phylink_set(if_caps, 10000baseLR_Full);
-			if (tcvr_type == ETH_TRANSCEIVER_TYPE_10G_LRM)
+				break;
+			case ETH_TRANSCEIVER_TYPE_10G_LRM:
 				phylink_set(if_caps, 10000baseLRM_Full);
-			if (tcvr_type == ETH_TRANSCEIVER_TYPE_10G_ER)
+				break;
+			case ETH_TRANSCEIVER_TYPE_10G_ER:
 				phylink_set(if_caps, 10000baseR_FEC);
-		}
+				break;
+			default:
+				break;
+			}
 
 		if (capability & NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_20G)
 			phylink_set(if_caps, 20000baseKR2_Full);
 
-		if (capability & NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_25G) {
-			if (tcvr_type == ETH_TRANSCEIVER_TYPE_25G_SR)
+		if (capability & NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_25G)
+			switch (tcvr_type) {
+			case ETH_TRANSCEIVER_TYPE_25G_SR:
+			case ETH_TRANSCEIVER_TYPE_MULTI_RATE_10G_25G_SR:
 				phylink_set(if_caps, 25000baseSR_Full);
-		}
+				break;
+			default:
+				break;
+			}
 
-		if (capability & NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_40G) {
-			if (tcvr_type == ETH_TRANSCEIVER_TYPE_40G_LR4)
+		if (capability & NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_40G)
+			switch (tcvr_type) {
+			case ETH_TRANSCEIVER_TYPE_40G_LR4:
+			case ETH_TRANSCEIVER_TYPE_MULTI_RATE_10G_40G_LR:
+			case ETH_TRANSCEIVER_TYPE_MULTI_RATE_40G_100G_LR:
 				phylink_set(if_caps, 40000baseLR4_Full);
-			if (tcvr_type == ETH_TRANSCEIVER_TYPE_40G_SR4)
+				break;
+			case ETH_TRANSCEIVER_TYPE_40G_SR4:
+			case ETH_TRANSCEIVER_TYPE_MULTI_RATE_40G_100G_SR:
+			case ETH_TRANSCEIVER_TYPE_MULTI_RATE_10G_40G_SR:
 				phylink_set(if_caps, 40000baseSR4_Full);
-		}
+				break;
+			default:
+				break;
+			}
 
 		if (capability & NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_50G)
 			phylink_set(if_caps, 50000baseKR2_Full);
 
 		if (capability &
-		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_BB_100G) {
-			if (tcvr_type == ETH_TRANSCEIVER_TYPE_100G_SR4)
+		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_BB_100G)
+			switch (tcvr_type) {
+			case ETH_TRANSCEIVER_TYPE_100G_SR4:
+			case ETH_TRANSCEIVER_TYPE_MULTI_RATE_40G_100G_SR:
 				phylink_set(if_caps, 100000baseSR4_Full);
-		}
+				break;
+			case ETH_TRANSCEIVER_TYPE_MULTI_RATE_40G_100G_LR:
+				phylink_set(if_caps, 100000baseLR4_ER4_Full);
+				break;
+			default:
+				break;
+			}
 
 		break;
 	case MEDIA_KR:
@@ -1805,6 +1872,7 @@ static void qed_fill_link_capability(struct qed_hwfn *hwfn,
 		break;
 	case MEDIA_UNSPECIFIED:
 	case MEDIA_NOT_PRESENT:
+	default:
 		DP_VERBOSE(hwfn->cdev, QED_MSG_DEBUG,
 			   "Unknown media and transceiver type;\n");
 		break;
