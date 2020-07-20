@@ -2464,7 +2464,7 @@ static struct cpufreq_driver intel_cpufreq = {
 	.name		= "intel_cpufreq",
 };
 
-static struct cpufreq_driver *default_driver = &intel_pstate;
+static struct cpufreq_driver *default_driver;
 
 static void intel_pstate_driver_cleanup(void)
 {
@@ -2758,6 +2758,7 @@ static int __init intel_pstate_init(void)
 			hwp_active++;
 			hwp_mode_bdw = id->driver_data;
 			intel_pstate.attr = hwp_cpufreq_attrs;
+			default_driver = &intel_pstate;
 			goto hwp_cpu_matched;
 		}
 	} else {
@@ -2775,7 +2776,8 @@ static int __init intel_pstate_init(void)
 		return -ENODEV;
 	}
 	/* Without HWP start in the passive mode. */
-	default_driver = &intel_cpufreq;
+	if (!default_driver)
+		default_driver = &intel_cpufreq;
 
 hwp_cpu_matched:
 	/*
@@ -2820,6 +2822,8 @@ static int __init intel_pstate_setup(char *str)
 
 	if (!strcmp(str, "disable")) {
 		no_load = 1;
+	} else if (!strcmp(str, "active")) {
+		default_driver = &intel_pstate;
 	} else if (!strcmp(str, "passive")) {
 		default_driver = &intel_cpufreq;
 		no_hwp = 1;

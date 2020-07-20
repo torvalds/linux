@@ -216,10 +216,15 @@ static int int3400_thermal_run_osc(acpi_handle handle,
 	acpi_status status;
 	int result = 0;
 	struct acpi_osc_context context = {
-		.uuid_str = int3400_thermal_uuids[uuid],
+		.uuid_str = NULL,
 		.rev = 1,
 		.cap.length = 8,
 	};
+
+	if (uuid < 0 || uuid >= INT3400_THERMAL_MAXIMUM_UUID)
+		return -EINVAL;
+
+	context.uuid_str = int3400_thermal_uuids[uuid];
 
 	buf[OSC_QUERY_DWORD] = 0;
 	buf[OSC_SUPPORT_DWORD] = enable;
