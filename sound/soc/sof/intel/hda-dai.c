@@ -56,7 +56,7 @@ static struct hdac_ext_stream *
 	hda_link_stream_assign(struct hdac_bus *bus,
 			       struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct sof_intel_hda_stream *hda_stream;
 	struct hdac_ext_stream *res = NULL;
 	struct hdac_stream *stream = NULL;
@@ -203,7 +203,7 @@ static int hda_link_hw_params(struct snd_pcm_substream *substream,
 	struct hdac_stream *hstream = substream->runtime->private_data;
 	struct hdac_bus *bus = hstream->bus;
 	struct hdac_ext_stream *link_dev;
-	struct snd_soc_pcm_runtime *rtd = snd_pcm_substream_chip(substream);
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
 	struct sof_intel_hda_stream *hda_stream;
 	struct hda_pipe_params p_params = {0};
@@ -264,7 +264,7 @@ static int hda_link_pcm_prepare(struct snd_pcm_substream *substream,
 				snd_soc_dai_get_dma_data(dai, substream);
 	struct snd_sof_dev *sdev =
 				snd_soc_component_get_drvdata(dai->component);
-	struct snd_soc_pcm_runtime *rtd = snd_pcm_substream_chip(substream);
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	int stream = substream->stream;
 
 	if (link_dev->link_prepared)
@@ -291,7 +291,7 @@ static int hda_link_pcm_trigger(struct snd_pcm_substream *substream,
 
 	hstream = substream->runtime->private_data;
 	bus = hstream->bus;
-	rtd = snd_pcm_substream_chip(substream);
+	rtd = asoc_substream_to_rtd(substream);
 
 	link = snd_hdac_ext_bus_get_link(bus, asoc_rtd_to_codec(rtd, 0)->component->name);
 	if (!link)
@@ -357,7 +357,7 @@ static int hda_link_hw_free(struct snd_pcm_substream *substream,
 
 	hstream = substream->runtime->private_data;
 	bus = hstream->bus;
-	rtd = snd_pcm_substream_chip(substream);
+	rtd = asoc_substream_to_rtd(substream);
 	link_dev = snd_soc_dai_get_dma_data(dai, substream);
 
 	if (!link_dev) {
