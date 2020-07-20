@@ -5804,6 +5804,9 @@ enum nl80211_feature_flags {
  * @NL80211_EXT_FEATURE_CONTROL_PORT_OVER_NL80211_TX_STATUS: The driver
  *	can report tx status for control port over nl80211 tx operations.
  *
+ * @NL80211_EXT_FEATURE_OPERATING_CHANNEL_VALIDATION: Driver supports Operating
+ *	Channel Validation (OCV) when using driver's SME for RSNA handshakes.
+ *
  * @NUM_NL80211_EXT_FEATURES: number of extended features.
  * @MAX_NL80211_EXT_FEATURES: highest extended feature index.
  */
@@ -5859,6 +5862,7 @@ enum nl80211_ext_feature_index {
 	NL80211_EXT_FEATURE_BEACON_PROTECTION_CLIENT,
 	NL80211_EXT_FEATURE_SCAN_FREQ_KHZ,
 	NL80211_EXT_FEATURE_CONTROL_PORT_OVER_NL80211_TX_STATUS,
+	NL80211_EXT_FEATURE_OPERATING_CHANNEL_VALIDATION,
 
 	/* add new features before the definition below */
 	NUM_NL80211_EXT_FEATURES,
