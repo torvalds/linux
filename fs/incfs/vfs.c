@@ -1930,17 +1930,17 @@ static int file_open(struct inode *inode, struct file *file)
 	struct file *backing_file = NULL;
 	struct path backing_path = {};
 	int err = 0;
+	int flags = O_NOATIME | O_LARGEFILE |
+		(S_ISDIR(inode->i_mode) ? O_RDONLY : O_RDWR);
 
 	if (!mi)
 		return -EBADF;
 
 	get_incfs_backing_path(file->f_path.dentry, &backing_path);
-
 	if (!backing_path.dentry)
 		return -EBADF;
 
-	backing_file = dentry_open(
-		&backing_path, O_RDWR | O_NOATIME | O_LARGEFILE, mi->mi_owner);
+	backing_file = dentry_open(&backing_path, flags, mi->mi_owner);
 	path_put(&backing_path);
 
 	if (IS_ERR(backing_file)) {

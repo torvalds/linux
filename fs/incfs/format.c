@@ -89,11 +89,42 @@ static int truncate_backing_file(struct backing_file_context *bfc,
 	return result;
 }
 
+static int write_to_bf(struct backing_file_context *bfc, const void *buf,
+			size_t count, loff_t pos)
+{
+	ssize_t res = incfs_kwrite(bfc->bc_file, buf, count, pos);
+
+	if (res < 0)
+		return res;
+	if (res != count)
+		return -EIO;
+	return 0;
+}
+
+static int append_zeros_no_fallocate(struct backing_file_context *bfc,
+				     size_t file_size, size_t len)
+{
+	u8 buffer[256] = {};
+	size_t i;
+
+	for (i = 0; i < len; i += sizeof(buffer)) {
+		int to_write = len - i > sizeof(buffer)
+			? sizeof(buffer) : len - i;
+		int err = write_to_bf(bfc, buffer, to_write, file_size + i);
+
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
 /* Append a given number of zero bytes to the end of the backing file. */
 static int append_zeros(struct backing_file_context *bfc, size_t len)
 {
 	loff_t file_size = 0;
 	loff_t new_last_byte_offset = 0;
+	int result;
 
 	if (!bfc)
 		return -EFAULT;
@@ -110,19 +141,11 @@ static int append_zeros(struct backing_file_context *bfc, size_t len)
 	 */
 	file_size = incfs_get_end_offset(bfc->bc_file);
 	new_last_byte_offset = file_size + len - 1;
-	return vfs_fallocate(bfc->bc_file, 0, new_last_byte_offset, 1);
-}
+	result = vfs_fallocate(bfc->bc_file, 0, new_last_byte_offset, 1);
+	if (result != -EOPNOTSUPP)
+		return result;
 
-static int write_to_bf(struct backing_file_context *bfc, const void *buf,
-			size_t count, loff_t pos)
-{
-	ssize_t res = incfs_kwrite(bfc->bc_file, buf, count, pos);
-
-	if (res < 0)
-		return res;
-	if (res != count)
-		return -EIO;
-	return 0;
+	return append_zeros_no_fallocate(bfc, file_size, len);
 }
 
 static u32 calc_md_crc(struct incfs_md_header *record)
