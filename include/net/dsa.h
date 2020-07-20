@@ -86,6 +86,18 @@ struct dsa_device_ops {
 	enum dsa_tag_protocol proto;
 };
 
+/* This structure defines the control interfaces that are overlayed by the
+ * DSA layer on top of the DSA CPU/management net_device instance. This is
+ * used by the core net_device layer while calling various net_device_ops
+ * function pointers.
+ */
+struct dsa_netdevice_ops {
+	int (*ndo_do_ioctl)(struct net_device *dev, struct ifreq *ifr,
+			    int cmd);
+	int (*ndo_get_phys_port_name)(struct net_device *dev, char *name,
+				      size_t len);
+};
+
 #define DSA_TAG_DRIVER_ALIAS "dsa_tag-"
 #define MODULE_ALIAS_DSA_TAG_DRIVER(__proto)				\
 	MODULE_ALIAS(DSA_TAG_DRIVER_ALIAS __stringify(__proto##_VALUE))
@@ -217,6 +229,7 @@ struct dsa_port {
 	/*
 	 * Original copy of the master netdev net_device_ops
 	 */
+	const struct dsa_netdevice_ops *netdev_ops;
 	const struct net_device_ops *orig_ndo_ops;
 
 	bool setup;
@@ -678,6 +691,63 @@ static inline bool dsa_can_decode(const struct sk_buff *skb,
 #endif
 	return false;
 }
+
+#if IS_ENABLED(CONFIG_NET_DSA)
+static inline int __dsa_netdevice_ops_check(struct net_device *dev)
+{
+	int err = -EOPNOTSUPP;
+
+	if (!dev->dsa_ptr)
+		return err;
+
+	if (!dev->dsa_ptr->netdev_ops)
+		return err;
+
+	return 0;
+}
+
+static inline int dsa_ndo_do_ioctl(struct net_device *dev, struct ifreq *ifr,
+				   int cmd)
+{
+	const struct dsa_netdevice_ops *ops;
+	int err;
+
+	err = __dsa_netdevice_ops_check(dev);
+	if (err)
+		return err;
+
+	ops = dev->dsa_ptr->netdev_ops;
+
+	return ops->ndo_do_ioctl(dev, ifr, cmd);
+}
+
+static inline int dsa_ndo_get_phys_port_name(struct net_device *dev,
+					     char *name, size_t len)
+{
+	const struct dsa_netdevice_ops *ops;
+	int err;
+
+	err = __dsa_netdevice_ops_check(dev);
+	if (err)
+		return err;
+
+	ops = dev->dsa_ptr->netdev_ops;
+
+	return ops->ndo_get_phys_port_name(dev, name, len);
+}
+#else
+static inline int dsa_ndo_do_ioctl(struct net_device *dev, struct ifreq *ifr,
+				   int cmd)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int dsa_ndo_get_phys_port_name(struct net_device *dev,
+					     char *name, size_t len)
+{
+	return -EOPNOTSUPP;
+}
+#endif
 
 void dsa_unregister_switch(struct dsa_switch *ds);
 int dsa_register_switch(struct dsa_switch *ds);
