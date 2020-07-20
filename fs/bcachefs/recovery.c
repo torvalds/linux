@@ -974,7 +974,8 @@ int bch2_fs_recovery(struct bch_fs *c)
 		bch_info(c, "recovering from clean shutdown, journal seq %llu",
 			 le64_to_cpu(clean->journal_seq));
 
-	if (!c->replicas.entries) {
+	if (!c->replicas.entries ||
+	    c->opts.rebuild_replicas) {
 		bch_info(c, "building replicas info");
 		set_bit(BCH_FS_REBUILD_REPLICAS, &c->flags);
 	}
