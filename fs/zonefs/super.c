@@ -1119,7 +1119,7 @@ static int zonefs_create_zgroup(struct zonefs_zone_data *zd,
 	char *file_name;
 	struct dentry *dir;
 	unsigned int n = 0;
-	int ret = -ENOMEM;
+	int ret;
 
 	/* If the group is empty, there is nothing to do */
 	if (!zd->nr_zones[type])
@@ -1135,8 +1135,10 @@ static int zonefs_create_zgroup(struct zonefs_zone_data *zd,
 		zgroup_name = "seq";
 
 	dir = zonefs_create_inode(sb->s_root, zgroup_name, NULL, type);
-	if (!dir)
+	if (!dir) {
+		ret = -ENOMEM;
 		goto free;
+	}
 
 	/*
 	 * The first zone contains the super block: skip it.
@@ -1174,8 +1176,10 @@ static int zonefs_create_zgroup(struct zonefs_zone_data *zd,
 		 * Use the file number within its group as file name.
 		 */
 		snprintf(file_name, ZONEFS_NAME_MAX - 1, "%u", n);
-		if (!zonefs_create_inode(dir, file_name, zone, type))
+		if (!zonefs_create_inode(dir, file_name, zone, type)) {
+			ret = -ENOMEM;
 			goto free;
+		}
 
 		n++;
 	}
