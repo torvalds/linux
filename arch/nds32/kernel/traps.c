@@ -25,16 +25,7 @@ extern void show_pte(struct mm_struct *mm, unsigned long addr);
 void dump_mem(const char *lvl, unsigned long bottom, unsigned long top)
 {
 	unsigned long first;
-	mm_segment_t fs;
 	int i;
-
-	/*
-	 * We need to switch to kernel mode so that we can use __get_user
-	 * to safely read from kernel space.  Note that we now dump the
-	 * code first, just in case the backtrace kills us.
-	 */
-	fs = get_fs();
-	set_fs(KERNEL_DS);
 
 	pr_emerg("%s(0x%08lx to 0x%08lx)\n", lvl, bottom, top);
 
@@ -48,7 +39,9 @@ void dump_mem(const char *lvl, unsigned long bottom, unsigned long top)
 		for (p = first, i = 0; i < 8 && p < top; i++, p += 4) {
 			if (p >= bottom && p < top) {
 				unsigned long val;
-				if (__get_user(val, (unsigned long *)p) == 0)
+
+				if (get_kernel_nofault(val,
+						(unsigned long *)p) == 0)
 					sprintf(str + i * 9, " %08lx", val);
 				else
 					sprintf(str + i * 9, " ????????");
@@ -56,8 +49,6 @@ void dump_mem(const char *lvl, unsigned long bottom, unsigned long top)
 		}
 		pr_emerg("%s%04lx:%s\n", lvl, first & 0xffff, str);
 	}
-
-	set_fs(fs);
 }
 
 EXPORT_SYMBOL(dump_mem);
