@@ -21,8 +21,8 @@ Optional properties:
 	       flow is handled by hardware, hence no software "voltage tracking" is
 	       needed.
 - #cooling-cells:
-	Please refer to Documentation/devicetree/bindings/thermal/thermal.txt
-	for detail.
+	For details, please refer to
+	Documentation/devicetree/bindings/thermal/thermal-cooling-devices.yaml
 
 Example 1 (MT7623 SoC):
 

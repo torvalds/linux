@@ -6,7 +6,7 @@ transaction.
 Required properties:
 - compatible: "amazon,al-thermal".
 - reg: The physical base address and length of the sensor's registers.
-- #thermal-sensor-cells: Must be 1. See ./thermal.txt for a description.
+- #thermal-sensor-cells: Must be 1. See Documentation/devicetree/bindings/thermal/thermal-sensor.yaml for a description.
 
 Example:
 	thermal: thermal {
