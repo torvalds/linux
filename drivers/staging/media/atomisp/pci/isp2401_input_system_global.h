@@ -55,7 +55,7 @@ struct input_system_channel_s {
 	stream2mmio_sid_ID_t	stream2mmio_sid_id;
 
 	ibuf_ctrl_ID_t		ibuf_ctrl_id;
-	ib_buffer_t		ib_buffer;
+	isp2401_ib_buffer_t	ib_buffer;
 
 	isys2401_dma_ID_t	dma_id;
 	isys2401_dma_channel	dma_channel;
@@ -105,8 +105,8 @@ struct input_system_input_port_cfg_s {
 	} pixelgen_cfg;
 };
 
-typedef struct input_system_cfg_s input_system_cfg_t;
-struct input_system_cfg_s {
+typedef struct isp2401_input_system_cfg_s isp2401_input_system_cfg_t;
+struct isp2401_input_system_cfg_s {
 	input_system_input_port_ID_t	input_port_id;
 
 	input_system_source_type_t	mode;

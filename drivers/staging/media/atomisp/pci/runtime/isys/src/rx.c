@@ -376,7 +376,7 @@ static mipi_predictor_t sh_css_csi2_compression_type_2_mipi_predictor(
 
 int ia_css_isys_convert_compressed_format(
     struct ia_css_csi2_compression *comp,
-    struct input_system_cfg_s *cfg)
+    struct isp2401_input_system_cfg_s *cfg)
 {
 	int err = 0;
 

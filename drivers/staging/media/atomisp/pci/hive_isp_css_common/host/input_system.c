@@ -30,7 +30,7 @@
 #define ZERO (0x0)
 #define ONE  (1U)
 
-static const ib_buffer_t   IB_BUFFER_NULL = {0, 0, 0 };
+static const isp2400_ib_buffer_t   IB_BUFFER_NULL = {0, 0, 0 };
 
 static input_system_err_t input_system_configure_channel(
     const channel_cfg_t		channel);
@@ -48,12 +48,12 @@ static void input_system_network_rst(const input_system_ID_t ID);
 static void capture_unit_configure(
     const input_system_ID_t			ID,
     const sub_system_ID_t			sub_id,
-    const ib_buffer_t *const cfg);
+    const isp2400_ib_buffer_t *const cfg);
 
 static void acquisition_unit_configure(
     const input_system_ID_t			ID,
     const sub_system_ID_t			sub_id,
-    const ib_buffer_t *const cfg);
+    const isp2400_ib_buffer_t *const cfg);
 
 static void ctrl_unit_configure(
     const input_system_ID_t			ID,
@@ -953,7 +953,7 @@ static input_system_err_t input_buffer_configuration(void)
 	u32 current_address    = 0;
 	u32 unallocated_memory = IB_CAPACITY_IN_WORDS;
 
-	ib_buffer_t	candidate_buffer_acq  = IB_BUFFER_NULL;
+	isp2400_ib_buffer_t	candidate_buffer_acq  = IB_BUFFER_NULL;
 	u32 size_requested;
 	input_system_config_flags_t	acq_already_specified = INPUT_SYSTEM_CFG_FLAG_RESET;
 	input_system_csi_port_t port;
@@ -1062,7 +1062,7 @@ static input_system_err_t input_buffer_configuration(void)
 static void capture_unit_configure(
     const input_system_ID_t			ID,
     const sub_system_ID_t			sub_id,
-    const ib_buffer_t *const cfg)
+    const isp2400_ib_buffer_t *const cfg)
 {
 	assert(ID < N_INPUT_SYSTEM_ID);
 	assert(/*(sub_id >= CAPTURE_UNIT0_ID) &&*/ (sub_id <=
@@ -1088,7 +1088,7 @@ static void capture_unit_configure(
 static void acquisition_unit_configure(
     const input_system_ID_t			ID,
     const sub_system_ID_t			sub_id,
-    const ib_buffer_t *const cfg)
+    const isp2400_ib_buffer_t *const cfg)
 {
 	assert(ID < N_INPUT_SYSTEM_ID);
 	assert(sub_id == ACQUISITION_UNIT0_ID);

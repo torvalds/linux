@@ -28,7 +28,7 @@
 /**
  * Virtual Input System. (Input System 2401)
  */
-typedef input_system_cfg_t	ia_css_isys_descr_t;
+typedef isp2401_input_system_cfg_t	ia_css_isys_descr_t;
 /* end of Virtual Input System */
 #endif
 
@@ -71,7 +71,7 @@ int ia_css_isys_csi_rx_unregister_stream(
 
 int ia_css_isys_convert_compressed_format(
     struct ia_css_csi2_compression *comp,
-    struct input_system_cfg_s *cfg);
+    struct isp2401_input_system_cfg_s *cfg);
 unsigned int ia_css_csi2_calculate_input_system_alignment(
     enum atomisp_input_format fmt_type);
 #endif
