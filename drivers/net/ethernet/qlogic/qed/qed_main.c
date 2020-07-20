@@ -82,6 +82,85 @@ struct qed_mfw_speed_map {
 	.arr_size	= ARRAY_SIZE(arr),	\
 }
 
+static const u32 qed_mfw_ext_1g[] __initconst = {
+	ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
+	ETHTOOL_LINK_MODE_1000baseKX_Full_BIT,
+	ETHTOOL_LINK_MODE_1000baseX_Full_BIT,
+};
+
+static const u32 qed_mfw_ext_10g[] __initconst = {
+	ETHTOOL_LINK_MODE_10000baseT_Full_BIT,
+	ETHTOOL_LINK_MODE_10000baseKR_Full_BIT,
+	ETHTOOL_LINK_MODE_10000baseKX4_Full_BIT,
+	ETHTOOL_LINK_MODE_10000baseR_FEC_BIT,
+	ETHTOOL_LINK_MODE_10000baseCR_Full_BIT,
+	ETHTOOL_LINK_MODE_10000baseSR_Full_BIT,
+	ETHTOOL_LINK_MODE_10000baseLR_Full_BIT,
+	ETHTOOL_LINK_MODE_10000baseLRM_Full_BIT,
+};
+
+static const u32 qed_mfw_ext_20g[] __initconst = {
+	ETHTOOL_LINK_MODE_20000baseKR2_Full_BIT,
+};
+
+static const u32 qed_mfw_ext_25g[] __initconst = {
+	ETHTOOL_LINK_MODE_25000baseKR_Full_BIT,
+	ETHTOOL_LINK_MODE_25000baseCR_Full_BIT,
+	ETHTOOL_LINK_MODE_25000baseSR_Full_BIT,
+};
+
+static const u32 qed_mfw_ext_40g[] __initconst = {
+	ETHTOOL_LINK_MODE_40000baseLR4_Full_BIT,
+	ETHTOOL_LINK_MODE_40000baseKR4_Full_BIT,
+	ETHTOOL_LINK_MODE_40000baseCR4_Full_BIT,
+	ETHTOOL_LINK_MODE_40000baseSR4_Full_BIT,
+};
+
+static const u32 qed_mfw_ext_50g_base_r[] __initconst = {
+	ETHTOOL_LINK_MODE_50000baseKR_Full_BIT,
+	ETHTOOL_LINK_MODE_50000baseCR_Full_BIT,
+	ETHTOOL_LINK_MODE_50000baseSR_Full_BIT,
+	ETHTOOL_LINK_MODE_50000baseLR_ER_FR_Full_BIT,
+	ETHTOOL_LINK_MODE_50000baseDR_Full_BIT,
+};
+
+static const u32 qed_mfw_ext_50g_base_r2[] __initconst = {
+	ETHTOOL_LINK_MODE_50000baseKR2_Full_BIT,
+	ETHTOOL_LINK_MODE_50000baseCR2_Full_BIT,
+	ETHTOOL_LINK_MODE_50000baseSR2_Full_BIT,
+};
+
+static const u32 qed_mfw_ext_100g_base_r2[] __initconst = {
+	ETHTOOL_LINK_MODE_100000baseKR2_Full_BIT,
+	ETHTOOL_LINK_MODE_100000baseSR2_Full_BIT,
+	ETHTOOL_LINK_MODE_100000baseCR2_Full_BIT,
+	ETHTOOL_LINK_MODE_100000baseDR2_Full_BIT,
+	ETHTOOL_LINK_MODE_100000baseLR2_ER2_FR2_Full_BIT,
+};
+
+static const u32 qed_mfw_ext_100g_base_r4[] __initconst = {
+	ETHTOOL_LINK_MODE_100000baseKR4_Full_BIT,
+	ETHTOOL_LINK_MODE_100000baseSR4_Full_BIT,
+	ETHTOOL_LINK_MODE_100000baseCR4_Full_BIT,
+	ETHTOOL_LINK_MODE_100000baseLR4_ER4_Full_BIT,
+};
+
+static struct qed_mfw_speed_map qed_mfw_ext_maps[] __ro_after_init = {
+	QED_MFW_SPEED_MAP(ETH_EXT_ADV_SPEED_1G, qed_mfw_ext_1g),
+	QED_MFW_SPEED_MAP(ETH_EXT_ADV_SPEED_10G, qed_mfw_ext_10g),
+	QED_MFW_SPEED_MAP(ETH_EXT_ADV_SPEED_20G, qed_mfw_ext_20g),
+	QED_MFW_SPEED_MAP(ETH_EXT_ADV_SPEED_25G, qed_mfw_ext_25g),
+	QED_MFW_SPEED_MAP(ETH_EXT_ADV_SPEED_40G, qed_mfw_ext_40g),
+	QED_MFW_SPEED_MAP(ETH_EXT_ADV_SPEED_50G_BASE_R,
+			  qed_mfw_ext_50g_base_r),
+	QED_MFW_SPEED_MAP(ETH_EXT_ADV_SPEED_50G_BASE_R2,
+			  qed_mfw_ext_50g_base_r2),
+	QED_MFW_SPEED_MAP(ETH_EXT_ADV_SPEED_100G_BASE_R2,
+			  qed_mfw_ext_100g_base_r2),
+	QED_MFW_SPEED_MAP(ETH_EXT_ADV_SPEED_100G_BASE_R4,
+			  qed_mfw_ext_100g_base_r4),
+};
+
 static const u32 qed_mfw_legacy_1g[] __initconst = {
 	ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
 	ETHTOOL_LINK_MODE_1000baseKX_Full_BIT,
@@ -157,6 +236,9 @@ static void __init qed_mfw_speed_map_populate(struct qed_mfw_speed_map *map)
 static void __init qed_mfw_speed_maps_init(void)
 {
 	u32 i;
+
+	for (i = 0; i < ARRAY_SIZE(qed_mfw_ext_maps); i++)
+		qed_mfw_speed_map_populate(qed_mfw_ext_maps + i);
 
 	for (i = 0; i < ARRAY_SIZE(qed_mfw_legacy_maps); i++)
 		qed_mfw_speed_map_populate(qed_mfw_legacy_maps + i);
@@ -1553,6 +1635,147 @@ static bool qed_can_link_change(struct qed_dev *cdev)
 	return true;
 }
 
+static void qed_set_ext_speed_params(struct qed_mcp_link_params *link_params,
+				     const struct qed_link_params *params)
+{
+	struct qed_mcp_link_speed_params *ext_speed = &link_params->ext_speed;
+	const struct qed_mfw_speed_map *map;
+	u32 i;
+
+	if (params->override_flags & QED_LINK_OVERRIDE_SPEED_AUTONEG)
+		ext_speed->autoneg = !!params->autoneg;
+
+	if (params->override_flags & QED_LINK_OVERRIDE_SPEED_ADV_SPEEDS) {
+		ext_speed->advertised_speeds = 0;
+
+		for (i = 0; i < ARRAY_SIZE(qed_mfw_ext_maps); i++) {
+			map = qed_mfw_ext_maps + i;
+
+			if (linkmode_intersects(params->adv_speeds, map->caps))
+				ext_speed->advertised_speeds |= map->mfw_val;
+		}
+	}
+
+	if (params->override_flags & QED_LINK_OVERRIDE_SPEED_FORCED_SPEED) {
+		switch (params->forced_speed) {
+		case SPEED_1000:
+			ext_speed->forced_speed = QED_EXT_SPEED_1G;
+			break;
+		case SPEED_10000:
+			ext_speed->forced_speed = QED_EXT_SPEED_10G;
+			break;
+		case SPEED_20000:
+			ext_speed->forced_speed = QED_EXT_SPEED_20G;
+			break;
+		case SPEED_25000:
+			ext_speed->forced_speed = QED_EXT_SPEED_25G;
+			break;
+		case SPEED_40000:
+			ext_speed->forced_speed = QED_EXT_SPEED_40G;
+			break;
+		case SPEED_50000:
+			ext_speed->forced_speed = QED_EXT_SPEED_50G_R |
+						  QED_EXT_SPEED_50G_R2;
+			break;
+		case SPEED_100000:
+			ext_speed->forced_speed = QED_EXT_SPEED_100G_R2 |
+						  QED_EXT_SPEED_100G_R4 |
+						  QED_EXT_SPEED_100G_P4;
+			break;
+		default:
+			break;
+		}
+	}
+
+	if (!(params->override_flags & QED_LINK_OVERRIDE_FEC_CONFIG))
+		return;
+
+	switch (params->forced_speed) {
+	case SPEED_25000:
+		switch (params->fec) {
+		case FEC_FORCE_MODE_NONE:
+			link_params->ext_fec_mode = ETH_EXT_FEC_25G_NONE;
+			break;
+		case FEC_FORCE_MODE_FIRECODE:
+			link_params->ext_fec_mode = ETH_EXT_FEC_25G_BASE_R;
+			break;
+		case FEC_FORCE_MODE_RS:
+			link_params->ext_fec_mode = ETH_EXT_FEC_25G_RS528;
+			break;
+		case FEC_FORCE_MODE_AUTO:
+			link_params->ext_fec_mode = ETH_EXT_FEC_25G_RS528 |
+						    ETH_EXT_FEC_25G_BASE_R |
+						    ETH_EXT_FEC_25G_NONE;
+			break;
+		default:
+			break;
+		}
+
+		break;
+	case SPEED_40000:
+		switch (params->fec) {
+		case FEC_FORCE_MODE_NONE:
+			link_params->ext_fec_mode = ETH_EXT_FEC_40G_NONE;
+			break;
+		case FEC_FORCE_MODE_FIRECODE:
+			link_params->ext_fec_mode = ETH_EXT_FEC_40G_BASE_R;
+			break;
+		case FEC_FORCE_MODE_AUTO:
+			link_params->ext_fec_mode = ETH_EXT_FEC_40G_BASE_R |
+						    ETH_EXT_FEC_40G_NONE;
+			break;
+		default:
+			break;
+		}
+
+		break;
+	case SPEED_50000:
+		switch (params->fec) {
+		case FEC_FORCE_MODE_NONE:
+			link_params->ext_fec_mode = ETH_EXT_FEC_50G_NONE;
+			break;
+		case FEC_FORCE_MODE_FIRECODE:
+			link_params->ext_fec_mode = ETH_EXT_FEC_50G_BASE_R;
+			break;
+		case FEC_FORCE_MODE_RS:
+			link_params->ext_fec_mode = ETH_EXT_FEC_50G_RS528;
+			break;
+		case FEC_FORCE_MODE_AUTO:
+			link_params->ext_fec_mode = ETH_EXT_FEC_50G_RS528 |
+						    ETH_EXT_FEC_50G_BASE_R |
+						    ETH_EXT_FEC_50G_NONE;
+			break;
+		default:
+			break;
+		}
+
+		break;
+	case SPEED_100000:
+		switch (params->fec) {
+		case FEC_FORCE_MODE_NONE:
+			link_params->ext_fec_mode = ETH_EXT_FEC_100G_NONE;
+			break;
+		case FEC_FORCE_MODE_FIRECODE:
+			link_params->ext_fec_mode = ETH_EXT_FEC_100G_BASE_R;
+			break;
+		case FEC_FORCE_MODE_RS:
+			link_params->ext_fec_mode = ETH_EXT_FEC_100G_RS528;
+			break;
+		case FEC_FORCE_MODE_AUTO:
+			link_params->ext_fec_mode = ETH_EXT_FEC_100G_RS528 |
+						    ETH_EXT_FEC_100G_BASE_R |
+						    ETH_EXT_FEC_100G_NONE;
+			break;
+		default:
+			break;
+		}
+
+		break;
+	default:
+		break;
+	}
+}
+
 static int qed_set_link(struct qed_dev *cdev, struct qed_link_params *params)
 {
 	struct qed_mcp_link_params *link_params;
@@ -1604,6 +1827,9 @@ static int qed_set_link(struct qed_dev *cdev, struct qed_link_params *params)
 
 	if (params->override_flags & QED_LINK_OVERRIDE_SPEED_FORCED_SPEED)
 		speed->forced_speed = params->forced_speed;
+
+	if (qed_mcp_is_ext_speed_supported(hwfn))
+		qed_set_ext_speed_params(link_params, params);
 
 	if (params->override_flags & QED_LINK_OVERRIDE_PAUSE_CONFIG) {
 		if (params->pause_config & QED_LINK_PAUSE_AUTONEG_ENABLE)
@@ -1682,7 +1908,6 @@ static int qed_get_port_type(u32 media_type)
 	case MEDIA_SFP_1G_FIBER:
 	case MEDIA_XFP_FIBER:
 	case MEDIA_MODULE_FIBER:
-	case MEDIA_KR:
 		port_type = PORT_FIBRE;
 		break;
 	case MEDIA_DA_TWINAX:
@@ -1691,6 +1916,7 @@ static int qed_get_port_type(u32 media_type)
 	case MEDIA_BASE_T:
 		port_type = PORT_TP;
 		break;
+	case MEDIA_KR:
 	case MEDIA_NOT_PRESENT:
 		port_type = PORT_NONE;
 		break;
@@ -1990,22 +2216,38 @@ static void qed_fill_link(struct qed_hwfn *hwfn,
 	if (link.link_up)
 		if_link->link_up = true;
 
-	/* TODO - at the moment assume supported and advertised speed equal */
-	if (link_caps.default_speed_autoneg)
-		phylink_set(if_link->supported_caps, Autoneg);
+	if (IS_PF(hwfn->cdev) && qed_mcp_is_ext_speed_supported(hwfn)) {
+		if (link_caps.default_ext_autoneg)
+			phylink_set(if_link->supported_caps, Autoneg);
+
+		linkmode_copy(if_link->advertised_caps, if_link->supported_caps);
+
+		if (params.ext_speed.autoneg)
+			phylink_set(if_link->advertised_caps, Autoneg);
+		else
+			phylink_clear(if_link->advertised_caps, Autoneg);
+
+		qed_fill_link_capability(hwfn, ptt,
+					 params.ext_speed.advertised_speeds,
+					 if_link->advertised_caps);
+	} else {
+		if (link_caps.default_speed_autoneg)
+			phylink_set(if_link->supported_caps, Autoneg);
+
+		linkmode_copy(if_link->advertised_caps, if_link->supported_caps);
+
+		if (params.speed.autoneg)
+			phylink_set(if_link->advertised_caps, Autoneg);
+		else
+			phylink_clear(if_link->advertised_caps, Autoneg);
+	}
+
 	if (params.pause.autoneg ||
 	    (params.pause.forced_rx && params.pause.forced_tx))
 		phylink_set(if_link->supported_caps, Asym_Pause);
 	if (params.pause.autoneg || params.pause.forced_rx ||
 	    params.pause.forced_tx)
 		phylink_set(if_link->supported_caps, Pause);
-
-	linkmode_copy(if_link->advertised_caps, if_link->supported_caps);
-
-	if (params.speed.autoneg)
-		phylink_set(if_link->advertised_caps, Autoneg);
-	else
-		phylink_clear(if_link->advertised_caps, Autoneg);
 
 	if_link->sup_fec = link_caps.fec_default;
 	if_link->active_fec = params.fec;

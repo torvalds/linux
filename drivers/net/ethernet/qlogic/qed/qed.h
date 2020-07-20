@@ -712,6 +712,7 @@ struct qed_dev {
 #define QED_IS_AH(dev)			((dev)->type == QED_DEV_TYPE_AH)
 #define QED_IS_K2(dev)			QED_IS_AH(dev)
 #define QED_IS_E4(dev)			(QED_IS_BB(dev) || QED_IS_AH(dev))
+#define QED_IS_E5(dev)			((dev)->type == QED_DEV_TYPE_E5)
 
 	u16				vendor_id;
 

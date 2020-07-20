@@ -17,8 +17,31 @@
 
 struct qed_mcp_link_speed_params {
 	bool					autoneg;
+
 	u32					advertised_speeds;
+#define QED_EXT_SPEED_MASK_RES			0x1
+#define QED_EXT_SPEED_MASK_1G			0x2
+#define QED_EXT_SPEED_MASK_10G			0x4
+#define QED_EXT_SPEED_MASK_20G			0x8
+#define QED_EXT_SPEED_MASK_25G			0x10
+#define QED_EXT_SPEED_MASK_40G			0x20
+#define QED_EXT_SPEED_MASK_50G_R		0x40
+#define QED_EXT_SPEED_MASK_50G_R2		0x80
+#define QED_EXT_SPEED_MASK_100G_R2		0x100
+#define QED_EXT_SPEED_MASK_100G_R4		0x200
+#define QED_EXT_SPEED_MASK_100G_P4		0x400
+
 	u32					forced_speed;	   /* In Mb/s */
+#define QED_EXT_SPEED_1G			0x1
+#define QED_EXT_SPEED_10G			0x2
+#define QED_EXT_SPEED_20G			0x4
+#define QED_EXT_SPEED_25G			0x8
+#define QED_EXT_SPEED_40G			0x10
+#define QED_EXT_SPEED_50G_R			0x20
+#define QED_EXT_SPEED_50G_R2			0x40
+#define QED_EXT_SPEED_100G_R2			0x80
+#define QED_EXT_SPEED_100G_R4			0x100
+#define QED_EXT_SPEED_100G_P4			0x200
 };
 
 struct qed_mcp_link_pause_params {
@@ -39,6 +62,9 @@ struct qed_mcp_link_params {
 	u32					loopback_mode;
 	struct qed_link_eee_params		eee;
 	u32					fec;
+
+	struct qed_mcp_link_speed_params	ext_speed;
+	u32					ext_fec_mode;
 };
 
 struct qed_mcp_link_capabilities {
@@ -48,6 +74,11 @@ struct qed_mcp_link_capabilities {
 	enum qed_mcp_eee_mode			default_eee;
 	u32					eee_lpi_timer;
 	u8					eee_speed_caps;
+
+	u32					default_ext_speed_caps;
+	u32					default_ext_autoneg;
+	u32					default_ext_speed;
+	u32					default_ext_fec;
 };
 
 struct qed_mcp_link_state {
@@ -749,6 +780,20 @@ struct qed_drv_tlv_hdr {
 #define QED_DRV_TLV_FLAGS_CHANGED 0x01
 	u8 tlv_flags;
 };
+
+/**
+ * qed_mcp_is_ext_speed_supported() - Check if management firmware supports
+ *                                    extended speeds.
+ * @p_hwfn: HW device data.
+ *
+ * Return: true if supported, false otherwise.
+ */
+static inline bool
+qed_mcp_is_ext_speed_supported(const struct qed_hwfn *p_hwfn)
+{
+	return !!(p_hwfn->mcp_info->capabilities &
+		  FW_MB_PARAM_FEATURE_SUPPORT_EXT_SPEED_FEC_CONTROL);
+}
 
 /**
  * @brief Initialize the interface with the MCP
