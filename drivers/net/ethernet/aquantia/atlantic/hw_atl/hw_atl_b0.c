@@ -54,8 +54,6 @@
 	.mac_regs_count = 88,		  \
 	.hw_alive_check_addr = 0x10U
 
-#define FRAC_PER_NS 0x100000000LL
-
 const struct aq_hw_caps_s hw_atl_b0_caps_aqc100 = {
 	DEFAULT_B0_BOARD_BASIC_CAPABILITIES,
 	.media_type = AQ_HW_MEDIA_TYPE_FIBRE,
@@ -1233,7 +1231,7 @@ static void hw_atl_b0_adj_params_get(u64 freq, s64 adj, u32 *ns, u32 *fns)
 	if (base_ns != nsi * NSEC_PER_SEC) {
 		s64 divisor = div64_s64((s64)NSEC_PER_SEC * NSEC_PER_SEC,
 					base_ns - nsi * NSEC_PER_SEC);
-		nsi_frac = div64_s64(FRAC_PER_NS * NSEC_PER_SEC, divisor);
+		nsi_frac = div64_s64(AQ_FRAC_PER_NS * NSEC_PER_SEC, divisor);
 	}
 
 	*ns = (u32)nsi;
@@ -1246,23 +1244,23 @@ hw_atl_b0_mac_adj_param_calc(struct hw_fw_request_ptp_adj_freq *ptp_adj_freq,
 {
 	s64 adj_fns_val;
 	s64 fns_in_sec_phy = phyfreq * (ptp_adj_freq->fns_phy +
-					FRAC_PER_NS * ptp_adj_freq->ns_phy);
+					AQ_FRAC_PER_NS * ptp_adj_freq->ns_phy);
 	s64 fns_in_sec_mac = macfreq * (ptp_adj_freq->fns_mac +
-					FRAC_PER_NS * ptp_adj_freq->ns_mac);
-	s64 fault_in_sec_phy = FRAC_PER_NS * NSEC_PER_SEC - fns_in_sec_phy;
-	s64 fault_in_sec_mac = FRAC_PER_NS * NSEC_PER_SEC - fns_in_sec_mac;
+					AQ_FRAC_PER_NS * ptp_adj_freq->ns_mac);
+	s64 fault_in_sec_phy = AQ_FRAC_PER_NS * NSEC_PER_SEC - fns_in_sec_phy;
+	s64 fault_in_sec_mac = AQ_FRAC_PER_NS * NSEC_PER_SEC - fns_in_sec_mac;
 	/* MAC MCP counter freq is macfreq / 4 */
 	s64 diff_in_mcp_overflow = (fault_in_sec_mac - fault_in_sec_phy) *
-				   4 * FRAC_PER_NS;
+				   4 * AQ_FRAC_PER_NS;
 
 	diff_in_mcp_overflow = div64_s64(diff_in_mcp_overflow,
 					 AQ_HW_MAC_COUNTER_HZ);
-	adj_fns_val = (ptp_adj_freq->fns_mac + FRAC_PER_NS *
+	adj_fns_val = (ptp_adj_freq->fns_mac + AQ_FRAC_PER_NS *
 		       ptp_adj_freq->ns_mac) + diff_in_mcp_overflow;
 
-	ptp_adj_freq->mac_ns_adj = div64_s64(adj_fns_val, FRAC_PER_NS);
+	ptp_adj_freq->mac_ns_adj = div64_s64(adj_fns_val, AQ_FRAC_PER_NS);
 	ptp_adj_freq->mac_fns_adj = adj_fns_val - ptp_adj_freq->mac_ns_adj *
-				    FRAC_PER_NS;
+				    AQ_FRAC_PER_NS;
 }
 
 static int hw_atl_b0_adj_sys_clock(struct aq_hw_s *self, s64 delta)
