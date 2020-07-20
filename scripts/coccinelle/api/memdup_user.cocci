@@ -15,12 +15,20 @@ virtual context
 virtual org
 virtual report
 
+@initialize:python@
+@@
+filter = frozenset(['memdup_user', 'vmemdup_user'])
+
+def relevant(p):
+    return not (filter & {el.current_element for el in p})
+
 @depends on patch@
 expression from,to,size;
 identifier l1,l2;
+position p : script:python() { relevant(p) };
 @@
 
--  to = \(kmalloc\|kzalloc\)
+-  to = \(kmalloc@p\|kzalloc@p\)
 -		(size,\(GFP_KERNEL\|GFP_USER\|
 -		      \(GFP_KERNEL\|GFP_USER\)|__GFP_NOWARN\));
 +  to = memdup_user(from,size);
@@ -42,9 +50,10 @@ identifier l1,l2;
 @depends on patch@
 expression from,to,size;
 identifier l1,l2;
+position p : script:python() { relevant(p) };
 @@
 
--  to = \(kvmalloc\|kvzalloc\)(size,\(GFP_KERNEL\|GFP_USER\));
+-  to = \(kvmalloc@p\|kvzalloc@p\)(size,\(GFP_KERNEL\|GFP_USER\));
 +  to = vmemdup_user(from,size);
    if (
 -      to==NULL
@@ -63,7 +72,7 @@ identifier l1,l2;
 
 @r depends on !patch@
 expression from,to,size;
-position p;
+position p : script:python() { relevant(p) };
 statement S1,S2;
 @@
 
@@ -76,7 +85,7 @@ statement S1,S2;
 
 @rv depends on !patch@
 expression from,to,size;
-position p;
+position p : script:python() { relevant(p) };
 statement S1,S2;
 @@
 
