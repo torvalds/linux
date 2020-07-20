@@ -337,7 +337,7 @@ static void fcoe_ctlr_announce(struct fcoe_ctlr *fip)
 		printk(KERN_NOTICE "libfcoe: host%d: "
 		       "FIP Fibre-Channel Forwarder MAC %pM deselected\n",
 		       fip->lp->host->host_no, fip->dest_addr);
-		memset(fip->dest_addr, 0, ETH_ALEN);
+		eth_zero_addr(fip->dest_addr);
 	}
 	if (sel) {
 		printk(KERN_INFO "libfcoe: host%d: FIP selected "
