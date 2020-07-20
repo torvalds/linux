@@ -6,6 +6,7 @@
 #include <bpf/libbpf.h>
 #include <linux/btf.h>
 #include <linux/kernel.h>
+#define CONFIG_DEBUG_INFO_BTF
 #include <linux/btf_ids.h>
 #include "test_progs.h"
 
