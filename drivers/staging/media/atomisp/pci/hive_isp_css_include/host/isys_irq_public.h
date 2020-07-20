@@ -19,7 +19,7 @@
 #include "isys_irq_global.h"
 #include "isys_irq_local.h"
 
-#if defined(USE_INPUT_SYSTEM_VERSION_2401)
+#if defined(ISP2401)
 
 STORAGE_CLASS_ISYS2401_IRQ_H void isys_irqc_state_get(
     const isys_irq_ID_t	isys_irqc_id,
@@ -41,6 +41,6 @@ STORAGE_CLASS_ISYS2401_IRQ_H hrt_data isys_irqc_reg_load(
 STORAGE_CLASS_ISYS2401_IRQ_H void isys_irqc_status_enable(
     const isys_irq_ID_t	isys_irqc_id);
 
-#endif /* defined(USE_INPUT_SYSTEM_VERSION_2401) */
+#endif /* defined(ISP2401) */
 
 #endif	/* __ISYS_IRQ_PUBLIC_H__ */

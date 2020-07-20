@@ -19,7 +19,7 @@
 #include "isys_irq_global.h"
 #include "isys_irq_local.h"
 
-#if defined(USE_INPUT_SYSTEM_VERSION_2401)
+#if defined(ISP2401)
 
 /* -------------------------------------------------------+
  |             Native command interface (NCI)             |
@@ -102,6 +102,6 @@ STORAGE_CLASS_ISYS2401_IRQ_C hrt_data isys_irqc_reg_load(
 
 /* end of DLI */
 
-#endif /* defined(USE_INPUT_SYSTEM_VERSION_2401) */
+#endif /* defined(ISP2401) */
 
 #endif	/* __ISYS_IRQ_PRIVATE_H__ */

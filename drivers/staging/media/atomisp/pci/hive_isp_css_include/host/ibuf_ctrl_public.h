@@ -16,7 +16,7 @@
 #ifndef __IBUF_CTRL_PUBLIC_H_INCLUDED__
 #define __IBUF_CTRL_PUBLIC_H_INCLUDED__
 
-#ifdef USE_INPUT_SYSTEM_VERSION_2401
+#ifdef ISP2401
 /*****************************************************
  *
  * Native command interface (NCI).
@@ -90,5 +90,5 @@ STORAGE_CLASS_IBUF_CTRL_H void ibuf_ctrl_reg_store(
     const hrt_data value);
 /* end of DLI */
 
-#endif /* USE_INPUT_SYSTEM_VERSION_2401 */
+#endif /* ISP2401 */
 #endif /* __IBUF_CTRL_PUBLIC_H_INCLUDED__ */

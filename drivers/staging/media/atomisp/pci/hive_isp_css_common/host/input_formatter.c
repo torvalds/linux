@@ -15,7 +15,7 @@
 
 #include "system_global.h"
 
-#ifdef USE_INPUT_SYSTEM_VERSION_2
+#ifndef ISP2401
 
 #include "input_formatter.h"
 #include <type_support.h>

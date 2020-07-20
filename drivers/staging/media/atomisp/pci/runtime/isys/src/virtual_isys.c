@@ -17,7 +17,7 @@
 
 #include "system_global.h"
 
-#ifdef USE_INPUT_SYSTEM_VERSION_2401
+#ifdef ISP2401
 
 #include "ia_css_isys.h"
 #include "ia_css_debug.h"

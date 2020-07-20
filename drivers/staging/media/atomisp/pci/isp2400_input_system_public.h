@@ -17,7 +17,7 @@
 #define __INPUT_SYSTEM_PUBLIC_H_INCLUDED__
 
 #include <type_support.h>
-#ifdef USE_INPUT_SYSTEM_VERSION_2401
+#ifdef ISP2401
 #include "isys_public.h"
 #else
 
@@ -365,6 +365,6 @@ input_system_error_t	input_system_gpfifo_channel_cfg(
     u32		nof_frames,
     target_cfg2400_t	target
 );
-#endif /* #ifdef USE_INPUT_SYSTEM_VERSION_2401 */
+#endif /* #ifdef ISP2401 */
 
 #endif /* __INPUT_SYSTEM_PUBLIC_H_INCLUDED__ */

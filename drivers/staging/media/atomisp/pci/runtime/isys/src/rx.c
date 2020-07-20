@@ -20,7 +20,7 @@
 #include "ia_css_irq.h"
 #include "sh_css_internal.h"
 
-#if !defined(USE_INPUT_SYSTEM_VERSION_2401)
+#if !defined(ISP2401)
 void ia_css_isys_rx_enable_all_interrupts(enum mipi_port_id port)
 {
 	hrt_data bits = receiver_port_reg_load(RX0_ID,
@@ -209,7 +209,7 @@ void ia_css_isys_rx_clear_irq_info(enum mipi_port_id port,
 
 	return;
 }
-#endif /* #if !defined(USE_INPUT_SYSTEM_VERSION_2401) */
+#endif /* #if !defined(ISP2401) */
 
 int ia_css_isys_convert_stream_format_to_mipi_format(
     enum atomisp_input_format input_format,
@@ -311,7 +311,7 @@ int ia_css_isys_convert_stream_format_to_mipi_format(
 	case ATOMISP_INPUT_FORMAT_EMBEDDED:
 		*fmt_type = MIPI_FORMAT_EMBEDDED;
 		break;
-#ifndef USE_INPUT_SYSTEM_VERSION_2401
+#ifndef ISP2401
 	case ATOMISP_INPUT_FORMAT_RAW_16:
 		/* This is not specified by Arasan, so we use
 		 * 17 for now.
@@ -356,7 +356,7 @@ int ia_css_isys_convert_stream_format_to_mipi_format(
 	return 0;
 }
 
-#if defined(USE_INPUT_SYSTEM_VERSION_2401)
+#if defined(ISP2401)
 static mipi_predictor_t sh_css_csi2_compression_type_2_mipi_predictor(
     enum ia_css_csi2_compression_type type)
 {
@@ -474,7 +474,7 @@ unsigned int ia_css_csi2_calculate_input_system_alignment(
 
 #endif
 
-#if !defined(USE_INPUT_SYSTEM_VERSION_2401)
+#if !defined(ISP2401)
 void ia_css_isys_rx_configure(const rx_cfg_t *config,
 			      const enum ia_css_input_mode input_mode)
 {
@@ -588,4 +588,4 @@ void ia_css_isys_rx_disable(void)
 	}
 	return;
 }
-#endif /* if !defined(USE_INPUT_SYSTEM_VERSION_2401) */
+#endif /* if !defined(ISP2401) */

@@ -258,7 +258,7 @@ prepare_shading_table(const struct ia_css_shading_table *in_table,
 	/* We use the ISP input resolution for the shading table because
 	   shading correction is performed in the bayer domain (before bayer
 	   down scaling). */
-#if defined(USE_INPUT_SYSTEM_VERSION_2401)
+#if defined(ISP2401)
 	padded_width = CEIL_MUL(binary->effective_in_frame_res.width + 2 *
 				ISP_VEC_NELEMS,
 				2 * ISP_VEC_NELEMS);
