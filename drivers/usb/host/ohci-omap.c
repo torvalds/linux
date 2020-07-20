@@ -69,22 +69,27 @@ static inline int tps65010_set_gpio_out_value(unsigned gpio, unsigned value)
 
 #endif
 
-static struct clk *usb_host_ck;
-static struct clk *usb_dc_ck;
+struct ohci_omap_priv {
+	struct clk *usb_host_ck;
+	struct clk *usb_dc_ck;
+};
 
 static const char hcd_name[] = "ohci-omap";
 static struct hc_driver __read_mostly ohci_omap_hc_driver;
 
-static void omap_ohci_clock_power(int on)
+#define hcd_to_ohci_omap_priv(h) \
+	((struct ohci_omap_priv *)hcd_to_ohci(h)->priv)
+
+static void omap_ohci_clock_power(struct ohci_omap_priv *priv, int on)
 {
 	if (on) {
-		clk_enable(usb_dc_ck);
-		clk_enable(usb_host_ck);
+		clk_enable(priv->usb_dc_ck);
+		clk_enable(priv->usb_host_ck);
 		/* guesstimate for T5 == 1x 32K clock + APLL lock time */
 		udelay(100);
 	} else {
-		clk_disable(usb_host_ck);
-		clk_disable(usb_dc_ck);
+		clk_disable(priv->usb_host_ck);
+		clk_disable(priv->usb_dc_ck);
 	}
 }
 
@@ -196,6 +201,7 @@ static int ohci_omap_reset(struct usb_hcd *hcd)
 {
 	struct ohci_hcd		*ohci = hcd_to_ohci(hcd);
 	struct omap_usb_config	*config = dev_get_platdata(hcd->self.controller);
+	struct ohci_omap_priv	*priv = hcd_to_ohci_omap_priv(hcd);
 	int			need_transceiver = (config->otg != 0);
 	int			ret;
 
@@ -235,7 +241,7 @@ static int ohci_omap_reset(struct usb_hcd *hcd)
 	}
 #endif
 
-	omap_ohci_clock_power(1);
+	omap_ohci_clock_power(priv, 1);
 
 	if (cpu_is_omap15xx()) {
 		omap_1510_local_bus_power(1);
@@ -305,6 +311,7 @@ static int ohci_hcd_omap_probe(struct platform_device *pdev)
 {
 	int retval, irq;
 	struct usb_hcd *hcd = 0;
+	struct ohci_omap_priv *priv;
 
 	if (pdev->num_resources != 2) {
 		dev_err(&pdev->dev, "invalid num_resources: %i\n",
@@ -318,34 +325,35 @@ static int ohci_hcd_omap_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	usb_host_ck = clk_get(&pdev->dev, "usb_hhc_ck");
-	if (IS_ERR(usb_host_ck))
-		return PTR_ERR(usb_host_ck);
-
-	if (!cpu_is_omap15xx())
-		usb_dc_ck = clk_get(&pdev->dev, "usb_dc_ck");
-	else
-		usb_dc_ck = clk_get(&pdev->dev, "lb_ck");
-
-	if (IS_ERR(usb_dc_ck)) {
-		clk_put(usb_host_ck);
-		return PTR_ERR(usb_dc_ck);
-	}
-
-
 	hcd = usb_create_hcd(&ohci_omap_hc_driver, &pdev->dev,
 			dev_name(&pdev->dev));
-	if (!hcd) {
-		retval = -ENOMEM;
-		goto err0;
-	}
+	if (!hcd)
+		return -ENOMEM;
+
 	hcd->rsrc_start = pdev->resource[0].start;
 	hcd->rsrc_len = pdev->resource[0].end - pdev->resource[0].start + 1;
+	priv = hcd_to_ohci_omap_priv(hcd);
+
+	priv->usb_host_ck = clk_get(&pdev->dev, "usb_hhc_ck");
+	if (IS_ERR(priv->usb_host_ck)) {
+		retval = PTR_ERR(priv->usb_host_ck);
+		goto err_put_hcd;
+	}
+
+	if (!cpu_is_omap15xx())
+		priv->usb_dc_ck = clk_get(&pdev->dev, "usb_dc_ck");
+	else
+		priv->usb_dc_ck = clk_get(&pdev->dev, "lb_ck");
+
+	if (IS_ERR(priv->usb_dc_ck)) {
+		retval = PTR_ERR(priv->usb_dc_ck);
+		goto err_put_host_ck;
+	}
 
 	if (!request_mem_region(hcd->rsrc_start, hcd->rsrc_len, hcd_name)) {
 		dev_dbg(&pdev->dev, "request_mem_region failed\n");
 		retval = -EBUSY;
-		goto err1;
+		goto err_put_dc_ck;
 	}
 
 	hcd->regs = ioremap(hcd->rsrc_start, hcd->rsrc_len);
@@ -370,11 +378,12 @@ err3:
 	iounmap(hcd->regs);
 err2:
 	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
-err1:
+err_put_dc_ck:
+	clk_put(priv->usb_dc_ck);
+err_put_host_ck:
+	clk_put(priv->usb_host_ck);
+err_put_hcd:
 	usb_put_hcd(hcd);
-err0:
-	clk_put(usb_dc_ck);
-	clk_put(usb_host_ck);
 	return retval;
 }
 
@@ -393,10 +402,11 @@ err0:
 static int ohci_hcd_omap_remove(struct platform_device *pdev)
 {
 	struct usb_hcd	*hcd = platform_get_drvdata(pdev);
+	struct ohci_omap_priv *priv = hcd_to_ohci_omap_priv(hcd);
 
 	dev_dbg(hcd->self.controller, "stopping USB Controller\n");
 	usb_remove_hcd(hcd);
-	omap_ohci_clock_power(0);
+	omap_ohci_clock_power(priv, 0);
 	if (!IS_ERR_OR_NULL(hcd->usb_phy)) {
 		(void) otg_set_host(hcd->usb_phy->otg, 0);
 		usb_put_phy(hcd->usb_phy);
@@ -405,9 +415,9 @@ static int ohci_hcd_omap_remove(struct platform_device *pdev)
 		gpio_free(9);
 	iounmap(hcd->regs);
 	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
+	clk_put(priv->usb_dc_ck);
+	clk_put(priv->usb_host_ck);
 	usb_put_hcd(hcd);
-	clk_put(usb_dc_ck);
-	clk_put(usb_host_ck);
 	return 0;
 }
 
@@ -419,6 +429,7 @@ static int ohci_omap_suspend(struct platform_device *pdev, pm_message_t message)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 	struct ohci_hcd *ohci = hcd_to_ohci(hcd);
+	struct ohci_omap_priv *priv = hcd_to_ohci_omap_priv(hcd);
 	bool do_wakeup = device_may_wakeup(&pdev->dev);
 	int ret;
 
@@ -430,7 +441,7 @@ static int ohci_omap_suspend(struct platform_device *pdev, pm_message_t message)
 	if (ret)
 		return ret;
 
-	omap_ohci_clock_power(0);
+	omap_ohci_clock_power(priv, 0);
 	return ret;
 }
 
@@ -438,12 +449,13 @@ static int ohci_omap_resume(struct platform_device *dev)
 {
 	struct usb_hcd	*hcd = platform_get_drvdata(dev);
 	struct ohci_hcd	*ohci = hcd_to_ohci(hcd);
+	struct ohci_omap_priv *priv = hcd_to_ohci_omap_priv(hcd);
 
 	if (time_before(jiffies, ohci->next_statechange))
 		msleep(5);
 	ohci->next_statechange = jiffies;
 
-	omap_ohci_clock_power(1);
+	omap_ohci_clock_power(priv, 1);
 	ohci_resume(hcd, false);
 	return 0;
 }
@@ -470,7 +482,8 @@ static struct platform_driver ohci_hcd_omap_driver = {
 
 static const struct ohci_driver_overrides omap_overrides __initconst = {
 	.product_desc	= "OMAP OHCI",
-	.reset		= ohci_omap_reset
+	.reset		= ohci_omap_reset,
+	.extra_priv_size = sizeof(struct ohci_omap_priv),
 };
 
 static int __init ohci_omap_init(void)
