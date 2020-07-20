@@ -959,7 +959,7 @@ err:
  * bch_btree_node_get - find a btree node in the cache and lock it, reading it
  * in from disk if necessary.
  *
- * If IO is necessary and running under generic_make_request, returns -EAGAIN.
+ * If IO is necessary and running under submit_bio_noacct, returns -EAGAIN.
  *
  * The btree node will have either a read or a write lock held, depending on
  * level and op->lock.

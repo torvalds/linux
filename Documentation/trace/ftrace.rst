@@ -1453,7 +1453,7 @@ function-trace, we get a much larger output::
    => __blk_run_queue_uncond
    => __blk_run_queue
    => blk_queue_bio
-   => generic_make_request
+   => submit_bio_noacct
    => submit_bio
    => submit_bh
    => __ext3_get_inode_loc
@@ -1738,7 +1738,7 @@ tracers.
    => __blk_run_queue_uncond
    => __blk_run_queue
    => blk_queue_bio
-   => generic_make_request
+   => submit_bio_noacct
    => submit_bio
    => submit_bh
    => ext3_bread

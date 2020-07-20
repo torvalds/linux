@@ -873,7 +873,7 @@ static void dispatch_bio_list(struct bio_list *tmp)
 	struct bio *bio;
 
 	while ((bio = bio_list_pop(tmp)))
-		generic_make_request(bio);
+		submit_bio_noacct(bio);
 }
 
 static int cmp_stripe(void *priv, struct list_head *a, struct list_head *b)
@@ -1151,7 +1151,7 @@ again:
 			if (should_defer && op_is_write(op))
 				bio_list_add(&pending_bios, bi);
 			else
-				generic_make_request(bi);
+				submit_bio_noacct(bi);
 		}
 		if (rrdev) {
 			if (s->syncing || s->expanding || s->expanded
@@ -1201,7 +1201,7 @@ again:
 			if (should_defer && op_is_write(op))
 				bio_list_add(&pending_bios, rbi);
 			else
-				generic_make_request(rbi);
+				submit_bio_noacct(rbi);
 		}
 		if (!rdev && !rrdev) {
 			if (op_is_write(op))
@@ -5099,28 +5099,6 @@ static void activate_bit_delay(struct r5conf *conf,
 	}
 }
 
-static int raid5_congested(struct mddev *mddev, int bits)
-{
-	struct r5conf *conf = mddev->private;
-
-	/* No difference between reads and writes.  Just check
-	 * how busy the stripe_cache is
-	 */
-
-	if (test_bit(R5_INACTIVE_BLOCKED, &conf->cache_state))
-		return 1;
-
-	/* Also checks whether there is pressure on r5cache log space */
-	if (test_bit(R5C_LOG_TIGHT, &conf->cache_state))
-		return 1;
-	if (conf->quiesce)
-		return 1;
-	if (atomic_read(&conf->empty_inactive_list_nr))
-		return 1;
-
-	return 0;
-}
-
 static int in_chunk_boundary(struct mddev *mddev, struct bio *bio)
 {
 	struct r5conf *conf = mddev->private;
@@ -5289,7 +5267,7 @@ static int raid5_read_one_chunk(struct mddev *mddev, struct bio *raid_bio)
 			trace_block_bio_remap(align_bi->bi_disk->queue,
 					      align_bi, disk_devt(mddev->gendisk),
 					      raid_bio->bi_iter.bi_sector);
-		generic_make_request(align_bi);
+		submit_bio_noacct(align_bi);
 		return 1;
 	} else {
 		rcu_read_unlock();
@@ -5309,7 +5287,7 @@ static struct bio *chunk_aligned_read(struct mddev *mddev, struct bio *raid_bio)
 		struct r5conf *conf = mddev->private;
 		split = bio_split(raid_bio, sectors, GFP_NOIO, &conf->bio_split);
 		bio_chain(split, raid_bio);
-		generic_make_request(raid_bio);
+		submit_bio_noacct(raid_bio);
 		raid_bio = split;
 	}
 
@@ -8427,7 +8405,6 @@ static struct md_personality raid6_personality =
 	.finish_reshape = raid5_finish_reshape,
 	.quiesce	= raid5_quiesce,
 	.takeover	= raid6_takeover,
-	.congested	= raid5_congested,
 	.change_consistency_policy = raid5_change_consistency_policy,
 };
 static struct md_personality raid5_personality =
@@ -8452,7 +8429,6 @@ static struct md_personality raid5_personality =
 	.finish_reshape = raid5_finish_reshape,
 	.quiesce	= raid5_quiesce,
 	.takeover	= raid5_takeover,
-	.congested	= raid5_congested,
 	.change_consistency_policy = raid5_change_consistency_policy,
 };
 
@@ -8478,7 +8454,6 @@ static struct md_personality raid4_personality =
 	.finish_reshape = raid5_finish_reshape,
 	.quiesce	= raid5_quiesce,
 	.takeover	= raid4_takeover,
-	.congested	= raid5_congested,
 	.change_consistency_policy = raid5_change_consistency_policy,
 };
 

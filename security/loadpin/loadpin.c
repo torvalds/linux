@@ -13,6 +13,7 @@
 #include <linux/fs.h>
 #include <linux/lsm_hooks.h>
 #include <linux/mount.h>
+#include <linux/blkdev.h>
 #include <linux/path.h>
 #include <linux/sched.h>	/* current */
 #include <linux/string_helpers.h>

@@ -619,8 +619,6 @@ int blk_drop_partitions(struct block_device *bdev)
 	struct disk_part_iter piter;
 	struct hd_struct *part;
 
-	if (!disk_part_scan_enabled(bdev->bd_disk))
-		return 0;
 	if (bdev->bd_part_count)
 		return -EBUSY;
 

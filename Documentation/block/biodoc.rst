@@ -1036,7 +1036,7 @@ Now the generic block layer performs partition-remapping early and thus
 provides drivers with a sector number relative to whole device, rather than
 having to take partition number into account in order to arrive at the true
 sector number. The routine blk_partition_remap() is invoked by
-generic_make_request even before invoking the queue specific make_request_fn,
+submit_bio_noacct even before invoking the queue specific ->submit_bio,
 so the i/o scheduler also gets to operate on whole disk sector numbers. This
 should typically not require changes to block drivers, it just never gets
 to invoke its own partition sector offset calculations since all bios

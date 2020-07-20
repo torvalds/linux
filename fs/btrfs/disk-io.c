@@ -1616,27 +1616,6 @@ fail:
 	return ERR_PTR(ret);
 }
 
-static int btrfs_congested_fn(void *congested_data, int bdi_bits)
-{
-	struct btrfs_fs_info *info = (struct btrfs_fs_info *)congested_data;
-	int ret = 0;
-	struct btrfs_device *device;
-	struct backing_dev_info *bdi;
-
-	rcu_read_lock();
-	list_for_each_entry_rcu(device, &info->fs_devices->devices, dev_list) {
-		if (!device->bdev)
-			continue;
-		bdi = device->bdev->bd_bdi;
-		if (bdi_congested(bdi, bdi_bits)) {
-			ret = 1;
-			break;
-		}
-	}
-	rcu_read_unlock();
-	return ret;
-}
-
 /*
  * called by the kthread helper functions to finally call the bio end_io
  * functions.  This is where read checksum verification actually happens
@@ -3053,8 +3032,6 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 		goto fail_sb_buffer;
 	}
 
-	sb->s_bdi->congested_fn = btrfs_congested_fn;
-	sb->s_bdi->congested_data = fs_info;
 	sb->s_bdi->capabilities |= BDI_CAP_CGROUP_WRITEBACK;
 	sb->s_bdi->ra_pages = VM_READAHEAD_PAGES;
 	sb->s_bdi->ra_pages *= btrfs_super_num_devices(disk_super);

@@ -1568,7 +1568,7 @@ static void flush_bios(struct bio *bio)
 	while (bio) {
 		n = bio->bi_next;
 		bio->bi_next = NULL;
-		generic_make_request(bio);
+		submit_bio_noacct(bio);
 		bio = n;
 	}
 }
@@ -1588,7 +1588,7 @@ static void retry_origin_bios(struct dm_snapshot *s, struct bio *bio)
 		bio->bi_next = NULL;
 		r = do_origin(s->origin, bio, false);
 		if (r == DM_MAPIO_REMAPPED)
-			generic_make_request(bio);
+			submit_bio_noacct(bio);
 		bio = n;
 	}
 }
@@ -1829,7 +1829,7 @@ static void start_full_bio(struct dm_snap_pending_exception *pe,
 	bio->bi_end_io = full_bio_end_io;
 	bio->bi_private = callback_data;
 
-	generic_make_request(bio);
+	submit_bio_noacct(bio);
 }
 
 static struct dm_snap_pending_exception *
