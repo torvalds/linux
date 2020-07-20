@@ -1310,7 +1310,7 @@ static void esw_destroy_offloads_fdb_tables(struct mlx5_eswitch *esw)
 				     MLX5_FLOW_STEERING_MODE_DMFS);
 }
 
-static int esw_create_offloads_table(struct mlx5_eswitch *esw, int nvports)
+static int esw_create_offloads_table(struct mlx5_eswitch *esw)
 {
 	struct mlx5_flow_table_attr ft_attr = {};
 	struct mlx5_core_dev *dev = esw->dev;
@@ -1324,7 +1324,7 @@ static int esw_create_offloads_table(struct mlx5_eswitch *esw, int nvports)
 		return -EOPNOTSUPP;
 	}
 
-	ft_attr.max_fte = nvports + MLX5_ESW_MISS_FLOWS;
+	ft_attr.max_fte = esw->total_vports + MLX5_ESW_MISS_FLOWS;
 	ft_attr.prio = 1;
 
 	ft_offloads = mlx5_create_flow_table(ns, &ft_attr);
@@ -1345,14 +1345,15 @@ static void esw_destroy_offloads_table(struct mlx5_eswitch *esw)
 	mlx5_destroy_flow_table(offloads->ft_offloads);
 }
 
-static int esw_create_vport_rx_group(struct mlx5_eswitch *esw, int nvports)
+static int esw_create_vport_rx_group(struct mlx5_eswitch *esw)
 {
 	int inlen = MLX5_ST_SZ_BYTES(create_flow_group_in);
 	struct mlx5_flow_group *g;
 	u32 *flow_group_in;
+	int nvports;
 	int err = 0;
 
-	nvports = nvports + MLX5_ESW_MISS_FLOWS;
+	nvports = esw->total_vports + MLX5_ESW_MISS_FLOWS;
 	flow_group_in = kvzalloc(inlen, GFP_KERNEL);
 	if (!flow_group_in)
 		return -ENOMEM;
@@ -1985,7 +1986,6 @@ static void esw_destroy_uplink_offloads_acl_tables(struct mlx5_eswitch *esw)
 
 static int esw_offloads_steering_init(struct mlx5_eswitch *esw)
 {
-	int total_vports = esw->total_vports;
 	int err;
 
 	memset(&esw->fdb_table.offloads, 0, sizeof(struct offloads_fdb));
@@ -1996,7 +1996,7 @@ static int esw_offloads_steering_init(struct mlx5_eswitch *esw)
 	if (err)
 		goto create_acl_err;
 
-	err = esw_create_offloads_table(esw, total_vports);
+	err = esw_create_offloads_table(esw);
 	if (err)
 		goto create_offloads_err;
 
@@ -2008,7 +2008,7 @@ static int esw_offloads_steering_init(struct mlx5_eswitch *esw)
 	if (err)
 		goto create_fdb_err;
 
-	err = esw_create_vport_rx_group(esw, total_vports);
+	err = esw_create_vport_rx_group(esw);
 	if (err)
 		goto create_fg_err;
 
