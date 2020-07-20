@@ -70,18 +70,24 @@ static int aq_get_rxpages(struct aq_ring_s *self, struct aq_ring_buff_s *rxbuf,
 			rxbuf->rxdata.pg_off += AQ_CFG_RX_FRAME_MAX;
 			if (rxbuf->rxdata.pg_off + AQ_CFG_RX_FRAME_MAX <=
 				(PAGE_SIZE << order)) {
+				u64_stats_update_begin(&self->stats.rx.syncp);
 				self->stats.rx.pg_flips++;
+				u64_stats_update_end(&self->stats.rx.syncp);
 			} else {
 				/* Buffer exhausted. We have other users and
 				 * should release this page and realloc
 				 */
 				aq_free_rxpage(&rxbuf->rxdata,
 					       aq_nic_get_dev(self->aq_nic));
+				u64_stats_update_begin(&self->stats.rx.syncp);
 				self->stats.rx.pg_losts++;
+				u64_stats_update_end(&self->stats.rx.syncp);
 			}
 		} else {
 			rxbuf->rxdata.pg_off = 0;
+			u64_stats_update_begin(&self->stats.rx.syncp);
 			self->stats.rx.pg_reuses++;
+			u64_stats_update_end(&self->stats.rx.syncp);
 		}
 	}
 
@@ -213,6 +219,11 @@ int aq_ring_init(struct aq_ring_s *self, const enum atl_ring_type ring_type)
 	self->sw_tail = 0;
 	self->ring_type = ring_type;
 
+	if (self->ring_type == ATL_RING_RX)
+		u64_stats_init(&self->stats.rx.syncp);
+	else
+		u64_stats_init(&self->stats.tx.syncp);
+
 	return 0;
 }
 
@@ -239,7 +250,9 @@ void aq_ring_queue_wake(struct aq_ring_s *ring)
 						      ring->idx))) {
 		netif_wake_subqueue(ndev,
 				    AQ_NIC_RING2QMAP(ring->aq_nic, ring->idx));
+		u64_stats_update_begin(&ring->stats.tx.syncp);
 		ring->stats.tx.queue_restarts++;
+		u64_stats_update_end(&ring->stats.tx.syncp);
 	}
 }
 
@@ -281,8 +294,10 @@ bool aq_ring_tx_clean(struct aq_ring_s *self)
 		}
 
 		if (unlikely(buff->is_eop)) {
+			u64_stats_update_begin(&self->stats.tx.syncp);
 			++self->stats.tx.packets;
 			self->stats.tx.bytes += buff->skb->len;
+			u64_stats_update_end(&self->stats.tx.syncp);
 
 			dev_kfree_skb_any(buff->skb);
 		}
@@ -302,7 +317,9 @@ static void aq_rx_checksum(struct aq_ring_s *self,
 		return;
 
 	if (unlikely(buff->is_cso_err)) {
+		u64_stats_update_begin(&self->stats.rx.syncp);
 		++self->stats.rx.errors;
+		u64_stats_update_end(&self->stats.rx.syncp);
 		skb->ip_summed = CHECKSUM_NONE;
 		return;
 	}
@@ -372,13 +389,17 @@ int aq_ring_rx_clean(struct aq_ring_s *self,
 					buff_->is_cleaned = true;
 				} while (!buff_->is_eop);
 
+				u64_stats_update_begin(&self->stats.rx.syncp);
 				++self->stats.rx.errors;
+				u64_stats_update_end(&self->stats.rx.syncp);
 				continue;
 			}
 		}
 
 		if (buff->is_error) {
+			u64_stats_update_begin(&self->stats.rx.syncp);
 			++self->stats.rx.errors;
+			u64_stats_update_end(&self->stats.rx.syncp);
 			continue;
 		}
 
@@ -479,8 +500,10 @@ int aq_ring_rx_clean(struct aq_ring_s *self,
 						: AQ_NIC_RING2QMAP(self->aq_nic,
 								   self->idx));
 
+		u64_stats_update_begin(&self->stats.rx.syncp);
 		++self->stats.rx.packets;
 		self->stats.rx.bytes += skb->len;
+		u64_stats_update_end(&self->stats.rx.syncp);
 
 		napi_gro_receive(napi, skb);
 	}
@@ -564,18 +587,27 @@ void aq_ring_free(struct aq_ring_s *self)
 
 unsigned int aq_ring_fill_stats_data(struct aq_ring_s *self, u64 *data)
 {
-	unsigned int count = 0U;
+	unsigned int count;
+	unsigned int start;
 
 	if (self->ring_type == ATL_RING_RX) {
 		/* This data should mimic aq_ethtool_queue_rx_stat_names structure */
-		data[count] = self->stats.rx.packets;
-		data[++count] = self->stats.rx.jumbo_packets;
-		data[++count] = self->stats.rx.lro_packets;
-		data[++count] = self->stats.rx.errors;
+		do {
+			count = 0;
+			start = u64_stats_fetch_begin_irq(&self->stats.rx.syncp);
+			data[count] = self->stats.rx.packets;
+			data[++count] = self->stats.rx.jumbo_packets;
+			data[++count] = self->stats.rx.lro_packets;
+			data[++count] = self->stats.rx.errors;
+		} while (u64_stats_fetch_retry_irq(&self->stats.rx.syncp, start));
 	} else {
 		/* This data should mimic aq_ethtool_queue_tx_stat_names structure */
-		data[count] = self->stats.tx.packets;
-		data[++count] = self->stats.tx.queue_restarts;
+		do {
+			count = 0;
+			start = u64_stats_fetch_begin_irq(&self->stats.tx.syncp);
+			data[count] = self->stats.tx.packets;
+			data[++count] = self->stats.tx.queue_restarts;
+		} while (u64_stats_fetch_retry_irq(&self->stats.tx.syncp, start));
 	}
 
 	return ++count;

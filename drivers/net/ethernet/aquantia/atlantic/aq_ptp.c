@@ -782,8 +782,10 @@ int aq_ptp_xmit(struct aq_nic_s *aq_nic, struct sk_buff *skb)
 		err = aq_nic->aq_hw_ops->hw_ring_tx_xmit(aq_nic->aq_hw,
 						       ring, frags);
 		if (err >= 0) {
+			u64_stats_update_begin(&ring->stats.tx.syncp);
 			++ring->stats.tx.packets;
 			ring->stats.tx.bytes += skb->len;
+			u64_stats_update_end(&ring->stats.tx.syncp);
 		}
 	} else {
 		err = NETDEV_TX_BUSY;

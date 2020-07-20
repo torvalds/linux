@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/*
- * aQuantia Corporation Network Driver
- * Copyright (C) 2014-2019 aQuantia Corporation. All rights reserved
+/* Atlantic Network Driver
+ *
+ * Copyright (C) 2014-2019 aQuantia Corporation
+ * Copyright (C) 2019-2020 Marvell International Ltd.
  */
 
 /* File aq_ring.h: Declaration of functions for Rx/Tx rings. */
@@ -88,6 +89,7 @@ struct __packed aq_ring_buff_s {
 };
 
 struct aq_ring_stats_rx_s {
+	struct u64_stats_sync syncp;	/* must be first */
 	u64 errors;
 	u64 packets;
 	u64 bytes;
@@ -99,6 +101,7 @@ struct aq_ring_stats_rx_s {
 };
 
 struct aq_ring_stats_tx_s {
+	struct u64_stats_sync syncp;	/* must be first */
 	u64 errors;
 	u64 packets;
 	u64 bytes;
