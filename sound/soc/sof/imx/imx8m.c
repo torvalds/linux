@@ -239,7 +239,7 @@ static int imx8m_ipc_pcm_params(struct snd_sof_dev *sdev,
 
 static struct snd_soc_dai_driver imx8m_dai[] = {
 {
-	.name = "sai-port",
+	.name = "sai3",
 	.playback = {
 		.channels_min = 1,
 		.channels_max = 32,
