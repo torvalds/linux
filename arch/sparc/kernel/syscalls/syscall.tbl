@@ -147,7 +147,7 @@
 115	32	getgroups32		sys_getgroups
 116	common	gettimeofday		sys_gettimeofday		compat_sys_gettimeofday
 117	common	getrusage		sys_getrusage			compat_sys_getrusage
-118	common	getsockopt		sys_getsockopt			compat_sys_getsockopt
+118	common	getsockopt		sys_getsockopt			sys_getsockopt
 119	common	getcwd			sys_getcwd
 120	common	readv			sys_readv			compat_sys_readv
 121	common	writev			sys_writev			compat_sys_writev
@@ -425,7 +425,7 @@
 352	common	userfaultfd		sys_userfaultfd
 353	common	bind			sys_bind
 354	common	listen			sys_listen
-355	common	setsockopt		sys_setsockopt			compat_sys_setsockopt
+355	common	setsockopt		sys_setsockopt			sys_setsockopt
 356	common	mlock2			sys_mlock2
 357	common	copy_file_range		sys_copy_file_range
 358	common	preadv2			sys_preadv2			compat_sys_preadv2

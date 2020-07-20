@@ -3337,18 +3337,6 @@ int tcp_setsockopt(struct sock *sk, int level, int optname, char __user *optval,
 }
 EXPORT_SYMBOL(tcp_setsockopt);
 
-#ifdef CONFIG_COMPAT
-int compat_tcp_setsockopt(struct sock *sk, int level, int optname,
-			  char __user *optval, unsigned int optlen)
-{
-	if (level != SOL_TCP)
-		return inet_csk_compat_setsockopt(sk, level, optname,
-						  optval, optlen);
-	return do_tcp_setsockopt(sk, level, optname, optval, optlen);
-}
-EXPORT_SYMBOL(compat_tcp_setsockopt);
-#endif
-
 static void tcp_get_info_chrono_stats(const struct tcp_sock *tp,
 				      struct tcp_info *info)
 {
@@ -3895,18 +3883,6 @@ int tcp_getsockopt(struct sock *sk, int level, int optname, char __user *optval,
 	return do_tcp_getsockopt(sk, level, optname, optval, optlen);
 }
 EXPORT_SYMBOL(tcp_getsockopt);
-
-#ifdef CONFIG_COMPAT
-int compat_tcp_getsockopt(struct sock *sk, int level, int optname,
-			  char __user *optval, int __user *optlen)
-{
-	if (level != SOL_TCP)
-		return inet_csk_compat_getsockopt(sk, level, optname,
-						  optval, optlen);
-	return do_tcp_getsockopt(sk, level, optname, optval, optlen);
-}
-EXPORT_SYMBOL(compat_tcp_getsockopt);
-#endif
 
 #ifdef CONFIG_TCP_MD5SIG
 static DEFINE_PER_CPU(struct tcp_md5sig_pool, tcp_md5sig_pool);

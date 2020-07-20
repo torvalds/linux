@@ -857,16 +857,6 @@ static int raw_setsockopt(struct sock *sk, int level, int optname,
 	return do_raw_setsockopt(sk, level, optname, optval, optlen);
 }
 
-#ifdef CONFIG_COMPAT
-static int compat_raw_setsockopt(struct sock *sk, int level, int optname,
-				 char __user *optval, unsigned int optlen)
-{
-	if (level != SOL_RAW)
-		return compat_ip_setsockopt(sk, level, optname, optval, optlen);
-	return do_raw_setsockopt(sk, level, optname, optval, optlen);
-}
-#endif
-
 static int do_raw_getsockopt(struct sock *sk, int level, int optname,
 			  char __user *optval, int __user *optlen)
 {
@@ -886,16 +876,6 @@ static int raw_getsockopt(struct sock *sk, int level, int optname,
 		return ip_getsockopt(sk, level, optname, optval, optlen);
 	return do_raw_getsockopt(sk, level, optname, optval, optlen);
 }
-
-#ifdef CONFIG_COMPAT
-static int compat_raw_getsockopt(struct sock *sk, int level, int optname,
-				 char __user *optval, int __user *optlen)
-{
-	if (level != SOL_RAW)
-		return compat_ip_getsockopt(sk, level, optname, optval, optlen);
-	return do_raw_getsockopt(sk, level, optname, optval, optlen);
-}
-#endif
 
 static int raw_ioctl(struct sock *sk, int cmd, unsigned long arg)
 {
@@ -980,8 +960,6 @@ struct proto raw_prot = {
 	.usersize	   = sizeof_field(struct raw_sock, filter),
 	.h.raw_hash	   = &raw_v4_hashinfo,
 #ifdef CONFIG_COMPAT
-	.compat_setsockopt = compat_raw_setsockopt,
-	.compat_getsockopt = compat_raw_getsockopt,
 	.compat_ioctl	   = compat_raw_ioctl,
 #endif
 	.diag_destroy	   = raw_abort,
