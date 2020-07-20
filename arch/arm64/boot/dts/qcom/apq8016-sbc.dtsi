@@ -235,19 +235,11 @@
 &blsp1_uart1 {
 	status = "okay";
 	label = "LS-UART0";
-
-	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&blsp1_uart1_default>;
-	pinctrl-1 = <&blsp1_uart1_sleep>;
 };
 
 &blsp1_uart2 {
 	status = "okay";
 	label = "LS-UART1";
-
-	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&blsp1_uart2_default>;
-	pinctrl-1 = <&blsp1_uart2_sleep>;
 };
 
 &camss {

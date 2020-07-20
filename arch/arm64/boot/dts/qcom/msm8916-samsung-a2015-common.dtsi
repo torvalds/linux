@@ -115,16 +115,9 @@
 
 &blsp1_uart2 {
 	status = "okay";
-
-	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&blsp1_uart2_default>;
-	pinctrl-1 = <&blsp1_uart2_sleep>;
 };
 
 &dsi0 {
-	#address-cells = <1>;
-	#size-cells = <0>;
-
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&mdss_default>;
 	pinctrl-1 = <&mdss_sleep>;

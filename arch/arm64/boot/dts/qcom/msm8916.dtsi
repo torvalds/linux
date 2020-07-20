@@ -487,6 +487,9 @@
 			clock-names = "core", "iface";
 			dmas = <&blsp_dma 1>, <&blsp_dma 0>;
 			dma-names = "rx", "tx";
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&blsp1_uart1_default>;
+			pinctrl-1 = <&blsp1_uart1_sleep>;
 			status = "disabled";
 		};
 
@@ -513,6 +516,9 @@
 			clock-names = "core", "iface";
 			dmas = <&blsp_dma 3>, <&blsp_dma 2>;
 			dma-names = "rx", "tx";
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&blsp1_uart2_default>;
+			pinctrl-1 = <&blsp1_uart2_sleep>;
 			status = "disabled";
 		};
 
@@ -1112,6 +1118,9 @@
 					      "core";
 				phys = <&dsi_phy0>;
 				phy-names = "dsi-phy";
+
+				#address-cells = <1>;
+				#size-cells = <0>;
 
 				ports {
 					#address-cells = <1>;

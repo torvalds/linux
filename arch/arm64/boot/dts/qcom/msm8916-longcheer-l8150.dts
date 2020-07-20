@@ -54,10 +54,6 @@
 
 &blsp1_uart2 {
 	status = "okay";
-
-	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&blsp1_uart2_default>;
-	pinctrl-1 = <&blsp1_uart2_sleep>;
 };
 
 &pm8916_resin {
