@@ -307,58 +307,6 @@
 			status = "okay";
 		};
 
-		leds {
-			pinctrl-names = "default";
-			pinctrl-0 = <&msmgpio_leds>,
-				    <&pm8916_gpios_leds>,
-				    <&pm8916_mpps_leds>;
-
-			compatible = "gpio-leds";
-
-			led@1 {
-				label = "apq8016-sbc:green:user1";
-				gpios = <&msmgpio 21 GPIO_ACTIVE_HIGH>;
-				linux,default-trigger = "heartbeat";
-				default-state = "off";
-			};
-
-			led@2 {
-				label = "apq8016-sbc:green:user2";
-				gpios = <&msmgpio 120 GPIO_ACTIVE_HIGH>;
-				linux,default-trigger = "mmc0";
-				default-state = "off";
-			};
-
-			led@3 {
-				label = "apq8016-sbc:green:user3";
-				gpios = <&pm8916_gpios 1 GPIO_ACTIVE_HIGH>;
-				linux,default-trigger = "mmc1";
-				default-state = "off";
-			};
-
-			led@4 {
-				label = "apq8016-sbc:green:user4";
-				gpios = <&pm8916_gpios 2 GPIO_ACTIVE_HIGH>;
-				linux,default-trigger = "none";
-				panic-indicator;
-				default-state = "off";
-			};
-
-			led@5 {
-				label = "apq8016-sbc:yellow:wlan";
-				gpios = <&pm8916_mpps 2 GPIO_ACTIVE_HIGH>;
-				linux,default-trigger = "phy0tx";
-				default-state = "off";
-			};
-
-			led@6 {
-				label = "apq8016-sbc:blue:bt";
-				gpios = <&pm8916_mpps 3 GPIO_ACTIVE_HIGH>;
-				linux,default-trigger = "bluetooth-power";
-				default-state = "off";
-			};
-		};
-
 		sdhci@7824000 {
 			vmmc-supply = <&pm8916_l8>;
 			vqmmc-supply = <&pm8916_l5>;
@@ -561,6 +509,58 @@
 			label = "Volume Up";
 			linux,code = <KEY_VOLUMEUP>;
 			gpios = <&msmgpio 107 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	leds {
+		pinctrl-names = "default";
+		pinctrl-0 = <&msmgpio_leds>,
+			    <&pm8916_gpios_leds>,
+			    <&pm8916_mpps_leds>;
+
+		compatible = "gpio-leds";
+
+		led@1 {
+			label = "apq8016-sbc:green:user1";
+			gpios = <&msmgpio 21 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
+			default-state = "off";
+		};
+
+		led@2 {
+			label = "apq8016-sbc:green:user2";
+			gpios = <&msmgpio 120 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "mmc0";
+			default-state = "off";
+		};
+
+		led@3 {
+			label = "apq8016-sbc:green:user3";
+			gpios = <&pm8916_gpios 1 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "mmc1";
+			default-state = "off";
+		};
+
+		led@4 {
+			label = "apq8016-sbc:green:user4";
+			gpios = <&pm8916_gpios 2 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "none";
+			panic-indicator;
+			default-state = "off";
+		};
+
+		led@5 {
+			label = "apq8016-sbc:yellow:wlan";
+			gpios = <&pm8916_mpps 2 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "phy0tx";
+			default-state = "off";
+		};
+
+		led@6 {
+			label = "apq8016-sbc:blue:bt";
+			gpios = <&pm8916_mpps 3 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "bluetooth-power";
+			default-state = "off";
 		};
 	};
 };
