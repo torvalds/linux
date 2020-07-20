@@ -52,7 +52,6 @@
 	(cpu_to_le32(offsetof(struct nvmf_connect_command, x)))
 
 struct nvmet_ns {
-	struct list_head	dev_link;
 	struct percpu_ref	ref;
 	struct block_device	*bdev;
 	struct file		*file;
@@ -219,7 +218,7 @@ struct nvmet_subsys {
 	struct mutex		lock;
 	struct kref		ref;
 
-	struct list_head	namespaces;
+	struct xarray		namespaces;
 	unsigned int		nr_namespaces;
 	unsigned int		max_nsid;
 	u16			cntlid_min;
