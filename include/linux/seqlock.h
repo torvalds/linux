@@ -363,8 +363,8 @@ static inline int raw_read_seqcount_latch(seqcount_t *s)
  *			idx = seq & 0x01;
  *			entry = data_query(latch->data[idx], ...);
  *
- *			smp_rmb();
- *		} while (seq != latch->seq);
+ *		// read_seqcount_retry() includes needed smp_rmb()
+ *		} while (read_seqcount_retry(&latch->seq, seq));
  *
  *		return entry;
  *	}
