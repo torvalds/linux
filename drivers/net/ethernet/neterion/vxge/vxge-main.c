@@ -1076,7 +1076,7 @@ static int vxge_mac_list_del(struct vxge_vpath *vpath, struct macInfo *mac)
 	list_for_each_safe(entry, next, &vpath->mac_addr_list) {
 		if (((struct vxge_mac_addrs *)entry)->macaddr == del_mac) {
 			list_del(entry);
-			kfree((struct vxge_mac_addrs *)entry);
+			kfree(entry);
 			vpath->mac_addr_cnt--;
 
 			if (is_multicast_ether_addr(mac->macaddr))
@@ -2913,7 +2913,7 @@ static void vxge_free_mac_add_list(struct vxge_vpath *vpath)
 
 	list_for_each_safe(entry, next, &vpath->mac_addr_list) {
 		list_del(entry);
-		kfree((struct vxge_mac_addrs *)entry);
+		kfree(entry);
 	}
 }
 
