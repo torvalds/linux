@@ -129,23 +129,6 @@ repeat:
 }
 
 /**
- * raw_read_seqcount - Read the raw seqcount
- * @s: pointer to seqcount_t
- * Returns: count to be passed to read_seqcount_retry
- *
- * raw_read_seqcount opens a read critical section of the given
- * seqcount without any lockdep checking and without checking or
- * masking the LSB. Calling code is responsible for handling that.
- */
-static inline unsigned raw_read_seqcount(const seqcount_t *s)
-{
-	unsigned ret = READ_ONCE(s->sequence);
-	smp_rmb();
-	kcsan_atomic_next(KCSAN_SEQLOCK_REGION_MAX);
-	return ret;
-}
-
-/**
  * raw_read_seqcount_begin - start seq-read critical section w/o lockdep
  * @s: pointer to seqcount_t
  * Returns: count to be passed to read_seqcount_retry
@@ -174,6 +157,23 @@ static inline unsigned read_seqcount_begin(const seqcount_t *s)
 {
 	seqcount_lockdep_reader_access(s);
 	return raw_read_seqcount_begin(s);
+}
+
+/**
+ * raw_read_seqcount - Read the raw seqcount
+ * @s: pointer to seqcount_t
+ * Returns: count to be passed to read_seqcount_retry
+ *
+ * raw_read_seqcount opens a read critical section of the given
+ * seqcount without any lockdep checking and without checking or
+ * masking the LSB. Calling code is responsible for handling that.
+ */
+static inline unsigned raw_read_seqcount(const seqcount_t *s)
+{
+	unsigned ret = READ_ONCE(s->sequence);
+	smp_rmb();
+	kcsan_atomic_next(KCSAN_SEQLOCK_REGION_MAX);
+	return ret;
 }
 
 /**
@@ -234,8 +234,6 @@ static inline int read_seqcount_retry(const seqcount_t *s, unsigned start)
 	return __read_seqcount_retry(s, start);
 }
 
-
-
 static inline void raw_write_seqcount_begin(seqcount_t *s)
 {
 	kcsan_nestable_atomic_begin();
@@ -248,6 +246,23 @@ static inline void raw_write_seqcount_end(seqcount_t *s)
 	smp_wmb();
 	s->sequence++;
 	kcsan_nestable_atomic_end();
+}
+
+static inline void write_seqcount_begin_nested(seqcount_t *s, int subclass)
+{
+	raw_write_seqcount_begin(s);
+	seqcount_acquire(&s->dep_map, subclass, 0, _RET_IP_);
+}
+
+static inline void write_seqcount_begin(seqcount_t *s)
+{
+	write_seqcount_begin_nested(s, 0);
+}
+
+static inline void write_seqcount_end(seqcount_t *s)
+{
+	seqcount_release(&s->dep_map, _RET_IP_);
+	raw_write_seqcount_end(s);
 }
 
 /**
@@ -297,6 +312,21 @@ static inline void raw_write_seqcount_barrier(seqcount_t *s)
 	s->sequence++;
 	smp_wmb();
 	s->sequence++;
+	kcsan_nestable_atomic_end();
+}
+
+/**
+ * write_seqcount_invalidate - invalidate in-progress read-side seq operations
+ * @s: pointer to seqcount_t
+ *
+ * After write_seqcount_invalidate, no read-side seq operations will complete
+ * successfully and see data older than this.
+ */
+static inline void write_seqcount_invalidate(seqcount_t *s)
+{
+	smp_wmb();
+	kcsan_nestable_atomic_begin();
+	s->sequence+=2;
 	kcsan_nestable_atomic_end();
 }
 
@@ -393,38 +423,6 @@ static inline void raw_write_seqcount_latch(seqcount_t *s)
        smp_wmb();      /* prior stores before incrementing "sequence" */
        s->sequence++;
        smp_wmb();      /* increment "sequence" before following stores */
-}
-
-static inline void write_seqcount_begin_nested(seqcount_t *s, int subclass)
-{
-	raw_write_seqcount_begin(s);
-	seqcount_acquire(&s->dep_map, subclass, 0, _RET_IP_);
-}
-
-static inline void write_seqcount_begin(seqcount_t *s)
-{
-	write_seqcount_begin_nested(s, 0);
-}
-
-static inline void write_seqcount_end(seqcount_t *s)
-{
-	seqcount_release(&s->dep_map, _RET_IP_);
-	raw_write_seqcount_end(s);
-}
-
-/**
- * write_seqcount_invalidate - invalidate in-progress read-side seq operations
- * @s: pointer to seqcount_t
- *
- * After write_seqcount_invalidate, no read-side seq operations will complete
- * successfully and see data older than this.
- */
-static inline void write_seqcount_invalidate(seqcount_t *s)
-{
-	smp_wmb();
-	kcsan_nestable_atomic_begin();
-	s->sequence+=2;
-	kcsan_nestable_atomic_end();
 }
 
 /*
@@ -555,35 +553,6 @@ static inline void read_sequnlock_excl(seqlock_t *sl)
 	spin_unlock(&sl->lock);
 }
 
-/**
- * read_seqbegin_or_lock - begin a sequence number check or locking block
- * @lock: sequence lock
- * @seq : sequence number to be checked
- *
- * First try it once optimistically without taking the lock. If that fails,
- * take the lock. The sequence number is also used as a marker for deciding
- * whether to be a reader (even) or writer (odd).
- * N.B. seq must be initialized to an even number to begin with.
- */
-static inline void read_seqbegin_or_lock(seqlock_t *lock, int *seq)
-{
-	if (!(*seq & 1))	/* Even */
-		*seq = read_seqbegin(lock);
-	else			/* Odd */
-		read_seqlock_excl(lock);
-}
-
-static inline int need_seqretry(seqlock_t *lock, int seq)
-{
-	return !(seq & 1) && read_seqretry(lock, seq);
-}
-
-static inline void done_seqretry(seqlock_t *lock, int seq)
-{
-	if (seq & 1)
-		read_sequnlock_excl(lock);
-}
-
 static inline void read_seqlock_excl_bh(seqlock_t *sl)
 {
 	spin_lock_bh(&sl->lock);
@@ -619,6 +588,35 @@ static inline void
 read_sequnlock_excl_irqrestore(seqlock_t *sl, unsigned long flags)
 {
 	spin_unlock_irqrestore(&sl->lock, flags);
+}
+
+/**
+ * read_seqbegin_or_lock - begin a sequence number check or locking block
+ * @lock: sequence lock
+ * @seq : sequence number to be checked
+ *
+ * First try it once optimistically without taking the lock. If that fails,
+ * take the lock. The sequence number is also used as a marker for deciding
+ * whether to be a reader (even) or writer (odd).
+ * N.B. seq must be initialized to an even number to begin with.
+ */
+static inline void read_seqbegin_or_lock(seqlock_t *lock, int *seq)
+{
+	if (!(*seq & 1))	/* Even */
+		*seq = read_seqbegin(lock);
+	else			/* Odd */
+		read_seqlock_excl(lock);
+}
+
+static inline int need_seqretry(seqlock_t *lock, int seq)
+{
+	return !(seq & 1) && read_seqretry(lock, seq);
+}
+
+static inline void done_seqretry(seqlock_t *lock, int seq)
+{
+	if (seq & 1)
+		read_sequnlock_excl(lock);
 }
 
 static inline unsigned long
