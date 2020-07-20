@@ -8,7 +8,7 @@
  */
 
 #include <linux/mfd/syscon.h>
-#include <linux/mod_devicetable.h>
+#include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/reset-controller.h>
@@ -386,6 +386,7 @@ static const struct of_device_id imx7_reset_dt_ids[] = {
 	{ .compatible = "fsl,imx8mp-src", .data = &variant_imx8mp },
 	{ /* sentinel */ },
 };
+MODULE_DEVICE_TABLE(of, imx7_reset_dt_ids);
 
 static struct platform_driver imx7_reset_driver = {
 	.probe	= imx7_reset_probe,
@@ -394,4 +395,8 @@ static struct platform_driver imx7_reset_driver = {
 		.of_match_table	= imx7_reset_dt_ids,
 	},
 };
-builtin_platform_driver(imx7_reset_driver);
+module_platform_driver(imx7_reset_driver);
+
+MODULE_AUTHOR("Andrey Smirnov <andrew.smirnov@gmail.com>");
+MODULE_DESCRIPTION("NXP i.MX7 reset driver");
+MODULE_LICENSE("GPL v2");
