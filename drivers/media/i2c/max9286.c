@@ -405,10 +405,11 @@ static int max9286_check_config_link(struct max9286_priv *priv,
 	 * to 5 milliseconds.
 	 */
 	for (i = 0; i < 10; i++) {
-		ret = max9286_read(priv, 0x49) & 0xf0;
+		ret = max9286_read(priv, 0x49);
 		if (ret < 0)
 			return -EIO;
 
+		ret &= 0xf0;
 		if (ret == conflink_mask)
 			break;
 
