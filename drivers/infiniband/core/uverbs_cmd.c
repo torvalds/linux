@@ -563,11 +563,11 @@ static int ib_uverbs_open_xrcd(struct uverbs_attr_bundle *attrs)
 	struct ib_uverbs_open_xrcd	cmd;
 	struct ib_uxrcd_object         *obj;
 	struct ib_xrcd                 *xrcd = NULL;
-	struct fd			f = {NULL, 0};
 	struct inode                   *inode = NULL;
-	int				ret = 0;
 	int				new_xrcd = 0;
 	struct ib_device *ib_dev;
+	struct fd f = {};
+	int ret;
 
 	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
 	if (ret)
@@ -1064,7 +1064,7 @@ static int ib_uverbs_resize_cq(struct uverbs_attr_bundle *attrs)
 	struct ib_uverbs_resize_cq	cmd;
 	struct ib_uverbs_resize_cq_resp	resp = {};
 	struct ib_cq			*cq;
-	int				ret = -EINVAL;
+	int ret;
 
 	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
 	if (ret)
@@ -1509,10 +1509,10 @@ static int ib_uverbs_open_qp(struct uverbs_attr_bundle *attrs)
 	struct ib_uverbs_open_qp        cmd;
 	struct ib_uqp_object           *obj;
 	struct ib_xrcd		       *xrcd;
-	struct ib_uobject	       *uninitialized_var(xrcd_uobj);
 	struct ib_qp                   *qp;
 	struct ib_qp_open_attr          attr = {};
 	int ret;
+	struct ib_uobject *xrcd_uobj;
 	struct ib_device *ib_dev;
 
 	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
@@ -3291,9 +3291,9 @@ static int __uverbs_create_xsrq(struct uverbs_attr_bundle *attrs,
 	struct ib_usrq_object           *obj;
 	struct ib_pd                    *pd;
 	struct ib_srq                   *srq;
-	struct ib_uobject               *uninitialized_var(xrcd_uobj);
 	struct ib_srq_init_attr          attr;
 	int ret;
+	struct ib_uobject *xrcd_uobj;
 	struct ib_device *ib_dev;
 
 	obj = (struct ib_usrq_object *)uobj_alloc(UVERBS_OBJECT_SRQ, attrs,
