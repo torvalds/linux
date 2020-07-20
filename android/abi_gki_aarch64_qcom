@@ -287,6 +287,7 @@
   get_cpu_device
   get_device
   __get_free_pages
+  get_next_event_cpu
   get_pid_task
   get_random_bytes
   __get_task_comm
@@ -1909,7 +1910,6 @@
   cpuidle_unregister_driver
   cpu_pm_enter
   cpu_pm_exit
-  get_next_event_cpu
   param_get_bool
   param_get_uint
   pending_ipi
@@ -2209,6 +2209,9 @@
   of_device_modalias
   of_device_uevent_modalias
   strcspn
+
+# required by rq_stats.ko
+  register_tick_sched_wakeup_callback
 
 # required by rtc-pm8xxx.ko
   devm_request_any_context_irq
