@@ -16,15 +16,15 @@
 #include "qed_dev_api.h"
 
 struct qed_mcp_link_speed_params {
-	bool    autoneg;
-	u32     advertised_speeds;      /* bitmask of DRV_SPEED_CAPABILITY */
-	u32     forced_speed;	   /* In Mb/s */
+	bool					autoneg;
+	u32					advertised_speeds;
+	u32					forced_speed;	   /* In Mb/s */
 };
 
 struct qed_mcp_link_pause_params {
-	bool    autoneg;
-	bool    forced_rx;
-	bool    forced_tx;
+	bool					autoneg;
+	bool					forced_rx;
+	bool					forced_tx;
 };
 
 enum qed_mcp_eee_mode {
