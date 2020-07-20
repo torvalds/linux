@@ -1,0 +1,270 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2020 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+#include "rv1126.dtsi"
+#include "rv11xx-ipc.dtsi"
+
+/ {
+	model = "Rockchip RV1126 38x38 V10 SPI NOR DDR3 Board";
+	compatible = "rockchip,rv1126-38x38-v10-spi-nor", "rockchip,rv1126";
+
+	chosen {
+		bootargs = "earlycon=uart8250,mmio32,0xff570000 console=ttyFIQ0 root=/dev/mtdblock3 rootfstype=squashfs rootwait snd_aloop.index=7";
+	};
+
+	/delete-node/ vdd-npu;
+	/delete-node/ vdd-vepu;
+
+	vcc_1v8: vcc-1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_1v8";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+	};
+
+	vcc_dvdd: vcc-dvdd {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_dvdd";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <1200000>;
+	};
+
+	vcc3v3_sys: vcc33sys {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3_sys";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
+	vdd_arm: vdd-arm {
+		compatible = "pwm-regulator";
+		pwms = <&pwm0 0 5000 1>;
+		regulator-name = "vdd_arm";
+		regulator-min-microvolt = <720000>;
+		regulator-max-microvolt = <1000000>;
+		regulator-init-microvolt = <825000>;
+		regulator-always-on;
+		regulator-boot-on;
+		pwm-supply = <&vcc3v3_sys>;
+		status = "okay";
+	};
+
+	/*
+	 * pwm1 is reserved as voltage adjustment in hardware
+	 * use fixed regulator to avoid voltage adjustment by software
+	 */
+	vdd_logic_npu_vepu: vdd-logic-npu-vepu {
+		compatible = "pwm-regulator";
+		pwms = <&pwm1 0 5000 1>;
+		regulator-name = "vdd_logic_npu_vepu";
+		regulator-min-microvolt = <720000>;
+		regulator-max-microvolt = <880000>;
+		regulator-init-microvolt = <825000>;
+		regulator-always-on;
+		regulator-boot-on;
+		pwm-supply = <&vcc3v3_sys>;
+		status = "okay";
+	};
+
+	vdd_logic_npu_vepu_fixed: vdd-logic-npu-vepu-fixed {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd_logic_npu_vepu-fixed";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <825000>;
+		regulator-max-microvolt = <825000>;
+	};
+
+	cam_ircut0: cam_ircut {
+		status = "okay";
+		compatible = "rockchip,ircut";
+		ircut-open-gpios = <&gpio3 RK_PB1 GPIO_ACTIVE_HIGH>;
+		ircut-close-gpios  = <&gpio3 RK_PB0 GPIO_ACTIVE_HIGH>;
+		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-facing = "front";
+	};
+
+};
+
+&csi_dphy0 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_in_ucam0: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&ucam_out0>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csidphy0_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&isp_in>;
+			};
+		};
+	};
+};
+
+&gmac {
+	phy-mode = "rmii";
+	clock_in_out = "output";
+
+	snps,reset-gpio = <&gpio3 RK_PC5 GPIO_ACTIVE_LOW>;
+	snps,reset-active-low;
+	snps,reset-delays-us = <10000 10000 0>;
+
+	assigned-clocks = <&cru CLK_GMAC_SRC_M0>, <&cru CLK_GMAC_SRC>, <&cru CLK_GMAC_TX_RX>;
+	assigned-clock-rates = <0>, <50000000>;
+	assigned-clock-parents = <&cru CLK_GMAC_RGMII_M0>, <&cru CLK_GMAC_SRC_M0>, <&cru RMII_MODE_CLK>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&rmiim0_pins &gmac_clk_m0_pins>;
+
+	phy-handle = <&phy>;
+	status = "okay";
+};
+
+&i2c1 {
+	status = "okay";
+	clock-frequency = <400000>;
+
+	imx415: imx415@1a {
+		   compatible = "sony,imx415";
+		   reg = <0x1a>;
+		   clocks = <&cru CLK_MIPICSI_OUT>;
+		   clock-names = "xvclk";
+		   power-domains = <&power RV1126_PD_VI>;
+		   pinctrl-names = "rockchip,camera_default";
+		   pinctrl-0 = <&mipicsi_clk0>;
+		   avdd-supply = <&vcc3v3_sys>;
+		   dovdd-supply = <&vcc_1v8>;
+		   dvdd-supply = <&vcc_dvdd>;
+		   /* reset is always pulled high in v10 */
+		   reset-gpios = <&gpio1 RK_PD5 GPIO_ACTIVE_LOW>;
+		   rockchip,camera-module-index = <1>;
+		   rockchip,camera-module-facing = "front";
+		   rockchip,camera-module-name = "YT10092";
+		   rockchip,camera-module-lens-name = "IR0147";
+		   ir-cut = <&cam_ircut0>;
+		   port {
+				   ucam_out0: endpoint {
+						   remote-endpoint = <&mipi_in_ucam0>;
+						   data-lanes = <1 2 3 4>;
+				   };
+		   };
+	};
+
+};
+
+&mdio {
+	phy: phy@1 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <0x1>;
+	};
+};
+
+&npu {
+	npu-supply = <&vdd_logic_npu_vepu_fixed>;
+};
+
+&pmu_io_domains {
+	status = "okay";
+
+	pmuio0-supply = <&vcc3v3_sys>;
+	pmuio1-supply = <&vcc3v3_sys>;
+	vccio1-supply = <&vcc_1v8>;
+	vccio2-supply = <&vcc3v3_sys>;
+	vccio4-supply = <&vcc_1v8>;
+	vccio5-supply = <&vcc3v3_sys>;
+	vccio6-supply = <&vcc3v3_sys>;
+	vccio7-supply = <&vcc3v3_sys>;
+};
+
+&rkisp {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			isp_in: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&csidphy0_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			isp_out: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&ispp_in>;
+			};
+		};
+	};
+};
+
+&rkispp {
+	status = "okay";
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ispp_in: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&isp_out>;
+		};
+	};
+};
+
+&rkvenc {
+	venc-supply = <&vdd_logic_npu_vepu_fixed>;
+};
+
+&rockchip_suspend {
+	status = "okay";
+	rockchip,sleep-debug-en = <1>;
+	rockchip,sleep-mode-config = <
+		(0
+		| RKPM_SLP_ARMOFF
+		| RKPM_SLP_PMU_PMUALIVE_32K
+		| RKPM_SLP_PMU_DIS_OSC
+		)
+	>;
+};
+
+&sfc {
+	status = "okay";
+};
+
+&isp_reserved {
+	size = <0xd000000>;
+};
