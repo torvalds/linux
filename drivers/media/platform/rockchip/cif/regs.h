@@ -448,6 +448,8 @@ enum cif_reg_index {
 #define CSI_LINE_ID1_INTST		(0x1 << 22)
 #define CSI_LINE_ID2_INTST		(0x1 << 23)
 #define CSI_LINE_ID3_INTST		(0x1 << 24)
+#define CSI_DMA_LVDS_ID2_FIFO_OVERFLOW	(0x1 << 25)
+#define CSI_DMA_LVDS_ID3_FIFO_OVERFLOW	(0x1 << 26)
 
 #define CSI_FRAME_END_ID0	(CSI_FRAME0_END_ID0 |\
 				 CSI_FRAME1_END_ID0)

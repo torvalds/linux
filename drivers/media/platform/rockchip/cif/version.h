@@ -30,6 +30,7 @@
  *4. add luma device node for rv1126 vicap
  *v0.1.4
  *1. support vicap-full lvds interface to work in linear and hdr mode for rv1126
+ *2. add vicap-lite device for rv1126
  */
 
 #define RKCIF_DRIVER_VERSION KERNEL_VERSION(0, 1, 0x4)

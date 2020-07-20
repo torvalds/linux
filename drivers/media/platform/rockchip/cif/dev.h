@@ -41,6 +41,7 @@
 #define RKCIF_STREAM_MIPI_ID2	2
 #define RKCIF_STREAM_MIPI_ID3	3
 #define RKCIF_MAX_STREAM_MIPI	4
+#define RKCIF_MAX_STREAM_LVDS	4
 #define RKCIF_STREAM_DVP	4
 
 #define RKCIF_MAX_BUS_CLK	8
@@ -93,6 +94,7 @@ enum rkcif_chip_id {
 	CHIP_RK3328_CIF,
 	CHIP_RK3368_CIF,
 	CHIP_RV1126_CIF,
+	CHIP_RV1126_CIF_LITE,
 };
 
 enum host_type_t {
@@ -388,5 +390,6 @@ void rkcif_soft_reset(struct rkcif_device *cif_dev,
 			   bool is_rst_iommu);
 int rkcif_register_lvds_subdev(struct rkcif_device *dev);
 void rkcif_unregister_lvds_subdev(struct rkcif_device *dev);
+void rkcif_irq_lite_lvds(struct rkcif_device *cif_dev);
 
 #endif
