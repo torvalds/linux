@@ -182,34 +182,33 @@ EXPORT_SYMBOL(__csum_partial)
 
 	.macro srcnr
 100:
-	EX_TABLE(100b,.Lsrc_error_nr)
+	EX_TABLE(100b,.Lerror_nr)
 	.endm
 
 	.macro source
 150:
-	EX_TABLE(150b,.Lsrc_error)
+	EX_TABLE(150b,.Lerror)
 	.endm
 
 	.macro dstnr
 200:
-	EX_TABLE(200b,.Ldest_error_nr)
+	EX_TABLE(200b,.Lerror_nr)
 	.endm
 
 	.macro dest
 250:
-	EX_TABLE(250b,.Ldest_error)
+	EX_TABLE(250b,.Lerror)
 	.endm
 
 /*
  * Computes the checksum of a memory block at src, length len,
- * and adds in "sum" (32-bit), while copying the block to dst.
- * If an access exception occurs on src or dst, it stores -EFAULT
- * to *src_err or *dst_err respectively. The caller must take any action
- * required in this case (zeroing memory, recalculating partial checksum etc).
+ * and adds in 0xffffffff (32-bit), while copying the block to dst.
+ * If an access exception occurs, it returns 0.
  *
- * csum_partial_copy_generic(r3=src, r4=dst, r5=len, r6=sum, r7=src_err, r8=dst_err)
+ * csum_partial_copy_generic(r3=src, r4=dst, r5=len)
  */
 _GLOBAL(csum_partial_copy_generic)
+	li	r6,-1
 	addic	r0,r6,0			/* clear carry */
 
 	srdi.	r6,r5,3			/* less than 8 bytes? */
@@ -401,29 +400,15 @@ dstnr;	stb	r6,0(r4)
 	srdi	r3,r3,32
 	blr
 
-.Lsrc_error:
+.Lerror:
 	ld	r14,STK_REG(R14)(r1)
 	ld	r15,STK_REG(R15)(r1)
 	ld	r16,STK_REG(R16)(r1)
 	addi	r1,r1,STACKFRAMESIZE
-.Lsrc_error_nr:
-	cmpdi	0,r7,0
-	beqlr
-	li	r6,-EFAULT
-	stw	r6,0(r7)
+.Lerror_nr:
+	li	r3,0
 	blr
 
-.Ldest_error:
-	ld	r14,STK_REG(R14)(r1)
-	ld	r15,STK_REG(R15)(r1)
-	ld	r16,STK_REG(R16)(r1)
-	addi	r1,r1,STACKFRAMESIZE
-.Ldest_error_nr:
-	cmpdi	0,r8,0
-	beqlr
-	li	r6,-EFAULT
-	stw	r6,0(r8)
-	blr
 EXPORT_SYMBOL(csum_partial_copy_generic)
 
 /*

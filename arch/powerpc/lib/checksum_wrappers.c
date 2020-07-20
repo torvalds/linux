@@ -14,8 +14,7 @@
 __wsum csum_and_copy_from_user(const void __user *src, void *dst,
 			       int len)
 {
-	unsigned int csum;
-	int err = 0;
+	__wsum csum;
 
 	might_sleep();
 
@@ -24,27 +23,16 @@ __wsum csum_and_copy_from_user(const void __user *src, void *dst,
 
 	allow_read_from_user(src, len);
 
-	csum = csum_partial_copy_generic((void __force *)src, dst,
-					 len, ~0U, &err, NULL);
-
-	if (unlikely(err)) {
-		int missing = __copy_from_user(dst, src, len);
-
-		if (missing)
-			csum = 0;
-		else
-			csum = csum_partial(dst, len, ~0U);
-	}
+	csum = csum_partial_copy_generic((void __force *)src, dst, len);
 
 	prevent_read_from_user(src, len);
-	return (__force __wsum)csum;
+	return csum;
 }
 EXPORT_SYMBOL(csum_and_copy_from_user);
 
 __wsum csum_and_copy_to_user(const void *src, void __user *dst, int len)
 {
-	unsigned int csum;
-	int err = 0;
+	__wsum csum;
 
 	might_sleep();
 	if (unlikely(!access_ok(dst, len)))
@@ -52,17 +40,9 @@ __wsum csum_and_copy_to_user(const void *src, void __user *dst, int len)
 
 	allow_write_to_user(dst, len);
 
-	csum = csum_partial_copy_generic(src, (void __force *)dst,
-					 len, ~0U, NULL, &err);
-
-	if (unlikely(err)) {
-		csum = csum_partial(src, len, ~0U);
-
-		if (copy_to_user(dst, src, len))
-			csum = 0;
-	}
+	csum = csum_partial_copy_generic(src, (void __force *)dst, len);
 
 	prevent_write_to_user(dst, len);
-	return (__force __wsum)csum;
+	return csum;
 }
 EXPORT_SYMBOL(csum_and_copy_to_user);
