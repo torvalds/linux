@@ -428,7 +428,7 @@ static int mt7663s_suspend(struct device *dev)
 
 	mt76s_stop_txrx(&mdev->mt76);
 
-	return mt7663s_firmware_own(mdev);
+	return mt7615_mcu_set_fw_ctrl(mdev);
 }
 
 static int mt7663s_resume(struct device *dev)
@@ -437,7 +437,7 @@ static int mt7663s_resume(struct device *dev)
 	struct mt7615_dev *mdev = sdio_get_drvdata(func);
 	int err;
 
-	err = mt7663s_driver_own(mdev);
+	err = mt7615_mcu_set_drv_ctrl(mdev);
 	if (err)
 		return err;
 
