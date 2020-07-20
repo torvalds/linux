@@ -252,32 +252,8 @@ struct ftrace_likely_data {
  * __unqual_scalar_typeof(x) - Declare an unqualified scalar type, leaving
  *			       non-scalar types unchanged.
  */
-#if (defined(CONFIG_CC_IS_GCC) && CONFIG_GCC_VERSION < 40900) || defined(__CHECKER__)
 /*
- * We build this out of a couple of helper macros in a vain attempt to
- * help you keep your lunch down while reading it.
- */
-#define __pick_scalar_type(x, type, otherwise)					\
-	__builtin_choose_expr(__same_type(x, type), (type)0, otherwise)
-
-/*
- * 'char' is not type-compatible with either 'signed char' or 'unsigned char',
- * so we include the naked type here as well as the signed/unsigned variants.
- */
-#define __pick_integer_type(x, type, otherwise)					\
-	__pick_scalar_type(x, type,						\
-		__pick_scalar_type(x, unsigned type,				\
-			__pick_scalar_type(x, signed type, otherwise)))
-
-#define __unqual_scalar_typeof(x) typeof(					\
-	__pick_integer_type(x, char,						\
-		__pick_integer_type(x, short,					\
-			__pick_integer_type(x, int,				\
-				__pick_integer_type(x, long,			\
-					__pick_integer_type(x, long long, x))))))
-#else
-/*
- * If supported, prefer C11 _Generic for better compile-times. As above, 'char'
+ * Prefer C11 _Generic for better compile-times and simpler code. Note: 'char'
  * is not type-compatible with 'signed char', and we define a separate case.
  */
 #define __scalar_type_to_expr_cases(type)				\
@@ -293,7 +269,6 @@ struct ftrace_likely_data {
 			 __scalar_type_to_expr_cases(long),		\
 			 __scalar_type_to_expr_cases(long long),	\
 			 default: (x)))
-#endif
 
 /* Is this type a native word size -- useful for atomic operations */
 #define __native_word(t) \

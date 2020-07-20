@@ -690,6 +690,15 @@ void dev_uc_unsync(struct net_device *to, struct net_device *from)
 	if (to->addr_len != from->addr_len)
 		return;
 
+	/* netif_addr_lock_bh() uses lockdep subclass 0, this is okay for two
+	 * reasons:
+	 * 1) This is always called without any addr_list_lock, so as the
+	 *    outermost one here, it must be 0.
+	 * 2) This is called by some callers after unlinking the upper device,
+	 *    so the dev->lower_level becomes 1 again.
+	 * Therefore, the subclass for 'from' is 0, for 'to' is either 1 or
+	 * larger.
+	 */
 	netif_addr_lock_bh(from);
 	netif_addr_lock_nested(to);
 	__hw_addr_unsync(&to->uc, &from->uc, to->addr_len);
@@ -911,6 +920,7 @@ void dev_mc_unsync(struct net_device *to, struct net_device *from)
 	if (to->addr_len != from->addr_len)
 		return;
 
+	/* See the above comments inside dev_uc_unsync(). */
 	netif_addr_lock_bh(from);
 	netif_addr_lock_nested(to);
 	__hw_addr_unsync(&to->mc, &from->mc, to->addr_len);

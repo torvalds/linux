@@ -6,7 +6,6 @@
 #include <linux/rculist.h>
 #include <linux/rtnetlink.h>
 #include <linux/workqueue.h>
-#include <linux/rwlock.h>
 #include <linux/spinlock.h>
 #include <linux/notifier.h>
 #include <net/netevent.h>

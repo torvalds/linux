@@ -723,12 +723,14 @@ static int simulate_loongson3_cpucfg(struct pt_regs *regs,
 		perf_sw_event(PERF_COUNT_SW_EMULATION_FAULTS, 1, regs, 0);
 
 		/* Do not emulate on unsupported core models. */
-		if (!loongson3_cpucfg_emulation_enabled(&current_cpu_data))
+		preempt_disable();
+		if (!loongson3_cpucfg_emulation_enabled(&current_cpu_data)) {
+			preempt_enable();
 			return -1;
-
+		}
 		regs->regs[rd] = loongson3_cpucfg_read_synthesized(
 			&current_cpu_data, sel);
-
+		preempt_enable();
 		return 0;
 	}
 
@@ -2169,6 +2171,7 @@ static void configure_status(void)
 
 	change_c0_status(ST0_CU|ST0_MX|ST0_RE|ST0_FR|ST0_BEV|ST0_TS|ST0_KX|ST0_SX|ST0_UX,
 			 status_set);
+	back_to_back_c0_hazard();
 }
 
 unsigned int hwrena;

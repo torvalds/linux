@@ -40,7 +40,7 @@ struct xsk_buff_pool {
 	u32 headroom;
 	u32 chunk_size;
 	u32 frame_len;
-	bool cheap_dma;
+	bool dma_need_sync;
 	bool unaligned;
 	void *addrs;
 	struct device *dev;
@@ -80,7 +80,7 @@ static inline dma_addr_t xp_get_frame_dma(struct xdp_buff_xsk *xskb)
 void xp_dma_sync_for_cpu_slow(struct xdp_buff_xsk *xskb);
 static inline void xp_dma_sync_for_cpu(struct xdp_buff_xsk *xskb)
 {
-	if (xskb->pool->cheap_dma)
+	if (!xskb->pool->dma_need_sync)
 		return;
 
 	xp_dma_sync_for_cpu_slow(xskb);
@@ -91,7 +91,7 @@ void xp_dma_sync_for_device_slow(struct xsk_buff_pool *pool, dma_addr_t dma,
 static inline void xp_dma_sync_for_device(struct xsk_buff_pool *pool,
 					  dma_addr_t dma, size_t size)
 {
-	if (pool->cheap_dma)
+	if (!pool->dma_need_sync)
 		return;
 
 	xp_dma_sync_for_device_slow(pool, dma, size);

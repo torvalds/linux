@@ -24,7 +24,8 @@ void blk_flush_integrity(void)
 	flush_workqueue(kintegrityd_wq);
 }
 
-void __bio_integrity_free(struct bio_set *bs, struct bio_integrity_payload *bip)
+static void __bio_integrity_free(struct bio_set *bs,
+				 struct bio_integrity_payload *bip)
 {
 	if (bs && mempool_initialized(&bs->bio_integrity_pool)) {
 		if (bip->bip_vec)

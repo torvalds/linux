@@ -35,6 +35,13 @@ static irqreturn_t mcf_edma_tx_handler(int irq, void *dev_id)
 			mcf_chan = &mcf_edma->chans[ch];
 
 			spin_lock(&mcf_chan->vchan.lock);
+
+			if (!mcf_chan->edesc) {
+				/* terminate_all called before */
+				spin_unlock(&mcf_chan->vchan.lock);
+				continue;
+			}
+
 			if (!mcf_chan->edesc->iscyclic) {
 				list_del(&mcf_chan->edesc->vdesc.node);
 				vchan_cookie_complete(&mcf_chan->edesc->vdesc);

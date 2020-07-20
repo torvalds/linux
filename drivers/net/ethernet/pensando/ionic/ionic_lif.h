@@ -248,6 +248,8 @@ static inline u32 ionic_coal_hw_to_usec(struct ionic *ionic, u32 units)
 	return (units * div) / mult;
 }
 
+typedef void (*ionic_reset_cb)(struct ionic_lif *lif, void *arg);
+
 void ionic_link_status_check_request(struct ionic_lif *lif);
 void ionic_get_stats64(struct net_device *netdev,
 		       struct rtnl_link_stats64 *ns);
@@ -267,7 +269,7 @@ int ionic_lif_rss_config(struct ionic_lif *lif, u16 types,
 
 int ionic_open(struct net_device *netdev);
 int ionic_stop(struct net_device *netdev);
-int ionic_reset_queues(struct ionic_lif *lif);
+int ionic_reset_queues(struct ionic_lif *lif, ionic_reset_cb cb, void *arg);
 
 static inline void debug_stats_txq_post(struct ionic_qcq *qcq,
 					struct ionic_txq_desc *desc, bool dbell)

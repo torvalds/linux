@@ -47,7 +47,7 @@ Required properties:
 			  &lsio_mu1 1 2
 			  &lsio_mu1 1 3
 			  &lsio_mu1 3 3>;
-		See Documentation/devicetree/bindings/mailbox/fsl,mu.txt
+		See Documentation/devicetree/bindings/mailbox/fsl,mu.yaml
 		for detailed mailbox binding.
 
 Note: Each mu which supports general interrupt should have an alias correctly
