@@ -104,7 +104,6 @@ WIND_RING(struct nouveau_channel *chan)
 }
 
 /* FIFO methods */
-#define NV01_SUBCHAN_OBJECT                                          0x00000000
 #define NV84_SUBCHAN_SEMAPHORE_ADDRESS_HIGH                          0x00000010
 #define NV84_SUBCHAN_SEMAPHORE_ADDRESS_LOW                           0x00000014
 #define NV84_SUBCHAN_SEMAPHORE_SEQUENCE                              0x00000018
@@ -113,14 +112,10 @@ WIND_RING(struct nouveau_channel *chan)
 #define NV84_SUBCHAN_SEMAPHORE_TRIGGER_WRITE_LONG                    0x00000002
 #define NV84_SUBCHAN_SEMAPHORE_TRIGGER_ACQUIRE_GEQUAL                0x00000004
 #define NVC0_SUBCHAN_SEMAPHORE_TRIGGER_YIELD                         0x00001000
-#define NV84_SUBCHAN_UEVENT                                          0x00000020
-#define NV84_SUBCHAN_WRCACHE_FLUSH                                   0x00000024
-#define NV10_SUBCHAN_REF_CNT                                         0x00000050
 #define NV11_SUBCHAN_DMA_SEMAPHORE                                   0x00000060
 #define NV11_SUBCHAN_SEMAPHORE_OFFSET                                0x00000064
 #define NV11_SUBCHAN_SEMAPHORE_ACQUIRE                               0x00000068
 #define NV11_SUBCHAN_SEMAPHORE_RELEASE                               0x0000006c
-#define NV40_SUBCHAN_YIELD                                           0x00000080
 
 /* NV_SW object class */
 #define NV_SW_DMA_VBLSEM                                             0x0000018c

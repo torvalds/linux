@@ -27,13 +27,15 @@
 
 #include <nvif/push006c.h>
 
+#include <nvhw/class/cl006e.h>
+
 int
 nv10_fence_emit(struct nouveau_fence *fence)
 {
 	struct nvif_push *push = fence->channel->chan.push;
 	int ret = PUSH_WAIT(push, 2);
 	if (ret == 0) {
-		PUSH_NVSQ(push, NV06E, NV10_SUBCHAN_REF_CNT, fence->base.seqno);
+		PUSH_MTHD(push, NV06E, SET_REFERENCE, fence->base.seqno);
 		PUSH_KICK(push);
 	}
 	return ret;
