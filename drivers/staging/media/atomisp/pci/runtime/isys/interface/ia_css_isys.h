@@ -32,7 +32,7 @@ typedef input_system_cfg_t	ia_css_isys_descr_t;
 /* end of Virtual Input System */
 #endif
 
-input_system_error_t ia_css_isys_init(void);
+input_system_err_t ia_css_isys_init(void);
 void ia_css_isys_uninit(void);
 enum mipi_port_id ia_css_isys_port_to_mipi_port(
     enum mipi_port_id api_port);

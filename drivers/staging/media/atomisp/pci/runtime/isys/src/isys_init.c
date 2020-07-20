@@ -24,7 +24,7 @@
 #endif
 
 #if !defined(ISP2401)
-input_system_error_t ia_css_isys_init(void)
+input_system_err_t ia_css_isys_init(void)
 {
 	backend_channel_cfg_t backend_ch0;
 	backend_channel_cfg_t backend_ch1;
@@ -32,7 +32,7 @@ input_system_error_t ia_css_isys_init(void)
 	target_cfg2400_t targetC;
 	u32 acq_mem_region_size = 24;
 	u32 acq_nof_mem_regions = 2;
-	input_system_error_t error = INPUT_SYSTEM_ERR_NO_ERROR;
+	input_system_err_t error = INPUT_SYSTEM_ERR_NO_ERROR;
 
 	memset(&backend_ch0, 0, sizeof(backend_channel_cfg_t));
 	memset(&backend_ch1, 0, sizeof(backend_channel_cfg_t));
@@ -87,7 +87,7 @@ input_system_error_t ia_css_isys_init(void)
 	return error;
 }
 #elif defined(ISP2401)
-input_system_error_t ia_css_isys_init(void)
+input_system_err_t ia_css_isys_init(void)
 {
 	ia_css_isys_csi_rx_lut_rmgr_init();
 	ia_css_isys_ibuf_rmgr_init();

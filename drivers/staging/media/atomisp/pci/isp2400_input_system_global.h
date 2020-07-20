@@ -13,11 +13,6 @@
  * more details.
  */
 
-#ifndef __INPUT_SYSTEM_GLOBAL_H_INCLUDED__
-#define __INPUT_SYSTEM_GLOBAL_H_INCLUDED__
-
-#define IS_INPUT_SYSTEM_VERSION_2
-
 #include <type_support.h>
 
 //CSI reveiver has 3 ports.
@@ -152,5 +147,3 @@ typedef enum {
 } input_system_cfg_flag_t;
 
 typedef u32 input_system_config_flags_t;
-
-#endif /* __INPUT_SYSTEM_GLOBAL_H_INCLUDED__ */
