@@ -62,17 +62,13 @@
 #include "isp.h"
 #include "type_support.h"
 #include "math_support.h" /* CEIL_DIV */
-#if defined(HAS_INPUT_FORMATTER_VERSION_2) || defined(USE_INPUT_SYSTEM_VERSION_2401)
 #include "input_system.h"	/* input_formatter_reg_load */
-#endif
 #if defined(USE_INPUT_SYSTEM_VERSION_2) || defined(USE_INPUT_SYSTEM_VERSION_2401)
 #include "ia_css_tagger_common.h"
 #endif
 
 #include "sh_css_internal.h"
-#if !defined(HAS_NO_INPUT_SYSTEM)
 #include "ia_css_isys.h"
-#endif
 #include "sh_css_sp.h"		/* sh_css_sp_get_debug_state() */
 
 #include "css_trace.h"      /* tracer */
@@ -501,12 +497,10 @@ void ia_css_debug_dump_sp_state(void)
 	sp_get_state(SP0_ID, &state, &stall);
 	debug_print_sp_state(&state, "SP");
 	if (state.is_stalling) {
-#if !defined(HAS_NO_INPUT_SYSTEM)
 		ia_css_debug_dtrace(2, "\t%-32s: %d\n", "isys_FIFO stalled",
 				    stall.fifo0);
 		ia_css_debug_dtrace(2, "\t%-32s: %d\n", "if_sec_FIFO stalled",
 				    stall.fifo1);
-#endif
 		ia_css_debug_dtrace(2, "\t%-32s: %d\n",
 				    "str_to_mem_FIFO stalled", stall.fifo2);
 		ia_css_debug_dtrace(2, "\t%-32s: %d\n", "dma_FIFO stalled",
@@ -674,7 +668,6 @@ static void debug_print_if_state(input_formatter_state_t *state, const char *id)
 	ia_css_debug_dtrace(2, "\t\t%-32s: %d\n",
 			    "Block when no request", st_block_fifo_when_no_req);
 
-#if defined(HAS_INPUT_FORMATTER_VERSION_2)
 	ia_css_debug_dtrace(2, "\t\t%-32s: %d\n",
 			    "IF_BLOCKED_FIFO_NO_REQ_ADDRESS",
 			    input_formatter_reg_load(INPUT_FORMATTER0_ID,
@@ -737,7 +730,6 @@ static void debug_print_if_state(input_formatter_state_t *state, const char *id)
 			    "_REG_GP_IFMT_slv_reg_srst",
 			    gp_device_reg_load(GP_DEVICE0_ID,
 					       _REG_GP_IFMT_slv_reg_srst));
-#endif
 
 	ia_css_debug_dtrace(2, "\tFSM Status:\n");
 
@@ -1704,7 +1696,7 @@ void ia_css_debug_print_sp_debug_state(const struct sh_css_sp_debug_state
 }
 #endif
 
-#if defined(HAS_INPUT_FORMATTER_VERSION_2) && !defined(HAS_NO_INPUT_FORMATTER)
+#if !defined(HAS_NO_INPUT_FORMATTER)
 static void debug_print_rx_mipi_port_state(mipi_port_state_t *state)
 {
 	int i;
@@ -1901,10 +1893,10 @@ static void debug_print_rx_state(receiver_state_t *state)
 }
 #endif
 
-#if !defined(HAS_NO_INPUT_SYSTEM) && defined(USE_INPUT_SYSTEM_VERSION_2)
+#if defined(USE_INPUT_SYSTEM_VERSION_2)
 void ia_css_debug_dump_rx_state(void)
 {
-#if defined(HAS_INPUT_FORMATTER_VERSION_2) && !defined(HAS_NO_INPUT_FORMATTER)
+#if !defined(HAS_NO_INPUT_FORMATTER)
 	receiver_state_t state;
 
 	receiver_get_state(RX0_ID, &state);
@@ -2174,7 +2166,7 @@ void ia_css_debug_dump_isys_state(void)
 	return;
 }
 #endif
-#if !defined(HAS_NO_INPUT_SYSTEM) && defined(USE_INPUT_SYSTEM_VERSION_2401)
+#if defined(USE_INPUT_SYSTEM_VERSION_2401)
 void ia_css_debug_dump_isys_state(void)
 {
 	/* Android compilation fails if made a local variable
@@ -2195,7 +2187,7 @@ void ia_css_debug_dump_debug_info(const char *context)
 		context = "No Context provided";
 
 	ia_css_debug_dtrace(2, "CSS Debug Info dump [Context = %s]\n", context);
-#if !defined(HAS_NO_INPUT_SYSTEM) && defined(USE_INPUT_SYSTEM_VERSION_2)
+#if defined(USE_INPUT_SYSTEM_VERSION_2)
 	ia_css_debug_dump_rx_state();
 #endif
 #if !defined(HAS_NO_INPUT_FORMATTER) && defined(USE_INPUT_SYSTEM_VERSION_2)
@@ -2243,7 +2235,7 @@ void ia_css_debug_dump_debug_info(const char *context)
 				    state.irq_level_not_pulse);
 	}
 #endif
-#if !defined(HAS_NO_INPUT_SYSTEM) && defined(USE_INPUT_SYSTEM_VERSION_2401)
+#if defined(USE_INPUT_SYSTEM_VERSION_2401)
 	ia_css_debug_dump_isys_state();
 #endif
 #if defined(USE_INPUT_SYSTEM_VERSION_2) || defined(USE_INPUT_SYSTEM_VERSION_2401)
@@ -2449,7 +2441,7 @@ void ia_css_debug_dump_isp_binary(void)
 
 void ia_css_debug_dump_perf_counters(void)
 {
-#if !defined(HAS_NO_INPUT_SYSTEM) && defined(USE_INPUT_SYSTEM_VERSION_2)
+#if defined(USE_INPUT_SYSTEM_VERSION_2)
 	const struct ia_css_fw_info *fw;
 	int i;
 	unsigned int HIVE_ADDR_ia_css_isys_sp_error_cnt;

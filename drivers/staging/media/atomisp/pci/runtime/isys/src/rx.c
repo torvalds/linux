@@ -28,9 +28,7 @@ void ia_css_isys_rx_enable_all_interrupts(enum mipi_port_id port)
 					       _HRT_CSS_RECEIVER_IRQ_ENABLE_REG_IDX);
 
 	bits |= (1U << _HRT_CSS_RECEIVER_IRQ_OVERRUN_BIT) |
-#if defined(HAS_RX_VERSION_2)
 		(1U << _HRT_CSS_RECEIVER_IRQ_INIT_TIMEOUT_BIT) |
-#endif
 		(1U << _HRT_CSS_RECEIVER_IRQ_SLEEP_MODE_ENTRY_BIT) |
 		(1U << _HRT_CSS_RECEIVER_IRQ_SLEEP_MODE_EXIT_BIT) |
 		(1U << _HRT_CSS_RECEIVER_IRQ_ERR_SOT_HS_BIT) |
@@ -117,10 +115,8 @@ unsigned int ia_css_isys_rx_translate_irq_infos(unsigned int bits)
 
 	if (bits & (1U << _HRT_CSS_RECEIVER_IRQ_OVERRUN_BIT))
 		infos |= IA_CSS_RX_IRQ_INFO_BUFFER_OVERRUN;
-#if defined(HAS_RX_VERSION_2)
 	if (bits & (1U << _HRT_CSS_RECEIVER_IRQ_INIT_TIMEOUT_BIT))
 		infos |= IA_CSS_RX_IRQ_INFO_INIT_TIMEOUT;
-#endif
 	if (bits & (1U << _HRT_CSS_RECEIVER_IRQ_SLEEP_MODE_ENTRY_BIT))
 		infos |= IA_CSS_RX_IRQ_INFO_ENTER_SLEEP_MODE;
 	if (bits & (1U << _HRT_CSS_RECEIVER_IRQ_SLEEP_MODE_EXIT_BIT))
@@ -176,10 +172,8 @@ void ia_css_isys_rx_clear_irq_info(enum mipi_port_id port,
 	/* MW: Why do we remap the receiver bitmap */
 	if (irq_infos & IA_CSS_RX_IRQ_INFO_BUFFER_OVERRUN)
 		bits |= 1U << _HRT_CSS_RECEIVER_IRQ_OVERRUN_BIT;
-#if defined(HAS_RX_VERSION_2)
 	if (irq_infos & IA_CSS_RX_IRQ_INFO_INIT_TIMEOUT)
 		bits |= 1U << _HRT_CSS_RECEIVER_IRQ_INIT_TIMEOUT_BIT;
-#endif
 	if (irq_infos & IA_CSS_RX_IRQ_INFO_ENTER_SLEEP_MODE)
 		bits |= 1U << _HRT_CSS_RECEIVER_IRQ_SLEEP_MODE_ENTRY_BIT;
 	if (irq_infos & IA_CSS_RX_IRQ_INFO_EXIT_SLEEP_MODE)
@@ -484,7 +478,6 @@ unsigned int ia_css_csi2_calculate_input_system_alignment(
 void ia_css_isys_rx_configure(const rx_cfg_t *config,
 			      const enum ia_css_input_mode input_mode)
 {
-#if defined(HAS_RX_VERSION_2)
 	bool port_enabled[N_MIPI_PORT_ID];
 	bool any_port_enabled = false;
 	enum mipi_port_id port;
@@ -580,9 +573,6 @@ void ia_css_isys_rx_configure(const rx_cfg_t *config,
 	 *                INPUT_SYSTEM_CSI_RECEIVER_SELECT_BACKENG, 1);
 	 */
 	input_system_reg_store(INPUT_SYSTEM0_ID, 0x207, 1);
-#else
-#error "rx.c: RX version must be one of {RX_VERSION_2}"
-#endif
 
 	return;
 }

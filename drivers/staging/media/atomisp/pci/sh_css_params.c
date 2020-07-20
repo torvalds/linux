@@ -143,7 +143,6 @@ static int interleaved_lut_temp[4][HRT_GDC_N];
 /* Digital Zoom lookup table. See documentation for more details about the
  * contents of this table.
  */
-#if defined(HAS_GDC_VERSION_2)
 #if defined(CONFIG_CSI2_PLUS)
 /*
  * Coefficients from
@@ -1195,10 +1194,6 @@ static const int zoom_table[4][HRT_GDC_N] = {
 		  0 << 4,   0 << 4,   0 << 4,   0 << 4,   0 << 4,   0 << 4,   0 << 4,   0 << 4
 	}
 };
-#endif
-#else
-#error "sh_css_params.c: GDC version must be \
-one of {GDC_VERSION_2}"
 #endif
 
 static const struct ia_css_dz_config default_dz_config = {

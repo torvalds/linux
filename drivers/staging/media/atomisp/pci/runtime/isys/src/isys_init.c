@@ -15,7 +15,6 @@
 
 #include "input_system.h"
 
-#ifdef HAS_INPUT_SYSTEM_VERSION_2
 #include "ia_css_isys.h"
 #include "platform_support.h"
 
@@ -121,4 +120,3 @@ void ia_css_isys_uninit(void)
 }
 #endif
 
-#endif

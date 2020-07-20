@@ -27,9 +27,7 @@
 #include "sh_css_internal.h"
 #include "sh_css_mipi.h"
 #include "sh_css_sp.h"		/* sh_css_sp_group */
-#if !defined(HAS_NO_INPUT_SYSTEM)
 #include "ia_css_isys.h"
-#endif
 #include "ia_css_frame.h"
 #include "sh_css_defs.h"
 #include "sh_css_firmware.h"
@@ -62,9 +60,7 @@
 #if !defined(HAS_NO_INPUT_FORMATTER)
 #include "ia_css_ifmtr.h"
 #endif
-#if !defined(HAS_NO_INPUT_SYSTEM)
 #include "input_system.h"
-#endif
 #include "mmu_device.h"		/* mmu_set_page_table_base_index(), ... */
 #include "ia_css_mmu_private.h" /* sh_css_mmu_set_page_table_base_index() */
 #include "gdc_device.h"		/* HRT_GDC_N */
@@ -533,7 +529,7 @@ ia_css_stream_input_format_bits_per_pixel(struct ia_css_stream *stream)
 
 #define GP_ISEL_TPG_MODE 0x90058
 
-#if !defined(HAS_NO_INPUT_SYSTEM) && defined(USE_INPUT_SYSTEM_VERSION_2)
+#if defined(USE_INPUT_SYSTEM_VERSION_2)
 static int
 sh_css_config_input_network(struct ia_css_stream *stream) {
 	unsigned int fmt_type;
@@ -594,7 +590,7 @@ sh_css_config_input_network(struct ia_css_stream *stream) {
 			    "sh_css_config_input_network() leave:\n");
 	return 0;
 }
-#elif !defined(HAS_NO_INPUT_SYSTEM) && defined(USE_INPUT_SYSTEM_VERSION_2401)
+#elif defined(USE_INPUT_SYSTEM_VERSION_2401)
 static unsigned int csi2_protocol_calculate_max_subpixels_per_line(
     enum atomisp_input_format	format,
     unsigned int			pixels_per_line)
@@ -1375,12 +1371,7 @@ start_binary(struct ia_css_pipe *pipe,
 
 	(void)binary;
 
-#if !defined(HAS_NO_INPUT_SYSTEM)
 	stream = pipe->stream;
-#else
-	(void)pipe;
-	(void)stream;
-#endif
 
 	if (binary)
 		sh_css_metrics_start_binary(&binary->metrics);
@@ -1395,7 +1386,7 @@ start_binary(struct ia_css_pipe *pipe,
 		sh_binary_running = true;
 #endif
 
-#if !defined(HAS_NO_INPUT_SYSTEM) && !defined(USE_INPUT_SYSTEM_VERSION_2401)
+#if !defined(USE_INPUT_SYSTEM_VERSION_2401)
 	if (stream->reconfigure_css_rx) {
 		ia_css_isys_rx_configure(&pipe->stream->csi_rx_config,
 					 pipe->stream->config.mode);
@@ -1415,7 +1406,7 @@ start_copy_on_sp(struct ia_css_pipe *pipe,
 	if ((!pipe) || (!pipe->stream))
 		return -EINVAL;
 
-#if !defined(HAS_NO_INPUT_SYSTEM) && !defined(USE_INPUT_SYSTEM_VERSION_2401)
+#if !defined(USE_INPUT_SYSTEM_VERSION_2401)
 	if (pipe->stream->reconfigure_css_rx)
 		ia_css_isys_rx_disable();
 #endif
@@ -1424,7 +1415,7 @@ start_copy_on_sp(struct ia_css_pipe *pipe,
 		return -EINVAL;
 	sh_css_sp_start_binary_copy(ia_css_pipe_get_pipe_num(pipe), out_frame, pipe->stream->config.pixels_per_clock == 2);
 
-#if !defined(HAS_NO_INPUT_SYSTEM) && !defined(USE_INPUT_SYSTEM_VERSION_2401)
+#if !defined(USE_INPUT_SYSTEM_VERSION_2401)
 	if (pipe->stream->reconfigure_css_rx)
 	{
 		ia_css_isys_rx_configure(&pipe->stream->csi_rx_config,
@@ -1461,9 +1452,6 @@ static void start_pipe(
 	const struct ia_css_coordinate *coord = NULL;
 	const struct ia_css_isp_parameters *params = NULL;
 
-#if defined(HAS_NO_INPUT_SYSTEM)
-	(void)input_mode;
-#endif
 
 	IA_CSS_ENTER_PRIVATE("me = %p, copy_ovrd = %d, input_mode = %d",
 			     me, copy_ovrd, input_mode);
@@ -1487,11 +1475,9 @@ static void start_pipe(
 				input_mode,
 				&me->stream->config.metadata_config,
 				&me->stream->info.metadata_info
-#if !defined(HAS_NO_INPUT_SYSTEM)
 				, (input_mode == IA_CSS_INPUT_MODE_MEMORY) ?
 				(enum mipi_port_id)0 :
 				me->stream->config.source.port.port,
-#endif
 				coord,
 				params);
 
@@ -1551,13 +1537,6 @@ enable_interrupts(enum ia_css_irq_type irq_type)
 	cnd_virq_enable_channel(
 	    (enum virq_id)(IRQ_SW_CHANNEL1_ID + IRQ_SW_CHANNEL_OFFSET),
 	    true);
-#if !defined(HAS_IRQ_MAP_VERSION_2)
-	/* IRQ_SW_CHANNEL2_ID does not exist on 240x systems */
-	cnd_virq_enable_channel(
-	    (enum virq_id)(IRQ_SW_CHANNEL2_ID + IRQ_SW_CHANNEL_OFFSET),
-	    true);
-	virq_clear_all();
-#endif
 
 #ifdef USE_INPUT_SYSTEM_VERSION_2
 	for (port = 0; port < N_MIPI_PORT_ID; port++)
@@ -1832,15 +1811,10 @@ ia_css_init(struct device *dev, const struct ia_css_env *env,
 	sh_css_init_buffer_queues();
 	*/
 
-#if defined(HAS_INPUT_SYSTEM_VERSION_2) && defined(HAS_INPUT_SYSTEM_VERSION_2401)
-#if	defined(USE_INPUT_SYSTEM_VERSION_2)
-	gp_device_reg_store(GP_DEVICE0_ID, _REG_GP_SWITCH_ISYS2401_ADDR, 0);
-#elif defined(USE_INPUT_SYSTEM_VERSION_2401)
+#if defined(HAS_INPUT_SYSTEM_VERSION_2401)
 	gp_device_reg_store(GP_DEVICE0_ID, _REG_GP_SWITCH_ISYS2401_ADDR, 1);
 #endif
-#endif
 
-#if !defined(HAS_NO_INPUT_SYSTEM)
 
 	if (!IS_ISP2401)
 		dma_set_max_burst_size(DMA0_ID, HIVE_DMA_BUS_DDR_CONN,
@@ -1851,7 +1825,6 @@ ia_css_init(struct device *dev, const struct ia_css_env *env,
 
 	if (ia_css_isys_init() != INPUT_SYSTEM_ERR_NO_ERROR)
 		err = -EINVAL;
-#endif
 
 	sh_css_params_map_and_store_default_gdc_lut();
 
@@ -2542,14 +2515,11 @@ ia_css_uninit(void)
 
 	sh_css_sp_reset_global_vars();
 
-#if !defined(HAS_NO_INPUT_SYSTEM)
 	ia_css_isys_uninit();
-#endif
 
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_uninit() leave: return_void\n");
 }
 
-#if defined(HAS_IRQ_MAP_VERSION_2)
 int ia_css_irq_translate(
     unsigned int *irq_infos)
 {
@@ -2581,7 +2551,6 @@ int ia_css_irq_translate(
 			break;
 		case virq_isp:
 			break;
-#if !defined(HAS_NO_INPUT_SYSTEM)
 		case virq_isys_sof:
 			infos |= IA_CSS_IRQ_INFO_CSS_RECEIVER_SOF;
 			break;
@@ -2591,7 +2560,6 @@ int ia_css_irq_translate(
 		case virq_isys_csi:
 			infos |= IA_CSS_IRQ_INFO_INPUT_SYSTEM_ERROR;
 			break;
-#endif
 #if !defined(HAS_NO_INPUT_FORMATTER)
 		case virq_ifmt0_id:
 			infos |= IA_CSS_IRQ_INFO_IF_ERROR;
@@ -2672,9 +2640,6 @@ int ia_css_irq_enable(
 	return 0;
 }
 
-#else
-#error "sh_css.c: IRQ MAP must be one of { IRQ_MAP_VERSION_2 }"
-#endif
 
 static unsigned int
 sh_css_get_sw_interrupt_value(unsigned int irq)
@@ -4050,9 +4015,7 @@ preview_start(struct ia_css_pipe *pipe) {
 					pipe->stream->config.mode,
 					&pipe->stream->config.metadata_config,
 					&pipe->stream->info.metadata_info,
-#if !defined(HAS_NO_INPUT_SYSTEM)
 					pipe->stream->config.source.port.port,
-#endif
 					coord,
 					params);
 
@@ -4076,9 +4039,7 @@ preview_start(struct ia_css_pipe *pipe) {
 					IA_CSS_INPUT_MODE_MEMORY,
 					&pipe->stream->config.metadata_config,
 					&pipe->stream->info.metadata_info,
-#if !defined(HAS_NO_INPUT_SYSTEM)
 					(enum mipi_port_id)0,
-#endif
 					coord,
 					params);
 	}
@@ -4097,9 +4058,7 @@ preview_start(struct ia_css_pipe *pipe) {
 					IA_CSS_INPUT_MODE_MEMORY,
 					NULL,
 					NULL,
-#if !defined(HAS_NO_INPUT_SYSTEM)
 					(enum mipi_port_id)0,
-#endif
 					coord,
 					params);
 	}
@@ -5286,7 +5245,7 @@ RET:
 	return rval;
 }
 
-#if !defined(HAS_NO_INPUT_SYSTEM) && defined(USE_INPUT_SYSTEM_VERSION_2)
+#if defined(USE_INPUT_SYSTEM_VERSION_2)
 unsigned int
 sh_css_get_mipi_sizes_for_check(const unsigned int port, const unsigned int idx)
 {
@@ -5413,13 +5372,7 @@ sh_css_pipe_get_grid_info(struct ia_css_pipe *pipe,
 		info->isp_in_height = binary->internal_frame_info.res.height;
 	}
 
-#if defined(HAS_VAMEM_VERSION_2)
 	info->vamem_type = IA_CSS_VAMEM_TYPE_2;
-#elif defined(HAS_VAMEM_VERSION_1)
-	info->vamem_type = IA_CSS_VAMEM_TYPE_1;
-#else
-#error "Unknown VAMEM version"
-#endif
 
 ERR :
 	IA_CSS_LEAVE_ERR_PRIVATE(err);
@@ -5867,9 +5820,7 @@ static int video_start(struct ia_css_pipe *pipe)
 					pipe->stream->config.mode,
 					&pipe->stream->config.metadata_config,
 					&pipe->stream->info.metadata_info,
-#if !defined(HAS_NO_INPUT_SYSTEM)
 					pipe->stream->config.source.port.port,
-#endif
 					coord,
 					params);
 
@@ -5892,9 +5843,7 @@ static int video_start(struct ia_css_pipe *pipe)
 					IA_CSS_INPUT_MODE_MEMORY,
 					&pipe->stream->config.metadata_config,
 					&pipe->stream->info.metadata_info,
-#if !defined(HAS_NO_INPUT_SYSTEM)
 					(enum mipi_port_id)0,
-#endif
 					coord,
 					params);
 	}
@@ -6754,7 +6703,7 @@ static int load_capture_binaries(
 	switch (pipe->config.default_capture_config.mode) {
 	case IA_CSS_CAPTURE_MODE_RAW:
 		err = load_copy_binaries(pipe);
-#if !defined(HAS_NO_INPUT_SYSTEM) && defined(USE_INPUT_SYSTEM_VERSION_2401)
+#if defined(USE_INPUT_SYSTEM_VERSION_2401)
 		if (!err)
 			pipe->pipe_settings.capture.copy_binary.online = pipe->stream->config.online;
 #endif
@@ -7409,7 +7358,7 @@ static int yuvpp_start(struct ia_css_pipe *pipe)
 
 	/* multi stream video needs mipi buffers */
 
-#if !defined(HAS_NO_INPUT_SYSTEM) && (defined(USE_INPUT_SYSTEM_VERSION_2) || defined(USE_INPUT_SYSTEM_VERSION_2401))
+#if (defined(USE_INPUT_SYSTEM_VERSION_2) || defined(USE_INPUT_SYSTEM_VERSION_2401))
 	err = send_mipi_frames(pipe);
 	if (err) {
 		IA_CSS_LEAVE_ERR_PRIVATE(err);
@@ -7989,7 +7938,7 @@ create_host_regular_capture_pipeline(struct ia_css_pipe *pipe) {
 	{
 		if (raw) {
 			ia_css_pipe_util_set_output_frames(out_frames, 0, out_frame);
-#if !defined(HAS_NO_INPUT_SYSTEM) && defined(USE_INPUT_SYSTEM_VERSION_2401)
+#if defined(USE_INPUT_SYSTEM_VERSION_2401)
 			if (!continuous) {
 				ia_css_pipe_get_generic_stage_desc(&stage_desc, copy_binary,
 								    out_frames, in_frame, NULL);
@@ -8282,7 +8231,7 @@ static int capture_start(
 	}
 	start_pipe(pipe, copy_ovrd, pipe->stream->config.mode);
 
-#if !defined(HAS_NO_INPUT_SYSTEM) && !defined(USE_INPUT_SYSTEM_VERSION_2401)
+#if !defined(USE_INPUT_SYSTEM_VERSION_2401)
 	/*
 	    * old isys: for IA_CSS_PIPE_MODE_COPY pipe, isys rx has to be configured,
 	    * which is currently done in start_binary(); but COPY pipe contains no binary,
@@ -8332,7 +8281,6 @@ sh_css_pipe_get_output_frame_info(struct ia_css_pipe *pipe,
 	return 0;
 }
 
-#if !defined(HAS_NO_INPUT_SYSTEM)
 void
 ia_css_stream_send_input_frame(const struct ia_css_stream *stream,
 				const unsigned short *data,
@@ -8387,7 +8335,6 @@ ia_css_stream_end_input_frame(const struct ia_css_stream *stream) {
 
 	ia_css_inputfifo_end_frame(stream->config.channel_id);
 }
-#endif
 
 static void
 append_firmware(struct ia_css_fw_info **l, struct ia_css_fw_info *firmware) {
@@ -8762,12 +8709,10 @@ sh_css_init_host_sp_control_vars(void) {
 #endif
 	store_sp_array_uint(host_sp_com, o, host2sp_cmd_ready);
 
-#if !defined(HAS_NO_INPUT_SYSTEM)
 	for (i = 0; i < N_CSI_PORTS; i++) {
 		sh_css_update_host2sp_num_mipi_frames
 		(my_css.num_mipi_frames[i]);
 	}
-#endif
 
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE,
 			    "sh_css_init_host_sp_control_vars() leave: return_void\n");
@@ -9363,7 +9308,6 @@ ia_css_stream_create(const struct ia_css_stream_config *stream_config,
 	}
 #endif
 
-#if !defined(HAS_NO_INPUT_SYSTEM)
 	ia_css_debug_pipe_graph_dump_stream_config(stream_config);
 
 	/* check if mipi size specified */
@@ -9408,7 +9352,6 @@ ia_css_stream_create(const struct ia_css_stream_config *stream_config,
 				return err;
 			}
 		}
-#endif
 
 	/* Currently we only supported metadata up to a certain size. */
 	err = metadata_info_init(&stream_config->metadata_config, &md_info);
@@ -9484,7 +9427,7 @@ ia_css_stream_create(const struct ia_css_stream_config *stream_config,
 #endif
 		break;
 	case IA_CSS_INPUT_MODE_TPG:
-#if !defined(HAS_NO_INPUT_SYSTEM) && defined(USE_INPUT_SYSTEM_VERSION_2)
+#if defined(USE_INPUT_SYSTEM_VERSION_2)
 		IA_CSS_LOG("tpg_configuration: x_mask=%d, y_mask=%d, x_delta=%d, y_delta=%d, xy_mask=%d",
 			    curr_stream->config.source.tpg.x_mask,
 			    curr_stream->config.source.tpg.y_mask,
@@ -9501,7 +9444,7 @@ ia_css_stream_create(const struct ia_css_stream_config *stream_config,
 #endif
 		break;
 	case IA_CSS_INPUT_MODE_PRBS:
-#if !defined(HAS_NO_INPUT_SYSTEM) && defined(USE_INPUT_SYSTEM_VERSION_2)
+#if defined(USE_INPUT_SYSTEM_VERSION_2)
 		IA_CSS_LOG("mode prbs");
 		sh_css_sp_configure_prbs(curr_stream->config.source.prbs.seed);
 #endif
@@ -10003,15 +9946,13 @@ ia_css_stream_start(struct ia_css_stream *stream) {
 		return err;
 	}
 
-#if !defined(HAS_NO_INPUT_SYSTEM)
 #if defined(USE_INPUT_SYSTEM_VERSION_2401)
 	if ((stream->config.mode == IA_CSS_INPUT_MODE_SENSOR) ||
 	    (stream->config.mode == IA_CSS_INPUT_MODE_BUFFERED_SENSOR))
 		stream_register_with_csi_rx(stream);
 #endif
-#endif
 
-#if !defined(HAS_NO_INPUT_SYSTEM) && defined(USE_INPUT_SYSTEM_VERSION_2)
+#if defined(USE_INPUT_SYSTEM_VERSION_2)
 	/* Initialize mipi size checks */
 	if (stream->config.mode == IA_CSS_INPUT_MODE_BUFFERED_SENSOR)
 	{
@@ -10025,14 +9966,12 @@ ia_css_stream_start(struct ia_css_stream *stream) {
 	}
 #endif
 
-#if !defined(HAS_NO_INPUT_SYSTEM)
 	if (stream->config.mode != IA_CSS_INPUT_MODE_MEMORY)
 	{
 		err = sh_css_config_input_network(stream);
 		if (err)
 			return err;
 	}
-#endif /* !HAS_NO_INPUT_SYSTEM */
 
 	err = sh_css_pipe_start(stream);
 	IA_CSS_LEAVE_ERR(err);
@@ -10049,7 +9988,7 @@ ia_css_stream_stop(struct ia_css_stream *stream) {
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_stream_stop: stopping %d\n",
 			    stream->last_pipe->mode);
 
-#if !defined(HAS_NO_INPUT_SYSTEM) && defined(USE_INPUT_SYSTEM_VERSION_2)
+#if defined(USE_INPUT_SYSTEM_VERSION_2)
 	/* De-initialize mipi size checks */
 	if (stream->config.mode == IA_CSS_INPUT_MODE_BUFFERED_SENSOR)
 	{
@@ -10527,7 +10466,7 @@ void ia_css_pipe_map_queue(struct ia_css_pipe *pipe, bool map)
 
 	ia_css_pipeline_get_sp_thread_id(pipe_num, &thread_id);
 
-#if defined(HAS_NO_INPUT_SYSTEM) || defined(USE_INPUT_SYSTEM_VERSION_2401)
+#if defined(USE_INPUT_SYSTEM_VERSION_2401)
 	need_input_queue = true;
 #else
 	need_input_queue = pipe->stream->config.mode == IA_CSS_INPUT_MODE_MEMORY;

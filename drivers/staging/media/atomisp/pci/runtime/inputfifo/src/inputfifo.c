@@ -32,24 +32,18 @@
 #include "event_fifo.h"
 #define __INLINE_SP__
 
-#if !defined(HAS_NO_INPUT_SYSTEM)
 #include "input_system.h"	/* MIPI_PREDICTOR_NONE,... */
-#endif
 
 #include "assert_support.h"
 
 /* System independent */
 #include "sh_css_internal.h"
-#if !defined(HAS_NO_INPUT_SYSTEM)
 #include "ia_css_isys.h"
-#endif
 
 #define HBLANK_CYCLES (187)
 #define MARKER_CYCLES (6)
 
-#if !defined(HAS_NO_INPUT_SYSTEM)
 #include <hive_isp_css_streaming_to_mipi_types_hrt.h>
-#endif
 
 /* The data type is used to send special cases:
  * yuv420: odd lines (1, 3 etc) are twice as wide as even
@@ -67,9 +61,7 @@ enum inputfifo_mipi_data_type {
 	inputfifo_mipi_data_type_rgb,
 };
 
-#if !defined(HAS_NO_INPUT_SYSTEM)
 static unsigned int inputfifo_curr_ch_id, inputfifo_curr_fmt_type;
-#endif
 struct inputfifo_instance {
 	unsigned int				ch_id;
 	enum atomisp_input_format	input_format;
@@ -81,7 +73,6 @@ struct inputfifo_instance {
 	enum inputfifo_mipi_data_type	type;
 };
 
-#if !defined(HAS_NO_INPUT_SYSTEM)
 /*
  * Maintain a basic streaming to Mipi administration with ch_id as index
  * ch_id maps on the "Mipi virtual channel ID" and can have value 0..3
@@ -536,4 +527,3 @@ void ia_css_inputfifo_end_frame(
 	s2mi->streaming = false;
 	return;
 }
-#endif /* #if !defined(HAS_NO_INPUT_SYSTEM) */

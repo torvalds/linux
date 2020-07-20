@@ -38,9 +38,7 @@
 #include "sh_css_params.h"
 #include "sh_css_legacy.h"
 #include "ia_css_frame_comm.h"
-#if !defined(HAS_NO_INPUT_SYSTEM)
 #include "ia_css_isys.h"
-#endif
 
 #include "gdc_device.h"				/* HRT_GDC_N */
 
@@ -662,7 +660,7 @@ void sh_css_sp_set_if_configs(
 }
 #endif
 
-#if !defined(HAS_NO_INPUT_SYSTEM) && defined(USE_INPUT_SYSTEM_VERSION_2)
+#if defined(USE_INPUT_SYSTEM_VERSION_2)
 void
 sh_css_sp_program_input_circuit(int fmt_type,
 				int ch_id,
@@ -681,7 +679,7 @@ sh_css_sp_program_input_circuit(int fmt_type,
 }
 #endif
 
-#if !defined(HAS_NO_INPUT_SYSTEM) && defined(USE_INPUT_SYSTEM_VERSION_2)
+#if defined(USE_INPUT_SYSTEM_VERSION_2)
 void
 sh_css_sp_configure_sync_gen(int width, int height,
 			     int hblank_cycles,
@@ -724,11 +722,7 @@ sh_css_sp_configure_enable_raw_pool_locking(bool lock_all)
 void
 sh_css_sp_enable_isys_event_queue(bool enable)
 {
-#if !defined(HAS_NO_INPUT_SYSTEM)
 	sh_css_sp_group.config.enable_isys_event_queue = enable;
-#else
-	(void)enable;
-#endif
 }
 
 void
@@ -1206,9 +1200,7 @@ sh_css_sp_init_pipeline(struct ia_css_pipeline *me,
 			enum ia_css_input_mode input_mode,
 			const struct ia_css_metadata_config *md_config,
 			const struct ia_css_metadata_info *md_info,
-#if !defined(HAS_NO_INPUT_SYSTEM)
 			const enum mipi_port_id port_id,
-#endif
 			const struct ia_css_coordinate
 			*internal_frame_origin_bqs_on_sctbl, /* Origin of internal frame
 							positioned on shading table at shading correction in ISP. */
@@ -1226,7 +1218,6 @@ sh_css_sp_init_pipeline(struct ia_css_pipeline *me,
 
 	assert(me);
 
-#if !defined(HAS_NO_INPUT_SYSTEM)
 	assert(me->stages);
 
 	first_binary = me->stages->binary;
@@ -1245,10 +1236,6 @@ sh_css_sp_init_pipeline(struct ia_css_pipeline *me,
 	{
 		if_config_index = 0x0;
 	}
-#else
-	(void)input_mode;
-	if_config_index = SH_CSS_IF_CONFIG_NOT_NEEDED;
-#endif
 
 	ia_css_pipeline_get_sp_thread_id(pipe_num, &thread_id);
 	memset(&sh_css_sp_group.pipe[thread_id], 0, sizeof(struct sh_css_sp_pipeline));
@@ -1285,11 +1272,9 @@ sh_css_sp_init_pipeline(struct ia_css_pipeline *me,
 	sh_css_sp_group.pipe[thread_id].num_execs = me->num_execs;
 	sh_css_sp_group.pipe[thread_id].pipe_qos_config = me->pipe_qos_config;
 	sh_css_sp_group.pipe[thread_id].required_bds_factor = required_bds_factor;
-#if !defined(HAS_NO_INPUT_SYSTEM)
 	sh_css_sp_group.pipe[thread_id].input_system_mode
 	= (uint32_t)input_mode;
 	sh_css_sp_group.pipe[thread_id].port_id = port_id;
-#endif
 	sh_css_sp_group.pipe[thread_id].dvs_frame_delay = (uint32_t)me->dvs_frame_delay;
 
 	/* TODO: next indicates from which queues parameters need to be
