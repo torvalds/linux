@@ -46,6 +46,7 @@ struct nvme_tcp_request {
 	u32			pdu_sent;
 	u16			ttag;
 	struct list_head	entry;
+	struct llist_node	lentry;
 	__le32			ddgst;
 
 	struct bio		*curr_bio;
@@ -75,9 +76,10 @@ struct nvme_tcp_queue {
 	struct work_struct	io_work;
 	int			io_cpu;
 
-	spinlock_t		lock;
 	struct mutex		send_mutex;
+	struct llist_head	req_list;
 	struct list_head	send_list;
+	bool			more_requests;
 
 	/* recv state */
 	void			*pdu;
@@ -261,15 +263,13 @@ static inline void nvme_tcp_advance_req(struct nvme_tcp_request *req,
 }
 
 static inline void nvme_tcp_queue_request(struct nvme_tcp_request *req,
-		bool sync)
+		bool sync, bool last)
 {
 	struct nvme_tcp_queue *queue = req->queue;
 	bool empty;
 
-	spin_lock(&queue->lock);
-	empty = list_empty(&queue->send_list) && !queue->request;
-	list_add_tail(&req->entry, &queue->send_list);
-	spin_unlock(&queue->lock);
+	empty = llist_add(&req->lentry, &queue->req_list) &&
+		list_empty(&queue->send_list) && !queue->request;
 
 	/*
 	 * if we're the first on the send_list and we can try to send
@@ -278,10 +278,23 @@ static inline void nvme_tcp_queue_request(struct nvme_tcp_request *req,
 	 */
 	if (queue->io_cpu == smp_processor_id() &&
 	    sync && empty && mutex_trylock(&queue->send_mutex)) {
+		queue->more_requests = !last;
 		nvme_tcp_try_send(queue);
+		queue->more_requests = false;
 		mutex_unlock(&queue->send_mutex);
-	} else {
+	} else if (last) {
 		queue_work_on(queue->io_cpu, nvme_tcp_wq, &queue->io_work);
+	}
+}
+
+static void nvme_tcp_process_req_list(struct nvme_tcp_queue *queue)
+{
+	struct nvme_tcp_request *req;
+	struct llist_node *node;
+
+	for (node = llist_del_all(&queue->req_list); node; node = node->next) {
+		req = llist_entry(node, struct nvme_tcp_request, lentry);
+		list_add(&req->entry, &queue->send_list);
 	}
 }
 
@@ -290,13 +303,17 @@ nvme_tcp_fetch_request(struct nvme_tcp_queue *queue)
 {
 	struct nvme_tcp_request *req;
 
-	spin_lock(&queue->lock);
 	req = list_first_entry_or_null(&queue->send_list,
 			struct nvme_tcp_request, entry);
-	if (req)
-		list_del(&req->entry);
-	spin_unlock(&queue->lock);
+	if (!req) {
+		nvme_tcp_process_req_list(queue);
+		req = list_first_entry_or_null(&queue->send_list,
+				struct nvme_tcp_request, entry);
+		if (unlikely(!req))
+			return NULL;
+	}
 
+	list_del(&req->entry);
 	return req;
 }
 
@@ -596,7 +613,7 @@ static int nvme_tcp_handle_r2t(struct nvme_tcp_queue *queue,
 	req->state = NVME_TCP_SEND_H2C_PDU;
 	req->offset = 0;
 
-	nvme_tcp_queue_request(req, false);
+	nvme_tcp_queue_request(req, false, true);
 
 	return 0;
 }
@@ -863,6 +880,12 @@ done:
 	read_unlock(&sk->sk_callback_lock);
 }
 
+static inline bool nvme_tcp_queue_more(struct nvme_tcp_queue *queue)
+{
+	return !list_empty(&queue->send_list) ||
+		!llist_empty(&queue->req_list) || queue->more_requests;
+}
+
 static inline void nvme_tcp_done_send_req(struct nvme_tcp_queue *queue)
 {
 	queue->request = NULL;
@@ -884,7 +907,7 @@ static int nvme_tcp_try_send_data(struct nvme_tcp_request *req)
 		bool last = nvme_tcp_pdu_last_send(req, len);
 		int ret, flags = MSG_DONTWAIT;
 
-		if (last && !queue->data_digest)
+		if (last && !queue->data_digest && !nvme_tcp_queue_more(queue))
 			flags |= MSG_EOR;
 		else
 			flags |= MSG_MORE | MSG_SENDPAGE_NOTLAST;
@@ -931,7 +954,7 @@ static int nvme_tcp_try_send_cmd_pdu(struct nvme_tcp_request *req)
 	int flags = MSG_DONTWAIT;
 	int ret;
 
-	if (inline_data)
+	if (inline_data || nvme_tcp_queue_more(queue))
 		flags |= MSG_MORE | MSG_SENDPAGE_NOTLAST;
 	else
 		flags |= MSG_EOR;
@@ -996,11 +1019,16 @@ static int nvme_tcp_try_send_ddgst(struct nvme_tcp_request *req)
 {
 	struct nvme_tcp_queue *queue = req->queue;
 	int ret;
-	struct msghdr msg = { .msg_flags = MSG_DONTWAIT | MSG_EOR };
+	struct msghdr msg = { .msg_flags = MSG_DONTWAIT };
 	struct kvec iov = {
 		.iov_base = &req->ddgst + req->offset,
 		.iov_len = NVME_TCP_DIGEST_LENGTH - req->offset
 	};
+
+	if (nvme_tcp_queue_more(queue))
+		msg.msg_flags |= MSG_MORE;
+	else
+		msg.msg_flags |= MSG_EOR;
 
 	ret = kernel_sendmsg(queue->sock, &msg, &iov, 1, iov.iov_len);
 	if (unlikely(ret <= 0))
@@ -1344,8 +1372,8 @@ static int nvme_tcp_alloc_queue(struct nvme_ctrl *nctrl,
 	int ret, rcv_pdu_size;
 
 	queue->ctrl = ctrl;
+	init_llist_head(&queue->req_list);
 	INIT_LIST_HEAD(&queue->send_list);
-	spin_lock_init(&queue->lock);
 	mutex_init(&queue->send_mutex);
 	INIT_WORK(&queue->io_work, nvme_tcp_io_work);
 	queue->queue_size = queue_size;
@@ -2106,7 +2134,7 @@ static void nvme_tcp_submit_async_event(struct nvme_ctrl *arg)
 	ctrl->async_req.curr_bio = NULL;
 	ctrl->async_req.data_len = 0;
 
-	nvme_tcp_queue_request(&ctrl->async_req, true);
+	nvme_tcp_queue_request(&ctrl->async_req, true, true);
 }
 
 static enum blk_eh_timer_return
@@ -2218,6 +2246,14 @@ static blk_status_t nvme_tcp_setup_cmd_pdu(struct nvme_ns *ns,
 	return 0;
 }
 
+static void nvme_tcp_commit_rqs(struct blk_mq_hw_ctx *hctx)
+{
+	struct nvme_tcp_queue *queue = hctx->driver_data;
+
+	if (!llist_empty(&queue->req_list))
+		queue_work_on(queue->io_cpu, nvme_tcp_wq, &queue->io_work);
+}
+
 static blk_status_t nvme_tcp_queue_rq(struct blk_mq_hw_ctx *hctx,
 		const struct blk_mq_queue_data *bd)
 {
@@ -2237,7 +2273,7 @@ static blk_status_t nvme_tcp_queue_rq(struct blk_mq_hw_ctx *hctx,
 
 	blk_mq_start_request(rq);
 
-	nvme_tcp_queue_request(req, true);
+	nvme_tcp_queue_request(req, true, bd->last);
 
 	return BLK_STS_OK;
 }
@@ -2305,6 +2341,7 @@ static int nvme_tcp_poll(struct blk_mq_hw_ctx *hctx)
 
 static const struct blk_mq_ops nvme_tcp_mq_ops = {
 	.queue_rq	= nvme_tcp_queue_rq,
+	.commit_rqs	= nvme_tcp_commit_rqs,
 	.complete	= nvme_complete_rq,
 	.init_request	= nvme_tcp_init_request,
 	.exit_request	= nvme_tcp_exit_request,

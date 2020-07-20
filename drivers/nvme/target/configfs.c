@@ -862,14 +862,14 @@ static ssize_t nvmet_subsys_attr_version_show(struct config_item *item,
 	struct nvmet_subsys *subsys = to_subsys(item);
 
 	if (NVME_TERTIARY(subsys->ver))
-		return snprintf(page, PAGE_SIZE, "%d.%d.%d\n",
-				(int)NVME_MAJOR(subsys->ver),
-				(int)NVME_MINOR(subsys->ver),
-				(int)NVME_TERTIARY(subsys->ver));
+		return snprintf(page, PAGE_SIZE, "%llu.%llu.%llu\n",
+				NVME_MAJOR(subsys->ver),
+				NVME_MINOR(subsys->ver),
+				NVME_TERTIARY(subsys->ver));
 
-	return snprintf(page, PAGE_SIZE, "%d.%d\n",
-			(int)NVME_MAJOR(subsys->ver),
-			(int)NVME_MINOR(subsys->ver));
+	return snprintf(page, PAGE_SIZE, "%llu.%llu\n",
+			NVME_MAJOR(subsys->ver),
+			NVME_MINOR(subsys->ver));
 }
 
 static ssize_t nvmet_subsys_attr_version_store(struct config_item *item,

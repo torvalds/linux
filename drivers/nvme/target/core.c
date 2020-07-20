@@ -336,7 +336,7 @@ int nvmet_enable_port(struct nvmet_port *port)
 	 * If the user requested PI support and the transport isn't pi capable,
 	 * don't enable the port.
 	 */
-	if (port->pi_enable && !ops->metadata_support) {
+	if (port->pi_enable && !(ops->flags & NVMF_METADATA_SUPPORTED)) {
 		pr_err("T10-PI is not supported by transport type %d\n",
 		       port->disc_addr.trtype);
 		ret = -EINVAL;
