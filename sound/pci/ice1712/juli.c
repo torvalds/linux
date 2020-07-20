@@ -397,7 +397,7 @@ static const struct snd_kcontrol_new juli_mute_controls[] = {
 	},
 };
 
-static const char * const slave_vols[] = {
+static const char * const follower_vols[] = {
 	PCM_VOLUME,
 	MONITOR_AN_IN_VOLUME,
 	MONITOR_DIG_IN_VOLUME,
@@ -418,16 +418,16 @@ static struct snd_kcontrol *ctl_find(struct snd_card *card,
 	return snd_ctl_find_id(card, &sid);
 }
 
-static void add_slaves(struct snd_card *card,
-		       struct snd_kcontrol *master,
-		       const char * const *list)
+static void add_followers(struct snd_card *card,
+			  struct snd_kcontrol *master,
+			  const char * const *list)
 {
 	for (; *list; list++) {
-		struct snd_kcontrol *slave = ctl_find(card, *list);
-		/* dev_dbg(card->dev, "add_slaves - %s\n", *list); */
-		if (slave) {
-			/* dev_dbg(card->dev, "slave %s found\n", *list); */
-			snd_ctl_add_slave(master, slave);
+		struct snd_kcontrol *follower = ctl_find(card, *list);
+		/* dev_dbg(card->dev, "add_followers - %s\n", *list); */
+		if (follower) {
+			/* dev_dbg(card->dev, "follower %s found\n", *list); */
+			snd_ctl_add_follower(master, follower);
 		}
 	}
 }
@@ -454,7 +454,7 @@ static int juli_add_controls(struct snd_ice1712 *ice)
 					      juli_master_db_scale);
 	if (!vmaster)
 		return -ENOMEM;
-	add_slaves(ice->card, vmaster, slave_vols);
+	add_followers(ice->card, vmaster, follower_vols);
 	err = snd_ctl_add(ice->card, vmaster);
 	if (err < 0)
 		return err;
