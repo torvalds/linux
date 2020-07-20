@@ -305,8 +305,7 @@ error:
 		if (pdata->urb) {
 			usb_kill_urb(pdata->urb);
 			cancel_delayed_work_sync(&pdata->work);
-			if (pdata->urbdata)
-				usb_free_coherent(pdata->udev, ACD_URB_BUFFER_LEN,
+			usb_free_coherent(pdata->udev, ACD_URB_BUFFER_LEN,
 					pdata->urbdata, pdata->urb->transfer_dma);
 			usb_free_urb(pdata->urb);
 		}
