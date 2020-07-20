@@ -125,16 +125,9 @@
 	#address-cells = <1>;
 	#size-cells = <0>;
 
-	vdda-supply = <&pm8916_l2>;
-	vddio-supply = <&pm8916_l6>;
-
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&mdss_default>;
 	pinctrl-1 = <&mdss_sleep>;
-};
-
-&dsi_phy0 {
-	vddio-supply = <&pm8916_l6>;
 };
 
 &pm8916_resin {
@@ -149,9 +142,6 @@
 &sdhc_1 {
 	status = "okay";
 
-	vmmc-supply = <&pm8916_l8>;
-	vqmmc-supply = <&pm8916_l5>;
-
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&sdc1_clk_on &sdc1_cmd_on &sdc1_data_on>;
 	pinctrl-1 = <&sdc1_clk_off &sdc1_cmd_off &sdc1_data_off>;
@@ -159,9 +149,6 @@
 
 &sdhc_2 {
 	status = "okay";
-
-	vmmc-supply = <&pm8916_l11>;
-	vqmmc-supply = <&pm8916_l12>;
 
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&sdc2_clk_on &sdc2_cmd_on &sdc2_data_on &sdc2_cd_on>;
@@ -181,8 +168,6 @@
 
 &usb_hs_phy {
 	extcon = <&muic>;
-	v1p8-supply = <&pm8916_l7>;
-	v3p3-supply = <&pm8916_l13>;
 };
 
 &smd_rpm_regulators {

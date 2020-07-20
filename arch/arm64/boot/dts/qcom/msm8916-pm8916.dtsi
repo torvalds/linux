@@ -7,6 +7,15 @@
 	vdda-supply = <&pm8916_l2>;
 };
 
+&dsi0 {
+	vdda-supply = <&pm8916_l2>;
+	vddio-supply = <&pm8916_l6>;
+};
+
+&dsi_phy0 {
+	vddio-supply = <&pm8916_l6>;
+};
+
 &mpss {
 	cx-supply = <&pm8916_s1>;
 	mx-supply = <&pm8916_l3>;
@@ -23,6 +32,21 @@
 		vddpa-supply = <&pm8916_l9>;
 		vdddig-supply = <&pm8916_l5>;
 	};
+};
+
+&sdhc_1 {
+	vmmc-supply = <&pm8916_l8>;
+	vqmmc-supply = <&pm8916_l5>;
+};
+
+&sdhc_2 {
+	vmmc-supply = <&pm8916_l11>;
+	vqmmc-supply = <&pm8916_l12>;
+};
+
+&usb_hs_phy {
+	v1p8-supply = <&pm8916_l7>;
+	v3p3-supply = <&pm8916_l13>;
 };
 
 &rpm_requests {
