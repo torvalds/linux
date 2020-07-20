@@ -18,7 +18,7 @@
 #include <linux/clk.h>
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/io.h>
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
@@ -53,25 +53,11 @@
 
 #define DRIVER_DESC "OHCI OMAP driver"
 
-#ifdef CONFIG_TPS65010
-#include <linux/mfd/tps65010.h>
-#else
-
-#define LOW	0
-#define HIGH	1
-
-#define GPIO1	1
-
-static inline int tps65010_set_gpio_out_value(unsigned gpio, unsigned value)
-{
-	return 0;
-}
-
-#endif
-
 struct ohci_omap_priv {
 	struct clk *usb_host_ck;
 	struct clk *usb_dc_ck;
+	struct gpio_desc *power;
+	struct gpio_desc *overcurrent;
 };
 
 static const char hcd_name[] = "ohci-omap";
@@ -97,22 +83,22 @@ static void omap_ohci_clock_power(struct ohci_omap_priv *priv, int on)
  * Board specific gang-switched transceiver power on/off.
  * NOTE:  OSK supplies power from DC, not battery.
  */
-static int omap_ohci_transceiver_power(int on)
+static int omap_ohci_transceiver_power(struct ohci_omap_priv *priv, int on)
 {
 	if (on) {
 		if (machine_is_omap_innovator() && cpu_is_omap1510())
 			__raw_writeb(__raw_readb(INNOVATOR_FPGA_CAM_USB_CONTROL)
 				| ((1 << 5/*usb1*/) | (1 << 3/*usb2*/)),
 			       INNOVATOR_FPGA_CAM_USB_CONTROL);
-		else if (machine_is_omap_osk())
-			tps65010_set_gpio_out_value(GPIO1, LOW);
+		else if (priv->power)
+			gpiod_set_value(priv->power, 0);
 	} else {
 		if (machine_is_omap_innovator() && cpu_is_omap1510())
 			__raw_writeb(__raw_readb(INNOVATOR_FPGA_CAM_USB_CONTROL)
 				& ~((1 << 5/*usb1*/) | (1 << 3/*usb2*/)),
 			       INNOVATOR_FPGA_CAM_USB_CONTROL);
-		else if (machine_is_omap_osk())
-			tps65010_set_gpio_out_value(GPIO1, HIGH);
+		else if (priv->power)
+			gpiod_set_value(priv->power, 1);
 	}
 
 	return 0;
@@ -272,8 +258,6 @@ static int ohci_omap_reset(struct usb_hcd *hcd)
 
 			/* gpio9 for overcurrent detction */
 			omap_cfg_reg(W8_1610_GPIO9);
-			gpio_request(9, "OHCI overcurrent");
-			gpio_direction_input(9);
 
 			/* for paranoia's sake:  disable USB.PUEN */
 			omap_cfg_reg(W4_USB_HIGHZ);
@@ -287,7 +271,7 @@ static int ohci_omap_reset(struct usb_hcd *hcd)
 	}
 
 	/* FIXME hub_wq hub requests should manage power switching */
-	omap_ohci_transceiver_power(1);
+	omap_ohci_transceiver_power(priv, 1);
 
 	/* board init will have already handled HMC and mux setup.
 	 * any external transceiver should already be initialized
@@ -333,6 +317,29 @@ static int ohci_hcd_omap_probe(struct platform_device *pdev)
 	hcd->rsrc_start = pdev->resource[0].start;
 	hcd->rsrc_len = pdev->resource[0].end - pdev->resource[0].start + 1;
 	priv = hcd_to_ohci_omap_priv(hcd);
+
+	/* Obtain two optional GPIO lines */
+	priv->power = devm_gpiod_get_optional(&pdev->dev, "power", GPIOD_ASIS);
+	if (IS_ERR(priv->power)) {
+		retval = PTR_ERR(priv->power);
+		goto err_put_hcd;
+	}
+	if (priv->power)
+		gpiod_set_consumer_name(priv->power, "OHCI power");
+
+	/*
+	 * This "overcurrent" GPIO line isn't really used in the code,
+	 * but has a designated hardware function.
+	 * TODO: implement proper overcurrent handling.
+	 */
+	priv->overcurrent = devm_gpiod_get_optional(&pdev->dev, "overcurrent",
+						    GPIOD_IN);
+	if (IS_ERR(priv->overcurrent)) {
+		retval = PTR_ERR(priv->overcurrent);
+		goto err_put_hcd;
+	}
+	if (priv->overcurrent)
+		gpiod_set_consumer_name(priv->overcurrent, "OHCI overcurrent");
 
 	priv->usb_host_ck = clk_get(&pdev->dev, "usb_hhc_ck");
 	if (IS_ERR(priv->usb_host_ck)) {
@@ -411,8 +418,6 @@ static int ohci_hcd_omap_remove(struct platform_device *pdev)
 		(void) otg_set_host(hcd->usb_phy->otg, 0);
 		usb_put_phy(hcd->usb_phy);
 	}
-	if (machine_is_omap_osk())
-		gpio_free(9);
 	iounmap(hcd->regs);
 	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 	clk_put(priv->usb_dc_ck);
