@@ -1834,6 +1834,78 @@ static int qede_set_eee(struct net_device *dev, struct ethtool_eee *edata)
 	return 0;
 }
 
+static u32 qede_link_to_ethtool_fec(u32 link_fec)
+{
+	u32 eth_fec = 0;
+
+	if (link_fec & QED_FEC_MODE_NONE)
+		eth_fec |= ETHTOOL_FEC_OFF;
+	if (link_fec & QED_FEC_MODE_FIRECODE)
+		eth_fec |= ETHTOOL_FEC_BASER;
+	if (link_fec & QED_FEC_MODE_RS)
+		eth_fec |= ETHTOOL_FEC_RS;
+	if (link_fec & QED_FEC_MODE_AUTO)
+		eth_fec |= ETHTOOL_FEC_AUTO;
+	if (link_fec & QED_FEC_MODE_UNSUPPORTED)
+		eth_fec |= ETHTOOL_FEC_NONE;
+
+	return eth_fec;
+}
+
+static u32 qede_ethtool_to_link_fec(u32 eth_fec)
+{
+	u32 link_fec = 0;
+
+	if (eth_fec & ETHTOOL_FEC_OFF)
+		link_fec |= QED_FEC_MODE_NONE;
+	if (eth_fec & ETHTOOL_FEC_BASER)
+		link_fec |= QED_FEC_MODE_FIRECODE;
+	if (eth_fec & ETHTOOL_FEC_RS)
+		link_fec |= QED_FEC_MODE_RS;
+	if (eth_fec & ETHTOOL_FEC_AUTO)
+		link_fec |= QED_FEC_MODE_AUTO;
+	if (eth_fec & ETHTOOL_FEC_NONE)
+		link_fec |= QED_FEC_MODE_UNSUPPORTED;
+
+	return link_fec;
+}
+
+static int qede_get_fecparam(struct net_device *dev,
+			     struct ethtool_fecparam *fecparam)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+	struct qed_link_output curr_link;
+
+	memset(&curr_link, 0, sizeof(curr_link));
+	edev->ops->common->get_link(edev->cdev, &curr_link);
+
+	fecparam->active_fec = qede_link_to_ethtool_fec(curr_link.active_fec);
+	fecparam->fec = qede_link_to_ethtool_fec(curr_link.sup_fec);
+
+	return 0;
+}
+
+static int qede_set_fecparam(struct net_device *dev,
+			     struct ethtool_fecparam *fecparam)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+	struct qed_link_params params;
+
+	if (!edev->ops || !edev->ops->common->can_link_change(edev->cdev)) {
+		DP_INFO(edev, "Link settings are not allowed to be changed\n");
+		return -EOPNOTSUPP;
+	}
+
+	memset(&params, 0, sizeof(params));
+	params.override_flags |= QED_LINK_OVERRIDE_FEC_CONFIG;
+	params.fec = qede_ethtool_to_link_fec(fecparam->fec);
+	params.link_up = true;
+
+	edev->ops->common->set_link(edev->cdev, &params);
+
+	return 0;
+}
+
 static int qede_get_module_info(struct net_device *dev,
 				struct ethtool_modinfo *modinfo)
 {
@@ -2070,6 +2142,8 @@ static const struct ethtool_ops qede_ethtool_ops = {
 	.get_module_eeprom		= qede_get_module_eeprom,
 	.get_eee			= qede_get_eee,
 	.set_eee			= qede_set_eee,
+	.get_fecparam			= qede_get_fecparam,
+	.set_fecparam			= qede_set_fecparam,
 	.get_tunable			= qede_get_tunable,
 	.set_tunable			= qede_set_tunable,
 	.flash_device			= qede_flash_device,
