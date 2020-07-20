@@ -1879,6 +1879,27 @@ static void qed_fill_link_capability(struct qed_hwfn *hwfn,
 	}
 }
 
+static void qed_lp_caps_to_speed_mask(u32 caps, u32 *speed_mask)
+{
+	*speed_mask = 0;
+
+	if (caps &
+	    (QED_LINK_PARTNER_SPEED_1G_FD | QED_LINK_PARTNER_SPEED_1G_HD))
+		*speed_mask |= NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_1G;
+	if (caps & QED_LINK_PARTNER_SPEED_10G)
+		*speed_mask |= NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_10G;
+	if (caps & QED_LINK_PARTNER_SPEED_20G)
+		*speed_mask |= NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_20G;
+	if (caps & QED_LINK_PARTNER_SPEED_25G)
+		*speed_mask |= NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_25G;
+	if (caps & QED_LINK_PARTNER_SPEED_40G)
+		*speed_mask |= NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_40G;
+	if (caps & QED_LINK_PARTNER_SPEED_50G)
+		*speed_mask |= NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_50G;
+	if (caps & QED_LINK_PARTNER_SPEED_100G)
+		*speed_mask |= NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_BB_100G;
+}
+
 static void qed_fill_link(struct qed_hwfn *hwfn,
 			  struct qed_ptt *ptt,
 			  struct qed_link_output *if_link)
@@ -1886,7 +1907,7 @@ static void qed_fill_link(struct qed_hwfn *hwfn,
 	struct qed_mcp_link_capabilities link_caps;
 	struct qed_mcp_link_params params;
 	struct qed_mcp_link_state link;
-	u32 media_type;
+	u32 media_type, speed_mask;
 
 	memset(if_link, 0, sizeof(*if_link));
 
@@ -1917,12 +1938,17 @@ static void qed_fill_link(struct qed_hwfn *hwfn,
 	else
 		phylink_clear(if_link->advertised_caps, Autoneg);
 
-	/* Fill link advertised capability*/
+	/* Fill link advertised capability */
 	qed_fill_link_capability(hwfn, ptt, params.speed.advertised_speeds,
 				 if_link->advertised_caps);
-	/* Fill link supported capability*/
+
+	/* Fill link supported capability */
 	qed_fill_link_capability(hwfn, ptt, link_caps.speed_capabilities,
 				 if_link->supported_caps);
+
+	/* Fill partner advertised capability */
+	qed_lp_caps_to_speed_mask(link.partner_adv_speed, &speed_mask);
+	qed_fill_link_capability(hwfn, ptt, speed_mask, if_link->lp_caps);
 
 	if (link.link_up)
 		if_link->speed = link.speed;
@@ -1940,23 +1966,6 @@ static void qed_fill_link(struct qed_hwfn *hwfn,
 		if_link->pause_config |= QED_LINK_PAUSE_RX_ENABLE;
 	if (params.pause.forced_tx)
 		if_link->pause_config |= QED_LINK_PAUSE_TX_ENABLE;
-
-	/* Link partner capabilities */
-
-	if (link.partner_adv_speed & QED_LINK_PARTNER_SPEED_1G_FD)
-		phylink_set(if_link->lp_caps, 1000baseT_Full);
-	if (link.partner_adv_speed & QED_LINK_PARTNER_SPEED_10G)
-		phylink_set(if_link->lp_caps, 10000baseKR_Full);
-	if (link.partner_adv_speed & QED_LINK_PARTNER_SPEED_20G)
-		phylink_set(if_link->lp_caps, 20000baseKR2_Full);
-	if (link.partner_adv_speed & QED_LINK_PARTNER_SPEED_25G)
-		phylink_set(if_link->lp_caps, 25000baseKR_Full);
-	if (link.partner_adv_speed & QED_LINK_PARTNER_SPEED_40G)
-		phylink_set(if_link->lp_caps, 40000baseLR4_Full);
-	if (link.partner_adv_speed & QED_LINK_PARTNER_SPEED_50G)
-		phylink_set(if_link->lp_caps, 50000baseKR2_Full);
-	if (link.partner_adv_speed & QED_LINK_PARTNER_SPEED_100G)
-		phylink_set(if_link->lp_caps, 100000baseKR4_Full);
 
 	if (link.an_complete)
 		phylink_set(if_link->lp_caps, Autoneg);
