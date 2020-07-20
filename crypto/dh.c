@@ -9,6 +9,7 @@
 #include <crypto/internal/kpp.h>
 #include <crypto/kpp.h>
 #include <crypto/dh.h>
+#include <linux/fips.h>
 #include <linux/mpi.h>
 
 struct dh_ctx {
@@ -178,6 +179,34 @@ static int dh_compute_value(struct kpp_request *req)
 	ret = _compute_val(ctx, base, val);
 	if (ret)
 		goto err_free_base;
+
+	/* SP800-56A rev3 5.7.1.1 check: Validation of shared secret */
+	if (fips_enabled && req->src) {
+		MPI pone;
+
+		/* z <= 1 */
+		if (mpi_cmp_ui(val, 1) < 1) {
+			ret = -EBADMSG;
+			goto err_free_base;
+		}
+
+		/* z == p - 1 */
+		pone = mpi_alloc(0);
+
+		if (!pone) {
+			ret = -ENOMEM;
+			goto err_free_base;
+		}
+
+		ret = mpi_sub_ui(pone, ctx->p, 1);
+		if (!ret && !mpi_cmp(pone, val))
+			ret = -EBADMSG;
+
+		mpi_free(pone);
+
+		if (ret)
+			goto err_free_base;
+	}
 
 	ret = mpi_write_to_sgl(val, req->dst, req->dst_len, &sign);
 	if (ret)
