@@ -66,6 +66,10 @@
 	status = "okay";
 };
 
+&hdmi {
+	status = "okay";
+};
+
 &pwm0 {
 	status = "okay";
 };
@@ -92,5 +96,21 @@
 };
 
 &uart2 {
+	status = "okay";
+};
+
+&vopb {
+	status = "okay";
+};
+
+&vopb_mmu {
+	status = "okay";
+};
+
+&vopl {
+	status = "okay";
+};
+
+&vopl_mmu {
 	status = "okay";
 };

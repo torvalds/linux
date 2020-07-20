@@ -38,6 +38,12 @@
 	snps,reset-gpio = <&gpio4 RK_PA7 GPIO_ACTIVE_HIGH>;
 };
 
+&hdmi {
+	ddc-i2c-bus = <&i2c5>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&hdmi_cec_c0>;
+};
+
 &i2c0 {
 	clock-frequency = <400000>;
 	status = "okay";
@@ -223,6 +229,10 @@
 			};
 		};
 	};
+};
+
+&i2c5 {
+	status = "okay";
 };
 
 &io_domains {
