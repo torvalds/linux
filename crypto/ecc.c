@@ -1495,11 +1495,16 @@ int crypto_ecdh_shared_secret(unsigned int curve_id, unsigned int ndigits,
 
 	ecc_point_mult(product, pk, priv, rand_z, curve, ndigits);
 
+	if (ecc_point_is_zero(product)) {
+		ret = -EFAULT;
+		goto err_validity;
+	}
+
 	ecc_swap_digits(product->x, secret, ndigits);
 
-	if (ecc_point_is_zero(product))
-		ret = -EFAULT;
-
+err_validity:
+	memzero_explicit(priv, sizeof(priv));
+	memzero_explicit(rand_z, sizeof(rand_z));
 	ecc_free_point(product);
 err_alloc_product:
 	ecc_free_point(pk);
