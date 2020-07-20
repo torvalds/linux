@@ -1428,12 +1428,11 @@ void drm_crtc_vblank_on(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	unsigned int pipe = drm_crtc_index(crtc);
 	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
-	unsigned long irqflags;
 
 	if (drm_WARN_ON(dev, pipe >= dev->num_crtcs))
 		return;
 
-	spin_lock_irqsave(&dev->vbl_lock, irqflags);
+	spin_lock_irq(&dev->vbl_lock);
 	drm_dbg_vbl(dev, "crtc %d, vblank enabled %d, inmodeset %d\n",
 		    pipe, vblank->enabled, vblank->inmodeset);
 
@@ -1451,7 +1450,7 @@ void drm_crtc_vblank_on(struct drm_crtc *crtc)
 	 */
 	if (atomic_read(&vblank->refcount) != 0 || drm_vblank_offdelay == 0)
 		drm_WARN_ON(dev, drm_vblank_enable(dev, pipe));
-	spin_unlock_irqrestore(&dev->vbl_lock, irqflags);
+	spin_unlock_irq(&dev->vbl_lock);
 }
 EXPORT_SYMBOL(drm_crtc_vblank_on);
 
