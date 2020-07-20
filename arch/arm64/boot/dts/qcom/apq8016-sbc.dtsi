@@ -387,7 +387,6 @@
 			adp-disable;
 			hnp-disable;
 			srp-disable;
-			dr_mode = "otg";
 			pinctrl-names = "default", "device";
 			pinctrl-0 = <&usb_sw_sel_pm &usb_hub_reset_pm>;
 			pinctrl-1 = <&usb_sw_sel_pm_device &usb_hub_reset_pm_device>;
@@ -405,15 +404,7 @@
 		};
 
 		mdss@1a00000 {
-			status = "okay";
-
-			mdp@1a01000 {
-				status = "okay";
-			};
-
 			dsi@1a98000 {
-				status = "okay";
-
 				vdda-supply = <&pm8916_l2>;
 				vddio-supply = <&pm8916_l6>;
 
@@ -428,14 +419,8 @@
 			};
 
 			dsi-phy@1a98300 {
-				status = "okay";
-
 				vddio-supply = <&pm8916_l6>;
 			};
-		};
-
-		lpass_codec: codec{
-			status = "okay";
 		};
 
 		/*
@@ -587,8 +572,6 @@
 &camss {
 	status = "okay";
 	ports {
-		#address-cells = <1>;
-		#size-cells = <0>;
 		port@0 {
 			reg = <0>;
 			csiphy0_ep: endpoint {
@@ -651,7 +634,6 @@
 };
 
 &wcd_codec {
-	status = "okay";
 	clocks = <&gcc GCC_CODEC_DIGCODEC_CLK>;
 	clock-names = "mclk";
 	qcom,mbhc-vthreshold-low = <75 150 237 450 500>;
