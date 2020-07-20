@@ -781,7 +781,7 @@
 			status = "disabled";
 		};
 
-		otg: usb@78d9000 {
+		usb: usb@78d9000 {
 			compatible = "qcom,ci-hdrc";
 			reg = <0x78d9000 0x200>,
 			      <0x78d9200 0x200>;
@@ -809,7 +809,7 @@
 					#phy-cells = <0>;
 					clocks = <&xo_board>, <&gcc GCC_USB2A_PHY_SLEEP_CLK>;
 					clock-names = "ref", "sleep";
-					resets = <&gcc GCC_USB2A_PHY_BCR>, <&otg 0>;
+					resets = <&gcc GCC_USB2A_PHY_BCR>, <&usb 0>;
 					reset-names = "phy", "por";
 					qcom,init-seq = /bits/ 8 <0x0 0x44
 						0x1 0x6b 0x2 0x24 0x3 0x13>;
@@ -1151,7 +1151,7 @@
 		};
 
 
-		hexagon@4080000 {
+		mpss: hexagon@4080000 {
 			compatible = "qcom,q6v5-pil";
 			reg = <0x04080000 0x100>,
 			      <0x04020000 0x040>;
@@ -1289,7 +1289,7 @@
 			};
 		};
 
-		tpiu@820000 {
+		tpiu: tpiu@820000 {
 			compatible = "arm,coresight-tpiu", "arm,primecell";
 			reg = <0x820000 0x1000>;
 
@@ -1307,7 +1307,7 @@
 			};
 		};
 
-		funnel@821000 {
+		funnel0: funnel@821000 {
 			compatible = "arm,coresight-dynamic-funnel", "arm,primecell";
 			reg = <0x821000 0x1000>;
 
@@ -1348,7 +1348,7 @@
 			};
 		};
 
-		replicator@824000 {
+		replicator: replicator@824000 {
 			compatible = "arm,coresight-dynamic-replicator", "arm,primecell";
 			reg = <0x824000 0x1000>;
 
@@ -1384,7 +1384,7 @@
 			};
 		};
 
-		etf@825000 {
+		etf: etf@825000 {
 			compatible = "arm,coresight-tmc", "arm,primecell";
 			reg = <0x825000 0x1000>;
 
@@ -1410,7 +1410,7 @@
 			};
 		};
 
-		etr@826000 {
+		etr: etr@826000 {
 			compatible = "arm,coresight-tmc", "arm,primecell";
 			reg = <0x826000 0x1000>;
 
@@ -1428,7 +1428,7 @@
 			};
 		};
 
-		funnel@841000 {	/* APSS funnel only 4 inputs are used */
+		funnel1: funnel@841000 {	/* APSS funnel only 4 inputs are used */
 			compatible = "arm,coresight-dynamic-funnel", "arm,primecell";
 			reg = <0x841000 0x1000>;
 
@@ -1476,7 +1476,7 @@
 			};
 		};
 
-		debug@850000 {
+		debug0: debug@850000 {
 			compatible = "arm,coresight-cpu-debug","arm,primecell";
 			reg = <0x850000 0x1000>;
 			clocks = <&rpmcc RPM_QDSS_CLK>;
@@ -1485,7 +1485,7 @@
 			status = "disabled";
 		};
 
-		debug@852000 {
+		debug1: debug@852000 {
 			compatible = "arm,coresight-cpu-debug","arm,primecell";
 			reg = <0x852000 0x1000>;
 			clocks = <&rpmcc RPM_QDSS_CLK>;
@@ -1494,7 +1494,7 @@
 			status = "disabled";
 		};
 
-		debug@854000 {
+		debug2: debug@854000 {
 			compatible = "arm,coresight-cpu-debug","arm,primecell";
 			reg = <0x854000 0x1000>;
 			clocks = <&rpmcc RPM_QDSS_CLK>;
@@ -1503,7 +1503,7 @@
 			status = "disabled";
 		};
 
-		debug@856000 {
+		debug3: debug@856000 {
 			compatible = "arm,coresight-cpu-debug","arm,primecell";
 			reg = <0x856000 0x1000>;
 			clocks = <&rpmcc RPM_QDSS_CLK>;
@@ -1598,7 +1598,7 @@
 
 		/* System CTIs */
 		/* CTI 0 - TMC connections */
-		cti@810000 {
+		cti0: cti@810000 {
 			compatible = "arm,coresight-cti", "arm,primecell";
 			reg = <0x810000 0x1000>;
 
@@ -1609,7 +1609,7 @@
 		};
 
 		/* CTI 1 - TPIU connections */
-		cti@811000 {
+		cti1: cti@811000 {
 			compatible = "arm,coresight-cti", "arm,primecell";
 			reg = <0x811000 0x1000>;
 
@@ -1623,7 +1623,7 @@
 
 		/* Core CTIs; CTIs 12-15 */
 		/* CTI - CPU-0 */
-		cti@858000 {
+		cti12: cti@858000 {
 			compatible = "arm,coresight-cti-v8-arch", "arm,coresight-cti",
 				     "arm,primecell";
 			reg = <0x858000 0x1000>;
@@ -1638,7 +1638,7 @@
 		};
 
 		/* CTI - CPU-1 */
-		cti@859000 {
+		cti13: cti@859000 {
 			compatible = "arm,coresight-cti-v8-arch", "arm,coresight-cti",
 				     "arm,primecell";
 			reg = <0x859000 0x1000>;
@@ -1653,7 +1653,7 @@
 		};
 
 		/* CTI - CPU-2 */
-		cti@85a000 {
+		cti14: cti@85a000 {
 			compatible = "arm,coresight-cti-v8-arch", "arm,coresight-cti",
 				     "arm,primecell";
 			reg = <0x85a000 0x1000>;
@@ -1668,7 +1668,7 @@
 		};
 
 		/* CTI - CPU-3 */
-		cti@85b000 {
+		cti15: cti@85b000 {
 			compatible = "arm,coresight-cti-v8-arch", "arm,coresight-cti",
 				     "arm,primecell";
 			reg = <0x85b000 0x1000>;
@@ -1821,7 +1821,7 @@
 			qcom,ipc = <&apcs 8 0>;
 			qcom,smd-edge = <15>;
 
-			rpm-requests {
+			rpm_requests: rpm-requests {
 				compatible = "qcom,rpm-msm8916";
 				qcom,smd-channels = "rpm_requests";
 
