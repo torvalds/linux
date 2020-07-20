@@ -30,6 +30,8 @@
 #include <nvif/class.h>
 #include <nvif/cl0002.h>
 
+#include <nvhw/class/cl176e.h>
+
 int
 nv17_fence_sync(struct nouveau_fence *fence,
 		struct nouveau_channel *prev, struct nouveau_channel *chan)
@@ -52,18 +54,18 @@ nv17_fence_sync(struct nouveau_fence *fence,
 
 	ret = PUSH_WAIT(ppush, 5);
 	if (!ret) {
-		PUSH_NVSQ(ppush, NV176E, NV11_SUBCHAN_DMA_SEMAPHORE, fctx->sema.handle,
-					 NV11_SUBCHAN_SEMAPHORE_OFFSET, 0,
-					 NV11_SUBCHAN_SEMAPHORE_ACQUIRE, value + 0,
-					 NV11_SUBCHAN_SEMAPHORE_RELEASE, value + 1);
+		PUSH_MTHD(ppush, NV176E, SET_CONTEXT_DMA_SEMAPHORE, fctx->sema.handle,
+					 SEMAPHORE_OFFSET, 0,
+					 SEMAPHORE_ACQUIRE, value + 0,
+					 SEMAPHORE_RELEASE, value + 1);
 		PUSH_KICK(ppush);
 	}
 
 	if (!ret && !(ret = PUSH_WAIT(npush, 5))) {
-		PUSH_NVSQ(npush, NV176E, NV11_SUBCHAN_DMA_SEMAPHORE, fctx->sema.handle,
-					 NV11_SUBCHAN_SEMAPHORE_OFFSET, 0,
-					 NV11_SUBCHAN_SEMAPHORE_ACQUIRE, value + 1,
-					 NV11_SUBCHAN_SEMAPHORE_RELEASE, value + 2);
+		PUSH_MTHD(npush, NV176E, SET_CONTEXT_DMA_SEMAPHORE, fctx->sema.handle,
+					 SEMAPHORE_OFFSET, 0,
+					 SEMAPHORE_ACQUIRE, value + 1,
+					 SEMAPHORE_RELEASE, value + 2);
 		PUSH_KICK(npush);
 	}
 

@@ -61,13 +61,16 @@ nv84_fence_sync32(struct nouveau_channel *chan, u64 virtual, u32 sequence)
 	struct nvif_push *push = chan->chan.push;
 	int ret = PUSH_WAIT(push, 7);
 	if (ret == 0) {
-		PUSH_NVSQ(push, NV826F, NV11_SUBCHAN_DMA_SEMAPHORE, chan->vram.handle);
-		PUSH_NVSQ(push, NV826F,
-				NV84_SUBCHAN_SEMAPHORE_ADDRESS_HIGH, upper_32_bits(virtual),
-				NV84_SUBCHAN_SEMAPHORE_ADDRESS_LOW, lower_32_bits(virtual),
-				NV84_SUBCHAN_SEMAPHORE_SEQUENCE, sequence,
-				NV84_SUBCHAN_SEMAPHORE_TRIGGER,
-				NV84_SUBCHAN_SEMAPHORE_TRIGGER_ACQUIRE_GEQUAL);
+		PUSH_MTHD(push, NV826F, SET_CONTEXT_DMA_SEMAPHORE, chan->vram.handle);
+
+		PUSH_MTHD(push, NV826F, SEMAPHOREA,
+			  NVVAL(NV826F, SEMAPHOREA, OFFSET_UPPER, upper_32_bits(virtual)),
+
+					SEMAPHOREB, lower_32_bits(virtual),
+					SEMAPHOREC, sequence,
+
+					SEMAPHORED,
+			  NVDEF(NV826F, SEMAPHORED, OPERATION, ACQ_GEQ));
 		PUSH_KICK(push);
 	}
 	return ret;

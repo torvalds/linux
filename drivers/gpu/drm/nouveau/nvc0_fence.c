@@ -60,13 +60,15 @@ nvc0_fence_sync32(struct nouveau_channel *chan, u64 virtual, u32 sequence)
 	struct nvif_push *push = chan->chan.push;
 	int ret = PUSH_WAIT(push, 5);
 	if (ret == 0) {
-		PUSH_NVSQ(push, NV906F,
-				NV84_SUBCHAN_SEMAPHORE_ADDRESS_HIGH, upper_32_bits(virtual),
-				NV84_SUBCHAN_SEMAPHORE_ADDRESS_LOW, lower_32_bits(virtual),
-				NV84_SUBCHAN_SEMAPHORE_SEQUENCE, sequence,
-				NV84_SUBCHAN_SEMAPHORE_TRIGGER,
-				NV84_SUBCHAN_SEMAPHORE_TRIGGER_ACQUIRE_GEQUAL |
-				NVC0_SUBCHAN_SEMAPHORE_TRIGGER_YIELD);
+		PUSH_MTHD(push, NV906F, SEMAPHOREA,
+			  NVVAL(NV906F, SEMAPHOREA, OFFSET_UPPER, upper_32_bits(virtual)),
+
+					SEMAPHOREB, lower_32_bits(virtual),
+					SEMAPHOREC, sequence,
+
+					SEMAPHORED,
+			  NVDEF(NV906F, SEMAPHORED, OPERATION, ACQ_GEQ) |
+			  NVDEF(NV906F, SEMAPHORED, ACQUIRE_SWITCH, ENABLED));
 		PUSH_KICK(push);
 	}
 	return ret;
