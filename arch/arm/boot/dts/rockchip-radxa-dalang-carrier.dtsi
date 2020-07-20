@@ -33,6 +33,24 @@
 		regulator-max-microvolt = <5000000>;
 		vin-supply = <&vcc12v_dcin>;
 	};
+
+	vbus_host: vbus-host {
+		compatible = "regulator-fixed";
+		pinctrl-names = "default";
+		pinctrl-0 = <&usb1_en_oc>;
+		regulator-name = "vbus_host"; /* HOST-5V */
+		regulator-always-on;
+		vin-supply = <&vcc5v0_sys>;
+	};
+
+	vbus_typec: vbus-typec {
+		compatible = "regulator-fixed";
+		pinctrl-names = "default";
+		pinctrl-0 = <&usb0_en_oc>;
+		regulator-name = "vbus_typec";
+		regulator-always-on;
+		vin-supply = <&vcc5v0_sys>;
+	};
 };
 
 &gmac {
