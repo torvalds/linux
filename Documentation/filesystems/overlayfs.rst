@@ -560,8 +560,8 @@ When the NFS export feature is enabled, all directory index entries are
 verified on mount time to check that upper file handles are not stale.
 This verification may cause significant overhead in some cases.
 
-Note: the mount options index=off,nfs_export=on are conflicting and will
-result in an error.
+Note: the mount options index=off,nfs_export=on are conflicting for a
+read-write mount and will result in an error.
 
 
 Testsuite

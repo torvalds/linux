@@ -206,6 +206,14 @@ others should not be larger than the returned value.
 
 ::
 
+	bool
+	dma_need_sync(struct device *dev, dma_addr_t dma_addr);
+
+Returns %true if dma_sync_single_for_{device,cpu} calls are required to
+transfer memory ownership.  Returns %false if those calls can be skipped.
+
+::
+
 	unsigned long
 	dma_get_merge_boundary(struct device *dev);
 

@@ -95,7 +95,7 @@ static struct key *nvdimm_lookup_user_key(struct nvdimm *nvdimm,
 	struct encrypted_key_payload *epayload;
 	struct device *dev = &nvdimm->dev;
 
-	keyref = lookup_user_key(id, 0, 0);
+	keyref = lookup_user_key(id, 0, KEY_NEED_SEARCH);
 	if (IS_ERR(keyref))
 		return NULL;
 

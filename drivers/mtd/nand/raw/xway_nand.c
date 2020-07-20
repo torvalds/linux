@@ -224,7 +224,7 @@ static int xway_nand_remove(struct platform_device *pdev)
 	struct nand_chip *chip = &data->chip;
 	int ret;
 
-	ret = mtd_device_unregister(mtd);
+	ret = mtd_device_unregister(nand_to_mtd(chip));
 	WARN_ON(ret);
 	nand_cleanup(chip);
 

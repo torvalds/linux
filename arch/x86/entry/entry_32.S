@@ -933,9 +933,8 @@ SYM_FUNC_START(entry_SYSENTER_32)
 
 .Lsysenter_past_esp:
 	pushl	$__USER_DS		/* pt_regs->ss */
-	pushl	%ebp			/* pt_regs->sp (stashed in bp) */
+	pushl	$0			/* pt_regs->sp (placeholder) */
 	pushfl				/* pt_regs->flags (except IF = 0) */
-	orl	$X86_EFLAGS_IF, (%esp)	/* Fix IF */
 	pushl	$__USER_CS		/* pt_regs->cs */
 	pushl	$0			/* pt_regs->ip = 0 (placeholder) */
 	pushl	%eax			/* pt_regs->orig_ax */
@@ -965,7 +964,7 @@ SYM_FUNC_START(entry_SYSENTER_32)
 .Lsysenter_flags_fixed:
 
 	movl	%esp, %eax
-	call	do_fast_syscall_32
+	call	do_SYSENTER_32
 	/* XEN PV guests always use IRET path */
 	ALTERNATIVE "testl %eax, %eax; jz .Lsyscall_32_done", \
 		    "jmp .Lsyscall_32_done", X86_FEATURE_XENPV
