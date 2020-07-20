@@ -1857,41 +1857,24 @@ static void pch_uart_pci_remove(struct pci_dev *pdev)
 	kfree(priv);
 	return;
 }
-#ifdef CONFIG_PM
-static int pch_uart_pci_suspend(struct pci_dev *pdev, pm_message_t state)
+
+static int __maybe_unused pch_uart_pci_suspend(struct device *dev)
 {
-	struct eg20t_port *priv = pci_get_drvdata(pdev);
+	struct eg20t_port *priv = dev_get_drvdata(dev);
 
 	uart_suspend_port(&pch_uart_driver, &priv->port);
 
-	pci_save_state(pdev);
-	pci_set_power_state(pdev, pci_choose_state(pdev, state));
 	return 0;
 }
 
-static int pch_uart_pci_resume(struct pci_dev *pdev)
+static int __maybe_unused pch_uart_pci_resume(struct device *dev)
 {
-	struct eg20t_port *priv = pci_get_drvdata(pdev);
-	int ret;
-
-	pci_set_power_state(pdev, PCI_D0);
-	pci_restore_state(pdev);
-
-	ret = pci_enable_device(pdev);
-	if (ret) {
-		dev_err(&pdev->dev,
-		"%s-pci_enable_device failed(ret=%d) ", __func__, ret);
-		return ret;
-	}
+	struct eg20t_port *priv = dev_get_drvdata(dev);
 
 	uart_resume_port(&pch_uart_driver, &priv->port);
 
 	return 0;
 }
-#else
-#define pch_uart_pci_suspend NULL
-#define pch_uart_pci_resume NULL
-#endif
 
 static const struct pci_device_id pch_uart_pci_id[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x8811),
@@ -1945,13 +1928,16 @@ probe_error:
 	return ret;
 }
 
+static SIMPLE_DEV_PM_OPS(pch_uart_pci_pm_ops,
+			 pch_uart_pci_suspend,
+			 pch_uart_pci_resume);
+
 static struct pci_driver pch_uart_pci_driver = {
 	.name = "pch_uart",
 	.id_table = pch_uart_pci_id,
 	.probe = pch_uart_pci_probe,
 	.remove = pch_uart_pci_remove,
-	.suspend = pch_uart_pci_suspend,
-	.resume = pch_uart_pci_resume,
+	.driver.pm = &pch_uart_pci_pm_ops,
 };
 
 static int __init pch_uart_module_init(void)
