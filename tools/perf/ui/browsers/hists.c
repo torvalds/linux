@@ -2288,6 +2288,11 @@ static struct thread *hist_browser__selected_thread(struct hist_browser *browser
 	return browser->he_selection->thread;
 }
 
+static struct res_sample *hist_browser__selected_res_sample(struct hist_browser *browser)
+{
+	return browser->he_selection ? browser->he_selection->res_samples : NULL;
+}
+
 /* Check whether the browser is for 'top' or 'report' */
 static inline bool is_report_browser(void *timer)
 {
@@ -3357,16 +3362,16 @@ skip_annotation:
 					     &options[nr_options], NULL, NULL, evsel);
 		nr_options += add_res_sample_opt(browser, &actions[nr_options],
 						 &options[nr_options],
-				 hist_browser__selected_entry(browser)->res_samples,
-				 evsel, A_NORMAL);
+						 hist_browser__selected_res_sample(browser),
+						 evsel, A_NORMAL);
 		nr_options += add_res_sample_opt(browser, &actions[nr_options],
 						 &options[nr_options],
-				 hist_browser__selected_entry(browser)->res_samples,
-				 evsel, A_ASM);
+						 hist_browser__selected_res_sample(browser),
+						 evsel, A_ASM);
 		nr_options += add_res_sample_opt(browser, &actions[nr_options],
 						 &options[nr_options],
-				 hist_browser__selected_entry(browser)->res_samples,
-				 evsel, A_SOURCE);
+						 hist_browser__selected_res_sample(browser),
+						 evsel, A_SOURCE);
 		nr_options += add_switch_opt(browser, &actions[nr_options],
 					     &options[nr_options]);
 skip_scripting:
@@ -3598,6 +3603,23 @@ static int __perf_evlist__tui_browse_hists(struct evlist *evlist,
 				    hbt, warn_lost_event);
 }
 
+static bool perf_evlist__single_entry(struct evlist *evlist)
+{
+	int nr_entries = evlist->core.nr_entries;
+
+	if (nr_entries == 1)
+	       return true;
+
+	if (nr_entries == 2) {
+		struct evsel *last = evlist__last(evlist);
+
+		if (evsel__is_dummy_event(last))
+			return true;
+	}
+
+	return false;
+}
+
 int perf_evlist__tui_browse_hists(struct evlist *evlist, const char *help,
 				  struct hist_browser_timer *hbt,
 				  float min_pcnt,
@@ -3608,7 +3630,7 @@ int perf_evlist__tui_browse_hists(struct evlist *evlist, const char *help,
 	int nr_entries = evlist->core.nr_entries;
 
 single_entry:
-	if (nr_entries == 1) {
+	if (perf_evlist__single_entry(evlist)) {
 		struct evsel *first = evlist__first(evlist);
 
 		return perf_evsel__hists_browse(first, nr_entries, help,

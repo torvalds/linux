@@ -814,6 +814,8 @@ err_aeqs_init:
 err_init_msix:
 err_pfhwdev_alloc:
 	hinic_free_hwif(hwif);
+	if (err > 0)
+		err = -EIO;
 	return ERR_PTR(err);
 }
 

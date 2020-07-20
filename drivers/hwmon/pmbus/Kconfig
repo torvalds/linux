@@ -71,7 +71,7 @@ config SENSORS_IR35221
 	  Infineon IR35221 controller.
 
 	  This driver can also be built as a module. If so, the module will
-	  be called ir35521.
+	  be called ir35221.
 
 config SENSORS_IR38064
 	tristate "Infineon IR38064"

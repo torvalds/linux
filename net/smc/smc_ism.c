@@ -7,6 +7,7 @@
  */
 
 #include <linux/spinlock.h>
+#include <linux/mutex.h>
 #include <linux/slab.h>
 #include <asm/page.h>
 
@@ -17,7 +18,7 @@
 
 struct smcd_dev_list smcd_dev_list = {
 	.list = LIST_HEAD_INIT(smcd_dev_list.list),
-	.lock = __SPIN_LOCK_UNLOCKED(smcd_dev_list.lock)
+	.mutex = __MUTEX_INITIALIZER(smcd_dev_list.mutex)
 };
 
 /* Test if an ISM communication is possible. */
@@ -317,9 +318,9 @@ EXPORT_SYMBOL_GPL(smcd_alloc_dev);
 
 int smcd_register_dev(struct smcd_dev *smcd)
 {
-	spin_lock(&smcd_dev_list.lock);
+	mutex_lock(&smcd_dev_list.mutex);
 	list_add_tail(&smcd->list, &smcd_dev_list.list);
-	spin_unlock(&smcd_dev_list.lock);
+	mutex_unlock(&smcd_dev_list.mutex);
 
 	pr_warn_ratelimited("smc: adding smcd device %s with pnetid %.16s%s\n",
 			    dev_name(&smcd->dev), smcd->pnetid,
@@ -333,9 +334,9 @@ void smcd_unregister_dev(struct smcd_dev *smcd)
 {
 	pr_warn_ratelimited("smc: removing smcd device %s\n",
 			    dev_name(&smcd->dev));
-	spin_lock(&smcd_dev_list.lock);
+	mutex_lock(&smcd_dev_list.mutex);
 	list_del_init(&smcd->list);
-	spin_unlock(&smcd_dev_list.lock);
+	mutex_unlock(&smcd_dev_list.mutex);
 	smcd->going_away = 1;
 	smc_smcd_terminate_all(smcd);
 	flush_workqueue(smcd->event_wq);

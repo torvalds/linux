@@ -531,8 +531,7 @@ static int freeze_go_sync(struct gfs2_glock *gl)
 	int error = 0;
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 
-	if (gl->gl_state == LM_ST_SHARED && !gfs2_withdrawn(sdp) &&
-	    test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags)) {
+	if (gl->gl_req == LM_ST_EXCLUSIVE && !gfs2_withdrawn(sdp)) {
 		atomic_set(&sdp->sd_freeze_state, SFS_STARTING_FREEZE);
 		error = freeze_super(sdp->sd_vfs);
 		if (error) {
@@ -545,8 +544,11 @@ static int freeze_go_sync(struct gfs2_glock *gl)
 			gfs2_assert_withdraw(sdp, 0);
 		}
 		queue_work(gfs2_freeze_wq, &sdp->sd_freeze_work);
-		gfs2_log_flush(sdp, NULL, GFS2_LOG_HEAD_FLUSH_FREEZE |
-			       GFS2_LFC_FREEZE_GO_SYNC);
+		if (test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags))
+			gfs2_log_flush(sdp, NULL, GFS2_LOG_HEAD_FLUSH_FREEZE |
+				       GFS2_LFC_FREEZE_GO_SYNC);
+		else /* read-only mounts */
+			atomic_set(&sdp->sd_freeze_state, SFS_FROZEN);
 	}
 	return 0;
 }

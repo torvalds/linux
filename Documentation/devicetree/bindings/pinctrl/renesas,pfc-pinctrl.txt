@@ -114,7 +114,7 @@ with values derived from the SoC user manual.
    [flags]>
 
 On other mach-shmobile platforms GPIO is handled by the gpio-rcar driver.
-Please refer to Documentation/devicetree/bindings/gpio/renesas,gpio-rcar.txt
+Please refer to Documentation/devicetree/bindings/gpio/renesas,rcar-gpio.yaml
 for documentation of the GPIO device tree bindings on those platforms.
 
 

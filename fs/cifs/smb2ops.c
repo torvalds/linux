@@ -2148,7 +2148,7 @@ smb3_notify(const unsigned int xid, struct file *pfile,
 
 	tcon = cifs_sb_master_tcon(cifs_sb);
 	oparms.tcon = tcon;
-	oparms.desired_access = FILE_READ_ATTRIBUTES;
+	oparms.desired_access = FILE_READ_ATTRIBUTES | FILE_READ_DATA;
 	oparms.disposition = FILE_OPEN;
 	oparms.create_options = cifs_create_options(cifs_sb, 0);
 	oparms.fid = &fid;

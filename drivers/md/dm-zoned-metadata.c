@@ -2217,8 +2217,15 @@ struct dm_zone *dmz_alloc_zone(struct dmz_metadata *zmd, unsigned int dev_idx,
 {
 	struct list_head *list;
 	struct dm_zone *zone;
-	int i = 0;
+	int i;
 
+	/* Schedule reclaim to ensure free zones are available */
+	if (!(flags & DMZ_ALLOC_RECLAIM)) {
+		for (i = 0; i < zmd->nr_devs; i++)
+			dmz_schedule_reclaim(zmd->dev[i].reclaim);
+	}
+
+	i = 0;
 again:
 	if (flags & DMZ_ALLOC_CACHE)
 		list = &zmd->unmap_cache_list;
