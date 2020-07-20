@@ -430,12 +430,22 @@ int amdgpu_ttm_copy_mem_to_mem(struct amdgpu_device *adev,
 	}
 
 	src_offset = src->offset;
-	src_mm = amdgpu_find_mm_node(src->mem, &src_offset);
-	src_node_size = (src_mm->size << PAGE_SHIFT) - src_offset;
+	if (src->mem->mm_node) {
+		src_mm = amdgpu_find_mm_node(src->mem, &src_offset);
+		src_node_size = (src_mm->size << PAGE_SHIFT) - src_offset;
+	} else {
+		src_mm = NULL;
+		src_node_size = ULLONG_MAX;
+	}
 
 	dst_offset = dst->offset;
-	dst_mm = amdgpu_find_mm_node(dst->mem, &dst_offset);
-	dst_node_size = (dst_mm->size << PAGE_SHIFT) - dst_offset;
+	if (dst->mem->mm_node) {
+		dst_mm = amdgpu_find_mm_node(dst->mem, &dst_offset);
+		dst_node_size = (dst_mm->size << PAGE_SHIFT) - dst_offset;
+	} else {
+		dst_mm = NULL;
+		dst_node_size = ULLONG_MAX;
+	}
 
 	mutex_lock(&adev->mman.gtt_window_lock);
 
@@ -1044,7 +1054,6 @@ static int amdgpu_ttm_tt_pin_userptr(struct ttm_tt *ttm)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(ttm->bdev);
 	struct amdgpu_ttm_tt *gtt = (void *)ttm;
-	unsigned nents;
 	int r;
 
 	int write = !(gtt->userflags & AMDGPU_GEM_USERPTR_READONLY);
@@ -1059,9 +1068,8 @@ static int amdgpu_ttm_tt_pin_userptr(struct ttm_tt *ttm)
 		goto release_sg;
 
 	/* Map SG to device */
-	r = -ENOMEM;
-	nents = dma_map_sg(adev->dev, ttm->sg->sgl, ttm->sg->nents, direction);
-	if (nents == 0)
+	r = dma_map_sgtable(adev->dev, ttm->sg, direction, 0);
+	if (r)
 		goto release_sg;
 
 	/* convert SG to linear array of pages and dma addresses */
@@ -1092,8 +1100,7 @@ static void amdgpu_ttm_tt_unpin_userptr(struct ttm_tt *ttm)
 		return;
 
 	/* unmap the pages mapped to the device */
-	dma_unmap_sg(adev->dev, ttm->sg->sgl, ttm->sg->nents, direction);
-
+	dma_unmap_sgtable(adev->dev, ttm->sg, direction, 0);
 	sg_free_table(ttm->sg);
 
 #if IS_ENABLED(CONFIG_DRM_AMDGPU_USERPTR)

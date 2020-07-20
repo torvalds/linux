@@ -283,24 +283,30 @@ intel_encoder_hotplug(struct intel_encoder *encoder,
 {
 	struct drm_device *dev = connector->base.dev;
 	enum drm_connector_status old_status;
+	u64 old_epoch_counter;
+	bool ret = false;
 
 	drm_WARN_ON(dev, !mutex_is_locked(&dev->mode_config.mutex));
 	old_status = connector->base.status;
+	old_epoch_counter = connector->base.epoch_counter;
 
 	connector->base.status =
 		drm_helper_probe_detect(&connector->base, NULL, false);
 
-	if (old_status == connector->base.status)
-		return INTEL_HOTPLUG_UNCHANGED;
+	if (old_epoch_counter != connector->base.epoch_counter)
+		ret = true;
 
-	drm_dbg_kms(&to_i915(dev)->drm,
-		    "[CONNECTOR:%d:%s] status updated from %s to %s\n",
-		    connector->base.base.id,
-		    connector->base.name,
-		    drm_get_connector_status_name(old_status),
-		    drm_get_connector_status_name(connector->base.status));
-
-	return INTEL_HOTPLUG_CHANGED;
+	if (ret) {
+		DRM_DEBUG_KMS("[CONNECTOR:%d:%s] status updated from %s to %s (epoch counter %llu->%llu)\n",
+			      connector->base.base.id,
+			      connector->base.name,
+			      drm_get_connector_status_name(old_status),
+			      drm_get_connector_status_name(connector->base.status),
+			      old_epoch_counter,
+			      connector->base.epoch_counter);
+		return INTEL_HOTPLUG_CHANGED;
+	}
+	return INTEL_HOTPLUG_UNCHANGED;
 }
 
 static bool intel_encoder_has_hpd_pulse(struct intel_encoder *encoder)

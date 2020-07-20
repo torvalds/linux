@@ -50,6 +50,9 @@ int ttm_tt_create(struct ttm_buffer_object *bo, bool zero_alloc)
 
 	dma_resv_assert_held(bo->base.resv);
 
+	if (bo->ttm)
+		return 0;
+
 	if (bdev->need_dma32)
 		page_flags |= TTM_PAGE_FLAG_DMA32;
 
@@ -67,7 +70,6 @@ int ttm_tt_create(struct ttm_buffer_object *bo, bool zero_alloc)
 		page_flags |= TTM_PAGE_FLAG_SG;
 		break;
 	default:
-		bo->ttm = NULL;
 		pr_err("Illegal buffer object type\n");
 		return -EINVAL;
 	}

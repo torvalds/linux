@@ -177,7 +177,6 @@ struct ttm_mem_type_manager {
 	bool has_type;
 	bool use_type;
 	uint32_t flags;
-	uint64_t gpu_offset; /* GPU address space is independent of CPU word size */
 	uint64_t size;
 	uint32_t available_caching;
 	uint32_t default_caching;
@@ -565,8 +564,6 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 		     struct ttm_operation_ctx *ctx);
 
 void ttm_bo_mem_put(struct ttm_buffer_object *bo, struct ttm_mem_reg *mem);
-void ttm_bo_mem_put_locked(struct ttm_buffer_object *bo,
-			   struct ttm_mem_reg *mem);
 
 int ttm_bo_device_release(struct ttm_bo_device *bdev);
 

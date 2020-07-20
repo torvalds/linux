@@ -52,9 +52,9 @@ static inline struct kd35t133 *panel_to_kd35t133(struct drm_panel *panel)
 }
 
 #define dsi_dcs_write_seq(dsi, cmd, seq...) do {			\
-		static const u8 d[] = { seq };				\
+		static const u8 b[] = { cmd, seq };			\
 		int ret;						\
-		ret = mipi_dsi_dcs_write(dsi, cmd, d, ARRAY_SIZE(d));	\
+		ret = mipi_dsi_dcs_write_buffer(dsi, b, ARRAY_SIZE(b));	\
 		if (ret < 0)						\
 			return ret;					\
 	} while (0)

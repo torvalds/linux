@@ -712,7 +712,7 @@ static int mga_g200er_set_plls(struct mga_device *mdev, long clock)
 	return 0;
 }
 
-static int mga_crtc_set_plls(struct mga_device *mdev, long clock)
+static int mgag200_crtc_set_plls(struct mga_device *mdev, long clock)
 {
 	u8 misc;
 
@@ -745,9 +745,8 @@ static int mga_crtc_set_plls(struct mga_device *mdev, long clock)
 	return 0;
 }
 
-static void mga_g200wb_prepare(struct drm_crtc *crtc)
+static void mgag200_g200wb_hold_bmc(struct mga_device *mdev)
 {
-	struct mga_device *mdev = to_mga_device(crtc->dev);
 	u8 tmp;
 	int iter_max;
 
@@ -799,10 +798,9 @@ static void mga_g200wb_prepare(struct drm_crtc *crtc)
 	}
 }
 
-static void mga_g200wb_commit(struct drm_crtc *crtc)
+static void mgag200_g200wb_release_bmc(struct mga_device *mdev)
 {
 	u8 tmp;
-	struct mga_device *mdev = to_mga_device(crtc->dev);
 
 	/* 1- The first step is to ensure that the vrsten and hrsten are set */
 	WREG8(MGAREG_CRTCEXT_INDEX, 1);
@@ -988,7 +986,7 @@ static void mgag200_set_dac_regs(struct mga_device *mdev)
 
 static void mgag200_init_regs(struct mga_device *mdev)
 {
-	u8 crtcext3, crtcext4, misc;
+	u8 crtc11, crtcext3, crtcext4, misc;
 
 	mgag200_set_pci_regs(mdev);
 	mgag200_set_dac_regs(mdev);
@@ -1011,6 +1009,12 @@ static void mgag200_init_regs(struct mga_device *mdev)
 
 	WREG_ECRT(0x03, crtcext3);
 	WREG_ECRT(0x04, crtcext4);
+
+	RREG_CRT(0x11, crtc11);
+	crtc11 &= ~(MGAREG_CRTC11_CRTCPROTECT |
+		    MGAREG_CRTC11_VINTEN |
+		    MGAREG_CRTC11_VINTCLR);
+	WREG_CRT(0x11, crtc11);
 
 	if (mdev->type == G200_ER)
 		WREG_ECRT(0x24, 0x5);
@@ -1104,8 +1108,6 @@ static void mgag200_set_mode_regs(struct mga_device *mdev,
 	WREG_ECRT(0x05, crtcext5);
 
 	WREG8(MGA_MISC_OUT, misc);
-
-	mga_crtc_set_plls(mdev, mode->clock);
 }
 
 static u8 mgag200_get_bpp_shift(struct mga_device *mdev,
@@ -1215,13 +1217,7 @@ static void mgag200_set_format_regs(struct mga_device *mdev,
 static void mgag200_g200er_reset_tagfifo(struct mga_device *mdev)
 {
 	static uint32_t RESET_FLAG = 0x00200000; /* undocumented magic value */
-	u8 seq1;
 	u32 memctl;
-
-	/* screen off */
-	RREG_SEQ(0x01, seq1);
-	seq1 |= MGAREG_SEQ1_SCROFF;
-	WREG_SEQ(0x01, seq1);
 
 	memctl = RREG32(MGAREG_MEMCTL);
 
@@ -1232,11 +1228,6 @@ static void mgag200_g200er_reset_tagfifo(struct mga_device *mdev)
 
 	memctl &= ~RESET_FLAG;
 	WREG32(MGAREG_MEMCTL, memctl);
-
-	/* screen on */
-	RREG_SEQ(0x01, seq1);
-	seq1 &= ~MGAREG_SEQ1_SCROFF;
-	WREG_SEQ(0x01, seq1);
 }
 
 static void mgag200_g200se_set_hiprilvl(struct mga_device *mdev,
@@ -1289,107 +1280,59 @@ static void mgag200_g200ev_set_hiprilvl(struct mga_device *mdev)
 	WREG_ECRT(0x06, 0x00);
 }
 
-static void mga_crtc_dpms(struct drm_crtc *crtc, int mode)
+static void mgag200_enable_display(struct mga_device *mdev)
 {
-	struct drm_device *dev = crtc->dev;
-	struct mga_device *mdev = to_mga_device(dev);
-	u8 seq1 = 0, crtcext1 = 0;
+	u8 seq0, seq1, crtcext1;
 
-	switch (mode) {
-	case DRM_MODE_DPMS_ON:
-		seq1 = 0;
-		crtcext1 = 0;
-		mga_crtc_load_lut(crtc);
-		break;
-	case DRM_MODE_DPMS_STANDBY:
-		seq1 = 0x20;
-		crtcext1 = 0x10;
-		break;
-	case DRM_MODE_DPMS_SUSPEND:
-		seq1 = 0x20;
-		crtcext1 = 0x20;
-		break;
-	case DRM_MODE_DPMS_OFF:
-		seq1 = 0x20;
-		crtcext1 = 0x30;
-		break;
-	}
+	RREG_SEQ(0x00, seq0);
+	seq0 |= MGAREG_SEQ0_SYNCRST |
+		MGAREG_SEQ0_ASYNCRST;
+	WREG_SEQ(0x00, seq0);
 
-	WREG8(MGAREG_SEQ_INDEX, 0x01);
-	seq1 |= RREG8(MGAREG_SEQ_DATA) & ~0x20;
+	/*
+	 * TODO: replace busy waiting with vblank IRQ; put
+	 *       msleep(50) before changing SCROFF
+	 */
 	mga_wait_vsync(mdev);
 	mga_wait_busy(mdev);
-	WREG8(MGAREG_SEQ_DATA, seq1);
+
+	RREG_SEQ(0x01, seq1);
+	seq1 &= ~MGAREG_SEQ1_SCROFF;
+	WREG_SEQ(0x01, seq1);
+
 	msleep(20);
-	WREG8(MGAREG_CRTCEXT_INDEX, 0x01);
-	crtcext1 |= RREG8(MGAREG_CRTCEXT_DATA) & ~0x30;
-	WREG8(MGAREG_CRTCEXT_DATA, crtcext1);
+
+	RREG_ECRT(0x01, crtcext1);
+	crtcext1 &= ~MGAREG_CRTCEXT1_VSYNCOFF;
+	crtcext1 &= ~MGAREG_CRTCEXT1_HSYNCOFF;
+	WREG_ECRT(0x01, crtcext1);
 }
 
-/*
- * This is called before a mode is programmed. A typical use might be to
- * enable DPMS during the programming to avoid seeing intermediate stages,
- * but that's not relevant to us
- */
-static void mga_crtc_prepare(struct drm_crtc *crtc)
+static void mgag200_disable_display(struct mga_device *mdev)
 {
-	struct drm_device *dev = crtc->dev;
-	struct mga_device *mdev = to_mga_device(dev);
-	u8 tmp;
+	u8 seq0, seq1, crtcext1;
 
-	/*	mga_resume(crtc);*/
+	RREG_SEQ(0x00, seq0);
+	seq0 &= ~MGAREG_SEQ0_SYNCRST;
+	WREG_SEQ(0x00, seq0);
 
-	WREG8(MGAREG_CRTC_INDEX, 0x11);
-	tmp = RREG8(MGAREG_CRTC_DATA);
-	WREG_CRT(0x11, tmp | 0x80);
+	/*
+	 * TODO: replace busy waiting with vblank IRQ; put
+	 *       msleep(50) before changing SCROFF
+	 */
+	mga_wait_vsync(mdev);
+	mga_wait_busy(mdev);
 
-	if (mdev->type == G200_SE_A || mdev->type == G200_SE_B) {
-		WREG_SEQ(0, 1);
-		msleep(50);
-		WREG_SEQ(1, 0x20);
-		msleep(20);
-	} else {
-		WREG8(MGAREG_SEQ_INDEX, 0x1);
-		tmp = RREG8(MGAREG_SEQ_DATA);
+	RREG_SEQ(0x01, seq1);
+	seq1 |= MGAREG_SEQ1_SCROFF;
+	WREG_SEQ(0x01, seq1);
 
-		/* start sync reset */
-		WREG_SEQ(0, 1);
-		WREG_SEQ(1, tmp | 0x20);
-	}
+	msleep(20);
 
-	if (mdev->type == G200_WB || mdev->type == G200_EW3)
-		mga_g200wb_prepare(crtc);
-
-	WREG_CRT(17, 0);
-}
-
-/*
- * This is called after a mode is programmed. It should reverse anything done
- * by the prepare function
- */
-static void mga_crtc_commit(struct drm_crtc *crtc)
-{
-	struct drm_device *dev = crtc->dev;
-	struct mga_device *mdev = to_mga_device(dev);
-	u8 tmp;
-
-	if (mdev->type == G200_WB || mdev->type == G200_EW3)
-		mga_g200wb_commit(crtc);
-
-	if (mdev->type == G200_SE_A || mdev->type == G200_SE_B) {
-		msleep(50);
-		WREG_SEQ(1, 0x0);
-		msleep(20);
-		WREG_SEQ(0, 0x3);
-	} else {
-		WREG8(MGAREG_SEQ_INDEX, 0x1);
-		tmp = RREG8(MGAREG_SEQ_DATA);
-
-		tmp &= ~0x20;
-		WREG_SEQ(0x1, tmp);
-		WREG_SEQ(0, 3);
-	}
-	mga_crtc_dpms(crtc, DRM_MODE_DPMS_ON);
+	RREG_ECRT(0x01, crtcext1);
+	crtcext1 |= MGAREG_CRTCEXT1_VSYNCOFF |
+		    MGAREG_CRTCEXT1_HSYNCOFF;
+	WREG_ECRT(0x01, crtcext1);
 }
 
 /*
@@ -1612,10 +1555,12 @@ mgag200_simple_display_pipe_enable(struct drm_simple_display_pipe *pipe,
 		.y2 = fb->height,
 	};
 
-	mga_crtc_prepare(crtc);
+	if (mdev->type == G200_WB || mdev->type == G200_EW3)
+		mgag200_g200wb_hold_bmc(mdev);
 
 	mgag200_set_format_regs(mdev, fb);
 	mgag200_set_mode_regs(mdev, adjusted_mode);
+	mgag200_crtc_set_plls(mdev, adjusted_mode->clock);
 
 	if (mdev->type == G200_ER)
 		mgag200_g200er_reset_tagfifo(mdev);
@@ -1625,7 +1570,11 @@ mgag200_simple_display_pipe_enable(struct drm_simple_display_pipe *pipe,
 	else if (mdev->type == G200_EV)
 		mgag200_g200ev_set_hiprilvl(mdev);
 
-	mga_crtc_commit(crtc);
+	if (mdev->type == G200_WB || mdev->type == G200_EW3)
+		mgag200_g200wb_release_bmc(mdev);
+
+	mga_crtc_load_lut(crtc);
+	mgag200_enable_display(mdev);
 
 	mgag200_handle_damage(mdev, fb, &fullscreen);
 }
@@ -1634,8 +1583,9 @@ static void
 mgag200_simple_display_pipe_disable(struct drm_simple_display_pipe *pipe)
 {
 	struct drm_crtc *crtc = &pipe->crtc;
+	struct mga_device *mdev = to_mga_device(crtc->dev);
 
-	mga_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
+	mgag200_disable_display(mdev);
 }
 
 static int

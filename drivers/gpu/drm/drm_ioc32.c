@@ -388,6 +388,7 @@ static int drm_legacy_infobufs32(struct drm_device *dev, void *data,
 			struct drm_file *file_priv)
 {
 	drm_buf_info32_t *request = data;
+
 	return __drm_legacy_infobufs(dev, data, &request->count, copy_one_buf32);
 }
 
@@ -813,6 +814,7 @@ static int compat_drm_update_draw(struct file *file, unsigned int cmd,
 				  unsigned long arg)
 {
 	drm_update_draw32_t update32;
+
 	if (copy_from_user(&update32, (void __user *)arg, sizeof(update32)))
 		return -EFAULT;
 

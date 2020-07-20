@@ -1448,11 +1448,6 @@ S:	Odd Fixes
 F:	drivers/amba/
 F:	include/linux/amba/bus.h
 
-ARM PRIMECELL CLCD PL110 DRIVER
-M:	Russell King <linux@armlinux.org.uk>
-S:	Odd Fixes
-F:	drivers/video/fbdev/amba-clcd.*
-
 ARM PRIMECELL KMI PL050 DRIVER
 M:	Russell King <linux@armlinux.org.uk>
 S:	Odd Fixes
@@ -5094,6 +5089,7 @@ F:	fs/dlm/
 
 DMA BUFFER SHARING FRAMEWORK
 M:	Sumit Semwal <sumit.semwal@linaro.org>
+M:	Christian König <christian.koenig@amd.com>
 L:	linux-media@vger.kernel.org
 L:	dri-devel@lists.freedesktop.org
 L:	linaro-mm-sig@lists.linaro.org (moderated for non-subscribers)

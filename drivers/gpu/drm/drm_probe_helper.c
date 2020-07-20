@@ -292,6 +292,9 @@ retry:
 	if (WARN_ON(ret < 0))
 		ret = connector_status_unknown;
 
+	if (ret != connector->status)
+		connector->epoch_counter += 1;
+
 	drm_modeset_drop_locks(&ctx);
 	drm_modeset_acquire_fini(&ctx);
 
@@ -325,11 +328,16 @@ drm_helper_probe_detect(struct drm_connector *connector,
 		return ret;
 
 	if (funcs->detect_ctx)
-		return funcs->detect_ctx(connector, ctx, force);
+		ret = funcs->detect_ctx(connector, ctx, force);
 	else if (connector->funcs->detect)
-		return connector->funcs->detect(connector, force);
+		ret = connector->funcs->detect(connector, force);
 	else
-		return connector_status_connected;
+		ret = connector_status_connected;
+
+	if (ret != connector->status)
+		connector->epoch_counter += 1;
+
+	return ret;
 }
 EXPORT_SYMBOL(drm_helper_probe_detect);
 
@@ -779,6 +787,7 @@ bool drm_helper_hpd_irq_event(struct drm_device *dev)
 	struct drm_connector_list_iter conn_iter;
 	enum drm_connector_status old_status;
 	bool changed = false;
+	u64 old_epoch_counter;
 
 	if (!dev->mode_config.poll_enabled)
 		return false;
@@ -792,20 +801,39 @@ bool drm_helper_hpd_irq_event(struct drm_device *dev)
 
 		old_status = connector->status;
 
+		old_epoch_counter = connector->epoch_counter;
+
+		DRM_DEBUG_KMS("[CONNECTOR:%d:%s] Old epoch counter %llu\n", connector->base.id,
+			      connector->name,
+			      old_epoch_counter);
+
 		connector->status = drm_helper_probe_detect(connector, NULL, false);
 		DRM_DEBUG_KMS("[CONNECTOR:%d:%s] status updated from %s to %s\n",
 			      connector->base.id,
 			      connector->name,
 			      drm_get_connector_status_name(old_status),
 			      drm_get_connector_status_name(connector->status));
-		if (old_status != connector->status)
+
+		DRM_DEBUG_KMS("[CONNECTOR:%d:%s] New epoch counter %llu\n",
+			      connector->base.id,
+			      connector->name,
+			      connector->epoch_counter);
+
+		/*
+		 * Check if epoch counter had changed, meaning that we need
+		 * to send a uevent.
+		 */
+		if (old_epoch_counter != connector->epoch_counter)
 			changed = true;
+
 	}
 	drm_connector_list_iter_end(&conn_iter);
 	mutex_unlock(&dev->mode_config.mutex);
 
-	if (changed)
+	if (changed) {
 		drm_kms_helper_hotplug_event(dev);
+		DRM_DEBUG_KMS("Sent hotplug event\n");
+	}
 
 	return changed;
 }

@@ -166,8 +166,10 @@ uint32_t drm_lease_filter_crtcs(struct drm_file *file_priv, uint32_t crtcs_in)
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		if (_drm_lease_held_master(master, crtc->base.id)) {
 			uint32_t mask_in = 1ul << count_in;
+
 			if ((crtcs_in & mask_in) != 0) {
 				uint32_t mask_out = 1ul << count_out;
+
 				crtcs_out |= mask_out;
 			}
 			count_out++;
@@ -423,6 +425,7 @@ static int fill_object_idr(struct drm_device *dev,
 	for (o = 0; o < object_count; o++) {
 		struct drm_mode_object *obj = objects[o];
 		u32 object_id = objects[o]->id;
+
 		DRM_DEBUG_LEASE("Adding object %d to lease\n", object_id);
 
 		/*
@@ -441,6 +444,7 @@ static int fill_object_idr(struct drm_device *dev,
 		}
 		if (obj->type == DRM_MODE_OBJECT_CRTC && !universal_planes) {
 			struct drm_crtc *crtc = obj_to_crtc(obj);
+
 			ret = idr_alloc(leases, &drm_lease_idr_object, crtc->primary->base.id, crtc->primary->base.id + 1, GFP_KERNEL);
 			if (ret < 0) {
 				DRM_DEBUG_LEASE("Object primary plane %d cannot be inserted into leases (%d)\n",

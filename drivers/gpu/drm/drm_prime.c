@@ -1014,6 +1014,7 @@ void drm_prime_gem_destroy(struct drm_gem_object *obj, struct sg_table *sg)
 {
 	struct dma_buf_attachment *attach;
 	struct dma_buf *dma_buf;
+
 	attach = obj->import_attach;
 	if (sg)
 		dma_buf_unmap_attachment(attach, sg, DMA_BIDIRECTIONAL);

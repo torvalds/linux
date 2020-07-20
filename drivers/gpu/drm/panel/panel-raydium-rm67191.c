@@ -192,7 +192,7 @@ static const u32 rad_bus_formats[] = {
 };
 
 static const u32 rad_bus_flags = DRM_BUS_FLAG_DE_LOW |
-				 DRM_BUS_FLAG_PIXDATA_NEGEDGE;
+				 DRM_BUS_FLAG_PIXDATA_SAMPLE_POSEDGE;
 
 struct rad_panel {
 	struct drm_panel panel;

@@ -1623,6 +1623,7 @@ static int drm_queue_vblank_event(struct drm_device *dev, unsigned int pipe,
 	e->event.vbl.crtc_id = 0;
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		struct drm_crtc *crtc = drm_crtc_from_index(dev, pipe);
+
 		if (crtc)
 			e->event.vbl.crtc_id = crtc->base.id;
 	}

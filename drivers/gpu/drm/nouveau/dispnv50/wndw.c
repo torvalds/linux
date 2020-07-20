@@ -526,7 +526,7 @@ nv50_wndw_prepare_fb(struct drm_plane *plane, struct drm_plane_state *state)
 	}
 
 	asyw->state.fence = dma_resv_get_excl_rcu(nvbo->bo.base.resv);
-	asyw->image.offset[0] = nvbo->bo.offset;
+	asyw->image.offset[0] = nvbo->offset;
 
 	if (wndw->func->prepare) {
 		asyh = nv50_head_atom_get(asyw->state.state, asyw->state.crtc);

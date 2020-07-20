@@ -45,16 +45,6 @@ examples:
   - |
     #include <dt-bindings/clock/bcm2835.h>
 
-    panel: panel {
-        compatible = "ontat,yx700wv03", "simple-panel";
-
-        port {
-            panel_in: endpoint {
-                remote-endpoint = <&dpi_out>;
-            };
-        };
-    };
-
     dpi: dpi@7e208000 {
         compatible = "brcm,bcm2835-dpi";
         reg = <0x7e208000 0x8c>;

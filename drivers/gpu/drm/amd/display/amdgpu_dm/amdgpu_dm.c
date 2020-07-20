@@ -4614,9 +4614,7 @@ static void dm_crtc_reset_state(struct drm_crtc *crtc)
 	if (WARN_ON(!state))
 		return;
 
-	crtc->state = &state->base;
-	crtc->state->crtc = crtc;
-
+	__drm_atomic_helper_crtc_reset(crtc, &state->base);
 }
 
 static struct drm_crtc_state *

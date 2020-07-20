@@ -298,6 +298,7 @@ EXPORT_SYMBOL(drm_legacy_pci_init);
 void drm_legacy_pci_exit(struct drm_driver *driver, struct pci_driver *pdriver)
 {
 	struct drm_device *dev, *tmp;
+
 	DRM_DEBUG("\n");
 
 	if (!(driver->driver_features & DRIVER_LEGACY)) {

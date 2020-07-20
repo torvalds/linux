@@ -375,6 +375,7 @@ static int drm_open_helper(struct file *filp, struct drm_minor *minor)
 	 */
 	if (!dev->hose) {
 		struct pci_dev *pci_dev;
+
 		pci_dev = pci_get_class(PCI_CLASS_DISPLAY_VGA << 8, NULL);
 		if (pci_dev) {
 			dev->hose = pci_dev->sysdata;
@@ -758,6 +759,7 @@ void drm_event_cancel_free(struct drm_device *dev,
 			   struct drm_pending_event *p)
 {
 	unsigned long flags;
+
 	spin_lock_irqsave(&dev->event_lock, flags);
 	if (p->file_priv) {
 		p->file_priv->event_space += p->event->length;

@@ -57,6 +57,7 @@ static u8 dp_get_lane_status(const u8 link_status[DP_LINK_STATUS_SIZE],
 	int i = DP_LANE0_1_STATUS + (lane >> 1);
 	int s = (lane & 1) * 4;
 	u8 l = dp_link_status(link_status, i);
+
 	return (l >> s) & 0xf;
 }
 
@@ -257,7 +258,8 @@ static int drm_dp_dpcd_access(struct drm_dp_aux *aux, u8 request,
 			err = ret;
 	}
 
-	DRM_DEBUG_KMS("Too many retries, giving up. First error: %d\n", err);
+	DRM_DEBUG_KMS("%s: Too many retries, giving up. First error: %d\n",
+		      aux->name, err);
 	ret = err;
 
 unlock:
@@ -376,43 +378,44 @@ bool drm_dp_send_real_edid_checksum(struct drm_dp_aux *aux,
 
 	if (drm_dp_dpcd_read(aux, DP_DEVICE_SERVICE_IRQ_VECTOR,
 			     &auto_test_req, 1) < 1) {
-		DRM_ERROR("DPCD failed read at register 0x%x\n",
-			  DP_DEVICE_SERVICE_IRQ_VECTOR);
+		DRM_ERROR("%s: DPCD failed read at register 0x%x\n",
+			  aux->name, DP_DEVICE_SERVICE_IRQ_VECTOR);
 		return false;
 	}
 	auto_test_req &= DP_AUTOMATED_TEST_REQUEST;
 
 	if (drm_dp_dpcd_read(aux, DP_TEST_REQUEST, &link_edid_read, 1) < 1) {
-		DRM_ERROR("DPCD failed read at register 0x%x\n",
-			  DP_TEST_REQUEST);
+		DRM_ERROR("%s: DPCD failed read at register 0x%x\n",
+			  aux->name, DP_TEST_REQUEST);
 		return false;
 	}
 	link_edid_read &= DP_TEST_LINK_EDID_READ;
 
 	if (!auto_test_req || !link_edid_read) {
-		DRM_DEBUG_KMS("Source DUT does not support TEST_EDID_READ\n");
+		DRM_DEBUG_KMS("%s: Source DUT does not support TEST_EDID_READ\n",
+			      aux->name);
 		return false;
 	}
 
 	if (drm_dp_dpcd_write(aux, DP_DEVICE_SERVICE_IRQ_VECTOR,
 			      &auto_test_req, 1) < 1) {
-		DRM_ERROR("DPCD failed write at register 0x%x\n",
-			  DP_DEVICE_SERVICE_IRQ_VECTOR);
+		DRM_ERROR("%s: DPCD failed write at register 0x%x\n",
+			  aux->name, DP_DEVICE_SERVICE_IRQ_VECTOR);
 		return false;
 	}
 
 	/* send back checksum for the last edid extension block data */
 	if (drm_dp_dpcd_write(aux, DP_TEST_EDID_CHECKSUM,
 			      &real_edid_checksum, 1) < 1) {
-		DRM_ERROR("DPCD failed write at register 0x%x\n",
-			  DP_TEST_EDID_CHECKSUM);
+		DRM_ERROR("%s: DPCD failed write at register 0x%x\n",
+			  aux->name, DP_TEST_EDID_CHECKSUM);
 		return false;
 	}
 
 	test_resp |= DP_TEST_EDID_CHECKSUM_WRITE;
 	if (drm_dp_dpcd_write(aux, DP_TEST_RESPONSE, &test_resp, 1) < 1) {
-		DRM_ERROR("DPCD failed write at register 0x%x\n",
-			  DP_TEST_RESPONSE);
+		DRM_ERROR("%s: DPCD failed write at register 0x%x\n",
+			  aux->name, DP_TEST_RESPONSE);
 		return false;
 	}
 
@@ -737,10 +740,11 @@ static int drm_dp_i2c_do_msg(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 			 * Avoid spamming the kernel log with timeout errors.
 			 */
 			if (ret == -ETIMEDOUT)
-				DRM_DEBUG_KMS_RATELIMITED("transaction timed out\n");
+				DRM_DEBUG_KMS_RATELIMITED("%s: transaction timed out\n",
+							  aux->name);
 			else
-				DRM_DEBUG_KMS("transaction failed: %d\n", ret);
-
+				DRM_DEBUG_KMS("%s: transaction failed: %d\n",
+					      aux->name, ret);
 			return ret;
 		}
 
@@ -754,11 +758,12 @@ static int drm_dp_i2c_do_msg(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 			break;
 
 		case DP_AUX_NATIVE_REPLY_NACK:
-			DRM_DEBUG_KMS("native nack (result=%d, size=%zu)\n", ret, msg->size);
+			DRM_DEBUG_KMS("%s: native nack (result=%d, size=%zu)\n",
+				      aux->name, ret, msg->size);
 			return -EREMOTEIO;
 
 		case DP_AUX_NATIVE_REPLY_DEFER:
-			DRM_DEBUG_KMS("native defer\n");
+			DRM_DEBUG_KMS("%s: native defer\n", aux->name);
 			/*
 			 * We could check for I2C bit rate capabilities and if
 			 * available adjust this interval. We could also be
@@ -772,7 +777,8 @@ static int drm_dp_i2c_do_msg(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 			continue;
 
 		default:
-			DRM_ERROR("invalid native reply %#04x\n", msg->reply);
+			DRM_ERROR("%s: invalid native reply %#04x\n",
+				  aux->name, msg->reply);
 			return -EREMOTEIO;
 		}
 
@@ -787,13 +793,13 @@ static int drm_dp_i2c_do_msg(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 			return ret;
 
 		case DP_AUX_I2C_REPLY_NACK:
-			DRM_DEBUG_KMS("I2C nack (result=%d, size=%zu)\n",
-				      ret, msg->size);
+			DRM_DEBUG_KMS("%s: I2C nack (result=%d, size=%zu)\n",
+				      aux->name, ret, msg->size);
 			aux->i2c_nack_count++;
 			return -EREMOTEIO;
 
 		case DP_AUX_I2C_REPLY_DEFER:
-			DRM_DEBUG_KMS("I2C defer\n");
+			DRM_DEBUG_KMS("%s: I2C defer\n", aux->name);
 			/* DP Compliance Test 4.2.2.5 Requirement:
 			 * Must have at least 7 retries for I2C defers on the
 			 * transaction to pass this test
@@ -807,12 +813,13 @@ static int drm_dp_i2c_do_msg(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 			continue;
 
 		default:
-			DRM_ERROR("invalid I2C reply %#04x\n", msg->reply);
+			DRM_ERROR("%s: invalid I2C reply %#04x\n",
+				  aux->name, msg->reply);
 			return -EREMOTEIO;
 		}
 	}
 
-	DRM_DEBUG_KMS("too many retries, giving up\n");
+	DRM_DEBUG_KMS("%s: Too many retries, giving up\n", aux->name);
 	return -EREMOTEIO;
 }
 
@@ -841,8 +848,8 @@ static int drm_dp_i2c_drain_msg(struct drm_dp_aux *aux, struct drm_dp_aux_msg *o
 			return err == 0 ? -EPROTO : err;
 
 		if (err < msg.size && err < ret) {
-			DRM_DEBUG_KMS("Partial I2C reply: requested %zu bytes got %d bytes\n",
-				      msg.size, err);
+			DRM_DEBUG_KMS("%s: Partial I2C reply: requested %zu bytes got %d bytes\n",
+				      aux->name, msg.size, err);
 			ret = err;
 		}
 
@@ -1021,11 +1028,12 @@ static void drm_dp_aux_crc_work(struct work_struct *work)
 		}
 
 		if (ret == -EAGAIN) {
-			DRM_DEBUG_KMS("Get CRC failed after retrying: %d\n",
-				      ret);
+			DRM_DEBUG_KMS("%s: Get CRC failed after retrying: %d\n",
+				      aux->name, ret);
 			continue;
 		} else if (ret) {
-			DRM_DEBUG_KMS("Failed to get a CRC: %d\n", ret);
+			DRM_DEBUG_KMS("%s: Failed to get a CRC: %d\n",
+				      aux->name, ret);
 			continue;
 		}
 
@@ -1388,8 +1396,8 @@ int drm_dp_read_desc(struct drm_dp_aux *aux, struct drm_dp_desc *desc,
 
 	dev_id_len = strnlen(ident->device_id, sizeof(ident->device_id));
 
-	DRM_DEBUG_KMS("DP %s: OUI %*phD dev-ID %*pE HW-rev %d.%d SW-rev %d.%d quirks 0x%04x\n",
-		      is_branch ? "branch" : "sink",
+	DRM_DEBUG_KMS("%s: DP %s: OUI %*phD dev-ID %*pE HW-rev %d.%d SW-rev %d.%d quirks 0x%04x\n",
+		      aux->name, is_branch ? "branch" : "sink",
 		      (int)sizeof(ident->oui), ident->oui,
 		      dev_id_len, ident->device_id,
 		      ident->hw_rev >> 4, ident->hw_rev & 0xf,

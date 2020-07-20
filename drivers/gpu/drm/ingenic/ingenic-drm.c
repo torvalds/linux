@@ -419,7 +419,7 @@ static void ingenic_drm_encoder_atomic_mode_set(struct drm_encoder *encoder,
 		cfg |= JZ_LCD_CFG_VSYNC_ACTIVE_LOW;
 	if (info->bus_flags & DRM_BUS_FLAG_DE_LOW)
 		cfg |= JZ_LCD_CFG_DE_ACTIVE_LOW;
-	if (info->bus_flags & DRM_BUS_FLAG_PIXDATA_NEGEDGE)
+	if (info->bus_flags & DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE)
 		cfg |= JZ_LCD_CFG_PCLK_FALLING_EDGE;
 
 	if (!priv->panel_is_sharp) {

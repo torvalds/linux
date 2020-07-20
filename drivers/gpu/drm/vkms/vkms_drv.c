@@ -133,6 +133,8 @@ static int vkms_modeset_init(struct vkms_device *vkmsdev)
 	dev->mode_config.min_height = YRES_MIN;
 	dev->mode_config.max_width = XRES_MAX;
 	dev->mode_config.max_height = YRES_MAX;
+	dev->mode_config.cursor_width = 512;
+	dev->mode_config.cursor_height = 512;
 	dev->mode_config.preferred_depth = 24;
 	dev->mode_config.helper_private = &vkms_mode_config_helpers;
 

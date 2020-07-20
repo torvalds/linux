@@ -100,7 +100,7 @@ unsigned long nouveau_dmem_page_addr(struct page *page)
 	unsigned long off = (page_to_pfn(page) << PAGE_SHIFT) -
 				chunk->pagemap.res.start;
 
-	return chunk->bo->bo.offset + off;
+	return chunk->bo->offset + off;
 }
 
 static void nouveau_dmem_page_free(struct page *page)

@@ -31,7 +31,6 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_gem.h>
-#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_gem_vram_helper.h>
 
 #include "ast_drv.h"
@@ -379,13 +378,6 @@ static int ast_get_dram_info(struct drm_device *dev)
 	return 0;
 }
 
-static const struct drm_mode_config_funcs ast_mode_funcs = {
-	.fb_create = drm_gem_fb_create,
-	.mode_valid = drm_vram_helper_mode_valid,
-	.atomic_check = drm_atomic_helper_check,
-	.atomic_commit = drm_atomic_helper_commit,
-};
-
 static u32 ast_get_vram_info(struct drm_device *dev)
 {
 	struct ast_private *ast = to_ast_private(dev);
@@ -473,32 +465,9 @@ int ast_driver_load(struct drm_device *dev, unsigned long flags)
 	if (ret)
 		goto out_free;
 
-	drm_mode_config_init(dev);
-
-	dev->mode_config.funcs = (void *)&ast_mode_funcs;
-	dev->mode_config.min_width = 0;
-	dev->mode_config.min_height = 0;
-	dev->mode_config.preferred_depth = 24;
-	dev->mode_config.prefer_shadow = 1;
-	dev->mode_config.fb_base = pci_resource_start(ast->dev->pdev, 0);
-
-	if (ast->chip == AST2100 ||
-	    ast->chip == AST2200 ||
-	    ast->chip == AST2300 ||
-	    ast->chip == AST2400 ||
-	    ast->chip == AST2500) {
-		dev->mode_config.max_width = 1920;
-		dev->mode_config.max_height = 2048;
-	} else {
-		dev->mode_config.max_width = 1600;
-		dev->mode_config.max_height = 1200;
-	}
-
-	ret = ast_mode_init(dev);
+	ret = ast_mode_config_init(ast);
 	if (ret)
 		goto out_free;
-
-	drm_mode_config_reset(dev);
 
 	return 0;
 out_free:
@@ -516,8 +485,6 @@ void ast_driver_unload(struct drm_device *dev)
 
 	ast_release_firmware(dev);
 	kfree(ast->dp501_fw_addr);
-	ast_mode_fini(dev);
-	drm_mode_config_cleanup(dev);
 
 	ast_mm_fini(ast);
 	kfree(ast);

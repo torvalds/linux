@@ -3179,9 +3179,11 @@ static void dw_hdmi_init_hw(struct dw_hdmi *hdmi)
 		hdmi->phy.ops->setup_hpd(hdmi, hdmi->phy.data);
 }
 
-static struct dw_hdmi *
-__dw_hdmi_probe(struct platform_device *pdev,
-		const struct dw_hdmi_plat_data *plat_data)
+/* -----------------------------------------------------------------------------
+ * Probe/remove API, used from platforms based on the DRM bridge API.
+ */
+struct dw_hdmi *dw_hdmi_probe(struct platform_device *pdev,
+			      const struct dw_hdmi_plat_data *plat_data)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
@@ -3438,14 +3440,11 @@ __dw_hdmi_probe(struct platform_device *pdev,
 		hdmi->cec = platform_device_register_full(&pdevinfo);
 	}
 
+	drm_bridge_add(&hdmi->bridge);
+
 	return hdmi;
 
 err_iahb:
-	if (hdmi->i2c) {
-		i2c_del_adapter(&hdmi->i2c->adap);
-		hdmi->ddc = NULL;
-	}
-
 	clk_disable_unprepare(hdmi->iahb_clk);
 	if (hdmi->cec_clk)
 		clk_disable_unprepare(hdmi->cec_clk);
@@ -3456,9 +3455,12 @@ err_res:
 
 	return ERR_PTR(ret);
 }
+EXPORT_SYMBOL_GPL(dw_hdmi_probe);
 
-static void __dw_hdmi_remove(struct dw_hdmi *hdmi)
+void dw_hdmi_remove(struct dw_hdmi *hdmi)
 {
+	drm_bridge_remove(&hdmi->bridge);
+
 	if (hdmi->audio && !IS_ERR(hdmi->audio))
 		platform_device_unregister(hdmi->audio);
 	if (!IS_ERR(hdmi->cec))
@@ -3477,31 +3479,6 @@ static void __dw_hdmi_remove(struct dw_hdmi *hdmi)
 	else
 		i2c_put_adapter(hdmi->ddc);
 }
-
-/* -----------------------------------------------------------------------------
- * Probe/remove API, used from platforms based on the DRM bridge API.
- */
-struct dw_hdmi *dw_hdmi_probe(struct platform_device *pdev,
-			      const struct dw_hdmi_plat_data *plat_data)
-{
-	struct dw_hdmi *hdmi;
-
-	hdmi = __dw_hdmi_probe(pdev, plat_data);
-	if (IS_ERR(hdmi))
-		return hdmi;
-
-	drm_bridge_add(&hdmi->bridge);
-
-	return hdmi;
-}
-EXPORT_SYMBOL_GPL(dw_hdmi_probe);
-
-void dw_hdmi_remove(struct dw_hdmi *hdmi)
-{
-	drm_bridge_remove(&hdmi->bridge);
-
-	__dw_hdmi_remove(hdmi);
-}
 EXPORT_SYMBOL_GPL(dw_hdmi_remove);
 
 /* -----------------------------------------------------------------------------
@@ -3514,7 +3491,7 @@ struct dw_hdmi *dw_hdmi_bind(struct platform_device *pdev,
 	struct dw_hdmi *hdmi;
 	int ret;
 
-	hdmi = __dw_hdmi_probe(pdev, plat_data);
+	hdmi = dw_hdmi_probe(pdev, plat_data);
 	if (IS_ERR(hdmi))
 		return hdmi;
 
@@ -3531,7 +3508,7 @@ EXPORT_SYMBOL_GPL(dw_hdmi_bind);
 
 void dw_hdmi_unbind(struct dw_hdmi *hdmi)
 {
-	__dw_hdmi_remove(hdmi);
+	dw_hdmi_remove(hdmi);
 }
 EXPORT_SYMBOL_GPL(dw_hdmi_unbind);
 

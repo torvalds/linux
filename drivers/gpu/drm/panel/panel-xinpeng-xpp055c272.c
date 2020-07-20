@@ -62,9 +62,9 @@ static inline struct xpp055c272 *panel_to_xpp055c272(struct drm_panel *panel)
 }
 
 #define dsi_generic_write_seq(dsi, cmd, seq...) do {			\
-		static const u8 d[] = { seq };				\
+		static const u8 b[] = { cmd, seq };			\
 		int ret;						\
-		ret = mipi_dsi_dcs_write(dsi, cmd, d, ARRAY_SIZE(d));	\
+		ret = mipi_dsi_dcs_write_buffer(dsi, b, ARRAY_SIZE(b));	\
 		if (ret < 0)						\
 			return ret;					\
 	} while (0)
