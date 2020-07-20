@@ -9421,39 +9421,13 @@ void bpf_prog_change_xdp(struct bpf_prog *prev_prog, struct bpf_prog *prog)
 	bpf_dispatcher_change_prog(BPF_DISPATCHER_PTR(xdp), prev_prog, prog);
 }
 
-/* Define a list of socket types which can be the argument for
- * skc_to_*_sock() helpers. All these sockets should have
- * sock_common as the first argument in its memory layout.
- */
-#define BTF_SOCK_TYPE_xxx \
-	BTF_SOCK_TYPE(BTF_SOCK_TYPE_INET, inet_sock)			\
-	BTF_SOCK_TYPE(BTF_SOCK_TYPE_INET_CONN, inet_connection_sock)	\
-	BTF_SOCK_TYPE(BTF_SOCK_TYPE_INET_REQ, inet_request_sock)	\
-	BTF_SOCK_TYPE(BTF_SOCK_TYPE_INET_TW, inet_timewait_sock)	\
-	BTF_SOCK_TYPE(BTF_SOCK_TYPE_REQ, request_sock)			\
-	BTF_SOCK_TYPE(BTF_SOCK_TYPE_SOCK, sock)				\
-	BTF_SOCK_TYPE(BTF_SOCK_TYPE_SOCK_COMMON, sock_common)		\
-	BTF_SOCK_TYPE(BTF_SOCK_TYPE_TCP, tcp_sock)			\
-	BTF_SOCK_TYPE(BTF_SOCK_TYPE_TCP_REQ, tcp_request_sock)		\
-	BTF_SOCK_TYPE(BTF_SOCK_TYPE_TCP_TW, tcp_timewait_sock)		\
-	BTF_SOCK_TYPE(BTF_SOCK_TYPE_TCP6, tcp6_sock)			\
-	BTF_SOCK_TYPE(BTF_SOCK_TYPE_UDP, udp_sock)			\
-	BTF_SOCK_TYPE(BTF_SOCK_TYPE_UDP6, udp6_sock)
-
-enum {
-#define BTF_SOCK_TYPE(name, str) name,
-BTF_SOCK_TYPE_xxx
-#undef BTF_SOCK_TYPE
-MAX_BTF_SOCK_TYPE,
-};
-
 #ifdef CONFIG_DEBUG_INFO_BTF
-BTF_ID_LIST(btf_sock_ids)
+BTF_ID_LIST_GLOBAL(btf_sock_ids)
 #define BTF_SOCK_TYPE(name, type) BTF_ID(struct, type)
 BTF_SOCK_TYPE_xxx
 #undef BTF_SOCK_TYPE
 #else
-static u32 btf_sock_ids[MAX_BTF_SOCK_TYPE];
+u32 btf_sock_ids[MAX_BTF_SOCK_TYPE];
 #endif
 
 static bool check_arg_btf_id(u32 btf_id, u32 arg)
