@@ -1404,7 +1404,9 @@ int ecc_make_pub_key(unsigned int curve_id, unsigned int ndigits,
 	}
 
 	ecc_point_mult(pk, &curve->g, priv, NULL, curve, ndigits);
-	if (ecc_point_is_zero(pk)) {
+
+	/* SP800-56A rev 3 5.6.2.1.3 key check */
+	if (ecc_is_pubkey_valid_full(curve, pk)) {
 		ret = -EAGAIN;
 		goto err_free_point;
 	}
@@ -1451,6 +1453,33 @@ int ecc_is_pubkey_valid_partial(const struct ecc_curve *curve,
 	return 0;
 }
 EXPORT_SYMBOL(ecc_is_pubkey_valid_partial);
+
+/* SP800-56A section 5.6.2.3.3 full verification */
+int ecc_is_pubkey_valid_full(const struct ecc_curve *curve,
+			     struct ecc_point *pk)
+{
+	struct ecc_point *nQ;
+
+	/* Checks 1 through 3 */
+	int ret = ecc_is_pubkey_valid_partial(curve, pk);
+
+	if (ret)
+		return ret;
+
+	/* Check 4: Verify that nQ is the zero point. */
+	nQ = ecc_alloc_point(pk->ndigits);
+	if (!nQ)
+		return -ENOMEM;
+
+	ecc_point_mult(nQ, pk, curve->n, NULL, curve, pk->ndigits);
+	if (!ecc_point_is_zero(nQ))
+		ret = -EINVAL;
+
+	ecc_free_point(nQ);
+
+	return ret;
+}
+EXPORT_SYMBOL(ecc_is_pubkey_valid_full);
 
 int crypto_ecdh_shared_secret(unsigned int curve_id, unsigned int ndigits,
 			      const u64 *private_key, const u64 *public_key,
