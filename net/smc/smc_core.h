@@ -262,8 +262,10 @@ struct smc_link_group {
 			struct work_struct	llc_del_link_work;
 			struct work_struct	llc_event_work;
 						/* llc event worker */
-			wait_queue_head_t	llc_waiter;
+			wait_queue_head_t	llc_flow_waiter;
 						/* w4 next llc event */
+			wait_queue_head_t	llc_msg_waiter;
+						/* w4 next llc msg */
 			struct smc_llc_flow	llc_flow_lcl;
 						/* llc local control field */
 			struct smc_llc_flow	llc_flow_rmt;

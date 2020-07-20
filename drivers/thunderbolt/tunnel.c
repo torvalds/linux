@@ -913,21 +913,21 @@ struct tb_tunnel *tb_tunnel_discover_usb3(struct tb *tb, struct tb_port *down)
 	 * case.
 	 */
 	path = tb_path_discover(down, TB_USB3_HOPID, NULL, -1,
-				&tunnel->dst_port, "USB3 Up");
+				&tunnel->dst_port, "USB3 Down");
 	if (!path) {
 		/* Just disable the downstream port */
 		tb_usb3_port_enable(down, false);
 		goto err_free;
 	}
-	tunnel->paths[TB_USB3_PATH_UP] = path;
-	tb_usb3_init_path(tunnel->paths[TB_USB3_PATH_UP]);
-
-	path = tb_path_discover(tunnel->dst_port, -1, down, TB_USB3_HOPID, NULL,
-				"USB3 Down");
-	if (!path)
-		goto err_deactivate;
 	tunnel->paths[TB_USB3_PATH_DOWN] = path;
 	tb_usb3_init_path(tunnel->paths[TB_USB3_PATH_DOWN]);
+
+	path = tb_path_discover(tunnel->dst_port, -1, down, TB_USB3_HOPID, NULL,
+				"USB3 Up");
+	if (!path)
+		goto err_deactivate;
+	tunnel->paths[TB_USB3_PATH_UP] = path;
+	tb_usb3_init_path(tunnel->paths[TB_USB3_PATH_UP]);
 
 	/* Validate that the tunnel is complete */
 	if (!tb_port_is_usb3_up(tunnel->dst_port)) {

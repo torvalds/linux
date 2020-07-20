@@ -186,7 +186,7 @@ About the AF_RXRPC driver:
      time [tunable] after the last connection using it discarded, in case a new
      connection is made that could use it.
 
- (#) A client-side connection is only shared between calls if they have have
+ (#) A client-side connection is only shared between calls if they have
      the same key struct describing their security (and assuming the calls
      would otherwise share the connection).  Non-secured calls would also be
      able to share connections with each other.

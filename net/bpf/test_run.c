@@ -147,6 +147,20 @@ int noinline bpf_fentry_test6(u64 a, void *b, short c, int d, void *e, u64 f)
 	return a + (long)b + c + d + (long)e + f;
 }
 
+struct bpf_fentry_test_t {
+	struct bpf_fentry_test_t *a;
+};
+
+int noinline bpf_fentry_test7(struct bpf_fentry_test_t *arg)
+{
+	return (long)arg;
+}
+
+int noinline bpf_fentry_test8(struct bpf_fentry_test_t *arg)
+{
+	return (long)arg->a;
+}
+
 int noinline bpf_modify_return_test(int a, int *b)
 {
 	*b += 1;
@@ -185,6 +199,7 @@ int bpf_prog_test_run_tracing(struct bpf_prog *prog,
 			      const union bpf_attr *kattr,
 			      union bpf_attr __user *uattr)
 {
+	struct bpf_fentry_test_t arg = {};
 	u16 side_effect = 0, ret = 0;
 	int b = 2, err = -EFAULT;
 	u32 retval = 0;
@@ -197,7 +212,9 @@ int bpf_prog_test_run_tracing(struct bpf_prog *prog,
 		    bpf_fentry_test3(4, 5, 6) != 15 ||
 		    bpf_fentry_test4((void *)7, 8, 9, 10) != 34 ||
 		    bpf_fentry_test5(11, (void *)12, 13, 14, 15) != 65 ||
-		    bpf_fentry_test6(16, (void *)17, 18, 19, (void *)20, 21) != 111)
+		    bpf_fentry_test6(16, (void *)17, 18, 19, (void *)20, 21) != 111 ||
+		    bpf_fentry_test7((struct bpf_fentry_test_t *)0) != 0 ||
+		    bpf_fentry_test8(&arg) != 0)
 			goto out;
 		break;
 	case BPF_MODIFY_RETURN:

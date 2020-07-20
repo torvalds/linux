@@ -111,7 +111,7 @@ static __always_inline u64 __arch_get_hw_counter(s32 clock_mode)
 	 * update. Return something. Core will do another round and then
 	 * see the mode change and fallback to the syscall.
 	 */
-	if (clock_mode == VDSO_CLOCKMODE_NONE)
+	if (clock_mode != VDSO_CLOCKMODE_ARCHTIMER)
 		return 0;
 
 	/*
@@ -151,6 +151,12 @@ static __always_inline const struct vdso_data *__arch_get_vdso_data(void)
 
 	return ret;
 }
+
+static inline bool vdso_clocksource_ok(const struct vdso_data *vd)
+{
+	return vd->clock_mode == VDSO_CLOCKMODE_ARCHTIMER;
+}
+#define vdso_clocksource_ok	vdso_clocksource_ok
 
 #endif /* !__ASSEMBLY__ */
 

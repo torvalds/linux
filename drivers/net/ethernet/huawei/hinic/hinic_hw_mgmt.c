@@ -370,6 +370,53 @@ int hinic_msg_to_mgmt(struct hinic_pf_to_mgmt *pf_to_mgmt,
 				MSG_NOT_RESP, timeout);
 }
 
+static void recv_mgmt_msg_work_handler(struct work_struct *work)
+{
+	struct hinic_mgmt_msg_handle_work *mgmt_work =
+		container_of(work, struct hinic_mgmt_msg_handle_work, work);
+	struct hinic_pf_to_mgmt *pf_to_mgmt = mgmt_work->pf_to_mgmt;
+	struct pci_dev *pdev = pf_to_mgmt->hwif->pdev;
+	u8 *buf_out = pf_to_mgmt->mgmt_ack_buf;
+	struct hinic_mgmt_cb *mgmt_cb;
+	unsigned long cb_state;
+	u16 out_size = 0;
+
+	memset(buf_out, 0, MAX_PF_MGMT_BUF_SIZE);
+
+	if (mgmt_work->mod >= HINIC_MOD_MAX) {
+		dev_err(&pdev->dev, "Unknown MGMT MSG module = %d\n",
+			mgmt_work->mod);
+		kfree(mgmt_work->msg);
+		kfree(mgmt_work);
+		return;
+	}
+
+	mgmt_cb = &pf_to_mgmt->mgmt_cb[mgmt_work->mod];
+
+	cb_state = cmpxchg(&mgmt_cb->state,
+			   HINIC_MGMT_CB_ENABLED,
+			   HINIC_MGMT_CB_ENABLED | HINIC_MGMT_CB_RUNNING);
+
+	if ((cb_state == HINIC_MGMT_CB_ENABLED) && (mgmt_cb->cb))
+		mgmt_cb->cb(mgmt_cb->handle, mgmt_work->cmd,
+			    mgmt_work->msg, mgmt_work->msg_len,
+			    buf_out, &out_size);
+	else
+		dev_err(&pdev->dev, "No MGMT msg handler, mod: %d, cmd: %d\n",
+			mgmt_work->mod, mgmt_work->cmd);
+
+	mgmt_cb->state &= ~HINIC_MGMT_CB_RUNNING;
+
+	if (!mgmt_work->async_mgmt_to_pf)
+		/* MGMT sent sync msg, send the response */
+		msg_to_mgmt_async(pf_to_mgmt, mgmt_work->mod, mgmt_work->cmd,
+				  buf_out, out_size, MGMT_RESP,
+				  mgmt_work->msg_id);
+
+	kfree(mgmt_work->msg);
+	kfree(mgmt_work);
+}
+
 /**
  * mgmt_recv_msg_handler - handler for message from mgmt cpu
  * @pf_to_mgmt: PF to MGMT channel
@@ -378,40 +425,34 @@ int hinic_msg_to_mgmt(struct hinic_pf_to_mgmt *pf_to_mgmt,
 static void mgmt_recv_msg_handler(struct hinic_pf_to_mgmt *pf_to_mgmt,
 				  struct hinic_recv_msg *recv_msg)
 {
-	struct hinic_hwif *hwif = pf_to_mgmt->hwif;
-	struct pci_dev *pdev = hwif->pdev;
-	u8 *buf_out = recv_msg->buf_out;
-	struct hinic_mgmt_cb *mgmt_cb;
-	unsigned long cb_state;
-	u16 out_size = 0;
+	struct hinic_mgmt_msg_handle_work *mgmt_work = NULL;
+	struct pci_dev *pdev = pf_to_mgmt->hwif->pdev;
 
-	if (recv_msg->mod >= HINIC_MOD_MAX) {
-		dev_err(&pdev->dev, "Unknown MGMT MSG module = %d\n",
-			recv_msg->mod);
+	mgmt_work = kzalloc(sizeof(*mgmt_work), GFP_KERNEL);
+	if (!mgmt_work) {
+		dev_err(&pdev->dev, "Allocate mgmt work memory failed\n");
 		return;
 	}
 
-	mgmt_cb = &pf_to_mgmt->mgmt_cb[recv_msg->mod];
+	if (recv_msg->msg_len) {
+		mgmt_work->msg = kzalloc(recv_msg->msg_len, GFP_KERNEL);
+		if (!mgmt_work->msg) {
+			dev_err(&pdev->dev, "Allocate mgmt msg memory failed\n");
+			kfree(mgmt_work);
+			return;
+		}
+	}
 
-	cb_state = cmpxchg(&mgmt_cb->state,
-			   HINIC_MGMT_CB_ENABLED,
-			   HINIC_MGMT_CB_ENABLED | HINIC_MGMT_CB_RUNNING);
+	mgmt_work->pf_to_mgmt = pf_to_mgmt;
+	mgmt_work->msg_len = recv_msg->msg_len;
+	memcpy(mgmt_work->msg, recv_msg->msg, recv_msg->msg_len);
+	mgmt_work->msg_id = recv_msg->msg_id;
+	mgmt_work->mod = recv_msg->mod;
+	mgmt_work->cmd = recv_msg->cmd;
+	mgmt_work->async_mgmt_to_pf = recv_msg->async_mgmt_to_pf;
 
-	if ((cb_state == HINIC_MGMT_CB_ENABLED) && (mgmt_cb->cb))
-		mgmt_cb->cb(mgmt_cb->handle, recv_msg->cmd,
-			    recv_msg->msg, recv_msg->msg_len,
-			    buf_out, &out_size);
-	else
-		dev_err(&pdev->dev, "No MGMT msg handler, mod: %d, cmd: %d\n",
-			recv_msg->mod, recv_msg->cmd);
-
-	mgmt_cb->state &= ~HINIC_MGMT_CB_RUNNING;
-
-	if (!recv_msg->async_mgmt_to_pf)
-		/* MGMT sent sync msg, send the response */
-		msg_to_mgmt_async(pf_to_mgmt, recv_msg->mod, recv_msg->cmd,
-				  buf_out, out_size, MGMT_RESP,
-				  recv_msg->msg_id);
+	INIT_WORK(&mgmt_work->work, recv_mgmt_msg_work_handler);
+	queue_work(pf_to_mgmt->workq, &mgmt_work->work);
 }
 
 /**
@@ -546,6 +587,12 @@ static int alloc_msg_buf(struct hinic_pf_to_mgmt *pf_to_mgmt)
 	if (!pf_to_mgmt->sync_msg_buf)
 		return -ENOMEM;
 
+	pf_to_mgmt->mgmt_ack_buf = devm_kzalloc(&pdev->dev,
+						MAX_PF_MGMT_BUF_SIZE,
+						GFP_KERNEL);
+	if (!pf_to_mgmt->mgmt_ack_buf)
+		return -ENOMEM;
+
 	return 0;
 }
 
@@ -571,6 +618,11 @@ int hinic_pf_to_mgmt_init(struct hinic_pf_to_mgmt *pf_to_mgmt,
 		return 0;
 
 	sema_init(&pf_to_mgmt->sync_msg_lock, 1);
+	pf_to_mgmt->workq = create_singlethread_workqueue("hinic_mgmt");
+	if (!pf_to_mgmt->workq) {
+		dev_err(&pdev->dev, "Failed to initialize MGMT workqueue\n");
+		return -ENOMEM;
+	}
 	pf_to_mgmt->sync_msg_id = 0;
 
 	err = alloc_msg_buf(pf_to_mgmt);
@@ -605,4 +657,5 @@ void hinic_pf_to_mgmt_free(struct hinic_pf_to_mgmt *pf_to_mgmt)
 
 	hinic_aeq_unregister_hw_cb(&hwdev->aeqs, HINIC_MSG_FROM_MGMT_CPU);
 	hinic_api_cmd_free(pf_to_mgmt->cmd_chain);
+	destroy_workqueue(pf_to_mgmt->workq);
 }

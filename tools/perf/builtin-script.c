@@ -462,7 +462,7 @@ static int perf_evsel__check_attr(struct evsel *evsel, struct perf_session *sess
 		return -EINVAL;
 
 	if (PRINT_FIELD(IREGS) &&
-	    evsel__check_stype(evsel, PERF_SAMPLE_REGS_INTR, "IREGS", PERF_OUTPUT_IREGS))
+	    evsel__do_check_stype(evsel, PERF_SAMPLE_REGS_INTR, "IREGS", PERF_OUTPUT_IREGS, allow_user_set))
 		return -EINVAL;
 
 	if (PRINT_FIELD(UREGS) &&

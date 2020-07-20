@@ -468,21 +468,10 @@ static int stuffed_readpage(struct gfs2_inode *ip, struct page *page)
 }
 
 
-/**
- * __gfs2_readpage - readpage
- * @file: The file to read a page for
- * @page: The page to read
- *
- * This is the core of gfs2's readpage. It's used by the internal file
- * reading code as in that case we already hold the glock. Also it's
- * called by gfs2_readpage() once the required lock has been granted.
- */
-
 static int __gfs2_readpage(void *file, struct page *page)
 {
 	struct gfs2_inode *ip = GFS2_I(page->mapping->host);
 	struct gfs2_sbd *sdp = GFS2_SB(page->mapping->host);
-
 	int error;
 
 	if (i_blocksize(page->mapping->host) == PAGE_SIZE &&
@@ -505,36 +494,11 @@ static int __gfs2_readpage(void *file, struct page *page)
  * gfs2_readpage - read a page of a file
  * @file: The file to read
  * @page: The page of the file
- *
- * This deals with the locking required. We have to unlock and
- * relock the page in order to get the locking in the right
- * order.
  */
 
 static int gfs2_readpage(struct file *file, struct page *page)
 {
-	struct address_space *mapping = page->mapping;
-	struct gfs2_inode *ip = GFS2_I(mapping->host);
-	struct gfs2_holder gh;
-	int error;
-
-	unlock_page(page);
-	gfs2_holder_init(ip->i_gl, LM_ST_SHARED, 0, &gh);
-	error = gfs2_glock_nq(&gh);
-	if (unlikely(error))
-		goto out;
-	error = AOP_TRUNCATED_PAGE;
-	lock_page(page);
-	if (page->mapping == mapping && !PageUptodate(page))
-		error = __gfs2_readpage(file, page);
-	else
-		unlock_page(page);
-	gfs2_glock_dq(&gh);
-out:
-	gfs2_holder_uninit(&gh);
-	if (error && error != AOP_TRUNCATED_PAGE)
-		lock_page(page);
-	return error;
+	return __gfs2_readpage(file, page);
 }
 
 /**
@@ -598,16 +562,9 @@ static void gfs2_readahead(struct readahead_control *rac)
 {
 	struct inode *inode = rac->mapping->host;
 	struct gfs2_inode *ip = GFS2_I(inode);
-	struct gfs2_holder gh;
 
-	gfs2_holder_init(ip->i_gl, LM_ST_SHARED, 0, &gh);
-	if (gfs2_glock_nq(&gh))
-		goto out_uninit;
 	if (!gfs2_is_stuffed(ip))
 		mpage_readahead(rac, gfs2_block_map);
-	gfs2_glock_dq(&gh);
-out_uninit:
-	gfs2_holder_uninit(&gh);
 }
 
 /**

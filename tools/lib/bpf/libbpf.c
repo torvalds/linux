@@ -4818,7 +4818,13 @@ bpf_core_reloc_fields(struct bpf_object *obj, const char *targ_btf_path)
 			err = -EINVAL;
 			goto out;
 		}
-		prog = bpf_object__find_program_by_title(obj, sec_name);
+		prog = NULL;
+		for (i = 0; i < obj->nr_programs; i++) {
+			if (!strcmp(obj->programs[i].section_name, sec_name)) {
+				prog = &obj->programs[i];
+				break;
+			}
+		}
 		if (!prog) {
 			pr_warn("failed to find program '%s' for CO-RE offset relocation\n",
 				sec_name);
@@ -6653,7 +6659,7 @@ static const struct bpf_sec_def section_defs[] = {
 		.expected_attach_type = BPF_TRACE_ITER,
 		.is_attach_btf = true,
 		.attach_fn = attach_iter),
-	BPF_EAPROG_SEC("xdp_devmap",		BPF_PROG_TYPE_XDP,
+	BPF_EAPROG_SEC("xdp_devmap/",		BPF_PROG_TYPE_XDP,
 						BPF_XDP_DEVMAP),
 	BPF_PROG_SEC("xdp",			BPF_PROG_TYPE_XDP),
 	BPF_PROG_SEC("perf_event",		BPF_PROG_TYPE_PERF_EVENT),

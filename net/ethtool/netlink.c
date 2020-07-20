@@ -376,9 +376,16 @@ err_dev:
 }
 
 static int ethnl_default_dump_one(struct sk_buff *skb, struct net_device *dev,
-				  const struct ethnl_dump_ctx *ctx)
+				  const struct ethnl_dump_ctx *ctx,
+				  struct netlink_callback *cb)
 {
+	void *ehdr;
 	int ret;
+
+	ehdr = genlmsg_put(skb, NETLINK_CB(cb->skb).portid, cb->nlh->nlmsg_seq,
+			   &ethtool_genl_family, 0, ctx->ops->reply_cmd);
+	if (!ehdr)
+		return -EMSGSIZE;
 
 	ethnl_init_reply_data(ctx->reply_data, ctx->ops, dev);
 	rtnl_lock();
@@ -395,6 +402,10 @@ out:
 	if (ctx->ops->cleanup_data)
 		ctx->ops->cleanup_data(ctx->reply_data);
 	ctx->reply_data->dev = NULL;
+	if (ret < 0)
+		genlmsg_cancel(skb, ehdr);
+	else
+		genlmsg_end(skb, ehdr);
 	return ret;
 }
 
@@ -411,7 +422,6 @@ static int ethnl_default_dumpit(struct sk_buff *skb,
 	int s_idx = ctx->pos_idx;
 	int h, idx = 0;
 	int ret = 0;
-	void *ehdr;
 
 	rtnl_lock();
 	for (h = ctx->pos_hash; h < NETDEV_HASHENTRIES; h++, s_idx = 0) {
@@ -431,26 +441,15 @@ restart_chain:
 			dev_hold(dev);
 			rtnl_unlock();
 
-			ehdr = genlmsg_put(skb, NETLINK_CB(cb->skb).portid,
-					   cb->nlh->nlmsg_seq,
-					   &ethtool_genl_family, 0,
-					   ctx->ops->reply_cmd);
-			if (!ehdr) {
-				dev_put(dev);
-				ret = -EMSGSIZE;
-				goto out;
-			}
-			ret = ethnl_default_dump_one(skb, dev, ctx);
+			ret = ethnl_default_dump_one(skb, dev, ctx, cb);
 			dev_put(dev);
 			if (ret < 0) {
-				genlmsg_cancel(skb, ehdr);
 				if (ret == -EOPNOTSUPP)
 					goto lock_and_cont;
 				if (likely(skb->len))
 					ret = skb->len;
 				goto out;
 			}
-			genlmsg_end(skb, ehdr);
 lock_and_cont:
 			rtnl_lock();
 			if (net->dev_base_seq != seq) {
