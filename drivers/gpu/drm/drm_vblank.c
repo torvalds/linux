@@ -1551,7 +1551,6 @@ static void drm_legacy_vblank_post_modeset(struct drm_device *dev,
 					   unsigned int pipe)
 {
 	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
-	unsigned long irqflags;
 
 	/* vblank is not initialized (IRQ not installed ?), or has been freed */
 	if (!drm_dev_has_vblank(dev))
@@ -1561,9 +1560,9 @@ static void drm_legacy_vblank_post_modeset(struct drm_device *dev,
 		return;
 
 	if (vblank->inmodeset) {
-		spin_lock_irqsave(&dev->vbl_lock, irqflags);
+		spin_lock_irq(&dev->vbl_lock);
 		drm_reset_vblank_timestamp(dev, pipe);
-		spin_unlock_irqrestore(&dev->vbl_lock, irqflags);
+		spin_unlock_irq(&dev->vbl_lock);
 
 		if (vblank->inmodeset & 0x2)
 			drm_vblank_put(dev, pipe);
