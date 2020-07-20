@@ -4,33 +4,15 @@
 
 #ifdef CONFIG_X86_64
 #define __percpu_seg		gs
-#define __percpu_mov_op		movq
 #else
 #define __percpu_seg		fs
-#define __percpu_mov_op		movl
 #endif
 
 #ifdef __ASSEMBLY__
 
-/*
- * PER_CPU finds an address of a per-cpu variable.
- *
- * Args:
- *    var - variable name
- *    reg - 32bit register
- *
- * The resulting address is stored in the "reg" argument.
- *
- * Example:
- *    PER_CPU(cpu_gdt_descr, %ebx)
- */
 #ifdef CONFIG_SMP
-#define PER_CPU(var, reg)						\
-	__percpu_mov_op %__percpu_seg:this_cpu_off, reg;		\
-	lea var(reg), reg
 #define PER_CPU_VAR(var)	%__percpu_seg:var
 #else /* ! SMP */
-#define PER_CPU(var, reg)	__percpu_mov_op $var, reg
 #define PER_CPU_VAR(var)	var
 #endif	/* SMP */
 
