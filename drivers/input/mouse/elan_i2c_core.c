@@ -236,8 +236,13 @@ static int elan_query_product(struct elan_tp_data *data)
 	if (error)
 		return error;
 
-	error = data->ops->get_sm_version(data->client, &data->ic_type,
-					  &data->sm_version, &data->clickpad);
+	error = data->ops->get_pattern(data->client, &data->pattern);
+	if (error)
+		return error;
+
+	error = data->ops->get_sm_version(data->client, data->pattern,
+					  &data->ic_type, &data->sm_version,
+					  &data->clickpad);
 	if (error)
 		return error;
 
@@ -334,7 +339,8 @@ static int elan_query_device_info(struct elan_tp_data *data)
 {
 	int error;
 
-	error = data->ops->get_version(data->client, false, &data->fw_version);
+	error = data->ops->get_version(data->client, data->pattern, false,
+				       &data->fw_version);
 	if (error)
 		return error;
 
@@ -343,16 +349,13 @@ static int elan_query_device_info(struct elan_tp_data *data)
 	if (error)
 		return error;
 
-	error = data->ops->get_version(data->client, true, &data->iap_version);
+	error = data->ops->get_version(data->client, data->pattern,
+				       true, &data->iap_version);
 	if (error)
 		return error;
 
 	error = data->ops->get_pressure_adjustment(data->client,
 						   &data->pressure_adjustment);
-	if (error)
-		return error;
-
-	error = data->ops->get_pattern(data->client, &data->pattern);
 	if (error)
 		return error;
 

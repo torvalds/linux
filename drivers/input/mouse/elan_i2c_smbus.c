@@ -147,7 +147,7 @@ static int elan_smbus_get_baseline_data(struct i2c_client *client,
 }
 
 static int elan_smbus_get_version(struct i2c_client *client,
-				  bool iap, u8 *version)
+				  u8 pattern, bool iap, u8 *version)
 {
 	int error;
 	u8 val[I2C_SMBUS_BLOCK_MAX] = {0};
@@ -166,9 +166,8 @@ static int elan_smbus_get_version(struct i2c_client *client,
 	return 0;
 }
 
-static int elan_smbus_get_sm_version(struct i2c_client *client,
-				     u16 *ic_type, u8 *version,
-				     u8 *clickpad)
+static int elan_smbus_get_sm_version(struct i2c_client *client, u8 pattern,
+				     u16 *ic_type, u8 *version, u8 *clickpad)
 {
 	int error;
 	u8 val[I2C_SMBUS_BLOCK_MAX] = {0};

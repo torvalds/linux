@@ -266,22 +266,15 @@ static int elan_i2c_get_pattern(struct i2c_client *client, u8 *pattern)
 }
 
 static int elan_i2c_get_version(struct i2c_client *client,
-				bool iap, u8 *version)
+				u8 pattern, bool iap, u8 *version)
 {
 	int error;
-	u8 pattern_ver;
 	u16 cmd;
 	u8 val[3];
 
-	error = elan_i2c_get_pattern(client, &pattern_ver);
-	if (error) {
-		dev_err(&client->dev, "failed to get pattern version\n");
-		return error;
-	}
-
 	if (!iap)
 		cmd = ETP_I2C_FW_VERSION_CMD;
-	else if (pattern_ver == 0)
+	else if (pattern == 0)
 		cmd = ETP_I2C_IAP_VERSION_P0_CMD;
 	else
 		cmd = ETP_I2C_IAP_VERSION_CMD;
@@ -293,28 +286,20 @@ static int elan_i2c_get_version(struct i2c_client *client,
 		return error;
 	}
 
-	if (pattern_ver >= 0x01)
+	if (pattern >= 0x01)
 		*version = iap ? val[1] : val[0];
 	else
 		*version = val[0];
 	return 0;
 }
 
-static int elan_i2c_get_sm_version(struct i2c_client *client,
-				   u16 *ic_type, u8 *version,
-				   u8 *clickpad)
+static int elan_i2c_get_sm_version(struct i2c_client *client, u8 pattern,
+				   u16 *ic_type, u8 *version, u8 *clickpad)
 {
 	int error;
-	u8 pattern_ver;
 	u8 val[3];
 
-	error = elan_i2c_get_pattern(client, &pattern_ver);
-	if (error) {
-		dev_err(&client->dev, "failed to get pattern version\n");
-		return error;
-	}
-
-	if (pattern_ver >= 0x01) {
+	if (pattern >= 0x01) {
 		error = elan_i2c_read_cmd(client, ETP_I2C_IC_TYPE_CMD, val);
 		if (error) {
 			dev_err(&client->dev, "failed to get ic type: %d\n",
