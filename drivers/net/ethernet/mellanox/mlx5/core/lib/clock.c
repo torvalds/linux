@@ -452,6 +452,38 @@ static const struct ptp_clock_info mlx5_ptp_clock_info = {
 	.verify		= NULL,
 };
 
+static int mlx5_query_mtpps_pin_mode(struct mlx5_core_dev *mdev, u8 pin,
+				     u32 *mtpps, u32 mtpps_size)
+{
+	u32 in[MLX5_ST_SZ_DW(mtpps_reg)] = {};
+
+	MLX5_SET(mtpps_reg, in, pin, pin);
+
+	return mlx5_core_access_reg(mdev, in, sizeof(in), mtpps,
+				    mtpps_size, MLX5_REG_MTPPS, 0, 0);
+}
+
+static int mlx5_get_pps_pin_mode(struct mlx5_clock *clock, u8 pin)
+{
+	struct mlx5_core_dev *mdev = clock->mdev;
+	u32 out[MLX5_ST_SZ_DW(mtpps_reg)] = {};
+	u8 mode;
+	int err;
+
+	err = mlx5_query_mtpps_pin_mode(mdev, pin, out, sizeof(out));
+	if (err || !MLX5_GET(mtpps_reg, out, enable))
+		return PTP_PF_NONE;
+
+	mode = MLX5_GET(mtpps_reg, out, pin_mode);
+
+	if (mode == MLX5_PIN_MODE_IN)
+		return PTP_PF_EXTTS;
+	else if (mode == MLX5_PIN_MODE_OUT)
+		return PTP_PF_PEROUT;
+
+	return PTP_PF_NONE;
+}
+
 static int mlx5_init_pin_config(struct mlx5_clock *clock)
 {
 	int i;
@@ -471,7 +503,7 @@ static int mlx5_init_pin_config(struct mlx5_clock *clock)
 			 sizeof(clock->ptp_info.pin_config[i].name),
 			 "mlx5_pps%d", i);
 		clock->ptp_info.pin_config[i].index = i;
-		clock->ptp_info.pin_config[i].func = PTP_PF_NONE;
+		clock->ptp_info.pin_config[i].func = mlx5_get_pps_pin_mode(clock, i);
 		clock->ptp_info.pin_config[i].chan = 0;
 	}
 
