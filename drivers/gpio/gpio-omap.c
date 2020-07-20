@@ -896,21 +896,12 @@ static int omap_gpio_set_config(struct gpio_chip *chip, unsigned offset,
 				unsigned long config)
 {
 	u32 debounce;
-	int ret = -ENOTSUPP;
 
-	if ((pinconf_to_config_param(config) == PIN_CONFIG_BIAS_DISABLE) ||
-	    (pinconf_to_config_param(config) == PIN_CONFIG_BIAS_PULL_UP) ||
-	    (pinconf_to_config_param(config) == PIN_CONFIG_BIAS_PULL_DOWN))
-	{
-		ret = gpiochip_generic_config(chip, offset, config);
-	}
-	else if (pinconf_to_config_param(config) == PIN_CONFIG_INPUT_DEBOUNCE)
-	{
-		debounce = pinconf_to_config_argument(config);
-		ret = omap_gpio_debounce(chip, offset, debounce);
-	}
+	if (pinconf_to_config_param(config) != PIN_CONFIG_INPUT_DEBOUNCE)
+		return -ENOTSUPP;
 
-	return ret;
+	debounce = pinconf_to_config_argument(config);
+	return omap_gpio_debounce(chip, offset, debounce);
 }
 
 static void omap_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
