@@ -611,6 +611,10 @@ static void check_xstate_against_struct(int nr)
  * This essentially double-checks what the cpu told us about
  * how large the XSAVE buffer needs to be.  We are recalculating
  * it to be safe.
+ *
+ * Dynamic XSAVE features allocate their own buffers and are not
+ * covered by these checks. Only the size of the buffer for task->fpu
+ * is checked here.
  */
 static void do_extra_xstate_size_checks(void)
 {
@@ -673,6 +677,33 @@ static unsigned int __init get_xsaves_size(void)
 	return ebx;
 }
 
+/*
+ * Get the total size of the enabled xstates without the dynamic supervisor
+ * features.
+ */
+static unsigned int __init get_xsaves_size_no_dynamic(void)
+{
+	u64 mask = xfeatures_mask_dynamic();
+	unsigned int size;
+
+	if (!mask)
+		return get_xsaves_size();
+
+	/* Disable dynamic features. */
+	wrmsrl(MSR_IA32_XSS, xfeatures_mask_supervisor());
+
+	/*
+	 * Ask the hardware what size is required of the buffer.
+	 * This is the size required for the task->fpu buffer.
+	 */
+	size = get_xsaves_size();
+
+	/* Re-enable dynamic features so XSAVES will work on them again. */
+	wrmsrl(MSR_IA32_XSS, xfeatures_mask_supervisor() | mask);
+
+	return size;
+}
+
 static unsigned int __init get_xsave_size(void)
 {
 	unsigned int eax, ebx, ecx, edx;
@@ -710,7 +741,7 @@ static int __init init_xstate_size(void)
 	xsave_size = get_xsave_size();
 
 	if (boot_cpu_has(X86_FEATURE_XSAVES))
-		possible_xstate_size = get_xsaves_size();
+		possible_xstate_size = get_xsaves_size_no_dynamic();
 	else
 		possible_xstate_size = xsave_size;
 
