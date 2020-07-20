@@ -26,35 +26,6 @@
 
 #include "vhost.h"
 
-enum {
-	VHOST_VDPA_FEATURES =
-		(1ULL << VIRTIO_F_NOTIFY_ON_EMPTY) |
-		(1ULL << VIRTIO_F_ANY_LAYOUT) |
-		(1ULL << VIRTIO_F_VERSION_1) |
-		(1ULL << VIRTIO_F_ACCESS_PLATFORM) |
-		(1ULL << VIRTIO_F_RING_PACKED) |
-		(1ULL << VIRTIO_F_ORDER_PLATFORM) |
-		(1ULL << VIRTIO_RING_F_INDIRECT_DESC) |
-		(1ULL << VIRTIO_RING_F_EVENT_IDX),
-
-	VHOST_VDPA_NET_FEATURES = VHOST_VDPA_FEATURES |
-		(1ULL << VIRTIO_NET_F_CSUM) |
-		(1ULL << VIRTIO_NET_F_GUEST_CSUM) |
-		(1ULL << VIRTIO_NET_F_MTU) |
-		(1ULL << VIRTIO_NET_F_MAC) |
-		(1ULL << VIRTIO_NET_F_GUEST_TSO4) |
-		(1ULL << VIRTIO_NET_F_GUEST_TSO6) |
-		(1ULL << VIRTIO_NET_F_GUEST_ECN) |
-		(1ULL << VIRTIO_NET_F_GUEST_UFO) |
-		(1ULL << VIRTIO_NET_F_HOST_TSO4) |
-		(1ULL << VIRTIO_NET_F_HOST_TSO6) |
-		(1ULL << VIRTIO_NET_F_HOST_ECN) |
-		(1ULL << VIRTIO_NET_F_HOST_UFO) |
-		(1ULL << VIRTIO_NET_F_MRG_RXBUF) |
-		(1ULL << VIRTIO_NET_F_STATUS) |
-		(1ULL << VIRTIO_NET_F_SPEED_DUPLEX),
-};
-
 /* Currently, only network backend w/o multiqueue is supported. */
 #define VHOST_VDPA_VQ_MAX	2
 
@@ -78,10 +49,6 @@ struct vhost_vdpa {
 static DEFINE_IDA(vhost_vdpa_ida);
 
 static dev_t vhost_vdpa_major;
-
-static const u64 vhost_vdpa_features[] = {
-	[VIRTIO_ID_NET] = VHOST_VDPA_NET_FEATURES,
-};
 
 static void handle_vq_kick(struct vhost_work *work)
 {
@@ -253,7 +220,6 @@ static long vhost_vdpa_get_features(struct vhost_vdpa *v, u64 __user *featurep)
 	u64 features;
 
 	features = ops->get_features(vdpa);
-	features &= vhost_vdpa_features[v->virtio_id];
 
 	if (copy_to_user(featurep, &features, sizeof(features)))
 		return -EFAULT;
@@ -276,9 +242,6 @@ static long vhost_vdpa_set_features(struct vhost_vdpa *v, u64 __user *featurep)
 
 	if (copy_from_user(&features, featurep, sizeof(features)))
 		return -EFAULT;
-
-	if (features & ~vhost_vdpa_features[v->virtio_id])
-		return -EINVAL;
 
 	if (vdpa_set_features(vdpa, features))
 		return -EINVAL;
