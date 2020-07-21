@@ -165,7 +165,6 @@ config SCSI_UFS_BSG
 config SCSI_UFS_EXYNOS
 	tristate "EXYNOS specific hooks to UFS controller platform driver"
 	depends on SCSI_UFSHCD_PLATFORM && (ARCH_EXYNOS || COMPILE_TEST)
-	select PHY_SAMSUNG_UFS
 	help
 	  This selects the EXYNOS specific additions to UFSHCD platform driver.
 	  UFS host on EXYNOS includes HCI and UNIPRO layer, and associates with
