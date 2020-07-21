@@ -712,10 +712,8 @@ See samples/kprobes/kretprobe_example.c
 
 For additional information on Kprobes, refer to the following URLs:
 
-- http://www-106.ibm.com/developerworks/library/l-kprobes.html?ca=dgr-lnxw42Kprobe
-- http://www.redhat.com/magazine/005mar05/features/kprobes/
-- http://www-users.cs.umn.edu/~boutcher/kprobes/
-- http://www.linuxsymposium.org/2006/linuxsymposium_procv2.pdf (pages 101-115)
+- https://www.ibm.com/developerworks/library/l-kprobes/index.html
+- https://www.kernel.org/doc/ols/2006/ols2006v2-pages-109-124.pdf
 
 Deprecated Features
 ===================
