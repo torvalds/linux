@@ -5548,6 +5548,8 @@ int cifs_tree_connect(const unsigned int xid, struct cifs_tcon *tcon, const stru
 	const char *dfs_host;
 	size_t dfs_host_len;
 	char *share = NULL, *prefix = NULL;
+	struct dfs_info3_param ref = {0};
+	bool isroot;
 
 	tree = kzalloc(MAX_TREE_SIZE, GFP_KERNEL);
 	if (!tree)
@@ -5563,9 +5565,11 @@ int cifs_tree_connect(const unsigned int xid, struct cifs_tcon *tcon, const stru
 		goto out;
 	}
 
-	rc = dfs_cache_noreq_find(tcon->dfs_path + 1, NULL, &tl);
+	rc = dfs_cache_noreq_find(tcon->dfs_path + 1, &ref, &tl);
 	if (rc)
 		goto out;
+	isroot = ref.server_type == DFS_TYPE_ROOT;
+	free_dfs_info_param(&ref);
 
 	extract_unc_hostname(server->hostname, &tcp_host, &tcp_host_len);
 
@@ -5609,7 +5613,8 @@ int cifs_tree_connect(const unsigned int xid, struct cifs_tcon *tcon, const stru
 		} else {
 			scnprintf(tree, MAX_TREE_SIZE, "\\%s", share);
 			rc = ops->tree_connect(xid, tcon->ses, tree, tcon, nlsc);
-			if (!rc) {
+			/* Only handle prefix paths of DFS link targets */
+			if (!rc && !isroot) {
 				rc = update_super_prepath(tcon, prefix);
 				break;
 			}
