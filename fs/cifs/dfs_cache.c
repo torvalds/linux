@@ -29,6 +29,7 @@
 
 struct cache_dfs_tgt {
 	char *name;
+	int path_consumed;
 	struct list_head list;
 };
 
@@ -350,7 +351,7 @@ static inline struct timespec64 get_expire_time(int ttl)
 }
 
 /* Allocate a new DFS target */
-static struct cache_dfs_tgt *alloc_target(const char *name)
+static struct cache_dfs_tgt *alloc_target(const char *name, int path_consumed)
 {
 	struct cache_dfs_tgt *t;
 
@@ -362,6 +363,7 @@ static struct cache_dfs_tgt *alloc_target(const char *name)
 		kfree(t);
 		return ERR_PTR(-ENOMEM);
 	}
+	t->path_consumed = path_consumed;
 	INIT_LIST_HEAD(&t->list);
 	return t;
 }
@@ -384,7 +386,7 @@ static int copy_ref_data(const struct dfs_info3_param *refs, int numrefs,
 	for (i = 0; i < numrefs; i++) {
 		struct cache_dfs_tgt *t;
 
-		t = alloc_target(refs[i].node_name);
+		t = alloc_target(refs[i].node_name, refs[i].path_consumed);
 		if (IS_ERR(t)) {
 			free_tgts(ce);
 			return PTR_ERR(t);
@@ -830,6 +832,7 @@ static int get_targets(struct cache_entry *ce, struct dfs_cache_tgt_list *tl)
 			rc = -ENOMEM;
 			goto err_free_it;
 		}
+		it->it_path_consumed = t->path_consumed;
 
 		if (ce->tgthint == t)
 			list_add(&it->it_list, head);
@@ -1320,22 +1323,25 @@ void dfs_cache_del_vol(const char *fullpath)
 /**
  * dfs_cache_get_tgt_share - parse a DFS target
  *
+ * @path: DFS full path
  * @it: DFS target iterator.
  * @share: tree name.
- * @share_len: length of tree name.
  * @prefix: prefix path.
- * @prefix_len: length of prefix path.
  *
  * Return zero if target was parsed correctly, otherwise non-zero.
  */
-int dfs_cache_get_tgt_share(const struct dfs_cache_tgt_iterator *it,
-			    const char **share, size_t *share_len,
-			    const char **prefix, size_t *prefix_len)
+int dfs_cache_get_tgt_share(char *path, const struct dfs_cache_tgt_iterator *it,
+			    char **share, char **prefix)
 {
-	char *s, sep;
+	char *s, sep, *p;
+	size_t len;
+	size_t plen1, plen2;
 
-	if (!it || !share || !share_len || !prefix || !prefix_len)
+	if (!it || !path || !share || !prefix || strlen(path) < it->it_path_consumed)
 		return -EINVAL;
+
+	*share = NULL;
+	*prefix = NULL;
 
 	sep = it->it_name[0];
 	if (sep != '\\' && sep != '/')
@@ -1345,13 +1351,38 @@ int dfs_cache_get_tgt_share(const struct dfs_cache_tgt_iterator *it,
 	if (!s)
 		return -EINVAL;
 
+	/* point to prefix in target node */
 	s = strchrnul(s + 1, sep);
 
-	*share = it->it_name;
-	*share_len = s - it->it_name;
-	*prefix = *s ? s + 1 : s;
-	*prefix_len = &it->it_name[strlen(it->it_name)] - *prefix;
+	/* extract target share */
+	*share = kstrndup(it->it_name, s - it->it_name, GFP_KERNEL);
+	if (!*share)
+		return -ENOMEM;
 
+	/* skip separator */
+	if (*s)
+		s++;
+	/* point to prefix in DFS path */
+	p = path + it->it_path_consumed;
+	if (*p == sep)
+		p++;
+
+	/* merge prefix paths from DFS path and target node */
+	plen1 = it->it_name + strlen(it->it_name) - s;
+	plen2 = path + strlen(path) - p;
+	if (plen1 || plen2) {
+		len = plen1 + plen2 + 2;
+		*prefix = kmalloc(len, GFP_KERNEL);
+		if (!*prefix) {
+			kfree(*share);
+			*share = NULL;
+			return -ENOMEM;
+		}
+		if (plen1)
+			scnprintf(*prefix, len, "%.*s%c%.*s", (int)plen1, s, sep, (int)plen2, p);
+		else
+			strscpy(*prefix, p, len);
+	}
 	return 0;
 }
 

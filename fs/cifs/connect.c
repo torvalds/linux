@@ -5547,6 +5547,7 @@ int cifs_tree_connect(const unsigned int xid, struct cifs_tcon *tcon, const stru
 	size_t tcp_host_len;
 	const char *dfs_host;
 	size_t dfs_host_len;
+	char *share = NULL, *prefix = NULL;
 
 	tree = kzalloc(MAX_TREE_SIZE, GFP_KERNEL);
 	if (!tree)
@@ -5569,11 +5570,12 @@ int cifs_tree_connect(const unsigned int xid, struct cifs_tcon *tcon, const stru
 	extract_unc_hostname(server->hostname, &tcp_host, &tcp_host_len);
 
 	for (it = dfs_cache_get_tgt_iterator(&tl); it; it = dfs_cache_get_next_tgt(&tl, it)) {
-		const char *share, *prefix;
-		size_t share_len, prefix_len;
 		bool target_match;
 
-		rc = dfs_cache_get_tgt_share(it, &share, &share_len, &prefix, &prefix_len);
+		kfree(share);
+		kfree(prefix);
+
+		rc = dfs_cache_get_tgt_share(tcon->dfs_path + 1, it, &share, &prefix);
 		if (rc) {
 			cifs_dbg(VFS, "%s: failed to parse target share %d\n",
 				 __func__, rc);
@@ -5600,19 +5602,22 @@ int cifs_tree_connect(const unsigned int xid, struct cifs_tcon *tcon, const stru
 		}
 
 		if (tcon->ipc) {
-			scnprintf(tree, MAX_TREE_SIZE, "\\\\%.*s\\IPC$", (int)share_len, share);
+			scnprintf(tree, MAX_TREE_SIZE, "\\\\%s\\IPC$", share);
 			rc = ops->tree_connect(xid, tcon->ses, tree, tcon, nlsc);
 		} else {
-			scnprintf(tree, MAX_TREE_SIZE, "\\%.*s", (int)share_len, share);
+			scnprintf(tree, MAX_TREE_SIZE, "\\%s", share);
 			rc = ops->tree_connect(xid, tcon->ses, tree, tcon, nlsc);
 			if (!rc) {
-				rc = update_super_prepath(tcon, prefix, prefix_len);
+				rc = update_super_prepath(tcon, prefix);
 				break;
 			}
 		}
 		if (rc == -EREMOTE)
 			break;
 	}
+
+	kfree(share);
+	kfree(prefix);
 
 	if (!rc) {
 		if (it)
