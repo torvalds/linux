@@ -286,7 +286,8 @@ struct phylink_pcs_ops {
 			      struct phylink_link_state *state);
 	int (*pcs_config)(struct phylink_config *config, unsigned int mode,
 			  phy_interface_t interface,
-			  const unsigned long *advertising);
+			  const unsigned long *advertising,
+			  bool permit_pause_to_mac);
 	void (*pcs_an_restart)(struct phylink_config *config);
 	void (*pcs_link_up)(struct phylink_config *config, unsigned int mode,
 			    phy_interface_t interface, int speed, int duplex);
@@ -317,9 +318,11 @@ void pcs_get_state(struct phylink_config *config,
  * @mode: one of %MLO_AN_FIXED, %MLO_AN_PHY, %MLO_AN_INBAND.
  * @interface: interface mode to be used
  * @advertising: adertisement ethtool link mode mask
+ * @permit_pause_to_mac: permit forwarding pause resolution to MAC
  *
  * Configure the PCS for the operating mode, the interface mode, and set
- * the advertisement mask.
+ * the advertisement mask. @permit_pause_to_mac indicates whether the
+ * hardware may forward the pause mode resolution to the MAC.
  *
  * When operating in %MLO_AN_INBAND, inband should always be enabled,
  * otherwise inband should be disabled.

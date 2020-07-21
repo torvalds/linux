@@ -441,13 +441,58 @@ static void phylink_pcs_config(struct phylink *pl, bool force_restart,
 	if (pl->pcs_ops && pl->pcs_ops->pcs_config(pl->config,
 						   pl->cur_link_an_mode,
 						   state->interface,
-						   state->advertising))
+						   state->advertising,
+						   !!(pl->link_config.pause &
+						      MLO_PAUSE_AN)))
 		restart = true;
 
 	phylink_mac_config(pl, state);
 
 	if (restart)
 		phylink_mac_pcs_an_restart(pl);
+}
+
+/*
+ * Reconfigure for a change of inband advertisement.
+ * If we have a separate PCS, we only need to call its pcs_config() method,
+ * and then restart AN if it indicates something changed. Otherwise, we do
+ * the full MAC reconfiguration.
+ */
+static int phylink_change_inband_advert(struct phylink *pl)
+{
+	int ret;
+
+	if (test_bit(PHYLINK_DISABLE_STOPPED, &pl->phylink_disable_state))
+		return 0;
+
+	if (!pl->pcs_ops) {
+		/* Legacy method */
+		phylink_mac_config(pl, &pl->link_config);
+		phylink_mac_pcs_an_restart(pl);
+		return 0;
+	}
+
+	phylink_dbg(pl, "%s: mode=%s/%s adv=%*pb pause=%02x\n", __func__,
+		    phylink_an_mode_str(pl->cur_link_an_mode),
+		    phy_modes(pl->link_config.interface),
+		    __ETHTOOL_LINK_MODE_MASK_NBITS, pl->link_config.advertising,
+		    pl->link_config.pause);
+
+	/* Modern PCS-based method; update the advert at the PCS, and
+	 * restart negotiation if the pcs_config() helper indicates that
+	 * the programmed advertisement has changed.
+	 */
+	ret = pl->pcs_ops->pcs_config(pl->config, pl->cur_link_an_mode,
+				      pl->link_config.interface,
+				      pl->link_config.advertising,
+				      !!(pl->link_config.pause & MLO_PAUSE_AN));
+	if (ret < 0)
+		return ret;
+
+	if (ret > 0)
+		phylink_mac_pcs_an_restart(pl);
+
+	return 0;
 }
 
 static void phylink_mac_pcs_get_state(struct phylink *pl,
@@ -1524,9 +1569,11 @@ int phylink_ethtool_set_pauseparam(struct phylink *pl,
 
 	config->pause = pause_state;
 
-	if (!pl->phydev && !test_bit(PHYLINK_DISABLE_STOPPED,
-				     &pl->phylink_disable_state))
-		phylink_pcs_config(pl, true, &pl->link_config);
+	/* Update our in-band advertisement, triggering a renegotiation if
+	 * the advertisement changed.
+	 */
+	if (!pl->phydev)
+		phylink_change_inband_advert(pl);
 
 	mutex_unlock(&pl->state_mutex);
 
