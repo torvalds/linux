@@ -967,13 +967,12 @@ int rt5682_headset_detect(struct snd_soc_component *component, int jack_insert)
 		rt5682_enable_push_button_irq(component, false);
 		snd_soc_component_update_bits(component, RT5682_CBJ_CTRL_1,
 			RT5682_TRIG_JD_MASK, RT5682_TRIG_JD_LOW);
-		if (snd_soc_dapm_get_pin_status(dapm, "MICBIAS"))
+		if (!snd_soc_dapm_get_pin_status(dapm, "MICBIAS"))
+			snd_soc_component_update_bits(component,
+				RT5682_PWR_ANLG_1, RT5682_PWR_MB, 0);
+		if (!snd_soc_dapm_get_pin_status(dapm, "Vref2"))
 			snd_soc_component_update_bits(component,
 				RT5682_PWR_ANLG_1, RT5682_PWR_VREF2, 0);
-		else
-			snd_soc_component_update_bits(component,
-				RT5682_PWR_ANLG_1,
-				RT5682_PWR_VREF2 | RT5682_PWR_MB, 0);
 		snd_soc_component_update_bits(component, RT5682_PWR_ANLG_3,
 			RT5682_PWR_CBJ, 0);
 
@@ -992,16 +991,17 @@ static int rt5682_set_jack_detect(struct snd_soc_component *component,
 
 	rt5682->hs_jack = hs_jack;
 
-	if (!rt5682->is_sdw) {
-		if (!hs_jack) {
-			regmap_update_bits(rt5682->regmap, RT5682_IRQ_CTRL_2,
-				RT5682_JD1_EN_MASK, RT5682_JD1_DIS);
-			regmap_update_bits(rt5682->regmap, RT5682_RC_CLK_CTRL,
-				RT5682_POW_JDH | RT5682_POW_JDL, 0);
-			cancel_delayed_work_sync(&rt5682->jack_detect_work);
-			return 0;
-		}
+	if (!hs_jack) {
+		regmap_update_bits(rt5682->regmap, RT5682_IRQ_CTRL_2,
+			RT5682_JD1_EN_MASK, RT5682_JD1_DIS);
+		regmap_update_bits(rt5682->regmap, RT5682_RC_CLK_CTRL,
+			RT5682_POW_JDH | RT5682_POW_JDL, 0);
+		cancel_delayed_work_sync(&rt5682->jack_detect_work);
 
+		return 0;
+	}
+
+	if (!rt5682->is_sdw) {
 		switch (rt5682->pdata.jd_src) {
 		case RT5682_JD1:
 			snd_soc_component_update_bits(component,
@@ -1082,7 +1082,8 @@ void rt5682_jack_detect_handler(struct work_struct *work)
 			/* jack was out, report jack type */
 			rt5682->jack_type =
 				rt5682_headset_detect(rt5682->component, 1);
-		} else {
+		} else if ((rt5682->jack_type & SND_JACK_HEADSET) ==
+			SND_JACK_HEADSET) {
 			/* jack is already in, report button event */
 			rt5682->jack_type = SND_JACK_HEADSET;
 			btn_type = rt5682_button_detect(rt5682->component);
@@ -1608,8 +1609,7 @@ static const struct snd_soc_dapm_widget rt5682_dapm_widgets[] = {
 		0, set_filter_clk, SND_SOC_DAPM_PRE_PMU),
 	SND_SOC_DAPM_SUPPLY("Vref1", RT5682_PWR_ANLG_1, RT5682_PWR_VREF1_BIT, 0,
 		rt5682_set_verf, SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
-	SND_SOC_DAPM_SUPPLY("Vref2", RT5682_PWR_ANLG_1, RT5682_PWR_VREF2_BIT, 0,
-		NULL, 0),
+	SND_SOC_DAPM_SUPPLY("Vref2", SND_SOC_NOPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("MICBIAS", SND_SOC_NOPM, 0, 0, NULL, 0),
 
 	/* ASRC */
@@ -2492,6 +2492,15 @@ static int rt5682_wclk_prepare(struct clk_hw *hw)
 	snd_soc_dapm_force_enable_pin_unlocked(dapm, "MICBIAS");
 	snd_soc_component_update_bits(component, RT5682_PWR_ANLG_1,
 				RT5682_PWR_MB, RT5682_PWR_MB);
+
+	snd_soc_dapm_force_enable_pin_unlocked(dapm, "Vref2");
+	snd_soc_component_update_bits(component, RT5682_PWR_ANLG_1,
+			RT5682_PWR_VREF2 | RT5682_PWR_FV2,
+			RT5682_PWR_VREF2);
+	usleep_range(55000, 60000);
+	snd_soc_component_update_bits(component, RT5682_PWR_ANLG_1,
+			RT5682_PWR_FV2, RT5682_PWR_FV2);
+
 	snd_soc_dapm_force_enable_pin_unlocked(dapm, "I2S1");
 	snd_soc_dapm_force_enable_pin_unlocked(dapm, "PLL2F");
 	snd_soc_dapm_force_enable_pin_unlocked(dapm, "PLL2B");
@@ -2517,9 +2526,12 @@ static void rt5682_wclk_unprepare(struct clk_hw *hw)
 	snd_soc_dapm_mutex_lock(dapm);
 
 	snd_soc_dapm_disable_pin_unlocked(dapm, "MICBIAS");
+	snd_soc_dapm_disable_pin_unlocked(dapm, "Vref2");
 	if (!rt5682->jack_type)
 		snd_soc_component_update_bits(component, RT5682_PWR_ANLG_1,
+				RT5682_PWR_VREF2 | RT5682_PWR_FV2 |
 				RT5682_PWR_MB, 0);
+
 	snd_soc_dapm_disable_pin_unlocked(dapm, "I2S1");
 	snd_soc_dapm_disable_pin_unlocked(dapm, "PLL2F");
 	snd_soc_dapm_disable_pin_unlocked(dapm, "PLL2B");
