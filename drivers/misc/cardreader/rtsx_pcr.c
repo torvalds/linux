@@ -1253,7 +1253,6 @@ static int rtsx_pci_init_hw(struct rtsx_pcr *pcr)
 		rtsx_pci_write_register(pcr, RTS5228_LDO1_CFG1, RTS5228_LDO1_SR_TIME_MASK,
 				RTS5228_LDO1_SR_0_5);
 
-	pcr->pcie_cap = pci_find_capability(pcr->pci, PCI_CAP_ID_EXP);
 	rtsx_pci_writel(pcr, RTSX_HCBAR, pcr->host_cmds_addr);
 
 	rtsx_pci_enable_bus_int(pcr);
