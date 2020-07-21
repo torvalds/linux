@@ -651,11 +651,14 @@ static void ipu_plane_atomic_update(struct drm_plane *plane,
 	ics = ipu_drm_fourcc_to_colorspace(fb->format->format);
 	switch (ipu_plane->dp_flow) {
 	case IPU_DP_FLOW_SYNC_BG:
-		ipu_dp_setup_channel(ipu_plane->dp, ics, IPUV3_COLORSPACE_RGB);
+		ipu_dp_setup_channel(ipu_plane->dp, DRM_COLOR_YCBCR_BT601,
+				     DRM_COLOR_YCBCR_LIMITED_RANGE, ics,
+				     IPUV3_COLORSPACE_RGB);
 		break;
 	case IPU_DP_FLOW_SYNC_FG:
-		ipu_dp_setup_channel(ipu_plane->dp, ics,
-					IPUV3_COLORSPACE_UNKNOWN);
+		ipu_dp_setup_channel(ipu_plane->dp, DRM_COLOR_YCBCR_BT601,
+				     DRM_COLOR_YCBCR_LIMITED_RANGE, ics,
+				     IPUV3_COLORSPACE_UNKNOWN);
 		break;
 	}
 
