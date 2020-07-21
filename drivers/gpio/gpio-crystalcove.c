@@ -129,7 +129,7 @@ static void crystalcove_update_irq_ctrl(struct crystalcove_gpio *cg, int gpio)
 	regmap_update_bits(cg->regmap, reg, CTLI_INTCNT_BE, cg->intcnt_value);
 }
 
-static int crystalcove_gpio_dir_in(struct gpio_chip *chip, unsigned gpio)
+static int crystalcove_gpio_dir_in(struct gpio_chip *chip, unsigned int gpio)
 {
 	struct crystalcove_gpio *cg = gpiochip_get_data(chip);
 	int reg = to_reg(gpio, CTRL_OUT);
@@ -140,7 +140,7 @@ static int crystalcove_gpio_dir_in(struct gpio_chip *chip, unsigned gpio)
 	return regmap_write(cg->regmap, reg, CTLO_INPUT_SET);
 }
 
-static int crystalcove_gpio_dir_out(struct gpio_chip *chip, unsigned gpio,
+static int crystalcove_gpio_dir_out(struct gpio_chip *chip, unsigned int gpio,
 				    int value)
 {
 	struct crystalcove_gpio *cg = gpiochip_get_data(chip);
@@ -152,7 +152,7 @@ static int crystalcove_gpio_dir_out(struct gpio_chip *chip, unsigned gpio,
 	return regmap_write(cg->regmap, reg, CTLO_OUTPUT_SET | value);
 }
 
-static int crystalcove_gpio_get(struct gpio_chip *chip, unsigned gpio)
+static int crystalcove_gpio_get(struct gpio_chip *chip, unsigned int gpio)
 {
 	struct crystalcove_gpio *cg = gpiochip_get_data(chip);
 	unsigned int val;
@@ -169,7 +169,7 @@ static int crystalcove_gpio_get(struct gpio_chip *chip, unsigned gpio)
 }
 
 static void crystalcove_gpio_set(struct gpio_chip *chip,
-				 unsigned gpio, int value)
+				 unsigned int gpio, int value)
 {
 	struct crystalcove_gpio *cg = gpiochip_get_data(chip);
 	int reg = to_reg(gpio, CTRL_OUT);
@@ -183,7 +183,7 @@ static void crystalcove_gpio_set(struct gpio_chip *chip,
 		regmap_update_bits(cg->regmap, reg, 1, 0);
 }
 
-static int crystalcove_irq_type(struct irq_data *data, unsigned type)
+static int crystalcove_irq_type(struct irq_data *data, unsigned int type)
 {
 	struct crystalcove_gpio *cg =
 		gpiochip_get_data(irq_data_get_irq_chip_data(data));
