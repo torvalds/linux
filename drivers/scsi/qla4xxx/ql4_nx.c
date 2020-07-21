@@ -974,10 +974,10 @@ qla4_82xx_rom_fast_read(struct scsi_qla_host *ha, int addr, int *valp)
 	return ret;
 }
 
-/**
+/*
  * This routine does CRB initialize sequence
  * to put the ISP into operational state
- **/
+ */
 static int
 qla4_82xx_pinit_from_rom(struct scsi_qla_host *ha, int verbose)
 {
@@ -3217,6 +3217,7 @@ md_failed:
 /**
  * qla4_8xxx_uevent_emit - Send uevent when the firmware dump is ready.
  * @ha: pointer to adapter structure
+ * @code: uevent code to act upon
  **/
 static void qla4_8xxx_uevent_emit(struct scsi_qla_host *ha, u32 code)
 {
@@ -3685,9 +3686,9 @@ done_read:
 	return dwptr;
 }
 
-/**
+/*
  * Address and length are byte address
- **/
+ */
 static uint8_t *
 qla4_82xx_read_optrom_data(struct scsi_qla_host *ha, uint8_t *buf,
 		uint32_t offset, uint32_t length)
