@@ -199,6 +199,7 @@ static void __maybe_unused pch_gpio_restore_reg_conf(struct pch_gpio *chip)
 static int pch_gpio_to_irq(struct gpio_chip *gpio, unsigned int offset)
 {
 	struct pch_gpio *chip = gpiochip_get_data(gpio);
+
 	return chip->irq_base + offset;
 }
 
