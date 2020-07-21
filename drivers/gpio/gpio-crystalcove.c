@@ -330,6 +330,7 @@ static int crystalcove_gpio_probe(struct platform_device *pdev)
 	int retval;
 	struct device *dev = pdev->dev.parent;
 	struct intel_soc_pmic *pmic = dev_get_drvdata(dev);
+	struct gpio_irq_chip *girq;
 
 	if (irq < 0)
 		return irq;
@@ -353,14 +354,15 @@ static int crystalcove_gpio_probe(struct platform_device *pdev)
 	cg->chip.dbg_show = crystalcove_gpio_dbg_show;
 	cg->regmap = pmic->regmap;
 
-	retval = devm_gpiochip_add_data(&pdev->dev, &cg->chip, cg);
-	if (retval) {
-		dev_warn(&pdev->dev, "add gpio chip error: %d\n", retval);
-		return retval;
-	}
-
-	gpiochip_irqchip_add_nested(&cg->chip, &crystalcove_irqchip, 0,
-				    handle_simple_irq, IRQ_TYPE_NONE);
+	girq = &cg->chip.irq;
+	girq->chip = &crystalcove_irqchip;
+	/* This will let us handle the parent IRQ in the driver */
+	girq->parent_handler = NULL;
+	girq->num_parents = 0;
+	girq->parents = NULL;
+	girq->default_type = IRQ_TYPE_NONE;
+	girq->handler = handle_simple_irq;
+	girq->threaded = true;
 
 	retval = request_threaded_irq(irq, NULL, crystalcove_gpio_irq_handler,
 				      IRQF_ONESHOT, KBUILD_MODNAME, cg);
@@ -370,7 +372,11 @@ static int crystalcove_gpio_probe(struct platform_device *pdev)
 		return retval;
 	}
 
-	gpiochip_set_nested_irqchip(&cg->chip, &crystalcove_irqchip, irq);
+	retval = devm_gpiochip_add_data(&pdev->dev, &cg->chip, cg);
+	if (retval) {
+		dev_warn(&pdev->dev, "add gpio chip error: %d\n", retval);
+		return retval;
+	}
 
 	return 0;
 }
