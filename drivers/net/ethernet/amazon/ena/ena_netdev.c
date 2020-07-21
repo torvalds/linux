@@ -1913,7 +1913,10 @@ static int ena_io_poll(struct napi_struct *napi, int budget)
 		/* Update numa and unmask the interrupt only when schedule
 		 * from the interrupt context (vs from sk_busy_loop)
 		 */
-		if (napi_complete_done(napi, rx_work_done)) {
+		if (napi_complete_done(napi, rx_work_done) &&
+		    READ_ONCE(ena_napi->interrupts_masked)) {
+			smp_rmb(); /* make sure interrupts_masked is read */
+			WRITE_ONCE(ena_napi->interrupts_masked, false);
 			/* We apply adaptive moderation on Rx path only.
 			 * Tx uses static interrupt moderation.
 			 */
@@ -1960,6 +1963,9 @@ static irqreturn_t ena_intr_msix_io(int irq, void *data)
 	struct ena_napi *ena_napi = data;
 
 	ena_napi->first_interrupt = true;
+
+	WRITE_ONCE(ena_napi->interrupts_masked, true);
+	smp_wmb(); /* write interrupts_masked before calling napi */
 
 	napi_schedule_irqoff(&ena_napi->napi);
 
