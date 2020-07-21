@@ -19,7 +19,7 @@ static const u32 enetc_txbdr_regs[] = {
 
 static const u32 enetc_rxbdr_regs[] = {
 	ENETC_RBMR, ENETC_RBSR, ENETC_RBBSR, ENETC_RBCIR, ENETC_RBBAR0,
-	ENETC_RBBAR1, ENETC_RBPIR, ENETC_RBLENR, ENETC_RBICIR0, ENETC_RBIER
+	ENETC_RBBAR1, ENETC_RBPIR, ENETC_RBLENR, ENETC_RBICR0, ENETC_RBIER
 };
 
 static const u32 enetc_port_regs[] = {

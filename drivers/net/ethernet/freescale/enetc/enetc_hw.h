@@ -121,8 +121,8 @@ enum enetc_bdr_type {TX, RX};
 #define ENETC_RBIER	0xa0
 #define ENETC_RBIER_RXTIE	BIT(0)
 #define ENETC_RBIDR	0xa4
-#define ENETC_RBICIR0	0xa8
-#define ENETC_RBICIR0_ICEN	BIT(31)
+#define ENETC_RBICR0	0xa8
+#define ENETC_RBICR0_ICEN	BIT(31)
 
 /* TX BDR reg offsets */
 #define ENETC_TBMR	0
@@ -141,8 +141,8 @@ enum enetc_bdr_type {TX, RX};
 #define ENETC_TBIER	0xa0
 #define ENETC_TBIER_TXTIE	BIT(0)
 #define ENETC_TBIDR	0xa4
-#define ENETC_TBICIR0	0xa8
-#define ENETC_TBICIR0_ICEN	BIT(31)
+#define ENETC_TBICR0	0xa8
+#define ENETC_TBICR0_ICEN	BIT(31)
 
 #define ENETC_RTBLENR_LEN(n)	((n) & ~0x7)
 
