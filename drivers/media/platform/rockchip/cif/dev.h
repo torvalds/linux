@@ -391,5 +391,6 @@ void rkcif_soft_reset(struct rkcif_device *cif_dev,
 int rkcif_register_lvds_subdev(struct rkcif_device *dev);
 void rkcif_unregister_lvds_subdev(struct rkcif_device *dev);
 void rkcif_irq_lite_lvds(struct rkcif_device *cif_dev);
+u32 rkcif_get_sof(struct rkcif_device *cif_dev);
 
 #endif

@@ -2842,6 +2842,14 @@ static void rkcif_lvds_event_inc_sof(struct rkcif_device *dev)
 	}
 }
 
+static u32 rkcif_lvds_get_sof(struct rkcif_device *dev)
+{
+	if (dev)
+		return atomic_read(&dev->lvds_subdev.frm_sync_seq) - 1;
+
+	return 0;
+}
+
 int rkcif_register_lvds_subdev(struct rkcif_device *dev)
 {
 	struct v4l2_device *v4l2_dev = &dev->v4l2_dev;
@@ -3477,4 +3485,19 @@ void rkcif_irq_lite_lvds(struct rkcif_device *cif_dev)
 			}
 		}
 	}
+}
+
+u32 rkcif_get_sof(struct rkcif_device *cif_dev)
+{
+	struct rkcif_sensor_info *sensor = cif_dev->active_sensor;
+
+	if (sensor->mbus.type == V4L2_MBUS_CSI2)
+		return rkcif_csi2_get_sof();
+	else if (sensor->mbus.type == V4L2_MBUS_CCP2)
+		return rkcif_lvds_get_sof(cif_dev);
+	else if (sensor->mbus.type == V4L2_MBUS_PARALLEL)
+		/*TODO*/
+		return 0;
+
+	return 0;
 }
