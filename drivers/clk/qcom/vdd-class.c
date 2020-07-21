@@ -68,22 +68,9 @@ set_voltage_fail:
 	return ret;
 }
 
-/**
- * clk_vote_vdd_level - Add a vote for a given voltage level
- * @vdd_data:	vdd_class data for the clock
- * @level:	voltage level to add a vote for
- *
- * Add a regulator framework voltage request for the vdd_class regulator(s)
- * by decrementing the reference count for a given voltage level. This ensures
- * that the supply regulator is allowed to potentially lower its voltage after
- * re-aggregating overall voltage requests.
- *
- * Returns 0 on success, -EERROR otherwise.
- */
-int clk_vote_vdd_level(struct clk_vdd_class_data *vdd_data, int level)
+static int clk_vote_vdd_class_level(struct clk_vdd_class *vdd_class, int level)
 {
-	struct clk_vdd_class *vdd_class = vdd_data->vdd_class;
-	int ret = 0;
+	int ret;
 
 	if (level >= vdd_class->num_levels)
 		return -EINVAL;
@@ -98,6 +85,69 @@ int clk_vote_vdd_level(struct clk_vdd_class_data *vdd_data, int level)
 	mutex_unlock(&vdd_lock);
 
 	return ret;
+}
+
+static int clk_unvote_vdd_class_level(struct clk_vdd_class *vdd_class, int level)
+{
+	int ret;
+
+	if (level >= vdd_class->num_levels)
+		return -EINVAL;
+
+	if (WARN(!vdd_class->level_votes[level],
+		 "Reference counts are incorrect for %s level %d\n",
+		 vdd_class->class_name, level)) {
+		return -EINVAL;
+	}
+
+	mutex_lock(&vdd_lock);
+	vdd_class->level_votes[level]--;
+
+	ret = clk_aggregate_vdd(vdd_class);
+	if (ret)
+		vdd_class->level_votes[level]++;
+
+	mutex_unlock(&vdd_lock);
+
+	return ret;
+}
+
+/**
+ * clk_vote_vdd_level - Add a vote for a given voltage level
+ * @vdd_data:	vdd_class data for the clock
+ * @level:	voltage level to add a vote for
+ *
+ * Add a regulator framework voltage request for the vdd_class regulator(s)
+ * by decrementing the reference count for a given voltage level. This ensures
+ * that the supply regulator is allowed to potentially lower its voltage after
+ * re-aggregating overall voltage requests.
+ *
+ * Returns 0 on success, -EERROR otherwise.
+ */
+int clk_vote_vdd_level(struct clk_vdd_class_data *vdd_data, int level)
+{
+	int ret, i;
+
+	for (i = 0; i < vdd_data->num_vdd_classes; i++) {
+		ret = clk_vote_vdd_class_level(vdd_data->vdd_classes[i], level);
+		if (ret)
+			goto vote_fail;
+	}
+
+	if (vdd_data->vdd_class) {
+		ret = clk_vote_vdd_class_level(vdd_data->vdd_class, level);
+		if (ret)
+			goto vote_fail;
+	}
+
+	return 0;
+
+vote_fail:
+	for (i--; i >= 0; i--)
+		clk_unvote_vdd_class_level(vdd_data->vdd_classes[i], level);
+
+	return ret;
+
 }
 EXPORT_SYMBOL(clk_vote_vdd_level);
 
@@ -114,26 +164,25 @@ EXPORT_SYMBOL(clk_vote_vdd_level);
  */
 int clk_unvote_vdd_level(struct clk_vdd_class_data *vdd_data, int level)
 {
-	struct clk_vdd_class *vdd_class = vdd_data->vdd_class;
-	int ret = 0;
+	int ret, i;
 
-	if (level >= vdd_class->num_levels)
-		return -EINVAL;
-
-	if (WARN(!vdd_class->level_votes[level],
-			"Reference counts are incorrect for %s level %d\n",
-			vdd_class->class_name, level)) {
-		return -EINVAL;
+	for (i = 0; i < vdd_data->num_vdd_classes; i++) {
+		ret = clk_unvote_vdd_class_level(vdd_data->vdd_classes[i], level);
+		if (ret)
+			goto unvote_fail;
 	}
 
-	mutex_lock(&vdd_lock);
-	vdd_class->level_votes[level]--;
+	if (vdd_data->vdd_class) {
+		ret = clk_unvote_vdd_class_level(vdd_data->vdd_class, level);
+		if (ret)
+			goto unvote_fail;
+	}
 
-	ret = clk_aggregate_vdd(vdd_class);
-	if (ret)
-		vdd_class->level_votes[level]++;
+	return 0;
 
-	mutex_unlock(&vdd_lock);
+unvote_fail:
+	for (i--; i >= 0; i--)
+		clk_vote_vdd_class_level(vdd_data->vdd_classes[i], level);
 
 	return ret;
 }
@@ -213,16 +262,15 @@ int clk_regulator_init(struct device *dev, const struct qcom_cc_desc *desc)
 
 int clk_vdd_proxy_vote(struct device *dev, const struct qcom_cc_desc *desc)
 {
-	struct clk_vdd_class_data vdd_data;
 	struct clk_vdd_class *vdd_class;
 	u32 i;
 	int ret = 0;
 
 	for (i = 0; i < desc->num_clk_regulators; i++) {
-		vdd_data.vdd_class = vdd_class = desc->clk_regulators[i];
+		vdd_class = desc->clk_regulators[i];
 
-		ret = clk_vote_vdd_level(&vdd_data,
-					 vdd_class->num_levels - 1);
+		ret = clk_vote_vdd_class_level(vdd_class,
+					       vdd_class->num_levels - 1);
 		if (ret)
 			WARN(ret, "%s failed, ret=%d\n", __func__, ret);
 	}
@@ -232,16 +280,15 @@ int clk_vdd_proxy_vote(struct device *dev, const struct qcom_cc_desc *desc)
 
 int clk_vdd_proxy_unvote(struct device *dev, const struct qcom_cc_desc *desc)
 {
-	struct clk_vdd_class_data vdd_data;
 	struct clk_vdd_class *vdd_class;
 	u32 i;
 	int ret = 0;
 
 	for (i = 0; i < desc->num_clk_regulators; i++) {
-		vdd_data.vdd_class = vdd_class = desc->clk_regulators[i];
+		vdd_class = desc->clk_regulators[i];
 
-		ret = clk_unvote_vdd_level(&vdd_data,
-					   vdd_class->num_levels - 1);
+		ret = clk_unvote_vdd_class_level(vdd_class,
+						 vdd_class->num_levels - 1);
 		if (ret)
 			WARN(ret, "clk_unvote_vdd_level failed ret=%d\n", ret);
 	}

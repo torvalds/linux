@@ -35,16 +35,20 @@ struct clk_vdd_class {
  * struct clk_vdd_class_data - per-clock vdd_class rate data
  *
  * @vdd_class:		voltage scaling requirement class
+ * @vdd_classes:	array of voltage scaling requirement class
  * @rate_max:		array of maximum clock rate in Hz supported at each
  *			voltage level, indexed by voltage level
  * @num_rate_max:	size of rate_max array
  * @vdd_rate:		cached rate of current vdd vote
+ * @num_vdd_classes:	size of vdd_classes array
  */
 struct clk_vdd_class_data {
 	struct clk_vdd_class	*vdd_class;
+	struct clk_vdd_class	**vdd_classes;
 	unsigned long		*rate_max;
 	int			num_rate_max;
 	int			vdd_level;
+	int			num_vdd_classes;
 };
 
 #define DEFINE_VDD_REGULATORS(_name, _num_levels, _num_regulators, _vdd_uv) \

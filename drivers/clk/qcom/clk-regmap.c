@@ -108,7 +108,7 @@ int clk_pre_change_regmap(struct clk_hw *hw, unsigned long cur_rate,
 	int new_vdd_level;
 	int ret = 0;
 
-	if (!rclk->vdd_data.vdd_class)
+	if (!rclk->vdd_data.rate_max)
 		return 0;
 
 	new_vdd_level = clk_find_vdd_level(hw, &rclk->vdd_data, new_rate);
@@ -153,7 +153,7 @@ int clk_post_change_regmap(struct clk_hw *hw, unsigned long old_rate,
 	int cur_vdd_level;
 	int ret = 0;
 
-	if (!rclk->vdd_data.vdd_class)
+	if (!rclk->vdd_data.rate_max)
 		return 0;
 
 	cur_vdd_level = clk_find_vdd_level(hw, &rclk->vdd_data, cur_rate);
@@ -196,7 +196,7 @@ int clk_prepare_regmap(struct clk_hw *hw)
 	int rate = clk_hw_get_rate(hw);
 	int vdd_level;
 
-	if (!rclk->vdd_data.vdd_class)
+	if (!rclk->vdd_data.rate_max)
 		return 0;
 
 	vdd_level = clk_find_vdd_level(hw, &rclk->vdd_data, rate);
@@ -226,7 +226,7 @@ void clk_unprepare_regmap(struct clk_hw *hw)
 {
 	struct clk_regmap *rclk = to_clk_regmap(hw);
 
-	if (!rclk->vdd_data.vdd_class)
+	if (!rclk->vdd_data.rate_max)
 		return;
 
 	clk_unvote_vdd_level(&rclk->vdd_data, rclk->vdd_data.vdd_level);
