@@ -9,6 +9,7 @@ Linux Tracing Technologies
    tracepoint-analysis
    ftrace
    ftrace-uses
+   kprobes
    kprobetrace
    uprobetracer
    tracepoints

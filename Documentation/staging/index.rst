@@ -7,7 +7,6 @@ Unsorted Documentation
    :maxdepth: 2
 
    crc32
-   kprobes
    lzo
    remoteproc
    rpmsg
