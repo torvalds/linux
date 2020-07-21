@@ -121,6 +121,7 @@ static struct cmn2asic_msg_mapping sienna_cichlid_message_map[SMU_MSG_MAX_COUNT]
 	MSG_MAP(PowerDownJpeg,			PPSMC_MSG_PowerDownJpeg,               1),
 	MSG_MAP(BacoAudioD3PME,			PPSMC_MSG_BacoAudioD3PME,              1),
 	MSG_MAP(ArmD3,				PPSMC_MSG_ArmD3,                       1),
+	MSG_MAP(Mode1Reset,                     PPSMC_MSG_Mode1Reset,		       1),
 };
 
 static struct cmn2asic_mapping sienna_cichlid_clk_map[SMU_CLK_COUNT] = {
