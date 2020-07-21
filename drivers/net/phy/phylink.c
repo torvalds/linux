@@ -620,8 +620,18 @@ static void phylink_resolve(struct work_struct *w)
 		}
 	}
 
-	if (mac_config)
+	if (mac_config) {
+		if (link_state.interface != pl->link_config.interface) {
+			/* The interface has changed, force the link down and
+			 * then reconfigure.
+			 */
+			if (cur_link_state) {
+				phylink_link_down(pl);
+				cur_link_state = false;
+			}
+		}
 		phylink_mac_config(pl, &link_state);
+	}
 
 	if (link_state.link != cur_link_state) {
 		pl->old_link_state = link_state.link;
