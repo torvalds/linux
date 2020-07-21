@@ -28,9 +28,11 @@ DEFINE_MUTEX(netns_bpf_mutex);
 static void netns_bpf_attach_type_unneed(enum netns_bpf_attach_type type)
 {
 	switch (type) {
+#ifdef CONFIG_INET
 	case NETNS_BPF_SK_LOOKUP:
 		static_branch_dec(&bpf_sk_lookup_enabled);
 		break;
+#endif
 	default:
 		break;
 	}
@@ -39,9 +41,11 @@ static void netns_bpf_attach_type_unneed(enum netns_bpf_attach_type type)
 static void netns_bpf_attach_type_need(enum netns_bpf_attach_type type)
 {
 	switch (type) {
+#ifdef CONFIG_INET
 	case NETNS_BPF_SK_LOOKUP:
 		static_branch_inc(&bpf_sk_lookup_enabled);
 		break;
+#endif
 	default:
 		break;
 	}
