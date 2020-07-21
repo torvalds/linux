@@ -4545,7 +4545,7 @@ static void qla4xxx_check_relogin_flash_ddb(struct iscsi_cls_session *cls_sess)
 
 /**
  * qla4xxx_timer - checks every second for work to do.
- * @ha: Pointer to host adapter structure.
+ * @t: Context to obtain pointer to host adapter structure.
  **/
 static void qla4xxx_timer(struct timer_list *t)
 {
@@ -5299,7 +5299,7 @@ static void qla4xxx_do_work(struct scsi_qla_host *ha)
 
 /**
  * qla4xxx_do_dpc - dpc routine
- * @data: in our case pointer to adapter structure
+ * @work: Context to obtain pointer to host adapter structure.
  *
  * This routine is a task that is schedule by the interrupt handler
  * to perform the background processing for interrupts.  We put it
@@ -8616,7 +8616,7 @@ exit_login_resp:
 /**
  * qla4xxx_probe_adapter - callback function to probe HBA
  * @pdev: pointer to pci_dev structure
- * @pci_device_id: pointer to pci_device entry
+ * @ent: pointer to pci_device entry
  *
  * This routine will probe for Qlogic 4xxx iSCSI host adapters.
  * It returns zero if successful. It also initializes all data necessary for
@@ -9002,7 +9002,7 @@ static void qla4xxx_destroy_fw_ddb_session(struct scsi_qla_host *ha)
 }
 /**
  * qla4xxx_remove_adapter - callback function to remove adapter.
- * @pci_dev: PCI device pointer
+ * @pdev: PCI device pointer
  **/
 static void qla4xxx_remove_adapter(struct pci_dev *pdev)
 {
@@ -9169,8 +9169,8 @@ static int qla4xxx_wait_for_hba_online(struct scsi_qla_host *ha)
 /**
  * qla4xxx_eh_wait_for_commands - wait for active cmds to finish.
  * @ha: pointer to HBA
- * @t: target id
- * @l: lun id
+ * @stgt: pointer to SCSI target
+ * @sdev: pointer to SCSI device
  *
  * This function waits for all outstanding commands to a lun to complete. It
  * returns 0 if all pending commands are returned and 1 otherwise.
@@ -9640,6 +9640,7 @@ qla4xxx_pci_error_detected(struct pci_dev *pdev, pci_channel_state_t state)
  * qla4xxx_pci_mmio_enabled() gets called if
  * qla4xxx_pci_error_detected() returns PCI_ERS_RESULT_CAN_RECOVER
  * and read/write to the device still works.
+ * @pdev: PCI device pointer
  **/
 static pci_ers_result_t
 qla4xxx_pci_mmio_enabled(struct pci_dev *pdev)
