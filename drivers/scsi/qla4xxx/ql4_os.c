@@ -188,6 +188,23 @@ static int qla4xxx_sysfs_ddb_logout_sid(struct iscsi_cls_session *cls_sess);
 static struct qla4_8xxx_legacy_intr_set legacy_intr[] =
     QLA82XX_LEGACY_INTR_CONFIG;
 
+static const uint32_t qla4_83xx_reg_tbl[] = {
+	QLA83XX_PEG_HALT_STATUS1,
+	QLA83XX_PEG_HALT_STATUS2,
+	QLA83XX_PEG_ALIVE_COUNTER,
+	QLA83XX_CRB_DRV_ACTIVE,
+	QLA83XX_CRB_DEV_STATE,
+	QLA83XX_CRB_DRV_STATE,
+	QLA83XX_CRB_DRV_SCRATCH,
+	QLA83XX_CRB_DEV_PART_INFO1,
+	QLA83XX_CRB_IDC_VER_MAJOR,
+	QLA83XX_FW_VER_MAJOR,
+	QLA83XX_FW_VER_MINOR,
+	QLA83XX_FW_VER_SUB,
+	QLA83XX_CMDPEG_STATE,
+	QLA83XX_ASIC_TEMP,
+};
+
 static struct scsi_host_template qla4xxx_driver_template = {
 	.module			= THIS_MODULE,
 	.name			= DRIVER_NAME,
