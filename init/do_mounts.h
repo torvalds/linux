@@ -8,6 +8,7 @@
 #include <linux/mount.h>
 #include <linux/major.h>
 #include <linux/root_dev.h>
+#include <linux/init_syscalls.h>
 
 void  mount_block_root(char *name, int flags);
 void  mount_root(void);
