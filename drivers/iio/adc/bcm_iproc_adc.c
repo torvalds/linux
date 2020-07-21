@@ -4,7 +4,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/of.h>
+#include <linux/mod_devicetable.h>
 #include <linux/io.h>
 #include <linux/clk.h>
 #include <linux/mfd/syscon.h>
@@ -617,7 +617,7 @@ static struct platform_driver iproc_adc_driver = {
 	.remove	= iproc_adc_remove,
 	.driver	= {
 		.name	= "iproc-static-adc",
-		.of_match_table = of_match_ptr(iproc_adc_of_match),
+		.of_match_table = iproc_adc_of_match,
 	},
 };
 module_platform_driver(iproc_adc_driver);
