@@ -816,7 +816,8 @@ struct ena_admin_host_info {
 	/* 0 : reserved
 	 * 1 : rx_offset
 	 * 2 : interrupt_moderation
-	 * 31:3 : reserved
+	 * 3 : rx_buf_mirroring
+	 * 31:4 : reserved
 	 */
 	u32 driver_supported_features;
 };
@@ -1129,6 +1130,8 @@ struct ena_admin_ena_mmio_req_read_less_resp {
 #define ENA_ADMIN_HOST_INFO_RX_OFFSET_MASK                  BIT(1)
 #define ENA_ADMIN_HOST_INFO_INTERRUPT_MODERATION_SHIFT      2
 #define ENA_ADMIN_HOST_INFO_INTERRUPT_MODERATION_MASK       BIT(2)
+#define ENA_ADMIN_HOST_INFO_RX_BUF_MIRRORING_SHIFT          3
+#define ENA_ADMIN_HOST_INFO_RX_BUF_MIRRORING_MASK           BIT(3)
 
 /* aenq_common_desc */
 #define ENA_ADMIN_AENQ_COMMON_DESC_PHASE_MASK               BIT(0)
