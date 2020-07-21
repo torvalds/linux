@@ -13,7 +13,6 @@
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
-#include <linux/spinlock.h>
 #include <linux/videodev2.h>
 
 #include <video/imx-ipu-v3.h>
@@ -104,7 +103,6 @@ struct imx_tve {
 	struct drm_connector connector;
 	struct drm_encoder encoder;
 	struct device *dev;
-	spinlock_t lock;	/* register lock */
 	bool enabled;
 	int mode;
 	int di_hsync_pin;
@@ -127,22 +125,6 @@ static inline struct imx_tve *con_to_tve(struct drm_connector *c)
 static inline struct imx_tve *enc_to_tve(struct drm_encoder *e)
 {
 	return container_of(e, struct imx_tve, encoder);
-}
-
-static void tve_lock(void *__tve)
-__acquires(&tve->lock)
-{
-	struct imx_tve *tve = __tve;
-
-	spin_lock(&tve->lock);
-}
-
-static void tve_unlock(void *__tve)
-__releases(&tve->lock)
-{
-	struct imx_tve *tve = __tve;
-
-	spin_unlock(&tve->lock);
 }
 
 static void tve_enable(struct imx_tve *tve)
@@ -500,8 +482,7 @@ static struct regmap_config tve_regmap_config = {
 
 	.readable_reg = imx_tve_readable_reg,
 
-	.lock = tve_lock,
-	.unlock = tve_unlock,
+	.fast_io = true,
 
 	.max_register = 0xdc,
 };
@@ -544,7 +525,6 @@ static int imx_tve_bind(struct device *dev, struct device *master, void *data)
 	memset(tve, 0, sizeof(*tve));
 
 	tve->dev = dev;
-	spin_lock_init(&tve->lock);
 
 	ddc_node = of_parse_phandle(np, "ddc-i2c-bus", 0);
 	if (ddc_node) {
