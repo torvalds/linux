@@ -11,6 +11,7 @@
 #include <trace/hooks/sched.h>
 #include <trace/hooks/fpsimd.h>
 #include <trace/hooks/binder.h>
+#include <trace/hooks/rwsem.h>
 
 /*
  * Export tracepoints that act as a bare tracehook (ie: have no trace event
@@ -28,3 +29,7 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_is_fpsimd_save);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_binder_transaction_init);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_binder_set_priority);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_binder_restore_priority);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_rwsem_init);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_rwsem_wake);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_rwsem_write_finished);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_alter_rwsem_list_add);
