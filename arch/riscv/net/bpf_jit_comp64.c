@@ -304,14 +304,14 @@ static int emit_bpf_tail_call(int insn, struct rv_jit_context *ctx)
 	if (is_12b_check(off, insn))
 		return -1;
 	emit(rv_lwu(RV_REG_T1, off, RV_REG_A1), ctx);
-	off = (tc_ninsn - (ctx->ninsns - start_insn)) << 2;
+	off = ninsns_rvoff(tc_ninsn - (ctx->ninsns - start_insn));
 	emit_branch(BPF_JGE, RV_REG_A2, RV_REG_T1, off, ctx);
 
 	/* if (TCC-- < 0)
 	 *     goto out;
 	 */
 	emit(rv_addi(RV_REG_T1, tcc, -1), ctx);
-	off = (tc_ninsn - (ctx->ninsns - start_insn)) << 2;
+	off = ninsns_rvoff(tc_ninsn - (ctx->ninsns - start_insn));
 	emit_branch(BPF_JSLT, tcc, RV_REG_ZERO, off, ctx);
 
 	/* prog = array->ptrs[index];
@@ -324,7 +324,7 @@ static int emit_bpf_tail_call(int insn, struct rv_jit_context *ctx)
 	if (is_12b_check(off, insn))
 		return -1;
 	emit(rv_ld(RV_REG_T2, off, RV_REG_T2), ctx);
-	off = (tc_ninsn - (ctx->ninsns - start_insn)) << 2;
+	off = ninsns_rvoff(tc_ninsn - (ctx->ninsns - start_insn));
 	emit_branch(BPF_JEQ, RV_REG_T2, RV_REG_ZERO, off, ctx);
 
 	/* goto *(prog->bpf_func + 4); */
@@ -757,7 +757,7 @@ out_be:
 			e = ctx->ninsns;
 
 			/* Adjust for extra insns */
-			rvoff -= (e - s) << 2;
+			rvoff -= ninsns_rvoff(e - s);
 		}
 
 		if (BPF_OP(code) == BPF_JSET) {
@@ -810,7 +810,7 @@ out_be:
 		e = ctx->ninsns;
 
 		/* Adjust for extra insns */
-		rvoff -= (e - s) << 2;
+		rvoff -= ninsns_rvoff(e - s);
 		emit_branch(BPF_OP(code), rd, rs, rvoff, ctx);
 		break;
 
@@ -831,7 +831,7 @@ out_be:
 		if (!is64 && imm < 0)
 			emit(rv_addiw(RV_REG_T1, RV_REG_T1, 0), ctx);
 		e = ctx->ninsns;
-		rvoff -= (e - s) << 2;
+		rvoff -= ninsns_rvoff(e - s);
 		emit_branch(BPF_JNE, RV_REG_T1, RV_REG_ZERO, rvoff, ctx);
 		break;
 

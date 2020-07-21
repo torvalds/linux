@@ -13,6 +13,11 @@
 #include <linux/filter.h>
 #include <asm/cacheflush.h>
 
+static inline bool rvc_enabled(void)
+{
+	return IS_ENABLED(CONFIG_RISCV_ISA_C);
+}
+
 enum {
 	RV_REG_ZERO =	0,	/* The constant value 0 */
 	RV_REG_RA =	1,	/* Return address */
@@ -50,13 +55,19 @@ enum {
 
 struct rv_jit_context {
 	struct bpf_prog *prog;
-	u32 *insns;		/* RV insns */
+	u16 *insns;		/* RV insns */
 	int ninsns;
 	int epilogue_offset;
 	int *offset;		/* BPF to RV */
 	unsigned long flags;
 	int stack_size;
 };
+
+/* Convert from ninsns to bytes. */
+static inline int ninsns_rvoff(int ninsns)
+{
+	return ninsns << 1;
+}
 
 struct rv_jit_data {
 	struct bpf_binary_header *header;
@@ -74,8 +85,22 @@ static inline void bpf_flush_icache(void *start, void *end)
 	flush_icache_range((unsigned long)start, (unsigned long)end);
 }
 
+/* Emit a 4-byte riscv instruction. */
 static inline void emit(const u32 insn, struct rv_jit_context *ctx)
 {
+	if (ctx->insns) {
+		ctx->insns[ctx->ninsns] = insn;
+		ctx->insns[ctx->ninsns + 1] = (insn >> 16);
+	}
+
+	ctx->ninsns += 2;
+}
+
+/* Emit a 2-byte riscv compressed instruction. */
+static inline void emitc(const u16 insn, struct rv_jit_context *ctx)
+{
+	BUILD_BUG_ON(!rvc_enabled());
+
 	if (ctx->insns)
 		ctx->insns[ctx->ninsns] = insn;
 
@@ -86,7 +111,7 @@ static inline int epilogue_offset(struct rv_jit_context *ctx)
 {
 	int to = ctx->epilogue_offset, from = ctx->ninsns;
 
-	return (to - from) << 2;
+	return ninsns_rvoff(to - from);
 }
 
 /* Return -1 or inverted cond. */
@@ -149,7 +174,7 @@ static inline int rv_offset(int insn, int off, struct rv_jit_context *ctx)
 	off++; /* BPF branch is from PC+1, RV is from PC */
 	from = (insn > 0) ? ctx->offset[insn - 1] : 0;
 	to = (insn + off > 0) ? ctx->offset[insn + off - 1] : 0;
-	return (to - from) << 2;
+	return ninsns_rvoff(to - from);
 }
 
 /* Instruction formats. */
