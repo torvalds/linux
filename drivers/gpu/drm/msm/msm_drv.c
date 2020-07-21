@@ -252,10 +252,8 @@ static int msm_drm_uninit(struct device *dev)
 
 	/* clean up event worker threads */
 	for (i = 0; i < priv->num_crtcs; i++) {
-		if (priv->event_thread[i].thread) {
-			kthread_destroy_worker(&priv->event_thread[i].worker);
-			priv->event_thread[i].thread = NULL;
-		}
+		if (priv->event_thread[i].worker)
+			kthread_destroy_worker(priv->event_thread[i].worker);
 	}
 
 	msm_gem_shrinker_cleanup(ddev);
@@ -518,19 +516,15 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 	for (i = 0; i < priv->num_crtcs; i++) {
 		/* initialize event thread */
 		priv->event_thread[i].crtc_id = priv->crtcs[i]->base.id;
-		kthread_init_worker(&priv->event_thread[i].worker);
 		priv->event_thread[i].dev = ddev;
-		priv->event_thread[i].thread =
-			kthread_run(kthread_worker_fn,
-				&priv->event_thread[i].worker,
-				"crtc_event:%d", priv->event_thread[i].crtc_id);
-		if (IS_ERR(priv->event_thread[i].thread)) {
+		priv->event_thread[i].worker = kthread_create_worker(0,
+			"crtc_event:%d", priv->event_thread[i].crtc_id);
+		if (IS_ERR(priv->event_thread[i].worker)) {
 			DRM_DEV_ERROR(dev, "failed to create crtc_event kthread\n");
-			priv->event_thread[i].thread = NULL;
 			goto err_msm_uninit;
 		}
 
-		ret = sched_setscheduler(priv->event_thread[i].thread,
+		ret = sched_setscheduler(priv->event_thread[i].worker->task,
 					 SCHED_FIFO, &param);
 		if (ret)
 			dev_warn(dev, "event_thread set priority failed:%d\n",
