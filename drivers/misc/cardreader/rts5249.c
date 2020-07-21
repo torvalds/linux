@@ -95,15 +95,15 @@ static void rtsx_base_force_power_down(struct rtsx_pcr *pcr, u8 pm_state)
 static void rts5249_init_from_cfg(struct rtsx_pcr *pcr)
 {
 	struct pci_dev *pdev = pcr->pci;
+	int l1ss;
 	struct rtsx_cr_option *option = &(pcr->option);
 	u32 lval;
 
-	if (CHK_PCI_PID(pcr, PID_524A))
-		pci_read_config_dword(pdev,
-			PCR_ASPM_SETTING_REG1, &lval);
-	else
-		pci_read_config_dword(pdev,
-			PCR_ASPM_SETTING_REG2, &lval);
+	l1ss = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_L1SS);
+	if (!l1ss)
+		return;
+
+	pci_read_config_dword(pdev, l1ss + PCI_L1SS_CTL1, &lval);
 
 	if (lval & ASPM_L1_1_EN_MASK)
 		rtsx_set_dev_flag(pcr, ASPM_L1_1_EN);

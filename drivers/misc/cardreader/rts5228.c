@@ -379,11 +379,16 @@ static void rts5228_process_ocp(struct rtsx_pcr *pcr)
 
 static void rts5228_init_from_cfg(struct rtsx_pcr *pcr)
 {
+	struct pci_dev *pdev = pcr->pci;
+	int l1ss;
 	u32 lval;
 	struct rtsx_cr_option *option = &pcr->option;
 
-	pci_read_config_dword(pcr->pci, PCR_ASPM_SETTING_REG1, &lval);
+	l1ss = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_L1SS);
+	if (!l1ss)
+		return;
 
+	pci_read_config_dword(pdev, l1ss + PCI_L1SS_CTL1, &lval);
 
 	if (0 == (lval & 0x0F))
 		rtsx_pci_enable_oobs_polling(pcr);
