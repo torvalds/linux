@@ -109,8 +109,11 @@ static int espintcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 	flags |= nonblock ? MSG_DONTWAIT : 0;
 
 	skb = __skb_recv_datagram(sk, &ctx->ike_queue, flags, &off, &err);
-	if (!skb)
+	if (!skb) {
+		if (err == -EAGAIN && sk->sk_shutdown & RCV_SHUTDOWN)
+			return 0;
 		return err;
+	}
 
 	copied = len;
 	if (copied > skb->len)
@@ -213,7 +216,7 @@ retry:
 	return 0;
 }
 
-static int espintcp_push_msgs(struct sock *sk)
+static int espintcp_push_msgs(struct sock *sk, int flags)
 {
 	struct espintcp_ctx *ctx = espintcp_getctx(sk);
 	struct espintcp_msg *emsg = &ctx->partial;
@@ -227,12 +230,12 @@ static int espintcp_push_msgs(struct sock *sk)
 	ctx->tx_running = 1;
 
 	if (emsg->skb)
-		err = espintcp_sendskb_locked(sk, emsg, 0);
+		err = espintcp_sendskb_locked(sk, emsg, flags);
 	else
-		err = espintcp_sendskmsg_locked(sk, emsg, 0);
+		err = espintcp_sendskmsg_locked(sk, emsg, flags);
 	if (err == -EAGAIN) {
 		ctx->tx_running = 0;
-		return 0;
+		return flags & MSG_DONTWAIT ? -EAGAIN : 0;
 	}
 	if (!err)
 		memset(emsg, 0, sizeof(*emsg));
@@ -257,7 +260,7 @@ int espintcp_push_skb(struct sock *sk, struct sk_buff *skb)
 	offset = skb_transport_offset(skb);
 	len = skb->len - offset;
 
-	espintcp_push_msgs(sk);
+	espintcp_push_msgs(sk, 0);
 
 	if (emsg->len) {
 		kfree_skb(skb);
@@ -270,7 +273,7 @@ int espintcp_push_skb(struct sock *sk, struct sk_buff *skb)
 	emsg->len = len;
 	emsg->skb = skb;
 
-	espintcp_push_msgs(sk);
+	espintcp_push_msgs(sk, 0);
 
 	return 0;
 }
@@ -287,7 +290,7 @@ static int espintcp_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 	char buf[2] = {0};
 	int err, end;
 
-	if (msg->msg_flags)
+	if (msg->msg_flags & ~MSG_DONTWAIT)
 		return -EOPNOTSUPP;
 
 	if (size > MAX_ESPINTCP_MSG)
@@ -298,9 +301,10 @@ static int espintcp_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 
 	lock_sock(sk);
 
-	err = espintcp_push_msgs(sk);
+	err = espintcp_push_msgs(sk, msg->msg_flags & MSG_DONTWAIT);
 	if (err < 0) {
-		err = -ENOBUFS;
+		if (err != -EAGAIN || !(msg->msg_flags & MSG_DONTWAIT))
+			err = -ENOBUFS;
 		goto unlock;
 	}
 
@@ -337,10 +341,9 @@ static int espintcp_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 
 	tcp_rate_check_app_limited(sk);
 
-	err = espintcp_push_msgs(sk);
+	err = espintcp_push_msgs(sk, msg->msg_flags & MSG_DONTWAIT);
 	/* this message could be partially sent, keep it */
-	if (err < 0)
-		goto unlock;
+
 	release_sock(sk);
 
 	return size;
@@ -374,7 +377,7 @@ static void espintcp_tx_work(struct work_struct *work)
 
 	lock_sock(sk);
 	if (!ctx->tx_running)
-		espintcp_push_msgs(sk);
+		espintcp_push_msgs(sk, 0);
 	release_sock(sk);
 }
 
