@@ -5,6 +5,7 @@
 #include <linux/dynamic_debug.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
+#include <linux/if_vlan.h>
 #include <linux/rtnetlink.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
@@ -2022,10 +2023,15 @@ reset_out:
 static struct ionic_lif *ionic_lif_alloc(struct ionic *ionic, unsigned int index)
 {
 	struct device *dev = ionic->dev;
+	union ionic_lif_identity *lid;
 	struct net_device *netdev;
 	struct ionic_lif *lif;
 	int tbl_sz;
 	int err;
+
+	lid = kzalloc(sizeof(*lid), GFP_KERNEL);
+	if (!lid)
+		return ERR_PTR(-ENOMEM);
 
 	netdev = alloc_etherdev_mqs(sizeof(*lif),
 				    ionic->ntxqs_per_lif, ionic->ntxqs_per_lif);
@@ -2045,8 +2051,12 @@ static struct ionic_lif *ionic_lif_alloc(struct ionic *ionic, unsigned int index
 	netdev->watchdog_timeo = 2 * HZ;
 	netif_carrier_off(netdev);
 
-	netdev->min_mtu = IONIC_MIN_MTU;
-	netdev->max_mtu = IONIC_MAX_MTU;
+	lif->identity = lid;
+	lif->lif_type = IONIC_LIF_TYPE_CLASSIC;
+	ionic_lif_identify(ionic, lif->lif_type, lif->identity);
+	lif->netdev->min_mtu = le32_to_cpu(lif->identity->eth.min_frame_size);
+	lif->netdev->max_mtu =
+		le32_to_cpu(lif->identity->eth.max_frame_size) - ETH_HLEN - VLAN_HLEN;
 
 	lif->neqs = ionic->neqs_per_lif;
 	lif->nxqs = ionic->ntxqs_per_lif;
@@ -2113,6 +2123,7 @@ err_out_free_lif_info:
 err_out_free_netdev:
 	free_netdev(lif->netdev);
 	lif = NULL;
+	kfree(lid);
 
 	return ERR_PTR(err);
 }
@@ -2132,7 +2143,6 @@ int ionic_lifs_alloc(struct ionic *ionic)
 		return -ENOMEM;
 	}
 
-	lif->lif_type = IONIC_LIF_TYPE_CLASSIC;
 	ionic_lif_queue_identify(lif);
 
 	return 0;
@@ -2243,6 +2253,7 @@ static void ionic_lif_free(struct ionic_lif *lif)
 		ionic_lif_reset(lif);
 
 	/* free lif info */
+	kfree(lif->identity);
 	dma_free_coherent(dev, lif->info_sz, lif->info, lif->info_pa);
 	lif->info = NULL;
 	lif->info_pa = 0;

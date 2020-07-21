@@ -184,6 +184,7 @@ struct ionic_lif {
 	u16 lif_type;
 	unsigned int nucast;
 
+	union ionic_lif_identity *identity;
 	struct ionic_lif_info *info;
 	dma_addr_t info_pa;
 	u32 info_sz;
