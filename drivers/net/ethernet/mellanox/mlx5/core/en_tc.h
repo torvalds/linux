@@ -42,8 +42,14 @@
 
 #ifdef CONFIG_MLX5_ESWITCH
 
+#define NIC_FLOW_ATTR_SZ (sizeof(struct mlx5_flow_attr) +\
+			  sizeof(struct mlx5_nic_flow_attr))
 #define ESW_FLOW_ATTR_SZ (sizeof(struct mlx5_flow_attr) +\
 			  sizeof(struct mlx5_esw_flow_attr))
+#define ns_to_attr_sz(ns) (((ns) == MLX5_FLOW_NAMESPACE_FDB) ?\
+			    ESW_FLOW_ATTR_SZ :\
+			    NIC_FLOW_ATTR_SZ)
+
 
 int mlx5e_tc_num_filters(struct mlx5e_priv *priv, unsigned long flags);
 
@@ -124,6 +130,7 @@ enum {
 
 int mlx5e_tc_esw_init(struct rhashtable *tc_ht);
 void mlx5e_tc_esw_cleanup(struct rhashtable *tc_ht);
+bool mlx5e_is_eswitch_flow(struct mlx5e_tc_flow *flow);
 
 int mlx5e_configure_flower(struct net_device *dev, struct mlx5e_priv *priv,
 			   struct flow_cls_offload *f, unsigned long flags);
@@ -168,6 +175,7 @@ enum mlx5e_tc_attr_to_reg {
 	LABELS_TO_REG,
 	FTEID_TO_REG,
 	NIC_CHAIN_TO_REG,
+	NIC_ZONE_RESTORE_TO_REG,
 };
 
 struct mlx5e_tc_attr_to_reg_mapping {
@@ -185,6 +193,7 @@ bool mlx5e_is_valid_eswitch_fwd_dev(struct mlx5e_priv *priv,
 
 int mlx5e_tc_match_to_reg_set(struct mlx5_core_dev *mdev,
 			      struct mlx5e_tc_mod_hdr_acts *mod_hdr_acts,
+			      enum mlx5_flow_namespace_type ns,
 			      enum mlx5e_tc_attr_to_reg type,
 			      u32 data);
 
@@ -224,6 +233,15 @@ void mlx5e_del_offloaded_nic_rule(struct mlx5e_priv *priv,
 				  struct mlx5_flow_handle *rule,
 				  struct mlx5_flow_attr *attr);
 
+struct mlx5_flow_handle *
+mlx5_tc_rule_insert(struct mlx5e_priv *priv,
+		    struct mlx5_flow_spec *spec,
+		    struct mlx5_flow_attr *attr);
+void
+mlx5_tc_rule_delete(struct mlx5e_priv *priv,
+		    struct mlx5_flow_handle *rule,
+		    struct mlx5_flow_attr *attr);
+
 #else /* CONFIG_MLX5_CLS_ACT */
 static inline int  mlx5e_tc_nic_init(struct mlx5e_priv *priv) { return 0; }
 static inline void mlx5e_tc_nic_cleanup(struct mlx5e_priv *priv) {}
@@ -234,6 +252,14 @@ mlx5e_setup_tc_block_cb(enum tc_setup_type type, void *type_data, void *cb_priv)
 #endif /* CONFIG_MLX5_CLS_ACT */
 
 struct mlx5_flow_attr *mlx5_alloc_flow_attr(enum mlx5_flow_namespace_type type);
+
+struct mlx5_flow_handle *
+mlx5e_add_offloaded_nic_rule(struct mlx5e_priv *priv,
+			     struct mlx5_flow_spec *spec,
+			     struct mlx5_flow_attr *attr);
+void mlx5e_del_offloaded_nic_rule(struct mlx5e_priv *priv,
+				  struct mlx5_flow_handle *rule,
+				  struct mlx5_flow_attr *attr);
 
 #else /* CONFIG_MLX5_ESWITCH */
 static inline int  mlx5e_tc_nic_init(struct mlx5e_priv *priv) { return 0; }

@@ -27,6 +27,8 @@ struct mlx5e_tc_table {
 
 	struct notifier_block     netdevice_nb;
 	struct netdev_net_notifier	netdevice_nn;
+
+	struct mlx5_tc_ct_priv         *ct;
 };
 
 struct mlx5e_flow_table {
