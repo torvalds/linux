@@ -1963,3 +1963,39 @@ int dpni_clear_qos_table(struct fsl_mc_io *mc_io,
 	/* send command to mc*/
 	return mc_send_command(mc_io, &cmd);
 }
+
+/**
+ * dpni_set_tx_shaping() - Set the transmit shaping
+ * @mc_io:		Pointer to MC portal's I/O object
+ * @cmd_flags:		Command flags; one or more of 'MC_CMD_FLAG_'
+ * @token:		Token of DPNI object
+ * @tx_cr_shaper:	TX committed rate shaping configuration
+ * @tx_er_shaper:	TX excess rate shaping configuration
+ * @coupled:		Committed and excess rate shapers are coupled
+ *
+ * Return:	'0' on Success; Error code otherwise.
+ */
+int dpni_set_tx_shaping(struct fsl_mc_io *mc_io,
+			u32 cmd_flags,
+			u16 token,
+			const struct dpni_tx_shaping_cfg *tx_cr_shaper,
+			const struct dpni_tx_shaping_cfg *tx_er_shaper,
+			int coupled)
+{
+	struct dpni_cmd_set_tx_shaping *cmd_params;
+	struct fsl_mc_command cmd = { 0 };
+
+	/* prepare command */
+	cmd.header = mc_encode_cmd_header(DPNI_CMDID_SET_TX_SHAPING,
+					  cmd_flags,
+					  token);
+	cmd_params = (struct dpni_cmd_set_tx_shaping *)cmd.params;
+	cmd_params->tx_cr_max_burst_size = cpu_to_le16(tx_cr_shaper->max_burst_size);
+	cmd_params->tx_er_max_burst_size = cpu_to_le16(tx_er_shaper->max_burst_size);
+	cmd_params->tx_cr_rate_limit = cpu_to_le32(tx_cr_shaper->rate_limit);
+	cmd_params->tx_er_rate_limit = cpu_to_le32(tx_er_shaper->rate_limit);
+	dpni_set_field(cmd_params->coupled, COUPLED, coupled);
+
+	/* send command to mc*/
+	return mc_send_command(mc_io, &cmd);
+}
