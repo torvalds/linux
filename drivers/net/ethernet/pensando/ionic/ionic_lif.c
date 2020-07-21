@@ -2631,6 +2631,7 @@ int ionic_lifs_register(struct ionic *ionic)
 		return err;
 	}
 	ionic->master_lif->registered = true;
+	ionic_lif_set_netdev_info(ionic->master_lif);
 
 	return 0;
 }
