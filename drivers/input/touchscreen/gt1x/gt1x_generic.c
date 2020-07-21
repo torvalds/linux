@@ -25,9 +25,7 @@
 #include <linux/hwmsen_dev.h>
 #include <linux/sensors_io.h>
 #endif
-#if GTP_ICS_SLOT_REPORT
 #include <linux/input/mt.h>
-#endif
 
 /*******************GLOBAL VARIABLE*********************/
 struct i2c_client *gt1x_i2c_client;
@@ -73,6 +71,7 @@ u8 gt1x_int_type;
 u32 gt1x_abs_x_max;
 u32 gt1x_abs_y_max;
 int gt1x_halt;
+bool gt1x_ics_slot_report;
 
 #if GTP_DEBUG_NODE
 static ssize_t gt1x_debug_read_proc(struct file *, char __user *, size_t, loff_t *);
@@ -1278,23 +1277,22 @@ s32 gt1x_touch_event_handler(u8 *data, struct input_dev *dev, struct input_dev *
 				}
 				pre_index |= 0x01 << i;
 			} else if (pre_index & (0x01 << i)) {
-#if GTP_ICS_SLOT_REPORT
-				gt1x_touch_up(i);
-#endif
+				if (gt1x_ics_slot_report)
+					gt1x_touch_up(i);
 				pre_index &= ~(0x01 << i);
 			}
 		}
 	} else if (CHK_BIT(pre_event, BIT_TOUCH)) {
-#if GTP_ICS_SLOT_REPORT
-		int cycles = pre_index < 3 ? 3 : GTP_MAX_TOUCH;
-		for (i = 0; i < cycles; i++) {
-			if (pre_index >> i & 0x01) {
-				gt1x_touch_up(i);
+		if (gt1x_ics_slot_report) {
+			int cycles = pre_index < 3 ? 3 : GTP_MAX_TOUCH;
+
+			for (i = 0; i < cycles; i++) {
+				if (pre_index >> i & 0x01)
+					gt1x_touch_up(i);
 			}
+		} else {
+			gt1x_touch_up(0);
 		}
-#else
-		gt1x_touch_up(0);
-#endif
 		GTP_DEBUG("Released Touch.");
 		pre_index = 0;
 	}
@@ -1367,40 +1365,40 @@ void gt1x_pen_down(s32 x, s32 y, s32 size, s32 id)
 	GTP_SWAP(x, y);
 #endif
 
-#if GTP_ICS_SLOT_REPORT
-	input_mt_slot(pen_dev, id);
-	input_report_abs(pen_dev, ABS_MT_PRESSURE, size);
-	input_report_abs(pen_dev, ABS_MT_TOUCH_MAJOR, size);
-	input_report_abs(pen_dev, ABS_MT_TRACKING_ID, id);
-	input_report_abs(pen_dev, ABS_MT_POSITION_X, x);
-	input_report_abs(pen_dev, ABS_MT_POSITION_Y, y);
-#else
-	input_report_key(pen_dev, BTN_TOUCH, 1);
-	if ((!size) && (!id)) {
-		/* for virtual button */
-		input_report_abs(pen_dev, ABS_MT_PRESSURE, 100);
-		input_report_abs(pen_dev, ABS_MT_TOUCH_MAJOR, 100);
-	} else {
+	if (gt1x_ics_slot_report) {
+		input_mt_slot(pen_dev, id);
 		input_report_abs(pen_dev, ABS_MT_PRESSURE, size);
 		input_report_abs(pen_dev, ABS_MT_TOUCH_MAJOR, size);
 		input_report_abs(pen_dev, ABS_MT_TRACKING_ID, id);
+		input_report_abs(pen_dev, ABS_MT_POSITION_X, x);
+		input_report_abs(pen_dev, ABS_MT_POSITION_Y, y);
+	} else {
+		input_report_key(pen_dev, BTN_TOUCH, 1);
+		if ((!size) && (!id)) {
+			/* for virtual button */
+			input_report_abs(pen_dev, ABS_MT_PRESSURE, 100);
+			input_report_abs(pen_dev, ABS_MT_TOUCH_MAJOR, 100);
+		} else {
+			input_report_abs(pen_dev, ABS_MT_PRESSURE, size);
+			input_report_abs(pen_dev, ABS_MT_TOUCH_MAJOR, size);
+			input_report_abs(pen_dev, ABS_MT_TRACKING_ID, id);
+		}
+		input_report_abs(pen_dev, ABS_MT_POSITION_X, x);
+		input_report_abs(pen_dev, ABS_MT_POSITION_Y, y);
+		input_mt_sync(pen_dev);
 	}
-	input_report_abs(pen_dev, ABS_MT_POSITION_X, x);
-	input_report_abs(pen_dev, ABS_MT_POSITION_Y, y);
-	input_mt_sync(pen_dev);
-#endif
 }
 
 void gt1x_pen_up(s32 id)
 {
 	input_report_key(pen_dev, BTN_TOOL_PEN, 0);
-#if GTP_ICS_SLOT_REPORT
-	input_mt_slot(pen_dev, id);
-	input_report_abs(pen_dev, ABS_MT_TRACKING_ID, -1);
-#else
-	input_report_key(pen_dev, BTN_TOUCH, 0);
-	input_mt_sync(pen_dev);
-#endif
+	if (gt1x_ics_slot_report) {
+		input_mt_slot(pen_dev, id);
+		input_report_abs(pen_dev, ABS_MT_TRACKING_ID, -1);
+	} else {
+		input_report_key(pen_dev, BTN_TOUCH, 0);
+		input_mt_sync(pen_dev);
+	}
 }
 #endif
 

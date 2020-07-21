@@ -83,7 +83,6 @@
 #define GTP_HAVE_STYLUS_KEY   0
 
 #define GTP_POWER_CTRL_SLEEP  1	/* turn off power on suspend */
-#define GTP_ICS_SLOT_REPORT   0
 #define GTP_CREATE_WR_NODE    0	/* create the interface to support gtp_tools */
 #define GTP_DEBUG_NODE        0
 
@@ -534,6 +533,7 @@ extern s32 gt1x_i2c_write(u16 addr, u8 *buffer, s32 len);
 extern s32 gt1x_i2c_read(u16 addr, u8 *buffer, s32 len);
 extern s32 gt1x_i2c_read_dbl_check(u16 addr, u8 *buffer, s32 len);
 
+extern bool gt1x_ics_slot_report;
 extern u8 gt1x_config[];
 extern u32 gt1x_cfg_length;
 extern u8 gt1x_int_type;
