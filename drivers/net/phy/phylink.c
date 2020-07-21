@@ -1360,22 +1360,31 @@ int phylink_ethtool_ksettings_set(struct phylink *pl,
 		if (!s)
 			return -EINVAL;
 
-		/* If we have a fixed link (as specified by firmware), refuse
-		 * to change link parameters.
+		/* If we have a fixed link, refuse to change link parameters.
+		 * If the link parameters match, accept them but do nothing.
 		 */
-		if (pl->cur_link_an_mode == MLO_AN_FIXED &&
-		    (s->speed != pl->link_config.speed ||
-		     s->duplex != pl->link_config.duplex))
-			return -EINVAL;
+		if (pl->cur_link_an_mode == MLO_AN_FIXED) {
+			if (s->speed != pl->link_config.speed ||
+			    s->duplex != pl->link_config.duplex)
+				return -EINVAL;
+			return 0;
+		}
 
 		config.speed = s->speed;
 		config.duplex = s->duplex;
 		break;
 
 	case AUTONEG_ENABLE:
-		/* If we have a fixed link, refuse to enable autonegotiation */
-		if (pl->cur_link_an_mode == MLO_AN_FIXED)
-			return -EINVAL;
+		/* If we have a fixed link, allow autonegotiation (since that
+		 * is our default case) but do not allow the advertisement to
+		 * be changed. If the advertisement matches, simply return.
+		 */
+		if (pl->cur_link_an_mode == MLO_AN_FIXED) {
+			if (!linkmode_equal(config.advertising,
+					    pl->link_config.advertising))
+				return -EINVAL;
+			return 0;
+		}
 
 		config.speed = SPEED_UNKNOWN;
 		config.duplex = DUPLEX_UNKNOWN;
@@ -1385,8 +1394,8 @@ int phylink_ethtool_ksettings_set(struct phylink *pl,
 		return -EINVAL;
 	}
 
-	/* For a fixed link, this isn't able to change any parameters,
-	 * which just leaves inband mode.
+	/* We have ruled out the case with a PHY attached, and the
+	 * fixed-link cases.  All that is left are in-band links.
 	 */
 	if (phylink_validate(pl, support, &config))
 		return -EINVAL;
