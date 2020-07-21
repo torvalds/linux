@@ -1264,6 +1264,7 @@ static int enetc_setup_irqs(struct enetc_ndev_priv *priv)
 			dev_err(priv->dev, "request_irq() failed!\n");
 			goto irq_err;
 		}
+		disable_irq(irq);
 
 		v->tbier_base = hw->reg + ENETC_BDR(TX, 0, ENETC_TBIER);
 		v->rbier = hw->reg + ENETC_BDR(RX, i, ENETC_RBIER);
@@ -1306,7 +1307,7 @@ static void enetc_free_irqs(struct enetc_ndev_priv *priv)
 	}
 }
 
-static void enetc_enable_interrupts(struct enetc_ndev_priv *priv)
+static void enetc_setup_interrupts(struct enetc_ndev_priv *priv)
 {
 	int i;
 
@@ -1322,7 +1323,7 @@ static void enetc_enable_interrupts(struct enetc_ndev_priv *priv)
 	}
 }
 
-static void enetc_disable_interrupts(struct enetc_ndev_priv *priv)
+static void enetc_clear_interrupts(struct enetc_ndev_priv *priv)
 {
 	int i;
 
@@ -1369,10 +1370,33 @@ static int enetc_phy_connect(struct net_device *ndev)
 	return 0;
 }
 
+static void enetc_start(struct net_device *ndev)
+{
+	struct enetc_ndev_priv *priv = netdev_priv(ndev);
+	int i;
+
+	enetc_setup_interrupts(priv);
+
+	for (i = 0; i < priv->bdr_int_num; i++) {
+		int irq = pci_irq_vector(priv->si->pdev,
+					 ENETC_BDR_INT_BASE_IDX + i);
+
+		napi_enable(&priv->int_vector[i]->napi);
+		enable_irq(irq);
+	}
+
+	if (ndev->phydev)
+		phy_start(ndev->phydev);
+	else
+		netif_carrier_on(ndev);
+
+	netif_tx_start_all_queues(ndev);
+}
+
 int enetc_open(struct net_device *ndev)
 {
 	struct enetc_ndev_priv *priv = netdev_priv(ndev);
-	int i, err;
+	int err;
 
 	err = enetc_setup_irqs(priv);
 	if (err)
@@ -1390,8 +1414,6 @@ int enetc_open(struct net_device *ndev)
 	if (err)
 		goto err_alloc_rx;
 
-	enetc_setup_bdrs(priv);
-
 	err = netif_set_real_num_tx_queues(ndev, priv->num_tx_rings);
 	if (err)
 		goto err_set_queues;
@@ -1400,17 +1422,8 @@ int enetc_open(struct net_device *ndev)
 	if (err)
 		goto err_set_queues;
 
-	for (i = 0; i < priv->bdr_int_num; i++)
-		napi_enable(&priv->int_vector[i]->napi);
-
-	enetc_enable_interrupts(priv);
-
-	if (ndev->phydev)
-		phy_start(ndev->phydev);
-	else
-		netif_carrier_on(ndev);
-
-	netif_tx_start_all_queues(ndev);
+	enetc_setup_bdrs(priv);
+	enetc_start(ndev);
 
 	return 0;
 
@@ -1427,28 +1440,39 @@ err_phy_connect:
 	return err;
 }
 
-int enetc_close(struct net_device *ndev)
+static void enetc_stop(struct net_device *ndev)
 {
 	struct enetc_ndev_priv *priv = netdev_priv(ndev);
 	int i;
 
 	netif_tx_stop_all_queues(ndev);
 
-	if (ndev->phydev) {
-		phy_stop(ndev->phydev);
-		phy_disconnect(ndev->phydev);
-	} else {
-		netif_carrier_off(ndev);
-	}
-
 	for (i = 0; i < priv->bdr_int_num; i++) {
+		int irq = pci_irq_vector(priv->si->pdev,
+					 ENETC_BDR_INT_BASE_IDX + i);
+
+		disable_irq(irq);
 		napi_synchronize(&priv->int_vector[i]->napi);
 		napi_disable(&priv->int_vector[i]->napi);
 	}
 
-	enetc_disable_interrupts(priv);
+	if (ndev->phydev)
+		phy_stop(ndev->phydev);
+	else
+		netif_carrier_off(ndev);
+
+	enetc_clear_interrupts(priv);
+}
+
+int enetc_close(struct net_device *ndev)
+{
+	struct enetc_ndev_priv *priv = netdev_priv(ndev);
+
+	enetc_stop(ndev);
 	enetc_clear_bdrs(priv);
 
+	if (ndev->phydev)
+		phy_disconnect(ndev->phydev);
 	enetc_free_rxtx_rings(priv);
 	enetc_free_rx_resources(priv);
 	enetc_free_tx_resources(priv);
