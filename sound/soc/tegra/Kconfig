@@ -106,6 +106,18 @@ config SND_SOC_TEGRA186_DSPK
 	  the desired 1-bit output via Delta Sigma Modulation (DSM).
 	  Say Y or M if you want to add support for Tegra186 DSPK module.
 
+config SND_SOC_TEGRA210_ADMAIF
+	tristate "Tegra210 ADMAIF module"
+	depends on SND_SOC_TEGRA
+	help
+	  Config to enable ADMAIF which is the interface between ADMA and
+	  Audio Hub (AHUB). Each ADMA channel that sends/receives data to/
+	  from AHUB must interface through an ADMAIF channel. ADMA channel
+	  sending data to AHUB pairs with an ADMAIF Tx channel, where as
+	  ADMA channel receiving data from AHUB pairs with an ADMAIF Rx
+	  channel. Buffer size is configurable for each ADMAIIF channel.
+	  Say Y or M if you want to add support for Tegra210 ADMAIF module.
+
 config SND_SOC_TEGRA_RT5640
 	tristate "SoC Audio support for Tegra boards using an RT5640 codec"
 	depends on SND_SOC_TEGRA && I2C && GPIOLIB
