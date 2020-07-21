@@ -8,12 +8,15 @@
 #ifndef _PLATFORM_DATA_DMA_DW_H
 #define _PLATFORM_DATA_DMA_DW_H
 
-#include <linux/device.h>
+#include <linux/bits.h>
+#include <linux/types.h>
 
 #define DW_DMA_MAX_NR_MASTERS	4
 #define DW_DMA_MAX_NR_CHANNELS	8
 #define DW_DMA_MIN_BURST	1
 #define DW_DMA_MAX_BURST	256
+
+struct device;
 
 /**
  * struct dw_dma_slave - Controller-specific information about a slave
