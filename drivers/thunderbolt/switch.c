@@ -684,6 +684,7 @@ static int tb_init_port(struct tb_port *port)
 		if (res == -ENODEV) {
 			tb_dbg(port->sw->tb, " Port %d: not implemented\n",
 			       port->port);
+			port->disabled = true;
 			return 0;
 		}
 		return res;
