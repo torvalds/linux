@@ -10,8 +10,8 @@
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 
-#include "mtk_drm_ddp.h"
 #include "mtk_drm_ddp_comp.h"
+#include "mtk_mutex.h"
 
 #define MT2701_DISP_MUTEX0_MOD0			0x2c
 #define MT2701_DISP_MUTEX0_SOF0			0x30
