@@ -300,7 +300,7 @@ lpfc_ct_free_iocb(struct lpfc_hba *phba, struct lpfc_iocbq *ctiocb)
 	return 0;
 }
 
-/**
+/*
  * lpfc_gen_req - Build and issue a GEN_REQUEST command  to the SLI Layer
  * @vport: pointer to a host virtual N_Port data structure.
  * @bmp: Pointer to BPL for SLI command
@@ -394,7 +394,7 @@ lpfc_gen_req(struct lpfc_vport *vport, struct lpfc_dmabuf *bmp,
 	return 0;
 }
 
-/**
+/*
  * lpfc_ct_cmd - Build and issue a CT command
  * @vport: pointer to a host virtual N_Port data structure.
  * @inmp: Pointer to data buffer for response data.
@@ -3019,8 +3019,8 @@ int (*lpfc_fdmi_port_action[])
  * lpfc_fdmi_cmd - Build and send a FDMI cmd to the specified NPort
  * @vport: pointer to a host virtual N_Port data structure.
  * @ndlp: ndlp to send FDMI cmd to (if NULL use FDMI_DID)
- * cmdcode: FDMI command to send
- * mask: Mask of HBA or PORT Attributes to send
+ * @cmdcode: FDMI command to send
+ * @new_mask: Mask of HBA or PORT Attributes to send
  *
  * Builds and sends a FDMI command using the CT subsystem.
  */
@@ -3262,7 +3262,7 @@ fdmi_cmd_exit:
 
 /**
  * lpfc_delayed_disc_tmo - Timeout handler for delayed discovery timer.
- * @ptr - Context object of the timer.
+ * @t: Context object of the timer.
  *
  * This function set the WORKER_DELAYED_DISC_TMO flag and wake up
  * the worker thread.
