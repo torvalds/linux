@@ -101,36 +101,15 @@ static void set_qkey_viol_cntr(struct rxe_port *port)
 static int check_keys(struct rxe_dev *rxe, struct rxe_pkt_info *pkt,
 		      u32 qpn, struct rxe_qp *qp)
 {
-	int i;
-	int found_pkey = 0;
 	struct rxe_port *port = &rxe->port;
 	u16 pkey = bth_pkey(pkt);
 
 	pkt->pkey_index = 0;
 
-	if (qpn == 1) {
-		for (i = 0; i < port->attr.pkey_tbl_len; i++) {
-			if (pkey_match(pkey, port->pkey_tbl[i])) {
-				pkt->pkey_index = i;
-				found_pkey = 1;
-				break;
-			}
-		}
-
-		if (!found_pkey) {
-			pr_warn_ratelimited("bad pkey = 0x%x\n", pkey);
-			set_bad_pkey_cntr(port);
-			goto err1;
-		}
-	} else {
-		if (unlikely(!pkey_match(pkey,
-					 port->pkey_tbl[qp->attr.pkey_index]
-					))) {
-			pr_warn_ratelimited("bad pkey = 0x%0x\n", pkey);
-			set_bad_pkey_cntr(port);
-			goto err1;
-		}
-		pkt->pkey_index = qp->attr.pkey_index;
+	if (!pkey_match(pkey, IB_DEFAULT_PKEY_FULL)) {
+		pr_warn_ratelimited("bad pkey = 0x%x\n", pkey);
+		set_bad_pkey_cntr(port);
+		goto err1;
 	}
 
 	if ((qp_type(qp) == IB_QPT_UD || qp_type(qp) == IB_QPT_GSI) &&

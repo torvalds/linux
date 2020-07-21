@@ -83,22 +83,11 @@ static int rxe_query_port(struct ib_device *dev,
 static int rxe_query_pkey(struct ib_device *device,
 			  u8 port_num, u16 index, u16 *pkey)
 {
-	struct rxe_dev *rxe = to_rdev(device);
-	struct rxe_port *port;
+	if (index > 0)
+		return -EINVAL;
 
-	port = &rxe->port;
-
-	if (unlikely(index >= port->attr.pkey_tbl_len)) {
-		dev_warn(device->dev.parent, "invalid index = %d\n",
-			 index);
-		goto err1;
-	}
-
-	*pkey = port->pkey_tbl[index];
+	*pkey = IB_DEFAULT_PKEY_FULL;
 	return 0;
-
-err1:
-	return -EINVAL;
 }
 
 static int rxe_modify_device(struct ib_device *dev,
