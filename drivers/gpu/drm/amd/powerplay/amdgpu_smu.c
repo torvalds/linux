@@ -1599,6 +1599,9 @@ int smu_set_mp1_state(struct smu_context *smu,
 	}
 
 	ret = smu_send_smc_msg(smu, msg, NULL);
+	/* some asics may not support those messages */
+	if (ret == -EINVAL)
+		ret = 0;
 	if (ret)
 		dev_err(smu->adev->dev, "[PrepareMp1] Failed!\n");
 
