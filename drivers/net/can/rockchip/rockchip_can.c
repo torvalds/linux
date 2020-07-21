@@ -87,7 +87,7 @@
 #define CAN_DLC(x)		((x) & GENMASK(3, 0))
 
 #define CAN_TX_ID		0x54
-#define CAN_TX_ID_MASK		0xfffffff
+#define CAN_TX_ID_MASK		0x1fffffff
 
 #define CAN_TX_DATA1		0x58
 
