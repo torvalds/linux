@@ -103,7 +103,6 @@ struct imx_tve {
 	struct drm_connector connector;
 	struct drm_encoder encoder;
 	struct device *dev;
-	bool enabled;
 	int mode;
 	int di_hsync_pin;
 	int di_vsync_pin;
@@ -129,12 +128,8 @@ static inline struct imx_tve *enc_to_tve(struct drm_encoder *e)
 
 static void tve_enable(struct imx_tve *tve)
 {
-	if (!tve->enabled) {
-		tve->enabled = true;
-		clk_prepare_enable(tve->clk);
-		regmap_update_bits(tve->regmap, TVE_COM_CONF_REG,
-				   TVE_EN, TVE_EN);
-	}
+	clk_prepare_enable(tve->clk);
+	regmap_update_bits(tve->regmap, TVE_COM_CONF_REG, TVE_EN, TVE_EN);
 
 	/* clear interrupt status register */
 	regmap_write(tve->regmap, TVE_STAT_REG, 0xffffffff);
@@ -151,11 +146,8 @@ static void tve_enable(struct imx_tve *tve)
 
 static void tve_disable(struct imx_tve *tve)
 {
-	if (tve->enabled) {
-		tve->enabled = false;
-		regmap_update_bits(tve->regmap, TVE_COM_CONF_REG, TVE_EN, 0);
-		clk_disable_unprepare(tve->clk);
-	}
+	regmap_update_bits(tve->regmap, TVE_COM_CONF_REG, TVE_EN, 0);
+	clk_disable_unprepare(tve->clk);
 }
 
 static int tve_setup_tvout(struct imx_tve *tve)
