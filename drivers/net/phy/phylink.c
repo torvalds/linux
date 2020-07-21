@@ -421,13 +421,6 @@ static void phylink_mac_config(struct phylink *pl,
 	pl->mac_ops->mac_config(pl->config, pl->cur_link_an_mode, state);
 }
 
-static void phylink_mac_config_up(struct phylink *pl,
-				  const struct phylink_link_state *state)
-{
-	if (state->link)
-		phylink_mac_config(pl, state);
-}
-
 static void phylink_mac_pcs_an_restart(struct phylink *pl)
 {
 	if (pl->link_config.an_enabled &&
@@ -578,6 +571,7 @@ static void phylink_resolve(struct work_struct *w)
 	struct phylink *pl = container_of(w, struct phylink, resolve);
 	struct phylink_link_state link_state;
 	struct net_device *ndev = pl->netdev;
+	bool mac_config = false;
 	bool cur_link_state;
 
 	mutex_lock(&pl->state_mutex);
@@ -596,12 +590,12 @@ static void phylink_resolve(struct work_struct *w)
 		case MLO_AN_PHY:
 			link_state = pl->phy_state;
 			phylink_apply_manual_flow(pl, &link_state);
-			phylink_mac_config_up(pl, &link_state);
+			mac_config = link_state.link;
 			break;
 
 		case MLO_AN_FIXED:
 			phylink_get_fixed_state(pl, &link_state);
-			phylink_mac_config_up(pl, &link_state);
+			mac_config = link_state.link;
 			break;
 
 		case MLO_AN_INBAND:
@@ -619,14 +613,15 @@ static void phylink_resolve(struct work_struct *w)
 				/* If we have a PHY, we need to update with
 				 * the PHY flow control bits. */
 				link_state.pause = pl->phy_state.pause;
-				phylink_apply_manual_flow(pl, &link_state);
-				phylink_mac_config(pl, &link_state);
-			} else {
-				phylink_apply_manual_flow(pl, &link_state);
+				mac_config = true;
 			}
+			phylink_apply_manual_flow(pl, &link_state);
 			break;
 		}
 	}
+
+	if (mac_config)
+		phylink_mac_config(pl, &link_state);
 
 	if (link_state.link != cur_link_state) {
 		pl->old_link_state = link_state.link;
