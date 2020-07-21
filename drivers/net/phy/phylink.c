@@ -1400,8 +1400,7 @@ int phylink_ethtool_ksettings_set(struct phylink *pl,
 	pl->link_config.interface = config.interface;
 	pl->link_config.speed = config.speed;
 	pl->link_config.duplex = config.duplex;
-	pl->link_config.an_enabled = kset->base.autoneg !=
-				     AUTONEG_DISABLE;
+	pl->link_config.an_enabled = config.an_enabled;
 
 	if (pl->cur_link_an_mode == MLO_AN_INBAND &&
 	    !test_bit(PHYLINK_DISABLE_STOPPED, &pl->phylink_disable_state)) {
