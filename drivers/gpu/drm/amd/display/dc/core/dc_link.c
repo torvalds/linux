@@ -4374,7 +4374,7 @@ void core_link_enable_stream(
 			dp_set_dsc_enable(pipe_ctx, true);
 	}
 
-	if (pipe_ctx->stream->signal == SIGNAL_TYPE_HDMI_TYPE_A) {
+	if (dc_is_hdmi_signal(pipe_ctx->stream->signal)) {
 		core_link_set_avmute(pipe_ctx, false);
 	}
 }
