@@ -173,8 +173,8 @@ following ``udev`` rule::
 
   ACTION=="add", SUBSYSTEM=="thunderbolt", ATTRS{iommu_dma_protection}=="1", ATTR{authorized}=="0", ATTR{authorized}="1"
 
-Upgrading NVM on Thunderbolt device or host
--------------------------------------------
+Upgrading NVM on Thunderbolt device, host or retimer
+----------------------------------------------------
 Since most of the functionality is handled in firmware running on a
 host controller or a device, it is important that the firmware can be
 upgraded to the latest where possible bugs in it have been fixed.
@@ -185,9 +185,10 @@ for some machines:
 
   `Thunderbolt Updates <https://thunderbolttechnology.net/updates>`_
 
-Before you upgrade firmware on a device or host, please make sure it is a
-suitable upgrade. Failing to do that may render the device (or host) in a
-state where it cannot be used properly anymore without special tools!
+Before you upgrade firmware on a device, host or retimer, please make
+sure it is a suitable upgrade. Failing to do that may render the device
+in a state where it cannot be used properly anymore without special
+tools!
 
 Host NVM upgrade on Apple Macs is not supported.
 

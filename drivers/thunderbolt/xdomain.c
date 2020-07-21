@@ -501,6 +501,55 @@ void tb_unregister_protocol_handler(struct tb_protocol_handler *handler)
 }
 EXPORT_SYMBOL_GPL(tb_unregister_protocol_handler);
 
+static int rebuild_property_block(void)
+{
+	u32 *block, len;
+	int ret;
+
+	ret = tb_property_format_dir(xdomain_property_dir, NULL, 0);
+	if (ret < 0)
+		return ret;
+
+	len = ret;
+
+	block = kcalloc(len, sizeof(u32), GFP_KERNEL);
+	if (!block)
+		return -ENOMEM;
+
+	ret = tb_property_format_dir(xdomain_property_dir, block, len);
+	if (ret) {
+		kfree(block);
+		return ret;
+	}
+
+	kfree(xdomain_property_block);
+	xdomain_property_block = block;
+	xdomain_property_block_len = len;
+	xdomain_property_block_gen++;
+
+	return 0;
+}
+
+static void finalize_property_block(void)
+{
+	const struct tb_property *nodename;
+
+	/*
+	 * On first XDomain connection we set up the the system
+	 * nodename. This delayed here because userspace may not have it
+	 * set when the driver is first probed.
+	 */
+	mutex_lock(&xdomain_lock);
+	nodename = tb_property_find(xdomain_property_dir, "deviceid",
+				    TB_PROPERTY_TYPE_TEXT);
+	if (!nodename) {
+		tb_property_add_text(xdomain_property_dir, "deviceid",
+				     utsname()->nodename);
+		rebuild_property_block();
+	}
+	mutex_unlock(&xdomain_lock);
+}
+
 static void tb_xdp_handle_request(struct work_struct *work)
 {
 	struct xdomain_request_work *xw = container_of(work, typeof(*xw), work);
@@ -528,6 +577,8 @@ static void tb_xdp_handle_request(struct work_struct *work)
 		tb_xdp_error_response(ctl, route, sequence, ERROR_NOT_READY);
 		goto out;
 	}
+
+	finalize_property_block();
 
 	switch (pkg->type) {
 	case PROPERTIES_REQUEST:
@@ -1569,35 +1620,6 @@ bool tb_xdomain_handle_request(struct tb *tb, enum tb_cfg_pkg_type type,
 	return ret > 0;
 }
 
-static int rebuild_property_block(void)
-{
-	u32 *block, len;
-	int ret;
-
-	ret = tb_property_format_dir(xdomain_property_dir, NULL, 0);
-	if (ret < 0)
-		return ret;
-
-	len = ret;
-
-	block = kcalloc(len, sizeof(u32), GFP_KERNEL);
-	if (!block)
-		return -ENOMEM;
-
-	ret = tb_property_format_dir(xdomain_property_dir, block, len);
-	if (ret) {
-		kfree(block);
-		return ret;
-	}
-
-	kfree(xdomain_property_block);
-	xdomain_property_block = block;
-	xdomain_property_block_len = len;
-	xdomain_property_block_gen++;
-
-	return 0;
-}
-
 static int update_xdomain(struct device *dev, void *data)
 {
 	struct tb_xdomain *xd;
@@ -1702,8 +1724,6 @@ EXPORT_SYMBOL_GPL(tb_unregister_property_dir);
 
 int tb_xdomain_init(void)
 {
-	int ret;
-
 	xdomain_property_dir = tb_property_create_dir(NULL);
 	if (!xdomain_property_dir)
 		return -ENOMEM;
@@ -1712,22 +1732,16 @@ int tb_xdomain_init(void)
 	 * Initialize standard set of properties without any service
 	 * directories. Those will be added by service drivers
 	 * themselves when they are loaded.
+	 *
+	 * We also add node name later when first connection is made.
 	 */
 	tb_property_add_immediate(xdomain_property_dir, "vendorid",
 				  PCI_VENDOR_ID_INTEL);
 	tb_property_add_text(xdomain_property_dir, "vendorid", "Intel Corp.");
 	tb_property_add_immediate(xdomain_property_dir, "deviceid", 0x1);
-	tb_property_add_text(xdomain_property_dir, "deviceid",
-			     utsname()->nodename);
 	tb_property_add_immediate(xdomain_property_dir, "devicerv", 0x80000100);
 
-	ret = rebuild_property_block();
-	if (ret) {
-		tb_property_free_dir(xdomain_property_dir);
-		xdomain_property_dir = NULL;
-	}
-
-	return ret;
+	return 0;
 }
 
 void tb_xdomain_exit(void)

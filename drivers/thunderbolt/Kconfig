@@ -8,10 +8,15 @@ menuconfig USB4
 	select CRYPTO_HASH
 	select NVMEM
 	help
-	  USB4 and Thunderbolt driver. USB4 is the public speficiation
-	  based on Thunderbolt 3 protocol. This driver is required if
+	  USB4 and Thunderbolt driver. USB4 is the public specification
+	  based on the Thunderbolt 3 protocol. This driver is required if
 	  you want to hotplug Thunderbolt and USB4 compliant devices on
 	  Apple hardware or on PCs with Intel Falcon Ridge or newer.
 
 	  To compile this driver a module, choose M here. The module will be
 	  called thunderbolt.
+
+config USB4_KUNIT_TEST
+	bool "KUnit tests"
+	depends on KUNIT=y
+	depends on USB4=y
