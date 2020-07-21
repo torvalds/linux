@@ -144,12 +144,13 @@ static struct open_bucket *bch2_open_bucket_alloc(struct bch_fs *c)
 }
 
 static void open_bucket_free_unused(struct bch_fs *c,
-				    struct open_bucket *ob,
-				    bool may_realloc)
+				    struct write_point *wp,
+				    struct open_bucket *ob)
 {
 	struct bch_dev *ca = bch_dev_bkey_exists(c, ob->ptr.dev);
+	bool may_realloc = wp->type == BCH_DATA_user;
 
-	BUG_ON(ca->open_buckets_partial_nr >=
+	BUG_ON(ca->open_buckets_partial_nr >
 	       ARRAY_SIZE(ca->open_buckets_partial));
 
 	if (ca->open_buckets_partial_nr <
@@ -228,13 +229,22 @@ struct open_bucket *bch2_bucket_alloc(struct bch_fs *c, struct bch_dev *ca,
 
 	spin_lock(&c->freelist_lock);
 
-	if (may_alloc_partial &&
-	    ca->open_buckets_partial_nr) {
-		ob = c->open_buckets +
-			ca->open_buckets_partial[--ca->open_buckets_partial_nr];
-		ob->on_partial_list = false;
-		spin_unlock(&c->freelist_lock);
-		return ob;
+	if (may_alloc_partial) {
+		int i;
+
+		for (i = ca->open_buckets_partial_nr - 1; i >= 0; --i) {
+			ob = c->open_buckets + ca->open_buckets_partial[i];
+
+			if (reserve <= ob->alloc_reserve) {
+				array_remove_item(ca->open_buckets_partial,
+						  ca->open_buckets_partial_nr,
+						  i);
+				ob->on_partial_list = false;
+				ob->alloc_reserve = reserve;
+				spin_unlock(&c->freelist_lock);
+				return ob;
+			}
+		}
 	}
 
 	if (unlikely(c->open_buckets_nr_free <= open_buckets_reserved(reserve))) {
@@ -291,6 +301,7 @@ out:
 
 	ob->valid	= true;
 	ob->sectors_free = ca->mi.bucket_size;
+	ob->alloc_reserve = reserve;
 	ob->ptr		= (struct bch_extent_ptr) {
 		.type	= 1 << BCH_EXTENT_ENTRY_ptr,
 		.gen	= buckets->b[bucket].mark.gen,
@@ -835,9 +846,6 @@ retry:
 alloc_done:
 	BUG_ON(!ret && nr_effective < nr_replicas);
 
-	WARN_ON(reserve == RESERVE_MOVINGGC &&
-		ret == FREELIST_EMPTY);
-
 	if (erasure_code && !ec_open_bucket(c, &ptrs))
 		pr_debug("failed to get ec bucket: ret %u", ret);
 
@@ -850,7 +858,7 @@ alloc_done:
 
 	/* Free buckets we didn't use: */
 	open_bucket_for_each(c, &wp->ptrs, ob, i)
-		open_bucket_free_unused(c, ob, wp->type == BCH_DATA_user);
+		open_bucket_free_unused(c, wp, ob);
 
 	wp->ptrs = ptrs;
 
@@ -869,8 +877,7 @@ err:
 		if (ptrs.nr < ARRAY_SIZE(ptrs.v))
 			ob_push(c, &ptrs, ob);
 		else
-			open_bucket_free_unused(c, ob,
-					wp->type == BCH_DATA_user);
+			open_bucket_free_unused(c, wp, ob);
 	wp->ptrs = ptrs;
 
 	mutex_unlock(&wp->lock);
@@ -936,6 +943,13 @@ void bch2_alloc_sectors_done(struct bch_fs *c, struct write_point *wp)
 	mutex_unlock(&wp->lock);
 
 	bch2_open_buckets_put(c, &ptrs);
+}
+
+static inline void writepoint_init(struct write_point *wp,
+				   enum bch_data_type type)
+{
+	mutex_init(&wp->lock);
+	wp->type = type;
 }
 
 void bch2_fs_allocator_foreground_init(struct bch_fs *c)

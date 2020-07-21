@@ -133,13 +133,6 @@ static inline struct write_point_specifier writepoint_ptr(struct write_point *wp
 	return (struct write_point_specifier) { .v = (unsigned long) wp };
 }
 
-static inline void writepoint_init(struct write_point *wp,
-				   enum bch_data_type type)
-{
-	mutex_init(&wp->lock);
-	wp->type = type;
-}
-
 void bch2_fs_allocator_foreground_init(struct bch_fs *);
 
 #endif /* _BCACHEFS_ALLOC_FOREGROUND_H */

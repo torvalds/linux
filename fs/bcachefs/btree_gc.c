@@ -954,8 +954,10 @@ int bch2_gc_gens(struct bch_fs *c)
 	for (i = 0; i < BTREE_ID_NR; i++)
 		if (btree_node_type_needs_gc(i)) {
 			ret = bch2_gc_btree_gens(c, i);
-			if (ret)
+			if (ret) {
+				bch_err(c, "error recalculating oldest_gen: %i", ret);
 				goto err;
+			}
 		}
 
 	for_each_member_device(ca, c, i) {
@@ -966,6 +968,8 @@ int bch2_gc_gens(struct bch_fs *c)
 			g->oldest_gen = g->gc_gen;
 		up_read(&ca->bucket_lock);
 	}
+
+	c->gc_count++;
 err:
 	up_read(&c->gc_lock);
 	return ret;

@@ -66,6 +66,7 @@ struct open_bucket {
 	u8			type;
 	unsigned		valid:1;
 	unsigned		on_partial_list:1;
+	int			alloc_reserve:3;
 	unsigned		sectors_free;
 	struct bch_extent_ptr	ptr;
 	struct ec_stripe_new	*ec;

@@ -518,7 +518,9 @@ static int wait_buckets_available(struct bch_fs *c, struct bch_dev *ca)
 				  ca->inc_gen_really_needs_gc);
 
 		if (available > fifo_free(&ca->free_inc) ||
-		    (available && !fifo_full(&ca->free[RESERVE_BTREE])))
+		    (available &&
+		     (!fifo_full(&ca->free[RESERVE_BTREE]) ||
+		      !fifo_full(&ca->free[RESERVE_MOVINGGC]))))
 			break;
 
 		up_read(&c->gc_lock);

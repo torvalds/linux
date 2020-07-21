@@ -12,6 +12,7 @@
 #include "buckets.h"
 #include "clock.h"
 #include "disk_groups.h"
+#include "error.h"
 #include "extents.h"
 #include "eytzinger.h"
 #include "io.h"
@@ -104,7 +105,6 @@ static enum data_cmd copygc_pred(struct bch_fs *c, void *arg,
 	if (dev_idx < 0)
 		return DATA_SKIP;
 
-	/* XXX: use io_opts for this inode */
 	data_opts->target		= io_opts->background_target;
 	data_opts->btree_insert_flags	= BTREE_INSERT_USE_RESERVE;
 	data_opts->rewrite_dev		= dev_idx;
@@ -123,7 +123,7 @@ static bool have_copygc_reserve(struct bch_dev *ca)
 	return ret;
 }
 
-static void bch2_copygc(struct bch_fs *c)
+static int bch2_copygc(struct bch_fs *c)
 {
 	copygc_heap *h = &c->copygc_heap;
 	struct copygc_heap_entry e, *i;
@@ -153,7 +153,7 @@ static void bch2_copygc(struct bch_fs *c)
 		free_heap(&c->copygc_heap);
 		if (!init_heap(&c->copygc_heap, heap_size, GFP_KERNEL)) {
 			bch_err(c, "error allocating copygc heap");
-			return;
+			return 0;
 		}
 	}
 
@@ -178,6 +178,7 @@ static void bch2_copygc(struct bch_fs *c)
 				continue;
 
 			e = (struct copygc_heap_entry) {
+				.dev		= dev_idx,
 				.gen		= m.gen,
 				.sectors	= bucket_sectors_used(m),
 				.offset		= bucket_to_sector(ca, b),
@@ -185,6 +186,11 @@ static void bch2_copygc(struct bch_fs *c)
 			heap_add_or_replace(h, e, -sectors_used_cmp, NULL);
 		}
 		up_read(&ca->bucket_lock);
+	}
+
+	if (!sectors_reserved) {
+		bch2_fs_fatal_error(c, "stuck, ran out of copygc reserve!");
+		return -1;
 	}
 
 	for (i = h->data; i < h->data + h->used; i++)
@@ -198,7 +204,7 @@ static void bch2_copygc(struct bch_fs *c)
 	buckets_to_move = h->used;
 
 	if (!buckets_to_move)
-		return;
+		return 0;
 
 	eytzinger0_sort(h->data, h->used,
 			sizeof(h->data[0]),
@@ -214,10 +220,17 @@ static void bch2_copygc(struct bch_fs *c)
 		down_read(&ca->bucket_lock);
 		buckets = bucket_array(ca);
 		for (i = h->data; i < h->data + h->used; i++) {
-			size_t b = sector_to_bucket(ca, i->offset);
-			struct bucket_mark m = READ_ONCE(buckets->b[b].mark);
+			struct bucket_mark m;
+			size_t b;
 
-			if (i->gen == m.gen && bucket_sectors_used(m)) {
+			if (i->dev != dev_idx)
+				continue;
+
+			b = sector_to_bucket(ca, i->offset);
+			m = READ_ONCE(buckets->b[b].mark);
+
+			if (i->gen == m.gen &&
+			    bucket_sectors_used(m)) {
 				sectors_not_moved += bucket_sectors_used(m);
 				buckets_not_moved++;
 			}
@@ -237,6 +250,7 @@ static void bch2_copygc(struct bch_fs *c)
 	trace_copygc(c,
 		     atomic64_read(&move_stats.sectors_moved), sectors_not_moved,
 		     buckets_to_move, buckets_not_moved);
+	return 0;
 }
 
 /*
@@ -292,7 +306,8 @@ static int bch2_copygc_thread(void *arg)
 			continue;
 		}
 
-		bch2_copygc(c);
+		if (bch2_copygc(c))
+			break;
 	}
 
 	return 0;
@@ -323,8 +338,7 @@ int bch2_copygc_start(struct bch_fs *c)
 	if (bch2_fs_init_fault("copygc_start"))
 		return -ENOMEM;
 
-	t = kthread_create(bch2_copygc_thread, c,
-			   "bch_copygc[%s]", c->name);
+	t = kthread_create(bch2_copygc_thread, c, "bch_copygc");
 	if (IS_ERR(t))
 		return PTR_ERR(t);
 
