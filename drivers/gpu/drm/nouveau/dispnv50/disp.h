@@ -73,6 +73,10 @@ struct nv50_dmac {
 	 * grabbed by evo_wait (if the pushbuf reservation is successful) and
 	 * dropped again by evo_kick. */
 	struct mutex lock;
+
+	u32 cur;
+	u32 put;
+	u32 max;
 };
 
 struct nv50_outp_atom {

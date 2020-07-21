@@ -179,6 +179,8 @@ nv50_disp_core_fini(struct nv50_disp_chan *chan)
 		nvkm_error(subdev, "core fini: %08x\n",
 			   nvkm_rd32(device, 0x610200));
 	}
+
+	chan->suspend_put = nvkm_rd32(device, 0x640000);
 }
 
 static int
@@ -198,7 +200,7 @@ nv50_disp_core_init(struct nv50_disp_chan *chan)
 	nvkm_wr32(device, 0x610208, 0x00010000);
 	nvkm_wr32(device, 0x61020c, 0x00000000);
 	nvkm_mask(device, 0x610200, 0x00000010, 0x00000010);
-	nvkm_wr32(device, 0x640000, 0x00000000);
+	nvkm_wr32(device, 0x640000, chan->suspend_put);
 	nvkm_wr32(device, 0x610200, 0x01000013);
 
 	/* wait for it to go inactive */

@@ -41,12 +41,16 @@
 #include <drm/drm_scdc_helper.h>
 #include <drm/drm_vblank.h>
 
+#include <nvif/push507c.h>
+
 #include <nvif/class.h>
 #include <nvif/cl0002.h>
 #include <nvif/cl5070.h>
 #include <nvif/cl507d.h>
 #include <nvif/event.h>
 #include <nvif/timer.h>
+
+#include <nvhw/class/cl507c.h>
 
 #include "nouveau_drv.h"
 #include "nouveau_dma.h"
@@ -120,21 +124,93 @@ static void
 nv50_dmac_kick(struct nvif_push *push)
 {
 	struct nv50_dmac *dmac = container_of(push, typeof(*dmac), _push);
-	evo_kick(push->cur, dmac);
-	push->bgn = push->cur = push->end;
+
+	dmac->cur = push->cur - (u32 *)dmac->_push.mem.object.map.ptr;
+	if (dmac->put != dmac->cur) {
+		/* Push buffer fetches are not coherent with BAR1, we need to ensure
+		 * writes have been flushed right through to VRAM before writing PUT.
+		 */
+		if (dmac->push->mem.type & NVIF_MEM_VRAM) {
+			struct nvif_device *device = dmac->base.device;
+			nvif_wr32(&device->object, 0x070000, 0x00000001);
+			nvif_msec(device, 2000,
+				if (!(nvif_rd32(&device->object, 0x070000) & 0x00000002))
+					break;
+			);
+		}
+
+		NVIF_WV32(&dmac->base.user, NV507C, PUT, PTR, dmac->cur);
+		dmac->put = dmac->cur;
+	}
+
+	push->bgn = push->cur;
+}
+
+static int
+nv50_dmac_free(struct nv50_dmac *dmac)
+{
+	u32 get = NVIF_RV32(&dmac->base.user, NV507C, GET, PTR);
+	if (get > dmac->cur) /* NVIDIA stay 5 away from GET, do the same. */
+		return get - dmac->cur - 5;
+	return dmac->max - dmac->cur;
+}
+
+static int
+nv50_dmac_wind(struct nv50_dmac *dmac)
+{
+	/* Wait for GET to depart from the beginning of the push buffer to
+	 * prevent writing PUT == GET, which would be ignored by HW.
+	 */
+	u32 get = NVIF_RV32(&dmac->base.user, NV507C, GET, PTR);
+	if (get == 0) {
+		/* Corner-case, HW idle, but non-committed work pending. */
+		if (dmac->put == 0)
+			nv50_dmac_kick(dmac->push);
+
+		if (nvif_msec(dmac->base.device, 2000,
+			if (NVIF_TV32(&dmac->base.user, NV507C, GET, PTR, >, 0))
+				break;
+		) < 0)
+			return -ETIMEDOUT;
+	}
+
+	PUSH_RSVD(dmac->push, PUSH_JUMP(dmac->push, 0));
+	dmac->cur = 0;
+	return 0;
 }
 
 static int
 nv50_dmac_wait(struct nvif_push *push, u32 size)
 {
 	struct nv50_dmac *dmac = container_of(push, typeof(*dmac), _push);
-	u32 *ptr = evo_wait(dmac, size);
-	if (!ptr)
-		return -ETIMEDOUT;
+	int free;
 
-	push->bgn = ptr;
-	push->cur = ptr;
-	push->end = ptr + size;
+	if (WARN_ON(size > dmac->max))
+		return -EINVAL;
+
+	dmac->cur = push->cur - (u32 *)dmac->_push.mem.object.map.ptr;
+	if (dmac->cur + size >= dmac->max) {
+		int ret = nv50_dmac_wind(dmac);
+		if (ret)
+			return ret;
+
+		push->cur = dmac->_push.mem.object.map.ptr;
+		push->cur = push->cur + dmac->cur;
+		nv50_dmac_kick(push);
+	}
+
+	if (nvif_msec(dmac->base.device, 2000,
+		if ((free = nv50_dmac_free(dmac)) >= size)
+			break;
+	) < 0) {
+		WARN_ON(1);
+		return -ETIMEDOUT;
+	}
+
+	push->bgn = dmac->_push.mem.object.map.ptr;
+	push->bgn = push->bgn + dmac->cur;
+	push->cur = push->bgn;
+	push->end = push->cur + free;
 	return 0;
 }
 
@@ -171,6 +247,10 @@ nv50_dmac_create(struct nvif_device *device, struct nvif_object *disp,
 	dmac->_push.wait = nv50_dmac_wait;
 	dmac->_push.kick = nv50_dmac_kick;
 	dmac->push = &dmac->_push;
+	dmac->push->bgn = dmac->_push.mem.object.map.ptr;
+	dmac->push->cur = dmac->push->bgn;
+	dmac->push->end = dmac->push->bgn;
+	dmac->max = 0x1000/4 - 1;
 
 	args->pushbuf = nvif_handle(&dmac->_push.mem.object);
 
@@ -207,69 +287,6 @@ nv50_dmac_create(struct nvif_device *device, struct nvif_object *disp,
 		return ret;
 
 	return ret;
-}
-
-/******************************************************************************
- * EVO channel helpers
- *****************************************************************************/
-static void
-evo_flush(struct nv50_dmac *dmac)
-{
-	/* Push buffer fetches are not coherent with BAR1, we need to ensure
-	 * writes have been flushed right through to VRAM before writing PUT.
-	 */
-	if (dmac->push->mem.type & NVIF_MEM_VRAM) {
-		struct nvif_device *device = dmac->base.device;
-		nvif_wr32(&device->object, 0x070000, 0x00000001);
-		nvif_msec(device, 2000,
-			if (!(nvif_rd32(&device->object, 0x070000) & 0x00000002))
-				break;
-		);
-	}
-}
-
-u32 *
-evo_wait(struct nv50_dmac *evoc, int nr)
-{
-	struct nv50_dmac *dmac = evoc;
-	struct nvif_device *device = dmac->base.device;
-	u32 put;
-
-	if (dmac->push->cur != dmac->push->bgn)
-		PUSH_KICK(dmac->push);
-
-	put = nvif_rd32(&dmac->base.user, 0x0000) / 4;
-
-	mutex_lock(&dmac->lock);
-	if (put + nr >= (PAGE_SIZE / 4) - 8) {
-		dmac->ptr[put] = 0x20000000;
-		evo_flush(dmac);
-
-		nvif_wr32(&dmac->base.user, 0x0000, 0x00000000);
-		if (nvif_msec(device, 2000,
-			if (!nvif_rd32(&dmac->base.user, 0x0004))
-				break;
-		) < 0) {
-			mutex_unlock(&dmac->lock);
-			pr_err("nouveau: evo channel stalled\n");
-			return NULL;
-		}
-
-		put = 0;
-	}
-
-	return dmac->ptr + put;
-}
-
-void
-evo_kick(u32 *push, struct nv50_dmac *evoc)
-{
-	struct nv50_dmac *dmac = evoc;
-
-	evo_flush(dmac);
-
-	nvif_wr32(&dmac->base.user, 0x0000, (push - dmac->ptr) << 2);
-	mutex_unlock(&dmac->lock);
 }
 
 /******************************************************************************
