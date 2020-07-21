@@ -411,3 +411,23 @@ void amdgpu_gmc_tmz_set(struct amdgpu_device *adev)
 		break;
 	}
 }
+
+void amdgpu_gmc_set_vm_fault_masks(struct amdgpu_device *adev, int hub_type,
+				   bool enable)
+{
+	struct amdgpu_vmhub *hub;
+	u32 tmp, reg, i;
+
+	hub = &adev->vmhub[hub_type];
+	for (i = 0; i < 16; i++) {
+		reg = hub->vm_context0_cntl + hub->ctx_distance * i;
+
+		tmp = RREG32(reg);
+		if (enable)
+			tmp |= hub->vm_cntx_cntl_vm_fault;
+		else
+			tmp &= ~hub->vm_cntx_cntl_vm_fault;
+
+		WREG32(reg, tmp);
+	}
+}

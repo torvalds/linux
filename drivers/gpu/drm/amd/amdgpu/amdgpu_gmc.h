@@ -291,4 +291,8 @@ int amdgpu_gmc_allocate_vm_inv_eng(struct amdgpu_device *adev);
 
 extern void amdgpu_gmc_tmz_set(struct amdgpu_device *adev);
 
+extern void
+amdgpu_gmc_set_vm_fault_masks(struct amdgpu_device *adev, int hub_type,
+			      bool enable);
+
 #endif

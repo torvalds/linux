@@ -62,63 +62,18 @@ gmc_v10_0_vm_fault_interrupt_state(struct amdgpu_device *adev,
 				   struct amdgpu_irq_src *src, unsigned type,
 				   enum amdgpu_interrupt_state state)
 {
-	struct amdgpu_vmhub *hub;
-	u32 tmp, reg, bits[AMDGPU_MAX_VMHUBS], i;
-
-	bits[AMDGPU_GFXHUB_0] = GCVM_CONTEXT1_CNTL__RANGE_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK |
-		GCVM_CONTEXT1_CNTL__DUMMY_PAGE_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK |
-		GCVM_CONTEXT1_CNTL__PDE0_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK |
-		GCVM_CONTEXT1_CNTL__VALID_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK |
-		GCVM_CONTEXT1_CNTL__READ_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK |
-		GCVM_CONTEXT1_CNTL__WRITE_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK |
-		GCVM_CONTEXT1_CNTL__EXECUTE_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK;
-
-	bits[AMDGPU_MMHUB_0] = MMVM_CONTEXT1_CNTL__RANGE_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK |
-		MMVM_CONTEXT1_CNTL__DUMMY_PAGE_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK |
-		MMVM_CONTEXT1_CNTL__PDE0_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK |
-		MMVM_CONTEXT1_CNTL__VALID_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK |
-		MMVM_CONTEXT1_CNTL__READ_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK |
-		MMVM_CONTEXT1_CNTL__WRITE_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK |
-		MMVM_CONTEXT1_CNTL__EXECUTE_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK;
-
 	switch (state) {
 	case AMDGPU_IRQ_STATE_DISABLE:
 		/* MM HUB */
-		hub = &adev->vmhub[AMDGPU_MMHUB_0];
-		for (i = 0; i < 16; i++) {
-			reg = hub->vm_context0_cntl + hub->ctx_distance * i;
-			tmp = RREG32(reg);
-			tmp &= ~bits[AMDGPU_MMHUB_0];
-			WREG32(reg, tmp);
-		}
-
+		amdgpu_gmc_set_vm_fault_masks(adev, AMDGPU_MMHUB_0, false);
 		/* GFX HUB */
-		hub = &adev->vmhub[AMDGPU_GFXHUB_0];
-		for (i = 0; i < 16; i++) {
-			reg = hub->vm_context0_cntl + hub->ctx_distance * i;
-			tmp = RREG32(reg);
-			tmp &= ~bits[AMDGPU_GFXHUB_0];
-			WREG32(reg, tmp);
-		}
+		amdgpu_gmc_set_vm_fault_masks(adev, AMDGPU_GFXHUB_0, false);
 		break;
 	case AMDGPU_IRQ_STATE_ENABLE:
 		/* MM HUB */
-		hub = &adev->vmhub[AMDGPU_MMHUB_0];
-		for (i = 0; i < 16; i++) {
-			reg = hub->vm_context0_cntl + hub->ctx_distance * i;
-			tmp = RREG32(reg);
-			tmp |= bits[AMDGPU_MMHUB_0];
-			WREG32(reg, tmp);
-		}
-
+		amdgpu_gmc_set_vm_fault_masks(adev, AMDGPU_MMHUB_0, true);
 		/* GFX HUB */
-		hub = &adev->vmhub[AMDGPU_GFXHUB_0];
-		for (i = 0; i < 16; i++) {
-			reg = hub->vm_context0_cntl + hub->ctx_distance * i;
-			tmp = RREG32(reg);
-			tmp |= bits[AMDGPU_GFXHUB_0];
-			WREG32(reg, tmp);
-		}
+		amdgpu_gmc_set_vm_fault_masks(adev, AMDGPU_GFXHUB_0, true);
 		break;
 	default:
 		break;
