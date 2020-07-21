@@ -23,9 +23,10 @@ static u8 rts5209_get_ic_version(struct rtsx_pcr *pcr)
 
 static void rts5209_fetch_vendor_settings(struct rtsx_pcr *pcr)
 {
+	struct pci_dev *pdev = pcr->pci;
 	u32 reg;
 
-	rtsx_pci_read_config_dword(pcr, PCR_SETTING_REG1, &reg);
+	pci_read_config_dword(pdev, PCR_SETTING_REG1, &reg);
 	pcr_dbg(pcr, "Cfg 0x%x: 0x%x\n", PCR_SETTING_REG1, reg);
 
 	if (rts5209_vendor_setting1_valid(reg)) {
@@ -34,7 +35,7 @@ static void rts5209_fetch_vendor_settings(struct rtsx_pcr *pcr)
 		pcr->aspm_en = rts5209_reg_to_aspm(reg);
 	}
 
-	rtsx_pci_read_config_dword(pcr, PCR_SETTING_REG2, &reg);
+	pci_read_config_dword(pdev, PCR_SETTING_REG2, &reg);
 	pcr_dbg(pcr, "Cfg 0x%x: 0x%x\n", PCR_SETTING_REG2, reg);
 
 	if (rts5209_vendor_setting2_valid(reg)) {

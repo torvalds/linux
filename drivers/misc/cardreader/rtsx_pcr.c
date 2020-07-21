@@ -1350,7 +1350,7 @@ static int rtsx_pci_init_hw(struct rtsx_pcr *pcr)
 	pcie_capability_write_word(pdev, PCI_EXP_LNKCTL,
 				   PCI_EXP_LNKCTL_CLKREQ_EN);
 	/* Enter L1 when host tx idle */
-	rtsx_pci_write_config_byte(pcr, 0x70F, 0x5B);
+	pci_write_config_byte(pdev, 0x70F, 0x5B);
 
 	if (pcr->ops->extra_init_hw) {
 		err = pcr->ops->extra_init_hw(pcr);

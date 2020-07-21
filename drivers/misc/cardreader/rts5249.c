@@ -55,9 +55,10 @@ static void rts5249_fill_driving(struct rtsx_pcr *pcr, u8 voltage)
 
 static void rtsx_base_fetch_vendor_settings(struct rtsx_pcr *pcr)
 {
+	struct pci_dev *pdev = pcr->pci;
 	u32 reg;
 
-	rtsx_pci_read_config_dword(pcr, PCR_SETTING_REG1, &reg);
+	pci_read_config_dword(pdev, PCR_SETTING_REG1, &reg);
 	pcr_dbg(pcr, "Cfg 0x%x: 0x%x\n", PCR_SETTING_REG1, reg);
 
 	if (!rtsx_vendor_setting_valid(reg)) {
@@ -70,7 +71,7 @@ static void rtsx_base_fetch_vendor_settings(struct rtsx_pcr *pcr)
 	pcr->card_drive_sel &= 0x3F;
 	pcr->card_drive_sel |= rtsx_reg_to_card_drive_sel(reg);
 
-	rtsx_pci_read_config_dword(pcr, PCR_SETTING_REG2, &reg);
+	pci_read_config_dword(pdev, PCR_SETTING_REG2, &reg);
 	pcr_dbg(pcr, "Cfg 0x%x: 0x%x\n", PCR_SETTING_REG2, reg);
 	pcr->sd30_drive_sel_3v3 = rtsx_reg_to_sd30_drive_sel_3v3(reg);
 	if (rtsx_reg_check_reverse_socket(reg))
@@ -93,14 +94,15 @@ static void rtsx_base_force_power_down(struct rtsx_pcr *pcr, u8 pm_state)
 
 static void rts5249_init_from_cfg(struct rtsx_pcr *pcr)
 {
+	struct pci_dev *pdev = pcr->pci;
 	struct rtsx_cr_option *option = &(pcr->option);
 	u32 lval;
 
 	if (CHK_PCI_PID(pcr, PID_524A))
-		rtsx_pci_read_config_dword(pcr,
+		pci_read_config_dword(pdev,
 			PCR_ASPM_SETTING_REG1, &lval);
 	else
-		rtsx_pci_read_config_dword(pcr,
+		pci_read_config_dword(pdev,
 			PCR_ASPM_SETTING_REG2, &lval);
 
 	if (lval & ASPM_L1_1_EN_MASK)
@@ -118,7 +120,7 @@ static void rts5249_init_from_cfg(struct rtsx_pcr *pcr)
 	if (option->ltr_en) {
 		u16 val;
 
-		pcie_capability_read_word(pcr->pci, PCI_EXP_DEVCTL2, &val);
+		pcie_capability_read_word(pdev, PCI_EXP_DEVCTL2, &val);
 		if (val & PCI_EXP_DEVCTL2_LTR_EN) {
 			option->ltr_enabled = true;
 			option->ltr_active = true;
