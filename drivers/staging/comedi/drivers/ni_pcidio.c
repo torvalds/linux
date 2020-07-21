@@ -33,7 +33,7 @@
  * The PCI-6534 requires a firmware upload after power-up to work, the
  * firmware data and instructions for loading it with comedi_config
  * it are contained in the comedi_nonfree_firmware tarball available from
- * http://www.comedi.org
+ * https://www.comedi.org
  */
 
 #define USE_DMA
@@ -1005,6 +1005,6 @@ static struct pci_driver ni_pcidio_pci_driver = {
 };
 module_comedi_pci_driver(ni_pcidio_driver, ni_pcidio_pci_driver);
 
-MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_AUTHOR("Comedi https://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");
 MODULE_LICENSE("GPL");

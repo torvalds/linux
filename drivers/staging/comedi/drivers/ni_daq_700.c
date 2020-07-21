@@ -34,8 +34,8 @@
  *
  * IRQ is assigned but not used.
  *
- * Manuals:	Register level:	http://www.ni.com/pdf/manuals/340698.pdf
- *		User Manual:	http://www.ni.com/pdf/manuals/320676d.pdf
+ * Manuals:	Register level:	https://www.ni.com/pdf/manuals/340698.pdf
+ *		User Manual:	https://www.ni.com/pdf/manuals/320676d.pdf
  */
 
 #include <linux/module.h>
