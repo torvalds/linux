@@ -236,19 +236,6 @@ static inline u32 ionic_coal_usec_to_hw(struct ionic *ionic, u32 usecs)
 	return (usecs * mult) / div;
 }
 
-static inline u32 ionic_coal_hw_to_usec(struct ionic *ionic, u32 units)
-{
-	u32 mult = le32_to_cpu(ionic->ident.dev.intr_coal_mult);
-	u32 div = le32_to_cpu(ionic->ident.dev.intr_coal_div);
-
-	/* Div-by-zero should never be an issue, but check anyway */
-	if (!div || !mult)
-		return 0;
-
-	/* Convert from device units to usec */
-	return (units * div) / mult;
-}
-
 typedef void (*ionic_reset_cb)(struct ionic_lif *lif, void *arg);
 
 void ionic_link_status_check_request(struct ionic_lif *lif);
