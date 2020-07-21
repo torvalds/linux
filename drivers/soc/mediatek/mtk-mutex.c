@@ -10,8 +10,7 @@
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/soc/mediatek/mtk-mmsys.h>
-
-#include "mtk_mutex.h"
+#include <linux/soc/mediatek/mtk-mutex.h>
 
 #define MT2701_MUTEX0_MOD0			0x2c
 #define MT2701_MUTEX0_SOF0			0x30
@@ -241,6 +240,7 @@ struct mtk_mutex *mtk_mutex_get(struct device *dev)
 
 	return ERR_PTR(-EBUSY);
 }
+EXPORT_SYMBOL_GPL(mtk_mutex_get);
 
 void mtk_mutex_put(struct mtk_mutex *mutex)
 {
@@ -251,6 +251,7 @@ void mtk_mutex_put(struct mtk_mutex *mutex)
 
 	mutex->claimed = false;
 }
+EXPORT_SYMBOL_GPL(mtk_mutex_put);
 
 int mtk_mutex_prepare(struct mtk_mutex *mutex)
 {
@@ -258,6 +259,7 @@ int mtk_mutex_prepare(struct mtk_mutex *mutex)
 						 mutex[mutex->id]);
 	return clk_prepare_enable(mtx->clk);
 }
+EXPORT_SYMBOL_GPL(mtk_mutex_prepare);
 
 void mtk_mutex_unprepare(struct mtk_mutex *mutex)
 {
@@ -265,6 +267,7 @@ void mtk_mutex_unprepare(struct mtk_mutex *mutex)
 						 mutex[mutex->id]);
 	clk_disable_unprepare(mtx->clk);
 }
+EXPORT_SYMBOL_GPL(mtk_mutex_unprepare);
 
 void mtk_mutex_add_comp(struct mtk_mutex *mutex,
 			enum mtk_ddp_comp_id id)
@@ -316,6 +319,7 @@ void mtk_mutex_add_comp(struct mtk_mutex *mutex,
 		       mtx->regs +
 		       DISP_REG_MUTEX_SOF(mtx->data->mutex_sof_reg, mutex->id));
 }
+EXPORT_SYMBOL_GPL(mtk_mutex_add_comp);
 
 void mtk_mutex_remove_comp(struct mtk_mutex *mutex,
 			   enum mtk_ddp_comp_id id)
@@ -355,6 +359,7 @@ void mtk_mutex_remove_comp(struct mtk_mutex *mutex,
 		break;
 	}
 }
+EXPORT_SYMBOL_GPL(mtk_mutex_remove_comp);
 
 void mtk_mutex_enable(struct mtk_mutex *mutex)
 {
@@ -365,6 +370,7 @@ void mtk_mutex_enable(struct mtk_mutex *mutex)
 
 	writel(1, mtx->regs + DISP_REG_MUTEX_EN(mutex->id));
 }
+EXPORT_SYMBOL_GPL(mtk_mutex_enable);
 
 void mtk_mutex_disable(struct mtk_mutex *mutex)
 {
@@ -375,6 +381,7 @@ void mtk_mutex_disable(struct mtk_mutex *mutex)
 
 	writel(0, mtx->regs + DISP_REG_MUTEX_EN(mutex->id));
 }
+EXPORT_SYMBOL_GPL(mtk_mutex_disable);
 
 void mtk_mutex_acquire(struct mtk_mutex *mutex)
 {
@@ -388,6 +395,7 @@ void mtk_mutex_acquire(struct mtk_mutex *mutex)
 				      tmp, tmp & INT_MUTEX, 1, 10000))
 		pr_err("could not acquire mutex %d\n", mutex->id);
 }
+EXPORT_SYMBOL_GPL(mtk_mutex_acquire);
 
 void mtk_mutex_release(struct mtk_mutex *mutex)
 {
@@ -396,6 +404,7 @@ void mtk_mutex_release(struct mtk_mutex *mutex)
 
 	writel(0, mtx->regs + DISP_REG_MUTEX(mutex->id));
 }
+EXPORT_SYMBOL_GPL(mtk_mutex_release);
 
 static int mtk_mutex_probe(struct platform_device *pdev)
 {
@@ -461,3 +470,5 @@ struct platform_driver mtk_mutex_driver = {
 		.of_match_table = mutex_driver_dt_match,
 	},
 };
+
+builtin_platform_driver(mtk_mutex_driver);
