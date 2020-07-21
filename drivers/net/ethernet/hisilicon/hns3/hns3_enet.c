@@ -1135,7 +1135,7 @@ static int hns3_fill_desc(struct hns3_enet_ring *ring, void *priv,
 	}
 
 	frag_buf_num = hns3_tx_bd_count(size);
-	sizeoflast = size & HNS3_TX_LAST_SIZE_M;
+	sizeoflast = size % HNS3_MAX_BD_SIZE;
 	sizeoflast = sizeoflast ? sizeoflast : HNS3_MAX_BD_SIZE;
 
 	/* When frag size is bigger than hardware limit, split this frag */
