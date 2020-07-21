@@ -4917,15 +4917,9 @@ static int pci_reset_hotplug_slot(struct hotplug_slot *hotplug, int probe)
 
 static int pci_dev_reset_slot_function(struct pci_dev *dev, int probe)
 {
-	struct pci_dev *pdev;
-
-	if (dev->subordinate || !dev->slot ||
+	if (dev->multifunction || dev->subordinate || !dev->slot ||
 	    dev->dev_flags & PCI_DEV_FLAGS_NO_BUS_RESET)
 		return -ENOTTY;
-
-	list_for_each_entry(pdev, &dev->bus->devices, bus_list)
-		if (pdev != dev && pdev->slot == dev->slot)
-			return -ENOTTY;
 
 	return pci_reset_hotplug_slot(dev->slot->hotplug, probe);
 }
