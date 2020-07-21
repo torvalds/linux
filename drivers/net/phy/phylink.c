@@ -578,9 +578,14 @@ static void phylink_resolve(struct work_struct *w)
 	struct phylink *pl = container_of(w, struct phylink, resolve);
 	struct phylink_link_state link_state;
 	struct net_device *ndev = pl->netdev;
-	int link_changed;
+	bool cur_link_state;
 
 	mutex_lock(&pl->state_mutex);
+	if (pl->netdev)
+		cur_link_state = netif_carrier_ok(ndev);
+	else
+		cur_link_state = pl->old_link_state;
+
 	if (pl->phylink_disable_state) {
 		pl->mac_link_dropped = false;
 		link_state.link = false;
@@ -623,12 +628,7 @@ static void phylink_resolve(struct work_struct *w)
 		}
 	}
 
-	if (pl->netdev)
-		link_changed = (link_state.link != netif_carrier_ok(ndev));
-	else
-		link_changed = (link_state.link != pl->old_link_state);
-
-	if (link_changed) {
+	if (link_state.link != cur_link_state) {
 		pl->old_link_state = link_state.link;
 		if (!link_state.link)
 			phylink_link_down(pl);
