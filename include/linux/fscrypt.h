@@ -74,10 +74,15 @@ struct fscrypt_operations {
 			    struct request_queue **devs);
 };
 
-static inline bool fscrypt_has_encryption_key(const struct inode *inode)
+static inline struct fscrypt_info *fscrypt_get_info(const struct inode *inode)
 {
-	/* pairs with cmpxchg_release() in fscrypt_get_encryption_info() */
-	return READ_ONCE(inode->i_crypt_info) != NULL;
+	/*
+	 * Pairs with the cmpxchg_release() in fscrypt_get_encryption_info().
+	 * I.e., another task may publish ->i_crypt_info concurrently, executing
+	 * a RELEASE barrier.  We need to use smp_load_acquire() here to safely
+	 * ACQUIRE the memory the other task published.
+	 */
+	return smp_load_acquire(&inode->i_crypt_info);
 }
 
 /**
@@ -234,9 +239,9 @@ static inline void fscrypt_set_ops(struct super_block *sb,
 }
 #else  /* !CONFIG_FS_ENCRYPTION */
 
-static inline bool fscrypt_has_encryption_key(const struct inode *inode)
+static inline struct fscrypt_info *fscrypt_get_info(const struct inode *inode)
 {
-	return false;
+	return NULL;
 }
 
 static inline bool fscrypt_needs_contents_encryption(const struct inode *inode)
@@ -617,6 +622,20 @@ static inline bool fscrypt_inode_uses_fs_layer_crypto(const struct inode *inode)
 {
 	return fscrypt_needs_contents_encryption(inode) &&
 	       !__fscrypt_inode_uses_inline_crypto(inode);
+}
+
+/**
+ * fscrypt_has_encryption_key() - check whether an inode has had its key set up
+ * @inode: the inode to check
+ *
+ * Return: %true if the inode has had its encryption key set up, else %false.
+ *
+ * Usually this should be preceded by fscrypt_get_encryption_info() to try to
+ * set up the key first.
+ */
+static inline bool fscrypt_has_encryption_key(const struct inode *inode)
+{
+	return fscrypt_get_info(inode) != NULL;
 }
 
 /**

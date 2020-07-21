@@ -518,7 +518,17 @@ int fscrypt_get_encryption_info(struct inode *inode)
 	if (res)
 		goto out;
 
+	/*
+	 * Multiple tasks may race to set ->i_crypt_info, so use
+	 * cmpxchg_release().  This pairs with the smp_load_acquire() in
+	 * fscrypt_get_info().  I.e., here we publish ->i_crypt_info with a
+	 * RELEASE barrier so that other tasks can ACQUIRE it.
+	 */
 	if (cmpxchg_release(&inode->i_crypt_info, NULL, crypt_info) == NULL) {
+		/*
+		 * We won the race and set ->i_crypt_info to our crypt_info.
+		 * Now link it into the master key's inode list.
+		 */
 		if (master_key) {
 			struct fscrypt_master_key *mk =
 				master_key->payload.data[0];
@@ -589,7 +599,7 @@ EXPORT_SYMBOL(fscrypt_free_inode);
  */
 int fscrypt_drop_inode(struct inode *inode)
 {
-	const struct fscrypt_info *ci = READ_ONCE(inode->i_crypt_info);
+	const struct fscrypt_info *ci = fscrypt_get_info(inode);
 	const struct fscrypt_master_key *mk;
 
 	/*

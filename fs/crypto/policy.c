@@ -352,7 +352,7 @@ static int fscrypt_get_policy(struct inode *inode, union fscrypt_policy *policy)
 	union fscrypt_context ctx;
 	int ret;
 
-	ci = READ_ONCE(inode->i_crypt_info);
+	ci = fscrypt_get_info(inode);
 	if (ci) {
 		/* key available, use the cached policy */
 		*policy = ci->ci_policy;
@@ -641,7 +641,7 @@ int fscrypt_inherit_context(struct inode *parent, struct inode *child,
 	if (res < 0)
 		return res;
 
-	ci = READ_ONCE(parent->i_crypt_info);
+	ci = fscrypt_get_info(parent);
 	if (ci == NULL)
 		return -ENOKEY;
 
