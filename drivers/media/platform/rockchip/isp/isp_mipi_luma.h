@@ -54,6 +54,8 @@ struct rkisp_luma_vdev {
 	struct tasklet_struct rd_tasklet;
 
 	unsigned int ystat_isrcnt[ISP2X_MIPI_RAW_MAX];
+	bool ystat_rdflg[ISP2X_MIPI_RAW_MAX];
+	struct rkisp_luma_readout_work work;
 };
 
 void rkisp_luma_isr(struct rkisp_luma_vdev *luma_vdev, u32 isp_stat);

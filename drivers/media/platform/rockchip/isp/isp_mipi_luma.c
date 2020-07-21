@@ -182,8 +182,10 @@ rkisp_luma_vb2_start_streaming(struct vb2_queue *queue,
 	struct rkisp_luma_vdev *luma_vdev = queue->drv_priv;
 	u32 i;
 
-	for (i = 0; i < ISP2X_MIPI_RAW_MAX; i++)
+	for (i = 0; i < ISP2X_MIPI_RAW_MAX; i++) {
 		luma_vdev->ystat_isrcnt[i] = 0;
+		luma_vdev->ystat_rdflg[i] = false;
+	}
 
 	luma_vdev->streamon = true;
 	kfifo_reset(&luma_vdev->rd_kfifo);
@@ -288,12 +290,11 @@ void rkisp_luma_isr(struct rkisp_luma_vdev *luma_vdev, u32 isp_stat)
 {
 	void __iomem *base = luma_vdev->dev->base_addr;
 	u8 op_mode = luma_vdev->dev->hdr.op_mode;
-	struct rkisp_luma_readout_work work;
 	unsigned int cur_frame_id =
 		atomic_read(&luma_vdev->dev->isp_sdev.frm_sync_seq) - 1;
 	enum rkisp_luma_frm_mode frm_mode;
 	bool send_task;
-	u32 i;
+	u32 i, value;
 
 	spin_lock(&luma_vdev->irq_lock);
 	if (!luma_vdev->streamon)
@@ -330,7 +331,6 @@ void rkisp_luma_isr(struct rkisp_luma_vdev *luma_vdev, u32 isp_stat)
 			luma_vdev->ystat_isrcnt[0] = RKISP_LUMA_YSTAT_ISR_NUM;
 		}
 	}
-
 	if (isp_stat & RAW1_WR_FRAME) {
 		if (luma_vdev->ystat_isrcnt[1] != RKISP_LUMA_YSTAT_ISR_NUM) {
 			v4l2_dbg(1, rkisp_debug, luma_vdev->vnode.vdev.v4l2_dev,
@@ -339,7 +339,6 @@ void rkisp_luma_isr(struct rkisp_luma_vdev *luma_vdev, u32 isp_stat)
 			luma_vdev->ystat_isrcnt[1] = RKISP_LUMA_YSTAT_ISR_NUM;
 		}
 	}
-
 	if (isp_stat & RAW2_WR_FRAME) {
 		if (luma_vdev->ystat_isrcnt[2] != RKISP_LUMA_YSTAT_ISR_NUM) {
 			v4l2_dbg(1, rkisp_debug, luma_vdev->vnode.vdev.v4l2_dev,
@@ -349,59 +348,81 @@ void rkisp_luma_isr(struct rkisp_luma_vdev *luma_vdev, u32 isp_stat)
 		}
 	}
 
+	if (luma_vdev->ystat_isrcnt[0] == RKISP_LUMA_YSTAT_ISR_NUM && !luma_vdev->ystat_rdflg[0]) {
+		value = readl(base + CSI2RX_Y_STAT_CTRL);
+		value &= ~(SW_Y_STAT_RD_FRM_ID(0x3));
+		value |= (SW_Y_STAT_RD_FRM_ID(0x0) | SW_Y_STAT_RD_EN);
+		writel(value, base + CSI2RX_Y_STAT_CTRL);
+		for (i = 0; i < ISP2X_MIPI_LUMA_MEAN_MAX; i++)
+			luma_vdev->work.luma[0].exp_mean[i] =
+				readl(base + CSI2RX_Y_STAT_RO);
+
+		luma_vdev->ystat_rdflg[0] = true;
+	}
+	if (luma_vdev->ystat_isrcnt[1] == RKISP_LUMA_YSTAT_ISR_NUM && !luma_vdev->ystat_rdflg[1]) {
+		value = readl(base + CSI2RX_Y_STAT_CTRL);
+		value &= ~(SW_Y_STAT_RD_FRM_ID(0x3));
+		value |= (SW_Y_STAT_RD_FRM_ID(0x1) | SW_Y_STAT_RD_EN);
+		writel(value, base + CSI2RX_Y_STAT_CTRL);
+		for (i = 0; i < ISP2X_MIPI_LUMA_MEAN_MAX; i++)
+			luma_vdev->work.luma[1].exp_mean[i] =
+				readl(base + CSI2RX_Y_STAT_RO);
+
+		luma_vdev->ystat_rdflg[1] = true;
+	}
+	if (luma_vdev->ystat_isrcnt[2] == RKISP_LUMA_YSTAT_ISR_NUM && !luma_vdev->ystat_rdflg[2]) {
+		value = readl(base + CSI2RX_Y_STAT_CTRL);
+		value &= ~(SW_Y_STAT_RD_FRM_ID(0x3));
+		value |= (SW_Y_STAT_RD_FRM_ID(0x2) | SW_Y_STAT_RD_EN);
+		writel(value, base + CSI2RX_Y_STAT_CTRL);
+		for (i = 0; i < ISP2X_MIPI_LUMA_MEAN_MAX; i++)
+			luma_vdev->work.luma[2].exp_mean[i] =
+				readl(base + CSI2RX_Y_STAT_RO);
+
+		luma_vdev->ystat_rdflg[2] = true;
+	}
+
 	send_task = false;
 	if (frm_mode == RKISP_LUMA_THREEFRM) {
-		if (luma_vdev->ystat_isrcnt[0] == RKISP_LUMA_YSTAT_ISR_NUM &&
-		    luma_vdev->ystat_isrcnt[1] == RKISP_LUMA_YSTAT_ISR_NUM &&
-		    luma_vdev->ystat_isrcnt[2] == RKISP_LUMA_YSTAT_ISR_NUM)
+		if (luma_vdev->ystat_rdflg[0] && luma_vdev->ystat_rdflg[1] &&
+		    luma_vdev->ystat_rdflg[2])
 			send_task = true;
 	} else if (frm_mode == RKISP_LUMA_TWOFRM) {
-		if (luma_vdev->ystat_isrcnt[0] == RKISP_LUMA_YSTAT_ISR_NUM &&
-		    luma_vdev->ystat_isrcnt[2] == RKISP_LUMA_YSTAT_ISR_NUM)
+		if (luma_vdev->ystat_rdflg[0] && luma_vdev->ystat_rdflg[2])
 			send_task = true;
-	} else if (frm_mode == RKISP_LUMA_ONEFRM) {
-		if (luma_vdev->ystat_isrcnt[2] == RKISP_LUMA_YSTAT_ISR_NUM)
+	} else {
+		if (luma_vdev->ystat_rdflg[2])
 			send_task = true;
 	}
 
 	if (send_task) {
-		memset(&work, 0, sizeof(work));
-		work.readout = RKISP_ISP_READOUT_LUMA;
-		work.timestamp = ktime_get_ns();
-		work.frame_id = cur_frame_id;
+		luma_vdev->work.readout = RKISP_ISP_READOUT_LUMA;
+		luma_vdev->work.timestamp = ktime_get_ns();
+		luma_vdev->work.frame_id = cur_frame_id;
 
-		for (i = 0; i < ISP2X_MIPI_LUMA_MEAN_MAX; i++)
-			work.luma[0].exp_mean[i] =
-				readl(base + CSI2RX_Y_STAT_RO);
-
-		for (i = 0; i < ISP2X_MIPI_LUMA_MEAN_MAX; i++)
-			work.luma[1].exp_mean[i] =
-				readl(base + CSI2RX_Y_STAT_RO);
-
-		for (i = 0; i < ISP2X_MIPI_LUMA_MEAN_MAX; i++)
-			work.luma[2].exp_mean[i] =
-				readl(base + CSI2RX_Y_STAT_RO);
-
-		if (luma_vdev->ystat_isrcnt[0] == RKISP_LUMA_YSTAT_ISR_NUM)
-			work.meas_type |= ISP2X_RAW0_Y_STATE;
-
-		if (luma_vdev->ystat_isrcnt[1] == RKISP_LUMA_YSTAT_ISR_NUM)
-			work.meas_type |= ISP2X_RAW1_Y_STATE;
-
-		if (luma_vdev->ystat_isrcnt[2] == RKISP_LUMA_YSTAT_ISR_NUM)
-			work.meas_type |= ISP2X_RAW2_Y_STATE;
+		if (frm_mode == RKISP_LUMA_THREEFRM)
+			luma_vdev->work.meas_type = ISP2X_RAW0_Y_STATE | ISP2X_RAW1_Y_STATE |
+						    ISP2X_RAW2_Y_STATE;
+		else if (frm_mode == RKISP_LUMA_TWOFRM)
+			luma_vdev->work.meas_type = ISP2X_RAW0_Y_STATE | ISP2X_RAW2_Y_STATE;
+		else
+			luma_vdev->work.meas_type = ISP2X_RAW2_Y_STATE;
 
 		if (!kfifo_is_full(&luma_vdev->rd_kfifo))
 			kfifo_in(&luma_vdev->rd_kfifo,
-				 &work, sizeof(work));
+				 &luma_vdev->work, sizeof(luma_vdev->work));
 		else
 			v4l2_err(luma_vdev->vnode.vdev.v4l2_dev,
 				 "stats kfifo is full\n");
 
 		tasklet_schedule(&luma_vdev->rd_tasklet);
 
-		for (i = 0; i < ISP2X_MIPI_RAW_MAX; i++)
+		for (i = 0; i < ISP2X_MIPI_RAW_MAX; i++) {
 			luma_vdev->ystat_isrcnt[i] = 0;
+			luma_vdev->ystat_rdflg[i] = false;
+		}
+
+		memset(&luma_vdev->work, 0, sizeof(luma_vdev->work));
 	}
 
 unlock:
