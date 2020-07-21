@@ -1083,11 +1083,6 @@ struct pcr_ops {
 
 enum PDEV_STAT  {PDEV_STAT_IDLE, PDEV_STAT_RUN};
 
-#define ASPM_L1_1_EN_MASK		BIT(3)
-#define ASPM_L1_2_EN_MASK		BIT(2)
-#define PM_L1_1_EN_MASK		BIT(1)
-#define PM_L1_2_EN_MASK		BIT(0)
-
 #define ASPM_L1_1_EN			BIT(0)
 #define ASPM_L1_2_EN			BIT(1)
 #define PM_L1_1_EN				BIT(2)

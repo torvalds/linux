@@ -395,22 +395,22 @@ static void rts5228_init_from_cfg(struct rtsx_pcr *pcr)
 	else
 		rtsx_pci_disable_oobs_polling(pcr);
 
-	if (lval & ASPM_L1_1_EN_MASK)
+	if (lval & PCI_L1SS_CTL1_ASPM_L1_1)
 		rtsx_set_dev_flag(pcr, ASPM_L1_1_EN);
 	else
 		rtsx_clear_dev_flag(pcr, ASPM_L1_1_EN);
 
-	if (lval & ASPM_L1_2_EN_MASK)
+	if (lval & PCI_L1SS_CTL1_ASPM_L1_2)
 		rtsx_set_dev_flag(pcr, ASPM_L1_2_EN);
 	else
 		rtsx_clear_dev_flag(pcr, ASPM_L1_2_EN);
 
-	if (lval & PM_L1_1_EN_MASK)
+	if (lval & PCI_L1SS_CTL1_PCIPM_L1_1)
 		rtsx_set_dev_flag(pcr, PM_L1_1_EN);
 	else
 		rtsx_clear_dev_flag(pcr, PM_L1_1_EN);
 
-	if (lval & PM_L1_2_EN_MASK)
+	if (lval & PCI_L1SS_CTL1_PCIPM_L1_2)
 		rtsx_set_dev_flag(pcr, PM_L1_2_EN);
 	else
 		rtsx_clear_dev_flag(pcr, PM_L1_2_EN);
