@@ -1862,12 +1862,10 @@ exit_get_stats:
 static enum blk_eh_timer_return qla4xxx_eh_cmd_timed_out(struct scsi_cmnd *sc)
 {
 	struct iscsi_cls_session *session;
-	struct iscsi_session *sess;
 	unsigned long flags;
 	enum blk_eh_timer_return ret = BLK_EH_DONE;
 
 	session = starget_to_session(scsi_target(sc->device));
-	sess = session->dd_data;
 
 	spin_lock_irqsave(&session->lock, flags);
 	if (session->state == ISCSI_SESSION_FAILED)
@@ -3076,7 +3074,6 @@ qla4xxx_session_create(struct iscsi_endpoint *ep,
 	struct ddb_entry *ddb_entry;
 	uint16_t ddb_index;
 	struct iscsi_session *sess;
-	struct sockaddr *dst_addr;
 	int ret;
 
 	if (!ep) {
@@ -3085,7 +3082,6 @@ qla4xxx_session_create(struct iscsi_endpoint *ep,
 	}
 
 	qla_ep = ep->dd_data;
-	dst_addr = (struct sockaddr *)&qla_ep->dst_addr;
 	ha = to_qla_host(qla_ep->host);
 	DEBUG2(ql4_printk(KERN_INFO, ha, "%s: host: %ld\n", __func__,
 			  ha->host_no));
@@ -5509,7 +5505,7 @@ static void qla4xxx_free_adapter(struct scsi_qla_host *ha)
 int qla4_8xxx_iospace_config(struct scsi_qla_host *ha)
 {
 	int status = 0;
-	unsigned long mem_base, mem_len, db_base, db_len;
+	unsigned long mem_base, mem_len;
 	struct pci_dev *pdev = ha->pdev;
 
 	status = pci_request_regions(pdev, DRIVER_NAME);
@@ -5552,9 +5548,6 @@ int qla4_8xxx_iospace_config(struct scsi_qla_host *ha)
 		ha->qla4_83xx_reg = (struct device_reg_83xx __iomem *)
 				    ((uint8_t *)ha->nx_pcibase);
 	}
-
-	db_base = pci_resource_start(pdev, 4);  /* doorbell is on bar 4 */
-	db_len = pci_resource_len(pdev, 4);
 
 	return 0;
 iospace_error_exit:
@@ -6266,14 +6259,12 @@ kset_free:
 static void qla4xxx_get_param_ddb(struct ddb_entry *ddb_entry,
 				  struct ql4_tuple_ddb *tddb)
 {
-	struct scsi_qla_host *ha;
 	struct iscsi_cls_session *cls_sess;
 	struct iscsi_cls_conn *cls_conn;
 	struct iscsi_session *sess;
 	struct iscsi_conn *conn;
 
 	DEBUG2(printk(KERN_INFO "Func: %s\n", __func__));
-	ha = ddb_entry->ha;
 	cls_sess = ddb_entry->sess;
 	sess = cls_sess->dd_data;
 	cls_conn = ddb_entry->conn;
