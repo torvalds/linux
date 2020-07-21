@@ -631,10 +631,12 @@ static void phylink_resolve(struct work_struct *w)
 			}
 			phylink_pcs_config(pl, false, &link_state);
 			pl->link_config.interface = link_state.interface;
-		} else {
+		} else if (!pl->pcs_ops) {
 			/* The interface remains unchanged, only the speed,
 			 * duplex or pause settings have changed. Call the
-			 * old mac_config() method to configure the MAC/PCS.
+			 * old mac_config() method to configure the MAC/PCS
+			 * only if we do not have a PCS installed (an
+			 * unconverted user.)
 			 */
 			phylink_mac_config(pl, &link_state);
 		}
