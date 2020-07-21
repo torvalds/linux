@@ -851,7 +851,9 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rv1109-fpga.dtb \
 	rv1126-ai-cam-ddr3-v1.dtb \
 	rv1126-evb-ddr3-v10.dtb \
+	rv1126-evb-ddr3-v10-robot.dtb \
 	rv1126-evb-ddr3-v12.dtb \
+	rv1126-evb-ddr3-v12-robot.dtb \
 	rv1126-evb-ddr3-v12-spi-nand.dtb \
 	rv1126-evb-ddr3-v12-tb-emmc.dtb \
 	rv1126-evb-lp3-v10.dtb \

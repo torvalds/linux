@@ -1,0 +1,44 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2020 Rockchip Electronics Co., Ltd.
+ */
+
+/*
+ * Turn off modules which is not in use for Robot devices.
+ */
+
+&backlight {
+	status = "disabled";
+};
+
+/*
+ * Userland need drm buffer, so keep display_subsystem and vop enabled,
+ * But dsi can be disabled.
+ */
+&dsi {
+	status = "disabled";
+};
+
+&vcc18_lcd_n {
+	status = "disabled";
+};
+
+&gmac {
+	status = "disabled";
+};
+
+&i2c5 {
+	status = "disabled";
+};
+
+&mdio {
+	status = "disabled";
+};
+
+&route_dsi {
+	status = "disabled";
+};
+
+&sdmmc {
+	status = "disabled";
+};
