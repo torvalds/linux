@@ -1161,6 +1161,7 @@ int qla4xxx_flash_ddb_change(struct scsi_qla_host *ha, uint32_t fw_ddb_index,
  * @ha: Pointer to host adapter structure.
  * @fw_ddb_index: Firmware's device database index
  * @state: Device state
+ * @conn_err: Unused
  *
  * This routine processes a Decive Database Changed AEN Event.
  **/
