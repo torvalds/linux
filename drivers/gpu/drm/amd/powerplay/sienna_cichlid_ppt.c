@@ -525,6 +525,7 @@ static int sienna_cichlid_set_default_dpm_table(struct smu_context *smu)
 	struct smu_11_0_dpm_context *dpm_context = smu->smu_dpm.dpm_context;
 	PPTable_t *driver_ppt = smu->smu_table.driver_pptable;
 	struct smu_11_0_dpm_table *dpm_table;
+	struct amdgpu_device *adev = smu->adev;
 	int ret = 0;
 
 	/* socclk dpm table setup */
@@ -618,21 +619,24 @@ static int sienna_cichlid_set_default_dpm_table(struct smu_context *smu)
 	}
 
 	/* vclk1 dpm table setup */
-	dpm_table = &dpm_context->dpm_tables.vclk1_table;
-	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_MM_DPM_PG_BIT)) {
-		ret = smu_v11_0_set_single_dpm_table(smu,
-						     SMU_VCLK1,
-						     dpm_table);
-		if (ret)
-			return ret;
-		dpm_table->is_fine_grained =
-			!driver_ppt->DpmDescriptor[PPCLK_VCLK_1].SnapToDiscrete;
-	} else {
-		dpm_table->count = 1;
-		dpm_table->dpm_levels[0].value = smu->smu_table.boot_values.vclk / 100;
-		dpm_table->dpm_levels[0].enabled = true;
-		dpm_table->min = dpm_table->dpm_levels[0].value;
-		dpm_table->max = dpm_table->dpm_levels[0].value;
+	if (adev->vcn.num_vcn_inst > 1) {
+		dpm_table = &dpm_context->dpm_tables.vclk1_table;
+		if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_MM_DPM_PG_BIT)) {
+			ret = smu_v11_0_set_single_dpm_table(smu,
+							     SMU_VCLK1,
+							     dpm_table);
+			if (ret)
+				return ret;
+			dpm_table->is_fine_grained =
+				!driver_ppt->DpmDescriptor[PPCLK_VCLK_1].SnapToDiscrete;
+		} else {
+			dpm_table->count = 1;
+			dpm_table->dpm_levels[0].value =
+				smu->smu_table.boot_values.vclk / 100;
+			dpm_table->dpm_levels[0].enabled = true;
+			dpm_table->min = dpm_table->dpm_levels[0].value;
+			dpm_table->max = dpm_table->dpm_levels[0].value;
+		}
 	}
 
 	/* dclk0 dpm table setup */
@@ -654,21 +658,24 @@ static int sienna_cichlid_set_default_dpm_table(struct smu_context *smu)
 	}
 
 	/* dclk1 dpm table setup */
-	dpm_table = &dpm_context->dpm_tables.dclk1_table;
-	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_MM_DPM_PG_BIT)) {
-		ret = smu_v11_0_set_single_dpm_table(smu,
-						     SMU_DCLK1,
-						     dpm_table);
-		if (ret)
-			return ret;
-		dpm_table->is_fine_grained =
-			!driver_ppt->DpmDescriptor[PPCLK_DCLK_1].SnapToDiscrete;
-	} else {
-		dpm_table->count = 1;
-		dpm_table->dpm_levels[0].value = smu->smu_table.boot_values.dclk / 100;
-		dpm_table->dpm_levels[0].enabled = true;
-		dpm_table->min = dpm_table->dpm_levels[0].value;
-		dpm_table->max = dpm_table->dpm_levels[0].value;
+	if (adev->vcn.num_vcn_inst > 1) {
+		dpm_table = &dpm_context->dpm_tables.dclk1_table;
+		if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_MM_DPM_PG_BIT)) {
+			ret = smu_v11_0_set_single_dpm_table(smu,
+							     SMU_DCLK1,
+							     dpm_table);
+			if (ret)
+				return ret;
+			dpm_table->is_fine_grained =
+				!driver_ppt->DpmDescriptor[PPCLK_DCLK_1].SnapToDiscrete;
+		} else {
+			dpm_table->count = 1;
+			dpm_table->dpm_levels[0].value =
+				smu->smu_table.boot_values.dclk / 100;
+			dpm_table->dpm_levels[0].enabled = true;
+			dpm_table->min = dpm_table->dpm_levels[0].value;
+			dpm_table->max = dpm_table->dpm_levels[0].value;
+		}
 	}
 
 	/* dcefclk dpm table setup */
