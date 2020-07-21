@@ -2909,7 +2909,7 @@ static void vop_crtc_atomic_enable(struct drm_crtc *crtc,
 	if (vop->mcu_timing.mcu_pix_total)
 		vop_mcu_mode(crtc);
 
-	dclk_inv = (s->bus_flags & DRM_BUS_FLAG_PIXDATA_NEGEDGE) ? 1 : 0;
+	dclk_inv = (s->bus_flags & DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE) ? 1 : 0;
 
 	VOP_CTRL_SET(vop, dclk_pol, dclk_inv);
 	val = (adjusted_mode->flags & DRM_MODE_FLAG_NHSYNC) ?
