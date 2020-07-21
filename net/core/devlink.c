@@ -2921,7 +2921,7 @@ static void devlink_reload_netns_change(struct devlink *devlink,
 				     DEVLINK_CMD_PARAM_NEW);
 }
 
-static bool devlink_reload_supported(struct devlink *devlink)
+static bool devlink_reload_supported(const struct devlink *devlink)
 {
 	return devlink->ops->reload_down && devlink->ops->reload_up;
 }
@@ -2967,7 +2967,7 @@ static int devlink_nl_cmd_reload(struct sk_buff *skb, struct genl_info *info)
 	struct net *dest_net = NULL;
 	int err;
 
-	if (!devlink_reload_supported(devlink) || !devlink->reload_enabled)
+	if (!devlink_reload_supported(devlink))
 		return -EOPNOTSUPP;
 
 	err = devlink_resources_validate(devlink, NULL, info);
@@ -7421,9 +7421,9 @@ EXPORT_SYMBOL_GPL(devlink_alloc);
  */
 int devlink_register(struct devlink *devlink, struct device *dev)
 {
-	mutex_lock(&devlink_mutex);
 	devlink->dev = dev;
 	devlink->registered = true;
+	mutex_lock(&devlink_mutex);
 	list_add_tail(&devlink->list, &devlink_list);
 	devlink_notify(devlink, DEVLINK_CMD_NEW);
 	mutex_unlock(&devlink_mutex);
