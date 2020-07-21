@@ -363,6 +363,54 @@ out:
 	return rc;
 }
 
+int hl_fw_armcp_pci_counters_get(struct hl_device *hdev,
+		struct hl_info_pci_counters *counters)
+{
+	struct armcp_packet pkt = {};
+	long result;
+	int rc;
+
+	pkt.ctl = cpu_to_le32(ARMCP_PACKET_PCIE_THROUGHPUT_GET <<
+			ARMCP_PKT_CTL_OPCODE_SHIFT);
+
+	/* Fetch PCI rx counter */
+	pkt.index = cpu_to_le32(armcp_pcie_throughput_rx);
+	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
+					HL_ARMCP_INFO_TIMEOUT_USEC, &result);
+	if (rc) {
+		dev_err(hdev->dev,
+			"Failed to handle ArmCP PCI info pkt, error %d\n", rc);
+		return rc;
+	}
+	counters->rx_throughput = result;
+
+	/* Fetch PCI tx counter */
+	pkt.index = cpu_to_le32(armcp_pcie_throughput_tx);
+	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
+					HL_ARMCP_INFO_TIMEOUT_USEC, &result);
+	if (rc) {
+		dev_err(hdev->dev,
+			"Failed to handle ArmCP PCI info pkt, error %d\n", rc);
+		return rc;
+	}
+	counters->tx_throughput = result;
+
+	/* Fetch PCI replay counter */
+	pkt.ctl = cpu_to_le32(ARMCP_PACKET_PCIE_REPLAY_CNT_GET <<
+			ARMCP_PKT_CTL_OPCODE_SHIFT);
+
+	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
+			HL_ARMCP_INFO_TIMEOUT_USEC, &result);
+	if (rc) {
+		dev_err(hdev->dev,
+			"Failed to handle ArmCP PCI info pkt, error %d\n", rc);
+		return rc;
+	}
+	counters->replay_cnt = (u32) result;
+
+	return rc;
+}
+
 static void fw_read_errors(struct hl_device *hdev, u32 boot_err0_reg)
 {
 	u32 err_val;

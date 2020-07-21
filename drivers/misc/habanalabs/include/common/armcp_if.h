@@ -243,6 +243,8 @@ enum armcp_packet_id {
 	ARMCP_PACKET_TEMPERATURE_SET,		/* sysfs */
 	ARMCP_PACKET_VOLTAGE_SET,		/* sysfs */
 	ARMCP_PACKET_CURRENT_SET,		/* sysfs */
+	ARMCP_PACKET_PCIE_THROUGHPUT_GET,	/* internal */
+	ARMCP_PACKET_PCIE_REPLAY_CNT_GET,	/* internal */
 };
 
 #define ARMCP_PACKET_FENCE_VAL	0xFE8CE7A5
@@ -276,6 +278,9 @@ struct armcp_packet {
 			__u8 i2c_reg;
 			__u8 pad; /* unused */
 		};
+
+		/* For any general request */
+		__le32 index;
 
 		/* For frequency get/set */
 		__le32 pll_index;
@@ -342,6 +347,11 @@ enum armcp_fan_attributes {
 enum armcp_pwm_attributes {
 	armcp_pwm_input,
 	armcp_pwm_enable
+};
+
+enum armcp_pcie_throughput_attributes {
+	armcp_pcie_throughput_tx,
+	armcp_pcie_throughput_rx
 };
 
 /* Event Queue Packets */

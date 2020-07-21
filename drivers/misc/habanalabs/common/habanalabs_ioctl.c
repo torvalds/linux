@@ -276,6 +276,41 @@ static int time_sync_info(struct hl_device *hdev, struct hl_info_args *args)
 		min((size_t) max_size, sizeof(time_sync))) ? -EFAULT : 0;
 }
 
+static int pci_counters_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
+{
+	struct hl_device *hdev = hpriv->hdev;
+	struct hl_info_pci_counters pci_counters = {0};
+	u32 max_size = args->return_size;
+	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
+	int rc;
+
+	if ((!max_size) || (!out))
+		return -EINVAL;
+
+	rc = hl_fw_armcp_pci_counters_get(hdev, &pci_counters);
+	if (rc)
+		return rc;
+
+	return copy_to_user(out, &pci_counters,
+		min((size_t) max_size, sizeof(pci_counters))) ? -EFAULT : 0;
+}
+
+static int clk_throttle_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
+{
+	struct hl_device *hdev = hpriv->hdev;
+	struct hl_info_clk_throttle clk_throttle = {0};
+	u32 max_size = args->return_size;
+	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
+
+	if ((!max_size) || (!out))
+		return -EINVAL;
+
+	clk_throttle.clk_throttling_reason = hdev->clk_throttling_reason;
+
+	return copy_to_user(out, &clk_throttle,
+		min((size_t) max_size, sizeof(clk_throttle))) ? -EFAULT : 0;
+}
+
 static int cs_counters_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 {
 	struct hl_device *hdev = hpriv->hdev;
@@ -359,6 +394,12 @@ static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 
 	case HL_INFO_CS_COUNTERS:
 		return cs_counters_info(hpriv, args);
+
+	case HL_INFO_PCI_COUNTERS:
+		return pci_counters_info(hpriv, args);
+
+	case HL_INFO_CLK_THROTTLE_REASON:
+		return clk_throttle_info(hpriv, args);
 
 	default:
 		dev_err(dev, "Invalid request %d\n", args->op);

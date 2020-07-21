@@ -264,6 +264,8 @@ enum hl_device_status {
  * HL_INFO_TIME_SYNC     - Retrieve the device's time alongside the host's time
  *                         for synchronization.
  * HL_INFO_CS_COUNTERS   - Retrieve command submission counters
+ * HL_INFO_PCI_COUNTERS  - Retrieve PCI counters
+ * HL_INFO_CLK_THROTTLE_REASON - Retrieve clock throttling reason
  */
 #define HL_INFO_HW_IP_INFO		0
 #define HL_INFO_HW_EVENTS		1
@@ -276,6 +278,8 @@ enum hl_device_status {
 #define HL_INFO_RESET_COUNT		9
 #define HL_INFO_TIME_SYNC		10
 #define HL_INFO_CS_COUNTERS		11
+#define HL_INFO_PCI_COUNTERS		12
+#define HL_INFO_CLK_THROTTLE_REASON	13
 
 #define HL_INFO_VERSION_MAX_LEN	128
 #define HL_INFO_CARD_NAME_MAX_LEN	16
@@ -338,6 +342,29 @@ struct hl_info_reset_count {
 struct hl_info_time_sync {
 	__u64 device_time;
 	__u64 host_time;
+};
+
+/**
+ * struct hl_info_pci_counters - pci counters
+ * @rx_throughput: PCI rx throughput KBps
+ * @tx_throughput: PCI tx throughput KBps
+ * @replay_cnt: PCI replay counter
+ */
+struct hl_info_pci_counters {
+	__u64 rx_throughput;
+	__u64 tx_throughput;
+	__u64 replay_cnt;
+};
+
+#define HL_CLK_THROTTLE_POWER	0x1
+#define HL_CLK_THROTTLE_THERMAL	0x2
+
+/**
+ * struct hl_info_clk_throttle - clock throttling reason
+ * @clk_throttling_reason: each bit represents a clk throttling reason
+ */
+struct hl_info_clk_throttle {
+	__u32 clk_throttling_reason;
 };
 
 /**
