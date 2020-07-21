@@ -317,6 +317,9 @@ enum hclge_link_fail_code {
 	HCLGE_LF_XSFP_ABSENT,
 };
 
+#define HCLGE_LINK_STATUS_DOWN 0
+#define HCLGE_LINK_STATUS_UP   1
+
 #define HCLGE_PG_NUM		4
 #define HCLGE_SCH_MODE_SP	0
 #define HCLGE_SCH_MODE_DWRR	1
