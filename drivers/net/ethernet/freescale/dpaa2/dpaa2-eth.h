@@ -43,6 +43,9 @@
  */
 #define DPAA2_ETH_FQ_TAILDROP_THRESH	(1024 * 1024)
 
+/* Maximum burst size value for Tx shaping */
+#define DPAA2_ETH_MAX_BURST_SIZE	0xF7FF
+
 /* Maximum number of Tx confirmation frames to be processed
  * in a single NAPI call
  */

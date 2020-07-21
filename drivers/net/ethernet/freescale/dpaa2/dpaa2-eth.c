@@ -15,6 +15,7 @@
 #include <linux/fsl/mc.h>
 #include <linux/bpf.h>
 #include <linux/bpf_trace.h>
+#include <net/pkt_cls.h>
 #include <net/sock.h>
 
 #include "dpaa2-eth.h"
@@ -2251,12 +2252,55 @@ out:
 	return 0;
 }
 
+#define bps_to_mbits(rate) (div_u64((rate), 1000000) * 8)
+
+static int dpaa2_eth_setup_tbf(struct net_device *net_dev, struct tc_tbf_qopt_offload *p)
+{
+	struct tc_tbf_qopt_offload_replace_params *cfg = &p->replace_params;
+	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
+	struct dpni_tx_shaping_cfg tx_cr_shaper = { 0 };
+	struct dpni_tx_shaping_cfg tx_er_shaper = { 0 };
+	int err;
+
+	if (p->command == TC_TBF_STATS)
+		return -EOPNOTSUPP;
+
+	/* Only per port Tx shaping */
+	if (p->parent != TC_H_ROOT)
+		return -EOPNOTSUPP;
+
+	if (p->command == TC_TBF_REPLACE) {
+		if (cfg->max_size > DPAA2_ETH_MAX_BURST_SIZE) {
+			netdev_err(net_dev, "burst size cannot be greater than %d\n",
+				   DPAA2_ETH_MAX_BURST_SIZE);
+			return -EINVAL;
+		}
+
+		tx_cr_shaper.max_burst_size = cfg->max_size;
+		/* The TBF interface is in bytes/s, whereas DPAA2 expects the
+		 * rate in Mbits/s
+		 */
+		tx_cr_shaper.rate_limit = bps_to_mbits(cfg->rate.rate_bytes_ps);
+	}
+
+	err = dpni_set_tx_shaping(priv->mc_io, 0, priv->mc_token, &tx_cr_shaper,
+				  &tx_er_shaper, 0);
+	if (err) {
+		netdev_err(net_dev, "dpni_set_tx_shaping() = %d\n", err);
+		return err;
+	}
+
+	return 0;
+}
+
 static int dpaa2_eth_setup_tc(struct net_device *net_dev,
 			      enum tc_setup_type type, void *type_data)
 {
 	switch (type) {
 	case TC_SETUP_QDISC_MQPRIO:
 		return dpaa2_eth_setup_mqprio(net_dev, type_data);
+	case TC_SETUP_QDISC_TBF:
+		return dpaa2_eth_setup_tbf(net_dev, type_data);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -3726,7 +3770,7 @@ static int netdev_init(struct net_device *net_dev)
 	net_dev->features = NETIF_F_RXCSUM |
 			    NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
 			    NETIF_F_SG | NETIF_F_HIGHDMA |
-			    NETIF_F_LLTX;
+			    NETIF_F_LLTX | NETIF_F_HW_TC;
 	net_dev->hw_features = net_dev->features;
 
 	return 0;
