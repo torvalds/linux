@@ -396,17 +396,6 @@ struct mptcp_sock *mptcp_token_iter_next(const struct net *net, long *s_slot,
 void mptcp_token_destroy(struct mptcp_sock *msk);
 
 void mptcp_crypto_key_sha(u64 key, u32 *token, u64 *idsn);
-static inline void mptcp_crypto_key_gen_sha(u64 *key, u32 *token, u64 *idsn)
-{
-	/* we might consider a faster version that computes the key as a
-	 * hash of some information available in the MPTCP socket. Use
-	 * random data at the moment, as it's probably the safest option
-	 * in case multiple sockets are opened in different namespaces at
-	 * the same time.
-	 */
-	get_random_bytes(key, sizeof(u64));
-	mptcp_crypto_key_sha(*key, token, idsn);
-}
 
 void mptcp_crypto_hmac_sha(u64 key1, u64 key2, u8 *msg, int len, void *hmac);
 
