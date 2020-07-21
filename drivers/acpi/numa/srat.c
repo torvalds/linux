@@ -230,7 +230,7 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
 		pxm &= 0xff;
 
 	node = acpi_map_pxm_to_node(pxm);
-	if (node == NUMA_NO_NODE || node >= MAX_NUMNODES) {
+	if (node == NUMA_NO_NODE) {
 		pr_err("SRAT: Too many proximity domains.\n");
 		goto out_err_bad_srat;
 	}
