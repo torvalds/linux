@@ -77,6 +77,7 @@ struct amdgpu_gmc_fault {
 struct amdgpu_vmhub_funcs {
 	void (*print_l2_protection_fault_status)(struct amdgpu_device *adev,
 						 uint32_t status);
+	uint32_t (*get_invalidate_req)(unsigned int vmid, uint32_t flush_type);
 };
 
 struct amdgpu_vmhub {

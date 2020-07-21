@@ -31,6 +31,26 @@
 
 #include "soc15_common.h"
 
+static uint32_t gfxhub_v2_1_get_invalidate_req(unsigned int vmid,
+					       uint32_t flush_type)
+{
+	u32 req = 0;
+
+	/* invalidate using legacy mode on vmid*/
+	req = REG_SET_FIELD(req, GCVM_INVALIDATE_ENG0_REQ,
+			    PER_VMID_INVALIDATE_REQ, 1 << vmid);
+	req = REG_SET_FIELD(req, GCVM_INVALIDATE_ENG0_REQ, FLUSH_TYPE, flush_type);
+	req = REG_SET_FIELD(req, GCVM_INVALIDATE_ENG0_REQ, INVALIDATE_L2_PTES, 1);
+	req = REG_SET_FIELD(req, GCVM_INVALIDATE_ENG0_REQ, INVALIDATE_L2_PDE0, 1);
+	req = REG_SET_FIELD(req, GCVM_INVALIDATE_ENG0_REQ, INVALIDATE_L2_PDE1, 1);
+	req = REG_SET_FIELD(req, GCVM_INVALIDATE_ENG0_REQ, INVALIDATE_L2_PDE2, 1);
+	req = REG_SET_FIELD(req, GCVM_INVALIDATE_ENG0_REQ, INVALIDATE_L1_PTES, 1);
+	req = REG_SET_FIELD(req, GCVM_INVALIDATE_ENG0_REQ,
+			    CLEAR_PROTECTION_FAULT_STATUS_ADDR,	0);
+
+	return req;
+}
+
 static void
 gfxhub_v2_1_print_l2_protection_fault_status(struct amdgpu_device *adev,
 					     uint32_t status)
@@ -388,6 +408,7 @@ void gfxhub_v2_1_set_fault_enable_default(struct amdgpu_device *adev,
 
 static const struct amdgpu_vmhub_funcs gfxhub_v2_1_vmhub_funcs = {
 	.print_l2_protection_fault_status = gfxhub_v2_1_print_l2_protection_fault_status,
+	.get_invalidate_req = gfxhub_v2_1_get_invalidate_req,
 };
 
 void gfxhub_v2_1_init(struct amdgpu_device *adev)

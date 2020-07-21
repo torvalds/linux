@@ -139,26 +139,6 @@ static void gmc_v10_0_set_irq_funcs(struct amdgpu_device *adev)
 	adev->gmc.vm_fault.funcs = &gmc_v10_0_irq_funcs;
 }
 
-static uint32_t gmc_v10_0_get_invalidate_req(unsigned int vmid,
-					     uint32_t flush_type)
-{
-	u32 req = 0;
-
-	/* invalidate using legacy mode on vmid*/
-	req = REG_SET_FIELD(req, GCVM_INVALIDATE_ENG0_REQ,
-			    PER_VMID_INVALIDATE_REQ, 1 << vmid);
-	req = REG_SET_FIELD(req, GCVM_INVALIDATE_ENG0_REQ, FLUSH_TYPE, flush_type);
-	req = REG_SET_FIELD(req, GCVM_INVALIDATE_ENG0_REQ, INVALIDATE_L2_PTES, 1);
-	req = REG_SET_FIELD(req, GCVM_INVALIDATE_ENG0_REQ, INVALIDATE_L2_PDE0, 1);
-	req = REG_SET_FIELD(req, GCVM_INVALIDATE_ENG0_REQ, INVALIDATE_L2_PDE1, 1);
-	req = REG_SET_FIELD(req, GCVM_INVALIDATE_ENG0_REQ, INVALIDATE_L2_PDE2, 1);
-	req = REG_SET_FIELD(req, GCVM_INVALIDATE_ENG0_REQ, INVALIDATE_L1_PTES, 1);
-	req = REG_SET_FIELD(req, GCVM_INVALIDATE_ENG0_REQ,
-			    CLEAR_PROTECTION_FAULT_STATUS_ADDR,	0);
-
-	return req;
-}
-
 /**
  * gmc_v10_0_use_invalidate_semaphore - judge whether to use semaphore
  *
@@ -199,7 +179,7 @@ static void gmc_v10_0_flush_vm_hub(struct amdgpu_device *adev, uint32_t vmid,
 {
 	bool use_semaphore = gmc_v10_0_use_invalidate_semaphore(adev, vmhub);
 	struct amdgpu_vmhub *hub = &adev->vmhub[vmhub];
-	u32 inv_req = gmc_v10_0_get_invalidate_req(vmid, flush_type);
+	u32 inv_req = hub->vmhub_funcs->get_invalidate_req(vmid, flush_type);
 	u32 tmp;
 	/* Use register 17 for GART */
 	const unsigned eng = 17;
@@ -294,7 +274,7 @@ static void gmc_v10_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 
 		struct amdgpu_vmhub *hub = &adev->vmhub[vmhub];
 		const unsigned eng = 17;
-		u32 inv_req = gmc_v10_0_get_invalidate_req(vmid, flush_type);
+		u32 inv_req = hub->vmhub_funcs->get_invalidate_req(vmid, flush_type);
 		u32 req = hub->vm_inv_eng0_req + hub->eng_distance * eng;
 		u32 ack = hub->vm_inv_eng0_ack + hub->eng_distance * eng;
 
@@ -425,7 +405,7 @@ static uint64_t gmc_v10_0_emit_flush_gpu_tlb(struct amdgpu_ring *ring,
 {
 	bool use_semaphore = gmc_v10_0_use_invalidate_semaphore(ring->adev, ring->funcs->vmhub);
 	struct amdgpu_vmhub *hub = &ring->adev->vmhub[ring->funcs->vmhub];
-	uint32_t req = gmc_v10_0_get_invalidate_req(vmid, 0);
+	uint32_t req = hub->vmhub_funcs->get_invalidate_req(vmid, 0);
 	unsigned eng = ring->vm_inv_eng;
 
 	/*
