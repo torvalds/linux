@@ -264,6 +264,9 @@
 /* Determine how many times the data array has wrapped. */
 #define DATA_WRAPS(data_ring, lpos)	((lpos) >> (data_ring)->size_bits)
 
+/* Determine if a logical position refers to a data-less block. */
+#define LPOS_DATALESS(lpos)		((lpos) & 1UL)
+
 /* Get the logical position at index 0 of the current wrap. */
 #define DATA_THIS_WRAP_START_LPOS(data_ring, lpos) \
 ((lpos) & ~DATA_SIZE_MASK(data_ring))
@@ -320,21 +323,13 @@ static unsigned int to_blk_size(unsigned int size)
  * block does not exceed the maximum possible size that could fit within the
  * ringbuffer. This function provides that basic size check so that the
  * assumption is safe.
- *
- * Writers are also not allowed to write 0-sized (data-less) records. Such
- * records are used only internally by the ringbuffer.
  */
 static bool data_check_size(struct prb_data_ring *data_ring, unsigned int size)
 {
 	struct prb_data_block *db = NULL;
 
-	/*
-	 * Writers are not allowed to write data-less records. Such records
-	 * are used only internally by the ringbuffer to denote records where
-	 * their data failed to allocate or have been lost.
-	 */
 	if (size == 0)
-		return false;
+		return true;
 
 	/*
 	 * Ensure the alignment padded size could possibly fit in the data
@@ -568,8 +563,8 @@ static bool data_push_tail(struct printk_ringbuffer *rb,
 	unsigned long tail_lpos;
 	unsigned long next_lpos;
 
-	/* If @lpos is not valid, there is nothing to do. */
-	if (lpos == INVALID_LPOS)
+	/* If @lpos is from a data-less block, there is nothing to do. */
+	if (LPOS_DATALESS(lpos))
 		return true;
 
 	/*
@@ -962,8 +957,8 @@ static char *data_alloc(struct printk_ringbuffer *rb,
 
 	if (size == 0) {
 		/* Specify a data-less block. */
-		blk_lpos->begin = INVALID_LPOS;
-		blk_lpos->next = INVALID_LPOS;
+		blk_lpos->begin = NO_LPOS;
+		blk_lpos->next = NO_LPOS;
 		return NULL;
 	}
 
@@ -976,8 +971,8 @@ static char *data_alloc(struct printk_ringbuffer *rb,
 
 		if (!data_push_tail(rb, data_ring, next_lpos - DATA_SIZE(data_ring))) {
 			/* Failed to allocate, specify a data-less block. */
-			blk_lpos->begin = INVALID_LPOS;
-			blk_lpos->next = INVALID_LPOS;
+			blk_lpos->begin = FAILED_LPOS;
+			blk_lpos->next = FAILED_LPOS;
 			return NULL;
 		}
 
@@ -1025,6 +1020,10 @@ static char *data_alloc(struct printk_ringbuffer *rb,
 static unsigned int space_used(struct prb_data_ring *data_ring,
 			       struct prb_data_blk_lpos *blk_lpos)
 {
+	/* Data-less blocks take no space. */
+	if (LPOS_DATALESS(blk_lpos->begin))
+		return 0;
+
 	if (DATA_WRAPS(data_ring, blk_lpos->begin) == DATA_WRAPS(data_ring, blk_lpos->next)) {
 		/* Data block does not wrap. */
 		return (DATA_INDEX(data_ring, blk_lpos->next) -
@@ -1080,11 +1079,8 @@ bool prb_reserve(struct prb_reserved_entry *e, struct printk_ringbuffer *rb,
 	if (!data_check_size(&rb->text_data_ring, r->text_buf_size))
 		goto fail;
 
-	/* Records are allowed to not have dictionaries. */
-	if (r->dict_buf_size) {
-		if (!data_check_size(&rb->dict_data_ring, r->dict_buf_size))
-			goto fail;
-	}
+	if (!data_check_size(&rb->dict_data_ring, r->dict_buf_size))
+		goto fail;
 
 	/*
 	 * Descriptors in the reserved state act as blockers to all further
@@ -1205,15 +1201,18 @@ void prb_commit(struct prb_reserved_entry *e)
  * values to possibly detect bugs in the writer code. A WARN_ON_ONCE() is
  * triggered if an internal error is detected.
  */
-static char *get_data(struct prb_data_ring *data_ring,
-		      struct prb_data_blk_lpos *blk_lpos,
-		      unsigned int *data_size)
+static const char *get_data(struct prb_data_ring *data_ring,
+			    struct prb_data_blk_lpos *blk_lpos,
+			    unsigned int *data_size)
 {
 	struct prb_data_block *db;
 
 	/* Data-less data block description. */
-	if (blk_lpos->begin == INVALID_LPOS &&
-	    blk_lpos->next == INVALID_LPOS) {
+	if (LPOS_DATALESS(blk_lpos->begin) && LPOS_DATALESS(blk_lpos->next)) {
+		if (blk_lpos->begin == NO_LPOS && blk_lpos->next == NO_LPOS) {
+			*data_size = 0;
+			return "";
+		}
 		return NULL;
 	}
 
@@ -1256,11 +1255,11 @@ static char *get_data(struct prb_data_ring *data_ring,
  * (even if @text_size is 0). Each '\n' processed is counted as an additional
  * line.
  */
-static unsigned int count_lines(char *text, unsigned int text_size)
+static unsigned int count_lines(const char *text, unsigned int text_size)
 {
 	unsigned int next_size = text_size;
 	unsigned int line_count = 1;
-	char *next = text;
+	const char *next = text;
 
 	while (next_size) {
 		next = memchr(next, '\n', next_size);
@@ -1287,7 +1286,7 @@ static bool copy_data(struct prb_data_ring *data_ring,
 		      unsigned int buf_size, unsigned int *line_count)
 {
 	unsigned int data_size;
-	char *data;
+	const char *data;
 
 	/* Caller might not want any data. */
 	if ((!buf || !buf_size) && !line_count)
@@ -1317,8 +1316,7 @@ static bool copy_data(struct prb_data_ring *data_ring,
 
 	data_size = min_t(u16, buf_size, len);
 
-	if (!WARN_ON_ONCE(!data_size))
-		memcpy(&buf[0], data, data_size); /* LMM(copy_data:A) */
+	memcpy(&buf[0], data, data_size); /* LMM(copy_data:A) */
 	return true;
 }
 
@@ -1355,11 +1353,11 @@ static int desc_read_committed_seq(struct prb_desc_ring *desc_ring,
 
 	/*
 	 * A descriptor in the reusable state may no longer have its data
-	 * available; report it as a data-less record. Or the record may
-	 * actually be a data-less record.
+	 * available; report it as existing but with lost data. Or the record
+	 * may actually be a record with lost data.
 	 */
 	if (d_state == desc_reusable ||
-	    (blk_lpos->begin == INVALID_LPOS && blk_lpos->next == INVALID_LPOS)) {
+	    (blk_lpos->begin == FAILED_LPOS && blk_lpos->next == FAILED_LPOS)) {
 		return -ENOENT;
 	}
 
@@ -1659,10 +1657,10 @@ void prb_init(struct printk_ringbuffer *rb,
 
 	descs[_DESCS_COUNT(descbits) - 1].info.seq = 0;
 	atomic_long_set(&(descs[_DESCS_COUNT(descbits) - 1].state_var), DESC0_SV(descbits));
-	descs[_DESCS_COUNT(descbits) - 1].text_blk_lpos.begin = INVALID_LPOS;
-	descs[_DESCS_COUNT(descbits) - 1].text_blk_lpos.next = INVALID_LPOS;
-	descs[_DESCS_COUNT(descbits) - 1].dict_blk_lpos.begin = INVALID_LPOS;
-	descs[_DESCS_COUNT(descbits) - 1].dict_blk_lpos.next = INVALID_LPOS;
+	descs[_DESCS_COUNT(descbits) - 1].text_blk_lpos.begin = FAILED_LPOS;
+	descs[_DESCS_COUNT(descbits) - 1].text_blk_lpos.next = FAILED_LPOS;
+	descs[_DESCS_COUNT(descbits) - 1].dict_blk_lpos.begin = FAILED_LPOS;
+	descs[_DESCS_COUNT(descbits) - 1].dict_blk_lpos.next = FAILED_LPOS;
 }
 
 /**

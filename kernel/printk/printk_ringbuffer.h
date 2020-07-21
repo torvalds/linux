@@ -120,12 +120,13 @@ struct prb_reserved_entry {
 #define DESC_FLAGS_MASK			(DESC_COMMITTED_MASK | DESC_REUSE_MASK)
 #define DESC_ID_MASK			(~DESC_FLAGS_MASK)
 #define DESC_ID(sv)			((sv) & DESC_ID_MASK)
-#define INVALID_LPOS			1
+#define FAILED_LPOS			0x1
+#define NO_LPOS				0x3
 
-#define INVALID_BLK_LPOS	\
+#define FAILED_BLK_LPOS	\
 {				\
-	.begin	= INVALID_LPOS,	\
-	.next	= INVALID_LPOS,	\
+	.begin	= FAILED_LPOS,	\
+	.next	= FAILED_LPOS,	\
 }
 
 /*
@@ -147,7 +148,7 @@ struct prb_reserved_entry {
  *
  * To satisfy Req1, the tail initially points to a descriptor that is
  * minimally initialized (having no data block, i.e. data-less with the
- * data block's lpos @begin and @next values set to INVALID_LPOS).
+ * data block's lpos @begin and @next values set to FAILED_LPOS).
  *
  * To satisfy Req2, the initial tail descriptor is initialized to the
  * reusable state. Readers recognize reusable descriptors as existing
@@ -242,8 +243,8 @@ static struct prb_desc _##name##_descs[_DESCS_COUNT(descbits)] = {				\
 		/* reusable */									\
 		.state_var	= ATOMIC_INIT(DESC0_SV(descbits)),				\
 		/* no associated data block */							\
-		.text_blk_lpos	= INVALID_BLK_LPOS,						\
-		.dict_blk_lpos	= INVALID_BLK_LPOS,						\
+		.text_blk_lpos	= FAILED_BLK_LPOS,						\
+		.dict_blk_lpos	= FAILED_BLK_LPOS,						\
 	},											\
 };												\
 static struct printk_ringbuffer name = {							\
