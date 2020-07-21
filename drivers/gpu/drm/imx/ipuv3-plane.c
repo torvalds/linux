@@ -313,6 +313,8 @@ static void ipu_plane_state_reset(struct drm_plane *plane)
 		__drm_atomic_helper_plane_reset(plane, &ipu_state->base);
 		ipu_state->base.zpos = zpos;
 		ipu_state->base.normalized_zpos = zpos;
+		ipu_state->base.color_encoding = DRM_COLOR_YCBCR_BT601;
+		ipu_state->base.color_range = DRM_COLOR_YCBCR_LIMITED_RANGE;
 	}
 }
 
@@ -632,6 +634,25 @@ static void ipu_plane_atomic_update(struct drm_plane *plane,
 					  fb->modifier, &eba);
 	}
 
+	if (!old_state->fb ||
+	    old_state->fb->format->format != fb->format->format ||
+	    old_state->color_encoding != new_state->color_encoding ||
+	    old_state->color_range != new_state->color_range) {
+		ics = ipu_drm_fourcc_to_colorspace(fb->format->format);
+		switch (ipu_plane->dp_flow) {
+		case IPU_DP_FLOW_SYNC_BG:
+			ipu_dp_setup_channel(ipu_plane->dp, new_state->color_encoding,
+					     new_state->color_range, ics,
+					     IPUV3_COLORSPACE_RGB);
+			break;
+		case IPU_DP_FLOW_SYNC_FG:
+			ipu_dp_setup_channel(ipu_plane->dp, new_state->color_encoding,
+					     new_state->color_range, ics,
+					     IPUV3_COLORSPACE_UNKNOWN);
+			break;
+		}
+	}
+
 	if (old_state->fb && !drm_atomic_crtc_needs_modeset(crtc_state)) {
 		/* nothing to do if PRE is used */
 		if (ipu_state->use_pre)
@@ -662,7 +683,7 @@ static void ipu_plane_atomic_update(struct drm_plane *plane,
 		break;
 	}
 
-	ipu_dmfc_config_wait4eot(ipu_plane->dmfc, ALIGN(drm_rect_width(dst), 8));
+	ipu_dmfc_config_wait4eot(ipu_plane->dmfc, drm_rect_width(dst));
 
 	width = ipu_src_rect_width(new_state);
 	height = drm_rect_height(&new_state->src) >> 16;
@@ -908,6 +929,15 @@ struct ipu_plane *ipu_plane_init(struct drm_device *dev, struct ipu_soc *ipu,
 	else
 		ret = drm_plane_create_zpos_immutable_property(&ipu_plane->base,
 							       0);
+	if (ret)
+		return ERR_PTR(ret);
+
+	ret = drm_plane_create_color_properties(&ipu_plane->base,
+			BIT(DRM_COLOR_YCBCR_BT601) |
+			BIT(DRM_COLOR_YCBCR_BT709),
+			BIT(DRM_COLOR_YCBCR_LIMITED_RANGE),
+			DRM_COLOR_YCBCR_BT601,
+			DRM_COLOR_YCBCR_LIMITED_RANGE);
 	if (ret)
 		return ERR_PTR(ret);
 
