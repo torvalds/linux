@@ -379,6 +379,7 @@ static void qed_rdma_resc_free(struct qed_hwfn *p_hwfn)
 	qed_rdma_bmap_free(p_hwfn, &p_hwfn->p_rdma_info->srq_map, 1);
 	qed_rdma_bmap_free(p_hwfn, &p_hwfn->p_rdma_info->real_cid_map, 1);
 	qed_rdma_bmap_free(p_hwfn, &p_hwfn->p_rdma_info->xrc_srq_map, 1);
+	qed_rdma_bmap_free(p_hwfn, &p_hwfn->p_rdma_info->xrcd_map, 1);
 
 	kfree(p_rdma_info->port);
 	kfree(p_rdma_info->dev);

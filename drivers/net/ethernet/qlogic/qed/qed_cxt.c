@@ -2335,6 +2335,11 @@ qed_cxt_free_ilt_range(struct qed_hwfn *p_hwfn,
 		elem_size = SRQ_CXT_SIZE;
 		p_blk = &p_cli->pf_blks[SRQ_BLK];
 		break;
+	case QED_ELEM_XRC_SRQ:
+		p_cli = &p_hwfn->p_cxt_mngr->clients[ILT_CLI_TSDM];
+		elem_size = XRC_SRQ_CXT_SIZE;
+		p_blk = &p_cli->pf_blks[SRQ_BLK];
+		break;
 	case QED_ELEM_TASK:
 		p_cli = &p_hwfn->p_cxt_mngr->clients[ILT_CLI_CDUT];
 		elem_size = TYPE1_TASK_CXT_SIZE(p_hwfn);
