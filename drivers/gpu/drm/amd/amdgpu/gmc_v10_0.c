@@ -121,29 +121,8 @@ static int gmc_v10_0_process_interrupt(struct amdgpu_device *adev,
 			task_info.task_name, task_info.pid);
 		dev_err(adev->dev, "  in page starting at address 0x%016llx from client %d\n",
 			addr, entry->client_id);
-		if (!amdgpu_sriov_vf(adev)) {
-			dev_err(adev->dev,
-				"GCVM_L2_PROTECTION_FAULT_STATUS:0x%08X\n",
-				status);
-			dev_err(adev->dev, "\t Faulty UTCL2 client ID: 0x%lx\n",
-				REG_GET_FIELD(status,
-				GCVM_L2_PROTECTION_FAULT_STATUS, CID));
-			dev_err(adev->dev, "\t MORE_FAULTS: 0x%lx\n",
-				REG_GET_FIELD(status,
-				GCVM_L2_PROTECTION_FAULT_STATUS, MORE_FAULTS));
-			dev_err(adev->dev, "\t WALKER_ERROR: 0x%lx\n",
-				REG_GET_FIELD(status,
-				GCVM_L2_PROTECTION_FAULT_STATUS, WALKER_ERROR));
-			dev_err(adev->dev, "\t PERMISSION_FAULTS: 0x%lx\n",
-				REG_GET_FIELD(status,
-				GCVM_L2_PROTECTION_FAULT_STATUS, PERMISSION_FAULTS));
-			dev_err(adev->dev, "\t MAPPING_ERROR: 0x%lx\n",
-				REG_GET_FIELD(status,
-				GCVM_L2_PROTECTION_FAULT_STATUS, MAPPING_ERROR));
-			dev_err(adev->dev, "\t RW: 0x%lx\n",
-				REG_GET_FIELD(status,
-				GCVM_L2_PROTECTION_FAULT_STATUS, RW));
-		}
+		if (!amdgpu_sriov_vf(adev))
+			hub->vmhub_funcs->print_l2_protection_fault_status(adev, status);
 	}
 
 	return 0;

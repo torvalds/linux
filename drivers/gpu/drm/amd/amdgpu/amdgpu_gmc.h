@@ -74,6 +74,11 @@ struct amdgpu_gmc_fault {
 /*
  * VMHUB structures, functions & helpers
  */
+struct amdgpu_vmhub_funcs {
+	void (*print_l2_protection_fault_status)(struct amdgpu_device *adev,
+						 uint32_t status);
+};
+
 struct amdgpu_vmhub {
 	uint32_t	ctx0_ptb_addr_lo32;
 	uint32_t	ctx0_ptb_addr_hi32;
@@ -94,6 +99,8 @@ struct amdgpu_vmhub {
 	uint32_t	eng_addr_distance; /* include LO32/HI32 */
 
 	uint32_t	vm_cntx_cntl_vm_fault;
+
+	const struct amdgpu_vmhub_funcs *vmhub_funcs;
 };
 
 /*
