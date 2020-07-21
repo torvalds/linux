@@ -2213,16 +2213,12 @@ static int update_xps(struct dpaa2_eth_priv *priv)
 	return err;
 }
 
-static int dpaa2_eth_setup_tc(struct net_device *net_dev,
-			      enum tc_setup_type type, void *type_data)
+static int dpaa2_eth_setup_mqprio(struct net_device *net_dev,
+				  struct tc_mqprio_qopt *mqprio)
 {
 	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
-	struct tc_mqprio_qopt *mqprio = type_data;
 	u8 num_tc, num_queues;
 	int i;
-
-	if (type != TC_SETUP_QDISC_MQPRIO)
-		return -EOPNOTSUPP;
 
 	mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;
 	num_queues = dpaa2_eth_queue_count(priv);
@@ -2253,6 +2249,17 @@ out:
 	update_xps(priv);
 
 	return 0;
+}
+
+static int dpaa2_eth_setup_tc(struct net_device *net_dev,
+			      enum tc_setup_type type, void *type_data)
+{
+	switch (type) {
+	case TC_SETUP_QDISC_MQPRIO:
+		return dpaa2_eth_setup_mqprio(net_dev, type_data);
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static const struct net_device_ops dpaa2_eth_ops = {
