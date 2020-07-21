@@ -34,6 +34,7 @@
 #include "sienna_cichlid_ppt.h"
 #include "renoir_ppt.h"
 #include "amd_pcie.h"
+#include "smu_cmn.h"
 
 /*
  * DO NOT use these for err/warn/info/debug messages.
@@ -1585,6 +1586,14 @@ int smu_set_mp1_state(struct smu_context *smu,
 		break;
 	case PP_MP1_STATE_NONE:
 	default:
+		mutex_unlock(&smu->mutex);
+		return 0;
+	}
+
+	/* some asics may not support those messages */
+	if (smu_cmn_to_asic_specific_index(smu,
+					   CMN2ASIC_MAPPING_MSG,
+					   msg) < 0) {
 		mutex_unlock(&smu->mutex);
 		return 0;
 	}
