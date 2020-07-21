@@ -4402,7 +4402,7 @@ F:	Documentation/hwmon/coretemp.rst
 F:	drivers/hwmon/coretemp.c
 
 CORSAIR-CPRO HARDWARE MONITOR DRIVER
-M:	Marius  <mail@mariuszachmann.de>
+M:	Marius Zachmann <mail@mariuszachmann.de>
 L:	linux-hwmon@vger.kernel.org
 S:	Maintained
 F:	drivers/hwmon/corsair-cpro.c

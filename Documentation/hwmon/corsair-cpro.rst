@@ -35,8 +35,7 @@ fan[1-6]_input		Connected fan rpm.
 fan[1-6]_label		Shows fan type as detected by the device.
 fan[1-6]_target		Sets fan speed target rpm.
 			When reading, it reports the last value if it was set by the driver.
-			Otherwise returns 0.
-pwm[1-6]		Sets the fan speed. Values from 0-255.
-			When reading, it reports the last value if it was set by the driver.
-			Otherwise returns 0.
+			Otherwise returns an error.
+pwm[1-6]		Sets the fan speed. Values from 0-255. Can only be read if pwm
+			was set directly.
 ======================= =====================================================================

@@ -36,11 +36,12 @@
 					 * send: byte 1 is channel, rest zero
 					 * rcv:  returns temp for channel in centi-degree celsius
 					 * in bytes 1 and 2
-					 * returns 17 in byte 0 if no sensor is connected
+					 * returns 0x11 in byte 0 if no sensor is connected
 					 */
 #define CTL_GET_VOLT		0x12	/*
 					 * send: byte 1 is rail number: 0 = 12v, 1 = 5v, 2 = 3.3v
 					 * rcv:  returns millivolt in bytes 1,2
+					 * returns error 0x10 if request is invalid
 					 */
 #define CTL_GET_FAN_CNCT	0x20	/*
 					 * returns in bytes 1-6 for each fan:
@@ -51,6 +52,12 @@
 #define CTL_GET_FAN_RPM		0x21	/*
 					 * send: byte 1 is channel, rest zero
 					 * rcv:  returns rpm in bytes 1,2
+					 */
+#define CTL_GET_FAN_PWM		0x22	/*
+					 * send: byte 1 is channel, rest zero
+					 * rcv:  returns pwm in byte 1 if it was set
+					 *	 returns error 0x12 if fan is controlled via
+					 *	 fan_target or fan curve
 					 */
 #define CTL_SET_FAN_FPWM	0x23	/*
 					 * set fixed pwm
@@ -73,12 +80,30 @@ struct ccp_device {
 	struct completion wait_input_report;
 	struct mutex mutex; /* whenever buffer is used, lock before send_usb_cmd */
 	u8 *buffer;
-	int pwm[6];
 	int target[6];
 	DECLARE_BITMAP(temp_cnct, NUM_TEMP_SENSORS);
 	DECLARE_BITMAP(fan_cnct, NUM_FANS);
 	char fan_label[6][LABEL_LENGTH];
 };
+
+/* converts response error in buffer to errno */
+static int ccp_get_errno(struct ccp_device *ccp)
+{
+	switch (ccp->buffer[0]) {
+	case 0x00: /* success */
+		return 0;
+	case 0x01: /* called invalid command */
+		return -EOPNOTSUPP;
+	case 0x10: /* called GET_VOLT / GET_TMP with invalid arguments */
+		return -EINVAL;
+	case 0x11: /* requested temps of disconnected sensors */
+	case 0x12: /* requested pwm of not pwm controlled channels */
+		return -ENODATA;
+	default:
+		hid_dbg(ccp->hdev, "unknown device response error: %d", ccp->buffer[0]);
+		return -EIO;
+	}
+}
 
 /* send command, check for error in response, response in ccp->buffer */
 static int send_usb_cmd(struct ccp_device *ccp, u8 command, u8 byte1, u8 byte2, u8 byte3)
@@ -102,13 +127,7 @@ static int send_usb_cmd(struct ccp_device *ccp, u8 command, u8 byte1, u8 byte2, 
 	if (!t)
 		return -ETIMEDOUT;
 
-	/* first byte of response is error code */
-	if (ccp->buffer[0] != 0x00) {
-		hid_dbg(ccp->hdev, "device response error: %d", ccp->buffer[0]);
-		return -EIO;
-	}
-
-	return 0;
+	return ccp_get_errno(ccp);
 }
 
 static int ccp_raw_event(struct hid_device *hdev, struct hid_report *report, u8 *data, int size)
@@ -126,7 +145,7 @@ static int ccp_raw_event(struct hid_device *hdev, struct hid_report *report, u8 
 }
 
 /* requests and returns single data values depending on channel */
-static int get_data(struct ccp_device *ccp, int command, int channel)
+static int get_data(struct ccp_device *ccp, int command, int channel, bool two_byte_data)
 {
 	int ret;
 
@@ -136,7 +155,9 @@ static int get_data(struct ccp_device *ccp, int command, int channel)
 	if (ret)
 		goto out_unlock;
 
-	ret = (ccp->buffer[1] << 8) + ccp->buffer[2];
+	ret = ccp->buffer[1];
+	if (two_byte_data)
+		ret = (ret << 8) + ccp->buffer[2];
 
 out_unlock:
 	mutex_unlock(&ccp->mutex);
@@ -150,14 +171,14 @@ static int set_pwm(struct ccp_device *ccp, int channel, long val)
 	if (val < 0 || val > 255)
 		return -EINVAL;
 
-	ccp->pwm[channel] = val;
-
 	/* The Corsair Commander Pro uses values from 0-100 */
 	val = DIV_ROUND_CLOSEST(val * 100, 255);
 
 	mutex_lock(&ccp->mutex);
 
 	ret = send_usb_cmd(ccp, CTL_SET_FAN_FPWM, channel, val, 0);
+	if (!ret)
+		ccp->target[channel] = -ENODATA;
 
 	mutex_unlock(&ccp->mutex);
 	return ret;
@@ -171,7 +192,6 @@ static int set_target(struct ccp_device *ccp, int channel, long val)
 	ccp->target[channel] = val;
 
 	mutex_lock(&ccp->mutex);
-
 	ret = send_usb_cmd(ccp, CTL_SET_FAN_TARGET, channel, val >> 8, val);
 
 	mutex_unlock(&ccp->mutex);
@@ -210,7 +230,7 @@ static int ccp_read(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_temp:
 		switch (attr) {
 		case hwmon_temp_input:
-			ret = get_data(ccp, CTL_GET_TMP, channel);
+			ret = get_data(ccp, CTL_GET_TMP, channel, true);
 			if (ret < 0)
 				return ret;
 			*val = ret * 10;
@@ -222,7 +242,7 @@ static int ccp_read(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_fan:
 		switch (attr) {
 		case hwmon_fan_input:
-			ret = get_data(ccp, CTL_GET_FAN_RPM, channel);
+			ret = get_data(ccp, CTL_GET_FAN_RPM, channel, true);
 			if (ret < 0)
 				return ret;
 			*val = ret;
@@ -230,6 +250,8 @@ static int ccp_read(struct device *dev, enum hwmon_sensor_types type,
 		case hwmon_fan_target:
 			/* how to read target values from the device is unknown */
 			/* driver returns last set value or 0			*/
+			if (ccp->target[channel] < 0)
+				return -ENODATA;
 			*val = ccp->target[channel];
 			return 0;
 		default:
@@ -239,9 +261,10 @@ static int ccp_read(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_pwm:
 		switch (attr) {
 		case hwmon_pwm_input:
-			/* how to read pwm values from the device is currently unknown */
-			/* driver returns last set value or 0		               */
-			*val = ccp->pwm[channel];
+			ret = get_data(ccp, CTL_GET_FAN_PWM, channel, false);
+			if (ret < 0)
+				return ret;
+			*val = DIV_ROUND_CLOSEST(ret * 255, 100);
 			return 0;
 		default:
 			break;
@@ -250,7 +273,7 @@ static int ccp_read(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_in:
 		switch (attr) {
 		case hwmon_in_input:
-			ret = get_data(ccp, CTL_GET_VOLT, channel);
+			ret = get_data(ccp, CTL_GET_VOLT, channel, true);
 			if (ret < 0)
 				return ret;
 			*val = ret;
@@ -416,6 +439,7 @@ static int get_fan_cnct(struct ccp_device *ccp)
 			continue;
 
 		set_bit(channel, ccp->fan_cnct);
+		ccp->target[channel] = -ENODATA;
 
 		switch (mode) {
 		case 1:
