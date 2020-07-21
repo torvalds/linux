@@ -292,20 +292,6 @@ static int __init acpi_parse_entries_array(char *id, unsigned long table_size,
 	int errs = 0;
 	int i;
 
-	if (acpi_disabled)
-		return -ENODEV;
-
-	if (!id)
-		return -EINVAL;
-
-	if (!table_size)
-		return -EINVAL;
-
-	if (!table_header) {
-		pr_warn("%4.4s not present\n", id);
-		return -ENODEV;
-	}
-
 	table_end = (unsigned long)table_header + table_header->length;
 
 	/* Parse all entries looking for a match. */
@@ -369,6 +355,9 @@ int __init acpi_table_parse_entries_array(char *id,
 		return -ENODEV;
 
 	if (!id)
+		return -EINVAL;
+
+	if (!table_size)
 		return -EINVAL;
 
 	if (!strncmp(id, ACPI_SIG_MADT, 4))
