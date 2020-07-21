@@ -10,7 +10,7 @@ config COMMON_CLK_ROCKCHIP
 
 if COMMON_CLK_ROCKCHIP
 config CLK_PX30
-	bool "Rockchip PX30 clock controller support"
+	tristate "Rockchip PX30 clock controller support"
 	depends on ARM64 || COMPILE_TEST
 	default y
 	help

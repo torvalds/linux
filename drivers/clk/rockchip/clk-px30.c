@@ -6,8 +6,10 @@
 
 #include <linux/clk-provider.h>
 #include <linux/io.h>
+#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/of_device.h>
 #include <linux/syscore_ops.h>
 #include <dt-bindings/clock/px30-cru.h>
 #include "clk.h"
@@ -1077,3 +1079,55 @@ static void __init px30_pmu_clk_init(struct device_node *np)
 	rockchip_clk_of_add_provider(np, ctx);
 }
 CLK_OF_DECLARE(px30_cru_pmu, "rockchip,px30-pmucru", px30_pmu_clk_init);
+
+struct clk_px30_inits {
+	void (*inits)(struct device_node *np);
+};
+
+static const struct clk_px30_inits clk_px30_init = {
+	.inits = px30_clk_init,
+};
+
+static const struct clk_px30_inits clk_px30_pmu_init = {
+	.inits = px30_pmu_clk_init,
+};
+
+static const struct of_device_id clk_px30_match_table[] = {
+	{
+		.compatible = "rockchip,px30-cru",
+		.data = &clk_px30_init,
+	}, {
+		.compatible = "rockchip,px30-pmucru",
+		.data = &clk_px30_pmu_init,
+	},
+	{ }
+};
+MODULE_DEVICE_TABLE(of, clk_px30_match_table);
+
+static int __init clk_px30_probe(struct platform_device *pdev)
+{
+	struct device_node *np = pdev->dev.of_node;
+	const struct of_device_id *match;
+	const struct clk_px30_inits *init_data;
+
+	match = of_match_device(clk_px30_match_table, &pdev->dev);
+	if (!match || !match->data)
+		return -EINVAL;
+
+	init_data = match->data;
+	if (init_data->inits)
+		init_data->inits(np);
+
+	return 0;
+}
+
+static struct platform_driver clk_px30_driver = {
+	.driver		= {
+		.name	= "clk-px30",
+		.of_match_table = clk_px30_match_table,
+	},
+};
+builtin_platform_driver_probe(clk_px30_driver, clk_px30_probe);
+
+MODULE_DESCRIPTION("Rockchip PX30 Clock Driver");
+MODULE_LICENSE("GPL");
