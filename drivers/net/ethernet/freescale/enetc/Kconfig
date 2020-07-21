@@ -4,6 +4,7 @@ config FSL_ENETC
 	depends on PCI && PCI_MSI
 	select FSL_ENETC_MDIO
 	select PHYLIB
+	select DIMLIB
 	help
 	  This driver supports NXP ENETC gigabit ethernet controller PCIe
 	  physical function (PF) devices, managing ENETC Ports at a privileged
@@ -15,6 +16,7 @@ config FSL_ENETC_VF
 	tristate "ENETC VF driver"
 	depends on PCI && PCI_MSI
 	select PHYLIB
+	select DIMLIB
 	help
 	  This driver supports NXP ENETC gigabit ethernet controller PCIe
 	  virtual function (VF) devices enabled by the ENETC PF driver.

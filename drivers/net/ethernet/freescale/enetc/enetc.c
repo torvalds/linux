@@ -279,6 +279,34 @@ static bool enetc_clean_tx_ring(struct enetc_bdr *tx_ring, int napi_budget);
 static int enetc_clean_rx_ring(struct enetc_bdr *rx_ring,
 			       struct napi_struct *napi, int work_limit);
 
+static void enetc_rx_dim_work(struct work_struct *w)
+{
+	struct dim *dim = container_of(w, struct dim, work);
+	struct dim_cq_moder moder =
+		net_dim_get_rx_moderation(dim->mode, dim->profile_ix);
+	struct enetc_int_vector	*v =
+		container_of(dim, struct enetc_int_vector, rx_dim);
+
+	v->rx_ictt = enetc_usecs_to_cycles(moder.usec);
+	dim->state = DIM_START_MEASURE;
+}
+
+static void enetc_rx_net_dim(struct enetc_int_vector *v)
+{
+	struct dim_sample dim_sample;
+
+	v->comp_cnt++;
+
+	if (!v->rx_napi_work)
+		return;
+
+	dim_update_sample(v->comp_cnt,
+			  v->rx_ring.stats.packets,
+			  v->rx_ring.stats.bytes,
+			  &dim_sample);
+	net_dim(&v->rx_dim, dim_sample);
+}
+
 static int enetc_poll(struct napi_struct *napi, int budget)
 {
 	struct enetc_int_vector
@@ -294,11 +322,18 @@ static int enetc_poll(struct napi_struct *napi, int budget)
 	work_done = enetc_clean_rx_ring(&v->rx_ring, napi, budget);
 	if (work_done == budget)
 		complete = false;
+	if (work_done)
+		v->rx_napi_work = true;
 
 	if (!complete)
 		return budget;
 
 	napi_complete_done(napi, work_done);
+
+	if (likely(v->rx_dim_en))
+		enetc_rx_net_dim(v);
+
+	v->rx_napi_work = false;
 
 	/* enable interrupts */
 	enetc_wr_reg(v->rbier, ENETC_RBIER_RXTIE);
@@ -1075,6 +1110,8 @@ void enetc_init_si_rings_params(struct enetc_ndev_priv *priv)
 	priv->num_rx_rings = min_t(int, cpus, si->num_rx_rings);
 	priv->num_tx_rings = si->num_tx_rings;
 	priv->bdr_int_num = cpus;
+	priv->ic_mode = ENETC_IC_RX_ADAPTIVE | ENETC_IC_TX_MANUAL;
+	priv->tx_ictt = ENETC_TXIC_TIMETHR;
 
 	/* SI specific */
 	si->cbd_ring.bd_count = ENETC_CBDR_DEFAULT_SIZE;
@@ -1316,7 +1353,8 @@ static void enetc_setup_interrupts(struct enetc_ndev_priv *priv)
 	int i;
 
 	/* enable Tx & Rx event indication */
-	if (priv->ic_mode & ENETC_IC_RX_MANUAL) {
+	if (priv->ic_mode &
+	    (ENETC_IC_RX_MANUAL | ENETC_IC_RX_ADAPTIVE)) {
 		icpt = ENETC_RBICR0_SET_ICPT(ENETC_RXIC_PKTTHR);
 		/* init to non-0 minimum, will be adjusted later */
 		ictt = 0x1;
@@ -1786,6 +1824,12 @@ int enetc_alloc_msix(struct enetc_ndev_priv *priv)
 
 		priv->int_vector[i] = v;
 
+		/* init defaults for adaptive IC */
+		if (priv->ic_mode & ENETC_IC_RX_ADAPTIVE) {
+			v->rx_ictt = 0x1;
+			v->rx_dim_en = true;
+		}
+		INIT_WORK(&v->rx_dim.work, enetc_rx_dim_work);
 		netif_napi_add(priv->ndev, &v->napi, enetc_poll,
 			       NAPI_POLL_WEIGHT);
 		v->count_tx_rings = v_tx_rings;
@@ -1821,6 +1865,7 @@ int enetc_alloc_msix(struct enetc_ndev_priv *priv)
 fail:
 	while (i--) {
 		netif_napi_del(&priv->int_vector[i]->napi);
+		cancel_work_sync(&priv->int_vector[i]->rx_dim.work);
 		kfree(priv->int_vector[i]);
 	}
 
@@ -1837,6 +1882,7 @@ void enetc_free_msix(struct enetc_ndev_priv *priv)
 		struct enetc_int_vector *v = priv->int_vector[i];
 
 		netif_napi_del(&v->napi);
+		cancel_work_sync(&v->rx_dim.work);
 	}
 
 	for (i = 0; i < priv->num_rx_rings; i++)
