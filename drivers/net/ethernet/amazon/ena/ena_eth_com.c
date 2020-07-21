@@ -285,11 +285,10 @@ static u16 ena_com_cdesc_rx_pkt_get(struct ena_com_io_cq *io_cq,
 	return count;
 }
 
-static int ena_com_create_and_store_tx_meta_desc(struct ena_com_io_sq *io_sq,
-							struct ena_com_tx_ctx *ena_tx_ctx)
+static int ena_com_create_meta(struct ena_com_io_sq *io_sq,
+			       struct ena_com_tx_meta *ena_meta)
 {
 	struct ena_eth_io_tx_meta_desc *meta_desc = NULL;
-	struct ena_com_tx_meta *ena_meta = &ena_tx_ctx->ena_meta;
 
 	meta_desc = get_sq_desc(io_sq);
 	memset(meta_desc, 0x0, sizeof(struct ena_eth_io_tx_meta_desc));
@@ -309,12 +308,13 @@ static int ena_com_create_and_store_tx_meta_desc(struct ena_com_io_sq *io_sq,
 
 	/* Extended meta desc */
 	meta_desc->len_ctrl |= ENA_ETH_IO_TX_META_DESC_ETH_META_TYPE_MASK;
-	meta_desc->len_ctrl |= ENA_ETH_IO_TX_META_DESC_META_STORE_MASK;
 	meta_desc->len_ctrl |= (io_sq->phase <<
 		ENA_ETH_IO_TX_META_DESC_PHASE_SHIFT) &
 		ENA_ETH_IO_TX_META_DESC_PHASE_MASK;
 
 	meta_desc->len_ctrl |= ENA_ETH_IO_TX_META_DESC_FIRST_MASK;
+	meta_desc->len_ctrl |= ENA_ETH_IO_TX_META_DESC_META_STORE_MASK;
+
 	meta_desc->word2 |= ena_meta->l3_hdr_len &
 		ENA_ETH_IO_TX_META_DESC_L3_HDR_LEN_MASK;
 	meta_desc->word2 |= (ena_meta->l3_hdr_offset <<
@@ -325,13 +325,36 @@ static int ena_com_create_and_store_tx_meta_desc(struct ena_com_io_sq *io_sq,
 		ENA_ETH_IO_TX_META_DESC_L4_HDR_LEN_IN_WORDS_SHIFT) &
 		ENA_ETH_IO_TX_META_DESC_L4_HDR_LEN_IN_WORDS_MASK;
 
-	meta_desc->len_ctrl |= ENA_ETH_IO_TX_META_DESC_META_STORE_MASK;
-
-	/* Cached the meta desc */
-	memcpy(&io_sq->cached_tx_meta, ena_meta,
-	       sizeof(struct ena_com_tx_meta));
-
 	return ena_com_sq_update_tail(io_sq);
+}
+
+static int ena_com_create_and_store_tx_meta_desc(struct ena_com_io_sq *io_sq,
+						 struct ena_com_tx_ctx *ena_tx_ctx,
+						 bool *have_meta)
+{
+	struct ena_com_tx_meta *ena_meta = &ena_tx_ctx->ena_meta;
+
+	/* When disable meta caching is set, don't bother to save the meta and
+	 * compare it to the stored version, just create the meta
+	 */
+	if (io_sq->disable_meta_caching) {
+		if (unlikely(!ena_tx_ctx->meta_valid))
+			return -EINVAL;
+
+		*have_meta = true;
+		return ena_com_create_meta(io_sq, ena_meta);
+	}
+
+	if (ena_com_meta_desc_changed(io_sq, ena_tx_ctx)) {
+		*have_meta = true;
+		/* Cache the meta desc */
+		memcpy(&io_sq->cached_tx_meta, ena_meta,
+		       sizeof(struct ena_com_tx_meta));
+		return ena_com_create_meta(io_sq, ena_meta);
+	}
+
+	*have_meta = false;
+	return 0;
 }
 
 static void ena_com_rx_set_flags(struct ena_com_rx_ctx *ena_rx_ctx,
@@ -402,12 +425,10 @@ int ena_com_prepare_tx(struct ena_com_io_sq *io_sq,
 	if (unlikely(rc))
 		return rc;
 
-	have_meta = ena_tx_ctx->meta_valid && ena_com_meta_desc_changed(io_sq,
-			ena_tx_ctx);
-	if (have_meta) {
-		rc = ena_com_create_and_store_tx_meta_desc(io_sq, ena_tx_ctx);
-		if (unlikely(rc))
-			return rc;
+	rc = ena_com_create_and_store_tx_meta_desc(io_sq, ena_tx_ctx, &have_meta);
+	if (unlikely(rc)) {
+		pr_err("failed to create and store tx meta desc\n");
+		return rc;
 	}
 
 	/* If the caller doesn't want to send packets */

@@ -127,6 +127,7 @@ struct ena_com_llq_info {
 	u16 descs_num_before_header;
 	u16 descs_per_entry;
 	u16 max_entries_in_tx_burst;
+	bool disable_meta_caching;
 };
 
 struct ena_com_io_cq {
@@ -188,6 +189,8 @@ struct ena_com_io_sq {
 
 	enum queue_direction direction;
 	enum ena_admin_placement_policy_type mem_queue_type;
+
+	bool disable_meta_caching;
 
 	u32 msix_vector;
 	struct ena_com_tx_meta cached_tx_meta;
