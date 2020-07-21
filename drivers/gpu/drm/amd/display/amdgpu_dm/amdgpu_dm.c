@@ -8034,6 +8034,13 @@ static int dm_update_crtc_state(struct amdgpu_display_manager *dm,
 			goto fail;
 		}
 
+		/*
+		 * TODO: Check VSDB bits to decide whether this should
+		 * be enabled or not.
+		 */
+		new_stream->triggered_crtc_reset.enabled =
+			dm->force_timing_sync;
+
 		dm_new_crtc_state->abm_level = dm_new_conn_state->abm_level;
 
 		ret = fill_hdr_info_packet(drm_new_conn_state,
@@ -9189,4 +9196,23 @@ static bool amdgpu_dm_psr_disable(struct dc_stream_state *stream)
 	DRM_DEBUG_DRIVER("Disabling psr...\n");
 
 	return dc_link_set_psr_allow_active(stream->link, false, true);
+}
+
+void amdgpu_dm_trigger_timing_sync(struct drm_device *dev)
+{
+	struct amdgpu_device *adev = dev->dev_private;
+	struct dc *dc = adev->dm.dc;
+	int i;
+
+	mutex_lock(&adev->dm.dc_lock);
+	if (dc->current_state) {
+		for (i = 0; i < dc->current_state->stream_count; ++i)
+			dc->current_state->streams[i]
+				->triggered_crtc_reset.enabled =
+				adev->dm.force_timing_sync;
+
+		dm_enable_per_frame_crtc_master_sync(dc->current_state);
+		dc_trigger_sync(dc, dc->current_state);
+	}
+	mutex_unlock(&adev->dm.dc_lock);
 }

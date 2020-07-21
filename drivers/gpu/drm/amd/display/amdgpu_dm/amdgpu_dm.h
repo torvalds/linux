@@ -340,6 +340,7 @@ struct amdgpu_display_manager {
 	 * fake encoders used for DP MST.
 	 */
 	struct amdgpu_encoder mst_encoders[AMDGPU_DM_MAX_CRTC];
+        bool force_timing_sync;
 };
 
 struct dsc_preferred_settings {
@@ -492,6 +493,8 @@ void dm_restore_drm_connector_state(struct drm_device *dev,
 
 void amdgpu_dm_update_freesync_caps(struct drm_connector *connector,
 					struct edid *edid);
+
+void amdgpu_dm_trigger_timing_sync(struct drm_device *dev);
 
 #define MAX_COLOR_LUT_ENTRIES 4096
 /* Legacy gamm LUT users such as X doesn't like large LUT sizes */

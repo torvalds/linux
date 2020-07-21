@@ -2184,6 +2184,38 @@ static const struct drm_info_list amdgpu_dm_debugfs_list[] = {
 };
 
 /*
+ * Sets the force_timing_sync debug optino from the given string.
+ * All connected displays will be force synchronized immediately.
+ * Usage: echo 1 > /sys/kernel/debug/dri/0/amdgpu_dm_force_timing_sync
+ */
+static int force_timing_sync_set(void *data, u64 val)
+{
+	struct amdgpu_device *adev = data;
+
+	adev->dm.force_timing_sync = (bool)val;
+
+	amdgpu_dm_trigger_timing_sync(adev->ddev);
+
+	return 0;
+}
+
+/*
+ * Gets the force_timing_sync debug option value into the given buffer.
+ * Usage: cat /sys/kernel/debug/dri/0/amdgpu_dm_force_timing_sync
+ */
+static int force_timing_sync_get(void *data, u64 *val)
+{
+	struct amdgpu_device *adev = data;
+
+	*val = adev->dm.force_timing_sync;
+
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(force_timing_sync_ops, force_timing_sync_get,
+			 force_timing_sync_set, "%llu\n");
+
+/*
  * Sets the DC visual confirm debug option from the given string.
  * Example usage: echo 1 > /sys/kernel/debug/dri/0/amdgpu_visual_confirm
  */
@@ -2241,6 +2273,9 @@ int dtn_debugfs_init(struct amdgpu_device *adev)
 
 	debugfs_create_file_unsafe("amdgpu_dm_dmub_fw_state", 0644, root,
 				   adev, &dmub_fw_state_fops);
+
+	debugfs_create_file_unsafe("amdgpu_dm_force_timing_sync", 0644, root,
+				   adev, &force_timing_sync_ops);
 
 	return 0;
 }
