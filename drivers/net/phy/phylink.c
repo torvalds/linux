@@ -1312,12 +1312,32 @@ int phylink_ethtool_ksettings_set(struct phylink *pl,
 				  const struct ethtool_link_ksettings *kset)
 {
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(support);
-	struct ethtool_link_ksettings our_kset;
 	struct phylink_link_state config;
 	const struct phy_setting *s;
-	int ret;
 
 	ASSERT_RTNL();
+
+	if (pl->phydev) {
+		/* We can rely on phylib for this update; we also do not need
+		 * to update the pl->link_config settings:
+		 * - the configuration returned via ksettings_get() will come
+		 *   from phylib whenever a PHY is present.
+		 * - link_config.interface will be updated by the PHY calling
+		 *   back via phylink_phy_change() and a subsequent resolve.
+		 * - initial link configuration for PHY mode comes from the
+		 *   last phy state updated via phylink_phy_change().
+		 * - other configuration changes (e.g. pause modes) are
+		 *   performed directly via phylib.
+		 * - if in in-band mode with a PHY, the link configuration
+		 *   is passed on the link from the PHY, and all of
+		 *   link_config.{speed,duplex,an_enabled,pause} are not used.
+		 * - the only possible use would be link_config.advertising
+		 *   pause modes when in 1000base-X mode with a PHY, but in
+		 *   the presence of a PHY, this should not be changed as that
+		 *   should be determined from the media side advertisement.
+		 */
+		return phy_ethtool_ksettings_set(pl->phydev, kset);
+	}
 
 	linkmode_copy(support, pl->supported);
 	config = pl->link_config;
@@ -1365,65 +1385,35 @@ int phylink_ethtool_ksettings_set(struct phylink *pl,
 		return -EINVAL;
 	}
 
-	if (pl->phydev) {
-		/* If we have a PHY, we process the kset change via phylib.
-		 * phylib will call our link state function if the PHY
-		 * parameters have changed, which will trigger a resolve
-		 * and update the MAC configuration.
+	/* For a fixed link, this isn't able to change any parameters,
+	 * which just leaves inband mode.
+	 */
+	if (phylink_validate(pl, support, &config))
+		return -EINVAL;
+
+	/* If autonegotiation is enabled, we must have an advertisement */
+	if (config.an_enabled && phylink_is_empty_linkmode(config.advertising))
+		return -EINVAL;
+
+	mutex_lock(&pl->state_mutex);
+	linkmode_copy(pl->link_config.advertising, config.advertising);
+	pl->link_config.interface = config.interface;
+	pl->link_config.speed = config.speed;
+	pl->link_config.duplex = config.duplex;
+	pl->link_config.an_enabled = kset->base.autoneg !=
+				     AUTONEG_DISABLE;
+
+	if (pl->cur_link_an_mode == MLO_AN_INBAND &&
+	    !test_bit(PHYLINK_DISABLE_STOPPED, &pl->phylink_disable_state)) {
+		/* If in 802.3z mode, this updates the advertisement.
+		 *
+		 * If we are in SGMII mode without a PHY, there is no
+		 * advertisement; the only thing we have is the pause
+		 * modes which can only come from a PHY.
 		 */
-		our_kset = *kset;
-		linkmode_copy(our_kset.link_modes.advertising,
-			      config.advertising);
-		our_kset.base.speed = config.speed;
-		our_kset.base.duplex = config.duplex;
-
-		ret = phy_ethtool_ksettings_set(pl->phydev, &our_kset);
-		if (ret)
-			return ret;
-
-		mutex_lock(&pl->state_mutex);
-		/* Save the new configuration */
-		linkmode_copy(pl->link_config.advertising,
-			      our_kset.link_modes.advertising);
-		pl->link_config.interface = config.interface;
-		pl->link_config.speed = our_kset.base.speed;
-		pl->link_config.duplex = our_kset.base.duplex;
-		pl->link_config.an_enabled = our_kset.base.autoneg !=
-					     AUTONEG_DISABLE;
-		mutex_unlock(&pl->state_mutex);
-	} else {
-		/* For a fixed link, this isn't able to change any parameters,
-		 * which just leaves inband mode.
-		 */
-		if (phylink_validate(pl, support, &config))
-			return -EINVAL;
-
-		/* If autonegotiation is enabled, we must have an advertisement */
-		if (config.an_enabled &&
-		    phylink_is_empty_linkmode(config.advertising))
-			return -EINVAL;
-
-		mutex_lock(&pl->state_mutex);
-		linkmode_copy(pl->link_config.advertising, config.advertising);
-		pl->link_config.interface = config.interface;
-		pl->link_config.speed = config.speed;
-		pl->link_config.duplex = config.duplex;
-		pl->link_config.an_enabled = kset->base.autoneg !=
-					     AUTONEG_DISABLE;
-
-		if (pl->cur_link_an_mode == MLO_AN_INBAND &&
-		    !test_bit(PHYLINK_DISABLE_STOPPED,
-			      &pl->phylink_disable_state)) {
-			/* If in 802.3z mode, this updates the advertisement.
-			 *
-			 * If we are in SGMII mode without a PHY, there is no
-			 * advertisement; the only thing we have is the pause
-			 * modes which can only come from a PHY.
-			 */
-			phylink_pcs_config(pl, true, &pl->link_config);
-		}
-		mutex_unlock(&pl->state_mutex);
+		phylink_pcs_config(pl, true, &pl->link_config);
 	}
+	mutex_unlock(&pl->state_mutex);
 
 	return 0;
 }
