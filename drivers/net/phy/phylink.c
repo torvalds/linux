@@ -43,6 +43,7 @@ struct phylink {
 	const struct phylink_mac_ops *mac_ops;
 	const struct phylink_pcs_ops *pcs_ops;
 	struct phylink_config *config;
+	struct phylink_pcs *pcs;
 	struct device *dev;
 	unsigned int old_link_state:1;
 
@@ -427,7 +428,7 @@ static void phylink_mac_pcs_an_restart(struct phylink *pl)
 	    phy_interface_mode_is_8023z(pl->link_config.interface) &&
 	    phylink_autoneg_inband(pl->cur_link_an_mode)) {
 		if (pl->pcs_ops)
-			pl->pcs_ops->pcs_an_restart(pl->config);
+			pl->pcs_ops->pcs_an_restart(pl->pcs);
 		else
 			pl->mac_ops->mac_an_restart(pl->config);
 	}
@@ -453,7 +454,7 @@ static void phylink_major_config(struct phylink *pl, bool restart,
 	phylink_mac_config(pl, state);
 
 	if (pl->pcs_ops) {
-		err = pl->pcs_ops->pcs_config(pl->config, pl->cur_link_an_mode,
+		err = pl->pcs_ops->pcs_config(pl->pcs, pl->cur_link_an_mode,
 					      state->interface,
 					      state->advertising,
 					      !!(pl->link_config.pause &
@@ -506,7 +507,7 @@ static int phylink_change_inband_advert(struct phylink *pl)
 	 * restart negotiation if the pcs_config() helper indicates that
 	 * the programmed advertisement has changed.
 	 */
-	ret = pl->pcs_ops->pcs_config(pl->config, pl->cur_link_an_mode,
+	ret = pl->pcs_ops->pcs_config(pl->pcs, pl->cur_link_an_mode,
 				      pl->link_config.interface,
 				      pl->link_config.advertising,
 				      !!(pl->link_config.pause & MLO_PAUSE_AN));
@@ -533,7 +534,7 @@ static void phylink_mac_pcs_get_state(struct phylink *pl,
 	state->link = 1;
 
 	if (pl->pcs_ops)
-		pl->pcs_ops->pcs_get_state(pl->config, state);
+		pl->pcs_ops->pcs_get_state(pl->pcs, state);
 	else
 		pl->mac_ops->mac_pcs_get_state(pl->config, state);
 }
@@ -604,7 +605,7 @@ static void phylink_link_up(struct phylink *pl,
 	pl->cur_interface = link_state.interface;
 
 	if (pl->pcs_ops && pl->pcs_ops->pcs_link_up)
-		pl->pcs_ops->pcs_link_up(pl->config, pl->cur_link_an_mode,
+		pl->pcs_ops->pcs_link_up(pl->pcs, pl->cur_link_an_mode,
 					 pl->cur_interface,
 					 link_state.speed, link_state.duplex);
 
@@ -863,11 +864,26 @@ struct phylink *phylink_create(struct phylink_config *config,
 }
 EXPORT_SYMBOL_GPL(phylink_create);
 
-void phylink_add_pcs(struct phylink *pl, const struct phylink_pcs_ops *ops)
+/**
+ * phylink_set_pcs() - set the current PCS for phylink to use
+ * @pl: a pointer to a &struct phylink returned from phylink_create()
+ * @pcs: a pointer to the &struct phylink_pcs
+ *
+ * Bind the MAC PCS to phylink.  This may be called after phylink_create(),
+ * in mac_prepare() or mac_config() methods if it is desired to dynamically
+ * change the PCS.
+ *
+ * Please note that there are behavioural changes with the mac_config()
+ * callback if a PCS is present (denoting a newer setup) so removing a PCS
+ * is not supported, and if a PCS is going to be used, it must be registered
+ * by calling phylink_set_pcs() at the latest in the first mac_config() call.
+ */
+void phylink_set_pcs(struct phylink *pl, struct phylink_pcs *pcs)
 {
-	pl->pcs_ops = ops;
+	pl->pcs = pcs;
+	pl->pcs_ops = pcs->ops;
 }
-EXPORT_SYMBOL_GPL(phylink_add_pcs);
+EXPORT_SYMBOL_GPL(phylink_set_pcs);
 
 /**
  * phylink_destroy() - cleanup and destroy the phylink instance
@@ -1212,6 +1228,8 @@ void phylink_start(struct phylink *pl)
 		break;
 	case MLO_AN_INBAND:
 		poll |= pl->config->pcs_poll;
+		if (pl->pcs)
+			poll |= pl->pcs->poll;
 		break;
 	}
 	if (poll)

@@ -321,6 +321,21 @@ void mac_link_up(struct phylink_config *config, struct phy_device *phy,
 		 int speed, int duplex, bool tx_pause, bool rx_pause);
 #endif
 
+struct phylink_pcs_ops;
+
+/**
+ * struct phylink_pcs - PHYLINK PCS instance
+ * @ops: a pointer to the &struct phylink_pcs_ops structure
+ * @poll: poll the PCS for link changes
+ *
+ * This structure is designed to be embedded within the PCS private data,
+ * and will be passed between phylink and the PCS.
+ */
+struct phylink_pcs {
+	const struct phylink_pcs_ops *ops;
+	bool poll;
+};
+
 /**
  * struct phylink_pcs_ops - MAC PCS operations structure.
  * @pcs_get_state: read the current MAC PCS link state from the hardware.
@@ -330,21 +345,21 @@ void mac_link_up(struct phylink_config *config, struct phy_device *phy,
  *               (where necessary).
  */
 struct phylink_pcs_ops {
-	void (*pcs_get_state)(struct phylink_config *config,
+	void (*pcs_get_state)(struct phylink_pcs *pcs,
 			      struct phylink_link_state *state);
-	int (*pcs_config)(struct phylink_config *config, unsigned int mode,
+	int (*pcs_config)(struct phylink_pcs *pcs, unsigned int mode,
 			  phy_interface_t interface,
 			  const unsigned long *advertising,
 			  bool permit_pause_to_mac);
-	void (*pcs_an_restart)(struct phylink_config *config);
-	void (*pcs_link_up)(struct phylink_config *config, unsigned int mode,
+	void (*pcs_an_restart)(struct phylink_pcs *pcs);
+	void (*pcs_link_up)(struct phylink_pcs *pcs, unsigned int mode,
 			    phy_interface_t interface, int speed, int duplex);
 };
 
 #if 0 /* For kernel-doc purposes only. */
 /**
  * pcs_get_state() - Read the current inband link state from the hardware
- * @config: a pointer to a &struct phylink_config.
+ * @pcs: a pointer to a &struct phylink_pcs.
  * @state: a pointer to a &struct phylink_link_state.
  *
  * Read the current inband link state from the MAC PCS, reporting the
@@ -357,12 +372,12 @@ struct phylink_pcs_ops {
  * When present, this overrides mac_pcs_get_state() in &struct
  * phylink_mac_ops.
  */
-void pcs_get_state(struct phylink_config *config,
+void pcs_get_state(struct phylink_pcs *pcs,
 		   struct phylink_link_state *state);
 
 /**
  * pcs_config() - Configure the PCS mode and advertisement
- * @config: a pointer to a &struct phylink_config.
+ * @pcs: a pointer to a &struct phylink_pcs.
  * @mode: one of %MLO_AN_FIXED, %MLO_AN_PHY, %MLO_AN_INBAND.
  * @interface: interface mode to be used
  * @advertising: adertisement ethtool link mode mask
@@ -382,21 +397,21 @@ void pcs_get_state(struct phylink_config *config,
  *
  * For most 10GBASE-R, there is no advertisement.
  */
-int (*pcs_config)(struct phylink_config *config, unsigned int mode,
-		  phy_interface_t interface, const unsigned long *advertising);
+int pcs_config(struct phylink_pcs *pcs, unsigned int mode,
+	       phy_interface_t interface, const unsigned long *advertising);
 
 /**
  * pcs_an_restart() - restart 802.3z BaseX autonegotiation
- * @config: a pointer to a &struct phylink_config.
+ * @pcs: a pointer to a &struct phylink_pcs.
  *
  * When PCS ops are present, this overrides mac_an_restart() in &struct
  * phylink_mac_ops.
  */
-void (*pcs_an_restart)(struct phylink_config *config);
+void pcs_an_restart(struct phylink_pcs *pcs);
 
 /**
  * pcs_link_up() - program the PCS for the resolved link configuration
- * @config: a pointer to a &struct phylink_config.
+ * @pcs: a pointer to a &struct phylink_pcs.
  * @mode: link autonegotiation mode
  * @interface: link &typedef phy_interface_t mode
  * @speed: link speed
@@ -407,14 +422,14 @@ void (*pcs_an_restart)(struct phylink_config *config);
  * mode without in-band AN needs to be manually configured for the link
  * and duplex setting. Otherwise, this should be a no-op.
  */
-void (*pcs_link_up)(struct phylink_config *config, unsigned int mode,
-		    phy_interface_t interface, int speed, int duplex);
+void pcs_link_up(struct phylink_pcs *pcs, unsigned int mode,
+		 phy_interface_t interface, int speed, int duplex);
 #endif
 
 struct phylink *phylink_create(struct phylink_config *, struct fwnode_handle *,
 			       phy_interface_t iface,
 			       const struct phylink_mac_ops *mac_ops);
-void phylink_add_pcs(struct phylink *, const struct phylink_pcs_ops *ops);
+void phylink_set_pcs(struct phylink *, struct phylink_pcs *pcs);
 void phylink_destroy(struct phylink *);
 
 int phylink_connect_phy(struct phylink *, struct phy_device *);
