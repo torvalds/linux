@@ -11,7 +11,7 @@
 	#size-cells = <1>;
 	interrupt-parent = <&gic>;
 
-	L2: l2-cache-controller@c4200000 {
+	L2: cache-controller@c4200000 {
 		compatible = "arm,pl310-cache";
 		reg = <0xc4200000 0x1000>;
 		cache-unified;
