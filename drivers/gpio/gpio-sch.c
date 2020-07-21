@@ -89,6 +89,7 @@ static int sch_gpio_direction_in(struct gpio_chip *gc, unsigned int gpio_num)
 static int sch_gpio_get(struct gpio_chip *gc, unsigned int gpio_num)
 {
 	struct sch_gpio *sch = gpiochip_get_data(gc);
+
 	return sch_gpio_reg_get(sch, gpio_num, GLV);
 }
 
