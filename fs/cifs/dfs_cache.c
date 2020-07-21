@@ -490,16 +490,7 @@ static int add_cache_entry(const char *path, unsigned int hash,
 	return 0;
 }
 
-/*
- * Find a DFS cache entry in hash table and optionally check prefix path against
- * @path.
- * Use whole path components in the match.
- * Must be called with htable_rw_lock held.
- *
- * Return ERR_PTR(-ENOENT) if the entry is not found.
- */
-static struct cache_entry *lookup_cache_entry(const char *path,
-					      unsigned int *hash)
+static struct cache_entry *__lookup_cache_entry(const char *path)
 {
 	struct cache_entry *ce;
 	unsigned int h;
@@ -517,9 +508,75 @@ static struct cache_entry *lookup_cache_entry(const char *path,
 
 	if (!found)
 		ce = ERR_PTR(-ENOENT);
+	return ce;
+}
+
+/*
+ * Find a DFS cache entry in hash table and optionally check prefix path against
+ * @path.
+ * Use whole path components in the match.
+ * Must be called with htable_rw_lock held.
+ *
+ * Return ERR_PTR(-ENOENT) if the entry is not found.
+ */
+static struct cache_entry *lookup_cache_entry(const char *path, unsigned int *hash)
+{
+	struct cache_entry *ce = ERR_PTR(-ENOENT);
+	unsigned int h;
+	int cnt = 0;
+	char *npath;
+	char *s, *e;
+	char sep;
+
+	npath = kstrndup(path, strlen(path), GFP_KERNEL);
+	if (!npath)
+		return ERR_PTR(-ENOMEM);
+
+	s = npath;
+	sep = *npath;
+	while ((s = strchr(s, sep)) && ++cnt < 3)
+		s++;
+
+	if (cnt < 3) {
+		h = cache_entry_hash(path, strlen(path));
+		ce = __lookup_cache_entry(path);
+		goto out;
+	}
+	/*
+	 * Handle paths that have more than two path components and are a complete prefix of the DFS
+	 * referral request path (@path).
+	 *
+	 * See MS-DFSC 3.2.5.5 "Receiving a Root Referral Request or Link Referral Request".
+	 */
+	h = cache_entry_hash(npath, strlen(npath));
+	e = npath + strlen(npath) - 1;
+	while (e > s) {
+		char tmp;
+
+		/* skip separators */
+		while (e > s && *e == sep)
+			e--;
+		if (e == s)
+			goto out;
+
+		tmp = *(e+1);
+		*(e+1) = 0;
+
+		ce = __lookup_cache_entry(npath);
+		if (!IS_ERR(ce)) {
+			h = cache_entry_hash(npath, strlen(npath));
+			break;
+		}
+
+		*(e+1) = tmp;
+		/* backward until separator */
+		while (e > s && *e != sep)
+			e--;
+	}
+out:
 	if (hash)
 		*hash = h;
-
+	kfree(npath);
 	return ce;
 }
 
