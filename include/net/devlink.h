@@ -40,7 +40,9 @@ struct devlink {
 	struct xarray snapshot_ids;
 	struct device *dev;
 	possible_net_t _net;
-	struct mutex lock;
+	struct mutex lock; /* Serializes access to devlink instance specific objects such as
+			    * port, sb, dpipe, resource, params, region, traps and more.
+			    */
 	u8 reload_failed:1,
 	   reload_enabled:1,
 	   registered:1;
