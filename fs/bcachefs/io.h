@@ -26,6 +26,8 @@ void bch2_submit_wbio_replicas(struct bch_write_bio *, struct bch_fs *,
 
 #define BLK_STS_REMOVED		((__force blk_status_t)128)
 
+const char *bch2_blk_status_to_str(blk_status_t);
+
 enum bch_write_flags {
 	BCH_WRITE_ALLOC_NOWAIT		= (1 << 0),
 	BCH_WRITE_CACHED		= (1 << 1),

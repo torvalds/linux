@@ -641,7 +641,7 @@ static void write_super_endio(struct bio *bio)
 	/* XXX: return errors directly */
 
 	if (bch2_dev_io_err_on(bio->bi_status, ca, "superblock write: %s",
-			       blk_status_to_str(bio->bi_status)))
+			       bch2_blk_status_to_str(bio->bi_status)))
 		ca->sb_write_error = 1;
 
 	closure_put(&ca->fs->sb_write);

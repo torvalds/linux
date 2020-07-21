@@ -328,7 +328,7 @@ static void ec_block_endio(struct bio *bio)
 
 	if (bch2_dev_io_err_on(bio->bi_status, ca, "erasure coding %s: %s",
 			       bio_data_dir(bio) ? "write" : "read",
-			       blk_status_to_str(bio->bi_status)))
+			       bch2_blk_status_to_str(bio->bi_status)))
 		clear_bit(ec_bio->idx, ec_bio->buf->valid);
 
 	bio_put(&ec_bio->bio);

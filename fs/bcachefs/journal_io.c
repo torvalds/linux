@@ -6,6 +6,7 @@
 #include "buckets.h"
 #include "checksum.h"
 #include "error.h"
+#include "io.h"
 #include "journal.h"
 #include "journal_io.h"
 #include "journal_reclaim.h"
@@ -961,7 +962,7 @@ static void journal_write_endio(struct bio *bio)
 	struct journal *j = &ca->fs->journal;
 
 	if (bch2_dev_io_err_on(bio->bi_status, ca, "journal write: %s",
-			       blk_status_to_str(bio->bi_status)) ||
+			       bch2_blk_status_to_str(bio->bi_status)) ||
 	    bch2_meta_write_fault("journal")) {
 		struct journal_buf *w = journal_prev_buf(j);
 		unsigned long flags;
