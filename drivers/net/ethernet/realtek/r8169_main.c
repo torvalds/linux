@@ -3622,6 +3622,7 @@ static void rtl_hw_start_8125a_1(struct rtl8169_private *tp)
 	rtl_ephy_init(tp, e_info_8125a_1);
 
 	rtl_hw_start_8125_common(tp);
+	rtl_hw_aspm_clkreq_enable(tp, true);
 }
 
 static void rtl_hw_start_8125a_2(struct rtl8169_private *tp)
@@ -3649,6 +3650,7 @@ static void rtl_hw_start_8125a_2(struct rtl8169_private *tp)
 	rtl_ephy_init(tp, e_info_8125a_2);
 
 	rtl_hw_start_8125_common(tp);
+	rtl_hw_aspm_clkreq_enable(tp, true);
 }
 
 static void rtl_hw_start_8125b(struct rtl8169_private *tp)
