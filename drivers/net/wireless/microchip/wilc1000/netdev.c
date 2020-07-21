@@ -15,6 +15,13 @@
 
 #define WILC_MULTICAST_TABLE_SIZE	8
 
+/* latest API version supported */
+#define WILC1000_API_VER		1
+
+#define WILC1000_FW_PREFIX		"atmel/wilc1000_wifi_firmware-"
+#define __WILC1000_FW(api)		WILC1000_FW_PREFIX #api ".bin"
+#define WILC1000_FW(api)		__WILC1000_FW(api)
+
 static irqreturn_t isr_uh_routine(int irq, void *user_data)
 {
 	struct net_device *dev = user_data;
@@ -176,23 +183,22 @@ static int wilc_wlan_get_firmware(struct net_device *dev)
 	struct wilc_vif *vif = netdev_priv(dev);
 	struct wilc *wilc = vif->wilc;
 	int chip_id;
-	const struct firmware *wilc_firmware;
-	char *firmware;
+	const struct firmware *wilc_fw;
+	int ret;
 
 	chip_id = wilc_get_chipid(wilc, false);
 
-	if (chip_id < 0x1003a0)
-		firmware = FIRMWARE_1002;
-	else
-		firmware = FIRMWARE_1003;
+	netdev_info(dev, "ChipID [%x] loading firmware [%s]\n", chip_id,
+		    WILC1000_FW(WILC1000_API_VER));
 
-	netdev_info(dev, "loading firmware %s\n", firmware);
-
-	if (request_firmware(&wilc_firmware, firmware, wilc->dev) != 0) {
-		netdev_err(dev, "%s - firmware not available\n", firmware);
+	ret = request_firmware(&wilc_fw, WILC1000_FW(WILC1000_API_VER),
+			       wilc->dev);
+	if (ret != 0) {
+		netdev_err(dev, "%s - firmware not available\n",
+			   WILC1000_FW(WILC1000_API_VER));
 		return -EINVAL;
 	}
-	wilc->firmware = wilc_firmware;
+	wilc->firmware = wilc_fw;
 
 	return 0;
 }
@@ -678,14 +684,14 @@ netdev_tx_t wilc_mac_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 	if (skb->dev != ndev) {
 		netdev_err(ndev, "Packet not destined to this device\n");
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 	tx_data = kmalloc(sizeof(*tx_data), GFP_ATOMIC);
 	if (!tx_data) {
 		dev_kfree_skb(skb);
 		netif_wake_queue(ndev);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 	tx_data->buff = skb->data;
@@ -710,7 +716,7 @@ netdev_tx_t wilc_mac_xmit(struct sk_buff *skb, struct net_device *ndev)
 		srcu_read_unlock(&wilc->srcu, srcu_idx);
 	}
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static int wilc_mac_close(struct net_device *ndev)
@@ -929,3 +935,4 @@ struct wilc_vif *wilc_netdev_ifc_init(struct wilc *wl, const char *name,
 }
 
 MODULE_LICENSE("GPL");
+MODULE_FIRMWARE(WILC1000_FW(WILC1000_API_VER));

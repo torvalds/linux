@@ -34,3 +34,12 @@ config ATH11K_TRACING
 	depends on ATH11K && EVENT_TRACING
 	help
 	  Select this to use ath11k tracing infrastructure.
+
+config ATH11K_SPECTRAL
+	bool "QCA ath11k spectral scan support"
+	depends on ATH11K_DEBUGFS
+	depends on RELAY
+	help
+	  Enable ath11k spectral scan support
+
+	  Say Y to enable access to the FFT/spectral data via debugfs.

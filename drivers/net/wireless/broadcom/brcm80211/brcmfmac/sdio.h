@@ -367,6 +367,9 @@ static inline void brcmf_sdiod_freezer_uncount(struct brcmf_sdio_dev *sdiodev)
 }
 #endif /* CONFIG_PM_SLEEP */
 
+int brcmf_sdiod_probe(struct brcmf_sdio_dev *sdiodev);
+int brcmf_sdiod_remove(struct brcmf_sdio_dev *sdiodev);
+
 struct brcmf_sdio *brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev);
 void brcmf_sdio_remove(struct brcmf_sdio *bus);
 void brcmf_sdio_isr(struct brcmf_sdio *bus);
