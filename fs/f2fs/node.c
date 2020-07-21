@@ -1816,12 +1816,11 @@ static bool flush_dirty_inode(struct page *page)
 	return true;
 }
 
-int f2fs_flush_inline_data(struct f2fs_sb_info *sbi)
+void f2fs_flush_inline_data(struct f2fs_sb_info *sbi)
 {
 	pgoff_t index = 0;
 	struct pagevec pvec;
 	int nr_pages;
-	int ret = 0;
 
 	pagevec_init(&pvec);
 
@@ -1860,7 +1859,6 @@ continue_unlock:
 		pagevec_release(&pvec);
 		cond_resched();
 	}
-	return ret;
 }
 
 int f2fs_sync_node_pages(struct f2fs_sb_info *sbi,
