@@ -76,7 +76,9 @@ struct phylink_config {
  * struct phylink_mac_ops - MAC operations structure.
  * @validate: Validate and update the link configuration.
  * @mac_pcs_get_state: Read the current link state from the hardware.
+ * @mac_prepare: prepare for a major reconfiguration of the interface.
  * @mac_config: configure the MAC for the selected mode and state.
+ * @mac_finish: finish a major reconfiguration of the interface.
  * @mac_an_restart: restart 802.3z BaseX autonegotiation.
  * @mac_link_down: take the link down.
  * @mac_link_up: allow the link to come up.
@@ -89,8 +91,12 @@ struct phylink_mac_ops {
 			 struct phylink_link_state *state);
 	void (*mac_pcs_get_state)(struct phylink_config *config,
 				  struct phylink_link_state *state);
+	int (*mac_prepare)(struct phylink_config *config, unsigned int mode,
+			   phy_interface_t iface);
 	void (*mac_config)(struct phylink_config *config, unsigned int mode,
 			   const struct phylink_link_state *state);
+	int (*mac_finish)(struct phylink_config *config, unsigned int mode,
+			  phy_interface_t iface);
 	void (*mac_an_restart)(struct phylink_config *config);
 	void (*mac_link_down)(struct phylink_config *config, unsigned int mode,
 			      phy_interface_t interface);
@@ -144,6 +150,31 @@ void validate(struct phylink_config *config, unsigned long *supported,
  */
 void mac_pcs_get_state(struct phylink_config *config,
 		       struct phylink_link_state *state);
+
+/**
+ * mac_prepare() - prepare to change the PHY interface mode
+ * @config: a pointer to a &struct phylink_config.
+ * @mode: one of %MLO_AN_FIXED, %MLO_AN_PHY, %MLO_AN_INBAND.
+ * @iface: interface mode to switch to
+ *
+ * phylink will call this method at the beginning of a full initialisation
+ * of the link, which includes changing the interface mode or at initial
+ * startup time. It may be called for the current mode. The MAC driver
+ * should perform whatever actions are required, e.g. disabling the
+ * Serdes PHY.
+ *
+ * This will be the first call in the sequence:
+ * - mac_prepare()
+ * - mac_config()
+ * - pcs_config()
+ * - possible pcs_an_restart()
+ * - mac_finish()
+ *
+ * Returns zero on success, or negative errno on failure which will be
+ * reported to the kernel log.
+ */
+int mac_prepare(struct phylink_config *config, unsigned int mode,
+		phy_interface_t iface);
 
 /**
  * mac_config() - configure the MAC for the selected mode and state
@@ -219,6 +250,23 @@ void mac_pcs_get_state(struct phylink_config *config,
  */
 void mac_config(struct phylink_config *config, unsigned int mode,
 		const struct phylink_link_state *state);
+
+/**
+ * mac_finish() - finish a to change the PHY interface mode
+ * @config: a pointer to a &struct phylink_config.
+ * @mode: one of %MLO_AN_FIXED, %MLO_AN_PHY, %MLO_AN_INBAND.
+ * @iface: interface mode to switch to
+ *
+ * phylink will call this if it called mac_prepare() to allow the MAC to
+ * complete any necessary steps after the MAC and PCS have been configured
+ * for the @mode and @iface. E.g. a MAC driver may wish to re-enable the
+ * Serdes PHY here if it was previously disabled by mac_prepare().
+ *
+ * Returns zero on success, or negative errno on failure which will be
+ * reported to the kernel log.
+ */
+int mac_finish(struct phylink_config *config, unsigned int mode,
+		phy_interface_t iface);
 
 /**
  * mac_an_restart() - restart 802.3z BaseX autonegotiation

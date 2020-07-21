@@ -433,23 +433,47 @@ static void phylink_mac_pcs_an_restart(struct phylink *pl)
 	}
 }
 
-static void phylink_pcs_config(struct phylink *pl, bool force_restart,
-			       const struct phylink_link_state *state)
+static void phylink_major_config(struct phylink *pl, bool restart,
+				  const struct phylink_link_state *state)
 {
-	bool restart = force_restart;
+	int err;
 
-	if (pl->pcs_ops && pl->pcs_ops->pcs_config(pl->config,
-						   pl->cur_link_an_mode,
-						   state->interface,
-						   state->advertising,
-						   !!(pl->link_config.pause &
-						      MLO_PAUSE_AN)))
-		restart = true;
+	phylink_dbg(pl, "major config %s\n", phy_modes(state->interface));
+
+	if (pl->mac_ops->mac_prepare) {
+		err = pl->mac_ops->mac_prepare(pl->config, pl->cur_link_an_mode,
+					       state->interface);
+		if (err < 0) {
+			phylink_err(pl, "mac_prepare failed: %pe\n",
+				    ERR_PTR(err));
+			return;
+		}
+	}
 
 	phylink_mac_config(pl, state);
 
+	if (pl->pcs_ops) {
+		err = pl->pcs_ops->pcs_config(pl->config, pl->cur_link_an_mode,
+					      state->interface,
+					      state->advertising,
+					      !!(pl->link_config.pause &
+						 MLO_PAUSE_AN));
+		if (err < 0)
+			phylink_err(pl, "pcs_config failed: %pe\n",
+				    ERR_PTR(err));
+		if (err > 0)
+			restart = true;
+	}
 	if (restart)
 		phylink_mac_pcs_an_restart(pl);
+
+	if (pl->mac_ops->mac_finish) {
+		err = pl->mac_ops->mac_finish(pl->config, pl->cur_link_an_mode,
+					      state->interface);
+		if (err < 0)
+			phylink_err(pl, "mac_prepare failed: %pe\n",
+				    ERR_PTR(err));
+	}
 }
 
 /*
@@ -555,7 +579,7 @@ static void phylink_mac_initial_config(struct phylink *pl, bool force_restart)
 	link_state.link = false;
 
 	phylink_apply_manual_flow(pl, &link_state);
-	phylink_pcs_config(pl, force_restart, &link_state);
+	phylink_major_config(pl, force_restart, &link_state);
 }
 
 static const char *phylink_pause_to_str(int pause)
@@ -674,7 +698,7 @@ static void phylink_resolve(struct work_struct *w)
 				phylink_link_down(pl);
 				cur_link_state = false;
 			}
-			phylink_pcs_config(pl, false, &link_state);
+			phylink_major_config(pl, false, &link_state);
 			pl->link_config.interface = link_state.interface;
 		} else if (!pl->pcs_ops) {
 			/* The interface remains unchanged, only the speed,
@@ -1450,21 +1474,26 @@ int phylink_ethtool_ksettings_set(struct phylink *pl,
 		return -EINVAL;
 
 	mutex_lock(&pl->state_mutex);
-	linkmode_copy(pl->link_config.advertising, config.advertising);
-	pl->link_config.interface = config.interface;
 	pl->link_config.speed = config.speed;
 	pl->link_config.duplex = config.duplex;
 	pl->link_config.an_enabled = config.an_enabled;
 
-	if (pl->cur_link_an_mode == MLO_AN_INBAND &&
-	    !test_bit(PHYLINK_DISABLE_STOPPED, &pl->phylink_disable_state)) {
-		/* If in 802.3z mode, this updates the advertisement.
-		 *
-		 * If we are in SGMII mode without a PHY, there is no
-		 * advertisement; the only thing we have is the pause
-		 * modes which can only come from a PHY.
-		 */
-		phylink_pcs_config(pl, true, &pl->link_config);
+	if (pl->link_config.interface != config.interface) {
+		/* The interface changed, e.g. 1000base-X <-> 2500base-X */
+		/* We need to force the link down, then change the interface */
+		if (pl->old_link_state) {
+			phylink_link_down(pl);
+			pl->old_link_state = false;
+		}
+		if (!test_bit(PHYLINK_DISABLE_STOPPED,
+			      &pl->phylink_disable_state))
+			phylink_major_config(pl, false, &config);
+		pl->link_config.interface = config.interface;
+		linkmode_copy(pl->link_config.advertising, config.advertising);
+	} else if (!linkmode_equal(pl->link_config.advertising,
+				   config.advertising)) {
+		linkmode_copy(pl->link_config.advertising, config.advertising);
+		phylink_change_inband_advert(pl);
 	}
 	mutex_unlock(&pl->state_mutex);
 
