@@ -3282,7 +3282,7 @@ void core_link_disable_stream(struct pipe_ctx *pipe_ctx)
 			dc_is_virtual_signal(pipe_ctx->stream->signal))
 		return;
 
-	if (pipe_ctx->stream->signal == SIGNAL_TYPE_HDMI_TYPE_A) {
+	if (dc_is_hdmi_signal(pipe_ctx->stream->signal)) {
 		core_link_set_avmute(pipe_ctx, true);
 	}
 
