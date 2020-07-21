@@ -444,7 +444,7 @@ static int smc_lgr_create(struct smc_sock *smc, struct smc_init_info *ini)
 	}
 	smc->conn.lgr = lgr;
 	spin_lock_bh(lgr_lock);
-	list_add(&lgr->list, lgr_list);
+	list_add_tail(&lgr->list, lgr_list);
 	spin_unlock_bh(lgr_lock);
 	return 0;
 
@@ -1311,7 +1311,7 @@ int smc_conn_create(struct smc_sock *smc, struct smc_init_info *ini)
 		     smcr_lgr_match(lgr, ini->ib_lcl, role, ini->ib_clcqpn)) &&
 		    !lgr->sync_err &&
 		    lgr->vlan_id == ini->vlan_id &&
-		    (role == SMC_CLNT ||
+		    (role == SMC_CLNT || ini->is_smcd ||
 		     lgr->conns_num < SMC_RMBS_PER_LGR_MAX)) {
 			/* link group found */
 			ini->cln_first_contact = SMC_REUSE_CONTACT;
