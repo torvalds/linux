@@ -66,7 +66,7 @@ int pm80xx_bar4_shift(struct pm8001_hba_info *pm8001_ha, u32 shift_value)
 	return 0;
 }
 
-void pm80xx_pci_mem_copy(struct pm8001_hba_info  *pm8001_ha, u32 soffset,
+static void pm80xx_pci_mem_copy(struct pm8001_hba_info  *pm8001_ha, u32 soffset,
 				const void *destination,
 				u32 dw_count, u32 bus_base_number)
 {
@@ -5013,8 +5013,9 @@ pm80xx_chip_isr(struct pm8001_hba_info *pm8001_ha, u8 vec)
 	return IRQ_HANDLED;
 }
 
-void mpi_set_phy_profile_req(struct pm8001_hba_info *pm8001_ha,
-	u32 operation, u32 phyid, u32 length, u32 *buf)
+static void mpi_set_phy_profile_req(struct pm8001_hba_info *pm8001_ha,
+				    u32 operation, u32 phyid,
+				    u32 length, u32 *buf)
 {
 	u32 tag , i, j = 0;
 	int rc;
