@@ -1278,7 +1278,9 @@ int btrfs_sysfs_add_devices_dir(struct btrfs_fs_devices *fs_devices,
 {
 	int error = 0;
 	struct btrfs_device *dev;
+	unsigned int nofs_flag;
 
+	nofs_flag = memalloc_nofs_save();
 	list_for_each_entry(dev, &fs_devices->devices, dev_list) {
 
 		if (one_device && one_device != dev)
@@ -1306,6 +1308,7 @@ int btrfs_sysfs_add_devices_dir(struct btrfs_fs_devices *fs_devices,
 			break;
 		}
 	}
+	memalloc_nofs_restore(nofs_flag);
 
 	return error;
 }
