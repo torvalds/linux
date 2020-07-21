@@ -71,6 +71,11 @@ Optional properties:
 
   - hp-det-gpio		: The GPIO that detect headphones are plugged in
   - mic-det-gpio	: The GPIO that detect microphones are plugged in
+  - bitclock-master	: Indicates dai-link bit clock master; for details see simple-card.yaml.
+  - frame-master	: Indicates dai-link frame master; for details see simple-card.yaml.
+  - dai-format		: audio format, for details see simple-card.yaml.
+  - frame-inversion	: dai-link uses frame clock inversion, for details see simple-card.yaml.
+  - bitclock-inversion	: dai-link uses bit clock inversion, for details see simple-card.yaml.
 
 Optional unless SSI is selected as a CPU DAI:
 
