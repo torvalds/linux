@@ -379,6 +379,25 @@ static int aq_a2_fw_update_stats(struct aq_hw_s *self)
 	return 0;
 }
 
+static int aq_a2_fw_get_phy_temp(struct aq_hw_s *self, int *temp)
+{
+	struct phy_health_monitor_s phy_health_monitor;
+
+	hw_atl2_shared_buffer_read_safe(self, phy_health_monitor,
+					&phy_health_monitor);
+
+	*temp = (int8_t)phy_health_monitor.phy_temperature * 1000;
+	return 0;
+}
+
+static int aq_a2_fw_get_mac_temp(struct aq_hw_s *self, int *temp)
+{
+	/* There's only one temperature sensor on A2, use it for
+	 * both MAC and PHY.
+	 */
+	return aq_a2_fw_get_phy_temp(self, temp);
+}
+
 static int aq_a2_fw_set_eee_rate(struct aq_hw_s *self, u32 speed)
 {
 	struct link_options_s link_options;
@@ -510,6 +529,8 @@ const struct aq_fw_ops aq_a2_fw_ops = {
 	.set_state          = aq_a2_fw_set_state,
 	.update_link_status = aq_a2_fw_update_link_status,
 	.update_stats       = aq_a2_fw_update_stats,
+	.get_mac_temp       = aq_a2_fw_get_mac_temp,
+	.get_phy_temp       = aq_a2_fw_get_phy_temp,
 	.set_eee_rate       = aq_a2_fw_set_eee_rate,
 	.get_eee_rate       = aq_a2_fw_get_eee_rate,
 	.set_flow_control   = aq_a2_fw_set_flow_control,

@@ -371,7 +371,7 @@ void aq_nic_ndev_init(struct aq_nic_s *self)
 	self->ndev->features = aq_hw_caps->hw_features;
 	self->ndev->vlan_features |= NETIF_F_HW_CSUM | NETIF_F_RXCSUM |
 				     NETIF_F_RXHASH | NETIF_F_SG |
-				     NETIF_F_LRO | NETIF_F_TSO;
+				     NETIF_F_LRO | NETIF_F_TSO | NETIF_F_TSO6;
 	self->ndev->gso_partial_features = NETIF_F_GSO_UDP_L4;
 	self->ndev->priv_flags = aq_hw_caps->hw_priv_flags;
 	self->ndev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
@@ -907,13 +907,13 @@ u64 *aq_nic_get_stats(struct aq_nic_s *self, u64 *data)
 		     aq_vec && self->aq_vecs > i;
 		     ++i, aq_vec = self->aq_vec[i]) {
 			data += count;
-			aq_vec_get_sw_stats(aq_vec, tc, data, &count);
+			count = aq_vec_get_sw_stats(aq_vec, tc, data);
 		}
 	}
 
 	data += count;
 
-err_exit:;
+err_exit:
 	return data;
 }
 

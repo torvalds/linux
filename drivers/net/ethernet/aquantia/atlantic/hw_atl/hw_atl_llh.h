@@ -16,6 +16,24 @@
 
 struct aq_hw_s;
 
+/* set temperature sense reset */
+void hw_atl_ts_reset_set(struct aq_hw_s *aq_hw, u32 val);
+
+/* set temperature sense power down */
+void hw_atl_ts_power_down_set(struct aq_hw_s *aq_hw, u32 val);
+
+/* get temperature sense power down */
+u32 hw_atl_ts_power_down_get(struct aq_hw_s *aq_hw);
+
+/* get temperature sense ready */
+u32 hw_atl_ts_ready_get(struct aq_hw_s *aq_hw);
+
+/* get temperature sense ready latch high */
+u32 hw_atl_ts_ready_latch_high_get(struct aq_hw_s *aq_hw);
+
+/* get temperature sense data */
+u32 hw_atl_ts_data_get(struct aq_hw_s *aq_hw);
+
 /* global */
 
 /* set global microprocessor semaphore */
