@@ -1314,25 +1314,24 @@ int phylink_ethtool_ksettings_set(struct phylink *pl,
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(support);
 	struct ethtool_link_ksettings our_kset;
 	struct phylink_link_state config;
+	const struct phy_setting *s;
 	int ret;
 
 	ASSERT_RTNL();
 
-	if (kset->base.autoneg != AUTONEG_DISABLE &&
-	    kset->base.autoneg != AUTONEG_ENABLE)
-		return -EINVAL;
-
 	linkmode_copy(support, pl->supported);
 	config = pl->link_config;
+	config.an_enabled = kset->base.autoneg == AUTONEG_ENABLE;
 
-	/* Mask out unsupported advertisements */
+	/* Mask out unsupported advertisements, and force the autoneg bit */
 	linkmode_and(config.advertising, kset->link_modes.advertising,
 		     support);
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_Autoneg_BIT, config.advertising,
+			 config.an_enabled);
 
 	/* FIXME: should we reject autoneg if phy/mac does not support it? */
-	if (kset->base.autoneg == AUTONEG_DISABLE) {
-		const struct phy_setting *s;
-
+	switch (kset->base.autoneg) {
+	case AUTONEG_DISABLE:
 		/* Autonegotiation disabled, select a suitable speed and
 		 * duplex.
 		 */
@@ -1351,19 +1350,19 @@ int phylink_ethtool_ksettings_set(struct phylink *pl,
 
 		config.speed = s->speed;
 		config.duplex = s->duplex;
-		config.an_enabled = false;
+		break;
 
-		__clear_bit(ETHTOOL_LINK_MODE_Autoneg_BIT, config.advertising);
-	} else {
+	case AUTONEG_ENABLE:
 		/* If we have a fixed link, refuse to enable autonegotiation */
 		if (pl->cur_link_an_mode == MLO_AN_FIXED)
 			return -EINVAL;
 
 		config.speed = SPEED_UNKNOWN;
 		config.duplex = DUPLEX_UNKNOWN;
-		config.an_enabled = true;
+		break;
 
-		__set_bit(ETHTOOL_LINK_MODE_Autoneg_BIT, config.advertising);
+	default:
+		return -EINVAL;
 	}
 
 	if (pl->phydev) {
