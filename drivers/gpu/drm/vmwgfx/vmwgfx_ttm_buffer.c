@@ -747,7 +747,6 @@ static int vmw_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 	case TTM_PL_VRAM:
 		/* "On-card" video ram */
 		man->func = &vmw_thp_func;
-		man->flags = TTM_MEMTYPE_FLAG_FIXED;
 		man->available_caching = TTM_PL_FLAG_CACHED;
 		man->default_caching = TTM_PL_FLAG_CACHED;
 		break;
@@ -761,6 +760,8 @@ static int vmw_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 		man->func = &vmw_gmrid_manager_func;
 		man->available_caching = TTM_PL_FLAG_CACHED;
 		man->default_caching = TTM_PL_FLAG_CACHED;
+		/* TODO: This is most likely not correct */
+		man->use_tt = true;
 		break;
 	default:
 		DRM_ERROR("Unsupported memory type %u\n", (unsigned)type);

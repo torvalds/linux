@@ -384,7 +384,7 @@ out2:
 	*old_mem = *new_mem;
 	new_mem->mm_node = NULL;
 
-	if (man->flags & TTM_MEMTYPE_FLAG_FIXED) {
+	if (!man->use_tt) {
 		ttm_tt_destroy(ttm);
 		bo->ttm = NULL;
 	}
@@ -645,7 +645,7 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 		if (ret)
 			return ret;
 
-		if (man->flags & TTM_MEMTYPE_FLAG_FIXED) {
+		if (!man->use_tt) {
 			ttm_tt_destroy(bo->ttm);
 			bo->ttm = NULL;
 		}
@@ -674,7 +674,7 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 		 * bo to be unbound and destroyed.
 		 */
 
-		if (!(man->flags & TTM_MEMTYPE_FLAG_FIXED))
+		if (man->use_tt)
 			ghost_obj->ttm = NULL;
 		else
 			bo->ttm = NULL;
@@ -730,7 +730,7 @@ int ttm_bo_pipeline_move(struct ttm_buffer_object *bo,
 		 * bo to be unbound and destroyed.
 		 */
 
-		if (!(to->flags & TTM_MEMTYPE_FLAG_FIXED))
+		if (to->use_tt)
 			ghost_obj->ttm = NULL;
 		else
 			bo->ttm = NULL;
@@ -738,7 +738,7 @@ int ttm_bo_pipeline_move(struct ttm_buffer_object *bo,
 		dma_resv_unlock(&ghost_obj->base._resv);
 		ttm_bo_put(ghost_obj);
 
-	} else if (from->flags & TTM_MEMTYPE_FLAG_FIXED) {
+	} else if (!from->use_tt) {
 
 		/**
 		 * BO doesn't have a TTM we need to bind/unbind. Just remember
@@ -768,7 +768,7 @@ int ttm_bo_pipeline_move(struct ttm_buffer_object *bo,
 		if (ret)
 			return ret;
 
-		if (to->flags & TTM_MEMTYPE_FLAG_FIXED) {
+		if (!to->use_tt) {
 			ttm_tt_destroy(bo->ttm);
 			bo->ttm = NULL;
 		}

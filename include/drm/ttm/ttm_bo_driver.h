@@ -45,8 +45,6 @@
 
 #define TTM_MAX_BO_PRIORITY	4U
 
-#define TTM_MEMTYPE_FLAG_FIXED         (1 << 0)	/* Fixed (on-card) PCI memory */
-
 struct ttm_mem_type_manager;
 
 struct ttm_mem_type_manager_func {
@@ -173,7 +171,7 @@ struct ttm_mem_type_manager {
 
 	bool has_type;
 	bool use_type;
-	uint32_t flags;
+	bool use_tt;
 	uint64_t size;
 	uint32_t available_caching;
 	uint32_t default_caching;
