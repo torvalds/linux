@@ -2083,7 +2083,8 @@ int kvm_lapic_reg_write(struct kvm_lapic *apic, u32 reg, u32 val)
 
 	case APIC_SELF_IPI:
 		if (apic_x2apic_mode(apic)) {
-			kvm_lapic_reg_write(apic, APIC_ICR, 0x40000 | (val & 0xff));
+			kvm_lapic_reg_write(apic, APIC_ICR,
+					    APIC_DEST_SELF | (val & APIC_VECTOR_MASK));
 		} else
 			ret = 1;
 		break;
