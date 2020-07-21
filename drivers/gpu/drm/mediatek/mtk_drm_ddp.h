@@ -6,8 +6,6 @@
 #ifndef MTK_DRM_DDP_H
 #define MTK_DRM_DDP_H
 
-#include "mtk_drm_ddp_comp.h"
-
 struct regmap;
 struct device;
 struct mtk_disp_mutex;
