@@ -265,6 +265,7 @@ static irqreturn_t enetc_msix(int irq, void *data)
 
 	/* disable interrupts */
 	enetc_wr_reg(v->rbier, 0);
+	enetc_wr_reg(v->ricr1, v->rx_ictt);
 
 	for_each_set_bit(i, &v->tx_rings_map, ENETC_MAX_NUM_TXQS)
 		enetc_wr_reg(v->tbier_base + ENETC_BDR_OFF(i), 0);
@@ -1268,6 +1269,7 @@ static int enetc_setup_irqs(struct enetc_ndev_priv *priv)
 
 		v->tbier_base = hw->reg + ENETC_BDR(TX, 0, ENETC_TBIER);
 		v->rbier = hw->reg + ENETC_BDR(RX, i, ENETC_RBIER);
+		v->ricr1 = hw->reg + ENETC_BDR(RX, i, ENETC_RBICR1);
 
 		enetc_wr(hw, ENETC_SIMSIRRV(i), entry);
 
@@ -1309,17 +1311,35 @@ static void enetc_free_irqs(struct enetc_ndev_priv *priv)
 
 static void enetc_setup_interrupts(struct enetc_ndev_priv *priv)
 {
+	struct enetc_hw *hw = &priv->si->hw;
+	u32 icpt, ictt;
 	int i;
 
 	/* enable Tx & Rx event indication */
-	for (i = 0; i < priv->num_rx_rings; i++) {
-		enetc_rxbdr_wr(&priv->si->hw, i,
-			       ENETC_RBIER, ENETC_RBIER_RXTIE);
+	if (priv->ic_mode & ENETC_IC_RX_MANUAL) {
+		icpt = ENETC_RBICR0_SET_ICPT(ENETC_RXIC_PKTTHR);
+		/* init to non-0 minimum, will be adjusted later */
+		ictt = 0x1;
+	} else {
+		icpt = 0x1; /* enable Rx ints by setting pkt thr to 1 */
+		ictt = 0;
 	}
 
+	for (i = 0; i < priv->num_rx_rings; i++) {
+		enetc_rxbdr_wr(hw, i, ENETC_RBICR1, ictt);
+		enetc_rxbdr_wr(hw, i, ENETC_RBICR0, ENETC_RBICR0_ICEN | icpt);
+		enetc_rxbdr_wr(hw, i, ENETC_RBIER, ENETC_RBIER_RXTIE);
+	}
+
+	if (priv->ic_mode & ENETC_IC_TX_MANUAL)
+		icpt = ENETC_TBICR0_SET_ICPT(ENETC_TXIC_PKTTHR);
+	else
+		icpt = 0x1; /* enable Tx ints by setting pkt thr to 1 */
+
 	for (i = 0; i < priv->num_tx_rings; i++) {
-		enetc_txbdr_wr(&priv->si->hw, i,
-			       ENETC_TBIER, ENETC_TBIER_TXTIE);
+		enetc_txbdr_wr(hw, i, ENETC_TBICR1, priv->tx_ictt);
+		enetc_txbdr_wr(hw, i, ENETC_TBICR0, ENETC_TBICR0_ICEN | icpt);
+		enetc_txbdr_wr(hw, i, ENETC_TBIER, ENETC_TBIER_TXTIE);
 	}
 }
 
@@ -1370,7 +1390,7 @@ static int enetc_phy_connect(struct net_device *ndev)
 	return 0;
 }
 
-static void enetc_start(struct net_device *ndev)
+void enetc_start(struct net_device *ndev)
 {
 	struct enetc_ndev_priv *priv = netdev_priv(ndev);
 	int i;
@@ -1440,7 +1460,7 @@ err_phy_connect:
 	return err;
 }
 
-static void enetc_stop(struct net_device *ndev)
+void enetc_stop(struct net_device *ndev)
 {
 	struct enetc_ndev_priv *priv = netdev_priv(ndev);
 	int i;

@@ -190,8 +190,10 @@ static inline bool enetc_si_is_pf(struct enetc_si *si)
 struct enetc_int_vector {
 	void __iomem *rbier;
 	void __iomem *tbier_base;
+	void __iomem *ricr1;
 	unsigned long tx_rings_map;
 	int count_tx_rings;
+	u32 rx_ictt;
 	struct napi_struct napi;
 	char name[ENETC_INT_NAME_MAX];
 
@@ -221,6 +223,18 @@ enum enetc_active_offloads {
 	ENETC_F_QCI		= BIT(3),
 };
 
+/* interrupt coalescing modes */
+enum enetc_ic_mode {
+	/* one interrupt per frame */
+	ENETC_IC_NONE = 0,
+	/* activated when int coalescing time is set to a non-0 value */
+	ENETC_IC_RX_MANUAL = BIT(0),
+	ENETC_IC_TX_MANUAL = BIT(1),
+};
+
+#define ENETC_RXIC_PKTTHR	min_t(u32, 256, ENETC_RX_RING_DEFAULT_SIZE / 2)
+#define ENETC_TXIC_PKTTHR	min_t(u32, 128, ENETC_TX_RING_DEFAULT_SIZE / 2)
+
 struct enetc_ndev_priv {
 	struct net_device *ndev;
 	struct device *dev; /* dma-mapping device */
@@ -245,6 +259,8 @@ struct enetc_ndev_priv {
 
 	struct device_node *phy_node;
 	phy_interface_t if_mode;
+	int ic_mode;
+	u32 tx_ictt;
 };
 
 /* Messaging */
@@ -274,6 +290,8 @@ void enetc_free_si_resources(struct enetc_ndev_priv *priv);
 
 int enetc_open(struct net_device *ndev);
 int enetc_close(struct net_device *ndev);
+void enetc_start(struct net_device *ndev);
+void enetc_stop(struct net_device *ndev);
 netdev_tx_t enetc_xmit(struct sk_buff *skb, struct net_device *ndev);
 struct net_device_stats *enetc_get_stats(struct net_device *ndev);
 int enetc_set_features(struct net_device *ndev,
