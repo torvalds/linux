@@ -665,6 +665,9 @@ void qla4xxx_pci_config(struct scsi_qla_host *ha)
 
 	pci_set_master(ha->pdev);
 	status = pci_set_mwi(ha->pdev);
+	if (status)
+		ql4_printk(KERN_WARNING, ha, "Failed to set MWI\n");
+
 	/*
 	 * We want to respect framework's setting of PCI configuration space
 	 * command register and also want to make sure that all bits of
