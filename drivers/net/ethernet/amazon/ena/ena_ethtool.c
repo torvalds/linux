@@ -164,13 +164,13 @@ static void ena_queue_stats(struct ena_adapter *adapter, u64 **data)
 static void ena_dev_admin_queue_stats(struct ena_adapter *adapter, u64 **data)
 {
 	const struct ena_stats *ena_stats;
-	u32 *ptr;
+	u64 *ptr;
 	int i;
 
 	for (i = 0; i < ENA_STATS_ARRAY_ENA_COM; i++) {
 		ena_stats = &ena_stats_ena_com_strings[i];
 
-		ptr = (u32 *)((uintptr_t)&adapter->ena_dev->admin_queue.stats +
+		ptr = (u64 *)((uintptr_t)&adapter->ena_dev->admin_queue.stats +
 			(uintptr_t)ena_stats->stat_offset);
 
 		*(*data)++ = *ptr;
