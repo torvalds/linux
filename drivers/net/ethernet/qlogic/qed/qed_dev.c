@@ -3968,8 +3968,9 @@ unlock_and_exit:
 
 static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
-	u32 port_cfg_addr, link_temp, nvm_cfg_addr, device_capabilities;
+	u32 port_cfg_addr, link_temp, nvm_cfg_addr, device_capabilities, fld;
 	u32 nvm_cfg1_offset, mf_mode, addr, generic_cont0, core_cfg;
+	struct qed_mcp_link_speed_params *ext_speed;
 	struct qed_mcp_link_capabilities *p_caps;
 	struct qed_mcp_link_params *link;
 
@@ -3994,37 +3995,21 @@ static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	switch ((core_cfg & NVM_CFG1_GLOB_NETWORK_PORT_MODE_MASK) >>
 		NVM_CFG1_GLOB_NETWORK_PORT_MODE_OFFSET) {
 	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_BB_2X40G:
-		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_2X40G;
-		break;
 	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_2X50G:
-		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_2X50G;
-		break;
 	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_BB_1X100G:
-		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_1X100G;
-		break;
 	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_4X10G_F:
-		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_4X10G_F;
-		break;
 	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_BB_4X10G_E:
-		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_4X10G_E;
-		break;
 	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_BB_4X20G:
-		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_4X20G;
-		break;
 	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_1X40G:
-		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_1X40G;
-		break;
 	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_2X25G:
-		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_2X25G;
-		break;
 	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_2X10G:
-		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_2X10G;
-		break;
 	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_1X25G:
-		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_1X25G;
-		break;
 	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_4X25G:
-		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_4X25G;
+	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_AHP_2X50G_R1:
+	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_AHP_4X50G_R1:
+	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_AHP_1X100G_R2:
+	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_AHP_2X100G_R2:
+	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_AHP_1X100G_R4:
 		break;
 	default:
 		DP_NOTICE(p_hwfn, "Unknown port mode in 0x%08x\n", core_cfg);
@@ -4042,8 +4027,7 @@ static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	link_temp &= NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_MASK;
 	link->speed.advertised_speeds = link_temp;
 
-	link_temp = link->speed.advertised_speeds;
-	p_hwfn->mcp_info->link_capabilities.speed_capabilities = link_temp;
+	p_caps->speed_capabilities = link->speed.advertised_speeds;
 
 	link_temp = qed_rd(p_hwfn, p_ptt,
 			   port_cfg_addr +
@@ -4078,18 +4062,39 @@ static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		DP_NOTICE(p_hwfn, "Unknown Speed in 0x%08x\n", link_temp);
 	}
 
-	p_hwfn->mcp_info->link_capabilities.default_speed_autoneg =
-		link->speed.autoneg;
+	p_caps->default_speed_autoneg = link->speed.autoneg;
 
-	link_temp &= NVM_CFG1_PORT_DRV_FLOW_CONTROL_MASK;
-	link_temp >>= NVM_CFG1_PORT_DRV_FLOW_CONTROL_OFFSET;
-	link->pause.autoneg = !!(link_temp &
-				 NVM_CFG1_PORT_DRV_FLOW_CONTROL_AUTONEG);
-	link->pause.forced_rx = !!(link_temp &
-				   NVM_CFG1_PORT_DRV_FLOW_CONTROL_RX);
-	link->pause.forced_tx = !!(link_temp &
-				   NVM_CFG1_PORT_DRV_FLOW_CONTROL_TX);
+	fld = GET_MFW_FIELD(link_temp, NVM_CFG1_PORT_DRV_FLOW_CONTROL);
+	link->pause.autoneg = !!(fld & NVM_CFG1_PORT_DRV_FLOW_CONTROL_AUTONEG);
+	link->pause.forced_rx = !!(fld & NVM_CFG1_PORT_DRV_FLOW_CONTROL_RX);
+	link->pause.forced_tx = !!(fld & NVM_CFG1_PORT_DRV_FLOW_CONTROL_TX);
 	link->loopback_mode = 0;
+
+	if (p_hwfn->mcp_info->capabilities &
+	    FW_MB_PARAM_FEATURE_SUPPORT_FEC_CONTROL) {
+		switch (GET_MFW_FIELD(link_temp,
+				      NVM_CFG1_PORT_FEC_FORCE_MODE)) {
+		case NVM_CFG1_PORT_FEC_FORCE_MODE_NONE:
+			p_caps->fec_default |= QED_FEC_MODE_NONE;
+			break;
+		case NVM_CFG1_PORT_FEC_FORCE_MODE_FIRECODE:
+			p_caps->fec_default |= QED_FEC_MODE_FIRECODE;
+			break;
+		case NVM_CFG1_PORT_FEC_FORCE_MODE_RS:
+			p_caps->fec_default |= QED_FEC_MODE_RS;
+			break;
+		case NVM_CFG1_PORT_FEC_FORCE_MODE_AUTO:
+			p_caps->fec_default |= QED_FEC_MODE_AUTO;
+			break;
+		default:
+			DP_VERBOSE(p_hwfn, NETIF_MSG_LINK,
+				   "unknown FEC mode in 0x%08x\n", link_temp);
+		}
+	} else {
+		p_caps->fec_default = QED_FEC_MODE_UNSUPPORTED;
+	}
+
+	link->fec = p_caps->fec_default;
 
 	if (p_hwfn->mcp_info->capabilities & FW_MB_PARAM_FEATURE_SUPPORT_EEE) {
 		link_temp = qed_rd(p_hwfn, p_ptt, port_cfg_addr +
@@ -4122,14 +4127,97 @@ static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		p_caps->default_eee = QED_MCP_EEE_UNSUPPORTED;
 	}
 
-	DP_VERBOSE(p_hwfn,
-		   NETIF_MSG_LINK,
-		   "Read default link: Speed 0x%08x, Adv. Speed 0x%08x, AN: 0x%02x, PAUSE AN: 0x%02x EEE: %02x [%08x usec]\n",
-		   link->speed.forced_speed,
-		   link->speed.advertised_speeds,
-		   link->speed.autoneg,
-		   link->pause.autoneg,
-		   p_caps->default_eee, p_caps->eee_lpi_timer);
+	if (p_hwfn->mcp_info->capabilities &
+	    FW_MB_PARAM_FEATURE_SUPPORT_EXT_SPEED_FEC_CONTROL) {
+		ext_speed = &link->ext_speed;
+
+		link_temp = qed_rd(p_hwfn, p_ptt,
+				   port_cfg_addr +
+				   offsetof(struct nvm_cfg1_port,
+					    extended_speed));
+
+		fld = GET_MFW_FIELD(link_temp, NVM_CFG1_PORT_EXTENDED_SPEED);
+		if (fld & NVM_CFG1_PORT_EXTENDED_SPEED_EXTND_SPD_AN)
+			ext_speed->autoneg = true;
+
+		ext_speed->forced_speed = 0;
+		if (fld & NVM_CFG1_PORT_EXTENDED_SPEED_EXTND_SPD_1G)
+			ext_speed->forced_speed |= QED_EXT_SPEED_1G;
+		if (fld & NVM_CFG1_PORT_EXTENDED_SPEED_EXTND_SPD_10G)
+			ext_speed->forced_speed |= QED_EXT_SPEED_10G;
+		if (fld & NVM_CFG1_PORT_EXTENDED_SPEED_EXTND_SPD_20G)
+			ext_speed->forced_speed |= QED_EXT_SPEED_20G;
+		if (fld & NVM_CFG1_PORT_EXTENDED_SPEED_EXTND_SPD_25G)
+			ext_speed->forced_speed |= QED_EXT_SPEED_25G;
+		if (fld & NVM_CFG1_PORT_EXTENDED_SPEED_EXTND_SPD_40G)
+			ext_speed->forced_speed |= QED_EXT_SPEED_40G;
+		if (fld & NVM_CFG1_PORT_EXTENDED_SPEED_EXTND_SPD_50G_R)
+			ext_speed->forced_speed |= QED_EXT_SPEED_50G_R;
+		if (fld & NVM_CFG1_PORT_EXTENDED_SPEED_EXTND_SPD_50G_R2)
+			ext_speed->forced_speed |= QED_EXT_SPEED_50G_R2;
+		if (fld & NVM_CFG1_PORT_EXTENDED_SPEED_EXTND_SPD_100G_R2)
+			ext_speed->forced_speed |= QED_EXT_SPEED_100G_R2;
+		if (fld & NVM_CFG1_PORT_EXTENDED_SPEED_EXTND_SPD_100G_R4)
+			ext_speed->forced_speed |= QED_EXT_SPEED_100G_R4;
+		if (fld & NVM_CFG1_PORT_EXTENDED_SPEED_EXTND_SPD_100G_P4)
+			ext_speed->forced_speed |= QED_EXT_SPEED_100G_P4;
+
+		fld = GET_MFW_FIELD(link_temp,
+				    NVM_CFG1_PORT_EXTENDED_SPEED_CAP);
+
+		ext_speed->advertised_speeds = 0;
+		if (fld & NVM_CFG1_PORT_EXTENDED_SPEED_CAP_EXTND_SPD_RESERVED)
+			ext_speed->advertised_speeds |= QED_EXT_SPEED_MASK_RES;
+		if (fld & NVM_CFG1_PORT_EXTENDED_SPEED_CAP_EXTND_SPD_1G)
+			ext_speed->advertised_speeds |= QED_EXT_SPEED_MASK_1G;
+		if (fld & NVM_CFG1_PORT_EXTENDED_SPEED_CAP_EXTND_SPD_10G)
+			ext_speed->advertised_speeds |= QED_EXT_SPEED_MASK_10G;
+		if (fld & NVM_CFG1_PORT_EXTENDED_SPEED_CAP_EXTND_SPD_20G)
+			ext_speed->advertised_speeds |= QED_EXT_SPEED_MASK_20G;
+		if (fld & NVM_CFG1_PORT_EXTENDED_SPEED_CAP_EXTND_SPD_25G)
+			ext_speed->advertised_speeds |= QED_EXT_SPEED_MASK_25G;
+		if (fld & NVM_CFG1_PORT_EXTENDED_SPEED_CAP_EXTND_SPD_40G)
+			ext_speed->advertised_speeds |= QED_EXT_SPEED_MASK_40G;
+		if (fld & NVM_CFG1_PORT_EXTENDED_SPEED_CAP_EXTND_SPD_50G_R)
+			ext_speed->advertised_speeds |=
+				QED_EXT_SPEED_MASK_50G_R;
+		if (fld & NVM_CFG1_PORT_EXTENDED_SPEED_CAP_EXTND_SPD_50G_R2)
+			ext_speed->advertised_speeds |=
+				QED_EXT_SPEED_MASK_50G_R2;
+		if (fld & NVM_CFG1_PORT_EXTENDED_SPEED_CAP_EXTND_SPD_100G_R2)
+			ext_speed->advertised_speeds |=
+				QED_EXT_SPEED_MASK_100G_R2;
+		if (fld & NVM_CFG1_PORT_EXTENDED_SPEED_CAP_EXTND_SPD_100G_R4)
+			ext_speed->advertised_speeds |=
+				QED_EXT_SPEED_MASK_100G_R4;
+		if (fld & NVM_CFG1_PORT_EXTENDED_SPEED_CAP_EXTND_SPD_100G_P4)
+			ext_speed->advertised_speeds |=
+				QED_EXT_SPEED_MASK_100G_P4;
+
+		link_temp = qed_rd(p_hwfn, p_ptt,
+				   port_cfg_addr +
+				   offsetof(struct nvm_cfg1_port,
+					    extended_fec_mode));
+		link->ext_fec_mode = link_temp;
+
+		p_caps->default_ext_speed_caps = ext_speed->advertised_speeds;
+		p_caps->default_ext_speed = ext_speed->forced_speed;
+		p_caps->default_ext_autoneg = ext_speed->autoneg;
+		p_caps->default_ext_fec = link->ext_fec_mode;
+
+		DP_VERBOSE(p_hwfn, NETIF_MSG_LINK,
+			   "Read default extended link config: Speed 0x%08x, Adv. Speed 0x%08x, AN: 0x%02x, FEC: 0x%02x\n",
+			   ext_speed->forced_speed,
+			   ext_speed->advertised_speeds, ext_speed->autoneg,
+			   p_caps->default_ext_fec);
+	}
+
+	DP_VERBOSE(p_hwfn, NETIF_MSG_LINK,
+		   "Read default link: Speed 0x%08x, Adv. Speed 0x%08x, AN: 0x%02x, PAUSE AN: 0x%02x, EEE: 0x%02x [0x%08x usec], FEC: 0x%02x\n",
+		   link->speed.forced_speed, link->speed.advertised_speeds,
+		   link->speed.autoneg, link->pause.autoneg,
+		   p_caps->default_eee, p_caps->eee_lpi_timer,
+		   p_caps->fec_default);
 
 	if (IS_LEAD_HWFN(p_hwfn)) {
 		struct qed_dev *cdev = p_hwfn->cdev;

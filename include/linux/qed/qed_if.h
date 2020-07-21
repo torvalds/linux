@@ -594,6 +594,7 @@ enum qed_hw_err_type {
 enum qed_dev_type {
 	QED_DEV_TYPE_BB,
 	QED_DEV_TYPE_AH,
+	QED_DEV_TYPE_E5,
 };
 
 struct qed_dev_info {
@@ -661,87 +662,72 @@ enum qed_protocol {
 	QED_PROTOCOL_FCOE,
 };
 
-enum qed_link_mode_bits {
-	QED_LM_FIBRE_BIT = BIT(0),
-	QED_LM_Autoneg_BIT = BIT(1),
-	QED_LM_Asym_Pause_BIT = BIT(2),
-	QED_LM_Pause_BIT = BIT(3),
-	QED_LM_1000baseT_Full_BIT = BIT(4),
-	QED_LM_10000baseT_Full_BIT = BIT(5),
-	QED_LM_10000baseKR_Full_BIT = BIT(6),
-	QED_LM_20000baseKR2_Full_BIT = BIT(7),
-	QED_LM_25000baseKR_Full_BIT = BIT(8),
-	QED_LM_40000baseLR4_Full_BIT = BIT(9),
-	QED_LM_50000baseKR2_Full_BIT = BIT(10),
-	QED_LM_100000baseKR4_Full_BIT = BIT(11),
-	QED_LM_TP_BIT = BIT(12),
-	QED_LM_Backplane_BIT = BIT(13),
-	QED_LM_1000baseKX_Full_BIT = BIT(14),
-	QED_LM_10000baseKX4_Full_BIT = BIT(15),
-	QED_LM_10000baseR_FEC_BIT = BIT(16),
-	QED_LM_40000baseKR4_Full_BIT = BIT(17),
-	QED_LM_40000baseCR4_Full_BIT = BIT(18),
-	QED_LM_40000baseSR4_Full_BIT = BIT(19),
-	QED_LM_25000baseCR_Full_BIT = BIT(20),
-	QED_LM_25000baseSR_Full_BIT = BIT(21),
-	QED_LM_50000baseCR2_Full_BIT = BIT(22),
-	QED_LM_100000baseSR4_Full_BIT = BIT(23),
-	QED_LM_100000baseCR4_Full_BIT = BIT(24),
-	QED_LM_100000baseLR4_ER4_Full_BIT = BIT(25),
-	QED_LM_50000baseSR2_Full_BIT = BIT(26),
-	QED_LM_1000baseX_Full_BIT = BIT(27),
-	QED_LM_10000baseCR_Full_BIT = BIT(28),
-	QED_LM_10000baseSR_Full_BIT = BIT(29),
-	QED_LM_10000baseLR_Full_BIT = BIT(30),
-	QED_LM_10000baseLRM_Full_BIT = BIT(31),
-	QED_LM_COUNT = 32
+enum qed_fec_mode {
+	QED_FEC_MODE_NONE			= BIT(0),
+	QED_FEC_MODE_FIRECODE			= BIT(1),
+	QED_FEC_MODE_RS				= BIT(2),
+	QED_FEC_MODE_AUTO			= BIT(3),
+	QED_FEC_MODE_UNSUPPORTED		= BIT(4),
 };
 
 struct qed_link_params {
-	bool	link_up;
+	bool					link_up;
 
-#define QED_LINK_OVERRIDE_SPEED_AUTONEG         BIT(0)
-#define QED_LINK_OVERRIDE_SPEED_ADV_SPEEDS      BIT(1)
-#define QED_LINK_OVERRIDE_SPEED_FORCED_SPEED    BIT(2)
-#define QED_LINK_OVERRIDE_PAUSE_CONFIG          BIT(3)
-#define QED_LINK_OVERRIDE_LOOPBACK_MODE         BIT(4)
-#define QED_LINK_OVERRIDE_EEE_CONFIG            BIT(5)
-	u32	override_flags;
-	bool	autoneg;
-	u32	adv_speeds;
-	u32	forced_speed;
-#define QED_LINK_PAUSE_AUTONEG_ENABLE           BIT(0)
-#define QED_LINK_PAUSE_RX_ENABLE                BIT(1)
-#define QED_LINK_PAUSE_TX_ENABLE                BIT(2)
-	u32	pause_config;
-#define QED_LINK_LOOPBACK_NONE                  BIT(0)
-#define QED_LINK_LOOPBACK_INT_PHY               BIT(1)
-#define QED_LINK_LOOPBACK_EXT_PHY               BIT(2)
-#define QED_LINK_LOOPBACK_EXT                   BIT(3)
-#define QED_LINK_LOOPBACK_MAC                   BIT(4)
-	u32	loopback_mode;
-	struct qed_link_eee_params eee;
+	u32					override_flags;
+#define QED_LINK_OVERRIDE_SPEED_AUTONEG		BIT(0)
+#define QED_LINK_OVERRIDE_SPEED_ADV_SPEEDS	BIT(1)
+#define QED_LINK_OVERRIDE_SPEED_FORCED_SPEED	BIT(2)
+#define QED_LINK_OVERRIDE_PAUSE_CONFIG		BIT(3)
+#define QED_LINK_OVERRIDE_LOOPBACK_MODE		BIT(4)
+#define QED_LINK_OVERRIDE_EEE_CONFIG		BIT(5)
+#define QED_LINK_OVERRIDE_FEC_CONFIG		BIT(6)
+
+	bool					autoneg;
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(adv_speeds);
+	u32					forced_speed;
+
+	u32					pause_config;
+#define QED_LINK_PAUSE_AUTONEG_ENABLE		BIT(0)
+#define QED_LINK_PAUSE_RX_ENABLE		BIT(1)
+#define QED_LINK_PAUSE_TX_ENABLE		BIT(2)
+
+	u32					loopback_mode;
+#define QED_LINK_LOOPBACK_NONE			BIT(0)
+#define QED_LINK_LOOPBACK_INT_PHY		BIT(1)
+#define QED_LINK_LOOPBACK_EXT_PHY		BIT(2)
+#define QED_LINK_LOOPBACK_EXT			BIT(3)
+#define QED_LINK_LOOPBACK_MAC			BIT(4)
+#define QED_LINK_LOOPBACK_CNIG_AH_ONLY_0123	BIT(5)
+#define QED_LINK_LOOPBACK_CNIG_AH_ONLY_2301	BIT(6)
+#define QED_LINK_LOOPBACK_PCS_AH_ONLY		BIT(7)
+#define QED_LINK_LOOPBACK_REVERSE_MAC_AH_ONLY	BIT(8)
+#define QED_LINK_LOOPBACK_INT_PHY_FEA_AH_ONLY	BIT(9)
+
+	struct qed_link_eee_params		eee;
+	u32					fec;
 };
 
 struct qed_link_output {
-	bool	link_up;
+	bool					link_up;
 
-	/* In QED_LM_* defs */
-	u32	supported_caps;
-	u32	advertised_caps;
-	u32	lp_caps;
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(supported_caps);
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(advertised_caps);
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(lp_caps);
 
-	u32	speed;                  /* In Mb/s */
-	u8	duplex;                 /* In DUPLEX defs */
-	u8	port;                   /* In PORT defs */
-	bool	autoneg;
-	u32	pause_config;
+	u32					speed;	   /* In Mb/s */
+	u8					duplex;	   /* In DUPLEX defs */
+	u8					port;	   /* In PORT defs */
+	bool					autoneg;
+	u32					pause_config;
 
 	/* EEE - capability & param */
-	bool eee_supported;
-	bool eee_active;
-	u8 sup_caps;
-	struct qed_link_eee_params eee;
+	bool					eee_supported;
+	bool					eee_active;
+	u8					sup_caps;
+	struct qed_link_eee_params		eee;
+
+	u32					sup_fec;
+	u32					active_fec;
 };
 
 struct qed_probe_params {
