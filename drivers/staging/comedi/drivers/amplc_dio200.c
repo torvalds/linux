@@ -4,7 +4,7 @@
  *
  * Driver for Amplicon PC212E, PC214E, PC215E, PC218E, PC272E.
  *
- * Copyright (C) 2005-2013 MEV Ltd. <http://www.mev.co.uk/>
+ * Copyright (C) 2005-2013 MEV Ltd. <https://www.mev.co.uk/>
  *
  * COMEDI - Linux Control and Measurement Device Interface
  * Copyright (C) 1998,2000 David A. Schleef <ds@schleef.org>
@@ -260,6 +260,6 @@ static struct comedi_driver amplc_dio200_driver = {
 };
 module_comedi_driver(amplc_dio200_driver);
 
-MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_AUTHOR("Comedi https://www.comedi.org");
 MODULE_DESCRIPTION("Comedi driver for Amplicon 200 Series ISA DIO boards");
 MODULE_LICENSE("GPL");

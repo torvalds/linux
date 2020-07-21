@@ -2,7 +2,7 @@
 /*
  * Driver for Amplicon PCI263 relay board.
  *
- * Copyright (C) 2002 MEV Ltd. <http://www.mev.co.uk/>
+ * Copyright (C) 2002 MEV Ltd. <https://www.mev.co.uk/>
  *
  * COMEDI - Linux Control and Measurement Device Interface
  * Copyright (C) 2000 David A. Schleef <ds@schleef.org>
@@ -106,6 +106,6 @@ static struct pci_driver amplc_pci263_pci_driver = {
 };
 module_comedi_pci_driver(amplc_pci263_driver, amplc_pci263_pci_driver);
 
-MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_AUTHOR("Comedi https://www.comedi.org");
 MODULE_DESCRIPTION("Comedi driver for Amplicon PCI263 relay board");
 MODULE_LICENSE("GPL");
