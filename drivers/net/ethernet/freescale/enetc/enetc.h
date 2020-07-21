@@ -195,7 +195,7 @@ struct enetc_int_vector {
 	struct napi_struct napi;
 	char name[ENETC_INT_NAME_MAX];
 
-	struct enetc_bdr rx_ring ____cacheline_aligned_in_smp;
+	struct enetc_bdr rx_ring;
 	struct enetc_bdr tx_ring[];
 };
 
