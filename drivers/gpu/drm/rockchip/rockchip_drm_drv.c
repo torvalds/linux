@@ -21,6 +21,7 @@
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_of.h>
 #include <linux/devfreq.h>
+#include <linux/dma-buf.h>
 #include <linux/dma-mapping.h>
 #include <linux/dma-iommu.h>
 #include <linux/genalloc.h>
@@ -1653,6 +1654,56 @@ static const struct file_operations rockchip_drm_driver_fops = {
 	.release = drm_release,
 };
 
+static int rockchip_drm_gem_dmabuf_begin_cpu_access(struct dma_buf *dma_buf,
+						    enum dma_data_direction dir)
+{
+	struct drm_gem_object *obj = dma_buf->priv;
+
+	return rockchip_gem_prime_begin_cpu_access(obj, dir);
+}
+
+static int rockchip_drm_gem_dmabuf_end_cpu_access(struct dma_buf *dma_buf,
+						  enum dma_data_direction dir)
+{
+	struct drm_gem_object *obj = dma_buf->priv;
+
+	return rockchip_gem_prime_end_cpu_access(obj, dir);
+}
+
+static const struct dma_buf_ops rockchip_drm_gem_prime_dmabuf_ops = {
+	.attach = drm_gem_map_attach,
+	.detach = drm_gem_map_detach,
+	.map_dma_buf = drm_gem_map_dma_buf,
+	.unmap_dma_buf = drm_gem_unmap_dma_buf,
+	.release = drm_gem_dmabuf_release,
+	.map = drm_gem_dmabuf_kmap,
+	.unmap = drm_gem_dmabuf_kunmap,
+	.mmap = drm_gem_dmabuf_mmap,
+	.vmap = drm_gem_dmabuf_vmap,
+	.vunmap = drm_gem_dmabuf_vunmap,
+	.begin_cpu_access = rockchip_drm_gem_dmabuf_begin_cpu_access,
+	.end_cpu_access = rockchip_drm_gem_dmabuf_end_cpu_access,
+};
+
+static struct dma_buf *rockchip_drm_gem_prime_export(struct drm_device *dev,
+						     struct drm_gem_object *obj,
+						     int flags)
+{
+	struct dma_buf_export_info exp_info = {
+		.exp_name = KBUILD_MODNAME, /* white lie for debug */
+		.owner = dev->driver->fops->owner,
+		.ops = &rockchip_drm_gem_prime_dmabuf_ops,
+		.size = obj->size,
+		.flags = flags,
+		.priv = obj,
+	};
+
+	if (dev->driver->gem_prime_res_obj)
+		exp_info.resv = dev->driver->gem_prime_res_obj(obj);
+
+	return drm_gem_dmabuf_export(dev, &exp_info);
+}
+
 static struct drm_driver rockchip_drm_driver = {
 	.driver_features	= DRIVER_MODESET | DRIVER_GEM |
 				  DRIVER_PRIME | DRIVER_ATOMIC |
@@ -1668,14 +1719,12 @@ static struct drm_driver rockchip_drm_driver = {
 	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle,
 	.gem_prime_import	= drm_gem_prime_import,
-	.gem_prime_export	= drm_gem_prime_export,
+	.gem_prime_export	= rockchip_drm_gem_prime_export,
 	.gem_prime_get_sg_table	= rockchip_gem_prime_get_sg_table,
 	.gem_prime_import_sg_table	= rockchip_gem_prime_import_sg_table,
 	.gem_prime_vmap		= rockchip_gem_prime_vmap,
 	.gem_prime_vunmap	= rockchip_gem_prime_vunmap,
 	.gem_prime_mmap		= rockchip_gem_mmap_buf,
-	.gem_prime_begin_cpu_access = rockchip_gem_prime_begin_cpu_access,
-	.gem_prime_end_cpu_access = rockchip_gem_prime_end_cpu_access,
 #ifdef CONFIG_DEBUG_FS
 	.debugfs_init		= rockchip_drm_debugfs_init,
 #endif
