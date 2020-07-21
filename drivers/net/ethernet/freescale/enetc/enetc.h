@@ -44,8 +44,9 @@ struct enetc_ring_stats {
 	unsigned int rx_alloc_errs;
 };
 
-#define ENETC_BDR_DEFAULT_SIZE	1024
-#define ENETC_DEFAULT_TX_WORK	256
+#define ENETC_RX_RING_DEFAULT_SIZE	512
+#define ENETC_TX_RING_DEFAULT_SIZE	256
+#define ENETC_DEFAULT_TX_WORK		(ENETC_TX_RING_DEFAULT_SIZE / 2)
 
 struct enetc_bdr {
 	struct device *dev; /* for DMA mapping */
