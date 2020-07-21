@@ -180,8 +180,10 @@
 #define CLKID_CTS_AMCLK_DIV	208
 #define CLKID_CTS_MCLK_I958_SEL	210
 #define CLKID_CTS_MCLK_I958_DIV	211
+#define CLKID_VCLK_EN		214
+#define CLKID_VCLK2_EN		215
 
-#define CLK_NR_CLKS		214
+#define CLK_NR_CLKS		216
 
 /*
  * include the CLKID and RESETID that have
