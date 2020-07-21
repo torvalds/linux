@@ -749,6 +749,20 @@ static const struct net_device_ops ethsw_port_ops = {
 	.ndo_get_phys_port_name = port_get_phys_name,
 };
 
+static bool ethsw_port_dev_check(const struct net_device *netdev,
+				 struct notifier_block *nb)
+{
+	struct ethsw_port_priv *port_priv = netdev_priv(netdev);
+
+	if (netdev->netdev_ops == &ethsw_port_ops &&
+	    (!nb || &port_priv->ethsw_data->port_nb == nb ||
+	     &port_priv->ethsw_data->port_switchdev_nb == nb ||
+	     &port_priv->ethsw_data->port_switchdevb_nb == nb))
+		return true;
+
+	return false;
+}
+
 static void ethsw_links_state_update(struct ethsw_core *ethsw)
 {
 	int i;
@@ -1199,12 +1213,7 @@ static int port_bridge_leave(struct net_device *netdev)
 	return err;
 }
 
-static bool ethsw_port_dev_check(const struct net_device *netdev)
-{
-	return netdev->netdev_ops == &ethsw_port_ops;
-}
-
-static int port_netdevice_event(struct notifier_block *unused,
+static int port_netdevice_event(struct notifier_block *nb,
 				unsigned long event, void *ptr)
 {
 	struct net_device *netdev = netdev_notifier_info_to_dev(ptr);
@@ -1212,7 +1221,7 @@ static int port_netdevice_event(struct notifier_block *unused,
 	struct net_device *upper_dev;
 	int err = 0;
 
-	if (!ethsw_port_dev_check(netdev))
+	if (!ethsw_port_dev_check(netdev, nb))
 		return NOTIFY_DONE;
 
 	/* Handle just upper dev link/unlink for the moment */
@@ -1280,7 +1289,7 @@ static void ethsw_switchdev_event_work(struct work_struct *work)
 }
 
 /* Called under rcu_read_lock() */
-static int port_switchdev_event(struct notifier_block *unused,
+static int port_switchdev_event(struct notifier_block *nb,
 				unsigned long event, void *ptr)
 {
 	struct net_device *dev = switchdev_notifier_info_to_dev(ptr);
@@ -1289,7 +1298,7 @@ static int port_switchdev_event(struct notifier_block *unused,
 	struct switchdev_notifier_fdb_info *fdb_info = ptr;
 	struct ethsw_core *ethsw = port_priv->ethsw_data;
 
-	if (!ethsw_port_dev_check(dev))
+	if (!ethsw_port_dev_check(dev, nb))
 		return NOTIFY_DONE;
 
 	if (event == SWITCHDEV_PORT_ATTR_SET)
@@ -1353,12 +1362,12 @@ ethsw_switchdev_port_obj_event(unsigned long event, struct net_device *netdev,
 	return notifier_from_errno(err);
 }
 
-static int port_switchdev_blocking_event(struct notifier_block *unused,
+static int port_switchdev_blocking_event(struct notifier_block *nb,
 					 unsigned long event, void *ptr)
 {
 	struct net_device *dev = switchdev_notifier_info_to_dev(ptr);
 
-	if (!ethsw_port_dev_check(dev))
+	if (!ethsw_port_dev_check(dev, nb))
 		return NOTIFY_DONE;
 
 	switch (event) {
