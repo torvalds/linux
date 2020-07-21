@@ -93,6 +93,7 @@ static DEVICE_ATTR_RO(controller_fatal_error);
 /**
  * pm8001_ctl_fw_version_show - firmware version
  * @cdev: pointer to embedded class device
+ * @attr: device attribute (unused)
  * @buf: the buffer returned
  *
  * A sysfs 'read-only' shost attribute.
@@ -322,6 +323,7 @@ static DEVICE_ATTR(host_sas_address, S_IRUGO,
 /**
  * pm8001_ctl_logging_level_show - logging level
  * @cdev: pointer to embedded class device
+ * @attr: device attribute (unused)
  * @buf: the buffer returned
  *
  * A sysfs 'read/write' shost attribute.
@@ -335,6 +337,7 @@ static ssize_t pm8001_ctl_logging_level_show(struct device *cdev,
 
 	return snprintf(buf, PAGE_SIZE, "%08xh\n", pm8001_ha->logging_level);
 }
+
 static ssize_t pm8001_ctl_logging_level_store(struct device *cdev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
@@ -392,6 +395,7 @@ static DEVICE_ATTR(aap_log, S_IRUGO, pm8001_ctl_aap_log_show, NULL);
 /**
  * pm8001_ctl_ib_queue_log_show - Out bound Queue log
  * @cdev:pointer to embedded class device
+ * @attr: device attribute (unused)
  * @buf: the buffer returned
  * A sysfs 'read-only' shost attribute.
  */
@@ -424,6 +428,7 @@ static DEVICE_ATTR(ib_log, S_IRUGO, pm8001_ctl_ib_queue_log_show, NULL);
 /**
  * pm8001_ctl_ob_queue_log_show - Out bound Queue log
  * @cdev:pointer to embedded class device
+ * @attr: device attribute (unused)
  * @buf: the buffer returned
  * A sysfs 'read-only' shost attribute.
  */
@@ -456,6 +461,7 @@ static DEVICE_ATTR(ob_log, S_IRUGO, pm8001_ctl_ob_queue_log_show, NULL);
 /**
  * pm8001_ctl_bios_version_show - Bios version Display
  * @cdev:pointer to embedded class device
+ * @attr: device attribute (unused)
  * @buf:the buffer returned
  * A sysfs 'read-only' shost attribute.
  */
@@ -615,8 +621,9 @@ static DEVICE_ATTR_RW(non_fatal_count);
 /**
  ** pm8001_ctl_gsm_log_show - gsm dump collection
  ** @cdev:pointer to embedded class device
+ ** @attr: device attribute (unused)
  ** @buf: the buffer returned
- **A sysfs 'read-only' shost attribute.
+ ** A sysfs 'read-only' shost attribute.
  **/
 static ssize_t pm8001_ctl_gsm_log_show(struct device *cdev,
 	struct device_attribute *attr, char *buf)
