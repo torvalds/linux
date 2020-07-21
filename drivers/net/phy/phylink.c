@@ -629,8 +629,15 @@ static void phylink_resolve(struct work_struct *w)
 				phylink_link_down(pl);
 				cur_link_state = false;
 			}
+			phylink_pcs_config(pl, false, &link_state);
+			pl->link_config.interface = link_state.interface;
+		} else {
+			/* The interface remains unchanged, only the speed,
+			 * duplex or pause settings have changed. Call the
+			 * old mac_config() method to configure the MAC/PCS.
+			 */
+			phylink_mac_config(pl, &link_state);
 		}
-		phylink_mac_config(pl, &link_state);
 	}
 
 	if (link_state.link != cur_link_state) {
