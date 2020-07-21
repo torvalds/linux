@@ -26,7 +26,7 @@
 /*
  * Verify that child nodes correctly span parent node's range:
  */
-static void btree_node_interior_verify(struct btree *b)
+static void btree_node_interior_verify(struct bch_fs *c, struct btree *b)
 {
 #ifdef CONFIG_BCACHEFS_DEBUG
 	struct bpos next_node = b->data->min_key;
@@ -36,6 +36,9 @@ static void btree_node_interior_verify(struct btree *b)
 	struct bkey unpacked;
 
 	BUG_ON(!b->c.level);
+
+	if (!test_bit(BCH_FS_BTREE_INTERIOR_REPLAY_DONE, &c->flags))
+		return;
 
 	bch2_btree_node_iter_init_from_start(&iter, b);
 
@@ -1120,8 +1123,8 @@ static struct btree *__btree_split_node(struct btree_update *as,
 	bch2_verify_btree_nr_keys(n2);
 
 	if (n1->c.level) {
-		btree_node_interior_verify(n1);
-		btree_node_interior_verify(n2);
+		btree_node_interior_verify(as->c, n1);
+		btree_node_interior_verify(as->c, n2);
 	}
 
 	return n2;
@@ -1180,7 +1183,7 @@ static void btree_split_insert_keys(struct btree_update *as, struct btree *b,
 	BUG_ON(b->nsets != 1 ||
 	       b->nr.live_u64s != le16_to_cpu(btree_bset_first(b)->u64s));
 
-	btree_node_interior_verify(b);
+	btree_node_interior_verify(as->c, b);
 }
 
 static void btree_split(struct btree_update *as, struct btree *b,
@@ -1378,7 +1381,7 @@ void bch2_btree_insert_node(struct btree_update *as, struct btree *b,
 
 	bch2_btree_node_unlock_write(b, iter);
 
-	btree_node_interior_verify(b);
+	btree_node_interior_verify(c, b);
 
 	/*
 	 * when called from the btree_split path the new nodes aren't added to
