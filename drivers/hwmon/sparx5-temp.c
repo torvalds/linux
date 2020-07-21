@@ -147,7 +147,7 @@ static int s5_temp_probe(struct platform_device *pdev)
 	return PTR_ERR_OR_ZERO(hwmon_dev);
 }
 
-const struct of_device_id s5_temp_match[] = {
+static const struct of_device_id s5_temp_match[] = {
 	{ .compatible = "microchip,sparx5-temp" },
 	{},
 };
