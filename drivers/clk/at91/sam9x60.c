@@ -22,7 +22,7 @@ static const struct clk_master_layout sam9x60_master_layout = {
 };
 
 static const struct clk_range plla_outputs[] = {
-	{ .min = 300000000, .max = 600000000 },
+	{ .min = 2343750, .max = 1200000000 },
 };
 
 static const struct clk_pll_characteristics plla_characteristics = {
