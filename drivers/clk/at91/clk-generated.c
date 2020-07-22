@@ -170,7 +170,8 @@ static int clk_generated_determine_rate(struct clk_hw *hw,
 
 	for (div = 1; div < GENERATED_MAX_DIV + 2; div++) {
 		req_parent.rate = req->rate * div;
-		__clk_determine_rate(parent, &req_parent);
+		if (__clk_determine_rate(parent, &req_parent))
+			continue;
 		clk_generated_best_diff(req, parent, req_parent.rate, div,
 					&best_diff, &best_rate);
 
