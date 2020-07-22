@@ -332,8 +332,13 @@ static void vmem_remove_range(unsigned long start, unsigned long size)
 int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
 		struct vmem_altmap *altmap)
 {
+	int ret;
+
 	/* We don't care about the node, just use NUMA_NO_NODE on allocations */
-	return add_pagetable(start, end, false);
+	ret = add_pagetable(start, end, false);
+	if (ret)
+		remove_pagetable(start, end, false);
+	return ret;
 }
 
 void vmemmap_free(unsigned long start, unsigned long end,
