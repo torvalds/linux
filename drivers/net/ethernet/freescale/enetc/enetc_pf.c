@@ -966,6 +966,13 @@ static int enetc_configure_serdes(struct enetc_ndev_priv *priv)
 	return 0;
 }
 
+static void enetc_teardown_serdes(struct enetc_ndev_priv *priv)
+{
+	struct enetc_pf *pf = enetc_si_priv(priv->si);
+
+	enetc_imdio_remove(pf);
+}
+
 static int enetc_pf_probe(struct pci_dev *pdev,
 			  const struct pci_device_id *ent)
 {
@@ -1045,6 +1052,7 @@ static int enetc_pf_probe(struct pci_dev *pdev,
 	return 0;
 
 err_reg_netdev:
+	enetc_teardown_serdes(priv);
 	enetc_free_msix(priv);
 err_alloc_msix:
 	enetc_free_si_resources(priv);
@@ -1071,7 +1079,7 @@ static void enetc_pf_remove(struct pci_dev *pdev)
 	priv = netdev_priv(si->ndev);
 	unregister_netdev(si->ndev);
 
-	enetc_imdio_remove(pf);
+	enetc_teardown_serdes(priv);
 	enetc_mdio_remove(pf);
 	enetc_of_put_phy(pf);
 
