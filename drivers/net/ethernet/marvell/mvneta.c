@@ -4442,14 +4442,9 @@ static int mvneta_xdp_setup(struct net_device *dev, struct bpf_prog *prog,
 
 static int mvneta_xdp(struct net_device *dev, struct netdev_bpf *xdp)
 {
-	struct mvneta_port *pp = netdev_priv(dev);
-
 	switch (xdp->command) {
 	case XDP_SETUP_PROG:
 		return mvneta_xdp_setup(dev, xdp->prog, xdp->extack);
-	case XDP_QUERY_PROG:
-		xdp->prog_id = pp->xdp_prog ? pp->xdp_prog->aux->id : 0;
-		return 0;
 	default:
 		return -EINVAL;
 	}

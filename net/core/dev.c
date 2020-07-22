@@ -5468,10 +5468,6 @@ static int generic_xdp_install(struct net_device *dev, struct netdev_bpf *xdp)
 		}
 		break;
 
-	case XDP_QUERY_PROG:
-		xdp->prog_id = old ? old->aux->id : 0;
-		break;
-
 	default:
 		ret = -EINVAL;
 		break;
