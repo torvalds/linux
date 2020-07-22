@@ -36,10 +36,10 @@ int dump_netlink(struct bpf_iter__netlink *ctx)
 	if (!nlk->groups)  {
 		group = 0;
 	} else {
-		/* FIXME: temporary use bpf_probe_read here, needs
+		/* FIXME: temporary use bpf_probe_read_kernel here, needs
 		 * verifier support to do direct access.
 		 */
-		bpf_probe_read(&group, sizeof(group), &nlk->groups[0]);
+		bpf_probe_read_kernel(&group, sizeof(group), &nlk->groups[0]);
 	}
 	BPF_SEQ_PRINTF(seq, "%-10u %08x %-8d %-8d %-5d %-8d ",
 		       nlk->portid, (u32)group,
@@ -56,7 +56,7 @@ int dump_netlink(struct bpf_iter__netlink *ctx)
 		 * with current verifier.
 		 */
 		inode = SOCK_INODE(sk);
-		bpf_probe_read(&ino, sizeof(ino), &inode->i_ino);
+		bpf_probe_read_kernel(&ino, sizeof(ino), &inode->i_ino);
 	}
 	BPF_SEQ_PRINTF(seq, "%-8u %-8lu\n", s->sk_drops.counter, ino);
 

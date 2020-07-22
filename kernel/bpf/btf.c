@@ -3672,7 +3672,6 @@ struct btf *btf_parse_vmlinux(void)
 		goto errout;
 
 	bpf_struct_ops_init(btf, log);
-	init_btf_sock_ids(btf);
 
 	btf_verifier_env_free(env);
 	refcount_set(&btf->refcnt, 1);
@@ -3818,16 +3817,17 @@ bool btf_ctx_access(int off, int size, enum bpf_access_type type,
 		return true;
 
 	/* this is a pointer to another type */
-	info->reg_type = PTR_TO_BTF_ID;
 	for (i = 0; i < prog->aux->ctx_arg_info_size; i++) {
 		const struct bpf_ctx_arg_aux *ctx_arg_info = &prog->aux->ctx_arg_info[i];
 
 		if (ctx_arg_info->offset == off) {
 			info->reg_type = ctx_arg_info->reg_type;
-			break;
+			info->btf_id = ctx_arg_info->btf_id;
+			return true;
 		}
 	}
 
+	info->reg_type = PTR_TO_BTF_ID;
 	if (tgt_prog) {
 		ret = btf_translate_to_vmlinux(log, btf, t, tgt_prog->type, arg);
 		if (ret > 0) {

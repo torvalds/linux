@@ -73,29 +73,8 @@ int start_server(int family, int type, const char *addr_str, __u16 port,
 	socklen_t len;
 	int fd;
 
-	if (family == AF_INET) {
-		struct sockaddr_in *sin = (void *)&addr;
-
-		sin->sin_family = AF_INET;
-		sin->sin_port = htons(port);
-		if (addr_str &&
-		    inet_pton(AF_INET, addr_str, &sin->sin_addr) != 1) {
-			log_err("inet_pton(AF_INET, %s)", addr_str);
-			return -1;
-		}
-		len = sizeof(*sin);
-	} else {
-		struct sockaddr_in6 *sin6 = (void *)&addr;
-
-		sin6->sin6_family = AF_INET6;
-		sin6->sin6_port = htons(port);
-		if (addr_str &&
-		    inet_pton(AF_INET6, addr_str, &sin6->sin6_addr) != 1) {
-			log_err("inet_pton(AF_INET6, %s)", addr_str);
-			return -1;
-		}
-		len = sizeof(*sin6);
-	}
+	if (make_sockaddr(family, addr_str, port, &addr, &len))
+		return -1;
 
 	fd = socket(family, type, 0);
 	if (fd < 0) {
@@ -193,4 +172,37 @@ int connect_fd_to_fd(int client_fd, int server_fd, int timeout_ms)
 		return -1;
 
 	return 0;
+}
+
+int make_sockaddr(int family, const char *addr_str, __u16 port,
+		  struct sockaddr_storage *addr, socklen_t *len)
+{
+	if (family == AF_INET) {
+		struct sockaddr_in *sin = (void *)addr;
+
+		sin->sin_family = AF_INET;
+		sin->sin_port = htons(port);
+		if (addr_str &&
+		    inet_pton(AF_INET, addr_str, &sin->sin_addr) != 1) {
+			log_err("inet_pton(AF_INET, %s)", addr_str);
+			return -1;
+		}
+		if (len)
+			*len = sizeof(*sin);
+		return 0;
+	} else if (family == AF_INET6) {
+		struct sockaddr_in6 *sin6 = (void *)addr;
+
+		sin6->sin6_family = AF_INET6;
+		sin6->sin6_port = htons(port);
+		if (addr_str &&
+		    inet_pton(AF_INET6, addr_str, &sin6->sin6_addr) != 1) {
+			log_err("inet_pton(AF_INET6, %s)", addr_str);
+			return -1;
+		}
+		if (len)
+			*len = sizeof(*sin6);
+		return 0;
+	}
+	return -1;
 }

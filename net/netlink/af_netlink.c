@@ -60,6 +60,7 @@
 #include <linux/genetlink.h>
 #include <linux/net_namespace.h>
 #include <linux/nospec.h>
+#include <linux/btf_ids.h>
 
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
@@ -2803,7 +2804,10 @@ static const struct rhashtable_params netlink_rhashtable_params = {
 };
 
 #if defined(CONFIG_BPF_SYSCALL) && defined(CONFIG_PROC_FS)
-static const struct bpf_iter_reg netlink_reg_info = {
+BTF_ID_LIST(btf_netlink_sock_id)
+BTF_ID(struct, netlink_sock)
+
+static struct bpf_iter_reg netlink_reg_info = {
 	.target			= "netlink",
 	.seq_ops		= &netlink_seq_ops,
 	.init_seq_private	= bpf_iter_init_seq_net,
@@ -2818,6 +2822,7 @@ static const struct bpf_iter_reg netlink_reg_info = {
 
 static int __init bpf_iter_register(void)
 {
+	netlink_reg_info.ctx_arg_info[0].btf_id = *btf_netlink_sock_id;
 	return bpf_iter_reg_target(&netlink_reg_info);
 }
 #endif

@@ -61,6 +61,7 @@
 #include <net/l3mdev.h>
 #include <net/ip.h>
 #include <linux/uaccess.h>
+#include <linux/btf_ids.h>
 
 #ifdef CONFIG_SYSCTL
 #include <linux/sysctl.h>
@@ -6423,7 +6424,10 @@ void __init ip6_route_init_special_entries(void)
 #if defined(CONFIG_BPF_SYSCALL) && defined(CONFIG_PROC_FS)
 DEFINE_BPF_ITER_FUNC(ipv6_route, struct bpf_iter_meta *meta, struct fib6_info *rt)
 
-static const struct bpf_iter_reg ipv6_route_reg_info = {
+BTF_ID_LIST(btf_fib6_info_id)
+BTF_ID(struct, fib6_info)
+
+static struct bpf_iter_reg ipv6_route_reg_info = {
 	.target			= "ipv6_route",
 	.seq_ops		= &ipv6_route_seq_ops,
 	.init_seq_private	= bpf_iter_init_seq_net,
@@ -6438,6 +6442,7 @@ static const struct bpf_iter_reg ipv6_route_reg_info = {
 
 static int __init bpf_iter_register(void)
 {
+	ipv6_route_reg_info.ctx_arg_info[0].btf_id = *btf_fib6_info_id;
 	return bpf_iter_reg_target(&ipv6_route_reg_info);
 }
 

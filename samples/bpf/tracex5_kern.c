@@ -47,7 +47,7 @@ PROG(SYS__NR_write)(struct pt_regs *ctx)
 {
 	struct seccomp_data sd;
 
-	bpf_probe_read(&sd, sizeof(sd), (void *)PT_REGS_PARM2(ctx));
+	bpf_probe_read_kernel(&sd, sizeof(sd), (void *)PT_REGS_PARM2(ctx));
 	if (sd.args[2] == 512) {
 		char fmt[] = "write(fd=%d, buf=%p, size=%d)\n";
 		bpf_trace_printk(fmt, sizeof(fmt),
@@ -60,7 +60,7 @@ PROG(SYS__NR_read)(struct pt_regs *ctx)
 {
 	struct seccomp_data sd;
 
-	bpf_probe_read(&sd, sizeof(sd), (void *)PT_REGS_PARM2(ctx));
+	bpf_probe_read_kernel(&sd, sizeof(sd), (void *)PT_REGS_PARM2(ctx));
 	if (sd.args[2] > 128 && sd.args[2] <= 1024) {
 		char fmt[] = "read(fd=%d, buf=%p, size=%d)\n";
 		bpf_trace_printk(fmt, sizeof(fmt),

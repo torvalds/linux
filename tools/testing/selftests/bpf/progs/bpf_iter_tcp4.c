@@ -57,7 +57,7 @@ static long sock_i_ino(const struct sock *sk)
 		return 0;
 
 	inode = &container_of(sk_socket, struct socket_alloc, socket)->vfs_inode;
-	bpf_probe_read(&ino, sizeof(ino), &inode->i_ino);
+	bpf_probe_read_kernel(&ino, sizeof(ino), &inode->i_ino);
 	return ino;
 }
 
