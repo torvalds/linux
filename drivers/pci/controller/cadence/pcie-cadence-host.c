@@ -20,7 +20,7 @@ static void __iomem *cdns_pci_map_bus(struct pci_bus *bus, unsigned int devfn,
 	unsigned int busn = bus->number;
 	u32 addr0, desc0;
 
-	if (busn == rc->bus_range->start) {
+	if (pci_is_root_bus(bus)) {
 		/*
 		 * Only the root port (devfn == 0) is connected to this bus.
 		 * All other PCI devices are behind some bridge hence on another
@@ -50,7 +50,7 @@ static void __iomem *cdns_pci_map_bus(struct pci_bus *bus, unsigned int devfn,
 	 * The bus number was already set once for all in desc1 by
 	 * cdns_pcie_host_init_address_translation().
 	 */
-	if (busn == rc->bus_range->start + 1)
+	if (busn == bridge->busnr + 1)
 		desc0 |= CDNS_PCIE_AT_OB_REGION_DESC0_TYPE_CONF_TYPE0;
 	else
 		desc0 |= CDNS_PCIE_AT_OB_REGION_DESC0_TYPE_CONF_TYPE1;
@@ -106,12 +106,15 @@ static int cdns_pcie_host_init_address_translation(struct cdns_pcie_rc *rc)
 	struct cdns_pcie *pcie = &rc->pcie;
 	struct pci_host_bridge *bridge = pci_host_bridge_from_priv(rc);
 	struct resource *mem_res = pcie->mem_res;
-	struct resource *bus_range = rc->bus_range;
 	struct resource *cfg_res = rc->cfg_res;
 	struct resource_entry *entry;
 	u32 addr0, addr1, desc1;
 	u64 cpu_addr;
-	int r;
+	int r, busnr = 0;
+
+	entry = resource_list_first_type(&bridge->windows, IORESOURCE_BUS);
+	if (entry)
+		busnr = entry->res->start;
 
 	/*
 	 * Reserve region 0 for PCI configure space accesses:
@@ -119,7 +122,7 @@ static int cdns_pcie_host_init_address_translation(struct cdns_pcie_rc *rc)
 	 * cdns_pci_map_bus(), other region registers are set here once for all.
 	 */
 	addr1 = 0; /* Should be programmed to zero. */
-	desc1 = CDNS_PCIE_AT_OB_REGION_DESC1_BUS(bus_range->start);
+	desc1 = CDNS_PCIE_AT_OB_REGION_DESC1_BUS(busnr);
 	cdns_pcie_writel(pcie, CDNS_PCIE_AT_OB_REGION_PCI_ADDR1(0), addr1);
 	cdns_pcie_writel(pcie, CDNS_PCIE_AT_OB_REGION_DESC1(0), desc1);
 
@@ -136,12 +139,14 @@ static int cdns_pcie_host_init_address_translation(struct cdns_pcie_rc *rc)
 		u64 pci_addr = res->start - entry->offset;
 
 		if (resource_type(res) == IORESOURCE_IO)
-			cdns_pcie_set_outbound_region(pcie, 0, r, true,
+			cdns_pcie_set_outbound_region(pcie, busnr, 0, r,
+						      true,
 						      pci_pio_to_address(res->start),
 						      pci_addr,
 						      resource_size(res));
 		else
-			cdns_pcie_set_outbound_region(pcie, 0, r, false,
+			cdns_pcie_set_outbound_region(pcie, busnr, 0, r,
+						      false,
 						      res->start,
 						      pci_addr,
 						      resource_size(res));
@@ -167,17 +172,12 @@ static int cdns_pcie_host_init(struct device *dev,
 			       struct cdns_pcie_rc *rc)
 {
 	struct pci_host_bridge *bridge = pci_host_bridge_from_priv(rc);
-	struct resource *bus_range = NULL;
 	int err;
 
 	/* Parse our PCI ranges and request their resources */
-	err = pci_parse_request_of_pci_ranges(dev, &bridge->windows, NULL,
-					      &bus_range);
+	err = pci_parse_request_of_pci_ranges(dev, &bridge->windows, NULL, NULL);
 	if (err)
 		return err;
-
-	rc->bus_range = bus_range;
-	rc->pcie.bus = bus_range->start;
 
 	err = cdns_pcie_host_init_root_port(rc);
 	if (err)
@@ -236,7 +236,6 @@ int cdns_pcie_host_setup(struct cdns_pcie_rc *rc)
 	if (ret)
 		goto err_init;
 
-	bridge->busnr = pcie->bus;
 	bridge->ops = &cdns_pcie_host_ops;
 	bridge->map_irq = of_irq_parse_and_map_pci;
 	bridge->swizzle_irq = pci_common_swizzle;
