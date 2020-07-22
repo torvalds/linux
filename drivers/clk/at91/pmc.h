@@ -236,6 +236,10 @@ struct clk_hw * __init
 at91_clk_register_utmi(struct regmap *regmap_pmc, struct regmap *regmap_sfr,
 		       const char *name, const char *parent_name);
 
+struct clk_hw * __init
+at91_clk_sama7g5_register_utmi(struct regmap *regmap, const char *name,
+			       const char *parent_name);
+
 #ifdef CONFIG_PM
 void pmc_register_id(u8 id);
 void pmc_register_pck(u8 pck);
