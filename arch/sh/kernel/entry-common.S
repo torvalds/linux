@@ -368,6 +368,8 @@ syscall_trace_entry:
 	mov.l	7f, r11		! Call do_syscall_trace_enter which notifies
 	jsr	@r11	    	! superior (will chomp R[0-7])
 	 nop
+	cmp/eq	#-1, r0
+	bt	syscall_exit
 	mov.l	r0, @(OFF_R0,r15)	! Save return value
 	!			Reload R0-R4 from kernel stack, where the
 	!   	    	    	parent may have modified them using
