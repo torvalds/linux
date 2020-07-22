@@ -203,7 +203,7 @@ static inline u32 qed_chain_get_cons_idx_u32(const struct qed_chain *chain)
 	return chain->u.chain32.cons_idx;
 }
 
-static inline u16 qed_chain_get_elem_left(const struct qed_chain *chain)
+static inline u16 qed_chain_get_elem_used(const struct qed_chain *chain)
 {
 	u32 prod = qed_chain_get_prod_idx(chain);
 	u32 cons = qed_chain_get_cons_idx(chain);
@@ -217,10 +217,15 @@ static inline u16 qed_chain_get_elem_left(const struct qed_chain *chain)
 	if (chain->mode == QED_CHAIN_MODE_NEXT_PTR)
 		used -= (u16)(prod / elem_per_page - cons / elem_per_page);
 
-	return (u16)(chain->capacity - used);
+	return used;
 }
 
-static inline u32 qed_chain_get_elem_left_u32(const struct qed_chain *chain)
+static inline u16 qed_chain_get_elem_left(const struct qed_chain *chain)
+{
+	return (u16)(chain->capacity - qed_chain_get_elem_used(chain));
+}
+
+static inline u32 qed_chain_get_elem_used_u32(const struct qed_chain *chain)
 {
 	u64 prod = qed_chain_get_prod_idx_u32(chain);
 	u64 cons = qed_chain_get_cons_idx_u32(chain);
@@ -234,7 +239,12 @@ static inline u32 qed_chain_get_elem_left_u32(const struct qed_chain *chain)
 	if (chain->mode == QED_CHAIN_MODE_NEXT_PTR)
 		used -= (u32)(prod / elem_per_page - cons / elem_per_page);
 
-	return chain->capacity - used;
+	return used;
+}
+
+static inline u32 qed_chain_get_elem_left_u32(const struct qed_chain *chain)
+{
+	return chain->capacity - qed_chain_get_elem_used_u32(chain);
 }
 
 static inline u16 qed_chain_get_usable_per_page(const struct qed_chain *chain)
