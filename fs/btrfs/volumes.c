@@ -2497,7 +2497,7 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 	u64 orig_super_num_devices;
 	int seeding_dev = 0;
 	int ret = 0;
-	bool unlocked = false;
+	bool locked = false;
 
 	if (sb_rdonly(sb) && !fs_devices->seeding)
 		return -EROFS;
@@ -2511,6 +2511,7 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 		seeding_dev = 1;
 		down_write(&sb->s_umount);
 		mutex_lock(&uuid_mutex);
+		locked = true;
 	}
 
 	filemap_write_and_wait(bdev->bd_inode->i_mapping);
@@ -2645,7 +2646,7 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 	if (seeding_dev) {
 		mutex_unlock(&uuid_mutex);
 		up_write(&sb->s_umount);
-		unlocked = true;
+		locked = false;
 
 		if (ret) /* transaction commit */
 			return ret;
@@ -2706,7 +2707,7 @@ error_free_device:
 	btrfs_free_device(device);
 error:
 	blkdev_put(bdev, FMODE_EXCL);
-	if (seeding_dev && !unlocked) {
+	if (locked) {
 		mutex_unlock(&uuid_mutex);
 		up_write(&sb->s_umount);
 	}
