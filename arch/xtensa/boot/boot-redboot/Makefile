@@ -13,6 +13,7 @@ endif
 LD_ARGS	= -T $(srctree)/$(obj)/boot.ld
 
 boot-y	:= bootstrap.o
+targets	+= $(boot-y)
 
 OBJS	:= $(addprefix $(obj)/,$(boot-y))
 LIBS	:= arch/xtensa/boot/lib/lib.a arch/xtensa/lib/lib.a

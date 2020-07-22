@@ -15,6 +15,7 @@ export CPPFLAGS_boot.lds += -P -C
 export KBUILD_AFLAGS += -mtext-section-literals
 
 boot-y		:= bootstrap.o
+targets		+= $(boot-y) boot.lds
 
 OBJS		:= $(addprefix $(obj)/,$(boot-y))
 
