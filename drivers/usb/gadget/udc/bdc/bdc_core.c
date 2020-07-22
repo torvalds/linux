@@ -625,7 +625,7 @@ static SIMPLE_DEV_PM_OPS(bdc_pm_ops, bdc_suspend,
 		bdc_resume);
 
 static const struct of_device_id bdc_of_match[] = {
-	{ .compatible = "brcm,bdc-v0.16" },
+	{ .compatible = "brcm,bdc-udc-v2" },
 	{ .compatible = "brcm,bdc" },
 	{ /* sentinel */ }
 };
