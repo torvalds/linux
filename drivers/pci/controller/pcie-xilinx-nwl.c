@@ -166,7 +166,6 @@ struct nwl_pcie {
 	int irq_misc;
 	u32 ecam_value;
 	u8 last_busno;
-	u8 root_busno;
 	struct nwl_msi msi;
 	struct irq_domain *legacy_irq_domain;
 	raw_spinlock_t leg_mask_lock;
@@ -217,13 +216,11 @@ static bool nwl_pcie_valid_device(struct pci_bus *bus, unsigned int devfn)
 	struct nwl_pcie *pcie = bus->sysdata;
 
 	/* Check link before accessing downstream ports */
-	if (bus->number != pcie->root_busno) {
+	if (!pci_is_root_bus(bus)) {
 		if (!nwl_pcie_link_up(pcie))
 			return false;
-	}
-
-	/* Only one device down on each root port */
-	if (bus->number == pcie->root_busno && devfn > 0)
+	} else if (devfn > 0)
+		/* Only one device down on each root port */
 		return false;
 
 	return true;
@@ -855,7 +852,6 @@ static int nwl_pcie_probe(struct platform_device *pdev)
 	}
 
 	bridge->sysdata = pcie;
-	bridge->busnr = pcie->root_busno;
 	bridge->ops = &nwl_pcie_ops;
 	bridge->map_irq = of_irq_parse_and_map_pci;
 	bridge->swizzle_irq = pci_common_swizzle;
