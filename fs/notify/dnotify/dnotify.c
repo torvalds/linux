@@ -70,14 +70,19 @@ static void dnotify_recalc_inode_mask(struct fsnotify_mark *fsn_mark)
  * destroy the dnotify struct if it was not registered to receive multiple
  * events.
  */
-static void dnotify_one_event(struct fsnotify_group *group, u32 mask,
-			      struct fsnotify_mark *inode_mark)
+static int dnotify_handle_event(struct fsnotify_mark *inode_mark, u32 mask,
+				struct inode *inode, struct inode *dir,
+				const struct qstr *name)
 {
 	struct dnotify_mark *dn_mark;
 	struct dnotify_struct *dn;
 	struct dnotify_struct **prev;
 	struct fown_struct *fown;
 	__u32 test_mask = mask & ~FS_EVENT_ON_CHILD;
+
+	/* not a dir, dnotify doesn't care */
+	if (!dir && !(mask & FS_ISDIR))
+		return 0;
 
 	dn_mark = container_of(inode_mark, struct dnotify_mark, fsn_mark);
 
@@ -100,33 +105,6 @@ static void dnotify_one_event(struct fsnotify_group *group, u32 mask,
 	}
 
 	spin_unlock(&inode_mark->lock);
-}
-
-static int dnotify_handle_event(struct fsnotify_group *group, u32 mask,
-				const void *data, int data_type,
-				struct inode *dir,
-				const struct qstr *file_name, u32 cookie,
-				struct fsnotify_iter_info *iter_info)
-{
-	struct fsnotify_mark *inode_mark = fsnotify_iter_inode_mark(iter_info);
-	struct fsnotify_mark *child_mark = fsnotify_iter_child_mark(iter_info);
-
-	/* not a dir, dnotify doesn't care */
-	if (!dir && !(mask & FS_ISDIR))
-		return 0;
-
-	if (WARN_ON(fsnotify_iter_vfsmount_mark(iter_info)))
-		return 0;
-
-	/*
-	 * Some events can be sent on both parent dir and subdir marks
-	 * (e.g. DN_ATTRIB).  If both parent dir and subdir are watching,
-	 * report the event once to parent dir and once to subdir.
-	 */
-	if (inode_mark)
-		dnotify_one_event(group, mask, inode_mark);
-	if (child_mark)
-		dnotify_one_event(group, mask, child_mark);
 
 	return 0;
 }
@@ -143,7 +121,7 @@ static void dnotify_free_mark(struct fsnotify_mark *fsn_mark)
 }
 
 static const struct fsnotify_ops dnotify_fsnotify_ops = {
-	.handle_event = dnotify_handle_event,
+	.handle_inode_event = dnotify_handle_event,
 	.free_mark = dnotify_free_mark,
 };
 

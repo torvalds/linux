@@ -230,6 +230,49 @@ notify:
 }
 EXPORT_SYMBOL_GPL(__fsnotify_parent);
 
+static int fsnotify_handle_event(struct fsnotify_group *group, __u32 mask,
+				 const void *data, int data_type,
+				 struct inode *dir, const struct qstr *name,
+				 u32 cookie, struct fsnotify_iter_info *iter_info)
+{
+	struct fsnotify_mark *inode_mark = fsnotify_iter_inode_mark(iter_info);
+	struct fsnotify_mark *child_mark = fsnotify_iter_child_mark(iter_info);
+	struct inode *inode = fsnotify_data_inode(data, data_type);
+	const struct fsnotify_ops *ops = group->ops;
+	int ret;
+
+	if (WARN_ON_ONCE(!ops->handle_inode_event))
+		return 0;
+
+	if (WARN_ON_ONCE(fsnotify_iter_sb_mark(iter_info)) ||
+	    WARN_ON_ONCE(fsnotify_iter_vfsmount_mark(iter_info)))
+		return 0;
+
+	/*
+	 * An event can be sent on child mark iterator instead of inode mark
+	 * iterator because of other groups that have interest of this inode
+	 * and have marks on both parent and child.  We can simplify this case.
+	 */
+	if (!inode_mark) {
+		inode_mark = child_mark;
+		child_mark = NULL;
+		dir = NULL;
+		name = NULL;
+	}
+
+	ret = ops->handle_inode_event(inode_mark, mask, inode, dir, name);
+	if (ret || !child_mark)
+		return ret;
+
+	/*
+	 * Some events can be sent on both parent dir and child marks
+	 * (e.g. FS_ATTRIB).  If both parent dir and child are watching,
+	 * report the event once to parent dir with name and once to child
+	 * without name.
+	 */
+	return ops->handle_inode_event(child_mark, mask, inode, NULL, NULL);
+}
+
 static int send_to_group(__u32 mask, const void *data, int data_type,
 			 struct inode *dir, const struct qstr *file_name,
 			 u32 cookie, struct fsnotify_iter_info *iter_info)
@@ -275,8 +318,13 @@ static int send_to_group(__u32 mask, const void *data, int data_type,
 	if (!(test_mask & marks_mask & ~marks_ignored_mask))
 		return 0;
 
-	return group->ops->handle_event(group, mask, data, data_type, dir,
-					file_name, cookie, iter_info);
+	if (group->ops->handle_event) {
+		return group->ops->handle_event(group, mask, data, data_type, dir,
+						file_name, cookie, iter_info);
+	}
+
+	return fsnotify_handle_event(group, mask, data, data_type, dir,
+				     file_name, cookie, iter_info);
 }
 
 static struct fsnotify_mark *fsnotify_first_mark(struct fsnotify_mark_connector **connp)

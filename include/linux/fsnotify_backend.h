@@ -128,17 +128,30 @@ struct mem_cgroup;
  * @cookie:	inotify rename cookie
  * @iter_info:	array of marks from this group that are interested in the event
  *
+ * handle_inode_event - simple variant of handle_event() for groups that only
+ *		have inode marks and don't have ignore mask
+ * @mark:	mark to notify
+ * @mask:	event type and flags
+ * @inode:	inode that event happened on
+ * @dir:	optional directory associated with event -
+ *		if @file_name is not NULL, this is the directory that
+ *		@file_name is relative to.
+ * @file_name:	optional file name associated with event
+ *
  * free_group_priv - called when a group refcnt hits 0 to clean up the private union
  * freeing_mark - called when a mark is being destroyed for some reason.  The group
- * 		MUST be holding a reference on each mark and that reference must be
- * 		dropped in this function.  inotify uses this function to send
- * 		userspace messages that marks have been removed.
+ *		MUST be holding a reference on each mark and that reference must be
+ *		dropped in this function.  inotify uses this function to send
+ *		userspace messages that marks have been removed.
  */
 struct fsnotify_ops {
 	int (*handle_event)(struct fsnotify_group *group, u32 mask,
 			    const void *data, int data_type, struct inode *dir,
 			    const struct qstr *file_name, u32 cookie,
 			    struct fsnotify_iter_info *iter_info);
+	int (*handle_inode_event)(struct fsnotify_mark *mark, u32 mask,
+			    struct inode *inode, struct inode *dir,
+			    const struct qstr *file_name);
 	void (*free_group_priv)(struct fsnotify_group *group);
 	void (*freeing_mark)(struct fsnotify_mark *mark, struct fsnotify_group *group);
 	void (*free_event)(struct fsnotify_event *event);

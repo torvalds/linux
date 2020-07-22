@@ -598,14 +598,10 @@ static struct notifier_block nfsd_file_lease_notifier = {
 };
 
 static int
-nfsd_file_fsnotify_handle_event(struct fsnotify_group *group, u32 mask,
-				const void *data, int data_type,
-				struct inode *dir,
-				const struct qstr *file_name, u32 cookie,
-				struct fsnotify_iter_info *iter_info)
+nfsd_file_fsnotify_handle_event(struct fsnotify_mark *mark, u32 mask,
+				struct inode *inode, struct inode *dir,
+				const struct qstr *name)
 {
-	struct inode *inode = fsnotify_data_inode(data, data_type);
-
 	trace_nfsd_file_fsnotify_handle_event(inode, mask);
 
 	/* Should be no marks on non-regular files */
@@ -626,7 +622,7 @@ nfsd_file_fsnotify_handle_event(struct fsnotify_group *group, u32 mask,
 
 
 static const struct fsnotify_ops nfsd_file_fsnotify_ops = {
-	.handle_event = nfsd_file_fsnotify_handle_event,
+	.handle_inode_event = nfsd_file_fsnotify_handle_event,
 	.free_mark = nfsd_file_mark_free,
 };
 
