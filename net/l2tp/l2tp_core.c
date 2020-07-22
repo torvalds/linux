@@ -1122,8 +1122,8 @@ int l2tp_xmit_skb(struct l2tp_session *session, struct sk_buff *skb, int hdr_len
 				      &sk->sk_v6_daddr, udp_len);
 		else
 #endif
-		udp_set_csum(sk->sk_no_check_tx, skb, inet->inet_saddr,
-			     inet->inet_daddr, udp_len);
+			udp_set_csum(sk->sk_no_check_tx, skb, inet->inet_saddr,
+				     inet->inet_daddr, udp_len);
 		break;
 
 	case L2TP_ENCAPTYPE_IP:
