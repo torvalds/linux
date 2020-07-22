@@ -35,8 +35,8 @@ Command Line Switches
   other CPUs later online.
 
 ``nr_cpus=n``
-  Restrict the total amount CPUs the kernel will support. If the number
-  supplied here is lower than the number of physically available CPUs than
+  Restrict the total amount of CPUs the kernel will support. If the number
+  supplied here is lower than the number of physically available CPUs, then
   those CPUs can not be brought online later.
 
 ``additional_cpus=n``
