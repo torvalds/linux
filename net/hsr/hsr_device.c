@@ -230,7 +230,7 @@ static const struct header_ops hsr_header_ops = {
 	.parse	 = eth_header_parse,
 };
 
-static struct sk_buff *hsr_init_skb(struct hsr_port *master, u8 hsr_ver)
+static struct sk_buff *hsr_init_skb(struct hsr_port *master, u16 proto)
 {
 	struct hsr_priv *hsr = master->hsr;
 	struct sk_buff *skb;
@@ -247,10 +247,10 @@ static struct sk_buff *hsr_init_skb(struct hsr_port *master, u8 hsr_ver)
 
 	skb_reserve(skb, hlen);
 	skb->dev = master->dev;
-	skb->protocol = htons(hsr_ver ? ETH_P_HSR : ETH_P_PRP);
+	skb->protocol = htons(proto);
 	skb->priority = TC_PRIO_CONTROL;
 
-	if (dev_hard_header(skb, skb->dev, (hsr_ver ? ETH_P_HSR : ETH_P_PRP),
+	if (dev_hard_header(skb, skb->dev, proto,
 			    hsr->sup_multicast_addr,
 			    skb->dev->dev_addr, skb->len) <= 0)
 		goto out;
@@ -267,47 +267,62 @@ out:
 }
 
 static void send_hsr_supervision_frame(struct hsr_port *master,
-				       u8 type, u8 hsr_ver)
+				       unsigned long *interval)
 {
+	struct hsr_priv *hsr = master->hsr;
+	__u8 type = HSR_TLV_LIFE_CHECK;
+	struct hsr_tag *hsr_tag = NULL;
 	struct hsr_sup_payload *hsr_sp;
 	struct hsr_sup_tag *hsr_stag;
-	struct hsr_tag *hsr_tag;
 	unsigned long irqflags;
 	struct sk_buff *skb;
+	u16 proto;
 
-	skb = hsr_init_skb(master, hsr_ver);
+	*interval = msecs_to_jiffies(HSR_LIFE_CHECK_INTERVAL);
+	if (hsr->announce_count < 3 && hsr->prot_version == 0) {
+		type = HSR_TLV_ANNOUNCE;
+		*interval = msecs_to_jiffies(HSR_ANNOUNCE_INTERVAL);
+		hsr->announce_count++;
+	}
+
+	if (!hsr->prot_version)
+		proto = ETH_P_PRP;
+	else
+		proto = ETH_P_HSR;
+
+	skb = hsr_init_skb(master, proto);
 	if (!skb) {
 		WARN_ONCE(1, "HSR: Could not send supervision frame\n");
 		return;
 	}
 
-	if (hsr_ver > 0) {
+	if (hsr->prot_version > 0) {
 		hsr_tag = skb_put(skb, sizeof(struct hsr_tag));
 		hsr_tag->encap_proto = htons(ETH_P_PRP);
 		set_hsr_tag_LSDU_size(hsr_tag, HSR_V1_SUP_LSDUSIZE);
 	}
 
 	hsr_stag = skb_put(skb, sizeof(struct hsr_sup_tag));
-	set_hsr_stag_path(hsr_stag, (hsr_ver ? 0x0 : 0xf));
-	set_hsr_stag_HSR_ver(hsr_stag, hsr_ver);
+	set_hsr_stag_path(hsr_stag, (hsr->prot_version ? 0x0 : 0xf));
+	set_hsr_stag_HSR_ver(hsr_stag, hsr->prot_version);
 
 	/* From HSRv1 on we have separate supervision sequence numbers. */
 	spin_lock_irqsave(&master->hsr->seqnr_lock, irqflags);
-	if (hsr_ver > 0) {
-		hsr_stag->sequence_nr = htons(master->hsr->sup_sequence_nr);
-		hsr_tag->sequence_nr = htons(master->hsr->sequence_nr);
-		master->hsr->sup_sequence_nr++;
-		master->hsr->sequence_nr++;
+	if (hsr->prot_version > 0) {
+		hsr_stag->sequence_nr = htons(hsr->sup_sequence_nr);
+		hsr->sup_sequence_nr++;
+		hsr_tag->sequence_nr = htons(hsr->sequence_nr);
+		hsr->sequence_nr++;
 	} else {
-		hsr_stag->sequence_nr = htons(master->hsr->sequence_nr);
-		master->hsr->sequence_nr++;
+		hsr_stag->sequence_nr = htons(hsr->sequence_nr);
+		hsr->sequence_nr++;
 	}
 	spin_unlock_irqrestore(&master->hsr->seqnr_lock, irqflags);
 
 	hsr_stag->HSR_TLV_type = type;
 	/* TODO: Why 12 in HSRv0? */
-	hsr_stag->HSR_TLV_length =
-				hsr_ver ? sizeof(struct hsr_sup_payload) : 12;
+	hsr_stag->HSR_TLV_length = hsr->prot_version ?
+				sizeof(struct hsr_sup_payload) : 12;
 
 	/* Payload: MacAddressA */
 	hsr_sp = skb_put(skb, sizeof(struct hsr_sup_payload));
@@ -333,19 +348,7 @@ static void hsr_announce(struct timer_list *t)
 
 	rcu_read_lock();
 	master = hsr_port_get_hsr(hsr, HSR_PT_MASTER);
-
-	if (hsr->announce_count < 3 && hsr->prot_version == 0) {
-		send_hsr_supervision_frame(master, HSR_TLV_ANNOUNCE,
-					   hsr->prot_version);
-		hsr->announce_count++;
-
-		interval = msecs_to_jiffies(HSR_ANNOUNCE_INTERVAL);
-	} else {
-		send_hsr_supervision_frame(master, HSR_TLV_LIFE_CHECK,
-					   hsr->prot_version);
-
-		interval = msecs_to_jiffies(HSR_LIFE_CHECK_INTERVAL);
-	}
+	hsr->proto_ops->send_sv_frame(master, &interval);
 
 	if (is_admin_up(master->dev))
 		mod_timer(&hsr->announce_timer, jiffies + interval);
@@ -380,6 +383,10 @@ static const struct net_device_ops hsr_device_ops = {
 
 static struct device_type hsr_type = {
 	.name = "hsr",
+};
+
+static struct hsr_proto_ops hsr_ops = {
+	.send_sv_frame = send_hsr_supervision_frame,
 };
 
 void hsr_dev_setup(struct net_device *dev)
@@ -445,6 +452,7 @@ int hsr_dev_finalize(struct net_device *hsr_dev, struct net_device *slave[2],
 	if (protocol_version == PRP_V1)
 		return -EPROTONOSUPPORT;
 
+	hsr->proto_ops = &hsr_ops;
 	/* Make sure we recognize frames from ourselves in hsr_rcv() */
 	res = hsr_create_self_node(hsr, hsr_dev->dev_addr,
 				   slave[1]->dev_addr);
