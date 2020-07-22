@@ -511,8 +511,8 @@ const struct atomisp_format_bridge atomisp_output_fmts[] = {
 #endif
 };
 
-const struct atomisp_format_bridge *atomisp_get_format_bridge(
-    unsigned int pixelformat)
+const struct atomisp_format_bridge *
+atomisp_get_format_bridge(unsigned int pixelformat)
 {
 	unsigned int i;
 
@@ -524,8 +524,8 @@ const struct atomisp_format_bridge *atomisp_get_format_bridge(
 	return NULL;
 }
 
-const struct atomisp_format_bridge *atomisp_get_format_bridge_from_mbus(
-    u32 mbus_code)
+const struct atomisp_format_bridge *
+atomisp_get_format_bridge_from_mbus(u32 mbus_code)
 {
 	unsigned int i;
 
@@ -605,8 +605,8 @@ static int atomisp_enum_input(struct file *file, void *fh,
 	return 0;
 }
 
-static unsigned int atomisp_subdev_streaming_count(
-    struct atomisp_sub_device *asd)
+static unsigned int
+atomisp_subdev_streaming_count(struct atomisp_sub_device *asd)
 {
 	return asd->video_out_preview.capq.streaming
 	       + asd->video_out_capture.capq.streaming
