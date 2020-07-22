@@ -455,6 +455,7 @@ struct qede_fastpath {
 	u8				id;
 
 	u8				xdp_xmit;
+#define QEDE_XDP_TX			BIT(0)
 
 	struct napi_struct		napi;
 	struct qed_sb_info		*sb_info;

@@ -302,47 +302,36 @@ static inline void qede_update_tx_producer(struct qede_tx_queue *txq)
 	wmb();
 }
 
-static int qede_xdp_xmit(struct qede_dev *edev, struct qede_fastpath *fp,
-			 struct sw_rx_data *metadata, u16 padding, u16 length)
+static int qede_xdp_xmit(struct qede_tx_queue *txq, dma_addr_t dma, u16 pad,
+			 u16 len, struct page *page)
 {
-	struct qede_tx_queue *txq = fp->xdp_tx;
-	struct eth_tx_1st_bd *first_bd;
-	u16 idx = txq->sw_tx_prod;
+	struct eth_tx_1st_bd *bd;
+	struct sw_tx_xdp *xdp;
 	u16 val;
 
-	if (!qed_chain_get_elem_left(&txq->tx_pbl)) {
+	if (unlikely(qed_chain_get_elem_used(&txq->tx_pbl) >=
+		     txq->num_tx_buffers)) {
 		txq->stopped_cnt++;
 		return -ENOMEM;
 	}
 
-	first_bd = (struct eth_tx_1st_bd *)qed_chain_produce(&txq->tx_pbl);
+	bd = qed_chain_produce(&txq->tx_pbl);
+	bd->data.nbds = 1;
+	bd->data.bd_flags.bitfields = BIT(ETH_TX_1ST_BD_FLAGS_START_BD_SHIFT);
 
-	memset(first_bd, 0, sizeof(*first_bd));
-	first_bd->data.bd_flags.bitfields =
-	    BIT(ETH_TX_1ST_BD_FLAGS_START_BD_SHIFT);
-
-	val = (length & ETH_TX_DATA_1ST_BD_PKT_LEN_MASK) <<
+	val = (len & ETH_TX_DATA_1ST_BD_PKT_LEN_MASK) <<
 	       ETH_TX_DATA_1ST_BD_PKT_LEN_SHIFT;
 
-	first_bd->data.bitfields |= cpu_to_le16(val);
-	first_bd->data.nbds = 1;
+	bd->data.bitfields = cpu_to_le16(val);
 
 	/* We can safely ignore the offset, as it's 0 for XDP */
-	BD_SET_UNMAP_ADDR_LEN(first_bd, metadata->mapping + padding, length);
+	BD_SET_UNMAP_ADDR_LEN(bd, dma + pad, len);
 
-	/* Synchronize the buffer back to device, as program [probably]
-	 * has changed it.
-	 */
-	dma_sync_single_for_device(&edev->pdev->dev,
-				   metadata->mapping + padding,
-				   length, PCI_DMA_TODEVICE);
+	xdp = txq->sw_tx_ring.xdp + txq->sw_tx_prod;
+	xdp->mapping = dma;
+	xdp->page = page;
 
-	txq->sw_tx_ring.xdp[idx].page = metadata->data;
-	txq->sw_tx_ring.xdp[idx].mapping = metadata->mapping;
 	txq->sw_tx_prod = (txq->sw_tx_prod + 1) % txq->num_tx_buffers;
-
-	/* Mark the fastpath for future XDP doorbell */
-	fp->xdp_xmit = 1;
 
 	return 0;
 }
@@ -362,20 +351,21 @@ int qede_txq_has_work(struct qede_tx_queue *txq)
 
 static void qede_xdp_tx_int(struct qede_dev *edev, struct qede_tx_queue *txq)
 {
-	u16 hw_bd_cons, idx;
+	struct sw_tx_xdp *xdp_info, *xdp_arr = txq->sw_tx_ring.xdp;
+	struct device *dev = &edev->pdev->dev;
+	u16 hw_bd_cons;
 
 	hw_bd_cons = le16_to_cpu(*txq->hw_cons_ptr);
 	barrier();
 
 	while (hw_bd_cons != qed_chain_get_cons_idx(&txq->tx_pbl)) {
+		xdp_info = xdp_arr + txq->sw_tx_cons;
+
+		dma_unmap_page(dev, xdp_info->mapping, PAGE_SIZE,
+			       DMA_BIDIRECTIONAL);
+		__free_page(xdp_info->page);
+
 		qed_chain_consume(&txq->tx_pbl);
-		idx = txq->sw_tx_cons;
-
-		dma_unmap_page(&edev->pdev->dev,
-			       txq->sw_tx_ring.xdp[idx].mapping,
-			       PAGE_SIZE, DMA_BIDIRECTIONAL);
-		__free_page(txq->sw_tx_ring.xdp[idx].page);
-
 		txq->sw_tx_cons = (txq->sw_tx_cons + 1) % txq->num_tx_buffers;
 		txq->xmit_pkts++;
 	}
@@ -1064,32 +1054,39 @@ static bool qede_rx_xdp(struct qede_dev *edev,
 	switch (act) {
 	case XDP_TX:
 		/* We need the replacement buffer before transmit. */
-		if (qede_alloc_rx_buffer(rxq, true)) {
+		if (unlikely(qede_alloc_rx_buffer(rxq, true))) {
 			qede_recycle_rx_bd_ring(rxq, 1);
+
 			trace_xdp_exception(edev->ndev, prog, act);
-			return false;
+			break;
 		}
 
 		/* Now if there's a transmission problem, we'd still have to
 		 * throw current buffer, as replacement was already allocated.
 		 */
-		if (qede_xdp_xmit(edev, fp, bd, *data_offset, *len)) {
-			dma_unmap_page(rxq->dev, bd->mapping,
-				       PAGE_SIZE, DMA_BIDIRECTIONAL);
+		if (unlikely(qede_xdp_xmit(fp->xdp_tx, bd->mapping,
+					   *data_offset, *len, bd->data))) {
+			dma_unmap_page(rxq->dev, bd->mapping, PAGE_SIZE,
+				       rxq->data_direction);
 			__free_page(bd->data);
+
 			trace_xdp_exception(edev->ndev, prog, act);
+		} else {
+			dma_sync_single_for_device(rxq->dev,
+						   bd->mapping + *data_offset,
+						   *len, rxq->data_direction);
+			fp->xdp_xmit |= QEDE_XDP_TX;
 		}
 
 		/* Regardless, we've consumed an Rx BD */
 		qede_rx_bd_ring_consume(rxq);
-		return false;
-
+		break;
 	default:
 		bpf_warn_invalid_xdp_action(act);
-		/* Fall through */
+		fallthrough;
 	case XDP_ABORTED:
 		trace_xdp_exception(edev->ndev, prog, act);
-		/* Fall through */
+		fallthrough;
 	case XDP_DROP:
 		qede_recycle_rx_bd_ring(rxq, cqe->bd_num);
 	}
@@ -1353,6 +1350,9 @@ int qede_poll(struct napi_struct *napi, int budget)
 						napi);
 	struct qede_dev *edev = fp->edev;
 	int rx_work_done = 0;
+	u16 xdp_prod;
+
+	fp->xdp_xmit = 0;
 
 	if (likely(fp->type & QEDE_FASTPATH_TX)) {
 		int cos;
@@ -1380,10 +1380,9 @@ int qede_poll(struct napi_struct *napi, int budget)
 		}
 	}
 
-	if (fp->xdp_xmit) {
-		u16 xdp_prod = qed_chain_get_prod_idx(&fp->xdp_tx->tx_pbl);
+	if (fp->xdp_xmit & QEDE_XDP_TX) {
+		xdp_prod = qed_chain_get_prod_idx(&fp->xdp_tx->tx_pbl);
 
-		fp->xdp_xmit = 0;
 		fp->xdp_tx->tx_db.data.bd_prod = cpu_to_le16(xdp_prod);
 		qede_update_tx_producer(fp->xdp_tx);
 	}
