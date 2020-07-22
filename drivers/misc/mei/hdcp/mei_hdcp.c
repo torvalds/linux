@@ -572,7 +572,7 @@ static int mei_hdcp_verify_mprime(struct device *dev,
 	       HDCP_2_2_MPRIME_LEN);
 	drm_hdcp_cpu_to_be24(verify_mprime_in.seq_num_m, data->seq_num_m);
 	memcpy(verify_mprime_in.streams, data->streams,
-	       (data->k * sizeof(struct hdcp2_streamid_type)));
+	       array_size(data->k, sizeof(*data->streams)));
 
 	verify_mprime_in.k = cpu_to_be16(data->k);
 
