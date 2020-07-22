@@ -828,7 +828,6 @@ int ssusb_gadget_init(struct ssusb_mtk *ssusb)
 	struct device *dev = ssusb->dev;
 	struct platform_device *pdev = to_platform_device(dev);
 	struct mtu3 *mtu = NULL;
-	struct resource *res;
 	int ret = -ENOMEM;
 
 	mtu = devm_kzalloc(dev, sizeof(struct mtu3), GFP_KERNEL);
@@ -840,8 +839,7 @@ int ssusb_gadget_init(struct ssusb_mtk *ssusb)
 		return mtu->irq;
 	dev_info(dev, "irq %d\n", mtu->irq);
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "mac");
-	mtu->mac_base = devm_ioremap_resource(dev, res);
+	mtu->mac_base = devm_platform_ioremap_resource_byname(pdev, "mac");
 	if (IS_ERR(mtu->mac_base)) {
 		dev_err(dev, "error mapping memory for dev mac\n");
 		return PTR_ERR(mtu->mac_base);
