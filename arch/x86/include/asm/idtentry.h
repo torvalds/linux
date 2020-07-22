@@ -6,11 +6,14 @@
 #include <asm/trapnr.h>
 
 #ifndef __ASSEMBLY__
+#include <linux/entry-common.h>
 #include <linux/hardirq.h>
 
 #include <asm/irq_stack.h>
 
-void idtentry_enter_user(struct pt_regs *regs);
+/* Temporary define */
+#define idtentry_enter_user	irqentry_enter_from_user_mode
+
 void idtentry_exit_user(struct pt_regs *regs);
 
 typedef struct idtentry_state {
