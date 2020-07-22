@@ -54,8 +54,14 @@ struct clk_master_characteristics {
 
 struct clk_pll_layout {
 	u32 pllr_mask;
-	u16 mul_mask;
+	u32 mul_mask;
+	u32 frac_mask;
+	u32 div_mask;
+	u32 endiv_mask;
 	u8 mul_shift;
+	u8 frac_shift;
+	u8 div_shift;
+	u8 endiv_shift;
 };
 
 extern const struct clk_pll_layout at91rm9200_pll_layout;
@@ -181,9 +187,17 @@ at91_clk_register_plldiv(struct regmap *regmap, const char *name,
 			 const char *parent_name);
 
 struct clk_hw * __init
-sam9x60_clk_register_pll(struct regmap *regmap, spinlock_t *lock,
-			 const char *name, const char *parent_name, u8 id,
-			 const struct clk_pll_characteristics *characteristics);
+sam9x60_clk_register_div_pll(struct regmap *regmap, spinlock_t *lock,
+			     const char *name, const char *parent_name, u8 id,
+			     const struct clk_pll_characteristics *characteristics,
+			     const struct clk_pll_layout *layout, bool critical);
+
+struct clk_hw * __init
+sam9x60_clk_register_frac_pll(struct regmap *regmap, spinlock_t *lock,
+			      const char *name, const char *parent_name,
+			      struct clk_hw *parent_hw, u8 id,
+			      const struct clk_pll_characteristics *characteristics,
+			      const struct clk_pll_layout *layout, bool critical);
 
 struct clk_hw * __init
 at91_clk_register_programmable(struct regmap *regmap, const char *name,
