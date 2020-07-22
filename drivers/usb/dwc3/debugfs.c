@@ -428,6 +428,9 @@ static ssize_t dwc3_mode_write(struct file *file,
 	if (copy_from_user(&buf, ubuf, min_t(size_t, sizeof(buf) - 1, count)))
 		return -EFAULT;
 
+	if (dwc->dr_mode != USB_DR_MODE_OTG)
+		return count;
+
 	if (!strncmp(buf, "host", 4))
 		mode = DWC3_GCTL_PRTCAP_HOST;
 
