@@ -4430,7 +4430,7 @@ static int ipw2100_tx_allocate(struct ipw2100_priv *priv)
 
 	priv->tx_buffers = kmalloc_array(TX_PENDED_QUEUE_LENGTH,
 					 sizeof(struct ipw2100_tx_packet),
-					 GFP_ATOMIC);
+					 GFP_KERNEL);
 	if (!priv->tx_buffers) {
 		bd_queue_free(priv, &priv->tx_queue);
 		return -ENOMEM;
