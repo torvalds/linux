@@ -2,6 +2,12 @@
 #ifndef _ASM_X86_ENTRY_COMMON_H
 #define _ASM_X86_ENTRY_COMMON_H
 
+#include <linux/user-return-notifier.h>
+
+#include <asm/nospec-branch.h>
+#include <asm/io_bitmap.h>
+#include <asm/fpu/api.h>
+
 /* Check that the stack and regs on entry from user mode are sane. */
 static __always_inline void arch_check_user_regs(struct pt_regs *regs)
 {
@@ -28,5 +34,43 @@ static __always_inline void arch_check_user_regs(struct pt_regs *regs)
 	}
 }
 #define arch_check_user_regs arch_check_user_regs
+
+#define ARCH_SYSCALL_EXIT_WORK		(_TIF_SINGLESTEP)
+
+static inline void arch_exit_to_user_mode_prepare(struct pt_regs *regs,
+						  unsigned long ti_work)
+{
+	if (ti_work & _TIF_USER_RETURN_NOTIFY)
+		fire_user_return_notifiers();
+
+	if (unlikely(ti_work & _TIF_IO_BITMAP))
+		tss_update_io_bitmap();
+
+	fpregs_assert_state_consistent();
+	if (unlikely(ti_work & _TIF_NEED_FPU_LOAD))
+		switch_fpu_return();
+
+#ifdef CONFIG_COMPAT
+	/*
+	 * Compat syscalls set TS_COMPAT.  Make sure we clear it before
+	 * returning to user mode.  We need to clear it *after* signal
+	 * handling, because syscall restart has a fixup for compat
+	 * syscalls.  The fixup is exercised by the ptrace_syscall_32
+	 * selftest.
+	 *
+	 * We also need to clear TS_REGS_POKED_I386: the 32-bit tracer
+	 * special case only applies after poking regs and before the
+	 * very next return to user mode.
+	 */
+	current_thread_info()->status &= ~(TS_COMPAT | TS_I386_REGS_POKED);
+#endif
+}
+#define arch_exit_to_user_mode_prepare arch_exit_to_user_mode_prepare
+
+static __always_inline void arch_exit_to_user_mode(void)
+{
+	mds_user_clear_cpu_buffers();
+}
+#define arch_exit_to_user_mode arch_exit_to_user_mode
 
 #endif

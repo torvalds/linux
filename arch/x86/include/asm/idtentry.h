@@ -13,8 +13,7 @@
 
 /* Temporary define */
 #define idtentry_enter_user	irqentry_enter_from_user_mode
-
-void idtentry_exit_user(struct pt_regs *regs);
+#define idtentry_exit_user	irqentry_exit_to_user_mode
 
 typedef struct idtentry_state {
 	bool exit_rcu;
