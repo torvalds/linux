@@ -104,16 +104,14 @@ static int cdns_pcie_host_init_root_port(struct cdns_pcie_rc *rc)
 static int cdns_pcie_host_init_address_translation(struct cdns_pcie_rc *rc)
 {
 	struct cdns_pcie *pcie = &rc->pcie;
+	struct pci_host_bridge *bridge = pci_host_bridge_from_priv(rc);
 	struct resource *mem_res = pcie->mem_res;
 	struct resource *bus_range = rc->bus_range;
 	struct resource *cfg_res = rc->cfg_res;
-	struct device *dev = pcie->dev;
-	struct device_node *np = dev->of_node;
-	struct of_pci_range_parser parser;
-	struct of_pci_range range;
+	struct resource_entry *entry;
 	u32 addr0, addr1, desc1;
 	u64 cpu_addr;
-	int r, err;
+	int r;
 
 	/*
 	 * Reserve region 0 for PCI configure space accesses:
@@ -132,25 +130,22 @@ static int cdns_pcie_host_init_address_translation(struct cdns_pcie_rc *rc)
 	cdns_pcie_writel(pcie, CDNS_PCIE_AT_OB_REGION_CPU_ADDR0(0), addr0);
 	cdns_pcie_writel(pcie, CDNS_PCIE_AT_OB_REGION_CPU_ADDR1(0), addr1);
 
-	err = of_pci_range_parser_init(&parser, np);
-	if (err)
-		return err;
-
 	r = 1;
-	for_each_of_pci_range(&parser, &range) {
-		bool is_io;
+	resource_list_for_each_entry(entry, &bridge->windows) {
+		struct resource *res = entry->res;
+		u64 pci_addr = res->start - entry->offset;
 
-		if ((range.flags & IORESOURCE_TYPE_BITS) == IORESOURCE_MEM)
-			is_io = false;
-		else if ((range.flags & IORESOURCE_TYPE_BITS) == IORESOURCE_IO)
-			is_io = true;
+		if (resource_type(res) == IORESOURCE_IO)
+			cdns_pcie_set_outbound_region(pcie, 0, r, true,
+						      pci_pio_to_address(res->start),
+						      pci_addr,
+						      resource_size(res));
 		else
-			continue;
+			cdns_pcie_set_outbound_region(pcie, 0, r, false,
+						      res->start,
+						      pci_addr,
+						      resource_size(res));
 
-		cdns_pcie_set_outbound_region(pcie, 0, r, is_io,
-					      range.cpu_addr,
-					      range.pci_addr,
-					      range.size);
 		r++;
 	}
 
