@@ -412,6 +412,7 @@ static ssize_t notrace stm_generic_packet(struct stm_data *stm_data,
 	void __iomem *ch_addr;
 	struct stm_drvdata *drvdata = container_of(stm_data,
 						   struct stm_drvdata, stm);
+	unsigned int stm_flags;
 
 	if (!(drvdata && local_read(&drvdata->mode)))
 		return -EACCES;
@@ -421,8 +422,9 @@ static ssize_t notrace stm_generic_packet(struct stm_data *stm_data,
 
 	ch_addr = stm_channel_addr(drvdata, channel);
 
-	flags = (flags == STP_PACKET_TIMESTAMPED) ? STM_FLAG_TIMESTAMPED : 0;
-	flags |= test_bit(channel, drvdata->chs.guaranteed) ?
+	stm_flags = (flags & STP_PACKET_TIMESTAMPED) ?
+			STM_FLAG_TIMESTAMPED : 0;
+	stm_flags |= test_bit(channel, drvdata->chs.guaranteed) ?
 			   STM_FLAG_GUARANTEED : 0;
 
 	if (size > drvdata->write_bytes)
@@ -432,7 +434,7 @@ static ssize_t notrace stm_generic_packet(struct stm_data *stm_data,
 
 	switch (packet) {
 	case STP_PACKET_FLAG:
-		ch_addr += stm_channel_off(STM_PKT_TYPE_FLAG, flags);
+		ch_addr += stm_channel_off(STM_PKT_TYPE_FLAG, stm_flags);
 
 		/*
 		 * The generic STM core sets a size of '0' on flag packets.
@@ -444,7 +446,8 @@ static ssize_t notrace stm_generic_packet(struct stm_data *stm_data,
 		break;
 
 	case STP_PACKET_DATA:
-		ch_addr += stm_channel_off(STM_PKT_TYPE_DATA, flags);
+		stm_flags |= (flags & STP_PACKET_MARKED) ? STM_FLAG_MARKED : 0;
+		ch_addr += stm_channel_off(STM_PKT_TYPE_DATA, stm_flags);
 		stm_send(ch_addr, payload, size,
 				drvdata->write_bytes);
 		break;
