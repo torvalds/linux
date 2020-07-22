@@ -214,6 +214,7 @@ struct xilinx_dpdma_tx_desc {
  * @lock: lock to access struct xilinx_dpdma_chan
  * @desc_pool: descriptor allocation pool
  * @err_task: error IRQ bottom half handler
+ * @desc: References to descriptors being processed
  * @desc.pending: Descriptor schedule to the hardware, pending execution
  * @desc.active: Descriptor being executed by the hardware
  * @xdev: DPDMA device
