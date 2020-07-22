@@ -230,15 +230,11 @@ static const struct header_ops hsr_header_ops = {
 	.parse	 = eth_header_parse,
 };
 
-static void send_hsr_supervision_frame(struct hsr_port *master,
-				       u8 type, u8 hsr_ver)
+static struct sk_buff *hsr_init_skb(struct hsr_port *master, u8 hsr_ver)
 {
+	struct hsr_priv *hsr = master->hsr;
 	struct sk_buff *skb;
 	int hlen, tlen;
-	struct hsr_tag *hsr_tag;
-	struct hsr_sup_tag *hsr_stag;
-	struct hsr_sup_payload *hsr_sp;
-	unsigned long irqflags;
 
 	hlen = LL_RESERVED_SPACE(master->dev);
 	tlen = master->dev->needed_tailroom;
@@ -247,21 +243,43 @@ static void send_hsr_supervision_frame(struct hsr_port *master,
 			    sizeof(struct hsr_sup_payload) + hlen + tlen);
 
 	if (!skb)
-		return;
+		return skb;
 
 	skb_reserve(skb, hlen);
-
 	skb->dev = master->dev;
 	skb->protocol = htons(hsr_ver ? ETH_P_HSR : ETH_P_PRP);
 	skb->priority = TC_PRIO_CONTROL;
 
 	if (dev_hard_header(skb, skb->dev, (hsr_ver ? ETH_P_HSR : ETH_P_PRP),
-			    master->hsr->sup_multicast_addr,
+			    hsr->sup_multicast_addr,
 			    skb->dev->dev_addr, skb->len) <= 0)
 		goto out;
+
 	skb_reset_mac_header(skb);
 	skb_reset_network_header(skb);
 	skb_reset_transport_header(skb);
+
+	return skb;
+out:
+	kfree_skb(skb);
+
+	return NULL;
+}
+
+static void send_hsr_supervision_frame(struct hsr_port *master,
+				       u8 type, u8 hsr_ver)
+{
+	struct hsr_sup_payload *hsr_sp;
+	struct hsr_sup_tag *hsr_stag;
+	struct hsr_tag *hsr_tag;
+	unsigned long irqflags;
+	struct sk_buff *skb;
+
+	skb = hsr_init_skb(master, hsr_ver);
+	if (!skb) {
+		WARN_ONCE(1, "HSR: Could not send supervision frame\n");
+		return;
+	}
 
 	if (hsr_ver > 0) {
 		hsr_tag = skb_put(skb, sizeof(struct hsr_tag));
@@ -299,11 +317,8 @@ static void send_hsr_supervision_frame(struct hsr_port *master,
 		return;
 
 	hsr_forward_skb(skb, master);
-	return;
 
-out:
-	WARN_ONCE(1, "HSR: Could not send supervision frame\n");
-	kfree_skb(skb);
+	return;
 }
 
 /* Announce (supervision frame) timer function
