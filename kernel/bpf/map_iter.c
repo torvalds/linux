@@ -7,7 +7,7 @@
 #include <linux/btf_ids.h>
 
 struct bpf_iter_seq_map_info {
-	u32 mid;
+	u32 map_id;
 };
 
 static void *bpf_map_seq_start(struct seq_file *seq, loff_t *pos)
@@ -15,27 +15,23 @@ static void *bpf_map_seq_start(struct seq_file *seq, loff_t *pos)
 	struct bpf_iter_seq_map_info *info = seq->private;
 	struct bpf_map *map;
 
-	map = bpf_map_get_curr_or_next(&info->mid);
+	map = bpf_map_get_curr_or_next(&info->map_id);
 	if (!map)
 		return NULL;
 
-	++*pos;
+	if (*pos == 0)
+		++*pos;
 	return map;
 }
 
 static void *bpf_map_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
 	struct bpf_iter_seq_map_info *info = seq->private;
-	struct bpf_map *map;
 
 	++*pos;
-	++info->mid;
+	++info->map_id;
 	bpf_map_put((struct bpf_map *)v);
-	map = bpf_map_get_curr_or_next(&info->mid);
-	if (!map)
-		return NULL;
-
-	return map;
+	return bpf_map_get_curr_or_next(&info->map_id);
 }
 
 struct bpf_iter__bpf_map {

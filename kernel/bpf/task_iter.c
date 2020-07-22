@@ -51,7 +51,8 @@ static void *task_seq_start(struct seq_file *seq, loff_t *pos)
 	if (!task)
 		return NULL;
 
-	++*pos;
+	if (*pos == 0)
+		++*pos;
 	return task;
 }
 
@@ -210,7 +211,8 @@ static void *task_file_seq_start(struct seq_file *seq, loff_t *pos)
 		return NULL;
 	}
 
-	++*pos;
+	if (*pos == 0)
+		++*pos;
 	info->task = task;
 	info->files = files;
 
