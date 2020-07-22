@@ -493,11 +493,9 @@ static int bdc_probe(struct platform_device *pdev)
 
 	dev_dbg(dev, "%s()\n", __func__);
 
-	clk = devm_clk_get(dev, "sw_usbd");
-	if (IS_ERR(clk)) {
-		dev_info(dev, "Clock not found in Device Tree\n");
-		clk = NULL;
-	}
+	clk = devm_clk_get_optional(dev, "sw_usbd");
+	if (IS_ERR(clk))
+		return PTR_ERR(clk);
 
 	ret = clk_prepare_enable(clk);
 	if (ret) {
