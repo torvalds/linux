@@ -141,6 +141,7 @@ static struct pnv_ioda_pe *pnv_ioda_init_pe(struct pnv_phb *phb, int pe_no)
 
 	phb->ioda.pe_array[pe_no].phb = phb;
 	phb->ioda.pe_array[pe_no].pe_number = pe_no;
+	phb->ioda.pe_array[pe_no].dma_setup_done = false;
 
 	/*
 	 * Clear the PE frozen state as it might be put into frozen state
@@ -1685,6 +1686,12 @@ static int pnv_pcibios_sriov_enable(struct pci_dev *pdev, u16 num_vfs)
 }
 #endif /* CONFIG_PCI_IOV */
 
+static void pnv_pci_ioda1_setup_dma_pe(struct pnv_phb *phb,
+				       struct pnv_ioda_pe *pe);
+
+static void pnv_pci_ioda2_setup_dma_pe(struct pnv_phb *phb,
+				       struct pnv_ioda_pe *pe);
+
 static void pnv_pci_ioda_dma_dev_setup(struct pci_dev *pdev)
 {
 	struct pnv_phb *phb = pci_bus_to_pnvhb(pdev->bus);
@@ -1711,6 +1718,24 @@ static void pnv_pci_ioda_dma_dev_setup(struct pci_dev *pdev)
 			return;
 	} else {
 		pci_info(pdev, "Added to existing PE#%x\n", pe->pe_number);
+	}
+
+	/*
+	 * We assume that bridges *probably* don't need to do any DMA so we can
+	 * skip allocating a TCE table, etc unless we get a non-bridge device.
+	 */
+	if (!pe->dma_setup_done && !pci_is_bridge(pdev)) {
+		switch (phb->type) {
+		case PNV_PHB_IODA1:
+			pnv_pci_ioda1_setup_dma_pe(phb, pe);
+			break;
+		case PNV_PHB_IODA2:
+			pnv_pci_ioda2_setup_dma_pe(phb, pe);
+			break;
+		default:
+			pr_warn("%s: No DMA for PHB#%x (type %d)\n",
+				__func__, phb->hose->global_number, phb->type);
+		}
 	}
 
 	if (pdn)
@@ -2222,6 +2247,7 @@ found:
 	pe->table_group.tce32_size = tbl->it_size << tbl->it_page_shift;
 	iommu_init_table(tbl, phb->hose->node, 0, 0);
 
+	pe->dma_setup_done = true;
 	return;
  fail:
 	/* XXX Failure: Try to fallback to 64-bit only ? */
@@ -2536,9 +2562,6 @@ static void pnv_pci_ioda2_setup_dma_pe(struct pnv_phb *phb,
 {
 	int64_t rc;
 
-	if (!pnv_pci_ioda_pe_dma_weight(pe))
-		return;
-
 	/* TVE #1 is selected by PCI address bit 59 */
 	pe->tce_bypass_base = 1ull << 59;
 
@@ -2563,6 +2586,7 @@ static void pnv_pci_ioda2_setup_dma_pe(struct pnv_phb *phb,
 	iommu_register_group(&pe->table_group, phb->hose->global_number,
 			     pe->pe_number);
 #endif
+	pe->dma_setup_done = true;
 }
 
 int64_t pnv_opal_pci_msi_eoi(struct irq_chip *chip, unsigned int hw_irq)
@@ -3136,7 +3160,6 @@ static void pnv_pci_fixup_bridge_resources(struct pci_bus *bus,
 
 static void pnv_pci_configure_bus(struct pci_bus *bus)
 {
-	struct pnv_phb *phb = pci_bus_to_pnvhb(bus);
 	struct pci_dev *bridge = bus->self;
 	struct pnv_ioda_pe *pe;
 	bool all = (bridge && pci_pcie_type(bridge) == PCI_EXP_TYPE_PCI_BRIDGE);
@@ -3160,17 +3183,6 @@ static void pnv_pci_configure_bus(struct pci_bus *bus)
 		return;
 
 	pnv_ioda_setup_pe_seg(pe);
-	switch (phb->type) {
-	case PNV_PHB_IODA1:
-		pnv_pci_ioda1_setup_dma_pe(phb, pe);
-		break;
-	case PNV_PHB_IODA2:
-		pnv_pci_ioda2_setup_dma_pe(phb, pe);
-		break;
-	default:
-		pr_warn("%s: No DMA for PHB#%x (type %d)\n",
-			__func__, phb->hose->global_number, phb->type);
-	}
 }
 
 static resource_size_t pnv_pci_default_alignment(void)
@@ -3289,11 +3301,10 @@ static long pnv_pci_ioda1_unset_window(struct iommu_table_group *table_group,
 
 static void pnv_pci_ioda1_release_pe_dma(struct pnv_ioda_pe *pe)
 {
-	unsigned int weight = pnv_pci_ioda_pe_dma_weight(pe);
 	struct iommu_table *tbl = pe->table_group.tables[0];
 	int64_t rc;
 
-	if (!weight)
+	if (!pe->dma_setup_done)
 		return;
 
 	rc = pnv_pci_ioda1_unset_window(&pe->table_group, 0);
@@ -3313,10 +3324,9 @@ static void pnv_pci_ioda1_release_pe_dma(struct pnv_ioda_pe *pe)
 static void pnv_pci_ioda2_release_pe_dma(struct pnv_ioda_pe *pe)
 {
 	struct iommu_table *tbl = pe->table_group.tables[0];
-	unsigned int weight = pnv_pci_ioda_pe_dma_weight(pe);
 	int64_t rc;
 
-	if (!weight)
+	if (pe->dma_setup_done)
 		return;
 
 	rc = pnv_pci_ioda2_unset_window(&pe->table_group, 0);

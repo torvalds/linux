@@ -87,6 +87,13 @@ struct pnv_ioda_pe {
 	bool			tce_bypass_enabled;
 	uint64_t		tce_bypass_base;
 
+	/*
+	 * Used to track whether we've done DMA setup for this PE or not. We
+	 * want to defer allocating TCE tables, etc until we've added a
+	 * non-bridge device to the PE.
+	 */
+	bool			dma_setup_done;
+
 	/* MSIs. MVE index is identical for for 32 and 64 bit MSI
 	 * and -1 if not supported. (It's actually identical to the
 	 * PE number)
