@@ -7,6 +7,7 @@
 #include <linux/mount.h>
 #include <linux/namei.h>
 #include <linux/fs.h>
+#include <linux/fs_struct.h>
 #include <linux/init_syscalls.h>
 #include "internal.h"
 
@@ -36,6 +37,21 @@ int __init init_umount(const char *name, int flags)
 	if (ret)
 		return ret;
 	return path_umount(&path, flags);
+}
+
+int __init init_chdir(const char *filename)
+{
+	struct path path;
+	int error;
+
+	error = kern_path(filename, LOOKUP_FOLLOW | LOOKUP_DIRECTORY, &path);
+	if (error)
+		return error;
+	error = inode_permission(path.dentry->d_inode, MAY_EXEC | MAY_CHDIR);
+	if (!error)
+		set_fs_pwd(current->fs, &path);
+	path_put(&path);
+	return error;
 }
 
 int __init init_unlink(const char *pathname)

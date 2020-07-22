@@ -412,7 +412,7 @@ static int __init devtmpfs_setup(void *p)
 	err = init_mount("devtmpfs", "/", "devtmpfs", MS_SILENT, NULL);
 	if (err)
 		goto out;
-	ksys_chdir("/.."); /* will traverse into overmounted root */
+	init_chdir("/.."); /* will traverse into overmounted root */
 	ksys_chroot(".");
 out:
 	*(int *)p = err;
