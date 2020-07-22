@@ -7,6 +7,53 @@
 
 #include "qed_dev_api.h"
 
+static void qed_chain_init_params(struct qed_chain *chain,
+				  u32 page_cnt, u8 elem_size,
+				  enum qed_chain_use_mode intended_use,
+				  enum qed_chain_mode mode,
+				  enum qed_chain_cnt_type cnt_type)
+{
+	memset(chain, 0, sizeof(*chain));
+
+	chain->elem_size = elem_size;
+	chain->intended_use = intended_use;
+	chain->mode = mode;
+	chain->cnt_type = cnt_type;
+
+	chain->elem_per_page = ELEMS_PER_PAGE(elem_size);
+	chain->usable_per_page = USABLE_ELEMS_PER_PAGE(elem_size, mode);
+	chain->elem_unusable = UNUSABLE_ELEMS_PER_PAGE(elem_size, mode);
+
+	chain->elem_per_page_mask = chain->elem_per_page - 1;
+	chain->next_page_mask = chain->usable_per_page &
+				chain->elem_per_page_mask;
+
+	chain->page_cnt = page_cnt;
+	chain->capacity = chain->usable_per_page * page_cnt;
+	chain->size = chain->elem_per_page * page_cnt;
+}
+
+static void qed_chain_init_next_ptr_elem(const struct qed_chain *chain,
+					 void *virt_curr, void *virt_next,
+					 dma_addr_t phys_next)
+{
+	struct qed_chain_next *next;
+	u32 size;
+
+	size = chain->elem_size * chain->usable_per_page;
+	next = virt_curr + size;
+
+	DMA_REGPAIR_LE(next->next_phys, phys_next);
+	next->next_virt = virt_next;
+}
+
+static void qed_chain_init_mem(struct qed_chain *chain, void *virt_addr,
+			       dma_addr_t phys_addr)
+{
+	chain->p_virt_addr = virt_addr;
+	chain->p_phys_addr = phys_addr;
+}
+
 static void qed_chain_free_next_ptr(struct qed_dev *cdev,
 				    struct qed_chain *chain)
 {
