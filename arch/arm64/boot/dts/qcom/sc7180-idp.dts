@@ -21,6 +21,7 @@
 		bluetooth0 = &bluetooth;
 		hsuart0 = &uart3;
 		serial0 = &uart8;
+		wifi0 = &wifi;
 	};
 
 	chosen {
@@ -312,7 +313,7 @@
 &remoteproc_mpss {
 	status = "okay";
 	compatible = "qcom,sc7180-mss-pil";
-	iommus = <&apps_smmu 0x460 0x1>, <&apps_smmu 0x444 0x3>;
+	iommus = <&apps_smmu 0x461 0x0>, <&apps_smmu 0x444 0x3>;
 	memory-region = <&mba_mem &mpss_mem>;
 };
 
@@ -386,6 +387,18 @@
 &venus {
 	video-firmware {
 		iommus = <&apps_smmu 0x0c42 0x0>;
+	};
+};
+
+&wifi {
+	status = "okay";
+	vdd-0.8-cx-mx-supply = <&vreg_l9a_0p6>;
+	vdd-1.8-xo-supply = <&vreg_l1c_1p8>;
+	vdd-1.3-rfa-supply = <&vreg_l2c_1p3>;
+	vdd-3.3-ch0-supply = <&vreg_l10c_3p3>;
+	vdd-3.3-ch1-supply = <&vreg_l11c_3p3>;
+	wifi-firmware {
+		iommus = <&apps_smmu 0xc2 0x1>;
 	};
 };
 
