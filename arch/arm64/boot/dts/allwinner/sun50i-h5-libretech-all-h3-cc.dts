@@ -4,6 +4,7 @@
 
 /dts-v1/;
 #include "sun50i-h5.dtsi"
+#include "sun50i-h5-cpu-opp.dtsi"
 #include <arm/sunxi-libretech-all-h3-cc.dtsi>
 
 / {
