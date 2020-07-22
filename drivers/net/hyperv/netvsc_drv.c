@@ -605,6 +605,29 @@ static int netvsc_xmit(struct sk_buff *skb, struct net_device *net, bool xdp_tx)
 		*hash_info = hash;
 	}
 
+	/* When using AF_PACKET we need to drop VLAN header from
+	 * the frame and update the SKB to allow the HOST OS
+	 * to transmit the 802.1Q packet
+	 */
+	if (skb->protocol == htons(ETH_P_8021Q)) {
+		u16 vlan_tci;
+
+		skb_reset_mac_header(skb);
+		if (eth_type_vlan(eth_hdr(skb)->h_proto)) {
+			if (unlikely(__skb_vlan_pop(skb, &vlan_tci) != 0)) {
+				++net_device_ctx->eth_stats.vlan_error;
+				goto drop;
+			}
+
+			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlan_tci);
+			/* Update the NDIS header pkt lengths */
+			packet->total_data_buflen -= VLAN_HLEN;
+			packet->total_bytes -= VLAN_HLEN;
+			rndis_msg->msg_len = packet->total_data_buflen;
+			rndis_msg->msg.pkt.data_len = packet->total_data_buflen;
+		}
+	}
+
 	if (skb_vlan_tag_present(skb)) {
 		struct ndis_pkt_8021q_info *vlan;
 
@@ -1427,6 +1450,7 @@ static const struct {
 	{ "rx_no_memory", offsetof(struct netvsc_ethtool_stats, rx_no_memory) },
 	{ "stop_queue", offsetof(struct netvsc_ethtool_stats, stop_queue) },
 	{ "wake_queue", offsetof(struct netvsc_ethtool_stats, wake_queue) },
+	{ "vlan_error", offsetof(struct netvsc_ethtool_stats, vlan_error) },
 }, pcpu_stats[] = {
 	{ "cpu%u_rx_packets",
 		offsetof(struct netvsc_ethtool_pcpu_stats, rx_packets) },
