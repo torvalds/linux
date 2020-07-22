@@ -1325,7 +1325,6 @@ static int elants_i2c_probe(struct i2c_client *client,
 			     0, MT_TOOL_PALM, 0, 0);
 	input_abs_set_res(ts->input, ABS_MT_POSITION_X, ts->x_res);
 	input_abs_set_res(ts->input, ABS_MT_POSITION_Y, ts->y_res);
-	input_abs_set_res(ts->input, ABS_MT_TOUCH_MAJOR, 1);
 
 	touchscreen_parse_properties(ts->input, true, &ts->prop);
 
