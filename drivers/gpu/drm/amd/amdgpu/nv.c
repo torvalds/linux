@@ -97,6 +97,49 @@ static void nv_pcie_wreg(struct amdgpu_device *adev, u32 reg, u32 v)
 	spin_unlock_irqrestore(&adev->pcie_idx_lock, flags);
 }
 
+static u64 nv_pcie_rreg64(struct amdgpu_device *adev, u32 reg)
+{
+	unsigned long flags, address, data;
+	u64 r;
+	address = adev->nbio.funcs->get_pcie_index_offset(adev);
+	data = adev->nbio.funcs->get_pcie_data_offset(adev);
+
+	spin_lock_irqsave(&adev->pcie_idx_lock, flags);
+	/* read low 32 bit */
+	WREG32(address, reg);
+	(void)RREG32(address);
+	r = RREG32(data);
+
+	/* read high 32 bit*/
+	WREG32(address, reg + 4);
+	(void)RREG32(address);
+	r |= ((u64)RREG32(data) << 32);
+	spin_unlock_irqrestore(&adev->pcie_idx_lock, flags);
+	return r;
+}
+
+static void nv_pcie_wreg64(struct amdgpu_device *adev, u32 reg, u64 v)
+{
+	unsigned long flags, address, data;
+
+	address = adev->nbio.funcs->get_pcie_index_offset(adev);
+	data = adev->nbio.funcs->get_pcie_data_offset(adev);
+
+	spin_lock_irqsave(&adev->pcie_idx_lock, flags);
+	/* write low 32 bit */
+	WREG32(address, reg);
+	(void)RREG32(address);
+	WREG32(data, (u32)(v & 0xffffffffULL));
+	(void)RREG32(data);
+
+	/* write high 32 bit */
+	WREG32(address, reg + 4);
+	(void)RREG32(address);
+	WREG32(data, (u32)(v >> 32));
+	(void)RREG32(data);
+	spin_unlock_irqrestore(&adev->pcie_idx_lock, flags);
+}
+
 static u32 nv_didt_rreg(struct amdgpu_device *adev, u32 reg)
 {
 	unsigned long flags, address, data;
@@ -673,6 +716,8 @@ static int nv_common_early_init(void *handle)
 	adev->smc_wreg = NULL;
 	adev->pcie_rreg = &nv_pcie_rreg;
 	adev->pcie_wreg = &nv_pcie_wreg;
+	adev->pcie_rreg64 = &nv_pcie_rreg64;
+	adev->pcie_wreg64 = &nv_pcie_wreg64;
 
 	/* TODO: will add them during VCN v2 implementation */
 	adev->uvd_ctx_rreg = NULL;
