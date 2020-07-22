@@ -1008,7 +1008,6 @@ static int rockchip_pcie_probe(struct platform_device *pdev)
 	}
 
 	bridge->sysdata = rockchip;
-	bridge->busnr = 0;
 	bridge->ops = &rockchip_pcie_ops;
 	bridge->map_irq = of_irq_parse_and_map_pci;
 	bridge->swizzle_irq = pci_common_swizzle;

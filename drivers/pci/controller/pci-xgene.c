@@ -624,7 +624,6 @@ static int xgene_pcie_probe(struct platform_device *pdev)
 		return ret;
 
 	bridge->sysdata = port;
-	bridge->busnr = 0;
 	bridge->ops = &xgene_pcie_ops;
 	bridge->map_irq = of_irq_parse_and_map_pci;
 	bridge->swizzle_irq = pci_common_swizzle;

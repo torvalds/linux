@@ -1117,7 +1117,6 @@ static int mvebu_pcie_probe(struct platform_device *pdev)
 	pcie->nports = i;
 
 	bridge->sysdata = pcie;
-	bridge->busnr = 0;
 	bridge->ops = &mvebu_pcie_ops;
 	bridge->map_irq = of_irq_parse_and_map_pci;
 	bridge->swizzle_irq = pci_common_swizzle;
