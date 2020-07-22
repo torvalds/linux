@@ -98,7 +98,6 @@
  * @reg_base: IO Mapped Register Base
  * @irq: Interrupt number
  * @msi_pages: MSI pages
- * @root_busno: Root Bus number
  * @dev: Device pointer
  * @msi_domain: MSI IRQ domain pointer
  * @leg_domain: Legacy IRQ domain pointer
@@ -108,7 +107,6 @@ struct xilinx_pcie_port {
 	void __iomem *reg_base;
 	u32 irq;
 	unsigned long msi_pages;
-	u8 root_busno;
 	struct device *dev;
 	struct irq_domain *msi_domain;
 	struct irq_domain *leg_domain;
@@ -162,14 +160,13 @@ static bool xilinx_pcie_valid_device(struct pci_bus *bus, unsigned int devfn)
 	struct xilinx_pcie_port *port = bus->sysdata;
 
 	/* Check if link is up when trying to access downstream ports */
-	if (bus->number != port->root_busno)
+	if (!pci_is_root_bus(bus)) {
 		if (!xilinx_pcie_link_up(port))
 			return false;
-
-	/* Only one device down on each root port */
-	if (bus->number == port->root_busno && devfn > 0)
+	} else if (devfn > 0) {
+		/* Only one device down on each root port */
 		return false;
-
+	}
 	return true;
 }
 
