@@ -138,7 +138,7 @@ static int l2tp_ip6_recv(struct sk_buff *skb)
 
 	/* Point to L2TP header */
 	optr = ptr = skb->data;
-	session_id = ntohl(*((__be32 *) ptr));
+	session_id = ntohl(*((__be32 *)ptr));
 	ptr += 4;
 
 	/* RFC3931: L2TP/IP packets have the first 4 bytes containing
@@ -188,7 +188,7 @@ pass_up:
 	if ((skb->data[0] & 0xc0) != 0xc0)
 		goto discard;
 
-	tunnel_id = ntohl(*(__be32 *) &skb->data[4]);
+	tunnel_id = ntohl(*(__be32 *)&skb->data[4]);
 	iph = ipv6_hdr(skb);
 
 	read_lock_bh(&l2tp_ip6_lock);
@@ -276,7 +276,7 @@ static int l2tp_ip6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 {
 	struct inet_sock *inet = inet_sk(sk);
 	struct ipv6_pinfo *np = inet6_sk(sk);
-	struct sockaddr_l2tpip6 *addr = (struct sockaddr_l2tpip6 *) uaddr;
+	struct sockaddr_l2tpip6 *addr = (struct sockaddr_l2tpip6 *)uaddr;
 	struct net *net = sock_net(sk);
 	__be32 v4addr = 0;
 	int bound_dev_if;
@@ -375,8 +375,8 @@ out_unlock:
 static int l2tp_ip6_connect(struct sock *sk, struct sockaddr *uaddr,
 			    int addr_len)
 {
-	struct sockaddr_l2tpip6 *lsa = (struct sockaddr_l2tpip6 *) uaddr;
-	struct sockaddr_in6	*usin = (struct sockaddr_in6 *) uaddr;
+	struct sockaddr_l2tpip6 *lsa = (struct sockaddr_l2tpip6 *)uaddr;
+	struct sockaddr_in6	*usin = (struct sockaddr_in6 *)uaddr;
 	struct in6_addr	*daddr;
 	int	addr_type;
 	int rc;
@@ -548,7 +548,7 @@ static int l2tp_ip6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		daddr = &lsa->l2tp_addr;
 		if (np->sndflow) {
 			fl6.flowlabel = lsa->l2tp_flowinfo & IPV6_FLOWINFO_MASK;
-			if (fl6.flowlabel&IPV6_FLOWLABEL_MASK) {
+			if (fl6.flowlabel & IPV6_FLOWLABEL_MASK) {
 				flowlabel = fl6_sock_lookup(sk, fl6.flowlabel);
 				if (IS_ERR(flowlabel))
 					return -EINVAL;
@@ -594,7 +594,7 @@ static int l2tp_ip6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 			if (IS_ERR(flowlabel))
 				return -EINVAL;
 		}
-		if (!(opt->opt_nflen|opt->opt_flen))
+		if (!(opt->opt_nflen | opt->opt_flen))
 			opt = NULL;
 	}
 

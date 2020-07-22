@@ -27,7 +27,6 @@
 
 #include "l2tp_core.h"
 
-
 static struct genl_family l2tp_nl_family;
 
 static const struct genl_multicast_group l2tp_multicast_group[] = {
@@ -570,6 +569,7 @@ static int l2tp_nl_cmd_session_create(struct sk_buff *skb, struct genl_info *inf
 
 		if (info->attrs[L2TP_ATTR_COOKIE]) {
 			u16 len = nla_len(info->attrs[L2TP_ATTR_COOKIE]);
+
 			if (len > 8) {
 				ret = -EINVAL;
 				goto out_tunnel;
@@ -579,6 +579,7 @@ static int l2tp_nl_cmd_session_create(struct sk_buff *skb, struct genl_info *inf
 		}
 		if (info->attrs[L2TP_ATTR_PEER_COOKIE]) {
 			u16 len = nla_len(info->attrs[L2TP_ATTR_PEER_COOKIE]);
+
 			if (len > 8) {
 				ret = -EINVAL;
 				goto out_tunnel;

@@ -63,7 +63,6 @@ static void l2tp_dfs_next_session(struct l2tp_dfs_seq_data *pd)
 		pd->session_idx = 0;
 		l2tp_dfs_next_tunnel(pd);
 	}
-
 }
 
 static void *l2tp_dfs_seq_start(struct seq_file *m, loff_t *offs)
@@ -89,7 +88,6 @@ static void *l2tp_dfs_seq_start(struct seq_file *m, loff_t *offs)
 out:
 	return pd;
 }
-
 
 static void *l2tp_dfs_seq_next(struct seq_file *m, void *v, loff_t *pos)
 {
