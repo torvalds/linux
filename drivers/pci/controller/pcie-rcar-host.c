@@ -53,7 +53,6 @@ struct rcar_pcie_host {
 	struct device		*dev;
 	struct phy		*phy;
 	void __iomem		*base;
-	struct list_head	resources;
 	struct clk		*bus_clk;
 	struct			rcar_msi msi;
 	int			(*phy_init_fn)(struct rcar_pcie_host *host);
@@ -203,38 +202,6 @@ static struct pci_ops rcar_pcie_ops = {
 	.write	= rcar_pcie_write_conf,
 };
 
-static int rcar_pcie_setup(struct list_head *resource,
-			   struct rcar_pcie_host *host)
-{
-	struct pci_host_bridge *bridge = pci_host_bridge_from_priv(host);
-	struct resource_entry *win;
-	int i = 0;
-
-	/* Setup PCI resources */
-	resource_list_for_each_entry(win, &host->resources) {
-		struct resource *res = win->res;
-
-		if (!res->flags)
-			continue;
-
-		switch (resource_type(res)) {
-		case IORESOURCE_IO:
-		case IORESOURCE_MEM:
-			rcar_pcie_set_outbound(&host->pcie, i, win);
-			i++;
-			break;
-		case IORESOURCE_BUS:
-			break;
-		default:
-			continue;
-		}
-
-		pci_add_resource(resource, res);
-	}
-
-	return 1;
-}
-
 static void rcar_pcie_force_speedup(struct rcar_pcie *pcie)
 {
 	struct device *dev = pcie->dev;
@@ -292,6 +259,7 @@ done:
 static void rcar_pcie_hw_enable(struct rcar_pcie_host *host)
 {
 	struct rcar_pcie *pcie = &host->pcie;
+	struct pci_host_bridge *bridge = pci_host_bridge_from_priv(host);
 	struct resource_entry *win;
 	LIST_HEAD(res);
 	int i = 0;
@@ -300,7 +268,7 @@ static void rcar_pcie_hw_enable(struct rcar_pcie_host *host)
 	rcar_pcie_force_speedup(pcie);
 
 	/* Setup PCI resources */
-	resource_list_for_each_entry(win, &host->resources) {
+	resource_list_for_each_entry(win, &bridge->windows) {
 		struct resource *res = win->res;
 
 		if (!res->flags)
@@ -319,12 +287,8 @@ static void rcar_pcie_hw_enable(struct rcar_pcie_host *host)
 static int rcar_pcie_enable(struct rcar_pcie_host *host)
 {
 	struct pci_host_bridge *bridge = pci_host_bridge_from_priv(host);
-	struct rcar_pcie *pcie = &host->pcie;
 
-	/* Try setting 5 GT/s link speed */
-	rcar_pcie_force_speedup(pcie);
-
-	rcar_pcie_setup(&bridge->windows, host);
+	rcar_pcie_hw_enable(host);
 
 	pci_add_flags(PCI_REASSIGN_ALL_BUS);
 
@@ -949,7 +913,7 @@ static int rcar_pcie_probe(struct platform_device *pdev)
 	pcie->dev = dev;
 	platform_set_drvdata(pdev, host);
 
-	err = pci_parse_request_of_pci_ranges(dev, &host->resources,
+	err = pci_parse_request_of_pci_ranges(dev, &bridge->windows,
 					      &bridge->dma_ranges, NULL);
 	if (err)
 		return err;
@@ -1032,7 +996,6 @@ err_pm_put:
 
 err_pm_disable:
 	pm_runtime_disable(dev);
-	pci_free_resource_list(&host->resources);
 
 	return err;
 }
