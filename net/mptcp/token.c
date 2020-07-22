@@ -368,7 +368,7 @@ void __init mptcp_token_init(void)
 					     sizeof(struct token_bucket),
 					     0,
 					     20,/* one slot per 1MB of memory */
-					     0,
+					     HASH_ZERO,
 					     NULL,
 					     &token_mask,
 					     0,
