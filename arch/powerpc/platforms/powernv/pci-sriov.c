@@ -12,6 +12,136 @@
 /* for pci_dev_is_added() */
 #include "../../../../drivers/pci/pci.h"
 
+/*
+ * The majority of the complexity in supporting SR-IOV on PowerNV comes from
+ * the need to put the MMIO space for each VF into a separate PE. Internally
+ * the PHB maps MMIO addresses to a specific PE using the "Memory BAR Table".
+ * The MBT historically only applied to the 64bit MMIO window of the PHB
+ * so it's common to see it referred to as the "M64BT".
+ *
+ * An MBT entry stores the mapped range as an <base>,<mask> pair. This forces
+ * the address range that we want to map to be power-of-two sized and aligned.
+ * For conventional PCI devices this isn't really an issue since PCI device BARs
+ * have the same requirement.
+ *
+ * For a SR-IOV BAR things are a little more awkward since size and alignment
+ * are not coupled. The alignment is set based on the the per-VF BAR size, but
+ * the total BAR area is: number-of-vfs * per-vf-size. The number of VFs
+ * isn't necessarily a power of two, so neither is the total size. To fix that
+ * we need to finesse (read: hack) the Linux BAR allocator so that it will
+ * allocate the SR-IOV BARs in a way that lets us map them using the MBT.
+ *
+ * The changes to size and alignment that we need to do depend on the "mode"
+ * of MBT entry that we use. We only support SR-IOV on PHB3 (IODA2) and above,
+ * so as a baseline we can assume that we have the following BAR modes
+ * available:
+ *
+ *   NB: $PE_COUNT is the number of PEs that the PHB supports.
+ *
+ * a) A segmented BAR that splits the mapped range into $PE_COUNT equally sized
+ *    segments. The n'th segment is mapped to the n'th PE.
+ * b) An un-segmented BAR that maps the whole address range to a specific PE.
+ *
+ *
+ * We prefer to use mode a) since it only requires one MBT entry per SR-IOV BAR
+ * For comparison b) requires one entry per-VF per-BAR, or:
+ * (num-vfs * num-sriov-bars) in total. To use a) we need the size of each segment
+ * to equal the size of the per-VF BAR area. So:
+ *
+ *	new_size = per-vf-size * number-of-PEs
+ *
+ * The alignment for the SR-IOV BAR also needs to be changed from per-vf-size
+ * to "new_size", calculated above. Implementing this is a convoluted process
+ * which requires several hooks in the PCI core:
+ *
+ * 1. In pcibios_add_device() we call pnv_pci_ioda_fixup_iov().
+ *
+ *    At this point the device has been probed and the device's BARs are sized,
+ *    but no resource allocations have been done. The SR-IOV BARs are sized
+ *    based on the maximum number of VFs supported by the device and we need
+ *    to increase that to new_size.
+ *
+ * 2. Later, when Linux actually assigns resources it tries to make the resource
+ *    allocations for each PCI bus as compact as possible. As a part of that it
+ *    sorts the BARs on a bus by their required alignment, which is calculated
+ *    using pci_resource_alignment().
+ *
+ *    For IOV resources this goes:
+ *    pci_resource_alignment()
+ *        pci_sriov_resource_alignment()
+ *            pcibios_sriov_resource_alignment()
+ *                pnv_pci_iov_resource_alignment()
+ *
+ *    Our hook overrides the default alignment, equal to the per-vf-size, with
+ *    new_size computed above.
+ *
+ * 3. When userspace enables VFs for a device:
+ *
+ *    sriov_enable()
+ *       pcibios_sriov_enable()
+ *           pnv_pcibios_sriov_enable()
+ *
+ *    This is where we actually allocate PE numbers for each VF and setup the
+ *    MBT mapping for each SR-IOV BAR. In steps 1) and 2) we setup an "arena"
+ *    where each MBT segment is equal in size to the VF BAR so we can shift
+ *    around the actual SR-IOV BAR location within this arena. We need this
+ *    ability because the PE space is shared by all devices on the same PHB.
+ *    When using mode a) described above segment 0 in maps to PE#0 which might
+ *    be already being used by another device on the PHB.
+ *
+ *    As a result we need allocate a contigious range of PE numbers, then shift
+ *    the address programmed into the SR-IOV BAR of the PF so that the address
+ *    of VF0 matches up with the segment corresponding to the first allocated
+ *    PE number. This is handled in pnv_pci_vf_resource_shift().
+ *
+ *    Once all that is done we return to the PCI core which then enables VFs,
+ *    scans them and creates pci_devs for each. The init process for a VF is
+ *    largely the same as a normal device, but the VF is inserted into the IODA
+ *    PE that we allocated for it rather than the PE associated with the bus.
+ *
+ * 4. When userspace disables VFs we unwind the above in
+ *    pnv_pcibios_sriov_disable(). Fortunately this is relatively simple since
+ *    we don't need to validate anything, just tear down the mappings and
+ *    move SR-IOV resource back to its "proper" location.
+ *
+ * That's how mode a) works. In theory mode b) (single PE mapping) is less work
+ * since we can map each individual VF with a separate BAR. However, there's a
+ * few limitations:
+ *
+ * 1) For IODA2 mode b) has a minimum alignment requirement of 32MB. This makes
+ *    it only usable for devices with very large per-VF BARs. Such devices are
+ *    similar to Big Foot. They definitely exist, but I've never seen one.
+ *
+ * 2) The number of MBT entries that we have is limited. PHB3 and PHB4 only
+ *    16 total and some are needed for. Most SR-IOV capable network cards can support
+ *    more than 16 VFs on each port.
+ *
+ * We use b) when using a) would use more than 1/4 of the entire 64 bit MMIO
+ * window of the PHB.
+ *
+ *
+ *
+ * PHB4 (IODA3) added a few new features that would be useful for SR-IOV. It
+ * allowed the MBT to map 32bit MMIO space in addition to 64bit which allows
+ * us to support SR-IOV BARs in the 32bit MMIO window. This is useful since
+ * the Linux BAR allocation will place any BAR marked as non-prefetchable into
+ * the non-prefetchable bridge window, which is 32bit only. It also added two
+ * new modes:
+ *
+ * c) A segmented BAR similar to a), but each segment can be individually
+ *    mapped to any PE. This is matches how the 32bit MMIO window worked on
+ *    IODA1&2.
+ *
+ * d) A segmented BAR with 8, 64, or 128 segments. This works similarly to a),
+ *    but with fewer segments and configurable base PE.
+ *
+ *    i.e. The n'th segment maps to the (n + base)'th PE.
+ *
+ *    The base PE is also required to be a multiple of the window size.
+ *
+ * Unfortunately, the OPAL API doesn't currently (as of skiboot v6.6) allow us
+ * to exploit any of the IODA3 features.
+ */
 
 static void pnv_pci_ioda_fixup_iov_resources(struct pci_dev *pdev)
 {
