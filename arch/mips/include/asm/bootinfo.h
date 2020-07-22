@@ -80,6 +80,7 @@ enum ingenic_machine_type {
 	MACH_INGENIC_JZ4780,
 	MACH_INGENIC_X1000,
 	MACH_INGENIC_X1830,
+	MACH_INGENIC_X2000,
 };
 
 extern char *system_type;

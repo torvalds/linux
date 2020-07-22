@@ -2110,6 +2110,8 @@ static inline void cpu_probe_ingenic(struct cpuinfo_mips *c, unsigned int cpu)
 	BUG_ON(!__builtin_constant_p(cpu_has_counter) || cpu_has_counter);
 
 	switch (c->processor_id & PRID_IMP_MASK) {
+
+	/* XBurst®1 with MXU1.0/MXU1.1 SIMD ISA */
 	case PRID_IMP_XBURST_REV1:
 
 		/*
@@ -2148,10 +2150,18 @@ static inline void cpu_probe_ingenic(struct cpuinfo_mips *c, unsigned int cpu)
 			break;
 		}
 		fallthrough;
+
+	/* XBurst®1 with MXU2.0 SIMD ISA */
 	case PRID_IMP_XBURST_REV2:
 		c->cputype = CPU_XBURST;
 		c->writecombine = _CACHE_UNCACHED_ACCELERATED;
 		__cpu_name[cpu] = "Ingenic XBurst";
+		break;
+
+	/* XBurst®2 with MXU2.1 SIMD ISA */
+	case PRID_IMP_XBURST2:
+		c->cputype = CPU_XBURST;
+		__cpu_name[cpu] = "Ingenic XBurst II";
 		break;
 
 	default:
@@ -2299,6 +2309,7 @@ void cpu_probe(void)
 	case PRID_COMP_LOONGSON:
 		cpu_probe_loongson(c, cpu);
 		break;
+	case PRID_COMP_INGENIC_13:
 	case PRID_COMP_INGENIC_D0:
 	case PRID_COMP_INGENIC_D1:
 	case PRID_COMP_INGENIC_E1:
