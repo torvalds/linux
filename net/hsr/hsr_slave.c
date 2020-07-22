@@ -3,6 +3,8 @@
  *
  * Author(s):
  *	2011-2014 Arvid Brodin, arvid.brodin@alten.se
+ *
+ * Frame handler other utility functions for HSR and PRP.
  */
 
 #include "hsr_slave.h"

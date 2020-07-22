@@ -3,9 +3,8 @@
  *
  * Author(s):
  *	2011-2014 Arvid Brodin, arvid.brodin@alten.se
- *
  * This file contains device methods for creating, using and destroying
- * virtual HSR devices.
+ * virtual HSR or PRP devices.
  */
 
 #include <linux/netdevice.h>
@@ -426,6 +425,10 @@ int hsr_dev_finalize(struct net_device *hsr_dev, struct net_device *slave[2],
 	spin_lock_init(&hsr->list_lock);
 
 	ether_addr_copy(hsr_dev->dev_addr, slave[0]->dev_addr);
+
+	/* currently PRP is not supported */
+	if (protocol_version == PRP_V1)
+		return -EPROTONOSUPPORT;
 
 	/* Make sure we recognize frames from ourselves in hsr_rcv() */
 	res = hsr_create_self_node(hsr, hsr_dev->dev_addr,

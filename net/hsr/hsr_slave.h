@@ -2,6 +2,8 @@
 /* Copyright 2011-2014 Autronica Fire and Security AS
  *
  *	2011-2014 Arvid Brodin, arvid.brodin@alten.se
+ *
+ * include file for HSR and PRP.
  */
 
 #ifndef __HSR_SLAVE_H

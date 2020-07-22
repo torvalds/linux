@@ -1,5 +1,5 @@
 /*
- * hsr_debugfs code
+ * debugfs code for HSR & PRP
  * Copyright (C) 2019 Texas Instruments Incorporated
  *
  * Author(s):

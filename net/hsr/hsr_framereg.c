@@ -8,6 +8,7 @@
  * interface. A frame is identified by its source MAC address and its HSR
  * sequence number. This code keeps track of senders and their sequence numbers
  * to allow filtering of duplicate frames, and to detect HSR ring errors.
+ * Same code handles filtering of duplicates for PRP as well.
  */
 
 #include <linux/if_ether.h>
