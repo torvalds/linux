@@ -2515,16 +2515,15 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 
 	filemap_write_and_wait(bdev->bd_inode->i_mapping);
 
-	mutex_lock(&fs_devices->device_list_mutex);
-	list_for_each_entry(device, &fs_devices->devices, dev_list) {
+	rcu_read_lock();
+	list_for_each_entry_rcu(device, &fs_devices->devices, dev_list) {
 		if (device->bdev == bdev) {
 			ret = -EEXIST;
-			mutex_unlock(
-				&fs_devices->device_list_mutex);
+			rcu_read_unlock();
 			goto error;
 		}
 	}
-	mutex_unlock(&fs_devices->device_list_mutex);
+	rcu_read_unlock();
 
 	device = btrfs_alloc_device(fs_info, NULL, NULL);
 	if (IS_ERR(device)) {
