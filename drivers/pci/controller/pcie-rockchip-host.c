@@ -72,14 +72,14 @@ static int rockchip_pcie_valid_device(struct rockchip_pcie *rockchip,
 				      struct pci_bus *bus, int dev)
 {
 	/* access only one slot on each root port */
-	if (bus->number == rockchip->root_bus_nr && dev > 0)
+	if (pci_is_root_bus(bus) && dev > 0)
 		return 0;
 
 	/*
 	 * do not read more than one device on the bus directly attached
 	 * to RC's downstream side.
 	 */
-	if (bus->primary == rockchip->root_bus_nr && dev > 0)
+	if (pci_is_root_bus(bus->parent) && dev > 0)
 		return 0;
 
 	return 1;
@@ -170,7 +170,7 @@ static int rockchip_pcie_rd_other_conf(struct rockchip_pcie *rockchip,
 		return PCIBIOS_BAD_REGISTER_NUMBER;
 	}
 
-	if (bus->parent->number == rockchip->root_bus_nr)
+	if (pci_is_root_bus(bus->parent))
 		rockchip_pcie_cfg_configuration_accesses(rockchip,
 						AXI_WRAPPER_TYPE0_CFG);
 	else
@@ -201,7 +201,7 @@ static int rockchip_pcie_wr_other_conf(struct rockchip_pcie *rockchip,
 	if (!IS_ALIGNED(busdev, size))
 		return PCIBIOS_BAD_REGISTER_NUMBER;
 
-	if (bus->parent->number == rockchip->root_bus_nr)
+	if (pci_is_root_bus(bus->parent))
 		rockchip_pcie_cfg_configuration_accesses(rockchip,
 						AXI_WRAPPER_TYPE0_CFG);
 	else
@@ -230,7 +230,7 @@ static int rockchip_pcie_rd_conf(struct pci_bus *bus, u32 devfn, int where,
 		return PCIBIOS_DEVICE_NOT_FOUND;
 	}
 
-	if (bus->number == rockchip->root_bus_nr)
+	if (pci_is_root_bus(bus))
 		return rockchip_pcie_rd_own_conf(rockchip, where, size, val);
 
 	return rockchip_pcie_rd_other_conf(rockchip, bus, devfn, where, size,
@@ -245,7 +245,7 @@ static int rockchip_pcie_wr_conf(struct pci_bus *bus, u32 devfn,
 	if (!rockchip_pcie_valid_device(rockchip, bus, PCI_SLOT(devfn)))
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
-	if (bus->number == rockchip->root_bus_nr)
+	if (pci_is_root_bus(bus))
 		return rockchip_pcie_wr_own_conf(rockchip, where, size, val);
 
 	return rockchip_pcie_wr_other_conf(rockchip, bus, devfn, where, size,
@@ -950,7 +950,6 @@ static int rockchip_pcie_probe(struct platform_device *pdev)
 	struct rockchip_pcie *rockchip;
 	struct device *dev = &pdev->dev;
 	struct pci_host_bridge *bridge;
-	struct resource *bus_res;
 	int err;
 
 	if (!dev->of_node)
@@ -991,11 +990,9 @@ static int rockchip_pcie_probe(struct platform_device *pdev)
 		goto err_deinit_port;
 
 	err = pci_parse_request_of_pci_ranges(dev, &bridge->windows,
-					      &bridge->dma_ranges, &bus_res);
+					      &bridge->dma_ranges, NULL);
 	if (err)
 		goto err_remove_irq_domain;
-
-	rockchip->root_bus_nr = bus_res->start;
 
 	err = rockchip_pcie_cfg_atu(rockchip);
 	if (err)

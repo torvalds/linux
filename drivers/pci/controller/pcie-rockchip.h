@@ -298,7 +298,6 @@ struct rockchip_pcie {
 	struct	gpio_desc *ep_gpio;
 	u32	lanes;
 	u8      lanes_map;
-	u8	root_bus_nr;
 	int	link_gen;
 	struct	device *dev;
 	struct	irq_domain *irq_domain;
