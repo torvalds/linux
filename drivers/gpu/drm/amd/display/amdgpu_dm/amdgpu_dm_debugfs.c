@@ -3043,12 +3043,75 @@ DEFINE_SHOW_ATTRIBUTE(mst_topo);
 DEFINE_DEBUGFS_ATTRIBUTE(visual_confirm_fops, visual_confirm_get,
 			 visual_confirm_set, "%llu\n");
 
+/*
+ * Dumps the DCC_EN bit for each pipe.
+ * Example usage: cat /sys/kernel/debug/dri/0/amdgpu_dm_dcc_en
+ */
+static ssize_t dcc_en_bits_read(
+	struct file *f,
+	char __user *buf,
+	size_t size,
+	loff_t *pos)
+{
+	struct amdgpu_device *adev = file_inode(f)->i_private;
+	struct dc *dc = adev->dm.dc;
+	char *rd_buf = NULL;
+	const uint32_t rd_buf_size = 32;
+	uint32_t result = 0;
+	int offset = 0;
+	int num_pipes = dc->res_pool->pipe_count;
+	int *dcc_en_bits;
+	int i, r;
+
+	dcc_en_bits = kcalloc(num_pipes, sizeof(int), GFP_KERNEL);
+	if (!dcc_en_bits)
+		return -ENOMEM;
+
+	if (!dc->hwss.get_dcc_en_bits) {
+		kfree(dcc_en_bits);
+		return 0;
+	}
+
+	dc->hwss.get_dcc_en_bits(dc, dcc_en_bits);
+
+	rd_buf = kcalloc(rd_buf_size, sizeof(char), GFP_KERNEL);
+	if (!rd_buf)
+		return -ENOMEM;
+
+	for (i = 0; i < num_pipes; i++)
+		offset += snprintf(rd_buf + offset, rd_buf_size - offset,
+				   "%d  ", dcc_en_bits[i]);
+	rd_buf[strlen(rd_buf)] = '\n';
+
+	kfree(dcc_en_bits);
+
+	while (size) {
+		if (*pos >= rd_buf_size)
+			break;
+		r = put_user(*(rd_buf + result), buf);
+		if (r)
+			return r; /* r = -EFAULT */
+		buf += 1;
+		size -= 1;
+		*pos += 1;
+		result += 1;
+	}
+
+	kfree(rd_buf);
+	return result;
+}
+
 void dtn_debugfs_init(struct amdgpu_device *adev)
 {
 	static const struct file_operations dtn_log_fops = {
 		.owner = THIS_MODULE,
 		.read = dtn_log_read,
 		.write = dtn_log_write,
+		.llseek = default_llseek
+	};
+	static const struct file_operations dcc_en_bits_fops = {
+		.owner = THIS_MODULE,
+		.read = dcc_en_bits_read,
 		.llseek = default_llseek
 	};
 
@@ -3078,4 +3141,7 @@ void dtn_debugfs_init(struct amdgpu_device *adev)
 
 	debugfs_create_file_unsafe("amdgpu_dm_dmcub_trace_event_en", 0644, root,
 				   adev, &dmcub_trace_event_state_fops);
+
+	debugfs_create_file_unsafe("amdgpu_dm_dcc_en", 0644, root, adev,
+				   &dcc_en_bits_fops);
 }
