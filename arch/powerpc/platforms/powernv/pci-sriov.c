@@ -412,6 +412,23 @@ out:
 	return rc;
 }
 
+static int pnv_pci_alloc_m64_bar(struct pnv_phb *phb, struct pnv_iov_data *iov)
+{
+	int win;
+
+	do {
+		win = find_next_zero_bit(&phb->ioda.m64_bar_alloc,
+				phb->ioda.m64_bar_idx + 1, 0);
+
+		if (win >= phb->ioda.m64_bar_idx + 1)
+			return -1;
+	} while (test_and_set_bit(win, &phb->ioda.m64_bar_alloc));
+
+	set_bit(win, iov->used_m64_bar_mask);
+
+	return win;
+}
+
 static int pnv_pci_vf_assign_m64(struct pci_dev *pdev, u16 num_vfs)
 {
 	struct pnv_iov_data   *iov;
@@ -439,17 +456,9 @@ static int pnv_pci_vf_assign_m64(struct pci_dev *pdev, u16 num_vfs)
 			continue;
 
 		for (j = 0; j < m64_bars; j++) {
-
-			/* allocate a window ID for this BAR */
-			do {
-				win = find_next_zero_bit(&phb->ioda.m64_bar_alloc,
-						phb->ioda.m64_bar_idx + 1, 0);
-
-				if (win >= phb->ioda.m64_bar_idx + 1)
-					goto m64_failed;
-			} while (test_and_set_bit(win, &phb->ioda.m64_bar_alloc));
-			set_bit(win, iov->used_m64_bar_mask);
-
+			win = pnv_pci_alloc_m64_bar(phb, iov);
+			if (win < 0)
+				goto m64_failed;
 
 			if (iov->m64_single_mode) {
 				int pe_num = iov->vf_pe_arr[j].pe_number;
