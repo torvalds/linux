@@ -1483,8 +1483,12 @@ static void rkcif_stream_stop(struct rkcif_stream *stream)
 	    mbus_cfg->type == V4L2_MBUS_CCP2) {
 		id = stream->id;
 		val = rkcif_read_register(cif_dev, get_reg_index_of_id_ctrl0(id));
-		rkcif_write_register(cif_dev, get_reg_index_of_id_ctrl0(id),
-				     val & (~CSI_ENABLE_CAPTURE));
+		if (mbus_cfg->type == V4L2_MBUS_CSI2)
+			val &= ~CSI_ENABLE_CAPTURE;
+		else
+			val &= ~LVDS_ENABLE_CAPTURE;
+
+		rkcif_write_register(cif_dev, get_reg_index_of_id_ctrl0(id), val);
 
 		rkcif_write_register_or(cif_dev, CIF_REG_MIPI_LVDS_INTSTAT,
 					CSI_START_INTSTAT(id) |
