@@ -234,9 +234,6 @@ void pnv_ioda_free_pe(struct pnv_ioda_pe *pe);
  * and this structure is used to keep track of it all.
  */
 struct pnv_iov_data {
-	/* number of VFs IOV BAR expanded. FIXME: rename this to something less bad */
-	u16     vfs_expanded;
-
 	/* number of VFs enabled */
 	u16     num_vfs;
 

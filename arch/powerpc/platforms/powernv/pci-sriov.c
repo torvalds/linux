@@ -212,8 +212,6 @@ static void pnv_pci_ioda_fixup_iov_resources(struct pci_dev *pdev)
 		iov->need_shift = true;
 	}
 
-	iov->vfs_expanded = mul;
-
 	return;
 
 disable_iov:
@@ -255,6 +253,7 @@ void pnv_pci_ioda_fixup_iov(struct pci_dev *pdev)
 resource_size_t pnv_pci_iov_resource_alignment(struct pci_dev *pdev,
 						      int resno)
 {
+	struct pnv_phb *phb = pci_bus_to_pnvhb(pdev->bus);
 	struct pnv_iov_data *iov = pnv_iov_get(pdev);
 	resource_size_t align;
 
@@ -265,8 +264,6 @@ resource_size_t pnv_pci_iov_resource_alignment(struct pci_dev *pdev,
 	 * BARs would not be placed in the correct PE.
 	 */
 	if (!iov)
-		return align;
-	if (!iov->vfs_expanded)
 		return align;
 
 	align = pci_iov_resource_size(pdev, resno);
@@ -289,7 +286,7 @@ resource_size_t pnv_pci_iov_resource_alignment(struct pci_dev *pdev,
 	 * If the M64 BAR is in Single PE mode, return the VF BAR size or
 	 * M64 segment size if IOV BAR size is less.
 	 */
-	return iov->vfs_expanded * align;
+	return phb->ioda.total_pe_num * align;
 }
 
 static int pnv_pci_vf_release_m64(struct pci_dev *pdev, u16 num_vfs)
@@ -707,7 +704,7 @@ static int pnv_pci_sriov_enable(struct pci_dev *pdev, u16 num_vfs)
 		return -ENXIO;
 	}
 
-	if (!iov->vfs_expanded) {
+	if (!iov) {
 		dev_info(&pdev->dev, "don't support this SRIOV device with non 64bit-prefetchable IOV BAR\n");
 		return -ENOSPC;
 	}
