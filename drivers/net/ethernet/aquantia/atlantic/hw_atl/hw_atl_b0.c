@@ -373,8 +373,13 @@ static int hw_atl_b0_hw_init_tx_tc_rate_limit(struct aq_hw_s *self)
 
 	/* WSP, if min_rate is set for at least one TC.
 	 * RR otherwise.
+	 *
+	 * NB! MAC FW sets arb mode itself if PTP is enabled. We shouldn't
+	 * overwrite it here in that case.
 	 */
-	hw_atl_tps_tx_pkt_shed_data_arb_mode_set(self, min_rate_msk ? 1U : 0U);
+	if (!nic_cfg->is_ptp)
+		hw_atl_tps_tx_pkt_shed_data_arb_mode_set(self, min_rate_msk ? 1U : 0U);
+
 	/* Data TC Arbiter takes precedence over Descriptor TC Arbiter,
 	 * leave Descriptor TC Arbiter as RR.
 	 */
