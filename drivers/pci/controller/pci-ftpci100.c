@@ -436,7 +436,6 @@ static int faraday_pci_probe(struct platform_device *pdev)
 	if (!host)
 		return -ENOMEM;
 
-	host->dev.parent = dev;
 	host->ops = &faraday_pci_ops;
 	host->busnr = 0;
 	host->msi = NULL;

@@ -723,7 +723,6 @@ static int v3_pci_probe(struct platform_device *pdev)
 	if (!host)
 		return -ENOMEM;
 
-	host->dev.parent = dev;
 	host->ops = &v3_pci_ops;
 	host->busnr = 0;
 	host->msi = NULL;

@@ -623,7 +623,6 @@ static int xgene_pcie_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	bridge->dev.parent = dev;
 	bridge->sysdata = port;
 	bridge->busnr = 0;
 	bridge->ops = &xgene_pcie_ops;

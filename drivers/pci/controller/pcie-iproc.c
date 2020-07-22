@@ -1524,7 +1524,6 @@ int iproc_pcie_setup(struct iproc_pcie *pcie, struct list_head *res)
 			dev_info(dev, "not using iProc MSI\n");
 
 	host->busnr = 0;
-	host->dev.parent = dev;
 	host->ops = &iproc_pcie_ops;
 	host->sysdata = pcie;
 	host->map_irq = pcie->map_irq;

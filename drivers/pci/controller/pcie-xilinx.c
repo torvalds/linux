@@ -651,7 +651,6 @@ static int xilinx_pcie_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	bridge->dev.parent = dev;
 	bridge->sysdata = port;
 	bridge->busnr = 0;
 	bridge->ops = &xilinx_pcie_ops;

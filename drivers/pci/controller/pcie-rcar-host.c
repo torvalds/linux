@@ -329,7 +329,6 @@ static int rcar_pcie_enable(struct rcar_pcie_host *host)
 {
 	struct pci_host_bridge *bridge = pci_host_bridge_from_priv(host);
 	struct rcar_pcie *pcie = &host->pcie;
-	struct device *dev = pcie->dev;
 
 	/* Try setting 5 GT/s link speed */
 	rcar_pcie_force_speedup(pcie);
@@ -338,7 +337,6 @@ static int rcar_pcie_enable(struct rcar_pcie_host *host)
 
 	pci_add_flags(PCI_REASSIGN_ALL_BUS);
 
-	bridge->dev.parent = dev;
 	bridge->sysdata = host;
 	bridge->busnr = host->root_bus_nr;
 	bridge->ops = &rcar_pcie_ops;

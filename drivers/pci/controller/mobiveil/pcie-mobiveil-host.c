@@ -605,7 +605,6 @@ int mobiveil_pcie_host_probe(struct mobiveil_pcie *pcie)
 	}
 
 	/* Initialize bridge */
-	bridge->dev.parent = dev;
 	bridge->sysdata = pcie;
 	bridge->busnr = rp->root_bus_nr;
 	bridge->ops = &mobiveil_pcie_ops;

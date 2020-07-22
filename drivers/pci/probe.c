@@ -628,6 +628,8 @@ struct pci_host_bridge *devm_pci_alloc_host_bridge(struct device *dev,
 	if (!bridge)
 		return NULL;
 
+	bridge->dev.parent = dev;
+
 	ret = devm_add_action_or_reset(dev, devm_pci_alloc_host_bridge_release,
 				       bridge);
 	if (ret)
