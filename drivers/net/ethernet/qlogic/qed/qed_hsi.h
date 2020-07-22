@@ -361,7 +361,7 @@ struct core_tx_update_ramrod_data {
 	u8 update_qm_pq_id_flg;
 	u8 reserved0;
 	__le16 qm_pq_id;
-	__le32 reserved1[1];
+	__le32 reserved1;
 };
 
 /* Enum flag for what type of dcb data to update */
