@@ -155,7 +155,7 @@ static void pnv_pci_ioda_fixup_iov_resources(struct pci_dev *pdev)
 
 	iov = kzalloc(sizeof(*iov), GFP_KERNEL);
 	if (!iov)
-		goto truncate_iov;
+		goto disable_iov;
 	pdev->dev.archdata.iov_data = iov;
 
 	total_vfs = pci_sriov_get_totalvfs(pdev);
@@ -169,7 +169,7 @@ static void pnv_pci_ioda_fixup_iov_resources(struct pci_dev *pdev)
 		if (!pnv_pci_is_m64_flags(res->flags)) {
 			dev_warn(&pdev->dev, "Don't support SR-IOV with non M64 VF BAR%d: %pR. \n",
 				 i, res);
-			goto truncate_iov;
+			goto disable_iov;
 		}
 
 		total_vf_bar_sz += pci_iov_resource_size(pdev,
@@ -208,7 +208,8 @@ static void pnv_pci_ioda_fixup_iov_resources(struct pci_dev *pdev)
 		 * mode is 32MB.
 		 */
 		if (iov->m64_single_mode && (size < SZ_32M))
-			goto truncate_iov;
+			goto disable_iov;
+
 		dev_dbg(&pdev->dev, " Fixing VF BAR%d: %pR to\n", i, res);
 		res->end = res->start + size * mul - 1;
 		dev_dbg(&pdev->dev, "                       %pR\n", res);
@@ -219,8 +220,8 @@ static void pnv_pci_ioda_fixup_iov_resources(struct pci_dev *pdev)
 
 	return;
 
-truncate_iov:
-	/* To save MMIO space, IOV BAR is truncated. */
+disable_iov:
+	/* Save ourselves some MMIO space by disabling the unusable BARs */
 	for (i = 0; i < PCI_SRIOV_NUM_BARS; i++) {
 		res = &pdev->resource[i + PCI_IOV_RESOURCES];
 		res->flags = 0;
