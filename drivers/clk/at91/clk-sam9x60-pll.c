@@ -16,6 +16,7 @@
 
 #define	PMC_PLL_CTRL0_DIV_MSK	GENMASK(7, 0)
 #define	PMC_PLL_CTRL1_MUL_MSK	GENMASK(31, 24)
+#define	PMC_PLL_CTRL1_FRACR_MSK	GENMASK(21, 0)
 
 #define PLL_DIV_MAX		(FIELD_GET(PMC_PLL_CTRL0_DIV_MSK, UINT_MAX) + 1)
 #define UPLL_DIV		2
@@ -55,7 +56,7 @@ static int sam9x60_pll_prepare(struct clk_hw *hw)
 	unsigned long flags;
 	u8 div;
 	u16 mul;
-	u32 val;
+	u32 val, frac;
 
 	spin_lock_irqsave(pll->lock, flags);
 	regmap_write(regmap, AT91_PMC_PLL_UPDT, pll->id);
@@ -65,9 +66,10 @@ static int sam9x60_pll_prepare(struct clk_hw *hw)
 
 	regmap_read(regmap, AT91_PMC_PLL_CTRL1, &val);
 	mul = FIELD_GET(PMC_PLL_CTRL1_MUL_MSK, val);
+	frac = FIELD_GET(PMC_PLL_CTRL1_FRACR_MSK, val);
 
 	if (sam9x60_pll_ready(regmap, pll->id) &&
-	    (div == pll->div && mul == pll->mul)) {
+	    (div == pll->div && mul == pll->mul && frac == pll->frac)) {
 		spin_unlock_irqrestore(pll->lock, flags);
 		return 0;
 	}
@@ -80,7 +82,8 @@ static int sam9x60_pll_prepare(struct clk_hw *hw)
 	regmap_write(regmap, AT91_PMC_PLL_ACR, val);
 
 	regmap_write(regmap, AT91_PMC_PLL_CTRL1,
-		     FIELD_PREP(PMC_PLL_CTRL1_MUL_MSK, pll->mul));
+		     FIELD_PREP(PMC_PLL_CTRL1_MUL_MSK, pll->mul) |
+		     FIELD_PREP(PMC_PLL_CTRL1_FRACR_MSK, pll->frac));
 
 	if (pll->characteristics->upll) {
 		/* Enable the UTMI internal bandgap */
@@ -155,7 +158,8 @@ static unsigned long sam9x60_pll_recalc_rate(struct clk_hw *hw,
 {
 	struct sam9x60_pll *pll = to_sam9x60_pll(hw);
 
-	return (parent_rate * (pll->mul + 1)) / (pll->div + 1);
+	return DIV_ROUND_CLOSEST_ULL((parent_rate * (pll->mul + 1) +
+		((u64)parent_rate * pll->frac >> 22)), (pll->div + 1));
 }
 
 static long sam9x60_pll_get_best_div_mul(struct sam9x60_pll *pll,
