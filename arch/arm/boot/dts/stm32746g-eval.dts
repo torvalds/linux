@@ -66,17 +66,17 @@
 
 	leds {
 		compatible = "gpio-leds";
-		green {
+		led-green {
 			gpios = <&gpiof 10 1>;
 			linux,default-trigger = "heartbeat";
 		};
-		orange {
+		led-orange {
 			gpios = <&stmfx_pinctrl 17 1>;
 		};
-		red {
+		led-red {
 			gpios = <&gpiob 7 1>;
 		};
-		blue {
+		led-blue {
 			gpios = <&stmfx_pinctrl 19 1>;
 		};
 	};

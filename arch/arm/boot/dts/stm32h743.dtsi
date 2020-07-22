@@ -361,8 +361,8 @@
 			interrupts = <1>, <2>, <3>, <6>, <7>, <8>, <9>, <10>, <23>, <40>, <41>, <62>, <76>;
 		};
 
-		syscfg: system-config@58000400 {
-			compatible = "syscon";
+		syscfg: syscon@58000400 {
+			compatible = "st,stm32-syscfg", "syscon";
 			reg = <0x58000400 0x400>;
 		};
 
@@ -487,7 +487,6 @@
 			assigned-clock-parents = <&rcc LSE_CK>;
 			interrupt-parent = <&exti>;
 			interrupts = <17 IRQ_TYPE_EDGE_RISING>;
-			interrupt-names = "alarm";
 			st,syscfg = <&pwrcfg 0x00 0x100>;
 			status = "disabled";
 		};
@@ -502,7 +501,7 @@
 		};
 
 		pwrcfg: power-config@58024800 {
-			compatible = "syscon";
+			compatible = "st,stm32-power-config", "syscon";
 			reg = <0x58024800 0x400>;
 		};
 

@@ -1127,7 +1127,7 @@
 		};
 
 		pwr_mcu: pwr_mcu@50001014 {
-			compatible = "syscon";
+			compatible = "st,stm32mp151-pwr-mcu", "syscon";
 			reg = <0x50001014 0x4>;
 		};
 
@@ -1331,6 +1331,8 @@
 			dma-names = "tx", "rx";
 			clocks = <&rcc QSPI_K>;
 			resets = <&rcc QSPI_R>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			status = "disabled";
 		};
 
