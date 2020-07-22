@@ -208,7 +208,7 @@ static int clk_sam9x5_peripheral_is_enabled(struct clk_hw *hw)
 	regmap_read(periph->regmap, periph->layout->offset, &status);
 	spin_unlock_irqrestore(periph->lock, flags);
 
-	return status & AT91_PMC_PCR_EN ? 1 : 0;
+	return !!(status & AT91_PMC_PCR_EN);
 }
 
 static unsigned long

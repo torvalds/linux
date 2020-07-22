@@ -33,7 +33,7 @@ static inline bool clk_master_ready(struct regmap *regmap)
 
 	regmap_read(regmap, AT91_PMC_SR, &status);
 
-	return status & AT91_PMC_MCKRDY ? 1 : 0;
+	return !!(status & AT91_PMC_MCKRDY);
 }
 
 static int clk_master_prepare(struct clk_hw *hw)
