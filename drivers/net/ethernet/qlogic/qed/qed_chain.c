@@ -92,8 +92,10 @@ void qed_chain_free(struct qed_dev *cdev, struct qed_chain *chain)
 		qed_chain_free_pbl(cdev, chain);
 		break;
 	default:
-		break;
+		return;
 	}
+
+	qed_chain_init_mem(chain, NULL, 0);
 }
 
 static int
