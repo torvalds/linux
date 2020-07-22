@@ -437,52 +437,49 @@ static int pnv_pci_vf_assign_m64(struct pci_dev *pdev, u16 num_vfs)
 	struct resource       *res;
 	int                    i, j;
 	int64_t                rc;
-	int                    total_vfs;
 	resource_size_t        size, start;
-	int                    m64_bars;
+	int                    base_pe_num;
 
 	phb = pci_bus_to_pnvhb(pdev->bus);
 	iov = pnv_iov_get(pdev);
-	total_vfs = pci_sriov_get_totalvfs(pdev);
-
-	if (iov->m64_single_mode)
-		m64_bars = num_vfs;
-	else
-		m64_bars = 1;
 
 	for (i = 0; i < PCI_SRIOV_NUM_BARS; i++) {
 		res = &pdev->resource[i + PCI_IOV_RESOURCES];
 		if (!res->flags || !res->parent)
 			continue;
 
-		for (j = 0; j < m64_bars; j++) {
+		/* don't need single mode? map everything in one go! */
+		if (!iov->m64_single_mode) {
 			win = pnv_pci_alloc_m64_bar(phb, iov);
 			if (win < 0)
 				goto m64_failed;
 
-			if (iov->m64_single_mode) {
-				int pe_num = iov->vf_pe_arr[j].pe_number;
+			size = resource_size(res);
+			start = res->start;
 
-				size = pci_iov_resource_size(pdev,
-							PCI_IOV_RESOURCES + i);
-				start = res->start + size * j;
-				rc = pnv_ioda_map_m64_single(phb, win,
-							     pe_num,
-							     start,
-							     size);
-			} else {
-				size = resource_size(res);
-				start = res->start;
-
-				rc = pnv_ioda_map_m64_segmented(phb, win, start,
-								size);
-			}
-
-			if (rc != OPAL_SUCCESS) {
-				dev_err(&pdev->dev, "Failed to map M64 window #%d: %lld\n",
-					win, rc);
+			rc = pnv_ioda_map_m64_segmented(phb, win, start, size);
+			if (rc)
 				goto m64_failed;
-			}
+
+			continue;
+		}
+
+		/* otherwise map each VF with single PE BARs */
+		size = pci_iov_resource_size(pdev, PCI_IOV_RESOURCES + i);
+		base_pe_num = iov->vf_pe_arr[0].pe_number;
+
+		for (j = 0; j < num_vfs; j++) {
+			win = pnv_pci_alloc_m64_bar(phb, iov);
+			if (win < 0)
+				goto m64_failed;
+
+			start = res->start + size * j;
+			rc = pnv_ioda_map_m64_single(phb, win,
+						     base_pe_num + j,
+						     start,
+						     size);
+			if (rc)
+				goto m64_failed;
 		}
 	}
 	return 0;
