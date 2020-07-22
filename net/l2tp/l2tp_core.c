@@ -1285,10 +1285,10 @@ static void l2tp_tunnel_del_work(struct work_struct *work)
  * exit hook.
  */
 static int l2tp_tunnel_sock_create(struct net *net,
-				u32 tunnel_id,
-				u32 peer_tunnel_id,
-				struct l2tp_tunnel_cfg *cfg,
-				struct socket **sockp)
+				   u32 tunnel_id,
+				   u32 peer_tunnel_id,
+				   struct l2tp_tunnel_cfg *cfg,
+				   struct socket **sockp)
 {
 	int err = -EINVAL;
 	struct socket *sock = NULL;
@@ -1333,7 +1333,7 @@ static int l2tp_tunnel_sock_create(struct net *net,
 			struct sockaddr_l2tpip6 ip6_addr = {0};
 
 			err = sock_create_kern(net, AF_INET6, SOCK_DGRAM,
-					  IPPROTO_L2TP, &sock);
+					       IPPROTO_L2TP, &sock);
 			if (err < 0)
 				goto out;
 
@@ -1361,7 +1361,7 @@ static int l2tp_tunnel_sock_create(struct net *net,
 			struct sockaddr_l2tpip ip_addr = {0};
 
 			err = sock_create_kern(net, AF_INET, SOCK_DGRAM,
-					  IPPROTO_L2TP, &sock);
+					       IPPROTO_L2TP, &sock);
 			if (err < 0)
 				goto out;
 
