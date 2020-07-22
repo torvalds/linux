@@ -2952,7 +2952,7 @@ static int allegro_mcu_hw_init(struct allegro_dev *dev,
 					      info->mailbox_size);
 	dev->mbox_status = allegro_mbox_init(dev, info->mailbox_status,
 					     info->mailbox_size);
-	if (!dev->mbox_command || !dev->mbox_status) {
+	if (IS_ERR(dev->mbox_command) || IS_ERR(dev->mbox_status)) {
 		v4l2_err(&dev->v4l2_dev,
 			 "failed to initialize mailboxes\n");
 		return -EIO;
