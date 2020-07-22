@@ -311,6 +311,28 @@ static int pnv_ioda1_init_m64(struct pnv_phb *phb)
 		}
 	}
 
+	for (index = 0; index < phb->ioda.total_pe_num; index++) {
+		int64_t rc;
+
+		/*
+		 * P7IOC supports M64DT, which helps mapping M64 segment
+		 * to one particular PE#. However, PHB3 has fixed mapping
+		 * between M64 segment and PE#. In order to have same logic
+		 * for P7IOC and PHB3, we enforce fixed mapping between M64
+		 * segment and PE# on P7IOC.
+		 */
+		rc = opal_pci_map_pe_mmio_window(phb->opal_id,
+				index, OPAL_M64_WINDOW_TYPE,
+				index / PNV_IODA1_M64_SEGS,
+				index % PNV_IODA1_M64_SEGS);
+		if (rc != OPAL_SUCCESS) {
+			pr_warn("%s: Error %lld mapping M64 for PHB#%x-PE#%x\n",
+				__func__, rc, phb->hose->global_number,
+				index);
+			goto fail;
+		}
+	}
+
 	/*
 	 * Exclude the segments for reserved and root bus PE, which
 	 * are first or last two PEs.
@@ -401,26 +423,6 @@ static struct pnv_ioda_pe *pnv_ioda_pick_m64_pe(struct pci_bus *bus, bool all)
 			pe->flags |= PNV_IODA_PE_SLAVE;
 			pe->master = master_pe;
 			list_add_tail(&pe->list, &master_pe->slaves);
-		}
-
-		/*
-		 * P7IOC supports M64DT, which helps mapping M64 segment
-		 * to one particular PE#. However, PHB3 has fixed mapping
-		 * between M64 segment and PE#. In order to have same logic
-		 * for P7IOC and PHB3, we enforce fixed mapping between M64
-		 * segment and PE# on P7IOC.
-		 */
-		if (phb->type == PNV_PHB_IODA1) {
-			int64_t rc;
-
-			rc = opal_pci_map_pe_mmio_window(phb->opal_id,
-					pe->pe_number, OPAL_M64_WINDOW_TYPE,
-					pe->pe_number / PNV_IODA1_M64_SEGS,
-					pe->pe_number % PNV_IODA1_M64_SEGS);
-			if (rc != OPAL_SUCCESS)
-				pr_warn("%s: Error %lld mapping M64 for PHB#%x-PE#%x\n",
-					__func__, rc, phb->hose->global_number,
-					pe->pe_number);
 		}
 	}
 
@@ -3354,14 +3356,8 @@ static void pnv_ioda_free_pe_seg(struct pnv_ioda_pe *pe,
 		if (map[idx] != pe->pe_number)
 			continue;
 
-		if (win == OPAL_M64_WINDOW_TYPE)
-			rc = opal_pci_map_pe_mmio_window(phb->opal_id,
-					phb->ioda.reserved_pe_idx, win,
-					idx / PNV_IODA1_M64_SEGS,
-					idx % PNV_IODA1_M64_SEGS);
-		else
-			rc = opal_pci_map_pe_mmio_window(phb->opal_id,
-					phb->ioda.reserved_pe_idx, win, 0, idx);
+		rc = opal_pci_map_pe_mmio_window(phb->opal_id,
+				phb->ioda.reserved_pe_idx, win, 0, idx);
 
 		if (rc != OPAL_SUCCESS)
 			pe_warn(pe, "Error %lld unmapping (%d) segment#%d\n",
@@ -3380,8 +3376,7 @@ static void pnv_ioda_release_pe_seg(struct pnv_ioda_pe *pe)
 				     phb->ioda.io_segmap);
 		pnv_ioda_free_pe_seg(pe, OPAL_M32_WINDOW_TYPE,
 				     phb->ioda.m32_segmap);
-		pnv_ioda_free_pe_seg(pe, OPAL_M64_WINDOW_TYPE,
-				     phb->ioda.m64_segmap);
+		/* M64 is pre-configured by pnv_ioda1_init_m64() */
 	} else if (phb->type == PNV_PHB_IODA2) {
 		pnv_ioda_free_pe_seg(pe, OPAL_M32_WINDOW_TYPE,
 				     phb->ioda.m32_segmap);
