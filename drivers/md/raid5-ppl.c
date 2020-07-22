@@ -324,7 +324,7 @@ static int ppl_log_stripe(struct ppl_log *log, struct stripe_head *sh)
 		 * be just after the last logged stripe and write to the same
 		 * disks. Use bit shift and logarithm to avoid 64-bit division.
 		 */
-		if ((sh->sector == sh_last->sector + STRIPE_SECTORS) &&
+		if ((sh->sector == sh_last->sector + RAID5_STRIPE_SECTORS(conf)) &&
 		    (data_sector >> ilog2(conf->chunk_sectors) ==
 		     data_sector_last >> ilog2(conf->chunk_sectors)) &&
 		    ((data_sector - data_sector_last) * data_disks ==
@@ -844,9 +844,9 @@ static int ppl_recover_entry(struct ppl_log *log, struct ppl_header_entry *e,
 
 	/* if start and end is 4k aligned, use a 4k block */
 	if (block_size == 512 &&
-	    (r_sector_first & (STRIPE_SECTORS - 1)) == 0 &&
-	    (r_sector_last & (STRIPE_SECTORS - 1)) == 0)
-		block_size = STRIPE_SIZE;
+	    (r_sector_first & (RAID5_STRIPE_SECTORS(conf) - 1)) == 0 &&
+	    (r_sector_last & (RAID5_STRIPE_SECTORS(conf) - 1)) == 0)
+		block_size = RAID5_STRIPE_SIZE(conf);
 
 	/* iterate through blocks in strip */
 	for (i = 0; i < strip_sectors; i += (block_size >> 9)) {
@@ -1274,7 +1274,8 @@ static int ppl_validate_rdev(struct md_rdev *rdev)
 	ppl_data_sectors = rdev->ppl.size - (PPL_HEADER_SIZE >> 9);
 
 	if (ppl_data_sectors > 0)
-		ppl_data_sectors = rounddown(ppl_data_sectors, STRIPE_SECTORS);
+		ppl_data_sectors = rounddown(ppl_data_sectors,
+				RAID5_STRIPE_SECTORS((struct r5conf *)rdev->mddev->private));
 
 	if (ppl_data_sectors <= 0) {
 		pr_warn("md/raid:%s: PPL space too small on %s\n",
