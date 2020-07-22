@@ -1422,26 +1422,7 @@ m64_failed:
 	return -EBUSY;
 }
 
-static long pnv_pci_ioda2_unset_window(struct iommu_table_group *table_group,
-		int num);
-
-static void pnv_pci_ioda2_release_dma_pe(struct pci_dev *dev, struct pnv_ioda_pe *pe)
-{
-	struct iommu_table    *tbl;
-	int64_t               rc;
-
-	tbl = pe->table_group.tables[0];
-	rc = pnv_pci_ioda2_unset_window(&pe->table_group, 0);
-	if (rc)
-		pe_warn(pe, "OPAL error %lld release DMA window\n", rc);
-
-	pnv_pci_ioda2_set_bypass(pe, false);
-	if (pe->table_group.group) {
-		iommu_group_put(pe->table_group.group);
-		BUG_ON(pe->table_group.group);
-	}
-	iommu_tce_table_put(tbl);
-}
+static void pnv_pci_ioda2_release_pe_dma(struct pnv_ioda_pe *pe);
 
 static void pnv_ioda_release_vf_PE(struct pci_dev *pdev)
 {
@@ -1455,11 +1436,12 @@ static void pnv_ioda_release_vf_PE(struct pci_dev *pdev)
 	if (!pdev->is_physfn)
 		return;
 
+	/* FIXME: Use pnv_ioda_release_pe()? */
 	list_for_each_entry_safe(pe, pe_n, &phb->ioda.pe_list, list) {
 		if (pe->parent_dev != pdev)
 			continue;
 
-		pnv_pci_ioda2_release_dma_pe(pdev, pe);
+		pnv_pci_ioda2_release_pe_dma(pe);
 
 		/* Remove from list */
 		mutex_lock(&phb->ioda.pe_list_mutex);
@@ -2429,7 +2411,6 @@ static long pnv_pci_ioda2_setup_default_config(struct pnv_ioda_pe *pe)
 	return 0;
 }
 
-#if defined(CONFIG_IOMMU_API) || defined(CONFIG_PCI_IOV)
 static long pnv_pci_ioda2_unset_window(struct iommu_table_group *table_group,
 		int num)
 {
@@ -2453,7 +2434,6 @@ static long pnv_pci_ioda2_unset_window(struct iommu_table_group *table_group,
 
 	return ret;
 }
-#endif
 
 #ifdef CONFIG_IOMMU_API
 unsigned long pnv_pci_ioda2_get_table_size(__u32 page_shift,
@@ -3334,18 +3314,14 @@ static void pnv_pci_ioda2_release_pe_dma(struct pnv_ioda_pe *pe)
 {
 	struct iommu_table *tbl = pe->table_group.tables[0];
 	unsigned int weight = pnv_pci_ioda_pe_dma_weight(pe);
-#ifdef CONFIG_IOMMU_API
 	int64_t rc;
-#endif
 
 	if (!weight)
 		return;
 
-#ifdef CONFIG_IOMMU_API
 	rc = pnv_pci_ioda2_unset_window(&pe->table_group, 0);
 	if (rc)
 		pe_warn(pe, "OPAL error %lld release DMA window\n", rc);
-#endif
 
 	pnv_pci_ioda2_set_bypass(pe, false);
 	if (pe->table_group.group) {
