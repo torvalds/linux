@@ -81,7 +81,7 @@ kmem_zone_t *xfs_da_state_zone;	/* anchor for state struct zone */
 xfs_da_state_t *
 xfs_da_state_alloc(void)
 {
-	return kmem_zone_zalloc(xfs_da_state_zone, KM_NOFS);
+	return kmem_cache_zalloc(xfs_da_state_zone, GFP_NOFS | __GFP_NOFAIL);
 }
 
 /*
