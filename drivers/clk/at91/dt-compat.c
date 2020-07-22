@@ -22,6 +22,8 @@
 
 #define SYSTEM_MAX_ID		31
 
+#define GCK_INDEX_DT_AUDIO_PLL	5
+
 #ifdef CONFIG_HAVE_AT91_AUDIO_PLL
 static void __init of_sama5d2_clk_audio_pll_frac_setup(struct device_node *np)
 {
@@ -135,7 +137,7 @@ static void __init of_sama5d2_clk_generated_setup(struct device_node *np)
 		return;
 
 	for_each_child_of_node(np, gcknp) {
-		bool pll_audio = false;
+		int chg_pid = INT_MIN;
 
 		if (of_property_read_u32(gcknp, "reg", &id))
 			continue;
@@ -152,12 +154,12 @@ static void __init of_sama5d2_clk_generated_setup(struct device_node *np)
 		if (of_device_is_compatible(np, "atmel,sama5d2-clk-generated") &&
 		    (id == GCK_ID_I2S0 || id == GCK_ID_I2S1 ||
 		     id == GCK_ID_CLASSD))
-			pll_audio = true;
+			chg_pid = GCK_INDEX_DT_AUDIO_PLL;
 
 		hw = at91_clk_register_generated(regmap, &pmc_pcr_lock,
 						 &dt_pcr_layout, name,
 						 parent_names, num_parents,
-						 id, pll_audio, &range);
+						 id, &range, chg_pid);
 		if (IS_ERR(hw))
 			continue;
 

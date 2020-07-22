@@ -116,21 +116,20 @@ static const struct {
 	char *n;
 	u8 id;
 	struct clk_range r;
-	bool pll;
+	int chg_pid;
 } sama5d2_gck[] = {
-	{ .n = "sdmmc0_gclk", .id = 31, },
-	{ .n = "sdmmc1_gclk", .id = 32, },
-	{ .n = "tcb0_gclk",   .id = 35, .r = { .min = 0, .max = 83000000 }, },
-	{ .n = "tcb1_gclk",   .id = 36, .r = { .min = 0, .max = 83000000 }, },
-	{ .n = "pwm_gclk",    .id = 38, .r = { .min = 0, .max = 83000000 }, },
-	{ .n = "isc_gclk",    .id = 46, },
-	{ .n = "pdmic_gclk",  .id = 48, },
-	{ .n = "i2s0_gclk",   .id = 54, .pll = true },
-	{ .n = "i2s1_gclk",   .id = 55, .pll = true },
-	{ .n = "can0_gclk",   .id = 56, .r = { .min = 0, .max = 80000000 }, },
-	{ .n = "can1_gclk",   .id = 57, .r = { .min = 0, .max = 80000000 }, },
-	{ .n = "classd_gclk", .id = 59, .r = { .min = 0, .max = 100000000 },
-	  .pll = true },
+	{ .n = "sdmmc0_gclk", .id = 31, .chg_pid = INT_MIN, },
+	{ .n = "sdmmc1_gclk", .id = 32, .chg_pid = INT_MIN, },
+	{ .n = "tcb0_gclk",   .id = 35, .chg_pid = INT_MIN, .r = { .min = 0, .max = 83000000 }, },
+	{ .n = "tcb1_gclk",   .id = 36, .chg_pid = INT_MIN, .r = { .min = 0, .max = 83000000 }, },
+	{ .n = "pwm_gclk",    .id = 38, .chg_pid = INT_MIN, .r = { .min = 0, .max = 83000000 }, },
+	{ .n = "isc_gclk",    .id = 46, .chg_pid = INT_MIN, },
+	{ .n = "pdmic_gclk",  .id = 48, .chg_pid = INT_MIN, },
+	{ .n = "i2s0_gclk",   .id = 54, .chg_pid = 5, },
+	{ .n = "i2s1_gclk",   .id = 55, .chg_pid = 5, },
+	{ .n = "can0_gclk",   .id = 56, .chg_pid = INT_MIN, .r = { .min = 0, .max = 80000000 }, },
+	{ .n = "can1_gclk",   .id = 57, .chg_pid = INT_MIN, .r = { .min = 0, .max = 80000000 }, },
+	{ .n = "classd_gclk", .id = 59, .chg_pid = 5, .r = { .min = 0, .max = 100000000 }, },
 };
 
 static const struct clk_programmable_layout sama5d2_programmable_layout = {
@@ -324,8 +323,8 @@ static void __init sama5d2_pmc_setup(struct device_node *np)
 						 sama5d2_gck[i].n,
 						 parent_names, 6,
 						 sama5d2_gck[i].id,
-						 sama5d2_gck[i].pll,
-						 &sama5d2_gck[i].r);
+						 &sama5d2_gck[i].r,
+						 sama5d2_gck[i].chg_pid);
 		if (IS_ERR(hw))
 			goto err_free;
 

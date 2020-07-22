@@ -290,8 +290,7 @@ static void __init sam9x60_pmc_setup(struct device_node *np)
 						 sam9x60_gck[i].n,
 						 parent_names, 6,
 						 sam9x60_gck[i].id,
-						 false,
-						 &sam9x60_gck[i].r);
+						 &sam9x60_gck[i].r, INT_MIN);
 		if (IS_ERR(hw))
 			goto err_free;
 
