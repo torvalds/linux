@@ -181,7 +181,8 @@ static void __init at91sam9g45_pmc_setup(struct device_node *np)
 
 		hw = at91_clk_register_programmable(regmap, name,
 						    parent_names, 5, i,
-						    &at91sam9g45_programmable_layout);
+						    &at91sam9g45_programmable_layout,
+						    NULL);
 		if (IS_ERR(hw))
 			goto err_free;
 

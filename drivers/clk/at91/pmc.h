@@ -188,7 +188,8 @@ sam9x60_clk_register_pll(struct regmap *regmap, spinlock_t *lock,
 struct clk_hw * __init
 at91_clk_register_programmable(struct regmap *regmap, const char *name,
 			       const char **parent_names, u8 num_parents, u8 id,
-			       const struct clk_programmable_layout *layout);
+			       const struct clk_programmable_layout *layout,
+			       u32 *mux_table);
 
 struct clk_hw * __init
 at91_clk_register_sam9260_slow(struct regmap *regmap,
