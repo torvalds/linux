@@ -440,9 +440,12 @@ static struct device_type hsr_type = {
 
 static struct hsr_proto_ops hsr_ops = {
 	.send_sv_frame = send_hsr_supervision_frame,
+	.create_tagged_frame = hsr_create_tagged_frame,
+	.get_untagged_frame = hsr_get_untagged_frame,
+	.fill_frame_info = hsr_fill_frame_info,
 };
 
-struct hsr_proto_ops prp_ops = {
+static struct hsr_proto_ops prp_ops = {
 	.send_sv_frame = send_prp_supervision_frame,
 };
 

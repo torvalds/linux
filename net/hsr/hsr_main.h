@@ -162,9 +162,17 @@ enum hsr_version {
 	PRP_V1,
 };
 
+struct hsr_frame_info;
+
 struct hsr_proto_ops {
 	/* format and send supervision frame */
 	void (*send_sv_frame)(struct hsr_port *port, unsigned long *interval);
+	struct sk_buff * (*get_untagged_frame)(struct hsr_frame_info *frame,
+					       struct hsr_port *port);
+	struct sk_buff * (*create_tagged_frame)(struct hsr_frame_info *frame,
+						struct hsr_port *port);
+	void (*fill_frame_info)(__be16 proto, struct sk_buff *skb,
+				struct hsr_frame_info *frame);
 };
 
 struct hsr_priv {
