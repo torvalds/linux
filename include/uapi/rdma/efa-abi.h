@@ -20,6 +20,16 @@
  * hex bit offset of the field.
  */
 
+enum {
+	EFA_ALLOC_UCONTEXT_CMD_COMP_TX_BATCH  = 1 << 0,
+	EFA_ALLOC_UCONTEXT_CMD_COMP_MIN_SQ_WR = 1 << 1,
+};
+
+struct efa_ibv_alloc_ucontext_cmd {
+	__u32 comp_mask;
+	__u8 reserved_20[4];
+};
+
 enum efa_ibv_user_cmds_supp_udata {
 	EFA_USER_CMDS_SUPP_UDATA_QUERY_DEVICE = 1 << 0,
 	EFA_USER_CMDS_SUPP_UDATA_CREATE_AH    = 1 << 1,
