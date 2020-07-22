@@ -9,6 +9,7 @@
 #include <linux/stat.h>
 #include <linux/kdev_t.h>
 #include <linux/syscalls.h>
+#include <linux/init_syscalls.h>
 
 /*
  * Create a simple rootfs that is similar to the default initramfs
@@ -17,7 +18,7 @@ static int __init default_rootfs(void)
 {
 	int err;
 
-	err = ksys_mkdir((const char __user __force *) "/dev", 0755);
+	err = init_mkdir("/dev", 0755);
 	if (err < 0)
 		goto out;
 
@@ -27,7 +28,7 @@ static int __init default_rootfs(void)
 	if (err < 0)
 		goto out;
 
-	err = ksys_mkdir((const char __user __force *) "/root", 0700);
+	err = init_mkdir("/root", 0700);
 	if (err < 0)
 		goto out;
 

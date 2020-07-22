@@ -11,4 +11,5 @@ int __init init_eaccess(const char *filename);
 int __init init_link(const char *oldname, const char *newname);
 int __init init_symlink(const char *oldname, const char *newname);
 int __init init_unlink(const char *pathname);
+int __init init_mkdir(const char *pathname, umode_t mode);
 int __init init_rmdir(const char *pathname);
