@@ -186,17 +186,6 @@ static void dsa_master_get_strings(struct net_device *dev, uint32_t stringset,
 	}
 }
 
-static int dsa_master_get_phys_port_name(struct net_device *dev,
-					 char *name, size_t len)
-{
-	struct dsa_port *cpu_dp = dev->dsa_ptr;
-
-	if (snprintf(name, len, "p%d", cpu_dp->index) >= len)
-		return -EINVAL;
-
-	return 0;
-}
-
 static int dsa_master_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
 	struct dsa_port *cpu_dp = dev->dsa_ptr;
@@ -228,7 +217,6 @@ static int dsa_master_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 static const struct dsa_netdevice_ops dsa_netdev_ops = {
 	.ndo_do_ioctl = dsa_master_ioctl,
-	.ndo_get_phys_port_name = dsa_master_get_phys_port_name,
 };
 
 static int dsa_master_ethtool_setup(struct net_device *dev)

@@ -94,8 +94,6 @@ struct dsa_device_ops {
 struct dsa_netdevice_ops {
 	int (*ndo_do_ioctl)(struct net_device *dev, struct ifreq *ifr,
 			    int cmd);
-	int (*ndo_get_phys_port_name)(struct net_device *dev, char *name,
-				      size_t len);
 };
 
 #define DSA_TAG_DRIVER_ALIAS "dsa_tag-"
@@ -719,30 +717,9 @@ static inline int dsa_ndo_do_ioctl(struct net_device *dev, struct ifreq *ifr,
 
 	return ops->ndo_do_ioctl(dev, ifr, cmd);
 }
-
-static inline int dsa_ndo_get_phys_port_name(struct net_device *dev,
-					     char *name, size_t len)
-{
-	const struct dsa_netdevice_ops *ops;
-	int err;
-
-	err = __dsa_netdevice_ops_check(dev);
-	if (err)
-		return err;
-
-	ops = dev->dsa_ptr->netdev_ops;
-
-	return ops->ndo_get_phys_port_name(dev, name, len);
-}
 #else
 static inline int dsa_ndo_do_ioctl(struct net_device *dev, struct ifreq *ifr,
 				   int cmd)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline int dsa_ndo_get_phys_port_name(struct net_device *dev,
-					     char *name, size_t len)
 {
 	return -EOPNOTSUPP;
 }
