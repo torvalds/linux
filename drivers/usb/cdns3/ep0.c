@@ -123,8 +123,6 @@ static void cdns3_ep0_complete_setup(struct cdns3_device *priv_dev,
 	priv_dev->ep0_stage = CDNS3_SETUP_STAGE;
 	writel((send_erdy ? EP_CMD_ERDY : 0) | EP_CMD_REQ_CMPL,
 	       &priv_dev->regs->ep_cmd);
-
-	cdns3_allow_enable_l1(priv_dev, 1);
 }
 
 /**
@@ -639,7 +637,6 @@ void cdns3_check_ep0_interrupt_proceed(struct cdns3_device *priv_dev, int dir)
 
 	if (priv_dev->wait_for_setup && ep_sts_reg & EP_STS_IOC) {
 		priv_dev->wait_for_setup = 0;
-		cdns3_allow_enable_l1(priv_dev, 0);
 		cdns3_ep0_setup_phase(priv_dev);
 	} else if ((ep_sts_reg & EP_STS_IOC) || (ep_sts_reg & EP_STS_ISP)) {
 		priv_dev->ep0_data_dir = dir;
