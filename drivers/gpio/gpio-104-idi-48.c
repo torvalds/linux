@@ -247,10 +247,22 @@ static const char *idi48_names[IDI48_NGPIO] = {
 	"Bit 18 B", "Bit 19 B", "Bit 20 B", "Bit 21 B", "Bit 22 B", "Bit 23 B"
 };
 
+static int idi_48_irq_init_hw(struct gpio_chip *gc)
+{
+	struct idi_48_gpio *const idi48gpio = gpiochip_get_data(gc);
+
+	/* Disable IRQ by default */
+	outb(0, idi48gpio->base + 7);
+	inb(idi48gpio->base + 7);
+
+	return 0;
+}
+
 static int idi_48_probe(struct device *dev, unsigned int id)
 {
 	struct idi_48_gpio *idi48gpio;
 	const char *const name = dev_name(dev);
+	struct gpio_irq_chip *girq;
 	int err;
 
 	idi48gpio = devm_kzalloc(dev, sizeof(*idi48gpio), GFP_KERNEL);
@@ -275,23 +287,22 @@ static int idi_48_probe(struct device *dev, unsigned int id)
 	idi48gpio->chip.get_multiple = idi_48_gpio_get_multiple;
 	idi48gpio->base = base[id];
 
+	girq = &idi48gpio->chip.irq;
+	girq->chip = &idi_48_irqchip;
+	/* This will let us handle the parent IRQ in the driver */
+	girq->parent_handler = NULL;
+	girq->num_parents = 0;
+	girq->parents = NULL;
+	girq->default_type = IRQ_TYPE_NONE;
+	girq->handler = handle_edge_irq;
+	girq->init_hw = idi_48_irq_init_hw;
+
 	raw_spin_lock_init(&idi48gpio->lock);
 	spin_lock_init(&idi48gpio->ack_lock);
 
 	err = devm_gpiochip_add_data(dev, &idi48gpio->chip, idi48gpio);
 	if (err) {
 		dev_err(dev, "GPIO registering failed (%d)\n", err);
-		return err;
-	}
-
-	/* Disable IRQ by default */
-	outb(0, base[id] + 7);
-	inb(base[id] + 7);
-
-	err = gpiochip_irqchip_add(&idi48gpio->chip, &idi_48_irqchip, 0,
-		handle_edge_irq, IRQ_TYPE_NONE);
-	if (err) {
-		dev_err(dev, "Could not add irqchip (%d)\n", err);
 		return err;
 	}
 
