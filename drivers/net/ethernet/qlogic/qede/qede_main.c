@@ -1442,6 +1442,11 @@ static void qede_set_tpa_param(struct qede_rx_queue *rxq)
 /* This function allocates all memory needed per Rx queue */
 static int qede_alloc_mem_rxq(struct qede_dev *edev, struct qede_rx_queue *rxq)
 {
+	struct qed_chain_init_params params = {
+		.cnt_type	= QED_CHAIN_CNT_TYPE_U16,
+		.num_elems	= RX_RING_SIZE,
+	};
+	struct qed_dev *cdev = edev->cdev;
 	int i, rc, size;
 
 	rxq->num_rx_buffers = edev->q_num_rx_buffers;
@@ -1477,24 +1482,20 @@ static int qede_alloc_mem_rxq(struct qede_dev *edev, struct qede_rx_queue *rxq)
 	}
 
 	/* Allocate FW Rx ring  */
-	rc = edev->ops->common->chain_alloc(edev->cdev,
-					    QED_CHAIN_USE_TO_CONSUME_PRODUCE,
-					    QED_CHAIN_MODE_NEXT_PTR,
-					    QED_CHAIN_CNT_TYPE_U16,
-					    RX_RING_SIZE,
-					    sizeof(struct eth_rx_bd),
-					    &rxq->rx_bd_ring, NULL);
+	params.mode = QED_CHAIN_MODE_NEXT_PTR;
+	params.intended_use = QED_CHAIN_USE_TO_CONSUME_PRODUCE;
+	params.elem_size = sizeof(struct eth_rx_bd);
+
+	rc = edev->ops->common->chain_alloc(cdev, &rxq->rx_bd_ring, &params);
 	if (rc)
 		goto err;
 
 	/* Allocate FW completion ring */
-	rc = edev->ops->common->chain_alloc(edev->cdev,
-					    QED_CHAIN_USE_TO_CONSUME,
-					    QED_CHAIN_MODE_PBL,
-					    QED_CHAIN_CNT_TYPE_U16,
-					    RX_RING_SIZE,
-					    sizeof(union eth_rx_cqe),
-					    &rxq->rx_comp_ring, NULL);
+	params.mode = QED_CHAIN_MODE_PBL;
+	params.intended_use = QED_CHAIN_USE_TO_CONSUME;
+	params.elem_size = sizeof(union eth_rx_cqe);
+
+	rc = edev->ops->common->chain_alloc(cdev, &rxq->rx_comp_ring, &params);
 	if (rc)
 		goto err;
 
@@ -1531,7 +1532,13 @@ static void qede_free_mem_txq(struct qede_dev *edev, struct qede_tx_queue *txq)
 /* This function allocates all memory needed per Tx queue */
 static int qede_alloc_mem_txq(struct qede_dev *edev, struct qede_tx_queue *txq)
 {
-	union eth_tx_bd_types *p_virt;
+	struct qed_chain_init_params params = {
+		.mode		= QED_CHAIN_MODE_PBL,
+		.intended_use	= QED_CHAIN_USE_TO_CONSUME_PRODUCE,
+		.cnt_type	= QED_CHAIN_CNT_TYPE_U16,
+		.num_elems	= edev->q_num_tx_buffers,
+		.elem_size	= sizeof(union eth_tx_bd_types),
+	};
 	int size, rc;
 
 	txq->num_tx_buffers = edev->q_num_tx_buffers;
@@ -1549,13 +1556,7 @@ static int qede_alloc_mem_txq(struct qede_dev *edev, struct qede_tx_queue *txq)
 			goto err;
 	}
 
-	rc = edev->ops->common->chain_alloc(edev->cdev,
-					    QED_CHAIN_USE_TO_CONSUME_PRODUCE,
-					    QED_CHAIN_MODE_PBL,
-					    QED_CHAIN_CNT_TYPE_U16,
-					    txq->num_tx_buffers,
-					    sizeof(*p_virt),
-					    &txq->tx_pbl, NULL);
+	rc = edev->ops->common->chain_alloc(edev->cdev, &txq->tx_pbl, &params);
 	if (rc)
 		goto err;
 

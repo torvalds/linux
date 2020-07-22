@@ -684,9 +684,13 @@ nomem:
 static int qed_iscsi_allocate_connection(struct qed_hwfn *p_hwfn,
 					 struct qed_iscsi_conn **p_out_conn)
 {
-	u16 uhq_num_elements = 0, xhq_num_elements = 0, r2tq_num_elements = 0;
 	struct scsi_terminate_extra_params *p_q_cnts = NULL;
 	struct qed_iscsi_pf_params *p_params = NULL;
+	struct qed_chain_init_params params = {
+		.mode		= QED_CHAIN_MODE_PBL,
+		.intended_use	= QED_CHAIN_USE_TO_CONSUME_PRODUCE,
+		.cnt_type	= QED_CHAIN_CNT_TYPE_U16,
+	};
 	struct tcp_upload_params *p_tcp = NULL;
 	struct qed_iscsi_conn *p_conn = NULL;
 	int rc = 0;
@@ -727,34 +731,25 @@ static int qed_iscsi_allocate_connection(struct qed_hwfn *p_hwfn,
 		goto nomem_upload_param;
 	p_conn->tcp_upload_params_virt_addr = p_tcp;
 
-	r2tq_num_elements = p_params->num_r2tq_pages_in_ring *
-			    QED_CHAIN_PAGE_SIZE / 0x80;
-	rc = qed_chain_alloc(p_hwfn->cdev,
-			     QED_CHAIN_USE_TO_CONSUME_PRODUCE,
-			     QED_CHAIN_MODE_PBL,
-			     QED_CHAIN_CNT_TYPE_U16,
-			     r2tq_num_elements, 0x80, &p_conn->r2tq, NULL);
+	params.num_elems = p_params->num_r2tq_pages_in_ring *
+			   QED_CHAIN_PAGE_SIZE / sizeof(struct iscsi_wqe);
+	params.elem_size = sizeof(struct iscsi_wqe);
+
+	rc = qed_chain_alloc(p_hwfn->cdev, &p_conn->r2tq, &params);
 	if (rc)
 		goto nomem_r2tq;
 
-	uhq_num_elements = p_params->num_uhq_pages_in_ring *
+	params.num_elems = p_params->num_uhq_pages_in_ring *
 			   QED_CHAIN_PAGE_SIZE / sizeof(struct iscsi_uhqe);
-	rc = qed_chain_alloc(p_hwfn->cdev,
-			     QED_CHAIN_USE_TO_CONSUME_PRODUCE,
-			     QED_CHAIN_MODE_PBL,
-			     QED_CHAIN_CNT_TYPE_U16,
-			     uhq_num_elements,
-			     sizeof(struct iscsi_uhqe), &p_conn->uhq, NULL);
+	params.elem_size = sizeof(struct iscsi_uhqe);
+
+	rc = qed_chain_alloc(p_hwfn->cdev, &p_conn->uhq, &params);
 	if (rc)
 		goto nomem_uhq;
 
-	xhq_num_elements = uhq_num_elements;
-	rc = qed_chain_alloc(p_hwfn->cdev,
-			     QED_CHAIN_USE_TO_CONSUME_PRODUCE,
-			     QED_CHAIN_MODE_PBL,
-			     QED_CHAIN_CNT_TYPE_U16,
-			     xhq_num_elements,
-			     sizeof(struct iscsi_xhqe), &p_conn->xhq, NULL);
+	params.elem_size = sizeof(struct iscsi_xhqe);
+
+	rc = qed_chain_alloc(p_hwfn->cdev, &p_conn->xhq, &params);
 	if (rc)
 		goto nomem;
 

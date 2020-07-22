@@ -7,23 +7,22 @@
 
 #include "qed_dev_api.h"
 
-static void qed_chain_init_params(struct qed_chain *chain,
-				  u32 page_cnt, u8 elem_size,
-				  enum qed_chain_use_mode intended_use,
-				  enum qed_chain_mode mode,
-				  enum qed_chain_cnt_type cnt_type,
-				  const struct qed_chain_ext_pbl *ext_pbl)
+static void qed_chain_init(struct qed_chain *chain,
+			   const struct qed_chain_init_params *params,
+			   u32 page_cnt)
 {
 	memset(chain, 0, sizeof(*chain));
 
-	chain->elem_size = elem_size;
-	chain->intended_use = intended_use;
-	chain->mode = mode;
-	chain->cnt_type = cnt_type;
+	chain->elem_size = params->elem_size;
+	chain->intended_use = params->intended_use;
+	chain->mode = params->mode;
+	chain->cnt_type = params->cnt_type;
 
-	chain->elem_per_page = ELEMS_PER_PAGE(elem_size);
-	chain->usable_per_page = USABLE_ELEMS_PER_PAGE(elem_size, mode);
-	chain->elem_unusable = UNUSABLE_ELEMS_PER_PAGE(elem_size, mode);
+	chain->elem_per_page = ELEMS_PER_PAGE(params->elem_size);
+	chain->usable_per_page = USABLE_ELEMS_PER_PAGE(params->elem_size,
+						       params->mode);
+	chain->elem_unusable = UNUSABLE_ELEMS_PER_PAGE(params->elem_size,
+						       params->mode);
 
 	chain->elem_per_page_mask = chain->elem_per_page - 1;
 	chain->next_page_mask = chain->usable_per_page &
@@ -33,9 +32,9 @@ static void qed_chain_init_params(struct qed_chain *chain,
 	chain->capacity = chain->usable_per_page * page_cnt;
 	chain->size = chain->elem_per_page * page_cnt;
 
-	if (ext_pbl && ext_pbl->p_pbl_virt) {
-		chain->pbl_sp.table_virt = ext_pbl->p_pbl_virt;
-		chain->pbl_sp.table_phys = ext_pbl->p_pbl_phys;
+	if (params->ext_pbl_virt) {
+		chain->pbl_sp.table_virt = params->ext_pbl_virt;
+		chain->pbl_sp.table_phys = params->ext_pbl_phys;
 
 		chain->b_external_pbl = true;
 	}
@@ -154,10 +153,16 @@ void qed_chain_free(struct qed_dev *cdev, struct qed_chain *chain)
 
 static int
 qed_chain_alloc_sanity_check(struct qed_dev *cdev,
-			     enum qed_chain_cnt_type cnt_type,
-			     size_t elem_size, u32 page_cnt)
+			     const struct qed_chain_init_params *params,
+			     u32 page_cnt)
 {
-	u64 chain_size = ELEMS_PER_PAGE(elem_size) * page_cnt;
+	u64 chain_size;
+
+	chain_size = ELEMS_PER_PAGE(params->elem_size);
+	chain_size *= page_cnt;
+
+	if (!chain_size)
+		return -EINVAL;
 
 	/* The actual chain size can be larger than the maximal possible value
 	 * after rounding up the requested elements number to pages, and after
@@ -165,7 +170,7 @@ qed_chain_alloc_sanity_check(struct qed_dev *cdev,
 	 * The size of a "u16" chain can be (U16_MAX + 1) since the chain
 	 * size/capacity fields are of u32 type.
 	 */
-	switch (cnt_type) {
+	switch (params->cnt_type) {
 	case QED_CHAIN_CNT_TYPE_U16:
 		if (chain_size > U16_MAX + 1)
 			break;
@@ -298,37 +303,42 @@ alloc_pages:
 	return 0;
 }
 
-int qed_chain_alloc(struct qed_dev *cdev,
-		    enum qed_chain_use_mode intended_use,
-		    enum qed_chain_mode mode,
-		    enum qed_chain_cnt_type cnt_type,
-		    u32 num_elems,
-		    size_t elem_size,
-		    struct qed_chain *chain,
-		    struct qed_chain_ext_pbl *ext_pbl)
+/**
+ * qed_chain_alloc() - Allocate and initialize a chain.
+ *
+ * @cdev: Main device structure.
+ * @chain: Chain to be processed.
+ * @params: Chain initialization parameters.
+ *
+ * Return: 0 on success, negative errno otherwise.
+ */
+int qed_chain_alloc(struct qed_dev *cdev, struct qed_chain *chain,
+		    struct qed_chain_init_params *params)
 {
 	u32 page_cnt;
 	int rc;
 
-	if (mode == QED_CHAIN_MODE_SINGLE)
+	if (params->mode == QED_CHAIN_MODE_SINGLE)
 		page_cnt = 1;
 	else
-		page_cnt = QED_CHAIN_PAGE_CNT(num_elems, elem_size, mode);
+		page_cnt = QED_CHAIN_PAGE_CNT(params->num_elems,
+					      params->elem_size,
+					      params->mode);
 
-	rc = qed_chain_alloc_sanity_check(cdev, cnt_type, elem_size, page_cnt);
+	rc = qed_chain_alloc_sanity_check(cdev, params, page_cnt);
 	if (rc) {
 		DP_NOTICE(cdev,
 			  "Cannot allocate a chain with the given arguments:\n");
 		DP_NOTICE(cdev,
 			  "[use_mode %d, mode %d, cnt_type %d, num_elems %d, elem_size %zu]\n",
-			  intended_use, mode, cnt_type, num_elems, elem_size);
+			  params->intended_use, params->mode, params->cnt_type,
+			  params->num_elems, params->elem_size);
 		return rc;
 	}
 
-	qed_chain_init_params(chain, page_cnt, elem_size, intended_use, mode,
-			      cnt_type, ext_pbl);
+	qed_chain_init(chain, params, page_cnt);
 
-	switch (mode) {
+	switch (params->mode) {
 	case QED_CHAIN_MODE_NEXT_PTR:
 		rc = qed_chain_alloc_next_ptr(cdev, chain);
 		break;

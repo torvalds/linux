@@ -54,11 +54,6 @@ struct qed_chain_pbl_u32 {
 	u32						cons_page_idx;
 };
 
-struct qed_chain_ext_pbl {
-	dma_addr_t					p_pbl_phys;
-	void						*p_pbl_virt;
-};
-
 struct qed_chain_u16 {
 	/* Cyclic index of next element to produce/consme */
 	u16						prod_idx;
@@ -119,7 +114,7 @@ struct qed_chain {
 	u16						usable_per_page;
 	u8						elem_unusable;
 
-	u8						cnt_type;
+	enum qed_chain_cnt_type				cnt_type;
 
 	/* Slowpath of the chain - required for initialization and destruction,
 	 * but isn't involved in regular functionality.
@@ -142,9 +137,21 @@ struct qed_chain {
 	/* Total number of elements [for entire chain] */
 	u32						size;
 
-	u8						intended_use;
+	enum qed_chain_use_mode				intended_use;
 
 	bool						b_external_pbl;
+};
+
+struct qed_chain_init_params {
+	enum qed_chain_mode				mode;
+	enum qed_chain_use_mode				intended_use;
+	enum qed_chain_cnt_type				cnt_type;
+
+	u32						num_elems;
+	size_t						elem_size;
+
+	void						*ext_pbl_virt;
+	dma_addr_t					ext_pbl_phys;
 };
 
 #define QED_CHAIN_PAGE_SIZE				0x1000

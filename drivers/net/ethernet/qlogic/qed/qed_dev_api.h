@@ -254,35 +254,9 @@ int qed_dmae_host2host(struct qed_hwfn *p_hwfn,
 		       dma_addr_t dest_addr,
 		       u32 size_in_dwords, struct qed_dmae_params *p_params);
 
-/**
- * @brief qed_chain_alloc - Allocate and initialize a chain
- *
- * @param p_hwfn
- * @param intended_use
- * @param mode
- * @param num_elems
- * @param elem_size
- * @param p_chain
- * @param ext_pbl - a possible external PBL
- *
- * @return int
- */
-int
-qed_chain_alloc(struct qed_dev *cdev,
-		enum qed_chain_use_mode intended_use,
-		enum qed_chain_mode mode,
-		enum qed_chain_cnt_type cnt_type,
-		u32 num_elems,
-		size_t elem_size,
-		struct qed_chain *p_chain, struct qed_chain_ext_pbl *ext_pbl);
-
-/**
- * @brief qed_chain_free - Free chain DMA memory
- *
- * @param p_hwfn
- * @param p_chain
- */
-void qed_chain_free(struct qed_dev *cdev, struct qed_chain *p_chain);
+int qed_chain_alloc(struct qed_dev *cdev, struct qed_chain *chain,
+		    struct qed_chain_init_params *params);
+void qed_chain_free(struct qed_dev *cdev, struct qed_chain *chain);
 
 /**
  * @@brief qed_fw_l2_queue - Get absolute L2 queue ID
