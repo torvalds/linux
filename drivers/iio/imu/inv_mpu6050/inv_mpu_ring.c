@@ -179,8 +179,8 @@ irqreturn_t inv_mpu6050_read_fifo(int irq, void *p)
 	nb = fifo_count / bytes_per_datum;
 	inv_mpu6050_update_period(st, pf->timestamp, nb);
 	for (i = 0; i < nb; ++i) {
-		result = regmap_bulk_read(st->map, st->reg->fifo_r_w,
-					  st->data, bytes_per_datum);
+		result = regmap_noinc_read(st->map, st->reg->fifo_r_w,
+					   st->data, bytes_per_datum);
 		if (result)
 			goto flush_fifo;
 		/* skip first samples if needed */
