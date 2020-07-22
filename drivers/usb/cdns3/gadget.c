@@ -242,8 +242,9 @@ int cdns3_allocate_trb_pool(struct cdns3_endpoint *priv_ep)
 			return -ENOMEM;
 
 		priv_ep->alloc_ring_size = ring_size;
-		memset(priv_ep->trb_pool, 0, ring_size);
 	}
+
+	memset(priv_ep->trb_pool, 0, ring_size);
 
 	priv_ep->num_trbs = num_trbs;
 
