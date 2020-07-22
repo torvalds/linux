@@ -243,8 +243,15 @@ struct pnv_iov_data {
 	/* pointer to the array of VF PEs. num_vfs long*/
 	struct pnv_ioda_pe *vf_pe_arr;
 
-	/* Did we map the VF BARs with single-PE IODA BARs? */
-	bool    m64_single_mode;
+	/* Did we map the VF BAR with single-PE IODA BARs? */
+	bool    m64_single_mode[PCI_SRIOV_NUM_BARS];
+
+	/*
+	 * True if we're using any segmented windows. In that case we need
+	 * shift the start of the IOV resource the segment corresponding to
+	 * the allocated PE.
+	 */
+	bool    need_shift;
 
 	/*
 	 * Bit mask used to track which m64 windows are used to map the
