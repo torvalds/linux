@@ -19,7 +19,6 @@
 #define MSG_OWNER_USBC_PAN	32780
 #define MSG_TYPE_REQ_RESP	1
 
-#define MIN_PAYLOAD_SIZE	9
 #define NOTIFY_PAYLOAD_SIZE	16
 #define USBC_WRITE_BUFFER_SIZE	8
 
@@ -526,7 +525,6 @@ static int altmode_callback(void *priv, void *data, size_t len)
 	struct pmic_glink_hdr *hdr = data;
 	struct altmode_dev *amdev = priv;
 	struct altmode_client *amclient;
-	u8 payload_len;
 	u8 port_index;
 
 	pr_debug("len: %zu owner: %u type: %u opcode %04x\n", len, hdr->owner,
@@ -545,13 +543,11 @@ static int altmode_callback(void *priv, void *data, size_t len)
 		complete(&amdev->response_received);
 		break;
 	case USBC_NOTIFY_IND:
-		payload_len = NOTIFY_PAYLOAD_SIZE;
-		if (len < sizeof(*notify_msg))
-			payload_len = len - sizeof(*hdr);
-
-		/* payload should at least contain 9 bytes */
-		if (payload_len < MIN_PAYLOAD_SIZE)
+		if (len != sizeof(*notify_msg)) {
+			pr_debug("Expected length %u, got: %zu\n",
+					sizeof(*notify_msg), len);
 			return -EINVAL;
+		}
 
 		notify_msg = data;
 		port_index = notify_msg->payload[0];
@@ -570,9 +566,12 @@ static int altmode_callback(void *priv, void *data, size_t len)
 			return 0;
 		}
 
-		pr_debug("Payload: %*ph\n", payload_len, notify_msg->payload);
+		pr_debug("Payload: %*ph\n", NOTIFY_PAYLOAD_SIZE,
+				notify_msg->payload);
+
 		cancel_work_sync(&amclient->client_cb_work);
-		memcpy(&amclient->msg, notify_msg->payload, payload_len);
+		memcpy(&amclient->msg, notify_msg->payload,
+				sizeof(amclient->msg));
 		schedule_work(&amclient->client_cb_work);
 		break;
 	default:
