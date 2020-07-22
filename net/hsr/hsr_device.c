@@ -443,10 +443,17 @@ static struct hsr_proto_ops hsr_ops = {
 	.create_tagged_frame = hsr_create_tagged_frame,
 	.get_untagged_frame = hsr_get_untagged_frame,
 	.fill_frame_info = hsr_fill_frame_info,
+	.invalid_dan_ingress_frame = hsr_invalid_dan_ingress_frame,
 };
 
 static struct hsr_proto_ops prp_ops = {
 	.send_sv_frame = send_prp_supervision_frame,
+	.create_tagged_frame = prp_create_tagged_frame,
+	.get_untagged_frame = prp_get_untagged_frame,
+	.drop_frame = prp_drop_frame,
+	.fill_frame_info = prp_fill_frame_info,
+	.handle_san_frame = prp_handle_san_frame,
+	.update_san_info = prp_update_san_info,
 };
 
 void hsr_dev_setup(struct net_device *dev)
@@ -508,15 +515,16 @@ int hsr_dev_finalize(struct net_device *hsr_dev, struct net_device *slave[2],
 
 	ether_addr_copy(hsr_dev->dev_addr, slave[0]->dev_addr);
 
-	/* currently PRP is not supported */
-	if (protocol_version == PRP_V1)
-		return -EPROTONOSUPPORT;
-
 	/* initialize protocol specific functions */
-	if (protocol_version == PRP_V1)
+	if (protocol_version == PRP_V1) {
+		/* For PRP, lan_id has most significant 3 bits holding
+		 * the net_id of PRP_LAN_ID
+		 */
+		hsr->net_id = PRP_LAN_ID << 1;
 		hsr->proto_ops = &prp_ops;
-	else
+	} else {
 		hsr->proto_ops = &hsr_ops;
+	}
 
 	/* Make sure we recognize frames from ourselves in hsr_rcv() */
 	res = hsr_create_self_node(hsr, hsr_dev->dev_addr,

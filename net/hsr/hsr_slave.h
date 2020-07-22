@@ -32,4 +32,6 @@ static inline struct hsr_port *hsr_port_get_rcu(const struct net_device *dev)
 				rcu_dereference(dev->rx_handler_data) : NULL;
 }
 
+bool hsr_invalid_dan_ingress_frame(__be16 protocol);
+
 #endif /* __HSR_SLAVE_H */
