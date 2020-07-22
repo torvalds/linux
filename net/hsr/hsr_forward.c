@@ -76,7 +76,9 @@ static bool is_supervision_frame(struct hsr_priv *hsr, struct sk_buff *skb)
 	}
 
 	if (hsr_sup_tag->HSR_TLV_type != HSR_TLV_ANNOUNCE &&
-	    hsr_sup_tag->HSR_TLV_type != HSR_TLV_LIFE_CHECK)
+	    hsr_sup_tag->HSR_TLV_type != HSR_TLV_LIFE_CHECK &&
+	    hsr_sup_tag->HSR_TLV_type != PRP_TLV_LIFE_CHECK_DD &&
+	    hsr_sup_tag->HSR_TLV_type != PRP_TLV_LIFE_CHECK_DA)
 		return false;
 	if (hsr_sup_tag->HSR_TLV_length != 12 &&
 	    hsr_sup_tag->HSR_TLV_length != sizeof(struct hsr_sup_payload))

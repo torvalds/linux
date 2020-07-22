@@ -238,6 +238,10 @@ static struct sk_buff *hsr_init_skb(struct hsr_port *master, u16 proto)
 
 	hlen = LL_RESERVED_SPACE(master->dev);
 	tlen = master->dev->needed_tailroom;
+	/* skb size is same for PRP/HSR frames, only difference
+	 * being, for PRP it is a trailer and for HSR it is a
+	 * header
+	 */
 	skb = dev_alloc_skb(sizeof(struct hsr_tag) +
 			    sizeof(struct hsr_sup_tag) +
 			    sizeof(struct hsr_sup_payload) + hlen + tlen);
@@ -336,6 +340,55 @@ static void send_hsr_supervision_frame(struct hsr_port *master,
 	return;
 }
 
+static void send_prp_supervision_frame(struct hsr_port *master,
+				       unsigned long *interval)
+{
+	struct hsr_priv *hsr = master->hsr;
+	struct hsr_sup_payload *hsr_sp;
+	struct hsr_sup_tag *hsr_stag;
+	unsigned long irqflags;
+	struct sk_buff *skb;
+	struct prp_rct *rct;
+	u8 *tail;
+
+	skb = hsr_init_skb(master, ETH_P_PRP);
+	if (!skb) {
+		WARN_ONCE(1, "PRP: Could not send supervision frame\n");
+		return;
+	}
+
+	*interval = msecs_to_jiffies(HSR_LIFE_CHECK_INTERVAL);
+	hsr_stag = skb_put(skb, sizeof(struct hsr_sup_tag));
+	set_hsr_stag_path(hsr_stag, (hsr->prot_version ? 0x0 : 0xf));
+	set_hsr_stag_HSR_ver(hsr_stag, (hsr->prot_version ? 1 : 0));
+
+	/* From HSRv1 on we have separate supervision sequence numbers. */
+	spin_lock_irqsave(&master->hsr->seqnr_lock, irqflags);
+	hsr_stag->sequence_nr = htons(hsr->sup_sequence_nr);
+	hsr->sup_sequence_nr++;
+	hsr_stag->HSR_TLV_type = PRP_TLV_LIFE_CHECK_DD;
+	hsr_stag->HSR_TLV_length = sizeof(struct hsr_sup_payload);
+
+	/* Payload: MacAddressA */
+	hsr_sp = skb_put(skb, sizeof(struct hsr_sup_payload));
+	ether_addr_copy(hsr_sp->macaddress_A, master->dev->dev_addr);
+
+	if (skb_put_padto(skb, ETH_ZLEN + HSR_HLEN)) {
+		spin_unlock_irqrestore(&master->hsr->seqnr_lock, irqflags);
+		return;
+	}
+
+	tail = skb_tail_pointer(skb) - HSR_HLEN;
+	rct = (struct prp_rct *)tail;
+	rct->PRP_suffix = htons(ETH_P_PRP);
+	set_prp_LSDU_size(rct, HSR_V1_SUP_LSDUSIZE);
+	rct->sequence_nr = htons(hsr->sequence_nr);
+	hsr->sequence_nr++;
+	spin_unlock_irqrestore(&master->hsr->seqnr_lock, irqflags);
+
+	hsr_forward_skb(skb, master);
+}
+
 /* Announce (supervision frame) timer function
  */
 static void hsr_announce(struct timer_list *t)
@@ -387,6 +440,10 @@ static struct device_type hsr_type = {
 
 static struct hsr_proto_ops hsr_ops = {
 	.send_sv_frame = send_hsr_supervision_frame,
+};
+
+struct hsr_proto_ops prp_ops = {
+	.send_sv_frame = send_prp_supervision_frame,
 };
 
 void hsr_dev_setup(struct net_device *dev)
@@ -452,7 +509,12 @@ int hsr_dev_finalize(struct net_device *hsr_dev, struct net_device *slave[2],
 	if (protocol_version == PRP_V1)
 		return -EPROTONOSUPPORT;
 
-	hsr->proto_ops = &hsr_ops;
+	/* initialize protocol specific functions */
+	if (protocol_version == PRP_V1)
+		hsr->proto_ops = &prp_ops;
+	else
+		hsr->proto_ops = &hsr_ops;
+
 	/* Make sure we recognize frames from ourselves in hsr_rcv() */
 	res = hsr_create_self_node(hsr, hsr_dev->dev_addr,
 				   slave[1]->dev_addr);

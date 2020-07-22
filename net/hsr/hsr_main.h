@@ -35,6 +35,10 @@
 
 #define HSR_TLV_ANNOUNCE		   22
 #define HSR_TLV_LIFE_CHECK		   23
+/* PRP V1 life check for Duplicate discard */
+#define PRP_TLV_LIFE_CHECK_DD		   20
+/* PRP V1 life check for Duplicate Accept */
+#define PRP_TLV_LIFE_CHECK_DA		   21
 
 /* HSR Tag.
  * As defined in IEC-62439-3:2010, the HSR tag is really { ethertype = 0x88FB,
@@ -125,6 +129,24 @@ enum hsr_port_type {
 	HSR_PT_MASTER,
 	HSR_PT_PORTS,	/* This must be the last item in the enum */
 };
+
+/* PRP Redunancy Control Trailor (RCT).
+ * As defined in IEC-62439-4:2012, the PRP RCT is really { sequence Nr,
+ * Lan indentifier (LanId), LSDU_size and PRP_suffix = 0x88FB }.
+ *
+ * Field names as defined in the IEC:2012 standard for PRP.
+ */
+struct prp_rct {
+	__be16          sequence_nr;
+	__be16          lan_id_and_LSDU_size;
+	__be16          PRP_suffix;
+} __packed;
+
+static inline void set_prp_LSDU_size(struct prp_rct *rct, u16 LSDU_size)
+{
+	rct->lan_id_and_LSDU_size = htons((ntohs(rct->lan_id_and_LSDU_size) &
+					  0xF000) | (LSDU_size & 0x0FFF));
+}
 
 struct hsr_port {
 	struct list_head	port_list;
