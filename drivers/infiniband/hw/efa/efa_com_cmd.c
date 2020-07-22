@@ -481,6 +481,7 @@ int efa_com_get_device_attr(struct efa_com_dev *edev,
 	result->sub_cqs_per_cq = resp.u.queue_attr.sub_cqs_per_cq;
 	result->max_wr_rdma_sge = resp.u.queue_attr.max_wr_rdma_sges;
 	result->max_tx_batch = resp.u.queue_attr.max_tx_batch;
+	result->min_sq_depth = resp.u.queue_attr.min_sq_depth;
 
 	err = efa_com_get_feature(edev, &resp, EFA_ADMIN_NETWORK_ATTR);
 	if (err) {

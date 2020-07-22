@@ -32,7 +32,8 @@ struct efa_ibv_alloc_ucontext_resp {
 	__u16 inline_buf_size;
 	__u32 max_llq_size; /* bytes */
 	__u16 max_tx_batch; /* units of 64 bytes */
-	__u8 reserved_90[6];
+	__u16 min_sq_wr;
+	__u8 reserved_a0[4];
 };
 
 struct efa_ibv_alloc_pd_resp {

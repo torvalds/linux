@@ -1526,6 +1526,7 @@ int efa_alloc_ucontext(struct ib_ucontext *ibucontext, struct ib_udata *udata)
 	resp.inline_buf_size = dev->dev_attr.inline_buf_size;
 	resp.max_llq_size = dev->dev_attr.max_llq_size;
 	resp.max_tx_batch = dev->dev_attr.max_tx_batch;
+	resp.min_sq_wr = dev->dev_attr.min_sq_depth;
 
 	if (udata && udata->outlen) {
 		err = ib_copy_to_udata(udata, &resp,
