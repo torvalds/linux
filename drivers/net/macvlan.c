@@ -880,9 +880,8 @@ static struct lock_class_key macvlan_netdev_addr_lock_key;
 static void macvlan_set_lockdep_class(struct net_device *dev)
 {
 	netdev_lockdep_set_classes(dev);
-	lockdep_set_class_and_subclass(&dev->addr_list_lock,
-				       &macvlan_netdev_addr_lock_key,
-				       dev->lower_level);
+	lockdep_set_class(&dev->addr_list_lock,
+			  &macvlan_netdev_addr_lock_key);
 }
 
 static int macvlan_init(struct net_device *dev)

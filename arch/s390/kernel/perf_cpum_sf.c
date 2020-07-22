@@ -881,12 +881,21 @@ out:
 	return err;
 }
 
+static bool is_callchain_event(struct perf_event *event)
+{
+	u64 sample_type = event->attr.sample_type;
+
+	return sample_type & (PERF_SAMPLE_CALLCHAIN | PERF_SAMPLE_REGS_USER |
+			      PERF_SAMPLE_STACK_USER);
+}
+
 static int cpumsf_pmu_event_init(struct perf_event *event)
 {
 	int err;
 
 	/* No support for taken branch sampling */
-	if (has_branch_stack(event))
+	/* No support for callchain, stacks and registers */
+	if (has_branch_stack(event) || is_callchain_event(event))
 		return -EOPNOTSUPP;
 
 	switch (event->attr.type) {

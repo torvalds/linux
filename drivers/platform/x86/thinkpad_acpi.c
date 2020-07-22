@@ -885,11 +885,19 @@ static ssize_t dispatch_proc_write(struct file *file,
 
 	if (!ibm || !ibm->write)
 		return -EINVAL;
+	if (count > PAGE_SIZE - 1)
+		return -EINVAL;
 
-	kernbuf = strndup_user(userbuf, PAGE_SIZE);
-	if (IS_ERR(kernbuf))
-		return PTR_ERR(kernbuf);
+	kernbuf = kmalloc(count + 1, GFP_KERNEL);
+	if (!kernbuf)
+		return -ENOMEM;
 
+	if (copy_from_user(kernbuf, userbuf, count)) {
+		kfree(kernbuf);
+		return -EFAULT;
+	}
+
+	kernbuf[count] = 0;
 	ret = ibm->write(kernbuf);
 	if (ret == 0)
 		ret = count;

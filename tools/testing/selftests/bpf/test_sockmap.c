@@ -85,6 +85,7 @@ int txmsg_ktls_skb_drop;
 int txmsg_ktls_skb_redir;
 int ktls;
 int peek_flag;
+int skb_use_parser;
 
 static const struct option long_options[] = {
 	{"help",	no_argument,		NULL, 'h' },
@@ -174,6 +175,7 @@ static void test_reset(void)
 	txmsg_apply = txmsg_cork = 0;
 	txmsg_ingress = txmsg_redir_skb = 0;
 	txmsg_ktls_skb = txmsg_ktls_skb_drop = txmsg_ktls_skb_redir = 0;
+	skb_use_parser = 0;
 }
 
 static int test_start_subtest(const struct _test *t, struct sockmap_options *o)
@@ -1211,6 +1213,11 @@ run:
 		}
 	}
 
+	if (skb_use_parser) {
+		i = 2;
+		err = bpf_map_update_elem(map_fd[7], &i, &skb_use_parser, BPF_ANY);
+	}
+
 	if (txmsg_drop)
 		options->drop_expected = true;
 
@@ -1650,6 +1657,16 @@ static void test_txmsg_cork(int cgrp, struct sockmap_options *opt)
 	test_send(opt, cgrp);
 }
 
+static void test_txmsg_ingress_parser(int cgrp, struct sockmap_options *opt)
+{
+	txmsg_pass = 1;
+	skb_use_parser = 512;
+	opt->iov_length = 256;
+	opt->iov_count = 1;
+	opt->rate = 2;
+	test_exec(cgrp, opt);
+}
+
 char *map_names[] = {
 	"sock_map",
 	"sock_map_txmsg",
@@ -1748,6 +1765,7 @@ struct _test test[] = {
 	{"txmsg test pull-data", test_txmsg_pull},
 	{"txmsg test pop-data", test_txmsg_pop},
 	{"txmsg test push/pop data", test_txmsg_push_pop},
+	{"txmsg text ingress parser", test_txmsg_ingress_parser},
 };
 
 static int check_whitelist(struct _test *t, struct sockmap_options *opt)

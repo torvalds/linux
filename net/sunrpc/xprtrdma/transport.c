@@ -249,6 +249,11 @@ xprt_rdma_connect_worker(struct work_struct *work)
 					   xprt->stat.connect_start;
 		xprt_set_connected(xprt);
 		rc = -EAGAIN;
+	} else {
+		/* Force a call to xprt_rdma_close to clean up */
+		spin_lock(&xprt->transport_lock);
+		set_bit(XPRT_CLOSE_WAIT, &xprt->state);
+		spin_unlock(&xprt->transport_lock);
 	}
 	xprt_wake_pending_tasks(xprt, rc);
 }
