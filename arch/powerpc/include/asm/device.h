@@ -49,6 +49,9 @@ struct dev_archdata {
 #ifdef CONFIG_CXL_BASE
 	struct cxl_context	*cxl_ctx;
 #endif
+#ifdef CONFIG_PCI_IOV
+	void *iov_data;
+#endif
 };
 
 struct pdev_archdata {
