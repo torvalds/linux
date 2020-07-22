@@ -87,6 +87,8 @@ required:
   - reg
 
 
+additionalProperties: false
+
 examples:
   - |
     spi {

@@ -371,11 +371,11 @@ int dmar_disabled = 0;
 int dmar_disabled = 1;
 #endif /* CONFIG_INTEL_IOMMU_DEFAULT_ON */
 
-#ifdef INTEL_IOMMU_SCALABLE_MODE_DEFAULT_ON
+#ifdef CONFIG_INTEL_IOMMU_SCALABLE_MODE_DEFAULT_ON
 int intel_iommu_sm = 1;
 #else
 int intel_iommu_sm;
-#endif /* INTEL_IOMMU_SCALABLE_MODE_DEFAULT_ON */
+#endif /* CONFIG_INTEL_IOMMU_SCALABLE_MODE_DEFAULT_ON */
 
 int intel_iommu_enabled = 0;
 EXPORT_SYMBOL_GPL(intel_iommu_enabled);
@@ -4501,7 +4501,8 @@ static struct dmar_atsr_unit *dmar_find_atsr(struct acpi_dmar_atsr *atsr)
 	struct dmar_atsr_unit *atsru;
 	struct acpi_dmar_atsr *tmp;
 
-	list_for_each_entry_rcu(atsru, &dmar_atsr_units, list) {
+	list_for_each_entry_rcu(atsru, &dmar_atsr_units, list,
+				dmar_rcu_check()) {
 		tmp = (struct acpi_dmar_atsr *)atsru->hdr;
 		if (atsr->segment != tmp->segment)
 			continue;

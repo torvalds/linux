@@ -209,20 +209,19 @@ static int __init mod_init(void)
 out:
 	return err;
 }
+module_init(mod_init);
 
 static void __exit mod_exit(void)
 {
 	hwrng_unregister(&via_rng);
 }
-
-module_init(mod_init);
 module_exit(mod_exit);
 
 static struct x86_cpu_id __maybe_unused via_rng_cpu_id[] = {
-	X86_FEATURE_MATCH(X86_FEATURE_XSTORE),
+	X86_MATCH_FEATURE(X86_FEATURE_XSTORE, NULL),
 	{}
 };
+MODULE_DEVICE_TABLE(x86cpu, via_rng_cpu_id);
 
 MODULE_DESCRIPTION("H/W RNG driver for VIA CPU with PadLock");
 MODULE_LICENSE("GPL");
-MODULE_DEVICE_TABLE(x86cpu, via_rng_cpu_id);

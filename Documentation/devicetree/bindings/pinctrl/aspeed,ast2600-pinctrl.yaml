@@ -92,6 +92,8 @@ patternProperties:
 required:
   - compatible
 
+additionalProperties: false
+
 examples:
   - |
     syscon: scu@1e6e2000 {

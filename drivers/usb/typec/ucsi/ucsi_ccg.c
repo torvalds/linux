@@ -125,6 +125,10 @@ struct version_format {
 #define CCG_FW_BUILD_NVIDIA	(('n' << 8) | 'v')
 #define CCG_OLD_FW_VERSION	(CCG_VERSION(0x31) | CCG_VERSION_PATCH(10))
 
+/* Altmode offset for NVIDIA Function Test Board (FTB) */
+#define NVIDIA_FTB_DP_OFFSET	(2)
+#define NVIDIA_FTB_DBG_OFFSET	(3)
+
 struct version_info {
 	struct version_format base;
 	struct version_format app;
@@ -477,24 +481,65 @@ static void ucsi_ccg_update_set_new_cam_cmd(struct ucsi_ccg *uc,
 	*cmd |= UCSI_SET_NEW_CAM_SET_AM(cam);
 }
 
+/*
+ * Change the order of vdo values of NVIDIA test device FTB
+ * (Function Test Board) which reports altmode list with vdo=0x3
+ * first and then vdo=0x. Current logic to assign mode value is
+ * based on order in altmode list and it causes a mismatch of CON
+ * and SOP altmodes since NVIDIA GPU connector has order of vdo=0x1
+ * first and then vdo=0x3
+ */
+static void ucsi_ccg_nvidia_altmode(struct ucsi_ccg *uc,
+				    struct ucsi_altmode *alt)
+{
+	switch (UCSI_ALTMODE_OFFSET(uc->last_cmd_sent)) {
+	case NVIDIA_FTB_DP_OFFSET:
+		if (alt[0].mid == USB_TYPEC_NVIDIA_VLINK_DBG_VDO)
+			alt[0].mid = USB_TYPEC_NVIDIA_VLINK_DP_VDO |
+				DP_CAP_DP_SIGNALING | DP_CAP_USB |
+				DP_CONF_SET_PIN_ASSIGN(BIT(DP_PIN_ASSIGN_E));
+		break;
+	case NVIDIA_FTB_DBG_OFFSET:
+		if (alt[0].mid == USB_TYPEC_NVIDIA_VLINK_DP_VDO)
+			alt[0].mid = USB_TYPEC_NVIDIA_VLINK_DBG_VDO;
+		break;
+	default:
+		break;
+	}
+}
+
 static int ucsi_ccg_read(struct ucsi *ucsi, unsigned int offset,
 			 void *val, size_t val_len)
 {
 	struct ucsi_ccg *uc = ucsi_get_drvdata(ucsi);
-	int ret;
 	u16 reg = CCGX_RAB_UCSI_DATA_BLOCK(offset);
+	struct ucsi_altmode *alt;
+	int ret;
 
 	ret = ccg_read(uc, reg, val, val_len);
 	if (ret)
 		return ret;
 
-	if (offset == UCSI_MESSAGE_IN) {
-		if (UCSI_COMMAND(uc->last_cmd_sent) == UCSI_GET_CURRENT_CAM &&
-		    uc->has_multiple_dp) {
+	if (offset != UCSI_MESSAGE_IN)
+		return ret;
+
+	switch (UCSI_COMMAND(uc->last_cmd_sent)) {
+	case UCSI_GET_CURRENT_CAM:
+		if (uc->has_multiple_dp)
 			ucsi_ccg_update_get_current_cam_cmd(uc, (u8 *)val);
+		break;
+	case UCSI_GET_ALTERNATE_MODES:
+		if (UCSI_ALTMODE_RECIPIENT(uc->last_cmd_sent) ==
+		    UCSI_RECIPIENT_SOP) {
+			alt = val;
+			if (alt[0].svid == USB_TYPEC_NVIDIA_VLINK_SID)
+				ucsi_ccg_nvidia_altmode(uc, alt);
 		}
-		uc->last_cmd_sent = 0;
+		break;
+	default:
+		break;
 	}
+	uc->last_cmd_sent = 0;
 
 	return ret;
 }
@@ -1219,6 +1264,7 @@ static int ccg_restart(struct ucsi_ccg *uc)
 		return status;
 	}
 
+	pm_runtime_enable(uc->dev);
 	return 0;
 }
 
@@ -1234,6 +1280,7 @@ static void ccg_update_firmware(struct work_struct *work)
 
 	if (flash_mode != FLASH_NOT_NEEDED) {
 		ucsi_unregister(uc->ucsi);
+		pm_runtime_disable(uc->dev);
 		free_irq(uc->irq, uc);
 
 		ccg_fw_update(uc, flash_mode);

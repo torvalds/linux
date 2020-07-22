@@ -13,12 +13,15 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/of_graph.h>
+#include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <media/v4l2-async.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-event.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-mc.h>
+#include <media/v4l2-rect.h>
 
 #include "tvp5150_reg.h"
 
@@ -31,6 +34,15 @@
 #define TVP5150_MBUS_FMT	MEDIA_BUS_FMT_UYVY8_2X8
 #define TVP5150_FIELD		V4L2_FIELD_ALTERNATE
 #define TVP5150_COLORSPACE	V4L2_COLORSPACE_SMPTE170M
+#define TVP5150_STD_MASK	(V4L2_STD_NTSC     | \
+				 V4L2_STD_NTSC_443 | \
+				 V4L2_STD_PAL      | \
+				 V4L2_STD_PAL_M    | \
+				 V4L2_STD_PAL_N    | \
+				 V4L2_STD_PAL_Nc   | \
+				 V4L2_STD_SECAM)
+
+#define TVP5150_MAX_CONNECTORS	3 /* Check dt-bindings for more information */
 
 MODULE_DESCRIPTION("Texas Instruments TVP5150A/TVP5150AM1/TVP5151 video decoder driver");
 MODULE_AUTHOR("Mauro Carvalho Chehab");
@@ -44,18 +56,26 @@ MODULE_PARM_DESC(debug, "Debug level (0-2)");
 #define dprintk0(__dev, __arg...) dev_dbg_lvl(__dev, 0, 0, __arg)
 
 enum tvp5150_pads {
-	TVP5150_PAD_IF_INPUT,
+	TVP5150_PAD_AIP1A,
+	TVP5150_PAD_AIP1B,
 	TVP5150_PAD_VID_OUT,
 	TVP5150_NUM_PADS
 };
 
+struct tvp5150_connector {
+	struct v4l2_fwnode_connector base;
+	struct media_entity ent;
+	struct media_pad pad;
+};
+
 struct tvp5150 {
 	struct v4l2_subdev sd;
-#ifdef CONFIG_MEDIA_CONTROLLER
+
 	struct media_pad pads[TVP5150_NUM_PADS];
-	struct media_entity input_ent[TVP5150_INPUT_NUM];
-	struct media_pad input_pad[TVP5150_INPUT_NUM];
-#endif
+	struct tvp5150_connector connectors[TVP5150_MAX_CONNECTORS];
+	struct tvp5150_connector *cur_connector;
+	unsigned int connectors_num;
+
 	struct v4l2_ctrl_handler hdl;
 	struct v4l2_rect rect;
 	struct regmap *regmap;
@@ -282,9 +302,12 @@ static void tvp5150_selmux(struct v4l2_subdev *sd)
 		break;
 	}
 
-	dev_dbg_lvl(sd->dev, 1, debug, "Selecting video route: route input=%i, output=%i => tvp5150 input=%i, opmode=%i\n",
-			decoder->input, decoder->output,
-			input, opmode);
+	dev_dbg_lvl(sd->dev, 1, debug,
+		    "Selecting video route: route input=%s, output=%s => tvp5150 input=0x%02x, opmode=0x%02x\n",
+		    decoder->input == 0 ? "aip1a" :
+		    decoder->input == 2 ? "aip1b" : "svideo",
+		    decoder->output == 0 ? "normal" : "black-frame-gen",
+		    input, opmode);
 
 	regmap_write(decoder->regmap, TVP5150_OP_MODE_CTL, opmode);
 	regmap_write(decoder->regmap, TVP5150_VD_IN_SRC_SEL_1, input);
@@ -773,9 +796,24 @@ static int tvp5150_g_std(struct v4l2_subdev *sd, v4l2_std_id *std)
 static int tvp5150_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 {
 	struct tvp5150 *decoder = to_tvp5150(sd);
+	struct tvp5150_connector *cur_con = decoder->cur_connector;
+	v4l2_std_id supported_stds;
 
 	if (decoder->norm == std)
 		return 0;
+
+	/* In case of no of-connectors are available no limitations are made */
+	if (!decoder->connectors_num)
+		supported_stds = V4L2_STD_ALL;
+	else
+		supported_stds = cur_con->base.connector.analog.sdtv_stds;
+
+	/*
+	 * Check if requested std or group of std's is/are supported by the
+	 * connector.
+	 */
+	if ((supported_stds & std) == 0)
+		return -EINVAL;
 
 	/* Change cropping height limits */
 	if (std & V4L2_STD_525_60)
@@ -783,7 +821,8 @@ static int tvp5150_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 	else
 		decoder->rect.height = TVP5150_V_MAX_OTHERS;
 
-	decoder->norm = std;
+	/* Set only the specific supported std in case of group of std's. */
+	decoder->norm = supported_stds & std;
 
 	return tvp5150_set_std(sd, std);
 }
@@ -986,6 +1025,25 @@ static void tvp5150_set_default(v4l2_std_id std, struct v4l2_rect *crop)
 		crop->height = TVP5150_V_MAX_OTHERS;
 }
 
+static struct v4l2_rect *
+tvp5150_get_pad_crop(struct tvp5150 *decoder,
+		     struct v4l2_subdev_pad_config *cfg, unsigned int pad,
+		     enum v4l2_subdev_format_whence which)
+{
+	switch (which) {
+	case V4L2_SUBDEV_FORMAT_ACTIVE:
+		return &decoder->rect;
+	case V4L2_SUBDEV_FORMAT_TRY:
+#if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
+		return v4l2_subdev_get_try_crop(&decoder->sd, cfg, pad);
+#else
+		return ERR_PTR(-EINVAL);
+#endif
+	default:
+		return ERR_PTR(-EINVAL);
+	}
+}
+
 static int tvp5150_fill_fmt(struct v4l2_subdev *sd,
 			    struct v4l2_subdev_pad_config *cfg,
 			    struct v4l2_subdev_format *format)
@@ -1010,25 +1068,10 @@ static int tvp5150_fill_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int tvp5150_set_selection(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_pad_config *cfg,
-				 struct v4l2_subdev_selection *sel)
+static unsigned int tvp5150_get_hmax(struct v4l2_subdev *sd)
 {
 	struct tvp5150 *decoder = to_tvp5150(sd);
-	struct v4l2_rect rect = sel->r;
 	v4l2_std_id std;
-	int hmax;
-
-	if (sel->which != V4L2_SUBDEV_FORMAT_ACTIVE ||
-	    sel->target != V4L2_SEL_TGT_CROP)
-		return -EINVAL;
-
-	dev_dbg_lvl(sd->dev, 1, debug, "%s left=%d, top=%d, width=%d, height=%d\n",
-		__func__, rect.left, rect.top, rect.width, rect.height);
-
-	/* tvp5150 has some special limits */
-	rect.left = clamp(rect.left, 0, TVP5150_MAX_CROP_LEFT);
-	rect.top = clamp(rect.top, 0, TVP5150_MAX_CROP_TOP);
 
 	/* Calculate height based on current standard */
 	if (decoder->norm == V4L2_STD_ALL)
@@ -1036,36 +1079,78 @@ static int tvp5150_set_selection(struct v4l2_subdev *sd,
 	else
 		std = decoder->norm;
 
-	if (std & V4L2_STD_525_60)
-		hmax = TVP5150_V_MAX_525_60;
-	else
-		hmax = TVP5150_V_MAX_OTHERS;
+	return (std & V4L2_STD_525_60) ?
+		TVP5150_V_MAX_525_60 : TVP5150_V_MAX_OTHERS;
+}
+
+static void tvp5150_set_hw_selection(struct v4l2_subdev *sd,
+				     struct v4l2_rect *rect)
+{
+	struct tvp5150 *decoder = to_tvp5150(sd);
+	unsigned int hmax = tvp5150_get_hmax(sd);
+
+	regmap_write(decoder->regmap, TVP5150_VERT_BLANKING_START, rect->top);
+	regmap_write(decoder->regmap, TVP5150_VERT_BLANKING_STOP,
+		     rect->top + rect->height - hmax);
+	regmap_write(decoder->regmap, TVP5150_ACT_VD_CROP_ST_MSB,
+		     rect->left >> TVP5150_CROP_SHIFT);
+	regmap_write(decoder->regmap, TVP5150_ACT_VD_CROP_ST_LSB,
+		     rect->left | (1 << TVP5150_CROP_SHIFT));
+	regmap_write(decoder->regmap, TVP5150_ACT_VD_CROP_STP_MSB,
+		     (rect->left + rect->width - TVP5150_MAX_CROP_LEFT) >>
+		     TVP5150_CROP_SHIFT);
+	regmap_write(decoder->regmap, TVP5150_ACT_VD_CROP_STP_LSB,
+		     rect->left + rect->width - TVP5150_MAX_CROP_LEFT);
+}
+
+static int tvp5150_set_selection(struct v4l2_subdev *sd,
+				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_selection *sel)
+{
+	struct tvp5150 *decoder = to_tvp5150(sd);
+	struct v4l2_rect *rect = &sel->r;
+	struct v4l2_rect *crop;
+	unsigned int hmax;
+
+	if (sel->target != V4L2_SEL_TGT_CROP)
+		return -EINVAL;
+
+	dev_dbg_lvl(sd->dev, 1, debug, "%s left=%d, top=%d, width=%d, height=%d\n",
+		__func__, rect->left, rect->top, rect->width, rect->height);
+
+	/* tvp5150 has some special limits */
+	rect->left = clamp(rect->left, 0, TVP5150_MAX_CROP_LEFT);
+	rect->top = clamp(rect->top, 0, TVP5150_MAX_CROP_TOP);
+	hmax = tvp5150_get_hmax(sd);
 
 	/*
 	 * alignments:
 	 *  - width = 2 due to UYVY colorspace
 	 *  - height, image = no special alignment
 	 */
-	v4l_bound_align_image(&rect.width,
-			      TVP5150_H_MAX - TVP5150_MAX_CROP_LEFT - rect.left,
-			      TVP5150_H_MAX - rect.left, 1, &rect.height,
-			      hmax - TVP5150_MAX_CROP_TOP - rect.top,
-			      hmax - rect.top, 0, 0);
+	v4l_bound_align_image(&rect->width,
+			      TVP5150_H_MAX - TVP5150_MAX_CROP_LEFT - rect->left,
+			      TVP5150_H_MAX - rect->left, 1, &rect->height,
+			      hmax - TVP5150_MAX_CROP_TOP - rect->top,
+			      hmax - rect->top, 0, 0);
 
-	regmap_write(decoder->regmap, TVP5150_VERT_BLANKING_START, rect.top);
-	regmap_write(decoder->regmap, TVP5150_VERT_BLANKING_STOP,
-		     rect.top + rect.height - hmax);
-	regmap_write(decoder->regmap, TVP5150_ACT_VD_CROP_ST_MSB,
-		     rect.left >> TVP5150_CROP_SHIFT);
-	regmap_write(decoder->regmap, TVP5150_ACT_VD_CROP_ST_LSB,
-		     rect.left | (1 << TVP5150_CROP_SHIFT));
-	regmap_write(decoder->regmap, TVP5150_ACT_VD_CROP_STP_MSB,
-		     (rect.left + rect.width - TVP5150_MAX_CROP_LEFT) >>
-		     TVP5150_CROP_SHIFT);
-	regmap_write(decoder->regmap, TVP5150_ACT_VD_CROP_STP_LSB,
-		     rect.left + rect.width - TVP5150_MAX_CROP_LEFT);
+	if (!IS_ENABLED(CONFIG_VIDEO_V4L2_SUBDEV_API) &&
+	    sel->which == V4L2_SUBDEV_FORMAT_TRY)
+		return 0;
 
-	decoder->rect = rect;
+	crop = tvp5150_get_pad_crop(decoder, cfg, sel->pad, sel->which);
+	if (IS_ERR(crop))
+		return PTR_ERR(crop);
+
+	/*
+	 * Update output image size if the selection (crop) rectangle size or
+	 * position has been modified.
+	 */
+	if (sel->which == V4L2_SUBDEV_FORMAT_ACTIVE &&
+	    !v4l2_rect_equal(rect, crop))
+		tvp5150_set_hw_selection(sd, rect);
+
+	*crop = *rect;
 
 	return 0;
 }
@@ -1075,10 +1160,8 @@ static int tvp5150_get_selection(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_selection *sel)
 {
 	struct tvp5150 *decoder = container_of(sd, struct tvp5150, sd);
+	struct v4l2_rect *crop;
 	v4l2_std_id std;
-
-	if (sel->which != V4L2_SUBDEV_FORMAT_ACTIVE)
-		return -EINVAL;
 
 	switch (sel->target) {
 	case V4L2_SEL_TGT_CROP_BOUNDS:
@@ -1097,7 +1180,11 @@ static int tvp5150_get_selection(struct v4l2_subdev *sd,
 			sel->r.height = TVP5150_V_MAX_OTHERS;
 		return 0;
 	case V4L2_SEL_TGT_CROP:
-		sel->r = decoder->rect;
+		crop = tvp5150_get_pad_crop(decoder, cfg, sel->pad,
+					    sel->which);
+		if (IS_ERR(crop))
+			return PTR_ERR(crop);
+		sel->r = *crop;
 		return 0;
 	default:
 		return -EINVAL;
@@ -1170,30 +1257,148 @@ static int tvp5150_enum_frame_size(struct v4l2_subdev *sd,
 }
 
 /****************************************************************************
-			Media entity ops
+ *			Media entity ops
  ****************************************************************************/
+#if defined(CONFIG_MEDIA_CONTROLLER)
+static int tvp5150_set_link(struct media_pad *connector_pad,
+			    struct media_pad *tvp5150_pad, u32 flags)
+{
+	struct media_link *link;
 
-#ifdef CONFIG_MEDIA_CONTROLLER
+	link = media_entity_find_link(connector_pad, tvp5150_pad);
+	if (!link)
+		return -EINVAL;
+
+	link->flags = flags;
+	link->reverse->flags = link->flags;
+
+	return 0;
+}
+
+static int tvp5150_disable_all_input_links(struct tvp5150 *decoder)
+{
+	struct media_pad *connector_pad;
+	unsigned int i;
+	int err;
+
+	for (i = 0; i < TVP5150_NUM_PADS - 1; i++) {
+		connector_pad = media_entity_remote_pad(&decoder->pads[i]);
+		if (!connector_pad)
+			continue;
+
+		err = tvp5150_set_link(connector_pad, &decoder->pads[i], 0);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+static int tvp5150_s_routing(struct v4l2_subdev *sd, u32 input, u32 output,
+			     u32 config);
+
 static int tvp5150_link_setup(struct media_entity *entity,
-			      const struct media_pad *local,
+			      const struct media_pad *tvp5150_pad,
 			      const struct media_pad *remote, u32 flags)
 {
 	struct v4l2_subdev *sd = media_entity_to_v4l2_subdev(entity);
 	struct tvp5150 *decoder = to_tvp5150(sd);
-	int i;
+	struct media_pad *other_tvp5150_pad =
+		&decoder->pads[tvp5150_pad->index ^ 1];
+	struct v4l2_fwnode_connector *v4l2c;
+	bool is_svideo = false;
+	unsigned int i;
+	int err;
 
-	for (i = 0; i < TVP5150_INPUT_NUM; i++) {
-		if (remote->entity == &decoder->input_ent[i])
-			break;
-	}
-
-	/* Do nothing for entities that are not input connectors */
-	if (i == TVP5150_INPUT_NUM)
+	/*
+	 * The TVP5150 state is determined by the enabled sink pad link(s).
+	 * Enabling or disabling the source pad link has no effect.
+	 */
+	if (tvp5150_pad->flags & MEDIA_PAD_FL_SOURCE)
 		return 0;
 
-	decoder->input = i;
+	/* Check if the svideo connector should be enabled */
+	for (i = 0; i < decoder->connectors_num; i++) {
+		if (remote->entity == &decoder->connectors[i].ent) {
+			v4l2c = &decoder->connectors[i].base;
+			is_svideo = v4l2c->type == V4L2_CONN_SVIDEO;
+			break;
+		}
+	}
 
-	tvp5150_selmux(sd);
+	dev_dbg_lvl(sd->dev, 1, debug, "link setup '%s':%d->'%s':%d[%d]",
+		    remote->entity->name, remote->index,
+		    tvp5150_pad->entity->name, tvp5150_pad->index,
+		    flags & MEDIA_LNK_FL_ENABLED);
+	if (is_svideo)
+		dev_dbg_lvl(sd->dev, 1, debug,
+			    "link setup '%s':%d->'%s':%d[%d]",
+			    remote->entity->name, remote->index,
+			    other_tvp5150_pad->entity->name,
+			    other_tvp5150_pad->index,
+			    flags & MEDIA_LNK_FL_ENABLED);
+
+	/*
+	 * The TVP5150 has an internal mux which allows the following setup:
+	 *
+	 * comp-connector1  --\
+	 *		       |---> AIP1A
+	 *		      /
+	 * svideo-connector -|
+	 *		      \
+	 *		       |---> AIP1B
+	 * comp-connector2  --/
+	 *
+	 * We can't rely on user space that the current connector gets disabled
+	 * first before enabling the new connector. Disable all active
+	 * connector links to be on the safe side.
+	 */
+	err = tvp5150_disable_all_input_links(decoder);
+	if (err)
+		return err;
+
+	tvp5150_s_routing(sd, is_svideo ? TVP5150_SVIDEO : tvp5150_pad->index,
+			  flags & MEDIA_LNK_FL_ENABLED ? TVP5150_NORMAL :
+			  TVP5150_BLACK_SCREEN, 0);
+
+	if (flags & MEDIA_LNK_FL_ENABLED) {
+		struct v4l2_fwnode_connector_analog *v4l2ca;
+		u32 new_norm;
+
+		/*
+		 * S-Video connector is conneted to both ports AIP1A and AIP1B.
+		 * Both links must be enabled in one-shot regardless which link
+		 * the user requests.
+		 */
+		if (is_svideo) {
+			err = tvp5150_set_link((struct media_pad *)remote,
+					       other_tvp5150_pad, flags);
+			if (err)
+				return err;
+		}
+
+		if (!decoder->connectors_num)
+			return 0;
+
+		/* Update the current connector */
+		decoder->cur_connector =
+			container_of(remote, struct tvp5150_connector, pad);
+
+		/*
+		 * Do nothing if the new connector supports the same tv-norms as
+		 * the old one.
+		 */
+		v4l2ca = &decoder->cur_connector->base.connector.analog;
+		new_norm = decoder->norm & v4l2ca->sdtv_stds;
+		if (decoder->norm == new_norm)
+			return 0;
+
+		/*
+		 * Fallback to the new connector tv-norms if we can't find any
+		 * common between the current tv-norm and the new one.
+		 */
+		tvp5150_s_std(sd, new_norm ? new_norm : v4l2ca->sdtv_stds);
+	}
 
 	return 0;
 }
@@ -1202,20 +1407,54 @@ static const struct media_entity_operations tvp5150_sd_media_ops = {
 	.link_setup = tvp5150_link_setup,
 };
 #endif
-
 /****************************************************************************
 			I2C Command
  ****************************************************************************/
+static int __maybe_unused tvp5150_runtime_suspend(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct tvp5150 *decoder = to_tvp5150(sd);
+
+	if (decoder->irq)
+		/* Disable lock interrupt */
+		return regmap_update_bits(decoder->regmap,
+					  TVP5150_INT_ENABLE_REG_A,
+					  TVP5150_INT_A_LOCK, 0);
+	return 0;
+}
+
+static int __maybe_unused tvp5150_runtime_resume(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct tvp5150 *decoder = to_tvp5150(sd);
+
+	if (decoder->irq)
+		/* Enable lock interrupt */
+		return regmap_update_bits(decoder->regmap,
+					  TVP5150_INT_ENABLE_REG_A,
+					  TVP5150_INT_A_LOCK,
+					  TVP5150_INT_A_LOCK);
+	return 0;
+}
 
 static int tvp5150_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct tvp5150 *decoder = to_tvp5150(sd);
-	unsigned int mask, val = 0, int_val = 0;
+	unsigned int mask, val = 0;
+	int ret;
 
 	mask = TVP5150_MISC_CTL_YCBCR_OE | TVP5150_MISC_CTL_SYNC_OE |
 	       TVP5150_MISC_CTL_CLOCK_OE;
 
 	if (enable) {
+		ret = pm_runtime_get_sync(sd->dev);
+		if (ret < 0) {
+			pm_runtime_put_noidle(sd->dev);
+			return ret;
+		}
+
 		tvp5150_enable(sd);
 
 		/* Enable outputs if decoder is locked */
@@ -1223,15 +1462,13 @@ static int tvp5150_s_stream(struct v4l2_subdev *sd, int enable)
 			val = decoder->lock ? decoder->oe : 0;
 		else
 			val = decoder->oe;
-		int_val = TVP5150_INT_A_LOCK;
+
 		v4l2_subdev_notify_event(&decoder->sd, &tvp5150_ev_fmt);
+	} else {
+		pm_runtime_put(sd->dev);
 	}
 
 	regmap_update_bits(decoder->regmap, TVP5150_MISC_CTL, mask, val);
-	if (decoder->irq)
-		/* Enable / Disable lock interrupt */
-		regmap_update_bits(decoder->regmap, TVP5150_INT_ENABLE_REG_A,
-				   TVP5150_INT_A_LOCK, int_val);
 
 	return 0;
 }
@@ -1342,6 +1579,19 @@ static int tvp5150_s_register(struct v4l2_subdev *sd, const struct v4l2_dbg_regi
 }
 #endif
 
+static int tvp5150_subscribe_event(struct v4l2_subdev *sd, struct v4l2_fh *fh,
+				   struct v4l2_event_subscription *sub)
+{
+	switch (sub->type) {
+	case V4L2_EVENT_SOURCE_CHANGE:
+		return v4l2_src_change_event_subdev_subscribe(sd, fh, sub);
+	case V4L2_EVENT_CTRL:
+		return v4l2_ctrl_subdev_subscribe_event(sd, fh, sub);
+	default:
+		return -EINVAL;
+	}
+}
+
 static int tvp5150_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 {
 	int status = tvp5150_read(sd, 0x88);
@@ -1352,36 +1602,92 @@ static int tvp5150_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 
 static int tvp5150_registered(struct v4l2_subdev *sd)
 {
-#ifdef CONFIG_MEDIA_CONTROLLER
+#if defined(CONFIG_MEDIA_CONTROLLER)
 	struct tvp5150 *decoder = to_tvp5150(sd);
-	int ret = 0;
-	int i;
+	unsigned int i;
+	int ret;
 
-	for (i = 0; i < TVP5150_INPUT_NUM; i++) {
-		struct media_entity *input = &decoder->input_ent[i];
-		struct media_pad *pad = &decoder->input_pad[i];
+	/*
+	 * Setup connector pads and links. Enable the link to the first
+	 * available connector per default.
+	 */
+	for (i = 0; i < decoder->connectors_num; i++) {
+		struct media_entity *con = &decoder->connectors[i].ent;
+		struct media_pad *pad = &decoder->connectors[i].pad;
+		struct v4l2_fwnode_connector *v4l2c =
+			&decoder->connectors[i].base;
+		struct v4l2_connector_link *link =
+			v4l2_connector_first_link(v4l2c);
+		unsigned int port = link->fwnode_link.remote_port;
+		unsigned int flags = i ? 0 : MEDIA_LNK_FL_ENABLED;
+		bool is_svideo = v4l2c->type == V4L2_CONN_SVIDEO;
 
-		if (!input->name)
-			continue;
-
-		decoder->input_pad[i].flags = MEDIA_PAD_FL_SOURCE;
-
-		ret = media_entity_pads_init(input, 1, pad);
+		pad->flags = MEDIA_PAD_FL_SOURCE;
+		ret = media_entity_pads_init(con, 1, pad);
 		if (ret < 0)
-			return ret;
+			goto err;
 
-		ret = media_device_register_entity(sd->v4l2_dev->mdev, input);
+		ret = media_device_register_entity(sd->v4l2_dev->mdev, con);
 		if (ret < 0)
-			return ret;
+			goto err;
 
-		ret = media_create_pad_link(input, 0, &sd->entity,
-					    TVP5150_PAD_IF_INPUT, 0);
-		if (ret < 0) {
-			media_device_unregister_entity(input);
-			return ret;
+		ret = media_create_pad_link(con, 0, &sd->entity, port, flags);
+		if (ret < 0)
+			goto err;
+
+		if (is_svideo) {
+			/*
+			 * Check tvp5150_link_setup() comments for more
+			 * information.
+			 */
+			link = v4l2_connector_last_link(v4l2c);
+			port = link->fwnode_link.remote_port;
+			ret = media_create_pad_link(con, 0, &sd->entity, port,
+						    flags);
+			if (ret < 0)
+				goto err;
+		}
+
+		/* Enable default input. */
+		if (flags == MEDIA_LNK_FL_ENABLED) {
+			decoder->input =
+				is_svideo ? TVP5150_SVIDEO :
+				port == 0 ? TVP5150_COMPOSITE0 :
+				TVP5150_COMPOSITE1;
+
+			tvp5150_selmux(sd);
+			decoder->cur_connector = &decoder->connectors[i];
+			tvp5150_s_std(sd, v4l2c->connector.analog.sdtv_stds);
 		}
 	}
+
+	return 0;
+
+err:
+	for (i = 0; i < decoder->connectors_num; i++)
+		media_device_unregister_entity(&decoder->connectors[i].ent);
+	return ret;
 #endif
+
+	return 0;
+}
+
+static int tvp5150_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
+{
+	int ret;
+
+	ret = pm_runtime_get_sync(sd->dev);
+	if (ret < 0) {
+		pm_runtime_put_noidle(sd->dev);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int tvp5150_close(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
+{
+	pm_runtime_put(sd->dev);
 
 	return 0;
 }
@@ -1399,6 +1705,8 @@ static const struct v4l2_subdev_core_ops tvp5150_core_ops = {
 	.g_register = tvp5150_g_register,
 	.s_register = tvp5150_s_register,
 #endif
+	.subscribe_event = tvp5150_subscribe_event,
+	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
 };
 
 static const struct v4l2_subdev_tuner_ops tvp5150_tuner_ops = {
@@ -1441,6 +1749,8 @@ static const struct v4l2_subdev_ops tvp5150_ops = {
 
 static const struct v4l2_subdev_internal_ops tvp5150_internal_ops = {
 	.registered = tvp5150_registered,
+	.open = tvp5150_open,
+	.close = tvp5150_close,
 };
 
 /****************************************************************************
@@ -1591,102 +1901,211 @@ static int tvp5150_init(struct i2c_client *c)
 	return 0;
 }
 
+#if defined(CONFIG_MEDIA_CONTROLLER)
+static int tvp5150_mc_init(struct tvp5150 *decoder)
+{
+	struct v4l2_subdev *sd = &decoder->sd;
+	unsigned int i;
+
+	sd->entity.ops = &tvp5150_sd_media_ops;
+	sd->entity.function = MEDIA_ENT_F_ATV_DECODER;
+
+	for (i = 0; i < TVP5150_NUM_PADS - 1; i++) {
+		decoder->pads[i].flags = MEDIA_PAD_FL_SINK;
+		decoder->pads[i].sig_type = PAD_SIGNAL_ANALOG;
+	}
+
+	decoder->pads[i].flags = MEDIA_PAD_FL_SOURCE;
+	decoder->pads[i].sig_type = PAD_SIGNAL_DV;
+
+	return media_entity_pads_init(&sd->entity, TVP5150_NUM_PADS,
+				      decoder->pads);
+}
+
+#else /* !defined(CONFIG_MEDIA_CONTROLLER) */
+
+static inline int tvp5150_mc_init(struct tvp5150 *decoder)
+{
+	return 0;
+}
+#endif /* defined(CONFIG_MEDIA_CONTROLLER) */
+
+static int tvp5150_validate_connectors(struct tvp5150 *decoder)
+{
+	struct device *dev = decoder->sd.dev;
+	struct tvp5150_connector *tvpc;
+	struct v4l2_fwnode_connector *v4l2c;
+	unsigned int i;
+
+	if (!decoder->connectors_num) {
+		dev_err(dev, "No valid connector found\n");
+		return -ENODEV;
+	}
+
+	for (i = 0; i < decoder->connectors_num; i++) {
+		struct v4l2_connector_link *link0 = NULL;
+		struct v4l2_connector_link *link1;
+
+		tvpc = &decoder->connectors[i];
+		v4l2c = &tvpc->base;
+
+		if (v4l2c->type == V4L2_CONN_COMPOSITE) {
+			if (v4l2c->nr_of_links != 1) {
+				dev_err(dev, "Composite: connector needs 1 link\n");
+				return -EINVAL;
+			}
+			link0 = v4l2_connector_first_link(v4l2c);
+			if (!link0) {
+				dev_err(dev, "Composite: invalid first link\n");
+				return -EINVAL;
+			}
+			if (link0->fwnode_link.remote_id == 1) {
+				dev_err(dev, "Composite: invalid endpoint id\n");
+				return -EINVAL;
+			}
+		}
+
+		if (v4l2c->type == V4L2_CONN_SVIDEO) {
+			if (v4l2c->nr_of_links != 2) {
+				dev_err(dev, "SVideo: connector needs 2 links\n");
+				return -EINVAL;
+			}
+			link0 = v4l2_connector_first_link(v4l2c);
+			if (!link0) {
+				dev_err(dev, "SVideo: invalid first link\n");
+				return -EINVAL;
+			}
+			link1 = v4l2_connector_last_link(v4l2c);
+			if (link0->fwnode_link.remote_port ==
+			    link1->fwnode_link.remote_port) {
+				dev_err(dev, "SVideo: invalid link setup\n");
+				return -EINVAL;
+			}
+		}
+
+		if (!(v4l2c->connector.analog.sdtv_stds & TVP5150_STD_MASK)) {
+			dev_err(dev, "Unsupported tv-norm on connector %s\n",
+				v4l2c->name);
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 static int tvp5150_parse_dt(struct tvp5150 *decoder, struct device_node *np)
 {
-	struct v4l2_fwnode_endpoint bus_cfg = { .bus_type = 0 };
-	struct device_node *ep;
-#ifdef CONFIG_MEDIA_CONTROLLER
-	struct device_node *connectors, *child;
-	struct media_entity *input;
-	const char *name;
-	u32 input_type;
-#endif
-	unsigned int flags;
-	int ret = 0;
+	struct device *dev = decoder->sd.dev;
+	struct v4l2_fwnode_endpoint bus_cfg = {
+		.bus_type = V4L2_MBUS_UNKNOWN
+	};
+	struct device_node *ep_np;
+	struct tvp5150_connector *tvpc;
+	struct v4l2_fwnode_connector *v4l2c;
+	unsigned int flags, ep_num;
+	unsigned int i;
+	int ret;
 
-	ep = of_graph_get_next_endpoint(np, NULL);
-	if (!ep)
+	/* At least 1 output and 1 input */
+	ep_num = of_graph_get_endpoint_count(np);
+	if (ep_num < 2 || ep_num > 5) {
+		dev_err(dev, "At least 1 input and 1 output must be connected to the device.\n");
 		return -EINVAL;
+	}
 
-	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(ep), &bus_cfg);
+	/* Layout if all connectors are used:
+	 *
+	 * tvp-5150 port@0 (AIP1A)
+	 *	endpoint@0 -----------> Comp0-Con  port
+	 *	endpoint@1 --------+--> Svideo-Con port
+	 * tvp-5150 port@1 (AIP1B) |
+	 *	endpoint@1 --------+
+	 *	endpoint@0 -----------> Comp1-Con  port
+	 * tvp-5150 port@2
+	 *	endpoint (video bitstream output at YOUT[0-7] parallel bus)
+	 */
+	for_each_endpoint_of_node(np, ep_np) {
+		struct fwnode_handle *ep_fwnode = of_fwnode_handle(ep_np);
+		unsigned int next_connector = decoder->connectors_num;
+		struct of_endpoint ep;
+
+		of_graph_parse_endpoint(ep_np, &ep);
+		if (ep.port > 1 || ep.id > 1) {
+			dev_dbg(dev, "Ignore connector on port@%u/ep@%u\n",
+				ep.port, ep.id);
+			continue;
+		}
+
+		tvpc = &decoder->connectors[next_connector];
+		v4l2c = &tvpc->base;
+
+		if (ep.port == 0 || (ep.port == 1 && ep.id == 0)) {
+			ret = v4l2_fwnode_connector_parse(ep_fwnode, v4l2c);
+			if (ret)
+				goto err_put;
+			ret = v4l2_fwnode_connector_add_link(ep_fwnode, v4l2c);
+			if (ret)
+				goto err_put;
+			decoder->connectors_num++;
+		} else {
+			/* Adding the 2nd svideo link */
+			for (i = 0; i < TVP5150_MAX_CONNECTORS; i++) {
+				tvpc = &decoder->connectors[i];
+				v4l2c = &tvpc->base;
+				if (v4l2c->type == V4L2_CONN_SVIDEO)
+					break;
+			}
+
+			ret = v4l2_fwnode_connector_add_link(ep_fwnode, v4l2c);
+			if (ret)
+				goto err_put;
+		}
+	}
+
+	ret = tvp5150_validate_connectors(decoder);
 	if (ret)
-		goto err;
+		goto err_free;
+
+	for (i = 0; i < decoder->connectors_num; i++) {
+		tvpc = &decoder->connectors[i];
+		v4l2c = &tvpc->base;
+		tvpc->ent.flags = MEDIA_ENT_FL_CONNECTOR;
+		tvpc->ent.function = v4l2c->type == V4L2_CONN_SVIDEO ?
+			MEDIA_ENT_F_CONN_SVIDEO : MEDIA_ENT_F_CONN_COMPOSITE;
+		tvpc->ent.name = devm_kasprintf(dev, GFP_KERNEL, "%s %s",
+						v4l2c->name, v4l2c->label ?
+						v4l2c->label : "");
+	}
+
+	ep_np = of_graph_get_endpoint_by_regs(np, TVP5150_PAD_VID_OUT, 0);
+	if (!ep_np) {
+		dev_err(dev, "Error no output endpoint available\n");
+		goto err_free;
+	}
+	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(ep_np), &bus_cfg);
+	of_node_put(ep_np);
+	if (ret)
+		goto err_free;
 
 	flags = bus_cfg.bus.parallel.flags;
-
 	if (bus_cfg.bus_type == V4L2_MBUS_PARALLEL &&
 	    !(flags & V4L2_MBUS_HSYNC_ACTIVE_HIGH &&
 	      flags & V4L2_MBUS_VSYNC_ACTIVE_HIGH &&
 	      flags & V4L2_MBUS_FIELD_EVEN_LOW)) {
 		ret = -EINVAL;
-		goto err;
+		goto err_free;
 	}
 
 	decoder->mbus_type = bus_cfg.bus_type;
 
-#ifdef CONFIG_MEDIA_CONTROLLER
-	connectors = of_get_child_by_name(np, "connectors");
+	return 0;
 
-	if (!connectors)
-		goto err;
+err_put:
+	of_node_put(ep_np);
+err_free:
+	for (i = 0; i < TVP5150_MAX_CONNECTORS; i++)
+		v4l2_fwnode_connector_free(&decoder->connectors[i].base);
 
-	for_each_available_child_of_node(connectors, child) {
-		ret = of_property_read_u32(child, "input", &input_type);
-		if (ret) {
-			dev_err(decoder->sd.dev,
-				 "missing type property in node %pOFn\n",
-				 child);
-			of_node_put(child);
-			goto err_connector;
-		}
-
-		if (input_type >= TVP5150_INPUT_NUM) {
-			ret = -EINVAL;
-			of_node_put(child);
-			goto err_connector;
-		}
-
-		input = &decoder->input_ent[input_type];
-
-		/* Each input connector can only be defined once */
-		if (input->name) {
-			dev_err(decoder->sd.dev,
-				 "input %s with same type already exists\n",
-				 input->name);
-			of_node_put(child);
-			ret = -EINVAL;
-			goto err_connector;
-		}
-
-		switch (input_type) {
-		case TVP5150_COMPOSITE0:
-		case TVP5150_COMPOSITE1:
-			input->function = MEDIA_ENT_F_CONN_COMPOSITE;
-			break;
-		case TVP5150_SVIDEO:
-			input->function = MEDIA_ENT_F_CONN_SVIDEO;
-			break;
-		}
-
-		input->flags = MEDIA_ENT_FL_CONNECTOR;
-
-		ret = of_property_read_string(child, "label", &name);
-		if (ret < 0) {
-			dev_err(decoder->sd.dev,
-				 "missing label property in node %pOFn\n",
-				 child);
-			of_node_put(child);
-			goto err_connector;
-		}
-
-		input->name = name;
-	}
-
-err_connector:
-	of_node_put(connectors);
-#endif
-err:
-	of_node_put(ep);
 	return ret;
 }
 
@@ -1701,6 +2120,7 @@ static int tvp5150_probe(struct i2c_client *c)
 	struct v4l2_subdev *sd;
 	struct device_node *np = c->dev.of_node;
 	struct regmap *map;
+	unsigned int i;
 	int res;
 
 	/* Check if the adapter supports the needed features */
@@ -1722,6 +2142,9 @@ static int tvp5150_probe(struct i2c_client *c)
 
 	core->regmap = map;
 	sd = &core->sd;
+	v4l2_i2c_subdev_init(sd, c, &tvp5150_ops);
+	sd->internal_ops = &tvp5150_internal_ops;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_HAS_EVENTS;
 
 	if (IS_ENABLED(CONFIG_OF) && np) {
 		res = tvp5150_parse_dt(core, np);
@@ -1734,30 +2157,29 @@ static int tvp5150_probe(struct i2c_client *c)
 		core->mbus_type = V4L2_MBUS_BT656;
 	}
 
-	v4l2_i2c_subdev_init(sd, c, &tvp5150_ops);
-	sd->internal_ops = &tvp5150_internal_ops;
-	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
-
-#if defined(CONFIG_MEDIA_CONTROLLER)
-	core->pads[TVP5150_PAD_IF_INPUT].flags = MEDIA_PAD_FL_SINK;
-	core->pads[TVP5150_PAD_IF_INPUT].sig_type = PAD_SIGNAL_ANALOG;
-	core->pads[TVP5150_PAD_VID_OUT].flags = MEDIA_PAD_FL_SOURCE;
-	core->pads[TVP5150_PAD_VID_OUT].sig_type = PAD_SIGNAL_DV;
-
-	sd->entity.function = MEDIA_ENT_F_ATV_DECODER;
-
-	res = media_entity_pads_init(&sd->entity, TVP5150_NUM_PADS, core->pads);
-	if (res < 0)
+	res = tvp5150_mc_init(core);
+	if (res)
 		return res;
-
-	sd->entity.ops = &tvp5150_sd_media_ops;
-#endif
 
 	res = tvp5150_detect_version(core);
 	if (res < 0)
 		return res;
 
-	core->norm = V4L2_STD_ALL;	/* Default is autodetect */
+	/*
+	 * Iterate over all available connectors in case they are supported and
+	 * successfully parsed. Fallback to default autodetect in case they
+	 * aren't supported.
+	 */
+	for (i = 0; i < core->connectors_num; i++) {
+		struct v4l2_fwnode_connector *v4l2c;
+
+		v4l2c = &core->connectors[i].base;
+		core->norm |= v4l2c->connector.analog.sdtv_stds;
+	}
+
+	if (!core->connectors_num)
+		core->norm = V4L2_STD_ALL;
+
 	core->detected_norm = V4L2_STD_UNKNOWN;
 	core->input = TVP5150_COMPOSITE1;
 	core->enable = true;
@@ -1802,6 +2224,11 @@ static int tvp5150_probe(struct i2c_client *c)
 
 	if (debug > 1)
 		tvp5150_log_status(sd);
+
+	pm_runtime_set_active(&c->dev);
+	pm_runtime_enable(&c->dev);
+	pm_runtime_idle(&c->dev);
+
 	return 0;
 
 err:
@@ -1813,17 +2240,31 @@ static int tvp5150_remove(struct i2c_client *c)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(c);
 	struct tvp5150 *decoder = to_tvp5150(sd);
+	unsigned int i;
 
 	dev_dbg_lvl(sd->dev, 1, debug,
 		"tvp5150.c: removing tvp5150 adapter on address 0x%x\n",
 		c->addr << 1);
 
+	for (i = 0; i < decoder->connectors_num; i++)
+		v4l2_fwnode_connector_free(&decoder->connectors[i].base);
+	for (i = 0; i < decoder->connectors_num; i++)
+		media_device_unregister_entity(&decoder->connectors[i].ent);
 	v4l2_async_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(&decoder->hdl);
+	pm_runtime_disable(&c->dev);
+	pm_runtime_set_suspended(&c->dev);
+
 	return 0;
 }
 
 /* ----------------------------------------------------------------------- */
+
+static const struct dev_pm_ops tvp5150_pm_ops = {
+	SET_RUNTIME_PM_OPS(tvp5150_runtime_suspend,
+			   tvp5150_runtime_resume,
+			   NULL)
+};
 
 static const struct i2c_device_id tvp5150_id[] = {
 	{ "tvp5150", 0 },
@@ -1843,6 +2284,7 @@ static struct i2c_driver tvp5150_driver = {
 	.driver = {
 		.of_match_table = of_match_ptr(tvp5150_of_match),
 		.name	= "tvp5150",
+		.pm	= &tvp5150_pm_ops,
 	},
 	.probe_new	= tvp5150_probe,
 	.remove		= tvp5150_remove,

@@ -128,36 +128,41 @@ tlbop_end 1
 ENTRY(csky_systemcall)
 	SAVE_ALL TRAP0_SIZE
 	zero_fp
-
 	psrset  ee, ie
 
-	lrw     r11, __NR_syscalls
-	cmphs   syscallid, r11		/* Check nr of syscall */
-	bt      ret_from_exception
+	lrw     r9, __NR_syscalls
+	cmphs   syscallid, r9		/* Check nr of syscall */
+	bt      1f
 
-	lrw     r13, sys_call_table
-	ixw     r13, syscallid
-	ldw     r11, (r13)
-	cmpnei  r11, 0
+	lrw     r9, sys_call_table
+	ixw     r9, syscallid
+	ldw     syscallid, (r9)
+	cmpnei  syscallid, 0
 	bf      ret_from_exception
 
 	mov     r9, sp
 	bmaski  r10, THREAD_SHIFT
 	andn    r9, r10
-	ldw     r12, (r9, TINFO_FLAGS)
-	ANDI_R3	r12, (_TIF_SYSCALL_TRACE | _TIF_SYSCALL_TRACEPOINT | _TIF_SYSCALL_AUDIT)
-	cmpnei	r12, 0
+	ldw     r10, (r9, TINFO_FLAGS)
+	lrw	r9, _TIF_SYSCALL_WORK
+	and	r10, r9
+	cmpnei	r10, 0
 	bt      csky_syscall_trace
 #if defined(__CSKYABIV2__)
 	subi    sp, 8
 	stw  	r5, (sp, 0x4)
 	stw  	r4, (sp, 0x0)
-	jsr     r11                      /* Do system call */
+	jsr     syscallid                      /* Do system call */
 	addi 	sp, 8
 #else
-	jsr     r11
+	jsr     syscallid
 #endif
 	stw     a0, (sp, LSAVE_A0)      /* Save return value */
+1:
+#ifdef CONFIG_DEBUG_RSEQ
+	mov	a0, sp
+	jbsr	rseq_syscall
+#endif
 	jmpi    ret_from_exception
 
 csky_syscall_trace:
@@ -170,18 +175,23 @@ csky_syscall_trace:
 	ldw	a3, (sp, LSAVE_A3)
 #if defined(__CSKYABIV2__)
 	subi	sp, 8
-	stw	r5, (sp, 0x4)
-	stw	r4, (sp, 0x0)
+	ldw	r9, (sp, LSAVE_A4)
+	stw	r9, (sp, 0x0)
+	ldw	r9, (sp, LSAVE_A5)
+	stw	r9, (sp, 0x4)
+	jsr	syscallid                     /* Do system call */
+	addi	sp, 8
 #else
 	ldw	r6, (sp, LSAVE_A4)
 	ldw	r7, (sp, LSAVE_A5)
-#endif
-	jsr	r11                     /* Do system call */
-#if defined(__CSKYABIV2__)
-	addi	sp, 8
+	jsr	syscallid                     /* Do system call */
 #endif
 	stw	a0, (sp, LSAVE_A0)	/* Save return value */
 
+#ifdef CONFIG_DEBUG_RSEQ
+	mov	a0, sp
+	jbsr	rseq_syscall
+#endif
 	mov     a0, sp                  /* right now, sp --> pt_regs */
 	jbsr    syscall_trace_exit
 	br	ret_from_exception
@@ -197,18 +207,20 @@ ENTRY(ret_from_fork)
 	mov	r9, sp
 	bmaski	r10, THREAD_SHIFT
 	andn	r9, r10
-	ldw	r12, (r9, TINFO_FLAGS)
-	ANDI_R3	r12, (_TIF_SYSCALL_TRACE | _TIF_SYSCALL_TRACEPOINT | _TIF_SYSCALL_AUDIT)
-	cmpnei	r12, 0
+	ldw	r10, (r9, TINFO_FLAGS)
+	lrw	r9, _TIF_SYSCALL_WORK
+	and	r10, r9
+	cmpnei	r10, 0
 	bf	ret_from_exception
 	mov	a0, sp			/* sp = pt_regs pointer */
 	jbsr	syscall_trace_exit
 
 ret_from_exception:
-	ld	syscallid, (sp, LSAVE_PSR)
-	btsti	syscallid, 31
-	bt	1f
+	psrclr	ie
+	ld	r9, (sp, LSAVE_PSR)
+	btsti	r9, 31
 
+	bt	1f
 	/*
 	 * Load address of current->thread_info, Then get address of task_struct
 	 * Get task_needreshed in task_struct
@@ -217,22 +229,43 @@ ret_from_exception:
 	bmaski	r10, THREAD_SHIFT
 	andn	r9, r10
 
-	ldw	r12, (r9, TINFO_FLAGS)
-	andi	r12, (_TIF_SIGPENDING | _TIF_NOTIFY_RESUME | _TIF_NEED_RESCHED)
-	cmpnei	r12, 0
+	ldw	r10, (r9, TINFO_FLAGS)
+	lrw	r9, _TIF_WORK_MASK
+	and	r10, r9
+	cmpnei	r10, 0
 	bt	exit_work
 1:
+#ifdef CONFIG_PREEMPTION
+	mov	r9, sp
+	bmaski	r10, THREAD_SHIFT
+	andn	r9, r10
+
+	ldw	r10, (r9, TINFO_PREEMPT)
+	cmpnei	r10, 0
+	bt	2f
+	jbsr	preempt_schedule_irq	/* irq en/disable is done inside */
+2:
+#endif
+
+#ifdef CONFIG_TRACE_IRQFLAGS
+	ld	r10, (sp, LSAVE_PSR)
+	btsti	r10, 6
+	bf	2f
+	jbsr	trace_hardirqs_on
+2:
+#endif
 	RESTORE_ALL
 
 exit_work:
-	lrw	syscallid, ret_from_exception
-	mov	lr, syscallid
+	lrw	r9, ret_from_exception
+	mov	lr, r9
 
-	btsti	r12, TIF_NEED_RESCHED
+	btsti	r10, TIF_NEED_RESCHED
 	bt	work_resched
 
+	psrset	ie
 	mov	a0, sp
-	mov	a1, r12
+	mov	a1, r10
 	jmpi	do_notify_resume
 
 work_resched:
@@ -277,34 +310,14 @@ ENTRY(csky_irq)
 	zero_fp
 	psrset	ee
 
-#ifdef CONFIG_PREEMPTION
-	mov	r9, sp			/* Get current stack  pointer */
-	bmaski	r10, THREAD_SHIFT
-	andn	r9, r10			/* Get thread_info */
-
-	/*
-	 * Get task_struct->stack.preempt_count for current,
-	 * and increase 1.
-	 */
-	ldw	r12, (r9, TINFO_PREEMPT)
-	addi	r12, 1
-	stw	r12, (r9, TINFO_PREEMPT)
+#ifdef CONFIG_TRACE_IRQFLAGS
+	jbsr	trace_hardirqs_off
 #endif
+
 
 	mov	a0, sp
 	jbsr	csky_do_IRQ
 
-#ifdef CONFIG_PREEMPTION
-	subi	r12, 1
-	stw	r12, (r9, TINFO_PREEMPT)
-	cmpnei	r12, 0
-	bt	2f
-	ldw	r12, (r9, TINFO_FLAGS)
-	btsti	r12, TIF_NEED_RESCHED
-	bf	2f
-	jbsr	preempt_schedule_irq	/* irq en/disable is done inside */
-#endif
-2:
 	jmpi	ret_from_exception
 
 /*
@@ -316,11 +329,6 @@ ENTRY(__switch_to)
 	lrw	a3, TASK_THREAD
 	addu	a3, a0
 
-	mfcr	a2, psr			/* Save PSR value */
-	stw	a2, (a3, THREAD_SR)	/* Save PSR in task struct */
-	bclri	a2, 6			/* Disable interrupts */
-	mtcr	a2, psr
-
 	SAVE_SWITCH_STACK
 
 	stw	sp, (a3, THREAD_KSP)
@@ -331,12 +339,9 @@ ENTRY(__switch_to)
 
 	ldw	sp, (a3, THREAD_KSP)	/* Set next kernel sp */
 
-	ldw	a2, (a3, THREAD_SR)	/* Set next PSR */
-	mtcr	a2, psr
-
 #if  defined(__CSKYABIV2__)
-	addi	r7, a1, TASK_THREAD_INFO
-	ldw	tls, (r7, TINFO_TP_VALUE)
+	addi	a3, a1, TASK_THREAD_INFO
+	ldw	tls, (a3, TINFO_TP_VALUE)
 #endif
 
 	RESTORE_SWITCH_STACK

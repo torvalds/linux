@@ -29,7 +29,7 @@ struct mux_pkt_header {
 	__le32 seq_num;
 	__le32 payload_size;
 	__le16 packet_type;
-	unsigned char data[0];
+	unsigned char data[];
 };
 
 struct mux_tx {

@@ -478,33 +478,30 @@ struct v4l2_mpeg_vbi_fmt_ivtv
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-    :widths:       1 1 1 2
+    :widths:       1 1 2
 
     * - __u8
       - ``magic``\ [4]
-      -
       - A "magic" constant from :ref:`v4l2-mpeg-vbi-fmt-ivtv-magic` that
 	indicates this is a valid sliced VBI data payload and also
 	indicates which member of the anonymous union, ``itv0`` or
 	``ITV0``, to use for the payload data.
-    * - union
+    * - union {
       - (anonymous)
-    * -
-      - struct :c:type:`v4l2_mpeg_vbi_itv0`
+    * - struct :c:type:`v4l2_mpeg_vbi_itv0`
       - ``itv0``
       - The primary form of the sliced VBI data payload that contains
 	anywhere from 1 to 35 lines of sliced VBI data. Line masks are
 	provided in this form of the payload indicating which VBI lines
 	are provided.
-    * -
-      - struct :ref:`v4l2_mpeg_vbi_ITV0 <v4l2-mpeg-vbi-itv0-1>`
+    * - struct :ref:`v4l2_mpeg_vbi_ITV0 <v4l2-mpeg-vbi-itv0-1>`
       - ``ITV0``
       - An alternate form of the sliced VBI data payload used when 36
 	lines of sliced VBI data are present. No line masks are provided
 	in this form of the payload; all valid line mask bits are
 	implcitly set.
-
-
+    * - }
+      -
 
 .. _v4l2-mpeg-vbi-fmt-ivtv-magic:
 

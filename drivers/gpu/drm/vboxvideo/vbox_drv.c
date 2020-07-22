@@ -41,6 +41,10 @@ static int vbox_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (!vbox_check_supported(VBE_DISPI_ID_HGSMI))
 		return -ENODEV;
 
+	ret = drm_fb_helper_remove_conflicting_pci_framebuffers(pdev, "vboxvideodrmfb");
+	if (ret)
+		return ret;
+
 	vbox = kzalloc(sizeof(*vbox), GFP_KERNEL);
 	if (!vbox)
 		return -ENOMEM;

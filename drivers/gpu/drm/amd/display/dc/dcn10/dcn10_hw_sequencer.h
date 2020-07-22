@@ -34,6 +34,11 @@ struct dc;
 void dcn10_hw_sequencer_construct(struct dc *dc);
 
 int dcn10_get_vupdate_offset_from_vsync(struct pipe_ctx *pipe_ctx);
+void dcn10_calc_vupdate_position(
+		struct dc *dc,
+		struct pipe_ctx *pipe_ctx,
+		uint32_t *start_line,
+		uint32_t *end_line);
 void dcn10_setup_vupdate_interrupt(struct dc *dc, struct pipe_ctx *pipe_ctx);
 enum dc_status dcn10_enable_stream_timing(
 		struct pipe_ctx *pipe_ctx,
@@ -49,6 +54,7 @@ void dcn10_pipe_control_lock(
 	struct dc *dc,
 	struct pipe_ctx *pipe,
 	bool lock);
+void dcn10_cursor_lock(struct dc *dc, struct pipe_ctx *pipe, bool lock);
 void dcn10_blank_pixel_data(
 		struct dc *dc,
 		struct pipe_ctx *pipe_ctx,
@@ -70,10 +76,17 @@ void dcn10_reset_hw_ctx_wrap(
 		struct dc *dc,
 		struct dc_state *context);
 void dcn10_disable_plane(struct dc *dc, struct pipe_ctx *pipe_ctx);
+void dcn10_lock_all_pipes(
+		struct dc *dc,
+		struct dc_state *context,
+		bool lock);
 void dcn10_apply_ctx_for_surface(
 		struct dc *dc,
 		const struct dc_stream_state *stream,
 		int num_planes,
+		struct dc_state *context);
+void dcn10_post_unlock_program_front_end(
+		struct dc *dc,
 		struct dc_state *context);
 void dcn10_hubp_pg_control(
 		struct dce_hwseq *hws,

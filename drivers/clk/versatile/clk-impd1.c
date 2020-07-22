@@ -7,7 +7,11 @@
 #include <linux/clkdev.h>
 #include <linux/err.h>
 #include <linux/io.h>
+#include <linux/platform_device.h>
 #include <linux/platform_data/clk-integrator.h>
+#include <linux/module.h>
+#include <linux/mfd/syscon.h>
+#include <linux/regmap.h>
 
 #include "icst.h"
 #include "clk-icst.h"
@@ -175,3 +179,79 @@ void integrator_impd1_clk_exit(unsigned int id)
 	kfree(imc->pclkname);
 }
 EXPORT_SYMBOL_GPL(integrator_impd1_clk_exit);
+
+static int integrator_impd1_clk_spawn(struct device *dev,
+				      struct device_node *parent,
+				      struct device_node *np)
+{
+	struct regmap *map;
+	struct clk *clk = ERR_PTR(-EINVAL);
+	const char *name = np->name;
+	const char *parent_name;
+	const struct clk_icst_desc *desc;
+	int ret;
+
+	map = syscon_node_to_regmap(parent);
+	if (IS_ERR(map)) {
+		pr_err("no regmap for syscon IM-PD1 ICST clock parent\n");
+		return PTR_ERR(map);
+	}
+
+	if (of_device_is_compatible(np, "arm,impd1-vco1")) {
+		desc = &impd1_icst1_desc;
+	} else if (of_device_is_compatible(np, "arm,impd1-vco2")) {
+		desc = &impd1_icst2_desc;
+	} else {
+		dev_err(dev, "not a clock node %s\n", name);
+		return -ENODEV;
+	}
+
+	of_property_read_string(np, "clock-output-names", &name);
+	parent_name = of_clk_get_parent_name(np, 0);
+	clk = icst_clk_setup(NULL, desc, name, parent_name, map,
+			     ICST_INTEGRATOR_IM_PD1);
+	if (!IS_ERR(clk)) {
+		of_clk_add_provider(np, of_clk_src_simple_get, clk);
+		ret = 0;
+	} else {
+		dev_err(dev, "error setting up IM-PD1 ICST clock\n");
+		ret = PTR_ERR(clk);
+	}
+
+	return ret;
+}
+
+static int integrator_impd1_clk_probe(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct device_node *np = dev->of_node;
+	struct device_node *child;
+	int ret = 0;
+
+	for_each_available_child_of_node(np, child) {
+		ret = integrator_impd1_clk_spawn(dev, np, child);
+		if (ret)
+			break;
+	}
+
+	return ret;
+}
+
+static const struct of_device_id impd1_syscon_match[] = {
+	{ .compatible = "arm,im-pd1-syscon", },
+	{}
+};
+MODULE_DEVICE_TABLE(of, impd1_syscon_match);
+
+static struct platform_driver impd1_clk_driver = {
+	.driver = {
+		.name = "impd1-clk",
+		.of_match_table = impd1_syscon_match,
+	},
+	.probe  = integrator_impd1_clk_probe,
+};
+builtin_platform_driver(impd1_clk_driver);
+
+MODULE_AUTHOR("Linus Walleij <linusw@kernel.org>");
+MODULE_DESCRIPTION("Arm IM-PD1 module clock driver");
+MODULE_LICENSE("GPL v2");

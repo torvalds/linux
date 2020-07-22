@@ -11,7 +11,6 @@
 #include <asm/errno.h>
 #include <asm/memory.h>
 #include <asm/types.h>
-#include <linux/mm.h>
 
 #define __asmeq(x, y)  ".ifnc " x "," y " ; .err ; .endif\n\t"
 

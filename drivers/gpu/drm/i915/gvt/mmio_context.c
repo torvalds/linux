@@ -157,12 +157,13 @@ static u32 gen9_mocs_mmio_offset_list[] = {
 	[VECS0] = 0xcb00,
 };
 
-static void load_render_mocs(struct drm_i915_private *dev_priv)
+static void load_render_mocs(const struct intel_engine_cs *engine)
 {
-	struct intel_gvt *gvt = dev_priv->gvt;
-	i915_reg_t offset;
+	struct intel_gvt *gvt = engine->i915->gvt;
+	struct intel_uncore *uncore = engine->uncore;
 	u32 cnt = gvt->engine_mmio_list.mocs_mmio_offset_list_cnt;
 	u32 *regs = gvt->engine_mmio_list.mocs_mmio_offset_list;
+	i915_reg_t offset;
 	int ring_id, i;
 
 	/* Platform doesn't have mocs mmios. */
@@ -170,12 +171,13 @@ static void load_render_mocs(struct drm_i915_private *dev_priv)
 		return;
 
 	for (ring_id = 0; ring_id < cnt; ring_id++) {
-		if (!HAS_ENGINE(dev_priv, ring_id))
+		if (!HAS_ENGINE(engine->i915, ring_id))
 			continue;
+
 		offset.reg = regs[ring_id];
 		for (i = 0; i < GEN9_MOCS_SIZE; i++) {
 			gen9_render_mocs.control_table[ring_id][i] =
-				I915_READ_FW(offset);
+				intel_uncore_read_fw(uncore, offset);
 			offset.reg += 4;
 		}
 	}
@@ -183,7 +185,7 @@ static void load_render_mocs(struct drm_i915_private *dev_priv)
 	offset.reg = 0xb020;
 	for (i = 0; i < GEN9_MOCS_SIZE / 2; i++) {
 		gen9_render_mocs.l3cc_table[i] =
-			I915_READ_FW(offset);
+			intel_uncore_read_fw(uncore, offset);
 		offset.reg += 4;
 	}
 	gen9_render_mocs.initialized = true;
@@ -214,13 +216,11 @@ restore_context_mmio_for_inhibit(struct intel_vgpu *vgpu,
 	*cs++ = MI_LOAD_REGISTER_IMM(count);
 	for (mmio = gvt->engine_mmio_list.mmio;
 	     i915_mmio_reg_valid(mmio->reg); mmio++) {
-		if (mmio->ring_id != ring_id ||
-		    !mmio->in_context)
+		if (mmio->id != ring_id || !mmio->in_context)
 			continue;
 
 		*cs++ = i915_mmio_reg_offset(mmio->reg);
-		*cs++ = vgpu_vreg_t(vgpu, mmio->reg) |
-				(mmio->mask << 16);
+		*cs++ = vgpu_vreg_t(vgpu, mmio->reg) | (mmio->mask << 16);
 		gvt_dbg_core("add lri reg pair 0x%x:0x%x in inhibit ctx, vgpu:%d, rind_id:%d\n",
 			      *(cs-2), *(cs-1), vgpu->id, ring_id);
 	}
@@ -344,10 +344,10 @@ static u32 gen8_tlb_mmio_offset_list[] = {
 	[VECS0] = 0x4270,
 };
 
-static void handle_tlb_pending_event(struct intel_vgpu *vgpu, int ring_id)
+static void handle_tlb_pending_event(struct intel_vgpu *vgpu,
+				     const struct intel_engine_cs *engine)
 {
-	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
-	struct intel_uncore *uncore = &dev_priv->uncore;
+	struct intel_uncore *uncore = engine->uncore;
 	struct intel_vgpu_submission *s = &vgpu->submission;
 	u32 *regs = vgpu->gvt->engine_mmio_list.tlb_mmio_offset_list;
 	u32 cnt = vgpu->gvt->engine_mmio_list.tlb_mmio_offset_list_cnt;
@@ -357,13 +357,13 @@ static void handle_tlb_pending_event(struct intel_vgpu *vgpu, int ring_id)
 	if (!regs)
 		return;
 
-	if (WARN_ON(ring_id >= cnt))
+	if (drm_WARN_ON(&engine->i915->drm, engine->id >= cnt))
 		return;
 
-	if (!test_and_clear_bit(ring_id, (void *)s->tlb_handle_pending))
+	if (!test_and_clear_bit(engine->id, (void *)s->tlb_handle_pending))
 		return;
 
-	reg = _MMIO(regs[ring_id]);
+	reg = _MMIO(regs[engine->id]);
 
 	/* WaForceWakeRenderDuringMmioTLBInvalidate:skl
 	 * we need to put a forcewake when invalidating RCS TLB caches,
@@ -372,30 +372,27 @@ static void handle_tlb_pending_event(struct intel_vgpu *vgpu, int ring_id)
 	 */
 	fw = intel_uncore_forcewake_for_reg(uncore, reg,
 					    FW_REG_READ | FW_REG_WRITE);
-	if (ring_id == RCS0 && INTEL_GEN(dev_priv) >= 9)
+	if (engine->id == RCS0 && INTEL_GEN(engine->i915) >= 9)
 		fw |= FORCEWAKE_RENDER;
 
 	intel_uncore_forcewake_get(uncore, fw);
 
 	intel_uncore_write_fw(uncore, reg, 0x1);
 
-	if (wait_for_atomic((intel_uncore_read_fw(uncore, reg) == 0), 50))
-		gvt_vgpu_err("timeout in invalidate ring (%d) tlb\n", ring_id);
+	if (wait_for_atomic(intel_uncore_read_fw(uncore, reg) == 0, 50))
+		gvt_vgpu_err("timeout in invalidate ring %s tlb\n",
+			     engine->name);
 	else
 		vgpu_vreg_t(vgpu, reg) = 0;
 
 	intel_uncore_forcewake_put(uncore, fw);
 
-	gvt_dbg_core("invalidate TLB for ring %d\n", ring_id);
+	gvt_dbg_core("invalidate TLB for ring %s\n", engine->name);
 }
 
 static void switch_mocs(struct intel_vgpu *pre, struct intel_vgpu *next,
-			int ring_id)
+			const struct intel_engine_cs *engine)
 {
-	struct drm_i915_private *dev_priv;
-	i915_reg_t offset, l3_offset;
-	u32 old_v, new_v;
-
 	u32 regs[] = {
 		[RCS0]  = 0xc800,
 		[VCS0]  = 0xc900,
@@ -403,36 +400,38 @@ static void switch_mocs(struct intel_vgpu *pre, struct intel_vgpu *next,
 		[BCS0]  = 0xcc00,
 		[VECS0] = 0xcb00,
 	};
+	struct intel_uncore *uncore = engine->uncore;
+	i915_reg_t offset, l3_offset;
+	u32 old_v, new_v;
 	int i;
 
-	dev_priv = pre ? pre->gvt->dev_priv : next->gvt->dev_priv;
-	if (WARN_ON(ring_id >= ARRAY_SIZE(regs)))
+	if (drm_WARN_ON(&engine->i915->drm, engine->id >= ARRAY_SIZE(regs)))
 		return;
 
-	if (ring_id == RCS0 && IS_GEN(dev_priv, 9))
+	if (engine->id == RCS0 && IS_GEN(engine->i915, 9))
 		return;
 
 	if (!pre && !gen9_render_mocs.initialized)
-		load_render_mocs(dev_priv);
+		load_render_mocs(engine);
 
-	offset.reg = regs[ring_id];
+	offset.reg = regs[engine->id];
 	for (i = 0; i < GEN9_MOCS_SIZE; i++) {
 		if (pre)
 			old_v = vgpu_vreg_t(pre, offset);
 		else
-			old_v = gen9_render_mocs.control_table[ring_id][i];
+			old_v = gen9_render_mocs.control_table[engine->id][i];
 		if (next)
 			new_v = vgpu_vreg_t(next, offset);
 		else
-			new_v = gen9_render_mocs.control_table[ring_id][i];
+			new_v = gen9_render_mocs.control_table[engine->id][i];
 
 		if (old_v != new_v)
-			I915_WRITE_FW(offset, new_v);
+			intel_uncore_write_fw(uncore, offset, new_v);
 
 		offset.reg += 4;
 	}
 
-	if (ring_id == RCS0) {
+	if (engine->id == RCS0) {
 		l3_offset.reg = 0xb020;
 		for (i = 0; i < GEN9_MOCS_SIZE / 2; i++) {
 			if (pre)
@@ -445,7 +444,7 @@ static void switch_mocs(struct intel_vgpu *pre, struct intel_vgpu *next,
 				new_v = gen9_render_mocs.l3cc_table[i];
 
 			if (old_v != new_v)
-				I915_WRITE_FW(l3_offset, new_v);
+				intel_uncore_write_fw(uncore, l3_offset, new_v);
 
 			l3_offset.reg += 4;
 		}
@@ -467,38 +466,40 @@ bool is_inhibit_context(struct intel_context *ce)
 /* Switch ring mmio values (context). */
 static void switch_mmio(struct intel_vgpu *pre,
 			struct intel_vgpu *next,
-			int ring_id)
+			const struct intel_engine_cs *engine)
 {
-	struct drm_i915_private *dev_priv;
+	struct intel_uncore *uncore = engine->uncore;
 	struct intel_vgpu_submission *s;
 	struct engine_mmio *mmio;
 	u32 old_v, new_v;
 
-	dev_priv = pre ? pre->gvt->dev_priv : next->gvt->dev_priv;
-	if (INTEL_GEN(dev_priv) >= 9)
-		switch_mocs(pre, next, ring_id);
+	if (INTEL_GEN(engine->i915) >= 9)
+		switch_mocs(pre, next, engine);
 
-	for (mmio = dev_priv->gvt->engine_mmio_list.mmio;
+	for (mmio = engine->i915->gvt->engine_mmio_list.mmio;
 	     i915_mmio_reg_valid(mmio->reg); mmio++) {
-		if (mmio->ring_id != ring_id)
+		if (mmio->id != engine->id)
 			continue;
 		/*
 		 * No need to do save or restore of the mmio which is in context
 		 * state image on gen9, it's initialized by lri command and
 		 * save or restore with context together.
 		 */
-		if (IS_GEN(dev_priv, 9) && mmio->in_context)
+		if (IS_GEN(engine->i915, 9) && mmio->in_context)
 			continue;
 
 		// save
 		if (pre) {
-			vgpu_vreg_t(pre, mmio->reg) = I915_READ_FW(mmio->reg);
+			vgpu_vreg_t(pre, mmio->reg) =
+				intel_uncore_read_fw(uncore, mmio->reg);
 			if (mmio->mask)
 				vgpu_vreg_t(pre, mmio->reg) &=
-						~(mmio->mask << 16);
+					~(mmio->mask << 16);
 			old_v = vgpu_vreg_t(pre, mmio->reg);
-		} else
-			old_v = mmio->value = I915_READ_FW(mmio->reg);
+		} else {
+			old_v = mmio->value =
+				intel_uncore_read_fw(uncore, mmio->reg);
+		}
 
 		// restore
 		if (next) {
@@ -509,12 +510,12 @@ static void switch_mmio(struct intel_vgpu *pre,
 			 * itself.
 			 */
 			if (mmio->in_context &&
-			    !is_inhibit_context(s->shadow[ring_id]))
+			    !is_inhibit_context(s->shadow[engine->id]))
 				continue;
 
 			if (mmio->mask)
 				new_v = vgpu_vreg_t(next, mmio->reg) |
-							(mmio->mask << 16);
+					(mmio->mask << 16);
 			else
 				new_v = vgpu_vreg_t(next, mmio->reg);
 		} else {
@@ -526,7 +527,7 @@ static void switch_mmio(struct intel_vgpu *pre,
 				new_v = mmio->value;
 		}
 
-		I915_WRITE_FW(mmio->reg, new_v);
+		intel_uncore_write_fw(uncore, mmio->reg, new_v);
 
 		trace_render_mmio(pre ? pre->id : 0,
 				  next ? next->id : 0,
@@ -536,39 +537,37 @@ static void switch_mmio(struct intel_vgpu *pre,
 	}
 
 	if (next)
-		handle_tlb_pending_event(next, ring_id);
+		handle_tlb_pending_event(next, engine);
 }
 
 /**
  * intel_gvt_switch_render_mmio - switch mmio context of specific engine
  * @pre: the last vGPU that own the engine
  * @next: the vGPU to switch to
- * @ring_id: specify the engine
+ * @engine: the engine
  *
  * If pre is null indicates that host own the engine. If next is null
  * indicates that we are switching to host workload.
  */
 void intel_gvt_switch_mmio(struct intel_vgpu *pre,
-			   struct intel_vgpu *next, int ring_id)
+			   struct intel_vgpu *next,
+			   const struct intel_engine_cs *engine)
 {
-	struct drm_i915_private *dev_priv;
-
-	if (WARN_ON(!pre && !next))
+	if (WARN(!pre && !next, "switch ring %s from host to HOST\n",
+		 engine->name))
 		return;
 
-	gvt_dbg_render("switch ring %d from %s to %s\n", ring_id,
+	gvt_dbg_render("switch ring %s from %s to %s\n", engine->name,
 		       pre ? "vGPU" : "host", next ? "vGPU" : "HOST");
-
-	dev_priv = pre ? pre->gvt->dev_priv : next->gvt->dev_priv;
 
 	/**
 	 * We are using raw mmio access wrapper to improve the
 	 * performace for batch mmio read/write, so we need
 	 * handle forcewake mannually.
 	 */
-	intel_uncore_forcewake_get(&dev_priv->uncore, FORCEWAKE_ALL);
-	switch_mmio(pre, next, ring_id);
-	intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
+	intel_uncore_forcewake_get(engine->uncore, FORCEWAKE_ALL);
+	switch_mmio(pre, next, engine);
+	intel_uncore_forcewake_put(engine->uncore, FORCEWAKE_ALL);
 }
 
 /**
@@ -580,7 +579,7 @@ void intel_gvt_init_engine_mmio_context(struct intel_gvt *gvt)
 {
 	struct engine_mmio *mmio;
 
-	if (INTEL_GEN(gvt->dev_priv) >= 9) {
+	if (INTEL_GEN(gvt->gt->i915) >= 9) {
 		gvt->engine_mmio_list.mmio = gen9_engine_mmio_list;
 		gvt->engine_mmio_list.tlb_mmio_offset_list = gen8_tlb_mmio_offset_list;
 		gvt->engine_mmio_list.tlb_mmio_offset_list_cnt = ARRAY_SIZE(gen8_tlb_mmio_offset_list);
@@ -595,7 +594,7 @@ void intel_gvt_init_engine_mmio_context(struct intel_gvt *gvt)
 	for (mmio = gvt->engine_mmio_list.mmio;
 	     i915_mmio_reg_valid(mmio->reg); mmio++) {
 		if (mmio->in_context) {
-			gvt->engine_mmio_list.ctx_mmio_count[mmio->ring_id]++;
+			gvt->engine_mmio_list.ctx_mmio_count[mmio->id]++;
 			intel_gvt_mmio_set_in_ctx(gvt, mmio->reg.reg);
 		}
 	}

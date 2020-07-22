@@ -198,10 +198,13 @@ struct fcloop_lport_priv {
 };
 
 struct fcloop_rport {
-	struct nvme_fc_remote_port *remoteport;
-	struct nvmet_fc_target_port *targetport;
-	struct fcloop_nport *nport;
-	struct fcloop_lport *lport;
+	struct nvme_fc_remote_port	*remoteport;
+	struct nvmet_fc_target_port	*targetport;
+	struct fcloop_nport		*nport;
+	struct fcloop_lport		*lport;
+	spinlock_t			lock;
+	struct list_head		ls_list;
+	struct work_struct		ls_work;
 };
 
 struct fcloop_tport {
@@ -224,11 +227,10 @@ struct fcloop_nport {
 };
 
 struct fcloop_lsreq {
-	struct fcloop_tport		*tport;
 	struct nvmefc_ls_req		*lsreq;
-	struct work_struct		work;
 	struct nvmefc_tgt_ls_req	tgt_ls_req;
 	int				status;
+	struct list_head		ls_list; /* fcloop_rport->ls_list */
 };
 
 struct fcloop_rscn {
@@ -292,21 +294,32 @@ fcloop_delete_queue(struct nvme_fc_local_port *localport,
 {
 }
 
-
-/*
- * Transmit of LS RSP done (e.g. buffers all set). call back up
- * initiator "done" flows.
- */
 static void
-fcloop_tgt_lsrqst_done_work(struct work_struct *work)
+fcloop_rport_lsrqst_work(struct work_struct *work)
 {
-	struct fcloop_lsreq *tls_req =
-		container_of(work, struct fcloop_lsreq, work);
-	struct fcloop_tport *tport = tls_req->tport;
-	struct nvmefc_ls_req *lsreq = tls_req->lsreq;
+	struct fcloop_rport *rport =
+		container_of(work, struct fcloop_rport, ls_work);
+	struct fcloop_lsreq *tls_req;
 
-	if (!tport || tport->remoteport)
-		lsreq->done(lsreq, tls_req->status);
+	spin_lock(&rport->lock);
+	for (;;) {
+		tls_req = list_first_entry_or_null(&rport->ls_list,
+				struct fcloop_lsreq, ls_list);
+		if (!tls_req)
+			break;
+
+		list_del(&tls_req->ls_list);
+		spin_unlock(&rport->lock);
+
+		tls_req->lsreq->done(tls_req->lsreq, tls_req->status);
+		/*
+		 * callee may free memory containing tls_req.
+		 * do not reference lsreq after this.
+		 */
+
+		spin_lock(&rport->lock);
+	}
+	spin_unlock(&rport->lock);
 }
 
 static int
@@ -319,17 +332,18 @@ fcloop_ls_req(struct nvme_fc_local_port *localport,
 	int ret = 0;
 
 	tls_req->lsreq = lsreq;
-	INIT_WORK(&tls_req->work, fcloop_tgt_lsrqst_done_work);
+	INIT_LIST_HEAD(&tls_req->ls_list);
 
 	if (!rport->targetport) {
 		tls_req->status = -ECONNREFUSED;
-		tls_req->tport = NULL;
-		schedule_work(&tls_req->work);
+		spin_lock(&rport->lock);
+		list_add_tail(&rport->ls_list, &tls_req->ls_list);
+		spin_unlock(&rport->lock);
+		schedule_work(&rport->ls_work);
 		return ret;
 	}
 
 	tls_req->status = 0;
-	tls_req->tport = rport->targetport->private;
 	ret = nvmet_fc_rcv_ls_req(rport->targetport, &tls_req->tgt_ls_req,
 				 lsreq->rqstaddr, lsreq->rqstlen);
 
@@ -337,18 +351,28 @@ fcloop_ls_req(struct nvme_fc_local_port *localport,
 }
 
 static int
-fcloop_xmt_ls_rsp(struct nvmet_fc_target_port *tport,
+fcloop_xmt_ls_rsp(struct nvmet_fc_target_port *targetport,
 			struct nvmefc_tgt_ls_req *tgt_lsreq)
 {
 	struct fcloop_lsreq *tls_req = tgt_ls_req_to_lsreq(tgt_lsreq);
 	struct nvmefc_ls_req *lsreq = tls_req->lsreq;
+	struct fcloop_tport *tport = targetport->private;
+	struct nvme_fc_remote_port *remoteport = tport->remoteport;
+	struct fcloop_rport *rport;
 
 	memcpy(lsreq->rspaddr, tgt_lsreq->rspbuf,
 		((lsreq->rsplen < tgt_lsreq->rsplen) ?
 				lsreq->rsplen : tgt_lsreq->rsplen));
+
 	tgt_lsreq->done(tgt_lsreq);
 
-	schedule_work(&tls_req->work);
+	if (remoteport) {
+		rport = remoteport->private;
+		spin_lock(&rport->lock);
+		list_add_tail(&rport->ls_list, &tls_req->ls_list);
+		spin_unlock(&rport->lock);
+		schedule_work(&rport->ls_work);
+	}
 
 	return 0;
 }
@@ -834,6 +858,7 @@ fcloop_remoteport_delete(struct nvme_fc_remote_port *remoteport)
 {
 	struct fcloop_rport *rport = remoteport->private;
 
+	flush_work(&rport->ls_work);
 	fcloop_nport_put(rport->nport);
 }
 
@@ -850,7 +875,6 @@ fcloop_targetport_delete(struct nvmet_fc_target_port *targetport)
 #define FCLOOP_DMABOUND_4G		0xFFFFFFFF
 
 static struct nvme_fc_port_template fctemplate = {
-	.module			= THIS_MODULE,
 	.localport_delete	= fcloop_localport_delete,
 	.remoteport_delete	= fcloop_remoteport_delete,
 	.create_queue		= fcloop_create_queue,
@@ -1136,6 +1160,9 @@ fcloop_create_remote_port(struct device *dev, struct device_attribute *attr,
 	rport->nport = nport;
 	rport->lport = nport->lport;
 	nport->rport = rport;
+	spin_lock_init(&rport->lock);
+	INIT_WORK(&rport->ls_work, fcloop_rport_lsrqst_work);
+	INIT_LIST_HEAD(&rport->ls_list);
 
 	return count;
 }

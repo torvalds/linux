@@ -90,16 +90,15 @@ static irqreturn_t sibyte_counter_handler(int irq, void *dev_id)
 }
 
 static DEFINE_PER_CPU(struct clock_event_device, sibyte_hpt_clockevent);
-static DEFINE_PER_CPU(struct irqaction, sibyte_hpt_irqaction);
 static DEFINE_PER_CPU(char [18], sibyte_hpt_name);
 
 void sb1250_clockevent_init(void)
 {
 	unsigned int cpu = smp_processor_id();
 	unsigned int irq = K_INT_TIMER_0 + cpu;
-	struct irqaction *action = &per_cpu(sibyte_hpt_irqaction, cpu);
 	struct clock_event_device *cd = &per_cpu(sibyte_hpt_clockevent, cpu);
 	unsigned char *name = per_cpu(sibyte_hpt_name, cpu);
+	unsigned long flags = IRQF_PERCPU | IRQF_TIMER;
 
 	/* Only have 4 general purpose timers, and we use last one as hpt */
 	BUG_ON(cpu > 2);
@@ -133,11 +132,7 @@ void sb1250_clockevent_init(void)
 
 	sb1250_unmask_irq(cpu, irq);
 
-	action->handler = sibyte_counter_handler;
-	action->flags	= IRQF_PERCPU | IRQF_TIMER;
-	action->name	= name;
-	action->dev_id	= cd;
-
 	irq_set_affinity(irq, cpumask_of(cpu));
-	setup_irq(irq, action);
+	if (request_irq(irq, sibyte_counter_handler, flags, name, cd))
+		pr_err("Failed to request irq %d (%s)\n", irq, name);
 }

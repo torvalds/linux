@@ -53,9 +53,7 @@ in need to reconfigure the pins on the connector, the alternate mode driver
 needs to notify the bus using :c:func:`typec_altmode_notify()`. The driver
 passes the negotiated SVID specific pin configuration value to the function as
 parameter. The bus driver will then configure the mux behind the connector using
-that value as the state value for the mux, and also call blocking notification
-chain to notify the external drivers about the state of the connector that need
-to know it.
+that value as the state value for the mux.
 
 NOTE: The SVID specific pin configuration values must always start from
 ``TYPEC_STATE_MODAL``. USB Type-C specification defines two default states for
@@ -79,19 +77,6 @@ Helper macro ``TYPEC_MODAL_STATE()`` can also be used::
 
 #define ALTMODEX_CONF_A = TYPEC_MODAL_STATE(0);
 #define ALTMODEX_CONF_B = TYPEC_MODAL_STATE(1);
-
-Notification chain
-~~~~~~~~~~~~~~~~~~
-
-The drivers for the components that the alternate modes are designed for need to
-get details regarding the results of the negotiation with the partner, and the
-pin configuration of the connector. In case of DisplayPort alternate mode for
-example, the GPU drivers will need to know those details. In case of
-Thunderbolt alternate mode, the thunderbolt drivers will need to know them, and
-so on.
-
-The notification chain is designed for this purpose. The drivers can register
-notifiers with :c:func:`typec_altmode_register_notifier()`.
 
 Cable plug alternate modes
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -129,8 +114,3 @@ Cable Plug operations
 
 .. kernel-doc:: drivers/usb/typec/bus.c
    :functions: typec_altmode_get_plug typec_altmode_put_plug
-
-Notifications
-~~~~~~~~~~~~~
-.. kernel-doc:: drivers/usb/typec/class.c
-   :functions: typec_altmode_register_notifier typec_altmode_unregister_notifier

@@ -3,6 +3,8 @@
 
 #include <linux/linkage.h>
 #include <asm/ftrace.h>
+#include <abi/entry.h>
+#include <asm/asm-offsets.h>
 
 /*
  * csky-gcc with -pg will put the following asm after prologue:
@@ -41,6 +43,22 @@
 	ldw	r8, (sp, 20)
 	ldw	lr, (sp, 24)
 	addi	sp, 28
+	jmp	t1
+.endm
+
+.macro mcount_enter_regs
+	subi	sp, 8
+	stw	lr, (sp, 0)
+	stw	r8, (sp, 4)
+	SAVE_REGS_FTRACE
+.endm
+
+.macro mcount_exit_regs
+	RESTORE_REGS_FTRACE
+	ldw	t1, (sp, 0)
+	ldw	r8, (sp, 4)
+	ldw	lr, (sp, 8)
+	addi	sp, 12
 	jmp	t1
 .endm
 
@@ -85,6 +103,8 @@ ENTRY(_mcount)
 	mov	a0, lr
 	subi	a0, 4
 	ldw	a1, (sp, 24)
+	lrw	a2, function_trace_op
+	ldw	a2, (a2, 0)
 
 	jsr	r26
 
@@ -122,6 +142,8 @@ ENTRY(ftrace_caller)
 	ldw	a0, (sp, 16)
 	subi	a0, 4
 	ldw	a1, (sp, 24)
+	lrw	a2, function_trace_op
+	ldw	a2, (a2, 0)
 
 	nop
 GLOBAL(ftrace_call)
@@ -157,3 +179,31 @@ ENTRY(return_to_handler)
 	jmp	lr
 END(return_to_handler)
 #endif
+
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
+ENTRY(ftrace_regs_caller)
+	mcount_enter_regs
+
+	lrw	t1, PT_FRAME_SIZE
+	add	t1, sp
+
+	ldw	a0, (t1, 0)
+	subi	a0, 4
+	ldw	a1, (t1, 8)
+	lrw	a2, function_trace_op
+	ldw	a2, (a2, 0)
+	mov	a3, sp
+
+	nop
+GLOBAL(ftrace_regs_call)
+	nop32_stub
+
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+	nop
+GLOBAL(ftrace_graph_regs_call)
+	nop32_stub
+#endif
+
+	mcount_exit_regs
+ENDPROC(ftrace_regs_caller)
+#endif /* CONFIG_DYNAMIC_FTRACE */

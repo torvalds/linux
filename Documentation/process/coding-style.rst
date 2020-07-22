@@ -84,15 +84,20 @@ Get a decent editor and don't leave whitespace at the end of lines.
 Coding style is all about readability and maintainability using commonly
 available tools.
 
-The limit on the length of lines is 80 columns and this is a strongly
-preferred limit.
+The preferred limit on the length of a single line is 80 columns.
 
-Statements longer than 80 columns will be broken into sensible chunks, unless
-exceeding 80 columns significantly increases readability and does not hide
-information. Descendants are always substantially shorter than the parent and
-are placed substantially to the right. The same applies to function headers
-with a long argument list. However, never break user-visible strings such as
-printk messages, because that breaks the ability to grep for them.
+Statements longer than 80 columns should be broken into sensible chunks,
+unless exceeding 80 columns significantly increases readability and does
+not hide information.
+
+Descendants are always substantially shorter than the parent and are
+are placed substantially to the right.  A very commonly used style
+is to align descendants to a function open parenthesis.
+
+These same rules are applied to function headers with a long argument list.
+
+However, never break user-visible strings such as printk messages because
+that breaks the ability to grep for them.
 
 
 3) Placing Braces and Spaces
@@ -284,9 +289,9 @@ context lines.
 4) Naming
 ---------
 
-C is a Spartan language, and so should your naming be.  Unlike Modula-2
-and Pascal programmers, C programmers do not use cute names like
-ThisVariableIsATemporaryCounter.  A C programmer would call that
+C is a Spartan language, and your naming conventions should follow suit.
+Unlike Modula-2 and Pascal programmers, C programmers do not use cute
+names like ThisVariableIsATemporaryCounter. A C programmer would call that
 variable ``tmp``, which is much easier to write, and not the least more
 difficult to understand.
 
@@ -300,9 +305,9 @@ that counts the number of active users, you should call that
 ``count_active_users()`` or similar, you should **not** call it ``cntusr()``.
 
 Encoding the type of a function into the name (so-called Hungarian
-notation) is brain damaged - the compiler knows the types anyway and can
-check those, and it only confuses the programmer.  No wonder MicroSoft
-makes buggy programs.
+notation) is asinine - the compiler knows the types anyway and can check
+those, and it only confuses the programmer. No wonder Microsoft makes buggy
+programs.
 
 LOCAL variable names should be short, and to the point.  If you have
 some random integer loop counter, it should probably be called ``i``.
@@ -806,9 +811,9 @@ covers RTL which is used frequently with assembly language in the kernel.
 ----------------------------
 
 Kernel developers like to be seen as literate. Do mind the spelling
-of kernel messages to make a good impression. Do not use crippled
-words like ``dont``; use ``do not`` or ``don't`` instead.  Make the messages
-concise, clear, and unambiguous.
+of kernel messages to make a good impression. Do not use incorrect
+contractions like ``dont``; use ``do not`` or ``don't`` instead. Make the
+messages concise, clear, and unambiguous.
 
 Kernel messages do not have to be terminated with a period.
 

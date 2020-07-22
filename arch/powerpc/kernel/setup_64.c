@@ -279,23 +279,41 @@ void __init record_spr_defaults(void)
  * device-tree is not accessible via normal means at this point.
  */
 
-void __init early_setup(unsigned long dt_ptr)
+void __init __nostackprotector early_setup(unsigned long dt_ptr)
 {
 	static __initdata struct paca_struct boot_paca;
 
 	/* -------- printk is _NOT_ safe to use here ! ------- */
 
-	/* Try new device tree based feature discovery ... */
-	if (!dt_cpu_ftrs_init(__va(dt_ptr)))
-		/* Otherwise use the old style CPU table */
-		identify_cpu(0, mfspr(SPRN_PVR));
-
-	/* Assume we're on cpu 0 for now. Don't write to the paca yet! */
+	/*
+	 * Assume we're on cpu 0 for now.
+	 *
+	 * We need to load a PACA very early for a few reasons.
+	 *
+	 * The stack protector canary is stored in the paca, so as soon as we
+	 * call any stack protected code we need r13 pointing somewhere valid.
+	 *
+	 * If we are using kcov it will call in_task() in its instrumentation,
+	 * which relies on the current task from the PACA.
+	 *
+	 * dt_cpu_ftrs_init() calls into generic OF/fdt code, as well as
+	 * printk(), which can trigger both stack protector and kcov.
+	 *
+	 * percpu variables and spin locks also use the paca.
+	 *
+	 * So set up a temporary paca. It will be replaced below once we know
+	 * what CPU we are on.
+	 */
 	initialise_paca(&boot_paca, 0);
 	setup_paca(&boot_paca);
 	fixup_boot_paca();
 
 	/* -------- printk is now safe to use ------- */
+
+	/* Try new device tree based feature discovery ... */
+	if (!dt_cpu_ftrs_init(__va(dt_ptr)))
+		/* Otherwise use the old style CPU table */
+		identify_cpu(0, mfspr(SPRN_PVR));
 
 	/* Enable early debugging if any specified (see udbg.h) */
 	udbg_early_init();
@@ -516,6 +534,8 @@ static bool __init parse_cache_info(struct device_node *np,
 	lsizep = of_get_property(np, propnames[3], NULL);
 	if (bsizep == NULL)
 		bsizep = lsizep;
+	if (lsizep == NULL)
+		lsizep = bsizep;
 	if (lsizep != NULL)
 		lsize = be32_to_cpu(*lsizep);
 	if (bsizep != NULL)

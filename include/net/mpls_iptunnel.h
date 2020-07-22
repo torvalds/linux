@@ -11,7 +11,7 @@ struct mpls_iptunnel_encap {
 	u8	ttl_propagate;
 	u8	default_ttl;
 	u8	reserved1;
-	u32	label[0];
+	u32	label[];
 };
 
 static inline struct mpls_iptunnel_encap *mpls_lwtunnel_encap(struct lwtunnel_state *lwtstate)

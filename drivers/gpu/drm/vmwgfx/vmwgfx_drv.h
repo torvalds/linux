@@ -58,7 +58,7 @@
 #define VMWGFX_DRIVER_NAME "vmwgfx"
 #define VMWGFX_DRIVER_DATE "20200114"
 #define VMWGFX_DRIVER_MAJOR 2
-#define VMWGFX_DRIVER_MINOR 17
+#define VMWGFX_DRIVER_MINOR 18
 #define VMWGFX_DRIVER_PATCHLEVEL 0
 #define VMWGFX_FIFO_STATIC_SIZE (1024*1024)
 #define VMWGFX_MAX_RELOCATIONS 2048
@@ -202,6 +202,7 @@ enum vmw_res_type {
 	vmw_res_dx_context,
 	vmw_res_cotable,
 	vmw_res_view,
+	vmw_res_streamoutput,
 	vmw_res_max
 };
 
@@ -210,7 +211,8 @@ enum vmw_res_type {
  */
 enum vmw_cmdbuf_res_type {
 	vmw_cmdbuf_res_shader,
-	vmw_cmdbuf_res_view
+	vmw_cmdbuf_res_view,
+	vmw_cmdbuf_res_streamoutput
 };
 
 struct vmw_cmdbuf_res_manager;
@@ -223,24 +225,58 @@ struct vmw_cursor_snooper {
 struct vmw_framebuffer;
 struct vmw_surface_offset;
 
-struct vmw_surface {
-	struct vmw_resource res;
-	SVGA3dSurfaceAllFlags flags;
-	uint32_t format;
-	uint32_t mip_levels[DRM_VMW_MAX_SURFACE_FACES];
+/**
+ * struct vmw_surface_metadata - Metadata describing a surface.
+ *
+ * @flags: Device flags.
+ * @format: Surface SVGA3D_x format.
+ * @mip_levels: Mip level for each face. For GB first index is used only.
+ * @multisample_count: Sample count.
+ * @multisample_pattern: Sample patterns.
+ * @quality_level: Quality level.
+ * @autogen_filter: Filter for automatically generated mipmaps.
+ * @array_size: Number of array elements for a 1D/2D texture. For cubemap
+                texture number of faces * array_size. This should be 0 for pre
+		SM4 device.
+ * @buffer_byte_stride: Buffer byte stride.
+ * @num_sizes: Size of @sizes. For GB surface this should always be 1.
+ * @base_size: Surface dimension.
+ * @sizes: Array representing mip sizes. Legacy only.
+ * @scanout: Whether this surface will be used for scanout.
+ *
+ * This tracks metadata for both legacy and guest backed surface.
+ */
+struct vmw_surface_metadata {
+	u64 flags;
+	u32 format;
+	u32 mip_levels[DRM_VMW_MAX_SURFACE_FACES];
+	u32 multisample_count;
+	u32 multisample_pattern;
+	u32 quality_level;
+	u32 autogen_filter;
+	u32 array_size;
+	u32 num_sizes;
+	u32 buffer_byte_stride;
 	struct drm_vmw_size base_size;
 	struct drm_vmw_size *sizes;
-	uint32_t num_sizes;
 	bool scanout;
-	uint32_t array_size;
-	/* TODO so far just a extra pointer */
+};
+
+/**
+ * struct vmw_surface: Resource structure for a surface.
+ *
+ * @res: The base resource for this surface.
+ * @metadata: Metadata for this surface resource.
+ * @snooper: Cursor data. Legacy surface only.
+ * @offsets: Legacy surface only.
+ * @view_list: List of views bound to this surface.
+ */
+struct vmw_surface {
+	struct vmw_resource res;
+	struct vmw_surface_metadata metadata;
 	struct vmw_cursor_snooper snooper;
 	struct vmw_surface_offset *offsets;
-	SVGA3dTextureFilter autogen_filter;
-	uint32_t multisample_count;
 	struct list_head view_list;
-	SVGA3dMSPattern multisample_pattern;
-	SVGA3dMSQualityLevel quality_level;
 };
 
 struct vmw_marker_queue {
@@ -441,6 +477,22 @@ enum {
 	VMW_IRQTHREAD_MAX
 };
 
+/**
+ * enum vmw_sm_type - Graphics context capability supported by device.
+ * @VMW_SM_LEGACY: Pre DX context.
+ * @VMW_SM_4: Context support upto SM4.
+ * @VMW_SM_4_1: Context support upto SM4_1.
+ * @VMW_SM_5: Context support up to SM5.
+ * @VMW_SM_MAX: Should be the last.
+ */
+enum vmw_sm_type {
+	VMW_SM_LEGACY = 0,
+	VMW_SM_4,
+	VMW_SM_4_1,
+	VMW_SM_5,
+	VMW_SM_MAX
+};
+
 struct vmw_private {
 	struct ttm_bo_device bdev;
 
@@ -475,22 +527,9 @@ struct vmw_private {
 	bool has_mob;
 	spinlock_t hw_lock;
 	spinlock_t cap_lock;
-	bool has_dx;
 	bool assume_16bpp;
-	bool has_sm4_1;
 
-	/*
-	 * VGA registers.
-	 */
-
-	struct vmw_vga_topology_state vga_save[VMWGFX_MAX_DISPLAYS];
-	uint32_t vga_width;
-	uint32_t vga_height;
-	uint32_t vga_bpp;
-	uint32_t vga_bpl;
-	uint32_t vga_pitchlock;
-
-	uint32_t num_displays;
+	enum vmw_sm_type sm_type;
 
 	/*
 	 * Framebuffer info.
@@ -661,6 +700,39 @@ static inline uint32_t vmw_read(struct vmw_private *dev_priv,
 	return val;
 }
 
+/**
+ * has_sm4_context - Does the device support SM4 context.
+ * @dev_priv: Device private.
+ *
+ * Return: Bool value if device support SM4 context or not.
+ */
+static inline bool has_sm4_context(const struct vmw_private *dev_priv)
+{
+	return (dev_priv->sm_type >= VMW_SM_4);
+}
+
+/**
+ * has_sm4_1_context - Does the device support SM4_1 context.
+ * @dev_priv: Device private.
+ *
+ * Return: Bool value if device support SM4_1 context or not.
+ */
+static inline bool has_sm4_1_context(const struct vmw_private *dev_priv)
+{
+	return (dev_priv->sm_type >= VMW_SM_4_1);
+}
+
+/**
+ * has_sm5_context - Does the device support SM5 context.
+ * @dev_priv: Device private.
+ *
+ * Return: Bool value if device support SM5 context or not.
+ */
+static inline bool has_sm5_context(const struct vmw_private *dev_priv)
+{
+	return (dev_priv->sm_type >= VMW_SM_5);
+}
+
 extern void vmw_svga_enable(struct vmw_private *dev_priv);
 extern void vmw_svga_disable(struct vmw_private *dev_priv);
 
@@ -778,7 +850,7 @@ extern void vmw_bo_bo_free(struct ttm_buffer_object *bo);
 extern int vmw_bo_init(struct vmw_private *dev_priv,
 		       struct vmw_buffer_object *vmw_bo,
 		       size_t size, struct ttm_placement *placement,
-		       bool interuptable,
+		       bool interruptible,
 		       void (*bo_free)(struct ttm_buffer_object *bo));
 extern int vmw_user_bo_verify_access(struct ttm_buffer_object *bo,
 				     struct ttm_object_file *tfile);
@@ -900,7 +972,6 @@ extern void vmw_fifo_commit(struct vmw_private *dev_priv, uint32_t bytes);
 extern void vmw_fifo_commit_flush(struct vmw_private *dev_priv, uint32_t bytes);
 extern int vmw_fifo_send_fence(struct vmw_private *dev_priv,
 			       uint32_t *seqno);
-extern void vmw_fifo_ping_host_locked(struct vmw_private *, uint32_t reason);
 extern void vmw_fifo_ping_host(struct vmw_private *dev_priv, uint32_t reason);
 extern bool vmw_fifo_have_3d(struct vmw_private *dev_priv);
 extern bool vmw_fifo_have_pitchlock(struct vmw_private *dev_priv);
@@ -929,6 +1000,7 @@ extern int vmw_mmap(struct file *filp, struct vm_area_struct *vma);
 
 extern void vmw_validation_mem_init_ttm(struct vmw_private *dev_priv,
 					size_t gran);
+
 /**
  * TTM buffer object driver - vmwgfx_ttm_buffer.c
  */
@@ -947,7 +1019,6 @@ extern struct ttm_placement vmw_mob_placement;
 extern struct ttm_placement vmw_mob_ne_placement;
 extern struct ttm_placement vmw_nonfixed_placement;
 extern struct ttm_bo_driver vmw_bo_driver;
-extern int vmw_dma_quiescent(struct drm_device *dev);
 extern int vmw_bo_map_dma(struct ttm_buffer_object *bo);
 extern void vmw_bo_unmap_dma(struct ttm_buffer_object *bo);
 extern const struct vmw_sg_table *
@@ -1085,8 +1156,6 @@ int vmw_fb_on(struct vmw_private *vmw_priv);
 
 int vmw_kms_init(struct vmw_private *dev_priv);
 int vmw_kms_close(struct vmw_private *dev_priv);
-int vmw_kms_save_vga(struct vmw_private *vmw_priv);
-int vmw_kms_restore_vga(struct vmw_private *vmw_priv);
 int vmw_kms_cursor_bypass_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *file_priv);
 void vmw_kms_cursor_post_execbuf(struct vmw_private *dev_priv);
@@ -1100,9 +1169,9 @@ int vmw_kms_write_svga(struct vmw_private *vmw_priv,
 bool vmw_kms_validate_mode_vram(struct vmw_private *dev_priv,
 				uint32_t pitch,
 				uint32_t height);
-u32 vmw_get_vblank_counter(struct drm_device *dev, unsigned int pipe);
-int vmw_enable_vblank(struct drm_device *dev, unsigned int pipe);
-void vmw_disable_vblank(struct drm_device *dev, unsigned int pipe);
+u32 vmw_get_vblank_counter(struct drm_crtc *crtc);
+int vmw_enable_vblank(struct drm_crtc *crtc);
+void vmw_disable_vblank(struct drm_crtc *crtc);
 int vmw_kms_present(struct vmw_private *dev_priv,
 		    struct drm_file *file_priv,
 		    struct vmw_framebuffer *vfb,
@@ -1139,7 +1208,6 @@ int vmw_overlay_init(struct vmw_private *dev_priv);
 int vmw_overlay_close(struct vmw_private *dev_priv);
 int vmw_overlay_ioctl(struct drm_device *dev, void *data,
 		      struct drm_file *file_priv);
-int vmw_overlay_stop_all(struct vmw_private *dev_priv);
 int vmw_overlay_resume_all(struct vmw_private *dev_priv);
 int vmw_overlay_pause_all(struct vmw_private *dev_priv);
 int vmw_overlay_claim(struct vmw_private *dev_priv, uint32_t *out);
@@ -1186,10 +1254,6 @@ extern void vmw_otables_takedown(struct vmw_private *dev_priv);
 
 extern const struct vmw_user_resource_conv *user_context_converter;
 
-extern int vmw_context_check(struct vmw_private *dev_priv,
-			     struct ttm_object_file *tfile,
-			     int id,
-			     struct vmw_resource **p_res);
 extern int vmw_context_define_ioctl(struct drm_device *dev, void *data,
 				    struct drm_file *file_priv);
 extern int vmw_extended_context_define_ioctl(struct drm_device *dev, void *data,
@@ -1219,7 +1283,6 @@ vmw_context_get_dx_query_mob(struct vmw_resource *ctx_res);
 
 extern const struct vmw_user_resource_conv *user_surface_converter;
 
-extern void vmw_surface_res_free(struct vmw_resource *res);
 extern int vmw_surface_destroy_ioctl(struct drm_device *dev, void *data,
 				     struct drm_file *file_priv);
 extern int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
@@ -1230,11 +1293,6 @@ extern int vmw_gb_surface_define_ioctl(struct drm_device *dev, void *data,
 				       struct drm_file *file_priv);
 extern int vmw_gb_surface_reference_ioctl(struct drm_device *dev, void *data,
 					  struct drm_file *file_priv);
-extern int vmw_surface_check(struct vmw_private *dev_priv,
-			     struct ttm_object_file *tfile,
-			     uint32_t handle, int *id);
-extern int vmw_surface_validate(struct vmw_private *dev_priv,
-				struct vmw_surface *srf);
 int vmw_surface_gb_priv_define(struct drm_device *dev,
 			       uint32_t user_accounting_size,
 			       SVGA3dSurfaceAllFlags svga3d_flags,
@@ -1253,6 +1311,11 @@ extern int vmw_gb_surface_define_ext_ioctl(struct drm_device *dev,
 extern int vmw_gb_surface_reference_ext_ioctl(struct drm_device *dev,
 					      void *data,
 					      struct drm_file *file_priv);
+
+int vmw_gb_surface_define(struct vmw_private *dev_priv,
+			  uint32_t user_accounting_size,
+			  const struct vmw_surface_metadata *req,
+			  struct vmw_surface **srf_out);
 
 /*
  * Shader management - vmwgfx_shader.c
@@ -1285,6 +1348,24 @@ extern void vmw_dx_shader_cotable_list_scrub(struct vmw_private *dev_priv,
 extern struct vmw_resource *
 vmw_shader_lookup(struct vmw_cmdbuf_res_manager *man,
 		  u32 user_key, SVGA3dShaderType shader_type);
+
+/*
+ * Streamoutput management
+ */
+struct vmw_resource *
+vmw_dx_streamoutput_lookup(struct vmw_cmdbuf_res_manager *man,
+			   u32 user_key);
+int vmw_dx_streamoutput_add(struct vmw_cmdbuf_res_manager *man,
+			    struct vmw_resource *ctx,
+			    SVGA3dStreamOutputId user_key,
+			    struct list_head *list);
+void vmw_dx_streamoutput_set_size(struct vmw_resource *res, u32 size);
+int vmw_dx_streamoutput_remove(struct vmw_cmdbuf_res_manager *man,
+			       SVGA3dStreamOutputId user_key,
+			       struct list_head *list);
+void vmw_dx_streamoutput_cotable_list_scrub(struct vmw_private *dev_priv,
+					    struct list_head *list,
+					    bool readback);
 
 /*
  * Command buffer managed resources - vmwgfx_cmdbuf_res.c
@@ -1430,6 +1511,17 @@ void vmw_bo_dirty_unmap(struct vmw_buffer_object *vbo,
 			pgoff_t start, pgoff_t end);
 vm_fault_t vmw_bo_vm_fault(struct vm_fault *vmf);
 vm_fault_t vmw_bo_vm_mkwrite(struct vm_fault *vmf);
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+vm_fault_t vmw_bo_vm_huge_fault(struct vm_fault *vmf,
+				enum page_entry_size pe_size);
+#endif
+
+/* Transparent hugepage support - vmwgfx_thp.c */
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+extern const struct ttm_mem_type_manager_func vmw_thp_func;
+#else
+#define vmw_thp_func ttm_bo_manager_func
+#endif
 
 /**
  * VMW_DEBUG_KMS - Debug output for kernel mode-setting

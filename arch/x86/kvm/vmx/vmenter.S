@@ -58,12 +58,8 @@ SYM_FUNC_START(vmx_vmenter)
 	ret
 4:	ud2
 
-	.pushsection .fixup, "ax"
-5:	jmp 3b
-	.popsection
-
-	_ASM_EXTABLE(1b, 5b)
-	_ASM_EXTABLE(2b, 5b)
+	_ASM_EXTABLE(1b, 3b)
+	_ASM_EXTABLE(2b, 3b)
 
 SYM_FUNC_END(vmx_vmenter)
 
@@ -85,6 +81,9 @@ SYM_FUNC_START(vmx_vmexit)
 
 	/* IMPORTANT: Stuff the RSB immediately after VM-Exit, before RET! */
 	FILL_RETURN_BUFFER %_ASM_AX, RSB_CLEAR_LOOPS, X86_FEATURE_RETPOLINE
+
+	/* Clear RFLAGS.CF and RFLAGS.ZF to preserve VM-Exit, i.e. !VM-Fail. */
+	or $1, %_ASM_AX
 
 	pop %_ASM_AX
 .Lvmexit_skip_rsb:
@@ -135,12 +134,12 @@ SYM_FUNC_START(__vmx_vcpu_run)
 	cmpb $0, %bl
 
 	/* Load guest registers.  Don't clobber flags. */
-	mov VCPU_RBX(%_ASM_AX), %_ASM_BX
 	mov VCPU_RCX(%_ASM_AX), %_ASM_CX
 	mov VCPU_RDX(%_ASM_AX), %_ASM_DX
+	mov VCPU_RBX(%_ASM_AX), %_ASM_BX
+	mov VCPU_RBP(%_ASM_AX), %_ASM_BP
 	mov VCPU_RSI(%_ASM_AX), %_ASM_SI
 	mov VCPU_RDI(%_ASM_AX), %_ASM_DI
-	mov VCPU_RBP(%_ASM_AX), %_ASM_BP
 #ifdef CONFIG_X86_64
 	mov VCPU_R8 (%_ASM_AX),  %r8
 	mov VCPU_R9 (%_ASM_AX),  %r9
@@ -168,12 +167,12 @@ SYM_FUNC_START(__vmx_vcpu_run)
 
 	/* Save all guest registers, including RAX from the stack */
 	__ASM_SIZE(pop) VCPU_RAX(%_ASM_AX)
-	mov %_ASM_BX,   VCPU_RBX(%_ASM_AX)
 	mov %_ASM_CX,   VCPU_RCX(%_ASM_AX)
 	mov %_ASM_DX,   VCPU_RDX(%_ASM_AX)
+	mov %_ASM_BX,   VCPU_RBX(%_ASM_AX)
+	mov %_ASM_BP,   VCPU_RBP(%_ASM_AX)
 	mov %_ASM_SI,   VCPU_RSI(%_ASM_AX)
 	mov %_ASM_DI,   VCPU_RDI(%_ASM_AX)
-	mov %_ASM_BP,   VCPU_RBP(%_ASM_AX)
 #ifdef CONFIG_X86_64
 	mov %r8,  VCPU_R8 (%_ASM_AX)
 	mov %r9,  VCPU_R9 (%_ASM_AX)
@@ -197,12 +196,12 @@ SYM_FUNC_START(__vmx_vcpu_run)
 	 * free.  RSP and RAX are exempt as RSP is restored by hardware during
 	 * VM-Exit and RAX is explicitly loaded with 0 or 1 to return VM-Fail.
 	 */
-1:	xor %ebx, %ebx
-	xor %ecx, %ecx
+1:	xor %ecx, %ecx
 	xor %edx, %edx
+	xor %ebx, %ebx
+	xor %ebp, %ebp
 	xor %esi, %esi
 	xor %edi, %edi
-	xor %ebp, %ebp
 #ifdef CONFIG_X86_64
 	xor %r8d,  %r8d
 	xor %r9d,  %r9d
@@ -234,3 +233,61 @@ SYM_FUNC_START(__vmx_vcpu_run)
 2:	mov $1, %eax
 	jmp 1b
 SYM_FUNC_END(__vmx_vcpu_run)
+
+/**
+ * vmread_error_trampoline - Trampoline from inline asm to vmread_error()
+ * @field:	VMCS field encoding that failed
+ * @fault:	%true if the VMREAD faulted, %false if it failed
+
+ * Save and restore volatile registers across a call to vmread_error().  Note,
+ * all parameters are passed on the stack.
+ */
+SYM_FUNC_START(vmread_error_trampoline)
+	push %_ASM_BP
+	mov  %_ASM_SP, %_ASM_BP
+
+	push %_ASM_AX
+	push %_ASM_CX
+	push %_ASM_DX
+#ifdef CONFIG_X86_64
+	push %rdi
+	push %rsi
+	push %r8
+	push %r9
+	push %r10
+	push %r11
+#endif
+#ifdef CONFIG_X86_64
+	/* Load @field and @fault to arg1 and arg2 respectively. */
+	mov 3*WORD_SIZE(%rbp), %_ASM_ARG2
+	mov 2*WORD_SIZE(%rbp), %_ASM_ARG1
+#else
+	/* Parameters are passed on the stack for 32-bit (see asmlinkage). */
+	push 3*WORD_SIZE(%ebp)
+	push 2*WORD_SIZE(%ebp)
+#endif
+
+	call vmread_error
+
+#ifndef CONFIG_X86_64
+	add $8, %esp
+#endif
+
+	/* Zero out @fault, which will be popped into the result register. */
+	_ASM_MOV $0, 3*WORD_SIZE(%_ASM_BP)
+
+#ifdef CONFIG_X86_64
+	pop %r11
+	pop %r10
+	pop %r9
+	pop %r8
+	pop %rsi
+	pop %rdi
+#endif
+	pop %_ASM_DX
+	pop %_ASM_CX
+	pop %_ASM_AX
+	pop %_ASM_BP
+
+	ret
+SYM_FUNC_END(vmread_error_trampoline)

@@ -88,7 +88,7 @@
 		reg = <0x50>;
 	};
 
-	pmic@58 {
+	pmic: pmic@58 {
 		compatible = "dlg,da9062";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_pmic>;
@@ -96,6 +96,8 @@
 		interrupt-parent = <&gpio1>;
 		interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
 		interrupt-controller;
+		gpio-controller;
+		#gpio-cells = <2>;
 
 		da9062_rtc: rtc {
 			compatible = "dlg,da9062-rtc";
@@ -107,6 +109,7 @@
 
 		watchdog {
 			compatible = "dlg,da9062-watchdog";
+			dlg,use-sw-pm;
 		};
 
 		regulators {

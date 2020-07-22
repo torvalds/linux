@@ -427,6 +427,9 @@ struct iwl_tof_range_req_ap_entry_v2 {
  *	Default algo type is ML.
  * @IWL_INITIATOR_AP_FLAGS_MCSI_REPORT: Send the MCSI for each FTM frame to the
  *	driver.
+ * @IWL_INITIATOR_AP_FLAGS_NON_TB: Use non trigger based flow
+ * @IWL_INITIATOR_AP_FLAGS_TB: Use trigger based flow
+ * @IWL_INITIATOR_AP_FLAGS_SECURED: request secured measurement
  */
 enum iwl_initiator_ap_flags {
 	IWL_INITIATOR_AP_FLAGS_ASAP = BIT(1),
@@ -436,6 +439,9 @@ enum iwl_initiator_ap_flags {
 	IWL_INITIATOR_AP_FLAGS_ALGO_LR = BIT(5),
 	IWL_INITIATOR_AP_FLAGS_ALGO_FFT = BIT(6),
 	IWL_INITIATOR_AP_FLAGS_MCSI_REPORT = BIT(8),
+	IWL_INITIATOR_AP_FLAGS_NON_TB = BIT(9),
+	IWL_INITIATOR_AP_FLAGS_TB = BIT(10),
+	IWL_INITIATOR_AP_FLAGS_SECURED = BIT(11),
 };
 
 /**

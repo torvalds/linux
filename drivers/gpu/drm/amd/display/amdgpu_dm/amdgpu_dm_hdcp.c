@@ -28,6 +28,13 @@
 #include "amdgpu_dm.h"
 #include "dm_helpers.h"
 #include <drm/drm_hdcp.h>
+#include "hdcp_psp.h"
+
+/*
+ * If the SRM version being loaded is less than or equal to the
+ * currently loaded SRM, psp will return 0xFFFF as the version
+ */
+#define PSP_SRM_VERSION_MAX 0xFFFF
 
 static bool
 lp_write_i2c(void *handle, uint32_t address, const uint8_t *data, uint32_t size)
@@ -67,6 +74,59 @@ lp_read_dpcd(void *handle, uint32_t address, uint8_t *data, uint32_t size)
 	return dm_helpers_dp_read_dpcd(link->ctx, link, address, data, size);
 }
 
+static uint8_t *psp_get_srm(struct psp_context *psp, uint32_t *srm_version, uint32_t *srm_size)
+{
+
+	struct ta_hdcp_shared_memory *hdcp_cmd;
+
+	if (!psp->hdcp_context.hdcp_initialized) {
+		DRM_WARN("Failed to get hdcp srm. HDCP TA is not initialized.");
+		return NULL;
+	}
+
+	hdcp_cmd = (struct ta_hdcp_shared_memory *)psp->hdcp_context.hdcp_shared_buf;
+	memset(hdcp_cmd, 0, sizeof(struct ta_hdcp_shared_memory));
+
+	hdcp_cmd->cmd_id = TA_HDCP_COMMAND__HDCP_GET_SRM;
+	psp_hdcp_invoke(psp, hdcp_cmd->cmd_id);
+
+	if (hdcp_cmd->hdcp_status != TA_HDCP_STATUS__SUCCESS)
+		return NULL;
+
+	*srm_version = hdcp_cmd->out_msg.hdcp_get_srm.srm_version;
+	*srm_size = hdcp_cmd->out_msg.hdcp_get_srm.srm_buf_size;
+
+
+	return hdcp_cmd->out_msg.hdcp_get_srm.srm_buf;
+}
+
+static int psp_set_srm(struct psp_context *psp, uint8_t *srm, uint32_t srm_size, uint32_t *srm_version)
+{
+
+	struct ta_hdcp_shared_memory *hdcp_cmd;
+
+	if (!psp->hdcp_context.hdcp_initialized) {
+		DRM_WARN("Failed to get hdcp srm. HDCP TA is not initialized.");
+		return -EINVAL;
+	}
+
+	hdcp_cmd = (struct ta_hdcp_shared_memory *)psp->hdcp_context.hdcp_shared_buf;
+	memset(hdcp_cmd, 0, sizeof(struct ta_hdcp_shared_memory));
+
+	memcpy(hdcp_cmd->in_msg.hdcp_set_srm.srm_buf, srm, srm_size);
+	hdcp_cmd->in_msg.hdcp_set_srm.srm_buf_size = srm_size;
+	hdcp_cmd->cmd_id = TA_HDCP_COMMAND__HDCP_SET_SRM;
+
+	psp_hdcp_invoke(psp, hdcp_cmd->cmd_id);
+
+	if (hdcp_cmd->hdcp_status != TA_HDCP_STATUS__SUCCESS || hdcp_cmd->out_msg.hdcp_set_srm.valid_signature != 1 ||
+	    hdcp_cmd->out_msg.hdcp_set_srm.srm_version == PSP_SRM_VERSION_MAX)
+		return -EINVAL;
+
+	*srm_version = hdcp_cmd->out_msg.hdcp_set_srm.srm_version;
+	return 0;
+}
+
 static void process_output(struct hdcp_workqueue *hdcp_work)
 {
 	struct mod_hdcp_output output = hdcp_work->output;
@@ -88,6 +148,18 @@ static void process_output(struct hdcp_workqueue *hdcp_work)
 	schedule_delayed_work(&hdcp_work->property_validate_dwork, msecs_to_jiffies(0));
 }
 
+static void link_lock(struct hdcp_workqueue *work, bool lock)
+{
+
+	int i = 0;
+
+	for (i = 0; i < work->max_link; i++) {
+		if (lock)
+			mutex_lock(&work[i].mutex);
+		else
+			mutex_unlock(&work[i].mutex);
+	}
+}
 void hdcp_update_display(struct hdcp_workqueue *hdcp_work,
 			 unsigned int link_index,
 			 struct amdgpu_dm_connector *aconnector,
@@ -112,11 +184,21 @@ void hdcp_update_display(struct hdcp_workqueue *hdcp_work,
 		hdcp_w->link.adjust.hdcp2.force_type = MOD_HDCP_FORCE_TYPE_0;
 
 		if (enable_encryption) {
+			/* Explicitly set the saved SRM as sysfs call will be after we already enabled hdcp
+			 * (s3 resume case)
+			 */
+			if (hdcp_work->srm_size > 0)
+				psp_set_srm(hdcp_work->hdcp.config.psp.handle, hdcp_work->srm, hdcp_work->srm_size,
+					    &hdcp_work->srm_version);
+
 			display->adjust.disable = 0;
-			if (content_type == DRM_MODE_HDCP_CONTENT_TYPE0)
+			if (content_type == DRM_MODE_HDCP_CONTENT_TYPE0) {
+				hdcp_w->link.adjust.hdcp1.disable = 0;
 				hdcp_w->link.adjust.hdcp2.force_type = MOD_HDCP_FORCE_TYPE_0;
-			else if (content_type == DRM_MODE_HDCP_CONTENT_TYPE1)
+			} else if (content_type == DRM_MODE_HDCP_CONTENT_TYPE1) {
+				hdcp_w->link.adjust.hdcp1.disable = 1;
 				hdcp_w->link.adjust.hdcp2.force_type = MOD_HDCP_FORCE_TYPE_1;
+			}
 
 			schedule_delayed_work(&hdcp_w->property_validate_dwork,
 					      msecs_to_jiffies(DRM_HDCP_CHECK_PERIOD_MS));
@@ -184,7 +266,7 @@ static void event_callback(struct work_struct *work)
 
 	mutex_lock(&hdcp_work->mutex);
 
-	cancel_delayed_work(&hdcp_work->watchdog_timer_dwork);
+	cancel_delayed_work(&hdcp_work->callback_dwork);
 
 	mod_hdcp_process_event(&hdcp_work->hdcp, MOD_HDCP_EVENT_CALLBACK,
 			       &hdcp_work->output);
@@ -265,6 +347,8 @@ static void event_watchdog_timer(struct work_struct *work)
 
 	mutex_lock(&hdcp_work->mutex);
 
+	cancel_delayed_work(&hdcp_work->watchdog_timer_dwork);
+
 	mod_hdcp_process_event(&hdcp_work->hdcp,
 			       MOD_HDCP_EVENT_WATCHDOG_TIMEOUT,
 			       &hdcp_work->output);
@@ -301,8 +385,9 @@ void hdcp_destroy(struct hdcp_workqueue *hdcp_work)
 		cancel_delayed_work_sync(&hdcp_work[i].watchdog_timer_dwork);
 	}
 
+	kfree(hdcp_work->srm);
+	kfree(hdcp_work->srm_temp);
 	kfree(hdcp_work);
-
 }
 
 static void update_config(void *handle, struct cp_psp_stream_config *config)
@@ -313,15 +398,15 @@ static void update_config(void *handle, struct cp_psp_stream_config *config)
 	struct mod_hdcp_display *display = &hdcp_work[link_index].display;
 	struct mod_hdcp_link *link = &hdcp_work[link_index].link;
 
-	memset(display, 0, sizeof(*display));
-	memset(link, 0, sizeof(*link));
-
-	display->index = aconnector->base.index;
-
 	if (config->dpms_off) {
 		hdcp_remove_display(hdcp_work, link_index, aconnector);
 		return;
 	}
+
+	memset(display, 0, sizeof(*display));
+	memset(link, 0, sizeof(*link));
+
+	display->index = aconnector->base.index;
 	display->state = MOD_HDCP_DISPLAY_ACTIVE;
 
 	if (aconnector->dc_sink != NULL)
@@ -332,26 +417,171 @@ static void update_config(void *handle, struct cp_psp_stream_config *config)
 	link->dig_be = config->link_enc_inst;
 	link->ddc_line = aconnector->dc_link->ddc_hw_inst + 1;
 	link->dp.rev = aconnector->dc_link->dpcd_caps.dpcd_rev.raw;
+	link->dp.mst_supported = config->mst_supported;
 	display->adjust.disable = 1;
-	link->adjust.auth_delay = 2;
+	link->adjust.auth_delay = 3;
+	link->adjust.hdcp1.disable = 0;
 
 	hdcp_update_display(hdcp_work, link_index, aconnector, DRM_MODE_HDCP_CONTENT_TYPE0, false);
 }
 
-struct hdcp_workqueue *hdcp_create_workqueue(void *psp_context, struct cp_psp *cp_psp, struct dc *dc)
+
+/* NOTE: From the usermodes prospective you only need to call write *ONCE*, the kernel
+ *      will automatically call once or twice depending on the size
+ *
+ * call: "cat file > /sys/class/drm/card0/device/hdcp_srm" from usermode no matter what the size is
+ *
+ * The kernel can only send PAGE_SIZE at once and since MAX_SRM_FILE(5120) > PAGE_SIZE(4096),
+ * srm_data_write can be called multiple times.
+ *
+ * sysfs interface doesn't tell us the size we will get so we are sending partial SRMs to psp and on
+ * the last call we will send the full SRM. PSP will fail on every call before the last.
+ *
+ * This means we don't know if the SRM is good until the last call. And because of this limitation we
+ * cannot throw errors early as it will stop the kernel from writing to sysfs
+ *
+ * Example 1:
+ * 	Good SRM size = 5096
+ * 	first call to write 4096 -> PSP fails
+ * 	Second call to write 1000 -> PSP Pass -> SRM is set
+ *
+ * Example 2:
+ * 	Bad SRM size = 4096
+ * 	first call to write 4096 -> PSP fails (This is the same as above, but we don't know if this
+ * 	is the last call)
+ *
+ * Solution?:
+ * 	1: Parse the SRM? -> It is signed so we don't know the EOF
+ * 	2: We can have another sysfs that passes the size before calling set. -> simpler solution
+ * 	below
+ *
+ * Easy Solution:
+ * Always call get after Set to verify if set was successful.
+ * +----------------------+
+ * |   Why it works:      |
+ * +----------------------+
+ * PSP will only update its srm if its older than the one we are trying to load.
+ * Always do set first than get.
+ * 	-if we try to "1. SET" a older version PSP will reject it and we can "2. GET" the newer
+ * 	version and save it
+ *
+ * 	-if we try to "1. SET" a newer version PSP will accept it and we can "2. GET" the
+ * 	same(newer) version back and save it
+ *
+ * 	-if we try to "1. SET" a newer version and PSP rejects it. That means the format is
+ * 	incorrect/corrupted and we should correct our SRM by getting it from PSP
+ */
+static ssize_t srm_data_write(struct file *filp, struct kobject *kobj, struct bin_attribute *bin_attr, char *buffer,
+			      loff_t pos, size_t count)
+{
+	struct hdcp_workqueue *work;
+	uint32_t srm_version = 0;
+
+	work = container_of(bin_attr, struct hdcp_workqueue, attr);
+	link_lock(work, true);
+
+	memcpy(work->srm_temp + pos, buffer, count);
+
+	if (!psp_set_srm(work->hdcp.config.psp.handle, work->srm_temp, pos + count, &srm_version)) {
+		DRM_DEBUG_DRIVER("HDCP SRM SET version 0x%X", srm_version);
+		memcpy(work->srm, work->srm_temp, pos + count);
+		work->srm_size = pos + count;
+		work->srm_version = srm_version;
+	}
+
+
+	link_lock(work, false);
+
+	return count;
+}
+
+static ssize_t srm_data_read(struct file *filp, struct kobject *kobj, struct bin_attribute *bin_attr, char *buffer,
+			     loff_t pos, size_t count)
+{
+	struct hdcp_workqueue *work;
+	uint8_t *srm = NULL;
+	uint32_t srm_version;
+	uint32_t srm_size;
+	size_t ret = count;
+
+	work = container_of(bin_attr, struct hdcp_workqueue, attr);
+
+	link_lock(work, true);
+
+	srm = psp_get_srm(work->hdcp.config.psp.handle, &srm_version, &srm_size);
+
+	if (!srm)
+		return -EINVAL;
+
+	if (pos >= srm_size)
+		ret = 0;
+
+	if (srm_size - pos < count) {
+		memcpy(buffer, srm + pos, srm_size - pos);
+		ret = srm_size - pos;
+		goto ret;
+	}
+
+	memcpy(buffer, srm + pos, count);
+
+ret:
+	link_lock(work, false);
+	return ret;
+}
+
+/* From the hdcp spec (5.Renewability) SRM needs to be stored in a non-volatile memory.
+ *
+ * For example,
+ * 	if Application "A" sets the SRM (ver 2) and we reboot/suspend and later when Application "B"
+ * 	needs to use HDCP, the version in PSP should be SRM(ver 2). So SRM should be persistent
+ * 	across boot/reboots/suspend/resume/shutdown
+ *
+ * Currently when the system goes down (suspend/shutdown) the SRM is cleared from PSP. For HDCP we need
+ * to make the SRM persistent.
+ *
+ * -PSP owns the checking of SRM but doesn't have the ability to store it in a non-volatile memory.
+ * -The kernel cannot write to the file systems.
+ * -So we need usermode to do this for us, which is why an interface for usermode is needed
+ *
+ *
+ *
+ * Usermode can read/write to/from PSP using the sysfs interface
+ * For example:
+ * 	to save SRM from PSP to storage : cat /sys/class/drm/card0/device/hdcp_srm > srmfile
+ * 	to load from storage to PSP: cat srmfile > /sys/class/drm/card0/device/hdcp_srm
+ */
+static const struct bin_attribute data_attr = {
+	.attr = {.name = "hdcp_srm", .mode = 0664},
+	.size = PSP_HDCP_SRM_FIRST_GEN_MAX_SIZE, /* Limit SRM size */
+	.write = srm_data_write,
+	.read = srm_data_read,
+};
+
+
+struct hdcp_workqueue *hdcp_create_workqueue(struct amdgpu_device *adev, struct cp_psp *cp_psp, struct dc *dc)
 {
 
 	int max_caps = dc->caps.max_links;
-	struct hdcp_workqueue *hdcp_work = kzalloc(max_caps*sizeof(*hdcp_work), GFP_KERNEL);
+	struct hdcp_workqueue *hdcp_work;
 	int i = 0;
 
+	hdcp_work = kcalloc(max_caps, sizeof(*hdcp_work), GFP_KERNEL);
 	if (hdcp_work == NULL)
+		return NULL;
+
+	hdcp_work->srm = kcalloc(PSP_HDCP_SRM_FIRST_GEN_MAX_SIZE, sizeof(*hdcp_work->srm), GFP_KERNEL);
+
+	if (hdcp_work->srm == NULL)
+		goto fail_alloc_context;
+
+	hdcp_work->srm_temp = kcalloc(PSP_HDCP_SRM_FIRST_GEN_MAX_SIZE, sizeof(*hdcp_work->srm_temp), GFP_KERNEL);
+
+	if (hdcp_work->srm_temp == NULL)
 		goto fail_alloc_context;
 
 	hdcp_work->max_link = max_caps;
 
 	for (i = 0; i < max_caps; i++) {
-
 		mutex_init(&hdcp_work[i].mutex);
 
 		INIT_WORK(&hdcp_work[i].cpirq_work, event_cpirq);
@@ -360,7 +590,7 @@ struct hdcp_workqueue *hdcp_create_workqueue(void *psp_context, struct cp_psp *c
 		INIT_DELAYED_WORK(&hdcp_work[i].watchdog_timer_dwork, event_watchdog_timer);
 		INIT_DELAYED_WORK(&hdcp_work[i].property_validate_dwork, event_property_validate);
 
-		hdcp_work[i].hdcp.config.psp.handle =  psp_context;
+		hdcp_work[i].hdcp.config.psp.handle = &adev->psp;
 		hdcp_work[i].hdcp.config.ddc.handle = dc_get_link_at_index(dc, i);
 		hdcp_work[i].hdcp.config.ddc.funcs.write_i2c = lp_write_i2c;
 		hdcp_work[i].hdcp.config.ddc.funcs.read_i2c = lp_read_i2c;
@@ -371,9 +601,17 @@ struct hdcp_workqueue *hdcp_create_workqueue(void *psp_context, struct cp_psp *c
 	cp_psp->funcs.update_stream_config = update_config;
 	cp_psp->handle = hdcp_work;
 
+	/* File created at /sys/class/drm/card0/device/hdcp_srm*/
+	hdcp_work[0].attr = data_attr;
+
+	if (sysfs_create_bin_file(&adev->dev->kobj, &hdcp_work[0].attr))
+		DRM_WARN("Failed to create device file hdcp_srm");
+
 	return hdcp_work;
 
 fail_alloc_context:
+	kfree(hdcp_work->srm);
+	kfree(hdcp_work->srm_temp);
 	kfree(hdcp_work);
 
 	return NULL;

@@ -171,7 +171,9 @@ void __i915_vm_close(struct i915_address_space *vm)
 {
 	struct i915_vma *vma, *vn;
 
-	mutex_lock(&vm->mutex);
+	if (!atomic_dec_and_mutex_lock(&vm->open, &vm->mutex))
+		return;
+
 	list_for_each_entry_safe(vma, vn, &vm->bound_list, vm_link) {
 		struct drm_i915_gem_object *obj = vma->obj;
 
@@ -186,6 +188,7 @@ void __i915_vm_close(struct i915_address_space *vm)
 		i915_gem_object_put(obj);
 	}
 	GEM_BUG_ON(!list_empty(&vm->bound_list));
+
 	mutex_unlock(&vm->mutex);
 }
 
@@ -299,6 +302,25 @@ fill_page_dma(const struct i915_page_dma *p, const u64 val, unsigned int count)
 	kunmap_atomic(memset64(kmap_atomic(p->page), val, count));
 }
 
+static void poison_scratch_page(struct page *page, unsigned long size)
+{
+	if (!IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM))
+		return;
+
+	GEM_BUG_ON(!IS_ALIGNED(size, PAGE_SIZE));
+
+	do {
+		void *vaddr;
+
+		vaddr = kmap(page);
+		memset(vaddr, POISON_FREE, PAGE_SIZE);
+		kunmap(page);
+
+		page = pfn_to_page(page_to_pfn(page) + 1);
+		size -= PAGE_SIZE;
+	} while (size);
+}
+
 int setup_scratch_page(struct i915_address_space *vm, gfp_t gfp)
 {
 	unsigned long size;
@@ -330,6 +352,17 @@ int setup_scratch_page(struct i915_address_space *vm, gfp_t gfp)
 		page = alloc_pages(gfp, order);
 		if (unlikely(!page))
 			goto skip;
+
+		/*
+		 * Use a non-zero scratch page for debugging.
+		 *
+		 * We want a value that should be reasonably obvious
+		 * to spot in the error state, while also causing a GPU hang
+		 * if executed. We prefer using a clear page in production, so
+		 * should it ever be accidentally used, the effect should be
+		 * fairly benign.
+		 */
+		poison_scratch_page(page, size);
 
 		addr = dma_map_page_attrs(vm->dma,
 					  page, 0, size,
@@ -448,34 +481,10 @@ void gtt_write_workarounds(struct intel_gt *gt)
 		intel_uncore_write(uncore,
 				   HSW_GTT_CACHE_EN,
 				   can_use_gtt_cache ? GTT_CACHE_EN_ALL : 0);
-		WARN_ON_ONCE(can_use_gtt_cache &&
-			     intel_uncore_read(uncore,
-					       HSW_GTT_CACHE_EN) == 0);
+		drm_WARN_ON_ONCE(&i915->drm, can_use_gtt_cache &&
+				 intel_uncore_read(uncore,
+						   HSW_GTT_CACHE_EN) == 0);
 	}
-}
-
-u64 gen8_pte_encode(dma_addr_t addr,
-		    enum i915_cache_level level,
-		    u32 flags)
-{
-	gen8_pte_t pte = addr | _PAGE_PRESENT | _PAGE_RW;
-
-	if (unlikely(flags & PTE_READ_ONLY))
-		pte &= ~_PAGE_RW;
-
-	switch (level) {
-	case I915_CACHE_NONE:
-		pte |= PPAT_UNCACHED;
-		break;
-	case I915_CACHE_WT:
-		pte |= PPAT_DISPLAY_ELLC;
-		break;
-	default:
-		pte |= PPAT_CACHED;
-		break;
-	}
-
-	return pte;
 }
 
 static void tgl_setup_private_ppat(struct intel_uncore *uncore)

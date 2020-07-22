@@ -298,11 +298,8 @@ static int pl061_probe(struct amba_device *adev, const struct amba_id *id)
 		return PTR_ERR(pl061->base);
 
 	raw_spin_lock_init(&pl061->lock);
-	if (of_property_read_bool(dev->of_node, "gpio-ranges")) {
-		pl061->gc.request = gpiochip_generic_request;
-		pl061->gc.free = gpiochip_generic_free;
-	}
-
+	pl061->gc.request = gpiochip_generic_request;
+	pl061->gc.free = gpiochip_generic_free;
 	pl061->gc.base = -1;
 	pl061->gc.get_direction = pl061_get_direction;
 	pl061->gc.direction_input = pl061_direction_input;
@@ -326,10 +323,8 @@ static int pl061_probe(struct amba_device *adev, const struct amba_id *id)
 
 	writeb(0, pl061->base + GPIOIE); /* disable irqs */
 	irq = adev->irq[0];
-	if (irq < 0) {
-		dev_err(&adev->dev, "invalid IRQ\n");
-		return -ENODEV;
-	}
+	if (!irq)
+		dev_warn(&adev->dev, "IRQ support disabled\n");
 	pl061->parent_irq = irq;
 
 	girq = &pl061->gc.irq;

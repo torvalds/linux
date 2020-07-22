@@ -200,25 +200,23 @@ static int wfx_sdio_probe(struct sdio_func *func,
 	if (ret)
 		goto err0;
 
-	ret = wfx_sdio_irq_subscribe(bus);
-	if (ret)
-		goto err1;
-
 	bus->core = wfx_init_common(&func->dev, &wfx_sdio_pdata,
 				    &wfx_sdio_hwbus_ops, bus);
 	if (!bus->core) {
 		ret = -EIO;
-		goto err2;
+		goto err1;
 	}
+
+	ret = wfx_sdio_irq_subscribe(bus);
+	if (ret)
+		goto err1;
 
 	ret = wfx_probe(bus->core);
 	if (ret)
-		goto err3;
+		goto err2;
 
 	return 0;
 
-err3:
-	wfx_free_common(bus->core);
 err2:
 	wfx_sdio_irq_unsubscribe(bus);
 err1:
@@ -234,7 +232,6 @@ static void wfx_sdio_remove(struct sdio_func *func)
 	struct wfx_sdio_priv *bus = sdio_get_drvdata(func);
 
 	wfx_release(bus->core);
-	wfx_free_common(bus->core);
 	wfx_sdio_irq_unsubscribe(bus);
 	sdio_claim_host(func);
 	sdio_disable_func(func);
@@ -254,6 +251,7 @@ MODULE_DEVICE_TABLE(sdio, wfx_sdio_ids);
 #ifdef CONFIG_OF
 static const struct of_device_id wfx_sdio_of_match[] = {
 	{ .compatible = "silabs,wfx-sdio" },
+	{ .compatible = "silabs,wf200" },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, wfx_sdio_of_match);

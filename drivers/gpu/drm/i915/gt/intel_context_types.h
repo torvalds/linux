@@ -7,6 +7,7 @@
 #ifndef __INTEL_CONTEXT_TYPES__
 #define __INTEL_CONTEXT_TYPES__
 
+#include <linux/average.h>
 #include <linux/kref.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
@@ -18,6 +19,8 @@
 #include "intel_sseu.h"
 
 #define CONTEXT_REDZONE POISON_INUSE
+
+DECLARE_EWMA(runtime, 3, 8);
 
 struct i915_gem_context;
 struct i915_vma;
@@ -42,8 +45,8 @@ struct intel_context {
 
 	struct intel_engine_cs *engine;
 	struct intel_engine_cs *inflight;
-#define intel_context_inflight(ce) ptr_mask_bits((ce)->inflight, 2)
-#define intel_context_inflight_count(ce) ptr_unmask_bits((ce)->inflight, 2)
+#define intel_context_inflight(ce) ptr_mask_bits(READ_ONCE((ce)->inflight), 2)
+#define intel_context_inflight_count(ce) ptr_unmask_bits(READ_ONCE((ce)->inflight), 2)
 
 	struct i915_address_space *vm;
 	struct i915_gem_context __rcu *gem_context;
@@ -59,14 +62,30 @@ struct intel_context {
 #define CONTEXT_BARRIER_BIT		0
 #define CONTEXT_ALLOC_BIT		1
 #define CONTEXT_VALID_BIT		2
-#define CONTEXT_USE_SEMAPHORES		3
-#define CONTEXT_BANNED			4
-#define CONTEXT_FORCE_SINGLE_SUBMISSION	5
-#define CONTEXT_NOPREEMPT		6
+#define CONTEXT_CLOSED_BIT		3
+#define CONTEXT_USE_SEMAPHORES		4
+#define CONTEXT_BANNED			5
+#define CONTEXT_FORCE_SINGLE_SUBMISSION	6
+#define CONTEXT_NOPREEMPT		7
 
 	u32 *lrc_reg_state;
-	u64 lrc_desc;
+	union {
+		struct {
+			u32 lrca;
+			u32 ccid;
+		};
+		u64 desc;
+	} lrc;
 	u32 tag; /* cookie passed to HW to track this context on submission */
+
+	/* Time on GPU as tracked by the hw. */
+	struct {
+		struct ewma_runtime avg;
+		u64 total;
+		u32 last;
+		I915_SELFTEST_DECLARE(u32 num_underflow);
+		I915_SELFTEST_DECLARE(u32 max_underflow);
+	} runtime;
 
 	unsigned int active_count; /* protected by timeline->mutex */
 

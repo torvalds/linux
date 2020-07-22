@@ -812,7 +812,7 @@ tcp_limit_output_bytes - INTEGER
 tcp_challenge_ack_limit - INTEGER
 	Limits number of Challenge ACK sent per second, as recommended
 	in RFC 5961 (Improving TCP's Robustness to Blind In-Window Attacks)
-	Default: 100
+	Default: 1000
 
 tcp_rx_skb_cache - BOOLEAN
 	Controls a per TCP socket cache of one skb, that might help
@@ -958,6 +958,15 @@ ip_nonlocal_bind - BOOLEAN
 	which can be quite useful - but may break some applications.
 	Default: 0
 
+ip_autobind_reuse - BOOLEAN
+	By default, bind() does not select the ports automatically even if
+	the new socket and all sockets bound to the port have SO_REUSEADDR.
+	ip_autobind_reuse allows bind() to reuse the port and this is useful
+	when you use bind()+connect(), but may break some applications.
+	The preferred solution is to use IP_BIND_ADDRESS_NO_PORT and this
+	option should only be set by experts.
+	Default: 0
+
 ip_dynaddr - BOOLEAN
 	If set non-zero, enables support for dynamic addresses.
 	If set to a non-zero value larger than 1, a kernel log
@@ -973,6 +982,13 @@ ip_early_demux - BOOLEAN
 	It may add an additional cost for pure routing workloads that
 	reduces overall throughput, in such case you should disable it.
 	Default: 1
+
+ping_group_range - 2 INTEGERS
+	Restrict ICMP_PROTO datagram sockets to users in the group range.
+	The default is "1 0", meaning, that nobody (not even root) may
+	create ping sockets.  Setting it to "100 100" would grant permissions
+	to the single group. "0 4294967295" would enable it for the world, "100
+	4294967295" would enable it for the users, but not daemons.
 
 tcp_early_demux - BOOLEAN
 	Enable early demux for established TCP sockets.

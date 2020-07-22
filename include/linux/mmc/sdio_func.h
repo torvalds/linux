@@ -25,7 +25,7 @@ struct sdio_func_tuple {
 	struct sdio_func_tuple *next;
 	unsigned char code;
 	unsigned char size;
-	unsigned char data[0];
+	unsigned char data[];
 };
 
 /*

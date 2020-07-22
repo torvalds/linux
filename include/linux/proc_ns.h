@@ -50,15 +50,10 @@ enum {
 
 #ifdef CONFIG_PROC_FS
 
-extern int pid_ns_prepare_proc(struct pid_namespace *ns);
-extern void pid_ns_release_proc(struct pid_namespace *ns);
 extern int proc_alloc_inum(unsigned int *pino);
 extern void proc_free_inum(unsigned int inum);
 
 #else /* CONFIG_PROC_FS */
-
-static inline int pid_ns_prepare_proc(struct pid_namespace *ns) { return 0; }
-static inline void pid_ns_release_proc(struct pid_namespace *ns) {}
 
 static inline int proc_alloc_inum(unsigned int *inum)
 {
@@ -84,6 +79,8 @@ extern int ns_get_path(struct path *path, struct task_struct *task,
 typedef struct ns_common *ns_get_path_helper_t(void *);
 extern int ns_get_path_cb(struct path *path, ns_get_path_helper_t ns_get_cb,
 			    void *private_data);
+
+extern bool ns_match(const struct ns_common *ns, dev_t dev, ino_t ino);
 
 extern int ns_get_name(char *buf, size_t size, struct task_struct *task,
 			const struct proc_ns_operations *ns_ops);

@@ -13,5 +13,6 @@
 
 / {
 	model = "Radxa ROCK Pi N10";
-	compatible = "radxa,rockpi-n10", "rockchip,rk3399pro";
+	compatible = "radxa,rockpi-n10", "vamrs,rk3399pro-vmarc-som",
+		     "rockchip,rk3399pro";
 };

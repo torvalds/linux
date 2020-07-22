@@ -8,8 +8,6 @@
  *       Enables deferred processing of keys
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <linux/workqueue.h>
 #include <keys/asymmetric-type.h>
 #include "ima.h"

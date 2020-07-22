@@ -672,7 +672,7 @@ int mlx5dr_actions_build_ste_arr(struct mlx5dr_matcher *matcher,
 			dest_action = action;
 			if (!action->dest_tbl.is_fw_tbl) {
 				if (action->dest_tbl.tbl->dmn != dmn) {
-					mlx5dr_dbg(dmn,
+					mlx5dr_err(dmn,
 						   "Destination table belongs to a different domain\n");
 					goto out_invalid_arg;
 				}
@@ -703,7 +703,7 @@ int mlx5dr_actions_build_ste_arr(struct mlx5dr_matcher *matcher,
 						action->dest_tbl.fw_tbl.rx_icm_addr =
 							output.sw_owner_icm_root_0;
 					} else {
-						mlx5dr_dbg(dmn,
+						mlx5dr_err(dmn,
 							   "Failed mlx5_cmd_query_flow_table ret: %d\n",
 							   ret);
 						return ret;
@@ -772,7 +772,7 @@ int mlx5dr_actions_build_ste_arr(struct mlx5dr_matcher *matcher,
 
 		/* Check action duplication */
 		if (++action_type_set[action_type] > max_actions_type) {
-			mlx5dr_dbg(dmn, "Action type %d supports only max %d time(s)\n",
+			mlx5dr_err(dmn, "Action type %d supports only max %d time(s)\n",
 				   action_type, max_actions_type);
 			goto out_invalid_arg;
 		}
@@ -781,7 +781,7 @@ int mlx5dr_actions_build_ste_arr(struct mlx5dr_matcher *matcher,
 		if (dr_action_validate_and_get_next_state(action_domain,
 							  action_type,
 							  &state)) {
-			mlx5dr_dbg(dmn, "Invalid action sequence provided\n");
+			mlx5dr_err(dmn, "Invalid action sequence provided\n");
 			return -EOPNOTSUPP;
 		}
 	}
@@ -797,7 +797,7 @@ int mlx5dr_actions_build_ste_arr(struct mlx5dr_matcher *matcher,
 	    rx_rule && recalc_cs_required && dest_action) {
 		ret = dr_action_handle_cs_recalc(dmn, dest_action, &attr.final_icm_addr);
 		if (ret) {
-			mlx5dr_dbg(dmn,
+			mlx5dr_err(dmn,
 				   "Failed to handle checksum recalculation err %d\n",
 				   ret);
 			return ret;
@@ -961,6 +961,24 @@ dr_action_create_generic(enum mlx5dr_action_type action_type)
 struct mlx5dr_action *mlx5dr_action_create_drop(void)
 {
 	return dr_action_create_generic(DR_ACTION_TYP_DROP);
+}
+
+struct mlx5dr_action *
+mlx5dr_action_create_dest_table_num(struct mlx5dr_domain *dmn, u32 table_num)
+{
+	struct mlx5dr_action *action;
+
+	action = dr_action_create_generic(DR_ACTION_TYP_FT);
+	if (!action)
+		return NULL;
+
+	action->dest_tbl.is_fw_tbl = true;
+	action->dest_tbl.fw_tbl.dmn = dmn;
+	action->dest_tbl.fw_tbl.id = table_num;
+	action->dest_tbl.fw_tbl.type = FS_FT_FDB;
+	refcount_inc(&dmn->refcount);
+
+	return action;
 }
 
 struct mlx5dr_action *

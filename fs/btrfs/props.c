@@ -383,7 +383,7 @@ static int inherit_props(struct btrfs_trans_handle *trans,
 
 		if (need_reserve) {
 			btrfs_block_rsv_release(fs_info, trans->block_rsv,
-					num_bytes);
+					num_bytes, NULL);
 			if (ret)
 				return ret;
 		}

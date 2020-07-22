@@ -545,7 +545,7 @@ void HTOnAssocRsp(struct rtllib_device *ieee)
 
 
 #ifdef VERBOSE_DEBUG
-	print_hex_dump_bytes("HTOnAssocRsp(): ", DUMP_PREFIX_NONE,
+	print_hex_dump_bytes("%s: ", __func__, DUMP_PREFIX_NONE,
 			     pPeerHTCap, sizeof(struct ht_capab_ele));
 #endif
 	HTSetConnectBwMode(ieee, (enum ht_channel_width)(pPeerHTCap->ChlWidth),

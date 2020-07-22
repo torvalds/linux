@@ -159,11 +159,11 @@ applicable everywhere (see syntax).
   Given the following example::
 
     config FOO
-	tristate
+	tristate "foo"
 	imply BAZ
 
     config BAZ
-	tristate
+	tristate "baz"
 	depends on BAR
 
   The following values are possible:
@@ -173,13 +173,34 @@ applicable everywhere (see syntax).
 	===		===		=============	==============
 	n		y		n		N/m/y
 	m		y		m		M/y/n
-	y		y		y		Y/n
+	y		y		y		Y/m/n
+	n		m		n		N/m
+	m		m		m		M/n
+	y		m		n		M/n
 	y		n		*		N
 	===		===		=============	==============
 
   This is useful e.g. with multiple drivers that want to indicate their
   ability to hook into a secondary subsystem while allowing the user to
   configure that subsystem out without also having to unset these drivers.
+
+  Note: If the combination of FOO=y and BAR=m causes a link error,
+  you can guard the function call with IS_REACHABLE()::
+
+	foo_init()
+	{
+		if (IS_REACHABLE(CONFIG_BAZ))
+			baz_register(&foo);
+		...
+	}
+
+  Note: If the feature provided by BAZ is highly desirable for FOO,
+  FOO should imply not only BAZ, but also its dependency BAR::
+
+    config FOO
+	tristate "foo"
+	imply BAR
+	imply BAZ
 
 - limiting menu display: "visible if" <expr>
 

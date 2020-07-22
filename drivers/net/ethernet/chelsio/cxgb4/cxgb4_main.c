@@ -90,11 +90,6 @@
 
 char cxgb4_driver_name[] = KBUILD_MODNAME;
 
-#ifdef DRV_VERSION
-#undef DRV_VERSION
-#endif
-#define DRV_VERSION "2.0.0-ko"
-const char cxgb4_driver_version[] = DRV_VERSION;
 #define DRV_DESC "Chelsio T4/T5/T6 Network Driver"
 
 #define DFLT_MSG_ENABLE (NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_LINK | \
@@ -137,7 +132,6 @@ const char cxgb4_driver_version[] = DRV_VERSION;
 MODULE_DESCRIPTION(DRV_DESC);
 MODULE_AUTHOR("Chelsio Communications");
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_VERSION(DRV_VERSION);
 MODULE_DEVICE_TABLE(pci, cxgb4_pci_tbl);
 MODULE_FIRMWARE(FW4_FNAME);
 MODULE_FIRMWARE(FW5_FNAME);
@@ -3138,7 +3132,6 @@ static int cxgb_set_mac_addr(struct net_device *dev, void *p)
 		return ret;
 
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
-	pi->xact_addr_filt = ret;
 	return 0;
 }
 
@@ -3626,8 +3619,6 @@ static void cxgb4_mgmt_get_drvinfo(struct net_device *dev,
 	struct adapter *adapter = netdev2adap(dev);
 
 	strlcpy(info->driver, cxgb4_driver_name, sizeof(info->driver));
-	strlcpy(info->version, cxgb4_driver_version,
-		sizeof(info->version));
 	strlcpy(info->bus_info, pci_name(adapter->pdev),
 		sizeof(info->bus_info));
 }
@@ -6086,8 +6077,6 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	int i, err;
 	u32 whoami;
 
-	printk_once(KERN_INFO "%s - version %s\n", DRV_DESC, DRV_VERSION);
-
 	err = pci_request_regions(pdev, KBUILD_MODNAME);
 	if (err) {
 		/* Just info, some other driver may have claimed the device. */
@@ -6681,6 +6670,10 @@ static void shutdown_one(struct pci_dev *pdev)
 		for_each_port(adapter, i)
 			if (adapter->port[i]->reg_state == NETREG_REGISTERED)
 				cxgb_close(adapter->port[i]);
+
+		rtnl_lock();
+		cxgb4_mqprio_stop_offload(adapter);
+		rtnl_unlock();
 
 		if (is_uld(adapter)) {
 			detach_ulds(adapter);

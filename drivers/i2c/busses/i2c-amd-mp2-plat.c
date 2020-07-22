@@ -201,32 +201,37 @@ static int i2c_amd_resume(struct amd_i2c_common *i2c_common)
 }
 #endif
 
+static const u32 supported_speeds[] = {
+	I2C_MAX_HIGH_SPEED_MODE_FREQ,
+	I2C_MAX_TURBO_MODE_FREQ,
+	I2C_MAX_FAST_MODE_PLUS_FREQ,
+	I2C_MAX_FAST_MODE_FREQ,
+	I2C_MAX_STANDARD_MODE_FREQ,
+};
+
 static enum speed_enum i2c_amd_get_bus_speed(struct platform_device *pdev)
 {
 	u32 acpi_speed;
 	int i;
-	static const u32 supported_speeds[] = {
-		0, 100000, 400000, 1000000, 1400000, 3400000
-	};
 
 	acpi_speed = i2c_acpi_find_bus_speed(&pdev->dev);
 	/* round down to the lowest standard speed */
-	for (i = 1; i < ARRAY_SIZE(supported_speeds); i++) {
-		if (acpi_speed < supported_speeds[i])
+	for (i = 0; i < ARRAY_SIZE(supported_speeds); i++) {
+		if (acpi_speed >= supported_speeds[i])
 			break;
 	}
-	acpi_speed = supported_speeds[i - 1];
+	acpi_speed = i < ARRAY_SIZE(supported_speeds) ? supported_speeds[i] : 0;
 
 	switch (acpi_speed) {
-	case 100000:
+	case I2C_MAX_STANDARD_MODE_FREQ:
 		return speed100k;
-	case 400000:
+	case I2C_MAX_FAST_MODE_FREQ:
 		return speed400k;
-	case 1000000:
+	case I2C_MAX_FAST_MODE_PLUS_FREQ:
 		return speed1000k;
-	case 1400000:
+	case I2C_MAX_TURBO_MODE_FREQ:
 		return speed1400k;
-	case 3400000:
+	case I2C_MAX_HIGH_SPEED_MODE_FREQ:
 		return speed3400k;
 	default:
 		return speed400k;

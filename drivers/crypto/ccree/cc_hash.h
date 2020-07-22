@@ -80,30 +80,27 @@ int cc_hash_alloc(struct cc_drvdata *drvdata);
 int cc_init_hash_sram(struct cc_drvdata *drvdata);
 int cc_hash_free(struct cc_drvdata *drvdata);
 
-/*!
- * Gets the initial digest length
+/**
+ * cc_digest_len_addr() - Gets the initial digest length
  *
- * \param drvdata
- * \param mode The Hash mode. Supported modes:
- *             MD5/SHA1/SHA224/SHA256/SHA384/SHA512
+ * @drvdata: Associated device driver context
+ * @mode: The Hash mode. Supported modes: MD5/SHA1/SHA224/SHA256/SHA384/SHA512
  *
- * \return u32 returns the address of the initial digest length in SRAM
+ * Return:
+ * Returns the address of the initial digest length in SRAM
  */
-cc_sram_addr_t
-cc_digest_len_addr(void *drvdata, u32 mode);
+u32 cc_digest_len_addr(void *drvdata, u32 mode);
 
-/*!
- * Gets the address of the initial digest in SRAM
+/**
+ * cc_larval_digest_addr() - Gets the address of the initial digest in SRAM
  * according to the given hash mode
  *
- * \param drvdata
- * \param mode The Hash mode. Supported modes:
- *             MD5/SHA1/SHA224/SHA256/SHA384/SHA512
+ * @drvdata: Associated device driver context
+ * @mode: The Hash mode. Supported modes: MD5/SHA1/SHA224/SHA256/SHA384/SHA512
  *
- * \return u32 The address of the initial digest in SRAM
+ * Return:
+ * The address of the initial digest in SRAM
  */
-cc_sram_addr_t cc_larval_digest_addr(void *drvdata, u32 mode);
-
-void cc_hash_global_init(void);
+u32 cc_larval_digest_addr(void *drvdata, u32 mode);
 
 #endif /*__CC_HASH_H__*/

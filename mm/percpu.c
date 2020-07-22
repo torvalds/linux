@@ -6,7 +6,7 @@
  * Copyright (C) 2009		Tejun Heo <tj@kernel.org>
  *
  * Copyright (C) 2017		Facebook Inc.
- * Copyright (C) 2017		Dennis Zhou <dennisszhou@gmail.com>
+ * Copyright (C) 2017		Dennis Zhou <dennis@kernel.org>
  *
  * The percpu allocator handles both static and dynamic areas.  Percpu
  * areas are allocated in chunks which are divided into units.  There is
@@ -80,6 +80,7 @@
 #include <linux/workqueue.h>
 #include <linux/kmemleak.h>
 #include <linux/sched.h>
+#include <linux/sched/mm.h>
 
 #include <asm/cacheflush.h>
 #include <asm/sections.h>
@@ -1557,10 +1558,9 @@ static struct pcpu_chunk *pcpu_chunk_addr_search(void *addr)
 static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved,
 				 gfp_t gfp)
 {
-	/* whitelisted flags that can be passed to the backing allocators */
-	gfp_t pcpu_gfp = gfp & (GFP_KERNEL | __GFP_NORETRY | __GFP_NOWARN);
-	bool is_atomic = (gfp & GFP_KERNEL) != GFP_KERNEL;
-	bool do_warn = !(gfp & __GFP_NOWARN);
+	gfp_t pcpu_gfp;
+	bool is_atomic;
+	bool do_warn;
 	static int warn_limit = 10;
 	struct pcpu_chunk *chunk, *next;
 	const char *err;
@@ -1568,6 +1568,12 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved,
 	unsigned long flags;
 	void __percpu *ptr;
 	size_t bits, bit_align;
+
+	gfp = current_gfp_context(gfp);
+	/* whitelisted flags that can be passed to the backing allocators */
+	pcpu_gfp = gfp & (GFP_KERNEL | __GFP_NORETRY | __GFP_NOWARN);
+	is_atomic = (gfp & GFP_KERNEL) != GFP_KERNEL;
+	do_warn = !(gfp & __GFP_NOWARN);
 
 	/*
 	 * There is now a minimum allocation size of PCPU_MIN_ALLOC_SIZE,

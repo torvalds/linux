@@ -2,7 +2,7 @@
 DT_DOC_CHECKER ?= dt-doc-validate
 DT_EXTRACT_EX ?= dt-extract-example
 DT_MK_SCHEMA ?= dt-mk-schema
-DT_MK_SCHEMA_FLAGS := $(if $(DT_SCHEMA_FILES), -u)
+DT_MK_SCHEMA_USERONLY_FLAG := $(if $(DT_SCHEMA_FILES), -u)
 
 quiet_cmd_chk_binding = CHKDT   $(patsubst $(srctree)/%,%,$<)
       cmd_chk_binding = $(DT_DOC_CHECKER) -u $(srctree)/$(src) $< ; \
@@ -11,26 +11,37 @@ quiet_cmd_chk_binding = CHKDT   $(patsubst $(srctree)/%,%,$<)
 $(obj)/%.example.dts: $(src)/%.yaml FORCE
 	$(call if_changed,chk_binding)
 
-DT_TMP_SCHEMA := processed-schema.yaml
+# Use full schemas when checking %.example.dts
+DT_TMP_SCHEMA := $(obj)/processed-schema-examples.yaml
+
+find_cmd = find $(srctree)/$(src) \( -name '*.yaml' ! \
+		-name 'processed-schema*' ! \
+		-name '*.example.dt.yaml' \)
 
 quiet_cmd_mk_schema = SCHEMA  $@
-      cmd_mk_schema = $(DT_MK_SCHEMA) $(DT_MK_SCHEMA_FLAGS) -o $@ $(real-prereqs)
+      cmd_mk_schema = rm -f $@ ; \
+                      $(if $(DT_MK_SCHEMA_FLAGS), \
+                           echo $(real-prereqs), \
+                           $(find_cmd)) | \
+                      xargs $(DT_MK_SCHEMA) $(DT_MK_SCHEMA_FLAGS) >> $@
 
-DT_DOCS = $(shell \
-	cd $(srctree)/$(src) && \
-	find * \( -name '*.yaml' ! \
-		-name $(DT_TMP_SCHEMA) ! \
-		-name '*.example.dt.yaml' \) \
-	)
+DT_DOCS = $(shell $(find_cmd) | sed -e 's|^$(srctree)/||')
 
-DT_SCHEMA_FILES ?= $(addprefix $(src)/,$(DT_DOCS))
+DT_SCHEMA_FILES ?= $(DT_DOCS)
 
-ifeq ($(CHECK_DTBS),)
-extra-y += $(patsubst $(src)/%.yaml,%.example.dts, $(DT_SCHEMA_FILES))
-extra-y += $(patsubst $(src)/%.yaml,%.example.dt.yaml, $(DT_SCHEMA_FILES))
-endif
+extra-$(CHECK_DT_BINDING) += $(patsubst $(src)/%.yaml,%.example.dts, $(DT_SCHEMA_FILES))
+extra-$(CHECK_DT_BINDING) += $(patsubst $(src)/%.yaml,%.example.dt.yaml, $(DT_SCHEMA_FILES))
+extra-$(CHECK_DT_BINDING) += processed-schema-examples.yaml
 
-$(obj)/$(DT_TMP_SCHEMA): $(DT_SCHEMA_FILES) FORCE
+override DTC_FLAGS := \
+	-Wno-avoid_unnecessary_addr_size \
+	-Wno-graph_child_address
+
+$(obj)/processed-schema-examples.yaml: $(DT_DOCS) FORCE
 	$(call if_changed,mk_schema)
 
-extra-y += $(DT_TMP_SCHEMA)
+$(obj)/processed-schema.yaml: DT_MK_SCHEMA_FLAGS := $(DT_MK_SCHEMA_USERONLY_FLAG)
+$(obj)/processed-schema.yaml: $(DT_SCHEMA_FILES) FORCE
+	$(call if_changed,mk_schema)
+
+extra-y += processed-schema.yaml

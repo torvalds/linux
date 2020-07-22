@@ -143,7 +143,7 @@
 	 * the moment, just use a fake OCP bus entry to represent the whole bus
 	 * hierarchy.
 	 */
-	ocp {
+	ocp: ocp {
 		compatible = "ti,dra7-l3-noc", "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -172,6 +172,7 @@
 			#address-cells = <1>;
 			ranges = <0x51000000 0x51000000 0x3000
 				  0x0	     0x20000000 0x10000000>;
+			dma-ranges;
 			/**
 			 * To enable PCI endpoint mode, disable the pcie1_rc
 			 * node and enable pcie1_ep mode.
@@ -185,7 +186,6 @@
 				device_type = "pci";
 				ranges = <0x81000000 0 0          0x03000 0 0x00010000
 					  0x82000000 0 0x20013000 0x13000 0 0xffed000>;
-				dma-ranges = <0x02000000 0x0 0x00000000 0x00000000 0x1 0x00000000>;
 				bus-range = <0x00 0xff>;
 				#interrupt-cells = <1>;
 				num-lanes = <1>;
@@ -230,6 +230,7 @@
 			#address-cells = <1>;
 			ranges = <0x51800000 0x51800000 0x3000
 				  0x0	     0x30000000 0x10000000>;
+			dma-ranges;
 			status = "disabled";
 			pcie2_rc: pcie@51800000 {
 				reg = <0x51800000 0x2000>, <0x51802000 0x14c>, <0x1000 0x2000>;
@@ -240,7 +241,6 @@
 				device_type = "pci";
 				ranges = <0x81000000 0 0          0x03000 0 0x00010000
 					  0x82000000 0 0x30013000 0x13000 0 0xffed000>;
-				dma-ranges = <0x02000000 0x0 0x00000000 0x00000000 0x1 0x00000000>;
 				bus-range = <0x00 0xff>;
 				#interrupt-cells = <1>;
 				num-lanes = <1>;
@@ -334,43 +334,73 @@
 			#pinctrl-cells = <2>;
 		};
 
-		edma: edma@43300000 {
-			compatible = "ti,edma3-tpcc";
-			ti,hwmods = "tpcc";
-			reg = <0x43300000 0x100000>;
-			reg-names = "edma3_cc";
-			interrupts = <GIC_SPI 361 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 360 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 359 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "edma3_ccint", "edma3_mperr",
-					  "edma3_ccerrint";
-			dma-requests = <64>;
-			#dma-cells = <2>;
+		target-module@43300000 {
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			reg = <0x43300000 0x4>;
+			reg-names = "rev";
+			clocks = <&l3main1_clkctrl DRA7_L3MAIN1_TPCC_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x43300000 0x100000>;
 
-			ti,tptcs = <&edma_tptc0 7>, <&edma_tptc1 0>;
+			edma: dma@0 {
+				compatible = "ti,edma3-tpcc";
+				reg = <0 0x100000>;
+				reg-names = "edma3_cc";
+				interrupts = <GIC_SPI 361 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 360 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 359 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "edma3_ccint", "edma3_mperr",
+						  "edma3_ccerrint";
+				dma-requests = <64>;
+				#dma-cells = <2>;
 
-			/*
-			 * memcpy is disabled, can be enabled with:
-			 * ti,edma-memcpy-channels = <20 21>;
-			 * for example. Note that these channels need to be
-			 * masked in the xbar as well.
-			 */
+				ti,tptcs = <&edma_tptc0 7>, <&edma_tptc1 0>;
+
+				/*
+				* memcpy is disabled, can be enabled with:
+				* ti,edma-memcpy-channels = <20 21>;
+				* for example. Note that these channels need to be
+				* masked in the xbar as well.
+				*/
+			};
 		};
 
-		edma_tptc0: tptc@43400000 {
-			compatible = "ti,edma3-tptc";
-			ti,hwmods = "tptc0";
-			reg =	<0x43400000 0x100000>;
-			interrupts = <GIC_SPI 370 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "edma3_tcerrint";
+		target-module@43400000 {
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			reg = <0x43400000 0x4>;
+			reg-names = "rev";
+			clocks = <&l3main1_clkctrl DRA7_L3MAIN1_TPTC0_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x43400000 0x100000>;
+
+			edma_tptc0: dma@0 {
+				compatible = "ti,edma3-tptc";
+				reg = <0 0x100000>;
+				interrupts = <GIC_SPI 370 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "edma3_tcerrint";
+			};
 		};
 
-		edma_tptc1: tptc@43500000 {
-			compatible = "ti,edma3-tptc";
-			ti,hwmods = "tptc1";
-			reg =	<0x43500000 0x100000>;
-			interrupts = <GIC_SPI 371 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "edma3_tcerrint";
+		target-module@43500000 {
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			reg = <0x43500000 0x4>;
+			reg-names = "rev";
+			clocks = <&l3main1_clkctrl DRA7_L3MAIN1_TPTC1_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x43500000 0x100000>;
+
+			edma_tptc1: dma@0 {
+				compatible = "ti,edma3-tptc";
+				reg = <0 0x100000>;
+				interrupts = <GIC_SPI 371 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "edma3_tcerrint";
+			};
 		};
 
 		dmm@4e000000 {
@@ -708,44 +738,99 @@
 			ti,irqs-safe-map = <0>;
 		};
 
-		dss: dss@58000000 {
-			compatible = "ti,dra7-dss";
-			/* 'reg' defined in dra72x.dtsi and dra74x.dtsi */
-			/* 'clocks' defined in dra72x.dtsi and dra74x.dtsi */
-			status = "disabled";
-			ti,hwmods = "dss_core";
-			/* CTRL_CORE_DSS_PLL_CONTROL */
-			syscon-pll-ctrl = <&scm_conf 0x538>;
+		target-module@58000000 {
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x58000000 4>,
+			      <0x58000014 4>;
+			reg-names = "rev", "syss";
+			ti,syss-mask = <1>;
+			clocks = <&dss_clkctrl DRA7_DSS_CORE_CLKCTRL 0>,
+				 <&dss_clkctrl DRA7_DSS_CORE_CLKCTRL 9>,
+				 <&dss_clkctrl DRA7_DSS_CORE_CLKCTRL 10>,
+				 <&dss_clkctrl DRA7_DSS_CORE_CLKCTRL 11>;
+			clock-names = "fck", "hdmi_clk", "sys_clk", "tv_clk";
 			#address-cells = <1>;
 			#size-cells = <1>;
-			ranges;
+			ranges = <0 0x58000000 0x800000>;
 
-			dispc@58001000 {
-				compatible = "ti,dra7-dispc";
-				reg = <0x58001000 0x1000>;
-				interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
-				ti,hwmods = "dss_dispc";
-				clocks = <&dss_clkctrl DRA7_DSS_DSS_CORE_CLKCTRL 8>;
-				clock-names = "fck";
-				/* CTRL_CORE_SMA_SW_1 */
-				syscon-pol = <&scm_conf 0x534>;
-			};
-
-			hdmi: encoder@58060000 {
-				compatible = "ti,dra7-hdmi";
-				reg = <0x58040000 0x200>,
-				      <0x58040200 0x80>,
-				      <0x58040300 0x80>,
-				      <0x58060000 0x19000>;
-				reg-names = "wp", "pll", "phy", "core";
-				interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
+			dss: dss@0 {
+				compatible = "ti,dra7-dss";
+				/* 'reg' defined in dra72x.dtsi and dra74x.dtsi */
+				/* 'clocks' defined in dra72x.dtsi and dra74x.dtsi */
 				status = "disabled";
-				ti,hwmods = "dss_hdmi";
-				clocks = <&dss_clkctrl DRA7_DSS_DSS_CORE_CLKCTRL 9>,
-					 <&dss_clkctrl DRA7_DSS_DSS_CORE_CLKCTRL 10>;
-				clock-names = "fck", "sys_clk";
-				dmas = <&sdma_xbar 76>;
-				dma-names = "audio_tx";
+				/* CTRL_CORE_DSS_PLL_CONTROL */
+				syscon-pll-ctrl = <&scm_conf 0x538>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0 0x800000>;
+
+				target-module@1000 {
+					compatible = "ti,sysc-omap2", "ti,sysc";
+					reg = <0x1000 0x4>,
+					      <0x1010 0x4>,
+					      <0x1014 0x4>;
+					reg-names = "rev", "sysc", "syss";
+					ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+							<SYSC_IDLE_NO>,
+							<SYSC_IDLE_SMART>;
+					ti,sysc-midle = <SYSC_IDLE_FORCE>,
+							<SYSC_IDLE_NO>,
+							<SYSC_IDLE_SMART>;
+					ti,sysc-mask = <(SYSC_OMAP2_CLOCKACTIVITY |
+							 SYSC_OMAP2_ENAWAKEUP |
+							 SYSC_OMAP2_SOFTRESET |
+							 SYSC_OMAP2_AUTOIDLE)>;
+					ti,syss-mask = <1>;
+					clocks = <&dss_clkctrl DRA7_DSS_CORE_CLKCTRL 8>;
+					clock-names = "fck";
+					#address-cells = <1>;
+					#size-cells = <1>;
+					ranges = <0 0x1000 0x1000>;
+
+					dispc@0 {
+						compatible = "ti,dra7-dispc";
+						reg = <0 0x1000>;
+						interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
+						clocks = <&dss_clkctrl DRA7_DSS_DSS_CORE_CLKCTRL 8>;
+						clock-names = "fck";
+						/* CTRL_CORE_SMA_SW_1 */
+						syscon-pol = <&scm_conf 0x534>;
+					};
+				};
+
+				target-module@40000 {
+					compatible = "ti,sysc-omap4", "ti,sysc";
+					reg = <0x40000 0x4>,
+					      <0x40010 0x4>;
+					reg-names = "rev", "sysc";
+					ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+							<SYSC_IDLE_NO>,
+							<SYSC_IDLE_SMART>,
+							<SYSC_IDLE_SMART_WKUP>;
+					ti,sysc-mask = <(SYSC_OMAP4_SOFTRESET)>;
+					clocks = <&dss_clkctrl DRA7_DSS_CORE_CLKCTRL 9>,
+						 <&dss_clkctrl DRA7_DSS_CORE_CLKCTRL 8>;
+					clock-names = "fck", "dss_clk";
+					#address-cells = <1>;
+					#size-cells = <1>;
+					ranges = <0 0x40000 0x40000>;
+
+					hdmi: encoder@0 {
+						compatible = "ti,dra7-hdmi";
+						reg = <0 0x200>,
+						      <0x200 0x80>,
+						      <0x300 0x80>,
+						      <0x20000 0x19000>;
+						reg-names = "wp", "pll", "phy", "core";
+						interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
+						status = "disabled";
+						clocks = <&dss_clkctrl DRA7_DSS_DSS_CORE_CLKCTRL 9>,
+							 <&dss_clkctrl DRA7_DSS_DSS_CORE_CLKCTRL 10>;
+						clock-names = "fck", "sys_clk";
+						dmas = <&sdma_xbar 76>;
+						dma-names = "audio_tx";
+					};
+				};
 			};
 		};
 

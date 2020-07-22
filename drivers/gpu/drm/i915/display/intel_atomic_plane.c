@@ -37,6 +37,7 @@
 
 #include "i915_trace.h"
 #include "intel_atomic_plane.h"
+#include "intel_cdclk.h"
 #include "intel_display_types.h"
 #include "intel_pm.h"
 #include "intel_sprite.h"
@@ -132,14 +133,36 @@ intel_plane_destroy_state(struct drm_plane *plane,
 	kfree(plane_state);
 }
 
+unsigned int intel_plane_pixel_rate(const struct intel_crtc_state *crtc_state,
+				    const struct intel_plane_state *plane_state)
+{
+	unsigned int src_w, src_h, dst_w, dst_h;
+	unsigned int pixel_rate = crtc_state->pixel_rate;
+
+	src_w = drm_rect_width(&plane_state->uapi.src) >> 16;
+	src_h = drm_rect_height(&plane_state->uapi.src) >> 16;
+	dst_w = drm_rect_width(&plane_state->uapi.dst);
+	dst_h = drm_rect_height(&plane_state->uapi.dst);
+
+	/* Downscaling limits the maximum pixel rate */
+	dst_w = min(src_w, dst_w);
+	dst_h = min(src_h, dst_h);
+
+	return DIV_ROUND_UP_ULL(mul_u32_u32(pixel_rate, src_w * src_h),
+				dst_w * dst_h);
+}
+
 unsigned int intel_plane_data_rate(const struct intel_crtc_state *crtc_state,
 				   const struct intel_plane_state *plane_state)
 {
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
 	unsigned int cpp;
+	unsigned int pixel_rate;
 
 	if (!plane_state->uapi.visible)
 		return 0;
+
+	pixel_rate = intel_plane_pixel_rate(crtc_state, plane_state);
 
 	cpp = fb->format->cpp[0];
 
@@ -152,45 +175,67 @@ unsigned int intel_plane_data_rate(const struct intel_crtc_state *crtc_state,
 	if (fb->format->is_yuv && fb->format->num_planes > 1)
 		cpp *= 4;
 
-	return cpp * crtc_state->pixel_rate;
+	return pixel_rate * cpp;
 }
 
-bool intel_plane_calc_min_cdclk(struct intel_atomic_state *state,
-				struct intel_plane *plane)
+int intel_plane_calc_min_cdclk(struct intel_atomic_state *state,
+			       struct intel_plane *plane,
+			       bool *need_cdclk_calc)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	const struct intel_plane_state *plane_state =
 		intel_atomic_get_new_plane_state(state, plane);
 	struct intel_crtc *crtc = to_intel_crtc(plane_state->hw.crtc);
-	struct intel_crtc_state *crtc_state;
+	const struct intel_cdclk_state *cdclk_state;
+	const struct intel_crtc_state *old_crtc_state;
+	struct intel_crtc_state *new_crtc_state;
 
 	if (!plane_state->uapi.visible || !plane->min_cdclk)
-		return false;
+		return 0;
 
-	crtc_state = intel_atomic_get_new_crtc_state(state, crtc);
+	old_crtc_state = intel_atomic_get_old_crtc_state(state, crtc);
+	new_crtc_state = intel_atomic_get_new_crtc_state(state, crtc);
 
-	crtc_state->min_cdclk[plane->id] =
-		plane->min_cdclk(crtc_state, plane_state);
+	new_crtc_state->min_cdclk[plane->id] =
+		plane->min_cdclk(new_crtc_state, plane_state);
 
 	/*
-	 * Does the cdclk need to be bumbed up?
+	 * No need to check against the cdclk state if
+	 * the min cdclk for the plane doesn't increase.
 	 *
-	 * Note: we obviously need to be called before the new
-	 * cdclk frequency is calculated so state->cdclk.logical
-	 * hasn't been populated yet. Hence we look at the old
-	 * cdclk state under dev_priv->cdclk.logical. This is
-	 * safe as long we hold at least one crtc mutex (which
-	 * must be true since we have crtc_state).
+	 * Ie. we only ever increase the cdclk due to plane
+	 * requirements. This can reduce back and forth
+	 * display blinking due to constant cdclk changes.
 	 */
-	if (crtc_state->min_cdclk[plane->id] > dev_priv->cdclk.logical.cdclk) {
-		DRM_DEBUG_KMS("[PLANE:%d:%s] min_cdclk (%d kHz) > logical cdclk (%d kHz)\n",
-			      plane->base.base.id, plane->base.name,
-			      crtc_state->min_cdclk[plane->id],
-			      dev_priv->cdclk.logical.cdclk);
-		return true;
-	}
+	if (new_crtc_state->min_cdclk[plane->id] <=
+	    old_crtc_state->min_cdclk[plane->id])
+		return 0;
 
-	return false;
+	cdclk_state = intel_atomic_get_cdclk_state(state);
+	if (IS_ERR(cdclk_state))
+		return PTR_ERR(cdclk_state);
+
+	/*
+	 * No need to recalculate the cdclk state if
+	 * the min cdclk for the pipe doesn't increase.
+	 *
+	 * Ie. we only ever increase the cdclk due to plane
+	 * requirements. This can reduce back and forth
+	 * display blinking due to constant cdclk changes.
+	 */
+	if (new_crtc_state->min_cdclk[plane->id] <=
+	    cdclk_state->min_cdclk[crtc->pipe])
+		return 0;
+
+	drm_dbg_kms(&dev_priv->drm,
+		    "[PLANE:%d:%s] min cdclk (%d kHz) > [CRTC:%d:%s] min cdclk (%d kHz)\n",
+		    plane->base.base.id, plane->base.name,
+		    new_crtc_state->min_cdclk[plane->id],
+		    crtc->base.base.id, crtc->base.name,
+		    cdclk_state->min_cdclk[crtc->pipe]);
+	*need_cdclk_calc = true;
+
+	return 0;
 }
 
 static void intel_plane_clear_hw_state(struct intel_plane_state *plane_state)
@@ -225,11 +270,8 @@ int intel_plane_atomic_check_with_state(const struct intel_crtc_state *old_crtc_
 					struct intel_plane_state *new_plane_state)
 {
 	struct intel_plane *plane = to_intel_plane(new_plane_state->uapi.plane);
-	const struct drm_framebuffer *fb;
+	const struct drm_framebuffer *fb = new_plane_state->hw.fb;
 	int ret;
-
-	intel_plane_copy_uapi_to_hw_state(new_plane_state, new_plane_state);
-	fb = new_plane_state->hw.fb;
 
 	new_crtc_state->active_planes &= ~BIT(plane->id);
 	new_crtc_state->nv12_planes &= ~BIT(plane->id);
@@ -292,6 +334,7 @@ int intel_plane_atomic_check(struct intel_atomic_state *state,
 	const struct intel_crtc_state *old_crtc_state;
 	struct intel_crtc_state *new_crtc_state;
 
+	intel_plane_copy_uapi_to_hw_state(new_plane_state, new_plane_state);
 	new_plane_state->uapi.visible = false;
 	if (!crtc)
 		return 0;

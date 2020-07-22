@@ -84,7 +84,7 @@
 #include "dcn21_resource.h"
 #include "vm_helper.h"
 #include "dcn20/dcn20_vmid.h"
-#include "../dce/dmub_psr.h"
+#include "dce/dmub_psr.h"
 
 #define SOC_BOUNDING_BOX_VALID false
 #define DC_LOGGER_INIT(logger)
@@ -156,17 +156,18 @@ struct _vcs_dpi_ip_params_st dcn2_1_ip = {
 	.xfc_supported = false,
 	.xfc_fill_bw_overhead_percent = 10.0,
 	.xfc_fill_constant_bytes = 0,
-	.ptoi_supported = 0
+	.ptoi_supported = 0,
+	.number_of_cursors = 1,
 };
 
 struct _vcs_dpi_soc_bounding_box_st dcn2_1_soc = {
 	.clock_limits = {
 			{
 				.state = 0,
-				.dcfclk_mhz = 304.0,
-				.fabricclk_mhz = 600.0,
-				.dispclk_mhz = 618.0,
-				.dppclk_mhz = 440.0,
+				.dcfclk_mhz = 400.0,
+				.fabricclk_mhz = 400.0,
+				.dispclk_mhz = 600.0,
+				.dppclk_mhz = 400.00,
 				.phyclk_mhz = 600.0,
 				.socclk_mhz = 278.0,
 				.dscclk_mhz = 205.67,
@@ -174,10 +175,10 @@ struct _vcs_dpi_soc_bounding_box_st dcn2_1_soc = {
 			},
 			{
 				.state = 1,
-				.dcfclk_mhz = 304.0,
-				.fabricclk_mhz = 600.0,
-				.dispclk_mhz = 618.0,
-				.dppclk_mhz = 618.0,
+				.dcfclk_mhz = 464.52,
+				.fabricclk_mhz = 800.0,
+				.dispclk_mhz = 654.55,
+				.dppclk_mhz = 626.09,
 				.phyclk_mhz = 600.0,
 				.socclk_mhz = 278.0,
 				.dscclk_mhz = 205.67,
@@ -185,32 +186,65 @@ struct _vcs_dpi_soc_bounding_box_st dcn2_1_soc = {
 			},
 			{
 				.state = 2,
-				.dcfclk_mhz = 608.0,
-				.fabricclk_mhz = 1066.0,
-				.dispclk_mhz = 888.0,
-				.dppclk_mhz = 888.0,
-				.phyclk_mhz = 810.0,
+				.dcfclk_mhz = 514.29,
+				.fabricclk_mhz = 933.0,
+				.dispclk_mhz = 757.89,
+				.dppclk_mhz = 685.71,
+				.phyclk_mhz = 600.0,
 				.socclk_mhz = 278.0,
 				.dscclk_mhz = 287.67,
-				.dram_speed_mts = 2133.0,
+				.dram_speed_mts = 1866.0,
 			},
 			{
 				.state = 3,
-				.dcfclk_mhz = 676.0,
-				.fabricclk_mhz = 1600.0,
-				.dispclk_mhz = 1015.0,
-				.dppclk_mhz = 1015.0,
-				.phyclk_mhz = 810.0,
+				.dcfclk_mhz = 576.00,
+				.fabricclk_mhz = 1067.0,
+				.dispclk_mhz = 847.06,
+				.dppclk_mhz = 757.89,
+				.phyclk_mhz = 600.0,
 				.socclk_mhz = 715.0,
 				.dscclk_mhz = 318.334,
-				.dram_speed_mts = 4266.0,
+				.dram_speed_mts = 2134.0,
 			},
 			{
 				.state = 4,
-				.dcfclk_mhz = 810.0,
+				.dcfclk_mhz = 626.09,
+				.fabricclk_mhz = 1200.0,
+				.dispclk_mhz = 900.00,
+				.dppclk_mhz = 847.06,
+				.phyclk_mhz = 810.0,
+				.socclk_mhz = 953.0,
+				.dscclk_mhz = 489.0,
+				.dram_speed_mts = 2400.0,
+			},
+			{
+				.state = 5,
+				.dcfclk_mhz = 685.71,
+				.fabricclk_mhz = 1333.0,
+				.dispclk_mhz = 1028.57,
+				.dppclk_mhz = 960.00,
+				.phyclk_mhz = 810.0,
+				.socclk_mhz = 278.0,
+				.dscclk_mhz = 287.67,
+				.dram_speed_mts = 2666.0,
+			},
+			{
+				.state = 6,
+				.dcfclk_mhz = 757.89,
+				.fabricclk_mhz = 1467.0,
+				.dispclk_mhz = 1107.69,
+				.dppclk_mhz = 1028.57,
+				.phyclk_mhz = 810.0,
+				.socclk_mhz = 715.0,
+				.dscclk_mhz = 318.334,
+				.dram_speed_mts = 3200.0,
+			},
+			{
+				.state = 7,
+				.dcfclk_mhz = 847.06,
 				.fabricclk_mhz = 1600.0,
 				.dispclk_mhz = 1395.0,
-				.dppclk_mhz = 1285.0,
+				.dppclk_mhz = 1285.00,
 				.phyclk_mhz = 1325.0,
 				.socclk_mhz = 953.0,
 				.dscclk_mhz = 489.0,
@@ -218,8 +252,8 @@ struct _vcs_dpi_soc_bounding_box_st dcn2_1_soc = {
 			},
 			/*Extra state, no dispclk ramping*/
 			{
-				.state = 5,
-				.dcfclk_mhz = 810.0,
+				.state = 8,
+				.dcfclk_mhz = 847.06,
 				.fabricclk_mhz = 1600.0,
 				.dispclk_mhz = 1395.0,
 				.dppclk_mhz = 1285.0,
@@ -250,7 +284,7 @@ struct _vcs_dpi_soc_bounding_box_st dcn2_1_soc = {
 	.dram_channel_width_bytes = 4,
 	.fabric_datapath_to_dcn_data_return_bytes = 32,
 	.dcn_downspread_percent = 0.5,
-	.downspread_percent = 0.5,
+	.downspread_percent = 0.38,
 	.dram_page_open_time_ns = 50.0,
 	.dram_rw_turnaround_time_ns = 17.5,
 	.dram_return_buffer_per_channel_bytes = 8192,
@@ -266,7 +300,7 @@ struct _vcs_dpi_soc_bounding_box_st dcn2_1_soc = {
 	.xfc_bus_transport_time_us = 4,
 	.xfc_xbuf_latency_tolerance_us = 4,
 	.use_urgent_burst_bw = 1,
-	.num_states = 5
+	.num_states = 8
 };
 
 #ifndef MAX
@@ -305,6 +339,10 @@ struct _vcs_dpi_soc_bounding_box_st dcn2_1_soc = {
 #define DCCG_SRII(reg_name, block, id)\
 	.block ## _ ## reg_name[id] = BASE(mm ## block ## id ## _ ## reg_name ## _BASE_IDX) + \
 					mm ## block ## id ## _ ## reg_name
+
+#define VUPDATE_SRII(reg_name, block, id)\
+	.reg_name[id] = BASE(mm ## reg_name ## _ ## block ## id ## _BASE_IDX) + \
+					mm ## reg_name ## _ ## block ## id
 
 /* NBIO */
 #define NBIO_BASE_INNER(seg) \
@@ -804,7 +842,8 @@ static const struct dc_plane_cap plane_cap = {
 	.pixel_format_support = {
 			.argb8888 = true,
 			.nv12 = true,
-			.fp16 = true
+			.fp16 = true,
+			.p010 = true
 	},
 
 	.max_upscale_factor = {
@@ -821,11 +860,12 @@ static const struct dc_plane_cap plane_cap = {
 };
 
 static const struct dc_debug_options debug_defaults_drv = {
-		.disable_dmcu = true,
+		.disable_dmcu = false,
 		.force_abm_enable = false,
 		.timing_trace = false,
 		.clock_trace = true,
 		.disable_pplib_clock_request = true,
+		.min_disp_clk_khz = 100000,
 		.pipe_split_policy = MPC_SPLIT_AVOID_MULT_DISP,
 		.force_single_disp_pipe_split = false,
 		.disable_dcc = DCC_ENABLE,
@@ -841,7 +881,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 };
 
 static const struct dc_debug_options debug_defaults_diags = {
-		.disable_dmcu = true,
+		.disable_dmcu = false,
 		.force_abm_enable = false,
 		.timing_trace = true,
 		.clock_trace = true,
@@ -961,6 +1001,9 @@ static void dcn21_resource_destruct(struct dcn21_resource_pool *pool)
 
 	if (pool->base.dmcu != NULL)
 		dce_dmcu_destroy(&pool->base.dmcu);
+
+	if (pool->base.psr != NULL)
+		dmub_psr_destroy(&pool->base.psr);
 
 	if (pool->base.dccg != NULL)
 		dcn_dccg_destroy(&pool->base.dccg);
@@ -1335,26 +1378,50 @@ static void update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_param
 {
 	struct dcn21_resource_pool *pool = TO_DCN21_RES_POOL(dc->res_pool);
 	struct clk_limit_table *clk_table = &bw_params->clk_table;
-	int i;
+	struct _vcs_dpi_voltage_scaling_st clock_limits[DC__VOLTAGE_STATES];
+	unsigned int i, j, closest_clk_lvl;
 
-	dcn2_1_ip.max_num_otg = pool->base.res_cap->num_timing_generator;
-	dcn2_1_ip.max_num_dpp = pool->base.pipe_count;
-	dcn2_1_soc.num_chans = bw_params->num_channels;
+	// Default clock levels are used for diags, which may lead to overclocking.
+	if (!IS_DIAG_DC(dc->ctx->dce_environment)) {
+		dcn2_1_ip.max_num_otg = pool->base.res_cap->num_timing_generator;
+		dcn2_1_ip.max_num_dpp = pool->base.pipe_count;
+		dcn2_1_soc.num_chans = bw_params->num_channels;
 
-	for (i = 0; i < clk_table->num_entries; i++) {
+		ASSERT(clk_table->num_entries);
+		for (i = 0; i < clk_table->num_entries; i++) {
+			/* loop backwards*/
+			for (closest_clk_lvl = 0, j = dcn2_1_soc.num_states - 1; j >= 0; j--) {
+				if ((unsigned int) dcn2_1_soc.clock_limits[j].dcfclk_mhz <= clk_table->entries[i].dcfclk_mhz) {
+					closest_clk_lvl = j;
+					break;
+				}
+			}
 
-		dcn2_1_soc.clock_limits[i].state = i;
-		dcn2_1_soc.clock_limits[i].dcfclk_mhz = clk_table->entries[i].dcfclk_mhz;
-		dcn2_1_soc.clock_limits[i].fabricclk_mhz = clk_table->entries[i].fclk_mhz;
-		dcn2_1_soc.clock_limits[i].socclk_mhz = clk_table->entries[i].socclk_mhz;
-		dcn2_1_soc.clock_limits[i].dram_speed_mts = clk_table->entries[i].memclk_mhz * 2;
+			clock_limits[i].state = i;
+			clock_limits[i].dcfclk_mhz = clk_table->entries[i].dcfclk_mhz;
+			clock_limits[i].fabricclk_mhz = clk_table->entries[i].fclk_mhz;
+			clock_limits[i].socclk_mhz = clk_table->entries[i].socclk_mhz;
+			clock_limits[i].dram_speed_mts = clk_table->entries[i].memclk_mhz * 2;
+
+			clock_limits[i].dispclk_mhz = dcn2_1_soc.clock_limits[closest_clk_lvl].dispclk_mhz;
+			clock_limits[i].dppclk_mhz = dcn2_1_soc.clock_limits[closest_clk_lvl].dppclk_mhz;
+			clock_limits[i].dram_bw_per_chan_gbps = dcn2_1_soc.clock_limits[closest_clk_lvl].dram_bw_per_chan_gbps;
+			clock_limits[i].dscclk_mhz = dcn2_1_soc.clock_limits[closest_clk_lvl].dscclk_mhz;
+			clock_limits[i].dtbclk_mhz = dcn2_1_soc.clock_limits[closest_clk_lvl].dtbclk_mhz;
+			clock_limits[i].phyclk_d18_mhz = dcn2_1_soc.clock_limits[closest_clk_lvl].phyclk_d18_mhz;
+			clock_limits[i].phyclk_mhz = dcn2_1_soc.clock_limits[closest_clk_lvl].phyclk_mhz;
+		}
+		for (i = 0; i < clk_table->num_entries; i++)
+			dcn2_1_soc.clock_limits[i] = clock_limits[i];
+		if (clk_table->num_entries) {
+			dcn2_1_soc.num_states = clk_table->num_entries;
+			/* duplicate last level */
+			dcn2_1_soc.clock_limits[dcn2_1_soc.num_states] = dcn2_1_soc.clock_limits[dcn2_1_soc.num_states - 1];
+			dcn2_1_soc.clock_limits[dcn2_1_soc.num_states].state = dcn2_1_soc.num_states;
+		}
 	}
-	dcn2_1_soc.clock_limits[i] = dcn2_1_soc.clock_limits[i - 1];
-	dcn2_1_soc.num_states = i;
 
-	// diags does not retrieve proper values from SMU, do not update DML instance for diags
-	if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment) && !IS_DIAG_DC(dc->ctx->dce_environment))
-		dml_init_instance(&dc->dml, &dcn2_1_soc, &dcn2_1_ip, DML_PROJECT_DCN21);
+	dml_init_instance(&dc->dml, &dcn2_1_soc, &dcn2_1_ip, DML_PROJECT_DCN21);
 }
 
 /* Temporary Place holder until we can get them from fuse */
@@ -1476,6 +1543,7 @@ static struct dce_hwseq *dcn21_hwseq_create(
 		hws->shifts = &hwseq_shift;
 		hws->masks = &hwseq_mask;
 		hws->wa.DEGVIDCN21 = true;
+		hws->wa.disallow_self_refresh_during_multi_plane_transition = true;
 	}
 	return hws;
 }
@@ -1499,6 +1567,7 @@ static const struct encoder_feature_support link_enc_feature = {
 		.max_hdmi_pixel_clock = 600000,
 		.hdmi_ycbcr420_supported = true,
 		.dp_ycbcr420_supported = true,
+		.fec_supported = true,
 		.flags.bits.IS_HBR2_CAPABLE = true,
 		.flags.bits.IS_HBR3_CAPABLE = true,
 		.flags.bits.IS_TPS3_CAPABLE = true,
@@ -1639,6 +1708,19 @@ static int dcn21_populate_dml_pipes_from_context(
 	return pipe_cnt;
 }
 
+enum dc_status dcn21_patch_unknown_plane_state(struct dc_plane_state *plane_state)
+{
+	enum dc_status result = DC_OK;
+
+	if (plane_state->ctx->dc->debug.disable_dcc == DCC_ENABLE) {
+		plane_state->dcc.enable = 1;
+		/* align to our worst case block width */
+		plane_state->dcc.meta_pitch = ((plane_state->src_rect.width + 1023) / 1024) * 1024;
+	}
+	result = dcn20_patch_unknown_plane_state(plane_state);
+	return result;
+}
+
 static struct resource_funcs dcn21_res_pool_funcs = {
 	.destroy = dcn21_destroy_resource_pool,
 	.link_enc_create = dcn21_link_encoder_create,
@@ -1648,7 +1730,7 @@ static struct resource_funcs dcn21_res_pool_funcs = {
 	.remove_stream_from_ctx = dcn20_remove_stream_from_ctx,
 	.acquire_idle_pipe_for_layer = dcn20_acquire_idle_pipe_for_layer,
 	.populate_dml_writeback_from_context = dcn20_populate_dml_writeback_from_context,
-	.get_default_swizzle_mode = dcn20_get_default_swizzle_mode,
+	.patch_unknown_plane_state = dcn21_patch_unknown_plane_state,
 	.set_mcif_arb_params = dcn20_set_mcif_arb_params,
 	.find_first_free_match_stream_enc_for_link = dcn10_find_first_free_match_stream_enc_for_link,
 	.update_bw_bounding_box = update_bw_bounding_box
@@ -1695,6 +1777,7 @@ static bool dcn21_resource_construct(
 	dc->caps.force_dp_tps4_for_cp2520 = true;
 	dc->caps.extended_aux_timeout_support = true;
 	dc->caps.dmcub_support = true;
+	dc->caps.is_apu = true;
 
 	if (dc->ctx->dce_environment == DCE_ENV_PRODUCTION_DRV)
 		dc->debug = debug_defaults_drv;
@@ -1758,9 +1841,15 @@ static bool dcn21_resource_construct(
 		goto create_fail;
 	}
 
-	// Leave as NULL to not affect current dmcu psr programming sequence
-	// Will be uncommented when functionality is confirmed to be working
-	pool->base.psr = NULL;
+	if (dc->debug.disable_dmcu) {
+		pool->base.psr = dmub_psr_create(ctx);
+
+		if (pool->base.psr == NULL) {
+			dm_error("DC: failed to create psr obj!\n");
+			BREAK_TO_DEBUGGER();
+			goto create_fail;
+		}
+	}
 
 	pool->base.abm = dce_abm_create(ctx,
 			&abm_regs,

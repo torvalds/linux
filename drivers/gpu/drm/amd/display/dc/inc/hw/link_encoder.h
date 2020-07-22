@@ -68,6 +68,7 @@ struct encoder_feature_support {
 	unsigned int max_hdmi_pixel_clock;
 	bool hdmi_ycbcr420_supported;
 	bool dp_ycbcr420_supported;
+	bool fec_supported;
 };
 
 union dpcd_psr_configuration {
