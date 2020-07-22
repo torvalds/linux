@@ -246,7 +246,7 @@ EXPORT_SYMBOL(dma_fence_context_alloc);
  *   concerned.
  */
 #ifdef CONFIG_LOCKDEP
-struct lockdep_map	dma_fence_lockdep_map = {
+static struct lockdep_map dma_fence_lockdep_map = {
 	.name = "dma_fence_map"
 };
 
