@@ -63,6 +63,15 @@ pte_t __ref *vmem_pte_alloc(void)
 	return pte;
 }
 
+static void vmem_pte_free(unsigned long *table)
+{
+	/* We don't expect boot memory to be removed ever. */
+	if (!slab_is_available() ||
+	    WARN_ON_ONCE(PageReserved(virt_to_page(table))))
+		return;
+	page_table_free(&init_mm, table);
+}
+
 /* __ref: we'll only call vmemmap_alloc_block() via vmemmap_populate() */
 static int __ref modify_pte_table(pmd_t *pmd, unsigned long addr,
 				  unsigned long end, bool add, bool direct)
@@ -103,6 +112,21 @@ out:
 	if (direct)
 		update_page_count(PG_DIRECT_MAP_4K, add ? pages : -pages);
 	return ret;
+}
+
+static void try_free_pte_table(pmd_t *pmd, unsigned long start)
+{
+	pte_t *pte;
+	int i;
+
+	/* We can safely assume this is fully in 1:1 mapping & vmemmap area */
+	pte = pte_offset_kernel(pmd, start);
+	for (i = 0; i < PTRS_PER_PTE; i++, pte++)
+		if (!pte_none(*pte))
+			return;
+
+	vmem_pte_free(__va(pmd_deref(*pmd)));
+	pmd_clear(pmd);
 }
 
 /* __ref: we'll only call vmemmap_alloc_block() via vmemmap_populate() */
@@ -171,12 +195,37 @@ static int __ref modify_pmd_table(pud_t *pud, unsigned long addr,
 		ret = modify_pte_table(pmd, addr, next, add, direct);
 		if (ret)
 			goto out;
+		if (!add)
+			try_free_pte_table(pmd, addr & PMD_MASK);
 	}
 	ret = 0;
 out:
 	if (direct)
 		update_page_count(PG_DIRECT_MAP_1M, add ? pages : -pages);
 	return ret;
+}
+
+static void try_free_pmd_table(pud_t *pud, unsigned long start)
+{
+	const unsigned long end = start + PUD_SIZE;
+	pmd_t *pmd;
+	int i;
+
+	/* Don't mess with any tables not fully in 1:1 mapping & vmemmap area */
+	if (end > VMALLOC_START)
+		return;
+#ifdef CONFIG_KASAN
+	if (start < KASAN_SHADOW_END && KASAN_SHADOW_START > end)
+		return;
+#endif
+
+	pmd = pmd_offset(pud, start);
+	for (i = 0; i < PTRS_PER_PMD; i++, pmd++)
+		if (!pmd_none(*pmd))
+			return;
+
+	vmem_free_pages(pud_deref(*pud), CRST_ALLOC_ORDER);
+	pud_clear(pud);
 }
 
 static int modify_pud_table(p4d_t *p4d, unsigned long addr, unsigned long end,
@@ -225,12 +274,37 @@ static int modify_pud_table(p4d_t *p4d, unsigned long addr, unsigned long end,
 		ret = modify_pmd_table(pud, addr, next, add, direct);
 		if (ret)
 			goto out;
+		if (!add)
+			try_free_pmd_table(pud, addr & PUD_MASK);
 	}
 	ret = 0;
 out:
 	if (direct)
 		update_page_count(PG_DIRECT_MAP_2G, add ? pages : -pages);
 	return ret;
+}
+
+static void try_free_pud_table(p4d_t *p4d, unsigned long start)
+{
+	const unsigned long end = start + P4D_SIZE;
+	pud_t *pud;
+	int i;
+
+	/* Don't mess with any tables not fully in 1:1 mapping & vmemmap area */
+	if (end > VMALLOC_START)
+		return;
+#ifdef CONFIG_KASAN
+	if (start < KASAN_SHADOW_END && KASAN_SHADOW_START > end)
+		return;
+#endif
+
+	pud = pud_offset(p4d, start);
+	for (i = 0; i < PTRS_PER_PUD; i++, pud++)
+		if (!pud_none(*pud))
+			return;
+
+	vmem_free_pages(p4d_deref(*p4d), CRST_ALLOC_ORDER);
+	p4d_clear(p4d);
 }
 
 static int modify_p4d_table(pgd_t *pgd, unsigned long addr, unsigned long end,
@@ -257,10 +331,35 @@ static int modify_p4d_table(pgd_t *pgd, unsigned long addr, unsigned long end,
 		ret = modify_pud_table(p4d, addr, next, add, direct);
 		if (ret)
 			goto out;
+		if (!add)
+			try_free_pud_table(p4d, addr & P4D_MASK);
 	}
 	ret = 0;
 out:
 	return ret;
+}
+
+static void try_free_p4d_table(pgd_t *pgd, unsigned long start)
+{
+	const unsigned long end = start + PGDIR_SIZE;
+	p4d_t *p4d;
+	int i;
+
+	/* Don't mess with any tables not fully in 1:1 mapping & vmemmap area */
+	if (end > VMALLOC_START)
+		return;
+#ifdef CONFIG_KASAN
+	if (start < KASAN_SHADOW_END && KASAN_SHADOW_START > end)
+		return;
+#endif
+
+	p4d = p4d_offset(pgd, start);
+	for (i = 0; i < PTRS_PER_P4D; i++, p4d++)
+		if (!p4d_none(*p4d))
+			return;
+
+	vmem_free_pages(pgd_deref(*pgd), CRST_ALLOC_ORDER);
+	pgd_clear(pgd);
 }
 
 static int modify_pagetable(unsigned long start, unsigned long end, bool add,
@@ -291,6 +390,8 @@ static int modify_pagetable(unsigned long start, unsigned long end, bool add,
 		ret = modify_p4d_table(pgd, addr, next, add, direct);
 		if (ret)
 			goto out;
+		if (!add)
+			try_free_p4d_table(pgd, addr & PGDIR_MASK);
 	}
 	ret = 0;
 out:
@@ -319,7 +420,6 @@ static int vmem_add_range(unsigned long start, unsigned long size)
 
 /*
  * Remove a physical memory range from the 1:1 mapping.
- * Currently only invalidates page table entries.
  */
 static void vmem_remove_range(unsigned long start, unsigned long size)
 {
