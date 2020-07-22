@@ -231,7 +231,7 @@ static long sam9x60_pll_get_best_div_mul(struct sam9x60_pll *pll,
 	}
 
 	/* Check if bestrate is a valid output rate  */
-	if (bestrate < characteristics->output[0].min &&
+	if (bestrate < characteristics->output[0].min ||
 	    bestrate > characteristics->output[0].max)
 		return -ERANGE;
 
