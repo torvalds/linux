@@ -347,7 +347,7 @@ struct at91_adc_trigger {
 };
 
 /**
- * at91_adc_dma - at91-sama5d2 dma information struct
+ * struct at91_adc_dma - at91-sama5d2 dma information struct
  * @dma_chan:		the dma channel acquired
  * @rx_buf:		dma coherent allocated area
  * @rx_dma_buf:		dma handler for the buffer
@@ -369,7 +369,7 @@ struct at91_adc_dma {
 };
 
 /**
- * at91_adc_touch - at91-sama5d2 touchscreen information struct
+ * struct at91_adc_touch - at91-sama5d2 touchscreen information struct
  * @sample_period_val:		the value for periodic trigger interval
  * @touching:			is the pen touching the screen or not
  * @x_pos:			temporary placeholder for pressure computation

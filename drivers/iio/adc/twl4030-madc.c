@@ -153,7 +153,7 @@ enum sample_type {
  * struct twl4030_madc_data - a container for madc info
  * @dev:		Pointer to device structure for madc
  * @lock:		Mutex protecting this data structure
- * @regulator:		Pointer to bias regulator for madc
+ * @usb3v1:		Pointer to bias regulator for madc
  * @requests:		Array of request struct corresponding to SW1, SW2 and RT
  * @use_second_irq:	IRQ selection (main or co-processor)
  * @imr:		Interrupt mask register of MADC
@@ -161,7 +161,7 @@ enum sample_type {
  */
 struct twl4030_madc_data {
 	struct device *dev;
-	struct mutex lock;	/* mutex protecting this data structure */
+	struct mutex lock;
 	struct regulator *usb3v1;
 	struct twl4030_madc_request requests[TWL4030_MADC_NUM_METHODS];
 	bool use_second_irq;
@@ -472,7 +472,7 @@ static irqreturn_t twl4030_madc_threaded_irq_handler(int irq, void *_madc)
 	struct twl4030_madc_data *madc = _madc;
 	const struct twl4030_madc_conversion_method *method;
 	u8 isr_val, imr_val;
-	int i, len, ret;
+	int i, ret;
 	struct twl4030_madc_request *r;
 
 	mutex_lock(&madc->lock);
@@ -504,8 +504,8 @@ static irqreturn_t twl4030_madc_threaded_irq_handler(int irq, void *_madc)
 			continue;
 		method = &twl4030_conversion_methods[r->method];
 		/* Read results */
-		len = twl4030_madc_read_channels(madc, method->rbase,
-						 r->channels, r->rbuf, r->raw);
+		twl4030_madc_read_channels(madc, method->rbase,
+					   r->channels, r->rbuf, r->raw);
 		/* Free request */
 		r->result_pending = false;
 		r->active = false;
@@ -525,8 +525,8 @@ err_i2c:
 			continue;
 		method = &twl4030_conversion_methods[r->method];
 		/* Read results */
-		len = twl4030_madc_read_channels(madc, method->rbase,
-						 r->channels, r->rbuf, r->raw);
+		twl4030_madc_read_channels(madc, method->rbase,
+					   r->channels, r->rbuf, r->raw);
 		/* Free request */
 		r->result_pending = false;
 		r->active = false;

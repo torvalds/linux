@@ -51,7 +51,7 @@ struct ad5380_chip_info {
  * @vref_reg:		vref supply regulator
  * @vref:		actual reference voltage used in uA
  * @pwr_down:		whether the chip is currently in power down mode
- * @lock		lock to protect the data buffer during regmap ops
+ * @lock:		lock to protect the data buffer during regmap ops
  */
 
 struct ad5380_state {

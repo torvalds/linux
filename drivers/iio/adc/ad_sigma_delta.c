@@ -398,7 +398,6 @@ static irqreturn_t ad_sd_trigger_handler(int irq, void *p)
 	unsigned int reg_size;
 	unsigned int data_reg;
 	uint8_t data[16];
-	int ret;
 
 	memset(data, 0x00, 16);
 
@@ -415,14 +414,12 @@ static irqreturn_t ad_sd_trigger_handler(int irq, void *p)
 	case 4:
 	case 2:
 	case 1:
-		ret = ad_sd_read_reg_raw(sigma_delta, data_reg, reg_size,
-			&data[0]);
+		ad_sd_read_reg_raw(sigma_delta, data_reg, reg_size, &data[0]);
 		break;
 	case 3:
 		/* We store 24 bit samples in a 32 bit word. Keep the upper
 		 * byte set to zero. */
-		ret = ad_sd_read_reg_raw(sigma_delta, data_reg, reg_size,
-			&data[1]);
+		ad_sd_read_reg_raw(sigma_delta, data_reg, reg_size, &data[1]);
 		break;
 	}
 

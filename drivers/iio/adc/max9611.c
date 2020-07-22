@@ -110,7 +110,7 @@ enum max9611_conf_ids {
 	CONF_TEMP,
 };
 
-/**
+/*
  * max9611_mux_conf - associate ADC mux configuration with register address
  *		      where data shall be read from
  */
@@ -133,7 +133,7 @@ enum max9611_csa_gain_params {
 	CSA_GAIN_OFFS_RAW,
 };
 
-/**
+/*
  * max9611_csa_gain_conf - associate gain multiplier with LSB and
  *			   offset values.
  *

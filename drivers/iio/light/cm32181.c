@@ -93,10 +93,10 @@ static int cm32181_read_als_it(struct cm32181_chip *cm32181, int *val2);
 #ifdef CONFIG_ACPI
 /**
  * cm32181_acpi_get_cpm() - Get CPM object from ACPI
- * @client	pointer of struct i2c_client.
- * @obj_name	pointer of ACPI object name.
- * @count	maximum size of return array.
- * @vals	pointer of array for return elements.
+ * @dev:	pointer of struct device.
+ * @obj_name:	pointer of ACPI object name.
+ * @values:	pointer of array for return elements.
+ * @count:	maximum size of return array.
  *
  * Convert ACPI CPM table to array.
  *

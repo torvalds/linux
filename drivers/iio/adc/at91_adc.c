@@ -157,7 +157,7 @@
  * struct at91_adc_reg_desc - Various informations relative to registers
  * @channel_base:	Base offset for the channel data registers
  * @drdy_mask:		Mask of the DRDY field in the relevant registers
-			(Interruptions registers mostly)
+ *			(Interruptions registers mostly)
  * @status_register:	Offset of the Interrupt Status Register
  * @trigger_register:	Offset of the Trigger setup register
  * @mr_prescal_mask:	Mask of the PRESCAL field in the adc MR register

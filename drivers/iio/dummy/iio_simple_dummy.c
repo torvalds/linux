@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/**
+/*
  * Copyright (c) 2011 Jonathan Cameron
  *
  * A reference industrial I/O driver to illustrate the functionality available.
@@ -553,7 +553,7 @@ static int iio_dummy_init_device(struct iio_dev *indio_dev)
 
 /**
  * iio_dummy_probe() - device instance probe
- * @index: an id number for this instance.
+ * @name: name of this instance.
  *
  * Arguments are bus type specific.
  * I2C: iio_dummy_probe(struct i2c_client *client,
@@ -689,7 +689,8 @@ static int iio_dummy_remove(struct iio_sw_device *swd)
 
 	return 0;
 }
-/**
+
+/*
  * module_iio_sw_device_driver() -  device driver registration
  *
  * Varies depending on bus type of the device. As there is no device

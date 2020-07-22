@@ -82,7 +82,7 @@ struct ad5755_chip_info {
  * @pwr_down:	bitmask which contains  hether a channel is powered down or not
  * @ctrl:	software shadow of the channel ctrl registers
  * @channels:	iio channel spec for the device
- * @lock	lock to protect the data buffer during SPI ops
+ * @lock:	lock to protect the data buffer during SPI ops
  * @data:	spi transfer buffers
  */
 struct ad5755_state {

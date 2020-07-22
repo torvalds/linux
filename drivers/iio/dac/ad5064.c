@@ -787,7 +787,7 @@ static const char * const ad5064_vref_names[] = {
 	"vrefD",
 };
 
-static const char * const ad5064_vref_name(struct ad5064_state *st,
+static const char *ad5064_vref_name(struct ad5064_state *st,
 	unsigned int vref)
 {
 	return st->chip_info->shared_vref ? "vref" : ad5064_vref_names[vref];

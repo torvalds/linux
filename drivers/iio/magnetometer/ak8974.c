@@ -180,6 +180,7 @@
  * @drdy_irq: uses the DRDY IRQ line
  * @drdy_complete: completion for DRDY
  * @drdy_active_low: the DRDY IRQ is active low
+ * @scan: timestamps
  */
 struct ak8974 {
 	struct i2c_client *i2c;

@@ -120,7 +120,7 @@
 #define ADC_ARB_USRP_DATA0			0x19D
 #define ADC_ARB_USRP_DATA1			0x19C
 
-/**
+/*
  * Physical channels which MUST exist on all PM variants in order to provide
  * proper reference points for calibration.
  *
@@ -388,6 +388,7 @@ struct pm8xxx_chan_info {
  * struct pm8xxx_xoadc - state container for the XOADC
  * @dev: pointer to device
  * @map: regmap to access registers
+ * @variant: XOADC variant characteristics
  * @vref: reference voltage regulator
  * characteristics of the channels, and sensible default settings
  * @nchans: number of channels, configured by the device tree
