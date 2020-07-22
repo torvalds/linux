@@ -1274,13 +1274,15 @@ done:
 		}
 	}
 
-	/* Workaround: Due to the design of HALv3,
+	/*
+	 * Workaround: Due to the design of HALv3,
 	 * sometimes in ZSL or SDV mode HAL needs to
 	 * capture multiple images within one streaming cycle.
 	 * But the capture number cannot be determined by HAL.
 	 * So HAL only sets the capture number to be 1 and queue multiple
 	 * buffers. Atomisp driver needs to check this case and re-trigger
-	 * CSS to do capture when new buffer is queued. */
+	 * CSS to do capture when new buffer is queued.
+	 */
 	if (asd->continuous_mode->val &&
 	    atomisp_subdev_source_pad(vdev)
 	    == ATOMISP_SUBDEV_PAD_SOURCE_CAPTURE &&
@@ -1806,7 +1808,7 @@ start_sensor:
 		/*
 		 * set freq to max when streaming count > 1 which indicate
 		 * dual camera would run
-		*/
+		 */
 		if (atomisp_streaming_count(isp) > 1) {
 			if (atomisp_freq_scaling(isp,
 						 ATOMISP_DFS_MODE_MAX, false) < 0)
@@ -2436,8 +2438,10 @@ static int atomisp_g_ext_ctrls(struct file *file, void *fh,
 	struct v4l2_control ctrl;
 	int i, ret = 0;
 
-	/* input_lock is not need for the Camera related IOCTLs
-	 * The input_lock downgrade the FPS of 3A*/
+	/*
+	 * input_lock is not need for the Camera related IOCTLs
+	 * The input_lock downgrade the FPS of 3A
+	 */
 	ret = atomisp_camera_g_ext_ctrls(file, fh, c);
 	if (ret != -EINVAL)
 		return ret;
@@ -2519,8 +2523,10 @@ static int atomisp_camera_s_ext_ctrls(struct file *file, void *fh,
 				ret =
 				    v4l2_s_ctrl(NULL, isp->flash->ctrl_handler,
 						&ctrl);
-				/* When flash mode is changed we need to reset
-				 * flash state */
+				/*
+				 * When flash mode is changed we need to reset
+				 * flash state
+				 */
 				if (ctrl.id == V4L2_CID_FLASH_MODE) {
 					asd->params.flash_state =
 					    ATOMISP_FLASH_IDLE;
@@ -2558,8 +2564,10 @@ static int atomisp_s_ext_ctrls(struct file *file, void *fh,
 	struct v4l2_control ctrl;
 	int i, ret = 0;
 
-	/* input_lock is not need for the Camera related IOCTLs
-	 * The input_lock downgrade the FPS of 3A*/
+	/*
+	 * input_lock is not need for the Camera related IOCTLs
+	 * The input_lock downgrade the FPS of 3A
+	 */
 	ret = atomisp_camera_s_ext_ctrls(file, fh, c);
 	if (ret != -EINVAL)
 		return ret;
