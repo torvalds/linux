@@ -78,7 +78,11 @@ static inline void set_fs(mm_segment_t fs)
 
 #define segment_eq(a, b)	((a) == (b))
 
-/* We use 33-bit arithmetic here... */
+/*
+ * We use 33-bit arithmetic here.  Success returns zero, failure returns
+ * addr_limit.  We take advantage that addr_limit will be zero for KERNEL_DS,
+ * so this will always return success in that case.
+ */
 #define __range_ok(addr, size) ({ \
 	unsigned long flag, roksum; \
 	__chk_user_ptr(addr);	\
