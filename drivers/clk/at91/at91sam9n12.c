@@ -222,7 +222,7 @@ static void __init at91sam9n12_pmc_setup(struct device_node *np)
 							 at91sam9n12_periphck[i].n,
 							 "masterck",
 							 at91sam9n12_periphck[i].id,
-							 &range);
+							 &range, INT_MIN);
 		if (IS_ERR(hw))
 			goto err_free;
 

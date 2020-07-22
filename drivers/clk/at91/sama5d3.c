@@ -223,7 +223,8 @@ static void __init sama5d3_pmc_setup(struct device_node *np)
 							 sama5d3_periphck[i].n,
 							 "masterck",
 							 sama5d3_periphck[i].id,
-							 &sama5d3_periphck[i].r);
+							 &sama5d3_periphck[i].r,
+							 INT_MIN);
 		if (IS_ERR(hw))
 			goto err_free;
 

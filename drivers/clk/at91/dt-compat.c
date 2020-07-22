@@ -463,7 +463,8 @@ of_at91_clk_periph_setup(struct device_node *np, u8 type)
 								 &dt_pcr_layout,
 								 name,
 								 parent_name,
-								 id, &range);
+								 id, &range,
+								 INT_MIN);
 		}
 
 		if (IS_ERR(hw))

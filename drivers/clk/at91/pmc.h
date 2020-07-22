@@ -168,7 +168,8 @@ struct clk_hw * __init
 at91_clk_register_sam9x5_peripheral(struct regmap *regmap, spinlock_t *lock,
 				    const struct clk_pcr_layout *layout,
 				    const char *name, const char *parent_name,
-				    u32 id, const struct clk_range *range);
+				    u32 id, const struct clk_range *range,
+				    int chg_pid);
 
 struct clk_hw * __init
 at91_clk_register_pll(struct regmap *regmap, const char *name,
