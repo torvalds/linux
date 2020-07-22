@@ -1375,6 +1375,21 @@ static int nvmem_cell_read_common(struct device *dev, const char *cell_id,
 }
 
 /**
+ * nvmem_cell_read_u8() - Read a cell value as a u8
+ *
+ * @dev: Device that requests the nvmem cell.
+ * @cell_id: Name of nvmem cell to read.
+ * @val: pointer to output value.
+ *
+ * Return: 0 on success or negative errno.
+ */
+int nvmem_cell_read_u8(struct device *dev, const char *cell_id, u8 *val)
+{
+	return nvmem_cell_read_common(dev, cell_id, val, sizeof(*val));
+}
+EXPORT_SYMBOL_GPL(nvmem_cell_read_u8);
+
+/**
  * nvmem_cell_read_u16() - Read a cell value as a u16
  *
  * @dev: Device that requests the nvmem cell.
