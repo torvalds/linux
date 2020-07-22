@@ -21,11 +21,11 @@
 
 /* Per tunnel, session hash table size */
 #define L2TP_HASH_BITS	4
-#define L2TP_HASH_SIZE	(1 << L2TP_HASH_BITS)
+#define L2TP_HASH_SIZE	BIT(L2TP_HASH_BITS)
 
 /* System-wide, session hash table size */
 #define L2TP_HASH_BITS_2	8
-#define L2TP_HASH_SIZE_2	(1 << L2TP_HASH_BITS_2)
+#define L2TP_HASH_SIZE_2	BIT(L2TP_HASH_BITS_2)
 
 struct sk_buff;
 
