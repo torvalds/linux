@@ -145,23 +145,45 @@ static void pnv_ioda_reserve_pe(struct pnv_phb *phb, int pe_no)
 		return;
 	}
 
+	mutex_lock(&phb->ioda.pe_alloc_mutex);
 	if (test_and_set_bit(pe_no, phb->ioda.pe_alloc))
 		pr_debug("%s: PE %x was reserved on PHB#%x\n",
 			 __func__, pe_no, phb->hose->global_number);
+	mutex_unlock(&phb->ioda.pe_alloc_mutex);
 
 	pnv_ioda_init_pe(phb, pe_no);
 }
 
-struct pnv_ioda_pe *pnv_ioda_alloc_pe(struct pnv_phb *phb)
+struct pnv_ioda_pe *pnv_ioda_alloc_pe(struct pnv_phb *phb, int count)
 {
-	long pe;
+	struct pnv_ioda_pe *ret = NULL;
+	int run = 0, pe, i;
 
+	mutex_lock(&phb->ioda.pe_alloc_mutex);
+
+	/* scan backwards for a run of @count cleared bits */
 	for (pe = phb->ioda.total_pe_num - 1; pe >= 0; pe--) {
-		if (!test_and_set_bit(pe, phb->ioda.pe_alloc))
-			return pnv_ioda_init_pe(phb, pe);
-	}
+		if (test_bit(pe, phb->ioda.pe_alloc)) {
+			run = 0;
+			continue;
+		}
 
-	return NULL;
+		run++;
+		if (run == count)
+			break;
+	}
+	if (run != count)
+		goto out;
+
+	for (i = pe; i < pe + count; i++) {
+		set_bit(i, phb->ioda.pe_alloc);
+		pnv_ioda_init_pe(phb, i);
+	}
+	ret = &phb->ioda.pe_array[pe];
+
+out:
+	mutex_unlock(&phb->ioda.pe_alloc_mutex);
+	return ret;
 }
 
 void pnv_ioda_free_pe(struct pnv_ioda_pe *pe)
@@ -173,7 +195,10 @@ void pnv_ioda_free_pe(struct pnv_ioda_pe *pe)
 	WARN_ON(pe->npucomp); /* NPUs for nvlink are not supposed to be freed */
 	kfree(pe->npucomp);
 	memset(pe, 0, sizeof(struct pnv_ioda_pe));
+
+	mutex_lock(&phb->ioda.pe_alloc_mutex);
 	clear_bit(pe_num, phb->ioda.pe_alloc);
+	mutex_unlock(&phb->ioda.pe_alloc_mutex);
 }
 
 /* The default M64 BAR is shared by all PEs */
@@ -976,7 +1001,7 @@ static struct pnv_ioda_pe *pnv_ioda_setup_dev_PE(struct pci_dev *dev)
 	if (pdn->pe_number != IODA_INVALID_PE)
 		return NULL;
 
-	pe = pnv_ioda_alloc_pe(phb);
+	pe = pnv_ioda_alloc_pe(phb, 1);
 	if (!pe) {
 		pr_warn("%s: Not enough PE# available, disabling device\n",
 			pci_name(dev));
@@ -1047,7 +1072,7 @@ static struct pnv_ioda_pe *pnv_ioda_setup_bus_PE(struct pci_bus *bus, bool all)
 
 	/* The PE number isn't pinned by M64 */
 	if (!pe)
-		pe = pnv_ioda_alloc_pe(phb);
+		pe = pnv_ioda_alloc_pe(phb, 1);
 
 	if (!pe) {
 		pr_warn("%s: Not enough PE# available for PCI bus %04x:%02x\n",
@@ -3065,7 +3090,7 @@ static void __init pnv_pci_init_ioda_phb(struct device_node *np,
 		pnv_ioda_reserve_pe(phb, phb->ioda.root_pe_idx);
 	} else {
 		/* otherwise just allocate one */
-		root_pe = pnv_ioda_alloc_pe(phb);
+		root_pe = pnv_ioda_alloc_pe(phb, 1);
 		phb->ioda.root_pe_idx = root_pe->pe_number;
 	}
 

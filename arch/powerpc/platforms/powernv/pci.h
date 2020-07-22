@@ -224,7 +224,7 @@ int pnv_ioda_deconfigure_pe(struct pnv_phb *phb, struct pnv_ioda_pe *pe);
 void pnv_pci_ioda2_setup_dma_pe(struct pnv_phb *phb, struct pnv_ioda_pe *pe);
 void pnv_pci_ioda2_release_pe_dma(struct pnv_ioda_pe *pe);
 
-struct pnv_ioda_pe *pnv_ioda_alloc_pe(struct pnv_phb *phb);
+struct pnv_ioda_pe *pnv_ioda_alloc_pe(struct pnv_phb *phb, int count);
 void pnv_ioda_free_pe(struct pnv_ioda_pe *pe);
 
 #ifdef CONFIG_PCI_IOV
