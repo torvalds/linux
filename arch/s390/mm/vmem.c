@@ -334,17 +334,21 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
 {
 	int ret;
 
+	mutex_lock(&vmem_mutex);
 	/* We don't care about the node, just use NUMA_NO_NODE on allocations */
 	ret = add_pagetable(start, end, false);
 	if (ret)
 		remove_pagetable(start, end, false);
+	mutex_unlock(&vmem_mutex);
 	return ret;
 }
 
 void vmemmap_free(unsigned long start, unsigned long end,
 		struct vmem_altmap *altmap)
 {
+	mutex_lock(&vmem_mutex);
 	remove_pagetable(start, end, false);
+	mutex_unlock(&vmem_mutex);
 }
 
 void vmem_remove_mapping(unsigned long start, unsigned long size)
