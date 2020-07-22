@@ -144,15 +144,6 @@ config BLK_DEV_SR
 	  <file:Documentation/scsi/scsi.txt>.
 	  The module will be called sr_mod.
 
-config BLK_DEV_SR_VENDOR
-	bool "Enable vendor-specific extensions (for SCSI CDROM)"
-	depends on BLK_DEV_SR
-	help
-	  This enables the usage of vendor specific SCSI commands. This is
-	  required to support multisession CDs with old NEC/TOSHIBA cdrom
-	  drives (and HP Writers). If you have such a drive and get the first
-	  session only, try saying Y here; everybody else says N.
-
 config CHR_DEV_SG
 	tristate "SCSI generic support"
 	depends on SCSI

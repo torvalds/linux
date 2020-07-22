@@ -589,7 +589,7 @@ static void cake_update_flowkeys(struct flow_keys *keys,
 	struct nf_conntrack_tuple tuple = {};
 	bool rev = !skb->_nfct;
 
-	if (tc_skb_protocol(skb) != htons(ETH_P_IP))
+	if (skb_protocol(skb, true) != htons(ETH_P_IP))
 		return;
 
 	if (!nf_ct_get_tuple_skb(&tuple, skb))
@@ -1514,7 +1514,7 @@ static u8 cake_handle_diffserv(struct sk_buff *skb, bool wash)
 	u16 *buf, buf_;
 	u8 dscp;
 
-	switch (tc_skb_protocol(skb)) {
+	switch (skb_protocol(skb, true)) {
 	case htons(ETH_P_IP):
 		buf = skb_header_pointer(skb, offset, sizeof(buf_), &buf_);
 		if (unlikely(!buf))
