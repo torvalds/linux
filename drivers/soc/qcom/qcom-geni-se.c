@@ -910,8 +910,8 @@ static int geni_se_probe(struct platform_device *pdev)
 	if (of_get_compatible_child(pdev->dev.of_node, "qcom,geni-debug-uart"))
 		earlycon_wrapper = wrapper;
 	of_node_put(pdev->dev.of_node);
-#endif
 exit:
+#endif
 	dev_set_drvdata(dev, wrapper);
 	dev_dbg(dev, "GENI SE Driver probed\n");
 	return devm_of_platform_populate(dev);
