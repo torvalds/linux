@@ -26,9 +26,9 @@ enum qed_chain_mode {
 };
 
 enum qed_chain_use_mode {
-	QED_CHAIN_USE_TO_PRODUCE,		/* Chain starts empty */
-	QED_CHAIN_USE_TO_CONSUME,		/* Chain starts full */
-	QED_CHAIN_USE_TO_CONSUME_PRODUCE,	/* Chain starts empty */
+	QED_CHAIN_USE_TO_PRODUCE,			/* Chain starts empty */
+	QED_CHAIN_USE_TO_CONSUME,			/* Chain starts full */
+	QED_CHAIN_USE_TO_CONSUME_PRODUCE,		/* Chain starts empty */
 };
 
 enum qed_chain_cnt_type {
@@ -40,84 +40,86 @@ enum qed_chain_cnt_type {
 };
 
 struct qed_chain_next {
-	struct regpair	next_phys;
-	void		*next_virt;
+	struct regpair					next_phys;
+	void						*next_virt;
 };
 
 struct qed_chain_pbl_u16 {
-	u16 prod_page_idx;
-	u16 cons_page_idx;
+	u16						prod_page_idx;
+	u16						cons_page_idx;
 };
 
 struct qed_chain_pbl_u32 {
-	u32 prod_page_idx;
-	u32 cons_page_idx;
+	u32						prod_page_idx;
+	u32						cons_page_idx;
 };
 
 struct qed_chain_ext_pbl {
-	dma_addr_t p_pbl_phys;
-	void *p_pbl_virt;
+	dma_addr_t					p_pbl_phys;
+	void						*p_pbl_virt;
 };
 
 struct qed_chain_u16 {
 	/* Cyclic index of next element to produce/consme */
-	u16 prod_idx;
-	u16 cons_idx;
+	u16						prod_idx;
+	u16						cons_idx;
 };
 
 struct qed_chain_u32 {
 	/* Cyclic index of next element to produce/consme */
-	u32 prod_idx;
-	u32 cons_idx;
+	u32						prod_idx;
+	u32						cons_idx;
 };
 
 struct addr_tbl_entry {
-	void *virt_addr;
-	dma_addr_t dma_map;
+	void						*virt_addr;
+	dma_addr_t					dma_map;
 };
 
 struct qed_chain {
-	/* fastpath portion of the chain - required for commands such
+	/* Fastpath portion of the chain - required for commands such
 	 * as produce / consume.
 	 */
+
 	/* Point to next element to produce/consume */
-	void *p_prod_elem;
-	void *p_cons_elem;
+	void						*p_prod_elem;
+	void						*p_cons_elem;
 
 	/* Fastpath portions of the PBL [if exists] */
+
 	struct {
 		/* Table for keeping the virtual and physical addresses of the
 		 * chain pages, respectively to the physical addresses
 		 * in the pbl table.
 		 */
-		struct addr_tbl_entry *pp_addr_tbl;
+		struct addr_tbl_entry			*pp_addr_tbl;
 
 		union {
-			struct qed_chain_pbl_u16 u16;
-			struct qed_chain_pbl_u32 u32;
-		} c;
-	} pbl;
+			struct qed_chain_pbl_u16	u16;
+			struct qed_chain_pbl_u32	u32;
+		}					c;
+	}						pbl;
 
 	union {
-		struct qed_chain_u16 chain16;
-		struct qed_chain_u32 chain32;
-	} u;
+		struct qed_chain_u16			chain16;
+		struct qed_chain_u32			chain32;
+	}						u;
 
 	/* Capacity counts only usable elements */
-	u32 capacity;
-	u32 page_cnt;
+	u32						capacity;
+	u32						page_cnt;
 
-	enum qed_chain_mode mode;
+	enum qed_chain_mode				mode;
 
 	/* Elements information for fast calculations */
-	u16 elem_per_page;
-	u16 elem_per_page_mask;
-	u16 elem_size;
-	u16 next_page_mask;
-	u16 usable_per_page;
-	u8 elem_unusable;
+	u16						elem_per_page;
+	u16						elem_per_page_mask;
+	u16						elem_size;
+	u16						next_page_mask;
+	u16						usable_per_page;
+	u8						elem_unusable;
 
-	u8 cnt_type;
+	u8						cnt_type;
 
 	/* Slowpath of the chain - required for initialization and destruction,
 	 * but isn't involved in regular functionality.
@@ -125,43 +127,47 @@ struct qed_chain {
 
 	/* Base address of a pre-allocated buffer for pbl */
 	struct {
-		dma_addr_t p_phys_table;
-		void *p_virt_table;
-	} pbl_sp;
+		dma_addr_t				p_phys_table;
+		void					*p_virt_table;
+	}						pbl_sp;
 
 	/* Address of first page of the chain - the address is required
 	 * for fastpath operation [consume/produce] but only for the SINGLE
 	 * flavour which isn't considered fastpath [== SPQ].
 	 */
-	void *p_virt_addr;
-	dma_addr_t p_phys_addr;
+	void						*p_virt_addr;
+	dma_addr_t					p_phys_addr;
 
 	/* Total number of elements [for entire chain] */
-	u32 size;
+	u32						size;
 
-	u8 intended_use;
+	u8						intended_use;
 
-	bool b_external_pbl;
+	bool						b_external_pbl;
 };
 
-#define QED_CHAIN_PBL_ENTRY_SIZE        (8)
-#define QED_CHAIN_PAGE_SIZE             (0x1000)
-#define ELEMS_PER_PAGE(elem_size)       (QED_CHAIN_PAGE_SIZE / (elem_size))
+#define QED_CHAIN_PBL_ENTRY_SIZE			8
+#define QED_CHAIN_PAGE_SIZE				0x1000
 
-#define UNUSABLE_ELEMS_PER_PAGE(elem_size, mode)	 \
-	(((mode) == QED_CHAIN_MODE_NEXT_PTR) ?		 \
-	 (u8)(1 + ((sizeof(struct qed_chain_next) - 1) / \
-		   (elem_size))) : 0)
+#define ELEMS_PER_PAGE(elem_size)					     \
+	(QED_CHAIN_PAGE_SIZE / (elem_size))
 
-#define USABLE_ELEMS_PER_PAGE(elem_size, mode) \
-	((u32)(ELEMS_PER_PAGE(elem_size) -     \
-	       UNUSABLE_ELEMS_PER_PAGE(elem_size, mode)))
+#define UNUSABLE_ELEMS_PER_PAGE(elem_size, mode)			     \
+	(((mode) == QED_CHAIN_MODE_NEXT_PTR) ?				     \
+	 (u8)(1 + ((sizeof(struct qed_chain_next) - 1) / (elem_size))) :     \
+	 0)
 
-#define QED_CHAIN_PAGE_CNT(elem_cnt, elem_size, mode) \
-	DIV_ROUND_UP(elem_cnt, USABLE_ELEMS_PER_PAGE(elem_size, mode))
+#define USABLE_ELEMS_PER_PAGE(elem_size, mode)				     \
+	((u32)(ELEMS_PER_PAGE(elem_size) -				     \
+	       UNUSABLE_ELEMS_PER_PAGE((elem_size), (mode))))
 
-#define is_chain_u16(p) ((p)->cnt_type == QED_CHAIN_CNT_TYPE_U16)
-#define is_chain_u32(p) ((p)->cnt_type == QED_CHAIN_CNT_TYPE_U32)
+#define QED_CHAIN_PAGE_CNT(elem_cnt, elem_size, mode)			     \
+	DIV_ROUND_UP((elem_cnt), USABLE_ELEMS_PER_PAGE((elem_size), (mode)))
+
+#define is_chain_u16(p)							     \
+	((p)->cnt_type == QED_CHAIN_CNT_TYPE_U16)
+#define is_chain_u32(p)							     \
+	((p)->cnt_type == QED_CHAIN_CNT_TYPE_U32)
 
 /* Accessors */
 static inline u16 qed_chain_get_prod_idx(struct qed_chain *p_chain)
