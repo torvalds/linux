@@ -135,6 +135,9 @@ static ssize_t bin_attr_nvmem_read(struct file *filp, struct kobject *kobj,
 	if (pos >= nvmem->size)
 		return 0;
 
+	if (!IS_ALIGNED(pos, nvmem->stride))
+		return -EINVAL;
+
 	if (count < nvmem->word_size)
 		return -EINVAL;
 
@@ -171,6 +174,9 @@ static ssize_t bin_attr_nvmem_write(struct file *filp, struct kobject *kobj,
 	/* Stop the user from writing */
 	if (pos >= nvmem->size)
 		return -EFBIG;
+
+	if (!IS_ALIGNED(pos, nvmem->stride))
+		return -EINVAL;
 
 	if (count < nvmem->word_size)
 		return -EINVAL;
