@@ -179,7 +179,7 @@ out_pool:
 	return ret;
 }
 
-struct bch_dev_usage bch2_dev_usage_read(struct bch_fs *c, struct bch_dev *ca)
+struct bch_dev_usage bch2_dev_usage_read(struct bch_dev *ca)
 {
 	struct bch_dev_usage ret;
 

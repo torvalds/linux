@@ -826,7 +826,7 @@ static ssize_t show_reserve_stats(struct bch_dev *ca, char *buf)
 static ssize_t show_dev_alloc_debug(struct bch_dev *ca, char *buf)
 {
 	struct bch_fs *c = ca->fs;
-	struct bch_dev_usage stats = bch2_dev_usage_read(c, ca);
+	struct bch_dev_usage stats = bch2_dev_usage_read(ca);
 	unsigned i, nr[BCH_DATA_NR];
 
 	memset(nr, 0, sizeof(nr));
@@ -874,7 +874,7 @@ static ssize_t show_dev_alloc_debug(struct bch_dev *ca, char *buf)
 		stats.buckets[BCH_DATA_user],
 		stats.buckets[BCH_DATA_cached],
 		stats.buckets_ec,
-		ca->mi.nbuckets - ca->mi.first_bucket - stats.buckets_unavailable,
+		__dev_buckets_available(ca, stats),
 		stats.sectors[BCH_DATA_sb],
 		stats.sectors[BCH_DATA_journal],
 		stats.sectors[BCH_DATA_btree],

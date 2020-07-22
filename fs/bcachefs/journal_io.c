@@ -759,7 +759,7 @@ static void __journal_write_alloc(struct journal *j,
 		    sectors > ja->sectors_free)
 			continue;
 
-		bch2_dev_stripe_increment(c, ca, &j->wp.stripe);
+		bch2_dev_stripe_increment(ca, &j->wp.stripe);
 
 		bch2_bkey_append_ptr(&w->key,
 			(struct bch_extent_ptr) {

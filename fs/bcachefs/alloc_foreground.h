@@ -27,8 +27,7 @@ struct dev_alloc_list {
 struct dev_alloc_list bch2_dev_alloc_list(struct bch_fs *,
 					  struct dev_stripe_state *,
 					  struct bch_devs_mask *);
-void bch2_dev_stripe_increment(struct bch_fs *, struct bch_dev *,
-			       struct dev_stripe_state *);
+void bch2_dev_stripe_increment(struct bch_dev *, struct dev_stripe_state *);
 
 long bch2_bucket_alloc_new_fs(struct bch_dev *);
 

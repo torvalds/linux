@@ -182,7 +182,7 @@ static inline bool bucket_needs_journal_commit(struct bucket_mark m,
 
 /* Device usage: */
 
-struct bch_dev_usage bch2_dev_usage_read(struct bch_fs *, struct bch_dev *);
+struct bch_dev_usage bch2_dev_usage_read(struct bch_dev *);
 
 void bch2_dev_usage_from_buckets(struct bch_fs *);
 
@@ -202,9 +202,9 @@ static inline u64 __dev_buckets_available(struct bch_dev *ca,
 /*
  * Number of reclaimable buckets - only for use by the allocator thread:
  */
-static inline u64 dev_buckets_available(struct bch_fs *c, struct bch_dev *ca)
+static inline u64 dev_buckets_available(struct bch_dev *ca)
 {
-	return __dev_buckets_available(ca, bch2_dev_usage_read(c, ca));
+	return __dev_buckets_available(ca, bch2_dev_usage_read(ca));
 }
 
 static inline u64 __dev_buckets_free(struct bch_dev *ca,
@@ -215,9 +215,9 @@ static inline u64 __dev_buckets_free(struct bch_dev *ca,
 		fifo_used(&ca->free_inc);
 }
 
-static inline u64 dev_buckets_free(struct bch_fs *c, struct bch_dev *ca)
+static inline u64 dev_buckets_free(struct bch_dev *ca)
 {
-	return __dev_buckets_free(ca, bch2_dev_usage_read(c, ca));
+	return __dev_buckets_free(ca, bch2_dev_usage_read(ca));
 }
 
 /* Filesystem usage: */

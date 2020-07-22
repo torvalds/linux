@@ -45,7 +45,7 @@ static void pd_controllers_update(struct work_struct *work)
 	unsigned i;
 
 	for_each_member_device(ca, c, i) {
-		struct bch_dev_usage stats = bch2_dev_usage_read(c, ca);
+		struct bch_dev_usage stats = bch2_dev_usage_read(ca);
 
 		free += bucket_to_sector(ca,
 				__dev_buckets_free(ca, stats)) << 9;
@@ -514,7 +514,7 @@ static int wait_buckets_available(struct bch_fs *c, struct bch_dev *ca)
 		if (gc_count != c->gc_count)
 			ca->inc_gen_really_needs_gc = 0;
 
-		available = max_t(s64, 0, dev_buckets_available(c, ca) -
+		available = max_t(s64, 0, dev_buckets_available(ca) -
 				  ca->inc_gen_really_needs_gc);
 
 		if (available > fifo_free(&ca->free_inc) ||

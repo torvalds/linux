@@ -468,7 +468,7 @@ static long bch2_ioctl_dev_usage(struct bch_fs *c,
 	if (IS_ERR(ca))
 		return PTR_ERR(ca);
 
-	src = bch2_dev_usage_read(c, ca);
+	src = bch2_dev_usage_read(ca);
 
 	arg.state		= ca->mi.state;
 	arg.bucket_size		= ca->mi.bucket_size;

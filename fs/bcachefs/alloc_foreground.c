@@ -347,11 +347,11 @@ struct dev_alloc_list bch2_dev_alloc_list(struct bch_fs *c,
 	return ret;
 }
 
-void bch2_dev_stripe_increment(struct bch_fs *c, struct bch_dev *ca,
+void bch2_dev_stripe_increment(struct bch_dev *ca,
 			       struct dev_stripe_state *stripe)
 {
 	u64 *v = stripe->next_alloc + ca->dev_idx;
-	u64 free_space = dev_buckets_free(c, ca);
+	u64 free_space = dev_buckets_free(ca);
 	u64 free_space_inv = free_space
 		? div64_u64(1ULL << 48, free_space)
 		: 1ULL << 48;
@@ -432,7 +432,7 @@ bch2_bucket_alloc_set(struct bch_fs *c,
 		add_new_bucket(c, ptrs, devs_may_alloc,
 			       nr_effective, have_cache, flags, ob);
 
-		bch2_dev_stripe_increment(c, ca, stripe);
+		bch2_dev_stripe_increment(ca, stripe);
 
 		if (*nr_effective >= nr_replicas)
 			return ALLOC_SUCCESS;
