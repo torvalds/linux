@@ -228,6 +228,7 @@ static void cdns_pcie_ep_assert_intx(struct cdns_pcie_ep *ep, u8 fn,
 				     u8 intx, bool is_asserted)
 {
 	struct cdns_pcie *pcie = &ep->pcie;
+	unsigned long flags;
 	u32 offset;
 	u16 status;
 	u8 msg_code;
@@ -252,11 +253,13 @@ static void cdns_pcie_ep_assert_intx(struct cdns_pcie_ep *ep, u8 fn,
 		msg_code = MSG_CODE_DEASSERT_INTA + intx;
 	}
 
+	spin_lock_irqsave(&ep->lock, flags);
 	status = cdns_pcie_ep_fn_readw(pcie, fn, PCI_STATUS);
 	if (((status & PCI_STATUS_INTERRUPT) != 0) ^ (ep->irq_pending != 0)) {
 		status ^= PCI_STATUS_INTERRUPT;
 		cdns_pcie_ep_fn_writew(pcie, fn, PCI_STATUS, status);
 	}
+	spin_unlock_irqrestore(&ep->lock, flags);
 
 	offset = CDNS_PCIE_NORMAL_MSG_ROUTING(MSG_ROUTING_LOCAL) |
 		 CDNS_PCIE_NORMAL_MSG_CODE(msg_code) |
@@ -464,6 +467,7 @@ int cdns_pcie_ep_setup(struct cdns_pcie_ep *ep)
 	ep->irq_pci_addr = CDNS_PCIE_EP_IRQ_PCI_ADDR_NONE;
 	/* Reserve region 0 for IRQs */
 	set_bit(0, &ep->ob_region_map);
+	spin_lock_init(&ep->lock);
 
 	return 0;
 
