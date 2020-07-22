@@ -2037,7 +2037,8 @@ static struct ionic_lif *ionic_lif_alloc(struct ionic *ionic, unsigned int index
 				    ionic->ntxqs_per_lif, ionic->ntxqs_per_lif);
 	if (!netdev) {
 		dev_err(dev, "Cannot allocate netdev, aborting\n");
-		return ERR_PTR(-ENOMEM);
+		err = -ENOMEM;
+		goto err_out_free_lid;
 	}
 
 	SET_NETDEV_DEV(netdev, dev);
@@ -2123,6 +2124,7 @@ err_out_free_lif_info:
 err_out_free_netdev:
 	free_netdev(lif->netdev);
 	lif = NULL;
+err_out_free_lid:
 	kfree(lid);
 
 	return ERR_PTR(err);
