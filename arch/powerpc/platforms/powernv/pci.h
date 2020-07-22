@@ -260,4 +260,14 @@ extern void pnv_pci_setup_iommu_table(struct iommu_table *tbl,
 
 extern unsigned long pnv_ioda_parse_tce_sizes(struct pnv_phb *phb);
 
+static inline struct pnv_phb *pci_bus_to_pnvhb(struct pci_bus *bus)
+{
+	struct pci_controller *hose = bus->sysdata;
+
+	if (hose)
+		return hose->private_data;
+
+	return NULL;
+}
+
 #endif /* __POWERNV_PCI_H */
