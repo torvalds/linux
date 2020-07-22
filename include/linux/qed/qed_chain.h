@@ -11,6 +11,7 @@
 #include <asm/byteorder.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
+#include <linux/sizes.h>
 #include <linux/slab.h>
 #include <linux/qed/common_hsi.h>
 
@@ -120,6 +121,8 @@ struct qed_chain {
 	 * but isn't involved in regular functionality.
 	 */
 
+	u32						page_size;
+
 	/* Base address of a pre-allocated buffer for pbl */
 	struct {
 		__le64					*table_virt;
@@ -147,6 +150,7 @@ struct qed_chain_init_params {
 	enum qed_chain_use_mode				intended_use;
 	enum qed_chain_cnt_type				cnt_type;
 
+	u32						page_size;
 	u32						num_elems;
 	size_t						elem_size;
 
@@ -154,22 +158,23 @@ struct qed_chain_init_params {
 	dma_addr_t					ext_pbl_phys;
 };
 
-#define QED_CHAIN_PAGE_SIZE				0x1000
+#define QED_CHAIN_PAGE_SIZE				SZ_4K
 
-#define ELEMS_PER_PAGE(elem_size)					     \
-	(QED_CHAIN_PAGE_SIZE / (elem_size))
+#define ELEMS_PER_PAGE(elem_size, page_size)				     \
+	((page_size) / (elem_size))
 
 #define UNUSABLE_ELEMS_PER_PAGE(elem_size, mode)			     \
 	(((mode) == QED_CHAIN_MODE_NEXT_PTR) ?				     \
 	 (u8)(1 + ((sizeof(struct qed_chain_next) - 1) / (elem_size))) :     \
 	 0)
 
-#define USABLE_ELEMS_PER_PAGE(elem_size, mode)				     \
-	((u32)(ELEMS_PER_PAGE(elem_size) -				     \
+#define USABLE_ELEMS_PER_PAGE(elem_size, page_size, mode)		     \
+	((u32)(ELEMS_PER_PAGE((elem_size), (page_size)) -		     \
 	       UNUSABLE_ELEMS_PER_PAGE((elem_size), (mode))))
 
-#define QED_CHAIN_PAGE_CNT(elem_cnt, elem_size, mode)			     \
-	DIV_ROUND_UP((elem_cnt), USABLE_ELEMS_PER_PAGE((elem_size), (mode)))
+#define QED_CHAIN_PAGE_CNT(elem_cnt, elem_size, page_size, mode)	     \
+	DIV_ROUND_UP((elem_cnt),					     \
+		     USABLE_ELEMS_PER_PAGE((elem_size), (page_size), (mode)))
 
 #define is_chain_u16(p)							     \
 	((p)->cnt_type == QED_CHAIN_CNT_TYPE_U16)
@@ -604,7 +609,7 @@ static inline void qed_chain_pbl_zero_mem(struct qed_chain *p_chain)
 
 	for (i = 0; i < page_cnt; i++)
 		memset(p_chain->pbl.pp_addr_tbl[i].virt_addr, 0,
-		       QED_CHAIN_PAGE_SIZE);
+		       p_chain->page_size);
 }
 
 #endif

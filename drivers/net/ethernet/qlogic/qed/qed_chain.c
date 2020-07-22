@@ -18,8 +18,10 @@ static void qed_chain_init(struct qed_chain *chain,
 	chain->mode = params->mode;
 	chain->cnt_type = params->cnt_type;
 
-	chain->elem_per_page = ELEMS_PER_PAGE(params->elem_size);
+	chain->elem_per_page = ELEMS_PER_PAGE(params->elem_size,
+					      params->page_size);
 	chain->usable_per_page = USABLE_ELEMS_PER_PAGE(params->elem_size,
+						       params->page_size,
 						       params->mode);
 	chain->elem_unusable = UNUSABLE_ELEMS_PER_PAGE(params->elem_size,
 						       params->mode);
@@ -28,6 +30,7 @@ static void qed_chain_init(struct qed_chain *chain,
 	chain->next_page_mask = chain->usable_per_page &
 				chain->elem_per_page_mask;
 
+	chain->page_size = params->page_size;
 	chain->page_cnt = page_cnt;
 	chain->capacity = chain->usable_per_page * page_cnt;
 	chain->size = chain->elem_per_page * page_cnt;
@@ -82,7 +85,7 @@ static void qed_chain_free_next_ptr(struct qed_dev *cdev,
 		virt_next = next->next_virt;
 		phys_next = HILO_DMA_REGPAIR(next->next_phys);
 
-		dma_free_coherent(dev, QED_CHAIN_PAGE_SIZE, virt, phys);
+		dma_free_coherent(dev, chain->page_size, virt, phys);
 
 		virt = virt_next;
 		phys = phys_next;
@@ -95,7 +98,7 @@ static void qed_chain_free_single(struct qed_dev *cdev,
 	if (!chain->p_virt_addr)
 		return;
 
-	dma_free_coherent(&cdev->pdev->dev, QED_CHAIN_PAGE_SIZE,
+	dma_free_coherent(&cdev->pdev->dev, chain->page_size,
 			  chain->p_virt_addr, chain->p_phys_addr);
 }
 
@@ -113,7 +116,7 @@ static void qed_chain_free_pbl(struct qed_dev *cdev, struct qed_chain *chain)
 		if (!entry->virt_addr)
 			break;
 
-		dma_free_coherent(dev, QED_CHAIN_PAGE_SIZE, entry->virt_addr,
+		dma_free_coherent(dev, chain->page_size, entry->virt_addr,
 				  entry->dma_map);
 	}
 
@@ -158,7 +161,7 @@ qed_chain_alloc_sanity_check(struct qed_dev *cdev,
 {
 	u64 chain_size;
 
-	chain_size = ELEMS_PER_PAGE(params->elem_size);
+	chain_size = ELEMS_PER_PAGE(params->elem_size, params->page_size);
 	chain_size *= page_cnt;
 
 	if (!chain_size)
@@ -201,7 +204,7 @@ static int qed_chain_alloc_next_ptr(struct qed_dev *cdev,
 	u32 i;
 
 	for (i = 0; i < chain->page_cnt; i++) {
-		virt = dma_alloc_coherent(dev, QED_CHAIN_PAGE_SIZE, &phys,
+		virt = dma_alloc_coherent(dev, chain->page_size, &phys,
 					  GFP_KERNEL);
 		if (!virt)
 			return -ENOMEM;
@@ -232,7 +235,7 @@ static int qed_chain_alloc_single(struct qed_dev *cdev,
 	dma_addr_t phys;
 	void *virt;
 
-	virt = dma_alloc_coherent(&cdev->pdev->dev, QED_CHAIN_PAGE_SIZE,
+	virt = dma_alloc_coherent(&cdev->pdev->dev, chain->page_size,
 				  &phys, GFP_KERNEL);
 	if (!virt)
 		return -ENOMEM;
@@ -282,7 +285,7 @@ static int qed_chain_alloc_pbl(struct qed_dev *cdev, struct qed_chain *chain)
 
 alloc_pages:
 	for (i = 0; i < page_cnt; i++) {
-		virt = dma_alloc_coherent(dev, QED_CHAIN_PAGE_SIZE, &phys,
+		virt = dma_alloc_coherent(dev, chain->page_size, &phys,
 					  GFP_KERNEL);
 		if (!virt)
 			return -ENOMEM;
@@ -318,11 +321,15 @@ int qed_chain_alloc(struct qed_dev *cdev, struct qed_chain *chain,
 	u32 page_cnt;
 	int rc;
 
+	if (!params->page_size)
+		params->page_size = QED_CHAIN_PAGE_SIZE;
+
 	if (params->mode == QED_CHAIN_MODE_SINGLE)
 		page_cnt = 1;
 	else
 		page_cnt = QED_CHAIN_PAGE_CNT(params->num_elems,
 					      params->elem_size,
+					      params->page_size,
 					      params->mode);
 
 	rc = qed_chain_alloc_sanity_check(cdev, params, page_cnt);
@@ -330,9 +337,10 @@ int qed_chain_alloc(struct qed_dev *cdev, struct qed_chain *chain,
 		DP_NOTICE(cdev,
 			  "Cannot allocate a chain with the given arguments:\n");
 		DP_NOTICE(cdev,
-			  "[use_mode %d, mode %d, cnt_type %d, num_elems %d, elem_size %zu]\n",
+			  "[use_mode %d, mode %d, cnt_type %d, num_elems %d, elem_size %zu, page_size %u]\n",
 			  params->intended_use, params->mode, params->cnt_type,
-			  params->num_elems, params->elem_size);
+			  params->num_elems, params->elem_size,
+			  params->page_size);
 		return rc;
 	}
 

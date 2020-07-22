@@ -1960,9 +1960,11 @@ qedr_iwarp_create_kernel_qp(struct qedr_dev *dev,
 
 	in_params->sq_num_pages = QED_CHAIN_PAGE_CNT(n_sq_elems,
 						     QEDR_SQE_ELEMENT_SIZE,
+						     QED_CHAIN_PAGE_SIZE,
 						     QED_CHAIN_MODE_PBL);
 	in_params->rq_num_pages = QED_CHAIN_PAGE_CNT(n_rq_elems,
 						     QEDR_RQE_ELEMENT_SIZE,
+						     QED_CHAIN_PAGE_SIZE,
 						     QED_CHAIN_MODE_PBL);
 
 	qp->qed_qp = dev->ops->rdma_create_qp(dev->rdma_ctx,
