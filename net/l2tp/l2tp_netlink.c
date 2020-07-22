@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/*
- * L2TP netlink layer, for management
+/* L2TP netlink layer, for management
  *
  * Copyright (c) 2008,2009,2010 Katalix Systems Ltd
  *

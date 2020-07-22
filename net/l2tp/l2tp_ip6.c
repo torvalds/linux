@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/*
- * L2TPv3 IP encapsulation support for IPv6
+/* L2TPv3 IP encapsulation support for IPv6
  *
  * Copyright (c) 2012 Katalix Systems Ltd
  */
@@ -38,7 +37,8 @@ struct l2tp_ip6_sock {
 	u32			peer_conn_id;
 
 	/* ipv6_pinfo has to be the last member of l2tp_ip6_sock, see
-	   inet6_sk_generic */
+	 * inet6_sk_generic
+	 */
 	struct ipv6_pinfo	inet6;
 };
 
@@ -519,7 +519,7 @@ static int l2tp_ip6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	int err;
 
 	/* Rough check on arithmetic overflow,
-	   better check is made in ip6_append_data().
+	 * better check is made in ip6_append_data().
 	 */
 	if (len > INT_MAX)
 		return -EMSGSIZE;
@@ -528,9 +528,7 @@ static int l2tp_ip6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	if (msg->msg_flags & MSG_OOB)
 		return -EOPNOTSUPP;
 
-	/*
-	 *	Get and verify the address.
-	 */
+	/* Get and verify the address */
 	memset(&fl6, 0, sizeof(fl6));
 
 	fl6.flowi6_mark = sk->sk_mark;
@@ -555,8 +553,7 @@ static int l2tp_ip6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 			}
 		}
 
-		/*
-		 * Otherwise it will be difficult to maintain
+		/* Otherwise it will be difficult to maintain
 		 * sk->sk_dst_cache.
 		 */
 		if (sk->sk_state == TCP_ESTABLISHED &&

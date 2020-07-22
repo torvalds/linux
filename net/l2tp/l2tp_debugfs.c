@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/*
- * L2TP subsystem debugfs
+/* L2TP subsystem debugfs
  *
  * Copyright (c) 2010 Katalix Systems Ltd
  */

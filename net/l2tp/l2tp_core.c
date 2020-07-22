@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/*
- * L2TP core.
+/* L2TP core.
  *
  * Copyright (c) 2008,2009,2010 Katalix Systems Ltd
  *
@@ -102,8 +101,10 @@ static struct workqueue_struct *l2tp_wq;
 static unsigned int l2tp_net_id;
 struct l2tp_net {
 	struct list_head l2tp_tunnel_list;
+	/* Lock for write access to l2tp_tunnel_list */
 	spinlock_t l2tp_tunnel_list_lock;
 	struct hlist_head l2tp_session_hlist[L2TP_HASH_SIZE_2];
+	/* Lock for write access to l2tp_session_hlist */
 	spinlock_t l2tp_session_hlist_lock;
 };
 
@@ -678,7 +679,7 @@ void l2tp_recv_common(struct l2tp_session *session, struct sk_buff *skb,
 	}
 
 	if (L2TP_SKB_CB(skb)->has_seq) {
-		/* Received a packet with sequence numbers. If we're the LNS,
+		/* Received a packet with sequence numbers. If we're the LAC,
 		 * check if we sre sending sequence numbers and if not,
 		 * configure it so.
 		 */
@@ -1604,7 +1605,7 @@ void __l2tp_session_unhash(struct l2tp_session *session)
 EXPORT_SYMBOL_GPL(__l2tp_session_unhash);
 
 /* This function is used by the netlink SESSION_DELETE command and by
-   pseudowire modules.
+ * pseudowire modules.
  */
 int l2tp_session_delete(struct l2tp_session *session)
 {
