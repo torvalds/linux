@@ -970,11 +970,6 @@ static int brcm_pcie_probe(struct platform_device *pdev)
 
 	pcie->ssc = of_property_read_bool(np, "brcm,enable-ssc");
 
-	ret = pci_parse_request_of_pci_ranges(pcie->dev, &bridge->windows,
-					      &bridge->dma_ranges, NULL);
-	if (ret)
-		return ret;
-
 	ret = clk_prepare_enable(pcie->clk);
 	if (ret) {
 		dev_err(&pdev->dev, "could not enable clock\n");

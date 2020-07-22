@@ -465,11 +465,6 @@ static int faraday_pci_probe(struct platform_device *pdev)
 	if (IS_ERR(p->base))
 		return PTR_ERR(p->base);
 
-	ret = pci_parse_request_of_pci_ranges(dev, &host->windows,
-					      &host->dma_ranges, NULL);
-	if (ret)
-		return ret;
-
 	win = resource_list_first_type(&host->windows, IORESOURCE_IO);
 	if (win) {
 		io = win->res;

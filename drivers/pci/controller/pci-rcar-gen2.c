@@ -282,7 +282,6 @@ static int rcar_pci_probe(struct platform_device *pdev)
 	struct rcar_pci_priv *priv;
 	struct pci_host_bridge *bridge;
 	void __iomem *reg;
-	int ret;
 
 	bridge = devm_pci_alloc_host_bridge(dev, sizeof(*priv));
 	if (!bridge)
@@ -314,11 +313,6 @@ static int rcar_pci_probe(struct platform_device *pdev)
 		dev_err(dev, "no valid irq found\n");
 		return priv->irq;
 	}
-
-	ret = pci_parse_request_of_pci_ranges(dev, &bridge->windows,
-					      &bridge->dma_ranges, NULL);
-	if (ret)
-		return ret;
 
 	bridge->ops = &rcar_pci_ops;
 

@@ -2682,12 +2682,6 @@ static int tegra_pcie_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&pcie->ports);
 	pcie->dev = dev;
 
-	err = pci_parse_request_of_pci_ranges(dev, &host->windows, NULL, NULL);
-	if (err) {
-		dev_err(dev, "Getting bridge resources failed\n");
-		return err;
-	}
-
 	err = tegra_pcie_parse_dt(pcie);
 	if (err < 0)
 		return err;

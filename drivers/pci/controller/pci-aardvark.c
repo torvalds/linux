@@ -1130,13 +1130,6 @@ static int advk_pcie_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = pci_parse_request_of_pci_ranges(dev, &bridge->windows,
-					      &bridge->dma_ranges, NULL);
-	if (ret) {
-		dev_err(dev, "Failed to parse resources\n");
-		return ret;
-	}
-
 	pcie->reset_gpio = devm_gpiod_get_from_of_node(dev, dev->of_node,
 						       "reset-gpios", 0,
 						       GPIOD_OUT_LOW,

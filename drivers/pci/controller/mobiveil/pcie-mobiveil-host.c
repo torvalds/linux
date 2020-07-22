@@ -577,14 +577,6 @@ int mobiveil_pcie_host_probe(struct mobiveil_pcie *pcie)
 	if (!mobiveil_pcie_is_bridge(pcie))
 		return -ENODEV;
 
-	/* parse the host bridge base addresses from the device tree file */
-	ret = pci_parse_request_of_pci_ranges(dev, &bridge->windows,
-					      &bridge->dma_ranges, NULL);
-	if (ret) {
-		dev_err(dev, "Getting bridge resources failed\n");
-		return ret;
-	}
-
 	/*
 	 * configure all inbound and outbound windows and prepare the RC for
 	 * config access

@@ -67,7 +67,7 @@ static int versatile_pci_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct resource *res;
 	struct resource_entry *entry;
-	int ret, i, myslot = -1, mem = 1;
+	int i, myslot = -1, mem = 1;
 	u32 val;
 	void __iomem *local_pci_cfg_base;
 	struct pci_host_bridge *bridge;
@@ -88,11 +88,6 @@ static int versatile_pci_probe(struct platform_device *pdev)
 	versatile_cfg_base[1] = devm_pci_remap_cfg_resource(dev, res);
 	if (IS_ERR(versatile_cfg_base[1]))
 		return PTR_ERR(versatile_cfg_base[1]);
-
-	ret = pci_parse_request_of_pci_ranges(dev, &bridge->windows,
-					      NULL, NULL);
-	if (ret)
-		return ret;
 
 	resource_list_for_each_entry(entry, &bridge->windows) {
 		if (resource_type(entry->res) == IORESOURCE_MEM) {

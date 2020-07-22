@@ -794,13 +794,6 @@ static int altera_pcie_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = pci_parse_request_of_pci_ranges(dev, &bridge->windows,
-					      &bridge->dma_ranges, NULL);
-	if (ret) {
-		dev_err(dev, "Failed add resources\n");
-		return ret;
-	}
-
 	ret = altera_pcie_init_irq_domain(pcie);
 	if (ret) {
 		dev_err(dev, "Failed creating IRQ Domain\n");

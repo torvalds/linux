@@ -171,13 +171,7 @@ static int cdns_pcie_host_init_address_translation(struct cdns_pcie_rc *rc)
 static int cdns_pcie_host_init(struct device *dev,
 			       struct cdns_pcie_rc *rc)
 {
-	struct pci_host_bridge *bridge = pci_host_bridge_from_priv(rc);
 	int err;
-
-	/* Parse our PCI ranges and request their resources */
-	err = pci_parse_request_of_pci_ranges(dev, &bridge->windows, NULL, NULL);
-	if (err)
-		return err;
 
 	err = cdns_pcie_host_init_root_port(rc);
 	if (err)

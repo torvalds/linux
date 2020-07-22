@@ -346,11 +346,6 @@ int dw_pcie_host_init(struct pcie_port *pp)
 	if (!bridge)
 		return -ENOMEM;
 
-	ret = pci_parse_request_of_pci_ranges(dev, &bridge->windows,
-					      &bridge->dma_ranges, NULL);
-	if (ret)
-		return ret;
-
 	/* Get the I/O and memory ranges from DT */
 	resource_list_for_each_entry(win, &bridge->windows) {
 		switch (resource_type(win->res)) {

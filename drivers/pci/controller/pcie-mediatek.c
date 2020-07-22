@@ -1027,14 +1027,7 @@ static int mtk_pcie_setup(struct mtk_pcie *pcie)
 	struct device *dev = pcie->dev;
 	struct device_node *node = dev->of_node, *child;
 	struct mtk_pcie_port *port, *tmp;
-	struct pci_host_bridge *host = pci_host_bridge_from_priv(pcie);
-	struct list_head *windows = &host->windows;
 	int err;
-
-	err = pci_parse_request_of_pci_ranges(dev, windows,
-					      &host->dma_ranges, NULL);
-	if (err)
-		return err;
 
 	for_each_available_child_of_node(node, child) {
 		int slot;

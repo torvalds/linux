@@ -635,6 +635,10 @@ struct pci_host_bridge *devm_pci_alloc_host_bridge(struct device *dev,
 	if (ret)
 		return NULL;
 
+	ret = devm_of_pci_bridge_init(dev, bridge);
+	if (ret)
+		return NULL;
+
 	return bridge;
 }
 EXPORT_SYMBOL(devm_pci_alloc_host_bridge);
