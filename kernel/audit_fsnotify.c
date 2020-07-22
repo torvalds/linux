@@ -36,7 +36,7 @@ static struct fsnotify_group *audit_fsnotify_group;
 
 /* fsnotify events we care about. */
 #define AUDIT_FS_EVENTS (FS_MOVE | FS_CREATE | FS_DELETE | FS_DELETE_SELF |\
-			 FS_MOVE_SELF | FS_EVENT_ON_CHILD)
+			 FS_MOVE_SELF)
 
 static void audit_fsnotify_mark_free(struct audit_fsnotify_mark *audit_mark)
 {
