@@ -3232,7 +3232,8 @@ void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 			}
 
 			rkcif_assign_new_buffer_pingpong(stream, 0, mipi_id);
-			rkcif_luma_isr(&cif_dev->luma_vdev, mipi_id);
+			if (cif_dev->chip_id == CHIP_RV1126_CIF)
+				rkcif_luma_isr(&cif_dev->luma_vdev, mipi_id);
 
 			if (active_buf) {
 				vb_done = &active_buf->vb;
@@ -3243,7 +3244,6 @@ void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 			if (cif_dev->hdr.mode == NO_HDR) {
 				if (active_buf)
 					rkcif_vb_done_oneframe(stream, vb_done);
-				v4l2_err(&cif_dev->v4l2_dev, "no_hdr vb done\n");
 			} else if (cif_dev->hdr.mode == HDR_X2) {
 				if (mipi_id == RKCIF_STREAM_MIPI_ID0) {
 					if (cif_dev->rdbk_buf[RDBK_L]) {
