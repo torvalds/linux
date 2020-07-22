@@ -154,6 +154,7 @@ struct pnv_phb {
 		unsigned long		m64_size;
 		unsigned long		m64_segsize;
 		unsigned long		m64_base;
+#define MAX_M64_BARS 64
 		unsigned long		m64_bar_alloc;
 
 		/* IO ports */
@@ -243,8 +244,11 @@ struct pnv_iov_data {
 	/* Did we map the VF BARs with single-PE IODA BARs? */
 	bool    m64_single_mode;
 
-	int     (*m64_map)[PCI_SRIOV_NUM_BARS];
-#define IODA_INVALID_M64        (-1)
+	/*
+	 * Bit mask used to track which m64 windows are used to map the
+	 * SR-IOV BARs for this device.
+	 */
+	DECLARE_BITMAP(used_m64_bar_mask, MAX_M64_BARS);
 
 	/*
 	 * If we map the SR-IOV BARs with a segmented window then

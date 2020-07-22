@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include <linux/kernel.h>
 #include <linux/ioport.h>
@@ -302,28 +302,20 @@ static int pnv_pci_vf_release_m64(struct pci_dev *pdev, u16 num_vfs)
 {
 	struct pnv_iov_data   *iov;
 	struct pnv_phb        *phb;
-	int                    i, j;
-	int                    m64_bars;
+	int window_id;
 
 	phb = pci_bus_to_pnvhb(pdev->bus);
 	iov = pnv_iov_get(pdev);
 
-	if (iov->m64_single_mode)
-		m64_bars = num_vfs;
-	else
-		m64_bars = 1;
+	for_each_set_bit(window_id, iov->used_m64_bar_mask, MAX_M64_BARS) {
+		opal_pci_phb_mmio_enable(phb->opal_id,
+					 OPAL_M64_WINDOW_TYPE,
+					 window_id,
+					 0);
 
-	for (i = 0; i < PCI_SRIOV_NUM_BARS; i++)
-		for (j = 0; j < m64_bars; j++) {
-			if (iov->m64_map[j][i] == IODA_INVALID_M64)
-				continue;
-			opal_pci_phb_mmio_enable(phb->opal_id,
-				OPAL_M64_WINDOW_TYPE, iov->m64_map[j][i], 0);
-			clear_bit(iov->m64_map[j][i], &phb->ioda.m64_bar_alloc);
-			iov->m64_map[j][i] = IODA_INVALID_M64;
-		}
+		clear_bit(window_id, &phb->ioda.m64_bar_alloc);
+	}
 
-	kfree(iov->m64_map);
 	return 0;
 }
 
@@ -349,23 +341,14 @@ static int pnv_pci_vf_assign_m64(struct pci_dev *pdev, u16 num_vfs)
 	else
 		m64_bars = 1;
 
-	iov->m64_map = kmalloc_array(m64_bars,
-				     sizeof(*iov->m64_map),
-				     GFP_KERNEL);
-	if (!iov->m64_map)
-		return -ENOMEM;
-	/* Initialize the m64_map to IODA_INVALID_M64 */
-	for (i = 0; i < m64_bars ; i++)
-		for (j = 0; j < PCI_SRIOV_NUM_BARS; j++)
-			iov->m64_map[i][j] = IODA_INVALID_M64;
-
-
 	for (i = 0; i < PCI_SRIOV_NUM_BARS; i++) {
 		res = &pdev->resource[i + PCI_IOV_RESOURCES];
 		if (!res->flags || !res->parent)
 			continue;
 
 		for (j = 0; j < m64_bars; j++) {
+
+			/* allocate a window ID for this BAR */
 			do {
 				win = find_next_zero_bit(&phb->ioda.m64_bar_alloc,
 						phb->ioda.m64_bar_idx + 1, 0);
@@ -373,8 +356,7 @@ static int pnv_pci_vf_assign_m64(struct pci_dev *pdev, u16 num_vfs)
 				if (win >= phb->ioda.m64_bar_idx + 1)
 					goto m64_failed;
 			} while (test_and_set_bit(win, &phb->ioda.m64_bar_alloc));
-
-			iov->m64_map[j][i] = win;
+			set_bit(win, iov->used_m64_bar_mask);
 
 			if (iov->m64_single_mode) {
 				size = pci_iov_resource_size(pdev,
@@ -390,12 +372,12 @@ static int pnv_pci_vf_assign_m64(struct pci_dev *pdev, u16 num_vfs)
 				pe_num = iov->pe_num_map[j];
 				rc = opal_pci_map_pe_mmio_window(phb->opal_id,
 						pe_num, OPAL_M64_WINDOW_TYPE,
-						iov->m64_map[j][i], 0);
+						win, 0);
 			}
 
 			rc = opal_pci_set_phb_mem_window(phb->opal_id,
 						 OPAL_M64_WINDOW_TYPE,
-						 iov->m64_map[j][i],
+						 win,
 						 start,
 						 0, /* unused */
 						 size);
@@ -409,10 +391,10 @@ static int pnv_pci_vf_assign_m64(struct pci_dev *pdev, u16 num_vfs)
 
 			if (iov->m64_single_mode)
 				rc = opal_pci_phb_mmio_enable(phb->opal_id,
-				     OPAL_M64_WINDOW_TYPE, iov->m64_map[j][i], 2);
+				     OPAL_M64_WINDOW_TYPE, win, 2);
 			else
 				rc = opal_pci_phb_mmio_enable(phb->opal_id,
-				     OPAL_M64_WINDOW_TYPE, iov->m64_map[j][i], 1);
+				     OPAL_M64_WINDOW_TYPE, win, 1);
 
 			if (rc != OPAL_SUCCESS) {
 				dev_err(&pdev->dev, "Failed to enable M64 window #%d: %llx\n",
