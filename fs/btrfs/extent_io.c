@@ -4481,6 +4481,9 @@ int try_release_extent_mapping(struct page *page, gfp_t mask)
 	    page->mapping->host->i_size > SZ_16M) {
 		u64 len;
 		while (start <= end) {
+			struct btrfs_fs_info *fs_info;
+			u64 cur_gen;
+
 			len = end - start + 1;
 			write_lock(&map->lock);
 			em = lookup_extent_mapping(map, start, len);
@@ -4505,13 +4508,27 @@ int try_release_extent_mapping(struct page *page, gfp_t mask)
 			 * extra reference on the em.
 			 */
 			if (list_empty(&em->list) ||
-			    test_bit(EXTENT_FLAG_LOGGING, &em->flags)) {
-				set_bit(BTRFS_INODE_NEEDS_FULL_SYNC,
-					&btrfs_inode->runtime_flags);
-				remove_extent_mapping(map, em);
-				/* once for the rb tree */
-				free_extent_map(em);
-			}
+			    test_bit(EXTENT_FLAG_LOGGING, &em->flags))
+				goto remove_em;
+			/*
+			 * If it's in the list of modified extents, remove it
+			 * only if its generation is older then the current one,
+			 * in which case we don't need it for a fast fsync.
+			 * Otherwise don't remove it, we could be racing with an
+			 * ongoing fast fsync that could miss the new extent.
+			 */
+			fs_info = btrfs_inode->root->fs_info;
+			spin_lock(&fs_info->trans_lock);
+			cur_gen = fs_info->generation;
+			spin_unlock(&fs_info->trans_lock);
+			if (em->generation >= cur_gen)
+				goto next;
+remove_em:
+			set_bit(BTRFS_INODE_NEEDS_FULL_SYNC,
+				&btrfs_inode->runtime_flags);
+			remove_extent_mapping(map, em);
+			/* once for the rb tree */
+			free_extent_map(em);
 next:
 			start = extent_map_end(em);
 			write_unlock(&map->lock);
