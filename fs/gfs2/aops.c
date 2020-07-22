@@ -106,11 +106,16 @@ out:
 	return 0;
 }
 
-/* This is the same as calling block_write_full_page, but it also
+/**
+ * gfs2_write_jdata_page - gfs2 jdata-specific version of block_write_full_page
+ * @page: The page to write
+ * @wbc: The writeback control
+ *
+ * This is the same as calling block_write_full_page, but it also
  * writes pages outside of i_size
  */
-static int gfs2_write_full_page(struct page *page, get_block_t *get_block,
-				struct writeback_control *wbc)
+static int gfs2_write_jdata_page(struct page *page,
+				 struct writeback_control *wbc)
 {
 	struct inode * const inode = page->mapping->host;
 	loff_t i_size = i_size_read(inode);
@@ -128,7 +133,7 @@ static int gfs2_write_full_page(struct page *page, get_block_t *get_block,
 	if (page->index == end_index && offset)
 		zero_user_segment(page, offset, PAGE_SIZE);
 
-	return __block_write_full_page(inode, page, get_block, wbc,
+	return __block_write_full_page(inode, page, gfs2_get_block_noalloc, wbc,
 				       end_buffer_async_write);
 }
 
@@ -157,7 +162,7 @@ static int __gfs2_jdata_writepage(struct page *page, struct writeback_control *w
 		}
 		gfs2_page_add_databufs(ip, page, 0, sdp->sd_vfs->s_blocksize);
 	}
-	return gfs2_write_full_page(page, gfs2_get_block_noalloc, wbc);
+	return gfs2_write_jdata_page(page, wbc);
 }
 
 /**
