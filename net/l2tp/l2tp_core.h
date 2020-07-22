@@ -154,7 +154,7 @@ struct l2tp_tunnel {
 	struct net		*l2tp_net;	/* the net we belong to */
 
 	refcount_t		ref_count;
-	void (*old_sk_destruct)(struct sock *);
+	void (*old_sk_destruct)(struct sock *sk);
 	struct sock		*sock;		/* parent socket */
 	int			fd;		/* parent fd, if tunnel socket was created
 						 * by userspace
