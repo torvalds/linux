@@ -240,10 +240,7 @@ struct pnv_iov_data {
 	/* number of VFs enabled */
 	u16     num_vfs;
 
-	/*
-	 * Pointer to the IODA PE state of each VF. Note that this is a pointer
-	 * into the PHB's PE array (phb->ioda.pe_array).
-	 */
+	/* pointer to the array of VF PEs. num_vfs long*/
 	struct pnv_ioda_pe *vf_pe_arr;
 
 	/* Did we map the VF BARs with single-PE IODA BARs? */

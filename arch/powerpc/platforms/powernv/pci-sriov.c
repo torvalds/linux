@@ -606,16 +606,18 @@ static void pnv_pci_sriov_disable(struct pci_dev *pdev)
 	num_vfs = iov->num_vfs;
 	base_pe = iov->vf_pe_arr[0].pe_number;
 
+	if (WARN_ON(!iov))
+		return;
+
 	/* Release VF PEs */
 	pnv_ioda_release_vf_PE(pdev);
 
-	if (phb->type == PNV_PHB_IODA2) {
-		if (!iov->m64_single_mode)
-			pnv_pci_vf_resource_shift(pdev, -base_pe);
+	/* Un-shift the IOV BAR resources */
+	if (!iov->m64_single_mode)
+		pnv_pci_vf_resource_shift(pdev, -base_pe);
 
-		/* Release M64 windows */
-		pnv_pci_vf_release_m64(pdev, num_vfs);
-	}
+	/* Release M64 windows */
+	pnv_pci_vf_release_m64(pdev, num_vfs);
 }
 
 static void pnv_ioda_setup_vf_PE(struct pci_dev *pdev, u16 num_vfs)
@@ -689,41 +691,50 @@ static int pnv_pci_sriov_enable(struct pci_dev *pdev, u16 num_vfs)
 	phb = pci_bus_to_pnvhb(pdev->bus);
 	iov = pnv_iov_get(pdev);
 
-	if (phb->type == PNV_PHB_IODA2) {
-		if (!iov->vfs_expanded) {
-			dev_info(&pdev->dev,
-				 "don't support this SRIOV device with non 64bit-prefetchable IOV BAR\n");
-			return -ENOSPC;
-		}
+	/*
+	 * There's a calls to IODA2 PE setup code littered throughout. We could
+	 * probably fix that, but we'd still have problems due to the
+	 * restriction inherent on IODA1 PHBs.
+	 *
+	 * NB: We class IODA3 as IODA2 since they're very similar.
+	 */
+	if (phb->type != PNV_PHB_IODA2) {
+		pci_err(pdev, "SR-IOV is not supported on this PHB\n");
+		return -ENXIO;
+	}
 
-		/* allocate a contigious block of PEs for our VFs */
-		base_pe = pnv_ioda_alloc_pe(phb, num_vfs);
-		if (!base_pe) {
-			pci_err(pdev, "Unable to allocate PEs for %d VFs\n", num_vfs);
-			return -EBUSY;
-		}
+	if (!iov->vfs_expanded) {
+		dev_info(&pdev->dev, "don't support this SRIOV device with non 64bit-prefetchable IOV BAR\n");
+		return -ENOSPC;
+	}
 
-		iov->vf_pe_arr = base_pe;
-		iov->num_vfs = num_vfs;
+	/* allocate a contigious block of PEs for our VFs */
+	base_pe = pnv_ioda_alloc_pe(phb, num_vfs);
+	if (!base_pe) {
+		pci_err(pdev, "Unable to allocate PEs for %d VFs\n", num_vfs);
+		return -EBUSY;
+	}
 
-		/* Assign M64 window accordingly */
-		ret = pnv_pci_vf_assign_m64(pdev, num_vfs);
-		if (ret) {
-			dev_info(&pdev->dev, "Not enough M64 window resources\n");
-			goto m64_failed;
-		}
+	iov->vf_pe_arr = base_pe;
+	iov->num_vfs = num_vfs;
 
-		/*
-		 * When using one M64 BAR to map one IOV BAR, we need to shift
-		 * the IOV BAR according to the PE# allocated to the VFs.
-		 * Otherwise, the PE# for the VF will conflict with others.
-		 */
-		if (!iov->m64_single_mode) {
-			ret = pnv_pci_vf_resource_shift(pdev,
-							base_pe->pe_number);
-			if (ret)
-				goto shift_failed;
-		}
+	/* Assign M64 window accordingly */
+	ret = pnv_pci_vf_assign_m64(pdev, num_vfs);
+	if (ret) {
+		dev_info(&pdev->dev, "Not enough M64 window resources\n");
+		goto m64_failed;
+	}
+
+	/*
+	 * When using one M64 BAR to map one IOV BAR, we need to shift
+	 * the IOV BAR according to the PE# allocated to the VFs.
+	 * Otherwise, the PE# for the VF will conflict with others.
+	 */
+	if (!iov->m64_single_mode) {
+		ret = pnv_pci_vf_resource_shift(pdev,
+						base_pe->pe_number);
+		if (ret)
+			goto shift_failed;
 	}
 
 	/* Setup VF PEs */
