@@ -595,8 +595,6 @@ static int btrfs_free_stale_devices(const char *path,
 			btrfs_free_device(device);
 
 			ret = 0;
-			if (fs_devices->num_devices == 0)
-				break;
 		}
 		mutex_unlock(&fs_devices->device_list_mutex);
 
