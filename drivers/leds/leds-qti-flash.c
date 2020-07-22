@@ -117,6 +117,7 @@ struct flash_node_data {
 	struct led_classdev_flash		fdev;
 	u32				ires_ua;
 	u32				default_ires_ua;
+	u32				user_current_ma;
 	u32				current_ma;
 	u32				max_current;
 	u8				duration;
@@ -438,6 +439,7 @@ static int qti_flash_led_disable(struct flash_node_data *fnode)
 
 	fnode->configured = false;
 	fnode->current_ma = 0;
+	fnode->user_current_ma = 0;
 
 out:
 	spin_unlock(&led->lock);
@@ -450,10 +452,9 @@ static enum led_brightness qti_flash_led_brightness_get(
 	return led_cdev->brightness;
 }
 
-static void qti_flash_led_brightness_set(struct led_classdev *led_cdev,
+static int __qti_flash_led_brightness_set(struct led_classdev *led_cdev,
 					enum led_brightness brightness)
 {
-	struct qti_flash_led *led = NULL;
 	struct flash_node_data *fnode = NULL;
 	struct led_classdev_flash *fdev = NULL;
 	int rc;
@@ -462,21 +463,20 @@ static void qti_flash_led_brightness_set(struct led_classdev *led_cdev,
 
 	fdev = container_of(led_cdev, struct led_classdev_flash, led_cdev);
 	fnode = container_of(fdev, struct flash_node_data, fdev);
-	led = fnode->led;
 
 	if (!brightness) {
 		rc = qti_flash_led_strobe(fnode->led, NULL,
 			FLASH_LED_ENABLE(fnode->id), 0);
 		if (rc < 0) {
 			pr_err("Failed to destrobe LED, rc=%d\n", rc);
-			return;
+			return rc;
 		}
 
 		rc = qti_flash_led_disable(fnode);
 		if (rc < 0)
 			pr_err("Failed to disable LED\n");
 
-		return;
+		return rc;
 	}
 
 	min_current_ma = DIV_ROUND_CLOSEST(fnode->ires_ua, 1000);
@@ -501,10 +501,11 @@ static void qti_flash_led_brightness_set(struct led_classdev *led_cdev,
 	rc = qti_flash_led_enable(fnode);
 	if (rc < 0)
 		pr_err("Failed to set brightness %d to LED\n", brightness);
+
+	return rc;
 }
 
-static int qti_flash_led_symmetry_config(
-				struct flash_switch_data *snode)
+static int qti_flash_led_symmetry_config(struct flash_switch_data *snode)
 {
 	struct qti_flash_led *led = snode->led;
 	int i, total_curr_ma = 0, symmetric_leds = 0, per_led_curr_ma;
@@ -525,7 +526,7 @@ static int qti_flash_led_symmetry_config(
 	for (i = 0; i < led->num_fnodes; i++) {
 		if ((snode->led_mask & BIT(led->fnode[i].id)) &&
 			(led->fnode[i].type == type)) {
-			total_curr_ma += led->fnode[i].current_ma;
+			total_curr_ma += led->fnode[i].user_current_ma;
 			symmetric_leds++;
 		}
 	}
@@ -549,12 +550,41 @@ static int qti_flash_led_symmetry_config(
 	for (i = 0; i < led->num_fnodes; i++) {
 		if (snode->led_mask & BIT(led->fnode[i].id) &&
 			led->fnode[i].type == type) {
-			qti_flash_led_brightness_set(
+			__qti_flash_led_brightness_set(
 				&led->fnode[i].fdev.led_cdev, per_led_curr_ma);
 		}
 	}
 
 	return 0;
+}
+
+static void qti_flash_led_brightness_set(struct led_classdev *led_cdev,
+					enum led_brightness brightness)
+{
+	struct led_classdev_flash *fdev;
+	struct flash_node_data *fnode;
+	struct qti_flash_led *led;
+	int i, rc;
+
+	fdev = container_of(led_cdev, struct led_classdev_flash, led_cdev);
+	fnode = container_of(fdev, struct flash_node_data, fdev);
+	led = fnode->led;
+
+	rc = __qti_flash_led_brightness_set(led_cdev, brightness);
+	if (!rc)
+		fnode->user_current_ma = brightness;
+	else
+		return;
+
+	for (i = 0; i < led->num_snodes; i++) {
+		pr_debug("snode[%d] symm %d, enabled %d\n", i,
+				led->snode[i].symmetry_en,
+				led->snode[i].enabled);
+		if (led->snode[i].symmetry_en && led->snode[i].enabled) {
+			qti_flash_led_symmetry_config(&led->snode[i]);
+			break;
+		}
+	}
 }
 
 static int qti_flash_switch_enable(struct flash_switch_data *snode)
