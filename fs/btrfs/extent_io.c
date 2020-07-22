@@ -4524,8 +4524,14 @@ int try_release_extent_mapping(struct page *page, gfp_t mask)
 			if (em->generation >= cur_gen)
 				goto next;
 remove_em:
-			set_bit(BTRFS_INODE_NEEDS_FULL_SYNC,
-				&btrfs_inode->runtime_flags);
+			/*
+			 * We only remove extent maps that are not in the list of
+			 * modified extents or that are in the list but with a
+			 * generation lower then the current generation, so there
+			 * is no need to set the full fsync flag on the inode (it
+			 * hurts the fsync performance for workloads with a data
+			 * size that exceeds or is close to the system's memory).
+			 */
 			remove_extent_mapping(map, em);
 			/* once for the rb tree */
 			free_extent_map(em);
