@@ -499,6 +499,11 @@ free_buff:
 	return ret == num ? 0 : -EIO;
 }
 
+inline uint32_t amdgpu_ras_eeprom_get_record_max_length(void)
+{
+	return EEPROM_MAX_RECORD_NUM;
+}
+
 /* Used for testing if bugs encountered */
 #if 0
 void amdgpu_ras_eeprom_test(struct amdgpu_ras_eeprom_control *control)
