@@ -180,10 +180,10 @@ static int __ref modify_pmd_table(pud_t *pud, unsigned long addr,
 				 */
 				new_page = vmemmap_alloc_block(PMD_SIZE,
 							       NUMA_NO_NODE);
-				if (!new_page)
-					goto out;
-				pmd_val(*pmd) = __pa(new_page) | prot;
-				continue;
+				if (new_page) {
+					pmd_val(*pmd) = __pa(new_page) | prot;
+					continue;
+				}
 			}
 			pte = vmem_pte_alloc();
 			if (!pte)
