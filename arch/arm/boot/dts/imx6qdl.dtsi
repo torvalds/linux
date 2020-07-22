@@ -69,17 +69,6 @@
 		};
 	};
 
-	tempmon: tempmon {
-		compatible = "fsl,imx6q-tempmon";
-		interrupt-parent = <&gpc>;
-		interrupts = <0 49 IRQ_TYPE_LEVEL_HIGH>;
-		fsl,tempmon = <&anatop>;
-		nvmem-cells = <&tempmon_calib>, <&tempmon_temp_grade>;
-		nvmem-cell-names = "calib", "temp_grade";
-		clocks = <&clks IMX6QDL_CLK_PLL3_USB_OTG>;
-		#thermal-sensor-cells = <0>;
-	};
-
 	ldb: ldb {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -256,7 +245,7 @@
 			interrupt-parent = <&intc>;
 		};
 
-		L2: l2-cache@a02000 {
+		L2: cache-controller@a02000 {
 			compatible = "arm,pl310-cache";
 			reg = <0x00a02000 0x1000>;
 			interrupts = <0 92 IRQ_TYPE_LEVEL_HIGH>;
@@ -510,7 +499,7 @@
 			};
 
 			pwm1: pwm@2080000 {
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 				compatible = "fsl,imx6q-pwm", "fsl,imx27-pwm";
 				reg = <0x02080000 0x4000>;
 				interrupts = <0 83 IRQ_TYPE_LEVEL_HIGH>;
@@ -521,7 +510,7 @@
 			};
 
 			pwm2: pwm@2084000 {
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 				compatible = "fsl,imx6q-pwm", "fsl,imx27-pwm";
 				reg = <0x02084000 0x4000>;
 				interrupts = <0 84 IRQ_TYPE_LEVEL_HIGH>;
@@ -532,7 +521,7 @@
 			};
 
 			pwm3: pwm@2088000 {
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 				compatible = "fsl,imx6q-pwm", "fsl,imx27-pwm";
 				reg = <0x02088000 0x4000>;
 				interrupts = <0 85 IRQ_TYPE_LEVEL_HIGH>;
@@ -543,7 +532,7 @@
 			};
 
 			pwm4: pwm@208c000 {
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 				compatible = "fsl,imx6q-pwm", "fsl,imx27-pwm";
 				reg = <0x0208c000 0x4000>;
 				interrupts = <0 86 IRQ_TYPE_LEVEL_HIGH>;
@@ -795,6 +784,17 @@
 					anatop-min-voltage = <725000>;
 					anatop-max-voltage = <1450000>;
 				};
+
+				tempmon: tempmon {
+					compatible = "fsl,imx6q-tempmon";
+					interrupt-parent = <&gpc>;
+					interrupts = <0 49 IRQ_TYPE_LEVEL_HIGH>;
+					fsl,tempmon = <&anatop>;
+					nvmem-cells = <&tempmon_calib>, <&tempmon_temp_grade>;
+					nvmem-cell-names = "calib", "temp_grade";
+					clocks = <&clks IMX6QDL_CLK_PLL3_USB_OTG>;
+					#thermal-sensor-cells = <0>;
+				};
 			};
 
 			usbphy1: usbphy@20c9000 {
@@ -871,8 +871,7 @@
 				reg = <0x020dc000 0x4000>;
 				interrupt-controller;
 				#interrupt-cells = <3>;
-				interrupts = <0 89 IRQ_TYPE_LEVEL_HIGH>,
-					     <0 90 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts = <0 89 IRQ_TYPE_LEVEL_HIGH>;
 				interrupt-parent = <&intc>;
 				clocks = <&clks IMX6QDL_CLK_IPG>;
 				clock-names = "ipg";
@@ -1057,7 +1056,7 @@
 					     <0 126 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
-			usdhc1: usdhc@2190000 {
+			usdhc1: mmc@2190000 {
 				compatible = "fsl,imx6q-usdhc";
 				reg = <0x02190000 0x4000>;
 				interrupts = <0 22 IRQ_TYPE_LEVEL_HIGH>;
@@ -1069,7 +1068,7 @@
 				status = "disabled";
 			};
 
-			usdhc2: usdhc@2194000 {
+			usdhc2: mmc@2194000 {
 				compatible = "fsl,imx6q-usdhc";
 				reg = <0x02194000 0x4000>;
 				interrupts = <0 23 IRQ_TYPE_LEVEL_HIGH>;
@@ -1081,7 +1080,7 @@
 				status = "disabled";
 			};
 
-			usdhc3: usdhc@2198000 {
+			usdhc3: mmc@2198000 {
 				compatible = "fsl,imx6q-usdhc";
 				reg = <0x02198000 0x4000>;
 				interrupts = <0 24 IRQ_TYPE_LEVEL_HIGH>;
@@ -1093,7 +1092,7 @@
 				status = "disabled";
 			};
 
-			usdhc4: usdhc@219c000 {
+			usdhc4: mmc@219c000 {
 				compatible = "fsl,imx6q-usdhc";
 				reg = <0x0219c000 0x4000>;
 				interrupts = <0 25 IRQ_TYPE_LEVEL_HIGH>;
@@ -1162,7 +1161,7 @@
 				status = "disabled";
 			};
 
-			ocotp: ocotp-ctrl@21bc000 {
+			ocotp: efuse@21bc000 {
 				compatible = "fsl,imx6q-ocotp", "syscon";
 				reg = <0x021bc000 0x4000>;
 				clocks = <&clks IMX6QDL_CLK_IIM>;

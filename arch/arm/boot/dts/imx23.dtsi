@@ -442,7 +442,7 @@
 				status = "disabled";
 			};
 
-			ocotp@8002c000 {
+			efuse@8002c000 {
 				compatible = "fsl,imx23-ocotp", "fsl,ocotp";
 				#address-cells = <1>;
 				#size-cells = <1>;
