@@ -31,6 +31,7 @@ static struct nvmem_config econfig = {
 	.name = "qfprom",
 	.stride = 1,
 	.word_size = 1,
+	.id = NVMEM_DEVID_AUTO,
 	.reg_read = qfprom_reg_read,
 };
 
