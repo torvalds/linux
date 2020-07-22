@@ -423,8 +423,7 @@ static int cdns3_probe(struct platform_device *pdev)
 	if (cdns->dev_irq < 0)
 		dev_err(dev, "couldn't get peripheral irq\n");
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dev");
-	regs = devm_ioremap_resource(dev, res);
+	regs = devm_platform_ioremap_resource_byname(pdev, "dev");
 	if (IS_ERR(regs))
 		return PTR_ERR(regs);
 	cdns->dev_regs	= regs;
