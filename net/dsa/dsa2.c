@@ -727,8 +727,12 @@ static int dsa_switch_parse_ports_of(struct dsa_switch *ds,
 
 	ports = of_get_child_by_name(dn, "ports");
 	if (!ports) {
-		dev_err(ds->dev, "no ports child node found\n");
-		return -EINVAL;
+		/* The second possibility is "ethernet-ports" */
+		ports = of_get_child_by_name(dn, "ethernet-ports");
+		if (!ports) {
+			dev_err(ds->dev, "no ports child node found\n");
+			return -EINVAL;
+		}
 	}
 
 	for_each_available_child_of_node(ports, port) {
