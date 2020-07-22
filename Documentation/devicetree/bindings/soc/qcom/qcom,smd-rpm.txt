@@ -21,8 +21,10 @@ resources.
 	Definition: must be one of:
 		    "qcom,rpm-apq8084"
 		    "qcom,rpm-msm8916"
+		    "qcom,rpm-msm8936"
 		    "qcom,rpm-msm8974"
 		    "qcom,rpm-msm8976"
+		    "qcom,rpm-msm8994"
 		    "qcom,rpm-msm8998"
 		    "qcom,rpm-sdm660"
 		    "qcom,rpm-qcs404"
