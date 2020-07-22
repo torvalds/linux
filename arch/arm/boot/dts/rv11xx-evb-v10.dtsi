@@ -929,11 +929,10 @@
 	status = "okay";
 	clock-frequency = <400000>;
 
-	gt1x: gt1x@5d {
+	gt1x: gt1x@14 {
 		compatible = "goodix,gt1x";
-		reg = <0x5d>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&tp_int_pin>;
+		reg = <0x14>;
+		gtp_ics_slot_report;
 		power-supply = <&vcc18_lcd_n>;
 		goodix,rst-gpio = <&gpio2 RK_PB0 GPIO_ACTIVE_HIGH>;
 		goodix,irq-gpio = <&gpio2 RK_PB2 GPIO_ACTIVE_LOW>;
@@ -1080,13 +1079,6 @@
 		/omit-if-no-ref/
 		wifi_wake_host: wifi-wake-host {
 			rockchip,pins = <0 RK_PB0 0 &pcfg_pull_up>;
-		};
-	};
-
-	gt1x {
-		/omit-if-no-ref/
-		tp_int_pin: tp-int-pin {
-			rockchip,pins = <2 RK_PB2 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 };
