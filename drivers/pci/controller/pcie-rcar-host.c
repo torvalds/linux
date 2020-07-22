@@ -940,7 +940,7 @@ static int rcar_pcie_probe(struct platform_device *pdev)
 	int err;
 	struct pci_host_bridge *bridge;
 
-	bridge = pci_alloc_host_bridge(sizeof(*host));
+	bridge = devm_pci_alloc_host_bridge(dev, sizeof(*host));
 	if (!bridge)
 		return -ENOMEM;
 
@@ -952,7 +952,7 @@ static int rcar_pcie_probe(struct platform_device *pdev)
 	err = pci_parse_request_of_pci_ranges(dev, &host->resources,
 					      &bridge->dma_ranges, NULL);
 	if (err)
-		goto err_free_bridge;
+		return err;
 
 	pm_runtime_enable(pcie->dev);
 	err = pm_runtime_get_sync(pcie->dev);
@@ -1033,9 +1033,6 @@ err_pm_put:
 err_pm_disable:
 	pm_runtime_disable(dev);
 	pci_free_resource_list(&host->resources);
-
-err_free_bridge:
-	pci_free_host_bridge(bridge);
 
 	return err;
 }
