@@ -49,7 +49,7 @@ static void qed_chain_free_pbl(struct qed_dev *cdev, struct qed_chain *chain)
 {
 	struct device *dev = &cdev->pdev->dev;
 	struct addr_tbl_entry *entry;
-	u32 pbl_size, i;
+	u32 i;
 
 	if (!chain->pbl.pp_addr_tbl)
 		return;
@@ -63,11 +63,10 @@ static void qed_chain_free_pbl(struct qed_dev *cdev, struct qed_chain *chain)
 				  entry->dma_map);
 	}
 
-	pbl_size = chain->page_cnt * QED_CHAIN_PBL_ENTRY_SIZE;
-
 	if (!chain->b_external_pbl)
-		dma_free_coherent(dev, pbl_size, chain->pbl_sp.p_virt_table,
-				  chain->pbl_sp.p_phys_table);
+		dma_free_coherent(dev, chain->pbl_sp.table_size,
+				  chain->pbl_sp.table_virt,
+				  chain->pbl_sp.table_phys);
 
 	vfree(chain->pbl.pp_addr_tbl);
 	chain->pbl.pp_addr_tbl = NULL;
@@ -190,7 +189,7 @@ static int qed_chain_alloc_pbl(struct qed_dev *cdev, struct qed_chain *chain,
 	struct device *dev = &cdev->pdev->dev;
 	struct addr_tbl_entry *addr_tbl;
 	dma_addr_t phys, pbl_phys;
-	void *pbl_virt;
+	__le64 *pbl_virt;
 	u32 page_cnt, i;
 	size_t size;
 	void *virt;
@@ -214,7 +213,7 @@ static int qed_chain_alloc_pbl(struct qed_dev *cdev, struct qed_chain *chain,
 
 		chain->b_external_pbl = true;
 	} else {
-		size = array_size(page_cnt, QED_CHAIN_PBL_ENTRY_SIZE);
+		size = array_size(page_cnt, sizeof(*pbl_virt));
 		if (unlikely(size == SIZE_MAX))
 			return -EOVERFLOW;
 
@@ -225,8 +224,9 @@ static int qed_chain_alloc_pbl(struct qed_dev *cdev, struct qed_chain *chain,
 	if (!pbl_virt)
 		return -ENOMEM;
 
-	chain->pbl_sp.p_virt_table = pbl_virt;
-	chain->pbl_sp.p_phys_table = pbl_phys;
+	chain->pbl_sp.table_virt = pbl_virt;
+	chain->pbl_sp.table_phys = pbl_phys;
+	chain->pbl_sp.table_size = size;
 
 	for (i = 0; i < page_cnt; i++) {
 		virt = dma_alloc_coherent(dev, QED_CHAIN_PAGE_SIZE, &phys,
@@ -240,8 +240,7 @@ static int qed_chain_alloc_pbl(struct qed_dev *cdev, struct qed_chain *chain,
 		}
 
 		/* Fill the PBL table with the physical address of the page */
-		*(dma_addr_t *)pbl_virt = phys;
-		pbl_virt += QED_CHAIN_PBL_ENTRY_SIZE;
+		pbl_virt[i] = cpu_to_le64(phys);
 
 		/* Keep the virtual address of the page */
 		addr_tbl[i].virt_addr = virt;

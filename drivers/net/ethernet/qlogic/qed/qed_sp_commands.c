@@ -366,11 +366,11 @@ int qed_sp_pf_start(struct qed_hwfn *p_hwfn,
 
 	/* Place EQ address in RAMROD */
 	DMA_REGPAIR_LE(p_ramrod->event_ring_pbl_addr,
-		       p_hwfn->p_eq->chain.pbl_sp.p_phys_table);
+		       qed_chain_get_pbl_phys(&p_hwfn->p_eq->chain));
 	page_cnt = (u8)qed_chain_get_page_cnt(&p_hwfn->p_eq->chain);
 	p_ramrod->event_ring_num_pages = page_cnt;
 	DMA_REGPAIR_LE(p_ramrod->consolid_q_pbl_addr,
-		       p_hwfn->p_consq->chain.pbl_sp.p_phys_table);
+		       qed_chain_get_pbl_phys(&p_hwfn->p_consq->chain));
 
 	qed_tunn_set_pf_start_params(p_hwfn, p_tunn, &p_ramrod->tunnel_config);
 

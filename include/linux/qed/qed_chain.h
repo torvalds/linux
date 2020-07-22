@@ -127,8 +127,9 @@ struct qed_chain {
 
 	/* Base address of a pre-allocated buffer for pbl */
 	struct {
-		dma_addr_t				p_phys_table;
-		void					*p_virt_table;
+		__le64					*table_virt;
+		dma_addr_t				table_phys;
+		size_t					table_size;
 	}						pbl_sp;
 
 	/* Address of first page of the chain - the address is required
@@ -146,7 +147,6 @@ struct qed_chain {
 	bool						b_external_pbl;
 };
 
-#define QED_CHAIN_PBL_ENTRY_SIZE			8
 #define QED_CHAIN_PAGE_SIZE				0x1000
 
 #define ELEMS_PER_PAGE(elem_size)					     \
@@ -236,7 +236,7 @@ static inline u32 qed_chain_get_page_cnt(struct qed_chain *p_chain)
 
 static inline dma_addr_t qed_chain_get_pbl_phys(struct qed_chain *p_chain)
 {
-	return p_chain->pbl_sp.p_phys_table;
+	return p_chain->pbl_sp.table_phys;
 }
 
 /**
@@ -527,8 +527,8 @@ static inline void qed_chain_init_params(struct qed_chain *p_chain,
 	p_chain->capacity = p_chain->usable_per_page * page_cnt;
 	p_chain->size = p_chain->elem_per_page * page_cnt;
 
-	p_chain->pbl_sp.p_phys_table = 0;
-	p_chain->pbl_sp.p_virt_table = NULL;
+	p_chain->pbl_sp.table_phys = 0;
+	p_chain->pbl_sp.table_virt = NULL;
 	p_chain->pbl.pp_addr_tbl = NULL;
 }
 
@@ -569,8 +569,8 @@ static inline void qed_chain_init_pbl_mem(struct qed_chain *p_chain,
 					  dma_addr_t p_phys_pbl,
 					  struct addr_tbl_entry *pp_addr_tbl)
 {
-	p_chain->pbl_sp.p_phys_table = p_phys_pbl;
-	p_chain->pbl_sp.p_virt_table = p_virt_pbl;
+	p_chain->pbl_sp.table_phys = p_phys_pbl;
+	p_chain->pbl_sp.table_virt = p_virt_pbl;
 	p_chain->pbl.pp_addr_tbl = pp_addr_tbl;
 }
 
