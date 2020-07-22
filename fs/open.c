@@ -530,7 +530,7 @@ out:
 	return error;
 }
 
-int ksys_chroot(const char __user *filename)
+SYSCALL_DEFINE1(chroot, const char __user *, filename)
 {
 	struct path path;
 	int error;
@@ -561,11 +561,6 @@ dput_and_out:
 	}
 out:
 	return error;
-}
-
-SYSCALL_DEFINE1(chroot, const char __user *, filename)
-{
-	return ksys_chroot(filename);
 }
 
 static int chmod_common(const struct path *path, umode_t mode)
