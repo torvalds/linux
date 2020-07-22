@@ -231,8 +231,6 @@ int cdns_pcie_host_setup(struct cdns_pcie_rc *rc)
 		goto err_init;
 
 	bridge->ops = &cdns_pcie_host_ops;
-	bridge->map_irq = of_irq_parse_and_map_pci;
-	bridge->swizzle_irq = pci_common_swizzle;
 
 	ret = pci_host_probe(bridge);
 	if (ret < 0)

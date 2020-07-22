@@ -722,8 +722,6 @@ static int v3_pci_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	host->ops = &v3_pci_ops;
-	host->map_irq = of_irq_parse_and_map_pci;
-	host->swizzle_irq = pci_common_swizzle;
 	v3 = pci_host_bridge_priv(host);
 	host->sysdata = v3;
 	v3->dev = dev;

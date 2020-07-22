@@ -2707,7 +2707,6 @@ static int tegra_pcie_probe(struct platform_device *pdev)
 
 	host->ops = &tegra_pcie_ops;
 	host->map_irq = tegra_pcie_map_irq;
-	host->swizzle_irq = pci_common_swizzle;
 
 	err = pci_host_probe(host);
 	if (err < 0) {

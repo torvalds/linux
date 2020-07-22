@@ -991,8 +991,6 @@ static int brcm_pcie_probe(struct platform_device *pdev)
 
 	bridge->ops = &brcm_pcie_ops;
 	bridge->sysdata = pcie;
-	bridge->map_irq = of_irq_parse_and_map_pci;
-	bridge->swizzle_irq = pci_common_swizzle;
 
 	platform_set_drvdata(pdev, pcie);
 

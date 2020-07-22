@@ -569,6 +569,9 @@ int devm_of_pci_bridge_init(struct device *dev, struct pci_host_bridge *bridge)
 	if (!dev->of_node)
 		return 0;
 
+	bridge->swizzle_irq = pci_common_swizzle;
+	bridge->map_irq = of_irq_parse_and_map_pci;
+
 	return pci_parse_request_of_pci_ranges(dev, bridge);
 }
 

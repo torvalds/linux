@@ -1526,7 +1526,6 @@ int iproc_pcie_setup(struct iproc_pcie *pcie, struct list_head *res)
 	host->ops = &iproc_pcie_ops;
 	host->sysdata = pcie;
 	host->map_irq = pcie->map_irq;
-	host->swizzle_irq = pci_common_swizzle;
 
 	ret = pci_host_probe(host);
 	if (ret < 0) {

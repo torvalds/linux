@@ -596,8 +596,6 @@ int mobiveil_pcie_host_probe(struct mobiveil_pcie *pcie)
 	/* Initialize bridge */
 	bridge->sysdata = pcie;
 	bridge->ops = &mobiveil_pcie_ops;
-	bridge->map_irq = of_irq_parse_and_map_pci;
-	bridge->swizzle_irq = pci_common_swizzle;
 
 	ret = mobiveil_bringup_link(pcie);
 	if (ret) {

@@ -99,9 +99,10 @@ static int iproc_pcie_pltfm_probe(struct platform_device *pdev)
 	switch (pcie->type) {
 	case IPROC_PCIE_PAXC:
 	case IPROC_PCIE_PAXC_V2:
+		pcie->map_irq = 0;
 		break;
 	default:
-		pcie->map_irq = of_irq_parse_and_map_pci;
+		break;
 	}
 
 	ret = iproc_pcie_setup(pcie, &bridge->windows);

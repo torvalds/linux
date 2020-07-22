@@ -643,8 +643,6 @@ static int xilinx_pcie_probe(struct platform_device *pdev)
 
 	bridge->sysdata = port;
 	bridge->ops = &xilinx_pcie_ops;
-	bridge->map_irq = of_irq_parse_and_map_pci;
-	bridge->swizzle_irq = pci_common_swizzle;
 
 #ifdef CONFIG_PCI_MSI
 	xilinx_pcie_msi_chip.dev = dev;
