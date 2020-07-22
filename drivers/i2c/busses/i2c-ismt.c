@@ -176,9 +176,6 @@ struct ismt_priv {
 	u8 buffer[I2C_SMBUS_BLOCK_MAX + 16];	/* temp R/W data buffer */
 };
 
-/**
- * ismt_ids - PCI device IDs supported by this driver
- */
 static const struct pci_device_id ismt_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_S1200_SMT0) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_S1200_SMT1) },
@@ -197,6 +194,8 @@ MODULE_PARM_DESC(bus_speed, "Bus Speed in kHz (0 = BIOS default)");
 
 /**
  * __ismt_desc_dump() - dump the contents of a specific descriptor
+ * @dev: the iSMT device
+ * @desc: the iSMT hardware descriptor
  */
 static void __ismt_desc_dump(struct device *dev, const struct ismt_desc *desc)
 {
@@ -628,11 +627,6 @@ static u32 ismt_func(struct i2c_adapter *adap)
 	       I2C_FUNC_SMBUS_PEC;
 }
 
-/**
- * smbus_algorithm - the adapter algorithm and supported functionality
- * @smbus_xfer: the adapter algorithm
- * @functionality: functionality supported by the adapter
- */
 static const struct i2c_algorithm smbus_algorithm = {
 	.smbus_xfer	= ismt_access,
 	.functionality	= ismt_func,
