@@ -11,7 +11,8 @@ static void qed_chain_init_params(struct qed_chain *chain,
 				  u32 page_cnt, u8 elem_size,
 				  enum qed_chain_use_mode intended_use,
 				  enum qed_chain_mode mode,
-				  enum qed_chain_cnt_type cnt_type)
+				  enum qed_chain_cnt_type cnt_type,
+				  const struct qed_chain_ext_pbl *ext_pbl)
 {
 	memset(chain, 0, sizeof(*chain));
 
@@ -31,6 +32,13 @@ static void qed_chain_init_params(struct qed_chain *chain,
 	chain->page_cnt = page_cnt;
 	chain->capacity = chain->usable_per_page * page_cnt;
 	chain->size = chain->elem_per_page * page_cnt;
+
+	if (ext_pbl && ext_pbl->p_pbl_virt) {
+		chain->pbl_sp.table_virt = ext_pbl->p_pbl_virt;
+		chain->pbl_sp.table_phys = ext_pbl->p_pbl_phys;
+
+		chain->b_external_pbl = true;
+	}
 }
 
 static void qed_chain_init_next_ptr_elem(const struct qed_chain *chain,
@@ -230,8 +238,7 @@ static int qed_chain_alloc_single(struct qed_dev *cdev,
 	return 0;
 }
 
-static int qed_chain_alloc_pbl(struct qed_dev *cdev, struct qed_chain *chain,
-			       struct qed_chain_ext_pbl *ext_pbl)
+static int qed_chain_alloc_pbl(struct qed_dev *cdev, struct qed_chain *chain)
 {
 	struct device *dev = &cdev->pdev->dev;
 	struct addr_tbl_entry *addr_tbl;
@@ -253,21 +260,14 @@ static int qed_chain_alloc_pbl(struct qed_dev *cdev, struct qed_chain *chain,
 
 	chain->pbl.pp_addr_tbl = addr_tbl;
 
-	if (ext_pbl) {
-		size = 0;
-		pbl_virt = ext_pbl->p_pbl_virt;
-		pbl_phys = ext_pbl->p_pbl_phys;
+	if (chain->b_external_pbl)
+		goto alloc_pages;
 
-		chain->b_external_pbl = true;
-	} else {
-		size = array_size(page_cnt, sizeof(*pbl_virt));
-		if (unlikely(size == SIZE_MAX))
-			return -EOVERFLOW;
+	size = array_size(page_cnt, sizeof(*pbl_virt));
+	if (unlikely(size == SIZE_MAX))
+		return -EOVERFLOW;
 
-		pbl_virt = dma_alloc_coherent(dev, size, &pbl_phys,
-					      GFP_KERNEL);
-	}
-
+	pbl_virt = dma_alloc_coherent(dev, size, &pbl_phys, GFP_KERNEL);
 	if (!pbl_virt)
 		return -ENOMEM;
 
@@ -275,6 +275,7 @@ static int qed_chain_alloc_pbl(struct qed_dev *cdev, struct qed_chain *chain,
 	chain->pbl_sp.table_phys = pbl_phys;
 	chain->pbl_sp.table_size = size;
 
+alloc_pages:
 	for (i = 0; i < page_cnt; i++) {
 		virt = dma_alloc_coherent(dev, QED_CHAIN_PAGE_SIZE, &phys,
 					  GFP_KERNEL);
@@ -325,7 +326,7 @@ int qed_chain_alloc(struct qed_dev *cdev,
 	}
 
 	qed_chain_init_params(chain, page_cnt, elem_size, intended_use, mode,
-			      cnt_type);
+			      cnt_type, ext_pbl);
 
 	switch (mode) {
 	case QED_CHAIN_MODE_NEXT_PTR:
@@ -335,7 +336,7 @@ int qed_chain_alloc(struct qed_dev *cdev,
 		rc = qed_chain_alloc_single(cdev, chain);
 		break;
 	case QED_CHAIN_MODE_PBL:
-		rc = qed_chain_alloc_pbl(cdev, chain, ext_pbl);
+		rc = qed_chain_alloc_pbl(cdev, chain);
 		break;
 	default:
 		return -EINVAL;
