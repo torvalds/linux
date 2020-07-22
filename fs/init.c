@@ -122,6 +122,31 @@ int __init init_eaccess(const char *filename)
 	return error;
 }
 
+int __init init_mknod(const char *filename, umode_t mode, unsigned int dev)
+{
+	struct dentry *dentry;
+	struct path path;
+	int error;
+
+	if (S_ISFIFO(mode) || S_ISSOCK(mode))
+		dev = 0;
+	else if (!(S_ISBLK(mode) || S_ISCHR(mode)))
+		return -EINVAL;
+
+	dentry = kern_path_create(AT_FDCWD, filename, &path, 0);
+	if (IS_ERR(dentry))
+		return PTR_ERR(dentry);
+
+	if (!IS_POSIXACL(path.dentry->d_inode))
+		mode &= ~current_umask();
+	error = security_path_mknod(&path, dentry, mode, dev);
+	if (!error)
+		error = vfs_mknod(path.dentry->d_inode, dentry, mode,
+				  new_decode_dev(dev));
+	done_path_create(&path, dentry);
+	return error;
+}
+
 int __init init_link(const char *oldname, const char *newname)
 {
 	struct dentry *new_dentry;

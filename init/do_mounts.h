@@ -17,7 +17,7 @@ extern int root_mountflags;
 static inline __init int create_dev(char *name, dev_t dev)
 {
 	init_unlink(name);
-	return ksys_mknod(name, S_IFBLK|0600, new_encode_dev(dev));
+	return init_mknod(name, S_IFBLK | 0600, new_encode_dev(dev));
 }
 
 #ifdef CONFIG_BLK_DEV_RAM
