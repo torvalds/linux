@@ -190,6 +190,11 @@ static inline u16 nvme_req_qid(struct request *req)
  * @NVME_CTRL_CONNECTING:	Controller is disconnected, now connecting the
  *				transport
  * @NVME_CTRL_DELETING:		Controller is deleting (or scheduled deletion)
+ * @NVME_CTRL_DELETING_NOIO:	Controller is deleting and I/O is not
+ *				disabled/failed immediately. This state comes
+ * 				after all async event processing took place and
+ * 				before ns removal and the controller deletion
+ * 				progress
  * @NVME_CTRL_DEAD:		Controller is non-present/unresponsive during
  *				shutdown or removal. In this case we forcibly
  *				kill all inflight I/O as they have no chance to
@@ -201,6 +206,7 @@ enum nvme_ctrl_state {
 	NVME_CTRL_RESETTING,
 	NVME_CTRL_CONNECTING,
 	NVME_CTRL_DELETING,
+	NVME_CTRL_DELETING_NOIO,
 	NVME_CTRL_DEAD,
 };
 
