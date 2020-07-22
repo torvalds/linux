@@ -14,6 +14,7 @@
 #include <linux/timer.h>
 #include <linux/init.h>
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
 
@@ -44,29 +45,53 @@
 
 /* LED devices */
 
+static struct gpiod_lookup_table smdk_led4_gpio_table = {
+	.dev_id = "s3c24xx_led.0",
+	.table = {
+		GPIO_LOOKUP("GPF", 4, NULL, GPIO_ACTIVE_LOW | GPIO_OPEN_DRAIN),
+		{ },
+	},
+};
+
+static struct gpiod_lookup_table smdk_led5_gpio_table = {
+	.dev_id = "s3c24xx_led.1",
+	.table = {
+		GPIO_LOOKUP("GPF", 5, NULL, GPIO_ACTIVE_LOW | GPIO_OPEN_DRAIN),
+		{ },
+	},
+};
+
+static struct gpiod_lookup_table smdk_led6_gpio_table = {
+	.dev_id = "s3c24xx_led.2",
+	.table = {
+		GPIO_LOOKUP("GPF", 6, NULL, GPIO_ACTIVE_LOW | GPIO_OPEN_DRAIN),
+		{ },
+	},
+};
+
+static struct gpiod_lookup_table smdk_led7_gpio_table = {
+	.dev_id = "s3c24xx_led.3",
+	.table = {
+		GPIO_LOOKUP("GPF", 7, NULL, GPIO_ACTIVE_LOW | GPIO_OPEN_DRAIN),
+		{ },
+	},
+};
+
 static struct s3c24xx_led_platdata smdk_pdata_led4 = {
-	.gpio		= S3C2410_GPF(4),
-	.flags		= S3C24XX_LEDF_ACTLOW | S3C24XX_LEDF_TRISTATE,
 	.name		= "led4",
 	.def_trigger	= "timer",
 };
 
 static struct s3c24xx_led_platdata smdk_pdata_led5 = {
-	.gpio		= S3C2410_GPF(5),
-	.flags		= S3C24XX_LEDF_ACTLOW | S3C24XX_LEDF_TRISTATE,
 	.name		= "led5",
 	.def_trigger	= "nand-disk",
 };
 
 static struct s3c24xx_led_platdata smdk_pdata_led6 = {
-	.gpio		= S3C2410_GPF(6),
-	.flags		= S3C24XX_LEDF_ACTLOW | S3C24XX_LEDF_TRISTATE,
 	.name		= "led6",
 };
 
 static struct s3c24xx_led_platdata smdk_pdata_led7 = {
-	.gpio		= S3C2410_GPF(7),
-	.flags		= S3C24XX_LEDF_ACTLOW | S3C24XX_LEDF_TRISTATE,
 	.name		= "led7",
 };
 
@@ -179,26 +204,24 @@ static struct platform_device __initdata *smdk_devs[] = {
 	&smdk_led7,
 };
 
-static const struct gpio smdk_led_gpios[] = {
-	{ S3C2410_GPF(4), GPIOF_OUT_INIT_HIGH, NULL },
-	{ S3C2410_GPF(5), GPIOF_OUT_INIT_HIGH, NULL },
-	{ S3C2410_GPF(6), GPIOF_OUT_INIT_HIGH, NULL },
-	{ S3C2410_GPF(7), GPIOF_OUT_INIT_HIGH, NULL },
-};
-
 void __init smdk_machine_init(void)
 {
-	/* Configure the LEDs (even if we have no LED support)*/
-
-	int ret = gpio_request_array(smdk_led_gpios,
-				     ARRAY_SIZE(smdk_led_gpios));
-	if (!WARN_ON(ret < 0))
-		gpio_free_array(smdk_led_gpios, ARRAY_SIZE(smdk_led_gpios));
-
 	if (machine_is_smdk2443())
 		smdk_nand_info.twrph0 = 50;
 
 	s3c_nand_set_platdata(&smdk_nand_info);
+
+	/* Disable pull-up on the LED lines */
+	s3c_gpio_setpull(S3C2410_GPF(4), S3C_GPIO_PULL_NONE);
+	s3c_gpio_setpull(S3C2410_GPF(5), S3C_GPIO_PULL_NONE);
+	s3c_gpio_setpull(S3C2410_GPF(6), S3C_GPIO_PULL_NONE);
+	s3c_gpio_setpull(S3C2410_GPF(7), S3C_GPIO_PULL_NONE);
+
+	/* Add lookups for the lines */
+	gpiod_add_lookup_table(&smdk_led4_gpio_table);
+	gpiod_add_lookup_table(&smdk_led5_gpio_table);
+	gpiod_add_lookup_table(&smdk_led6_gpio_table);
+	gpiod_add_lookup_table(&smdk_led7_gpio_table);
 
 	platform_add_devices(smdk_devs, ARRAY_SIZE(smdk_devs));
 
