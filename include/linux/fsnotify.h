@@ -38,6 +38,14 @@ static inline void fsnotify_dirent(struct inode *dir, struct dentry *dentry,
 	fsnotify_name(dir, mask, d_inode(dentry), &dentry->d_name, 0);
 }
 
+static inline void fsnotify_inode(struct inode *inode, __u32 mask)
+{
+	if (S_ISDIR(inode->i_mode))
+		mask |= FS_ISDIR;
+
+	fsnotify(inode, mask, inode, FSNOTIFY_EVENT_INODE, NULL, 0);
+}
+
 /* Notify this dentry's parent about a child's events. */
 static inline int fsnotify_parent(struct dentry *dentry, __u32 mask,
 				  const void *data, int data_type)
@@ -105,12 +113,7 @@ static inline int fsnotify_perm(struct file *file, int mask)
  */
 static inline void fsnotify_link_count(struct inode *inode)
 {
-	__u32 mask = FS_ATTRIB;
-
-	if (S_ISDIR(inode->i_mode))
-		mask |= FS_ISDIR;
-
-	fsnotify(inode, mask, inode, FSNOTIFY_EVENT_INODE, NULL, 0);
+	fsnotify_inode(inode, FS_ATTRIB);
 }
 
 /*
@@ -125,7 +128,6 @@ static inline void fsnotify_move(struct inode *old_dir, struct inode *new_dir,
 	u32 fs_cookie = fsnotify_get_cookie();
 	__u32 old_dir_mask = FS_MOVED_FROM;
 	__u32 new_dir_mask = FS_MOVED_TO;
-	__u32 mask = FS_MOVE_SELF;
 	const struct qstr *new_name = &moved->d_name;
 
 	if (old_dir == new_dir)
@@ -134,7 +136,6 @@ static inline void fsnotify_move(struct inode *old_dir, struct inode *new_dir,
 	if (isdir) {
 		old_dir_mask |= FS_ISDIR;
 		new_dir_mask |= FS_ISDIR;
-		mask |= FS_ISDIR;
 	}
 
 	fsnotify_name(old_dir, old_dir_mask, source, old_name, fs_cookie);
@@ -144,7 +145,7 @@ static inline void fsnotify_move(struct inode *old_dir, struct inode *new_dir,
 		fsnotify_link_count(target);
 
 	if (source)
-		fsnotify(source, mask, source, FSNOTIFY_EVENT_INODE, NULL, 0);
+		fsnotify_inode(source, FS_MOVE_SELF);
 	audit_inode_child(new_dir, moved, AUDIT_TYPE_CHILD_CREATE);
 }
 
@@ -169,12 +170,7 @@ static inline void fsnotify_vfsmount_delete(struct vfsmount *mnt)
  */
 static inline void fsnotify_inoderemove(struct inode *inode)
 {
-	__u32 mask = FS_DELETE_SELF;
-
-	if (S_ISDIR(inode->i_mode))
-		mask |= FS_ISDIR;
-
-	fsnotify(inode, mask, inode, FSNOTIFY_EVENT_INODE, NULL, 0);
+	fsnotify_inode(inode, FS_DELETE_SELF);
 	__fsnotify_inode_delete(inode);
 }
 
