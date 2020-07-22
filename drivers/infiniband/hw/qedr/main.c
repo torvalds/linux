@@ -177,6 +177,8 @@ static int qedr_iw_register_device(struct qedr_dev *dev)
 }
 
 static const struct ib_device_ops qedr_roce_dev_ops = {
+	.alloc_xrcd = qedr_alloc_xrcd,
+	.dealloc_xrcd = qedr_dealloc_xrcd,
 	.get_port_immutable = qedr_roce_port_immutable,
 	.query_pkey = qedr_query_pkey,
 };
@@ -186,6 +188,10 @@ static void qedr_roce_register_device(struct qedr_dev *dev)
 	dev->ibdev.node_type = RDMA_NODE_IB_CA;
 
 	ib_set_device_ops(&dev->ibdev, &qedr_roce_dev_ops);
+
+	dev->ibdev.uverbs_cmd_mask |= QEDR_UVERBS(OPEN_XRCD) |
+		QEDR_UVERBS(CLOSE_XRCD) |
+		QEDR_UVERBS(CREATE_XSRQ);
 }
 
 static const struct ib_device_ops qedr_dev_ops = {
@@ -232,6 +238,7 @@ static const struct ib_device_ops qedr_dev_ops = {
 	INIT_RDMA_OBJ_SIZE(ib_cq, qedr_cq, ibcq),
 	INIT_RDMA_OBJ_SIZE(ib_pd, qedr_pd, ibpd),
 	INIT_RDMA_OBJ_SIZE(ib_srq, qedr_srq, ibsrq),
+	INIT_RDMA_OBJ_SIZE(ib_xrcd, qedr_xrcd, ibxrcd),
 	INIT_RDMA_OBJ_SIZE(ib_ucontext, qedr_ucontext, ibucontext),
 };
 
@@ -704,6 +711,18 @@ static void qedr_affiliated_event(void *context, u8 e_code, void *fw_handle)
 		case ROCE_ASYNC_EVENT_SRQ_EMPTY:
 			event.event = IB_EVENT_SRQ_ERR;
 			event_type = EVENT_TYPE_SRQ;
+			break;
+		case ROCE_ASYNC_EVENT_XRC_DOMAIN_ERR:
+			event.event = IB_EVENT_QP_ACCESS_ERR;
+			event_type = EVENT_TYPE_QP;
+			break;
+		case ROCE_ASYNC_EVENT_INVALID_XRCETH_ERR:
+			event.event = IB_EVENT_QP_ACCESS_ERR;
+			event_type = EVENT_TYPE_QP;
+			break;
+		case ROCE_ASYNC_EVENT_XRC_SRQ_CATASTROPHIC_ERR:
+			event.event = IB_EVENT_CQ_ERR;
+			event_type = EVENT_TYPE_CQ;
 			break;
 		default:
 			DP_ERR(dev, "unsupported event %d on handle=%llx\n",
