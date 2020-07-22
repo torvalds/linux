@@ -2512,7 +2512,7 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 		locked = true;
 	}
 
-	filemap_write_and_wait(bdev->bd_inode->i_mapping);
+	sync_blockdev(bdev);
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(device, &fs_devices->devices, dev_list) {
