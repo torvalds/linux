@@ -8815,6 +8815,82 @@ static void dev_xdp_uninstall(struct net_device *dev)
 	}
 }
 
+static int dev_xdp_attach(struct net_device *dev, struct netlink_ext_ack *extack,
+			  struct bpf_prog *new_prog, struct bpf_prog *old_prog,
+			  u32 flags)
+{
+	struct bpf_prog *cur_prog;
+	enum bpf_xdp_mode mode;
+	bpf_op_t bpf_op;
+	int err;
+
+	ASSERT_RTNL();
+
+	/* just one XDP mode bit should be set, zero defaults to SKB mode */
+	if (hweight32(flags & XDP_FLAGS_MODES) > 1) {
+		NL_SET_ERR_MSG(extack, "Only one XDP mode flag can be set");
+		return -EINVAL;
+	}
+	/* old_prog != NULL implies XDP_FLAGS_REPLACE is set */
+	if (old_prog && !(flags & XDP_FLAGS_REPLACE)) {
+		NL_SET_ERR_MSG(extack, "XDP_FLAGS_REPLACE is not specified");
+		return -EINVAL;
+	}
+
+	mode = dev_xdp_mode(flags);
+	cur_prog = dev_xdp_prog(dev, mode);
+	if ((flags & XDP_FLAGS_REPLACE) && cur_prog != old_prog) {
+		NL_SET_ERR_MSG(extack, "Active program does not match expected");
+		return -EEXIST;
+	}
+	if ((flags & XDP_FLAGS_UPDATE_IF_NOEXIST) && cur_prog) {
+		NL_SET_ERR_MSG(extack, "XDP program already attached");
+		return -EBUSY;
+	}
+
+	if (new_prog) {
+		bool offload = mode == XDP_MODE_HW;
+		enum bpf_xdp_mode other_mode = mode == XDP_MODE_SKB
+					       ? XDP_MODE_DRV : XDP_MODE_SKB;
+
+		if (!offload && dev_xdp_prog(dev, other_mode)) {
+			NL_SET_ERR_MSG(extack, "Native and generic XDP can't be active at the same time");
+			return -EEXIST;
+		}
+		if (!offload && bpf_prog_is_dev_bound(new_prog->aux)) {
+			NL_SET_ERR_MSG(extack, "Using device-bound program without HW_MODE flag is not supported");
+			return -EINVAL;
+		}
+		if (new_prog->expected_attach_type == BPF_XDP_DEVMAP) {
+			NL_SET_ERR_MSG(extack, "BPF_XDP_DEVMAP programs can not be attached to a device");
+			return -EINVAL;
+		}
+		if (new_prog->expected_attach_type == BPF_XDP_CPUMAP) {
+			NL_SET_ERR_MSG(extack, "BPF_XDP_CPUMAP programs can not be attached to a device");
+			return -EINVAL;
+		}
+	}
+
+	/* don't call drivers if the effective program didn't change */
+	if (new_prog != cur_prog) {
+		bpf_op = dev_xdp_bpf_op(dev, mode);
+		if (!bpf_op) {
+			NL_SET_ERR_MSG(extack, "Underlying driver does not support XDP in native mode");
+			return -EOPNOTSUPP;
+		}
+
+		err = dev_xdp_install(dev, mode, bpf_op, extack, flags, new_prog);
+		if (err)
+			return err;
+	}
+
+	dev_xdp_set_prog(dev, mode, new_prog);
+	if (cur_prog)
+		bpf_prog_put(cur_prog);
+
+	return 0;
+}
+
 /**
  *	dev_change_xdp_fd - set or clear a bpf program for a device rx path
  *	@dev: device
@@ -8828,96 +8904,37 @@ static void dev_xdp_uninstall(struct net_device *dev)
 int dev_change_xdp_fd(struct net_device *dev, struct netlink_ext_ack *extack,
 		      int fd, int expected_fd, u32 flags)
 {
-	const struct net_device_ops *ops = dev->netdev_ops;
 	enum bpf_xdp_mode mode = dev_xdp_mode(flags);
-	bool offload = mode == XDP_MODE_HW;
-	u32 prog_id, expected_id = 0;
-	struct bpf_prog *prog;
-	bpf_op_t bpf_op;
+	struct bpf_prog *new_prog = NULL, *old_prog = NULL;
 	int err;
 
 	ASSERT_RTNL();
 
-	bpf_op = dev_xdp_bpf_op(dev, mode);
-	if (!bpf_op) {
-		NL_SET_ERR_MSG(extack, "underlying driver does not support XDP in native mode");
-		return -EOPNOTSUPP;
-	}
-
-	prog_id = dev_xdp_prog_id(dev, mode);
-	if (flags & XDP_FLAGS_REPLACE) {
-		if (expected_fd >= 0) {
-			prog = bpf_prog_get_type_dev(expected_fd,
-						     BPF_PROG_TYPE_XDP,
-						     bpf_op == ops->ndo_bpf);
-			if (IS_ERR(prog))
-				return PTR_ERR(prog);
-			expected_id = prog->aux->id;
-			bpf_prog_put(prog);
-		}
-
-		if (prog_id != expected_id) {
-			NL_SET_ERR_MSG(extack, "Active program does not match expected");
-			return -EEXIST;
-		}
-	}
 	if (fd >= 0) {
-		enum bpf_xdp_mode other_mode = mode == XDP_MODE_SKB
-					       ? XDP_MODE_DRV : XDP_MODE_SKB;
-
-		if (!offload && dev_xdp_prog_id(dev, other_mode)) {
-			NL_SET_ERR_MSG(extack, "Native and generic XDP can't be active at the same time");
-			return -EEXIST;
-		}
-
-		if ((flags & XDP_FLAGS_UPDATE_IF_NOEXIST) && prog_id) {
-			NL_SET_ERR_MSG(extack, "XDP program already attached");
-			return -EBUSY;
-		}
-
-		prog = bpf_prog_get_type_dev(fd, BPF_PROG_TYPE_XDP,
-					     bpf_op == ops->ndo_bpf);
-		if (IS_ERR(prog))
-			return PTR_ERR(prog);
-
-		if (!offload && bpf_prog_is_dev_bound(prog->aux)) {
-			NL_SET_ERR_MSG(extack, "Using device-bound program without HW_MODE flag is not supported");
-			bpf_prog_put(prog);
-			return -EINVAL;
-		}
-
-		if (prog->expected_attach_type == BPF_XDP_DEVMAP) {
-			NL_SET_ERR_MSG(extack, "BPF_XDP_DEVMAP programs can not be attached to a device");
-			bpf_prog_put(prog);
-			return -EINVAL;
-		}
-
-		if (prog->expected_attach_type == BPF_XDP_CPUMAP) {
-			NL_SET_ERR_MSG(extack,
-				       "BPF_XDP_CPUMAP programs can not be attached to a device");
-			bpf_prog_put(prog);
-			return -EINVAL;
-		}
-
-		/* prog->aux->id may be 0 for orphaned device-bound progs */
-		if (prog->aux->id && prog->aux->id == prog_id) {
-			bpf_prog_put(prog);
-			return 0;
-		}
-	} else {
-		if (!prog_id)
-			return 0;
-		prog = NULL;
+		new_prog = bpf_prog_get_type_dev(fd, BPF_PROG_TYPE_XDP,
+						 mode != XDP_MODE_SKB);
+		if (IS_ERR(new_prog))
+			return PTR_ERR(new_prog);
 	}
 
-	err = dev_xdp_install(dev, mode, bpf_op, extack, flags, prog);
-	if (err < 0 && prog) {
-		bpf_prog_put(prog);
-		return err;
+	if (expected_fd >= 0) {
+		old_prog = bpf_prog_get_type_dev(expected_fd, BPF_PROG_TYPE_XDP,
+						 mode != XDP_MODE_SKB);
+		if (IS_ERR(old_prog)) {
+			err = PTR_ERR(old_prog);
+			old_prog = NULL;
+			goto err_out;
+		}
 	}
-	dev_xdp_set_prog(dev, mode, prog);
 
-	return 0;
+	err = dev_xdp_attach(dev, extack, new_prog, old_prog, flags);
+
+err_out:
+	if (err && new_prog)
+		bpf_prog_put(new_prog);
+	if (old_prog)
+		bpf_prog_put(old_prog);
+	return err;
 }
 
 /**
