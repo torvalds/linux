@@ -23,13 +23,14 @@
  * have changed (i.e. renamed over).
  *
  * Unlike fsnotify_parent(), the event will be reported regardless of the
- * FS_EVENT_ON_CHILD mask on the parent inode.
+ * FS_EVENT_ON_CHILD mask on the parent inode and will not be reported if only
+ * the child is interested and not the parent.
  */
 static inline void fsnotify_name(struct inode *dir, __u32 mask,
 				 struct inode *child,
 				 const struct qstr *name, u32 cookie)
 {
-	fsnotify(dir, mask, child, FSNOTIFY_EVENT_INODE, name, cookie);
+	fsnotify(mask, child, FSNOTIFY_EVENT_INODE, dir, name, NULL, cookie);
 }
 
 static inline void fsnotify_dirent(struct inode *dir, struct dentry *dentry,
@@ -43,7 +44,7 @@ static inline void fsnotify_inode(struct inode *inode, __u32 mask)
 	if (S_ISDIR(inode->i_mode))
 		mask |= FS_ISDIR;
 
-	fsnotify(inode, mask, inode, FSNOTIFY_EVENT_INODE, NULL, 0);
+	fsnotify(mask, inode, FSNOTIFY_EVENT_INODE, NULL, NULL, inode, 0);
 }
 
 /* Notify this dentry's parent about a child's events. */
@@ -61,7 +62,7 @@ static inline int fsnotify_parent(struct dentry *dentry, __u32 mask,
 	return __fsnotify_parent(dentry, mask, data, data_type);
 
 notify_child:
-	return fsnotify(inode, mask, data, data_type, NULL, 0);
+	return fsnotify(mask, data, data_type, NULL, NULL, inode, 0);
 }
 
 /*

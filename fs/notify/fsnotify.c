@@ -152,7 +152,7 @@ int __fsnotify_parent(struct dentry *dentry, __u32 mask, const void *data,
 {
 	struct inode *inode = d_inode(dentry);
 	struct dentry *parent;
-	struct inode *p_inode;
+	struct inode *p_inode = NULL;
 	struct name_snapshot name;
 	struct qstr *file_name = NULL;
 	int ret = 0;
@@ -171,14 +171,13 @@ int __fsnotify_parent(struct dentry *dentry, __u32 mask, const void *data,
 		WARN_ON_ONCE(inode != fsnotify_data_inode(data, data_type));
 
 		/* Notify both parent and child with child name info */
-		inode = p_inode;
 		take_dentry_name_snapshot(&name, dentry);
 		file_name = &name.name;
 		mask |= FS_EVENT_ON_CHILD;
 	}
 
 notify:
-	ret = fsnotify(inode, mask, data, data_type, file_name, 0);
+	ret = fsnotify(mask, data, data_type, p_inode, file_name, inode, 0);
 
 	if (file_name)
 		release_dentry_name_snapshot(&name);
@@ -312,18 +311,31 @@ static void fsnotify_iter_next(struct fsnotify_iter_info *iter_info)
 }
 
 /*
- * This is the main call to fsnotify.  The VFS calls into hook specific functions
- * in linux/fsnotify.h.  Those functions then in turn call here.  Here will call
- * out to all of the registered fsnotify_group.  Those groups can then use the
- * notification event in whatever means they feel necessary.
+ * fsnotify - This is the main call to fsnotify.
+ *
+ * The VFS calls into hook specific functions in linux/fsnotify.h.
+ * Those functions then in turn call here.  Here will call out to all of the
+ * registered fsnotify_group.  Those groups can then use the notification event
+ * in whatever means they feel necessary.
+ *
+ * @mask:	event type and flags
+ * @data:	object that event happened on
+ * @data_type:	type of object for fanotify_data_XXX() accessors
+ * @dir:	optional directory associated with event -
+ *		if @file_name is not NULL, this is the directory that
+ *		@file_name is relative to
+ * @file_name:	optional file name associated with event
+ * @inode:	optional inode associated with event -
+ *		either @dir or @inode must be non-NULL.
+ *		if both are non-NULL event may be reported to both.
+ * @cookie:	inotify rename cookie
  */
-int fsnotify(struct inode *to_tell, __u32 mask, const void *data, int data_type,
-	     const struct qstr *file_name, u32 cookie)
+int fsnotify(__u32 mask, const void *data, int data_type, struct inode *dir,
+	     const struct qstr *file_name, struct inode *inode, u32 cookie)
 {
 	const struct path *path = fsnotify_data_path(data, data_type);
 	struct fsnotify_iter_info iter_info = {};
-	struct super_block *sb = to_tell->i_sb;
-	struct inode *dir = file_name ? to_tell : NULL;
+	struct super_block *sb;
 	struct mount *mnt = NULL;
 	struct inode *child = NULL;
 	int ret = 0;
@@ -332,8 +344,18 @@ int fsnotify(struct inode *to_tell, __u32 mask, const void *data, int data_type,
 	if (path)
 		mnt = real_mount(path->mnt);
 
-	if (mask & FS_EVENT_ON_CHILD)
-		child = fsnotify_data_inode(data, data_type);
+	if (!inode) {
+		/* Dirent event - report on TYPE_INODE to dir */
+		inode = dir;
+	} else if (mask & FS_EVENT_ON_CHILD) {
+		/*
+		 * Event on child - report on TYPE_INODE to dir
+		 * and on TYPE_CHILD to child.
+		 */
+		child = inode;
+		inode = dir;
+	}
+	sb = inode->i_sb;
 
 	/*
 	 * Optimization: srcu_read_lock() has a memory barrier which can
@@ -342,12 +364,12 @@ int fsnotify(struct inode *to_tell, __u32 mask, const void *data, int data_type,
 	 * SRCU because we have no references to any objects and do not
 	 * need SRCU to keep them "alive".
 	 */
-	if (!to_tell->i_fsnotify_marks && !sb->s_fsnotify_marks &&
+	if (!inode->i_fsnotify_marks && !sb->s_fsnotify_marks &&
 	    (!mnt || !mnt->mnt_fsnotify_marks) &&
 	    (!child || !child->i_fsnotify_marks))
 		return 0;
 
-	marks_mask = to_tell->i_fsnotify_mask | sb->s_fsnotify_mask;
+	marks_mask = inode->i_fsnotify_mask | sb->s_fsnotify_mask;
 	if (mnt)
 		marks_mask |= mnt->mnt_fsnotify_mask;
 	if (child)
@@ -365,7 +387,7 @@ int fsnotify(struct inode *to_tell, __u32 mask, const void *data, int data_type,
 	iter_info.srcu_idx = srcu_read_lock(&fsnotify_mark_srcu);
 
 	iter_info.marks[FSNOTIFY_OBJ_TYPE_INODE] =
-		fsnotify_first_mark(&to_tell->i_fsnotify_marks);
+		fsnotify_first_mark(&inode->i_fsnotify_marks);
 	iter_info.marks[FSNOTIFY_OBJ_TYPE_SB] =
 		fsnotify_first_mark(&sb->s_fsnotify_marks);
 	if (mnt) {

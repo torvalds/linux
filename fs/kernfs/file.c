@@ -902,8 +902,9 @@ repeat:
 		if (parent) {
 			p_inode = ilookup(info->sb, kernfs_ino(parent));
 			if (p_inode) {
-				fsnotify(p_inode, FS_MODIFY | FS_EVENT_ON_CHILD,
-					 inode, FSNOTIFY_EVENT_INODE, &name, 0);
+				fsnotify(FS_MODIFY | FS_EVENT_ON_CHILD,
+					 inode, FSNOTIFY_EVENT_INODE,
+					 p_inode, &name, inode, 0);
 				iput(p_inode);
 			}
 
