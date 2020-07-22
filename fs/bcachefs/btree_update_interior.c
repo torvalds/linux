@@ -1869,7 +1869,7 @@ int bch2_btree_node_update_key(struct bch_fs *c, struct btree_iter *iter,
 
 		new_hash = bch2_btree_node_mem_alloc(c);
 	}
-
+retry:
 	as = bch2_btree_update_start(iter->trans, iter->btree_id,
 		parent ? btree_update_reserve_required(c, parent) : 0,
 		BTREE_INSERT_NOFAIL|
@@ -1882,16 +1882,17 @@ int bch2_btree_node_update_key(struct bch_fs *c, struct btree_iter *iter,
 		if (ret == -EAGAIN)
 			ret = -EINTR;
 
-		if (ret != -EINTR)
-			goto err;
+		if (ret == -EINTR) {
+			bch2_trans_unlock(iter->trans);
+			up_read(&c->gc_lock);
+			closure_sync(&cl);
+			down_read(&c->gc_lock);
 
-		bch2_trans_unlock(iter->trans);
-		up_read(&c->gc_lock);
-		closure_sync(&cl);
-		down_read(&c->gc_lock);
+			if (bch2_trans_relock(iter->trans))
+				goto retry;
+		}
 
-		if (!bch2_trans_relock(iter->trans))
-			goto err;
+		goto err;
 	}
 
 	ret = bch2_mark_bkey_replicas(c, bkey_i_to_s_c(new_key));
