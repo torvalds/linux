@@ -18,6 +18,7 @@ export BIG_ENDIAN
 
 subdir-y	:= lib
 targets		+= vmlinux.bin vmlinux.bin.gz
+targets		+= uImage xipImage
 
 # Subdirs for the boot loader(s)
 
