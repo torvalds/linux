@@ -1,0 +1,302 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause)
+/* Copyright (c) 2020 Marvell International Ltd. */
+
+#include <linux/dma-mapping.h>
+#include <linux/qed/qed_chain.h>
+#include <linux/vmalloc.h>
+
+#include "qed_dev_api.h"
+
+static void qed_chain_free_next_ptr(struct qed_dev *cdev,
+				    struct qed_chain *chain)
+{
+	struct device *dev = &cdev->pdev->dev;
+	struct qed_chain_next *next;
+	dma_addr_t phys, phys_next;
+	void *virt, *virt_next;
+	u32 size, i;
+
+	size = chain->elem_size * chain->usable_per_page;
+	virt = chain->p_virt_addr;
+	phys = chain->p_phys_addr;
+
+	for (i = 0; i < chain->page_cnt; i++) {
+		if (!virt)
+			break;
+
+		next = virt + size;
+		virt_next = next->next_virt;
+		phys_next = HILO_DMA_REGPAIR(next->next_phys);
+
+		dma_free_coherent(dev, QED_CHAIN_PAGE_SIZE, virt, phys);
+
+		virt = virt_next;
+		phys = phys_next;
+	}
+}
+
+static void qed_chain_free_single(struct qed_dev *cdev,
+				  struct qed_chain *chain)
+{
+	if (!chain->p_virt_addr)
+		return;
+
+	dma_free_coherent(&cdev->pdev->dev, QED_CHAIN_PAGE_SIZE,
+			  chain->p_virt_addr, chain->p_phys_addr);
+}
+
+static void qed_chain_free_pbl(struct qed_dev *cdev, struct qed_chain *chain)
+{
+	struct device *dev = &cdev->pdev->dev;
+	struct addr_tbl_entry *entry;
+	u32 pbl_size, i;
+
+	if (!chain->pbl.pp_addr_tbl)
+		return;
+
+	for (i = 0; i < chain->page_cnt; i++) {
+		entry = chain->pbl.pp_addr_tbl + i;
+		if (!entry->virt_addr)
+			break;
+
+		dma_free_coherent(dev, QED_CHAIN_PAGE_SIZE, entry->virt_addr,
+				  entry->dma_map);
+	}
+
+	pbl_size = chain->page_cnt * QED_CHAIN_PBL_ENTRY_SIZE;
+
+	if (!chain->b_external_pbl)
+		dma_free_coherent(dev, pbl_size, chain->pbl_sp.p_virt_table,
+				  chain->pbl_sp.p_phys_table);
+
+	vfree(chain->pbl.pp_addr_tbl);
+	chain->pbl.pp_addr_tbl = NULL;
+}
+
+/**
+ * qed_chain_free() - Free chain DMA memory.
+ *
+ * @cdev: Main device structure.
+ * @chain: Chain to free.
+ */
+void qed_chain_free(struct qed_dev *cdev, struct qed_chain *chain)
+{
+	switch (chain->mode) {
+	case QED_CHAIN_MODE_NEXT_PTR:
+		qed_chain_free_next_ptr(cdev, chain);
+		break;
+	case QED_CHAIN_MODE_SINGLE:
+		qed_chain_free_single(cdev, chain);
+		break;
+	case QED_CHAIN_MODE_PBL:
+		qed_chain_free_pbl(cdev, chain);
+		break;
+	default:
+		break;
+	}
+}
+
+static int
+qed_chain_alloc_sanity_check(struct qed_dev *cdev,
+			     enum qed_chain_cnt_type cnt_type,
+			     size_t elem_size, u32 page_cnt)
+{
+	u64 chain_size = ELEMS_PER_PAGE(elem_size) * page_cnt;
+
+	/* The actual chain size can be larger than the maximal possible value
+	 * after rounding up the requested elements number to pages, and after
+	 * taking into account the unusuable elements (next-ptr elements).
+	 * The size of a "u16" chain can be (U16_MAX + 1) since the chain
+	 * size/capacity fields are of u32 type.
+	 */
+	switch (cnt_type) {
+	case QED_CHAIN_CNT_TYPE_U16:
+		if (chain_size > U16_MAX + 1)
+			break;
+
+		return 0;
+	case QED_CHAIN_CNT_TYPE_U32:
+		if (chain_size > U32_MAX)
+			break;
+
+		return 0;
+	default:
+		return -EINVAL;
+	}
+
+	DP_NOTICE(cdev,
+		  "The actual chain size (0x%llx) is larger than the maximal possible value\n",
+		  chain_size);
+
+	return -EINVAL;
+}
+
+static int qed_chain_alloc_next_ptr(struct qed_dev *cdev,
+				    struct qed_chain *chain)
+{
+	struct device *dev = &cdev->pdev->dev;
+	void *virt, *virt_prev = NULL;
+	dma_addr_t phys;
+	u32 i;
+
+	for (i = 0; i < chain->page_cnt; i++) {
+		virt = dma_alloc_coherent(dev, QED_CHAIN_PAGE_SIZE, &phys,
+					  GFP_KERNEL);
+		if (!virt)
+			return -ENOMEM;
+
+		if (i == 0) {
+			qed_chain_init_mem(chain, virt, phys);
+			qed_chain_reset(chain);
+		} else {
+			qed_chain_init_next_ptr_elem(chain, virt_prev, virt,
+						     phys);
+		}
+
+		virt_prev = virt;
+	}
+
+	/* Last page's next element should point to the beginning of the
+	 * chain.
+	 */
+	qed_chain_init_next_ptr_elem(chain, virt_prev, chain->p_virt_addr,
+				     chain->p_phys_addr);
+
+	return 0;
+}
+
+static int qed_chain_alloc_single(struct qed_dev *cdev,
+				  struct qed_chain *chain)
+{
+	dma_addr_t phys;
+	void *virt;
+
+	virt = dma_alloc_coherent(&cdev->pdev->dev, QED_CHAIN_PAGE_SIZE,
+				  &phys, GFP_KERNEL);
+	if (!virt)
+		return -ENOMEM;
+
+	qed_chain_init_mem(chain, virt, phys);
+	qed_chain_reset(chain);
+
+	return 0;
+}
+
+static int qed_chain_alloc_pbl(struct qed_dev *cdev, struct qed_chain *chain,
+			       struct qed_chain_ext_pbl *ext_pbl)
+{
+	struct device *dev = &cdev->pdev->dev;
+	struct addr_tbl_entry *addr_tbl;
+	dma_addr_t phys, pbl_phys;
+	void *pbl_virt;
+	u32 page_cnt, i;
+	size_t size;
+	void *virt;
+
+	page_cnt = chain->page_cnt;
+
+	size = array_size(page_cnt, sizeof(*addr_tbl));
+	if (unlikely(size == SIZE_MAX))
+		return -EOVERFLOW;
+
+	addr_tbl = vzalloc(size);
+	if (!addr_tbl)
+		return -ENOMEM;
+
+	chain->pbl.pp_addr_tbl = addr_tbl;
+
+	if (ext_pbl) {
+		size = 0;
+		pbl_virt = ext_pbl->p_pbl_virt;
+		pbl_phys = ext_pbl->p_pbl_phys;
+
+		chain->b_external_pbl = true;
+	} else {
+		size = array_size(page_cnt, QED_CHAIN_PBL_ENTRY_SIZE);
+		if (unlikely(size == SIZE_MAX))
+			return -EOVERFLOW;
+
+		pbl_virt = dma_alloc_coherent(dev, size, &pbl_phys,
+					      GFP_KERNEL);
+	}
+
+	if (!pbl_virt)
+		return -ENOMEM;
+
+	chain->pbl_sp.p_virt_table = pbl_virt;
+	chain->pbl_sp.p_phys_table = pbl_phys;
+
+	for (i = 0; i < page_cnt; i++) {
+		virt = dma_alloc_coherent(dev, QED_CHAIN_PAGE_SIZE, &phys,
+					  GFP_KERNEL);
+		if (!virt)
+			return -ENOMEM;
+
+		if (i == 0) {
+			qed_chain_init_mem(chain, virt, phys);
+			qed_chain_reset(chain);
+		}
+
+		/* Fill the PBL table with the physical address of the page */
+		*(dma_addr_t *)pbl_virt = phys;
+		pbl_virt += QED_CHAIN_PBL_ENTRY_SIZE;
+
+		/* Keep the virtual address of the page */
+		addr_tbl[i].virt_addr = virt;
+		addr_tbl[i].dma_map = phys;
+	}
+
+	return 0;
+}
+
+int qed_chain_alloc(struct qed_dev *cdev,
+		    enum qed_chain_use_mode intended_use,
+		    enum qed_chain_mode mode,
+		    enum qed_chain_cnt_type cnt_type,
+		    u32 num_elems,
+		    size_t elem_size,
+		    struct qed_chain *chain,
+		    struct qed_chain_ext_pbl *ext_pbl)
+{
+	u32 page_cnt;
+	int rc;
+
+	if (mode == QED_CHAIN_MODE_SINGLE)
+		page_cnt = 1;
+	else
+		page_cnt = QED_CHAIN_PAGE_CNT(num_elems, elem_size, mode);
+
+	rc = qed_chain_alloc_sanity_check(cdev, cnt_type, elem_size, page_cnt);
+	if (rc) {
+		DP_NOTICE(cdev,
+			  "Cannot allocate a chain with the given arguments:\n");
+		DP_NOTICE(cdev,
+			  "[use_mode %d, mode %d, cnt_type %d, num_elems %d, elem_size %zu]\n",
+			  intended_use, mode, cnt_type, num_elems, elem_size);
+		return rc;
+	}
+
+	qed_chain_init_params(chain, page_cnt, elem_size, intended_use, mode,
+			      cnt_type);
+
+	switch (mode) {
+	case QED_CHAIN_MODE_NEXT_PTR:
+		rc = qed_chain_alloc_next_ptr(cdev, chain);
+		break;
+	case QED_CHAIN_MODE_SINGLE:
+		rc = qed_chain_alloc_single(cdev, chain);
+		break;
+	case QED_CHAIN_MODE_PBL:
+		rc = qed_chain_alloc_pbl(cdev, chain, ext_pbl);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (!rc)
+		return 0;
+
+	qed_chain_free(cdev, chain);
+
+	return rc;
+}

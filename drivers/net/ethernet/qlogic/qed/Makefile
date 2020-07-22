@@ -4,6 +4,7 @@
 obj-$(CONFIG_QED) := qed.o
 
 qed-y :=			\
+	qed_chain.o		\
 	qed_cxt.o		\
 	qed_dcbx.o		\
 	qed_debug.o		\
