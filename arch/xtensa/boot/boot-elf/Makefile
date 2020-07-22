@@ -18,9 +18,9 @@ boot-y		:= bootstrap.o
 
 OBJS		:= $(addprefix $(obj)/,$(boot-y))
 
-$(obj)/Image.o: vmlinux.bin $(OBJS)
+$(obj)/Image.o: $(obj)/../vmlinux.bin $(OBJS)
 	$(Q)$(OBJCOPY) $(OBJCOPY_ARGS) -R .comment \
-		--add-section image=vmlinux.bin \
+		--add-section image=$< \
 		--set-section-flags image=contents,alloc,load,load,data \
 		$(OBJS) $@
 
