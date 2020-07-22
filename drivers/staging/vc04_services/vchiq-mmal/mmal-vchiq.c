@@ -441,6 +441,8 @@ buffer_from_host(struct vchiq_mmal_instance *instance,
 	ret = vchiq_queue_kernel_message(instance->service_handle, &m,
 					 sizeof(struct mmal_msg_header) +
 					 sizeof(m.u.buffer_from_host));
+	if (ret)
+		atomic_dec(&port->buffers_with_vpu);
 
 	vchiq_release_service(instance->service_handle);
 
