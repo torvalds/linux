@@ -564,11 +564,10 @@ int pci_parse_request_of_pci_ranges(struct device *dev,
 		}
 	}
 
-	if (res_valid)
-		return 0;
+	if (!res_valid)
+		dev_warn(dev, "non-prefetchable memory resource required\n");
 
-	dev_err(dev, "non-prefetchable memory resource required\n");
-	err = -EINVAL;
+	return 0;
 
  out_release_res:
 	pci_free_resource_list(resources);
