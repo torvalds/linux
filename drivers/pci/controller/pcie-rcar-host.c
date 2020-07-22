@@ -224,7 +224,6 @@ static int rcar_pcie_setup(struct list_head *resource,
 			i++;
 			break;
 		case IORESOURCE_BUS:
-			bridge->busnr = res->start;
 			break;
 		default:
 			continue;

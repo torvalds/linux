@@ -584,8 +584,6 @@ static int v3_pci_setup_resource(struct v3_pci *v3,
 		}
 		break;
 	case IORESOURCE_BUS:
-		dev_dbg(dev, "BUS %pR\n", win->res);
-		host->busnr = win->res->start;
 		break;
 	default:
 		dev_info(dev, "Unknown resource type %lu\n",
