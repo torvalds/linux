@@ -888,6 +888,7 @@ struct bpf_prog_offload_ops;
 struct netlink_ext_ack;
 struct xdp_umem;
 struct xdp_dev_bulk_queue;
+struct bpf_xdp_link;
 
 enum bpf_xdp_mode {
 	XDP_MODE_SKB = 0,
@@ -898,6 +899,7 @@ enum bpf_xdp_mode {
 
 struct bpf_xdp_entity {
 	struct bpf_prog *prog;
+	struct bpf_xdp_link *link;
 };
 
 struct netdev_bpf {
@@ -3831,7 +3833,9 @@ struct sk_buff *dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev,
 typedef int (*bpf_op_t)(struct net_device *dev, struct netdev_bpf *bpf);
 int dev_change_xdp_fd(struct net_device *dev, struct netlink_ext_ack *extack,
 		      int fd, int expected_fd, u32 flags);
+int bpf_xdp_link_attach(const union bpf_attr *attr, struct bpf_prog *prog);
 u32 dev_xdp_prog_id(struct net_device *dev, enum bpf_xdp_mode mode);
+
 int xdp_umem_query(struct net_device *dev, u16 queue_id);
 
 int __dev_forward_skb(struct net_device *dev, struct sk_buff *skb);

@@ -230,6 +230,7 @@ enum bpf_attach_type {
 	BPF_CGROUP_INET_SOCK_RELEASE,
 	BPF_XDP_CPUMAP,
 	BPF_SK_LOOKUP,
+	BPF_XDP,
 	__MAX_BPF_ATTACH_TYPE
 };
 
@@ -242,6 +243,7 @@ enum bpf_link_type {
 	BPF_LINK_TYPE_CGROUP = 3,
 	BPF_LINK_TYPE_ITER = 4,
 	BPF_LINK_TYPE_NETNS = 5,
+	BPF_LINK_TYPE_XDP = 6,
 
 	MAX_BPF_LINK_TYPE,
 };
@@ -614,7 +616,10 @@ union bpf_attr {
 
 	struct { /* struct used by BPF_LINK_CREATE command */
 		__u32		prog_fd;	/* eBPF program to attach */
-		__u32		target_fd;	/* object to attach to */
+		union {
+			__u32		target_fd;	/* object to attach to */
+			__u32		target_ifindex; /* target ifindex */
+		};
 		__u32		attach_type;	/* attach type */
 		__u32		flags;		/* extra flags */
 	} link_create;
