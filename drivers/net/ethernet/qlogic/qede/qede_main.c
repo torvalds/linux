@@ -672,6 +672,7 @@ static const struct net_device_ops qede_netdev_ops = {
 #ifdef CONFIG_RFS_ACCEL
 	.ndo_rx_flow_steer	= qede_rx_flow_steer,
 #endif
+	.ndo_xdp_xmit		= qede_xdp_transmit,
 	.ndo_setup_tc		= qede_setup_tc_offload,
 };
 
@@ -712,6 +713,7 @@ static const struct net_device_ops qede_netdev_vf_xdp_ops = {
 	.ndo_udp_tunnel_del	= udp_tunnel_nic_del_port,
 	.ndo_features_check	= qede_features_check,
 	.ndo_bpf		= qede_xdp,
+	.ndo_xdp_xmit		= qede_xdp_transmit,
 };
 
 /* -------------------------------------------------------------------------
@@ -1712,6 +1714,7 @@ static void qede_init_fp(struct qede_dev *edev)
 {
 	int queue_id, rxq_index = 0, txq_index = 0;
 	struct qede_fastpath *fp;
+	bool init_xdp = false;
 
 	for_each_queue(queue_id) {
 		fp = &edev->fp_array[queue_id];
@@ -1723,6 +1726,9 @@ static void qede_init_fp(struct qede_dev *edev)
 			fp->xdp_tx->index = QEDE_TXQ_IDX_TO_XDP(edev,
 								rxq_index);
 			fp->xdp_tx->is_xdp = 1;
+
+			spin_lock_init(&fp->xdp_tx->xdp_tx_lock);
+			init_xdp = true;
 		}
 
 		if (fp->type & QEDE_FASTPATH_RX) {
@@ -1738,6 +1744,13 @@ static void qede_init_fp(struct qede_dev *edev)
 			/* Driver have no error path from here */
 			WARN_ON(xdp_rxq_info_reg(&fp->rxq->xdp_rxq, edev->ndev,
 						 fp->rxq->rxq_id) < 0);
+
+			if (xdp_rxq_info_reg_mem_model(&fp->rxq->xdp_rxq,
+						       MEM_TYPE_PAGE_ORDER0,
+						       NULL)) {
+				DP_NOTICE(edev,
+					  "Failed to register XDP memory model\n");
+			}
 		}
 
 		if (fp->type & QEDE_FASTPATH_TX) {
@@ -1762,6 +1775,11 @@ static void qede_init_fp(struct qede_dev *edev)
 
 		snprintf(fp->name, sizeof(fp->name), "%s-fp-%d",
 			 edev->ndev->name, queue_id);
+	}
+
+	if (init_xdp) {
+		edev->total_xdp_queues = QEDE_RSS_COUNT(edev);
+		DP_INFO(edev, "Total XDP queues: %u\n", edev->total_xdp_queues);
 	}
 }
 

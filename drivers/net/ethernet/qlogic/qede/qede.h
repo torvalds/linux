@@ -199,6 +199,7 @@ struct qede_dev {
 	u8				fp_num_rx;
 	u16				req_queues;
 	u16				num_queues;
+	u16				total_xdp_queues;
 
 #define QEDE_QUEUE_CNT(edev)		((edev)->num_queues)
 #define QEDE_RSS_COUNT(edev)		((edev)->num_queues - (edev)->fp_num_tx)
@@ -381,6 +382,7 @@ struct sw_tx_bd {
 
 struct sw_tx_xdp {
 	struct page			*page;
+	struct xdp_frame		*xdpf;
 	dma_addr_t			mapping;
 };
 
@@ -402,6 +404,9 @@ struct qede_tx_queue {
 
 	void __iomem			*doorbell_addr;
 	union db_prod			tx_db;
+
+	/* Spinlock for XDP queues in case of XDP_REDIRECT */
+	spinlock_t			xdp_tx_lock;
 
 	int				index; /* Slowpath only */
 #define QEDE_TXQ_XDP_TO_IDX(edev, txq)	((txq)->index - \
@@ -456,6 +461,7 @@ struct qede_fastpath {
 
 	u8				xdp_xmit;
 #define QEDE_XDP_TX			BIT(0)
+#define QEDE_XDP_REDIRECT		BIT(1)
 
 	struct napi_struct		napi;
 	struct qed_sb_info		*sb_info;
@@ -516,6 +522,8 @@ struct qede_reload_args {
 
 /* Datapath functions definition */
 netdev_tx_t qede_start_xmit(struct sk_buff *skb, struct net_device *ndev);
+int qede_xdp_transmit(struct net_device *dev, int n_frames,
+		      struct xdp_frame **frames, u32 flags);
 u16 qede_select_queue(struct net_device *dev, struct sk_buff *skb,
 		      struct net_device *sb_dev);
 netdev_features_t qede_features_check(struct sk_buff *skb,

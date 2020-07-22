@@ -303,7 +303,7 @@ static inline void qede_update_tx_producer(struct qede_tx_queue *txq)
 }
 
 static int qede_xdp_xmit(struct qede_tx_queue *txq, dma_addr_t dma, u16 pad,
-			 u16 len, struct page *page)
+			 u16 len, struct page *page, struct xdp_frame *xdpf)
 {
 	struct eth_tx_1st_bd *bd;
 	struct sw_tx_xdp *xdp;
@@ -330,10 +330,64 @@ static int qede_xdp_xmit(struct qede_tx_queue *txq, dma_addr_t dma, u16 pad,
 	xdp = txq->sw_tx_ring.xdp + txq->sw_tx_prod;
 	xdp->mapping = dma;
 	xdp->page = page;
+	xdp->xdpf = xdpf;
 
 	txq->sw_tx_prod = (txq->sw_tx_prod + 1) % txq->num_tx_buffers;
 
 	return 0;
+}
+
+int qede_xdp_transmit(struct net_device *dev, int n_frames,
+		      struct xdp_frame **frames, u32 flags)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+	struct device *dmadev = &edev->pdev->dev;
+	struct qede_tx_queue *xdp_tx;
+	struct xdp_frame *xdpf;
+	dma_addr_t mapping;
+	int i, drops = 0;
+	u16 xdp_prod;
+
+	if (unlikely(flags & ~XDP_XMIT_FLAGS_MASK))
+		return -EINVAL;
+
+	if (unlikely(!netif_running(dev)))
+		return -ENETDOWN;
+
+	i = smp_processor_id() % edev->total_xdp_queues;
+	xdp_tx = edev->fp_array[i].xdp_tx;
+
+	spin_lock(&xdp_tx->xdp_tx_lock);
+
+	for (i = 0; i < n_frames; i++) {
+		xdpf = frames[i];
+
+		mapping = dma_map_single(dmadev, xdpf->data, xdpf->len,
+					 DMA_TO_DEVICE);
+		if (unlikely(dma_mapping_error(dmadev, mapping))) {
+			xdp_return_frame_rx_napi(xdpf);
+			drops++;
+
+			continue;
+		}
+
+		if (unlikely(qede_xdp_xmit(xdp_tx, mapping, 0, xdpf->len,
+					   NULL, xdpf))) {
+			xdp_return_frame_rx_napi(xdpf);
+			drops++;
+		}
+	}
+
+	if (flags & XDP_XMIT_FLUSH) {
+		xdp_prod = qed_chain_get_prod_idx(&xdp_tx->tx_pbl);
+
+		xdp_tx->tx_db.data.bd_prod = cpu_to_le16(xdp_prod);
+		qede_update_tx_producer(xdp_tx);
+	}
+
+	spin_unlock(&xdp_tx->xdp_tx_lock);
+
+	return n_frames - drops;
 }
 
 int qede_txq_has_work(struct qede_tx_queue *txq)
@@ -353,6 +407,7 @@ static void qede_xdp_tx_int(struct qede_dev *edev, struct qede_tx_queue *txq)
 {
 	struct sw_tx_xdp *xdp_info, *xdp_arr = txq->sw_tx_ring.xdp;
 	struct device *dev = &edev->pdev->dev;
+	struct xdp_frame *xdpf;
 	u16 hw_bd_cons;
 
 	hw_bd_cons = le16_to_cpu(*txq->hw_cons_ptr);
@@ -360,10 +415,19 @@ static void qede_xdp_tx_int(struct qede_dev *edev, struct qede_tx_queue *txq)
 
 	while (hw_bd_cons != qed_chain_get_cons_idx(&txq->tx_pbl)) {
 		xdp_info = xdp_arr + txq->sw_tx_cons;
+		xdpf = xdp_info->xdpf;
 
-		dma_unmap_page(dev, xdp_info->mapping, PAGE_SIZE,
-			       DMA_BIDIRECTIONAL);
-		__free_page(xdp_info->page);
+		if (xdpf) {
+			dma_unmap_single(dev, xdp_info->mapping, xdpf->len,
+					 DMA_TO_DEVICE);
+			xdp_return_frame(xdpf);
+
+			xdp_info->xdpf = NULL;
+		} else {
+			dma_unmap_page(dev, xdp_info->mapping, PAGE_SIZE,
+				       DMA_BIDIRECTIONAL);
+			__free_page(xdp_info->page);
+		}
 
 		qed_chain_consume(&txq->tx_pbl);
 		txq->sw_tx_cons = (txq->sw_tx_cons + 1) % txq->num_tx_buffers;
@@ -1065,7 +1129,8 @@ static bool qede_rx_xdp(struct qede_dev *edev,
 		 * throw current buffer, as replacement was already allocated.
 		 */
 		if (unlikely(qede_xdp_xmit(fp->xdp_tx, bd->mapping,
-					   *data_offset, *len, bd->data))) {
+					   *data_offset, *len, bd->data,
+					   NULL))) {
 			dma_unmap_page(rxq->dev, bd->mapping, PAGE_SIZE,
 				       rxq->data_direction);
 			__free_page(bd->data);
@@ -1079,6 +1144,25 @@ static bool qede_rx_xdp(struct qede_dev *edev,
 		}
 
 		/* Regardless, we've consumed an Rx BD */
+		qede_rx_bd_ring_consume(rxq);
+		break;
+	case XDP_REDIRECT:
+		/* We need the replacement buffer before transmit. */
+		if (unlikely(qede_alloc_rx_buffer(rxq, true))) {
+			qede_recycle_rx_bd_ring(rxq, 1);
+
+			trace_xdp_exception(edev->ndev, prog, act);
+			break;
+		}
+
+		dma_unmap_page(rxq->dev, bd->mapping, PAGE_SIZE,
+			       rxq->data_direction);
+
+		if (unlikely(xdp_do_redirect(edev->ndev, &xdp, prog)))
+			DP_NOTICE(edev, "Failed to redirect the packet\n");
+		else
+			fp->xdp_xmit |= QEDE_XDP_REDIRECT;
+
 		qede_rx_bd_ring_consume(rxq);
 		break;
 	default:
@@ -1386,6 +1470,9 @@ int qede_poll(struct napi_struct *napi, int budget)
 		fp->xdp_tx->tx_db.data.bd_prod = cpu_to_le16(xdp_prod);
 		qede_update_tx_producer(fp->xdp_tx);
 	}
+
+	if (fp->xdp_xmit & QEDE_XDP_REDIRECT)
+		xdp_do_flush_map();
 
 	return rx_work_done;
 }
