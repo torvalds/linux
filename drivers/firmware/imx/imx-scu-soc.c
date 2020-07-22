@@ -10,9 +10,7 @@
 #include <linux/platform_device.h>
 #include <linux/of.h>
 
-#define IMX_SCU_SOC_DRIVER_NAME		"imx-scu-soc"
-
-static struct imx_sc_ipc *soc_ipc_handle;
+static struct imx_sc_ipc *imx_sc_soc_ipc_handle;
 
 struct imx_sc_msg_misc_get_soc_id {
 	struct imx_sc_rpc_msg hdr;
@@ -44,7 +42,7 @@ static int imx_scu_soc_uid(u64 *soc_uid)
 	hdr->func = IMX_SC_MISC_FUNC_UNIQUE_ID;
 	hdr->size = 1;
 
-	ret = imx_scu_call_rpc(soc_ipc_handle, &msg, true);
+	ret = imx_scu_call_rpc(imx_sc_soc_ipc_handle, &msg, true);
 	if (ret) {
 		pr_err("%s: get soc uid failed, ret %d\n", __func__, ret);
 		return ret;
@@ -71,7 +69,7 @@ static int imx_scu_soc_id(void)
 	msg.data.req.control = IMX_SC_C_ID;
 	msg.data.req.resource = IMX_SC_R_SYSTEM;
 
-	ret = imx_scu_call_rpc(soc_ipc_handle, &msg, true);
+	ret = imx_scu_call_rpc(imx_sc_soc_ipc_handle, &msg, true);
 	if (ret) {
 		pr_err("%s: get soc info failed, ret %d\n", __func__, ret);
 		return ret;
@@ -80,7 +78,7 @@ static int imx_scu_soc_id(void)
 	return msg.data.resp.id;
 }
 
-static int imx_scu_soc_probe(struct platform_device *pdev)
+int imx_scu_soc_init(struct device *dev)
 {
 	struct soc_device_attribute *soc_dev_attr;
 	struct soc_device *soc_dev;
@@ -88,11 +86,11 @@ static int imx_scu_soc_probe(struct platform_device *pdev)
 	u64 uid = 0;
 	u32 val;
 
-	ret = imx_scu_get_handle(&soc_ipc_handle);
+	ret = imx_scu_get_handle(&imx_sc_soc_ipc_handle);
 	if (ret)
 		return ret;
 
-	soc_dev_attr = devm_kzalloc(&pdev->dev, sizeof(*soc_dev_attr),
+	soc_dev_attr = devm_kzalloc(dev, sizeof(*soc_dev_attr),
 				    GFP_KERNEL);
 	if (!soc_dev_attr)
 		return -ENOMEM;
@@ -115,73 +113,26 @@ static int imx_scu_soc_probe(struct platform_device *pdev)
 
 	/* format soc_id value passed from SCU firmware */
 	val = id & 0x1f;
-	soc_dev_attr->soc_id = kasprintf(GFP_KERNEL, "0x%x", val);
+	soc_dev_attr->soc_id = devm_kasprintf(dev, GFP_KERNEL, "0x%x", val);
 	if (!soc_dev_attr->soc_id)
 		return -ENOMEM;
 
 	/* format revision value passed from SCU firmware */
 	val = (id >> 5) & 0xf;
 	val = (((val >> 2) + 1) << 4) | (val & 0x3);
-	soc_dev_attr->revision = kasprintf(GFP_KERNEL,
-					   "%d.%d",
-					   (val >> 4) & 0xf,
-					   val & 0xf);
-	if (!soc_dev_attr->revision) {
-		ret = -ENOMEM;
-		goto free_soc_id;
-	}
+	soc_dev_attr->revision = devm_kasprintf(dev, GFP_KERNEL, "%d.%d",
+						(val >> 4) & 0xf, val & 0xf);
+	if (!soc_dev_attr->revision)
+		return -ENOMEM;
 
-	soc_dev_attr->serial_number = kasprintf(GFP_KERNEL, "%016llX", uid);
-	if (!soc_dev_attr->serial_number) {
-		ret = -ENOMEM;
-		goto free_revision;
-	}
+	soc_dev_attr->serial_number = devm_kasprintf(dev, GFP_KERNEL,
+						     "%016llX", uid);
+	if (!soc_dev_attr->serial_number)
+		return -ENOMEM;
 
 	soc_dev = soc_device_register(soc_dev_attr);
-	if (IS_ERR(soc_dev)) {
-		ret = PTR_ERR(soc_dev);
-		goto free_serial_number;
-	}
+	if (IS_ERR(soc_dev))
+		return PTR_ERR(soc_dev);
 
 	return 0;
-
-free_serial_number:
-	kfree(soc_dev_attr->serial_number);
-free_revision:
-	kfree(soc_dev_attr->revision);
-free_soc_id:
-	kfree(soc_dev_attr->soc_id);
-	return ret;
 }
-
-static struct platform_driver imx_scu_soc_driver = {
-	.driver = {
-		.name = IMX_SCU_SOC_DRIVER_NAME,
-	},
-	.probe = imx_scu_soc_probe,
-};
-
-static int __init imx_scu_soc_init(void)
-{
-	struct platform_device *pdev;
-	struct device_node *np;
-	int ret;
-
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx-scu");
-	if (!np)
-		return -ENODEV;
-
-	of_node_put(np);
-
-	ret = platform_driver_register(&imx_scu_soc_driver);
-	if (ret)
-		return ret;
-
-	pdev = platform_device_register_simple(IMX_SCU_SOC_DRIVER_NAME,
-					       -1, NULL, 0);
-	if (IS_ERR(pdev))
-		platform_driver_unregister(&imx_scu_soc_driver);
-
-	return PTR_ERR_OR_ZERO(pdev);
-}
-device_initcall(imx_scu_soc_init);
