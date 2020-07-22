@@ -59,6 +59,7 @@
 #define AT91_PMC_PLL_UPDT		0x1C		/* PMC PLL update register [for SAM9X60] */
 #define		AT91_PMC_PLL_UPDT_UPDATE	(1 << 8)	/* Update PLL settings */
 #define		AT91_PMC_PLL_UPDT_ID		(1 << 0)	/* PLL ID */
+#define		AT91_PMC_PLL_UPDT_ID_MSK	(0xf)		/* PLL ID mask */
 #define		AT91_PMC_PLL_UPDT_STUPTIM	(0xff << 16)	/* Startup time */
 
 #define	AT91_CKGR_MOR		0x20			/* Main Oscillator Register [not on SAM9RL] */
