@@ -82,10 +82,11 @@ static noinstr void check_user_regs(struct pt_regs *regs)
  * 2) Invoke context tracking if enabled to reactivate RCU
  * 3) Trace interrupts off state
  */
-static noinstr void enter_from_user_mode(void)
+static noinstr void enter_from_user_mode(struct pt_regs *regs)
 {
 	enum ctx_state state = ct_state();
 
+	check_user_regs(regs);
 	lockdep_hardirqs_off(CALLER_ADDR0);
 	user_exit_irqoff();
 
@@ -95,8 +96,9 @@ static noinstr void enter_from_user_mode(void)
 	instrumentation_end();
 }
 #else
-static __always_inline void enter_from_user_mode(void)
+static __always_inline void enter_from_user_mode(struct pt_regs *regs)
 {
+	check_user_regs(regs);
 	lockdep_hardirqs_off(CALLER_ADDR0);
 	instrumentation_begin();
 	trace_hardirqs_off_finish();
@@ -369,9 +371,7 @@ __visible noinstr void do_syscall_64(unsigned long nr, struct pt_regs *regs)
 {
 	struct thread_info *ti;
 
-	check_user_regs(regs);
-
-	enter_from_user_mode();
+	enter_from_user_mode(regs);
 	instrumentation_begin();
 
 	local_irq_enable();
@@ -434,9 +434,7 @@ static void do_syscall_32_irqs_on(struct pt_regs *regs)
 /* Handles int $0x80 */
 __visible noinstr void do_int80_syscall_32(struct pt_regs *regs)
 {
-	check_user_regs(regs);
-
-	enter_from_user_mode();
+	enter_from_user_mode(regs);
 	instrumentation_begin();
 
 	local_irq_enable();
@@ -487,8 +485,6 @@ __visible noinstr long do_fast_syscall_32(struct pt_regs *regs)
 					vdso_image_32.sym_int80_landing_pad;
 	bool success;
 
-	check_user_regs(regs);
-
 	/*
 	 * SYSENTER loses EIP, and even SYSCALL32 needs us to skip forward
 	 * so that 'regs->ip -= 2' lands back on an int $0x80 instruction.
@@ -496,7 +492,7 @@ __visible noinstr long do_fast_syscall_32(struct pt_regs *regs)
 	 */
 	regs->ip = landing_pad;
 
-	enter_from_user_mode();
+	enter_from_user_mode(regs);
 	instrumentation_begin();
 
 	local_irq_enable();
@@ -599,8 +595,7 @@ idtentry_state_t noinstr idtentry_enter(struct pt_regs *regs)
 	};
 
 	if (user_mode(regs)) {
-		check_user_regs(regs);
-		enter_from_user_mode();
+		enter_from_user_mode(regs);
 		return ret;
 	}
 
@@ -733,8 +728,7 @@ void noinstr idtentry_exit(struct pt_regs *regs, idtentry_state_t state)
  */
 void noinstr idtentry_enter_user(struct pt_regs *regs)
 {
-	check_user_regs(regs);
-	enter_from_user_mode();
+	enter_from_user_mode(regs);
 }
 
 /**
