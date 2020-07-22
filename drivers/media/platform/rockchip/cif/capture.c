@@ -2784,6 +2784,11 @@ static int rkcif_lvds_g_mbus_config(struct v4l2_subdev *sd,
 
 static int rkcif_lvds_sd_s_stream(struct v4l2_subdev *sd, int on)
 {
+	struct rkcif_lvds_subdev *subdev = container_of(sd, struct rkcif_lvds_subdev, sd);
+
+	if (on)
+		atomic_set(&subdev->frm_sync_seq, 0);
+
 	return 0;
 }
 
@@ -2862,7 +2867,7 @@ int rkcif_register_lvds_subdev(struct rkcif_device *dev)
 	sd = &lvds_subdev->sd;
 	lvds_subdev->state = RKCIF_LVDS_STOP;
 	v4l2_subdev_init(sd, &rkcif_lvds_sd_ops);
-	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_HAS_EVENTS;
 	sd->entity.ops = &rkcif_lvds_sd_media_ops;
 	if (dev->chip_id == CHIP_RV1126_CIF)
 		snprintf(sd->name, sizeof(sd->name), "rkcif-lvds-subdev");
