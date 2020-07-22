@@ -6915,7 +6915,8 @@ static const struct bpf_sec_def section_defs[] = {
 						BPF_XDP_DEVMAP),
 	BPF_EAPROG_SEC("xdp_cpumap/",		BPF_PROG_TYPE_XDP,
 						BPF_XDP_CPUMAP),
-	BPF_PROG_SEC("xdp",			BPF_PROG_TYPE_XDP),
+	BPF_EAPROG_SEC("xdp",			BPF_PROG_TYPE_XDP,
+						BPF_XDP),
 	BPF_PROG_SEC("perf_event",		BPF_PROG_TYPE_PERF_EVENT),
 	BPF_PROG_SEC("lwt_in",			BPF_PROG_TYPE_LWT_IN),
 	BPF_PROG_SEC("lwt_out",			BPF_PROG_TYPE_LWT_OUT),
@@ -8279,6 +8280,12 @@ struct bpf_link *
 bpf_program__attach_netns(struct bpf_program *prog, int netns_fd)
 {
 	return bpf_program__attach_fd(prog, netns_fd, "netns");
+}
+
+struct bpf_link *bpf_program__attach_xdp(struct bpf_program *prog, int ifindex)
+{
+	/* target_fd/target_ifindex use the same field in LINK_CREATE */
+	return bpf_program__attach_fd(prog, ifindex, "xdp");
 }
 
 struct bpf_link *

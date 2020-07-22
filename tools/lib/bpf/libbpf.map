@@ -286,6 +286,7 @@ LIBBPF_0.1.0 {
 		bpf_map__set_value_size;
 		bpf_map__type;
 		bpf_map__value_size;
+		bpf_program__attach_xdp;
 		bpf_program__autoload;
 		bpf_program__is_sk_lookup;
 		bpf_program__set_autoload;
