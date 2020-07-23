@@ -138,51 +138,6 @@ static inline void seqcount_lockdep_reader_access(const seqcount_t *s)
 #define __SEQ_LOCK(expr)
 #endif
 
-#define SEQCOUNT_LOCKTYPE_ZERO(seq_name, assoc_lock) {			\
-	.seqcount		= SEQCNT_ZERO(seq_name.seqcount),	\
-	__SEQ_LOCK(.lock	= (assoc_lock))				\
-}
-
-/**
- * SEQCNT_SPINLOCK_ZERO - static initializer for seqcount_spinlock_t
- * @name:	Name of the seqcount_spinlock_t instance
- * @lock:	Pointer to the associated spinlock
- */
-#define SEQCNT_SPINLOCK_ZERO(name, lock)				\
-	SEQCOUNT_LOCKTYPE_ZERO(name, lock)
-
-/**
- * SEQCNT_RAW_SPINLOCK_ZERO - static initializer for seqcount_raw_spinlock_t
- * @name:	Name of the seqcount_raw_spinlock_t instance
- * @lock:	Pointer to the associated raw_spinlock
- */
-#define SEQCNT_RAW_SPINLOCK_ZERO(name, lock)				\
-	SEQCOUNT_LOCKTYPE_ZERO(name, lock)
-
-/**
- * SEQCNT_RWLOCK_ZERO - static initializer for seqcount_rwlock_t
- * @name:	Name of the seqcount_rwlock_t instance
- * @lock:	Pointer to the associated rwlock
- */
-#define SEQCNT_RWLOCK_ZERO(name, lock)					\
-	SEQCOUNT_LOCKTYPE_ZERO(name, lock)
-
-/**
- * SEQCNT_MUTEX_ZERO - static initializer for seqcount_mutex_t
- * @name:	Name of the seqcount_mutex_t instance
- * @lock:	Pointer to the associated mutex
- */
-#define SEQCNT_MUTEX_ZERO(name, lock)					\
-	SEQCOUNT_LOCKTYPE_ZERO(name, lock)
-
-/**
- * SEQCNT_WW_MUTEX_ZERO - static initializer for seqcount_ww_mutex_t
- * @name:	Name of the seqcount_ww_mutex_t instance
- * @lock:	Pointer to the associated ww_mutex
- */
-#define SEQCNT_WW_MUTEX_ZERO(name, lock)				\
-	SEQCOUNT_LOCKTYPE_ZERO(name, lock)
-
 /**
  * typedef seqcount_LOCKNAME_t - sequence counter with LOCKTYPR associated
  * @seqcount:	The real sequence counter
@@ -262,6 +217,24 @@ SEQCOUNT_LOCKTYPE(spinlock_t,		spinlock,	false,	s->lock)
 SEQCOUNT_LOCKTYPE(rwlock_t,		rwlock,		false,	s->lock)
 SEQCOUNT_LOCKTYPE(struct mutex,		mutex,		true,	s->lock)
 SEQCOUNT_LOCKTYPE(struct ww_mutex,	ww_mutex,	true,	&s->lock->base)
+
+/**
+ * SEQCNT_LOCKNAME_ZERO - static initializer for seqcount_LOCKNAME_t
+ * @name:	Name of the seqcount_LOCKNAME_t instance
+ * @lock:	Pointer to the associated LOCKTYPE
+ */
+
+#define SEQCOUNT_LOCKTYPE_ZERO(seq_name, assoc_lock) {			\
+	.seqcount		= SEQCNT_ZERO(seq_name.seqcount),	\
+	__SEQ_LOCK(.lock	= (assoc_lock))				\
+}
+
+#define SEQCNT_SPINLOCK_ZERO(name, lock)	SEQCOUNT_LOCKTYPE_ZERO(name, lock)
+#define SEQCNT_RAW_SPINLOCK_ZERO(name, lock)	SEQCOUNT_LOCKTYPE_ZERO(name, lock)
+#define SEQCNT_RWLOCK_ZERO(name, lock)		SEQCOUNT_LOCKTYPE_ZERO(name, lock)
+#define SEQCNT_MUTEX_ZERO(name, lock)		SEQCOUNT_LOCKTYPE_ZERO(name, lock)
+#define SEQCNT_WW_MUTEX_ZERO(name, lock) 	SEQCOUNT_LOCKTYPE_ZERO(name, lock)
+
 
 #define __seqprop_case(s, lockname, prop)				\
 	seqcount_##lockname##_t: __seqcount_##lockname##_##prop((void *)(s))
