@@ -286,13 +286,13 @@ dbc_ep_do_queue(struct dbc_ep *dep, struct dbc_request *req)
 				  req->length,
 				  dbc_ep_dma_direction(dep));
 	if (dma_mapping_error(dev, req->dma)) {
-		xhci_err(xhci, "failed to map buffer\n");
+		dev_err(dbc->dev, "failed to map buffer\n");
 		return -EFAULT;
 	}
 
 	ret = xhci_dbc_queue_bulk_tx(dep, req);
 	if (ret) {
-		xhci_err(xhci, "failed to queue trbs\n");
+		dev_err(dbc->dev, "failed to queue trbs\n");
 		dma_unmap_single(dev,
 				 req->dma,
 				 req->length,
@@ -567,23 +567,22 @@ static void xhci_dbc_stop(struct xhci_hcd *xhci)
 }
 
 static void
-dbc_handle_port_status(struct xhci_hcd *xhci, union xhci_trb *event)
+dbc_handle_port_status(struct xhci_dbc *dbc, union xhci_trb *event)
 {
 	u32			portsc;
-	struct xhci_dbc		*dbc = xhci->dbc;
 
 	portsc = readl(&dbc->regs->portsc);
 	if (portsc & DBC_PORTSC_CONN_CHANGE)
-		xhci_info(xhci, "DbC port connect change\n");
+		dev_info(dbc->dev, "DbC port connect change\n");
 
 	if (portsc & DBC_PORTSC_RESET_CHANGE)
-		xhci_info(xhci, "DbC port reset change\n");
+		dev_info(dbc->dev, "DbC port reset change\n");
 
 	if (portsc & DBC_PORTSC_LINK_CHANGE)
-		xhci_info(xhci, "DbC port link status change\n");
+		dev_info(dbc->dev, "DbC port link status change\n");
 
 	if (portsc & DBC_PORTSC_CONFIG_CHANGE)
-		xhci_info(xhci, "DbC config error change\n");
+		dev_info(dbc->dev, "DbC config error change\n");
 
 	/* Port reset change bit will be cleared in other place: */
 	writel(portsc & ~DBC_PORTSC_RESET_CHANGE, &dbc->regs->portsc);
@@ -598,6 +597,7 @@ static void dbc_handle_xfer_event(struct xhci_hcd *xhci, union xhci_trb *event)
 	u32			comp_code;
 	size_t			remain_length;
 	struct dbc_request	*req = NULL, *r;
+	struct xhci_dbc		*dbc = xhci->dbc;
 
 	comp_code	= GET_COMP_CODE(le32_to_cpu(event->generic.field[2]));
 	remain_length	= EVENT_TRB_LEN(le32_to_cpu(event->generic.field[2]));
@@ -617,11 +617,11 @@ static void dbc_handle_xfer_event(struct xhci_hcd *xhci, union xhci_trb *event)
 	case COMP_BABBLE_DETECTED_ERROR:
 	case COMP_USB_TRANSACTION_ERROR:
 	case COMP_STALL_ERROR:
-		xhci_warn(xhci, "tx error %d detected\n", comp_code);
+		dev_warn(dbc->dev, "tx error %d detected\n", comp_code);
 		status = -comp_code;
 		break;
 	default:
-		xhci_err(xhci, "unknown tx error %d\n", comp_code);
+		dev_err(dbc->dev, "unknown tx error %d\n", comp_code);
 		status = -comp_code;
 		break;
 	}
@@ -635,7 +635,7 @@ static void dbc_handle_xfer_event(struct xhci_hcd *xhci, union xhci_trb *event)
 	}
 
 	if (!req) {
-		xhci_warn(xhci, "no matched request\n");
+		dev_warn(dbc->dev, "no matched request\n");
 		return;
 	}
 
@@ -676,7 +676,7 @@ static enum evtreturn xhci_dbc_do_handle_events(struct xhci_dbc *dbc)
 		portsc = readl(&dbc->regs->portsc);
 		if (portsc & DBC_PORTSC_CONN_STATUS) {
 			dbc->state = DS_CONNECTED;
-			xhci_info(xhci, "DbC connected\n");
+			dev_info(dbc->dev, "DbC connected\n");
 		}
 
 		return EVT_DONE;
@@ -684,7 +684,7 @@ static enum evtreturn xhci_dbc_do_handle_events(struct xhci_dbc *dbc)
 		ctrl = readl(&dbc->regs->control);
 		if (ctrl & DBC_CTRL_DBC_RUN) {
 			dbc->state = DS_CONFIGURED;
-			xhci_info(xhci, "DbC configured\n");
+			dev_info(dbc->dev, "DbC configured\n");
 			portsc = readl(&dbc->regs->portsc);
 			writel(portsc, &dbc->regs->portsc);
 			return EVT_GSER;
@@ -696,7 +696,7 @@ static enum evtreturn xhci_dbc_do_handle_events(struct xhci_dbc *dbc)
 		portsc = readl(&dbc->regs->portsc);
 		if (!(portsc & DBC_PORTSC_PORT_ENABLED) &&
 		    !(portsc & DBC_PORTSC_CONN_STATUS)) {
-			xhci_info(xhci, "DbC cable unplugged\n");
+			dev_info(dbc->dev, "DbC cable unplugged\n");
 			dbc->state = DS_ENABLED;
 			xhci_dbc_flush_requests(dbc);
 
@@ -705,7 +705,7 @@ static enum evtreturn xhci_dbc_do_handle_events(struct xhci_dbc *dbc)
 
 		/* Handle debug port reset event: */
 		if (portsc & DBC_PORTSC_RESET_CHANGE) {
-			xhci_info(xhci, "DbC port reset\n");
+			dev_info(dbc->dev, "DbC port reset\n");
 			writel(portsc, &dbc->regs->portsc);
 			dbc->state = DS_ENABLED;
 			xhci_dbc_flush_requests(dbc);
@@ -717,7 +717,7 @@ static enum evtreturn xhci_dbc_do_handle_events(struct xhci_dbc *dbc)
 		ctrl = readl(&dbc->regs->control);
 		if ((ctrl & DBC_CTRL_HALT_IN_TR) ||
 		    (ctrl & DBC_CTRL_HALT_OUT_TR)) {
-			xhci_info(xhci, "DbC Endpoint stall\n");
+			dev_info(dbc->dev, "DbC Endpoint stall\n");
 			dbc->state = DS_STALLED;
 
 			if (ctrl & DBC_CTRL_HALT_IN_TR) {
@@ -751,7 +751,7 @@ static enum evtreturn xhci_dbc_do_handle_events(struct xhci_dbc *dbc)
 
 		return EVT_DONE;
 	default:
-		xhci_err(xhci, "Unknown DbC state %d\n", dbc->state);
+		dev_err(dbc->dev, "Unknown DbC state %d\n", dbc->state);
 		break;
 	}
 
@@ -769,7 +769,7 @@ static enum evtreturn xhci_dbc_do_handle_events(struct xhci_dbc *dbc)
 
 		switch (le32_to_cpu(evt->event_cmd.flags) & TRB_TYPE_BITMASK) {
 		case TRB_TYPE(TRB_PORT_STATUS):
-			dbc_handle_port_status(xhci, evt);
+			dbc_handle_port_status(dbc, evt);
 			break;
 		case TRB_TYPE(TRB_TRANSFER):
 			dbc_handle_xfer_event(xhci, evt);
@@ -813,11 +813,11 @@ static void xhci_dbc_handle_events(struct work_struct *work)
 	case EVT_GSER:
 		ret = xhci_dbc_tty_register_device(xhci);
 		if (ret) {
-			xhci_err(xhci, "failed to alloc tty device\n");
+			dev_err(dbc->dev, "failed to alloc tty device\n");
 			break;
 		}
 
-		xhci_info(xhci, "DbC now attached to /dev/ttyDBC0\n");
+		dev_info(dbc->dev, "DbC now attached to /dev/ttyDBC0\n");
 		break;
 	case EVT_DISC:
 		xhci_dbc_tty_unregister_device(xhci);
@@ -825,7 +825,7 @@ static void xhci_dbc_handle_events(struct work_struct *work)
 	case EVT_DONE:
 		break;
 	default:
-		xhci_info(xhci, "stop handling dbc events\n");
+		dev_info(dbc->dev, "stop handling dbc events\n");
 		return;
 	}
 
