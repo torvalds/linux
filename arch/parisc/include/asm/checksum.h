@@ -19,14 +19,6 @@
 extern __wsum csum_partial(const void *, int, __wsum);
 
 /*
- * The same as csum_partial, but copies from src while it checksums.
- *
- * Here even more important to align src and dst on a 32-bit (or even
- * better 64-bit) boundary
- */
-extern __wsum csum_partial_copy_nocheck(const void *, void *, int, __wsum);
-
-/*
  *	Optimized for IP headers, which always checksum on 4 octet boundaries.
  *
  *	Written by Randolph Chung <tausq@debian.org>, and then mucked with by

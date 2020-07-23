@@ -101,9 +101,9 @@ __wsum csum_and_copy_to_user(const void *src, void __user *dst, int len,
  * the same as csum_partial, but copies from user space (but on MIPS
  * we have just one address space, so this is identical to the above)
  */
+#define _HAVE_ARCH_CSUM_AND_COPY
 __wsum csum_partial_copy_nocheck(const void *src, void *dst,
 				       int len, __wsum sum);
-#define csum_partial_copy_nocheck csum_partial_copy_nocheck
 
 /*
  *	Fold a partial checksum without adding pseudo headers

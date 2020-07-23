@@ -34,6 +34,7 @@ asmlinkage __wsum csum_partial_copy_generic(const void *src, void *dst,
 					    int len, __wsum sum,
 					    int *src_err_ptr, int *dst_err_ptr);
 
+#define _HAVE_ARCH_CSUM_AND_COPY
 /*
  *	Note: when you get a NULL pointer exception here this means someone
  *	passed in an incorrect kernel address to one of these functions.

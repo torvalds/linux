@@ -12,10 +12,6 @@
 
 /* Take these from lib/checksum.c */
 extern __wsum csum_partial(const void *buff, int len, __wsum sum);
-__wsum csum_partial_copy_nocheck(const void *src, void *dst, int len,
-				__wsum sum);
-#define csum_partial_copy_nocheck csum_partial_copy_nocheck
-
 extern __sum16 ip_fast_csum(const void *iph, unsigned int ihl);
 extern __sum16 ip_compute_csum(const void *buff, int len);
 

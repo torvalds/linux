@@ -47,6 +47,15 @@ static __inline__ __wsum csum_and_copy_to_user
 }
 #endif
 
+#ifndef _HAVE_ARCH_CSUM_AND_COPY
+static inline __wsum
+csum_partial_copy_nocheck(const void *src, void *dst, int len, __wsum sum)
+{
+	memcpy(dst, src, len);
+	return csum_partial(dst, len, sum);
+}
+#endif
+
 #ifndef HAVE_ARCH_CSUM_ADD
 static inline __wsum csum_add(__wsum csum, __wsum addend)
 {
