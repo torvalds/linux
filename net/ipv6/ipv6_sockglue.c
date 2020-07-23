@@ -337,7 +337,8 @@ static int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 	valbool = (val != 0);
 
 	if (ip6_mroute_opt(optname))
-		return ip6_mroute_setsockopt(sk, optname, optval, optlen);
+		return ip6_mroute_setsockopt(sk, optname, USER_SOCKPTR(optval),
+					     optlen);
 
 	if (needs_rtnl)
 		rtnl_lock();
