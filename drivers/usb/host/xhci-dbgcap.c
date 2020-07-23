@@ -267,11 +267,8 @@ static int
 dbc_ep_do_queue(struct dbc_ep *dep, struct dbc_request *req)
 {
 	int			ret;
-	struct device		*dev;
 	struct xhci_dbc		*dbc = dep->dbc;
-	struct xhci_hcd		*xhci = dbc->xhci;
-
-	dev = xhci_to_hcd(xhci)->self.sysdev;
+	struct device		*dev = dbc->dev;
 
 	if (!req->length || !req->buf)
 		return -EINVAL;
