@@ -907,7 +907,7 @@ static int rkvdec_run(struct mpp_dev *mpp,
 			reg |= RKVDEC_CACHE_LINE_SIZE_64_BYTES;
 
 		mpp_write_relaxed(mpp, RKVDEC_REG_CACHE0_SIZE_BASE, reg);
-		mpp_write_relaxed(mpp, RKVDEC_REG_CACHE0_SIZE_BASE, reg);
+		mpp_write_relaxed(mpp, RKVDEC_REG_CACHE1_SIZE_BASE, reg);
 		/* clear cache */
 		mpp_write_relaxed(mpp, RKVDEC_REG_CLR_CACHE0_BASE, 1);
 		mpp_write_relaxed(mpp, RKVDEC_REG_CLR_CACHE1_BASE, 1);
