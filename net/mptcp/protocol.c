@@ -460,15 +460,20 @@ static void mptcp_clean_una(struct sock *sk)
 
 	dfrag = mptcp_rtx_head(sk);
 	if (dfrag && after64(snd_una, dfrag->data_seq)) {
-		u64 delta = dfrag->data_seq + dfrag->data_len - snd_una;
+		u64 delta = snd_una - dfrag->data_seq;
+
+		if (WARN_ON_ONCE(delta > dfrag->data_len))
+			goto out;
 
 		dfrag->data_seq += delta;
+		dfrag->offset += delta;
 		dfrag->data_len -= delta;
 
 		dfrag_uncharge(sk, delta);
 		cleaned = true;
 	}
 
+out:
 	if (cleaned) {
 		sk_mem_reclaim_partial(sk);
 
