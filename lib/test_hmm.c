@@ -585,15 +585,6 @@ static void dmirror_migrate_alloc_and_copy(struct migrate_vma *args,
 		 */
 		spage = migrate_pfn_to_page(*src);
 
-		/*
-		 * Don't migrate device private pages from our own driver or
-		 * others. For our own we would do a device private memory copy
-		 * not a migration and for others, we would need to fault the
-		 * other device's page into system memory first.
-		 */
-		if (spage && is_zone_device_page(spage))
-			continue;
-
 		dpage = dmirror_devmem_alloc_page(mdevice);
 		if (!dpage)
 			continue;
@@ -702,7 +693,8 @@ static int dmirror_migrate(struct dmirror *dmirror,
 		args.dst = dst_pfns;
 		args.start = addr;
 		args.end = next;
-		args.src_owner = NULL;
+		args.pgmap_owner = NULL;
+		args.flags = MIGRATE_VMA_SELECT_SYSTEM;
 		ret = migrate_vma_setup(&args);
 		if (ret)
 			goto out;
@@ -1053,7 +1045,8 @@ static vm_fault_t dmirror_devmem_fault(struct vm_fault *vmf)
 	args.end = args.start + PAGE_SIZE;
 	args.src = &src_pfns;
 	args.dst = &dst_pfns;
-	args.src_owner = dmirror->mdevice;
+	args.pgmap_owner = dmirror->mdevice;
+	args.flags = MIGRATE_VMA_SELECT_DEVICE_PRIVATE;
 
 	if (migrate_vma_setup(&args))
 		return VM_FAULT_SIGBUS;
