@@ -44,7 +44,7 @@ static int __bpfilter_process_sockopt(struct sock *sk, int optname,
 	req.is_set = is_set;
 	req.pid = current->pid;
 	req.cmd = optname;
-	req.addr = (long __force __user)optval;
+	req.addr = (uintptr_t)optval;
 	req.len = optlen;
 	if (!bpfilter_ops.info.tgid)
 		goto out;
