@@ -20,7 +20,8 @@ enum data_cmd {
 
 struct data_opts {
 	u16		target;
-	unsigned	rewrite_dev;
+	u8		rewrite_dev;
+	u8		nr_replicas;
 	int		btree_insert_flags;
 };
 

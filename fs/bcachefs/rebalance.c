@@ -73,6 +73,7 @@ static enum data_cmd rebalance_pred(struct bch_fs *c, void *arg,
 {
 	if (__bch2_rebalance_pred(c, k, io_opts) >= 0) {
 		data_opts->target		= io_opts->background_target;
+		data_opts->nr_replicas		= 1;
 		data_opts->btree_insert_flags	= 0;
 		return DATA_ADD_REPLICAS;
 	} else {

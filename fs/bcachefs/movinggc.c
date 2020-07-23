@@ -53,17 +53,21 @@ static int bucket_offset_cmp(const void *_l, const void *_r, size_t size)
 		cmp_int(l->offset, r->offset);
 }
 
-static int __copygc_pred(struct bch_fs *c, struct bkey_s_c k)
+static enum data_cmd copygc_pred(struct bch_fs *c, void *arg,
+				 struct bkey_s_c k,
+				 struct bch_io_opts *io_opts,
+				 struct data_opts *data_opts)
 {
 	copygc_heap *h = &c->copygc_heap;
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
-	const struct bch_extent_ptr *ptr;
+	const union bch_extent_entry *entry;
+	struct extent_ptr_decoded p;
 
-	bkey_for_each_ptr(ptrs, ptr) {
-		struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
+	bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
+		struct bch_dev *ca = bch_dev_bkey_exists(c, p.ptr.dev);
 		struct copygc_heap_entry search = {
-			.dev = ptr->dev,
-			.offset = ptr->offset
+			.dev	= p.ptr.dev,
+			.offset	= p.ptr.offset,
 		};
 
 		ssize_t i = eytzinger0_find_le(h->data, h->used,
@@ -81,27 +85,24 @@ static int __copygc_pred(struct bch_fs *c, struct bkey_s_c k)
 		BUG_ON(i != j);
 #endif
 		if (i >= 0 &&
-		    ptr->offset < h->data[i].offset + ca->mi.bucket_size &&
-		    ptr->gen == h->data[i].gen)
-			return ptr->dev;
+		    p.ptr.offset < h->data[i].offset + ca->mi.bucket_size &&
+		    p.ptr.gen == h->data[i].gen) {
+			data_opts->target		= io_opts->background_target;
+			data_opts->nr_replicas		= 1;
+			data_opts->btree_insert_flags	= BTREE_INSERT_USE_RESERVE;
+			data_opts->rewrite_dev		= p.ptr.dev;
+
+			if (p.has_ec) {
+				struct stripe *m = genradix_ptr(&c->stripes[0], p.ec.idx);
+
+				data_opts->nr_replicas += m->nr_redundant;
+			}
+
+			return DATA_REWRITE;
+		}
 	}
 
-	return -1;
-}
-
-static enum data_cmd copygc_pred(struct bch_fs *c, void *arg,
-				 struct bkey_s_c k,
-				 struct bch_io_opts *io_opts,
-				 struct data_opts *data_opts)
-{
-	int dev_idx = __copygc_pred(c, k);
-	if (dev_idx < 0)
-		return DATA_SKIP;
-
-	data_opts->target		= io_opts->background_target;
-	data_opts->btree_insert_flags	= BTREE_INSERT_USE_RESERVE;
-	data_opts->rewrite_dev		= dev_idx;
-	return DATA_REWRITE;
+	return DATA_SKIP;
 }
 
 static bool have_copygc_reserve(struct bch_dev *ca)
@@ -168,7 +169,8 @@ static int bch2_copygc(struct bch_fs *c)
 		buckets = bucket_array(ca);
 
 		for (b = buckets->first_bucket; b < buckets->nbuckets; b++) {
-			struct bucket_mark m = READ_ONCE(buckets->b[b].mark);
+			struct bucket *g = buckets->b + b;
+			struct bucket_mark m = READ_ONCE(g->mark);
 			struct copygc_heap_entry e;
 
 			if (m.owned_by_allocator ||
@@ -177,9 +179,12 @@ static int bch2_copygc(struct bch_fs *c)
 			    bucket_sectors_used(m) >= ca->mi.bucket_size)
 				continue;
 
+			WARN_ON(m.stripe && !g->ec_redundancy);
+
 			e = (struct copygc_heap_entry) {
 				.dev		= dev_idx,
 				.gen		= m.gen,
+				.replicas	= 1 + g->ec_redundancy,
 				.fragmentation	= bucket_sectors_used(m) * (1U << 15)
 					/ ca->mi.bucket_size,
 				.sectors	= bucket_sectors_used(m),
@@ -196,11 +201,11 @@ static int bch2_copygc(struct bch_fs *c)
 	}
 
 	for (i = h->data; i < h->data + h->used; i++)
-		sectors_to_move += i->sectors;
+		sectors_to_move += i->sectors * i->replicas;
 
 	while (sectors_to_move > sectors_reserved) {
 		BUG_ON(!heap_pop(h, e, -fragmentation_cmp, NULL));
-		sectors_to_move -= e.sectors;
+		sectors_to_move -= e.sectors * e.replicas;
 	}
 
 	buckets_to_move = h->used;

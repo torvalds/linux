@@ -265,8 +265,8 @@ int bch2_migrate_write_init(struct bch_fs *c, struct migrate_write *m,
 		BCH_WRITE_DATA_ENCODED|
 		BCH_WRITE_FROM_INTERNAL;
 
-	m->op.nr_replicas	= 1;
-	m->op.nr_replicas_required = 1;
+	m->op.nr_replicas	= data_opts.nr_replicas;
+	m->op.nr_replicas_required = data_opts.nr_replicas;
 	m->op.index_update_fn	= bch2_migrate_index_update;
 
 	switch (data_cmd) {
@@ -754,6 +754,7 @@ static enum data_cmd rereplicate_pred(struct bch_fs *c, void *arg,
 		return DATA_SKIP;
 
 	data_opts->target		= 0;
+	data_opts->nr_replicas		= 1;
 	data_opts->btree_insert_flags	= 0;
 	return DATA_ADD_REPLICAS;
 }
@@ -769,6 +770,7 @@ static enum data_cmd migrate_pred(struct bch_fs *c, void *arg,
 		return DATA_SKIP;
 
 	data_opts->target		= 0;
+	data_opts->nr_replicas		= 1;
 	data_opts->btree_insert_flags	= 0;
 	data_opts->rewrite_dev		= op->migrate.dev;
 	return DATA_REWRITE;

@@ -1466,7 +1466,8 @@ static struct promote_op *__promote_alloc(struct bch_fs *c,
 			opts,
 			DATA_PROMOTE,
 			(struct data_opts) {
-				.target = opts.promote_target
+				.target		= opts.promote_target,
+				.nr_replicas	= 1,
 			},
 			btree_id, k);
 	BUG_ON(ret);

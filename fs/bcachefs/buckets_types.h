@@ -41,6 +41,7 @@ struct bucket {
 	u8				oldest_gen;
 	u8				gc_gen;
 	unsigned			gen_valid:1;
+	u8				ec_redundancy;
 };
 
 struct bucket_array {
@@ -123,6 +124,7 @@ struct disk_reservation {
 struct copygc_heap_entry {
 	u8			dev;
 	u8			gen;
+	u8			replicas;
 	u16			fragmentation;
 	u32			sectors;
 	u64			offset;

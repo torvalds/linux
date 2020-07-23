@@ -979,6 +979,9 @@ static int bucket_set_stripe(struct bch_fs *c, struct bkey_s_c k,
 	char buf[200];
 	int ret;
 
+	if (enabled)
+		g->ec_redundancy = s->nr_redundant;
+
 	old = bucket_cmpxchg(g, new, ({
 		ret = check_bucket_ref(c, k, ptr, 0, 0, new.gen, new.data_type,
 				       new.dirty_sectors, new.cached_sectors);
@@ -1009,6 +1012,9 @@ static int bucket_set_stripe(struct bch_fs *c, struct bkey_s_c k,
 			new.journal_seq		= journal_seq;
 		}
 	}));
+
+	if (!enabled)
+		g->ec_redundancy = 0;
 
 	bch2_dev_usage_update(c, ca, fs_usage, old, new, gc);
 	return 0;
