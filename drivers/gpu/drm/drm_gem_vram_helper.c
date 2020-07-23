@@ -1007,18 +1007,6 @@ err_ttm_tt_init:
 static int bo_driver_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 				   struct ttm_mem_type_manager *man)
 {
-	switch (type) {
-	case TTM_PL_SYSTEM:
-		break;
-	case TTM_PL_VRAM:
-		man->func = &ttm_bo_manager_func;
-		man->available_caching = TTM_PL_FLAG_UNCACHED |
-					 TTM_PL_FLAG_WC;
-		man->default_caching = TTM_PL_FLAG_WC;
-		break;
-	default:
-		return -EINVAL;
-	}
 	return 0;
 }
 
@@ -1126,6 +1114,7 @@ EXPORT_SYMBOL(drm_vram_mm_debugfs_init);
 static int drm_vram_mm_init(struct drm_vram_mm *vmm, struct drm_device *dev,
 			    uint64_t vram_base, size_t vram_size)
 {
+	struct ttm_mem_type_manager *man = &vmm->bdev.man[TTM_PL_VRAM];
 	int ret;
 
 	vmm->vram_base = vram_base;
@@ -1138,6 +1127,9 @@ static int drm_vram_mm_init(struct drm_vram_mm *vmm, struct drm_device *dev,
 	if (ret)
 		return ret;
 
+	man->func = &ttm_bo_manager_func;
+	man->available_caching = TTM_PL_FLAG_UNCACHED | TTM_PL_FLAG_WC;
+	man->default_caching = TTM_PL_FLAG_WC;
 	ret = ttm_bo_init_mm(&vmm->bdev, TTM_PL_VRAM, vram_size >> PAGE_SHIFT);
 	if (ret)
 		return ret;
