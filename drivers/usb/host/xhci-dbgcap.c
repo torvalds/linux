@@ -370,12 +370,36 @@ static void xhci_dbc_eps_exit(struct xhci_hcd *xhci)
 	memset(dbc->eps, 0, sizeof(struct dbc_ep) * ARRAY_SIZE(dbc->eps));
 }
 
+static int dbc_erst_alloc(struct device *dev, struct xhci_ring *evt_ring,
+		    struct xhci_erst *erst, gfp_t flags)
+{
+	erst->entries = dma_alloc_coherent(dev, sizeof(struct xhci_erst_entry),
+					   &erst->erst_dma_addr, flags);
+	if (!erst->entries)
+		return -ENOMEM;
+
+	erst->num_entries = 1;
+	erst->entries[0].seg_addr = cpu_to_le64(evt_ring->first_seg->dma);
+	erst->entries[0].seg_size = cpu_to_le32(TRBS_PER_SEGMENT);
+	erst->entries[0].rsvd = 0;
+	return 0;
+}
+
+static void dbc_erst_free(struct device *dev, struct xhci_erst *erst)
+{
+	if (erst->entries)
+		dma_free_coherent(dev, sizeof(struct xhci_erst_entry),
+				  erst->entries, erst->erst_dma_addr);
+	erst->entries = NULL;
+}
+
 static int xhci_dbc_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 {
 	int			ret;
 	dma_addr_t		deq;
 	u32			string_length;
 	struct xhci_dbc		*dbc = xhci->dbc;
+	struct device		*dev = xhci_to_hcd(xhci)->self.controller;
 
 	/* Allocate various rings for events and transfers: */
 	dbc->ring_evt = xhci_ring_alloc(xhci, 1, 1, TYPE_EVENT, 0, flags);
@@ -391,7 +415,7 @@ static int xhci_dbc_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 		goto out_fail;
 
 	/* Allocate and populate ERST: */
-	ret = xhci_alloc_erst(xhci, dbc->ring_evt, &dbc->erst, flags);
+	ret = dbc_erst_alloc(dev, dbc->ring_evt, &dbc->erst, flags);
 	if (ret)
 		goto erst_fail;
 
@@ -429,7 +453,7 @@ string_fail:
 	xhci_free_container_ctx(xhci, dbc->ctx);
 	dbc->ctx = NULL;
 ctx_fail:
-	xhci_free_erst(xhci, &dbc->erst);
+	dbc_erst_free(dev, &dbc->erst);
 erst_fail:
 	xhci_ring_free(xhci, dbc->ring_out);
 	dbc->ring_out = NULL;
@@ -446,6 +470,7 @@ evt_fail:
 static void xhci_dbc_mem_cleanup(struct xhci_hcd *xhci)
 {
 	struct xhci_dbc		*dbc = xhci->dbc;
+	struct device		*dev = xhci_to_hcd(xhci)->self.controller;
 
 	if (!dbc)
 		return;
@@ -462,7 +487,7 @@ static void xhci_dbc_mem_cleanup(struct xhci_hcd *xhci)
 	xhci_free_container_ctx(xhci, dbc->ctx);
 	dbc->ctx = NULL;
 
-	xhci_free_erst(xhci, &dbc->erst);
+	dbc_erst_free(dev, &dbc->erst);
 	xhci_ring_free(xhci, dbc->ring_out);
 	xhci_ring_free(xhci, dbc->ring_in);
 	xhci_ring_free(xhci, dbc->ring_evt);
