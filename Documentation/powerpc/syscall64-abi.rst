@@ -5,6 +5,15 @@ Power Architecture 64-bit Linux system call ABI
 syscall
 =======
 
+Invocation
+----------
+The syscall is made with the sc instruction, and returns with execution
+continuing at the instruction following the sc instruction.
+
+If PPC_FEATURE2_SCV appears in the AT_HWCAP2 ELF auxiliary vector, the
+scv 0 instruction is an alternative that may provide better performance,
+with some differences to calling sequence.
+
 syscall calling sequence\ [1]_ matches the Power Architecture 64-bit ELF ABI
 specification C function calling sequence, including register preservation
 rules, with the following differences.
@@ -12,16 +21,23 @@ rules, with the following differences.
 .. [1] Some syscalls (typically low-level management functions) may have
        different calling sequences (e.g., rt_sigreturn).
 
-Parameters and return value
----------------------------
+Parameters
+----------
 The system call number is specified in r0.
 
 There is a maximum of 6 integer parameters to a syscall, passed in r3-r8.
 
-Both a return value and a return error code are returned. cr0.SO is the return
-error code, and r3 is the return value or error code. When cr0.SO is clear,
-the syscall succeeded and r3 is the return value. When cr0.SO is set, the
-syscall failed and r3 is the error code that generally corresponds to errno.
+Return value
+------------
+- For the sc instruction, both a value and an error condition are returned.
+  cr0.SO is the error condition, and r3 is the return value. When cr0.SO is
+  clear, the syscall succeeded and r3 is the return value. When cr0.SO is set,
+  the syscall failed and r3 is the error value (that normally corresponds to
+  errno).
+
+- For the scv 0 instruction, the return value indicates failure if it is
+  -4095..-1 (i.e., it is >= -MAX_ERRNO (-4095) as an unsigned comparison),
+  in which case the error value is the negated return value.
 
 Stack
 -----
@@ -34,21 +50,22 @@ Register preservation rules match the ELF ABI calling sequence with the
 following differences:
 
 =========== ============= ========================================
+--- For the sc instruction, differences with the ELF ABI ---
 r0          Volatile      (System call number.)
 r3          Volatile      (Parameter 1, and return value.)
 r4-r8       Volatile      (Parameters 2-6.)
-cr0         Volatile      (cr0.SO is the return error condition)
+cr0         Volatile      (cr0.SO is the return error condition.)
 cr1, cr5-7  Nonvolatile
 lr          Nonvolatile
+
+--- For the scv 0 instruction, differences with the ELF ABI ---
+r0          Volatile      (System call number.)
+r3          Volatile      (Parameter 1, and return value.)
+r4-r8       Volatile      (Parameters 2-6.)
 =========== ============= ========================================
 
 All floating point and vector data registers as well as control and status
 registers are nonvolatile.
-
-Invocation
-----------
-The syscall is performed with the sc instruction, and returns with execution
-continuing at the instruction following the sc instruction.
 
 Transactional Memory
 --------------------
@@ -75,6 +92,7 @@ auxiliary vector.
   returning to the caller. This case is not well defined or supported, so this
   behavior should not be relied upon.
 
+scv 0 syscalls will always behave as PPC_FEATURE2_HTM_NOSC.
 
 vsyscall
 ========

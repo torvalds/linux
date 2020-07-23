@@ -1618,6 +1618,7 @@ int copy_thread_tls(unsigned long clone_flags, unsigned long usp,
 {
 	struct pt_regs *childregs, *kregs;
 	extern void ret_from_fork(void);
+	extern void ret_from_fork_scv(void);
 	extern void ret_from_kernel_thread(void);
 	void (*f)(void);
 	unsigned long sp = (unsigned long)task_stack_page(p) + THREAD_SIZE;
@@ -1654,7 +1655,9 @@ int copy_thread_tls(unsigned long clone_flags, unsigned long usp,
 		if (usp)
 			childregs->gpr[1] = usp;
 		p->thread.regs = childregs;
-		childregs->gpr[3] = 0;  /* Result from fork() */
+		/* 64s sets this in ret_from_fork */
+		if (!IS_ENABLED(CONFIG_PPC_BOOK3S_64))
+			childregs->gpr[3] = 0;  /* Result from fork() */
 		if (clone_flags & CLONE_SETTLS) {
 			if (!is_32bit_task())
 				childregs->gpr[13] = tls;
@@ -1662,7 +1665,10 @@ int copy_thread_tls(unsigned long clone_flags, unsigned long usp,
 				childregs->gpr[2] = tls;
 		}
 
-		f = ret_from_fork;
+		if (trap_is_scv(regs))
+			f = ret_from_fork_scv;
+		else
+			f = ret_from_fork;
 	}
 	childregs->msr &= ~(MSR_FP|MSR_VEC|MSR_VSX);
 	sp -= STACK_FRAME_OVERHEAD;
