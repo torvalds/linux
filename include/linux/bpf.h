@@ -33,11 +33,13 @@ struct btf;
 struct btf_type;
 struct exception_table_entry;
 struct seq_operations;
+struct bpf_iter_aux_info;
 
 extern struct idr btf_idr;
 extern spinlock_t btf_idr_lock;
 
-typedef int (*bpf_iter_init_seq_priv_t)(void *private_data);
+typedef int (*bpf_iter_init_seq_priv_t)(void *private_data,
+					struct bpf_iter_aux_info *aux);
 typedef void (*bpf_iter_fini_seq_priv_t)(void *private_data);
 struct bpf_iter_seq_info {
 	const struct seq_operations *seq_ops;
@@ -1197,6 +1199,9 @@ int bpf_obj_get_user(const char __user *pathname, int flags);
 #define DEFINE_BPF_ITER_FUNC(target, args...)			\
 	extern int bpf_iter_ ## target(args);			\
 	int __init bpf_iter_ ## target(args) { return 0; }
+
+struct bpf_iter_aux_info {
+};
 
 #define BPF_ITER_CTX_ARG_MAX 2
 struct bpf_iter_reg {

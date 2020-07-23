@@ -3181,7 +3181,7 @@ static struct pernet_operations __net_initdata udp_sysctl_ops = {
 DEFINE_BPF_ITER_FUNC(udp, struct bpf_iter_meta *meta,
 		     struct udp_sock *udp_sk, uid_t uid, int bucket)
 
-static int bpf_iter_init_udp(void *priv_data)
+static int bpf_iter_init_udp(void *priv_data, struct bpf_iter_aux_info *aux)
 {
 	struct udp_iter_state *st = priv_data;
 	struct udp_seq_afinfo *afinfo;
@@ -3194,7 +3194,7 @@ static int bpf_iter_init_udp(void *priv_data)
 	afinfo->family = AF_UNSPEC;
 	afinfo->udp_table = &udp_table;
 	st->bpf_seq_afinfo = afinfo;
-	ret = bpf_iter_init_seq_net(priv_data);
+	ret = bpf_iter_init_seq_net(priv_data, aux);
 	if (ret)
 		kfree(afinfo);
 	return ret;

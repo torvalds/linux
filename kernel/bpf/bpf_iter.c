@@ -442,7 +442,7 @@ static int prepare_seq_file(struct file *file, struct bpf_iter_link *link)
 	}
 
 	if (tinfo->reg_info->seq_info->init_seq_private) {
-		err = tinfo->reg_info->seq_info->init_seq_private(priv_data->target_private);
+		err = tinfo->reg_info->seq_info->init_seq_private(priv_data->target_private, NULL);
 		if (err)
 			goto release_seq_file;
 	}

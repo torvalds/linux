@@ -293,7 +293,7 @@ static void task_file_seq_stop(struct seq_file *seq, void *v)
 	}
 }
 
-static int init_seq_pidns(void *priv_data)
+static int init_seq_pidns(void *priv_data, struct bpf_iter_aux_info *aux)
 {
 	struct bpf_iter_seq_task_common *common = priv_data;
 
