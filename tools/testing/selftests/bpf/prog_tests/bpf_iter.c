@@ -19,6 +19,7 @@
 #include "bpf_iter_bpf_percpu_hash_map.skel.h"
 #include "bpf_iter_bpf_array_map.skel.h"
 #include "bpf_iter_bpf_percpu_array_map.skel.h"
+#include "bpf_iter_bpf_sk_storage_map.skel.h"
 
 static int duration;
 
@@ -795,6 +796,75 @@ out:
 	bpf_iter_bpf_percpu_array_map__destroy(skel);
 }
 
+static void test_bpf_sk_storage_map(void)
+{
+	DECLARE_LIBBPF_OPTS(bpf_iter_attach_opts, opts);
+	int err, i, len, map_fd, iter_fd, num_sockets;
+	struct bpf_iter_bpf_sk_storage_map *skel;
+	int sock_fd[3] = {-1, -1, -1};
+	__u32 val, expected_val = 0;
+	struct bpf_link *link;
+	char buf[64];
+
+	skel = bpf_iter_bpf_sk_storage_map__open_and_load();
+	if (CHECK(!skel, "bpf_iter_bpf_sk_storage_map__open_and_load",
+		  "skeleton open_and_load failed\n"))
+		return;
+
+	map_fd = bpf_map__fd(skel->maps.sk_stg_map);
+	num_sockets = ARRAY_SIZE(sock_fd);
+	for (i = 0; i < num_sockets; i++) {
+		sock_fd[i] = socket(AF_INET6, SOCK_STREAM, 0);
+		if (CHECK(sock_fd[i] < 0, "socket", "errno: %d\n", errno))
+			goto out;
+
+		val = i + 1;
+		expected_val += val;
+
+		err = bpf_map_update_elem(map_fd, &sock_fd[i], &val,
+					  BPF_NOEXIST);
+		if (CHECK(err, "map_update", "map_update failed\n"))
+			goto out;
+	}
+
+	opts.map_fd = map_fd;
+	link = bpf_program__attach_iter(skel->progs.dump_bpf_sk_storage_map, &opts);
+	if (CHECK(IS_ERR(link), "attach_iter", "attach_iter failed\n"))
+		goto out;
+
+	iter_fd = bpf_iter_create(bpf_link__fd(link));
+	if (CHECK(iter_fd < 0, "create_iter", "create_iter failed\n"))
+		goto free_link;
+
+	/* do some tests */
+	while ((len = read(iter_fd, buf, sizeof(buf))) > 0)
+		;
+	if (CHECK(len < 0, "read", "read failed: %s\n", strerror(errno)))
+		goto close_iter;
+
+	/* test results */
+	if (CHECK(skel->bss->ipv6_sk_count != num_sockets,
+		  "ipv6_sk_count", "got %u expected %u\n",
+		  skel->bss->ipv6_sk_count, num_sockets))
+		goto close_iter;
+
+	if (CHECK(skel->bss->val_sum != expected_val,
+		  "val_sum", "got %u expected %u\n",
+		  skel->bss->val_sum, expected_val))
+		goto close_iter;
+
+close_iter:
+	close(iter_fd);
+free_link:
+	bpf_link__destroy(link);
+out:
+	for (i = 0; i < num_sockets; i++) {
+		if (sock_fd[i] >= 0)
+			close(sock_fd[i]);
+	}
+	bpf_iter_bpf_sk_storage_map__destroy(skel);
+}
+
 void test_bpf_iter(void)
 {
 	if (test__start_subtest("btf_id_or_null"))
@@ -839,4 +909,6 @@ void test_bpf_iter(void)
 		test_bpf_array_map();
 	if (test__start_subtest("bpf_percpu_array_map"))
 		test_bpf_percpu_array_map();
+	if (test__start_subtest("bpf_sk_storage_map"))
+		test_bpf_sk_storage_map();
 }
