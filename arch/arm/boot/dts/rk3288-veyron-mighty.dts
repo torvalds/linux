@@ -18,8 +18,8 @@
 };
 
 &sdmmc {
-	pinctrl-0 = <&sdmmc_clk &sdmmc_cmd &sdmmc_cd_disabled &sdmmc_cd_gpio
-			&sdmmc_wp_gpio &sdmmc_bus4>;
+	pinctrl-0 = <&sdmmc_clk &sdmmc_cmd &sdmmc_cd_disabled &sdmmc_cd_pin
+			&sdmmc_wp_pin &sdmmc_bus4>;
 	wp-gpios = <&gpio7 10 GPIO_ACTIVE_HIGH>;
 
 	/delete-property/ disable-wp;
@@ -27,7 +27,7 @@
 
 &pinctrl {
 	sdmmc {
-		sdmmc_wp_gpio: sdmmc-wp-gpio {
+		sdmmc_wp_pin: sdmmc-wp-pin {
 			rockchip,pins = <7 RK_PB2 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
