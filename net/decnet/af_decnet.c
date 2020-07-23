@@ -1332,7 +1332,8 @@ static int dn_setsockopt(struct socket *sock, int level, int optname, char __use
 	/* we need to exclude all possible ENOPROTOOPTs except default case */
 	if (err == -ENOPROTOOPT && optname != DSO_LINKINFO &&
 	    optname != DSO_STREAM && optname != DSO_SEQPACKET)
-		err = nf_setsockopt(sk, PF_DECnet, optname, optval, optlen);
+		err = nf_setsockopt(sk, PF_DECnet, optname,
+				    USER_SOCKPTR(optval), optlen);
 #endif
 
 	return err;

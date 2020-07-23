@@ -996,7 +996,8 @@ int ipv6_setsockopt(struct sock *sk, int level, int optname,
 	/* we need to exclude all possible ENOPROTOOPTs except default case */
 	if (err == -ENOPROTOOPT && optname != IPV6_IPSEC_POLICY &&
 			optname != IPV6_XFRM_POLICY)
-		err = nf_setsockopt(sk, PF_INET6, optname, optval, optlen);
+		err = nf_setsockopt(sk, PF_INET6, optname, USER_SOCKPTR(optval),
+				    optlen);
 #endif
 	return err;
 }
