@@ -81,17 +81,21 @@ static const struct seq_operations bpf_prog_seq_ops = {
 BTF_ID_LIST(btf_bpf_prog_id)
 BTF_ID(struct, bpf_prog)
 
-static struct bpf_iter_reg bpf_prog_reg_info = {
-	.target			= "bpf_prog",
+static const struct bpf_iter_seq_info bpf_prog_seq_info = {
 	.seq_ops		= &bpf_prog_seq_ops,
 	.init_seq_private	= NULL,
 	.fini_seq_private	= NULL,
 	.seq_priv_size		= sizeof(struct bpf_iter_seq_prog_info),
+};
+
+static struct bpf_iter_reg bpf_prog_reg_info = {
+	.target			= "bpf_prog",
 	.ctx_arg_info_size	= 1,
 	.ctx_arg_info		= {
 		{ offsetof(struct bpf_iter__bpf_prog, prog),
 		  PTR_TO_BTF_ID_OR_NULL },
 	},
+	.seq_info		= &bpf_prog_seq_info,
 };
 
 static int __init bpf_prog_iter_init(void)

@@ -218,8 +218,8 @@ static int iter_release(struct inode *inode, struct file *file)
 	iter_priv = container_of(seq->private, struct bpf_iter_priv_data,
 				 target_private);
 
-	if (iter_priv->tinfo->reg_info->fini_seq_private)
-		iter_priv->tinfo->reg_info->fini_seq_private(seq->private);
+	if (iter_priv->tinfo->reg_info->seq_info->fini_seq_private)
+		iter_priv->tinfo->reg_info->seq_info->fini_seq_private(seq->private);
 
 	bpf_prog_put(iter_priv->prog);
 	seq->private = iter_priv;
@@ -433,16 +433,16 @@ static int prepare_seq_file(struct file *file, struct bpf_iter_link *link)
 
 	tinfo = link->tinfo;
 	total_priv_dsize = offsetof(struct bpf_iter_priv_data, target_private) +
-			   tinfo->reg_info->seq_priv_size;
-	priv_data = __seq_open_private(file, tinfo->reg_info->seq_ops,
+			   tinfo->reg_info->seq_info->seq_priv_size;
+	priv_data = __seq_open_private(file, tinfo->reg_info->seq_info->seq_ops,
 				       total_priv_dsize);
 	if (!priv_data) {
 		err = -ENOMEM;
 		goto release_prog;
 	}
 
-	if (tinfo->reg_info->init_seq_private) {
-		err = tinfo->reg_info->init_seq_private(priv_data->target_private);
+	if (tinfo->reg_info->seq_info->init_seq_private) {
+		err = tinfo->reg_info->seq_info->init_seq_private(priv_data->target_private);
 		if (err)
 			goto release_seq_file;
 	}

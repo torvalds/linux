@@ -319,25 +319,32 @@ BTF_ID_LIST(btf_task_file_ids)
 BTF_ID(struct, task_struct)
 BTF_ID(struct, file)
 
-static struct bpf_iter_reg task_reg_info = {
-	.target			= "task",
+static const struct bpf_iter_seq_info task_seq_info = {
 	.seq_ops		= &task_seq_ops,
 	.init_seq_private	= init_seq_pidns,
 	.fini_seq_private	= fini_seq_pidns,
 	.seq_priv_size		= sizeof(struct bpf_iter_seq_task_info),
+};
+
+static struct bpf_iter_reg task_reg_info = {
+	.target			= "task",
 	.ctx_arg_info_size	= 1,
 	.ctx_arg_info		= {
 		{ offsetof(struct bpf_iter__task, task),
 		  PTR_TO_BTF_ID_OR_NULL },
 	},
+	.seq_info		= &task_seq_info,
 };
 
-static struct bpf_iter_reg task_file_reg_info = {
-	.target			= "task_file",
+static const struct bpf_iter_seq_info task_file_seq_info = {
 	.seq_ops		= &task_file_seq_ops,
 	.init_seq_private	= init_seq_pidns,
 	.fini_seq_private	= fini_seq_pidns,
 	.seq_priv_size		= sizeof(struct bpf_iter_seq_task_file_info),
+};
+
+static struct bpf_iter_reg task_file_reg_info = {
+	.target			= "task_file",
 	.ctx_arg_info_size	= 2,
 	.ctx_arg_info		= {
 		{ offsetof(struct bpf_iter__task_file, task),
@@ -345,6 +352,7 @@ static struct bpf_iter_reg task_file_reg_info = {
 		{ offsetof(struct bpf_iter__task_file, file),
 		  PTR_TO_BTF_ID_OR_NULL },
 	},
+	.seq_info		= &task_file_seq_info,
 };
 
 static int __init task_iter_init(void)

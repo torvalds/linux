@@ -37,6 +37,15 @@ struct seq_operations;
 extern struct idr btf_idr;
 extern spinlock_t btf_idr_lock;
 
+typedef int (*bpf_iter_init_seq_priv_t)(void *private_data);
+typedef void (*bpf_iter_fini_seq_priv_t)(void *private_data);
+struct bpf_iter_seq_info {
+	const struct seq_operations *seq_ops;
+	bpf_iter_init_seq_priv_t init_seq_private;
+	bpf_iter_fini_seq_priv_t fini_seq_private;
+	u32 seq_priv_size;
+};
+
 /* map is generic key/value storage optionally accesible by eBPF programs */
 struct bpf_map_ops {
 	/* funcs callable from userspace (via syscall) */
@@ -1189,18 +1198,12 @@ int bpf_obj_get_user(const char __user *pathname, int flags);
 	extern int bpf_iter_ ## target(args);			\
 	int __init bpf_iter_ ## target(args) { return 0; }
 
-typedef int (*bpf_iter_init_seq_priv_t)(void *private_data);
-typedef void (*bpf_iter_fini_seq_priv_t)(void *private_data);
-
 #define BPF_ITER_CTX_ARG_MAX 2
 struct bpf_iter_reg {
 	const char *target;
-	const struct seq_operations *seq_ops;
-	bpf_iter_init_seq_priv_t init_seq_private;
-	bpf_iter_fini_seq_priv_t fini_seq_private;
-	u32 seq_priv_size;
 	u32 ctx_arg_info_size;
 	struct bpf_ctx_arg_aux ctx_arg_info[BPF_ITER_CTX_ARG_MAX];
+	const struct bpf_iter_seq_info *seq_info;
 };
 
 struct bpf_iter_meta {

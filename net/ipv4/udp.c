@@ -3208,17 +3208,21 @@ static void bpf_iter_fini_udp(void *priv_data)
 	bpf_iter_fini_seq_net(priv_data);
 }
 
-static struct bpf_iter_reg udp_reg_info = {
-	.target			= "udp",
+static const struct bpf_iter_seq_info udp_seq_info = {
 	.seq_ops		= &bpf_iter_udp_seq_ops,
 	.init_seq_private	= bpf_iter_init_udp,
 	.fini_seq_private	= bpf_iter_fini_udp,
 	.seq_priv_size		= sizeof(struct udp_iter_state),
+};
+
+static struct bpf_iter_reg udp_reg_info = {
+	.target			= "udp",
 	.ctx_arg_info_size	= 1,
 	.ctx_arg_info		= {
 		{ offsetof(struct bpf_iter__udp, udp_sk),
 		  PTR_TO_BTF_ID_OR_NULL },
 	},
+	.seq_info		= &udp_seq_info,
 };
 
 static void __init bpf_iter_register(void)
