@@ -247,9 +247,9 @@ SEQCOUNT_LOCKTYPE(struct ww_mutex,	ww_mutex,	true,	&s->lock->base)
 	__seqprop_case((s),	mutex,		prop),			\
 	__seqprop_case((s),	ww_mutex,	prop))
 
-#define __to_seqcount_t(s)				__seqprop(s, ptr)
-#define __associated_lock_exists_and_is_preemptible(s)	__seqprop(s, preemptible)
-#define __assert_write_section_is_protected(s)		__seqprop(s, assert)
+#define __seqcount_ptr(s)		__seqprop(s, ptr)
+#define __seqcount_lock_preemptible(s)	__seqprop(s, preemptible)
+#define __seqcount_assert_lock_held(s)	__seqprop(s, assert)
 
 /**
  * __read_seqcount_begin() - begin a seqcount_t read section w/o barrier
@@ -266,7 +266,7 @@ SEQCOUNT_LOCKTYPE(struct ww_mutex,	ww_mutex,	true,	&s->lock->base)
  * Return: count to be passed to read_seqcount_retry()
  */
 #define __read_seqcount_begin(s)					\
-	__read_seqcount_t_begin(__to_seqcount_t(s))
+	__read_seqcount_t_begin(__seqcount_ptr(s))
 
 static inline unsigned __read_seqcount_t_begin(const seqcount_t *s)
 {
@@ -289,7 +289,7 @@ repeat:
  * Return: count to be passed to read_seqcount_retry()
  */
 #define raw_read_seqcount_begin(s)					\
-	raw_read_seqcount_t_begin(__to_seqcount_t(s))
+	raw_read_seqcount_t_begin(__seqcount_ptr(s))
 
 static inline unsigned raw_read_seqcount_t_begin(const seqcount_t *s)
 {
@@ -305,7 +305,7 @@ static inline unsigned raw_read_seqcount_t_begin(const seqcount_t *s)
  * Return: count to be passed to read_seqcount_retry()
  */
 #define read_seqcount_begin(s)						\
-	read_seqcount_t_begin(__to_seqcount_t(s))
+	read_seqcount_t_begin(__seqcount_ptr(s))
 
 static inline unsigned read_seqcount_t_begin(const seqcount_t *s)
 {
@@ -325,7 +325,7 @@ static inline unsigned read_seqcount_t_begin(const seqcount_t *s)
  * Return: count to be passed to read_seqcount_retry()
  */
 #define raw_read_seqcount(s)						\
-	raw_read_seqcount_t(__to_seqcount_t(s))
+	raw_read_seqcount_t(__seqcount_ptr(s))
 
 static inline unsigned raw_read_seqcount_t(const seqcount_t *s)
 {
@@ -353,7 +353,7 @@ static inline unsigned raw_read_seqcount_t(const seqcount_t *s)
  * Return: count to be passed to read_seqcount_retry()
  */
 #define raw_seqcount_begin(s)						\
-	raw_seqcount_t_begin(__to_seqcount_t(s))
+	raw_seqcount_t_begin(__seqcount_ptr(s))
 
 static inline unsigned raw_seqcount_t_begin(const seqcount_t *s)
 {
@@ -380,7 +380,7 @@ static inline unsigned raw_seqcount_t_begin(const seqcount_t *s)
  * Return: true if a read section retry is required, else false
  */
 #define __read_seqcount_retry(s, start)					\
-	__read_seqcount_t_retry(__to_seqcount_t(s), start)
+	__read_seqcount_t_retry(__seqcount_ptr(s), start)
 
 static inline int __read_seqcount_t_retry(const seqcount_t *s, unsigned start)
 {
@@ -400,7 +400,7 @@ static inline int __read_seqcount_t_retry(const seqcount_t *s, unsigned start)
  * Return: true if a read section retry is required, else false
  */
 #define read_seqcount_retry(s, start)					\
-	read_seqcount_t_retry(__to_seqcount_t(s), start)
+	read_seqcount_t_retry(__seqcount_ptr(s), start)
 
 static inline int read_seqcount_t_retry(const seqcount_t *s, unsigned start)
 {
@@ -414,10 +414,10 @@ static inline int read_seqcount_t_retry(const seqcount_t *s, unsigned start)
  */
 #define raw_write_seqcount_begin(s)					\
 do {									\
-	if (__associated_lock_exists_and_is_preemptible(s))		\
+	if (__seqcount_lock_preemptible(s))				\
 		preempt_disable();					\
 									\
-	raw_write_seqcount_t_begin(__to_seqcount_t(s));			\
+	raw_write_seqcount_t_begin(__seqcount_ptr(s));			\
 } while (0)
 
 static inline void raw_write_seqcount_t_begin(seqcount_t *s)
@@ -433,9 +433,9 @@ static inline void raw_write_seqcount_t_begin(seqcount_t *s)
  */
 #define raw_write_seqcount_end(s)					\
 do {									\
-	raw_write_seqcount_t_end(__to_seqcount_t(s));			\
+	raw_write_seqcount_t_end(__seqcount_ptr(s));			\
 									\
-	if (__associated_lock_exists_and_is_preemptible(s))		\
+	if (__seqcount_lock_preemptible(s))				\
 		preempt_enable();					\
 } while (0)
 
@@ -456,12 +456,12 @@ static inline void raw_write_seqcount_t_end(seqcount_t *s)
  */
 #define write_seqcount_begin_nested(s, subclass)			\
 do {									\
-	__assert_write_section_is_protected(s);				\
+	__seqcount_assert_lock_held(s);					\
 									\
-	if (__associated_lock_exists_and_is_preemptible(s))		\
+	if (__seqcount_lock_preemptible(s))				\
 		preempt_disable();					\
 									\
-	write_seqcount_t_begin_nested(__to_seqcount_t(s), subclass);	\
+	write_seqcount_t_begin_nested(__seqcount_ptr(s), subclass);	\
 } while (0)
 
 static inline void write_seqcount_t_begin_nested(seqcount_t *s, int subclass)
@@ -483,12 +483,12 @@ static inline void write_seqcount_t_begin_nested(seqcount_t *s, int subclass)
  */
 #define write_seqcount_begin(s)						\
 do {									\
-	__assert_write_section_is_protected(s);				\
+	__seqcount_assert_lock_held(s);					\
 									\
-	if (__associated_lock_exists_and_is_preemptible(s))		\
+	if (__seqcount_lock_preemptible(s))				\
 		preempt_disable();					\
 									\
-	write_seqcount_t_begin(__to_seqcount_t(s));			\
+	write_seqcount_t_begin(__seqcount_ptr(s));			\
 } while (0)
 
 static inline void write_seqcount_t_begin(seqcount_t *s)
@@ -504,9 +504,9 @@ static inline void write_seqcount_t_begin(seqcount_t *s)
  */
 #define write_seqcount_end(s)						\
 do {									\
-	write_seqcount_t_end(__to_seqcount_t(s));			\
+	write_seqcount_t_end(__seqcount_ptr(s));			\
 									\
-	if (__associated_lock_exists_and_is_preemptible(s))		\
+	if (__seqcount_lock_preemptible(s))				\
 		preempt_enable();					\
 } while (0)
 
@@ -558,7 +558,7 @@ static inline void write_seqcount_t_end(seqcount_t *s)
  *      }
  */
 #define raw_write_seqcount_barrier(s)					\
-	raw_write_seqcount_t_barrier(__to_seqcount_t(s))
+	raw_write_seqcount_t_barrier(__seqcount_ptr(s))
 
 static inline void raw_write_seqcount_t_barrier(seqcount_t *s)
 {
@@ -578,7 +578,7 @@ static inline void raw_write_seqcount_t_barrier(seqcount_t *s)
  * will complete successfully and see data older than this.
  */
 #define write_seqcount_invalidate(s)					\
-	write_seqcount_t_invalidate(__to_seqcount_t(s))
+	write_seqcount_t_invalidate(__seqcount_ptr(s))
 
 static inline void write_seqcount_t_invalidate(seqcount_t *s)
 {
@@ -604,7 +604,7 @@ static inline void write_seqcount_t_invalidate(seqcount_t *s)
  * checked with read_seqcount_retry().
  */
 #define raw_read_seqcount_latch(s)					\
-	raw_read_seqcount_t_latch(__to_seqcount_t(s))
+	raw_read_seqcount_t_latch(__seqcount_ptr(s))
 
 static inline int raw_read_seqcount_t_latch(seqcount_t *s)
 {
@@ -695,7 +695,7 @@ static inline int raw_read_seqcount_t_latch(seqcount_t *s)
  *	patterns to manage the lifetimes of the objects within.
  */
 #define raw_write_seqcount_latch(s)					\
-	raw_write_seqcount_t_latch(__to_seqcount_t(s))
+	raw_write_seqcount_t_latch(__seqcount_ptr(s))
 
 static inline void raw_write_seqcount_t_latch(seqcount_t *s)
 {
