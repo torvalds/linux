@@ -497,25 +497,25 @@ extern int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
 
 /**
  * gpiochip_add_data() - register a gpio_chip
- * @gc: the chip to register, with chip->base initialized
+ * @gc: the chip to register, with gc->base initialized
  * @data: driver-private data associated with this chip
  *
  * Context: potentially before irqs will work
  *
  * When gpiochip_add_data() is called very early during boot, so that GPIOs
- * can be freely used, the chip->parent device must be registered before
+ * can be freely used, the gc->parent device must be registered before
  * the gpio framework's arch_initcall().  Otherwise sysfs initialization
  * for GPIOs will fail rudely.
  *
  * gpiochip_add_data() must only be called after gpiolib initialization,
  * ie after core_initcall().
  *
- * If chip->base is negative, this requests dynamic assignment of
+ * If gc->base is negative, this requests dynamic assignment of
  * a range of valid GPIOs.
  *
  * Returns:
  * A negative errno if the chip can't be registered, such as because the
- * chip->base is invalid or already associated with a different chip.
+ * gc->base is invalid or already associated with a different chip.
  * Otherwise it returns zero as a success code.
  */
 #ifdef CONFIG_LOCKDEP
