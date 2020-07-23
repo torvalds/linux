@@ -1712,68 +1712,62 @@ static int resp_inquiry(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 	return ret;
 }
 
+/* See resp_iec_m_pg() for how this data is manipulated */
 static unsigned char iec_m_pg[] = {0x1c, 0xa, 0x08, 0, 0, 0, 0, 0,
 				   0, 0, 0x0, 0x0};
 
 static int resp_requests(struct scsi_cmnd *scp,
 			 struct sdebug_dev_info *devip)
 {
-	unsigned char *sbuff;
 	unsigned char *cmd = scp->cmnd;
-	unsigned char arr[SCSI_SENSE_BUFFERSIZE];
-	bool dsense;
+	unsigned char arr[SCSI_SENSE_BUFFERSIZE];	/* assume >= 18 bytes */
+	bool dsense = !!(cmd[1] & 1);
+	int alloc_len = cmd[4];
 	int len = 18;
+	int stopped_state = atomic_read(&devip->stopped);
 
 	memset(arr, 0, sizeof(arr));
-	dsense = !!(cmd[1] & 1);
-	sbuff = scp->sense_buffer;
-	if ((iec_m_pg[2] & 0x4) && (6 == (iec_m_pg[3] & 0xf))) {
+	if (stopped_state > 0) {	/* some "pollable" data [spc6r02: 5.12.2] */
+		if (dsense) {
+			arr[0] = 0x72;
+			arr[1] = NOT_READY;
+			arr[2] = LOGICAL_UNIT_NOT_READY;
+			arr[3] = (stopped_state == 2) ? 0x1 : 0x2;
+			len = 8;
+		} else {
+			arr[0] = 0x70;
+			arr[2] = NOT_READY;		/* NO_SENSE in sense_key */
+			arr[7] = 0xa;			/* 18 byte sense buffer */
+			arr[12] = LOGICAL_UNIT_NOT_READY;
+			arr[13] = (stopped_state == 2) ? 0x1 : 0x2;
+		}
+	} else if ((iec_m_pg[2] & 0x4) && (6 == (iec_m_pg[3] & 0xf))) {
+		/* Information exceptions control mode page: TEST=1, MRIE=6 */
 		if (dsense) {
 			arr[0] = 0x72;
 			arr[1] = 0x0;		/* NO_SENSE in sense_key */
 			arr[2] = THRESHOLD_EXCEEDED;
-			arr[3] = 0xff;		/* TEST set and MRIE==6 */
+			arr[3] = 0xff;		/* Failure prediction(false) */
 			len = 8;
 		} else {
 			arr[0] = 0x70;
 			arr[2] = 0x0;		/* NO_SENSE in sense_key */
 			arr[7] = 0xa;   	/* 18 byte sense buffer */
 			arr[12] = THRESHOLD_EXCEEDED;
-			arr[13] = 0xff;		/* TEST set and MRIE==6 */
+			arr[13] = 0xff;		/* Failure prediction(false) */
 		}
-	} else {
-		memcpy(arr, sbuff, SCSI_SENSE_BUFFERSIZE);
-		if (arr[0] >= 0x70 && dsense == sdebug_dsense)
-			;	/* have sense and formats match */
-		else if (arr[0] <= 0x70) {
-			if (dsense) {
-				memset(arr, 0, 8);
-				arr[0] = 0x72;
-				len = 8;
-			} else {
-				memset(arr, 0, 18);
-				arr[0] = 0x70;
-				arr[7] = 0xa;
-			}
-		} else if (dsense) {
-			memset(arr, 0, 8);
-			arr[0] = 0x72;
-			arr[1] = sbuff[2];     /* sense key */
-			arr[2] = sbuff[12];    /* asc */
-			arr[3] = sbuff[13];    /* ascq */
+	} else {	/* nothing to report */
+		if (dsense) {
 			len = 8;
+			memset(arr, 0, len);
+			arr[0] = 0x72;
 		} else {
-			memset(arr, 0, 18);
+			memset(arr, 0, len);
 			arr[0] = 0x70;
-			arr[2] = sbuff[1];
 			arr[7] = 0xa;
-			arr[12] = sbuff[1];
-			arr[13] = sbuff[3];
 		}
-
 	}
-	mk_sense_buffer(scp, 0, NO_ADDITIONAL_SENSE, 0);
-	return fill_from_dev_buffer(scp, arr, len);
+	return fill_from_dev_buffer(scp, arr, min_t(int, len, alloc_len));
 }
 
 static int resp_start_stop(struct scsi_cmnd *scp,
