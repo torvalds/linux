@@ -1678,7 +1678,7 @@ __setup("nol2par", nol2parity);
  * Some MIPS CPUs can enable/disable for cache parity detection, but do
  * it different ways.
  */
-static inline void parity_protection_init(void)
+static inline __init void parity_protection_init(void)
 {
 #define ERRCTL_PE	0x80000000
 #define ERRCTL_L2P	0x00800000
