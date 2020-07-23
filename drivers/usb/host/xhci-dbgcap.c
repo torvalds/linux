@@ -14,15 +14,6 @@
 #include "xhci-trace.h"
 #include "xhci-dbgcap.h"
 
-static inline void
-dbc_dma_free_coherent(struct xhci_hcd *xhci, size_t size,
-		      void *cpu_addr, dma_addr_t dma_handle)
-{
-	if (cpu_addr)
-		dma_free_coherent(xhci_to_hcd(xhci)->self.sysdev,
-				  size, cpu_addr, dma_handle);
-}
-
 static u32 xhci_dbc_populate_strings(struct dbc_str_descs *strings)
 {
 	struct usb_string_descriptor	*s_desc;
@@ -465,9 +456,8 @@ static void xhci_dbc_mem_cleanup(struct xhci_hcd *xhci)
 	xhci_dbc_eps_exit(xhci);
 
 	if (dbc->string) {
-		dbc_dma_free_coherent(xhci,
-				      dbc->string_size,
-				      dbc->string, dbc->string_dma);
+		dma_free_coherent(dbc->dev, dbc->string_size,
+				  dbc->string, dbc->string_dma);
 		dbc->string = NULL;
 	}
 
