@@ -1012,7 +1012,7 @@ static int fsl_esai_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	ret = devm_request_irq(&pdev->dev, irq, esai_isr, 0,
+	ret = devm_request_irq(&pdev->dev, irq, esai_isr, IRQF_SHARED,
 			       esai_priv->name, esai_priv);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to claim irq %u\n", irq);
