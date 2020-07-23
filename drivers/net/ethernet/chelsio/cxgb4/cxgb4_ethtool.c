@@ -25,6 +25,15 @@ static void set_msglevel(struct net_device *dev, u32 val)
 	netdev2adap(dev)->msg_enable = val;
 }
 
+enum cxgb4_ethtool_tests {
+	CXGB4_ETHTOOL_LB_TEST,
+	CXGB4_ETHTOOL_MAX_TEST,
+};
+
+static const char cxgb4_selftest_strings[CXGB4_ETHTOOL_MAX_TEST][ETH_GSTRING_LEN] = {
+	"Loop back test",
+};
+
 static const char * const flash_region_strings[] = {
 	"All",
 	"Firmware",
@@ -166,6 +175,8 @@ static int get_sset_count(struct net_device *dev, int sset)
 		       ARRAY_SIZE(loopback_stats_strings);
 	case ETH_SS_PRIV_FLAGS:
 		return ARRAY_SIZE(cxgb4_priv_flags_strings);
+	case ETH_SS_TEST:
+		return ARRAY_SIZE(cxgb4_selftest_strings);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -228,6 +239,9 @@ static void get_strings(struct net_device *dev, u32 stringset, u8 *data)
 	} else if (stringset == ETH_SS_PRIV_FLAGS) {
 		memcpy(data, cxgb4_priv_flags_strings,
 		       sizeof(cxgb4_priv_flags_strings));
+	} else if (stringset == ETH_SS_TEST) {
+		memcpy(data, cxgb4_selftest_strings,
+		       sizeof(cxgb4_selftest_strings));
 	}
 }
 
@@ -2056,6 +2070,43 @@ static int cxgb4_set_priv_flags(struct net_device *netdev, u32 flags)
 	return 0;
 }
 
+static void cxgb4_lb_test(struct net_device *netdev, u64 *lb_status)
+{
+	int dev_state = netif_running(netdev);
+
+	if (dev_state) {
+		netif_tx_stop_all_queues(netdev);
+		netif_carrier_off(netdev);
+	}
+
+	*lb_status = cxgb4_selftest_lb_pkt(netdev);
+
+	if (dev_state) {
+		netif_tx_start_all_queues(netdev);
+		netif_carrier_on(netdev);
+	}
+}
+
+static void cxgb4_self_test(struct net_device *netdev,
+			    struct ethtool_test *eth_test, u64 *data)
+{
+	struct port_info *pi = netdev_priv(netdev);
+	struct adapter *adap = pi->adapter;
+
+	memset(data, 0, sizeof(u64) * CXGB4_ETHTOOL_MAX_TEST);
+
+	if (!(adap->flags & CXGB4_FW_OK)) {
+		eth_test->flags |= ETH_TEST_FL_FAILED;
+		return;
+	}
+
+	if (eth_test->flags == ETH_TEST_FL_OFFLINE)
+		cxgb4_lb_test(netdev, &data[CXGB4_ETHTOOL_LB_TEST]);
+
+	if (data[CXGB4_ETHTOOL_LB_TEST])
+		eth_test->flags |= ETH_TEST_FL_FAILED;
+}
+
 static const struct ethtool_ops cxgb_ethtool_ops = {
 	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
 				     ETHTOOL_COALESCE_RX_MAX_FRAMES |
@@ -2090,6 +2141,7 @@ static const struct ethtool_ops cxgb_ethtool_ops = {
 	.get_rxfh_indir_size = get_rss_table_size,
 	.get_rxfh	   = get_rss_table,
 	.set_rxfh	   = set_rss_table,
+	.self_test	   = cxgb4_self_test,
 	.flash_device      = set_flash,
 	.get_ts_info       = get_ts_info,
 	.set_dump          = set_dump,
