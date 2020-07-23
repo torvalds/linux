@@ -198,6 +198,7 @@ struct x86_pmu_capability {
 
 /* RDPMC offset for Fixed PMCs */
 #define INTEL_PMC_FIXED_RDPMC_BASE		(1 << 30)
+#define INTEL_PMC_FIXED_RDPMC_METRICS		(1 << 29)
 
 /*
  * All the fixed-mode PMCs are configured via this single MSR:
@@ -305,6 +306,7 @@ static inline bool is_topdown_idx(int idx)
 #define GLOBAL_STATUS_TRACE_TOPAPMI		BIT_ULL(GLOBAL_STATUS_TRACE_TOPAPMI_BIT)
 #define GLOBAL_STATUS_PERF_METRICS_OVF_BIT	48
 
+#define GLOBAL_CTRL_EN_PERF_METRICS		48
 /*
  * We model guest LBR event tracing as another fixed-mode PMC like BTS.
  *
