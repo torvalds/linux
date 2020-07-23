@@ -241,6 +241,9 @@ struct clk_mgr_funcs {
 	bool (*are_clock_states_equal) (struct dc_clocks *a,
 			struct dc_clocks *b);
 	void (*notify_wm_ranges)(struct clk_mgr *clk_mgr);
+
+	/* Notify clk_mgr of a change in link rate, update phyclk frequency if necessary */
+	void (*notify_link_rate_change)(struct clk_mgr *clk_mgr, struct dc_link *link);
 #ifdef CONFIG_DRM_AMD_DC_DCN3_0
 	/*
 	 * Send message to PMFW to set hard min memclk frequency

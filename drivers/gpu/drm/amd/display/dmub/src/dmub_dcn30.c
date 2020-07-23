@@ -153,11 +153,22 @@ void dmub_dcn30_setup_windows(struct dmub_srv *dmub,
 
 	offset = cw4->offset;
 
-	REG_WRITE(DMCUB_REGION4_OFFSET, offset.u.low_part);
-	REG_WRITE(DMCUB_REGION4_OFFSET_HIGH, offset.u.high_part);
-	REG_SET_2(DMCUB_REGION4_TOP_ADDRESS, 0, DMCUB_REGION4_TOP_ADDRESS,
-		  cw4->region.top - cw4->region.base - 1, DMCUB_REGION4_ENABLE,
-		  1);
+	/* New firmware can support CW4. */
+	if (dmub->fw_version > DMUB_FW_VERSION(1, 0, 10)) {
+		REG_WRITE(DMCUB_REGION3_CW4_OFFSET, offset.u.low_part);
+		REG_WRITE(DMCUB_REGION3_CW4_OFFSET_HIGH, offset.u.high_part);
+		REG_WRITE(DMCUB_REGION3_CW4_BASE_ADDRESS, cw4->region.base);
+		REG_SET_2(DMCUB_REGION3_CW4_TOP_ADDRESS, 0,
+			  DMCUB_REGION3_CW4_TOP_ADDRESS, cw4->region.top,
+			  DMCUB_REGION3_CW4_ENABLE, 1);
+	} else {
+		REG_WRITE(DMCUB_REGION4_OFFSET, offset.u.low_part);
+		REG_WRITE(DMCUB_REGION4_OFFSET_HIGH, offset.u.high_part);
+		REG_SET_2(DMCUB_REGION4_TOP_ADDRESS, 0,
+			  DMCUB_REGION4_TOP_ADDRESS,
+			  cw4->region.top - cw4->region.base - 1,
+			  DMCUB_REGION4_ENABLE, 1);
+	}
 
 	offset = cw5->offset;
 

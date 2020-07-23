@@ -802,7 +802,7 @@ struct vba_vars_st {
 	unsigned int DCCCMaxCompressedBlock[DC__NUM_DPP__MAX];
 	unsigned int DCCCIndependent64ByteBlock[DC__NUM_DPP__MAX];
 	double VStartupMargin;
-	bool NotEnoughTimeForDynamicMetadata;
+	bool NotEnoughTimeForDynamicMetadata[DC__NUM_DPP__MAX];
 
 	/* Missing from VBA */
 	unsigned int MaximumMaxVStartupLines;

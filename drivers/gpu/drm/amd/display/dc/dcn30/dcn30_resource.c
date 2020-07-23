@@ -1870,12 +1870,14 @@ static bool dcn30_split_stream_for_mpc_or_odm(
 
 	return true;
 }
-static bool dcn30_fast_validate_bw(
+
+static bool dcn30_internal_validate_bw(
 		struct dc *dc,
 		struct dc_state *context,
 		display_e2e_pipe_params_st *pipes,
 		int *pipe_cnt_out,
-		int *vlevel_out)
+		int *vlevel_out,
+		bool fast_validate)
 {
 	bool out = false;
 	bool repopulate_pipes = false;
@@ -1898,7 +1900,38 @@ static bool dcn30_fast_validate_bw(
 
 	dml_log_pipe_params(&context->bw_ctx.dml, pipes, pipe_cnt);
 
-	vlevel = dml_get_voltage_level(&context->bw_ctx.dml, pipes, pipe_cnt);
+	if (!fast_validate) {
+		/*
+		 * DML favors voltage over p-state, but we're more interested in
+		 * supporting p-state over voltage. We can't support p-state in
+		 * prefetch mode > 0 so try capping the prefetch mode to start.
+		 */
+		context->bw_ctx.dml.soc.allow_dram_self_refresh_or_dram_clock_change_in_vblank =
+			dm_allow_self_refresh_and_mclk_switch;
+		vlevel = dml_get_voltage_level(&context->bw_ctx.dml, pipes, pipe_cnt);
+		/* This may adjust vlevel and maxMpcComb */
+		if (vlevel < context->bw_ctx.dml.soc.num_states)
+			vlevel = dcn20_validate_apply_pipe_split_flags(dc, context, vlevel, split, merge);
+	}
+	if (fast_validate || vlevel == context->bw_ctx.dml.soc.num_states ||
+			vba->DRAMClockChangeSupport[vlevel][vba->maxMpcComb] == dm_dram_clock_change_unsupported) {
+		/*
+		 * If mode is unsupported or there's still no p-state support then
+		 * fall back to favoring voltage.
+		 *
+		 * We don't actually support prefetch mode 2, so require that we
+		 * at least support prefetch mode 1.
+		 */
+		context->bw_ctx.dml.soc.allow_dram_self_refresh_or_dram_clock_change_in_vblank =
+			dm_allow_self_refresh;
+
+		vlevel = dml_get_voltage_level(&context->bw_ctx.dml, pipes, pipe_cnt);
+		if (vlevel < context->bw_ctx.dml.soc.num_states) {
+			memset(split, 0, sizeof(split));
+			memset(merge, 0, sizeof(merge));
+			vlevel = dcn20_validate_apply_pipe_split_flags(dc, context, vlevel, split, merge);
+		}
+	}
 
 	dml_log_mode_support_params(&context->bw_ctx.dml);
 
@@ -1937,8 +1970,6 @@ static bool dcn30_fast_validate_bw(
 		}
 		pipe_idx++;
 	}
-
-	vlevel = dcn20_validate_apply_pipe_split_flags(dc, context, vlevel, split, merge);
 
 	/* merge pipes if necessary */
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
@@ -2187,7 +2218,8 @@ static void dcn30_calculate_wm(
 	}
 }
 
-bool dcn30_validate_bandwidth(struct dc *dc, struct dc_state *context,
+bool dcn30_validate_bandwidth(struct dc *dc,
+		struct dc_state *context,
 		bool fast_validate)
 {
 	bool out = false;
@@ -2201,7 +2233,7 @@ bool dcn30_validate_bandwidth(struct dc *dc, struct dc_state *context,
 
 	BW_VAL_TRACE_COUNT();
 
-	out = dcn30_fast_validate_bw(dc, context, pipes, &pipe_cnt, &vlevel);
+	out = dcn30_internal_validate_bw(dc, context, pipes, &pipe_cnt, &vlevel, fast_validate);
 
 	if (pipe_cnt == 0)
 		goto validate_out;

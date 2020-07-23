@@ -1116,6 +1116,35 @@ struct atom_14nm_combphy_tmds_vs_set
   uint8_t margin_deemph_lane0__deemph_sel_val;         
 };
 
+struct atom_DCN_dpphy_dvihdmi_tuningset
+{
+  uint32_t max_symclk_in10khz;
+  uint8_t  encoder_mode;           //atom_encode_mode_def, =2: DVI, =3: HDMI mode
+  uint8_t  phy_sel;                //bit vector of phy, bit0= phya, bit1=phyb, ....bit5 = phyf 
+  uint8_t  tx_eq_main;             // map to RDPCSTX_PHY_FUSE0/1/2/3[5:0](EQ_MAIN)
+  uint8_t  tx_eq_pre;              // map to RDPCSTX_PHY_FUSE0/1/2/3[11:6](EQ_PRE)
+  uint8_t  tx_eq_post;             // map to RDPCSTX_PHY_FUSE0/1/2/3[17:12](EQ_POST)
+  uint8_t  reserved1;
+  uint8_t  tx_vboost_lvl;          // tx_vboost_lvl, map to RDPCSTX_PHY_CNTL0.RDPCS_PHY_TX_VBOOST_LVL
+  uint8_t  reserved2;
+};
+
+struct atom_DCN_dpphy_dp_setting{
+  uint8_t dp_vs_pemph_level;       //enum of atom_dp_vs_preemph_def
+  uint8_t tx_eq_main;             // map to RDPCSTX_PHY_FUSE0/1/2/3[5:0](EQ_MAIN)
+  uint8_t tx_eq_pre;              // map to RDPCSTX_PHY_FUSE0/1/2/3[11:6](EQ_PRE)
+  uint8_t tx_eq_post;             // map to RDPCSTX_PHY_FUSE0/1/2/3[17:12](EQ_POST)
+  uint8_t tx_vboost_lvl;          // tx_vboost_lvl, map to RDPCSTX_PHY_CNTL0.RDPCS_PHY_TX_VBOOST_LVL
+};
+
+struct atom_DCN_dpphy_dp_tuningset{
+  uint8_t phy_sel;                 // bit vector of phy, bit0= phya, bit1=phyb, ....bit5 = phyf 
+  uint8_t version;
+  uint16_t table_size;             // size of atom_14nm_dpphy_dp_setting
+  uint16_t reserved;
+  struct atom_DCN_dpphy_dp_setting dptunings[10];
+};
+
 struct atom_i2c_reg_info {
   uint8_t ucI2cRegIndex;
   uint8_t ucI2cRegVal;
@@ -1178,6 +1207,55 @@ struct atom_integrated_system_info_v1_11
   uint32_t  reserved[66];
 };
 
+struct atom_integrated_system_info_v1_12
+{
+  struct  atom_common_table_header  table_header;
+  uint32_t  vbios_misc;                       //enum of atom_system_vbiosmisc_def
+  uint32_t  gpucapinfo;                       //enum of atom_system_gpucapinf_def   
+  uint32_t  system_config;                    
+  uint32_t  cpucapinfo;
+  uint16_t  gpuclk_ss_percentage;             //unit of 0.001%,   1000 mean 1% 
+  uint16_t  gpuclk_ss_type;
+  uint16_t  lvds_ss_percentage;               //unit of 0.001%,   1000 mean 1%
+  uint16_t  lvds_ss_rate_10hz;
+  uint16_t  hdmi_ss_percentage;               //unit of 0.001%,   1000 mean 1%
+  uint16_t  hdmi_ss_rate_10hz;
+  uint16_t  dvi_ss_percentage;                //unit of 0.001%,   1000 mean 1%
+  uint16_t  dvi_ss_rate_10hz;
+  uint16_t  dpphy_override;                   // bit vector, enum of atom_sysinfo_dpphy_override_def
+  uint16_t  lvds_misc;                        // enum of atom_sys_info_lvds_misc_def
+  uint16_t  backlight_pwm_hz;                 // pwm frequency in hz
+  uint8_t   memorytype;                       // enum of atom_dmi_t17_mem_type_def, APU memory type indication.
+  uint8_t   umachannelnumber;                 // number of memory channels
+  uint8_t   pwr_on_digon_to_de;               // all pwr sequence numbers below are in uint of 4ms //
+  uint8_t   pwr_on_de_to_vary_bl;
+  uint8_t   pwr_down_vary_bloff_to_de;
+  uint8_t   pwr_down_de_to_digoff;
+  uint8_t   pwr_off_delay;
+  uint8_t   pwr_on_vary_bl_to_blon;
+  uint8_t   pwr_down_bloff_to_vary_bloff;
+  uint8_t   min_allowed_bl_level;
+  uint8_t   htc_hyst_limit;
+  uint8_t   htc_tmp_limit;
+  uint8_t   reserved1;
+  uint8_t   reserved2;
+  struct atom_external_display_connection_info extdispconninfo;
+  struct atom_DCN_dpphy_dvihdmi_tuningset  TMDS_tuningset;
+  struct atom_DCN_dpphy_dvihdmi_tuningset  hdmiCLK5_tuningset;
+  struct atom_DCN_dpphy_dvihdmi_tuningset  hdmiCLK8_tuningset;
+  struct atom_DCN_dpphy_dp_tuningset rbr_tuningset;        // rbr 1.62G dp tuning set
+  struct atom_DCN_dpphy_dp_tuningset hbr3_tuningset;   // HBR3 dp tuning set  
+  struct atom_camera_data  camera_info;
+  struct atom_hdmi_retimer_redriver_set dp0_retimer_set;   //for DP0
+  struct atom_hdmi_retimer_redriver_set dp1_retimer_set;   //for DP1
+  struct atom_hdmi_retimer_redriver_set dp2_retimer_set;   //for DP2
+  struct atom_hdmi_retimer_redriver_set dp3_retimer_set;   //for DP3
+  struct atom_DCN_dpphy_dp_tuningset hbr_tuningset;    //hbr 2.7G dp tuning set
+  struct atom_DCN_dpphy_dp_tuningset hbr2_tuningset;   //hbr2 5.4G dp turnig set
+  struct atom_DCN_dpphy_dp_tuningset edp_tunings;       //edp tuning set  
+  struct atom_DCN_dpphy_dvihdmi_tuningset  hdmiCLK6_tuningset;
+  uint32_t  reserved[63];
+};
 
 // system_config
 enum atom_system_vbiosmisc_def{

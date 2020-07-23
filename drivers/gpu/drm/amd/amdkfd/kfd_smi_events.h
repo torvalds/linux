@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Advanced Micro Devices, Inc.
+ * Copyright 2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,50 +20,10 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <linux/types.h>
-#include "kfd_priv.h"
-#include "amdgpu_ids.h"
+#ifndef KFD_SMI_EVENTS_H_INCLUDED
+#define KFD_SMI_EVENTS_H_INCLUDED
 
-static unsigned int pasid_bits = 16;
-static bool pasids_allocated; /* = false */
+int kfd_smi_event_open(struct kfd_dev *dev, uint32_t *fd);
+void kfd_smi_event_update_vmfault(struct kfd_dev *dev, uint16_t pasid);
 
-bool kfd_set_pasid_limit(unsigned int new_limit)
-{
-	if (new_limit < 2)
-		return false;
-
-	if (new_limit < (1U << pasid_bits)) {
-		if (pasids_allocated)
-			/* We've already allocated user PASIDs, too late to
-			 * change the limit
-			 */
-			return false;
-
-		while (new_limit < (1U << pasid_bits))
-			pasid_bits--;
-	}
-
-	return true;
-}
-
-unsigned int kfd_get_pasid_limit(void)
-{
-	return 1U << pasid_bits;
-}
-
-unsigned int kfd_pasid_alloc(void)
-{
-	int r = amdgpu_pasid_alloc(pasid_bits);
-
-	if (r > 0) {
-		pasids_allocated = true;
-		return r;
-	}
-
-	return 0;
-}
-
-void kfd_pasid_free(unsigned int pasid)
-{
-	amdgpu_pasid_free(pasid);
-}
+#endif

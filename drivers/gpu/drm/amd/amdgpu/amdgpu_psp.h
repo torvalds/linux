@@ -371,4 +371,6 @@ int psp_init_asd_microcode(struct psp_context *psp,
 			   const char *chip_name);
 int psp_init_sos_microcode(struct psp_context *psp,
 			   const char *chip_name);
+int psp_init_ta_microcode(struct psp_context *psp,
+			  const char *chip_name);
 #endif

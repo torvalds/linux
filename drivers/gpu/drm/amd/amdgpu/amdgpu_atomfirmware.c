@@ -111,6 +111,7 @@ int amdgpu_atomfirmware_allocate_fb_scratch(struct amdgpu_device *adev)
 
 union igp_info {
 	struct atom_integrated_system_info_v1_11 v11;
+	struct atom_integrated_system_info_v1_12 v12;
 };
 
 union umc_info {
@@ -211,6 +212,15 @@ amdgpu_atomfirmware_get_vram_info(struct amdgpu_device *adev,
 				if (vram_width)
 					*vram_width = mem_channel_number * 64;
 				mem_type = igp_info->v11.memorytype;
+				if (vram_type)
+					*vram_type = convert_atom_mem_type_to_vram_type(adev, mem_type);
+				break;
+			case 12:
+				mem_channel_number = igp_info->v12.umachannelnumber;
+				/* channel width is 64 */
+				if (vram_width)
+					*vram_width = mem_channel_number * 64;
+				mem_type = igp_info->v12.memorytype;
 				if (vram_type)
 					*vram_type = convert_atom_mem_type_to_vram_type(adev, mem_type);
 				break;

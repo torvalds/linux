@@ -260,11 +260,6 @@ static void dcn3_update_clocks(struct clk_mgr *clk_mgr_base,
 	if (enter_display_off == safe_to_lower)
 		dcn30_smu_set_num_of_displays(clk_mgr, display_count);
 
-	if (should_set_clock(safe_to_lower, new_clocks->phyclk_khz, clk_mgr_base->clks.phyclk_khz)) {
-		clk_mgr_base->clks.phyclk_khz = new_clocks->phyclk_khz;
-		dcn30_smu_set_hard_min_by_freq(clk_mgr, PPCLK_PHYCLK, clk_mgr_base->clks.phyclk_khz / 1000);
-	}
-
 	if (dc->debug.force_min_dcfclk_mhz > 0)
 		new_clocks->dcfclk_khz = (new_clocks->dcfclk_khz > (dc->debug.force_min_dcfclk_mhz * 1000)) ?
 				new_clocks->dcfclk_khz : (dc->debug.force_min_dcfclk_mhz * 1000);
@@ -344,15 +339,11 @@ static void dcn3_update_clocks(struct clk_mgr *clk_mgr_base,
 static void dcn3_notify_wm_ranges(struct clk_mgr *clk_mgr_base)
 {
 	unsigned int i;
-	long long table_addr;
-	WatermarksExternal_t *table;
 	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
+	WatermarksExternal_t *table = (WatermarksExternal_t *) clk_mgr->wm_range_table;
 
 	if (!clk_mgr->smu_present)
 		return;
-
-	/* need physical address of table to give to PMFW */
-	table = (WatermarksExternal_t *) dm_helpers_allocate_gpu_mem(clk_mgr->base.ctx, DC_MEM_ALLOC_TYPE_GART, sizeof(WatermarksExternal_t), &table_addr);
 
 	if (!table)
 		// should log failure
@@ -371,11 +362,9 @@ static void dcn3_notify_wm_ranges(struct clk_mgr *clk_mgr_base)
 			table->Watermarks.WatermarkRow[WM_DCEFCLK][i].Flags = clk_mgr->base.bw_params->wm_table.nv_entries[i].pmfw_breakdown.wm_type;
 		}
 
-	dcn30_smu_set_dram_addr_high(clk_mgr, table_addr >> 32);
-	dcn30_smu_set_dram_addr_low(clk_mgr, table_addr & 0xFFFFFFFF);
+	dcn30_smu_set_dram_addr_high(clk_mgr, clk_mgr->wm_range_table_addr >> 32);
+	dcn30_smu_set_dram_addr_low(clk_mgr, clk_mgr->wm_range_table_addr & 0xFFFFFFFF);
 	dcn30_smu_transfer_wm_table_dram_2_smu(clk_mgr);
-
-	dm_helpers_free_gpu_mem(clk_mgr->base.ctx, DC_MEM_ALLOC_TYPE_GART, table);
 }
 
 /* Set min memclk to minimum, either constrained by the current mode or DPM0 */
@@ -437,8 +426,6 @@ static bool dcn3_are_clock_states_equal(struct dc_clocks *a,
 		return false;
 	else if (a->dcfclk_deep_sleep_khz != b->dcfclk_deep_sleep_khz)
 		return false;
-	else if (a->phyclk_khz != b->phyclk_khz)
-		return false;
 	else if (a->dramclk_khz != b->dramclk_khz)
 		return false;
 	else if (a->p_state_change_support != b->p_state_change_support)
@@ -457,6 +444,28 @@ static void dcn3_enable_pme_wa(struct clk_mgr *clk_mgr_base)
 	dcn30_smu_set_pme_workaround(clk_mgr);
 }
 
+/* Notify clk_mgr of a change in link rate, update phyclk frequency if necessary */
+static void dcn30_notify_link_rate_change(struct clk_mgr *clk_mgr_base, struct dc_link *link)
+{
+	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
+	unsigned int i, max_phyclk_req = clk_mgr_base->bw_params->clk_table.entries[0].phyclk_mhz * 1000;
+
+	if (!clk_mgr->smu_present)
+		return;
+
+	clk_mgr->cur_phyclk_req_table[link->link_index] = link->cur_link_settings.link_rate * LINK_RATE_REF_FREQ_IN_KHZ;
+
+	for (i = 0; i < MAX_PIPES * 2; i++) {
+		if (clk_mgr->cur_phyclk_req_table[i] > max_phyclk_req)
+			max_phyclk_req = clk_mgr->cur_phyclk_req_table[i];
+	}
+
+	if (max_phyclk_req != clk_mgr_base->clks.phyclk_khz) {
+		clk_mgr_base->clks.phyclk_khz = max_phyclk_req;
+		dcn30_smu_set_hard_min_by_freq(clk_mgr, PPCLK_PHYCLK, clk_mgr_base->clks.phyclk_khz / 1000);
+	}
+}
+
 static struct clk_mgr_funcs dcn3_funcs = {
 		.get_dp_ref_clk_frequency = dce12_get_dp_ref_freq_khz,
 		.update_clocks = dcn3_update_clocks,
@@ -466,7 +475,8 @@ static struct clk_mgr_funcs dcn3_funcs = {
 		.set_hard_max_memclk = dcn3_set_hard_max_memclk,
 		.get_memclk_states_from_smu = dcn3_get_memclk_states_from_smu,
 		.are_clock_states_equal = dcn3_are_clock_states_equal,
-		.enable_pme_wa = dcn3_enable_pme_wa
+		.enable_pme_wa = dcn3_enable_pme_wa,
+		.notify_link_rate_change = dcn30_notify_link_rate_change,
 };
 
 static void dcn3_init_clocks_fpga(struct clk_mgr *clk_mgr)
@@ -534,10 +544,19 @@ void dcn3_clk_mgr_construct(
 	dce_clock_read_ss_info(clk_mgr);
 
 	clk_mgr->base.bw_params = kzalloc(sizeof(*clk_mgr->base.bw_params), GFP_KERNEL);
+
+	/* need physical address of table to give to PMFW */
+	clk_mgr->wm_range_table = dm_helpers_allocate_gpu_mem(clk_mgr->base.ctx,
+			DC_MEM_ALLOC_TYPE_GART, sizeof(WatermarksExternal_t),
+			&clk_mgr->wm_range_table_addr);
 }
 
 void dcn3_clk_mgr_destroy(struct clk_mgr_internal *clk_mgr)
 {
 	if (clk_mgr->base.bw_params)
 		kfree(clk_mgr->base.bw_params);
+
+	if (clk_mgr->wm_range_table)
+		dm_helpers_free_gpu_mem(clk_mgr->base.ctx, DC_MEM_ALLOC_TYPE_GART,
+				clk_mgr->wm_range_table);
 }

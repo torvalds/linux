@@ -32,7 +32,7 @@
 
 #define MOD_FREESYNC_MAX_CONCURRENT_STREAMS  32
 
-#define MIN_REFRESH_RANGE_IN_US 10000000
+#define MIN_REFRESH_RANGE 10
 /* Refresh rate ramp at a fixed rate of 65 Hz/second */
 #define STATIC_SCREEN_RAMP_DELTA_REFRESH_RATE_PER_FRAME ((1000 / 60) * 65)
 /* Number of elements in the render times cache array */
@@ -790,7 +790,7 @@ void mod_freesync_build_vrr_infopacket(struct mod_freesync *mod_freesync,
 	 * Check if Freesync is supported. Return if false. If true,
 	 * set the corresponding bit in the info packet
 	 */
-	if (!vrr->supported || (!vrr->send_info_frame))
+	if (!vrr->send_info_frame)
 		return;
 
 	switch (packet_type) {
@@ -878,8 +878,8 @@ void mod_freesync_build_vrr_params(struct mod_freesync *mod_freesync,
 		else
 			in_out_vrr->fixed_refresh_in_uhz = 0;
 
-		refresh_range = in_out_vrr->max_refresh_in_uhz -
-				in_out_vrr->min_refresh_in_uhz;
+		refresh_range = div_u64(in_out_vrr->max_refresh_in_uhz + 500000, 1000000) -
++				div_u64(in_out_vrr->min_refresh_in_uhz + 500000, 1000000);
 
 		in_out_vrr->supported = true;
 	}
@@ -918,7 +918,7 @@ void mod_freesync_build_vrr_params(struct mod_freesync *mod_freesync,
 		in_out_vrr->adjust.v_total_min = stream->timing.v_total;
 		in_out_vrr->adjust.v_total_max = stream->timing.v_total;
 	} else if (in_out_vrr->state == VRR_STATE_ACTIVE_VARIABLE &&
-			refresh_range >= MIN_REFRESH_RANGE_IN_US) {
+			refresh_range >= MIN_REFRESH_RANGE) {
 
 		in_out_vrr->adjust.v_total_min =
 			calc_v_total_from_refresh(stream,
@@ -1105,16 +1105,10 @@ unsigned long long mod_freesync_calc_nominal_field_rate(
 	return nominal_field_rate_in_uhz;
 }
 
-bool mod_freesync_is_valid_range(struct mod_freesync *mod_freesync,
-		const struct dc_stream_state *stream,
-		uint32_t min_refresh_cap_in_uhz,
+bool mod_freesync_is_valid_range(uint32_t min_refresh_cap_in_uhz,
 		uint32_t max_refresh_cap_in_uhz,
-		uint32_t min_refresh_request_in_uhz,
-		uint32_t max_refresh_request_in_uhz)
+		uint32_t nominal_field_rate_in_uhz) 
 {
-	/* Calculate nominal field rate for stream */
-	unsigned long long nominal_field_rate_in_uhz =
-			mod_freesync_calc_nominal_field_rate(stream);
 
 	/* Typically nominal refresh calculated can have some fractional part.
 	 * Allow for some rounding error of actual video timing by taking floor
@@ -1153,8 +1147,6 @@ bool mod_freesync_is_valid_range(struct mod_freesync *mod_freesync,
 			div_u64(nominal_field_rate_in_uhz + 500000, 1000000);
 	min_refresh_cap_in_uhz /= 1000000;
 	max_refresh_cap_in_uhz /= 1000000;
-	min_refresh_request_in_uhz /= 1000000;
-	max_refresh_request_in_uhz /= 1000000;
 
 	// Check nominal is within range
 	if (nominal_field_rate_in_uhz > max_refresh_cap_in_uhz ||
@@ -1165,23 +1157,12 @@ bool mod_freesync_is_valid_range(struct mod_freesync *mod_freesync,
 	if (nominal_field_rate_in_uhz < max_refresh_cap_in_uhz)
 		max_refresh_cap_in_uhz = nominal_field_rate_in_uhz;
 
-	// Don't allow min > max
-	if (min_refresh_request_in_uhz > max_refresh_request_in_uhz)
-		return false;
-
 	// Check min is within range
-	if (min_refresh_request_in_uhz > max_refresh_cap_in_uhz ||
-		min_refresh_request_in_uhz < min_refresh_cap_in_uhz)
-		return false;
-
-	// Check max is within range
-	if (max_refresh_request_in_uhz > max_refresh_cap_in_uhz ||
-		max_refresh_request_in_uhz < min_refresh_cap_in_uhz)
+	if (min_refresh_cap_in_uhz > max_refresh_cap_in_uhz)
 		return false;
 
 	// For variable range, check for at least 10 Hz range
-	if ((max_refresh_request_in_uhz != min_refresh_request_in_uhz) &&
-		(max_refresh_request_in_uhz - min_refresh_request_in_uhz < 10))
+	if (nominal_field_rate_in_uhz - min_refresh_cap_in_uhz < 10)
 		return false;
 
 	return true;

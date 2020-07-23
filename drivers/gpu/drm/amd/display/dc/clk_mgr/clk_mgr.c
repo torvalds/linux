@@ -174,9 +174,6 @@ struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *p
 	case FAMILY_NV:
 #if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 		if (ASICREV_IS_SIENNA_CICHLID_P(asic_id.hw_internal_rev)) {
-			/* TODO: to add SIENNA_CICHLID clk_mgr support, once CLK IP header files are available,
-			 * for now use DCN3AG clk mgr.
-			 */
 			dcn3_clk_mgr_construct(ctx, clk_mgr, pp_smu, dccg);
 			break;
 		}

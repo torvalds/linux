@@ -67,8 +67,6 @@
 #define HPD4_REGISTER_OFFSET                 (0x18b8 - 0x1898)
 #define HPD5_REGISTER_OFFSET                 (0x18c0 - 0x1898)
 
-#define AMDGPU_NUM_OF_VMIDS			8
-
 #define		PIPEID(x)					((x) << 0)
 #define		MEID(x)						((x) << 2)
 #define		VMID(x)						((x) << 4)

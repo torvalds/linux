@@ -106,17 +106,29 @@ void dc_dmub_srv_wait_idle(struct dc_dmub_srv *dc_dmub_srv)
 		DC_ERROR("Error waiting for DMUB idle: status=%d\n", status);
 }
 
-bool dc_dmub_srv_optimized_init_done(struct dc_dmub_srv *dc_dmub_srv)
+void dc_dmub_srv_wait_phy_init(struct dc_dmub_srv *dc_dmub_srv)
 {
-	struct dmub_srv *dmub;
-	union dmub_fw_boot_status status;
+	struct dmub_srv *dmub = dc_dmub_srv->dmub;
+	struct dc_context *dc_ctx = dc_dmub_srv->ctx;
+	enum dmub_status status;
 
-	if (!dc_dmub_srv || !dc_dmub_srv->dmub)
-		return false;
+	for (;;) {
+		/* Wait up to a second for PHY init. */
+		status = dmub_srv_wait_for_phy_init(dmub, 1000000);
+		if (status == DMUB_STATUS_OK)
+			/* Initialization OK */
+			break;
 
-	dmub = dc_dmub_srv->dmub;
+		DC_ERROR("DMCUB PHY init failed: status=%d\n", status);
+		ASSERT(0);
 
-	status = dmub->hw_funcs.get_fw_status(dmub);
+		if (status != DMUB_STATUS_TIMEOUT)
+			/*
+			 * Server likely initialized or we don't have
+			 * DMCUB HW support - this won't end.
+			 */
+			break;
 
-	return status.bits.optimized_init_done;
+		/* Continue spinning so we don't hang the ASIC. */
+	}
 }

@@ -468,7 +468,8 @@ static const struct drm_info_list amdgpu_debugfs_sa_list[] = {
 int amdgpu_debugfs_sa_init(struct amdgpu_device *adev)
 {
 #if defined(CONFIG_DEBUG_FS)
-	return amdgpu_debugfs_add_files(adev, amdgpu_debugfs_sa_list, 1);
+	return amdgpu_debugfs_add_files(adev, amdgpu_debugfs_sa_list,
+					ARRAY_SIZE(amdgpu_debugfs_sa_list));
 #else
 	return 0;
 #endif

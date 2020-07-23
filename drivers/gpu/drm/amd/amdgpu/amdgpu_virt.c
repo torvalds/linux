@@ -27,6 +27,9 @@
 
 #include "amdgpu.h"
 #include "amdgpu_ras.h"
+#include "vi.h"
+#include "soc15.h"
+#include "nv.h"
 
 bool amdgpu_virt_mmio_blocked(struct amdgpu_device *adev)
 {
@@ -512,6 +515,31 @@ void amdgpu_detect_virtualization(struct amdgpu_device *adev)
 	if (!reg) {
 		if (is_virtual_machine())	/* passthrough mode exclus sriov mod */
 			adev->virt.caps |= AMDGPU_PASSTHROUGH_MODE;
+	}
+
+	/* we have the ability to check now */
+	if (amdgpu_sriov_vf(adev)) {
+		switch (adev->asic_type) {
+		case CHIP_TONGA:
+		case CHIP_FIJI:
+			vi_set_virt_ops(adev);
+			break;
+		case CHIP_VEGA10:
+		case CHIP_VEGA20:
+		case CHIP_ARCTURUS:
+			soc15_set_virt_ops(adev);
+			break;
+		case CHIP_NAVI10:
+		case CHIP_NAVI12:
+		case CHIP_SIENNA_CICHLID:
+			nv_set_virt_ops(adev);
+			/* try send GPU_INIT_DATA request to host */
+			amdgpu_virt_request_init_data(adev);
+			break;
+		default: /* other chip doesn't support SRIOV */
+			DRM_ERROR("Unknown asic type: %d!\n", adev->asic_type);
+			break;
+		}
 	}
 }
 

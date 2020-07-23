@@ -236,9 +236,163 @@ static int renoir_get_dpm_clk_limited(struct smu_context *smu, enum smu_clk_type
 	if (!clk_table || clk_type >= SMU_CLK_COUNT)
 		return -EINVAL;
 
-	GET_DPM_CUR_FREQ(clk_table, clk_type, dpm_level, *freq);
+	switch (clk_type) {
+	case SMU_SOCCLK:
+		if (dpm_level >= NUM_SOCCLK_DPM_LEVELS)
+			return -EINVAL;
+		*freq = clk_table->SocClocks[dpm_level].Freq;
+		break;
+	case SMU_MCLK:
+		if (dpm_level >= NUM_FCLK_DPM_LEVELS)
+			return -EINVAL;
+		*freq = clk_table->FClocks[dpm_level].Freq;
+		break;
+	case SMU_DCEFCLK:
+		if (dpm_level >= NUM_DCFCLK_DPM_LEVELS)
+			return -EINVAL;
+		*freq = clk_table->DcfClocks[dpm_level].Freq;
+		break;
+	case SMU_FCLK:
+		if (dpm_level >= NUM_FCLK_DPM_LEVELS)
+			return -EINVAL;
+		*freq = clk_table->FClocks[dpm_level].Freq;
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	return 0;
+}
+
+static int renoir_get_profiling_clk_mask(struct smu_context *smu,
+					 enum amd_dpm_forced_level level,
+					 uint32_t *sclk_mask,
+					 uint32_t *mclk_mask,
+					 uint32_t *soc_mask)
+{
+
+	if (level == AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK) {
+		if (sclk_mask)
+			*sclk_mask = 0;
+	} else if (level == AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK) {
+		if (mclk_mask)
+			*mclk_mask = 0;
+	} else if (level == AMD_DPM_FORCED_LEVEL_PROFILE_PEAK) {
+		if(sclk_mask)
+			/* The sclk as gfxclk and has three level about max/min/current */
+			*sclk_mask = 3 - 1;
+
+		if(mclk_mask)
+			*mclk_mask = NUM_MEMCLK_DPM_LEVELS - 1;
+
+		if(soc_mask)
+			*soc_mask = NUM_SOCCLK_DPM_LEVELS - 1;
+	}
+
+	return 0;
+}
+
+static int renoir_get_dpm_ultimate_freq(struct smu_context *smu,
+					enum smu_clk_type clk_type,
+					uint32_t *min,
+					uint32_t *max)
+{
+	int ret = 0;
+	uint32_t mclk_mask, soc_mask;
+	uint32_t clock_limit;
+
+	if (!smu_clk_dpm_is_enabled(smu, clk_type)) {
+		switch (clk_type) {
+		case SMU_MCLK:
+		case SMU_UCLK:
+			clock_limit = smu->smu_table.boot_values.uclk;
+			break;
+		case SMU_GFXCLK:
+		case SMU_SCLK:
+			clock_limit = smu->smu_table.boot_values.gfxclk;
+			break;
+		case SMU_SOCCLK:
+			clock_limit = smu->smu_table.boot_values.socclk;
+			break;
+		default:
+			clock_limit = 0;
+			break;
+		}
+
+		/* clock in Mhz unit */
+		if (min)
+			*min = clock_limit / 100;
+		if (max)
+			*max = clock_limit / 100;
+
+		return 0;
+	}
+
+	if (max) {
+		ret = renoir_get_profiling_clk_mask(smu,
+						    AMD_DPM_FORCED_LEVEL_PROFILE_PEAK,
+						    NULL,
+						    &mclk_mask,
+						    &soc_mask);
+		if (ret)
+			goto failed;
+
+		switch (clk_type) {
+		case SMU_GFXCLK:
+		case SMU_SCLK:
+			ret = smu_send_smc_msg(smu, SMU_MSG_GetMaxGfxclkFrequency, max);
+			if (ret) {
+				dev_err(smu->adev->dev, "Attempt to get max GX frequency from SMC Failed !\n");
+				goto failed;
+			}
+			break;
+		case SMU_UCLK:
+		case SMU_FCLK:
+		case SMU_MCLK:
+			ret = renoir_get_dpm_clk_limited(smu, clk_type, mclk_mask, max);
+			if (ret)
+				goto failed;
+			break;
+		case SMU_SOCCLK:
+			ret = renoir_get_dpm_clk_limited(smu, clk_type, soc_mask, max);
+			if (ret)
+				goto failed;
+			break;
+		default:
+			ret = -EINVAL;
+			goto failed;
+		}
+	}
+
+	if (min) {
+		switch (clk_type) {
+		case SMU_GFXCLK:
+		case SMU_SCLK:
+			ret = smu_send_smc_msg(smu, SMU_MSG_GetMinGfxclkFrequency, min);
+			if (ret) {
+				dev_err(smu->adev->dev, "Attempt to get min GX frequency from SMC Failed !\n");
+				goto failed;
+			}
+			break;
+		case SMU_UCLK:
+		case SMU_FCLK:
+		case SMU_MCLK:
+			ret = renoir_get_dpm_clk_limited(smu, clk_type, 0, min);
+			if (ret)
+				goto failed;
+			break;
+		case SMU_SOCCLK:
+			ret = renoir_get_dpm_clk_limited(smu, clk_type, 0, min);
+			if (ret)
+				goto failed;
+			break;
+		default:
+			ret = -EINVAL;
+			goto failed;
+		}
+	}
+failed:
+	return ret;
 }
 
 static int renoir_print_clk_levels(struct smu_context *smu,
@@ -246,12 +400,8 @@ static int renoir_print_clk_levels(struct smu_context *smu,
 {
 	int i, size = 0, ret = 0;
 	uint32_t cur_value = 0, value = 0, count = 0, min = 0, max = 0;
-	DpmClocks_t *clk_table = smu->smu_table.clocks_table;
 	SmuMetrics_t metrics;
 	bool cur_value_match_level = false;
-
-	if (!clk_table || clk_type >= SMU_CLK_COUNT)
-		return -EINVAL;
 
 	memset(&metrics, 0, sizeof(metrics));
 
@@ -264,7 +414,7 @@ static int renoir_print_clk_levels(struct smu_context *smu,
 	case SMU_SCLK:
 		/* retirve table returned paramters unit is MHz */
 		cur_value = metrics.ClockFrequency[CLOCK_GFXCLK];
-		ret = smu_get_dpm_freq_range(smu, SMU_GFXCLK, &min, &max, false);
+		ret = renoir_get_dpm_ultimate_freq(smu, SMU_GFXCLK, &min, &max);
 		if (!ret) {
 			/* driver only know min/max gfx_clk, Add level 1 for all other gfx clks */
 			if (cur_value  == max)
@@ -304,7 +454,9 @@ static int renoir_print_clk_levels(struct smu_context *smu,
 	}
 
 	for (i = 0; i < count; i++) {
-		GET_DPM_CUR_FREQ(clk_table, clk_type, i, value);
+		ret = renoir_get_dpm_clk_limited(smu, clk_type, i, &value);
+		if (ret)
+			return ret;
 		if (!value)
 			continue;
 		size += sprintf(buf + size, "%d: %uMhz %s\n", i, value,
@@ -434,12 +586,12 @@ static int renoir_force_dpm_limit_value(struct smu_context *smu, bool highest)
 
 	for (i = 0; i < ARRAY_SIZE(clks); i++) {
 		clk_type = clks[i];
-		ret = smu_get_dpm_freq_range(smu, clk_type, &min_freq, &max_freq, false);
+		ret = renoir_get_dpm_ultimate_freq(smu, clk_type, &min_freq, &max_freq);
 		if (ret)
 			return ret;
 
 		force_freq = highest ? max_freq : min_freq;
-		ret = smu_set_soft_freq_range(smu, clk_type, force_freq, force_freq, false);
+		ret = smu_v12_0_set_soft_freq_limited_range(smu, clk_type, force_freq, force_freq);
 		if (ret)
 			return ret;
 	}
@@ -468,11 +620,11 @@ static int renoir_unforce_dpm_levels(struct smu_context *smu) {
 
 		clk_type = clk_feature_map[i].clk_type;
 
-		ret = smu_get_dpm_freq_range(smu, clk_type, &min_freq, &max_freq, false);
+		ret = renoir_get_dpm_ultimate_freq(smu, clk_type, &min_freq, &max_freq);
 		if (ret)
 			return ret;
 
-		ret = smu_set_soft_freq_range(smu, clk_type, min_freq, max_freq, false);
+		ret = smu_v12_0_set_soft_freq_limited_range(smu, clk_type, min_freq, max_freq);
 		if (ret)
 			return ret;
 	}
@@ -552,33 +704,6 @@ static int renoir_get_workload_type(struct smu_context *smu, uint32_t profile)
 	return pplib_workload;
 }
 
-static int renoir_get_profiling_clk_mask(struct smu_context *smu,
-					 enum amd_dpm_forced_level level,
-					 uint32_t *sclk_mask,
-					 uint32_t *mclk_mask,
-					 uint32_t *soc_mask)
-{
-
-	if (level == AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK) {
-		if (sclk_mask)
-			*sclk_mask = 0;
-	} else if (level == AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK) {
-		if (mclk_mask)
-			*mclk_mask = 0;
-	} else if (level == AMD_DPM_FORCED_LEVEL_PROFILE_PEAK) {
-		if(sclk_mask)
-			/* The sclk as gfxclk and has three level about max/min/current */
-			*sclk_mask = 3 - 1;
-
-		if(mclk_mask)
-			*mclk_mask = NUM_MEMCLK_DPM_LEVELS - 1;
-
-		if(soc_mask)
-			*soc_mask = NUM_SOCCLK_DPM_LEVELS - 1;
-	}
-
-	return 0;
-}
 
 /**
  * This interface get dpm clock table for dc
@@ -620,7 +745,6 @@ static int renoir_force_clk_levels(struct smu_context *smu,
 
 	int ret = 0 ;
 	uint32_t soft_min_level = 0, soft_max_level = 0, min_freq = 0, max_freq = 0;
-	DpmClocks_t *clk_table = smu->smu_table.clocks_table;
 
 	soft_min_level = mask ? (ffs(mask) - 1) : 0;
 	soft_max_level = mask ? (fls(mask) - 1) : 0;
@@ -633,7 +757,7 @@ static int renoir_force_clk_levels(struct smu_context *smu,
 			return -EINVAL;
 		}
 
-		ret = smu_get_dpm_freq_range(smu, SMU_GFXCLK, &min_freq, &max_freq, false);
+		ret = renoir_get_dpm_ultimate_freq(smu, SMU_GFXCLK, &min_freq, &max_freq);
 		if (ret)
 			return ret;
 		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetSoftMaxGfxClk,
@@ -650,8 +774,12 @@ static int renoir_force_clk_levels(struct smu_context *smu,
 			return ret;
 		break;
 	case SMU_SOCCLK:
-		GET_DPM_CUR_FREQ(clk_table, clk_type, soft_min_level, min_freq);
-		GET_DPM_CUR_FREQ(clk_table, clk_type, soft_max_level, max_freq);
+		ret = renoir_get_dpm_clk_limited(smu, clk_type, soft_min_level, &min_freq);
+		if (ret)
+			return ret;
+		ret = renoir_get_dpm_clk_limited(smu, clk_type, soft_max_level, &max_freq);
+		if (ret)
+			return ret;
 		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetSoftMaxSocclkByFreq, max_freq, NULL);
 		if (ret)
 			return ret;
@@ -661,8 +789,12 @@ static int renoir_force_clk_levels(struct smu_context *smu,
 		break;
 	case SMU_MCLK:
 	case SMU_FCLK:
-		GET_DPM_CUR_FREQ(clk_table, clk_type, soft_min_level, min_freq);
-		GET_DPM_CUR_FREQ(clk_table, clk_type, soft_max_level, max_freq);
+		ret = renoir_get_dpm_clk_limited(smu, clk_type, soft_min_level, &min_freq);
+		if (ret)
+			return ret;
+		ret = renoir_get_dpm_clk_limited(smu, clk_type, soft_max_level, &max_freq);
+		if (ret)
+			return ret;
 		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetSoftMaxFclkByFreq, max_freq, NULL);
 		if (ret)
 			return ret;
@@ -683,22 +815,22 @@ static int renoir_set_power_profile_mode(struct smu_context *smu, long *input, u
 	uint32_t profile_mode = input[size];
 
 	if (profile_mode > PP_SMC_POWER_PROFILE_CUSTOM) {
-		dev_err(smu->adev->dev, "Invalid power profile mode %d\n", smu->power_profile_mode);
+		dev_err(smu->adev->dev, "Invalid power profile mode %d\n", profile_mode);
 		return -EINVAL;
 	}
 
 	/* conv PP_SMC_POWER_PROFILE* to WORKLOAD_PPLIB_*_BIT */
-	workload_type = smu_workload_get_type(smu, smu->power_profile_mode);
+	workload_type = smu_workload_get_type(smu, profile_mode);
 	if (workload_type < 0) {
 		/*
 		 * TODO: If some case need switch to powersave/default power mode
 		 * then can consider enter WORKLOAD_COMPUTE/WORKLOAD_CUSTOM for power saving.
 		 */
-		dev_err_once(smu->adev->dev, "Unsupported power profile mode %d on RENOIR\n",smu->power_profile_mode);
+		dev_err_once(smu->adev->dev, "Unsupported power profile mode %d on RENOIR\n", profile_mode);
 		return -EINVAL;
 	}
 
-	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetWorkloadMask,
+	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_ActiveProcessNotify,
 				    1 << workload_type,
 				    NULL);
 	if (ret) {
@@ -716,19 +848,19 @@ static int renoir_set_peak_clock_by_device(struct smu_context *smu)
 	int ret = 0;
 	uint32_t sclk_freq = 0, uclk_freq = 0;
 
-	ret = smu_get_dpm_freq_range(smu, SMU_SCLK, NULL, &sclk_freq, false);
+	ret = renoir_get_dpm_ultimate_freq(smu, SMU_SCLK, NULL, &sclk_freq);
 	if (ret)
 		return ret;
 
-	ret = smu_set_soft_freq_range(smu, SMU_SCLK, sclk_freq, sclk_freq, false);
+	ret = smu_v12_0_set_soft_freq_limited_range(smu, SMU_SCLK, sclk_freq, sclk_freq);
 	if (ret)
 		return ret;
 
-	ret = smu_get_dpm_freq_range(smu, SMU_UCLK, NULL, &uclk_freq, false);
+	ret = renoir_get_dpm_ultimate_freq(smu, SMU_UCLK, NULL, &uclk_freq);
 	if (ret)
 		return ret;
 
-	ret = smu_set_soft_freq_range(smu, SMU_UCLK, uclk_freq, uclk_freq, false);
+	ret = smu_v12_0_set_soft_freq_limited_range(smu, SMU_UCLK, uclk_freq, uclk_freq);
 	if (ret)
 		return ret;
 
@@ -743,26 +875,26 @@ static int renoir_set_performance_level(struct smu_context *smu,
 
 	switch (level) {
 	case AMD_DPM_FORCED_LEVEL_HIGH:
-		ret = smu_force_dpm_limit_value(smu, true);
+		ret = renoir_force_dpm_limit_value(smu, true);
 		break;
 	case AMD_DPM_FORCED_LEVEL_LOW:
-		ret = smu_force_dpm_limit_value(smu, false);
+		ret = renoir_force_dpm_limit_value(smu, false);
 		break;
 	case AMD_DPM_FORCED_LEVEL_AUTO:
 	case AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD:
-		ret = smu_unforce_dpm_levels(smu);
+		ret = renoir_unforce_dpm_levels(smu);
 		break;
 	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK:
 	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK:
-		ret = smu_get_profiling_clk_mask(smu, level,
-						 &sclk_mask,
-						 &mclk_mask,
-						 &soc_mask);
+		ret = renoir_get_profiling_clk_mask(smu, level,
+						    &sclk_mask,
+						    &mclk_mask,
+						    &soc_mask);
 		if (ret)
 			return ret;
-		smu_force_clk_levels(smu, SMU_SCLK, 1 << sclk_mask, false);
-		smu_force_clk_levels(smu, SMU_MCLK, 1 << mclk_mask, false);
-		smu_force_clk_levels(smu, SMU_SOCCLK, 1 << soc_mask, false);
+		renoir_force_clk_levels(smu, SMU_SCLK, 1 << sclk_mask);
+		renoir_force_clk_levels(smu, SMU_MCLK, 1 << mclk_mask);
+		renoir_force_clk_levels(smu, SMU_SOCCLK, 1 << soc_mask);
 		break;
 	case AMD_DPM_FORCED_LEVEL_PROFILE_PEAK:
 		ret = renoir_set_peak_clock_by_device(smu);
@@ -896,8 +1028,19 @@ static int renoir_read_sensor(struct smu_context *smu,
 		ret = renoir_get_gpu_temperature(smu, (uint32_t *)data);
 		*size = 4;
 		break;
+	case AMDGPU_PP_SENSOR_GFX_MCLK:
+		ret = renoir_get_current_clk_freq_by_table(smu, SMU_UCLK, (uint32_t *)data);
+		*(uint32_t *)data *= 100;
+		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_GFX_SCLK:
+		ret = renoir_get_current_clk_freq_by_table(smu, SMU_GFXCLK, (uint32_t *)data);
+		*(uint32_t *)data *= 100;
+		*size = 4;
+		break;
 	default:
-		ret = smu_v12_0_read_sensor(smu, sensor, data, size);
+		ret = -EOPNOTSUPP;
+		break;
 	}
 	mutex_unlock(&smu->sensor_lock);
 
@@ -926,16 +1069,11 @@ static const struct pptable_funcs renoir_ppt_funcs = {
 	.get_smu_table_index = renoir_get_smu_table_index,
 	.tables_init = renoir_tables_init,
 	.set_power_state = NULL,
-	.get_dpm_clk_limited = renoir_get_dpm_clk_limited,
 	.print_clk_levels = renoir_print_clk_levels,
 	.get_current_power_state = renoir_get_current_power_state,
 	.dpm_set_vcn_enable = renoir_dpm_set_vcn_enable,
 	.dpm_set_jpeg_enable = renoir_dpm_set_jpeg_enable,
-	.get_current_clk_freq_by_table = renoir_get_current_clk_freq_by_table,
-	.force_dpm_limit_value = renoir_force_dpm_limit_value,
-	.unforce_dpm_levels = renoir_unforce_dpm_levels,
 	.get_workload_type = renoir_get_workload_type,
-	.get_profiling_clk_mask = renoir_get_profiling_clk_mask,
 	.force_clk_levels = renoir_force_clk_levels,
 	.set_power_profile_mode = renoir_set_power_profile_mode,
 	.set_performance_level = renoir_set_performance_level,
@@ -953,8 +1091,7 @@ static const struct pptable_funcs renoir_ppt_funcs = {
 	.fini_smc_tables = smu_v12_0_fini_smc_tables,
 	.set_default_dpm_table = smu_v12_0_set_default_dpm_tables,
 	.get_enabled_mask = smu_v12_0_get_enabled_mask,
-	.get_current_clk_freq = smu_v12_0_get_current_clk_freq,
-	.get_dpm_ultimate_freq = smu_v12_0_get_dpm_ultimate_freq,
+	.get_dpm_ultimate_freq = renoir_get_dpm_ultimate_freq,
 	.mode2_reset = smu_v12_0_mode2_reset,
 	.set_soft_freq_limited_range = smu_v12_0_set_soft_freq_limited_range,
 	.set_driver_table_location = smu_v12_0_set_driver_table_location,

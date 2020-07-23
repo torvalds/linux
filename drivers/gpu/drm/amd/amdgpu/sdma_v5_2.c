@@ -45,6 +45,7 @@
 #include "sdma_v5_2.h"
 
 MODULE_FIRMWARE("amdgpu/sienna_cichlid_sdma.bin");
+MODULE_FIRMWARE("amdgpu/navy_flounder_sdma.bin");
 
 #define SDMA1_REG_OFFSET 0x600
 #define SDMA3_REG_OFFSET 0x400
@@ -85,6 +86,7 @@ static void sdma_v5_2_init_golden_registers(struct amdgpu_device *adev)
 {
 	switch (adev->asic_type) {
 	case CHIP_SIENNA_CICHLID:
+	case CHIP_NAVY_FLOUNDER:
 		break;
 	default:
 		break;
@@ -152,6 +154,9 @@ static int sdma_v5_2_init_microcode(struct amdgpu_device *adev)
 	case CHIP_SIENNA_CICHLID:
 		chip_name = "sienna_cichlid";
 		break;
+	case CHIP_NAVY_FLOUNDER:
+		chip_name = "navy_flounder";
+		break;
 	default:
 		BUG();
 	}
@@ -167,7 +172,8 @@ static int sdma_v5_2_init_microcode(struct amdgpu_device *adev)
 		goto out;
 
 	for (i = 1; i < adev->sdma.num_instances; i++) {
-		if (adev->asic_type == CHIP_SIENNA_CICHLID) {
+		if (adev->asic_type == CHIP_SIENNA_CICHLID ||
+		    adev->asic_type == CHIP_NAVY_FLOUNDER) {
 			memcpy((void*)&adev->sdma.instance[i],
 			       (void*)&adev->sdma.instance[0],
 			       sizeof(struct amdgpu_sdma_instance));
@@ -262,30 +268,20 @@ static uint64_t sdma_v5_2_ring_get_rptr(struct amdgpu_ring *ring)
 static uint64_t sdma_v5_2_ring_get_wptr(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
-	u64 *wptr = NULL;
-	uint64_t local_wptr = 0;
+	u64 wptr;
 
 	if (ring->use_doorbell) {
 		/* XXX check if swapping is necessary on BE */
-		wptr = ((u64 *)&adev->wb.wb[ring->wptr_offs]);
-		DRM_DEBUG("wptr/doorbell before shift == 0x%016llx\n", *wptr);
-		*wptr = (*wptr) >> 2;
-		DRM_DEBUG("wptr/doorbell after shift == 0x%016llx\n", *wptr);
+		wptr = READ_ONCE(*((u64 *)&adev->wb.wb[ring->wptr_offs]));
+		DRM_DEBUG("wptr/doorbell before shift == 0x%016llx\n", wptr);
 	} else {
-		u32 lowbit, highbit;
-
-		wptr = &local_wptr;
-		lowbit = RREG32(sdma_v5_2_get_reg_offset(adev, ring->me, mmSDMA0_GFX_RB_WPTR)) >> 2;
-		highbit = RREG32(sdma_v5_2_get_reg_offset(adev, ring->me, mmSDMA0_GFX_RB_WPTR_HI)) >> 2;
-
-		DRM_DEBUG("wptr [%i]high== 0x%08x low==0x%08x\n",
-				ring->me, highbit, lowbit);
-		*wptr = highbit;
-		*wptr = (*wptr) << 32;
-		*wptr |= lowbit;
+		wptr = RREG32(sdma_v5_2_get_reg_offset(adev, ring->me, mmSDMA0_GFX_RB_WPTR_HI));
+		wptr = wptr << 32;
+		wptr |= RREG32(sdma_v5_2_get_reg_offset(adev, ring->me, mmSDMA0_GFX_RB_WPTR));
+		DRM_DEBUG("wptr before shift [%i] wptr == 0x%016llx\n", ring->me, wptr);
 	}
 
-	return *wptr;
+	return wptr >> 2;
 }
 
 /**
@@ -417,7 +413,6 @@ static void sdma_v5_2_ring_emit_hdp_flush(struct amdgpu_ring *ring)
 static void sdma_v5_2_ring_emit_fence(struct amdgpu_ring *ring, u64 addr, u64 seq,
 				      unsigned flags)
 {
-	struct amdgpu_device *adev = ring->adev;
 	bool write64bit = flags & AMDGPU_FENCE_FLAG_64BIT;
 	/* write the fence */
 	amdgpu_ring_write(ring, SDMA_PKT_HEADER_OP(SDMA_OP_FENCE) |
@@ -440,8 +435,7 @@ static void sdma_v5_2_ring_emit_fence(struct amdgpu_ring *ring, u64 addr, u64 se
 		amdgpu_ring_write(ring, upper_32_bits(seq));
 	}
 
-	/* Interrupt not work fine on GFX10.1 model yet. Use fallback instead */
-	if ((flags & AMDGPU_FENCE_FLAG_INT) && adev->pdev->device != 0x50) {
+	if (flags & AMDGPU_FENCE_FLAG_INT) {
 		/* generate an interrupt */
 		amdgpu_ring_write(ring, SDMA_PKT_HEADER_OP(SDMA_OP_TRAP));
 		amdgpu_ring_write(ring, SDMA_PKT_TRAP_INT_CONTEXT_INT_CONTEXT(0));
@@ -1167,7 +1161,16 @@ static int sdma_v5_2_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	adev->sdma.num_instances = 4;
+	switch (adev->asic_type) {
+	case CHIP_SIENNA_CICHLID:
+		adev->sdma.num_instances = 4;
+		break;
+	case CHIP_NAVY_FLOUNDER:
+		adev->sdma.num_instances = 2;
+		break;
+	default:
+		break;
+	}
 
 	sdma_v5_2_set_ring_funcs(adev);
 	sdma_v5_2_set_buffer_funcs(adev);
@@ -1177,6 +1180,40 @@ static int sdma_v5_2_early_init(void *handle)
 	return 0;
 }
 
+static unsigned sdma_v5_2_seq_to_irq_id(int seq_num)
+{
+	switch (seq_num) {
+	case 0:
+		return SOC15_IH_CLIENTID_SDMA0;
+	case 1:
+		return SOC15_IH_CLIENTID_SDMA1;
+	case 2:
+		return SOC15_IH_CLIENTID_SDMA2;
+	case 3:
+		return SOC15_IH_CLIENTID_SDMA3_Sienna_Cichlid;
+	default:
+		break;
+	}
+	return -EINVAL;
+}
+
+static unsigned sdma_v5_2_seq_to_trap_id(int seq_num)
+{
+	switch (seq_num) {
+	case 0:
+		return SDMA0_5_0__SRCID__SDMA_TRAP;
+	case 1:
+		return SDMA1_5_0__SRCID__SDMA_TRAP;
+	case 2:
+		return SDMA2_5_0__SRCID__SDMA_TRAP;
+	case 3:
+		return SDMA3_5_0__SRCID__SDMA_TRAP;
+	default:
+		break;
+	}
+	return -EINVAL;
+}
+
 static int sdma_v5_2_sw_init(void *handle)
 {
 	struct amdgpu_ring *ring;
@@ -1184,32 +1221,13 @@ static int sdma_v5_2_sw_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	/* SDMA trap event */
-	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_SDMA0,
-			      SDMA0_5_0__SRCID__SDMA_TRAP,
-			      &adev->sdma.trap_irq);
-	if (r)
-		return r;
-
-	/* SDMA trap event */
-	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_SDMA1,
-			      SDMA1_5_0__SRCID__SDMA_TRAP,
-			      &adev->sdma.trap_irq);
-	if (r)
-		return r;
-
-	/* SDMA trap event */
-	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_SDMA2,
-			      SDMA2_5_0__SRCID__SDMA_TRAP,
-			      &adev->sdma.trap_irq);
-	if (r)
-		return r;
-
-	/* SDMA trap event */
-	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_SDMA3_Sienna_Cichlid,
-			      SDMA3_5_0__SRCID__SDMA_TRAP,
-			      &adev->sdma.trap_irq);
-	if (r)
-		return r;
+	for (i = 0; i < adev->sdma.num_instances; i++) {
+		r = amdgpu_irq_add_id(adev, sdma_v5_2_seq_to_irq_id(i),
+				      sdma_v5_2_seq_to_trap_id(i),
+				      &adev->sdma.trap_irq);
+		if (r)
+			return r;
+	}
 
 	r = sdma_v5_2_init_microcode(adev);
 	if (r) {
@@ -1545,6 +1563,7 @@ static int sdma_v5_2_set_clockgating_state(void *handle,
 
 	switch (adev->asic_type) {
 	case CHIP_SIENNA_CICHLID:
+	case CHIP_NAVY_FLOUNDER:
 		sdma_v5_2_update_medium_grain_clock_gating(adev,
 				state == AMD_CG_STATE_GATE ? true : false);
 		sdma_v5_2_update_medium_grain_light_sleep(adev,
@@ -1572,7 +1591,7 @@ static void sdma_v5_2_get_clockgating_state(void *handle, u32 *flags)
 		*flags = 0;
 
 	/* AMD_CG_SUPPORT_SDMA_LS */
-	data = RREG32(sdma_v5_2_get_reg_offset(adev, 0, mmSDMA0_POWER_CNTL));
+	data = RREG32_KIQ(sdma_v5_2_get_reg_offset(adev, 0, mmSDMA0_POWER_CNTL));
 	if (data & SDMA0_POWER_CNTL__MEM_POWER_OVERRIDE_MASK)
 		*flags |= AMD_CG_SUPPORT_SDMA_LS;
 }

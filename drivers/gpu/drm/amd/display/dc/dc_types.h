@@ -177,6 +177,7 @@ enum dc_edid_status {
 	EDID_NO_RESPONSE,
 	EDID_BAD_CHECKSUM,
 	EDID_THE_SAME,
+	EDID_FALL_BACK,
 };
 
 enum act_return_status {

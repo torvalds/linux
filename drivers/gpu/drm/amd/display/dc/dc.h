@@ -42,7 +42,7 @@
 #include "inc/hw/dmcu.h"
 #include "dml/display_mode_lib.h"
 
-#define DC_VER "3.2.91"
+#define DC_VER "3.2.94"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -466,6 +466,7 @@ struct dc_debug_options {
 	bool scl_reset_length10;
 	bool hdmi20_disable;
 	bool skip_detection_link_training;
+	bool edid_read_retry_times;
 	bool remove_disconnect_edp;
 	unsigned int force_odm_combine; //bit vector based on otg inst
 #if defined(CONFIG_DRM_AMD_DC_DCN3_0)
@@ -1028,6 +1029,7 @@ bool dc_resource_is_dsc_encoding_supported(const struct dc *dc);
  */
 bool dc_commit_state(struct dc *dc, struct dc_state *context);
 
+void dc_power_down_on_boot(struct dc *dc);
 
 struct dc_state *dc_create_state(struct dc *dc);
 struct dc_state *dc_copy_state(struct dc_state *src_ctx);
@@ -1227,6 +1229,8 @@ void dc_set_power_state(
 		struct dc *dc,
 		enum dc_acpi_cm_power_state power_state);
 void dc_resume(struct dc *dc);
+
+void dc_power_down_on_boot(struct dc *dc);
 
 #if defined(CONFIG_DRM_AMD_DC_HDCP)
 /*

@@ -30,7 +30,8 @@
 #define SMU11_DRIVER_IF_VERSION_NV10 0x36
 #define SMU11_DRIVER_IF_VERSION_NV12 0x33
 #define SMU11_DRIVER_IF_VERSION_NV14 0x36
-#define SMU11_DRIVER_IF_VERSION_Sienna_Cichlid 0x31
+#define SMU11_DRIVER_IF_VERSION_Sienna_Cichlid 0x33
+#define SMU11_DRIVER_IF_VERSION_Navy_Flounder 0x2B
 
 /* MP Apertures */
 #define MP0_Public			0x03800000
@@ -48,6 +49,7 @@
 
 #define SMU11_TOOL_SIZE			0x19000
 
+#define MAX_DPM_LEVELS 16
 #define MAX_PCIE_CONF 2
 
 #define CLK_MAP(clk, index) \
@@ -64,6 +66,10 @@
 
 #define WORKLOAD_MAP(profile, workload) \
 	[profile] = {1, (workload)}
+
+#define CTF_OFFSET_EDGE			5
+#define CTF_OFFSET_HOTSPOT		5
+#define CTF_OFFSET_MEM			5
 
 static const struct smu_temperature_range smu11_thermal_policy[] =
 {
@@ -91,9 +97,17 @@ struct smu_11_0_max_sustainable_clocks {
 	uint32_t soc_clock;
 };
 
+struct smu_11_0_dpm_clk_level {
+	bool				enabled;
+	uint32_t			value;
+};
+
 struct smu_11_0_dpm_table {
-	uint32_t    min;        /* MHz */
-	uint32_t    max;        /* MHz */
+	uint32_t			min;        /* MHz */
+	uint32_t			max;        /* MHz */
+	uint32_t			count;
+	bool				is_fine_grained;
+	struct smu_11_0_dpm_clk_level	dpm_levels[MAX_DPM_LEVELS];
 };
 
 struct smu_11_0_pcie_table {
@@ -107,7 +121,9 @@ struct smu_11_0_dpm_tables {
 	struct smu_11_0_dpm_table        uclk_table;
 	struct smu_11_0_dpm_table        eclk_table;
 	struct smu_11_0_dpm_table        vclk_table;
+	struct smu_11_0_dpm_table        vclk1_table;
 	struct smu_11_0_dpm_table        dclk_table;
+	struct smu_11_0_dpm_table        dclk1_table;
 	struct smu_11_0_dpm_table        dcef_table;
 	struct smu_11_0_dpm_table        pixel_table;
 	struct smu_11_0_dpm_table        display_table;
@@ -197,19 +213,13 @@ int smu_v11_0_get_current_power_limit(struct smu_context *smu,
 
 int smu_v11_0_set_power_limit(struct smu_context *smu, uint32_t n);
 
-int smu_v11_0_get_current_clk_freq(struct smu_context *smu,
-					  enum smu_clk_type clk_id,
-					  uint32_t *value);
-
 int smu_v11_0_init_max_sustainable_clocks(struct smu_context *smu);
 
 int smu_v11_0_enable_thermal_alert(struct smu_context *smu);
 
 int smu_v11_0_disable_thermal_alert(struct smu_context *smu);
 
-int smu_v11_0_read_sensor(struct smu_context *smu,
-				 enum amd_pp_sensors sensor,
-				 void *data, uint32_t *size);
+int smu_v11_0_get_gfx_vdd(struct smu_context *smu, uint32_t *value);
 
 int smu_v11_0_set_min_deep_sleep_dcefclk(struct smu_context *smu, uint32_t clk);
 
@@ -252,18 +262,41 @@ int smu_v11_0_baco_set_state(struct smu_context *smu, enum smu_baco_state state)
 int smu_v11_0_baco_enter(struct smu_context *smu);
 int smu_v11_0_baco_exit(struct smu_context *smu);
 
+int smu_v11_0_mode1_reset(struct smu_context *smu);
+
 int smu_v11_0_get_dpm_ultimate_freq(struct smu_context *smu, enum smu_clk_type clk_type,
 						 uint32_t *min, uint32_t *max);
 
 int smu_v11_0_set_soft_freq_limited_range(struct smu_context *smu, enum smu_clk_type clk_type,
 			    uint32_t min, uint32_t max);
 
-int smu_v11_0_override_pcie_parameters(struct smu_context *smu);
+int smu_v11_0_set_hard_freq_limited_range(struct smu_context *smu,
+					  enum smu_clk_type clk_type,
+					  uint32_t min,
+					  uint32_t max);
 
 int smu_v11_0_set_performance_level(struct smu_context *smu,
 				    enum amd_dpm_forced_level level);
 
 int smu_v11_0_set_power_source(struct smu_context *smu,
 			       enum smu_power_src_type power_src);
+
+int smu_v11_0_get_dpm_freq_by_index(struct smu_context *smu,
+				    enum smu_clk_type clk_type,
+				    uint16_t level,
+				    uint32_t *value);
+
+int smu_v11_0_get_dpm_level_count(struct smu_context *smu,
+				  enum smu_clk_type clk_type,
+				  uint32_t *value);
+
+int smu_v11_0_set_single_dpm_table(struct smu_context *smu,
+				   enum smu_clk_type clk_type,
+				   struct smu_11_0_dpm_table *single_dpm_table);
+
+int smu_v11_0_get_dpm_level_range(struct smu_context *smu,
+				  enum smu_clk_type clk_type,
+				  uint32_t *min_value,
+				  uint32_t *max_value);
 
 #endif

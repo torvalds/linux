@@ -57,6 +57,8 @@ MODULE_FIRMWARE("amdgpu/arcturus_asd.bin");
 MODULE_FIRMWARE("amdgpu/arcturus_ta.bin");
 MODULE_FIRMWARE("amdgpu/sienna_cichlid_sos.bin");
 MODULE_FIRMWARE("amdgpu/sienna_cichlid_asd.bin");
+MODULE_FIRMWARE("amdgpu/navy_flounder_sos.bin");
+MODULE_FIRMWARE("amdgpu/navy_flounder_asd.bin");
 
 /* address block */
 #define smnMP1_FIRMWARE_FLAGS		0x3010024
@@ -100,6 +102,9 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 	case CHIP_SIENNA_CICHLID:
 		chip_name = "sienna_cichlid";
 		break;
+	case CHIP_NAVY_FLOUNDER:
+		chip_name = "navy_flounder";
+		break;
 	default:
 		BUG();
 	}
@@ -108,7 +113,8 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 	if (err)
 		return err;
 
-	if (adev->asic_type != CHIP_SIENNA_CICHLID) {
+	if (adev->asic_type != CHIP_SIENNA_CICHLID &&
+	    adev->asic_type != CHIP_NAVY_FLOUNDER) {
 		err = psp_init_asd_microcode(psp, chip_name);
 		if (err)
 			return err;
@@ -173,6 +179,7 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 		}
 		break;
 	case CHIP_SIENNA_CICHLID:
+	case CHIP_NAVY_FLOUNDER:
 		break;
 	default:
 		BUG();
@@ -397,7 +404,8 @@ static int psp_v11_0_ring_init(struct psp_context *psp,
 	struct amdgpu_device *adev = psp->adev;
 
 	if ((!amdgpu_sriov_vf(adev)) &&
-	    (adev->asic_type != CHIP_SIENNA_CICHLID))
+	    (adev->asic_type != CHIP_SIENNA_CICHLID) &&
+	    (adev->asic_type != CHIP_NAVY_FLOUNDER))
 		psp_v11_0_reroute_ih(psp);
 
 	ring = &psp->km_ring;

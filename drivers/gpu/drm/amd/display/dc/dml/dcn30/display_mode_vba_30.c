@@ -2567,7 +2567,7 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 					&v->VRatioPrefetchC[k],
 					&v->RequiredPrefetchPixDataBWLuma[k],
 					&v->RequiredPrefetchPixDataBWChroma[k],
-					&v->NotEnoughTimeForDynamicMetadata,
+					&v->NotEnoughTimeForDynamicMetadata[k],
 					&v->Tno_bw[k],
 					&v->prefetch_vmrow_bw[k],
 					&v->Tdmdl_vm[k],
@@ -2686,7 +2686,7 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 		v->FractionOfUrgentBandwidth = MaxTotalRDBandwidthNoUrgentBurst / v->ReturnBW;
 
 
-		if (MaxTotalRDBandwidth <= v->ReturnBW && v->NotEnoughUrgentLatencyHiding == 0 && v->NotEnoughUrgentLatencyHidingPre == 0 && v->NotEnoughTimeForDynamicMetadata == 0 && !VRatioPrefetchMoreThan4
+		if (MaxTotalRDBandwidth <= v->ReturnBW && v->NotEnoughUrgentLatencyHiding == 0 && v->NotEnoughUrgentLatencyHidingPre == 0 && !VRatioPrefetchMoreThan4
 				&& !DestinationLineTimesForPrefetchLessThan2)
 			v->PrefetchModeSupported = true;
 		else {
@@ -2695,8 +2695,6 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 			dml_print("DML: MaxTotalRDBandwidth:%f AvailReturnBandwidth:%f\n", MaxTotalRDBandwidth, v->ReturnBW);
 			dml_print("DML: VRatioPrefetch %s more than 4\n", (VRatioPrefetchMoreThan4) ? "is" : "is not");
 			dml_print("DML: DestinationLines for Prefetch %s less than 2\n", (DestinationLineTimesForPrefetchLessThan2) ? "is" : "is not");
-			dml_print("DML: Not enough lines for dynamic meta is %s\n", (v->NotEnoughTimeForDynamicMetadata) ? "true" : "false");
-
 		}
 
 		if (v->PrefetchModeSupported == true && v->ImmediateFlipSupport == true) {
@@ -2786,7 +2784,7 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 		}
 
 		for (k = 0; k < v->NumberOfActivePlanes; ++k) {
-			if (v->ErrorResult[k]) {
+			if (v->ErrorResult[k] || v->NotEnoughTimeForDynamicMetadata[k]) {
 				v->PrefetchModeSupported = false;
 				dml_print("DML: CalculatePrefetchSchedule ***failed***. Prefetch schedule violation. Results are NOT valid\n");
 			}
