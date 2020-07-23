@@ -344,13 +344,15 @@ int snd_soc_component_of_xlate_dai_name(struct snd_soc_component *component,
 					struct of_phandle_args *args,
 					const char **dai_name)
 {
-	int ret = -ENOTSUPP;
-
 	if (component->driver->of_xlate_dai_name)
-		ret = component->driver->of_xlate_dai_name(component,
-							   args, dai_name);
-
-	return soc_component_ret(component, ret);
+		return component->driver->of_xlate_dai_name(component,
+							    args, dai_name);
+	/*
+	 * Don't use soc_component_ret here because we may not want to report
+	 * the error just yet. If a device has more than one component, the
+	 * first may not match and we don't want spam the log with this.
+	 */
+	return -ENOTSUPP;
 }
 
 void snd_soc_component_setup_regmap(struct snd_soc_component *component)
