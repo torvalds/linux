@@ -346,13 +346,13 @@ struct hbm_add_client_request {
  * @hbm_cmd: bus message command header
  * @me_addr: address of the client in ME
  * @status: if HBMS_SUCCESS then the client can now accept connections.
- * @reserved: reserved for alignment.
+ * @reserved: reserved
  */
 struct hbm_add_client_response {
 	u8 hbm_cmd;
 	u8 me_addr;
 	u8 status;
-	u8 reserved;
+	u8 reserved[1];
 } __packed;
 
 /**
@@ -461,7 +461,7 @@ struct hbm_notification {
 	u8 hbm_cmd;
 	u8 me_addr;
 	u8 host_addr;
-	u8 reserved;
+	u8 reserved[1];
 } __packed;
 
 /**
