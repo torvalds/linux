@@ -6642,8 +6642,8 @@ enum bfa_flash_cmd {
 	BFA_FLASH_READ_STATUS	= 0x05,	/* read status */
 };
 
-/**
- * @brief hardware error definition
+/*
+ * Hardware error definition
  */
 enum bfa_flash_err {
 	BFA_FLASH_NOT_PRESENT	= -1,	/*!< flash not present */
@@ -6657,8 +6657,8 @@ enum bfa_flash_err {
 	BFA_FLASH_ERR_LEN	= -9,	/*!< invalid length */
 };
 
-/**
- * @brief flash command register data structure
+/*
+ * Flash command register data structure
  */
 union bfa_flash_cmd_reg_u {
 	struct {
@@ -6681,8 +6681,8 @@ union bfa_flash_cmd_reg_u {
 	u32	i;
 };
 
-/**
- * @brief flash device status register data structure
+/*
+ * Flash device status register data structure
  */
 union bfa_flash_dev_status_reg_u {
 	struct {
@@ -6707,8 +6707,8 @@ union bfa_flash_dev_status_reg_u {
 	u32	i;
 };
 
-/**
- * @brief flash address register data structure
+/*
+ * Flash address register data structure
  */
 union bfa_flash_addr_reg_u {
 	struct {
@@ -6723,7 +6723,7 @@ union bfa_flash_addr_reg_u {
 	u32	i;
 };
 
-/**
+/*
  * dg flash_raw_private Flash raw private functions
  */
 static void
@@ -6764,7 +6764,7 @@ bfa_flash_cmd_act_check(void __iomem *pci_bar)
 	return 0;
 }
 
-/**
+/*
  * @brief
  * Flush FLI data fifo.
  *
@@ -6803,7 +6803,7 @@ bfa_flash_fifo_flush(void __iomem *pci_bar)
 	return 0;
 }
 
-/**
+/*
  * @brief
  * Read flash status.
  *
@@ -6848,7 +6848,7 @@ bfa_flash_status_read(void __iomem *pci_bar)
 	return ret_status;
 }
 
-/**
+/*
  * @brief
  * Start flash read operation.
  *
@@ -6894,7 +6894,7 @@ bfa_flash_read_start(void __iomem *pci_bar, u32 offset, u32 len,
 	return 0;
 }
 
-/**
+/*
  * @brief
  * Check flash read operation.
  *
@@ -6910,7 +6910,7 @@ bfa_flash_read_check(void __iomem *pci_bar)
 
 	return 0;
 }
-/**
+/*
  * @brief
  * End flash read operation.
  *
@@ -6936,7 +6936,7 @@ bfa_flash_read_end(void __iomem *pci_bar, u32 len, char *buf)
 	bfa_flash_fifo_flush(pci_bar);
 }
 
-/**
+/*
  * @brief
  * Perform flash raw read.
  *
