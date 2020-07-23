@@ -739,34 +739,6 @@ out_no_init:
 static int vmw_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 		      struct ttm_mem_type_manager *man)
 {
-	switch (type) {
-	case TTM_PL_SYSTEM:
-		/* System memory */
-		man->available_caching = TTM_PL_FLAG_CACHED;
-		break;
-	case TTM_PL_VRAM:
-		/* "On-card" video ram */
-		man->func = &vmw_thp_func;
-		man->available_caching = TTM_PL_FLAG_CACHED;
-		man->default_caching = TTM_PL_FLAG_CACHED;
-		break;
-	case VMW_PL_GMR:
-	case VMW_PL_MOB:
-		/*
-		 * "Guest Memory Regions" is an aperture like feature with
-		 *  one slot per bo. There is an upper limit of the number of
-		 *  slots as well as the bo size.
-		 */
-		man->func = &vmw_gmrid_manager_func;
-		man->available_caching = TTM_PL_FLAG_CACHED;
-		man->default_caching = TTM_PL_FLAG_CACHED;
-		/* TODO: This is most likely not correct */
-		man->use_tt = true;
-		break;
-	default:
-		DRM_ERROR("Unsupported memory type %u\n", (unsigned)type);
-		return -EINVAL;
-	}
 	return 0;
 }
 

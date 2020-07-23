@@ -859,11 +859,16 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 		DRM_ERROR("Failed initializing TTM buffer object driver.\n");
 		goto out_no_bdev;
 	}
+	dev_priv->bdev.man[TTM_PL_SYSTEM].available_caching =
+		TTM_PL_FLAG_CACHED;
 
 	/*
 	 * Enable VRAM, but initially don't use it until SVGA is enabled and
 	 * unhidden.
 	 */
+	dev_priv->bdev.man[TTM_PL_VRAM].func = &vmw_thp_func;
+	dev_priv->bdev.man[TTM_PL_VRAM].available_caching = TTM_PL_FLAG_CACHED;
+	dev_priv->bdev.man[TTM_PL_VRAM].default_caching = TTM_PL_FLAG_CACHED;
 	ret = ttm_bo_init_mm(&dev_priv->bdev, TTM_PL_VRAM,
 			     (dev_priv->vram_size >> PAGE_SHIFT));
 	if (unlikely(ret != 0)) {
@@ -872,7 +877,17 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	}
 	dev_priv->bdev.man[TTM_PL_VRAM].use_type = false;
 
+	/*
+	 * "Guest Memory Regions" is an aperture like feature with
+	 *  one slot per bo. There is an upper limit of the number of
+	 *  slots as well as the bo size.
+	 */
 	dev_priv->has_gmr = true;
+	dev_priv->bdev.man[VMW_PL_GMR].func = &vmw_gmrid_manager_func;
+	dev_priv->bdev.man[VMW_PL_GMR].available_caching = TTM_PL_FLAG_CACHED;
+	dev_priv->bdev.man[VMW_PL_GMR].default_caching = TTM_PL_FLAG_CACHED;
+	/* TODO: This is most likely not correct */
+	dev_priv->bdev.man[VMW_PL_GMR].use_tt = true;
 	if (((dev_priv->capabilities & (SVGA_CAP_GMR | SVGA_CAP_GMR2)) == 0) ||
 	    refuse_dma || ttm_bo_init_mm(&dev_priv->bdev, VMW_PL_GMR,
 					 VMW_PL_GMR) != 0) {
@@ -883,6 +898,11 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 
 	if (dev_priv->capabilities & SVGA_CAP_GBOBJECTS && !refuse_dma) {
 		dev_priv->has_mob = true;
+		dev_priv->bdev.man[VMW_PL_MOB].func = &vmw_gmrid_manager_func;
+		dev_priv->bdev.man[VMW_PL_MOB].available_caching = TTM_PL_FLAG_CACHED;
+		dev_priv->bdev.man[VMW_PL_MOB].default_caching = TTM_PL_FLAG_CACHED;
+		/* TODO: This is most likely not correct */
+		dev_priv->bdev.man[VMW_PL_MOB].use_tt = true;
 		if (ttm_bo_init_mm(&dev_priv->bdev, VMW_PL_MOB,
 				   VMW_PL_MOB) != 0) {
 			DRM_INFO("No MOB memory available. "
