@@ -6,6 +6,7 @@
 
 #include <linux/clk.h>
 #include <linux/device.h>
+#include <linux/math64.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
@@ -129,7 +130,7 @@ static int tegra210_dmic_hw_params(struct snd_pcm_substream *substream,
 	 * Boost Gain Volume control has 100x factor.
 	 */
 	if (dmic->boost_gain)
-		gain_q23 = (gain_q23 * dmic->boost_gain) / 100;
+		gain_q23 = div_u64(gain_q23 * dmic->boost_gain, 100);
 
 	regmap_write(dmic->regmap, TEGRA210_DMIC_LP_FILTER_GAIN,
 		     (unsigned int)gain_q23);
