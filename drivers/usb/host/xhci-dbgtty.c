@@ -14,6 +14,11 @@
 #include "xhci.h"
 #include "xhci-dbgcap.h"
 
+static int dbc_tty_init(void);
+static void dbc_tty_exit(void);
+
+static struct tty_driver *dbc_tty_driver;
+
 static unsigned int
 dbc_send_packet(struct dbc_port *port, char *packet, unsigned int size)
 {
@@ -278,55 +283,6 @@ static const struct tty_operations dbc_tty_ops = {
 	.unthrottle		= dbc_tty_unthrottle,
 };
 
-static struct tty_driver *dbc_tty_driver;
-
-int xhci_dbc_tty_register_driver(struct xhci_hcd *xhci)
-{
-	int			status;
-	struct xhci_dbc		*dbc = xhci->dbc;
-
-	dbc_tty_driver = tty_alloc_driver(1, TTY_DRIVER_REAL_RAW |
-					  TTY_DRIVER_DYNAMIC_DEV);
-	if (IS_ERR(dbc_tty_driver)) {
-		status = PTR_ERR(dbc_tty_driver);
-		dbc_tty_driver = NULL;
-		return status;
-	}
-
-	dbc_tty_driver->driver_name = "dbc_serial";
-	dbc_tty_driver->name = "ttyDBC";
-
-	dbc_tty_driver->type = TTY_DRIVER_TYPE_SERIAL;
-	dbc_tty_driver->subtype = SERIAL_TYPE_NORMAL;
-	dbc_tty_driver->init_termios = tty_std_termios;
-	dbc_tty_driver->init_termios.c_cflag =
-			B9600 | CS8 | CREAD | HUPCL | CLOCAL;
-	dbc_tty_driver->init_termios.c_ispeed = 9600;
-	dbc_tty_driver->init_termios.c_ospeed = 9600;
-	dbc_tty_driver->driver_state = &dbc->port;
-
-	tty_set_operations(dbc_tty_driver, &dbc_tty_ops);
-
-	status = tty_register_driver(dbc_tty_driver);
-	if (status) {
-		xhci_err(xhci,
-			 "can't register dbc tty driver, err %d\n", status);
-		put_tty_driver(dbc_tty_driver);
-		dbc_tty_driver = NULL;
-	}
-
-	return status;
-}
-
-void xhci_dbc_tty_unregister_driver(void)
-{
-	if (dbc_tty_driver) {
-		tty_unregister_driver(dbc_tty_driver);
-		put_tty_driver(dbc_tty_driver);
-		dbc_tty_driver = NULL;
-	}
-}
-
 static void dbc_rx_push(unsigned long _port)
 {
 	struct dbc_request	*req;
@@ -498,3 +454,74 @@ void xhci_dbc_tty_unregister_device(struct xhci_dbc *dbc)
 	xhci_dbc_free_requests(&port->read_queue);
 	xhci_dbc_free_requests(&port->write_pool);
 }
+
+int xhci_dbc_tty_probe(struct xhci_hcd *xhci)
+{
+	struct xhci_dbc		*dbc = xhci->dbc;
+	int			status;
+
+	/* dbc_tty_init will be called by module init() in the future */
+	status = dbc_tty_init();
+	if (status)
+		return status;
+
+	dbc_tty_driver->driver_state = &dbc->port;
+
+	return 0;
+out:
+
+	/* dbc_tty_exit will be called by module_exit() in the future */
+	dbc_tty_exit();
+	return status;
+}
+
+/*
+ * undo what probe did, assume dbc is stopped already.
+ * we also assume tty_unregister_device() is called before this
+ */
+void xhci_dbc_tty_remove(struct xhci_dbc *dbc)
+{
+	/* dbc_tty_exit will be called by  module_exit() in the future */
+	dbc_tty_exit();
+}
+
+static int dbc_tty_init(void)
+{
+	int		ret;
+
+	dbc_tty_driver = tty_alloc_driver(1, TTY_DRIVER_REAL_RAW |
+					  TTY_DRIVER_DYNAMIC_DEV);
+	if (IS_ERR(dbc_tty_driver))
+		return PTR_ERR(dbc_tty_driver);
+
+	dbc_tty_driver->driver_name = "dbc_serial";
+	dbc_tty_driver->name = "ttyDBC";
+
+	dbc_tty_driver->type = TTY_DRIVER_TYPE_SERIAL;
+	dbc_tty_driver->subtype = SERIAL_TYPE_NORMAL;
+	dbc_tty_driver->init_termios = tty_std_termios;
+	dbc_tty_driver->init_termios.c_cflag =
+			B9600 | CS8 | CREAD | HUPCL | CLOCAL;
+	dbc_tty_driver->init_termios.c_ispeed = 9600;
+	dbc_tty_driver->init_termios.c_ospeed = 9600;
+
+	tty_set_operations(dbc_tty_driver, &dbc_tty_ops);
+
+	ret = tty_register_driver(dbc_tty_driver);
+	if (ret) {
+		pr_err("Can't register dbc tty driver\n");
+		put_tty_driver(dbc_tty_driver);
+	}
+	return ret;
+}
+
+static void dbc_tty_exit(void)
+{
+	if (dbc_tty_driver) {
+		tty_unregister_driver(dbc_tty_driver);
+		put_tty_driver(dbc_tty_driver);
+		dbc_tty_driver = NULL;
+	}
+}
+
+

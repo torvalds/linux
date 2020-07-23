@@ -1032,7 +1032,7 @@ int xhci_dbc_init(struct xhci_hcd *xhci)
 	if (ret)
 		goto init_err3;
 
-	ret = xhci_dbc_tty_register_driver(xhci);
+	ret = xhci_dbc_tty_probe(xhci);
 	if (ret)
 		goto init_err2;
 
@@ -1043,7 +1043,7 @@ int xhci_dbc_init(struct xhci_hcd *xhci)
 	return 0;
 
 init_err1:
-	xhci_dbc_tty_unregister_driver();
+	xhci_dbc_tty_remove(xhci->dbc);
 init_err2:
 	xhci_do_dbc_exit(xhci);
 init_err3:
@@ -1058,7 +1058,7 @@ void xhci_dbc_exit(struct xhci_hcd *xhci)
 		return;
 
 	device_remove_file(dev, &dev_attr_dbc);
-	xhci_dbc_tty_unregister_driver();
+	xhci_dbc_tty_remove(xhci->dbc);
 	xhci_dbc_stop(xhci->dbc);
 	xhci_do_dbc_exit(xhci);
 }

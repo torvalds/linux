@@ -190,8 +190,8 @@ static inline struct dbc_ep *get_out_ep(struct xhci_dbc *dbc)
 #ifdef CONFIG_USB_XHCI_DBGCAP
 int xhci_dbc_init(struct xhci_hcd *xhci);
 void xhci_dbc_exit(struct xhci_hcd *xhci);
-int xhci_dbc_tty_register_driver(struct xhci_hcd *xhci);
-void xhci_dbc_tty_unregister_driver(void);
+int xhci_dbc_tty_probe(struct xhci_hcd *xhci);
+void xhci_dbc_tty_remove(struct xhci_dbc *dbc);
 int xhci_dbc_tty_register_device(struct xhci_dbc *dbc);
 void xhci_dbc_tty_unregister_device(struct xhci_dbc *dbc);
 struct dbc_request *dbc_alloc_request(struct xhci_dbc *dbc,
