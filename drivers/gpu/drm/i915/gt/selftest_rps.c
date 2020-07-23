@@ -700,7 +700,7 @@ int live_rps_frequency_cs(void *arg)
 				f = act; /* may skip ahead [pcu granularity] */
 			}
 
-			err = -EINVAL;
+			err = -EINTR; /* ignore error, continue on with test */
 		}
 
 err_vma:
@@ -841,7 +841,7 @@ int live_rps_frequency_srm(void *arg)
 				f = act; /* may skip ahead [pcu granularity] */
 			}
 
-			err = -EINVAL;
+			err = -EINTR; /* ignore error, continue on with test */
 		}
 
 err_vma:
