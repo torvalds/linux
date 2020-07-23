@@ -1225,8 +1225,9 @@ static inline void esas2r_rq_init_request(struct esas2r_request *rq,
 
 	/* req_table entry should be NULL at this point - if not, halt */
 
-	if (a->req_table[LOWORD(vrq->scsi.handle)])
+	if (a->req_table[LOWORD(vrq->scsi.handle)]) {
 		esas2r_bugon();
+	}
 
 	/* fill in the table for this handle so we can get back to the
 	 * request.
