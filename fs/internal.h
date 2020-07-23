@@ -92,6 +92,7 @@ extern void dissolve_on_fput(struct vfsmount *);
 
 int path_mount(const char *dev_name, struct path *path,
 		const char *type_page, unsigned long flags, void *data_page);
+int path_umount(struct path *path, int flags);
 
 /*
  * fs_struct.c
