@@ -20,6 +20,7 @@
 #include "bpf_iter_bpf_array_map.skel.h"
 #include "bpf_iter_bpf_percpu_array_map.skel.h"
 #include "bpf_iter_bpf_sk_storage_map.skel.h"
+#include "bpf_iter_test_kern5.skel.h"
 
 static int duration;
 
@@ -865,6 +866,25 @@ out:
 	bpf_iter_bpf_sk_storage_map__destroy(skel);
 }
 
+static void test_rdonly_buf_out_of_bound(void)
+{
+	DECLARE_LIBBPF_OPTS(bpf_iter_attach_opts, opts);
+	struct bpf_iter_test_kern5 *skel;
+	struct bpf_link *link;
+
+	skel = bpf_iter_test_kern5__open_and_load();
+	if (CHECK(!skel, "bpf_iter_test_kern5__open_and_load",
+		  "skeleton open_and_load failed\n"))
+		return;
+
+	opts.map_fd = bpf_map__fd(skel->maps.hashmap1);
+	link = bpf_program__attach_iter(skel->progs.dump_bpf_hash_map, &opts);
+	if (CHECK(!IS_ERR(link), "attach_iter", "unexpected success\n"))
+		bpf_link__destroy(link);
+
+	bpf_iter_test_kern5__destroy(skel);
+}
+
 void test_bpf_iter(void)
 {
 	if (test__start_subtest("btf_id_or_null"))
@@ -911,4 +931,6 @@ void test_bpf_iter(void)
 		test_bpf_percpu_array_map();
 	if (test__start_subtest("bpf_sk_storage_map"))
 		test_bpf_sk_storage_map();
+	if (test__start_subtest("rdonly-buf-out-of-bound"))
+		test_rdonly_buf_out_of_bound();
 }
