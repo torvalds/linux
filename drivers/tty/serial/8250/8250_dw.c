@@ -275,15 +275,15 @@ dw8250_do_pm(struct uart_port *port, unsigned int state, unsigned int old)
 static void dw8250_set_termios(struct uart_port *p, struct ktermios *termios,
 			       struct ktermios *old)
 {
-	unsigned int baud = tty_termios_baud_rate(termios);
+	unsigned long newrate = tty_termios_baud_rate(termios) * 16;
 	struct dw8250_data *d = to_dw8250_data(p->private_data);
 	long rate;
 	int ret;
 
 	clk_disable_unprepare(d->clk);
-	rate = clk_round_rate(d->clk, baud * 16);
+	rate = clk_round_rate(d->clk, newrate);
 	if (rate > 0) {
-		ret = clk_set_rate(d->clk, rate);
+		ret = clk_set_rate(d->clk, newrate);
 		if (!ret)
 			p->uartclk = rate;
 	}
