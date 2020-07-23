@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2003-2019, Intel Corporation. All rights reserved.
+ * Copyright (c) 2003-2020, Intel Corporation. All rights reserved.
  * Intel Management Engine Interface (Intel MEI) Linux driver
  */
 
@@ -1600,8 +1600,7 @@ struct mei_device *mei_me_dev_init(struct device *parent,
 	struct mei_me_hw *hw;
 	int i;
 
-	dev = devm_kzalloc(parent, sizeof(struct mei_device) +
-			   sizeof(struct mei_me_hw), GFP_KERNEL);
+	dev = devm_kzalloc(parent, sizeof(*dev) + sizeof(*hw), GFP_KERNEL);
 	if (!dev)
 		return NULL;
 
