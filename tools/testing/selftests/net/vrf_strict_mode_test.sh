@@ -379,6 +379,12 @@ if [ ! -x "$(command -v ip)" ]; then
 	exit 0
 fi
 
+modprobe vrf &>/dev/null
+if [ ! -e /proc/sys/net/vrf/strict_mode ]; then
+	echo "SKIP: vrf sysctl does not exist"
+	exit 0
+fi
+
 cleanup &> /dev/null
 
 setup
