@@ -136,6 +136,13 @@ int rockchip_drm_get_sub_dev_type(void)
 }
 EXPORT_SYMBOL(rockchip_drm_get_sub_dev_type);
 
+#ifdef CONFIG_ARCH_ROCKCHIP
+struct drm_prime_callback_data {
+	struct drm_gem_object *obj;
+	struct sg_table *sgt;
+};
+#endif
+
 #ifndef MODULE
 static struct drm_crtc *find_crtc_by_node(struct drm_device *drm_dev, struct device_node *node)
 {
@@ -1685,6 +1692,118 @@ static const struct dma_buf_ops rockchip_drm_gem_prime_dmabuf_ops = {
 	.end_cpu_access = rockchip_drm_gem_dmabuf_end_cpu_access,
 };
 
+#ifdef CONFIG_ARCH_ROCKCHIP
+static void drm_gem_prime_dmabuf_release_callback(void *data)
+{
+	struct drm_prime_callback_data *cb_data = data;
+
+	if (cb_data && cb_data->obj && cb_data->obj->import_attach) {
+		struct dma_buf_attachment *attach = cb_data->obj->import_attach;
+		struct sg_table *sgt = cb_data->sgt;
+
+		if (sgt)
+			dma_buf_unmap_attachment(attach, sgt,
+						 DMA_BIDIRECTIONAL);
+		dma_buf_detach(attach->dmabuf, attach);
+		drm_gem_object_put_unlocked(cb_data->obj);
+		kfree(cb_data);
+	}
+}
+#endif
+
+static struct drm_gem_object *rockchip_drm_gem_prime_import_dev(struct drm_device *dev,
+								struct dma_buf *dma_buf,
+								struct device *attach_dev)
+{
+	struct dma_buf_attachment *attach;
+	struct sg_table *sgt;
+	struct drm_gem_object *obj;
+#ifdef CONFIG_ARCH_ROCKCHIP
+	struct drm_prime_callback_data *cb_data = NULL;
+#endif
+	int ret;
+
+	if (dma_buf->ops == &rockchip_drm_gem_prime_dmabuf_ops) {
+		obj = dma_buf->priv;
+		if (obj->dev == dev) {
+			/*
+			 * Importing dmabuf exported from out own gem increases
+			 * refcount on gem itself instead of f_count of dmabuf.
+			 */
+			drm_gem_object_get(obj);
+			return obj;
+		}
+	}
+
+#ifdef CONFIG_ARCH_ROCKCHIP
+	cb_data = dma_buf_get_release_callback_data(dma_buf,
+					drm_gem_prime_dmabuf_release_callback);
+	if (cb_data && cb_data->obj && cb_data->obj->dev == dev) {
+		drm_gem_object_get(cb_data->obj);
+		return cb_data->obj;
+	}
+#endif
+
+	if (!dev->driver->gem_prime_import_sg_table)
+		return ERR_PTR(-EINVAL);
+
+	attach = dma_buf_attach(dma_buf, attach_dev);
+	if (IS_ERR(attach))
+		return ERR_CAST(attach);
+
+	get_dma_buf(dma_buf);
+
+#ifdef CONFIG_ARCH_ROCKCHIP
+	cb_data = kmalloc(sizeof(*cb_data), GFP_KERNEL);
+	if (!cb_data) {
+		ret = -ENOMEM;
+		goto fail_detach;
+	}
+#endif
+
+	sgt = dma_buf_map_attachment(attach, DMA_BIDIRECTIONAL);
+	if (IS_ERR(sgt)) {
+		ret = PTR_ERR(sgt);
+		goto fail_detach;
+	}
+
+	obj = dev->driver->gem_prime_import_sg_table(dev, attach, sgt);
+	if (IS_ERR(obj)) {
+		ret = PTR_ERR(obj);
+		goto fail_unmap;
+	}
+
+	obj->import_attach = attach;
+
+#ifdef CONFIG_ARCH_ROCKCHIP
+	cb_data->obj = obj;
+	cb_data->sgt = sgt;
+	dma_buf_set_release_callback(dma_buf,
+			drm_gem_prime_dmabuf_release_callback, cb_data);
+	dma_buf_put(dma_buf);
+	drm_gem_object_get(obj);
+#endif
+
+	return obj;
+
+fail_unmap:
+	dma_buf_unmap_attachment(attach, sgt, DMA_BIDIRECTIONAL);
+fail_detach:
+#ifdef CONFIG_ARCH_ROCKCHIP
+	kfree(cb_data);
+#endif
+	dma_buf_detach(dma_buf, attach);
+	dma_buf_put(dma_buf);
+
+	return ERR_PTR(ret);
+}
+
+static struct drm_gem_object *rockchip_drm_gem_prime_import(struct drm_device *dev,
+							    struct dma_buf *dma_buf)
+{
+	return rockchip_drm_gem_prime_import_dev(dev, dma_buf, dev->dev);
+}
+
 static struct dma_buf *rockchip_drm_gem_prime_export(struct drm_device *dev,
 						     struct drm_gem_object *obj,
 						     int flags)
@@ -1718,7 +1837,7 @@ static struct drm_driver rockchip_drm_driver = {
 	.dumb_destroy		= drm_gem_dumb_destroy,
 	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle,
-	.gem_prime_import	= drm_gem_prime_import,
+	.gem_prime_import	= rockchip_drm_gem_prime_import,
 	.gem_prime_export	= rockchip_drm_gem_prime_export,
 	.gem_prime_get_sg_table	= rockchip_gem_prime_get_sg_table,
 	.gem_prime_import_sg_table	= rockchip_gem_prime_import_sg_table,
