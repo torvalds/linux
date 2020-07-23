@@ -593,7 +593,7 @@ static void dbc_handle_xfer_event(struct xhci_dbc *dbc, union xhci_trb *event)
 	remain_length	= EVENT_TRB_LEN(le32_to_cpu(event->generic.field[2]));
 	ep_id		= TRB_TO_EP_ID(le32_to_cpu(event->generic.field[3]));
 	dep		= (ep_id == EPID_OUT) ?
-				get_out_ep(xhci) : get_in_ep(xhci);
+				get_out_ep(dbc) : get_in_ep(dbc);
 	ring		= dep->ring;
 
 	switch (comp_code) {
@@ -710,12 +710,12 @@ static enum evtreturn xhci_dbc_do_handle_events(struct xhci_dbc *dbc)
 			dbc->state = DS_STALLED;
 
 			if (ctrl & DBC_CTRL_HALT_IN_TR) {
-				dep = get_in_ep(xhci);
+				dep = get_in_ep(dbc);
 				xhci_dbc_flush_endpoint_requests(dep);
 			}
 
 			if (ctrl & DBC_CTRL_HALT_OUT_TR) {
-				dep = get_out_ep(xhci);
+				dep = get_out_ep(dbc);
 				xhci_dbc_flush_endpoint_requests(dep);
 			}
 

@@ -418,7 +418,7 @@ static const struct tty_port_operations dbc_port_ops = {
 };
 
 static void
-xhci_dbc_tty_init_port(struct xhci_hcd *xhci, struct dbc_port *port)
+xhci_dbc_tty_init_port(struct xhci_dbc *dbc, struct dbc_port *port)
 {
 	tty_port_init(&port->port);
 	spin_lock_init(&port->port_lock);
@@ -427,8 +427,8 @@ xhci_dbc_tty_init_port(struct xhci_hcd *xhci, struct dbc_port *port)
 	INIT_LIST_HEAD(&port->read_queue);
 	INIT_LIST_HEAD(&port->write_pool);
 
-	port->in =		get_in_ep(xhci);
-	port->out =		get_out_ep(xhci);
+	port->in =		get_in_ep(dbc);
+	port->out =		get_out_ep(dbc);
 	port->port.ops =	&dbc_port_ops;
 	port->n_read =		0;
 }
@@ -446,7 +446,7 @@ int xhci_dbc_tty_register_device(struct xhci_dbc *dbc)
 	struct device		*tty_dev;
 	struct dbc_port		*port = &dbc->port;
 
-	xhci_dbc_tty_init_port(xhci, port);
+	xhci_dbc_tty_init_port(dbc, port);
 	tty_dev = tty_port_register_device(&port->port,
 					   dbc_tty_driver, 0, NULL);
 	if (IS_ERR(tty_dev)) {
@@ -497,7 +497,7 @@ void xhci_dbc_tty_unregister_device(struct xhci_dbc *dbc)
 	port->registered = false;
 
 	kfifo_free(&port->write_fifo);
-	xhci_dbc_free_requests(get_out_ep(xhci), &port->read_pool);
-	xhci_dbc_free_requests(get_out_ep(xhci), &port->read_queue);
-	xhci_dbc_free_requests(get_in_ep(xhci), &port->write_pool);
+	xhci_dbc_free_requests(get_out_ep(dbc), &port->read_pool);
+	xhci_dbc_free_requests(get_out_ep(dbc), &port->read_queue);
+	xhci_dbc_free_requests(get_in_ep(dbc), &port->write_pool);
 }

@@ -179,17 +179,13 @@ enum evtreturn {
 	EVT_DISC,
 };
 
-static inline struct dbc_ep *get_in_ep(struct xhci_hcd *xhci)
+static inline struct dbc_ep *get_in_ep(struct xhci_dbc *dbc)
 {
-	struct xhci_dbc		*dbc = xhci->dbc;
-
 	return &dbc->eps[BULK_IN];
 }
 
-static inline struct dbc_ep *get_out_ep(struct xhci_hcd *xhci)
+static inline struct dbc_ep *get_out_ep(struct xhci_dbc *dbc)
 {
-	struct xhci_dbc		*dbc = xhci->dbc;
-
 	return &dbc->eps[BULK_OUT];
 }
 
