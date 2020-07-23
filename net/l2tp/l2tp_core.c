@@ -683,7 +683,7 @@ void l2tp_recv_common(struct l2tp_session *session, struct sk_buff *skb,
 		 * check if we sre sending sequence numbers and if not,
 		 * configure it so.
 		 */
-		if ((!session->lns_mode) && (!session->send_seq)) {
+		if (!session->lns_mode && !session->send_seq) {
 			l2tp_info(session, L2TP_MSG_SEQ,
 				  "%s: requested to enable seq numbers by LNS\n",
 				  session->name);
@@ -707,7 +707,7 @@ void l2tp_recv_common(struct l2tp_session *session, struct sk_buff *skb,
 		 * If we're the LNS and we're sending sequence numbers, the
 		 * LAC is broken. Discard the frame.
 		 */
-		if ((!session->lns_mode) && (session->send_seq)) {
+		if (!session->lns_mode && session->send_seq) {
 			l2tp_info(session, L2TP_MSG_SEQ,
 				  "%s: requested to disable seq numbers by LNS\n",
 				  session->name);
@@ -1389,7 +1389,7 @@ static int l2tp_tunnel_sock_create(struct net *net,
 
 out:
 	*sockp = sock;
-	if ((err < 0) && sock) {
+	if (err < 0 && sock) {
 		kernel_sock_shutdown(sock, SHUT_RDWR);
 		sock_release(sock);
 		*sockp = NULL;

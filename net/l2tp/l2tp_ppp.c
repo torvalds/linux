@@ -802,8 +802,7 @@ static int pppol2tp_connect(struct socket *sock, struct sockaddr *uservaddr,
 	 * the internal context for use by ioctl() and sockopt()
 	 * handlers.
 	 */
-	if ((session->session_id == 0) &&
-	    (session->peer_session_id == 0)) {
+	if (session->session_id == 0 && session->peer_session_id == 0) {
 		error = 0;
 		goto out_no_ppp;
 	}
@@ -925,7 +924,7 @@ static int pppol2tp_getname(struct socket *sock, struct sockaddr *uaddr,
 	tunnel = session->tunnel;
 
 	inet = inet_sk(tunnel->sock);
-	if ((tunnel->version == 2) && (tunnel->sock->sk_family == AF_INET)) {
+	if (tunnel->version == 2 && tunnel->sock->sk_family == AF_INET) {
 		struct sockaddr_pppol2tp sp;
 
 		len = sizeof(sp);
@@ -943,8 +942,7 @@ static int pppol2tp_getname(struct socket *sock, struct sockaddr *uaddr,
 		sp.pppol2tp.addr.sin_addr.s_addr = inet->inet_daddr;
 		memcpy(uaddr, &sp, len);
 #if IS_ENABLED(CONFIG_IPV6)
-	} else if ((tunnel->version == 2) &&
-		   (tunnel->sock->sk_family == AF_INET6)) {
+	} else if (tunnel->version == 2 && tunnel->sock->sk_family == AF_INET6) {
 		struct sockaddr_pppol2tpin6 sp;
 
 		len = sizeof(sp);
@@ -962,8 +960,7 @@ static int pppol2tp_getname(struct socket *sock, struct sockaddr *uaddr,
 		memcpy(&sp.pppol2tp.addr.sin6_addr, &tunnel->sock->sk_v6_daddr,
 		       sizeof(tunnel->sock->sk_v6_daddr));
 		memcpy(uaddr, &sp, len);
-	} else if ((tunnel->version == 3) &&
-		   (tunnel->sock->sk_family == AF_INET6)) {
+	} else if (tunnel->version == 3 && tunnel->sock->sk_family == AF_INET6) {
 		struct sockaddr_pppol2tpv3in6 sp;
 
 		len = sizeof(sp);
@@ -1179,7 +1176,7 @@ static int pppol2tp_session_setsockopt(struct sock *sk,
 
 	switch (optname) {
 	case PPPOL2TP_SO_RECVSEQ:
-		if ((val != 0) && (val != 1)) {
+		if (val != 0 && val != 1) {
 			err = -EINVAL;
 			break;
 		}
@@ -1190,7 +1187,7 @@ static int pppol2tp_session_setsockopt(struct sock *sk,
 		break;
 
 	case PPPOL2TP_SO_SENDSEQ:
-		if ((val != 0) && (val != 1)) {
+		if (val != 0 && val != 1) {
 			err = -EINVAL;
 			break;
 		}
@@ -1208,7 +1205,7 @@ static int pppol2tp_session_setsockopt(struct sock *sk,
 		break;
 
 	case PPPOL2TP_SO_LNSMODE:
-		if ((val != 0) && (val != 1)) {
+		if (val != 0 && val != 1) {
 			err = -EINVAL;
 			break;
 		}
@@ -1274,8 +1271,7 @@ static int pppol2tp_setsockopt(struct socket *sock, int level, int optname,
 
 	/* Special case: if session_id == 0x0000, treat as operation on tunnel
 	 */
-	if ((session->session_id == 0) &&
-	    (session->peer_session_id == 0)) {
+	if (session->session_id == 0 && session->peer_session_id == 0) {
 		tunnel = session->tunnel;
 		err = pppol2tp_tunnel_setsockopt(sk, tunnel, optname, val);
 	} else {
@@ -1392,8 +1388,7 @@ static int pppol2tp_getsockopt(struct socket *sock, int level, int optname,
 		goto end;
 
 	/* Special case: if session_id == 0x0000, treat as operation on tunnel */
-	if ((session->session_id == 0) &&
-	    (session->peer_session_id == 0)) {
+	if (session->session_id == 0 && session->peer_session_id == 0) {
 		tunnel = session->tunnel;
 		err = pppol2tp_tunnel_getsockopt(sk, tunnel, optname, &val);
 		if (err)
