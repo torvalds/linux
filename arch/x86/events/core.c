@@ -2257,7 +2257,10 @@ static int x86_pmu_event_idx(struct perf_event *event)
 	if (!(hwc->flags & PERF_X86_EVENT_RDPMC_ALLOWED))
 		return 0;
 
-	return hwc->event_base_rdpmc + 1;
+	if (is_metric_idx(hwc->idx))
+		return INTEL_PMC_FIXED_RDPMC_METRICS + 1;
+	else
+		return hwc->event_base_rdpmc + 1;
 }
 
 static ssize_t get_attr_rdpmc(struct device *cdev,
