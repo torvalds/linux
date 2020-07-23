@@ -84,7 +84,7 @@ int qcom_snd_parse_of(struct snd_soc_card *card)
 			goto err;
 		}
 
-		if (codec && platform) {
+		if (platform) {
 			link->platforms->of_node = of_parse_phandle(platform,
 					"sound-dai",
 					0);
@@ -93,15 +93,24 @@ int qcom_snd_parse_of(struct snd_soc_card *card)
 				ret = -EINVAL;
 				goto err;
 			}
+		} else {
+			link->platforms->of_node = link->cpus->of_node;
+		}
 
+		if (codec) {
 			ret = snd_soc_of_get_dai_link_codecs(dev, codec, link);
 			if (ret < 0) {
 				dev_err(card->dev, "%s: codec dai not found\n", link->name);
 				goto err;
 			}
-			link->no_pcm = 1;
-			link->ignore_pmdown_time = 1;
+
+			if (platform) {
+				/* DPCM backend */
+				link->no_pcm = 1;
+				link->ignore_pmdown_time = 1;
+			}
 		} else {
+			/* DPCM frontend */
 			dlc = devm_kzalloc(dev, sizeof(*dlc), GFP_KERNEL);
 			if (!dlc)
 				return -ENOMEM;
@@ -109,15 +118,18 @@ int qcom_snd_parse_of(struct snd_soc_card *card)
 			link->codecs	 = dlc;
 			link->num_codecs = 1;
 
-			link->platforms->of_node = link->cpus->of_node;
 			link->codecs->dai_name = "snd-soc-dummy-dai";
 			link->codecs->name = "snd-soc-dummy";
 			link->dynamic = 1;
 		}
 
-		snd_soc_dai_link_set_capabilities(link);
-		link->ignore_suspend = 1;
-		link->nonatomic = 1;
+		if (platform || !codec) {
+			/* DPCM */
+			snd_soc_dai_link_set_capabilities(link);
+			link->ignore_suspend = 1;
+			link->nonatomic = 1;
+		}
+
 		link->stream_name = link->name;
 		link++;
 
