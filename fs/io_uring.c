@@ -5447,7 +5447,8 @@ static int io_req_defer(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	if (!req_need_defer(req, seq) && list_empty(&ctx->defer_list)) {
 		spin_unlock_irq(&ctx->completion_lock);
 		kfree(de);
-		return 0;
+		io_queue_async_work(req);
+		return -EIOCBQUEUED;
 	}
 
 	trace_io_uring_defer(ctx, req, req->user_data);
