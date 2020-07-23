@@ -1,0 +1,89 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2020 Rockchip Electronics Co., Ltd.
+ */
+/dts-v1/;
+#include "rv1109.dtsi"
+#include "rv11xx-evb-v12.dtsi"
+/ {
+	model = "Rockchip RV1109 V12 FACIAL GATE Board";
+	compatible = "rockchip,rv1109-evb-ddr3-v12-facial-gate", "rockchip,rv1109";
+
+	chosen {
+		bootargs = "earlycon=uart8250,mmio32,0xff570000 console=ttyFIQ0 root=PARTUUID=614e0000-0000 rootfstype=ext4 rootwait snd_aloop.index=7";
+	};
+
+	pwmleds {
+		compatible = "pwm-leds";
+
+		pwmi_ir {
+			label = "PWM-IR";
+			pwms = <&pwm11 0 25000 0>;
+			max-brightness = <255>;
+		};
+	};
+};
+
+&csi_dphy0 {
+	ports {
+		port@0 {
+			mipi_in_ucam0: endpoint@1 {
+				data-lanes = <1 2>;
+			};
+		};
+	};
+};
+
+&i2c1 {
+	/delete-node/ ar0230@10;
+	/delete-node/ os04a10@36;
+	ov2718: ov2718@10 {
+		compatible = "ovti,ov2718";
+		reg = <0x10>;
+		clocks = <&cru CLK_MIPICSI_OUT>;
+		clock-names = "xvclk";
+		power-domains = <&power RV1126_PD_VI>;
+		pinctrl-names = "rockchip,camera_default";
+		pinctrl-0 = <&mipicsi_clk0>;
+		avdd-supply = <&vcc_avdd>;
+		dovdd-supply = <&vcc_dovdd>;
+		dvdd-supply = <&vcc_dvdd>;
+		pwd-gpios = <&gpio1 RK_PD4 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio1 RK_PD5 GPIO_ACTIVE_LOW>;
+		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-facing = "front";
+		rockchip,camera-module-name = "YT-RV1109-3-V1";
+		rockchip,camera-module-lens-name = "M43-4IR-2MP-F2";
+		ir-cut = <&cam_ircut0>;
+		port {
+			ucam_out0: endpoint {
+				remote-endpoint = <&mipi_in_ucam0>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+};
+
+&pwm11 {
+	status = "okay";
+	pinctrl-names = "active";
+	pinctrl-0 = <&pwm11m1_pins_pull_down>;
+};
+
+&rkcif {
+	status = "disabled";
+};
+
+&rk809 {
+	regulators {
+		vcc_dvdd: LDO_REG6 {
+			regulator-min-microvolt = <1300000>;
+			regulator-max-microvolt = <1300000>;
+		};
+
+		vcc_avdd: LDO_REG7 {
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+		};
+	};
+};
