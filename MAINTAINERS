@@ -8326,6 +8326,7 @@ F:	drivers/input/misc/ideapad_slidebar.c
 IDT VersaClock 5 CLOCK DRIVER
 M:	Luca Ceresoli <luca@lucaceresoli.net>
 S:	Maintained
+F:	Documentation/devicetree/bindings/clock/idt,versaclock5.yaml
 F:	drivers/clk/clk-versaclock5.c
 
 IEEE 802.15.4 SUBSYSTEM
