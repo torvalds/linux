@@ -37,3 +37,8 @@ int __init init_umount(const char *name, int flags)
 		return ret;
 	return path_umount(&path, flags);
 }
+
+int __init init_unlink(const char *pathname)
+{
+	return do_unlinkat(AT_FDCWD, getname_kernel(pathname));
+}
