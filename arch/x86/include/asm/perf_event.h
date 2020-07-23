@@ -244,6 +244,52 @@ struct x86_pmu_capability {
  */
 #define INTEL_PMC_IDX_FIXED_BTS			(INTEL_PMC_IDX_FIXED + 15)
 
+/*
+ * The PERF_METRICS MSR is modeled as several magic fixed-mode PMCs, one for
+ * each TopDown metric event.
+ *
+ * Internally the TopDown metric events are mapped to the FxCtr 3 (SLOTS).
+ */
+#define INTEL_PMC_IDX_METRIC_BASE		(INTEL_PMC_IDX_FIXED + 16)
+#define INTEL_PMC_IDX_TD_RETIRING		(INTEL_PMC_IDX_METRIC_BASE + 0)
+#define INTEL_PMC_IDX_TD_BAD_SPEC		(INTEL_PMC_IDX_METRIC_BASE + 1)
+#define INTEL_PMC_IDX_TD_FE_BOUND		(INTEL_PMC_IDX_METRIC_BASE + 2)
+#define INTEL_PMC_IDX_TD_BE_BOUND		(INTEL_PMC_IDX_METRIC_BASE + 3)
+#define INTEL_PMC_IDX_METRIC_END		INTEL_PMC_IDX_TD_BE_BOUND
+#define INTEL_PMC_MSK_TOPDOWN			((0xfull << INTEL_PMC_IDX_METRIC_BASE) | \
+						INTEL_PMC_MSK_FIXED_SLOTS)
+
+/*
+ * There is no event-code assigned to the TopDown events.
+ *
+ * For the slots event, use the pseudo code of the fixed counter 3.
+ *
+ * For the metric events, the pseudo event-code is 0x00.
+ * The pseudo umask-code starts from the middle of the pseudo event
+ * space, 0x80.
+ */
+#define INTEL_TD_SLOTS				0x0400	/* TOPDOWN.SLOTS */
+/* Level 1 metrics */
+#define INTEL_TD_METRIC_RETIRING		0x8000	/* Retiring metric */
+#define INTEL_TD_METRIC_BAD_SPEC		0x8100	/* Bad speculation metric */
+#define INTEL_TD_METRIC_FE_BOUND		0x8200	/* FE bound metric */
+#define INTEL_TD_METRIC_BE_BOUND		0x8300	/* BE bound metric */
+#define INTEL_TD_METRIC_MAX			INTEL_TD_METRIC_BE_BOUND
+#define INTEL_TD_METRIC_NUM			4
+
+static inline bool is_metric_idx(int idx)
+{
+	return (unsigned)(idx - INTEL_PMC_IDX_METRIC_BASE) < INTEL_TD_METRIC_NUM;
+}
+
+static inline bool is_topdown_idx(int idx)
+{
+	return is_metric_idx(idx) || idx == INTEL_PMC_IDX_FIXED_SLOTS;
+}
+
+#define INTEL_PMC_OTHER_TOPDOWN_BITS(bit)	\
+			(~(0x1ull << bit) & INTEL_PMC_MSK_TOPDOWN)
+
 #define GLOBAL_STATUS_COND_CHG			BIT_ULL(63)
 #define GLOBAL_STATUS_BUFFER_OVF_BIT		62
 #define GLOBAL_STATUS_BUFFER_OVF		BIT_ULL(GLOBAL_STATUS_BUFFER_OVF_BIT)
@@ -254,6 +300,7 @@ struct x86_pmu_capability {
 #define GLOBAL_STATUS_LBRS_FROZEN		BIT_ULL(GLOBAL_STATUS_LBRS_FROZEN_BIT)
 #define GLOBAL_STATUS_TRACE_TOPAPMI_BIT		55
 #define GLOBAL_STATUS_TRACE_TOPAPMI		BIT_ULL(GLOBAL_STATUS_TRACE_TOPAPMI_BIT)
+#define GLOBAL_STATUS_PERF_METRICS_OVF_BIT	48
 
 /*
  * We model guest LBR event tracing as another fixed-mode PMC like BTS.

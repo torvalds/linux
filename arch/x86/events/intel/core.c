@@ -2165,11 +2165,24 @@ static inline void intel_clear_masks(struct perf_event *event, int idx)
 static void intel_pmu_disable_fixed(struct perf_event *event)
 {
 	struct hw_perf_event *hwc = &event->hw;
-	int idx = hwc->idx - INTEL_PMC_IDX_FIXED;
 	u64 ctrl_val, mask;
+	int idx = hwc->idx;
 
-	mask = 0xfULL << (idx * 4);
+	if (is_topdown_idx(idx)) {
+		struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 
+		/*
+		 * When there are other active TopDown events,
+		 * don't disable the fixed counter 3.
+		 */
+		if (*(u64 *)cpuc->active_mask & INTEL_PMC_OTHER_TOPDOWN_BITS(idx))
+			return;
+		idx = INTEL_PMC_IDX_FIXED_SLOTS;
+	}
+
+	intel_clear_masks(event, idx);
+
+	mask = 0xfULL << ((idx - INTEL_PMC_IDX_FIXED) * 4);
 	rdmsrl(hwc->config_base, ctrl_val);
 	ctrl_val &= ~mask;
 	wrmsrl(hwc->config_base, ctrl_val);
@@ -2186,7 +2199,7 @@ static void intel_pmu_disable_event(struct perf_event *event)
 		x86_pmu_disable_event(event);
 		break;
 	case INTEL_PMC_IDX_FIXED ... INTEL_PMC_IDX_FIXED_BTS - 1:
-		intel_clear_masks(event, idx);
+	case INTEL_PMC_IDX_METRIC_BASE ... INTEL_PMC_IDX_METRIC_END:
 		intel_pmu_disable_fixed(event);
 		break;
 	case INTEL_PMC_IDX_FIXED_BTS:
@@ -2219,10 +2232,26 @@ static void intel_pmu_del_event(struct perf_event *event)
 		intel_pmu_pebs_del(event);
 }
 
+static void intel_pmu_read_topdown_event(struct perf_event *event)
+{
+	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
+
+	/* Only need to call update_topdown_event() once for group read. */
+	if ((cpuc->txn_flags & PERF_PMU_TXN_READ) &&
+	    !is_slots_event(event))
+		return;
+
+	perf_pmu_disable(event->pmu);
+	x86_pmu.update_topdown_event(event);
+	perf_pmu_enable(event->pmu);
+}
+
 static void intel_pmu_read_event(struct perf_event *event)
 {
 	if (event->hw.flags & PERF_X86_EVENT_AUTO_RELOAD)
 		intel_pmu_auto_reload_read(event);
+	else if (is_topdown_count(event) && x86_pmu.update_topdown_event)
+		intel_pmu_read_topdown_event(event);
 	else
 		x86_perf_event_update(event);
 }
@@ -2230,8 +2259,22 @@ static void intel_pmu_read_event(struct perf_event *event)
 static void intel_pmu_enable_fixed(struct perf_event *event)
 {
 	struct hw_perf_event *hwc = &event->hw;
-	int idx = hwc->idx - INTEL_PMC_IDX_FIXED;
 	u64 ctrl_val, mask, bits = 0;
+	int idx = hwc->idx;
+
+	if (is_topdown_idx(idx)) {
+		struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
+		/*
+		 * When there are other active TopDown events,
+		 * don't enable the fixed counter 3 again.
+		 */
+		if (*(u64 *)cpuc->active_mask & INTEL_PMC_OTHER_TOPDOWN_BITS(idx))
+			return;
+
+		idx = INTEL_PMC_IDX_FIXED_SLOTS;
+	}
+
+	intel_set_masks(event, idx);
 
 	/*
 	 * Enable IRQ generation (0x8), if not PEBS,
@@ -2251,6 +2294,7 @@ static void intel_pmu_enable_fixed(struct perf_event *event)
 	if (x86_pmu.version > 2 && hwc->config & ARCH_PERFMON_EVENTSEL_ANY)
 		bits |= 0x4;
 
+	idx -= INTEL_PMC_IDX_FIXED;
 	bits <<= (idx * 4);
 	mask = 0xfULL << (idx * 4);
 
@@ -2279,7 +2323,7 @@ static void intel_pmu_enable_event(struct perf_event *event)
 		__x86_pmu_enable_event(hwc, ARCH_PERFMON_EVENTSEL_ENABLE);
 		break;
 	case INTEL_PMC_IDX_FIXED ... INTEL_PMC_IDX_FIXED_BTS - 1:
-		intel_set_masks(event, idx);
+	case INTEL_PMC_IDX_METRIC_BASE ... INTEL_PMC_IDX_METRIC_END:
 		intel_pmu_enable_fixed(event);
 		break;
 	case INTEL_PMC_IDX_FIXED_BTS:
@@ -2437,6 +2481,15 @@ static int handle_pmi_common(struct pt_regs *regs, u64 status)
 			perf_guest_cbs->handle_intel_pt_intr();
 		else
 			intel_pt_interrupt();
+	}
+
+	/*
+	 * Intel Perf mertrics
+	 */
+	if (__test_and_clear_bit(GLOBAL_STATUS_PERF_METRICS_OVF_BIT, (unsigned long *)&status)) {
+		handled++;
+		if (x86_pmu.update_topdown_event)
+			x86_pmu.update_topdown_event(NULL);
 	}
 
 	/*
@@ -3374,6 +3427,58 @@ static int intel_pmu_hw_config(struct perf_event *event)
 
 	if (event->attr.type != PERF_TYPE_RAW)
 		return 0;
+
+	/*
+	 * Config Topdown slots and metric events
+	 *
+	 * The slots event on Fixed Counter 3 can support sampling,
+	 * which will be handled normally in x86_perf_event_update().
+	 *
+	 * Metric events don't support sampling and require being paired
+	 * with a slots event as group leader. When the slots event
+	 * is used in a metrics group, it too cannot support sampling.
+	 */
+	if (x86_pmu.intel_cap.perf_metrics && is_topdown_event(event)) {
+		if (event->attr.config1 || event->attr.config2)
+			return -EINVAL;
+
+		/*
+		 * The TopDown metrics events and slots event don't
+		 * support any filters.
+		 */
+		if (event->attr.config & X86_ALL_EVENT_FLAGS)
+			return -EINVAL;
+
+		if (is_metric_event(event)) {
+			struct perf_event *leader = event->group_leader;
+
+			/* The metric events don't support sampling. */
+			if (is_sampling_event(event))
+				return -EINVAL;
+
+			/* The metric events require a slots group leader. */
+			if (!is_slots_event(leader))
+				return -EINVAL;
+
+			/*
+			 * The leader/SLOTS must not be a sampling event for
+			 * metric use; hardware requires it starts at 0 when used
+			 * in conjunction with MSR_PERF_METRICS.
+			 */
+			if (is_sampling_event(leader))
+				return -EINVAL;
+
+			event->event_caps |= PERF_EV_CAP_SIBLING;
+			/*
+			 * Only once we have a METRICs sibling do we
+			 * need TopDown magic.
+			 */
+			leader->hw.flags |= PERF_X86_EVENT_TOPDOWN;
+			event->hw.flags  |= PERF_X86_EVENT_TOPDOWN;
+
+			event->hw.flags &= ~PERF_X86_EVENT_RDPMC_ALLOWED;
+		}
+	}
 
 	if (!(event->attr.config & ARCH_PERFMON_EVENTSEL_ANY))
 		return 0;
@@ -5218,6 +5323,15 @@ __init int intel_pmu_init(void)
 		 * counter, so do not extend mask to generic counters
 		 */
 		for_each_event_constraint(c, x86_pmu.event_constraints) {
+			/*
+			 * Don't extend the topdown slots and metrics
+			 * events to the generic counters.
+			 */
+			if (c->idxmsk64 & INTEL_PMC_MSK_TOPDOWN) {
+				c->weight = hweight64(c->idxmsk64);
+				continue;
+			}
+
 			if (c->cmask == FIXED_EVENT_FLAGS
 			    && c->idxmsk64 != INTEL_PMC_MSK_FIXED_REF_CYCLES) {
 				c->idxmsk64 |= (1ULL << x86_pmu.num_counters) - 1;
