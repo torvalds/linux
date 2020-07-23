@@ -87,8 +87,7 @@ union Keytype {
 };
 
 
-typedef struct _RT_PMKID_LIST
-{
+typedef struct _RT_PMKID_LIST {
 	u8 				bUsed;
 	u8 				Bssid[6];
 	u8 				PMKID[16];
@@ -98,8 +97,7 @@ typedef struct _RT_PMKID_LIST
 } RT_PMKID_LIST, *PRT_PMKID_LIST;
 
 
-struct security_priv
-{
+struct security_priv {
 	u32   dot11AuthAlgrthm;		/*  802.11 auth, could be open, shared, 8021x and authswitch */
 	u32   dot11PrivacyAlgrthm;	/*  This specify the privacy for shared auth. algorithm. */
 
@@ -273,8 +271,7 @@ do {\
 #define ROL32(A, n)	(((A) << (n)) | (((A)>>(32-(n)))  & ((1UL << (n)) - 1)))
 #define ROR32(A, n)	ROL32((A), 32-(n))
 
-struct mic_data
-{
+struct mic_data {
 	u32  K0, K1;         /*  Key */
 	u32  L, R;           /*  Current state */
 	u32  M;              /*  Message accumulator (single word) */
