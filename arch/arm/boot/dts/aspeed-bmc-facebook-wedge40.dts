@@ -115,23 +115,11 @@
 	status = "okay";
 };
 
-&i2c9 {
-	status = "okay";
-};
-
-&i2c10 {
-	status = "okay";
-};
-
 &i2c11 {
 	status = "okay";
 };
 
 &i2c12 {
-	status = "okay";
-};
-
-&i2c13 {
 	status = "okay";
 };
 
