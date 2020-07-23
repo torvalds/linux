@@ -948,13 +948,8 @@ struct qed_common_ops {
 					 u8 dp_level);
 
 	int		(*chain_alloc)(struct qed_dev *cdev,
-				       enum qed_chain_use_mode intended_use,
-				       enum qed_chain_mode mode,
-				       enum qed_chain_cnt_type cnt_type,
-				       u32 num_elems,
-				       size_t elem_size,
-				       struct qed_chain *p_chain,
-				       struct qed_chain_ext_pbl *ext_pbl);
+				       struct qed_chain *chain,
+				       struct qed_chain_init_params *params);
 
 	void		(*chain_free)(struct qed_dev *cdev,
 				      struct qed_chain *p_chain);

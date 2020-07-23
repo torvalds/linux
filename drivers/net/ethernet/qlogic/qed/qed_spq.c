@@ -382,22 +382,26 @@ int qed_eq_completion(struct qed_hwfn *p_hwfn, void *cookie)
 
 int qed_eq_alloc(struct qed_hwfn *p_hwfn, u16 num_elem)
 {
+	struct qed_chain_init_params params = {
+		.mode		= QED_CHAIN_MODE_PBL,
+		.intended_use	= QED_CHAIN_USE_TO_PRODUCE,
+		.cnt_type	= QED_CHAIN_CNT_TYPE_U16,
+		.num_elems	= num_elem,
+		.elem_size	= sizeof(union event_ring_element),
+	};
 	struct qed_eq *p_eq;
+	int ret;
 
 	/* Allocate EQ struct */
 	p_eq = kzalloc(sizeof(*p_eq), GFP_KERNEL);
 	if (!p_eq)
 		return -ENOMEM;
 
-	/* Allocate and initialize EQ chain*/
-	if (qed_chain_alloc(p_hwfn->cdev,
-			    QED_CHAIN_USE_TO_PRODUCE,
-			    QED_CHAIN_MODE_PBL,
-			    QED_CHAIN_CNT_TYPE_U16,
-			    num_elem,
-			    sizeof(union event_ring_element),
-			    &p_eq->chain, NULL))
+	ret = qed_chain_alloc(p_hwfn->cdev, &p_eq->chain, &params);
+	if (ret) {
+		DP_NOTICE(p_hwfn, "Failed to allocate EQ chain\n");
 		goto eq_allocate_fail;
+	}
 
 	/* register EQ completion on the SP SB */
 	qed_int_register_cb(p_hwfn, qed_eq_completion,
@@ -408,7 +412,8 @@ int qed_eq_alloc(struct qed_hwfn *p_hwfn, u16 num_elem)
 
 eq_allocate_fail:
 	kfree(p_eq);
-	return -ENOMEM;
+
+	return ret;
 }
 
 void qed_eq_setup(struct qed_hwfn *p_hwfn)
@@ -529,33 +534,40 @@ void qed_spq_setup(struct qed_hwfn *p_hwfn)
 
 int qed_spq_alloc(struct qed_hwfn *p_hwfn)
 {
+	struct qed_chain_init_params params = {
+		.mode		= QED_CHAIN_MODE_SINGLE,
+		.intended_use	= QED_CHAIN_USE_TO_PRODUCE,
+		.cnt_type	= QED_CHAIN_CNT_TYPE_U16,
+		.elem_size	= sizeof(struct slow_path_element),
+	};
+	struct qed_dev *cdev = p_hwfn->cdev;
 	struct qed_spq_entry *p_virt = NULL;
 	struct qed_spq *p_spq = NULL;
 	dma_addr_t p_phys = 0;
 	u32 capacity;
+	int ret;
 
 	/* SPQ struct */
 	p_spq = kzalloc(sizeof(struct qed_spq), GFP_KERNEL);
 	if (!p_spq)
 		return -ENOMEM;
 
-	/* SPQ ring  */
-	if (qed_chain_alloc(p_hwfn->cdev,
-			    QED_CHAIN_USE_TO_PRODUCE,
-			    QED_CHAIN_MODE_SINGLE,
-			    QED_CHAIN_CNT_TYPE_U16,
-			    0,   /* N/A when the mode is SINGLE */
-			    sizeof(struct slow_path_element),
-			    &p_spq->chain, NULL))
-		goto spq_allocate_fail;
+	/* SPQ ring */
+	ret = qed_chain_alloc(cdev, &p_spq->chain, &params);
+	if (ret) {
+		DP_NOTICE(p_hwfn, "Failed to allocate SPQ chain\n");
+		goto spq_chain_alloc_fail;
+	}
 
 	/* allocate and fill the SPQ elements (incl. ramrod data list) */
 	capacity = qed_chain_get_capacity(&p_spq->chain);
-	p_virt = dma_alloc_coherent(&p_hwfn->cdev->pdev->dev,
+	ret = -ENOMEM;
+
+	p_virt = dma_alloc_coherent(&cdev->pdev->dev,
 				    capacity * sizeof(struct qed_spq_entry),
 				    &p_phys, GFP_KERNEL);
 	if (!p_virt)
-		goto spq_allocate_fail;
+		goto spq_alloc_fail;
 
 	p_spq->p_virt = p_virt;
 	p_spq->p_phys = p_phys;
@@ -563,10 +575,12 @@ int qed_spq_alloc(struct qed_hwfn *p_hwfn)
 
 	return 0;
 
-spq_allocate_fail:
-	qed_chain_free(p_hwfn->cdev, &p_spq->chain);
+spq_alloc_fail:
+	qed_chain_free(cdev, &p_spq->chain);
+spq_chain_alloc_fail:
 	kfree(p_spq);
-	return -ENOMEM;
+
+	return ret;
 }
 
 void qed_spq_free(struct qed_hwfn *p_hwfn)
@@ -967,30 +981,40 @@ int qed_spq_completion(struct qed_hwfn *p_hwfn,
 	return 0;
 }
 
+#define QED_SPQ_CONSQ_ELEM_SIZE		0x80
+
 int qed_consq_alloc(struct qed_hwfn *p_hwfn)
 {
+	struct qed_chain_init_params params = {
+		.mode		= QED_CHAIN_MODE_PBL,
+		.intended_use	= QED_CHAIN_USE_TO_PRODUCE,
+		.cnt_type	= QED_CHAIN_CNT_TYPE_U16,
+		.num_elems	= QED_CHAIN_PAGE_SIZE / QED_SPQ_CONSQ_ELEM_SIZE,
+		.elem_size	= QED_SPQ_CONSQ_ELEM_SIZE,
+	};
 	struct qed_consq *p_consq;
+	int ret;
 
 	/* Allocate ConsQ struct */
 	p_consq = kzalloc(sizeof(*p_consq), GFP_KERNEL);
 	if (!p_consq)
 		return -ENOMEM;
 
-	/* Allocate and initialize EQ chain*/
-	if (qed_chain_alloc(p_hwfn->cdev,
-			    QED_CHAIN_USE_TO_PRODUCE,
-			    QED_CHAIN_MODE_PBL,
-			    QED_CHAIN_CNT_TYPE_U16,
-			    QED_CHAIN_PAGE_SIZE / 0x80,
-			    0x80, &p_consq->chain, NULL))
-		goto consq_allocate_fail;
+	/* Allocate and initialize ConsQ chain */
+	ret = qed_chain_alloc(p_hwfn->cdev, &p_consq->chain, &params);
+	if (ret) {
+		DP_NOTICE(p_hwfn, "Failed to allocate ConsQ chain");
+		goto consq_alloc_fail;
+	}
 
 	p_hwfn->p_consq = p_consq;
+
 	return 0;
 
-consq_allocate_fail:
+consq_alloc_fail:
 	kfree(p_consq);
-	return -ENOMEM;
+
+	return ret;
 }
 
 void qed_consq_setup(struct qed_hwfn *p_hwfn)

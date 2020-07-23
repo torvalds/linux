@@ -176,16 +176,17 @@ struct qede_dev {
 	u32				dp_module;
 	u8				dp_level;
 
-	unsigned long flags;
-#define IS_VF(edev)	(test_bit(QEDE_FLAGS_IS_VF, &(edev)->flags))
+	unsigned long			flags;
+#define IS_VF(edev)			test_bit(QEDE_FLAGS_IS_VF, \
+						 &(edev)->flags)
 
 	const struct qed_eth_ops	*ops;
 	struct qede_ptp			*ptp;
 	u64				ptp_skip_txts;
 
-	struct qed_dev_eth_info dev_info;
-#define QEDE_MAX_RSS_CNT(edev)	((edev)->dev_info.num_queues)
-#define QEDE_MAX_TSS_CNT(edev)	((edev)->dev_info.num_queues)
+	struct qed_dev_eth_info		dev_info;
+#define QEDE_MAX_RSS_CNT(edev)		((edev)->dev_info.num_queues)
+#define QEDE_MAX_TSS_CNT(edev)		((edev)->dev_info.num_queues)
 #define QEDE_IS_BB(edev) \
 	((edev)->dev_info.common.dev_type == QED_DEV_TYPE_BB)
 #define QEDE_IS_AH(edev) \
@@ -198,14 +199,16 @@ struct qede_dev {
 	u8				fp_num_rx;
 	u16				req_queues;
 	u16				num_queues;
-#define QEDE_QUEUE_CNT(edev)	((edev)->num_queues)
-#define QEDE_RSS_COUNT(edev)	((edev)->num_queues - (edev)->fp_num_tx)
+	u16				total_xdp_queues;
+
+#define QEDE_QUEUE_CNT(edev)		((edev)->num_queues)
+#define QEDE_RSS_COUNT(edev)		((edev)->num_queues - (edev)->fp_num_tx)
 #define QEDE_RX_QUEUE_IDX(edev, i)	(i)
-#define QEDE_TSS_COUNT(edev)	((edev)->num_queues - (edev)->fp_num_rx)
+#define QEDE_TSS_COUNT(edev)		((edev)->num_queues - (edev)->fp_num_rx)
 
 	struct qed_int_info		int_info;
 
-	/* Smaller private varaiant of the RTNL lock */
+	/* Smaller private variant of the RTNL lock */
 	struct mutex			qede_lock;
 	u32				state; /* Protected by qede_lock */
 	u16				rx_buf_size;
@@ -226,22 +229,28 @@ struct qede_dev {
 	      SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
 
 	struct qede_stats		stats;
-#define QEDE_RSS_INDIR_INITED	BIT(0)
-#define QEDE_RSS_KEY_INITED	BIT(1)
-#define QEDE_RSS_CAPS_INITED	BIT(2)
-	u32 rss_params_inited; /* bit-field to track initialized rss params */
-	u16 rss_ind_table[128];
-	u32 rss_key[10];
-	u8 rss_caps;
 
-	u16			q_num_rx_buffers; /* Must be a power of two */
-	u16			q_num_tx_buffers; /* Must be a power of two */
+	/* Bitfield to track initialized RSS params */
+	u32				rss_params_inited;
+#define QEDE_RSS_INDIR_INITED		BIT(0)
+#define QEDE_RSS_KEY_INITED		BIT(1)
+#define QEDE_RSS_CAPS_INITED		BIT(2)
 
-	bool gro_disable;
-	struct list_head vlan_list;
-	u16 configured_vlans;
-	u16 non_configured_vlans;
-	bool accept_any_vlan;
+	u16				rss_ind_table[128];
+	u32				rss_key[10];
+	u8				rss_caps;
+
+	/* Both must be a power of two */
+	u16				q_num_rx_buffers;
+	u16				q_num_tx_buffers;
+
+	bool				gro_disable;
+
+	struct list_head		vlan_list;
+	u16				configured_vlans;
+	u16				non_configured_vlans;
+	bool				accept_any_vlan;
+
 	struct delayed_work		sp_task;
 	unsigned long			sp_flags;
 	u16				vxlan_dst_port;
@@ -252,14 +261,14 @@ struct qede_dev {
 
 	struct qede_rdma_dev		rdma_info;
 
-	struct bpf_prog *xdp_prog;
+	struct bpf_prog			*xdp_prog;
 
-	unsigned long err_flags;
-#define QEDE_ERR_IS_HANDLED	31
-#define QEDE_ERR_ATTN_CLR_EN	0
-#define QEDE_ERR_GET_DBG_INFO	1
-#define QEDE_ERR_IS_RECOVERABLE	2
-#define QEDE_ERR_WARN		3
+	unsigned long			err_flags;
+#define QEDE_ERR_IS_HANDLED		31
+#define QEDE_ERR_ATTN_CLR_EN		0
+#define QEDE_ERR_GET_DBG_INFO		1
+#define QEDE_ERR_IS_RECOVERABLE		2
+#define QEDE_ERR_WARN			3
 
 	struct qede_dump_info		dump_info;
 };
@@ -372,29 +381,34 @@ struct sw_tx_bd {
 };
 
 struct sw_tx_xdp {
-	struct page *page;
-	dma_addr_t mapping;
+	struct page			*page;
+	struct xdp_frame		*xdpf;
+	dma_addr_t			mapping;
 };
 
 struct qede_tx_queue {
-	u8 is_xdp;
-	bool is_legacy;
-	u16 sw_tx_cons;
-	u16 sw_tx_prod;
-	u16 num_tx_buffers; /* Slowpath only */
+	u8				is_xdp;
+	bool				is_legacy;
+	u16				sw_tx_cons;
+	u16				sw_tx_prod;
+	u16				num_tx_buffers; /* Slowpath only */
 
-	u64 xmit_pkts;
-	u64 stopped_cnt;
-	u64 tx_mem_alloc_err;
+	u64				xmit_pkts;
+	u64				stopped_cnt;
+	u64				tx_mem_alloc_err;
 
-	__le16 *hw_cons_ptr;
+	__le16				*hw_cons_ptr;
 
 	/* Needed for the mapping of packets */
-	struct device *dev;
+	struct device			*dev;
 
-	void __iomem *doorbell_addr;
-	union db_prod tx_db;
-	int index; /* Slowpath only */
+	void __iomem			*doorbell_addr;
+	union db_prod			tx_db;
+
+	/* Spinlock for XDP queues in case of XDP_REDIRECT */
+	spinlock_t			xdp_tx_lock;
+
+	int				index; /* Slowpath only */
 #define QEDE_TXQ_XDP_TO_IDX(edev, txq)	((txq)->index - \
 					 QEDE_MAX_TSS_CNT(edev))
 #define QEDE_TXQ_IDX_TO_XDP(edev, idx)	((idx) + QEDE_MAX_TSS_CNT(edev))
@@ -406,22 +420,22 @@ struct qede_tx_queue {
 #define QEDE_NDEV_TXQ_ID_TO_TXQ(edev, idx)	\
 	(&((edev)->fp_array[QEDE_NDEV_TXQ_ID_TO_FP_ID(edev, idx)].txq \
 	[QEDE_NDEV_TXQ_ID_TO_TXQ_COS(edev, idx)]))
-#define QEDE_FP_TC0_TXQ(fp)	(&((fp)->txq[0]))
+#define QEDE_FP_TC0_TXQ(fp)		(&((fp)->txq[0]))
 
 	/* Regular Tx requires skb + metadata for release purpose,
 	 * while XDP requires the pages and the mapped address.
 	 */
 	union {
-		struct sw_tx_bd *skbs;
-		struct sw_tx_xdp *xdp;
-	} sw_tx_ring;
+		struct sw_tx_bd		*skbs;
+		struct sw_tx_xdp	*xdp;
+	}				sw_tx_ring;
 
-	struct qed_chain tx_pbl;
+	struct qed_chain		tx_pbl;
 
 	/* Slowpath; Should be kept in end [unless missing padding] */
-	void *handle;
-	u16 cos;
-	u16 ndev_txq_id;
+	void				*handle;
+	u16				cos;
+	u16				ndev_txq_id;
 };
 
 #define BD_UNMAP_ADDR(bd)		HILO_U64(le32_to_cpu((bd)->addr.hi), \
@@ -435,32 +449,37 @@ struct qede_tx_queue {
 #define BD_UNMAP_LEN(bd)		(le16_to_cpu((bd)->nbytes))
 
 struct qede_fastpath {
-	struct qede_dev	*edev;
-#define QEDE_FASTPATH_TX	BIT(0)
-#define QEDE_FASTPATH_RX	BIT(1)
-#define QEDE_FASTPATH_XDP	BIT(2)
-#define QEDE_FASTPATH_COMBINED	(QEDE_FASTPATH_TX | QEDE_FASTPATH_RX)
-	u8			type;
-	u8			id;
-	u8			xdp_xmit;
-	struct napi_struct	napi;
-	struct qed_sb_info	*sb_info;
-	struct qede_rx_queue	*rxq;
-	struct qede_tx_queue	*txq;
-	struct qede_tx_queue	*xdp_tx;
+	struct qede_dev			*edev;
 
-#define VEC_NAME_SIZE  (sizeof_field(struct net_device, name) + 8)
-	char	name[VEC_NAME_SIZE];
+	u8				type;
+#define QEDE_FASTPATH_TX		BIT(0)
+#define QEDE_FASTPATH_RX		BIT(1)
+#define QEDE_FASTPATH_XDP		BIT(2)
+#define QEDE_FASTPATH_COMBINED		(QEDE_FASTPATH_TX | QEDE_FASTPATH_RX)
+
+	u8				id;
+
+	u8				xdp_xmit;
+#define QEDE_XDP_TX			BIT(0)
+#define QEDE_XDP_REDIRECT		BIT(1)
+
+	struct napi_struct		napi;
+	struct qed_sb_info		*sb_info;
+	struct qede_rx_queue		*rxq;
+	struct qede_tx_queue		*txq;
+	struct qede_tx_queue		*xdp_tx;
+
+	char				name[IFNAMSIZ + 8];
 };
 
 /* Debug print definitions */
-#define DP_NAME(edev) ((edev)->ndev->name)
+#define DP_NAME(edev)			netdev_name((edev)->ndev)
 
-#define XMIT_PLAIN		0
-#define XMIT_L4_CSUM		BIT(0)
-#define XMIT_LSO		BIT(1)
-#define XMIT_ENC		BIT(2)
-#define XMIT_ENC_GSO_L4_CSUM	BIT(3)
+#define XMIT_PLAIN			0
+#define XMIT_L4_CSUM			BIT(0)
+#define XMIT_LSO			BIT(1)
+#define XMIT_ENC			BIT(2)
+#define XMIT_ENC_GSO_L4_CSUM		BIT(3)
 
 #define QEDE_CSUM_ERROR			BIT(0)
 #define QEDE_CSUM_UNNECESSARY		BIT(1)
@@ -503,6 +522,8 @@ struct qede_reload_args {
 
 /* Datapath functions definition */
 netdev_tx_t qede_start_xmit(struct sk_buff *skb, struct net_device *ndev);
+int qede_xdp_transmit(struct net_device *dev, int n_frames,
+		      struct xdp_frame **frames, u32 flags);
 u16 qede_select_queue(struct net_device *dev, struct sk_buff *skb,
 		      struct net_device *sb_dev);
 netdev_features_t qede_features_check(struct sk_buff *skb,

@@ -1125,6 +1125,12 @@ static int
 qed_ll2_acquire_connection_rx(struct qed_hwfn *p_hwfn,
 			      struct qed_ll2_info *p_ll2_info)
 {
+	struct qed_chain_init_params params = {
+		.intended_use	= QED_CHAIN_USE_TO_CONSUME_PRODUCE,
+		.cnt_type	= QED_CHAIN_CNT_TYPE_U16,
+		.num_elems	= p_ll2_info->input.rx_num_desc,
+	};
+	struct qed_dev *cdev = p_hwfn->cdev;
 	struct qed_ll2_rx_packet *p_descq;
 	u32 capacity;
 	int rc = 0;
@@ -1132,13 +1138,10 @@ qed_ll2_acquire_connection_rx(struct qed_hwfn *p_hwfn,
 	if (!p_ll2_info->input.rx_num_desc)
 		goto out;
 
-	rc = qed_chain_alloc(p_hwfn->cdev,
-			     QED_CHAIN_USE_TO_CONSUME_PRODUCE,
-			     QED_CHAIN_MODE_NEXT_PTR,
-			     QED_CHAIN_CNT_TYPE_U16,
-			     p_ll2_info->input.rx_num_desc,
-			     sizeof(struct core_rx_bd),
-			     &p_ll2_info->rx_queue.rxq_chain, NULL);
+	params.mode = QED_CHAIN_MODE_NEXT_PTR;
+	params.elem_size = sizeof(struct core_rx_bd);
+
+	rc = qed_chain_alloc(cdev, &p_ll2_info->rx_queue.rxq_chain, &params);
 	if (rc) {
 		DP_NOTICE(p_hwfn, "Failed to allocate ll2 rxq chain\n");
 		goto out;
@@ -1154,13 +1157,10 @@ qed_ll2_acquire_connection_rx(struct qed_hwfn *p_hwfn,
 	}
 	p_ll2_info->rx_queue.descq_array = p_descq;
 
-	rc = qed_chain_alloc(p_hwfn->cdev,
-			     QED_CHAIN_USE_TO_CONSUME_PRODUCE,
-			     QED_CHAIN_MODE_PBL,
-			     QED_CHAIN_CNT_TYPE_U16,
-			     p_ll2_info->input.rx_num_desc,
-			     sizeof(struct core_rx_fast_path_cqe),
-			     &p_ll2_info->rx_queue.rcq_chain, NULL);
+	params.mode = QED_CHAIN_MODE_PBL;
+	params.elem_size = sizeof(struct core_rx_fast_path_cqe);
+
+	rc = qed_chain_alloc(cdev, &p_ll2_info->rx_queue.rcq_chain, &params);
 	if (rc) {
 		DP_NOTICE(p_hwfn, "Failed to allocate ll2 rcq chain\n");
 		goto out;
@@ -1177,6 +1177,13 @@ out:
 static int qed_ll2_acquire_connection_tx(struct qed_hwfn *p_hwfn,
 					 struct qed_ll2_info *p_ll2_info)
 {
+	struct qed_chain_init_params params = {
+		.mode		= QED_CHAIN_MODE_PBL,
+		.intended_use	= QED_CHAIN_USE_TO_CONSUME_PRODUCE,
+		.cnt_type	= QED_CHAIN_CNT_TYPE_U16,
+		.num_elems	= p_ll2_info->input.tx_num_desc,
+		.elem_size	= sizeof(struct core_tx_bd),
+	};
 	struct qed_ll2_tx_packet *p_descq;
 	u32 desc_size;
 	u32 capacity;
@@ -1185,13 +1192,8 @@ static int qed_ll2_acquire_connection_tx(struct qed_hwfn *p_hwfn,
 	if (!p_ll2_info->input.tx_num_desc)
 		goto out;
 
-	rc = qed_chain_alloc(p_hwfn->cdev,
-			     QED_CHAIN_USE_TO_CONSUME_PRODUCE,
-			     QED_CHAIN_MODE_PBL,
-			     QED_CHAIN_CNT_TYPE_U16,
-			     p_ll2_info->input.tx_num_desc,
-			     sizeof(struct core_tx_bd),
-			     &p_ll2_info->tx_queue.txq_chain, NULL);
+	rc = qed_chain_alloc(p_hwfn->cdev, &p_ll2_info->tx_queue.txq_chain,
+			     &params);
 	if (rc)
 		goto out;
 
