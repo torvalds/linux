@@ -101,7 +101,29 @@ static struct bpf_iter_reg bpf_map_reg_info = {
 static int bpf_iter_check_map(struct bpf_prog *prog,
 			      struct bpf_iter_aux_info *aux)
 {
-	return -EINVAL;
+	u32 key_acc_size, value_acc_size, key_size, value_size;
+	struct bpf_map *map = aux->map;
+	bool is_percpu = false;
+
+	if (map->map_type == BPF_MAP_TYPE_PERCPU_HASH ||
+	    map->map_type == BPF_MAP_TYPE_LRU_PERCPU_HASH)
+		is_percpu = true;
+	else if (map->map_type != BPF_MAP_TYPE_HASH &&
+		 map->map_type != BPF_MAP_TYPE_LRU_HASH)
+		return -EINVAL;
+
+	key_acc_size = prog->aux->max_rdonly_access;
+	value_acc_size = prog->aux->max_rdwr_access;
+	key_size = map->key_size;
+	if (!is_percpu)
+		value_size = map->value_size;
+	else
+		value_size = round_up(map->value_size, 8) * num_possible_cpus();
+
+	if (key_acc_size > key_size || value_acc_size > value_size)
+		return -EACCES;
+
+	return 0;
 }
 
 DEFINE_BPF_ITER_FUNC(bpf_map_elem, struct bpf_iter_meta *meta,
