@@ -1028,9 +1028,9 @@ int xt_check_target(struct xt_tgchk_param *par,
 EXPORT_SYMBOL_GPL(xt_check_target);
 
 /**
- * xt_copy_counters_from_user - copy counters and metadata from userspace
+ * xt_copy_counters - copy counters and metadata from a sockptr_t
  *
- * @user: src pointer to userspace memory
+ * @arg: src sockptr
  * @len: alleged size of userspace memory
  * @info: where to store the xt_counters_info metadata
  *
@@ -1047,8 +1047,8 @@ EXPORT_SYMBOL_GPL(xt_check_target);
  * Return: returns pointer that caller has to test via IS_ERR().
  * If IS_ERR is false, caller has to vfree the pointer.
  */
-void *xt_copy_counters_from_user(const void __user *user, unsigned int len,
-				 struct xt_counters_info *info)
+void *xt_copy_counters(sockptr_t arg, unsigned int len,
+		       struct xt_counters_info *info)
 {
 	void *mem;
 	u64 size;
@@ -1062,12 +1062,12 @@ void *xt_copy_counters_from_user(const void __user *user, unsigned int len,
 			return ERR_PTR(-EINVAL);
 
 		len -= sizeof(compat_tmp);
-		if (copy_from_user(&compat_tmp, user, sizeof(compat_tmp)) != 0)
+		if (copy_from_sockptr(&compat_tmp, arg, sizeof(compat_tmp)) != 0)
 			return ERR_PTR(-EFAULT);
 
 		memcpy(info->name, compat_tmp.name, sizeof(info->name) - 1);
 		info->num_counters = compat_tmp.num_counters;
-		user += sizeof(compat_tmp);
+		sockptr_advance(arg, sizeof(compat_tmp));
 	} else
 #endif
 	{
@@ -1075,10 +1075,10 @@ void *xt_copy_counters_from_user(const void __user *user, unsigned int len,
 			return ERR_PTR(-EINVAL);
 
 		len -= sizeof(*info);
-		if (copy_from_user(info, user, sizeof(*info)) != 0)
+		if (copy_from_sockptr(info, arg, sizeof(*info)) != 0)
 			return ERR_PTR(-EFAULT);
 
-		user += sizeof(*info);
+		sockptr_advance(arg, sizeof(*info));
 	}
 	info->name[sizeof(info->name) - 1] = '\0';
 
@@ -1092,13 +1092,13 @@ void *xt_copy_counters_from_user(const void __user *user, unsigned int len,
 	if (!mem)
 		return ERR_PTR(-ENOMEM);
 
-	if (copy_from_user(mem, user, len) == 0)
+	if (copy_from_sockptr(mem, arg, len) == 0)
 		return mem;
 
 	vfree(mem);
 	return ERR_PTR(-EFAULT);
 }
-EXPORT_SYMBOL_GPL(xt_copy_counters_from_user);
+EXPORT_SYMBOL_GPL(xt_copy_counters);
 
 #ifdef CONFIG_COMPAT
 int xt_compat_target_offset(const struct xt_target *target)
