@@ -133,20 +133,20 @@ static inline void seqcount_lockdep_reader_access(const seqcount_t *s)
  */
 
 #ifdef CONFIG_LOCKDEP
-#define __SEQ_LOCKDEP(expr)	expr
+#define __SEQ_LOCK(expr)	expr
 #else
-#define __SEQ_LOCKDEP(expr)
+#define __SEQ_LOCK(expr)
 #endif
 
 #define SEQCOUNT_LOCKTYPE_ZERO(seq_name, assoc_lock) {			\
 	.seqcount		= SEQCNT_ZERO(seq_name.seqcount),	\
-	__SEQ_LOCKDEP(.lock	= (assoc_lock))				\
+	__SEQ_LOCK(.lock	= (assoc_lock))				\
 }
 
 #define seqcount_locktype_init(s, assoc_lock)				\
 do {									\
 	seqcount_init(&(s)->seqcount);					\
-	__SEQ_LOCKDEP((s)->lock = (assoc_lock));			\
+	__SEQ_LOCK((s)->lock = (assoc_lock));				\
 } while (0)
 
 /**
@@ -161,7 +161,7 @@ do {									\
  */
 typedef struct seqcount_spinlock {
 	seqcount_t	seqcount;
-	__SEQ_LOCKDEP(spinlock_t	*lock);
+	__SEQ_LOCK(spinlock_t	*lock);
 } seqcount_spinlock_t;
 
 /**
@@ -192,7 +192,7 @@ typedef struct seqcount_spinlock {
  */
 typedef struct seqcount_raw_spinlock {
 	seqcount_t      seqcount;
-	__SEQ_LOCKDEP(raw_spinlock_t	*lock);
+	__SEQ_LOCK(raw_spinlock_t	*lock);
 } seqcount_raw_spinlock_t;
 
 /**
@@ -223,7 +223,7 @@ typedef struct seqcount_raw_spinlock {
  */
 typedef struct seqcount_rwlock {
 	seqcount_t      seqcount;
-	__SEQ_LOCKDEP(rwlock_t		*lock);
+	__SEQ_LOCK(rwlock_t		*lock);
 } seqcount_rwlock_t;
 
 /**
@@ -257,7 +257,7 @@ typedef struct seqcount_rwlock {
  */
 typedef struct seqcount_mutex {
 	seqcount_t      seqcount;
-	__SEQ_LOCKDEP(struct mutex	*lock);
+	__SEQ_LOCK(struct mutex	*lock);
 } seqcount_mutex_t;
 
 /**
@@ -291,7 +291,7 @@ typedef struct seqcount_mutex {
  */
 typedef struct seqcount_ww_mutex {
 	seqcount_t      seqcount;
-	__SEQ_LOCKDEP(struct ww_mutex	*lock);
+	__SEQ_LOCK(struct ww_mutex	*lock);
 } seqcount_ww_mutex_t;
 
 /**
@@ -329,7 +329,7 @@ __seqcount_##locktype##_preemptible(seqcount_##locktype##_t *s)		\
 static inline void							\
 __seqcount_##locktype##_assert(seqcount_##locktype##_t *s)		\
 {									\
-	__SEQ_LOCKDEP(lockdep_assert_held(lockmember));			\
+	__SEQ_LOCK(lockdep_assert_held(lockmember));			\
 }
 
 /*
