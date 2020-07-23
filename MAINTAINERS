@@ -5839,6 +5839,15 @@ T:	git git://anongit.freedesktop.org/drm/drm-misc
 F:	Documentation/gpu/xen-front.rst
 F:	drivers/gpu/drm/xen/
 
+DRM DRIVERS FOR XILINX
+M:	Hyun Kwon <hyun.kwon@xilinx.com>
+M:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
+L:	dri-devel@lists.freedesktop.org
+S:	Maintained
+T:	git git://anongit.freedesktop.org/drm/drm-misc
+F:	Documentation/devicetree/bindings/display/xlnx/
+F:	drivers/gpu/drm/xlnx/
+
 DRM DRIVERS FOR ZTE ZX
 M:	Shawn Guo <shawnguo@kernel.org>
 L:	dri-devel@lists.freedesktop.org
@@ -18852,6 +18861,15 @@ T:	git git://linuxtv.org/media_tree.git
 F:	Documentation/devicetree/bindings/media/xilinx/
 F:	drivers/media/platform/xilinx/
 F:	include/uapi/linux/xilinx-v4l2-controls.h
+
+XILINX ZYNQMP DPDMA DRIVER
+M:	Hyun Kwon <hyun.kwon@xilinx.com>
+M:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
+L:	dmaengine@vger.kernel.org
+S:	Supported
+F:	Documentation/devicetree/bindings/dma/xilinx/xlnx,zynqmp-dpdma.yaml
+F:	drivers/dma/xilinx/xilinx_dpdma.c
+F:	include/dt-bindings/dma/xlnx-zynqmp-dpdma.h
 
 XILLYBUS DRIVER
 M:	Eli Billauer <eli.billauer@gmail.com>
