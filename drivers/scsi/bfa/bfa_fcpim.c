@@ -3812,7 +3812,7 @@ bfa_iotag_attach(struct bfa_fcp_mod_s *fcp)
 }
 
 
-/**
+/*
  * To send config req, first try to use throttle value from flash
  * If 0, then use driver parameter
  * We need to use min(flash_val, drv_val) because
