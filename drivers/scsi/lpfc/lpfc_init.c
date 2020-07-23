@@ -14186,6 +14186,7 @@ void lpfc_dmp_dbg(struct lpfc_hba *phba)
 	atomic_set(&phba->dbg_log_dmping, 0);
 }
 
+__printf(2, 3)
 void lpfc_dbg_print(struct lpfc_hba *phba, const char *fmt, ...)
 {
 	unsigned int idx;
