@@ -878,6 +878,7 @@ static int xhci_do_dbc_init(struct xhci_hcd *xhci)
 	spin_unlock_irqrestore(&xhci->lock, flags);
 
 	dbc->xhci = xhci;
+	dbc->dev = xhci_to_hcd(xhci)->self.sysdev;
 	INIT_DELAYED_WORK(&dbc->event_work, xhci_dbc_handle_events);
 	spin_lock_init(&dbc->lock);
 

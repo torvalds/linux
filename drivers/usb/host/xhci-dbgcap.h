@@ -133,6 +133,7 @@ struct dbc_port {
 
 struct xhci_dbc {
 	spinlock_t			lock;		/* device access */
+	struct device			*dev;
 	struct xhci_hcd			*xhci;
 	struct dbc_regs __iomem		*regs;
 	struct xhci_ring		*ring_evt;
