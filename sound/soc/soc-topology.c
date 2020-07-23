@@ -1851,7 +1851,7 @@ static int soc_tplg_dai_create(struct soc_tplg *tplg,
 	list_add(&dai_drv->dobj.list, &tplg->comp->dobj_list);
 
 	/* register the DAI to the component */
-	dai = snd_soc_register_dai(tplg->comp, dai_drv, false);
+	dai = devm_snd_soc_register_dai(tplg->comp->dev, tplg->comp, dai_drv, false);
 	if (!dai)
 		return -ENOMEM;
 
@@ -1859,7 +1859,6 @@ static int soc_tplg_dai_create(struct soc_tplg *tplg,
 	ret = snd_soc_dapm_new_dai_widgets(dapm, dai);
 	if (ret != 0) {
 		dev_err(dai->dev, "Failed to create DAI widgets %d\n", ret);
-		snd_soc_unregister_dai(dai);
 		return ret;
 	}
 

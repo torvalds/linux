@@ -172,6 +172,14 @@ void ipa_cmd_tag_process_add(struct gsi_trans *trans);
 u32 ipa_cmd_tag_process_count(void);
 
 /**
+ * ipa_cmd_tag_process() - Perform a tag process
+ *
+ * @Return:	The number of elements to allocate in a transaction
+ *		to hold tag process commands
+ */
+void ipa_cmd_tag_process(struct ipa *ipa);
+
+/**
  * ipa_cmd_trans_alloc() - Allocate a transaction for the command TX endpoint
  * @ipa:	IPA pointer
  * @tre_count:	Number of elements in the transaction

@@ -173,8 +173,6 @@ static int aspeed_gfx_load(struct drm_device *drm)
 
 	drm_mode_config_reset(drm);
 
-	drm_fbdev_generic_setup(drm, 32);
-
 	return 0;
 }
 
@@ -225,6 +223,7 @@ static int aspeed_gfx_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_unload;
 
+	drm_fbdev_generic_setup(&priv->drm, 32);
 	return 0;
 
 err_unload:

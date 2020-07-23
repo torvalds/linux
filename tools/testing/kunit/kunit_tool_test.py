@@ -170,6 +170,17 @@ class KUnitParserTest(unittest.TestCase):
 			result.status)
 		file.close()
 
+	def test_no_kunit_output(self):
+		crash_log = get_absolute_path(
+			'test_data/test_insufficient_memory.log')
+		file = open(crash_log)
+		print_mock = mock.patch('builtins.print').start()
+		result = kunit_parser.parse_run_tests(
+			kunit_parser.isolate_kunit_output(file.readlines()))
+		print_mock.assert_any_call(StrContains("no kunit output detected"))
+		print_mock.stop()
+		file.close()
+
 	def test_crashed_test(self):
 		crashed_log = get_absolute_path(
 			'test_data/test_is_test_passed-crash.log')

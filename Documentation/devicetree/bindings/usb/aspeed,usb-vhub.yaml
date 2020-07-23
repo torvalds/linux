@@ -127,8 +127,8 @@ examples:
                 #address-cells = <1>;
                 #size-cells = <0>;
 
-                string@0409 {
-                        reg = <0x0409>;
+                string@409 {
+                        reg = <0x409>;
                         manufacturer = "ASPEED";
                         product = "USB Virtual Hub";
                         serial-number = "0000";

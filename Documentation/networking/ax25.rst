@@ -6,7 +6,7 @@ AX.25
 
 To use the amateur radio protocols within Linux you will need to get a
 suitable copy of the AX.25 Utilities. More detailed information about
-AX.25, NET/ROM and ROSE, associated programs and and utilities can be
+AX.25, NET/ROM and ROSE, associated programs and utilities can be
 found on http://www.linux-ax25.org.
 
 There is an active mailing list for discussing Linux amateur radio matters

@@ -1988,7 +1988,7 @@ static int psp_suspend(void *handle)
 
 	ret = psp_tmr_terminate(psp);
 	if (ret) {
-		DRM_ERROR("Failed to terminate tmr\n");
+		DRM_ERROR("Falied to terminate tmr\n");
 		return ret;
 	}
 

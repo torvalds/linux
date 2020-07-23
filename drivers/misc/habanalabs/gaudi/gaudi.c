@@ -96,7 +96,7 @@
 
 #define GAUDI_NUM_OF_QM_ARB_ERR_CAUSE	3
 
-#define GAUDI_ARB_WDT_TIMEOUT		0x400000
+#define GAUDI_ARB_WDT_TIMEOUT		0x1000000
 
 static const char gaudi_irq_name[GAUDI_MSI_ENTRIES][GAUDI_MAX_STRING_LEN] = {
 		"gaudi cq 0_0", "gaudi cq 0_1", "gaudi cq 0_2", "gaudi cq 0_3",
@@ -1893,6 +1893,8 @@ static void gaudi_init_pci_dma_qman(struct hl_device *hdev, int dma_id,
 	WREG32(mmDMA0_QM_CP_MSG_BASE3_ADDR_LO_0 + q_off, so_base_ws_lo);
 	WREG32(mmDMA0_QM_CP_MSG_BASE3_ADDR_HI_0 + q_off, so_base_ws_hi);
 
+	WREG32(mmDMA0_QM_CP_BARRIER_CFG_0 + q_off, 0x100);
+
 	/* The following configuration is needed only once per QMAN */
 	if (qman_id == 0) {
 		/* Configure RAZWI IRQ */
@@ -2724,6 +2726,12 @@ static int gaudi_mmu_init(struct hl_device *hdev)
 
 	WREG32(mmSTLB_HOP_CONFIGURATION,
 			hdev->mmu_huge_page_opt ? 0x30440 : 0x40440);
+
+	/*
+	 * The H/W expects the first PI after init to be 1. After wraparound
+	 * we'll write 0.
+	 */
+	gaudi->mmu_cache_inv_pi = 1;
 
 	gaudi->hw_cap_initialized |= HW_CAP_MMU;
 
@@ -3790,6 +3798,25 @@ static int gaudi_validate_dma_pkt_no_mmu(struct hl_device *hdev,
 						src_in_host);
 }
 
+static int gaudi_validate_load_and_exe_pkt(struct hl_device *hdev,
+					struct hl_cs_parser *parser,
+					struct packet_load_and_exe *user_pkt)
+{
+	u32 cfg;
+
+	cfg = le32_to_cpu(user_pkt->cfg);
+
+	if (cfg & GAUDI_PKT_LOAD_AND_EXE_CFG_DST_MASK) {
+		dev_err(hdev->dev,
+			"User not allowed to use Load and Execute\n");
+		return -EPERM;
+	}
+
+	parser->patched_cb_size += sizeof(struct packet_load_and_exe);
+
+	return 0;
+}
+
 static int gaudi_validate_cb(struct hl_device *hdev,
 			struct hl_cs_parser *parser, bool is_mmu)
 {
@@ -3838,6 +3865,11 @@ static int gaudi_validate_cb(struct hl_device *hdev,
 			rc = -EPERM;
 			break;
 
+		case PACKET_LOAD_AND_EXE:
+			rc = gaudi_validate_load_and_exe_pkt(hdev, parser,
+				(struct packet_load_and_exe *) user_pkt);
+			break;
+
 		case PACKET_LIN_DMA:
 			parser->contains_dma_pkt = true;
 			if (is_mmu)
@@ -3855,7 +3887,6 @@ static int gaudi_validate_cb(struct hl_device *hdev,
 		case PACKET_FENCE:
 		case PACKET_NOP:
 		case PACKET_ARB_POINT:
-		case PACKET_LOAD_AND_EXE:
 			parser->patched_cb_size += pkt_size;
 			break;
 
@@ -5994,6 +6025,8 @@ static int gaudi_mmu_invalidate_cache(struct hl_device *hdev, bool is_hard,
 	mutex_lock(&hdev->mmu_cache_lock);
 
 	/* L0 & L1 invalidation */
+	WREG32(mmSTLB_INV_PS, 3);
+	WREG32(mmSTLB_CACHE_INV, gaudi->mmu_cache_inv_pi++);
 	WREG32(mmSTLB_INV_PS, 2);
 
 	rc = hl_poll_timeout(

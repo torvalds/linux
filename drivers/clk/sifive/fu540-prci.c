@@ -586,7 +586,10 @@ static int sifive_fu540_prci_probe(struct platform_device *pdev)
 	struct __prci_data *pd;
 	int r;
 
-	pd = devm_kzalloc(dev, sizeof(*pd), GFP_KERNEL);
+	pd = devm_kzalloc(dev,
+			  struct_size(pd, hw_clks.hws,
+				      ARRAY_SIZE(__prci_init_clocks)),
+			  GFP_KERNEL);
 	if (!pd)
 		return -ENOMEM;
 

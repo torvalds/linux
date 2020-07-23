@@ -434,7 +434,7 @@ can set up your network then:
 	ifconfig arc0 insight
 	route add insight arc0
 	route add freedom arc0	/* I would use the subnet here (like I said
-					to to in "single protocol" above),
+					to in "single protocol" above),
 					but the rest of the subnet
 					unfortunately lies across the PPP
 					link on freedom, which confuses
