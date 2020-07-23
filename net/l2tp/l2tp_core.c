@@ -412,7 +412,7 @@ static void l2tp_recv_dequeue_skb(struct l2tp_session *session, struct sk_buff *
 	}
 
 	/* call private receive handler */
-	if (session->recv_skb != NULL)
+	if (session->recv_skb)
 		(*session->recv_skb)(session, skb, L2TP_SKB_CB(skb)->length);
 	else
 		kfree_skb(skb);
@@ -683,7 +683,7 @@ void l2tp_recv_common(struct l2tp_session *session, struct sk_buff *skb,
 		 * check if we sre sending sequence numbers and if not,
 		 * configure it so.
 		 */
-		if ((!session->lns_mode) && (!session->send_seq)) {
+		if (!session->lns_mode && !session->send_seq) {
 			l2tp_info(session, L2TP_MSG_SEQ,
 				  "%s: requested to enable seq numbers by LNS\n",
 				  session->name);
@@ -707,7 +707,7 @@ void l2tp_recv_common(struct l2tp_session *session, struct sk_buff *skb,
 		 * If we're the LNS and we're sending sequence numbers, the
 		 * LAC is broken. Discard the frame.
 		 */
-		if ((!session->lns_mode) && (session->send_seq)) {
+		if (!session->lns_mode && session->send_seq) {
 			l2tp_info(session, L2TP_MSG_SEQ,
 				  "%s: requested to disable seq numbers by LNS\n",
 				  session->name);
@@ -911,7 +911,7 @@ int l2tp_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 	struct l2tp_tunnel *tunnel;
 
 	tunnel = rcu_dereference_sk_user_data(sk);
-	if (tunnel == NULL)
+	if (!tunnel)
 		goto pass_up;
 
 	l2tp_dbg(tunnel, L2TP_MSG_DATA, "%s: received %d bytes\n",
@@ -1150,7 +1150,7 @@ static void l2tp_tunnel_destruct(struct sock *sk)
 {
 	struct l2tp_tunnel *tunnel = l2tp_tunnel(sk);
 
-	if (tunnel == NULL)
+	if (!tunnel)
 		goto end;
 
 	l2tp_info(tunnel, L2TP_MSG_CONTROL, "%s: closing...\n", tunnel->name);
@@ -1189,7 +1189,7 @@ static void l2tp_tunnel_closeall(struct l2tp_tunnel *tunnel)
 	struct hlist_node *tmp;
 	struct l2tp_session *session;
 
-	BUG_ON(tunnel == NULL);
+	BUG_ON(!tunnel);
 
 	l2tp_info(tunnel, L2TP_MSG_CONTROL, "%s: closing all sessions...\n",
 		  tunnel->name);
@@ -1214,7 +1214,7 @@ again:
 			__l2tp_session_unhash(session);
 			l2tp_session_queue_purge(session);
 
-			if (session->session_close != NULL)
+			if (session->session_close)
 				(*session->session_close)(session);
 
 			l2tp_session_dec_refcount(session);
@@ -1389,7 +1389,7 @@ static int l2tp_tunnel_sock_create(struct net *net,
 
 out:
 	*sockp = sock;
-	if ((err < 0) && sock) {
+	if (err < 0 && sock) {
 		kernel_sock_shutdown(sock, SHUT_RDWR);
 		sock_release(sock);
 		*sockp = NULL;
@@ -1407,11 +1407,11 @@ int l2tp_tunnel_create(struct net *net, int fd, int version, u32 tunnel_id, u32 
 	int err;
 	enum l2tp_encap_type encap = L2TP_ENCAPTYPE_UDP;
 
-	if (cfg != NULL)
+	if (cfg)
 		encap = cfg->encap;
 
-	tunnel = kzalloc(sizeof(struct l2tp_tunnel), GFP_KERNEL);
-	if (tunnel == NULL) {
+	tunnel = kzalloc(sizeof(*tunnel), GFP_KERNEL);
+	if (!tunnel) {
 		err = -ENOMEM;
 		goto err;
 	}
@@ -1426,7 +1426,7 @@ int l2tp_tunnel_create(struct net *net, int fd, int version, u32 tunnel_id, u32 
 	rwlock_init(&tunnel->hlist_lock);
 	tunnel->acpt_newsess = true;
 
-	if (cfg != NULL)
+	if (cfg)
 		tunnel->debug = cfg->debug;
 
 	tunnel->encap = encap;
@@ -1615,7 +1615,7 @@ int l2tp_session_delete(struct l2tp_session *session)
 
 	__l2tp_session_unhash(session);
 	l2tp_session_queue_purge(session);
-	if (session->session_close != NULL)
+	if (session->session_close)
 		(*session->session_close)(session);
 
 	l2tp_session_dec_refcount(session);
@@ -1647,8 +1647,8 @@ struct l2tp_session *l2tp_session_create(int priv_size, struct l2tp_tunnel *tunn
 {
 	struct l2tp_session *session;
 
-	session = kzalloc(sizeof(struct l2tp_session) + priv_size, GFP_KERNEL);
-	if (session != NULL) {
+	session = kzalloc(sizeof(*session) + priv_size, GFP_KERNEL);
+	if (session) {
 		session->magic = L2TP_SESSION_MAGIC;
 		session->tunnel = tunnel;
 

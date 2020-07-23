@@ -58,7 +58,7 @@ static void l2tp_dfs_next_session(struct l2tp_dfs_seq_data *pd)
 	pd->session = l2tp_session_get_nth(pd->tunnel, pd->session_idx);
 	pd->session_idx++;
 
-	if (pd->session == NULL) {
+	if (!pd->session) {
 		pd->session_idx = 0;
 		l2tp_dfs_next_tunnel(pd);
 	}
@@ -72,16 +72,16 @@ static void *l2tp_dfs_seq_start(struct seq_file *m, loff_t *offs)
 	if (!pos)
 		goto out;
 
-	BUG_ON(m->private == NULL);
+	BUG_ON(!m->private);
 	pd = m->private;
 
-	if (pd->tunnel == NULL)
+	if (!pd->tunnel)
 		l2tp_dfs_next_tunnel(pd);
 	else
 		l2tp_dfs_next_session(pd);
 
 	/* NULL tunnel and session indicates end of list */
-	if ((pd->tunnel == NULL) && (pd->session == NULL))
+	if (!pd->tunnel && !pd->session)
 		pd = NULL;
 
 out:
@@ -146,10 +146,12 @@ static void l2tp_dfs_seq_tunnel_show(struct seq_file *m, void *v)
 
 			seq_printf(m, " from %pI6c to %pI6c\n",
 				   &np->saddr, &tunnel->sock->sk_v6_daddr);
-		} else
+		}
 #endif
-		seq_printf(m, " from %pI4 to %pI4\n",
-			   &inet->inet_saddr, &inet->inet_daddr);
+		if (tunnel->sock->sk_family == AF_INET)
+			seq_printf(m, " from %pI4 to %pI4\n",
+				   &inet->inet_saddr, &inet->inet_daddr);
+
 		if (tunnel->encap == L2TP_ENCAPTYPE_UDP)
 			seq_printf(m, " source port %hu, dest port %hu\n",
 				   ntohs(inet->inet_sport), ntohs(inet->inet_dport));
@@ -221,7 +223,7 @@ static void l2tp_dfs_seq_session_show(struct seq_file *m, void *v)
 		   atomic_long_read(&session->stats.rx_bytes),
 		   atomic_long_read(&session->stats.rx_errors));
 
-	if (session->show != NULL)
+	if (session->show)
 		session->show(m, session);
 }
 
@@ -268,7 +270,7 @@ static int l2tp_dfs_seq_open(struct inode *inode, struct file *file)
 	int rc = -ENOMEM;
 
 	pd = kzalloc(sizeof(*pd), GFP_KERNEL);
-	if (pd == NULL)
+	if (!pd)
 		goto out;
 
 	/* Derive the network namespace from the pid opening the
