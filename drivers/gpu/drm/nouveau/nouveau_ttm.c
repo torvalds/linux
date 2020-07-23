@@ -180,6 +180,61 @@ nouveau_ttm_init_host(struct nouveau_drm *drm, u8 kind)
 	return 0;
 }
 
+static int
+nouveau_ttm_init_vram(struct nouveau_drm *drm)
+{
+	struct ttm_mem_type_manager *man = &drm->ttm.bdev.man[TTM_PL_VRAM];
+	struct nvif_mmu *mmu = &drm->client.mmu;
+
+	man->available_caching = TTM_PL_FLAG_UNCACHED | TTM_PL_FLAG_WC;
+	man->default_caching = TTM_PL_FLAG_WC;
+
+	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
+		/* Some BARs do not support being ioremapped WC */
+		const u8 type = mmu->type[drm->ttm.type_vram].type;
+
+		if (type & NVIF_MEM_UNCACHED) {
+			man->available_caching = TTM_PL_FLAG_UNCACHED;
+			man->default_caching = TTM_PL_FLAG_UNCACHED;
+		}
+
+		man->func = &nouveau_vram_manager;
+		man->use_io_reserve_lru = true;
+	} else {
+		man->func = &ttm_bo_manager_func;
+	}
+
+	return ttm_bo_init_mm(&drm->ttm.bdev, TTM_PL_VRAM,
+			      drm->gem.vram_available >> PAGE_SHIFT);
+}
+
+static int
+nouveau_ttm_init_gtt(struct nouveau_drm *drm)
+{
+	struct ttm_mem_type_manager *man = &drm->ttm.bdev.man[TTM_PL_TT];
+
+	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA)
+		man->func = &nouveau_gart_manager;
+	else
+	if (!drm->agp.bridge)
+		man->func = &nv04_gart_manager;
+	else
+		man->func = &ttm_bo_manager_func;
+
+	man->use_tt = true;
+	if (drm->agp.bridge) {
+		man->available_caching = TTM_PL_FLAG_UNCACHED |
+			TTM_PL_FLAG_WC;
+		man->default_caching = TTM_PL_FLAG_WC;
+	} else {
+		man->available_caching = TTM_PL_MASK_CACHING;
+		man->default_caching = TTM_PL_FLAG_CACHED;
+	}
+
+	return ttm_bo_init_mm(&drm->ttm.bdev, TTM_PL_TT,
+			      drm->gem.gart_available >> PAGE_SHIFT);
+}
+
 int
 nouveau_ttm_init(struct nouveau_drm *drm)
 {
@@ -237,8 +292,7 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 	arch_io_reserve_memtype_wc(device->func->resource_addr(device, 1),
 				   device->func->resource_size(device, 1));
 
-	ret = ttm_bo_init_mm(&drm->ttm.bdev, TTM_PL_VRAM,
-			      drm->gem.vram_available >> PAGE_SHIFT);
+	ret = nouveau_ttm_init_vram(drm);
 	if (ret) {
 		NV_ERROR(drm, "VRAM mm init failed, %d\n", ret);
 		return ret;
@@ -254,8 +308,7 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 		drm->gem.gart_available = drm->agp.size;
 	}
 
-	ret = ttm_bo_init_mm(&drm->ttm.bdev, TTM_PL_TT,
-			      drm->gem.gart_available >> PAGE_SHIFT);
+	ret = nouveau_ttm_init_gtt(drm);
 	if (ret) {
 		NV_ERROR(drm, "GART mm init failed, %d\n", ret);
 		return ret;

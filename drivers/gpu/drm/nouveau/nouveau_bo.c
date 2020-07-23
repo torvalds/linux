@@ -650,54 +650,6 @@ static int
 nouveau_bo_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 			 struct ttm_mem_type_manager *man)
 {
-	struct nouveau_drm *drm = nouveau_bdev(bdev);
-	struct nvif_mmu *mmu = &drm->client.mmu;
-
-	switch (type) {
-	case TTM_PL_SYSTEM:
-		break;
-	case TTM_PL_VRAM:
-		man->available_caching = TTM_PL_FLAG_UNCACHED |
-					 TTM_PL_FLAG_WC;
-		man->default_caching = TTM_PL_FLAG_WC;
-
-		if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
-			/* Some BARs do not support being ioremapped WC */
-			const u8 type = mmu->type[drm->ttm.type_vram].type;
-			if (type & NVIF_MEM_UNCACHED) {
-				man->available_caching = TTM_PL_FLAG_UNCACHED;
-				man->default_caching = TTM_PL_FLAG_UNCACHED;
-			}
-
-			man->func = &nouveau_vram_manager;
-			man->use_io_reserve_lru = true;
-		} else {
-			man->func = &ttm_bo_manager_func;
-		}
-		break;
-	case TTM_PL_TT:
-		if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA)
-			man->func = &nouveau_gart_manager;
-		else
-		if (!drm->agp.bridge)
-			man->func = &nv04_gart_manager;
-		else
-			man->func = &ttm_bo_manager_func;
-
-		man->use_tt = true;
-		if (drm->agp.bridge) {
-			man->available_caching = TTM_PL_FLAG_UNCACHED |
-				TTM_PL_FLAG_WC;
-			man->default_caching = TTM_PL_FLAG_WC;
-		} else {
-			man->available_caching = TTM_PL_MASK_CACHING;
-			man->default_caching = TTM_PL_FLAG_CACHED;
-		}
-
-		break;
-	default:
-		return -EINVAL;
-	}
 	return 0;
 }
 
