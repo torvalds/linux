@@ -63,16 +63,14 @@ static u32 xhci_dbc_populate_strings(struct dbc_str_descs *strings)
 	return string_length;
 }
 
-static void xhci_dbc_init_contexts(struct xhci_hcd *xhci, u32 string_length)
+static void xhci_dbc_init_contexts(struct xhci_dbc *dbc, u32 string_length)
 {
-	struct xhci_dbc		*dbc;
 	struct dbc_info_context	*info;
 	struct xhci_ep_ctx	*ep_ctx;
 	u32			dev_info;
 	dma_addr_t		deq, dma;
 	unsigned int		max_burst;
 
-	dbc = xhci->dbc;
 	if (!dbc)
 		return;
 
@@ -421,7 +419,7 @@ static int xhci_dbc_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 
 	/* Setup strings and contexts: */
 	string_length = xhci_dbc_populate_strings(dbc->string);
-	xhci_dbc_init_contexts(xhci, string_length);
+	xhci_dbc_init_contexts(dbc, string_length);
 
 	xhci_dbc_eps_init(xhci);
 	dbc->state = DS_INITIALIZED;
