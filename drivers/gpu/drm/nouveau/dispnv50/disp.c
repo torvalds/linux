@@ -2073,7 +2073,7 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 	 */
 	if (core->assign_windows) {
 		core->func->wndw.owner(core);
-		core->func->update(core, interlock, false);
+		nv50_disp_atomic_commit_core(state, interlock);
 		core->assign_windows = false;
 		interlock[NV50_DISP_INTERLOCK_CORE] = 0;
 	}
