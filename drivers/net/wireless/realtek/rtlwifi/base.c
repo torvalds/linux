@@ -195,8 +195,8 @@ static void _rtl_init_hw_ht_capab(struct ieee80211_hw *hw,
 	} else {
 		if (get_rf_type(rtlphy) == RF_1T2R ||
 		    get_rf_type(rtlphy) == RF_2T2R) {
-			RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
-				 "1T2R or 2T2R\n");
+			rtl_dbg(rtlpriv, COMP_INIT, DBG_DMESG,
+				"1T2R or 2T2R\n");
 			ht_cap->mcs.rx_mask[0] = 0xFF;
 			ht_cap->mcs.rx_mask[1] = 0xFF;
 			ht_cap->mcs.rx_mask[4] = 0x01;
@@ -204,7 +204,7 @@ static void _rtl_init_hw_ht_capab(struct ieee80211_hw *hw,
 			ht_cap->mcs.rx_highest =
 				 cpu_to_le16(MAX_BIT_RATE_40MHZ_MCS15);
 		} else if (get_rf_type(rtlphy) == RF_1T1R) {
-			RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG, "1T1R\n");
+			rtl_dbg(rtlpriv, COMP_INIT, DBG_DMESG, "1T1R\n");
 
 			ht_cap->mcs.rx_mask[0] = 0xFF;
 			ht_cap->mcs.rx_mask[1] = 0x00;
@@ -1324,7 +1324,7 @@ bool rtl_tx_mgmt_proc(struct ieee80211_hw *hw, struct sk_buff *skb)
 			rtlpriv->cfg->ops->chk_switch_dmdp(hw);
 	}
 	if (ieee80211_is_auth(fc)) {
-		RT_TRACE(rtlpriv, COMP_SEND, DBG_DMESG, "MAC80211_LINKING\n");
+		rtl_dbg(rtlpriv, COMP_SEND, DBG_DMESG, "MAC80211_LINKING\n");
 
 		mac->link_state = MAC80211_LINKING;
 		/* Dul mac */
@@ -1385,7 +1385,7 @@ bool rtl_action_proc(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx)
 			if (mac->act_scanning)
 				return false;
 
-			RT_TRACE(rtlpriv, (COMP_SEND | COMP_RECV), DBG_DMESG,
+			rtl_dbg(rtlpriv, (COMP_SEND | COMP_RECV), DBG_DMESG,
 				"%s ACT_ADDBAREQ From :%pM\n",
 				is_tx ? "Tx" : "Rx", hdr->addr2);
 			RT_PRINT_DATA(rtlpriv, COMP_INIT, DBG_DMESG, "req\n",
@@ -1400,8 +1400,8 @@ bool rtl_action_proc(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx)
 				rcu_read_lock();
 				sta = rtl_find_sta(hw, hdr->addr3);
 				if (sta == NULL) {
-					RT_TRACE(rtlpriv, COMP_SEND | COMP_RECV,
-						 DBG_DMESG, "sta is NULL\n");
+					rtl_dbg(rtlpriv, COMP_SEND | COMP_RECV,
+						DBG_DMESG, "sta is NULL\n");
 					rcu_read_unlock();
 					return true;
 				}
@@ -1428,13 +1428,13 @@ bool rtl_action_proc(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx)
 			}
 			break;
 		case ACT_ADDBARSP:
-			RT_TRACE(rtlpriv, (COMP_SEND | COMP_RECV), DBG_DMESG,
-				 "%s ACT_ADDBARSP From :%pM\n",
-				  is_tx ? "Tx" : "Rx", hdr->addr2);
+			rtl_dbg(rtlpriv, (COMP_SEND | COMP_RECV), DBG_DMESG,
+				"%s ACT_ADDBARSP From :%pM\n",
+				is_tx ? "Tx" : "Rx", hdr->addr2);
 			break;
 		case ACT_DELBA:
-			RT_TRACE(rtlpriv, (COMP_SEND | COMP_RECV), DBG_DMESG,
-				 "ACT_ADDBADEL From :%pM\n", hdr->addr2);
+			rtl_dbg(rtlpriv, (COMP_SEND | COMP_RECV), DBG_DMESG,
+				"ACT_ADDBADEL From :%pM\n", hdr->addr2);
 			break;
 		}
 		break;
@@ -1519,9 +1519,9 @@ u8 rtl_is_special_data(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx,
 				/* 68 : UDP BOOTP client
 				 * 67 : UDP BOOTP server
 				 */
-				RT_TRACE(rtlpriv, (COMP_SEND | COMP_RECV),
-					 DBG_DMESG, "dhcp %s !!\n",
-					 (is_tx) ? "Tx" : "Rx");
+				rtl_dbg(rtlpriv, (COMP_SEND | COMP_RECV),
+					DBG_DMESG, "dhcp %s !!\n",
+					(is_tx) ? "Tx" : "Rx");
 
 				if (is_tx)
 					setup_special_tx(rtlpriv, ppsc,
@@ -1540,8 +1540,8 @@ u8 rtl_is_special_data(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx,
 		rtlpriv->btcoexist.btc_info.in_4way = true;
 		rtlpriv->btcoexist.btc_info.in_4way_ts = jiffies;
 
-		RT_TRACE(rtlpriv, (COMP_SEND | COMP_RECV), DBG_DMESG,
-			 "802.1X %s EAPOL pkt!!\n", (is_tx) ? "Tx" : "Rx");
+		rtl_dbg(rtlpriv, (COMP_SEND | COMP_RECV), DBG_DMESG,
+			"802.1X %s EAPOL pkt!!\n", (is_tx) ? "Tx" : "Rx");
 
 		if (is_tx) {
 			rtlpriv->ra.is_special_data = true;
@@ -1583,12 +1583,12 @@ static void rtl_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb,
 	info = IEEE80211_SKB_CB(skb);
 	ieee80211_tx_info_clear_status(info);
 	if (ack) {
-		RT_TRACE(rtlpriv, COMP_TX_REPORT, DBG_LOUD,
-			 "tx report: ack\n");
+		rtl_dbg(rtlpriv, COMP_TX_REPORT, DBG_LOUD,
+			"tx report: ack\n");
 		info->flags |= IEEE80211_TX_STAT_ACK;
 	} else {
-		RT_TRACE(rtlpriv, COMP_TX_REPORT, DBG_LOUD,
-			 "tx report: not ack\n");
+		rtl_dbg(rtlpriv, COMP_TX_REPORT, DBG_LOUD,
+			"tx report: not ack\n");
 		info->flags &= ~IEEE80211_TX_STAT_ACK;
 	}
 	ieee80211_tx_status_irqsafe(hw, skb);
@@ -1626,8 +1626,8 @@ static u16 rtl_get_tx_report_sn(struct ieee80211_hw *hw,
 	tx_report->last_sent_time = jiffies;
 	tx_info->sn = sn;
 	tx_info->send_time = tx_report->last_sent_time;
-	RT_TRACE(rtlpriv, COMP_TX_REPORT, DBG_DMESG,
-		 "Send TX-Report sn=0x%X\n", sn);
+	rtl_dbg(rtlpriv, COMP_TX_REPORT, DBG_DMESG,
+		"Send TX-Report sn=0x%X\n", sn);
 
 	return sn;
 }
@@ -1674,9 +1674,9 @@ void rtl_tx_report_handler(struct ieee80211_hw *hw, u8 *tmp_buf, u8 c2h_cmd_len)
 			break;
 		}
 	}
-	RT_TRACE(rtlpriv, COMP_TX_REPORT, DBG_DMESG,
-		 "Recv TX-Report st=0x%02X sn=0x%X retry=0x%X\n",
-		 st, sn, retry);
+	rtl_dbg(rtlpriv, COMP_TX_REPORT, DBG_DMESG,
+		"Recv TX-Report st=0x%02X sn=0x%X retry=0x%X\n",
+		st, sn, retry);
 }
 EXPORT_SYMBOL_GPL(rtl_tx_report_handler);
 
@@ -1689,9 +1689,9 @@ bool rtl_check_tx_report_acked(struct ieee80211_hw *hw)
 		return true;
 
 	if (time_before(tx_report->last_sent_time + 3 * HZ, jiffies)) {
-		RT_TRACE(rtlpriv, COMP_TX_REPORT, DBG_WARNING,
-			 "Check TX-Report timeout!! s_sn=0x%X r_sn=0x%X\n",
-			 tx_report->last_sent_sn, tx_report->last_recv_sn);
+		rtl_dbg(rtlpriv, COMP_TX_REPORT, DBG_WARNING,
+			"Check TX-Report timeout!! s_sn=0x%X r_sn=0x%X\n",
+			tx_report->last_sent_sn, tx_report->last_recv_sn);
 		return true;	/* 3 sec. (timeout) seen as acked */
 	}
 
@@ -1707,8 +1707,8 @@ void rtl_wait_tx_report_acked(struct ieee80211_hw *hw, u32 wait_ms)
 		if (rtl_check_tx_report_acked(hw))
 			break;
 		usleep_range(1000, 2000);
-		RT_TRACE(rtlpriv, COMP_SEC, DBG_DMESG,
-			 "Wait 1ms (%d/%d) to disable key.\n", i, wait_ms);
+		rtl_dbg(rtlpriv, COMP_SEC, DBG_DMESG,
+			"Wait 1ms (%d/%d) to disable key.\n", i, wait_ms);
 	}
 }
 
@@ -1770,9 +1770,9 @@ int rtl_tx_agg_start(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		return -ENXIO;
 	tid_data = &sta_entry->tids[tid];
 
-	RT_TRACE(rtlpriv, COMP_SEND, DBG_DMESG,
-		 "on ra = %pM tid = %d seq:%d\n", sta->addr, tid,
-		 *ssn);
+	rtl_dbg(rtlpriv, COMP_SEND, DBG_DMESG,
+		"on ra = %pM tid = %d seq:%d\n", sta->addr, tid,
+		*ssn);
 
 	tid_data->agg.agg_state = RTL_AGG_START;
 
@@ -1788,8 +1788,8 @@ int rtl_tx_agg_stop(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	if (sta == NULL)
 		return -EINVAL;
 
-	RT_TRACE(rtlpriv, COMP_SEND, DBG_DMESG,
-		 "on ra = %pM tid = %d\n", sta->addr, tid);
+	rtl_dbg(rtlpriv, COMP_SEND, DBG_DMESG,
+		"on ra = %pM tid = %d\n", sta->addr, tid);
 
 	if (unlikely(tid >= MAX_TID_COUNT))
 		return -EINVAL;
@@ -1828,8 +1828,8 @@ int rtl_rx_agg_start(struct ieee80211_hw *hw,
 		return -ENXIO;
 	tid_data = &sta_entry->tids[tid];
 
-	RT_TRACE(rtlpriv, COMP_RECV, DBG_DMESG,
-		 "on ra = %pM tid = %d\n", sta->addr, tid);
+	rtl_dbg(rtlpriv, COMP_RECV, DBG_DMESG,
+		"on ra = %pM tid = %d\n", sta->addr, tid);
 
 	tid_data->agg.rx_agg_state = RTL_RX_AGG_START;
 	return 0;
@@ -1844,8 +1844,8 @@ int rtl_rx_agg_stop(struct ieee80211_hw *hw,
 	if (sta == NULL)
 		return -EINVAL;
 
-	RT_TRACE(rtlpriv, COMP_SEND, DBG_DMESG,
-		 "on ra = %pM tid = %d\n", sta->addr, tid);
+	rtl_dbg(rtlpriv, COMP_SEND, DBG_DMESG,
+		"on ra = %pM tid = %d\n", sta->addr, tid);
 
 	if (unlikely(tid >= MAX_TID_COUNT))
 		return -EINVAL;
@@ -1865,8 +1865,8 @@ int rtl_tx_agg_oper(struct ieee80211_hw *hw,
 	if (sta == NULL)
 		return -EINVAL;
 
-	RT_TRACE(rtlpriv, COMP_SEND, DBG_DMESG,
-		 "on ra = %pM tid = %d\n", sta->addr, tid);
+	rtl_dbg(rtlpriv, COMP_SEND, DBG_DMESG,
+		"on ra = %pM tid = %d\n", sta->addr, tid);
 
 	if (unlikely(tid >= MAX_TID_COUNT))
 		return -EINVAL;
@@ -1886,9 +1886,9 @@ void rtl_rx_ampdu_apply(struct rtl_priv *rtlpriv)
 		btc_ops->btc_get_ampdu_cfg(rtlpriv, &reject_agg,
 					   &ctrl_agg_size, &agg_size);
 
-	RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_DMESG,
-		 "Set RX AMPDU: coex - reject=%d, ctrl_agg_size=%d, size=%d",
-		 reject_agg, ctrl_agg_size, agg_size);
+	rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_DMESG,
+		"Set RX AMPDU: coex - reject=%d, ctrl_agg_size=%d, size=%d",
+		reject_agg, ctrl_agg_size, agg_size);
 
 	rtlpriv->hw->max_rx_aggregation_subframes =
 		(ctrl_agg_size ? agg_size : IEEE80211_MAX_AMPDU_BUF_HT);
@@ -1976,9 +1976,9 @@ void rtl_scan_list_expire(struct ieee80211_hw *hw)
 		list_del(&entry->list);
 		rtlpriv->scan_list.num--;
 
-		RT_TRACE(rtlpriv, COMP_SCAN, DBG_LOUD,
-			 "BSSID=%pM is expire in scan list (total=%d)\n",
-			 entry->bssid, rtlpriv->scan_list.num);
+		rtl_dbg(rtlpriv, COMP_SCAN, DBG_LOUD,
+			"BSSID=%pM is expire in scan list (total=%d)\n",
+			entry->bssid, rtlpriv->scan_list.num);
 		kfree(entry);
 	}
 
@@ -2012,9 +2012,9 @@ void rtl_collect_scan_list(struct ieee80211_hw *hw, struct sk_buff *skb)
 		if (memcmp(entry->bssid, hdr->addr3, ETH_ALEN) == 0) {
 			list_del_init(&entry->list);
 			entry_found = true;
-			RT_TRACE(rtlpriv, COMP_SCAN, DBG_LOUD,
-				 "Update BSSID=%pM to scan list (total=%d)\n",
-				 hdr->addr3, rtlpriv->scan_list.num);
+			rtl_dbg(rtlpriv, COMP_SCAN, DBG_LOUD,
+				"Update BSSID=%pM to scan list (total=%d)\n",
+				hdr->addr3, rtlpriv->scan_list.num);
 			break;
 		}
 	}
@@ -2028,9 +2028,9 @@ void rtl_collect_scan_list(struct ieee80211_hw *hw, struct sk_buff *skb)
 		memcpy(entry->bssid, hdr->addr3, ETH_ALEN);
 		rtlpriv->scan_list.num++;
 
-		RT_TRACE(rtlpriv, COMP_SCAN, DBG_LOUD,
-			 "Add BSSID=%pM to scan list (total=%d)\n",
-			 hdr->addr3, rtlpriv->scan_list.num);
+		rtl_dbg(rtlpriv, COMP_SCAN, DBG_LOUD,
+			"Add BSSID=%pM to scan list (total=%d)\n",
+			hdr->addr3, rtlpriv->scan_list.num);
 	}
 
 	entry->age = jiffies;
@@ -2190,8 +2190,8 @@ label_lps_done:
 		if ((rtlpriv->link_info.bcn_rx_inperiod +
 		    rtlpriv->link_info.num_rx_inperiod) == 0) {
 			rtlpriv->link_info.roam_times++;
-			RT_TRACE(rtlpriv, COMP_ERR, DBG_DMESG,
-				 "AP off for %d s\n",
+			rtl_dbg(rtlpriv, COMP_ERR, DBG_DMESG,
+				"AP off for %d s\n",
 				(rtlpriv->link_info.roam_times * 2));
 
 			/* if we can't recv beacon for 10s,
@@ -2304,11 +2304,11 @@ static void rtl_c2h_content_parsing(struct ieee80211_hw *hw,
 
 	switch (cmd_id) {
 	case C2H_DBG:
-		RT_TRACE(rtlpriv, COMP_FW, DBG_LOUD, "[C2H], C2H_DBG!!\n");
+		rtl_dbg(rtlpriv, COMP_FW, DBG_LOUD, "[C2H], C2H_DBG!!\n");
 		break;
 	case C2H_TXBF:
-		RT_TRACE(rtlpriv, COMP_FW, DBG_TRACE,
-			 "[C2H], C2H_TXBF!!\n");
+		rtl_dbg(rtlpriv, COMP_FW, DBG_TRACE,
+			"[C2H], C2H_TXBF!!\n");
 		break;
 	case C2H_TX_REPORT:
 		rtl_tx_report_handler(hw, cmd_buf, cmd_len);
@@ -2318,20 +2318,20 @@ static void rtl_c2h_content_parsing(struct ieee80211_hw *hw,
 			hal_ops->c2h_ra_report_handler(hw, cmd_buf, cmd_len);
 		break;
 	case C2H_BT_INFO:
-		RT_TRACE(rtlpriv, COMP_FW, DBG_TRACE,
-			 "[C2H], C2H_BT_INFO!!\n");
+		rtl_dbg(rtlpriv, COMP_FW, DBG_TRACE,
+			"[C2H], C2H_BT_INFO!!\n");
 		if (rtlpriv->cfg->ops->get_btc_status())
 			btc_ops->btc_btinfo_notify(rtlpriv, cmd_buf, cmd_len);
 		break;
 	case C2H_BT_MP:
-		RT_TRACE(rtlpriv, COMP_FW, DBG_TRACE,
-			 "[C2H], C2H_BT_MP!!\n");
+		rtl_dbg(rtlpriv, COMP_FW, DBG_TRACE,
+			"[C2H], C2H_BT_MP!!\n");
 		if (rtlpriv->cfg->ops->get_btc_status())
 			btc_ops->btc_btmpinfo_notify(rtlpriv, cmd_buf, cmd_len);
 		break;
 	default:
-		RT_TRACE(rtlpriv, COMP_FW, DBG_TRACE,
-			 "[C2H], Unknown packet!! cmd_id(%#X)!\n", cmd_id);
+		rtl_dbg(rtlpriv, COMP_FW, DBG_TRACE,
+			"[C2H], Unknown packet!! cmd_id(%#X)!\n", cmd_id);
 		break;
 	}
 }
@@ -2355,8 +2355,8 @@ void rtl_c2hcmd_launcher(struct ieee80211_hw *hw, int exec)
 		if (!skb)
 			break;
 
-		RT_TRACE(rtlpriv, COMP_FW, DBG_DMESG, "C2H rx_desc_shift=%d\n",
-			 *((u8 *)skb->cb));
+		rtl_dbg(rtlpriv, COMP_FW, DBG_DMESG, "C2H rx_desc_shift=%d\n",
+			*((u8 *)skb->cb));
 		RT_PRINT_DATA(rtlpriv, COMP_FW, DBG_DMESG,
 			      "C2H data: ", skb->data, skb->len);
 
@@ -2701,29 +2701,29 @@ void rtl_recognize_peer(struct ieee80211_hw *hw, u8 *data, unsigned int len)
 		(memcmp(mac->bssid, ap5_6, 3) == 0) ||
 		vendor == PEER_ATH) {
 		vendor = PEER_ATH;
-		RT_TRACE(rtlpriv, COMP_MAC80211, DBG_LOUD, "=>ath find\n");
+		rtl_dbg(rtlpriv, COMP_MAC80211, DBG_LOUD, "=>ath find\n");
 	} else if ((memcmp(mac->bssid, ap4_4, 3) == 0) ||
 		(memcmp(mac->bssid, ap4_5, 3) == 0) ||
 		(memcmp(mac->bssid, ap4_1, 3) == 0) ||
 		(memcmp(mac->bssid, ap4_2, 3) == 0) ||
 		(memcmp(mac->bssid, ap4_3, 3) == 0) ||
 		vendor == PEER_RAL) {
-		RT_TRACE(rtlpriv, COMP_MAC80211, DBG_LOUD, "=>ral find\n");
+		rtl_dbg(rtlpriv, COMP_MAC80211, DBG_LOUD, "=>ral find\n");
 		vendor = PEER_RAL;
 	} else if (memcmp(mac->bssid, ap6_1, 3) == 0 ||
 		vendor == PEER_CISCO) {
 		vendor = PEER_CISCO;
-		RT_TRACE(rtlpriv, COMP_MAC80211, DBG_LOUD, "=>cisco find\n");
+		rtl_dbg(rtlpriv, COMP_MAC80211, DBG_LOUD, "=>cisco find\n");
 	} else if ((memcmp(mac->bssid, ap3_1, 3) == 0) ||
 		(memcmp(mac->bssid, ap3_2, 3) == 0) ||
 		(memcmp(mac->bssid, ap3_3, 3) == 0) ||
 		vendor == PEER_BROAD) {
-		RT_TRACE(rtlpriv, COMP_MAC80211, DBG_LOUD, "=>broad find\n");
+		rtl_dbg(rtlpriv, COMP_MAC80211, DBG_LOUD, "=>broad find\n");
 		vendor = PEER_BROAD;
 	} else if (memcmp(mac->bssid, ap7_1, 3) == 0 ||
 		vendor == PEER_MARV) {
 		vendor = PEER_MARV;
-		RT_TRACE(rtlpriv, COMP_MAC80211, DBG_LOUD, "=>marv find\n");
+		rtl_dbg(rtlpriv, COMP_MAC80211, DBG_LOUD, "=>marv find\n");
 	}
 
 	mac->vendor = vendor;
