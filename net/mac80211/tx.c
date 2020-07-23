@@ -2085,6 +2085,8 @@ static bool ieee80211_parse_tx_radiotap(struct ieee80211_local *local,
 			txflags = get_unaligned_le16(iterator.this_arg);
 			if (txflags & IEEE80211_RADIOTAP_F_TX_NOACK)
 				info->flags |= IEEE80211_TX_CTL_NO_ACK;
+			if (txflags & IEEE80211_RADIOTAP_F_TX_NOSEQNO)
+				info->control.flags |= IEEE80211_TX_CTRL_NO_SEQNO;
 			break;
 
 		case IEEE80211_RADIOTAP_RATE:
