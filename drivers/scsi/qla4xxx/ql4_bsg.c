@@ -805,7 +805,7 @@ static int qla4xxx_execute_diag_test(struct bsg_job *bsg_job)
 
 /**
  * qla4xxx_process_vendor_specific - handle vendor specific bsg request
- * @job: iscsi_bsg_job to handle
+ * @bsg_job: iscsi_bsg_job to handle
  **/
 int qla4xxx_process_vendor_specific(struct bsg_job *bsg_job)
 {
@@ -852,7 +852,7 @@ int qla4xxx_process_vendor_specific(struct bsg_job *bsg_job)
 
 /**
  * qla4xxx_bsg_request - handle bsg request from ISCSI transport
- * @job: iscsi_bsg_job to handle
+ * @bsg_job: iscsi_bsg_job to handle
  */
 int qla4xxx_bsg_request(struct bsg_job *bsg_job)
 {
