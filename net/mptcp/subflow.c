@@ -53,6 +53,12 @@ static void subflow_generate_hmac(u64 key1, u64 key2, u32 nonce1, u32 nonce2,
 	mptcp_crypto_hmac_sha(key1, key2, msg, 8, hmac);
 }
 
+static bool mptcp_can_accept_new_subflow(const struct mptcp_sock *msk)
+{
+	return mptcp_is_fully_established((void *)msk) &&
+	       READ_ONCE(msk->pm.accept_subflow);
+}
+
 /* validate received token and create truncated hmac and nonce for SYN-ACK */
 static struct mptcp_sock *subflow_token_join_request(struct request_sock *req,
 						     const struct sk_buff *skb)
@@ -443,6 +449,7 @@ create_msk:
 	} else if (subflow_req->mp_join) {
 		mptcp_get_options(skb, &mp_opt);
 		if (!mp_opt.mp_join ||
+		    !mptcp_can_accept_new_subflow(subflow_req->msk) ||
 		    !subflow_hmac_valid(req, &mp_opt)) {
 			SUBFLOW_REQ_INC_STATS(req, MPTCP_MIB_JOINACKMAC);
 			fallback = true;
