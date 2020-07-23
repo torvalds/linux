@@ -2120,6 +2120,59 @@ static ssize_t amdgpu_set_thermal_throttling_logging(struct device *dev,
 	return count;
 }
 
+/**
+ * DOC: gpu_metrics
+ *
+ * The amdgpu driver provides a sysfs API for retrieving current gpu
+ * metrics data. The file gpu_metrics is used for this. Reading the
+ * file will dump all the current gpu metrics data.
+ *
+ * These data include temperature, frequency, engines utilization,
+ * power consume, throttler status, fan speed and cpu core statistics(
+ * available for APU only). That's it will give a snapshot of all sensors
+ * at the same time.
+ */
+static ssize_t amdgpu_get_gpu_metrics(struct device *dev,
+				      struct device_attribute *attr,
+				      char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = ddev->dev_private;
+	void *gpu_metrics;
+	ssize_t size = 0;
+	int ret;
+
+	if (amdgpu_in_reset(adev))
+		return -EPERM;
+
+	ret = pm_runtime_get_sync(ddev->dev);
+	if (ret < 0) {
+		pm_runtime_put_autosuspend(ddev->dev);
+		return ret;
+	}
+
+	down_read(&adev->reset_sem);
+	if (is_support_sw_smu(adev))
+		size = smu_sys_get_gpu_metrics(&adev->smu, &gpu_metrics);
+	else if (adev->powerplay.pp_funcs->get_gpu_metrics)
+		size = amdgpu_dpm_get_gpu_metrics(adev, &gpu_metrics);
+	up_read(&adev->reset_sem);
+
+	if (size <= 0)
+		goto out;
+
+	if (size >= PAGE_SIZE)
+		size = PAGE_SIZE - 1;
+
+	memcpy(buf, gpu_metrics, size);
+
+out:
+	pm_runtime_mark_last_busy(ddev->dev);
+	pm_runtime_put_autosuspend(ddev->dev);
+
+	return size;
+}
+
 static struct amdgpu_device_attr amdgpu_device_attrs[] = {
 	AMDGPU_DEVICE_ATTR_RW(power_dpm_state,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
 	AMDGPU_DEVICE_ATTR_RW(power_dpm_force_performance_level,	ATTR_FLAG_BASIC),
@@ -2143,6 +2196,7 @@ static struct amdgpu_device_attr amdgpu_device_attrs[] = {
 	AMDGPU_DEVICE_ATTR_RW(pp_features,				ATTR_FLAG_BASIC),
 	AMDGPU_DEVICE_ATTR_RO(unique_id,				ATTR_FLAG_BASIC),
 	AMDGPU_DEVICE_ATTR_RW(thermal_throttling_logging,		ATTR_FLAG_BASIC),
+	AMDGPU_DEVICE_ATTR_RO(gpu_metrics,				ATTR_FLAG_BASIC),
 };
 
 static int default_attr_update(struct amdgpu_device *adev, struct amdgpu_device_attr *attr,
@@ -2191,6 +2245,9 @@ static int default_attr_update(struct amdgpu_device *adev, struct amdgpu_device_
 			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(pp_features)) {
 		if (adev->flags & AMD_IS_APU || asic_type < CHIP_VEGA10)
+			*states = ATTR_STATE_UNSUPPORTED;
+	} else if (DEVICE_ATTR_IS(gpu_metrics)) {
+		if (asic_type < CHIP_VEGA12)
 			*states = ATTR_STATE_UNSUPPORTED;
 	}
 

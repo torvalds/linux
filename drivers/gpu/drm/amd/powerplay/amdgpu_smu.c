@@ -2516,3 +2516,23 @@ int smu_get_dpm_clock_table(struct smu_context *smu,
 
 	return ret;
 }
+
+ssize_t smu_sys_get_gpu_metrics(struct smu_context *smu,
+				void **table)
+{
+	ssize_t size;
+
+	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
+		return -EOPNOTSUPP;
+
+	if (!smu->ppt_funcs->get_gpu_metrics)
+		return -EOPNOTSUPP;
+
+	mutex_lock(&smu->mutex);
+
+	size = smu->ppt_funcs->get_gpu_metrics(smu, table);
+
+	mutex_unlock(&smu->mutex);
+
+	return size;
+}

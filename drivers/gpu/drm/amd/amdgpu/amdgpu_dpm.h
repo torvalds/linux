@@ -369,6 +369,9 @@ enum amdgpu_pcie_gen {
 		((adev)->powerplay.pp_funcs->set_ppfeature_status(\
 			(adev)->powerplay.pp_handle, (ppfeatures)))
 
+#define amdgpu_dpm_get_gpu_metrics(adev, table) \
+		((adev)->powerplay.pp_funcs->get_gpu_metrics((adev)->powerplay.pp_handle, table))
+
 struct amdgpu_dpm {
 	struct amdgpu_ps        *ps;
 	/* number of valid power states */

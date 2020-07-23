@@ -322,6 +322,7 @@ struct amd_pm_funcs {
 	int (*asic_reset_mode_2)(void *handle);
 	int (*set_df_cstate)(void *handle, enum pp_df_cstate state);
 	int (*set_xgmi_pstate)(void *handle, uint32_t pstate);
+	ssize_t (*get_gpu_metrics)(void *handle, void **table);
 };
 
 struct metrics_table_header {
