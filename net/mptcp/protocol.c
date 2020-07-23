@@ -460,15 +460,20 @@ static void mptcp_clean_una(struct sock *sk)
 
 	dfrag = mptcp_rtx_head(sk);
 	if (dfrag && after64(snd_una, dfrag->data_seq)) {
-		u64 delta = dfrag->data_seq + dfrag->data_len - snd_una;
+		u64 delta = snd_una - dfrag->data_seq;
+
+		if (WARN_ON_ONCE(delta > dfrag->data_len))
+			goto out;
 
 		dfrag->data_seq += delta;
+		dfrag->offset += delta;
 		dfrag->data_len -= delta;
 
 		dfrag_uncharge(sk, delta);
 		cleaned = true;
 	}
 
+out:
 	if (cleaned) {
 		sk_mem_reclaim_partial(sk);
 
@@ -1517,6 +1522,7 @@ struct sock *mptcp_sk_clone(const struct sock *sk,
 	msk->local_key = subflow_req->local_key;
 	msk->token = subflow_req->token;
 	msk->subflow = NULL;
+	WRITE_ONCE(msk->fully_established, false);
 
 	msk->write_seq = subflow_req->idsn + 1;
 	atomic64_set(&msk->snd_una, msk->write_seq);
@@ -1600,7 +1606,6 @@ static struct sock *mptcp_accept(struct sock *sk, int flags, int *err,
 		newsk = new_mptcp_sock;
 		mptcp_copy_inaddrs(newsk, ssk);
 		list_add(&subflow->node, &msk->conn_list);
-		inet_sk_state_store(newsk, TCP_ESTABLISHED);
 
 		mptcp_rcv_space_init(msk, ssk);
 		bh_unlock_sock(new_mptcp_sock);
@@ -1814,7 +1819,6 @@ void mptcp_finish_connect(struct sock *ssk)
 	ack_seq++;
 	subflow->map_seq = ack_seq;
 	subflow->map_subflow_seq = 1;
-	subflow->rel_write_seq = 1;
 
 	/* the socket is not connected yet, no msk/subflow ops can access/race
 	 * accessing the field below
@@ -1851,7 +1855,7 @@ bool mptcp_finish_join(struct sock *sk)
 	pr_debug("msk=%p, subflow=%p", msk, subflow);
 
 	/* mptcp socket already closing? */
-	if (inet_sk_state_load(parent) != TCP_ESTABLISHED)
+	if (!mptcp_is_fully_established(parent))
 		return false;
 
 	if (!msk->pm.server_side)
@@ -1940,6 +1944,13 @@ unlock:
 	return err;
 }
 
+static void mptcp_subflow_early_fallback(struct mptcp_sock *msk,
+					 struct mptcp_subflow_context *subflow)
+{
+	subflow->request_mptcp = 0;
+	__mptcp_do_fallback(msk);
+}
+
 static int mptcp_stream_connect(struct socket *sock, struct sockaddr *uaddr,
 				int addr_len, int flags)
 {
@@ -1971,10 +1982,10 @@ static int mptcp_stream_connect(struct socket *sock, struct sockaddr *uaddr,
 	 * TCP option space.
 	 */
 	if (rcu_access_pointer(tcp_sk(ssock->sk)->md5sig_info))
-		subflow->request_mptcp = 0;
+		mptcp_subflow_early_fallback(msk, subflow);
 #endif
 	if (subflow->request_mptcp && mptcp_token_new_connect(ssock->sk))
-		subflow->request_mptcp = 0;
+		mptcp_subflow_early_fallback(msk, subflow);
 
 do_connect:
 	err = ssock->ops->connect(ssock, uaddr, addr_len, flags);
