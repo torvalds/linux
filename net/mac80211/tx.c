@@ -3619,7 +3619,7 @@ begin:
 	tx.skb = skb;
 	tx.sdata = vif_to_sdata(info->control.vif);
 
-	if (txq->sta) {
+	if (txq->sta && !(info->flags & IEEE80211_TX_CTL_INJECTED)) {
 		tx.sta = container_of(txq->sta, struct sta_info, sta);
 		/*
 		 * Drop unicast frames to unauthorised stations unless they are
