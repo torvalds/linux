@@ -36,7 +36,7 @@ int qcom_snd_parse_of(struct snd_soc_card *card)
 	num_links = of_get_child_count(dev->of_node);
 
 	/* Allocate the DAI link array */
-	card->dai_link = kcalloc(num_links, sizeof(*link), GFP_KERNEL);
+	card->dai_link = devm_kcalloc(dev, num_links, sizeof(*link), GFP_KERNEL);
 	if (!card->dai_link)
 		return -ENOMEM;
 
@@ -143,7 +143,6 @@ err:
 	of_node_put(cpu);
 	of_node_put(codec);
 	of_node_put(platform);
-	kfree(card->dai_link);
 	return ret;
 }
 EXPORT_SYMBOL(qcom_snd_parse_of);
