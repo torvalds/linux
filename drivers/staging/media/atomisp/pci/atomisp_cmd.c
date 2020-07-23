@@ -877,7 +877,8 @@ static struct atomisp_video_pipe *__atomisp_get_pipe(
 
 enum atomisp_metadata_type
 atomisp_get_metadata_type(struct atomisp_sub_device *asd,
-			  enum ia_css_pipe_id pipe_id) {
+			  enum ia_css_pipe_id pipe_id)
+{
 	if (!asd->continuous_mode->val)
 		return ATOMISP_MAIN_METADATA;
 
@@ -1211,8 +1212,7 @@ void atomisp_buf_done(struct atomisp_sub_device *asd, int error,
 	default:
 		break;
 	}
-	if (vb)
-	{
+	if (vb) {
 		vb->ts = ktime_get_ns();
 		vb->field_count = atomic_read(&asd->sequence) << 1;
 		/*mark videobuffer done for dequeue*/
@@ -1234,8 +1234,7 @@ void atomisp_buf_done(struct atomisp_sub_device *asd, int error,
 	 * Requeue should only be done for 3a and dis buffers.
 	 * Queue/dequeue order will change if driver recycles image buffers.
 	 */
-	if (requeue)
-	{
+	if (requeue) {
 		err = atomisp_css_queue_buffer(asd,
 					       stream_id, css_pipe_id,
 					       buf_type, &buffer);
@@ -1940,9 +1939,9 @@ int atomisp_get_frame_pgnr(struct atomisp_device *isp,
  * Get internal fmt according to V4L2 fmt
  */
 static enum ia_css_frame_format
-v4l2_fmt_to_sh_fmt(u32 fmt) {
-	switch (fmt)
-	{
+v4l2_fmt_to_sh_fmt(u32 fmt)
+{
+	switch (fmt) {
 	case V4L2_PIX_FMT_YUV420:
 				return IA_CSS_FRAME_FORMAT_YUV420;
 	case V4L2_PIX_FMT_YVU420:
