@@ -155,12 +155,38 @@ static int l2tp_session_notify(struct genl_family *family,
 	return ret;
 }
 
+static int l2tp_nl_cmd_tunnel_create_get_addr(struct nlattr **attrs, struct l2tp_tunnel_cfg *cfg)
+{
+	if (attrs[L2TP_ATTR_UDP_SPORT])
+		cfg->local_udp_port = nla_get_u16(attrs[L2TP_ATTR_UDP_SPORT]);
+	if (attrs[L2TP_ATTR_UDP_DPORT])
+		cfg->peer_udp_port = nla_get_u16(attrs[L2TP_ATTR_UDP_DPORT]);
+	cfg->use_udp_checksums = nla_get_flag(attrs[L2TP_ATTR_UDP_CSUM]);
+
+	/* Must have either AF_INET or AF_INET6 address for source and destination */
+#if IS_ENABLED(CONFIG_IPV6)
+	if (attrs[L2TP_ATTR_IP6_SADDR] && attrs[L2TP_ATTR_IP6_DADDR]) {
+		cfg->local_ip6 = nla_data(attrs[L2TP_ATTR_IP6_SADDR]);
+		cfg->peer_ip6 = nla_data(attrs[L2TP_ATTR_IP6_DADDR]);
+		cfg->udp6_zero_tx_checksums = nla_get_flag(attrs[L2TP_ATTR_UDP_ZERO_CSUM6_TX]);
+		cfg->udp6_zero_rx_checksums = nla_get_flag(attrs[L2TP_ATTR_UDP_ZERO_CSUM6_RX]);
+		return 0;
+	}
+#endif
+	if (attrs[L2TP_ATTR_IP_SADDR] && attrs[L2TP_ATTR_IP_DADDR]) {
+		cfg->local_ip.s_addr = nla_get_in_addr(attrs[L2TP_ATTR_IP_SADDR]);
+		cfg->peer_ip.s_addr = nla_get_in_addr(attrs[L2TP_ATTR_IP_DADDR]);
+		return 0;
+	}
+	return -EINVAL;
+}
+
 static int l2tp_nl_cmd_tunnel_create(struct sk_buff *skb, struct genl_info *info)
 {
 	u32 tunnel_id;
 	u32 peer_tunnel_id;
 	int proto_version;
-	int fd;
+	int fd = -1;
 	int ret = 0;
 	struct l2tp_tunnel_cfg cfg = { 0, };
 	struct l2tp_tunnel *tunnel;
@@ -191,33 +217,16 @@ static int l2tp_nl_cmd_tunnel_create(struct sk_buff *skb, struct genl_info *info
 	}
 	cfg.encap = nla_get_u16(attrs[L2TP_ATTR_ENCAP_TYPE]);
 
-	fd = -1;
+	/* Managed tunnels take the tunnel socket from userspace.
+	 * Unmanaged tunnels must call out the source and destination addresses
+	 * for the kernel to create the tunnel socket itself.
+	 */
 	if (attrs[L2TP_ATTR_FD]) {
 		fd = nla_get_u32(attrs[L2TP_ATTR_FD]);
 	} else {
-#if IS_ENABLED(CONFIG_IPV6)
-		if (attrs[L2TP_ATTR_IP6_SADDR] && attrs[L2TP_ATTR_IP6_DADDR]) {
-			cfg.local_ip6 = nla_data(attrs[L2TP_ATTR_IP6_SADDR]);
-			cfg.peer_ip6 = nla_data(attrs[L2TP_ATTR_IP6_DADDR]);
-		} else
-#endif
-		if (attrs[L2TP_ATTR_IP_SADDR] && attrs[L2TP_ATTR_IP_DADDR]) {
-			cfg.local_ip.s_addr = nla_get_in_addr(attrs[L2TP_ATTR_IP_SADDR]);
-			cfg.peer_ip.s_addr = nla_get_in_addr(attrs[L2TP_ATTR_IP_DADDR]);
-		} else {
-			ret = -EINVAL;
+		ret = l2tp_nl_cmd_tunnel_create_get_addr(attrs, &cfg);
+		if (ret < 0)
 			goto out;
-		}
-		if (attrs[L2TP_ATTR_UDP_SPORT])
-			cfg.local_udp_port = nla_get_u16(attrs[L2TP_ATTR_UDP_SPORT]);
-		if (attrs[L2TP_ATTR_UDP_DPORT])
-			cfg.peer_udp_port = nla_get_u16(attrs[L2TP_ATTR_UDP_DPORT]);
-		cfg.use_udp_checksums = nla_get_flag(attrs[L2TP_ATTR_UDP_CSUM]);
-
-#if IS_ENABLED(CONFIG_IPV6)
-		cfg.udp6_zero_tx_checksums = nla_get_flag(attrs[L2TP_ATTR_UDP_ZERO_CSUM6_TX]);
-		cfg.udp6_zero_rx_checksums = nla_get_flag(attrs[L2TP_ATTR_UDP_ZERO_CSUM6_RX]);
-#endif
 	}
 
 	if (attrs[L2TP_ATTR_DEBUG])
