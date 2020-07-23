@@ -1198,7 +1198,7 @@ out:
 
 /**
  * lpfc_sli4_clear_fcf_rr_bmask
- * @phba pointer to the struct lpfc_hba for this port.
+ * @phba: pointer to the struct lpfc_hba for this port.
  * This fucnction resets the round robin bit mask and clears the
  * fcf priority list. The list deletions are done while holding the
  * hbalock. The ON_LIST flag and the FLOGI_FAILED flags are cleared
@@ -1297,7 +1297,7 @@ lpfc_fab_name_match(uint8_t *fab_name, struct fcf_record *new_fcf_record)
 
 /**
  * lpfc_sw_name_match - Check if the fcf switch name match.
- * @fab_name: pointer to fabric name.
+ * @sw_name: pointer to switch name.
  * @new_fcf_record: pointer to fcf record.
  *
  * This routine compare the fcf record's switch name with provided
@@ -1385,7 +1385,7 @@ __lpfc_update_fcf_record_pri(struct lpfc_hba *phba, uint16_t fcf_index,
 
 /**
  * lpfc_copy_fcf_record - Copy fcf information to lpfc_hba.
- * @fcf: pointer to driver fcf record.
+ * @fcf_rec: pointer to driver fcf record.
  * @new_fcf_record: pointer to fcf record.
  *
  * This routine copies the FCF information from the FCF
@@ -1953,7 +1953,7 @@ lpfc_sli4_log_fcf_record_info(struct lpfc_hba *phba,
 }
 
 /**
- lpfc_sli4_fcf_record_match - testing new FCF record for matching existing FCF
+ * lpfc_sli4_fcf_record_match - testing new FCF record for matching existing FCF
  * @phba: pointer to lpfc hba data structure.
  * @fcf_rec: pointer to an existing FCF record.
  * @new_fcf_record: pointer to a new FCF record.
@@ -2067,7 +2067,7 @@ stop_flogi_current_fcf:
 /**
  * lpfc_sli4_fcf_pri_list_del
  * @phba: pointer to lpfc hba data structure.
- * @fcf_index the index of the fcf record to delete
+ * @fcf_index: the index of the fcf record to delete
  * This routine checks the on list flag of the fcf_index to be deleted.
  * If it is one the list then it is removed from the list, and the flag
  * is cleared. This routine grab the hbalock before removing the fcf
@@ -2097,7 +2097,7 @@ static void lpfc_sli4_fcf_pri_list_del(struct lpfc_hba *phba,
 /**
  * lpfc_sli4_set_fcf_flogi_fail
  * @phba: pointer to lpfc hba data structure.
- * @fcf_index the index of the fcf record to update
+ * @fcf_index: the index of the fcf record to update
  * This routine acquires the hbalock and then set the LPFC_FCF_FLOGI_FAILED
  * flag so the the round robin slection for the particular priority level
  * will try a different fcf record that does not have this bit set.
@@ -2117,7 +2117,8 @@ lpfc_sli4_set_fcf_flogi_fail(struct lpfc_hba *phba, uint16_t fcf_index)
 /**
  * lpfc_sli4_fcf_pri_list_add
  * @phba: pointer to lpfc hba data structure.
- * @fcf_index the index of the fcf record to add
+ * @fcf_index: the index of the fcf record to add
+ * @new_fcf_record: pointer to a new FCF record.
  * This routine checks the priority of the fcf_index to be added.
  * If it is a lower priority than the current head of the fcf_pri list
  * then it is added to the list in the right order.
