@@ -469,6 +469,9 @@ enum dma_residue_granularity {
  *	should be checked by controller as well
  * @min_burst: min burst capability per-transfer
  * @max_burst: max burst capability per-transfer
+ * @max_sg_burst: max number of SG list entries executed in a single burst
+ *	DMA tansaction with no software intervention for reinitialization.
+ *	Zero value means unlimited number of entries.
  * @cmd_pause: true, if pause is supported (i.e. for reading residue or
  *	       for resume later)
  * @cmd_resume: true, if resume is supported
@@ -483,6 +486,7 @@ struct dma_slave_caps {
 	u32 directions;
 	u32 min_burst;
 	u32 max_burst;
+	u32 max_sg_burst;
 	bool cmd_pause;
 	bool cmd_resume;
 	bool cmd_terminate;
@@ -775,6 +779,9 @@ struct dma_filter {
  *	should be checked by controller as well
  * @min_burst: min burst capability per-transfer
  * @max_burst: max burst capability per-transfer
+ * @max_sg_burst: max number of SG list entries executed in a single burst
+ *	DMA tansaction with no software intervention for reinitialization.
+ *	Zero value means unlimited number of entries.
  * @residue_granularity: granularity of the transfer residue reported
  *	by tx_status
  * @device_alloc_chan_resources: allocate resources and return the
@@ -846,6 +853,7 @@ struct dma_device {
 	u32 directions;
 	u32 min_burst;
 	u32 max_burst;
+	u32 max_sg_burst;
 	bool descriptor_reuse;
 	enum dma_residue_granularity residue_granularity;
 
