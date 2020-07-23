@@ -14,17 +14,6 @@
 #include "xhci-trace.h"
 #include "xhci-dbgcap.h"
 
-static inline void *
-dbc_dma_alloc_coherent(struct xhci_hcd *xhci, size_t size,
-		       dma_addr_t *dma_handle, gfp_t flags)
-{
-	void		*vaddr;
-
-	vaddr = dma_alloc_coherent(xhci_to_hcd(xhci)->self.sysdev,
-				   size, dma_handle, flags);
-	return vaddr;
-}
-
 static inline void
 dbc_dma_free_coherent(struct xhci_hcd *xhci, size_t size,
 		      void *cpu_addr, dma_addr_t dma_handle)
@@ -426,10 +415,8 @@ static int xhci_dbc_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 
 	/* Allocate the string table: */
 	dbc->string_size = sizeof(struct dbc_str_descs);
-	dbc->string = dbc_dma_alloc_coherent(xhci,
-					     dbc->string_size,
-					     &dbc->string_dma,
-					     flags);
+	dbc->string = dma_alloc_coherent(dev, dbc->string_size,
+					 &dbc->string_dma, flags);
 	if (!dbc->string)
 		goto string_fail;
 
