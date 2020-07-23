@@ -14,7 +14,7 @@
 #include <linux/tracepoint.h>
 
 #ifndef __ION_PTR_TO_HASHVAL
-static unsigned int __ion_ptr_to_hash(const void *ptr)
+static unsigned int __maybe_unused __ion_ptr_to_hash(const void *ptr)
 {
 	unsigned long hashval;
 
