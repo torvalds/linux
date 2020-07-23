@@ -1276,6 +1276,7 @@ static int bnx2i_task_xmit(struct iscsi_task *task)
 /**
  * bnx2i_session_create - create a new iscsi session
  * @ep:		pointer to iscsi endpoint
+ * @cmds_max:		user specified maximum commands
  * @qdepth:		scsi queue depth to support
  * @initial_cmdsn:	initial iscsi CMDSN to be used for this session
  *
@@ -2170,7 +2171,7 @@ out:
 /**
  * bnx2i_nl_set_path - ISCSI_UEVENT_PATH_UPDATE user message handler
  * @shost:	scsi host pointer
- * @buf:	pointer to buffer containing iscsi path message
+ * @params:	pointer to buffer containing iscsi path message
  */
 static int bnx2i_nl_set_path(struct Scsi_Host *shost, struct iscsi_path *params)
 {
