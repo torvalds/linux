@@ -1944,6 +1944,13 @@ unlock:
 	return err;
 }
 
+static void mptcp_subflow_early_fallback(struct mptcp_sock *msk,
+					 struct mptcp_subflow_context *subflow)
+{
+	subflow->request_mptcp = 0;
+	__mptcp_do_fallback(msk);
+}
+
 static int mptcp_stream_connect(struct socket *sock, struct sockaddr *uaddr,
 				int addr_len, int flags)
 {
@@ -1975,10 +1982,10 @@ static int mptcp_stream_connect(struct socket *sock, struct sockaddr *uaddr,
 	 * TCP option space.
 	 */
 	if (rcu_access_pointer(tcp_sk(ssock->sk)->md5sig_info))
-		subflow->request_mptcp = 0;
+		mptcp_subflow_early_fallback(msk, subflow);
 #endif
 	if (subflow->request_mptcp && mptcp_token_new_connect(ssock->sk))
-		subflow->request_mptcp = 0;
+		mptcp_subflow_early_fallback(msk, subflow);
 
 do_connect:
 	err = ssock->ops->connect(ssock, uaddr, addr_len, flags);
