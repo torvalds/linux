@@ -3602,7 +3602,7 @@ lpfc_cancel_retry_delay_tmo(struct lpfc_vport *vport, struct lpfc_nodelist *nlp)
 
 /**
  * lpfc_els_retry_delay - Timer function with a ndlp delayed function timer
- * @ptr: holder for the pointer to the timer function associated data (ndlp).
+ * @t: pointer to the timer function associated data (ndlp).
  *
  * This routine is invoked by the ndlp delayed-function timer to check
  * whether there is any pending ELS retry event(s) with the node. If not, it
@@ -4851,7 +4851,7 @@ lpfc_els_rsp_acc(struct lpfc_vport *vport, uint32_t flag,
 /**
  * lpfc_els_rsp_reject - Propare and issue a rjt response iocb command
  * @vport: pointer to a virtual N_Port data structure.
- * @rejectError:
+ * @rejectError: reject response to issue
  * @oldiocb: pointer to the original lpfc command iocb data structure.
  * @ndlp: pointer to a node-list data structure.
  * @mbox: pointer to the driver internal queue element for mailbox command.
@@ -7887,7 +7887,7 @@ lpfc_els_rcv_fan(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 
 /**
  * lpfc_els_timeout - Handler funciton to the els timer
- * @ptr: holder for the timer function associated data.
+ * @t: timer context used to obtain the vport.
  *
  * This routine is invoked by the ELS timer after timeout. It posts the ELS
  * timer timeout event by setting the WORKER_ELS_TMO bit to the work port
@@ -8260,7 +8260,7 @@ lpfc_send_els_failure_event(struct lpfc_hba *phba,
  * lpfc_send_els_event - Posts unsolicited els event
  * @vport: Pointer to vport object.
  * @ndlp: Pointer FC node object.
- * @cmd: ELS command code.
+ * @payload: ELS command code type.
  *
  * This function posts an event when there is an incoming
  * unsolicited ELS command.
@@ -8345,7 +8345,7 @@ DECLARE_ENUM2STR_LOOKUP(lpfc_get_fpin_li_event_nm, fc_fpin_li_event_types,
 /**
  * lpfc_els_rcv_fpin_li - Process an FPIN Link Integrity Event.
  * @vport: Pointer to vport object.
- * @lnk_not:  Pointer to the Link Integrity Notification Descriptor.
+ * @tlv:  Pointer to the Link Integrity Notification Descriptor.
  *
  * This function processes a link integrity FPIN event by
  * logging a message
@@ -9674,7 +9674,7 @@ lpfc_issue_els_npiv_logo(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 
 /**
  * lpfc_fabric_block_timeout - Handler function to the fabric block timer
- * @ptr: holder for the timer function associated data.
+ * @t: timer context used to obtain the lpfc hba.
  *
  * This routine is invoked by the fabric iocb block timer after
  * timeout. It posts the fabric iocb block timeout event by setting the
