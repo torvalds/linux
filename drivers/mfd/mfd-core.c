@@ -356,12 +356,16 @@ static int mfd_remove_devices_fn(struct device *dev, void *data)
 {
 	struct platform_device *pdev;
 	const struct mfd_cell *cell;
+	int *level = data;
 
 	if (dev->type != &mfd_dev_type)
 		return 0;
 
 	pdev = to_platform_device(dev);
 	cell = mfd_get_cell(pdev);
+
+	if (level && cell->level > *level)
+		return 0;
 
 	regulator_bulk_unregister_supply_alias(dev, cell->parent_supplies,
 					       cell->num_parent_supplies);
@@ -372,9 +376,19 @@ static int mfd_remove_devices_fn(struct device *dev, void *data)
 	return 0;
 }
 
+void mfd_remove_devices_late(struct device *parent)
+{
+	int level = MFD_DEP_LEVEL_HIGH;
+
+	device_for_each_child_reverse(parent, &level, mfd_remove_devices_fn);
+}
+EXPORT_SYMBOL(mfd_remove_devices_late);
+
 void mfd_remove_devices(struct device *parent)
 {
-	device_for_each_child_reverse(parent, NULL, mfd_remove_devices_fn);
+	int level = MFD_DEP_LEVEL_NORMAL;
+
+	device_for_each_child_reverse(parent, &level, mfd_remove_devices_fn);
 }
 EXPORT_SYMBOL(mfd_remove_devices);
 

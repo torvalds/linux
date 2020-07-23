@@ -46,6 +46,9 @@
 #define MFD_CELL_NAME(_name) \
 	MFD_CELL_ALL(_name, NULL, NULL, 0, 0, NULL, 0, false, NULL)
 
+#define MFD_DEP_LEVEL_NORMAL 0
+#define MFD_DEP_LEVEL_HIGH 1
+
 struct irq_domain;
 struct property_entry;
 
@@ -63,6 +66,7 @@ struct mfd_cell_acpi_match {
 struct mfd_cell {
 	const char		*name;
 	int			id;
+	int			level;
 
 	int			(*enable)(struct platform_device *dev);
 	int			(*disable)(struct platform_device *dev);
@@ -150,6 +154,7 @@ static inline int mfd_add_hotplug_devices(struct device *parent,
 }
 
 extern void mfd_remove_devices(struct device *parent);
+extern void mfd_remove_devices_late(struct device *parent);
 
 extern int devm_mfd_add_devices(struct device *dev, int id,
 				const struct mfd_cell *cells, int n_devs,
