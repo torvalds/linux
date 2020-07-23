@@ -16,10 +16,10 @@
 
 #include <rtl8188e_hal.h>
 
-int	rtw_hal_init_recv_priv(struct adapter *padapter)
+int rtw_hal_init_recv_priv(struct adapter *padapter)
 {
-	struct recv_priv	*precvpriv = &padapter->recvpriv;
-	int	i, res = _SUCCESS;
+	struct recv_priv *precvpriv = &padapter->recvpriv;
+	int i, res = _SUCCESS;
 	struct recv_buf *precvbuf;
 
 	tasklet_init(&precvpriv->recv_tasklet, rtl8188eu_recv_tasklet,
@@ -69,9 +69,9 @@ exit:
 
 void rtw_hal_free_recv_priv(struct adapter *padapter)
 {
-	int	i;
-	struct recv_buf	*precvbuf;
-	struct recv_priv	*precvpriv = &padapter->recvpriv;
+	int i;
+	struct recv_buf *precvbuf;
+	struct recv_priv *precvpriv = &padapter->recvpriv;
 
 	precvbuf = precvpriv->precv_buf;
 
