@@ -524,9 +524,9 @@ out:
 dispose_child:
 	subflow_drop_ctx(child);
 	tcp_rsk(req)->drop_req = true;
-	tcp_send_active_reset(child, GFP_ATOMIC);
 	inet_csk_prepare_for_destroy_sock(child);
 	tcp_done(child);
+	req->rsk_ops->send_reset(sk, skb);
 
 	/* The last child reference will be released by the caller */
 	return child;
