@@ -644,6 +644,17 @@ static void dbc_handle_xfer_event(struct xhci_hcd *xhci, union xhci_trb *event)
 	xhci_dbc_giveback(req, status);
 }
 
+static void inc_evt_deq(struct xhci_ring *ring)
+{
+	/* If on the last TRB of the segment go back to the beginning */
+	if (ring->dequeue == &ring->deq_seg->trbs[TRBS_PER_SEGMENT - 1]) {
+		ring->cycle_state ^= 1;
+		ring->dequeue = ring->deq_seg->trbs;
+		return;
+	}
+	ring->dequeue++;
+}
+
 static enum evtreturn xhci_dbc_do_handle_events(struct xhci_dbc *dbc)
 {
 	dma_addr_t		deq;
@@ -765,7 +776,8 @@ static enum evtreturn xhci_dbc_do_handle_events(struct xhci_dbc *dbc)
 			break;
 		}
 
-		inc_deq(xhci, dbc->ring_evt);
+		inc_evt_deq(dbc->ring_evt);
+
 		evt = dbc->ring_evt->dequeue;
 		update_erdp = true;
 	}
