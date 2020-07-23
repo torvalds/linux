@@ -1827,20 +1827,20 @@ static void cma_leave_mc_groups(struct rdma_id_private *id_priv)
 
 void rdma_destroy_id(struct rdma_cm_id *id)
 {
-	struct rdma_id_private *id_priv;
+	struct rdma_id_private *id_priv =
+		container_of(id, struct rdma_id_private, id);
 	enum rdma_cm_state state;
-
-	id_priv = container_of(id, struct rdma_id_private, id);
-	trace_cm_id_destroy(id_priv);
-	state = cma_exch(id_priv, RDMA_CM_DESTROYING);
-	cma_cancel_operation(id_priv, state);
 
 	/*
 	 * Wait for any active callback to finish.  New callbacks will find
 	 * the id_priv state set to destroying and abort.
 	 */
 	mutex_lock(&id_priv->handler_mutex);
+	trace_cm_id_destroy(id_priv);
+	state = cma_exch(id_priv, RDMA_CM_DESTROYING);
 	mutex_unlock(&id_priv->handler_mutex);
+
+	cma_cancel_operation(id_priv, state);
 
 	rdma_restrack_del(&id_priv->res);
 	if (id_priv->cma_dev) {
@@ -2201,19 +2201,9 @@ static int cma_ib_req_handler(struct ib_cm_id *cm_id,
 	cm_id->context = conn_id;
 	cm_id->cm_handler = cma_ib_handler;
 
-	/*
-	 * Protect against the user destroying conn_id from another thread
-	 * until we're done accessing it.
-	 */
-	cma_id_get(conn_id);
 	ret = cma_cm_event_handler(conn_id, &event);
 	if (ret)
 		goto err3;
-	/*
-	 * Acquire mutex to prevent user executing rdma_destroy_id()
-	 * while we're accessing the cm_id.
-	 */
-	mutex_lock(&lock);
 	if (cma_comp(conn_id, RDMA_CM_CONNECT) &&
 	    (conn_id->id.qp_type != IB_QPT_UD)) {
 		trace_cm_send_mra(cm_id->context);
@@ -2222,13 +2212,11 @@ static int cma_ib_req_handler(struct ib_cm_id *cm_id,
 	mutex_unlock(&lock);
 	mutex_unlock(&conn_id->handler_mutex);
 	mutex_unlock(&listen_id->handler_mutex);
-	cma_id_put(conn_id);
 	if (net_dev)
 		dev_put(net_dev);
 	return 0;
 
 err3:
-	cma_id_put(conn_id);
 	/* Destroy the CM ID by returning a non-zero value. */
 	conn_id->cm_id.ib = NULL;
 err2:
@@ -2405,11 +2393,6 @@ static int iw_conn_req_handler(struct iw_cm_id *cm_id,
 	memcpy(cma_src_addr(conn_id), laddr, rdma_addr_size(laddr));
 	memcpy(cma_dst_addr(conn_id), raddr, rdma_addr_size(raddr));
 
-	/*
-	 * Protect against the user destroying conn_id from another thread
-	 * until we're done accessing it.
-	 */
-	cma_id_get(conn_id);
 	ret = cma_cm_event_handler(conn_id, &event);
 	if (ret) {
 		/* User wants to destroy the CM ID */
@@ -2417,13 +2400,11 @@ static int iw_conn_req_handler(struct iw_cm_id *cm_id,
 		cma_exch(conn_id, RDMA_CM_DESTROYING);
 		mutex_unlock(&conn_id->handler_mutex);
 		mutex_unlock(&listen_id->handler_mutex);
-		cma_id_put(conn_id);
 		rdma_destroy_id(&conn_id->id);
 		return ret;
 	}
 
 	mutex_unlock(&conn_id->handler_mutex);
-	cma_id_put(conn_id);
 
 out:
 	mutex_unlock(&listen_id->handler_mutex);
