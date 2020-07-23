@@ -22,6 +22,21 @@ static void dbc_free_ctx(struct device *dev, struct xhci_container_ctx *ctx)
 	kfree(ctx);
 }
 
+/* we use only one segment for DbC rings */
+static void dbc_ring_free(struct device *dev, struct xhci_ring *ring)
+{
+	if (!ring)
+		return;
+
+	if (ring->first_seg && ring->first_seg->trbs) {
+		dma_free_coherent(dev, TRB_SEGMENT_SIZE,
+				  ring->first_seg->trbs,
+				  ring->first_seg->dma);
+		kfree(ring->first_seg);
+	}
+	kfree(ring);
+}
+
 static u32 xhci_dbc_populate_strings(struct dbc_str_descs *strings)
 {
 	struct usb_string_descriptor	*s_desc;
@@ -391,6 +406,51 @@ dbc_alloc_ctx(struct device *dev, gfp_t flags)
 	return ctx;
 }
 
+struct xhci_ring *
+xhci_dbc_ring_alloc(struct device *dev, enum xhci_ring_type type, gfp_t flags)
+{
+	struct xhci_ring *ring;
+	struct xhci_segment *seg;
+	dma_addr_t dma;
+
+	ring = kzalloc(sizeof(*ring), flags);
+	if (!ring)
+		return NULL;
+
+	ring->num_segs = 1;
+	ring->type = type;
+
+	seg = kzalloc(sizeof(*seg), flags);
+	if (!seg)
+		goto seg_fail;
+
+	ring->first_seg = seg;
+	ring->last_seg = seg;
+	seg->next = seg;
+
+	seg->trbs = dma_alloc_coherent(dev, TRB_SEGMENT_SIZE, &dma, flags);
+	if (!seg->trbs)
+		goto dma_fail;
+
+	seg->dma = dma;
+
+	/* Only event ring does not use link TRB */
+	if (type != TYPE_EVENT) {
+		union xhci_trb *trb = &seg->trbs[TRBS_PER_SEGMENT - 1];
+
+		trb->link.segment_ptr = cpu_to_le64(dma);
+		trb->link.control = cpu_to_le32(LINK_TOGGLE | TRB_TYPE(TRB_LINK));
+	}
+	INIT_LIST_HEAD(&ring->td_list);
+	xhci_initialize_ring_info(ring, 1);
+	return ring;
+dma_fail:
+	kfree(seg);
+seg_fail:
+	kfree(ring);
+	return NULL;
+}
+
 static int xhci_dbc_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 {
 	int			ret;
@@ -400,15 +460,15 @@ static int xhci_dbc_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	struct device		*dev = xhci_to_hcd(xhci)->self.controller;
 
 	/* Allocate various rings for events and transfers: */
-	dbc->ring_evt = xhci_ring_alloc(xhci, 1, 1, TYPE_EVENT, 0, flags);
+	dbc->ring_evt = xhci_dbc_ring_alloc(dev, TYPE_EVENT, flags);
 	if (!dbc->ring_evt)
 		goto evt_fail;
 
-	dbc->ring_in = xhci_ring_alloc(xhci, 1, 1, TYPE_BULK, 0, flags);
+	dbc->ring_in = xhci_dbc_ring_alloc(dev, TYPE_BULK, flags);
 	if (!dbc->ring_in)
 		goto in_fail;
 
-	dbc->ring_out = xhci_ring_alloc(xhci, 1, 1, TYPE_BULK, 0, flags);
+	dbc->ring_out = xhci_dbc_ring_alloc(dev, TYPE_BULK, flags);
 	if (!dbc->ring_out)
 		goto out_fail;
 
@@ -452,13 +512,13 @@ string_fail:
 ctx_fail:
 	dbc_erst_free(dev, &dbc->erst);
 erst_fail:
-	xhci_ring_free(xhci, dbc->ring_out);
+	dbc_ring_free(dev, dbc->ring_out);
 	dbc->ring_out = NULL;
 out_fail:
-	xhci_ring_free(xhci, dbc->ring_in);
+	dbc_ring_free(dev, dbc->ring_in);
 	dbc->ring_in = NULL;
 in_fail:
-	xhci_ring_free(xhci, dbc->ring_evt);
+	dbc_ring_free(dev, dbc->ring_evt);
 	dbc->ring_evt = NULL;
 evt_fail:
 	return -ENOMEM;
@@ -483,10 +543,10 @@ static void xhci_dbc_mem_cleanup(struct xhci_hcd *xhci)
 	dbc_free_ctx(dbc->dev, dbc->ctx);
 	dbc->ctx = NULL;
 
-	dbc_erst_free(dev, &dbc->erst);
-	xhci_ring_free(xhci, dbc->ring_out);
-	xhci_ring_free(xhci, dbc->ring_in);
-	xhci_ring_free(xhci, dbc->ring_evt);
+	dbc_erst_free(dbc->dev, &dbc->erst);
+	dbc_ring_free(dbc->dev, dbc->ring_out);
+	dbc_ring_free(dbc->dev, dbc->ring_in);
+	dbc_ring_free(dbc->dev, dbc->ring_evt);
 	dbc->ring_in = NULL;
 	dbc->ring_out = NULL;
 	dbc->ring_evt = NULL;
