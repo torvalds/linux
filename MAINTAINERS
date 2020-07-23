@@ -18862,6 +18862,15 @@ F:	Documentation/devicetree/bindings/media/xilinx/
 F:	drivers/media/platform/xilinx/
 F:	include/uapi/linux/xilinx-v4l2-controls.h
 
+XILINX ZYNQMP PSGTR PHY DRIVER
+M:	Anurag Kumar Vulisha <anurag.kumar.vulisha@xilinx.com>
+M:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
+L:	linux-kernel@vger.kernel.org
+S:	Supported
+T:	git https://github.com/Xilinx/linux-xlnx.git
+F:	Documentation/devicetree/bindings/phy/xlnx,zynqmp-psgtr.yaml
+F:	drivers/phy/xilinx/phy-zynqmp.c
+
 XILLYBUS DRIVER
 M:	Eli Billauer <eli.billauer@gmail.com>
 L:	linux-kernel@vger.kernel.org

@@ -41,6 +41,7 @@ struct a38x_comphy_lane {
 
 struct a38x_comphy {
 	void __iomem *base;
+	void __iomem *conf;
 	struct device *dev;
 	struct a38x_comphy_lane lane[MAX_A38X_COMPHY];
 };
@@ -53,6 +54,21 @@ static const u8 gbe_mux[MAX_A38X_COMPHY][MAX_A38X_PORTS] = {
 	{ 0, 3, 0 },
 	{ 0, 0, 3 },
 };
+
+static void a38x_set_conf(struct a38x_comphy_lane *lane, bool enable)
+{
+	struct a38x_comphy *priv = lane->priv;
+	u32 conf;
+
+	if (priv->conf) {
+		conf = readl_relaxed(priv->conf);
+		if (enable)
+			conf |= BIT(lane->port);
+		else
+			conf &= ~BIT(lane->port);
+		writel(conf, priv->conf);
+	}
+}
 
 static void a38x_comphy_set_reg(struct a38x_comphy_lane *lane,
 				unsigned int offset, u32 mask, u32 value)
@@ -97,6 +113,7 @@ static int a38x_comphy_set_mode(struct phy *phy, enum phy_mode mode, int sub)
 {
 	struct a38x_comphy_lane *lane = phy_get_drvdata(phy);
 	unsigned int gen;
+	int ret;
 
 	if (mode != PHY_MODE_ETHERNET)
 		return -EINVAL;
@@ -115,13 +132,20 @@ static int a38x_comphy_set_mode(struct phy *phy, enum phy_mode mode, int sub)
 		return -EINVAL;
 	}
 
+	a38x_set_conf(lane, false);
+
 	a38x_comphy_set_speed(lane, gen, gen);
 
-	return a38x_comphy_poll(lane, COMPHY_STAT1,
-				COMPHY_STAT1_PLL_RDY_TX |
-				COMPHY_STAT1_PLL_RDY_RX,
-				COMPHY_STAT1_PLL_RDY_TX |
-				COMPHY_STAT1_PLL_RDY_RX);
+	ret = a38x_comphy_poll(lane, COMPHY_STAT1,
+			       COMPHY_STAT1_PLL_RDY_TX |
+			       COMPHY_STAT1_PLL_RDY_RX,
+			       COMPHY_STAT1_PLL_RDY_TX |
+			       COMPHY_STAT1_PLL_RDY_RX);
+
+	if (ret == 0)
+		a38x_set_conf(lane, true);
+
+	return ret;
 }
 
 static const struct phy_ops a38x_comphy_ops = {
@@ -174,13 +198,20 @@ static int a38x_comphy_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(&pdev->dev, res);
+	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
 	priv->dev = &pdev->dev;
 	priv->base = base;
+
+	/* Optional */
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "conf");
+	if (res) {
+		priv->conf = devm_ioremap_resource(&pdev->dev, res);
+		if (IS_ERR(priv->conf))
+			return PTR_ERR(priv->conf);
+	}
 
 	for_each_available_child_of_node(pdev->dev.of_node, child) {
 		struct phy *phy;
