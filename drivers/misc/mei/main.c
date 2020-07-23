@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2003-2018, Intel Corporation. All rights reserved.
+ * Copyright (c) 2003-2020, Intel Corporation. All rights reserved.
  * Intel Management Engine Interface (Intel MEI) Linux driver
  */
 
@@ -476,7 +476,7 @@ static long mei_ioctl(struct file *file, unsigned int cmd, unsigned long data)
 	case IOCTL_MEI_CONNECT_CLIENT:
 		dev_dbg(dev->dev, ": IOCTL_MEI_CONNECT_CLIENT.\n");
 		if (copy_from_user(&connect_data, (char __user *)data,
-				sizeof(struct mei_connect_client_data))) {
+				   sizeof(connect_data))) {
 			dev_dbg(dev->dev, "failed to copy data from userland\n");
 			rets = -EFAULT;
 			goto out;
@@ -488,7 +488,7 @@ static long mei_ioctl(struct file *file, unsigned int cmd, unsigned long data)
 
 		/* if all is ok, copying the data back to user. */
 		if (copy_to_user((char __user *)data, &connect_data,
-				sizeof(struct mei_connect_client_data))) {
+				 sizeof(connect_data))) {
 			dev_dbg(dev->dev, "failed to copy data to userland\n");
 			rets = -EFAULT;
 			goto out;
