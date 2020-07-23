@@ -1041,13 +1041,8 @@ static int wake_page_function(wait_queue_entry_t *wait, unsigned mode, int sync,
 	 * since after list_del_init(&wait->entry) the wait entry
 	 * might be de-allocated and the process might even have
 	 * exited.
-	 *
-	 * We _really_ should have a "list_del_init_careful()" to
-	 * properly pair with the unlocked "list_empty_careful()"
-	 * in finish_wait().
 	 */
-	smp_mb();
-	list_del_init(&wait->entry);
+	list_del_init_careful(&wait->entry);
 	return ret;
 }
 
