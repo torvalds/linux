@@ -41,6 +41,7 @@
 #define PSP_DTM_SHARED_MEM_SIZE	0x4000
 #define PSP_RAP_SHARED_MEM_SIZE	0x4000
 #define PSP_SHARED_MEM_SIZE		0x4000
+#define PSP_FW_NAME_LEN		0x24
 
 struct psp_context;
 struct psp_xgmi_node_info;

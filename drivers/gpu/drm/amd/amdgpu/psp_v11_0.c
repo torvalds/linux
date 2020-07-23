@@ -79,7 +79,7 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 {
 	struct amdgpu_device *adev = psp->adev;
 	const char *chip_name;
-	char fw_name[30];
+	char fw_name[PSP_FW_NAME_LEN];
 	int err = 0;
 	const struct ta_firmware_header_v1_0 *ta_hdr;
 
