@@ -1110,6 +1110,16 @@ again:
 			goto flush_io;
 		}
 
+		/*
+		 * It's possible for the allocator to fail, put us on the
+		 * freelist waitlist, and then succeed in one of various retry
+		 * paths: if that happens, we need to disable the skip_put
+		 * optimization because otherwise there won't necessarily be a
+		 * barrier before we free the bch_write_op:
+		 */
+		if (atomic_read(&cl->remaining) & CLOSURE_WAITING)
+			skip_put = false;
+
 		bch2_open_bucket_get(c, wp, &op->open_buckets);
 		ret = bch2_write_extent(op, wp, &bio);
 		bch2_alloc_sectors_done(c, wp);
