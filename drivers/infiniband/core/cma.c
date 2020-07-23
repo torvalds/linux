@@ -1921,6 +1921,8 @@ static int cma_cm_event_handler(struct rdma_id_private *id_priv,
 {
 	int ret;
 
+	lockdep_assert_held(&id_priv->handler_mutex);
+
 	trace_cm_event_handler(id_priv, event);
 	ret = id_priv->id.event_handler(&id_priv->id, event);
 	trace_cm_event_done(id_priv, event, ret);
@@ -4775,50 +4777,58 @@ free_cma_dev:
 	return ret;
 }
 
-static int cma_remove_id_dev(struct rdma_id_private *id_priv)
+static void cma_send_device_removal_put(struct rdma_id_private *id_priv)
 {
-	struct rdma_cm_event event = {};
+	struct rdma_cm_event event = { .event = RDMA_CM_EVENT_DEVICE_REMOVAL };
 	enum rdma_cm_state state;
-	int ret = 0;
+	unsigned long flags;
 
-	/* Record that we want to remove the device */
-	state = cma_exch(id_priv, RDMA_CM_DEVICE_REMOVAL);
-	if (state == RDMA_CM_DESTROYING)
-		return 0;
-
-	cma_cancel_operation(id_priv, state);
 	mutex_lock(&id_priv->handler_mutex);
+	/* Record that we want to remove the device */
+	spin_lock_irqsave(&id_priv->lock, flags);
+	state = id_priv->state;
+	if (state == RDMA_CM_DESTROYING || state == RDMA_CM_DEVICE_REMOVAL) {
+		spin_unlock_irqrestore(&id_priv->lock, flags);
+		mutex_unlock(&id_priv->handler_mutex);
+		cma_id_put(id_priv);
+		return;
+	}
+	id_priv->state = RDMA_CM_DEVICE_REMOVAL;
+	spin_unlock_irqrestore(&id_priv->lock, flags);
 
-	/* Check for destruction from another callback. */
-	if (!cma_comp(id_priv, RDMA_CM_DEVICE_REMOVAL))
-		goto out;
-
-	event.event = RDMA_CM_EVENT_DEVICE_REMOVAL;
-	ret = cma_cm_event_handler(id_priv, &event);
-out:
+	if (cma_cm_event_handler(id_priv, &event)) {
+		/*
+		 * At this point the ULP promises it won't call
+		 * rdma_destroy_id() concurrently
+		 */
+		cma_id_put(id_priv);
+		mutex_unlock(&id_priv->handler_mutex);
+		rdma_destroy_id(&id_priv->id);
+		return;
+	}
 	mutex_unlock(&id_priv->handler_mutex);
-	return ret;
+
+	/*
+	 * If this races with destroy then the thread that first assigns state
+	 * to a destroying does the cancel.
+	 */
+	cma_cancel_operation(id_priv, state);
+	cma_id_put(id_priv);
 }
 
 static void cma_process_remove(struct cma_device *cma_dev)
 {
-	struct rdma_id_private *id_priv;
-	int ret;
-
 	mutex_lock(&lock);
 	while (!list_empty(&cma_dev->id_list)) {
-		id_priv = list_entry(cma_dev->id_list.next,
-				     struct rdma_id_private, list);
+		struct rdma_id_private *id_priv = list_first_entry(
+			&cma_dev->id_list, struct rdma_id_private, list);
 
 		list_del(&id_priv->listen_list);
 		list_del_init(&id_priv->list);
 		cma_id_get(id_priv);
 		mutex_unlock(&lock);
 
-		ret = cma_remove_id_dev(id_priv);
-		cma_id_put(id_priv);
-		if (ret)
-			rdma_destroy_id(&id_priv->id);
+		cma_send_device_removal_put(id_priv);
 
 		mutex_lock(&lock);
 	}
