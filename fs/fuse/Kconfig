@@ -8,7 +8,7 @@ config FUSE_FS
 
 	  There's also a companion library: libfuse2.  This library is available
 	  from the FUSE homepage:
-	  <http://fuse.sourceforge.net/>
+	  <https://github.com/libfuse/>
 	  although chances are your distribution already has that library
 	  installed if you've installed the "fuse" package itself.
 
