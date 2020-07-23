@@ -33,7 +33,7 @@ struct mt8183_da7219_max98357_priv {
 static int mt8183_mt6358_i2s_hw_params(struct snd_pcm_substream *substream,
 				       struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	unsigned int rate = params_rate(params);
 	unsigned int mclk_fs_ratio = 128;
 	unsigned int mclk_fs = rate * mclk_fs_ratio;
@@ -49,7 +49,7 @@ static const struct snd_soc_ops mt8183_mt6358_i2s_ops = {
 static int mt8183_da7219_i2s_hw_params(struct snd_pcm_substream *substream,
 				       struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_soc_dai *codec_dai;
 	unsigned int rate = params_rate(params);
 	unsigned int mclk_fs_ratio = 256;
@@ -90,7 +90,7 @@ static int mt8183_da7219_i2s_hw_params(struct snd_pcm_substream *substream,
 
 static int mt8183_da7219_hw_free(struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_soc_dai *codec_dai;
 	int ret = 0, j;
 
@@ -118,7 +118,7 @@ static int
 mt8183_da7219_rt1015_i2s_hw_params(struct snd_pcm_substream *substream,
 				   struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	unsigned int rate = params_rate(params);
 	struct snd_soc_dai *codec_dai;
 	int ret = 0, i;

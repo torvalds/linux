@@ -846,7 +846,7 @@ int hda_dsp_set_hw_params_upon_resume(struct snd_sof_dev *sdev)
 		 * explicitly during suspend.
 		 */
 		if (stream->link_substream) {
-			rtd = snd_pcm_substream_chip(stream->link_substream);
+			rtd = asoc_substream_to_rtd(stream->link_substream);
 			name = asoc_rtd_to_codec(rtd, 0)->component->name;
 			link = snd_hdac_ext_bus_get_link(bus, name);
 			if (!link)

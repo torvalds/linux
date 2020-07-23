@@ -217,7 +217,7 @@ static int acp3x_dma_open(struct snd_soc_component *component,
 	int ret;
 
 	runtime = substream->runtime;
-	prtd = substream->private_data;
+	prtd = asoc_substream_to_rtd(substream);
 	component = snd_soc_rtdcom_lookup(prtd, DRV_NAME);
 	adata = dev_get_drvdata(component->dev);
 	i2s_data = kzalloc(sizeof(*i2s_data), GFP_KERNEL);
@@ -258,7 +258,7 @@ static int acp3x_dma_hw_params(struct snd_soc_component *component,
 	struct i2s_dev_data *adata;
 	u64 size;
 
-	prtd = substream->private_data;
+	prtd = asoc_substream_to_rtd(substream);
 	card = prtd->card;
 	pinfo = snd_soc_card_get_drvdata(card);
 	adata = dev_get_drvdata(component->dev);
@@ -340,7 +340,7 @@ static int acp3x_dma_close(struct snd_soc_component *component,
 	struct i2s_dev_data *adata;
 	struct i2s_stream_instance *ins;
 
-	prtd = substream->private_data;
+	prtd = asoc_substream_to_rtd(substream);
 	component = snd_soc_rtdcom_lookup(prtd, DRV_NAME);
 	adata = dev_get_drvdata(component->dev);
 	ins = substream->runtime->private_data;

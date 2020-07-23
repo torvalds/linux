@@ -66,7 +66,7 @@ static const struct snd_pcm_hardware dummy_dma_hardware = {
 static int dummy_dma_open(struct snd_soc_component *component,
 			  struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 
 	/* BE's dont need dummy params */
 	if (!rtd->dai_link->no_pcm)

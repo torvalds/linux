@@ -127,7 +127,7 @@ static int p1022_rdk_machine_probe(struct snd_soc_card *card)
  */
 static int p1022_rdk_startup(struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct machine_data *mdata =
 		container_of(rtd->card, struct machine_data, card);
 	struct device *dev = rtd->card->dev;

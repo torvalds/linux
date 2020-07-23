@@ -105,7 +105,7 @@ static int acp3x_5682_init(struct snd_soc_pcm_runtime *rtd)
 static int rt5682_clk_enable(struct snd_pcm_substream *substream)
 {
 	int ret = 0;
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 
 	/* RT5682 will support only 48K output with 48M mclk */
 	clk_set_rate(rt5682_dai_wclk, 48000);
@@ -147,7 +147,7 @@ static const struct snd_pcm_hw_constraint_list constraints_channels = {
 static int acp3x_5682_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_soc_card *card = rtd->card;
 	struct acp3x_platform_info *machine = snd_soc_card_get_drvdata(card);
 
@@ -165,7 +165,7 @@ static int acp3x_5682_startup(struct snd_pcm_substream *substream)
 static int acp3x_max_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_soc_card *card = rtd->card;
 	struct acp3x_platform_info *machine = snd_soc_card_get_drvdata(card);
 
@@ -181,7 +181,7 @@ static int acp3x_max_startup(struct snd_pcm_substream *substream)
 
 static int acp3x_ec_dmic0_startup(struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_soc_card *card = rtd->card;
 	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
 	struct acp3x_platform_info *machine = snd_soc_card_get_drvdata(card);
