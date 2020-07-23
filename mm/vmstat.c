@@ -1123,9 +1123,7 @@ const char * const vmstat_text[] = {
 	"nr_shadow_call_stack",
 #endif
 	"nr_bounce",
-#if IS_ENABLED(CONFIG_ZSMALLOC)
 	"nr_zspages",
-#endif
 	"nr_free_cma",
 
 	/* enum numa_stat_item counters */
