@@ -500,10 +500,8 @@ static int xhci_do_dbc_start(struct xhci_hcd *xhci)
 	return 0;
 }
 
-static int xhci_do_dbc_stop(struct xhci_hcd *xhci)
+static int xhci_do_dbc_stop(struct xhci_dbc *dbc)
 {
-	struct xhci_dbc		*dbc = xhci->dbc;
-
 	if (dbc->state == DS_DISABLED)
 		return -1;
 
@@ -550,7 +548,7 @@ static void xhci_dbc_stop(struct xhci_hcd *xhci)
 		xhci_dbc_tty_unregister_device(xhci);
 
 	spin_lock_irqsave(&dbc->lock, flags);
-	ret = xhci_do_dbc_stop(xhci);
+	ret = xhci_do_dbc_stop(dbc);
 	spin_unlock_irqrestore(&dbc->lock, flags);
 
 	if (!ret) {
