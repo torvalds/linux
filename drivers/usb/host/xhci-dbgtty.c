@@ -48,7 +48,7 @@ static int dbc_start_tx(struct dbc_port *port)
 		list_del(&req->list_pool);
 
 		spin_unlock(&port->port_lock);
-		status = dbc_ep_queue(port->out, req, GFP_ATOMIC);
+		status = dbc_ep_queue(req);
 		spin_lock(&port->port_lock);
 
 		if (status) {
@@ -80,7 +80,7 @@ static void dbc_start_rx(struct dbc_port *port)
 		req->length = DBC_MAX_PACKET;
 
 		spin_unlock(&port->port_lock);
-		status = dbc_ep_queue(port->in, req, GFP_ATOMIC);
+		status = dbc_ep_queue(req);
 		spin_lock(&port->port_lock);
 
 		if (status) {
@@ -123,28 +123,29 @@ static void dbc_write_complete(struct xhci_dbc *dbc, struct dbc_request *req)
 	spin_unlock_irqrestore(&port->port_lock, flags);
 }
 
-static void xhci_dbc_free_req(struct dbc_ep *dep, struct dbc_request *req)
+static void xhci_dbc_free_req(struct dbc_request *req)
 {
 	kfree(req->buf);
-	dbc_free_request(dep, req);
+	dbc_free_request(req);
 }
 
 static int
-xhci_dbc_alloc_requests(struct dbc_ep *dep, struct list_head *head,
+xhci_dbc_alloc_requests(struct xhci_dbc *dbc, unsigned int direction,
+			struct list_head *head,
 			void (*fn)(struct xhci_dbc *, struct dbc_request *))
 {
 	int			i;
 	struct dbc_request	*req;
 
 	for (i = 0; i < DBC_QUEUE_SIZE; i++) {
-		req = dbc_alloc_request(dep, GFP_KERNEL);
+		req = dbc_alloc_request(dbc, direction, GFP_KERNEL);
 		if (!req)
 			break;
 
 		req->length = DBC_MAX_PACKET;
 		req->buf = kmalloc(req->length, GFP_KERNEL);
 		if (!req->buf) {
-			dbc_free_request(dep, req);
+			dbc_free_request(req);
 			break;
 		}
 
@@ -156,14 +157,14 @@ xhci_dbc_alloc_requests(struct dbc_ep *dep, struct list_head *head,
 }
 
 static void
-xhci_dbc_free_requests(struct dbc_ep *dep, struct list_head *head)
+xhci_dbc_free_requests(struct list_head *head)
 {
 	struct dbc_request	*req;
 
 	while (!list_empty(head)) {
 		req = list_entry(head->next, struct dbc_request, list_pool);
 		list_del(&req->list_pool);
-		xhci_dbc_free_req(dep, req);
+		xhci_dbc_free_req(req);
 	}
 }
 
@@ -456,12 +457,12 @@ int xhci_dbc_tty_register_device(struct xhci_dbc *dbc)
 	if (ret)
 		goto buf_alloc_fail;
 
-	ret = xhci_dbc_alloc_requests(port->in, &port->read_pool,
+	ret = xhci_dbc_alloc_requests(dbc, BULK_IN, &port->read_pool,
 				      dbc_read_complete);
 	if (ret)
 		goto request_fail;
 
-	ret = xhci_dbc_alloc_requests(port->out, &port->write_pool,
+	ret = xhci_dbc_alloc_requests(dbc, BULK_OUT, &port->write_pool,
 				      dbc_write_complete);
 	if (ret)
 		goto request_fail;
@@ -471,8 +472,8 @@ int xhci_dbc_tty_register_device(struct xhci_dbc *dbc)
 	return 0;
 
 request_fail:
-	xhci_dbc_free_requests(port->in, &port->read_pool);
-	xhci_dbc_free_requests(port->out, &port->write_pool);
+	xhci_dbc_free_requests(&port->read_pool);
+	xhci_dbc_free_requests(&port->write_pool);
 	kfifo_free(&port->write_fifo);
 
 buf_alloc_fail:
@@ -495,7 +496,7 @@ void xhci_dbc_tty_unregister_device(struct xhci_dbc *dbc)
 	port->registered = false;
 
 	kfifo_free(&port->write_fifo);
-	xhci_dbc_free_requests(get_out_ep(dbc), &port->read_pool);
-	xhci_dbc_free_requests(get_out_ep(dbc), &port->read_queue);
-	xhci_dbc_free_requests(get_in_ep(dbc), &port->write_pool);
+	xhci_dbc_free_requests(&port->read_pool);
+	xhci_dbc_free_requests(&port->read_queue);
+	xhci_dbc_free_requests(&port->write_pool);
 }

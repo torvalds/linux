@@ -88,7 +88,7 @@ struct dbc_ep {
 	struct xhci_dbc			*dbc;
 	struct list_head		list_pending;
 	struct xhci_ring		*ring;
-	unsigned			direction:1;
+	unsigned int			direction:1;
 };
 
 #define DBC_QUEUE_SIZE			16
@@ -147,7 +147,7 @@ struct dbc_request {
 	int				status;
 	unsigned int			actual;
 
-	struct dbc_ep			*dep;
+	struct xhci_dbc			*dbc;
 	struct list_head		list_pending;
 	dma_addr_t			trb_dma;
 	union xhci_trb			*trb;
@@ -196,9 +196,11 @@ int xhci_dbc_tty_register_driver(struct xhci_hcd *xhci);
 void xhci_dbc_tty_unregister_driver(void);
 int xhci_dbc_tty_register_device(struct xhci_dbc *dbc);
 void xhci_dbc_tty_unregister_device(struct xhci_dbc *dbc);
-struct dbc_request *dbc_alloc_request(struct dbc_ep *dep, gfp_t gfp_flags);
-void dbc_free_request(struct dbc_ep *dep, struct dbc_request *req);
-int dbc_ep_queue(struct dbc_ep *dep, struct dbc_request *req, gfp_t gfp_flags);
+struct dbc_request *dbc_alloc_request(struct xhci_dbc *dbc,
+				      unsigned int direction,
+				      gfp_t flags);
+void dbc_free_request(struct dbc_request *req);
+int dbc_ep_queue(struct dbc_request *req);
 #ifdef CONFIG_PM
 int xhci_dbc_suspend(struct xhci_hcd *xhci);
 int xhci_dbc_resume(struct xhci_hcd *xhci);

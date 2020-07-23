@@ -135,8 +135,7 @@ static void xhci_dbc_giveback(struct dbc_request *req, int status)
 	__releases(&dbc->lock)
 	__acquires(&dbc->lock)
 {
-	struct dbc_ep		*dep = req->dep;
-	struct xhci_dbc		*dbc = dep->dbc;
+	struct xhci_dbc		*dbc = req->dbc;
 	struct device		*dev = dbc->dev;
 
 	list_del_init(&req->list_pending);
@@ -151,7 +150,7 @@ static void xhci_dbc_giveback(struct dbc_request *req, int status)
 	dma_unmap_single(dev,
 			 req->dma,
 			 req->length,
-			 dbc_ep_dma_direction(dep));
+			 dbc_ep_dma_direction(req));
 
 	/* Give back the transfer request: */
 	spin_unlock(&dbc->lock);
@@ -187,18 +186,25 @@ static void xhci_dbc_flush_requests(struct xhci_dbc *dbc)
 }
 
 struct dbc_request *
-dbc_alloc_request(struct dbc_ep *dep, gfp_t gfp_flags)
+dbc_alloc_request(struct xhci_dbc *dbc, unsigned int direction, gfp_t flags)
 {
 	struct dbc_request	*req;
 
-	req = kzalloc(sizeof(*req), gfp_flags);
+	if (direction != BULK_IN &&
+	    direction != BULK_OUT)
+		return NULL;
+
+	if (!dbc)
+		return NULL;
+
+	req = kzalloc(sizeof(*req), flags);
 	if (!req)
 		return NULL;
 
-	req->dep = dep;
+	req->dbc = dbc;
 	INIT_LIST_HEAD(&req->list_pending);
 	INIT_LIST_HEAD(&req->list_pool);
-	req->direction = dep->direction;
+	req->direction = direction;
 
 	trace_xhci_dbc_alloc_request(req);
 
@@ -206,7 +212,7 @@ dbc_alloc_request(struct dbc_ep *dep, gfp_t gfp_flags)
 }
 
 void
-dbc_free_request(struct dbc_ep *dep, struct dbc_request *req)
+dbc_free_request(struct dbc_request *req)
 {
 	trace_xhci_dbc_free_request(req);
 
@@ -242,7 +248,7 @@ static int xhci_dbc_queue_bulk_tx(struct dbc_ep *dep,
 	u64			addr;
 	union xhci_trb		*trb;
 	unsigned int		num_trbs;
-	struct xhci_dbc		*dbc = dep->dbc;
+	struct xhci_dbc		*dbc = req->dbc;
 	struct xhci_ring	*ring = dep->ring;
 	u32			length, control, cycle;
 
@@ -286,11 +292,12 @@ static int xhci_dbc_queue_bulk_tx(struct dbc_ep *dep,
 }
 
 static int
-dbc_ep_do_queue(struct dbc_ep *dep, struct dbc_request *req)
+dbc_ep_do_queue(struct dbc_request *req)
 {
 	int			ret;
-	struct xhci_dbc		*dbc = dep->dbc;
+	struct xhci_dbc		*dbc = req->dbc;
 	struct device		*dev = dbc->dev;
+	struct dbc_ep		*dep = &dbc->eps[req->direction];
 
 	if (!req->length || !req->buf)
 		return -EINVAL;
@@ -322,16 +329,22 @@ dbc_ep_do_queue(struct dbc_ep *dep, struct dbc_request *req)
 	return 0;
 }
 
-int dbc_ep_queue(struct dbc_ep *dep, struct dbc_request *req,
-		 gfp_t gfp_flags)
+int dbc_ep_queue(struct dbc_request *req)
 {
 	unsigned long		flags;
-	struct xhci_dbc		*dbc = dep->dbc;
+	struct xhci_dbc		*dbc = req->dbc;
 	int			ret = -ESHUTDOWN;
+
+	if (!dbc)
+		return -ENODEV;
+
+	if (req->direction != BULK_IN &&
+	    req->direction != BULK_OUT)
+		return -EINVAL;
 
 	spin_lock_irqsave(&dbc->lock, flags);
 	if (dbc->state == DS_CONFIGURED)
-		ret = dbc_ep_do_queue(dep, req);
+		ret = dbc_ep_do_queue(req);
 	spin_unlock_irqrestore(&dbc->lock, flags);
 
 	mod_delayed_work(system_wq, &dbc->event_work, 0);
