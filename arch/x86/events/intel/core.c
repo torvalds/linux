@@ -2180,17 +2180,28 @@ static void intel_pmu_disable_event(struct perf_event *event)
 	struct hw_perf_event *hwc = &event->hw;
 	int idx = hwc->idx;
 
-	if (idx < INTEL_PMC_IDX_FIXED) {
+	switch (idx) {
+	case 0 ... INTEL_PMC_IDX_FIXED - 1:
 		intel_clear_masks(event, idx);
 		x86_pmu_disable_event(event);
-	} else if (idx < INTEL_PMC_IDX_FIXED_BTS) {
+		break;
+	case INTEL_PMC_IDX_FIXED ... INTEL_PMC_IDX_FIXED_BTS - 1:
 		intel_clear_masks(event, idx);
 		intel_pmu_disable_fixed(event);
-	} else if (idx == INTEL_PMC_IDX_FIXED_BTS) {
+		break;
+	case INTEL_PMC_IDX_FIXED_BTS:
 		intel_pmu_disable_bts();
 		intel_pmu_drain_bts_buffer();
-	} else if (idx == INTEL_PMC_IDX_FIXED_VLBR)
+		return;
+	case INTEL_PMC_IDX_FIXED_VLBR:
 		intel_clear_masks(event, idx);
+		break;
+	default:
+		intel_clear_masks(event, idx);
+		pr_warn("Failed to disable the event with invalid index %d\n",
+			idx);
+		return;
+	}
 
 	/*
 	 * Needs to be called after x86_pmu_disable_event,
@@ -2262,18 +2273,27 @@ static void intel_pmu_enable_event(struct perf_event *event)
 	if (unlikely(event->attr.precise_ip))
 		intel_pmu_pebs_enable(event);
 
-	if (idx < INTEL_PMC_IDX_FIXED) {
+	switch (idx) {
+	case 0 ... INTEL_PMC_IDX_FIXED - 1:
 		intel_set_masks(event, idx);
 		__x86_pmu_enable_event(hwc, ARCH_PERFMON_EVENTSEL_ENABLE);
-	} else if (idx < INTEL_PMC_IDX_FIXED_BTS) {
+		break;
+	case INTEL_PMC_IDX_FIXED ... INTEL_PMC_IDX_FIXED_BTS - 1:
 		intel_set_masks(event, idx);
 		intel_pmu_enable_fixed(event);
-	} else if (idx == INTEL_PMC_IDX_FIXED_BTS) {
+		break;
+	case INTEL_PMC_IDX_FIXED_BTS:
 		if (!__this_cpu_read(cpu_hw_events.enabled))
 			return;
 		intel_pmu_enable_bts(hwc->config);
-	} else if (idx == INTEL_PMC_IDX_FIXED_VLBR)
+		break;
+	case INTEL_PMC_IDX_FIXED_VLBR:
 		intel_set_masks(event, idx);
+		break;
+	default:
+		pr_warn("Failed to enable the event with invalid index %d\n",
+			idx);
+	}
 }
 
 static void intel_pmu_add_event(struct perf_event *event)
