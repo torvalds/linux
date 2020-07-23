@@ -69,43 +69,43 @@ struct radeon_device *radeon_get_rdev(struct ttm_bo_device *bdev)
 static int radeon_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 				struct ttm_mem_type_manager *man)
 {
-	struct radeon_device *rdev;
-
-	rdev = radeon_get_rdev(bdev);
-
-	switch (type) {
-	case TTM_PL_SYSTEM:
-		/* System memory */
-		break;
-	case TTM_PL_TT:
-		man->func = &ttm_bo_manager_func;
-		man->available_caching = TTM_PL_MASK_CACHING;
-		man->default_caching = TTM_PL_FLAG_CACHED;
-		man->use_tt = true;
-#if IS_ENABLED(CONFIG_AGP)
-		if (rdev->flags & RADEON_IS_AGP) {
-			if (!rdev->ddev->agp) {
-				DRM_ERROR("AGP is not enabled for memory type %u\n",
-					  (unsigned)type);
-				return -EINVAL;
-			}
-			man->available_caching = TTM_PL_FLAG_UNCACHED |
-						 TTM_PL_FLAG_WC;
-			man->default_caching = TTM_PL_FLAG_WC;
-		}
-#endif
-		break;
-	case TTM_PL_VRAM:
-		/* "On-card" video ram */
-		man->func = &ttm_bo_manager_func;
-		man->available_caching = TTM_PL_FLAG_UNCACHED | TTM_PL_FLAG_WC;
-		man->default_caching = TTM_PL_FLAG_WC;
-		break;
-	default:
-		DRM_ERROR("Unsupported memory type %u\n", (unsigned)type);
-		return -EINVAL;
-	}
 	return 0;
+}
+
+static int radeon_ttm_init_vram(struct radeon_device *rdev)
+{
+	struct ttm_mem_type_manager *man = &rdev->mman.bdev.man[TTM_PL_VRAM];
+
+	man->func = &ttm_bo_manager_func;
+	man->available_caching = TTM_PL_FLAG_UNCACHED | TTM_PL_FLAG_WC;
+	man->default_caching = TTM_PL_FLAG_WC;
+
+	return ttm_bo_init_mm(&rdev->mman.bdev, TTM_PL_VRAM,
+			      rdev->mc.real_vram_size >> PAGE_SHIFT);
+}
+
+static int radeon_ttm_init_gtt(struct radeon_device *rdev)
+{
+	struct ttm_mem_type_manager *man = &rdev->mman.bdev.man[TTM_PL_TT];
+
+	man->func = &ttm_bo_manager_func;
+	man->available_caching = TTM_PL_MASK_CACHING;
+	man->default_caching = TTM_PL_FLAG_CACHED;
+	man->use_tt = true;
+#if IS_ENABLED(CONFIG_AGP)
+	if (rdev->flags & RADEON_IS_AGP) {
+		if (!rdev->ddev->agp) {
+			DRM_ERROR("AGP is not enabled\n");
+			return -EINVAL;
+		}
+		man->available_caching = TTM_PL_FLAG_UNCACHED |
+					 TTM_PL_FLAG_WC;
+		man->default_caching = TTM_PL_FLAG_WC;
+	}
+#endif
+
+	return ttm_bo_init_mm(&rdev->mman.bdev, TTM_PL_TT,
+			      rdev->mc.gtt_size >> PAGE_SHIFT);
 }
 
 static void radeon_evict_flags(struct ttm_buffer_object *bo,
@@ -778,8 +778,8 @@ int radeon_ttm_init(struct radeon_device *rdev)
 		return r;
 	}
 	rdev->mman.initialized = true;
-	r = ttm_bo_init_mm(&rdev->mman.bdev, TTM_PL_VRAM,
-				rdev->mc.real_vram_size >> PAGE_SHIFT);
+
+	r = radeon_ttm_init_vram(rdev);
 	if (r) {
 		DRM_ERROR("Failed initializing VRAM heap.\n");
 		return r;
@@ -804,8 +804,8 @@ int radeon_ttm_init(struct radeon_device *rdev)
 	}
 	DRM_INFO("radeon: %uM of VRAM memory ready\n",
 		 (unsigned) (rdev->mc.real_vram_size / (1024 * 1024)));
-	r = ttm_bo_init_mm(&rdev->mman.bdev, TTM_PL_TT,
-				rdev->mc.gtt_size >> PAGE_SHIFT);
+
+	r = radeon_ttm_init_gtt(rdev);
 	if (r) {
 		DRM_ERROR("Failed initializing GTT heap.\n");
 		return r;
