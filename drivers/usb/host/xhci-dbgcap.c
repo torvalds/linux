@@ -319,10 +319,9 @@ int dbc_ep_queue(struct dbc_ep *dep, struct dbc_request *req,
 	return ret;
 }
 
-static inline void xhci_dbc_do_eps_init(struct xhci_hcd *xhci, bool direction)
+static inline void xhci_dbc_do_eps_init(struct xhci_dbc *dbc, bool direction)
 {
 	struct dbc_ep		*dep;
-	struct xhci_dbc		*dbc = xhci->dbc;
 
 	dep			= &dbc->eps[direction];
 	dep->dbc		= dbc;
@@ -332,16 +331,14 @@ static inline void xhci_dbc_do_eps_init(struct xhci_hcd *xhci, bool direction)
 	INIT_LIST_HEAD(&dep->list_pending);
 }
 
-static void xhci_dbc_eps_init(struct xhci_hcd *xhci)
+static void xhci_dbc_eps_init(struct xhci_dbc *dbc)
 {
-	xhci_dbc_do_eps_init(xhci, BULK_OUT);
-	xhci_dbc_do_eps_init(xhci, BULK_IN);
+	xhci_dbc_do_eps_init(dbc, BULK_OUT);
+	xhci_dbc_do_eps_init(dbc, BULK_IN);
 }
 
-static void xhci_dbc_eps_exit(struct xhci_hcd *xhci)
+static void xhci_dbc_eps_exit(struct xhci_dbc *dbc)
 {
-	struct xhci_dbc		*dbc = xhci->dbc;
-
 	memset(dbc->eps, 0, sizeof(struct dbc_ep) * ARRAY_SIZE(dbc->eps));
 }
 
@@ -418,7 +415,7 @@ static int xhci_dbc_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	string_length = xhci_dbc_populate_strings(dbc->string);
 	xhci_dbc_init_contexts(dbc, string_length);
 
-	xhci_dbc_eps_init(xhci);
+	xhci_dbc_eps_init(dbc);
 	dbc->state = DS_INITIALIZED;
 
 	return 0;
@@ -449,7 +446,7 @@ static void xhci_dbc_mem_cleanup(struct xhci_hcd *xhci)
 	if (!dbc)
 		return;
 
-	xhci_dbc_eps_exit(xhci);
+	xhci_dbc_eps_exit(dbc);
 
 	if (dbc->string) {
 		dma_free_coherent(dbc->dev, dbc->string_size,
