@@ -548,11 +548,10 @@ static void xhci_dbc_mem_cleanup(struct xhci_dbc *dbc)
 	dbc->ring_evt = NULL;
 }
 
-static int xhci_do_dbc_start(struct xhci_hcd *xhci)
+static int xhci_do_dbc_start(struct xhci_dbc *dbc)
 {
 	int			ret;
 	u32			ctrl;
-	struct xhci_dbc		*dbc = xhci->dbc;
 
 	if (dbc->state != DS_DISABLED)
 		return -EINVAL;
@@ -593,33 +592,31 @@ static int xhci_do_dbc_stop(struct xhci_dbc *dbc)
 	return 0;
 }
 
-static int xhci_dbc_start(struct xhci_hcd *xhci)
+static int xhci_dbc_start(struct xhci_dbc *dbc)
 {
 	int			ret;
 	unsigned long		flags;
-	struct xhci_dbc		*dbc = xhci->dbc;
 
 	WARN_ON(!dbc);
 
-	pm_runtime_get_sync(xhci_to_hcd(xhci)->self.controller);
+	pm_runtime_get_sync(dbc->dev); /* note this was self.controller */
 
 	spin_lock_irqsave(&dbc->lock, flags);
-	ret = xhci_do_dbc_start(xhci);
+	ret = xhci_do_dbc_start(dbc);
 	spin_unlock_irqrestore(&dbc->lock, flags);
 
 	if (ret) {
-		pm_runtime_put(xhci_to_hcd(xhci)->self.controller);
+		pm_runtime_put(dbc->dev); /* note this was self.controller */
 		return ret;
 	}
 
 	return mod_delayed_work(system_wq, &dbc->event_work, 1);
 }
 
-static void xhci_dbc_stop(struct xhci_hcd *xhci)
+static void xhci_dbc_stop(struct xhci_dbc *dbc)
 {
 	int ret;
 	unsigned long		flags;
-	struct xhci_dbc		*dbc = xhci->dbc;
 	struct dbc_port		*port = &dbc->port;
 
 	WARN_ON(!dbc);
@@ -635,7 +632,7 @@ static void xhci_dbc_stop(struct xhci_hcd *xhci)
 
 	if (!ret) {
 		xhci_dbc_mem_cleanup(dbc);
-		pm_runtime_put_sync(xhci_to_hcd(xhci)->self.controller);
+		pm_runtime_put_sync(dbc->dev); /* note, was self.controller */
 	}
 }
 
@@ -996,13 +993,15 @@ static ssize_t dbc_store(struct device *dev,
 			 const char *buf, size_t count)
 {
 	struct xhci_hcd		*xhci;
+	struct xhci_dbc		*dbc;
 
 	xhci = hcd_to_xhci(dev_get_drvdata(dev));
+	dbc = xhci->dbc;
 
 	if (!strncmp(buf, "enable", 6))
-		xhci_dbc_start(xhci);
+		xhci_dbc_start(dbc);
 	else if (!strncmp(buf, "disable", 7))
-		xhci_dbc_stop(xhci);
+		xhci_dbc_stop(dbc);
 	else
 		return -EINVAL;
 
@@ -1047,7 +1046,7 @@ void xhci_dbc_exit(struct xhci_hcd *xhci)
 
 	device_remove_file(dev, &dev_attr_dbc);
 	xhci_dbc_tty_unregister_driver();
-	xhci_dbc_stop(xhci);
+	xhci_dbc_stop(xhci->dbc);
 	xhci_do_dbc_exit(xhci);
 }
 
@@ -1062,7 +1061,7 @@ int xhci_dbc_suspend(struct xhci_hcd *xhci)
 	if (dbc->state == DS_CONFIGURED)
 		dbc->resume_required = 1;
 
-	xhci_dbc_stop(xhci);
+	xhci_dbc_stop(dbc);
 
 	return 0;
 }
@@ -1077,7 +1076,7 @@ int xhci_dbc_resume(struct xhci_hcd *xhci)
 
 	if (dbc->resume_required) {
 		dbc->resume_required = 0;
-		xhci_dbc_start(xhci);
+		xhci_dbc_start(dbc);
 	}
 
 	return ret;
