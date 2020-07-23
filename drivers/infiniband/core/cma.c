@@ -2478,6 +2478,10 @@ static int cma_listen_handler(struct rdma_cm_id *id,
 {
 	struct rdma_id_private *id_priv = id->context;
 
+	/* Listening IDs are always destroyed on removal */
+	if (event->event == RDMA_CM_EVENT_DEVICE_REMOVAL)
+		return -1;
+
 	id->context = id_priv->id.context;
 	id->event_handler = id_priv->id.event_handler;
 	trace_cm_event_handler(id_priv, event);
@@ -4811,7 +4815,7 @@ static void cma_process_remove(struct cma_device *cma_dev)
 		cma_id_get(id_priv);
 		mutex_unlock(&lock);
 
-		ret = id_priv->internal_id ? 1 : cma_remove_id_dev(id_priv);
+		ret = cma_remove_id_dev(id_priv);
 		cma_id_put(id_priv);
 		if (ret)
 			rdma_destroy_id(&id_priv->id);
