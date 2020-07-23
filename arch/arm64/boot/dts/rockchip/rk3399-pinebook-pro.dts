@@ -28,12 +28,19 @@
 		pwms = <&pwm0 0 740740 0>;
 	};
 
+	bat: battery {
+		compatible = "simple-battery";
+		charge-full-design-microamp-hours = <9800000>;
+		voltage-max-design-microvolt = <4350000>;
+		voltage-min-design-microvolt = <3000000>;
+	};
+
 	edp_panel: edp-panel {
 		compatible = "boe,nv140fhmn49";
 		backlight = <&backlight>;
 		enable-gpios = <&gpio1 RK_PA0 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&panel_en_gpio>;
+		pinctrl-0 = <&panel_en_pin>;
 		power-supply = <&vcc3v3_panel>;
 
 		ports {
@@ -60,7 +67,7 @@
 	gpio-key-lid {
 		compatible = "gpio-keys";
 		pinctrl-names = "default";
-		pinctrl-0 = <&lidbtn_gpio>;
+		pinctrl-0 = <&lidbtn_pin>;
 
 		lid {
 			debounce-interval = <20>;
@@ -76,7 +83,7 @@
 	gpio-key-power {
 		compatible = "gpio-keys";
 		pinctrl-names = "default";
-		pinctrl-0 = <&pwrbtn_gpio>;
+		pinctrl-0 = <&pwrbtn_pin>;
 
 		power {
 			debounce-interval = <20>;
@@ -117,7 +124,7 @@
 		clocks = <&rk808 1>;
 		clock-names = "ext_clock";
 		pinctrl-names = "default";
-		pinctrl-0 = <&wifi_enable_h_gpio>;
+		pinctrl-0 = <&wifi_enable_h_pin>;
 		post-power-on-delay-ms = <100>;
 		power-off-delay-us = <500000>;
 
@@ -129,7 +136,7 @@
 	es8316-sound {
 		compatible = "simple-audio-card";
 		pinctrl-names = "default";
-		pinctrl-0 = <&hp_det_gpio>;
+		pinctrl-0 = <&hp_det_pin>;
 		simple-audio-card,name = "rockchip,es8316-codec";
 		simple-audio-card,format = "i2s";
 		simple-audio-card,mclk-fs = <256>;
@@ -213,7 +220,7 @@
 		enable-active-high;
 		gpio = <&gpio1 RK_PB5 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&pwr_5v_gpio>;
+		pinctrl-0 = <&pwr_5v_pin>;
 		regulator-name = "vcc5v0_usb";
 		regulator-always-on;
 		regulator-min-microvolt = <5000000>;
@@ -270,7 +277,7 @@
 		enable-active-high;
 		gpio = <&gpio0 RK_PA1 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&sdmmc0_pwr_h_gpio>;
+		pinctrl-0 = <&sdmmc0_pwr_h_pin>;
 		regulator-name = "vcc3v0_sd";
 		regulator-always-on;
 		regulator-min-microvolt = <3000000>;
@@ -288,7 +295,7 @@
 		enable-active-high;
 		gpio = <&gpio1 RK_PC6 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&lcdvcc_en_gpio>;
+		pinctrl-0 = <&lcdvcc_en_pin>;
 		regulator-name = "vcc3v3_panel";
 		regulator-always-on;
 		regulator-min-microvolt = <3300000>;
@@ -317,7 +324,7 @@
 		enable-active-high;
 		gpio = <&gpio4 RK_PD2 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&vcc5v0_host_en_gpio>;
+		pinctrl-0 = <&vcc5v0_host_en_pin>;
 		regulator-name = "vcc5v0_otg";
 		regulator-always-on;
 		regulator-min-microvolt = <5000000>;
@@ -336,7 +343,7 @@
 		enable-active-high;
 		gpio = <&gpio1 RK_PA3 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&vcc5v0_typec0_en_gpio>;
+		pinctrl-0 = <&vcc5v0_typec0_en_pin>;
 		regulator-name = "vbus_5vout";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
@@ -368,7 +375,7 @@
 
 		/* Also triggered by USB charger */
 		pinctrl-names = "default";
-		pinctrl-0 = <&dc_det_gpio>;
+		pinctrl-0 = <&dc_det_pin>;
 	};
 };
 
@@ -447,7 +454,7 @@
 		interrupt-parent = <&gpio3>;
 		interrupts = <10 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&pmic_int_l_gpio>;
+		pinctrl-0 = <&pmic_int_l_pin>;
 		rockchip,system-power-controller;
 		wakeup-source;
 
@@ -627,7 +634,7 @@
 		reg = <0x40>;
 		fcs,suspend-voltage-selector = <1>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&vsel1_gpio>;
+		pinctrl-0 = <&vsel1_pin>;
 		regulator-name = "vdd_cpu_b";
 		regulator-always-on;
 		regulator-boot-on;
@@ -646,7 +653,7 @@
 		reg = <0x41>;
 		fcs,suspend-voltage-selector = <1>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&vsel2_gpio>;
+		pinctrl-0 = <&vsel2_pin>;
 		regulator-name = "vdd_gpu";
 		regulator-always-on;
 		regulator-boot-on;
@@ -693,7 +700,7 @@
 		interrupt-parent = <&gpio1>;
 		interrupts = <RK_PA2 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&fusb0_int_gpio>;
+		pinctrl-0 = <&fusb0_int_pin>;
 		vbus-supply = <&vbus_typec>;
 
 		connector {
@@ -741,11 +748,29 @@
 			};
 		};
 	};
+
+	cw2015@62 {
+		compatible = "cellwise,cw2015";
+		reg = <0x62>;
+		cellwise,battery-profile = /bits/ 8 <
+			0x17 0x67 0x80 0x73 0x6E 0x6C 0x6B 0x63
+			0x77 0x51 0x5C 0x58 0x50 0x4C 0x48 0x36
+			0x15 0x0C 0x0C 0x19 0x5B 0x7D 0x6F 0x69
+			0x69 0x5B 0x0C 0x29 0x20 0x40 0x52 0x59
+			0x57 0x56 0x54 0x4F 0x3B 0x1F 0x7F 0x17
+			0x06 0x1A 0x30 0x5A 0x85 0x93 0x96 0x2D
+			0x48 0x77 0x9C 0xB3 0x80 0x52 0x94 0xCB
+			0x2F 0x00 0x64 0xA5 0xB5 0x11 0xF0 0x11
+		>;
+		cellwise,monitor-interval-ms = <5000>;
+		monitored-battery = <&bat>;
+		power-supplies = <&mains_charger>, <&fusb0>;
+	};
 };
 
 &i2s1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&i2s_8ch_mclk_gpio>, <&i2s1_2ch_bus>;
+	pinctrl-0 = <&i2s_8ch_mclk_pin>, <&i2s1_2ch_bus>;
 	rockchip,capture-channels = <8>;
 	rockchip,playback-channels = <8>;
 	status = "okay";
@@ -777,49 +802,49 @@
 
 &pinctrl {
 	buttons {
-		pwrbtn_gpio: pwrbtn-gpio {
+		pwrbtn_pin: pwrbtn-pin {
 			rockchip,pins = <0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 
-		lidbtn_gpio: lidbtn-gpio {
+		lidbtn_pin: lidbtn-pin {
 			rockchip,pins = <1 RK_PA1 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
 	dc-charger {
-		dc_det_gpio: dc-det-gpio {
+		dc_det_pin: dc-det-pin {
 			rockchip,pins = <4 RK_PD0 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
 	es8316 {
-		hp_det_gpio: hp-det-gpio {
+		hp_det_pin: hp-det-pin {
 			rockchip,pins = <0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
 	fusb302x {
-		fusb0_int_gpio: fusb0-int-gpio {
+		fusb0_int_pin: fusb0-int-pin {
 			rockchip,pins = <1 RK_PA2 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
 	i2s1 {
-		i2s_8ch_mclk_gpio: i2s-8ch-mclk-gpio {
+		i2s_8ch_mclk_pin: i2s-8ch-mclk-pin {
 			rockchip,pins = <4 RK_PA0 1 &pcfg_pull_none>;
 		};
 	};
 
 	lcd-panel {
-		lcdvcc_en_gpio: lcdvcc-en-gpio {
+		lcdvcc_en_pin: lcdvcc-en-pin {
 			rockchip,pins = <1 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
-		panel_en_gpio: panel-en-gpio {
+		panel_en_pin: panel-en-pin {
 			rockchip,pins = <1 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
-		lcd_panel_reset_gpio: lcd-panel-reset-gpio {
+		lcd_panel_reset_pin: lcd-panel-reset-pin {
 			rockchip,pins = <4 RK_PD6 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
@@ -835,58 +860,58 @@
 	};
 
 	pmic {
-		pmic_int_l_gpio: pmic-int-l-gpio {
+		pmic_int_l_pin: pmic-int-l-pin {
 			rockchip,pins = <3 RK_PB2 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 
-		vsel1_gpio: vsel1-gpio {
+		vsel1_pin: vsel1-pin {
 			rockchip,pins = <1 RK_PC1 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 
-		vsel2_gpio: vsel2-gpio {
+		vsel2_pin: vsel2-pin {
 			rockchip,pins = <1 RK_PB6 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 	};
 
 	sdcard {
-		sdmmc0_pwr_h_gpio: sdmmc0-pwr-h-gpio {
+		sdmmc0_pwr_h_pin: sdmmc0-pwr-h-pin {
 			rockchip,pins = <0 RK_PA1 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
 	};
 
 	sdio-pwrseq {
-		wifi_enable_h_gpio: wifi-enable-h-gpio {
+		wifi_enable_h_pin: wifi-enable-h-pin {
 			rockchip,pins = <0 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	usb-typec {
-		vcc5v0_typec0_en_gpio: vcc5v0-typec0-en-gpio {
+		vcc5v0_typec0_en_pin: vcc5v0-typec0-en-pin {
 			rockchip,pins = <1 RK_PA3 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
 	usb2 {
-		pwr_5v_gpio: pwr-5v-gpio {
+		pwr_5v_pin: pwr-5v-pin {
 			rockchip,pins = <1 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
-		vcc5v0_host_en_gpio: vcc5v0-host-en-gpio {
+		vcc5v0_host_en_pin: vcc5v0-host-en-pin {
 			rockchip,pins = <4 RK_PD2 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	wireless-bluetooth {
-		bt_wake_gpio: bt-wake-gpio {
+		bt_wake_pin: bt-wake-pin {
 			rockchip,pins = <2 RK_PD3 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
-		bt_host_wake_gpio: bt-host-wake-gpio {
+		bt_host_wake_pin: bt-host-wake-pin {
 			rockchip,pins = <0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
-		bt_reset_gpio: bt-reset-gpio {
+		bt_reset_pin: bt-reset-pin {
 			rockchip,pins = <0 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
@@ -1034,7 +1059,7 @@
 		host-wakeup-gpios = <&gpio0 RK_PA4 GPIO_ACTIVE_HIGH>;
 		max-speed = <1500000>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&bt_host_wake_gpio &bt_wake_gpio &bt_reset_gpio>;
+		pinctrl-0 = <&bt_host_wake_pin &bt_wake_pin &bt_reset_pin>;
 		shutdown-gpios = <&gpio0 RK_PB1 GPIO_ACTIVE_HIGH>;
 		vbat-supply = <&wifi_bat>;
 		vddio-supply = <&vcc_wl>;
