@@ -579,7 +579,7 @@ dbc_handle_port_status(struct xhci_dbc *dbc, union xhci_trb *event)
 	writel(portsc & ~DBC_PORTSC_RESET_CHANGE, &dbc->regs->portsc);
 }
 
-static void dbc_handle_xfer_event(struct xhci_hcd *xhci, union xhci_trb *event)
+static void dbc_handle_xfer_event(struct xhci_dbc *dbc, union xhci_trb *event)
 {
 	struct dbc_ep		*dep;
 	struct xhci_ring	*ring;
@@ -588,7 +588,6 @@ static void dbc_handle_xfer_event(struct xhci_hcd *xhci, union xhci_trb *event)
 	u32			comp_code;
 	size_t			remain_length;
 	struct dbc_request	*req = NULL, *r;
-	struct xhci_dbc		*dbc = xhci->dbc;
 
 	comp_code	= GET_COMP_CODE(le32_to_cpu(event->generic.field[2]));
 	remain_length	= EVENT_TRB_LEN(le32_to_cpu(event->generic.field[2]));
@@ -654,7 +653,6 @@ static enum evtreturn xhci_dbc_do_handle_events(struct xhci_dbc *dbc)
 	struct dbc_ep		*dep;
 	union xhci_trb		*evt;
 	u32			ctrl, portsc;
-	struct xhci_hcd		*xhci = dbc->xhci;
 	bool			update_erdp = false;
 
 	/* DbC state machine: */
@@ -763,7 +761,7 @@ static enum evtreturn xhci_dbc_do_handle_events(struct xhci_dbc *dbc)
 			dbc_handle_port_status(dbc, evt);
 			break;
 		case TRB_TYPE(TRB_TRANSFER):
-			dbc_handle_xfer_event(xhci, evt);
+			dbc_handle_xfer_event(dbc, evt);
 			break;
 		default:
 			break;
