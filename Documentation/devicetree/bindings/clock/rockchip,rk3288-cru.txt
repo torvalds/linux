@@ -4,9 +4,15 @@ The RK3288 clock controller generates and supplies clock to various
 controllers within the SoC and also implements a reset controller for SoC
 peripherals.
 
+A revision of this SoC is available: rk3288w. The clock tree is a bit
+different so another dt-compatible is available. Noticed that it is only
+setting the difference but there is no automatic revision detection. This
+should be performed by bootloaders.
+
 Required Properties:
 
-- compatible: should be "rockchip,rk3288-cru"
+- compatible: should be "rockchip,rk3288-cru" or "rockchip,rk3288w-cru" in
+  case of this revision of Rockchip rk3288.
 - reg: physical base address of the controller and length of memory mapped
   region.
 - #clock-cells: should be 1.
