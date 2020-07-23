@@ -14,6 +14,14 @@
 #include "xhci-trace.h"
 #include "xhci-dbgcap.h"
 
+static void dbc_free_ctx(struct device *dev, struct xhci_container_ctx *ctx)
+{
+	if (!ctx)
+		return;
+	dma_free_coherent(dev, ctx->size, ctx->bytes, ctx->dma);
+	kfree(ctx);
+}
+
 static u32 xhci_dbc_populate_strings(struct dbc_str_descs *strings)
 {
 	struct usb_string_descriptor	*s_desc;
@@ -364,6 +372,25 @@ static void dbc_erst_free(struct device *dev, struct xhci_erst *erst)
 	erst->entries = NULL;
 }
 
+static struct xhci_container_ctx *
+dbc_alloc_ctx(struct device *dev, gfp_t flags)
+{
+	struct xhci_container_ctx *ctx;
+
+	ctx = kzalloc(sizeof(*ctx), flags);
+	if (!ctx)
+		return NULL;
+
+	/* xhci 7.6.9, all three contexts; info, ep-out and ep-in. Each 64 bytes*/
+	ctx->size = 3 * DBC_CONTEXT_SIZE;
+	ctx->bytes = dma_alloc_coherent(dev, ctx->size, &ctx->dma, flags);
+	if (!ctx->bytes) {
+		kfree(ctx);
+		return NULL;
+	}
+	return ctx;
+}
+
 static int xhci_dbc_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 {
 	int			ret;
@@ -391,7 +418,7 @@ static int xhci_dbc_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 		goto erst_fail;
 
 	/* Allocate context data structure: */
-	dbc->ctx = xhci_alloc_container_ctx(xhci, XHCI_CTX_TYPE_DEVICE, flags);
+	dbc->ctx = dbc_alloc_ctx(dev, flags); /* was sysdev, and is still */
 	if (!dbc->ctx)
 		goto ctx_fail;
 
@@ -420,7 +447,7 @@ static int xhci_dbc_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	return 0;
 
 string_fail:
-	xhci_free_container_ctx(xhci, dbc->ctx);
+	dbc_free_ctx(dev, dbc->ctx);
 	dbc->ctx = NULL;
 ctx_fail:
 	dbc_erst_free(dev, &dbc->erst);
@@ -453,7 +480,7 @@ static void xhci_dbc_mem_cleanup(struct xhci_hcd *xhci)
 		dbc->string = NULL;
 	}
 
-	xhci_free_container_ctx(xhci, dbc->ctx);
+	dbc_free_ctx(dbc->dev, dbc->ctx);
 	dbc->ctx = NULL;
 
 	dbc_erst_free(dev, &dbc->erst);
