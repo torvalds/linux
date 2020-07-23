@@ -107,6 +107,9 @@ struct bpf_map_ops {
 	/* BTF name and id of struct allocated by map_alloc */
 	const char * const map_btf_name;
 	int *map_btf_id;
+
+	/* bpf_iter info used to open a seq_file */
+	const struct bpf_iter_seq_info *iter_seq_info;
 };
 
 struct bpf_map_memory {
@@ -1207,12 +1210,18 @@ int bpf_obj_get_user(const char __user *pathname, int flags);
 	int __init bpf_iter_ ## target(args) { return 0; }
 
 struct bpf_iter_aux_info {
+	struct bpf_map *map;
 };
+
+typedef int (*bpf_iter_check_target_t)(struct bpf_prog *prog,
+				       struct bpf_iter_aux_info *aux);
 
 #define BPF_ITER_CTX_ARG_MAX 2
 struct bpf_iter_reg {
 	const char *target;
+	bpf_iter_check_target_t check_target;
 	u32 ctx_arg_info_size;
+	enum bpf_iter_link_info req_linfo;
 	struct bpf_ctx_arg_aux ctx_arg_info[BPF_ITER_CTX_ARG_MAX];
 	const struct bpf_iter_seq_info *seq_info;
 };
@@ -1221,6 +1230,13 @@ struct bpf_iter_meta {
 	__bpf_md_ptr(struct seq_file *, seq);
 	u64 session_id;
 	u64 seq_num;
+};
+
+struct bpf_iter__bpf_map_elem {
+	__bpf_md_ptr(struct bpf_iter_meta *, meta);
+	__bpf_md_ptr(struct bpf_map *, map);
+	__bpf_md_ptr(void *, key);
+	__bpf_md_ptr(void *, value);
 };
 
 int bpf_iter_reg_target(const struct bpf_iter_reg *reg_info);
