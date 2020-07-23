@@ -6910,6 +6910,7 @@ bfa_flash_read_check(void __iomem *pci_bar)
 
 	return 0;
 }
+
 /*
  * @brief
  * End flash read operation.
