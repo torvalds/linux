@@ -1029,7 +1029,7 @@ static void beiscsi_free_ep(struct beiscsi_endpoint *beiscsi_ep)
 
 /**
  * beiscsi_open_conn - Ask FW to open a TCP connection
- * @beiscsi_ep: pointer to device endpoint struct
+ * @ep: pointer to device endpoint struct
  * @src_addr: The source IP address
  * @dst_addr: The Destination  IP address
  * @non_blocking: blocking or non-blocking call
