@@ -381,6 +381,44 @@ static ssize_t status_store(struct kobject *kobj, struct kobj_attribute *attr,
 static struct system_monitor_attr status =
 	__ATTR(system_status, 0644, status_show, status_store);
 
+static int rockchip_get_temp_freq_table(struct device_node *np,
+					char *porp_name,
+					struct temp_freq_table **freq_table)
+{
+	struct temp_freq_table *table;
+	const struct property *prop;
+	int count, i;
+
+	prop = of_find_property(np, porp_name, NULL);
+	if (!prop)
+		return -EINVAL;
+
+	if (!prop->value)
+		return -ENODATA;
+
+	count = of_property_count_u32_elems(np, porp_name);
+	if (count < 0)
+		return -EINVAL;
+
+	if (count % 2)
+		return -EINVAL;
+
+	table = kzalloc(sizeof(*table) * (count / 2 + 1), GFP_KERNEL);
+	if (!table)
+		return -ENOMEM;
+
+	for (i = 0; i < count / 2; i++) {
+		of_property_read_u32_index(np, porp_name, 2 * i,
+					   &table[i].temp);
+		of_property_read_u32_index(np, porp_name, 2 * i + 1,
+					   &table[i].freq);
+	}
+	table[i].freq = UINT_MAX;
+	*freq_table = table;
+
+	return 0;
+}
+
 static int rockchip_get_adjust_volt_table(struct device_node *np,
 					  char *porp_name,
 					  struct volt_adjust_table **table)
@@ -546,17 +584,25 @@ static int monitor_device_parse_wide_temp_config(struct device_node *np,
 	else
 		info->high_temp_max_volt = value;
 	rockchip_init_temp_opp_table(info);
-	if (!of_property_read_u32(np, "rockchip,high-temp-max-freq", &value)) {
-		high_temp_max_freq = value * 1000;
-		if (info->high_limit)
-			info->high_limit = min(high_temp_max_freq,
-					       info->high_limit);
-		else
-			info->high_limit = high_temp_max_freq;
+	if (rockchip_get_temp_freq_table(np, "rockchip,high-temp-limit-table",
+					 &info->high_limit_table)) {
+		info->high_limit_table = NULL;
+		if (!of_property_read_u32(np, "rockchip,high-temp-max-freq",
+					  &value)) {
+			high_temp_max_freq = value * 1000;
+			if (info->high_limit)
+				info->high_limit = min(high_temp_max_freq,
+						       info->high_limit);
+			else
+				info->high_limit = high_temp_max_freq;
+		}
+	} else {
+		info->high_limit = 0;
 	}
-	dev_info(dev, "l=%d h=%d hyst=%d l_limit=%lu h_limit=%lu\n",
+	dev_info(dev, "l=%d h=%d hyst=%d l_limit=%lu h_limit=%lu h_table=%d\n",
 		 info->low_temp, info->high_temp, info->temp_hysteresis,
-		 info->low_limit, info->high_limit);
+		 info->low_limit, info->high_limit,
+		 info->high_limit_table ? true : false);
 
 	if ((info->low_temp + info->temp_hysteresis) > info->high_temp) {
 		dev_err(dev, "Invalid temperature, low=%d high=%d hyst=%d\n",
@@ -566,7 +612,7 @@ static int monitor_device_parse_wide_temp_config(struct device_node *np,
 		goto err;
 	}
 	if (!info->low_temp_adjust_table && !info->low_temp_min_volt &&
-	    !info->low_limit && !info->high_limit) {
+	    !info->low_limit && !info->high_limit && !info->high_limit_table) {
 		ret = -EINVAL;
 		goto err;
 	}
@@ -600,44 +646,6 @@ static int monitor_device_parse_status_config(struct device_node *np,
 	}
 
 	return ret;
-}
-
-static int rockchip_get_temp_freq_table(struct device_node *np,
-					char *porp_name,
-					struct temp_freq_table **freq_table)
-{
-	struct temp_freq_table *table;
-	const struct property *prop;
-	int count, i;
-
-	prop = of_find_property(np, porp_name, NULL);
-	if (!prop)
-		return -EINVAL;
-
-	if (!prop->value)
-		return -ENODATA;
-
-	count = of_property_count_u32_elems(np, porp_name);
-	if (count < 0)
-		return -EINVAL;
-
-	if (count % 2)
-		return -EINVAL;
-
-	table = kzalloc(sizeof(*table) * (count / 2 + 1), GFP_KERNEL);
-	if (!table)
-		return -ENOMEM;
-
-	for (i = 0; i < count / 2; i++) {
-		of_property_read_u32_index(np, porp_name, 2 * i,
-					   &table[i].temp);
-		of_property_read_u32_index(np, porp_name, 2 * i + 1,
-					   &table[i].freq);
-	}
-	table[i].freq = UINT_MAX;
-	*freq_table = table;
-
-	return 0;
 }
 
 static int monitor_device_parse_dt(struct device *dev,
@@ -710,12 +718,17 @@ int rockchip_monitor_cpu_high_temp_adjust(struct monitor_dev_info *info,
 {
 	unsigned int cpu = cpumask_any(&info->devp->allowed_cpus);
 
-	if (info->high_limit) {
-		if (is_high)
-			info->wide_temp_limit = info->high_limit;
-		else
-			info->wide_temp_limit = 0;
+	if (info->high_limit_table) {
+		info->wide_temp_limit = info->high_limit;
 		cpufreq_update_policy(cpu);
+	} else {
+		if (info->high_limit) {
+			if (is_high)
+				info->wide_temp_limit = info->high_limit;
+			else
+				info->wide_temp_limit = 0;
+			cpufreq_update_policy(cpu);
+		}
 	}
 
 	return 0;
@@ -760,16 +773,23 @@ int rockchip_monitor_dev_high_temp_adjust(struct monitor_dev_info *info,
 {
 	struct devfreq *df;
 
-	if (info->high_limit) {
-		if (is_high)
-			info->wide_temp_limit = info->high_limit;
-		else
-			info->wide_temp_limit = 0;
-	}
-
-	if (info->devp && info->devp->data) {
-		df = (struct devfreq *)info->devp->data;
-		rockchip_monitor_update_devfreq(df);
+	if (info->high_limit_table) {
+		info->wide_temp_limit = info->high_limit;
+		if (info->devp && info->devp->data) {
+			df = (struct devfreq *)info->devp->data;
+			rockchip_monitor_update_devfreq(df);
+		}
+	} else {
+		if (info->high_limit) {
+			if (is_high)
+				info->wide_temp_limit = info->high_limit;
+			else
+				info->wide_temp_limit = 0;
+			if (info->devp && info->devp->data) {
+				df = (struct devfreq *)info->devp->data;
+				rockchip_monitor_update_devfreq(df);
+			}
+		}
 	}
 
 	return 0;
@@ -836,11 +856,15 @@ static void rockchip_high_temp_adjust(struct monitor_dev_info *info,
 	struct monitor_dev_profile *devp = info->devp;
 	int ret = 0;
 
-	dev_dbg(info->dev, "high_temp %d\n", is_high);
-	if (devp->high_temp_adjust)
-		ret = devp->high_temp_adjust(info, is_high);
-	if (!ret)
-		info->is_high_temp = is_high;
+	if (info->high_limit_table) {
+		devp->high_temp_adjust(info, is_high);
+	} else {
+		dev_dbg(info->dev, "high_temp %d\n", is_high);
+		if (devp->high_temp_adjust)
+			ret = devp->high_temp_adjust(info, is_high);
+		if (!ret)
+			info->is_high_temp = is_high;
+	}
 }
 
 int rockchip_monitor_suspend_low_temp_adjust(int cpu)
@@ -859,8 +883,12 @@ int rockchip_monitor_suspend_low_temp_adjust(int cpu)
 	if (!info || !info->is_low_temp_enabled)
 		return 0;
 
-	if (info->is_high_temp)
+	if (info->high_limit_table) {
+		info->high_limit = 0;
+		rockchip_high_temp_adjust(info, true);
+	} else if (info->is_high_temp) {
 		rockchip_high_temp_adjust(info, false);
+	}
 	if (!info->is_low_temp)
 		rockchip_low_temp_adjust(info, true);
 
@@ -872,9 +900,10 @@ static int
 rockchip_system_monitor_wide_temp_adjust(struct monitor_dev_info *info,
 					 int temp)
 {
+	unsigned long target_freq = 0;
+	int i;
+
 	if (temp < info->low_temp) {
-		if (info->is_high_temp)
-			rockchip_high_temp_adjust(info, false);
 		if (!info->is_low_temp)
 			rockchip_low_temp_adjust(info, true);
 	} else if (temp > (info->low_temp + info->temp_hysteresis)) {
@@ -882,14 +911,24 @@ rockchip_system_monitor_wide_temp_adjust(struct monitor_dev_info *info,
 			rockchip_low_temp_adjust(info, false);
 	}
 
-	if (temp > info->high_temp) {
-		if (info->is_low_temp)
-			rockchip_low_temp_adjust(info, false);
-		if (!info->is_high_temp)
+	if (info->high_limit_table) {
+		for (i = 0; info->high_limit_table[i].freq != UINT_MAX; i++) {
+			if (temp > info->high_limit_table[i].temp)
+				target_freq =
+					info->high_limit_table[i].freq * 1000;
+		}
+		if (target_freq != info->high_limit) {
+			info->high_limit = target_freq;
 			rockchip_high_temp_adjust(info, true);
-	} else if (temp < (info->high_temp - info->temp_hysteresis)) {
-		if (info->is_high_temp)
-			rockchip_high_temp_adjust(info, false);
+		}
+	} else {
+		if (temp > info->high_temp) {
+			if (!info->is_high_temp)
+				rockchip_high_temp_adjust(info, true);
+		} else if (temp < (info->high_temp - info->temp_hysteresis)) {
+			if (info->is_high_temp)
+				rockchip_high_temp_adjust(info, false);
+		}
 	}
 
 	return 0;
@@ -1225,12 +1264,17 @@ static void rockchip_system_monitor_thermal_update(void)
 {
 	int temp, ret;
 	struct monitor_dev_info *info;
+	static int last_temp = INT_MAX;
 
 	ret = thermal_zone_get_temp(system_monitor->tz, &temp);
 	if (ret || temp == THERMAL_TEMP_INVALID)
 		goto out;
 
 	dev_dbg(system_monitor->dev, "temperature=%d\n", temp);
+
+	if (temp < last_temp && last_temp - temp <= 2000)
+		goto out;
+	last_temp = temp;
 
 	down_read(&mdev_list_sem);
 	list_for_each_entry(info, &monitor_dev_list, node)
