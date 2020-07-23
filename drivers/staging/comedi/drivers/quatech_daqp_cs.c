@@ -7,7 +7,7 @@
  *
  * COMEDI - Linux Control and Measurement Device Interface
  * Copyright (C) 1998 David A. Schleef <ds@schleef.org>
- * http://www.comedi.org/
+ * https://www.comedi.org/
  *
  * Documentation for the DAQP PCMCIA cards can be found on Quatech's site:
  *	ftp://ftp.quatech.com/Manuals/daqp-208.pdf

@@ -223,6 +223,6 @@ static void __exit comedi_pci_exit(void)
 }
 module_exit(comedi_pci_exit);
 
-MODULE_AUTHOR("http://www.comedi.org");
+MODULE_AUTHOR("https://www.comedi.org");
 MODULE_DESCRIPTION("Comedi PCI interface module");
 MODULE_LICENSE("GPL");

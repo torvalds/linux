@@ -3429,6 +3429,6 @@ static void __exit comedi_cleanup(void)
 }
 module_exit(comedi_cleanup);
 
-MODULE_AUTHOR("http://www.comedi.org");
+MODULE_AUTHOR("https://www.comedi.org");
 MODULE_DESCRIPTION("Comedi core module");
 MODULE_LICENSE("GPL");
