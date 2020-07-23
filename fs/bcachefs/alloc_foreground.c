@@ -578,18 +578,22 @@ open_bucket_add_buckets(struct bch_fs *c,
 		__clear_bit(ob->ptr.dev, devs.d);
 
 	if (erasure_code) {
-		get_buckets_from_writepoint(c, ptrs, wp, &devs,
-					    nr_replicas, nr_effective,
-					    have_cache, flags, true);
-		if (*nr_effective >= nr_replicas)
-			return 0;
+		if (!ec_open_bucket(c, ptrs)) {
+			get_buckets_from_writepoint(c, ptrs, wp, &devs,
+						    nr_replicas, nr_effective,
+						    have_cache, flags, true);
+			if (*nr_effective >= nr_replicas)
+				return 0;
+		}
 
-		bucket_alloc_from_stripe(c, ptrs, wp, &devs,
-					 target, erasure_code,
-					 nr_replicas, nr_effective,
-					 have_cache, flags);
-		if (*nr_effective >= nr_replicas)
-			return 0;
+		if (!ec_open_bucket(c, ptrs)) {
+			bucket_alloc_from_stripe(c, ptrs, wp, &devs,
+						 target, erasure_code,
+						 nr_replicas, nr_effective,
+						 have_cache, flags);
+			if (*nr_effective >= nr_replicas)
+				return 0;
+		}
 	}
 
 	get_buckets_from_writepoint(c, ptrs, wp, &devs,
