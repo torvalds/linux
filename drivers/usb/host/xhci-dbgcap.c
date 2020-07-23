@@ -451,13 +451,12 @@ seg_fail:
 	return NULL;
 }
 
-static int xhci_dbc_mem_init(struct xhci_hcd *xhci, gfp_t flags)
+static int xhci_dbc_mem_init(struct xhci_dbc *dbc, gfp_t flags)
 {
 	int			ret;
 	dma_addr_t		deq;
 	u32			string_length;
-	struct xhci_dbc		*dbc = xhci->dbc;
-	struct device		*dev = xhci_to_hcd(xhci)->self.controller;
+	struct device		*dev = dbc->dev;
 
 	/* Allocate various rings for events and transfers: */
 	dbc->ring_evt = xhci_dbc_ring_alloc(dev, TYPE_EVENT, flags);
@@ -524,11 +523,8 @@ evt_fail:
 	return -ENOMEM;
 }
 
-static void xhci_dbc_mem_cleanup(struct xhci_hcd *xhci)
+static void xhci_dbc_mem_cleanup(struct xhci_dbc *dbc)
 {
-	struct xhci_dbc		*dbc = xhci->dbc;
-	struct device		*dev = xhci_to_hcd(xhci)->self.controller;
-
 	if (!dbc)
 		return;
 
@@ -568,7 +564,7 @@ static int xhci_do_dbc_start(struct xhci_hcd *xhci)
 	if (ret)
 		return ret;
 
-	ret = xhci_dbc_mem_init(xhci, GFP_ATOMIC);
+	ret = xhci_dbc_mem_init(dbc, GFP_ATOMIC);
 	if (ret)
 		return ret;
 
@@ -638,7 +634,7 @@ static void xhci_dbc_stop(struct xhci_hcd *xhci)
 	spin_unlock_irqrestore(&dbc->lock, flags);
 
 	if (!ret) {
-		xhci_dbc_mem_cleanup(xhci);
+		xhci_dbc_mem_cleanup(dbc);
 		pm_runtime_put_sync(xhci_to_hcd(xhci)->self.controller);
 	}
 }
