@@ -1410,7 +1410,7 @@ int l2tp_tunnel_create(struct net *net, int fd, int version, u32 tunnel_id, u32 
 	if (cfg)
 		encap = cfg->encap;
 
-	tunnel = kzalloc(sizeof(struct l2tp_tunnel), GFP_KERNEL);
+	tunnel = kzalloc(sizeof(*tunnel), GFP_KERNEL);
 	if (!tunnel) {
 		err = -ENOMEM;
 		goto err;
@@ -1647,7 +1647,7 @@ struct l2tp_session *l2tp_session_create(int priv_size, struct l2tp_tunnel *tunn
 {
 	struct l2tp_session *session;
 
-	session = kzalloc(sizeof(struct l2tp_session) + priv_size, GFP_KERNEL);
+	session = kzalloc(sizeof(*session) + priv_size, GFP_KERNEL);
 	if (session) {
 		session->magic = L2TP_SESSION_MAGIC;
 		session->tunnel = tunnel;
