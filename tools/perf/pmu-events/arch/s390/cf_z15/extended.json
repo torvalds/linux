@@ -380,7 +380,7 @@
 	{
 		"Unit": "CPU-M-CF",
 		"EventCode": "265",
-		"EventName": "DFLT_CCERROR",
+		"EventName": "DFLT_CCFINISH",
 		"BriefDescription": "Increments by one for every DEFLATE CONVERSION CALL instruction executed that ended in Condition Codes 0, 1 or 2",
 		"PublicDescription": "Increments by one for every DEFLATE CONVERSION CALL instruction executed that ended in Condition Codes 0, 1 or 2"
 	},
