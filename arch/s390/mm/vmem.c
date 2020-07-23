@@ -169,17 +169,17 @@ static int __ref modify_pte_table(pmd_t *pmd, unsigned long addr,
 			pte_clear(&init_mm, addr, pte);
 		} else if (pte_none(*pte)) {
 			if (!direct) {
-				void *new_page = vmemmap_alloc_block(PAGE_SIZE,
-								     NUMA_NO_NODE);
+				void *new_page = vmemmap_alloc_block(PAGE_SIZE, NUMA_NO_NODE);
 
 				if (!new_page)
 					goto out;
 				pte_val(*pte) = __pa(new_page) | prot;
-			} else
+			} else {
 				pte_val(*pte) = addr | prot;
-		} else
+			}
+		} else {
 			continue;
-
+		}
 		pages++;
 	}
 	ret = 0;
@@ -196,10 +196,10 @@ static void try_free_pte_table(pmd_t *pmd, unsigned long start)
 
 	/* We can safely assume this is fully in 1:1 mapping & vmemmap area */
 	pte = pte_offset_kernel(pmd, start);
-	for (i = 0; i < PTRS_PER_PTE; i++, pte++)
+	for (i = 0; i < PTRS_PER_PTE; i++, pte++) {
 		if (!pte_none(*pte))
 			return;
-
+	}
 	vmem_pte_free(__va(pmd_deref(*pmd)));
 	pmd_clear(pmd);
 }
@@ -220,7 +220,6 @@ static int __ref modify_pmd_table(pud_t *pud, unsigned long addr,
 	pmd = pmd_offset(pud, addr);
 	for (; addr < end; addr = next, pmd++) {
 		next = pmd_addr_end(addr, end);
-
 		if (!add) {
 			if (pmd_none(*pmd))
 				continue;
@@ -228,14 +227,11 @@ static int __ref modify_pmd_table(pud_t *pud, unsigned long addr,
 				if (IS_ALIGNED(addr, PMD_SIZE) &&
 				    IS_ALIGNED(next, PMD_SIZE)) {
 					if (!direct)
-						vmem_free_pages(pmd_deref(*pmd),
-								get_order(PMD_SIZE));
+						vmem_free_pages(pmd_deref(*pmd), get_order(PMD_SIZE));
 					pmd_clear(pmd);
 					pages++;
-				} else if (!direct &&
-					   vmemmap_unuse_sub_pmd(addr, next)) {
-					vmem_free_pages(pmd_deref(*pmd),
-							get_order(PMD_SIZE));
+				} else if (!direct && vmemmap_unuse_sub_pmd(addr, next)) {
+					vmem_free_pages(pmd_deref(*pmd), get_order(PMD_SIZE));
 					pmd_clear(pmd);
 				}
 				continue;
@@ -258,14 +254,12 @@ static int __ref modify_pmd_table(pud_t *pud, unsigned long addr,
 				 * page tables since vmemmap_populate gets
 				 * called for each section separately.
 				 */
-				new_page = vmemmap_alloc_block(PMD_SIZE,
-							       NUMA_NO_NODE);
+				new_page = vmemmap_alloc_block(PMD_SIZE, NUMA_NO_NODE);
 				if (new_page) {
 					pmd_val(*pmd) = __pa(new_page) | prot;
 					if (!IS_ALIGNED(addr, PMD_SIZE) ||
 					    !IS_ALIGNED(next, PMD_SIZE)) {
-						vmemmap_use_new_sub_pmd(addr,
-									next);
+						vmemmap_use_new_sub_pmd(addr, next);
 					}
 					continue;
 				}
@@ -279,7 +273,6 @@ static int __ref modify_pmd_table(pud_t *pud, unsigned long addr,
 				vmemmap_use_sub_pmd(addr, next);
 			continue;
 		}
-
 		ret = modify_pte_table(pmd, addr, next, add, direct);
 		if (ret)
 			goto out;
@@ -306,12 +299,10 @@ static void try_free_pmd_table(pud_t *pud, unsigned long start)
 	if (start < KASAN_SHADOW_END && KASAN_SHADOW_START > end)
 		return;
 #endif
-
 	pmd = pmd_offset(pud, start);
 	for (i = 0; i < PTRS_PER_PMD; i++, pmd++)
 		if (!pmd_none(*pmd))
 			return;
-
 	vmem_free_pages(pud_deref(*pud), CRST_ALLOC_ORDER);
 	pud_clear(pud);
 }
@@ -327,11 +318,9 @@ static int modify_pud_table(p4d_t *p4d, unsigned long addr, unsigned long end,
 	prot = pgprot_val(REGION3_KERNEL);
 	if (!MACHINE_HAS_NX)
 		prot &= ~_REGION_ENTRY_NOEXEC;
-
 	pud = pud_offset(p4d, addr);
 	for (; addr < end; addr = next, pud++) {
 		next = pud_addr_end(addr, end);
-
 		if (!add) {
 			if (pud_none(*pud))
 				continue;
@@ -356,9 +345,9 @@ static int modify_pud_table(p4d_t *p4d, unsigned long addr, unsigned long end,
 			if (!pmd)
 				goto out;
 			pud_populate(&init_mm, pud, pmd);
-		} else if (pud_large(*pud))
+		} else if (pud_large(*pud)) {
 			continue;
-
+		}
 		ret = modify_pmd_table(pud, addr, next, add, direct);
 		if (ret)
 			goto out;
@@ -387,10 +376,10 @@ static void try_free_pud_table(p4d_t *p4d, unsigned long start)
 #endif
 
 	pud = pud_offset(p4d, start);
-	for (i = 0; i < PTRS_PER_PUD; i++, pud++)
+	for (i = 0; i < PTRS_PER_PUD; i++, pud++) {
 		if (!pud_none(*pud))
 			return;
-
+	}
 	vmem_free_pages(p4d_deref(*p4d), CRST_ALLOC_ORDER);
 	p4d_clear(p4d);
 }
@@ -406,7 +395,6 @@ static int modify_p4d_table(pgd_t *pgd, unsigned long addr, unsigned long end,
 	p4d = p4d_offset(pgd, addr);
 	for (; addr < end; addr = next, p4d++) {
 		next = p4d_addr_end(addr, end);
-
 		if (!add) {
 			if (p4d_none(*p4d))
 				continue;
@@ -415,7 +403,6 @@ static int modify_p4d_table(pgd_t *pgd, unsigned long addr, unsigned long end,
 			if (!pud)
 				goto out;
 		}
-
 		ret = modify_pud_table(p4d, addr, next, add, direct);
 		if (ret)
 			goto out;
@@ -442,10 +429,10 @@ static void try_free_p4d_table(pgd_t *pgd, unsigned long start)
 #endif
 
 	p4d = p4d_offset(pgd, start);
-	for (i = 0; i < PTRS_PER_P4D; i++, p4d++)
+	for (i = 0; i < PTRS_PER_P4D; i++, p4d++) {
 		if (!p4d_none(*p4d))
 			return;
-
+	}
 	vmem_free_pages(pgd_deref(*pgd), CRST_ALLOC_ORDER);
 	pgd_clear(pgd);
 }
@@ -460,7 +447,6 @@ static int modify_pagetable(unsigned long start, unsigned long end, bool add,
 
 	if (WARN_ON_ONCE(!PAGE_ALIGNED(start | end)))
 		return -EINVAL;
-
 	for (addr = start; addr < end; addr = next) {
 		next = pgd_addr_end(addr, end);
 		pgd = pgd_offset_k(addr);
@@ -474,7 +460,6 @@ static int modify_pagetable(unsigned long start, unsigned long end, bool add,
 				goto out;
 			pgd_populate(&init_mm, pgd, p4d);
 		}
-
 		ret = modify_p4d_table(pgd, addr, next, add, direct);
 		if (ret)
 			goto out;
@@ -518,7 +503,7 @@ static void vmem_remove_range(unsigned long start, unsigned long size)
  * Add a backed mem_map array to the virtual mem_map array.
  */
 int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
-		struct vmem_altmap *altmap)
+			       struct vmem_altmap *altmap)
 {
 	int ret;
 
@@ -532,7 +517,7 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
 }
 
 void vmemmap_free(unsigned long start, unsigned long end,
-		struct vmem_altmap *altmap)
+		  struct vmem_altmap *altmap)
 {
 	mutex_lock(&vmem_mutex);
 	remove_pagetable(start, end, false);
