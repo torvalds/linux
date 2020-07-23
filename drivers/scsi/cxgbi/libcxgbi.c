@@ -1899,7 +1899,7 @@ int cxgbi_conn_alloc_pdu(struct iscsi_task *task, u8 op)
 	u32 last_tdata_offset, last_tdata_count;
 	int err = 0;
 
-	if (!tcp_task || !tdata) {
+	if (!tcp_task) {
 		pr_err("task 0x%p, tcp_task 0x%p, tdata 0x%p.\n",
 		       task, tcp_task, tdata);
 		return -ENOMEM;
@@ -2155,7 +2155,7 @@ int cxgbi_conn_init_pdu(struct iscsi_task *task, unsigned int offset,
 	struct page *pg;
 	int err;
 
-	if (!tcp_task || !tdata || tcp_task->dd_data != tdata) {
+	if (!tcp_task || (tcp_task->dd_data != tdata)) {
 		pr_err("task 0x%p,0x%p, tcp_task 0x%p, tdata 0x%p/0x%p.\n",
 		       task, task->sc, tcp_task,
 		       tcp_task ? tcp_task->dd_data : NULL, tdata);
@@ -2371,7 +2371,7 @@ int cxgbi_conn_xmit_pdu(struct iscsi_task *task)
 	u32 datalen;
 	int err;
 
-	if (!tcp_task || !tdata || (tcp_task->dd_data != tdata)) {
+	if (!tcp_task || (tcp_task->dd_data != tdata)) {
 		pr_err("task 0x%p,0x%p, tcp_task 0x%p, tdata 0x%p/0x%p.\n",
 		       task, task->sc, tcp_task,
 		       tcp_task ? tcp_task->dd_data : NULL, tdata);
@@ -2472,7 +2472,7 @@ void cxgbi_cleanup_task(struct iscsi_task *task)
 	struct iscsi_tcp_task *tcp_task = task->dd_data;
 	struct cxgbi_task_data *tdata = iscsi_task_cxgbi_data(task);
 
-	if (!tcp_task || !tdata || (tcp_task->dd_data != tdata)) {
+	if (!tcp_task || (tcp_task->dd_data != tdata)) {
 		pr_info("task 0x%p,0x%p, tcp_task 0x%p, tdata 0x%p/0x%p.\n",
 			task, task->sc, tcp_task,
 			tcp_task ? tcp_task->dd_data : NULL, tdata);
