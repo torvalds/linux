@@ -629,9 +629,10 @@ enum {
 
 /*
  * Maximum number of hw breakpoint supported on powerpc. Number of
- * breakpoints supported by actual hw might be less than this.
+ * breakpoints supported by actual hw might be less than this, which
+ * is decided at run time in nr_wp_slots().
  */
-#define HBP_NUM_MAX	1
+#define HBP_NUM_MAX	2
 
 #endif /* !__ASSEMBLY__ */
 
