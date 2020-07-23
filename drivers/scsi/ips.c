@@ -4697,7 +4697,6 @@ ips_init_copperhead(ips_ha_t * ha)
 	uint8_t Isr;
 	uint8_t Cbsp;
 	uint8_t PostByte[IPS_MAX_POST_BYTES];
-	uint8_t ConfigByte[IPS_MAX_CONFIG_BYTES];
 	int i, j;
 
 	METHOD_TRACE("ips_init_copperhead", 1);
@@ -4742,7 +4741,7 @@ ips_init_copperhead(ips_ha_t * ha)
 			/* error occurred */
 			return (0);
 
-		ConfigByte[i] = inb(ha->io_addr + IPS_REG_ISPR);
+		inb(ha->io_addr + IPS_REG_ISPR);
 		outb(Isr, ha->io_addr + IPS_REG_HISR);
 	}
 
@@ -4791,7 +4790,6 @@ ips_init_copperhead_memio(ips_ha_t * ha)
 	uint8_t Isr = 0;
 	uint8_t Cbsp;
 	uint8_t PostByte[IPS_MAX_POST_BYTES];
-	uint8_t ConfigByte[IPS_MAX_CONFIG_BYTES];
 	int i, j;
 
 	METHOD_TRACE("ips_init_copperhead_memio", 1);
@@ -4836,7 +4834,7 @@ ips_init_copperhead_memio(ips_ha_t * ha)
 			/* error occurred */
 			return (0);
 
-		ConfigByte[i] = readb(ha->mem_ptr + IPS_REG_ISPR);
+		readb(ha->mem_ptr + IPS_REG_ISPR);
 		writeb(Isr, ha->mem_ptr + IPS_REG_HISR);
 	}
 
@@ -6835,8 +6833,6 @@ ips_init_phase1(struct pci_dev *pci_dev, int *indexPtr)
 	uint32_t mem_addr;
 	uint32_t io_len;
 	uint32_t mem_len;
-	uint8_t bus;
-	uint8_t func;
 	int j;
 	int index;
 	dma_addr_t dma_address;
@@ -6855,10 +6851,6 @@ ips_init_phase1(struct pci_dev *pci_dev, int *indexPtr)
 
 	if (index >= IPS_MAX_ADAPTERS)
 		return -1;
-
-	/* stuff that we get in dev */
-	bus = pci_dev->bus->number;
-	func = pci_dev->devfn;
 
 	/* Init MEM/IO addresses to 0 */
 	mem_addr = 0;
