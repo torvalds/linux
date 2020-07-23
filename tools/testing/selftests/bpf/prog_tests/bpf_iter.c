@@ -15,6 +15,8 @@
 #include "bpf_iter_test_kern2.skel.h"
 #include "bpf_iter_test_kern3.skel.h"
 #include "bpf_iter_test_kern4.skel.h"
+#include "bpf_iter_bpf_hash_map.skel.h"
+#include "bpf_iter_bpf_percpu_hash_map.skel.h"
 
 static int duration;
 
@@ -455,6 +457,187 @@ out:
 	bpf_iter_test_kern4__destroy(skel);
 }
 
+static void test_bpf_hash_map(void)
+{
+	__u32 expected_key_a = 0, expected_key_b = 0, expected_key_c = 0;
+	DECLARE_LIBBPF_OPTS(bpf_iter_attach_opts, opts);
+	struct bpf_iter_bpf_hash_map *skel;
+	int err, i, len, map_fd, iter_fd;
+	__u64 val, expected_val = 0;
+	struct bpf_link *link;
+	struct key_t {
+		int a;
+		int b;
+		int c;
+	} key;
+	char buf[64];
+
+	skel = bpf_iter_bpf_hash_map__open();
+	if (CHECK(!skel, "bpf_iter_bpf_hash_map__open",
+		  "skeleton open failed\n"))
+		return;
+
+	skel->bss->in_test_mode = true;
+
+	err = bpf_iter_bpf_hash_map__load(skel);
+	if (CHECK(!skel, "bpf_iter_bpf_hash_map__load",
+		  "skeleton load failed\n"))
+		goto out;
+
+	/* iterator with hashmap2 and hashmap3 should fail */
+	opts.map_fd = bpf_map__fd(skel->maps.hashmap2);
+	link = bpf_program__attach_iter(skel->progs.dump_bpf_hash_map, &opts);
+	if (CHECK(!IS_ERR(link), "attach_iter",
+		  "attach_iter for hashmap2 unexpected succeeded\n"))
+		goto out;
+
+	opts.map_fd = bpf_map__fd(skel->maps.hashmap3);
+	link = bpf_program__attach_iter(skel->progs.dump_bpf_hash_map, &opts);
+	if (CHECK(!IS_ERR(link), "attach_iter",
+		  "attach_iter for hashmap3 unexpected succeeded\n"))
+		goto out;
+
+	/* hashmap1 should be good, update map values here */
+	map_fd = bpf_map__fd(skel->maps.hashmap1);
+	for (i = 0; i < bpf_map__max_entries(skel->maps.hashmap1); i++) {
+		key.a = i + 1;
+		key.b = i + 2;
+		key.c = i + 3;
+		val = i + 4;
+		expected_key_a += key.a;
+		expected_key_b += key.b;
+		expected_key_c += key.c;
+		expected_val += val;
+
+		err = bpf_map_update_elem(map_fd, &key, &val, BPF_ANY);
+		if (CHECK(err, "map_update", "map_update failed\n"))
+			goto out;
+	}
+
+	opts.map_fd = map_fd;
+	link = bpf_program__attach_iter(skel->progs.dump_bpf_hash_map, &opts);
+	if (CHECK(IS_ERR(link), "attach_iter", "attach_iter failed\n"))
+		goto out;
+
+	iter_fd = bpf_iter_create(bpf_link__fd(link));
+	if (CHECK(iter_fd < 0, "create_iter", "create_iter failed\n"))
+		goto free_link;
+
+	/* do some tests */
+	while ((len = read(iter_fd, buf, sizeof(buf))) > 0)
+		;
+	if (CHECK(len < 0, "read", "read failed: %s\n", strerror(errno)))
+		goto close_iter;
+
+	/* test results */
+	if (CHECK(skel->bss->key_sum_a != expected_key_a,
+		  "key_sum_a", "got %u expected %u\n",
+		  skel->bss->key_sum_a, expected_key_a))
+		goto close_iter;
+	if (CHECK(skel->bss->key_sum_b != expected_key_b,
+		  "key_sum_b", "got %u expected %u\n",
+		  skel->bss->key_sum_b, expected_key_b))
+		goto close_iter;
+	if (CHECK(skel->bss->val_sum != expected_val,
+		  "val_sum", "got %llu expected %llu\n",
+		  skel->bss->val_sum, expected_val))
+		goto close_iter;
+
+close_iter:
+	close(iter_fd);
+free_link:
+	bpf_link__destroy(link);
+out:
+	bpf_iter_bpf_hash_map__destroy(skel);
+}
+
+static void test_bpf_percpu_hash_map(void)
+{
+	__u32 expected_key_a = 0, expected_key_b = 0, expected_key_c = 0;
+	DECLARE_LIBBPF_OPTS(bpf_iter_attach_opts, opts);
+	struct bpf_iter_bpf_percpu_hash_map *skel;
+	int err, i, j, len, map_fd, iter_fd;
+	__u32 expected_val = 0;
+	struct bpf_link *link;
+	struct key_t {
+		int a;
+		int b;
+		int c;
+	} key;
+	char buf[64];
+	void *val;
+
+	val = malloc(8 * bpf_num_possible_cpus());
+
+	skel = bpf_iter_bpf_percpu_hash_map__open();
+	if (CHECK(!skel, "bpf_iter_bpf_percpu_hash_map__open",
+		  "skeleton open failed\n"))
+		return;
+
+	skel->rodata->num_cpus = bpf_num_possible_cpus();
+
+	err = bpf_iter_bpf_percpu_hash_map__load(skel);
+	if (CHECK(!skel, "bpf_iter_bpf_percpu_hash_map__load",
+		  "skeleton load failed\n"))
+		goto out;
+
+	/* update map values here */
+	map_fd = bpf_map__fd(skel->maps.hashmap1);
+	for (i = 0; i < bpf_map__max_entries(skel->maps.hashmap1); i++) {
+		key.a = i + 1;
+		key.b = i + 2;
+		key.c = i + 3;
+		expected_key_a += key.a;
+		expected_key_b += key.b;
+		expected_key_c += key.c;
+
+		for (j = 0; j < bpf_num_possible_cpus(); j++) {
+			*(__u32 *)(val + j * 8) = i + j;
+			expected_val += i + j;
+		}
+
+		err = bpf_map_update_elem(map_fd, &key, val, BPF_ANY);
+		if (CHECK(err, "map_update", "map_update failed\n"))
+			goto out;
+	}
+
+	opts.map_fd = map_fd;
+	link = bpf_program__attach_iter(skel->progs.dump_bpf_percpu_hash_map, &opts);
+	if (CHECK(IS_ERR(link), "attach_iter", "attach_iter failed\n"))
+		goto out;
+
+	iter_fd = bpf_iter_create(bpf_link__fd(link));
+	if (CHECK(iter_fd < 0, "create_iter", "create_iter failed\n"))
+		goto free_link;
+
+	/* do some tests */
+	while ((len = read(iter_fd, buf, sizeof(buf))) > 0)
+		;
+	if (CHECK(len < 0, "read", "read failed: %s\n", strerror(errno)))
+		goto close_iter;
+
+	/* test results */
+	if (CHECK(skel->bss->key_sum_a != expected_key_a,
+		  "key_sum_a", "got %u expected %u\n",
+		  skel->bss->key_sum_a, expected_key_a))
+		goto close_iter;
+	if (CHECK(skel->bss->key_sum_b != expected_key_b,
+		  "key_sum_b", "got %u expected %u\n",
+		  skel->bss->key_sum_b, expected_key_b))
+		goto close_iter;
+	if (CHECK(skel->bss->val_sum != expected_val,
+		  "val_sum", "got %u expected %u\n",
+		  skel->bss->val_sum, expected_val))
+		goto close_iter;
+
+close_iter:
+	close(iter_fd);
+free_link:
+	bpf_link__destroy(link);
+out:
+	bpf_iter_bpf_percpu_hash_map__destroy(skel);
+}
+
 void test_bpf_iter(void)
 {
 	if (test__start_subtest("btf_id_or_null"))
@@ -491,4 +674,8 @@ void test_bpf_iter(void)
 		test_overflow(true, false);
 	if (test__start_subtest("prog-ret-1"))
 		test_overflow(false, true);
+	if (test__start_subtest("bpf_hash_map"))
+		test_bpf_hash_map();
+	if (test__start_subtest("bpf_percpu_hash_map"))
+		test_bpf_percpu_hash_map();
 }
