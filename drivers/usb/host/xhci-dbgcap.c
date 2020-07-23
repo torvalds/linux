@@ -114,8 +114,7 @@ static void xhci_dbc_giveback(struct dbc_request *req, int status)
 {
 	struct dbc_ep		*dep = req->dep;
 	struct xhci_dbc		*dbc = dep->dbc;
-	struct xhci_hcd		*xhci = dbc->xhci;
-	struct device		*dev = xhci_to_hcd(dbc->xhci)->self.sysdev;
+	struct device		*dev = dbc->dev;
 
 	list_del_init(&req->list_pending);
 	req->trb_dma = 0;
@@ -133,7 +132,7 @@ static void xhci_dbc_giveback(struct dbc_request *req, int status)
 
 	/* Give back the transfer request: */
 	spin_unlock(&dbc->lock);
-	req->complete(xhci, req);
+	req->complete(dbc, req);
 	spin_lock(&dbc->lock);
 }
 

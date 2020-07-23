@@ -91,10 +91,9 @@ static void dbc_start_rx(struct dbc_port *port)
 }
 
 static void
-dbc_read_complete(struct xhci_hcd *xhci, struct dbc_request *req)
+dbc_read_complete(struct xhci_dbc *dbc, struct dbc_request *req)
 {
 	unsigned long		flags;
-	struct xhci_dbc		*dbc = xhci->dbc;
 	struct dbc_port		*port = &dbc->port;
 
 	spin_lock_irqsave(&port->port_lock, flags);
@@ -103,10 +102,9 @@ dbc_read_complete(struct xhci_hcd *xhci, struct dbc_request *req)
 	spin_unlock_irqrestore(&port->port_lock, flags);
 }
 
-static void dbc_write_complete(struct xhci_hcd *xhci, struct dbc_request *req)
+static void dbc_write_complete(struct xhci_dbc *dbc, struct dbc_request *req)
 {
 	unsigned long		flags;
-	struct xhci_dbc		*dbc = xhci->dbc;
 	struct dbc_port		*port = &dbc->port;
 
 	spin_lock_irqsave(&port->port_lock, flags);
@@ -118,7 +116,7 @@ static void dbc_write_complete(struct xhci_hcd *xhci, struct dbc_request *req)
 	case -ESHUTDOWN:
 		break;
 	default:
-		xhci_warn(xhci, "unexpected write complete status %d\n",
+		dev_warn(dbc->dev, "unexpected write complete status %d\n",
 			  req->status);
 		break;
 	}
@@ -133,7 +131,7 @@ static void xhci_dbc_free_req(struct dbc_ep *dep, struct dbc_request *req)
 
 static int
 xhci_dbc_alloc_requests(struct dbc_ep *dep, struct list_head *head,
-			void (*fn)(struct xhci_hcd *, struct dbc_request *))
+			void (*fn)(struct xhci_dbc *, struct dbc_request *))
 {
 	int			i;
 	struct dbc_request	*req;

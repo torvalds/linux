@@ -84,23 +84,6 @@ enum dbc_state {
 	DS_STALLED,
 };
 
-struct dbc_request {
-	void				*buf;
-	unsigned int			length;
-	dma_addr_t			dma;
-	void				(*complete)(struct xhci_hcd *xhci,
-						    struct dbc_request *req);
-	struct list_head		list_pool;
-	int				status;
-	unsigned int			actual;
-
-	struct dbc_ep			*dep;
-	struct list_head		list_pending;
-	dma_addr_t			trb_dma;
-	union xhci_trb			*trb;
-	unsigned			direction:1;
-};
-
 struct dbc_ep {
 	struct xhci_dbc			*dbc;
 	struct list_head		list_pending;
@@ -152,6 +135,23 @@ struct xhci_dbc {
 	struct dbc_ep			eps[2];
 
 	struct dbc_port			port;
+};
+
+struct dbc_request {
+	void				*buf;
+	unsigned int			length;
+	dma_addr_t			dma;
+	void				(*complete)(struct xhci_dbc *dbc,
+						    struct dbc_request *req);
+	struct list_head		list_pool;
+	int				status;
+	unsigned int			actual;
+
+	struct dbc_ep			*dep;
+	struct list_head		list_pending;
+	dma_addr_t			trb_dma;
+	union xhci_trb			*trb;
+	unsigned			direction:1;
 };
 
 #define dbc_bulkout_ctx(d)		\
