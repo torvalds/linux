@@ -146,10 +146,12 @@ static void l2tp_dfs_seq_tunnel_show(struct seq_file *m, void *v)
 
 			seq_printf(m, " from %pI6c to %pI6c\n",
 				   &np->saddr, &tunnel->sock->sk_v6_daddr);
-		} else
+		}
 #endif
-		seq_printf(m, " from %pI4 to %pI4\n",
-			   &inet->inet_saddr, &inet->inet_daddr);
+		if (tunnel->sock->sk_family == AF_INET)
+			seq_printf(m, " from %pI4 to %pI4\n",
+				   &inet->inet_saddr, &inet->inet_daddr);
+
 		if (tunnel->encap == L2TP_ENCAPTYPE_UDP)
 			seq_printf(m, " source port %hu, dest port %hu\n",
 				   ntohs(inet->inet_sport), ntohs(inet->inet_dport));
