@@ -455,6 +455,11 @@ void xhci_dbc_tty_unregister_device(struct xhci_dbc *dbc)
 	xhci_dbc_free_requests(&port->write_pool);
 }
 
+static const struct dbc_driver dbc_driver = {
+	.configure		= xhci_dbc_tty_register_device,
+	.disconnect		= xhci_dbc_tty_unregister_device,
+};
+
 int xhci_dbc_tty_probe(struct xhci_hcd *xhci)
 {
 	struct xhci_dbc		*dbc = xhci->dbc;
@@ -464,6 +469,8 @@ int xhci_dbc_tty_probe(struct xhci_hcd *xhci)
 	status = dbc_tty_init();
 	if (status)
 		return status;
+
+	dbc->driver = &dbc_driver;
 
 	dbc_tty_driver->driver_state = &dbc->port;
 
@@ -481,6 +488,8 @@ out:
  */
 void xhci_dbc_tty_remove(struct xhci_dbc *dbc)
 {
+	dbc->driver = NULL;
+
 	/* dbc_tty_exit will be called by  module_exit() in the future */
 	dbc_tty_exit();
 }
@@ -523,5 +532,3 @@ static void dbc_tty_exit(void)
 		dbc_tty_driver = NULL;
 	}
 }
-
-

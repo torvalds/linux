@@ -636,8 +636,8 @@ static void xhci_dbc_stop(struct xhci_dbc *dbc)
 
 	cancel_delayed_work_sync(&dbc->event_work);
 
-	if (port->registered)
-		xhci_dbc_tty_unregister_device(dbc);
+	if (port->registered && dbc->driver->disconnect)
+		dbc->driver->disconnect(dbc);
 
 	spin_lock_irqsave(&dbc->lock, flags);
 	ret = xhci_do_dbc_stop(dbc);
@@ -877,7 +877,6 @@ static enum evtreturn xhci_dbc_do_handle_events(struct xhci_dbc *dbc)
 
 static void xhci_dbc_handle_events(struct work_struct *work)
 {
-	int			ret;
 	enum evtreturn		evtr;
 	struct xhci_dbc		*dbc;
 	unsigned long		flags;
@@ -890,16 +889,12 @@ static void xhci_dbc_handle_events(struct work_struct *work)
 
 	switch (evtr) {
 	case EVT_GSER:
-		ret = xhci_dbc_tty_register_device(dbc);
-		if (ret) {
-			dev_err(dbc->dev, "failed to alloc tty device\n");
-			break;
-		}
-
-		dev_info(dbc->dev, "DbC now attached to /dev/ttyDBC0\n");
+		if (dbc->driver->configure)
+			dbc->driver->configure(dbc);
 		break;
 	case EVT_DISC:
-		xhci_dbc_tty_unregister_device(dbc);
+		if (dbc->driver->disconnect)
+			dbc->driver->disconnect(dbc);
 		break;
 	case EVT_DONE:
 		break;
