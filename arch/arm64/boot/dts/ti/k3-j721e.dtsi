@@ -120,7 +120,7 @@
 		interrupts = <GIC_PPI 7 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
-	cbass_main: interconnect@100000 {
+	cbass_main: bus@100000 {
 		compatible = "simple-bus";
 		#address-cells = <2>;
 		#size-cells = <2>;
@@ -155,7 +155,7 @@
 			 <0x05 0x00000000 0x05 0x00000000 0x01 0x00000000>,
 			 <0x07 0x00000000 0x07 0x00000000 0x01 0x00000000>;
 
-		cbass_mcu_wakeup: interconnect@28380000 {
+		cbass_mcu_wakeup: bus@28380000 {
 			compatible = "simple-bus";
 			#address-cells = <2>;
 			#size-cells = <2>;
