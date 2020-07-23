@@ -143,12 +143,6 @@ static inline void seqcount_lockdep_reader_access(const seqcount_t *s)
 	__SEQ_LOCK(.lock	= (assoc_lock))				\
 }
 
-#define seqcount_locktype_init(s, assoc_lock)				\
-do {									\
-	seqcount_init(&(s)->seqcount);					\
-	__SEQ_LOCK((s)->lock = (assoc_lock));				\
-} while (0)
-
 /**
  * SEQCNT_SPINLOCK_ZERO - static initializer for seqcount_spinlock_t
  * @name:	Name of the seqcount_spinlock_t instance
@@ -156,14 +150,6 @@ do {									\
  */
 #define SEQCNT_SPINLOCK_ZERO(name, lock)				\
 	SEQCOUNT_LOCKTYPE_ZERO(name, lock)
-
-/**
- * seqcount_spinlock_init - runtime initializer for seqcount_spinlock_t
- * @s:		Pointer to the seqcount_spinlock_t instance
- * @lock:	Pointer to the associated spinlock
- */
-#define seqcount_spinlock_init(s, lock)					\
-	seqcount_locktype_init(s, lock)
 
 /**
  * SEQCNT_RAW_SPINLOCK_ZERO - static initializer for seqcount_raw_spinlock_t
@@ -174,28 +160,12 @@ do {									\
 	SEQCOUNT_LOCKTYPE_ZERO(name, lock)
 
 /**
- * seqcount_raw_spinlock_init - runtime initializer for seqcount_raw_spinlock_t
- * @s:		Pointer to the seqcount_raw_spinlock_t instance
- * @lock:	Pointer to the associated raw_spinlock
- */
-#define seqcount_raw_spinlock_init(s, lock)				\
-	seqcount_locktype_init(s, lock)
-
-/**
  * SEQCNT_RWLOCK_ZERO - static initializer for seqcount_rwlock_t
  * @name:	Name of the seqcount_rwlock_t instance
  * @lock:	Pointer to the associated rwlock
  */
 #define SEQCNT_RWLOCK_ZERO(name, lock)					\
 	SEQCOUNT_LOCKTYPE_ZERO(name, lock)
-
-/**
- * seqcount_rwlock_init - runtime initializer for seqcount_rwlock_t
- * @s:		Pointer to the seqcount_rwlock_t instance
- * @lock:	Pointer to the associated rwlock
- */
-#define seqcount_rwlock_init(s, lock)					\
-	seqcount_locktype_init(s, lock)
 
 /**
  * SEQCNT_MUTEX_ZERO - static initializer for seqcount_mutex_t
@@ -206,14 +176,6 @@ do {									\
 	SEQCOUNT_LOCKTYPE_ZERO(name, lock)
 
 /**
- * seqcount_mutex_init - runtime initializer for seqcount_mutex_t
- * @s:		Pointer to the seqcount_mutex_t instance
- * @lock:	Pointer to the associated mutex
- */
-#define seqcount_mutex_init(s, lock)					\
-	seqcount_locktype_init(s, lock)
-
-/**
  * SEQCNT_WW_MUTEX_ZERO - static initializer for seqcount_ww_mutex_t
  * @name:	Name of the seqcount_ww_mutex_t instance
  * @lock:	Pointer to the associated ww_mutex
@@ -222,15 +184,7 @@ do {									\
 	SEQCOUNT_LOCKTYPE_ZERO(name, lock)
 
 /**
- * seqcount_ww_mutex_init - runtime initializer for seqcount_ww_mutex_t
- * @s:		Pointer to the seqcount_ww_mutex_t instance
- * @lock:	Pointer to the associated ww_mutex
- */
-#define seqcount_ww_mutex_init(s, lock)					\
-	seqcount_locktype_init(s, lock)
-
-/**
- * typedef seqcount_LOCKNAME_t - sequence counter with spinlock associated
+ * typedef seqcount_LOCKNAME_t - sequence counter with LOCKTYPR associated
  * @seqcount:	The real sequence counter
  * @lock:	Pointer to the associated spinlock
  *
@@ -238,6 +192,12 @@ do {									\
  * spinlock. The spinlock is associated to the sequence count in the
  * static initializer or init function. This enables lockdep to validate
  * that the write side critical section is properly serialized.
+ */
+
+/**
+ * seqcount_LOCKNAME_init() - runtime initializer for seqcount_LOCKNAME_t
+ * @s:		Pointer to the seqcount_LOCKNAME_t instance
+ * @lock:	Pointer to the associated LOCKTYPE
  */
 
 /*
@@ -252,6 +212,13 @@ typedef struct seqcount_##lockname {					\
 	seqcount_t		seqcount;				\
 	__SEQ_LOCK(locktype	*lock);					\
 } seqcount_##lockname##_t;						\
+									\
+static __always_inline void						\
+seqcount_##lockname##_init(seqcount_##lockname##_t *s, locktype *lock)	\
+{									\
+	seqcount_init(&s->seqcount);					\
+	__SEQ_LOCK(s->lock = lock);					\
+}									\
 									\
 static __always_inline seqcount_t *					\
 __seqcount_##lockname##_ptr(seqcount_##lockname##_t *s)			\
