@@ -310,16 +310,79 @@ out:
 	return ret;
 }
 
+#if IS_ENABLED(CONFIG_IPV6)
+static int l2tp_nl_tunnel_send_addr6(struct sk_buff *skb, struct sock *sk,
+				     enum l2tp_encap_type encap)
+{
+	struct inet_sock *inet = inet_sk(sk);
+	struct ipv6_pinfo *np = inet6_sk(sk);
+
+	switch (encap) {
+	case L2TP_ENCAPTYPE_UDP:
+		if (udp_get_no_check6_tx(sk) &&
+		    nla_put_flag(skb, L2TP_ATTR_UDP_ZERO_CSUM6_TX))
+			return -1;
+		if (udp_get_no_check6_rx(sk) &&
+		    nla_put_flag(skb, L2TP_ATTR_UDP_ZERO_CSUM6_RX))
+			return -1;
+		if (nla_put_u16(skb, L2TP_ATTR_UDP_SPORT, ntohs(inet->inet_sport)) ||
+		    nla_put_u16(skb, L2TP_ATTR_UDP_DPORT, ntohs(inet->inet_dport)))
+			return -1;
+		fallthrough;
+	case L2TP_ENCAPTYPE_IP:
+		if (nla_put_in6_addr(skb, L2TP_ATTR_IP6_SADDR, &np->saddr) ||
+		    nla_put_in6_addr(skb, L2TP_ATTR_IP6_DADDR, &sk->sk_v6_daddr))
+			return -1;
+		break;
+	}
+	return 0;
+}
+#endif
+
+static int l2tp_nl_tunnel_send_addr4(struct sk_buff *skb, struct sock *sk,
+				     enum l2tp_encap_type encap)
+{
+	struct inet_sock *inet = inet_sk(sk);
+
+	switch (encap) {
+	case L2TP_ENCAPTYPE_UDP:
+		if (nla_put_u8(skb, L2TP_ATTR_UDP_CSUM, !sk->sk_no_check_tx) ||
+		    nla_put_u16(skb, L2TP_ATTR_UDP_SPORT, ntohs(inet->inet_sport)) ||
+		    nla_put_u16(skb, L2TP_ATTR_UDP_DPORT, ntohs(inet->inet_dport)))
+			return -1;
+		fallthrough;
+	case L2TP_ENCAPTYPE_IP:
+		if (nla_put_in_addr(skb, L2TP_ATTR_IP_SADDR, inet->inet_saddr) ||
+		    nla_put_in_addr(skb, L2TP_ATTR_IP_DADDR, inet->inet_daddr))
+			return -1;
+		break;
+	}
+
+	return 0;
+}
+
+/* Append attributes for the tunnel address, handling the different attribute types
+ * used for different tunnel encapsulation and AF_INET v.s. AF_INET6.
+ */
+static int l2tp_nl_tunnel_send_addr(struct sk_buff *skb, struct l2tp_tunnel *tunnel)
+{
+	struct sock *sk = tunnel->sock;
+
+	if (!sk)
+		return 0;
+
+#if IS_ENABLED(CONFIG_IPV6)
+	if (sk->sk_family == AF_INET6)
+		return l2tp_nl_tunnel_send_addr6(skb, sk, tunnel->encap);
+#endif
+	return l2tp_nl_tunnel_send_addr4(skb, sk, tunnel->encap);
+}
+
 static int l2tp_nl_tunnel_send(struct sk_buff *skb, u32 portid, u32 seq, int flags,
 			       struct l2tp_tunnel *tunnel, u8 cmd)
 {
 	void *hdr;
 	struct nlattr *nest;
-	struct sock *sk = NULL;
-	struct inet_sock *inet;
-#if IS_ENABLED(CONFIG_IPV6)
-	struct ipv6_pinfo *np = NULL;
-#endif
 
 	hdr = genlmsg_put(skb, portid, seq, &l2tp_nl_family, flags, cmd);
 	if (!hdr)
@@ -363,58 +426,9 @@ static int l2tp_nl_tunnel_send(struct sk_buff *skb, u32 portid, u32 seq, int fla
 		goto nla_put_failure;
 	nla_nest_end(skb, nest);
 
-	sk = tunnel->sock;
-	if (!sk)
-		goto out;
+	if (l2tp_nl_tunnel_send_addr(skb, tunnel))
+		goto nla_put_failure;
 
-#if IS_ENABLED(CONFIG_IPV6)
-	if (sk->sk_family == AF_INET6)
-		np = inet6_sk(sk);
-#endif
-
-	inet = inet_sk(sk);
-
-	switch (tunnel->encap) {
-	case L2TP_ENCAPTYPE_UDP:
-		switch (sk->sk_family) {
-		case AF_INET:
-			if (nla_put_u8(skb, L2TP_ATTR_UDP_CSUM, !sk->sk_no_check_tx))
-				goto nla_put_failure;
-			break;
-#if IS_ENABLED(CONFIG_IPV6)
-		case AF_INET6:
-			if (udp_get_no_check6_tx(sk) &&
-			    nla_put_flag(skb, L2TP_ATTR_UDP_ZERO_CSUM6_TX))
-				goto nla_put_failure;
-			if (udp_get_no_check6_rx(sk) &&
-			    nla_put_flag(skb, L2TP_ATTR_UDP_ZERO_CSUM6_RX))
-				goto nla_put_failure;
-			break;
-#endif
-		}
-		if (nla_put_u16(skb, L2TP_ATTR_UDP_SPORT, ntohs(inet->inet_sport)) ||
-		    nla_put_u16(skb, L2TP_ATTR_UDP_DPORT, ntohs(inet->inet_dport)))
-			goto nla_put_failure;
-		/* fall through  */
-	case L2TP_ENCAPTYPE_IP:
-#if IS_ENABLED(CONFIG_IPV6)
-		if (np) {
-			if (nla_put_in6_addr(skb, L2TP_ATTR_IP6_SADDR,
-					     &np->saddr) ||
-			    nla_put_in6_addr(skb, L2TP_ATTR_IP6_DADDR,
-					     &sk->sk_v6_daddr))
-				goto nla_put_failure;
-		} else
-#endif
-		if (nla_put_in_addr(skb, L2TP_ATTR_IP_SADDR,
-				    inet->inet_saddr) ||
-		    nla_put_in_addr(skb, L2TP_ATTR_IP_DADDR,
-				    inet->inet_daddr))
-			goto nla_put_failure;
-		break;
-	}
-
-out:
 	genlmsg_end(skb, hdr);
 	return 0;
 
