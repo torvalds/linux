@@ -912,7 +912,7 @@ static void io_queue_linked_timeout(struct io_kiocb *req);
 static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 				 struct io_uring_files_update *ip,
 				 unsigned nr_args);
-static int io_grab_files(struct io_kiocb *req);
+static int io_prep_work_files(struct io_kiocb *req);
 static void io_complete_rw_common(struct kiocb *kiocb, long res,
 				  struct io_comp_state *cs);
 static void __io_clean_op(struct io_kiocb *req);
@@ -5294,13 +5294,9 @@ static int io_req_defer_prep(struct io_kiocb *req,
 
 	if (io_alloc_async_ctx(req))
 		return -EAGAIN;
-
-	if (io_op_defs[req->opcode].file_table) {
-		io_req_init_async(req);
-		ret = io_grab_files(req);
-		if (unlikely(ret))
-			return ret;
-	}
+	ret = io_prep_work_files(req);
+	if (unlikely(ret))
+		return ret;
 
 	switch (req->opcode) {
 	case IORING_OP_NOP:
@@ -5851,6 +5847,8 @@ static int io_grab_files(struct io_kiocb *req)
 	int ret = -EBADF;
 	struct io_ring_ctx *ctx = req->ctx;
 
+	io_req_init_async(req);
+
 	if (req->work.files || (req->flags & REQ_F_NO_FILE_TABLE))
 		return 0;
 	if (!ctx->ring_file)
@@ -5874,6 +5872,13 @@ static int io_grab_files(struct io_kiocb *req)
 	rcu_read_unlock();
 
 	return ret;
+}
+
+static inline int io_prep_work_files(struct io_kiocb *req)
+{
+	if (!io_op_defs[req->opcode].file_table)
+		return 0;
+	return io_grab_files(req);
 }
 
 static enum hrtimer_restart io_link_timeout_fn(struct hrtimer *timer)
@@ -5987,14 +5992,9 @@ again:
 			goto exit;
 		}
 punt:
-		io_req_init_async(req);
-
-		if (io_op_defs[req->opcode].file_table) {
-			ret = io_grab_files(req);
-			if (ret)
-				goto err;
-		}
-
+		ret = io_prep_work_files(req);
+		if (unlikely(ret))
+			goto err;
 		/*
 		 * Queued up for async execution, worker will release
 		 * submit reference when the iocb is actually submitted.
