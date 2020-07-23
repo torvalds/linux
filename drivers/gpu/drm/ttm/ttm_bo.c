@@ -652,8 +652,12 @@ static int ttm_bo_evict(struct ttm_buffer_object *bo,
 	placement.num_busy_placement = 0;
 	bdev->driver->evict_flags(bo, &placement);
 
-	if (!placement.num_placement && !placement.num_busy_placement)
-		return ttm_bo_pipeline_gutting(bo);
+	if (!placement.num_placement && !placement.num_busy_placement) {
+		ttm_bo_wait(bo, false, false);
+
+		ttm_bo_cleanup_memtype_use(bo);
+		return 0;
+	}
 
 	evict_mem = bo->mem;
 	evict_mem.mm_node = NULL;
