@@ -6104,7 +6104,7 @@ static inline sector_t raid5_sync_request(struct mddev *mddev, sector_t sector_n
 	    !md_bitmap_start_sync(mddev->bitmap, sector_nr, &sync_blocks, 1) &&
 	    sync_blocks >= RAID5_STRIPE_SECTORS(conf)) {
 		/* we can skip this block, and probably more */
-		sync_blocks /= RAID5_STRIPE_SECTORS(conf);
+		do_div(sync_blocks, RAID5_STRIPE_SECTORS(conf));
 		*skipped = 1;
 		/* keep things rounded to whole stripes */
 		return sync_blocks * RAID5_STRIPE_SECTORS(conf);
