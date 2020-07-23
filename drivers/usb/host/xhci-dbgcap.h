@@ -137,8 +137,8 @@ struct xhci_dbc {
 	unsigned			resume_required:1;
 	struct dbc_ep			eps[2];
 
-	struct dbc_port			port;
 	const struct dbc_driver		*driver;
+	void				*priv;
 };
 
 struct dbc_request {

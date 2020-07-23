@@ -19,6 +19,11 @@ static void dbc_tty_exit(void);
 
 static struct tty_driver *dbc_tty_driver;
 
+static inline struct dbc_port *dbc_to_port(struct xhci_dbc *dbc)
+{
+	return dbc->priv;
+}
+
 static unsigned int
 dbc_send_packet(struct dbc_port *port, char *packet, unsigned int size)
 {
@@ -99,7 +104,7 @@ static void
 dbc_read_complete(struct xhci_dbc *dbc, struct dbc_request *req)
 {
 	unsigned long		flags;
-	struct dbc_port		*port = &dbc->port;
+	struct dbc_port		*port = dbc_to_port(dbc);
 
 	spin_lock_irqsave(&port->port_lock, flags);
 	list_add_tail(&req->list_pool, &port->read_queue);
@@ -110,7 +115,7 @@ dbc_read_complete(struct xhci_dbc *dbc, struct dbc_request *req)
 static void dbc_write_complete(struct xhci_dbc *dbc, struct dbc_request *req)
 {
 	unsigned long		flags;
-	struct dbc_port		*port = &dbc->port;
+	struct dbc_port		*port = dbc_to_port(dbc);
 
 	spin_lock_irqsave(&port->port_lock, flags);
 	list_add(&req->list_pool, &port->write_pool);
@@ -397,7 +402,7 @@ int xhci_dbc_tty_register_device(struct xhci_dbc *dbc)
 {
 	int			ret;
 	struct device		*tty_dev;
-	struct dbc_port		*port = &dbc->port;
+	struct dbc_port		*port = dbc_to_port(dbc);
 
 	if (port->registered)
 		return -EBUSY;
@@ -446,7 +451,7 @@ register_fail:
 
 void xhci_dbc_tty_unregister_device(struct xhci_dbc *dbc)
 {
-	struct dbc_port		*port = &dbc->port;
+	struct dbc_port		*port = dbc_to_port(dbc);
 
 	if (!port->registered)
 		return;
@@ -468,6 +473,7 @@ static const struct dbc_driver dbc_driver = {
 int xhci_dbc_tty_probe(struct xhci_hcd *xhci)
 {
 	struct xhci_dbc		*dbc = xhci->dbc;
+	struct dbc_port		*port;
 	int			status;
 
 	/* dbc_tty_init will be called by module init() in the future */
@@ -475,13 +481,20 @@ int xhci_dbc_tty_probe(struct xhci_hcd *xhci)
 	if (status)
 		return status;
 
-	dbc->driver = &dbc_driver;
+	port = kzalloc(sizeof(*port), GFP_KERNEL);
+	if (!port) {
+		status = -ENOMEM;
+		goto out;
+	}
 
-	dbc_tty_driver->driver_state = &dbc->port;
+	dbc->driver = &dbc_driver;
+	dbc->priv = port;
+
+
+	dbc_tty_driver->driver_state = port;
 
 	return 0;
 out:
-
 	/* dbc_tty_exit will be called by module_exit() in the future */
 	dbc_tty_exit();
 	return status;
@@ -493,7 +506,11 @@ out:
  */
 void xhci_dbc_tty_remove(struct xhci_dbc *dbc)
 {
+	struct dbc_port         *port = dbc_to_port(dbc);
+
 	dbc->driver = NULL;
+	dbc->priv = NULL;
+	kfree(port);
 
 	/* dbc_tty_exit will be called by  module_exit() in the future */
 	dbc_tty_exit();
