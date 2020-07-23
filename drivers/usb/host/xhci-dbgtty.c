@@ -426,8 +426,6 @@ xhci_dbc_tty_init_port(struct xhci_dbc *dbc, struct dbc_port *port)
 	INIT_LIST_HEAD(&port->read_queue);
 	INIT_LIST_HEAD(&port->write_pool);
 
-	port->in =		get_in_ep(dbc);
-	port->out =		get_out_ep(dbc);
 	port->port.ops =	&dbc_port_ops;
 	port->n_read =		0;
 }

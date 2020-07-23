@@ -110,8 +110,6 @@ struct dbc_port {
 	struct kfifo			write_fifo;
 
 	bool				registered;
-	struct dbc_ep			*in;
-	struct dbc_ep			*out;
 };
 
 struct xhci_dbc {
