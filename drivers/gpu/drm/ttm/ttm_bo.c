@@ -1524,10 +1524,6 @@ int ttm_bo_init_mm(struct ttm_bo_device *bdev, unsigned type,
 	mutex_init(&man->io_reserve_mutex);
 	spin_lock_init(&man->move_lock);
 	INIT_LIST_HEAD(&man->io_reserve_lru);
-
-	ret = bdev->driver->init_mem_type(bdev, type, man);
-	if (ret)
-		return ret;
 	man->bdev = bdev;
 
 	if (type != TTM_PL_SYSTEM) {

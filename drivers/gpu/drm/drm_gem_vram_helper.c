@@ -1004,12 +1004,6 @@ err_ttm_tt_init:
 	return NULL;
 }
 
-static int bo_driver_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
-				   struct ttm_mem_type_manager *man)
-{
-	return 0;
-}
-
 static void bo_driver_evict_flags(struct ttm_buffer_object *bo,
 				  struct ttm_placement *placement)
 {
@@ -1069,7 +1063,6 @@ static struct ttm_bo_driver bo_driver = {
 	.ttm_tt_create = bo_driver_ttm_tt_create,
 	.ttm_tt_populate = ttm_pool_populate,
 	.ttm_tt_unpopulate = ttm_pool_unpopulate,
-	.init_mem_type = bo_driver_init_mem_type,
 	.eviction_valuable = ttm_bo_eviction_valuable,
 	.evict_flags = bo_driver_evict_flags,
 	.move_notify = bo_driver_move_notify,

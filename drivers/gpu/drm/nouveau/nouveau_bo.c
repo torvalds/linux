@@ -646,13 +646,6 @@ nouveau_ttm_tt_create(struct ttm_buffer_object *bo, uint32_t page_flags)
 	return nouveau_sgdma_create_ttm(bo, page_flags);
 }
 
-static int
-nouveau_bo_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
-			 struct ttm_mem_type_manager *man)
-{
-	return 0;
-}
-
 static void
 nouveau_bo_evict_flags(struct ttm_buffer_object *bo, struct ttm_placement *pl)
 {
@@ -1643,7 +1636,6 @@ struct ttm_bo_driver nouveau_bo_driver = {
 	.ttm_tt_create = &nouveau_ttm_tt_create,
 	.ttm_tt_populate = &nouveau_ttm_tt_populate,
 	.ttm_tt_unpopulate = &nouveau_ttm_tt_unpopulate,
-	.init_mem_type = nouveau_bo_init_mem_type,
 	.eviction_valuable = ttm_bo_eviction_valuable,
 	.evict_flags = nouveau_bo_evict_flags,
 	.move_notify = nouveau_bo_move_ntfy,

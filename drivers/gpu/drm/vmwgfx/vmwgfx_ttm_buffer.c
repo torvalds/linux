@@ -736,12 +736,6 @@ out_no_init:
 	return NULL;
 }
 
-static int vmw_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
-		      struct ttm_mem_type_manager *man)
-{
-	return 0;
-}
-
 static void vmw_evict_flags(struct ttm_buffer_object *bo,
 		     struct ttm_placement *placement)
 {
@@ -817,7 +811,6 @@ struct ttm_bo_driver vmw_bo_driver = {
 	.ttm_tt_create = &vmw_ttm_tt_create,
 	.ttm_tt_populate = &vmw_ttm_populate,
 	.ttm_tt_unpopulate = &vmw_ttm_unpopulate,
-	.init_mem_type = vmw_init_mem_type,
 	.eviction_valuable = ttm_bo_eviction_valuable,
 	.evict_flags = vmw_evict_flags,
 	.move = NULL,

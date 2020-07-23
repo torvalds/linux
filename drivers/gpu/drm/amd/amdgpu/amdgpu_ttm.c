@@ -62,12 +62,6 @@
 
 #define AMDGPU_TTM_VRAM_MAX_DW_READ	(size_t)128
 
-static int amdgpu_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
-				struct ttm_mem_type_manager *man)
-{
-	return 0;
-}
-
 static int amdgpu_ttm_init_vram(struct amdgpu_device *adev)
 {
 
@@ -1727,7 +1721,6 @@ static struct ttm_bo_driver amdgpu_bo_driver = {
 	.ttm_tt_create = &amdgpu_ttm_tt_create,
 	.ttm_tt_populate = &amdgpu_ttm_tt_populate,
 	.ttm_tt_unpopulate = &amdgpu_ttm_tt_unpopulate,
-	.init_mem_type = &amdgpu_init_mem_type,
 	.eviction_valuable = amdgpu_ttm_bo_eviction_valuable,
 	.evict_flags = &amdgpu_evict_flags,
 	.move = &amdgpu_bo_move,
