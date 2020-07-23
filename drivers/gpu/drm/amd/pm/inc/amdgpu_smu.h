@@ -31,6 +31,7 @@
 #define SMU_THERMAL_MINIMUM_ALERT_TEMP		0
 #define SMU_THERMAL_MAXIMUM_ALERT_TEMP		255
 #define SMU_TEMPERATURE_UNITS_PER_CENTIGRADES	1000
+#define SMU_FW_NAME_LEN			0x24
 
 struct smu_hw_power_state {
 	unsigned int magic;
