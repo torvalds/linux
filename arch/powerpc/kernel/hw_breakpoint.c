@@ -538,7 +538,12 @@ static bool check_dawrx_constraints(struct pt_regs *regs, int type,
 	if (OP_IS_LOAD(type) && !(info->type & HW_BRK_TYPE_READ))
 		return false;
 
-	if (OP_IS_STORE(type) && !(info->type & HW_BRK_TYPE_WRITE))
+	/*
+	 * The Cache Management instructions other than dcbz never
+	 * cause a match. i.e. if type is CACHEOP, the instruction
+	 * is dcbz, and dcbz is treated as Store.
+	 */
+	if ((OP_IS_STORE(type) || type == CACHEOP) && !(info->type & HW_BRK_TYPE_WRITE))
 		return false;
 
 	if (is_kernel_addr(regs->nip) && !(info->type & HW_BRK_TYPE_KERNEL))
@@ -601,6 +606,15 @@ static bool check_constraints(struct pt_regs *regs, struct ppc_inst instr,
 	return false;
 }
 
+static int cache_op_size(void)
+{
+#ifdef __powerpc64__
+	return ppc64_caches.l1d.block_size;
+#else
+	return L1_CACHE_BYTES;
+#endif
+}
+
 static void get_instr_detail(struct pt_regs *regs, struct ppc_inst *instr,
 			     int *type, int *size, unsigned long *ea)
 {
@@ -616,7 +630,12 @@ static void get_instr_detail(struct pt_regs *regs, struct ppc_inst *instr,
 	if (!(regs->msr & MSR_64BIT))
 		*ea &= 0xffffffffUL;
 #endif
+
 	*size = GETSIZE(op.type);
+	if (*type == CACHEOP) {
+		*size = cache_op_size();
+		*ea &= ~(*size - 1);
+	}
 }
 
 static bool is_larx_stcx_instr(int type)
