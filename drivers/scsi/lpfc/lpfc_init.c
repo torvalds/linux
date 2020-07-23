@@ -993,7 +993,6 @@ lpfc_hba_clean_txcmplq(struct lpfc_hba *phba)
 
 /**
  * lpfc_hba_down_post_s3 - Perform lpfc uninitialization after HBA reset
-	int i;
  * @phba: pointer to lpfc HBA data structure.
  *
  * This routine will do uninitialization after the HBA is reset when bring
@@ -1121,7 +1120,7 @@ lpfc_hba_down_post(struct lpfc_hba *phba)
 
 /**
  * lpfc_hb_timeout - The HBA-timer timeout handler
- * @ptr: unsigned long holds the pointer to lpfc hba data structure.
+ * @t: timer context used to obtain the pointer to lpfc hba data structure.
  *
  * This is the HBA-timer timeout handler registered to the lpfc driver. When
  * this timer fires, a HBA timeout event shall be posted to the lpfc driver
@@ -1155,7 +1154,7 @@ lpfc_hb_timeout(struct timer_list *t)
 
 /**
  * lpfc_rrq_timeout - The RRQ-timer timeout handler
- * @ptr: unsigned long holds the pointer to lpfc hba data structure.
+ * @t: timer context used to obtain the pointer to lpfc hba data structure.
  *
  * This is the RRQ-timer timeout handler registered to the lpfc driver. When
  * this timer fires, a RRQ timeout event shall be posted to the lpfc driver
@@ -1219,7 +1218,7 @@ lpfc_hb_mbox_cmpl(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmboxq)
 	return;
 }
 
-/**
+/*
  * lpfc_idle_stat_delay_work - idle_stat tracking
  *
  * This routine tracks per-cq idle_stat and determines polling decisions.
@@ -1804,7 +1803,7 @@ lpfc_handle_eratt_s3(struct lpfc_hba *phba)
  * lpfc_sli4_port_sta_fn_reset - The SLI4 function reset due to port status reg
  * @phba: pointer to lpfc hba data structure.
  * @mbx_action: flag for mailbox shutdown action.
- *
+ * @en_rn_msg: send reset/port recovery message.
  * This routine is invoked to perform an SLI4 port PCI function reset in
  * response to port status register polling attention. It waits for port
  * status register (ERR, RDY, RN) bits before proceeding with function reset.
@@ -3021,6 +3020,7 @@ lpfc_stop_hba_timers(struct lpfc_hba *phba)
 /**
  * lpfc_block_mgmt_io - Mark a HBA's management interface as blocked
  * @phba: pointer to lpfc hba data structure.
+ * @mbx_action: flag for mailbox no wait action.
  *
  * This routine marks a HBA's management interface as blocked. Once the HBA's
  * management interface is marked as blocked, all the user space access to
@@ -3471,6 +3471,7 @@ lpfc_unblock_mgmt_io(struct lpfc_hba * phba)
 /**
  * lpfc_offline_prep - Prepare a HBA to be brought offline
  * @phba: pointer to lpfc hba data structure.
+ * @mbx_action: flag for mailbox shutdown action.
  *
  * This routine is invoked to prepare a HBA to be brought offline. It performs
  * unregistration login to all the nodes on all vports and flushes the mailbox
@@ -4133,8 +4134,8 @@ out_free_mem:
 
 /**
  * lpfc_new_io_buf - IO buffer allocator for HBA with SLI4 IF spec
- * @vport: The virtual port for which this call being executed.
- * @num_to_allocate: The requested number of buffers to allocate.
+ * @phba: Pointer to lpfc hba data structure.
+ * @num_to_alloc: The requested number of buffers to allocate.
  *
  * This routine allocates nvme buffers for device with SLI-4 interface spec,
  * the nvme buffer contains all the necessary information needed to initiate
@@ -4723,7 +4724,7 @@ lpfc_fcf_redisc_wait_start_timer(struct lpfc_hba *phba)
 
 /**
  * lpfc_sli4_fcf_redisc_wait_tmo - FCF table rediscover wait timeout
- * @ptr: Map to lpfc_hba data structure pointer.
+ * @t: Timer context used to obtain the pointer to lpfc hba data structure.
  *
  * This routine is invoked when waiting for FCF table rediscover has been
  * timed out. If new FCF record(s) has (have) been discovered during the
@@ -5090,7 +5091,6 @@ out_free_pmb:
  * lpfc_async_link_speed_to_read_top - Parse async evt link speed code to read
  * topology.
  * @phba: pointer to lpfc hba data structure.
- * @evt_code: asynchronous event code.
  * @speed_code: asynchronous event link speed code.
  *
  * This routine is to parse the giving SLI4 async event link speed code into
@@ -5368,7 +5368,7 @@ out_free_pmb:
 /**
  * lpfc_sli4_async_sli_evt - Process the asynchronous SLI link event
  * @phba: pointer to lpfc hba data structure.
- * @acqe_fc: pointer to the async SLI completion queue entry.
+ * @acqe_sli: pointer to the async SLI completion queue entry.
  *
  * This routine is to handle the SLI4 asynchronous SLI events.
  **/
@@ -5624,7 +5624,7 @@ lpfc_sli4_perform_vport_cvl(struct lpfc_vport *vport)
 
 /**
  * lpfc_sli4_perform_all_vport_cvl - Perform clear virtual link on all vports
- * @vport: pointer to lpfc hba data structure.
+ * @phba: pointer to lpfc hba data structure.
  *
  * This routine is to perform Clear Virtual Link (CVL) on all vports in
  * response to a FCF dead event.
@@ -5645,7 +5645,7 @@ lpfc_sli4_perform_all_vport_cvl(struct lpfc_hba *phba)
 /**
  * lpfc_sli4_async_fip_evt - Process the asynchronous FCoE FIP event
  * @phba: pointer to lpfc hba data structure.
- * @acqe_link: pointer to the async fcoe completion queue entry.
+ * @acqe_fip: pointer to the async fcoe completion queue entry.
  *
  * This routine is to handle the SLI4 asynchronous fcoe event.
  **/
@@ -5898,7 +5898,7 @@ lpfc_sli4_async_fip_evt(struct lpfc_hba *phba,
 /**
  * lpfc_sli4_async_dcbx_evt - Process the asynchronous dcbx event
  * @phba: pointer to lpfc hba data structure.
- * @acqe_link: pointer to the async dcbx completion queue entry.
+ * @acqe_dcbx: pointer to the async dcbx completion queue entry.
  *
  * This routine is to handle the SLI4 asynchronous dcbx event.
  **/
@@ -5915,7 +5915,7 @@ lpfc_sli4_async_dcbx_evt(struct lpfc_hba *phba,
 /**
  * lpfc_sli4_async_grp5_evt - Process the asynchronous group5 event
  * @phba: pointer to lpfc hba data structure.
- * @acqe_link: pointer to the async grp5 completion queue entry.
+ * @acqe_grp5: pointer to the async grp5 completion queue entry.
  *
  * This routine is to handle the SLI4 asynchronous grp5 event. A grp5 event
  * is an asynchronous notified of a logical link speed change.  The Port
@@ -7266,6 +7266,7 @@ lpfc_free_iocb_list(struct lpfc_hba *phba)
 /**
  * lpfc_init_iocb_list - Allocate and initialize iocb list.
  * @phba: pointer to lpfc hba data structure.
+ * @iocb_count: number of requested iocbs
  *
  * This routine is invoked to allocate and initizlize the driver's IOCB
  * list and set up the IOCB tag array accordingly.
@@ -8219,6 +8220,7 @@ lpfc_sli4_bar0_register_memmap(struct lpfc_hba *phba, uint32_t if_type)
 /**
  * lpfc_sli4_bar1_register_memmap - Set up SLI4 BAR1 register memory map.
  * @phba: pointer to lpfc hba data structure.
+ * @if_type: sli if type to operate on.
  *
  * This routine is invoked to set up SLI4 BAR1 register memory map.
  **/
@@ -8400,20 +8402,19 @@ static const char * const lpfc_topo_to_str[] = {
 	"P2P then Loop",
 };
 
+#define	LINK_FLAGS_DEF	0x0
+#define	LINK_FLAGS_P2P	0x1
+#define	LINK_FLAGS_LOOP	0x2
 /**
  * lpfc_map_topology - Map the topology read from READ_CONFIG
  * @phba: pointer to lpfc hba data structure.
- * @rdconf: pointer to read config data
+ * @rd_config: pointer to read config data
  *
  * This routine is invoked to map the topology values as read
  * from the read config mailbox command. If the persistent
  * topology feature is supported, the firmware will provide the
  * saved topology information to be used in INIT_LINK
- *
  **/
-#define	LINK_FLAGS_DEF	0x0
-#define	LINK_FLAGS_P2P	0x1
-#define	LINK_FLAGS_LOOP	0x2
 static void
 lpfc_map_topology(struct lpfc_hba *phba, struct lpfc_mbx_read_config *rd_config)
 {
@@ -10716,6 +10717,7 @@ lpfc_sli_enable_msi(struct lpfc_hba *phba)
 /**
  * lpfc_sli_enable_intr - Enable device interrupt to SLI-3 device.
  * @phba: pointer to lpfc hba data structure.
+ * @cfg_mode: Interrupt configuration mode (INTx, MSI or MSI-X).
  *
  * This routine is invoked to enable device interrupt and associate driver's
  * interrupt handler(s) to interrupt vector(s) to device with SLI-3 interface
@@ -11233,7 +11235,7 @@ found_any:
  *
  * @phba:   pointer to lpfc hba data structure.
  * @cpu:    cpu going offline
- * @eqlist:
+ * @eqlist: eq list to append to
  */
 static int
 lpfc_cpuhp_get_eq(struct lpfc_hba *phba, unsigned int cpu,
@@ -11708,6 +11710,7 @@ lpfc_sli4_enable_msi(struct lpfc_hba *phba)
 /**
  * lpfc_sli4_enable_intr - Enable device interrupt to SLI-4 device
  * @phba: pointer to lpfc hba data structure.
+ * @cfg_mode: Interrupt configuration mode (INTx, MSI or MSI-X).
  *
  * This routine is invoked to enable device interrupt and associate driver's
  * interrupt handler(s) to interrupt vector(s) to device with SLI-4
@@ -12988,7 +12991,6 @@ lpfc_log_write_firmware_error(struct lpfc_hba *phba, uint32_t offset,
  * lpfc_write_firmware - attempt to write a firmware image to the port
  * @fw: pointer to firmware image returned from request_firmware.
  * @context: pointer to firmware image returned from request_firmware.
- * @ret: return value this routine provides to the caller.
  *
  **/
 static void
@@ -13093,6 +13095,7 @@ out:
 /**
  * lpfc_sli4_request_firmware_update - Request linux generic firmware upgrade
  * @phba: pointer to lpfc hba data structure.
+ * @fw_upgrade: which firmware to update.
  *
  * This routine is called to perform Linux generic firmware upgrade on device
  * that supports such feature.
