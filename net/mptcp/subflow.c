@@ -415,7 +415,7 @@ static struct sock *subflow_syn_recv_sock(const struct sock *sk,
 
 	/* hopefully temporary handling for MP_JOIN+syncookie */
 	subflow_req = mptcp_subflow_rsk(req);
-	fallback_is_fatal = subflow_req->mp_join;
+	fallback_is_fatal = tcp_rsk(req)->is_mptcp && subflow_req->mp_join;
 	fallback = !tcp_rsk(req)->is_mptcp;
 	if (fallback)
 		goto create_child;
