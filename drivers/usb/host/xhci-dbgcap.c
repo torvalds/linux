@@ -630,14 +630,22 @@ static void xhci_dbc_stop(struct xhci_dbc *dbc)
 {
 	int ret;
 	unsigned long		flags;
-	struct dbc_port		*port = &dbc->port;
 
 	WARN_ON(!dbc);
 
-	cancel_delayed_work_sync(&dbc->event_work);
+	switch (dbc->state) {
+	case DS_DISABLED:
+		return;
+	case DS_CONFIGURED:
+	case DS_STALLED:
+		if (dbc->driver->disconnect)
+			dbc->driver->disconnect(dbc);
+		break;
+	default:
+		break;
+	}
 
-	if (port->registered && dbc->driver->disconnect)
-		dbc->driver->disconnect(dbc);
+	cancel_delayed_work_sync(&dbc->event_work);
 
 	spin_lock_irqsave(&dbc->lock, flags);
 	ret = xhci_do_dbc_stop(dbc);

@@ -399,6 +399,9 @@ int xhci_dbc_tty_register_device(struct xhci_dbc *dbc)
 	struct device		*tty_dev;
 	struct dbc_port		*port = &dbc->port;
 
+	if (port->registered)
+		return -EBUSY;
+
 	xhci_dbc_tty_init_port(dbc, port);
 	tty_dev = tty_port_register_device(&port->port,
 					   dbc_tty_driver, 0, NULL);
@@ -445,6 +448,8 @@ void xhci_dbc_tty_unregister_device(struct xhci_dbc *dbc)
 {
 	struct dbc_port		*port = &dbc->port;
 
+	if (!port->registered)
+		return;
 	tty_unregister_device(dbc_tty_driver, 0);
 	xhci_dbc_tty_exit_port(port);
 	port->registered = false;
