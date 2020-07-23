@@ -1084,8 +1084,8 @@ struct in6_addr *fl6_update_dst(struct flowi6 *fl6,
  *	socket options (ipv6_sockglue.c)
  */
 
-int ipv6_setsockopt(struct sock *sk, int level, int optname,
-		    char __user *optval, unsigned int optlen);
+int ipv6_setsockopt(struct sock *sk, int level, int optname, sockptr_t optval,
+		    unsigned int optlen);
 int ipv6_getsockopt(struct sock *sk, int level, int optname,
 		    char __user *optval, int __user *optlen);
 

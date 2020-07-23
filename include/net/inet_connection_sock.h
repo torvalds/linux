@@ -16,6 +16,7 @@
 #include <linux/timer.h>
 #include <linux/poll.h>
 #include <linux/kernel.h>
+#include <linux/sockptr.h>
 
 #include <net/inet_sock.h>
 #include <net/request_sock.h>
@@ -45,7 +46,7 @@ struct inet_connection_sock_af_ops {
 	u16	    net_frag_header_len;
 	u16	    sockaddr_len;
 	int	    (*setsockopt)(struct sock *sk, int level, int optname,
-				  char __user *optval, unsigned int optlen);
+				  sockptr_t optval, unsigned int optlen);
 	int	    (*getsockopt)(struct sock *sk, int level, int optname,
 				  char __user *optval, int __user *optlen);
 	void	    (*addr2sockaddr)(struct sock *sk, struct sockaddr *);

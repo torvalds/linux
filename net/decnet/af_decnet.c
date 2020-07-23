@@ -150,7 +150,8 @@ static struct hlist_head dn_sk_hash[DN_SK_HASH_SIZE];
 static struct hlist_head dn_wild_sk;
 static atomic_long_t decnet_memory_allocated;
 
-static int __dn_setsockopt(struct socket *sock, int level, int optname, char __user *optval, unsigned int optlen, int flags);
+static int __dn_setsockopt(struct socket *sock, int level, int optname,
+		sockptr_t optval, unsigned int optlen, int flags);
 static int __dn_getsockopt(struct socket *sock, int level, int optname, char __user *optval, int __user *optlen, int flags);
 
 static struct hlist_head *dn_find_list(struct sock *sk)
@@ -1320,7 +1321,8 @@ out:
 	return err;
 }
 
-static int dn_setsockopt(struct socket *sock, int level, int optname, char __user *optval, unsigned int optlen)
+static int dn_setsockopt(struct socket *sock, int level, int optname,
+		sockptr_t optval, unsigned int optlen)
 {
 	struct sock *sk = sock->sk;
 	int err;
@@ -1332,14 +1334,14 @@ static int dn_setsockopt(struct socket *sock, int level, int optname, char __use
 	/* we need to exclude all possible ENOPROTOOPTs except default case */
 	if (err == -ENOPROTOOPT && optname != DSO_LINKINFO &&
 	    optname != DSO_STREAM && optname != DSO_SEQPACKET)
-		err = nf_setsockopt(sk, PF_DECnet, optname,
-				    USER_SOCKPTR(optval), optlen);
+		err = nf_setsockopt(sk, PF_DECnet, optname, optval, optlen);
 #endif
 
 	return err;
 }
 
-static int __dn_setsockopt(struct socket *sock, int level,int optname, char __user *optval, unsigned int optlen, int flags)
+static int __dn_setsockopt(struct socket *sock, int level, int optname,
+		sockptr_t optval, unsigned int optlen, int flags)
 {
 	struct	sock *sk = sock->sk;
 	struct dn_scp *scp = DN_SK(sk);
@@ -1355,13 +1357,13 @@ static int __dn_setsockopt(struct socket *sock, int level,int optname, char __us
 	} u;
 	int err;
 
-	if (optlen && !optval)
+	if (optlen && sockptr_is_null(optval))
 		return -EINVAL;
 
 	if (optlen > sizeof(u))
 		return -EINVAL;
 
-	if (copy_from_user(&u, optval, optlen))
+	if (copy_from_sockptr(&u, optval, optlen))
 		return -EFAULT;
 
 	switch (optname) {

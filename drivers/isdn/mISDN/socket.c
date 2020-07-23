@@ -401,7 +401,7 @@ data_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 }
 
 static int data_sock_setsockopt(struct socket *sock, int level, int optname,
-				char __user *optval, unsigned int len)
+				sockptr_t optval, unsigned int len)
 {
 	struct sock *sk = sock->sk;
 	int err = 0, opt = 0;
@@ -414,7 +414,7 @@ static int data_sock_setsockopt(struct socket *sock, int level, int optname,
 
 	switch (optname) {
 	case MISDN_TIME_STAMP:
-		if (get_user(opt, (int __user *)optval)) {
+		if (copy_from_sockptr(&opt, optval, sizeof(int))) {
 			err = -EFAULT;
 			break;
 		}
