@@ -167,6 +167,12 @@ struct vc5_hw_data {
 	u32			div_int;
 	u32			div_frc;
 	unsigned int		num;
+};
+
+struct vc5_out_data {
+	struct clk_hw		hw;
+	struct vc5_driver_data	*vc5;
+	unsigned int		num;
 	unsigned int		clk_output_cfg0;
 	unsigned int		clk_output_cfg0_mask;
 };
@@ -184,7 +190,7 @@ struct vc5_driver_data {
 	struct clk_hw		clk_pfd;
 	struct vc5_hw_data	clk_pll;
 	struct vc5_hw_data	clk_fod[VC5_MAX_FOD_NUM];
-	struct vc5_hw_data	clk_out[VC5_MAX_CLK_OUT_NUM];
+	struct vc5_out_data	clk_out[VC5_MAX_CLK_OUT_NUM];
 };
 
 /*
@@ -567,7 +573,7 @@ static const struct clk_ops vc5_fod_ops = {
 
 static int vc5_clk_out_prepare(struct clk_hw *hw)
 {
-	struct vc5_hw_data *hwdata = container_of(hw, struct vc5_hw_data, hw);
+	struct vc5_out_data *hwdata = container_of(hw, struct vc5_out_data, hw);
 	struct vc5_driver_data *vc5 = hwdata->vc5;
 	const u8 mask = VC5_OUT_DIV_CONTROL_SELB_NORM |
 			VC5_OUT_DIV_CONTROL_SEL_EXT |
@@ -609,7 +615,7 @@ static int vc5_clk_out_prepare(struct clk_hw *hw)
 
 static void vc5_clk_out_unprepare(struct clk_hw *hw)
 {
-	struct vc5_hw_data *hwdata = container_of(hw, struct vc5_hw_data, hw);
+	struct vc5_out_data *hwdata = container_of(hw, struct vc5_out_data, hw);
 	struct vc5_driver_data *vc5 = hwdata->vc5;
 
 	/* Disable the clock buffer */
@@ -619,7 +625,7 @@ static void vc5_clk_out_unprepare(struct clk_hw *hw)
 
 static unsigned char vc5_clk_out_get_parent(struct clk_hw *hw)
 {
-	struct vc5_hw_data *hwdata = container_of(hw, struct vc5_hw_data, hw);
+	struct vc5_out_data *hwdata = container_of(hw, struct vc5_out_data, hw);
 	struct vc5_driver_data *vc5 = hwdata->vc5;
 	const u8 mask = VC5_OUT_DIV_CONTROL_SELB_NORM |
 			VC5_OUT_DIV_CONTROL_SEL_EXT |
@@ -649,7 +655,7 @@ static unsigned char vc5_clk_out_get_parent(struct clk_hw *hw)
 
 static int vc5_clk_out_set_parent(struct clk_hw *hw, u8 index)
 {
-	struct vc5_hw_data *hwdata = container_of(hw, struct vc5_hw_data, hw);
+	struct vc5_out_data *hwdata = container_of(hw, struct vc5_out_data, hw);
 	struct vc5_driver_data *vc5 = hwdata->vc5;
 	const u8 mask = VC5_OUT_DIV_CONTROL_RESET |
 			VC5_OUT_DIV_CONTROL_SELB_NORM |
@@ -704,7 +710,7 @@ static int vc5_map_index_to_output(const enum vc5_model model,
 }
 
 static int vc5_update_mode(struct device_node *np_output,
-			   struct vc5_hw_data *clk_out)
+			   struct vc5_out_data *clk_out)
 {
 	u32 value;
 
@@ -729,7 +735,7 @@ static int vc5_update_mode(struct device_node *np_output,
 }
 
 static int vc5_update_power(struct device_node *np_output,
-			    struct vc5_hw_data *clk_out)
+			    struct vc5_out_data *clk_out)
 {
 	u32 value;
 
@@ -754,7 +760,7 @@ static int vc5_update_power(struct device_node *np_output,
 }
 
 static int vc5_update_slew(struct device_node *np_output,
-			   struct vc5_hw_data *clk_out)
+			   struct vc5_out_data *clk_out)
 {
 	u32 value;
 
@@ -782,7 +788,7 @@ static int vc5_update_slew(struct device_node *np_output,
 }
 
 static int vc5_get_output_config(struct i2c_client *client,
-				 struct vc5_hw_data *clk_out)
+				 struct vc5_out_data *clk_out)
 {
 	struct device_node *np_output;
 	char *child_name;
