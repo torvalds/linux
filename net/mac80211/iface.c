@@ -1183,17 +1183,24 @@ static u16 ieee80211_monitor_select_queue(struct net_device *dev,
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_hdr *hdr;
-	struct ieee80211_radiotap_header *rtap = (void *)skb->data;
+	int len_rthdr;
 
 	if (local->hw.queues < IEEE80211_NUM_ACS)
 		return 0;
 
-	if (skb->len < 4 ||
-	    skb->len < le16_to_cpu(rtap->it_len) + 2 /* frame control */)
+	/* reset flags and info before parsing radiotap header */
+	memset(info, 0, sizeof(*info));
+
+	if (!ieee80211_parse_tx_radiotap(skb, dev))
 		return 0; /* doesn't matter, frame will be dropped */
 
-	hdr = (void *)((u8 *)skb->data + le16_to_cpu(rtap->it_len));
+	len_rthdr = ieee80211_get_radiotap_len(skb->data);
+	hdr = (struct ieee80211_hdr *)(skb->data + len_rthdr);
+	if (skb->len < len_rthdr + 2 ||
+	    skb->len < len_rthdr + ieee80211_hdrlen(hdr->frame_control))
+		return 0; /* doesn't matter, frame will be dropped */
 
 	return ieee80211_select_queue_80211(sdata, skb, hdr);
 }
