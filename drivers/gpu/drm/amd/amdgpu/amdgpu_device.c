@@ -4125,15 +4125,29 @@ static int amdgpu_do_asic_reset(struct amdgpu_hive_info *hive,
 
 				amdgpu_fbdev_set_suspend(tmp_adev, 0);
 
-				/* must succeed. */
-				amdgpu_ras_resume(tmp_adev);
+				/*
+				 * The GPU enters bad state once faulty pages
+				 * by ECC has reached the threshold, and ras
+				 * recovery is scheduled next. So add one check
+				 * here to break recovery if it indeed exceeds
+				 * bad page threshold, and remind user to
+				 * retire this GPU or setting one bigger
+				 * bad_page_threshold value to fix this once
+				 * probing driver again.
+				 */
+				if (!amdgpu_ras_check_err_threshold(tmp_adev)) {
+					/* must succeed. */
+					amdgpu_ras_resume(tmp_adev);
+				} else {
+					r = -EINVAL;
+					goto out;
+				}
 
 				/* Update PSP FW topology after reset */
 				if (hive && tmp_adev->gmc.xgmi.num_physical_nodes > 1)
 					r = amdgpu_xgmi_update_topology(hive, tmp_adev);
 			}
 		}
-
 
 out:
 		if (!r) {
