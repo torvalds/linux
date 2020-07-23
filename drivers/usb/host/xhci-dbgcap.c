@@ -101,7 +101,7 @@ static void xhci_dbc_init_contexts(struct xhci_hcd *xhci, u32 string_length)
 	ep_ctx->deq		= cpu_to_le64(deq | dbc->ring_in->cycle_state);
 
 	/* Set DbC context and info registers: */
-	xhci_write_64(xhci, dbc->ctx->dma, &dbc->regs->dccp);
+	lo_hi_writeq(dbc->ctx->dma, &dbc->regs->dccp);
 
 	dev_info = cpu_to_le32((DBC_VENDOR_ID << 16) | DBC_PROTOCOL);
 	writel(dev_info, &dbc->regs->devinfo1);
@@ -413,10 +413,11 @@ static int xhci_dbc_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 
 	/* Setup ERST register: */
 	writel(dbc->erst.erst_size, &dbc->regs->ersts);
-	xhci_write_64(xhci, dbc->erst.erst_dma_addr, &dbc->regs->erstba);
+
+	lo_hi_writeq(dbc->erst.erst_dma_addr, &dbc->regs->erstba);
 	deq = xhci_trb_virt_to_dma(dbc->ring_evt->deq_seg,
 				   dbc->ring_evt->dequeue);
-	xhci_write_64(xhci, deq, &dbc->regs->erdp);
+	lo_hi_writeq(deq, &dbc->regs->erdp);
 
 	/* Setup strings and contexts: */
 	string_length = xhci_dbc_populate_strings(dbc->string);
@@ -788,7 +789,7 @@ static enum evtreturn xhci_dbc_do_handle_events(struct xhci_dbc *dbc)
 	if (update_erdp) {
 		deq = xhci_trb_virt_to_dma(dbc->ring_evt->deq_seg,
 					   dbc->ring_evt->dequeue);
-		xhci_write_64(xhci, deq, &dbc->regs->erdp);
+		lo_hi_writeq(deq, &dbc->regs->erdp);
 	}
 
 	return EVT_DONE;
