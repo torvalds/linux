@@ -18,6 +18,9 @@ int qcom_snd_parse_of(struct snd_soc_card *card)
 	int ret, num_links;
 
 	ret = snd_soc_of_parse_card_name(card, "model");
+	if (ret == 0 && !card->name)
+		/* Deprecated, only for compatibility with old device trees */
+		ret = snd_soc_of_parse_card_name(card, "qcom,model");
 	if (ret) {
 		dev_err(dev, "Error parsing card name: %d\n", ret);
 		return ret;
@@ -25,8 +28,13 @@ int qcom_snd_parse_of(struct snd_soc_card *card)
 
 	/* DAPM routes */
 	if (of_property_read_bool(dev->of_node, "audio-routing")) {
-		ret = snd_soc_of_parse_audio_routing(card,
-				"audio-routing");
+		ret = snd_soc_of_parse_audio_routing(card, "audio-routing");
+		if (ret)
+			return ret;
+	}
+	/* Deprecated, only for compatibility with old device trees */
+	if (of_property_read_bool(dev->of_node, "qcom,audio-routing")) {
+		ret = snd_soc_of_parse_audio_routing(card, "qcom,audio-routing");
 		if (ret)
 			return ret;
 	}
