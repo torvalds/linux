@@ -1061,12 +1061,14 @@ found_ep:
 
 		case USB_ENDPOINT_XFER_ISOC:
 			ep->fifo_size = 1024;
-			ep->nr_banks = 2;
+			if (ep->udc->ep_prealloc)
+				ep->nr_banks = 2;
 			break;
 
 		case USB_ENDPOINT_XFER_BULK:
 			ep->fifo_size = 512;
-			ep->nr_banks = 1;
+			if (ep->udc->ep_prealloc)
+				ep->nr_banks = 1;
 			break;
 
 		case USB_ENDPOINT_XFER_INT:
@@ -1076,7 +1078,8 @@ found_ep:
 			else
 				ep->fifo_size =
 				    roundup_pow_of_two(le16_to_cpu(desc->wMaxPacketSize));
-			ep->nr_banks = 1;
+			if (ep->udc->ep_prealloc)
+				ep->nr_banks = 1;
 			break;
 		}
 
@@ -2087,23 +2090,33 @@ static const struct usba_udc_config udc_at91sam9rl_cfg = {
 	.errata = &at91sam9rl_errata,
 	.config = ep_config_sam9,
 	.num_ep = ARRAY_SIZE(ep_config_sam9),
+	.ep_prealloc = true,
 };
 
 static const struct usba_udc_config udc_at91sam9g45_cfg = {
 	.errata = &at91sam9g45_errata,
 	.config = ep_config_sam9,
 	.num_ep = ARRAY_SIZE(ep_config_sam9),
+	.ep_prealloc = true,
 };
 
 static const struct usba_udc_config udc_sama5d3_cfg = {
 	.config = ep_config_sama5,
 	.num_ep = ARRAY_SIZE(ep_config_sama5),
+	.ep_prealloc = true,
+};
+
+static const struct usba_udc_config udc_sam9x60_cfg = {
+	.num_ep = ARRAY_SIZE(ep_config_sam9),
+	.config = ep_config_sam9,
+	.ep_prealloc = false,
 };
 
 static const struct of_device_id atmel_udc_dt_ids[] = {
 	{ .compatible = "atmel,at91sam9rl-udc", .data = &udc_at91sam9rl_cfg },
 	{ .compatible = "atmel,at91sam9g45-udc", .data = &udc_at91sam9g45_cfg },
 	{ .compatible = "atmel,sama5d3-udc", .data = &udc_sama5d3_cfg },
+	{ .compatible = "microchip,sam9x60-udc", .data = &udc_sam9x60_cfg },
 	{ /* sentinel */ }
 };
 
@@ -2131,6 +2144,7 @@ static struct usba_ep * atmel_udc_of_init(struct platform_device *pdev,
 		return ERR_PTR(-EINVAL);
 
 	udc_config = match->data;
+	udc->ep_prealloc = udc_config->ep_prealloc;
 	udc->errata = udc_config->errata;
 	if (udc->errata) {
 		pp = of_find_matching_node_and_match(NULL, atmel_pmc_dt_ids,
