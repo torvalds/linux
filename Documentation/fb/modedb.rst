@@ -152,7 +152,7 @@ To specify a video mode at bootup, use the following boot options::
     video=<driver>:<xres>x<yres>[-<bpp>][@refresh]
 
 where <driver> is a name from the table below.  Valid default modes can be
-found in linux/drivers/video/modedb.c.  Check your driver's documentation.
+found in drivers/video/fbdev/core/modedb.c.  Check your driver's documentation.
 There may be more modes::
 
     Drivers that support modedb boot options
