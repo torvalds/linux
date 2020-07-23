@@ -27,26 +27,30 @@ static void
 headc57d_or(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
 	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
+	u8 depth;
 	u32 *push;
+
 	if ((push = evo_wait(core, 2))) {
 		/*XXX: This is a dirty hack until OR depth handling is
 		 *     improved later for deep colour etc.
 		 */
 		switch (asyh->or.depth) {
-		case 6: asyh->or.depth = 5; break;
-		case 5: asyh->or.depth = 4; break;
-		case 2: asyh->or.depth = 1; break;
-		case 0:	asyh->or.depth = 4; break;
+		case 6: depth = 5; break;
+		case 5: depth = 4; break;
+		case 2: depth = 1; break;
+		case 0:	depth = 4; break;
 		default:
+			depth = asyh->or.depth;
 			WARN_ON(1);
 			break;
 		}
 
 		evo_mthd(push, 0x2004 + (head->base.index * 0x400), 1);
-		evo_data(push, 0xfc000001 |
-			       asyh->or.depth << 4 |
+		evo_data(push, 0xfc000000 |
+			       depth << 4 |
 			       asyh->or.nvsync << 3 |
-			       asyh->or.nhsync << 2);
+			       asyh->or.nhsync << 2 |
+			       asyh->or.crc_raster);
 		evo_kick(push, core);
 	}
 }
@@ -208,4 +212,6 @@ headc57d = {
 	.dither = headc37d_dither,
 	.procamp = headc57d_procamp,
 	.or = headc57d_or,
+	/* TODO: flexible window mappings */
+	.static_wndw_map = headc37d_static_wndw_map,
 };

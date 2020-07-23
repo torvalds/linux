@@ -26,6 +26,7 @@
 #include "core.h"
 #include "head.h"
 #include "wndw.h"
+#include "handles.h"
 
 #include <linux/dma-mapping.h>
 #include <linux/hdmi.h>
@@ -56,24 +57,6 @@
 #include "nouveau_fbcon.h"
 
 #include <subdev/bios/dp.h>
-
-/******************************************************************************
- * Atomic state
- *****************************************************************************/
-
-struct nv50_outp_atom {
-	struct list_head head;
-
-	struct drm_encoder *encoder;
-	bool flush_disable;
-
-	union nv50_outp_atom_mask {
-		struct {
-			bool ctrl:1;
-		};
-		u8 mask;
-	} set, clr;
-};
 
 /******************************************************************************
  * EVO channel
@@ -172,7 +155,8 @@ nv50_dmac_create(struct nvif_device *device, struct nvif_object *disp,
 	if (!syncbuf)
 		return 0;
 
-	ret = nvif_object_init(&dmac->base.user, 0xf0000000, NV_DMA_IN_MEMORY,
+	ret = nvif_object_init(&dmac->base.user, NV50_DISP_HANDLE_SYNCBUF,
+			       NV_DMA_IN_MEMORY,
 			       &(struct nv_dma_v0) {
 					.target = NV_DMA_V0_TARGET_VRAM,
 					.access = NV_DMA_V0_ACCESS_RDWR,
@@ -183,7 +167,8 @@ nv50_dmac_create(struct nvif_device *device, struct nvif_object *disp,
 	if (ret)
 		return ret;
 
-	ret = nvif_object_init(&dmac->base.user, 0xf0000001, NV_DMA_IN_MEMORY,
+	ret = nvif_object_init(&dmac->base.user, NV50_DISP_HANDLE_VRAM,
+			       NV_DMA_IN_MEMORY,
 			       &(struct nv_dma_v0) {
 					.target = NV_DMA_V0_TARGET_VRAM,
 					.access = NV_DMA_V0_ACCESS_RDWR,
@@ -797,6 +782,19 @@ struct nv50_msto {
 	struct nv50_mstc *mstc;
 	bool disabled;
 };
+
+struct nouveau_encoder *nv50_real_outp(struct drm_encoder *encoder)
+{
+	struct nv50_msto *msto;
+
+	if (encoder->encoder_type != DRM_MODE_ENCODER_DPMST)
+		return nouveau_encoder(encoder);
+
+	msto = nv50_msto(encoder);
+	if (!msto->mstc)
+		return NULL;
+	return msto->mstc->mstm->outp;
+}
 
 static struct drm_dp_payload *
 nv50_msto_payload(struct nv50_msto *msto)
@@ -1945,8 +1943,10 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 	struct nv50_outp_atom *outp, *outt;
 	u32 interlock[NV50_DISP_INTERLOCK__SIZE] = {};
 	int i;
+	bool flushed = false;
 
 	NV_ATOMIC(drm, "commit %d %d\n", atom->lock_core, atom->flush_disable);
+	nv50_crc_atomic_stop_reporting(state);
 	drm_atomic_helper_wait_for_fences(dev, state, false);
 	drm_atomic_helper_wait_for_dependencies(state);
 	drm_atomic_helper_update_legacy_modeset_state(dev, state);
@@ -2004,6 +2004,8 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 				nv50_disp_atomic_commit_wndw(state, interlock);
 				nv50_disp_atomic_commit_core(state, interlock);
 				memset(interlock, 0x00, sizeof(interlock));
+
+				flushed = true;
 			}
 		}
 	}
@@ -2014,8 +2016,14 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 			nv50_disp_atomic_commit_wndw(state, interlock);
 			nv50_disp_atomic_commit_core(state, interlock);
 			memset(interlock, 0x00, sizeof(interlock));
+
+			flushed = true;
 		}
 	}
+
+	if (flushed)
+		nv50_crc_atomic_release_notifier_contexts(state);
+	nv50_crc_atomic_init_notifier_contexts(state);
 
 	/* Update output path(s). */
 	list_for_each_entry_safe(outp, outt, &atom->outp, head) {
@@ -2130,6 +2138,9 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 		}
 	}
 
+	nv50_crc_atomic_start_reporting(state);
+	if (!flushed)
+		nv50_crc_atomic_release_notifier_contexts(state);
 	drm_atomic_helper_commit_hw_done(state);
 	drm_atomic_helper_cleanup_planes(dev, state);
 	drm_atomic_helper_commit_cleanup_done(state);
@@ -2287,11 +2298,27 @@ static int
 nv50_disp_atomic_check(struct drm_device *dev, struct drm_atomic_state *state)
 {
 	struct nv50_atom *atom = nv50_atom(state);
+	struct nv50_core *core = nv50_disp(dev)->core;
 	struct drm_connector_state *old_connector_state, *new_connector_state;
 	struct drm_connector *connector;
 	struct drm_crtc_state *new_crtc_state;
 	struct drm_crtc *crtc;
+	struct nv50_head *head;
+	struct nv50_head_atom *asyh;
 	int ret, i;
+
+	if (core->assign_windows && core->func->head->static_wndw_map) {
+		drm_for_each_crtc(crtc, dev) {
+			new_crtc_state = drm_atomic_get_crtc_state(state,
+								   crtc);
+			if (IS_ERR(new_crtc_state))
+				return PTR_ERR(new_crtc_state);
+
+			head = nv50_head(crtc);
+			asyh = nv50_head_atom(new_crtc_state);
+			core->func->head->static_wndw_map(head, asyh);
+		}
+	}
 
 	/* We need to handle colour management on a per-plane basis. */
 	for_each_new_crtc_in_state(state, crtc, new_crtc_state, i) {
@@ -2319,6 +2346,8 @@ nv50_disp_atomic_check(struct drm_device *dev, struct drm_atomic_state *state)
 	ret = drm_dp_mst_atomic_check(state);
 	if (ret)
 		return ret;
+
+	nv50_crc_atomic_check_outp(atom);
 
 	return 0;
 }

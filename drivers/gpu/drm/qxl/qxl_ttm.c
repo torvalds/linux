@@ -54,7 +54,7 @@ static int qxl_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 	switch (type) {
 	case TTM_PL_SYSTEM:
 		/* System memory */
-		man->flags = TTM_MEMTYPE_FLAG_MAPPABLE;
+		man->flags = 0;
 		man->available_caching = TTM_PL_MASK_CACHING;
 		man->default_caching = TTM_PL_FLAG_CACHED;
 		break;
@@ -62,8 +62,7 @@ static int qxl_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 	case TTM_PL_PRIV:
 		/* "On-card" video ram */
 		man->func = &ttm_bo_manager_func;
-		man->flags = TTM_MEMTYPE_FLAG_FIXED |
-			     TTM_MEMTYPE_FLAG_MAPPABLE;
+		man->flags = TTM_MEMTYPE_FLAG_FIXED;
 		man->available_caching = TTM_PL_MASK_CACHING;
 		man->default_caching = TTM_PL_FLAG_CACHED;
 		break;
@@ -99,7 +98,6 @@ static void qxl_evict_flags(struct ttm_buffer_object *bo,
 int qxl_ttm_io_mem_reserve(struct ttm_bo_device *bdev,
 			   struct ttm_mem_reg *mem)
 {
-	struct ttm_mem_type_manager *man = &bdev->man[mem->mem_type];
 	struct qxl_device *qdev = qxl_get_qdev(bdev);
 
 	mem->bus.addr = NULL;
@@ -107,8 +105,7 @@ int qxl_ttm_io_mem_reserve(struct ttm_bo_device *bdev,
 	mem->bus.size = mem->num_pages << PAGE_SHIFT;
 	mem->bus.base = 0;
 	mem->bus.is_iomem = false;
-	if (!(man->flags & TTM_MEMTYPE_FLAG_MAPPABLE))
-		return -EINVAL;
+
 	switch (mem->mem_type) {
 	case TTM_PL_SYSTEM:
 		/* system memory */
@@ -127,11 +124,6 @@ int qxl_ttm_io_mem_reserve(struct ttm_bo_device *bdev,
 		return -EINVAL;
 	}
 	return 0;
-}
-
-static void qxl_ttm_io_mem_free(struct ttm_bo_device *bdev,
-				struct ttm_mem_reg *mem)
-{
 }
 
 /*
@@ -247,7 +239,6 @@ static struct ttm_bo_driver qxl_bo_driver = {
 	.evict_flags = &qxl_evict_flags,
 	.move = &qxl_bo_move,
 	.io_mem_reserve = &qxl_ttm_io_mem_reserve,
-	.io_mem_free = &qxl_ttm_io_mem_free,
 	.move_notify = &qxl_bo_move_notify,
 };
 

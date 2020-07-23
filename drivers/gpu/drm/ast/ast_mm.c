@@ -28,22 +28,72 @@
 
 #include <linux/pci.h>
 
-#include <drm/drm_print.h>
 #include <drm/drm_gem_vram_helper.h>
+#include <drm/drm_managed.h>
+#include <drm/drm_print.h>
 
 #include "ast_drv.h"
 
+static u32 ast_get_vram_size(struct ast_private *ast)
+{
+	u8 jreg;
+	u32 vram_size;
+
+	ast_open_key(ast);
+
+	vram_size = AST_VIDMEM_DEFAULT_SIZE;
+	jreg = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xaa, 0xff);
+	switch (jreg & 3) {
+	case 0:
+		vram_size = AST_VIDMEM_SIZE_8M;
+		break;
+	case 1:
+		vram_size = AST_VIDMEM_SIZE_16M;
+		break;
+	case 2:
+		vram_size = AST_VIDMEM_SIZE_32M;
+		break;
+	case 3:
+		vram_size = AST_VIDMEM_SIZE_64M;
+		break;
+	}
+
+	jreg = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x99, 0xff);
+	switch (jreg & 0x03) {
+	case 1:
+		vram_size -= 0x100000;
+		break;
+	case 2:
+		vram_size -= 0x200000;
+		break;
+	case 3:
+		vram_size -= 0x400000;
+		break;
+	}
+
+	return vram_size;
+}
+
+static void ast_mm_release(struct drm_device *dev, void *ptr)
+{
+	struct ast_private *ast = to_ast_private(dev);
+
+	arch_phys_wc_del(ast->fb_mtrr);
+	arch_io_free_memtype_wc(pci_resource_start(dev->pdev, 0),
+				pci_resource_len(dev->pdev, 0));
+}
+
 int ast_mm_init(struct ast_private *ast)
 {
-	struct drm_vram_mm *vmm;
+	u32 vram_size;
 	int ret;
 	struct drm_device *dev = ast->dev;
 
-	vmm = drm_vram_helper_alloc_mm(
-		dev, pci_resource_start(dev->pdev, 0),
-		ast->vram_size);
-	if (IS_ERR(vmm)) {
-		ret = PTR_ERR(vmm);
+	vram_size = ast_get_vram_size(ast);
+
+	ret = drmm_vram_helper_init(dev, pci_resource_start(dev->pdev, 0),
+				    vram_size);
+	if (ret) {
 		drm_err(dev, "Error initializing VRAM MM; %d\n", ret);
 		return ret;
 	}
@@ -53,16 +103,5 @@ int ast_mm_init(struct ast_private *ast)
 	ast->fb_mtrr = arch_phys_wc_add(pci_resource_start(dev->pdev, 0),
 					pci_resource_len(dev->pdev, 0));
 
-	return 0;
-}
-
-void ast_mm_fini(struct ast_private *ast)
-{
-	struct drm_device *dev = ast->dev;
-
-	drm_vram_helper_release_mm(dev);
-
-	arch_phys_wc_del(ast->fb_mtrr);
-	arch_io_free_memtype_wc(pci_resource_start(dev->pdev, 0),
-				pci_resource_len(dev->pdev, 0));
+	return drmm_add_action_or_reset(dev, ast_mm_release, NULL);
 }

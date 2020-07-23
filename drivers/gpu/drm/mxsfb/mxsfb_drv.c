@@ -69,6 +69,11 @@ static const uint32_t mxsfb_formats[] = {
 	DRM_FORMAT_RGB565
 };
 
+static const uint64_t mxsfb_modifiers[] = {
+	DRM_FORMAT_MOD_LINEAR,
+	DRM_FORMAT_MOD_INVALID
+};
+
 static struct mxsfb_drm_private *
 drm_pipe_to_mxsfb_drm_private(struct drm_simple_display_pipe *pipe)
 {
@@ -191,7 +196,7 @@ static struct drm_simple_display_pipe_funcs mxsfb_funcs = {
 	.disable_vblank	= mxsfb_pipe_disable_vblank,
 };
 
-static int mxsfb_load(struct drm_device *drm, unsigned long flags)
+static int mxsfb_load(struct drm_device *drm)
 {
 	struct platform_device *pdev = to_platform_device(drm->dev);
 	struct mxsfb_drm_private *mxsfb;
@@ -244,8 +249,8 @@ static int mxsfb_load(struct drm_device *drm, unsigned long flags)
 	}
 
 	ret = drm_simple_display_pipe_init(drm, &mxsfb->pipe, &mxsfb_funcs,
-			mxsfb_formats, ARRAY_SIZE(mxsfb_formats), NULL,
-			mxsfb->connector);
+			mxsfb_formats, ARRAY_SIZE(mxsfb_formats),
+			mxsfb_modifiers, mxsfb->connector);
 	if (ret < 0) {
 		dev_err(drm->dev, "Cannot setup simple display pipe\n");
 		goto err_vblank;
@@ -398,7 +403,7 @@ static int mxsfb_probe(struct platform_device *pdev)
 	if (IS_ERR(drm))
 		return PTR_ERR(drm);
 
-	ret = mxsfb_load(drm, 0);
+	ret = mxsfb_load(drm);
 	if (ret)
 		goto err_free;
 

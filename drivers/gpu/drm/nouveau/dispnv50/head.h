@@ -1,22 +1,28 @@
 #ifndef __NV50_KMS_HEAD_H__
 #define __NV50_KMS_HEAD_H__
 #define nv50_head(c) container_of((c), struct nv50_head, base.base)
+#include <linux/workqueue.h>
+
 #include "disp.h"
 #include "atom.h"
+#include "crc.h"
 #include "lut.h"
 
 #include "nouveau_crtc.h"
+#include "nouveau_encoder.h"
 
 struct nv50_head {
 	const struct nv50_head_func *func;
 	struct nouveau_crtc base;
+	struct nv50_crc crc;
 	struct nv50_lut olut;
 	struct nv50_msto *msto;
 };
 
 struct nv50_head *nv50_head_create(struct drm_device *, int index);
-void nv50_head_flush_set(struct nv50_head *, struct nv50_head_atom *);
-void nv50_head_flush_clr(struct nv50_head *, struct nv50_head_atom *, bool y);
+void nv50_head_flush_set(struct nv50_head *head, struct nv50_head_atom *asyh);
+void nv50_head_flush_clr(struct nv50_head *head,
+			 struct nv50_head_atom *asyh, bool flush);
 
 struct nv50_head_func {
 	void (*view)(struct nv50_head *, struct nv50_head_atom *);
@@ -40,6 +46,7 @@ struct nv50_head_func {
 	void (*dither)(struct nv50_head *, struct nv50_head_atom *);
 	void (*procamp)(struct nv50_head *, struct nv50_head_atom *);
 	void (*or)(struct nv50_head *, struct nv50_head_atom *);
+	void (*static_wndw_map)(struct nv50_head *, struct nv50_head_atom *);
 };
 
 extern const struct nv50_head_func head507d;
@@ -86,6 +93,7 @@ int headc37d_curs_format(struct nv50_head *, struct nv50_wndw_atom *,
 void headc37d_curs_set(struct nv50_head *, struct nv50_head_atom *);
 void headc37d_curs_clr(struct nv50_head *);
 void headc37d_dither(struct nv50_head *, struct nv50_head_atom *);
+void headc37d_static_wndw_map(struct nv50_head *, struct nv50_head_atom *);
 
 extern const struct nv50_head_func headc57d;
 #endif

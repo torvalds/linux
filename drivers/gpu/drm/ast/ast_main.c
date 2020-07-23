@@ -378,38 +378,6 @@ static int ast_get_dram_info(struct drm_device *dev)
 	return 0;
 }
 
-static u32 ast_get_vram_info(struct drm_device *dev)
-{
-	struct ast_private *ast = to_ast_private(dev);
-	u8 jreg;
-	u32 vram_size;
-	ast_open_key(ast);
-
-	vram_size = AST_VIDMEM_DEFAULT_SIZE;
-	jreg = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xaa, 0xff);
-	switch (jreg & 3) {
-	case 0: vram_size = AST_VIDMEM_SIZE_8M; break;
-	case 1: vram_size = AST_VIDMEM_SIZE_16M; break;
-	case 2: vram_size = AST_VIDMEM_SIZE_32M; break;
-	case 3: vram_size = AST_VIDMEM_SIZE_64M; break;
-	}
-
-	jreg = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x99, 0xff);
-	switch (jreg & 0x03) {
-	case 1:
-		vram_size -= 0x100000;
-		break;
-	case 2:
-		vram_size -= 0x200000;
-		break;
-	case 3:
-		vram_size -= 0x400000;
-		break;
-	}
-
-	return vram_size;
-}
-
 int ast_driver_load(struct drm_device *dev, unsigned long flags)
 {
 	struct ast_private *ast;
@@ -450,16 +418,14 @@ int ast_driver_load(struct drm_device *dev, unsigned long flags)
 
 	ast_detect_chip(dev, &need_post);
 
-	if (need_post)
-		ast_post_gpu(dev);
-
 	ret = ast_get_dram_info(dev);
 	if (ret)
 		goto out_free;
-	ast->vram_size = ast_get_vram_info(dev);
-	drm_info(dev, "dram MCLK=%u Mhz type=%d bus_width=%d size=%08x\n",
-		 ast->mclk, ast->dram_type,
-		 ast->dram_bus_width, ast->vram_size);
+	drm_info(dev, "dram MCLK=%u Mhz type=%d bus_width=%d\n",
+		 ast->mclk, ast->dram_type, ast->dram_bus_width);
+
+	if (need_post)
+		ast_post_gpu(dev);
 
 	ret = ast_mm_init(ast);
 	if (ret)
@@ -486,6 +452,5 @@ void ast_driver_unload(struct drm_device *dev)
 	ast_release_firmware(dev);
 	kfree(ast->dp501_fw_addr);
 
-	ast_mm_fini(ast);
 	kfree(ast);
 }

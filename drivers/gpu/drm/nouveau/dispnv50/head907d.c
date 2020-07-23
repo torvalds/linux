@@ -19,8 +19,15 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
+#include <drm/drm_connector.h>
+#include <drm/drm_mode_config.h>
+#include <drm/drm_vblank.h>
+#include "nouveau_drv.h"
+#include "nouveau_bios.h"
+#include "nouveau_connector.h"
 #include "head.h"
 #include "core.h"
+#include "crc.h"
 
 void
 head907d_or(struct nv50_head *head, struct nv50_head_atom *asyh)
@@ -29,9 +36,10 @@ head907d_or(struct nv50_head *head, struct nv50_head_atom *asyh)
 	u32 *push;
 	if ((push = evo_wait(core, 3))) {
 		evo_mthd(push, 0x0404 + (head->base.index * 0x300), 2);
-		evo_data(push, 0x00000001 | asyh->or.depth  << 6 |
-					    asyh->or.nvsync << 4 |
-					    asyh->or.nhsync << 3);
+		evo_data(push, asyh->or.depth  << 6 |
+			       asyh->or.nvsync << 4 |
+			       asyh->or.nhsync << 3 |
+			       asyh->or.crc_raster);
 		evo_data(push, 0x31ec6000 | head->base.index << 25 |
 					    asyh->mode.interlace);
 		evo_kick(push, core);

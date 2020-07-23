@@ -27,12 +27,14 @@
 #include <linux/seqlock.h>
 #include <linux/idr.h>
 #include <linux/poll.h>
+#include <linux/kthread.h>
 
 #include <drm/drm_file.h>
 #include <drm/drm_modes.h>
 
 struct drm_device;
 struct drm_crtc;
+struct drm_vblank_work;
 
 /**
  * struct drm_pending_vblank_event - pending vblank event tracking
@@ -203,6 +205,24 @@ struct drm_vblank_crtc {
 	 * disabling functions multiple times.
 	 */
 	bool enabled;
+
+	/**
+	 * @worker: The &kthread_worker used for executing vblank works.
+	 */
+	struct kthread_worker *worker;
+
+	/**
+	 * @pending_work: A list of scheduled &drm_vblank_work items that are
+	 * waiting for a future vblank.
+	 */
+	struct list_head pending_work;
+
+	/**
+	 * @work_wait_queue: The wait queue used for signaling that a
+	 * &drm_vblank_work item has either finished executing, or was
+	 * cancelled.
+	 */
+	wait_queue_head_t work_wait_queue;
 };
 
 int drm_vblank_init(struct drm_device *dev, unsigned int num_crtcs);

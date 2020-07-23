@@ -1,10 +1,12 @@
 #ifndef __NV50_KMS_H__
 #define __NV50_KMS_H__
+#include <linux/workqueue.h>
 #include <nvif/mem.h>
 
 #include "nouveau_display.h"
 
 struct nv50_msto;
+struct nouveau_encoder;
 
 struct nv50_disp {
 	struct nvif_disp *disp;
@@ -71,10 +73,32 @@ struct nv50_dmac {
 	struct mutex lock;
 };
 
+struct nv50_outp_atom {
+	struct list_head head;
+
+	struct drm_encoder *encoder;
+	bool flush_disable;
+
+	union nv50_outp_atom_mask {
+		struct {
+			bool ctrl:1;
+		};
+		u8 mask;
+	} set, clr;
+};
+
 int nv50_dmac_create(struct nvif_device *device, struct nvif_object *disp,
 		     const s32 *oclass, u8 head, void *data, u32 size,
 		     u64 syncbuf, struct nv50_dmac *dmac);
 void nv50_dmac_destroy(struct nv50_dmac *);
+
+/*
+ * For normal encoders this just returns the encoder. For active MST encoders,
+ * this returns the real outp that's driving displays on the topology.
+ * Inactive MST encoders return NULL, since they would have no real outp to
+ * return anyway.
+ */
+struct nouveau_encoder *nv50_real_outp(struct drm_encoder *encoder);
 
 u32 *evo_wait(struct nv50_dmac *, int nr);
 void evo_kick(u32 *, struct nv50_dmac *);
