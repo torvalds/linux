@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/*
- * L2TP internal definitions.
+/* L2TP internal definitions.
  *
  * Copyright (c) 2008,2009 Katalix Systems Ltd
  */
@@ -22,11 +21,11 @@
 
 /* Per tunnel, session hash table size */
 #define L2TP_HASH_BITS	4
-#define L2TP_HASH_SIZE	(1 << L2TP_HASH_BITS)
+#define L2TP_HASH_SIZE	BIT(L2TP_HASH_BITS)
 
 /* System-wide, session hash table size */
 #define L2TP_HASH_BITS_2	8
-#define L2TP_HASH_SIZE_2	(1 << L2TP_HASH_BITS_2)
+#define L2TP_HASH_SIZE_2	BIT(L2TP_HASH_BITS_2)
 
 struct sk_buff;
 
@@ -49,32 +48,26 @@ struct l2tp_tunnel;
  */
 struct l2tp_session_cfg {
 	enum l2tp_pwtype	pw_type;
-	unsigned int		recv_seq:1;	/* expect receive packets with
-						 * sequence numbers? */
-	unsigned int		send_seq:1;	/* send packets with sequence
-						 * numbers? */
-	unsigned int		lns_mode:1;	/* behave as LNS? LAC enables
-						 * sequence numbers under
-						 * control of LNS. */
-	int			debug;		/* bitmask of debug message
-						 * categories */
+	unsigned int		recv_seq:1;	/* expect receive packets with sequence numbers? */
+	unsigned int		send_seq:1;	/* send packets with sequence numbers? */
+	unsigned int		lns_mode:1;	/* behave as LNS?
+						 * LAC enables sequence numbers under LNS control.
+						 */
+	int			debug;		/* bitmask of debug message categories */
 	u16			l2specific_type; /* Layer 2 specific type */
 	u8			cookie[8];	/* optional cookie */
 	int			cookie_len;	/* 0, 4 or 8 bytes */
 	u8			peer_cookie[8];	/* peer's cookie */
 	int			peer_cookie_len; /* 0, 4 or 8 bytes */
-	int			reorder_timeout; /* configured reorder timeout
-						  * (in jiffies) */
+	int			reorder_timeout; /* configured reorder timeout (in jiffies) */
 	char			*ifname;
 };
 
 struct l2tp_session {
-	int			magic;		/* should be
-						 * L2TP_SESSION_MAGIC */
+	int			magic;		/* should be L2TP_SESSION_MAGIC */
 	long			dead;
 
-	struct l2tp_tunnel	*tunnel;	/* back pointer to tunnel
-						 * context */
+	struct l2tp_tunnel	*tunnel;	/* back pointer to tunnel context */
 	u32			session_id;
 	u32			peer_session_id;
 	u8			cookie[8];
@@ -89,42 +82,37 @@ struct l2tp_session {
 	u32			nr_max;		/* max NR. Depends on tunnel */
 	u32			nr_window_size;	/* NR window size */
 	u32			nr_oos;		/* NR of last OOS packet */
-	int			nr_oos_count;	/* For OOS recovery */
+	int			nr_oos_count;	/* for OOS recovery */
 	int			nr_oos_count_max;
-	struct hlist_node	hlist;		/* Hash list node */
+	struct hlist_node	hlist;		/* hash list node */
 	refcount_t		ref_count;
 
 	char			name[32];	/* for logging */
 	char			ifname[IFNAMSIZ];
-	unsigned int		recv_seq:1;	/* expect receive packets with
-						 * sequence numbers? */
-	unsigned int		send_seq:1;	/* send packets with sequence
-						 * numbers? */
-	unsigned int		lns_mode:1;	/* behave as LNS? LAC enables
-						 * sequence numbers under
-						 * control of LNS. */
-	int			debug;		/* bitmask of debug message
-						 * categories */
-	int			reorder_timeout; /* configured reorder timeout
-						  * (in jiffies) */
+	unsigned int		recv_seq:1;	/* expect receive packets with sequence numbers? */
+	unsigned int		send_seq:1;	/* send packets with sequence numbers? */
+	unsigned int		lns_mode:1;	/* behave as LNS?
+						 * LAC enables sequence numbers under LNS control.
+						 */
+	int			debug;		/* bitmask of debug message categories */
+	int			reorder_timeout; /* configured reorder timeout (in jiffies) */
 	int			reorder_skip;	/* set if skip to next nr */
 	enum l2tp_pwtype	pwtype;
 	struct l2tp_stats	stats;
-	struct hlist_node	global_hlist;	/* Global hash list node */
+	struct hlist_node	global_hlist;	/* global hash list node */
 
 	int (*build_header)(struct l2tp_session *session, void *buf);
 	void (*recv_skb)(struct l2tp_session *session, struct sk_buff *skb, int data_len);
 	void (*session_close)(struct l2tp_session *session);
 	void (*show)(struct seq_file *m, void *priv);
-	u8			priv[];	/* private data */
+	u8			priv[];		/* private data */
 };
 
 /* Describes the tunnel. It contains info to track all the associated
  * sessions so incoming packets can be sorted out
  */
 struct l2tp_tunnel_cfg {
-	int			debug;		/* bitmask of debug message
-						 * categories */
+	int			debug;		/* bitmask of debug message categories */
 	enum l2tp_encap_type	encap;
 
 	/* Used only for kernel-created sockets */
@@ -148,31 +136,29 @@ struct l2tp_tunnel {
 
 	struct rcu_head rcu;
 	rwlock_t		hlist_lock;	/* protect session_hlist */
-	bool			acpt_newsess;	/* Indicates whether this
-						 * tunnel accepts new sessions.
-						 * Protected by hlist_lock.
+	bool			acpt_newsess;	/* indicates whether this tunnel accepts
+						 * new sessions. Protected by hlist_lock.
 						 */
 	struct hlist_head	session_hlist[L2TP_HASH_SIZE];
-						/* hashed list of sessions,
-						 * hashed by id */
+						/* hashed list of sessions, hashed by id */
 	u32			tunnel_id;
 	u32			peer_tunnel_id;
 	int			version;	/* 2=>L2TPv2, 3=>L2TPv3 */
 
 	char			name[20];	/* for logging */
-	int			debug;		/* bitmask of debug message
-						 * categories */
+	int			debug;		/* bitmask of debug message categories */
 	enum l2tp_encap_type	encap;
 	struct l2tp_stats	stats;
 
-	struct list_head	list;		/* Keep a list of all tunnels */
+	struct list_head	list;		/* list node on per-namespace list of tunnels */
 	struct net		*l2tp_net;	/* the net we belong to */
 
 	refcount_t		ref_count;
-	void (*old_sk_destruct)(struct sock *);
-	struct sock		*sock;		/* Parent socket */
-	int			fd;		/* Parent fd, if tunnel socket
-						 * was created by userspace */
+	void (*old_sk_destruct)(struct sock *sk);
+	struct sock		*sock;		/* parent socket */
+	int			fd;		/* parent fd, if tunnel socket was created
+						 * by userspace
+						 */
 
 	struct work_struct	del_work;
 };

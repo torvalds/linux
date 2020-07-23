@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/*
- * L2TP subsystem debugfs
+/* L2TP subsystem debugfs
  *
  * Copyright (c) 2010 Katalix Systems Ltd
  */
@@ -63,7 +62,6 @@ static void l2tp_dfs_next_session(struct l2tp_dfs_seq_data *pd)
 		pd->session_idx = 0;
 		l2tp_dfs_next_tunnel(pd);
 	}
-
 }
 
 static void *l2tp_dfs_seq_start(struct seq_file *m, loff_t *offs)
@@ -89,7 +87,6 @@ static void *l2tp_dfs_seq_start(struct seq_file *m, loff_t *offs)
 out:
 	return pd;
 }
-
 
 static void *l2tp_dfs_seq_next(struct seq_file *m, void *v, loff_t *pos)
 {
@@ -148,7 +145,7 @@ static void l2tp_dfs_seq_tunnel_show(struct seq_file *m, void *v)
 			const struct ipv6_pinfo *np = inet6_sk(tunnel->sock);
 
 			seq_printf(m, " from %pI6c to %pI6c\n",
-				&np->saddr, &tunnel->sock->sk_v6_daddr);
+				   &np->saddr, &tunnel->sock->sk_v6_daddr);
 		} else
 #endif
 		seq_printf(m, " from %pI4 to %pI4\n",
@@ -202,7 +199,7 @@ static void l2tp_dfs_seq_session_show(struct seq_file *m, void *v)
 			seq_printf(m, "%02x%02x%02x%02x",
 				   session->cookie[4], session->cookie[5],
 				   session->cookie[6], session->cookie[7]);
-		seq_printf(m, "\n");
+		seq_puts(m, "\n");
 	}
 	if (session->peer_cookie_len) {
 		seq_printf(m, "   peer cookie %02x%02x%02x%02x",
@@ -212,7 +209,7 @@ static void l2tp_dfs_seq_session_show(struct seq_file *m, void *v)
 			seq_printf(m, "%02x%02x%02x%02x",
 				   session->peer_cookie[4], session->peer_cookie[5],
 				   session->peer_cookie[6], session->peer_cookie[7]);
-		seq_printf(m, "\n");
+		seq_puts(m, "\n");
 	}
 
 	seq_printf(m, "   %hu/%hu tx %ld/%ld/%ld rx %ld/%ld/%ld\n",

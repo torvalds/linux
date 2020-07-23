@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/*
- * L2TP netlink layer, for management
+/* L2TP netlink layer, for management
  *
  * Copyright (c) 2008,2009,2010 Katalix Systems Ltd
  *
@@ -26,7 +25,6 @@
 #include <linux/l2tp.h>
 
 #include "l2tp_core.h"
-
 
 static struct genl_family l2tp_nl_family;
 
@@ -167,71 +165,63 @@ static int l2tp_nl_cmd_tunnel_create(struct sk_buff *skb, struct genl_info *info
 	struct l2tp_tunnel_cfg cfg = { 0, };
 	struct l2tp_tunnel *tunnel;
 	struct net *net = genl_info_net(info);
+	struct nlattr **attrs = info->attrs;
 
-	if (!info->attrs[L2TP_ATTR_CONN_ID]) {
+	if (!attrs[L2TP_ATTR_CONN_ID]) {
 		ret = -EINVAL;
 		goto out;
 	}
-	tunnel_id = nla_get_u32(info->attrs[L2TP_ATTR_CONN_ID]);
+	tunnel_id = nla_get_u32(attrs[L2TP_ATTR_CONN_ID]);
 
-	if (!info->attrs[L2TP_ATTR_PEER_CONN_ID]) {
+	if (!attrs[L2TP_ATTR_PEER_CONN_ID]) {
 		ret = -EINVAL;
 		goto out;
 	}
-	peer_tunnel_id = nla_get_u32(info->attrs[L2TP_ATTR_PEER_CONN_ID]);
+	peer_tunnel_id = nla_get_u32(attrs[L2TP_ATTR_PEER_CONN_ID]);
 
-	if (!info->attrs[L2TP_ATTR_PROTO_VERSION]) {
+	if (!attrs[L2TP_ATTR_PROTO_VERSION]) {
 		ret = -EINVAL;
 		goto out;
 	}
-	proto_version = nla_get_u8(info->attrs[L2TP_ATTR_PROTO_VERSION]);
+	proto_version = nla_get_u8(attrs[L2TP_ATTR_PROTO_VERSION]);
 
-	if (!info->attrs[L2TP_ATTR_ENCAP_TYPE]) {
+	if (!attrs[L2TP_ATTR_ENCAP_TYPE]) {
 		ret = -EINVAL;
 		goto out;
 	}
-	cfg.encap = nla_get_u16(info->attrs[L2TP_ATTR_ENCAP_TYPE]);
+	cfg.encap = nla_get_u16(attrs[L2TP_ATTR_ENCAP_TYPE]);
 
 	fd = -1;
-	if (info->attrs[L2TP_ATTR_FD]) {
-		fd = nla_get_u32(info->attrs[L2TP_ATTR_FD]);
+	if (attrs[L2TP_ATTR_FD]) {
+		fd = nla_get_u32(attrs[L2TP_ATTR_FD]);
 	} else {
 #if IS_ENABLED(CONFIG_IPV6)
-		if (info->attrs[L2TP_ATTR_IP6_SADDR] &&
-		    info->attrs[L2TP_ATTR_IP6_DADDR]) {
-			cfg.local_ip6 = nla_data(
-				info->attrs[L2TP_ATTR_IP6_SADDR]);
-			cfg.peer_ip6 = nla_data(
-				info->attrs[L2TP_ATTR_IP6_DADDR]);
+		if (attrs[L2TP_ATTR_IP6_SADDR] && attrs[L2TP_ATTR_IP6_DADDR]) {
+			cfg.local_ip6 = nla_data(attrs[L2TP_ATTR_IP6_SADDR]);
+			cfg.peer_ip6 = nla_data(attrs[L2TP_ATTR_IP6_DADDR]);
 		} else
 #endif
-		if (info->attrs[L2TP_ATTR_IP_SADDR] &&
-		    info->attrs[L2TP_ATTR_IP_DADDR]) {
-			cfg.local_ip.s_addr = nla_get_in_addr(
-				info->attrs[L2TP_ATTR_IP_SADDR]);
-			cfg.peer_ip.s_addr = nla_get_in_addr(
-				info->attrs[L2TP_ATTR_IP_DADDR]);
+		if (attrs[L2TP_ATTR_IP_SADDR] && attrs[L2TP_ATTR_IP_DADDR]) {
+			cfg.local_ip.s_addr = nla_get_in_addr(attrs[L2TP_ATTR_IP_SADDR]);
+			cfg.peer_ip.s_addr = nla_get_in_addr(attrs[L2TP_ATTR_IP_DADDR]);
 		} else {
 			ret = -EINVAL;
 			goto out;
 		}
-		if (info->attrs[L2TP_ATTR_UDP_SPORT])
-			cfg.local_udp_port = nla_get_u16(info->attrs[L2TP_ATTR_UDP_SPORT]);
-		if (info->attrs[L2TP_ATTR_UDP_DPORT])
-			cfg.peer_udp_port = nla_get_u16(info->attrs[L2TP_ATTR_UDP_DPORT]);
-		cfg.use_udp_checksums = nla_get_flag(
-			info->attrs[L2TP_ATTR_UDP_CSUM]);
+		if (attrs[L2TP_ATTR_UDP_SPORT])
+			cfg.local_udp_port = nla_get_u16(attrs[L2TP_ATTR_UDP_SPORT]);
+		if (attrs[L2TP_ATTR_UDP_DPORT])
+			cfg.peer_udp_port = nla_get_u16(attrs[L2TP_ATTR_UDP_DPORT]);
+		cfg.use_udp_checksums = nla_get_flag(attrs[L2TP_ATTR_UDP_CSUM]);
 
 #if IS_ENABLED(CONFIG_IPV6)
-		cfg.udp6_zero_tx_checksums = nla_get_flag(
-			info->attrs[L2TP_ATTR_UDP_ZERO_CSUM6_TX]);
-		cfg.udp6_zero_rx_checksums = nla_get_flag(
-			info->attrs[L2TP_ATTR_UDP_ZERO_CSUM6_RX]);
+		cfg.udp6_zero_tx_checksums = nla_get_flag(attrs[L2TP_ATTR_UDP_ZERO_CSUM6_TX]);
+		cfg.udp6_zero_rx_checksums = nla_get_flag(attrs[L2TP_ATTR_UDP_ZERO_CSUM6_RX]);
 #endif
 	}
 
-	if (info->attrs[L2TP_ATTR_DEBUG])
-		cfg.debug = nla_get_u32(info->attrs[L2TP_ATTR_DEBUG]);
+	if (attrs[L2TP_ATTR_DEBUG])
+		cfg.debug = nla_get_u32(attrs[L2TP_ATTR_DEBUG]);
 
 	ret = -EINVAL;
 	switch (cfg.encap) {
@@ -570,6 +560,7 @@ static int l2tp_nl_cmd_session_create(struct sk_buff *skb, struct genl_info *inf
 
 		if (info->attrs[L2TP_ATTR_COOKIE]) {
 			u16 len = nla_len(info->attrs[L2TP_ATTR_COOKIE]);
+
 			if (len > 8) {
 				ret = -EINVAL;
 				goto out_tunnel;
@@ -579,6 +570,7 @@ static int l2tp_nl_cmd_session_create(struct sk_buff *skb, struct genl_info *inf
 		}
 		if (info->attrs[L2TP_ATTR_PEER_COOKIE]) {
 			u16 len = nla_len(info->attrs[L2TP_ATTR_PEER_COOKIE]);
+
 			if (len > 8) {
 				ret = -EINVAL;
 				goto out_tunnel;
@@ -715,8 +707,7 @@ static int l2tp_nl_session_send(struct sk_buff *skb, u32 portid, u32 seq, int fl
 	if (nla_put_u32(skb, L2TP_ATTR_CONN_ID, tunnel->tunnel_id) ||
 	    nla_put_u32(skb, L2TP_ATTR_SESSION_ID, session->session_id) ||
 	    nla_put_u32(skb, L2TP_ATTR_PEER_CONN_ID, tunnel->peer_tunnel_id) ||
-	    nla_put_u32(skb, L2TP_ATTR_PEER_SESSION_ID,
-			session->peer_session_id) ||
+	    nla_put_u32(skb, L2TP_ATTR_PEER_SESSION_ID, session->peer_session_id) ||
 	    nla_put_u32(skb, L2TP_ATTR_DEBUG, session->debug) ||
 	    nla_put_u16(skb, L2TP_ATTR_PW_TYPE, session->pwtype))
 		goto nla_put_failure;
@@ -724,11 +715,9 @@ static int l2tp_nl_session_send(struct sk_buff *skb, u32 portid, u32 seq, int fl
 	if ((session->ifname[0] &&
 	     nla_put_string(skb, L2TP_ATTR_IFNAME, session->ifname)) ||
 	    (session->cookie_len &&
-	     nla_put(skb, L2TP_ATTR_COOKIE, session->cookie_len,
-		     &session->cookie[0])) ||
+	     nla_put(skb, L2TP_ATTR_COOKIE, session->cookie_len, session->cookie)) ||
 	    (session->peer_cookie_len &&
-	     nla_put(skb, L2TP_ATTR_PEER_COOKIE, session->peer_cookie_len,
-		     &session->peer_cookie[0])) ||
+	     nla_put(skb, L2TP_ATTR_PEER_COOKIE, session->peer_cookie_len, session->peer_cookie)) ||
 	    nla_put_u8(skb, L2TP_ATTR_RECV_SEQ, session->recv_seq) ||
 	    nla_put_u8(skb, L2TP_ATTR_SEND_SEQ, session->send_seq) ||
 	    nla_put_u8(skb, L2TP_ATTR_LNS_MODE, session->lns_mode) ||
