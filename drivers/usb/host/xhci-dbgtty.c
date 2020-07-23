@@ -440,11 +440,10 @@ xhci_dbc_tty_exit_port(struct dbc_port *port)
 	tty_port_destroy(&port->port);
 }
 
-int xhci_dbc_tty_register_device(struct xhci_hcd *xhci)
+int xhci_dbc_tty_register_device(struct xhci_dbc *dbc)
 {
 	int			ret;
 	struct device		*tty_dev;
-	struct xhci_dbc		*dbc = xhci->dbc;
 	struct dbc_port		*port = &dbc->port;
 
 	xhci_dbc_tty_init_port(xhci, port);
@@ -484,14 +483,13 @@ buf_alloc_fail:
 register_fail:
 	xhci_dbc_tty_exit_port(port);
 
-	xhci_err(xhci, "can't register tty port, err %d\n", ret);
+	dev_err(dbc->dev, "can't register tty port, err %d\n", ret);
 
 	return ret;
 }
 
-void xhci_dbc_tty_unregister_device(struct xhci_hcd *xhci)
+void xhci_dbc_tty_unregister_device(struct xhci_dbc *dbc)
 {
-	struct xhci_dbc		*dbc = xhci->dbc;
 	struct dbc_port		*port = &dbc->port;
 
 	tty_unregister_device(dbc_tty_driver, 0);
