@@ -694,8 +694,7 @@ void rkisp_bridge_isr(u32 *mis_val, struct rkisp_device *dev)
 
 	/* dmarx isr is unreliable, MI frame end to replace it */
 	if (*mis_val & (MI_MP_FRAME | MI_MPFBC_FRAME) &&
-	    IS_HDR_RDBK(dev->hdr.op_mode) &&
-	    dev->dmarx_dev.trigger == T_MANUAL) {
+	    IS_HDR_RDBK(dev->hdr.op_mode)) {
 		switch (dev->hdr.op_mode) {
 		case HDR_RDBK_FRAME3://for rd1 rd0 rd2
 			val |= RAW1_RD_FRAME;
@@ -708,7 +707,8 @@ void rkisp_bridge_isr(u32 *mis_val, struct rkisp_device *dev)
 			/* FALLTHROUGH */
 		}
 		rkisp2_rawrd_isr(val, dev);
-		rkisp_csi_trigger_event(&dev->csi_dev, NULL);
+		if (dev->dmarx_dev.trigger == T_MANUAL)
+			rkisp_csi_trigger_event(&dev->csi_dev, NULL);
 	}
 
 	if (!bridge->en || !bridge->cfg ||

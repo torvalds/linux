@@ -1289,11 +1289,12 @@ static void update_dmatx_v2(struct rkisp_stream *stream)
 			else
 				hdr_qbuf(&dev->hdr.q_tx[index], buf);
 		}
-		if (!buf)
+		if (!buf && stream->dummy_buf.mem_priv)
 			buf = &stream->dummy_buf;
-		mi_set_y_addr(stream, buf->dma_addr);
+		if (buf)
+			mi_set_y_addr(stream, buf->dma_addr);
 	}
-	v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
+	v4l2_dbg(2, rkisp_debug, &dev->v4l2_dev,
 		 "%s stream:%d Y:0x%x SHD:0x%x\n",
 		 __func__, stream->id,
 		 readl(base + stream->config->mi.y_base_ad_init),
