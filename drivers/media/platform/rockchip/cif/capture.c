@@ -1513,6 +1513,7 @@ static void rkcif_stream_stop(struct rkcif_stream *stream)
 	}
 
 	stream->state = RKCIF_STATE_READY;
+	stream->crop_enable = false;
 }
 
 static int rkcif_queue_setup(struct vb2_queue *queue,
@@ -1525,19 +1526,24 @@ static int rkcif_queue_setup(struct vb2_queue *queue,
 	struct rkcif_device *dev = stream->cifdev;
 	const struct v4l2_pix_format_mplane *pixm = NULL;
 	const struct cif_output_fmt *cif_fmt;
-	u32 i;
+	u32 i, height;
 
 	pixm = &stream->pixm;
 	cif_fmt = stream->cif_fmt_out;
 
 	*num_planes = cif_fmt->mplanes;
 
+	if (stream->crop_enable)
+		height = stream->crop.height;
+	else
+		height = pixm->height;
+
 	for (i = 0; i < cif_fmt->mplanes; i++) {
 		const struct v4l2_plane_pix_format *plane_fmt;
-		int h = round_up(pixm->height, MEMORY_ALIGN_ROUND_UP_HEIGHT);
+		int h = round_up(height, MEMORY_ALIGN_ROUND_UP_HEIGHT);
 
 		plane_fmt = &pixm->plane_fmt[i];
-		sizes[i] = plane_fmt->sizeimage / pixm->height * h;
+		sizes[i] = plane_fmt->sizeimage / height * h;
 	}
 
 	v4l2_dbg(1, rkcif_debug, &dev->v4l2_dev, "%s count %d, size %d\n",
@@ -2013,9 +2019,9 @@ static int rkcif_sanity_check_fmt(struct rkcif_stream *stream,
 			}
 		}
 	} else if (dev->active_sensor->mbus.type == V4L2_MBUS_CCP2) {
-		if (crop->left % 4 != 0) {
+		if (crop->left % 4 != 0 && crop->width % 4 != 0) {
 			v4l2_err(v4l2_dev,
-				 "ERROR: lvds crop left must align %d\n", 4);
+				 "ERROR: lvds crop left and width must align %d\n", 4);
 			return -EINVAL;
 		}
 	}
@@ -2210,6 +2216,7 @@ static void rkcif_set_fmt(struct rkcif_stream *stream,
 	struct rkcif_device *dev = stream->cifdev;
 	const struct cif_output_fmt *fmt;
 	struct v4l2_rect input_rect;
+	struct v4l2_subdev_selection input_sel;
 	unsigned int imagesize = 0, planes;
 	u32 xsubs = 1, ysubs = 1, i;
 	struct rkmodule_hdr_cfg hdr_cfg;
@@ -2250,6 +2257,18 @@ static void rkcif_set_fmt(struct rkcif_stream *stream,
 	pixm->field = V4L2_FIELD_NONE;
 	pixm->quantization = V4L2_QUANTIZATION_DEFAULT;
 
+	if (dev->terminal_sensor) {
+		input_sel.target = V4L2_SEL_TGT_CROP_BOUNDS;
+
+		ret = v4l2_subdev_call(dev->terminal_sensor,
+				       pad, get_selection, NULL,
+				       &input_sel);
+		if (!ret) {
+			stream->crop = input_sel.r;
+			stream->crop_enable = true;
+		}
+	}
+
 	/* calculate plane size and image size */
 	fcc_xysubs(fmt->fourcc, &xsubs, &ysubs);
 
@@ -2260,11 +2279,21 @@ static void rkcif_set_fmt(struct rkcif_stream *stream,
 		int width, height, bpl, size, bpp;
 
 		if (i == 0) {
-			width = pixm->width;
-			height = pixm->height;
+			if (stream->crop_enable) {
+				width = stream->crop.width;
+				height = stream->crop.height;
+			} else {
+				width = pixm->width;
+				height = pixm->height;
+			}
 		} else {
-			width = pixm->width / xsubs;
-			height = pixm->height / ysubs;
+			if (stream->crop_enable) {
+				width = stream->crop.width / xsubs;
+				height = stream->crop.height / ysubs;
+			} else {
+				width = pixm->width / xsubs;
+				height = pixm->height / ysubs;
+			}
 		}
 
 		if (dev->hdr.mode == NO_HDR) {
@@ -2331,6 +2360,7 @@ void rkcif_stream_init(struct rkcif_device *dev, u32 id)
 	stream->crop.top = 0;
 	stream->crop.width = RKCIF_DEFAULT_WIDTH;
 	stream->crop.height = RKCIF_DEFAULT_HEIGHT;
+	stream->crop_enable = false;
 }
 
 static int rkcif_fh_open(struct file *filp)
@@ -2572,7 +2602,7 @@ static int rkcif_s_crop(struct file *file, void *fh, const struct v4l2_crop *a)
 		return ret;
 
 	stream->crop = *rect;
-	stream->crop_enable = 1;
+	stream->crop_enable = true;
 
 	return 0;
 }
@@ -3377,8 +3407,8 @@ void rkcif_irq_lite_lvds(struct rkcif_device *cif_dev)
 
 		if (intstat & CSI_FIFO_OVERFLOW) {
 			v4l2_err(&cif_dev->v4l2_dev,
-				 "ERROR: cif lite lvds fifo overflow, intstat:0x%x!!\n",
-				  intstat);
+				 "ERROR: cif lite lvds fifo overflow, intstat:0x%x, lastline:%d!!\n",
+				  intstat, lastline);
 			return;
 		}
 

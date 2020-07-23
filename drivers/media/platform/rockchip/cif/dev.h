@@ -260,6 +260,7 @@ struct rkcif_stream {
 	struct rkcif_vdev_node		vnode;
 	enum rkcif_state		state;
 	bool				stopping;
+	bool				crop_enable;
 	wait_queue_head_t		wq_stopped;
 	int				frame_idx;
 	int				frame_phase;
@@ -278,7 +279,6 @@ struct rkcif_stream {
 	const struct cif_input_fmt	*cif_fmt_in;
 	struct v4l2_pix_format_mplane	pixm;
 	struct v4l2_rect		crop;
-	int				crop_enable;
 };
 
 struct rkcif_lvds_subdev {
