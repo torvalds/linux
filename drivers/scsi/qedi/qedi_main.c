@@ -1155,7 +1155,6 @@ static int qedi_queue_cqe(struct qedi_ctx *qedi, union iscsi_cqe *cqe,
 {
 	struct qedi_work *qedi_work;
 	struct qedi_conn *q_conn;
-	struct iscsi_conn *conn;
 	struct qedi_cmd *qedi_cmd;
 	u32 iscsi_cid;
 	int rc = 0;
@@ -1168,7 +1167,6 @@ static int qedi_queue_cqe(struct qedi_ctx *qedi, union iscsi_cqe *cqe,
 			  iscsi_cid);
 		return -1;
 	}
-	conn = q_conn->cls_conn->dd_data;
 
 	switch (cqe->cqe_common.cqe_type) {
 	case ISCSI_CQE_TYPE_SOLICITED:
@@ -2429,7 +2427,6 @@ static int __qedi_probe(struct pci_dev *pdev, int mode)
 	struct qed_probe_params qed_params;
 	void *task_start, *task_end;
 	int rc;
-	u16 tmp;
 
 	if (mode != QEDI_MODE_RECOVERY) {
 		qedi = qedi_host_alloc(pdev);
@@ -2528,9 +2525,9 @@ static int __qedi_probe(struct pci_dev *pdev, int mode)
 		  "Writing %d to primary and secondary BDQ doorbell registers.\n",
 		  qedi->bdq_prod_idx);
 	writew(qedi->bdq_prod_idx, qedi->bdq_primary_prod);
-	tmp = readw(qedi->bdq_primary_prod);
+	readw(qedi->bdq_primary_prod);
 	writew(qedi->bdq_prod_idx, qedi->bdq_secondary_prod);
-	tmp = readw(qedi->bdq_secondary_prod);
+	readw(qedi->bdq_secondary_prod);
 
 	ether_addr_copy(qedi->mac, qedi->dev_info.common.hw_mac);
 	QEDI_INFO(&qedi->dbg_ctx, QEDI_LOG_DISC, "MAC address is %pM.\n",
