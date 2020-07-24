@@ -2081,7 +2081,7 @@ static int gpmc_probe_generic_child(struct platform_device *pdev,
 	gpmc_cs_disable_mem(cs);
 
 	/*
-	 * FIXME: gpmc_cs_request() will map the CS to an arbitary
+	 * FIXME: gpmc_cs_request() will map the CS to an arbitrary
 	 * location in the gpmc address space. When booting with
 	 * device-tree we want the NOR flash to be mapped to the
 	 * location specified in the device-tree blob. So remap the
