@@ -1340,6 +1340,8 @@ dtb-$(CONFIG_MACH_ARMADA_39X) += \
 	armada-398-db.dtb
 dtb-$(CONFIG_MACH_ARMADA_XP) += \
 	armada-xp-axpwifiap.dtb \
+	armada-xp-crs305-1g-4s.dtb \
+	armada-xp-crs305-1g-4s-bit.dtb \
 	armada-xp-crs326-24g-2s.dtb \
 	armada-xp-crs326-24g-2s-bit.dtb \
 	armada-xp-db.dtb \
