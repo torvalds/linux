@@ -1344,6 +1344,8 @@ dtb-$(CONFIG_MACH_ARMADA_XP) += \
 	armada-xp-crs305-1g-4s-bit.dtb \
 	armada-xp-crs326-24g-2s.dtb \
 	armada-xp-crs326-24g-2s-bit.dtb \
+	armada-xp-crs328-4c-20s-4s.dtb \
+	armada-xp-crs328-4c-20s-4s-bit.dtb \
 	armada-xp-db.dtb \
 	armada-xp-db-dxbc2.dtb \
 	armada-xp-db-xc3-24g4xg.dtb \
