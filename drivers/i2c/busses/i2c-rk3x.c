@@ -364,6 +364,8 @@ static void rk3x_i2c_prepare_read(struct rk3x_i2c *i2c)
 	if (i2c->processed != 0) {
 		con &= ~REG_CON_MOD_MASK;
 		con |= REG_CON_MOD(REG_CON_MOD_RX);
+		if (con & REG_CON_START)
+			con &= ~REG_CON_START;
 	}
 
 	i2c_writel(i2c, con, REG_CON);
