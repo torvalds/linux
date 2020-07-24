@@ -7833,6 +7833,9 @@ struct bpf_link *bpf_program__attach_perf_event(struct bpf_program *prog,
 		pr_warn("program '%s': failed to attach to pfd %d: %s\n",
 			bpf_program__title(prog, false), pfd,
 			   libbpf_strerror_r(err, errmsg, sizeof(errmsg)));
+		if (err == -EPROTO)
+			pr_warn("program '%s': try add PERF_SAMPLE_CALLCHAIN to or remove exclude_callchain_[kernel|user] from pfd %d\n",
+				bpf_program__title(prog, false), pfd);
 		return ERR_PTR(err);
 	}
 	if (ioctl(pfd, PERF_EVENT_IOC_ENABLE, 0) < 0) {

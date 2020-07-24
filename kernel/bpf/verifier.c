@@ -4962,6 +4962,9 @@ static int check_helper_call(struct bpf_verifier_env *env, int func_id, int insn
 		env->prog->has_callchain_buf = true;
 	}
 
+	if (func_id == BPF_FUNC_get_stackid || func_id == BPF_FUNC_get_stack)
+		env->prog->call_get_stack = true;
+
 	if (changes_data)
 		clear_all_pkt_pointers(env);
 	return 0;
