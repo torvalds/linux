@@ -1078,3 +1078,102 @@ int intel_svm_get_pasid(struct iommu_sva *sva)
 
 	return pasid;
 }
+
+int intel_svm_page_response(struct device *dev,
+			    struct iommu_fault_event *evt,
+			    struct iommu_page_response *msg)
+{
+	struct iommu_fault_page_request *prm;
+	struct intel_svm_dev *sdev = NULL;
+	struct intel_svm *svm = NULL;
+	struct intel_iommu *iommu;
+	bool private_present;
+	bool pasid_present;
+	bool last_page;
+	u8 bus, devfn;
+	int ret = 0;
+	u16 sid;
+
+	if (!dev || !dev_is_pci(dev))
+		return -ENODEV;
+
+	iommu = device_to_iommu(dev, &bus, &devfn);
+	if (!iommu)
+		return -ENODEV;
+
+	if (!msg || !evt)
+		return -EINVAL;
+
+	mutex_lock(&pasid_mutex);
+
+	prm = &evt->fault.prm;
+	sid = PCI_DEVID(bus, devfn);
+	pasid_present = prm->flags & IOMMU_FAULT_PAGE_REQUEST_PASID_VALID;
+	private_present = prm->flags & IOMMU_FAULT_PAGE_REQUEST_PRIV_DATA;
+	last_page = prm->flags & IOMMU_FAULT_PAGE_REQUEST_LAST_PAGE;
+
+	if (!pasid_present) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (prm->pasid == 0 || prm->pasid >= PASID_MAX) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	ret = pasid_to_svm_sdev(dev, prm->pasid, &svm, &sdev);
+	if (ret || !sdev) {
+		ret = -ENODEV;
+		goto out;
+	}
+
+	/*
+	 * For responses from userspace, need to make sure that the
+	 * pasid has been bound to its mm.
+	 */
+	if (svm->flags & SVM_FLAG_GUEST_MODE) {
+		struct mm_struct *mm;
+
+		mm = get_task_mm(current);
+		if (!mm) {
+			ret = -EINVAL;
+			goto out;
+		}
+
+		if (mm != svm->mm) {
+			ret = -ENODEV;
+			mmput(mm);
+			goto out;
+		}
+
+		mmput(mm);
+	}
+
+	/*
+	 * Per VT-d spec. v3.0 ch7.7, system software must respond
+	 * with page group response if private data is present (PDP)
+	 * or last page in group (LPIG) bit is set. This is an
+	 * additional VT-d requirement beyond PCI ATS spec.
+	 */
+	if (last_page || private_present) {
+		struct qi_desc desc;
+
+		desc.qw0 = QI_PGRP_PASID(prm->pasid) | QI_PGRP_DID(sid) |
+				QI_PGRP_PASID_P(pasid_present) |
+				QI_PGRP_PDP(private_present) |
+				QI_PGRP_RESP_CODE(msg->code) |
+				QI_PGRP_RESP_TYPE;
+		desc.qw1 = QI_PGRP_IDX(prm->grpid) | QI_PGRP_LPIG(last_page);
+		desc.qw2 = 0;
+		desc.qw3 = 0;
+		if (private_present)
+			memcpy(&desc.qw2, prm->private_data,
+			       sizeof(prm->private_data));
+
+		qi_submit_sync(iommu, &desc, 1, 0);
+	}
+out:
+	mutex_unlock(&pasid_mutex);
+	return ret;
+}
