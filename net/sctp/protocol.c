@@ -1367,15 +1367,15 @@ static struct pernet_operations sctp_ctrlsock_ops = {
 /* Initialize the universe into something sensible.  */
 static __init int sctp_init(void)
 {
-	int i;
-	int status = -EINVAL;
-	unsigned long goal;
-	unsigned long limit;
 	unsigned long nr_pages = totalram_pages();
-	int max_share;
-	int order;
-	int num_entries;
+	unsigned long limit;
+	unsigned long goal;
 	int max_entry_order;
+	int num_entries;
+	int max_share;
+	int status;
+	int order;
+	int i;
 
 	sock_skb_cb_check_size(sizeof(struct sctp_ulpevent));
 
