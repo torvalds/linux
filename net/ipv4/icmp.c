@@ -1151,24 +1151,15 @@ static bool ip_icmp_error_rfc4884_validate(const struct sk_buff *skb, int off)
 }
 
 void ip_icmp_error_rfc4884(const struct sk_buff *skb,
-			   struct sock_ee_data_rfc4884 *out)
+			   struct sock_ee_data_rfc4884 *out,
+			   int thlen, int off)
 {
-	int hlen, off;
-
-	switch (icmp_hdr(skb)->type) {
-	case ICMP_DEST_UNREACH:
-	case ICMP_TIME_EXCEEDED:
-	case ICMP_PARAMETERPROB:
-		break;
-	default:
-		return;
-	}
+	int hlen;
 
 	/* original datagram headers: end of icmph to payload (skb->data) */
-	hlen = -skb_transport_offset(skb) - sizeof(struct icmphdr);
+	hlen = -skb_transport_offset(skb) - thlen;
 
 	/* per rfc 4884: minimal datagram length of 128 bytes */
-	off = icmp_hdr(skb)->un.reserved[1] * sizeof(u32);
 	if (off < 128 || off < hlen)
 		return;
 
