@@ -1251,6 +1251,27 @@ static void tcpm_handle_vdm_request(struct tcpm_port *port,
 	if (PD_VDO_SVDM(p[0]))
 		rlen = tcpm_pd_svdm(port, adev, p, cnt, response, &adev_action);
 
+	/*
+	 * We are done with any state stored in the port struct now, except
+	 * for any port struct changes done by the tcpm_queue_vdm() call
+	 * below, which is a separate operation.
+	 *
+	 * So we can safely release the lock here; and we MUST release the
+	 * lock here to avoid an AB BA lock inversion:
+	 *
+	 * If we keep the lock here then the lock ordering in this path is:
+	 * 1. tcpm_pd_rx_handler take the tcpm port lock
+	 * 2. One of the typec_altmode_* calls below takes the alt-mode's lock
+	 *
+	 * And we also have this ordering:
+	 * 1. alt-mode driver takes the alt-mode's lock
+	 * 2. alt-mode driver calls tcpm_altmode_enter which takes the
+	 *    tcpm port lock
+	 *
+	 * Dropping our lock here avoids this.
+	 */
+	mutex_unlock(&port->lock);
+
 	if (adev) {
 		switch (adev_action) {
 		case ADEV_NONE:
@@ -1274,6 +1295,15 @@ static void tcpm_handle_vdm_request(struct tcpm_port *port,
 			break;
 		}
 	}
+
+	/*
+	 * We must re-take the lock here to balance the unlock in
+	 * tcpm_pd_rx_handler, note that no changes, other then the
+	 * tcpm_queue_vdm call, are made while the lock is held again.
+	 * All that is done after the call is unwinding the call stack until
+	 * we return to tcpm_pd_rx_handler and do the unlock there.
+	 */
+	mutex_lock(&port->lock);
 
 	if (rlen > 0)
 		tcpm_queue_vdm(port, response[0], &response[1], rlen - 1);
