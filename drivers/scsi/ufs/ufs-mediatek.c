@@ -574,7 +574,7 @@ static int ufs_mtk_link_set_lpm(struct ufs_hba *hba)
 
 static void ufs_mtk_vreg_set_lpm(struct ufs_hba *hba, bool lpm)
 {
-	if (!hba->vreg_info.vccq2)
+	if (!hba->vreg_info.vccq2 || !hba->vreg_info.vcc)
 		return;
 
 	if (lpm & !hba->vreg_info.vcc->enabled)
