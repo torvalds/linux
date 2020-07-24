@@ -1072,8 +1072,7 @@ void gpmc_cs_free(int cs)
 
 	spin_lock(&gpmc_mem_lock);
 	if (cs >= gpmc_cs_num || cs < 0 || !gpmc_cs_reserved(cs)) {
-		printk(KERN_ERR "Trying to free non-reserved GPMC CS%d\n", cs);
-		BUG();
+		WARN(1, "Trying to free non-reserved GPMC CS%d\n", cs);
 		spin_unlock(&gpmc_mem_lock);
 		return;
 	}
