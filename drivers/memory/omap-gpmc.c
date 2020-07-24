@@ -29,6 +29,7 @@
 #include <linux/of_platform.h>
 #include <linux/omap-gpmc.h>
 #include <linux/pm_runtime.h>
+#include <linux/sizes.h>
 
 #include <linux/platform_data/mtd-nand-omap2.h>
 
