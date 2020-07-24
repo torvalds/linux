@@ -814,7 +814,7 @@ static int es8323_probe(struct snd_soc_component *component)
 	snd_soc_component_write(component, 0x02, 0xf3);
 	snd_soc_component_write(component, 0x2B, 0x80);
 	snd_soc_component_write(component, 0x08, 0x00);	/* ES8388 salve */
-	snd_soc_component_write(component, 0x00, 0x35);
+	snd_soc_component_write(component, 0x00, 0x15);
 	snd_soc_component_write(component, 0x01, 0x50);	/* PLAYBACK & RECORD Mode,EnRefr=1 */
 	snd_soc_component_write(component, 0x03, 0x59);	/* pdn_ana=0,ibiasgen_pdn=0 */
 	snd_soc_component_write(component, 0x05, 0x00);	/* pdn_ana=0,ibiasgen_pdn=0 */
@@ -822,7 +822,7 @@ static int es8323_probe(struct snd_soc_component *component)
 	snd_soc_component_write(component, 0x07, 0x7c);
 	snd_soc_component_write(component, 0x09, 0x88);	/* ADC L/R PGA =  +24dB */
 	snd_soc_component_write(component, 0x0a, 0xf0);	/* ADC INPUT=LIN2/RIN2 */
-	snd_soc_component_write(component, 0x0b, 0x82);	/* ADC INPUT=LIN2/RIN2 */
+	snd_soc_component_write(component, 0x0b, 0x80);	/* ADC INPUT=LIN2/RIN2 */
 	snd_soc_component_write(component, 0x0C, 0x4c);	/* I2S-24BIT */
 	snd_soc_component_write(component, 0x0d, 0x02);	/* MCLK/LRCK=256 */
 	snd_soc_component_write(component, 0x10, 0x00);	/* ADC Left Volume=0db */
