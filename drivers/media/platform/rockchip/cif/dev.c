@@ -249,7 +249,7 @@ static int rkcif_pipeline_set_stream(struct rkcif_pipeline *p, bool on)
 			}
 		}
 
-		if (on && can_be_set) {
+		if ((on && can_be_set) || !on) {
 			/* phy -> sensor */
 			for (i = 0; i < p->num_subdevs; i++) {
 				ret = v4l2_subdev_call(p->subdevs[i], video, s_stream, on);
