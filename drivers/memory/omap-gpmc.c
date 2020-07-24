@@ -2393,7 +2393,7 @@ static int gpmc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, gpmc);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res == NULL)
+	if (!res)
 		return -ENOENT;
 
 	gpmc_base = devm_ioremap_resource(&pdev->dev, res);
