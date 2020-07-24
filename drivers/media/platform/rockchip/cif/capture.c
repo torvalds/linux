@@ -1298,7 +1298,9 @@ static int rkcif_csi_channel_init(struct rkcif_stream *stream,
 	 * needs aligned with :ALIGN(bits_per_pixel * width / 8, 8), if enable 16bit mode
 	 * needs aligned with :ALIGN(bits_per_pixel * width * 2, 8)
 	 */
-	if (dev->hdr.mode == NO_HDR) {
+	if (dev->hdr.mode == NO_HDR &&
+	    dev->chip_id != CHIP_RV1126_CIF &&
+	    dev->chip_id != CHIP_RV1126_CIF_LITE) {
 		if (channel->fmt_val == CSI_WRDDR_TYPE_RAW10 ||
 		    channel->fmt_val == CSI_WRDDR_TYPE_RAW12)
 			channel->virtual_width = ALIGN(channel->width * 2, 8);
@@ -1413,7 +1415,8 @@ static int rkcif_csi_channel_set(struct rkcif_stream *stream,
 		      channel->cmd_mode_en << 4 | channel->crop_en << 5 |
 		      channel->id << 8 | channel->data_type << 10;
 
-		if (dev->hdr.mode != NO_HDR)
+		if (dev->chip_id == CHIP_RV1126_CIF ||
+		    dev->chip_id == CHIP_RV1126_CIF_LITE)
 			val |= CSI_ENABLE_MIPI_COMPACT;
 	} else if (mbus_type  == V4L2_MBUS_CCP2) {
 		rkcif_csi_set_lvds_sav_eav(stream, channel);
@@ -1421,7 +1424,8 @@ static int rkcif_csi_channel_set(struct rkcif_stream *stream,
 		      LVDS_MAIN_LANE(0) | LVDS_FID(0) |
 		      LVDS_LANES_ENABLED(dev->active_sensor->lanes);
 
-		if (dev->hdr.mode != NO_HDR)
+		if (dev->chip_id == CHIP_RV1126_CIF ||
+		    dev->chip_id == CHIP_RV1126_CIF_LITE)
 			val |= LVDS_COMPACT;
 	}
 
