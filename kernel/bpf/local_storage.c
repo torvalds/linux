@@ -9,11 +9,11 @@
 #include <linux/slab.h>
 #include <uapi/linux/btf.h>
 
-#include "../cgroup/cgroup-internal.h"
-
 DEFINE_PER_CPU(struct bpf_cgroup_storage*, bpf_cgroup_storage[MAX_BPF_CGROUP_STORAGE_TYPE]);
 
 #ifdef CONFIG_CGROUP_BPF
+
+#include "../cgroup/cgroup-internal.h"
 
 #define LOCAL_STORAGE_CREATE_FLAG_MASK					\
 	(BPF_F_NUMA_NODE | BPF_F_ACCESS_MASK)
