@@ -967,6 +967,8 @@ static void tcpm_queue_vdm(struct tcpm_port *port, const u32 header,
 	/* Set ready, vdm state machine will actually send */
 	port->vdm_retries = 0;
 	port->vdm_state = VDM_STATE_READY;
+
+	mod_delayed_work(port->wq, &port->vdm_state_machine, 0);
 }
 
 static void svdm_consume_identity(struct tcpm_port *port, const __le32 *payload,
@@ -1248,10 +1250,8 @@ static void tcpm_handle_vdm_request(struct tcpm_port *port,
 	if (PD_VDO_SVDM(p0))
 		rlen = tcpm_pd_svdm(port, payload, cnt, response);
 
-	if (rlen > 0) {
+	if (rlen > 0)
 		tcpm_queue_vdm(port, response[0], &response[1], rlen - 1);
-		mod_delayed_work(port->wq, &port->vdm_state_machine, 0);
-	}
 }
 
 static void tcpm_send_vdm(struct tcpm_port *port, u32 vid, int cmd,
@@ -1266,8 +1266,6 @@ static void tcpm_send_vdm(struct tcpm_port *port, u32 vid, int cmd,
 	header = VDO(vid, ((vid & USB_SID_PD) == USB_SID_PD) ?
 			1 : (PD_VDO_CMD(cmd) <= CMD_ATTENTION), cmd);
 	tcpm_queue_vdm(port, header, data, count);
-
-	mod_delayed_work(port->wq, &port->vdm_state_machine, 0);
 }
 
 static unsigned int vdm_ready_timeout(u32 vdm_hdr)
@@ -1515,7 +1513,6 @@ static int tcpm_altmode_enter(struct typec_altmode *altmode, u32 *vdo)
 	header |= VDO_OPOS(altmode->mode);
 
 	tcpm_queue_vdm(port, header, vdo, vdo ? 1 : 0);
-	mod_delayed_work(port->wq, &port->vdm_state_machine, 0);
 	mutex_unlock(&port->lock);
 
 	return 0;
@@ -1531,7 +1528,6 @@ static int tcpm_altmode_exit(struct typec_altmode *altmode)
 	header |= VDO_OPOS(altmode->mode);
 
 	tcpm_queue_vdm(port, header, NULL, 0);
-	mod_delayed_work(port->wq, &port->vdm_state_machine, 0);
 	mutex_unlock(&port->lock);
 
 	return 0;
@@ -1544,7 +1540,6 @@ static int tcpm_altmode_vdm(struct typec_altmode *altmode,
 
 	mutex_lock(&port->lock);
 	tcpm_queue_vdm(port, header, data, count - 1);
-	mod_delayed_work(port->wq, &port->vdm_state_machine, 0);
 	mutex_unlock(&port->lock);
 
 	return 0;
