@@ -719,7 +719,7 @@ static int dequeue_synchronous_signal(kernel_siginfo_t *info)
 	 * Return the first synchronous signal in the queue.
 	 */
 	list_for_each_entry(q, &pending->list, list) {
-		/* Synchronous signals have a postive si_code */
+		/* Synchronous signals have a positive si_code */
 		if ((q->info.si_code > SI_USER) &&
 		    (sigmask(q->info.si_signo) & SYNCHRONOUS_MASK)) {
 			sync = q;
