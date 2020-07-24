@@ -11,8 +11,6 @@
 #include "ice_switch.h"
 #include <linux/avf/virtchnl.h>
 
-enum ice_status ice_nvm_validate_checksum(struct ice_hw *hw);
-
 enum ice_status ice_init_hw(struct ice_hw *hw);
 void ice_deinit_hw(struct ice_hw *hw);
 enum ice_status ice_check_reset(struct ice_hw *hw);
