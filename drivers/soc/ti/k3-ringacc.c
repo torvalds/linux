@@ -161,6 +161,10 @@ struct k3_ring {
 	int		proxy_id;
 };
 
+struct k3_ringacc_ops {
+	int (*init)(struct platform_device *pdev, struct k3_ringacc *ringacc);
+};
+
 /**
  * struct k3_ringacc - Rings accelerator descriptor
  *
@@ -179,6 +183,7 @@ struct k3_ring {
  * @tisci: pointer ti-sci handle
  * @tisci_ring_ops: ti-sci rings ops
  * @tisci_dev_id: ti-sci device id
+ * @ops: SoC specific ringacc operation
  */
 struct k3_ringacc {
 	struct device *dev;
@@ -199,6 +204,8 @@ struct k3_ringacc {
 	const struct ti_sci_handle *tisci;
 	const struct ti_sci_rm_ringacc_ops *tisci_ring_ops;
 	u32 tisci_dev_id;
+
+	const struct k3_ringacc_ops *ops;
 };
 
 static long k3_ringacc_ring_get_fifo_pos(struct k3_ring *ring)
@@ -1075,20 +1082,13 @@ static int k3_ringacc_probe_dt(struct k3_ringacc *ringacc)
 						 ringacc->rm_gp_range);
 }
 
-static int k3_ringacc_probe(struct platform_device *pdev)
+static int k3_ringacc_init(struct platform_device *pdev,
+			   struct k3_ringacc *ringacc)
 {
-	struct k3_ringacc *ringacc;
 	void __iomem *base_fifo, *base_rt;
 	struct device *dev = &pdev->dev;
 	struct resource *res;
 	int ret, i;
-
-	ringacc = devm_kzalloc(dev, sizeof(*ringacc), GFP_KERNEL);
-	if (!ringacc)
-		return -ENOMEM;
-
-	ringacc->dev = dev;
-	mutex_init(&ringacc->req_lock);
 
 	dev->msi_domain = of_msi_get_domain(dev, dev->of_node,
 					    DOMAIN_BUS_TI_SCI_INTA_MSI);
@@ -1148,13 +1148,8 @@ static int k3_ringacc_probe(struct platform_device *pdev)
 		ringacc->rings[i].ring_id = i;
 		ringacc->rings[i].proxy_id = K3_RINGACC_PROXY_NOT_USED;
 	}
-	dev_set_drvdata(dev, ringacc);
 
 	ringacc->tisci_ring_ops = &ringacc->tisci->ops.rm_ring_ops;
-
-	mutex_lock(&k3_ringacc_list_lock);
-	list_add_tail(&ringacc->list, &k3_ringacc_list);
-	mutex_unlock(&k3_ringacc_list_lock);
 
 	dev_info(dev, "Ring Accelerator probed rings:%u, gp-rings[%u,%u] sci-dev-id:%u\n",
 		 ringacc->num_rings,
@@ -1165,14 +1160,59 @@ static int k3_ringacc_probe(struct platform_device *pdev)
 		 ringacc->dma_ring_reset_quirk ? "enabled" : "disabled");
 	dev_info(dev, "RA Proxy rev. %08x, num_proxies:%u\n",
 		 readl(&ringacc->proxy_gcfg->revision), ringacc->num_proxies);
+
 	return 0;
 }
 
+struct ringacc_match_data {
+	struct k3_ringacc_ops ops;
+};
+
+static struct ringacc_match_data k3_ringacc_data = {
+	.ops = {
+		.init = k3_ringacc_init,
+	},
+};
+
 /* Match table for of_platform binding */
 static const struct of_device_id k3_ringacc_of_match[] = {
-	{ .compatible = "ti,am654-navss-ringacc", },
+	{ .compatible = "ti,am654-navss-ringacc", .data = &k3_ringacc_data, },
 	{},
 };
+
+static int k3_ringacc_probe(struct platform_device *pdev)
+{
+	const struct ringacc_match_data *match_data;
+	const struct of_device_id *match;
+	struct device *dev = &pdev->dev;
+	struct k3_ringacc *ringacc;
+	int ret;
+
+	match = of_match_node(k3_ringacc_of_match, dev->of_node);
+	if (!match)
+		return -ENODEV;
+	match_data = match->data;
+
+	ringacc = devm_kzalloc(dev, sizeof(*ringacc), GFP_KERNEL);
+	if (!ringacc)
+		return -ENOMEM;
+
+	ringacc->dev = dev;
+	mutex_init(&ringacc->req_lock);
+	ringacc->ops = &match_data->ops;
+
+	ret = ringacc->ops->init(pdev, ringacc);
+	if (ret)
+		return ret;
+
+	dev_set_drvdata(dev, ringacc);
+
+	mutex_lock(&k3_ringacc_list_lock);
+	list_add_tail(&ringacc->list, &k3_ringacc_list);
+	mutex_unlock(&k3_ringacc_list_lock);
+
+	return 0;
+}
 
 static struct platform_driver k3_ringacc_driver = {
 	.probe		= k3_ringacc_probe,
