@@ -1044,7 +1044,7 @@ static void tegra210_emc_r21021_set_clock(struct tegra210_emc *emc, u32 clksrc)
 			   !opt_cc_short_zcal && opt_short_zcal) {
 			value = (value & ~(EMC_ZCAL_WAIT_CNT_ZCAL_WAIT_CNT_MASK <<
 					   EMC_ZCAL_WAIT_CNT_ZCAL_WAIT_CNT_SHIFT)) |
-			        ((zq_wait_long & EMC_ZCAL_WAIT_CNT_ZCAL_WAIT_CNT_MASK) <<
+				((zq_wait_long & EMC_ZCAL_WAIT_CNT_ZCAL_WAIT_CNT_MASK) <<
 						 EMC_MRS_WAIT_CNT_SHORT_WAIT_SHIFT);
 		} else if (offset == EMC_ZCAL_INTERVAL && opt_zcal_en_cc) {
 			value = 0; /* EMC_ZCAL_INTERVAL reset value. */
