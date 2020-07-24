@@ -749,7 +749,7 @@ u16 nvmet_set_feat_async_event(struct nvmet_req *req, u32 mask)
 	return 0;
 }
 
-static void nvmet_execute_set_features(struct nvmet_req *req)
+void nvmet_execute_set_features(struct nvmet_req *req)
 {
 	struct nvmet_subsys *subsys = req->sq->ctrl->subsys;
 	u32 cdw10 = le32_to_cpu(req->cmd->common.cdw10);
@@ -824,7 +824,7 @@ void nvmet_get_feat_async_event(struct nvmet_req *req)
 	nvmet_set_result(req, READ_ONCE(req->sq->ctrl->aen_enabled));
 }
 
-static void nvmet_execute_get_features(struct nvmet_req *req)
+void nvmet_execute_get_features(struct nvmet_req *req)
 {
 	struct nvmet_subsys *subsys = req->sq->ctrl->subsys;
 	u32 cdw10 = le32_to_cpu(req->cmd->common.cdw10);
@@ -939,6 +939,9 @@ u16 nvmet_parse_admin_cmd(struct nvmet_req *req)
 	ret = nvmet_check_ctrl_status(req, cmd);
 	if (unlikely(ret))
 		return ret;
+
+	if (nvmet_req_passthru_ctrl(req))
+		return nvmet_parse_passthru_admin_cmd(req);
 
 	switch (cmd->common.opcode) {
 	case nvme_admin_get_log_page:
