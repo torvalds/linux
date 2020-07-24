@@ -243,7 +243,6 @@ static DEFINE_SPINLOCK(gpmc_mem_lock);
 /* Define chip-selects as reserved by default until probe completes */
 static unsigned int gpmc_cs_num = GPMC_CS_NUM;
 static unsigned int gpmc_nr_waitpins;
-static resource_size_t phys_base, mem_size;
 static unsigned int gpmc_capability;
 static void __iomem *gpmc_base;
 
@@ -2348,9 +2347,6 @@ static int gpmc_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL)
 		return -ENOENT;
-
-	phys_base = res->start;
-	mem_size = resource_size(res);
 
 	gpmc_base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(gpmc_base))
