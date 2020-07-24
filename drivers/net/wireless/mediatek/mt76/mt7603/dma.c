@@ -163,7 +163,7 @@ static int mt7603_poll_tx(struct napi_struct *napi, int budget)
 
 	mt7603_mac_sta_poll(dev);
 
-	tasklet_schedule(&dev->mt76.tx_tasklet);
+	mt76_worker_schedule(&dev->mt76.tx_worker);
 
 	return 0;
 }
@@ -246,6 +246,5 @@ void mt7603_dma_cleanup(struct mt7603_dev *dev)
 		   MT_WPDMA_GLO_CFG_RX_DMA_EN |
 		   MT_WPDMA_GLO_CFG_TX_WRITEBACK_DONE);
 
-	tasklet_kill(&dev->mt76.tx_tasklet);
 	mt76_dma_cleanup(&dev->mt76);
 }

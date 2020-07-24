@@ -792,9 +792,9 @@ int mt76u_resume_rx(struct mt76_dev *dev)
 }
 EXPORT_SYMBOL_GPL(mt76u_resume_rx);
 
-static void mt76u_tx_tasklet(unsigned long data)
+static void mt76u_tx_worker(struct mt76_worker *w)
 {
-	struct mt76_dev *dev = (struct mt76_dev *)data;
+	struct mt76_dev *dev = container_of(w, struct mt76_dev, tx_worker);
 	struct mt76_queue_entry entry;
 	struct mt76_queue *q;
 	bool wake;
@@ -864,7 +864,7 @@ static void mt76u_complete_tx(struct urb *urb)
 		dev_err(dev->dev, "tx urb failed: %d\n", urb->status);
 	e->done = true;
 
-	tasklet_schedule(&dev->tx_tasklet);
+	mt76_worker_schedule(&dev->tx_worker);
 }
 
 static int
@@ -1020,6 +1020,8 @@ void mt76u_stop_tx(struct mt76_dev *dev)
 {
 	int ret;
 
+	mt76_worker_disable(&dev->tx_worker);
+
 	ret = wait_event_timeout(dev->tx_wait, !mt76_has_tx_pending(&dev->phy),
 				 HZ / 5);
 	if (!ret) {
@@ -1038,8 +1040,6 @@ void mt76u_stop_tx(struct mt76_dev *dev)
 				usb_kill_urb(q->entry[j].urb);
 		}
 
-		tasklet_kill(&dev->tx_tasklet);
-
 		/* On device removal we maight queue skb's, but mt76u_tx_kick()
 		 * will fail to submit urb, cleanup those skb's manually.
 		 */
@@ -1057,6 +1057,8 @@ void mt76u_stop_tx(struct mt76_dev *dev)
 
 	cancel_work_sync(&dev->usb.stat_work);
 	clear_bit(MT76_READING_STATS, &dev->phy.state);
+
+	mt76_worker_enable(&dev->tx_worker);
 
 	mt76_tx_status_check(dev, NULL, true);
 }
@@ -1107,8 +1109,8 @@ int mt76u_init(struct mt76_dev *dev,
 	mt76u_ops.rmw = ext ? mt76u_rmw_ext : mt76u_rmw;
 	mt76u_ops.write_copy = ext ? mt76u_copy_ext : mt76u_copy;
 
+	dev->tx_worker.fn = mt76u_tx_worker;
 	tasklet_init(&usb->rx_tasklet, mt76u_rx_tasklet, (unsigned long)dev);
-	tasklet_init(&dev->tx_tasklet, mt76u_tx_tasklet, (unsigned long)dev);
 	INIT_WORK(&usb->stat_work, mt76u_tx_status_data);
 
 	usb->data_len = usb_maxpacket(udev, usb_sndctrlpipe(udev, 0), 1);

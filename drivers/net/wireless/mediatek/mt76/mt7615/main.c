@@ -707,7 +707,7 @@ mt7615_wake_tx_queue(struct ieee80211_hw *hw, struct ieee80211_txq *txq)
 	}
 
 	dev->pm.last_activity = jiffies;
-	tasklet_schedule(&dev->mt76.tx_tasklet);
+	mt76_worker_schedule(&dev->mt76.tx_worker);
 }
 
 static void mt7615_tx(struct ieee80211_hw *hw,

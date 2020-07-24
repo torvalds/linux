@@ -149,9 +149,11 @@ static void mt76x02_process_tx_status_fifo(struct mt76x02_dev *dev)
 		mt76x02_send_tx_status(dev, &stat, &update);
 }
 
-static void mt76x02_tx_tasklet(unsigned long data)
+static void mt76x02_tx_worker(struct mt76_worker *w)
 {
-	struct mt76x02_dev *dev = (struct mt76x02_dev *)data;
+	struct mt76x02_dev *dev;
+
+	dev = container_of(w, struct mt76x02_dev, mt76.tx_worker);
 
 	mt76x02_mac_poll_tx_status(dev, false);
 	mt76x02_process_tx_status_fifo(dev);
@@ -176,7 +178,7 @@ static int mt76x02_poll_tx(struct napi_struct *napi, int budget)
 	for (i = MT_TXQ_MCU; i >= 0; i--)
 		mt76_queue_tx_cleanup(dev, i, false);
 
-	tasklet_schedule(&dev->mt76.tx_tasklet);
+	mt76_worker_schedule(&dev->mt76.tx_worker);
 
 	return 0;
 }
@@ -195,8 +197,7 @@ int mt76x02_dma_init(struct mt76x02_dev *dev)
 	if (!status_fifo)
 		return -ENOMEM;
 
-	tasklet_init(&dev->mt76.tx_tasklet, mt76x02_tx_tasklet,
-		     (unsigned long)dev);
+	dev->mt76.tx_worker.fn = mt76x02_tx_worker;
 	tasklet_init(&dev->mt76.pre_tbtt_tasklet, mt76x02_pre_tbtt_tasklet,
 		     (unsigned long)dev);
 
@@ -323,13 +324,6 @@ static void mt76x02_dma_enable(struct mt76x02_dev *dev)
 		   MT_WPDMA_GLO_CFG_TX_WRITEBACK_DONE);
 }
 
-void mt76x02_dma_cleanup(struct mt76x02_dev *dev)
-{
-	tasklet_kill(&dev->mt76.tx_tasklet);
-	mt76_dma_cleanup(&dev->mt76);
-}
-EXPORT_SYMBOL_GPL(mt76x02_dma_cleanup);
-
 void mt76x02_dma_disable(struct mt76x02_dev *dev)
 {
 	u32 val = mt76_rr(dev, MT_WPDMA_GLO_CFG);
@@ -447,7 +441,7 @@ static void mt76x02_watchdog_reset(struct mt76x02_dev *dev)
 	set_bit(MT76_RESET, &dev->mphy.state);
 
 	tasklet_disable(&dev->mt76.pre_tbtt_tasklet);
-	tasklet_disable(&dev->mt76.tx_tasklet);
+	mt76_worker_disable(&dev->mt76.tx_worker);
 	napi_disable(&dev->mt76.tx_napi);
 
 	mt76_for_each_q_rx(&dev->mt76, i) {
@@ -504,7 +498,7 @@ static void mt76x02_watchdog_reset(struct mt76x02_dev *dev)
 
 	clear_bit(MT76_RESET, &dev->mphy.state);
 
-	tasklet_enable(&dev->mt76.tx_tasklet);
+	mt76_worker_enable(&dev->mt76.tx_worker);
 	napi_enable(&dev->mt76.tx_napi);
 	napi_schedule(&dev->mt76.tx_napi);
 

@@ -372,6 +372,5 @@ void mt7915_dma_cleanup(struct mt7915_dev *dev)
 		 MT_WFDMA0_RST_DMASHDL_ALL_RST |
 		 MT_WFDMA0_RST_LOGIC_RST);
 
-	tasklet_kill(&dev->mt76.tx_tasklet);
 	mt76_dma_cleanup(&dev->mt76);
 }

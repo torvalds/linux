@@ -1462,7 +1462,7 @@ static void mt7615_mac_tx_free(struct mt7615_dev *dev, struct sk_buff *skb)
 	rcu_read_unlock();
 
 	mt7615_pm_power_save_sched(dev);
-	tasklet_schedule(&dev->mt76.tx_tasklet);
+	mt76_worker_schedule(&dev->mt76.tx_worker);
 }
 
 void mt7615_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
@@ -1888,7 +1888,7 @@ void mt7615_pm_wake_work(struct work_struct *work)
 	}
 	spin_unlock_bh(&dev->pm.txq_lock);
 
-	tasklet_schedule(&dev->mt76.tx_tasklet);
+	mt76_worker_schedule(&dev->mt76.tx_worker);
 
 out:
 	ieee80211_wake_queues(mphy->hw);
@@ -2130,7 +2130,7 @@ void mt7615_mac_reset_work(struct work_struct *work)
 	if (ext_phy)
 		mt76_txq_schedule_all(ext_phy);
 
-	tasklet_disable(&dev->mt76.tx_tasklet);
+	mt76_worker_disable(&dev->mt76.tx_worker);
 	napi_disable(&dev->mt76.napi[0]);
 	napi_disable(&dev->mt76.napi[1]);
 	napi_disable(&dev->mt76.tx_napi);
@@ -2151,7 +2151,7 @@ void mt7615_mac_reset_work(struct work_struct *work)
 	clear_bit(MT76_MCU_RESET, &dev->mphy.state);
 	clear_bit(MT76_RESET, &dev->mphy.state);
 
-	tasklet_enable(&dev->mt76.tx_tasklet);
+	mt76_worker_enable(&dev->mt76.tx_worker);
 	napi_enable(&dev->mt76.tx_napi);
 	napi_schedule(&dev->mt76.tx_napi);
 

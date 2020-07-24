@@ -2,6 +2,7 @@
 /*
  * Copyright (C) 2016 Felix Fietkau <nbd@nbd.name>
  */
+#include <linux/sched.h>
 #include <linux/of.h>
 #include "mt76.h"
 
@@ -436,13 +437,12 @@ mt76_alloc_device(struct device *pdev, unsigned int size,
 	skb_queue_head_init(&dev->mcu.res_q);
 	init_waitqueue_head(&dev->mcu.wait);
 	mutex_init(&dev->mcu.mutex);
+	dev->tx_worker.fn = mt76_tx_worker;
 
 	INIT_LIST_HEAD(&dev->txwi_cache);
 
 	for (i = 0; i < ARRAY_SIZE(dev->q_rx); i++)
 		skb_queue_head_init(&dev->rx_skb[i]);
-
-	tasklet_init(&dev->tx_tasklet, mt76_tx_tasklet, (unsigned long)dev);
 
 	dev->wq = alloc_ordered_workqueue("mt76", 0);
 	if (!dev->wq) {
@@ -486,7 +486,14 @@ int mt76_register_device(struct mt76_dev *dev, bool vht,
 			return ret;
 	}
 
-	return ieee80211_register_hw(hw);
+	ret = ieee80211_register_hw(hw);
+	if (ret)
+		return ret;
+
+	WARN_ON(mt76_worker_setup(hw, &dev->tx_worker, NULL, "tx"));
+	sched_set_fifo_low(dev->tx_worker.task);
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(mt76_register_device);
 
@@ -503,6 +510,7 @@ EXPORT_SYMBOL_GPL(mt76_unregister_device);
 
 void mt76_free_device(struct mt76_dev *dev)
 {
+	mt76_worker_teardown(&dev->tx_worker);
 	if (dev->wq) {
 		destroy_workqueue(dev->wq);
 		dev->wq = NULL;

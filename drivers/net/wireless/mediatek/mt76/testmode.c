@@ -161,7 +161,7 @@ mt76_testmode_tx_start(struct mt76_dev *dev)
 	td->tx_queued = 0;
 	td->tx_done = 0;
 	td->tx_pending = td->tx_count;
-	tasklet_schedule(&dev->tx_tasklet);
+	mt76_worker_schedule(&dev->tx_worker);
 }
 
 static void
@@ -169,11 +169,11 @@ mt76_testmode_tx_stop(struct mt76_dev *dev)
 {
 	struct mt76_testmode_data *td = &dev->test;
 
-	tasklet_disable(&dev->tx_tasklet);
+	mt76_worker_disable(&dev->tx_worker);
 
 	td->tx_pending = 0;
 
-	tasklet_enable(&dev->tx_tasklet);
+	mt76_worker_enable(&dev->tx_worker);
 
 	wait_event_timeout(dev->tx_wait, td->tx_done == td->tx_queued, 10 * HZ);
 

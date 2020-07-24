@@ -297,6 +297,5 @@ void mt7615_dma_cleanup(struct mt7615_dev *dev)
 		   MT_WPDMA_GLO_CFG_RX_DMA_EN);
 	mt76_set(dev, MT_WPDMA_GLO_CFG, MT_WPDMA_GLO_CFG_SW_RESET);
 
-	tasklet_kill(&dev->mt76.tx_tasklet);
 	mt76_dma_cleanup(&dev->mt76);
 }
