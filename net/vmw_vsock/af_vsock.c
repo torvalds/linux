@@ -1517,7 +1517,7 @@ static void vsock_update_buffer_size(struct vsock_sock *vsk,
 static int vsock_stream_setsockopt(struct socket *sock,
 				   int level,
 				   int optname,
-				   char __user *optval,
+				   sockptr_t optval,
 				   unsigned int optlen)
 {
 	int err;
@@ -1535,7 +1535,7 @@ static int vsock_stream_setsockopt(struct socket *sock,
 			err = -EINVAL;			  \
 			goto exit;			  \
 		}					  \
-		if (copy_from_user(&_v, optval, sizeof(_v)) != 0) {	\
+		if (copy_from_sockptr(&_v, optval, sizeof(_v)) != 0) {	\
 			err = -EFAULT;					\
 			goto exit;					\
 		}							\

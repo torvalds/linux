@@ -89,7 +89,7 @@ out:
 	return ops;
 }
 
-int nf_setsockopt(struct sock *sk, u_int8_t pf, int val, char __user *opt,
+int nf_setsockopt(struct sock *sk, u_int8_t pf, int val, sockptr_t opt,
 		  unsigned int len)
 {
 	struct nf_sockopt_ops *ops;

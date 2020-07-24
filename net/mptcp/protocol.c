@@ -1632,7 +1632,7 @@ static void mptcp_destroy(struct sock *sk)
 }
 
 static int mptcp_setsockopt_sol_socket(struct mptcp_sock *msk, int optname,
-				       char __user *optval, unsigned int optlen)
+				       sockptr_t optval, unsigned int optlen)
 {
 	struct sock *sk = (struct sock *)msk;
 	struct socket *ssock;
@@ -1663,7 +1663,7 @@ static int mptcp_setsockopt_sol_socket(struct mptcp_sock *msk, int optname,
 }
 
 static int mptcp_setsockopt_v6(struct mptcp_sock *msk, int optname,
-			       char __user *optval, unsigned int optlen)
+			       sockptr_t optval, unsigned int optlen)
 {
 	struct sock *sk = (struct sock *)msk;
 	int ret = -EOPNOTSUPP;
@@ -1690,7 +1690,7 @@ static int mptcp_setsockopt_v6(struct mptcp_sock *msk, int optname,
 }
 
 static int mptcp_setsockopt(struct sock *sk, int level, int optname,
-			    char __user *optval, unsigned int optlen)
+			    sockptr_t optval, unsigned int optlen)
 {
 	struct mptcp_sock *msk = mptcp_sk(sk);
 	struct sock *ssk;

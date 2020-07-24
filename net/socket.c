@@ -2094,16 +2094,20 @@ static bool sock_use_custom_sol_socket(const struct socket *sock)
  *	Set a socket option. Because we don't know the option lengths we have
  *	to pass the user mode parameter for the protocols to sort out.
  */
-int __sys_setsockopt(int fd, int level, int optname, char __user *optval,
+int __sys_setsockopt(int fd, int level, int optname, char __user *user_optval,
 		int optlen)
 {
-	mm_segment_t oldfs = get_fs();
+	sockptr_t optval;
 	char *kernel_optval = NULL;
 	int err, fput_needed;
 	struct socket *sock;
 
 	if (optlen < 0)
 		return -EINVAL;
+
+	err = init_user_sockptr(&optval, user_optval);
+	if (err)
+		return err;
 
 	sock = sockfd_lookup_light(fd, &err, &fput_needed);
 	if (!sock)
@@ -2115,7 +2119,7 @@ int __sys_setsockopt(int fd, int level, int optname, char __user *optval,
 
 	if (!in_compat_syscall())
 		err = BPF_CGROUP_RUN_PROG_SETSOCKOPT(sock->sk, &level, &optname,
-						     optval, &optlen,
+						     user_optval, &optlen,
 						     &kernel_optval);
 	if (err < 0)
 		goto out_put;
@@ -2124,11 +2128,8 @@ int __sys_setsockopt(int fd, int level, int optname, char __user *optval,
 		goto out_put;
 	}
 
-	if (kernel_optval) {
-		set_fs(KERNEL_DS);
-		optval = (char __user __force *)kernel_optval;
-	}
-
+	if (kernel_optval)
+		optval = KERNEL_SOCKPTR(kernel_optval);
 	if (level == SOL_SOCKET && !sock_use_custom_sol_socket(sock))
 		err = sock_setsockopt(sock, level, optname, optval, optlen);
 	else if (unlikely(!sock->ops->setsockopt))
@@ -2136,12 +2137,7 @@ int __sys_setsockopt(int fd, int level, int optname, char __user *optval,
 	else
 		err = sock->ops->setsockopt(sock, level, optname, optval,
 					    optlen);
-
-	if (kernel_optval) {
-		set_fs(oldfs);
-		kfree(kernel_optval);
-	}
-
+	kfree(kernel_optval);
 out_put:
 	fput_light(sock->file, fput_needed);
 	return err;
