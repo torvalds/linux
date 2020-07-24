@@ -4658,6 +4658,10 @@ static int io_poll_add(struct io_kiocb *req)
 	struct io_poll_table ipt;
 	__poll_t mask;
 
+	/* ->work is in union with hash_node and others */
+	io_req_work_drop_env(req);
+	req->flags &= ~REQ_F_WORK_INITIALIZED;
+
 	INIT_HLIST_NODE(&req->hash_node);
 	INIT_LIST_HEAD(&req->list);
 	ipt.pt._qproc = io_poll_queue_proc;
