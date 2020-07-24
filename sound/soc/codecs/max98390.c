@@ -790,7 +790,7 @@ static int max98390_dsm_init(struct snd_soc_component *component)
 	param_start_addr = (dsm_param[0] & 0xff) | (dsm_param[1] & 0xff) << 8;
 	param_size = (dsm_param[2] & 0xff) | (dsm_param[3] & 0xff) << 8;
 	if (param_size > MAX98390_DSM_PARAM_MAX_SIZE ||
-		param_start_addr < DSM_STBASS_HPF_B0_BYTE0 ||
+		param_start_addr < MAX98390_IRQ_CTRL ||
 		fw->size < param_size + MAX98390_DSM_PAYLOAD_OFFSET) {
 		dev_err(component->dev,
 			"param fw is invalid.\n");
@@ -864,11 +864,11 @@ static int max98390_probe(struct snd_soc_component *component)
 	regmap_write(max98390->regmap, MAX98390_SOFTWARE_RESET, 0x01);
 	/* Sleep reset settle time */
 	msleep(20);
-	/* Update dsm bin param */
-	max98390_dsm_init(component);
 
 	/* Amp init setting */
 	max98390_init_regs(component);
+	/* Update dsm bin param */
+	max98390_dsm_init(component);
 
 	/* Dsm Setting */
 	if (max98390->ref_rdc_value) {
