@@ -188,7 +188,7 @@ struct brcmstb_dpfe_priv {
 	struct mutex lock;
 };
 
-static const char *error_text[] = {
+static const char * const error_text[] = {
 	"Success", "Header code incorrect", "Unknown command or argument",
 	"Incorrect checksum", "Malformed command", "Timed out",
 };
@@ -379,9 +379,8 @@ static void __iomem *get_msg_ptr(struct brcmstb_dpfe_priv *priv, u32 response,
 	void __iomem *ptr = NULL;
 
 	/* There is no need to use this function for API v3 or later. */
-	if (unlikely(priv->dpfe_api->version >= 3)) {
+	if (unlikely(priv->dpfe_api->version >= 3))
 		return NULL;
-	}
 
 	msg_type = (response >> DRAM_MSG_TYPE_OFFSET) & DRAM_MSG_TYPE_MASK;
 	offset = (response >> DRAM_MSG_ADDR_OFFSET) & DRAM_MSG_ADDR_MASK;

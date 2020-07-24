@@ -53,6 +53,7 @@ int fsl_ifc_find(phys_addr_t addr_base)
 
 	for (i = 0; i < fsl_ifc_ctrl_dev->banks; i++) {
 		u32 cspr = ifc_in32(&fsl_ifc_ctrl_dev->gregs->cspr_cs[i].cspr);
+
 		if (cspr & CSPR_V && (cspr & CSPR_BA) ==
 				convert_ifc_address(addr_base))
 			return i;
@@ -153,8 +154,8 @@ static irqreturn_t fsl_ifc_ctrl_irq(int irqno, void *data)
 	/* read for chip select error */
 	cs_err = ifc_in32(&ifc->cm_evter_stat);
 	if (cs_err) {
-		dev_err(ctrl->dev, "transaction sent to IFC is not mapped to"
-				"any memory bank 0x%08X\n", cs_err);
+		dev_err(ctrl->dev, "transaction sent to IFC is not mapped to any memory bank 0x%08X\n",
+			cs_err);
 		/* clear the chip select error */
 		ifc_out32(IFC_CM_EVTER_STAT_CSER, &ifc->cm_evter_stat);
 
@@ -163,24 +164,24 @@ static irqreturn_t fsl_ifc_ctrl_irq(int irqno, void *data)
 		err_addr = ifc_in32(&ifc->cm_erattr1);
 
 		if (status & IFC_CM_ERATTR0_ERTYP_READ)
-			dev_err(ctrl->dev, "Read transaction error"
-				"CM_ERATTR0 0x%08X\n", status);
+			dev_err(ctrl->dev, "Read transaction error CM_ERATTR0 0x%08X\n",
+				status);
 		else
-			dev_err(ctrl->dev, "Write transaction error"
-				"CM_ERATTR0 0x%08X\n", status);
+			dev_err(ctrl->dev, "Write transaction error CM_ERATTR0 0x%08X\n",
+				status);
 
 		err_axiid = (status & IFC_CM_ERATTR0_ERAID) >>
 					IFC_CM_ERATTR0_ERAID_SHIFT;
-		dev_err(ctrl->dev, "AXI ID of the error"
-					"transaction 0x%08X\n", err_axiid);
+		dev_err(ctrl->dev, "AXI ID of the error transaction 0x%08X\n",
+			err_axiid);
 
 		err_srcid = (status & IFC_CM_ERATTR0_ESRCID) >>
 					IFC_CM_ERATTR0_ESRCID_SHIFT;
-		dev_err(ctrl->dev, "SRC ID of the error"
-					"transaction 0x%08X\n", err_srcid);
+		dev_err(ctrl->dev, "SRC ID of the error transaction 0x%08X\n",
+			err_srcid);
 
-		dev_err(ctrl->dev, "Transaction Address corresponding to error"
-					"ERADDR 0x%08X\n", err_addr);
+		dev_err(ctrl->dev, "Transaction Address corresponding to error ERADDR 0x%08X\n",
+			err_addr);
 
 		ret = IRQ_HANDLED;
 	}
@@ -199,7 +200,7 @@ static irqreturn_t fsl_ifc_ctrl_irq(int irqno, void *data)
  * the resources needed for the controller only.  The
  * resources for the NAND banks themselves are allocated
  * in the chip probe function.
-*/
+ */
 static int fsl_ifc_ctrl_probe(struct platform_device *dev)
 {
 	int ret = 0;
@@ -250,8 +251,7 @@ static int fsl_ifc_ctrl_probe(struct platform_device *dev)
 	/* get the Controller level irq */
 	fsl_ifc_ctrl_dev->irq = irq_of_parse_and_map(dev->dev.of_node, 0);
 	if (fsl_ifc_ctrl_dev->irq == 0) {
-		dev_err(&dev->dev, "failed to get irq resource "
-							"for IFC\n");
+		dev_err(&dev->dev, "failed to get irq resource for IFC\n");
 		ret = -ENODEV;
 		goto err;
 	}

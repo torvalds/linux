@@ -60,7 +60,7 @@ struct mtk_smi_common_plat {
 
 struct mtk_smi_larb_gen {
 	int port_in_larb[MTK_LARB_NR_MAX + 1];
-	void (*config_port)(struct device *);
+	void (*config_port)(struct device *dev);
 	unsigned int			larb_direct_to_common_mask;
 	bool				has_gals;
 };
