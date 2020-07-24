@@ -300,7 +300,6 @@ static unsigned long gpmc_get_fclk_period(void)
  */
 static unsigned long gpmc_get_clk_period(int cs, enum gpmc_clk_domain cd)
 {
-
 	unsigned long tick_ps = gpmc_get_fclk_period();
 	u32 l;
 	int div;
@@ -320,7 +319,6 @@ static unsigned long gpmc_get_clk_period(int cs, enum gpmc_clk_domain cd)
 	}
 
 	return tick_ps;
-
 }
 
 static unsigned int gpmc_ns_to_clk_ticks(unsigned int time_ns, int cs,
@@ -512,7 +510,7 @@ static void gpmc_cs_show_timings(int cs, const char *desc)
 	GPMC_GET_RAW_BOOL(GPMC_CS_CONFIG1,  4,  4, "time-para-granularity");
 	GPMC_GET_RAW(GPMC_CS_CONFIG1,  8,  9, "mux-add-data");
 	GPMC_GET_RAW_SHIFT_MAX(GPMC_CS_CONFIG1, 12, 13, 1,
-			 GPMC_CONFIG1_DEVICESIZE_MAX, "device-width");
+			       GPMC_CONFIG1_DEVICESIZE_MAX, "device-width");
 	GPMC_GET_RAW(GPMC_CS_CONFIG1, 16, 17, "wait-pin");
 	GPMC_GET_RAW_BOOL(GPMC_CS_CONFIG1, 21, 21, "wait-on-write");
 	GPMC_GET_RAW_BOOL(GPMC_CS_CONFIG1, 22, 22, "wait-on-read");
@@ -626,9 +624,8 @@ static int set_gpmc_timing_reg(int cs, int reg, int st_bit, int end_bit, int max
 
 	l = gpmc_cs_read_reg(cs, reg);
 #ifdef CONFIG_OMAP_GPMC_DEBUG
-	pr_info(
-		"GPMC CS%d: %-17s: %3d ticks, %3lu ns (was %3i ticks) %3d ns\n",
-	       cs, name, ticks, gpmc_get_clk_period(cs, cd) * ticks / 1000,
+	pr_info("GPMC CS%d: %-17s: %3d ticks, %3lu ns (was %3i ticks) %3d ns\n",
+		cs, name, ticks, gpmc_get_clk_period(cs, cd) * ticks / 1000,
 			(l >> st_bit) & mask, time);
 #endif
 	l &= ~(mask << st_bit);
@@ -663,7 +660,6 @@ static int set_gpmc_timing_reg(int cs, int reg, int st_bit, int end_bit, int max
  */
 static int gpmc_calc_waitmonitoring_divider(unsigned int wait_monitoring)
 {
-
 	int div = gpmc_ns_to_ticks(wait_monitoring);
 
 	div += GPMC_CONFIG1_WAITMONITORINGTIME_MAX - 1;
@@ -675,7 +671,6 @@ static int gpmc_calc_waitmonitoring_divider(unsigned int wait_monitoring)
 		div = 1;
 
 	return div;
-
 }
 
 /**
@@ -729,7 +724,6 @@ int gpmc_cs_set_timings(int cs, const struct gpmc_timings *t,
 	if (!s->sync_read && !s->sync_write &&
 	    (s->wait_on_read || s->wait_on_write)
 	   ) {
-
 		div = gpmc_calc_waitmonitoring_divider(t->wait_monitoring);
 		if (div < 0) {
 			pr_err("%s: waitmonitoringtime %3d ns too large for greatest gpmcfclkdivider.\n",
@@ -1466,7 +1460,6 @@ static void gpmc_mem_exit(void)
 			continue;
 		gpmc_cs_delete_mem(cs);
 	}
-
 }
 
 static void gpmc_mem_init(void)
@@ -1635,17 +1628,14 @@ static int gpmc_calc_async_read_timings(struct gpmc_timings *gpmc_t,
 	/* oe_on */
 	temp = dev_t->t_oeasu;
 	if (mux)
-		temp = max_t(u32, temp,
-			gpmc_t->adv_rd_off + dev_t->t_aavdh);
+		temp = max_t(u32, temp, gpmc_t->adv_rd_off + dev_t->t_aavdh);
 	gpmc_t->oe_on = gpmc_round_ps_to_ticks(temp);
 
 	/* access */
 	temp = max_t(u32, dev_t->t_iaa, /* XXX: remove t_iaa in async ? */
-				gpmc_t->oe_on + dev_t->t_oe);
-	temp = max_t(u32, temp,
-				gpmc_t->cs_on + dev_t->t_ce);
-	temp = max_t(u32, temp,
-				gpmc_t->adv_on + dev_t->t_aa);
+		     gpmc_t->oe_on + dev_t->t_oe);
+	temp = max_t(u32, temp, gpmc_t->cs_on + dev_t->t_ce);
+	temp = max_t(u32, temp, gpmc_t->adv_on + dev_t->t_aa);
 	gpmc_t->access = gpmc_round_ps_to_ticks(temp);
 
 	gpmc_t->oe_off = gpmc_t->access + gpmc_ticks_to_ps(1);
