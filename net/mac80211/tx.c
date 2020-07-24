@@ -3722,10 +3722,11 @@ encap_out:
 
 	if (vif &&
 	    wiphy_ext_feature_isset(local->hw.wiphy, NL80211_EXT_FEATURE_AQL)) {
+		bool ampdu = txq->ac != IEEE80211_AC_VO;
 		u32 airtime;
 
 		airtime = ieee80211_calc_expected_tx_airtime(hw, vif, txq->sta,
-							     skb->len);
+							     skb->len, ampdu);
 		if (airtime) {
 			airtime = ieee80211_info_set_tx_time_est(info, airtime);
 			ieee80211_sta_update_pending_airtime(local, tx.sta,
