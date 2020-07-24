@@ -72,6 +72,10 @@
 	};
 };
 
+&cpu0_opp_table {
+	rockchip,avs = <1>;
+};
+
 &display_subsystem {
 	status = "disabled";
 	ports = <&vopb_out>, <&vopl_out>;
