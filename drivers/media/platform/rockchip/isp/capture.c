@@ -3300,9 +3300,9 @@ void rkisp_mipi_v20_isr(unsigned int phy, unsigned int packet,
 
 	v4l2_dbg(3, rkisp_debug, &dev->v4l2_dev,
 		 "csi state:0x%x\n", state);
-	if (phy)
+	if (phy && (dev->isp_inp & INP_CSI))
 		v4l2_warn(v4l2_dev, "MIPI error: phy: 0x%08x\n", phy);
-	if (packet)
+	if (packet && (dev->isp_inp & INP_CSI))
 		v4l2_warn(v4l2_dev, "MIPI error: packet: 0x%08x\n", packet);
 	if (overflow)
 		v4l2_warn(v4l2_dev, "MIPI error: overflow: 0x%08x\n", overflow);

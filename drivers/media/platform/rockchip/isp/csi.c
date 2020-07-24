@@ -410,6 +410,8 @@ int rkisp_csi_config_patch(struct rkisp_device *dev)
 		writel(val, dev->base_addr + ISP_HDRMGE_BASE);
 		writel(val & SW_HDRMGE_EN, dev->base_addr + ISP_HDRTMO_BASE);
 		writel(0x7FFFFF7F, dev->base_addr + CSI2RX_MASK_STAT);
+		writel(0, dev->base_addr + CSI2RX_MASK_PACKET);
+		writel(0, dev->base_addr + CSI2RX_MASK_PHY);
 	}
 
 	if (IS_HDR_RDBK(dev->hdr.op_mode))
