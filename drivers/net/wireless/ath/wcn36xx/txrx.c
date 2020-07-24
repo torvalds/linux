@@ -267,9 +267,11 @@ static void wcn36xx_set_tx_data(struct wcn36xx_tx_bd *bd,
 				bool bcast)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_vif *vif = NULL;
 	struct wcn36xx_vif *__vif_priv = NULL;
-	bool is_data_qos;
+	bool is_data_qos = ieee80211_is_data_qos(hdr->frame_control);
+	u16 tid = 0;
 
 	bd->bd_rate = WCN36XX_BD_RATE_DATA;
 
@@ -298,9 +300,20 @@ static void wcn36xx_set_tx_data(struct wcn36xx_tx_bd *bd,
 		bd->dpu_sign = __vif_priv->self_ucast_dpu_sign;
 	}
 
-	if (ieee80211_is_any_nullfunc(hdr->frame_control) ||
-	   (sta_priv && !sta_priv->is_data_encrypted)) {
+	if (is_data_qos) {
+		tid = ieee80211_get_tid(hdr);
+		/* TID->QID is one-to-one mapping */
+		bd->queue_id = tid;
+	}
+
+	if (info->flags & IEEE80211_TX_INTFL_DONT_ENCRYPT ||
+	    (sta_priv && !sta_priv->is_data_encrypted)) {
 		bd->dpu_ne = 1;
+	}
+
+	if (ieee80211_is_any_nullfunc(hdr->frame_control)) {
+		/* Don't use a regular queue for null packet (no ampdu) */
+		bd->queue_id = WCN36XX_TX_U_WQ_ID;
 	}
 
 	if (bcast) {
@@ -309,13 +322,11 @@ static void wcn36xx_set_tx_data(struct wcn36xx_tx_bd *bd,
 	}
 	*vif_priv = __vif_priv;
 
-	is_data_qos = ieee80211_is_data_qos(hdr->frame_control);
-
 	wcn36xx_set_tx_pdu(bd,
 			   is_data_qos ?
 			   sizeof(struct ieee80211_qos_hdr) :
 			   sizeof(struct ieee80211_hdr_3addr),
-			   skb->len, sta_priv ? sta_priv->tid : 0);
+			   skb->len, tid);
 
 	if (sta_priv && is_data_qos)
 		wcn36xx_tx_start_ampdu(wcn, sta_priv, skb);
