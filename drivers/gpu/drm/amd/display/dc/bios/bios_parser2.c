@@ -2101,7 +2101,7 @@ static struct atom_dc_golden_table_v1 *bios_get_golden_table(
 									DATA_TABLES(dce_info));
 			if (!disp_cntl_tbl_4_4)
 				return NULL;
-			dc_golden_offset = disp_cntl_tbl_4_4->dc_golden_table_offset;
+			dc_golden_offset = DATA_TABLES(dce_info) + disp_cntl_tbl_4_4->dc_golden_table_offset;
 			*dc_golden_table_ver = disp_cntl_tbl_4_4->dc_golden_table_ver;
 			break;
 		}
@@ -2115,7 +2115,7 @@ static struct atom_dc_golden_table_v1 *bios_get_golden_table(
 		return NULL;
 
 	return GET_IMAGE(struct atom_dc_golden_table_v1,
-					 dc_golden_offset);
+			dc_golden_offset);
 }
 
 static enum bp_result bios_get_atom_dc_golden_table(
