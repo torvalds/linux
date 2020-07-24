@@ -373,7 +373,7 @@ static inline int imx_uart_is_imx6q(struct imx_port *sport)
 /*
  * Save and restore functions for UCR1, UCR2 and UCR3 registers
  */
-#if defined(CONFIG_SERIAL_IMX_CONSOLE)
+#if IS_ENABLED(CONFIG_SERIAL_IMX_CONSOLE)
 static void imx_uart_ucrs_save(struct imx_port *sport,
 			       struct imx_port_ucrs *ucr)
 {
@@ -1979,7 +1979,7 @@ static const struct uart_ops imx_uart_pops = {
 
 static struct imx_port *imx_uart_ports[UART_NR];
 
-#ifdef CONFIG_SERIAL_IMX_CONSOLE
+#if IS_ENABLED(CONFIG_SERIAL_IMX_CONSOLE)
 static void imx_uart_console_putchar(struct uart_port *port, int ch)
 {
 	struct imx_port *sport = (struct imx_port *)port;
@@ -2175,39 +2175,6 @@ static struct console imx_uart_console = {
 };
 
 #define IMX_CONSOLE	&imx_uart_console
-
-#ifdef CONFIG_OF
-static void imx_uart_console_early_putchar(struct uart_port *port, int ch)
-{
-	struct imx_port *sport = (struct imx_port *)port;
-
-	while (imx_uart_readl(sport, IMX21_UTS) & UTS_TXFULL)
-		cpu_relax();
-
-	imx_uart_writel(sport, ch, URTX0);
-}
-
-static void imx_uart_console_early_write(struct console *con, const char *s,
-					 unsigned count)
-{
-	struct earlycon_device *dev = con->data;
-
-	uart_console_write(&dev->port, s, count, imx_uart_console_early_putchar);
-}
-
-static int __init
-imx_console_early_setup(struct earlycon_device *dev, const char *opt)
-{
-	if (!dev->port.membase)
-		return -ENODEV;
-
-	dev->con->write = imx_uart_console_early_write;
-
-	return 0;
-}
-OF_EARLYCON_DECLARE(ec_imx6q, "fsl,imx6q-uart", imx_console_early_setup);
-OF_EARLYCON_DECLARE(ec_imx21, "fsl,imx21-uart", imx_console_early_setup);
-#endif
 
 #else
 #define IMX_CONSOLE	NULL
