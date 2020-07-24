@@ -612,6 +612,7 @@ static void ice_print_topo_conflict(struct ice_vsi *vsi)
 void ice_print_link_msg(struct ice_vsi *vsi, bool isup)
 {
 	struct ice_aqc_get_phy_caps_data *caps;
+	const char *an_advertised;
 	enum ice_status status;
 	const char *fec_req;
 	const char *speed;
@@ -710,6 +711,7 @@ void ice_print_link_msg(struct ice_vsi *vsi, bool isup)
 	caps = kzalloc(sizeof(*caps), GFP_KERNEL);
 	if (!caps) {
 		fec_req = "Unknown";
+		an_advertised = "Unknown";
 		goto done;
 	}
 
@@ -717,6 +719,8 @@ void ice_print_link_msg(struct ice_vsi *vsi, bool isup)
 				     ICE_AQC_REPORT_SW_CFG, caps, NULL);
 	if (status)
 		netdev_info(vsi->netdev, "Get phy capability failed.\n");
+
+	an_advertised = ice_is_phy_caps_an_enabled(caps) ? "On" : "Off";
 
 	if (caps->link_fec_options & ICE_AQC_PHY_FEC_25G_RS_528_REQ ||
 	    caps->link_fec_options & ICE_AQC_PHY_FEC_25G_RS_544_REQ)
@@ -730,8 +734,8 @@ void ice_print_link_msg(struct ice_vsi *vsi, bool isup)
 	kfree(caps);
 
 done:
-	netdev_info(vsi->netdev, "NIC Link is up %sbps Full Duplex, Requested FEC: %s, Negotiated FEC: %s, Autoneg: %s, Flow Control: %s\n",
-		    speed, fec_req, fec, an, fc);
+	netdev_info(vsi->netdev, "NIC Link is up %sbps Full Duplex, Requested FEC: %s, Negotiated FEC: %s, Autoneg Advertised: %s, Autoneg Negotiated: %s, Flow Control: %s\n",
+		    speed, fec_req, fec, an_advertised, an, fc);
 	ice_print_topo_conflict(vsi);
 }
 
@@ -796,10 +800,6 @@ ice_link_event(struct ice_pf *pf, struct ice_port_info *pi, bool link_up,
 		dev_dbg(dev, "Failed to update link status and re-enable link events for port %d\n",
 			pi->lport);
 
-	/* if the old link up/down and speed is the same as the new */
-	if (link_up == old_link && link_speed == old_link_speed)
-		return result;
-
 	vsi = ice_get_main_vsi(pf);
 	if (!vsi || !vsi->port_info)
 		return -EINVAL;
@@ -816,6 +816,10 @@ ice_link_event(struct ice_pf *pf, struct ice_port_info *pi, bool link_up,
 			return result;
 		}
 	}
+
+	/* if the old link up/down and speed is the same as the new */
+	if (link_up == old_link && link_speed == old_link_speed)
+		return result;
 
 	ice_dcb_rebuild(pf);
 	ice_vsi_link_event(vsi, link_up);
@@ -1129,10 +1133,15 @@ static void ice_service_task_complete(struct ice_pf *pf)
 /**
  * ice_service_task_stop - stop service task and cancel works
  * @pf: board private structure
+ *
+ * Return 0 if the __ICE_SERVICE_DIS bit was not already set,
+ * 1 otherwise.
  */
-static void ice_service_task_stop(struct ice_pf *pf)
+static int ice_service_task_stop(struct ice_pf *pf)
 {
-	set_bit(__ICE_SERVICE_DIS, pf->state);
+	int ret;
+
+	ret = test_and_set_bit(__ICE_SERVICE_DIS, pf->state);
 
 	if (pf->serv_tmr.function)
 		del_timer_sync(&pf->serv_tmr);
@@ -1140,6 +1149,7 @@ static void ice_service_task_stop(struct ice_pf *pf)
 		cancel_work_sync(&pf->serv_task);
 
 	clear_bit(__ICE_SERVICE_SCHED, pf->state);
+	return ret;
 }
 
 /**
@@ -1374,25 +1384,23 @@ static int ice_force_phys_link_state(struct ice_vsi *vsi, bool link_up)
 	    link_up == !!(pi->phy.link_info.link_info & ICE_AQ_LINK_UP))
 		goto out;
 
-	cfg = kzalloc(sizeof(*cfg), GFP_KERNEL);
+	/* Use the current user PHY configuration. The current user PHY
+	 * configuration is initialized during probe from PHY capabilities
+	 * software mode, and updated on set PHY configuration.
+	 */
+	cfg = kmemdup(&pi->phy.curr_user_phy_cfg, sizeof(*cfg), GFP_KERNEL);
 	if (!cfg) {
 		retcode = -ENOMEM;
 		goto out;
 	}
 
-	cfg->phy_type_low = pcaps->phy_type_low;
-	cfg->phy_type_high = pcaps->phy_type_high;
-	cfg->caps = pcaps->caps | ICE_AQ_PHY_ENA_AUTO_LINK_UPDT;
-	cfg->low_power_ctrl = pcaps->low_power_ctrl;
-	cfg->eee_cap = pcaps->eee_cap;
-	cfg->eeer_value = pcaps->eeer_value;
-	cfg->link_fec_opt = pcaps->link_fec_options;
+	cfg->caps |= ICE_AQ_PHY_ENA_AUTO_LINK_UPDT;
 	if (link_up)
 		cfg->caps |= ICE_AQ_PHY_ENA_LINK;
 	else
 		cfg->caps &= ~ICE_AQ_PHY_ENA_LINK;
 
-	retcode = ice_aq_set_phy_cfg(&vsi->back->hw, pi->lport, cfg, NULL);
+	retcode = ice_aq_set_phy_cfg(&vsi->back->hw, pi, cfg, NULL);
 	if (retcode) {
 		dev_err(dev, "Failed to set phy config, VSI %d error %d\n",
 			vsi->vsi_num, retcode);
@@ -1406,8 +1414,312 @@ out:
 }
 
 /**
- * ice_check_media_subtask - Check for media; bring link up if detected.
+ * ice_init_nvm_phy_type - Initialize the NVM PHY type
+ * @pi: port info structure
+ *
+ * Initialize nvm_phy_type_[low|high] for link lenient mode support
+ */
+static int ice_init_nvm_phy_type(struct ice_port_info *pi)
+{
+	struct ice_aqc_get_phy_caps_data *pcaps;
+	struct ice_pf *pf = pi->hw->back;
+	enum ice_status status;
+	int err = 0;
+
+	pcaps = kzalloc(sizeof(*pcaps), GFP_KERNEL);
+	if (!pcaps)
+		return -ENOMEM;
+
+	status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_NVM_CAP, pcaps,
+				     NULL);
+
+	if (status) {
+		dev_err(ice_pf_to_dev(pf), "Get PHY capability failed.\n");
+		err = -EIO;
+		goto out;
+	}
+
+	pf->nvm_phy_type_hi = pcaps->phy_type_high;
+	pf->nvm_phy_type_lo = pcaps->phy_type_low;
+
+out:
+	kfree(pcaps);
+	return err;
+}
+
+/**
+ * ice_init_link_dflt_override - Initialize link default override
+ * @pi: port info structure
+ *
+ * Initialize link default override and PHY total port shutdown during probe
+ */
+static void ice_init_link_dflt_override(struct ice_port_info *pi)
+{
+	struct ice_link_default_override_tlv *ldo;
+	struct ice_pf *pf = pi->hw->back;
+
+	ldo = &pf->link_dflt_override;
+	if (ice_get_link_default_override(ldo, pi))
+		return;
+
+	if (!(ldo->options & ICE_LINK_OVERRIDE_PORT_DIS))
+		return;
+
+	/* Enable Total Port Shutdown (override/replace link-down-on-close
+	 * ethtool private flag) for ports with Port Disable bit set.
+	 */
+	set_bit(ICE_FLAG_TOTAL_PORT_SHUTDOWN_ENA, pf->flags);
+	set_bit(ICE_FLAG_LINK_DOWN_ON_CLOSE_ENA, pf->flags);
+}
+
+/**
+ * ice_init_phy_cfg_dflt_override - Initialize PHY cfg default override settings
+ * @pi: port info structure
+ *
+ * If default override is enabled, initialized the user PHY cfg speed and FEC
+ * settings using the default override mask from the NVM.
+ *
+ * The PHY should only be configured with the default override settings the
+ * first time media is available. The __ICE_LINK_DEFAULT_OVERRIDE_PENDING state
+ * is used to indicate that the user PHY cfg default override is initialized
+ * and the PHY has not been configured with the default override settings. The
+ * state is set here, and cleared in ice_configure_phy the first time the PHY is
+ * configured.
+ */
+static void ice_init_phy_cfg_dflt_override(struct ice_port_info *pi)
+{
+	struct ice_link_default_override_tlv *ldo;
+	struct ice_aqc_set_phy_cfg_data *cfg;
+	struct ice_phy_info *phy = &pi->phy;
+	struct ice_pf *pf = pi->hw->back;
+
+	ldo = &pf->link_dflt_override;
+
+	/* If link default override is enabled, use to mask NVM PHY capabilities
+	 * for speed and FEC default configuration.
+	 */
+	cfg = &phy->curr_user_phy_cfg;
+
+	if (ldo->phy_type_low || ldo->phy_type_high) {
+		cfg->phy_type_low = pf->nvm_phy_type_lo &
+				    cpu_to_le64(ldo->phy_type_low);
+		cfg->phy_type_high = pf->nvm_phy_type_hi &
+				     cpu_to_le64(ldo->phy_type_high);
+	}
+	cfg->link_fec_opt = ldo->fec_options;
+	phy->curr_user_fec_req = ICE_FEC_AUTO;
+
+	set_bit(__ICE_LINK_DEFAULT_OVERRIDE_PENDING, pf->state);
+}
+
+/**
+ * ice_init_phy_user_cfg - Initialize the PHY user configuration
+ * @pi: port info structure
+ *
+ * Initialize the current user PHY configuration, speed, FEC, and FC requested
+ * mode to default. The PHY defaults are from get PHY capabilities topology
+ * with media so call when media is first available. An error is returned if
+ * called when media is not available. The PHY initialization completed state is
+ * set here.
+ *
+ * These configurations are used when setting PHY
+ * configuration. The user PHY configuration is updated on set PHY
+ * configuration. Returns 0 on success, negative on failure
+ */
+static int ice_init_phy_user_cfg(struct ice_port_info *pi)
+{
+	struct ice_aqc_get_phy_caps_data *pcaps;
+	struct ice_phy_info *phy = &pi->phy;
+	struct ice_pf *pf = pi->hw->back;
+	enum ice_status status;
+	struct ice_vsi *vsi;
+	int err = 0;
+
+	if (!(phy->link_info.link_info & ICE_AQ_MEDIA_AVAILABLE))
+		return -EIO;
+
+	vsi = ice_get_main_vsi(pf);
+	if (!vsi)
+		return -EINVAL;
+
+	pcaps = kzalloc(sizeof(*pcaps), GFP_KERNEL);
+	if (!pcaps)
+		return -ENOMEM;
+
+	status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_TOPO_CAP, pcaps,
+				     NULL);
+	if (status) {
+		dev_err(ice_pf_to_dev(pf), "Get PHY capability failed.\n");
+		err = -EIO;
+		goto err_out;
+	}
+
+	ice_copy_phy_caps_to_cfg(pi, pcaps, &pi->phy.curr_user_phy_cfg);
+
+	/* check if lenient mode is supported and enabled */
+	if (ice_fw_supports_link_override(&vsi->back->hw) &&
+	    !(pcaps->module_compliance_enforcement &
+	      ICE_AQC_MOD_ENFORCE_STRICT_MODE)) {
+		set_bit(ICE_FLAG_LINK_LENIENT_MODE_ENA, pf->flags);
+
+		/* if link default override is enabled, initialize user PHY
+		 * configuration with link default override values
+		 */
+		if (pf->link_dflt_override.options & ICE_LINK_OVERRIDE_EN) {
+			ice_init_phy_cfg_dflt_override(pi);
+			goto out;
+		}
+	}
+
+	/* if link default override is not enabled, initialize PHY using
+	 * topology with media
+	 */
+	phy->curr_user_fec_req = ice_caps_to_fec_mode(pcaps->caps,
+						      pcaps->link_fec_options);
+	phy->curr_user_fc_req = ice_caps_to_fc_mode(pcaps->caps);
+
+out:
+	phy->curr_user_speed_req = ICE_AQ_LINK_SPEED_M;
+	set_bit(__ICE_PHY_INIT_COMPLETE, pf->state);
+err_out:
+	kfree(pcaps);
+	return err;
+}
+
+/**
+ * ice_configure_phy - configure PHY
+ * @vsi: VSI of PHY
+ *
+ * Set the PHY configuration. If the current PHY configuration is the same as
+ * the curr_user_phy_cfg, then do nothing to avoid link flap. Otherwise
+ * configure the based get PHY capabilities for topology with media.
+ */
+static int ice_configure_phy(struct ice_vsi *vsi)
+{
+	struct device *dev = ice_pf_to_dev(vsi->back);
+	struct ice_aqc_get_phy_caps_data *pcaps;
+	struct ice_aqc_set_phy_cfg_data *cfg;
+	struct ice_port_info *pi;
+	enum ice_status status;
+	int err = 0;
+
+	pi = vsi->port_info;
+	if (!pi)
+		return -EINVAL;
+
+	/* Ensure we have media as we cannot configure a medialess port */
+	if (!(pi->phy.link_info.link_info & ICE_AQ_MEDIA_AVAILABLE))
+		return -EPERM;
+
+	ice_print_topo_conflict(vsi);
+
+	if (vsi->port_info->phy.link_info.topo_media_conflict ==
+	    ICE_AQ_LINK_TOPO_UNSUPP_MEDIA)
+		return -EPERM;
+
+	if (test_bit(ICE_FLAG_LINK_DOWN_ON_CLOSE_ENA, vsi->back->flags))
+		return ice_force_phys_link_state(vsi, true);
+
+	pcaps = kzalloc(sizeof(*pcaps), GFP_KERNEL);
+	if (!pcaps)
+		return -ENOMEM;
+
+	/* Get current PHY config */
+	status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_SW_CFG, pcaps,
+				     NULL);
+	if (status) {
+		dev_err(dev, "Failed to get PHY configuration, VSI %d error %s\n",
+			vsi->vsi_num, ice_stat_str(status));
+		err = -EIO;
+		goto done;
+	}
+
+	/* If PHY enable link is configured and configuration has not changed,
+	 * there's nothing to do
+	 */
+	if (pcaps->caps & ICE_AQC_PHY_EN_LINK &&
+	    ice_phy_caps_equals_cfg(pcaps, &pi->phy.curr_user_phy_cfg))
+		goto done;
+
+	/* Use PHY topology as baseline for configuration */
+	memset(pcaps, 0, sizeof(*pcaps));
+	status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_TOPO_CAP, pcaps,
+				     NULL);
+	if (status) {
+		dev_err(dev, "Failed to get PHY topology, VSI %d error %s\n",
+			vsi->vsi_num, ice_stat_str(status));
+		err = -EIO;
+		goto done;
+	}
+
+	cfg = kzalloc(sizeof(*cfg), GFP_KERNEL);
+	if (!cfg) {
+		err = -ENOMEM;
+		goto done;
+	}
+
+	ice_copy_phy_caps_to_cfg(pi, pcaps, cfg);
+
+	/* Speed - If default override pending, use curr_user_phy_cfg set in
+	 * ice_init_phy_user_cfg_ldo.
+	 */
+	if (test_and_clear_bit(__ICE_LINK_DEFAULT_OVERRIDE_PENDING,
+			       vsi->back->state)) {
+		cfg->phy_type_low = pi->phy.curr_user_phy_cfg.phy_type_low;
+		cfg->phy_type_high = pi->phy.curr_user_phy_cfg.phy_type_high;
+	} else {
+		u64 phy_low = 0, phy_high = 0;
+
+		ice_update_phy_type(&phy_low, &phy_high,
+				    pi->phy.curr_user_speed_req);
+		cfg->phy_type_low = pcaps->phy_type_low & cpu_to_le64(phy_low);
+		cfg->phy_type_high = pcaps->phy_type_high &
+				     cpu_to_le64(phy_high);
+	}
+
+	/* Can't provide what was requested; use PHY capabilities */
+	if (!cfg->phy_type_low && !cfg->phy_type_high) {
+		cfg->phy_type_low = pcaps->phy_type_low;
+		cfg->phy_type_high = pcaps->phy_type_high;
+	}
+
+	/* FEC */
+	ice_cfg_phy_fec(pi, cfg, pi->phy.curr_user_fec_req);
+
+	/* Can't provide what was requested; use PHY capabilities */
+	if (cfg->link_fec_opt !=
+	    (cfg->link_fec_opt & pcaps->link_fec_options)) {
+		cfg->caps |= pcaps->caps & ICE_AQC_PHY_EN_AUTO_FEC;
+		cfg->link_fec_opt = pcaps->link_fec_options;
+	}
+
+	/* Flow Control - always supported; no need to check against
+	 * capabilities
+	 */
+	ice_cfg_phy_fc(pi, cfg, pi->phy.curr_user_fc_req);
+
+	/* Enable link and link update */
+	cfg->caps |= ICE_AQ_PHY_ENA_AUTO_LINK_UPDT | ICE_AQ_PHY_ENA_LINK;
+
+	status = ice_aq_set_phy_cfg(&vsi->back->hw, pi, cfg, NULL);
+	if (status) {
+		dev_err(dev, "Failed to set phy config, VSI %d error %s\n",
+			vsi->vsi_num, ice_stat_str(status));
+		err = -EIO;
+	}
+
+	kfree(cfg);
+done:
+	kfree(pcaps);
+	return err;
+}
+
+/**
+ * ice_check_media_subtask - Check for media
  * @pf: pointer to PF struct
+ *
+ * If media is available, then initialize PHY user configuration if it is not
+ * been, and configure the PHY if the interface is up.
  */
 static void ice_check_media_subtask(struct ice_pf *pf)
 {
@@ -1415,15 +1727,12 @@ static void ice_check_media_subtask(struct ice_pf *pf)
 	struct ice_vsi *vsi;
 	int err;
 
-	vsi = ice_get_main_vsi(pf);
-	if (!vsi)
+	/* No need to check for media if it's already present */
+	if (!test_bit(ICE_FLAG_NO_MEDIA, pf->flags))
 		return;
 
-	/* No need to check for media if it's already present or the interface
-	 * is down
-	 */
-	if (!test_bit(ICE_FLAG_NO_MEDIA, pf->flags) ||
-	    test_bit(__ICE_DOWN, vsi->state))
+	vsi = ice_get_main_vsi(pf);
+	if (!vsi)
 		return;
 
 	/* Refresh link info and check if media is present */
@@ -1433,10 +1742,19 @@ static void ice_check_media_subtask(struct ice_pf *pf)
 		return;
 
 	if (pi->phy.link_info.link_info & ICE_AQ_MEDIA_AVAILABLE) {
-		err = ice_force_phys_link_state(vsi, true);
-		if (err)
+		if (!test_bit(__ICE_PHY_INIT_COMPLETE, pf->state))
+			ice_init_phy_user_cfg(pi);
+
+		/* PHY settings are reset on media insertion, reconfigure
+		 * PHY to preserve settings.
+		 */
+		if (test_bit(__ICE_DOWN, vsi->state) &&
+		    test_bit(ICE_FLAG_LINK_DOWN_ON_CLOSE_ENA, vsi->back->flags))
 			return;
-		clear_bit(ICE_FLAG_NO_MEDIA, pf->flags);
+
+		err = ice_configure_phy(vsi);
+		if (!err)
+			clear_bit(ICE_FLAG_NO_MEDIA, pf->flags);
 
 		/* A Link Status Event will be generated; the event handler
 		 * will complete bringing the interface up
@@ -2941,6 +3259,27 @@ static int ice_init_interrupt_scheme(struct ice_pf *pf)
 }
 
 /**
+ * ice_is_wol_supported - get NVM state of WoL
+ * @pf: board private structure
+ *
+ * Check if WoL is supported based on the HW configuration.
+ * Returns true if NVM supports and enables WoL for this port, false otherwise
+ */
+bool ice_is_wol_supported(struct ice_pf *pf)
+{
+	struct ice_hw *hw = &pf->hw;
+	u16 wol_ctrl;
+
+	/* A bit set to 1 in the NVM Software Reserved Word 2 (WoL control
+	 * word) indicates WoL is not supported on the corresponding PF ID.
+	 */
+	if (ice_read_sr_word(hw, ICE_SR_NVM_WOL_CFG, &wol_ctrl))
+		return false;
+
+	return !(BIT(hw->pf_id) & wol_ctrl);
+}
+
+/**
  * ice_vsi_recfg_qs - Change the number of queues on a VSI
  * @vsi: VSI being changed
  * @new_rx: new number of Rx queues
@@ -3288,6 +3627,33 @@ dflt_pkg_load:
 }
 
 /**
+ * ice_print_wake_reason - show the wake up cause in the log
+ * @pf: pointer to the PF struct
+ */
+static void ice_print_wake_reason(struct ice_pf *pf)
+{
+	u32 wus = pf->wakeup_reason;
+	const char *wake_str;
+
+	/* if no wake event, nothing to print */
+	if (!wus)
+		return;
+
+	if (wus & PFPM_WUS_LNKC_M)
+		wake_str = "Link\n";
+	else if (wus & PFPM_WUS_MAG_M)
+		wake_str = "Magic Packet\n";
+	else if (wus & PFPM_WUS_MNG_M)
+		wake_str = "Management\n";
+	else if (wus & PFPM_WUS_FW_RST_WK_M)
+		wake_str = "Firmware Reset\n";
+	else
+		wake_str = "Unknown\n";
+
+	dev_info(ice_pf_to_dev(pf), "Wake reason: %s", wake_str);
+}
+
+/**
  * ice_probe - Device initialization routine
  * @pdev: PCI device information struct
  * @ent: entry in ice_pci_tbl
@@ -3468,7 +3834,52 @@ ice_probe(struct pci_dev *pdev, const struct pci_device_id __always_unused *ent)
 		goto err_alloc_sw_unroll;
 	}
 
+	err = ice_init_nvm_phy_type(pf->hw.port_info);
+	if (err) {
+		dev_err(dev, "ice_init_nvm_phy_type failed: %d\n", err);
+		goto err_alloc_sw_unroll;
+	}
+
+	err = ice_update_link_info(pf->hw.port_info);
+	if (err) {
+		dev_err(dev, "ice_update_link_info failed: %d\n", err);
+		goto err_alloc_sw_unroll;
+	}
+
+	ice_init_link_dflt_override(pf->hw.port_info);
+
+	/* if media available, initialize PHY settings */
+	if (pf->hw.port_info->phy.link_info.link_info &
+	    ICE_AQ_MEDIA_AVAILABLE) {
+		err = ice_init_phy_user_cfg(pf->hw.port_info);
+		if (err) {
+			dev_err(dev, "ice_init_phy_user_cfg failed: %d\n", err);
+			goto err_alloc_sw_unroll;
+		}
+
+		if (!test_bit(ICE_FLAG_LINK_DOWN_ON_CLOSE_ENA, pf->flags)) {
+			struct ice_vsi *vsi = ice_get_main_vsi(pf);
+
+			if (vsi)
+				ice_configure_phy(vsi);
+		}
+	} else {
+		set_bit(ICE_FLAG_NO_MEDIA, pf->flags);
+	}
+
 	ice_verify_cacheline_size(pf);
+
+	/* Save wakeup reason register for later use */
+	pf->wakeup_reason = rd32(hw, PFPM_WUS);
+
+	/* check for a power management event */
+	ice_print_wake_reason(pf);
+
+	/* clear wake status, all bits */
+	wr32(hw, PFPM_WUS, U32_MAX);
+
+	/* Disable WoL at init, wait for user to enable */
+	device_set_wakeup_enable(dev, false);
 
 	/* If no DDP driven features have to be setup, we are done with probe */
 	if (ice_is_safe_mode(pf))
@@ -3514,7 +3925,70 @@ err_init_pf_unroll:
 err_exit_unroll:
 	ice_devlink_unregister(pf);
 	pci_disable_pcie_error_reporting(pdev);
+	pci_disable_device(pdev);
 	return err;
+}
+
+/**
+ * ice_set_wake - enable or disable Wake on LAN
+ * @pf: pointer to the PF struct
+ *
+ * Simple helper for WoL control
+ */
+static void ice_set_wake(struct ice_pf *pf)
+{
+	struct ice_hw *hw = &pf->hw;
+	bool wol = pf->wol_ena;
+
+	/* clear wake state, otherwise new wake events won't fire */
+	wr32(hw, PFPM_WUS, U32_MAX);
+
+	/* enable / disable APM wake up, no RMW needed */
+	wr32(hw, PFPM_APM, wol ? PFPM_APM_APME_M : 0);
+
+	/* set magic packet filter enabled */
+	wr32(hw, PFPM_WUFC, wol ? PFPM_WUFC_MAG_M : 0);
+}
+
+/**
+ * ice_setup_magic_mc_wake - setup device to wake on multicast magic packet
+ * @pf: pointer to the PF struct
+ *
+ * Issue firmware command to enable multicast magic wake, making
+ * sure that any locally administered address (LAA) is used for
+ * wake, and that PF reset doesn't undo the LAA.
+ */
+static void ice_setup_mc_magic_wake(struct ice_pf *pf)
+{
+	struct device *dev = ice_pf_to_dev(pf);
+	struct ice_hw *hw = &pf->hw;
+	enum ice_status status;
+	u8 mac_addr[ETH_ALEN];
+	struct ice_vsi *vsi;
+	u8 flags;
+
+	if (!pf->wol_ena)
+		return;
+
+	vsi = ice_get_main_vsi(pf);
+	if (!vsi)
+		return;
+
+	/* Get current MAC address in case it's an LAA */
+	if (vsi->netdev)
+		ether_addr_copy(mac_addr, vsi->netdev->dev_addr);
+	else
+		ether_addr_copy(mac_addr, vsi->port_info->mac.perm_addr);
+
+	flags = ICE_AQC_MAN_MAC_WR_MC_MAG_EN |
+		ICE_AQC_MAN_MAC_UPDATE_LAA_WOL |
+		ICE_AQC_MAN_MAC_WR_WOL_LAA_PFR_KEEP;
+
+	status = ice_aq_manage_mac_write(hw, mac_addr, flags, NULL);
+	if (status)
+		dev_err(dev, "Failed to enable Multicast Magic Packet wake, err %s aq_err %s\n",
+			ice_stat_str(status),
+			ice_aq_str(hw->adminq.sq_last_status));
 }
 
 /**
@@ -3546,8 +4020,10 @@ static void ice_remove(struct pci_dev *pdev)
 	mutex_destroy(&(&pf->hw)->fdir_fltr_lock);
 	if (!ice_is_safe_mode(pf))
 		ice_remove_arfs(pf);
+	ice_setup_mc_magic_wake(pf);
 	ice_devlink_destroy_port(pf);
 	ice_vsi_release_all(pf);
+	ice_set_wake(pf);
 	ice_free_irq_msix_misc(pf);
 	ice_for_each_vsi(pf, i) {
 		if (!pf->vsi[i])
@@ -3567,7 +4043,229 @@ static void ice_remove(struct pci_dev *pdev)
 	pci_wait_for_pending_transaction(pdev);
 	ice_clear_interrupt_scheme(pf);
 	pci_disable_pcie_error_reporting(pdev);
+	pci_disable_device(pdev);
 }
+
+/**
+ * ice_shutdown - PCI callback for shutting down device
+ * @pdev: PCI device information struct
+ */
+static void ice_shutdown(struct pci_dev *pdev)
+{
+	struct ice_pf *pf = pci_get_drvdata(pdev);
+
+	ice_remove(pdev);
+
+	if (system_state == SYSTEM_POWER_OFF) {
+		pci_wake_from_d3(pdev, pf->wol_ena);
+		pci_set_power_state(pdev, PCI_D3hot);
+	}
+}
+
+#ifdef CONFIG_PM
+/**
+ * ice_prepare_for_shutdown - prep for PCI shutdown
+ * @pf: board private structure
+ *
+ * Inform or close all dependent features in prep for PCI device shutdown
+ */
+static void ice_prepare_for_shutdown(struct ice_pf *pf)
+{
+	struct ice_hw *hw = &pf->hw;
+	u32 v;
+
+	/* Notify VFs of impending reset */
+	if (ice_check_sq_alive(hw, &hw->mailboxq))
+		ice_vc_notify_reset(pf);
+
+	dev_dbg(ice_pf_to_dev(pf), "Tearing down internal switch for shutdown\n");
+
+	/* disable the VSIs and their queues that are not already DOWN */
+	ice_pf_dis_all_vsi(pf, false);
+
+	ice_for_each_vsi(pf, v)
+		if (pf->vsi[v])
+			pf->vsi[v]->vsi_num = 0;
+
+	ice_shutdown_all_ctrlq(hw);
+}
+
+/**
+ * ice_reinit_interrupt_scheme - Reinitialize interrupt scheme
+ * @pf: board private structure to reinitialize
+ *
+ * This routine reinitialize interrupt scheme that was cleared during
+ * power management suspend callback.
+ *
+ * This should be called during resume routine to re-allocate the q_vectors
+ * and reacquire interrupts.
+ */
+static int ice_reinit_interrupt_scheme(struct ice_pf *pf)
+{
+	struct device *dev = ice_pf_to_dev(pf);
+	int ret, v;
+
+	/* Since we clear MSIX flag during suspend, we need to
+	 * set it back during resume...
+	 */
+
+	ret = ice_init_interrupt_scheme(pf);
+	if (ret) {
+		dev_err(dev, "Failed to re-initialize interrupt %d\n", ret);
+		return ret;
+	}
+
+	/* Remap vectors and rings, after successful re-init interrupts */
+	ice_for_each_vsi(pf, v) {
+		if (!pf->vsi[v])
+			continue;
+
+		ret = ice_vsi_alloc_q_vectors(pf->vsi[v]);
+		if (ret)
+			goto err_reinit;
+		ice_vsi_map_rings_to_vectors(pf->vsi[v]);
+	}
+
+	ret = ice_req_irq_msix_misc(pf);
+	if (ret) {
+		dev_err(dev, "Setting up misc vector failed after device suspend %d\n",
+			ret);
+		goto err_reinit;
+	}
+
+	return 0;
+
+err_reinit:
+	while (v--)
+		if (pf->vsi[v])
+			ice_vsi_free_q_vectors(pf->vsi[v]);
+
+	return ret;
+}
+
+/**
+ * ice_suspend
+ * @dev: generic device information structure
+ *
+ * Power Management callback to quiesce the device and prepare
+ * for D3 transition.
+ */
+static int ice_suspend(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct ice_pf *pf;
+	int disabled, v;
+
+	pf = pci_get_drvdata(pdev);
+
+	if (!ice_pf_state_is_nominal(pf)) {
+		dev_err(dev, "Device is not ready, no need to suspend it\n");
+		return -EBUSY;
+	}
+
+	/* Stop watchdog tasks until resume completion.
+	 * Even though it is most likely that the service task is
+	 * disabled if the device is suspended or down, the service task's
+	 * state is controlled by a different state bit, and we should
+	 * store and honor whatever state that bit is in at this point.
+	 */
+	disabled = ice_service_task_stop(pf);
+
+	/* Already suspended?, then there is nothing to do */
+	if (test_and_set_bit(__ICE_SUSPENDED, pf->state)) {
+		if (!disabled)
+			ice_service_task_restart(pf);
+		return 0;
+	}
+
+	if (test_bit(__ICE_DOWN, pf->state) ||
+	    ice_is_reset_in_progress(pf->state)) {
+		dev_err(dev, "can't suspend device in reset or already down\n");
+		if (!disabled)
+			ice_service_task_restart(pf);
+		return 0;
+	}
+
+	ice_setup_mc_magic_wake(pf);
+
+	ice_prepare_for_shutdown(pf);
+
+	ice_set_wake(pf);
+
+	/* Free vectors, clear the interrupt scheme and release IRQs
+	 * for proper hibernation, especially with large number of CPUs.
+	 * Otherwise hibernation might fail when mapping all the vectors back
+	 * to CPU0.
+	 */
+	ice_free_irq_msix_misc(pf);
+	ice_for_each_vsi(pf, v) {
+		if (!pf->vsi[v])
+			continue;
+		ice_vsi_free_q_vectors(pf->vsi[v]);
+	}
+	ice_clear_interrupt_scheme(pf);
+
+	pci_wake_from_d3(pdev, pf->wol_ena);
+	pci_set_power_state(pdev, PCI_D3hot);
+	return 0;
+}
+
+/**
+ * ice_resume - PM callback for waking up from D3
+ * @dev: generic device information structure
+ */
+static int ice_resume(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	enum ice_reset_req reset_type;
+	struct ice_pf *pf;
+	struct ice_hw *hw;
+	int ret;
+
+	pci_set_power_state(pdev, PCI_D0);
+	pci_restore_state(pdev);
+	pci_save_state(pdev);
+
+	if (!pci_device_is_present(pdev))
+		return -ENODEV;
+
+	ret = pci_enable_device_mem(pdev);
+	if (ret) {
+		dev_err(dev, "Cannot enable device after suspend\n");
+		return ret;
+	}
+
+	pf = pci_get_drvdata(pdev);
+	hw = &pf->hw;
+
+	pf->wakeup_reason = rd32(hw, PFPM_WUS);
+	ice_print_wake_reason(pf);
+
+	/* We cleared the interrupt scheme when we suspended, so we need to
+	 * restore it now to resume device functionality.
+	 */
+	ret = ice_reinit_interrupt_scheme(pf);
+	if (ret)
+		dev_err(dev, "Cannot restore interrupt scheme: %d\n", ret);
+
+	clear_bit(__ICE_DOWN, pf->state);
+	/* Now perform PF reset and rebuild */
+	reset_type = ICE_RESET_PFR;
+	/* re-enable service task for reset, but allow reset to schedule it */
+	clear_bit(__ICE_SERVICE_DIS, pf->state);
+
+	if (ice_schedule_reset(pf, reset_type))
+		dev_err(dev, "Reset during resume failed.\n");
+
+	clear_bit(__ICE_SUSPENDED, pf->state);
+	ice_service_task_restart(pf);
+
+	/* Restart the service task */
+	mod_timer(&pf->serv_tmr, round_jiffies(jiffies + pf->serv_tmr_period));
+
+	return 0;
+}
+#endif /* CONFIG_PM */
 
 /**
  * ice_pci_err_detected - warning that PCI error has been detected
@@ -3734,6 +4432,8 @@ static const struct pci_device_id ice_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, ice_pci_tbl);
 
+static __maybe_unused SIMPLE_DEV_PM_OPS(ice_pm_ops, ice_suspend, ice_resume);
+
 static const struct pci_error_handlers ice_pci_err_handler = {
 	.error_detected = ice_pci_err_detected,
 	.slot_reset = ice_pci_err_slot_reset,
@@ -3747,6 +4447,10 @@ static struct pci_driver ice_driver = {
 	.id_table = ice_pci_tbl,
 	.probe = ice_probe,
 	.remove = ice_remove,
+#ifdef CONFIG_PM
+	.driver.pm = &ice_pm_ops,
+#endif /* CONFIG_PM */
+	.shutdown = ice_shutdown,
 	.sriov_configure = ice_sriov_configure,
 	.err_handler = &ice_pci_err_handler
 };
@@ -5659,20 +6363,30 @@ int ice_open(struct net_device *netdev)
 
 	/* Set PHY if there is media, otherwise, turn off PHY */
 	if (pi->phy.link_info.link_info & ICE_AQ_MEDIA_AVAILABLE) {
-		err = ice_force_phys_link_state(vsi, true);
+		clear_bit(ICE_FLAG_NO_MEDIA, pf->flags);
+		if (!test_bit(__ICE_PHY_INIT_COMPLETE, pf->state)) {
+			err = ice_init_phy_user_cfg(pi);
+			if (err) {
+				netdev_err(netdev, "Failed to initialize PHY settings, error %d\n",
+					   err);
+				return err;
+			}
+		}
+
+		err = ice_configure_phy(vsi);
 		if (err) {
 			netdev_err(netdev, "Failed to set physical link up, error %d\n",
 				   err);
 			return err;
 		}
 	} else {
+		set_bit(ICE_FLAG_NO_MEDIA, pf->flags);
 		err = ice_aq_set_link_restart_an(pi, false, NULL);
 		if (err) {
 			netdev_err(netdev, "Failed to set PHY state, VSI %d error %d\n",
 				   vsi->vsi_num, err);
 			return err;
 		}
-		set_bit(ICE_FLAG_NO_MEDIA, vsi->back->flags);
 	}
 
 	err = ice_vsi_open(vsi);

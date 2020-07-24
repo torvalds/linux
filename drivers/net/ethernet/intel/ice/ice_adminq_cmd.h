@@ -961,8 +961,11 @@ struct ice_aqc_get_phy_caps_data {
 #define ICE_AQC_GET_PHY_EN_MOD_QUAL			BIT(5)
 #define ICE_AQC_PHY_EN_AUTO_FEC				BIT(7)
 #define ICE_AQC_PHY_CAPS_MASK				ICE_M(0xff, 0)
-	u8 low_power_ctrl;
+	u8 low_power_ctrl_an;
 #define ICE_AQC_PHY_EN_D3COLD_LOW_POWER_AUTONEG		BIT(0)
+#define ICE_AQC_PHY_AN_EN_CLAUSE28			BIT(1)
+#define ICE_AQC_PHY_AN_EN_CLAUSE73			BIT(2)
+#define ICE_AQC_PHY_AN_EN_CLAUSE37			BIT(3)
 	__le16 eee_cap;
 #define ICE_AQC_PHY_EEE_EN_100BASE_TX			BIT(0)
 #define ICE_AQC_PHY_EEE_EN_1000BASE_T			BIT(1)
@@ -983,12 +986,14 @@ struct ice_aqc_get_phy_caps_data {
 #define ICE_AQC_PHY_FEC_25G_RS_CLAUSE91_EN		BIT(6)
 #define ICE_AQC_PHY_FEC_25G_KR_CLAUSE74_EN		BIT(7)
 #define ICE_AQC_PHY_FEC_MASK				ICE_M(0xdf, 0)
-	u8 rsvd1;	/* Byte 35 reserved */
+	u8 module_compliance_enforcement;
+#define ICE_AQC_MOD_ENFORCE_STRICT_MODE			BIT(0)
 	u8 extended_compliance_code;
 #define ICE_MODULE_TYPE_TOTAL_BYTE			3
 	u8 module_type[ICE_MODULE_TYPE_TOTAL_BYTE];
 #define ICE_AQC_MOD_TYPE_BYTE0_SFP_PLUS			0xA0
 #define ICE_AQC_MOD_TYPE_BYTE0_QSFP_PLUS		0x80
+#define ICE_AQC_MOD_TYPE_IDENT				1
 #define ICE_AQC_MOD_TYPE_BYTE1_SFP_PLUS_CU_PASSIVE	BIT(0)
 #define ICE_AQC_MOD_TYPE_BYTE1_SFP_PLUS_CU_ACTIVE	BIT(1)
 #define ICE_AQC_MOD_TYPE_BYTE1_10G_BASE_SR		BIT(4)
@@ -1032,11 +1037,11 @@ struct ice_aqc_set_phy_cfg_data {
 #define ICE_AQ_PHY_ENA_AUTO_LINK_UPDT	BIT(5)
 #define ICE_AQ_PHY_ENA_LESM		BIT(6)
 #define ICE_AQ_PHY_ENA_AUTO_FEC		BIT(7)
-	u8 low_power_ctrl;
+	u8 low_power_ctrl_an;
 	__le16 eee_cap; /* Value from ice_aqc_get_phy_caps */
 	__le16 eeer_value;
 	u8 link_fec_opt; /* Use defines from ice_aqc_get_phy_caps */
-	u8 rsvd1;
+	u8 module_compliance_enforcement;
 };
 
 /* Set MAC Config command data structure (direct 0x0603) */
@@ -1147,6 +1152,7 @@ struct ice_aqc_get_link_status_data {
 #define ICE_AQ_LINK_PWR_QSFP_CLASS_3	2
 #define ICE_AQ_LINK_PWR_QSFP_CLASS_4	3
 	__le16 link_speed;
+#define ICE_AQ_LINK_SPEED_M		0x7FF
 #define ICE_AQ_LINK_SPEED_10MB		BIT(0)
 #define ICE_AQ_LINK_SPEED_100MB		BIT(1)
 #define ICE_AQ_LINK_SPEED_1000MB	BIT(2)
@@ -1187,6 +1193,57 @@ struct ice_aqc_set_mac_lb {
 #define ICE_AQ_MAC_LB_EN		BIT(0)
 #define ICE_AQ_MAC_LB_OSC_CLK		BIT(1)
 	u8 reserved[15];
+};
+
+struct ice_aqc_link_topo_addr {
+	u8 lport_num;
+	u8 lport_num_valid;
+#define ICE_AQC_LINK_TOPO_PORT_NUM_VALID	BIT(0)
+	u8 node_type_ctx;
+#define ICE_AQC_LINK_TOPO_NODE_TYPE_S		0
+#define ICE_AQC_LINK_TOPO_NODE_TYPE_M	(0xF << ICE_AQC_LINK_TOPO_NODE_TYPE_S)
+#define ICE_AQC_LINK_TOPO_NODE_TYPE_PHY		0
+#define ICE_AQC_LINK_TOPO_NODE_TYPE_GPIO_CTRL	1
+#define ICE_AQC_LINK_TOPO_NODE_TYPE_MUX_CTRL	2
+#define ICE_AQC_LINK_TOPO_NODE_TYPE_LED_CTRL	3
+#define ICE_AQC_LINK_TOPO_NODE_TYPE_LED		4
+#define ICE_AQC_LINK_TOPO_NODE_TYPE_THERMAL	5
+#define ICE_AQC_LINK_TOPO_NODE_TYPE_CAGE	6
+#define ICE_AQC_LINK_TOPO_NODE_TYPE_MEZZ	7
+#define ICE_AQC_LINK_TOPO_NODE_TYPE_ID_EEPROM	8
+#define ICE_AQC_LINK_TOPO_NODE_CTX_S		4
+#define ICE_AQC_LINK_TOPO_NODE_CTX_M		\
+				(0xF << ICE_AQC_LINK_TOPO_NODE_CTX_S)
+#define ICE_AQC_LINK_TOPO_NODE_CTX_GLOBAL	0
+#define ICE_AQC_LINK_TOPO_NODE_CTX_BOARD	1
+#define ICE_AQC_LINK_TOPO_NODE_CTX_PORT		2
+#define ICE_AQC_LINK_TOPO_NODE_CTX_NODE		3
+#define ICE_AQC_LINK_TOPO_NODE_CTX_PROVIDED	4
+#define ICE_AQC_LINK_TOPO_NODE_CTX_OVERRIDE	5
+	u8 index;
+	__le16 handle;
+#define ICE_AQC_LINK_TOPO_HANDLE_S	0
+#define ICE_AQC_LINK_TOPO_HANDLE_M	(0x3FF << ICE_AQC_LINK_TOPO_HANDLE_S)
+/* Used to decode the handle field */
+#define ICE_AQC_LINK_TOPO_HANDLE_BRD_TYPE_M	BIT(9)
+#define ICE_AQC_LINK_TOPO_HANDLE_BRD_TYPE_LOM	BIT(9)
+#define ICE_AQC_LINK_TOPO_HANDLE_BRD_TYPE_MEZZ	0
+#define ICE_AQC_LINK_TOPO_HANDLE_NODE_S		0
+/* In case of a Mezzanine type */
+#define ICE_AQC_LINK_TOPO_HANDLE_MEZZ_NODE_M	\
+				(0x3F << ICE_AQC_LINK_TOPO_HANDLE_NODE_S)
+#define ICE_AQC_LINK_TOPO_HANDLE_MEZZ_S	6
+#define ICE_AQC_LINK_TOPO_HANDLE_MEZZ_M	(0x7 << ICE_AQC_LINK_TOPO_HANDLE_MEZZ_S)
+/* In case of a LOM type */
+#define ICE_AQC_LINK_TOPO_HANDLE_LOM_NODE_M	\
+				(0x1FF << ICE_AQC_LINK_TOPO_HANDLE_NODE_S)
+};
+
+/* Get Link Topology Handle (direct, 0x06E0) */
+struct ice_aqc_get_link_topo {
+	struct ice_aqc_link_topo_addr addr;
+	u8 node_part_num;
+	u8 rsvd[9];
 };
 
 /* Set Port Identification LED (direct, 0x06E9) */
@@ -1759,6 +1816,7 @@ struct ice_aq_desc {
 		struct ice_aqc_set_event_mask set_event_mask;
 		struct ice_aqc_get_link_status get_link_status;
 		struct ice_aqc_event_lan_overflow lan_overflow;
+		struct ice_aqc_get_link_topo get_link_topo;
 	} params;
 };
 
@@ -1858,6 +1916,7 @@ enum ice_adminq_opc {
 	ice_aqc_opc_get_link_status			= 0x0607,
 	ice_aqc_opc_set_event_mask			= 0x0613,
 	ice_aqc_opc_set_mac_lb				= 0x0620,
+	ice_aqc_opc_get_link_topo			= 0x06E0,
 	ice_aqc_opc_set_port_id_led			= 0x06E9,
 	ice_aqc_opc_sff_eeprom				= 0x06EE,
 
