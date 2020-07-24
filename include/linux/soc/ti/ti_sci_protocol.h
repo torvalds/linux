@@ -226,8 +226,8 @@ struct ti_sci_rm_core_ops {
  *			and destination
  * @set_event_map:	Set an Event based peripheral irq to Interrupt
  *			Aggregator.
- * @free_irq:		Free an an IRQ route between the requested source
- *			destination.
+ * @free_irq:		Free an IRQ route between the requested source
+ *			and destination.
  * @free_event_map:	Free an event based peripheral irq to Interrupt
  *			Aggregator.
  */
