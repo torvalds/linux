@@ -1857,6 +1857,18 @@ ice_parse_common_caps(struct ice_hw *hw, struct ice_hw_common_caps *caps,
 			  "%s: msix_vector_first_id = %d\n", prefix,
 			  caps->msix_vector_first_id);
 		break;
+	case ICE_AQC_CAPS_PENDING_NVM_VER:
+		caps->nvm_update_pending_nvm = true;
+		ice_debug(hw, ICE_DBG_INIT, "%s: update_pending_nvm\n", prefix);
+		break;
+	case ICE_AQC_CAPS_PENDING_OROM_VER:
+		caps->nvm_update_pending_orom = true;
+		ice_debug(hw, ICE_DBG_INIT, "%s: update_pending_orom\n", prefix);
+		break;
+	case ICE_AQC_CAPS_PENDING_NET_VER:
+		caps->nvm_update_pending_netlist = true;
+		ice_debug(hw, ICE_DBG_INIT, "%s: update_pending_netlist\n", prefix);
+		break;
 	case ICE_AQC_CAPS_NVM_MGMT:
 		caps->nvm_unified_update =
 			(number & ICE_NVM_MGMT_UNIFIED_UPD_SUPPORT) ?
