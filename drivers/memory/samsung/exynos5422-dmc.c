@@ -119,6 +119,7 @@ struct exynos5_dmc {
 	void __iomem *base_drexi0;
 	void __iomem *base_drexi1;
 	struct regmap *clk_regmap;
+	/* Protects curr_rate and frequency/voltage setting section */
 	struct mutex lock;
 	unsigned long curr_rate;
 	unsigned long curr_volt;
