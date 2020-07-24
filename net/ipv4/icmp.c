@@ -1164,16 +1164,12 @@ void ip_icmp_error_rfc4884(const struct sk_buff *skb,
 		return;
 	}
 
-	/* outer headers up to inner iph. skb->data is at inner payload */
+	/* original datagram headers: end of icmph to payload (skb->data) */
 	hlen = -skb_transport_offset(skb) - sizeof(struct icmphdr);
-
-	/* per rfc 791: maximum packet length of 576 bytes */
-	if (hlen + skb->len > 576)
-		return;
 
 	/* per rfc 4884: minimal datagram length of 128 bytes */
 	off = icmp_hdr(skb)->un.reserved[1] * sizeof(u32);
-	if (off < 128)
+	if (off < 128 || off < hlen)
 		return;
 
 	/* kernel has stripped headers: return payload offset in bytes */
