@@ -678,7 +678,7 @@ static const struct snd_kcontrol_new max98390_dai_controls =
 
 static const struct snd_soc_dapm_widget max98390_dapm_widgets[] = {
 	SND_SOC_DAPM_DAC_E("Amp Enable", "HiFi Playback",
-		MAX98390_R203A_AMP_EN, 0, 0, max98390_dac_event,
+		SND_SOC_NOPM, 0, 0, max98390_dac_event,
 		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_MUX("DAI Sel Mux", SND_SOC_NOPM, 0, 0,
 		&max98390_dai_controls),
