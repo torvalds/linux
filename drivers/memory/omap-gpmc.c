@@ -246,7 +246,7 @@ static DEFINE_SPINLOCK(gpmc_mem_lock);
 static unsigned int gpmc_cs_num = GPMC_CS_NUM;
 static unsigned int gpmc_nr_waitpins;
 static resource_size_t phys_base, mem_size;
-static unsigned gpmc_capability;
+static unsigned int gpmc_capability;
 static void __iomem *gpmc_base;
 
 static struct clk *gpmc_l3_clk;
@@ -1243,7 +1243,7 @@ int gpmc_omap_onenand_set_timings(struct device *dev, int cs, int freq,
 }
 EXPORT_SYMBOL_GPL(gpmc_omap_onenand_set_timings);
 
-int gpmc_get_client_irq(unsigned irq_config)
+int gpmc_get_client_irq(unsigned int irq_config)
 {
 	if (!gpmc_irq_domain) {
 		pr_warn("%s called before GPMC IRQ domain available\n",
