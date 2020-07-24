@@ -635,7 +635,7 @@ static int set_gpmc_timing_reg(int cs, int reg, int st_bit, int end_bit, int max
 #define GPMC_SET_ONE_CD_MAX(reg, st, end, max, field, cd)  \
 	if (set_gpmc_timing_reg(cs, (reg), (st), (end), (max), \
 	    t->field, (cd), #field) < 0)                       \
-		return -1
+		return -ENXIO
 
 #define GPMC_SET_ONE(reg, st, end, field) \
 	GPMC_SET_ONE_CD_MAX(reg, st, end, 0, field, GPMC_CD_FCLK)
@@ -703,7 +703,7 @@ int gpmc_cs_set_timings(int cs, const struct gpmc_timings *t,
 
 	div = gpmc_calc_divider(t->sync_clk);
 	if (div < 0)
-		return div;
+		return -EINVAL;
 
 	/*
 	 * See if we need to change the divider for waitmonitoringtime.
@@ -727,7 +727,7 @@ int gpmc_cs_set_timings(int cs, const struct gpmc_timings *t,
 			       __func__,
 			       t->wait_monitoring
 			       );
-			return -1;
+			return -ENXIO;
 		}
 	}
 
