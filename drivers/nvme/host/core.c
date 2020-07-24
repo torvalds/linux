@@ -604,6 +604,14 @@ static void nvme_assign_write_stream(struct nvme_ctrl *ctrl,
 		req->q->write_hints[streamid] += blk_rq_bytes(req) >> 9;
 }
 
+static void nvme_setup_passthrough(struct request *req,
+		struct nvme_command *cmd)
+{
+	memcpy(cmd, nvme_req(req)->cmd, sizeof(*cmd));
+	/* passthru commands should let the driver set the SGL flags */
+	cmd->common.flags &= ~NVME_CMD_SGL_ALL;
+}
+
 static inline void nvme_setup_flush(struct nvme_ns *ns,
 		struct nvme_command *cmnd)
 {
@@ -769,7 +777,7 @@ blk_status_t nvme_setup_cmd(struct nvme_ns *ns, struct request *req,
 	switch (req_op(req)) {
 	case REQ_OP_DRV_IN:
 	case REQ_OP_DRV_OUT:
-		memcpy(cmd, nvme_req(req)->cmd, sizeof(*cmd));
+		nvme_setup_passthrough(req, cmd);
 		break;
 	case REQ_OP_FLUSH:
 		nvme_setup_flush(ns, cmd);
