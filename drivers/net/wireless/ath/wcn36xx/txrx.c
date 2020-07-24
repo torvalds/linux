@@ -298,9 +298,10 @@ static void wcn36xx_set_tx_data(struct wcn36xx_tx_bd *bd,
 		bd->dpu_sign = __vif_priv->self_ucast_dpu_sign;
 	}
 
-	if (ieee80211_is_nullfunc(hdr->frame_control) ||
-	   (sta_priv && !sta_priv->is_data_encrypted))
+	if (ieee80211_is_any_nullfunc(hdr->frame_control) ||
+	   (sta_priv && !sta_priv->is_data_encrypted)) {
 		bd->dpu_ne = 1;
+	}
 
 	if (bcast) {
 		bd->ub = 1;
@@ -394,9 +395,9 @@ int wcn36xx_start_tx(struct wcn36xx *wcn,
 
 	bd.dpu_rf = WCN36XX_BMU_WQ_TX;
 
-	bd.tx_comp = !!(info->flags & IEEE80211_TX_CTL_REQ_TX_STATUS);
-	if (bd.tx_comp) {
+	if (info->flags & IEEE80211_TX_CTL_REQ_TX_STATUS) {
 		wcn36xx_dbg(WCN36XX_DBG_DXE, "TX_ACK status requested\n");
+
 		spin_lock_irqsave(&wcn->dxe_lock, flags);
 		if (wcn->tx_ack_skb) {
 			spin_unlock_irqrestore(&wcn->dxe_lock, flags);
@@ -409,10 +410,15 @@ int wcn36xx_start_tx(struct wcn36xx *wcn,
 
 		/* Only one at a time is supported by fw. Stop the TX queues
 		 * until the ack status gets back.
-		 *
-		 * TODO: Add watchdog in case FW does not answer
 		 */
 		ieee80211_stop_queues(wcn->hw);
+
+		/* TX watchdog if no TX irq or ack indication received  */
+		mod_timer(&wcn->tx_ack_timer, jiffies + HZ / 10);
+
+		/* Request ack indication from the firmware */
+		if (!(info->flags & IEEE80211_TX_CTL_NO_ACK))
+			bd.tx_comp = 1;
 	}
 
 	/* Data frames served first*/
@@ -426,7 +432,7 @@ int wcn36xx_start_tx(struct wcn36xx *wcn,
 	bd.tx_bd_sign = 0xbdbdbdbd;
 
 	ret = wcn36xx_dxe_tx_frame(wcn, vif_priv, &bd, skb, is_low);
-	if (ret && bd.tx_comp) {
+	if (ret && (info->flags & IEEE80211_TX_CTL_REQ_TX_STATUS)) {
 		/* If the skb has not been transmitted,
 		 * don't keep a reference to it.
 		 */

@@ -245,6 +245,7 @@ struct wcn36xx {
 	struct wcn36xx_dxe_mem_pool data_mem_pool;
 
 	struct sk_buff		*tx_ack_skb;
+	struct timer_list	tx_ack_timer;
 
 	/* RF module */
 	unsigned		rf_id;
