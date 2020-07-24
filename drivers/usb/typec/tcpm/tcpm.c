@@ -971,6 +971,9 @@ static void tcpm_queue_vdm(struct tcpm_port *port, const u32 header,
 {
 	WARN_ON(!mutex_is_locked(&port->lock));
 
+	/* Make sure we are not still processing a previous VDM packet */
+	WARN_ON(port->vdm_state > VDM_STATE_DONE);
+
 	port->vdo_count = cnt + 1;
 	port->vdo_data[0] = header;
 	memcpy(&port->vdo_data[1], data, sizeof(u32) * cnt);
