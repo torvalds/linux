@@ -188,7 +188,7 @@ struct brcmstb_dpfe_priv {
 	struct mutex lock;
 };
 
-static const char *error_text[] = {
+static const char * const error_text[] = {
 	"Success", "Header code incorrect", "Unknown command or argument",
 	"Incorrect checksum", "Malformed command", "Timed out",
 };
