@@ -52,6 +52,18 @@ config ATMEL_EBI
 	  tree is used. This bus supports NANDs, external ethernet controller,
 	  SRAMs, ATA devices, etc.
 
+config BRCMSTB_DPFE
+	bool "Broadcom STB DPFE driver" if COMPILE_TEST
+	default y if ARCH_BRCMSTB
+	depends on ARCH_BRCMSTB || COMPILE_TEST
+	help
+	  This driver provides access to the DPFE interface of Broadcom
+	  STB SoCs. The firmware running on the DCPU inside the DDR PHY can
+	  provide current information about the system's RAM, for instance
+	  the DRAM refresh rate. This can be used as an indirect indicator
+	  for the DRAM's temperature. Slower refresh rate means cooler RAM,
+	  higher refresh rate means hotter RAM.
+
 config BT1_L2_CTL
 	bool "Baikal-T1 CM2 L2-RAM Cache Control Block"
 	depends on MIPS_BAIKAL_T1 || COMPILE_TEST
