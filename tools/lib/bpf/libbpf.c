@@ -8282,12 +8282,19 @@ struct bpf_link *
 bpf_program__attach_iter(struct bpf_program *prog,
 			 const struct bpf_iter_attach_opts *opts)
 {
+	DECLARE_LIBBPF_OPTS(bpf_link_create_opts, link_create_opts);
 	char errmsg[STRERR_BUFSIZE];
 	struct bpf_link *link;
 	int prog_fd, link_fd;
+	__u32 target_fd = 0;
 
 	if (!OPTS_VALID(opts, bpf_iter_attach_opts))
 		return ERR_PTR(-EINVAL);
+
+	if (OPTS_HAS(opts, map_fd)) {
+		target_fd = opts->map_fd;
+		link_create_opts.flags = BPF_ITER_LINK_MAP_FD;
+	}
 
 	prog_fd = bpf_program__fd(prog);
 	if (prog_fd < 0) {
@@ -8301,7 +8308,8 @@ bpf_program__attach_iter(struct bpf_program *prog,
 		return ERR_PTR(-ENOMEM);
 	link->detach = &bpf_link__detach_fd;
 
-	link_fd = bpf_link_create(prog_fd, 0, BPF_TRACE_ITER, NULL);
+	link_fd = bpf_link_create(prog_fd, target_fd, BPF_TRACE_ITER,
+				  &link_create_opts);
 	if (link_fd < 0) {
 		link_fd = -errno;
 		free(link);

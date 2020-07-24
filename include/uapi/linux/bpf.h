@@ -246,6 +246,13 @@ enum bpf_link_type {
 	MAX_BPF_LINK_TYPE,
 };
 
+enum bpf_iter_link_info {
+	BPF_ITER_LINK_UNSPEC = 0,
+	BPF_ITER_LINK_MAP_FD = 1,
+
+	MAX_BPF_ITER_LINK_INFO,
+};
+
 /* cgroup-bpf attach flags used in BPF_PROG_ATTACH command
  *
  * NONE(default): No further bpf programs allowed in the subtree.

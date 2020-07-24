@@ -33,9 +33,20 @@ struct btf;
 struct btf_type;
 struct exception_table_entry;
 struct seq_operations;
+struct bpf_iter_aux_info;
 
 extern struct idr btf_idr;
 extern spinlock_t btf_idr_lock;
+
+typedef int (*bpf_iter_init_seq_priv_t)(void *private_data,
+					struct bpf_iter_aux_info *aux);
+typedef void (*bpf_iter_fini_seq_priv_t)(void *private_data);
+struct bpf_iter_seq_info {
+	const struct seq_operations *seq_ops;
+	bpf_iter_init_seq_priv_t init_seq_private;
+	bpf_iter_fini_seq_priv_t fini_seq_private;
+	u32 seq_priv_size;
+};
 
 /* map is generic key/value storage optionally accesible by eBPF programs */
 struct bpf_map_ops {
@@ -96,6 +107,9 @@ struct bpf_map_ops {
 	/* BTF name and id of struct allocated by map_alloc */
 	const char * const map_btf_name;
 	int *map_btf_id;
+
+	/* bpf_iter info used to open a seq_file */
+	const struct bpf_iter_seq_info *iter_seq_info;
 };
 
 struct bpf_map_memory {
@@ -342,6 +356,10 @@ enum bpf_reg_type {
 	PTR_TO_BTF_ID_OR_NULL,	 /* reg points to kernel struct or NULL */
 	PTR_TO_MEM,		 /* reg points to valid memory region */
 	PTR_TO_MEM_OR_NULL,	 /* reg points to valid memory region or NULL */
+	PTR_TO_RDONLY_BUF,	 /* reg points to a readonly buffer */
+	PTR_TO_RDONLY_BUF_OR_NULL, /* reg points to a readonly buffer or NULL */
+	PTR_TO_RDWR_BUF,	 /* reg points to a read/write buffer */
+	PTR_TO_RDWR_BUF_OR_NULL, /* reg points to a read/write buffer or NULL */
 };
 
 /* The information passed from prog-specific *_is_valid_access
@@ -683,6 +701,8 @@ struct bpf_prog_aux {
 	u32 func_idx; /* 0 for non-func prog, the index in func array for func prog */
 	u32 attach_btf_id; /* in-kernel BTF type id to attach to */
 	u32 ctx_arg_info_size;
+	u32 max_rdonly_access;
+	u32 max_rdwr_access;
 	const struct bpf_ctx_arg_aux *ctx_arg_info;
 	struct bpf_prog *linked_prog;
 	bool verifier_zext; /* Zero extensions has been inserted by verifier. */
@@ -1189,24 +1209,34 @@ int bpf_obj_get_user(const char __user *pathname, int flags);
 	extern int bpf_iter_ ## target(args);			\
 	int __init bpf_iter_ ## target(args) { return 0; }
 
-typedef int (*bpf_iter_init_seq_priv_t)(void *private_data);
-typedef void (*bpf_iter_fini_seq_priv_t)(void *private_data);
+struct bpf_iter_aux_info {
+	struct bpf_map *map;
+};
+
+typedef int (*bpf_iter_check_target_t)(struct bpf_prog *prog,
+				       struct bpf_iter_aux_info *aux);
 
 #define BPF_ITER_CTX_ARG_MAX 2
 struct bpf_iter_reg {
 	const char *target;
-	const struct seq_operations *seq_ops;
-	bpf_iter_init_seq_priv_t init_seq_private;
-	bpf_iter_fini_seq_priv_t fini_seq_private;
-	u32 seq_priv_size;
+	bpf_iter_check_target_t check_target;
 	u32 ctx_arg_info_size;
+	enum bpf_iter_link_info req_linfo;
 	struct bpf_ctx_arg_aux ctx_arg_info[BPF_ITER_CTX_ARG_MAX];
+	const struct bpf_iter_seq_info *seq_info;
 };
 
 struct bpf_iter_meta {
 	__bpf_md_ptr(struct seq_file *, seq);
 	u64 session_id;
 	u64 seq_num;
+};
+
+struct bpf_iter__bpf_map_elem {
+	__bpf_md_ptr(struct bpf_iter_meta *, meta);
+	__bpf_md_ptr(struct bpf_map *, map);
+	__bpf_md_ptr(void *, key);
+	__bpf_md_ptr(void *, value);
 };
 
 int bpf_iter_reg_target(const struct bpf_iter_reg *reg_info);
