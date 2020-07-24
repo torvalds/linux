@@ -792,5 +792,6 @@ static inline void nvme_hwmon_init(struct nvme_ctrl *ctrl) { }
 
 u32 nvme_command_effects(struct nvme_ctrl *ctrl, struct nvme_ns *ns,
 			 u8 opcode);
+void nvme_execute_passthru_rq(struct request *rq);
 
 #endif /* _NVME_H */
