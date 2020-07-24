@@ -175,16 +175,13 @@ extern void sync_global_pgds(unsigned long start, unsigned long end);
  * and a page entry and page directory to the page they refer to.
  */
 
-/*
- * Level 4 access.
- */
-#define mk_kernel_pgd(address) __pgd((address) | _KERNPG_TABLE)
+/* PGD - Level 4 access */
 
-/* PUD - Level3 access */
+/* PUD - Level 3 access */
 
-/* PMD  - Level 2 access */
+/* PMD - Level 2 access */
 
-/* PTE - Level 1 access. */
+/* PTE - Level 1 access */
 
 /*
  * Encode and de-code a swap entry
