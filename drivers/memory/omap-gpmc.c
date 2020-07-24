@@ -33,8 +33,6 @@
 
 #include <linux/platform_data/mtd-nand-omap2.h>
 
-#include <asm/mach-types.h>
-
 #define	DEVICE_NAME		"omap-gpmc"
 
 /* GPMC register offsets */
