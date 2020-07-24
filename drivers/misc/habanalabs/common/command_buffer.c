@@ -10,12 +10,18 @@
 
 #include <linux/mm.h>
 #include <linux/slab.h>
+#include <linux/genalloc.h>
 
 static void cb_fini(struct hl_device *hdev, struct hl_cb *cb)
 {
-	hdev->asic_funcs->asic_dma_free_coherent(hdev, cb->size,
-			(void *) (uintptr_t) cb->kernel_address,
-			cb->bus_address);
+	if (cb->is_internal)
+		gen_pool_free(hdev->internal_cb_pool,
+				cb->kernel_address, cb->size);
+	else
+		hdev->asic_funcs->asic_dma_free_coherent(hdev, cb->size,
+				(void *) (uintptr_t) cb->kernel_address,
+				cb->bus_address);
+
 	kfree(cb);
 }
 
@@ -44,9 +50,10 @@ static void cb_release(struct kref *ref)
 }
 
 static struct hl_cb *hl_cb_alloc(struct hl_device *hdev, u32 cb_size,
-					int ctx_id)
+					int ctx_id, bool internal_cb)
 {
 	struct hl_cb *cb;
+	u32 cb_offset;
 	void *p;
 
 	/*
@@ -65,13 +72,25 @@ static struct hl_cb *hl_cb_alloc(struct hl_device *hdev, u32 cb_size,
 	if (!cb)
 		return NULL;
 
-	if (ctx_id == HL_KERNEL_ASID_ID)
+	if (internal_cb) {
+		p = (void *) gen_pool_alloc(hdev->internal_cb_pool, cb_size);
+		if (!p) {
+			kfree(cb);
+			return NULL;
+		}
+
+		cb_offset = p - hdev->internal_cb_pool_virt_addr;
+		cb->is_internal = true;
+		cb->bus_address =  hdev->internal_cb_va_base + cb_offset;
+	} else if (ctx_id == HL_KERNEL_ASID_ID) {
 		p = hdev->asic_funcs->asic_dma_alloc_coherent(hdev, cb_size,
 						&cb->bus_address, GFP_ATOMIC);
-	else
+	} else {
 		p = hdev->asic_funcs->asic_dma_alloc_coherent(hdev, cb_size,
 						&cb->bus_address,
 						GFP_USER | __GFP_ZERO);
+	}
+
 	if (!p) {
 		dev_err(hdev->dev,
 			"failed to allocate %d of dma memory for CB\n",
@@ -87,7 +106,7 @@ static struct hl_cb *hl_cb_alloc(struct hl_device *hdev, u32 cb_size,
 }
 
 int hl_cb_create(struct hl_device *hdev, struct hl_cb_mgr *mgr,
-			u32 cb_size, u64 *handle, int ctx_id)
+			u32 cb_size, u64 *handle, int ctx_id, bool internal_cb)
 {
 	struct hl_cb *cb;
 	bool alloc_new_cb = true;
@@ -112,28 +131,30 @@ int hl_cb_create(struct hl_device *hdev, struct hl_cb_mgr *mgr,
 		goto out_err;
 	}
 
-	/* Minimum allocation must be PAGE SIZE */
-	if (cb_size < PAGE_SIZE)
-		cb_size = PAGE_SIZE;
+	if (!internal_cb) {
+		/* Minimum allocation must be PAGE SIZE */
+		if (cb_size < PAGE_SIZE)
+			cb_size = PAGE_SIZE;
 
-	if (ctx_id == HL_KERNEL_ASID_ID &&
-			cb_size <= hdev->asic_prop.cb_pool_cb_size) {
+		if (ctx_id == HL_KERNEL_ASID_ID &&
+				cb_size <= hdev->asic_prop.cb_pool_cb_size) {
 
-		spin_lock(&hdev->cb_pool_lock);
-		if (!list_empty(&hdev->cb_pool)) {
-			cb = list_first_entry(&hdev->cb_pool, typeof(*cb),
-					pool_list);
-			list_del(&cb->pool_list);
-			spin_unlock(&hdev->cb_pool_lock);
-			alloc_new_cb = false;
-		} else {
-			spin_unlock(&hdev->cb_pool_lock);
-			dev_dbg(hdev->dev, "CB pool is empty\n");
+			spin_lock(&hdev->cb_pool_lock);
+			if (!list_empty(&hdev->cb_pool)) {
+				cb = list_first_entry(&hdev->cb_pool,
+						typeof(*cb), pool_list);
+				list_del(&cb->pool_list);
+				spin_unlock(&hdev->cb_pool_lock);
+				alloc_new_cb = false;
+			} else {
+				spin_unlock(&hdev->cb_pool_lock);
+				dev_dbg(hdev->dev, "CB pool is empty\n");
+			}
 		}
 	}
 
 	if (alloc_new_cb) {
-		cb = hl_cb_alloc(hdev, cb_size, ctx_id);
+		cb = hl_cb_alloc(hdev, cb_size, ctx_id, internal_cb);
 		if (!cb) {
 			rc = -ENOMEM;
 			goto out_err;
@@ -229,8 +250,8 @@ int hl_cb_ioctl(struct hl_fpriv *hpriv, void *data)
 			rc = -EINVAL;
 		} else {
 			rc = hl_cb_create(hdev, &hpriv->cb_mgr,
-						args->in.cb_size, &handle,
-						hpriv->ctx->asid);
+					args->in.cb_size, &handle,
+					hpriv->ctx->asid, false);
 		}
 
 		memset(args, 0, sizeof(*args));
@@ -398,14 +419,15 @@ void hl_cb_mgr_fini(struct hl_device *hdev, struct hl_cb_mgr *mgr)
 	idr_destroy(&mgr->cb_handles);
 }
 
-struct hl_cb *hl_cb_kernel_create(struct hl_device *hdev, u32 cb_size)
+struct hl_cb *hl_cb_kernel_create(struct hl_device *hdev, u32 cb_size,
+					bool internal_cb)
 {
 	u64 cb_handle;
 	struct hl_cb *cb;
 	int rc;
 
 	rc = hl_cb_create(hdev, &hdev->kernel_cb_mgr, cb_size, &cb_handle,
-			HL_KERNEL_ASID_ID);
+			HL_KERNEL_ASID_ID, internal_cb);
 	if (rc) {
 		dev_err(hdev->dev,
 			"Failed to allocate CB for the kernel driver %d\n", rc);
@@ -437,7 +459,7 @@ int hl_cb_pool_init(struct hl_device *hdev)
 
 	for (i = 0 ; i < hdev->asic_prop.cb_pool_cb_cnt ; i++) {
 		cb = hl_cb_alloc(hdev, hdev->asic_prop.cb_pool_cb_size,
-				HL_KERNEL_ASID_ID);
+				HL_KERNEL_ASID_ID, false);
 		if (cb) {
 			cb->is_pool = true;
 			list_add(&cb->pool_list, &hdev->cb_pool);

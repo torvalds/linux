@@ -23,10 +23,14 @@ inline u32 hl_hw_queue_add_ptr(u32 ptr, u16 val)
 	ptr &= ((HL_QUEUE_LENGTH << 1) - 1);
 	return ptr;
 }
+static inline int queue_ci_get(atomic_t *ci, u32 queue_len)
+{
+	return atomic_read(ci) & ((queue_len << 1) - 1);
+}
 
 static inline int queue_free_slots(struct hl_hw_queue *q, u32 queue_len)
 {
-	int delta = (q->pi - q->ci);
+	int delta = (q->pi - queue_ci_get(&q->ci, queue_len));
 
 	if (delta >= 0)
 		return (queue_len - delta);
@@ -40,21 +44,14 @@ void hl_int_hw_queue_update_ci(struct hl_cs *cs)
 	struct hl_hw_queue *q;
 	int i;
 
-	hdev->asic_funcs->hw_queues_lock(hdev);
-
 	if (hdev->disabled)
-		goto out;
+		return;
 
 	q = &hdev->kernel_queues[0];
-	for (i = 0 ; i < HL_MAX_QUEUES ; i++, q++) {
-		if (q->queue_type == QUEUE_TYPE_INT) {
-			q->ci += cs->jobs_in_queue_cnt[i];
-			q->ci &= ((q->int_queue_len << 1) - 1);
-		}
+	for (i = 0 ; i < hdev->asic_prop.max_queues ; i++, q++) {
+		if (q->queue_type == QUEUE_TYPE_INT)
+			atomic_add(cs->jobs_in_queue_cnt[i], &q->ci);
 	}
-
-out:
-	hdev->asic_funcs->hw_queues_unlock(hdev);
 }
 
 /*
@@ -161,6 +158,13 @@ static int int_queue_sanity_checks(struct hl_device *hdev,
 {
 	int free_slots_cnt;
 
+	if (num_of_entries > q->int_queue_len) {
+		dev_err(hdev->dev,
+			"Cannot populate queue %u with %u jobs\n",
+			q->hw_queue_id, num_of_entries);
+		return -ENOMEM;
+	}
+
 	/* Check we have enough space in the queue */
 	free_slots_cnt = queue_free_slots(q, q->int_queue_len);
 
@@ -174,38 +178,26 @@ static int int_queue_sanity_checks(struct hl_device *hdev,
 }
 
 /*
- * hw_queue_sanity_checks() - Perform some sanity checks on a H/W queue.
+ * hw_queue_sanity_checks() - Make sure we have enough space in the h/w queue
  * @hdev: Pointer to hl_device structure.
  * @q: Pointer to hl_hw_queue structure.
  * @num_of_entries: How many entries to check for space.
  *
- * Perform the following:
- * - Make sure we have enough space in the completion queue.
- *   This check also ensures that there is enough space in the h/w queue, as
- *   both queues are of the same size.
- * - Reserve space in the completion queue (needs to be reversed if there
- *   is a failure down the road before the actual submission of work).
+ * Notice: We do not reserve queue entries so this function mustn't be called
+ *         more than once per CS for the same queue
  *
- * Both operations are done using the "free_slots_cnt" field of the completion
- * queue. The CI counters of the queue and the completion queue are not
- * needed/used for the H/W queue type.
  */
 static int hw_queue_sanity_checks(struct hl_device *hdev, struct hl_hw_queue *q,
 					int num_of_entries)
 {
-	atomic_t *free_slots =
-			&hdev->completion_queue[q->cq_id].free_slots_cnt;
+	int free_slots_cnt;
 
-	/*
-	 * Check we have enough space in the completion queue.
-	 * Add -1 to counter (decrement) unless counter was already 0.
-	 * In that case, CQ is full so we can't submit a new CB.
-	 * atomic_add_unless will return 0 if counter was already 0.
-	 */
-	if (atomic_add_negative(num_of_entries * -1, free_slots)) {
-		dev_dbg(hdev->dev, "No space for %d entries on CQ %d\n",
-			num_of_entries, q->hw_queue_id);
-		atomic_add(num_of_entries, free_slots);
+	/* Check we have enough space in the queue */
+	free_slots_cnt = queue_free_slots(q, HL_QUEUE_LENGTH);
+
+	if (free_slots_cnt < num_of_entries) {
+		dev_dbg(hdev->dev, "Queue %d doesn't have room for %d CBs\n",
+			q->hw_queue_id, num_of_entries);
 		return -EAGAIN;
 	}
 
@@ -366,7 +358,6 @@ static void hw_queue_schedule_job(struct hl_cs_job *job)
 {
 	struct hl_device *hdev = job->cs->ctx->hdev;
 	struct hl_hw_queue *q = &hdev->kernel_queues[job->hw_queue_id];
-	struct hl_cq *cq;
 	u64 ptr;
 	u32 offset, ctl, len;
 
@@ -376,7 +367,7 @@ static void hw_queue_schedule_job(struct hl_cs_job *job)
 	 * write address offset in the SM block (QMAN LBW message).
 	 * The write address offset is calculated as "COMP_OFFSET << 2".
 	 */
-	offset = job->cs->sequence & (HL_MAX_PENDING_CS - 1);
+	offset = job->cs->sequence & (hdev->asic_prop.max_pending_cs - 1);
 	ctl = ((offset << BD_CTL_COMP_OFFSET_SHIFT) & BD_CTL_COMP_OFFSET_MASK) |
 		((q->pi << BD_CTL_COMP_DATA_SHIFT) & BD_CTL_COMP_DATA_MASK);
 
@@ -394,17 +385,6 @@ static void hw_queue_schedule_job(struct hl_cs_job *job)
 		ptr = job->user_cb->bus_address;
 	else
 		ptr = (u64) (uintptr_t) job->user_cb;
-
-	/*
-	 * No need to protect pi_offset because scheduling to the
-	 * H/W queues is done under the scheduler mutex
-	 *
-	 * No need to check if CQ is full because it was already
-	 * checked in hw_queue_sanity_checks
-	 */
-	cq = &hdev->completion_queue[q->cq_id];
-
-	cq->pi = hl_cq_inc_ptr(cq->pi);
 
 	ext_and_hw_queue_submit_bd(hdev, q, ctl, len, ptr);
 }
@@ -509,19 +489,23 @@ int hl_hw_queue_schedule_cs(struct hl_cs *cs)
 	struct hl_device *hdev = ctx->hdev;
 	struct hl_cs_job *job, *tmp;
 	struct hl_hw_queue *q;
+	u32 max_queues;
 	int rc = 0, i, cq_cnt;
 
 	hdev->asic_funcs->hw_queues_lock(hdev);
 
 	if (hl_device_disabled_or_in_reset(hdev)) {
+		ctx->cs_counters.device_in_reset_drop_cnt++;
 		dev_err(hdev->dev,
 			"device is disabled or in reset, CS rejected!\n");
 		rc = -EPERM;
 		goto out;
 	}
 
+	max_queues = hdev->asic_prop.max_queues;
+
 	q = &hdev->kernel_queues[0];
-	for (i = 0, cq_cnt = 0 ; i < HL_MAX_QUEUES ; i++, q++) {
+	for (i = 0, cq_cnt = 0 ; i < max_queues ; i++, q++) {
 		if (cs->jobs_in_queue_cnt[i]) {
 			switch (q->queue_type) {
 			case QUEUE_TYPE_EXT:
@@ -543,11 +527,12 @@ int hl_hw_queue_schedule_cs(struct hl_cs *cs)
 				break;
 			}
 
-			if (rc)
+			if (rc) {
+				ctx->cs_counters.queue_full_drop_cnt++;
 				goto unroll_cq_resv;
+			}
 
-			if (q->queue_type == QUEUE_TYPE_EXT ||
-					q->queue_type == QUEUE_TYPE_HW)
+			if (q->queue_type == QUEUE_TYPE_EXT)
 				cq_cnt++;
 		}
 	}
@@ -598,10 +583,9 @@ int hl_hw_queue_schedule_cs(struct hl_cs *cs)
 
 unroll_cq_resv:
 	q = &hdev->kernel_queues[0];
-	for (i = 0 ; (i < HL_MAX_QUEUES) && (cq_cnt > 0) ; i++, q++) {
-		if ((q->queue_type == QUEUE_TYPE_EXT ||
-				q->queue_type == QUEUE_TYPE_HW) &&
-				cs->jobs_in_queue_cnt[i]) {
+	for (i = 0 ; (i < max_queues) && (cq_cnt > 0) ; i++, q++) {
+		if ((q->queue_type == QUEUE_TYPE_EXT) &&
+						(cs->jobs_in_queue_cnt[i])) {
 			atomic_t *free_slots =
 				&hdev->completion_queue[i].free_slots_cnt;
 			atomic_add(cs->jobs_in_queue_cnt[i], free_slots);
@@ -625,7 +609,7 @@ void hl_hw_queue_inc_ci_kernel(struct hl_device *hdev, u32 hw_queue_id)
 {
 	struct hl_hw_queue *q = &hdev->kernel_queues[hw_queue_id];
 
-	q->ci = hl_queue_inc_ptr(q->ci);
+	atomic_inc(&q->ci);
 }
 
 static int ext_and_cpu_queue_init(struct hl_device *hdev, struct hl_hw_queue *q,
@@ -660,11 +644,8 @@ static int ext_and_cpu_queue_init(struct hl_device *hdev, struct hl_hw_queue *q,
 	}
 
 	/* Make sure read/write pointers are initialized to start of queue */
-	q->ci = 0;
+	atomic_set(&q->ci, 0);
 	q->pi = 0;
-
-	if (!is_cpu_queue)
-		hdev->asic_funcs->ext_queue_init(hdev, q->hw_queue_id);
 
 	return 0;
 
@@ -697,7 +678,7 @@ static int int_queue_init(struct hl_device *hdev, struct hl_hw_queue *q)
 
 	q->kernel_address = (u64) (uintptr_t) p;
 	q->pi = 0;
-	q->ci = 0;
+	atomic_set(&q->ci, 0);
 
 	return 0;
 }
@@ -726,10 +707,46 @@ static int hw_queue_init(struct hl_device *hdev, struct hl_hw_queue *q)
 	q->kernel_address = (u64) (uintptr_t) p;
 
 	/* Make sure read/write pointers are initialized to start of queue */
-	q->ci = 0;
+	atomic_set(&q->ci, 0);
 	q->pi = 0;
 
 	return 0;
+}
+
+static void sync_stream_queue_init(struct hl_device *hdev, u32 q_idx)
+{
+	struct hl_hw_queue *hw_queue = &hdev->kernel_queues[q_idx];
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	struct hl_hw_sob *hw_sob;
+	int sob, queue_idx = hdev->sync_stream_queue_idx++;
+
+	hw_queue->base_sob_id =
+		prop->sync_stream_first_sob + queue_idx * HL_RSVD_SOBS;
+	hw_queue->base_mon_id =
+		prop->sync_stream_first_mon + queue_idx * HL_RSVD_MONS;
+	hw_queue->next_sob_val = 1;
+	hw_queue->curr_sob_offset = 0;
+
+	for (sob = 0 ; sob < HL_RSVD_SOBS ; sob++) {
+		hw_sob = &hw_queue->hw_sob[sob];
+		hw_sob->hdev = hdev;
+		hw_sob->sob_id = hw_queue->base_sob_id + sob;
+		hw_sob->q_idx = q_idx;
+		kref_init(&hw_sob->kref);
+	}
+}
+
+static void sync_stream_queue_reset(struct hl_device *hdev, u32 q_idx)
+{
+	struct hl_hw_queue *hw_queue = &hdev->kernel_queues[q_idx];
+
+	/*
+	 * In case we got here due to a stuck CS, the refcnt might be bigger
+	 * than 1 and therefore we reset it.
+	 */
+	kref_init(&hw_queue->hw_sob[hw_queue->curr_sob_offset].kref);
+	hw_queue->curr_sob_offset = 0;
+	hw_queue->next_sob_val = 1;
 }
 
 /*
@@ -746,8 +763,6 @@ static int queue_init(struct hl_device *hdev, struct hl_hw_queue *q,
 			u32 hw_queue_id)
 {
 	int rc;
-
-	BUILD_BUG_ON(HL_QUEUE_SIZE_IN_BYTES > HL_PAGE_SIZE);
 
 	q->hw_queue_id = hw_queue_id;
 
@@ -773,6 +788,9 @@ static int queue_init(struct hl_device *hdev, struct hl_hw_queue *q,
 		rc = -EINVAL;
 		break;
 	}
+
+	if (q->supports_sync_stream)
+		sync_stream_queue_init(hdev, q->hw_queue_id);
 
 	if (rc)
 		return rc;
@@ -835,7 +853,7 @@ int hl_hw_queues_create(struct hl_device *hdev)
 	struct hl_hw_queue *q;
 	int i, rc, q_ready_cnt;
 
-	hdev->kernel_queues = kcalloc(HL_MAX_QUEUES,
+	hdev->kernel_queues = kcalloc(asic->max_queues,
 				sizeof(*hdev->kernel_queues), GFP_KERNEL);
 
 	if (!hdev->kernel_queues) {
@@ -845,9 +863,11 @@ int hl_hw_queues_create(struct hl_device *hdev)
 
 	/* Initialize the H/W queues */
 	for (i = 0, q_ready_cnt = 0, q = hdev->kernel_queues;
-			i < HL_MAX_QUEUES ; i++, q_ready_cnt++, q++) {
+			i < asic->max_queues ; i++, q_ready_cnt++, q++) {
 
 		q->queue_type = asic->hw_queues_props[i].type;
+		q->supports_sync_stream =
+				asic->hw_queues_props[i].supports_sync_stream;
 		rc = queue_init(hdev, q, i);
 		if (rc) {
 			dev_err(hdev->dev,
@@ -870,9 +890,10 @@ release_queues:
 void hl_hw_queues_destroy(struct hl_device *hdev)
 {
 	struct hl_hw_queue *q;
+	u32 max_queues = hdev->asic_prop.max_queues;
 	int i;
 
-	for (i = 0, q = hdev->kernel_queues ; i < HL_MAX_QUEUES ; i++, q++)
+	for (i = 0, q = hdev->kernel_queues ; i < max_queues ; i++, q++)
 		queue_fini(hdev, q);
 
 	kfree(hdev->kernel_queues);
@@ -881,15 +902,17 @@ void hl_hw_queues_destroy(struct hl_device *hdev)
 void hl_hw_queue_reset(struct hl_device *hdev, bool hard_reset)
 {
 	struct hl_hw_queue *q;
+	u32 max_queues = hdev->asic_prop.max_queues;
 	int i;
 
-	for (i = 0, q = hdev->kernel_queues ; i < HL_MAX_QUEUES ; i++, q++) {
+	for (i = 0, q = hdev->kernel_queues ; i < max_queues ; i++, q++) {
 		if ((!q->valid) ||
 			((!hard_reset) && (q->queue_type == QUEUE_TYPE_CPU)))
 			continue;
-		q->pi = q->ci = 0;
+		q->pi = 0;
+		atomic_set(&q->ci, 0);
 
-		if (q->queue_type == QUEUE_TYPE_EXT)
-			hdev->asic_funcs->ext_queue_reset(hdev, q->hw_queue_id);
+		if (q->supports_sync_stream)
+			sync_stream_queue_reset(hdev, q->hw_queue_id);
 	}
 }

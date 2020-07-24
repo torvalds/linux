@@ -6,7 +6,7 @@
  */
 
 #include "habanalabs.h"
-#include "include/hl_boot_if.h"
+#include "include/common/hl_boot_if.h"
 
 #include <linux/firmware.h>
 #include <linux/genalloc.h>
@@ -289,7 +289,7 @@ int hl_fw_armcp_info_get(struct hl_device *hdev)
 					HL_ARMCP_INFO_TIMEOUT_USEC, &result);
 	if (rc) {
 		dev_err(hdev->dev,
-			"Failed to send ArmCP info pkt, error %d\n", rc);
+			"Failed to handle ArmCP info pkt, error %d\n", rc);
 		goto out;
 	}
 
@@ -340,7 +340,7 @@ int hl_fw_get_eeprom_data(struct hl_device *hdev, void *data, size_t max_size)
 
 	if (rc) {
 		dev_err(hdev->dev,
-			"Failed to send ArmCP EEPROM packet, error %d\n", rc);
+			"Failed to handle ArmCP EEPROM packet, error %d\n", rc);
 		goto out;
 	}
 
@@ -391,6 +391,53 @@ static void fw_read_errors(struct hl_device *hdev, u32 boot_err0_reg)
 	if (err_val & CPU_BOOT_ERR0_NIC_FW_FAIL)
 		dev_err(hdev->dev,
 			"Device boot error - NIC F/W initialization failed\n");
+}
+
+static void hl_detect_cpu_boot_status(struct hl_device *hdev, u32 status)
+{
+	switch (status) {
+	case CPU_BOOT_STATUS_NA:
+		dev_err(hdev->dev,
+			"Device boot error - BTL did NOT run\n");
+		break;
+	case CPU_BOOT_STATUS_IN_WFE:
+		dev_err(hdev->dev,
+			"Device boot error - Stuck inside WFE loop\n");
+		break;
+	case CPU_BOOT_STATUS_IN_BTL:
+		dev_err(hdev->dev,
+			"Device boot error - Stuck in BTL\n");
+		break;
+	case CPU_BOOT_STATUS_IN_PREBOOT:
+		dev_err(hdev->dev,
+			"Device boot error - Stuck in Preboot\n");
+		break;
+	case CPU_BOOT_STATUS_IN_SPL:
+		dev_err(hdev->dev,
+			"Device boot error - Stuck in SPL\n");
+		break;
+	case CPU_BOOT_STATUS_IN_UBOOT:
+		dev_err(hdev->dev,
+			"Device boot error - Stuck in u-boot\n");
+		break;
+	case CPU_BOOT_STATUS_DRAM_INIT_FAIL:
+		dev_err(hdev->dev,
+			"Device boot error - DRAM initialization failed\n");
+		break;
+	case CPU_BOOT_STATUS_UBOOT_NOT_READY:
+		dev_err(hdev->dev,
+			"Device boot error - u-boot stopped by user\n");
+		break;
+	case CPU_BOOT_STATUS_TS_INIT_FAIL:
+		dev_err(hdev->dev,
+			"Device boot error - Thermal Sensor initialization failed\n");
+		break;
+	default:
+		dev_err(hdev->dev,
+			"Device boot error - Invalid status code %d\n",
+			status);
+		break;
+	}
 }
 
 int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
@@ -466,50 +513,7 @@ int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
 	 * versions but we keep them here for backward compatibility
 	 */
 	if (rc) {
-		switch (status) {
-		case CPU_BOOT_STATUS_NA:
-			dev_err(hdev->dev,
-				"Device boot error - BTL did NOT run\n");
-			break;
-		case CPU_BOOT_STATUS_IN_WFE:
-			dev_err(hdev->dev,
-				"Device boot error - Stuck inside WFE loop\n");
-			break;
-		case CPU_BOOT_STATUS_IN_BTL:
-			dev_err(hdev->dev,
-				"Device boot error - Stuck in BTL\n");
-			break;
-		case CPU_BOOT_STATUS_IN_PREBOOT:
-			dev_err(hdev->dev,
-				"Device boot error - Stuck in Preboot\n");
-			break;
-		case CPU_BOOT_STATUS_IN_SPL:
-			dev_err(hdev->dev,
-				"Device boot error - Stuck in SPL\n");
-			break;
-		case CPU_BOOT_STATUS_IN_UBOOT:
-			dev_err(hdev->dev,
-				"Device boot error - Stuck in u-boot\n");
-			break;
-		case CPU_BOOT_STATUS_DRAM_INIT_FAIL:
-			dev_err(hdev->dev,
-				"Device boot error - DRAM initialization failed\n");
-			break;
-		case CPU_BOOT_STATUS_UBOOT_NOT_READY:
-			dev_err(hdev->dev,
-				"Device boot error - u-boot stopped by user\n");
-			break;
-		case CPU_BOOT_STATUS_TS_INIT_FAIL:
-			dev_err(hdev->dev,
-				"Device boot error - Thermal Sensor initialization failed\n");
-			break;
-		default:
-			dev_err(hdev->dev,
-				"Device boot error - Invalid status code %d\n",
-				status);
-			break;
-		}
-
+		hl_detect_cpu_boot_status(hdev, status);
 		rc = -EIO;
 		goto out;
 	}
@@ -569,7 +573,8 @@ int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
 				"Device reports FIT image is corrupted\n");
 		else
 			dev_err(hdev->dev,
-				"Device failed to load, %d\n", status);
+				"Failed to load firmware to device, %d\n",
+				status);
 
 		rc = -EIO;
 		goto out;

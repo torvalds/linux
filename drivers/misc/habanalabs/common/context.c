@@ -22,8 +22,10 @@ static void hl_ctx_fini(struct hl_ctx *ctx)
 	 * to this function unless the ref count is 0
 	 */
 
-	for (i = 0 ; i < HL_MAX_PENDING_CS ; i++)
+	for (i = 0 ; i < hdev->asic_prop.max_pending_cs ; i++)
 		dma_fence_put(ctx->cs_pending[i]);
+
+	kfree(ctx->cs_pending);
 
 	if (ctx->asid != HL_KERNEL_ASID_ID) {
 		/* The engines are stopped as there is no executing CS, but the
@@ -110,8 +112,7 @@ void hl_ctx_free(struct hl_device *hdev, struct hl_ctx *ctx)
 		return;
 
 	dev_warn(hdev->dev,
-		"Context %d closed or terminated but its CS are executing\n",
-		ctx->asid);
+		"user process released device but its command submissions are still executing\n");
 }
 
 int hl_ctx_init(struct hl_device *hdev, struct hl_ctx *ctx, bool is_kernel_ctx)
@@ -126,34 +127,49 @@ int hl_ctx_init(struct hl_device *hdev, struct hl_ctx *ctx, bool is_kernel_ctx)
 	spin_lock_init(&ctx->cs_lock);
 	atomic_set(&ctx->thread_ctx_switch_token, 1);
 	ctx->thread_ctx_switch_wait_token = 0;
+	ctx->cs_pending = kcalloc(hdev->asic_prop.max_pending_cs,
+				sizeof(struct dma_fence *),
+				GFP_KERNEL);
+	if (!ctx->cs_pending)
+		return -ENOMEM;
 
 	if (is_kernel_ctx) {
 		ctx->asid = HL_KERNEL_ASID_ID; /* Kernel driver gets ASID 0 */
 		rc = hl_mmu_ctx_init(ctx);
 		if (rc) {
 			dev_err(hdev->dev, "Failed to init mmu ctx module\n");
-			goto mem_ctx_err;
+			goto err_free_cs_pending;
 		}
 	} else {
 		ctx->asid = hl_asid_alloc(hdev);
 		if (!ctx->asid) {
 			dev_err(hdev->dev, "No free ASID, failed to create context\n");
-			return -ENOMEM;
+			rc = -ENOMEM;
+			goto err_free_cs_pending;
 		}
 
 		rc = hl_vm_ctx_init(ctx);
 		if (rc) {
 			dev_err(hdev->dev, "Failed to init mem ctx module\n");
 			rc = -ENOMEM;
-			goto mem_ctx_err;
+			goto err_asid_free;
+		}
+
+		rc = hdev->asic_funcs->ctx_init(ctx);
+		if (rc) {
+			dev_err(hdev->dev, "ctx_init failed\n");
+			goto err_vm_ctx_fini;
 		}
 	}
 
 	return 0;
 
-mem_ctx_err:
-	if (ctx->asid != HL_KERNEL_ASID_ID)
-		hl_asid_free(hdev, ctx->asid);
+err_vm_ctx_fini:
+	hl_vm_ctx_fini(ctx);
+err_asid_free:
+	hl_asid_free(hdev, ctx->asid);
+err_free_cs_pending:
+	kfree(ctx->cs_pending);
 
 	return rc;
 }
@@ -170,6 +186,7 @@ int hl_ctx_put(struct hl_ctx *ctx)
 
 struct dma_fence *hl_ctx_get_fence(struct hl_ctx *ctx, u64 seq)
 {
+	struct asic_fixed_properties *asic_prop = &ctx->hdev->asic_prop;
 	struct dma_fence *fence;
 
 	spin_lock(&ctx->cs_lock);
@@ -179,13 +196,13 @@ struct dma_fence *hl_ctx_get_fence(struct hl_ctx *ctx, u64 seq)
 		return ERR_PTR(-EINVAL);
 	}
 
-	if (seq + HL_MAX_PENDING_CS < ctx->cs_sequence) {
+	if (seq + asic_prop->max_pending_cs < ctx->cs_sequence) {
 		spin_unlock(&ctx->cs_lock);
 		return NULL;
 	}
 
 	fence = dma_fence_get(
-			ctx->cs_pending[seq & (HL_MAX_PENDING_CS - 1)]);
+			ctx->cs_pending[seq & (asic_prop->max_pending_cs - 1)]);
 	spin_unlock(&ctx->cs_lock);
 
 	return fence;

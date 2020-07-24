@@ -1730,8 +1730,7 @@ void hl_vm_ctx_fini(struct hl_ctx *ctx)
 	 */
 	if (!hdev->hard_reset_pending && !hash_empty(ctx->mem_hash))
 		dev_notice(hdev->dev,
-				"ctx %d is freed while it has va in use\n",
-				ctx->asid);
+			"user released device without removing its memory mappings\n");
 
 	hash_for_each_safe(ctx->mem_hash, i, tmp_node, hnode, node) {
 		dev_dbg(hdev->dev,

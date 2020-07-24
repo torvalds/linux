@@ -249,7 +249,8 @@ static void device_cdev_sysfs_del(struct hl_device *hdev)
  */
 static int device_early_init(struct hl_device *hdev)
 {
-	int rc;
+	int i, rc;
+	char workq_name[32];
 
 	switch (hdev->asic_type) {
 	case ASIC_GOYA:
@@ -274,11 +275,24 @@ static int device_early_init(struct hl_device *hdev)
 	if (rc)
 		goto early_fini;
 
-	hdev->cq_wq = alloc_workqueue("hl-free-jobs", WQ_UNBOUND, 0);
-	if (hdev->cq_wq == NULL) {
-		dev_err(hdev->dev, "Failed to allocate CQ workqueue\n");
-		rc = -ENOMEM;
-		goto asid_fini;
+	if (hdev->asic_prop.completion_queues_count) {
+		hdev->cq_wq = kcalloc(hdev->asic_prop.completion_queues_count,
+				sizeof(*hdev->cq_wq),
+				GFP_ATOMIC);
+		if (!hdev->cq_wq) {
+			rc = -ENOMEM;
+			goto asid_fini;
+		}
+	}
+
+	for (i = 0 ; i < hdev->asic_prop.completion_queues_count ; i++) {
+		snprintf(workq_name, 32, "hl-free-jobs-%u", i);
+		hdev->cq_wq[i] = create_singlethread_workqueue(workq_name);
+		if (hdev->cq_wq == NULL) {
+			dev_err(hdev->dev, "Failed to allocate CQ workqueue\n");
+			rc = -ENOMEM;
+			goto free_cq_wq;
+		}
 	}
 
 	hdev->eq_wq = alloc_workqueue("hl-events", WQ_UNBOUND, 0);
@@ -321,7 +335,10 @@ free_chip_info:
 free_eq_wq:
 	destroy_workqueue(hdev->eq_wq);
 free_cq_wq:
-	destroy_workqueue(hdev->cq_wq);
+	for (i = 0 ; i < hdev->asic_prop.completion_queues_count ; i++)
+		if (hdev->cq_wq[i])
+			destroy_workqueue(hdev->cq_wq[i]);
+	kfree(hdev->cq_wq);
 asid_fini:
 	hl_asid_fini(hdev);
 early_fini:
@@ -339,6 +356,8 @@ early_fini:
  */
 static void device_early_fini(struct hl_device *hdev)
 {
+	int i;
+
 	mutex_destroy(&hdev->mmu_cache_lock);
 	mutex_destroy(&hdev->debug_lock);
 	mutex_destroy(&hdev->send_cpu_message_lock);
@@ -351,7 +370,10 @@ static void device_early_fini(struct hl_device *hdev)
 	kfree(hdev->hl_chip_info);
 
 	destroy_workqueue(hdev->eq_wq);
-	destroy_workqueue(hdev->cq_wq);
+
+	for (i = 0 ; i < hdev->asic_prop.completion_queues_count ; i++)
+		destroy_workqueue(hdev->cq_wq[i]);
+	kfree(hdev->cq_wq);
 
 	hl_asid_fini(hdev);
 
@@ -838,6 +860,22 @@ int hl_device_reset(struct hl_device *hdev, bool hard_reset,
 		if (rc)
 			return 0;
 
+		if (hard_reset) {
+			/* Disable PCI access from device F/W so he won't send
+			 * us additional interrupts. We disable MSI/MSI-X at
+			 * the halt_engines function and we can't have the F/W
+			 * sending us interrupts after that. We need to disable
+			 * the access here because if the device is marked
+			 * disable, the message won't be send. Also, in case
+			 * of heartbeat, the device CPU is marked as disable
+			 * so this message won't be sent
+			 */
+			if (hl_fw_send_pci_access_msg(hdev,
+					ARMCP_PACKET_DISABLE_PCI_ACCESS))
+				dev_warn(hdev->dev,
+					"Failed to disable PCI access by F/W\n");
+		}
+
 		/* This also blocks future CS/VM/JOB completion operations */
 		hdev->disabled = true;
 
@@ -995,14 +1033,18 @@ again:
 		}
 	}
 
+	/* Device is now enabled as part of the initialization requires
+	 * communication with the device firmware to get information that
+	 * is required for the initialization itself
+	 */
+	hdev->disabled = false;
+
 	rc = hdev->asic_funcs->hw_init(hdev);
 	if (rc) {
 		dev_err(hdev->dev,
 			"failed to initialize the H/W after reset\n");
 		goto out_err;
 	}
-
-	hdev->disabled = false;
 
 	/* Check that the communication with the device is working */
 	rc = hdev->asic_funcs->test_queues(hdev);
@@ -1144,14 +1186,17 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 	 * because there the addresses of the completion queues are being
 	 * passed as arguments to request_irq
 	 */
-	hdev->completion_queue = kcalloc(cq_cnt,
-						sizeof(*hdev->completion_queue),
-						GFP_KERNEL);
+	if (cq_cnt) {
+		hdev->completion_queue = kcalloc(cq_cnt,
+				sizeof(*hdev->completion_queue),
+				GFP_KERNEL);
 
-	if (!hdev->completion_queue) {
-		dev_err(hdev->dev, "failed to allocate completion queues\n");
-		rc = -ENOMEM;
-		goto hw_queues_destroy;
+		if (!hdev->completion_queue) {
+			dev_err(hdev->dev,
+				"failed to allocate completion queues\n");
+			rc = -ENOMEM;
+			goto hw_queues_destroy;
+		}
 	}
 
 	for (i = 0, cq_ready_cnt = 0 ; i < cq_cnt ; i++, cq_ready_cnt++) {
@@ -1162,6 +1207,7 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 				"failed to initialize completion queue\n");
 			goto cq_fini;
 		}
+		hdev->completion_queue[i].cq_idx = i;
 	}
 
 	/*
@@ -1219,14 +1265,18 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 	 */
 	add_cdev_sysfs_on_err = true;
 
+	/* Device is now enabled as part of the initialization requires
+	 * communication with the device firmware to get information that
+	 * is required for the initialization itself
+	 */
+	hdev->disabled = false;
+
 	rc = hdev->asic_funcs->hw_init(hdev);
 	if (rc) {
 		dev_err(hdev->dev, "failed to initialize the H/W\n");
 		rc = 0;
 		goto out_disabled;
 	}
-
-	hdev->disabled = false;
 
 	/* Check that the communication with the device is working */
 	rc = hdev->asic_funcs->test_queues(hdev);

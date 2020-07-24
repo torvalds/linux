@@ -119,15 +119,10 @@ irqreturn_t hl_irq_handler_cq(int irq, void *arg)
 
 		if ((shadow_index_valid) && (!hdev->disabled)) {
 			job = queue->shadow_queue[hl_pi_2_offset(shadow_index)];
-			queue_work(hdev->cq_wq, &job->finish_work);
+			queue_work(hdev->cq_wq[cq->cq_idx], &job->finish_work);
 		}
 
-		/* Update ci of the context's queue. There is no
-		 * need to protect it with spinlock because this update is
-		 * done only inside IRQ and there is a different IRQ per
-		 * queue
-		 */
-		queue->ci = hl_queue_inc_ptr(queue->ci);
+		atomic_inc(&queue->ci);
 
 		/* Clear CQ entry ready bit */
 		cq_entry->data = cpu_to_le32(le32_to_cpu(cq_entry->data) &
@@ -220,8 +215,6 @@ int hl_cq_init(struct hl_device *hdev, struct hl_cq *q, u32 hw_queue_id)
 {
 	void *p;
 
-	BUILD_BUG_ON(HL_CQ_SIZE_IN_BYTES > HL_PAGE_SIZE);
-
 	p = hdev->asic_funcs->asic_dma_alloc_coherent(hdev, HL_CQ_SIZE_IN_BYTES,
 				&q->bus_address, GFP_KERNEL | __GFP_ZERO);
 	if (!p)
@@ -281,8 +274,6 @@ void hl_cq_reset(struct hl_device *hdev, struct hl_cq *q)
 int hl_eq_init(struct hl_device *hdev, struct hl_eq *q)
 {
 	void *p;
-
-	BUILD_BUG_ON(HL_EQ_SIZE_IN_BYTES > HL_PAGE_SIZE);
 
 	p = hdev->asic_funcs->cpu_accessible_dma_pool_alloc(hdev,
 							HL_EQ_SIZE_IN_BYTES,
