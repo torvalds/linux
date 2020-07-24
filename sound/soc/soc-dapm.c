@@ -1798,7 +1798,7 @@ static void dapm_pre_sequence_async(void *data, async_cookie_t cookie)
 	/* If we're off and we're not supposed to go into STANDBY */
 	if (d->bias_level == SND_SOC_BIAS_OFF &&
 	    d->target_bias_level != SND_SOC_BIAS_OFF) {
-		if (d->dev)
+		if (d->dev && cookie)
 			pm_runtime_get_sync(d->dev);
 
 		ret = snd_soc_dapm_set_bias_level(d, SND_SOC_BIAS_STANDBY);
@@ -1845,7 +1845,7 @@ static void dapm_post_sequence_async(void *data, async_cookie_t cookie)
 			dev_err(d->dev, "ASoC: Failed to turn off bias: %d\n",
 				ret);
 
-		if (d->dev)
+		if (d->dev && cookie)
 			pm_runtime_put(d->dev);
 	}
 
