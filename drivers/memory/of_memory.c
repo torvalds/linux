@@ -26,7 +26,7 @@
  * default min timings provided by JEDEC.
  */
 const struct lpddr2_min_tck *of_get_min_tck(struct device_node *np,
-		struct device *dev)
+					    struct device *dev)
 {
 	int			ret = 0;
 	struct lpddr2_min_tck	*min;
@@ -61,7 +61,7 @@ default_min_tck:
 EXPORT_SYMBOL(of_get_min_tck);
 
 static int of_do_get_timings(struct device_node *np,
-		struct lpddr2_timings *tim)
+			     struct lpddr2_timings *tim)
 {
 	int ret;
 
@@ -83,7 +83,7 @@ static int of_do_get_timings(struct device_node *np,
 	ret |= of_property_read_u32(np, "tZQinit", &tim->tZQinit);
 	ret |= of_property_read_u32(np, "tRAS-max-ns", &tim->tRAS_max_ns);
 	ret |= of_property_read_u32(np, "tDQSCK-max-derated",
-		&tim->tDQSCK_max_derated);
+				    &tim->tDQSCK_max_derated);
 
 	return ret;
 }
@@ -102,7 +102,9 @@ static int of_do_get_timings(struct device_node *np,
  * while populating, returns default timings provided by JEDEC.
  */
 const struct lpddr2_timings *of_get_ddr_timings(struct device_node *np_ddr,
-		struct device *dev, u32 device_type, u32 *nr_frequencies)
+						struct device *dev,
+						u32 device_type,
+						u32 *nr_frequencies)
 {
 	struct lpddr2_timings	*timings = NULL;
 	u32			arr_sz = 0, i = 0;
