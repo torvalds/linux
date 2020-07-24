@@ -186,7 +186,7 @@ struct rkisp1_cif_isp_window {
 	__u16 v_offs;
 	__u16 h_size;
 	__u16 v_size;
-} __packed;
+};
 
 /**
  * struct rkisp1_cif_isp_bls_fixed_val - BLS fixed subtraction values
@@ -204,7 +204,7 @@ struct rkisp1_cif_isp_bls_fixed_val {
 	__s16 gr;
 	__s16 gb;
 	__s16 b;
-} __packed;
+};
 
 /**
  * struct rkisp1_cif_isp_bls_config - Configuration used by black level subtraction
@@ -226,7 +226,7 @@ struct rkisp1_cif_isp_bls_config {
 	struct rkisp1_cif_isp_window bls_window2;
 	__u8 bls_samples;
 	struct rkisp1_cif_isp_bls_fixed_val fixed_val;
-} __packed;
+};
 
 /**
  * struct rkisp1_cif_isp_dpcc_methods_config - Methods Configuration used by DPCC
@@ -247,7 +247,7 @@ struct rkisp1_cif_isp_dpcc_methods_config {
 	__u32 pg_fac;
 	__u32 rnd_thresh;
 	__u32 rg_fac;
-} __packed;
+};
 
 /**
  * struct rkisp1_cif_isp_dpcc_config - Configuration used by DPCC
@@ -268,7 +268,7 @@ struct rkisp1_cif_isp_dpcc_config {
 	struct rkisp1_cif_isp_dpcc_methods_config methods[RKISP1_CIF_ISP_DPCC_METHODS_MAX];
 	__u32 ro_limits;
 	__u32 rnd_offs;
-} __packed;
+};
 
 /**
  * struct rkisp1_cif_isp_gamma_corr_curve - gamma curve point definition y-axis (output).
@@ -280,7 +280,7 @@ struct rkisp1_cif_isp_dpcc_config {
  */
 struct rkisp1_cif_isp_gamma_corr_curve {
 	__u16 gamma_y[RKISP1_CIF_ISP_DEGAMMA_CURVE_SIZE];
-} __packed;
+};
 
 /**
  * struct rkisp1_cif_isp_gamma_curve_x_axis_pnts - De-Gamma Curve definition x increments
@@ -296,7 +296,7 @@ struct rkisp1_cif_isp_gamma_corr_curve {
 struct rkisp1_cif_isp_gamma_curve_x_axis_pnts {
 	__u32 gamma_dx0;
 	__u32 gamma_dx1;
-} __packed;
+};
 
 /**
  * struct rkisp1_cif_isp_sdg_config - Configuration used by sensor degamma
@@ -311,7 +311,7 @@ struct rkisp1_cif_isp_sdg_config {
 	struct rkisp1_cif_isp_gamma_corr_curve curve_g;
 	struct rkisp1_cif_isp_gamma_corr_curve curve_b;
 	struct rkisp1_cif_isp_gamma_curve_x_axis_pnts xa_pnts;
-} __packed;
+};
 
 /**
  * struct rkisp1_cif_isp_lsc_config - Configuration used by Lens shading correction
@@ -340,7 +340,7 @@ struct rkisp1_cif_isp_lsc_config {
 	__u16 y_size_tbl[RKISP1_CIF_ISP_LSC_SECTORS_TBL_SIZE];
 	__u16 config_width;
 	__u16 config_height;
-} __packed;
+};
 
 /**
  * struct rkisp1_cif_isp_ie_config - Configuration used by image effects
@@ -366,7 +366,7 @@ struct rkisp1_cif_isp_ie_config {
 	__u16 eff_mat_4;
 	__u16 eff_mat_5;
 	__u16 eff_tint;
-} __packed;
+};
 
 /**
  * struct rkisp1_cif_isp_cproc_config - Configuration used by Color Processing
@@ -388,7 +388,7 @@ struct rkisp1_cif_isp_cproc_config {
 	__u8 brightness;
 	__u8 sat;
 	__u8 hue;
-} __packed;
+};
 
 /**
  * struct rkisp1_cif_isp_awb_meas_config - Configuration used by auto white balance
@@ -422,7 +422,7 @@ struct rkisp1_cif_isp_awb_meas_config {
 	__u8 awb_ref_cr;
 	__u8 awb_ref_cb;
 	__u8 enable_ymax_cmp;
-} __packed;
+};
 
 /**
  * struct rkisp1_cif_isp_awb_gain_config - Configuration used by auto white balance gain
@@ -442,7 +442,7 @@ struct rkisp1_cif_isp_awb_gain_config {
 	__u16 gain_green_r;
 	__u16 gain_blue;
 	__u16 gain_green_b;
-} __packed;
+};
 
 /**
  * struct rkisp1_cif_isp_flt_config - Configuration used by ISP filtering
@@ -480,7 +480,7 @@ struct rkisp1_cif_isp_flt_config {
 	__u32 fac_mid;
 	__u32 fac_bl0;
 	__u32 fac_bl1;
-} __packed;
+};
 
 /**
  * struct rkisp1_cif_isp_bdm_config - Configuration used by Bayer DeMosaic
@@ -489,7 +489,7 @@ struct rkisp1_cif_isp_flt_config {
  */
 struct rkisp1_cif_isp_bdm_config {
 	__u8 demosaic_th;
-} __packed;
+};
 
 /**
  * struct rkisp1_cif_isp_ctk_config - Configuration used by Cross Talk correction
@@ -502,7 +502,7 @@ struct rkisp1_cif_isp_bdm_config {
 struct rkisp1_cif_isp_ctk_config {
 	__u16 coeff[3][3];
 	__u16 ct_offset[3];
-} __packed;
+};
 
 enum rkisp1_cif_isp_goc_mode {
 	RKISP1_CIF_ISP_GOC_MODE_LOGARITHMIC,
@@ -518,7 +518,7 @@ enum rkisp1_cif_isp_goc_mode {
 struct rkisp1_cif_isp_goc_config {
 	__u32 mode;
 	__u16 gamma_y[RKISP1_CIF_ISP_GAMMA_OUT_MAX_SAMPLES];
-} __packed;
+};
 
 /**
  * struct rkisp1_cif_isp_hst_config - Configuration used by Histogram
@@ -534,7 +534,7 @@ struct rkisp1_cif_isp_hst_config {
 	__u8 histogram_predivider;
 	struct rkisp1_cif_isp_window meas_window;
 	__u8 hist_weight[RKISP1_CIF_ISP_HISTOGRAM_WEIGHT_GRIDS_SIZE];
-} __packed;
+};
 
 /**
  * struct rkisp1_cif_isp_aec_config - Configuration used by Auto Exposure Control
@@ -547,7 +547,7 @@ struct rkisp1_cif_isp_aec_config {
 	__u32 mode;
 	__u32 autostop;
 	struct rkisp1_cif_isp_window meas_window;
-} __packed;
+};
 
 /**
  * struct rkisp1_cif_isp_afc_config - Configuration used by Auto Focus Control
@@ -563,7 +563,7 @@ struct rkisp1_cif_isp_afc_config {
 	struct rkisp1_cif_isp_window afm_win[RKISP1_CIF_ISP_AFM_MAX_WINDOWS];
 	__u32 thres;
 	__u32 var_shift;
-} __packed;
+};
 
 /**
  * enum rkisp1_cif_isp_dpf_gain_usage - dpf gain usage
@@ -618,7 +618,7 @@ enum rkisp1_cif_isp_dpf_nll_scale_mode {
 struct rkisp1_cif_isp_dpf_nll {
 	__u16 coeff[RKISP1_CIF_ISP_DPF_MAX_NLF_COEFFS];
 	__u32 scale_mode;
-} __packed;
+};
 
 /**
  * struct rkisp1_cif_isp_dpf_rb_flt - Red blue filter config
@@ -634,7 +634,7 @@ struct rkisp1_cif_isp_dpf_rb_flt {
 	__u8 spatial_coeff[RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS];
 	__u8 r_enable;
 	__u8 b_enable;
-} __packed;
+};
 
 /**
  * struct rkisp1_cif_isp_dpf_g_flt - Green filter Configuration
@@ -647,7 +647,7 @@ struct rkisp1_cif_isp_dpf_g_flt {
 	__u8 spatial_coeff[RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS];
 	__u8 gr_enable;
 	__u8 gb_enable;
-} __packed;
+};
 
 /**
  * struct rkisp1_cif_isp_dpf_gain - Noise function Configuration
@@ -666,7 +666,7 @@ struct rkisp1_cif_isp_dpf_gain {
 	__u16 nf_b_gain;
 	__u16 nf_gr_gain;
 	__u16 nf_gb_gain;
-} __packed;
+};
 
 /**
  * struct rkisp1_cif_isp_dpf_config - Configuration used by De-noising pre-filter
@@ -681,7 +681,7 @@ struct rkisp1_cif_isp_dpf_config {
 	struct rkisp1_cif_isp_dpf_g_flt g_flt;
 	struct rkisp1_cif_isp_dpf_rb_flt rb_flt;
 	struct rkisp1_cif_isp_dpf_nll nll;
-} __packed;
+};
 
 /**
  * struct rkisp1_cif_isp_dpf_strength_config - strength of the filter
@@ -694,7 +694,7 @@ struct rkisp1_cif_isp_dpf_strength_config {
 	__u8 r;
 	__u8 g;
 	__u8 b;
-} __packed;
+};
 
 /**
  * struct rkisp1_cif_isp_isp_other_cfg - Parameters for some blocks in rockchip isp1
@@ -728,7 +728,7 @@ struct rkisp1_cif_isp_isp_other_cfg {
 	struct rkisp1_cif_isp_dpf_strength_config dpf_strength_config;
 	struct rkisp1_cif_isp_cproc_config cproc_config;
 	struct rkisp1_cif_isp_ie_config ie_config;
-} __packed;
+};
 
 /**
  * struct rkisp1_cif_isp_isp_meas_cfg - Rockchip ISP1 Measure Parameters
@@ -743,7 +743,7 @@ struct rkisp1_cif_isp_isp_meas_cfg {
 	struct rkisp1_cif_isp_hst_config hst_config;
 	struct rkisp1_cif_isp_aec_config aec_config;
 	struct rkisp1_cif_isp_afc_config afc_config;
-} __packed;
+};
 
 /**
  * struct rkisp1_params_cfg - Rockchip ISP1 Input Parameters Meta Data
@@ -762,7 +762,7 @@ struct rkisp1_params_cfg {
 
 	struct rkisp1_cif_isp_isp_meas_cfg meas;
 	struct rkisp1_cif_isp_isp_other_cfg others;
-} __packed;
+};
 
 /*---------- PART2: Measurement Statistics ------------*/
 
@@ -783,7 +783,7 @@ struct rkisp1_cif_isp_awb_meas {
 	__u8 mean_y_or_g;
 	__u8 mean_cb_or_b;
 	__u8 mean_cr_or_r;
-} __packed;
+};
 
 /**
  * struct rkisp1_cif_isp_awb_stat - statistics automatic white balance data
@@ -792,7 +792,7 @@ struct rkisp1_cif_isp_awb_meas {
  */
 struct rkisp1_cif_isp_awb_stat {
 	struct rkisp1_cif_isp_awb_meas awb_mean[RKISP1_CIF_ISP_AWB_MAX_GRID];
-} __packed;
+};
 
 /**
  * struct rkisp1_cif_isp_bls_meas_val - BLS measured values
@@ -807,7 +807,7 @@ struct rkisp1_cif_isp_bls_meas_val {
 	__u16 meas_gr;
 	__u16 meas_gb;
 	__u16 meas_b;
-} __packed;
+};
 
 /**
  * struct rkisp1_cif_isp_ae_stat - statistics auto exposure data
@@ -820,7 +820,7 @@ struct rkisp1_cif_isp_bls_meas_val {
 struct rkisp1_cif_isp_ae_stat {
 	__u8 exp_mean[RKISP1_CIF_ISP_AE_MEAN_MAX];
 	struct rkisp1_cif_isp_bls_meas_val bls_val;
-} __packed;
+};
 
 /**
  * struct rkisp1_cif_isp_af_meas_val - AF measured values
@@ -831,7 +831,7 @@ struct rkisp1_cif_isp_ae_stat {
 struct rkisp1_cif_isp_af_meas_val {
 	__u32 sum;
 	__u32 lum;
-} __packed;
+};
 
 /**
  * struct rkisp1_cif_isp_af_stat - statistics auto focus data
@@ -843,7 +843,7 @@ struct rkisp1_cif_isp_af_meas_val {
  */
 struct rkisp1_cif_isp_af_stat {
 	struct rkisp1_cif_isp_af_meas_val window[RKISP1_CIF_ISP_AFM_MAX_WINDOWS];
-} __packed;
+};
 
 /**
  * struct rkisp1_cif_isp_hist_stat - statistics histogram data
@@ -855,7 +855,7 @@ struct rkisp1_cif_isp_af_stat {
  */
 struct rkisp1_cif_isp_hist_stat {
 	__u16 hist_bins[RKISP1_CIF_ISP_HIST_BIN_N_MAX];
-} __packed;
+};
 
 /**
  * struct rkisp1_cif_isp_stat - Rockchip ISP1 Statistics Data
@@ -870,7 +870,7 @@ struct rkisp1_cif_isp_stat {
 	struct rkisp1_cif_isp_ae_stat ae;
 	struct rkisp1_cif_isp_af_stat af;
 	struct rkisp1_cif_isp_hist_stat hist;
-} __packed;
+};
 
 /**
  * struct rkisp1_stat_buffer - Rockchip ISP1 Statistics Meta Data
@@ -883,6 +883,6 @@ struct rkisp1_stat_buffer {
 	__u32 meas_type;
 	__u32 frame_id;
 	struct rkisp1_cif_isp_stat params;
-} __packed;
+};
 
 #endif /* _UAPI_RKISP1_CONFIG_H */
