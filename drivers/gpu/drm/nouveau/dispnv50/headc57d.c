@@ -191,7 +191,7 @@ headc57d_mode(struct nv50_head *head, struct nv50_head_atom *asyh)
 		evo_data(push, m->clock * 1000);
 		/*XXX: HEAD_USAGE_BOUNDS, doesn't belong here. */
 		evo_mthd(push, 0x2030 + (head->base.index * 0x400), 1);
-		evo_data(push, 0x00001014);
+		evo_data(push, 0x00001114);
 		evo_kick(push, core);
 	}
 }
