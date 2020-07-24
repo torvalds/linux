@@ -632,14 +632,6 @@ static int set_gpmc_timing_reg(int cs, int reg, int st_bit, int end_bit, int max
 	return 0;
 }
 
-#define GPMC_SET_ONE_CD_MAX(reg, st, end, max, field, cd)  \
-	if (set_gpmc_timing_reg(cs, (reg), (st), (end), (max), \
-	    t->field, (cd), #field) < 0)                       \
-		return -ENXIO
-
-#define GPMC_SET_ONE(reg, st, end, field) \
-	GPMC_SET_ONE_CD_MAX(reg, st, end, 0, field, GPMC_CD_FCLK)
-
 /**
  * gpmc_calc_waitmonitoring_divider - calculate proper GPMCFCLKDIVIDER based on WAITMONITORINGTIME
  * WAITMONITORINGTIME will be _at least_ as long as desired, i.e.
@@ -698,7 +690,7 @@ int gpmc_calc_divider(unsigned int sync_clk)
 int gpmc_cs_set_timings(int cs, const struct gpmc_timings *t,
 			const struct gpmc_settings *s)
 {
-	int div;
+	int div, ret;
 	u32 l;
 
 	div = gpmc_calc_divider(t->sync_clk);
@@ -731,53 +723,110 @@ int gpmc_cs_set_timings(int cs, const struct gpmc_timings *t,
 		}
 	}
 
-	GPMC_SET_ONE(GPMC_CS_CONFIG2,  0,  3, cs_on);
-	GPMC_SET_ONE(GPMC_CS_CONFIG2,  8, 12, cs_rd_off);
-	GPMC_SET_ONE(GPMC_CS_CONFIG2, 16, 20, cs_wr_off);
+	ret = 0;
+	ret |= set_gpmc_timing_reg(cs, GPMC_CS_CONFIG2, 0, 3, 0, t->cs_on,
+				   GPMC_CD_FCLK, "cs_on");
+	ret |= set_gpmc_timing_reg(cs, GPMC_CS_CONFIG2, 8, 12, 0, t->cs_rd_off,
+				   GPMC_CD_FCLK, "cs_rd_off");
+	ret |= set_gpmc_timing_reg(cs, GPMC_CS_CONFIG2, 16, 20, 0, t->cs_wr_off,
+				   GPMC_CD_FCLK, "cs_wr_off");
+	if (ret)
+		return -ENXIO;
 
-	GPMC_SET_ONE(GPMC_CS_CONFIG3,  0,  3, adv_on);
-	GPMC_SET_ONE(GPMC_CS_CONFIG3,  8, 12, adv_rd_off);
-	GPMC_SET_ONE(GPMC_CS_CONFIG3, 16, 20, adv_wr_off);
+	ret |= set_gpmc_timing_reg(cs, GPMC_CS_CONFIG3, 0, 3, 0, t->adv_on,
+				   GPMC_CD_FCLK, "adv_on");
+	ret |= set_gpmc_timing_reg(cs, GPMC_CS_CONFIG3, 8, 12, 0, t->adv_rd_off,
+				   GPMC_CD_FCLK, "adv_rd_off");
+	ret |= set_gpmc_timing_reg(cs, GPMC_CS_CONFIG3, 16, 20, 0, t->adv_wr_off,
+				   GPMC_CD_FCLK, "adv_wr_off");
+	if (ret)
+		return -ENXIO;
+
 	if (gpmc_capability & GPMC_HAS_MUX_AAD) {
-		GPMC_SET_ONE(GPMC_CS_CONFIG3,  4,  6, adv_aad_mux_on);
-		GPMC_SET_ONE(GPMC_CS_CONFIG3, 24, 26, adv_aad_mux_rd_off);
-		GPMC_SET_ONE(GPMC_CS_CONFIG3, 28, 30, adv_aad_mux_wr_off);
+		ret |= set_gpmc_timing_reg(cs, GPMC_CS_CONFIG3, 4, 6, 0,
+					   t->adv_aad_mux_on, GPMC_CD_FCLK,
+					   "adv_aad_mux_on");
+		ret |= set_gpmc_timing_reg(cs, GPMC_CS_CONFIG3, 24, 26, 0,
+					   t->adv_aad_mux_rd_off, GPMC_CD_FCLK,
+					   "adv_aad_mux_rd_off");
+		ret |= set_gpmc_timing_reg(cs, GPMC_CS_CONFIG3, 28, 30, 0,
+					   t->adv_aad_mux_wr_off, GPMC_CD_FCLK,
+					   "adv_aad_mux_wr_off");
+		if (ret)
+			return -ENXIO;
 	}
 
-	GPMC_SET_ONE(GPMC_CS_CONFIG4,  0,  3, oe_on);
-	GPMC_SET_ONE(GPMC_CS_CONFIG4,  8, 12, oe_off);
+	ret |= set_gpmc_timing_reg(cs, GPMC_CS_CONFIG4, 0, 3, 0, t->oe_on,
+				   GPMC_CD_FCLK, "oe_on");
+	ret |= set_gpmc_timing_reg(cs, GPMC_CS_CONFIG4, 8, 12, 0, t->oe_off,
+				   GPMC_CD_FCLK, "oe_off");
 	if (gpmc_capability & GPMC_HAS_MUX_AAD) {
-		GPMC_SET_ONE(GPMC_CS_CONFIG4,  4,  6, oe_aad_mux_on);
-		GPMC_SET_ONE(GPMC_CS_CONFIG4, 13, 15, oe_aad_mux_off);
+		ret |= set_gpmc_timing_reg(cs, GPMC_CS_CONFIG4, 4, 6, 0,
+					   t->oe_aad_mux_on, GPMC_CD_FCLK,
+					   "oe_aad_mux_on");
+		ret |= set_gpmc_timing_reg(cs, GPMC_CS_CONFIG4, 13, 15, 0,
+					   t->oe_aad_mux_off, GPMC_CD_FCLK,
+					   "oe_aad_mux_off");
 	}
-	GPMC_SET_ONE(GPMC_CS_CONFIG4, 16, 19, we_on);
-	GPMC_SET_ONE(GPMC_CS_CONFIG4, 24, 28, we_off);
+	ret |= set_gpmc_timing_reg(cs, GPMC_CS_CONFIG4, 16, 19, 0, t->we_on,
+				   GPMC_CD_FCLK, "we_on");
+	ret |= set_gpmc_timing_reg(cs, GPMC_CS_CONFIG4, 24, 28, 0, t->we_off,
+				   GPMC_CD_FCLK, "we_off");
+	if (ret)
+		return -ENXIO;
 
-	GPMC_SET_ONE(GPMC_CS_CONFIG5,  0,  4, rd_cycle);
-	GPMC_SET_ONE(GPMC_CS_CONFIG5,  8, 12, wr_cycle);
-	GPMC_SET_ONE(GPMC_CS_CONFIG5, 16, 20, access);
+	ret |= set_gpmc_timing_reg(cs, GPMC_CS_CONFIG5, 0, 4, 0, t->rd_cycle,
+				   GPMC_CD_FCLK, "rd_cycle");
+	ret |= set_gpmc_timing_reg(cs, GPMC_CS_CONFIG5, 8, 12, 0, t->wr_cycle,
+				   GPMC_CD_FCLK, "wr_cycle");
+	ret |= set_gpmc_timing_reg(cs, GPMC_CS_CONFIG5, 16, 20, 0, t->access,
+				   GPMC_CD_FCLK, "access");
+	ret |= set_gpmc_timing_reg(cs, GPMC_CS_CONFIG5, 24, 27, 0,
+				   t->page_burst_access, GPMC_CD_FCLK,
+				   "page_burst_access");
+	if (ret)
+		return -ENXIO;
 
-	GPMC_SET_ONE(GPMC_CS_CONFIG5, 24, 27, page_burst_access);
+	ret |= set_gpmc_timing_reg(cs, GPMC_CS_CONFIG6, 0, 3, 0,
+				   t->bus_turnaround, GPMC_CD_FCLK,
+				   "bus_turnaround");
+	ret |= set_gpmc_timing_reg(cs, GPMC_CS_CONFIG6, 8, 11, 0,
+				   t->cycle2cycle_delay, GPMC_CD_FCLK,
+				   "cycle2cycle_delay");
+	if (ret)
+		return -ENXIO;
 
-	GPMC_SET_ONE(GPMC_CS_CONFIG6, 0, 3, bus_turnaround);
-	GPMC_SET_ONE(GPMC_CS_CONFIG6, 8, 11, cycle2cycle_delay);
-
-	if (gpmc_capability & GPMC_HAS_WR_DATA_MUX_BUS)
-		GPMC_SET_ONE(GPMC_CS_CONFIG6, 16, 19, wr_data_mux_bus);
-	if (gpmc_capability & GPMC_HAS_WR_ACCESS)
-		GPMC_SET_ONE(GPMC_CS_CONFIG6, 24, 28, wr_access);
+	if (gpmc_capability & GPMC_HAS_WR_DATA_MUX_BUS) {
+		ret |= set_gpmc_timing_reg(cs, GPMC_CS_CONFIG6, 16, 19, 0,
+					   t->wr_data_mux_bus, GPMC_CD_FCLK,
+					   "wr_data_mux_bus");
+		if (ret)
+			return -ENXIO;
+	}
+	if (gpmc_capability & GPMC_HAS_WR_ACCESS) {
+		ret |= set_gpmc_timing_reg(cs, GPMC_CS_CONFIG6, 24, 28, 0,
+					   t->wr_access, GPMC_CD_FCLK,
+					   "wr_access");
+		if (ret)
+			return -ENXIO;
+	}
 
 	l = gpmc_cs_read_reg(cs, GPMC_CS_CONFIG1);
 	l &= ~0x03;
 	l |= (div - 1);
 	gpmc_cs_write_reg(cs, GPMC_CS_CONFIG1, l);
 
-	GPMC_SET_ONE_CD_MAX(GPMC_CS_CONFIG1, 18, 19,
-			    GPMC_CONFIG1_WAITMONITORINGTIME_MAX,
-			    wait_monitoring, GPMC_CD_CLK);
-	GPMC_SET_ONE_CD_MAX(GPMC_CS_CONFIG1, 25, 26,
-			    GPMC_CONFIG1_CLKACTIVATIONTIME_MAX,
-			    clk_activation, GPMC_CD_FCLK);
+	ret = 0;
+	ret |= set_gpmc_timing_reg(cs, GPMC_CS_CONFIG1, 18, 19,
+				   GPMC_CONFIG1_WAITMONITORINGTIME_MAX,
+				   t->wait_monitoring, GPMC_CD_CLK,
+				   "wait_monitoring");
+	ret |= set_gpmc_timing_reg(cs, GPMC_CS_CONFIG1, 25, 26,
+				   GPMC_CONFIG1_CLKACTIVATIONTIME_MAX,
+				   t->clk_activation, GPMC_CD_FCLK,
+				   "clk_activation");
+	if (ret)
+		return -ENXIO;
 
 #ifdef CONFIG_OMAP_GPMC_DEBUG
 	pr_info("GPMC CS%d CLK period is %lu ns (div %d)\n",
