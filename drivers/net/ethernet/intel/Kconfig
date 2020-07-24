@@ -295,6 +295,7 @@ config ICE
 	default n
 	depends on PCI_MSI
 	select NET_DEVLINK
+	select PLDMFW
 	help
 	  This driver supports Intel(R) Ethernet Connection E800 Series of
 	  devices.  For more information on how to identify your adapter, go
