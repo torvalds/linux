@@ -595,7 +595,7 @@ void kbase_mem_pool_free_pages(struct kbase_mem_pool *pool, size_t nr_pages,
  */
 static inline size_t kbase_mem_pool_size(struct kbase_mem_pool *pool)
 {
-	return ACCESS_ONCE(pool->cur_size);
+	return READ_ONCE(pool->cur_size);
 }
 
 /**

@@ -322,6 +322,7 @@ static int kbase_devfreq_init_core_mask_table(struct kbase_device *kbdev)
 int kbase_devfreq_init(struct kbase_device *kbdev)
 {
 	struct devfreq_dev_profile *dp;
+	struct dev_pm_opp *opp;
 	unsigned long opp_rate;
 	int err;
 
