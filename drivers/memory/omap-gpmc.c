@@ -292,8 +292,8 @@ static unsigned long gpmc_get_fclk_period(void)
 
 /**
  * gpmc_get_clk_period - get period of selected clock domain in ps
- * @cs Chip Select Region.
- * @cd Clock Domain.
+ * @cs: Chip Select Region.
+ * @cd: Clock Domain.
  *
  * GPMC_CS_CONFIG1 GPMCFCLKDIVIDER for cs has to be setup
  * prior to calling this function with GPMC_CD_CLK.
@@ -412,7 +412,7 @@ static void gpmc_cs_bool_timings(int cs, const struct gpmc_bool_timings *p)
  * @reg:     GPMC_CS_CONFIGn register offset.
  * @st_bit:  Start Bit
  * @end_bit: End Bit. Must be >= @st_bit.
- * @ma:x     Maximum parameter value (before optional @shift).
+ * @max:     Maximum parameter value (before optional @shift).
  *           If 0, maximum is as high as @st_bit and @end_bit allow.
  * @name:    DTS node name, w/o "gpmc,"
  * @cd:      Clock Domain of timing parameter.
@@ -1088,7 +1088,7 @@ static struct gpmc_nand_ops nand_ops = {
 
 /**
  * gpmc_omap_get_nand_ops - Get the GPMC NAND interface
- * @regs: the GPMC NAND register map exclusive for NAND use.
+ * @reg: the GPMC NAND register map exclusive for NAND use.
  * @cs: GPMC chip select number on which the NAND sits. The
  *      register map returned will be specific to this chip select.
  *
