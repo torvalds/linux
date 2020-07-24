@@ -55,6 +55,7 @@ Todolist:
    :maxdepth: 1
 
    clearing-warn-once
+   cpu-load
 
 Todolist:
 
@@ -71,7 +72,6 @@ Todolist:
    cgroup-v1/index
    cgroup-v2
    cifs/index
-   cpu-load
    cputopology
    dell_rbu
    device-mapper/index
