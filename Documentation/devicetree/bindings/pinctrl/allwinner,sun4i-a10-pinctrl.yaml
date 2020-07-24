@@ -48,6 +48,8 @@ properties:
       - allwinner,sun9i-a80-r-pinctrl
       - allwinner,sun50i-a64-pinctrl
       - allwinner,sun50i-a64-r-pinctrl
+      - allwinner,sun50i-a100-pinctrl
+      - allwinner,sun50i-a100-r-pinctrl
       - allwinner,sun50i-h5-pinctrl
       - allwinner,sun50i-h6-pinctrl
       - allwinner,sun50i-h6-r-pinctrl
@@ -147,6 +149,18 @@ allOf:
       properties:
         compatible:
           enum:
+            - allwinner,sun50i-a100-pinctrl
+
+    then:
+      properties:
+        interrupts:
+          minItems: 7
+          maxItems: 7
+
+  - if:
+      properties:
+        compatible:
+          enum:
             - allwinner,sun9i-a80-pinctrl
 
     then:
@@ -216,6 +230,7 @@ allOf:
             - allwinner,sun8i-h3-r-pinctrl
             - allwinner,sun8i-r40-pinctrl
             - allwinner,sun50i-a64-r-pinctrl
+            - allwinner,sun50i-a100-r-pinctrl
             - nextthing,gr8-pinctrl
 
     then:
