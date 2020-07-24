@@ -3382,7 +3382,7 @@ int emulate_step(struct pt_regs *regs, struct ppc_inst instr)
 		regs->msr = MSR_KERNEL;
 		return 1;
 
-#ifdef CONFIG_PPC64_BOOK3S
+#ifdef CONFIG_PPC_BOOK3S_64
 	case SYSCALL_VECTORED_0:	/* scv 0 */
 		regs->gpr[9] = regs->gpr[13];
 		regs->gpr[10] = MSR_KERNEL;
