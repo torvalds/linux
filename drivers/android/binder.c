@@ -2759,11 +2759,10 @@ static bool binder_proc_transaction(struct binder_transaction *t,
 	binder_node_lock(node);
 	if (oneway) {
 		BUG_ON(thread);
-		if (node->has_async_transaction) {
+		if (node->has_async_transaction)
 			pending_async = true;
-		} else {
+		else
 			node->has_async_transaction = true;
-		}
 	}
 
 	binder_inner_proc_lock(proc);
