@@ -252,7 +252,7 @@ static const struct clk_divider_data rk618_clk_dividers[] = {
 static const struct clk_gate_data rk618_clk_gates[] = {
 	GATE(MIPI_CLK, "mipi_clk", "dither_clk",
 	     RK618_CRU_CLKSEL1, 10,
-	     0),
+	     CLK_IGNORE_UNUSED),
 	GATE(LVDS_CLK, "lvds_clk", "dither_clk",
 	     RK618_CRU_CLKSEL1, 9,
 	     CLK_IGNORE_UNUSED),
