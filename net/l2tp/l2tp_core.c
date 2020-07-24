@@ -1564,10 +1564,12 @@ void l2tp_session_free(struct l2tp_session *session)
 	struct l2tp_tunnel *tunnel = session->tunnel;
 
 	if (tunnel) {
-		BUG_ON(tunnel->magic != L2TP_TUNNEL_MAGIC);
+		if (WARN_ON(tunnel->magic != L2TP_TUNNEL_MAGIC))
+			goto out;
 		l2tp_tunnel_dec_refcount(tunnel);
 	}
 
+out:
 	kfree(session);
 }
 EXPORT_SYMBOL_GPL(l2tp_session_free);
