@@ -777,7 +777,6 @@ static int l2tp_session_queue_purge(struct l2tp_session *session)
 {
 	struct sk_buff *skb = NULL;
 
-	BUG_ON(!session);
 	BUG_ON(session->magic != L2TP_SESSION_MAGIC);
 	while ((skb = skb_dequeue(&session->reorder_q))) {
 		atomic_long_inc(&session->stats.rx_errors);
