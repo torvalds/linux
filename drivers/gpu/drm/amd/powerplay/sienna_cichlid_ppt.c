@@ -70,6 +70,8 @@
 	FEATURE_MASK(FEATURE_DPM_FCLK_BIT)	 | \
 	FEATURE_MASK(FEATURE_DPM_DCEFCLK_BIT))
 
+#define SMU_11_0_7_GFX_BUSY_THRESHOLD 15
+
 static struct cmn2asic_msg_mapping sienna_cichlid_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(TestMessage,			PPSMC_MSG_TestMessage,                 1),
 	MSG_MAP(GetSmuVersion,			PPSMC_MSG_GetSmuVersion,               1),
@@ -443,13 +445,16 @@ static int sienna_cichlid_get_smu_metrics_data(struct smu_context *smu,
 		*value = metrics->CurrClock[PPCLK_DCEFCLK];
 		break;
 	case METRICS_AVERAGE_GFXCLK:
-		*value = metrics->AverageGfxclkFrequency;
+		if (metrics->AverageGfxActivity <= SMU_11_0_7_GFX_BUSY_THRESHOLD)
+			*value = metrics->AverageGfxclkFrequencyPostDs;
+		else
+			*value = metrics->AverageGfxclkFrequencyPreDs;
 		break;
 	case METRICS_AVERAGE_FCLK:
-		*value = metrics->AverageFclkFrequency;
+		*value = metrics->AverageFclkFrequencyPostDs;
 		break;
 	case METRICS_AVERAGE_UCLK:
-		*value = metrics->AverageUclkFrequency;
+		*value = metrics->AverageUclkFrequencyPostDs;
 		break;
 	case METRICS_AVERAGE_GFXACTIVITY:
 		*value = metrics->AverageGfxActivity;
