@@ -48,7 +48,7 @@
 #include <trace/events/intel_iommu.h>
 
 #include "../irq_remapping.h"
-#include "intel-pasid.h"
+#include "pasid.h"
 
 #define ROOT_SIZE		VTD_PAGE_SIZE
 #define CONTEXT_SIZE		VTD_PAGE_SIZE

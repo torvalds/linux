@@ -15,7 +15,7 @@
 
 #include <asm/irq_remapping.h>
 
-#include "intel-pasid.h"
+#include "pasid.h"
 
 struct tbl_walk {
 	u16 bus;

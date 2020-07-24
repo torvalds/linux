@@ -20,7 +20,7 @@
 #include <linux/ioasid.h>
 #include <asm/page.h>
 
-#include "intel-pasid.h"
+#include "pasid.h"
 
 static irqreturn_t prq_event_thread(int irq, void *d);
 static void intel_svm_drain_prq(struct device *dev, int pasid);

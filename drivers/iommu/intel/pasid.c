@@ -19,7 +19,7 @@
 #include <linux/pci-ats.h>
 #include <linux/spinlock.h>
 
-#include "intel-pasid.h"
+#include "pasid.h"
 
 /*
  * Intel IOMMU system wide PASID name space:
