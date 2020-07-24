@@ -1655,7 +1655,6 @@ static int ovs_dp_cmd_new(struct sk_buff *skb, struct genl_info *info)
 		goto err_destroy_reply;
 
 	ovs_dp_set_net(dp, sock_net(skb->sk));
-	INIT_DELAYED_WORK(&dp->masks_rebalance, ovs_dp_masks_rebalance);
 
 	/* Allocate table. */
 	err = ovs_flow_tbl_init(&dp->table);
@@ -1715,9 +1714,6 @@ static int ovs_dp_cmd_new(struct sk_buff *skb, struct genl_info *info)
 	ovs_net = net_generic(ovs_dp_get_net(dp), ovs_net_id);
 	list_add_tail_rcu(&dp->list_node, &ovs_net->dps);
 
-	schedule_delayed_work(&dp->masks_rebalance,
-			      msecs_to_jiffies(DP_MASKS_REBALANCE_INTERVAL));
-
 	ovs_unlock();
 
 	ovs_notify(&dp_datapath_genl_family, reply, info);
@@ -1762,9 +1758,6 @@ static void __dp_destroy(struct datapath *dp)
 
 	/* RCU destroy the flow table */
 	call_rcu(&dp->rcu, destroy_dp_rcu);
-
-	/* Cancel remaining work. */
-	cancel_delayed_work_sync(&dp->masks_rebalance);
 }
 
 static int ovs_dp_cmd_del(struct sk_buff *skb, struct genl_info *info)
@@ -2349,14 +2342,18 @@ out:
 
 static void ovs_dp_masks_rebalance(struct work_struct *work)
 {
-	struct datapath *dp = container_of(work, struct datapath,
-					   masks_rebalance.work);
+	struct ovs_net *ovs_net = container_of(work, struct ovs_net,
+					       masks_rebalance.work);
+	struct datapath *dp;
 
 	ovs_lock();
-	ovs_flow_masks_rebalance(&dp->table);
+
+	list_for_each_entry(dp, &ovs_net->dps, list_node)
+		ovs_flow_masks_rebalance(&dp->table);
+
 	ovs_unlock();
 
-	schedule_delayed_work(&dp->masks_rebalance,
+	schedule_delayed_work(&ovs_net->masks_rebalance,
 			      msecs_to_jiffies(DP_MASKS_REBALANCE_INTERVAL));
 }
 
@@ -2454,6 +2451,9 @@ static int __net_init ovs_init_net(struct net *net)
 
 	INIT_LIST_HEAD(&ovs_net->dps);
 	INIT_WORK(&ovs_net->dp_notify_work, ovs_dp_notify_wq);
+	INIT_DELAYED_WORK(&ovs_net->masks_rebalance, ovs_dp_masks_rebalance);
+	schedule_delayed_work(&ovs_net->masks_rebalance,
+			      msecs_to_jiffies(DP_MASKS_REBALANCE_INTERVAL));
 	return ovs_ct_init(net);
 }
 
@@ -2508,6 +2508,7 @@ static void __net_exit ovs_exit_net(struct net *dnet)
 
 	ovs_unlock();
 
+	cancel_delayed_work_sync(&ovs_net->masks_rebalance);
 	cancel_work_sync(&ovs_net->dp_notify_work);
 }
 
