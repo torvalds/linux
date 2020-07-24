@@ -61,6 +61,7 @@
 #define BIT_FSPI_EN		BIT(19)
 #define BIT_EN_SIC		BIT(12)
 #define BIT_BT_AOD_GPIO3	BIT(9)
+#define BIT_PO_BT_PTA_PINS	BIT(9)
 #define BIT_BT_PTA_EN		BIT(5)
 #define BIT_WLRFE_4_5_EN	BIT(2)
 
