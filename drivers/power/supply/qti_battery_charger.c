@@ -224,6 +224,7 @@ struct battery_chg_dev {
 	int				num_thermal_levels;
 	atomic_t			state;
 	struct work_struct		subsys_up_work;
+	struct work_struct		usb_type_work;
 	int				fake_soc;
 	bool				block_tx;
 	bool				ship_mode_en;
@@ -620,6 +621,54 @@ static void handle_message(struct battery_chg_dev *bcdev, void *data,
 		complete(&bcdev->ack);
 }
 
+static struct power_supply_desc usb_psy_desc;
+
+static void battery_chg_update_usb_type_work(struct work_struct *work)
+{
+	struct battery_chg_dev *bcdev = container_of(work,
+					struct battery_chg_dev, usb_type_work);
+	struct psy_state *pst = &bcdev->psy_list[PSY_TYPE_USB];
+	int rc;
+
+	rc = read_property_id(bcdev, pst, USB_ADAP_TYPE);
+	if (rc < 0) {
+		pr_err("Failed to read USB_ADAP_TYPE rc=%d\n", rc);
+		return;
+	}
+
+	pr_debug("usb_adap_type: %u\n", pst->prop[USB_ADAP_TYPE]);
+
+	switch (pst->prop[USB_ADAP_TYPE]) {
+	case POWER_SUPPLY_USB_TYPE_SDP:
+		usb_psy_desc.type = POWER_SUPPLY_TYPE_USB;
+		break;
+	case POWER_SUPPLY_USB_TYPE_DCP:
+	case POWER_SUPPLY_USB_TYPE_APPLE_BRICK_ID:
+	case QTI_POWER_SUPPLY_USB_TYPE_HVDCP:
+	case QTI_POWER_SUPPLY_USB_TYPE_HVDCP_3:
+	case QTI_POWER_SUPPLY_USB_TYPE_HVDCP_3P5:
+		usb_psy_desc.type = POWER_SUPPLY_TYPE_USB_DCP;
+		break;
+	case POWER_SUPPLY_USB_TYPE_CDP:
+		usb_psy_desc.type = POWER_SUPPLY_TYPE_USB_CDP;
+		break;
+	case POWER_SUPPLY_USB_TYPE_ACA:
+		usb_psy_desc.type = POWER_SUPPLY_TYPE_USB_ACA;
+		break;
+	case POWER_SUPPLY_USB_TYPE_C:
+		usb_psy_desc.type = POWER_SUPPLY_TYPE_USB_TYPE_C;
+		break;
+	case POWER_SUPPLY_USB_TYPE_PD:
+	case POWER_SUPPLY_USB_TYPE_PD_DRP:
+	case POWER_SUPPLY_USB_TYPE_PD_PPS:
+		usb_psy_desc.type = POWER_SUPPLY_TYPE_USB_PD;
+		break;
+	default:
+		usb_psy_desc.type = POWER_SUPPLY_TYPE_USB;
+		break;
+	}
+}
+
 static void handle_notification(struct battery_chg_dev *bcdev, void *data,
 				size_t len)
 {
@@ -640,6 +689,7 @@ static void handle_notification(struct battery_chg_dev *bcdev, void *data,
 		break;
 	case BC_USB_STATUS_GET:
 		pst = &bcdev->psy_list[PSY_TYPE_USB];
+		schedule_work(&bcdev->usb_type_work);
 		break;
 	case BC_WLS_STATUS_GET:
 		pst = &bcdev->psy_list[PSY_TYPE_WLS];
@@ -871,7 +921,7 @@ static enum power_supply_usb_type usb_psy_supported_types[] = {
 	POWER_SUPPLY_USB_TYPE_APPLE_BRICK_ID,
 };
 
-static const struct power_supply_desc usb_psy_desc = {
+static struct power_supply_desc usb_psy_desc = {
 	.name			= "usb",
 	.type			= POWER_SUPPLY_TYPE_USB,
 	.properties		= usb_props,
@@ -1753,6 +1803,7 @@ static int battery_chg_probe(struct platform_device *pdev)
 	init_completion(&bcdev->fw_buf_ack);
 	init_completion(&bcdev->fw_update_ack);
 	INIT_WORK(&bcdev->subsys_up_work, battery_chg_subsys_up_work);
+	INIT_WORK(&bcdev->usb_type_work, battery_chg_update_usb_type_work);
 	atomic_set(&bcdev->state, PMIC_GLINK_STATE_UP);
 	bcdev->dev = dev;
 
