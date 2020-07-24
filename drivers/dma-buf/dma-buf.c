@@ -523,6 +523,7 @@ void *dma_buf_get_release_callback_data(struct dma_buf *dmabuf,
 
 	return result;
 }
+EXPORT_SYMBOL_GPL(dma_buf_get_release_callback_data);
 
 int dma_buf_set_release_callback(struct dma_buf *dmabuf,
 				 void (*callback)(void *), void *data)
@@ -544,6 +545,7 @@ int dma_buf_set_release_callback(struct dma_buf *dmabuf,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(dma_buf_set_release_callback);
 #endif
 
 /**
