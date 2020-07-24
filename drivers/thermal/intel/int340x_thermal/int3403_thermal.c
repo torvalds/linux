@@ -74,7 +74,7 @@ static void int3403_notify(acpi_handle handle,
 						   THERMAL_TRIP_CHANGED);
 		break;
 	default:
-		dev_err(&priv->pdev->dev, "Unsupported event [0x%x]\n", event);
+		dev_dbg(&priv->pdev->dev, "Unsupported event [0x%x]\n", event);
 		break;
 	}
 }

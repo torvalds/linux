@@ -70,7 +70,7 @@ gfp_t dma_direct_optimal_gfp_mask(struct device *dev, u64 dma_mask,
 	return 0;
 }
 
-static bool dma_coherent_ok(struct device *dev, phys_addr_t phys, size_t size)
+bool dma_coherent_ok(struct device *dev, phys_addr_t phys, size_t size)
 {
 	return phys_to_dma_direct(dev, phys) + size - 1 <=
 			min_not_zero(dev->coherent_dma_mask, dev->bus_dma_limit);
@@ -538,4 +538,10 @@ size_t dma_direct_max_mapping_size(struct device *dev)
 	    (dma_addressing_limited(dev) || swiotlb_force == SWIOTLB_FORCE))
 		return swiotlb_max_mapping_size(dev);
 	return SIZE_MAX;
+}
+
+bool dma_direct_need_sync(struct device *dev, dma_addr_t dma_addr)
+{
+	return !dev_is_dma_coherent(dev) ||
+		is_swiotlb_buffer(dma_to_phys(dev, dma_addr));
 }

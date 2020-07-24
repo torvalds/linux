@@ -14,6 +14,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/if_ether.h>
+#include <linux/mutex.h>
 #include <linux/wait.h>
 #include <rdma/ib_verbs.h>
 #include <net/smc.h>
@@ -25,7 +26,7 @@
 
 struct smc_ib_devices {			/* list of smc ib devices definition */
 	struct list_head	list;
-	spinlock_t		lock;	/* protects list of smc ib devices */
+	struct mutex		mutex;	/* protects list of smc ib devices */
 };
 
 extern struct smc_ib_devices	smc_ib_devices; /* list of smc ib devices */

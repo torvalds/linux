@@ -186,6 +186,26 @@ static inline void smc_llc_flow_qentry_set(struct smc_llc_flow *flow,
 	flow->qentry = qentry;
 }
 
+static void smc_llc_flow_parallel(struct smc_link_group *lgr, u8 flow_type,
+				  struct smc_llc_qentry *qentry)
+{
+	u8 msg_type = qentry->msg.raw.hdr.common.type;
+
+	if ((msg_type == SMC_LLC_ADD_LINK || msg_type == SMC_LLC_DELETE_LINK) &&
+	    flow_type != msg_type && !lgr->delayed_event) {
+		lgr->delayed_event = qentry;
+		return;
+	}
+	/* drop parallel or already-in-progress llc requests */
+	if (flow_type != msg_type)
+		pr_warn_once("smc: SMC-R lg %*phN dropped parallel "
+			     "LLC msg: msg %d flow %d role %d\n",
+			     SMC_LGR_ID_SIZE, &lgr->id,
+			     qentry->msg.raw.hdr.common.type,
+			     flow_type, lgr->role);
+	kfree(qentry);
+}
+
 /* try to start a new llc flow, initiated by an incoming llc msg */
 static bool smc_llc_flow_start(struct smc_llc_flow *flow,
 			       struct smc_llc_qentry *qentry)
@@ -195,14 +215,7 @@ static bool smc_llc_flow_start(struct smc_llc_flow *flow,
 	spin_lock_bh(&lgr->llc_flow_lock);
 	if (flow->type) {
 		/* a flow is already active */
-		if ((qentry->msg.raw.hdr.common.type == SMC_LLC_ADD_LINK ||
-		     qentry->msg.raw.hdr.common.type == SMC_LLC_DELETE_LINK) &&
-		    !lgr->delayed_event) {
-			lgr->delayed_event = qentry;
-		} else {
-			/* forget this llc request */
-			kfree(qentry);
-		}
+		smc_llc_flow_parallel(lgr, flow->type, qentry);
 		spin_unlock_bh(&lgr->llc_flow_lock);
 		return false;
 	}
@@ -222,8 +235,8 @@ static bool smc_llc_flow_start(struct smc_llc_flow *flow,
 	}
 	if (qentry == lgr->delayed_event)
 		lgr->delayed_event = NULL;
-	spin_unlock_bh(&lgr->llc_flow_lock);
 	smc_llc_flow_qentry_set(flow, qentry);
+	spin_unlock_bh(&lgr->llc_flow_lock);
 	return true;
 }
 
@@ -251,11 +264,11 @@ again:
 		return 0;
 	}
 	spin_unlock_bh(&lgr->llc_flow_lock);
-	rc = wait_event_interruptible_timeout(lgr->llc_waiter,
-			(lgr->llc_flow_lcl.type == SMC_LLC_FLOW_NONE &&
-			 (lgr->llc_flow_rmt.type == SMC_LLC_FLOW_NONE ||
-			  lgr->llc_flow_rmt.type == allowed_remote)),
-			SMC_LLC_WAIT_TIME);
+	rc = wait_event_timeout(lgr->llc_flow_waiter, (list_empty(&lgr->list) ||
+				(lgr->llc_flow_lcl.type == SMC_LLC_FLOW_NONE &&
+				 (lgr->llc_flow_rmt.type == SMC_LLC_FLOW_NONE ||
+				  lgr->llc_flow_rmt.type == allowed_remote))),
+				SMC_LLC_WAIT_TIME * 10);
 	if (!rc)
 		return -ETIMEDOUT;
 	goto again;
@@ -272,7 +285,7 @@ void smc_llc_flow_stop(struct smc_link_group *lgr, struct smc_llc_flow *flow)
 	    flow == &lgr->llc_flow_lcl)
 		schedule_work(&lgr->llc_event_work);
 	else
-		wake_up_interruptible(&lgr->llc_waiter);
+		wake_up(&lgr->llc_flow_waiter);
 }
 
 /* lnk is optional and used for early wakeup when link goes down, useful in
@@ -283,26 +296,32 @@ struct smc_llc_qentry *smc_llc_wait(struct smc_link_group *lgr,
 				    int time_out, u8 exp_msg)
 {
 	struct smc_llc_flow *flow = &lgr->llc_flow_lcl;
+	u8 rcv_msg;
 
-	wait_event_interruptible_timeout(lgr->llc_waiter,
-					 (flow->qentry ||
-					  (lnk && !smc_link_usable(lnk)) ||
-					  list_empty(&lgr->list)),
-					 time_out);
+	wait_event_timeout(lgr->llc_msg_waiter,
+			   (flow->qentry ||
+			    (lnk && !smc_link_usable(lnk)) ||
+			    list_empty(&lgr->list)),
+			   time_out);
 	if (!flow->qentry ||
 	    (lnk && !smc_link_usable(lnk)) || list_empty(&lgr->list)) {
 		smc_llc_flow_qentry_del(flow);
 		goto out;
 	}
-	if (exp_msg && flow->qentry->msg.raw.hdr.common.type != exp_msg) {
+	rcv_msg = flow->qentry->msg.raw.hdr.common.type;
+	if (exp_msg && rcv_msg != exp_msg) {
 		if (exp_msg == SMC_LLC_ADD_LINK &&
-		    flow->qentry->msg.raw.hdr.common.type ==
-		    SMC_LLC_DELETE_LINK) {
+		    rcv_msg == SMC_LLC_DELETE_LINK) {
 			/* flow_start will delay the unexpected msg */
 			smc_llc_flow_start(&lgr->llc_flow_lcl,
 					   smc_llc_flow_qentry_clr(flow));
 			return NULL;
 		}
+		pr_warn_once("smc: SMC-R lg %*phN dropped unexpected LLC msg: "
+			     "msg %d exp %d flow %d role %d flags %x\n",
+			     SMC_LGR_ID_SIZE, &lgr->id, rcv_msg, exp_msg,
+			     flow->type, lgr->role,
+			     flow->qentry->msg.raw.hdr.flags);
 		smc_llc_flow_qentry_del(flow);
 	}
 out:
@@ -1222,8 +1241,8 @@ static void smc_llc_process_cli_delete_link(struct smc_link_group *lgr)
 	smc_llc_send_message(lnk, &qentry->msg); /* response */
 
 	if (smc_link_downing(&lnk_del->state)) {
-		smc_switch_conns(lgr, lnk_del, false);
-		smc_wr_tx_wait_no_pending_sends(lnk_del);
+		if (smc_switch_conns(lgr, lnk_del, false))
+			smc_wr_tx_wait_no_pending_sends(lnk_del);
 	}
 	smcr_link_clear(lnk_del, true);
 
@@ -1297,8 +1316,8 @@ static void smc_llc_process_srv_delete_link(struct smc_link_group *lgr)
 		goto out; /* asymmetric link already deleted */
 
 	if (smc_link_downing(&lnk_del->state)) {
-		smc_switch_conns(lgr, lnk_del, false);
-		smc_wr_tx_wait_no_pending_sends(lnk_del);
+		if (smc_switch_conns(lgr, lnk_del, false))
+			smc_wr_tx_wait_no_pending_sends(lnk_del);
 	}
 	if (!list_empty(&lgr->list)) {
 		/* qentry is either a request from peer (send it back to
@@ -1459,7 +1478,7 @@ static void smc_llc_event_handler(struct smc_llc_qentry *qentry)
 				/* a flow is waiting for this message */
 				smc_llc_flow_qentry_set(&lgr->llc_flow_lcl,
 							qentry);
-				wake_up_interruptible(&lgr->llc_waiter);
+				wake_up(&lgr->llc_msg_waiter);
 			} else if (smc_llc_flow_start(&lgr->llc_flow_lcl,
 						      qentry)) {
 				schedule_work(&lgr->llc_add_link_work);
@@ -1474,7 +1493,7 @@ static void smc_llc_event_handler(struct smc_llc_qentry *qentry)
 		if (lgr->llc_flow_lcl.type != SMC_LLC_FLOW_NONE) {
 			/* a flow is waiting for this message */
 			smc_llc_flow_qentry_set(&lgr->llc_flow_lcl, qentry);
-			wake_up_interruptible(&lgr->llc_waiter);
+			wake_up(&lgr->llc_msg_waiter);
 			return;
 		}
 		break;
@@ -1485,7 +1504,7 @@ static void smc_llc_event_handler(struct smc_llc_qentry *qentry)
 				/* DEL LINK REQ during ADD LINK SEQ */
 				smc_llc_flow_qentry_set(&lgr->llc_flow_lcl,
 							qentry);
-				wake_up_interruptible(&lgr->llc_waiter);
+				wake_up(&lgr->llc_msg_waiter);
 			} else if (smc_llc_flow_start(&lgr->llc_flow_lcl,
 						      qentry)) {
 				schedule_work(&lgr->llc_del_link_work);
@@ -1496,7 +1515,7 @@ static void smc_llc_event_handler(struct smc_llc_qentry *qentry)
 				/* DEL LINK REQ during ADD LINK SEQ */
 				smc_llc_flow_qentry_set(&lgr->llc_flow_lcl,
 							qentry);
-				wake_up_interruptible(&lgr->llc_waiter);
+				wake_up(&lgr->llc_msg_waiter);
 			} else if (smc_llc_flow_start(&lgr->llc_flow_lcl,
 						      qentry)) {
 				schedule_work(&lgr->llc_del_link_work);
@@ -1581,7 +1600,7 @@ static void smc_llc_rx_response(struct smc_link *link,
 	case SMC_LLC_DELETE_RKEY:
 		/* assign responses to the local flow, we requested them */
 		smc_llc_flow_qentry_set(&link->lgr->llc_flow_lcl, qentry);
-		wake_up_interruptible(&link->lgr->llc_waiter);
+		wake_up(&link->lgr->llc_msg_waiter);
 		return;
 	case SMC_LLC_CONFIRM_RKEY_CONT:
 		/* not used because max links is 3 */
@@ -1616,7 +1635,7 @@ static void smc_llc_enqueue(struct smc_link *link, union smc_llc_msg *llc)
 	spin_lock_irqsave(&lgr->llc_event_q_lock, flags);
 	list_add_tail(&qentry->list, &lgr->llc_event_q);
 	spin_unlock_irqrestore(&lgr->llc_event_q_lock, flags);
-	schedule_work(&link->lgr->llc_event_work);
+	schedule_work(&lgr->llc_event_work);
 }
 
 /* copy received msg and add it to the event queue */
@@ -1677,7 +1696,8 @@ void smc_llc_lgr_init(struct smc_link_group *lgr, struct smc_sock *smc)
 	INIT_LIST_HEAD(&lgr->llc_event_q);
 	spin_lock_init(&lgr->llc_event_q_lock);
 	spin_lock_init(&lgr->llc_flow_lock);
-	init_waitqueue_head(&lgr->llc_waiter);
+	init_waitqueue_head(&lgr->llc_flow_waiter);
+	init_waitqueue_head(&lgr->llc_msg_waiter);
 	mutex_init(&lgr->llc_conf_mutex);
 	lgr->llc_testlink_time = net->ipv4.sysctl_tcp_keepalive_time;
 }
@@ -1686,7 +1706,8 @@ void smc_llc_lgr_init(struct smc_link_group *lgr, struct smc_sock *smc)
 void smc_llc_lgr_clear(struct smc_link_group *lgr)
 {
 	smc_llc_event_flush(lgr);
-	wake_up_interruptible_all(&lgr->llc_waiter);
+	wake_up_all(&lgr->llc_flow_waiter);
+	wake_up_all(&lgr->llc_msg_waiter);
 	cancel_work_sync(&lgr->llc_event_work);
 	cancel_work_sync(&lgr->llc_add_link_work);
 	cancel_work_sync(&lgr->llc_del_link_work);

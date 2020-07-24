@@ -266,7 +266,7 @@ static irqreturn_t enetc_msix(int irq, void *data)
 	/* disable interrupts */
 	enetc_wr_reg(v->rbier, 0);
 
-	for_each_set_bit(i, &v->tx_rings_map, v->count_tx_rings)
+	for_each_set_bit(i, &v->tx_rings_map, ENETC_MAX_NUM_TXQS)
 		enetc_wr_reg(v->tbier_base + ENETC_BDR_OFF(i), 0);
 
 	napi_schedule_irqoff(&v->napi);
@@ -302,7 +302,7 @@ static int enetc_poll(struct napi_struct *napi, int budget)
 	/* enable interrupts */
 	enetc_wr_reg(v->rbier, ENETC_RBIER_RXTIE);
 
-	for_each_set_bit(i, &v->tx_rings_map, v->count_tx_rings)
+	for_each_set_bit(i, &v->tx_rings_map, ENETC_MAX_NUM_TXQS)
 		enetc_wr_reg(v->tbier_base + ENETC_BDR_OFF(i),
 			     ENETC_TBIER_TXTIE);
 

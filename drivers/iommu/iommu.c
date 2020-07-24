@@ -295,10 +295,10 @@ void iommu_release_device(struct device *dev)
 		return;
 
 	iommu_device_unlink(dev->iommu->iommu_dev, dev);
-	iommu_group_remove_device(dev);
 
 	ops->release_device(dev);
 
+	iommu_group_remove_device(dev);
 	module_put(ops->owner);
 	dev_iommu_free(dev);
 }

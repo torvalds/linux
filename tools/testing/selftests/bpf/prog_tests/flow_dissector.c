@@ -527,8 +527,8 @@ static void test_skb_less_prog_attach(struct bpf_flow *skel, int tap_fd)
 
 	run_tests_skb_less(tap_fd, skel->maps.last_dissection);
 
-	err = bpf_prog_detach(prog_fd, BPF_FLOW_DISSECTOR);
-	CHECK(err, "bpf_prog_detach", "err %d errno %d\n", err, errno);
+	err = bpf_prog_detach2(prog_fd, 0, BPF_FLOW_DISSECTOR);
+	CHECK(err, "bpf_prog_detach2", "err %d errno %d\n", err, errno);
 }
 
 static void test_skb_less_link_create(struct bpf_flow *skel, int tap_fd)

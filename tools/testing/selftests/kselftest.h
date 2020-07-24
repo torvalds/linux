@@ -36,7 +36,7 @@ struct ksft_count {
 static struct ksft_count ksft_cnt;
 static unsigned int ksft_plan;
 
-static inline int ksft_test_num(void)
+static inline unsigned int ksft_test_num(void)
 {
 	return ksft_cnt.ksft_pass + ksft_cnt.ksft_fail +
 		ksft_cnt.ksft_xfail + ksft_cnt.ksft_xpass +

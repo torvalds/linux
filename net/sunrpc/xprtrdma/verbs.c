@@ -281,17 +281,19 @@ rpcrdma_cm_event_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 		break;
 	case RDMA_CM_EVENT_CONNECT_ERROR:
 		ep->re_connect_status = -ENOTCONN;
-		goto disconnected;
+		goto wake_connect_worker;
 	case RDMA_CM_EVENT_UNREACHABLE:
 		ep->re_connect_status = -ENETUNREACH;
-		goto disconnected;
+		goto wake_connect_worker;
 	case RDMA_CM_EVENT_REJECTED:
 		dprintk("rpcrdma: connection to %pISpc rejected: %s\n",
 			sap, rdma_reject_msg(id, event->status));
 		ep->re_connect_status = -ECONNREFUSED;
 		if (event->status == IB_CM_REJ_STALE_CONN)
-			ep->re_connect_status = -EAGAIN;
-		goto disconnected;
+			ep->re_connect_status = -ENOTCONN;
+wake_connect_worker:
+		wake_up_all(&ep->re_connect_wait);
+		return 0;
 	case RDMA_CM_EVENT_DISCONNECTED:
 		ep->re_connect_status = -ECONNABORTED;
 disconnected:
@@ -400,14 +402,14 @@ static int rpcrdma_ep_create(struct rpcrdma_xprt *r_xprt)
 
 	ep = kzalloc(sizeof(*ep), GFP_NOFS);
 	if (!ep)
-		return -EAGAIN;
+		return -ENOTCONN;
 	ep->re_xprt = &r_xprt->rx_xprt;
 	kref_init(&ep->re_kref);
 
 	id = rpcrdma_create_id(r_xprt, ep);
 	if (IS_ERR(id)) {
-		rc = PTR_ERR(id);
-		goto out_free;
+		kfree(ep);
+		return PTR_ERR(id);
 	}
 	__module_get(THIS_MODULE);
 	device = id->device;
@@ -506,9 +508,6 @@ static int rpcrdma_ep_create(struct rpcrdma_xprt *r_xprt)
 out_destroy:
 	rpcrdma_ep_put(ep);
 	rdma_destroy_id(id);
-out_free:
-	kfree(ep);
-	r_xprt->rx_ep = NULL;
 	return rc;
 }
 
@@ -524,8 +523,6 @@ int rpcrdma_xprt_connect(struct rpcrdma_xprt *r_xprt)
 	struct rpcrdma_ep *ep;
 	int rc;
 
-retry:
-	rpcrdma_xprt_disconnect(r_xprt);
 	rc = rpcrdma_ep_create(r_xprt);
 	if (rc)
 		return rc;
@@ -540,10 +537,6 @@ retry:
 	rpcrdma_ep_get(ep);
 	rpcrdma_post_recvs(r_xprt, true);
 
-	rc = rpcrdma_sendctxs_create(r_xprt);
-	if (rc)
-		goto out;
-
 	rc = rdma_connect(ep->re_id, &ep->re_remote_cma);
 	if (rc)
 		goto out;
@@ -553,15 +546,19 @@ retry:
 	wait_event_interruptible(ep->re_connect_wait,
 				 ep->re_connect_status != 0);
 	if (ep->re_connect_status <= 0) {
-		if (ep->re_connect_status == -EAGAIN)
-			goto retry;
 		rc = ep->re_connect_status;
+		goto out;
+	}
+
+	rc = rpcrdma_sendctxs_create(r_xprt);
+	if (rc) {
+		rc = -ENOTCONN;
 		goto out;
 	}
 
 	rc = rpcrdma_reqs_setup(r_xprt);
 	if (rc) {
-		rpcrdma_xprt_disconnect(r_xprt);
+		rc = -ENOTCONN;
 		goto out;
 	}
 	rpcrdma_mrs_create(r_xprt);
