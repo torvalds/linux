@@ -4,6 +4,7 @@
  *
  * Copyright (C) 2012 Texas Instruments, Inc.
  * Copyright (C) 2019 Samsung Electronics Co., Ltd.
+ * Copyright (C) 2020 Krzysztof Kozlowski <krzk@kernel.org>
  */
 
 #include <linux/device.h>
@@ -54,7 +55,7 @@ const struct lpddr2_min_tck *of_get_min_tck(struct device_node *np,
 	return min;
 
 default_min_tck:
-	dev_warn(dev, "%s: using default min-tck values\n", __func__);
+	dev_warn(dev, "Using default min-tck values\n");
 	return &lpddr2_jedec_min_tck;
 }
 EXPORT_SYMBOL(of_get_min_tck);
@@ -114,7 +115,7 @@ const struct lpddr2_timings *of_get_ddr_timings(struct device_node *np_ddr,
 		tim_compat = "jedec,lpddr2-timings";
 		break;
 	default:
-		dev_warn(dev, "%s: un-supported memory type\n", __func__);
+		dev_warn(dev, "Unsupported memory type\n");
 	}
 
 	for_each_child_of_node(np_ddr, np_tim)
@@ -143,7 +144,7 @@ const struct lpddr2_timings *of_get_ddr_timings(struct device_node *np_ddr,
 	return timings;
 
 default_timings:
-	dev_warn(dev, "%s: using default timings\n", __func__);
+	dev_warn(dev, "Using default memory timings\n");
 	*nr_frequencies = ARRAY_SIZE(lpddr2_jedec_timings);
 	return lpddr2_jedec_timings;
 }
@@ -191,8 +192,7 @@ const struct lpddr3_min_tck *of_lpddr3_get_min_tck(struct device_node *np,
 	ret |= of_property_read_u32(np, "tMRD-min-tck", &min->tMRD);
 
 	if (ret) {
-		dev_warn(dev, "%s: errors while parsing min-tck values\n",
-			 __func__);
+		dev_warn(dev, "Errors while parsing min-tck values\n");
 		devm_kfree(dev, min);
 		goto default_min_tck;
 	}
@@ -200,7 +200,7 @@ const struct lpddr3_min_tck *of_lpddr3_get_min_tck(struct device_node *np,
 	return min;
 
 default_min_tck:
-	dev_warn(dev, "%s: using default min-tck values\n", __func__);
+	dev_warn(dev, "Using default min-tck values\n");
 	return NULL;
 }
 EXPORT_SYMBOL(of_lpddr3_get_min_tck);
@@ -262,7 +262,7 @@ const struct lpddr3_timings
 		tim_compat = "jedec,lpddr3-timings";
 		break;
 	default:
-		dev_warn(dev, "%s: un-supported memory type\n", __func__);
+		dev_warn(dev, "Unsupported memory type\n");
 	}
 
 	for_each_child_of_node(np_ddr, np_tim)
@@ -291,7 +291,7 @@ const struct lpddr3_timings
 	return timings;
 
 default_timings:
-	dev_warn(dev, "%s: failed to get timings\n", __func__);
+	dev_warn(dev, "Failed to get timings\n");
 	*nr_frequencies = 0;
 	return NULL;
 }
