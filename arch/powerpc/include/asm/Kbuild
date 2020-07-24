@@ -6,5 +6,6 @@ generated-y += syscall_table_spu.h
 generic-y += export.h
 generic-y += local64.h
 generic-y += mcs_spinlock.h
+generic-y += qrwlock.h
 generic-y += vtime.h
 generic-y += early_ioremap.h
