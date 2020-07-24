@@ -2145,20 +2145,21 @@ static int hpsa_slave_configure(struct scsi_device *sdev)
 
 	if (sd) {
 		sd->was_removed = 0;
+		queue_depth = sd->queue_depth != 0 ?
+				sd->queue_depth : sdev->host->can_queue;
 		if (sd->external) {
 			queue_depth = EXTERNAL_QD;
 			sdev->eh_timeout = HPSA_EH_PTRAID_TIMEOUT;
 			blk_queue_rq_timeout(sdev->request_queue,
 						HPSA_EH_PTRAID_TIMEOUT);
-		} else if (is_hba_lunid(sd->scsi3addr)) {
+		}
+		if (is_hba_lunid(sd->scsi3addr)) {
 			sdev->eh_timeout = CTLR_TIMEOUT;
 			blk_queue_rq_timeout(sdev->request_queue, CTLR_TIMEOUT);
-		} else {
-			queue_depth = sd->queue_depth != 0 ?
-					sd->queue_depth : sdev->host->can_queue;
 		}
-	} else
+	} else {
 		queue_depth = sdev->host->can_queue;
+	}
 
 	scsi_change_queue_depth(sdev, queue_depth);
 
