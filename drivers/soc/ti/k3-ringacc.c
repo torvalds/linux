@@ -649,7 +649,7 @@ int k3_ringacc_ring_cfg(struct k3_ring *ring, struct k3_ring_cfg *cfg)
 		ring->ops = NULL;
 		ret = -EINVAL;
 		goto err_free_proxy;
-	};
+	}
 
 	ring->ring_mem_virt = dma_alloc_coherent(ringacc->dev,
 					ring->size * (4 << ring->elm_size),
