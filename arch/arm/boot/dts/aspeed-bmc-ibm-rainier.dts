@@ -125,6 +125,12 @@
 	#address-cells = <2>;
 	#size-cells = <0>;
 
+	/*
+	 * CFAM Reset is supposed to be active low but pass1 hardware is wired
+	 * active high.
+	 */
+	cfam-reset-gpios = <&gpio0 ASPEED_GPIO(Q, 0) GPIO_ACTIVE_HIGH>;
+
 	cfam@0,0 {
 		reg = <0 0>;
 		#address-cells = <1>;
