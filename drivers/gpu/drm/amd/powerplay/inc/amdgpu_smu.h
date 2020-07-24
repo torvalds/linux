@@ -274,6 +274,9 @@ struct smu_table_context
 
 	void				*overdrive_table;
 	void                            *boot_overdrive_table;
+
+	uint32_t			gpu_metrics_table_size;
+	void				*gpu_metrics_table;
 };
 
 struct smu_dpm_context {
