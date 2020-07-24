@@ -6,6 +6,7 @@
 #include <linux/bitops.h>
 #include <linux/delay.h>
 #include <linux/err.h>
+#include <linux/export.h>
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/ktime.h>
@@ -458,3 +459,4 @@ int gdsc_gx_do_nothing_enable(struct generic_pm_domain *domain)
 	/* Do nothing but give genpd the impression that we were successful */
 	return 0;
 }
+EXPORT_SYMBOL_GPL(gdsc_gx_do_nothing_enable);
