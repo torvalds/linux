@@ -961,6 +961,8 @@ static void tcpm_queue_message(struct tcpm_port *port,
 static void tcpm_queue_vdm(struct tcpm_port *port, const u32 header,
 			   const u32 *data, int cnt)
 {
+	WARN_ON(!mutex_is_locked(&port->lock));
+
 	port->vdo_count = cnt + 1;
 	port->vdo_data[0] = header;
 	memcpy(&port->vdo_data[1], data, sizeof(u32) * cnt);
@@ -969,6 +971,14 @@ static void tcpm_queue_vdm(struct tcpm_port *port, const u32 header,
 	port->vdm_state = VDM_STATE_READY;
 
 	mod_delayed_work(port->wq, &port->vdm_state_machine, 0);
+}
+
+static void tcpm_queue_vdm_unlocked(struct tcpm_port *port, const u32 header,
+				    const u32 *data, int cnt)
+{
+	mutex_lock(&port->lock);
+	tcpm_queue_vdm(port, header, data, cnt);
+	mutex_unlock(&port->lock);
 }
 
 static void svdm_consume_identity(struct tcpm_port *port, const __le32 *payload,
@@ -1508,13 +1518,10 @@ static int tcpm_altmode_enter(struct typec_altmode *altmode, u32 *vdo)
 	struct tcpm_port *port = typec_altmode_get_drvdata(altmode);
 	u32 header;
 
-	mutex_lock(&port->lock);
 	header = VDO(altmode->svid, vdo ? 2 : 1, CMD_ENTER_MODE);
 	header |= VDO_OPOS(altmode->mode);
 
-	tcpm_queue_vdm(port, header, vdo, vdo ? 1 : 0);
-	mutex_unlock(&port->lock);
-
+	tcpm_queue_vdm_unlocked(port, header, vdo, vdo ? 1 : 0);
 	return 0;
 }
 
@@ -1523,13 +1530,10 @@ static int tcpm_altmode_exit(struct typec_altmode *altmode)
 	struct tcpm_port *port = typec_altmode_get_drvdata(altmode);
 	u32 header;
 
-	mutex_lock(&port->lock);
 	header = VDO(altmode->svid, 1, CMD_EXIT_MODE);
 	header |= VDO_OPOS(altmode->mode);
 
-	tcpm_queue_vdm(port, header, NULL, 0);
-	mutex_unlock(&port->lock);
-
+	tcpm_queue_vdm_unlocked(port, header, NULL, 0);
 	return 0;
 }
 
@@ -1538,10 +1542,7 @@ static int tcpm_altmode_vdm(struct typec_altmode *altmode,
 {
 	struct tcpm_port *port = typec_altmode_get_drvdata(altmode);
 
-	mutex_lock(&port->lock);
-	tcpm_queue_vdm(port, header, data, count - 1);
-	mutex_unlock(&port->lock);
-
+	tcpm_queue_vdm_unlocked(port, header, data, count - 1);
 	return 0;
 }
 
