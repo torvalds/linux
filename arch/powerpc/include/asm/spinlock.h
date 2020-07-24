@@ -10,5 +10,9 @@
 #include <asm/simple_spinlock.h>
 #endif
 
+#ifndef CONFIG_PARAVIRT_SPINLOCKS
+static inline void pv_spinlocks_init(void) { }
+#endif
+
 #endif /* __KERNEL__ */
 #endif /* __ASM_SPINLOCK_H */
