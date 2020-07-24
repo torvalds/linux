@@ -109,8 +109,8 @@
 #define ENABLE_PREFETCH		(0x1 << 7)
 #define DMA_MPU_MODE		2
 
-#define	GPMC_REVISION_MAJOR(l)		((l >> 4) & 0xf)
-#define	GPMC_REVISION_MINOR(l)		(l & 0xf)
+#define	GPMC_REVISION_MAJOR(l)		(((l) >> 4) & 0xf)
+#define	GPMC_REVISION_MINOR(l)		((l) & 0xf)
 
 #define	GPMC_HAS_WR_ACCESS		0x1
 #define	GPMC_HAS_WR_DATA_MUX_BUS	0x2
@@ -141,27 +141,27 @@
 #define GPMC_CONFIG1_WRITEMULTIPLE_SUPP (1 << 28)
 #define GPMC_CONFIG1_WRITETYPE_ASYNC    (0 << 27)
 #define GPMC_CONFIG1_WRITETYPE_SYNC     (1 << 27)
-#define GPMC_CONFIG1_CLKACTIVATIONTIME(val) ((val & 3) << 25)
+#define GPMC_CONFIG1_CLKACTIVATIONTIME(val) (((val) & 3) << 25)
 /** CLKACTIVATIONTIME Max Ticks */
 #define GPMC_CONFIG1_CLKACTIVATIONTIME_MAX 2
-#define GPMC_CONFIG1_PAGE_LEN(val)      ((val & 3) << 23)
+#define GPMC_CONFIG1_PAGE_LEN(val)      (((val) & 3) << 23)
 /** ATTACHEDDEVICEPAGELENGTH Max Value */
 #define GPMC_CONFIG1_ATTACHEDDEVICEPAGELENGTH_MAX 2
 #define GPMC_CONFIG1_WAIT_READ_MON      (1 << 22)
 #define GPMC_CONFIG1_WAIT_WRITE_MON     (1 << 21)
-#define GPMC_CONFIG1_WAIT_MON_TIME(val) ((val & 3) << 18)
+#define GPMC_CONFIG1_WAIT_MON_TIME(val) (((val) & 3) << 18)
 /** WAITMONITORINGTIME Max Ticks */
 #define GPMC_CONFIG1_WAITMONITORINGTIME_MAX  2
-#define GPMC_CONFIG1_WAIT_PIN_SEL(val)  ((val & 3) << 16)
-#define GPMC_CONFIG1_DEVICESIZE(val)    ((val & 3) << 12)
+#define GPMC_CONFIG1_WAIT_PIN_SEL(val)  (((val) & 3) << 16)
+#define GPMC_CONFIG1_DEVICESIZE(val)    (((val) & 3) << 12)
 #define GPMC_CONFIG1_DEVICESIZE_16      GPMC_CONFIG1_DEVICESIZE(1)
 /** DEVICESIZE Max Value */
 #define GPMC_CONFIG1_DEVICESIZE_MAX     1
-#define GPMC_CONFIG1_DEVICETYPE(val)    ((val & 3) << 10)
+#define GPMC_CONFIG1_DEVICETYPE(val)    (((val) & 3) << 10)
 #define GPMC_CONFIG1_DEVICETYPE_NOR     GPMC_CONFIG1_DEVICETYPE(0)
-#define GPMC_CONFIG1_MUXTYPE(val)       ((val & 3) << 8)
+#define GPMC_CONFIG1_MUXTYPE(val)       (((val) & 3) << 8)
 #define GPMC_CONFIG1_TIME_PARA_GRAN     (1 << 4)
-#define GPMC_CONFIG1_FCLK_DIV(val)      (val & 3)
+#define GPMC_CONFIG1_FCLK_DIV(val)      ((val) & 3)
 #define GPMC_CONFIG1_FCLK_DIV2          (GPMC_CONFIG1_FCLK_DIV(1))
 #define GPMC_CONFIG1_FCLK_DIV3          (GPMC_CONFIG1_FCLK_DIV(2))
 #define GPMC_CONFIG1_FCLK_DIV4          (GPMC_CONFIG1_FCLK_DIV(3))
