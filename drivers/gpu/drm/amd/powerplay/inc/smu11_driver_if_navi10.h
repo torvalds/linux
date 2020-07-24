@@ -885,6 +885,45 @@ typedef struct {
 } SmuMetrics_t;
 
 typedef struct {
+  uint16_t CurrClock[PPCLK_COUNT];
+  uint16_t AverageGfxclkFrequency;
+  uint16_t AverageSocclkFrequency;
+  uint16_t AverageUclkFrequency  ;
+  uint16_t AverageGfxActivity    ;
+  uint16_t AverageUclkActivity   ;
+  uint8_t  CurrSocVoltageOffset  ;
+  uint8_t  CurrGfxVoltageOffset  ;
+  uint8_t  CurrMemVidOffset      ;
+  uint8_t  Padding8              ;
+  uint16_t AverageSocketPower    ;
+  uint16_t TemperatureEdge       ;
+  uint16_t TemperatureHotspot    ;
+  uint16_t TemperatureMem        ;
+  uint16_t TemperatureVrGfx      ;
+  uint16_t TemperatureVrMem0     ;
+  uint16_t TemperatureVrMem1     ;
+  uint16_t TemperatureVrSoc      ;
+  uint16_t TemperatureLiquid0    ;
+  uint16_t TemperatureLiquid1    ;
+  uint16_t TemperaturePlx        ;
+  uint16_t Padding16             ;
+  uint32_t ThrottlerStatus       ;
+
+  uint8_t  LinkDpmLevel;
+  uint8_t  Padding8_2;
+  uint16_t CurrFanSpeed;
+
+  uint32_t EnergyAccumulator;
+  uint16_t AverageVclkFrequency  ;
+  uint16_t AverageDclkFrequency  ;
+  uint16_t VcnActivityPercentage ;
+  uint16_t padding16_2;
+
+  // Padding - ignore
+  uint32_t     MmHubPadding[8]; // SMU internal use
+} SmuMetrics_NV12_t;
+
+typedef struct {
   uint16_t MinClock; // This is either DCEFCLK or SOCCLK (in MHz)
   uint16_t MaxClock; // This is either DCEFCLK or SOCCLK (in MHz)
   uint16_t MinUclk;
