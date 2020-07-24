@@ -1597,6 +1597,9 @@ F:	sound/soc/meson/
 
 ARM/Amlogic Meson SoC support
 M:	Kevin Hilman <khilman@baylibre.com>
+R:	Neil Armstrong <narmstrong@baylibre.com>
+R:	Jerome Brunet <jbrunet@baylibre.com>
+R:	Martin Blumenstingl <martin.blumenstingl@googlemail.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 L:	linux-amlogic@lists.infradead.org
 S:	Maintained
