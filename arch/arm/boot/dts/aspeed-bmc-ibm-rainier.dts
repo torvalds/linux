@@ -12,6 +12,10 @@
 
 	aliases {
 		serial4 = &uart5;
+		i2c16 = &i2c2mux0;
+		i2c17 = &i2c2mux1;
+		i2c18 = &i2c2mux2;
+		i2c19 = &i2c2mux3;
 	};
 
 	chosen {
@@ -68,6 +72,41 @@
 		};
 	};
 
+	i2c2mux: i2cmux {
+		compatible = "i2c-mux-gpio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "okay";
+
+		i2c-parent = <&i2c2>;
+		mux-gpios = <&gpio0 ASPEED_GPIO(G, 4) GPIO_ACTIVE_HIGH>,
+			    <&gpio0 ASPEED_GPIO(G, 5) GPIO_ACTIVE_HIGH>;
+		idle-state = <0>;
+
+		i2c2mux0: i2c@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0>;
+		};
+
+		i2c2mux1: i2c@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <1>;
+		};
+
+		i2c2mux2: i2c@2 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <2>;
+		};
+
+		i2c2mux3: i2c@3 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <3>;
+		};
+	};
 };
 
 &gpio0 {
@@ -108,6 +147,13 @@
 		gpios = <ASPEED_GPIO(P, 7) GPIO_OPEN_DRAIN>;
 		output-high;
 		line-name = "mclr_vpp";
+	};
+
+	i2c3_mux_oe_n {
+		gpio-hog;
+		gpios = <ASPEED_GPIO(G, 6) GPIO_ACTIVE_LOW>;
+		output-high;
+		line-name = "I2C3_MUX_OE_N";
 	};
 };
 
