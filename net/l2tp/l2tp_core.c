@@ -621,8 +621,8 @@ void l2tp_recv_common(struct l2tp_session *session, struct sk_buff *skb,
 		      int length)
 {
 	struct l2tp_tunnel *tunnel = session->tunnel;
+	u32 ns = 0, nr = 0;
 	int offset;
-	u32 ns, nr;
 
 	/* Parse and check optional cookie */
 	if (session->peer_cookie_len > 0) {
@@ -644,7 +644,6 @@ void l2tp_recv_common(struct l2tp_session *session, struct sk_buff *skb,
 	 * the control of the LNS.  If no sequence numbers present but
 	 * we were expecting them, discard frame.
 	 */
-	ns = nr = 0;
 	L2TP_SKB_CB(skb)->has_seq = 0;
 	if (tunnel->version == L2TP_HDR_VER_2) {
 		if (hdrflags & L2TP_HDRFLAG_S) {
@@ -826,7 +825,8 @@ static int l2tp_udp_recv_core(struct l2tp_tunnel *tunnel, struct sk_buff *skb)
 	}
 
 	/* Point to L2TP header */
-	optr = ptr = skb->data;
+	optr = skb->data;
+	ptr = skb->data;
 
 	/* Get L2TP header flags */
 	hdrflags = ntohs(*(__be16 *)ptr);
