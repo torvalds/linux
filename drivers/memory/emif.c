@@ -282,7 +282,7 @@ static void set_lpmode(struct emif_data *emif, u8 lpmode)
 	 * the EMIF_PWR_MGMT_CTRL[10:8] REG_LP_MODE bit field to 0x4.
 	 */
 	if ((emif->plat_data->ip_rev == EMIF_4D) &&
-	    (EMIF_LP_MODE_PWR_DN == lpmode)) {
+	    (lpmode == EMIF_LP_MODE_PWR_DN)) {
 		WARN_ONCE(1,
 			  "REG_LP_MODE = LP_MODE_PWR_DN(4) is prohibited by"
 			  "erratum i743 switch to LP_MODE_SELF_REFRESH(2)\n");
