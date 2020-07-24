@@ -253,6 +253,7 @@ static void k3_ringacc_ring_dump(struct k3_ring *ring)
 		&ring->ring_mem_dma);
 	dev_dbg(dev, "dump elmsize %d, size %d, mode %d, proxy_id %d\n",
 		ring->elm_size, ring->size, ring->mode, ring->proxy_id);
+	dev_dbg(dev, "dump flags %08X\n", ring->flags);
 
 	dev_dbg(dev, "dump ring_rt_regs: db%08x\n", readl(&ring->rt->db));
 	dev_dbg(dev, "dump occ%08x\n", readl(&ring->rt->occ));
