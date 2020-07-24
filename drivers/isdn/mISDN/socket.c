@@ -407,8 +407,8 @@ static int data_sock_setsockopt(struct socket *sock, int level, int optname,
 	int err = 0, opt = 0;
 
 	if (*debug & DEBUG_SOCKET)
-		printk(KERN_DEBUG "%s(%p, %d, %x, %p, %d)\n", __func__, sock,
-		       level, optname, optval, len);
+		printk(KERN_DEBUG "%s(%p, %d, %x, optval, %d)\n", __func__, sock,
+		       level, optname, len);
 
 	lock_sock(sk);
 
