@@ -290,7 +290,7 @@ static const struct snd_soc_dapm_widget es8323_dapm_widgets[] = {
 
 	/* gModify.Cmmt Implement when suspend/startup */
 	SND_SOC_DAPM_DAC("Right DAC", "Right Playback", ES8323_DACPOWER, 7, 0),
-	SND_SOC_DAPM_DAC("Left DAC", "Left Playback", ES8323_DACPOWER, 8, 0),
+	SND_SOC_DAPM_DAC("Left DAC", "Left Playback", ES8323_DACPOWER, 6, 0),
 
 	SND_SOC_DAPM_MIXER("Left Mixer", SND_SOC_NOPM, 0, 0,
 			   &es8323_left_mixer_controls[0],
@@ -767,12 +767,15 @@ static int es8323_suspend(struct snd_soc_component *component)
 	snd_soc_component_write(component, 0x19, 0x06);
 	snd_soc_component_write(component, 0x30, 0x00);
 	snd_soc_component_write(component, 0x31, 0x00);
-	snd_soc_component_write(component, ES8323_ADCPOWER, 0xFF);
+	snd_soc_component_write(component, ES8323_DACCONTROL17, 0x38);
+	snd_soc_component_write(component, ES8323_DACCONTROL20, 0x38);
+	snd_soc_component_write(component, ES8323_DACPOWER, 0x00);
 	snd_soc_component_write(component, ES8323_DACPOWER, 0xc0);
+	snd_soc_component_write(component, ES8323_ADCPOWER, 0xFF);
 	snd_soc_component_write(component, ES8323_CHIPPOWER, 0xF3);
-	snd_soc_component_write(component, 0x00, 0x00);
-	snd_soc_component_write(component, 0x01, 0x58);
 	snd_soc_component_write(component, 0x2b, 0x9c);
+	snd_soc_component_write(component, 0x00, 0x06);
+	snd_soc_component_write(component, 0x01, 0x58);
 	usleep_range(18000, 20000);
 	return 0;
 }
@@ -781,10 +784,12 @@ static int es8323_resume(struct snd_soc_component *component)
 {
 	snd_soc_component_write(component, 0x2b, 0x80);
 	snd_soc_component_write(component, 0x01, 0x50);
-	snd_soc_component_write(component, 0x00, 0x32);
+	snd_soc_component_write(component, 0x00, 0x16);
 	snd_soc_component_write(component, ES8323_CHIPPOWER, 0x00);
 	snd_soc_component_write(component, ES8323_DACPOWER, 0x0c);
 	snd_soc_component_write(component, ES8323_ADCPOWER, 0x59);
+	snd_soc_component_write(component, ES8323_DACCONTROL17, 0xb8);
+	snd_soc_component_write(component, ES8323_DACCONTROL20, 0xb8);
 	snd_soc_component_write(component, 0x31, es8323_DEF_VOL);
 	snd_soc_component_write(component, 0x30, es8323_DEF_VOL);
 	snd_soc_component_write(component, 0x19, 0x02);
