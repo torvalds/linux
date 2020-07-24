@@ -1310,7 +1310,7 @@ static int vicodec_subscribe_event(struct v4l2_fh *fh,
 	case V4L2_EVENT_SOURCE_CHANGE:
 		if (ctx->is_enc)
 			return -EINVAL;
-		/* fall through */
+		fallthrough;
 	case V4L2_EVENT_EOS:
 		if (ctx->is_stateless)
 			return -EINVAL;

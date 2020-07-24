@@ -293,7 +293,7 @@ static void tvp5150_selmux(struct v4l2_subdev *sd)
 	switch (decoder->input) {
 	case TVP5150_COMPOSITE1:
 		input |= 2;
-		/* fall through */
+		fallthrough;
 	case TVP5150_COMPOSITE0:
 		break;
 	case TVP5150_SVIDEO:

@@ -417,7 +417,7 @@ static void cec_pin_tx_states(struct cec_pin *pin, ktime_t ts)
 			wake_up_interruptible(&pin->kthread_waitq);
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	case CEC_ST_TX_DATA_BIT_0_HIGH:
 	case CEC_ST_TX_DATA_BIT_0_HIGH_SHORT:
 	case CEC_ST_TX_DATA_BIT_0_HIGH_LONG:
@@ -445,7 +445,7 @@ static void cec_pin_tx_states(struct cec_pin *pin, ktime_t ts)
 			wake_up_interruptible(&pin->kthread_waitq);
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	case CEC_ST_TX_DATA_BIT_HIGH_CUSTOM:
 		if (tx_last_bit(pin)) {
 			/* Error Injection: just stop sending after this bit */
@@ -459,7 +459,7 @@ static void cec_pin_tx_states(struct cec_pin *pin, ktime_t ts)
 			break;
 		}
 		pin->tx_bit++;
-		/* fall through */
+		fallthrough;
 	case CEC_ST_TX_START_BIT_HIGH:
 	case CEC_ST_TX_START_BIT_HIGH_SHORT:
 	case CEC_ST_TX_START_BIT_HIGH_LONG:

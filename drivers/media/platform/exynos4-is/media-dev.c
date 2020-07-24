@@ -93,7 +93,7 @@ static void fimc_pipeline_prepare(struct fimc_pipeline *p,
 		switch (sd->grp_id) {
 		case GRP_ID_SENSOR:
 			sensor = sd;
-			/* fall through */
+			fallthrough;
 		case GRP_ID_FIMC_IS_SENSOR:
 			p->subdevs[IDX_SENSOR] = sd;
 			break;

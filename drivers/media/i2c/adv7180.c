@@ -726,7 +726,7 @@ static int adv7180_set_pad_format(struct v4l2_subdev *sd,
 	case V4L2_FIELD_NONE:
 		if (state->chip_info->flags & ADV7180_FLAG_I2P)
 			break;
-		/* fall through */
+		fallthrough;
 	default:
 		format->format.field = V4L2_FIELD_ALTERNATE;
 		break;
