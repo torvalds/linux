@@ -11,25 +11,23 @@
 #include "progs/cg_storage_multi.h"
 
 #include "cg_storage_multi_egress_only.skel.h"
-#include "cg_storage_multi_egress_ingress.skel.h"
+#include "cg_storage_multi_isolated.skel.h"
+#include "cg_storage_multi_shared.skel.h"
 
 #define PARENT_CGROUP "/cgroup_storage"
 #define CHILD_CGROUP "/cgroup_storage/child"
 
 static int duration;
 
-static bool assert_storage(struct bpf_map *map, const char *cgroup_path,
+static bool assert_storage(struct bpf_map *map, const void *key,
 			   struct cgroup_value *expected)
 {
-	struct bpf_cgroup_storage_key key = {0};
 	struct cgroup_value value;
 	int map_fd;
 
 	map_fd = bpf_map__fd(map);
 
-	key.cgroup_inode_id = get_cgroup_id(cgroup_path);
-	key.attach_type = BPF_CGROUP_INET_EGRESS;
-	if (CHECK(bpf_map_lookup_elem(map_fd, &key, &value) < 0,
+	if (CHECK(bpf_map_lookup_elem(map_fd, key, &value) < 0,
 		  "map-lookup", "errno %d", errno))
 		return true;
 	if (CHECK(memcmp(&value, expected, sizeof(struct cgroup_value)),
@@ -39,17 +37,14 @@ static bool assert_storage(struct bpf_map *map, const char *cgroup_path,
 	return false;
 }
 
-static bool assert_storage_noexist(struct bpf_map *map, const char *cgroup_path)
+static bool assert_storage_noexist(struct bpf_map *map, const void *key)
 {
-	struct bpf_cgroup_storage_key key = {0};
 	struct cgroup_value value;
 	int map_fd;
 
 	map_fd = bpf_map__fd(map);
 
-	key.cgroup_inode_id = get_cgroup_id(cgroup_path);
-	key.attach_type = BPF_CGROUP_INET_EGRESS;
-	if (CHECK(bpf_map_lookup_elem(map_fd, &key, &value) == 0,
+	if (CHECK(bpf_map_lookup_elem(map_fd, key, &value) == 0,
 		  "map-lookup", "succeeded, expected ENOENT"))
 		return true;
 	if (CHECK(errno != ENOENT,
@@ -90,8 +85,11 @@ static void test_egress_only(int parent_cgroup_fd, int child_cgroup_fd)
 {
 	struct cg_storage_multi_egress_only *obj;
 	struct cgroup_value expected_cgroup_value;
+	struct bpf_cgroup_storage_key key;
 	struct bpf_link *parent_link = NULL, *child_link = NULL;
 	bool err;
+
+	key.attach_type = BPF_CGROUP_INET_EGRESS;
 
 	obj = cg_storage_multi_egress_only__open_and_load();
 	if (CHECK(!obj, "skel-load", "errno %d", errno))
@@ -113,11 +111,13 @@ static void test_egress_only(int parent_cgroup_fd, int child_cgroup_fd)
 	if (CHECK(obj->bss->invocations != 1,
 		  "first-invoke", "invocations=%d", obj->bss->invocations))
 		goto close_bpf_object;
+	key.cgroup_inode_id = get_cgroup_id(PARENT_CGROUP);
 	expected_cgroup_value = (struct cgroup_value) { .egress_pkts = 1 };
 	if (assert_storage(obj->maps.cgroup_storage,
-			   PARENT_CGROUP, &expected_cgroup_value))
+			   &key, &expected_cgroup_value))
 		goto close_bpf_object;
-	if (assert_storage_noexist(obj->maps.cgroup_storage, CHILD_CGROUP))
+	key.cgroup_inode_id = get_cgroup_id(CHILD_CGROUP);
+	if (assert_storage_noexist(obj->maps.cgroup_storage, &key))
 		goto close_bpf_object;
 
 	/* Attach to parent and child cgroup, trigger packet from child.
@@ -135,13 +135,15 @@ static void test_egress_only(int parent_cgroup_fd, int child_cgroup_fd)
 	if (CHECK(obj->bss->invocations != 3,
 		  "second-invoke", "invocations=%d", obj->bss->invocations))
 		goto close_bpf_object;
+	key.cgroup_inode_id = get_cgroup_id(PARENT_CGROUP);
 	expected_cgroup_value = (struct cgroup_value) { .egress_pkts = 2 };
 	if (assert_storage(obj->maps.cgroup_storage,
-			   PARENT_CGROUP, &expected_cgroup_value))
+			   &key, &expected_cgroup_value))
 		goto close_bpf_object;
+	key.cgroup_inode_id = get_cgroup_id(CHILD_CGROUP);
 	expected_cgroup_value = (struct cgroup_value) { .egress_pkts = 1 };
 	if (assert_storage(obj->maps.cgroup_storage,
-			   CHILD_CGROUP, &expected_cgroup_value))
+			   &key, &expected_cgroup_value))
 		goto close_bpf_object;
 
 close_bpf_object:
@@ -151,18 +153,228 @@ close_bpf_object:
 	cg_storage_multi_egress_only__destroy(obj);
 }
 
-static void test_egress_ingress(int parent_cgroup_fd, int child_cgroup_fd)
+static void test_isolated(int parent_cgroup_fd, int child_cgroup_fd)
 {
-	struct cg_storage_multi_egress_ingress *obj;
+	struct cg_storage_multi_isolated *obj;
+	struct cgroup_value expected_cgroup_value;
+	struct bpf_cgroup_storage_key key;
+	struct bpf_link *parent_egress1_link = NULL, *parent_egress2_link = NULL;
+	struct bpf_link *child_egress1_link = NULL, *child_egress2_link = NULL;
+	struct bpf_link *parent_ingress_link = NULL, *child_ingress_link = NULL;
+	bool err;
 
-	/* Cannot load both programs due to verifier failure:
-	 * "only one cgroup storage of each type is allowed"
+	obj = cg_storage_multi_isolated__open_and_load();
+	if (CHECK(!obj, "skel-load", "errno %d", errno))
+		return;
+
+	/* Attach to parent cgroup, trigger packet from child.
+	 * Assert that there is three runs, two with parent cgroup egress and
+	 * one with parent cgroup ingress, stored in separate parent storages.
+	 * Also assert that child cgroup's storages does not exist
 	 */
-	obj = cg_storage_multi_egress_ingress__open_and_load();
-	CHECK(obj || errno != EBUSY,
-	      "skel-load", "errno %d, expected EBUSY", errno);
+	parent_egress1_link = bpf_program__attach_cgroup(obj->progs.egress1,
+							 parent_cgroup_fd);
+	if (CHECK(IS_ERR(parent_egress1_link), "parent-egress1-cg-attach",
+		  "err %ld", PTR_ERR(parent_egress1_link)))
+		goto close_bpf_object;
+	parent_egress2_link = bpf_program__attach_cgroup(obj->progs.egress2,
+							 parent_cgroup_fd);
+	if (CHECK(IS_ERR(parent_egress2_link), "parent-egress2-cg-attach",
+		  "err %ld", PTR_ERR(parent_egress2_link)))
+		goto close_bpf_object;
+	parent_ingress_link = bpf_program__attach_cgroup(obj->progs.ingress,
+							 parent_cgroup_fd);
+	if (CHECK(IS_ERR(parent_ingress_link), "parent-ingress-cg-attach",
+		  "err %ld", PTR_ERR(parent_ingress_link)))
+		goto close_bpf_object;
+	err = connect_send(CHILD_CGROUP);
+	if (CHECK(err, "first-connect-send", "errno %d", errno))
+		goto close_bpf_object;
+	if (CHECK(obj->bss->invocations != 3,
+		  "first-invoke", "invocations=%d", obj->bss->invocations))
+		goto close_bpf_object;
+	key.cgroup_inode_id = get_cgroup_id(PARENT_CGROUP);
+	key.attach_type = BPF_CGROUP_INET_EGRESS;
+	expected_cgroup_value = (struct cgroup_value) { .egress_pkts = 2 };
+	if (assert_storage(obj->maps.cgroup_storage,
+			   &key, &expected_cgroup_value))
+		goto close_bpf_object;
+	key.attach_type = BPF_CGROUP_INET_INGRESS;
+	expected_cgroup_value = (struct cgroup_value) { .ingress_pkts = 1 };
+	if (assert_storage(obj->maps.cgroup_storage,
+			   &key, &expected_cgroup_value))
+		goto close_bpf_object;
+	key.cgroup_inode_id = get_cgroup_id(CHILD_CGROUP);
+	key.attach_type = BPF_CGROUP_INET_EGRESS;
+	if (assert_storage_noexist(obj->maps.cgroup_storage, &key))
+		goto close_bpf_object;
+	key.attach_type = BPF_CGROUP_INET_INGRESS;
+	if (assert_storage_noexist(obj->maps.cgroup_storage, &key))
+		goto close_bpf_object;
 
-	cg_storage_multi_egress_ingress__destroy(obj);
+	/* Attach to parent and child cgroup, trigger packet from child.
+	 * Assert that there is six additional runs, parent cgroup egresses and
+	 * ingress, child cgroup egresses and ingress.
+	 * Assert that egree and ingress storages are separate.
+	 */
+	child_egress1_link = bpf_program__attach_cgroup(obj->progs.egress1,
+							child_cgroup_fd);
+	if (CHECK(IS_ERR(child_egress1_link), "child-egress1-cg-attach",
+		  "err %ld", PTR_ERR(child_egress1_link)))
+		goto close_bpf_object;
+	child_egress2_link = bpf_program__attach_cgroup(obj->progs.egress2,
+							child_cgroup_fd);
+	if (CHECK(IS_ERR(child_egress2_link), "child-egress2-cg-attach",
+		  "err %ld", PTR_ERR(child_egress2_link)))
+		goto close_bpf_object;
+	child_ingress_link = bpf_program__attach_cgroup(obj->progs.ingress,
+							child_cgroup_fd);
+	if (CHECK(IS_ERR(child_ingress_link), "child-ingress-cg-attach",
+		  "err %ld", PTR_ERR(child_ingress_link)))
+		goto close_bpf_object;
+	err = connect_send(CHILD_CGROUP);
+	if (CHECK(err, "second-connect-send", "errno %d", errno))
+		goto close_bpf_object;
+	if (CHECK(obj->bss->invocations != 9,
+		  "second-invoke", "invocations=%d", obj->bss->invocations))
+		goto close_bpf_object;
+	key.cgroup_inode_id = get_cgroup_id(PARENT_CGROUP);
+	key.attach_type = BPF_CGROUP_INET_EGRESS;
+	expected_cgroup_value = (struct cgroup_value) { .egress_pkts = 4 };
+	if (assert_storage(obj->maps.cgroup_storage,
+			   &key, &expected_cgroup_value))
+		goto close_bpf_object;
+	key.attach_type = BPF_CGROUP_INET_INGRESS;
+	expected_cgroup_value = (struct cgroup_value) { .ingress_pkts = 2 };
+	if (assert_storage(obj->maps.cgroup_storage,
+			   &key, &expected_cgroup_value))
+		goto close_bpf_object;
+	key.cgroup_inode_id = get_cgroup_id(CHILD_CGROUP);
+	key.attach_type = BPF_CGROUP_INET_EGRESS;
+	expected_cgroup_value = (struct cgroup_value) { .egress_pkts = 2 };
+	if (assert_storage(obj->maps.cgroup_storage,
+			   &key, &expected_cgroup_value))
+		goto close_bpf_object;
+	key.attach_type = BPF_CGROUP_INET_INGRESS;
+	expected_cgroup_value = (struct cgroup_value) { .ingress_pkts = 1 };
+	if (assert_storage(obj->maps.cgroup_storage,
+			   &key, &expected_cgroup_value))
+		goto close_bpf_object;
+
+close_bpf_object:
+	bpf_link__destroy(parent_egress1_link);
+	bpf_link__destroy(parent_egress2_link);
+	bpf_link__destroy(parent_ingress_link);
+	bpf_link__destroy(child_egress1_link);
+	bpf_link__destroy(child_egress2_link);
+	bpf_link__destroy(child_ingress_link);
+
+	cg_storage_multi_isolated__destroy(obj);
+}
+
+static void test_shared(int parent_cgroup_fd, int child_cgroup_fd)
+{
+	struct cg_storage_multi_shared *obj;
+	struct cgroup_value expected_cgroup_value;
+	__u64 key;
+	struct bpf_link *parent_egress1_link = NULL, *parent_egress2_link = NULL;
+	struct bpf_link *child_egress1_link = NULL, *child_egress2_link = NULL;
+	struct bpf_link *parent_ingress_link = NULL, *child_ingress_link = NULL;
+	bool err;
+
+	obj = cg_storage_multi_shared__open_and_load();
+	if (CHECK(!obj, "skel-load", "errno %d", errno))
+		return;
+
+	/* Attach to parent cgroup, trigger packet from child.
+	 * Assert that there is three runs, two with parent cgroup egress and
+	 * one with parent cgroup ingress.
+	 * Also assert that child cgroup's storage does not exist
+	 */
+	parent_egress1_link = bpf_program__attach_cgroup(obj->progs.egress1,
+							 parent_cgroup_fd);
+	if (CHECK(IS_ERR(parent_egress1_link), "parent-egress1-cg-attach",
+		  "err %ld", PTR_ERR(parent_egress1_link)))
+		goto close_bpf_object;
+	parent_egress2_link = bpf_program__attach_cgroup(obj->progs.egress2,
+							 parent_cgroup_fd);
+	if (CHECK(IS_ERR(parent_egress2_link), "parent-egress2-cg-attach",
+		  "err %ld", PTR_ERR(parent_egress2_link)))
+		goto close_bpf_object;
+	parent_ingress_link = bpf_program__attach_cgroup(obj->progs.ingress,
+							 parent_cgroup_fd);
+	if (CHECK(IS_ERR(parent_ingress_link), "parent-ingress-cg-attach",
+		  "err %ld", PTR_ERR(parent_ingress_link)))
+		goto close_bpf_object;
+	err = connect_send(CHILD_CGROUP);
+	if (CHECK(err, "first-connect-send", "errno %d", errno))
+		goto close_bpf_object;
+	if (CHECK(obj->bss->invocations != 3,
+		  "first-invoke", "invocations=%d", obj->bss->invocations))
+		goto close_bpf_object;
+	key = get_cgroup_id(PARENT_CGROUP);
+	expected_cgroup_value = (struct cgroup_value) {
+		.egress_pkts = 2,
+		.ingress_pkts = 1,
+	};
+	if (assert_storage(obj->maps.cgroup_storage,
+			   &key, &expected_cgroup_value))
+		goto close_bpf_object;
+	key = get_cgroup_id(CHILD_CGROUP);
+	if (assert_storage_noexist(obj->maps.cgroup_storage, &key))
+		goto close_bpf_object;
+
+	/* Attach to parent and child cgroup, trigger packet from child.
+	 * Assert that there is six additional runs, parent cgroup egresses and
+	 * ingress, child cgroup egresses and ingress.
+	 */
+	child_egress1_link = bpf_program__attach_cgroup(obj->progs.egress1,
+							child_cgroup_fd);
+	if (CHECK(IS_ERR(child_egress1_link), "child-egress1-cg-attach",
+		  "err %ld", PTR_ERR(child_egress1_link)))
+		goto close_bpf_object;
+	child_egress2_link = bpf_program__attach_cgroup(obj->progs.egress2,
+							child_cgroup_fd);
+	if (CHECK(IS_ERR(child_egress2_link), "child-egress2-cg-attach",
+		  "err %ld", PTR_ERR(child_egress2_link)))
+		goto close_bpf_object;
+	child_ingress_link = bpf_program__attach_cgroup(obj->progs.ingress,
+							child_cgroup_fd);
+	if (CHECK(IS_ERR(child_ingress_link), "child-ingress-cg-attach",
+		  "err %ld", PTR_ERR(child_ingress_link)))
+		goto close_bpf_object;
+	err = connect_send(CHILD_CGROUP);
+	if (CHECK(err, "second-connect-send", "errno %d", errno))
+		goto close_bpf_object;
+	if (CHECK(obj->bss->invocations != 9,
+		  "second-invoke", "invocations=%d", obj->bss->invocations))
+		goto close_bpf_object;
+	key = get_cgroup_id(PARENT_CGROUP);
+	expected_cgroup_value = (struct cgroup_value) {
+		.egress_pkts = 4,
+		.ingress_pkts = 2,
+	};
+	if (assert_storage(obj->maps.cgroup_storage,
+			   &key, &expected_cgroup_value))
+		goto close_bpf_object;
+	key = get_cgroup_id(CHILD_CGROUP);
+	expected_cgroup_value = (struct cgroup_value) {
+		.egress_pkts = 2,
+		.ingress_pkts = 1,
+	};
+	if (assert_storage(obj->maps.cgroup_storage,
+			   &key, &expected_cgroup_value))
+		goto close_bpf_object;
+
+close_bpf_object:
+	bpf_link__destroy(parent_egress1_link);
+	bpf_link__destroy(parent_egress2_link);
+	bpf_link__destroy(parent_ingress_link);
+	bpf_link__destroy(child_egress1_link);
+	bpf_link__destroy(child_egress2_link);
+	bpf_link__destroy(child_ingress_link);
+
+	cg_storage_multi_shared__destroy(obj);
 }
 
 void test_cg_storage_multi(void)
@@ -179,8 +391,11 @@ void test_cg_storage_multi(void)
 	if (test__start_subtest("egress_only"))
 		test_egress_only(parent_cgroup_fd, child_cgroup_fd);
 
-	if (test__start_subtest("egress_ingress"))
-		test_egress_ingress(parent_cgroup_fd, child_cgroup_fd);
+	if (test__start_subtest("isolated"))
+		test_isolated(parent_cgroup_fd, child_cgroup_fd);
+
+	if (test__start_subtest("shared"))
+		test_shared(parent_cgroup_fd, child_cgroup_fd);
 
 close_cgroup_fd:
 	close(child_cgroup_fd);
