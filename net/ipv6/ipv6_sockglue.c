@@ -965,6 +965,14 @@ done:
 		np->rxopt.bits.recvfragsize = valbool;
 		retv = 0;
 		break;
+	case IPV6_RECVERR_RFC4884:
+		if (optlen < sizeof(int))
+			goto e_inval;
+		if (val < 0 || val > 1)
+			goto e_inval;
+		np->recverr_rfc4884 = valbool;
+		retv = 0;
+		break;
 	}
 
 	release_sock(sk);
@@ -1437,6 +1445,10 @@ static int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 
 	case IPV6_ROUTER_ALERT_ISOLATE:
 		val = np->rtalert_isolate;
+		break;
+
+	case IPV6_RECVERR_RFC4884:
+		val = np->recverr_rfc4884;
 		break;
 
 	default:
