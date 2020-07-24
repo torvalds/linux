@@ -673,6 +673,10 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_NEED_DTLB_SW_LRU)
 #define altivec_assist_exception	unknown_exception
 #endif
 
+#ifndef CONFIG_TAU_INT
+#define TAUException	unknown_exception
+#endif
+
 	EXCEPTION(0x1300, Trap_13, instruction_breakpoint_exception, EXC_XFER_STD)
 	EXCEPTION(0x1400, SMI, SMIException, EXC_XFER_STD)
 	EXCEPTION(0x1500, Trap_15, unknown_exception, EXC_XFER_STD)
