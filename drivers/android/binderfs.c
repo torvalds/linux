@@ -351,6 +351,7 @@ static const struct super_operations binderfs_super_ops = {
 static inline bool is_binderfs_control_device(const struct dentry *dentry)
 {
 	struct binderfs_info *info = dentry->d_sb->s_fs_info;
+
 	return info->control_dentry == dentry;
 }
 
