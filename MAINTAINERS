@@ -1617,7 +1617,7 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm/boot/dts/alpine*
 F:	arch/arm/mach-alpine/
-F:	arch/arm64/boot/dts/al/
+F:	arch/arm64/boot/dts/amazon/
 F:	drivers/*/*alpine*
 
 ARM/ARTPEC MACHINE SUPPORT
