@@ -356,10 +356,8 @@ struct fuse_req {
 	/** Used to wake up the task waiting for completion of request*/
 	wait_queue_head_t waitq;
 
-#if IS_ENABLED(CONFIG_VIRTIO_FS)
 	/** virtio-fs's physically contiguous buffer for in and out args */
 	void *argbuf;
-#endif
 };
 
 struct fuse_iqueue;
