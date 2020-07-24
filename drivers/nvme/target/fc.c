@@ -1243,7 +1243,8 @@ nvmet_fc_find_target_assoc(struct nvmet_fc_tgtport *tgtport,
 	list_for_each_entry(assoc, &tgtport->assoc_list, a_list) {
 		if (association_id == assoc->association_id) {
 			ret = assoc;
-			nvmet_fc_tgt_a_get(assoc);
+			if (!nvmet_fc_tgt_a_get(assoc))
+				ret = NULL;
 			break;
 		}
 	}
