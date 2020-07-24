@@ -522,6 +522,9 @@ mt7915_mcu_tx_rate_report(struct mt7915_dev *dev, struct sk_buff *skb)
 		return;
 
 	wcid = rcu_dereference(dev->mt76.wcid[wcidx]);
+	if (!wcid)
+		return;
+
 	msta = container_of(wcid, struct mt7915_sta, wcid);
 	stats = &msta->stats;
 
