@@ -1311,6 +1311,11 @@ static int smu_v11_0_irq_process(struct amdgpu_device *adev,
 				smu_v11_0_ack_ac_dc_interrupt(&adev->smu);
 				break;
 			case 0x7:
+				/*
+				 * Increment the throttle interrupt counter
+				 */
+				atomic64_inc(&smu->throttle_int_counter);
+
 				if (!atomic_read(&adev->throttling_logging_enabled))
 					return 0;
 

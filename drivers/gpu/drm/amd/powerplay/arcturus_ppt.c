@@ -2251,6 +2251,7 @@ static void arcturus_log_thermal_throttling_event(struct smu_context *smu)
 
 	dev_warn(adev->dev, "WARN: GPU thermal throttling temperature reached, expect performance decrease. %s.\n",
 			log_buf);
+	kgd2kfd_smi_event_throttle(smu->adev->kfd.dev, throttler_status);
 }
 
 static const struct pptable_funcs arcturus_ppt_funcs = {

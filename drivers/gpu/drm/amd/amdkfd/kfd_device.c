@@ -29,6 +29,7 @@
 #include "cwsr_trap_handler.h"
 #include "kfd_iommu.h"
 #include "amdgpu_amdkfd.h"
+#include "kfd_smi_events.h"
 
 #define MQD_SIZE_ALIGNED 768
 
@@ -1243,6 +1244,12 @@ void kfd_dec_compute_active(struct kfd_dev *kfd)
 	if (count == 0)
 		amdgpu_amdkfd_set_compute_idle(kfd->kgd, true);
 	WARN_ONCE(count < 0, "Compute profile ref. count error");
+}
+
+void kgd2kfd_smi_event_throttle(struct kfd_dev *kfd, uint32_t throttle_bitmask)
+{
+	if (kfd)
+		kfd_smi_event_update_thermal_throttling(kfd, throttle_bitmask);
 }
 
 #if defined(CONFIG_DEBUG_FS)

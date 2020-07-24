@@ -789,4 +789,8 @@ void kgd2kfd_interrupt(struct kfd_dev *kfd, const void *ih_ring_entry)
 void kgd2kfd_set_sram_ecc_flag(struct kfd_dev *kfd)
 {
 }
+
+void kgd2kfd_smi_event_throttle(struct kfd_dev *kfd, uint32_t throttle_bitmask)
+{
+}
 #endif

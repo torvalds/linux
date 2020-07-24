@@ -446,6 +446,7 @@ struct smu_context
 	bool dc_controlled_by_gpio;
 
 	struct work_struct throttling_logging_work;
+	atomic64_t throttle_int_counter;
 };
 
 struct i2c_adapter;
