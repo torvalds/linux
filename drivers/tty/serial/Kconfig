@@ -515,6 +515,14 @@ config SERIAL_IMX_CONSOLE
 	  "console=ttymxc0". (Try "man bootparam" or see the documentation of
 	  your bootloader about how to pass options to the kernel at boot time.)
 
+config SERIAL_IMX_EARLYCON
+	bool "Earlycon on IMX serial port"
+	depends on OF
+	select SERIAL_EARLYCON
+	help
+	  If you have enabled the earlycon on the Freescale IMX
+	  CPU you can make it the earlycon by answering Y to this option.
+
 config SERIAL_UARTLITE
 	tristate "Xilinx uartlite serial port support"
 	depends on HAS_IOMEM
