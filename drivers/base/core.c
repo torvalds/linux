@@ -623,7 +623,7 @@ struct device_link *device_link_add(struct device *consumer,
 
 	link->link_dev.class = &devlink_class;
 	device_set_pm_not_required(&link->link_dev);
-	dev_set_name(&link->link_dev, "%s:%s",
+	dev_set_name(&link->link_dev, "%s--%s",
 		     dev_name(supplier), dev_name(consumer));
 	if (device_register(&link->link_dev)) {
 		put_device(consumer);

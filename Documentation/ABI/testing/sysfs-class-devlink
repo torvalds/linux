@@ -4,7 +4,7 @@ Contact:	Saravana Kannan <saravanak@google.com>
 Description:
 		Provide a place in sysfs for the device link objects in the
 		kernel at any given time.  The name of a device link directory,
-		denoted as ... above, is of the form <supplier>:<consumer>
+		denoted as ... above, is of the form <supplier>--<consumer>
 		where <supplier> is the supplier device name and <consumer> is
 		the consumer device name.
 
