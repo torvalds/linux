@@ -319,52 +319,19 @@ struct eeh_pe *eeh_pe_get(struct pci_controller *phb,
 }
 
 /**
- * eeh_pe_get_parent - Retrieve the parent PE
- * @edev: EEH device
- *
- * The whole PEs existing in the system are organized as hierarchy
- * tree. The function is used to retrieve the parent PE according
- * to the parent EEH device.
- */
-static struct eeh_pe *eeh_pe_get_parent(struct eeh_dev *edev)
-{
-	struct eeh_dev *parent;
-	struct pci_dn *pdn = eeh_dev_to_pdn(edev);
-
-	/*
-	 * It might have the case for the indirect parent
-	 * EEH device already having associated PE, but
-	 * the direct parent EEH device doesn't have yet.
-	 */
-	if (edev->physfn)
-		pdn = pci_get_pdn(edev->physfn);
-	else
-		pdn = pdn ? pdn->parent : NULL;
-	while (pdn) {
-		/* We're poking out of PCI territory */
-		parent = pdn_to_eeh_dev(pdn);
-		if (!parent)
-			return NULL;
-
-		if (parent->pe)
-			return parent->pe;
-
-		pdn = pdn->parent;
-	}
-
-	return NULL;
-}
-
-/**
  * eeh_pe_tree_insert - Add EEH device to parent PE
  * @edev: EEH device
+ * @new_pe_parent: PE to create additional PEs under
  *
- * Add EEH device to the parent PE. If the parent PE already
- * exists, the PE type will be changed to EEH_PE_BUS. Otherwise,
- * we have to create new PE to hold the EEH device and the new
- * PE will be linked to its parent PE as well.
+ * Add EEH device to the PE in edev->pe_config_addr. If a PE already
+ * exists with that address then @edev is added to that PE. Otherwise
+ * a new PE is created and inserted into the PE tree as a child of
+ * @new_pe_parent.
+ *
+ * If @new_pe_parent is NULL then the new PE will be inserted under
+ * directly under the the PHB.
  */
-int eeh_pe_tree_insert(struct eeh_dev *edev)
+int eeh_pe_tree_insert(struct eeh_dev *edev, struct eeh_pe *new_pe_parent)
 {
 	struct pci_controller *hose = edev->controller;
 	struct eeh_pe *pe, *parent;
@@ -398,8 +365,7 @@ int eeh_pe_tree_insert(struct eeh_dev *edev)
 				parent = parent->parent;
 			}
 
-			eeh_edev_dbg(edev,
-				     "Added to device PE (parent: PE#%x)\n",
+			eeh_edev_dbg(edev, "Added to existing PE (parent: PE#%x)\n",
 				     pe->parent->addr);
 		} else {
 			/* Mark the PE as type of PCI bus */
@@ -431,10 +397,9 @@ int eeh_pe_tree_insert(struct eeh_dev *edev)
 	 * to PHB directly. Otherwise, we have to associate the
 	 * PE with its parent.
 	 */
-	parent = eeh_pe_get_parent(edev);
-	if (!parent) {
-		parent = eeh_phb_pe_get(hose);
-		if (!parent) {
+	if (!new_pe_parent) {
+		new_pe_parent = eeh_phb_pe_get(hose);
+		if (!new_pe_parent) {
 			pr_err("%s: No PHB PE is found (PHB Domain=%d)\n",
 				__func__, hose->global_number);
 			edev->pe = NULL;
@@ -442,17 +407,19 @@ int eeh_pe_tree_insert(struct eeh_dev *edev)
 			return -EEXIST;
 		}
 	}
-	pe->parent = parent;
+
+	/* link new PE into the tree */
+	pe->parent = new_pe_parent;
+	list_add_tail(&pe->child, &new_pe_parent->child_list);
 
 	/*
 	 * Put the newly created PE into the child list and
 	 * link the EEH device accordingly.
 	 */
-	list_add_tail(&pe->child, &parent->child_list);
 	list_add_tail(&edev->entry, &pe->edevs);
 	edev->pe = pe;
-	eeh_edev_dbg(edev, "Added to device PE (parent: PE#%x)\n",
-		     pe->parent->addr);
+	eeh_edev_dbg(edev, "Added to new (parent: PE#%x)\n",
+		     new_pe_parent->addr);
 
 	return 0;
 }

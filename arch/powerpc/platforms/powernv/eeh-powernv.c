@@ -338,6 +338,28 @@ static int pnv_eeh_find_ecap(struct pci_dn *pdn, int cap)
 	return 0;
 }
 
+static struct eeh_pe *pnv_eeh_get_upstream_pe(struct pci_dev *pdev)
+{
+	struct pci_controller *hose = pdev->bus->sysdata;
+	struct pnv_phb *phb = hose->private_data;
+	struct pci_dev *parent = pdev->bus->self;
+
+#ifdef CONFIG_PCI_IOV
+	/* for VFs we use the PF's PE as the upstream PE */
+	if (pdev->is_virtfn)
+		parent = pdev->physfn;
+#endif
+
+	/* otherwise use the PE of our parent bridge */
+	if (parent) {
+		struct pnv_ioda_pe *ioda_pe = pnv_ioda_get_pe(parent);
+
+		return eeh_pe_get(phb->hose, ioda_pe->pe_number, 0);
+	}
+
+	return NULL;
+}
+
 /**
  * pnv_eeh_probe - Do probe on PCI device
  * @pdev: pci_dev to probe
@@ -350,6 +372,7 @@ static struct eeh_dev *pnv_eeh_probe(struct pci_dev *pdev)
 	struct pci_controller *hose = pdn->phb;
 	struct pnv_phb *phb = hose->private_data;
 	struct eeh_dev *edev = pdn_to_eeh_dev(pdn);
+	struct eeh_pe *upstream_pe;
 	uint32_t pcie_flags;
 	int ret;
 	int config_addr = (pdn->busno << 8) | (pdn->devfn);
@@ -398,8 +421,10 @@ static struct eeh_dev *pnv_eeh_probe(struct pci_dev *pdev)
 
 	edev->pe_config_addr = phb->ioda.pe_rmap[config_addr];
 
+	upstream_pe = pnv_eeh_get_upstream_pe(pdev);
+
 	/* Create PE */
-	ret = eeh_pe_tree_insert(edev);
+	ret = eeh_pe_tree_insert(edev, upstream_pe);
 	if (ret) {
 		eeh_edev_warn(edev, "Failed to add device to PE (code %d)\n", ret);
 		return NULL;
