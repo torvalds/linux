@@ -130,6 +130,8 @@ struct hinic_cmdq_ctxt {
 };
 
 struct hinic_cmdq {
+	struct hinic_hwdev      *hwdev;
+
 	struct hinic_wq         *wq;
 
 	enum hinic_cmdq_type    cmdq_type;

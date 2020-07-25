@@ -276,6 +276,7 @@ static int msg_to_mgmt_sync(struct hinic_pf_to_mgmt *pf_to_mgmt,
 
 	if (!wait_for_completion_timeout(recv_done, timeo)) {
 		dev_err(&pdev->dev, "MGMT timeout, MSG id = %d\n", msg_id);
+		hinic_dump_aeq_info(pf_to_mgmt->hwdev);
 		err = -ETIMEDOUT;
 		goto unlock_sync_msg;
 	}

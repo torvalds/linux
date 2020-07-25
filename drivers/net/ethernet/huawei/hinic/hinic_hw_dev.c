@@ -258,9 +258,9 @@ static int init_fw_ctxt(struct hinic_hwdev *hwdev)
 				 &fw_ctxt, sizeof(fw_ctxt),
 				 &fw_ctxt, &out_size);
 	if (err || (out_size != sizeof(fw_ctxt)) || fw_ctxt.status) {
-		dev_err(&pdev->dev, "Failed to init FW ctxt, ret = %d\n",
-			fw_ctxt.status);
-		return -EFAULT;
+		dev_err(&pdev->dev, "Failed to init FW ctxt, err: %d, status: 0x%x, out size: 0x%x\n",
+			err, fw_ctxt.status, out_size);
+		return -EIO;
 	}
 
 	return 0;
@@ -425,9 +425,9 @@ static int get_base_qpn(struct hinic_hwdev *hwdev, u16 *base_qpn)
 				 &cmd_base_qpn, sizeof(cmd_base_qpn),
 				 &cmd_base_qpn, &out_size);
 	if (err || (out_size != sizeof(cmd_base_qpn)) || cmd_base_qpn.status) {
-		dev_err(&pdev->dev, "Failed to get base qpn, status = %d\n",
-			cmd_base_qpn.status);
-		return -EFAULT;
+		dev_err(&pdev->dev, "Failed to get base qpn, err: %d, status: 0x%x, out size: 0x%x\n",
+			err, cmd_base_qpn.status, out_size);
+		return -EIO;
 	}
 
 	*base_qpn = cmd_base_qpn.qpn;

@@ -40,9 +40,9 @@ static int hinic_set_mac(struct hinic_hwdev *hwdev, const u8 *mac_addr,
 	if (err || out_size != sizeof(mac_info) ||
 	    (mac_info.status && mac_info.status != HINIC_PF_SET_VF_ALREADY &&
 	    mac_info.status != HINIC_MGMT_STATUS_EXIST)) {
-		dev_err(&hwdev->func_to_io.hwif->pdev->dev, "Failed to change MAC, ret = %d\n",
-			mac_info.status);
-		return -EFAULT;
+		dev_err(&hwdev->func_to_io.hwif->pdev->dev, "Failed to set MAC, err: %d, status: 0x%x, out size: 0x%x\n",
+			err, mac_info.status, out_size);
+		return -EIO;
 	}
 
 	return 0;
