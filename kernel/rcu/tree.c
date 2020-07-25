@@ -3967,8 +3967,6 @@ int rcutree_offline_cpu(unsigned int cpu)
 	return 0;
 }
 
-static DEFINE_PER_CPU(int, rcu_cpu_started);
-
 /*
  * Mark the specified CPU as being online so that subsequent grace periods
  * (both expedited and normal) will wait on it.  Note that this means that
@@ -3988,12 +3986,11 @@ void rcu_cpu_starting(unsigned int cpu)
 	struct rcu_node *rnp;
 	bool newcpu;
 
-	if (per_cpu(rcu_cpu_started, cpu))
-		return;
-
-	per_cpu(rcu_cpu_started, cpu) = 1;
-
 	rdp = per_cpu_ptr(&rcu_data, cpu);
+	if (rdp->cpu_started)
+		return;
+	rdp->cpu_started = true;
+
 	rnp = rdp->mynode;
 	mask = rdp->grpmask;
 	raw_spin_lock_irqsave_rcu_node(rnp, flags);
@@ -4053,7 +4050,7 @@ void rcu_report_dead(unsigned int cpu)
 	raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 	raw_spin_unlock(&rcu_state.ofl_lock);
 
-	per_cpu(rcu_cpu_started, cpu) = 0;
+	rdp->cpu_started = false;
 }
 
 /*
