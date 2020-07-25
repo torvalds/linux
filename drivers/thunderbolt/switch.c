@@ -789,7 +789,7 @@ static int tb_port_alloc_hopid(struct tb_port *port, bool in, int min_hopid,
 	 * NHI can use HopIDs 1-max for other adapters HopIDs 0-7 are
 	 * reserved.
 	 */
-	if (port->config.type != TB_TYPE_NHI && min_hopid < TB_PATH_MIN_HOPID)
+	if (!tb_port_is_nhi(port) && min_hopid < TB_PATH_MIN_HOPID)
 		min_hopid = TB_PATH_MIN_HOPID;
 
 	if (max_hopid < 0 || max_hopid > port_max_hopid)
