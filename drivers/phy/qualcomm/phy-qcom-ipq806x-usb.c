@@ -557,7 +557,6 @@ static struct platform_driver qcom_ipq806x_usb_phy_driver = {
 	.probe		= qcom_ipq806x_usb_phy_probe,
 	.driver		= {
 		.name	= "qcom-ipq806x-usb-phy",
-		.owner	= THIS_MODULE,
 		.of_match_table = qcom_ipq806x_usb_phy_table,
 	},
 };
