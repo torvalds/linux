@@ -80,14 +80,14 @@ bool __generic_fsdax_supported(struct dax_device *dax_dev,
 	int err, id;
 
 	if (blocksize != PAGE_SIZE) {
-		pr_debug("%s: error: unsupported blocksize for dax\n",
+		pr_info("%s: error: unsupported blocksize for dax\n",
 				bdevname(bdev, buf));
 		return false;
 	}
 
 	err = bdev_dax_pgoff(bdev, start, PAGE_SIZE, &pgoff);
 	if (err) {
-		pr_debug("%s: error: unaligned partition for dax\n",
+		pr_info("%s: error: unaligned partition for dax\n",
 				bdevname(bdev, buf));
 		return false;
 	}
@@ -95,7 +95,7 @@ bool __generic_fsdax_supported(struct dax_device *dax_dev,
 	last_page = PFN_DOWN((start + sectors - 1) * 512) * PAGE_SIZE / 512;
 	err = bdev_dax_pgoff(bdev, last_page, PAGE_SIZE, &pgoff_end);
 	if (err) {
-		pr_debug("%s: error: unaligned partition for dax\n",
+		pr_info("%s: error: unaligned partition for dax\n",
 				bdevname(bdev, buf));
 		return false;
 	}
@@ -106,7 +106,7 @@ bool __generic_fsdax_supported(struct dax_device *dax_dev,
 	dax_read_unlock(id);
 
 	if (len < 1 || len2 < 1) {
-		pr_debug("%s: error: dax access failed (%ld)\n",
+		pr_info("%s: error: dax access failed (%ld)\n",
 				bdevname(bdev, buf), len < 1 ? len : len2);
 		return false;
 	}
@@ -139,7 +139,7 @@ bool __generic_fsdax_supported(struct dax_device *dax_dev,
 	}
 
 	if (!dax_enabled) {
-		pr_debug("%s: error: dax support not enabled\n",
+		pr_info("%s: error: dax support not enabled\n",
 				bdevname(bdev, buf));
 		return false;
 	}
