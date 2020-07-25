@@ -1250,7 +1250,6 @@ static int rkcif_plat_probe(struct platform_device *pdev)
 	}
 
 	cif_dev->cif_regs = data->cif_regs;
-	cif_dev->has_get_hdr = false;
 	cif_dev->hdr.mode = NO_HDR;
 
 	mutex_init(&cif_dev->stream_lock);

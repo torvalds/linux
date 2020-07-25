@@ -2052,7 +2052,7 @@ static int rkcif_start_streaming(struct vb2_queue *queue, unsigned int count)
 		goto destroy_buf;
 	}
 
-	if (!dev->active_sensor) {
+	if (dev->active_sensor) {
 		ret = rkcif_update_sensor_info(stream);
 		if (ret < 0) {
 			v4l2_err(v4l2_dev,
@@ -2063,16 +2063,14 @@ static int rkcif_start_streaming(struct vb2_queue *queue, unsigned int count)
 	}
 
 	if (dev->terminal_sensor) {
-		if (!dev->has_get_hdr) {
-			ret = v4l2_subdev_call(dev->terminal_sensor,
-					       core, ioctl,
-					       RKMODULE_GET_HDR_CFG,
-					       &hdr_cfg);
-			if (!ret) {
-				dev->hdr.mode = hdr_cfg.hdr_mode;
-				dev->has_get_hdr = true;
-			}
-		}
+		ret = v4l2_subdev_call(dev->terminal_sensor,
+				       core, ioctl,
+				       RKMODULE_GET_HDR_CFG,
+				       &hdr_cfg);
+		if (!ret)
+			dev->hdr.mode = hdr_cfg.hdr_mode;
+		else
+			dev->hdr.mode = NO_HDR;
 	}
 
 	ret = rkcif_sanity_check_fmt(stream, NULL);
@@ -2238,16 +2236,14 @@ static void rkcif_set_fmt(struct rkcif_stream *stream,
 			      &input_rect, stream->id + 1);
 
 	if (dev->terminal_sensor) {
-		if (!dev->has_get_hdr) {
-			ret = v4l2_subdev_call(dev->terminal_sensor,
-					       core, ioctl,
-					       RKMODULE_GET_HDR_CFG,
-					       &hdr_cfg);
-			if (!ret) {
-				dev->hdr.mode = hdr_cfg.hdr_mode;
-				dev->has_get_hdr = true;
-			}
-		}
+		ret = v4l2_subdev_call(dev->terminal_sensor,
+				       core, ioctl,
+				       RKMODULE_GET_HDR_CFG,
+				       &hdr_cfg);
+		if (!ret)
+			dev->hdr.mode = hdr_cfg.hdr_mode;
+		else
+			dev->hdr.mode = NO_HDR;
 	}
 
 	/* CIF has not scale function,

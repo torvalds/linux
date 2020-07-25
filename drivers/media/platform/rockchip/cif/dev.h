@@ -362,7 +362,6 @@ struct rkcif_device {
 	struct mutex			stream_lock; /* lock between streams */
 	enum rkcif_workmode		workmode;
 	const struct cif_reg		*cif_regs;
-	bool				has_get_hdr;
 	bool				can_be_reset;
 	struct rkcif_hdr		hdr;
 	struct rkcif_buffer		*rdbk_buf[RDBK_MAX];
