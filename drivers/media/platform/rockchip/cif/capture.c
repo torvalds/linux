@@ -1735,6 +1735,10 @@ static void rkcif_stop_streaming(struct vb2_queue *queue)
 		dev->can_be_reset = true;
 	}
 
+	memset(&stream->pixm, 0x0, sizeof(stream->pixm));
+	memset(&stream->crop, 0x0, sizeof(stream->crop));
+	stream->crop_enable = false;
+
 	if (dev->can_be_reset) {
 		if (dev->hdr.mode != NO_HDR) {
 			rkcif_stop_luma(&dev->luma_vdev);
@@ -2040,6 +2044,7 @@ static int rkcif_start_streaming(struct vb2_queue *queue, unsigned int count)
 	struct rkcif_device *dev = stream->cifdev;
 	struct v4l2_device *v4l2_dev = &dev->v4l2_dev;
 	struct rkcif_sensor_info *sensor_info = dev->active_sensor;
+	struct v4l2_subdev_selection input_sel;
 	struct rkmodule_hdr_cfg hdr_cfg;
 	/* struct v4l2_subdev *sd; */
 	int ret;
@@ -2071,6 +2076,15 @@ static int rkcif_start_streaming(struct vb2_queue *queue, unsigned int count)
 			dev->hdr.mode = hdr_cfg.hdr_mode;
 		else
 			dev->hdr.mode = NO_HDR;
+
+		input_sel.target = V4L2_SEL_TGT_CROP_BOUNDS;
+		ret = v4l2_subdev_call(dev->terminal_sensor,
+				       pad, get_selection, NULL,
+				       &input_sel);
+		if (!ret) {
+			stream->crop = input_sel.r;
+			stream->crop_enable = true;
+		}
 	}
 
 	ret = rkcif_sanity_check_fmt(stream, NULL);
