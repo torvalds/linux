@@ -311,7 +311,7 @@ static inline void push_whiteout(struct bch_fs *c, struct btree *b,
 static inline bool bch2_btree_node_insert_fits(struct bch_fs *c,
 					       struct btree *b, unsigned u64s)
 {
-	if (unlikely(btree_node_fake(b)))
+	if (unlikely(btree_node_need_rewrite(b)))
 		return false;
 
 	return u64s <= bch_btree_keys_u64s_remaining(c, b);
