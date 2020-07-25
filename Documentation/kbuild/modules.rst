@@ -21,6 +21,7 @@ This document describes how to build an out-of-tree kernel module.
 	   --- 4.1 Kernel Includes
 	   --- 4.2 Single Subdirectory
 	   --- 4.3 Several Subdirectories
+	   --- 4.4 UAPI Headers Installation
 	=== 5. Module Installation
 	   --- 5.1 INSTALL_MOD_PATH
 	   --- 5.2 INSTALL_MOD_DIR
@@ -130,6 +131,10 @@ executed to make module versioning work.
 		Install the external module(s). The default location is
 		/lib/modules/<kernel_release>/extra/, but a prefix may
 		be added with INSTALL_MOD_PATH (discussed in section 5).
+
+	headers_install
+		Export headers in a format suitable for userspace. The default
+		location is $PWD/usr. INSTALL_HDR_PATH can change this path.
 
 	clean
 		Remove all generated files in the module directory only.
@@ -405,6 +410,17 @@ according to the following rule:
 	absolute path is needed. $(src) provides the absolute path by
 	pointing to the directory where the currently executing kbuild
 	file is located.
+
+4.4 UAPI Headers Installation
+-----------------------------
+
+	External modules may export headers to userspace in a similar
+	fashion to the in-tree counterpart drivers. kbuild supports
+	running headers_install target in an out-of-tree. The location
+	where kbuild searches for headers is $(M)/include/uapi and
+	$(M)/arch/$(SRCARCH)/include/uapi.
+
+	See also Documentation/kbuild/headers_install.rst.
 
 
 5. Module Installation
