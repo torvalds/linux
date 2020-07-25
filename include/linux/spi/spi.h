@@ -329,6 +329,7 @@ static inline void spi_unregister_driver(struct spi_driver *sdrv)
  *	every chipselect is connected to a slave.
  * @dma_alignment: SPI controller constraint on DMA buffers alignment.
  * @mode_bits: flags understood by this controller driver
+ * @buswidth_override_bits: flags to override for this controller driver
  * @bits_per_word_mask: A mask indicating which values of bits_per_word are
  *	supported by the driver. Bit n indicates that a bits_per_word n+1 is
  *	supported. If set, the SPI core will reject any transfer with an
@@ -846,12 +847,7 @@ extern void spi_res_release(struct spi_controller *ctlr,
  *	processed the word, i.e. the "pre" timestamp should be taken before
  *	transmitting the "pre" word, and the "post" timestamp after receiving
  *	transmit confirmation from the controller for the "post" word.
- * @timestamped_pre: Set by the SPI controller driver to denote it has acted
- *	upon the @ptp_sts request. Not set when the SPI core has taken care of
- *	the task. SPI device drivers are free to print a warning if this comes
- *	back unset and they need the better resolution.
- * @timestamped_post: See above. The reason why both exist is that these
- *	booleans are also used to keep state in the core SPI logic.
+ * @timestamped: true if the transfer has been timestamped
  * @error: Error status logged by spi controller driver.
  *
  * SPI transfers always write the same number of bytes as they read.
