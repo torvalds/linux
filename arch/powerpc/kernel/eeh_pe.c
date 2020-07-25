@@ -366,9 +366,8 @@ static struct eeh_pe *eeh_pe_get_parent(struct eeh_dev *edev)
  */
 int eeh_pe_tree_insert(struct eeh_dev *edev)
 {
+	struct pci_controller *hose = edev->controller;
 	struct eeh_pe *pe, *parent;
-	struct pci_dn *pdn = eeh_dev_to_pdn(edev);
-	int config_addr = (pdn->busno << 8) | (pdn->devfn);
 
 	/* Check if the PE number is valid */
 	if (!eeh_has_flag(EEH_VALID_PE_ZERO) && !edev->pe_config_addr) {
@@ -382,7 +381,7 @@ int eeh_pe_tree_insert(struct eeh_dev *edev)
 	 * PE should be composed of PCI bus and its subordinate
 	 * components.
 	 */
-	pe = eeh_pe_get(pdn->phb, edev->pe_config_addr, config_addr);
+	pe = eeh_pe_get(hose, edev->pe_config_addr, edev->bdfn);
 	if (pe) {
 		if (pe->type & EEH_PE_INVALID) {
 			list_add_tail(&edev->entry, &pe->edevs);
@@ -416,15 +415,15 @@ int eeh_pe_tree_insert(struct eeh_dev *edev)
 
 	/* Create a new EEH PE */
 	if (edev->physfn)
-		pe = eeh_pe_alloc(pdn->phb, EEH_PE_VF);
+		pe = eeh_pe_alloc(hose, EEH_PE_VF);
 	else
-		pe = eeh_pe_alloc(pdn->phb, EEH_PE_DEVICE);
+		pe = eeh_pe_alloc(hose, EEH_PE_DEVICE);
 	if (!pe) {
 		pr_err("%s: out of memory!\n", __func__);
 		return -ENOMEM;
 	}
 	pe->addr	= edev->pe_config_addr;
-	pe->config_addr	= config_addr;
+	pe->config_addr	= edev->bdfn;
 
 	/*
 	 * Put the new EEH PE into hierarchy tree. If the parent
@@ -434,10 +433,10 @@ int eeh_pe_tree_insert(struct eeh_dev *edev)
 	 */
 	parent = eeh_pe_get_parent(edev);
 	if (!parent) {
-		parent = eeh_phb_pe_get(pdn->phb);
+		parent = eeh_phb_pe_get(hose);
 		if (!parent) {
 			pr_err("%s: No PHB PE is found (PHB Domain=%d)\n",
-				__func__, pdn->phb->global_number);
+				__func__, hose->global_number);
 			edev->pe = NULL;
 			kfree(pe);
 			return -EEXIST;
