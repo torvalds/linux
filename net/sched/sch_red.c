@@ -333,6 +333,10 @@ static int red_init(struct Qdisc *sch, struct nlattr *opt,
 	struct nlattr *tb[TCA_RED_MAX + 1];
 	int err;
 
+	q->qdisc = &noop_qdisc;
+	q->sch = sch;
+	timer_setup(&q->adapt_timer, red_adaptative_timer, 0);
+
 	if (!opt)
 		return -EINVAL;
 
@@ -340,10 +344,6 @@ static int red_init(struct Qdisc *sch, struct nlattr *opt,
 					  extack);
 	if (err < 0)
 		return err;
-
-	q->qdisc = &noop_qdisc;
-	q->sch = sch;
-	timer_setup(&q->adapt_timer, red_adaptative_timer, 0);
 
 	err = __red_change(sch, tb, extack);
 	if (err)
