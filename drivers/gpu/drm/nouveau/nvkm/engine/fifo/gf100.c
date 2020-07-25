@@ -181,7 +181,7 @@ gf100_fifo_recover(struct gf100_fifo *fifo, struct nvkm_engine *engine,
 	u32 chid = chan->base.chid;
 
 	nvkm_error(subdev, "%s engine fault on channel %d, recovering...\n",
-		   nvkm_subdev_name[engine->subdev.index], chid);
+		   engine->subdev.name, chid);
 	assert_spin_locked(&fifo->base.lock);
 
 	nvkm_mask(device, 0x003004 + (chid * 0x08), 0x00000001, 0x00000000);

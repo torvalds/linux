@@ -53,7 +53,5 @@ nvkm_gsp_new_(const struct nvkm_gsp_fwif *fwif, struct nvkm_device *device,
 	if (IS_ERR(fwif))
 		return PTR_ERR(fwif);
 
-	return nvkm_falcon_ctor(fwif->flcn, &gsp->subdev,
-				nvkm_subdev_name[gsp->subdev.index], 0,
-				&gsp->falcon);
+	return nvkm_falcon_ctor(fwif->flcn, &gsp->subdev, gsp->subdev.name, 0, &gsp->falcon);
 }

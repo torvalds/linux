@@ -217,8 +217,7 @@ nv50_vmm_flush(struct nvkm_vmm *vmm, int level)
 			if (!(nvkm_rd32(device, 0x100c80) & 0x00000001))
 				break;
 		) < 0)
-			nvkm_error(subdev, "%s mmu invalidate timeout\n",
-				   nvkm_subdev_name[i]);
+			nvkm_error(subdev, "%s mmu invalidate timeout\n", nvkm_subdev_type[i]);
 	}
 	mutex_unlock(&vmm->mmu->mutex);
 }

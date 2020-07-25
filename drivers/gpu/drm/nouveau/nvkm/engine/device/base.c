@@ -3269,7 +3269,7 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 			device->m = NULL;                                      \
 			if (ret != -ENODEV) {                                  \
 				nvdev_error(device, "%s ctor failed, %d\n",    \
-					    nvkm_subdev_name[s], ret);         \
+					    nvkm_subdev_type[(s)], ret);       \
 				goto done;                                     \
 			}                                                      \
 		}                                                              \

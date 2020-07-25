@@ -27,7 +27,7 @@
 #include <subdev/mc.h>
 
 const char *
-nvkm_subdev_name[NVKM_SUBDEV_NR] = {
+nvkm_subdev_type[NVKM_SUBDEV_NR] = {
 	[NVKM_SUBDEV_ACR     ] = "acr",
 	[NVKM_SUBDEV_BAR     ] = "bar",
 	[NVKM_SUBDEV_VBIOS   ] = "bios",
@@ -212,11 +212,11 @@ nvkm_subdev_ctor(const struct nvkm_subdev_func *func,
 		 struct nvkm_device *device, int index,
 		 struct nvkm_subdev *subdev)
 {
-	const char *name = nvkm_subdev_name[index];
 	subdev->func = func;
 	subdev->device = device;
 	subdev->index = index;
-	subdev->debug = nvkm_dbgopt(device->dbgopt, name);
+	strscpy(subdev->name, nvkm_subdev_type[index], sizeof(subdev->name));
+	subdev->debug = nvkm_dbgopt(device->dbgopt, subdev->name);
 	list_add_tail(&subdev->head, &device->subdev);
 }
 

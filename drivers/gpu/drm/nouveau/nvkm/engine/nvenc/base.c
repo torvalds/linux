@@ -59,5 +59,5 @@ nvkm_nvenc_new_(const struct nvkm_nvenc_fwif *fwif, struct nvkm_device *device,
 	nvenc->func = fwif->func;
 
 	return nvkm_falcon_ctor(nvenc->func->flcn, &nvenc->engine.subdev,
-				nvkm_subdev_name[index], 0, &nvenc->falcon);
+				nvenc->engine.subdev.name, 0, &nvenc->falcon);
 };

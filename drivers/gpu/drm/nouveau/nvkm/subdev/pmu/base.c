@@ -180,9 +180,8 @@ nvkm_pmu_ctor(const struct nvkm_pmu_fwif *fwif, struct nvkm_device *device,
 
 	pmu->func = fwif->func;
 
-	ret = nvkm_falcon_ctor(pmu->func->flcn, &pmu->subdev,
-			       nvkm_subdev_name[pmu->subdev.index], 0x10a000,
-			       &pmu->falcon);
+	ret = nvkm_falcon_ctor(pmu->func->flcn, &pmu->subdev, pmu->subdev.name,
+			       0x10a000, &pmu->falcon);
 	if (ret)
 		return ret;
 

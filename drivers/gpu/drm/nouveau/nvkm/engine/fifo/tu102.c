@@ -312,7 +312,7 @@ tu102_fifo_fault(struct nvkm_fifo *base, struct nvkm_fault_data *info)
 		enum nvkm_devidx engidx = nvkm_top_fault(device, info->engine);
 
 		if (engidx < NVKM_SUBDEV_NR) {
-			const char *src = nvkm_subdev_name[engidx];
+			const char *src = nvkm_subdev_type[engidx];
 			char *dst = en;
 
 			do {

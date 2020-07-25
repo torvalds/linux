@@ -57,5 +57,5 @@ nvkm_nvdec_new_(const struct nvkm_nvdec_fwif *fwif, struct nvkm_device *device,
 	nvdec->func = fwif->func;
 
 	return nvkm_falcon_ctor(nvdec->func->flcn, &nvdec->engine.subdev,
-				nvkm_subdev_name[index], 0, &nvdec->falcon);
+				nvdec->engine.subdev.name, 0, &nvdec->falcon);
 };

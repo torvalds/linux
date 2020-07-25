@@ -491,7 +491,7 @@ gk104_fifo_fault(struct nvkm_fifo *base, struct nvkm_fault_data *info)
 	if (ee == NULL) {
 		enum nvkm_devidx engidx = nvkm_top_fault(device, info->engine);
 		if (engidx < NVKM_SUBDEV_NR) {
-			const char *src = nvkm_subdev_name[engidx];
+			const char *src = nvkm_subdev_type[engidx];
 			char *dst = en;
 			do {
 				*dst++ = toupper(*src++);
@@ -919,7 +919,7 @@ gk104_fifo_oneinit(struct nvkm_fifo *base)
 		}
 
 		nvkm_debug(subdev, "engine %2d: runlist %2d pbdma %2d (%s)\n",
-			   engn, runl, pbid, nvkm_subdev_name[engidx]);
+			   engn, runl, pbid, nvkm_subdev_type[engidx]);
 
 		fifo->engine[engn].engine = nvkm_device_engine(device, engidx);
 		fifo->engine[engn].runl = runl;

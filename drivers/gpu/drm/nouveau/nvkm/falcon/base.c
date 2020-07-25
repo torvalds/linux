@@ -188,7 +188,7 @@ nvkm_falcon_get(struct nvkm_falcon *falcon, const struct nvkm_subdev *user)
 	mutex_lock(&falcon->mutex);
 	if (falcon->user) {
 		nvkm_error(user, "%s falcon already acquired by %s!\n",
-			   falcon->name, nvkm_subdev_name[falcon->user->index]);
+			   falcon->name, falcon->user->name);
 		mutex_unlock(&falcon->mutex);
 		return -EBUSY;
 	}

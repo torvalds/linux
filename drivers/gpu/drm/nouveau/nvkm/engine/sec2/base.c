@@ -104,7 +104,7 @@ nvkm_sec2_new_(const struct nvkm_sec2_fwif *fwif, struct nvkm_device *device,
 	sec2->func = fwif->func;
 
 	ret = nvkm_falcon_ctor(sec2->func->flcn, &sec2->engine.subdev,
-			       nvkm_subdev_name[index], addr, &sec2->falcon);
+			       sec2->engine.subdev.name, addr, &sec2->falcon);
 	if (ret)
 		return ret;
 

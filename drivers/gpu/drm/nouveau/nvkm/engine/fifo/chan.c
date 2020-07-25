@@ -43,7 +43,7 @@ nvkm_fifo_chan_child_fini(struct nvkm_oproxy *base, bool suspend)
 	struct nvkm_engine *engine  = object->oproxy.object->engine;
 	struct nvkm_fifo_chan *chan = object->chan;
 	struct nvkm_fifo_engn *engn = &chan->engn[engine->subdev.index];
-	const char *name = nvkm_subdev_name[engine->subdev.index];
+	const char *name = engine->subdev.name;
 	int ret = 0;
 
 	if (--engn->usecount)
@@ -76,7 +76,7 @@ nvkm_fifo_chan_child_init(struct nvkm_oproxy *base)
 	struct nvkm_engine *engine  = object->oproxy.object->engine;
 	struct nvkm_fifo_chan *chan = object->chan;
 	struct nvkm_fifo_engn *engn = &chan->engn[engine->subdev.index];
-	const char *name = nvkm_subdev_name[engine->subdev.index];
+	const char *name = engine->subdev.name;
 	int ret;
 
 	if (engn->usecount++)

@@ -185,7 +185,7 @@ nvkm_engine_ctor(const struct nvkm_engine_func *func,
 	refcount_set(&engine->use.refcount, 0);
 	mutex_init(&engine->use.mutex);
 
-	if (!nvkm_boolopt(device->cfgopt, nvkm_subdev_name[index], enable)) {
+	if (!nvkm_boolopt(device->cfgopt, engine->subdev.name, enable)) {
 		nvkm_debug(&engine->subdev, "disabled\n");
 		return -ENODEV;
 	}
