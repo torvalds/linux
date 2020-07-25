@@ -58,10 +58,12 @@ static const struct id_to_str arc_legacy_rel[] = {
 	{ 0x00,		NULL   }
 };
 
-static const struct id_to_str arc_cpu_rel[] = {
+static const struct id_to_str arc_hs_ver54_rel[] = {
 	/* UARCH.MAJOR,	Release */
 	{  0,		"R3.10a"},
 	{  1,		"R3.50a"},
+	{  2,		"R3.60a"},
+	{  3,		"R4.00a"},
 	{  0xFF,	NULL   }
 };
 
@@ -117,12 +119,6 @@ static void decode_arc_core(struct cpuinfo_arc *cpu)
 	struct bcr_uarch_build_arcv2 uarch;
 	const struct id_to_str *tbl;
 
-	/*
-	 * Up until (including) the first core4 release (0x54) things were
-	 * simple: AUX IDENTITY.ARCVER was sufficient to identify arc family
-	 * and release: 0x50 to 0x53 was HS38, 0x54 was HS48 (dual issue)
-	 */
-
 	if (cpu->core.family < 0x54) { /* includes arc700 */
 
 		for (tbl = &arc_legacy_rel[0]; tbl->id != 0; tbl++) {
@@ -143,11 +139,10 @@ static void decode_arc_core(struct cpuinfo_arc *cpu)
 	}
 
 	/*
-	 * However the subsequent HS release (same 0x54) allow HS38 or HS48
-	 * configurations and encode this info in a different BCR.
-	 * The BCR was introduced in 0x54 so can't be read unconditionally.
+	 * Initial HS cores bumped AUX IDENTITY.ARCVER for each release until
+	 * ARCVER 0x54 which introduced AUX MICRO_ARCH_BUILD and subsequent
+	 * releases only update it.
 	 */
-
 	READ_BCR(ARC_REG_MICRO_ARCH_BCR, uarch);
 
 	if (uarch.prod == 4) {
@@ -158,7 +153,7 @@ static void decode_arc_core(struct cpuinfo_arc *cpu)
 		cpu->name = "HS38";
 	}
 
-	for (tbl = &arc_cpu_rel[0]; tbl->id != 0xFF; tbl++) {
+	for (tbl = &arc_hs_ver54_rel[0]; tbl->id != 0xFF; tbl++) {
 		if (uarch.maj == tbl->id) {
 			cpu->release = tbl->str;
 			break;

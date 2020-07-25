@@ -16,6 +16,7 @@ static void afs_silly_rename_success(struct afs_operation *op)
 {
 	_enter("op=%08x", op->debug_id);
 
+	afs_check_dir_conflict(op, &op->file[0]);
 	afs_vnode_commit_status(op, &op->file[0]);
 }
 
@@ -69,6 +70,11 @@ static int afs_do_silly_rename(struct afs_vnode *dvnode, struct afs_vnode *vnode
 		return PTR_ERR(op);
 
 	afs_op_set_vnode(op, 0, dvnode);
+	afs_op_set_vnode(op, 1, dvnode);
+	op->file[0].dv_delta = 1;
+	op->file[1].dv_delta = 1;
+	op->file[0].update_ctime = true;
+	op->file[1].update_ctime = true;
 
 	op->dentry		= old;
 	op->dentry_2		= new;
@@ -129,6 +135,7 @@ int afs_sillyrename(struct afs_vnode *dvnode, struct afs_vnode *vnode,
 	switch (ret) {
 	case 0:
 		/* The rename succeeded. */
+		set_bit(AFS_VNODE_SILLY_DELETED, &vnode->flags);
 		d_move(dentry, sdentry);
 		break;
 	case -ERESTARTSYS:
@@ -148,19 +155,11 @@ out:
 
 static void afs_silly_unlink_success(struct afs_operation *op)
 {
-	struct afs_vnode *vnode = op->file[1].vnode;
-
 	_enter("op=%08x", op->debug_id);
-	afs_check_for_remote_deletion(op, op->file[0].vnode);
+	afs_check_dir_conflict(op, &op->file[0]);
 	afs_vnode_commit_status(op, &op->file[0]);
 	afs_vnode_commit_status(op, &op->file[1]);
 	afs_update_dentry_version(op, &op->file[0], op->dentry);
-
-	drop_nlink(&vnode->vfs_inode);
-	if (vnode->vfs_inode.i_nlink == 0) {
-		set_bit(AFS_VNODE_DELETED, &vnode->flags);
-		clear_bit(AFS_VNODE_CB_PROMISED, &vnode->flags);
-	}
 }
 
 static void afs_silly_unlink_edit_dir(struct afs_operation *op)
@@ -181,6 +180,7 @@ static const struct afs_operation_ops afs_silly_unlink_operation = {
 	.issue_afs_rpc	= afs_fs_remove_file,
 	.issue_yfs_rpc	= yfs_fs_remove_file,
 	.success	= afs_silly_unlink_success,
+	.aborted	= afs_check_for_remote_deletion,
 	.edit_dir	= afs_silly_unlink_edit_dir,
 };
 
@@ -200,12 +200,30 @@ static int afs_do_silly_unlink(struct afs_vnode *dvnode, struct afs_vnode *vnode
 
 	afs_op_set_vnode(op, 0, dvnode);
 	afs_op_set_vnode(op, 1, vnode);
+	op->file[0].dv_delta = 1;
+	op->file[0].update_ctime = true;
+	op->file[1].op_unlinked = true;
+	op->file[1].update_ctime = true;
 
 	op->dentry	= dentry;
 	op->ops		= &afs_silly_unlink_operation;
 
 	trace_afs_silly_rename(vnode, true);
-	return afs_do_sync_operation(op);
+	afs_begin_vnode_operation(op);
+	afs_wait_for_operation(op);
+
+	/* If there was a conflict with a third party, check the status of the
+	 * unlinked vnode.
+	 */
+	if (op->error == 0 && (op->flags & AFS_OPERATION_DIR_CONFLICT)) {
+		op->file[1].update_ctime = false;
+		op->fetch_status.which = 1;
+		op->ops = &afs_fetch_status_operation;
+		afs_begin_vnode_operation(op);
+		afs_wait_for_operation(op);
+	}
+
+	return afs_put_operation(op);
 }
 
 /*

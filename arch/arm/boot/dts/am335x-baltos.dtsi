@@ -369,7 +369,7 @@
 &mmc2 {
 	status = "okay";
 	vmmc-supply = <&wl12xx_vmmc>;
-	ti,non-removable;
+	non-removable;
 	bus-width = <4>;
 	cap-power-off-card;
 	pinctrl-names = "default";

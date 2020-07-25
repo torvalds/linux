@@ -18,7 +18,7 @@
  */
 
 #define SEC4_SG_LEN_EXT		0x80000000	/* Entry points to table */
-#define SEC4_SG_LEN_FIN		0x40000000	/* Last ent in table */
+#define SEC4_SG_LEN_FIN		0x40000000	/* Last entry in table */
 #define SEC4_SG_BPID_MASK	0x000000ff
 #define SEC4_SG_BPID_SHIFT	16
 #define SEC4_SG_LEN_MASK	0x3fffffff	/* Excludes EXT and FINAL */
@@ -113,7 +113,7 @@
  */
 #define HDR_REVERSE		0x00000800
 
-/* Propogate DNR property to SharedDesc */
+/* Propagate DNR property to SharedDesc */
 #define HDR_PROP_DNR		0x00000800
 
 /* JobDesc/SharedDesc share property */

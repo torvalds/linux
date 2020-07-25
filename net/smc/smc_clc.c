@@ -27,6 +27,7 @@
 
 #define SMCR_CLC_ACCEPT_CONFIRM_LEN 68
 #define SMCD_CLC_ACCEPT_CONFIRM_LEN 48
+#define SMC_CLC_RECV_BUF_LEN	100
 
 /* eye catcher "SMCR" EBCDIC for CLC messages */
 static const char SMC_EYECATCHER[4] = {'\xe2', '\xd4', '\xc3', '\xd9'};
@@ -36,7 +37,7 @@ static const char SMCD_EYECATCHER[4] = {'\xe2', '\xd4', '\xc3', '\xc4'};
 /* check if received message has a correct header length and contains valid
  * heading and trailing eyecatchers
  */
-static bool smc_clc_msg_hdr_valid(struct smc_clc_msg_hdr *clcm)
+static bool smc_clc_msg_hdr_valid(struct smc_clc_msg_hdr *clcm, bool check_trl)
 {
 	struct smc_clc_msg_proposal_prefix *pclc_prfx;
 	struct smc_clc_msg_accept_confirm *clc;
@@ -49,12 +50,9 @@ static bool smc_clc_msg_hdr_valid(struct smc_clc_msg_hdr *clcm)
 		return false;
 	switch (clcm->type) {
 	case SMC_CLC_PROPOSAL:
-		if (clcm->path != SMC_TYPE_R && clcm->path != SMC_TYPE_D &&
-		    clcm->path != SMC_TYPE_B)
-			return false;
 		pclc = (struct smc_clc_msg_proposal *)clcm;
 		pclc_prfx = smc_clc_proposal_get_prefix(pclc);
-		if (ntohs(pclc->hdr.length) !=
+		if (ntohs(pclc->hdr.length) <
 			sizeof(*pclc) + ntohs(pclc->iparea_offset) +
 			sizeof(*pclc_prfx) +
 			pclc_prfx->ipv6_prefixes_cnt *
@@ -86,7 +84,8 @@ static bool smc_clc_msg_hdr_valid(struct smc_clc_msg_hdr *clcm)
 	default:
 		return false;
 	}
-	if (memcmp(trl->eyecatcher, SMC_EYECATCHER, sizeof(SMC_EYECATCHER)) &&
+	if (check_trl &&
+	    memcmp(trl->eyecatcher, SMC_EYECATCHER, sizeof(SMC_EYECATCHER)) &&
 	    memcmp(trl->eyecatcher, SMCD_EYECATCHER, sizeof(SMCD_EYECATCHER)))
 		return false;
 	return true;
@@ -276,7 +275,8 @@ int smc_clc_wait_msg(struct smc_sock *smc, void *buf, int buflen,
 	struct msghdr msg = {NULL, 0};
 	int reason_code = 0;
 	struct kvec vec = {buf, buflen};
-	int len, datlen;
+	int len, datlen, recvlen;
+	bool check_trl = true;
 	int krflags;
 
 	/* peek the first few bytes to determine length of data to receive
@@ -320,10 +320,7 @@ int smc_clc_wait_msg(struct smc_sock *smc, void *buf, int buflen,
 	}
 	datlen = ntohs(clcm->length);
 	if ((len < sizeof(struct smc_clc_msg_hdr)) ||
-	    (datlen > buflen) ||
-	    (clcm->version != SMC_CLC_V1) ||
-	    (clcm->path != SMC_TYPE_R && clcm->path != SMC_TYPE_D &&
-	     clcm->path != SMC_TYPE_B) ||
+	    (clcm->version < SMC_CLC_V1) ||
 	    ((clcm->type != SMC_CLC_DECLINE) &&
 	     (clcm->type != expected_type))) {
 		smc->sk.sk_err = EPROTO;
@@ -331,15 +328,37 @@ int smc_clc_wait_msg(struct smc_sock *smc, void *buf, int buflen,
 		goto out;
 	}
 
+	if (clcm->type == SMC_CLC_PROPOSAL && clcm->path == SMC_TYPE_N)
+		reason_code = SMC_CLC_DECL_VERSMISMAT; /* just V2 offered */
+
 	/* receive the complete CLC message */
 	memset(&msg, 0, sizeof(struct msghdr));
-	iov_iter_kvec(&msg.msg_iter, READ, &vec, 1, datlen);
+	if (datlen > buflen) {
+		check_trl = false;
+		recvlen = buflen;
+	} else {
+		recvlen = datlen;
+	}
+	iov_iter_kvec(&msg.msg_iter, READ, &vec, 1, recvlen);
 	krflags = MSG_WAITALL;
 	len = sock_recvmsg(smc->clcsock, &msg, krflags);
-	if (len < datlen || !smc_clc_msg_hdr_valid(clcm)) {
+	if (len < recvlen || !smc_clc_msg_hdr_valid(clcm, check_trl)) {
 		smc->sk.sk_err = EPROTO;
 		reason_code = -EPROTO;
 		goto out;
+	}
+	datlen -= len;
+	while (datlen) {
+		u8 tmp[SMC_CLC_RECV_BUF_LEN];
+
+		vec.iov_base = &tmp;
+		vec.iov_len = SMC_CLC_RECV_BUF_LEN;
+		/* receive remaining proposal message */
+		recvlen = datlen > SMC_CLC_RECV_BUF_LEN ?
+						SMC_CLC_RECV_BUF_LEN : datlen;
+		iov_iter_kvec(&msg.msg_iter, READ, &vec, 1, recvlen);
+		len = sock_recvmsg(smc->clcsock, &msg, krflags);
+		datlen -= len;
 	}
 	if (clcm->type == SMC_CLC_DECLINE) {
 		struct smc_clc_msg_decline *dclc;

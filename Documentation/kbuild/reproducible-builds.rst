@@ -101,7 +101,7 @@ Structure randomisation
 
 If you enable ``CONFIG_GCC_PLUGIN_RANDSTRUCT``, you will need to
 pre-generate the random seed in
-``scripts/gcc-plgins/randomize_layout_seed.h`` so the same value
+``scripts/gcc-plugins/randomize_layout_seed.h`` so the same value
 is used in rebuilds.
 
 Debug info conflicts

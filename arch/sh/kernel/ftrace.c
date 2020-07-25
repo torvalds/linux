@@ -119,7 +119,7 @@ static void ftrace_mod_code(void)
 	 * But if one were to fail, then they all should, and if one were
 	 * to succeed, then they all should.
 	 */
-	mod_code_status = probe_kernel_write(mod_code_ip, mod_code_newcode,
+	mod_code_status = copy_to_kernel_nofault(mod_code_ip, mod_code_newcode,
 					     MCOUNT_INSN_SIZE);
 
 	/* if we fail, then kill any new writers */
@@ -203,7 +203,7 @@ static int ftrace_modify_code(unsigned long ip, unsigned char *old_code,
 	 */
 
 	/* read the text we want to modify */
-	if (probe_kernel_read(replaced, (void *)ip, MCOUNT_INSN_SIZE))
+	if (copy_from_kernel_nofault(replaced, (void *)ip, MCOUNT_INSN_SIZE))
 		return -EFAULT;
 
 	/* Make sure it is what we expect it to be */
@@ -268,7 +268,7 @@ static int ftrace_mod(unsigned long ip, unsigned long old_addr,
 {
 	unsigned char code[MCOUNT_INSN_SIZE];
 
-	if (probe_kernel_read(code, (void *)ip, MCOUNT_INSN_SIZE))
+	if (copy_from_kernel_nofault(code, (void *)ip, MCOUNT_INSN_SIZE))
 		return -EFAULT;
 
 	if (old_addr != __raw_readl((unsigned long *)code))

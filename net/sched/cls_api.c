@@ -652,6 +652,7 @@ static void tc_block_indr_cleanup(struct flow_block_cb *block_cb)
 			       &block->flow_block, tcf_block_shared(block),
 			       &extack);
 	down_write(&block->cb_lock);
+	list_del(&block_cb->driver_list);
 	list_move(&block_cb->list, &bo.cb_list);
 	up_write(&block->cb_lock);
 	rtnl_lock();
@@ -671,25 +672,29 @@ static int tcf_block_offload_cmd(struct tcf_block *block,
 				 struct netlink_ext_ack *extack)
 {
 	struct flow_block_offload bo = {};
-	int err;
 
 	tcf_block_offload_init(&bo, dev, command, ei->binder_type,
 			       &block->flow_block, tcf_block_shared(block),
 			       extack);
 
-	if (dev->netdev_ops->ndo_setup_tc)
-		err = dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_BLOCK, &bo);
-	else
-		err = flow_indr_dev_setup_offload(dev, TC_SETUP_BLOCK, block,
-						  &bo, tc_block_indr_cleanup);
+	if (dev->netdev_ops->ndo_setup_tc) {
+		int err;
 
-	if (err < 0) {
-		if (err != -EOPNOTSUPP)
-			NL_SET_ERR_MSG(extack, "Driver ndo_setup_tc failed");
-		return err;
+		err = dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_BLOCK, &bo);
+		if (err < 0) {
+			if (err != -EOPNOTSUPP)
+				NL_SET_ERR_MSG(extack, "Driver ndo_setup_tc failed");
+			return err;
+		}
+
+		return tcf_block_setup(block, &bo);
 	}
 
-	return tcf_block_setup(block, &bo);
+	flow_indr_dev_setup_offload(dev, TC_SETUP_BLOCK, block, &bo,
+				    tc_block_indr_cleanup);
+	tcf_block_setup(block, &bo);
+
+	return -EOPNOTSUPP;
 }
 
 static int tcf_block_offload_bind(struct tcf_block *block, struct Qdisc *q,
@@ -1533,7 +1538,7 @@ static inline int __tcf_classify(struct sk_buff *skb,
 reclassify:
 #endif
 	for (; tp; tp = rcu_dereference_bh(tp->next)) {
-		__be16 protocol = tc_skb_protocol(skb);
+		__be16 protocol = skb_protocol(skb, false);
 		int err;
 
 		if (tp->protocol != protocol &&

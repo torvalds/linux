@@ -254,7 +254,6 @@ TRACE_EVENT(block_bio_bounce,
  * block_bio_complete - completed all work on the block operation
  * @q: queue holding the block operation
  * @bio: block operation completed
- * @error: io error value
  *
  * This tracepoint indicates there is no further work to do on this
  * block IO operation @bio.

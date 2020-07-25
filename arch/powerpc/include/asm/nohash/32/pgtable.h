@@ -205,10 +205,6 @@ static inline void pmd_clear(pmd_t *pmdp)
 	*pmdp = __pmd(0);
 }
 
-/* to find an entry in a page-table-directory */
-#define pgd_index(address)	 ((address) >> PGDIR_SHIFT)
-#define pgd_offset(mm, address)	 ((mm)->pgd + pgd_index(address))
-
 /*
  * PTE updates. This function is called whenever an existing
  * valid PTE is updated. This does -not- include set_pte_at()
@@ -230,6 +226,8 @@ static inline void pmd_clear(pmd_t *pmdp)
  * For other page sizes, we have a single entry in the table.
  */
 #ifdef CONFIG_PPC_8xx
+static pmd_t *pmd_off(struct mm_struct *mm, unsigned long addr);
+
 static inline pte_basic_t pte_update(struct mm_struct *mm, unsigned long addr, pte_t *p,
 				     unsigned long clr, unsigned long set, int huge)
 {
@@ -237,7 +235,7 @@ static inline pte_basic_t pte_update(struct mm_struct *mm, unsigned long addr, p
 	pte_basic_t old = pte_val(*p);
 	pte_basic_t new = (old & ~(pte_basic_t)clr) | set;
 	int num, i;
-	pmd_t *pmd = pmd_offset(pud_offset(p4d_offset(pgd_offset(mm, addr), addr), addr), addr);
+	pmd_t *pmd = pmd_off(mm, addr);
 
 	if (!huge)
 		num = PAGE_SIZE / SZ_4K;
@@ -285,6 +283,16 @@ static inline pte_t ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
 {
 	return __pte(pte_update(mm, addr, ptep, ~0, 0, 0));
 }
+
+#if defined(CONFIG_PPC_8xx) && defined(CONFIG_PPC_16K_PAGES)
+#define __HAVE_ARCH_PTEP_GET
+static inline pte_t ptep_get(pte_t *ptep)
+{
+	pte_t pte = {READ_ONCE(ptep->pte), 0, 0, 0};
+
+	return pte;
+}
+#endif
 
 #define __HAVE_ARCH_PTEP_SET_WRPROTECT
 static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr,

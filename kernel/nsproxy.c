@@ -531,7 +531,7 @@ SYSCALL_DEFINE2(setns, int, fd, int, flags)
 	} else if (!IS_ERR(pidfd_pid(file))) {
 		err = check_setns_flags(flags);
 	} else {
-		err = -EBADF;
+		err = -EINVAL;
 	}
 	if (err)
 		goto out;

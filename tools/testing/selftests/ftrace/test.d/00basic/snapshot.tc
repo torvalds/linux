@@ -1,8 +1,7 @@
 #!/bin/sh
 # description: Snapshot and tracing setting
+# requires: snapshot
 # flags: instance
-
-[ ! -f snapshot ] && exit_unsupported
 
 echo "Set tracing off"
 echo 0 > tracing_on

@@ -1222,7 +1222,7 @@ fetch_store_strlen(unsigned long addr)
 #endif
 
 	do {
-		ret = probe_kernel_read(&c, (u8 *)addr + len, 1);
+		ret = copy_from_kernel_nofault(&c, (u8 *)addr + len, 1);
 		len++;
 	} while (c && ret == 0 && len < MAX_STRING_SIZE);
 
@@ -1290,7 +1290,7 @@ probe_mem_read_user(void *dest, void *src, size_t size)
 {
 	const void __user *uaddr =  (__force const void __user *)src;
 
-	return probe_user_read(dest, uaddr, size);
+	return copy_from_user_nofault(dest, uaddr, size);
 }
 
 static nokprobe_inline int
@@ -1300,7 +1300,7 @@ probe_mem_read(void *dest, void *src, size_t size)
 	if ((unsigned long)src < TASK_SIZE)
 		return probe_mem_read_user(dest, src, size);
 #endif
-	return probe_kernel_read(dest, src, size);
+	return copy_from_kernel_nofault(dest, src, size);
 }
 
 /* Note that we don't verify it, since the code does not come from user space */

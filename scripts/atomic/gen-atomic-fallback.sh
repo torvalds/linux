@@ -58,6 +58,21 @@ cat << EOF
 EOF
 }
 
+gen_proto_order_variant()
+{
+	local meta="$1"; shift
+	local pfx="$1"; shift
+	local name="$1"; shift
+	local sfx="$1"; shift
+	local order="$1"; shift
+	local arch="$1"
+	local atomic="$2"
+
+	local basename="${arch}${atomic}_${pfx}${name}${sfx}"
+
+	printf "#define arch_${basename}${order} ${basename}${order}\n"
+}
+
 #gen_proto_order_variants(meta, pfx, name, sfx, arch, atomic, int, args...)
 gen_proto_order_variants()
 {
@@ -71,6 +86,22 @@ gen_proto_order_variants()
 	local basename="${arch}${atomic}_${pfx}${name}${sfx}"
 
 	local template="$(find_fallback_template "${pfx}" "${name}" "${sfx}" "${order}")"
+
+	if [ -z "$arch" ]; then
+		gen_proto_order_variant "${meta}" "${pfx}" "${name}" "${sfx}" "" "$@"
+
+		if meta_has_acquire "${meta}"; then
+			gen_proto_order_variant "${meta}" "${pfx}" "${name}" "${sfx}" "_acquire" "$@"
+		fi
+		if meta_has_release "${meta}"; then
+			gen_proto_order_variant "${meta}" "${pfx}" "${name}" "${sfx}" "_release" "$@"
+		fi
+		if meta_has_relaxed "${meta}"; then
+			gen_proto_order_variant "${meta}" "${pfx}" "${name}" "${sfx}" "_relaxed" "$@"
+		fi
+
+		echo ""
+	fi
 
 	# If we don't have relaxed atomics, then we don't bother with ordering fallbacks
 	# read_acquire and set_release need to be templated, though

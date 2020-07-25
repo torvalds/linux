@@ -662,6 +662,6 @@
 	ti,no-idle;
 	timer@0 {
 		assigned-clocks = <&l4_wkup_clkctrl OMAP4_TIMER1_CLKCTRL 24>;
-		assigned-clock-parents = <&sys_clkin_ck>;
+		assigned-clock-parents = <&sys_32k_ck>;
 	};
 };

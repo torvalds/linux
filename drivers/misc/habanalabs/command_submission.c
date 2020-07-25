@@ -62,6 +62,12 @@ static void hl_fence_release(struct dma_fence *fence)
 		container_of(fence, struct hl_cs_compl, base_fence);
 	struct hl_device *hdev = hl_cs_cmpl->hdev;
 
+	/* EBUSY means the CS was never submitted and hence we don't have
+	 * an attached hw_sob object that we should handle here
+	 */
+	if (fence->error == -EBUSY)
+		goto free;
+
 	if ((hl_cs_cmpl->type == CS_TYPE_SIGNAL) ||
 			(hl_cs_cmpl->type == CS_TYPE_WAIT)) {
 
@@ -92,6 +98,7 @@ static void hl_fence_release(struct dma_fence *fence)
 		kref_put(&hl_cs_cmpl->hw_sob->kref, hl_sob_reset);
 	}
 
+free:
 	kfree_rcu(hl_cs_cmpl, base_fence.rcu);
 }
 
@@ -328,10 +335,16 @@ static void cs_do_release(struct kref *ref)
 
 	hl_ctx_put(cs->ctx);
 
+	/* We need to mark an error for not submitted because in that case
+	 * the dma fence release flow is different. Mainly, we don't need
+	 * to handle hw_sob for signal/wait
+	 */
 	if (cs->timedout)
 		dma_fence_set_error(cs->fence, -ETIMEDOUT);
 	else if (cs->aborted)
 		dma_fence_set_error(cs->fence, -EIO);
+	else if (!cs->submitted)
+		dma_fence_set_error(cs->fence, -EBUSY);
 
 	dma_fence_signal(cs->fence);
 	dma_fence_put(cs->fence);

@@ -15,29 +15,10 @@
 #include <setjmp.h>
 #include <errno.h>
 
-#ifdef __x86_64__
-# define WIDTH "q"
-#else
-# define WIDTH "l"
-#endif
+#include "helpers.h"
 
 /* Our sigaltstack scratch space. */
 static unsigned char altstack_data[SIGSTKSZ];
-
-static unsigned long get_eflags(void)
-{
-	unsigned long eflags;
-	asm volatile ("pushf" WIDTH "\n\tpop" WIDTH " %0" : "=rm" (eflags));
-	return eflags;
-}
-
-static void set_eflags(unsigned long eflags)
-{
-	asm volatile ("push" WIDTH " %0\n\tpopf" WIDTH
-		      : : "rm" (eflags) : "flags");
-}
-
-#define X86_EFLAGS_TF (1UL << 8)
 
 static void sethandler(int sig, void (*handler)(int, siginfo_t *, void *),
 		       int flags)

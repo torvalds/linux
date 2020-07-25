@@ -1,10 +1,8 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
 # description: Kprobe event user-memory access
+# requires: kprobe_events '$arg<N>':README
 
-[ -f kprobe_events ] || exit_unsupported # this is configurable
-
-grep -q '\$arg<N>' README || exit_unresolved # depends on arch
 grep -A10 "fetcharg:" README | grep -q 'ustring' || exit_unsupported
 grep -A10 "fetcharg:" README | grep -q '\[u\]<offset>' || exit_unsupported
 

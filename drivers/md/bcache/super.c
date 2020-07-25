@@ -19,6 +19,7 @@
 #include <linux/genhd.h>
 #include <linux/idr.h>
 #include <linux/kthread.h>
+#include <linux/workqueue.h>
 #include <linux/module.h>
 #include <linux/random.h>
 #include <linux/reboot.h>
@@ -819,7 +820,8 @@ static void bcache_device_free(struct bcache_device *d)
 }
 
 static int bcache_device_init(struct bcache_device *d, unsigned int block_size,
-			      sector_t sectors, make_request_fn make_request_fn)
+			      sector_t sectors, make_request_fn make_request_fn,
+			      struct block_device *cached_bdev)
 {
 	struct request_queue *q;
 	const size_t max_stripes = min_t(size_t, INT_MAX,
@@ -885,6 +887,20 @@ static int bcache_device_init(struct bcache_device *d, unsigned int block_size,
 	q->limits.io_min		= block_size;
 	q->limits.logical_block_size	= block_size;
 	q->limits.physical_block_size	= block_size;
+
+	if (q->limits.logical_block_size > PAGE_SIZE && cached_bdev) {
+		/*
+		 * This should only happen with BCACHE_SB_VERSION_BDEV.
+		 * Block/page size is checked for BCACHE_SB_VERSION_CDEV.
+		 */
+		pr_info("%s: sb/logical block size (%u) greater than page size (%lu) falling back to device logical block size (%u)\n",
+			d->disk->disk_name, q->limits.logical_block_size,
+			PAGE_SIZE, bdev_logical_block_size(cached_bdev));
+
+		/* This also adjusts physical block size/min io size if needed */
+		blk_queue_logical_block_size(q, bdev_logical_block_size(cached_bdev));
+	}
+
 	blk_queue_flag_set(QUEUE_FLAG_NONROT, d->disk->queue);
 	blk_queue_flag_clear(QUEUE_FLAG_ADD_RANDOM, d->disk->queue);
 	blk_queue_flag_set(QUEUE_FLAG_DISCARD, d->disk->queue);
@@ -1340,7 +1356,7 @@ static int cached_dev_init(struct cached_dev *dc, unsigned int block_size)
 
 	ret = bcache_device_init(&dc->disk, block_size,
 			 dc->bdev->bd_part->nr_sects - dc->sb.data_offset,
-			 cached_dev_make_request);
+			 cached_dev_make_request, dc->bdev);
 	if (ret)
 		return ret;
 
@@ -1453,7 +1469,7 @@ static int flash_dev_run(struct cache_set *c, struct uuid_entry *u)
 	kobject_init(&d->kobj, &bch_flash_dev_ktype);
 
 	if (bcache_device_init(d, block_bytes(c), u->sectors,
-			flash_dev_make_request))
+			flash_dev_make_request, NULL))
 		goto err;
 
 	bcache_device_attach(d, c, u - c->uuids);
@@ -2364,7 +2380,7 @@ static bool bch_is_open(struct block_device *bdev)
 }
 
 struct async_reg_args {
-	struct work_struct reg_work;
+	struct delayed_work reg_work;
 	char *path;
 	struct cache_sb *sb;
 	struct cache_sb_disk *sb_disk;
@@ -2375,7 +2391,7 @@ static void register_bdev_worker(struct work_struct *work)
 {
 	int fail = false;
 	struct async_reg_args *args =
-		container_of(work, struct async_reg_args, reg_work);
+		container_of(work, struct async_reg_args, reg_work.work);
 	struct cached_dev *dc;
 
 	dc = kzalloc(sizeof(*dc), GFP_KERNEL);
@@ -2405,7 +2421,7 @@ static void register_cache_worker(struct work_struct *work)
 {
 	int fail = false;
 	struct async_reg_args *args =
-		container_of(work, struct async_reg_args, reg_work);
+		container_of(work, struct async_reg_args, reg_work.work);
 	struct cache *ca;
 
 	ca = kzalloc(sizeof(*ca), GFP_KERNEL);
@@ -2433,11 +2449,12 @@ out:
 static void register_device_aync(struct async_reg_args *args)
 {
 	if (SB_IS_BDEV(args->sb))
-		INIT_WORK(&args->reg_work, register_bdev_worker);
+		INIT_DELAYED_WORK(&args->reg_work, register_bdev_worker);
 	else
-		INIT_WORK(&args->reg_work, register_cache_worker);
+		INIT_DELAYED_WORK(&args->reg_work, register_cache_worker);
 
-	queue_work(system_wq, &args->reg_work);
+	/* 10 jiffies is enough for a delay */
+	queue_delayed_work(system_wq, &args->reg_work, 10);
 }
 
 static ssize_t register_bcache(struct kobject *k, struct kobj_attribute *attr,

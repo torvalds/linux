@@ -2629,7 +2629,7 @@ struct Scsi_Host *iscsi_host_alloc(struct scsi_host_template *sht,
 			"iscsi_q_%d", shost->host_no);
 		ihost->workq = alloc_workqueue("%s",
 			WQ_SYSFS | __WQ_LEGACY | WQ_MEM_RECLAIM | WQ_UNBOUND,
-			2, ihost->workq_name);
+			1, ihost->workq_name);
 		if (!ihost->workq)
 			goto free_host;
 	}

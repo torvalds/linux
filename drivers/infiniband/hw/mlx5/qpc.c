@@ -346,6 +346,9 @@ static int get_ece_from_mbox(void *out, u16 opcode)
 	int ece = 0;
 
 	switch (opcode) {
+	case MLX5_CMD_OP_INIT2INIT_QP:
+		ece = MLX5_GET(init2init_qp_out, out, ece);
+		break;
 	case MLX5_CMD_OP_INIT2RTR_QP:
 		ece = MLX5_GET(init2rtr_qp_out, out, ece);
 		break;
@@ -354,6 +357,9 @@ static int get_ece_from_mbox(void *out, u16 opcode)
 		break;
 	case MLX5_CMD_OP_RTS2RTS_QP:
 		ece = MLX5_GET(rts2rts_qp_out, out, ece);
+		break;
+	case MLX5_CMD_OP_RST2INIT_QP:
+		ece = MLX5_GET(rst2init_qp_out, out, ece);
 		break;
 	default:
 		break;
@@ -406,6 +412,7 @@ static int modify_qp_mbox_alloc(struct mlx5_core_dev *dev, u16 opcode, int qpn,
 			return -ENOMEM;
 		MOD_QP_IN_SET_QPC(rst2init_qp, mbox->in, opcode, qpn,
 				  opt_param_mask, qpc, uid);
+		MLX5_SET(rst2init_qp_in, mbox->in, ece, ece);
 		break;
 	case MLX5_CMD_OP_INIT2RTR_QP:
 		if (MBOX_ALLOC(mbox, init2rtr_qp))
@@ -439,6 +446,7 @@ static int modify_qp_mbox_alloc(struct mlx5_core_dev *dev, u16 opcode, int qpn,
 			return -ENOMEM;
 		MOD_QP_IN_SET_QPC(init2init_qp, mbox->in, opcode, qpn,
 				  opt_param_mask, qpc, uid);
+		MLX5_SET(init2init_qp_in, mbox->in, ece, ece);
 		break;
 	default:
 		return -EINVAL;

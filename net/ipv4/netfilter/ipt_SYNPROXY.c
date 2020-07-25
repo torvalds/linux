@@ -118,3 +118,4 @@ module_exit(synproxy_tg4_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Patrick McHardy <kaber@trash.net>");
+MODULE_DESCRIPTION("Intercept TCP connections and establish them using syncookies");

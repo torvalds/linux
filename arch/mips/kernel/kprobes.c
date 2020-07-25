@@ -86,9 +86,9 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 		goto out;
 	}
 
-	if ((probe_kernel_read(&prev_insn, p->addr - 1,
-				sizeof(mips_instruction)) == 0) &&
-				insn_has_delayslot(prev_insn)) {
+	if (copy_from_kernel_nofault(&prev_insn, p->addr - 1,
+			sizeof(mips_instruction)) == 0 &&
+	    insn_has_delayslot(prev_insn)) {
 		pr_notice("Kprobes for branch delayslot are not supported\n");
 		ret = -EINVAL;
 		goto out;

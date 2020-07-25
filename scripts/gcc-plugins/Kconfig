@@ -78,7 +78,7 @@ config GCC_PLUGIN_RANDSTRUCT
 	  source tree isn't cleaned after kernel installation).
 
 	  The seed used for compilation is located at
-	  scripts/gcc-plgins/randomize_layout_seed.h.  It remains after
+	  scripts/gcc-plugins/randomize_layout_seed.h.  It remains after
 	  a make clean to allow for external modules to be compiled with
 	  the existing seed and will be removed by a make mrproper or
 	  make distclean.

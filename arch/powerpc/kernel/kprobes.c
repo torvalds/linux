@@ -289,7 +289,7 @@ int kprobe_handler(struct pt_regs *regs)
 	if (!p) {
 		unsigned int instr;
 
-		if (probe_kernel_address(addr, instr))
+		if (get_kernel_nofault(instr, addr))
 			goto no_kprobe;
 
 		if (instr != BREAKPOINT_INSTRUCTION) {
