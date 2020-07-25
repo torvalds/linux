@@ -229,7 +229,7 @@ struct eeh_ops {
 	int (*read_config)(struct pci_dn *pdn, int where, int size, u32 *val);
 	int (*write_config)(struct pci_dn *pdn, int where, int size, u32 val);
 	int (*next_error)(struct eeh_pe **pe);
-	int (*restore_config)(struct pci_dn *pdn);
+	int (*restore_config)(struct eeh_dev *edev);
 	int (*notify_resume)(struct pci_dn *pdn);
 };
 

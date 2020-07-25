@@ -843,16 +843,14 @@ static void eeh_restore_device_bars(struct eeh_dev *edev)
  */
 static void eeh_restore_one_device_bars(struct eeh_dev *edev, void *flag)
 {
-	struct pci_dn *pdn = eeh_dev_to_pdn(edev);
-
 	/* Do special restore for bridges */
 	if (edev->mode & EEH_DEV_BRIDGE)
 		eeh_restore_bridge_bars(edev);
 	else
 		eeh_restore_device_bars(edev);
 
-	if (eeh_ops->restore_config && pdn)
-		eeh_ops->restore_config(pdn);
+	if (eeh_ops->restore_config)
+		eeh_ops->restore_config(edev);
 }
 
 /**

@@ -1619,12 +1619,10 @@ static int pnv_eeh_next_error(struct eeh_pe **pe)
 	return ret;
 }
 
-static int pnv_eeh_restore_config(struct pci_dn *pdn)
+static int pnv_eeh_restore_config(struct eeh_dev *edev)
 {
-	struct eeh_dev *edev = pdn_to_eeh_dev(pdn);
 	struct pnv_phb *phb;
 	s64 ret = 0;
-	int config_addr = (pdn->busno << 8) | (pdn->devfn);
 
 	if (!edev)
 		return -EEXIST;
@@ -1638,7 +1636,7 @@ static int pnv_eeh_restore_config(struct pci_dn *pdn)
 
 	if (ret) {
 		pr_warn("%s: Can't reinit PCI dev 0x%x (%lld)\n",
-			__func__, config_addr, ret);
+			__func__, edev->bdfn, ret);
 		return -EIO;
 	}
 

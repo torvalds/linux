@@ -726,7 +726,6 @@ static void eeh_disable_and_save_dev_state(struct eeh_dev *edev,
 
 static void eeh_restore_dev_state(struct eeh_dev *edev, void *userdata)
 {
-	struct pci_dn *pdn = eeh_dev_to_pdn(edev);
 	struct pci_dev *pdev = eeh_dev_to_pci_dev(edev);
 	struct pci_dev *dev = userdata;
 
@@ -734,8 +733,8 @@ static void eeh_restore_dev_state(struct eeh_dev *edev, void *userdata)
 		return;
 
 	/* Apply customization from firmware */
-	if (pdn && eeh_ops->restore_config)
-		eeh_ops->restore_config(pdn);
+	if (eeh_ops->restore_config)
+		eeh_ops->restore_config(edev);
 
 	/* The caller should restore state for the specified device */
 	if (pdev != dev)
