@@ -78,4 +78,9 @@ static inline void bch_clear_feature_##name(struct cache_sb *sb) \
 }
 
 BCH_FEATURE_INCOMPAT_FUNCS(large_bucket, LARGE_BUCKET);
+
+int bch_print_cache_set_feature_compat(struct cache_set *c, char *buf, int size);
+int bch_print_cache_set_feature_ro_compat(struct cache_set *c, char *buf, int size);
+int bch_print_cache_set_feature_incompat(struct cache_set *c, char *buf, int size);
+
 #endif
