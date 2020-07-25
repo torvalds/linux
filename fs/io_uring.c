@@ -1141,7 +1141,9 @@ static void io_req_clean_work(struct io_kiocb *req)
 		spin_unlock(&req->work.fs->lock);
 		if (fs)
 			free_fs_struct(fs);
+		req->work.fs = NULL;
 	}
+	req->flags &= ~REQ_F_WORK_INITIALIZED;
 }
 
 static void io_prep_async_work(struct io_kiocb *req)
@@ -4969,7 +4971,6 @@ static int io_poll_add(struct io_kiocb *req)
 
 	/* ->work is in union with hash_node and others */
 	io_req_clean_work(req);
-	req->flags &= ~REQ_F_WORK_INITIALIZED;
 
 	INIT_HLIST_NODE(&req->hash_node);
 	ipt.pt._qproc = io_poll_queue_proc;
