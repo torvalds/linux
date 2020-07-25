@@ -5,7 +5,6 @@
 #include <linux/list.h>
 #include <linux/netlink.h>
 #include <net/flow_dissector.h>
-#include <linux/rhashtable.h>
 
 struct flow_match {
 	struct flow_dissector	*dissector;

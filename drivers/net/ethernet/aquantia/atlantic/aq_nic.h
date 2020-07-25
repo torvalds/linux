@@ -81,6 +81,8 @@ struct aq_nic_cfg_s {
 #define AQ_NIC_FLAG_ERR_UNPLUG  0x40000000U
 #define AQ_NIC_FLAG_ERR_HW      0x80000000U
 
+#define AQ_NIC_QUIRK_BAD_PTP    BIT(0)
+
 #define AQ_NIC_WOL_MODES        (WAKE_MAGIC |\
 				 WAKE_PHY)
 
