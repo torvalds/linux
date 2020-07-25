@@ -61,10 +61,16 @@ mt76_dma_add_buf(struct mt76_dev *dev, struct mt76_queue *q,
 	for (i = 0; i < nbufs; i += 2, buf += 2) {
 		u32 buf0 = buf[0].addr, buf1 = 0;
 
+		if (buf[0].skip_unmap)
+			q->entry[q->head].skip_buf0 = true;
+		q->entry[q->head].skip_buf1 = i == nbufs - 1;
+
 		ctrl = FIELD_PREP(MT_DMA_CTL_SD_LEN0, buf[0].len);
 		if (i < nbufs - 1) {
 			buf1 = buf[1].addr;
 			ctrl |= FIELD_PREP(MT_DMA_CTL_SD_LEN1, buf[1].len);
+			if (buf[1].skip_unmap)
+				q->entry[q->head].skip_buf1 = true;
 		}
 
 		if (i == nbufs - 1)
@@ -107,7 +113,7 @@ mt76_dma_tx_cleanup_idx(struct mt76_dev *dev, struct mt76_queue *q, int idx,
 				 DMA_TO_DEVICE);
 	}
 
-	if (!(ctrl & MT_DMA_CTL_LAST_SEC0)) {
+	if (!e->skip_buf1) {
 		__le32 addr = READ_ONCE(q->desc[idx].buf1);
 		u32 len = FIELD_GET(MT_DMA_CTL_SD_LEN1, ctrl);
 
