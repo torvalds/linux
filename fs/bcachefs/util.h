@@ -390,7 +390,7 @@ static inline void bch2_time_stats_update(struct bch2_time_stats *stats, u64 sta
 	__bch2_time_stats_update(stats, start, local_clock());
 }
 
-size_t bch2_time_stats_print(struct bch2_time_stats *, char *, size_t);
+void bch2_time_stats_to_text(struct printbuf *, struct bch2_time_stats *);
 
 void bch2_time_stats_exit(struct bch2_time_stats *);
 void bch2_time_stats_init(struct bch2_time_stats *);

@@ -501,8 +501,8 @@ static inline void bch2_journal_set_replay_done(struct journal *j)
 void bch2_journal_unblock(struct journal *);
 void bch2_journal_block(struct journal *);
 
-ssize_t bch2_journal_print_debug(struct journal *, char *);
-ssize_t bch2_journal_print_pins(struct journal *, char *);
+void bch2_journal_debug_to_text(struct printbuf *, struct journal *);
+void bch2_journal_pins_to_text(struct printbuf *, struct journal *);
 
 int bch2_set_nr_journal_buckets(struct bch_fs *, struct bch_dev *,
 				unsigned nr);

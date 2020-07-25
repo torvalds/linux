@@ -75,7 +75,6 @@ do {									\
 #define sysfs_hprint(file, val)						\
 do {									\
 	if (attr == &sysfs_ ## file) {					\
-		struct printbuf out = _PBUF(buf, PAGE_SIZE);		\
 		bch2_hprint(&out, val);					\
 		pr_buf(&out, "\n");					\
 		return out.pos - buf;					\
@@ -239,24 +238,22 @@ static size_t bch2_btree_cache_size(struct bch_fs *c)
 	return ret;
 }
 
-static ssize_t show_fs_alloc_debug(struct bch_fs *c, char *buf)
+static int fs_alloc_debug_to_text(struct printbuf *out, struct bch_fs *c)
 {
-	struct printbuf out = _PBUF(buf, PAGE_SIZE);
 	struct bch_fs_usage_online *fs_usage = bch2_fs_usage_read(c);
 
 	if (!fs_usage)
 		return -ENOMEM;
 
-	bch2_fs_usage_to_text(&out, c, fs_usage);
+	bch2_fs_usage_to_text(out, c, fs_usage);
 
 	percpu_up_read(&c->mark_lock);
 
 	kfree(fs_usage);
-
-	return out.pos - buf;
+	return 0;
 }
 
-static ssize_t bch2_compression_stats(struct bch_fs *c, char *buf)
+static int bch2_compression_stats_to_text(struct printbuf *out, struct bch_fs *c)
 {
 	struct btree_trans trans;
 	struct btree_iter *iter;
@@ -299,59 +296,26 @@ static ssize_t bch2_compression_stats(struct bch_fs *c, char *buf)
 	if (ret)
 		return ret;
 
-	return scnprintf(buf, PAGE_SIZE,
-			"uncompressed data:\n"
-			"	nr extents:			%llu\n"
-			"	size (bytes):			%llu\n"
-			"compressed data:\n"
-			"	nr extents:			%llu\n"
-			"	compressed size (bytes):	%llu\n"
-			"	uncompressed size (bytes):	%llu\n",
-			nr_uncompressed_extents,
-			uncompressed_sectors << 9,
-			nr_compressed_extents,
-			compressed_sectors_compressed << 9,
-			compressed_sectors_uncompressed << 9);
-}
-
-static ssize_t bch2_new_stripes(struct bch_fs *c, char *buf)
-{
-	char *out = buf, *end = buf + PAGE_SIZE;
-	struct ec_stripe_head *h;
-	struct ec_stripe_new *s;
-
-	mutex_lock(&c->ec_stripe_head_lock);
-	list_for_each_entry(h, &c->ec_stripe_head_list, list) {
-		out += scnprintf(out, end - out,
-				 "target %u algo %u redundancy %u:\n",
-				 h->target, h->algo, h->redundancy);
-
-		if (h->s)
-			out += scnprintf(out, end - out,
-					 "\tpending: blocks %u allocated %u\n",
-					 h->s->blocks.nr,
-					 bitmap_weight(h->s->blocks_allocated,
-						       h->s->blocks.nr));
-	}
-	mutex_unlock(&c->ec_stripe_head_lock);
-
-	mutex_lock(&c->ec_stripe_new_lock);
-	list_for_each_entry(h, &c->ec_stripe_new_list, list) {
-		out += scnprintf(out, end - out,
-				 "\tin flight: blocks %u allocated %u pin %u\n",
-				 s->blocks.nr,
-				 bitmap_weight(s->blocks_allocated,
-					       s->blocks.nr),
-				 atomic_read(&s->pin));
-	}
-	mutex_unlock(&c->ec_stripe_new_lock);
-
-	return out - buf;
+	pr_buf(out,
+	       "uncompressed data:\n"
+	       "	nr extents:			%llu\n"
+	       "	size (bytes):			%llu\n"
+	       "compressed data:\n"
+	       "	nr extents:			%llu\n"
+	       "	compressed size (bytes):	%llu\n"
+	       "	uncompressed size (bytes):	%llu\n",
+	       nr_uncompressed_extents,
+	       uncompressed_sectors << 9,
+	       nr_compressed_extents,
+	       compressed_sectors_compressed << 9,
+	       compressed_sectors_uncompressed << 9);
+	return 0;
 }
 
 SHOW(bch2_fs)
 {
 	struct bch_fs *c = container_of(kobj, struct bch_fs, kobj);
+	struct printbuf out = _PBUF(buf, PAGE_SIZE);
 
 	sysfs_print(minor,			c->minor);
 	sysfs_printf(internal_uuid, "%pU",	c->sb.uuid.b);
@@ -381,8 +345,10 @@ SHOW(bch2_fs)
 	sysfs_pd_controller_show(rebalance,	&c->rebalance.pd); /* XXX */
 	sysfs_pd_controller_show(copy_gc,	&c->copygc_pd);
 
-	if (attr == &sysfs_rebalance_work)
-		return bch2_rebalance_work_show(c, buf);
+	if (attr == &sysfs_rebalance_work) {
+		bch2_rebalance_work_to_text(&out, c);
+		return out.pos - buf;
+	}
 
 	sysfs_print(promote_whole_extents,	c->promote_whole_extents);
 
@@ -392,51 +358,61 @@ SHOW(bch2_fs)
 	/* Debugging: */
 
 	if (attr == &sysfs_alloc_debug)
-		return show_fs_alloc_debug(c, buf);
+		return fs_alloc_debug_to_text(&out, c) ?: out.pos - buf;
 
-	if (attr == &sysfs_journal_debug)
-		return bch2_journal_print_debug(&c->journal, buf);
+	if (attr == &sysfs_journal_debug) {
+		bch2_journal_debug_to_text(&out, &c->journal);
+		return out.pos - buf;
+	}
 
-	if (attr == &sysfs_journal_pins)
-		return bch2_journal_print_pins(&c->journal, buf);
+	if (attr == &sysfs_journal_pins) {
+		bch2_journal_pins_to_text(&out, &c->journal);
+		return out.pos - buf;
+	}
 
-	if (attr == &sysfs_btree_updates)
-		return bch2_btree_updates_print(c, buf);
+	if (attr == &sysfs_btree_updates) {
+		bch2_btree_updates_to_text(&out, c);
+		return out.pos - buf;
+	}
 
-	if (attr == &sysfs_dirty_btree_nodes)
-		return bch2_dirty_btree_nodes_print(c, buf);
+	if (attr == &sysfs_dirty_btree_nodes) {
+		bch2_dirty_btree_nodes_to_text(&out, c);
+		return out.pos - buf;
+	}
 
 	if (attr == &sysfs_btree_key_cache) {
-		struct printbuf out = _PBUF(buf, PAGE_SIZE);
-
 		bch2_btree_key_cache_to_text(&out, &c->btree_key_cache);
 		return out.pos - buf;
 	}
 
 	if (attr == &sysfs_btree_transactions) {
-		struct printbuf out = _PBUF(buf, PAGE_SIZE);
-
 		bch2_btree_trans_to_text(&out, c);
 		return out.pos - buf;
 	}
 
 	if (attr == &sysfs_stripes_heap) {
-		struct printbuf out = _PBUF(buf, PAGE_SIZE);
-
 		bch2_stripes_heap_to_text(&out, c);
 		return out.pos - buf;
 	}
 
-	if (attr == &sysfs_compression_stats)
-		return bch2_compression_stats(c, buf);
+	if (attr == &sysfs_compression_stats) {
+		bch2_compression_stats_to_text(&out, c);
+		return out.pos - buf;
+	}
 
-	if (attr == &sysfs_new_stripes)
-		return bch2_new_stripes(c, buf);
+	if (attr == &sysfs_new_stripes) {
+		bch2_new_stripes_to_text(&out, c);
+		return out.pos - buf;
+	}
 
-	if (attr == &sysfs_io_timers_read)
-		return bch2_io_timers_show(&c->io_clock[READ], buf);
-	if (attr == &sysfs_io_timers_write)
-		return bch2_io_timers_show(&c->io_clock[WRITE], buf);
+	if (attr == &sysfs_io_timers_read) {
+		bch2_io_timers_to_text(&out, &c->io_clock[READ]);
+		return out.pos - buf;
+	}
+	if (attr == &sysfs_io_timers_write) {
+		bch2_io_timers_to_text(&out, &c->io_clock[WRITE]);
+		return out.pos - buf;
+	}
 
 #define BCH_DEBUG_PARAM(name, description) sysfs_print(name, c->name);
 	BCH_DEBUG_PARAMS()
@@ -705,11 +681,13 @@ int bch2_opts_create_sysfs_files(struct kobject *kobj)
 SHOW(bch2_fs_time_stats)
 {
 	struct bch_fs *c = container_of(kobj, struct bch_fs, time_stats);
+	struct printbuf out = _PBUF(buf, PAGE_SIZE);
 
-#define x(name)						\
-	if (attr == &sysfs_time_stat_##name)				\
-		return bch2_time_stats_print(&c->times[BCH_TIME_##name],\
-					     buf, PAGE_SIZE);
+#define x(name)								\
+	if (attr == &sysfs_time_stat_##name) {				\
+		bch2_time_stats_to_text(&out, &c->times[BCH_TIME_##name]);\
+		return out.pos - buf;					\
+	}
 	BCH_TIME_STATS()
 #undef x
 
@@ -762,13 +740,13 @@ static int unsigned_cmp(const void *_l, const void *_r)
 	return cmp_int(*l, *r);
 }
 
-static ssize_t show_quantiles(struct bch_fs *c, struct bch_dev *ca,
-			      char *buf, bucket_map_fn *fn, void *private)
+static int quantiles_to_text(struct printbuf *out,
+			     struct bch_fs *c, struct bch_dev *ca,
+			     bucket_map_fn *fn, void *private)
 {
 	size_t i, n;
 	/* Compute 31 quantiles */
 	unsigned q[31], *p;
-	ssize_t ret = 0;
 
 	down_read(&ca->bucket_lock);
 	n = ca->mi.nbuckets;
@@ -795,35 +773,30 @@ static ssize_t show_quantiles(struct bch_fs *c, struct bch_dev *ca,
 	vfree(p);
 
 	for (i = 0; i < ARRAY_SIZE(q); i++)
-		ret += scnprintf(buf + ret, PAGE_SIZE - ret,
-				 "%u ", q[i]);
-	buf[ret - 1] = '\n';
-
-	return ret;
+		pr_buf(out, "%u ", q[i]);
+	pr_buf(out, "\n");
+	return 0;
 }
 
-static ssize_t show_reserve_stats(struct bch_dev *ca, char *buf)
+static void reserve_stats_to_text(struct printbuf *out, struct bch_dev *ca)
 {
-	struct printbuf out = _PBUF(buf, PAGE_SIZE);
 	enum alloc_reserve i;
 
 	spin_lock(&ca->fs->freelist_lock);
 
-	pr_buf(&out, "free_inc:\t%zu\t%zu\n",
+	pr_buf(out, "free_inc:\t%zu\t%zu\n",
 	       fifo_used(&ca->free_inc),
 	       ca->free_inc.size);
 
 	for (i = 0; i < RESERVE_NR; i++)
-		pr_buf(&out, "free[%u]:\t%zu\t%zu\n", i,
+		pr_buf(out, "free[%u]:\t%zu\t%zu\n", i,
 		       fifo_used(&ca->free[i]),
 		       ca->free[i].size);
 
 	spin_unlock(&ca->fs->freelist_lock);
-
-	return out.pos - buf;
 }
 
-static ssize_t show_dev_alloc_debug(struct bch_dev *ca, char *buf)
+static void dev_alloc_debug_to_text(struct printbuf *out, struct bch_dev *ca)
 {
 	struct bch_fs *c = ca->fs;
 	struct bch_dev_usage stats = bch2_dev_usage_read(ca);
@@ -834,7 +807,7 @@ static ssize_t show_dev_alloc_debug(struct bch_dev *ca, char *buf)
 	for (i = 0; i < ARRAY_SIZE(c->open_buckets); i++)
 		nr[c->open_buckets[i].type]++;
 
-	return scnprintf(buf, PAGE_SIZE,
+	pr_buf(out,
 		"free_inc:               %zu/%zu\n"
 		"free[RESERVE_BTREE]:    %zu/%zu\n"
 		"free[RESERVE_MOVINGGC]: %zu/%zu\n"
@@ -898,21 +871,18 @@ static const char * const bch2_rw[] = {
 	NULL
 };
 
-static ssize_t show_dev_iodone(struct bch_dev *ca, char *buf)
+static void dev_iodone_to_text(struct printbuf *out, struct bch_dev *ca)
 {
-	struct printbuf out = _PBUF(buf, PAGE_SIZE);
 	int rw, i;
 
 	for (rw = 0; rw < 2; rw++) {
-		pr_buf(&out, "%s:\n", bch2_rw[rw]);
+		pr_buf(out, "%s:\n", bch2_rw[rw]);
 
 		for (i = 1; i < BCH_DATA_NR; i++)
-			pr_buf(&out, "%-12s:%12llu\n",
+			pr_buf(out, "%-12s:%12llu\n",
 			       bch2_data_types[i],
 			       percpu_u64_get(&ca->io_done->sectors[rw][i]) << 9);
 	}
-
-	return out.pos - buf;
 }
 
 SHOW(bch2_dev)
@@ -964,34 +934,44 @@ SHOW(bch2_dev)
 		return out.pos - buf;
 	}
 
-	if (attr == &sysfs_iodone)
-		return show_dev_iodone(ca, buf);
+	if (attr == &sysfs_iodone) {
+		dev_iodone_to_text(&out, ca);
+		return out.pos - buf;
+	}
 
 	sysfs_print(io_latency_read,		atomic64_read(&ca->cur_latency[READ]));
 	sysfs_print(io_latency_write,		atomic64_read(&ca->cur_latency[WRITE]));
 
-	if (attr == &sysfs_io_latency_stats_read)
-		return bch2_time_stats_print(&ca->io_latency[READ], buf, PAGE_SIZE);
-	if (attr == &sysfs_io_latency_stats_write)
-		return bch2_time_stats_print(&ca->io_latency[WRITE], buf, PAGE_SIZE);
+	if (attr == &sysfs_io_latency_stats_read) {
+		bch2_time_stats_to_text(&out, &ca->io_latency[READ]);
+		return out.pos - buf;
+	}
+	if (attr == &sysfs_io_latency_stats_write) {
+		bch2_time_stats_to_text(&out, &ca->io_latency[WRITE]);
+		return out.pos - buf;
+	}
 
 	sysfs_printf(congested,			"%u%%",
 		     clamp(atomic_read(&ca->congested), 0, CONGESTED_MAX)
 		     * 100 / CONGESTED_MAX);
 
 	if (attr == &sysfs_bucket_quantiles_last_read)
-		return show_quantiles(c, ca, buf, bucket_last_io_fn, (void *) 0);
+		return quantiles_to_text(&out, c, ca, bucket_last_io_fn, (void *) 0) ?: out.pos - buf;
 	if (attr == &sysfs_bucket_quantiles_last_write)
-		return show_quantiles(c, ca, buf, bucket_last_io_fn, (void *) 1);
+		return quantiles_to_text(&out, c, ca, bucket_last_io_fn, (void *) 1) ?: out.pos - buf;
 	if (attr == &sysfs_bucket_quantiles_fragmentation)
-		return show_quantiles(c, ca, buf, bucket_sectors_used_fn, NULL);
+		return quantiles_to_text(&out, c, ca, bucket_sectors_used_fn, NULL)  ?: out.pos - buf;
 	if (attr == &sysfs_bucket_quantiles_oldest_gen)
-		return show_quantiles(c, ca, buf, bucket_oldest_gen_fn, NULL);
+		return quantiles_to_text(&out, c, ca, bucket_oldest_gen_fn, NULL)    ?: out.pos - buf;
 
-	if (attr == &sysfs_reserve_stats)
-		return show_reserve_stats(ca, buf);
-	if (attr == &sysfs_alloc_debug)
-		return show_dev_alloc_debug(ca, buf);
+	if (attr == &sysfs_reserve_stats) {
+		reserve_stats_to_text(&out, ca);
+		return out.pos - buf;
+	}
+	if (attr == &sysfs_alloc_debug) {
+		dev_alloc_debug_to_text(&out, ca);
+		return out.pos - buf;
+	}
 
 	return 0;
 }

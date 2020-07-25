@@ -1974,22 +1974,19 @@ void bch2_btree_root_alloc(struct bch_fs *c, enum btree_id id)
 	six_unlock_intent(&b->c.lock);
 }
 
-ssize_t bch2_btree_updates_print(struct bch_fs *c, char *buf)
+void bch2_btree_updates_to_text(struct printbuf *out, struct bch_fs *c)
 {
-	struct printbuf out = _PBUF(buf, PAGE_SIZE);
 	struct btree_update *as;
 
 	mutex_lock(&c->btree_interior_update_lock);
 	list_for_each_entry(as, &c->btree_interior_update_list, list)
-		pr_buf(&out, "%p m %u w %u r %u j %llu\n",
+		pr_buf(out, "%p m %u w %u r %u j %llu\n",
 		       as,
 		       as->mode,
 		       as->nodes_written,
 		       atomic_read(&as->cl.remaining) & CLOSURE_REMAINING_MASK,
 		       as->journal.seq);
 	mutex_unlock(&c->btree_interior_update_lock);
-
-	return out.pos - buf;
 }
 
 size_t bch2_btree_interior_updates_nr_pending(struct bch_fs *c)

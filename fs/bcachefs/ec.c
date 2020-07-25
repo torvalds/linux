@@ -1575,6 +1575,35 @@ void bch2_stripes_heap_to_text(struct printbuf *out, struct bch_fs *c)
 	spin_unlock(&c->ec_stripes_heap_lock);
 }
 
+void bch2_new_stripes_to_text(struct printbuf *out, struct bch_fs *c)
+{
+	struct ec_stripe_head *h;
+	struct ec_stripe_new *s;
+
+	mutex_lock(&c->ec_stripe_head_lock);
+	list_for_each_entry(h, &c->ec_stripe_head_list, list) {
+		pr_buf(out, "target %u algo %u redundancy %u:\n",
+		       h->target, h->algo, h->redundancy);
+
+		if (h->s)
+			pr_buf(out, "\tpending: blocks %u allocated %u\n",
+			       h->s->blocks.nr,
+			       bitmap_weight(h->s->blocks_allocated,
+					     h->s->blocks.nr));
+	}
+	mutex_unlock(&c->ec_stripe_head_lock);
+
+	mutex_lock(&c->ec_stripe_new_lock);
+	list_for_each_entry(h, &c->ec_stripe_new_list, list) {
+		pr_buf(out, "\tin flight: blocks %u allocated %u pin %u\n",
+		       s->blocks.nr,
+		       bitmap_weight(s->blocks_allocated,
+				     s->blocks.nr),
+		       atomic_read(&s->pin));
+	}
+	mutex_unlock(&c->ec_stripe_new_lock);
+}
+
 void bch2_fs_ec_exit(struct bch_fs *c)
 {
 	struct ec_stripe_head *h;

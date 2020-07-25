@@ -140,7 +140,7 @@ do {									\
 void bch2_btree_flush_all_reads(struct bch_fs *);
 void bch2_btree_flush_all_writes(struct bch_fs *);
 void bch2_btree_verify_flushed(struct bch_fs *);
-ssize_t bch2_dirty_btree_nodes_print(struct bch_fs *, char *);
+void bch2_dirty_btree_nodes_to_text(struct printbuf *, struct bch_fs *);
 
 static inline void compat_bformat(unsigned level, enum btree_id btree_id,
 				 unsigned version, unsigned big_endian,

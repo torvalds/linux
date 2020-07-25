@@ -30,7 +30,7 @@ void bch2_io_clock_schedule_timeout(struct io_clock *, unsigned long);
 	__ret;								\
 })
 
-ssize_t bch2_io_timers_show(struct io_clock *, char *);
+void bch2_io_timers_to_text(struct printbuf *, struct io_clock *);
 
 void bch2_io_clock_exit(struct io_clock *);
 int bch2_io_clock_init(struct io_clock *);

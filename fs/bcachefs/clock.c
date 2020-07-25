@@ -152,9 +152,8 @@ void __bch2_increment_clock(struct io_clock *clock, unsigned sectors)
 		timer->fn(timer);
 }
 
-ssize_t bch2_io_timers_show(struct io_clock *clock, char *buf)
+void bch2_io_timers_to_text(struct printbuf *out, struct io_clock *clock)
 {
-	struct printbuf out = _PBUF(buf, PAGE_SIZE);
 	unsigned long now;
 	unsigned i;
 
@@ -162,12 +161,10 @@ ssize_t bch2_io_timers_show(struct io_clock *clock, char *buf)
 	now = atomic_long_read(&clock->now);
 
 	for (i = 0; i < clock->timers.used; i++)
-		pr_buf(&out, "%ps:\t%li\n",
+		pr_buf(out, "%ps:\t%li\n",
 		       clock->timers.data[i]->fn,
 		       clock->timers.data[i]->expire - now);
 	spin_unlock(&clock->timer_lock);
-
-	return out.pos - buf;
 }
 
 void bch2_io_clock_exit(struct io_clock *clock)

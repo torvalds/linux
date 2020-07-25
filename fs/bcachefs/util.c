@@ -320,43 +320,40 @@ static void pr_time_units(struct printbuf *out, u64 ns)
 	pr_buf(out, "%llu %s", div_u64(ns, u->nsecs), u->name);
 }
 
-size_t bch2_time_stats_print(struct bch2_time_stats *stats, char *buf, size_t len)
+void bch2_time_stats_to_text(struct printbuf *out, struct bch2_time_stats *stats)
 {
-	struct printbuf out = _PBUF(buf, len);
 	const struct time_unit *u;
 	u64 freq = READ_ONCE(stats->average_frequency);
 	u64 q, last_q = 0;
 	int i;
 
-	pr_buf(&out, "count:\t\t%llu\n",
+	pr_buf(out, "count:\t\t%llu\n",
 			 stats->count);
-	pr_buf(&out, "rate:\t\t%llu/sec\n",
+	pr_buf(out, "rate:\t\t%llu/sec\n",
 	       freq ?  div64_u64(NSEC_PER_SEC, freq) : 0);
 
-	pr_buf(&out, "frequency:\t");
-	pr_time_units(&out, freq);
+	pr_buf(out, "frequency:\t");
+	pr_time_units(out, freq);
 
-	pr_buf(&out, "\navg duration:\t");
-	pr_time_units(&out, stats->average_duration);
+	pr_buf(out, "\navg duration:\t");
+	pr_time_units(out, stats->average_duration);
 
-	pr_buf(&out, "\nmax duration:\t");
-	pr_time_units(&out, stats->max_duration);
+	pr_buf(out, "\nmax duration:\t");
+	pr_time_units(out, stats->max_duration);
 
 	i = eytzinger0_first(NR_QUANTILES);
 	u = pick_time_units(stats->quantiles.entries[i].m);
 
-	pr_buf(&out, "\nquantiles (%s):\t", u->name);
+	pr_buf(out, "\nquantiles (%s):\t", u->name);
 	eytzinger0_for_each(i, NR_QUANTILES) {
 		bool is_last = eytzinger0_next(i, NR_QUANTILES) == -1;
 
 		q = max(stats->quantiles.entries[i].m, last_q);
-		pr_buf(&out, "%llu%s",
+		pr_buf(out, "%llu%s",
 		       div_u64(q, u->nsecs),
 		       is_last ? "\n" : " ");
 		last_q = q;
 	}
-
-	return out.pos - buf;
 }
 
 void bch2_time_stats_exit(struct bch2_time_stats *stats)
