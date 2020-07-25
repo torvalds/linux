@@ -33,6 +33,8 @@
 #include <asm/ppc-pci.h>
 #include <asm/rtas.h>
 
+static int pseries_eeh_get_pe_addr(struct pci_dn *pdn);
+
 /* RTAS tokens */
 static int ibm_set_eeh_option;
 static int ibm_set_slot_reset;
@@ -468,7 +470,7 @@ void pseries_eeh_init_edev(struct pci_dn *pdn)
 		eeh_edev_dbg(edev, "EEH failed to enable on device (code %d)\n", ret);
 	} else {
 		/* Retrieve PE address */
-		edev->pe_config_addr = eeh_ops->get_pe_addr(&pe);
+		edev->pe_config_addr = pseries_eeh_get_pe_addr(pdn);
 		pe.addr = edev->pe_config_addr;
 
 		/* Some older systems (Power4) allow the ibm,set-eeh-option
@@ -598,8 +600,10 @@ static int pseries_eeh_set_option(struct eeh_pe *pe, int option)
  * It's notable that zero'ed return value means invalid PE config
  * address.
  */
-static int pseries_eeh_get_pe_addr(struct eeh_pe *pe)
+static int pseries_eeh_get_pe_addr(struct pci_dn *pdn)
 {
+	int config_addr = rtas_config_addr(pdn->busno, pdn->devfn, 0);
+	unsigned long buid = pdn->phb->buid;
 	int ret = 0;
 	int rets[3];
 
@@ -610,18 +614,16 @@ static int pseries_eeh_get_pe_addr(struct eeh_pe *pe)
 		 * meaningless.
 		 */
 		ret = rtas_call(ibm_get_config_addr_info2, 4, 2, rets,
-				pe->config_addr, BUID_HI(pe->phb->buid),
-				BUID_LO(pe->phb->buid), 1);
+				config_addr, BUID_HI(buid), BUID_LO(buid), 1);
 		if (ret || (rets[0] == 0))
 			return 0;
 
 		/* Retrieve the associated PE config address */
 		ret = rtas_call(ibm_get_config_addr_info2, 4, 2, rets,
-				pe->config_addr, BUID_HI(pe->phb->buid),
-				BUID_LO(pe->phb->buid), 0);
+				config_addr, BUID_HI(buid), BUID_LO(buid), 0);
 		if (ret) {
 			pr_warn("%s: Failed to get address for PHB#%x-PE#%x\n",
-				__func__, pe->phb->global_number, pe->config_addr);
+				__func__, pdn->phb->global_number, config_addr);
 			return 0;
 		}
 
@@ -630,11 +632,10 @@ static int pseries_eeh_get_pe_addr(struct eeh_pe *pe)
 
 	if (ibm_get_config_addr_info != RTAS_UNKNOWN_SERVICE) {
 		ret = rtas_call(ibm_get_config_addr_info, 4, 2, rets,
-				pe->config_addr, BUID_HI(pe->phb->buid),
-				BUID_LO(pe->phb->buid), 0);
+				config_addr, BUID_HI(buid), BUID_LO(buid), 0);
 		if (ret) {
 			pr_warn("%s: Failed to get address for PHB#%x-PE#%x\n",
-				__func__, pe->phb->global_number, pe->config_addr);
+				__func__, pdn->phb->global_number, config_addr);
 			return 0;
 		}
 
@@ -945,7 +946,6 @@ static struct eeh_ops pseries_eeh_ops = {
 	.init			= pseries_eeh_init,
 	.probe			= pseries_eeh_probe,
 	.set_option		= pseries_eeh_set_option,
-	.get_pe_addr		= pseries_eeh_get_pe_addr,
 	.get_state		= pseries_eeh_get_state,
 	.reset			= pseries_eeh_reset,
 	.get_log		= pseries_eeh_get_log,

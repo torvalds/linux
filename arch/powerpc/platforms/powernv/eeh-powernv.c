@@ -535,18 +535,6 @@ static int pnv_eeh_set_option(struct eeh_pe *pe, int option)
 	return 0;
 }
 
-/**
- * pnv_eeh_get_pe_addr - Retrieve PE address
- * @pe: EEH PE
- *
- * Retrieve the PE address according to the given tranditional
- * PCI BDF (Bus/Device/Function) address.
- */
-static int pnv_eeh_get_pe_addr(struct eeh_pe *pe)
-{
-	return pe->addr;
-}
-
 static void pnv_eeh_get_phb_diag(struct eeh_pe *pe)
 {
 	struct pnv_phb *phb = pe->phb->private_data;
@@ -1670,7 +1658,6 @@ static struct eeh_ops pnv_eeh_ops = {
 	.init                   = pnv_eeh_init,
 	.probe			= pnv_eeh_probe,
 	.set_option             = pnv_eeh_set_option,
-	.get_pe_addr            = pnv_eeh_get_pe_addr,
 	.get_state              = pnv_eeh_get_state,
 	.reset                  = pnv_eeh_reset,
 	.get_log                = pnv_eeh_get_log,
