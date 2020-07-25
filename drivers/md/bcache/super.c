@@ -13,6 +13,7 @@
 #include "extents.h"
 #include "request.h"
 #include "writeback.h"
+#include "features.h"
 
 #include <linux/blkdev.h>
 #include <linux/debugfs.h>
@@ -194,6 +195,7 @@ static const char *read_super(struct cache_sb *sb, struct block_device *bdev,
 		sb->data_offset	= BDEV_DATA_START_DEFAULT;
 		break;
 	case BCACHE_SB_VERSION_BDEV_WITH_OFFSET:
+	case BCACHE_SB_VERSION_BDEV_WITH_FEATURES:
 		sb->data_offset	= le64_to_cpu(s->data_offset);
 
 		err = "Bad data offset";
@@ -206,6 +208,14 @@ static const char *read_super(struct cache_sb *sb, struct block_device *bdev,
 		err = read_super_common(sb, bdev, s);
 		if (err)
 			goto err;
+		break;
+	case BCACHE_SB_VERSION_CDEV_WITH_FEATURES:
+		err = read_super_common(sb, bdev, s);
+		if (err)
+			goto err;
+		sb->feature_compat = le64_to_cpu(s->feature_compat);
+		sb->feature_incompat = le64_to_cpu(s->feature_incompat);
+		sb->feature_ro_compat = le64_to_cpu(s->feature_ro_compat);
 		break;
 	default:
 		err = "Unsupported superblock version";
@@ -241,7 +251,6 @@ static void __write_super(struct cache_sb *sb, struct cache_sb_disk *out,
 			offset_in_page(out));
 
 	out->offset		= cpu_to_le64(sb->offset);
-	out->version		= cpu_to_le64(sb->version);
 
 	memcpy(out->uuid,	sb->uuid, 16);
 	memcpy(out->set_uuid,	sb->set_uuid, 16);
@@ -257,6 +266,13 @@ static void __write_super(struct cache_sb *sb, struct cache_sb_disk *out,
 	for (i = 0; i < sb->keys; i++)
 		out->d[i] = cpu_to_le64(sb->d[i]);
 
+	if (sb->version >= BCACHE_SB_VERSION_CDEV_WITH_FEATURES) {
+		out->feature_compat    = cpu_to_le64(sb->feature_compat);
+		out->feature_incompat  = cpu_to_le64(sb->feature_incompat);
+		out->feature_ro_compat = cpu_to_le64(sb->feature_ro_compat);
+	}
+
+	out->version		= cpu_to_le64(sb->version);
 	out->csum = csum_set(out);
 
 	pr_debug("ver %llu, flags %llu, seq %llu\n",
@@ -313,17 +329,20 @@ void bcache_write_super(struct cache_set *c)
 {
 	struct closure *cl = &c->sb_write;
 	struct cache *ca;
-	unsigned int i;
+	unsigned int i, version = BCACHE_SB_VERSION_CDEV_WITH_UUID;
 
 	down(&c->sb_write_mutex);
 	closure_init(cl, &c->cl);
 
 	c->sb.seq++;
 
+	if (c->sb.version > version)
+		version = c->sb.version;
+
 	for_each_cache(ca, c, i) {
 		struct bio *bio = &ca->sb_bio;
 
-		ca->sb.version		= BCACHE_SB_VERSION_CDEV_WITH_UUID;
+		ca->sb.version		= version;
 		ca->sb.seq		= c->sb.seq;
 		ca->sb.last_mount	= c->sb.last_mount;
 
@@ -1839,6 +1858,13 @@ struct cache_set *bch_cache_set_alloc(struct cache_sb *sb)
 	c->sb.bucket_size	= sb->bucket_size;
 	c->sb.nr_in_set		= sb->nr_in_set;
 	c->sb.last_mount	= sb->last_mount;
+	c->sb.version		= sb->version;
+	if (c->sb.version >= BCACHE_SB_VERSION_CDEV_WITH_FEATURES) {
+		c->sb.feature_compat = sb->feature_compat;
+		c->sb.feature_ro_compat = sb->feature_ro_compat;
+		c->sb.feature_incompat = sb->feature_incompat;
+	}
+
 	c->bucket_bits		= ilog2(sb->bucket_size);
 	c->block_bits		= ilog2(sb->block_size);
 	c->nr_uuids		= bucket_bytes(c) / sizeof(struct uuid_entry);

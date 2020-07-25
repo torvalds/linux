@@ -141,11 +141,13 @@ static inline struct bkey *bkey_idx(const struct bkey *k, unsigned int nr_keys)
  * Version 3: Cache device with new UUID format
  * Version 4: Backing device with data offset
  */
-#define BCACHE_SB_VERSION_CDEV		0
-#define BCACHE_SB_VERSION_BDEV		1
-#define BCACHE_SB_VERSION_CDEV_WITH_UUID 3
-#define BCACHE_SB_VERSION_BDEV_WITH_OFFSET 4
-#define BCACHE_SB_MAX_VERSION		4
+#define BCACHE_SB_VERSION_CDEV			0
+#define BCACHE_SB_VERSION_BDEV			1
+#define BCACHE_SB_VERSION_CDEV_WITH_UUID	3
+#define BCACHE_SB_VERSION_BDEV_WITH_OFFSET	4
+#define BCACHE_SB_VERSION_CDEV_WITH_FEATURES	5
+#define BCACHE_SB_VERSION_BDEV_WITH_FEATURES	6
+#define BCACHE_SB_MAX_VERSION			6
 
 #define SB_SECTOR			8
 #define SB_OFFSET			(SB_SECTOR << SECTOR_SHIFT)
@@ -173,7 +175,12 @@ struct cache_sb_disk {
 
 	__le64			flags;
 	__le64			seq;
-	__le64			pad[8];
+
+	__le64			feature_compat;
+	__le64			feature_incompat;
+	__le64			feature_ro_compat;
+
+	__le64			pad[5];
 
 	union {
 	struct {
@@ -224,7 +231,12 @@ struct cache_sb {
 
 	__u64			flags;
 	__u64			seq;
-	__u64			pad[8];
+
+	__u64			feature_compat;
+	__u64			feature_incompat;
+	__u64			feature_ro_compat;
+
+	__u64			pad[5];
 
 	union {
 	struct {
@@ -262,7 +274,8 @@ struct cache_sb {
 static inline _Bool SB_IS_BDEV(const struct cache_sb *sb)
 {
 	return sb->version == BCACHE_SB_VERSION_BDEV
-		|| sb->version == BCACHE_SB_VERSION_BDEV_WITH_OFFSET;
+		|| sb->version == BCACHE_SB_VERSION_BDEV_WITH_OFFSET
+		|| sb->version == BCACHE_SB_VERSION_BDEV_WITH_FEATURES;
 }
 
 BITMASK(CACHE_SYNC,			struct cache_sb, flags, 0, 1);
