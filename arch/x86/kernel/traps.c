@@ -303,6 +303,8 @@ DEFINE_IDTENTRY_ERRORCODE(exc_alignment_check)
 
 	do_trap(X86_TRAP_AC, SIGBUS, "alignment check", regs,
 		error_code, BUS_ADRALN, NULL);
+
+	local_irq_disable();
 }
 
 #ifdef CONFIG_VMAP_STACK

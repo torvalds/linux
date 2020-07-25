@@ -693,10 +693,8 @@ static int xenbus_map_ring_pv(struct xenbus_device *dev,
 	bool leaked;
 
 	area = alloc_vm_area(XEN_PAGE_SIZE * nr_grefs, info->ptes);
-	if (!area) {
-		kfree(node);
+	if (!area)
 		return -ENOMEM;
-	}
 
 	for (i = 0; i < nr_grefs; i++)
 		info->phys_addrs[i] =

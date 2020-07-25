@@ -525,11 +525,6 @@ struct fec_enet_private {
 	unsigned int total_tx_ring_size;
 	unsigned int total_rx_ring_size;
 
-	unsigned long work_tx;
-	unsigned long work_rx;
-	unsigned long work_ts;
-	unsigned long work_mdio;
-
 	struct	platform_device *pdev;
 
 	int	dev_id;

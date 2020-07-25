@@ -1149,20 +1149,20 @@ cifs_posix_lock_test(struct file *file, struct file_lock *flock)
 
 /*
  * Set the byte-range lock (posix style). Returns:
- * 1) 0, if we set the lock and don't need to request to the server;
- * 2) 1, if we need to request to the server;
- * 3) <0, if the error occurs while setting the lock.
+ * 1) <0, if the error occurs while setting the lock;
+ * 2) 0, if we set the lock and don't need to request to the server;
+ * 3) FILE_LOCK_DEFERRED, if we will wait for some other file_lock;
+ * 4) FILE_LOCK_DEFERRED + 1, if we need to request to the server.
  */
 static int
 cifs_posix_lock_set(struct file *file, struct file_lock *flock)
 {
 	struct cifsInodeInfo *cinode = CIFS_I(file_inode(file));
-	int rc = 1;
+	int rc = FILE_LOCK_DEFERRED + 1;
 
 	if ((flock->fl_flags & FL_POSIX) == 0)
 		return rc;
 
-try_again:
 	cifs_down_write(&cinode->lock_sem);
 	if (!cinode->can_cache_brlcks) {
 		up_write(&cinode->lock_sem);
@@ -1171,13 +1171,6 @@ try_again:
 
 	rc = posix_lock_file(file, flock, NULL);
 	up_write(&cinode->lock_sem);
-	if (rc == FILE_LOCK_DEFERRED) {
-		rc = wait_event_interruptible(flock->fl_wait,
-					list_empty(&flock->fl_blocked_member));
-		if (!rc)
-			goto try_again;
-		locks_delete_block(flock);
-	}
 	return rc;
 }
 
@@ -1652,7 +1645,7 @@ cifs_setlk(struct file *file, struct file_lock *flock, __u32 type,
 		int posix_lock_type;
 
 		rc = cifs_posix_lock_set(file, flock);
-		if (!rc || rc < 0)
+		if (rc <= FILE_LOCK_DEFERRED)
 			return rc;
 
 		if (type & server->vals->shared_lock_type)

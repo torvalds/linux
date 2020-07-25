@@ -2,9 +2,6 @@
 
 #include <net/xsk_buff_pool.h>
 #include <net/xdp_sock.h>
-#include <linux/dma-direct.h>
-#include <linux/dma-noncoherent.h>
-#include <linux/swiotlb.h>
 
 #include "xsk_queue.h"
 
@@ -55,7 +52,6 @@ struct xsk_buff_pool *xp_create(struct page **pages, u32 nr_pages, u32 chunks,
 	pool->free_heads_cnt = chunks;
 	pool->headroom = headroom;
 	pool->chunk_size = chunk_size;
-	pool->cheap_dma = true;
 	pool->unaligned = unaligned;
 	pool->frame_len = chunk_size - headroom - XDP_PACKET_HEADROOM;
 	INIT_LIST_HEAD(&pool->free_list);
@@ -125,48 +121,6 @@ static void xp_check_dma_contiguity(struct xsk_buff_pool *pool)
 	}
 }
 
-static bool __maybe_unused xp_check_swiotlb_dma(struct xsk_buff_pool *pool)
-{
-#if defined(CONFIG_SWIOTLB)
-	phys_addr_t paddr;
-	u32 i;
-
-	for (i = 0; i < pool->dma_pages_cnt; i++) {
-		paddr = dma_to_phys(pool->dev, pool->dma_pages[i]);
-		if (is_swiotlb_buffer(paddr))
-			return false;
-	}
-#endif
-	return true;
-}
-
-static bool xp_check_cheap_dma(struct xsk_buff_pool *pool)
-{
-#if defined(CONFIG_HAS_DMA)
-	const struct dma_map_ops *ops = get_dma_ops(pool->dev);
-
-	if (ops) {
-		return !ops->sync_single_for_cpu &&
-			!ops->sync_single_for_device;
-	}
-
-	if (!dma_is_direct(ops))
-		return false;
-
-	if (!xp_check_swiotlb_dma(pool))
-		return false;
-
-	if (!dev_is_dma_coherent(pool->dev)) {
-#if defined(CONFIG_ARCH_HAS_SYNC_DMA_FOR_CPU) ||		\
-	defined(CONFIG_ARCH_HAS_SYNC_DMA_FOR_CPU_ALL) ||	\
-	defined(CONFIG_ARCH_HAS_SYNC_DMA_FOR_DEVICE)
-		return false;
-#endif
-	}
-#endif
-	return true;
-}
-
 int xp_dma_map(struct xsk_buff_pool *pool, struct device *dev,
 	       unsigned long attrs, struct page **pages, u32 nr_pages)
 {
@@ -180,6 +134,7 @@ int xp_dma_map(struct xsk_buff_pool *pool, struct device *dev,
 
 	pool->dev = dev;
 	pool->dma_pages_cnt = nr_pages;
+	pool->dma_need_sync = false;
 
 	for (i = 0; i < pool->dma_pages_cnt; i++) {
 		dma = dma_map_page_attrs(dev, pages[i], 0, PAGE_SIZE,
@@ -188,14 +143,13 @@ int xp_dma_map(struct xsk_buff_pool *pool, struct device *dev,
 			xp_dma_unmap(pool, attrs);
 			return -ENOMEM;
 		}
+		if (dma_need_sync(dev, dma))
+			pool->dma_need_sync = true;
 		pool->dma_pages[i] = dma;
 	}
 
 	if (pool->unaligned)
 		xp_check_dma_contiguity(pool);
-
-	pool->dev = dev;
-	pool->cheap_dma = xp_check_cheap_dma(pool);
 	return 0;
 }
 EXPORT_SYMBOL(xp_dma_map);
@@ -280,7 +234,7 @@ struct xdp_buff *xp_alloc(struct xsk_buff_pool *pool)
 	xskb->xdp.data = xskb->xdp.data_hard_start + XDP_PACKET_HEADROOM;
 	xskb->xdp.data_meta = xskb->xdp.data;
 
-	if (!pool->cheap_dma) {
+	if (pool->dma_need_sync) {
 		dma_sync_single_range_for_device(pool->dev, xskb->dma, 0,
 						 pool->frame_len,
 						 DMA_BIDIRECTIONAL);

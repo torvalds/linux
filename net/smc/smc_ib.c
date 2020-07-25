@@ -16,6 +16,7 @@
 #include <linux/workqueue.h>
 #include <linux/scatterlist.h>
 #include <linux/wait.h>
+#include <linux/mutex.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_cache.h>
 
@@ -33,7 +34,7 @@
 #define SMC_QP_RNR_RETRY			7 /* 7: infinite */
 
 struct smc_ib_devices smc_ib_devices = {	/* smc-registered ib devices */
-	.lock = __SPIN_LOCK_UNLOCKED(smc_ib_devices.lock),
+	.mutex = __MUTEX_INITIALIZER(smc_ib_devices.mutex),
 	.list = LIST_HEAD_INIT(smc_ib_devices.list),
 };
 
@@ -565,9 +566,9 @@ static int smc_ib_add_dev(struct ib_device *ibdev)
 	INIT_WORK(&smcibdev->port_event_work, smc_ib_port_event_work);
 	atomic_set(&smcibdev->lnk_cnt, 0);
 	init_waitqueue_head(&smcibdev->lnks_deleted);
-	spin_lock(&smc_ib_devices.lock);
+	mutex_lock(&smc_ib_devices.mutex);
 	list_add_tail(&smcibdev->list, &smc_ib_devices.list);
-	spin_unlock(&smc_ib_devices.lock);
+	mutex_unlock(&smc_ib_devices.mutex);
 	ib_set_client_data(ibdev, &smc_ib_client, smcibdev);
 	INIT_IB_EVENT_HANDLER(&smcibdev->event_handler, smcibdev->ibdev,
 			      smc_ib_global_event_handler);
@@ -602,9 +603,9 @@ static void smc_ib_remove_dev(struct ib_device *ibdev, void *client_data)
 {
 	struct smc_ib_device *smcibdev = client_data;
 
-	spin_lock(&smc_ib_devices.lock);
+	mutex_lock(&smc_ib_devices.mutex);
 	list_del_init(&smcibdev->list); /* remove from smc_ib_devices */
-	spin_unlock(&smc_ib_devices.lock);
+	mutex_unlock(&smc_ib_devices.mutex);
 	pr_warn_ratelimited("smc: removing ib device %s\n",
 			    smcibdev->ibdev->name);
 	smc_smcr_terminate_all(smcibdev);

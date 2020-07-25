@@ -119,6 +119,7 @@ struct hinic_pf_to_mgmt {
 	struct semaphore                sync_msg_lock;
 	u16                             sync_msg_id;
 	u8                              *sync_msg_buf;
+	void				*mgmt_ack_buf;
 
 	struct hinic_recv_msg           recv_resp_msg_from_mgmt;
 	struct hinic_recv_msg           recv_msg_from_mgmt;
@@ -126,6 +127,21 @@ struct hinic_pf_to_mgmt {
 	struct hinic_api_cmd_chain      *cmd_chain[HINIC_API_CMD_MAX];
 
 	struct hinic_mgmt_cb            mgmt_cb[HINIC_MOD_MAX];
+
+	struct workqueue_struct		*workq;
+};
+
+struct hinic_mgmt_msg_handle_work {
+	struct work_struct work;
+	struct hinic_pf_to_mgmt *pf_to_mgmt;
+
+	void			*msg;
+	u16			msg_len;
+
+	enum hinic_mod_type	mod;
+	u8			cmd;
+	u16			msg_id;
+	int			async_mgmt_to_pf;
 };
 
 void hinic_register_mgmt_msg_cb(struct hinic_pf_to_mgmt *pf_to_mgmt,

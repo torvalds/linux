@@ -35,13 +35,16 @@ efi_status_t check_platform_features(void)
 }
 
 /*
- * Relocatable kernels can fix up the misalignment with respect to
- * MIN_KIMG_ALIGN, so they only require a minimum alignment of EFI_KIMG_ALIGN
- * (which accounts for the alignment of statically allocated objects such as
- * the swapper stack.)
+ * Although relocatable kernels can fix up the misalignment with respect to
+ * MIN_KIMG_ALIGN, the resulting virtual text addresses are subtly out of
+ * sync with those recorded in the vmlinux when kaslr is disabled but the
+ * image required relocation anyway. Therefore retain 2M alignment unless
+ * KASLR is in use.
  */
-static const u64 min_kimg_align = IS_ENABLED(CONFIG_RELOCATABLE) ? EFI_KIMG_ALIGN
-								 : MIN_KIMG_ALIGN;
+static u64 min_kimg_align(void)
+{
+	return efi_nokaslr ? MIN_KIMG_ALIGN : EFI_KIMG_ALIGN;
+}
 
 efi_status_t handle_kernel_image(unsigned long *image_addr,
 				 unsigned long *image_size,
@@ -74,21 +77,21 @@ efi_status_t handle_kernel_image(unsigned long *image_addr,
 
 	kernel_size = _edata - _text;
 	kernel_memsize = kernel_size + (_end - _edata);
-	*reserve_size = kernel_memsize + TEXT_OFFSET % min_kimg_align;
+	*reserve_size = kernel_memsize + TEXT_OFFSET % min_kimg_align();
 
 	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE) && phys_seed != 0) {
 		/*
 		 * If KASLR is enabled, and we have some randomness available,
 		 * locate the kernel at a randomized offset in physical memory.
 		 */
-		status = efi_random_alloc(*reserve_size, min_kimg_align,
+		status = efi_random_alloc(*reserve_size, min_kimg_align(),
 					  reserve_addr, phys_seed);
 	} else {
 		status = EFI_OUT_OF_RESOURCES;
 	}
 
 	if (status != EFI_SUCCESS) {
-		if (IS_ALIGNED((u64)_text - TEXT_OFFSET, min_kimg_align)) {
+		if (IS_ALIGNED((u64)_text - TEXT_OFFSET, min_kimg_align())) {
 			/*
 			 * Just execute from wherever we were loaded by the
 			 * UEFI PE/COFF loader if the alignment is suitable.
@@ -99,7 +102,7 @@ efi_status_t handle_kernel_image(unsigned long *image_addr,
 		}
 
 		status = efi_allocate_pages_aligned(*reserve_size, reserve_addr,
-						    ULONG_MAX, min_kimg_align);
+						    ULONG_MAX, min_kimg_align());
 
 		if (status != EFI_SUCCESS) {
 			efi_err("Failed to relocate kernel\n");
@@ -108,7 +111,7 @@ efi_status_t handle_kernel_image(unsigned long *image_addr,
 		}
 	}
 
-	*image_addr = *reserve_addr + TEXT_OFFSET % min_kimg_align;
+	*image_addr = *reserve_addr + TEXT_OFFSET % min_kimg_align();
 	memcpy((void *)*image_addr, _text, kernel_size);
 
 	return EFI_SUCCESS;
