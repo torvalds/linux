@@ -206,8 +206,8 @@ void bch_moving_gc(struct cache_set *c)
 	mutex_lock(&c->bucket_lock);
 
 	for_each_cache(ca, c, i) {
-		unsigned int sectors_to_move = 0;
-		unsigned int reserve_sectors = ca->sb.bucket_size *
+		unsigned long sectors_to_move = 0;
+		unsigned long reserve_sectors = ca->sb.bucket_size *
 			     fifo_used(&ca->free[RESERVE_MOVINGGC]);
 
 		ca->heap.used = 0;

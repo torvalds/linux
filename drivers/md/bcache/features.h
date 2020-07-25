@@ -11,9 +11,13 @@
 #define BCH_FEATURE_INCOMPAT		2
 #define BCH_FEATURE_TYPE_MASK		0x03
 
+/* Feature set definition */
+/* Incompat feature set */
+#define BCH_FEATURE_INCOMPAT_LARGE_BUCKET	0x0001 /* 32bit bucket size */
+
 #define BCH_FEATURE_COMPAT_SUUP		0
 #define BCH_FEATURE_RO_COMPAT_SUUP	0
-#define BCH_FEATURE_INCOMPAT_SUUP	0
+#define BCH_FEATURE_INCOMPAT_SUUP	BCH_FEATURE_INCOMPAT_LARGE_BUCKET
 
 #define BCH_HAS_COMPAT_FEATURE(sb, mask) \
 		((sb)->feature_compat & (mask))
@@ -21,8 +25,6 @@
 		((sb)->feature_ro_compat & (mask))
 #define BCH_HAS_INCOMPAT_FEATURE(sb, mask) \
 		((sb)->feature_incompat & (mask))
-
-/* Feature set definition */
 
 #define BCH_FEATURE_COMPAT_FUNCS(name, flagname) \
 static inline int bch_has_feature_##name(struct cache_sb *sb) \
@@ -75,4 +77,5 @@ static inline void bch_clear_feature_##name(struct cache_sb *sb) \
 		~BCH##_FEATURE_INCOMPAT_##flagname; \
 }
 
+BCH_FEATURE_INCOMPAT_FUNCS(large_bucket, LARGE_BUCKET);
 #endif

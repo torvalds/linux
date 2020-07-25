@@ -60,6 +60,17 @@ struct workqueue_struct *bch_journal_wq;
 
 /* Superblock */
 
+static unsigned int get_bucket_size(struct cache_sb *sb, struct cache_sb_disk *s)
+{
+	unsigned int bucket_size = le16_to_cpu(s->bucket_size);
+
+	if (sb->version >= BCACHE_SB_VERSION_CDEV_WITH_FEATURES &&
+	     bch_has_feature_large_bucket(sb))
+		bucket_size |= le16_to_cpu(s->bucket_size_hi) << 16;
+
+	return bucket_size;
+}
+
 static const char *read_super_common(struct cache_sb *sb,  struct block_device *bdev,
 				     struct cache_sb_disk *s)
 {
@@ -68,7 +79,7 @@ static const char *read_super_common(struct cache_sb *sb,  struct block_device *
 
 	sb->first_bucket= le16_to_cpu(s->first_bucket);
 	sb->nbuckets	= le64_to_cpu(s->nbuckets);
-	sb->bucket_size	= le16_to_cpu(s->bucket_size);
+	sb->bucket_size	= get_bucket_size(sb, s);
 
 	sb->nr_in_set	= le16_to_cpu(s->nr_in_set);
 	sb->nr_this_dev	= le16_to_cpu(s->nr_this_dev);
@@ -210,12 +221,16 @@ static const char *read_super(struct cache_sb *sb, struct block_device *bdev,
 			goto err;
 		break;
 	case BCACHE_SB_VERSION_CDEV_WITH_FEATURES:
-		err = read_super_common(sb, bdev, s);
-		if (err)
-			goto err;
+		/*
+		 * Feature bits are needed in read_super_common(),
+		 * convert them firstly.
+		 */
 		sb->feature_compat = le64_to_cpu(s->feature_compat);
 		sb->feature_incompat = le64_to_cpu(s->feature_incompat);
 		sb->feature_ro_compat = le64_to_cpu(s->feature_ro_compat);
+		err = read_super_common(sb, bdev, s);
+		if (err)
+			goto err;
 		break;
 	default:
 		err = "Unsupported superblock version";

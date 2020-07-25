@@ -213,6 +213,7 @@ struct cache_sb_disk {
 		__le16		keys;
 	};
 	__le64			d[SB_JOURNAL_BUCKETS];	/* journal buckets */
+	__le16			bucket_size_hi;
 };
 
 /*
@@ -247,9 +248,9 @@ struct cache_sb {
 		__u64		nbuckets;	/* device size */
 
 		__u16		block_size;	/* sectors */
-		__u16		bucket_size;	/* sectors */
 		__u16		nr_in_set;
 		__u16		nr_this_dev;
+		__u32		bucket_size;	/* sectors */
 	};
 	struct {
 		/* Backing devices */
