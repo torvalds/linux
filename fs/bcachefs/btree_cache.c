@@ -44,7 +44,8 @@ static void __btree_node_data_free(struct bch_fs *c, struct btree *b)
 
 	kvpfree(b->data, btree_bytes(c));
 	b->data = NULL;
-	bch2_btree_keys_free(b);
+	kvfree(b->aux_data);
+	b->aux_data = NULL;
 }
 
 static void btree_node_data_free(struct bch_fs *c, struct btree *b)
@@ -72,7 +73,7 @@ static const struct rhashtable_params bch_btree_cache_params = {
 	.obj_cmpfn	= bch2_btree_cache_cmp_fn,
 };
 
-static int __btree_node_data_alloc(struct bch_fs *c, struct btree *b, gfp_t gfp)
+static int btree_node_data_alloc(struct bch_fs *c, struct btree *b, gfp_t gfp)
 {
 	BUG_ON(b->data || b->aux_data);
 
@@ -80,7 +81,8 @@ static int __btree_node_data_alloc(struct bch_fs *c, struct btree *b, gfp_t gfp)
 	if (!b->data)
 		return -ENOMEM;
 
-	if (bch2_btree_keys_alloc(b, btree_page_order(c), gfp)) {
+	b->aux_data = kvmalloc(btree_aux_data_bytes(b), gfp);
+	if (!b->aux_data) {
 		kvpfree(b->data, btree_bytes(c));
 		b->data = NULL;
 		return -ENOMEM;
@@ -89,21 +91,9 @@ static int __btree_node_data_alloc(struct bch_fs *c, struct btree *b, gfp_t gfp)
 	return 0;
 }
 
-static void btree_node_data_alloc(struct bch_fs *c, struct btree *b, gfp_t gfp)
+static struct btree *__btree_node_mem_alloc(struct bch_fs *c)
 {
-	struct btree_cache *bc = &c->btree_cache;
-
-	if (!__btree_node_data_alloc(c, b, gfp)) {
-		bc->used++;
-		list_move(&b->list, &bc->freeable);
-	} else {
-		list_move(&b->list, &bc->freed);
-	}
-}
-
-static struct btree *btree_node_mem_alloc(struct bch_fs *c, gfp_t gfp)
-{
-	struct btree *b = kzalloc(sizeof(struct btree), gfp);
+	struct btree *b = kzalloc(sizeof(struct btree), GFP_KERNEL);
 	if (!b)
 		return NULL;
 
@@ -112,9 +102,25 @@ static struct btree *btree_node_mem_alloc(struct bch_fs *c, gfp_t gfp)
 	lockdep_set_novalidate_class(&b->c.lock);
 	INIT_LIST_HEAD(&b->list);
 	INIT_LIST_HEAD(&b->write_blocked);
+	b->byte_order = ilog2(btree_bytes(c));
+	return b;
+}
 
-	btree_node_data_alloc(c, b, gfp);
-	return b->data ? b : NULL;
+static struct btree *btree_node_mem_alloc(struct bch_fs *c)
+{
+	struct btree_cache *bc = &c->btree_cache;
+	struct btree *b = __btree_node_mem_alloc(c);
+	if (!b)
+		return NULL;
+
+	if (btree_node_data_alloc(c, b, GFP_KERNEL)) {
+		kfree(b);
+		return NULL;
+	}
+
+	bc->used++;
+	list_add(&b->list, &bc->freeable);
+	return b;
 }
 
 /* Btree in memory cache - hash table */
@@ -405,7 +411,7 @@ int bch2_fs_btree_cache_init(struct bch_fs *c)
 	bch2_recalc_btree_reserve(c);
 
 	for (i = 0; i < bc->reserve; i++)
-		if (!btree_node_mem_alloc(c, GFP_KERNEL)) {
+		if (!btree_node_mem_alloc(c)) {
 			ret = -ENOMEM;
 			goto out;
 		}
@@ -421,7 +427,7 @@ int bch2_fs_btree_cache_init(struct bch_fs *c)
 		goto out;
 	}
 
-	c->verify_data = btree_node_mem_alloc(c, GFP_KERNEL);
+	c->verify_data = btree_node_mem_alloc(c);
 	if (!c->verify_data) {
 		ret = -ENOMEM;
 		goto out;
@@ -553,21 +559,16 @@ got_node:
 	mutex_unlock(&bc->lock);
 
 	if (!b) {
-		b = kzalloc(sizeof(struct btree), GFP_KERNEL);
+		b = __btree_node_mem_alloc(c);
 		if (!b)
 			goto err;
-
-		bkey_btree_ptr_init(&b->key);
-		six_lock_init(&b->c.lock);
-		INIT_LIST_HEAD(&b->list);
-		INIT_LIST_HEAD(&b->write_blocked);
 
 		BUG_ON(!six_trylock_intent(&b->c.lock));
 		BUG_ON(!six_trylock_write(&b->c.lock));
 	}
 
 	if (!b->data) {
-		if (__btree_node_data_alloc(c, b, __GFP_NOWARN|GFP_KERNEL))
+		if (btree_node_data_alloc(c, b, __GFP_NOWARN|GFP_KERNEL))
 			goto err;
 
 		mutex_lock(&bc->lock);

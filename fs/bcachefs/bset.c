@@ -301,44 +301,6 @@ struct rw_aux_tree {
 	struct bpos	k;
 };
 
-/*
- * BSET_CACHELINE was originally intended to match the hardware cacheline size -
- * it used to be 64, but I realized the lookup code would touch slightly less
- * memory if it was 128.
- *
- * It definites the number of bytes (in struct bset) per struct bkey_float in
- * the auxiliar search tree - when we're done searching the bset_float tree we
- * have this many bytes left that we do a linear search over.
- *
- * Since (after level 5) every level of the bset_tree is on a new cacheline,
- * we're touching one fewer cacheline in the bset tree in exchange for one more
- * cacheline in the linear search - but the linear search might stop before it
- * gets to the second cacheline.
- */
-
-#define BSET_CACHELINE		128
-
-/* Space required for the btree node keys */
-static inline size_t btree_keys_bytes(struct btree *b)
-{
-	return PAGE_SIZE << b->page_order;
-}
-
-static inline size_t btree_keys_cachelines(struct btree *b)
-{
-	return btree_keys_bytes(b) / BSET_CACHELINE;
-}
-
-static inline size_t btree_aux_data_bytes(struct btree *b)
-{
-	return btree_keys_cachelines(b) * 8;
-}
-
-static inline size_t btree_aux_data_u64s(struct btree *b)
-{
-	return btree_aux_data_bytes(b) / sizeof(u64);
-}
-
 static unsigned bset_aux_tree_buf_end(const struct bset_tree *t)
 {
 	BUG_ON(t->aux_data_offset == U16_MAX);
@@ -412,24 +374,6 @@ static void bset_aux_tree_verify(struct btree *b)
 		BUG_ON(bset_aux_tree_buf_end(t) > btree_aux_data_u64s(b));
 	}
 #endif
-}
-
-/* Memory allocation */
-
-void bch2_btree_keys_free(struct btree *b)
-{
-	kvfree(b->aux_data);
-	b->aux_data = NULL;
-}
-
-int bch2_btree_keys_alloc(struct btree *b, unsigned page_order, gfp_t gfp)
-{
-	b->page_order	= page_order;
-	b->aux_data	= kvmalloc(btree_aux_data_bytes(b), gfp);
-	if (!b->aux_data)
-		return -ENOMEM;
-
-	return 0;
 }
 
 void bch2_btree_keys_init(struct btree *b, bool *expensive_debug_checks)

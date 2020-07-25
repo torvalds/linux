@@ -23,8 +23,9 @@ struct btree_read_bio {
 };
 
 struct btree_write_bio {
-	void			*data;
 	struct work_struct	work;
+	void			*data;
+	unsigned		bytes;
 	struct bch_write_bio	wbio;
 };
 

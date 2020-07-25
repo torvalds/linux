@@ -79,7 +79,6 @@ struct bch_write_bio {
 	u64			submit_time;
 
 	struct bch_devs_list	failed;
-	u8			order;
 	u8			dev;
 
 	unsigned		split:1,

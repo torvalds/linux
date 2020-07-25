@@ -79,14 +79,9 @@ static inline size_t btree_max_u64s(struct bch_fs *c)
 	return (btree_bytes(c) - sizeof(struct btree_node)) / sizeof(u64);
 }
 
-static inline size_t btree_page_order(struct bch_fs *c)
-{
-	return get_order(btree_bytes(c));
-}
-
 static inline size_t btree_pages(struct bch_fs *c)
 {
-	return 1 << btree_page_order(c);
+	return btree_bytes(c) / PAGE_SIZE;
 }
 
 static inline unsigned btree_blocks(struct bch_fs *c)

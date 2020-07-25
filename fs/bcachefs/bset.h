@@ -184,6 +184,38 @@ static inline enum bset_aux_tree_type bset_aux_tree_type(const struct bset_tree 
 	}
 }
 
+/*
+ * BSET_CACHELINE was originally intended to match the hardware cacheline size -
+ * it used to be 64, but I realized the lookup code would touch slightly less
+ * memory if it was 128.
+ *
+ * It definites the number of bytes (in struct bset) per struct bkey_float in
+ * the auxiliar search tree - when we're done searching the bset_float tree we
+ * have this many bytes left that we do a linear search over.
+ *
+ * Since (after level 5) every level of the bset_tree is on a new cacheline,
+ * we're touching one fewer cacheline in the bset tree in exchange for one more
+ * cacheline in the linear search - but the linear search might stop before it
+ * gets to the second cacheline.
+ */
+
+#define BSET_CACHELINE		128
+
+static inline size_t btree_keys_cachelines(struct btree *b)
+{
+	return (1U << b->byte_order) / BSET_CACHELINE;
+}
+
+static inline size_t btree_aux_data_bytes(struct btree *b)
+{
+	return btree_keys_cachelines(b) * 8;
+}
+
+static inline size_t btree_aux_data_u64s(struct btree *b)
+{
+	return btree_aux_data_bytes(b) / sizeof(u64);
+}
+
 typedef void (*compiled_unpack_fn)(struct bkey *, const struct bkey_packed *);
 
 static inline void
@@ -334,8 +366,6 @@ static inline struct bset *bset_next_set(struct btree *b,
 	return ((void *) i) + round_up(vstruct_bytes(i), block_bytes);
 }
 
-void bch2_btree_keys_free(struct btree *);
-int bch2_btree_keys_alloc(struct btree *, unsigned, gfp_t);
 void bch2_btree_keys_init(struct btree *, bool *);
 
 void bch2_bset_init_first(struct btree *, struct bset *);
