@@ -302,8 +302,12 @@
 &lcd {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pins_lcd>;
+};
 
-	port {
+&lcd_ports {
+	port@0 {
+		reg = <0>;
+
 		panel_output: endpoint {
 			remote-endpoint = <&panel_input>;
 		};

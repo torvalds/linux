@@ -314,6 +314,36 @@
 
 		clocks = <&cgu JZ4725B_CLK_LCD>;
 		clock-names = "lcd_pclk";
+
+		lcd_ports: ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@8 {
+				reg = <8>;
+
+				ipu_output: endpoint {
+					remote-endpoint = <&ipu_input>;
+				};
+			};
+		};
+	};
+
+	ipu: ipu@13080000 {
+		compatible = "ingenic,jz4725b-ipu";
+		reg = <0x13080000 0x64>;
+
+		interrupt-parent = <&intc>;
+		interrupts = <30>;
+
+		clocks = <&cgu JZ4725B_CLK_IPU>;
+		clock-names = "ipu";
+
+		port {
+			ipu_input: endpoint {
+				remote-endpoint = <&ipu_output>;
+			};
+		};
 	};
 
 	bch: ecc-controller@130d0000 {
