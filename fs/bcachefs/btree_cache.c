@@ -125,6 +125,8 @@ void bch2_btree_node_hash_remove(struct btree_cache *bc, struct btree *b)
 
 	/* Cause future lookups for this node to fail: */
 	b->hash_val = 0;
+
+	six_lock_wakeup_all(&b->c.lock);
 }
 
 int __bch2_btree_node_hash_insert(struct btree_cache *bc, struct btree *b)
