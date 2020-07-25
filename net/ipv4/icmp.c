@@ -1151,29 +1151,16 @@ static bool ip_icmp_error_rfc4884_validate(const struct sk_buff *skb, int off)
 }
 
 void ip_icmp_error_rfc4884(const struct sk_buff *skb,
-			   struct sock_ee_data_rfc4884 *out)
+			   struct sock_ee_data_rfc4884 *out,
+			   int thlen, int off)
 {
-	int hlen, off;
+	int hlen;
 
-	switch (icmp_hdr(skb)->type) {
-	case ICMP_DEST_UNREACH:
-	case ICMP_TIME_EXCEEDED:
-	case ICMP_PARAMETERPROB:
-		break;
-	default:
-		return;
-	}
-
-	/* outer headers up to inner iph. skb->data is at inner payload */
-	hlen = -skb_transport_offset(skb) - sizeof(struct icmphdr);
-
-	/* per rfc 791: maximum packet length of 576 bytes */
-	if (hlen + skb->len > 576)
-		return;
+	/* original datagram headers: end of icmph to payload (skb->data) */
+	hlen = -skb_transport_offset(skb) - thlen;
 
 	/* per rfc 4884: minimal datagram length of 128 bytes */
-	off = icmp_hdr(skb)->un.reserved[1] * sizeof(u32);
-	if (off < 128)
+	if (off < 128 || off < hlen)
 		return;
 
 	/* kernel has stripped headers: return payload offset in bytes */
@@ -1186,6 +1173,7 @@ void ip_icmp_error_rfc4884(const struct sk_buff *skb,
 	if (!ip_icmp_error_rfc4884_validate(skb, off))
 		out->flags |= SO_EE_RFC4884_FLAG_INVALID;
 }
+EXPORT_SYMBOL_GPL(ip_icmp_error_rfc4884);
 
 int icmp_err(struct sk_buff *skb, u32 info)
 {

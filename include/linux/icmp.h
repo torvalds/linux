@@ -37,6 +37,7 @@ static inline bool icmp_is_err(int type)
 }
 
 void ip_icmp_error_rfc4884(const struct sk_buff *skb,
-			   struct sock_ee_data_rfc4884 *out);
+			   struct sock_ee_data_rfc4884 *out,
+			   int thlen, int off);
 
 #endif	/* _LINUX_ICMP_H */

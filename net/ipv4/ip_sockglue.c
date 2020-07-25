@@ -390,6 +390,18 @@ int ip_ra_control(struct sock *sk, unsigned char on,
 	return 0;
 }
 
+static void ipv4_icmp_error_rfc4884(const struct sk_buff *skb,
+				    struct sock_ee_data_rfc4884 *out)
+{
+	switch (icmp_hdr(skb)->type) {
+	case ICMP_DEST_UNREACH:
+	case ICMP_TIME_EXCEEDED:
+	case ICMP_PARAMETERPROB:
+		ip_icmp_error_rfc4884(skb, out, sizeof(struct icmphdr),
+				      icmp_hdr(skb)->un.reserved[1] * 4);
+	}
+}
+
 void ip_icmp_error(struct sock *sk, struct sk_buff *skb, int err,
 		   __be16 port, u32 info, u8 *payload)
 {
@@ -413,7 +425,7 @@ void ip_icmp_error(struct sock *sk, struct sk_buff *skb, int err,
 
 	if (skb_pull(skb, payload - skb->data)) {
 		if (inet_sk(sk)->recverr_rfc4884)
-			ip_icmp_error_rfc4884(skb, &serr->ee.ee_rfc4884);
+			ipv4_icmp_error_rfc4884(skb, &serr->ee.ee_rfc4884);
 
 		skb_reset_transport_header(skb);
 		if (sock_queue_err_skb(sk, skb) == 0)
