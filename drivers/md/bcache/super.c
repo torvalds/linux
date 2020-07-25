@@ -1928,7 +1928,7 @@ struct cache_set *bch_cache_set_alloc(struct cache_sb *sb)
 
 	if (mempool_init_kmalloc_pool(&c->bio_meta, 2,
 			sizeof(struct bbio) +
-			sizeof(struct bio_vec) * bucket_pages(c)))
+			sizeof(struct bio_vec) * meta_bucket_pages(&c->sb)))
 		goto err;
 
 	if (mempool_init_kmalloc_pool(&c->fill_iter, 1, iter_size))
