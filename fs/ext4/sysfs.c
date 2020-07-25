@@ -189,6 +189,9 @@ static struct ext4_attr ext4_attr_##_name = {			\
 #define EXT4_RW_ATTR_SBI_UL(_name,_elname)	\
 	EXT4_ATTR_OFFSET(_name, 0644, pointer_ul, ext4_sb_info, _elname)
 
+#define EXT4_RO_ATTR_SBI_ATOMIC(_name,_elname)	\
+	EXT4_ATTR_OFFSET(_name, 0444, pointer_atomic, ext4_sb_info, _elname)
+
 #define EXT4_ATTR_PTR(_name,_mode,_id,_ptr) \
 static struct ext4_attr ext4_attr_##_name = {			\
 	.attr = {.name = __stringify(_name), .mode = _mode },	\
@@ -226,6 +229,8 @@ EXT4_RW_ATTR_SBI_UI(msg_ratelimit_burst, s_msg_ratelimit_state.burst);
 #ifdef CONFIG_EXT4_DEBUG
 EXT4_RW_ATTR_SBI_UL(simulate_fail, s_simulate_fail);
 #endif
+EXT4_RO_ATTR_SBI_ATOMIC(warning_count, s_warning_count);
+EXT4_RO_ATTR_SBI_ATOMIC(msg_count, s_msg_count);
 EXT4_RO_ATTR_ES_UI(errors_count, s_error_count);
 EXT4_RO_ATTR_ES_U8(first_error_errcode, s_first_error_errcode);
 EXT4_RO_ATTR_ES_U8(last_error_errcode, s_last_error_errcode);
@@ -269,6 +274,8 @@ static struct attribute *ext4_attrs[] = {
 	ATTR_LIST(msg_ratelimit_interval_ms),
 	ATTR_LIST(msg_ratelimit_burst),
 	ATTR_LIST(errors_count),
+	ATTR_LIST(warning_count),
+	ATTR_LIST(msg_count),
 	ATTR_LIST(first_error_ino),
 	ATTR_LIST(last_error_ino),
 	ATTR_LIST(first_error_block),
