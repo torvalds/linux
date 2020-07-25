@@ -121,7 +121,7 @@ void ath9k_stop_wmi(struct ath9k_htc_priv *priv)
 	mutex_unlock(&wmi->op_mutex);
 }
 
-void ath9k_destoy_wmi(struct ath9k_htc_priv *priv)
+void ath9k_destroy_wmi(struct ath9k_htc_priv *priv)
 {
 	kfree(priv->wmi);
 }
