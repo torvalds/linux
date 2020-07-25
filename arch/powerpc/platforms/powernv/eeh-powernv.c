@@ -838,32 +838,32 @@ static int __pnv_eeh_bridge_reset(struct pci_dev *dev, int option)
 	case EEH_RESET_HOT:
 		/* Don't report linkDown event */
 		if (aer) {
-			eeh_ops->read_config(pdn, aer + PCI_ERR_UNCOR_MASK,
+			eeh_ops->read_config(edev, aer + PCI_ERR_UNCOR_MASK,
 					     4, &ctrl);
 			ctrl |= PCI_ERR_UNC_SURPDN;
-			eeh_ops->write_config(pdn, aer + PCI_ERR_UNCOR_MASK,
+			eeh_ops->write_config(edev, aer + PCI_ERR_UNCOR_MASK,
 					      4, ctrl);
 		}
 
-		eeh_ops->read_config(pdn, PCI_BRIDGE_CONTROL, 2, &ctrl);
+		eeh_ops->read_config(edev, PCI_BRIDGE_CONTROL, 2, &ctrl);
 		ctrl |= PCI_BRIDGE_CTL_BUS_RESET;
-		eeh_ops->write_config(pdn, PCI_BRIDGE_CONTROL, 2, ctrl);
+		eeh_ops->write_config(edev, PCI_BRIDGE_CONTROL, 2, ctrl);
 
 		msleep(EEH_PE_RST_HOLD_TIME);
 		break;
 	case EEH_RESET_DEACTIVATE:
-		eeh_ops->read_config(pdn, PCI_BRIDGE_CONTROL, 2, &ctrl);
+		eeh_ops->read_config(edev, PCI_BRIDGE_CONTROL, 2, &ctrl);
 		ctrl &= ~PCI_BRIDGE_CTL_BUS_RESET;
-		eeh_ops->write_config(pdn, PCI_BRIDGE_CONTROL, 2, ctrl);
+		eeh_ops->write_config(edev, PCI_BRIDGE_CONTROL, 2, ctrl);
 
 		msleep(EEH_PE_RST_SETTLE_TIME);
 
 		/* Continue reporting linkDown event */
 		if (aer) {
-			eeh_ops->read_config(pdn, aer + PCI_ERR_UNCOR_MASK,
+			eeh_ops->read_config(edev, aer + PCI_ERR_UNCOR_MASK,
 					     4, &ctrl);
 			ctrl &= ~PCI_ERR_UNC_SURPDN;
-			eeh_ops->write_config(pdn, aer + PCI_ERR_UNCOR_MASK,
+			eeh_ops->write_config(edev, aer + PCI_ERR_UNCOR_MASK,
 					      4, ctrl);
 		}
 
@@ -932,11 +932,12 @@ void pnv_pci_reset_secondary_bus(struct pci_dev *dev)
 static void pnv_eeh_wait_for_pending(struct pci_dn *pdn, const char *type,
 				     int pos, u16 mask)
 {
+	struct eeh_dev *edev = pdn->edev;
 	int i, status = 0;
 
 	/* Wait for Transaction Pending bit to be cleared */
 	for (i = 0; i < 4; i++) {
-		eeh_ops->read_config(pdn, pos, 2, &status);
+		eeh_ops->read_config(edev, pos, 2, &status);
 		if (!(status & mask))
 			return;
 
@@ -957,7 +958,7 @@ static int pnv_eeh_do_flr(struct pci_dn *pdn, int option)
 	if (WARN_ON(!edev->pcie_cap))
 		return -ENOTTY;
 
-	eeh_ops->read_config(pdn, edev->pcie_cap + PCI_EXP_DEVCAP, 4, &reg);
+	eeh_ops->read_config(edev, edev->pcie_cap + PCI_EXP_DEVCAP, 4, &reg);
 	if (!(reg & PCI_EXP_DEVCAP_FLR))
 		return -ENOTTY;
 
@@ -967,18 +968,18 @@ static int pnv_eeh_do_flr(struct pci_dn *pdn, int option)
 		pnv_eeh_wait_for_pending(pdn, "",
 					 edev->pcie_cap + PCI_EXP_DEVSTA,
 					 PCI_EXP_DEVSTA_TRPND);
-		eeh_ops->read_config(pdn, edev->pcie_cap + PCI_EXP_DEVCTL,
+		eeh_ops->read_config(edev, edev->pcie_cap + PCI_EXP_DEVCTL,
 				     4, &reg);
 		reg |= PCI_EXP_DEVCTL_BCR_FLR;
-		eeh_ops->write_config(pdn, edev->pcie_cap + PCI_EXP_DEVCTL,
+		eeh_ops->write_config(edev, edev->pcie_cap + PCI_EXP_DEVCTL,
 				      4, reg);
 		msleep(EEH_PE_RST_HOLD_TIME);
 		break;
 	case EEH_RESET_DEACTIVATE:
-		eeh_ops->read_config(pdn, edev->pcie_cap + PCI_EXP_DEVCTL,
+		eeh_ops->read_config(edev, edev->pcie_cap + PCI_EXP_DEVCTL,
 				     4, &reg);
 		reg &= ~PCI_EXP_DEVCTL_BCR_FLR;
-		eeh_ops->write_config(pdn, edev->pcie_cap + PCI_EXP_DEVCTL,
+		eeh_ops->write_config(edev, edev->pcie_cap + PCI_EXP_DEVCTL,
 				      4, reg);
 		msleep(EEH_PE_RST_SETTLE_TIME);
 		break;
@@ -995,7 +996,7 @@ static int pnv_eeh_do_af_flr(struct pci_dn *pdn, int option)
 	if (WARN_ON(!edev->af_cap))
 		return -ENOTTY;
 
-	eeh_ops->read_config(pdn, edev->af_cap + PCI_AF_CAP, 1, &cap);
+	eeh_ops->read_config(edev, edev->af_cap + PCI_AF_CAP, 1, &cap);
 	if (!(cap & PCI_AF_CAP_TP) || !(cap & PCI_AF_CAP_FLR))
 		return -ENOTTY;
 
@@ -1010,12 +1011,12 @@ static int pnv_eeh_do_af_flr(struct pci_dn *pdn, int option)
 		pnv_eeh_wait_for_pending(pdn, "AF",
 					 edev->af_cap + PCI_AF_CTRL,
 					 PCI_AF_STATUS_TP << 8);
-		eeh_ops->write_config(pdn, edev->af_cap + PCI_AF_CTRL,
+		eeh_ops->write_config(edev, edev->af_cap + PCI_AF_CTRL,
 				      1, PCI_AF_CTRL_FLR);
 		msleep(EEH_PE_RST_HOLD_TIME);
 		break;
 	case EEH_RESET_DEACTIVATE:
-		eeh_ops->write_config(pdn, edev->af_cap + PCI_AF_CTRL, 1, 0);
+		eeh_ops->write_config(edev, edev->af_cap + PCI_AF_CTRL, 1, 0);
 		msleep(EEH_PE_RST_SETTLE_TIME);
 		break;
 	}
@@ -1249,9 +1250,11 @@ static inline bool pnv_eeh_cfg_blocked(struct pci_dn *pdn)
 	return false;
 }
 
-static int pnv_eeh_read_config(struct pci_dn *pdn,
+static int pnv_eeh_read_config(struct eeh_dev *edev,
 			       int where, int size, u32 *val)
 {
+	struct pci_dn *pdn = eeh_dev_to_pdn(edev);
+
 	if (!pdn)
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
@@ -1263,9 +1266,11 @@ static int pnv_eeh_read_config(struct pci_dn *pdn,
 	return pnv_pci_cfg_read(pdn, where, size, val);
 }
 
-static int pnv_eeh_write_config(struct pci_dn *pdn,
+static int pnv_eeh_write_config(struct eeh_dev *edev,
 				int where, int size, u32 val)
 {
+	struct pci_dn *pdn = eeh_dev_to_pdn(edev);
+
 	if (!pdn)
 		return PCIBIOS_DEVICE_NOT_FOUND;
 

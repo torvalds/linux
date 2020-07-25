@@ -798,29 +798,33 @@ static int pseries_eeh_configure_bridge(struct eeh_pe *pe)
 
 /**
  * pseries_eeh_read_config - Read PCI config space
- * @pdn: PCI device node
- * @where: PCI address
+ * @edev: EEH device handle
+ * @where: PCI config space offset
  * @size: size to read
  * @val: return value
  *
  * Read config space from the speicifed device
  */
-static int pseries_eeh_read_config(struct pci_dn *pdn, int where, int size, u32 *val)
+static int pseries_eeh_read_config(struct eeh_dev *edev, int where, int size, u32 *val)
 {
+	struct pci_dn *pdn = eeh_dev_to_pdn(edev);
+
 	return rtas_read_config(pdn, where, size, val);
 }
 
 /**
  * pseries_eeh_write_config - Write PCI config space
- * @pdn: PCI device node
- * @where: PCI address
+ * @edev: EEH device handle
+ * @where: PCI config space offset
  * @size: size to write
  * @val: value to be written
  *
  * Write config space to the specified device
  */
-static int pseries_eeh_write_config(struct pci_dn *pdn, int where, int size, u32 val)
+static int pseries_eeh_write_config(struct eeh_dev *edev, int where, int size, u32 val)
 {
+	struct pci_dn *pdn = eeh_dev_to_pdn(edev);
+
 	return rtas_write_config(pdn, where, size, val);
 }
 

@@ -698,7 +698,6 @@ void eeh_pe_state_clear(struct eeh_pe *root, int state, bool include_passed)
  */
 static void eeh_bridge_check_link(struct eeh_dev *edev)
 {
-	struct pci_dn *pdn = eeh_dev_to_pdn(edev);
 	int cap;
 	uint32_t val;
 	int timeout = 0;
@@ -714,32 +713,32 @@ static void eeh_bridge_check_link(struct eeh_dev *edev)
 
 	/* Check slot status */
 	cap = edev->pcie_cap;
-	eeh_ops->read_config(pdn, cap + PCI_EXP_SLTSTA, 2, &val);
+	eeh_ops->read_config(edev, cap + PCI_EXP_SLTSTA, 2, &val);
 	if (!(val & PCI_EXP_SLTSTA_PDS)) {
 		eeh_edev_dbg(edev, "No card in the slot (0x%04x) !\n", val);
 		return;
 	}
 
 	/* Check power status if we have the capability */
-	eeh_ops->read_config(pdn, cap + PCI_EXP_SLTCAP, 2, &val);
+	eeh_ops->read_config(edev, cap + PCI_EXP_SLTCAP, 2, &val);
 	if (val & PCI_EXP_SLTCAP_PCP) {
-		eeh_ops->read_config(pdn, cap + PCI_EXP_SLTCTL, 2, &val);
+		eeh_ops->read_config(edev, cap + PCI_EXP_SLTCTL, 2, &val);
 		if (val & PCI_EXP_SLTCTL_PCC) {
 			eeh_edev_dbg(edev, "In power-off state, power it on ...\n");
 			val &= ~(PCI_EXP_SLTCTL_PCC | PCI_EXP_SLTCTL_PIC);
 			val |= (0x0100 & PCI_EXP_SLTCTL_PIC);
-			eeh_ops->write_config(pdn, cap + PCI_EXP_SLTCTL, 2, val);
+			eeh_ops->write_config(edev, cap + PCI_EXP_SLTCTL, 2, val);
 			msleep(2 * 1000);
 		}
 	}
 
 	/* Enable link */
-	eeh_ops->read_config(pdn, cap + PCI_EXP_LNKCTL, 2, &val);
+	eeh_ops->read_config(edev, cap + PCI_EXP_LNKCTL, 2, &val);
 	val &= ~PCI_EXP_LNKCTL_LD;
-	eeh_ops->write_config(pdn, cap + PCI_EXP_LNKCTL, 2, val);
+	eeh_ops->write_config(edev, cap + PCI_EXP_LNKCTL, 2, val);
 
 	/* Check link */
-	eeh_ops->read_config(pdn, cap + PCI_EXP_LNKCAP, 4, &val);
+	eeh_ops->read_config(edev, cap + PCI_EXP_LNKCAP, 4, &val);
 	if (!(val & PCI_EXP_LNKCAP_DLLLARC)) {
 		eeh_edev_dbg(edev, "No link reporting capability (0x%08x) \n", val);
 		msleep(1000);
@@ -752,7 +751,7 @@ static void eeh_bridge_check_link(struct eeh_dev *edev)
 		msleep(20);
 		timeout += 20;
 
-		eeh_ops->read_config(pdn, cap + PCI_EXP_LNKSTA, 2, &val);
+		eeh_ops->read_config(edev, cap + PCI_EXP_LNKSTA, 2, &val);
 		if (val & PCI_EXP_LNKSTA_DLLLA)
 			break;
 	}
@@ -769,7 +768,6 @@ static void eeh_bridge_check_link(struct eeh_dev *edev)
 
 static void eeh_restore_bridge_bars(struct eeh_dev *edev)
 {
-	struct pci_dn *pdn = eeh_dev_to_pdn(edev);
 	int i;
 
 	/*
@@ -777,20 +775,20 @@ static void eeh_restore_bridge_bars(struct eeh_dev *edev)
 	 * Bus numbers and windows: 0x18 - 0x30
 	 */
 	for (i = 4; i < 13; i++)
-		eeh_ops->write_config(pdn, i*4, 4, edev->config_space[i]);
+		eeh_ops->write_config(edev, i*4, 4, edev->config_space[i]);
 	/* Rom: 0x38 */
-	eeh_ops->write_config(pdn, 14*4, 4, edev->config_space[14]);
+	eeh_ops->write_config(edev, 14*4, 4, edev->config_space[14]);
 
 	/* Cache line & Latency timer: 0xC 0xD */
-	eeh_ops->write_config(pdn, PCI_CACHE_LINE_SIZE, 1,
+	eeh_ops->write_config(edev, PCI_CACHE_LINE_SIZE, 1,
                 SAVED_BYTE(PCI_CACHE_LINE_SIZE));
-        eeh_ops->write_config(pdn, PCI_LATENCY_TIMER, 1,
-                SAVED_BYTE(PCI_LATENCY_TIMER));
+	eeh_ops->write_config(edev, PCI_LATENCY_TIMER, 1,
+		SAVED_BYTE(PCI_LATENCY_TIMER));
 	/* Max latency, min grant, interrupt ping and line: 0x3C */
-	eeh_ops->write_config(pdn, 15*4, 4, edev->config_space[15]);
+	eeh_ops->write_config(edev, 15*4, 4, edev->config_space[15]);
 
 	/* PCI Command: 0x4 */
-	eeh_ops->write_config(pdn, PCI_COMMAND, 4, edev->config_space[1] |
+	eeh_ops->write_config(edev, PCI_COMMAND, 4, edev->config_space[1] |
 			      PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER);
 
 	/* Check the PCIe link is ready */
@@ -799,28 +797,27 @@ static void eeh_restore_bridge_bars(struct eeh_dev *edev)
 
 static void eeh_restore_device_bars(struct eeh_dev *edev)
 {
-	struct pci_dn *pdn = eeh_dev_to_pdn(edev);
 	int i;
 	u32 cmd;
 
 	for (i = 4; i < 10; i++)
-		eeh_ops->write_config(pdn, i*4, 4, edev->config_space[i]);
+		eeh_ops->write_config(edev, i*4, 4, edev->config_space[i]);
 	/* 12 == Expansion ROM Address */
-	eeh_ops->write_config(pdn, 12*4, 4, edev->config_space[12]);
+	eeh_ops->write_config(edev, 12*4, 4, edev->config_space[12]);
 
-	eeh_ops->write_config(pdn, PCI_CACHE_LINE_SIZE, 1,
+	eeh_ops->write_config(edev, PCI_CACHE_LINE_SIZE, 1,
 		SAVED_BYTE(PCI_CACHE_LINE_SIZE));
-	eeh_ops->write_config(pdn, PCI_LATENCY_TIMER, 1,
+	eeh_ops->write_config(edev, PCI_LATENCY_TIMER, 1,
 		SAVED_BYTE(PCI_LATENCY_TIMER));
 
 	/* max latency, min grant, interrupt pin and line */
-	eeh_ops->write_config(pdn, 15*4, 4, edev->config_space[15]);
+	eeh_ops->write_config(edev, 15*4, 4, edev->config_space[15]);
 
 	/*
 	 * Restore PERR & SERR bits, some devices require it,
 	 * don't touch the other command bits
 	 */
-	eeh_ops->read_config(pdn, PCI_COMMAND, 4, &cmd);
+	eeh_ops->read_config(edev, PCI_COMMAND, 4, &cmd);
 	if (edev->config_space[1] & PCI_COMMAND_PARITY)
 		cmd |= PCI_COMMAND_PARITY;
 	else
@@ -829,7 +826,7 @@ static void eeh_restore_device_bars(struct eeh_dev *edev)
 		cmd |= PCI_COMMAND_SERR;
 	else
 		cmd &= ~PCI_COMMAND_SERR;
-	eeh_ops->write_config(pdn, PCI_COMMAND, 4, cmd);
+	eeh_ops->write_config(edev, PCI_COMMAND, 4, cmd);
 }
 
 /**
