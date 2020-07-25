@@ -826,17 +826,7 @@ static struct i2c_driver pca9450_i2c_driver = {
 	.probe = pca9450_i2c_probe,
 };
 
-static int __init pca9450_i2c_init(void)
-{
-	return i2c_add_driver(&pca9450_i2c_driver);
-}
-module_init(pca9450_i2c_init);
-
-static void __exit pca9450_i2c_exit(void)
-{
-	i2c_del_driver(&pca9450_i2c_driver);
-}
-module_exit(pca9450_i2c_exit);
+module_i2c_driver(pca9450_i2c_driver);
 
 MODULE_AUTHOR("Robin Gong <yibin.gong@nxp.com>");
 MODULE_DESCRIPTION("NXP PCA9450 Power Management IC driver");
