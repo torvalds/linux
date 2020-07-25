@@ -117,6 +117,9 @@ static const char * const os04a10_supply_names[] = {
 
 #define OS04A10_NUM_SUPPLIES ARRAY_SIZE(os04a10_supply_names)
 
+#define MIRROR_BIT_MASK      BIT(1)
+#define FLIP_BIT_MASK        BIT(2)
+
 enum os04a10_max_pad {
 	PAD0,
 	PAD1,
@@ -165,6 +168,8 @@ struct os04a10 {
 	struct v4l2_ctrl	*test_pattern;
 	struct v4l2_ctrl	*pixel_rate;
 	struct v4l2_ctrl	*link_freq;
+	struct v4l2_ctrl	*h_flip;
+	struct v4l2_ctrl	*v_flip;
 	struct mutex		mutex;
 	bool			streaming;
 	bool			power_on;
@@ -182,6 +187,7 @@ struct os04a10 {
 	bool			is_thunderboot;
 	bool			is_thunderboot_ng;
 	bool			is_first_streamoff;
+	u8			flip;
 };
 
 #define to_os04a10(sd) container_of(sd, struct os04a10, subdev)
@@ -466,7 +472,7 @@ static const struct regval os04a10_linear10bit_2688x1520_regs[] = {
 	{0x380e, 0x0c},
 	{0x380f, 0xb0},
 	{0x381c, 0x00},
-	{0x3820, 0x02},
+	{0x3820, 0x00},
 	{0x3833, 0x40},
 	{0x384c, 0x02},
 	{0x384d, 0xdc},
@@ -537,7 +543,7 @@ static const struct regval os04a10_linear12bit_2688x1520_regs[] = {
 	{0x380e, 0x09},
 	{0x380f, 0x84},
 	{0x381c, 0x00},
-	{0x3820, 0x02},
+	{0x3820, 0x00},
 	{0x3833, 0x40},
 	{0x384c, 0x05},
 	{0x384d, 0xc4},
@@ -610,7 +616,7 @@ static const struct regval os04a10_hdr10bit_2688x1520_regs[] = {
 	//{0x380e, 0x0c},
 	//{0x380f, 0xb0},
 	{0x381c, 0x08},
-	{0x3820, 0x03},
+	{0x3820, 0x01},
 	{0x3833, 0x41},
 	{0x384c, 0x02},
 	{0x384d, 0xdc},
@@ -681,7 +687,7 @@ static const struct regval os04a10_hdr12bit_2688x1520_regs[] = {
 	{0x380e, 0x06},
 	{0x380f, 0x58},
 	{0x381c, 0x08},
-	{0x3820, 0x03},
+	{0x3820, 0x01},
 	{0x3833, 0x41},
 	{0x384c, 0x05},
 	{0x384d, 0xc4},
@@ -752,7 +758,7 @@ static const struct regval os04a10_hdr12bit_2560x1440_regs[] = {
 	{0x380e, 0x05},
 	{0x380f, 0xdc},
 	{0x381c, 0x08},
-	{0x3820, 0x03},
+	{0x3820, 0x01},
 	{0x3833, 0x41},
 	{0x384c, 0x05},
 	{0x384d, 0xa0},
@@ -1599,6 +1605,38 @@ static int os04a10_init_conversion_gain(struct os04a10 *os04a10)
 	return ret;
 }
 
+static int os04a10_set_flip(struct os04a10 *os04a10, u8 mode)
+{
+	u32 match_reg = 0;
+	struct i2c_client *client = os04a10->client;
+	int ret = 0;
+
+	ret = os04a10_read_reg(client,
+		0x3820,
+		OS04A10_REG_VALUE_08BIT,
+		&match_reg);
+
+	if (mode == FLIP_BIT_MASK) {
+		match_reg |= FLIP_BIT_MASK;
+		match_reg &= ~MIRROR_BIT_MASK;
+	} else if (mode == MIRROR_BIT_MASK) {
+		match_reg |= MIRROR_BIT_MASK;
+		match_reg &= ~FLIP_BIT_MASK;
+	} else if (mode == (MIRROR_BIT_MASK |
+		FLIP_BIT_MASK)) {
+		match_reg |= FLIP_BIT_MASK;
+		match_reg |= MIRROR_BIT_MASK;
+	} else {
+		match_reg &= ~FLIP_BIT_MASK;
+		match_reg &= ~MIRROR_BIT_MASK;
+	}
+	ret |= os04a10_write_reg(client,
+		0x3820,
+		OS04A10_REG_VALUE_08BIT,
+		match_reg);
+	return ret;
+}
+
 static int __os04a10_start_stream(struct os04a10 *os04a10)
 {
 	int ret;
@@ -1635,7 +1673,9 @@ static int __os04a10_start_stream(struct os04a10 *os04a10)
 		if (ret)
 			return ret;
 	}
-
+	ret = os04a10_set_flip(os04a10, os04a10->flip);
+	if (ret)
+		return ret;
 	return os04a10_write_reg(os04a10->client, OS04A10_REG_CTRL_MODE,
 		OS04A10_REG_VALUE_08BIT, OS04A10_MODE_STREAMING);
 }
@@ -1992,6 +2032,18 @@ static int os04a10_set_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_TEST_PATTERN:
 		ret = os04a10_enable_test_pattern(os04a10, ctrl->val);
 		break;
+	case V4L2_CID_HFLIP:
+		if (ctrl->val)
+			os04a10->flip |= MIRROR_BIT_MASK;
+		else
+			os04a10->flip &= ~MIRROR_BIT_MASK;
+		break;
+	case V4L2_CID_VFLIP:
+		if (ctrl->val)
+			os04a10->flip |= FLIP_BIT_MASK;
+		else
+			os04a10->flip &= ~FLIP_BIT_MASK;
+		break;
 	default:
 		dev_warn(&client->dev, "%s Unhandled id:0x%x, val:0x%x\n",
 			 __func__, ctrl->id, ctrl->val);
@@ -2019,7 +2071,7 @@ static int os04a10_initialize_controls(struct os04a10 *os04a10)
 
 	handler = &os04a10->ctrl_handler;
 	mode = os04a10->cur_mode;
-	ret = v4l2_ctrl_handler_init(handler, 8);
+	ret = v4l2_ctrl_handler_init(handler, 9);
 	if (ret)
 		return ret;
 	handler->lock = &os04a10->mutex;
@@ -2072,6 +2124,12 @@ static int os04a10_initialize_controls(struct os04a10 *os04a10)
 				ARRAY_SIZE(os04a10_test_pattern_menu) - 1,
 				0, 0, os04a10_test_pattern_menu);
 
+	os04a10->h_flip = v4l2_ctrl_new_std(handler, &os04a10_ctrl_ops,
+				V4L2_CID_HFLIP, 0, 1, 1, 0);
+
+	os04a10->v_flip = v4l2_ctrl_new_std(handler, &os04a10_ctrl_ops,
+				V4L2_CID_VFLIP, 0, 1, 1, 0);
+	os04a10->flip = 0;
 	if (handler->error) {
 		ret = handler->error;
 		dev_err(&os04a10->client->dev,
