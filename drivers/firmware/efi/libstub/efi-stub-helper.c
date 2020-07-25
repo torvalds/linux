@@ -201,6 +201,8 @@ efi_status_t efi_parse_options(char const *cmdline)
 		char *param, *val;
 
 		str = next_arg(str, &param, &val);
+		if (!val && !strcmp(param, "--"))
+			break;
 
 		if (!strcmp(param, "nokaslr")) {
 			efi_nokaslr = true;
