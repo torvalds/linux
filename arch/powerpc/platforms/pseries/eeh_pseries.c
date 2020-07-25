@@ -72,8 +72,8 @@ void pseries_pcibios_bus_add_device(struct pci_dev *pdev)
 		struct eeh_dev *edev = pdn_to_eeh_dev(pdn);
 
 		edev->pe_config_addr =  (pdn->busno << 16) | (pdn->devfn << 8);
-		eeh_rmv_from_parent_pe(edev); /* Remove as it is adding to bus pe */
-		eeh_add_to_parent_pe(edev);   /* Add as VF PE type */
+		eeh_pe_tree_remove(edev); /* Remove as it is adding to bus pe */
+		eeh_pe_tree_insert(edev);   /* Add as VF PE type */
 	}
 #endif
 	eeh_probe_device(pdev);
@@ -482,14 +482,14 @@ void pseries_eeh_init_edev(struct pci_dn *pdn)
 
 		if (enable) {
 			eeh_add_flag(EEH_ENABLED);
-			eeh_add_to_parent_pe(edev);
+			eeh_pe_tree_insert(edev);
 		} else if (pdn->parent && pdn_to_eeh_dev(pdn->parent) &&
 			   (pdn_to_eeh_dev(pdn->parent))->pe) {
 			/* This device doesn't support EEH, but it may have an
 			 * EEH parent, in which case we mark it as supported.
 			 */
 			edev->pe_config_addr = pdn_to_eeh_dev(pdn->parent)->pe_config_addr;
-			eeh_add_to_parent_pe(edev);
+			eeh_pe_tree_insert(edev);
 		}
 		eeh_edev_dbg(edev, "EEH is %s on device (code %d)\n",
 			     (enable ? "enabled" : "unsupported"), ret);

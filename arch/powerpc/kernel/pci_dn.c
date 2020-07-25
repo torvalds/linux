@@ -263,7 +263,7 @@ void remove_sriov_vf_pdns(struct pci_dev *pdev)
 				 * have a configured PE.
 				 */
 				if (edev->pe)
-					eeh_rmv_from_parent_pe(edev);
+					eeh_pe_tree_remove(edev);
 
 				pdn->edev = NULL;
 				kfree(edev);

@@ -356,7 +356,7 @@ static struct eeh_pe *eeh_pe_get_parent(struct eeh_dev *edev)
 }
 
 /**
- * eeh_add_to_parent_pe - Add EEH device to parent PE
+ * eeh_pe_tree_insert - Add EEH device to parent PE
  * @edev: EEH device
  *
  * Add EEH device to the parent PE. If the parent PE already
@@ -364,7 +364,7 @@ static struct eeh_pe *eeh_pe_get_parent(struct eeh_dev *edev)
  * we have to create new PE to hold the EEH device and the new
  * PE will be linked to its parent PE as well.
  */
-int eeh_add_to_parent_pe(struct eeh_dev *edev)
+int eeh_pe_tree_insert(struct eeh_dev *edev)
 {
 	struct eeh_pe *pe, *parent;
 	struct pci_dn *pdn = eeh_dev_to_pdn(edev);
@@ -459,7 +459,7 @@ int eeh_add_to_parent_pe(struct eeh_dev *edev)
 }
 
 /**
- * eeh_rmv_from_parent_pe - Remove one EEH device from the associated PE
+ * eeh_pe_tree_remove - Remove one EEH device from the associated PE
  * @edev: EEH device
  *
  * The PE hierarchy tree might be changed when doing PCI hotplug.
@@ -467,7 +467,7 @@ int eeh_add_to_parent_pe(struct eeh_dev *edev)
  * during EEH recovery. So we have to call the function remove the
  * corresponding PE accordingly if necessary.
  */
-int eeh_rmv_from_parent_pe(struct eeh_dev *edev)
+int eeh_pe_tree_remove(struct eeh_dev *edev)
 {
 	struct eeh_pe *pe, *parent, *child;
 	bool keep, recover;

@@ -399,7 +399,7 @@ static struct eeh_dev *pnv_eeh_probe(struct pci_dev *pdev)
 	edev->pe_config_addr = phb->ioda.pe_rmap[config_addr];
 
 	/* Create PE */
-	ret = eeh_add_to_parent_pe(edev);
+	ret = eeh_pe_tree_insert(edev);
 	if (ret) {
 		eeh_edev_warn(edev, "Failed to add device to PE (code %d)\n", ret);
 		return NULL;

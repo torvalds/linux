@@ -1107,7 +1107,7 @@ void eeh_probe_device(struct pci_dev *dev)
 	 * FIXME: HEY MA, LOOK AT ME, NO LOCKING!
 	 */
 	if (edev->pdev && edev->pdev != dev) {
-		eeh_rmv_from_parent_pe(edev);
+		eeh_pe_tree_remove(edev);
 		eeh_addr_cache_rmv_dev(edev->pdev);
 		eeh_sysfs_remove_device(edev->pdev);
 
@@ -1186,7 +1186,7 @@ void eeh_remove_device(struct pci_dev *dev)
 	edev->in_error = false;
 	dev->dev.archdata.edev = NULL;
 	if (!(edev->pe->state & EEH_PE_KEEP))
-		eeh_rmv_from_parent_pe(edev);
+		eeh_pe_tree_remove(edev);
 	else
 		edev->mode |= EEH_DEV_DISCONNECTED;
 }
