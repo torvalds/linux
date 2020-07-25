@@ -208,14 +208,40 @@ nvkm_subdev_del(struct nvkm_subdev **psubdev)
 }
 
 void
-nvkm_subdev_ctor(const struct nvkm_subdev_func *func,
-		 struct nvkm_device *device, int index,
+nvkm_subdev_ctor_(const struct nvkm_subdev_func *func, bool old,
+		 struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 		 struct nvkm_subdev *subdev)
 {
 	subdev->func = func;
 	subdev->device = device;
-	subdev->index = index;
-	strscpy(subdev->name, nvkm_subdev_type[index], sizeof(subdev->name));
+	subdev->type = type;
+	subdev->inst = inst < 0 ? 0 : inst;
+	subdev->index = type + subdev->inst;
+
+	if (old) {
+		switch (subdev->type) {
+		case NVKM_ENGINE_CE0 ... NVKM_ENGINE_CE_LAST:
+			subdev->type = NVKM_ENGINE_CE;
+			subdev->inst = subdev->index - NVKM_ENGINE_CE0;
+			break;
+		case NVKM_ENGINE_NVENC0 ... NVKM_ENGINE_NVENC_LAST:
+			subdev->type = NVKM_ENGINE_NVENC;
+			subdev->inst = subdev->index - NVKM_ENGINE_NVENC0;
+			break;
+		case NVKM_ENGINE_NVDEC0 ... NVKM_ENGINE_NVDEC_LAST:
+			subdev->type = NVKM_ENGINE_NVDEC;
+			subdev->inst = subdev->index - NVKM_ENGINE_NVDEC0;
+			break;
+		default:
+			break;
+		}
+		inst = -1;
+	}
+
+	if (inst >= 0)
+		snprintf(subdev->name, sizeof(subdev->name), "%s%d", nvkm_subdev_type[type], inst);
+	else
+		strscpy(subdev->name, nvkm_subdev_type[type], sizeof(subdev->name));
 	subdev->debug = nvkm_dbgopt(device->dbgopt, subdev->name);
 	list_add_tail(&subdev->head, &device->subdev);
 }
