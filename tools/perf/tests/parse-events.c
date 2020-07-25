@@ -1766,6 +1766,11 @@ static struct evlist_test test__events_pmu[] = {
 		.check = test__checkevent_raw_pmu,
 		.id    = 4,
 	},
+	{
+		.name  = "software/r0x1a/",
+		.check = test__checkevent_raw_pmu,
+		.id    = 4,
+	},
 };
 
 struct terms_test {
