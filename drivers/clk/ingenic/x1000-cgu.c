@@ -278,6 +278,19 @@ static const struct ingenic_cgu_clk_info x1000_cgu_clocks[] = {
 		.mux = { CGU_REG_SSICDR, 30, 1 },
 	},
 
+	[X1000_CLK_EXCLK_DIV512] = {
+		"exclk_div512", CGU_CLK_FIXDIV,
+		.parents = { X1000_CLK_EXCLK },
+		.fixdiv = { 512 },
+	},
+
+	[X1000_CLK_RTC] = {
+		"rtc_ercs", CGU_CLK_MUX | CGU_CLK_GATE,
+		.parents = { X1000_CLK_EXCLK_DIV512, X1000_CLK_RTCLK },
+		.mux = { CGU_REG_OPCR, 2, 1},
+		.gate = { CGU_REG_CLKGR, 27 },
+	},
+
 	/* Gate-only clocks */
 
 	[X1000_CLK_EMC] = {

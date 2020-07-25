@@ -516,6 +516,18 @@ static const struct ingenic_cgu_clk_info jz4780_cgu_clocks[] = {
 		.gate = { CGU_REG_CLKGR0, 1 },
 	},
 
+	[JZ4780_CLK_EXCLK_DIV512] = {
+		"exclk_div512", CGU_CLK_FIXDIV,
+		.parents = { JZ4780_CLK_EXCLK },
+		.fixdiv = { 512 },
+	},
+
+	[JZ4780_CLK_RTC] = {
+		"rtc_ercs", CGU_CLK_MUX | CGU_CLK_GATE,
+		.parents = { JZ4780_CLK_EXCLK_DIV512, JZ4780_CLK_RTCLK },
+		.mux = { CGU_REG_OPCR, 2, 1},
+	},
+
 	/* Gate-only clocks */
 
 	[JZ4780_CLK_NEMC] = {
