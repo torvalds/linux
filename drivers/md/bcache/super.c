@@ -2790,7 +2790,7 @@ static int __init bcache_init(void)
 	static const struct attribute *files[] = {
 		&ksysfs_register.attr,
 		&ksysfs_register_quiet.attr,
-#ifdef CONFIG_BCACHE_ASYNC_REGISTRAION
+#ifdef CONFIG_BCACHE_ASYNC_REGISTRATION
 		&ksysfs_register_async.attr,
 #endif
 		&ksysfs_pendings_cleanup.attr,

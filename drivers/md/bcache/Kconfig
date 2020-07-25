@@ -27,7 +27,7 @@ config BCACHE_CLOSURES_DEBUG
 	interface to list them, which makes it possible to see asynchronous
 	operations that get stuck.
 
-config BCACHE_ASYNC_REGISTRAION
+config BCACHE_ASYNC_REGISTRATION
 	bool "Asynchronous device registration (EXPERIMENTAL)"
 	depends on BCACHE
 	help
