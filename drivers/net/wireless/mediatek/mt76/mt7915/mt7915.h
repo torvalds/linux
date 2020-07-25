@@ -141,6 +141,7 @@ struct mt7915_dev {
 		struct mt76_phy mphy;
 	};
 
+	const struct mt76_bus_ops *bus_ops;
 	struct mt7915_phy phy;
 
 	u16 chainmask;
