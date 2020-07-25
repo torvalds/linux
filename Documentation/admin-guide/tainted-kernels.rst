@@ -38,7 +38,7 @@ either letters or blanks. In above example it looks like this::
 
 	Tainted: P        W  O
 
-The meaning of those characters is explained in the table below. In tis case
+The meaning of those characters is explained in the table below. In this case
 the kernel got tainted earlier because a proprietary Module (``P``) was loaded,
 a warning occurred (``W``), and an externally-built module was loaded (``O``).
 To decode other letters use the table below.
