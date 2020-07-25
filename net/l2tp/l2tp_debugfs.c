@@ -72,7 +72,10 @@ static void *l2tp_dfs_seq_start(struct seq_file *m, loff_t *offs)
 	if (!pos)
 		goto out;
 
-	BUG_ON(!m->private);
+	if (WARN_ON(!m->private)) {
+		pd = NULL;
+		goto out;
+	}
 	pd = m->private;
 
 	if (!pd->tunnel)

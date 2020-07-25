@@ -621,8 +621,8 @@ void l2tp_recv_common(struct l2tp_session *session, struct sk_buff *skb,
 		      int length)
 {
 	struct l2tp_tunnel *tunnel = session->tunnel;
+	u32 ns = 0, nr = 0;
 	int offset;
-	u32 ns, nr;
 
 	/* Parse and check optional cookie */
 	if (session->peer_cookie_len > 0) {
@@ -644,7 +644,6 @@ void l2tp_recv_common(struct l2tp_session *session, struct sk_buff *skb,
 	 * the control of the LNS.  If no sequence numbers present but
 	 * we were expecting them, discard frame.
 	 */
-	ns = nr = 0;
 	L2TP_SKB_CB(skb)->has_seq = 0;
 	if (tunnel->version == L2TP_HDR_VER_2) {
 		if (hdrflags & L2TP_HDRFLAG_S) {
@@ -774,17 +773,17 @@ EXPORT_SYMBOL(l2tp_recv_common);
 
 /* Drop skbs from the session's reorder_q
  */
-static int l2tp_session_queue_purge(struct l2tp_session *session)
+static void l2tp_session_queue_purge(struct l2tp_session *session)
 {
 	struct sk_buff *skb = NULL;
 
-	BUG_ON(!session);
-	BUG_ON(session->magic != L2TP_SESSION_MAGIC);
+	if (WARN_ON(session->magic != L2TP_SESSION_MAGIC))
+		return;
+
 	while ((skb = skb_dequeue(&session->reorder_q))) {
 		atomic_long_inc(&session->stats.rx_errors);
 		kfree_skb(skb);
 	}
-	return 0;
 }
 
 /* Internal UDP receive frame. Do the real work of receiving an L2TP data frame
@@ -826,7 +825,8 @@ static int l2tp_udp_recv_core(struct l2tp_tunnel *tunnel, struct sk_buff *skb)
 	}
 
 	/* Point to L2TP header */
-	optr = ptr = skb->data;
+	optr = skb->data;
+	ptr = skb->data;
 
 	/* Get L2TP header flags */
 	hdrflags = ntohs(*(__be16 *)ptr);
@@ -1188,8 +1188,6 @@ static void l2tp_tunnel_closeall(struct l2tp_tunnel *tunnel)
 	struct hlist_node *walk;
 	struct hlist_node *tmp;
 	struct l2tp_session *session;
-
-	BUG_ON(!tunnel);
 
 	l2tp_info(tunnel, L2TP_MSG_CONTROL, "%s: closing all sessions...\n",
 		  tunnel->name);
@@ -1565,13 +1563,13 @@ void l2tp_session_free(struct l2tp_session *session)
 {
 	struct l2tp_tunnel *tunnel = session->tunnel;
 
-	BUG_ON(refcount_read(&session->ref_count) != 0);
-
 	if (tunnel) {
-		BUG_ON(tunnel->magic != L2TP_TUNNEL_MAGIC);
+		if (WARN_ON(tunnel->magic != L2TP_TUNNEL_MAGIC))
+			goto out;
 		l2tp_tunnel_dec_refcount(tunnel);
 	}
 
+out:
 	kfree(session);
 }
 EXPORT_SYMBOL_GPL(l2tp_session_free);

@@ -163,8 +163,11 @@ static inline struct l2tp_session *pppol2tp_sock_to_session(struct sock *sk)
 		sock_put(sk);
 		goto out;
 	}
-
-	BUG_ON(session->magic != L2TP_SESSION_MAGIC);
+	if (WARN_ON(session->magic != L2TP_SESSION_MAGIC)) {
+		session = NULL;
+		sock_put(sk);
+		goto out;
+	}
 
 out:
 	return session;
@@ -419,7 +422,8 @@ static void pppol2tp_session_destruct(struct sock *sk)
 
 	if (session) {
 		sk->sk_user_data = NULL;
-		BUG_ON(session->magic != L2TP_SESSION_MAGIC);
+		if (WARN_ON(session->magic != L2TP_SESSION_MAGIC))
+			return;
 		l2tp_session_dec_refcount(session);
 	}
 }
@@ -1474,7 +1478,11 @@ static void *pppol2tp_seq_start(struct seq_file *m, loff_t *offs)
 	if (!pos)
 		goto out;
 
-	BUG_ON(!m->private);
+	if (WARN_ON(!m->private)) {
+		pd = NULL;
+		goto out;
+	}
+
 	pd = m->private;
 	net = seq_file_net(m);
 

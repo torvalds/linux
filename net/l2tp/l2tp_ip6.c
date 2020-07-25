@@ -137,7 +137,8 @@ static int l2tp_ip6_recv(struct sk_buff *skb)
 		goto discard;
 
 	/* Point to L2TP header */
-	optr = ptr = skb->data;
+	optr = skb->data;
+	ptr = skb->data;
 	session_id = ntohl(*((__be32 *)ptr));
 	ptr += 4;
 
@@ -166,7 +167,8 @@ static int l2tp_ip6_recv(struct sk_buff *skb)
 			goto discard_sess;
 
 		/* Point to L2TP header */
-		optr = ptr = skb->data;
+		optr = skb->data;
+		ptr = skb->data;
 		ptr += 4;
 		pr_debug("%s: ip recv\n", tunnel->name);
 		print_hex_dump_bytes("", DUMP_PREFIX_OFFSET, ptr, length);
