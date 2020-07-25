@@ -1001,7 +1001,7 @@ static inline u32 i2c_acpi_find_bus_speed(struct device *dev)
 static inline struct i2c_client *i2c_acpi_new_device(struct device *dev,
 					int index, struct i2c_board_info *info)
 {
-	return NULL;
+	return ERR_PTR(-ENODEV);
 }
 static inline struct i2c_adapter *i2c_acpi_find_adapter_by_handle(acpi_handle handle)
 {
