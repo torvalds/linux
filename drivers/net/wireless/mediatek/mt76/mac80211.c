@@ -932,7 +932,8 @@ void mt76_rx_complete(struct mt76_dev *dev, struct sk_buff_head *frames,
 {
 	struct ieee80211_sta *sta;
 	struct ieee80211_hw *hw;
-	struct sk_buff *skb;
+	struct sk_buff *skb, *tmp;
+	LIST_HEAD(list);
 
 	spin_lock(&dev->rx_lock);
 	while ((skb = __skb_dequeue(frames)) != NULL) {
@@ -942,9 +943,19 @@ void mt76_rx_complete(struct mt76_dev *dev, struct sk_buff_head *frames,
 		}
 
 		mt76_rx_convert(dev, skb, &hw, &sta);
-		ieee80211_rx_napi(hw, sta, skb, napi);
+		ieee80211_rx_list(hw, sta, skb, &list);
 	}
 	spin_unlock(&dev->rx_lock);
+
+	if (!napi) {
+		netif_receive_skb_list(&list);
+		return;
+	}
+
+	list_for_each_entry_safe(skb, tmp, &list, list) {
+		skb_list_del_init(skb);
+		napi_gro_receive(napi, skb);
+	}
 }
 
 void mt76_rx_poll_complete(struct mt76_dev *dev, enum mt76_rxq_id q,
