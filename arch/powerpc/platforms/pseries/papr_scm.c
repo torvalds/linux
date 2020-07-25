@@ -94,8 +94,8 @@ struct papr_scm_priv {
 	u64 health_bitmap;
 };
 
-LIST_HEAD(papr_nd_regions);
-DEFINE_MUTEX(papr_ndr_lock);
+static LIST_HEAD(papr_nd_regions);
+static DEFINE_MUTEX(papr_ndr_lock);
 
 static int drc_pmem_bind(struct papr_scm_priv *p)
 {
