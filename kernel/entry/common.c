@@ -256,7 +256,7 @@ noinstr void irqentry_exit_to_user_mode(struct pt_regs *regs)
 	exit_to_user_mode();
 }
 
-irqentry_state_t noinstr irqentry_enter(struct pt_regs *regs)
+noinstr irqentry_state_t irqentry_enter(struct pt_regs *regs)
 {
 	irqentry_state_t ret = {
 		.exit_rcu = false,
@@ -333,7 +333,7 @@ void irqentry_exit_cond_resched(void)
 	}
 }
 
-void noinstr irqentry_exit(struct pt_regs *regs, irqentry_state_t state)
+noinstr void irqentry_exit(struct pt_regs *regs, irqentry_state_t state)
 {
 	lockdep_assert_irqs_disabled();
 
