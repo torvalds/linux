@@ -88,20 +88,23 @@ static int vcn_v3_0_early_init(void *handle)
 		adev->vcn.num_enc_rings = 1;
 
 	} else {
-		u32 harvest;
-		int i;
+		if (adev->asic_type == CHIP_SIENNA_CICHLID) {
+			u32 harvest;
+			int i;
 
-		adev->vcn.num_vcn_inst = VCN_INSTANCES_SIENNA_CICHLID;
-		for (i = 0; i < adev->vcn.num_vcn_inst; i++) {
-			harvest = RREG32_SOC15(VCN, i, mmCC_UVD_HARVESTING);
-			if (harvest & CC_UVD_HARVESTING__UVD_DISABLE_MASK)
-				adev->vcn.harvest_config |= 1 << i;
-		}
+			adev->vcn.num_vcn_inst = VCN_INSTANCES_SIENNA_CICHLID;
+			for (i = 0; i < adev->vcn.num_vcn_inst; i++) {
+				harvest = RREG32_SOC15(VCN, i, mmCC_UVD_HARVESTING);
+				if (harvest & CC_UVD_HARVESTING__UVD_DISABLE_MASK)
+					adev->vcn.harvest_config |= 1 << i;
+			}
 
-		if (adev->vcn.harvest_config == (AMDGPU_VCN_HARVEST_VCN0 |
-					AMDGPU_VCN_HARVEST_VCN1))
-			/* both instances are harvested, disable the block */
-			return -ENOENT;
+			if (adev->vcn.harvest_config == (AMDGPU_VCN_HARVEST_VCN0 |
+						AMDGPU_VCN_HARVEST_VCN1))
+				/* both instances are harvested, disable the block */
+				return -ENOENT;
+		} else
+			adev->vcn.num_vcn_inst = 1;
 
 		adev->vcn.num_enc_rings = 2;
 	}
