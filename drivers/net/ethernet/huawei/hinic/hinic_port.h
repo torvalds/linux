@@ -189,6 +189,31 @@ struct hinic_port_link_status {
 	u8      port_id;
 };
 
+struct hinic_cable_plug_event {
+	u8	status;
+	u8	version;
+	u8	rsvd0[6];
+
+	u16	func_id;
+	u8	plugged; /* 0: unplugged, 1: plugged */
+	u8	port_id;
+};
+
+enum link_err_type {
+	LINK_ERR_MODULE_UNRECOGENIZED,
+	LINK_ERR_NUM,
+};
+
+struct hinic_link_err_event {
+	u8	status;
+	u8	version;
+	u8	rsvd0[6];
+
+	u16	func_id;
+	u8	err_type;
+	u8	port_id;
+};
+
 struct hinic_port_func_state_cmd {
 	u8      status;
 	u8      version;

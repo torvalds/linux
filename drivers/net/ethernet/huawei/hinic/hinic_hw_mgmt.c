@@ -12,8 +12,10 @@
 #include <linux/semaphore.h>
 #include <linux/completion.h>
 #include <linux/slab.h>
+#include <net/devlink.h>
 #include <asm/barrier.h>
 
+#include "hinic_devlink.h"
 #include "hinic_hw_if.h"
 #include "hinic_hw_eqs.h"
 #include "hinic_hw_api_cmd.h"
@@ -617,10 +619,15 @@ int hinic_pf_to_mgmt_init(struct hinic_pf_to_mgmt *pf_to_mgmt,
 	if (HINIC_IS_VF(hwif))
 		return 0;
 
+	err = hinic_health_reporters_create(hwdev->devlink_dev);
+	if (err)
+		return err;
+
 	sema_init(&pf_to_mgmt->sync_msg_lock, 1);
 	pf_to_mgmt->workq = create_singlethread_workqueue("hinic_mgmt");
 	if (!pf_to_mgmt->workq) {
 		dev_err(&pdev->dev, "Failed to initialize MGMT workqueue\n");
+		hinic_health_reporters_destroy(hwdev->devlink_dev);
 		return -ENOMEM;
 	}
 	pf_to_mgmt->sync_msg_id = 0;
@@ -628,12 +635,14 @@ int hinic_pf_to_mgmt_init(struct hinic_pf_to_mgmt *pf_to_mgmt,
 	err = alloc_msg_buf(pf_to_mgmt);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to allocate msg buffers\n");
+		hinic_health_reporters_destroy(hwdev->devlink_dev);
 		return err;
 	}
 
 	err = hinic_api_cmd_init(pf_to_mgmt->cmd_chain, hwif);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to initialize cmd chains\n");
+		hinic_health_reporters_destroy(hwdev->devlink_dev);
 		return err;
 	}
 
@@ -658,4 +667,5 @@ void hinic_pf_to_mgmt_free(struct hinic_pf_to_mgmt *pf_to_mgmt)
 	hinic_aeq_unregister_hw_cb(&hwdev->aeqs, HINIC_MSG_FROM_MGMT_CPU);
 	hinic_api_cmd_free(pf_to_mgmt->cmd_chain);
 	destroy_workqueue(pf_to_mgmt->workq);
+	hinic_health_reporters_destroy(hwdev->devlink_dev);
 }

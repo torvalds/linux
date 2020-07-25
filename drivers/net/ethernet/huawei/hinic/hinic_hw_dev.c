@@ -16,8 +16,11 @@
 #include <linux/log2.h>
 #include <linux/err.h>
 #include <linux/netdevice.h>
+#include <net/devlink.h>
 
+#include "hinic_devlink.h"
 #include "hinic_sriov.h"
+#include "hinic_dev.h"
 #include "hinic_hw_if.h"
 #include "hinic_hw_eqs.h"
 #include "hinic_hw_mgmt.h"
@@ -621,6 +624,113 @@ static void nic_mgmt_msg_handler(void *handle, u8 cmd, void *buf_in,
 	nic_cb->cb_state &= ~HINIC_CB_RUNNING;
 }
 
+static void hinic_comm_recv_mgmt_self_cmd_reg(struct hinic_pfhwdev *pfhwdev,
+					      u8 cmd,
+					      comm_mgmt_self_msg_proc proc)
+{
+	u8 cmd_idx;
+
+	cmd_idx = pfhwdev->proc.cmd_num;
+	if (cmd_idx >= HINIC_COMM_SELF_CMD_MAX) {
+		dev_err(&pfhwdev->hwdev.hwif->pdev->dev,
+			"Register recv mgmt process failed, cmd: 0x%x\n", cmd);
+		return;
+	}
+
+	pfhwdev->proc.info[cmd_idx].cmd = cmd;
+	pfhwdev->proc.info[cmd_idx].proc = proc;
+	pfhwdev->proc.cmd_num++;
+}
+
+static void hinic_comm_recv_mgmt_self_cmd_unreg(struct hinic_pfhwdev *pfhwdev,
+						u8 cmd)
+{
+	u8 cmd_idx;
+
+	cmd_idx = pfhwdev->proc.cmd_num;
+	if (cmd_idx >= HINIC_COMM_SELF_CMD_MAX) {
+		dev_err(&pfhwdev->hwdev.hwif->pdev->dev, "Unregister recv mgmt process failed, cmd: 0x%x\n",
+			cmd);
+		return;
+	}
+
+	for (cmd_idx = 0; cmd_idx < HINIC_COMM_SELF_CMD_MAX; cmd_idx++) {
+		if (cmd == pfhwdev->proc.info[cmd_idx].cmd) {
+			pfhwdev->proc.info[cmd_idx].cmd = 0;
+			pfhwdev->proc.info[cmd_idx].proc = NULL;
+			pfhwdev->proc.cmd_num--;
+		}
+	}
+}
+
+static void comm_mgmt_msg_handler(void *handle, u8 cmd, void *buf_in,
+				  u16 in_size, void *buf_out, u16 *out_size)
+{
+	struct hinic_pfhwdev *pfhwdev = handle;
+	u8 cmd_idx;
+
+	for (cmd_idx = 0; cmd_idx < pfhwdev->proc.cmd_num; cmd_idx++) {
+		if (cmd == pfhwdev->proc.info[cmd_idx].cmd) {
+			if (!pfhwdev->proc.info[cmd_idx].proc) {
+				dev_warn(&pfhwdev->hwdev.hwif->pdev->dev,
+					 "PF recv mgmt comm msg handle null, cmd: 0x%x\n",
+					 cmd);
+			} else {
+				pfhwdev->proc.info[cmd_idx].proc
+					(&pfhwdev->hwdev, buf_in, in_size,
+					 buf_out, out_size);
+			}
+
+			return;
+		}
+	}
+
+	dev_warn(&pfhwdev->hwdev.hwif->pdev->dev, "Received unknown mgmt cpu event: 0x%x\n",
+		 cmd);
+
+	*out_size = 0;
+}
+
+/* pf fault report event */
+static void pf_fault_event_handler(void *dev, void *buf_in, u16 in_size,
+				   void *buf_out, u16 *out_size)
+{
+	struct hinic_cmd_fault_event *fault_event = buf_in;
+	struct hinic_hwdev *hwdev = dev;
+
+	if (in_size != sizeof(*fault_event)) {
+		dev_err(&hwdev->hwif->pdev->dev, "Invalid fault event report, length: %d, should be %zu\n",
+			in_size, sizeof(*fault_event));
+		return;
+	}
+
+	if (!hwdev->devlink_dev || IS_ERR_OR_NULL(hwdev->devlink_dev->hw_fault_reporter))
+		return;
+
+	devlink_health_report(hwdev->devlink_dev->hw_fault_reporter,
+			      "HW fatal error reported", &fault_event->event);
+}
+
+static void mgmt_watchdog_timeout_event_handler(void *dev,
+						void *buf_in, u16 in_size,
+						void *buf_out, u16 *out_size)
+{
+	struct hinic_mgmt_watchdog_info *watchdog_info = buf_in;
+	struct hinic_hwdev *hwdev = dev;
+
+	if (in_size != sizeof(*watchdog_info)) {
+		dev_err(&hwdev->hwif->pdev->dev, "Invalid mgmt watchdog report, length: %d, should be %zu\n",
+			in_size, sizeof(*watchdog_info));
+		return;
+	}
+
+	if (!hwdev->devlink_dev || IS_ERR_OR_NULL(hwdev->devlink_dev->fw_fault_reporter))
+		return;
+
+	devlink_health_report(hwdev->devlink_dev->fw_fault_reporter,
+			      "FW fatal error reported", watchdog_info);
+}
+
 /**
  * init_pfhwdev - Initialize the extended components of PF
  * @pfhwdev: the HW device for PF
@@ -640,20 +750,37 @@ static int init_pfhwdev(struct hinic_pfhwdev *pfhwdev)
 		return err;
 	}
 
-	err = hinic_func_to_func_init(hwdev);
+	err = hinic_devlink_register(hwdev->devlink_dev, &pdev->dev);
 	if (err) {
-		dev_err(&hwif->pdev->dev, "Failed to init mailbox\n");
+		dev_err(&hwif->pdev->dev, "Failed to register devlink\n");
 		hinic_pf_to_mgmt_free(&pfhwdev->pf_to_mgmt);
 		return err;
 	}
 
-	if (!HINIC_IS_VF(hwif))
+	err = hinic_func_to_func_init(hwdev);
+	if (err) {
+		dev_err(&hwif->pdev->dev, "Failed to init mailbox\n");
+		hinic_devlink_unregister(hwdev->devlink_dev);
+		hinic_pf_to_mgmt_free(&pfhwdev->pf_to_mgmt);
+		return err;
+	}
+
+	if (!HINIC_IS_VF(hwif)) {
 		hinic_register_mgmt_msg_cb(&pfhwdev->pf_to_mgmt,
 					   HINIC_MOD_L2NIC, pfhwdev,
 					   nic_mgmt_msg_handler);
-	else
+		hinic_register_mgmt_msg_cb(&pfhwdev->pf_to_mgmt, HINIC_MOD_COMM,
+					   pfhwdev, comm_mgmt_msg_handler);
+		hinic_comm_recv_mgmt_self_cmd_reg(pfhwdev,
+						  HINIC_COMM_CMD_FAULT_REPORT,
+						  pf_fault_event_handler);
+		hinic_comm_recv_mgmt_self_cmd_reg
+			(pfhwdev, HINIC_COMM_CMD_WATCHDOG_INFO,
+			 mgmt_watchdog_timeout_event_handler);
+	} else {
 		hinic_register_vf_mbox_cb(hwdev, HINIC_MOD_L2NIC,
 					  nic_mgmt_msg_handler);
+	}
 
 	hinic_set_pf_action(hwif, HINIC_PF_MGMT_ACTIVE);
 
@@ -670,13 +797,22 @@ static void free_pfhwdev(struct hinic_pfhwdev *pfhwdev)
 
 	hinic_set_pf_action(hwdev->hwif, HINIC_PF_MGMT_INIT);
 
-	if (!HINIC_IS_VF(hwdev->hwif))
+	if (!HINIC_IS_VF(hwdev->hwif)) {
+		hinic_comm_recv_mgmt_self_cmd_unreg(pfhwdev,
+						    HINIC_COMM_CMD_WATCHDOG_INFO);
+		hinic_comm_recv_mgmt_self_cmd_unreg(pfhwdev,
+						    HINIC_COMM_CMD_FAULT_REPORT);
+		hinic_unregister_mgmt_msg_cb(&pfhwdev->pf_to_mgmt,
+					     HINIC_MOD_COMM);
 		hinic_unregister_mgmt_msg_cb(&pfhwdev->pf_to_mgmt,
 					     HINIC_MOD_L2NIC);
-	else
+	} else {
 		hinic_unregister_vf_mbox_cb(hwdev, HINIC_MOD_L2NIC);
+	}
 
 	hinic_func_to_func_free(hwdev);
+
+	hinic_devlink_unregister(hwdev->devlink_dev);
 
 	hinic_pf_to_mgmt_free(&pfhwdev->pf_to_mgmt);
 }
@@ -777,7 +913,7 @@ int hinic_set_interrupt_cfg(struct hinic_hwdev *hwdev,
  *
  * Initialize the NIC HW device and return a pointer to it
  **/
-struct hinic_hwdev *hinic_init_hwdev(struct pci_dev *pdev)
+struct hinic_hwdev *hinic_init_hwdev(struct pci_dev *pdev, struct devlink *devlink)
 {
 	struct hinic_pfhwdev *pfhwdev;
 	struct hinic_hwdev *hwdev;
@@ -802,6 +938,8 @@ struct hinic_hwdev *hinic_init_hwdev(struct pci_dev *pdev)
 
 	hwdev = &pfhwdev->hwdev;
 	hwdev->hwif = hwif;
+	hwdev->devlink_dev = devlink_priv(devlink);
+	hwdev->devlink_dev->hwdev = hwdev;
 
 	err = init_msix(hwdev);
 	if (err) {
