@@ -5987,20 +5987,20 @@ again:
 	 * doesn't support non-blocking read/write attempts
 	 */
 	if (ret == -EAGAIN && !(req->flags & REQ_F_NOWAIT)) {
-		if (io_arm_poll_handler(req)) {
-			if (linked_timeout)
-				io_queue_linked_timeout(linked_timeout);
-			goto exit;
-		}
+		if (!io_arm_poll_handler(req)) {
 punt:
-		ret = io_prep_work_files(req);
-		if (unlikely(ret))
-			goto err;
-		/*
-		 * Queued up for async execution, worker will release
-		 * submit reference when the iocb is actually submitted.
-		 */
-		io_queue_async_work(req);
+			ret = io_prep_work_files(req);
+			if (unlikely(ret))
+				goto err;
+			/*
+			 * Queued up for async execution, worker will release
+			 * submit reference when the iocb is actually submitted.
+			 */
+			io_queue_async_work(req);
+		}
+
+		if (linked_timeout)
+			io_queue_linked_timeout(linked_timeout);
 		goto exit;
 	}
 
