@@ -1121,7 +1121,7 @@ static int a6xx_gmu_memory_probe(struct a6xx_gmu *gmu)
 		return -ENODEV;
 
 	mmu = msm_iommu_new(gmu->dev, domain);
-	gmu->aspace = msm_gem_address_space_create(mmu, "gmu", 0x0, 0x7fffffff);
+	gmu->aspace = msm_gem_address_space_create(mmu, "gmu", 0x0, 0x80000000);
 	if (IS_ERR(gmu->aspace)) {
 		iommu_domain_free(domain);
 		return PTR_ERR(gmu->aspace);

@@ -302,7 +302,7 @@ nsim_create(struct nsim_dev *nsim_dev, struct nsim_dev_port *nsim_dev_port)
 	rtnl_lock();
 	err = nsim_bpf_init(ns);
 	if (err)
-		goto err_free_netdev;
+		goto err_rtnl_unlock;
 
 	nsim_ipsec_init(ns);
 
@@ -316,8 +316,8 @@ nsim_create(struct nsim_dev *nsim_dev, struct nsim_dev_port *nsim_dev_port)
 err_ipsec_teardown:
 	nsim_ipsec_teardown(ns);
 	nsim_bpf_uninit(ns);
+err_rtnl_unlock:
 	rtnl_unlock();
-err_free_netdev:
 	free_netdev(dev);
 	return ERR_PTR(err);
 }

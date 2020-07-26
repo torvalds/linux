@@ -480,7 +480,7 @@ out:
 	return 0;
 }
 
-static ssize_t mmu_write(struct file *file, const char __user *buf,
+static ssize_t mmu_asid_va_write(struct file *file, const char __user *buf,
 		size_t count, loff_t *f_pos)
 {
 	struct seq_file *s = file->private_data;
@@ -1125,7 +1125,7 @@ static const struct hl_info_list hl_debugfs_list[] = {
 	{"command_submission_jobs", command_submission_jobs_show, NULL},
 	{"userptr", userptr_show, NULL},
 	{"vm", vm_show, NULL},
-	{"mmu", mmu_show, mmu_write},
+	{"mmu", mmu_show, mmu_asid_va_write},
 	{"engines", engines_show, NULL}
 };
 

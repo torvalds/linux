@@ -605,11 +605,12 @@ void afs_purge_servers(struct afs_net *net)
 	_enter("");
 
 	if (del_timer_sync(&net->fs_timer))
-		atomic_dec(&net->servers_outstanding);
+		afs_dec_servers_outstanding(net);
 
 	afs_queue_server_manager(net);
 
 	_debug("wait");
+	atomic_dec(&net->servers_outstanding);
 	wait_var_event(&net->servers_outstanding,
 		       !atomic_read(&net->servers_outstanding));
 	_leave("");

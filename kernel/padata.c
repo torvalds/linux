@@ -335,7 +335,7 @@ static void padata_reorder(struct parallel_data *pd)
 	 *
 	 * Ensure reorder queue is read after pd->lock is dropped so we see
 	 * new objects from another task in padata_do_serial.  Pairs with
-	 * smp_mb__after_atomic in padata_do_serial.
+	 * smp_mb in padata_do_serial.
 	 */
 	smp_mb();
 
@@ -418,7 +418,7 @@ void padata_do_serial(struct padata_priv *padata)
 	 * with the trylock of pd->lock in padata_reorder.  Pairs with smp_mb
 	 * in padata_reorder.
 	 */
-	smp_mb__after_atomic();
+	smp_mb();
 
 	padata_reorder(pd);
 }

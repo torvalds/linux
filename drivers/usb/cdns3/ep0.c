@@ -37,18 +37,18 @@ static void cdns3_ep0_run_transfer(struct cdns3_device *priv_dev,
 	struct cdns3_usb_regs __iomem *regs = priv_dev->regs;
 	struct cdns3_endpoint *priv_ep = priv_dev->eps[0];
 
-	priv_ep->trb_pool[0].buffer = TRB_BUFFER(dma_addr);
-	priv_ep->trb_pool[0].length = TRB_LEN(length);
+	priv_ep->trb_pool[0].buffer = cpu_to_le32(TRB_BUFFER(dma_addr));
+	priv_ep->trb_pool[0].length = cpu_to_le32(TRB_LEN(length));
 
 	if (zlp) {
-		priv_ep->trb_pool[0].control = TRB_CYCLE | TRB_TYPE(TRB_NORMAL);
-		priv_ep->trb_pool[1].buffer = TRB_BUFFER(dma_addr);
-		priv_ep->trb_pool[1].length = TRB_LEN(0);
-		priv_ep->trb_pool[1].control = TRB_CYCLE | TRB_IOC |
-		    TRB_TYPE(TRB_NORMAL);
+		priv_ep->trb_pool[0].control = cpu_to_le32(TRB_CYCLE | TRB_TYPE(TRB_NORMAL));
+		priv_ep->trb_pool[1].buffer = cpu_to_le32(TRB_BUFFER(dma_addr));
+		priv_ep->trb_pool[1].length = cpu_to_le32(TRB_LEN(0));
+		priv_ep->trb_pool[1].control = cpu_to_le32(TRB_CYCLE | TRB_IOC |
+		    TRB_TYPE(TRB_NORMAL));
 	} else {
-		priv_ep->trb_pool[0].control = TRB_CYCLE | TRB_IOC |
-		    TRB_TYPE(TRB_NORMAL);
+		priv_ep->trb_pool[0].control = cpu_to_le32(TRB_CYCLE | TRB_IOC |
+		    TRB_TYPE(TRB_NORMAL));
 		priv_ep->trb_pool[1].control = 0;
 	}
 
@@ -264,11 +264,11 @@ static int cdns3_req_ep0_get_status(struct cdns3_device *priv_dev,
 	case USB_RECIP_INTERFACE:
 		return cdns3_ep0_delegate_req(priv_dev, ctrl);
 	case USB_RECIP_ENDPOINT:
-		index = cdns3_ep_addr_to_index(ctrl->wIndex);
+		index = cdns3_ep_addr_to_index(le16_to_cpu(ctrl->wIndex));
 		priv_ep = priv_dev->eps[index];
 
 		/* check if endpoint is stalled or stall is pending */
-		cdns3_select_ep(priv_dev, ctrl->wIndex);
+		cdns3_select_ep(priv_dev, le16_to_cpu(ctrl->wIndex));
 		if (EP_STS_STALL(readl(&priv_dev->regs->ep_sts)) ||
 		    (priv_ep->flags & EP_STALL_PENDING))
 			usb_status =  BIT(USB_ENDPOINT_HALT);
@@ -327,7 +327,8 @@ static int cdns3_ep0_feature_handle_device(struct cdns3_device *priv_dev,
 		if (!set || (tmode & 0xff) != 0)
 			return -EINVAL;
 
-		switch (tmode >> 8) {
+		tmode >>= 8;
+		switch (tmode) {
 		case TEST_J:
 		case TEST_K:
 		case TEST_SE0_NAK:
@@ -380,10 +381,10 @@ static int cdns3_ep0_feature_handle_endpoint(struct cdns3_device *priv_dev,
 	if (!(ctrl->wIndex & ~USB_DIR_IN))
 		return 0;
 
-	index = cdns3_ep_addr_to_index(ctrl->wIndex);
+	index = cdns3_ep_addr_to_index(le16_to_cpu(ctrl->wIndex));
 	priv_ep = priv_dev->eps[index];
 
-	cdns3_select_ep(priv_dev, ctrl->wIndex);
+	cdns3_select_ep(priv_dev, le16_to_cpu(ctrl->wIndex));
 
 	if (set)
 		__cdns3_gadget_ep_set_halt(priv_ep);
@@ -444,7 +445,7 @@ static int cdns3_req_ep0_set_sel(struct cdns3_device *priv_dev,
 	if (priv_dev->gadget.state < USB_STATE_ADDRESS)
 		return -EINVAL;
 
-	if (ctrl_req->wLength != 6) {
+	if (le16_to_cpu(ctrl_req->wLength) != 6) {
 		dev_err(priv_dev->dev, "Set SEL should be 6 bytes, got %d\n",
 			ctrl_req->wLength);
 		return -EINVAL;
@@ -468,7 +469,7 @@ static int cdns3_req_ep0_set_isoch_delay(struct cdns3_device *priv_dev,
 	if (ctrl_req->wIndex || ctrl_req->wLength)
 		return -EINVAL;
 
-	priv_dev->isoch_delay = ctrl_req->wValue;
+	priv_dev->isoch_delay = le16_to_cpu(ctrl_req->wValue);
 
 	return 0;
 }
@@ -704,15 +705,17 @@ static int cdns3_gadget_ep0_queue(struct usb_ep *ep,
 	int ret = 0;
 	u8 zlp = 0;
 
+	spin_lock_irqsave(&priv_dev->lock, flags);
 	trace_cdns3_ep0_queue(priv_dev, request);
 
 	/* cancel the request if controller receive new SETUP packet. */
-	if (cdns3_check_new_setup(priv_dev))
+	if (cdns3_check_new_setup(priv_dev)) {
+		spin_unlock_irqrestore(&priv_dev->lock, flags);
 		return -ECONNRESET;
+	}
 
 	/* send STATUS stage. Should be called only for SET_CONFIGURATION */
 	if (priv_dev->ep0_stage == CDNS3_STATUS_STAGE) {
-		spin_lock_irqsave(&priv_dev->lock, flags);
 		cdns3_select_ep(priv_dev, 0x00);
 
 		erdy_sent = !priv_dev->hw_configured_flag;
@@ -737,7 +740,6 @@ static int cdns3_gadget_ep0_queue(struct usb_ep *ep,
 		return 0;
 	}
 
-	spin_lock_irqsave(&priv_dev->lock, flags);
 	if (!list_empty(&priv_ep->pending_req_list)) {
 		dev_err(priv_dev->dev,
 			"can't handle multiple requests for ep0\n");

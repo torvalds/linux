@@ -73,7 +73,7 @@ struct w1_netlink_msg
 			__u32		res;
 		} mst;
 	} id;
-	__u8				data[0];
+	__u8				data[];
 };
 
 /**
@@ -122,7 +122,7 @@ struct w1_netlink_cmd
 	__u8				cmd;
 	__u8				res;
 	__u16				len;
-	__u8				data[0];
+	__u8				data[];
 };
 
 #ifdef __KERNEL__

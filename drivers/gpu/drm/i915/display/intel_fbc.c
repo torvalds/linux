@@ -48,19 +48,6 @@
 #include "intel_frontbuffer.h"
 
 /*
- * In some platforms where the CRTC's x:0/y:0 coordinates doesn't match the
- * frontbuffer's x:0/y:0 coordinates we lie to the hardware about the plane's
- * origin so the x and y offsets can actually fit the registers. As a
- * consequence, the fence doesn't really start exactly at the display plane
- * address we program because it starts at the real start of the buffer, so we
- * have to take this into consideration here.
- */
-static unsigned int get_crtc_fence_y_offset(struct intel_fbc *fbc)
-{
-	return fbc->state_cache.plane.y - fbc->state_cache.plane.adjusted_y;
-}
-
-/*
  * For SKL+, the plane source size used by the hardware is based on the value we
  * write to the PLANE_SIZE register. For BDW-, the hardware looks at the value
  * we wrote to PIPESRC.
@@ -141,7 +128,7 @@ static void i8xx_fbc_activate(struct drm_i915_private *dev_priv)
 			fbc_ctl2 |= FBC_CTL_CPU_FENCE;
 		intel_de_write(dev_priv, FBC_CONTROL2, fbc_ctl2);
 		intel_de_write(dev_priv, FBC_FENCE_OFF,
-			       params->crtc.fence_y_offset);
+			       params->fence_y_offset);
 	}
 
 	/* enable it... */
@@ -175,7 +162,7 @@ static void g4x_fbc_activate(struct drm_i915_private *dev_priv)
 	if (params->fence_id >= 0) {
 		dpfc_ctl |= DPFC_CTL_FENCE_EN | params->fence_id;
 		intel_de_write(dev_priv, DPFC_FENCE_YOFF,
-			       params->crtc.fence_y_offset);
+			       params->fence_y_offset);
 	} else {
 		intel_de_write(dev_priv, DPFC_FENCE_YOFF, 0);
 	}
@@ -243,7 +230,7 @@ static void ilk_fbc_activate(struct drm_i915_private *dev_priv)
 			intel_de_write(dev_priv, SNB_DPFC_CTL_SA,
 				       SNB_CPU_FENCE_ENABLE | params->fence_id);
 			intel_de_write(dev_priv, DPFC_CPU_FENCE_OFFSET,
-				       params->crtc.fence_y_offset);
+				       params->fence_y_offset);
 		}
 	} else {
 		if (IS_GEN(dev_priv, 6)) {
@@ -253,7 +240,7 @@ static void ilk_fbc_activate(struct drm_i915_private *dev_priv)
 	}
 
 	intel_de_write(dev_priv, ILK_DPFC_FENCE_YOFF,
-		       params->crtc.fence_y_offset);
+		       params->fence_y_offset);
 	/* enable it... */
 	intel_de_write(dev_priv, ILK_DPFC_CONTROL, dpfc_ctl | DPFC_CTL_EN);
 
@@ -320,7 +307,7 @@ static void gen7_fbc_activate(struct drm_i915_private *dev_priv)
 		intel_de_write(dev_priv, SNB_DPFC_CTL_SA,
 			       SNB_CPU_FENCE_ENABLE | params->fence_id);
 		intel_de_write(dev_priv, DPFC_CPU_FENCE_OFFSET,
-			       params->crtc.fence_y_offset);
+			       params->fence_y_offset);
 	} else if (dev_priv->ggtt.num_fences) {
 		intel_de_write(dev_priv, SNB_DPFC_CTL_SA, 0);
 		intel_de_write(dev_priv, DPFC_CPU_FENCE_OFFSET, 0);
@@ -631,8 +618,8 @@ static bool rotation_is_valid(struct drm_i915_private *dev_priv,
 /*
  * For some reason, the hardware tracking starts looking at whatever we
  * programmed as the display plane base address register. It does not look at
- * the X and Y offset registers. That's why we look at the crtc->adjusted{x,y}
- * variables instead of just looking at the pipe/plane size.
+ * the X and Y offset registers. That's why we include the src x/y offsets
+ * instead of just looking at the plane size.
  */
 static bool intel_fbc_hw_tracking_covers_screen(struct intel_crtc *crtc)
 {
@@ -705,13 +692,14 @@ static void intel_fbc_update_state_cache(struct intel_crtc *crtc,
 	cache->plane.src_h = drm_rect_height(&plane_state->uapi.src) >> 16;
 	cache->plane.adjusted_x = plane_state->color_plane[0].x;
 	cache->plane.adjusted_y = plane_state->color_plane[0].y;
-	cache->plane.y = plane_state->uapi.src.y1 >> 16;
 
 	cache->plane.pixel_blend_mode = plane_state->hw.pixel_blend_mode;
 
 	cache->fb.format = fb->format;
 	cache->fb.stride = fb->pitches[0];
 	cache->fb.modifier = fb->modifier;
+
+	cache->fence_y_offset = intel_plane_fence_y_offset(plane_state);
 
 	drm_WARN_ON(&dev_priv->drm, plane_state->flags & PLANE_HAS_FENCE &&
 		    !plane_state->vma->fence);
@@ -729,6 +717,25 @@ static bool intel_fbc_cfb_size_changed(struct drm_i915_private *dev_priv)
 
 	return intel_fbc_calculate_cfb_size(dev_priv, &fbc->state_cache) >
 		fbc->compressed_fb.size * fbc->threshold;
+}
+
+static u16 intel_fbc_gen9_wa_cfb_stride(struct drm_i915_private *dev_priv)
+{
+	struct intel_fbc *fbc = &dev_priv->fbc;
+	struct intel_fbc_state_cache *cache = &fbc->state_cache;
+
+	if ((IS_GEN9_BC(dev_priv) || IS_BROXTON(dev_priv)) &&
+	    cache->fb.modifier != I915_FORMAT_MOD_X_TILED)
+		return DIV_ROUND_UP(cache->plane.src_w, 32 * fbc->threshold) * 8;
+	else
+		return 0;
+}
+
+static bool intel_fbc_gen9_wa_cfb_stride_changed(struct drm_i915_private *dev_priv)
+{
+	struct intel_fbc *fbc = &dev_priv->fbc;
+
+	return fbc->params.gen9_wa_cfb_stride != intel_fbc_gen9_wa_cfb_stride(dev_priv);
 }
 
 static bool intel_fbc_can_enable(struct drm_i915_private *dev_priv)
@@ -883,12 +890,13 @@ static void intel_fbc_get_reg_params(struct intel_crtc *crtc,
 	memset(params, 0, sizeof(*params));
 
 	params->fence_id = cache->fence_id;
+	params->fence_y_offset = cache->fence_y_offset;
 
 	params->crtc.pipe = crtc->pipe;
 	params->crtc.i9xx_plane = to_intel_plane(crtc->base.primary)->i9xx_plane;
-	params->crtc.fence_y_offset = get_crtc_fence_y_offset(fbc);
 
 	params->fb.format = cache->fb.format;
+	params->fb.modifier = cache->fb.modifier;
 	params->fb.stride = cache->fb.stride;
 
 	params->cfb_size = intel_fbc_calculate_cfb_size(dev_priv, cache);
@@ -916,6 +924,9 @@ static bool intel_fbc_can_flip_nuke(const struct intel_crtc_state *crtc_state)
 		return false;
 
 	if (params->fb.format != cache->fb.format)
+		return false;
+
+	if (params->fb.modifier != cache->fb.modifier)
 		return false;
 
 	if (params->fb.stride != cache->fb.stride)
@@ -1197,7 +1208,8 @@ void intel_fbc_enable(struct intel_atomic_state *state,
 
 	if (fbc->crtc) {
 		if (fbc->crtc != crtc ||
-		    !intel_fbc_cfb_size_changed(dev_priv))
+		    (!intel_fbc_cfb_size_changed(dev_priv) &&
+		     !intel_fbc_gen9_wa_cfb_stride_changed(dev_priv)))
 			goto out;
 
 		__intel_fbc_disable(dev_priv);
@@ -1219,12 +1231,7 @@ void intel_fbc_enable(struct intel_atomic_state *state,
 		goto out;
 	}
 
-	if ((IS_GEN9_BC(dev_priv) || IS_BROXTON(dev_priv)) &&
-	    plane_state->hw.fb->modifier != I915_FORMAT_MOD_X_TILED)
-		cache->gen9_wa_cfb_stride =
-			DIV_ROUND_UP(cache->plane.src_w, 32 * fbc->threshold) * 8;
-	else
-		cache->gen9_wa_cfb_stride = 0;
+	cache->gen9_wa_cfb_stride = intel_fbc_gen9_wa_cfb_stride(dev_priv);
 
 	drm_dbg_kms(&dev_priv->drm, "Enabling FBC on pipe %c\n",
 		    pipe_name(crtc->pipe));

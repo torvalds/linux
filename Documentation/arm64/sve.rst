@@ -186,7 +186,7 @@ prctl(PR_SVE_SET_VL, unsigned long arg)
 
     flags:
 
-	PR_SVE_SET_VL_INHERIT
+	PR_SVE_VL_INHERIT
 
 	    Inherit the current vector length across execve().  Otherwise, the
 	    vector length is reset to the system default at execve().  (See
@@ -247,7 +247,7 @@ prctl(PR_SVE_GET_VL)
 
     The following flag may be OR-ed into the result:
 
-	PR_SVE_SET_VL_INHERIT
+	PR_SVE_VL_INHERIT
 
 	    Vector length will be inherited across execve().
 
@@ -393,7 +393,7 @@ The regset data starts with struct user_sve_header, containing:
 * At every execve() call, the new vector length of the new process is set to
   the system default vector length, unless
 
-    * PR_SVE_SET_VL_INHERIT (or equivalently SVE_PT_VL_INHERIT) is set for the
+    * PR_SVE_VL_INHERIT (or equivalently SVE_PT_VL_INHERIT) is set for the
       calling thread, or
 
     * a deferred vector length change is pending, established via the

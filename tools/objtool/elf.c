@@ -529,8 +529,9 @@ static int read_relas(struct elf *elf)
 			rela->addend = rela->rela.r_addend;
 			rela->offset = rela->rela.r_offset;
 			symndx = GELF_R_SYM(rela->rela.r_info);
-			rela->sym = find_symbol_by_index(elf, symndx);
 			rela->sec = sec;
+			rela->idx = i;
+			rela->sym = find_symbol_by_index(elf, symndx);
 			if (!rela->sym) {
 				WARN("can't find rela entry symbol %d for %s",
 				     symndx, sec->name);
@@ -713,6 +714,8 @@ struct section *elf_create_section(struct elf *elf, const char *name,
 	elf_hash_add(elf->section_hash, &sec->hash, sec->idx);
 	elf_hash_add(elf->section_name_hash, &sec->name_hash, str_hash(sec->name));
 
+	elf->changed = true;
+
 	return sec;
 }
 
@@ -746,7 +749,7 @@ struct section *elf_create_rela_section(struct elf *elf, struct section *base)
 	return sec;
 }
 
-int elf_rebuild_rela_section(struct section *sec)
+int elf_rebuild_rela_section(struct elf *elf, struct section *sec)
 {
 	struct rela *rela;
 	int nr, idx = 0, size;
@@ -762,6 +765,9 @@ int elf_rebuild_rela_section(struct section *sec)
 		perror("malloc");
 		return -1;
 	}
+
+	sec->changed = true;
+	elf->changed = true;
 
 	sec->data->d_buf = relas;
 	sec->data->d_size = size;
@@ -779,7 +785,44 @@ int elf_rebuild_rela_section(struct section *sec)
 	return 0;
 }
 
-int elf_write(const struct elf *elf)
+int elf_write_insn(struct elf *elf, struct section *sec,
+		   unsigned long offset, unsigned int len,
+		   const char *insn)
+{
+	Elf_Data *data = sec->data;
+
+	if (data->d_type != ELF_T_BYTE || data->d_off) {
+		WARN("write to unexpected data for section: %s", sec->name);
+		return -1;
+	}
+
+	memcpy(data->d_buf + offset, insn, len);
+	elf_flagdata(data, ELF_C_SET, ELF_F_DIRTY);
+
+	elf->changed = true;
+
+	return 0;
+}
+
+int elf_write_rela(struct elf *elf, struct rela *rela)
+{
+	struct section *sec = rela->sec;
+
+	rela->rela.r_info = GELF_R_INFO(rela->sym->idx, rela->type);
+	rela->rela.r_addend = rela->addend;
+	rela->rela.r_offset = rela->offset;
+
+	if (!gelf_update_rela(sec->data, rela->idx, &rela->rela)) {
+		WARN_ELF("gelf_update_rela");
+		return -1;
+	}
+
+	elf->changed = true;
+
+	return 0;
+}
+
+int elf_write(struct elf *elf)
 {
 	struct section *sec;
 	Elf_Scn *s;
@@ -796,6 +839,8 @@ int elf_write(const struct elf *elf)
 				WARN_ELF("gelf_update_shdr");
 				return -1;
 			}
+
+			sec->changed = false;
 		}
 	}
 
@@ -807,6 +852,8 @@ int elf_write(const struct elf *elf)
 		WARN_ELF("elf_update");
 		return -1;
 	}
+
+	elf->changed = false;
 
 	return 0;
 }

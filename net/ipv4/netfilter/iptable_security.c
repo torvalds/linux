@@ -62,16 +62,23 @@ static int __net_init iptable_security_table_init(struct net *net)
 	return ret;
 }
 
+static void __net_exit iptable_security_net_pre_exit(struct net *net)
+{
+	if (net->ipv4.iptable_security)
+		ipt_unregister_table_pre_exit(net, net->ipv4.iptable_security,
+					      sectbl_ops);
+}
+
 static void __net_exit iptable_security_net_exit(struct net *net)
 {
 	if (!net->ipv4.iptable_security)
 		return;
-
-	ipt_unregister_table(net, net->ipv4.iptable_security, sectbl_ops);
+	ipt_unregister_table_exit(net, net->ipv4.iptable_security);
 	net->ipv4.iptable_security = NULL;
 }
 
 static struct pernet_operations iptable_security_net_ops = {
+	.pre_exit = iptable_security_net_pre_exit,
 	.exit = iptable_security_net_exit,
 };
 

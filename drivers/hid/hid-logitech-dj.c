@@ -1153,7 +1153,7 @@ static int logi_dj_recv_query_paired_devices(struct dj_receiver_dev *djrcv_dev)
 	if (!dj_report)
 		return -ENOMEM;
 	dj_report->report_id = REPORT_ID_DJ_SHORT;
-	dj_report->device_index = 0xFF;
+	dj_report->device_index = HIDPP_RECEIVER_INDEX;
 	dj_report->report_type = REPORT_TYPE_CMD_GET_PAIRED_DEVICES;
 	retval = logi_dj_recv_send_report(djrcv_dev, dj_report);
 	kfree(dj_report);
@@ -1175,7 +1175,7 @@ static int logi_dj_recv_switch_to_dj_mode(struct dj_receiver_dev *djrcv_dev,
 
 	if (djrcv_dev->type == recvr_type_dj) {
 		dj_report->report_id = REPORT_ID_DJ_SHORT;
-		dj_report->device_index = 0xFF;
+		dj_report->device_index = HIDPP_RECEIVER_INDEX;
 		dj_report->report_type = REPORT_TYPE_CMD_SWITCH;
 		dj_report->report_params[CMD_SWITCH_PARAM_DEVBITFIELD] = 0x3F;
 		dj_report->report_params[CMD_SWITCH_PARAM_TIMEOUT_SECONDS] =
@@ -1204,7 +1204,7 @@ static int logi_dj_recv_switch_to_dj_mode(struct dj_receiver_dev *djrcv_dev,
 	memset(buf, 0, HIDPP_REPORT_SHORT_LENGTH);
 
 	buf[0] = REPORT_ID_HIDPP_SHORT;
-	buf[1] = 0xFF;
+	buf[1] = HIDPP_RECEIVER_INDEX;
 	buf[2] = 0x80;
 	buf[3] = 0x00;
 	buf[4] = 0x00;

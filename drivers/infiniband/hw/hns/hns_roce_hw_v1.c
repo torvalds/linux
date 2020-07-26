@@ -1756,10 +1756,10 @@ static void hns_roce_v1_set_mtu(struct hns_roce_dev *hr_dev, u8 phy_port,
 		   val);
 }
 
-static int hns_roce_v1_write_mtpt(void *mb_buf, struct hns_roce_mr *mr,
+static int hns_roce_v1_write_mtpt(struct hns_roce_dev *hr_dev, void *mb_buf,
+				  struct hns_roce_mr *mr,
 				  unsigned long mtpt_idx)
 {
-	struct hns_roce_dev *hr_dev = to_hr_dev(mr->ibmr.device);
 	u64 pages[HNS_ROCE_MAX_INNER_MTPT_NUM] = { 0 };
 	struct ib_device *ibdev = &hr_dev->ib_dev;
 	struct hns_roce_v1_mpt_entry *mpt_entry;

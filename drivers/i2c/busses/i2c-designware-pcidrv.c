@@ -240,7 +240,7 @@ static int i2c_dw_pci_probe(struct pci_dev *pdev,
 		}
 	}
 
-	i2c_dw_acpi_adjust_bus_speed(&pdev->dev);
+	i2c_dw_adjust_bus_speed(dev);
 
 	if (has_acpi_companion(&pdev->dev))
 		i2c_dw_acpi_configure(&pdev->dev);

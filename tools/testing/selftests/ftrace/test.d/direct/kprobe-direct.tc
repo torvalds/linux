@@ -1,16 +1,12 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
 # description: Test ftrace direct functions against kprobes
+# requires: kprobe_events
 
 rmmod ftrace-direct ||:
 if ! modprobe ftrace-direct ; then
   echo "No ftrace-direct sample module - please build with CONFIG_SAMPLE_FTRACE_DIRECT=m"
   exit_unresolved;
-fi
-
-if [ ! -f kprobe_events ]; then
-	echo "No kprobe_events file -please build CONFIG_KPROBE_EVENTS"
-	exit_unresolved;
 fi
 
 echo "Let the module run a little"

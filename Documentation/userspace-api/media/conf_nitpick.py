@@ -27,7 +27,7 @@ nitpick_ignore = [
     ("c:func", "copy_to_user"),
     ("c:func", "determine_valid_ioctls"),
     ("c:func", "ERR_PTR"),
-    ("c:func", "i2c_new_device"),
+    ("c:func", "i2c_new_client_device"),
     ("c:func", "ioctl"),
     ("c:func", "IS_ERR"),
     ("c:func", "KERNEL_VERSION"),

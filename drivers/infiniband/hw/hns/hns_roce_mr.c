@@ -120,7 +120,7 @@ static int alloc_mr_pbl(struct hns_roce_dev *hr_dev, struct hns_roce_mr *mr,
 
 	mr->pbl_hop_num = is_fast ? 1 : hr_dev->caps.pbl_hop_num;
 	buf_attr.page_shift = is_fast ? PAGE_SHIFT :
-			      hr_dev->caps.pbl_buf_pg_sz + HNS_HW_PAGE_SHIFT;
+			      hr_dev->caps.pbl_buf_pg_sz + PAGE_SHIFT;
 	buf_attr.region[0].size = length;
 	buf_attr.region[0].hopnum = mr->pbl_hop_num;
 	buf_attr.region_count = 1;
@@ -180,9 +180,10 @@ static int hns_roce_mr_enable(struct hns_roce_dev *hr_dev,
 	}
 
 	if (mr->type != MR_TYPE_FRMR)
-		ret = hr_dev->hw->write_mtpt(mailbox->buf, mr, mtpt_idx);
+		ret = hr_dev->hw->write_mtpt(hr_dev, mailbox->buf, mr,
+					     mtpt_idx);
 	else
-		ret = hr_dev->hw->frmr_write_mtpt(mailbox->buf, mr);
+		ret = hr_dev->hw->frmr_write_mtpt(hr_dev, mailbox->buf, mr);
 	if (ret) {
 		dev_err(dev, "Write mtpt fail!\n");
 		goto err_page;

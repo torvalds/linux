@@ -461,6 +461,7 @@ int dma_set_mask(struct device *dev, u64 mask);
 int dma_set_coherent_mask(struct device *dev, u64 mask);
 u64 dma_get_required_mask(struct device *dev);
 size_t dma_max_mapping_size(struct device *dev);
+bool dma_need_sync(struct device *dev, dma_addr_t dma_addr);
 unsigned long dma_get_merge_boundary(struct device *dev);
 #else /* CONFIG_HAS_DMA */
 static inline dma_addr_t dma_map_page_attrs(struct device *dev,
@@ -570,6 +571,10 @@ static inline u64 dma_get_required_mask(struct device *dev)
 static inline size_t dma_max_mapping_size(struct device *dev)
 {
 	return 0;
+}
+static inline bool dma_need_sync(struct device *dev, dma_addr_t dma_addr)
+{
+	return false;
 }
 static inline unsigned long dma_get_merge_boundary(struct device *dev)
 {

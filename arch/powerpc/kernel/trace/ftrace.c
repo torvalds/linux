@@ -226,7 +226,7 @@ __ftrace_make_nop(struct module *mod,
 	unsigned long ip = rec->ip;
 	unsigned long tramp;
 
-	if (probe_kernel_read(&op, (void *)ip, MCOUNT_INSN_SIZE))
+	if (copy_from_kernel_nofault(&op, (void *)ip, MCOUNT_INSN_SIZE))
 		return -EFAULT;
 
 	/* Make sure that that this is still a 24bit jump */
@@ -249,7 +249,7 @@ __ftrace_make_nop(struct module *mod,
 	pr_devel("ip:%lx jumps to %lx", ip, tramp);
 
 	/* Find where the trampoline jumps to */
-	if (probe_kernel_read(jmp, (void *)tramp, sizeof(jmp))) {
+	if (copy_from_kernel_nofault(jmp, (void *)tramp, sizeof(jmp))) {
 		pr_err("Failed to read %lx\n", tramp);
 		return -EFAULT;
 	}

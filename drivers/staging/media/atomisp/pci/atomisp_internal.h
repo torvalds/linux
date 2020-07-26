@@ -216,12 +216,12 @@ struct atomisp_sw_contex {
  * ci device struct
  */
 struct atomisp_device {
-	struct pci_dev *pdev;
 	struct device *dev;
 	struct v4l2_device v4l2_dev;
 	struct media_device media_dev;
 	struct atomisp_platform_data *pdata;
 	void *mmu_l1_base;
+	void __iomem *base;
 	const struct firmware *firmware;
 
 	struct pm_qos_request pm_qos;

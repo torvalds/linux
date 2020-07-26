@@ -208,8 +208,8 @@ static const struct config_entry config_table[] = {
 	},
 #endif
 
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_COMETLAKE)
 /* Cometlake-LP */
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_COMETLAKE_LP)
 	{
 		.flags = FLAG_SOF,
 		.device = 0x02c8,
@@ -240,9 +240,7 @@ static const struct config_entry config_table[] = {
 		.flags = FLAG_SOF | FLAG_SOF_ONLY_IF_DMIC_OR_SOUNDWIRE,
 		.device = 0x02c8,
 	},
-#endif
 /* Cometlake-H */
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_COMETLAKE_H)
 	{
 		.flags = FLAG_SOF,
 		.device = 0x06c8,

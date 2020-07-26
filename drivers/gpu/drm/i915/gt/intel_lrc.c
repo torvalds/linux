@@ -1134,6 +1134,13 @@ __unwind_incomplete_requests(struct intel_engine_cs *engine)
 			list_move(&rq->sched.link, pl);
 			set_bit(I915_FENCE_FLAG_PQUEUE, &rq->fence.flags);
 
+			/* Check in case we rollback so far we wrap [size/2] */
+			if (intel_ring_direction(rq->ring,
+						 intel_ring_wrap(rq->ring,
+								 rq->tail),
+						 rq->ring->tail) > 0)
+				rq->context->lrc.desc |= CTX_DESC_FORCE_RESTORE;
+
 			active = rq;
 		} else {
 			struct intel_engine_cs *owner = rq->context->engine;
@@ -1498,8 +1505,9 @@ static u64 execlists_update_context(struct i915_request *rq)
 	 * HW has a tendency to ignore us rewinding the TAIL to the end of
 	 * an earlier request.
 	 */
+	GEM_BUG_ON(ce->lrc_reg_state[CTX_RING_TAIL] != rq->ring->tail);
+	prev = rq->ring->tail;
 	tail = intel_ring_set_tail(rq->ring, rq->tail);
-	prev = ce->lrc_reg_state[CTX_RING_TAIL];
 	if (unlikely(intel_ring_direction(rq->ring, tail, prev) <= 0))
 		desc |= CTX_DESC_FORCE_RESTORE;
 	ce->lrc_reg_state[CTX_RING_TAIL] = tail;
@@ -1895,7 +1903,8 @@ static void defer_active(struct intel_engine_cs *engine)
 
 static bool
 need_timeslice(const struct intel_engine_cs *engine,
-	       const struct i915_request *rq)
+	       const struct i915_request *rq,
+	       const struct rb_node *rb)
 {
 	int hint;
 
@@ -1903,9 +1912,28 @@ need_timeslice(const struct intel_engine_cs *engine,
 		return false;
 
 	hint = engine->execlists.queue_priority_hint;
+
+	if (rb) {
+		const struct virtual_engine *ve =
+			rb_entry(rb, typeof(*ve), nodes[engine->id].rb);
+		const struct intel_engine_cs *inflight =
+			intel_context_inflight(&ve->context);
+
+		if (!inflight || inflight == engine) {
+			struct i915_request *next;
+
+			rcu_read_lock();
+			next = READ_ONCE(ve->request);
+			if (next)
+				hint = max(hint, rq_prio(next));
+			rcu_read_unlock();
+		}
+	}
+
 	if (!list_is_last(&rq->sched.link, &engine->active.requests))
 		hint = max(hint, rq_prio(list_next_entry(rq, sched.link)));
 
+	GEM_BUG_ON(hint >= I915_PRIORITY_UNPREEMPTABLE);
 	return hint >= effective_prio(rq);
 }
 
@@ -1977,10 +2005,9 @@ static void set_timeslice(struct intel_engine_cs *engine)
 	set_timer_ms(&engine->execlists.timer, duration);
 }
 
-static void start_timeslice(struct intel_engine_cs *engine)
+static void start_timeslice(struct intel_engine_cs *engine, int prio)
 {
 	struct intel_engine_execlists *execlists = &engine->execlists;
-	const int prio = queue_prio(execlists);
 	unsigned long duration;
 
 	if (!intel_engine_has_timeslices(engine))
@@ -2140,7 +2167,7 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 			__unwind_incomplete_requests(engine);
 
 			last = NULL;
-		} else if (need_timeslice(engine, last) &&
+		} else if (need_timeslice(engine, last, rb) &&
 			   timeslice_expired(execlists, last)) {
 			if (i915_request_completed(last)) {
 				tasklet_hi_schedule(&execlists->tasklet);
@@ -2188,7 +2215,7 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 				 * Even if ELSP[1] is occupied and not worthy
 				 * of timeslices, our queue might be.
 				 */
-				start_timeslice(engine);
+				start_timeslice(engine, queue_prio(execlists));
 				return;
 			}
 		}
@@ -2223,7 +2250,7 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 
 			if (last && !can_merge_rq(last, rq)) {
 				spin_unlock(&ve->base.active.lock);
-				start_timeslice(engine);
+				start_timeslice(engine, rq_prio(rq));
 				return; /* leave this for another sibling */
 			}
 
@@ -4739,6 +4766,14 @@ static int gen12_emit_flush(struct i915_request *request, u32 mode)
 	return 0;
 }
 
+static void assert_request_valid(struct i915_request *rq)
+{
+	struct intel_ring *ring __maybe_unused = rq->ring;
+
+	/* Can we unwind this request without appearing to go forwards? */
+	GEM_BUG_ON(intel_ring_direction(ring, rq->wa_tail, rq->head) <= 0);
+}
+
 /*
  * Reserve space for 2 NOOPs at the end of each request to be
  * used as a workaround for not being allowed to do lite
@@ -4750,6 +4785,9 @@ static u32 *gen8_emit_wa_tail(struct i915_request *request, u32 *cs)
 	*cs++ = MI_ARB_CHECK;
 	*cs++ = MI_NOOP;
 	request->wa_tail = intel_ring_offset(request, cs);
+
+	/* Check that entire request is less than half the ring */
+	assert_request_valid(request);
 
 	return cs;
 }
@@ -5358,13 +5396,8 @@ static void virtual_engine_initial_hint(struct virtual_engine *ve)
 	 * typically be the first we inspect for submission.
 	 */
 	swp = prandom_u32_max(ve->num_siblings);
-	if (!swp)
-		return;
-
-	swap(ve->siblings[swp], ve->siblings[0]);
-	if (!intel_engine_has_relative_mmio(ve->siblings[0]))
-		virtual_update_register_offsets(ve->context.lrc_reg_state,
-						ve->siblings[0]);
+	if (swp)
+		swap(ve->siblings[swp], ve->siblings[0]);
 }
 
 static int virtual_context_alloc(struct intel_context *ce)
@@ -5377,15 +5410,9 @@ static int virtual_context_alloc(struct intel_context *ce)
 static int virtual_context_pin(struct intel_context *ce)
 {
 	struct virtual_engine *ve = container_of(ce, typeof(*ve), context);
-	int err;
 
 	/* Note: we must use a real engine class for setting up reg state */
-	err = __execlists_context_pin(ce, ve->siblings[0]);
-	if (err)
-		return err;
-
-	virtual_engine_initial_hint(ve);
-	return 0;
+	return __execlists_context_pin(ce, ve->siblings[0]);
 }
 
 static void virtual_context_enter(struct intel_context *ce)
@@ -5650,6 +5677,7 @@ intel_execlists_create_virtual(struct intel_engine_cs **siblings,
 	intel_engine_init_active(&ve->base, ENGINE_VIRTUAL);
 	intel_engine_init_breadcrumbs(&ve->base);
 	intel_engine_init_execlists(&ve->base);
+	ve->base.breadcrumbs.irq_armed = true; /* fake HW, used for irq_work */
 
 	ve->base.cops = &virtual_context_ops;
 	ve->base.request_alloc = execlists_request_alloc;
@@ -5731,6 +5759,7 @@ intel_execlists_create_virtual(struct intel_engine_cs **siblings,
 
 	ve->base.flags |= I915_ENGINE_IS_VIRTUAL;
 
+	virtual_engine_initial_hint(ve);
 	return &ve->context;
 
 err_put:

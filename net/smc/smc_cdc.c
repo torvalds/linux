@@ -66,9 +66,13 @@ int smc_cdc_get_free_slot(struct smc_connection *conn,
 	rc = smc_wr_tx_get_free_slot(link, smc_cdc_tx_handler, wr_buf,
 				     wr_rdma_buf,
 				     (struct smc_wr_tx_pend_priv **)pend);
-	if (conn->killed)
+	if (conn->killed) {
 		/* abnormal termination */
+		if (!rc)
+			smc_wr_tx_put_slot(link,
+					   (struct smc_wr_tx_pend_priv *)pend);
 		rc = -EPIPE;
+	}
 	return rc;
 }
 

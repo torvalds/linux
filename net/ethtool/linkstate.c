@@ -78,19 +78,18 @@ static int linkstate_prepare_data(const struct ethnl_req_info *req_base,
 
 	ret = linkstate_get_sqi(dev);
 	if (ret < 0 && ret != -EOPNOTSUPP)
-		return ret;
-
+		goto out;
 	data->sqi = ret;
 
 	ret = linkstate_get_sqi_max(dev);
 	if (ret < 0 && ret != -EOPNOTSUPP)
-		return ret;
-
+		goto out;
 	data->sqi_max = ret;
 
+	ret = 0;
+out:
 	ethnl_ops_complete(dev);
-
-	return 0;
+	return ret;
 }
 
 static int linkstate_reply_size(const struct ethnl_req_info *req_base,

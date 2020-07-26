@@ -3,8 +3,7 @@
 #ifndef __ASM_GDB_XML_H_
 #define __ASM_GDB_XML_H_
 
-#define kgdb_arch_gdb_stub_feature riscv_gdb_stub_feature
-static const char riscv_gdb_stub_feature[64] =
+const char riscv_gdb_stub_feature[64] =
 			"PacketSize=800;qXfer:features:read+;";
 
 static const char gdb_xfer_read_target[31] = "qXfer:features:read:target.xml:";
