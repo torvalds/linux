@@ -208,7 +208,7 @@ static inline struct sock *udp6_lookup_run_bpf(struct net *net,
 		return sk;
 
 	reuse_sk = lookup_reuseport(net, sk, skb, saddr, sport, daddr, hnum);
-	if (reuse_sk && !reuseport_has_conns(sk, false))
+	if (reuse_sk)
 		sk = reuse_sk;
 	return sk;
 }
