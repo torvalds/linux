@@ -881,6 +881,7 @@ void mt7915_mac_tx_free(struct mt7915_dev *dev, struct sk_buff *skb)
 		 */
 		if (info & MT_TX_FREE_PAIR) {
 			struct mt7915_sta *msta;
+			struct mt7915_phy *phy;
 			struct mt76_wcid *wcid;
 			u16 idx;
 
@@ -892,8 +893,13 @@ void mt7915_mac_tx_free(struct mt7915_dev *dev, struct sk_buff *skb)
 				continue;
 
 			msta = container_of(wcid, struct mt7915_sta, wcid);
-			ieee80211_queue_work(mt76_hw(dev), &msta->stats_work);
-			continue;
+			phy = msta->vif->phy;
+			spin_lock_bh(&dev->sta_poll_lock);
+			if (list_empty(&msta->stats_list))
+				list_add_tail(&msta->stats_list, &phy->stats_list);
+			if (list_empty(&msta->poll_list))
+				list_add_tail(&msta->poll_list, &dev->sta_poll_list);
+			spin_unlock_bh(&dev->sta_poll_lock);
 		}
 
 		msdu = FIELD_GET(MT_TX_FREE_MSDU_ID, info);
@@ -1282,39 +1288,63 @@ mt7915_mac_update_mib_stats(struct mt7915_phy *phy)
 	}
 }
 
-void mt7915_mac_sta_stats_work(struct work_struct *work)
+static void
+mt7915_mac_sta_stats_work(struct mt7915_phy *phy)
 {
-	struct ieee80211_sta *sta;
-	struct ieee80211_vif *vif;
-	struct mt7915_sta_stats *stats;
+	struct mt7915_dev *dev = phy->dev;
 	struct mt7915_sta *msta;
-	struct mt7915_dev *dev;
-
-	msta = container_of(work, struct mt7915_sta, stats_work);
-	sta = container_of((void *)msta, struct ieee80211_sta, drv_priv);
-	vif = container_of((void *)msta->vif, struct ieee80211_vif, drv_priv);
-	dev = msta->vif->dev;
-	stats = &msta->stats;
-
-	/* use MT_TX_FREE_RATE to report Tx rate for further devices */
-	if (time_after(jiffies, stats->jiffies + HZ)) {
-		mt7915_mcu_get_rate_info(dev, RATE_CTRL_RU_INFO,
-					 msta->wcid.idx);
-
-		stats->jiffies = jiffies;
-	}
-
-	if (test_and_clear_bit(IEEE80211_RC_SUPP_RATES_CHANGED |
-			       IEEE80211_RC_NSS_CHANGED |
-			       IEEE80211_RC_BW_CHANGED, &stats->changed))
-		mt7915_mcu_add_rate_ctrl(dev, vif, sta);
-
-	if (test_and_clear_bit(IEEE80211_RC_SMPS_CHANGED, &stats->changed))
-		mt7915_mcu_add_smps(dev, vif, sta);
+	LIST_HEAD(list);
 
 	spin_lock_bh(&dev->sta_poll_lock);
-	if (list_empty(&msta->poll_list))
-		list_add_tail(&msta->poll_list, &dev->sta_poll_list);
+	list_splice_init(&phy->stats_list, &list);
+
+	while (!list_empty(&list)) {
+		msta = list_first_entry(&list, struct mt7915_sta, stats_list);
+		list_del_init(&msta->stats_list);
+		spin_unlock_bh(&dev->sta_poll_lock);
+
+		/* use MT_TX_FREE_RATE to report Tx rate for further devices */
+		mt7915_mcu_get_rate_info(dev, RATE_CTRL_RU_INFO, msta->wcid.idx);
+
+		spin_lock_bh(&dev->sta_poll_lock);
+	}
+
+	spin_unlock_bh(&dev->sta_poll_lock);
+}
+
+void mt7915_mac_sta_rc_work(struct work_struct *work)
+{
+	struct mt7915_dev *dev = container_of(work, struct mt7915_dev, rc_work);
+	struct ieee80211_sta *sta;
+	struct ieee80211_vif *vif;
+	struct mt7915_sta *msta;
+	u32 changed;
+	LIST_HEAD(list);
+
+	spin_lock_bh(&dev->sta_poll_lock);
+	list_splice_init(&dev->sta_rc_list, &list);
+
+	while (!list_empty(&list)) {
+		msta = list_first_entry(&list, struct mt7915_sta, rc_list);
+		list_del_init(&msta->rc_list);
+		changed = msta->stats.changed;
+		msta->stats.changed = 0;
+		spin_unlock_bh(&dev->sta_poll_lock);
+
+		sta = container_of((void *)msta, struct ieee80211_sta, drv_priv);
+		vif = container_of((void *)msta->vif, struct ieee80211_vif, drv_priv);
+
+		if (changed & (IEEE80211_RC_SUPP_RATES_CHANGED |
+			       IEEE80211_RC_NSS_CHANGED |
+			       IEEE80211_RC_BW_CHANGED))
+			mt7915_mcu_add_rate_ctrl(dev, vif, sta);
+
+		if (changed & IEEE80211_RC_SMPS_CHANGED)
+			mt7915_mcu_add_smps(dev, vif, sta);
+
+		spin_lock_bh(&dev->sta_poll_lock);
+	}
+
 	spin_unlock_bh(&dev->sta_poll_lock);
 }
 
@@ -1335,6 +1365,11 @@ void mt7915_mac_work(struct work_struct *work)
 
 		mt7915_mac_update_mib_stats(phy);
 	}
+
+	if (++phy->sta_work_count == 10) {
+		phy->sta_work_count = 0;
+		mt7915_mac_sta_stats_work(phy);
+	};
 
 	mutex_unlock(&mdev->mutex);
 

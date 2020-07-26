@@ -612,6 +612,7 @@ int mt7915_register_ext_phy(struct mt7915_dev *dev)
 	mphy->antenna_mask = BIT(hweight8(phy->chainmask)) - 1;
 	mt7915_init_wiphy(mphy->hw);
 
+	INIT_LIST_HEAD(&phy->stats_list);
 	INIT_DELAYED_WORK(&phy->mac_work, mt7915_mac_work);
 
 	/*
@@ -652,7 +653,10 @@ int mt7915_register_device(struct mt7915_dev *dev)
 	dev->phy.dev = dev;
 	dev->phy.mt76 = &dev->mt76.phy;
 	dev->mt76.phy.priv = &dev->phy;
+	INIT_LIST_HEAD(&dev->phy.stats_list);
+	INIT_WORK(&dev->rc_work, mt7915_mac_sta_rc_work);
 	INIT_DELAYED_WORK(&dev->phy.mac_work, mt7915_mac_work);
+	INIT_LIST_HEAD(&dev->sta_rc_list);
 	INIT_LIST_HEAD(&dev->sta_poll_list);
 	spin_lock_init(&dev->sta_poll_lock);
 

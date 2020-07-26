@@ -400,7 +400,7 @@ static int mt7915_sta_fixed_rate_set(void *data, u64 rate)
 	struct ieee80211_sta *sta = data;
 	struct mt7915_sta *msta = (struct mt7915_sta *)sta->drv_priv;
 
-	return mt7915_mcu_set_fixed_rate(msta->vif->dev, sta, rate);
+	return mt7915_mcu_set_fixed_rate(msta->vif->phy->dev, sta, rate);
 }
 
 DEFINE_DEBUGFS_ATTRIBUTE(fops_fixed_rate, NULL,
