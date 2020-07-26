@@ -793,7 +793,7 @@ static inline unsigned long get_vsid(unsigned long context, unsigned long ea,
 }
 
 /*
- * For kernel space, we use context ids as below
+ * For kernel space, we use context ids as
  * below. Range is 512TB per context.
  *
  * 0x00001 -  [ 0xc000000000000000 - 0xc001ffffffffffff]
