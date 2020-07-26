@@ -80,6 +80,7 @@
 #define GAUDI_PLDM_QMAN0_TIMEOUT_USEC	(HL_DEVICE_TIMEOUT_USEC * 30)
 #define GAUDI_PLDM_TPC_KERNEL_WAIT_USEC	(HL_DEVICE_TIMEOUT_USEC * 30)
 #define GAUDI_BOOT_FIT_REQ_TIMEOUT_USEC	1000000		/* 1s */
+#define GAUDI_MSG_TO_CPU_TIMEOUT_USEC	4000000		/* 4s */
 
 #define GAUDI_QMAN0_FENCE_VAL		0x72E91AB9
 
@@ -98,6 +99,11 @@
 
 #define GAUDI_ARB_WDT_TIMEOUT		0x1000000
 
+#define GAUDI_CLK_GATE_DEBUGFS_MASK	(\
+		BIT(GAUDI_ENGINE_ID_MME_0) |\
+		BIT(GAUDI_ENGINE_ID_MME_2) |\
+		GENMASK_ULL(GAUDI_ENGINE_ID_TPC_7, GAUDI_ENGINE_ID_TPC_0))
+
 static const char gaudi_irq_name[GAUDI_MSI_ENTRIES][GAUDI_MAX_STRING_LEN] = {
 		"gaudi cq 0_0", "gaudi cq 0_1", "gaudi cq 0_2", "gaudi cq 0_3",
 		"gaudi cq 1_0", "gaudi cq 1_1", "gaudi cq 1_2", "gaudi cq 1_3",
@@ -106,14 +112,14 @@ static const char gaudi_irq_name[GAUDI_MSI_ENTRIES][GAUDI_MAX_STRING_LEN] = {
 };
 
 static const u8 gaudi_dma_assignment[GAUDI_DMA_MAX] = {
-	[GAUDI_PCI_DMA_1] = 0,
-	[GAUDI_PCI_DMA_2] = 1,
-	[GAUDI_PCI_DMA_3] = 5,
-	[GAUDI_HBM_DMA_1] = 2,
-	[GAUDI_HBM_DMA_2] = 3,
-	[GAUDI_HBM_DMA_3] = 4,
-	[GAUDI_HBM_DMA_4] = 6,
-	[GAUDI_HBM_DMA_5] = 7
+	[GAUDI_PCI_DMA_1] = GAUDI_ENGINE_ID_DMA_0,
+	[GAUDI_PCI_DMA_2] = GAUDI_ENGINE_ID_DMA_1,
+	[GAUDI_PCI_DMA_3] = GAUDI_ENGINE_ID_DMA_5,
+	[GAUDI_HBM_DMA_1] = GAUDI_ENGINE_ID_DMA_2,
+	[GAUDI_HBM_DMA_2] = GAUDI_ENGINE_ID_DMA_3,
+	[GAUDI_HBM_DMA_3] = GAUDI_ENGINE_ID_DMA_4,
+	[GAUDI_HBM_DMA_4] = GAUDI_ENGINE_ID_DMA_6,
+	[GAUDI_HBM_DMA_5] = GAUDI_ENGINE_ID_DMA_7
 };
 
 static const u8 gaudi_cq_assignment[NUMBER_OF_CMPLT_QUEUES] = {
@@ -1819,7 +1825,7 @@ static void gaudi_init_golden_registers(struct hl_device *hdev)
 
 	gaudi_init_rate_limiter(hdev);
 
-	gaudi_disable_clock_gating(hdev);
+	hdev->asic_funcs->disable_clock_gating(hdev);
 
 	for (tpc_id = 0, tpc_offset = 0;
 				tpc_id < TPC_NUMBER_OF_ENGINES;
@@ -2531,17 +2537,11 @@ static void gaudi_tpc_stall(struct hl_device *hdev)
 	WREG32(mmTPC7_CFG_TPC_STALL, 1 << TPC0_CFG_TPC_STALL_V_SHIFT);
 }
 
-static void gaudi_enable_clock_gating(struct hl_device *hdev)
+static void gaudi_set_clock_gating(struct hl_device *hdev)
 {
 	struct gaudi_device *gaudi = hdev->asic_specific;
 	u32 qman_offset;
 	int i;
-
-	if (!hdev->clock_gating)
-		return;
-
-	if (gaudi->hw_cap_initialized & HW_CAP_CLK_GATE)
-		return;
 
 	/* In case we are during debug session, don't enable the clock gate
 	 * as it may interfere
@@ -2549,28 +2549,43 @@ static void gaudi_enable_clock_gating(struct hl_device *hdev)
 	if (hdev->in_debug)
 		return;
 
-	for (i = 0, qman_offset = 0 ; i < PCI_DMA_NUMBER_OF_CHNLS ; i++) {
+	for (i = GAUDI_PCI_DMA_1, qman_offset = 0 ; i < GAUDI_HBM_DMA_1 ; i++) {
+		if (!(hdev->clock_gating_mask &
+					(BIT_ULL(gaudi_dma_assignment[i]))))
+			continue;
+
 		qman_offset = gaudi_dma_assignment[i] * DMA_QMAN_OFFSET;
 		WREG32(mmDMA0_QM_CGM_CFG1 + qman_offset, QMAN_CGM1_PWR_GATE_EN);
 		WREG32(mmDMA0_QM_CGM_CFG + qman_offset,
 				QMAN_UPPER_CP_CGM_PWR_GATE_EN);
 	}
 
-	for (; i < HBM_DMA_NUMBER_OF_CHNLS ; i++) {
+	for (i = GAUDI_HBM_DMA_1 ; i < GAUDI_DMA_MAX ; i++) {
+		if (!(hdev->clock_gating_mask &
+					(BIT_ULL(gaudi_dma_assignment[i]))))
+			continue;
+
 		qman_offset = gaudi_dma_assignment[i] * DMA_QMAN_OFFSET;
 		WREG32(mmDMA0_QM_CGM_CFG1 + qman_offset, QMAN_CGM1_PWR_GATE_EN);
 		WREG32(mmDMA0_QM_CGM_CFG + qman_offset,
 				QMAN_COMMON_CP_CGM_PWR_GATE_EN);
 	}
 
-	WREG32(mmMME0_QM_CGM_CFG1, QMAN_CGM1_PWR_GATE_EN);
-	WREG32(mmMME0_QM_CGM_CFG,
-			QMAN_COMMON_CP_CGM_PWR_GATE_EN);
-	WREG32(mmMME2_QM_CGM_CFG1, QMAN_CGM1_PWR_GATE_EN);
-	WREG32(mmMME2_QM_CGM_CFG,
-			QMAN_COMMON_CP_CGM_PWR_GATE_EN);
+	if (hdev->clock_gating_mask & (BIT_ULL(GAUDI_ENGINE_ID_MME_0))) {
+		WREG32(mmMME0_QM_CGM_CFG1, QMAN_CGM1_PWR_GATE_EN);
+		WREG32(mmMME0_QM_CGM_CFG, QMAN_COMMON_CP_CGM_PWR_GATE_EN);
+	}
+
+	if (hdev->clock_gating_mask & (BIT_ULL(GAUDI_ENGINE_ID_MME_2))) {
+		WREG32(mmMME2_QM_CGM_CFG1, QMAN_CGM1_PWR_GATE_EN);
+		WREG32(mmMME2_QM_CGM_CFG, QMAN_COMMON_CP_CGM_PWR_GATE_EN);
+	}
 
 	for (i = 0, qman_offset = 0 ; i < TPC_NUMBER_OF_ENGINES ; i++) {
+		if (!(hdev->clock_gating_mask &
+					(BIT_ULL(GAUDI_ENGINE_ID_TPC_0 + i))))
+			continue;
+
 		WREG32(mmTPC0_QM_CGM_CFG1 + qman_offset,
 				QMAN_CGM1_PWR_GATE_EN);
 		WREG32(mmTPC0_QM_CGM_CFG + qman_offset,
@@ -2663,7 +2678,7 @@ static void gaudi_halt_engines(struct hl_device *hdev, bool hard_reset)
 	gaudi_stop_hbm_dma_qmans(hdev);
 	gaudi_stop_pci_dma_qmans(hdev);
 
-	gaudi_disable_clock_gating(hdev);
+	hdev->asic_funcs->disable_clock_gating(hdev);
 
 	msleep(wait_timeout_ms);
 
@@ -3003,7 +3018,7 @@ static int gaudi_hw_init(struct hl_device *hdev)
 
 	gaudi_init_tpc_qmans(hdev);
 
-	gaudi_enable_clock_gating(hdev);
+	hdev->asic_funcs->set_clock_gating(hdev);
 
 	gaudi_enable_timestamp(hdev);
 
@@ -3112,7 +3127,9 @@ static void gaudi_hw_fini(struct hl_device *hdev, bool hard_reset)
 					HW_CAP_HBM_DMA | HW_CAP_PLL |
 					HW_CAP_MMU |
 					HW_CAP_SRAM_SCRAMBLER |
-					HW_CAP_HBM_SCRAMBLER);
+					HW_CAP_HBM_SCRAMBLER |
+					HW_CAP_CLK_GATE);
+
 	memset(gaudi->events_stat, 0, sizeof(gaudi->events_stat));
 }
 
@@ -3462,6 +3479,9 @@ static int gaudi_send_cpu_message(struct hl_device *hdev, u32 *msg,
 			*result = 0;
 		return 0;
 	}
+
+	if (!timeout)
+		timeout = GAUDI_MSG_TO_CPU_TIMEOUT_USEC;
 
 	return hl_fw_send_cpu_message(hdev, GAUDI_QUEUE_ID_CPU_PQ, msg, len,
 						timeout, result);
@@ -3865,6 +3885,12 @@ static int gaudi_validate_cb(struct hl_device *hdev,
 			rc = -EPERM;
 			break;
 
+		case PACKET_WREG_BULK:
+			dev_err(hdev->dev,
+				"User not allowed to use WREG_BULK\n");
+			rc = -EPERM;
+			break;
+
 		case PACKET_LOAD_AND_EXE:
 			rc = gaudi_validate_load_and_exe_pkt(hdev, parser,
 				(struct packet_load_and_exe *) user_pkt);
@@ -3880,7 +3906,6 @@ static int gaudi_validate_cb(struct hl_device *hdev,
 			break;
 
 		case PACKET_WREG_32:
-		case PACKET_WREG_BULK:
 		case PACKET_MSG_LONG:
 		case PACKET_MSG_SHORT:
 		case PACKET_REPEAT:
@@ -4521,13 +4546,18 @@ static int gaudi_debugfs_read32(struct hl_device *hdev, u64 addr, u32 *val)
 	int rc = 0;
 
 	if ((addr >= CFG_BASE) && (addr < CFG_BASE + CFG_SIZE)) {
-		if (gaudi->hw_cap_initialized & HW_CAP_CLK_GATE) {
+
+		if ((gaudi->hw_cap_initialized & HW_CAP_CLK_GATE) &&
+				(hdev->clock_gating_mask &
+						GAUDI_CLK_GATE_DEBUGFS_MASK)) {
+
 			dev_err_ratelimited(hdev->dev,
 				"Can't read register - clock gating is enabled!\n");
 			rc = -EFAULT;
 		} else {
 			*val = RREG32(addr - CFG_BASE);
 		}
+
 	} else if ((addr >= SRAM_BASE_ADDR) &&
 			(addr < SRAM_BASE_ADDR + SRAM_BAR_SIZE)) {
 		*val = readl(hdev->pcie_bar[SRAM_BAR_ID] +
@@ -4563,13 +4593,18 @@ static int gaudi_debugfs_write32(struct hl_device *hdev, u64 addr, u32 val)
 	int rc = 0;
 
 	if ((addr >= CFG_BASE) && (addr < CFG_BASE + CFG_SIZE)) {
-		if (gaudi->hw_cap_initialized & HW_CAP_CLK_GATE) {
+
+		if ((gaudi->hw_cap_initialized & HW_CAP_CLK_GATE) &&
+				(hdev->clock_gating_mask &
+						GAUDI_CLK_GATE_DEBUGFS_MASK)) {
+
 			dev_err_ratelimited(hdev->dev,
 				"Can't write register - clock gating is enabled!\n");
 			rc = -EFAULT;
 		} else {
 			WREG32(addr - CFG_BASE, val);
 		}
+
 	} else if ((addr >= SRAM_BASE_ADDR) &&
 			(addr < SRAM_BASE_ADDR + SRAM_BAR_SIZE)) {
 		writel(val, hdev->pcie_bar[SRAM_BAR_ID] +
@@ -4605,7 +4640,11 @@ static int gaudi_debugfs_read64(struct hl_device *hdev, u64 addr, u64 *val)
 	int rc = 0;
 
 	if ((addr >= CFG_BASE) && (addr <= CFG_BASE + CFG_SIZE - sizeof(u64))) {
-		if (gaudi->hw_cap_initialized & HW_CAP_CLK_GATE) {
+
+		if ((gaudi->hw_cap_initialized & HW_CAP_CLK_GATE) &&
+				(hdev->clock_gating_mask &
+						GAUDI_CLK_GATE_DEBUGFS_MASK)) {
+
 			dev_err_ratelimited(hdev->dev,
 				"Can't read register - clock gating is enabled!\n");
 			rc = -EFAULT;
@@ -4615,6 +4654,7 @@ static int gaudi_debugfs_read64(struct hl_device *hdev, u64 addr, u64 *val)
 
 			*val = (((u64) val_h) << 32) | val_l;
 		}
+
 	} else if ((addr >= SRAM_BASE_ADDR) &&
 		   (addr <= SRAM_BASE_ADDR + SRAM_BAR_SIZE - sizeof(u64))) {
 		*val = readq(hdev->pcie_bar[SRAM_BAR_ID] +
@@ -4651,7 +4691,11 @@ static int gaudi_debugfs_write64(struct hl_device *hdev, u64 addr, u64 val)
 	int rc = 0;
 
 	if ((addr >= CFG_BASE) && (addr <= CFG_BASE + CFG_SIZE - sizeof(u64))) {
-		if (gaudi->hw_cap_initialized & HW_CAP_CLK_GATE) {
+
+		if ((gaudi->hw_cap_initialized & HW_CAP_CLK_GATE) &&
+				(hdev->clock_gating_mask &
+						GAUDI_CLK_GATE_DEBUGFS_MASK)) {
+
 			dev_err_ratelimited(hdev->dev,
 				"Can't write register - clock gating is enabled!\n");
 			rc = -EFAULT;
@@ -4660,6 +4704,7 @@ static int gaudi_debugfs_write64(struct hl_device *hdev, u64 addr, u64 val)
 			WREG32(addr + sizeof(u32) - CFG_BASE,
 				upper_32_bits(val));
 		}
+
 	} else if ((addr >= SRAM_BASE_ADDR) &&
 		   (addr <= SRAM_BASE_ADDR + SRAM_BAR_SIZE - sizeof(u64))) {
 		writeq(val, hdev->pcie_bar[SRAM_BAR_ID] +
@@ -4881,7 +4926,7 @@ static void gaudi_mmu_prepare(struct hl_device *hdev, u32 asid)
 	gaudi_mmu_prepare_reg(hdev, mmPSOC_GLOBAL_CONF_TRACE_ARUSER, asid);
 	gaudi_mmu_prepare_reg(hdev, mmPSOC_GLOBAL_CONF_TRACE_AWUSER, asid);
 
-	hdev->asic_funcs->enable_clock_gating(hdev);
+	hdev->asic_funcs->set_clock_gating(hdev);
 
 	mutex_unlock(&gaudi->clk_gate_mutex);
 }
@@ -5262,7 +5307,7 @@ static void gaudi_print_ecc_info_generic(struct hl_device *hdev,
 	}
 
 	if (disable_clock_gating) {
-		hdev->asic_funcs->enable_clock_gating(hdev);
+		hdev->asic_funcs->set_clock_gating(hdev);
 		mutex_unlock(&gaudi->clk_gate_mutex);
 	}
 }
@@ -5749,7 +5794,7 @@ static bool gaudi_tpc_read_interrupts(struct hl_device *hdev, u8 tpc_id,
 	/* Clear interrupts */
 	WREG32(mmTPC0_CFG_TPC_INTR_CAUSE + tpc_offset, 0);
 
-	hdev->asic_funcs->enable_clock_gating(hdev);
+	hdev->asic_funcs->set_clock_gating(hdev);
 
 	mutex_unlock(&gaudi->clk_gate_mutex);
 
@@ -6265,7 +6310,7 @@ static bool gaudi_is_device_idle(struct hl_device *hdev, u32 *mask,
 	if (s)
 		seq_puts(s, "\n");
 
-	hdev->asic_funcs->enable_clock_gating(hdev);
+	hdev->asic_funcs->set_clock_gating(hdev);
 
 	mutex_unlock(&gaudi->clk_gate_mutex);
 
@@ -6366,7 +6411,7 @@ static int gaudi_run_tpc_kernel(struct hl_device *hdev, u64 tpc_kernel,
 		dev_err(hdev->dev,
 			"Timeout while waiting for TPC%d icache prefetch\n",
 			tpc_id);
-		hdev->asic_funcs->enable_clock_gating(hdev);
+		hdev->asic_funcs->set_clock_gating(hdev);
 		mutex_unlock(&gaudi->clk_gate_mutex);
 		return -EIO;
 	}
@@ -6395,7 +6440,7 @@ static int gaudi_run_tpc_kernel(struct hl_device *hdev, u64 tpc_kernel,
 		1000,
 		kernel_timeout);
 
-	hdev->asic_funcs->enable_clock_gating(hdev);
+	hdev->asic_funcs->set_clock_gating(hdev);
 	mutex_unlock(&gaudi->clk_gate_mutex);
 
 	if (rc) {
@@ -6736,7 +6781,7 @@ static const struct hl_asic_funcs gaudi_funcs = {
 	.mmu_invalidate_cache = gaudi_mmu_invalidate_cache,
 	.mmu_invalidate_cache_range = gaudi_mmu_invalidate_cache_range,
 	.send_heartbeat = gaudi_send_heartbeat,
-	.enable_clock_gating = gaudi_enable_clock_gating,
+	.set_clock_gating = gaudi_set_clock_gating,
 	.disable_clock_gating = gaudi_disable_clock_gating,
 	.debug_coresight = gaudi_debug_coresight,
 	.is_device_idle = gaudi_is_device_idle,
