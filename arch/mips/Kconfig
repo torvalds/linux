@@ -1150,9 +1150,6 @@ config MIPS_MSC
 config SYNC_R4K
 	bool
 
-config MIPS_MACHINE
-	def_bool n
-
 config NO_IOPORT_MAP
 	def_bool n
 
