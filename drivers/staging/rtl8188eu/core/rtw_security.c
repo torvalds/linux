@@ -129,12 +129,12 @@ static __le32 getcrc32(u8 *buf, int len)
 /*
 	Need to consider the fragment  situation
 */
-void rtw_wep_encrypt(struct adapter *padapter, u8 *pxmitframe)
+void rtw_wep_encrypt(struct adapter *padapter, struct xmit_frame *pxmitframe)
 {
 	int	curfragnum, length;
 	u8 *pframe;
 	u8 hw_hdr_offset = 0;
-	struct	pkt_attrib	 *pattrib = &((struct xmit_frame *)pxmitframe)->attrib;
+	struct	pkt_attrib	 *pattrib = &pxmitframe->attrib;
 	struct	security_priv	*psecuritypriv = &padapter->securitypriv;
 	struct	xmit_priv		*pxmitpriv = &padapter->xmitpriv;
 	const int keyindex = psecuritypriv->dot11PrivacyKeyIndex;
@@ -142,16 +142,16 @@ void rtw_wep_encrypt(struct adapter *padapter, u8 *pxmitframe)
 	struct sk_buff *skb;
 	struct lib80211_crypto_ops *crypto_ops;
 
-	if (((struct xmit_frame *)pxmitframe)->buf_addr == NULL)
+	if (pxmitframe->buf_addr == NULL)
 		return;
 
 	if ((pattrib->encrypt != _WEP40_) && (pattrib->encrypt != _WEP104_))
 		return;
 
 	hw_hdr_offset = TXDESC_SIZE +
-		 (((struct xmit_frame *)pxmitframe)->pkt_offset * PACKET_OFFSET_SZ);
+		 (pxmitframe->pkt_offset * PACKET_OFFSET_SZ);
 
-	pframe = ((struct xmit_frame *)pxmitframe)->buf_addr + hw_hdr_offset;
+	pframe = pxmitframe->buf_addr + hw_hdr_offset;
 
 	crypto_ops = lib80211_get_crypto_ops("WEP");
 
@@ -198,13 +198,13 @@ free_crypto_private:
 	crypto_ops->deinit(crypto_private);
 }
 
-int rtw_wep_decrypt(struct adapter  *padapter, u8 *precvframe)
+int rtw_wep_decrypt(struct adapter  *padapter, struct recv_frame *precvframe)
 {
-	struct	rx_pkt_attrib	 *prxattrib = &(((struct recv_frame *)precvframe)->attrib);
+	struct	rx_pkt_attrib	 *prxattrib = &precvframe->attrib;
 
 	if ((prxattrib->encrypt == _WEP40_) || (prxattrib->encrypt == _WEP104_)) {
 		struct	security_priv	*psecuritypriv = &padapter->securitypriv;
-		struct sk_buff *skb = ((struct recv_frame *)precvframe)->pkt;
+		struct sk_buff *skb = precvframe->pkt;
 		u8 *pframe = skb->data;
 		void *crypto_private = NULL;
 		int status = _SUCCESS;
@@ -572,7 +572,7 @@ static void phase2(u8 *rc4key, const u8 *tk, const u16 *p1k, u16 iv16)
 }
 
 /* The hlen isn't include the IV */
-u32	rtw_tkip_encrypt(struct adapter *padapter, u8 *pxmitframe)
+u32	rtw_tkip_encrypt(struct adapter *padapter, struct xmit_frame *pxmitframe)
 {																	/*  exclude ICV */
 	u16	pnl;
 	u32	pnh;
@@ -586,17 +586,17 @@ u32	rtw_tkip_encrypt(struct adapter *padapter, u8 *pxmitframe)
 	u8	*pframe, *payload, *iv, *prwskey;
 	union pn48 dot11txpn;
 	struct	sta_info		*stainfo;
-	struct	pkt_attrib	 *pattrib = &((struct xmit_frame *)pxmitframe)->attrib;
+	struct	pkt_attrib	 *pattrib = &pxmitframe->attrib;
 	struct	security_priv	*psecuritypriv = &padapter->securitypriv;
 	struct	xmit_priv		*pxmitpriv = &padapter->xmitpriv;
 	u32	res = _SUCCESS;
 
-	if (((struct xmit_frame *)pxmitframe)->buf_addr == NULL)
+	if (pxmitframe->buf_addr == NULL)
 		return _FAIL;
 
 	hw_hdr_offset = TXDESC_SIZE +
-		 (((struct xmit_frame *)pxmitframe)->pkt_offset * PACKET_OFFSET_SZ);
-	pframe = ((struct xmit_frame *)pxmitframe)->buf_addr + hw_hdr_offset;
+		 (pxmitframe->pkt_offset * PACKET_OFFSET_SZ);
+	pframe = pxmitframe->buf_addr + hw_hdr_offset;
 	/* 4 start to encrypt each fragment */
 	if (pattrib->encrypt == _TKIP_) {
 		if (pattrib->psta)
@@ -653,7 +653,7 @@ u32	rtw_tkip_encrypt(struct adapter *padapter, u8 *pxmitframe)
 }
 
 /* The hlen isn't include the IV */
-u32 rtw_tkip_decrypt(struct adapter *padapter, u8 *precvframe)
+u32 rtw_tkip_decrypt(struct adapter *padapter, struct recv_frame *precvframe)
 {																	/*  exclude ICV */
 	u16 pnl;
 	u32 pnh;
@@ -666,12 +666,12 @@ u32 rtw_tkip_decrypt(struct adapter *padapter, u8 *precvframe)
 	u8	*pframe, *payload, *iv, *prwskey;
 	union pn48 dot11txpn;
 	struct	sta_info		*stainfo;
-	struct	rx_pkt_attrib	 *prxattrib = &((struct recv_frame *)precvframe)->attrib;
+	struct	rx_pkt_attrib	 *prxattrib = &precvframe->attrib;
 	struct	security_priv	*psecuritypriv = &padapter->securitypriv;
 	u32		res = _SUCCESS;
 
 
-	pframe = (unsigned char *)((struct recv_frame *)precvframe)->pkt->data;
+	pframe = (unsigned char *)precvframe->pkt->data;
 
 	/* 4 start to decrypt recvframe */
 	if (prxattrib->encrypt == _TKIP_) {
@@ -691,7 +691,7 @@ u32 rtw_tkip_decrypt(struct adapter *padapter, u8 *precvframe)
 
 			iv = pframe + prxattrib->hdrlen;
 			payload = pframe + prxattrib->iv_len + prxattrib->hdrlen;
-			length = ((struct recv_frame *)precvframe)->pkt->len - prxattrib->hdrlen - prxattrib->iv_len;
+			length = precvframe->pkt->len - prxattrib->hdrlen - prxattrib->iv_len;
 
 			GET_TKIP_PN(iv, dot11txpn);
 
@@ -1214,7 +1214,7 @@ static int aes_cipher(u8 *key, uint hdrlen, u8 *pframe, uint plen)
 	return _SUCCESS;
 }
 
-u32	rtw_aes_encrypt(struct adapter *padapter, u8 *pxmitframe)
+u32	rtw_aes_encrypt(struct adapter *padapter, struct xmit_frame *pxmitframe)
 {	/*  exclude ICV */
 
 	/*static*/
@@ -1225,20 +1225,20 @@ u32	rtw_aes_encrypt(struct adapter *padapter, u8 *pxmitframe)
 	u8	*pframe, *prwskey;	/*  *payload,*iv */
 	u8   hw_hdr_offset = 0;
 	struct	sta_info		*stainfo;
-	struct	pkt_attrib	 *pattrib = &((struct xmit_frame *)pxmitframe)->attrib;
+	struct	pkt_attrib	 *pattrib = &pxmitframe->attrib;
 	struct	security_priv	*psecuritypriv = &padapter->securitypriv;
 	struct	xmit_priv		*pxmitpriv = &padapter->xmitpriv;
 
 /*	uint	offset = 0; */
 	u32 res = _SUCCESS;
 
-	if (((struct xmit_frame *)pxmitframe)->buf_addr == NULL)
+	if (pxmitframe->buf_addr == NULL)
 		return _FAIL;
 
 	hw_hdr_offset = TXDESC_SIZE +
-		 (((struct xmit_frame *)pxmitframe)->pkt_offset * PACKET_OFFSET_SZ);
+		 (pxmitframe->pkt_offset * PACKET_OFFSET_SZ);
 
-	pframe = ((struct xmit_frame *)pxmitframe)->buf_addr + hw_hdr_offset;
+	pframe = pxmitframe->buf_addr + hw_hdr_offset;
 
 	/* 4 start to encrypt each fragment */
 	if (pattrib->encrypt == _AES_) {
@@ -1276,9 +1276,9 @@ u32	rtw_aes_encrypt(struct adapter *padapter, u8 *pxmitframe)
 	return res;
 }
 
-u32 rtw_aes_decrypt(struct adapter *padapter, u8 *precvframe)
+u32 rtw_aes_decrypt(struct adapter *padapter, struct recv_frame *precvframe)
 {
-	struct rx_pkt_attrib *prxattrib = &((struct recv_frame *)precvframe)->attrib;
+	struct rx_pkt_attrib *prxattrib = &precvframe->attrib;
 	u32 res = _SUCCESS;
 
 	/* 4 start to encrypt each fragment */
@@ -1288,7 +1288,7 @@ u32 rtw_aes_decrypt(struct adapter *padapter, u8 *precvframe)
 		if (stainfo != NULL) {
 			int key_idx;
 			const int key_length = 16, iv_len = 8, icv_len = 8;
-			struct sk_buff *skb = ((struct recv_frame *)precvframe)->pkt;
+			struct sk_buff *skb = precvframe->pkt;
 			void *crypto_private = NULL;
 			u8 *key, *pframe = skb->data;
 			struct lib80211_crypto_ops *crypto_ops = lib80211_get_crypto_ops("CCMP");
