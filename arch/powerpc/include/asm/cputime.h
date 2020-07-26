@@ -67,7 +67,7 @@ static inline void arch_vtime_task_switch(struct task_struct *prev)
 
 /*
  * account_cpu_user_entry/exit runs "unreconciled", so can't trace,
- * can't use use get_paca()
+ * can't use get_paca()
  */
 static notrace inline void account_cpu_user_entry(void)
 {
